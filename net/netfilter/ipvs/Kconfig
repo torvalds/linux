@@ -349,4 +349,13 @@ config	IP_VS_PE_SIP
 	help
 	  Allow persistence based on the SIP Call-ID
 
+config GCOV_PROFILE_IPVS
+	bool "Enable GCOV profiling for IPVS"
+	depends on GCOV_KERNEL
+	help
+	  Enable GCOV profiling for IPVS to check which functions/lines
+	  are executed.
+
+	  If unsure, say N.
+
 endif # IP_VS

@@ -127,7 +127,7 @@ static int rcar_du_plane_hwalloc(struct rcar_du_plane *plane,
 }
 
 int rcar_du_atomic_check_planes(struct drm_device *dev,
-				struct drm_atomic_state *state)
+				struct drm_atomic_commit *state)
 {
 	struct rcar_du_device *rcdu = to_rcar_du_device(dev);
 	unsigned int group_freed_planes[RCAR_DU_MAX_GROUPS] = { 0, };
@@ -635,7 +635,7 @@ int __rcar_du_plane_atomic_check(struct drm_plane *plane,
 }
 
 static int rcar_du_plane_atomic_check(struct drm_plane *plane,
-				      struct drm_atomic_state *state)
+				      struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
 										 plane);
@@ -646,7 +646,7 @@ static int rcar_du_plane_atomic_check(struct drm_plane *plane,
 }
 
 static void rcar_du_plane_atomic_update(struct drm_plane *plane,
-					struct drm_atomic_state *state)
+					struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state, plane);
 	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state, plane);

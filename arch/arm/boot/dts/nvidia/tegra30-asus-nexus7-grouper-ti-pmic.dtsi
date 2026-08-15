@@ -92,13 +92,13 @@
 					regulator-always-on;
 				};
 
-				ldo5 {
+				vddio_cam: ldo5 {
 					regulator-name = "vddio_sdmmc,avdd_vdac";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
 				};
 
-				ldo6 {
+				avdd_dsi_csi: ldo6 {
 					regulator-name = "avdd_dsi_csi,pwrdet_mipi";
 					regulator-min-microvolt = <1200000>;
 					regulator-max-microvolt = <1200000>;

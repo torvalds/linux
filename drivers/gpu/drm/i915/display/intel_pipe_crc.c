@@ -284,7 +284,7 @@ intel_crtc_crc_setup_workarounds(struct intel_crtc *crtc, bool enable)
 {
 	struct intel_display *display = to_intel_display(crtc);
 	struct intel_crtc_state *pipe_config;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_modeset_acquire_ctx ctx;
 	int ret;
 
@@ -293,7 +293,7 @@ intel_crtc_crc_setup_workarounds(struct intel_crtc *crtc, bool enable)
 
 	drm_modeset_acquire_init(&ctx, 0);
 
-	state = drm_atomic_state_alloc(display->drm);
+	state = drm_atomic_commit_alloc(display->drm);
 	if (!state) {
 		ret = -ENOMEM;
 		goto unlock;
@@ -321,12 +321,12 @@ retry:
 
 put_state:
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		drm_modeset_backoff(&ctx);
 		goto retry;
 	}
 
-	drm_atomic_state_put(state);
+	drm_atomic_commit_put(state);
 unlock:
 	drm_WARN(display->drm, ret,
 		 "Toggling workaround to %i returns %i\n", enable, ret);

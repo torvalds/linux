@@ -562,9 +562,23 @@ static void destroy_gre_conntrack(struct nf_conn *ct)
 {
 #ifdef CONFIG_NF_CT_PROTO_GRE
 	struct nf_conn *master = ct->master;
+	struct nf_conn_help *help;
 
-	if (master)
-		nf_ct_gre_keymap_destroy(master);
+	if (!master)
+		return;
+
+	help = nfct_help(master);
+	if (help) {
+		struct nf_conntrack_helper *helper;
+
+		rcu_read_lock();
+		helper = rcu_dereference(help->helper);
+		/* Only pptp helper has a destroy callback. */
+		if (helper && helper->destroy)
+			nf_ct_gre_keymap_destroy(master);
+
+		rcu_read_unlock();
+	}
 #endif
 }
 
@@ -840,33 +854,6 @@ static void __nf_conntrack_hash_insert(struct nf_conn *ct,
 			   &nf_conntrack_hash[reply_hash]);
 }
 
-static bool nf_ct_ext_valid_pre(const struct nf_ct_ext *ext)
-{
-	/* if ext->gen_id is not equal to nf_conntrack_ext_genid, some extensions
-	 * may contain stale pointers to e.g. helper that has been removed.
-	 *
-	 * The helper can't clear this because the nf_conn object isn't in
-	 * any hash and synchronize_rcu() isn't enough because associated skb
-	 * might sit in a queue.
-	 */
-	return !ext || ext->gen_id == atomic_read(&nf_conntrack_ext_genid);
-}
-
-static bool nf_ct_ext_valid_post(struct nf_ct_ext *ext)
-{
-	if (!ext)
-		return true;
-
-	if (ext->gen_id != atomic_read(&nf_conntrack_ext_genid))
-		return false;
-
-	/* inserted into conntrack table, nf_ct_iterate_cleanup()
-	 * will find it.  Disable nf_ct_ext_find() id check.
-	 */
-	WRITE_ONCE(ext->gen_id, 0);
-	return true;
-}
-
 int
 nf_conntrack_hash_check_insert(struct nf_conn *ct)
 {
@@ -881,9 +868,6 @@ nf_conntrack_hash_check_insert(struct nf_conn *ct)
 	int err = -EEXIST;
 
 	zone = nf_ct_zone(ct);
-
-	if (!nf_ct_ext_valid_pre(ct->ext))
-		return -EAGAIN;
 
 	local_bh_disable();
 	do {
@@ -916,18 +900,6 @@ nf_conntrack_hash_check_insert(struct nf_conn *ct)
 			goto out;
 		if (chainlen++ > max_chainlen)
 			goto chaintoolong;
-	}
-
-	/* If genid has changed, we can't insert anymore because ct
-	 * extensions could have stale pointers and nf_ct_iterate_destroy
-	 * might have completed its table scan already.
-	 *
-	 * Increment of the ext genid right after this check is fine:
-	 * nf_ct_iterate_destroy blocks until locks are released.
-	 */
-	if (!nf_ct_ext_valid_post(ct->ext)) {
-		err = -EAGAIN;
-		goto out;
 	}
 
 	smp_wmb();
@@ -1257,11 +1229,6 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 		return NF_DROP;
 	}
 
-	if (!nf_ct_ext_valid_pre(ct->ext)) {
-		NF_CT_STAT_INC(net, insert_failed);
-		goto dying;
-	}
-
 	/* We have to check the DYING flag after unlink to prevent
 	 * a race against nf_ct_get_next_corpse() possibly called from
 	 * user context, else we insert an already 'dead' hash, blocking
@@ -1323,16 +1290,6 @@ chaintoolong:
 
 	nf_conntrack_double_unlock(hash, reply_hash);
 	local_bh_enable();
-
-	/* ext area is still valid (rcu read lock is held,
-	 * but will go out of scope soon, we need to remove
-	 * this conntrack again.
-	 */
-	if (!nf_ct_ext_valid_post(ct->ext)) {
-		nf_ct_kill(ct);
-		NF_CT_STAT_INC_ATOMIC(net, drop);
-		return NF_DROP;
-	}
 
 	help = nfct_help(ct);
 	if (help && help->helper)
@@ -1514,6 +1471,31 @@ static bool gc_worker_can_early_drop(const struct nf_conn *ct)
 	return false;
 }
 
+static void nf_ct_help_gc(struct nf_conn *ct)
+{
+	struct nf_conn_help *help;
+
+	if (!refcount_inc_not_zero(&ct->ct_general.use))
+		return;
+
+	/* load ->status after refcount increase */
+	smp_acquire__after_ctrl_dep();
+
+	if (!nf_ct_is_confirmed(ct) || nf_ct_is_dying(ct)) {
+		nf_ct_put(ct);
+		return;
+	}
+
+	/* re-check helper due to SLAB_TYPESAFE_BY_RCU */
+	if (test_bit(IPS_HELPER_BIT, &ct->status)) {
+		help = nfct_help(ct);
+		if (help)
+			nf_ct_expectation_gc(help);
+	}
+
+	nf_ct_put(ct);
+}
+
 static void gc_worker(struct work_struct *work)
 {
 	unsigned int i, hashsz, nf_conntrack_max95 = 0;
@@ -1586,7 +1568,13 @@ static void gc_worker(struct work_struct *work)
 			expires = (expires - (long)next_run) / ++count;
 			next_run += expires;
 
-			if (nf_conntrack_max95 == 0 || gc_worker_skip_ct(tmp))
+			if (gc_worker_skip_ct(tmp))
+				continue;
+
+			if (test_bit(IPS_HELPER_BIT, &tmp->status))
+				nf_ct_help_gc(tmp);
+
+			if (nf_conntrack_max95 == 0)
 				continue;
 
 			net = nf_ct_net(tmp);
@@ -1737,15 +1725,18 @@ void nf_conntrack_free(struct nf_conn *ct)
 	 */
 	WARN_ON(refcount_read(&ct->ct_general.use) != 0);
 
+	rcu_read_lock();
 	if (ct->status & IPS_SRC_NAT_DONE) {
 		const struct nf_nat_hook *nat_hook;
 
-		rcu_read_lock();
 		nat_hook = rcu_dereference(nf_nat_hook);
 		if (nat_hook)
 			nat_hook->remove_nat_bysrc(ct);
-		rcu_read_unlock();
 	}
+
+	nf_ct_help_put(ct);
+	nf_ct_timeout_put(ct);
+	rcu_read_unlock();
 
 	kfree(ct->ext);
 	kmem_cache_free(nf_conntrack_cachep, ct);
@@ -1827,7 +1818,7 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 			assign_helper = rcu_dereference(exp->assign_helper);
 			if (assign_helper) {
 				help = nf_ct_helper_ext_add(ct, GFP_ATOMIC);
-				if (help)
+				if (help && refcount_inc_not_zero(&assign_helper->ct_refcnt))
 					rcu_assign_pointer(help->helper, assign_helper);
 			}
 
@@ -2213,6 +2204,7 @@ static int nf_confirm_cthelper(struct sk_buff *skb, struct nf_conn *ct,
 {
 	const struct nf_conntrack_helper *helper;
 	const struct nf_conn_help *help;
+	unsigned int helper_flags;
 	int protoff;
 
 	help = nfct_help(ct);
@@ -2223,7 +2215,8 @@ static int nf_confirm_cthelper(struct sk_buff *skb, struct nf_conn *ct,
 	if (!helper)
 		return NF_ACCEPT;
 
-	if (!(helper->flags & NF_CT_HELPER_F_USERSPACE))
+	helper_flags = READ_ONCE(helper->flags);
+	if (!(helper_flags & NF_CT_HELPER_F_USERSPACE))
 		return NF_ACCEPT;
 
 	switch (nf_ct_l3num(ct)) {
@@ -2436,13 +2429,11 @@ nf_ct_iterate_destroy(int (*iter)(struct nf_conn *i, void *data), void *data)
 	 */
 	synchronize_net();
 
-	nf_ct_ext_bump_genid();
 	iter_data.data = data;
 	nf_ct_iterate_cleanup(iter, &iter_data);
 
 	/* Another cpu might be in a rcu read section with
-	 * rcu protected pointer cleared in iter callback
-	 * or hidden via nf_ct_ext_bump_genid() above.
+	 * rcu protected pointer cleared in iter callback.
 	 *
 	 * Wait until those are done.
 	 */

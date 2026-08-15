@@ -101,6 +101,7 @@ config MACH_WLF_CRAGG_6410
 	depends on ATAGS
 	depends on I2C=y
 	select CPU_S3C6410
+	select GPIOLIB_LEGACY
 	select LEDS_GPIO_REGISTER
 	select S3C64XX_DEV_SPI0
 	select S3C64XX_SETUP_FB_24BPP

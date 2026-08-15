@@ -30,6 +30,20 @@ properties:
   clock-names:
     const: mclk
 
+  vdda-supply:
+    description: Analog power supply
+
+  vddb-supply:
+    description: Digital buffer (input/output) supply
+
+  vddc-supply:
+    description: Digital core supply
+
+  vddspk-supply:
+    description:
+      Speaker supply (power supply pin for RSPKOUT, LSPKOUT, AUXOUT2 and
+      AUXTOUT1 output drivers)
+
   nuvoton,spk-btl:
     description:
       If set, configure the two loudspeaker outputs as a Bridge Tied Load output
@@ -54,5 +68,9 @@ examples:
         codec@1a {
             compatible = "nuvoton,nau8822";
             reg = <0x1a>;
+            vdda-supply = <&vcca_3v3_s0>;
+            vddb-supply = <&vcca_3v3_s0>;
+            vddc-supply = <&vcca_3v3_s0>;
+            vddspk-supply = <&vcca_3v3_s0>;
         };
     };

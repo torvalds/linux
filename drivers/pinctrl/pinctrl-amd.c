@@ -26,7 +26,6 @@
 #include <linux/interrupt.h>
 #include <linux/bitops.h>
 #include <linux/pinctrl/pinconf.h>
-#include <linux/dmi.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/string_choices.h>
@@ -39,39 +38,6 @@
 #ifdef CONFIG_SUSPEND
 static struct amd_gpio *pinctrl_dev;
 #endif
-
-static const struct dmi_system_id amd_gpio_quirk_yoga7_14agp11[] = {
-	{
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "83TD"),
-			DMI_MATCH(DMI_BOARD_NAME, "LNVNB161216"),
-		},
-	},
-	{ }
-};
-
-static void amd_gpio_apply_quirks(struct amd_gpio *gpio_dev)
-{
-	const unsigned int pin = 157; /* WACF2200 GpioInt per ACPI _CRS */
-	unsigned long flags;
-	u32 reg;
-
-	if (!dmi_check_system(amd_gpio_quirk_yoga7_14agp11))
-		return;
-	if (pin >= gpio_dev->gc.ngpio)
-		return;
-
-	raw_spin_lock_irqsave(&gpio_dev->lock, flags);
-	reg = readl(gpio_dev->base + pin * 4);
-	reg |= BIT(INTERRUPT_ENABLE_OFF) | BIT(INTERRUPT_MASK_OFF);
-	writel(reg, gpio_dev->base + pin * 4);
-	raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
-
-	dev_info(&gpio_dev->pdev->dev,
-		 "Enabled IRQ for GPIO %u (Yoga 7 14AGP11 touchscreen)\n",
-		 pin);
-}
 
 static int amd_gpio_get_direction(struct gpio_chip *gc, unsigned offset)
 {
@@ -1253,7 +1219,6 @@ static int amd_gpio_probe(struct platform_device *pdev)
 
 	/* Disable and mask interrupts */
 	amd_gpio_irq_init(gpio_dev);
-	amd_gpio_apply_quirks(gpio_dev);
 
 	girq = &gpio_dev->gc.irq;
 	gpio_irq_chip_set_chip(girq, &amd_gpio_irqchip);

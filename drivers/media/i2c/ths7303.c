@@ -369,9 +369,9 @@ static void ths7303_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ths7303_id[] = {
-	{ "ths7303" },
-	{ "ths7353" },
-	{}
+	{ .name = "ths7303" },
+	{ .name = "ths7353" },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, ths7303_id);

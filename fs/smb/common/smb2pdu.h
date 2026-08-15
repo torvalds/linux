@@ -218,10 +218,9 @@ struct smb2_transform_hdr {
  * These are simplified versions from the spec, as we don't need a fully fledged
  * form of both unchained and chained structs.
  *
- * Moreover, even in chained compressed payloads, the initial compression header
- * has the form of the unchained one -- i.e. it never has the
- * OriginalPayloadSize field and ::Offset field always represent an offset
- * (instead of a length, as it is in the chained header).
+ * For chained payloads, only the first 8 bytes belong to the transform header.
+ * CompressionAlgorithm, Flags and Offset below overlay the first chained
+ * payload header, where Offset represents Length.
  *
  * See MS-SMB2 2.2.42 for more details.
  */
@@ -524,9 +523,7 @@ struct smb2_compression_capabilities_context {
 	__le16	CompressionAlgorithmCount;
 	__le16	Padding;
 	__le32	Flags;
-	__le16	CompressionAlgorithms[3];
-	__u16	Pad;  /* Some servers require pad to DataLen multiple of 8 */
-	/* Check if pad needed */
+	__le16	CompressionAlgorithms[4];
 } __packed;
 
 /*
@@ -1245,6 +1242,30 @@ struct create_mxac_req {
 	__u8   Name[8];
 	__le64 Timestamp;
 } __packed;
+
+/*
+ * AAPL flags. See Samba libcli/smb/smb2_create_ctx.h
+ */
+
+/* "AAPL" Context Command Codes */
+#define SMB2_CRTCTX_AAPL_SERVER_QUERY 1
+#define SMB2_CRTCTX_AAPL_RESOLVE_ID   2
+
+/* "AAPL" Server Query request/response bitmap */
+#define SMB2_CRTCTX_AAPL_SERVER_CAPS 1
+#define SMB2_CRTCTX_AAPL_VOLUME_CAPS 2
+#define SMB2_CRTCTX_AAPL_MODEL_INFO  4
+
+/* "AAPL" Client/Server Capabilities bitmap */
+#define SMB2_CRTCTX_AAPL_SUPPORTS_READ_DIR_ATTR 1
+#define SMB2_CRTCTX_AAPL_SUPPORTS_OSX_COPYFILE  2
+#define SMB2_CRTCTX_AAPL_UNIX_BASED             4
+#define SMB2_CRTCTX_AAPL_SUPPORTS_NFS_ACE       8
+
+/* "AAPL" Volume Capabilities bitmap */
+#define SMB2_CRTCTX_AAPL_SUPPORT_RESOLVE_ID 1
+#define SMB2_CRTCTX_AAPL_CASE_SENSITIVE     2
+#define SMB2_CRTCTX_AAPL_FULL_SYNC          4
 
 /*
  * Flags

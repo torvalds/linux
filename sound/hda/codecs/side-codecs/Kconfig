@@ -28,6 +28,7 @@ config SND_HDA_SCODEC_CS35L41_I2C
 	depends on ACPI
 	depends on EFI
 	depends on SND_SOC
+	imply SERIAL_MULTI_INSTANTIATE
 	select SND_SOC_CS35L41_LIB
 	select SND_HDA_SCODEC_CS35L41
 	select SND_SOC_CS_AMP_LIB
@@ -44,6 +45,7 @@ config SND_HDA_SCODEC_CS35L41_SPI
 	depends on ACPI
 	depends on EFI
 	depends on SND_SOC
+	imply SERIAL_MULTI_INSTANTIATE
 	select SND_SOC_CS35L41_LIB
 	select SND_HDA_SCODEC_CS35L41
 	select SND_SOC_CS_AMP_LIB

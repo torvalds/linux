@@ -13,10 +13,12 @@
 #include "xe_device_types.h"
 #include "xe_exec_queue.h"
 #include "xe_force_wake.h"
+#include "xe_guc_exec_queue_types.h"
 #include "xe_guc_submit.h"
 #include "xe_gsc_proxy.h"
 #include "xe_gt_types.h"
 #include "xe_huc.h"
+#include "xe_hw_engine.h"
 #include "xe_mmio.h"
 #include "xe_pm.h"
 #include "xe_pxp_submit.h"
@@ -740,6 +742,10 @@ static void pxp_invalidate_queues(struct xe_pxp *pxp)
 	spin_unlock_irq(&pxp->queues.lock);
 
 	list_for_each_entry_safe(q, tmp, &to_clean, pxp.link) {
+		drm_dbg(&pxp->xe->drm,
+			"Killing queue due to PXP termination: eclass=%s, guc_id=%d\n",
+			xe_hw_engine_class_to_str(q->class), q->guc->id);
+
 		xe_exec_queue_kill(q);
 
 		/*

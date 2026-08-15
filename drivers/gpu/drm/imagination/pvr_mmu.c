@@ -133,8 +133,8 @@ int pvr_mmu_flush_exec(struct pvr_device *pvr_dev, bool wait)
 	if (!drm_dev_enter(from_pvr_device(pvr_dev), &idx))
 		return -EIO;
 
-	/* Can't flush MMU if the firmware hasn't booted yet. */
-	if (!pvr_dev->fw_dev.booted)
+	/* Can't flush MMU if the firmware hasn't been initialised yet. */
+	if (!READ_ONCE(pvr_dev->fw_dev.initialised))
 		goto err_drm_dev_exit;
 
 	cmd_mmu_cache_data->cache_flags =

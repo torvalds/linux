@@ -34,11 +34,11 @@ void br_init_port(struct net_bridge_port *p)
 {
 	int err;
 
-	p->port_id = br_make_port_id(p->priority, p->port_no);
+	WRITE_ONCE(p->port_id, br_make_port_id(p->priority, p->port_no));
 	br_become_designated_port(p);
 	br_set_state(p, BR_STATE_BLOCKING);
 	p->topology_change_ack = 0;
-	p->config_pending = 0;
+	WRITE_ONCE(p->config_pending, 0);
 
 	err = __set_ageing_time(p->dev, p->br->ageing_time);
 	if (err)
@@ -105,7 +105,7 @@ void br_stp_disable_port(struct net_bridge_port *p)
 	br_become_designated_port(p);
 	br_set_state(p, BR_STATE_DISABLED);
 	p->topology_change_ack = 0;
-	p->config_pending = 0;
+	WRITE_ONCE(p->config_pending, 0);
 
 	br_ifinfo_notify(RTM_NEWLINK, NULL, p);
 
@@ -320,10 +320,10 @@ int br_stp_set_port_priority(struct net_bridge_port *p, unsigned long newprio)
 
 	new_port_id = br_make_port_id(newprio, p->port_no);
 	if (br_is_designated_port(p))
-		p->designated_port = new_port_id;
+		WRITE_ONCE(p->designated_port, new_port_id);
 
-	p->port_id = new_port_id;
-	p->priority = newprio;
+	WRITE_ONCE(p->port_id, new_port_id);
+	WRITE_ONCE(p->priority, newprio);
 	if (!memcmp(&p->br->bridge_id, &p->designated_bridge, 8) &&
 	    p->port_id < p->designated_port) {
 		br_become_designated_port(p);
@@ -340,8 +340,8 @@ int br_stp_set_path_cost(struct net_bridge_port *p, unsigned long path_cost)
 	    path_cost > BR_MAX_PATH_COST)
 		return -ERANGE;
 
-	p->flags |= BR_ADMIN_COST;
-	p->path_cost = path_cost;
+	set_bit(BR_ADMIN_COST_BIT, &p->flags);
+	WRITE_ONCE(p->path_cost, path_cost);
 	br_configuration_update(p->br);
 	br_port_state_selection(p->br);
 	return 0;

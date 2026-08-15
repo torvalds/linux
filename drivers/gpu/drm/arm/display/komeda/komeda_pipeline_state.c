@@ -22,7 +22,7 @@ static inline bool is_switching_user(void *old, void *new)
 
 static struct komeda_pipeline_state *
 komeda_pipeline_get_state(struct komeda_pipeline *pipe,
-			  struct drm_atomic_state *state)
+			  struct drm_atomic_commit *state)
 {
 	struct drm_private_state *priv_st;
 
@@ -35,7 +35,7 @@ komeda_pipeline_get_state(struct komeda_pipeline *pipe,
 
 struct komeda_pipeline_state *
 komeda_pipeline_get_old_state(struct komeda_pipeline *pipe,
-			      struct drm_atomic_state *state)
+			      struct drm_atomic_commit *state)
 {
 	struct drm_private_state *priv_st;
 
@@ -47,7 +47,7 @@ komeda_pipeline_get_old_state(struct komeda_pipeline *pipe,
 
 static struct komeda_pipeline_state *
 komeda_pipeline_get_new_state(struct komeda_pipeline *pipe,
-			      struct drm_atomic_state *state)
+			      struct drm_atomic_commit *state)
 {
 	struct drm_private_state *priv_st;
 
@@ -60,7 +60,7 @@ komeda_pipeline_get_new_state(struct komeda_pipeline *pipe,
 /* Assign pipeline for crtc */
 static struct komeda_pipeline_state *
 komeda_pipeline_get_state_and_set_crtc(struct komeda_pipeline *pipe,
-				       struct drm_atomic_state *state,
+				       struct drm_atomic_commit *state,
 				       struct drm_crtc *crtc)
 {
 	struct komeda_pipeline_state *st;
@@ -97,7 +97,7 @@ komeda_pipeline_get_state_and_set_crtc(struct komeda_pipeline *pipe,
 
 static struct komeda_component_state *
 komeda_component_get_state(struct komeda_component *c,
-			   struct drm_atomic_state *state)
+			   struct drm_atomic_commit *state)
 {
 	struct drm_private_state *priv_st;
 
@@ -112,7 +112,7 @@ komeda_component_get_state(struct komeda_component *c,
 
 static struct komeda_component_state *
 komeda_component_get_old_state(struct komeda_component *c,
-			       struct drm_atomic_state *state)
+			       struct drm_atomic_commit *state)
 {
 	struct drm_private_state *priv_st;
 
@@ -149,7 +149,7 @@ komeda_component_get_old_state(struct komeda_component *c,
  */
 static struct komeda_component_state *
 komeda_component_get_state_and_set_user(struct komeda_component *c,
-					struct drm_atomic_state *state,
+					struct drm_atomic_commit *state,
 					void *user,
 					struct drm_crtc *crtc)
 {
@@ -253,7 +253,7 @@ komeda_component_validate_private(struct komeda_component *c,
 /* Get current available scaler from the component->supported_outputs */
 static struct komeda_scaler *
 komeda_component_get_avail_scaler(struct komeda_component *c,
-				  struct drm_atomic_state *state)
+				  struct drm_atomic_commit *state)
 {
 	struct komeda_pipeline_state *pipe_st;
 	u32 avail_scalers;
@@ -505,7 +505,7 @@ komeda_scaler_validate(void *user,
 		       struct komeda_crtc_state *kcrtc_st,
 		       struct komeda_data_flow_cfg *dflow)
 {
-	struct drm_atomic_state *drm_st = kcrtc_st->base.state;
+	struct drm_atomic_commit *drm_st = kcrtc_st->base.state;
 	struct komeda_component_state *c_st;
 	struct komeda_scaler_state *st;
 	struct komeda_scaler *scaler;
@@ -669,7 +669,7 @@ komeda_compiz_set_input(struct komeda_compiz *compiz,
 			struct komeda_crtc_state *kcrtc_st,
 			struct komeda_data_flow_cfg *dflow)
 {
-	struct drm_atomic_state *drm_st = kcrtc_st->base.state;
+	struct drm_atomic_commit *drm_st = kcrtc_st->base.state;
 	struct komeda_component_state *c_st, *old_st;
 	struct komeda_compiz_input_cfg *cin;
 	u16 compiz_w, compiz_h;
@@ -1227,7 +1227,7 @@ static int
 komeda_pipeline_unbound_components(struct komeda_pipeline *pipe,
 				   struct komeda_pipeline_state *new)
 {
-	struct drm_atomic_state *drm_st = new->obj.state;
+	struct drm_atomic_commit *drm_st = new->obj.state;
 	struct komeda_pipeline_state *old = priv_to_pipe_st(pipe->obj.state);
 	struct komeda_component_state *c_st;
 	struct komeda_component *c;
@@ -1255,7 +1255,7 @@ komeda_pipeline_unbound_components(struct komeda_pipeline *pipe,
 int komeda_release_unclaimed_resources(struct komeda_pipeline *pipe,
 				       struct komeda_crtc_state *kcrtc_st)
 {
-	struct drm_atomic_state *drm_st = kcrtc_st->base.state;
+	struct drm_atomic_commit *drm_st = kcrtc_st->base.state;
 	struct komeda_pipeline_state *st;
 
 	/* ignore the pipeline which is not affected */
@@ -1285,7 +1285,7 @@ int komeda_release_unclaimed_resources(struct komeda_pipeline *pipe,
  * false: disable is complete.
  */
 bool komeda_pipeline_disable(struct komeda_pipeline *pipe,
-			     struct drm_atomic_state *old_state)
+			     struct drm_atomic_commit *old_state)
 {
 	struct komeda_pipeline_state *old;
 	struct komeda_component *c;
@@ -1330,7 +1330,7 @@ bool komeda_pipeline_disable(struct komeda_pipeline *pipe,
 }
 
 void komeda_pipeline_update(struct komeda_pipeline *pipe,
-			    struct drm_atomic_state *old_state)
+			    struct drm_atomic_commit *old_state)
 {
 	struct komeda_pipeline_state *new = priv_to_pipe_st(pipe->obj.state);
 	struct komeda_pipeline_state *old;

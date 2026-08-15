@@ -10,6 +10,7 @@
 
 / {
 	compatible = "fsl,mpc8308rdb";
+	model = "fsl,mpc8308rdb";
 	#address-cells = <1>;
 	#size-cells = <1>;
 

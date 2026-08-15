@@ -11,7 +11,6 @@
 
 #include <linux/bitops.h>
 #include <linux/bitfield.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -579,7 +578,7 @@ static const struct dev_pm_ops jc42_dev_pm_ops = {
 #endif /* CONFIG_PM */
 
 static const struct i2c_device_id jc42_id[] = {
-	{ "jc42" },
+	{ .name = "jc42" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, jc42_id);

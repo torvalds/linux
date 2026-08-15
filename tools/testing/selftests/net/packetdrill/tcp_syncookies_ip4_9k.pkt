@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: GPL-2.0
+//
+// Check syncookies.
+//
+// Check we are able to rebuild client sack, wscale, ecn and mss options.
+// IPv4 msstab[4] = { 536, 1300, 1440, 1460 }
+
+--ip_version=ipv4
+
+`./defaults.sh
+sysctl -q net.ipv4.tcp_syncookies=2
+ip link set dev tun0 mtu 9000
+`
+
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 10) = 0
+
+   +0 < S 0:0(0) win 32792 <mss 8960,sackOK,TS val 100 ecr 0,nop,wscale 10>
+   +0 > S. 0:0(0) ack 1 <mss 8960,sackOK,TS val 4000 ecr 100,nop,wscale 8>
+ +.01 < . 1:1(0) ack 1 win 1024 <nop,nop,TS val 110 ecr 4000>
+
+   +0 accept(3, ..., ...) = 4
+
+// Check we properly infer from the final packet the other peer wanted mss >= 1460, wscale 10, sackOK and no ECN.
+// Note that mss is limited to 1460 - 12 because of IPv4 msstab[]
+// This is only possible because TCP TS option was used.
+// Linux uses the SYNACK TS.val 6 low order bits to encode the options.
+
+   +0 %{ assert tcpi_snd_mss == 1460 - 12, tcpi_snd_mss; \
+         assert tcpi_snd_wscale == 10, tcpi_snd_wscale; \
+         assert (tcpi_options & TCPI_OPT_SACK) != 0, tcpi_options; \
+         assert (tcpi_options & TCPI_OPT_TIMESTAMPS) != 0, tcpi_options; \
+         assert (tcpi_options & TCPI_OPT_WSCALE) != 0, tcpi_options; \
+         assert (tcpi_options & TCPI_OPT_ECN) == 0, tcpi_options
+}%

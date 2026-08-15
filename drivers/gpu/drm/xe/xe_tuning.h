@@ -3,8 +3,8 @@
  * Copyright © 2022 Intel Corporation
  */
 
-#ifndef _XE_TUNING_
-#define _XE_TUNING_
+#ifndef _XE_TUNING_H_
+#define _XE_TUNING_H_
 
 struct drm_printer;
 struct xe_gt;

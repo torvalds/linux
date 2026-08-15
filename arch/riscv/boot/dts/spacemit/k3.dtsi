@@ -36,7 +36,7 @@
 					       "zawrs", "zba", "zbb", "zbc", "zbs", "zca",
 					       "zcb", "zcd", "zcmop", "zfa", "zfbfmin",
 					       "zfh", "zfhmin", "zicbom", "zicbop", "zicboz",
-					       "ziccamoa", "ziccif", "zicclsm", "zicntr",
+					       "ziccamoa", "ziccif", "zicclsm", "ziccrse", "zicntr",
 					       "zicond", "zicsr", "zifencei", "zihintntl",
 					       "zihintpause", "zihpm", "zimop", "zkt", "zvbb",
 					       "zvbc", "zvfbfmin", "zvfbfwma", "zvfh",
@@ -77,7 +77,7 @@
 					       "zawrs", "zba", "zbb", "zbc", "zbs", "zca",
 					       "zcb", "zcd", "zcmop", "zfa", "zfbfmin",
 					       "zfh", "zfhmin", "zicbom", "zicbop", "zicboz",
-					       "ziccamoa", "ziccif", "zicclsm", "zicntr",
+					       "ziccamoa", "ziccif", "zicclsm", "ziccrse", "zicntr",
 					       "zicond", "zicsr", "zifencei", "zihintntl",
 					       "zihintpause", "zihpm", "zimop", "zkt", "zvbb",
 					       "zvbc", "zvfbfmin", "zvfbfwma", "zvfh",
@@ -118,7 +118,7 @@
 					       "zawrs", "zba", "zbb", "zbc", "zbs", "zca",
 					       "zcb", "zcd", "zcmop", "zfa", "zfbfmin",
 					       "zfh", "zfhmin", "zicbom", "zicbop", "zicboz",
-					       "ziccamoa", "ziccif", "zicclsm", "zicntr",
+					       "ziccamoa", "ziccif", "zicclsm", "ziccrse", "zicntr",
 					       "zicond", "zicsr", "zifencei", "zihintntl",
 					       "zihintpause", "zihpm", "zimop", "zkt", "zvbb",
 					       "zvbc", "zvfbfmin", "zvfbfwma", "zvfh",
@@ -159,7 +159,7 @@
 					       "zawrs", "zba", "zbb", "zbc", "zbs", "zca",
 					       "zcb", "zcd", "zcmop", "zfa", "zfbfmin",
 					       "zfh", "zfhmin", "zicbom", "zicbop", "zicboz",
-					       "ziccamoa", "ziccif", "zicclsm", "zicntr",
+					       "ziccamoa", "ziccif", "zicclsm", "ziccrse", "zicntr",
 					       "zicond", "zicsr", "zifencei", "zihintntl",
 					       "zihintpause", "zihpm", "zimop", "zkt", "zvbb",
 					       "zvbc", "zvfbfmin", "zvfbfwma", "zvfh",
@@ -200,7 +200,7 @@
 					       "zawrs", "zba", "zbb", "zbc", "zbs", "zca",
 					       "zcb", "zcd", "zcmop", "zfa", "zfbfmin",
 					       "zfh", "zfhmin", "zicbom", "zicbop", "zicboz",
-					       "ziccamoa", "ziccif", "zicclsm", "zicntr",
+					       "ziccamoa", "ziccif", "zicclsm", "ziccrse", "zicntr",
 					       "zicond", "zicsr", "zifencei", "zihintntl",
 					       "zihintpause", "zihpm", "zimop", "zkt", "zvbb",
 					       "zvbc", "zvfbfmin", "zvfbfwma", "zvfh",
@@ -241,7 +241,7 @@
 					       "zawrs", "zba", "zbb", "zbc", "zbs", "zca",
 					       "zcb", "zcd", "zcmop", "zfa", "zfbfmin",
 					       "zfh", "zfhmin", "zicbom", "zicbop", "zicboz",
-					       "ziccamoa", "ziccif", "zicclsm", "zicntr",
+					       "ziccamoa", "ziccif", "zicclsm", "ziccrse", "zicntr",
 					       "zicond", "zicsr", "zifencei", "zihintntl",
 					       "zihintpause", "zihpm", "zimop", "zkt", "zvbb",
 					       "zvbc", "zvfbfmin", "zvfbfwma", "zvfh",
@@ -282,7 +282,7 @@
 					       "zawrs", "zba", "zbb", "zbc", "zbs", "zca",
 					       "zcb", "zcd", "zcmop", "zfa", "zfbfmin",
 					       "zfh", "zfhmin", "zicbom", "zicbop", "zicboz",
-					       "ziccamoa", "ziccif", "zicclsm", "zicntr",
+					       "ziccamoa", "ziccif", "zicclsm", "ziccrse", "zicntr",
 					       "zicond", "zicsr", "zifencei", "zihintntl",
 					       "zihintpause", "zihpm", "zimop", "zkt", "zvbb",
 					       "zvbc", "zvfbfmin", "zvfbfwma", "zvfh",
@@ -323,7 +323,7 @@
 					       "zawrs", "zba", "zbb", "zbc", "zbs", "zca",
 					       "zcb", "zcd", "zcmop", "zfa", "zfbfmin",
 					       "zfh", "zfhmin", "zicbom", "zicbop", "zicboz",
-					       "ziccamoa", "ziccif", "zicclsm", "zicntr",
+					       "ziccamoa", "ziccif", "zicclsm", "ziccrse", "zicntr",
 					       "zicond", "zicsr", "zifencei", "zihintntl",
 					       "zihintpause", "zihpm", "zimop", "zkt", "zvbb",
 					       "zvbc", "zvfbfmin", "zvfbfwma", "zvfh",
@@ -424,7 +424,7 @@
 
 		osc_32k: clock-32k {
 			compatible = "fixed-clock";
-			clock-frequency = <32000>;
+			clock-frequency = <32768>;
 			clock-output-names = "osc_32k";
 			#clock-cells = <0>;
 		};
@@ -437,6 +437,37 @@
 		#size-cells = <2>;
 		dma-noncoherent;
 		ranges;
+
+		usb2_host: usb@c0a00000 {
+			compatible = "spacemit,k3-dwc3";
+			reg = <0x0 0xc0a00000 0x0 0x10000>;
+			clocks = <&syscon_apmu CLK_APMU_USB2_BUS>;
+			clock-names = "usbdrd30";
+			resets = <&syscon_apmu RESET_APMU_USB2_AHB>,
+				 <&syscon_apmu RESET_APMU_USB2_VCC>,
+				 <&syscon_apmu RESET_APMU_USB2_PHY>;
+			reset-names = "ahb", "vcc", "phy";
+			interrupts = <105 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-parent = <&saplic>;
+			phys = <&usb2_phy>;
+			phy-names = "usb2-phy";
+			phy_type = "utmi";
+			snps,dis_enblslpm_quirk;
+			snps,dis_u2_susphy_quirk;
+			snps,dis-del-phy-power-chg-quirk;
+			snps,dis-tx-ipgap-linecheck-quirk;
+			dr_mode = "host";
+			maximum-speed = "high-speed";
+			status = "disabled";
+		};
+
+		usb2_phy: phy@c0a20000 {
+			compatible = "spacemit,k3-usb2-phy";
+			reg = <0x0 0xc0a20000 0x0 0x200>;
+			clocks = <&syscon_apmu CLK_APMU_USB2_BUS>;
+			#phy-cells = <0>;
+			status = "disabled";
+		};
 
 		eth0: ethernet@cac80000 {
 			compatible = "spacemit,k3-dwmac", "snps,dwmac-5.40a";
@@ -553,6 +584,17 @@
 				/* max axi burst len is 256 */
 				snps,blen = <256 128 64 32 16 0 0>;
 			};
+		};
+
+		pdma: dma-controller@d4000000 {
+			compatible = "spacemit,k3-pdma";
+			reg = <0x0 0xd4000000 0x0 0x4000>;
+			clocks = <&syscon_apmu CLK_APMU_DMA>;
+			resets = <&syscon_apmu RESET_APMU_DMA>;
+			interrupts = <72 IRQ_TYPE_LEVEL_HIGH>;
+			dma-channels = <16>;
+			#dma-cells = <1>;
+			status = "disabled";
 		};
 
 		i2c0: i2c@d4010800 {
@@ -797,12 +839,233 @@
 			status = "disabled";
 		};
 
+		pwm0: pwm@d401a000 {
+			compatible = "spacemit,k3-pwm", "marvell,pxa910-pwm";
+			reg = <0x0 0xd401a000 0x0 0x10>;
+			clocks = <&syscon_apbc CLK_APBC_PWM0>,
+				 <&syscon_apbc CLK_APBC_PWM0_BUS>;
+			clock-names = "func", "bus";
+			resets = <&syscon_apbc RESET_APBC_PWM0>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		pwm1: pwm@d401a400 {
+			compatible = "spacemit,k3-pwm", "marvell,pxa910-pwm";
+			reg = <0x0 0xd401a400 0x0 0x10>;
+			clocks = <&syscon_apbc CLK_APBC_PWM1>,
+				 <&syscon_apbc CLK_APBC_PWM1_BUS>;
+			clock-names = "func", "bus";
+			resets = <&syscon_apbc RESET_APBC_PWM1>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		pwm2: pwm@d401a800 {
+			compatible = "spacemit,k3-pwm", "marvell,pxa910-pwm";
+			reg = <0x0 0xd401a800 0x0 0x10>;
+			clocks = <&syscon_apbc CLK_APBC_PWM2>,
+				 <&syscon_apbc CLK_APBC_PWM2_BUS>;
+			clock-names = "func", "bus";
+			resets = <&syscon_apbc RESET_APBC_PWM2>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		pwm3: pwm@d401ac00 {
+			compatible = "spacemit,k3-pwm", "marvell,pxa910-pwm";
+			reg = <0x0 0xd401ac00 0x0 0x10>;
+			clocks = <&syscon_apbc CLK_APBC_PWM3>,
+				 <&syscon_apbc CLK_APBC_PWM3_BUS>;
+			clock-names = "func", "bus";
+			resets = <&syscon_apbc RESET_APBC_PWM3>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		pwm4: pwm@d401b000 {
+			compatible = "spacemit,k3-pwm", "marvell,pxa910-pwm";
+			reg = <0x0 0xd401b000 0x0 0x10>;
+			clocks = <&syscon_apbc CLK_APBC_PWM4>,
+				 <&syscon_apbc CLK_APBC_PWM4_BUS>;
+			clock-names = "func", "bus";
+			resets = <&syscon_apbc RESET_APBC_PWM4>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		pwm5: pwm@d401b400 {
+			compatible = "spacemit,k3-pwm", "marvell,pxa910-pwm";
+			reg = <0x0 0xd401b400 0x0 0x10>;
+			clocks = <&syscon_apbc CLK_APBC_PWM5>,
+				 <&syscon_apbc CLK_APBC_PWM5_BUS>;
+			clock-names = "func", "bus";
+			resets = <&syscon_apbc RESET_APBC_PWM5>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		pwm6: pwm@d401b800 {
+			compatible = "spacemit,k3-pwm", "marvell,pxa910-pwm";
+			reg = <0x0 0xd401b800 0x0 0x10>;
+			clocks = <&syscon_apbc CLK_APBC_PWM6>,
+				 <&syscon_apbc CLK_APBC_PWM6_BUS>;
+			clock-names = "func", "bus";
+			resets = <&syscon_apbc RESET_APBC_PWM6>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		pwm7: pwm@d401bc00 {
+			compatible = "spacemit,k3-pwm", "marvell,pxa910-pwm";
+			reg = <0x0 0xd401bc00 0x0 0x10>;
+			clocks = <&syscon_apbc CLK_APBC_PWM7>,
+				 <&syscon_apbc CLK_APBC_PWM7_BUS>;
+			clock-names = "func", "bus";
+			resets = <&syscon_apbc RESET_APBC_PWM7>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		pwm8: pwm@d4020000 {
+			compatible = "spacemit,k3-pwm", "marvell,pxa910-pwm";
+			reg = <0x0 0xd4020000 0x0 0x10>;
+			clocks = <&syscon_apbc CLK_APBC_PWM8>,
+				 <&syscon_apbc CLK_APBC_PWM8_BUS>;
+			clock-names = "func", "bus";
+			resets = <&syscon_apbc RESET_APBC_PWM8>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		pwm9: pwm@d4020400 {
+			compatible = "spacemit,k3-pwm", "marvell,pxa910-pwm";
+			reg = <0x0 0xd4020400 0x0 0x10>;
+			clocks = <&syscon_apbc CLK_APBC_PWM9>,
+				 <&syscon_apbc CLK_APBC_PWM9_BUS>;
+			clock-names = "func", "bus";
+			resets = <&syscon_apbc RESET_APBC_PWM9>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		pwm10: pwm@d4020800 {
+			compatible = "spacemit,k3-pwm", "marvell,pxa910-pwm";
+			reg = <0x0 0xd4020800 0x0 0x10>;
+			clocks = <&syscon_apbc CLK_APBC_PWM10>,
+				 <&syscon_apbc CLK_APBC_PWM10_BUS>;
+			clock-names = "func", "bus";
+			resets = <&syscon_apbc RESET_APBC_PWM10>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		pwm11: pwm@d4020c00 {
+			compatible = "spacemit,k3-pwm", "marvell,pxa910-pwm";
+			reg = <0x0 0xd4020c00 0x0 0x10>;
+			clocks = <&syscon_apbc CLK_APBC_PWM11>,
+				 <&syscon_apbc CLK_APBC_PWM11_BUS>;
+			clock-names = "func", "bus";
+			resets = <&syscon_apbc RESET_APBC_PWM11>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		pwm12: pwm@d4021000 {
+			compatible = "spacemit,k3-pwm", "marvell,pxa910-pwm";
+			reg = <0x0 0xd4021000 0x0 0x10>;
+			clocks = <&syscon_apbc CLK_APBC_PWM12>,
+				 <&syscon_apbc CLK_APBC_PWM12_BUS>;
+			clock-names = "func", "bus";
+			resets = <&syscon_apbc RESET_APBC_PWM12>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		pwm13: pwm@d4021400 {
+			compatible = "spacemit,k3-pwm", "marvell,pxa910-pwm";
+			reg = <0x0 0xd4021400 0x0 0x10>;
+			clocks = <&syscon_apbc CLK_APBC_PWM13>,
+				 <&syscon_apbc CLK_APBC_PWM13_BUS>;
+			clock-names = "func", "bus";
+			resets = <&syscon_apbc RESET_APBC_PWM13>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		pwm14: pwm@d4021800 {
+			compatible = "spacemit,k3-pwm", "marvell,pxa910-pwm";
+			reg = <0x0 0xd4021800 0x0 0x10>;
+			clocks = <&syscon_apbc CLK_APBC_PWM14>,
+				 <&syscon_apbc CLK_APBC_PWM14_BUS>;
+			clock-names = "func", "bus";
+			resets = <&syscon_apbc RESET_APBC_PWM14>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		pwm15: pwm@d4021c00 {
+			compatible = "spacemit,k3-pwm", "marvell,pxa910-pwm";
+			reg = <0x0 0xd4021c00 0x0 0x10>;
+			clocks = <&syscon_apbc CLK_APBC_PWM15>,
+				 <&syscon_apbc CLK_APBC_PWM15_BUS>;
+			clock-names = "func", "bus";
+			resets = <&syscon_apbc RESET_APBC_PWM15>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		pwm16: pwm@d4022000 {
+			compatible = "spacemit,k3-pwm", "marvell,pxa910-pwm";
+			reg = <0x0 0xd4022000 0x0 0x10>;
+			clocks = <&syscon_apbc CLK_APBC_PWM16>,
+				 <&syscon_apbc CLK_APBC_PWM16_BUS>;
+			clock-names = "func", "bus";
+			resets = <&syscon_apbc RESET_APBC_PWM16>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		pwm17: pwm@d4022400 {
+			compatible = "spacemit,k3-pwm", "marvell,pxa910-pwm";
+			reg = <0x0 0xd4022400 0x0 0x10>;
+			clocks = <&syscon_apbc CLK_APBC_PWM17>,
+				 <&syscon_apbc CLK_APBC_PWM17_BUS>;
+			clock-names = "func", "bus";
+			resets = <&syscon_apbc RESET_APBC_PWM17>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		pwm18: pwm@d4022800 {
+			compatible = "spacemit,k3-pwm", "marvell,pxa910-pwm";
+			reg = <0x0 0xd4022800 0x0 0x10>;
+			clocks = <&syscon_apbc CLK_APBC_PWM18>,
+				 <&syscon_apbc CLK_APBC_PWM18_BUS>;
+			clock-names = "func", "bus";
+			resets = <&syscon_apbc RESET_APBC_PWM18>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		pwm19: pwm@d4022c00 {
+			compatible = "spacemit,k3-pwm", "marvell,pxa910-pwm";
+			reg = <0x0 0xd4022c00 0x0 0x10>;
+			clocks = <&syscon_apbc CLK_APBC_PWM19>,
+				 <&syscon_apbc CLK_APBC_PWM19_BUS>;
+			clock-names = "func", "bus";
+			resets = <&syscon_apbc RESET_APBC_PWM19>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
 		pinctrl: pinctrl@d401e000 {
 			compatible = "spacemit,k3-pinctrl";
 			reg = <0x0 0xd401e000 0x0 0x1000>;
 			clocks = <&syscon_apbc CLK_APBC_AIB>,
 				 <&syscon_apbc CLK_APBC_AIB_BUS>;
 			clock-names = "func", "bus";
+			spacemit,apbc = <&syscon_apbc>;
 		};
 
 		uart10: serial@d401f000 {

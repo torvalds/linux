@@ -91,7 +91,7 @@ static int tps65086_gpio_probe(struct platform_device *pdev)
 }
 
 static const struct platform_device_id tps65086_gpio_id_table[] = {
-	{ "tps65086-gpio", },
+	{ .name = "tps65086-gpio" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(platform, tps65086_gpio_id_table);

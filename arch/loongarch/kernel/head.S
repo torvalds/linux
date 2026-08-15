@@ -74,10 +74,11 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 	/* GPR21 used for percpu base (runtime), initialized as 0 */
 	move		u0, zero
 
-	la.pcrel	tp, init_thread_union
-	/* Set the SP after an empty pt_regs.  */
-	PTR_LI		sp, (_THREAD_SIZE - PT_SIZE)
-	PTR_ADD		sp, sp, tp
+	la.pcrel	tp, init_task
+	la.pcrel	t0, init_stack
+	PTR_LI		t1, _THREAD_SIZE
+	PTR_ADD		t0, t0, t1
+	PTR_ADDI	sp, t0, -PT_SIZE
 	set_saved_sp	sp, t0, t1
 
 #ifdef CONFIG_RELOCATABLE
@@ -86,8 +87,10 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 
 #ifdef CONFIG_RANDOMIZE_BASE
 	/* Repoint the sp into the new kernel */
-	PTR_LI		sp, (_THREAD_SIZE - PT_SIZE)
-	PTR_ADD		sp, sp, tp
+	LONG_LPTR	t0, tp, TASK_STACK
+	PTR_LI		t1, _THREAD_SIZE
+	PTR_ADD		t0, t0, t1
+	PTR_ADDI	sp, t0, -PT_SIZE
 	set_saved_sp	sp, t0, t1
 
 	/* Jump to the new kernel: new_pc = current_pc + random_offset */
@@ -127,8 +130,9 @@ SYM_CODE_START(smpboot_entry)
 	csrxchg		t0, t1, LOONGARCH_CSR_IMPCTL1
 #endif
 	la.pcrel	t0, cpuboot_data
+	ld.d		tp, t0, CPU_BOOT_TASK
 	ld.d		sp, t0, CPU_BOOT_STACK
-	ld.d		tp, t0, CPU_BOOT_TINFO
+	ld.d		u0, t0, CPU_BOOT_OFFSET
 
 	bl		start_secondary
 	ASM_BUG()

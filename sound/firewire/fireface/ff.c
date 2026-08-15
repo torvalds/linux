@@ -70,7 +70,7 @@ static int snd_ff_probe(struct fw_unit *unit, const struct ieee1394_device_id *e
 	init_waitqueue_head(&ff->hwdep_wait);
 
 	ff->unit_version = entry->version;
-	ff->spec = (const struct snd_ff_spec *)entry->driver_data;
+	ff->spec = entry->driver_data_ptr;
 
 	err = snd_ff_transaction_register(ff);
 	if (err < 0)
@@ -186,7 +186,7 @@ static const struct ieee1394_device_id snd_ff_id_table[] = {
 		.specifier_id	= OUI_RME,
 		.version	= SND_FF_UNIT_VERSION_FF800,
 		.model_id	= 0x101800,
-		.driver_data	= (kernel_ulong_t)&spec_ff800,
+		.driver_data_ptr = &spec_ff800,
 	},
 	/* Fireface 400 */
 	{
@@ -198,7 +198,7 @@ static const struct ieee1394_device_id snd_ff_id_table[] = {
 		.specifier_id	= OUI_RME,
 		.version	= SND_FF_UNIT_VERSION_FF400,
 		.model_id	= 0x101800,
-		.driver_data	= (kernel_ulong_t)&spec_ff400,
+		.driver_data_ptr = &spec_ff400,
 	},
 	// Fireface UFX.
 	{
@@ -210,7 +210,7 @@ static const struct ieee1394_device_id snd_ff_id_table[] = {
 		.specifier_id	= OUI_RME,
 		.version	= SND_FF_UNIT_VERSION_UFX,
 		.model_id	= 0x101800,
-		.driver_data	= (kernel_ulong_t)&spec_ufx_802,
+		.driver_data_ptr = &spec_ufx_802,
 	},
 	// Fireface UCX.
 	{
@@ -222,7 +222,7 @@ static const struct ieee1394_device_id snd_ff_id_table[] = {
 		.specifier_id	= OUI_RME,
 		.version	= SND_FF_UNIT_VERSION_UCX,
 		.model_id	= 0x101800,
-		.driver_data	= (kernel_ulong_t)&spec_ucx,
+		.driver_data_ptr = &spec_ucx,
 	},
 	// Fireface 802.
 	{
@@ -234,7 +234,7 @@ static const struct ieee1394_device_id snd_ff_id_table[] = {
 		.specifier_id	= OUI_RME,
 		.version	= SND_FF_UNIT_VERSION_802,
 		.model_id	= 0x101800,
-		.driver_data	= (kernel_ulong_t)&spec_ufx_802,
+		.driver_data_ptr = &spec_ufx_802,
 	},
 	{}
 };

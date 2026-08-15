@@ -111,9 +111,9 @@ struct rt_link_detect_t {
 
 /* used for mlme_priv.roam_flags */
 enum {
-	RTW_ROAM_ON_EXPIRED = BIT0,
-	RTW_ROAM_ON_RESUME = BIT1,
-	RTW_ROAM_ACTIVE = BIT2,
+	RTW_ROAM_ON_EXPIRED = BIT(0),
+	RTW_ROAM_ON_RESUME = BIT(1),
+	RTW_ROAM_ACTIVE = BIT(2),
 };
 
 struct mlme_priv {

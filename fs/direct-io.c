@@ -502,12 +502,8 @@ static blk_status_t dio_bio_complete(struct dio *dio, struct bio *bio)
 	const enum req_op dio_op = dio->opf & REQ_OP_MASK;
 	bool should_dirty = dio_op == REQ_OP_READ && dio->should_dirty;
 
-	if (err) {
-		if (err == BLK_STS_AGAIN && (bio->bi_opf & REQ_NOWAIT))
-			dio->io_error = -EAGAIN;
-		else
-			dio->io_error = -EIO;
-	}
+	if (err)
+		dio->io_error = -EIO;
 
 	if (dio->is_async && should_dirty) {
 		bio_check_pages_dirty(bio);	/* transfers ownership */
@@ -1178,13 +1174,10 @@ ssize_t __blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 		dio->is_async = true;
 
 	dio->inode = inode;
-	if (iov_iter_rw(iter) == WRITE) {
+	if (iov_iter_rw(iter) == WRITE)
 		dio->opf = REQ_OP_WRITE | REQ_SYNC | REQ_IDLE;
-		if (iocb->ki_flags & IOCB_NOWAIT)
-			dio->opf |= REQ_NOWAIT;
-	} else {
+	else
 		dio->opf = REQ_OP_READ;
-	}
 
 	/*
 	 * For AIO O_(D)SYNC writes we need to defer completions to a workqueue

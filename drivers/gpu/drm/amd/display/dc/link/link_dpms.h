@@ -50,4 +50,5 @@ struct fixed31_32 link_calculate_sst_avg_time_slots_per_mtp(
 void link_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable);
 bool link_set_dsc_enable(struct pipe_ctx *pipe_ctx, bool enable);
 bool link_update_dsc_config(struct pipe_ctx *pipe_ctx);
+void link_wait_for_unlocked(struct dc_link *link);
 #endif /* __DC_LINK_DPMS_H__ */

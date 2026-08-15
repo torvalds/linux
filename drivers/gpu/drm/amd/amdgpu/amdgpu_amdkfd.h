@@ -38,6 +38,8 @@
 #include "amdgpu_vm.h"
 #include "amdgpu_xcp.h"
 #include "kfd_topology.h"
+#include "amdgpu_ptl.h"
+
 extern uint64_t amdgpu_amdkfd_total_mem_size;
 
 enum TLB_FLUSH_TYPE {
@@ -260,7 +262,7 @@ uint64_t amdgpu_amdkfd_get_gpu_clock_counter(struct amdgpu_device *adev);
 uint32_t amdgpu_amdkfd_get_max_engine_clock_in_mhz(struct amdgpu_device *adev);
 int amdgpu_amdkfd_get_dmabuf_info(struct amdgpu_device *adev, int dma_buf_fd,
 				  struct amdgpu_device **dmabuf_adev,
-				  uint64_t *bo_size, void *metadata_buffer,
+				  uint64_t *bo_size, void **metadata_buffer,
 				  size_t buffer_size, uint32_t *metadata_size,
 				  uint32_t *flags, int8_t *xcp_id);
 int amdgpu_amdkfd_get_pcie_bandwidth_mbytes(struct amdgpu_device *adev, bool is_min);
@@ -435,8 +437,10 @@ int kgd2kfd_check_and_lock_kfd(struct kfd_dev *kfd);
 void kgd2kfd_unlock_kfd(struct kfd_dev *kfd);
 int kgd2kfd_start_sched(struct kfd_dev *kfd, uint32_t node_id);
 int kgd2kfd_start_sched_all_nodes(struct kfd_dev *kfd);
+int amdgpu_amdkfd_start_sched_all(struct amdgpu_device *adev);
 int kgd2kfd_stop_sched(struct kfd_dev *kfd, uint32_t node_id);
 int kgd2kfd_stop_sched_all_nodes(struct kfd_dev *kfd);
+int amdgpu_amdkfd_stop_sched_all(struct amdgpu_device *adev);
 bool kgd2kfd_compute_active(struct kfd_dev *kfd, uint32_t node_id);
 bool kgd2kfd_vmfault_fast_path(struct amdgpu_device *adev, struct amdgpu_iv_entry *entry,
 			       bool retry_fault);
@@ -533,12 +537,22 @@ static inline int kgd2kfd_start_sched_all_nodes(struct kfd_dev *kfd)
 	return 0;
 }
 
+static inline int amdgpu_amdkfd_start_sched_all(struct amdgpu_device *adev)
+{
+	return 0;
+}
+
 static inline int kgd2kfd_stop_sched(struct kfd_dev *kfd, uint32_t node_id)
 {
 	return 0;
 }
 
 static inline int kgd2kfd_stop_sched_all_nodes(struct kfd_dev *kfd)
+{
+	return 0;
+}
+
+static inline int amdgpu_amdkfd_stop_sched_all(struct amdgpu_device *adev)
 {
 	return 0;
 }

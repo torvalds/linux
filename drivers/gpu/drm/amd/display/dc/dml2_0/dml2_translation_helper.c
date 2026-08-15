@@ -508,11 +508,11 @@ void dml2_init_soc_states(struct dml2_context *dml2, const struct dc *in_dc,
 	/* DCFCLK stas values are project specific */
 	if ((dml2->v20.dml_core_ctx.project == dml_project_dcn32) ||
 		(dml2->v20.dml_core_ctx.project == dml_project_dcn321)) {
-		p->dcfclk_stas_mhz[0] = p->in_states->state_array[0].dcfclk_mhz;
+		p->dcfclk_stas_mhz[0] = (int)p->in_states->state_array[0].dcfclk_mhz;
 		p->dcfclk_stas_mhz[1] = 615;
 		p->dcfclk_stas_mhz[2] = 906;
 		p->dcfclk_stas_mhz[3] = 1324;
-		p->dcfclk_stas_mhz[4] = p->in_states->state_array[1].dcfclk_mhz;
+		p->dcfclk_stas_mhz[4] = (int)p->in_states->state_array[1].dcfclk_mhz;
 	} else if (dml2->v20.dml_core_ctx.project != dml_project_dcn35 &&
 			dml2->v20.dml_core_ctx.project != dml_project_dcn36 &&
 			dml2->v20.dml_core_ctx.project != dml_project_dcn351) {
@@ -808,6 +808,9 @@ static void populate_dml_output_cfg_from_stream_state(struct dml_output_cfg_st *
 	case SIGNAL_TYPE_DVI_DUAL_LINK:
 		out->OutputEncoder[location] = dml_hdmi;
 		break;
+	case SIGNAL_TYPE_HDMI_FRL:
+		out->OutputEncoder[location] = dml_hdmifrl;
+		break;
 	default:
 		out->OutputEncoder[location] = dml_dp;
 	}
@@ -883,6 +886,7 @@ static void populate_dml_output_cfg_from_stream_state(struct dml_output_cfg_st *
 	case SIGNAL_TYPE_DISPLAY_PORT_MST:
 	case SIGNAL_TYPE_EDP:
 	case SIGNAL_TYPE_VIRTUAL:
+	case SIGNAL_TYPE_HDMI_FRL:
 	default:
 		out->OutputLinkDPRate[location] = dml_dp_rate_na;
 		break;

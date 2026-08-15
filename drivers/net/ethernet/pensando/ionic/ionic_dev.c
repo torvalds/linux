@@ -1076,3 +1076,13 @@ bool ionic_q_is_posted(struct ionic_queue *q, unsigned int pos)
 
 	return ((pos - tail) & mask) < ((head - tail) & mask);
 }
+
+void ionic_reset_link_down_count(struct ionic_dev *idev)
+{
+	if (!READ_ONCE(idev->link_down_count_init)) {
+		idev->link_down_count_total = 0;
+		idev->link_down_count_last =
+			le16_to_cpu(idev->port_info->status.link_down_count);
+		WRITE_ONCE(idev->link_down_count_init, true);
+	}
+}

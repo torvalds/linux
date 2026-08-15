@@ -31,7 +31,7 @@
 struct clk_mgr_internal;
 
 bool         dcn30_smu_test_message(struct clk_mgr_internal *clk_mgr, uint32_t input);
-bool         dcn30_smu_get_smu_version(struct clk_mgr_internal *clk_mgr, unsigned int *version);
+bool         dcn30_smu_get_smu_version(struct clk_mgr_internal *clk_mgr, int *version);
 bool         dcn30_smu_check_driver_if_version(struct clk_mgr_internal *clk_mgr);
 bool         dcn30_smu_check_msg_header_version(struct clk_mgr_internal *clk_mgr);
 void         dcn30_smu_set_dram_addr_high(struct clk_mgr_internal *clk_mgr, uint32_t addr_high);

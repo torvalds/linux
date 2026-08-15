@@ -42,7 +42,6 @@ __be32 ipv6_proxy_select_ident(struct net *net, struct sk_buff *skb)
 	id = __ipv6_select_ident(net, &addrs[1], &addrs[0]);
 	return htonl(id);
 }
-EXPORT_SYMBOL_GPL(ipv6_proxy_select_ident);
 
 __be32 ipv6_select_ident(struct net *net,
 			 const struct in6_addr *daddr,

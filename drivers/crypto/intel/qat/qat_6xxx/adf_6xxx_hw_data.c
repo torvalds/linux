@@ -752,10 +752,12 @@ static u32 get_accel_cap(struct adf_accel_dev *accel_dev)
 	unsigned long mask;
 	u32 caps = 0;
 	u32 fusectl1;
+	u32 fusectl0;
 
 	if (adf_6xxx_is_wcy(GET_HW_DATA(accel_dev)))
 		return get_accel_cap_wcy(accel_dev);
 
+	fusectl0 = GET_HW_DATA(accel_dev)->fuses[ADF_FUSECTL0];
 	fusectl1 = GET_HW_DATA(accel_dev)->fuses[ADF_FUSECTL1];
 
 	/* Read accelerator capabilities mask */
@@ -785,13 +787,17 @@ static u32 get_accel_cap(struct adf_accel_dev *accel_dev)
 
 	capabilities_asym = ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC |
 			    ICP_ACCEL_CAPABILITIES_SM2 |
-			    ICP_ACCEL_CAPABILITIES_ECEDMONT;
+			    ICP_ACCEL_CAPABILITIES_ECEDMONT |
+			    ICP_ACCEL_CAPABILITIES_KPT;
 
 	if (fusectl1 & ICP_ACCEL_GEN6_MASK_PKE_SLICE) {
 		capabilities_asym &= ~ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC;
 		capabilities_asym &= ~ICP_ACCEL_CAPABILITIES_SM2;
 		capabilities_asym &= ~ICP_ACCEL_CAPABILITIES_ECEDMONT;
 	}
+
+	if (fusectl0 & ADF_GEN6_KPT_FUSE_BIT)
+		capabilities_asym &= ~ICP_ACCEL_CAPABILITIES_KPT;
 
 	capabilities_dc = ICP_ACCEL_CAPABILITIES_COMPRESSION |
 			  ICP_ACCEL_CAPABILITIES_LZ4_COMPRESSION |
@@ -960,6 +966,18 @@ static int dev_config(struct adf_accel_dev *accel_dev)
 	return ret;
 }
 
+static void adf_gen6_init_kpt(struct adf_kpt_hw_data *kpt_data)
+{
+	kpt_data->max_swk_cnt_per_fn_pasid = ADF_6XXX_KPT_MAX_SWK_COUNT_PER_FNPASID;
+	kpt_data->max_swk_ttl = ADF_6XXX_KPT_MAX_SWK_TTL;
+
+	kpt_data->user_input.enable = false;
+	kpt_data->user_input.swk_shared = ADF_6XXX_KPT_DEFAULT_SWK_SHARED_MODE;
+	kpt_data->user_input.swk_max_ttl = ADF_6XXX_KPT_DEFAULT_SWK_TTL;
+	kpt_data->user_input.swk_cnt_per_fn = ADF_6XXX_KPT_DEFAULT_SWK_CNT_PER_FN;
+	kpt_data->user_input.swk_cnt_per_pasid = ADF_6XXX_KPT_DEFAULT_SWK_CNT_PER_PASID;
+}
+
 static void adf_gen6_init_rl_data(struct adf_rl_hw_data *rl_data)
 {
 	rl_data->pciout_tb_offset = ADF_GEN6_RL_TOKEN_PCIEOUT_BUCKET_OFFSET;
@@ -1057,6 +1075,7 @@ void adf_init_hw_data_6xxx(struct adf_hw_device_data *hw_data)
 	adf_gen6_init_tl_data(&hw_data->tl_data);
 	adf_gen6_init_rl_data(&hw_data->rl_data);
 	adf_gen6_init_anti_rb(&hw_data->anti_rb_data);
+	adf_gen6_init_kpt(&hw_data->kpt_data);
 }
 
 void adf_clean_hw_data_6xxx(struct adf_hw_device_data *hw_data)

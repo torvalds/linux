@@ -27,9 +27,9 @@
 #include <sound/initval.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <sound/pxa2xx-lib.h>
 #include <sound/dmaengine_pcm.h>
 
+#include "pxa2xx-lib.h"
 #include "pxa-ssp.h"
 
 /*

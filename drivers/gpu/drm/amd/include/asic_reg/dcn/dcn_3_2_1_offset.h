@@ -11814,7 +11814,6 @@
 #define regDSCC0_DSCC_TEST_DEBUG_DATA0                                                                  0x303b
 #define regDSCC0_DSCC_TEST_DEBUG_DATA0_BASE_IDX                                                         2
 
-
 // addressBlock: dce_dc_dsc0_dispdec_dsccif_dispdec
 // base address: 0x0
 #define regDSCCIF0_DSCCIF_CONFIG0                                                                       0x3005
@@ -12173,6 +12172,19 @@
 #define regHPO_TOP_HW_CONTROL                                                                           0x0e4a
 #define regHPO_TOP_HW_CONTROL_BASE_IDX                                                                  3
 
+// addressBlock: dce_dc_hpo_hdmi_stream_enc0_dispdec
+// base address: 0x2634c
+#define regHDMI_STREAM_ENC_CLOCK_CONTROL                                                                0x08d3
+#define regHDMI_STREAM_ENC_CLOCK_CONTROL_BASE_IDX                                                       3
+#define regHDMI_STREAM_ENC_INPUT_MUX_CONTROL                                                            0x08d5
+#define regHDMI_STREAM_ENC_INPUT_MUX_CONTROL_BASE_IDX                                                   3
+#define regHDMI_STREAM_ENC_CLOCK_RAMP_ADJUSTER_FIFO_STATUS_CONTROL0                                     0x08d6
+#define regHDMI_STREAM_ENC_CLOCK_RAMP_ADJUSTER_FIFO_STATUS_CONTROL0_BASE_IDX                            3
+#define regHDMI_STREAM_ENC_CLOCK_RAMP_ADJUSTER_FIFO_STATUS_CONTROL1                                     0x08d7
+#define regHDMI_STREAM_ENC_CLOCK_RAMP_ADJUSTER_FIFO_STATUS_CONTROL1_BASE_IDX                            3
+#define regHDMI_STREAM_ENC_CLOCK_RAMP_ADJUSTER_FIFO_STATUS_CONTROL2                                     0x08d8
+#define regHDMI_STREAM_ENC_CLOCK_RAMP_ADJUSTER_FIFO_STATUS_CONTROL2_BASE_IDX                            3
+
 
 // addressBlock: dce_dc_hpo_dp_stream_mapper_dispdec
 // base address: 0x27958
@@ -12184,6 +12196,39 @@
 #define regDP_STREAM_MAPPER_CONTROL2_BASE_IDX                                                           3
 #define regDP_STREAM_MAPPER_CONTROL3                                                                    0x0e59
 #define regDP_STREAM_MAPPER_CONTROL3_BASE_IDX                                                           3
+
+// addressBlock: dce_dc_hpo_hdmi_link_enc0_dispdec
+// base address: 0x2656c
+#define regHDMI_LINK_ENC_CONTROL                                                                        0x095b
+#define regHDMI_LINK_ENC_CONTROL_BASE_IDX                                                               3
+#define regHDMI_LINK_ENC_CLK_CTRL                                                                       0x095c
+#define regHDMI_LINK_ENC_CLK_CTRL_BASE_IDX                                                              3
+
+
+// addressBlock: dce_dc_hpo_hdmi_frl_enc0_dispdec
+// base address: 0x26594
+#define regHDMI_FRL_ENC_CONFIG                                                                          0x0965
+#define regHDMI_FRL_ENC_CONFIG_BASE_IDX                                                                 3
+#define regHDMI_FRL_ENC_CONFIG2                                                                         0x0966
+#define regHDMI_FRL_ENC_CONFIG2_BASE_IDX                                                                3
+#define regHDMI_FRL_ENC_METER_BUFFER_STATUS                                                             0x0967
+#define regHDMI_FRL_ENC_METER_BUFFER_STATUS_BASE_IDX                                                    3
+#define regHDMI_FRL_ENC_MEM_CTRL                                                                        0x0968
+#define regHDMI_FRL_ENC_MEM_CTRL_BASE_IDX                                                               3
+
+
+// addressBlock: dce_dc_hpo_hdmi_stream_enc0_dispdec
+// base address: 0x2634c
+#define regHDMI_STREAM_ENC_CLOCK_CONTROL                                                                0x08d3
+#define regHDMI_STREAM_ENC_CLOCK_CONTROL_BASE_IDX                                                       3
+#define regHDMI_STREAM_ENC_INPUT_MUX_CONTROL                                                            0x08d5
+#define regHDMI_STREAM_ENC_INPUT_MUX_CONTROL_BASE_IDX                                                   3
+#define regHDMI_STREAM_ENC_CLOCK_RAMP_ADJUSTER_FIFO_STATUS_CONTROL0                                     0x08d6
+#define regHDMI_STREAM_ENC_CLOCK_RAMP_ADJUSTER_FIFO_STATUS_CONTROL0_BASE_IDX                            3
+#define regHDMI_STREAM_ENC_CLOCK_RAMP_ADJUSTER_FIFO_STATUS_CONTROL1                                     0x08d7
+#define regHDMI_STREAM_ENC_CLOCK_RAMP_ADJUSTER_FIFO_STATUS_CONTROL1_BASE_IDX                            3
+#define regHDMI_STREAM_ENC_CLOCK_RAMP_ADJUSTER_FIFO_STATUS_CONTROL2                                     0x08d8
+#define regHDMI_STREAM_ENC_CLOCK_RAMP_ADJUSTER_FIFO_STATUS_CONTROL2_BASE_IDX                            3
 
 
 // addressBlock: dce_dc_hpo_hdmi_stream_enc0_afmt_afmt_dispdec
@@ -12258,6 +12303,83 @@
 #define regVPG5_VPG_MPEG_INFO0_BASE_IDX                                                                 3
 #define regVPG5_VPG_MPEG_INFO1                                                                          0x093a
 #define regVPG5_VPG_MPEG_INFO1_BASE_IDX                                                                 3
+
+// addressBlock: dce_dc_hpo_hdmi_tb_enc0_dispdec
+// base address: 0x2637c
+#define regHDMI_TB_ENC_CONTROL                                                                          0x08df
+#define regHDMI_TB_ENC_CONTROL_BASE_IDX                                                                 3
+#define regHDMI_TB_ENC_PIXEL_FORMAT                                                                     0x08e0
+#define regHDMI_TB_ENC_PIXEL_FORMAT_BASE_IDX                                                            3
+#define regHDMI_TB_ENC_PACKET_CONTROL                                                                   0x08e1
+#define regHDMI_TB_ENC_PACKET_CONTROL_BASE_IDX                                                          3
+#define regHDMI_TB_ENC_ACR_PACKET_CONTROL                                                               0x08e2
+#define regHDMI_TB_ENC_ACR_PACKET_CONTROL_BASE_IDX                                                      3
+#define regHDMI_TB_ENC_VBI_PACKET_CONTROL1                                                              0x08e3
+#define regHDMI_TB_ENC_VBI_PACKET_CONTROL1_BASE_IDX                                                     3
+#define regHDMI_TB_ENC_VBI_PACKET_CONTROL2                                                              0x08e4
+#define regHDMI_TB_ENC_VBI_PACKET_CONTROL2_BASE_IDX                                                     3
+#define regHDMI_TB_ENC_GC_CONTROL                                                                       0x08e5
+#define regHDMI_TB_ENC_GC_CONTROL_BASE_IDX                                                              3
+#define regHDMI_TB_ENC_GENERIC_PACKET_CONTROL0                                                          0x08e6
+#define regHDMI_TB_ENC_GENERIC_PACKET_CONTROL0_BASE_IDX                                                 3
+#define regHDMI_TB_ENC_GENERIC_PACKET_CONTROL1                                                          0x08e7
+#define regHDMI_TB_ENC_GENERIC_PACKET_CONTROL1_BASE_IDX                                                 3
+#define regHDMI_TB_ENC_GENERIC_PACKET_CONTROL2                                                          0x08e8
+#define regHDMI_TB_ENC_GENERIC_PACKET_CONTROL2_BASE_IDX                                                 3
+#define regHDMI_TB_ENC_GENERIC_PACKET0_1_LINE                                                           0x08e9
+#define regHDMI_TB_ENC_GENERIC_PACKET0_1_LINE_BASE_IDX                                                  3
+#define regHDMI_TB_ENC_GENERIC_PACKET2_3_LINE                                                           0x08ea
+#define regHDMI_TB_ENC_GENERIC_PACKET2_3_LINE_BASE_IDX                                                  3
+#define regHDMI_TB_ENC_GENERIC_PACKET4_5_LINE                                                           0x08eb
+#define regHDMI_TB_ENC_GENERIC_PACKET4_5_LINE_BASE_IDX                                                  3
+#define regHDMI_TB_ENC_GENERIC_PACKET6_7_LINE                                                           0x08ec
+#define regHDMI_TB_ENC_GENERIC_PACKET6_7_LINE_BASE_IDX                                                  3
+#define regHDMI_TB_ENC_GENERIC_PACKET8_9_LINE                                                           0x08ed
+#define regHDMI_TB_ENC_GENERIC_PACKET8_9_LINE_BASE_IDX                                                  3
+#define regHDMI_TB_ENC_GENERIC_PACKET10_11_LINE                                                         0x08ee
+#define regHDMI_TB_ENC_GENERIC_PACKET10_11_LINE_BASE_IDX                                                3
+#define regHDMI_TB_ENC_GENERIC_PACKET12_13_LINE                                                         0x08ef
+#define regHDMI_TB_ENC_GENERIC_PACKET12_13_LINE_BASE_IDX                                                3
+#define regHDMI_TB_ENC_GENERIC_PACKET14_LINE                                                            0x08f0
+#define regHDMI_TB_ENC_GENERIC_PACKET14_LINE_BASE_IDX                                                   3
+#define regHDMI_TB_ENC_DB_CONTROL                                                                       0x08f1
+#define regHDMI_TB_ENC_DB_CONTROL_BASE_IDX                                                              3
+#define regHDMI_TB_ENC_ACR_32_0                                                                         0x08f2
+#define regHDMI_TB_ENC_ACR_32_0_BASE_IDX                                                                3
+#define regHDMI_TB_ENC_ACR_32_1                                                                         0x08f3
+#define regHDMI_TB_ENC_ACR_32_1_BASE_IDX                                                                3
+#define regHDMI_TB_ENC_ACR_44_0                                                                         0x08f4
+#define regHDMI_TB_ENC_ACR_44_0_BASE_IDX                                                                3
+#define regHDMI_TB_ENC_ACR_44_1                                                                         0x08f5
+#define regHDMI_TB_ENC_ACR_44_1_BASE_IDX                                                                3
+#define regHDMI_TB_ENC_ACR_48_0                                                                         0x08f6
+#define regHDMI_TB_ENC_ACR_48_0_BASE_IDX                                                                3
+#define regHDMI_TB_ENC_ACR_48_1                                                                         0x08f7
+#define regHDMI_TB_ENC_ACR_48_1_BASE_IDX                                                                3
+#define regHDMI_TB_ENC_ACR_STATUS_0                                                                     0x08f8
+#define regHDMI_TB_ENC_ACR_STATUS_0_BASE_IDX                                                            3
+#define regHDMI_TB_ENC_ACR_STATUS_1                                                                     0x08f9
+#define regHDMI_TB_ENC_ACR_STATUS_1_BASE_IDX                                                            3
+#define regHDMI_TB_ENC_BUFFER_CONTROL                                                                   0x08fb
+#define regHDMI_TB_ENC_BUFFER_CONTROL_BASE_IDX                                                          3
+#define regHDMI_TB_ENC_MEM_CTRL                                                                         0x08fe
+#define regHDMI_TB_ENC_MEM_CTRL_BASE_IDX                                                                3
+#define regHDMI_TB_ENC_METADATA_PACKET_CONTROL                                                          0x08ff
+#define regHDMI_TB_ENC_METADATA_PACKET_CONTROL_BASE_IDX                                                 3
+#define regHDMI_TB_ENC_H_ACTIVE_BLANK                                                                   0x0900
+#define regHDMI_TB_ENC_H_ACTIVE_BLANK_BASE_IDX                                                          3
+#define regHDMI_TB_ENC_HC_ACTIVE_BLANK                                                                  0x0901
+#define regHDMI_TB_ENC_HC_ACTIVE_BLANK_BASE_IDX                                                         3
+#define regHDMI_TB_ENC_CRC_CNTL                                                                         0x0903
+#define regHDMI_TB_ENC_CRC_CNTL_BASE_IDX                                                                3
+#define regHDMI_TB_ENC_CRC_RESULT_0                                                                     0x0904
+#define regHDMI_TB_ENC_CRC_RESULT_0_BASE_IDX                                                            3
+#define regHDMI_TB_ENC_MODE                                                                             0x0908
+#define regHDMI_TB_ENC_MODE_BASE_IDX                                                                    3
+#define regHDMI_TB_ENC_INPUT_FIFO_STATUS                                                                0x0909
+#define regHDMI_TB_ENC_INPUT_FIFO_STATUS_BASE_IDX                                                       3
+#define regHDMI_TB_ENC_CRC_RESULT_1                                                                     0x090a
+#define regHDMI_TB_ENC_CRC_RESULT_1_BASE_IDX                                                            3
 
 
 // addressBlock: dce_dc_hpo_dp_stream_enc0_dispdec

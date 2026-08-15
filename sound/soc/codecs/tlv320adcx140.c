@@ -1326,10 +1326,10 @@ static int adcx140_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id adcx140_i2c_id[] = {
-	{ "tlv320adc3140", 0 },
-	{ "tlv320adc5140", 1 },
-	{ "tlv320adc6140", 2 },
-	{}
+	{ .name = "tlv320adc3140", .driver_data = 0 },
+	{ .name = "tlv320adc5140", .driver_data = 1 },
+	{ .name = "tlv320adc6140", .driver_data = 2 },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adcx140_i2c_id);
 

@@ -452,7 +452,12 @@ static void hangup_device(struct event_device_data *dev_data)
 static int event_device_probe(struct platform_device *pdev)
 {
 	struct event_device_data *dev_data;
+	struct acpi_device *adev;
 	int error, minor;
+
+	adev = ACPI_COMPANION(&pdev->dev);
+	if (!adev)
+		return -ENODEV;
 
 	minor = ida_alloc_max(&event_ida, EVENT_MAX_DEV-1, GFP_KERNEL);
 	if (minor < 0) {
@@ -494,8 +499,7 @@ static int event_device_probe(struct platform_device *pdev)
 		goto free_dev_data;
 
 	/* Install an ACPI notify handler. */
-	error = acpi_dev_install_notify_handler(ACPI_COMPANION(&pdev->dev),
-						ACPI_DEVICE_NOTIFY,
+	error = acpi_dev_install_notify_handler(adev, ACPI_DEVICE_NOTIFY,
 						event_device_notify, &pdev->dev);
 	if (error)
 		goto free_cdev;

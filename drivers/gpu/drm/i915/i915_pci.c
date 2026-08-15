@@ -24,6 +24,7 @@
 
 #include <drm/drm_color_mgmt.h>
 #include <drm/drm_drv.h>
+#include <drm/intel/pci_config.h>
 #include <drm/intel/pciids.h>
 
 #include "display/intel_display_driver.h"
@@ -35,7 +36,6 @@
 #include "i915_drv.h"
 #include "i915_pci.h"
 #include "i915_reg.h"
-#include "intel_pci_config.h"
 
 __diag_push();
 __diag_ignore_all("-Woverride-init", "Allow field initialization overrides for device info");

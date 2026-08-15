@@ -1,0 +1,30 @@
+What:		/sys/bus/pci/drivers/intel_vpu/.../sched_mode
+Date:		October 2024
+KernelVersion:	6.12
+Contact:	dri-devel@lists.freedesktop.org
+Description:	Current NPU scheduling mode. Returns one of the following strings:
+		- "HW" - Hardware Scheduler mode
+		- "OS" - Operating System Scheduler mode
+		Read-only.
+		Deprecated since the "OS" scheduling mode is not usable
+		and will be removed from future versions of the driver.
+		Will be removed in 2027
+
+What:		/sys/bus/pci/drivers/intel_vpu/.../npu_max_frequency_mhz
+Date:		April 2025
+KernelVersion:	6.15
+Contact:	dri-devel@lists.freedesktop.org
+Description:	Legacy alias for /sys/bus/pci/drivers/intel_vpu/.../freq/hw_max_freq.
+		Shows maximum frequency in MHz of the NPU's data processing unit.
+		Read-only.
+		Will be removed in 2027
+
+What:		/sys/bus/pci/drivers/intel_vpu/.../npu_current_frequency_mhz
+Date:		April 2025
+KernelVersion:	6.15
+Contact:	dri-devel@lists.freedesktop.org
+Description:	Legacy alias for /sys/bus/pci/drivers/intel_vpu/.../freq/current_freq.
+		Shows current frequency in MHz of the NPU's data processing unit.
+		The value is read only when the device is active; otherwise it returns 0.
+		Read-only.
+		Will be removed in 2027

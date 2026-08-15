@@ -329,7 +329,6 @@ struct ras_core_context {
 	struct ras_gfx ras_gfx;
 	struct ras_mp1 ras_mp1;
 	struct ras_process ras_proc;
-	struct ras_cmd_mgr ras_cmd;
 	struct ras_log_ring ras_log_ring;
 
 	const struct ras_sys_func *sys_fn;

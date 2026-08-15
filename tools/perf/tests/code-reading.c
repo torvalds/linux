@@ -471,8 +471,11 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 			goto out;
 		}
 
-		decomp = true;
-		objdump_name = decomp_name;
+		/* empty pathname means file wasn't actually compressed */
+		if (decomp_name[0] != '\0') {
+			decomp = true;
+			objdump_name = decomp_name;
+		}
 	}
 
 	/* Read the object code using objdump */

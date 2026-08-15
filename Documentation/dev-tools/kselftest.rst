@@ -15,11 +15,6 @@ able to run that test on an older kernel. Hence, it is important to keep
 code that can still test an older kernel and make sure it skips the test
 gracefully on newer releases.
 
-You can find additional information on Kselftest framework, how to
-write new tests using the framework on Kselftest wiki:
-
-https://kselftest.wiki.kernel.org/
-
 On some systems, hot-plug tests could hang forever waiting for cpu and
 memory to be ready to be offlined. A special hot-plug target is created
 to run the full range of hot-plug tests. In default mode, hot-plug tests run
@@ -125,6 +120,18 @@ dedicated skiplist::
 
 See the top-level tools/testing/selftests/Makefile for the list of all
 possible targets.
+
+Requiring all targets to build successfully
+===========================================
+
+By default, the build succeeds as long as at least one target builds
+without error. Set ``FORCE_TARGETS=1`` to instead require every target to
+build successfully; make will abort as soon as any target fails::
+
+  $ make -C tools/testing/selftests FORCE_TARGETS=1
+
+This applies to both the ``all`` and ``install`` targets and is useful in
+CI environments where a silent partial build would be misleading.
 
 Running the full range hotplug selftests
 ========================================

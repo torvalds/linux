@@ -1007,7 +1007,7 @@ assert_dc_off(struct intel_display *display)
 
 static int __intel_lt_phy_p2p_write_once(struct intel_encoder *encoder,
 					 int lane, u16 addr, u8 data,
-					 i915_reg_t mac_reg_addr,
+					 intel_reg_t mac_reg_addr,
 					 u8 expected_mac_val)
 {
 	struct intel_display *display = to_intel_display(encoder);
@@ -1062,7 +1062,7 @@ static int __intel_lt_phy_p2p_write_once(struct intel_encoder *encoder,
 
 static void __intel_lt_phy_p2p_write(struct intel_encoder *encoder,
 				     int lane, u16 addr, u8 data,
-				     i915_reg_t mac_reg_addr,
+				     intel_reg_t mac_reg_addr,
 				     u8 expected_mac_val)
 {
 	struct intel_display *display = to_intel_display(encoder);
@@ -1086,7 +1086,7 @@ static void __intel_lt_phy_p2p_write(struct intel_encoder *encoder,
 
 static void intel_lt_phy_p2p_write(struct intel_encoder *encoder,
 				   u8 lane_mask, u16 addr, u8 data,
-				   i915_reg_t mac_reg_addr,
+				   intel_reg_t mac_reg_addr,
 				   u8 expected_mac_val)
 {
 	int lane;
@@ -1223,11 +1223,7 @@ intel_lt_phy_program_port_clock_ctl(struct intel_encoder *encoder,
 	else
 		val |= XELPDP_DDI_CLOCK_SELECT_PREP(display, XELPDP_DDI_CLOCK_SELECT_MAXPCLK);
 
-	 /* DP2.0 10G and 20G rates enable MPLLA*/
-	if (port_clock == 1000000 || port_clock == 2000000)
-		val |= XELPDP_SSC_ENABLE_PLLA;
-	else
-		val |= ltpll->ssc_enabled ? XELPDP_SSC_ENABLE_PLLB : 0;
+	val |= ltpll->ssc_enabled ? XELPDP_SSC_ENABLE_PLLA : 0;
 
 	intel_de_rmw(display, XELPDP_PORT_CLOCK_CTL(display, encoder->port),
 		     XELPDP_LANE1_PHY_CLOCK_SELECT | XELPDP_FORWARD_CLOCK_UNGATE |
@@ -2135,7 +2131,7 @@ void intel_lt_phy_set_signal_levels(struct intel_encoder *encoder,
 
 	wakeref = intel_lt_phy_transaction_begin(encoder);
 
-	trans = encoder->get_buf_trans(encoder, crtc_state, &n_entries);
+	trans = intel_ddi_buf_trans_get(encoder, crtc_state, &n_entries);
 	if (drm_WARN_ON_ONCE(display->drm, !trans)) {
 		intel_lt_phy_transaction_end(encoder, wakeref);
 		return;

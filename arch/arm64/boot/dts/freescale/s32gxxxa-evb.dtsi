@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /*
- * Copyright 2024 NXP
+ * Copyright 2024, 2026 NXP
  *
  * Authors: Ciprian Marian Costea <ciprianmarian.costea@oss.nxp.com>
  *          Ghennadi Procopciuc <ghennadi.procopciuc@oss.nxp.com>
@@ -245,6 +245,70 @@
 			bias-pull-up;
 		};
 	};
+
+	ftm0_pins: ftm0-pins {
+		ftm0-grp0 {
+			pinmux = <0x2912>;
+		};
+
+		ftm0-grp1 {
+			pinmux = <0x122>,
+				 <0xb42>;
+			output-enable;
+			input-enable;
+		};
+
+		ftm0-grp2 {
+			pinmux = <0xb13>,
+				 <0xb53>;
+			output-enable;
+			input-enable;
+		};
+
+		ftm0-grp3 {
+			pinmux = <0x2904>;
+		};
+
+		ftm0-grp4 {
+			pinmux = <0x2925>;
+		};
+
+		ftm0-grp5 {
+			pinmux = <0x2936>;
+		};
+	};
+
+	ftm1_pins: ftm1-pins {
+		ftm1-grp0 {
+			pinmux = <0x1d3>;
+			output-enable;
+			input-enable;
+		};
+
+		ftm1-grp1 {
+			pinmux = <0x29b4>;
+		};
+
+		ftm1-grp2 {
+			pinmux = <0x29c3>;
+		};
+
+		ftm1-grp3 {
+			pinmux = <0x1f4>;
+			output-enable;
+			input-enable;
+		};
+
+		ftm1-grp4 {
+			pinmux = <0x202>;
+			output-enable;
+			input-enable;
+		};
+
+		ftm1-grp5 {
+			pinmux = <0x29d2>;
+		};
+	};
 };
 
 &can0 {
@@ -290,6 +354,18 @@
 	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&i2c4_pins>;
 	pinctrl-1 = <&i2c4_gpio_pins>;
+	status = "okay";
+};
+
+&pwm0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&ftm0_pins>;
+	status = "okay";
+};
+
+&pwm1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&ftm1_pins>;
 	status = "okay";
 };
 

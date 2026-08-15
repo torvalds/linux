@@ -3277,50 +3277,6 @@
 			status = "disabled";
 		};
 
-		gpio_main: gpio@c300000 {
-			compatible = "nvidia,tegra264-gpio";
-			reg = <0x00 0x0c300000 0x0 0x4000>,
-			      <0x00 0x0c310000 0x0 0x4000>;
-			reg-names = "security", "gpio";
-			wakeup-parent = <&pmc>;
-			interrupts =  <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>,
-				      <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>,
-				      <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>,
-				      <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>,
-				      <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>,
-				      <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>,
-				      <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>,
-				      <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>,
-				      <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>,
-				      <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>,
-				      <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>,
-				      <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>,
-				      <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>,
-				      <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>,
-				      <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>,
-				      <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>,
-				      <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>,
-				      <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>,
-				      <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>,
-				      <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>,
-				      <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>,
-				      <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>,
-				      <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>,
-				      <GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>,
-				      <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>,
-				      <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>,
-				      <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>,
-				      <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>,
-				      <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>,
-				      <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>,
-				      <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>,
-				      <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
-			gpio-controller;
-			#gpio-cells = <2>;
-			interrupt-controller;
-			#interrupt-cells = <2>;
-		};
-
 		serial@c4e0000 {
 			compatible = "nvidia,tegra264-utc";
 			reg = <0x0 0x0c4e0000 0x0 0x8000>,
@@ -3584,6 +3540,50 @@
 
 			nvidia,bpmp = <&bpmp 0>;
 			status = "disabled";
+		};
+
+		gpio_main: gpio@c300000 {
+			compatible = "nvidia,tegra264-gpio";
+			reg = <0x00 0x0c300000 0x0 0x4000>,
+			      <0x00 0x0c310000 0x0 0x4000>;
+			reg-names = "security", "gpio";
+			wakeup-parent = <&pmc>;
+			interrupts =  <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 		};
 
 		i2c14: i2c@c410000 {

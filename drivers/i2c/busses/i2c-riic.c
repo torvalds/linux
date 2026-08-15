@@ -725,8 +725,10 @@ static int riic_i2c_resume_noirq(struct device *dev)
 		return ret;
 
 	ret = pm_runtime_force_resume(dev);
-	if (ret)
+	if (ret) {
+		reset_control_assert(riic->rstc);
 		return ret;
+	}
 
 	ret = riic_init_hw(riic);
 	if (ret) {

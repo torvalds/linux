@@ -1,0 +1,15 @@
+bench_try_ref_from_prefix_static_size:
+	cmp rsi, 6
+	setb al
+	or al, dil
+	test al, 1
+	jne .LBB5_2
+	movzx eax, word ptr [rdi]
+	cmp eax, 49344
+	mov eax, 2
+	cmove rax, rdi
+	je .LBB5_3
+.LBB5_2:
+	xor eax, eax
+.LBB5_3:
+	ret

@@ -58,6 +58,15 @@ static struct rv_monitor rv_this;
 #endif
 
 /*
+ * Hook to allow the implementation of hybrid automata: define it with a
+ * function that waits for the termination of all monitors background
+ * activities (e.g. all timers). This hook can sleep.
+ */
+#ifndef da_monitor_sync_hook
+#define da_monitor_sync_hook()
+#endif
+
+/*
  * Type for the target id, default to int but can be overridden.
  * A long type can work as hash table key (PER_OBJ) but will be downgraded to
  * int in the event tracepoint.
@@ -77,13 +86,22 @@ static void react(enum states curr_state, enum events event)
 }
 
 /*
+ * da_monitor_reset_state - reset a monitor and setting it to init state
+ */
+static inline void da_monitor_reset_state(struct da_monitor *da_mon)
+{
+	WRITE_ONCE(da_mon->monitoring, 0);
+	/* Pair with load in __ha_monitor_timer_callback */
+	smp_store_release(&da_mon->curr_state, model_get_initial_state());
+}
+
+/*
  * da_monitor_reset - reset a monitor and setting it to init state
  */
 static inline void da_monitor_reset(struct da_monitor *da_mon)
 {
 	da_monitor_reset_hook(da_mon);
-	da_mon->monitoring = 0;
-	da_mon->curr_state = model_get_initial_state();
+	da_monitor_reset_state(da_mon);
 }
 
 /*
@@ -95,8 +113,9 @@ static inline void da_monitor_reset(struct da_monitor *da_mon)
 static inline void da_monitor_start(struct da_monitor *da_mon)
 {
 	da_mon->curr_state = model_get_initial_state();
-	da_mon->monitoring = 1;
 	da_monitor_init_hook(da_mon);
+	/* Pairs with smp_load_acquire in da_monitoring(). */
+	smp_store_release(&da_mon->monitoring, 1);
 }
 
 /*
@@ -104,7 +123,8 @@ static inline void da_monitor_start(struct da_monitor *da_mon)
  */
 static inline bool da_monitoring(struct da_monitor *da_mon)
 {
-	return da_mon->monitoring;
+	/* Pairs with smp_store_release in da_monitor_start(). */
+	return smp_load_acquire(&da_mon->monitoring);
 }
 
 /*
@@ -157,11 +177,27 @@ static struct da_monitor *da_get_monitor(void)
 }
 
 /*
+ * __da_monitor_reset_all - reset the single monitor
+ */
+static void __da_monitor_reset_all(void (*reset)(struct da_monitor *))
+{
+	reset(da_get_monitor());
+}
+
+/*
  * da_monitor_reset_all - reset the single monitor
  */
 static void da_monitor_reset_all(void)
 {
-	da_monitor_reset(da_get_monitor());
+	__da_monitor_reset_all(da_monitor_reset);
+}
+
+/*
+ * da_monitor_reset_state_all - reset the single monitor
+ */
+static inline void da_monitor_reset_state_all(void)
+{
+	__da_monitor_reset_all(da_monitor_reset_state);
 }
 
 /*
@@ -169,7 +205,7 @@ static void da_monitor_reset_all(void)
  */
 static inline int da_monitor_init(void)
 {
-	da_monitor_reset_all();
+	da_monitor_reset_state_all();
 	return 0;
 }
 
@@ -179,7 +215,12 @@ static inline int da_monitor_init(void)
 static inline void da_monitor_destroy(void)
 {
 	da_monitor_reset_all();
+	da_monitor_sync_hook();
 }
+
+#ifndef da_implicit_guard
+#define da_implicit_guard()
+#endif
 
 #elif RV_MON_TYPE == RV_MON_PER_CPU
 /*
@@ -200,17 +241,33 @@ static struct da_monitor *da_get_monitor(void)
 }
 
 /*
- * da_monitor_reset_all - reset all CPUs' monitor
+ * __da_monitor_reset_all - reset all CPUs' monitor
  */
-static void da_monitor_reset_all(void)
+static void __da_monitor_reset_all(void (*reset)(struct da_monitor *))
 {
 	struct da_monitor *da_mon;
 	int cpu;
 
 	for_each_cpu(cpu, cpu_online_mask) {
 		da_mon = per_cpu_ptr(&DA_MON_NAME, cpu);
-		da_monitor_reset(da_mon);
+		reset(da_mon);
 	}
+}
+
+/*
+ * da_monitor_reset_all - reset all CPUs' monitor
+ */
+static void da_monitor_reset_all(void)
+{
+	__da_monitor_reset_all(da_monitor_reset);
+}
+
+/*
+ * da_monitor_reset_state_all - reset all CPUs' monitor
+ */
+static inline void da_monitor_reset_state_all(void)
+{
+	__da_monitor_reset_all(da_monitor_reset_state);
 }
 
 /*
@@ -218,7 +275,7 @@ static void da_monitor_reset_all(void)
  */
 static inline int da_monitor_init(void)
 {
-	da_monitor_reset_all();
+	da_monitor_reset_state_all();
 	return 0;
 }
 
@@ -228,7 +285,12 @@ static inline int da_monitor_init(void)
 static inline void da_monitor_destroy(void)
 {
 	da_monitor_reset_all();
+	da_monitor_sync_hook();
 }
+
+#ifndef da_implicit_guard
+#define da_implicit_guard() guard(migrate)()
+#endif
 
 #elif RV_MON_TYPE == RV_MON_PER_TASK
 /*
@@ -267,17 +329,27 @@ static inline da_id_type da_get_id(struct da_monitor *da_mon)
 	return da_get_target(da_mon)->pid;
 }
 
-static void da_monitor_reset_all(void)
+static void __da_monitor_reset_all(void (*reset)(struct da_monitor *))
 {
 	struct task_struct *g, *p;
 	int cpu;
 
 	read_lock(&tasklist_lock);
 	for_each_process_thread(g, p)
-		da_monitor_reset(da_get_monitor(p));
+		reset(da_get_monitor(p));
 	for_each_present_cpu(cpu)
-		da_monitor_reset(da_get_monitor(idle_task(cpu)));
+		reset(da_get_monitor(idle_task(cpu)));
 	read_unlock(&tasklist_lock);
+}
+
+static void da_monitor_reset_all(void)
+{
+	__da_monitor_reset_all(da_monitor_reset);
+}
+
+static inline void da_monitor_reset_state_all(void)
+{
+	__da_monitor_reset_all(da_monitor_reset_state);
 }
 
 /*
@@ -296,12 +368,15 @@ static int da_monitor_init(void)
 
 	task_mon_slot = slot;
 
-	da_monitor_reset_all();
+	da_monitor_reset_state_all();
 	return 0;
 }
 
 /*
  * da_monitor_destroy - return the allocated slot
+ *
+ * Wait for all in-flight handlers before returning the slot to avoid
+ * out-of-bound accesses.
  */
 static inline void da_monitor_destroy(void)
 {
@@ -309,10 +384,13 @@ static inline void da_monitor_destroy(void)
 		WARN_ONCE(1, "Disabling a disabled monitor: " __stringify(MONITOR_NAME));
 		return;
 	}
+
+	tracepoint_synchronize_unregister();
+	da_monitor_reset_all();
+	da_monitor_sync_hook();
+
 	rv_put_task_monitor_slot(task_mon_slot);
 	task_mon_slot = RV_PER_TASK_MONITOR_INIT;
-
-	da_monitor_reset_all();
 }
 
 #elif RV_MON_TYPE == RV_MON_PER_OBJ
@@ -483,15 +561,24 @@ static inline void da_destroy_storage(da_id_type id)
 	kfree_rcu(mon_storage, rcu);
 }
 
-static void da_monitor_reset_all(void)
+static void __da_monitor_reset_all(void (*reset)(struct da_monitor *))
 {
 	struct da_monitor_storage *mon_storage;
 	int bkt;
 
-	rcu_read_lock();
+	guard(rcu)();
 	hash_for_each_rcu(da_monitor_ht, bkt, mon_storage, node)
-		da_monitor_reset(&mon_storage->rv.da_mon);
-	rcu_read_unlock();
+		reset(&mon_storage->rv.da_mon);
+}
+
+static void da_monitor_reset_all(void)
+{
+	__da_monitor_reset_all(da_monitor_reset);
+}
+
+static inline void da_monitor_reset_state_all(void)
+{
+	__da_monitor_reset_all(da_monitor_reset_state);
 }
 
 static inline int da_monitor_init(void)
@@ -506,13 +593,14 @@ static inline void da_monitor_destroy(void)
 	struct hlist_node *tmp;
 	int bkt;
 
+	tracepoint_synchronize_unregister();
+	da_monitor_reset_all();
+	da_monitor_sync_hook();
 	/*
-	 * This function is called after all probes are disabled, we need only
-	 * worry about concurrency against old events.
+	 * This function is called after all probes are disabled and no longer
+	 * pending, we can safely assume no concurrent user.
 	 */
-	synchronize_rcu();
 	hash_for_each_safe(da_monitor_ht, bkt, tmp, mon_storage, node) {
-		da_monitor_reset_hook(&mon_storage->rv.da_mon);
 		hash_del_rcu(&mon_storage->node);
 		kfree(mon_storage);
 	}
@@ -676,6 +764,7 @@ static inline bool __da_handle_start_run_event(struct da_monitor *da_mon,
  */
 static inline void da_handle_event(enum events event)
 {
+	da_implicit_guard();
 	__da_handle_event(da_get_monitor(), event, 0);
 }
 
@@ -691,6 +780,7 @@ static inline void da_handle_event(enum events event)
  */
 static inline bool da_handle_start_event(enum events event)
 {
+	da_implicit_guard();
 	return __da_handle_start_event(da_get_monitor(), event, 0);
 }
 
@@ -702,6 +792,7 @@ static inline bool da_handle_start_event(enum events event)
  */
 static inline bool da_handle_start_run_event(enum events event)
 {
+	da_implicit_guard();
 	return __da_handle_start_run_event(da_get_monitor(), event, 0);
 }
 

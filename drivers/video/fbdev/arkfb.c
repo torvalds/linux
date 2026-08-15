@@ -1167,8 +1167,8 @@ static const struct dev_pm_ops ark_pci_pm_ops = {
 /* List of boards that we are trying to support */
 
 static const struct pci_device_id ark_devices[] = {
-	{PCI_DEVICE(0xEDD8, 0xA099)},
-	{0, 0, 0, 0, 0, 0, 0}
+	{ PCI_DEVICE(0xEDD8, 0xA099) },
+	{ }
 };
 
 

@@ -11,7 +11,7 @@ maintainers:
   - Hugo Villeneuve <hvilleneuve@dimonoff.com>
 
 description: |
-  The charlieplex keypad supports N^2)-N different key combinations (where N is
+  The charlieplex keypad supports (N^2)-N different key combinations (where N is
   the number of I/O lines). Key presses and releases are detected by configuring
   only one line as output at a time, and reading other line states. This process
   is repeated for each line. Diodes are required to ensure current flows in only

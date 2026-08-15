@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2020-2024 Intel Corporation
+ * Copyright (C) 2020-2026 Intel Corporation
  */
 
 #include "ivpu_drv.h"
@@ -86,6 +86,9 @@ const char *ivpu_jsm_msg_type_to_str(enum vpu_ipc_msg_type type)
 	IVPU_CASE_TO_STR(VPU_JSM_MSG_DCT_ENABLE_DONE);
 	IVPU_CASE_TO_STR(VPU_JSM_MSG_DCT_DISABLE);
 	IVPU_CASE_TO_STR(VPU_JSM_MSG_DCT_DISABLE_DONE);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_FREQ_CONFIG);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_FREQ_CONFIG_RSP);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_RESERVED_111E);
 	}
 	#undef IVPU_CASE_TO_STR
 
@@ -271,9 +274,6 @@ int ivpu_jsm_pwr_d0i3_enter(struct ivpu_device *vdev)
 	struct vpu_jsm_msg req = { .type = VPU_JSM_MSG_PWR_D0I3_ENTER };
 	struct vpu_jsm_msg resp;
 	int ret;
-
-	if (IVPU_WA(disable_d0i3_msg))
-		return 0;
 
 	req.payload.pwr_d0i3_enter.send_response = 1;
 
@@ -570,4 +570,17 @@ int ivpu_jsm_state_dump_no_reply(struct ivpu_device *vdev)
 
 	return ivpu_ipc_send_and_wait(vdev, &req, VPU_IPC_CHAN_ASYNC_CMD,
 				      vdev->timeout.state_dump_msg);
+}
+
+int ivpu_jsm_msg_freq_config(struct ivpu_device *vdev, u16 min_ratio, u16 pn_ratio, u16 max_ratio)
+{
+	struct vpu_jsm_msg req = { .type = VPU_JSM_MSG_FREQ_CONFIG};
+	struct vpu_jsm_msg resp;
+
+	req.payload.freq_config.min_freq_pll_ratio = min_ratio;
+	req.payload.freq_config.pn_freq_pll_ratio = pn_ratio;
+	req.payload.freq_config.max_freq_pll_ratio = max_ratio;
+
+	return ivpu_ipc_send_receive_internal(vdev, &req, VPU_JSM_MSG_FREQ_CONFIG_RSP, &resp,
+					      VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
 }

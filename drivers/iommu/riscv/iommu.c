@@ -920,20 +920,120 @@ static void riscv_iommu_bond_unlink(struct riscv_iommu_domain *domain,
 	}
 }
 
-/*
- * Send IOTLB.INVAL for whole address space for ranges larger than 2MB.
- * This limit will be replaced with range invalidations, if supported by
- * the hardware, when RISC-V IOMMU architecture specification update for
- * range invalidations update will be available.
- */
-#define RISCV_IOMMU_IOTLB_INVAL_LIMIT	(2 << 20)
+struct riscv_iommu_tlbi {
+	u64 start;
+	u64 last;
+	bool non_leaf;
+	struct {
+		bool use_global;
+		u8 stride_lg2;
+		unsigned int num;
+	} single;
+	struct {
+		u8 sz_lg2;
+		u64 addr;
+	} range;
+};
+
+static void riscv_iommu_tlbi_calc(struct riscv_iommu_tlbi *tlbi,
+				  struct iommu_iotlb_gather *gather)
+{
+	u8 combined = gather->pt.leaf_levels_bitmap |
+		      gather->pt.table_levels_bitmap;
+	u64 num;
+
+	tlbi->non_leaf = gather->pt.table_levels_bitmap != 0;
+	tlbi->start = gather->start;
+	tlbi->last = gather->end;
+
+	/* No level information available */
+	if (!combined) {
+		tlbi->single.use_global = true;
+		tlbi->range.sz_lg2 = 0;
+		return;
+	}
+
+	/*
+	 * Calculate the smallest NAPOT range containing [start, last].
+	 * NAPOT encoding requires a power-of-two sized, naturally aligned
+	 * range. Over-invalidation is always safe.
+	 */
+	tlbi->range.sz_lg2 = fls64(tlbi->start ^ tlbi->last);
+	if (unlikely(tlbi->range.sz_lg2 >= 64)) {
+		tlbi->single.use_global = true;
+		tlbi->range.sz_lg2 = 0;
+		return;
+	}
+	tlbi->range.addr = tlbi->start & ~(BIT_U64(tlbi->range.sz_lg2) - 1);
+
+	/*
+	 * Calculate stride from the lowest changed level. RISC-V uses 4KiB
+	 * granule with 9 bits per level.
+	 */
+	tlbi->single.stride_lg2 = 9 * __ffs(combined) + 12;
+	num = (tlbi->last - tlbi->start + 1) >> tlbi->single.stride_lg2;
+	if (!num || num > 512) {
+		tlbi->single.use_global = true;
+	} else {
+		tlbi->single.num = num;
+		tlbi->single.use_global = false;
+	}
+}
+
+static void riscv_iommu_iotlb_inval_iommu(struct riscv_iommu_device *iommu,
+					  int pscid,
+					  struct riscv_iommu_tlbi *tlbi)
+{
+	bool use_nl = tlbi->non_leaf &&
+		      (iommu->caps & RISCV_IOMMU_CAPABILITIES_NL);
+	struct riscv_iommu_command cmd;
+	unsigned int i;
+
+	riscv_iommu_cmd_inval_vma(&cmd);
+	riscv_iommu_cmd_inval_set_pscid(&cmd, pscid);
+
+	/*
+	 * If non-leaf entries were changed and the IOMMU doesn't
+	 * support NL, we must fall back to global invalidation (AV=0).
+	 */
+	if (tlbi->non_leaf && !use_nl)
+		goto global;
+
+	if (iommu->caps & RISCV_IOMMU_CAPABILITIES_S &&
+	    tlbi->range.sz_lg2 >= 13) {
+		riscv_iommu_cmd_inval_set_napot(&cmd, tlbi->range.addr,
+						tlbi->range.sz_lg2);
+		if (use_nl)
+			riscv_iommu_cmd_inval_set_nl(&cmd);
+		riscv_iommu_cmd_send(iommu, &cmd);
+	} else {
+		unsigned long iova;
+
+		if (tlbi->single.use_global)
+			goto global;
+
+		iova = tlbi->start;
+		for (i = 0; i < tlbi->single.num; i++) {
+			riscv_iommu_cmd_inval_set_addr(&cmd, iova);
+			if (use_nl)
+				riscv_iommu_cmd_inval_set_nl(&cmd);
+			riscv_iommu_cmd_send(iommu, &cmd);
+			iova += 1ULL << tlbi->single.stride_lg2;
+		}
+	}
+	return;
+global:
+	riscv_iommu_cmd_send(iommu, &cmd);
+}
 
 static void riscv_iommu_iotlb_inval(struct riscv_iommu_domain *domain,
-				    unsigned long start, unsigned long end)
+				    struct iommu_iotlb_gather *gather)
 {
-	struct riscv_iommu_bond *bond;
 	struct riscv_iommu_device *iommu, *prev;
-	struct riscv_iommu_command cmd;
+	struct riscv_iommu_bond *bond;
+	struct riscv_iommu_tlbi tlbi;
+
+	riscv_iommu_tlbi_calc(&tlbi, gather);
 
 	/*
 	 * For each IOMMU linked with this protection domain (via bonds->dev),
@@ -974,19 +1074,7 @@ static void riscv_iommu_iotlb_inval(struct riscv_iommu_domain *domain,
 		if (iommu == prev)
 			continue;
 
-		riscv_iommu_cmd_inval_vma(&cmd);
-		riscv_iommu_cmd_inval_set_pscid(&cmd, domain->pscid);
-		if (end - start < RISCV_IOMMU_IOTLB_INVAL_LIMIT - 1) {
-			unsigned long iova = start;
-
-			do {
-				riscv_iommu_cmd_inval_set_addr(&cmd, iova);
-				riscv_iommu_cmd_send(iommu, &cmd);
-			} while (!check_add_overflow(iova, PAGE_SIZE, &iova) &&
-				 iova < end);
-		} else {
-			riscv_iommu_cmd_send(iommu, &cmd);
-		}
+		riscv_iommu_iotlb_inval_iommu(iommu, domain->pscid, &tlbi);
 		prev = iommu;
 	}
 
@@ -1145,8 +1233,14 @@ static void riscv_iommu_iodir_update(struct riscv_iommu_device *iommu,
 static void riscv_iommu_iotlb_flush_all(struct iommu_domain *iommu_domain)
 {
 	struct riscv_iommu_domain *domain = iommu_domain_to_riscv(iommu_domain);
+	struct iommu_iotlb_gather gather = {
+		.start = 0,
+		.end = ULONG_MAX,
+		.pt.leaf_levels_bitmap = 0xFF,
+		.pt.table_levels_bitmap = 0xFE,
+	};
 
-	riscv_iommu_iotlb_inval(domain, 0, ULONG_MAX);
+	riscv_iommu_iotlb_inval(domain, &gather);
 }
 
 static void riscv_iommu_iotlb_sync(struct iommu_domain *iommu_domain,
@@ -1154,19 +1248,8 @@ static void riscv_iommu_iotlb_sync(struct iommu_domain *iommu_domain,
 {
 	struct riscv_iommu_domain *domain = iommu_domain_to_riscv(iommu_domain);
 
-	if (iommu_pages_list_empty(&gather->freelist)) {
-		riscv_iommu_iotlb_inval(domain, gather->start, gather->end);
-	} else {
-		/*
-		 * In 1.0 spec version, the smallest scope we can use to
-		 * invalidate all levels of page table (i.e. leaf and non-leaf)
-		 * is an invalidate-all-PSCID IOTINVAL.VMA with AV=0.
-		 * This will be updated with hardware support for
-		 * capability.NL (non-leaf) IOTINVAL command.
-		 */
-		riscv_iommu_iotlb_inval(domain, 0, ULONG_MAX);
-		iommu_put_pages_list(&gather->freelist);
-	}
+	riscv_iommu_iotlb_inval(domain, gather);
+	iommu_put_pages_list(&gather->freelist);
 }
 
 static void riscv_iommu_free_paging_domain(struct iommu_domain *iommu_domain)
@@ -1267,7 +1350,10 @@ static struct iommu_domain *riscv_iommu_alloc_paging_domain(struct device *dev)
 	 */
 	cfg.common.features = BIT(PT_FEAT_SIGN_EXTEND) |
 			      BIT(PT_FEAT_FLUSH_RANGE) |
-			      BIT(PT_FEAT_RISCV_SVNAPOT_64K);
+			      BIT(PT_FEAT_RISCV_SVNAPOT_64K) |
+			      BIT(PT_FEAT_DETAILED_GATHER);
+	if (iommu->caps & RISCV_IOMMU_CAPABILITIES_SVPBMT)
+		cfg.common.features |= BIT(PT_FEAT_RISCV_SVPBMT);
 	domain->riscvpt.iommu.nid = dev_to_node(iommu->dev);
 	domain->domain.ops = &riscv_iommu_paging_domain_ops;
 

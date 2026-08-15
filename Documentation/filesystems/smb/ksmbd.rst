@@ -97,7 +97,7 @@ ACLs                           Partially Supported. only DACLs available, SACLs
                                to allow future support for running as a domain
                                member.
 Kerberos                       Supported.
-Durable handle v1,v2           Planned for future.
+Durable handle v1,v2           Supported.
 Persistent handle              Planned for future.
 SMB2 notify                    Planned for future.
 Sparse file support            Supported.
@@ -111,7 +111,7 @@ DCE/RPC support                Partially Supported. a few calls(NetShareEnumAll,
                                for Witness protocol e.g.)
 ksmbd/nfsd interoperability    Planned for future. The features that ksmbd
                                support are Leases, Notify, ACLs and Share modes.
-SMB3.1.1 Compression           Planned for future.
+SMB3.1.1 Compression           Supported.
 SMB3.1.1 over QUIC             Planned for future.
 Signing/Encryption over RDMA   Planned for future.
 SMB3.1.1 GMAC signing support  Planned for future.

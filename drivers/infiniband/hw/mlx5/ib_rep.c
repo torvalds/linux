@@ -262,9 +262,10 @@ mlx5_ib_vport_rep_unload(struct mlx5_eswitch_rep *rep)
 			struct mlx5_core_dev *peer_mdev;
 			struct mlx5_eswitch *esw;
 
+			/* Called while the master E-Switch reps_lock is held. */
 			mlx5_lag_for_each_peer_mdev(mdev, peer_mdev, i) {
 				esw = peer_mdev->priv.eswitch;
-				mlx5_eswitch_unregister_vport_reps(esw, REP_IB);
+				mlx5_eswitch_unregister_vport_reps_nested(esw, REP_IB);
 			}
 			mlx5_ib_release_transport(mdev);
 		}
@@ -284,9 +285,10 @@ static void mlx5_ib_register_peer_vport_reps(struct mlx5_core_dev *mdev)
 	struct mlx5_eswitch *esw;
 	int i;
 
+	/* Called while the master E-Switch reps_lock is held. */
 	mlx5_lag_for_each_peer_mdev(mdev, peer_mdev, i) {
 		esw = peer_mdev->priv.eswitch;
-		mlx5_eswitch_register_vport_reps(esw, &rep_ops, REP_IB);
+		mlx5_eswitch_register_vport_reps_nested(esw, &rep_ops, REP_IB);
 	}
 }
 

@@ -300,7 +300,7 @@ unlock:
 /* This is basically iommu_viommu_arm_smmuv3_invalidate in u64 for conversion */
 struct arm_vsmmu_invalidation_cmd {
 	union {
-		u64 cmd[2];
+		struct arm_smmu_cmd cmd;
 		struct iommu_viommu_arm_smmuv3_invalidate ucmd;
 	};
 };
@@ -316,32 +316,32 @@ static int arm_vsmmu_convert_user_cmd(struct arm_vsmmu *vsmmu,
 				      struct arm_vsmmu_invalidation_cmd *cmd)
 {
 	/* Commands are le64 stored in u64 */
-	cmd->cmd[0] = le64_to_cpu(cmd->ucmd.cmd[0]);
-	cmd->cmd[1] = le64_to_cpu(cmd->ucmd.cmd[1]);
+	cmd->cmd.data[0] = le64_to_cpu(cmd->ucmd.cmd[0]);
+	cmd->cmd.data[1] = le64_to_cpu(cmd->ucmd.cmd[1]);
 
-	switch (cmd->cmd[0] & CMDQ_0_OP) {
+	switch (cmd->cmd.data[0] & CMDQ_0_OP) {
 	case CMDQ_OP_TLBI_NSNH_ALL:
 		/* Convert to NH_ALL */
-		cmd->cmd[0] = CMDQ_OP_TLBI_NH_ALL |
+		cmd->cmd.data[0] = CMDQ_OP_TLBI_NH_ALL |
 			      FIELD_PREP(CMDQ_TLBI_0_VMID, vsmmu->vmid);
-		cmd->cmd[1] = 0;
+		cmd->cmd.data[1] = 0;
 		break;
 	case CMDQ_OP_TLBI_NH_VA:
 	case CMDQ_OP_TLBI_NH_VAA:
 	case CMDQ_OP_TLBI_NH_ALL:
 	case CMDQ_OP_TLBI_NH_ASID:
-		cmd->cmd[0] &= ~CMDQ_TLBI_0_VMID;
-		cmd->cmd[0] |= FIELD_PREP(CMDQ_TLBI_0_VMID, vsmmu->vmid);
+		cmd->cmd.data[0] &= ~CMDQ_TLBI_0_VMID;
+		cmd->cmd.data[0] |= FIELD_PREP(CMDQ_TLBI_0_VMID, vsmmu->vmid);
 		break;
 	case CMDQ_OP_ATC_INV:
 	case CMDQ_OP_CFGI_CD:
 	case CMDQ_OP_CFGI_CD_ALL: {
-		u32 sid, vsid = FIELD_GET(CMDQ_CFGI_0_SID, cmd->cmd[0]);
+		u32 sid, vsid = FIELD_GET(CMDQ_CFGI_0_SID, cmd->cmd.data[0]);
 
 		if (arm_vsmmu_vsid_to_sid(vsmmu, vsid, &sid))
 			return -EIO;
-		cmd->cmd[0] &= ~CMDQ_CFGI_0_SID;
-		cmd->cmd[0] |= FIELD_PREP(CMDQ_CFGI_0_SID, sid);
+		cmd->cmd.data[0] &= ~CMDQ_CFGI_0_SID;
+		cmd->cmd.data[0] |= FIELD_PREP(CMDQ_CFGI_0_SID, sid);
 		break;
 	}
 	default:
@@ -386,7 +386,7 @@ int arm_vsmmu_cache_invalidate(struct iommufd_viommu *viommu,
 			continue;
 
 		/* FIXME always uses the main cmdq rather than trying to group by type */
-		ret = arm_smmu_cmdq_issue_cmdlist(smmu, &smmu->cmdq, last->cmd,
+		ret = arm_smmu_cmdq_issue_cmdlist(smmu, &smmu->cmdq, &last->cmd,
 						  cur - last, true);
 		if (ret) {
 			cur--;

@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
    BlueZ - Bluetooth protocol stack for Linux
    Copyright (C) 2000-2001 Qualcomm Incorporated
 
    Written 2000,2001 by Maxim Krasnyansky <maxk@qualcomm.com>
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License version 2 as
-   published by the Free Software Foundation;
 
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -28,6 +25,7 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/sched/signal.h>
+#include <linux/uio.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -312,11 +310,21 @@ static int sco_connect(struct sock *sk)
 	struct sco_conn *conn;
 	struct hci_conn *hcon;
 	struct hci_dev  *hdev;
+	bdaddr_t src, dst;
+	struct bt_codec codec;
+	__u16 setting;
 	int err, type;
 
-	BT_DBG("%pMR -> %pMR", &sco_pi(sk)->src, &sco_pi(sk)->dst);
+	lock_sock(sk);
+	bacpy(&src, &sco_pi(sk)->src);
+	bacpy(&dst, &sco_pi(sk)->dst);
+	setting = sco_pi(sk)->setting;
+	codec = sco_pi(sk)->codec;
+	release_sock(sk);
 
-	hdev = hci_get_route(&sco_pi(sk)->dst, &sco_pi(sk)->src, BDADDR_BREDR);
+	BT_DBG("%pMR -> %pMR", &src, &dst);
+
+	hdev = hci_get_route(&dst, &src, BDADDR_BREDR);
 	if (!hdev)
 		return -EHOSTUNREACH;
 
@@ -327,7 +335,7 @@ static int sco_connect(struct sock *sk)
 	else
 		type = SCO_LINK;
 
-	switch (sco_pi(sk)->setting & SCO_AIRMODE_MASK) {
+	switch (setting & SCO_AIRMODE_MASK) {
 	case SCO_AIRMODE_TRANSP:
 		if (!lmp_transp_capable(hdev) || !lmp_esco_capable(hdev)) {
 			err = -EOPNOTSUPP;
@@ -336,8 +344,8 @@ static int sco_connect(struct sock *sk)
 		break;
 	}
 
-	hcon = hci_connect_sco(hdev, type, &sco_pi(sk)->dst,
-			       sco_pi(sk)->setting, &sco_pi(sk)->codec,
+	hcon = hci_connect_sco(hdev, type, &dst,
+			       setting, &codec,
 			       READ_ONCE(sk->sk_sndtimeo));
 	if (IS_ERR(hcon)) {
 		err = PTR_ERR(hcon);
@@ -562,10 +570,23 @@ static void __sco_sock_close(struct sock *sk)
 /* Must be called on unlocked socket. */
 static void sco_sock_close(struct sock *sk)
 {
+	struct sco_conn *conn;
+
 	lock_sock(sk);
-	sco_sock_clear_timer(sk);
+	conn = sco_pi(sk)->conn;
+	if (conn)
+		sco_conn_hold(conn);
+	release_sock(sk);
+
+	if (conn)
+		disable_delayed_work_sync(&conn->timeout_work);
+
+	lock_sock(sk);
 	__sco_sock_close(sk);
 	release_sock(sk);
+
+	if (conn)
+		sco_conn_put(conn);
 }
 
 static void sco_sock_init(struct sock *sk, struct sock *parent)
@@ -1079,7 +1100,7 @@ static int sco_sock_setsockopt(struct socket *sock, int level, int optname,
 }
 
 static int sco_sock_getsockopt_old(struct socket *sock, int optname,
-				   char __user *optval, int __user *optlen)
+				   sockopt_t *opt)
 {
 	struct sock *sk = sock->sk;
 	struct sco_options opts;
@@ -1089,8 +1110,7 @@ static int sco_sock_getsockopt_old(struct socket *sock, int optname,
 
 	BT_DBG("sk %p", sk);
 
-	if (get_user(len, optlen))
-		return -EFAULT;
+	len = opt->optlen;
 
 	lock_sock(sk);
 
@@ -1108,7 +1128,7 @@ static int sco_sock_getsockopt_old(struct socket *sock, int optname,
 		BT_DBG("mtu %u", opts.mtu);
 
 		len = min(len, sizeof(opts));
-		if (copy_to_user(optval, (char *)&opts, len))
+		if (copy_to_iter(&opts, len, &opt->iter_out) != len)
 			err = -EFAULT;
 
 		break;
@@ -1126,7 +1146,7 @@ static int sco_sock_getsockopt_old(struct socket *sock, int optname,
 		memcpy(cinfo.dev_class, sco_pi(sk)->conn->hcon->dev_class, 3);
 
 		len = min(len, sizeof(cinfo));
-		if (copy_to_user(optval, (char *)&cinfo, len))
+		if (copy_to_iter(&cinfo, len, &opt->iter_out) != len)
 			err = -EFAULT;
 
 		break;
@@ -1141,15 +1161,15 @@ static int sco_sock_getsockopt_old(struct socket *sock, int optname,
 }
 
 static int sco_sock_getsockopt(struct socket *sock, int level, int optname,
-			       char __user *optval, int __user *optlen)
+			       sockopt_t *opt)
 {
 	struct sock *sk = sock->sk;
-	int len, err = 0;
+	int len, val, err = 0;
 	struct bt_voice voice;
 	u32 phys;
 	int buf_len;
 	struct codec_list *c;
-	u8 num_codecs, i, __user *ptr;
+	u8 num_codecs, i;
 	struct hci_dev *hdev;
 	struct hci_codec_caps *caps;
 	struct bt_codec codec;
@@ -1157,10 +1177,9 @@ static int sco_sock_getsockopt(struct socket *sock, int level, int optname,
 	BT_DBG("sk %p", sk);
 
 	if (level == SOL_SCO)
-		return sco_sock_getsockopt_old(sock, optname, optval, optlen);
+		return sco_sock_getsockopt_old(sock, optname, opt);
 
-	if (get_user(len, optlen))
-		return -EFAULT;
+	len = opt->optlen;
 
 	lock_sock(sk);
 
@@ -1172,8 +1191,9 @@ static int sco_sock_getsockopt(struct socket *sock, int level, int optname,
 			break;
 		}
 
-		if (put_user(test_bit(BT_SK_DEFER_SETUP, &bt_sk(sk)->flags),
-			     (u32 __user *)optval))
+		val = test_bit(BT_SK_DEFER_SETUP, &bt_sk(sk)->flags);
+		if (copy_to_iter(&val, sizeof(val), &opt->iter_out) !=
+		    sizeof(val))
 			err = -EFAULT;
 
 		break;
@@ -1182,7 +1202,7 @@ static int sco_sock_getsockopt(struct socket *sock, int level, int optname,
 		voice.setting = sco_pi(sk)->setting;
 
 		len = min_t(unsigned int, len, sizeof(voice));
-		if (copy_to_user(optval, (char *)&voice, len))
+		if (copy_to_iter(&voice, len, &opt->iter_out) != len)
 			err = -EFAULT;
 
 		break;
@@ -1195,13 +1215,15 @@ static int sco_sock_getsockopt(struct socket *sock, int level, int optname,
 
 		phys = hci_conn_get_phy(sco_pi(sk)->conn->hcon);
 
-		if (put_user(phys, (u32 __user *) optval))
+		if (copy_to_iter(&phys, sizeof(phys), &opt->iter_out) !=
+		    sizeof(phys))
 			err = -EFAULT;
 		break;
 
 	case BT_PKT_STATUS:
-		if (put_user(test_bit(BT_SK_PKT_STATUS, &bt_sk(sk)->flags),
-			     (int __user *)optval))
+		val = test_bit(BT_SK_PKT_STATUS, &bt_sk(sk)->flags);
+		if (copy_to_iter(&val, sizeof(val), &opt->iter_out) !=
+		    sizeof(val))
 			err = -EFAULT;
 		break;
 
@@ -1212,7 +1234,9 @@ static int sco_sock_getsockopt(struct socket *sock, int level, int optname,
 			break;
 		}
 
-		if (put_user(sco_pi(sk)->conn->mtu, (u32 __user *)optval))
+		val = sco_pi(sk)->conn->mtu;
+		if (copy_to_iter(&val, sizeof(val), &opt->iter_out) !=
+		    sizeof(val))
 			err = -EFAULT;
 		break;
 
@@ -1259,13 +1283,12 @@ static int sco_sock_getsockopt(struct socket *sock, int level, int optname,
 			hci_dev_put(hdev);
 			return -ENOBUFS;
 		}
-		ptr = optval;
 
-		if (put_user(num_codecs, ptr)) {
+		if (copy_to_iter(&num_codecs, sizeof(num_codecs),
+				 &opt->iter_out) != sizeof(num_codecs)) {
 			hci_dev_put(hdev);
 			return -EFAULT;
 		}
-		ptr += sizeof(num_codecs);
 
 		/* Iterate all the codecs supported over SCO and populate
 		 * codec data
@@ -1282,11 +1305,11 @@ static int sco_sock_getsockopt(struct socket *sock, int level, int optname,
 			if (err < 0)
 				break;
 			codec.num_caps = c->num_caps;
-			if (copy_to_user(ptr, &codec, sizeof(codec))) {
+			if (copy_to_iter(&codec, sizeof(codec), &opt->iter_out)
+			    != sizeof(codec)) {
 				err = -EFAULT;
 				break;
 			}
-			ptr += sizeof(codec);
 
 			/* find codec capabilities data length */
 			len = 0;
@@ -1296,11 +1319,11 @@ static int sco_sock_getsockopt(struct socket *sock, int level, int optname,
 			}
 
 			/* copy codec capabilities data */
-			if (len && copy_to_user(ptr, c->caps, len)) {
+			if (len &&
+			    copy_to_iter(c->caps, len, &opt->iter_out) != len) {
 				err = -EFAULT;
 				break;
 			}
-			ptr += len;
 		}
 
 		hci_dev_unlock(hdev);
@@ -1308,8 +1331,8 @@ static int sco_sock_getsockopt(struct socket *sock, int level, int optname,
 
 		lock_sock(sk);
 
-		if (!err && put_user(buf_len, optlen))
-			err = -EFAULT;
+		if (!err)
+			opt->optlen = buf_len;
 
 		break;
 
@@ -1584,7 +1607,7 @@ static const struct proto_ops sco_sock_ops = {
 	.socketpair	= sock_no_socketpair,
 	.shutdown	= sco_sock_shutdown,
 	.setsockopt	= sco_sock_setsockopt,
-	.getsockopt	= sco_sock_getsockopt
+	.getsockopt_iter = sco_sock_getsockopt
 };
 
 static const struct net_proto_family sco_sock_family_ops = {

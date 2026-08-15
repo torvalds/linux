@@ -44,7 +44,7 @@
 irqreturn_t mcfslt_profile_tick(int irq, void *dummy)
 {
 	/* Reset Slice Timer 1 */
-	__raw_writel(MCFSLT_SSR_BE | MCFSLT_SSR_TE, PA(MCFSLT_SSR));
+	mcf_write32(MCFSLT_SSR_BE | MCFSLT_SSR_TE, PA(MCFSLT_SSR));
 	if (current->pid)
 		profile_tick(CPU_PROFILING);
 	return IRQ_HANDLED;
@@ -65,8 +65,8 @@ void mcfslt_profile_init(void)
 	}
 
 	/* Set up TIMER 2 as high speed profile clock */
-	__raw_writel(MCF_BUSCLK / PROFILEHZ - 1, PA(MCFSLT_STCNT));
-	__raw_writel(MCFSLT_SCR_RUN | MCFSLT_SCR_IEN | MCFSLT_SCR_TEN,
+	mcf_write32(MCF_BUSCLK / PROFILEHZ - 1, PA(MCFSLT_STCNT));
+	mcf_write32(MCFSLT_SCR_RUN | MCFSLT_SCR_IEN | MCFSLT_SCR_TEN,
 								PA(MCFSLT_SCR));
 
 }
@@ -86,7 +86,7 @@ static u32 mcfslt_cnt;
 static irqreturn_t mcfslt_tick(int irq, void *dummy)
 {
 	/* Reset Slice Timer 0 */
-	__raw_writel(MCFSLT_SSR_BE | MCFSLT_SSR_TE, TA(MCFSLT_SSR));
+	mcf_write32(MCFSLT_SSR_BE | MCFSLT_SSR_TE, TA(MCFSLT_SSR));
 	mcfslt_cnt += mcfslt_cycles_per_jiffy;
 	legacy_timer_tick(1);
 	return IRQ_HANDLED;
@@ -98,11 +98,11 @@ static u64 mcfslt_read_clk(struct clocksource *cs)
 	u32 cycles, scnt;
 
 	local_irq_save(flags);
-	scnt = __raw_readl(TA(MCFSLT_SCNT));
+	scnt = mcf_read32(TA(MCFSLT_SCNT));
 	cycles = mcfslt_cnt;
-	if (__raw_readl(TA(MCFSLT_SSR)) & MCFSLT_SSR_TE) {
+	if (mcf_read32(TA(MCFSLT_SSR)) & MCFSLT_SSR_TE) {
 		cycles += mcfslt_cycles_per_jiffy;
-		scnt = __raw_readl(TA(MCFSLT_SCNT));
+		scnt = mcf_read32(TA(MCFSLT_SCNT));
 	}
 	local_irq_restore(flags);
 
@@ -129,8 +129,8 @@ void hw_timer_init(void)
 	 *	STCNT + 1 steps for 1 tick, not STCNT.  So if you want
 	 *	n cycles, initialize STCNT with n - 1.
 	 */
-	__raw_writel(mcfslt_cycles_per_jiffy - 1, TA(MCFSLT_STCNT));
-	__raw_writel(MCFSLT_SCR_RUN | MCFSLT_SCR_IEN | MCFSLT_SCR_TEN,
+	mcf_write32(mcfslt_cycles_per_jiffy - 1, TA(MCFSLT_STCNT));
+	mcf_write32(MCFSLT_SCR_RUN | MCFSLT_SCR_IEN | MCFSLT_SCR_TEN,
 								TA(MCFSLT_SCR));
 	/* initialize mcfslt_cnt knowing that slice timers count down */
 	mcfslt_cnt = mcfslt_cycles_per_jiffy;

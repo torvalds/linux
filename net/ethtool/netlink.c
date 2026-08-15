@@ -7,12 +7,19 @@
 #include <linux/phy_link_topology.h>
 #include <linux/pm_runtime.h>
 
+#include "common.h"
 #include "module_fw.h"
 #include "netlink.h"
 
 static struct genl_family ethtool_genl_family;
 
 static bool ethnl_ok __read_mostly;
+
+/* Serializes broadcast notification sequence allocation with the multicast
+ * send, so that userspace observes nlmsg_seq monotonic in receive order
+ * regardless of which lock the caller holds (rtnl or instance lock).
+ */
+static DEFINE_MUTEX(ethnl_bcast_lock);
 static u32 ethnl_bcast_seq;
 
 #define ETHTOOL_FLAGS_BASIC (ETHTOOL_FLAG_COMPACT_BITSETS |	\
@@ -82,12 +89,6 @@ static void ethnl_sock_priv_destroy(void *priv)
 	}
 }
 
-u32 ethnl_bcast_seq_next(void)
-{
-	ASSERT_RTNL();
-	return ++ethnl_bcast_seq;
-}
-
 int ethnl_ops_begin(struct net_device *dev)
 {
 	int ret;
@@ -98,7 +99,7 @@ int ethnl_ops_begin(struct net_device *dev)
 	if (dev->dev.parent)
 		pm_runtime_get_sync(dev->dev.parent);
 
-	netdev_ops_assert_locked(dev);
+	netdev_assert_locked_ops_compat(dev);
 
 	if (!netif_device_present(dev) ||
 	    dev->reg_state >= NETREG_UNREGISTERING) {
@@ -226,10 +227,12 @@ struct phy_device *ethnl_req_get_phydev(const struct ethnl_req_info *req_info,
 {
 	struct phy_device *phydev;
 
-	ASSERT_RTNL();
-
 	if (!req_info->dev)
 		return NULL;
+
+	/* If there is no PHY in sight there's no need for assert locking */
+	if (!phy_link_topo_empty(req_info->dev))
+		ASSERT_RTNL();
 
 	if (!req_info->phy_index)
 		return req_info->dev->phydev;
@@ -329,8 +332,7 @@ void *ethnl_dump_put(struct sk_buff *skb, struct netlink_callback *cb, u8 cmd)
 
 void *ethnl_bcastmsg_put(struct sk_buff *skb, u8 cmd)
 {
-	return genlmsg_put(skb, 0, ++ethnl_bcast_seq, &ethtool_genl_family, 0,
-			   cmd);
+	return genlmsg_put(skb, 0, 0, &ethtool_genl_family, 0, cmd);
 }
 
 void *ethnl_unicast_put(struct sk_buff *skb, u32 portid, u32 seq, u8 cmd)
@@ -340,8 +342,15 @@ void *ethnl_unicast_put(struct sk_buff *skb, u32 portid, u32 seq, u8 cmd)
 
 int ethnl_multicast(struct sk_buff *skb, struct net_device *dev)
 {
-	return genlmsg_multicast_netns(&ethtool_genl_family, dev_net(dev), skb,
-				       0, ETHNL_MCGRP_MONITOR, GFP_KERNEL);
+	struct nlmsghdr *nlh = nlmsg_hdr(skb);
+	int ret;
+
+	mutex_lock(&ethnl_bcast_lock);
+	nlh->nlmsg_seq = ++ethnl_bcast_seq;
+	ret = genlmsg_multicast_netns(&ethtool_genl_family, dev_net(dev), skb,
+				      0, ETHNL_MCGRP_MONITOR, GFP_KERNEL);
+	mutex_unlock(&ethnl_bcast_lock);
+	return ret;
 }
 
 /* GET request helpers */
@@ -501,6 +510,7 @@ static int ethnl_default_doit(struct sk_buff *skb, struct genl_info *info)
 	struct ethnl_req_info *req_info = NULL;
 	const u8 cmd = info->genlhdr->cmd;
 	const struct ethnl_request_ops *ops;
+	bool need_rtnl = false;
 	int hdr_len, reply_len;
 	struct sk_buff *rskb;
 	void *reply_payload;
@@ -526,13 +536,19 @@ static int ethnl_default_doit(struct sk_buff *skb, struct genl_info *info)
 		goto err_free;
 	ethnl_init_reply_data(reply_data, ops, req_info->dev);
 
-	rtnl_lock();
-	if (req_info->dev)
+	if (req_info->dev) {
+		need_rtnl = !netdev_need_ops_lock(req_info->dev) ||
+			    ethtool_nl_msg_needs_rtnl(req_info->dev, cmd);
+		if (need_rtnl)
+			rtnl_lock();
 		netdev_lock_ops(req_info->dev);
+	}
 	ret = ops->prepare_data(req_info, reply_data, info);
-	if (req_info->dev)
+	if (req_info->dev) {
 		netdev_unlock_ops(req_info->dev);
-	rtnl_unlock();
+		if (need_rtnl)
+			rtnl_unlock();
+	}
 	if (ret < 0)
 		goto err_dev;
 	ret = ops->reply_size(req_info, reply_data);
@@ -579,6 +595,7 @@ static int ethnl_default_dump_one(struct sk_buff *skb, struct net_device *dev,
 				  const struct ethnl_dump_ctx *ctx,
 				  const struct genl_info *info)
 {
+	bool need_rtnl;
 	void *ehdr;
 	int ret;
 
@@ -589,11 +606,15 @@ static int ethnl_default_dump_one(struct sk_buff *skb, struct net_device *dev,
 		return -EMSGSIZE;
 
 	ethnl_init_reply_data(ctx->reply_data, ctx->ops, dev);
-	rtnl_lock();
+	need_rtnl = !netdev_need_ops_lock(dev) ||
+		    ethtool_nl_msg_needs_rtnl(dev, ctx->ops->request_cmd);
+	if (need_rtnl)
+		rtnl_lock();
 	netdev_lock_ops(dev);
 	ret = ctx->ops->prepare_data(ctx->req_info, ctx->reply_data, info);
 	netdev_unlock_ops(dev);
-	rtnl_unlock();
+	if (need_rtnl)
+		rtnl_unlock();
 	if (ret < 0)
 		goto out_cancel;
 	ret = ethnl_fill_reply_header(skb, dev, ctx->ops->hdr_attr);
@@ -882,6 +903,7 @@ static int ethnl_default_set_doit(struct sk_buff *skb, struct genl_info *info)
 	const u8 cmd = info->genlhdr->cmd;
 	struct ethnl_req_info *req_info;
 	struct net_device *dev;
+	bool need_rtnl;
 	int ret;
 
 	ops = ethnl_default_requests[cmd];
@@ -906,8 +928,11 @@ static int ethnl_default_set_doit(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	dev = req_info->dev;
+	need_rtnl = !netdev_need_ops_lock(dev) ||
+		    ethtool_nl_msg_needs_rtnl(dev, cmd);
 
-	rtnl_lock();
+	if (need_rtnl)
+		rtnl_lock();
 	netdev_lock_ops(dev);
 	dev->cfg_pending = kmemdup(dev->cfg, sizeof(*dev->cfg),
 				   GFP_KERNEL_ACCOUNT);
@@ -937,7 +962,8 @@ out_free_cfg:
 out_tie_cfg:
 	dev->cfg_pending = dev->cfg;
 	netdev_unlock_ops(dev);
-	rtnl_unlock();
+	if (need_rtnl)
+		rtnl_unlock();
 out_dev:
 	ethnl_parse_header_dev_put(req_info);
 out_free_req:
@@ -1003,7 +1029,7 @@ static void ethnl_default_notify(struct net_device *dev, unsigned int cmd,
 		       ops->req_info_size - sizeof(*req_info));
 	}
 
-	netdev_ops_assert_locked(dev);
+	netdev_assert_locked_ops_compat(dev);
 
 	ethnl_init_reply_data(reply_data, ops, dev);
 	ret = ops->prepare_data(req_info, reply_data, &info);
@@ -1079,7 +1105,7 @@ void ethnl_notify(struct net_device *dev, unsigned int cmd,
 {
 	if (unlikely(!ethnl_ok))
 		return;
-	ASSERT_RTNL();
+	netdev_assert_locked_ops_compat(dev);
 
 	if (likely(cmd < ARRAY_SIZE(ethnl_notify_handlers) &&
 		   ethnl_notify_handlers[cmd]))

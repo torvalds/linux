@@ -1,0 +1,118 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/qcom,ipq9650-tlmm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm IPQ9650 TLMM pin controller
+
+maintainers:
+  - Bjorn Andersson <andersson@kernel.org>
+  - Kathiravan Thirumoorthy <kathiravan.thirumoorthy@oss.qualcomm.com>
+
+description:
+  Top Level Mode Multiplexer pin controller in Qualcomm IPQ9650 SoC.
+
+allOf:
+  - $ref: /schemas/pinctrl/qcom,tlmm-common.yaml#
+
+properties:
+  compatible:
+    const: qcom,ipq9650-tlmm
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  gpio-reserved-ranges:
+    minItems: 1
+    maxItems: 27
+
+  gpio-line-names:
+    maxItems: 54
+
+patternProperties:
+  "-state$":
+    oneOf:
+      - $ref: "#/$defs/qcom-ipq9650-tlmm-state"
+      - patternProperties:
+          "-pins$":
+            $ref: "#/$defs/qcom-ipq9650-tlmm-state"
+        additionalProperties: false
+
+$defs:
+  qcom-ipq9650-tlmm-state:
+    type: object
+    description:
+      Pinctrl node's client devices use subnodes for desired pin configuration.
+      Client device subnodes use below standard properties.
+    $ref: qcom,tlmm-common.yaml#/$defs/qcom-tlmm-state
+    unevaluatedProperties: false
+
+    properties:
+      pins:
+        description:
+          List of gpio pins affected by the properties specified in this
+          subnode.
+        items:
+          pattern: "^gpio([0-9]|[1-4][0-9]|5[0-3])$"
+        minItems: 1
+        maxItems: 36
+
+      function:
+        description:
+          Specify the alternative function to be configured for the specified
+          pins.
+
+        enum: [ atest_char_start, atest_char_status0, atest_char_status1,
+                atest_char_status2, atest_char_status3, atest_tic_en,
+                audio_pri_mclk_in0, audio_pri_mclk_out0, audio_pri_mclk_in1,
+                audio_pri_mclk_out1, audio_pri, audio_sec, audio_sec_mclk_in0,
+                audio_sec_mclk_out0, audio_sec_mclk_in1, audio_sec_mclk_out1,
+                core_voltage_0, core_voltage_1, core_voltage_2, core_voltage_3,
+                core_voltage_4, cri_rng0, cri_rng1, cri_rng2, dbg_out_clk,
+                gcc_plltest_bypassnl, gcc_plltest_resetn, gcc_tlmm, gpio,
+                mdc_mst, mdc_slv0, mdc_slv1, mdio_mst, mdio_slv, mdio_slv0,
+                mdio_slv1, pcie0_clk_req_n, pcie0_wake, pcie1_clk_req_n,
+                pcie1_wake, pcie2_clk_req_n, pcie2_wake, pcie3_clk_req_n,
+                pcie3_wake, pcie4_clk_req_n, pcie4_wake, pll_bist_sync,
+                pll_test, pwm, qdss_cti_trig_in_a0, qdss_cti_trig_in_a1,
+                qdss_cti_trig_in_b0, qdss_cti_trig_in_b1, qdss_cti_trig_out_a0,
+                qdss_cti_trig_out_a1, qdss_cti_trig_out_b0, qdss_cti_trig_out_b1,
+                qdss_traceclk_a, qdss_tracectl_a, qdss_tracedata_a, qspi_data,
+                qspi_clk, qspi_cs_n, qup_se0, qup_se1, qup_se2, qup_se3,
+                qup_se4, qup_se5, qup_se6, qup_se7, resout, rx_los0, rx_los1,
+                rx_los2, sdc_clk, sdc_cmd, sdc_data, tsens_max, tsn ]
+
+    required:
+      - pins
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    tlmm: pinctrl@1000000 {
+        compatible = "qcom,ipq9650-tlmm";
+        reg = <0x01000000 0x300000>;
+        gpio-controller;
+        #gpio-cells = <2>;
+        gpio-ranges = <&tlmm 0 0 54>;
+        interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-controller;
+        #interrupt-cells = <2>;
+
+        qup-uart1-default-state {
+            pins = "gpio43", "gpio44";
+            function = "qup_se6";
+            drive-strength = <8>;
+            bias-pull-down;
+        };
+    };

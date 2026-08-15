@@ -183,7 +183,7 @@ examples:
             compatible = "ti,lp8501";
             reg = <0x32>;
             clock-mode = /bits/ 8 <2>;
-            pwr-sel = /bits/ 8 <3>;	/* D1~9 connected to VOUT */
+            pwr-sel = /bits/ 8 <3>; /* D1~9 connected to VOUT */
             ti,charge-pump-mode = <LP55XX_CP_BYPASS>;
 
             led@0 {

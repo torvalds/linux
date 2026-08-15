@@ -128,8 +128,8 @@ struct sur40_image_header {
 /* polling interval (ms) */
 #define POLL_INTERVAL 1
 
-/* maximum number of contacts FIXME: this is a guess? */
-#define MAX_CONTACTS 64
+/* maximum number of contacts */
+#define MAX_CONTACTS 52
 
 /* control commands */
 #define SUR40_GET_VERSION 0xb0 /* 12 bytes string    */

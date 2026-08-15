@@ -419,7 +419,7 @@ struct ath12k_dp_peer *ath12k_dp_peer_find_by_peerid(struct ath12k_pdev_dp *dp_p
 	RCU_LOCKDEP_WARN(!rcu_read_lock_held(),
 			 "ath12k dp peer find by peerid index called without rcu lock");
 
-	if (!peer_id || peer_id >= ATH12K_DP_PEER_ID_INVALID)
+	if (peer_id >= ATH12K_DP_PEER_ID_INVALID)
 		return NULL;
 
 	index = ath12k_dp_peer_get_peerid_index(dp, peer_id);

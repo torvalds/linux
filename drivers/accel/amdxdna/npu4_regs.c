@@ -6,6 +6,7 @@
 #include <drm/amdxdna_accel.h>
 #include <drm/drm_device.h>
 #include <drm/gpu_scheduler.h>
+#include <linux/amd-pmf-io.h>
 #include <linux/bits.h>
 #include <linux/sizes.h>
 
@@ -63,6 +64,8 @@
 #define NPU4_SMU_BAR_BASE	MMNPU_APERTURE4_BASE
 #define NPU4_SRAM_BAR_BASE	MMNPU_APERTURE1_BASE
 
+#define NPU4_DPM_TOPS(ndev, hclk) (4096 * (ndev)->total_col * (hclk) / 1000000)
+
 const struct rt_config npu4_default_rt_cfg[] = {
 	{ 5, 1, AIE2_RT_CFG_INIT }, /* PDI APP LOAD MODE */
 	{ 10, 1, AIE2_RT_CFG_INIT }, /* DEBUG BUF */
@@ -88,13 +91,68 @@ const struct dpm_clk_freq npu4_dpm_clk_table[] = {
 	{ 0 }
 };
 
-const struct aie2_fw_feature_tbl npu4_fw_feature_table[] = {
+const struct amdxdna_fw_feature_tbl npu4_fw_feature_table[] = {
 	{ .major = 6, .min_minor = 12 },
-	{ .features = BIT_U64(AIE2_NPU_COMMAND), .major = 6, .min_minor = 15 },
 	{ .features = BIT_U64(AIE2_PREEMPT), .major = 6, .min_minor = 12 },
 	{ .features = BIT_U64(AIE2_TEMPORAL_ONLY), .major = 6, .min_minor = 12 },
+	{ .features = BIT_U64(AIE2_NPU_COMMAND), .major = 6, .min_minor = 15 },
+	{ .features = BIT_U64(AIE2_UPDATE_PROPERTY), .major = 6, .min_minor = 15 },
 	{ .features = BIT_U64(AIE2_APP_HEALTH), .major = 6, .min_minor = 18 },
+	{ .features = BIT_U64(AIE2_ADD_HOST_BUFFER), .major = 6, .min_minor = 18 },
+	{ .features = BIT_U64(AIE2_GET_DEV_REVISION), .major = 6, .min_minor = 24 },
 	{ .features = AIE2_ALL_FEATURES, .major = 7 },
+	{ 0 }
+};
+
+static int npu4_set_dpm(struct amdxdna_dev_hdl *ndev, u32 dpm_level)
+{
+	int ret;
+
+	ret = aie_smu_set_dpm(ndev->aie.smu_hdl, dpm_level);
+	if (ret)
+		return ret;
+
+	ndev->npuclk_freq = ndev->priv->dpm_clk_tbl[dpm_level].npuclk;
+	ndev->hclk_freq = ndev->priv->dpm_clk_tbl[dpm_level].hclk;
+	ndev->max_tops = NPU4_DPM_TOPS(ndev, ndev->priv->dpm_clk_tbl[ndev->max_dpm_level].hclk);
+	ndev->curr_tops = NPU4_DPM_TOPS(ndev, ndev->hclk_freq);
+
+	XDNA_DBG(ndev->aie.xdna, "MP-NPU clock %d, H clock %d\n",
+		 ndev->npuclk_freq, ndev->hclk_freq);
+
+	return 0;
+}
+
+static int npu4_update_counters(struct amdxdna_dev_hdl *ndev)
+{
+	struct amd_pmf_npu_metrics npu_metrics;
+	int ret;
+
+	ret = AIE2_GET_PMF_NPU_METRICS(&npu_metrics);
+	if (ret)
+		return ret;
+
+	ndev->npuclk_freq = npu_metrics.mpnpuclk_freq;
+	ndev->hclk_freq = npu_metrics.npuclk_freq;
+	ndev->curr_tops = NPU4_DPM_TOPS(ndev, ndev->hclk_freq);
+
+	return 0;
+}
+
+const struct aie2_hw_ops npu4_hw_ops = {
+	.set_dpm = npu4_set_dpm,
+	.update_counters = npu4_update_counters,
+};
+
+const struct amdxdna_rev_vbnv npu4_rev_vbnv_tbl[] = {
+	{ AIE2_DEV_REVISION_STXA, "NPU Strix" },
+	{ AIE2_DEV_REVISION_STXB, "NPU Strix" },
+	{ AIE2_DEV_REVISION_KRK1, "NPU Krackan 1" },
+	{ AIE2_DEV_REVISION_KRK2, "NPU Krackan 2" },
+	{ AIE2_DEV_REVISION_HALO, "NPU Strix Halo" },
+	{ AIE2_DEV_REVISION_GPT1, "NPU Gorgon Point 1" },
+	{ AIE2_DEV_REVISION_GPT2, "NPU Gorgon Point 2" },
+	{ AIE2_DEV_REVISION_GPT3, "NPU Gorgon Point 3" },
 	{ 0 }
 };
 
@@ -102,8 +160,8 @@ static const struct amdxdna_dev_priv npu4_dev_priv = {
 	.fw_path        = "amdnpu/17f0_10/",
 	.rt_config	= npu4_default_rt_cfg,
 	.dpm_clk_tbl	= npu4_dpm_clk_table,
-	.fw_feature_tbl = npu4_fw_feature_table,
 	.col_align	= COL_ALIGN_NATURE,
+	.col_opc	= 4096,
 	.mbox_dev_addr  = NPU4_MBOX_BAR_BASE,
 	.mbox_size      = 0, /* Use BAR size */
 	.sram_dev_addr  = NPU4_SRAM_BAR_BASE,
@@ -129,9 +187,7 @@ static const struct amdxdna_dev_priv npu4_dev_priv = {
 		DEFINE_BAR_OFFSET(SMU_RESP_REG, NPU4_SMU, MP1_C2PMSG_61),
 		DEFINE_BAR_OFFSET(SMU_OUT_REG,  NPU4_SMU, MP1_C2PMSG_60),
 	},
-	.hw_ops		= {
-		.set_dpm = npu4_set_dpm,
-	},
+	.hw_ops		= &npu4_hw_ops
 };
 
 const struct amdxdna_dev_info dev_npu4_info = {
@@ -144,8 +200,11 @@ const struct amdxdna_dev_info dev_npu4_info = {
 	.dev_mem_buf_shift = 15, /* 32 KiB aligned */
 	.dev_mem_base      = AIE2_DEVM_BASE,
 	.dev_mem_size      = AIE2_DEVM_SIZE,
-	.vbnv              = "RyzenAI-npu4",
+	.default_vbnv      = "RyzenAI-npu4",
+	.dev_heap_max_size = AIE2_DEVM_MAX_SIZE,
 	.device_type       = AMDXDNA_DEV_TYPE_KMQ,
+	.rev_vbnv_tbl      = npu4_rev_vbnv_tbl,
 	.dev_priv          = &npu4_dev_priv,
+	.fw_feature_tbl    = npu4_fw_feature_table,
 	.ops               = &aie2_ops, /* NPU4 can share NPU1's callback */
 };

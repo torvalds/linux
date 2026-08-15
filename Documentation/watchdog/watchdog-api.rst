@@ -39,12 +39,12 @@ The simplest API
 
 All drivers support the basic mode of operation, where the watchdog
 activates as soon as /dev/watchdog is opened and will reboot unless
-the watchdog is pinged within a certain time, this time is called the
+the watchdog is pinged within a certain time; this time is called the
 timeout or margin.  The simplest way to ping the watchdog is to write
 some data to the device.  So a very simple watchdog daemon would look
 like this source file:  see samples/watchdog/watchdog-simple.c
 
-A more advanced driver could for example check that a HTTP server is
+A more advanced driver could for example check that an HTTP server is
 still responding before doing the write call to ping the watchdog.
 
 When the device is closed, the watchdog is disabled, unless the "Magic
@@ -87,13 +87,13 @@ replaced with::
 		sleep(10);
 	}
 
-the argument to the ioctl is ignored.
+The argument to the ioctl is ignored.
 
 Setting and getting the timeout
 ===============================
 
 For some drivers it is possible to modify the watchdog timeout on the
-fly with the SETTIMEOUT ioctl, those drivers have the WDIOF_SETTIMEOUT
+fly with the SETTIMEOUT ioctl; those drivers have the WDIOF_SETTIMEOUT
 flag set in their option field.  The argument is an integer
 representing the timeout in seconds.  The driver returns the real
 timeout used in the same variable, and this timeout might differ from
@@ -110,7 +110,7 @@ Starting with the Linux 2.4.18 kernel, it is possible to query the
 current timeout using the GETTIMEOUT ioctl::
 
     ioctl(fd, WDIOC_GETTIMEOUT, &timeout);
-    printf("The timeout was is %d seconds\n", timeout);
+    printf("The timeout is %d seconds\n", timeout);
 
 Pretimeouts
 ===========
@@ -133,7 +133,7 @@ seconds.  Setting a pretimeout to zero disables it.
 There is also a get function for getting the pretimeout::
 
     ioctl(fd, WDIOC_GETPRETIMEOUT, &timeout);
-    printf("The pretimeout was is %d seconds\n", timeout);
+    printf("The pretimeout is %d seconds\n", timeout);
 
 Not all watchdog drivers will support a pretimeout.
 
@@ -145,28 +145,28 @@ before the system will reboot. The WDIOC_GETTIMELEFT is the ioctl
 that returns the number of seconds before reboot::
 
     ioctl(fd, WDIOC_GETTIMELEFT, &timeleft);
-    printf("The timeout was is %d seconds\n", timeleft);
+    printf("The timeout is %d seconds\n", timeleft);
 
 Environmental monitoring
 ========================
 
-All watchdog drivers are required return more information about the system,
-some do temperature, fan and power level monitoring, some can tell you
+All watchdog drivers are required to return more information about the system.
+Some do temperature, fan and power level monitoring; some can tell you
 the reason for the last reboot of the system.  The GETSUPPORT ioctl is
 available to ask what the device can do::
 
 	struct watchdog_info ident;
 	ioctl(fd, WDIOC_GETSUPPORT, &ident);
 
-the fields returned in the ident struct are:
+the fields returned in the struct watchdog_info are:
 
 	================	=============================================
-        identity		a string identifying the watchdog driver
+	identity		a string identifying the watchdog driver
 	firmware_version	the firmware version of the card if available
 	options			a flags describing what the device supports
 	================	=============================================
 
-the options field can have the following bits set, and describes what
+The options field can have the following bits set, and describes what
 kind of information that the GET_STATUS and GET_BOOT_STATUS ioctls can
 return.
 
@@ -175,13 +175,13 @@ return.
 	================	=========================
 
 The machine was last rebooted by the watchdog because the thermal limit was
-exceeded:
+exceeded.
 
 	==============		==========
 	WDIOF_FANFAULT		Fan failed
 	==============		==========
 
-A system fan monitored by the watchdog card has failed
+A system fan monitored by the watchdog card has failed.
 
 	=============		================
 	WDIOF_EXTERN1		External relay 1
@@ -195,26 +195,26 @@ a reset.
 	WDIOF_EXTERN2		External relay 2
 	=============		================
 
-External monitoring relay/source 2 was triggered
+External monitoring relay/source 2 was triggered.
 
 	================	=====================
 	WDIOF_POWERUNDER	Power bad/power fault
 	================	=====================
 
-The machine is showing an undervoltage status
+The machine is showing an undervoltage status.
 
 	===============		=============================
 	WDIOF_CARDRESET		Card previously reset the CPU
 	===============		=============================
 
-The last reboot was caused by the watchdog card
+The last reboot was caused by the watchdog card.
 
 	================	=====================
 	WDIOF_POWEROVER		Power over voltage
 	================	=====================
 
 The machine is showing an overvoltage status. Note that if one level is
-under and one over both bits will be set - this may seem odd but makes
+under and one over, both bits will be set - this may seem odd but makes
 sense.
 
 	===================	=====================
@@ -227,11 +227,13 @@ The watchdog saw a keepalive ping since it was last queried.
 	WDIOF_SETTIMEOUT	Can set/get the timeout
 	================	=======================
 
-The watchdog can do pretimeouts.
+The watchdog can get/set the timeout.
 
 	================	================================
 	WDIOF_PRETIMEOUT	Pretimeout (in seconds), get/set
 	================	================================
+
+The watchdog can do pretimeouts.
 
 
 For those drivers that return any bits set in the option field, the
@@ -255,7 +257,7 @@ returned value is the temperature in degrees Fahrenheit::
     ioctl(fd, WDIOC_GETTEMP, &temperature);
 
 Finally the SETOPTIONS ioctl can be used to control some aspects of
-the cards operation::
+the card's operation::
 
     int options = 0;
     ioctl(fd, WDIOC_SETOPTIONS, &options);
@@ -268,4 +270,13 @@ The following options are available:
 	WDIOS_TEMPPANIC		Kernel panic on temperature trip
 	=================	================================
 
-[FIXME -- better explanations]
+The WDIOS_DISABLECARD option allows you to stop the watchdog timer via
+software. Note that this will only work if the "nowayout" module parameter
+(or CONFIG_WATCHDOG_NOWAYOUT) is not set.
+
+The WDIOS_ENABLECARD option turns on the watchdog timer.
+
+The WDIOS_TEMPPANIC option is used by some drivers (like the pcwd driver)
+to trigger a system halt (typically a kernel panic or power off) when the
+temperature trip point is reached. This ensures that the system is halted
+immediately in case of an overheat condition.

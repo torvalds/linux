@@ -247,9 +247,9 @@ struct atiixp_modem {
 /*
  */
 static const struct pci_device_id snd_atiixp_ids[] = {
-	{ PCI_VDEVICE(ATI, 0x434d), 0 }, /* SB200 */
-	{ PCI_VDEVICE(ATI, 0x4378), 0 }, /* SB400 */
-	{ 0, }
+	{ PCI_VDEVICE(ATI, 0x434d) }, /* SB200 */
+	{ PCI_VDEVICE(ATI, 0x4378) }, /* SB400 */
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, snd_atiixp_ids);

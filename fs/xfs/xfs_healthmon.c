@@ -533,7 +533,7 @@ xfs_healthmon_report_inode(
 	struct xfs_healthmon_event	event = {
 		.type			= type,
 		.domain			= XFS_HEALTHMON_INODE,
-		.ino			= ip->i_ino,
+		.ino			= I_INO(ip),
 		.gen			= VFS_I(ip)->i_generation,
 	};
 	struct xfs_healthmon		*hm = xfs_healthmon_get(ip->i_mount);
@@ -646,7 +646,7 @@ xfs_healthmon_report_file_ioerror(
 	struct xfs_healthmon_event	event = {
 		.type			= file_ioerr_type(p->type),
 		.domain			= XFS_HEALTHMON_FILERANGE,
-		.fino			= ip->i_ino,
+		.fino			= I_INO(ip),
 		.fgen			= VFS_I(ip)->i_generation,
 		.fpos			= p->pos,
 		.flen			= p->len,
@@ -1182,7 +1182,7 @@ xfs_ioc_health_monitor(
 	 */
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-	if (ip->i_ino != mp->m_sb.sb_rootino)
+	if (I_INO(ip) != mp->m_sb.sb_rootino)
 		return -EPERM;
 	if (current_user_ns() != &init_user_ns)
 		return -EPERM;

@@ -59,7 +59,7 @@
 
 /* Disable pointer hashing if requested */
 bool no_hash_pointers __ro_after_init;
-EXPORT_SYMBOL_GPL(no_hash_pointers);
+EXPORT_SYMBOL_FOR_MODULES(no_hash_pointers, "printf_kunit");
 
 /*
  * Hashed pointers policy selected by "hash_pointers=..." boot param
@@ -128,13 +128,6 @@ unsigned long simple_strtoul(const char *cp, char **endp, unsigned int base)
 	return simple_strtoull(cp, endp, base);
 }
 EXPORT_SYMBOL(simple_strtoul);
-
-unsigned long simple_strntoul(const char *cp, char **endp, unsigned int base,
-			      size_t max_chars)
-{
-	return simple_strntoull(cp, endp, base, max_chars);
-}
-EXPORT_SYMBOL(simple_strntoul);
 
 /**
  * simple_strtol - convert a string to a signed long
@@ -857,6 +850,7 @@ static char *default_pointer(char *buf, char *end, const void *ptr,
 }
 
 int kptr_restrict __read_mostly;
+EXPORT_SYMBOL_FOR_MODULES(kptr_restrict, "printf_kunit");
 
 static noinline_for_stack
 char *restricted_pointer(char *buf, char *end, const void *ptr,
@@ -1208,7 +1202,7 @@ char *hex_string(char *buf, char *end, u8 *addr, struct printf_spec spec,
 	}
 
 	if (spec.field_width > 0)
-		len = min_t(int, spec.field_width, 64);
+		len = min(spec.field_width, 64);
 
 	for (i = 0; i < len; ++i) {
 		if (buf < end)
@@ -1233,7 +1227,7 @@ char *bitmap_string(char *buf, char *end, const unsigned long *bitmap,
 		    struct printf_spec spec, const char *fmt)
 {
 	const int CHUNKSZ = 32;
-	int nr_bits = max_t(int, spec.field_width, 0);
+	int nr_bits = max(spec.field_width, 0);
 	int i, chunksz;
 	bool first = true;
 
@@ -1276,7 +1270,7 @@ static noinline_for_stack
 char *bitmap_list_string(char *buf, char *end, const unsigned long *bitmap,
 			 struct printf_spec spec, const char *fmt)
 {
-	int nr_bits = max_t(int, spec.field_width, 0);
+	int nr_bits = max(spec.field_width, 0);
 	bool first = true;
 	int rbot, rtop;
 
@@ -1309,31 +1303,39 @@ char *mac_address_string(char *buf, char *end, u8 *addr,
 	char mac_addr[sizeof("xx:xx:xx:xx:xx:xx")];
 	char *p = mac_addr;
 	int i;
-	char separator;
+	char separator = ':';
 	bool reversed = false;
+	bool uc = false;
 
 	if (check_pointer(&buf, end, addr, spec))
 		return buf;
 
 	switch (fmt[1]) {
 	case 'F':
+		uc = fmt[2] == 'U';
 		separator = '-';
 		break;
 
 	case 'R':
+		uc = fmt[2] == 'U';
 		reversed = true;
-		fallthrough;
+		break;
+
+	case 'U':
+		uc = true;
+		break;
 
 	default:
-		separator = ':';
 		break;
 	}
 
 	for (i = 0; i < 6; i++) {
-		if (reversed)
-			p = hex_byte_pack(p, addr[5 - i]);
+		u8 byte = reversed ? addr[5 - i] : addr[i];
+
+		if (uc)
+			p = hex_byte_pack_upper(p, byte);
 		else
-			p = hex_byte_pack(p, addr[i]);
+			p = hex_byte_pack(p, byte);
 
 		if (fmt[0] == 'M' && i != 5)
 			*p++ = separator;
@@ -2361,13 +2363,13 @@ static int __init hash_pointers_mode_parse(char *str)
 	if (!str) {
 		pr_warn("Hash pointers mode empty; falling back to auto.\n");
 		hash_pointers_mode = HASH_PTR_AUTO;
-	} else if (strncmp(str, "auto", 4) == 0)   {
+	} else if (strcmp(str, "auto") == 0) {
 		pr_info("Hash pointers mode set to auto.\n");
 		hash_pointers_mode = HASH_PTR_AUTO;
-	} else if (strncmp(str, "never", 5) == 0) {
+	} else if (strcmp(str, "never") == 0) {
 		pr_info("Hash pointers mode set to never.\n");
 		hash_pointers_mode = HASH_PTR_NEVER;
-	} else if (strncmp(str, "always", 6) == 0) {
+	} else if (strcmp(str, "always") == 0) {
 		pr_info("Hash pointers mode set to always.\n");
 		hash_pointers_mode = HASH_PTR_ALWAYS;
 	} else {
@@ -2416,6 +2418,7 @@ early_param("no_hash_pointers", no_hash_pointers_enable);
  * - 'MF' For a 6-byte MAC FDDI address, it prints the address
  *       with a dash-separated hex notation
  * - '[mM]R' For a 6-byte MAC address, Reverse order (Bluetooth)
+ * - '[mM][FR][U]' One of the above in the upper case
  * - 'I' [46] for IPv4/IPv6 addresses printed in the usual way
  *       IPv4 uses dot-separated decimal without leading 0's (1.2.3.4)
  *       IPv6 uses colon separated network-order 16 bit hex with leading 0's
@@ -2550,6 +2553,7 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 	case 'm':			/* Contiguous: 000102030405 */
 					/* [mM]F (FDDI) */
 					/* [mM]R (Reverse order; Bluetooth) */
+					/* [mM][FR][U] (One of the above in the upper case) */
 		return mac_address_string(buf, end, ptr, spec, fmt);
 	case 'I':			/* Formatted IP supported
 					 * 4:	1.2.3.4
@@ -2640,6 +2644,18 @@ static unsigned char spec_flag(unsigned char c)
 	return (c < sizeof(spec_flag_array)) ? spec_flag_array[c] : 0;
 }
 
+static void set_field_width(struct printf_spec *spec, int width)
+{
+	spec->field_width = clamp(width, -FIELD_WIDTH_MAX, FIELD_WIDTH_MAX);
+	WARN_ONCE(spec->field_width != width, "field width %d out of range", width);
+}
+
+static void set_precision(struct printf_spec *spec, int prec)
+{
+	spec->precision = clamp(prec, 0, PRECISION_MAX);
+	WARN_ONCE(spec->precision < prec, "precision %d too large", prec);
+}
+
 /*
  * Helper function to decode printf style format.
  * Each call decode a token from the format and return the
@@ -2710,7 +2726,7 @@ struct fmt format_decode(struct fmt fmt, struct printf_spec *spec)
 	spec->field_width = -1;
 
 	if (isdigit(*fmt.str))
-		spec->field_width = skip_atoi(&fmt.str);
+		set_field_width(spec, skip_atoi(&fmt.str));
 	else if (unlikely(*fmt.str == '*')) {
 		/* it's the next argument */
 		fmt.state = FORMAT_STATE_WIDTH;
@@ -2724,9 +2740,7 @@ precision:
 	if (unlikely(*fmt.str == '.')) {
 		fmt.str++;
 		if (isdigit(*fmt.str)) {
-			spec->precision = skip_atoi(&fmt.str);
-			if (spec->precision < 0)
-				spec->precision = 0;
+			set_precision(spec, skip_atoi(&fmt.str));
 		} else if (*fmt.str == '*') {
 			/* it's the next argument */
 			fmt.state = FORMAT_STATE_PRECISION;
@@ -2799,24 +2813,6 @@ qualifier:
 	return fmt;
 }
 
-static void
-set_field_width(struct printf_spec *spec, int width)
-{
-	spec->field_width = width;
-	if (WARN_ONCE(spec->field_width != width, "field width %d too large", width)) {
-		spec->field_width = clamp(width, -FIELD_WIDTH_MAX, FIELD_WIDTH_MAX);
-	}
-}
-
-static void
-set_precision(struct printf_spec *spec, int prec)
-{
-	spec->precision = prec;
-	if (WARN_ONCE(spec->precision != prec, "precision %d too large", prec)) {
-		spec->precision = clamp(prec, 0, PRECISION_MAX);
-	}
-}
-
 /*
  * Turn a 1/2/4-byte value into a 64-bit one for printing: truncate
  * as necessary and deal with signedness.
@@ -2864,6 +2860,7 @@ static unsigned long long convert_num_spec(unsigned int val, int size, struct pr
 int vsnprintf(char *buf, size_t size, const char *fmt_str, va_list args)
 {
 	char *str, *end;
+	size_t ret_size;
 	struct printf_spec spec = {0};
 	struct fmt fmt = {
 		.str = fmt_str,
@@ -2983,8 +2980,12 @@ out:
 	}
 
 	/* the trailing null byte doesn't count towards the total */
-	return str-buf;
+	ret_size = str - buf;
 
+	/* Make sure the return value is within the positive integer range */
+	if (WARN_ON_ONCE(ret_size > INT_MAX))
+		ret_size = INT_MAX;
+	return ret_size;
 }
 EXPORT_SYMBOL(vsnprintf);
 
@@ -3288,6 +3289,7 @@ int bstr_printf(char *buf, size_t size, const char *fmt_str, const u32 *bin_buf)
 	struct printf_spec spec = {0};
 	char *str, *end;
 	const char *args = (const char *)bin_buf;
+	size_t ret_size;
 
 	if (WARN_ON_ONCE(size > INT_MAX))
 		return 0;
@@ -3436,7 +3438,12 @@ out:
 #undef get_arg
 
 	/* the trailing null byte doesn't count towards the total */
-	return str - buf;
+	ret_size =  str - buf;
+
+	/* Make sure the return value is within the positive integer range */
+	if (WARN_ON_ONCE(ret_size > INT_MAX))
+		ret_size = INT_MAX;
+	return ret_size;
 }
 EXPORT_SYMBOL_GPL(bstr_printf);
 

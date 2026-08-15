@@ -469,6 +469,8 @@ static struct pmc_info wcl_pmc_info_list[] = {
 	{}
 };
 
+static const u8 wcl_pmc_list[] = {PMC_IDX_MAIN};
+
 #define WCL_NPU_PCI_DEV                0xfd3e
 
 /*
@@ -493,12 +495,14 @@ static int wcl_core_init(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_in
 }
 
 struct pmc_dev_info wcl_pmc_dev = {
-	.pci_func = 2,
 	.regmap_list = wcl_pmc_info_list,
+	.num_pmcs = ARRAY_SIZE(wcl_pmc_list),
+	.pmc_list = wcl_pmc_list,
 	.map = &wcl_pcdn_reg_map,
 	.sub_req_show = &pmc_core_substate_blk_req_fops,
 	.suspend = cnl_suspend,
 	.resume = wcl_resume,
 	.init = wcl_core_init,
 	.sub_req = pmc_core_pmt_get_blk_sub_req,
+	.ssram_hidden = true,
 };

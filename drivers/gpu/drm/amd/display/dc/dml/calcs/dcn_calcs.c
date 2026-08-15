@@ -72,21 +72,21 @@ const struct dcn_soc_bounding_box dcn10_soc_defaults = {
 		 * Use these value if fused value doesn't make sense as earlier
 		 * part don't have correct value fused */
 		/* default DCF CLK DPM on RV*/
-		.dcfclkv_max0p9 = 655,	/* MHz, = 3600/5.5 */
-		.dcfclkv_nom0p8 = 626,	/* MHz, = 3600/5.75 */
+		.dcfclkv_max0p9 = 655,	/* MHz, = 3600/5.5f */
+		.dcfclkv_nom0p8 = 626,	/* MHz, = 3600/5.75f */
 		.dcfclkv_mid0p72 = 600,	/* MHz, = 3600/6, bypass */
 		.dcfclkv_min0p65 = 300,	/* MHz, = 3600/12, bypass */
 
 		/* default DISP CLK voltage state on RV */
-		.max_dispclk_vmax0p9 = 1108,	/* MHz, = 3600/3.25 */
-		.max_dispclk_vnom0p8 = 1029,	/* MHz, = 3600/3.5 */
-		.max_dispclk_vmid0p72 = 960,	/* MHz, = 3600/3.75 */
-		.max_dispclk_vmin0p65 = 626,	/* MHz, = 3600/5.75 */
+		.max_dispclk_vmax0p9 = 1108,	/* MHz, = 3600/3.25f */
+		.max_dispclk_vnom0p8 = 1029,	/* MHz, = 3600/3.5f */
+		.max_dispclk_vmid0p72 = 960,	/* MHz, = 3600/3.75f */
+		.max_dispclk_vmin0p65 = 626,	/* MHz, = 3600/5.75f */
 
 		/* default DPP CLK voltage state on RV */
 		.max_dppclk_vmax0p9 = 720,	/* MHz, = 3600/5 */
-		.max_dppclk_vnom0p8 = 686,	/* MHz, = 3600/5.25 */
-		.max_dppclk_vmid0p72 = 626,	/* MHz, = 3600/5.75 */
+		.max_dppclk_vnom0p8 = 686,	/* MHz, = 3600/5.25f */
+		.max_dppclk_vmid0p72 = 626,	/* MHz, = 3600/5.75f */
 		.max_dppclk_vmin0p65 = 400,	/* MHz, = 3600/9 */
 
 		/* default PHY CLK voltage state on RV */
@@ -326,7 +326,7 @@ static void pipe_ctx_to_e2e_pipe_params (
 		 * allow us to disable dcc on the fly without re-calculating WM
 		 *
 		 * extra overhead for DCC is quite small.  for 1080p WM without
-		 * DCC is only 0.417us lower (urgent goes from 6.979us to 6.562us)
+		 * DCC is only 0.417fus lower (urgent goes from 6.979fus to 6.562fus)
 		 */
 		unsigned int bpe;
 
@@ -396,18 +396,18 @@ static void pipe_ctx_to_e2e_pipe_params (
 	}
 
 	input->scale_taps.htaps                = pipe->plane_res.scl_data.taps.h_taps;
-	input->scale_ratio_depth.hscl_ratio    = pipe->plane_res.scl_data.ratios.horz.value/4294967296.0;
-	input->scale_ratio_depth.vscl_ratio    = pipe->plane_res.scl_data.ratios.vert.value/4294967296.0;
-	input->scale_ratio_depth.vinit =  pipe->plane_res.scl_data.inits.v.value/4294967296.0;
-	if (input->scale_ratio_depth.vinit < 1.0)
+	input->scale_ratio_depth.hscl_ratio    = pipe->plane_res.scl_data.ratios.horz.value/4294967296.0f;
+	input->scale_ratio_depth.vscl_ratio    = pipe->plane_res.scl_data.ratios.vert.value/4294967296.0f;
+	input->scale_ratio_depth.vinit =  pipe->plane_res.scl_data.inits.v.value/4294967296.0f;
+	if (input->scale_ratio_depth.vinit < 1.0f)
 			input->scale_ratio_depth.vinit = 1;
 	input->scale_taps.vtaps = pipe->plane_res.scl_data.taps.v_taps;
 	input->scale_taps.vtaps_c = pipe->plane_res.scl_data.taps.v_taps_c;
 	input->scale_taps.htaps_c              = pipe->plane_res.scl_data.taps.h_taps_c;
-	input->scale_ratio_depth.hscl_ratio_c  = pipe->plane_res.scl_data.ratios.horz_c.value/4294967296.0;
-	input->scale_ratio_depth.vscl_ratio_c  = pipe->plane_res.scl_data.ratios.vert_c.value/4294967296.0;
-	input->scale_ratio_depth.vinit_c       = pipe->plane_res.scl_data.inits.v_c.value/4294967296.0;
-	if (input->scale_ratio_depth.vinit_c < 1.0)
+	input->scale_ratio_depth.hscl_ratio_c  = pipe->plane_res.scl_data.ratios.horz_c.value/4294967296.0f;
+	input->scale_ratio_depth.vscl_ratio_c  = pipe->plane_res.scl_data.ratios.vert_c.value/4294967296.0f;
+	input->scale_ratio_depth.vinit_c       = pipe->plane_res.scl_data.inits.v_c.value/4294967296.0f;
+	if (input->scale_ratio_depth.vinit_c < 1.0f)
 			input->scale_ratio_depth.vinit_c = 1;
 	switch (pipe->plane_res.scl_data.lb_params.depth) {
 	case LB_PIXEL_DEPTH_30BPP:
@@ -441,7 +441,7 @@ static void pipe_ctx_to_e2e_pipe_params (
 			- pipe->stream->timing.v_addressable
 			- pipe->stream->timing.v_border_bottom
 			- pipe->stream->timing.v_border_top;
-	input->dest.pixel_rate_mhz = pipe->stream->timing.pix_clk_100hz/10000.0;
+	input->dest.pixel_rate_mhz = pipe->stream->timing.pix_clk_100hz/10000.0f;
 	input->dest.vstartup_start = pipe->pipe_dlg_param.vstartup_start;
 	input->dest.vupdate_offset = pipe->pipe_dlg_param.vupdate_offset;
 	input->dest.vupdate_offset = pipe->pipe_dlg_param.vupdate_offset;
@@ -477,10 +477,10 @@ static void dcn_bw_calc_rq_dlg_ttu(
 	for (i = 0; i < number_of_planes; i++) {
 		total_active_bw += v->read_bandwidth[i];
 		total_prefetch_bw += v->prefetch_bandwidth[i];
-		total_flip_bytes += v->total_immediate_flip_bytes[i];
+		total_flip_bytes += (int)v->total_immediate_flip_bytes[i];
 	}
 	dlg_sys_param->total_flip_bw = v->return_bw - dcn_bw_max2(total_active_bw, total_prefetch_bw);
-	if (dlg_sys_param->total_flip_bw < 0.0)
+	if (dlg_sys_param->total_flip_bw < 0.0f)
 		dlg_sys_param->total_flip_bw = 0;
 
 	dlg_sys_param->t_mclk_wm_us = v->dram_clock_change_watermark;
@@ -494,7 +494,7 @@ static void dcn_bw_calc_rq_dlg_ttu(
 	input->clks_cfg.dcfclk_mhz = v->dcfclk;
 	input->clks_cfg.dispclk_mhz = v->dispclk;
 	input->clks_cfg.dppclk_mhz = v->dppclk;
-	input->clks_cfg.refclk_mhz = dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000.0;
+	input->clks_cfg.refclk_mhz = dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000.0f;
 	input->clks_cfg.socclk_mhz = v->socclk;
 	input->clks_cfg.voltage = v->voltage_level;
 //	dc->dml.logger = pool->base.logger;
@@ -533,13 +533,14 @@ static void split_stream_across_pipes(
 
 	*secondary_pipe = *primary_pipe;
 
-	secondary_pipe->pipe_idx = pipe_idx;
+	secondary_pipe->pipe_idx = (uint8_t)pipe_idx;
 	secondary_pipe->plane_res.mi = pool->mis[secondary_pipe->pipe_idx];
 	secondary_pipe->plane_res.hubp = pool->hubps[secondary_pipe->pipe_idx];
 	secondary_pipe->plane_res.ipp = pool->ipps[secondary_pipe->pipe_idx];
 	secondary_pipe->plane_res.xfm = pool->transforms[secondary_pipe->pipe_idx];
 	secondary_pipe->plane_res.dpp = pool->dpps[secondary_pipe->pipe_idx];
-	secondary_pipe->plane_res.mpcc_inst = pool->dpps[secondary_pipe->pipe_idx]->inst;
+	secondary_pipe->plane_res.mpcc_inst =
+			(uint8_t)pool->dpps[secondary_pipe->pipe_idx]->inst;
 	if (primary_pipe->bottom_pipe) {
 		ASSERT(primary_pipe->bottom_pipe != secondary_pipe);
 		secondary_pipe->bottom_pipe = primary_pipe->bottom_pipe;
@@ -643,7 +644,7 @@ static bool dcn_bw_apply_registry_override(struct dc *dc)
 	if ((int)(dc->dcn_soc->sr_exit_time * 1000) != dc->debug.sr_exit_time_ns
 			&& dc->debug.sr_exit_time_ns) {
 		updated = true;
-		dc->dcn_soc->sr_exit_time = dc->debug.sr_exit_time_ns / 1000.0;
+		dc->dcn_soc->sr_exit_time = dc->debug.sr_exit_time_ns / 1000.0f;
 	}
 
 	if ((int)(dc->dcn_soc->sr_enter_plus_exit_time * 1000)
@@ -651,13 +652,13 @@ static bool dcn_bw_apply_registry_override(struct dc *dc)
 			&& dc->debug.sr_enter_plus_exit_time_ns) {
 		updated = true;
 		dc->dcn_soc->sr_enter_plus_exit_time =
-				dc->debug.sr_enter_plus_exit_time_ns / 1000.0;
+				dc->debug.sr_enter_plus_exit_time_ns / 1000.0f;
 	}
 
 	if ((int)(dc->dcn_soc->urgent_latency * 1000) != dc->debug.urgent_latency_ns
 			&& dc->debug.urgent_latency_ns) {
 		updated = true;
-		dc->dcn_soc->urgent_latency = dc->debug.urgent_latency_ns / 1000.0;
+		dc->dcn_soc->urgent_latency = dc->debug.urgent_latency_ns / 1000.0f;
 	}
 
 	if ((int)(dc->dcn_soc->percent_of_ideal_drambw_received_after_urg_latency * 1000)
@@ -665,7 +666,7 @@ static bool dcn_bw_apply_registry_override(struct dc *dc)
 			&& dc->debug.percent_of_ideal_drambw) {
 		updated = true;
 		dc->dcn_soc->percent_of_ideal_drambw_received_after_urg_latency =
-				dc->debug.percent_of_ideal_drambw;
+				(float)dc->debug.percent_of_ideal_drambw;
 	}
 
 	if ((int)(dc->dcn_soc->dram_clock_change_latency * 1000)
@@ -673,7 +674,7 @@ static bool dcn_bw_apply_registry_override(struct dc *dc)
 			&& dc->debug.dram_clock_change_latency_ns) {
 		updated = true;
 		dc->dcn_soc->dram_clock_change_latency =
-				dc->debug.dram_clock_change_latency_ns / 1000.0;
+				dc->debug.dram_clock_change_latency_ns / 1000.0f;
 	}
 
 	return updated;
@@ -691,7 +692,7 @@ static void hack_disable_optional_pipe_split(struct dcn_bw_internal_vars *v)
 static void hack_force_pipe_split(struct dcn_bw_internal_vars *v,
 		unsigned int pixel_rate_100hz)
 {
-	float pixel_rate_mhz = pixel_rate_100hz / 10000.0;
+	float pixel_rate_mhz = pixel_rate_100hz / 10000.0f;
 
 	/*
 	 * force enabling pipe split by lower dpp clock for DPM0 to just
@@ -759,7 +760,8 @@ bool dcn_validate_bandwidth(
 
 	const struct resource_pool *pool = dc->res_pool;
 	struct dcn_bw_internal_vars *v = &context->dcn_bw_vars;
-	int i, input_idx, k;
+	unsigned int i;
+	int input_idx, k;
 	int vesa_sync_start, asic_blank_end, asic_blank_start;
 	bool bw_limit_pass;
 	float bw_limit;
@@ -808,12 +810,12 @@ bool dcn_validate_bandwidth(
 	v->phyclkv_max0p9 = dc->dcn_soc->phyclkv_max0p9;
 
 	v->downspreading = dc->dcn_soc->downspreading;
-	v->round_trip_ping_latency_cycles = dc->dcn_soc->round_trip_ping_latency_cycles;
-	v->urgent_out_of_order_return_per_channel = dc->dcn_soc->urgent_out_of_order_return_per_channel;
-	v->number_of_channels = dc->dcn_soc->number_of_channels;
-	v->vmm_page_size = dc->dcn_soc->vmm_page_size;
+	v->round_trip_ping_latency_cycles = (float)dc->dcn_soc->round_trip_ping_latency_cycles;
+	v->urgent_out_of_order_return_per_channel = (float)dc->dcn_soc->urgent_out_of_order_return_per_channel;
+	v->number_of_channels = (float)dc->dcn_soc->number_of_channels;
+	v->vmm_page_size = (float)dc->dcn_soc->vmm_page_size;
 	v->dram_clock_change_latency = dc->dcn_soc->dram_clock_change_latency;
-	v->return_bus_width = dc->dcn_soc->return_bus_width;
+	v->return_bus_width = (float)dc->dcn_soc->return_bus_width;
 
 	v->rob_buffer_size_in_kbyte = dc->dcn_ip->rob_buffer_size_in_kbyte;
 	v->det_buffer_size_in_kbyte = dc->dcn_ip->det_buffer_size_in_kbyte;
@@ -821,31 +823,31 @@ bool dcn_validate_bandwidth(
 	v->opp_output_buffer_lines = dc->dcn_ip->opp_output_buffer_lines;
 	v->pixel_chunk_size_in_kbyte = dc->dcn_ip->pixel_chunk_size_in_kbyte;
 	v->pte_enable = dc->dcn_ip->pte_enable;
-	v->pte_chunk_size = dc->dcn_ip->pte_chunk_size;
-	v->meta_chunk_size = dc->dcn_ip->meta_chunk_size;
-	v->writeback_chunk_size = dc->dcn_ip->writeback_chunk_size;
+	v->pte_chunk_size = (float)dc->dcn_ip->pte_chunk_size;
+	v->meta_chunk_size = (float)dc->dcn_ip->meta_chunk_size;
+	v->writeback_chunk_size = (float)dc->dcn_ip->writeback_chunk_size;
 	v->odm_capability = dc->dcn_ip->odm_capability;
 	v->dsc_capability = dc->dcn_ip->dsc_capability;
-	v->line_buffer_size = dc->dcn_ip->line_buffer_size;
+	v->line_buffer_size = (float)dc->dcn_ip->line_buffer_size;
 	v->is_line_buffer_bpp_fixed = dc->dcn_ip->is_line_buffer_bpp_fixed;
-	v->line_buffer_fixed_bpp = dc->dcn_ip->line_buffer_fixed_bpp;
-	v->max_line_buffer_lines = dc->dcn_ip->max_line_buffer_lines;
-	v->writeback_luma_buffer_size = dc->dcn_ip->writeback_luma_buffer_size;
-	v->writeback_chroma_buffer_size = dc->dcn_ip->writeback_chroma_buffer_size;
-	v->max_num_dpp = dc->dcn_ip->max_num_dpp;
-	v->max_num_writeback = dc->dcn_ip->max_num_writeback;
-	v->max_dchub_topscl_throughput = dc->dcn_ip->max_dchub_topscl_throughput;
-	v->max_pscl_tolb_throughput = dc->dcn_ip->max_pscl_tolb_throughput;
-	v->max_lb_tovscl_throughput = dc->dcn_ip->max_lb_tovscl_throughput;
-	v->max_vscl_tohscl_throughput = dc->dcn_ip->max_vscl_tohscl_throughput;
+	v->line_buffer_fixed_bpp = (float)dc->dcn_ip->line_buffer_fixed_bpp;
+	v->max_line_buffer_lines = (float)dc->dcn_ip->max_line_buffer_lines;
+	v->writeback_luma_buffer_size = (float)dc->dcn_ip->writeback_luma_buffer_size;
+	v->writeback_chroma_buffer_size = (float)dc->dcn_ip->writeback_chroma_buffer_size;
+	v->max_num_dpp = (float)dc->dcn_ip->max_num_dpp;
+	v->max_num_writeback = (float)dc->dcn_ip->max_num_writeback;
+	v->max_dchub_topscl_throughput = (float)dc->dcn_ip->max_dchub_topscl_throughput;
+	v->max_pscl_tolb_throughput = (float)dc->dcn_ip->max_pscl_tolb_throughput;
+	v->max_lb_tovscl_throughput = (float)dc->dcn_ip->max_lb_tovscl_throughput;
+	v->max_vscl_tohscl_throughput = (float)dc->dcn_ip->max_vscl_tohscl_throughput;
 	v->max_hscl_ratio = dc->dcn_ip->max_hscl_ratio;
 	v->max_vscl_ratio = dc->dcn_ip->max_vscl_ratio;
-	v->max_hscl_taps = dc->dcn_ip->max_hscl_taps;
-	v->max_vscl_taps = dc->dcn_ip->max_vscl_taps;
+	v->max_hscl_taps = (float)dc->dcn_ip->max_hscl_taps;
+	v->max_vscl_taps = (float)dc->dcn_ip->max_vscl_taps;
 	v->under_scan_factor = dc->dcn_ip->under_scan_factor;
-	v->pte_buffer_size_in_requests = dc->dcn_ip->pte_buffer_size_in_requests;
-	v->dispclk_ramping_margin = dc->dcn_ip->dispclk_ramping_margin;
-	v->max_inter_dcn_tile_repeaters = dc->dcn_ip->max_inter_dcn_tile_repeaters;
+	v->pte_buffer_size_in_requests = (float)dc->dcn_ip->pte_buffer_size_in_requests;
+	v->dispclk_ramping_margin = (float)dc->dcn_ip->dispclk_ramping_margin;
+	v->max_inter_dcn_tile_repeaters = (float)dc->dcn_ip->max_inter_dcn_tile_repeaters;
 	v->can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one =
 			dc->dcn_ip->can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one;
 	v->bug_forcing_luma_and_chroma_request_to_same_size_fixed =
@@ -903,14 +905,14 @@ bool dcn_validate_bandwidth(
 		v->underscan_output[input_idx] = false; /* taken care of in recout already*/
 		v->interlace_output[input_idx] = false;
 
-		v->htotal[input_idx] = pipe->stream->timing.h_total;
-		v->vtotal[input_idx] = pipe->stream->timing.v_total;
-		v->vactive[input_idx] = pipe->stream->timing.v_addressable +
-				pipe->stream->timing.v_border_top + pipe->stream->timing.v_border_bottom;
-		v->v_sync_plus_back_porch[input_idx] = pipe->stream->timing.v_total
+		v->htotal[input_idx] = (float)pipe->stream->timing.h_total;
+		v->vtotal[input_idx] = (float)pipe->stream->timing.v_total;
+		v->vactive[input_idx] = (float)(pipe->stream->timing.v_addressable +
+				pipe->stream->timing.v_border_top + pipe->stream->timing.v_border_bottom);
+		v->v_sync_plus_back_porch[input_idx] = (float)(pipe->stream->timing.v_total
 				- v->vactive[input_idx]
-				- pipe->stream->timing.v_front_porch;
-		v->pixel_clock[input_idx] = pipe->stream->timing.pix_clk_100hz/10000.0;
+				- pipe->stream->timing.v_front_porch);
+		v->pixel_clock[input_idx] = pipe->stream->timing.pix_clk_100hz/10000.0f;
 		if (pipe->stream->timing.timing_3d_format == TIMING_3D_FORMAT_HW_FRAME_PACKING)
 			v->pixel_clock[input_idx] *= 2;
 		if (!pipe->plane_state) {
@@ -918,8 +920,8 @@ bool dcn_validate_bandwidth(
 			v->source_pixel_format[input_idx] = dcn_bw_rgb_sub_32;
 			v->source_surface_mode[input_idx] = dcn_bw_sw_4_kb_s;
 			v->lb_bit_per_pixel[input_idx] = 30;
-			v->viewport_width[input_idx] = pipe->stream->timing.h_addressable;
-			v->viewport_height[input_idx] = pipe->stream->timing.v_addressable;
+			v->viewport_width[input_idx] = (float)pipe->stream->timing.h_addressable;
+			v->viewport_height[input_idx] = (float)pipe->stream->timing.v_addressable;
 			/*
 			 * for cases where we have no plane, we want to validate up to 1080p
 			 * source size because here we are only interested in if the output
@@ -933,17 +935,17 @@ bool dcn_validate_bandwidth(
 				v->viewport_height[input_idx] = 1080;
 			v->scaler_rec_out_width[input_idx] = v->viewport_width[input_idx];
 			v->scaler_recout_height[input_idx] = v->viewport_height[input_idx];
-			v->override_hta_ps[input_idx] = 1;
-			v->override_vta_ps[input_idx] = 1;
-			v->override_hta_pschroma[input_idx] = 1;
-			v->override_vta_pschroma[input_idx] = 1;
+			v->override_hta_ps[input_idx] = 1.0f;
+			v->override_vta_ps[input_idx] = 1.0f;
+			v->override_hta_pschroma[input_idx] = 1.0f;
+			v->override_vta_pschroma[input_idx] = 1.0f;
 			v->source_scan[input_idx] = dcn_bw_hor;
 
 		} else {
-			v->viewport_height[input_idx] =  pipe->plane_res.scl_data.viewport.height;
-			v->viewport_width[input_idx] = pipe->plane_res.scl_data.viewport.width;
-			v->scaler_rec_out_width[input_idx] = pipe->plane_res.scl_data.recout.width;
-			v->scaler_recout_height[input_idx] = pipe->plane_res.scl_data.recout.height;
+			v->viewport_height[input_idx] =  (float)pipe->plane_res.scl_data.viewport.height;
+			v->viewport_width[input_idx] = (float)pipe->plane_res.scl_data.viewport.width;
+			v->scaler_rec_out_width[input_idx] = (float)pipe->plane_res.scl_data.recout.width;
+			v->scaler_recout_height[input_idx] = (float)pipe->plane_res.scl_data.recout.height;
 			if (pipe->bottom_pipe && pipe->bottom_pipe->plane_state == pipe->plane_state) {
 				if (pipe->plane_state->rotation % 2 == 0) {
 					int viewport_end = pipe->plane_res.scl_data.viewport.width
@@ -952,11 +954,11 @@ bool dcn_validate_bandwidth(
 							+ pipe->bottom_pipe->plane_res.scl_data.viewport.x;
 
 					if (viewport_end > viewport_b_end)
-						v->viewport_width[input_idx] = viewport_end
-							- pipe->bottom_pipe->plane_res.scl_data.viewport.x;
+						v->viewport_width[input_idx] = (float)(viewport_end
+							- pipe->bottom_pipe->plane_res.scl_data.viewport.x);
 					else
-						v->viewport_width[input_idx] = viewport_b_end
-									- pipe->plane_res.scl_data.viewport.x;
+						v->viewport_width[input_idx] = (float)(viewport_b_end
+									- pipe->plane_res.scl_data.viewport.x);
 				} else  {
 					int viewport_end = pipe->plane_res.scl_data.viewport.height
 						+ pipe->plane_res.scl_data.viewport.y;
@@ -964,14 +966,14 @@ bool dcn_validate_bandwidth(
 						+ pipe->bottom_pipe->plane_res.scl_data.viewport.y;
 
 					if (viewport_end > viewport_b_end)
-						v->viewport_height[input_idx] = viewport_end
-							- pipe->bottom_pipe->plane_res.scl_data.viewport.y;
+						v->viewport_height[input_idx] = (float)(viewport_end
+							- pipe->bottom_pipe->plane_res.scl_data.viewport.y);
 					else
-						v->viewport_height[input_idx] = viewport_b_end
-									- pipe->plane_res.scl_data.viewport.y;
+						v->viewport_height[input_idx] = (float)(viewport_b_end
+									- pipe->plane_res.scl_data.viewport.y);
 				}
-				v->scaler_rec_out_width[input_idx] = pipe->plane_res.scl_data.recout.width
-						+ pipe->bottom_pipe->plane_res.scl_data.recout.width;
+				v->scaler_rec_out_width[input_idx] = (float)(pipe->plane_res.scl_data.recout.width
+						+ pipe->bottom_pipe->plane_res.scl_data.recout.width);
 			}
 
 			if (pipe->plane_state->rotation % 2 == 0) {
@@ -997,7 +999,7 @@ bool dcn_validate_bandwidth(
 				 * allow us to disable dcc on the fly without re-calculating WM
 				 *
 				 * extra overhead for DCC is quite small.  for 1080p WM without
-				 * DCC is only 0.417us lower (urgent goes from 6.979us to 6.562us)
+				 * DCC is only 0.417fus lower (urgent goes from 6.979fus to 6.562fus)
 				 */
 				unsigned int bpe;
 
@@ -1009,11 +1011,11 @@ bool dcn_validate_bandwidth(
 					pipe->plane_state->format);
 			v->source_surface_mode[input_idx] = tl_sw_mode_to_bw_defs(
 					pipe->plane_state->tiling_info.gfx9.swizzle);
-			v->lb_bit_per_pixel[input_idx] = tl_lb_bpp_to_int(pipe->plane_res.scl_data.lb_params.depth);
-			v->override_hta_ps[input_idx] = pipe->plane_res.scl_data.taps.h_taps;
-			v->override_vta_ps[input_idx] = pipe->plane_res.scl_data.taps.v_taps;
-			v->override_hta_pschroma[input_idx] = pipe->plane_res.scl_data.taps.h_taps_c;
-			v->override_vta_pschroma[input_idx] = pipe->plane_res.scl_data.taps.v_taps_c;
+			v->lb_bit_per_pixel[input_idx] = (float)tl_lb_bpp_to_int(pipe->plane_res.scl_data.lb_params.depth);
+			v->override_hta_ps[input_idx] = (float)pipe->plane_res.scl_data.taps.h_taps;
+			v->override_vta_ps[input_idx] = (float)pipe->plane_res.scl_data.taps.v_taps;
+			v->override_hta_pschroma[input_idx] = (float)pipe->plane_res.scl_data.taps.h_taps_c;
+			v->override_vta_pschroma[input_idx] = (float)pipe->plane_res.scl_data.taps.v_taps_c;
 			/*
 			 * Spreadsheet doesn't handle taps_c is one properly,
 			 * need to force Chroma to always be scaled to pass
@@ -1091,29 +1093,29 @@ bool dcn_validate_bandwidth(
 	}
 	for (k = 0; k <= v->number_of_active_planes - 1; k++) {
 		if (v->source_pixel_format[k] == dcn_bw_rgb_sub_64) {
-			v->byte_per_pixel_dety[k] = 8.0;
-			v->byte_per_pixel_detc[k] = 0.0;
+			v->byte_per_pixel_dety[k] = 8.0f;
+			v->byte_per_pixel_detc[k] = 0.0f;
 		} else if (v->source_pixel_format[k] == dcn_bw_rgb_sub_32) {
-			v->byte_per_pixel_dety[k] = 4.0;
-			v->byte_per_pixel_detc[k] = 0.0;
+			v->byte_per_pixel_dety[k] = 4.0f;
+			v->byte_per_pixel_detc[k] = 0.0f;
 		} else if (v->source_pixel_format[k] == dcn_bw_rgb_sub_16) {
-			v->byte_per_pixel_dety[k] = 2.0;
-			v->byte_per_pixel_detc[k] = 0.0;
+			v->byte_per_pixel_dety[k] = 2.0f;
+			v->byte_per_pixel_detc[k] = 0.0f;
 		} else if (v->source_pixel_format[k] == dcn_bw_yuv420_sub_8) {
-			v->byte_per_pixel_dety[k] = 1.0;
-			v->byte_per_pixel_detc[k] = 2.0;
+			v->byte_per_pixel_dety[k] = 1.0f;
+			v->byte_per_pixel_detc[k] = 2.0f;
 		} else {
 			v->byte_per_pixel_dety[k] = 4.0f / 3.0f;
 			v->byte_per_pixel_detc[k] = 8.0f / 3.0f;
 		}
 	}
 
-	v->total_data_read_bandwidth = 0.0;
+	v->total_data_read_bandwidth = 0.0f;
 	for (k = 0; k <= v->number_of_active_planes - 1; k++) {
 		v->read_bandwidth_plane_luma[k] = v->swath_width_y[k] * v->dpp_per_plane[k] *
-				dcn_bw_ceil2(v->byte_per_pixel_dety[k], 1.0) / (v->htotal[k] / v->pixel_clock[k]) * v->v_ratio[k];
-		v->read_bandwidth_plane_chroma[k] = v->swath_width_y[k] / 2.0 * v->dpp_per_plane[k] *
-				dcn_bw_ceil2(v->byte_per_pixel_detc[k], 2.0) / (v->htotal[k] / v->pixel_clock[k]) * v->v_ratio[k] / 2.0;
+				dcn_bw_ceil2(v->byte_per_pixel_dety[k], 1.0f) / (v->htotal[k] / v->pixel_clock[k]) * v->v_ratio[k];
+		v->read_bandwidth_plane_chroma[k] = v->swath_width_y[k] / 2.0f * v->dpp_per_plane[k] *
+				dcn_bw_ceil2(v->byte_per_pixel_detc[k], 2.0f) / (v->htotal[k] / v->pixel_clock[k]) * v->v_ratio[k] / 2.0f;
 		v->total_data_read_bandwidth = v->total_data_read_bandwidth +
 				v->read_bandwidth_plane_luma[k] + v->read_bandwidth_plane_chroma[k];
 	}
@@ -1144,13 +1146,13 @@ bool dcn_validate_bandwidth(
 		dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performance_calculation(v);
 
 		context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.cstate_exit_ns =
-			v->stutter_exit_watermark * 1000;
+			(uint32_t)(v->stutter_exit_watermark * 1000.0f);
 		context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.cstate_enter_plus_exit_ns =
-				v->stutter_enter_plus_exit_watermark * 1000;
+				(uint32_t)(v->stutter_enter_plus_exit_watermark * 1000.0f);
 		context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.pstate_change_ns =
-				v->dram_clock_change_watermark * 1000;
-		context->bw_ctx.bw.dcn.watermarks.a.pte_meta_urgent_ns = v->ptemeta_urgent_watermark * 1000;
-		context->bw_ctx.bw.dcn.watermarks.a.urgent_ns = v->urgent_watermark * 1000;
+				(uint32_t)(v->dram_clock_change_watermark * 1000.0f);
+		context->bw_ctx.bw.dcn.watermarks.a.pte_meta_urgent_ns = (uint32_t)(v->ptemeta_urgent_watermark * 1000.0f);
+		context->bw_ctx.bw.dcn.watermarks.a.urgent_ns = (uint32_t)(v->urgent_watermark * 1000.0f);
 		context->bw_ctx.bw.dcn.watermarks.b = context->bw_ctx.bw.dcn.watermarks.a;
 		context->bw_ctx.bw.dcn.watermarks.c = context->bw_ctx.bw.dcn.watermarks.a;
 		context->bw_ctx.bw.dcn.watermarks.d = context->bw_ctx.bw.dcn.watermarks.a;
@@ -1168,14 +1170,14 @@ bool dcn_validate_bandwidth(
 			context->bw_ctx.bw.dcn.clk.dispclk_khz = (int)(dc->dcn_soc->max_dispclk_vmax0p9 * 1000);
 
 		if (context->bw_ctx.bw.dcn.clk.dispclk_khz <
-				dc->debug.min_disp_clk_khz) {
+				(int)dc->debug.min_disp_clk_khz) {
 			context->bw_ctx.bw.dcn.clk.dispclk_khz =
-					dc->debug.min_disp_clk_khz;
+					(int)dc->debug.min_disp_clk_khz;
 		}
 
 		context->bw_ctx.bw.dcn.clk.dppclk_khz = context->bw_ctx.bw.dcn.clk.dispclk_khz /
 				v->dispclk_dppclk_ratio;
-		context->bw_ctx.bw.dcn.clk.phyclk_khz = v->phyclk_per_state[v->voltage_level];
+		context->bw_ctx.bw.dcn.clk.phyclk_khz = (int)v->phyclk_per_state[v->voltage_level];
 		switch (v->voltage_level) {
 		case 0:
 			context->bw_ctx.bw.dcn.clk.max_supported_dppclk_khz =
@@ -1207,10 +1209,10 @@ bool dcn_validate_bandwidth(
 			if (pipe->top_pipe && pipe->top_pipe->plane_state == pipe->plane_state)
 				continue;
 
-			pipe->pipe_dlg_param.vupdate_width = v->v_update_width_pix[input_idx];
-			pipe->pipe_dlg_param.vupdate_offset = v->v_update_offset_pix[input_idx];
-			pipe->pipe_dlg_param.vready_offset = v->v_ready_offset_pix[input_idx];
-			pipe->pipe_dlg_param.vstartup_start = v->v_startup[input_idx];
+			pipe->pipe_dlg_param.vupdate_width = (unsigned int)v->v_update_width_pix[input_idx];
+			pipe->pipe_dlg_param.vupdate_offset = (unsigned int)v->v_update_offset_pix[input_idx];
+			pipe->pipe_dlg_param.vready_offset = (unsigned int)v->v_ready_offset_pix[input_idx];
+			pipe->pipe_dlg_param.vstartup_start = (unsigned int)v->v_startup[input_idx];
 
 			pipe->pipe_dlg_param.htotal = pipe->stream->timing.h_total;
 			pipe->pipe_dlg_param.vtotal = pipe->stream->timing.v_total;
@@ -1248,10 +1250,10 @@ bool dcn_validate_bandwidth(
 					 TIMING_3D_FORMAT_SIDE_BY_SIDE))) {
 					if (hsplit_pipe && hsplit_pipe->plane_state == pipe->plane_state) {
 						/* update previously split pipe */
-						hsplit_pipe->pipe_dlg_param.vupdate_width = v->v_update_width_pix[input_idx];
-						hsplit_pipe->pipe_dlg_param.vupdate_offset = v->v_update_offset_pix[input_idx];
-						hsplit_pipe->pipe_dlg_param.vready_offset = v->v_ready_offset_pix[input_idx];
-						hsplit_pipe->pipe_dlg_param.vstartup_start = v->v_startup[input_idx];
+						hsplit_pipe->pipe_dlg_param.vupdate_width = (unsigned int)v->v_update_width_pix[input_idx];
+						hsplit_pipe->pipe_dlg_param.vupdate_offset = (unsigned int)v->v_update_offset_pix[input_idx];
+						hsplit_pipe->pipe_dlg_param.vready_offset = (unsigned int)v->v_ready_offset_pix[input_idx];
+						hsplit_pipe->pipe_dlg_param.vstartup_start = (unsigned int)v->v_startup[input_idx];
 
 						hsplit_pipe->pipe_dlg_param.htotal = pipe->stream->timing.h_total;
 						hsplit_pipe->pipe_dlg_param.vtotal = pipe->stream->timing.v_total;
@@ -1302,12 +1304,12 @@ bool dcn_validate_bandwidth(
 	 */
 
 	bw_limit = dc->dcn_soc->percent_disp_bw_limit * v->fabric_and_dram_bandwidth_vmax0p9;
-	bw_limit_pass = (v->total_data_read_bandwidth / 1000.0) < bw_limit;
+	bw_limit_pass = (v->total_data_read_bandwidth / 1000.0f) < bw_limit;
 
 	PERFORMANCE_TRACE_END();
 	BW_VAL_TRACE_FINISH();
 
-	if (bw_limit_pass && v->voltage_level <= get_highest_allowed_voltage_level(dc->config.is_vmin_only_asic))
+	if (bw_limit_pass && v->voltage_level <= (int)get_highest_allowed_voltage_level(dc->config.is_vmin_only_asic))
 		return true;
 	else
 		return false;
@@ -1327,19 +1329,19 @@ void dcn_bw_update_from_pplib_fclks(
 	vmax0p9_idx = fclks->num_levels > 0 ? fclks->num_levels - 1 : 0;
 
 	dc->dcn_soc->fabric_and_dram_bandwidth_vmin0p65 =
-		32 * (fclks->data[vmin0p65_idx].clocks_in_khz / 1000.0) / 1000.0;
+		32 * (fclks->data[vmin0p65_idx].clocks_in_khz / 1000.0f) / 1000.0f;
 	dc->dcn_soc->fabric_and_dram_bandwidth_vmid0p72 =
 		dc->dcn_soc->number_of_channels *
-		(fclks->data[vmid0p72_idx].clocks_in_khz / 1000.0)
-		* ddr4_dram_factor_single_Channel / 1000.0;
+		(fclks->data[vmid0p72_idx].clocks_in_khz / 1000.0f)
+		* ddr4_dram_factor_single_Channel / 1000.0f;
 	dc->dcn_soc->fabric_and_dram_bandwidth_vnom0p8 =
 		dc->dcn_soc->number_of_channels *
-		(fclks->data[vnom0p8_idx].clocks_in_khz / 1000.0)
-		* ddr4_dram_factor_single_Channel / 1000.0;
+		(fclks->data[vnom0p8_idx].clocks_in_khz / 1000.0f)
+		* ddr4_dram_factor_single_Channel / 1000.0f;
 	dc->dcn_soc->fabric_and_dram_bandwidth_vmax0p9 =
 		dc->dcn_soc->number_of_channels *
-		(fclks->data[vmax0p9_idx].clocks_in_khz / 1000.0)
-		* ddr4_dram_factor_single_Channel / 1000.0;
+		(fclks->data[vmax0p9_idx].clocks_in_khz / 1000.0f)
+		* ddr4_dram_factor_single_Channel / 1000.0f;
 }
 
 void dcn_bw_update_from_pplib_dcfclks(
@@ -1347,10 +1349,10 @@ void dcn_bw_update_from_pplib_dcfclks(
 	struct dm_pp_clock_levels_with_voltage *dcfclks)
 {
 	if (dcfclks->num_levels >= 3) {
-		dc->dcn_soc->dcfclkv_min0p65 = dcfclks->data[0].clocks_in_khz / 1000.0;
-		dc->dcn_soc->dcfclkv_mid0p72 = dcfclks->data[dcfclks->num_levels - 3].clocks_in_khz / 1000.0;
-		dc->dcn_soc->dcfclkv_nom0p8 = dcfclks->data[dcfclks->num_levels - 2].clocks_in_khz / 1000.0;
-		dc->dcn_soc->dcfclkv_max0p9 = dcfclks->data[dcfclks->num_levels - 1].clocks_in_khz / 1000.0;
+		dc->dcn_soc->dcfclkv_min0p65 = dcfclks->data[0].clocks_in_khz / 1000.0f;
+		dc->dcn_soc->dcfclkv_mid0p72 = dcfclks->data[dcfclks->num_levels - 3].clocks_in_khz / 1000.0f;
+		dc->dcn_soc->dcfclkv_nom0p8 = dcfclks->data[dcfclks->num_levels - 2].clocks_in_khz / 1000.0f;
+		dc->dcn_soc->dcfclkv_max0p9 = dcfclks->data[dcfclks->num_levels - 1].clocks_in_khz / 1000.0f;
 	}
 }
 
@@ -1360,9 +1362,9 @@ void dcn_get_soc_clks(
 	int *min_dcfclk_khz,
 	int *socclk_khz)
 {
-	*min_fclk_khz = dc->dcn_soc->fabric_and_dram_bandwidth_vmin0p65 * 1000000 / 32;
-	*min_dcfclk_khz = dc->dcn_soc->dcfclkv_min0p65 * 1000;
-	*socclk_khz = dc->dcn_soc->socclk * 1000;
+	*min_fclk_khz = (int)(dc->dcn_soc->fabric_and_dram_bandwidth_vmin0p65 * 1000000.0f / 32.0f);
+	*min_dcfclk_khz = (int)(dc->dcn_soc->dcfclkv_min0p65 * 1000.0f);
+	*socclk_khz = (int)(dc->dcn_soc->socclk * 1000.0f);
 }
 
 void dcn_bw_notify_pplib_of_wm_ranges(
@@ -1391,15 +1393,15 @@ void dcn_bw_notify_pplib_of_wm_ranges(
 	ranges.num_reader_wm_sets = WM_SET_COUNT;
 	ranges.num_writer_wm_sets = WM_SET_COUNT;
 	ranges.reader_wm_sets[0].wm_inst = WM_A;
-	ranges.reader_wm_sets[0].min_drain_clk_mhz = min_dcfclk_khz / 1000;
-	ranges.reader_wm_sets[0].max_drain_clk_mhz = overdrive / 1000;
-	ranges.reader_wm_sets[0].min_fill_clk_mhz = min_fclk_khz / 1000;
-	ranges.reader_wm_sets[0].max_fill_clk_mhz = overdrive / 1000;
+	ranges.reader_wm_sets[0].min_drain_clk_mhz = (uint16_t)(min_dcfclk_khz / 1000);
+	ranges.reader_wm_sets[0].max_drain_clk_mhz = (uint16_t)(overdrive / 1000);
+	ranges.reader_wm_sets[0].min_fill_clk_mhz = (uint16_t)(min_fclk_khz / 1000);
+	ranges.reader_wm_sets[0].max_fill_clk_mhz = (uint16_t)(overdrive / 1000);
 	ranges.writer_wm_sets[0].wm_inst = WM_A;
-	ranges.writer_wm_sets[0].min_fill_clk_mhz = socclk_khz / 1000;
-	ranges.writer_wm_sets[0].max_fill_clk_mhz = overdrive / 1000;
-	ranges.writer_wm_sets[0].min_drain_clk_mhz = min_fclk_khz / 1000;
-	ranges.writer_wm_sets[0].max_drain_clk_mhz = overdrive / 1000;
+	ranges.writer_wm_sets[0].min_fill_clk_mhz = (uint16_t)(socclk_khz / 1000);
+	ranges.writer_wm_sets[0].max_fill_clk_mhz = (uint16_t)(overdrive / 1000);
+	ranges.writer_wm_sets[0].min_drain_clk_mhz = (uint16_t)(min_fclk_khz / 1000);
+	ranges.writer_wm_sets[0].max_drain_clk_mhz = (uint16_t)(overdrive / 1000);
 
 	if (dc->debug.pplib_wm_report_mode == WM_REPORT_OVERRIDE) {
 		ranges.reader_wm_sets[0].wm_inst = WM_A;
@@ -1583,14 +1585,14 @@ void dcn_bw_sync_calcs_and_dml(struct dc *dc)
 	dc->dml.soc.dram_clock_change_latency_us = dc->dcn_soc->dram_clock_change_latency;
 	dc->dml.soc.return_bus_width_bytes = dc->dcn_soc->return_bus_width;
 
-	dc->dml.ip.rob_buffer_size_kbytes = dc->dcn_ip->rob_buffer_size_in_kbyte;
-	dc->dml.ip.det_buffer_size_kbytes = dc->dcn_ip->det_buffer_size_in_kbyte;
-	dc->dml.ip.dpp_output_buffer_pixels = dc->dcn_ip->dpp_output_buffer_pixels;
-	dc->dml.ip.opp_output_buffer_lines = dc->dcn_ip->opp_output_buffer_lines;
-	dc->dml.ip.pixel_chunk_size_kbytes = dc->dcn_ip->pixel_chunk_size_in_kbyte;
+	dc->dml.ip.rob_buffer_size_kbytes = (unsigned int)dc->dcn_ip->rob_buffer_size_in_kbyte;
+	dc->dml.ip.det_buffer_size_kbytes = (unsigned int)dc->dcn_ip->det_buffer_size_in_kbyte;
+	dc->dml.ip.dpp_output_buffer_pixels = (unsigned int)dc->dcn_ip->dpp_output_buffer_pixels;
+	dc->dml.ip.opp_output_buffer_lines = (unsigned int)dc->dcn_ip->opp_output_buffer_lines;
+	dc->dml.ip.pixel_chunk_size_kbytes = (unsigned int)dc->dcn_ip->pixel_chunk_size_in_kbyte;
 	dc->dml.ip.pte_enable = dc->dcn_ip->pte_enable == dcn_bw_yes;
-	dc->dml.ip.pte_chunk_size_kbytes = dc->dcn_ip->pte_chunk_size;
-	dc->dml.ip.meta_chunk_size_kbytes = dc->dcn_ip->meta_chunk_size;
+	dc->dml.ip.pte_chunk_size_kbytes = (unsigned int)dc->dcn_ip->pte_chunk_size;
+	dc->dml.ip.meta_chunk_size_kbytes = (unsigned int)dc->dcn_ip->meta_chunk_size;
 	dc->dml.ip.writeback_chunk_size_kbytes = dc->dcn_ip->writeback_chunk_size;
 	dc->dml.ip.line_buffer_size_bits = dc->dcn_ip->line_buffer_size;
 	dc->dml.ip.max_line_buffer_lines = dc->dcn_ip->max_line_buffer_lines;

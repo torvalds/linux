@@ -588,10 +588,7 @@ static DEVICE_ATTR(fatal_log, S_IRUGO, pm8001_ctl_fatal_log_show, NULL);
 static ssize_t non_fatal_log_show(struct device *cdev,
 	struct device_attribute *attr, char *buf)
 {
-	u32 count;
-
-	count = pm80xx_get_non_fatal_dump(cdev, attr, buf);
-	return count;
+	return pm80xx_get_non_fatal_dump(cdev, attr, buf);
 }
 static DEVICE_ATTR_RO(non_fatal_log);
 
@@ -821,6 +818,14 @@ static ssize_t pm8001_store_update_fw(struct device *cdev,
 	filename_ptr = cmd_ptr + count;
 	res = sscanf(buf, "%s %s", cmd_ptr, filename_ptr);
 	if (res != 2) {
+		pm8001_ha->fw_status = FAIL_PARAMETERS;
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (pm8001_ha->controller_fatal_error) {
+		pm8001_dbg(pm8001_ha, FAIL,
+			   "controller in fatal error state, firmware update rejected\n");
 		pm8001_ha->fw_status = FAIL_PARAMETERS;
 		ret = -EINVAL;
 		goto out;

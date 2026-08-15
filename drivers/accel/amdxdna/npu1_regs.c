@@ -65,18 +65,39 @@ const struct dpm_clk_freq npu1_dpm_clk_table[] = {
 	{ 0 }
 };
 
-static const struct aie2_fw_feature_tbl npu1_fw_feature_table[] = {
+static const struct amdxdna_fw_feature_tbl npu1_fw_feature_table[] = {
 	{ .major = 5, .min_minor = 7 },
 	{ .features = BIT_U64(AIE2_NPU_COMMAND), .major = 5, .min_minor = 8 },
 	{ 0 }
 };
 
+static int npu1_set_dpm(struct amdxdna_dev_hdl *ndev, u32 dpm_level)
+{
+	u32 npuclk, hclk;
+	int ret;
+
+	npuclk = ndev->priv->dpm_clk_tbl[dpm_level].npuclk;
+	hclk = ndev->priv->dpm_clk_tbl[dpm_level].hclk;
+	ret = aie_smu_set_clocks(ndev->aie.smu_hdl, &npuclk, &hclk);
+	if (ret)
+		return ret;
+
+	ndev->npuclk_freq = npuclk;
+	ndev->hclk_freq = hclk;
+	ndev->max_tops = 2 * ndev->total_col;
+	ndev->curr_tops = ndev->max_tops * hclk / 1028;
+
+	XDNA_DBG(ndev->aie.xdna, "MP-NPU clock %d, H clock %d\n",
+		 ndev->npuclk_freq, ndev->hclk_freq);
+	return 0;
+}
+
 static const struct amdxdna_dev_priv npu1_dev_priv = {
 	.fw_path        = "amdnpu/1502_00/",
 	.rt_config	= npu1_default_rt_cfg,
 	.dpm_clk_tbl	= npu1_dpm_clk_table,
-	.fw_feature_tbl = npu1_fw_feature_table,
 	.col_align	= COL_ALIGN_NONE,
+	.col_opc	= 2048,
 	.mbox_dev_addr  = NPU1_MBOX_BAR_BASE,
 	.mbox_size      = 0, /* Use BAR size */
 	.sram_dev_addr  = NPU1_SRAM_BAR_BASE,
@@ -102,7 +123,7 @@ static const struct amdxdna_dev_priv npu1_dev_priv = {
 		DEFINE_BAR_OFFSET(SMU_RESP_REG, NPU1_SMU, MPNPU_PUB_SCRATCH6),
 		DEFINE_BAR_OFFSET(SMU_OUT_REG,  NPU1_SMU, MPNPU_PUB_SCRATCH7),
 	},
-	.hw_ops		= {
+	.hw_ops		= &(const struct aie2_hw_ops) {
 		.set_dpm = npu1_set_dpm,
 	},
 };
@@ -117,8 +138,10 @@ const struct amdxdna_dev_info dev_npu1_info = {
 	.dev_mem_buf_shift = 15, /* 32 KiB aligned */
 	.dev_mem_base      = AIE2_DEVM_BASE,
 	.dev_mem_size      = AIE2_DEVM_SIZE,
-	.vbnv              = "RyzenAI-npu1",
+	.default_vbnv      = "RyzenAI-npu1",
+	.dev_heap_max_size = AIE2_DEVM_SIZE,
 	.device_type       = AMDXDNA_DEV_TYPE_KMQ,
 	.dev_priv          = &npu1_dev_priv,
+	.fw_feature_tbl    = npu1_fw_feature_table,
 	.ops               = &aie2_ops,
 };

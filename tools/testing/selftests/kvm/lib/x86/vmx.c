@@ -360,7 +360,7 @@ static inline void init_vmcs_guest_state(void *rip, void *rsp)
 	vmwrite(GUEST_DR7, 0x400);
 	vmwrite(GUEST_RSP, (u64)rsp);
 	vmwrite(GUEST_RIP, (u64)rip);
-	vmwrite(GUEST_RFLAGS, 2);
+	vmwrite(GUEST_RFLAGS, X86_EFLAGS_FIXED);
 	vmwrite(GUEST_PENDING_DBG_EXCEPTIONS, 0);
 	vmwrite(GUEST_SYSENTER_ESP, vmreadz(HOST_IA32_SYSENTER_ESP));
 	vmwrite(GUEST_SYSENTER_EIP, vmreadz(HOST_IA32_SYSENTER_EIP));

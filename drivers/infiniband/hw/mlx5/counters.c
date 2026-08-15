@@ -697,7 +697,7 @@ static void mlx5_ib_fill_counters(struct mlx5_ib_dev *dev,
 				  u32 port_num)
 {
 	bool is_vport = is_mdev_switchdev_mode(dev->mdev) &&
-			port_num != MLX5_VPORT_PF;
+			port_num != MLX5_VPORT_HOST_PF;
 	const struct mlx5_ib_counter *names;
 	int j = 0, i, size;
 
@@ -802,7 +802,7 @@ static int __mlx5_ib_alloc_counters(struct mlx5_ib_dev *dev,
 				    struct mlx5_ib_counters *cnts, u32 port_num)
 {
 	bool is_vport = is_mdev_switchdev_mode(dev->mdev) &&
-			port_num != MLX5_VPORT_PF;
+			port_num != MLX5_VPORT_HOST_PF;
 	u32 num_counters, num_op_counters = 0, size;
 
 	size = is_vport ? ARRAY_SIZE(vport_basic_q_cnts) :

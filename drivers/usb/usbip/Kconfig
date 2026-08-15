@@ -40,7 +40,7 @@ config USBIP_VHCI_HC_PORTS
 
 config USBIP_VHCI_NR_HCS
 	int "Number of USB/IP virtual host controllers"
-	range 1 128
+	range 1 32
 	default 1
 	depends on USBIP_VHCI_HCD
 	help

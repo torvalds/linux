@@ -305,36 +305,6 @@ int hr222_sub_init(struct pcxhr_mgr *mgr)
 }
 
 
-/* calc PLL register */
-/* TODO : there is a very similar fct in pcxhr.c */
-static int hr222_pll_freq_register(unsigned int freq,
-				   unsigned int *pllreg,
-				   unsigned int *realfreq)
-{
-	unsigned int reg;
-
-	if (freq < 6900 || freq > 219000)
-		return -EINVAL;
-	reg = (28224000 * 2) / freq;
-	reg = (reg - 1) / 2;
-	if (reg < 0x100)
-		*pllreg = reg + 0xC00;
-	else if (reg < 0x200)
-		*pllreg = reg + 0x800;
-	else if (reg < 0x400)
-		*pllreg = reg & 0x1ff;
-	else if (reg < 0x800) {
-		*pllreg = ((reg >> 1) & 0x1ff) + 0x200;
-		reg &= ~1;
-	} else {
-		*pllreg = ((reg >> 2) & 0x1ff) + 0x400;
-		reg &= ~3;
-	}
-	if (realfreq)
-		*realfreq = (28224000 / (reg + 1));
-	return 0;
-}
-
 int hr222_sub_set_clock(struct pcxhr_mgr *mgr,
 			unsigned int rate,
 			int *changed)
@@ -345,7 +315,8 @@ int hr222_sub_set_clock(struct pcxhr_mgr *mgr,
 
 	switch (mgr->use_clock_type) {
 	case HR22_CLOCK_TYPE_INTERNAL:
-		err = hr222_pll_freq_register(rate, &pllreg, &realfreq);
+		err = pcxhr_pll_freq_register(rate, 219000,
+					      &pllreg, &realfreq);
 		if (err)
 			return err;
 

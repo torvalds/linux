@@ -556,7 +556,7 @@ static int vidioc_g_fmt_sliced_vbi_out(struct file *file, void *fh,
 	if (FW_VERSION(av7110->arm_app) < 0x2623)
 		return -EINVAL;
 	memset(&f->fmt.sliced, 0, sizeof(f->fmt.sliced));
-	if (av7110->wssMode) {
+	if (av7110->wss_mode) {
 		f->fmt.sliced.service_set = V4L2_SLICED_WSS_625;
 		f->fmt.sliced.service_lines[0][23] = V4L2_SLICED_WSS_625;
 	}
@@ -596,14 +596,14 @@ static int vidioc_s_fmt_sliced_vbi_out(struct file *file, void *fh,
 		return -EINVAL;
 	if (f->fmt.sliced.service_set & V4L2_SLICED_WSS_625) {
 		/* WSS controlled by userspace */
-		av7110->wssMode = 1;
-		av7110->wssData = 0;
+		av7110->wss_mode = 1;
+		av7110->wss_data = 0;
 	} else {
 		/* WSS controlled by firmware */
-		av7110->wssMode = 0;
-		av7110->wssData = 0;
+		av7110->wss_mode = 0;
+		av7110->wss_data = 0;
 		return av7110_fw_cmd(av7110, COMTYPE_ENCODER,
-				     SetWSSConfig, 1, 0);
+				     AV7110_SET_WSS_CONFIG, 1, 0);
 	}
 	return 0;
 }
@@ -616,17 +616,19 @@ static ssize_t av7110_vbi_write(struct file *file, const char __user *data, size
 	int rc;
 
 	dprintk(2, "\n");
-	if (FW_VERSION(av7110->arm_app) < 0x2623 || !av7110->wssMode || count != sizeof(d))
+	if (FW_VERSION(av7110->arm_app) < 0x2623 ||
+	    !av7110->wss_mode || count != sizeof(d))
 		return -EINVAL;
 	if (copy_from_user(&d, data, count))
 		return -EFAULT;
 	if ((d.id != 0 && d.id != V4L2_SLICED_WSS_625) || d.field != 0 || d.line != 23)
 		return -EINVAL;
 	if (d.id)
-		av7110->wssData = ((d.data[1] << 8) & 0x3f00) | d.data[0];
+		av7110->wss_data = ((d.data[1] << 8) & 0x3f00) | d.data[0];
 	else
-		av7110->wssData = 0x8000;
-	rc = av7110_fw_cmd(av7110, COMTYPE_ENCODER, SetWSSConfig, 2, 1, av7110->wssData);
+		av7110->wss_data = 0x8000;
+	rc = av7110_fw_cmd(av7110, COMTYPE_ENCODER,
+			   AV7110_SET_WSS_CONFIG, 2, 1, av7110->wss_data);
 	return (rc < 0) ? rc : count;
 }
 

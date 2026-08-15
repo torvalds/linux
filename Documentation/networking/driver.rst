@@ -51,7 +51,7 @@ for a driver implementing scatter-gather this means:
 	{
 		u32 used = READ_ONCE(dr->prod) - READ_ONCE(dr->cons);
 
-		return dr->tx_ring_size - (used & bp->tx_ring_mask);
+		return dr->tx_ring_size - (used & dr->tx_ring_mask);
 	}
 
 	static netdev_tx_t drv_hard_start_xmit(struct sk_buff *skb,
@@ -69,7 +69,7 @@ for a driver implementing scatter-gather this means:
 		//...
 		/* This should be a very rare race - log it. */
 		if (drv_tx_avail(dr) <= skb_shinfo(skb)->nr_frags + 1) {
-			netif_stop_queue(dev);
+			netif_tx_stop_queue(txq);
 			netdev_warn(dev, "Tx Ring full when queue awake!\n");
 			return NETDEV_TX_BUSY;
 		}
@@ -103,6 +103,9 @@ Lockless queue stop / wake helper macros
 .. kernel-doc:: include/net/netdev_queues.h
    :doc: Lockless queue stopping / waking helpers.
 
+The standard macros like netif_txq_maybe_stop(), netif_txq_try_stop() etc.
+are well tested, prefer them over local synchronization schemes.
+
 No exclusive ownership
 ----------------------
 
@@ -125,3 +128,16 @@ to be freed up.
 If you return NETDEV_TX_BUSY from the ndo_start_xmit method, you
 must not keep any reference to that SKB and you must not attempt
 to free it up.
+
+Error message reporting
+=======================
+
+A number of driver configuration interfaces pass a Netlink extended ACK
+(``extack``) object to the driver (either directly as an argument or
+as a member of a parameter struct). The drivers should try to report
+most errors via the ``extack`` object. System level exceptions,
+indicating that system or device is misbehaving or is in bad state,
+should continue to be reported to system logs.
+
+Messages should be passed **either** via ``extack`` **or** to system logs.
+Drivers should not try to report the same information to both.

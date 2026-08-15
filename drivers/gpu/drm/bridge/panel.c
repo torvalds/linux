@@ -111,7 +111,7 @@ static void panel_bridge_detach(struct drm_bridge *bridge)
 }
 
 static void panel_bridge_atomic_pre_enable(struct drm_bridge *bridge,
-					   struct drm_atomic_state *atomic_state)
+					   struct drm_atomic_commit *atomic_state)
 {
 	struct panel_bridge *panel_bridge = drm_bridge_to_panel_bridge(bridge);
 	struct drm_encoder *encoder = bridge->encoder;
@@ -130,7 +130,7 @@ static void panel_bridge_atomic_pre_enable(struct drm_bridge *bridge,
 }
 
 static void panel_bridge_atomic_enable(struct drm_bridge *bridge,
-				       struct drm_atomic_state *atomic_state)
+				       struct drm_atomic_commit *atomic_state)
 {
 	struct panel_bridge *panel_bridge = drm_bridge_to_panel_bridge(bridge);
 	struct drm_encoder *encoder = bridge->encoder;
@@ -149,7 +149,7 @@ static void panel_bridge_atomic_enable(struct drm_bridge *bridge,
 }
 
 static void panel_bridge_atomic_disable(struct drm_bridge *bridge,
-					struct drm_atomic_state *atomic_state)
+					struct drm_atomic_commit *atomic_state)
 {
 	struct panel_bridge *panel_bridge = drm_bridge_to_panel_bridge(bridge);
 	struct drm_encoder *encoder = bridge->encoder;
@@ -168,7 +168,7 @@ static void panel_bridge_atomic_disable(struct drm_bridge *bridge,
 }
 
 static void panel_bridge_atomic_post_disable(struct drm_bridge *bridge,
-					     struct drm_atomic_state *atomic_state)
+					     struct drm_atomic_commit *atomic_state)
 {
 	struct panel_bridge *panel_bridge = drm_bridge_to_panel_bridge(bridge);
 	struct drm_encoder *encoder = bridge->encoder;

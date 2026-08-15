@@ -90,7 +90,7 @@ static bool build_custom_float(struct fixed31_32 value,
 	    dc_fixpt_lt(dc_fixpt_one, mantiss))
 		mantiss = dc_fixpt_zero;
 	else
-		mantiss = dc_fixpt_shl(mantiss, format->mantissa_bits);
+		mantiss = dc_fixpt_shl(mantiss, (unsigned char)format->mantissa_bits);
 
 	*mantissa = dc_fixpt_floor(mantiss);
 

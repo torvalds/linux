@@ -12,7 +12,6 @@
 #include <linux/device.h>
 #include <linux/leds.h>
 #include <linux/mfd/max5970.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>

@@ -238,7 +238,7 @@ again:
 		goto done;
 	}
 
-	inc_irq_stat(apic_perf_irqs);
+	inc_perf_irq_stat();
 
 	for_each_set_bit(bit, (unsigned long *)&status, X86_PMC_IDX_MAX) {
 		struct perf_event *event = cpuc->events[bit];

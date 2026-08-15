@@ -8,8 +8,8 @@ SYM_FUNC_START(arch_bpf_timed_may_goto)
 	stp     x29, x30, [sp, #-64]!
 	mov     x29, sp
 
-	/* Save BPF registers R0 - R5 (x7, x0-x4)*/
-	stp	x7, x0, [sp, #16]
+	/* Save BPF registers R0 - R5 (x8, x0-x4)*/
+	stp	x8, x0, [sp, #16]
 	stp	x1, x2, [sp, #32]
 	stp	x3, x4, [sp, #48]
 
@@ -28,8 +28,8 @@ SYM_FUNC_START(arch_bpf_timed_may_goto)
 	/* BPF_REG_AX(x9) will be stored into count, so move return value to it. */
 	mov	x9, x0
 
-	/* Restore BPF registers R0 - R5 (x7, x0-x4) */
-	ldp	x7, x0, [sp, #16]
+	/* Restore BPF registers R0 - R5 (x8, x0-x4) */
+	ldp	x8, x0, [sp, #16]
 	ldp	x1, x2, [sp, #32]
 	ldp	x3, x4, [sp, #48]
 

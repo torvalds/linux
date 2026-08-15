@@ -503,7 +503,7 @@ rcar_du_fb_create(struct drm_device *dev, struct drm_file *file_priv,
  */
 
 static int rcar_du_atomic_check(struct drm_device *dev,
-				struct drm_atomic_state *state)
+				struct drm_atomic_commit *state)
 {
 	struct rcar_du_device *rcdu = to_rcar_du_device(dev);
 	int ret;
@@ -518,7 +518,7 @@ static int rcar_du_atomic_check(struct drm_device *dev,
 	return rcar_du_atomic_check_planes(dev, state);
 }
 
-static void rcar_du_atomic_commit_tail(struct drm_atomic_state *old_state)
+static void rcar_du_atomic_commit_tail(struct drm_atomic_commit *old_state)
 {
 	struct drm_device *dev = old_state->dev;
 	struct rcar_du_device *rcdu = to_rcar_du_device(dev);
@@ -832,6 +832,8 @@ static void rcar_du_modeset_cleanup(struct drm_device *dev, void *res)
 
 		put_device(cmm->dev);
 	}
+
+	rcar_du_encoder_cleanup(rcdu);
 }
 
 int rcar_du_modeset_init(struct rcar_du_device *rcdu)

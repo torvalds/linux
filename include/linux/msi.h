@@ -444,7 +444,7 @@ struct msi_domain_info;
  *
  * @domain_alloc_irqs, @domain_free_irqs can be used to override the
  * default allocation/free functions (__msi_domain_alloc/free_irqs). This
- * is initially for a wrapper around XENs seperate MSI universe which can't
+ * is initially for a wrapper around XEN's separate MSI universe which can't
  * be wrapped into the regular irq domains concepts by mere mortals.  This
  * allows to universally use msi_domain_alloc/free_irqs without having to
  * special case XEN all over the place.

@@ -351,7 +351,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&mpu9150h_pins>;
 		interrupt-parent = <&gpio2>;
-		interrupt = <19 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <19 IRQ_TYPE_LEVEL_HIGH>;
 	};
 };
 
@@ -413,7 +413,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&mpu9150_pins>;
 		interrupt-parent = <&gpio2>;
-		interrupt = <7 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <7 IRQ_TYPE_LEVEL_HIGH>;
 		vddio-supply = <&cb_v18>;
 		vdd-supply = <&cb_v33>;
 		invensense,level-shifter;

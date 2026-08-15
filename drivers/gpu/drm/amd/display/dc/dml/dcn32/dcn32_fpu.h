@@ -77,4 +77,6 @@ void dcn32_override_min_req_memclk(struct dc *dc, struct dc_state *context);
 
 void dcn32_set_clock_limits(const struct _vcs_dpi_soc_bounding_box_st *soc_bb);
 
+unsigned int dcn32_get_max_dispclk_mhz(struct dc *dc, struct dc_state *context);
+
 #endif

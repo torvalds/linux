@@ -292,9 +292,9 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 	if (!sdev)
 		goto out;
 
-	sdev->vendor = scsi_null_device_strs;
-	sdev->model = scsi_null_device_strs;
-	sdev->rev = scsi_null_device_strs;
+	strscpy(sdev->vendor, scsi_null_device_strs);
+	strscpy(sdev->model, scsi_null_device_strs);
+	strscpy(sdev->rev, scsi_null_device_strs);
 	sdev->host = shost;
 	sdev->queue_ramp_up_period = SCSI_DEFAULT_RAMP_UP_PERIOD;
 	sdev->id = starget->id;
@@ -728,9 +728,13 @@ static int scsi_probe_lun(struct scsi_device *sdev, unsigned char *inq_result,
 	}
 
 	if (result == 0) {
-		scsi_sanitize_inquiry_string(&inq_result[8], 8);
-		scsi_sanitize_inquiry_string(&inq_result[16], 16);
-		scsi_sanitize_inquiry_string(&inq_result[32], 4);
+		scsi_sanitize_inquiry_string(&inq_result[INQUIRY_VENDOR_OFFSET],
+					     INQUIRY_VENDOR_LEN);
+		scsi_sanitize_inquiry_string(&inq_result[INQUIRY_MODEL_OFFSET],
+					     INQUIRY_MODEL_LEN);
+		scsi_sanitize_inquiry_string(
+			&inq_result[INQUIRY_REVISION_OFFSET],
+			INQUIRY_REVISION_LEN);
 
 		response_len = inq_result[4] + 5;
 		if (response_len > 255)
@@ -743,8 +747,9 @@ static int scsi_probe_lun(struct scsi_device *sdev, unsigned char *inq_result,
 		 * corresponding bit fields in scsi_device, so bflags
 		 * need not be passed as an argument.
 		 */
-		*bflags = scsi_get_device_flags(sdev, &inq_result[8],
-				&inq_result[16]);
+		*bflags = scsi_get_device_flags(sdev,
+				&inq_result[INQUIRY_VENDOR_OFFSET],
+				&inq_result[INQUIRY_MODEL_OFFSET]);
 
 		/* When the first pass succeeds we gain information about
 		 * what larger transfer lengths might work. */
@@ -858,7 +863,7 @@ static int scsi_probe_lun(struct scsi_device *sdev, unsigned char *inq_result,
 }
 
 /**
- * scsi_add_lun - allocate and fully initialze a scsi_device
+ * scsi_add_lun - allocate and fully initialize a scsi_device
  * @sdev:	holds information to be stored in the new scsi_device
  * @inq_result:	holds the result of a previous INQUIRY to the LUN
  * @bflags:	black/white list flag
@@ -905,9 +910,15 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 	if (sdev->inquiry == NULL)
 		return SCSI_SCAN_NO_RESPONSE;
 
-	sdev->vendor = (char *) (sdev->inquiry + 8);
-	sdev->model = (char *) (sdev->inquiry + 16);
-	sdev->rev = (char *) (sdev->inquiry + 32);
+	strscpy(sdev->vendor, sdev->inquiry + INQUIRY_VENDOR_OFFSET);
+	strscpy(sdev->model, sdev->inquiry + INQUIRY_MODEL_OFFSET);
+	/*
+	 * memcpy() instead of strscpy() because strscpy() would read past
+	 * the end of sdev->inquiry if its length is exactly 36 bytes.
+	 */
+	memcpy(sdev->rev, sdev->inquiry + INQUIRY_REVISION_OFFSET,
+	       INQUIRY_REVISION_LEN);
+	sdev->rev[INQUIRY_REVISION_LEN] = '\0';
 
 	sdev->is_ata = strncmp(sdev->vendor, "ATA     ", 8) == 0;
 	if (sdev->is_ata) {
@@ -1910,7 +1921,7 @@ int scsi_scan_host_selected(struct Scsi_Host *shost, unsigned int channel,
 
 	return 0;
 }
-EXPORT_SYMBOL(scsi_scan_host_selected);
+
 static void scsi_sysfs_add_devices(struct Scsi_Host *shost)
 {
 	struct scsi_device *sdev;

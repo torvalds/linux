@@ -14,15 +14,7 @@
 
 #define ROGUE_NUM_GEOM_CORES_SIZE 2U
 
-/*
- * Maximum number of UFOs in a CCB command.
- * The number is based on having 32 sync prims (as originally), plus 32 sync
- * checkpoints.
- * Once the use of sync prims is no longer supported, we will retain
- * the same total (64) as the number of sync checkpoints which may be
- * supporting a fence is not visible to the client driver and has to
- * allow for the number of different timelines involved in fence merges.
- */
+/* Maximum number of UFOs in a CCB command. */
 #define ROGUE_FWIF_CCB_CMD_MAX_UFOS (32U + 32U)
 
 /*

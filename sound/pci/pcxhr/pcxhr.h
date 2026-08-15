@@ -190,6 +190,8 @@ struct pcxhr_hostport
 };
 
 /* exported */
+int pcxhr_pll_freq_register(unsigned int freq, unsigned int max_freq,
+			    unsigned int *pllreg, unsigned int *realfreq);
 int pcxhr_create_pcm(struct snd_pcxhr *chip);
 int pcxhr_set_clock(struct pcxhr_mgr *mgr, unsigned int rate);
 int pcxhr_get_external_clock(struct pcxhr_mgr *mgr,

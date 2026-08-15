@@ -15,7 +15,6 @@
 #define AVG_THERMAL_NUM_8723B		4
 #define	RF_T_METER_8723B					0x42	/*  */
 
-
 void ConfigureTxpowerTrack_8723B(struct txpwrtrack_cfg *pConfig);
 
 void ODM_TxPwrTrackSetPwr_8723B(
@@ -45,7 +44,6 @@ void PHY_LCCalibrate_8723B(struct dm_odm_t *pDM_Odm);
 /*  AP calibrate */
 /*  */
 void PHY_DigitalPredistortion_8723B(struct adapter *padapter);
-
 
 void _PHY_SaveADDARegisters_8723B(
 	struct adapter *padapter,

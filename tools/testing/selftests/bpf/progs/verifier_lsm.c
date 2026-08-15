@@ -188,4 +188,28 @@ int BPF_PROG(null_check, struct file *file)
 	return 0;
 }
 
+SEC("lsm_cgroup/file_open")
+__description("sleepable lsm_cgroup program is rejected")
+__failure __msg("Program of this type cannot be sleepable")
+__flag(BPF_F_SLEEPABLE)
+int BPF_PROG(sleepable_lsm_cgroup)
+{
+	return 0;
+}
+
+SEC("lsm/file_mprotect")
+__description("lsm retval load must reset stale register bounds")
+__failure __msg("div by zero")
+__naked int retval_load_resets_bounds(void *ctx)
+{
+	asm volatile (
+	"r6 = 0;"
+	"r6 = *(u64 *)(r1 + 24);"
+	"if r6 == 0 goto +1;"
+	"r6 /= 0;"
+	"r0 = 0;"
+	"exit;"
+	::: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";

@@ -3,29 +3,52 @@
 //! Implementation of [`Vec`].
 
 use super::{
-    allocator::{KVmalloc, Kmalloc, Vmalloc, VmallocPageIter},
+    allocator::{
+        KVmalloc,
+        Kmalloc,
+        Vmalloc,
+        VmallocPageIter, //
+    },
     layout::ArrayLayout,
-    AllocError, Allocator, Box, Flags, NumaNode,
+    AllocError,
+    Allocator,
+    Box,
+    Flags,
+    NumaNode, //
 };
+
 use crate::{
     fmt,
     page::{
         AsPageIter,
         PAGE_SIZE, //
-    },
+    }, //
 };
+
 use core::{
-    borrow::{Borrow, BorrowMut},
+    borrow::{
+        Borrow,
+        BorrowMut, //
+    },
     marker::PhantomData,
-    mem::{ManuallyDrop, MaybeUninit},
-    ops::Deref,
-    ops::DerefMut,
-    ops::Index,
-    ops::IndexMut,
-    ptr,
-    ptr::NonNull,
-    slice,
-    slice::SliceIndex,
+    mem::{
+        ManuallyDrop,
+        MaybeUninit, //
+    },
+    ops::{
+        Deref,
+        DerefMut,
+        Index,
+        IndexMut, //
+    },
+    ptr::{
+        self,
+        NonNull, //
+    },
+    slice::{
+        self,
+        SliceIndex, //
+    }, //
 };
 
 mod errors;
@@ -614,7 +637,7 @@ where
     ///
     /// v.reserve(10, GFP_KERNEL)?;
     /// let cap = v.capacity();
-    /// assert!(cap >= 10);
+    /// assert!(cap >= v.len() + 10);
     ///
     /// v.reserve(10, GFP_KERNEL)?;
     /// let new_cap = v.capacity();
@@ -849,6 +872,24 @@ impl<T> Vec<T, KVmalloc> {
 
 impl<T: Clone, A: Allocator> Vec<T, A> {
     /// Extend the vector by `n` clones of `value`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut v = KVec::new();
+    /// v.push(1, GFP_KERNEL)?;
+    ///
+    /// v.extend_with(3, 5, GFP_KERNEL)?;
+    /// assert_eq!(&v, &[1, 5, 5, 5]);
+    ///
+    /// v.extend_with(2, 8, GFP_KERNEL)?;
+    /// assert_eq!(&v, &[1, 5, 5, 5, 8, 8]);
+    ///
+    /// v.extend_with(0, 3, GFP_KERNEL)?;
+    /// assert_eq!(&v, &[1, 5, 5, 5, 8, 8]);
+    ///
+    /// # Ok::<(), Error>(())
+    /// ```
     pub fn extend_with(&mut self, n: usize, value: T, flags: Flags) -> Result<(), AllocError> {
         if n == 0 {
             return Ok(());
@@ -866,7 +907,7 @@ impl<T: Clone, A: Allocator> Vec<T, A> {
         spare[n - 1].write(value);
 
         // SAFETY:
-        // - `self.len() + n < self.capacity()` due to the call to reserve above,
+        // - `self.len() + n <= self.capacity()` due to the call to reserve above,
         // - the loop and the line above initialized the next `n` elements.
         unsafe { self.inc_len(n) };
 
@@ -1146,9 +1187,13 @@ where
 /// # Examples
 ///
 /// ```
-/// # use kernel::prelude::*;
-/// use kernel::alloc::allocator::VmallocPageIter;
-/// use kernel::page::{AsPageIter, PAGE_SIZE};
+/// use kernel::{
+///     alloc::allocator::VmallocPageIter,
+///     page::{
+///         AsPageIter,
+///         PAGE_SIZE, //
+///     }, //
+/// };
 ///
 /// let mut vec = VVec::<u8>::new();
 ///
@@ -1463,6 +1508,7 @@ impl<'vec, T> Drop for DrainAll<'vec, T> {
     }
 }
 
+#[cfg(CONFIG_RUST_KVEC_KUNIT_TEST)]
 #[macros::kunit_tests(rust_kvec)]
 mod tests {
     use super::*;

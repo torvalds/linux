@@ -46,6 +46,7 @@ int io_accept(struct io_kiocb *req, unsigned int issue_flags);
 int io_socket_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe);
 int io_socket(struct io_kiocb *req, unsigned int issue_flags);
 void io_socket_bpf_populate(struct io_uring_bpf_ctx *bctx, struct io_kiocb *req);
+void io_connect_bpf_populate(struct io_uring_bpf_ctx *bctx, struct io_kiocb *req);
 
 int io_connect_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe);
 int io_connect(struct io_kiocb *req, unsigned int issue_flags);
@@ -69,4 +70,10 @@ static inline void io_socket_bpf_populate(struct io_uring_bpf_ctx *bctx,
 					  struct io_kiocb *req)
 {
 }
+
+static inline void io_connect_bpf_populate(struct io_uring_bpf_ctx *bctx,
+					   struct io_kiocb *req)
+{
+}
+
 #endif

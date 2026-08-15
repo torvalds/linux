@@ -36,7 +36,9 @@ properties:
           - const: syscon
           - const: simple-mfd
       - items:
-          - const: apple,t6020-pmgr
+          - enum:
+              - apple,t6020-pmgr
+              - apple,t8122-pmgr
           - const: apple,t8103-pmgr
           - const: syscon
           - const: simple-mfd

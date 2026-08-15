@@ -84,6 +84,7 @@ static int mei_txe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		err = -ENOMEM;
 		goto end;
 	}
+	dev->kind = MEI_DEV_KIND_MEI;
 	hw = to_txe_hw(dev);
 	hw->mem_addr = pcim_iomap_table(pdev);
 

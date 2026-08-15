@@ -123,7 +123,7 @@ static int dmard09_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id dmard09_id[] = {
-	{ "dmard09" },
+	{ .name = "dmard09" },
 	{ }
 };
 

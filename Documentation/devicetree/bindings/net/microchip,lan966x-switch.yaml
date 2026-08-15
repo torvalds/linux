@@ -17,7 +17,7 @@ description: |
 
 properties:
   $nodename:
-    pattern: "^switch@[0-9a-f]+$"
+    pattern: "^(ethernet-)?switch@[0-9a-f]+$"
 
   compatible:
     const: microchip,lan966x-switch
@@ -70,7 +70,7 @@ properties:
     additionalProperties: false
 
     patternProperties:
-      "^port@[0-9a-f]+$":
+      "^(ethernet-)?port@[0-9a-f]+$":
         type: object
 
         $ref: /schemas/net/ethernet-controller.yaml#
@@ -138,7 +138,7 @@ additionalProperties: false
 examples:
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>
-    switch: switch@e0000000 {
+    switch: ethernet-switch@e0000000 {
       compatible = "microchip,lan966x-switch";
       reg =  <0xe0000000 0x0100000>,
              <0xe2000000 0x0800000>;
@@ -151,14 +151,14 @@ examples:
         #address-cells = <1>;
         #size-cells = <0>;
 
-        port0: port@0 {
+        port0: ethernet-port@0 {
           reg = <0>;
           phy-handle = <&phy0>;
           phys = <&serdes 0 0>;
           phy-mode = "gmii";
         };
 
-        port1: port@1 {
+        port1: ethernet-port@1 {
           reg = <1>;
           sfp = <&sfp_eth1>;
           managed = "in-band-status";

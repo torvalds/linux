@@ -233,8 +233,8 @@ ocelot_flower_parse_egress_port(struct ocelot *ocelot, struct flow_cls_offload *
 				const struct flow_action_entry *a, bool mirror,
 				struct netlink_ext_ack *extack)
 {
+	int egress_port = ocelot->ops->netdev_to_port(ocelot, a->dev);
 	const char *act_string = mirror ? "mirror" : "redirect";
-	int egress_port = ocelot->ops->netdev_to_port(a->dev);
 	enum flow_action_id offloadable_act_id;
 
 	offloadable_act_id = mirror ? FLOW_ACTION_MIRRED : FLOW_ACTION_REDIRECT;
@@ -580,7 +580,7 @@ static int ocelot_flower_parse_indev(struct ocelot *ocelot, int port,
 		return -ENOENT;
 	}
 
-	ingress_port = ocelot->ops->netdev_to_port(indev);
+	ingress_port = ocelot->ops->netdev_to_port(ocelot, indev);
 	if (ingress_port < 0) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Can only offload an ocelot ingress port");

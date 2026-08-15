@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2024-2025 Intel Corporation
+ * Copyright (C) 2024-2026 Intel Corporation
  */
 
 #ifndef __iwl_mld_sta_h__
@@ -28,6 +28,9 @@ struct iwl_mld_rxq_dup_data {
  * This represents the link-level sta - the driver level equivalent to the
  * ieee80211_link_sta
  *
+ * @rx_igtk: FW can only have one IGTK for RX at a time, whereas mac80211 will
+ *	have two. This tracks the one IGTK that currently exists in FW, to
+ *	remove it there when a new one is installed.
  * @last_rate_n_flags: rate_n_flags from the last &iwl_tlc_update_notif
  * @signal_avg: the signal average coming from the firmware
  * @in_fw: whether the link STA is uploaded to the FW (false during restart)
@@ -37,6 +40,7 @@ struct iwl_mld_rxq_dup_data {
 struct iwl_mld_link_sta {
 	/* Add here fields that need clean up on restart */
 	struct_group(zeroed_on_hw_restart,
+		struct ieee80211_key_conf *rx_igtk;
 		u32 last_rate_n_flags;
 		bool in_fw;
 		s8 signal_avg;
@@ -195,6 +199,8 @@ void iwl_mld_remove_sta(struct iwl_mld *mld, struct ieee80211_sta *sta);
 int iwl_mld_fw_sta_id_from_link_sta(struct iwl_mld *mld,
 				    struct ieee80211_link_sta *link_sta);
 u32 iwl_mld_fw_sta_id_mask(struct iwl_mld *mld, struct ieee80211_sta *sta);
+int iwl_mld_add_modify_sta_cmd(struct iwl_mld *mld,
+			       struct ieee80211_link_sta *link_sta);
 int iwl_mld_update_all_link_stations(struct iwl_mld *mld,
 				     struct ieee80211_sta *sta);
 void iwl_mld_flush_sta_txqs(struct iwl_mld *mld, struct ieee80211_sta *sta);
@@ -270,4 +276,28 @@ int iwl_mld_update_link_stas(struct iwl_mld *mld,
 			     struct ieee80211_vif *vif,
 			     struct ieee80211_sta *sta,
 			     u16 old_links, u16 new_links);
+
+int iwl_mld_add_nan_bcast_sta(struct iwl_mld *mld,
+			      struct iwl_mld_int_sta *sta);
+
+int iwl_mld_add_nan_mgmt_sta(struct iwl_mld *mld,
+			     struct iwl_mld_int_sta *sta);
+
+int iwl_mld_add_nan_mcast_data_sta(struct iwl_mld *mld,
+				   const u8 *ndi_addr,
+				   struct iwl_mld_int_sta *sta);
+
+int iwl_mld_update_nan_mcast_data_sta(struct iwl_mld *mld,
+				      const u8 *ndi_addr,
+				      struct iwl_mld_int_sta *sta);
+
+void iwl_mld_remove_nan_bcast_sta(struct iwl_mld *mld,
+				  struct iwl_mld_int_sta *sta);
+
+void iwl_mld_remove_nan_mgmt_sta(struct iwl_mld *mld,
+				 struct iwl_mld_int_sta *sta);
+
+void iwl_mld_remove_nan_mcast_data_sta(struct iwl_mld *mld,
+				       struct iwl_mld_int_sta *sta);
+
 #endif /* __iwl_mld_sta_h__ */

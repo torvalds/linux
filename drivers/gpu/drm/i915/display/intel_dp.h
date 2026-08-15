@@ -48,6 +48,9 @@ intel_dp_queue_modeset_retry_for_link(struct intel_atomic_state *state,
 				      const struct intel_crtc_state *crtc_state);
 bool intel_dp_init_connector(struct intel_digital_port *dig_port,
 			     struct intel_connector *intel_connector);
+void intel_dp_cleanup_connector(struct intel_digital_port *dig_port,
+				struct intel_connector *connector);
+
 void intel_dp_connector_sync_state(struct intel_connector *connector,
 				   const struct intel_crtc_state *crtc_state);
 void intel_dp_set_link_params(struct intel_dp *intel_dp,
@@ -237,5 +240,7 @@ bool intel_dp_joiner_candidate_valid(struct intel_connector *connector,
 #define for_each_joiner_candidate(__connector, __mode, __num_joined_pipes) \
 	for ((__num_joined_pipes) = 1; (__num_joined_pipes) <= (I915_MAX_PIPES); (__num_joined_pipes)++) \
 		for_each_if(intel_dp_joiner_candidate_valid(__connector, (__mode)->hdisplay, __num_joined_pipes))
+
+u8 intel_dp_as_sdp_transmission_time(void);
 
 #endif /* __INTEL_DP_H__ */

@@ -1,0 +1,67 @@
+Iterations:        100
+Instructions:      1400
+Total Cycles:      443
+Total uOps:        1600
+
+Dispatch Width:    4
+uOps Per Cycle:    3.61
+IPC:               3.16
+Block RThroughput: 4.0
+
+
+Instruction Info:
+[1]: #uOps
+[2]: Latency
+[3]: RThroughput
+[4]: MayLoad
+[5]: MayStore
+[6]: HasSideEffects (U)
+
+[1]    [2]    [3]    [4]    [5]    [6]    Instructions:
+ 1      1     0.50                        lea	eax, [rsi + rdi]
+ 1      1     0.33                        cmp	rsi, 6
+ 1      1     0.50                        setb	cl
+ 1      1     0.33                        or	cl, al
+ 1      1     0.33                        test	cl, 1
+ 1      1     1.00                        je	.LBB5_2
+ 1      0     0.25                        xor	eax, eax
+ 1      1     1.00                  U     ret
+ 1      1     0.50                        lea	rcx, [rdi + rsi]
+ 1      1     0.33                        add	rcx, -6
+ 1      0     0.25                        xor	eax, eax
+ 2      6     0.50    *                   cmp	word ptr [rdi + rsi - 6], -16192
+ 2      2     0.67                        cmove	rax, rcx
+ 1      1     1.00                  U     ret
+
+
+Resources:
+[0]   - SBDivider
+[1]   - SBFPDivider
+[2]   - SBPort0
+[3]   - SBPort1
+[4]   - SBPort4
+[5]   - SBPort5
+[6.0] - SBPort23
+[6.1] - SBPort23
+
+
+Resource pressure per iteration:
+[0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  
+ -      -     4.33   4.33    -     4.34   0.50   0.50   
+
+Resource pressure by instruction:
+[0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  Instructions:
+ -      -     0.32   0.68    -      -      -      -     lea	eax, [rsi + rdi]
+ -      -     0.05   0.94    -     0.01    -      -     cmp	rsi, 6
+ -      -     1.00    -      -      -      -      -     setb	cl
+ -      -     0.95   0.05    -      -      -      -     or	cl, al
+ -      -     0.95   0.02    -     0.03    -      -     test	cl, 1
+ -      -      -      -      -     1.00    -      -     je	.LBB5_2
+ -      -      -      -      -      -      -      -     xor	eax, eax
+ -      -      -      -      -     1.00    -      -     ret
+ -      -     0.04   0.96    -      -      -      -     lea	rcx, [rdi + rsi]
+ -      -     0.02   0.97    -     0.01    -      -     add	rcx, -6
+ -      -      -      -      -      -      -      -     xor	eax, eax
+ -      -     0.03   0.66    -     0.31   0.50   0.50   cmp	word ptr [rdi + rsi - 6], -16192
+ -      -     0.97   0.05    -     0.98    -      -     cmove	rax, rcx
+ -      -      -      -      -     1.00    -      -     ret

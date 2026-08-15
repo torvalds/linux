@@ -22,14 +22,8 @@ static u64 ha_get_env(struct ha_monitor *ha_mon, enum envs_opid env, u64 time_ns
 	if (env == irq_off_opid)
 		return irqs_disabled();
 	else if (env == preempt_off_opid) {
-		/*
-		 * If CONFIG_PREEMPTION is enabled, then the tracepoint itself disables
-		 * preemption (adding one to the preempt_count). Since we are
-		 * interested in the preempt_count at the time the tracepoint was
-		 * hit, we consider 1 as still enabled.
-		 */
 		if (IS_ENABLED(CONFIG_PREEMPTION))
-			return (preempt_count() & PREEMPT_MASK) > 1;
+			return (preempt_count() & PREEMPT_MASK) > 0;
 		return true;
 	}
 	return ENV_INVALID_VALUE;
@@ -73,7 +67,7 @@ static int enable_opid(void)
 {
 	int retval;
 
-	retval = da_monitor_init();
+	retval = ha_monitor_init();
 	if (retval)
 		return retval;
 
@@ -90,7 +84,7 @@ static void disable_opid(void)
 	rv_detach_trace_probe("opid", sched_set_need_resched_tp, handle_sched_need_resched);
 	rv_detach_trace_probe("opid", sched_waking, handle_sched_waking);
 
-	da_monitor_destroy();
+	ha_monitor_destroy();
 }
 
 /*

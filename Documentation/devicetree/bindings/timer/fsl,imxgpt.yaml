@@ -14,6 +14,7 @@ properties:
     oneOf:
       - const: fsl,imx1-gpt
       - const: fsl,imx21-gpt
+      - const: fsl,imx25-epit
       - items:
           - const: fsl,imx27-gpt
           - const: fsl,imx21-gpt

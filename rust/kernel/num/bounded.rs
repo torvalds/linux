@@ -364,7 +364,7 @@ where
     // Always inline to optimize out error path of `build_assert`.
     #[inline(always)]
     pub fn from_expr(expr: T) -> Self {
-        crate::build_assert!(
+        crate::build_assert::build_assert!(
             fits_within(expr, N),
             "Requested value larger than maximal representable value."
         );

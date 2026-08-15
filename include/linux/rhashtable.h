@@ -263,6 +263,8 @@ struct rhash_lock_head __rcu **__rht_bucket_nested(
 struct rhash_lock_head __rcu **rht_bucket_nested_insert(
 	struct rhashtable *ht, struct bucket_table *tbl, unsigned int hash);
 
+void *rhashtable_next_key(struct rhashtable *ht, const void *prev_key);
+
 #define rht_dereference(p, ht) \
 	rcu_dereference_protected(p, lockdep_rht_mutex_is_held(ht))
 
@@ -1117,7 +1119,7 @@ unlocked:
 		atomic_dec(&ht->nelems);
 		if (unlikely(ht->p.automatic_shrinking &&
 			     rht_shrink_below_30(ht, tbl)))
-			schedule_work(&ht->run_work);
+			irq_work_queue(&ht->run_irq_work);
 		err = 0;
 	}
 

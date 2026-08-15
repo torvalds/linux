@@ -8,7 +8,14 @@
 #include <linux/bpf.h>
 #include <sys/types.h> /* pid_t */
 
-#define event_contains(obj, mem) ((obj).header.size > offsetof(typeof(obj), mem))
+/*
+ * Verify the full field fits within the event, not just its start offset.
+ * Only valid for fixed-size scalar fields — for trailing arrays like
+ * filename[PATH_MAX], sizeof() evaluates to the declared maximum, not
+ * the actual string length, so this would spuriously return false.
+ */
+#define event_contains(obj, mem) \
+	((obj).header.size >= offsetof(typeof(obj), mem) + sizeof((obj).mem))
 
 struct perf_record_mmap {
 	struct perf_event_header header;

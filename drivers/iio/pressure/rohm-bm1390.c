@@ -888,7 +888,7 @@ static const struct of_device_id bm1390_of_match[] = {
 MODULE_DEVICE_TABLE(of, bm1390_of_match);
 
 static const struct i2c_device_id bm1390_id[] = {
-	{ "bm1390glv-z", },
+	{ .name = "bm1390glv-z" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, bm1390_id);

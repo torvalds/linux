@@ -123,9 +123,9 @@ int dml2_policy_build_synthetic_soc_states(struct dml2_policy_build_synthetic_so
 	struct dml2_policy_build_synthetic_soc_states_params *p)
 {
 	int i, j;
-	unsigned int min_fclk_mhz = p->in_states->state_array[0].fabricclk_mhz;
-	unsigned int min_dcfclk_mhz = p->in_states->state_array[0].dcfclk_mhz;
-	unsigned int min_socclk_mhz = p->in_states->state_array[0].socclk_mhz;
+	unsigned int min_fclk_mhz = (unsigned int)p->in_states->state_array[0].fabricclk_mhz;
+	unsigned int min_dcfclk_mhz = (unsigned int)p->in_states->state_array[0].dcfclk_mhz;
+	unsigned int min_socclk_mhz = (unsigned int)p->in_states->state_array[0].socclk_mhz;
 
 	int max_dcfclk_mhz = 0, max_dispclk_mhz = 0, max_dppclk_mhz = 0,
 		max_phyclk_mhz = 0, max_dtbclk_mhz = 0, max_fclk_mhz = 0,

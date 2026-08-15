@@ -286,9 +286,6 @@ static int stk_panel_add(struct stk_panel *stk)
 		return ret;
 	}
 
-	drm_panel_init(&stk->base, &stk->dsi->dev, &stk_panel_funcs,
-		       DRM_MODE_CONNECTOR_DSI);
-
 	drm_panel_add(&stk->base);
 
 	return 0;
@@ -303,9 +300,12 @@ static int stk_panel_probe(struct mipi_dsi_device *dsi)
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = (MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_LPM);
 
-	stk = devm_kzalloc(&dsi->dev, sizeof(*stk), GFP_KERNEL);
-	if (!stk)
-		return -ENOMEM;
+	stk = devm_drm_panel_alloc(&dsi->dev, __typeof(*stk), base,
+				  &stk_panel_funcs,
+				  DRM_MODE_CONNECTOR_DSI);
+
+	if (IS_ERR(stk))
+		return PTR_ERR(stk);
 
 	mipi_dsi_set_drvdata(dsi, stk);
 

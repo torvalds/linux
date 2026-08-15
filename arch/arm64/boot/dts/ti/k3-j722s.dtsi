@@ -238,3 +238,5 @@
 
 /* Include J722S specific peripherals */
 #include "k3-j722s-main.dtsi"
+#include "k3-j722s-mcu.dtsi"
+#include "k3-j722s-wakeup.dtsi"

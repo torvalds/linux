@@ -296,12 +296,10 @@ static void amd76xrom_remove_one(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id amd76xrom_pci_tbl[] = {
-	{ PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_VIPER_7410,
-		PCI_ANY_ID, PCI_ANY_ID, },
-	{ PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_VIPER_7440,
-		PCI_ANY_ID, PCI_ANY_ID, },
-	{ PCI_VENDOR_ID_AMD, 0x7468 }, /* amd8111 support */
-	{ 0, }
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_VIPER_7410) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_VIPER_7440) },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_AMD, 0x7468, 0, 0) }, /* amd8111 support */
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, amd76xrom_pci_tbl);

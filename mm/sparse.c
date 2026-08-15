@@ -201,13 +201,11 @@ static void __init memblocks_present(void)
 	int i, nid;
 
 #ifdef CONFIG_SPARSEMEM_EXTREME
-	if (unlikely(!mem_section)) {
-		unsigned long size, align;
+	unsigned long size, align;
 
-		size = sizeof(struct mem_section *) * NR_SECTION_ROOTS;
-		align = 1 << (INTERNODE_CACHE_SHIFT);
-		mem_section = memblock_alloc_or_panic(size, align);
-	}
+	size = sizeof(struct mem_section *) * NR_SECTION_ROOTS;
+	align = 1 << (INTERNODE_CACHE_SHIFT);
+	mem_section = memblock_alloc_or_panic(size, align);
 #endif
 
 	for_each_mem_pfn_range(i, MAX_NUMNODES, &start, &end, &nid)
@@ -241,11 +239,8 @@ struct page __init *__populate_section_memmap(unsigned long pfn,
 		struct dev_pagemap *pgmap)
 {
 	unsigned long size = section_map_size();
-	struct page *map = sparse_buffer_alloc(size);
+	struct page *map;
 	phys_addr_t addr = __pa(MAX_DMA_ADDRESS);
-
-	if (map)
-		return map;
 
 	map = memmap_alloc(size, size, addr, nid, false);
 	if (!map)
@@ -255,55 +250,6 @@ struct page __init *__populate_section_memmap(unsigned long pfn,
 	return map;
 }
 #endif /* !CONFIG_SPARSEMEM_VMEMMAP */
-
-static void *sparsemap_buf __meminitdata;
-static void *sparsemap_buf_end __meminitdata;
-
-static inline void __meminit sparse_buffer_free(unsigned long size)
-{
-	WARN_ON(!sparsemap_buf || size == 0);
-	memblock_free(sparsemap_buf, size);
-}
-
-static void __init sparse_buffer_init(unsigned long size, int nid)
-{
-	phys_addr_t addr = __pa(MAX_DMA_ADDRESS);
-	WARN_ON(sparsemap_buf);	/* forgot to call sparse_buffer_fini()? */
-	/*
-	 * Pre-allocated buffer is mainly used by __populate_section_memmap
-	 * and we want it to be properly aligned to the section size - this is
-	 * especially the case for VMEMMAP which maps memmap to PMDs
-	 */
-	sparsemap_buf = memmap_alloc(size, section_map_size(), addr, nid, true);
-	sparsemap_buf_end = sparsemap_buf + size;
-}
-
-static void __init sparse_buffer_fini(void)
-{
-	unsigned long size = sparsemap_buf_end - sparsemap_buf;
-
-	if (sparsemap_buf && size > 0)
-		sparse_buffer_free(size);
-	sparsemap_buf = NULL;
-}
-
-void * __meminit sparse_buffer_alloc(unsigned long size)
-{
-	void *ptr = NULL;
-
-	if (sparsemap_buf) {
-		ptr = (void *) roundup((unsigned long)sparsemap_buf, size);
-		if (ptr + size > sparsemap_buf_end)
-			ptr = NULL;
-		else {
-			/* Free redundant aligned space */
-			if ((unsigned long)(ptr - sparsemap_buf) > 0)
-				sparse_buffer_free((unsigned long)(ptr - sparsemap_buf));
-			sparsemap_buf = ptr + size;
-		}
-	}
-	return ptr;
-}
 
 void __weak __meminit vmemmap_populate_print_last(void)
 {
@@ -362,8 +308,6 @@ static void __init sparse_init_nid(int nid, unsigned long pnum_begin,
 		goto failed;
 	}
 
-	sparse_buffer_init(map_count * section_map_size(), nid);
-
 	sparse_vmemmap_init_nid_early(nid);
 
 	for_each_present_section_nr(pnum_begin, pnum) {
@@ -381,7 +325,6 @@ static void __init sparse_init_nid(int nid, unsigned long pnum_begin,
 				       __func__, nid);
 				pnum_begin = pnum;
 				sparse_usage_fini();
-				sparse_buffer_fini();
 				goto failed;
 			}
 			memmap_boot_pages_add(DIV_ROUND_UP(PAGES_PER_SECTION * sizeof(struct page),
@@ -390,7 +333,6 @@ static void __init sparse_init_nid(int nid, unsigned long pnum_begin,
 		}
 	}
 	sparse_usage_fini();
-	sparse_buffer_fini();
 	return;
 failed:
 	/*

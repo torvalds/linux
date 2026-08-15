@@ -6,13 +6,15 @@
 #include <linux/errno.h>
 #include <linux/printk.h>
 
+#include <drm/drm_atomic_state_helper.h>
 #include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem_dma_helper.h>
+#include <drm/drm_print.h>
 
 #include "vs_plane.h"
 
-void drm_format_to_vs_format(u32 drm_format, struct vs_format *vs_format)
+int drm_format_to_vs_format(u32 drm_format, struct vs_format *vs_format)
 {
 	switch (drm_format) {
 	case DRM_FORMAT_XRGB4444:
@@ -62,7 +64,7 @@ void drm_format_to_vs_format(u32 drm_format, struct vs_format *vs_format)
 		vs_format->color = VSDC_COLOR_FORMAT_A2R10G10B10;
 		break;
 	default:
-		pr_warn("Unexpected drm format!\n");
+		return -EINVAL;
 	}
 
 	switch (drm_format) {
@@ -101,6 +103,8 @@ void drm_format_to_vs_format(u32 drm_format, struct vs_format *vs_format)
 
 	/* N/A for non-YUV formats */
 	vs_format->uv_swizzle = false;
+
+	return 0;
 }
 
 dma_addr_t vs_fb_get_dma_addr(struct drm_framebuffer *fb,
@@ -121,4 +125,50 @@ dma_addr_t vs_fb_get_dma_addr(struct drm_framebuffer *fb,
 	dma_addr += (src_rect->y1 >> 16) * fb->pitches[0];
 
 	return dma_addr;
+}
+
+struct drm_plane_state *vs_plane_duplicate_state(struct drm_plane *plane)
+{
+	struct vs_plane_state *vs_state, *vs_state_old;
+
+	if (drm_WARN_ON(plane->dev, !plane->state))
+		return NULL;
+
+	vs_state_old = to_vs_plane_state(plane->state);
+
+	vs_state = kzalloc_obj(*vs_state, GFP_KERNEL);
+	if (!vs_state)
+		return NULL;
+
+	__drm_atomic_helper_plane_duplicate_state(plane, &vs_state->base);
+
+	memcpy(&vs_state->format, &vs_state_old->format,
+	       sizeof(struct vs_format));
+
+	return &vs_state->base;
+}
+
+void vs_plane_destroy_state(struct drm_plane *plane,
+			    struct drm_plane_state *state)
+{
+	__drm_atomic_helper_plane_destroy_state(state);
+	kfree(state);
+}
+
+/* Called during init to allocate the plane's atomic state. */
+void vs_plane_reset(struct drm_plane *plane)
+{
+	struct vs_plane_state *vs_state;
+
+	if (plane->state) {
+		__drm_atomic_helper_plane_destroy_state(plane->state);
+		kfree(plane->state);
+		plane->state = NULL;
+	}
+
+	vs_state = kzalloc_obj(*vs_state, GFP_KERNEL);
+	if (!vs_state)
+		return;
+
+	__drm_atomic_helper_plane_reset(plane, &vs_state->base);
 }

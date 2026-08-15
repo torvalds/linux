@@ -225,7 +225,7 @@ static int rttm_enable_clocksource(struct clocksource *cs)
 	return 0;
 }
 
-struct rttm_cs rttm_cs = {
+static struct rttm_cs rttm_cs = {
 	.to = {
 		.flags	= TIMER_OF_BASE | TIMER_OF_CLOCK,
 	},

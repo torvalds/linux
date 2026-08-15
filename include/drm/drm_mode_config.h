@@ -33,7 +33,7 @@
 
 struct drm_file;
 struct drm_device;
-struct drm_atomic_state;
+struct drm_atomic_commit;
 struct drm_mode_fb_cmd2;
 struct drm_format_info;
 struct drm_display_mode;
@@ -158,7 +158,7 @@ struct drm_mode_config_funcs {
 	 * error conditions which don't have to be checked at the in this
 	 * callback.
 	 *
-	 * See the documentation for &struct drm_atomic_state for how exactly
+	 * See the documentation for &struct drm_atomic_commit for how exactly
 	 * an atomic modeset update is described.
 	 *
 	 * Drivers using the atomic helpers can implement this hook using
@@ -184,7 +184,7 @@ struct drm_mode_config_funcs {
 	 *    treated equally.
 	 */
 	int (*atomic_check)(struct drm_device *dev,
-			    struct drm_atomic_state *state);
+			    struct drm_atomic_commit *state);
 
 	/**
 	 * @atomic_commit:
@@ -194,7 +194,7 @@ struct drm_mode_config_funcs {
 	 * calling this function, and that nothing has been changed in the
 	 * interim.
 	 *
-	 * See the documentation for &struct drm_atomic_state for how exactly
+	 * See the documentation for &struct drm_atomic_commit for how exactly
 	 * an atomic modeset update is described.
 	 *
 	 * Drivers using the atomic helpers can implement this hook using
@@ -266,31 +266,31 @@ struct drm_mode_config_funcs {
 	 * additional modeset locks).
 	 */
 	int (*atomic_commit)(struct drm_device *dev,
-			     struct drm_atomic_state *state,
+			     struct drm_atomic_commit *state,
 			     bool nonblock);
 
 	/**
 	 * @atomic_state_alloc:
 	 *
 	 * This optional hook can be used by drivers that want to subclass struct
-	 * &drm_atomic_state to be able to track their own driver-private global
+	 * &drm_atomic_commit to be able to track their own driver-private global
 	 * state easily. If this hook is implemented, drivers must also
 	 * implement @atomic_state_clear and @atomic_state_free.
 	 *
-	 * Subclassing of &drm_atomic_state is deprecated in favour of using
+	 * Subclassing of &drm_atomic_commit is deprecated in favour of using
 	 * &drm_private_state and &drm_private_obj.
 	 *
 	 * RETURNS:
 	 *
-	 * A new &drm_atomic_state on success or NULL on failure.
+	 * A new &drm_atomic_commit on success or NULL on failure.
 	 */
-	struct drm_atomic_state *(*atomic_state_alloc)(struct drm_device *dev);
+	struct drm_atomic_commit *(*atomic_state_alloc)(struct drm_device *dev);
 
 	/**
 	 * @atomic_state_clear:
 	 *
 	 * This hook must clear any driver private state duplicated into the
-	 * passed-in &drm_atomic_state. This hook is called when the caller
+	 * passed-in &drm_atomic_commit. This hook is called when the caller
 	 * encountered a &drm_modeset_lock deadlock and needs to drop all
 	 * already acquired locks as part of the deadlock avoidance dance
 	 * implemented in drm_modeset_backoff().
@@ -299,28 +299,28 @@ struct drm_mode_config_funcs {
 	 * update might change it, and the drm atomic interfaces always apply
 	 * updates as relative changes to the current state.
 	 *
-	 * Drivers that implement this must call drm_atomic_state_default_clear()
+	 * Drivers that implement this must call drm_atomic_commit_default_clear()
 	 * to clear common state.
 	 *
-	 * Subclassing of &drm_atomic_state is deprecated in favour of using
+	 * Subclassing of &drm_atomic_commit is deprecated in favour of using
 	 * &drm_private_state and &drm_private_obj.
 	 */
-	void (*atomic_state_clear)(struct drm_atomic_state *state);
+	void (*atomic_state_clear)(struct drm_atomic_commit *state);
 
 	/**
 	 * @atomic_state_free:
 	 *
-	 * This hook needs driver private resources and the &drm_atomic_state
-	 * itself. Note that the core first calls drm_atomic_state_clear() to
+	 * This hook needs driver private resources and the &drm_atomic_commit
+	 * itself. Note that the core first calls drm_atomic_commit_clear() to
 	 * avoid code duplicate between the clear and free hooks.
 	 *
 	 * Drivers that implement this must call
-	 * drm_atomic_state_default_release() to release common resources.
+	 * drm_atomic_commit_default_release() to release common resources.
 	 *
-	 * Subclassing of &drm_atomic_state is deprecated in favour of using
+	 * Subclassing of &drm_atomic_commit is deprecated in favour of using
 	 * &drm_private_state and &drm_private_obj.
 	 */
-	void (*atomic_state_free)(struct drm_atomic_state *state);
+	void (*atomic_state_free)(struct drm_atomic_commit *state);
 };
 
 /**
@@ -985,7 +985,7 @@ struct drm_mode_config {
 	 * Set by drm_mode_config_helper_suspend() and cleared by
 	 * drm_mode_config_helper_resume().
 	 */
-	struct drm_atomic_state *suspend_state;
+	struct drm_atomic_commit *suspend_state;
 
 	const struct drm_mode_config_helper_funcs *helper_private;
 };

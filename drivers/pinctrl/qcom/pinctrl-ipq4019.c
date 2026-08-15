@@ -702,6 +702,7 @@ static const struct of_device_id ipq4019_pinctrl_of_match[] = {
 	{ .compatible = "qcom,ipq4019-pinctrl", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, ipq4019_pinctrl_of_match);
 
 static struct platform_driver ipq4019_pinctrl_driver = {
 	.driver = {
@@ -725,4 +726,3 @@ module_exit(ipq4019_pinctrl_exit);
 
 MODULE_DESCRIPTION("Qualcomm ipq4019 pinctrl driver");
 MODULE_LICENSE("GPL v2");
-MODULE_DEVICE_TABLE(of, ipq4019_pinctrl_of_match);

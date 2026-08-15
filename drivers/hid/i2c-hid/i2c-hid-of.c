@@ -144,8 +144,8 @@ MODULE_DEVICE_TABLE(of, i2c_hid_of_match);
 #endif
 
 static const struct i2c_device_id i2c_hid_of_id_table[] = {
-	{ "hid" },
-	{ "hid-over-i2c" },
+	{ .name = "hid" },
+	{ .name = "hid-over-i2c" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, i2c_hid_of_id_table);

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <test_progs.h>
 #include <network_helpers.h>
+#include <linux/ipv6.h>
+#include <arpa/inet.h>
 #include "test_xdp_context_test_run.skel.h"
 #include "test_xdp_meta.skel.h"
 
@@ -8,9 +10,12 @@
 #define TX_NAME "veth1"
 #define TX_NETNS "xdp_context_tx"
 #define RX_NETNS "xdp_context_rx"
+#define RX_MAC "02:00:00:00:00:01"
+#define TX_MAC "02:00:00:00:00:02"
 #define TAP_NAME "tap0"
 #define DUMMY_NAME "dum0"
 #define TAP_NETNS "xdp_context_tuntap"
+#define LWT_NETNS "xdp_context_lwt"
 
 #define TEST_PAYLOAD_LEN 32
 static const __u8 test_payload[TEST_PAYLOAD_LEN] = {
@@ -182,6 +187,42 @@ static int write_test_packet(int tap_fd)
 
 	n = write(tap_fd, packet, sizeof(packet));
 	if (!ASSERT_EQ(n, sizeof(packet), "write packet"))
+		return -1;
+
+	return 0;
+}
+
+/* Inject Ethernet+IPv6+UDP frame into TAP */
+static int write_test_packet_udp(int tap_fd)
+{
+	__u8 pkt[sizeof(struct ethhdr) + sizeof(struct ipv6hdr) +
+		 sizeof(struct udphdr) + TEST_PAYLOAD_LEN] = {};
+	struct ethhdr *eth = (void *)pkt;
+	struct ipv6hdr *ip6 = (void *)(eth + 1);
+	struct udphdr *udp = (void *)(ip6 + 1);
+	__u8 *payload = (void *)(udp + 1);
+	const __u8 tap_mac[ETH_ALEN] = { 0x02, 0, 0, 0, 0, 0x01 };
+	int n;
+
+	memcpy(eth->h_dest, tap_mac, ETH_ALEN);
+	eth->h_proto = htons(ETH_P_IPV6);
+
+	ip6->version = 6;
+	ip6->hop_limit = 64;
+	ip6->nexthdr = IPPROTO_UDP;
+	ip6->payload_len = htons(sizeof(*udp) + TEST_PAYLOAD_LEN);
+	inet_pton(AF_INET6, "fd00::2", &ip6->saddr);
+	inet_pton(AF_INET6, "fd00:1::1", &ip6->daddr);
+
+	udp->source = htons(42);
+	udp->dest = htons(42);
+	udp->len = htons(sizeof(*udp) + TEST_PAYLOAD_LEN);
+	/* UDP checksum is not validated on the forwarding path. */
+
+	memcpy(payload, test_payload, TEST_PAYLOAD_LEN);
+
+	n = write(tap_fd, pkt, sizeof(pkt));
+	if (!ASSERT_EQ(n, sizeof(pkt), "write frame"))
 		return -1;
 
 	return 0;
@@ -515,6 +556,140 @@ void test_xdp_context_tuntap(void)
 			    skel->progs.helper_skb_change_proto,
 			    NULL, /* tc prio 2 */
 			    &skel->bss->test_pass);
+
+	test_xdp_meta__destroy(skel);
+}
+
+/*
+ * Test topology:
+ *
+ *	tap0 fd00::1
+ *	  RX:  injected IPv6 UDP frame, XDP ingress sets metadata
+ *	  fwd: encap route prepends outer header(s)
+ *	  TX:  TC egress validates metadata
+ *
+ * A routable IPv6 UDP frame is written into the tap fd, so it enters the RX
+ * path where XDP stores metadata. Routing then forwards it back out the same
+ * tap through an encapsulating route that prepends outer header(s). The TC
+ * egress program checks that the pushed header did not silently corrupt
+ * metadata.
+ */
+#define LWT_PIN_PATH "/sys/fs/bpf/xdp_context_lwt_xmit"
+
+enum lwt_encap_type {
+	LWT_ENCAP_BPF,
+	LWT_ENCAP_MPLS,
+	LWT_ENCAP_SEG6,
+	LWT_ENCAP_IOAM6,
+};
+
+static void test_lwt_encap(struct test_xdp_meta *skel,
+			   enum lwt_encap_type type)
+{
+	LIBBPF_OPTS(bpf_tc_hook, tc_hook, .attach_point = BPF_TC_EGRESS);
+	LIBBPF_OPTS(bpf_tc_opts, tc_opts, .handle = 1, .priority = 1);
+	struct bpf_program *lwt_prog = NULL;
+	struct netns_obj *ns = NULL;
+	const char *encap;
+	bool pinned = false;
+	int tap_ifindex;
+	int tap_fd = -1;
+	int ret;
+
+	skel->bss->test_pass = false;
+
+	switch (type) {
+	case LWT_ENCAP_BPF:
+		encap = "encap bpf xmit pinned " LWT_PIN_PATH " via fd00::2";
+		lwt_prog = skel->progs.dummy_lwt_xmit;
+		break;
+	case LWT_ENCAP_MPLS:
+		encap = "encap mpls 100 via inet6 fd00::2";
+		break;
+	case LWT_ENCAP_SEG6:
+		encap = "encap seg6 mode encap segs fd00::2";
+		break;
+	case LWT_ENCAP_IOAM6:
+		encap = "encap ioam6 mode encap tundst fd00::2 "
+			"trace prealloc type 0x800000 ns 0 size 4 via fd00::2";
+		break;
+	default:
+		return;
+	}
+
+	if (lwt_prog) {
+		unlink(LWT_PIN_PATH);
+		ret = bpf_program__pin(lwt_prog, LWT_PIN_PATH);
+		if (!ASSERT_OK(ret, "pin lwt prog"))
+			return;
+		pinned = true;
+	}
+
+	ns = netns_new(LWT_NETNS, true);
+	if (!ASSERT_OK_PTR(ns, "netns_new"))
+		goto close;
+
+	tap_fd = open_tuntap(TAP_NAME, true);
+	if (!ASSERT_GE(tap_fd, 0, "open_tuntap"))
+		goto close;
+
+	SYS(close, "ip link set dev " TAP_NAME " address " RX_MAC);
+	SYS(close, "sysctl -wq net.ipv6.conf.all.forwarding=1");
+	SYS(close, "ip addr add fd00::1/64 dev " TAP_NAME " nodad");
+	SYS(close, "ip link set dev " TAP_NAME " up");
+	SYS(close, "ip neigh add fd00::2 lladdr " TX_MAC " nud permanent dev " TAP_NAME);
+	SYS(close, "ip -6 route add fd00:1::/64 %s dev %s", encap, TAP_NAME);
+
+	tap_ifindex = if_nametoindex(TAP_NAME);
+	if (!ASSERT_GE(tap_ifindex, 0, "if_nametoindex"))
+		goto close;
+
+	ret = bpf_xdp_attach(tap_ifindex, bpf_program__fd(skel->progs.ing_xdp),
+			     0, NULL);
+	if (!ASSERT_GE(ret, 0, "bpf_xdp_attach"))
+		goto close;
+
+	tc_hook.ifindex = tap_ifindex;
+	ret = bpf_tc_hook_create(&tc_hook);
+	if (!ASSERT_OK(ret, "bpf_tc_hook_create"))
+		goto close;
+
+	tc_opts.prog_fd = bpf_program__fd(skel->progs.tc_is_meta_empty);
+	ret = bpf_tc_attach(&tc_hook, &tc_opts);
+	if (!ASSERT_OK(ret, "bpf_tc_attach"))
+		goto close;
+
+	ret = write_test_packet_udp(tap_fd);
+	if (!ASSERT_OK(ret, "write_test_packet_udp"))
+		goto close;
+
+	if (!ASSERT_TRUE(skel->bss->test_pass, "test_pass"))
+		dump_err_stream(skel->progs.tc_is_meta_empty);
+
+close:
+	if (tap_fd >= 0)
+		close(tap_fd);
+	netns_free(ns);
+	if (pinned)
+		unlink(LWT_PIN_PATH);
+}
+
+void test_xdp_context_lwt_encap(void)
+{
+	struct test_xdp_meta *skel;
+
+	skel = test_xdp_meta__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "open and load skeleton"))
+		return;
+
+	if (test__start_subtest("bpf_encap"))
+		test_lwt_encap(skel, LWT_ENCAP_BPF);
+	if (test__start_subtest("mpls_encap"))
+		test_lwt_encap(skel, LWT_ENCAP_MPLS);
+	if (test__start_subtest("seg6_encap"))
+		test_lwt_encap(skel, LWT_ENCAP_SEG6);
+	if (test__start_subtest("ioam6_encap"))
+		test_lwt_encap(skel, LWT_ENCAP_IOAM6);
 
 	test_xdp_meta__destroy(skel);
 }

@@ -737,6 +737,12 @@ enum v4l2_mpeg_video_frame_skip_mode -
     Enable writing sample aspect ratio in the Video Usability
     Information. Applicable to the H264 encoder.
 
+``V4L2_CID_MPEG_VIDEO_BACKGROUND_DETECTION (boolean)``
+    If enabled, the encoder detect a background region in frame and
+    use low bits or skip mode to encode the background region.
+    If a lot of scenes are stationary or background, It may help to
+    reduce the video bitrate. Applicable to the encoder.
+
 .. _v4l2-mpeg-video-h264-vui-sar-idc:
 
 ``V4L2_CID_MPEG_VIDEO_H264_VUI_SAR_IDC``

@@ -33,6 +33,11 @@ extern u64 sched_clock_cpu(int cpu);
 extern void sched_clock_init(void);
 
 #ifndef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
+static inline int sched_clock_stable(void)
+{
+	return 1;
+}
+
 static inline void sched_clock_tick(void)
 {
 }

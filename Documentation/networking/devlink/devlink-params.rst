@@ -122,7 +122,7 @@ own name.
    * - ``enable_iwarp``
      - Boolean
      - Enable handling of iWARP traffic in the device.
-   * - ``internal_err_reset``
+   * - ``internal_error_reset``
      - Boolean
      - When enabled, the device driver will reset the device on internal
        errors.

@@ -804,7 +804,7 @@ static void dce100_resource_destruct(struct dce110_resource_pool *pool)
 		}
 	}
 
-	for (i = 0; i < pool->base.res_cap->num_ddc; i++) {
+	for (i = 0; i < (unsigned int)pool->base.res_cap->num_ddc; i++) {
 		if (pool->base.engines[i] != NULL)
 			dce110_engine_destroy(&pool->base.engines[i]);
 		if (pool->base.hw_i2cs[i] != NULL) {
@@ -869,7 +869,7 @@ enum dc_status dce100_validate_bandwidth(
 	enum dc_validate_mode validate_mode)
 {
 	(void)validate_mode;
-	int i;
+	unsigned int i;
 	bool at_least_one_pipe = false;
 	struct dc_stream_state *stream = NULL;
 	const uint32_t max_pix_clk_khz = max(dc->clk_mgr->clks.max_supported_dispclk_khz, 400000);
@@ -978,7 +978,7 @@ struct stream_encoder *dce100_find_first_free_match_stream_enc_for_link(
 		const struct resource_pool *pool,
 		struct dc_stream_state *stream)
 {
-	int i;
+	unsigned int i;
 	int j = -1;
 	struct dc_link *link = stream->link;
 	enum engine_id preferred_engine = link->link_enc->preferred_engine;
@@ -995,7 +995,7 @@ struct stream_encoder *dce100_find_first_free_match_stream_enc_for_link(
 			/* Store first available for MST second display
 			 * in daisy chain use case
 			 */
-			j = i;
+			j = (int)i;
 			if (pool->stream_enc[i]->id == preferred_engine)
 				return pool->stream_enc[i];
 		}
@@ -1175,7 +1175,7 @@ static bool dce100_resource_construct(
 		}
 	}
 
-	for (i = 0; i < pool->base.res_cap->num_ddc; i++) {
+	for (i = 0; i < (unsigned int)pool->base.res_cap->num_ddc; i++) {
 		pool->base.engines[i] = dce100_aux_engine_create(ctx, i);
 		if (pool->base.engines[i] == NULL) {
 			BREAK_TO_DEBUGGER();

@@ -111,6 +111,7 @@ struct sync_area {
  */
 static_assert(ATOMIC_BOOL_LOCK_FREE == 2, "atomic bool is not lockless");
 
+static int wait_timeout = 10;
 static sem_t vcpu_ready;
 
 static bool map_unmap_verify;
@@ -418,7 +419,7 @@ static bool _guest_should_exit(void)
  */
 static noinline void host_perform_sync(struct sync_area *sync)
 {
-	alarm(10);
+	alarm(wait_timeout);
 
 	atomic_store_explicit(&sync->sync_flag, true, memory_order_release);
 	while (atomic_load_explicit(&sync->sync_flag, memory_order_acquire))
@@ -900,7 +901,7 @@ static void help(char *name, struct test_args *targs)
 {
 	int ctr;
 
-	pr_info("usage: %s [-h] [-v] [-d] [-s slots] [-f first_test] [-e last_test] [-l test_length] [-r run_count]\n",
+	pr_info("usage: %s [-h] [-v] [-d] [-s slots] [-f first_test] [-e last_test] [-l test_length] [-r run_count] [-t wait_timeout]\n",
 		name);
 	pr_info(" -h: print this help screen.\n");
 	pr_info(" -v: enable verbose mode (not for benchmarking).\n");
@@ -916,6 +917,8 @@ static void help(char *name, struct test_args *targs)
 		targs->seconds);
 	pr_info(" -r: specify the number of runs per test (currently: %i)\n",
 		targs->runs);
+	pr_info(" -t: specify the number of seconds for host wait timeout (currently: %i)\n",
+		wait_timeout);
 
 	pr_info("\nAvailable tests:\n");
 	for (ctr = 0; ctr < NTESTS; ctr++)
@@ -964,7 +967,7 @@ static bool parse_args(int argc, char *argv[],
 	u32 max_mem_slots;
 	int opt;
 
-	while ((opt = getopt(argc, argv, "hvdqs:f:e:l:r:")) != -1) {
+	while ((opt = getopt(argc, argv, "hvdqs:f:e:l:r:t:")) != -1) {
 		switch (opt) {
 		case 'h':
 		default:
@@ -1006,6 +1009,9 @@ static bool parse_args(int argc, char *argv[],
 			break;
 		case 'r':
 			targs->runs = atoi_positive("Runs per test", optarg);
+			break;
+		case 't':
+			wait_timeout = atoi_positive("Host wait timeout", optarg);
 			break;
 		}
 	}

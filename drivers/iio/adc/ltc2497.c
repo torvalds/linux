@@ -11,7 +11,6 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/driver.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/property.h>
 
 #include <linux/unaligned.h>
@@ -142,8 +141,8 @@ static const struct ltc2497_chip_info ltc2497_info[] = {
 };
 
 static const struct i2c_device_id ltc2497_id[] = {
-	{ "ltc2497", (kernel_ulong_t)&ltc2497_info[TYPE_LTC2497] },
-	{ "ltc2499", (kernel_ulong_t)&ltc2497_info[TYPE_LTC2499] },
+	{ .name = "ltc2497", .driver_data = (kernel_ulong_t)&ltc2497_info[TYPE_LTC2497] },
+	{ .name = "ltc2499", .driver_data = (kernel_ulong_t)&ltc2497_info[TYPE_LTC2499] },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ltc2497_id);

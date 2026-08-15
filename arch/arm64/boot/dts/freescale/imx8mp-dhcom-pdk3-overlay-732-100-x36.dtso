@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (C) 2024-2026 Marek Vasut
+ */
+/dts-v1/;
+/plugin/;
+
+#include "imx8mp-dhcom-overlay-panel-clock.dtsi"
+
+&lcdif1 {
+	status = "okay";
+};
+
+&mipi_dsi {
+	samsung,burst-clock-frequency = <1000000000>;
+	status = "okay";
+};
+
+&tc_bridge {
+	assigned-clock-rates = <26000000>, <26000000>, <416000000>;
+	toshiba,hpd-pin = <0>;
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@2 {
+			reg = <2>;
+
+			endpoint {
+				toshiba,pre-emphasis = /bits/ 8 <1 1>;
+			};
+		};
+	};
+};

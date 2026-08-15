@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (C) 2024-2026 Marek Vasut
+ */
+
+#include <dt-bindings/clock/imx8mp-clock.h>
+
+&media_blk_ctrl {
+	/*
+	 * Sys PLL3 supplies TC9595 RefClk
+	 * Audio PLL2 supplies MEDIA_DISP1_PIX (DSI)
+	 * Video PLL1 supplies MEDIA_DISP2_PIX (LVDS)
+	 */
+	assigned-clocks = <&clk IMX8MP_CLK_MEDIA_AXI>,
+			  <&clk IMX8MP_CLK_MEDIA_APB>,
+			  <&clk IMX8MP_CLK_MEDIA_DISP1_PIX>,
+			  <&clk IMX8MP_CLK_MEDIA_DISP2_PIX>,
+			  <&clk IMX8MP_AUDIO_PLL2>,
+			  <&clk IMX8MP_VIDEO_PLL1>;
+	assigned-clock-parents = <&clk IMX8MP_SYS_PLL2_1000M>,
+				 <&clk IMX8MP_SYS_PLL1_800M>,
+				 <&clk IMX8MP_AUDIO_PLL2_OUT>,
+				 <&clk IMX8MP_VIDEO_PLL1_OUT>;
+	assigned-clock-rates = <500000000>, <200000000>,
+			       <0>, <0>, <0>, <0>;
+};
+
+&tc_bridge {
+	assigned-clocks = <&clk IMX8MP_CLK_CLKOUT2_SEL>,
+			  <&clk IMX8MP_CLK_CLKOUT2>,
+			  <&clk IMX8MP_SYS_PLL3_OUT>;
+	assigned-clock-parents = <&clk IMX8MP_SYS_PLL3_OUT>;
+};

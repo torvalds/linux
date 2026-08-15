@@ -340,7 +340,7 @@ static int mlx5_ptp_getcrosststamp(struct ptp_clock_info *ptp,
 		goto unlock;
 	}
 
-	ktime_get_snapshot(&history_begin);
+	ktime_get_snapshot_id(cts->clock_id, &history_begin);
 
 	err = get_device_system_crosststamp(mlx5_mtctr_syncdevicetime, mdev,
 					    &history_begin, cts);
@@ -366,7 +366,7 @@ static int mlx5_ptp_getcrosscycles(struct ptp_clock_info *ptp,
 		goto unlock;
 	}
 
-	ktime_get_snapshot(&history_begin);
+	ktime_get_snapshot_id(cts->clock_id, &history_begin);
 
 	err = get_device_system_crosststamp(mlx5_mtctr_syncdevicecyclestime,
 					    mdev, &history_begin, cts);

@@ -1,0 +1,219 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/nvidia,tegra238-pinmux.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra238 Pinmux Controller
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+properties:
+  compatible:
+    const: nvidia,tegra238-pinmux
+
+  reg:
+    maxItems: 1
+
+patternProperties:
+  "^pinmux(-[a-z0-9-]+)?$":
+    type: object
+
+    # pin groups
+    additionalProperties:
+      $ref: nvidia,tegra238-pinmux-common.yaml
+
+      properties:
+        nvidia,pins:
+          items:
+            enum: [ gpu_pwr_req_pa0, gp_pwm5_pa1, gp_pwm6_pa2, spi3_sck_pa3,
+                    spi3_miso_pa4, spi3_mosi_pa5, spi3_cs0_pa6, spi3_cs1_pa7,
+                    spi1_sck_pb0, spi1_miso_pb1, spi1_mosi_pb2, spi1_cs0_pb3,
+                    spi1_cs1_pb4, pwr_i2c_scl_pc0, pwr_i2c_sda_pc1,
+                    extperiph1_clk_pc2, extperiph2_clk_pc3, cam_i2c_scl_pc4,
+                    cam_i2c_sda_pc5, soc_gpio23_pc6, soc_gpio24_pc7,
+                    soc_gpio27_pd0, soc_gpio55_pd1, soc_gpio29_pd2,
+                    soc_gpio33_pd3, soc_gpio32_pd4, soc_gpio35_pd5,
+                    soc_gpio37_pd6, soc_gpio56_pd7, uart1_tx_pe0,
+                    uart1_rx_pe1, uart1_rts_pe2, uart1_cts_pe3,
+                    soc_gpio13_pf0, soc_gpio14_pf1, soc_gpio15_pf2,
+                    soc_gpio16_pf3, soc_gpio17_pf4, soc_gpio18_pf5,
+                    soc_gpio20_pf6, soc_gpio21_pf7, soc_gpio22_pg0,
+                    soc_gpio06_pg1, uart4_tx_pg2, uart4_rx_pg3,
+                    uart4_rts_pg4, uart4_cts_pg5, soc_gpio41_pg6,
+                    soc_gpio42_pg7, soc_gpio43_ph0, soc_gpio44_ph1,
+                    gen1_i2c_scl_ph2, gen1_i2c_sda_ph3, cpu_pwr_req_ph4,
+                    soc_gpio07_ph5, dap3_clk_pj0, dap3_dout_pj1,
+                    dap3_din_pj2, dap3_fs_pj3, soc_gpio57_pj4,
+                    soc_gpio58_pj5, soc_gpio59_pj6, soc_gpio60_pj7,
+                    soc_gpio45_pk0, soc_gpio46_pk1, soc_gpio47_pk2,
+                    soc_gpio48_pk3, qspi0_sck_pl0, qspi0_io0_pl1,
+                    qspi0_io1_pl2, qspi0_cs_n_pl3, soc_gpio152_pl4,
+                    soc_gpio153_pl5, soc_gpio154_pl6, soc_gpio155_pl7,
+                    soc_gpio156_pm0, soc_gpio157_pm1, soc_gpio158_pm2,
+                    soc_gpio159_pm3, soc_gpio160_pm4, soc_gpio161_pm5,
+                    soc_gpio162_pm6, uart7_tx_pm7, uart7_rx_pn0,
+                    uart7_rts_pn1, uart7_cts_pn2, soc_gpio167_pp0,
+                    soc_gpio168_pp1, soc_gpio169_pp2, soc_gpio170_pp3,
+                    dap4_sclk_pp4, dap4_dout_pp5, dap4_din_pp6, dap4_fs_pp7,
+                    soc_gpio171_pq0, soc_gpio172_pq1, soc_gpio173_pq2,
+                    soc_gpio61_pr0, soc_gpio62_pr1, soc_gpio63_pr2,
+                    soc_gpio64_pr3, soc_gpio65_pr4, soc_gpio66_pr5,
+                    soc_gpio67_pr6, soc_gpio68_pr7, gen4_i2c_scl_ps0,
+                    gen4_i2c_sda_ps1, soc_gpio75_ps2, gen7_i2c_scl_ps3,
+                    gen7_i2c_sda_ps4, soc_gpio78_ps5, gen9_i2c_scl_ps6,
+                    gen9_i2c_sda_ps7, soc_gpio81_pt0, soc_gpio36_pt1,
+                    soc_gpio53_pt2, soc_gpio38_pt3, soc_gpio40_pt4,
+                    soc_gpio34_pt5, usb_vbus_en0_pt6, usb_vbus_en1_pt7,
+                    sdmmc1_clk_pu0, sdmmc1_cmd_pu1, sdmmc1_dat0_pu2,
+                    sdmmc1_dat1_pu3, sdmmc1_dat2_pu4, sdmmc1_dat3_pu5,
+                    ufs0_ref_clk_pv0, ufs0_rst_n_pv1, pex_l0_clkreq_n_pw0,
+                    pex_l0_rst_n_pw1, pex_l1_clkreq_n_pw2,
+                    pex_l1_rst_n_pw3, pex_l2_clkreq_n_pw4,
+                    pex_l2_rst_n_pw5, pex_l3_clkreq_n_pw6,
+                    pex_l3_rst_n_pw7, pex_wake_n_px0, dp_aux_ch0_hpd_px1,
+                    bootv_ctl_n_paa0, soc_gpio00_paa1, vcomp_alert_paa2,
+                    pwm1_paa3, batt_oc_paa4, soc_gpio04_paa5,
+                    soc_gpio25_paa6, soc_gpio26_paa7, hdmi_cec_pbb0,
+                    spi2_sck_pcc0, spi2_miso_pcc1, spi2_mosi_pcc2,
+                    spi2_cs0_pcc3, spi2_cs1_pcc4, uart3_tx_pcc5,
+                    uart3_rx_pcc6, gen2_i2c_scl_pcc7, gen2_i2c_sda_pdd0,
+                    gen8_i2c_scl_pdd1, gen8_i2c_sda_pdd2, touch_clk_pdd3,
+                    dmic1_clk_pdd4, dmic1_dat_pdd5, soc_gpio19_pdd6,
+                    pwm2_pdd7, pwm3_pee0, pwm7_pee1, soc_gpio49_pee2,
+                    soc_gpio82_pee3, soc_gpio50_pee4, soc_gpio83_pee5,
+                    soc_gpio69_pff0, soc_gpio70_pff1, soc_gpio71_pff2,
+                    soc_gpio72_pff3, soc_gpio73_pff4, soc_gpio74_pff5,
+                    soc_gpio80_pff6, soc_gpio76_pff7, soc_gpio77_pgg0,
+                    soc_gpio84_pgg1, uart2_tx_pgg2, uart2_rx_pgg3,
+                    uart2_rts_pgg4, uart2_cts_pgg5, soc_gpio85_pgg6,
+                    uart5_tx_pgg7, uart5_rx_phh0, uart5_rts_phh1,
+                    uart5_cts_phh2, soc_gpio86_phh3, sdmmc1_comp,
+                    # drive groups
+                    drive_soc_gpio36_pt1, drive_soc_gpio53_pt2,
+                    drive_soc_gpio38_pt3, drive_soc_gpio40_pt4,
+                    drive_soc_gpio75_ps2, drive_soc_gpio81_pt0,
+                    drive_soc_gpio78_ps5, drive_soc_gpio34_pt5,
+                    drive_gen7_i2c_scl_ps3, drive_gen7_i2c_sda_ps4,
+                    drive_gen4_i2c_sda_ps1, drive_gen4_i2c_scl_ps0,
+                    drive_gen9_i2c_sda_ps7, drive_gen9_i2c_scl_ps6,
+                    drive_usb_vbus_en0_pt6, drive_usb_vbus_en1_pt7,
+                    drive_soc_gpio61_pr0, drive_soc_gpio62_pr1,
+                    drive_soc_gpio63_pr2, drive_soc_gpio64_pr3,
+                    drive_soc_gpio65_pr4, drive_soc_gpio66_pr5,
+                    drive_soc_gpio67_pr6, drive_soc_gpio68_pr7,
+                    drive_spi3_miso_pa4, drive_spi1_cs0_pb3,
+                    drive_spi3_cs0_pa6, drive_spi1_miso_pb1,
+                    drive_spi3_cs1_pa7, drive_spi1_sck_pb0,
+                    drive_spi3_sck_pa3, drive_spi1_cs1_pb4,
+                    drive_spi1_mosi_pb2, drive_spi3_mosi_pa5,
+                    drive_gpu_pwr_req_pa0, drive_gp_pwm5_pa1,
+                    drive_gp_pwm6_pa2, drive_extperiph2_clk_pc3,
+                    drive_extperiph1_clk_pc2, drive_cam_i2c_sda_pc5,
+                    drive_cam_i2c_scl_pc4, drive_soc_gpio23_pc6,
+                    drive_soc_gpio24_pc7, drive_soc_gpio27_pd0,
+                    drive_soc_gpio29_pd2, drive_soc_gpio32_pd4,
+                    drive_soc_gpio33_pd3, drive_soc_gpio35_pd5,
+                    drive_soc_gpio37_pd6, drive_soc_gpio56_pd7,
+                    drive_soc_gpio55_pd1, drive_uart1_cts_pe3,
+                    drive_uart1_rts_pe2, drive_uart1_rx_pe1,
+                    drive_uart1_tx_pe0, drive_pwr_i2c_scl_pc0,
+                    drive_pwr_i2c_sda_pc1, drive_cpu_pwr_req_ph4,
+                    drive_uart4_cts_pg5, drive_uart4_rts_pg4,
+                    drive_uart4_rx_pg3, drive_uart4_tx_pg2,
+                    drive_gen1_i2c_scl_ph2, drive_gen1_i2c_sda_ph3,
+                    drive_soc_gpio20_pf6, drive_soc_gpio21_pf7,
+                    drive_soc_gpio22_pg0, drive_soc_gpio13_pf0,
+                    drive_soc_gpio14_pf1, drive_soc_gpio15_pf2,
+                    drive_soc_gpio16_pf3, drive_soc_gpio17_pf4,
+                    drive_soc_gpio18_pf5, drive_soc_gpio41_pg6,
+                    drive_soc_gpio42_pg7, drive_soc_gpio43_ph0,
+                    drive_soc_gpio44_ph1, drive_soc_gpio06_pg1,
+                    drive_soc_gpio07_ph5, drive_dap4_sclk_pp4,
+                    drive_dap4_dout_pp5, drive_dap4_din_pp6,
+                    drive_dap4_fs_pp7, drive_soc_gpio167_pp0,
+                    drive_soc_gpio168_pp1, drive_soc_gpio169_pp2,
+                    drive_soc_gpio170_pp3, drive_soc_gpio171_pq0,
+                    drive_soc_gpio172_pq1, drive_soc_gpio173_pq2,
+                    drive_soc_gpio45_pk0, drive_soc_gpio46_pk1,
+                    drive_soc_gpio47_pk2, drive_soc_gpio48_pk3,
+                    drive_soc_gpio57_pj4, drive_soc_gpio58_pj5,
+                    drive_soc_gpio59_pj6, drive_soc_gpio60_pj7,
+                    drive_dap3_fs_pj3, drive_dap3_clk_pj0,
+                    drive_dap3_din_pj2, drive_dap3_dout_pj1,
+                    drive_pex_l2_clkreq_n_pw4, drive_pex_wake_n_px0,
+                    drive_pex_l1_clkreq_n_pw2, drive_pex_l1_rst_n_pw3,
+                    drive_pex_l0_clkreq_n_pw0, drive_pex_l0_rst_n_pw1,
+                    drive_pex_l2_rst_n_pw5, drive_pex_l3_clkreq_n_pw6,
+                    drive_pex_l3_rst_n_pw7, drive_dp_aux_ch0_hpd_px1,
+                    drive_qspi0_io0_pl1, drive_qspi0_io1_pl2,
+                    drive_qspi0_sck_pl0, drive_qspi0_cs_n_pl3,
+                    drive_soc_gpio156_pm0, drive_soc_gpio155_pl7,
+                    drive_soc_gpio160_pm4, drive_soc_gpio154_pl6,
+                    drive_soc_gpio152_pl4, drive_soc_gpio153_pl5,
+                    drive_soc_gpio161_pm5, drive_soc_gpio162_pm6,
+                    drive_soc_gpio159_pm3, drive_soc_gpio157_pm1,
+                    drive_soc_gpio158_pm2, drive_uart7_cts_pn2,
+                    drive_uart7_rts_pn1, drive_uart7_tx_pm7,
+                    drive_uart7_rx_pn0, drive_sdmmc1_clk_pu0,
+                    drive_sdmmc1_cmd_pu1, drive_sdmmc1_dat3_pu5,
+                    drive_sdmmc1_dat2_pu4, drive_sdmmc1_dat1_pu3,
+                    drive_sdmmc1_dat0_pu2, drive_ufs0_rst_n_pv1,
+                    drive_ufs0_ref_clk_pv0, drive_batt_oc_paa4,
+                    drive_bootv_ctl_n_paa0, drive_vcomp_alert_paa2,
+                    drive_hdmi_cec_pbb0, drive_touch_clk_pdd3,
+                    drive_uart3_rx_pcc6, drive_uart3_tx_pcc5,
+                    drive_gen8_i2c_sda_pdd2, drive_gen8_i2c_scl_pdd1,
+                    drive_spi2_mosi_pcc2, drive_gen2_i2c_scl_pcc7,
+                    drive_spi2_cs0_pcc3, drive_gen2_i2c_sda_pdd0,
+                    drive_spi2_sck_pcc0, drive_spi2_miso_pcc1,
+                    drive_soc_gpio49_pee2, drive_soc_gpio50_pee4,
+                    drive_soc_gpio82_pee3, drive_soc_gpio71_pff2,
+                    drive_soc_gpio76_pff7, drive_soc_gpio74_pff5,
+                    drive_soc_gpio00_paa1, drive_soc_gpio19_pdd6,
+                    drive_soc_gpio86_phh3, drive_soc_gpio72_pff3,
+                    drive_soc_gpio77_pgg0, drive_soc_gpio80_pff6,
+                    drive_soc_gpio84_pgg1, drive_soc_gpio83_pee5,
+                    drive_soc_gpio73_pff4, drive_soc_gpio70_pff1,
+                    drive_soc_gpio04_paa5, drive_soc_gpio85_pgg6,
+                    drive_soc_gpio69_pff0, drive_soc_gpio25_paa6,
+                    drive_soc_gpio26_paa7, drive_uart5_tx_pgg7,
+                    drive_uart5_rx_phh0, drive_uart2_tx_pgg2,
+                    drive_uart2_rx_pgg3, drive_uart2_cts_pgg5,
+                    drive_uart2_rts_pgg4, drive_uart5_cts_phh2,
+                    drive_uart5_rts_phh1, drive_pwm7_pee1,
+                    drive_pwm2_pdd7, drive_pwm3_pee0, drive_pwm1_paa3,
+                    drive_spi2_cs1_pcc4, drive_dmic1_clk_pdd4,
+                    drive_dmic1_dat_pdd5, drive_sdmmc1_comp ]
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/pinctrl/pinctrl-tegra.h>
+
+    pinmux@2430000 {
+        compatible = "nvidia,tegra238-pinmux";
+        reg = <0x2430000 0x17000>;
+
+        pinctrl-names = "pex_rst";
+        pinctrl-0 = <&pex_rst_c5_out_state>;
+
+        pex_rst_c5_out_state: pinmux-pex-rst-c5-out {
+            pexrst {
+                nvidia,pins = "pex_l3_rst_n_pw7";
+                nvidia,schmitt = <TEGRA_PIN_DISABLE>;
+                nvidia,enable-input = <TEGRA_PIN_DISABLE>;
+                nvidia,io-hv = <TEGRA_PIN_ENABLE>;
+                nvidia,tristate = <TEGRA_PIN_DISABLE>;
+                nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+            };
+        };
+    };
+...

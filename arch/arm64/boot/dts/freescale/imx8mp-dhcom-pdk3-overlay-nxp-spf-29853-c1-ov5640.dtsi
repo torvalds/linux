@@ -1,0 +1,64 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * Copyright (C) 2023-2026 Marek Vasut
+ */
+
+#include <dt-bindings/clock/imx8mp-clock.h>
+#include <dt-bindings/gpio/gpio.h>
+
+&{/} {
+	camera0_1v5_pwr: regulator-camera0-1v5 {
+		compatible = "regulator-fixed";
+		regulator-name = "camera0-1v5-reg";
+		regulator-min-microvolt = <1500000>;
+		regulator-max-microvolt = <1500000>;
+		regulator-always-on;
+	};
+
+	camera0_1v8_pwr: regulator-camera0-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "camera0-1v8-reg";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
+	camera0_2v8_pwr: regulator-camera0-2v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "camera0-2v8-reg";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		regulator-always-on;
+	};
+};
+
+&i2cmuxed0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	ov5640: camera@3c {
+		compatible = "ovti,ov5640";
+		reg = <0x3c>;
+		clocks = <&clk IMX8MP_CLK_CLKOUT1>;
+		clock-names = "xclk";
+		assigned-clocks = <&clk IMX8MP_CLK_CLKOUT1_SEL>,
+				  <&clk IMX8MP_CLK_CLKOUT1>;
+		assigned-clock-parents = <&clk IMX8MP_CLK_24M>;
+		assigned-clock-rates = <24000000>, <24000000>;
+		AVDD-supply = <&camera0_2v8_pwr>;
+		DOVDD-supply = <&camera0_1v8_pwr>;
+		DVDD-supply = <&camera0_1v5_pwr>;
+
+		port {
+			ov5640_to_mipi_csi2: endpoint {
+				remote-endpoint = <&mipi_csi0_ep>;
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&isi_0 {
+	status = "okay";
+};

@@ -23,10 +23,10 @@ unsigned int fs_bio_integrity_alloc(struct bio *bio)
 	if (!action)
 		return 0;
 
-	iib = mempool_alloc(&fs_bio_integrity_pool, GFP_NOIO);
+	iib = mempool_alloc(&fs_bio_integrity_pool, GFP_NOFS);
 	bio_integrity_init(bio, &iib->bip, &iib->bvec, 1);
 
-	bio_integrity_alloc_buf(bio, action & BI_ACT_ZERO);
+	bio_integrity_alloc_buf(bio, GFP_NOFS, action & BI_ACT_ZERO);
 	if (action & BI_ACT_CHECK)
 		bio_integrity_setup_default(bio);
 	return action;

@@ -377,6 +377,33 @@ void memcpy_to_scratch(struct snd_sof_dev *sdev, u32 offset, unsigned int *src, 
 		snd_sof_dsp_write(sdev, ACP_DSP_BAR, reg_offset + i, src[j]);
 }
 
+static int acp_init_scratch_mem_ipc_flags(struct snd_sof_dev *sdev)
+{
+	u32 dsp_msg_write, dsp_ack_write, host_msg_write, host_ack_write;
+
+	dsp_msg_write = sdev->debug_box.offset +
+			offsetof(struct scratch_ipc_conf, sof_dsp_msg_write);
+	dsp_ack_write = sdev->debug_box.offset +
+			offsetof(struct scratch_ipc_conf, sof_dsp_ack_write);
+	host_msg_write = sdev->debug_box.offset +
+			 offsetof(struct scratch_ipc_conf, sof_host_msg_write);
+	host_ack_write = sdev->debug_box.offset +
+			 offsetof(struct scratch_ipc_conf, sof_host_ack_write);
+	/* Initialize host message write flag */
+	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_SCRATCH_REG_0 + host_msg_write, 0);
+
+	/* Initialize host ack write flag */
+	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_SCRATCH_REG_0 + host_ack_write, 0);
+
+	/* Initialize DSP message write flag */
+	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_SCRATCH_REG_0 + dsp_msg_write, 0);
+
+	/* Initialize DSP ack write flag */
+	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_SCRATCH_REG_0 + dsp_ack_write, 0);
+
+	return 0;
+}
+
 static int acp_memory_init(struct snd_sof_dev *sdev)
 {
 	struct acp_dev_data *adata = sdev->pdata->hw_pdata;
@@ -384,6 +411,7 @@ static int acp_memory_init(struct snd_sof_dev *sdev)
 
 	snd_sof_dsp_update_bits(sdev, ACP_DSP_BAR, desc->dsp_intr_base + DSP_SW_INTR_CNTL_OFFSET,
 				ACP_DSP_INTR_EN_MASK, ACP_DSP_INTR_EN_MASK);
+	acp_init_scratch_mem_ipc_flags(sdev);
 	init_dma_descriptor(adata);
 
 	return 0;

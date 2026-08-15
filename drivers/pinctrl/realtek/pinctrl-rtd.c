@@ -34,14 +34,14 @@ struct rtd_pinctrl {
 };
 
 /* custom pinconf parameters */
-#define RTD_DRIVE_STRENGH_P (PIN_CONFIG_END + 1)
-#define RTD_DRIVE_STRENGH_N (PIN_CONFIG_END + 2)
+#define RTD_DRIVE_STRENGTH_P (PIN_CONFIG_END + 1)
+#define RTD_DRIVE_STRENGTH_N (PIN_CONFIG_END + 2)
 #define RTD_DUTY_CYCLE (PIN_CONFIG_END + 3)
 #define RTD_HIGH_VIL (PIN_CONFIG_END + 4)
 
 static const struct pinconf_generic_params rtd_custom_bindings[] = {
-	{"realtek,drive-strength-p", RTD_DRIVE_STRENGH_P, 0},
-	{"realtek,drive-strength-n", RTD_DRIVE_STRENGH_N, 0},
+	{"realtek,drive-strength-p", RTD_DRIVE_STRENGTH_P, 0},
+	{"realtek,drive-strength-n", RTD_DRIVE_STRENGTH_N, 0},
 	{"realtek,duty-cycle", RTD_DUTY_CYCLE, 0},
 	{"realtek,high-vil-microvolt", RTD_HIGH_VIL, 0},
 };
@@ -473,7 +473,7 @@ static int rtd_pconf_parse_conf(struct rtd_pinctrl *data,
 		val = 1;
 		break;
 
-	case RTD_DRIVE_STRENGH_P:
+	case RTD_DRIVE_STRENGTH_P:
 		sconfig_desc = rtd_pinctrl_find_sconfig(data, pinnr);
 		if (!sconfig_desc) {
 			dev_err(data->dev, "P driving unsupported for pin: %s\n", name);
@@ -490,7 +490,7 @@ static int rtd_pconf_parse_conf(struct rtd_pinctrl *data,
 		val = set_val << p_off;
 		break;
 
-	case RTD_DRIVE_STRENGH_N:
+	case RTD_DRIVE_STRENGTH_N:
 		sconfig_desc = rtd_pinctrl_find_sconfig(data, pinnr);
 		if (!sconfig_desc) {
 			dev_err(data->dev, "N driving unsupported for pin: %s\n", name);

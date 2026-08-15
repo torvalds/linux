@@ -499,7 +499,7 @@
 			reg = <0x0 0x20120000 0x0 0x1000>;
 			interrupt-parent = <&irqmux>;
 			interrupt-controller;
-			#interrupt-cells = <1>;
+			#interrupt-cells = <2>;
 			interrupts = <0>, <1>, <2>, <3>,
 				     <4>, <5>, <6>, <7>,
 				     <8>, <9>, <10>, <11>,
@@ -516,7 +516,7 @@
 			reg = <0x0 0x20121000 0x0 0x1000>;
 			interrupt-parent = <&irqmux>;
 			interrupt-controller;
-			#interrupt-cells = <1>;
+			#interrupt-cells = <2>;
 			interrupts = <32>, <33>, <34>, <35>,
 				     <36>, <37>, <38>, <39>,
 				     <40>, <41>, <42>, <43>,
@@ -535,7 +535,7 @@
 			reg = <0x0 0x20122000 0x0 0x1000>;
 			interrupt-parent = <&irqmux>;
 			interrupt-controller;
-			#interrupt-cells = <1>;
+			#interrupt-cells = <2>;
 			interrupts = <64>, <65>, <66>, <67>,
 				     <68>, <69>, <70>, <71>,
 				     <72>, <73>, <74>, <75>,

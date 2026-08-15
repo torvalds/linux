@@ -94,11 +94,11 @@ static inline int hashtab_insert(struct hashtab *h, void *key, void *datum,
  * Returns NULL if no entry has the specified key or
  * the datum of the entry otherwise.
  */
-static inline void *hashtab_search(struct hashtab *h, const void *key,
+static inline void *hashtab_search(const struct hashtab *h, const void *key,
 				   struct hashtab_key_params key_params)
 {
 	u32 hvalue;
-	struct hashtab_node *cur;
+	const struct hashtab_node *cur;
 
 	if (!h->size)
 		return NULL;

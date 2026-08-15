@@ -259,10 +259,10 @@ static int ni_670x_pci_probe(struct pci_dev *dev,
 }
 
 static const struct pci_device_id ni_670x_pci_table[] = {
-	{ PCI_VDEVICE(NI, 0x1290), BOARD_PCI6704 },
-	{ PCI_VDEVICE(NI, 0x1920), BOARD_PXI6704 },
-	{ PCI_VDEVICE(NI, 0x2c90), BOARD_PCI6703 },
-	{ 0 }
+	{ PCI_VDEVICE(NI, 0x1290), .driver_data = BOARD_PCI6704 },
+	{ PCI_VDEVICE(NI, 0x1920), .driver_data = BOARD_PXI6704 },
+	{ PCI_VDEVICE(NI, 0x2c90), .driver_data = BOARD_PCI6703 },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, ni_670x_pci_table);
 

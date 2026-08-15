@@ -27,28 +27,28 @@
 #include "pcm6240.h"
 
 static const struct i2c_device_id pcmdevice_i2c_id[] = {
-	{ "adc3120",  ADC3120  },
-	{ "adc5120",  ADC5120  },
-	{ "adc6120",  ADC6120  },
-	{ "dix4192",  DIX4192  },
-	{ "pcm1690",  PCM1690  },
-	{ "pcm3120",  PCM3120  },
-	{ "pcm3140",  PCM3140  },
-	{ "pcm5120",  PCM5120  },
-	{ "pcm5140",  PCM5140  },
-	{ "pcm6120",  PCM6120  },
-	{ "pcm6140",  PCM6140  },
-	{ "pcm6240",  PCM6240  },
-	{ "pcm6260",  PCM6260  },
-	{ "pcm9211",  PCM9211  },
-	{ "pcmd3140", PCMD3140 },
-	{ "pcmd3180", PCMD3180 },
-	{ "pcmd512x", PCMD512X },
-	{ "taa5212",  TAA5212  },
-	{ "taa5412",  TAA5412  },
-	{ "tad5212",  TAD5212  },
-	{ "tad5412",  TAD5412  },
-	{}
+	{ .name = "adc3120", .driver_data = ADC3120 },
+	{ .name = "adc5120", .driver_data = ADC5120 },
+	{ .name = "adc6120", .driver_data = ADC6120 },
+	{ .name = "dix4192", .driver_data = DIX4192 },
+	{ .name = "pcm1690", .driver_data = PCM1690 },
+	{ .name = "pcm3120", .driver_data = PCM3120 },
+	{ .name = "pcm3140", .driver_data = PCM3140 },
+	{ .name = "pcm5120", .driver_data = PCM5120 },
+	{ .name = "pcm5140", .driver_data = PCM5140 },
+	{ .name = "pcm6120", .driver_data = PCM6120 },
+	{ .name = "pcm6140", .driver_data = PCM6140 },
+	{ .name = "pcm6240", .driver_data = PCM6240 },
+	{ .name = "pcm6260", .driver_data = PCM6260 },
+	{ .name = "pcm9211", .driver_data = PCM9211 },
+	{ .name = "pcmd3140", .driver_data = PCMD3140 },
+	{ .name = "pcmd3180", .driver_data = PCMD3180 },
+	{ .name = "pcmd512x", .driver_data = PCMD512X },
+	{ .name = "taa5212", .driver_data = TAA5212 },
+	{ .name = "taa5412", .driver_data = TAA5412 },
+	{ .name = "tad5212", .driver_data = TAD5212 },
+	{ .name = "tad5412", .driver_data = TAD5412 },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pcmdevice_i2c_id);
 
@@ -1230,15 +1230,11 @@ static struct pcmdevice_config_info *pcmdevice_add_config(void *ctxt,
 	int *status)
 {
 	struct pcmdevice_priv *pcm_dev = (struct pcmdevice_priv *)ctxt;
-	struct pcmdevice_config_info *cfg_info;
+	struct pcmdevice_config_info *cfg_info = NULL;
 	struct pcmdevice_block_data **bk_da;
+	char cfg_name[64] = {};
 	unsigned int config_offset = 0, i;
-
-	cfg_info = kzalloc_obj(struct pcmdevice_config_info);
-	if (!cfg_info) {
-		*status = -ENOMEM;
-		goto out;
-	}
+	unsigned int nblocks;
 
 	if (pcm_dev->regbin.fw_hdr.binary_version_num >= 0x105) {
 		if (config_offset + 64 > (int)config_size) {
@@ -1247,7 +1243,7 @@ static struct pcmdevice_config_info *pcmdevice_add_config(void *ctxt,
 				"%s: cfg_name out of boundary\n", __func__);
 			goto out;
 		}
-		memcpy(cfg_info->cfg_name, &config_data[config_offset], 64);
+		memcpy(cfg_name, &config_data[config_offset], 64);
 		config_offset += 64;
 	}
 
@@ -1257,16 +1253,17 @@ static struct pcmdevice_config_info *pcmdevice_add_config(void *ctxt,
 			__func__);
 		goto out;
 	}
-	cfg_info->nblocks =
-		get_unaligned_be32(&config_data[config_offset]);
+	nblocks = get_unaligned_be32(&config_data[config_offset]);
 	config_offset += 4;
 
-	bk_da = cfg_info->blk_data = kzalloc_objs(struct pcmdevice_block_data *,
-						  cfg_info->nblocks);
-	if (!bk_da) {
+	cfg_info = kzalloc_flex(*cfg_info, blk_data, nblocks);
+	if (!cfg_info) {
 		*status = -ENOMEM;
 		goto out;
 	}
+	cfg_info->nblocks = nblocks;
+	memcpy(cfg_info->cfg_name, cfg_name, sizeof(cfg_info->cfg_name));
+	bk_da = cfg_info->blk_data;
 	cfg_info->real_nblocks = 0;
 	for (i = 0; i < cfg_info->nblocks; i++) {
 		if (config_offset + 12 > config_size) {
@@ -1449,14 +1446,11 @@ static void pcmdevice_config_info_remove(void *ctxt)
 	for (i = 0; i < regbin->ncfgs; i++) {
 		if (!cfg_info[i])
 			continue;
-		if (cfg_info[i]->blk_data) {
-			for (j = 0; j < (int)cfg_info[i]->real_nblocks; j++) {
-				if (!cfg_info[i]->blk_data[j])
-					continue;
-				kfree(cfg_info[i]->blk_data[j]->regdata);
-				kfree(cfg_info[i]->blk_data[j]);
-			}
-			kfree(cfg_info[i]->blk_data);
+		for (j = 0; j < (int)cfg_info[i]->real_nblocks; j++) {
+			if (!cfg_info[i]->blk_data[j])
+				continue;
+			kfree(cfg_info[i]->blk_data[j]->regdata);
+			kfree(cfg_info[i]->blk_data[j]);
 		}
 		kfree(cfg_info[i]);
 	}

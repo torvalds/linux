@@ -323,8 +323,7 @@ static int ep93xx_setup_irqs(struct platform_device *pdev,
 	}
 
 	girq->default_type = IRQ_TYPE_NONE;
-	/* TODO: replace with handle_bad_irq() once we are fully hierarchical */
-	girq->handler = handle_simple_irq;
+	girq->handler = handle_bad_irq;
 
 	return 0;
 }

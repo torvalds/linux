@@ -27,6 +27,7 @@
 #include <asm/extable.h>
 #include <asm/dis.h>
 #include <asm/facility.h>
+#include <asm/lowcore.h>
 #include <asm/nospec-branch.h>
 #include <asm/set_memory.h>
 #include <asm/text-patching.h>
@@ -1777,6 +1778,30 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 		int j, ret;
 		u64 func;
 
+		/* Implement helper call to bpf_get_smp_processor_id() inline */
+		if (insn->src_reg == 0 &&
+		    insn->imm == BPF_FUNC_get_smp_processor_id) {
+			const u32 *cpu_nr = &get_lowcore()->cpu_nr;
+
+			/* ly %b0, cpu_nr */
+			EMIT6_DISP_LH(0xe3000000, 0x0058, BPF_REG_0, REG_0, REG_0,
+				      (unsigned long)cpu_nr);
+			break;
+		}
+
+		/* Implement helper call to bpf_get_current_task/_btf() inline */
+		if (insn->src_reg == 0 &&
+		    (insn->imm == BPF_FUNC_get_current_task ||
+		     insn->imm == BPF_FUNC_get_current_task_btf)) {
+			const u64 *current_task =
+				&get_lowcore()->current_task;
+
+			/* lg %b0, current_task */
+			EMIT6_DISP_LH(0xe3000000, 0x0004, BPF_REG_0, REG_0, REG_0,
+				      (unsigned long)current_task);
+			break;
+		}
+
 		ret = bpf_jit_get_func_addr(fp, insn, extra_pass,
 					    &func, &func_addr_fixed);
 		if (ret < 0)
@@ -2512,19 +2537,19 @@ static void emit_store_stack_imm64(struct bpf_jit *jit, int tmp_reg, int stack_o
 
 static int invoke_bpf_prog(struct bpf_tramp_jit *tjit,
 			   const struct btf_func_model *m,
-			   struct bpf_tramp_link *tlink, bool save_ret)
+			   struct bpf_tramp_node *node, bool save_ret)
 {
 	struct bpf_jit *jit = &tjit->common;
 	int cookie_off = tjit->run_ctx_off +
 			 offsetof(struct bpf_tramp_run_ctx, bpf_cookie);
-	struct bpf_prog *p = tlink->link.prog;
+	struct bpf_prog *p = node->link->prog;
 	int patch;
 
 	/*
-	 * run_ctx.cookie = tlink->cookie;
+	 * run_ctx.cookie = node->cookie;
 	 */
 
-	emit_store_stack_imm64(jit, REG_W0, cookie_off, tlink->cookie);
+	emit_store_stack_imm64(jit, REG_W0, cookie_off, node->cookie);
 
 	/*
 	 * if ((start = __bpf_prog_enter(p, &run_ctx)) == 0)
@@ -2584,20 +2609,20 @@ static int invoke_bpf_prog(struct bpf_tramp_jit *tjit,
 
 static int invoke_bpf(struct bpf_tramp_jit *tjit,
 		      const struct btf_func_model *m,
-		      struct bpf_tramp_links *tl, bool save_ret,
+		      struct bpf_tramp_nodes *tn, bool save_ret,
 		      u64 func_meta, int cookie_off)
 {
 	int i, cur_cookie = (tjit->bpf_args_off - cookie_off) / sizeof(u64);
 	struct bpf_jit *jit = &tjit->common;
 
-	for (i = 0; i < tl->nr_links; i++) {
-		if (bpf_prog_calls_session_cookie(tl->links[i])) {
+	for (i = 0; i < tn->nr_nodes; i++) {
+		if (bpf_prog_calls_session_cookie(tn->nodes[i])) {
 			u64 meta = func_meta | ((u64)cur_cookie << BPF_TRAMP_COOKIE_INDEX_SHIFT);
 
 			emit_store_stack_imm64(jit, REG_0, tjit->func_meta_off, meta);
 			cur_cookie--;
 		}
-		if (invoke_bpf_prog(tjit, m, tl->links[i], save_ret))
+		if (invoke_bpf_prog(tjit, m, tn->nodes[i], save_ret))
 			return -EINVAL;
 	}
 
@@ -2626,12 +2651,12 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 					 struct bpf_tramp_jit *tjit,
 					 const struct btf_func_model *m,
 					 u32 flags,
-					 struct bpf_tramp_links *tlinks,
+					 struct bpf_tramp_nodes *tnodes,
 					 void *func_addr)
 {
-	struct bpf_tramp_links *fmod_ret = &tlinks[BPF_TRAMP_MODIFY_RETURN];
-	struct bpf_tramp_links *fentry = &tlinks[BPF_TRAMP_FENTRY];
-	struct bpf_tramp_links *fexit = &tlinks[BPF_TRAMP_FEXIT];
+	struct bpf_tramp_nodes *fmod_ret = &tnodes[BPF_TRAMP_MODIFY_RETURN];
+	struct bpf_tramp_nodes *fentry = &tnodes[BPF_TRAMP_FENTRY];
+	struct bpf_tramp_nodes *fexit = &tnodes[BPF_TRAMP_FEXIT];
 	int nr_bpf_args, nr_reg_args, nr_stack_args;
 	int cookie_cnt, cookie_off, fsession_cnt;
 	struct bpf_jit *jit = &tjit->common;
@@ -2668,8 +2693,8 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 			return -ENOTSUPP;
 	}
 
-	cookie_cnt = bpf_fsession_cookie_cnt(tlinks);
-	fsession_cnt = bpf_fsession_cnt(tlinks);
+	cookie_cnt = bpf_fsession_cookie_cnt(tnodes);
+	fsession_cnt = bpf_fsession_cnt(tnodes);
 
 	/*
 	 * Calculate the stack layout.
@@ -2804,7 +2829,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 		       func_meta, cookie_off))
 		return -EINVAL;
 
-	if (fmod_ret->nr_links) {
+	if (fmod_ret->nr_nodes) {
 		/*
 		 * retval = 0;
 		 */
@@ -2813,8 +2838,8 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 		_EMIT6(0xd707f000 | tjit->retval_off,
 		       0xf000 | tjit->retval_off);
 
-		for (i = 0; i < fmod_ret->nr_links; i++) {
-			if (invoke_bpf_prog(tjit, m, fmod_ret->links[i], true))
+		for (i = 0; i < fmod_ret->nr_nodes; i++) {
+			if (invoke_bpf_prog(tjit, m, fmod_ret->nodes[i], true))
 				return -EINVAL;
 
 			/*
@@ -2939,7 +2964,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 }
 
 int arch_bpf_trampoline_size(const struct btf_func_model *m, u32 flags,
-			     struct bpf_tramp_links *tlinks, void *orig_call)
+			     struct bpf_tramp_nodes *tnodes, void *orig_call)
 {
 	struct bpf_tramp_image im;
 	struct bpf_tramp_jit tjit;
@@ -2948,14 +2973,14 @@ int arch_bpf_trampoline_size(const struct btf_func_model *m, u32 flags,
 	memset(&tjit, 0, sizeof(tjit));
 
 	ret = __arch_prepare_bpf_trampoline(&im, &tjit, m, flags,
-					    tlinks, orig_call);
+					    tnodes, orig_call);
 
 	return ret < 0 ? ret : tjit.common.prg;
 }
 
 int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image,
 				void *image_end, const struct btf_func_model *m,
-				u32 flags, struct bpf_tramp_links *tlinks,
+				u32 flags, struct bpf_tramp_nodes *tnodes,
 				void *func_addr)
 {
 	struct bpf_tramp_jit tjit;
@@ -2964,7 +2989,7 @@ int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image,
 	/* Compute offsets, check whether the code fits. */
 	memset(&tjit, 0, sizeof(tjit));
 	ret = __arch_prepare_bpf_trampoline(im, &tjit, m, flags,
-					    tlinks, func_addr);
+					    tnodes, func_addr);
 
 	if (ret < 0)
 		return ret;
@@ -2978,7 +3003,7 @@ int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image,
 	tjit.common.prg = 0;
 	tjit.common.prg_buf = image;
 	ret = __arch_prepare_bpf_trampoline(im, &tjit, m, flags,
-					    tlinks, func_addr);
+					    tnodes, func_addr);
 
 	return ret < 0 ? ret : tjit.common.prg;
 }
@@ -3056,4 +3081,16 @@ void arch_bpf_stack_walk(bool (*consume_fn)(void *, u64, u64, u64),
 bool bpf_jit_supports_timed_may_goto(void)
 {
 	return true;
+}
+
+bool bpf_jit_inlines_helper_call(s32 imm)
+{
+	switch (imm) {
+	case BPF_FUNC_get_smp_processor_id:
+	case BPF_FUNC_get_current_task:
+	case BPF_FUNC_get_current_task_btf:
+		return true;
+	default:
+		return false;
+	}
 }

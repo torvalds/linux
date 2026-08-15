@@ -304,6 +304,14 @@ int dce_aux_transfer_raw(struct ddc_service *ddc,
 		struct aux_payload *cmd,
 		enum aux_return_code_type *operation_result);
 
+int dce_aux_transfer_raw_with_ddc_pin(struct ddc_service *ddc,
+		struct aux_payload *cmd,
+		enum aux_return_code_type *operation_result);
+
+int dce_aux_transfer_raw_without_ddc_pin(struct ddc_service *ddc,
+	struct aux_payload *cmd,
+	enum aux_return_code_type *operation_result);
+
 int dce_aux_transfer_dmub_raw(struct ddc_service *ddc,
 		struct aux_payload *payload,
 		enum aux_return_code_type *operation_result);

@@ -277,7 +277,7 @@ static bool linkwatch_clean_dev(struct net_device *dev)
 
 void __linkwatch_sync_dev(struct net_device *dev)
 {
-	netdev_ops_assert_locked(dev);
+	netdev_assert_locked_ops_compat(dev);
 
 	if (linkwatch_clean_dev(dev)) {
 		linkwatch_do_dev(dev);

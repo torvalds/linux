@@ -61,6 +61,9 @@ process consists of the following steps:
    the AutoFDO profile via offline tools.
 
 The support requires a Clang compiler LLVM 17 or later.
+Current supported architectures include x86/x86_64 (via LBR) and
+arm64 (via SPE or ETM).
+
 
 Preparation
 ===========
@@ -141,6 +144,35 @@ Here is an example workflow for AutoFDO kernel:
 
       $ perf record --pfm-events RETIRED_TAKEN_BRANCH_INSTRUCTIONS:k -a -N -b -c <count> -o <perf_file> -- <loadtest>
 
+   - For arm64 with SPE:
+
+     There are a few kernel features that must be enabled to collect SPE profiles on Arm.
+     Below is a list of the required features:
+
+      - CONFIG_ARM_SPE_PMU=y
+      - CONFIG_PID_IN_CONTEXTIDR=y
+      - kpti=off
+
+     Use the following command to generate SPE perf data file::
+
+      $ perf record -e ' arm_spe_0/branch_filter=1,load_filter=0,store_filter=0/'  -a -c <count> -N --no-switch-events -o <perf_file> -- <loadtest>
+
+   - For arm64 with ETM trace:
+
+     Follow the instructions in `Linaro OpenCSD document
+     <https://github.com/Linaro/OpenCSD/blob/master/decoder/tests/auto-fdo/autofdo.md>`_
+     to record ETM traces for AutoFDO::
+
+      $ perf record -e cs_etm/@tmc_etr0/k -a -o <etm_perf_file> -- <loadtest>
+      $ perf inject -i <etm_perf_file> -o <perf_file> --itrace=i500009il
+
+     For ARM platforms running Android, follow the instructions in `Android simpleperf
+     document <https://android.googlesource.com/kernel/common/+/refs/heads/android-mainline/gki/aarch64/afdo>`_
+     to record ETM traces for AutoFDO::
+
+      $ simpleperf record -e cs-etm:k -a -o <etm_perf_file> -- <loadtest>
+      $ simpleperf inject -i <etm_perf_file> -o <text_perf_file> --symdir <vmlinux_dir>
+
 4) (Optional) Download the raw perf file to the host machine.
 
 5) To generate an AutoFDO profile, two offline tools are available:
@@ -161,6 +193,15 @@ Here is an example workflow for AutoFDO kernel:
    Note that multiple AutoFDO profile files can be merged into one via::
 
       $ llvm-profdata merge -o <profile_file> <profile_1> <profile_2> ... <profile_n>
+
+   For arm64 SPE, use the following command::
+
+      $ create_llvm_prof --binary=<vmlinux> --profile=<perf_file> --profiler=perf_spe --format=extbinary --out=<profile_file>
+
+   For arm64 ETM, use the following command::
+
+      $ create_llvm_prof --binary=<vmlinux> --profile=<text_perf_file> --profiler=text -format=extbinary -out=<profile_file>
+
 
 6) Rebuild the kernel using the AutoFDO profile file with the same config as step 1,
    (Note CONFIG_AUTOFDO_CLANG needs to be enabled)::

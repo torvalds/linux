@@ -483,6 +483,58 @@ test_stat_pid() {
   wait $pid 2>/dev/null || true
 }
 
+test_stat_delay() {
+  echo "stat -D test"
+  if ! env LC_ALL=C perf stat -D 1000 -e duration_time sleep 2 > "${stat_output}" 2>&1
+  then
+    echo "stat -D test [Failed - command failed]"
+    cat "${stat_output}"
+    err=1
+    return
+  fi
+
+  duration=$(grep "duration_time" "${stat_output}" | awk '{print $1}' | tr -d ',')
+  elapsed=$(grep "seconds time elapsed" "${stat_output}" | awk '{print $1}')
+
+  if [ -z "$duration" ] || [ -z "$elapsed" ]
+  then
+    echo "stat -D test [Failed - failed to find duration_time or time elapsed in output]"
+    cat "${stat_output}"
+    err=1
+    return
+  fi
+
+  # Compare duration (ns) and elapsed (s) using awk to handle float and allow tolerance.
+  if ! awk -v d="$duration" -v e="$elapsed" '
+    BEGIN {
+      diff = d - (e * 1e9);
+      if (diff < 0) diff = -diff;
+      # Allow 200ms tolerance (200,000,000 ns) for loaded CI machines.
+      if (diff > 200000000) {
+        printf "Fail: duration (%d ns) and elapsed (%f s) mismatch (diff %d ns)\n", d, e, diff;
+        exit 1;
+      }
+      # Lower bound check: must be at least 0.5s.
+      if (d < 500000000) {
+        printf "Fail: duration (%d ns) is abnormally small\n", d;
+        exit 1;
+      }
+      # Upper bound check: must be strictly less than 1.7s (proving delay was excluded).
+      if (d > 1700000000) {
+        printf "Fail: duration (%d ns) is too large (delay might not be excluded)\n", d;
+        exit 1;
+      }
+      exit 0;
+    }'
+  then
+    echo "stat -D test [Failed - validation failed]"
+    cat "${stat_output}"
+    err=1
+    return
+  fi
+  echo "stat -D test [Success]"
+}
+
 test_default_stat
 test_null_stat
 test_offline_cpu_stat
@@ -498,6 +550,7 @@ test_stat_no_aggr
 test_stat_detailed
 test_stat_repeat
 test_stat_pid
+test_stat_delay
 
 cleanup
 exit $err

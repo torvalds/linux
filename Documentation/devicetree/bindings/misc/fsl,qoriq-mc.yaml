@@ -166,7 +166,7 @@ examples:
          */
         ranges = <0x0 0x0 0x8 0x0c000000 0x4000000
                  0x1 0x0 0x8 0x18000000 0x8000000>;
-        
+
         /* define map for ICIDs 23-64 */
         iommu-map = <23 &smmu 23 41>;
         /* define msi map for ICIDs 23-64 */

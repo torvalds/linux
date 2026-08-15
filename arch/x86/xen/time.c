@@ -18,6 +18,7 @@
 #include <linux/timekeeper_internal.h>
 #include <linux/sched/cputime.h>
 
+#include <asm/cpuid/api.h>
 #include <asm/pvclock.h>
 #include <asm/timer.h>
 #include <asm/xen/hypervisor.h>

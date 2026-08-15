@@ -125,7 +125,7 @@ static int test_dso(struct dso *dso)
 	for (nd = rb_first_cached(dso__symbols(dso)); nd; nd = rb_next(nd)) {
 		struct symbol *sym = rb_entry(nd, struct symbol, rb_node);
 
-		if (sym->type != STT_FUNC && sym->type != STT_GNU_IFUNC)
+		if (symbol__type(sym) != STT_FUNC && symbol__type(sym) != STT_GNU_IFUNC)
 			continue;
 
 		/* Check for overlapping function symbols */

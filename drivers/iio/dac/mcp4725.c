@@ -16,7 +16,6 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/regulator/consumer.h>
-#include <linux/mod_devicetable.h>
 #include <linux/property.h>
 
 #include <linux/iio/iio.h>
@@ -523,8 +522,8 @@ static const struct mcp4725_chip_info mcp4726 = {
 };
 
 static const struct i2c_device_id mcp4725_id[] = {
-	{ "mcp4725", (kernel_ulong_t)&mcp4725 },
-	{ "mcp4726", (kernel_ulong_t)&mcp4726 },
+	{ .name = "mcp4725", .driver_data = (kernel_ulong_t)&mcp4725 },
+	{ .name = "mcp4726", .driver_data = (kernel_ulong_t)&mcp4726 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mcp4725_id);

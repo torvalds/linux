@@ -3,8 +3,8 @@
  * Copyright © 2022 Intel Corporation
  */
 
-#ifndef _XE_REG_SR_TYPES_
-#define _XE_REG_SR_TYPES_
+#ifndef _XE_REG_SR_TYPES_H_
+#define _XE_REG_SR_TYPES_H_
 
 #include <linux/types.h>
 #include <linux/xarray.h>

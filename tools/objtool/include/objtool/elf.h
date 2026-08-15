@@ -21,6 +21,13 @@
 #define SEC_NAME_LEN		1024
 #define SYM_NAME_LEN		512
 
+static inline u32 str_hash(const char *str)
+{
+	return jhash(str, strlen(str), 0);
+}
+
+u32 str_hash_demangled(const char *str);
+
 #define bswap_if_needed(elf, val) __bswap_if_needed(&elf->ehdr, val)
 
 #ifdef LIBELF_USE_DEPRECATED
@@ -89,6 +96,7 @@ struct symbol {
 	u8 changed	     : 1;
 	u8 included	     : 1;
 	u8 klp		     : 1;
+	u8 dont_correlate    : 1;
 	struct list_head pv_target;
 	struct reloc *relocs;
 	struct section *group_sec;
@@ -129,6 +137,23 @@ struct elf {
 	struct section *section_data;
 	struct symbol *symbol_data;
 };
+
+#define __elf_table(elf, name)	((elf)->name##_hash)
+#define __elf_bits(elf, name)	((elf)->name##_bits)
+
+#define __elf_table_entry(elf, name, key) \
+	__elf_table(elf, name)[hash_min(key, __elf_bits(elf, name))]
+
+#define elf_list_entry(ptr, type, member)				\
+({									\
+	typeof(ptr) __ptr = (ptr);					\
+	__ptr ? container_of(__ptr, type, member) : NULL;		\
+})
+
+#define elf_hash_for_each_possible(elf, name, obj, member, key)		\
+	for (obj = elf_list_entry(__elf_table_entry(elf, name, key), typeof(*obj), member); \
+	     obj;							\
+	     obj = elf_list_entry(obj->member.next, typeof(*(obj)), member))
 
 struct elf *elf_open_read(const char *name, int flags);
 struct elf *elf_create_file(GElf_Ehdr *ehdr, const char *name);
@@ -175,6 +200,7 @@ struct reloc *elf_init_reloc_data_sym(struct elf *elf, struct section *sec,
 				      struct symbol *sym,
 				      s64 addend);
 
+int elf_write_symbol(struct elf *elf, struct symbol *sym);
 int elf_write_insn(struct elf *elf, struct section *sec, unsigned long offset,
 		   unsigned int len, const char *insn);
 
@@ -186,10 +212,8 @@ struct symbol *find_func_by_offset(struct section *sec, unsigned long offset);
 struct symbol *find_symbol_by_offset(struct section *sec, unsigned long offset);
 struct symbol *find_symbol_by_name(const struct elf *elf, const char *name);
 struct symbol *find_global_symbol_by_name(const struct elf *elf, const char *name);
-void iterate_global_symbol_by_demangled_name(const struct elf *elf, const char *demangled_name,
-					     void (*process)(struct symbol *sym, void *data),
-					     void *data);
 struct symbol *find_symbol_containing(const struct section *sec, unsigned long offset);
+struct symbol *find_symbol_containing_inclusive(const struct section *sec, unsigned long offset);
 int find_symbol_hole_containing(const struct section *sec, unsigned long offset);
 struct reloc *find_reloc_by_dest(const struct elf *elf, struct section *sec, unsigned long offset);
 struct reloc *find_reloc_by_dest_range(const struct elf *elf, struct section *sec,
@@ -276,9 +300,19 @@ static inline bool is_local_sym(struct symbol *sym)
 	return sym->bind == STB_LOCAL;
 }
 
+static inline bool is_alias_sym(struct symbol *sym)
+{
+	return sym->alias != sym;
+}
+
 static inline bool is_prefix_func(struct symbol *sym)
 {
 	return sym->prefix;
+}
+
+static inline bool is_cold_func(struct symbol *sym)
+{
+	return sym->cold;
 }
 
 static inline bool is_reloc_sec(struct section *sec)
@@ -294,6 +328,11 @@ static inline bool is_string_sec(struct section *sec)
 static inline bool is_text_sec(struct section *sec)
 {
 	return sec->sh.sh_flags & SHF_EXECINSTR;
+}
+
+static inline bool is_rodata_sec(struct section *sec)
+{
+	return sec->rodata;
 }
 
 static inline bool sec_changed(struct section *sec)
@@ -468,6 +507,16 @@ static inline void set_sym_next_reloc(struct reloc *reloc, struct reloc *next)
 #define for_each_sym_continue(elf, sym)					\
 	list_for_each_entry_continue(sym, &elf->symbols, global_list)
 
+#define for_each_sym_by_name(elf, _name, sym)				\
+	elf_hash_for_each_possible(elf, symbol_name, sym, name_hash,	\
+				   str_hash_demangled(_name))		\
+		if (strcmp(sym->name, _name)) {} else
+
+#define for_each_sym_by_demangled_name(elf, name, sym)			\
+	elf_hash_for_each_possible(elf, symbol_name, sym, name_hash,	\
+				   str_hash(name))			\
+		if (strcmp(sym->demangled_name, name)) {} else
+
 #define rsec_next_reloc(rsec, reloc)					\
 	reloc_idx(reloc) < sec_num_entries(rsec) - 1 ? reloc + 1 : NULL
 
@@ -491,10 +540,10 @@ static inline struct symbol *get_func_prefix(struct symbol *func)
 {
 	struct symbol *prev;
 
-	if (!is_func_sym(func))
+	if (!is_func_sym(func) || !func->offset)
 		return NULL;
 
-	prev = sec_prev_sym(func);
+	prev = find_func_containing(func->sec, func->offset - 1);
 	if (prev && is_prefix_func(prev))
 		return prev;
 

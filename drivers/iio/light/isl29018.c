@@ -10,7 +10,6 @@
 
 #include <linux/i2c.h>
 #include <linux/err.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/delay.h>
@@ -829,9 +828,9 @@ static const struct acpi_device_id isl29018_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, isl29018_acpi_match);
 
 static const struct i2c_device_id isl29018_id[] = {
-	{"isl29018", isl29018},
-	{"isl29023", isl29023},
-	{"isl29035", isl29035},
+	{ .name = "isl29018", .driver_data = isl29018 },
+	{ .name = "isl29023", .driver_data = isl29023 },
+	{ .name = "isl29035", .driver_data = isl29035 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, isl29018_id);

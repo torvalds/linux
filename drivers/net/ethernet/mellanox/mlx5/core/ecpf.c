@@ -18,25 +18,35 @@ static bool mlx5_ecpf_esw_admins_host_pf(const struct mlx5_core_dev *dev)
 	return mlx5_core_is_ecpf_esw_manager(dev);
 }
 
-int mlx5_cmd_host_pf_enable_hca(struct mlx5_core_dev *dev)
+int mlx5_cmd_pf_enable_hca(struct mlx5_core_dev *dev, u16 vport_num)
 {
 	u32 out[MLX5_ST_SZ_DW(enable_hca_out)] = {};
 	u32 in[MLX5_ST_SZ_DW(enable_hca_in)]   = {};
+	u16 vhca_id;
 
 	MLX5_SET(enable_hca_in, in, opcode, MLX5_CMD_OP_ENABLE_HCA);
-	MLX5_SET(enable_hca_in, in, function_id, 0);
-	MLX5_SET(enable_hca_in, in, embedded_cpu_function, 0);
-	return mlx5_cmd_exec(dev, &in, sizeof(in), &out, sizeof(out));
+	if (mlx5_vport_use_vhca_id_as_func_id(dev, vport_num, &vhca_id)) {
+		MLX5_SET(enable_hca_in, in, function_id, vhca_id);
+		MLX5_SET(enable_hca_in, in, function_id_type, 1);
+	} else {
+		MLX5_SET(enable_hca_in, in, function_id, vport_num);
+	}
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 
-int mlx5_cmd_host_pf_disable_hca(struct mlx5_core_dev *dev)
+int mlx5_cmd_pf_disable_hca(struct mlx5_core_dev *dev, u16 vport_num)
 {
 	u32 out[MLX5_ST_SZ_DW(disable_hca_out)] = {};
 	u32 in[MLX5_ST_SZ_DW(disable_hca_in)]   = {};
+	u16 vhca_id;
 
 	MLX5_SET(disable_hca_in, in, opcode, MLX5_CMD_OP_DISABLE_HCA);
-	MLX5_SET(disable_hca_in, in, function_id, 0);
-	MLX5_SET(disable_hca_in, in, embedded_cpu_function, 0);
+	if (mlx5_vport_use_vhca_id_as_func_id(dev, vport_num, &vhca_id)) {
+		MLX5_SET(disable_hca_in, in, function_id, vhca_id);
+		MLX5_SET(disable_hca_in, in, function_id_type, 1);
+	} else {
+		MLX5_SET(disable_hca_in, in, function_id, vport_num);
+	}
 	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 
@@ -91,6 +101,11 @@ void mlx5_ec_cleanup(struct mlx5_core_dev *dev)
 	err = mlx5_wait_for_pages(dev, &dev->priv.page_counters[MLX5_HOST_PF]);
 	if (err)
 		mlx5_core_warn(dev, "Timeout reclaiming external host PF pages err(%d)\n", err);
+
+	err = mlx5_wait_for_pages(dev, &dev->priv.page_counters[MLX5_SPF]);
+	if (err)
+		mlx5_core_warn(dev, "Timeout reclaiming SPF pages err(%d)\n",
+			       err);
 
 	err = mlx5_wait_for_pages(dev, &dev->priv.page_counters[MLX5_VF]);
 	if (err)

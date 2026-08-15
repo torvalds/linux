@@ -2,8 +2,8 @@
 /*
  * Copyright © 2022 Intel Corporation
  */
-#ifndef __XE_PT_WALK__
-#define __XE_PT_WALK__
+#ifndef _XE_PT_WALK_H_
+#define _XE_PT_WALK_H_
 
 #include <linux/pagewalk.h>
 #include <linux/types.h>
@@ -34,7 +34,7 @@ struct xe_pt_walk {
 	 * changed during the walk.
 	 */
 	const u64 *shifts;
-	/** @max_level: Highest populated level in @sizes */
+	/** @max_level: Highest populated level in @shifts */
 	unsigned int max_level;
 	/**
 	 * @shared_pt_mode: Whether to skip all entries that are private
@@ -49,7 +49,7 @@ struct xe_pt_walk {
 
 /**
  * typedef xe_pt_entry_fn - gpu page-table-walk callback-function
- * @parent: The parent page.table.
+ * @parent: The parent page table.
  * @offset: The offset (number of entries) into the page table.
  * @level: The level of @parent.
  * @addr: The virtual address.
@@ -111,14 +111,14 @@ static inline bool xe_pt_covers(u64 addr, u64 end, unsigned int level,
 }
 
 /**
- * xe_pt_num_entries: Number of page-table entries of a given range at this
+ * xe_pt_num_entries - Number of page-table entries of a given range at this
  * level
  * @addr: Start address.
  * @end: End address.
  * @level: Page table level.
  * @walk: Walk info.
  *
- * Return: The number of page table entries at this level between @start and
+ * Return: The number of page table entries at this level between @addr and
  * @end.
  */
 static inline pgoff_t
@@ -132,7 +132,7 @@ xe_pt_num_entries(u64 addr, u64 end, unsigned int level,
 }
 
 /**
- * xe_pt_offset: Offset of the page-table entry for a given address.
+ * xe_pt_offset - Offset of the page-table entry for a given address.
  * @addr: The address.
  * @level: Page table level.
  * @walk: Walk info.

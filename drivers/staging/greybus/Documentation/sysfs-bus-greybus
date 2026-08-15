@@ -26,7 +26,7 @@ Date:		March 2016
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
-		Writing a non-zero argument to this attibute disables the
+		Writing a non-zero argument to this attribute disables the
 		module's interfaces before physically ejecting it.
 
 What:		/sys/bus/greybus/devices/N-M/module_id

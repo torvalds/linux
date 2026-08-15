@@ -7,7 +7,6 @@
 
 #include <linux/err.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
@@ -188,7 +187,7 @@ static int max8998_battery_probe(struct platform_device *pdev)
 }
 
 static const struct platform_device_id max8998_battery_id[] = {
-	{ "max8998-battery", TYPE_MAX8998 },
+	{ .name = "max8998-battery" },
 	{ }
 };
 MODULE_DEVICE_TABLE(platform, max8998_battery_id);

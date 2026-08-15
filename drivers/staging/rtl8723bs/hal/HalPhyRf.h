@@ -32,7 +32,6 @@ struct txpwrtrack_cfg {
 
 void ConfigureTxpowerTrack(struct dm_odm_t *pDM_Odm, struct txpwrtrack_cfg *pConfig);
 
-
 void ODM_ClearTxPowerTrackingState(struct dm_odm_t *pDM_Odm);
 
 void ODM_TXPowerTrackingCallback_ThermalMeter(struct adapter *Adapter);

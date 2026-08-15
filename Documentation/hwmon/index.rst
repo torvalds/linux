@@ -43,6 +43,7 @@ Hardware Monitoring Kernel Drivers
    amc6821
    aps-379
    aquacomputer_d5next
+   arctic_fan_controller
    asb100
    asc7621
    aspeed-g6-pwm-tach
@@ -60,6 +61,7 @@ Hardware Monitoring Kernel Drivers
    corsair-psu
    cros_ec_hwmon
    crps
+   d1u74t
    da9052
    da9055
    dell-smm-hwmon
@@ -68,7 +70,9 @@ Hardware Monitoring Kernel Drivers
    drivetemp
    ds1621
    ds620
+   e50sn12051
    emc1403
+   emc1812
    emc2103
    emc2305
    emc6w201
@@ -145,7 +149,9 @@ Hardware Monitoring Kernel Drivers
    ltc4260
    ltc4261
    ltc4282
+   ltc4283
    ltc4286
+   lx1308
    macsmc-hwmon
    max127
    max15301
@@ -158,6 +164,8 @@ Hardware Monitoring Kernel Drivers
    max197
    max20730
    max20751
+   max20830
+   max20860a
    max31722
    max31730
    max31760
@@ -185,6 +193,7 @@ Hardware Monitoring Kernel Drivers
    mp2925
    mp29502
    mp2975
+   mp2985
    mp2993
    mp5023
    mp5920
@@ -216,6 +225,7 @@ Hardware Monitoring Kernel Drivers
    pmbus
    powerz
    powr1220
+   prom21-xhci
    pt5161l
    pxe1610
    pwm-fan

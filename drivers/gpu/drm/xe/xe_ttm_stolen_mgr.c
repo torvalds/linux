@@ -19,29 +19,10 @@
 #include "xe_device.h"
 #include "xe_gt_printk.h"
 #include "xe_mmio.h"
-#include "xe_res_cursor.h"
 #include "xe_sriov.h"
 #include "xe_ttm_stolen_mgr.h"
-#include "xe_ttm_vram_mgr.h"
 #include "xe_vram.h"
 #include "xe_wa.h"
-
-struct xe_ttm_stolen_mgr {
-	struct xe_ttm_vram_mgr base;
-
-	/* PCI base offset */
-	resource_size_t io_base;
-	/* GPU base offset */
-	resource_size_t stolen_base;
-
-	void __iomem *mapping;
-};
-
-static inline struct xe_ttm_stolen_mgr *
-to_stolen_mgr(struct ttm_resource_manager *man)
-{
-	return container_of(man, struct xe_ttm_stolen_mgr, base.manager);
-}
 
 /**
  * xe_ttm_stolen_cpu_access_needs_ggtt() - If we can't directly CPU access
@@ -210,12 +191,19 @@ static u64 detect_stolen(struct xe_device *xe, struct xe_ttm_stolen_mgr *mgr)
 #endif
 }
 
+static void xe_ttm_stolen_mgr_fini(struct drm_device *dev, void *arg)
+{
+	struct xe_device *xe = to_xe_device(dev);
+
+	ttm_range_man_fini_nocheck(&xe->ttm, XE_PL_STOLEN);
+}
+
 int xe_ttm_stolen_mgr_init(struct xe_device *xe)
 {
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
 	struct xe_ttm_stolen_mgr *mgr;
 	u64 stolen_size, io_size;
-	int err;
+	int ret;
 
 	mgr = drmm_kzalloc(&xe->drm, sizeof(*mgr), GFP_KERNEL);
 	if (!mgr)
@@ -244,12 +232,12 @@ int xe_ttm_stolen_mgr_init(struct xe_device *xe)
 	if (mgr->io_base && !xe_ttm_stolen_cpu_access_needs_ggtt(xe))
 		io_size = stolen_size;
 
-	err = __xe_ttm_vram_mgr_init(xe, &mgr->base, XE_PL_STOLEN, stolen_size,
-				     io_size, PAGE_SIZE);
-	if (err) {
-		drm_dbg_kms(&xe->drm, "Stolen mgr init failed: %i\n", err);
-		return err;
-	}
+	ret = ttm_range_man_init_nocheck(&xe->ttm, XE_PL_STOLEN, false,
+					 stolen_size >> PAGE_SHIFT);
+	if (ret)
+		return ret;
+
+	xe->mem.stolen_mgr = mgr;
 
 	drm_dbg_kms(&xe->drm, "Initialized stolen memory support with %llu bytes\n",
 		    stolen_size);
@@ -257,36 +245,32 @@ int xe_ttm_stolen_mgr_init(struct xe_device *xe)
 	if (io_size)
 		mgr->mapping = devm_ioremap_wc(&pdev->dev, mgr->io_base, io_size);
 
-	return 0;
+	return drmm_add_action_or_reset(&xe->drm, xe_ttm_stolen_mgr_fini, mgr);
 }
 
 u64 xe_ttm_stolen_io_offset(struct xe_bo *bo, u32 offset)
 {
 	struct xe_device *xe = xe_bo_device(bo);
-	struct ttm_resource_manager *ttm_mgr = ttm_manager_type(&xe->ttm, XE_PL_STOLEN);
-	struct xe_ttm_stolen_mgr *mgr = to_stolen_mgr(ttm_mgr);
-	struct xe_res_cursor cur;
+	struct xe_ttm_stolen_mgr *mgr = xe->mem.stolen_mgr;
 
 	XE_WARN_ON(!mgr->io_base);
 
 	if (xe_ttm_stolen_cpu_access_needs_ggtt(xe))
 		return mgr->io_base + xe_bo_ggtt_addr(bo) + offset;
 
-	xe_res_first(bo->ttm.resource, offset, 4096, &cur);
-	return mgr->io_base + cur.start;
+	/* Range allocator: res->start is in pages. */
+	return mgr->io_base + (bo->ttm.resource->start << PAGE_SHIFT) + offset;
 }
 
 static int __xe_ttm_stolen_io_mem_reserve_bar2(struct xe_device *xe,
 					       struct xe_ttm_stolen_mgr *mgr,
 					       struct ttm_resource *mem)
 {
-	struct xe_res_cursor cur;
-
 	if (!mgr->io_base)
 		return -EIO;
 
-	xe_res_first(mem, 0, 4096, &cur);
-	mem->bus.offset = cur.start;
+	/* Range allocator always produces contiguous allocations. */
+	mem->bus.offset = mem->start << PAGE_SHIFT;
 
 	drm_WARN_ON(&xe->drm, !(mem->placement & TTM_PL_FLAG_CONTIGUOUS));
 
@@ -329,8 +313,7 @@ static int __xe_ttm_stolen_io_mem_reserve_stolen(struct xe_device *xe,
 
 int xe_ttm_stolen_io_mem_reserve(struct xe_device *xe, struct ttm_resource *mem)
 {
-	struct ttm_resource_manager *ttm_mgr = ttm_manager_type(&xe->ttm, XE_PL_STOLEN);
-	struct xe_ttm_stolen_mgr *mgr = ttm_mgr ? to_stolen_mgr(ttm_mgr) : NULL;
+	struct xe_ttm_stolen_mgr *mgr = xe->mem.stolen_mgr;
 
 	if (!mgr || !mgr->io_base)
 		return -EIO;
@@ -343,8 +326,5 @@ int xe_ttm_stolen_io_mem_reserve(struct xe_device *xe, struct ttm_resource *mem)
 
 u64 xe_ttm_stolen_gpu_offset(struct xe_device *xe)
 {
-	struct xe_ttm_stolen_mgr *mgr =
-		to_stolen_mgr(ttm_manager_type(&xe->ttm, XE_PL_STOLEN));
-
-	return mgr->stolen_base;
+	return xe->mem.stolen_mgr->stolen_base;
 }

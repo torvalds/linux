@@ -202,29 +202,34 @@ static const struct nf_conntrack_expect_policy snmp_exp_policy = {
 	.timeout	= 180,
 };
 
-static struct nf_conntrack_helper snmp_trap_helper __read_mostly = {
-	.me			= THIS_MODULE,
-	.help			= help,
-	.expect_policy		= &snmp_exp_policy,
-	.name			= "snmp_trap",
-	.tuple.src.l3num	= AF_INET,
-	.tuple.src.u.udp.port	= cpu_to_be16(SNMP_TRAP_PORT),
-	.tuple.dst.protonum	= IPPROTO_UDP,
-};
+static struct nf_conntrack_helper snmp_trap_helper __read_mostly;
+static struct nf_conntrack_helper *snmp_trap_helper_ptr __read_mostly;
 
 static int __init nf_nat_snmp_basic_init(void)
 {
+	int err;
+
 	BUG_ON(nf_nat_snmp_hook != NULL);
 	RCU_INIT_POINTER(nf_nat_snmp_hook, help);
 
-	return nf_conntrack_helper_register(&snmp_trap_helper);
+	nf_ct_helper_init(&snmp_trap_helper, AF_INET, IPPROTO_UDP,
+			  "snmp_trap", SNMP_TRAP_PORT, SNMP_TRAP_PORT, SNMP_TRAP_PORT,
+			  &snmp_exp_policy, 0, help, NULL, THIS_MODULE);
+
+	err = nf_conntrack_helper_register(&snmp_trap_helper, &snmp_trap_helper_ptr);
+	if (err < 0) {
+		RCU_INIT_POINTER(nf_nat_snmp_hook, NULL);
+		return err;
+	}
+
+	return 0;
 }
 
 static void __exit nf_nat_snmp_basic_fini(void)
 {
 	RCU_INIT_POINTER(nf_nat_snmp_hook, NULL);
 	synchronize_rcu();
-	nf_conntrack_helper_unregister(&snmp_trap_helper);
+	nf_conntrack_helper_unregister(snmp_trap_helper_ptr);
 }
 
 module_init(nf_nat_snmp_basic_init);

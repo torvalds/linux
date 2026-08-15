@@ -22,19 +22,6 @@
  * Domenico Andreoli : cavokz@gmail.com
  */
 
-
-/*
- * Set this to zero to disable DMA code
- *
- * Note that even if DMA is turned off we still support the 'dma' and  'use_dma'
- * module options so we don't break any startup scripts.
- */
-#ifndef CONFIG_ISA_DMA_API
-#define ALLOW_DMA	0
-#else
-#define ALLOW_DMA	1
-#endif
-
 /*
  * Set this to zero to remove all the debug statements via
  * dead code elimination
@@ -71,13 +58,8 @@
 #include <linux/gfp.h>
 #include <linux/io.h>
 
-#include <net/Space.h>
-
 #include <asm/irq.h>
 #include <linux/atomic.h>
-#if ALLOW_DMA
-#include <asm/dma.h>
-#endif
 
 #include "cs89x0.h"
 
@@ -91,30 +73,6 @@ static char version[] __initdata =
 	"v2.4.3-pre1 Russell Nelson <nelson@crynwr.com>, Andrew Morton";
 
 #define DRV_NAME "cs89x0"
-
-/* First, a few definitions that the brave might change.
- * A zero-terminated list of I/O addresses to be probed. Some special flags..
- * Addr & 1 = Read back the address port, look for signature and reset
- * the page window before probing
- * Addr & 3 = Reset the page window and probe
- * The CLPS eval board has the Cirrus chip at 0x80090300, in ARM IO space,
- * but it is possible that a Cirrus board could be plugged into the ISA
- * slots.
- */
-/* The cs8900 has 4 IRQ pins, software selectable. cs8900_irq_map maps
- * them to system IRQ numbers. This mapping is card specific and is set to
- * the configuration of the Cirrus Eval board for this chip.
- */
-#if IS_ENABLED(CONFIG_CS89x0_ISA)
-static unsigned int netcard_portlist[] __used __initdata = {
-	0x300, 0x320, 0x340, 0x360, 0x200, 0x220, 0x240,
-	0x260, 0x280, 0x2a0, 0x2c0, 0x2e0, 0
-};
-static unsigned int cs8900_irq_map[] = {
-	10, 11, 12, 5
-};
-#endif
-
 #if DEBUGGING
 static unsigned int net_debug = DEBUGGING;
 #else
@@ -149,14 +107,6 @@ struct net_local {
 	int force;		/* force various values; see FORCE* above. */
 	spinlock_t lock;
 	void __iomem *virt_addr;/* CS89x0 virtual address. */
-#if ALLOW_DMA
-	int use_dma;		/* Flag: we're using dma */
-	int dma;		/* DMA channel */
-	int dmasize;		/* 16 or 64 */
-	unsigned char *dma_buff;	/* points to the beginning of the buffer */
-	unsigned char *end_dma_buff;	/* points to the end of the buffer */
-	unsigned char *rx_dma_ptr;	/* points to the next packet  */
-#endif
 };
 
 /* Example routines you must write ;->. */
@@ -166,18 +116,6 @@ struct net_local {
  * Permit 'cs89x0_dma=N' in the kernel boot environment
  */
 #if !defined(MODULE)
-#if ALLOW_DMA
-static int g_cs89x0_dma;
-
-static int __init dma_fn(char *str)
-{
-	g_cs89x0_dma = simple_strtol(str, NULL, 0);
-	return 1;
-}
-
-__setup("cs89x0_dma=", dma_fn);
-#endif	/* ALLOW_DMA */
-
 static int g_cs89x0_media__force;
 
 static int __init media_fn(char *str)
@@ -290,22 +228,9 @@ get_eeprom_cksum(int off, int len, int *buffer)
 static void
 write_irq(struct net_device *dev, int chip_type, int irq)
 {
-	int i;
-
 	if (chip_type == CS8900) {
-#if IS_ENABLED(CONFIG_CS89x0_ISA)
-		/* Search the mapping table for the corresponding IRQ pin. */
-		for (i = 0; i != ARRAY_SIZE(cs8900_irq_map); i++)
-			if (cs8900_irq_map[i] == irq)
-				break;
-		/* Not found */
-		if (i == ARRAY_SIZE(cs8900_irq_map))
-			i = 3;
-#else
 		/* INTRQ0 pin is used for interrupt generation. */
-		i = 0;
-#endif
-		writereg(dev, PP_CS8900_ISAINT, i);
+		writereg(dev, PP_CS8900_ISAINT, 0);
 	} else {
 		writereg(dev, PP_CS8920_ISAINT, irq);
 	}
@@ -325,163 +250,6 @@ count_rx_errors(int status, struct net_device *dev)
 	if (status & RX_DRIBBLE)
 		dev->stats.rx_frame_errors++;
 }
-
-/*********************************
- * This page contains DMA routines
- *********************************/
-
-#if ALLOW_DMA
-
-#define dma_page_eq(ptr1, ptr2) ((long)(ptr1) >> 17 == (long)(ptr2) >> 17)
-
-static void
-get_dma_channel(struct net_device *dev)
-{
-	struct net_local *lp = netdev_priv(dev);
-
-	if (lp->dma) {
-		dev->dma = lp->dma;
-		lp->isa_config |= ISA_RxDMA;
-	} else {
-		if ((lp->isa_config & ANY_ISA_DMA) == 0)
-			return;
-		dev->dma = lp->isa_config & DMA_NO_MASK;
-		if (lp->chip_type == CS8900)
-			dev->dma += 5;
-		if (dev->dma < 5 || dev->dma > 7) {
-			lp->isa_config &= ~ANY_ISA_DMA;
-			return;
-		}
-	}
-}
-
-static void
-write_dma(struct net_device *dev, int chip_type, int dma)
-{
-	struct net_local *lp = netdev_priv(dev);
-	if ((lp->isa_config & ANY_ISA_DMA) == 0)
-		return;
-	if (chip_type == CS8900)
-		writereg(dev, PP_CS8900_ISADMA, dma - 5);
-	else
-		writereg(dev, PP_CS8920_ISADMA, dma);
-}
-
-static void
-set_dma_cfg(struct net_device *dev)
-{
-	struct net_local *lp = netdev_priv(dev);
-
-	if (lp->use_dma) {
-		if ((lp->isa_config & ANY_ISA_DMA) == 0) {
-			cs89_dbg(3, err, "set_dma_cfg(): no DMA\n");
-			return;
-		}
-		if (lp->isa_config & ISA_RxDMA) {
-			lp->curr_rx_cfg |= RX_DMA_ONLY;
-			cs89_dbg(3, info, "set_dma_cfg(): RX_DMA_ONLY\n");
-		} else {
-			lp->curr_rx_cfg |= AUTO_RX_DMA;	/* not that we support it... */
-			cs89_dbg(3, info, "set_dma_cfg(): AUTO_RX_DMA\n");
-		}
-	}
-}
-
-static int
-dma_bufcfg(struct net_device *dev)
-{
-	struct net_local *lp = netdev_priv(dev);
-	if (lp->use_dma)
-		return (lp->isa_config & ANY_ISA_DMA) ? RX_DMA_ENBL : 0;
-	else
-		return 0;
-}
-
-static int
-dma_busctl(struct net_device *dev)
-{
-	int retval = 0;
-	struct net_local *lp = netdev_priv(dev);
-	if (lp->use_dma) {
-		if (lp->isa_config & ANY_ISA_DMA)
-			retval |= RESET_RX_DMA; /* Reset the DMA pointer */
-		if (lp->isa_config & DMA_BURST)
-			retval |= DMA_BURST_MODE; /* Does ISA config specify DMA burst ? */
-		if (lp->dmasize == 64)
-			retval |= RX_DMA_SIZE_64K; /* did they ask for 64K? */
-		retval |= MEMORY_ON;	/* we need memory enabled to use DMA. */
-	}
-	return retval;
-}
-
-static void
-dma_rx(struct net_device *dev)
-{
-	struct net_local *lp = netdev_priv(dev);
-	struct sk_buff *skb;
-	int status, length;
-	unsigned char *bp = lp->rx_dma_ptr;
-
-	status = bp[0] + (bp[1] << 8);
-	length = bp[2] + (bp[3] << 8);
-	bp += 4;
-
-	cs89_dbg(5, debug, "%s: receiving DMA packet at %lx, status %x, length %x\n",
-		 dev->name, (unsigned long)bp, status, length);
-
-	if ((status & RX_OK) == 0) {
-		count_rx_errors(status, dev);
-		goto skip_this_frame;
-	}
-
-	/* Malloc up new buffer. */
-	skb = netdev_alloc_skb(dev, length + 2);
-	if (skb == NULL) {
-		dev->stats.rx_dropped++;
-
-		/* AKPM: advance bp to the next frame */
-skip_this_frame:
-		bp += (length + 3) & ~3;
-		if (bp >= lp->end_dma_buff)
-			bp -= lp->dmasize * 1024;
-		lp->rx_dma_ptr = bp;
-		return;
-	}
-	skb_reserve(skb, 2);	/* longword align L3 header */
-
-	if (bp + length > lp->end_dma_buff) {
-		int semi_cnt = lp->end_dma_buff - bp;
-		skb_put_data(skb, bp, semi_cnt);
-		skb_put_data(skb, lp->dma_buff, length - semi_cnt);
-	} else {
-		skb_put_data(skb, bp, length);
-	}
-	bp += (length + 3) & ~3;
-	if (bp >= lp->end_dma_buff)
-		bp -= lp->dmasize*1024;
-	lp->rx_dma_ptr = bp;
-
-	cs89_dbg(3, info, "%s: received %d byte DMA packet of type %x\n",
-		 dev->name, length,
-		 ((skb->data[ETH_ALEN + ETH_ALEN] << 8) |
-		  skb->data[ETH_ALEN + ETH_ALEN + 1]));
-
-	skb->protocol = eth_type_trans(skb, dev);
-	netif_rx(skb);
-	dev->stats.rx_packets++;
-	dev->stats.rx_bytes += length;
-}
-
-static void release_dma_buff(struct net_local *lp)
-{
-	if (lp->dma_buff) {
-		free_pages((unsigned long)(lp->dma_buff),
-			   get_order(lp->dmasize * 1024));
-		lp->dma_buff = NULL;
-	}
-}
-
-#endif	/* ALLOW_DMA */
 
 static void
 control_dc_dc(struct net_device *dev, int on_not_off)
@@ -781,27 +549,6 @@ static irqreturn_t net_interrupt(int irq, void *dev_id)
 				 */
 				netif_wake_queue(dev);	/* Inform upper layers. */
 			}
-#if ALLOW_DMA
-			if (lp->use_dma && (status & RX_DMA)) {
-				int count = readreg(dev, PP_DmaFrameCnt);
-				while (count) {
-					cs89_dbg(5, debug,
-						 "%s: receiving %d DMA frames\n",
-						 dev->name, count);
-					if (count > 1)
-						cs89_dbg(2, debug,
-							 "%s: receiving %d DMA frames\n",
-							 dev->name, count);
-					dma_rx(dev);
-					if (--count == 0)
-						count = readreg(dev, PP_DmaFrameCnt);
-					if (count > 0)
-						cs89_dbg(2, debug,
-							 "%s: continuing with %d DMA frames\n",
-							 dev->name, count);
-				}
-			}
-#endif
 			break;
 		case ISQ_RX_MISS_EVENT:
 			dev->stats.rx_missed_errors += (status >> 6);
@@ -860,14 +607,6 @@ net_open(struct net_device *dev)
 			goto bad_out;
 		}
 	} else {
-#if IS_ENABLED(CONFIG_CS89x0_ISA)
-		if (((1 << dev->irq) & lp->irq_map) == 0) {
-			pr_err("%s: IRQ %d is not in our map of allowable IRQs, which is %x\n",
-			       dev->name, dev->irq, lp->irq_map);
-			ret = -EAGAIN;
-			goto bad_out;
-		}
-#endif
 /* FIXME: Cirrus' release had this: */
 		writereg(dev, PP_BusCTL, readreg(dev, PP_BusCTL)|ENABLE_IRQ);
 /* And 2.3.47 had this: */
@@ -881,46 +620,6 @@ net_open(struct net_device *dev)
 			goto bad_out;
 		}
 	}
-
-#if ALLOW_DMA
-	if (lp->use_dma && (lp->isa_config & ANY_ISA_DMA)) {
-		unsigned long flags;
-		lp->dma_buff = (unsigned char *)__get_dma_pages(GFP_KERNEL,
-								get_order(lp->dmasize * 1024));
-		if (!lp->dma_buff) {
-			pr_err("%s: cannot get %dK memory for DMA\n",
-			       dev->name, lp->dmasize);
-			goto release_irq;
-		}
-		cs89_dbg(1, debug, "%s: dma %lx %lx\n",
-			 dev->name,
-			 (unsigned long)lp->dma_buff,
-			 (unsigned long)isa_virt_to_bus(lp->dma_buff));
-		if ((unsigned long)lp->dma_buff >= MAX_DMA_ADDRESS ||
-		    !dma_page_eq(lp->dma_buff,
-				 lp->dma_buff + lp->dmasize * 1024 - 1)) {
-			pr_err("%s: not usable as DMA buffer\n", dev->name);
-			goto release_irq;
-		}
-		memset(lp->dma_buff, 0, lp->dmasize * 1024);	/* Why? */
-		if (request_dma(dev->dma, dev->name)) {
-			pr_err("%s: cannot get dma channel %d\n",
-			       dev->name, dev->dma);
-			goto release_irq;
-		}
-		write_dma(dev, lp->chip_type, dev->dma);
-		lp->rx_dma_ptr = lp->dma_buff;
-		lp->end_dma_buff = lp->dma_buff + lp->dmasize * 1024;
-		spin_lock_irqsave(&lp->lock, flags);
-		disable_dma(dev->dma);
-		clear_dma_ff(dev->dma);
-		set_dma_mode(dev->dma, DMA_RX_MODE); /* auto_init as well */
-		set_dma_addr(dev->dma, isa_virt_to_bus(lp->dma_buff));
-		set_dma_count(dev->dma, lp->dmasize * 1024);
-		enable_dma(dev->dma);
-		spin_unlock_irqrestore(&lp->lock, flags);
-	}
-#endif	/* ALLOW_DMA */
 
 	/* set the Ethernet address */
 	for (i = 0; i < ETH_ALEN / 2; i++)
@@ -958,11 +657,6 @@ net_open(struct net_device *dev)
 		pr_err("%s: EEPROM is configured for unavailable media\n",
 		       dev->name);
 release_dma:
-#if ALLOW_DMA
-		free_dma(dev->dma);
-release_irq:
-		release_dma_buff(lp);
-#endif
 		writereg(dev, PP_LineCTL,
 			 readreg(dev, PP_LineCTL) & ~(SERIAL_TX_ON | SERIAL_RX_ON));
 		free_irq(dev->irq, dev);
@@ -1048,9 +742,6 @@ release_irq:
 
 	if (lp->isa_config & STREAM_TRANSFER)
 		lp->curr_rx_cfg |= RX_STREAM_ENBL;
-#if ALLOW_DMA
-	set_dma_cfg(dev);
-#endif
 	writereg(dev, PP_RxCFG, lp->curr_rx_cfg);
 
 	writereg(dev, PP_TxCFG, (TX_LOST_CRS_ENBL |
@@ -1063,19 +754,12 @@ release_irq:
 
 	writereg(dev, PP_BufCFG, (READY_FOR_TX_ENBL |
 				  RX_MISS_COUNT_OVRFLOW_ENBL |
-#if ALLOW_DMA
-				  dma_bufcfg(dev) |
-#endif
 				  TX_COL_COUNT_OVRFLOW_ENBL |
 				  TX_UNDERRUN_ENBL));
 
 	/* now that we've got our act together, enable everything */
-	writereg(dev, PP_BusCTL, (ENABLE_IRQ
-				  | (dev->mem_start ? MEMORY_ON : 0) /* turn memory on */
-#if ALLOW_DMA
-				  | dma_busctl(dev)
-#endif
-			 ));
+	writereg(dev, PP_BusCTL,
+		 (ENABLE_IRQ | (dev->mem_start ? MEMORY_ON : 0))); /* turn memory on */
 	netif_start_queue(dev);
 	cs89_dbg(1, debug, "net_open() succeeded\n");
 	return 0;
@@ -1087,10 +771,6 @@ bad_out:
 static int
 net_close(struct net_device *dev)
 {
-#if ALLOW_DMA
-	struct net_local *lp = netdev_priv(dev);
-#endif
-
 	netif_stop_queue(dev);
 
 	writereg(dev, PP_RxCFG, 0);
@@ -1099,13 +779,6 @@ net_close(struct net_device *dev)
 	writereg(dev, PP_BusCTL, 0);
 
 	free_irq(dev->irq, dev);
-
-#if ALLOW_DMA
-	if (lp->use_dma && lp->dma) {
-		free_dma(dev->dma);
-		release_dma_buff(lp);
-	}
-#endif
 
 	/* Update the statistics here. */
 	return 0;
@@ -1321,13 +994,6 @@ cs89x0_probe1(struct net_device *dev, void __iomem *ioaddr, int modular)
 		memset(lp, 0, sizeof(*lp));
 		spin_lock_init(&lp->lock);
 #ifndef MODULE
-#if ALLOW_DMA
-		if (g_cs89x0_dma) {
-			lp->use_dma = 1;
-			lp->dma = g_cs89x0_dma;
-			lp->dmasize = 16;	/* Could make this an option... */
-		}
-#endif
 		lp->force = g_cs89x0_media__force;
 #endif
 	}
@@ -1525,40 +1191,12 @@ cs89x0_probe1(struct net_device *dev, void __iomem *ioaddr, int modular)
 			dev->irq = i;
 	} else {
 		i = lp->isa_config & INT_NO_MASK;
-#if IS_ENABLED(CONFIG_CS89x0_ISA)
-		if (lp->chip_type == CS8900) {
-			/* Translate the IRQ using the IRQ mapping table. */
-			if (i >= ARRAY_SIZE(cs8900_irq_map))
-				pr_err("invalid ISA interrupt number %d\n", i);
-			else
-				i = cs8900_irq_map[i];
-
-			lp->irq_map = CS8900_IRQ_MAP; /* fixed IRQ map for CS8900 */
-		} else {
-			int irq_map_buff[IRQ_MAP_LEN/2];
-
-			if (get_eeprom_data(dev, IRQ_MAP_EEPROM_DATA,
-					    IRQ_MAP_LEN / 2,
-					    irq_map_buff) >= 0) {
-				if ((irq_map_buff[0] & 0xff) == PNP_IRQ_FRMT)
-					lp->irq_map = ((irq_map_buff[0] >> 8) |
-						       (irq_map_buff[1] << 8));
-			}
-		}
-#endif
 		if (!dev->irq)
 			dev->irq = i;
 	}
 
 	pr_cont(" IRQ %d", dev->irq);
-
-#if ALLOW_DMA
-	if (lp->use_dma) {
-		get_dma_channel(dev);
-		pr_cont(", DMA %d", dev->dma);
-	} else
-#endif
-		pr_cont(", programmed I/O");
+	pr_cont(", programmed I/O");
 
 	/* print the ethernet address. */
 	pr_cont(", MAC %pM\n", dev->dev_addr);
@@ -1578,270 +1216,6 @@ out1:
 	return retval;
 }
 
-#if IS_ENABLED(CONFIG_CS89x0_ISA)
-/*
- * This function converts the I/O port address used by the cs89x0_probe() and
- * init_module() functions to the I/O memory address used by the
- * cs89x0_probe1() function.
- */
-static int __init
-cs89x0_ioport_probe(struct net_device *dev, unsigned long ioport, int modular)
-{
-	struct net_local *lp = netdev_priv(dev);
-	int ret;
-	void __iomem *io_mem;
-
-	if (!lp)
-		return -ENOMEM;
-
-	dev->base_addr = ioport;
-
-	if (!request_region(ioport, NETCARD_IO_EXTENT, DRV_NAME)) {
-		ret = -EBUSY;
-		goto out;
-	}
-
-	io_mem = ioport_map(ioport & ~3, NETCARD_IO_EXTENT);
-	if (!io_mem) {
-		ret = -ENOMEM;
-		goto release;
-	}
-
-	/* if they give us an odd I/O address, then do ONE write to
-	 * the address port, to get it back to address zero, where we
-	 * expect to find the EISA signature word. An IO with a base of 0x3
-	 * will skip the test for the ADD_PORT.
-	 */
-	if (ioport & 1) {
-		cs89_dbg(1, info, "%s: odd ioaddr 0x%lx\n", dev->name, ioport);
-		if ((ioport & 2) != 2) {
-			if ((ioread16(io_mem + ADD_PORT) & ADD_MASK) !=
-			    ADD_SIG) {
-				pr_err("%s: bad signature 0x%x\n",
-				       dev->name, ioread16(io_mem + ADD_PORT));
-				ret = -ENODEV;
-				goto unmap;
-			}
-		}
-	}
-
-	ret = cs89x0_probe1(dev, io_mem, modular);
-	if (!ret)
-		goto out;
-unmap:
-	ioport_unmap(io_mem);
-release:
-	release_region(ioport, NETCARD_IO_EXTENT);
-out:
-	return ret;
-}
-
-#ifndef MODULE
-/* Check for a network adaptor of this type, and return '0' iff one exists.
- * If dev->base_addr == 0, probe all likely locations.
- * If dev->base_addr == 1, always return failure.
- * If dev->base_addr == 2, allocate space for the device and return success
- * (detachable devices only).
- * Return 0 on success.
- */
-
-struct net_device * __init cs89x0_probe(int unit)
-{
-	struct net_device *dev = alloc_etherdev(sizeof(struct net_local));
-	unsigned *port;
-	int err = 0;
-	int irq;
-	int io;
-
-	if (!dev)
-		return ERR_PTR(-ENODEV);
-
-	sprintf(dev->name, "eth%d", unit);
-	netdev_boot_setup_check(dev);
-	io = dev->base_addr;
-	irq = dev->irq;
-
-	cs89_dbg(0, info, "cs89x0_probe(0x%x)\n", io);
-
-	if (io > 0x1ff)	{	/* Check a single specified location. */
-		err = cs89x0_ioport_probe(dev, io, 0);
-	} else if (io != 0) {	/* Don't probe at all. */
-		err = -ENXIO;
-	} else {
-		for (port = netcard_portlist; *port; port++) {
-			if (cs89x0_ioport_probe(dev, *port, 0) == 0)
-				break;
-			dev->irq = irq;
-		}
-		if (!*port)
-			err = -ENODEV;
-	}
-	if (err)
-		goto out;
-	return dev;
-out:
-	free_netdev(dev);
-	pr_warn("no cs8900 or cs8920 detected.  Be sure to disable PnP with SETUP\n");
-	return ERR_PTR(err);
-}
-#else
-static struct net_device *dev_cs89x0;
-
-/* Support the 'debug' module parm even if we're compiled for non-debug to
- * avoid breaking someone's startup scripts
- */
-
-static int io;
-static int irq;
-static int debug;
-static char media[8];
-static int duplex = -1;
-
-static int use_dma;			/* These generate unused var warnings if ALLOW_DMA = 0 */
-static int dma;
-static int dmasize = 16;		/* or 64 */
-
-module_param_hw(io, int, ioport, 0);
-module_param_hw(irq, int, irq, 0);
-module_param(debug, int, 0);
-module_param_string(media, media, sizeof(media), 0);
-module_param(duplex, int, 0);
-module_param_hw(dma , int, dma, 0);
-module_param(dmasize , int, 0);
-module_param(use_dma , int, 0);
-MODULE_PARM_DESC(io, "cs89x0 I/O base address");
-MODULE_PARM_DESC(irq, "cs89x0 IRQ number");
-#if DEBUGGING
-MODULE_PARM_DESC(debug, "cs89x0 debug level (0-6)");
-#else
-MODULE_PARM_DESC(debug, "(ignored)");
-#endif
-MODULE_PARM_DESC(media, "Set cs89x0 adapter(s) media type(s) (rj45,bnc,aui)");
-/* No other value than -1 for duplex seems to be currently interpreted */
-MODULE_PARM_DESC(duplex, "(ignored)");
-#if ALLOW_DMA
-MODULE_PARM_DESC(dma , "cs89x0 ISA DMA channel; ignored if use_dma=0");
-MODULE_PARM_DESC(dmasize , "cs89x0 DMA size in kB (16,64); ignored if use_dma=0");
-MODULE_PARM_DESC(use_dma , "cs89x0 using DMA (0-1)");
-#else
-MODULE_PARM_DESC(dma , "(ignored)");
-MODULE_PARM_DESC(dmasize , "(ignored)");
-MODULE_PARM_DESC(use_dma , "(ignored)");
-#endif
-
-MODULE_AUTHOR("Mike Cruse, Russwll Nelson <nelson@crynwr.com>, Andrew Morton");
-MODULE_LICENSE("GPL");
-
-/*
- * media=t             - specify media type
- * or media=2
- * or media=aui
- * or medai=auto
- * duplex=0            - specify forced half/full/autonegotiate duplex
- * debug=#             - debug level
- *
- * Default Chip Configuration:
- * DMA Burst = enabled
- * IOCHRDY Enabled = enabled
- * UseSA = enabled
- * CS8900 defaults to half-duplex if not specified on command-line
- * CS8920 defaults to autoneg if not specified on command-line
- * Use reset defaults for other config parameters
- *
- * Assumptions:
- * media type specified is supported (circuitry is present)
- * if memory address is > 1MB, then required mem decode hw is present
- * if 10B-2, then agent other than driver will enable DC/DC converter
- * (hw or software util)
- */
-
-static int __init cs89x0_isa_init_module(void)
-{
-	struct net_device *dev;
-	struct net_local *lp;
-	int ret = 0;
-
-#if DEBUGGING
-	net_debug = debug;
-#else
-	debug = 0;
-#endif
-	dev = alloc_etherdev(sizeof(struct net_local));
-	if (!dev)
-		return -ENOMEM;
-
-	dev->irq = irq;
-	dev->base_addr = io;
-	lp = netdev_priv(dev);
-
-#if ALLOW_DMA
-	if (use_dma) {
-		lp->use_dma = use_dma;
-		lp->dma = dma;
-		lp->dmasize = dmasize;
-	}
-#endif
-
-	spin_lock_init(&lp->lock);
-
-	/* boy, they'd better get these right */
-	if (!strcmp(media, "rj45"))
-		lp->adapter_cnf = A_CNF_MEDIA_10B_T | A_CNF_10B_T;
-	else if (!strcmp(media, "aui"))
-		lp->adapter_cnf = A_CNF_MEDIA_AUI   | A_CNF_AUI;
-	else if (!strcmp(media, "bnc"))
-		lp->adapter_cnf = A_CNF_MEDIA_10B_2 | A_CNF_10B_2;
-	else
-		lp->adapter_cnf = A_CNF_MEDIA_10B_T | A_CNF_10B_T;
-
-	if (duplex == -1)
-		lp->auto_neg_cnf = AUTO_NEG_ENABLE;
-
-	if (io == 0) {
-		pr_err("Module autoprobing not allowed\n");
-		pr_err("Append io=0xNNN\n");
-		ret = -EPERM;
-		goto out;
-	} else if (io <= 0x1ff) {
-		ret = -ENXIO;
-		goto out;
-	}
-
-#if ALLOW_DMA
-	if (use_dma && dmasize != 16 && dmasize != 64) {
-		pr_err("dma size must be either 16K or 64K, not %dK\n",
-		       dmasize);
-		ret = -EPERM;
-		goto out;
-	}
-#endif
-	ret = cs89x0_ioport_probe(dev, io, 1);
-	if (ret)
-		goto out;
-
-	dev_cs89x0 = dev;
-	return 0;
-out:
-	free_netdev(dev);
-	return ret;
-}
-module_init(cs89x0_isa_init_module);
-
-static void __exit cs89x0_isa_cleanup_module(void)
-{
-	struct net_local *lp = netdev_priv(dev_cs89x0);
-
-	unregister_netdev(dev_cs89x0);
-	iowrite16(PP_ChipID, lp->virt_addr + ADD_PORT);
-	ioport_unmap(lp->virt_addr);
-	release_region(dev_cs89x0->base_addr, NETCARD_IO_EXTENT);
-	free_netdev(dev_cs89x0);
-}
-module_exit(cs89x0_isa_cleanup_module);
-#endif /* MODULE */
-#endif /* CONFIG_CS89x0_ISA */
-
-#if IS_ENABLED(CONFIG_CS89x0_PLATFORM)
 static int __init cs89x0_platform_probe(struct platform_device *pdev)
 {
 	struct net_device *dev = alloc_etherdev(sizeof(struct net_local));
@@ -1905,8 +1279,6 @@ static struct platform_driver cs89x0_driver = {
 };
 
 module_platform_driver_probe(cs89x0_driver, cs89x0_platform_probe);
-
-#endif /* CONFIG_CS89x0_PLATFORM */
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Crystal Semiconductor (Now Cirrus Logic) CS89[02]0 network driver");

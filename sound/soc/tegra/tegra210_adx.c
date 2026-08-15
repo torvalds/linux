@@ -4,10 +4,10 @@
 //
 // tegra210_adx.c - Tegra210 ADX driver
 
+#include <linux/bits.h>
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/io.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
@@ -47,7 +47,11 @@ static const struct reg_default tegra264_adx_reg_defaults[] = {
 
 static void tegra210_adx_write_map_ram(struct tegra210_adx *adx)
 {
+	const unsigned int bits_per_mask = BITS_PER_TYPE(*adx->byte_mask);
 	int i;
+
+	memset(adx->byte_mask, 0,
+	       adx->soc_data->byte_mask_size * sizeof(*adx->byte_mask));
 
 	regmap_write(adx->regmap, TEGRA210_ADX_CFG_RAM_CTRL +
 			adx->soc_data->cya_offset,
@@ -55,10 +59,24 @@ static void tegra210_adx_write_map_ram(struct tegra210_adx *adx)
 		     TEGRA210_ADX_CFG_RAM_CTRL_ADDR_INIT_EN |
 		     TEGRA210_ADX_CFG_RAM_CTRL_RW_WRITE);
 
-	for (i = 0; i < adx->soc_data->ram_depth; i++)
+	for (i = 0; i < adx->soc_data->ram_depth; i++) {
+		u32 word = 0;
+		int b;
+
+		for (b = 0; b < TEGRA_ADX_SLOTS_PER_WORD; b++) {
+			unsigned int slot = i * TEGRA_ADX_SLOTS_PER_WORD + b;
+			u16 val = adx->map[slot];
+
+			if (val >= 256)
+				continue;
+
+			word |= (u32)val << (b * BITS_PER_BYTE);
+			adx->byte_mask[slot / bits_per_mask] |=
+				1U << (slot % bits_per_mask);
+		}
 		regmap_write(adx->regmap, TEGRA210_ADX_CFG_RAM_DATA +
-				adx->soc_data->cya_offset,
-			     adx->map[i]);
+				adx->soc_data->cya_offset, word);
+	}
 
 	for (i = 0; i < adx->soc_data->byte_mask_size; i++)
 		regmap_write(adx->regmap,
@@ -192,27 +210,10 @@ static int tegra210_adx_get_byte_map(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *cmpnt = snd_kcontrol_chip(kcontrol);
 	struct tegra210_adx *adx = snd_soc_component_get_drvdata(cmpnt);
-	struct soc_mixer_control *mc;
-	unsigned char *bytes_map = (unsigned char *)adx->map;
-	int enabled;
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
 
-	mc = (struct soc_mixer_control *)kcontrol->private_value;
-	enabled = adx->byte_mask[mc->reg / 32] & (1 << (mc->reg % 32));
-
-	/*
-	 * TODO: Simplify this logic to just return from bytes_map[]
-	 *
-	 * Presently below is required since bytes_map[] is
-	 * tightly packed and cannot store the control value of 256.
-	 * Byte mask state is used to know if 256 needs to be returned.
-	 * Note that for control value of 256, the put() call stores 0
-	 * in the bytes_map[] and disables the corresponding bit in
-	 * byte_mask[].
-	 */
-	if (enabled)
-		ucontrol->value.integer.value[0] = bytes_map[mc->reg];
-	else
-		ucontrol->value.integer.value[0] = 256;
+	ucontrol->value.integer.value[0] = adx->map[mc->reg];
 
 	return 0;
 }
@@ -222,23 +223,22 @@ static int tegra210_adx_put_byte_map(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *cmpnt = snd_kcontrol_chip(kcontrol);
 	struct tegra210_adx *adx = snd_soc_component_get_drvdata(cmpnt);
-	unsigned char *bytes_map = (unsigned char *)adx->map;
-	int value = ucontrol->value.integer.value[0];
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
-	unsigned int mask_val = adx->byte_mask[mc->reg / 32];
+	unsigned int value = ucontrol->value.integer.value[0];
 
-	if (value >= 0 && value <= 255)
-		mask_val |= (1 << (mc->reg % 32));
-	else
-		mask_val &= ~(1 << (mc->reg % 32));
+	/*
+	 * Match the previous behaviour: any value outside [0, 255] is
+	 * treated as the "disabled" sentinel (256). Negative values from
+	 * userspace fold in through the unsigned cast and are caught here.
+	 */
+	if (value > 255)
+		value = 256;
 
-	if (mask_val == adx->byte_mask[mc->reg / 32])
+	if (adx->map[mc->reg] == value)
 		return 0;
 
-	/* Update byte map and slot */
-	bytes_map[mc->reg] = value % 256;
-	adx->byte_mask[mc->reg / 32] = mask_val;
+	adx->map[mc->reg] = value;
 
 	return 1;
 }
@@ -676,17 +676,15 @@ static int tegra210_adx_platform_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct tegra210_adx *adx;
-	const struct of_device_id *match;
-	struct tegra210_adx_soc_data *soc_data;
+	const struct tegra210_adx_soc_data *soc_data;
 	void __iomem *regs;
-	int err;
+	int err, i;
 
 	adx = devm_kzalloc(dev, sizeof(*adx), GFP_KERNEL);
 	if (!adx)
 		return -ENOMEM;
 
-	match = of_match_device(tegra210_adx_of_match, dev);
-	soc_data = (struct tegra210_adx_soc_data *)match->data;
+	soc_data = of_device_get_match_data(dev);
 	adx->soc_data = soc_data;
 
 	dev_set_drvdata(dev, adx);
@@ -703,16 +701,20 @@ static int tegra210_adx_platform_probe(struct platform_device *pdev)
 
 	regcache_cache_only(adx->regmap, true);
 
-	adx->map = devm_kzalloc(dev, soc_data->ram_depth * sizeof(*adx->map),
-				GFP_KERNEL);
+	adx->map = devm_kcalloc(dev,
+				soc_data->ram_depth * TEGRA_ADX_SLOTS_PER_WORD,
+				sizeof(*adx->map), GFP_KERNEL);
 	if (!adx->map)
 		return -ENOMEM;
 
-	adx->byte_mask = devm_kzalloc(dev,
-				      soc_data->byte_mask_size * sizeof(*adx->byte_mask),
-				      GFP_KERNEL);
+	adx->byte_mask = devm_kcalloc(dev, soc_data->byte_mask_size,
+				      sizeof(*adx->byte_mask), GFP_KERNEL);
 	if (!adx->byte_mask)
 		return -ENOMEM;
+
+	/* Initialise all byte map slots as disabled (value 256). */
+	for (i = 0; i < soc_data->ram_depth * TEGRA_ADX_SLOTS_PER_WORD; i++)
+		adx->map[i] = 256;
 
 	tegra210_adx_dais[TEGRA_ADX_IN_DAI_ID].playback.channels_max =
 			adx->soc_data->max_ch;

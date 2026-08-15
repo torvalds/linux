@@ -1123,9 +1123,8 @@ ia_css_debug_pipe_graph_dump_prologue(void)
 
 void ia_css_debug_pipe_graph_dump_epilogue(void)
 {
-	if (strlen(ring_buffer) > 0) {
+	if (strlen(ring_buffer) > 0)
 		dtrace_dot(ring_buffer);
-	}
 
 	if (pg_inst.stream_format != N_ATOMISP_INPUT_FORMAT) {
 		/* An input stream format has been set so assume we have
@@ -1256,8 +1255,7 @@ ia_css_debug_pipe_graph_dump_stage(
 				while (ei[p] != ',')
 					p--;
 				/* Last comma found, copy till that comma */
-				strscpy(enable_info1, ei,
-                                        p > sizeof(enable_info1) ? sizeof(enable_info1) : p);
+				strscpy(enable_info1, ei, umin(p, sizeof(enable_info1)));
 
 				ei += p + 1;
 				l = strlen(ei);
@@ -1268,8 +1266,7 @@ ia_css_debug_pipe_graph_dump_stage(
 					 * it is not guaranteed dword aligned
 					 */
 
-					strscpy(enable_info2, ei,
-						l > sizeof(enable_info2) ? sizeof(enable_info2) : l);
+					strscpy(enable_info2, ei, umin(l, sizeof(enable_info2)));
 
 					snprintf(enable_info, sizeof(enable_info), "%s\\n%s",
 						 enable_info1, enable_info2);
@@ -1280,8 +1277,7 @@ ia_css_debug_pipe_graph_dump_stage(
 					while (ei[p] != ',')
 						p--;
 
-					strscpy(enable_info2, ei,
-						p > sizeof(enable_info2) ? sizeof(enable_info2) : p);
+					strscpy(enable_info2, ei, umin(p, sizeof(enable_info2)));
 
 					ei += p + 1;
 					l = strlen(ei);
@@ -1303,7 +1299,7 @@ ia_css_debug_pipe_graph_dump_stage(
 						while (ei[p] != ',')
 							p--;
 						strscpy(enable_info3, ei,
-							p > sizeof(enable_info3) ? sizeof(enable_info3) : p);
+							umin(p, sizeof(enable_info3)));
 						ei += p + 1;
 						strscpy(enable_info3, ei,
 							sizeof(enable_info3));
@@ -1778,9 +1774,8 @@ static void debug_dump_one_trace(enum TRACE_CORE_ID proc_id)
 				* When tid value is 111b, the data will be interpreted differently:
 				* tid val is ignored, major field contains 2 bits (msb) for format type
 				*/
-				if (tid_val == FIELD_TID_SEL_FORMAT_PAT) {
+				if (tid_val == FIELD_TID_SEL_FORMAT_PAT)
 					dump_format = FIELD_FORMAT_UNPACK(trace_read_buf[j]);
-				}
 			}
 			switch (dump_format) {
 			case TRACE_DUMP_FORMAT_POINT:

@@ -64,7 +64,7 @@ to_rcar_plane_state(struct drm_plane_state *state)
 }
 
 int rcar_du_atomic_check_planes(struct drm_device *dev,
-				struct drm_atomic_state *state);
+				struct drm_atomic_commit *state);
 
 int __rcar_du_plane_atomic_check(struct drm_plane *plane,
 				 struct drm_plane_state *state,

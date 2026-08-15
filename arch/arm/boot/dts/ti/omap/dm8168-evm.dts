@@ -8,6 +8,10 @@
 	model = "DM8168 EVM";
 	compatible = "ti,dm8168-evm", "ti,dm8168", "ti,dm816";
 
+	chosen {
+		stdout-path = &uart3;
+	};
+
 	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x40000000	/* 1 GB */

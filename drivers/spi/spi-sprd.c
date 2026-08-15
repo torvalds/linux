@@ -923,16 +923,14 @@ static int sprd_spi_probe(struct platform_device *pdev)
 	int ret;
 
 	pdev->id = of_alias_get_id(pdev->dev.of_node, "spi");
-	sctlr = spi_alloc_host(&pdev->dev, sizeof(*ss));
+	sctlr = devm_spi_alloc_host(&pdev->dev, sizeof(*ss));
 	if (!sctlr)
 		return -ENOMEM;
 
 	ss = spi_controller_get_devdata(sctlr);
 	ss->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
-	if (IS_ERR(ss->base)) {
-		ret = PTR_ERR(ss->base);
-		goto free_controller;
-	}
+	if (IS_ERR(ss->base))
+		return PTR_ERR(ss->base);
 
 	ss->phy_base = res->start;
 	ss->dev = &pdev->dev;
@@ -949,15 +947,15 @@ static int sprd_spi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, sctlr);
 	ret = sprd_spi_clk_init(pdev, ss);
 	if (ret)
-		goto free_controller;
+		return ret;
 
 	ret = sprd_spi_irq_init(pdev, ss);
 	if (ret)
-		goto free_controller;
+		return ret;
 
 	ret = sprd_spi_dma_init(pdev, ss);
 	if (ret)
-		goto free_controller;
+		return ret;
 
 	ret = clk_prepare_enable(ss->clk);
 	if (ret)
@@ -993,8 +991,6 @@ disable_clk:
 release_dma:
 	if (ss->dma.enable)
 		sprd_spi_dma_release(ss);
-free_controller:
-	spi_controller_put(sctlr);
 
 	return ret;
 }
@@ -1009,8 +1005,6 @@ static void sprd_spi_remove(struct platform_device *pdev)
 	if (ret < 0)
 		dev_err(ss->dev, "failed to resume SPI controller\n");
 
-	spi_controller_get(sctlr);
-
 	spi_unregister_controller(sctlr);
 
 	if (ret >= 0) {
@@ -1020,8 +1014,6 @@ static void sprd_spi_remove(struct platform_device *pdev)
 	}
 	pm_runtime_put_noidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	spi_controller_put(sctlr);
 }
 
 static int __maybe_unused sprd_spi_runtime_suspend(struct device *dev)

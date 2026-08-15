@@ -47,6 +47,7 @@ struct inline_node *dso__parse_addr_inlines(struct dso *dso, u64 addr,
 					    struct symbol *sym);
 /* free resources associated to the inline node list */
 void inline_node__delete(struct inline_node *node);
+void inline_node__clear_frames(struct inline_node *node);
 
 /* insert the inline node list into the DSO, which will take ownership */
 void inlines__tree_insert(struct rb_root_cached *tree,

@@ -17,8 +17,16 @@ static int pmsr_parse_ftm(struct cfg80211_registered_device *rdev,
 	u32 preamble = NL80211_PREAMBLE_DMG; /* only optional in DMG */
 
 	/* validate existing data */
-	if (!(rdev->wiphy.pmsr_capa->ftm.bandwidths & BIT(out->chandef.width))) {
+	if (out->ftm.request_type == NL80211_PMSR_FTM_REQ_TYPE_INFRA &&
+	    !(capa->ftm.bandwidths & BIT(out->chandef.width))) {
 		NL_SET_ERR_MSG(info->extack, "FTM: unsupported bandwidth");
+		return -EINVAL;
+	}
+
+	if (out->ftm.request_type == NL80211_PMSR_FTM_REQ_TYPE_PD &&
+	    !(capa->ftm.pd_bandwidths & BIT(out->chandef.width))) {
+		NL_SET_ERR_MSG(info->extack,
+			       "FTM: unsupported bandwidth for PD request");
 		return -EINVAL;
 	}
 
@@ -44,10 +52,19 @@ static int pmsr_parse_ftm(struct cfg80211_registered_device *rdev,
 		}
 	}
 
-	if (!(capa->ftm.preambles & BIT(preamble))) {
+	if (out->ftm.request_type == NL80211_PMSR_FTM_REQ_TYPE_INFRA &&
+	    !(capa->ftm.preambles & BIT(preamble))) {
 		NL_SET_ERR_MSG_ATTR(info->extack,
 				    tb[NL80211_PMSR_FTM_REQ_ATTR_PREAMBLE],
 				    "FTM: invalid preamble");
+		return -EINVAL;
+	}
+
+	if (out->ftm.request_type == NL80211_PMSR_FTM_REQ_TYPE_PD &&
+	    !(capa->ftm.pd_preambles & BIT(preamble))) {
+		NL_SET_ERR_MSG_ATTR(info->extack,
+				    tb[NL80211_PMSR_FTM_REQ_ATTR_PREAMBLE],
+				    "FTM: invalid preamble for PD request");
 		return -EINVAL;
 	}
 
@@ -91,11 +108,10 @@ static int pmsr_parse_ftm(struct cfg80211_registered_device *rdev,
 			nla_get_u8(tb[NL80211_PMSR_FTM_REQ_ATTR_FTMS_PER_BURST]);
 
 	if (capa->ftm.max_ftms_per_burst &&
-	    (out->ftm.ftms_per_burst > capa->ftm.max_ftms_per_burst ||
-	     out->ftm.ftms_per_burst == 0)) {
+	    out->ftm.ftms_per_burst > capa->ftm.max_ftms_per_burst) {
 		NL_SET_ERR_MSG_ATTR(info->extack,
 				    tb[NL80211_PMSR_FTM_REQ_ATTR_FTMS_PER_BURST],
-				    "FTM: FTMs per burst must be set lower than the device limit but non-zero");
+				    "FTM: FTMs per burst must be set lower than the device limit");
 		return -EINVAL;
 	}
 
@@ -128,6 +144,14 @@ static int pmsr_parse_ftm(struct cfg80211_registered_device *rdev,
 		return -EINVAL;
 	}
 
+	if (out->ftm.request_type == NL80211_PMSR_FTM_REQ_TYPE_PD &&
+	    out->ftm.trigger_based) {
+		NL_SET_ERR_MSG_ATTR(info->extack,
+				    ftmreq,
+				    "FTM: TB ranging is not supported for PD request type");
+		return -EINVAL;
+	}
+
 	out->ftm.non_trigger_based =
 		!!tb[NL80211_PMSR_FTM_REQ_ATTR_NON_TRIGGER_BASED];
 	if (out->ftm.non_trigger_based && !capa->ftm.non_trigger_based) {
@@ -141,6 +165,14 @@ static int pmsr_parse_ftm(struct cfg80211_registered_device *rdev,
 		NL_SET_ERR_MSG(info->extack,
 			       "FTM: can't set both trigger based and non trigger based");
 		return -EINVAL;
+	}
+
+	if (out->ftm.request_type == NL80211_PMSR_FTM_REQ_TYPE_PD &&
+	    out->ftm.non_trigger_based && out->ftm.ftms_per_burst > 4) {
+		NL_SET_ERR_MSG_ATTR(info->extack,
+				    tb[NL80211_PMSR_FTM_REQ_ATTR_FTMS_PER_BURST],
+				    "FTM: FTMs per burst must not exceed 4 for PD NTB ranging");
+		return -ERANGE;
 	}
 
 	if (out->ftm.ftms_per_burst > 31 && !out->ftm.non_trigger_based &&
@@ -188,17 +220,83 @@ static int pmsr_parse_ftm(struct cfg80211_registered_device *rdev,
 	}
 
 	out->ftm.rsta = !!tb[NL80211_PMSR_FTM_REQ_ATTR_RSTA];
-	if (out->ftm.rsta && !capa->ftm.support_rsta) {
+	if (out->ftm.rsta && out->ftm.non_trigger_based &&
+	    !capa->ftm.rsta.support_ntb) {
 		NL_SET_ERR_MSG_ATTR(info->extack,
 				    tb[NL80211_PMSR_FTM_REQ_ATTR_RSTA],
-				    "FTM: RSTA not supported by device");
+				    "FTM: NTB RSTA not supported by device");
 		return -EOPNOTSUPP;
 	}
 
-	if (out->ftm.rsta && !out->ftm.lmr_feedback) {
+	if (out->ftm.rsta && out->ftm.trigger_based &&
+	    !capa->ftm.rsta.support_tb) {
+		NL_SET_ERR_MSG_ATTR(info->extack,
+				    tb[NL80211_PMSR_FTM_REQ_ATTR_RSTA],
+				    "FTM: TB RSTA not supported by device");
+		return -EOPNOTSUPP;
+	}
+
+	if (out->ftm.rsta && !out->ftm.non_trigger_based &&
+	    !out->ftm.trigger_based &&
+	    !capa->ftm.rsta.support_edca) {
+		NL_SET_ERR_MSG_ATTR(info->extack,
+				    tb[NL80211_PMSR_FTM_REQ_ATTR_RSTA],
+				    "FTM: EDCA RSTA not supported by device");
+		return -EOPNOTSUPP;
+	}
+
+	if (out->ftm.rsta &&
+	    (out->ftm.non_trigger_based || out->ftm.trigger_based) &&
+	    !out->ftm.lmr_feedback) {
 		NL_SET_ERR_MSG_ATTR(info->extack,
 				    tb[NL80211_PMSR_FTM_REQ_ATTR_RSTA],
 				    "FTM: RSTA set without LMR feedback");
+		return -EINVAL;
+	}
+
+	if (out->ftm.non_trigger_based) {
+		if (out->ftm.request_type == NL80211_PMSR_FTM_REQ_TYPE_PD &&
+		    !tb[NL80211_PMSR_FTM_REQ_ATTR_NOMINAL_TIME]) {
+			NL_SET_ERR_MSG(info->extack,
+				       "FTM: nominal time is required for PD NTB ranging");
+			return -EINVAL;
+		}
+		out->ftm.nominal_time =
+			nla_get_u32(tb[NL80211_PMSR_FTM_REQ_ATTR_NOMINAL_TIME]);
+
+		if (tb[NL80211_PMSR_FTM_REQ_ATTR_MIN_TIME_BETWEEN_MEASUREMENTS])
+			out->ftm.min_time_between_measurements =
+			nla_get_u32(tb[NL80211_PMSR_FTM_REQ_ATTR_MIN_TIME_BETWEEN_MEASUREMENTS]);
+
+		if (tb[NL80211_PMSR_FTM_REQ_ATTR_MAX_TIME_BETWEEN_MEASUREMENTS])
+			out->ftm.max_time_between_measurements =
+			nla_get_u32(tb[NL80211_PMSR_FTM_REQ_ATTR_MAX_TIME_BETWEEN_MEASUREMENTS]);
+
+		if (tb[NL80211_PMSR_FTM_REQ_ATTR_AW_DURATION])
+			out->ftm.availability_window =
+				nla_get_u8(tb[NL80211_PMSR_FTM_REQ_ATTR_AW_DURATION]);
+
+		if (tb[NL80211_PMSR_FTM_REQ_ATTR_NUM_MEASUREMENTS])
+			out->ftm.num_measurements =
+				nla_get_u32(tb[NL80211_PMSR_FTM_REQ_ATTR_NUM_MEASUREMENTS]);
+	}
+
+	if (tb[NL80211_PMSR_FTM_REQ_ATTR_INGRESS])
+		out->ftm.ingress_distance =
+			nla_get_u64(tb[NL80211_PMSR_FTM_REQ_ATTR_INGRESS]);
+
+	if (tb[NL80211_PMSR_FTM_REQ_ATTR_EGRESS])
+		out->ftm.egress_distance =
+			nla_get_u64(tb[NL80211_PMSR_FTM_REQ_ATTR_EGRESS]);
+
+	out->ftm.pd_suppress_range_results =
+		nla_get_flag(tb[NL80211_PMSR_FTM_REQ_ATTR_PD_SUPPRESS_RESULTS]);
+
+	if (out->ftm.request_type != NL80211_PMSR_FTM_REQ_TYPE_PD &&
+	    out->ftm.pd_suppress_range_results) {
+		NL_SET_ERR_MSG_ATTR(info->extack,
+				    tb[NL80211_PMSR_FTM_REQ_ATTR_PD_SUPPRESS_RESULTS],
+				    "FTM: suppress range result flag only valid for PD requests");
 		return -EINVAL;
 	}
 
@@ -229,6 +327,19 @@ static int pmsr_parse_peer(struct cfg80211_registered_device *rdev,
 
 	memcpy(out->addr, nla_data(tb[NL80211_PMSR_PEER_ATTR_ADDR]), ETH_ALEN);
 
+	if (tb[NL80211_PMSR_PEER_ATTR_REQ_TYPE])
+		out->ftm.request_type =
+			nla_get_u32(tb[NL80211_PMSR_PEER_ATTR_REQ_TYPE]);
+	else
+		out->ftm.request_type = NL80211_PMSR_FTM_REQ_TYPE_INFRA;
+
+	if (out->ftm.request_type == NL80211_PMSR_FTM_REQ_TYPE_PD &&
+	    !rdev->wiphy.pmsr_capa->ftm.type.pd_support) {
+		NL_SET_ERR_MSG_ATTR(info->extack,
+				    tb[NL80211_PMSR_PEER_ATTR_REQ_TYPE],
+				    "FTM: PD request type not supported by device");
+		return -EINVAL;
+	}
 	/* reuse info->attrs */
 	memset(info->attrs, 0, sizeof(*info->attrs) * (NL80211_ATTR_MAX + 1));
 	err = nla_parse_nested_deprecated(info->attrs, NL80211_ATTR_MAX,
@@ -238,7 +349,7 @@ static int pmsr_parse_peer(struct cfg80211_registered_device *rdev,
 		return err;
 
 	err = nl80211_parse_chandef(rdev, info->extack, info->attrs,
-				    &out->chandef);
+				    &out->chandef, false);
 	if (err)
 		return err;
 
@@ -286,12 +397,15 @@ int nl80211_pmsr_start(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nlattr *reqattr = info->attrs[NL80211_ATTR_PEER_MEASUREMENTS];
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
+	int count, rem, err, idx, peer_count;
 	struct wireless_dev *wdev = info->user_ptr[1];
+	const struct cfg80211_pmsr_capabilities *capa;
 	struct cfg80211_pmsr_request *req;
 	struct nlattr *peers, *peer;
-	int count, rem, err, idx;
 
-	if (!rdev->wiphy.pmsr_capa)
+	capa = rdev->wiphy.pmsr_capa;
+
+	if (!capa)
 		return -EOPNOTSUPP;
 
 	if (!reqattr)
@@ -306,7 +420,7 @@ int nl80211_pmsr_start(struct sk_buff *skb, struct genl_info *info)
 	nla_for_each_nested(peer, peers, rem) {
 		count++;
 
-		if (count > rdev->wiphy.pmsr_capa->max_peers) {
+		if (count > capa->max_peers) {
 			NL_SET_ERR_MSG_ATTR(info->extack, peer,
 					    "Too many peers used");
 			return -EINVAL;
@@ -322,7 +436,7 @@ int nl80211_pmsr_start(struct sk_buff *skb, struct genl_info *info)
 		req->timeout = nla_get_u32(info->attrs[NL80211_ATTR_TIMEOUT]);
 
 	if (info->attrs[NL80211_ATTR_MAC]) {
-		if (!rdev->wiphy.pmsr_capa->randomize_mac_addr) {
+		if (!capa->randomize_mac_addr) {
 			NL_SET_ERR_MSG_ATTR(info->extack,
 					    info->attrs[NL80211_ATTR_MAC],
 					    "device cannot randomize MAC address");
@@ -346,6 +460,41 @@ int nl80211_pmsr_start(struct sk_buff *skb, struct genl_info *info)
 		if (err)
 			goto out_err;
 		idx++;
+	}
+
+	/* Validate per-role peer limits if advertised */
+	if (capa->ftm.ista.max_peers) {
+		peer_count = 0;
+
+		for (idx = 0; idx < req->n_peers; idx++) {
+			if (!req->peers[idx].ftm.rsta) {
+				peer_count++;
+
+				if (peer_count > capa->ftm.ista.max_peers) {
+					NL_SET_ERR_MSG(info->extack,
+						       "Too many ISTA peers for device limit");
+					err = -EINVAL;
+					goto out_err;
+				}
+			}
+		}
+	}
+
+	if (capa->ftm.rsta.max_peers) {
+		peer_count = 0;
+
+		for (idx = 0; idx < req->n_peers; idx++) {
+			if (req->peers[idx].ftm.rsta) {
+				peer_count++;
+
+				if (peer_count > capa->ftm.rsta.max_peers) {
+					NL_SET_ERR_MSG(info->extack,
+						       "Too many RSTA peers for device limit");
+					err = -EINVAL;
+					goto out_err;
+				}
+			}
+		}
 	}
 	req->cookie = cfg80211_assign_cookie(rdev);
 	req->nl_portid = info->snd_portid;
@@ -487,6 +636,21 @@ static int nl80211_pmsr_send_ftm_res(struct sk_buff *msg,
 	PUTOPT_U64(DIST_AVG, dist_avg);
 	PUTOPT_U64(DIST_VARIANCE, dist_variance);
 	PUTOPT_U64(DIST_SPREAD, dist_spread);
+	PUTOPT(u32, TX_LTF_REPETITION_COUNT, tx_ltf_repetition_count);
+	PUTOPT(u32, RX_LTF_REPETITION_COUNT, rx_ltf_repetition_count);
+	PUTOPT(u32, MAX_TIME_BETWEEN_MEASUREMENTS,
+	       max_time_between_measurements);
+	PUTOPT(u32, MIN_TIME_BETWEEN_MEASUREMENTS,
+	       min_time_between_measurements);
+	PUTOPT(u8, NUM_TX_SPATIAL_STREAMS, num_tx_spatial_streams);
+	PUTOPT(u8, NUM_RX_SPATIAL_STREAMS, num_rx_spatial_streams);
+	PUTOPT(u32, NOMINAL_TIME, nominal_time);
+	PUTOPT(u8, AVAILABILITY_WINDOW, availability_window);
+	PUTOPT(u32, CHANNEL_WIDTH, chan_width);
+	PUTOPT(u32, PREAMBLE, preamble);
+	if (res->ftm.is_delayed_lmr &&
+	    nla_put_flag(msg, NL80211_PMSR_FTM_RESP_ATTR_IS_DELAYED_LMR))
+		goto error;
 	if (res->ftm.lci && res->ftm.lci_len &&
 	    nla_put(msg, NL80211_PMSR_FTM_RESP_ATTR_LCI,
 		    res->ftm.lci_len, res->ftm.lci))

@@ -30,6 +30,7 @@
 #include <asm/mach-au1x00/au1550_spi.h>
 #include <asm/mach-db1x00/bcsr.h>
 
+#include "db1xxx.h"
 #include "platform.h"
 
 #define BCSR_INT_IDE		0x0001

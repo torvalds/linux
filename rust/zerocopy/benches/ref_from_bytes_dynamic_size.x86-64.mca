@@ -1,0 +1,75 @@
+Iterations:        100
+Instructions:      1800
+Total Cycles:      704
+Total uOps:        2000
+
+Dispatch Width:    4
+uOps Per Cycle:    2.84
+IPC:               2.56
+Block RThroughput: 5.0
+
+
+Instruction Info:
+[1]: #uOps
+[2]: Latency
+[3]: RThroughput
+[4]: MayLoad
+[5]: MayStore
+[6]: HasSideEffects (U)
+
+[1]    [2]    [3]    [4]    [5]    [6]    Instructions:
+ 1      1     0.33                        mov	rdx, rsi
+ 1      1     0.33                        cmp	rsi, 4
+ 1      1     0.50                        setb	al
+ 1      1     0.33                        or	al, dil
+ 1      1     0.33                        test	al, 1
+ 1      1     1.00                        je	.LBB5_2
+ 1      0     0.25                        xor	eax, eax
+ 1      1     1.00                  U     ret
+ 1      1     0.50                        lea	rcx, [rdx - 4]
+ 1      1     0.33                        mov	rsi, rcx
+ 1      1     0.33                        and	rsi, -2
+ 1      1     0.33                        add	rsi, 4
+ 1      1     0.50                        shr	rcx
+ 1      0     0.25                        xor	eax, eax
+ 1      1     0.33                        cmp	rdx, rsi
+ 2      2     0.67                        cmove	rdx, rcx
+ 2      2     0.67                        cmove	rax, rdi
+ 1      1     1.00                  U     ret
+
+
+Resources:
+[0]   - SBDivider
+[1]   - SBFPDivider
+[2]   - SBPort0
+[3]   - SBPort1
+[4]   - SBPort4
+[5]   - SBPort5
+[6.0] - SBPort23
+[6.1] - SBPort23
+
+
+Resource pressure per iteration:
+[0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  
+ -      -     5.97   5.98    -     6.05    -      -     
+
+Resource pressure by instruction:
+[0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  Instructions:
+ -      -     0.97   0.01    -     0.02    -      -     mov	rdx, rsi
+ -      -     0.01   0.02    -     0.97    -      -     cmp	rsi, 4
+ -      -     0.03    -      -     0.97    -      -     setb	al
+ -      -     0.01   0.02    -     0.97    -      -     or	al, dil
+ -      -      -     0.98    -     0.02    -      -     test	al, 1
+ -      -      -      -      -     1.00    -      -     je	.LBB5_2
+ -      -      -      -      -      -      -      -     xor	eax, eax
+ -      -      -      -      -     1.00    -      -     ret
+ -      -     0.98   0.02    -      -      -      -     lea	rcx, [rdx - 4]
+ -      -     0.01   0.99    -      -      -      -     mov	rsi, rcx
+ -      -      -     0.98    -     0.02    -      -     and	rsi, -2
+ -      -     0.98   0.01    -     0.01    -      -     add	rsi, 4
+ -      -     0.99    -      -     0.01    -      -     shr	rcx
+ -      -      -      -      -      -      -      -     xor	eax, eax
+ -      -     0.02   0.97    -     0.01    -      -     cmp	rdx, rsi
+ -      -     0.99   0.99    -     0.02    -      -     cmove	rdx, rcx
+ -      -     0.98   0.99    -     0.03    -      -     cmove	rax, rdi
+ -      -      -      -      -     1.00    -      -     ret

@@ -28,7 +28,8 @@ static int gfrm_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		struct hid_field *field, struct hid_usage *usage,
 		unsigned long **bit, int *max)
 {
-	unsigned long hdev_type = (unsigned long) hid_get_drvdata(hdev);
+	const struct hid_device_id *id = hid_get_drvdata(hdev);
+	unsigned long hdev_type = id->driver_data;
 
 	if (hdev_type == GFRM100) {
 		if (usage->hid == (HID_UP_CONSUMER | 0x4)) {
@@ -50,7 +51,8 @@ static int gfrm_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 static int gfrm_raw_event(struct hid_device *hdev, struct hid_report *report,
 		u8 *data, int size)
 {
-	unsigned long hdev_type = (unsigned long) hid_get_drvdata(hdev);
+	const struct hid_device_id *id = hid_get_drvdata(hdev);
+	unsigned long hdev_type = id->driver_data;
 	int ret = 0;
 
 	if (hdev_type != GFRM100)
@@ -99,7 +101,7 @@ static int gfrm_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	int ret;
 
-	hid_set_drvdata(hdev, (void *) id->driver_data);
+	hid_set_drvdata(hdev, (void *)id);
 
 	ret = hid_parse(hdev);
 	if (ret)

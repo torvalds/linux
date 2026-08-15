@@ -296,8 +296,7 @@ static int dwc3_octeon_setup(struct dwc3_octeon *octeon,
 		return div;
 	}
 	val = dwc3_octeon_readq(uctl_ctl_reg);
-	val &= ~USBDRD_UCTL_CTL_H_CLKDIV_SEL;
-	val |= FIELD_PREP(USBDRD_UCTL_CTL_H_CLKDIV_SEL, div);
+	FIELD_MODIFY(USBDRD_UCTL_CTL_H_CLKDIV_SEL, &val, div);
 	val |= USBDRD_UCTL_CTL_H_CLK_EN;
 	dwc3_octeon_writeq(uctl_ctl_reg, val);
 	val = dwc3_octeon_readq(uctl_ctl_reg);
@@ -314,14 +313,11 @@ static int dwc3_octeon_setup(struct dwc3_octeon *octeon,
 	/* Step 5a: Reference clock configuration. */
 	val = dwc3_octeon_readq(uctl_ctl_reg);
 	val &= ~USBDRD_UCTL_CTL_REF_CLK_DIV2;
-	val &= ~USBDRD_UCTL_CTL_REF_CLK_SEL;
-	val |= FIELD_PREP(USBDRD_UCTL_CTL_REF_CLK_SEL, ref_clk_sel);
+	FIELD_MODIFY(USBDRD_UCTL_CTL_REF_CLK_SEL, &val, ref_clk_sel);
 
-	val &= ~USBDRD_UCTL_CTL_REF_CLK_FSEL;
-	val |= FIELD_PREP(USBDRD_UCTL_CTL_REF_CLK_FSEL, ref_clk_fsel);
+	FIELD_MODIFY(USBDRD_UCTL_CTL_REF_CLK_FSEL, &val, ref_clk_fsel);
 
-	val &= ~USBDRD_UCTL_CTL_MPLL_MULTIPLIER;
-	val |= FIELD_PREP(USBDRD_UCTL_CTL_MPLL_MULTIPLIER, mpll_mul);
+	FIELD_MODIFY(USBDRD_UCTL_CTL_MPLL_MULTIPLIER, &val, mpll_mul);
 
 	/* Step 5b: Configure and enable spread-spectrum for SuperSpeed. */
 	val |= USBDRD_UCTL_CTL_SSC_EN;

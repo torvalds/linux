@@ -21,10 +21,18 @@ digraph {
   // names that initiate the corresponding logic in kernel/bpf/bpf_lru_list.c.
   // Number suffixes and errno suffixes handle subsections of the corresponding
   // logic in the function as of the writing of this dot.
+  //
+  // All LRU locks are rqspinlock_t. Every acquire can fail (AA self-deadlock
+  // or contention timeout); on failure the corresponding helper returns NULL
+  // and the caller propagates -ENOMEM. The "rqspinlock acquire failed"
+  // terminal below is reached via the dashed arrows from each acquire site.
+
+  rqspinlock_failed [shape=rectangle,
+    label="Any LRU rqspinlock\nacquire fails\n(AA or timeout)"]
 
   // cf. __local_list_pop_free() / bpf_percpu_lru_pop_free()
   local_freelist_check [shape=diamond,fillcolor=1,
-    label="Local freelist\nnode available?"];
+    label="Local freelist\nnode available?\n(lockless free_llist)"];
   use_local_node [shape=rectangle,
     label="Use node owned\nby this CPU"]
 
@@ -82,6 +90,15 @@ digraph {
     // fn__local_list_pop_pending()
   }
 
+  // Post-steal: re-acquire local loc_l->lock to insert the stolen node into
+  // the local pending list. If the acquire fails, the stolen node is published
+  // to the lockless local free_llist so the next pop on this CPU picks it up
+  // instead of orphaning it.
+  post_steal_lock [shape=diamond,fillcolor=1,
+    label="Acquire local\nloc_l->lock\nto add pending"]
+  post_steal_to_free_llist [shape=rectangle,
+    label="Publish stolen node to\nlocal free_llist (lockless)"]
+
   fn_bpf_lru_list_pop_free_to_local2 [shape=rectangle,
     label="Use node that was\nnot recently referenced"]
   local_freelist_check4 [shape=rectangle,
@@ -97,10 +114,19 @@ digraph {
   fn_htab_lru_map_update_elem_ENOENT [shape=oval,label="return -ENOENT"]
 
   begin -> local_freelist_check
+  // The initial per-CPU lock (loc_l->lock for common, l->lock for percpu) is
+  // acquired before the local freelist check; rqspinlock failure here exits
+  // directly to -ENOMEM (no recovery needed: nothing was removed yet).
+  local_freelist_check -> rqspinlock_failed [style=dashed,
+    xlabel="acquire fails"]
   local_freelist_check -> use_local_node [xlabel="Y"]
   local_freelist_check -> common_lru_check [xlabel="N"]
   common_lru_check -> fn_bpf_lru_list_pop_free_to_local [xlabel="Y"]
   common_lru_check -> fn___bpf_lru_list_shrink_inactive [xlabel="N"]
+  // Global lru_list lock acquire failure in pop_free_to_local: skip refill,
+  // fall through to the steal path. Not ENOMEM by itself.
+  fn_bpf_lru_list_pop_free_to_local -> common_lru_check2 [style=dashed,
+    xlabel="global lru_lock\nacquire fails"]
   fn_bpf_lru_list_pop_free_to_local -> fn___bpf_lru_node_move_to_free
   fn___bpf_lru_node_move_to_free ->
     fn_bpf_lru_list_pop_free_to_local2 [xlabel="Y"]
@@ -120,12 +146,26 @@ digraph {
   local_freelist_check6 -> local_freelist_check7
   local_freelist_check7 -> fn_htab_lru_map_update_elem
 
-  fn_htab_lru_map_update_elem -> fn_htab_lru_map_update_elem3 [xlabel = "Y"]
+  // Steal-loop victim lock failure is silent: treat as "no node found here"
+  // and continue to next CPU; same edge as the existing "N" path.
+  local_freelist_check5 -> fn_htab_lru_map_update_elem2 [style=dashed,
+    xlabel="victim's lock\nfails: skip"]
+  // After a successful steal, re-acquire the local loc_l->lock. On failure
+  // the stolen node is published to free_llist (recovered, not orphaned)
+  // and the update returns -ENOMEM.
+  fn_htab_lru_map_update_elem -> post_steal_lock [xlabel = "Y"]
+  post_steal_lock -> fn_htab_lru_map_update_elem3 [xlabel = "OK"]
+  post_steal_lock -> post_steal_to_free_llist [style=dashed,
+    xlabel="loc_l->lock\nacquire fails"]
+  post_steal_to_free_llist -> fn_htab_lru_map_update_elem_ENOMEM
   fn_htab_lru_map_update_elem -> fn_htab_lru_map_update_elem2  [xlabel = "N"]
   fn_htab_lru_map_update_elem2 ->
     fn_htab_lru_map_update_elem_ENOMEM [xlabel = "Y"]
   fn_htab_lru_map_update_elem2 -> local_freelist_check5 [xlabel = "N"]
   fn_htab_lru_map_update_elem3 -> fn_htab_lru_map_update_elem4
+
+  // Shared rqspinlock-failure terminal collapses to the same -ENOMEM exit.
+  rqspinlock_failed -> fn_htab_lru_map_update_elem_ENOMEM
 
   use_local_node -> fn_htab_lru_map_update_elem4
   fn_bpf_lru_list_pop_free_to_local2 -> fn_htab_lru_map_update_elem4

@@ -1378,5 +1378,60 @@
         "teardown": [
             "$TC actions flush action ife"
         ]
+    },
+    {
+        "id": "4e6b",
+        "name": "Decode IFE packet with truncated inner Ethernet header",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "plugins": {
+            "requires": [
+                "nsPlugin",
+                "scapyPlugin"
+            ]
+        },
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ],
+            "$TC qdisc add dev $DEV1 clsact"
+        ],
+        "scapy": [
+            {
+                "iface": "$DEV0",
+                "count": 1,
+                "packet": "Ether(type=0xED3E) / Raw(b'\\x00\\x02\\xaa')"
+            }
+        ],
+        "cmdUnderTest": "$TC filter add dev $DEV1 ingress protocol all matchall action ife decode pipe index 10",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -s -j actions get action ife index 10",
+        "matchJSON": [
+            {
+              "total acts": 0
+            },
+            {
+              "actions": [
+                  {
+                      "kind": "ife",
+                      "mode": "decode",
+                      "index": 10,
+                      "stats": {
+                          "bytes": 3,
+                          "packets": 1,
+                          "drops": 1
+                      }
+                  }
+              ]
+            }
+        ],
+        "teardown": [
+            "$TC qdisc del dev $DEV1 clsact"
+        ]
     }
 ]

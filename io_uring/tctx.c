@@ -103,7 +103,8 @@ __cold struct io_uring_task *io_uring_alloc_task_context(struct task_struct *tas
 	init_waitqueue_head(&tctx->wait);
 	atomic_set(&tctx->in_cancel, 0);
 	atomic_set(&tctx->inflight_tracked, 0);
-	init_llist_head(&tctx->task_list);
+	mpscq_init(&tctx->task_list, &tctx->task_head);
+	INIT_WORK(&tctx->fallback_work, io_tctx_fallback_work);
 	init_task_work(&tctx->task_work, tctx_task_work);
 	return tctx;
 }

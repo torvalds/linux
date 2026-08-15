@@ -165,7 +165,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		i2cmuxed0: i2c@0 {
+		i2c_dhpdk_panel: i2cmuxed0: i2c@0 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0>;

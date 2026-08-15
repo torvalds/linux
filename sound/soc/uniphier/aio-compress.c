@@ -183,18 +183,16 @@ static int uniphier_aio_compr_prepare(struct snd_soc_component *component,
 	struct uniphier_aio *aio = uniphier_priv(snd_soc_rtd_to_cpu(rtd, 0));
 	struct uniphier_aio_sub *sub = &aio->sub[cstream->direction];
 	int bytes = runtime->fragment_size;
-	unsigned long flags;
 	int ret;
 
 	ret = aiodma_ch_set_param(sub);
 	if (ret)
 		return ret;
 
-	spin_lock_irqsave(&sub->lock, flags);
-	ret = aiodma_rb_set_buffer(sub, sub->compr_addr,
-				   sub->compr_addr + sub->compr_bytes,
-				   bytes);
-	spin_unlock_irqrestore(&sub->lock, flags);
+	scoped_guard(spinlock_irqsave, &sub->lock)
+		ret = aiodma_rb_set_buffer(sub, sub->compr_addr,
+					   sub->compr_addr + sub->compr_bytes,
+					   bytes);
 	if (ret)
 		return ret;
 
@@ -223,9 +221,8 @@ static int uniphier_aio_compr_trigger(struct snd_soc_component *component,
 	struct uniphier_aio_sub *sub = &aio->sub[cstream->direction];
 	struct device *dev = &aio->chip->pdev->dev;
 	int bytes = runtime->fragment_size, ret = 0;
-	unsigned long flags;
 
-	spin_lock_irqsave(&sub->lock, flags);
+	guard(spinlock_irqsave)(&sub->lock);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		aiodma_rb_sync(sub, sub->compr_addr, sub->compr_bytes, bytes);
@@ -242,7 +239,6 @@ static int uniphier_aio_compr_trigger(struct snd_soc_component *component,
 		dev_warn(dev, "Unknown trigger(%d)\n", cmd);
 		ret = -EINVAL;
 	}
-	spin_unlock_irqrestore(&sub->lock, flags);
 
 	return ret;
 }
@@ -256,10 +252,9 @@ static int uniphier_aio_compr_pointer(struct snd_soc_component *component,
 	struct uniphier_aio *aio = uniphier_priv(snd_soc_rtd_to_cpu(rtd, 0));
 	struct uniphier_aio_sub *sub = &aio->sub[cstream->direction];
 	int bytes = runtime->fragment_size;
-	unsigned long flags;
 	u32 pos;
 
-	spin_lock_irqsave(&sub->lock, flags);
+	guard(spinlock_irqsave)(&sub->lock);
 
 	aiodma_rb_sync(sub, sub->compr_addr, sub->compr_bytes, bytes);
 
@@ -272,8 +267,6 @@ static int uniphier_aio_compr_pointer(struct snd_soc_component *component,
 		tstamp->copied_total = sub->rd_total;
 	}
 	tstamp->byte_offset = pos;
-
-	spin_unlock_irqrestore(&sub->lock, flags);
 
 	return 0;
 }
@@ -332,7 +325,6 @@ static int uniphier_aio_compr_copy(struct snd_soc_component *component,
 	struct uniphier_aio_sub *sub = &aio->sub[cstream->direction];
 	size_t cnt = min_t(size_t, count, aio_rb_space_to_end(sub) / 2);
 	int bytes = runtime->fragment_size;
-	unsigned long flags;
 	size_t s;
 	int ret;
 
@@ -360,7 +352,7 @@ static int uniphier_aio_compr_copy(struct snd_soc_component *component,
 	if (ret)
 		return -EFAULT;
 
-	spin_lock_irqsave(&sub->lock, flags);
+	guard(spinlock_irqsave)(&sub->lock);
 
 	sub->threshold = 2 * bytes;
 	aiodma_rb_set_threshold(sub, sub->compr_bytes, 2 * bytes);
@@ -375,8 +367,6 @@ static int uniphier_aio_compr_copy(struct snd_soc_component *component,
 			sub->rd_offs -= sub->compr_bytes;
 	}
 	aiodma_rb_sync(sub, sub->compr_addr, sub->compr_bytes, bytes);
-
-	spin_unlock_irqrestore(&sub->lock, flags);
 
 	return cnt;
 }

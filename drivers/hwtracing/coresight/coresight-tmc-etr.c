@@ -154,7 +154,7 @@ tmc_pages_get_offset(struct tmc_pages *tmc_pages, dma_addr_t addr)
 	for (i = 0; i < tmc_pages->nr_pages; i++) {
 		page_start = tmc_pages->daddrs[i];
 		if (addr >= page_start && addr < (page_start + PAGE_SIZE))
-			return i * PAGE_SIZE + (addr - page_start);
+			return (long)i * PAGE_SIZE + (addr - page_start);
 	}
 
 	return -EINVAL;
@@ -1379,7 +1379,7 @@ alloc_etr_buf(struct tmc_drvdata *drvdata, struct perf_event *event,
 	node = (event->cpu == -1) ? NUMA_NO_NODE : cpu_to_node(event->cpu);
 
 	/* Use the minimum limit if the required size is smaller */
-	size = nr_pages << PAGE_SHIFT;
+	size = (ssize_t)nr_pages << PAGE_SHIFT;
 	size = max_t(ssize_t, size, TMC_ETR_PERF_MIN_BUF_SIZE);
 
 	/*

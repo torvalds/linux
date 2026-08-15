@@ -7,7 +7,6 @@
  * Author: Liam Girdwood <lrg@slimlogic.co.uk>
  */
 
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -669,7 +668,7 @@ static int wm8510_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id wm8510_i2c_id[] = {
-	{ "wm8510" },
+	{ .name = "wm8510" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm8510_i2c_id);

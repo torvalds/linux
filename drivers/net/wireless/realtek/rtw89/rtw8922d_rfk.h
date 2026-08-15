@@ -18,5 +18,6 @@ void rtw8922d_rfk_mlo_ctrl(struct rtw89_dev *rtwdev);
 void rtw8922d_pre_set_channel_rf(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx);
 void rtw8922d_post_set_channel_rf(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx);
 void rtw8922d_lck_track(struct rtw89_dev *rtwdev);
+void rtw8922d_chlk_ktbl_ctl_mld(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx, bool manual);
 
 #endif

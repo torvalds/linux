@@ -9,8 +9,6 @@
  *  J. Bruce Fields <bfields@umich.edu>
  */
 
-#include <crypto/hash.h>
-#include <crypto/skcipher.h>
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -19,7 +17,6 @@
 #include <linux/sunrpc/auth.h>
 #include <linux/sunrpc/gss_krb5.h>
 #include <linux/sunrpc/xdr.h>
-#include <kunit/visibility.h>
 
 #include "auth_gss_internal.h"
 #include "gss_krb5_internal.h"
@@ -30,201 +27,24 @@
 
 static struct gss_api_mech gss_kerberos_mech;
 
-static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
-#if defined(CONFIG_RPCSEC_GSS_KRB5_ENCTYPES_AES_SHA1)
-	/*
-	 * AES-128 with SHA-1 (RFC 3962)
-	 */
-	{
-	  .etype = ENCTYPE_AES128_CTS_HMAC_SHA1_96,
-	  .ctype = CKSUMTYPE_HMAC_SHA1_96_AES128,
-	  .name = "aes128-cts",
-	  .encrypt_name = "cts(cbc(aes))",
-	  .aux_cipher = "cbc(aes)",
-	  .cksum_name = "hmac(sha1)",
-	  .derive_key = krb5_derive_key_v2,
-	  .encrypt = gss_krb5_aes_encrypt,
-	  .decrypt = gss_krb5_aes_decrypt,
-
-	  .get_mic = gss_krb5_get_mic_v2,
-	  .verify_mic = gss_krb5_verify_mic_v2,
-	  .wrap = gss_krb5_wrap_v2,
-	  .unwrap = gss_krb5_unwrap_v2,
-
-	  .signalg = -1,
-	  .sealalg = -1,
-	  .keybytes = 16,
-	  .keylength = BITS2OCTETS(128),
-	  .Kc_length = BITS2OCTETS(128),
-	  .Ke_length = BITS2OCTETS(128),
-	  .Ki_length = BITS2OCTETS(128),
-	  .cksumlength = BITS2OCTETS(96),
-	  .keyed_cksum = 1,
-	},
-	/*
-	 * AES-256 with SHA-1 (RFC 3962)
-	 */
-	{
-	  .etype = ENCTYPE_AES256_CTS_HMAC_SHA1_96,
-	  .ctype = CKSUMTYPE_HMAC_SHA1_96_AES256,
-	  .name = "aes256-cts",
-	  .encrypt_name = "cts(cbc(aes))",
-	  .aux_cipher = "cbc(aes)",
-	  .cksum_name = "hmac(sha1)",
-	  .derive_key = krb5_derive_key_v2,
-	  .encrypt = gss_krb5_aes_encrypt,
-	  .decrypt = gss_krb5_aes_decrypt,
-
-	  .get_mic = gss_krb5_get_mic_v2,
-	  .verify_mic = gss_krb5_verify_mic_v2,
-	  .wrap = gss_krb5_wrap_v2,
-	  .unwrap = gss_krb5_unwrap_v2,
-
-	  .signalg = -1,
-	  .sealalg = -1,
-	  .keybytes = 32,
-	  .keylength = BITS2OCTETS(256),
-	  .Kc_length = BITS2OCTETS(256),
-	  .Ke_length = BITS2OCTETS(256),
-	  .Ki_length = BITS2OCTETS(256),
-	  .cksumlength = BITS2OCTETS(96),
-	  .keyed_cksum = 1,
-	},
-#endif
-
-#if defined(CONFIG_RPCSEC_GSS_KRB5_ENCTYPES_CAMELLIA)
-	/*
-	 * Camellia-128 with CMAC (RFC 6803)
-	 */
-	{
-		.etype		= ENCTYPE_CAMELLIA128_CTS_CMAC,
-		.ctype		= CKSUMTYPE_CMAC_CAMELLIA128,
-		.name		= "camellia128-cts-cmac",
-		.encrypt_name	= "cts(cbc(camellia))",
-		.aux_cipher	= "cbc(camellia)",
-		.cksum_name	= "cmac(camellia)",
-		.cksumlength	= BITS2OCTETS(128),
-		.keyed_cksum	= 1,
-		.keylength	= BITS2OCTETS(128),
-		.Kc_length	= BITS2OCTETS(128),
-		.Ke_length	= BITS2OCTETS(128),
-		.Ki_length	= BITS2OCTETS(128),
-
-		.derive_key	= krb5_kdf_feedback_cmac,
-		.encrypt	= gss_krb5_aes_encrypt,
-		.decrypt	= gss_krb5_aes_decrypt,
-
-		.get_mic	= gss_krb5_get_mic_v2,
-		.verify_mic	= gss_krb5_verify_mic_v2,
-		.wrap		= gss_krb5_wrap_v2,
-		.unwrap		= gss_krb5_unwrap_v2,
-	},
-	/*
-	 * Camellia-256 with CMAC (RFC 6803)
-	 */
-	{
-		.etype		= ENCTYPE_CAMELLIA256_CTS_CMAC,
-		.ctype		= CKSUMTYPE_CMAC_CAMELLIA256,
-		.name		= "camellia256-cts-cmac",
-		.encrypt_name	= "cts(cbc(camellia))",
-		.aux_cipher	= "cbc(camellia)",
-		.cksum_name	= "cmac(camellia)",
-		.cksumlength	= BITS2OCTETS(128),
-		.keyed_cksum	= 1,
-		.keylength	= BITS2OCTETS(256),
-		.Kc_length	= BITS2OCTETS(256),
-		.Ke_length	= BITS2OCTETS(256),
-		.Ki_length	= BITS2OCTETS(256),
-
-		.derive_key	= krb5_kdf_feedback_cmac,
-		.encrypt	= gss_krb5_aes_encrypt,
-		.decrypt	= gss_krb5_aes_decrypt,
-
-		.get_mic	= gss_krb5_get_mic_v2,
-		.verify_mic	= gss_krb5_verify_mic_v2,
-		.wrap		= gss_krb5_wrap_v2,
-		.unwrap		= gss_krb5_unwrap_v2,
-	},
-#endif
-
-#if defined(CONFIG_RPCSEC_GSS_KRB5_ENCTYPES_AES_SHA2)
-	/*
-	 * AES-128 with SHA-256 (RFC 8009)
-	 */
-	{
-		.etype		= ENCTYPE_AES128_CTS_HMAC_SHA256_128,
-		.ctype		= CKSUMTYPE_HMAC_SHA256_128_AES128,
-		.name		= "aes128-cts-hmac-sha256-128",
-		.encrypt_name	= "cts(cbc(aes))",
-		.aux_cipher	= "cbc(aes)",
-		.cksum_name	= "hmac(sha256)",
-		.cksumlength	= BITS2OCTETS(128),
-		.keyed_cksum	= 1,
-		.keylength	= BITS2OCTETS(128),
-		.Kc_length	= BITS2OCTETS(128),
-		.Ke_length	= BITS2OCTETS(128),
-		.Ki_length	= BITS2OCTETS(128),
-
-		.derive_key	= krb5_kdf_hmac_sha2,
-		.encrypt	= krb5_etm_encrypt,
-		.decrypt	= krb5_etm_decrypt,
-
-		.get_mic	= gss_krb5_get_mic_v2,
-		.verify_mic	= gss_krb5_verify_mic_v2,
-		.wrap		= gss_krb5_wrap_v2,
-		.unwrap		= gss_krb5_unwrap_v2,
-	},
-	/*
-	 * AES-256 with SHA-384 (RFC 8009)
-	 */
-	{
-		.etype		= ENCTYPE_AES256_CTS_HMAC_SHA384_192,
-		.ctype		= CKSUMTYPE_HMAC_SHA384_192_AES256,
-		.name		= "aes256-cts-hmac-sha384-192",
-		.encrypt_name	= "cts(cbc(aes))",
-		.aux_cipher	= "cbc(aes)",
-		.cksum_name	= "hmac(sha384)",
-		.cksumlength	= BITS2OCTETS(192),
-		.keyed_cksum	= 1,
-		.keylength	= BITS2OCTETS(256),
-		.Kc_length	= BITS2OCTETS(192),
-		.Ke_length	= BITS2OCTETS(256),
-		.Ki_length	= BITS2OCTETS(192),
-
-		.derive_key	= krb5_kdf_hmac_sha2,
-		.encrypt	= krb5_etm_encrypt,
-		.decrypt	= krb5_etm_decrypt,
-
-		.get_mic	= gss_krb5_get_mic_v2,
-		.verify_mic	= gss_krb5_verify_mic_v2,
-		.wrap		= gss_krb5_wrap_v2,
-		.unwrap		= gss_krb5_unwrap_v2,
-	},
-#endif
+/*
+ * Candidate enctypes in order of most preferred to least.
+ * Each is probed against crypto/krb5 at module init; only
+ * enctypes that crypto/krb5 supports are advertised.
+ */
+static const u32 gss_krb5_enctypes[] = {
+	KRB5_ENCTYPE_AES256_CTS_HMAC_SHA384_192,
+	KRB5_ENCTYPE_AES128_CTS_HMAC_SHA256_128,
+	KRB5_ENCTYPE_CAMELLIA256_CTS_CMAC,
+	KRB5_ENCTYPE_CAMELLIA128_CTS_CMAC,
+	KRB5_ENCTYPE_AES256_CTS_HMAC_SHA1_96,
+	KRB5_ENCTYPE_AES128_CTS_HMAC_SHA1_96,
 };
 
-/*
- * The list of advertised enctypes is specified in order of most
- * preferred to least.
- */
 static char gss_krb5_enctype_priority_list[64];
 
 static void gss_krb5_prepare_enctype_priority_list(void)
 {
-	static const u32 gss_krb5_enctypes[] = {
-#if defined(CONFIG_RPCSEC_GSS_KRB5_ENCTYPES_AES_SHA2)
-		ENCTYPE_AES256_CTS_HMAC_SHA384_192,
-		ENCTYPE_AES128_CTS_HMAC_SHA256_128,
-#endif
-#if defined(CONFIG_RPCSEC_GSS_KRB5_ENCTYPES_CAMELLIA)
-		ENCTYPE_CAMELLIA256_CTS_CMAC,
-		ENCTYPE_CAMELLIA128_CTS_CMAC,
-#endif
-#if defined(CONFIG_RPCSEC_GSS_KRB5_ENCTYPES_AES_SHA1)
-		ENCTYPE_AES256_CTS_HMAC_SHA1_96,
-		ENCTYPE_AES128_CTS_HMAC_SHA1_96,
-#endif
-	};
 	size_t total, i;
 	char buf[16];
 	char *sep;
@@ -233,6 +53,8 @@ static void gss_krb5_prepare_enctype_priority_list(void)
 	sep = "";
 	gss_krb5_enctype_priority_list[0] = '\0';
 	for (total = 0, i = 0; i < ARRAY_SIZE(gss_krb5_enctypes); i++) {
+		if (!crypto_krb5_find_enctype(gss_krb5_enctypes[i]))
+			continue;
 		n = sprintf(buf, "%s%u", sep, gss_krb5_enctypes[i]);
 		if (n < 0)
 			break;
@@ -244,151 +66,56 @@ static void gss_krb5_prepare_enctype_priority_list(void)
 	}
 }
 
-/**
- * gss_krb5_lookup_enctype - Retrieve profile information for a given enctype
- * @etype: ENCTYPE value
- *
- * Returns a pointer to a gss_krb5_enctype structure, or NULL if no
- * matching etype is found.
- */
-VISIBLE_IF_KUNIT
-const struct gss_krb5_enctype *gss_krb5_lookup_enctype(u32 etype)
-{
-	size_t i;
-
-	for (i = 0; i < ARRAY_SIZE(supported_gss_krb5_enctypes); i++)
-		if (supported_gss_krb5_enctypes[i].etype == etype)
-			return &supported_gss_krb5_enctypes[i];
-	return NULL;
-}
-EXPORT_SYMBOL_IF_KUNIT(gss_krb5_lookup_enctype);
-
-static struct crypto_sync_skcipher *
-gss_krb5_alloc_cipher_v2(const char *cname, const struct xdr_netobj *key)
-{
-	struct crypto_sync_skcipher *tfm;
-
-	tfm = crypto_alloc_sync_skcipher(cname, 0, 0);
-	if (IS_ERR(tfm))
-		return NULL;
-	if (crypto_sync_skcipher_setkey(tfm, key->data, key->len)) {
-		crypto_free_sync_skcipher(tfm);
-		return NULL;
-	}
-	return tfm;
-}
-
-static struct crypto_ahash *
-gss_krb5_alloc_hash_v2(struct krb5_ctx *kctx, const struct xdr_netobj *key)
-{
-	struct crypto_ahash *tfm;
-
-	tfm = crypto_alloc_ahash(kctx->gk5e->cksum_name, 0, CRYPTO_ALG_ASYNC);
-	if (IS_ERR(tfm))
-		return NULL;
-	if (crypto_ahash_setkey(tfm, key->data, key->len)) {
-		crypto_free_ahash(tfm);
-		return NULL;
-	}
-	return tfm;
-}
-
 static int
 gss_krb5_import_ctx_v2(struct krb5_ctx *ctx, gfp_t gfp_mask)
 {
-	struct xdr_netobj keyin = {
-		.len	= ctx->gk5e->keylength,
+	struct krb5_buffer TK = {
+		.len	= ctx->krb5e->key_len,
 		.data	= ctx->Ksess,
 	};
-	struct xdr_netobj keyout;
-	int ret = -EINVAL;
+	int ret;
 
-	keyout.data = kmalloc(GSS_KRB5_MAX_KEYLEN, gfp_mask);
-	if (!keyout.data)
-		return -ENOMEM;
-
-	/* initiator seal encryption */
-	keyout.len = ctx->gk5e->Ke_length;
-	if (krb5_derive_key(ctx, &keyin, &keyout, KG_USAGE_INITIATOR_SEAL,
-			    KEY_USAGE_SEED_ENCRYPTION, gfp_mask))
-		goto out;
-	ctx->initiator_enc = gss_krb5_alloc_cipher_v2(ctx->gk5e->encrypt_name,
-						      &keyout);
-	if (ctx->initiator_enc == NULL)
-		goto out;
-	if (ctx->gk5e->aux_cipher) {
-		ctx->initiator_enc_aux =
-			gss_krb5_alloc_cipher_v2(ctx->gk5e->aux_cipher,
-						 &keyout);
-		if (ctx->initiator_enc_aux == NULL)
-			goto out_free;
+	ctx->initiator_enc_aead =
+		crypto_krb5_prepare_encryption(ctx->krb5e, &TK,
+					       KG_USAGE_INITIATOR_SEAL,
+					       gfp_mask);
+	if (IS_ERR(ctx->initiator_enc_aead)) {
+		ret = PTR_ERR(ctx->initiator_enc_aead);
+		goto out_free;
+	}
+	ctx->acceptor_enc_aead =
+		crypto_krb5_prepare_encryption(ctx->krb5e, &TK,
+					       KG_USAGE_ACCEPTOR_SEAL,
+					       gfp_mask);
+	if (IS_ERR(ctx->acceptor_enc_aead)) {
+		ret = PTR_ERR(ctx->acceptor_enc_aead);
+		goto out_free;
+	}
+	ctx->initiator_sign_shash =
+		crypto_krb5_prepare_checksum(ctx->krb5e, &TK,
+					     KG_USAGE_INITIATOR_SIGN,
+					     gfp_mask);
+	if (IS_ERR(ctx->initiator_sign_shash)) {
+		ret = PTR_ERR(ctx->initiator_sign_shash);
+		goto out_free;
+	}
+	ctx->acceptor_sign_shash =
+		crypto_krb5_prepare_checksum(ctx->krb5e, &TK,
+					     KG_USAGE_ACCEPTOR_SIGN,
+					     gfp_mask);
+	if (IS_ERR(ctx->acceptor_sign_shash)) {
+		ret = PTR_ERR(ctx->acceptor_sign_shash);
+		goto out_free;
 	}
 
-	/* acceptor seal encryption */
-	if (krb5_derive_key(ctx, &keyin, &keyout, KG_USAGE_ACCEPTOR_SEAL,
-			    KEY_USAGE_SEED_ENCRYPTION, gfp_mask))
-		goto out_free;
-	ctx->acceptor_enc = gss_krb5_alloc_cipher_v2(ctx->gk5e->encrypt_name,
-						     &keyout);
-	if (ctx->acceptor_enc == NULL)
-		goto out_free;
-	if (ctx->gk5e->aux_cipher) {
-		ctx->acceptor_enc_aux =
-			gss_krb5_alloc_cipher_v2(ctx->gk5e->aux_cipher,
-						 &keyout);
-		if (ctx->acceptor_enc_aux == NULL)
-			goto out_free;
-	}
-
-	/* initiator sign checksum */
-	keyout.len = ctx->gk5e->Kc_length;
-	if (krb5_derive_key(ctx, &keyin, &keyout, KG_USAGE_INITIATOR_SIGN,
-			    KEY_USAGE_SEED_CHECKSUM, gfp_mask))
-		goto out_free;
-	ctx->initiator_sign = gss_krb5_alloc_hash_v2(ctx, &keyout);
-	if (ctx->initiator_sign == NULL)
-		goto out_free;
-
-	/* acceptor sign checksum */
-	if (krb5_derive_key(ctx, &keyin, &keyout, KG_USAGE_ACCEPTOR_SIGN,
-			    KEY_USAGE_SEED_CHECKSUM, gfp_mask))
-		goto out_free;
-	ctx->acceptor_sign = gss_krb5_alloc_hash_v2(ctx, &keyout);
-	if (ctx->acceptor_sign == NULL)
-		goto out_free;
-
-	/* initiator seal integrity */
-	keyout.len = ctx->gk5e->Ki_length;
-	if (krb5_derive_key(ctx, &keyin, &keyout, KG_USAGE_INITIATOR_SEAL,
-			    KEY_USAGE_SEED_INTEGRITY, gfp_mask))
-		goto out_free;
-	ctx->initiator_integ = gss_krb5_alloc_hash_v2(ctx, &keyout);
-	if (ctx->initiator_integ == NULL)
-		goto out_free;
-
-	/* acceptor seal integrity */
-	if (krb5_derive_key(ctx, &keyin, &keyout, KG_USAGE_ACCEPTOR_SEAL,
-			    KEY_USAGE_SEED_INTEGRITY, gfp_mask))
-		goto out_free;
-	ctx->acceptor_integ = gss_krb5_alloc_hash_v2(ctx, &keyout);
-	if (ctx->acceptor_integ == NULL)
-		goto out_free;
-
-	ret = 0;
-out:
-	kfree_sensitive(keyout.data);
-	return ret;
+	return 0;
 
 out_free:
-	crypto_free_ahash(ctx->acceptor_integ);
-	crypto_free_ahash(ctx->initiator_integ);
-	crypto_free_ahash(ctx->acceptor_sign);
-	crypto_free_ahash(ctx->initiator_sign);
-	crypto_free_sync_skcipher(ctx->acceptor_enc_aux);
-	crypto_free_sync_skcipher(ctx->acceptor_enc);
-	crypto_free_sync_skcipher(ctx->initiator_enc_aux);
-	crypto_free_sync_skcipher(ctx->initiator_enc);
-	goto out;
+	crypto_free_shash(ctx->acceptor_sign_shash);
+	crypto_free_shash(ctx->initiator_sign_shash);
+	crypto_free_aead(ctx->acceptor_enc_aead);
+	crypto_free_aead(ctx->initiator_enc_aead);
+	return ret;
 }
 
 static int
@@ -414,25 +141,17 @@ gss_import_v2_context(const void *p, const void *end, struct krb5_ctx *ctx,
 	if (IS_ERR(p))
 		goto out_err;
 	atomic64_set(&ctx->seq_send64, seq_send64);
-	/* set seq_send for use by "older" enctypes */
-	atomic_set(&ctx->seq_send, seq_send64);
-	if (seq_send64 != atomic_read(&ctx->seq_send)) {
-		dprintk("%s: seq_send64 %llx, seq_send %x overflow?\n", __func__,
-			seq_send64, atomic_read(&ctx->seq_send));
-		p = ERR_PTR(-EINVAL);
-		goto out_err;
-	}
 	p = simple_get_bytes(p, end, &ctx->enctype, sizeof(ctx->enctype));
 	if (IS_ERR(p))
 		goto out_err;
-	ctx->gk5e = gss_krb5_lookup_enctype(ctx->enctype);
-	if (ctx->gk5e == NULL) {
+	ctx->krb5e = crypto_krb5_find_enctype(ctx->enctype);
+	if (!ctx->krb5e) {
 		dprintk("gss_kerberos_mech: unsupported krb5 enctype %u\n",
 			ctx->enctype);
 		p = ERR_PTR(-EINVAL);
 		goto out_err;
 	}
-	keylen = ctx->gk5e->keylength;
+	keylen = ctx->krb5e->key_len;
 
 	p = simple_get_bytes(p, end, ctx->Ksess, keylen);
 	if (IS_ERR(p))
@@ -495,18 +214,36 @@ gss_krb5_delete_sec_context(void *internal_ctx)
 {
 	struct krb5_ctx *kctx = internal_ctx;
 
-	crypto_free_sync_skcipher(kctx->seq);
-	crypto_free_sync_skcipher(kctx->enc);
-	crypto_free_sync_skcipher(kctx->acceptor_enc);
-	crypto_free_sync_skcipher(kctx->initiator_enc);
-	crypto_free_sync_skcipher(kctx->acceptor_enc_aux);
-	crypto_free_sync_skcipher(kctx->initiator_enc_aux);
-	crypto_free_ahash(kctx->acceptor_sign);
-	crypto_free_ahash(kctx->initiator_sign);
-	crypto_free_ahash(kctx->acceptor_integ);
-	crypto_free_ahash(kctx->initiator_integ);
+	crypto_free_shash(kctx->acceptor_sign_shash);
+	crypto_free_shash(kctx->initiator_sign_shash);
+	crypto_free_aead(kctx->acceptor_enc_aead);
+	crypto_free_aead(kctx->initiator_enc_aead);
 	kfree(kctx->mech_used.data);
 	kfree(kctx);
+}
+
+/**
+ * gss_krb5_errno_to_status - Map a negative errno to a GSS major status
+ * @err: negative errno value, or zero
+ *
+ * Returns:
+ *   %GSS_S_COMPLETE if @err is zero
+ *   %GSS_S_BAD_SIG if @err is -EBADMSG (integrity check failure)
+ *   %GSS_S_DEFECTIVE_TOKEN if @err is -EPROTO (malformed token)
+ *   %GSS_S_FAILURE for all other negative values
+ */
+u32 gss_krb5_errno_to_status(int err)
+{
+	switch (err) {
+	case 0:
+		return GSS_S_COMPLETE;
+	case -EBADMSG:
+		return GSS_S_BAD_SIG;
+	case -EPROTO:
+		return GSS_S_DEFECTIVE_TOKEN;
+	default:
+		return GSS_S_FAILURE;
+	}
 }
 
 /**
@@ -525,7 +262,7 @@ static u32 gss_krb5_get_mic(struct gss_ctx *gctx, struct xdr_buf *text,
 {
 	struct krb5_ctx *kctx = gctx->internal_ctx_id;
 
-	return kctx->gk5e->get_mic(kctx, text, token);
+	return gss_krb5_get_mic_v2(kctx, text, token);
 }
 
 /**
@@ -547,7 +284,7 @@ static u32 gss_krb5_verify_mic(struct gss_ctx *gctx,
 {
 	struct krb5_ctx *kctx = gctx->internal_ctx_id;
 
-	return kctx->gk5e->verify_mic(kctx, message_buffer, read_token);
+	return gss_krb5_verify_mic_v2(kctx, message_buffer, read_token);
 }
 
 /**
@@ -567,7 +304,7 @@ static u32 gss_krb5_wrap(struct gss_ctx *gctx, int offset,
 {
 	struct krb5_ctx	*kctx = gctx->internal_ctx_id;
 
-	return kctx->gk5e->wrap(kctx, offset, buf, pages);
+	return gss_krb5_wrap_v2(kctx, offset, buf, pages);
 }
 
 /**
@@ -589,7 +326,7 @@ static u32 gss_krb5_unwrap(struct gss_ctx *gctx, int offset,
 {
 	struct krb5_ctx	*kctx = gctx->internal_ctx_id;
 
-	return kctx->gk5e->unwrap(kctx, offset, len, buf,
+	return gss_krb5_unwrap_v2(kctx, offset, len, buf,
 				  &gctx->slack, &gctx->align);
 }
 

@@ -25,8 +25,11 @@ int count1 = 0;
 static __noinline
 int subprog_tail0(struct __sk_buff *skb)
 {
+	int ret = 0;
+
 	bpf_tail_call_static(skb, &jmp_table, 0);
-	return 0;
+	barrier_var(ret);
+	return ret;
 }
 
 __auxiliary
@@ -41,16 +44,22 @@ int classifier_0(struct __sk_buff *skb)
 static __noinline
 int subprog_tail1(struct __sk_buff *skb)
 {
+	int ret = 0;
+
 	bpf_tail_call_static(skb, &jmp_table, 1);
-	return 0;
+	barrier_var(ret);
+	return ret;
 }
 
 __auxiliary
 SEC("tc")
 int classifier_1(struct __sk_buff *skb)
 {
+	int ret;
+
 	count1++;
-	subprog_tail1(skb);
+	ret = subprog_tail1(skb);
+	__sink(ret);
 	return 0;
 }
 
@@ -59,13 +68,14 @@ __retval(33)
 SEC("tc")
 int tailcall_bpf2bpf_hierarchy_2(struct __sk_buff *skb)
 {
-	int ret = 0;
+	int ret = 0, ret1, ret2;
 
 	clobber_regs_stack();
 
-	subprog_tail0(skb);
-	subprog_tail1(skb);
-
+	ret1 = subprog_tail0(skb);
+	ret2 = subprog_tail1(skb);
+	__sink(ret1);
+	__sink(ret2);
 	__sink(ret);
 	return (count1 << 16) | count0;
 }

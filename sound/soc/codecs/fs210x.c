@@ -1557,9 +1557,9 @@ static void fs210x_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id fs210x_i2c_id[] = {
-	{ "fs2104" },
-	{ "fs2105s" },
-	{}
+	{ .name = "fs2104" },
+	{ .name = "fs2105s" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, fs210x_i2c_id);
 

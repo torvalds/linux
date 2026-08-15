@@ -43,6 +43,7 @@ struct blk_crypto_keyslot {
 };
 
 static inline void blk_crypto_hw_enter(struct blk_crypto_profile *profile)
+	__acquires(&profile->lock)
 {
 	/*
 	 * Calling into the driver requires profile->lock held and the device
@@ -55,6 +56,7 @@ static inline void blk_crypto_hw_enter(struct blk_crypto_profile *profile)
 }
 
 static inline void blk_crypto_hw_exit(struct blk_crypto_profile *profile)
+	__releases(&profile->lock)
 {
 	up_write(&profile->lock);
 	if (profile->dev)

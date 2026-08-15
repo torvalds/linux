@@ -1474,15 +1474,15 @@ static int cb_pcidas_pci_probe(struct pci_dev *dev,
 }
 
 static const struct pci_device_id cb_pcidas_pci_table[] = {
-	{ PCI_VDEVICE(CB, 0x0001), BOARD_PCIDAS1602_16 },
-	{ PCI_VDEVICE(CB, 0x000f), BOARD_PCIDAS1200 },
-	{ PCI_VDEVICE(CB, 0x0010), BOARD_PCIDAS1602_12 },
-	{ PCI_VDEVICE(CB, 0x0019), BOARD_PCIDAS1200_JR },
-	{ PCI_VDEVICE(CB, 0x001c), BOARD_PCIDAS1602_16_JR },
-	{ PCI_VDEVICE(CB, 0x004c), BOARD_PCIDAS1000 },
-	{ PCI_VDEVICE(CB, 0x001a), BOARD_PCIDAS1001 },
-	{ PCI_VDEVICE(CB, 0x001b), BOARD_PCIDAS1002 },
-	{ 0 }
+	{ PCI_VDEVICE(CB, 0x0001), .driver_data = BOARD_PCIDAS1602_16 },
+	{ PCI_VDEVICE(CB, 0x000f), .driver_data = BOARD_PCIDAS1200 },
+	{ PCI_VDEVICE(CB, 0x0010), .driver_data = BOARD_PCIDAS1602_12 },
+	{ PCI_VDEVICE(CB, 0x0019), .driver_data = BOARD_PCIDAS1200_JR },
+	{ PCI_VDEVICE(CB, 0x001c), .driver_data = BOARD_PCIDAS1602_16_JR },
+	{ PCI_VDEVICE(CB, 0x004c), .driver_data = BOARD_PCIDAS1000 },
+	{ PCI_VDEVICE(CB, 0x001a), .driver_data = BOARD_PCIDAS1001 },
+	{ PCI_VDEVICE(CB, 0x001b), .driver_data = BOARD_PCIDAS1002 },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, cb_pcidas_pci_table);
 

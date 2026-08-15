@@ -8,7 +8,7 @@
 
 #include <linux/types.h>
 
-struct drm_atomic_state;
+struct drm_atomic_commit;
 struct drm_modeset_acquire_ctx;
 struct intel_display;
 struct pci_dev;
@@ -29,7 +29,7 @@ void intel_display_driver_resume(struct intel_display *display);
 
 /* interface for intel_display_reset.c */
 int __intel_display_driver_resume(struct intel_display *display,
-				  struct drm_atomic_state *state,
+				  struct drm_atomic_commit *state,
 				  struct drm_modeset_acquire_ctx *ctx);
 
 void intel_display_driver_enable_user_access(struct intel_display *display);

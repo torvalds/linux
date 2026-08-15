@@ -23,7 +23,7 @@ static void test_reenter_update(void)
 	if (!ASSERT_OK_PTR(skel, "htab_update__open"))
 		return;
 
-	bpf_program__set_autoload(skel->progs.bpf_obj_free_fields, true);
+	bpf_program__set_autoload(skel->progs.bpf_obj_cancel_fields, true);
 	err = htab_update__load(skel);
 	if (!ASSERT_TRUE(!err, "htab_update__load") || err)
 		goto out;
@@ -50,7 +50,7 @@ static void test_reenter_update(void)
 	/*
 	 * Second update: replace existing element with same key and trigger
 	 * the reentrancy of bpf_map_update_elem().
-	 * check_and_free_fields() calls bpf_obj_free_fields() on the old
+	 * check_and_cancel_fields() calls bpf_obj_cancel_fields() on the old
 	 * value, which is where fentry program runs and performs a nested
 	 * bpf_map_update_elem(), triggering -EDEADLK.
 	 */

@@ -23,7 +23,7 @@ int mtk_crtc_plane_check(struct drm_crtc *crtc, struct drm_plane *plane,
 			 struct mtk_plane_state *state);
 void mtk_crtc_plane_disable(struct drm_crtc *crtc, struct drm_plane *plane);
 void mtk_crtc_async_update(struct drm_crtc *crtc, struct drm_plane *plane,
-			   struct drm_atomic_state *plane_state);
+			   struct drm_atomic_commit *plane_state);
 struct device *mtk_crtc_dma_dev_get(struct drm_crtc *crtc);
 
 #endif /* MTK_CRTC_H */

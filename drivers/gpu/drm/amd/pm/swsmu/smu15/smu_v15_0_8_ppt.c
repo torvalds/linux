@@ -63,6 +63,8 @@
 	for ((stack_idx) = 0; (umc_mask); \
 	     (umc_mask) >>= 4, (stack_idx)++) \
 
+#define NUM_JPEG_RINGS_FW	10
+
 #define to_amdgpu_device(x) (container_of(x, struct amdgpu_device, pm.smu_i2c))
 
 #define SMU_15_0_8_FEA_MAP(smu_feature, smu_15_0_8_feature)                    \
@@ -169,6 +171,13 @@ static const struct cmn2asic_mapping smu_v15_0_8_table_map[SMU_TABLE_COUNT] = {
 	TAB_MAP(PMSTATUSLOG),
 	TAB_MAP(SMU_METRICS),
 	TAB_MAP(I2C_COMMANDS),
+};
+
+static const uint8_t smu_v15_0_8_throttler_map[] = {
+	[THROTTLER_PROCHOT_BIT] = (SMU_THROTTLER_PROCHOT_GFX_BIT),
+	[THROTTLER_THERMAL_SOCKET_BIT] = (SMU_THROTTLER_TEMP_GPU_BIT),
+	[THROTTLER_THERMAL_VR_BIT] = (SMU_THROTTLER_TEMP_VR_GFX_BIT),
+	[THROTTLER_THERMAL_HBM_BIT] = (SMU_THROTTLER_TEMP_MEM_BIT),
 };
 
 static size_t smu_v15_0_8_get_system_metrics_size(void)
@@ -1062,38 +1071,30 @@ static int smu_v15_0_8_set_driver_pptable(struct smu_context *smu)
 		smu_table->tables[SMU_TABLE_SMU_METRICS].version =
 			table_version;
 
-		pptable->MaxSocketPowerLimit =
-			SMUQ10_ROUND(static_metrics->MaxSocketPowerLimit);
-		pptable->MaxGfxclkFrequency =
-			SMUQ10_ROUND(static_metrics->MaxGfxclkFrequency);
-		pptable->MinGfxclkFrequency =
-			SMUQ10_ROUND(static_metrics->MinGfxclkFrequency);
-		pptable->MaxFclkFrequency =
-			SMUQ10_ROUND(static_metrics->MaxFclkFrequency);
-		pptable->MinFclkFrequency =
-			SMUQ10_ROUND(static_metrics->MinFclkFrequency);
-		pptable->MaxGl2clkFrequency =
-			SMUQ10_ROUND(static_metrics->MaxGl2clkFrequency);
-		pptable->MinGl2clkFrequency =
-			SMUQ10_ROUND(static_metrics->MinGl2clkFrequency);
+		pptable->MaxSocketPowerLimit = static_metrics->MaxSocketPowerLimit;
+		pptable->MaxGfxclkFrequency = static_metrics->MaxGfxclkFrequency;
+		pptable->MinGfxclkFrequency = static_metrics->MinGfxclkFrequency;
+		pptable->MaxFclkFrequency = static_metrics->MaxFclkFrequency;
+		pptable->MinFclkFrequency = static_metrics->MinFclkFrequency;
+		pptable->MaxGl2clkFrequency = static_metrics->MaxGl2clkFrequency;
+		pptable->MinGl2clkFrequency = static_metrics->MinGl2clkFrequency;
 
 		for (i = 0; i < ARRAY_SIZE(static_metrics->UclkFrequencyTable); ++i)
-			pptable->UclkFrequencyTable[i] =
-				SMUQ10_ROUND(static_metrics->UclkFrequencyTable[i]);
+			pptable->UclkFrequencyTable[i] = static_metrics->UclkFrequencyTable[i];
 
-		pptable->SocclkFrequency = SMUQ10_ROUND(static_metrics->SocclkFrequency);
-		pptable->LclkFrequency = SMUQ10_ROUND(static_metrics->LclkFrequency);
-		pptable->VclkFrequency = SMUQ10_ROUND(static_metrics->VclkFrequency);
-		pptable->DclkFrequency = SMUQ10_ROUND(static_metrics->DclkFrequency);
+		pptable->SocclkFrequency = static_metrics->SocclkFrequency;
+		pptable->LclkFrequency = static_metrics->LclkFrequency;
+		pptable->VclkFrequency = static_metrics->VclkFrequency;
+		pptable->DclkFrequency = static_metrics->DclkFrequency;
 
-		pptable->CTFLimitMID = SMUQ10_ROUND(static_metrics->CTFLimit_MID);
-		pptable->CTFLimitAID = SMUQ10_ROUND(static_metrics->CTFLimit_AID);
-		pptable->CTFLimitXCD = SMUQ10_ROUND(static_metrics->CTFLimit_XCD);
-		pptable->CTFLimitHBM = SMUQ10_ROUND(static_metrics->CTFLimit_HBM);
-		pptable->ThermalLimitMID = SMUQ10_ROUND(static_metrics->ThermalLimit_MID);
-		pptable->ThermalLimitAID = SMUQ10_ROUND(static_metrics->ThermalLimit_AID);
-		pptable->ThermalLimitXCD = SMUQ10_ROUND(static_metrics->ThermalLimit_XCD);
-		pptable->ThermalLimitHBM = SMUQ10_ROUND(static_metrics->ThermalLimit_HBM);
+		pptable->CTFLimitMID = static_metrics->CTFLimit_MID;
+		pptable->CTFLimitAID = static_metrics->CTFLimit_AID;
+		pptable->CTFLimitXCD = static_metrics->CTFLimit_XCD;
+		pptable->CTFLimitHBM = static_metrics->CTFLimit_HBM;
+		pptable->ThermalLimitMID = static_metrics->ThermalLimit_MID;
+		pptable->ThermalLimitAID = static_metrics->ThermalLimit_AID;
+		pptable->ThermalLimitXCD = static_metrics->ThermalLimit_XCD;
+		pptable->ThermalLimitHBM = static_metrics->ThermalLimit_HBM;
 
 		/* use MID0 serial number by default */
 		pptable->PublicSerialNumberMID =
@@ -1312,23 +1313,21 @@ static int smu_v15_0_8_system_features_control(struct smu_context *smu,
 static int smu_v15_0_8_get_enabled_mask(struct smu_context *smu,
 					struct smu_feature_bits *feature_mask)
 {
-	struct smu_msg_args args = {
-		.msg = SMU_MSG_GetEnabledSmuFeatures,
-		.num_args = 0,
-		.num_out_args = 2,
-	};
+	uint32_t out[2];
 	int ret;
 
 	if (!feature_mask)
 		return -EINVAL;
 
-	ret = smu->msg_ctl.ops->send_msg(&smu->msg_ctl, &args);
+	ret = smu_cmn_send_smc_msg_with_params(smu,
+					       SMU_MSG_GetEnabledSmuFeatures,
+					       NULL, 0,
+					       out, ARRAY_SIZE(out));
 
 	if (ret)
 		return ret;
 
-	smu_feature_bits_from_arr32(feature_mask, args.out_args,
-				    SMU_FEATURE_NUM_DEFAULT);
+	smu_feature_bits_from_arr32(feature_mask, out, SMU_FEATURE_NUM_DEFAULT);
 
 	return 0;
 }
@@ -1601,6 +1600,81 @@ static ssize_t smu_v15_0_8_get_temp_metrics(struct smu_context *smu,
 	}
 }
 
+static ssize_t smu_v15_0_8_get_xcp_metrics(struct smu_context *smu, int xcp_id,
+					   void *table)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	const u8 num_jpeg_rings = NUM_JPEG_RINGS_FW;
+	struct smu_v15_0_8_partition_metrics *xcp_metrics;
+	MetricsTable_t *metrics;
+	struct amdgpu_device *adev = smu->adev;
+	int ret, inst, i, j, k, idx;
+	struct amdgpu_xcp *xcp;
+	u32 inst_mask;
+
+	if (!table)
+		return sizeof(*xcp_metrics);
+
+	for_each_xcp(adev->xcp_mgr, xcp, i) {
+		if (xcp->id == xcp_id)
+			break;
+	}
+	if (i == adev->xcp_mgr->num_xcps)
+		return -EINVAL;
+
+	xcp_metrics = (struct smu_v15_0_8_partition_metrics *)table;
+	smu_v15_0_8_partition_metrics_init(xcp_metrics, 1, 1);
+
+	ret = smu_v15_0_8_get_metrics_table_internal(smu, 1, NULL);
+	if (ret)
+		return ret;
+
+	metrics = (MetricsTable_t *)smu_table->metrics_table;
+
+	amdgpu_xcp_get_inst_details(xcp, AMDGPU_XCP_VCN, &inst_mask);
+	idx = 0;
+	for_each_inst(k, inst_mask) {
+		/* Both JPEG and VCN has same instances */
+		inst = GET_INST(VCN, k);
+		for (j = 0; j < num_jpeg_rings; ++j) {
+			xcp_metrics->jpeg_busy[(idx * num_jpeg_rings) + j] =
+				SMUQ10_ROUND(metrics->JpegBusy[(inst * num_jpeg_rings) + j]);
+		}
+		xcp_metrics->vcn_busy[idx] =
+			SMUQ10_ROUND(metrics->VcnBusy[inst]);
+
+		xcp_metrics->current_vclk[idx] = SMUQ10_ROUND(metrics->VclkFrequency[inst]);
+		xcp_metrics->current_dclk[idx] = SMUQ10_ROUND(metrics->DclkFrequency[inst]);
+
+		idx++;
+	}
+
+	amdgpu_xcp_get_inst_details(xcp, AMDGPU_XCP_GFX, &inst_mask);
+	idx = 0;
+	for_each_inst(k, inst_mask) {
+		inst = GET_INST(GC, k);
+		xcp_metrics->current_gfxclk[idx] =
+			SMUQ10_ROUND(metrics->GfxclkFrequency[inst]);
+
+		xcp_metrics->gfx_busy_inst[idx] = SMUQ10_ROUND(metrics->GfxBusy[inst]);
+		xcp_metrics->gfx_busy_acc[idx] = SMUQ10_ROUND(metrics->GfxBusyAcc[inst]);
+		xcp_metrics->gfx_below_host_limit_ppt_acc[idx] =
+			SMUQ10_ROUND(metrics->GfxclkBelowHostLimitPptAcc[inst]);
+		xcp_metrics->gfx_below_host_limit_thm_acc[idx] =
+			SMUQ10_ROUND(metrics->GfxclkBelowHostLimitThmAcc[inst]);
+		xcp_metrics->gfx_low_utilization_acc[idx] =
+			SMUQ10_ROUND(metrics->GfxclkLowUtilizationAcc[inst]);
+		xcp_metrics->gfx_below_host_limit_total_acc[idx] =
+			SMUQ10_ROUND(metrics->GfxclkBelowHostLimitTotalAcc[inst]);
+		idx++;
+	}
+
+	xcp_metrics->accumulation_counter = metrics->AccumulationCounter;
+	xcp_metrics->firmware_timestamp = metrics->Timestamp;
+
+	return sizeof(*xcp_metrics);
+}
+
 static ssize_t smu_v15_0_8_get_gpu_metrics(struct smu_context *smu, void **table)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
@@ -1627,17 +1701,23 @@ static ssize_t smu_v15_0_8_get_gpu_metrics(struct smu_context *smu, void **table
 	if (adev->umc.active_mask) {
 		u64 mask = adev->umc.active_mask;
 		int out_idx = 0;
+		u16 max_hbm_temp = 0;
 		int stack_idx;
 
-		if (unlikely(hweight64(mask)/4 > SMU_15_0_8_MAX_HBM_STACKS))
+		if (unlikely(hweight64(mask) / 4 > SMU_15_0_8_MAX_HBM_STACKS)) {
 			dev_warn(adev->dev, "Invalid umc mask %lld\n", mask);
-		else  {
+		} else  {
 			for_each_hbm_stack(stack_idx, mask) {
+				u16 temp;
+
 				if (!hbm_stack_mask_valid(mask))
 					continue;
-				gpu_metrics->temperature_hbm[out_idx++] =
-					SMUQ10_ROUND(metrics->HbmTemperature[stack_idx]);
+				temp = SMUQ10_ROUND(metrics->HbmTemperature[stack_idx]);
+				gpu_metrics->temperature_hbm[out_idx++] = temp;
+				if (temp > max_hbm_temp)
+					max_hbm_temp = temp;
 			}
+			gpu_metrics->temperature_mem = max_hbm_temp;
 		}
 	}
 
@@ -2199,6 +2279,71 @@ static int smu_v15_0_8_get_ppt_limit(struct smu_context *smu,
 	return -EOPNOTSUPP;
 }
 
+static uint32_t smu_v15_0_8_get_throttler_status(struct smu_context *smu)
+{
+	struct smu_power_context *smu_power = &smu->smu_power;
+	struct smu_15_0_power_context *power_context = smu_power->power_context;
+	uint32_t throttler_status = 0;
+
+	throttler_status = atomic_read(&power_context->throttle_status);
+	dev_dbg(smu->adev->dev, "SMU Throttler status: %u", throttler_status);
+
+	return throttler_status;
+}
+
+static const char *const throttling_logging_label[] = {
+	[THROTTLER_PROCHOT_BIT] = "Prochot",
+	[THROTTLER_THERMAL_SOCKET_BIT] = "SOC",
+	[THROTTLER_THERMAL_VR_BIT] = "VR",
+	[THROTTLER_THERMAL_HBM_BIT] = "HBM"
+};
+
+static void smu_v15_0_8_log_thermal_throttling_event(struct smu_context *smu)
+{
+	int throttler_idx, throttling_events = 0, buf_idx = 0;
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t throttler_status;
+	char log_buf[256];
+
+	throttler_status = smu_v15_0_8_get_throttler_status(smu);
+	if (!throttler_status)
+		return;
+
+	memset(log_buf, 0, sizeof(log_buf));
+	for (throttler_idx = 0;
+	     throttler_idx < ARRAY_SIZE(throttling_logging_label);
+	     throttler_idx++) {
+		if (throttler_status & (1U << throttler_idx)) {
+			throttling_events++;
+			buf_idx += snprintf(
+				log_buf + buf_idx, sizeof(log_buf) - buf_idx,
+				"%s%s", throttling_events > 1 ? " and " : "",
+				throttling_logging_label[throttler_idx]);
+			if (buf_idx >= sizeof(log_buf)) {
+				dev_err(adev->dev, "buffer overflow!\n");
+				log_buf[sizeof(log_buf) - 1] = '\0';
+				break;
+			}
+		}
+	}
+
+	dev_warn(adev->dev,
+		 "WARN: GPU is throttled, expect performance decrease. %s.\n",
+		 log_buf);
+	kgd2kfd_smi_event_throttle(
+		smu->adev->kfd.dev,
+		smu_cmn_get_indep_throttler_status(throttler_status,
+						   smu_v15_0_8_throttler_map));
+}
+
+static int smu_v15_0_8_enable_thermal_alert(struct smu_context *smu)
+{
+	if (!smu->irq_source.num_types)
+		return 0;
+
+	return amdgpu_irq_get(smu->adev, &smu->irq_source, 0);
+}
+
 static const struct pptable_funcs smu_v15_0_8_ppt_funcs = {
 	.init_allowed_features = smu_v15_0_8_init_allowed_features,
 	.set_default_dpm_table = smu_v15_0_8_set_default_dpm_table,
@@ -2216,10 +2361,14 @@ static const struct pptable_funcs smu_v15_0_8_ppt_funcs = {
 	.get_enabled_mask = smu_v15_0_8_get_enabled_mask,
 	.feature_is_enabled = smu_cmn_feature_is_enabled,
 	.register_irq_handler = smu_v15_0_8_register_irq_handler,
+	.enable_thermal_alert = smu_v15_0_8_enable_thermal_alert,
+	.disable_thermal_alert = smu_v15_0_disable_thermal_alert,
+	.log_thermal_throttling_event = smu_v15_0_8_log_thermal_throttling_event,
 	.setup_pptable = smu_v15_0_8_setup_pptable,
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
 	.wait_for_event = smu_v15_0_wait_for_event,
 	.get_pm_metrics = smu_v15_0_8_get_pm_metrics,
+	.get_xcp_metrics = smu_v15_0_8_get_xcp_metrics,
 	.mode2_reset = smu_v15_0_8_mode2_reset,
 	.get_dpm_ultimate_freq = smu_v15_0_8_get_dpm_ultimate_freq,
 	.get_gpu_metrics = smu_v15_0_8_get_gpu_metrics,

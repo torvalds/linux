@@ -71,6 +71,12 @@ static inline int page_ref_count(const struct page *page)
  * folio_ref_count - The reference count on this folio.
  * @folio: The folio.
  *
+ * Folios contain a reference count.  When that reference count reaches
+ * zero, the folio is referred to as frozen.  At this point, it will
+ * usually be returned to the memory allocator, but some parts of the
+ * kernel freeze folios in order to perform unusual operations on them
+ * such as splitting or migration.
+ *
  * The refcount is usually incremented by calls to folio_get() and
  * decremented by calls to folio_put().  Some typical users of the
  * folio refcount:
@@ -81,6 +87,18 @@ static inline int page_ref_count(const struct page *page)
  * - The LRU list
  * - Pipes
  * - Direct IO which references this page in the process address space
+ *
+ * The reference count has three components: expected, temporary and
+ * spurious.  The expected reference count of a folio is that which
+ * we would logically expect it to be from just reading the code.
+ * Temporary refcounts are gained by threads which need a temporary
+ * reference to make sure the folio isn't reallocated while they use it.
+ * Spurious refcounts are gained by threads which, thanks to RCU walks
+ * of the page tables or file cache, find a stale pointer to a folio.
+ * These threads will drop the refcount after discoveering the pointer
+ * is stale, but it can surprise other users to see the spurious refcount
+ * on a freshly allocated folio (eg they may see a refcount of 2 instead
+ * of 1).
  *
  * Return: The number of references to this folio.
  */

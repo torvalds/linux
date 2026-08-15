@@ -5,10 +5,10 @@
 
 #include <drm/drm_managed.h>
 #include <drm/drm_print.h>
+#include <drm/intel/pci_config.h>
 
 #include "i915_drv.h"
 #include "i915_gmch.h"
-#include "intel_pci_config.h"
 
 static void i915_gmch_bridge_release(struct drm_device *dev, void *bridge)
 {

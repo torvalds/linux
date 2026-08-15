@@ -125,40 +125,6 @@ config MTD_SUN_UFLASH
 	  Sun Microsystems boardsets.  This driver will require CFI support
 	  in the kernel, so if you did not enable CFI previously, do that now.
 
-config MTD_SC520CDP
-	tristate "CFI Flash device mapped on AMD SC520 CDP"
-	depends on (MELAN || COMPILE_TEST) && MTD_CFI
-	help
-	  The SC520 CDP board has two banks of CFI-compliant chips and one
-	  Dual-in-line JEDEC chip. This 'mapping' driver supports that
-	  arrangement, implementing three MTD devices.
-
-config MTD_NETSC520
-	tristate "CFI Flash device mapped on AMD NetSc520"
-	depends on (MELAN || COMPILE_TEST) && MTD_CFI
-	help
-	  This enables access routines for the flash chips on the AMD NetSc520
-	  demonstration board. If you have one of these boards and would like
-	  to use the flash chips on it, say 'Y'.
-
-config MTD_TS5500
-	tristate "JEDEC Flash device mapped on Technologic Systems TS-5500"
-	depends on TS5500 || COMPILE_TEST
-	select MTD_JEDECPROBE
-	select MTD_CFI_AMDSTD
-	help
-	  This provides a driver for the on-board flash of the Technologic
-	  System's TS-5500 board. The 2MB flash is split into 3 partitions
-	  which are accessed as separate MTD devices.
-
-	  mtd0 and mtd2 are the two BIOS drives, which use the resident
-	  flash disk (RFD) flash translation layer.
-
-	  mtd1 allows you to reprogram your BIOS. BE VERY CAREFUL.
-
-	  Note that jumper 3 ("Write Enable Drive A") must be set
-	  otherwise detection won't succeed.
-
 config MTD_SBC_GXX
 	tristate "CFI Flash device mapped on Arcom SBC-GXx boards"
 	depends on X86 && MTD_CFI_INTELEXT && MTD_COMPLEX_MAPPINGS
@@ -238,12 +204,6 @@ config MTD_TSUNAMI
 	help
 	  Support for the flash chip on Tsunami TIG bus.
 
-config MTD_NETtel
-	tristate "CFI flash device on SnapGear/SecureEdge"
-	depends on X86 && MTD_JEDECPROBE
-	help
-	  Support for flash chips on NETtel/SecureEdge/SnapGear boards.
-
 config MTD_LANTIQ
 	tristate "Lantiq SoC NOR support"
 	depends on LANTIQ
@@ -289,13 +249,6 @@ config MTD_DC21285
 	  21285 bridge used with Intel's StrongARM processors. More info at
 	  <https://www.intel.com/design/bridge/docs/21285_documentation.htm>.
 
-config MTD_IMPA7
-	tristate "JEDEC Flash device mapped on impA7"
-	depends on ARM && MTD_JEDECPROBE
-	help
-	  This enables access to the NOR Flash on the impA7 board of
-	  implementa GmbH. If you have such a board, say 'Y' here.
-
 # This needs CFI or JEDEC, depending on the cards found.
 config MTD_PCI
 	tristate "PCI MTD driver"
@@ -323,12 +276,6 @@ config MTD_PCMCIA_ANONYMOUS
 	  anything about themselves are assumed to be MTD cards.
 
 	  If unsure, say N.
-
-config MTD_UCLINUX
-	bool "Generic uClinux RAM/ROM filesystem support"
-	depends on (MTD_RAM=y || MTD_ROM=y) && (!MMU || COLDFIRE)
-	help
-	  Map driver to support image based filesystems for uClinux.
 
 config MTD_PLATRAM
 	tristate "Map driver for platform device RAM (mtd-ram)"

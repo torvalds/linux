@@ -78,7 +78,7 @@ static const struct drm_plane_funcs hx8357d_plane_funcs = {
 };
 
 static void hx8357d_crtc_helper_atomic_enable(struct drm_crtc *crtc,
-					      struct drm_atomic_state *state)
+					      struct drm_atomic_commit *state)
 {
 	struct drm_device *drm = crtc->dev;
 	struct hx8357d_device *hx8357d = to_hx8357d_device(drm);

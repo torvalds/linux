@@ -52,6 +52,14 @@
  */
 #define LOCKD_DFLT_TIMEO	10
 
+/*
+ * Number of leading bytes of nfs_fh.data that file_hash()
+ * digests when bucketing nlm_files[]. Sized for historical
+ * NFSv2 handles; nfs_fh.data must be initialized at least
+ * this far before lookup, regardless of fh.size.
+ */
+#define LOCKD_FH_HASH_SIZE	32
+
 /* error codes new to NLMv4 */
 #define	nlm4_deadlock		cpu_to_be32(NLM_DEADLCK)
 #define	nlm4_rofs		cpu_to_be32(NLM_ROFS)
@@ -171,15 +179,15 @@ struct nlm_rqst {
 	refcount_t		a_count;
 	unsigned int		a_flags;	/* initial RPC task flags */
 	struct nlm_host *	a_host;		/* host handle */
-	struct nlm_args		a_args;		/* arguments */
-	struct nlm_res		a_res;		/* result */
+	struct lockd_args	a_args;		/* arguments */
+	struct lockd_res	a_res;		/* result */
 	struct nlm_block *	a_block;
 	unsigned int		a_retries;	/* Retry count */
 	u8			a_owner[NLMCLNT_OHSIZE];
 	void *	a_callback_data; /* sent to nlmclnt_operations callbacks */
 };
 
-struct nlm_share;
+struct lockd_share;
 
 /*
  * This struct describes a file held open by lockd on behalf of
@@ -190,7 +198,7 @@ struct nlm_file {
 	struct nfs_fh		f_handle;	/* NFS file handle */
 	struct file *		f_file[2];	/* VFS file pointers,
 						   indexed by O_ flags */
-	struct nlm_share *	f_shares;	/* DOS shares */
+	struct lockd_share *	f_shares;	/* DOS shares */
 	struct list_head	f_blocks;	/* blocked locks */
 	unsigned int		f_locks;	/* guesstimate # of locks */
 	unsigned int		f_count;	/* reference count */
@@ -253,11 +261,11 @@ void		  nlmclnt_queue_block(struct nlm_wait *block);
 __be32		  nlmclnt_dequeue_block(struct nlm_wait *block);
 int		  nlmclnt_wait(struct nlm_wait *block, struct nlm_rqst *req, long timeout);
 __be32		  nlmclnt_grant(const struct sockaddr *addr,
-				const struct nlm_lock *lock);
+				const struct lockd_lock *lock);
 void		  nlmclnt_recovery(struct nlm_host *);
 int		  nlmclnt_reclaim(struct nlm_host *, struct file_lock *,
 				  struct nlm_rqst *);
-void		  nlmclnt_next_cookie(struct nlm_cookie *);
+void		  nlmclnt_next_cookie(struct lockd_cookie *);
 
 #ifdef CONFIG_LOCKD_V4
 extern const struct rpc_version nlm_version4;
@@ -285,7 +293,7 @@ struct nlm_host * nlm_get_host(struct nlm_host *);
 void		  nlm_shutdown_hosts(void);
 void		  nlm_shutdown_hosts_net(struct net *net);
 void		  nlm_host_rebooted(const struct net *net,
-					const struct nlm_reboot *);
+					const struct lockd_reboot *);
 
 /*
  * Host monitoring
@@ -299,7 +307,7 @@ struct nsm_handle *nsm_get_handle(const struct net *net,
 					const char *hostname,
 					const size_t hostname_len);
 struct nsm_handle *nsm_reboot_lookup(const struct net *net,
-					const struct nlm_reboot *info);
+					const struct lockd_reboot *info);
 void		  nsm_release(struct nsm_handle *nsm);
 
 /*
@@ -313,17 +321,17 @@ typedef int	  (*nlm_host_match_fn_t)(void *cur, struct nlm_host *ref);
  */
 int		  lock_to_openmode(struct file_lock *);
 __be32		  nlmsvc_lock(struct svc_rqst *, struct nlm_file *,
-			      struct nlm_host *, struct nlm_lock *, int,
-			      struct nlm_cookie *, int);
-__be32		  nlmsvc_unlock(struct net *net, struct nlm_file *, struct nlm_lock *);
+			      struct nlm_host *, struct lockd_lock *, int,
+			      struct lockd_cookie *, int);
+__be32		  nlmsvc_unlock(struct net *net, struct nlm_file *, struct lockd_lock *);
 __be32		  nlmsvc_testlock(struct svc_rqst *rqstp, struct nlm_file *file,
-			struct nlm_host *host, struct nlm_lock *lock,
-			struct nlm_lock *conflock);
-__be32		  nlmsvc_cancel_blocked(struct net *net, struct nlm_file *, struct nlm_lock *);
+			struct nlm_host *host, struct lockd_lock *lock,
+			struct lockd_lock *conflock);
+__be32		  nlmsvc_cancel_blocked(struct net *net, struct nlm_file *, struct lockd_lock *);
 void		  nlmsvc_retry_blocked(struct svc_rqst *rqstp);
 void		  nlmsvc_traverse_blocks(struct nlm_host *, struct nlm_file *,
 					nlm_host_match_fn_t match);
-void		  nlmsvc_grant_reply(struct nlm_cookie *, __be32);
+void		  nlmsvc_grant_reply(struct lockd_cookie *, __be32);
 void		  nlmsvc_release_call(struct nlm_rqst *);
 void		  nlmsvc_locks_init_private(struct file_lock *, struct nlm_host *, pid_t);
 int		  nlmsvc_dispatch(struct svc_rqst *rqstp);
@@ -332,10 +340,10 @@ int		  nlmsvc_dispatch(struct svc_rqst *rqstp);
  * File handling for the server personality
  */
 __be32		  nlm_lookup_file(struct svc_rqst *, struct nlm_file **,
-				  struct nlm_lock *, int);
+				  struct lockd_lock *, int);
 void		  nlm_release_file(struct nlm_file *);
 void		  nlmsvc_put_lockowner(struct nlm_lockowner *);
-void		  nlmsvc_release_lockowner(struct nlm_lock *);
+void		  nlmsvc_release_lockowner(struct lockd_lock *);
 void		  nlmsvc_mark_resources(struct net *);
 void		  nlmsvc_free_host_resources(struct nlm_host *);
 void		  nlmsvc_invalidate_all(void);
@@ -420,6 +428,29 @@ static inline int nlm_compare_locks(const struct file_lock *fl1,
 	     && fl1->fl_start == fl2->fl_start
 	     && fl1->fl_end   == fl2->fl_end
 	     &&(fl1->c.flc_type  == fl2->c.flc_type || fl2->c.flc_type == F_UNLCK);
+}
+
+/**
+ * lockd_set_file_lock_range3 - set the byte range of a file_lock
+ * @fl: file_lock whose length fields are to be initialized
+ * @off: starting offset of the lock, in bytes
+ * @len: length of the byte range, in bytes, or zero
+ *
+ * NLMv3 uses a (start, length) representation for lock byte ranges,
+ * while the kernel's file_lock uses (start, end). Treat a length of
+ * zero or arithmetic overflow (end wrapping negative when the sum
+ * exceeds S32_MAX) as "lock to end of file."
+ */
+static inline void
+lockd_set_file_lock_range3(struct file_lock *fl, u32 off, u32 len)
+{
+	s32 end = off + len - 1;
+
+	fl->fl_start = off;
+	if (len == 0 || end < 0)
+		fl->fl_end = OFFSET_MAX;
+	else
+		fl->fl_end = end;
 }
 
 /**

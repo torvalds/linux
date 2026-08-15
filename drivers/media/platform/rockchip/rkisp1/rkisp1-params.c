@@ -64,6 +64,7 @@ union rkisp1_ext_params_config {
 	struct rkisp1_ext_params_compand_bls_config compand_bls;
 	struct rkisp1_ext_params_compand_curve_config compand_curve;
 	struct rkisp1_ext_params_wdr_config wdr;
+	struct rkisp1_ext_params_cac_config cac;
 };
 
 enum rkisp1_params_formats {
@@ -1413,6 +1414,47 @@ static void rkisp1_wdr_config(struct rkisp1_params *params,
 				     RKISP1_CIF_ISP_WDR_TONE_CURVE_YM_MASK);
 }
 
+static void rkisp1_cac_config(struct rkisp1_params *params,
+			      const struct rkisp1_cif_isp_cac_config *arg)
+{
+	u32 val;
+
+	/*
+	 * The enable bit is in the same register (RKISP1_CIF_ISP_CAC_CTRL),
+	 * so only set the clipping mode, and do not modify the other bits.
+	 */
+	val = rkisp1_read(params->rkisp1, RKISP1_CIF_ISP_CAC_CTRL);
+	val &= ~(RKISP1_CIF_ISP_CAC_CTRL_H_CLIP_MODE |
+		 RKISP1_CIF_ISP_CAC_CTRL_V_CLIP_MODE);
+	val |= FIELD_PREP(RKISP1_CIF_ISP_CAC_CTRL_H_CLIP_MODE, arg->h_clip_mode) |
+	       FIELD_PREP(RKISP1_CIF_ISP_CAC_CTRL_V_CLIP_MODE, arg->v_clip_mode);
+	rkisp1_write(params->rkisp1, RKISP1_CIF_ISP_CAC_CTRL, val);
+
+	val = FIELD_PREP(RKISP1_CIF_ISP_CAC_COUNT_START_H_MASK, arg->h_count_start) |
+	      FIELD_PREP(RKISP1_CIF_ISP_CAC_COUNT_START_V_MASK, arg->v_count_start);
+	rkisp1_write(params->rkisp1, RKISP1_CIF_ISP_CAC_COUNT_START, val);
+
+	val = FIELD_PREP(RKISP1_CIF_ISP_CAC_RED_MASK, arg->red[0]) |
+	      FIELD_PREP(RKISP1_CIF_ISP_CAC_BLUE_MASK, arg->blue[0]);
+	rkisp1_write(params->rkisp1, RKISP1_CIF_ISP_CAC_A, val);
+
+	val = FIELD_PREP(RKISP1_CIF_ISP_CAC_RED_MASK, arg->red[1]) |
+	      FIELD_PREP(RKISP1_CIF_ISP_CAC_BLUE_MASK, arg->blue[1]);
+	rkisp1_write(params->rkisp1, RKISP1_CIF_ISP_CAC_B, val);
+
+	val = FIELD_PREP(RKISP1_CIF_ISP_CAC_RED_MASK, arg->red[2]) |
+	      FIELD_PREP(RKISP1_CIF_ISP_CAC_BLUE_MASK, arg->blue[2]);
+	rkisp1_write(params->rkisp1, RKISP1_CIF_ISP_CAC_C, val);
+
+	val = FIELD_PREP(RKISP1_CIF_ISP_CAC_NF_MASK, arg->x_nf) |
+	      FIELD_PREP(RKISP1_CIF_ISP_CAC_NS_MASK, arg->x_ns);
+	rkisp1_write(params->rkisp1, RKISP1_CIF_ISP_CAC_X_NORM, val);
+
+	val = FIELD_PREP(RKISP1_CIF_ISP_CAC_NF_MASK, arg->y_nf) |
+	      FIELD_PREP(RKISP1_CIF_ISP_CAC_NS_MASK, arg->y_ns);
+	rkisp1_write(params->rkisp1, RKISP1_CIF_ISP_CAC_Y_NORM, val);
+}
+
 static void
 rkisp1_isp_isr_other_config(struct rkisp1_params *params,
 			    const struct rkisp1_params_cfg *new_params)
@@ -2089,6 +2131,25 @@ static void rkisp1_ext_params_wdr(struct rkisp1_params *params,
 				      RKISP1_CIF_ISP_WDR_CTRL_ENABLE);
 }
 
+static void rkisp1_ext_params_cac(struct rkisp1_params *params,
+				  const union rkisp1_ext_params_config *block)
+{
+	const struct rkisp1_ext_params_cac_config *cac = &block->cac;
+
+	if (cac->header.flags & RKISP1_EXT_PARAMS_FL_BLOCK_DISABLE) {
+		rkisp1_param_clear_bits(params, RKISP1_CIF_ISP_CAC_CTRL,
+					RKISP1_CIF_ISP_CAC_CTRL_ENABLE);
+		return;
+	}
+
+	rkisp1_cac_config(params, &cac->config);
+
+	if ((cac->header.flags & RKISP1_EXT_PARAMS_FL_BLOCK_ENABLE) &&
+	    !(params->enabled_blocks & BIT(cac->header.type)))
+		rkisp1_param_set_bits(params, RKISP1_CIF_ISP_CAC_CTRL,
+				      RKISP1_CIF_ISP_CAC_CTRL_ENABLE);
+}
+
 typedef void (*rkisp1_block_handler)(struct rkisp1_params *params,
 			     const union rkisp1_ext_params_config *config);
 
@@ -2185,6 +2246,10 @@ static const struct rkisp1_ext_params_handler {
 		.handler	= rkisp1_ext_params_wdr,
 		.group		= RKISP1_EXT_PARAMS_BLOCK_GROUP_OTHERS,
 	},
+	[RKISP1_EXT_PARAMS_BLOCK_TYPE_CAC] = {
+		.handler	= rkisp1_ext_params_cac,
+		.group		= RKISP1_EXT_PARAMS_BLOCK_GROUP_OTHERS,
+	},
 };
 
 #define RKISP1_PARAMS_BLOCK_INFO(block, data) \
@@ -2215,6 +2280,7 @@ rkisp1_ext_params_block_types_info[] = {
 	RKISP1_PARAMS_BLOCK_INFO(COMPAND_EXPAND, compand_curve),
 	RKISP1_PARAMS_BLOCK_INFO(COMPAND_COMPRESS, compand_curve),
 	RKISP1_PARAMS_BLOCK_INFO(WDR, wdr),
+	RKISP1_PARAMS_BLOCK_INFO(CAC, cac),
 };
 
 static_assert(ARRAY_SIZE(rkisp1_ext_params_handlers) ==
@@ -2474,6 +2540,8 @@ void rkisp1_params_disable(struct rkisp1_params *params)
 	rkisp1_ie_enable(params, false);
 	rkisp1_param_clear_bits(params, RKISP1_CIF_ISP_DPF_MODE,
 				RKISP1_CIF_ISP_DPF_MODE_EN);
+	rkisp1_param_clear_bits(params, RKISP1_CIF_ISP_CAC_CTRL,
+				RKISP1_CIF_ISP_CAC_CTRL_ENABLE);
 }
 
 static const struct rkisp1_params_ops rkisp1_v10_params_ops = {

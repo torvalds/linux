@@ -125,14 +125,12 @@ ia_css_bnlm_vmem_encode(
 	bnlm_lut_encode(&to->div_lut, div_lut_nearests, div_lut_slopes,
 			BNLM_DIV_LUT_SIZE);
 	memset(to->div_lut_intercepts, 0, sizeof(to->div_lut_intercepts));
-	for (i = 0; i < BNLM_DIV_LUT_SIZE; i++) {
+	for (i = 0; i < BNLM_DIV_LUT_SIZE; i++)
 		to->div_lut_intercepts[0][i] = div_lut_intercepts[i];
-	}
 
 	memset(to->power_of_2, 0, sizeof(to->power_of_2));
-	for (i = 0; i < (ISP_VEC_ELEMBITS - 1); i++) {
+	for (i = 0; i < (ISP_VEC_ELEMBITS - 1); i++)
 		to->power_of_2[0][i] = 1 << i;
-	}
 }
 
 /* - Encodes BNLM public parameters into DMEM parameters */

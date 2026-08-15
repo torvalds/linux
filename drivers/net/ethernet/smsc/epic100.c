@@ -166,11 +166,19 @@ static const struct epic_chip_info pci_id_tbl[] = {
 
 
 static const struct pci_device_id epic_pci_tbl[] = {
-	{ 0x10B8, 0x0005, 0x1092, 0x0AB4, 0, 0, SMSC_83C170_0 },
-	{ 0x10B8, 0x0005, PCI_ANY_ID, PCI_ANY_ID, 0, 0, SMSC_83C170 },
-	{ 0x10B8, 0x0006, PCI_ANY_ID, PCI_ANY_ID,
-	  PCI_CLASS_NETWORK_ETHERNET << 8, 0xffff00, SMSC_83C175 },
-	{ 0,}
+	{
+		PCI_DEVICE_SUB(0x10B8, 0x0005, 0x1092, 0x0AB4),
+		.driver_data = SMSC_83C170_0,
+	}, {
+		PCI_DEVICE(0x10B8, 0x0005),
+		.driver_data = SMSC_83C170,
+	}, {
+		PCI_DEVICE(0x10B8, 0x0006),
+		.class = PCI_CLASS_NETWORK_ETHERNET << 8,
+		.class_mask = 0xffff00,
+		.driver_data = SMSC_83C175,
+	},
+	{ }
 };
 MODULE_DEVICE_TABLE (pci, epic_pci_tbl);
 

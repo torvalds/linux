@@ -50,15 +50,6 @@ static int null_skcipher_setkey(struct crypto_skcipher *tfm, const u8 *key,
 				unsigned int keylen)
 { return 0; }
 
-static int null_setkey(struct crypto_tfm *tfm, const u8 *key,
-		       unsigned int keylen)
-{ return 0; }
-
-static void null_crypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
-{
-	memcpy(dst, src, NULL_BLOCK_SIZE);
-}
-
 static int null_skcipher_crypt(struct skcipher_request *req)
 {
 	if (req->src != req->dst)
@@ -97,35 +88,16 @@ static struct skcipher_alg skcipher_null = {
 	.decrypt		=	null_skcipher_crypt,
 };
 
-static struct crypto_alg cipher_null = {
-	.cra_name		=	"cipher_null",
-	.cra_driver_name	=	"cipher_null-generic",
-	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
-	.cra_blocksize		=	NULL_BLOCK_SIZE,
-	.cra_ctxsize		=	0,
-	.cra_module		=	THIS_MODULE,
-	.cra_u			=	{ .cipher = {
-	.cia_min_keysize	=	NULL_KEY_SIZE,
-	.cia_max_keysize	=	NULL_KEY_SIZE,
-	.cia_setkey		= 	null_setkey,
-	.cia_encrypt		=	null_crypt,
-	.cia_decrypt		=	null_crypt } }
-};
-
 MODULE_ALIAS_CRYPTO("digest_null");
-MODULE_ALIAS_CRYPTO("cipher_null");
+MODULE_ALIAS_CRYPTO("ecb(cipher_null)");
 
 static int __init crypto_null_mod_init(void)
 {
 	int ret = 0;
 
-	ret = crypto_register_alg(&cipher_null);
-	if (ret < 0)
-		goto out;
-
 	ret = crypto_register_shash(&digest_null);
 	if (ret < 0)
-		goto out_unregister_algs;
+		goto out;
 
 	ret = crypto_register_skcipher(&skcipher_null);
 	if (ret < 0)
@@ -135,15 +107,12 @@ static int __init crypto_null_mod_init(void)
 
 out_unregister_shash:
 	crypto_unregister_shash(&digest_null);
-out_unregister_algs:
-	crypto_unregister_alg(&cipher_null);
 out:
 	return ret;
 }
 
 static void __exit crypto_null_mod_fini(void)
 {
-	crypto_unregister_alg(&cipher_null);
 	crypto_unregister_shash(&digest_null);
 	crypto_unregister_skcipher(&skcipher_null);
 }

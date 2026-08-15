@@ -446,6 +446,24 @@ static inline int cmdq_pkt_jump(struct cmdq_pkt *pkt, dma_addr_t addr, u8 shift_
 int cmdq_pkt_jump_rel(struct cmdq_pkt *pkt, s32 offset, u8 shift_pa);
 
 /**
+ * cmdq_pkt_jump_rel_temp() - Temporary wrapper for new CMDQ helper API
+ * @pkt:	the CMDQ packet
+ * @offset:	relative offset of target instruction buffer from current PC.
+ * @shift_pa:	[DEPRECATED] shift bits of physical address in CMDQ instruction.
+ *		This value is got by cmdq_get_shift_pa().
+ *
+ * This function is a temporary wrapper that was introduced only for ease of
+ * migration of the many users of the CMDQ API located in multiple kernel
+ * subsystems.
+ *
+ * This has to be removed after all users are migrated to the newer CMDQ API.
+ */
+static inline int cmdq_pkt_jump_rel_temp(struct cmdq_pkt *pkt, s32 offset, u8 shift_pa)
+{
+	return cmdq_pkt_jump_rel(pkt, offset, shift_pa);
+}
+
+/**
  * cmdq_pkt_eoc() - Append EOC and ask GCE to generate an IRQ at end of execution
  * @pkt:	The CMDQ packet
  *
@@ -595,6 +613,12 @@ static inline int cmdq_pkt_jump(struct cmdq_pkt *pkt, dma_addr_t addr, u8 shift_
 }
 
 static inline int cmdq_pkt_jump_rel(struct cmdq_pkt *pkt, s32 offset, u8 shift_pa)
+{
+	return -EINVAL;
+}
+
+/* This wrapper has to be removed after all users migrated to jump_rel */
+static inline int cmdq_pkt_jump_rel_temp(struct cmdq_pkt *pkt, s32 offset, u8 shift_pa)
 {
 	return -EINVAL;
 }

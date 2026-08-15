@@ -153,11 +153,11 @@ static void hgo_configure_stream(struct vsp1_entity *entity,
 		       (crop->width << VI6_HGO_SIZE_HSIZE_SHIFT) |
 		       (crop->height << VI6_HGO_SIZE_VSIZE_SHIFT));
 
-	mutex_lock(hgo->ctrls.handler.lock);
-	hgo->max_rgb = hgo->ctrls.max_rgb->cur.val;
-	if (hgo->ctrls.num_bins)
-		hgo->num_bins = hgo_num_bins[hgo->ctrls.num_bins->cur.val];
-	mutex_unlock(hgo->ctrls.handler.lock);
+	scoped_guard(mutex, hgo->ctrls.handler.lock) {
+		hgo->max_rgb = hgo->ctrls.max_rgb->cur.val;
+		if (hgo->ctrls.num_bins)
+			hgo->num_bins = hgo_num_bins[hgo->ctrls.num_bins->cur.val];
+	}
 
 	hratio = crop->width * 2 / compose->width / 3;
 	vratio = crop->height * 2 / compose->height / 3;

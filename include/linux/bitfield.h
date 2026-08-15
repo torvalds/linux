@@ -44,7 +44,7 @@
  *  FIELD_MODIFY(REG_FIELD_C, &reg, c);
  */
 
-#define __bf_shf(x) (__builtin_ffsll(x) - 1)
+#define __bf_shf __builtin_ctzll
 
 #define __scalar_type_to_unsigned_cases(type)				\
 		unsigned type:	(unsigned type)0,			\
@@ -176,6 +176,22 @@
 	({								\
 		__BF_FIELD_CHECK_REG(_mask, _reg, "FIELD_GET: ");	\
 		__FIELD_GET(_mask, _reg, "FIELD_GET: ");		\
+	})
+
+/**
+ * FIELD_GET_SIGNED() - extract a signed bitfield element
+ * @mask: shifted mask defining the field's length and position
+ * @reg:  value of entire bitfield
+ *
+ * Returns the sign-extended field specified by @_mask from the
+ * bitfield passed in as @reg by masking and shifting it down.
+ */
+#define FIELD_GET_SIGNED(mask, reg)					\
+	({								\
+		__BF_FIELD_CHECK(mask, reg, 0U, "FIELD_GET_SIGNED: ");	\
+		 ((__signed_scalar_typeof(mask))			\
+		  (((long long)(reg) << __builtin_clzll(mask)) >>	\
+		   (__builtin_clzll(mask) + __builtin_ctzll(mask))));	\
 	})
 
 /**

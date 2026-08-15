@@ -1,0 +1,57 @@
+/* SPDX-License-Identifier: (BSD-2-Clause OR Apache-2.0) OR MIT */
+
+/*
+Copyright 2026 The Fuchsia Authors
+
+Licensed under a BSD-style license <LICENSE-BSD>, Apache License, Version 2.0
+<LICENSE-APACHE or https://www.apache.org/licenses/LICENSE-2.0>, or the MIT
+license <LICENSE-MIT or https://opensource.org/licenses/MIT>, at your option.
+This file may not be copied, modified, or distributed except according to
+those terms.
+*/
+
+.codegen-tabs {
+    display: grid;
+    grid-template-columns: repeat(var(--arity), minmax(200px, 1fr));
+    grid-template-rows: auto 1fr;
+    column-gap: 1rem;
+}
+
+.codegen-tabs:not(:has(> details[open]))::after {
+    grid-column: 1/-1;
+    content: 'Click one of the above headers to expand its contents.';
+    font-style: italic;
+    font-size: small;
+    text-align: center;
+}
+
+.codegen-tabs details {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-row: 1 / span 2;
+    grid-template-columns: subgrid;
+    grid-template-rows: subgrid;
+}
+
+.codegen-tabs summary {
+    display: grid;
+    grid-column: var(--n) / span 1;
+    grid-row: 1;
+    z-index: 1;
+    border-bottom: 2px solid var(--headings-border-bottom-color);
+    cursor: pointer;
+}
+
+.codegen-tabs details[open] > summary {
+    background-color: var(--code-block-background-color);
+    border-bottom-color: var(--target-border-color);
+}
+
+.codegen-tabs details::details-content {
+    grid-column: 1 / -1;
+    grid-row: 2;
+}
+
+.codegen-tabs details:not([open])::details-content {
+    display: none;
+}

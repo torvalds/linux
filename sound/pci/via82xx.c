@@ -389,10 +389,10 @@ struct via82xx {
 
 static const struct pci_device_id snd_via82xx_ids[] = {
 	/* 0x1106, 0x3058 */
-	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_82C686_5), TYPE_CARD_VIA686, },	/* 686A */
+	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_82C686_5), .driver_data = TYPE_CARD_VIA686 },	/* 686A */
 	/* 0x1106, 0x3059 */
-	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_8233_5), TYPE_CARD_VIA8233, },	/* VT8233 */
-	{ 0, }
+	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_8233_5), .driver_data = TYPE_CARD_VIA8233 },	/* VT8233 */
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, snd_via82xx_ids);

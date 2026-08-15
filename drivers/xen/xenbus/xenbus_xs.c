@@ -47,6 +47,9 @@
 #include <linux/rwsem.h>
 #include <linux/mutex.h>
 #include <asm/xen/hypervisor.h>
+#ifdef CONFIG_X86
+#include <asm/cpuid/api.h>
+#endif
 #include <xen/xenbus.h>
 #include <xen/xen.h>
 #include "xenbus.h"
@@ -413,6 +416,12 @@ static char *join(const char *dir, const char *name)
 static char **split_strings(char *strings, unsigned int len, unsigned int *num)
 {
 	char *p, **ret;
+
+	if (len && strings[len - 1]) {
+		pr_err_once("malformed XS_DIRECTORY reply\n");
+		kfree(strings);
+		return ERR_PTR(-EIO);
+	}
 
 	/* Count the strings. */
 	*num = count_strings(strings, len);

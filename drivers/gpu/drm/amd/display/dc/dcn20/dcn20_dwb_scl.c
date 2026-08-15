@@ -696,7 +696,7 @@ static void wbscl_set_scaler_filter(
 	for (phase = 0; phase < (NUM_PHASES / 2 + 1); phase++) {
 		for (pair = 0; pair < tap_pairs; pair++) {
 			even_coef = filter[phase * taps + 2 * pair];
-			if ((pair * 2 + 1) < taps)
+			if ((uint32_t)(pair * 2 + 1) < taps)
 				odd_coef = filter[phase * taps + 2 * pair + 1];
 			else
 				odd_coef = 0;

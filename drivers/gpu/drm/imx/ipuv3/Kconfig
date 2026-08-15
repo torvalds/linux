@@ -13,10 +13,11 @@ config DRM_IMX
 config DRM_IMX_PARALLEL_DISPLAY
 	tristate "Support for parallel displays"
 	depends on DRM_IMX
+	depends on OF
 	select DRM_BRIDGE
 	select DRM_BRIDGE_CONNECTOR
 	select DRM_DISPLAY_HELPER
-	select DRM_IMX_LEGACY_BRIDGE
+	select DRM_OF_DISPLAY_MODE_BRIDGE
 	select DRM_PANEL_BRIDGE
 	select VIDEOMODE_HELPERS
 
@@ -33,11 +34,12 @@ config DRM_IMX_LDB
 	tristate "Support for LVDS displays"
 	depends on DRM_IMX
 	depends on COMMON_CLK
+	depends on OF
 	select MFD_SYSCON
 	select DRM_BRIDGE
 	select DRM_BRIDGE_CONNECTOR
 	select DRM_PANEL_BRIDGE
-	select DRM_IMX_LEGACY_BRIDGE
+	select DRM_OF_DISPLAY_MODE_BRIDGE
 	help
 	  Choose this to enable the internal LVDS Display Bridge (LDB)
 	  found on i.MX53 and i.MX6 processors.

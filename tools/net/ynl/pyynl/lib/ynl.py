@@ -682,6 +682,7 @@ class YnlFamily(SpecFamily):
 
       ynl.ntf_subscribe(mcast_name)      -- join a multicast group
       ynl.ntf_listen_all_nsid()          -- listen on all netns
+      ynl.ntf_bind(addr=(0, 0))          -- bind socket for unicast notifications
       ynl.check_ntf()                    -- drain pending notifications
       ynl.poll_ntf(duration=None)        -- yield notifications
 
@@ -766,6 +767,10 @@ class YnlFamily(SpecFamily):
                     return nsid
                 return None
         return None
+
+    def ntf_bind(self, addr=(0, 0)):
+        """Bind socket for receiving unicast notifications."""
+        self.sock.bind(addr)
 
     def set_recv_dbg(self, enabled):
         self._recv_dbg = enabled

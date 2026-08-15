@@ -27,8 +27,11 @@
 #ifndef AMD_DAL_DEV_AMDGPU_DM_AMDGPU_DM_CRC_H_
 #define AMD_DAL_DEV_AMDGPU_DM_AMDGPU_DM_CRC_H_
 
+#include "dc_types.h"
+
 struct drm_crtc;
 struct dm_crtc_state;
+struct amdgpu_device;
 
 enum amdgpu_dm_pipe_crc_source {
 	AMDGPU_DM_PIPE_CRC_SOURCE_NONE = 0,
@@ -146,6 +149,13 @@ void amdgpu_dm_crtc_secure_display_create_contexts(struct amdgpu_device *adev);
 #define amdgpu_dm_crc_window_is_activated(x)
 #define amdgpu_dm_crtc_handle_crc_window_irq(x)
 #define amdgpu_dm_crtc_secure_display_create_contexts(x)
+#endif
+
+#if IS_ENABLED(CONFIG_DRM_AMD_DC_KUNIT_TEST)
+enum amdgpu_dm_pipe_crc_source dm_parse_crc_source(const char *source);
+bool dm_is_crc_source_crtc(enum amdgpu_dm_pipe_crc_source src);
+bool dm_is_crc_source_dprx(enum amdgpu_dm_pipe_crc_source src);
+bool dm_need_crc_dither(enum amdgpu_dm_pipe_crc_source src);
 #endif
 
 #endif /* AMD_DAL_DEV_AMDGPU_DM_AMDGPU_DM_CRC_H_ */

@@ -27,9 +27,6 @@ static bool pg_cntl42_dsc_pg_status(struct pg_cntl *pg_cntl, unsigned int dsc_in
 	struct dcn_pg_cntl *pg_cntl_dcn = TO_DCN_PG_CNTL(pg_cntl);
 	uint32_t pwr_status = 0;
 
-	if (pg_cntl->ctx->dc->debug.ignore_pg)
-		return true;
-
 	switch (dsc_inst) {
 	case 0: /* DSC0 */
 		REG_GET(DOMAIN16_PG_STATUS, DOMAIN_PGFSM_PWR_STATUS, &pwr_status);
@@ -64,9 +61,11 @@ void pg_cntl42_dsc_pg_control(struct pg_cntl *pg_cntl, unsigned int dsc_inst, bo
 		pg_cntl->ctx->dc->res_pool->dccg->funcs->enable_dsc(
 				pg_cntl->ctx->dc->res_pool->dccg, dsc_inst);
 
-	if (pg_cntl->ctx->dc->debug.ignore_pg ||
-		pg_cntl->ctx->dc->debug.disable_dsc_power_gate ||
-		pg_cntl->ctx->dc->idle_optimizations_allowed)
+    bool skip_pg = pg_cntl->ctx->dc->debug.ignore_pg ||
+			pg_cntl->ctx->dc->debug.disable_dsc_power_gate ||
+			pg_cntl->ctx->dc->idle_optimizations_allowed;
+
+	if (skip_pg && !power_on)
 		return;
 
 	block_enabled = pg_cntl42_dsc_pg_status(pg_cntl, dsc_inst);
@@ -261,11 +260,12 @@ void pg_cntl42_hpo_pg_control(struct pg_cntl *pg_cntl, bool power_on)
 	uint32_t power_forceon;
 	bool block_enabled;
 
-	if (pg_cntl->ctx->dc->debug.ignore_pg ||
-		pg_cntl->ctx->dc->debug.disable_hpo_power_gate ||
-		pg_cntl->ctx->dc->idle_optimizations_allowed)
-		return;
+	bool skip_pg = pg_cntl->ctx->dc->debug.ignore_pg ||
+			pg_cntl->ctx->dc->debug.disable_hpo_power_gate ||
+			pg_cntl->ctx->dc->idle_optimizations_allowed;
 
+	if (skip_pg && !power_on)
+		return;
 	block_enabled = pg_cntl42_hpo_pg_status(pg_cntl);
 	if (power_on) {
 		if (block_enabled)
@@ -316,9 +316,11 @@ void pg_cntl42_io_clk_pg_control(struct pg_cntl *pg_cntl, bool power_on)
 	uint32_t power_forceon;
 	bool block_enabled;
 
-	if (pg_cntl->ctx->dc->debug.ignore_pg ||
-		pg_cntl->ctx->dc->idle_optimizations_allowed ||
-		pg_cntl->ctx->dc->debug.disable_io_clk_power_gate)
+	bool skip_pg = pg_cntl->ctx->dc->debug.ignore_pg ||
+			pg_cntl->ctx->dc->idle_optimizations_allowed ||
+			pg_cntl->ctx->dc->debug.disable_io_clk_power_gate;
+
+	if (skip_pg && !power_on)
 		return;
 
 	block_enabled = pg_cntl42_io_clk_status(pg_cntl);
@@ -412,9 +414,11 @@ void pg_cntl42_mem_pg_control(struct pg_cntl *pg_cntl, bool power_on)
 	uint32_t power_forceon;
 	bool block_enabled;
 
-	if (pg_cntl->ctx->dc->debug.ignore_pg ||
-		pg_cntl->ctx->dc->idle_optimizations_allowed ||
-		pg_cntl->ctx->dc->debug.disable_mem_power_gate)
+	bool skip_pg = pg_cntl->ctx->dc->debug.ignore_pg ||
+			pg_cntl->ctx->dc->idle_optimizations_allowed ||
+			pg_cntl->ctx->dc->debug.disable_mem_power_gate;
+
+	if (skip_pg && !power_on)
 		return;
 
 	block_enabled = pg_cntl42_mem_status(pg_cntl);
@@ -464,9 +468,10 @@ void pg_cntl42_dio_pg_control(struct pg_cntl *pg_cntl, bool power_on)
 	uint32_t org_ip_request_cntl;
 	bool block_enabled;
 
-	if (pg_cntl->ctx->dc->debug.ignore_pg ||
-		pg_cntl->ctx->dc->idle_optimizations_allowed ||
-		pg_cntl->ctx->dc->debug.disable_dio_power_gate)
+	bool skip_pg = pg_cntl->ctx->dc->debug.ignore_pg ||
+			pg_cntl->ctx->dc->idle_optimizations_allowed ||
+			pg_cntl->ctx->dc->debug.disable_dio_power_gate;
+	if (skip_pg && !power_on)
 		return;
 
 	block_enabled = pg_cntl42_dio_pg_status(pg_cntl);
@@ -503,7 +508,7 @@ void pg_cntl42_plane_otg_pg_control(struct pg_cntl *pg_cntl, bool power_on)
 	uint32_t power_gate = power_on ? 0 : 1;
 	uint32_t pwr_status = power_on ? 0 : 2;
 	uint32_t org_ip_request_cntl;
-	int i;
+	unsigned int i;
 	bool block_enabled;
 	bool all_mpcc_disabled = true, all_opp_disabled = true;
 	bool all_optc_disabled = true, all_stream_disabled = true;
@@ -564,7 +569,7 @@ void pg_cntl42_plane_otg_pg_control(struct pg_cntl *pg_cntl, bool power_on)
 
 void pg_cntl42_init_pg_status(struct pg_cntl *pg_cntl)
 {
-	int i = 0;
+	unsigned int i = 0;
 	bool block_enabled;
 
 	pg_cntl->pg_res_enable[PG_HPO] = pg_cntl42_hpo_pg_status(pg_cntl);

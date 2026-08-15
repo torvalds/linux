@@ -1547,6 +1547,7 @@ xrep_dinode_core(
 	struct xrep_inode	*ri)
 {
 	struct xfs_scrub	*sc = ri->sc;
+	struct xfs_mount	*mp = sc->mp;
 	struct xfs_buf		*bp;
 	struct xfs_dinode	*dip;
 	xfs_ino_t		ino = sc->sm->sm_ino;
@@ -1559,8 +1560,11 @@ xrep_dinode_core(
 		return error;
 
 	/* Read the inode cluster buffer. */
-	error = xfs_trans_read_buf(sc->mp, sc->tp, sc->mp->m_ddev_targp,
-			ri->imap.im_blkno, ri->imap.im_len, 0, &bp, NULL);
+	error = xfs_trans_read_buf(mp, sc->tp, mp->m_ddev_targp,
+			XFS_AGB_TO_DADDR(mp, XFS_INO_TO_AGNO(mp, ino),
+					ri->imap.im_agbno),
+			XFS_FSB_TO_BB(mp, M_IGEO(mp)->blocks_per_cluster),
+			0, &bp, NULL);
 	if (error)
 		return error;
 
@@ -1583,10 +1587,10 @@ xrep_dinode_core(
 write:
 	/* Write out the inode. */
 	trace_xrep_dinode_fixed(sc, dip);
-	xfs_dinode_calc_crc(sc->mp, dip);
+	xfs_dinode_calc_crc(mp, dip);
 	xfs_trans_buf_set_type(sc->tp, bp, XFS_BLFT_DINO_BUF);
 	xfs_trans_log_buf(sc->tp, bp, ri->imap.im_boffset,
-			ri->imap.im_boffset + sc->mp->m_sb.sb_inodesize - 1);
+			ri->imap.im_boffset + mp->m_sb.sb_inodesize - 1);
 
 	/*
 	 * In theory, we've fixed the ondisk inode record enough that we should
@@ -1796,7 +1800,7 @@ xrep_inode_flags(
 		sc->ip->i_diflags &= ~XFS_DIFLAG_ANY;
 
 	/* NEWRTBM only applies to realtime bitmaps */
-	if (sc->ip->i_ino == sc->mp->m_sb.sb_rbmino)
+	if (I_INO(sc->ip) == sc->mp->m_sb.sb_rbmino)
 		sc->ip->i_diflags |= XFS_DIFLAG_NEWRTBM;
 	else
 		sc->ip->i_diflags &= ~XFS_DIFLAG_NEWRTBM;
@@ -2011,8 +2015,7 @@ xrep_inode_unlinked(
 		struct xfs_perag	*pag;
 		int			error;
 
-		pag = xfs_perag_get(sc->mp,
-				XFS_INO_TO_AGNO(sc->mp, sc->ip->i_ino));
+		pag = xfs_perag_get(sc->mp, XFS_INODE_TO_AGNO(sc->ip));
 		error = xfs_iunlink_remove(sc->tp, pag, sc->ip);
 		xfs_perag_put(pag);
 		if (error)

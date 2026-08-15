@@ -14,7 +14,6 @@ enum rdma_user_cap {
 	RDMA_UCAP_MAX
 };
 
-void ib_cleanup_ucaps(void);
 int ib_get_ucaps(int *fds, int fd_count, uint64_t *idx_mask);
 #if IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS)
 int ib_create_ucap(enum rdma_user_cap type);

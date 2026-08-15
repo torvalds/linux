@@ -114,10 +114,6 @@ struct gpio_desc *swnode_find_gpio(struct fwnode_handle *fwnode,
 	if (IS_ERR(gdev))
 		return ERR_CAST(gdev);
 
-	/*
-	 * FIXME: The GPIO device reference is put at return but the descriptor
-	 * is passed on. Find a proper solution.
-	 */
 	desc = gpio_device_get_desc(gdev, args.args[0]);
 	*flags = args.args[1]; /* We expect native GPIO flags */
 

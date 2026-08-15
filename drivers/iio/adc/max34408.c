@@ -12,7 +12,6 @@
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
 
@@ -256,8 +255,8 @@ static const struct of_device_id max34408_of_match[] = {
 MODULE_DEVICE_TABLE(of, max34408_of_match);
 
 static const struct i2c_device_id max34408_id[] = {
-	{ "max34408", (kernel_ulong_t)&max34408_model_data },
-	{ "max34409", (kernel_ulong_t)&max34409_model_data },
+	{ .name = "max34408", .driver_data = (kernel_ulong_t)&max34408_model_data },
+	{ .name = "max34409", .driver_data = (kernel_ulong_t)&max34409_model_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max34408_id);

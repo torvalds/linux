@@ -21,6 +21,7 @@
 #include <drm/drm_debugfs.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_exec.h>
+#include <drm/drm_file.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_print.h>
 #include <drm/drm_syncobj.h>
@@ -30,12 +31,12 @@
 
 #include "panthor_devfreq.h"
 #include "panthor_device.h"
+#include "panthor_drv.h"
 #include "panthor_fw.h"
 #include "panthor_gem.h"
 #include "panthor_gpu.h"
 #include "panthor_heap.h"
 #include "panthor_mmu.h"
-#include "panthor_regs.h"
 #include "panthor_sched.h"
 
 /**
@@ -838,7 +839,7 @@ static int panthor_query_timestamp_info(struct panthor_device *ptdev,
 	}
 
 	if (flags & DRM_PANTHOR_TIMESTAMP_GPU_OFFSET)
-		arg->timestamp_offset = gpu_read64(ptdev, GPU_TIMESTAMP_OFFSET);
+		arg->timestamp_offset = panthor_gpu_get_timestamp_offset(ptdev);
 	else
 		arg->timestamp_offset = 0;
 
@@ -853,7 +854,7 @@ static int panthor_query_timestamp_info(struct panthor_device *ptdev,
 		query_start_time = 0;
 
 	if (flags & DRM_PANTHOR_TIMESTAMP_GPU)
-		arg->current_timestamp = gpu_read64_counter(ptdev, GPU_TIMESTAMP);
+		arg->current_timestamp = panthor_gpu_get_timestamp(ptdev);
 	else
 		arg->current_timestamp = 0;
 
@@ -869,7 +870,7 @@ static int panthor_query_timestamp_info(struct panthor_device *ptdev,
 	}
 
 	if (flags & DRM_PANTHOR_TIMESTAMP_GPU_CYCLE_COUNT)
-		arg->cycle_count = gpu_read64_counter(ptdev, GPU_CYCLE_COUNT);
+		arg->cycle_count = panthor_gpu_get_cycle_count(ptdev);
 	else
 		arg->cycle_count = 0;
 
@@ -1578,7 +1579,7 @@ static int panthor_ioctl_bo_query_info(struct drm_device *ddev, void *data,
 	args->create_flags = bo->flags;
 
 	args->extra_flags = 0;
-	if (drm_gem_is_imported(&bo->base.base))
+	if (drm_gem_is_imported(&bo->base))
 		args->extra_flags |= DRM_PANTHOR_BO_IS_IMPORTED;
 
 	drm_gem_object_put(obj);
@@ -1756,34 +1757,10 @@ static const struct file_operations panthor_drm_driver_fops = {
 };
 
 #ifdef CONFIG_DEBUG_FS
-static int panthor_gems_show(struct seq_file *m, void *data)
-{
-	struct drm_info_node *node = m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct panthor_device *ptdev = container_of(dev, struct panthor_device, base);
-
-	panthor_gem_debugfs_print_bos(ptdev, m);
-
-	return 0;
-}
-
-static struct drm_info_list panthor_debugfs_list[] = {
-	{"gems", panthor_gems_show, 0, NULL},
-};
-
-static int panthor_gems_debugfs_init(struct drm_minor *minor)
-{
-	drm_debugfs_create_files(panthor_debugfs_list,
-				 ARRAY_SIZE(panthor_debugfs_list),
-				 minor->debugfs_root, minor);
-
-	return 0;
-}
-
 static void panthor_debugfs_init(struct drm_minor *minor)
 {
 	panthor_mmu_debugfs_init(minor);
-	panthor_gems_debugfs_init(minor);
+	panthor_gem_debugfs_init(minor);
 }
 #endif
 
@@ -1817,8 +1794,7 @@ static const struct drm_driver panthor_drm_driver = {
 	.major = 1,
 	.minor = 8,
 
-	.gem_create_object = panthor_gem_create_object,
-	.gem_prime_import_sg_table = drm_gem_shmem_prime_import_sg_table,
+	.gem_prime_import_sg_table = panthor_gem_prime_import_sg_table,
 	.gem_prime_import = panthor_gem_prime_import,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init = panthor_debugfs_init,
@@ -1968,3 +1944,4 @@ module_exit(panthor_exit);
 MODULE_AUTHOR("Panthor Project Developers");
 MODULE_DESCRIPTION("Panthor DRM Driver");
 MODULE_LICENSE("Dual MIT/GPL");
+MODULE_IMPORT_NS("DMA_BUF");

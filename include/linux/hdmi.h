@@ -50,6 +50,12 @@ enum hdmi_infoframe_type {
 	HDMI_INFOFRAME_TYPE_DRM = 0x87,
 };
 
+/* HDMI spec maximum TMDS character rates, in Hz */
+#define HDMI_TMDS_CHAR_RATE_MIN_HZ         25000000
+#define HDMI_1_0_TMDS_CHAR_RATE_MAX_HZ    165000000
+#define HDMI_1_3_TMDS_CHAR_RATE_MAX_HZ    340000000
+#define HDMI_2_0_TMDS_CHAR_RATE_MAX_HZ    600000000
+
 #define HDMI_IEEE_OUI 0x000c03
 #define HDMI_FORUM_IEEE_OUI 0xc45dd8
 #define HDMI_INFOFRAME_HEADER_SIZE  4

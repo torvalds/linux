@@ -7,7 +7,7 @@ import os
 import re
 from typing import Optional
 from common_metrics import Cycles
-from metric import (d_ratio, has_event, max, source_count, CheckPmu, Event,
+from metric import (d_ratio, has_event, max, aggr_nr, CheckPmu, Event,
                     JsonEncodeMetric, JsonEncodeMetricGroupDescriptions,
                     Literal, LoadEvents, Metric, MetricConstraint, MetricGroup,
                     MetricRef, Select)
@@ -457,6 +457,67 @@ def IntelIlp() -> MetricGroup:
     ])
 
 
+def IntelIotlb() -> Optional[MetricGroup]:
+  try:
+    total_hit = (
+        Event("UNC_IIO_IOMMU0.4K_HITS")
+        + Event("UNC_IIO_IOMMU0.2M_HITS")
+        + Event("UNC_IIO_IOMMU0.1G_HITS")
+    )
+    total_miss = Event("UNC_IIO_IOMMU0.MISSES")
+  except:
+    return None
+
+  miss_rate = d_ratio(total_miss, total_miss + total_hit)
+  metrics = [
+      Metric("iotlb_total_hit", "IOTLB total hit", total_hit, "hits"),
+      Metric("iotlb_total_miss", "IOTLB total miss", total_miss, "misses"),
+      Metric("iotlb_miss_rate", "IOTLB miss rate", miss_rate, "100%"),
+  ]
+
+  try:
+    interrupt_cache_hit = Event("UNC_IIO_IOMMU3.INT_CACHE_HITS")
+    interrupt_cache_lookup = Event("UNC_IIO_IOMMU3.INT_CACHE_LOOKUPS")
+    interrupt_cache_miss = max(interrupt_cache_lookup - interrupt_cache_hit, 0)
+    interrupt_cache_miss_rate = d_ratio(
+        interrupt_cache_miss, interrupt_cache_miss + interrupt_cache_hit
+    )
+    metrics += [
+        Metric(
+            "iotlb_interrupt_cache_hit",
+            "IOTLB interrupt cache hit",
+            interrupt_cache_hit,
+            "hits",
+        ),
+        Metric(
+            "iotlb_interrupt_cache_miss",
+            "IOTLB interrupt cache miss",
+            interrupt_cache_miss,
+            "misses",
+        ),
+        Metric(
+            "iotlb_interrupt_cache_lookup",
+            "IOTLB interrupt cache lookup",
+            interrupt_cache_lookup,
+            "lookups",
+        ),
+        Metric(
+            "iotlb_interrupt_cache_miss_rate",
+            "IOTLB interrupt cache miss rate",
+            interrupt_cache_miss_rate,
+            "100%",
+        ),
+    ]
+  except:
+    pass
+
+  return MetricGroup(
+      "iotlb",
+      metrics,
+      description="IOMMU TLB metrics",
+  )
+
+
 def IntelL2() -> Optional[MetricGroup]:
     try:
         DC_HIT = Event("L2_RQSTS.DEMAND_DATA_RD_HIT")
@@ -674,10 +735,10 @@ def IntelMissLat() -> Optional[MetricGroup]:
     else:
         assert data_rd_loc_occ.name == "UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD_LOCAL", data_rd_loc_occ
 
-    ticks_per_cha = ticks / source_count(data_rd_loc_ins)
+    ticks_per_cha = ticks / aggr_nr(data_rd_loc_ins)
     loc_lat = interval_sec * 1e9 * data_rd_loc_occ / \
         (ticks_per_cha * data_rd_loc_ins)
-    ticks_per_cha = ticks / source_count(data_rd_rem_ins)
+    ticks_per_cha = ticks / aggr_nr(data_rd_rem_ins)
     rem_lat = interval_sec * 1e9 * data_rd_rem_occ / \
         (ticks_per_cha * data_rd_rem_ins)
     return MetricGroup("lpm_miss_lat", [
@@ -1105,6 +1166,7 @@ def main() -> None:
         IntelCtxSw(),
         IntelFpu(),
         IntelIlp(),
+        IntelIotlb(),
         IntelL2(),
         IntelLdSt(),
         IntelMissLat(),

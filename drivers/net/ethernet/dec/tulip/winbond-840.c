@@ -210,9 +210,16 @@ enum chip_capability_flags {
 };
 
 static const struct pci_device_id w840_pci_tbl[] = {
-	{ 0x1050, 0x0840, PCI_ANY_ID, 0x8153,     0, 0, 0 },
-	{ 0x1050, 0x0840, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1 },
-	{ 0x11f6, 0x2011, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 2 },
+	{
+		PCI_DEVICE_SUB(0x1050, 0x0840, PCI_ANY_ID, 0x8153),
+		.driver_data = 0,
+	}, {
+		PCI_DEVICE(0x1050, 0x0840),
+		.driver_data = 1,
+	}, {
+		PCI_DEVICE(0x11f6, 0x2011),
+		.driver_data = 2,
+	},
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, w840_pci_tbl);

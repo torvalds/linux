@@ -2,7 +2,6 @@
 // Copyright(c) 2021 Intel Corporation. All rights reserved.
 
 #include <linux/platform_device.h>
-#include <linux/mod_devicetable.h>
 #include <linux/vmalloc.h>
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -312,12 +311,17 @@ static int mock_get_event(struct device *dev, struct cxl_mbox_cmd *cmd)
 
 static int mock_clear_event(struct device *dev, struct cxl_mbox_cmd *cmd)
 {
-	struct cxl_mbox_clear_event_payload *pl = cmd->payload_in;
+	struct cxl_mbox_clear_event_payload *pl;
 	struct mock_event_log *log;
-	u8 log_type = pl->event_log;
+	u8 log_type;
 	u16 handle;
 	int nr;
 
+	if (cmd->size_in < sizeof(*pl))
+		return -EINVAL;
+
+	pl = cmd->payload_in;
+	log_type = pl->event_log;
 	if (log_type >= CXL_EVENT_TYPE_MAX)
 		return -EINVAL;
 
@@ -574,14 +578,19 @@ static int mock_gsl(struct cxl_mbox_cmd *cmd)
 static int mock_get_log(struct cxl_memdev_state *mds, struct cxl_mbox_cmd *cmd)
 {
 	struct cxl_mailbox *cxl_mbox = &mds->cxlds.cxl_mbox;
-	struct cxl_mbox_get_log *gl = cmd->payload_in;
-	u32 offset = le32_to_cpu(gl->offset);
-	u32 length = le32_to_cpu(gl->length);
 	uuid_t uuid = DEFINE_CXL_CEL_UUID;
+	struct cxl_mbox_get_log *gl;
 	void *data = &mock_cel;
+	u32 offset;
+	u32 length;
 
 	if (cmd->size_in < sizeof(*gl))
 		return -EINVAL;
+
+	gl = cmd->payload_in;
+	offset = le32_to_cpu(gl->offset);
+	length = le32_to_cpu(gl->length);
+
 	if (length > cxl_mbox->payload_size)
 		return -EINVAL;
 	if (offset + length > sizeof(mock_cel))
@@ -1053,7 +1062,7 @@ static int mock_get_lsa(struct cxl_mockmem_data *mdata,
 		return -EINVAL;
 	offset = le32_to_cpu(get_lsa->offset);
 	length = le32_to_cpu(get_lsa->length);
-	if (offset + length > LSA_SIZE)
+	if (offset > LSA_SIZE || length > LSA_SIZE - offset)
 		return -EINVAL;
 	if (length > cmd->size_out)
 		return -EINVAL;
@@ -1073,7 +1082,7 @@ static int mock_set_lsa(struct cxl_mockmem_data *mdata,
 		return -EINVAL;
 	offset = le32_to_cpu(set_lsa->offset);
 	length = cmd->size_in - sizeof(*set_lsa);
-	if (offset + length > LSA_SIZE)
+	if (offset > LSA_SIZE || length > LSA_SIZE - offset)
 		return -EINVAL;
 
 	memcpy(lsa + offset, &set_lsa->data[0], length);
@@ -1336,10 +1345,14 @@ static int mock_fw_info(struct cxl_mockmem_data *mdata,
 static int mock_transfer_fw(struct cxl_mockmem_data *mdata,
 			    struct cxl_mbox_cmd *cmd)
 {
-	struct cxl_mbox_transfer_fw *transfer = cmd->payload_in;
+	struct cxl_mbox_transfer_fw *transfer;
 	void *fw = mdata->fw;
 	size_t offset, length;
 
+	if (cmd->size_in < sizeof(*transfer))
+		return -EINVAL;
+
+	transfer = cmd->payload_in;
 	offset = le32_to_cpu(transfer->offset) * CXL_FW_TRANSFER_ALIGNMENT;
 	length = cmd->size_in - sizeof(*transfer);
 	if (offset + length > FW_SIZE)
@@ -1415,10 +1428,17 @@ static int mock_get_test_feature(struct cxl_mockmem_data *mdata,
 				 struct cxl_mbox_cmd *cmd)
 {
 	struct vendor_test_feat *output = cmd->payload_out;
-	struct cxl_mbox_get_feat_in *input = cmd->payload_in;
-	u16 offset = le16_to_cpu(input->offset);
-	u16 count = le16_to_cpu(input->count);
+	struct cxl_mbox_get_feat_in *input;
+	u16 offset;
+	u16 count;
 	u8 *ptr;
+
+	if (cmd->size_in < sizeof(*input))
+		return -EINVAL;
+
+	input = cmd->payload_in;
+	offset = le16_to_cpu(input->offset);
+	count = le16_to_cpu(input->count);
 
 	if (offset > sizeof(*output)) {
 		cmd->return_code = CXL_MBOX_CMD_RC_INPUT;
@@ -1703,7 +1723,7 @@ static int cxl_mock_mem_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	dev_set_drvdata(dev, mdata);
 
-	mdata->lsa = vmalloc(LSA_SIZE);
+	mdata->lsa = vzalloc(LSA_SIZE);
 	if (!mdata->lsa)
 		return -ENOMEM;
 	mdata->fw = vmalloc(FW_SIZE);
@@ -1769,7 +1789,7 @@ static int cxl_mock_mem_probe(struct platform_device *pdev)
 
 	cxl_mock_add_event_logs(&mdata->mes);
 
-	cxlmd = devm_cxl_add_memdev(cxlds, NULL);
+	cxlmd = devm_cxl_add_classdev(cxlds);
 	if (IS_ERR(cxlmd))
 		return PTR_ERR(cxlmd);
 

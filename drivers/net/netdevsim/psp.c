@@ -22,6 +22,7 @@ nsim_do_psp(struct sk_buff *skb, struct netdevsim *ns,
 	struct psp_dev *peer_psd;
 	struct psp_assoc *pas;
 	struct net *net;
+	int psp_len;
 	void **ptr;
 
 	rcu_read_lock();
@@ -48,6 +49,10 @@ nsim_do_psp(struct sk_buff *skb, struct netdevsim *ns,
 		goto out_unlock;
 	}
 
+	psp_len = skb->len - skb_inner_transport_offset(skb);
+	atomic64_inc(&ns->psp.tx_packets);
+	atomic64_add(psp_len, &ns->psp.tx_bytes);
+
 	/* Now pretend we just received this frame */
 	peer_psd = rcu_dereference(peer_ns->psp.dev);
 	if (peer_psd && peer_psd->config.versions & (1 << pas->version)) {
@@ -72,14 +77,8 @@ nsim_do_psp(struct sk_buff *skb, struct netdevsim *ns,
 		refcount_inc(&(*psp_ext)->refcnt);
 		skb->decrypted = 1;
 
-		u64_stats_update_begin(&ns->psp.syncp);
-		u64_stats_inc(&ns->psp.tx_packets);
-		u64_stats_inc(&ns->psp.rx_packets);
-		u64_stats_add(&ns->psp.tx_bytes,
-			      skb->len - skb_inner_transport_offset(skb));
-		u64_stats_add(&ns->psp.rx_bytes,
-			      skb->len - skb_inner_transport_offset(skb));
-		u64_stats_update_end(&ns->psp.syncp);
+		atomic64_inc(&peer_ns->psp.rx_packets);
+		atomic64_add(psp_len, &peer_ns->psp.rx_bytes);
 	} else {
 		struct ipv6hdr *ip6h __maybe_unused;
 		struct iphdr *iph;
@@ -132,14 +131,15 @@ nsim_rx_spi_alloc(struct psp_dev *psd, u32 version,
 		  struct netlink_ext_ack *extack)
 {
 	struct netdevsim *ns = psd->drv_priv;
-	unsigned int new;
 	int i;
 
-	new = ++ns->psp.spi & PSP_SPI_KEY_ID;
-	if (psd->generation & 1)
-		new |= PSP_SPI_KEY_PHASE;
+	/* Check if incrementing the spi would change the phase bit */
+	if ((ns->psp.spi & PSP_SPI_KEY_ID) == PSP_SPI_KEY_ID) {
+		NL_SET_ERR_MSG(extack, "SPI space exhausted");
+		return -ENOSPC;
+	}
 
-	assoc->spi = cpu_to_be32(new);
+	assoc->spi = cpu_to_be32(++ns->psp.spi);
 	assoc->key[0] = psd->generation;
 	for (i = 1; i < PSP_MAX_KEY; i++)
 		assoc->key[i] = ns->psp.spi + i;
@@ -162,6 +162,16 @@ static int nsim_assoc_add(struct psp_dev *psd, struct psp_assoc *pas,
 
 static int nsim_key_rotate(struct psp_dev *psd, struct netlink_ext_ack *extack)
 {
+	struct netdevsim *ns = psd->drv_priv;
+
+	/* Flip key phase and reset SPI to 0 within that space
+	 * (will be pre-incremented, as 0 is an invalid SPI).
+	 */
+	if (ns->psp.spi & PSP_SPI_KEY_PHASE)
+		ns->psp.spi = 0;
+	else
+		ns->psp.spi = PSP_SPI_KEY_PHASE;
+
 	return 0;
 }
 
@@ -177,20 +187,16 @@ static void nsim_assoc_del(struct psp_dev *psd, struct psp_assoc *pas)
 static void nsim_get_stats(struct psp_dev *psd, struct psp_dev_stats *stats)
 {
 	struct netdevsim *ns = psd->drv_priv;
-	unsigned int start;
 
 	/* WARNING: do *not* blindly zero stats in real drivers!
 	 * All required stats must be reported by the device!
 	 */
 	memset(stats, 0, sizeof(struct psp_dev_stats));
 
-	do {
-		start = u64_stats_fetch_begin(&ns->psp.syncp);
-		stats->rx_bytes = u64_stats_read(&ns->psp.rx_bytes);
-		stats->rx_packets = u64_stats_read(&ns->psp.rx_packets);
-		stats->tx_bytes = u64_stats_read(&ns->psp.tx_bytes);
-		stats->tx_packets = u64_stats_read(&ns->psp.tx_packets);
-	} while (u64_stats_fetch_retry(&ns->psp.syncp, start));
+	stats->rx_bytes = atomic64_read(&ns->psp.rx_bytes);
+	stats->rx_packets = atomic64_read(&ns->psp.rx_packets);
+	stats->tx_bytes = atomic64_read(&ns->psp.tx_bytes);
+	stats->tx_packets = atomic64_read(&ns->psp.tx_packets);
 }
 
 static struct psp_dev_ops nsim_psp_ops = {

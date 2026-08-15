@@ -25,7 +25,7 @@ Scheduling
 ==========
 
 The core principles of Linux scheduling and the associated user-space API are
-documented in the man page sched(7)
+documented in the man page
 `sched(7) <https://man7.org/linux/man-pages/man7/sched.7.html>`_.
 By default, the Linux kernel uses the SCHED_OTHER scheduling policy. Under
 this policy, a task is preempted when the scheduler determines that it has

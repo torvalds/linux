@@ -56,7 +56,7 @@ static void clear_entry_from_vmid_table(struct core_vmid *core_vmid, unsigned in
 
 static void evict_vmids(struct core_vmid *core_vmid)
 {
-	int i;
+	unsigned int i;
 	int ord_int = dc_get_vmid_use_vector(core_vmid->dc);
 
 	ASSERT(ord_int >= 0 && ord_int <= 0xFFFF);
@@ -72,7 +72,7 @@ static void evict_vmids(struct core_vmid *core_vmid)
 // Return value of -1 indicates vmid table uninitialized or ptb dne in the table
 static int get_existing_vmid_for_ptb(struct core_vmid *core_vmid, uint64_t ptb)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < core_vmid->num_vmid; i++) {
 		if (core_vmid->ptb_assigned_to_vmid[i] == ptb)
@@ -85,7 +85,7 @@ static int get_existing_vmid_for_ptb(struct core_vmid *core_vmid, uint64_t ptb)
 // Expected to be called only when there's an available vmid
 static int get_next_available_vmid(struct core_vmid *core_vmid)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 1; i < core_vmid->num_vmid; i++) {
 		if (core_vmid->ptb_assigned_to_vmid[i] == 0)

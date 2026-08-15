@@ -100,12 +100,4 @@
 #define TAS2783_CALIB_DATA_SZ	((TAS2783_CALIB_HDR_SZ) + TAS2783_CALIB_CRC_SZ + \
 				((TAS2783_CALIB_PARAMS) * 4 * (TAS2783_CALIB_MAX_SPK_COUNT)))
 
-#if IS_ENABLED(CONFIG_SND_SOC_TAS2783_UTIL)
-int32_t tas25xx_register_misc(struct sdw_slave *peripheral);
-int32_t tas25xx_deregister_misc(void);
-#else
-static void tas25xx_register_misc(struct sdw_slave *peripheral) {}
-static void tas25xx_deregister_misc(void) {}
-#endif
-
 #endif /*__TAS2783_H__ */

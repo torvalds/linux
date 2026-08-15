@@ -101,8 +101,8 @@ static int cxl_parse_cxims(union acpi_subtable_headers *header, void *arg,
 	struct cxl_decoder *cxld = &cxlrd->cxlsd.cxld;
 	struct device *dev = ctx->dev;
 	struct cxl_cxims_data *cximsd;
-	unsigned int hbig, nr_maps;
-	int rc;
+	unsigned int nr_maps;
+	int hbig, rc;
 
 	rc = eig_to_granularity(cxims->hbig, &hbig);
 	if (rc)
@@ -160,7 +160,7 @@ static int cxl_acpi_cfmws_verify(struct device *dev,
 				 struct acpi_cedt_cfmws *cfmws)
 {
 	int rc, expected_len;
-	unsigned int ways;
+	int ways;
 
 	if (cfmws->interleave_arithmetic != ACPI_CEDT_CFMWS_ARITHMETIC_MODULO &&
 	    cfmws->interleave_arithmetic != ACPI_CEDT_CFMWS_ARITHMETIC_XOR) {
@@ -405,7 +405,7 @@ static int __cxl_parse_cfmws(struct acpi_cedt_cfmws *cfmws,
 	struct cxl_cxims_context cxims_ctx;
 	struct device *dev = ctx->dev;
 	struct cxl_decoder *cxld;
-	unsigned int ways, i, ig;
+	int ways, i, ig;
 	int rc;
 
 	rc = cxl_acpi_cfmws_verify(dev, cfmws);
@@ -464,7 +464,7 @@ static int __cxl_parse_cfmws(struct acpi_cedt_cfmws *cfmws,
 			if (rc < 0)
 				return rc;
 			if (!cxlrd->platform_data) {
-				dev_err(dev, "No CXIMS for HBIG %u\n", ig);
+				dev_err(dev, "No CXIMS for HBIG %d\n", ig);
 				return -EINVAL;
 			}
 		}

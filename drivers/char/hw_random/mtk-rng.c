@@ -3,9 +3,11 @@
  * Driver for Mediatek Hardware Random Number Generator
  *
  * Copyright (C) 2017 Sean Wang <sean.wang@mediatek.com>
+ * Copyright (C) 2026 Daniel Golle <daniel@makrotopia.org>
  */
 #define MTK_RNG_DEV KBUILD_MODNAME
 
+#include <linux/arm-smccc.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/err.h>
@@ -17,6 +19,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/soc/mediatek/mtk_sip_svc.h>
 
 /* Runtime PM autosuspend timeout: */
 #define RNG_AUTOSUSPEND_TIMEOUT		100
@@ -30,6 +33,11 @@
 
 #define RNG_DATA			0x08
 
+/* Driver feature flags */
+#define MTK_RNG_SMC			BIT(0)
+
+#define MTK_SIP_KERNEL_GET_RND		MTK_SIP_SMC_CMD(0x550)
+
 #define to_mtk_rng(p)	container_of(p, struct mtk_rng, rng)
 
 struct mtk_rng {
@@ -37,6 +45,7 @@ struct mtk_rng {
 	struct clk *clk;
 	struct hwrng rng;
 	struct device *dev;
+	unsigned long flags;
 };
 
 static int mtk_rng_init(struct hwrng *rng)
@@ -103,6 +112,56 @@ static int mtk_rng_read(struct hwrng *rng, void *buf, size_t max, bool wait)
 	return retval || !wait ? retval : -EIO;
 }
 
+static int mtk_rng_read_smc(struct hwrng *rng, void *buf, size_t max,
+			    bool wait)
+{
+	struct arm_smccc_res res;
+	int retval = 0;
+
+	while (max >= sizeof(u32)) {
+		arm_smccc_smc(MTK_SIP_KERNEL_GET_RND, 0, 0, 0, 0, 0, 0, 0,
+			      &res);
+		if (res.a0)
+			break;
+
+		*(u32 *)buf = res.a1;
+		retval += sizeof(u32);
+		buf += sizeof(u32);
+		max -= sizeof(u32);
+	}
+
+	return retval || !wait ? retval : -EIO;
+}
+
+static bool mtk_rng_hw_accessible(struct mtk_rng *priv)
+{
+	u32 val;
+	int err;
+
+	err = clk_prepare_enable(priv->clk);
+	if (err)
+		return false;
+
+	val = readl(priv->base + RNG_CTRL);
+	val |= RNG_EN;
+	writel(val, priv->base + RNG_CTRL);
+
+	val = readl(priv->base + RNG_CTRL);
+
+	if (val & RNG_EN) {
+		/* HW is accessible, clean up: disable RNG and clock */
+		writel(val & ~RNG_EN, priv->base + RNG_CTRL);
+		clk_disable_unprepare(priv->clk);
+		return true;
+	}
+
+	/*
+	 * If TF-A blocks direct access, the register reads back as 0.
+	 * Leave the clock enabled as TF-A needs it.
+	 */
+	return false;
+}
+
 static int mtk_rng_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -114,23 +173,42 @@ static int mtk_rng_probe(struct platform_device *pdev)
 
 	priv->dev = &pdev->dev;
 	priv->rng.name = pdev->name;
-#ifndef CONFIG_PM
-	priv->rng.init = mtk_rng_init;
-	priv->rng.cleanup = mtk_rng_cleanup;
-#endif
-	priv->rng.read = mtk_rng_read;
 	priv->rng.quality = 900;
+	priv->flags = (unsigned long)device_get_match_data(&pdev->dev);
 
-	priv->clk = devm_clk_get(&pdev->dev, "rng");
-	if (IS_ERR(priv->clk)) {
-		ret = PTR_ERR(priv->clk);
-		dev_err(&pdev->dev, "no clock for device: %d\n", ret);
-		return ret;
+	if (!(priv->flags & MTK_RNG_SMC)) {
+		priv->clk = devm_clk_get(&pdev->dev, "rng");
+		if (IS_ERR(priv->clk)) {
+			ret = PTR_ERR(priv->clk);
+			dev_err(&pdev->dev, "no clock for device: %d\n", ret);
+			return ret;
+		}
+
+		priv->base = devm_platform_ioremap_resource(pdev, 0);
+		if (IS_ERR(priv->base))
+			return PTR_ERR(priv->base);
+
+		if (IS_ENABLED(CONFIG_HAVE_ARM_SMCCC) &&
+		    of_device_is_compatible(pdev->dev.of_node,
+					    "mediatek,mt7986-rng") &&
+		    !mtk_rng_hw_accessible(priv)) {
+			priv->flags |= MTK_RNG_SMC;
+			dev_info(&pdev->dev,
+				 "HW RNG not MMIO accessible, using SMC\n");
+		}
 	}
 
-	priv->base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(priv->base))
-		return PTR_ERR(priv->base);
+	if (priv->flags & MTK_RNG_SMC) {
+		if (!IS_ENABLED(CONFIG_HAVE_ARM_SMCCC))
+			return -ENODEV;
+		priv->rng.read = mtk_rng_read_smc;
+	} else {
+#ifndef CONFIG_PM
+		priv->rng.init = mtk_rng_init;
+		priv->rng.cleanup = mtk_rng_cleanup;
+#endif
+		priv->rng.read = mtk_rng_read;
+	}
 
 	ret = devm_hwrng_register(&pdev->dev, &priv->rng);
 	if (ret) {
@@ -139,12 +217,15 @@ static int mtk_rng_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	dev_set_drvdata(&pdev->dev, priv);
-	pm_runtime_set_autosuspend_delay(&pdev->dev, RNG_AUTOSUSPEND_TIMEOUT);
-	pm_runtime_use_autosuspend(&pdev->dev);
-	ret = devm_pm_runtime_enable(&pdev->dev);
-	if (ret)
-		return ret;
+	if (!(priv->flags & MTK_RNG_SMC)) {
+		dev_set_drvdata(&pdev->dev, priv);
+		pm_runtime_set_autosuspend_delay(&pdev->dev,
+						 RNG_AUTOSUSPEND_TIMEOUT);
+		pm_runtime_use_autosuspend(&pdev->dev);
+		ret = devm_pm_runtime_enable(&pdev->dev);
+		if (ret)
+			return ret;
+	}
 
 	dev_info(&pdev->dev, "registered RNG driver\n");
 
@@ -181,8 +262,11 @@ static const struct dev_pm_ops mtk_rng_pm_ops = {
 #endif	/* CONFIG_PM */
 
 static const struct of_device_id mtk_rng_match[] = {
-	{ .compatible = "mediatek,mt7986-rng" },
 	{ .compatible = "mediatek,mt7623-rng" },
+	{ .compatible = "mediatek,mt7981-rng", .data = (void *)MTK_RNG_SMC },
+	{ .compatible = "mediatek,mt7986-rng" },
+	{ .compatible = "mediatek,mt7987-rng", .data = (void *)MTK_RNG_SMC },
+	{ .compatible = "mediatek,mt7988-rng", .data = (void *)MTK_RNG_SMC },
 	{},
 };
 MODULE_DEVICE_TABLE(of, mtk_rng_match);
@@ -200,4 +284,5 @@ module_platform_driver(mtk_rng_driver);
 
 MODULE_DESCRIPTION("Mediatek Random Number Generator Driver");
 MODULE_AUTHOR("Sean Wang <sean.wang@mediatek.com>");
+MODULE_AUTHOR("Daniel Golle <daniel@makrotopia.org>");
 MODULE_LICENSE("GPL");

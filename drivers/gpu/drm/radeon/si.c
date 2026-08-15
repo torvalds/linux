@@ -2150,7 +2150,7 @@ static u32 dce6_available_bandwidth(struct dce6_wm_params *wm)
 	u32 data_return_bandwidth = dce6_data_return_bandwidth(wm);
 	u32 dmif_req_bandwidth = dce6_dmif_request_bandwidth(wm);
 
-	return min(dram_bandwidth, min(data_return_bandwidth, dmif_req_bandwidth));
+	return min3(dram_bandwidth, data_return_bandwidth, dmif_req_bandwidth);
 }
 
 static u32 dce6_average_bandwidth(struct dce6_wm_params *wm)

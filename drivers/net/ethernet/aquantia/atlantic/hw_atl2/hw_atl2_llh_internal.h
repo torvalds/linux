@@ -5,6 +5,11 @@
 
 #ifndef HW_ATL2_LLH_INTERNAL_H
 #define HW_ATL2_LLH_INTERNAL_H
+/* RX timestamp_req_desc{D} [1:0] Bitfield Definitions
+ */
+#define HW_ATL2_RPF_TIMESTAMP_REQ_DESCD_ADR(descr) (0x00005B08 + (descr) * 0x20)
+#define HW_ATL2_RPF_TIMESTAMP_REQ_DESCD_MSK 0x00030000
+#define HW_ATL2_RPF_TIMESTAMP_REQ_DESCD_SHIFT 16
 
 /* RX pif_rpf_redir_2_en_i Bitfield Definitions
  * PORT="pif_rpf_redir_2_en_i"
@@ -114,7 +119,68 @@
 #define HW_ATL2_RPF_VL_TAG_WIDTH 4
 /* default value of bitfield vlan_req_tag0{f}[3:0] */
 #define HW_ATL2_RPF_VL_TAG_DEFAULT 0x0
+/* register address for bitfield etype_req_tag0{f}[2:0] */
+#define HW_ATL2_RPF_ET_TAG_ADR(filter) (0x00005340 + (filter) * 0x4)
+/* bitmask for bitfield etype_req_tag0{f}[2:0] */
+#define HW_ATL2_RPF_ET_TAG_MSK 0x00000007
+/* lower bit position of bitfield etype_req_tag0{f}[2:0] */
+#define HW_ATL2_RPF_ET_TAG_SHIFT 0
+/* Lower bit position of bitfield l3_l4_act{F}[2:0] */
+#define HW_ATL2_RPF_L3_L4_ACTF_SHIFT 16
+/* Bitmask for bitfield l3_l4_rxq{F}[4:0] */
+#define HW_ATL2_RPF_L3_L4_RXQF_MSK 0x00001F00u
+/* Lower bit position of bitfield l3_l4_rxq{F}[4:0] */
+#define HW_ATL2_RPF_L3_L4_RXQF_SHIFT 8
+/* Register address for bitfield rpf_l3_v6_sa{F}_dw{D}[1F:0] */
+#define HW_ATL2_RPF_L3_SA_DW_ADR(filter, dword) \
+	(0x00006400u + (filter) * 0x10 + (dword) * 0x4)
 
+/* Register address for bitfield rpf_l3_v6_da{F}_dw{D}[1F:0] */
+#define HW_ATL2_RPF_L3_DA_DW_ADR(filter, dword) \
+	(0x00006480u + (filter) * 0x10 + (dword) * 0x4)
+
+/* Register address for bitfield rpf_l3_cmd{F}[1F:0] */
+#define HW_ATL2_RPF_L3_V4_CMD_ADR(filter) (0x00006500u + (filter) * 0x4)
+/* Bitmask for bitfield rpf_l3_cmd{F}[F:0] */
+#define HW_ATL2_RPF_L3_V4_CMD_MSK 0x0000FFFFu
+/* Lower bit position of bitfield rpf_l3_cmd{F}[1F:0] */
+#define HW_ATL2_RPF_L3_V4_CMD_SHIFT 0
+/* Register address for bitfield rpf_l3_v6_cmd{F}[1F:0] */
+#define HW_ATL2_RPF_L3_V6_CMD_ADR(filter) (0x00006500u + (filter) * 0x4)
+/* Bitmask for bitfield rpf_l3_v6_cmd{F}[F:0] */
+#define HW_ATL2_RPF_L3_V6_CMD_MSK 0xFF7F0000u
+/* Lower bit position of bitfield rpf_l3_v6_cmd{F}[1F:0] */
+#define HW_ATL2_RPF_L3_V6_CMD_SHIFT 0
+/* Register address for bitfield rpf_l3_v6_cmd{F}[F:0] */
+#define HW_ATL2_RPF_L3_V6_V4_SELECT_ADR 0x00006500u
+/* Bitmask for bitfield pif_rpf_l3_v6_v4_select*/
+#define HW_ATL2_RPF_L3_V6_V4_SELECT_MSK 0x00800000u
+/* Lower bit position of bitfield pif_rpf_l3_v6_v4_select */
+#define HW_ATL2_RPF_L3_V6_V4_SELECT_SHIFT 23
+/* Register address for bitfield rpf_l3_v4_req_tag{F}[2:0] */
+#define HW_ATL2_RPF_L3_V4_TAG_ADR(filter) (0x00006500u + (filter) * 0x4)
+/* Bitmask for bitfield rpf_l3_v4_req_tag{F}[2:0] */
+#define HW_ATL2_RPF_L3_V4_TAG_MSK 0x00000070u
+/* Lower bit position of bitfield rpf_l3_v4_req_tag{F}[2:0] */
+#define HW_ATL2_RPF_L3_V4_TAG_SHIFT 4
+/* Register address for bitfield rpf_l3_v6_req_tag{F}[2:0] */
+#define HW_ATL2_RPF_L3_V6_TAG_ADR(filter) (0x00006500u + (filter) * 0x4)
+/* Bitmask for bitfield rpf_l3_v6_req_tag{F}[2:0] */
+#define HW_ATL2_RPF_L3_V6_TAG_MSK 0x00700000
+/* Lower bit position of bitfield rpf_l3_v6_req_tag{F}[2:0] */
+#define HW_ATL2_RPF_L3_V6_TAG_SHIFT 20
+/* Register address for bitfield rpf_l4_cmd{F}[2:0] */
+#define HW_ATL2_RPF_L4_CMD_ADR(filter) (0x00006520u + (filter) * 0x4)
+/* Bitmask for bitfield rpf_l4_cmd{F}[2:0] */
+#define HW_ATL2_RPF_L4_CMD_MSK 0x00000007u
+/* Lower bit position of bitfield rpf_l4_cmd{F}[2:0] */
+#define HW_ATL2_RPF_L4_CMD_SHIFT 0
+/* Register address for bitfield rpf_l4_tag{F}[2:0] */
+#define HW_ATL2_RPF_L4_TAG_ADR(filter) (0x00006520u + (filter) * 0x4)
+/* Bitmask for bitfield rpf_l4_tag{F}[2:0] */
+#define HW_ATL2_RPF_L4_TAG_MSK 0x00000070u
+/* Lower bit position of bitfield rpf_l4_tag{F}[2:0] */
+#define HW_ATL2_RPF_L4_TAG_SHIFT 4
 /* RX rx_q{Q}_tc_map[2:0] Bitfield Definitions
  * Preprocessor definitions for the bitfield "rx_q{Q}_tc_map[2:0]".
  * Parameter: Queue {Q} | bit-level stride | range [0, 31]
@@ -131,7 +197,24 @@
 #define HW_ATL2_RX_Q_TC_MAP_WIDTH 3
 /* Default value of bitfield rx_q{Q}_tc_map[2:0] */
 #define HW_ATL2_RX_Q_TC_MAP_DEFAULT 0x0
-
+/* TX desc{D}_ts_wrb_en Bitfield Definitions
+ */
+#define HW_ATL2_TDM_DESCD_TS_WRB_EN_ADR(descriptor) \
+	(0x00007C08 + (descriptor) * 0x40)
+#define HW_ATL2_TDM_DESCD_TS_WRB_EN_MSK 0x00040000
+#define HW_ATL2_TDM_DESCD_TS_WRB_EN_SHIFT 18
+/* TX desc{D}_ts_en Bitfield Definitions
+ */
+#define HW_ATL2_TDM_DESCD_TS_EN_ADR(descriptor) \
+	(0x00007C08 + (descriptor) * 0x40)
+#define HW_ATL2_TDM_DESCD_TS_EN_MSK 0x00020000
+#define HW_ATL2_TDM_DESCD_TS_EN_SHIFT 17
+/* TX desc{D}_avb_en Bitfield Definitions
+ */
+#define HW_ATL2_TDM_DESCD_AVB_EN_ADR(descriptor) \
+	(0x00007C08 + (descriptor) * 0x40)
+#define HW_ATL2_TDM_DESCD_AVB_EN_MSK 0x00010000
+#define HW_ATL2_TDM_DESCD_AVB_EN_SHIFT 16
 /* tx tx_tc_q_rand_map_en bitfield definitions
  * preprocessor definitions for the bitfield "tx_tc_q_rand_map_en".
  * port="pif_tpb_tx_tc_q_rand_map_en_i"
@@ -221,7 +304,18 @@
 #define HW_ATL2_TPS_DATA_TCTCREDIT_MAX_WIDTH 16
 /* default value of bitfield data_tc{t}_credit_max[f:0] */
 #define HW_ATL2_TPS_DATA_TCTCREDIT_MAX_DEFAULT 0x0
-
+/* register address for bitfield pif_tpb_highest_prio_tc_en */
+#define HW_ATL2_TPB_HIGHEST_PRIO_TC_EN_ADR 0x00007180
+/* bitmask for bitfield pif_tpb_highest_prio_tc_en */
+#define HW_ATL2_TPB_HIGHEST_PRIO_TC_EN_MSK 0x00000100
+/* lower bit position of bitfield pif_tpb_highest_prio_tc_en */
+#define HW_ATL2_TPB_HIGHEST_PRIO_TC_EN_SHIFT 8
+/* register address for bitfield pif_tpb_highest_prio_tc */
+#define HW_ATL2_TPB_HIGHEST_PRIO_TC_ADR 0x00007180
+/* bitmask for bitfield pif_tpb_highest_prio_tc */
+#define HW_ATL2_TPB_HIGHEST_PRIO_TC_MSK 0x00000007
+/* lower bit position of bitfield pif_tpb_highest_prio_tc */
+#define HW_ATL2_TPB_HIGHEST_PRIO_TC_SHIFT 0
 /* tx data_tc{t}_weight[e:0] bitfield definitions
  * preprocessor definitions for the bitfield "data_tc{t}_weight[e:0]".
  * parameter: tc {t} | stride size 0x4 | range [0, 7]
@@ -248,7 +342,87 @@
  */
 
 #define HW_ATL2_TX_INTR_MODERATION_CTL_ADR(queue) (0x00007c28u + (queue) * 0x40)
+/* TX tx_data_rd_req_limit[7:0] Bitfield Definitions
+ */
+#define HW_ATL2_TDM_TX_DATA_RD_REQ_LIMIT_ADR 0x00007B04
+#define HW_ATL2_TDM_TX_DATA_RD_REQ_LIMIT_MSK 0x0000FF00
+#define HW_ATL2_TDM_TX_DATA_RD_REQ_LIMIT_SHIFT 8
+/* TX tx_desc_rd_req_limit[4:0] Bitfield Definitions
+ */
+#define HW_ATL2_TDM_TX_DESC_RD_REQ_LIMIT_ADR 0x00007B04
+#define HW_ATL2_TDM_TX_DESC_RD_REQ_LIMIT_MSK 0x0000001F
+#define HW_ATL2_TDM_TX_DESC_RD_REQ_LIMIT_SHIFT 0
+/* register address for bitfield uP Force Interrupt */
+#define HW_ATL2_GLB_CONTROL_2_ADR 0x00000404
+#define HW_ATL2_MIF_INTERRUPT_2_TO_ITR_MSK 0x00000100
+/* lower bit position of bitfield MIF Interrupt to ITR */
+#define HW_ATL2_MIF_INTERRUPT_TO_ITR_SHIFT 6
+#define HW_ATL2_EN_INTERRUPT_MIF2_TO_ITR_MSK 0x00001000
+/* lower bit position of bitfield Enable MIF Interrupt to ITR */
+#define HW_ATL2_EN_INTERRUPT_TO_ITR_SHIFT 0xA
+#define HW_ATL2_GLOBAL_INTERNAL_ALARMS_1_ADR 0x00000924
+#define HW_ATL2_GLOBAL_HIGH_PRIO_INTERRUPT_1_MASK_ADR 0x00000964
+/* bitmask for bitfield TSG PTM GPIO interrupt */
+#define HW_ATL2_TSG_TSG1_GPIO_INTERRUPT_MSK 0x00000200
+/* lower bit position of bitfield TSG PTM GPIO interrupt */
+#define HW_ATL2_TSG_TSG1_GPIO_INTERRUPT_SHIFT 9
+/* bitmask for bitfield TSG0 GPIO interrupt */
+#define HW_ATL2_TSG_TSG0_GPIO_INTERRUPT_MSK 0x00000020
+/* lower bit position of bitfield TSG0 GPIO interrupt */
+#define HW_ATL2_TSG_TSG0_GPIO_INTERRUPT_SHIFT 5
+/* TSG registers */
+#define HW_ATL2_TSG_REG_ADR(clk, reg_name) \
+	((clk) == 0 ? HW_ATL2_CLK0_##reg_name##_ADR :\
+		 HW_ATL2_CLK1_##reg_name##_ADR)
 
+#define HW_ATL2_CLK0_CLOCK_CFG_ADR 0x00000CA0u
+#define HW_ATL2_CLK1_CLOCK_CFG_ADR 0x00000D50u
+#define HW_ATL2_TSG_SYNC_RESET_MSK 0x00000001
+#define HW_ATL2_TSG_SYNC_RESET_SHIFT 0x00000000
+#define HW_ATL2_TSG_CLOCK_EN_MSK 0x00000002
+#define HW_ATL2_TSG_CLOCK_EN_SHIFT 0x00000001
+#define HW_ATL2_CLK0_CLOCK_MODIF_CTRL_ADR 0x00000CA4u
+#define HW_ATL2_CLK1_CLOCK_MODIF_CTRL_ADR 0x00000D54u
+#define HW_ATL2_TSG_SUBTRACT_COUNTER_MSK 0x00000002
+#define HW_ATL2_TSG_ADD_COUNTER_MSK 0x00000004
+#define HW_ATL2_TSG_LOAD_INC_CFG_MSK 0x00000008
+#define HW_ATL2_CLK0_CLOCK_MODIF_VAL_LSW_ADR 0x00000CA8u
+#define HW_ATL2_CLK1_CLOCK_MODIF_VAL_LSW_ADR 0x00000D58u
+#define HW_ATL2_CLK0_CLOCK_INC_CFG_ADR 0x00000CB0u
+#define HW_ATL2_CLK1_CLOCK_INC_CFG_ADR 0x00000D60u
+#define HW_ATL2_CLK0_READ_CUR_NS_LSW_ADR 0x00000CB8u
+#define HW_ATL2_CLK1_READ_CUR_NS_LSW_ADR 0x00000D68u
+
+#define HW_ATL2_CLK0_GPIO_CFG_ADR 0x00000CC4u
+#define HW_ATL2_CLK1_GPIO_CFG_ADR 0x00000D74u
+#define HW_ATL2_TSG_GPIO_IN_MONITOR_EN_SHIFT 0x00000000
+#define HW_ATL2_TSG_GPIO_IN_MONITOR_EN_MSK 0x00000001
+#define HW_ATL2_TSG_GPIO_IN_MODE_SHIFT 0x00000001
+#define HW_ATL2_TSG_GPIO_IN_MODE_MSK 0x00000006
+#define HW_ATL2_TSG_GPIO_IN_MODE_POSEDGE 0x00000000
+#define HW_ATL2_CLK0_EXT_CLK_COUNT_ADR 0x00000CCCu
+#define HW_ATL2_CLK1_EXT_CLK_COUNT_ADR 0x00000D7Cu
+#define HW_ATL2_CLK0_GPIO_EVENT_TS_LSW_ADR 0x00000CD0u
+#define HW_ATL2_CLK1_GPIO_EVENT_TS_LSW_ADR 0x00000D80u
+#define HW_ATL2_CLK0_GPIO_EVENT_GEN_TS_LSW_ADR 0x00000CE0u
+#define HW_ATL2_CLK1_GPIO_EVENT_GEN_TS_LSW_ADR 0x00000D90u
+#define HW_ATL2_CLK0_GPIO_EVENT_GEN_CFG_ADR 0x00000CE8u
+#define HW_ATL2_CLK1_GPIO_EVENT_GEN_CFG_ADR 0x00000D98u
+#define HW_ATL2_TSG_GPIO_OUTPUT_EN_SHIFT 0x00000000
+#define HW_ATL2_TSG_GPIO_OUTPUT_EN_MSK 0x00000001
+#define HW_ATL2_TSG_GPIO_EVENT_MODE_SHIFT 0x00000001
+#define HW_ATL2_TSG_GPIO_EVENT_MODE_MSK 0x00000006
+#define HW_ATL2_TSG_GPIO_EVENT_MODE_SET_ON_TIME 0x00000003
+#define HW_ATL2_TSG_GPIO_GEN_OUTPUT_EN_MSK 0x00000008
+#define HW_ATL2_CLK0_GPIO_EVENT_HIGH_TIME_LSW_ADR 0x00000CF0u
+#define HW_ATL2_CLK1_GPIO_EVENT_HIGH_TIME_LSW_ADR 0x00000DA0u
+#define HW_ATL2_CLK0_GPIO_EVENT_LOW_TIME_LSW_ADR 0x00000CF8u
+#define HW_ATL2_CLK1_GPIO_EVENT_LOW_TIME_LSW_ADR 0x00000DA8u
+/* PCIE Extended tag enable Bitfield Definitions
+ */
+#define HW_ATL2_PHI_EXT_TAG_EN_ADR 0x00001000
+#define HW_ATL2_PHI_EXT_TAG_EN_MSK 0x00000020
+#define HW_ATL2_PHI_EXT_TAG_EN_SHIFT 5
 /* Launch time control register */
 #define HW_ATL2_LT_CTRL_ADR 0x00007a1c
 
@@ -387,5 +561,25 @@
 #define HW_ATL2_MCP_HOST_REQ_INT_ADR 0x00000F00u
 #define HW_ATL2_MCP_HOST_REQ_INT_SET_ADR 0x00000F04u
 #define HW_ATL2_MCP_HOST_REQ_INT_CLR_ADR 0x00000F08u
-
+/* Register address for bitfield PTP EXT GPIO TS SEL */
+#define HW_ATL2_TSG0_EXT_GPIO_TS_INPUT_SEL_ADR 0x00003664
+/* Bitmask for bitfield PTP EXT GPIO TS SEL */
+#define HW_ATL2_TSG0_EXT_GPIO_TS_INPUT_SEL_MSK 0x00001F00
+/* Lower bit position of bitfield PTP EXT GPIO TS SEL */
+#define HW_ATL2_TSG0_EXT_GPIO_TS_INPUT_SEL_SHIFT 8
+/* Register address for bitfield TSG EXT GPIO TS SEL */
+#define HW_ATL2_TSG1_EXT_GPIO_TS_INPUT_SEL_ADR 0x00003660
+/* Bitmask for bitfield TSG EXT GPIO TS SEL */
+#define HW_ATL2_TSG1_EXT_GPIO_TS_INPUT_SEL_MSK 0x00001F00
+/* Lower bit position of bitfield TSG EXT GPIO TS SEL */
+#define HW_ATL2_TSG1_EXT_GPIO_TS_INPUT_SEL_SHIFT 8
+/* Register address for bitfield GPIO{P} Special Mode */
+#define HW_ATL2_GPIO_PIN_SPEC_MODE_ADR(pin) (0x00003698 + (pin) * 0x4)
+/* Bitmask for bitfield GPIO{P} Special Mode */
+#define HW_ATL2_GPIO_PIN_SPEC_MODE_MSK 0x0000000C
+/* Lower bit position of bitfield GPIO{P} Special Mode */
+#define HW_ATL2_GPIO_PIN_SPEC_MODE_SHIFT 2
+#define HW_ATL2_GPIO_PIN_SPEC_MODE_TSG1_EVENT_OUTPUT 0
+#define HW_ATL2_GPIO_PIN_SPEC_MODE_TSG0_EVENT_OUTPUT 2
+#define HW_ATL2_GPIO_PIN_SPEC_MODE_GPIO 3
 #endif /* HW_ATL2_LLH_INTERNAL_H */

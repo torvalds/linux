@@ -55,8 +55,8 @@ static s64 tdc_meas2offset(struct idtfc3 *idtfc3, u64 meas_read)
 {
 	s64 coarse, fine;
 
-	fine = sign_extend64(FIELD_GET(FINE_MEAS_MASK, meas_read), 12);
-	coarse = sign_extend64(FIELD_GET(COARSE_MEAS_MASK, meas_read), (39 - 13));
+	fine = FIELD_GET_SIGNED(FINE_MEAS_MASK, meas_read);
+	coarse = FIELD_GET_SIGNED(COARSE_MEAS_MASK, meas_read);
 
 	fine = div64_s64(fine * NSEC_PER_SEC, idtfc3->tdc_apll_freq * 62LL);
 	coarse = div64_s64(coarse * NSEC_PER_SEC, idtfc3->time_ref_freq);

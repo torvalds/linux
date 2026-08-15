@@ -54,8 +54,8 @@
 #include <asm/xen/hypervisor.h>
 
 static struct mc_info g_mi;
-static struct mcinfo_logical_cpu *g_physinfo;
-static uint32_t ncpus;
+static struct mcinfo_logical_cpu *g_physinfo __ro_after_init;
+static uint32_t ncpus __ro_after_init;
 
 static DEFINE_MUTEX(mcelog_lock);
 
@@ -182,7 +182,7 @@ static const struct file_operations xen_mce_chrdev_ops = {
 	.unlocked_ioctl		= xen_mce_chrdev_ioctl,
 };
 
-static struct miscdevice xen_mce_chrdev_device = {
+static struct miscdevice xen_mce_chrdev_device __ro_after_init = {
 	MISC_MCELOG_MINOR,
 	"mcelog",
 	&xen_mce_chrdev_ops,

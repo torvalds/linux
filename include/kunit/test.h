@@ -1796,4 +1796,102 @@ do {									       \
 // include resource.h themselves if they need it.
 #include <kunit/resource.h>
 
+/*
+ * Warning backtrace suppression API.
+ *
+ * Suppresses WARN*() backtraces on the current task while active. Two forms
+ * are provided:
+ *
+ * - Scoped: kunit_warning_suppress(test) { ... }
+ *   Suppression is active for the duration of the block. On normal exit,
+ *   the for-loop increment deactivates suppression. On early exit (break,
+ *   return, goto), the __cleanup attribute fires. On kthread_exit() (e.g.,
+ *   a failed KUnit assertion), kunit_add_action() cleans up at test
+ *   teardown. The suppression handle is only accessible inside the block,
+ *   so warning counts must be checked before the block exits.
+ *
+ * - Direct: kunit_start_suppress_warning() / kunit_end_suppress_warning()
+ *   The underlying functions, returning an explicit handle pointer. Use
+ *   when the handle needs to be retained (e.g., for post-suppression
+ *   count checks) or passed across helper functions.
+ */
+struct kunit_suppressed_warning;
+
+struct kunit_suppressed_warning *
+kunit_start_suppress_warning(struct kunit *test);
+void kunit_end_suppress_warning(struct kunit *test,
+				struct kunit_suppressed_warning *w);
+int kunit_suppressed_warning_count(struct kunit_suppressed_warning *w);
+void __kunit_suppress_auto_cleanup(struct kunit_suppressed_warning **wp);
+bool kunit_has_active_suppress_warning(void);
+
+/**
+ * kunit_warning_suppress() - Suppress WARN*() backtraces for the duration
+ *                            of a block.
+ * @test: The test context object.
+ *
+ * Scoped form of the suppression API. Suppression starts when the block is
+ * entered and ends automatically when the block exits through any path. See
+ * the section comment above for the cleanup guarantees on each exit path.
+ * Fails the test if suppression is already active; nesting is not supported.
+ *
+ * The warning count can be checked inside the block via
+ * KUNIT_EXPECT_SUPPRESSED_WARNING_COUNT(). The handle is not accessible
+ * after the block exits.
+ *
+ * Example::
+ *
+ *   kunit_warning_suppress(test) {
+ *       trigger_warning();
+ *       KUNIT_EXPECT_SUPPRESSED_WARNING_COUNT(test, 1);
+ *   }
+ */
+#define kunit_warning_suppress(test)					\
+	for (struct kunit_suppressed_warning *__kunit_suppress		\
+	     __cleanup(__kunit_suppress_auto_cleanup) =			\
+	     kunit_start_suppress_warning(test);			\
+	     __kunit_suppress;						\
+	     kunit_end_suppress_warning(test, __kunit_suppress),	\
+	     __kunit_suppress = NULL)
+
+/**
+ * KUNIT_SUPPRESSED_WARNING_COUNT() - Returns the suppressed warning count.
+ *
+ * Returns the number of WARN*() calls suppressed since the current
+ * suppression block started, or 0 if the handle is NULL. Usable inside a
+ * kunit_warning_suppress() block.
+ */
+#define KUNIT_SUPPRESSED_WARNING_COUNT() \
+	kunit_suppressed_warning_count(__kunit_suppress)
+
+/**
+ * KUNIT_EXPECT_SUPPRESSED_WARNING_COUNT() - Sets an expectation that the
+ *                                           suppressed warning count equals
+ *                                           @expected.
+ * @test: The test context object.
+ * @expected: an expression that evaluates to the expected warning count.
+ *
+ * Sets an expectation that the number of suppressed WARN*() calls equals
+ * @expected. This is semantically equivalent to
+ * KUNIT_EXPECT_EQ(@test, KUNIT_SUPPRESSED_WARNING_COUNT(), @expected).
+ * See KUNIT_EXPECT_EQ() for more information.
+ */
+#define KUNIT_EXPECT_SUPPRESSED_WARNING_COUNT(test, expected) \
+	KUNIT_EXPECT_EQ(test, KUNIT_SUPPRESSED_WARNING_COUNT(), expected)
+
+/**
+ * KUNIT_ASSERT_SUPPRESSED_WARNING_COUNT() - Sets an assertion that the
+ *                                           suppressed warning count equals
+ *                                           @expected.
+ * @test: The test context object.
+ * @expected: an expression that evaluates to the expected warning count.
+ *
+ * Sets an assertion that the number of suppressed WARN*() calls equals
+ * @expected. This is the same as KUNIT_EXPECT_SUPPRESSED_WARNING_COUNT(),
+ * except it causes an assertion failure (see KUNIT_ASSERT_TRUE()) when the
+ * assertion is not met.
+ */
+#define KUNIT_ASSERT_SUPPRESSED_WARNING_COUNT(test, expected) \
+	KUNIT_ASSERT_EQ(test, KUNIT_SUPPRESSED_WARNING_COUNT(), expected)
+
 #endif /* _KUNIT_TEST_H */

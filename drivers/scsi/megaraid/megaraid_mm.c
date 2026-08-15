@@ -898,42 +898,28 @@ hinfo_to_cinfo(mraid_hba_info_t *hinfo, mcontroller_t *cinfo)
 
 /**
  * mraid_mm_register_adp - Registration routine for low level drivers
- * @lld_adp	: Adapter object
+ * @adapter	: Adapter object
  */
 int
-mraid_mm_register_adp(mraid_mmadp_t *lld_adp)
+mraid_mm_register_adp(mraid_mmadp_t *adapter)
 {
-	mraid_mmadp_t	*adapter;
 	mbox64_t	*mbox_list;
 	uioc_t		*kioc;
 	uint32_t	rval;
 	int		i;
 
 
-	if (lld_adp->drvr_type != DRVRTYPE_MBOX)
+	if (adapter->drvr_type != DRVRTYPE_MBOX)
 		return (-EINVAL);
 
-	adapter = kzalloc_obj(mraid_mmadp_t);
-
-	if (!adapter)
-		return -ENOMEM;
-
-
-	adapter->unique_id	= lld_adp->unique_id;
-	adapter->drvr_type	= lld_adp->drvr_type;
-	adapter->drvr_data	= lld_adp->drvr_data;
-	adapter->pdev		= lld_adp->pdev;
-	adapter->issue_uioc	= lld_adp->issue_uioc;
-	adapter->timeout	= lld_adp->timeout;
-	adapter->max_kioc	= lld_adp->max_kioc;
 	adapter->quiescent	= 1;
 
 	/*
 	 * Allocate single blocks of memory for all required kiocs,
 	 * mailboxes and passthru structures.
 	 */
-	adapter->kioc_list	= kmalloc_objs(uioc_t, lld_adp->max_kioc);
-	adapter->mbox_list	= kmalloc_objs(mbox64_t, lld_adp->max_kioc);
+	adapter->kioc_list	= kmalloc_objs(uioc_t, adapter->max_kioc);
+	adapter->mbox_list	= kmalloc_objs(mbox64_t, adapter->max_kioc);
 	adapter->pthru_dma_pool = dma_pool_create("megaraid mm pthru pool",
 						&adapter->pdev->dev,
 						sizeof(mraid_passthru_t),
@@ -956,11 +942,11 @@ mraid_mm_register_adp(mraid_mmadp_t *lld_adp)
 	 */
 	INIT_LIST_HEAD(&adapter->kioc_pool);
 	spin_lock_init(&adapter->kioc_pool_lock);
-	sema_init(&adapter->kioc_semaphore, lld_adp->max_kioc);
+	sema_init(&adapter->kioc_semaphore, adapter->max_kioc);
 
 	mbox_list	= (mbox64_t *)adapter->mbox_list;
 
-	for (i = 0; i < lld_adp->max_kioc; i++) {
+	for (i = 0; i < adapter->max_kioc; i++) {
 
 		kioc		= adapter->kioc_list + i;
 		kioc->cmdbuf	= (uint64_t)(unsigned long)(mbox_list + i);
@@ -997,7 +983,7 @@ dma_pool_error:
 
 pthru_dma_pool_error:
 
-	for (i = 0; i < lld_adp->max_kioc; i++) {
+	for (i = 0; i < adapter->max_kioc; i++) {
 		kioc = adapter->kioc_list + i;
 		if (kioc->pthru32) {
 			dma_pool_free(adapter->pthru_dma_pool, kioc->pthru32,
@@ -1011,8 +997,6 @@ memalloc_error:
 	kfree(adapter->mbox_list);
 
 	dma_pool_destroy(adapter->pthru_dma_pool);
-
-	kfree(adapter);
 
 	return rval;
 }

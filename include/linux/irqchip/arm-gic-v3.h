@@ -604,7 +604,7 @@
 
 #include <asm/arch_gicv3.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 /*
  * We need a value to serve as a irq-type for LPIs. Choose one that will

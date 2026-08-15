@@ -1,0 +1,7 @@
+bench_zero_dynamic_padding:
+	lea rax, [rsi + 2*rsi]
+	movabs rdx, 9223372036854775804
+	and rdx, rax
+	add rdx, 12
+	xor esi, esi
+	jmp qword ptr [rip + memset@GOTPCREL]

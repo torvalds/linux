@@ -20,8 +20,8 @@ __s64 res_empty;
 
 SEC("raw_tp/sys_enter")
 __success __log_level(2)
-__msg("fp-16=iter_testmod_seq(ref_id=1,state=active,depth=0)")
-__msg("fp-16=iter_testmod_seq(ref_id=1,state=drained,depth=0)")
+__msg("fp-16=iter_testmod_seq(id=1,state=active,depth=0)")
+__msg("fp-16=iter_testmod_seq(id=1,state=drained,depth=0)")
 __msg("call bpf_iter_testmod_seq_destroy")
 int testmod_seq_empty(const void *ctx)
 {
@@ -38,8 +38,8 @@ __s64 res_full;
 
 SEC("raw_tp/sys_enter")
 __success __log_level(2)
-__msg("fp-16=iter_testmod_seq(ref_id=1,state=active,depth=0)")
-__msg("fp-16=iter_testmod_seq(ref_id=1,state=drained,depth=0)")
+__msg("fp-16=iter_testmod_seq(id=1,state=active,depth=0)")
+__msg("fp-16=iter_testmod_seq(id=1,state=drained,depth=0)")
 __msg("call bpf_iter_testmod_seq_destroy")
 int testmod_seq_full(const void *ctx)
 {
@@ -58,8 +58,8 @@ static volatile int zero = 0;
 
 SEC("raw_tp/sys_enter")
 __success __log_level(2)
-__msg("fp-16=iter_testmod_seq(ref_id=1,state=active,depth=0)")
-__msg("fp-16=iter_testmod_seq(ref_id=1,state=drained,depth=0)")
+__msg("fp-16=iter_testmod_seq(id=1,state=active,depth=0)")
+__msg("fp-16=iter_testmod_seq(id=1,state=drained,depth=0)")
 __msg("call bpf_iter_testmod_seq_destroy")
 int testmod_seq_truncated(const void *ctx)
 {
@@ -79,7 +79,7 @@ int testmod_seq_truncated(const void *ctx)
 
 SEC("?raw_tp")
 __failure
-__msg("expected an initialized iter_testmod_seq as arg #1")
+__msg("expected an initialized iter_testmod_seq as R2")
 int testmod_seq_getter_before_bad(const void *ctx)
 {
 	struct bpf_iter_testmod_seq it;
@@ -89,7 +89,7 @@ int testmod_seq_getter_before_bad(const void *ctx)
 
 SEC("?raw_tp")
 __failure
-__msg("expected an initialized iter_testmod_seq as arg #1")
+__msg("expected an initialized iter_testmod_seq as R2")
 int testmod_seq_getter_after_bad(const void *ctx)
 {
 	struct bpf_iter_testmod_seq it;

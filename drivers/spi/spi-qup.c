@@ -1074,11 +1074,9 @@ static int spi_qup_probe(struct platform_device *pdev)
 	if (ret && ret != -ENODEV)
 		return dev_err_probe(dev, ret, "invalid OPP table\n");
 
-	host = spi_alloc_host(dev, sizeof(struct spi_qup));
-	if (!host) {
-		dev_err(dev, "cannot allocate host\n");
+	host = devm_spi_alloc_host(dev, sizeof(struct spi_qup));
+	if (!host)
 		return -ENOMEM;
-	}
 
 	/* use num-cs unless not present or out of range */
 	if (of_property_read_u32(dev->of_node, "num-cs", &num_cs) ||
@@ -1111,7 +1109,7 @@ static int spi_qup_probe(struct platform_device *pdev)
 
 	ret = spi_qup_init_dma(host, res->start);
 	if (ret == -EPROBE_DEFER)
-		goto error;
+		return ret;
 	else if (!ret)
 		host->can_dma = spi_qup_can_dma;
 
@@ -1209,8 +1207,7 @@ error_clk:
 	clk_disable_unprepare(iclk);
 error_dma:
 	spi_qup_release_dma(host);
-error:
-	spi_controller_put(host);
+
 	return ret;
 }
 
@@ -1323,8 +1320,6 @@ static void spi_qup_remove(struct platform_device *pdev)
 	struct spi_qup *controller = spi_controller_get_devdata(host);
 	int ret;
 
-	spi_controller_get(host);
-
 	spi_unregister_controller(host);
 
 	ret = pm_runtime_get_sync(&pdev->dev);
@@ -1346,8 +1341,6 @@ static void spi_qup_remove(struct platform_device *pdev)
 
 	pm_runtime_put_noidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	spi_controller_put(host);
 }
 
 static const struct of_device_id spi_qup_dt_match[] = {

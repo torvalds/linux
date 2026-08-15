@@ -98,7 +98,7 @@ static void lkdtm_FORTIFY_MEM_MEMBER(void)
 	pr_info("trying to memcpy() past the end of a struct member...\n");
 
 	/*
-	 * strncpy(target.a, src, 20); will hit a compile error because the
+	 * memcpy(target.a, src, 20); will hit a compile error because the
 	 * compiler knows at build time that target.a < 20 bytes. Use a
 	 * volatile to force a runtime error.
 	 */

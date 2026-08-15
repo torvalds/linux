@@ -7,37 +7,6 @@
 #include <drv_types.h>
 #include <hal_data.h>
 
-void rtw_hal_chip_configure(struct adapter *padapter)
-{
-	rtl8723bs_interface_configure(padapter);
-}
-
-void rtw_hal_read_chip_info(struct adapter *padapter)
-{
-	ReadAdapterInfo8723BS(padapter);
-}
-
-void rtw_hal_read_chip_version(struct adapter *padapter)
-{
-	rtl8723b_read_chip_version(padapter);
-}
-
-void rtw_hal_def_value_init(struct adapter *padapter)
-{
-	rtl8723bs_init_default_value(padapter);
-}
-
-void rtw_hal_free_data(struct adapter *padapter)
-{
-	/* free HAL Data */
-	rtw_hal_data_deinit(padapter);
-}
-
-void rtw_hal_dm_init(struct adapter *padapter)
-{
-	rtl8723b_init_dm_priv(padapter);
-}
-
 static void rtw_hal_init_opmode(struct adapter *padapter)
 {
 	enum ndis_802_11_network_infrastructure networkType = Ndis802_11InfrastructureMax;
@@ -125,29 +94,22 @@ void rtw_hal_set_odm_var(struct adapter *padapter, enum hal_odm_variable eVariab
 	SetHalODMVar(padapter, eVariable, pValue1, bSet);
 }
 
-void rtw_hal_enable_interrupt(struct adapter *padapter)
-{
-	EnableInterrupt8723BSdio(padapter);
-}
-
-void rtw_hal_disable_interrupt(struct adapter *padapter)
-{
-	DisableInterrupt8723BSdio(padapter);
-}
-
 u8 rtw_hal_check_ips_status(struct adapter *padapter)
 {
 	return CheckIPSStatus(padapter);
 }
 
-s32	rtw_hal_xmitframe_enqueue(struct adapter *padapter, struct xmit_frame *pxmitframe)
+int rtw_hal_xmitframe_enqueue(struct adapter *padapter, struct xmit_frame *pxmitframe)
 {
 	return rtl8723bs_hal_xmitframe_enqueue(padapter, pxmitframe);
 }
 
 s32	rtw_hal_xmit(struct adapter *padapter, struct xmit_frame *pxmitframe)
 {
-	return rtl8723bs_hal_xmit(padapter, pxmitframe);
+	if (rtl8723bs_hal_xmit(padapter, pxmitframe))
+		return _FAIL;
+
+	return _SUCCESS;
 }
 
 /*
@@ -160,7 +122,7 @@ s32	rtw_hal_mgnt_xmit(struct adapter *padapter, struct xmit_frame *pmgntframe)
 	/* pwlanhdr = (struct rtw_ieee80211_hdr *)pframe; */
 	/* memcpy(pmgntframe->attrib.ra, pwlanhdr->addr1, ETH_ALEN); */
 
-	if (padapter->securitypriv.binstallBIPkey == true) {
+	if (padapter->securitypriv.binstallBIPkey) {
 		if (is_multicast_ether_addr(pmgntframe->attrib.ra)) {
 			pmgntframe->attrib.encrypt = _BIP_;
 			/* pmgntframe->attrib.bswenc = true; */
@@ -206,7 +168,7 @@ void rtw_hal_update_ra_mask(struct sta_info *psta, u8 rssi_level)
 
 	pmlmepriv = &(padapter->mlmepriv);
 
-	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == true)
+	if (check_fwstate(pmlmepriv, WIFI_AP_STATE))
 		add_ratid(padapter, psta, rssi_level);
 	else {
 		UpdateHalRAMask8723B(padapter, psta->mac_id, rssi_level);
@@ -263,7 +225,6 @@ void beacon_timing_control(struct adapter *padapter)
 {
 	rtl8723b_SetBeaconRelatedRegisters(padapter);
 }
-
 
 s32 rtw_hal_xmit_thread_handler(struct adapter *padapter)
 {

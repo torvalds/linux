@@ -80,14 +80,14 @@ static int ar9002_hw_init_mode_regs(struct ath_hw *ah)
 	/* iniAddac needs to be modified for these chips */
 	if (AR_SREV_9160(ah) || !AR_SREV_5416_22_OR_LATER(ah)) {
 		struct ar5416IniArray *addac = &ah->iniAddac;
-		u32 size = sizeof(u32) * addac->ia_rows * addac->ia_columns;
+		u32 n = addac->ia_rows * addac->ia_columns;
 		u32 *data;
 
-		data = devm_kzalloc(ah->dev, size, GFP_KERNEL);
+		data = devm_kmemdup_array(ah->dev, addac->ia_array, n, sizeof(u32),
+			GFP_KERNEL);
 		if (!data)
 			return -ENOMEM;
 
-		memcpy(data, addac->ia_array, size);
 		addac->ia_array = data;
 
 		if (!AR_SREV_5416_22_OR_LATER(ah)) {

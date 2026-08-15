@@ -32,6 +32,21 @@ struct module;
 #include <vdso/clocksource.h>
 
 /**
+ * struct clocksource_hw_snapshot - Snapshot for the underlying hardware counter of derived
+ *				    clocksources like kvmclock or Hyper-V scaled TSC
+ * @hw_cycles:		The hardware counter value
+ * @hw_csid:		Clocksource ID of the hardware counter
+ *
+ * Such clocksources must implement the read_snapshot() callback and fill in the
+ * hardware counter value, the clocksource ID of the hardware counter and derive
+ * the actual clocksource cycles from @hw_cycles to provide an atomic snapshot
+ */
+struct clocksource_hw_snapshot {
+	u64			hw_cycles;
+	enum clocksource_ids	hw_csid;
+};
+
+/**
  * struct clocksource - hardware abstraction for a free running counter
  *	Provides mostly state-free accessors to the underlying hardware.
  *	This is the structure used for system time.
@@ -72,6 +87,14 @@ struct module;
  * @flags:		Flags describing special properties
  * @base:		Hardware abstraction for clock on which a clocksource
  *			is based
+ * @read_snapshot:	Extended @read() function for clocksources such as
+ *			kvmclock or the Hyper-V scaled TSC where the actual
+ *			clocksource value for timekeeping is calculated from an
+ *			underlying hardware counter. Returns the timekeeping
+ *			relevant cycle value and stores the raw value of the
+ *			underlying counter from which it was calculated
+ *			including the clocksource ID of that counter in the
+ *			clocksource hardware snapshot.
  * @enable:		Optional function to enable the clocksource
  * @disable:		Optional function to disable the clocksource
  * @suspend:		Optional suspend function for the clocksource
@@ -113,6 +136,7 @@ struct clocksource {
 	unsigned long		flags;
 	struct clocksource_base *base;
 
+	u64			(*read_snapshot)(struct clocksource *cs, struct clocksource_hw_snapshot *chs);
 	int			(*enable)(struct clocksource *cs);
 	void			(*disable)(struct clocksource *cs);
 	void			(*suspend)(struct clocksource *cs);
@@ -236,8 +260,9 @@ clocks_calc_mult_shift(u32 *mult, u32 *shift, u32 from, u32 to, u32 minsec);
  */
 extern int
 __clocksource_register_scale(struct clocksource *cs, u32 scale, u32 freq);
-extern void
-__clocksource_update_freq_scale(struct clocksource *cs, u32 scale, u32 freq);
+extern int
+__devm_clocksource_register_scale(struct device *dev, struct clocksource *cs,
+				  u32 scale, u32 freq);
 
 /*
  * Don't call this unless you are a default clocksource
@@ -258,14 +283,16 @@ static inline int clocksource_register_khz(struct clocksource *cs, u32 khz)
 	return __clocksource_register_scale(cs, 1000, khz);
 }
 
-static inline void __clocksource_update_freq_hz(struct clocksource *cs, u32 hz)
+static inline int devm_clocksource_register_hz(struct device *dev,
+					       struct clocksource *cs, u32 hz)
 {
-	__clocksource_update_freq_scale(cs, 1, hz);
+	return __devm_clocksource_register_scale(dev, cs, 1, hz);
 }
 
-static inline void __clocksource_update_freq_khz(struct clocksource *cs, u32 khz)
+static inline int devm_clocksource_register_khz(struct device *dev,
+						struct clocksource *cs, u32 khz)
 {
-	__clocksource_update_freq_scale(cs, 1000, khz);
+	return __devm_clocksource_register_scale(dev, cs, 1000, khz);
 }
 
 #ifdef CONFIG_ARCH_CLOCKSOURCE_INIT

@@ -15,6 +15,7 @@ Device Mapper
     dm-flakey
     dm-ima
     dm-init
+    dm-inlinecrypt
     dm-integrity
     dm-io
     dm-log

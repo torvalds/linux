@@ -37,6 +37,7 @@ extern struct shared_info *HYPERVISOR_shared_info;
 extern struct start_info *xen_start_info;
 
 #include <asm/bug.h>
+#include <asm/cpuid/api.h>
 #include <asm/processor.h>
 
 #define XEN_SIGNATURE "XenVMMXenVMM"
@@ -64,30 +65,7 @@ void __init xen_pvh_init(struct boot_params *boot_params);
 void __init mem_map_via_hcall(struct boot_params *boot_params_p);
 #endif
 
-/* Lazy mode for batching updates / context switch */
-enum xen_lazy_mode {
-	XEN_LAZY_NONE,
-	XEN_LAZY_MMU,
-	XEN_LAZY_CPU,
-};
-
-DECLARE_PER_CPU(enum xen_lazy_mode, xen_lazy_mode);
-
-static inline void enter_lazy(enum xen_lazy_mode mode)
-{
-	BUG_ON(this_cpu_read(xen_lazy_mode) != XEN_LAZY_NONE);
-
-	this_cpu_write(xen_lazy_mode, mode);
-}
-
-static inline void leave_lazy(enum xen_lazy_mode mode)
-{
-	BUG_ON(this_cpu_read(xen_lazy_mode) != mode);
-
-	this_cpu_write(xen_lazy_mode, XEN_LAZY_NONE);
-}
-
-enum xen_lazy_mode xen_get_lazy_mode(void);
+bool xen_is_cpu_lazy_mode(void);
 
 #if defined(CONFIG_XEN_DOM0) && defined(CONFIG_ACPI)
 void xen_sanitize_proc_cap_bits(uint32_t *buf);

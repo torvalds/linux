@@ -16,7 +16,6 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
@@ -1461,9 +1460,9 @@ static int cy8c95x0_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id cy8c95x0_id[] = {
-	{ "cy8c9520", 20 },
-	{ "cy8c9540", 40 },
-	{ "cy8c9560", 60 },
+	{ .name = "cy8c9520", .driver_data = 20 },
+	{ .name = "cy8c9540", .driver_data = 40 },
+	{ .name = "cy8c9560", .driver_data = 60 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, cy8c95x0_id);

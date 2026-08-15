@@ -9,10 +9,31 @@
 #include <linux/leds.h>
 #include <dt-bindings/leds/common.h>
 
+/**
+ * struct mc_subled - Color component description.
+ * @color_index: Color ID.
+ * @brightness: Scaled intensity.
+ * @intensity: Current intensity.
+ * @max_intensity: Maximum supported intensity value.
+ * @channel: Channel index.
+ *
+ * Describes a color component of a multicolor LED. Many multicolor LEDs
+ * do not support global brightness control in hardware, so they use
+ * the brightness field in connection with led_mc_calc_color_components()
+ * to perform the intensity scaling in software.
+ * Such drivers should set max_intensity to 0 to signal the multicolor LED core
+ * that the maximum global brightness of the LED class device should be used for
+ * limiting incoming intensity values.
+ *
+ * Multicolor LEDs that do support global brightness control in hardware
+ * should instead set max_intensity to the maximum intensity value supported
+ * by the hardware for a given color component.
+ */
 struct mc_subled {
 	unsigned int color_index;
 	unsigned int brightness;
 	unsigned int intensity;
+	unsigned int max_intensity;
 	unsigned int channel;
 };
 
@@ -53,7 +74,14 @@ int led_classdev_multicolor_register_ext(struct device *parent,
  */
 void led_classdev_multicolor_unregister(struct led_classdev_mc *mcled_cdev);
 
-/* Calculate brightness for the monochrome LED cluster */
+/**
+ * led_mc_calc_color_components() - Calculates component brightness values of a LED cluster.
+ * @mcled_cdev - Multicolor LED class device of the LED cluster.
+ * @brightness - Global brightness of the LED cluster.
+ *
+ * Calculates the brightness values for each color component of a monochrome LED cluster,
+ * see Documentation/leds/leds-class-multicolor.rst for details.
+ */
 int led_mc_calc_color_components(struct led_classdev_mc *mcled_cdev,
 				 enum led_brightness brightness);
 

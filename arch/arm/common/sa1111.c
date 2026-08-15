@@ -221,7 +221,7 @@ static void sa1111_irq_handler(struct irq_desc *desc)
 	writel_relaxed(stat1, mapbase + SA1111_INTSTATCLR1);
 
 	if (stat0 == 0 && stat1 == 0) {
-		do_bad_IRQ(desc);
+		handle_bad_irq(desc);
 		return;
 	}
 

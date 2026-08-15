@@ -665,6 +665,9 @@ static int pp_dpm_set_pp_table(void *handle, const char *buf, size_t size)
 	if (!hwmgr || !hwmgr->pm_en)
 		return -EINVAL;
 
+	if (size > hwmgr->soft_pp_table_size)
+		return -EINVAL;
+
 	if (!hwmgr->hardcode_pp_table) {
 		hwmgr->hardcode_pp_table = kmemdup(hwmgr->soft_pp_table,
 						   hwmgr->soft_pp_table_size,
@@ -1020,29 +1023,15 @@ static int pp_display_configuration_change(void *handle,
 	return 0;
 }
 
-static int pp_get_display_power_level(void *handle,
-		struct amd_pp_simple_clock_info *output)
-{
-	struct pp_hwmgr *hwmgr = handle;
-
-	if (!hwmgr || !hwmgr->pm_en || !output)
-		return -EINVAL;
-
-	return phm_get_dal_power_level(hwmgr, output);
-}
-
 static int pp_get_current_clocks(void *handle,
 		struct amd_pp_clock_info *clocks)
 {
-	struct amd_pp_simple_clock_info simple_clocks = { 0 };
 	struct pp_clock_info hw_clocks;
 	struct pp_hwmgr *hwmgr = handle;
 	int ret = 0;
 
 	if (!hwmgr || !hwmgr->pm_en)
 		return -EINVAL;
-
-	phm_get_dal_power_level(hwmgr, &simple_clocks);
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 					PHM_PlatformCaps_PowerContainment))
@@ -1067,11 +1056,6 @@ static int pp_get_current_clocks(void *handle,
 
 	clocks->max_engine_clock_in_sr = hw_clocks.max_eng_clk;
 	clocks->min_engine_clock_in_sr = hw_clocks.min_eng_clk;
-
-	if (simple_clocks.level == 0)
-		clocks->max_clocks_state = PP_DAL_POWERLEVEL_7;
-	else
-		clocks->max_clocks_state = simple_clocks.level;
 
 	if (0 == phm_get_current_shallow_sleep_clocks(hwmgr, &hwmgr->current_ps->hardware, &hw_clocks)) {
 		clocks->max_engine_clock_in_sr = hw_clocks.max_eng_clk;
@@ -1148,8 +1132,6 @@ static int pp_get_display_mode_validation_clocks(void *handle,
 
 	if (!hwmgr || !hwmgr->pm_en || !clocks)
 		return -EINVAL;
-
-	clocks->level = PP_DAL_POWERLEVEL_7;
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DynamicPatchPowerState))
 		ret = phm_get_max_high_clocks(hwmgr, clocks);
@@ -1550,6 +1532,17 @@ static void pp_pm_compute_clocks(void *handle)
 			      NULL);
 }
 
+static void pp_dpm_notify_ac_dc(void *handle)
+{
+	struct pp_hwmgr *hwmgr = handle;
+
+	if (!hwmgr || !hwmgr->pm_en)
+		return;
+
+	if (hwmgr->hwmgr_func->notify_ac_dc)
+		hwmgr->hwmgr_func->notify_ac_dc(hwmgr);
+}
+
 static const struct amd_pm_funcs pp_dpm_funcs = {
 	.load_firmware = pp_dpm_load_fw,
 	.wait_for_fw_loading_complete = pp_dpm_fw_loading_complete,
@@ -1588,7 +1581,6 @@ static const struct amd_pm_funcs pp_dpm_funcs = {
 	.get_sclk = pp_dpm_get_sclk,
 	.get_mclk = pp_dpm_get_mclk,
 	.display_configuration_change = pp_display_configuration_change,
-	.get_display_power_level = pp_get_display_power_level,
 	.get_current_clocks = pp_get_current_clocks,
 	.get_clock_by_type = pp_get_clock_by_type,
 	.get_clock_by_type_with_latency = pp_get_clock_by_type_with_latency,
@@ -1615,4 +1607,5 @@ static const struct amd_pm_funcs pp_dpm_funcs = {
 	.gfx_state_change_set = pp_gfx_state_change_set,
 	.get_smu_prv_buf_details = pp_get_prv_buffer_details,
 	.pm_compute_clocks = pp_pm_compute_clocks,
+	.notify_ac_dc = pp_dpm_notify_ac_dc,
 };

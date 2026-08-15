@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2020-2025 Intel Corporation
+ * Copyright (C) 2020-2026 Intel Corporation
  */
 
 #include <linux/firmware.h>
@@ -259,6 +259,22 @@ static int ivpu_fw_parse(struct ivpu_device *vdev)
 		return -EINVAL;
 	}
 
+	if (!PAGE_ALIGNED(runtime_addr)) {
+		ivpu_err(vdev, "Runtime address 0x%llx not page aligned\n", runtime_addr);
+		return -EINVAL;
+	}
+
+	if (!PAGE_ALIGNED(runtime_size)) {
+		ivpu_err(vdev, "Runtime size %llu not page aligned\n", runtime_size);
+		return -EINVAL;
+	}
+
+	if (runtime_size < image_size) {
+		ivpu_err(vdev, "Runtime size too small: %llu, image size: %llu\n",
+			 runtime_size, image_size);
+		return -EINVAL;
+	}
+
 	if (!ivpu_is_within_range(image_load_addr, image_size, &vdev->hw->ranges.runtime)) {
 		ivpu_err(vdev, "Invalid firmware load address: 0x%llx and size %llu\n",
 			 image_load_addr, image_size);
@@ -347,22 +363,6 @@ static void ivpu_fw_release(struct ivpu_device *vdev)
 	release_firmware(vdev->fw->file);
 }
 
-/* Initialize workarounds that depend on FW version */
-static void
-ivpu_fw_init_wa(struct ivpu_device *vdev)
-{
-	const struct vpu_firmware_header *fw_hdr = (const void *)vdev->fw->file->data;
-
-	if (IVPU_FW_CHECK_API_VER_LT(vdev, fw_hdr, BOOT, 3, 17) ||
-	    (ivpu_test_mode & IVPU_TEST_MODE_D0I3_MSG_DISABLE))
-		vdev->wa.disable_d0i3_msg = true;
-
-	/* Force enable the feature for testing purposes */
-	if (ivpu_test_mode & IVPU_TEST_MODE_D0I3_MSG_ENABLE)
-		vdev->wa.disable_d0i3_msg = false;
-
-	IVPU_PRINT_WA(disable_d0i3_msg);
-}
 
 static int ivpu_fw_mem_init(struct ivpu_device *vdev)
 {
@@ -479,8 +479,6 @@ int ivpu_fw_init(struct ivpu_device *vdev)
 	ret = ivpu_fw_parse(vdev);
 	if (ret)
 		goto err_fw_release;
-
-	ivpu_fw_init_wa(vdev);
 
 	ret = ivpu_fw_mem_init(vdev);
 	if (ret)
@@ -711,8 +709,7 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 	if (vdev->fw->sched_mode == VPU_SCHEDULING_MODE_HW)
 		boot_params->vpu_focus_present_timer_ms = IVPU_FOCUS_PRESENT_TIMER_MS;
 	boot_params->dvfs_mode = vdev->fw->dvfs_mode;
-	if (!IVPU_WA(disable_d0i3_msg))
-		boot_params->d0i3_delayed_entry = 1;
+	boot_params->d0i3_delayed_entry = 1;
 	boot_params->d0i3_residency_time_us = 0;
 	boot_params->d0i3_entry_vpu_ts = 0;
 	if (IVPU_WA(disable_d0i2))

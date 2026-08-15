@@ -660,6 +660,7 @@ static int inic_hardreset(struct ata_link *link, unsigned int *class,
 }
 
 static void inic_error_handler(struct ata_port *ap)
+	__must_hold(&ap->host->eh_mutex)
 {
 	void __iomem *port_base = inic_port_base(ap);
 

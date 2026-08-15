@@ -592,7 +592,7 @@ intel_hdmi_hotplug(struct intel_encoder *encoder,
 }
 
 int g4x_hdmi_connector_atomic_check(struct drm_connector *connector,
-				    struct drm_atomic_state *state)
+				    struct drm_atomic_commit *state)
 {
 	struct intel_display *display = to_intel_display(connector->dev);
 	struct drm_connector_list_iter conn_iter;
@@ -666,7 +666,7 @@ static bool assert_hdmi_port_valid(struct intel_display *display, enum port port
 }
 
 bool g4x_hdmi_init(struct intel_display *display,
-		   i915_reg_t hdmi_reg, enum port port)
+		   intel_reg_t hdmi_reg, enum port port)
 {
 	const struct intel_bios_encoder_data *devdata;
 	struct intel_digital_port *dig_port;

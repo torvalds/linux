@@ -9,7 +9,7 @@
 #include <linux/device.h>
 #include <linux/kref.h>
 #include <linux/list.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/tee_client.h>
 #include <linux/tee.h>
 #include <linux/types.h>
 

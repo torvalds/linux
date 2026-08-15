@@ -111,16 +111,76 @@ void pipe_double_lock(struct pipe_inode_info *pipe1,
 	pipe_lock(pipe2);
 }
 
-static struct page *anon_pipe_get_page(struct pipe_inode_info *pipe)
+#define PIPE_PREALLOC_MAX 8
+
+struct anon_pipe_prealloc {
+	struct page *pages[PIPE_PREALLOC_MAX];
+	unsigned int count;
+};
+
+/*
+ * Pre-allocate pages outside pipe->mutex for multi-page writes.
+ * alloc_page() with GFP_HIGHUSER can sleep in reclaim and runs memcg
+ * charging; doing it under the mutex stalls a concurrent reader.
+ *
+ * Loop alloc_page() instead of alloc_pages_bulk_*(): the bulk path refuses
+ * __GFP_ACCOUNT under memcg (see commit 8dcb3060d81d "memcg: page_alloc:
+ * skip bulk allocator for __GFP_ACCOUNT") and silently degrades to a single
+ * page. A per-page loop keeps memcg accounting and the task NUMA mempolicy
+ * honoured for every page; the per-call overhead is small compared to the
+ * pipe->mutex hold-time being shrunk. Any shortfall is covered by the
+ * in-lock alloc_page() fallback in anon_pipe_get_page().
+ */
+static void anon_pipe_get_page_prealloc(struct anon_pipe_prealloc *prealloc,
+					size_t total_len)
 {
+	unsigned int want, i;
+	struct page *page;
+
+	prealloc->count = 0;
+	if (total_len <= PAGE_SIZE)
+		return;
+
+	want = min_t(unsigned int, DIV_ROUND_UP(total_len, PAGE_SIZE),
+		     PIPE_PREALLOC_MAX);
+
+	for (i = 0; i < want; i++) {
+		page = alloc_page(GFP_HIGHUSER | __GFP_ACCOUNT);
+		if (!page)
+			break;
+		prealloc->pages[prealloc->count++] = page;
+	}
+}
+
+static struct page *anon_pipe_prealloc_pop(struct anon_pipe_prealloc *prealloc)
+{
+	if (!prealloc->count)
+		return NULL;
+
+	prealloc->count--;
+
+	return prealloc->pages[prealloc->count];
+}
+
+static struct page *anon_pipe_get_page(struct pipe_inode_info *pipe,
+				       struct anon_pipe_prealloc *prealloc)
+{
+	struct page *page;
+
+	/* Drain prealloc first to keep tmp_page[] hot for later small writes. */
+	page = anon_pipe_prealloc_pop(prealloc);
+	if (page)
+		return page;
+
 	for (int i = 0; i < ARRAY_SIZE(pipe->tmp_page); i++) {
 		if (pipe->tmp_page[i]) {
-			struct page *page = pipe->tmp_page[i];
+			page = pipe->tmp_page[i];
 			pipe->tmp_page[i] = NULL;
 			return page;
 		}
 	}
 
+	/* FWIW: This is called with pipe->mutex held */
 	return alloc_page(GFP_HIGHUSER | __GFP_ACCOUNT);
 }
 
@@ -137,6 +197,38 @@ static void anon_pipe_put_page(struct pipe_inode_info *pipe,
 	}
 
 	put_page(page);
+}
+
+/*
+ * Stash leftover prealloc pages in tmp_page[] so the next write to this
+ * pipe gets a hot page without entering the allocator.
+ */
+static void anon_pipe_refill_tmp_pages(struct pipe_inode_info *pipe,
+				       struct anon_pipe_prealloc *prealloc)
+{
+	int i, idx;
+
+	if (!prealloc->count)
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(pipe->tmp_page); i++) {
+		if (pipe->tmp_page[i])
+			continue;
+		if (!prealloc->count)
+			return;
+		idx = --prealloc->count;
+		pipe->tmp_page[i] = prealloc->pages[idx];
+		prealloc->pages[idx] = NULL;
+	}
+}
+
+/* Runs after mutex_unlock() to keep put_page() out of the critical section. */
+static void anon_pipe_free_pages(struct anon_pipe_prealloc *prealloc)
+{
+	while (prealloc->count) {
+		prealloc->count--;
+		put_page(prealloc->pages[prealloc->count]);
+	}
 }
 
 static void anon_pipe_buf_release(struct pipe_inode_info *pipe,
@@ -432,6 +524,7 @@ anon_pipe_write(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *filp = iocb->ki_filp;
 	struct pipe_inode_info *pipe = filp->private_data;
+	struct anon_pipe_prealloc prealloc;
 	unsigned int head;
 	ssize_t ret = 0;
 	size_t total_len = iov_iter_count(from);
@@ -454,6 +547,8 @@ anon_pipe_write(struct kiocb *iocb, struct iov_iter *from)
 	/* Null write succeeds. */
 	if (unlikely(total_len == 0))
 		return 0;
+
+	anon_pipe_get_page_prealloc(&prealloc, total_len);
 
 	mutex_lock(&pipe->mutex);
 
@@ -512,7 +607,7 @@ anon_pipe_write(struct kiocb *iocb, struct iov_iter *from)
 			struct page *page;
 			int copied;
 
-			page = anon_pipe_get_page(pipe);
+			page = anon_pipe_get_page(pipe, &prealloc);
 			if (unlikely(!page)) {
 				if (!ret)
 					ret = -ENOMEM;
@@ -576,9 +671,11 @@ anon_pipe_write(struct kiocb *iocb, struct iov_iter *from)
 		wake_next_writer = true;
 	}
 out:
+	anon_pipe_refill_tmp_pages(pipe, &prealloc);
 	if (pipe_is_full(pipe))
 		wake_next_writer = false;
 	mutex_unlock(&pipe->mutex);
+	anon_pipe_free_pages(&prealloc);
 
 	/*
 	 * If we do do a wakeup event, we do a 'sync' wakeup, because we
@@ -664,7 +761,8 @@ pipe_poll(struct file *filp, poll_table *wait)
 	union pipe_index idx;
 
 	/* Epoll has some historical nasty semantics, this enables them */
-	WRITE_ONCE(pipe->poll_usage, true);
+	if (unlikely(!READ_ONCE(pipe->poll_usage)))
+		WRITE_ONCE(pipe->poll_usage, true);
 
 	/*
 	 * Reading pipe state only -- no need for acquiring the semaphore.

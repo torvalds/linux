@@ -37,10 +37,10 @@ struct hpi_control_cache {
 	u16 adap_idx;
 	u32 control_count;
 	u32 cache_size_in_bytes;
-	/** pointer to allocated memory of lookup pointers. */
-	struct hpi_control_cache_info **p_info;
 	/** pointer to DSP's control cache. */
 	u8 *p_cache;
+	/** pointer to allocated memory of lookup pointers. */
+	struct hpi_control_cache_info *p_info[] __counted_by(control_count);
 };
 
 struct hpi_adapter_obj *hpi_find_adapter(u16 adapter_index);

@@ -1256,6 +1256,7 @@ static const struct of_device_id sm6125_tlmm_of_match[] = {
 	{ .compatible = "qcom,sm6125-tlmm", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, sm6125_tlmm_of_match);
 
 static struct platform_driver sm6125_tlmm_driver = {
 	.driver = {
@@ -1279,4 +1280,3 @@ module_exit(sm6125_tlmm_exit);
 
 MODULE_DESCRIPTION("QTI sm6125 TLMM driver");
 MODULE_LICENSE("GPL v2");
-MODULE_DEVICE_TABLE(of, sm6125_tlmm_of_match);

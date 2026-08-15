@@ -15,7 +15,6 @@
  *  the secondary audio interfaces are not.
  */
 
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -1034,8 +1033,8 @@ static const struct of_device_id wm8580_of_match[] = {
 MODULE_DEVICE_TABLE(of, wm8580_of_match);
 
 static const struct i2c_device_id wm8580_i2c_id[] = {
-	{ "wm8580", (kernel_ulong_t)&wm8580_data },
-	{ "wm8581", (kernel_ulong_t)&wm8581_data },
+	{ .name = "wm8580", .driver_data = (kernel_ulong_t)&wm8580_data },
+	{ .name = "wm8581", .driver_data = (kernel_ulong_t)&wm8581_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm8580_i2c_id);

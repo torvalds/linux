@@ -6,6 +6,8 @@
 #include "efa_com.h"
 #include "efa_com_cmd.h"
 
+#define EFA_DEFAULT_LINK_SPEED_GBPS 100
+
 int efa_com_create_qp(struct efa_com_dev *edev,
 		      struct efa_com_create_qp_params *params,
 		      struct efa_com_create_qp_result *res)
@@ -468,6 +470,8 @@ int efa_com_get_device_attr(struct efa_com_dev *edev,
 	result->device_caps = resp.u.device_attr.device_caps;
 	result->guid = resp.u.device_attr.guid;
 	result->max_link_speed_gbps = resp.u.device_attr.max_link_speed_gbps;
+	if (!result->max_link_speed_gbps)
+		result->max_link_speed_gbps = EFA_DEFAULT_LINK_SPEED_GBPS;
 
 	if (result->admin_api_version < 1) {
 		ibdev_err_ratelimited(

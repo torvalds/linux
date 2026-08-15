@@ -261,7 +261,7 @@ static s32 synaptics_i2c_reg_set(struct i2c_client *client, u16 reg, u8 val)
 	if (error)
 		return error;
 
-	return error;
+	return 0;
 }
 
 static s32 synaptics_i2c_word_get(struct i2c_client *client, u16 reg)

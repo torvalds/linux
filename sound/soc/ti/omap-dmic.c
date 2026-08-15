@@ -11,7 +11,6 @@
  */
 
 #include <linux/init.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/err.h>
@@ -91,18 +90,14 @@ static int omap_dmic_dai_startup(struct snd_pcm_substream *substream,
 				  struct snd_soc_dai *dai)
 {
 	struct omap_dmic *dmic = snd_soc_dai_get_drvdata(dai);
-	int ret = 0;
 
-	mutex_lock(&dmic->mutex);
+	guard(mutex)(&dmic->mutex);
 
-	if (!snd_soc_dai_active(dai))
-		dmic->active = 1;
-	else
-		ret = -EBUSY;
+	if (snd_soc_dai_active(dai))
+		return -EBUSY;
 
-	mutex_unlock(&dmic->mutex);
-
-	return ret;
+	dmic->active = 1;
+	return 0;
 }
 
 static void omap_dmic_dai_shutdown(struct snd_pcm_substream *substream,
@@ -110,14 +105,12 @@ static void omap_dmic_dai_shutdown(struct snd_pcm_substream *substream,
 {
 	struct omap_dmic *dmic = snd_soc_dai_get_drvdata(dai);
 
-	mutex_lock(&dmic->mutex);
+	guard(mutex)(&dmic->mutex);
 
 	cpu_latency_qos_remove_request(&dmic->pm_qos_req);
 
 	if (!snd_soc_dai_active(dai))
 		dmic->active = 0;
-
-	mutex_unlock(&dmic->mutex);
 }
 
 static int omap_dmic_select_divider(struct omap_dmic *dmic, int sample_rate)
@@ -334,26 +327,24 @@ static int omap_dmic_select_fclk(struct omap_dmic *dmic, int clk_id,
 		return -ENODEV;
 	}
 
-	mutex_lock(&dmic->mutex);
-	if (dmic->active) {
-		/* disable clock while reparenting */
-		pm_runtime_put_sync(dmic->dev);
-		ret = clk_set_parent(mux, parent_clk);
-		pm_runtime_get_sync(dmic->dev);
-	} else {
-		ret = clk_set_parent(mux, parent_clk);
+	scoped_guard(mutex, &dmic->mutex) {
+		if (dmic->active) {
+			/* disable clock while reparenting */
+			pm_runtime_put_sync(dmic->dev);
+			ret = clk_set_parent(mux, parent_clk);
+			pm_runtime_get_sync(dmic->dev);
+		} else {
+			ret = clk_set_parent(mux, parent_clk);
+		}
 	}
-	mutex_unlock(&dmic->mutex);
 
 	if (ret < 0) {
 		dev_err(dmic->dev, "re-parent failed\n");
-		goto err_busy;
+	} else {
+		dmic->sysclk = clk_id;
+		dmic->fclk_freq = freq;
 	}
 
-	dmic->sysclk = clk_id;
-	dmic->fclk_freq = freq;
-
-err_busy:
 	clk_put(mux);
 	clk_put(parent_clk);
 

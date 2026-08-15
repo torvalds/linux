@@ -115,6 +115,21 @@ static void idletimer_tg_alarmproc(struct alarm *alarm, ktime_t now)
 	schedule_work(&timer->work);
 }
 
+static void idletimer_start_alarm_ktime(struct idletimer_tg *timer, ktime_t timeout)
+{
+	/*
+	 * The timer should always be queued as @tout it should be least one
+	 * second, but handle it correctly in any case. Virt will manage!
+	 */
+	if (!alarm_start_timer(&timer->alarm, timeout, true))
+		schedule_work(&timer->work);
+}
+
+static void idletimer_start_alarm_sec(struct idletimer_tg *timer, unsigned int seconds)
+{
+	idletimer_start_alarm_ktime(timer, ktime_set(seconds, 0));
+}
+
 static int idletimer_check_sysfs_name(const char *name, unsigned int size)
 {
 	int ret;
@@ -220,12 +235,10 @@ static int idletimer_tg_create_v1(struct idletimer_tg_info_v1 *info)
 	INIT_WORK(&info->timer->work, idletimer_tg_work);
 
 	if (info->timer->timer_type & XT_IDLETIMER_ALARM) {
-		ktime_t tout;
 		alarm_init(&info->timer->alarm, ALARM_BOOTTIME,
 			   idletimer_tg_alarmproc);
 		info->timer->alarm.data = info->timer;
-		tout = ktime_set(info->timeout, 0);
-		alarm_start_relative(&info->timer->alarm, tout);
+		idletimer_start_alarm_sec(info->timer, info->timeout);
 	} else {
 		timer_setup(&info->timer->timer, idletimer_tg_expired, 0);
 		mod_timer(&info->timer->timer,
@@ -271,8 +284,7 @@ static unsigned int idletimer_tg_target_v1(struct sk_buff *skb,
 		 info->label, info->timeout);
 
 	if (info->timer->timer_type & XT_IDLETIMER_ALARM) {
-		ktime_t tout = ktime_set(info->timeout, 0);
-		alarm_start_relative(&info->timer->alarm, tout);
+		idletimer_start_alarm_sec(info->timer, info->timeout);
 	} else {
 		mod_timer(&info->timer->timer,
 				secs_to_jiffies(info->timeout) + jiffies);
@@ -384,7 +396,7 @@ static int idletimer_tg_checkentry_v1(const struct xt_tgchk_param *par)
 			if (ktimespec.tv_sec > 0) {
 				pr_debug("time_expiry_remaining %lld\n",
 					 ktimespec.tv_sec);
-				alarm_start_relative(&info->timer->alarm, tout);
+				idletimer_start_alarm_ktime(info->timer, tout);
 			}
 		} else {
 				mod_timer(&info->timer->timer,

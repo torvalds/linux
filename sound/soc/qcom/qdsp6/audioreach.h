@@ -16,6 +16,8 @@ struct q6apm_graph;
 #define MODULE_ID_PCM_CNV		0x07001003
 #define MODULE_ID_PCM_ENC		0x07001004
 #define MODULE_ID_PCM_DEC		0x07001005
+#define MODULE_ID_SH_MEM_PULL_MODE	0x07001006
+#define MODULE_ID_SH_MEM_PUSH_MODE	0x07001007
 #define MODULE_ID_PLACEHOLDER_ENCODER	0x07001008
 #define MODULE_ID_PLACEHOLDER_DECODER	0x07001009
 #define MODULE_ID_I2S_SINK		0x0700100A
@@ -60,10 +62,57 @@ struct q6apm_graph;
 #define APM_CMD_GET_CFG				0x01001007
 #define APM_CMD_SHARED_MEM_MAP_REGIONS		0x0100100C
 #define APM_CMD_SHARED_MEM_UNMAP_REGIONS	0x0100100D
+#define APM_CMD_REGISTER_MODULE_EVENTS		0x0100100E
+#define APM_EVENT_MODULE_TO_CLIENT              0x03001000
 #define APM_CMD_RSP_SHARED_MEM_MAP_REGIONS	0x02001001
+#define APM_MMAP_TOKEN_GID_MASK			GENMASK(15, 0)
+#define APM_MMAP_TOKEN_MAP_TYPE_POS_BUF		BIT(16)
+#define APM_MMAP_TOKEN_MAP_TYPE_SHIFT		16
 #define APM_CMD_RSP_GET_CFG			0x02001000
 #define APM_CMD_CLOSE_ALL			0x01001013
 #define APM_CMD_REGISTER_SHARED_CFG		0x0100100A
+#define EVENT_ID_SH_MEM_PULL_PUSH_MODE_WATERMARK	0x0800101C
+
+/**
+ * struct event_cfg_sh_mem_pull_push_mode_watermark_t - Watermark config
+ * @num_water_mark_levels: Number of watermark levels.
+ * @level: Watermark levels.
+ *
+ * If @num_water_mark_levels is zero, no watermark levels are specified
+ * and watermark events are not supported.
+ */
+struct event_cfg_sh_mem_pull_push_mode_watermark_t {
+	uint32_t num_water_mark_levels;
+	uint32_t level[];
+} __packed;
+
+/**
+ * struct apm_module_register_events - Register or unregister module events
+ * @module_instance_id: Module instance identifier.
+ * @event_id: Module event identifier.
+ * @is_register: 1 to register the event, 0 to unregister it.
+ * @error_code: Error code for out-of-band command mode.
+ * @event_config_payload_size: Event configuration payload size in bytes.
+ * @reserved: Reserved for alignment; must be zero.
+ */
+struct apm_module_register_events {
+	uint32_t module_instance_id;
+	uint32_t event_id;
+	uint32_t is_register;
+	uint32_t error_code;
+	uint32_t event_config_payload_size;
+	uint32_t reserved;
+} __packed;
+
+/**
+ * struct apm_module_event - Module event descriptor
+ * @event_id: Module event identifier.
+ * @event_payload_size: Event payload size in bytes.
+ */
+struct apm_module_event {
+	uint32_t event_id;
+	uint32_t event_payload_size;
+} __packed;
 
 #define APM_MEMORY_MAP_SHMEM8_4K_POOL		3
 
@@ -710,6 +759,46 @@ struct param_id_placeholder_real_module_id {
 	uint32_t real_module_id;
 } __packed;
 
+
+#define PARAM_ID_SH_MEM_PULL_PUSH_MODE_CFG	0x0800100A
+
+/**
+ * struct param_id_sh_mem_pull_push_mode_cfg - Shared memory push/pull config
+ * @shared_circ_buf_addr_lsw: Lower 32 bits of the circular buffer address.
+ * @shared_circ_buf_addr_msw: Upper 32 bits of the circular buffer address.
+ * @shared_circ_buf_size: Circular buffer size in bytes.
+ * @circ_buf_mem_map_handle: Circular buffer memory map handle.
+ * @shared_pos_buf_addr_lsw: Lower 32 bits of the position buffer address.
+ * @shared_pos_buf_addr_msw: Upper 32 bits of the position buffer address.
+ * @pos_buf_mem_map_handle: Position buffer memory map handle.
+ */
+struct param_id_sh_mem_pull_push_mode_cfg {
+	uint32_t shared_circ_buf_addr_lsw;
+	uint32_t shared_circ_buf_addr_msw;
+	uint32_t shared_circ_buf_size;
+	uint32_t circ_buf_mem_map_handle;
+	uint32_t shared_pos_buf_addr_lsw;
+	uint32_t shared_pos_buf_addr_msw;
+	uint32_t pos_buf_mem_map_handle;
+} __packed;
+
+/**
+ * struct sh_mem_pull_push_mode_position_buffer - Shared position buffer
+ * @frame_counter: Synchronization counter.
+ * @index: Current read/write index in bytes.
+ * @timestamp_us_lsw: Lower 32 bits of the timestamp in microseconds.
+ * @timestamp_us_msw: Upper 32 bits of the timestamp in microseconds.
+ *
+ * The frame counter should be read before and after the other fields to
+ * ensure the DSP did not update them while they were being read.
+ */
+struct sh_mem_pull_push_mode_position_buffer {
+	uint32_t frame_counter;
+	uint32_t index;
+	uint32_t timestamp_us_lsw;
+	uint32_t timestamp_us_msw;
+} __packed;
+
 /* Graph */
 struct audioreach_connection {
 	/* Connections */
@@ -723,8 +812,10 @@ struct audioreach_connection {
 struct audioreach_graph_info {
 	int id;
 	uint32_t mem_map_handle;
+	uint32_t pos_buf_mem_map_handle;
 	uint32_t num_sub_graphs;
 	struct list_head sg_list;
+	bool is_push_pull_mode;
 	/* DPCM connection from FE Graph to BE graph */
 	uint32_t src_mod_inst_id;
 	uint32_t src_mod_op_port_id;
@@ -855,5 +946,10 @@ int audioreach_send_u32_param(struct q6apm_graph *graph,
 			      uint32_t param_id, uint32_t param_val);
 int audioreach_compr_set_param(struct q6apm_graph *graph,
 			       const struct audioreach_module_config *mcfg);
+int audioreach_setup_push_pull(struct q6apm_graph *graph, phys_addr_t bphys,
+				phys_addr_t pphys, uint32_t mem_map_handle,
+				uint32_t pos_buf_mem_map_handle, uint32_t size);
+int audioreach_map_memory_position_buffer(struct q6apm_graph *graph, unsigned int dir);
 
+int audioreach_shmem_register_event(struct q6apm_graph *graph, int bytes, int num_levels);
 #endif /* __AUDIOREACH_H__ */

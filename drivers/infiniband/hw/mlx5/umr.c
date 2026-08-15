@@ -603,11 +603,11 @@ mlx5r_umr_set_update_xlt_ctrl_seg(struct mlx5_wqe_umr_ctrl_seg *ctrl_seg,
 
 static void mlx5r_umr_set_update_xlt_mkey_seg(struct mlx5_ib_dev *dev,
 					      struct mlx5_mkey_seg *mkey_seg,
-					      struct mlx5_ib_mr *mr,
+					      struct mlx5_ib_mr *mr, u32 pdn,
 					      unsigned int page_shift)
 {
 	mlx5r_umr_set_access_flags(dev, mkey_seg, mr->access_flags);
-	MLX5_SET(mkc, mkey_seg, pd, to_mpd(mr->ibmr.pd)->pdn);
+	MLX5_SET(mkc, mkey_seg, pd, pdn);
 	MLX5_SET64(mkc, mkey_seg, start_addr, mr->ibmr.iova);
 	MLX5_SET64(mkc, mkey_seg, len, mr->ibmr.length);
 	MLX5_SET(mkc, mkey_seg, log_page_size, page_shift);
@@ -670,23 +670,22 @@ static void mlx5r_umr_final_update_xlt(struct mlx5_ib_dev *dev,
 	wqe->data_seg.byte_count = cpu_to_be32(sg->length);
 }
 
-static void
-_mlx5r_umr_init_wqe(struct mlx5_ib_mr *mr, struct mlx5r_umr_wqe *wqe,
-		    struct ib_sge *sg, unsigned int flags,
-		    unsigned int page_shift, bool dd)
+static void _mlx5r_umr_init_wqe(struct mlx5_ib_mr *mr,
+				struct mlx5r_umr_wqe *wqe, struct ib_sge *sg,
+				unsigned int flags, u32 pdn,
+				unsigned int page_shift)
 {
 	struct mlx5_ib_dev *dev = mr_to_mdev(mr);
 
 	mlx5r_umr_set_update_xlt_ctrl_seg(&wqe->ctrl_seg, flags, sg);
-	mlx5r_umr_set_update_xlt_mkey_seg(dev, &wqe->mkey_seg, mr, page_shift);
-	if (dd) /* Use the data direct internal kernel PD */
-		MLX5_SET(mkc, &wqe->mkey_seg, pd, dev->ddr.pdn);
+	mlx5r_umr_set_update_xlt_mkey_seg(dev, &wqe->mkey_seg, mr, pdn,
+					  page_shift);
 	mlx5r_umr_set_update_xlt_data_seg(&wqe->data_seg, sg);
 }
 
-static int
-_mlx5r_umr_update_mr_pas(struct mlx5_ib_mr *mr, unsigned int flags, bool dd,
-			 size_t start_block, size_t nblocks)
+static int _mlx5r_umr_update_mr_pas(struct mlx5_ib_mr *mr, unsigned int flags,
+				    u32 pdn, bool dd, size_t start_block,
+				    size_t nblocks)
 {
 	size_t ent_size = dd ? sizeof(struct mlx5_ksm) : sizeof(struct mlx5_mtt);
 	struct mlx5_ib_dev *dev = mr_to_mdev(mr);
@@ -720,7 +719,7 @@ _mlx5r_umr_update_mr_pas(struct mlx5_ib_mr *mr, unsigned int flags, bool dd,
 
 	orig_sg_length = sg.length;
 
-	_mlx5r_umr_init_wqe(mr, &wqe, &sg, flags, mr->page_shift, dd);
+	_mlx5r_umr_init_wqe(mr, &wqe, &sg, flags, pdn, mr->page_shift);
 
 	/* Set initial translation offset to start_block */
 	offset = (u64)start_block * ent_size;
@@ -811,7 +810,8 @@ int mlx5r_umr_update_data_direct_ksm_pas_range(struct mlx5_ib_mr *mr,
 	    !(flags & MLX5_IB_UPD_XLT_KEEP_PGSZ)))
 		return -EINVAL;
 
-	return _mlx5r_umr_update_mr_pas(mr, flags, true, start_block, nblocks);
+	return _mlx5r_umr_update_mr_pas(mr, flags, mr_to_mdev(mr)->ddr.pdn,
+					true, start_block, nblocks);
 }
 
 int mlx5r_umr_update_data_direct_ksm_pas(struct mlx5_ib_mr *mr,
@@ -821,12 +821,13 @@ int mlx5r_umr_update_data_direct_ksm_pas(struct mlx5_ib_mr *mr,
 }
 
 int mlx5r_umr_update_mr_pas_range(struct mlx5_ib_mr *mr, unsigned int flags,
-				  size_t start_block, size_t nblocks)
+				  u32 pdn, size_t start_block, size_t nblocks)
 {
 	if (WARN_ON(mr->umem->is_odp))
 		return -EINVAL;
 
-	return _mlx5r_umr_update_mr_pas(mr, flags, false, start_block, nblocks);
+	return _mlx5r_umr_update_mr_pas(mr, flags, pdn, false, start_block,
+					nblocks);
 }
 
 /*
@@ -834,9 +835,9 @@ int mlx5r_umr_update_mr_pas_range(struct mlx5_ib_mr *mr, unsigned int flags,
  * Dmabuf MR is handled in a similar way, except that the MLX5_IB_UPD_XLT_ZAP
  * flag may be used.
  */
-int mlx5r_umr_update_mr_pas(struct mlx5_ib_mr *mr, unsigned int flags)
+int mlx5r_umr_update_mr_pas(struct mlx5_ib_mr *mr, unsigned int flags, u32 pdn)
 {
-	return mlx5r_umr_update_mr_pas_range(mr, flags, 0, 0);
+	return mlx5r_umr_update_mr_pas_range(mr, flags, pdn, 0, 0);
 }
 
 static bool umr_can_use_indirect_mkey(struct mlx5_ib_dev *dev)
@@ -845,7 +846,7 @@ static bool umr_can_use_indirect_mkey(struct mlx5_ib_dev *dev)
 }
 
 int mlx5r_umr_update_xlt(struct mlx5_ib_mr *mr, u64 idx, int npages,
-			 int page_shift, int flags)
+			 int page_shift, int flags, u32 pdn)
 {
 	int desc_size = (flags & MLX5_IB_UPD_XLT_INDIRECT)
 			       ? sizeof(struct mlx5_klm)
@@ -895,7 +896,8 @@ int mlx5r_umr_update_xlt(struct mlx5_ib_mr *mr, u64 idx, int npages,
 	}
 
 	mlx5r_umr_set_update_xlt_ctrl_seg(&wqe.ctrl_seg, flags, &sg);
-	mlx5r_umr_set_update_xlt_mkey_seg(dev, &wqe.mkey_seg, mr, page_shift);
+	mlx5r_umr_set_update_xlt_mkey_seg(dev, &wqe.mkey_seg, mr, pdn,
+					  page_shift);
 	mlx5r_umr_set_update_xlt_data_seg(&wqe.data_seg, &sg);
 
 	for (pages_mapped = 0;
@@ -915,7 +917,7 @@ int mlx5r_umr_update_xlt(struct mlx5_ib_mr *mr, u64 idx, int npages,
 		 */
 		err = mlx5_odp_populate_xlt(xlt, idx, npages, mr, flags);
 		if (err)
-			return err;
+			break;
 		dma_sync_single_for_device(ddev, sg.addr, sg.length,
 					   DMA_TO_DEVICE);
 		sg.length = ALIGN(size_to_map, MLX5_UMR_FLEX_ALIGNMENT);
@@ -937,8 +939,7 @@ int mlx5r_umr_update_xlt(struct mlx5_ib_mr *mr, u64 idx, int npages,
  * pinned and the HW can switch from 4K to huge-page alignment).
  */
 int mlx5r_umr_update_mr_page_shift(struct mlx5_ib_mr *mr,
-				   unsigned int page_shift,
-				   bool dd)
+				   unsigned int page_shift)
 {
 	struct mlx5_ib_dev *dev = mr_to_mdev(mr);
 	struct mlx5r_umr_wqe wqe = {};
@@ -953,16 +954,8 @@ int mlx5r_umr_update_mr_page_shift(struct mlx5_ib_mr *mr,
 	/* Fill mkey segment with the new page size, keep the rest unchanged */
 	MLX5_SET(mkc, &wqe.mkey_seg, log_page_size, page_shift);
 
-	if (dd)
-		MLX5_SET(mkc, &wqe.mkey_seg, pd, dev->ddr.pdn);
-	else
-		MLX5_SET(mkc, &wqe.mkey_seg, pd, to_mpd(mr->ibmr.pd)->pdn);
-
 	MLX5_SET64(mkc, &wqe.mkey_seg, start_addr, mr->ibmr.iova);
 	MLX5_SET64(mkc, &wqe.mkey_seg, len, mr->ibmr.length);
-	MLX5_SET(mkc, &wqe.mkey_seg, qpn, 0xffffff);
-	MLX5_SET(mkc, &wqe.mkey_seg, mkey_7_0,
-		 mlx5_mkey_variant(mr->mmkey.key));
 
 	err = mlx5r_umr_post_send_wait(dev, mr->mmkey.key, &wqe, false);
 	if (!err)
@@ -971,17 +964,18 @@ int mlx5r_umr_update_mr_page_shift(struct mlx5_ib_mr *mr,
 	return err;
 }
 
-static inline int
-_mlx5r_dmabuf_umr_update_pas(struct mlx5_ib_mr *mr, unsigned int flags,
-			     size_t start_block, size_t nblocks, bool dd)
+static inline int _mlx5r_dmabuf_umr_update_pas(struct mlx5_ib_mr *mr,
+					       unsigned int flags, u32 pdn,
+					       size_t start_block,
+					       size_t nblocks, bool dd)
 {
 	if (dd)
 		return mlx5r_umr_update_data_direct_ksm_pas_range(mr, flags,
 								  start_block,
 								  nblocks);
 	else
-		return mlx5r_umr_update_mr_pas_range(mr, flags, start_block,
-						     nblocks);
+		return mlx5r_umr_update_mr_pas_range(mr, flags, pdn,
+						     start_block, nblocks);
 }
 
 /**
@@ -995,11 +989,9 @@ _mlx5r_dmabuf_umr_update_pas(struct mlx5_ib_mr *mr, unsigned int flags,
  * Return: On success, returns the number of entries that were zapped.
  *         On error, returns a negative error code.
  */
-static int _mlx5r_umr_zap_mkey(struct mlx5_ib_mr *mr,
-			       unsigned int flags,
-			       unsigned int page_shift,
-			       size_t *nblocks,
-			       bool dd)
+static int _mlx5r_umr_zap_mkey(struct mlx5_ib_mr *mr, unsigned int flags,
+			       unsigned int page_shift, size_t *nblocks,
+			       u32 pdn, bool dd)
 {
 	unsigned int old_page_shift = mr->page_shift;
 	struct mlx5_ib_dev *dev = mr_to_mdev(mr);
@@ -1039,7 +1031,7 @@ static int _mlx5r_umr_zap_mkey(struct mlx5_ib_mr *mr,
 	 */
 	if (*nblocks)
 		mr->page_shift = max_page_shift;
-	err = _mlx5r_dmabuf_umr_update_pas(mr, flags, 0, *nblocks, dd);
+	err = _mlx5r_dmabuf_umr_update_pas(mr, flags, pdn, 0, *nblocks, dd);
 	if (err) {
 		mr->page_shift = old_page_shift;
 		return err;
@@ -1049,7 +1041,7 @@ static int _mlx5r_umr_zap_mkey(struct mlx5_ib_mr *mr,
 	 * non-present.
 	 */
 	if (*nblocks) {
-		err = mlx5r_umr_update_mr_page_shift(mr, max_page_shift, dd);
+		err = mlx5r_umr_update_mr_page_shift(mr, max_page_shift);
 		if (err) {
 			mr->page_shift = old_page_shift;
 			return err;
@@ -1064,6 +1056,7 @@ static int _mlx5r_umr_zap_mkey(struct mlx5_ib_mr *mr,
  * entries accordingly
  * @mr:        The memory region to update
  * @xlt_flags: Translation table update flags
+ * @pdn:       Protection domain number
  * @page_shift: The new (optimized) page shift to use
  *
  * This function updates the page size and mkey translation entries for a DMABUF
@@ -1083,7 +1076,7 @@ static int _mlx5r_umr_zap_mkey(struct mlx5_ib_mr *mr,
  *
  * Returns 0 on success or a negative error code on failure.
  */
-int mlx5r_umr_dmabuf_update_pgsz(struct mlx5_ib_mr *mr, u32 xlt_flags,
+int mlx5r_umr_dmabuf_update_pgsz(struct mlx5_ib_mr *mr, u32 xlt_flags, u32 pdn,
 				 unsigned int page_shift)
 {
 	unsigned int old_page_shift = mr->page_shift;
@@ -1092,7 +1085,7 @@ int mlx5r_umr_dmabuf_update_pgsz(struct mlx5_ib_mr *mr, u32 xlt_flags,
 	int err;
 
 	err = _mlx5r_umr_zap_mkey(mr, xlt_flags, page_shift, &zapped_blocks,
-				  mr->data_direct);
+				  pdn, mr->data_direct);
 	if (err)
 		return err;
 
@@ -1105,20 +1098,17 @@ int mlx5r_umr_dmabuf_update_pgsz(struct mlx5_ib_mr *mr, u32 xlt_flags,
 		 * the page size in the mkey yet.
 		 */
 		err = _mlx5r_dmabuf_umr_update_pas(
-			mr,
-			xlt_flags | MLX5_IB_UPD_XLT_KEEP_PGSZ,
-			zapped_blocks,
-			total_blocks - zapped_blocks,
+			mr, xlt_flags | MLX5_IB_UPD_XLT_KEEP_PGSZ, pdn,
+			zapped_blocks, total_blocks - zapped_blocks,
 			mr->data_direct);
 		if (err)
 			goto err;
 	}
 
-	err = mlx5r_umr_update_mr_page_shift(mr, mr->page_shift,
-					     mr->data_direct);
+	err = mlx5r_umr_update_mr_page_shift(mr, mr->page_shift);
 	if (err)
 		goto err;
-	err = _mlx5r_dmabuf_umr_update_pas(mr, xlt_flags, 0, zapped_blocks,
+	err = _mlx5r_dmabuf_umr_update_pas(mr, xlt_flags, pdn, 0, zapped_blocks,
 					   mr->data_direct);
 	if (err)
 		goto err;

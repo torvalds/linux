@@ -240,9 +240,8 @@ ia_css_s3a_hmem_decode(
 	/* Calculate sum of histogram of R,
 	   which should not be less than count_for_3a */
 	sum_r = 0;
-	for (i = 0; i < HMEM_UNIT_SIZE; i++) {
+	for (i = 0; i < HMEM_UNIT_SIZE; i++)
 		sum_r += out_ptr[i].r;
-	}
 	if (sum_r < count_for_3a) {
 		/* histogram is invalid */
 		return;

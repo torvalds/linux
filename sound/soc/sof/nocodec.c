@@ -15,7 +15,6 @@
 
 static struct snd_soc_card sof_nocodec_card = {
 	.name = "nocodec", /* the sof- prefix is added by the core */
-	.topology_shortname = "sof-nocodec",
 	.owner = THIS_MODULE
 };
 
@@ -89,8 +88,9 @@ static int sof_nocodec_probe(struct platform_device *pdev)
 	int ret;
 
 	card->dev = &pdev->dev;
-	card->topology_shortname_created = true;
 	mach = pdev->dev.platform_data;
+
+	snd_soc_card_set_topology_name(card, "sof");
 
 	ret = sof_nocodec_setup(card->dev, mach->mach_params.num_dai_drivers,
 				mach->mach_params.dai_drivers);

@@ -190,8 +190,6 @@ int msm_hdmi_modeset_init(struct hdmi *hdmi,
 		goto fail;
 	}
 
-	drm_connector_attach_encoder(hdmi->connector, hdmi->encoder);
-
 	ret = devm_request_irq(dev->dev, hdmi->irq,
 			msm_hdmi_irq, IRQF_TRIGGER_HIGH,
 			"hdmi_isr", hdmi);
@@ -287,19 +285,27 @@ static int msm_hdmi_dev_probe(struct platform_device *pdev)
 	spin_lock_init(&hdmi->reg_lock);
 	mutex_init(&hdmi->state_mutex);
 
-	ret = drm_of_find_panel_or_bridge(dev_of_node(dev), 1, 0, NULL, &hdmi->next_bridge);
-	if (ret && ret != -ENODEV)
-		return ret;
+	hdmi->next_bridge = of_drm_get_bridge_by_endpoint(dev_of_node(dev), 1, 0);
+	if (IS_ERR(hdmi->next_bridge)) {
+		if (PTR_ERR(hdmi->next_bridge) != -ENODEV)
+			return PTR_ERR(hdmi->next_bridge);
+
+		hdmi->next_bridge = NULL;
+	}
 
 	hdmi->mmio = msm_ioremap(pdev, "core_physical");
-	if (IS_ERR(hdmi->mmio))
-		return PTR_ERR(hdmi->mmio);
+	if (IS_ERR(hdmi->mmio)) {
+		ret = PTR_ERR(hdmi->mmio);
+		goto err_put_bridge;
+	}
 
 	/* HDCP needs physical address of hdmi register */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 		"core_physical");
-	if (!res)
-		return -EINVAL;
+	if (!res) {
+		ret = -EINVAL;
+		goto err_put_bridge;
+	}
 	hdmi->mmio_phy_addr = res->start;
 
 	hdmi->qfprom_mmio = msm_ioremap(pdev, "qfprom_physical");
@@ -309,45 +315,58 @@ static int msm_hdmi_dev_probe(struct platform_device *pdev)
 	}
 
 	hdmi->irq = platform_get_irq(pdev, 0);
-	if (hdmi->irq < 0)
-		return hdmi->irq;
+	if (hdmi->irq < 0) {
+		ret = hdmi->irq;
+		goto err_put_bridge;
+	}
 
 	hdmi->pwr_regs = devm_kcalloc(dev, config->pwr_reg_cnt,
 				      sizeof(hdmi->pwr_regs[0]),
 				      GFP_KERNEL);
-	if (!hdmi->pwr_regs)
-		return -ENOMEM;
+	if (!hdmi->pwr_regs) {
+		ret = -ENOMEM;
+		goto err_put_bridge;
+	}
 
 	for (i = 0; i < config->pwr_reg_cnt; i++)
 		hdmi->pwr_regs[i].supply = config->pwr_reg_names[i];
 
 	ret = devm_regulator_bulk_get(dev, config->pwr_reg_cnt, hdmi->pwr_regs);
-	if (ret)
-		return dev_err_probe(dev, ret, "failed to get pwr regulators\n");
+	if (ret) {
+		dev_err_probe(dev, ret, "failed to get pwr regulators\n");
+		goto err_put_bridge;
+	}
 
 	hdmi->pwr_clks = devm_kcalloc(dev, config->pwr_clk_cnt,
 				      sizeof(hdmi->pwr_clks[0]),
 				      GFP_KERNEL);
-	if (!hdmi->pwr_clks)
-		return -ENOMEM;
+	if (!hdmi->pwr_clks) {
+		ret = -ENOMEM;
+		goto err_put_bridge;
+	}
 
 	for (i = 0; i < config->pwr_clk_cnt; i++)
 		hdmi->pwr_clks[i].id = config->pwr_clk_names[i];
 
 	ret = devm_clk_bulk_get(dev, config->pwr_clk_cnt, hdmi->pwr_clks);
 	if (ret)
-		return ret;
+		goto err_put_bridge;
+
 
 	hdmi->extp_clk = devm_clk_get_optional(dev, "extp");
-	if (IS_ERR(hdmi->extp_clk))
-		return dev_err_probe(dev, PTR_ERR(hdmi->extp_clk),
-				     "failed to get extp clock\n");
+	if (IS_ERR(hdmi->extp_clk)) {
+		ret = dev_err_probe(dev, PTR_ERR(hdmi->extp_clk),
+				    "failed to get extp clock\n");
+		goto err_put_bridge;
+	}
 
 	hdmi->hpd_gpiod = devm_gpiod_get_optional(dev, "hpd", GPIOD_IN);
 	/* This will catch e.g. -EPROBE_DEFER */
-	if (IS_ERR(hdmi->hpd_gpiod))
-		return dev_err_probe(dev, PTR_ERR(hdmi->hpd_gpiod),
-				     "failed to get hpd gpio\n");
+	if (IS_ERR(hdmi->hpd_gpiod)) {
+		ret = dev_err_probe(dev, PTR_ERR(hdmi->hpd_gpiod),
+				    "failed to get hpd gpio\n");
+		goto err_put_bridge;
+	}
 
 	if (!hdmi->hpd_gpiod)
 		DBG("failed to get HPD gpio");
@@ -357,7 +376,7 @@ static int msm_hdmi_dev_probe(struct platform_device *pdev)
 
 	ret = msm_hdmi_get_phy(hdmi);
 	if (ret)
-		return ret;
+		goto err_put_bridge;
 
 	ret = devm_pm_runtime_enable(dev);
 	if (ret)
@@ -373,6 +392,8 @@ static int msm_hdmi_dev_probe(struct platform_device *pdev)
 
 err_put_phy:
 	msm_hdmi_put_phy(hdmi);
+err_put_bridge:
+	drm_bridge_put(hdmi->next_bridge);
 	return ret;
 }
 
@@ -383,6 +404,7 @@ static void msm_hdmi_dev_remove(struct platform_device *pdev)
 	component_del(&pdev->dev, &msm_hdmi_ops);
 
 	msm_hdmi_put_phy(hdmi);
+	drm_bridge_put(hdmi->next_bridge);
 }
 
 static int msm_hdmi_runtime_suspend(struct device *dev)

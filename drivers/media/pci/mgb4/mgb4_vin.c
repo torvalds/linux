@@ -85,12 +85,12 @@ static const struct mgb4_i2c_kv gmsl1_i2c[] = {
 static const struct v4l2_dv_timings_cap video_timings_cap = {
 	.type = V4L2_DV_BT_656_1120,
 	.bt = {
-		.min_width = 240,
+		.min_width = 64,
 		.max_width = 4096,
-		.min_height = 240,
+		.min_height = 64,
 		.max_height = 4096,
-		.min_pixelclock = 1843200, /* 320 x 240 x 24Hz */
-		.max_pixelclock = 530841600, /* 4096 x 2160 x 60Hz */
+		.min_pixelclock = 20000000,
+		.max_pixelclock = 200000000,
 		.standards = V4L2_DV_BT_STD_CEA861 | V4L2_DV_BT_STD_DMT |
 			V4L2_DV_BT_STD_CVT | V4L2_DV_BT_STD_GTF,
 		.capabilities = V4L2_DV_BT_CAP_PROGRESSIVE |

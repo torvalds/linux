@@ -880,7 +880,7 @@ static void tty3270_free_view(struct tty3270 *tp)
 	raw3270_request_free(tp->kreset);
 	raw3270_request_free(tp->read);
 	raw3270_request_free(tp->write);
-	free_page((unsigned long)tp->converted_line);
+	kfree(tp->converted_line);
 	tty_port_destroy(&tp->port);
 	kfree(tp);
 }
@@ -1063,7 +1063,7 @@ static void tty3270_free(struct raw3270_view *view)
 
 	timer_delete_sync(&tp->timer);
 	tty3270_free_screen(tp->screen, tp->allocated_lines);
-	free_page((unsigned long)tp->converted_line);
+	kfree(tp->converted_line);
 	kfree(tp->input);
 	kfree(tp->prompt);
 	tty3270_free_view(tp);
@@ -1121,7 +1121,7 @@ tty3270_create_view(int index, struct tty3270 **newtp)
 		goto out_put_view;
 	}
 
-	tp->converted_line = (void *)__get_free_page(GFP_KERNEL);
+	tp->converted_line = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!tp->converted_line) {
 		rc = -ENOMEM;
 		goto out_free_screen;
@@ -1167,7 +1167,7 @@ out_free_prompt:
 out_free_input:
 	kfree(tp->input);
 out_free_converted_line:
-	free_page((unsigned long)tp->converted_line);
+	kfree(tp->converted_line);
 out_free_screen:
 	tty3270_free_screen(tp->screen, tp->view.rows);
 out_put_view:

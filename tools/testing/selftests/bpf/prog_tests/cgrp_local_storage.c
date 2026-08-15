@@ -176,7 +176,7 @@ static void test_cgroup_iter_sleepable(int cgroup_fd, __u64 cgroup_id)
 	DECLARE_LIBBPF_OPTS(bpf_iter_attach_opts, opts);
 	union bpf_iter_link_info linfo;
 	struct cgrp_ls_sleepable *skel;
-	struct bpf_link *link;
+	struct bpf_link *link, *fexit_link;
 	int err, iter_fd;
 	char buf[16];
 
@@ -200,16 +200,27 @@ static void test_cgroup_iter_sleepable(int cgroup_fd, __u64 cgroup_id)
 	if (!ASSERT_OK_PTR(link, "attach_iter"))
 		goto out;
 
+	fexit_link = bpf_program__attach(skel->progs.fexit_update);
+	if (!ASSERT_OK_PTR(fexit_link, "attach_fexit"))
+		goto out_link;
+
 	iter_fd = bpf_iter_create(bpf_link__fd(link));
 	if (!ASSERT_GE(iter_fd, 0, "iter_create"))
-		goto out_link;
+		goto out_fexit_link;
+
+	skel->bss->target_pid = sys_gettid();
 
 	/* trigger the program run */
 	(void)read(iter_fd, buf, sizeof(buf));
 
+	skel->bss->target_pid = 0;
+
+	ASSERT_EQ(skel->bss->update_err, 0, "update_err");
 	ASSERT_EQ(skel->bss->cgroup_id, cgroup_id, "cgroup_id");
 
 	close(iter_fd);
+out_fexit_link:
+	bpf_link__destroy(fexit_link);
 out_link:
 	bpf_link__destroy(link);
 out:

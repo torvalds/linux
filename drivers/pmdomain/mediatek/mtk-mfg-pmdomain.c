@@ -236,14 +236,14 @@ struct __packed mtk_mfg_ipi_sleep_msg {
  *
  * This struct is part of the ABI with the EB firmware. Do not change it.
  */
-struct __packed mtk_mfg_opp_entry {
+struct mtk_mfg_opp_entry {
 	__le32 freq_khz;
 	__le32 voltage_core;
 	__le32 voltage_sram;
 	__le32 posdiv;
 	__le32 voltage_margin;
 	__le32 power_mw;
-};
+} __packed;
 
 struct mtk_mfg_mbox {
 	struct mbox_client cl;

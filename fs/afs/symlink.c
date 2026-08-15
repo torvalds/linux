@@ -255,11 +255,11 @@ int afs_symlink_writepages(struct address_space *mapping,
 	}
 
 	if (ret == 0) {
-		mutex_lock(&vnode->netfs.wb_lock);
+		netfs_wb_begin(&vnode->netfs, false);
 		netfs_free_folioq_buffer(vnode->directory);
 		vnode->directory = NULL;
 		vnode->directory_size = 0;
-		mutex_unlock(&vnode->netfs.wb_lock);
+		netfs_wb_end(&vnode->netfs);
 	} else if (ret == 1) {
 		ret = 0; /* Skipped write due to lock conflict. */
 	}

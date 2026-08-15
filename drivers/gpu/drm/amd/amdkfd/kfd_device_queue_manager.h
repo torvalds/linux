@@ -32,7 +32,6 @@
 #include "kfd_priv.h"
 #include "kfd_mqd_manager.h"
 
-
 #define VMID_NUM 16
 
 #define KFD_MES_PROCESS_QUANTUM		100000
@@ -200,6 +199,8 @@ struct device_queue_manager_ops {
 				  const struct queue *q,
 				  void *mqd,
 				  void *ctl_stack);
+	void	(*set_perfcount)(struct device_queue_manager *dqm,
+				  int enable);
 };
 
 struct device_queue_manager_asic_ops {
@@ -285,6 +286,9 @@ struct device_queue_manager {
 	struct dqm_detect_hang_info *detect_hang_info;
 	size_t detect_hang_info_size;
 	int detect_hang_count;
+	/* for per-queue reset with mes */
+	u32 *hung_db_array;
+	struct amdgpu_mes_hung_queue_hqd_info *hqd_info;
 };
 
 void device_queue_manager_init_cik(
@@ -329,6 +333,8 @@ int debug_refresh_runlist(struct device_queue_manager *dqm);
 bool kfd_dqm_is_queue_in_process(struct device_queue_manager *dqm,
 				 struct qcm_process_device *qpd,
 				 int doorbell_off, u32 *queue_format);
+size_t mqd_size_from_queue_type(struct device_queue_manager *dqm,
+				enum kfd_queue_type type);
 
 static inline unsigned int get_sh_mem_bases_32(struct kfd_process_device *pdd)
 {

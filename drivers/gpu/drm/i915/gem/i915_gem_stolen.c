@@ -10,6 +10,8 @@
 #include <drm/drm_print.h>
 #include <drm/intel/display_parent_interface.h>
 #include <drm/intel/i915_drm.h>
+#include <drm/intel/mchbar_regs.h>
+#include <drm/intel/pci_config.h>
 
 #include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_region.h"
@@ -23,8 +25,6 @@
 #include "i915_reg.h"
 #include "i915_utils.h"
 #include "i915_vgpu.h"
-#include "intel_mchbar_regs.h"
-#include "intel_pci_config.h"
 
 struct intel_stolen_node {
 	struct drm_i915_private *i915;

@@ -7,7 +7,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/regmap.h>
@@ -89,10 +88,10 @@ static int adt7410_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id adt7410_ids[] = {
-	{ "adt7410" },
-	{ "adt7420" },
-	{ "adt7422" },
-	{}
+	{ .name = "adt7410" },
+	{ .name = "adt7420" },
+	{ .name = "adt7422" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adt7410_ids);
 

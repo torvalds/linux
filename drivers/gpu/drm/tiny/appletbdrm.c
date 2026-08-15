@@ -316,7 +316,7 @@ static const u32 appletbdrm_primary_plane_formats[] = {
 };
 
 static int appletbdrm_primary_plane_helper_atomic_check(struct drm_plane *plane,
-						   struct drm_atomic_state *state)
+						   struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state, plane);
 	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
@@ -468,7 +468,7 @@ end_fb_cpu_access:
 }
 
 static void appletbdrm_primary_plane_helper_atomic_update(struct drm_plane *plane,
-						     struct drm_atomic_state *old_state)
+						     struct drm_atomic_commit *old_state)
 {
 	struct appletbdrm_device *adev = drm_to_adev(plane->dev);
 	struct drm_device *drm = plane->dev;
@@ -485,7 +485,7 @@ static void appletbdrm_primary_plane_helper_atomic_update(struct drm_plane *plan
 }
 
 static void appletbdrm_primary_plane_helper_atomic_disable(struct drm_plane *plane,
-							   struct drm_atomic_state *state)
+							   struct drm_atomic_commit *state)
 {
 	struct drm_device *dev = plane->dev;
 	struct appletbdrm_device *adev = drm_to_adev(dev);

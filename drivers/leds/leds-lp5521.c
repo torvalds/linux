@@ -253,7 +253,7 @@ static struct lp55xx_device_config lp5521_cfg = {
 };
 
 static const struct i2c_device_id lp5521_id[] = {
-	{ "lp5521", .driver_data = (kernel_ulong_t)&lp5521_cfg, }, /* Three channel chip */
+	{ .name = "lp5521", .driver_data = (kernel_ulong_t)&lp5521_cfg }, /* Three channel chip */
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lp5521_id);

@@ -880,19 +880,21 @@ attribute-sets:
         struct: rtnl-link-stats
       -
         name: cost
-        type: string
+        type: unused
       -
         name: priority
-        type: string
+        type: unused
       -
         name: master
         type: u32
       -
         name: wireless
-        type: string
+        type: binary
+        doc: struct iw_event
       -
         name: protinfo
-        type: string
+        type: binary
+        doc: A nest of ifla6-attrs or linkinfo-brport-attrs
       -
         name: txqlen
         type: u32
@@ -1351,6 +1353,12 @@ attribute-sets:
       -
         name: coupled-control
         type: u8
+      -
+        name: broadcast-neigh
+        type: u8
+      -
+        name: lacp-strict
+        type: u8
   -
     name: bond-ad-info-attrs
     name-prefix: ifla-bond-ad-info-
@@ -1700,6 +1708,9 @@ attribute-sets:
       -
         name: backup-nhid
         type: u32
+      -
+        name: neigh-forward-grat
+        type: u8
   -
     name: linkinfo-gre-attrs
     name-prefix: ifla-gre-
@@ -1936,6 +1947,15 @@ attribute-sets:
       -
         name: gro-hint
         type: flag
+      -
+        name: local
+        type: u32
+        byte-order: big-endian
+        display-hint: ipv4
+      -
+        name: local6
+        type: binary
+        display-hint: ipv6
   -
     name: linkinfo-hsr-attrs
     name-prefix: ifla-hsr-

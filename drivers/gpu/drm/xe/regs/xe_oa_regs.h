@@ -6,6 +6,9 @@
 #ifndef __XE_OA_REGS__
 #define __XE_OA_REGS__
 
+#define SYS_MEM_LAT_MEASURE		XE_REG(0x145194)
+#define   SYS_MEM_LAT_MEASURE_EN	REG_BIT(31)
+
 #define RPM_CONFIG1			XE_REG(0xd04)
 #define   GT_NOA_ENABLE			REG_BIT(9)
 

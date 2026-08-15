@@ -387,8 +387,8 @@ static const struct pmbus_driver_info tps25990_base_info = {
 };
 
 static const struct i2c_device_id tps25990_i2c_id[] = {
-	{ "tps25990" },
-	{}
+	{ .name = "tps25990" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tps25990_i2c_id);
 

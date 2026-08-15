@@ -43,17 +43,31 @@ Architecture overview
 
 Monitoring
 ==========
-Information about page pools on the system can be accessed via the netdev
-genetlink family (see Documentation/netlink/specs/netdev.yaml).
+Information about allocated page pools, their memory use, recycling statistics
+etc. can be accessed via the netdev genetlink family
+(see Documentation/netlink/specs/netdev.yaml).
+
+Statistics
+----------
+
+.. kernel-doc:: include/net/page_pool/types.h
+   :identifiers: struct page_pool_recycle_stats
+		 struct page_pool_alloc_stats
+		 struct page_pool_stats
 
 API interface
 =============
-The number of pools created **must** match the number of hardware queues
+The number of pools created **must** match the number of NAPI contexts / queues
 unless hardware restrictions make that impossible. This would otherwise beat the
 purpose of page pool, which is allocate pages fast from cache without locking.
 This lockless guarantee naturally comes from running under a NAPI softirq.
 The protection doesn't strictly have to be NAPI, any guarantee that allocating
 a page will cause no race conditions is enough.
+
+If ``params.napi`` is set, the NAPI instance must be the sole consumer
+context for pages allocated from the pool. In other words, when running in
+that NAPI context, the page pool may safely access consumer-side resources
+**without any additional locking**.
 
 .. kernel-doc:: net/core/page_pool.c
    :identifiers: page_pool_create
@@ -69,7 +83,7 @@ a page will cause no race conditions is enough.
 		 page_pool_get_dma_addr page_pool_get_dma_dir
 
 .. kernel-doc:: net/core/page_pool.c
-   :identifiers: page_pool_put_page_bulk page_pool_get_stats
+   :identifiers: page_pool_put_page_bulk
 
 DMA sync
 --------
@@ -98,28 +112,11 @@ If in doubt set ``offset`` to 0, ``max_len`` to ``PAGE_SIZE`` and
 pass -1 as ``dma_sync_size``. That combination of arguments is always
 correct.
 
-Note that the syncing parameters are for the entire page.
-This is important to remember when using fragments (``PP_FLAG_PAGE_FRAG``),
-where allocated buffers may be smaller than a full page.
+Note that the syncing parameters are for the **entire page**, even if
+the driver allocates fragments (e.g. via ``page_pool_dev_alloc_frag()``).
 Unless the driver author really understands page pool internals
 it's recommended to always use ``offset = 0``, ``max_len = PAGE_SIZE``
 with fragmented page pools.
-
-Stats API and structures
-------------------------
-If the kernel is configured with ``CONFIG_PAGE_POOL_STATS=y``, the API
-page_pool_get_stats() and structures described below are available.
-It takes a  pointer to a ``struct page_pool`` and a pointer to a struct
-page_pool_stats allocated by the caller.
-
-Older drivers expose page pool statistics via ethtool or debugfs.
-The same statistics are accessible via the netlink netdev family
-in a driver-independent fashion.
-
-.. kernel-doc:: include/net/page_pool/types.h
-   :identifiers: struct page_pool_recycle_stats
-		 struct page_pool_alloc_stats
-		 struct page_pool_stats
 
 Coding examples
 ===============
@@ -140,7 +137,7 @@ Registration
     pp_params.pool_size = DESC_NUM;
     pp_params.nid = NUMA_NO_NODE;
     pp_params.dev = priv->dev;
-    pp_params.napi = napi; /* only if locking is tied to NAPI */
+    pp_params.napi = napi; /* only if this NAPI is the sole consumer, see above */
     pp_params.dma_dir = xdp_prog ? DMA_BIDIRECTIONAL : DMA_FROM_DEVICE;
     page_pool = page_pool_create(&pp_params);
 
@@ -173,21 +170,6 @@ NAPI poller
             new_page = page_pool_dev_alloc_pages(page_pool);
         }
     }
-
-Stats
------
-
-.. code-block:: c
-
-	#ifdef CONFIG_PAGE_POOL_STATS
-	/* retrieve stats */
-	struct page_pool_stats stats = { 0 };
-	if (page_pool_get_stats(page_pool, &stats)) {
-		/* perhaps the driver reports statistics with ethool */
-		ethtool_print_allocation_stats(&stats.alloc_stats);
-		ethtool_print_recycle_stats(&stats.recycle_stats);
-	}
-	#endif
 
 Driver unload
 -------------

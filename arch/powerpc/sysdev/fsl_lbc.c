@@ -24,7 +24,6 @@
 #include <linux/sched.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
-#include <linux/mod_devicetable.h>
 #include <linux/syscore_ops.h>
 #include <asm/fsl_lbc.h>
 

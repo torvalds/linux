@@ -257,9 +257,9 @@ static int shtc1_probe(struct i2c_client *client)
 
 /* device ID table */
 static const struct i2c_device_id shtc1_id[] = {
-	{ "shtc1", shtc1 },
-	{ "shtw1", shtc1 },
-	{ "shtc3", shtc3 },
+	{ .name = "shtc1", .driver_data = shtc1 },
+	{ .name = "shtw1", .driver_data = shtc1 },
+	{ .name = "shtc3", .driver_data = shtc3 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, shtc1_id);

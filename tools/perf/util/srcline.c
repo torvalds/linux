@@ -113,16 +113,16 @@ struct symbol *new_inline_sym(struct dso *dso,
 		/* ensure that we don't alias an inlined symbol, which could
 		 * lead to double frees in inline_node__delete
 		 */
-		assert(!base_sym->inlined);
+		assert(!symbol__inlined(base_sym));
 	} else {
 		/* create a fake symbol for the inline frame */
 		inline_sym = symbol__new(base_sym ? base_sym->start : 0,
 					 base_sym ? (base_sym->end - base_sym->start) : 0,
-					 base_sym ? base_sym->binding : 0,
-					 base_sym ? base_sym->type : 0,
+					 base_sym ? symbol__binding(base_sym) : 0,
+					 base_sym ? symbol__type(base_sym) : 0,
 					 funcname);
 		if (inline_sym)
-			inline_sym->inlined = 1;
+			symbol__set_inlined(inline_sym, true);
 	}
 
 	free(demangled);
@@ -429,19 +429,26 @@ struct inline_node *dso__parse_addr_inlines(struct dso *dso, u64 addr,
 	return addr2inlines(dso_name, addr, dso, sym);
 }
 
-void inline_node__delete(struct inline_node *node)
+void inline_node__clear_frames(struct inline_node *node)
 {
 	struct inline_list *ilist, *tmp;
+
+	if (node == NULL)
+		return;
 
 	list_for_each_entry_safe(ilist, tmp, &node->val, list) {
 		list_del_init(&ilist->list);
 		zfree_srcline(&ilist->srcline);
 		/* only the inlined symbols are owned by the list */
-		if (ilist->symbol && ilist->symbol->inlined)
+		if (ilist->symbol && symbol__inlined(ilist->symbol))
 			symbol__delete(ilist->symbol);
 		free(ilist);
 	}
+}
 
+void inline_node__delete(struct inline_node *node)
+{
+	inline_node__clear_frames(node);
 	free(node);
 }
 

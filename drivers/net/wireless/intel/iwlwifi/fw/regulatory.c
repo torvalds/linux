@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2023, 2025 Intel Corporation
+ * Copyright (C) 2023, 2025-2026 Intel Corporation
  */
 #include <linux/dmi.h>
 #include "iwl-drv.h"
@@ -110,6 +110,11 @@ static const struct dmi_system_id dmi_ppag_approved_list[] = {
 	{ .ident = "WIKO",
 	  .matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "WIKO"),
+		},
+	},
+	{ .ident = "XIAOMI",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "XIAOMI"),
 		},
 	},
 	{}

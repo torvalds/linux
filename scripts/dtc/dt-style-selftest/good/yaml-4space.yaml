@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/test-good-4space.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Test fixture for dt-check-style
+
+maintainers:
+  - Test User <test@example.com>
+
+properties:
+  compatible:
+    const: example,test-4space
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    bus@10000 {
+        compatible = "simple-bus";
+        reg = <0x10000 0x1000>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        device@100 {
+            compatible = "example,test-4space";
+            reg = <0x100 0x10>;
+        };
+
+        device@200 {
+            compatible = "example,test-4space";
+            reg = <0x200 0x10>;
+        };
+    };

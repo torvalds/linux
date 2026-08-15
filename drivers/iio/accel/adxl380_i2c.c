@@ -6,7 +6,6 @@
  */
 
 #include <linux/i2c.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
 
@@ -33,10 +32,10 @@ static int adxl380_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id adxl380_i2c_id[] = {
-	{ "adxl318", (kernel_ulong_t)&adxl318_chip_info },
-	{ "adxl319", (kernel_ulong_t)&adxl319_chip_info },
-	{ "adxl380", (kernel_ulong_t)&adxl380_chip_info },
-	{ "adxl382", (kernel_ulong_t)&adxl382_chip_info },
+	{ .name = "adxl318", .driver_data = (kernel_ulong_t)&adxl318_chip_info },
+	{ .name = "adxl319", .driver_data = (kernel_ulong_t)&adxl319_chip_info },
+	{ .name = "adxl380", .driver_data = (kernel_ulong_t)&adxl380_chip_info },
+	{ .name = "adxl382", .driver_data = (kernel_ulong_t)&adxl382_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adxl380_i2c_id);

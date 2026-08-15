@@ -532,7 +532,7 @@ static const struct of_device_id of_omnia_leds_match[] = {
 MODULE_DEVICE_TABLE(of, of_omnia_leds_match);
 
 static const struct i2c_device_id omnia_id[] = {
-	{ "omnia" },
+	{ .name = "omnia" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, omnia_id);

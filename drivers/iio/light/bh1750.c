@@ -319,11 +319,11 @@ static int bh1750_suspend(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(bh1750_pm_ops, bh1750_suspend, NULL);
 
 static const struct i2c_device_id bh1750_id[] = {
-	{ "bh1710", BH1710 },
-	{ "bh1715", BH1750 },
-	{ "bh1721", BH1721 },
-	{ "bh1750", BH1750 },
-	{ "bh1751", BH1750 },
+	{ .name = "bh1710", .driver_data = BH1710 },
+	{ .name = "bh1715", .driver_data = BH1750 },
+	{ .name = "bh1721", .driver_data = BH1721 },
+	{ .name = "bh1750", .driver_data = BH1750 },
+	{ .name = "bh1751", .driver_data = BH1750 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, bh1750_id);

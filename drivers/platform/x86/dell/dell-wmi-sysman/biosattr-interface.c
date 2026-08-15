@@ -13,8 +13,8 @@
 #define SETBIOSDEFAULTS_METHOD_ID					0x03
 #define SETATTRIBUTE_METHOD_ID						0x04
 
-static int call_biosattributes_interface(struct wmi_device *wdev, char *in_args, size_t size,
-					int method_id)
+static int call_biosattributes_interface(struct wmi_device *wdev, u8 *in_args,
+					 size_t size, int method_id)
 {
 	struct acpi_buffer output = {ACPI_ALLOCATE_BUFFER, NULL};
 	struct acpi_buffer input;
@@ -51,7 +51,7 @@ int set_attribute(const char *a_name, const char *a_value)
 {
 	size_t security_area_size, buffer_size;
 	size_t a_name_size, a_value_size;
-	char *buffer = NULL, *start;
+	u8 *buffer = NULL, *start;
 	int ret;
 
 	mutex_lock(&wmi_priv.mutex);
@@ -109,7 +109,7 @@ int set_bios_defaults(u8 deftype)
 {
 	size_t security_area_size, buffer_size;
 	size_t integer_area_size = sizeof(u8);
-	char *buffer = NULL;
+	u8 *buffer = NULL;
 	u8 *defaultType;
 	int ret;
 

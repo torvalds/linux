@@ -52,6 +52,17 @@ struct scmi_imx_misc_ctrl_notify_report {
 	unsigned int		flags;
 };
 
+
+#define MISC_EXT_INFO_LEN_MAX	4
+struct scmi_imx_misc_reset_reason {
+	bool valid:1;
+	bool orig_valid:1;
+	bool err_valid:1;
+	u32 reason;
+	u32 origin;
+	u32 errid;
+};
+
 struct scmi_imx_misc_proto_ops {
 	int (*misc_ctrl_set)(const struct scmi_protocol_handle *ph, u32 id,
 			     u32 num, u32 *val);
@@ -61,6 +72,9 @@ struct scmi_imx_misc_proto_ops {
 				    u32 ctrl_id, u32 evt_id, u32 flags);
 	int (*misc_syslog)(const struct scmi_protocol_handle *ph, u16 *size,
 			   void *array);
+	int (*misc_reset_reason)(const struct scmi_protocol_handle *ph,
+				 bool system, struct scmi_imx_misc_reset_reason *boot_r,
+				 struct scmi_imx_misc_reset_reason *shut_r, u32 *extinfo);
 };
 
 /* See LMM_ATTRIBUTES in imx95.rst */

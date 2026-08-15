@@ -119,12 +119,13 @@ int arch_add_memory(int nid, u64 start, u64 size, struct mhp_params *params)
 	return ret;
 }
 
-void arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
+void arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap,
+			struct dev_pagemap *pgmap)
 {
 	unsigned long start_pfn = start >> PAGE_SHIFT;
 	unsigned long nr_pages = size >> PAGE_SHIFT;
 
-	__remove_pages(start_pfn, nr_pages, altmap);
+	__remove_pages(start_pfn, nr_pages, altmap, pgmap);
 }
 #endif
 
@@ -137,17 +138,6 @@ void __meminit vmemmap_set_pmd(pmd_t *pmd, void *p, int node,
 	entry = pfn_pmd(virt_to_pfn(p), PAGE_KERNEL);
 	pmd_val(entry) |= _PAGE_HUGE | _PAGE_HGLOBAL;
 	set_pmd_at(&init_mm, addr, pmd, entry);
-}
-
-int __meminit vmemmap_check_pmd(pmd_t *pmd, int node,
-				unsigned long addr, unsigned long next)
-{
-	int huge = pmd_val(pmdp_get(pmd)) & _PAGE_HUGE;
-
-	if (huge)
-		vmemmap_verify((pte_t *)pmd, node, addr, next);
-
-	return huge;
 }
 
 int __meminit vmemmap_populate(unsigned long start, unsigned long end,

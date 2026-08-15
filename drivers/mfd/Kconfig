@@ -1199,13 +1199,6 @@ config MFD_OCELOT
 
 	  If unsure, say N.
 
-config EZX_PCAP
-	bool "Motorola EZXPCAP Support"
-	depends on SPI_MASTER
-	help
-	  This enables the PCAP ASIC present on EZX Phones. This is
-	  needed for MMC, TouchScreen, Sound, USB, etc..
-
 config MFD_CPCAP
 	tristate "Support for Motorola CPCAP"
 	depends on SPI
@@ -2388,7 +2381,7 @@ config MFD_ACER_A500_EC
 	  customized for the specific needs of the Acer A500 hardware.
 
 config MFD_QCOM_PM8008
-	tristate "QCOM PM8008 Power Management IC"
+	tristate "Qualcomm PM8008 Power Management IC"
 	depends on I2C && OF
 	select MFD_CORE
 	select REGMAP_I2C

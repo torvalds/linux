@@ -1,0 +1,65 @@
+What:		/sys/bus/pci/drivers/intel_vpu/.../npu_busy_time_us
+Date:		May 2024
+KernelVersion:	6.11
+Contact:	dri-devel@lists.freedesktop.org
+Description:	Time in microseconds that the device spent executing jobs. The time is
+		counted when and only when there are jobs submitted to firmware. This time
+		can be used to measure the utilization of NPU, either by calculating the
+		difference between two timepoints or monitoring utilization percentage by
+		reading periodically. Recommended read period is 1 second to avoid impact
+		on job submission performance. Read-only.
+
+What:		/sys/bus/pci/drivers/intel_vpu/.../npu_memory_utilization
+Date:		Jan 2025
+KernelVersion:	6.15
+Contact:	dri-devel@lists.freedesktop.org
+Description:	Current NPU memory utilization in bytes. Reports the total size of all
+		resident buffer objects allocated for NPU use. Read-only.
+
+What:		/sys/bus/pci/drivers/intel_vpu/.../freq/hw_min_freq
+Date:		April 2026
+KernelVersion:	7.2
+Contact:	dri-devel@lists.freedesktop.org
+Description:	Minimum frequency in MHz supported by the NPU hardware. This is a
+		hardware capability and cannot be changed. Read-only.
+
+What:		/sys/bus/pci/drivers/intel_vpu/.../freq/hw_efficient_freq
+Date:		April 2026
+KernelVersion:	7.2
+Contact:	dri-devel@lists.freedesktop.org
+Description:	Most efficient operating frequency in MHz for the NPU. This represents
+		the frequency at which the NPU operates most efficiently in terms of power
+		and performance. Read-only.
+
+What:		/sys/bus/pci/drivers/intel_vpu/.../freq/hw_max_freq
+Date:		April 2026
+KernelVersion:	7.2
+Contact:	dri-devel@lists.freedesktop.org
+Description:	Maximum frequency in MHz supported by the NPU hardware. This is a
+		hardware capability and cannot be changed. Read-only.
+
+What:		/sys/bus/pci/drivers/intel_vpu/.../freq/current_freq
+Date:		April 2026
+KernelVersion:	7.2
+Contact:	dri-devel@lists.freedesktop.org
+Description:	Current operating frequency in MHz of the NPU. The value is valid only
+		when the device is active; returns 0 when idle. The actual frequency may
+		be lower than the requested range due to power or thermal constraints.
+		Read-only.
+
+What:		/sys/bus/pci/drivers/intel_vpu/.../freq/set_min_freq
+Date:		April 2026
+KernelVersion:	7.2
+Contact:	dri-devel@lists.freedesktop.org
+Description:	Configured minimum operating frequency in MHz (50XX devices and newer).
+		Values written are clamped to hardware limits (hw_min_freq to hw_max_freq).
+		If set_min_freq exceeds set_max_freq, the driver clamps set_min_freq to
+		set_max_freq when selecting the operating frequency. Read-write.
+
+What:		/sys/bus/pci/drivers/intel_vpu/.../freq/set_max_freq
+Date:		April 2026
+KernelVersion:	7.2
+Contact:	dri-devel@lists.freedesktop.org
+Description:	Configured maximum operating frequency in MHz (50XX devices and newer).
+		Values written are clamped to hardware limits (hw_min_freq to hw_max_freq).
+		Read-write.

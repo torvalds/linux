@@ -1,0 +1,2 @@
+# mode=strict
+bad/yaml-child-addr-order.yaml:37: example 0 [child-address-order] child node @100 out of address order

@@ -272,6 +272,55 @@ struct vring_virtqueue {
 #endif
 };
 
+/*
+ * Accessors for device-writable fields in virtio rings.
+ * These fields are concurrently written by the device and read by the driver.
+ * Use READ_ONCE() to prevent compiler optimizations, document the
+ * intentional data race and prevent KCSAN warnings.
+ */
+static inline u16 vring_read_split_used_idx(const struct vring_virtqueue *vq)
+{
+	return virtio16_to_cpu(vq->vq.vdev,
+			       READ_ONCE(vq->split.vring.used->idx));
+}
+
+static inline u32 vring_read_split_used_id(const struct vring_virtqueue *vq,
+					   u16 idx)
+{
+	return virtio32_to_cpu(vq->vq.vdev,
+			       READ_ONCE(vq->split.vring.used->ring[idx].id));
+}
+
+static inline u32 vring_read_split_used_len(const struct vring_virtqueue *vq, u16 idx)
+{
+	return virtio32_to_cpu(vq->vq.vdev,
+			       READ_ONCE(vq->split.vring.used->ring[idx].len));
+}
+
+static inline u16 vring_read_split_avail_event(const struct vring_virtqueue *vq)
+{
+	return virtio16_to_cpu(vq->vq.vdev,
+			       READ_ONCE(vring_avail_event(&vq->split.vring)));
+}
+
+static inline u16 vring_read_packed_desc_flags(const struct vring_virtqueue *vq,
+					       u16 idx)
+{
+	return le16_to_cpu(READ_ONCE(vq->packed.vring.desc[idx].flags));
+}
+
+static inline u16 vring_read_packed_desc_id(const struct vring_virtqueue *vq,
+				            u16 idx)
+{
+	return le16_to_cpu(READ_ONCE(vq->packed.vring.desc[idx].id));
+}
+
+static inline u32 vring_read_packed_desc_len(const struct vring_virtqueue *vq,
+				             u16 idx)
+{
+	return le32_to_cpu(READ_ONCE(vq->packed.vring.desc[idx].len));
+}
+
 static struct vring_desc_extra *vring_alloc_desc_extra(unsigned int num);
 static void vring_free(struct virtqueue *_vq);
 
@@ -809,8 +858,7 @@ static bool virtqueue_kick_prepare_split(struct vring_virtqueue *vq)
 	LAST_ADD_TIME_INVALID(vq);
 
 	if (vq->event) {
-		needs_kick = vring_need_event(virtio16_to_cpu(vq->vq.vdev,
-					vring_avail_event(&vq->split.vring)),
+		needs_kick = vring_need_event(vring_read_split_avail_event(vq),
 					      new, old);
 	} else {
 		needs_kick = !(vq->split.vring.used->flags &
@@ -897,8 +945,7 @@ static void detach_buf_split(struct vring_virtqueue *vq, unsigned int head,
 static bool virtqueue_poll_split(const struct vring_virtqueue *vq,
 				 unsigned int last_used_idx)
 {
-	return (u16)last_used_idx != virtio16_to_cpu(vq->vq.vdev,
-			vq->split.vring.used->idx);
+	return (u16)last_used_idx != vring_read_split_used_idx(vq);
 }
 
 static bool more_used_split(const struct vring_virtqueue *vq)
@@ -939,10 +986,8 @@ static void *virtqueue_get_buf_ctx_split(struct vring_virtqueue *vq,
 	virtio_rmb(vq->weak_barriers);
 
 	last_used = (vq->last_used_idx & (vq->split.vring.num - 1));
-	i = virtio32_to_cpu(vq->vq.vdev,
-			vq->split.vring.used->ring[last_used].id);
-	*len = virtio32_to_cpu(vq->vq.vdev,
-			vq->split.vring.used->ring[last_used].len);
+	i = vring_read_split_used_id(vq, last_used);
+	*len = vring_read_split_used_len(vq, last_used);
 
 	if (unlikely(i >= vq->split.vring.num)) {
 		BAD_RING(vq, "id %u out of range\n", i);
@@ -1003,10 +1048,8 @@ static void *virtqueue_get_buf_ctx_split_in_order(struct vring_virtqueue *vq,
 		 */
 		virtio_rmb(vq->weak_barriers);
 
-		vq->batch_last.id = virtio32_to_cpu(vq->vq.vdev,
-				    vq->split.vring.used->ring[last_used_idx].id);
-		vq->batch_last.len = virtio32_to_cpu(vq->vq.vdev,
-				     vq->split.vring.used->ring[last_used_idx].len);
+		vq->batch_last.id = vring_read_split_used_id(vq, last_used_idx);
+		vq->batch_last.len = vring_read_split_used_len(vq, last_used_idx);
 	}
 
 	if (vq->batch_last.id == last_used) {
@@ -1112,7 +1155,7 @@ static bool virtqueue_enable_cb_delayed_split(struct vring_virtqueue *vq)
 			&vring_used_event(&vq->split.vring),
 			cpu_to_virtio16(vq->vq.vdev, vq->last_used_idx + bufs));
 
-	if (unlikely((u16)(virtio16_to_cpu(vq->vq.vdev, vq->split.vring.used->idx)
+	if (unlikely((u16)(vring_read_split_used_idx(vq)
 					- vq->last_used_idx) > bufs)) {
 		END_USE(vq);
 		return false;
@@ -2036,10 +2079,10 @@ static void detach_buf_packed(struct vring_virtqueue *vq,
 static inline bool is_used_desc_packed(const struct vring_virtqueue *vq,
 				       u16 idx, bool used_wrap_counter)
 {
-	bool avail, used;
 	u16 flags;
+	bool avail, used;
 
-	flags = le16_to_cpu(vq->packed.vring.desc[idx].flags);
+	flags = vring_read_packed_desc_flags(vq, idx);
 	avail = !!(flags & (1 << VRING_PACKED_DESC_F_AVAIL));
 	used = !!(flags & (1 << VRING_PACKED_DESC_F_USED));
 
@@ -2186,8 +2229,8 @@ static void *virtqueue_get_buf_ctx_packed(struct vring_virtqueue *vq,
 	last_used_idx = READ_ONCE(vq->last_used_idx);
 	used_wrap_counter = packed_used_wrap_counter(last_used_idx);
 	last_used = packed_last_used(last_used_idx);
-	id = le16_to_cpu(vq->packed.vring.desc[last_used].id);
-	*len = le32_to_cpu(vq->packed.vring.desc[last_used].len);
+	id = vring_read_packed_desc_id(vq, last_used);
+	*len = vring_read_packed_desc_len(vq, last_used);
 
 	if (unlikely(id >= num)) {
 		BAD_RING(vq, "id %u out of range\n", id);

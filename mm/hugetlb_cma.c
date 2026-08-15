@@ -142,7 +142,7 @@ unsigned int __weak arch_hugetlb_cma_order(void)
 
 void __init hugetlb_cma_reserve(void)
 {
-	unsigned long size, reserved, per_node, order;
+	unsigned long size, reserved, per_node, order, gigantic_page_size;
 	bool node_specific_cma_alloc = false;
 	int nid;
 
@@ -162,37 +162,36 @@ void __init hugetlb_cma_reserve(void)
 	 * breaking this assumption.
 	 */
 	VM_WARN_ON(order <= MAX_PAGE_ORDER);
+	gigantic_page_size = PAGE_SIZE << order;
 
 	hugetlb_bootmem_set_nodes();
 
 	for (nid = 0; nid < MAX_NUMNODES; nid++) {
-		if (hugetlb_cma_size_in_node[nid] == 0)
+		size = hugetlb_cma_size_in_node[nid];
+		if (size == 0)
 			continue;
 
 		if (!node_isset(nid, hugetlb_bootmem_nodes)) {
 			pr_warn("hugetlb_cma: invalid node %d specified\n", nid);
-			hugetlb_cma_size -= hugetlb_cma_size_in_node[nid];
-			hugetlb_cma_size_in_node[nid] = 0;
+		} else if (!IS_ALIGNED(size, gigantic_page_size)) {
+			pr_warn("hugetlb_cma: cma area of node %d must be a multiple of %lu MiB\n",
+				nid, gigantic_page_size / SZ_1M);
+		} else {
+			node_specific_cma_alloc = true;
 			continue;
 		}
 
-		if (hugetlb_cma_size_in_node[nid] < (PAGE_SIZE << order)) {
-			pr_warn("hugetlb_cma: cma area of node %d should be at least %lu MiB\n",
-				nid, (PAGE_SIZE << order) / SZ_1M);
-			hugetlb_cma_size -= hugetlb_cma_size_in_node[nid];
-			hugetlb_cma_size_in_node[nid] = 0;
-		} else {
-			node_specific_cma_alloc = true;
-		}
+		hugetlb_cma_size -= size;
+		hugetlb_cma_size_in_node[nid] = 0;
 	}
 
 	/* Validate the CMA size again in case some invalid nodes specified. */
 	if (!hugetlb_cma_size)
 		return;
 
-	if (hugetlb_cma_size < (PAGE_SIZE << order)) {
-		pr_warn("hugetlb_cma: cma area should be at least %lu MiB\n",
-			(PAGE_SIZE << order) / SZ_1M);
+	if (!IS_ALIGNED(hugetlb_cma_size, gigantic_page_size)) {
+		pr_warn("hugetlb_cma: cma area must be a multiple of %lu MiB\n",
+			gigantic_page_size / SZ_1M);
 		hugetlb_cma_size = 0;
 		return;
 	}
@@ -204,7 +203,7 @@ void __init hugetlb_cma_reserve(void)
 		 */
 		per_node = DIV_ROUND_UP(hugetlb_cma_size,
 					nodes_weight(hugetlb_bootmem_nodes));
-		per_node = round_up(per_node, PAGE_SIZE << order);
+		per_node = round_up(per_node, gigantic_page_size);
 		pr_info("hugetlb_cma: reserve %lu MiB, up to %lu MiB per node\n",
 			hugetlb_cma_size / SZ_1M, per_node / SZ_1M);
 	}
@@ -223,15 +222,13 @@ void __init hugetlb_cma_reserve(void)
 			size = min(per_node, hugetlb_cma_size - reserved);
 		}
 
-		size = round_up(size, PAGE_SIZE << order);
-
 		snprintf(name, sizeof(name), "hugetlb%d", nid);
 		/*
 		 * Note that 'order per bit' is based on smallest size that
 		 * may be returned to CMA allocator in the case of
 		 * huge page demotion.
 		 */
-		res = cma_declare_contiguous_multi(size, PAGE_SIZE << order,
+		res = cma_declare_contiguous_multi(size, gigantic_page_size,
 					HUGETLB_PAGE_ORDER, name,
 					&hugetlb_cma[nid], nid);
 		if (res) {

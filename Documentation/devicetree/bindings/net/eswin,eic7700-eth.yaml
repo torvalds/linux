@@ -84,7 +84,8 @@ properties:
       This reference is provided for background information only.
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
-      - items:
+      - minItems: 4
+        items:
           - description: Phandle to HSP(High-Speed Peripheral) device
           - description: Offset of phy control register for internal
                          or external clock selection

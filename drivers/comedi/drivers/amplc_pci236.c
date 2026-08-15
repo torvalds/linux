@@ -116,8 +116,8 @@ static struct comedi_driver amplc_pci236_driver = {
 };
 
 static const struct pci_device_id pci236_pci_table[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, 0x0009) },
-	{ 0 }
+	{ PCI_VDEVICE(AMPLICON, 0x0009) },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, pci236_pci_table);

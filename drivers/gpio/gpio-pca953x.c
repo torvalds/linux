@@ -17,7 +17,6 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/pm.h>
@@ -86,49 +85,49 @@
 #define PCA_CHIP_TYPE(x)	((x) & PCA_TYPE_MASK)
 
 static const struct i2c_device_id pca953x_id[] = {
-	{ "pca6408", 8  | PCA953X_TYPE | PCA_INT, },
-	{ "pca6416", 16 | PCA953X_TYPE | PCA_INT, },
-	{ "pca9505", 40 | PCA953X_TYPE | PCA_INT, },
-	{ "pca9506", 40 | PCA953X_TYPE | PCA_INT, },
-	{ "pca9534", 8  | PCA953X_TYPE | PCA_INT, },
-	{ "pca9535", 16 | PCA953X_TYPE | PCA_INT, },
-	{ "pca9536", 4  | PCA953X_TYPE, },
-	{ "pca9537", 4  | PCA953X_TYPE | PCA_INT, },
-	{ "pca9538", 8  | PCA953X_TYPE | PCA_INT, },
-	{ "pca9539", 16 | PCA953X_TYPE | PCA_INT, },
-	{ "pca9554", 8  | PCA953X_TYPE | PCA_INT, },
-	{ "pca9555", 16 | PCA953X_TYPE | PCA_INT, },
-	{ "pca9556", 8  | PCA953X_TYPE, },
-	{ "pca9557", 8  | PCA953X_TYPE, },
-	{ "pca9574", 8  | PCA957X_TYPE | PCA_INT, },
-	{ "pca9575", 16 | PCA957X_TYPE | PCA_INT, },
-	{ "pca9698", 40 | PCA953X_TYPE, },
+	{ .name = "pca6408", .driver_data = 8  | PCA953X_TYPE | PCA_INT },
+	{ .name = "pca6416", .driver_data = 16 | PCA953X_TYPE | PCA_INT },
+	{ .name = "pca9505", .driver_data = 40 | PCA953X_TYPE | PCA_INT },
+	{ .name = "pca9506", .driver_data = 40 | PCA953X_TYPE | PCA_INT },
+	{ .name = "pca9534", .driver_data = 8  | PCA953X_TYPE | PCA_INT },
+	{ .name = "pca9535", .driver_data = 16 | PCA953X_TYPE | PCA_INT },
+	{ .name = "pca9536", .driver_data = 4  | PCA953X_TYPE },
+	{ .name = "pca9537", .driver_data = 4  | PCA953X_TYPE | PCA_INT },
+	{ .name = "pca9538", .driver_data = 8  | PCA953X_TYPE | PCA_INT },
+	{ .name = "pca9539", .driver_data = 16 | PCA953X_TYPE | PCA_INT },
+	{ .name = "pca9554", .driver_data = 8  | PCA953X_TYPE | PCA_INT },
+	{ .name = "pca9555", .driver_data = 16 | PCA953X_TYPE | PCA_INT },
+	{ .name = "pca9556", .driver_data = 8  | PCA953X_TYPE },
+	{ .name = "pca9557", .driver_data = 8  | PCA953X_TYPE },
+	{ .name = "pca9574", .driver_data = 8  | PCA957X_TYPE | PCA_INT },
+	{ .name = "pca9575", .driver_data = 16 | PCA957X_TYPE | PCA_INT },
+	{ .name = "pca9698", .driver_data = 40 | PCA953X_TYPE },
 
-	{ "pcal6408", 8 | PCA953X_TYPE | PCA_LATCH_INT, },
-	{ "pcal6416", 16 | PCA953X_TYPE | PCA_LATCH_INT, },
-	{ "pcal6524", 24 | PCA953X_TYPE | PCA_LATCH_INT, },
-	{ "pcal6534", 34 | PCAL653X_TYPE | PCA_LATCH_INT, },
-	{ "pcal9535", 16 | PCA953X_TYPE | PCA_LATCH_INT, },
-	{ "pcal9554b", 8  | PCA953X_TYPE | PCA_LATCH_INT, },
-	{ "pcal9555a", 16 | PCA953X_TYPE | PCA_LATCH_INT, },
+	{ .name = "pcal6408",  .driver_data = 8  | PCA953X_TYPE | PCA_LATCH_INT },
+	{ .name = "pcal6416",  .driver_data = 16 | PCA953X_TYPE | PCA_LATCH_INT },
+	{ .name = "pcal6524",  .driver_data = 24 | PCA953X_TYPE | PCA_LATCH_INT },
+	{ .name = "pcal6534",  .driver_data = 34 | PCAL653X_TYPE | PCA_LATCH_INT },
+	{ .name = "pcal9535",  .driver_data = 16 | PCA953X_TYPE | PCA_LATCH_INT },
+	{ .name = "pcal9554b", .driver_data = 8  | PCA953X_TYPE | PCA_LATCH_INT },
+	{ .name = "pcal9555a", .driver_data = 16 | PCA953X_TYPE | PCA_LATCH_INT },
 
-	{ "max7310", 8  | PCA953X_TYPE, },
-	{ "max7312", 16 | PCA953X_TYPE | PCA_INT, },
-	{ "max7313", 16 | PCA953X_TYPE | PCA_INT, },
-	{ "max7315", 8  | PCA953X_TYPE | PCA_INT, },
-	{ "max7318", 16 | PCA953X_TYPE | PCA_INT, },
-	{ "pca6107", 8  | PCA953X_TYPE | PCA_INT, },
-	{ "tca6408", 8  | PCA953X_TYPE | PCA_INT, },
-	{ "tca6416", 16 | PCA953X_TYPE | PCA_INT, },
-	{ "tca6418", 18 | TCA6418_TYPE | PCA_INT, },
-	{ "tca6424", 24 | PCA953X_TYPE | PCA_INT, },
-	{ "tca9538", 8  | PCA953X_TYPE | PCA_INT, },
-	{ "tca9539", 16 | PCA953X_TYPE | PCA_INT, },
-	{ "tca9554", 8  | PCA953X_TYPE | PCA_INT, },
-	{ "xra1202", 8  | PCA953X_TYPE },
+	{ .name = "max7310", .driver_data = 8  | PCA953X_TYPE },
+	{ .name = "max7312", .driver_data = 16 | PCA953X_TYPE | PCA_INT },
+	{ .name = "max7313", .driver_data = 16 | PCA953X_TYPE | PCA_INT },
+	{ .name = "max7315", .driver_data = 8  | PCA953X_TYPE | PCA_INT },
+	{ .name = "max7318", .driver_data = 16 | PCA953X_TYPE | PCA_INT },
+	{ .name = "pca6107", .driver_data = 8  | PCA953X_TYPE | PCA_INT },
+	{ .name = "tca6408", .driver_data = 8  | PCA953X_TYPE | PCA_INT },
+	{ .name = "tca6416", .driver_data = 16 | PCA953X_TYPE | PCA_INT },
+	{ .name = "tca6418", .driver_data = 18 | TCA6418_TYPE | PCA_INT },
+	{ .name = "tca6424", .driver_data = 24 | PCA953X_TYPE | PCA_INT },
+	{ .name = "tca9538", .driver_data = 8  | PCA953X_TYPE | PCA_INT },
+	{ .name = "tca9539", .driver_data = 16 | PCA953X_TYPE | PCA_INT },
+	{ .name = "tca9554", .driver_data = 8  | PCA953X_TYPE | PCA_INT },
+	{ .name = "xra1202", .driver_data = 8  | PCA953X_TYPE },
 
-	{ "tcal6408", 8  | PCA953X_TYPE | PCA_LATCH_INT, },
-	{ "tcal6416", 16 | PCA953X_TYPE | PCA_LATCH_INT, },
+	{ .name = "tcal6408", .driver_data = 8  | PCA953X_TYPE | PCA_LATCH_INT },
+	{ .name = "tcal6416", .driver_data = 16 | PCA953X_TYPE | PCA_LATCH_INT },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pca953x_id);
@@ -877,11 +876,9 @@ static void pca953x_irq_bus_sync_unlock(struct irq_data *d)
 	bitmap_or(irq_mask, chip->irq_trig_fall, chip->irq_trig_raise, gc->ngpio);
 	bitmap_or(irq_mask, irq_mask, chip->irq_trig_level_high, gc->ngpio);
 	bitmap_or(irq_mask, irq_mask, chip->irq_trig_level_low, gc->ngpio);
-	bitmap_complement(reg_direction, reg_direction, gc->ngpio);
-	bitmap_and(irq_mask, irq_mask, reg_direction, gc->ngpio);
 
 	/* Look for any newly setup interrupt */
-	for_each_set_bit(level, irq_mask, gc->ngpio)
+	for_each_andnot_bit(level, irq_mask, reg_direction, gc->ngpio)
 		pca953x_gpio_direction_input(&chip->gpio_chip, level);
 
 	mutex_unlock(&chip->irq_lock);
@@ -1005,8 +1002,7 @@ static bool pca953x_irq_pending(struct pca953x_chip *chip, unsigned long *pendin
 	bitmap_and(cur_stat, cur_stat, chip->irq_mask, gc->ngpio);
 	bitmap_or(pending, pending, cur_stat, gc->ngpio);
 
-	bitmap_complement(cur_stat, new_stat, gc->ngpio);
-	bitmap_and(cur_stat, cur_stat, reg_direction, gc->ngpio);
+	bitmap_andnot(cur_stat, reg_direction, new_stat, gc->ngpio);
 	bitmap_and(old_stat, cur_stat, chip->irq_trig_level_low, gc->ngpio);
 	bitmap_and(old_stat, old_stat, chip->irq_mask, gc->ngpio);
 	bitmap_or(pending, pending, old_stat, gc->ngpio);

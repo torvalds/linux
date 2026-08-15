@@ -11,7 +11,7 @@ config QCOM_ADM
 	  and on-chip peripheral devices.
 
 config QCOM_BAM_DMA
-	tristate "QCOM BAM DMA support"
+	tristate "Qualcomm BAM DMA support"
 	depends on ARCH_QCOM || (COMPILE_TEST && OF && ARM)
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
@@ -20,7 +20,7 @@ config QCOM_BAM_DMA
 	  provides DMA capabilities for a variety of on-chip devices.
 
 config QCOM_GPI_DMA
-        tristate "Qualcomm Technologies GPI DMA support"
+        tristate "Qualcomm GPI DMA support"
         depends on ARCH_QCOM
         select DMA_ENGINE
         select DMA_VIRTUAL_CHANNELS
@@ -32,7 +32,7 @@ config QCOM_GPI_DMA
           transfer data between DDR and peripheral.
 
 config QCOM_HIDMA_MGMT
-	tristate "Qualcomm Technologies HIDMA Management support"
+	tristate "Qualcomm HIDMA Management support"
 	depends on HAS_IOMEM
 	select DMA_ENGINE
 	help
@@ -44,7 +44,7 @@ config QCOM_HIDMA_MGMT
 	  host would run the QCOM_HIDMA_MGMT management driver.
 
 config QCOM_HIDMA
-	tristate "Qualcomm Technologies HIDMA Channel support"
+	tristate "Qualcomm HIDMA Channel support"
 	depends on HAS_IOMEM
 	select DMA_ENGINE
 	help

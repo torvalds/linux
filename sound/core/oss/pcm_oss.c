@@ -32,8 +32,8 @@
 
 #define OSS_ALSAEMULVER		_SIOR ('M', 249, int)
 
-static int dsp_map[SNDRV_CARDS];
-static int adsp_map[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = 1};
+static int dsp_map[SNDRV_CARDS] __ro_after_init;
+static int adsp_map[SNDRV_CARDS] __ro_after_init = {[0 ... (SNDRV_CARDS-1)] = 1};
 static bool nonblock_open = 1;
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>, Abramo Bagnara <abramo@alsa-project.org>");

@@ -23,7 +23,7 @@
 #define GPIOAO_11	11
 #define GPIOAO_12	12
 #define GPIOAO_13	13
-#define GPIO_TEST_N 14
+#define GPIO_TEST_N	14
 
 /* Second GPIO chip */
 #define GPIOZ_0		0
@@ -52,7 +52,7 @@
 #define BOOT_12		23
 #define BOOT_13		24
 #define BOOT_14		25
-#define GPIOA_0	    26
+#define GPIOA_0		26
 #define GPIOA_1		27
 #define GPIOA_2		28
 #define GPIOA_3		29

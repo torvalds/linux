@@ -36,7 +36,7 @@ do {									\
  * it returns a zero or positive value, mark @once as completed.  Return
  * the value returned by @cb
  *
- * If @once has completed succesfully before, return 0.
+ * If @once has completed successfully before, return 0.
  *
  * The call to @cb is implicitly surrounded by a mutex, though for
  * efficiency the * function avoids taking it after the first call.

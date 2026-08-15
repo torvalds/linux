@@ -350,8 +350,6 @@ OBJCOPYFLAGS		+= --remove-section=.reginfo
 libs-y			+= arch/mips/lib/
 libs-$(CONFIG_MIPS_FP_SUPPORT) += arch/mips/math-emu/
 
-drivers-y			+= arch/mips/crypto/
-
 # suspend and hibernation support
 drivers-$(CONFIG_PM)	+= arch/mips/power/
 

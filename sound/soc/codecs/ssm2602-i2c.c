@@ -26,9 +26,9 @@ static int ssm2602_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ssm2602_i2c_id[] = {
-	{ "ssm2602", SSM2602 },
-	{ "ssm2603", SSM2602 },
-	{ "ssm2604", SSM2604 },
+	{ .name = "ssm2602", .driver_data = SSM2602 },
+	{ .name = "ssm2603", .driver_data = SSM2602 },
+	{ .name = "ssm2604", .driver_data = SSM2604 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ssm2602_i2c_id);

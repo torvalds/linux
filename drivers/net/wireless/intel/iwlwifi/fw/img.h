@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2024, 2026 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016 Intel Deutschland GmbH
  */
@@ -53,6 +53,8 @@ struct iwl_ucode_capabilities {
 	u32 num_stations;
 	u32 num_links;
 	u32 num_beacons;
+	u32 num_mcast_key_entries;
+	u16 nan_max_chan_switch_time;
 	DECLARE_BITMAP(_api, NUM_IWL_UCODE_TLV_API);
 	DECLARE_BITMAP(_capa, NUM_IWL_UCODE_TLV_CAPA);
 

@@ -8,17 +8,17 @@
 #include <rtw_btcoex.h>
 #include <hal_btcoex.h>
 
-void rtw_btcoex_MediaStatusNotify(struct adapter *padapter, u8 media_status)
+void rtw_btcoex_media_status_notify(struct adapter *padapter, u8 media_status)
 {
-	if ((media_status == RT_MEDIA_CONNECT)
-		&& (check_fwstate(&padapter->mlmepriv, WIFI_AP_STATE) == true)) {
+	if ((media_status == RT_MEDIA_CONNECT) &&
+	    check_fwstate(&padapter->mlmepriv, WIFI_AP_STATE)) {
 		rtw_hal_set_hwreg(padapter, HW_VAR_DL_RSVD_PAGE, NULL);
 	}
 
 	hal_btcoex_MediaStatusNotify(padapter, media_status);
 }
 
-void rtw_btcoex_HaltNotify(struct adapter *padapter)
+void rtw_btcoex_halt_notify(struct adapter *padapter)
 {
 	if (!padapter->bup)
 		return;
@@ -32,7 +32,7 @@ void rtw_btcoex_HaltNotify(struct adapter *padapter)
 /*  ================================================== */
 /*  Below Functions are called by BT-Coex */
 /*  ================================================== */
-void rtw_btcoex_RejectApAggregatedPacket(struct adapter *padapter, u8 enable)
+void rtw_btcoex_reject_ap_aggregated_packet(struct adapter *padapter, u8 enable)
 {
 	struct mlme_ext_info *pmlmeinfo;
 	struct sta_info *psta;
@@ -49,7 +49,7 @@ void rtw_btcoex_RejectApAggregatedPacket(struct adapter *padapter, u8 enable)
 	}
 }
 
-void rtw_btcoex_LPS_Enter(struct adapter *padapter)
+void rtw_btcoex_lps_enter(struct adapter *padapter)
 {
 	struct pwrctrl_priv *pwrpriv;
 	u8 lps_val;
@@ -61,10 +61,9 @@ void rtw_btcoex_LPS_Enter(struct adapter *padapter)
 	rtw_set_ps_mode(padapter, PS_MODE_MIN, 0, lps_val, "BTCOEX");
 }
 
-void rtw_btcoex_LPS_Leave(struct adapter *padapter)
+void rtw_btcoex_lps_leave(struct adapter *padapter)
 {
 	struct pwrctrl_priv *pwrpriv;
-
 
 	pwrpriv = adapter_to_pwrctl(padapter);
 

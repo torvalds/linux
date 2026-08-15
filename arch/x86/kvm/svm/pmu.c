@@ -168,6 +168,12 @@ static int amd_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 			pmc->eventsel = data;
 			pmc->eventsel_hw = (data & ~AMD64_EVENTSEL_HOSTONLY) |
 					   AMD64_EVENTSEL_GUESTONLY;
+
+			if (data & AMD64_EVENTSEL_HOST_GUEST_MASK)
+				__set_bit(pmc->idx, pmu->pmc_has_mode_specific_enables);
+			else
+				__clear_bit(pmc->idx, pmu->pmc_has_mode_specific_enables);
+
 			kvm_pmu_request_counter_reprogram(pmc);
 		}
 		return 0;
@@ -207,7 +213,11 @@ static void amd_pmu_refresh(struct kvm_vcpu *vcpu)
 	}
 
 	pmu->counter_bitmask[KVM_PMC_GP] = BIT_ULL(48) - 1;
+
 	pmu->reserved_bits = 0xfffffff000280000ull;
+	if (guest_cpu_cap_has(vcpu, X86_FEATURE_SVM) && kvm_vcpu_has_mediated_pmu(vcpu))
+		pmu->reserved_bits &= ~AMD64_EVENTSEL_HOST_GUEST_MASK;
+
 	pmu->raw_event_mask = AMD64_RAW_EVENT_MASK;
 	/* not applicable to AMD; but clean them to prevent any fall out */
 	pmu->counter_bitmask[KVM_PMC_FIXED] = 0;
@@ -260,6 +270,37 @@ static void amd_mediated_pmu_put(struct kvm_vcpu *vcpu)
 		wrmsrq(MSR_AMD64_PERF_CNTR_GLOBAL_STATUS_CLR, pmu->global_status);
 }
 
+static bool amd_pmc_is_disabled_in_current_mode(struct kvm_pmc *pmc)
+{
+	struct kvm_vcpu *vcpu = pmc->vcpu;
+	u64 host_guest_bits;
+
+	if (!kvm_vcpu_has_mediated_pmu(vcpu))
+		return false;
+
+	/* Common code is supposed to check the common enable bit */
+	if (WARN_ON_ONCE(!(pmc->eventsel & ARCH_PERFMON_EVENTSEL_ENABLE)))
+		return false;
+
+	/* If both bits are cleared, the counter is always enabled */
+	host_guest_bits = pmc->eventsel & AMD64_EVENTSEL_HOST_GUEST_MASK;
+	if (!host_guest_bits)
+		return false;
+
+	/* If EFER.SVME=0 and either bit is set, the counter is disabled */
+	if (!(vcpu->arch.efer & EFER_SVME))
+		return true;
+
+	/*
+	 * If EFER.SVME=1, the counter is disabled iff only one of the bits is
+	 * set AND the set bit doesn't match the vCPU mode.
+	 */
+	if (host_guest_bits == AMD64_EVENTSEL_HOST_GUEST_MASK)
+		return false;
+
+	return !!(host_guest_bits & AMD64_EVENTSEL_GUESTONLY) != is_guest_mode(vcpu);
+}
+
 struct kvm_pmu_ops amd_pmu_ops __initdata = {
 	.rdpmc_ecx_to_pmc = amd_rdpmc_ecx_to_pmc,
 	.msr_idx_to_pmc = amd_msr_idx_to_pmc,
@@ -269,6 +310,7 @@ struct kvm_pmu_ops amd_pmu_ops __initdata = {
 	.set_msr = amd_pmu_set_msr,
 	.refresh = amd_pmu_refresh,
 	.init = amd_pmu_init,
+	.pmc_is_disabled_in_current_mode = amd_pmc_is_disabled_in_current_mode,
 
 	.is_mediated_pmu_supported = amd_pmu_is_mediated_pmu_supported,
 	.mediated_load = amd_mediated_pmu_load,

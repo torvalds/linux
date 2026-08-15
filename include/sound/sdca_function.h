@@ -1452,7 +1452,6 @@ static inline u32 sdca_range_search(struct sdca_control_range *range,
 }
 
 int sdca_parse_function(struct device *dev, struct sdw_slave *sdw,
-			struct sdca_function_desc *desc,
 			struct sdca_function_data *function);
 
 const char *sdca_find_terminal_name(enum sdca_terminal_type type);

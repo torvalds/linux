@@ -169,23 +169,22 @@ struct intel_display_power_domain_set {
 	for ((__domain) = 0; (__domain) < POWER_DOMAIN_NUM; (__domain)++)	\
 		for_each_if(test_bit((__domain), (__mask)->bits))
 
-int intel_power_domains_init(struct intel_display *display);
-void intel_power_domains_cleanup(struct intel_display *display);
-void intel_power_domains_init_hw(struct intel_display *display, bool resume);
-void intel_power_domains_driver_remove(struct intel_display *display);
-void intel_power_domains_enable(struct intel_display *display);
-void intel_power_domains_disable(struct intel_display *display);
-void intel_power_domains_suspend(struct intel_display *display, bool s2idle);
-void intel_power_domains_resume(struct intel_display *display);
-void intel_power_domains_sanitize_state(struct intel_display *display);
+int intel_display_power_init(struct intel_display *display);
+void intel_display_power_cleanup(struct intel_display *display);
+void intel_display_power_init_hw(struct intel_display *display);
+void intel_display_power_driver_remove(struct intel_display *display);
+void intel_display_power_enable(struct intel_display *display);
+void intel_display_power_disable(struct intel_display *display);
+void intel_display_power_sanitize_state(struct intel_display *display);
 
 void intel_display_power_suspend_late(struct intel_display *display, bool s2idle);
 void intel_display_power_resume_early(struct intel_display *display);
-void intel_display_power_suspend(struct intel_display *display);
-void intel_display_power_resume(struct intel_display *display);
 void intel_display_power_set_target_dc_state(struct intel_display *display,
 					     u32 state);
 u32 intel_display_power_get_current_dc_state(struct intel_display *display);
+
+void intel_display_power_runtime_suspend(struct intel_display *display);
+void intel_display_power_runtime_resume(struct intel_display *display);
 
 bool intel_display_power_is_enabled(struct intel_display *display,
 				    enum intel_display_power_domain domain);

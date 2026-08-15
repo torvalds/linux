@@ -1010,7 +1010,7 @@ static void mtk_hdmi_v2_handle_plugged_change(struct mtk_hdmi *hdmi, bool plugge
 }
 
 static void mtk_hdmi_v2_bridge_pre_enable(struct drm_bridge *bridge,
-					  struct drm_atomic_state *state)
+					  struct drm_atomic_commit *state)
 {
 	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
 	struct drm_connector_state *conn_state;
@@ -1048,7 +1048,7 @@ static void mtk_hdmi_v2_bridge_pre_enable(struct drm_bridge *bridge,
 }
 
 static void mtk_hdmi_v2_bridge_enable(struct drm_bridge *bridge,
-				      struct drm_atomic_state *state)
+				      struct drm_atomic_commit *state)
 {
 	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
 	int ret;
@@ -1069,7 +1069,7 @@ static void mtk_hdmi_v2_bridge_enable(struct drm_bridge *bridge,
 }
 
 static void mtk_hdmi_v2_bridge_disable(struct drm_bridge *bridge,
-				       struct drm_atomic_state *state)
+				       struct drm_atomic_commit *state)
 {
 	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
 
@@ -1086,7 +1086,7 @@ static void mtk_hdmi_v2_bridge_disable(struct drm_bridge *bridge,
 }
 
 static void mtk_hdmi_v2_bridge_post_disable(struct drm_bridge *bridge,
-					    struct drm_atomic_state *state)
+					    struct drm_atomic_commit *state)
 {
 	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
 

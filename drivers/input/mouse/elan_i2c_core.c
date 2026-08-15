@@ -16,27 +16,27 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/firmware.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
+#include <linux/input.h>
 #include <linux/input/mt.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/string_choices.h>
-#include <linux/input.h>
-#include <linux/uaccess.h>
 #include <linux/jiffies.h>
-#include <linux/completion.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/pm_wakeirq.h>
 #include <linux/property.h>
 #include <linux/regulator/consumer.h>
+#include <linux/sched.h>
+#include <linux/slab.h>
+#include <linux/string_choices.h>
+#include <linux/uaccess.h>
 #include <linux/unaligned.h>
 
 #include "elan_i2c.h"
@@ -86,6 +86,7 @@ struct elan_tp_data {
 	u16			ic_type;
 	u16			fw_validpage_count;
 	u16			fw_page_size;
+	u16			fw_page_delay;
 	u32			fw_signature_address;
 
 	u8			min_baseline;
@@ -127,8 +128,11 @@ static u32 elan_i2c_lookup_quirks(u16 ic_type, u16 product_id)
 }
 
 static int elan_get_fwinfo(u16 ic_type, u8 iap_version, u16 *validpage_count,
-			   u32 *signature_address, u16 *page_size)
+			   u32 *signature_address, u16 *page_size,
+			   u16 *page_delay)
 {
+	*page_delay = 30;
+
 	switch (ic_type) {
 	case 0x00:
 	case 0x06:
@@ -164,6 +168,7 @@ static int elan_get_fwinfo(u16 ic_type, u8 iap_version, u16 *validpage_count,
 		break;
 	case 0x19:
 		*validpage_count = 2032;
+		*page_delay = 10;
 		break;
 	default:
 		/* unknown ic type clear value */
@@ -179,6 +184,7 @@ static int elan_get_fwinfo(u16 ic_type, u8 iap_version, u16 *validpage_count,
 	if ((ic_type == 0x14 || ic_type == 0x15) && iap_version >= 2) {
 		*validpage_count /= 8;
 		*page_size = ETP_FW_PAGE_SIZE_512;
+		*page_delay = 50;
 	} else if (ic_type >= 0x0D && iap_version >= 1) {
 		*validpage_count /= 2;
 		*page_size = ETP_FW_PAGE_SIZE_128;
@@ -368,7 +374,8 @@ static int elan_query_device_info(struct elan_tp_data *data)
 	error = elan_get_fwinfo(data->ic_type, data->iap_version,
 				&data->fw_validpage_count,
 				&data->fw_signature_address,
-				&data->fw_page_size);
+				&data->fw_page_size,
+				&data->fw_page_delay);
 	if (error)
 		dev_warn(&data->client->dev,
 			 "unexpected iap version %#04x (ic type: %#04x), firmware update will not work\n",
@@ -479,14 +486,16 @@ static int elan_query_device_parameters(struct elan_tp_data *data)
  **********************************************************
  */
 static int elan_write_fw_block(struct elan_tp_data *data, u16 page_size,
-			       const u8 *page, u16 checksum, int idx)
+			       u16 page_delay, const u8 *page, u16 checksum,
+			       int idx)
 {
 	int retry = ETP_RETRY_COUNT;
 	int error;
 
 	do {
 		error = data->ops->write_fw_block(data->client, page_size,
-						  page, checksum, idx);
+						  page_delay, page, checksum,
+						  idx);
 		if (!error)
 			return 0;
 
@@ -525,7 +534,8 @@ static int __elan_update_firmware(struct elan_tp_data *data,
 			checksum += ((page[j + 1] << 8) | page[j]);
 
 		error = elan_write_fw_block(data, data->fw_page_size,
-					    page, checksum, i);
+					    data->fw_page_delay, page, checksum,
+					    i);
 		if (error) {
 			dev_err(dev, "write page %d fail: %d\n", i, error);
 			return error;

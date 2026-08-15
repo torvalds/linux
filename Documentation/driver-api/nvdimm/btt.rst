@@ -161,9 +161,8 @@ process::
 	nlanes = min(nfree, num_cpus)
 
 A lane number is obtained at the start of any IO, and is used for indexing into
-all the on-disk and in-memory data structures for the duration of the IO. If
-there are more CPUs than the max number of available lanes, than lanes are
-protected by spinlocks.
+all the on-disk and in-memory data structures for the duration of the IO. Lanes
+are protected by mutexes.
 
 
 d. In-memory data structure: Read Tracking Table (RTT)

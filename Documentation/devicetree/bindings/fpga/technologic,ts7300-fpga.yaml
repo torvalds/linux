@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/fpga/technologic,ts7300-fpga.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Technologic Systems TS-7300 FPGA Manager
+
+maintainers:
+  - Florian Fainelli <f.fainelli@gmail.com>
+
+description:
+  FPGA manager for the Altera Cyclone II FPGA on Technologic Systems
+  TS-7300 board. The FPGA is programmed via the memory-mapped interface
+  implemented in the CPLD.
+
+properties:
+  compatible:
+    const: technologic,ts7300-fpga
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    fpga-mgr@13c00000 {
+        compatible = "technologic,ts7300-fpga";
+        reg = <0x13c00000 0x2>;
+    };
+...

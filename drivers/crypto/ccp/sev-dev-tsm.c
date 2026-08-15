@@ -58,13 +58,13 @@ static int stream_enable(struct pci_ide *ide)
 	struct pci_dev *rp = pcie_find_root_port(ide->pdev);
 	int ret;
 
-	ret = pci_ide_stream_enable(rp, ide);
-	if (ret)
+	ret = pci_ide_stream_enable(ide->pdev, ide);
+	if (ret && ret != -ENXIO)
 		return ret;
 
-	ret = pci_ide_stream_enable(ide->pdev, ide);
-	if (ret)
-		pci_ide_stream_disable(rp, ide);
+	ret = pci_ide_stream_enable(rp, ide);
+	if (ret && ret != -ENXIO)
+		pci_ide_stream_disable(ide->pdev, ide);
 
 	return ret;
 }
@@ -248,11 +248,18 @@ static void dsm_remove(struct pci_tsm *tsm)
 static int dsm_create(struct tio_dsm *dsm)
 {
 	struct pci_dev *pdev = dsm->tsm.base_tsm.pdev;
-	u8 segment_id = pdev->bus ? pci_domain_nr(pdev->bus) : 0;
-	struct pci_dev *rootport = pcie_find_root_port(pdev);
-	u16 device_id = pci_dev_id(pdev);
+	struct pci_dev *rootport;
+	u8 segment_id;
+	u16 device_id;
 	u16 root_port_id;
 	u32 lnkcap = 0;
+
+	if (!pdev->bus)
+		return -ENODEV;
+
+	segment_id = pci_domain_nr(pdev->bus);
+	rootport = pcie_find_root_port(pdev);
+	device_id = pci_dev_id(pdev);
 
 	if (pci_read_config_dword(rootport, pci_pcie_cap(rootport) + PCI_EXP_LNKCAP,
 				  &lnkcap))

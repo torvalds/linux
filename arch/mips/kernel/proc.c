@@ -79,7 +79,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		for (i = 0; i < cpu_data[n].watch_reg_count; i++)
 			seq_printf(m, "%s0x%04x", i ? ", " : "",
 				cpu_data[n].watch_reg_masks[i]);
-		seq_puts(m, "]");
+		seq_putc(m, ']');
 	}
 
 	seq_puts(m, "\nisa\t\t\t:");
@@ -150,12 +150,11 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		seq_puts(m, " loongson-ext");
 	if (cpu_has_loongson_ext2)
 		seq_puts(m, " loongson-ext2");
-	seq_puts(m, "\n");
+	seq_putc(m, '\n');
 
-	if (cpu_has_mmips) {
+	if (cpu_has_mmips)
 		seq_printf(m, "micromips kernel\t: %s\n",
 		      str_yes_no(read_c0_config3() & MIPS_CONF3_ISA_OE));
-	}
 
 	seq_puts(m, "Options implemented\t:");
 	if (cpu_has_tlb)
@@ -301,7 +300,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	raw_notifier_call_chain(&proc_cpuinfo_chain, 0,
 				&proc_cpuinfo_notifier_args);
 
-	seq_puts(m, "\n");
+	seq_putc(m, '\n');
 
 	return 0;
 }

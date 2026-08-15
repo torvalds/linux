@@ -99,7 +99,7 @@
 
 &ifm_pmic {
 	interrupt-parent = <&gpio5>;
-	interrupts = <17 GPIO_ACTIVE_LOW>;
+	interrupts = <17 IRQ_TYPE_LEVEL_LOW>;
 };
 
 &iomuxc {

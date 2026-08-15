@@ -227,6 +227,65 @@ DECLARE_EVENT_CLASS(block_rq,
 );
 
 /**
+ * block_rq_tag_wait - triggered when a request is starved of a tag
+ * @q: request queue of the target device
+ * @hctx: hardware context of the request experiencing starvation
+ * @is_sched_tag: indicates whether the starved pool is the software scheduler
+ * @alloc_flags: allocation flags dictating the specific tag pool
+ *
+ * Called immediately before the submitting context is forced to block due
+ * to the exhaustion of available tags (i.e., physical hardware driver
+ * tags, software scheduler tags, or reserved tags). This trace point
+ * indicates that the context will be placed into an uninterruptible state
+ * via sbitmap_prepare_to_wait(). If a tag is not acquired in the final
+ * lockless retry, the context will yield the CPU via io_schedule() until
+ * an active request completes and relinquishes its assigned tag.
+ */
+TRACE_EVENT(block_rq_tag_wait,
+
+	TP_PROTO(struct request_queue *q, struct blk_mq_hw_ctx *hctx,
+		 bool is_sched_tag, unsigned int alloc_flags),
+
+	TP_ARGS(q, hctx, is_sched_tag, alloc_flags),
+
+	TP_STRUCT__entry(
+		__field( dev_t,		dev			)
+		__field( u32,		hctx_id			)
+		__field( u32,		nr_tags			)
+		__field( bool,		is_sched_tag		)
+		__field( bool,		is_reserved		)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= q->disk ? disk_devt(q->disk) : 0;
+		__entry->hctx_id	= hctx->queue_num;
+		__entry->is_sched_tag	= is_sched_tag;
+		__entry->is_reserved	= alloc_flags & BLK_MQ_REQ_RESERVED;
+
+		if (__entry->is_reserved) {
+			__entry->nr_tags = is_sched_tag ?
+					   hctx->sched_tags->nr_reserved_tags :
+					   hctx->tags->nr_reserved_tags;
+		} else {
+			if (is_sched_tag)
+				__entry->nr_tags = hctx->sched_tags->nr_tags -
+						   hctx->sched_tags->nr_reserved_tags;
+			else
+				__entry->nr_tags = hctx->tags->nr_tags -
+						   hctx->tags->nr_reserved_tags;
+		}
+
+	),
+
+	TP_printk("%d,%d hctx=%u starved on %s%s tags (depth=%u)",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->hctx_id,
+		  __entry->is_sched_tag ? "scheduler" : "hardware",
+		  __entry->is_reserved ? " reserved" : "",
+		  __entry->nr_tags)
+);
+
+/**
  * block_rq_insert - insert block operation request into queue
  * @rq: block IO operation request
  *

@@ -367,7 +367,7 @@ So, one KMS-Obj represents a sub-pipeline of komeda resources.
 So, for komeda, we treat KMS crtc/plane/connector as users of pipeline and
 component, and at any one time a pipeline/component only can be used by one
 user. And pipeline/component will be treated as private object of DRM-KMS; the
-state will be managed by drm_atomic_state as well.
+state will be managed by drm_atomic_commit as well.
 
 How to map plane to Layer(input) pipeline
 -----------------------------------------
@@ -416,8 +416,8 @@ Add :c:type:`drm_private_obj` to :c:type:`komeda_component`, :c:type:`komeda_pip
         ...
     }
 
-Tracking component_state/pipeline_state by drm_atomic_state
------------------------------------------------------------
+Tracking component_state/pipeline_state by drm_atomic_commit
+------------------------------------------------------------
 
 Add :c:type:`drm_private_state` and user to :c:type:`komeda_component_state`,
 :c:type:`komeda_pipeline_state`
@@ -454,7 +454,7 @@ similar, usually including the following steps:
                   put the data flow into next stage.
          Setup 2: check user_state with component features and capabilities to see
                   if requirements can be met; if not, return fail.
-         Setup 3: get component_state from drm_atomic_state, and try set to set
+         Setup 3: get component_state from drm_atomic_commit, and try set to set
                   user to component; fail if component has been assigned to another
                   user already.
          Setup 3: configure the component_state, like set its input component,

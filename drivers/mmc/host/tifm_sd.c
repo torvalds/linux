@@ -1041,9 +1041,10 @@ static int tifm_sd_resume(struct tifm_dev *sock)
 
 #endif /* CONFIG_PM */
 
-static struct tifm_device_id tifm_sd_id_tbl[] = {
+static const struct tifm_device_id tifm_sd_id_tbl[] = {
 	{ TIFM_TYPE_SD }, { }
 };
+MODULE_DEVICE_TABLE(tifm, tifm_sd_id_tbl);
 
 static struct tifm_driver tifm_sd_driver = {
 	.driver = {
@@ -1070,7 +1071,6 @@ static void __exit tifm_sd_exit(void)
 MODULE_AUTHOR("Alex Dubov");
 MODULE_DESCRIPTION("TI FlashMedia SD driver");
 MODULE_LICENSE("GPL");
-MODULE_DEVICE_TABLE(tifm, tifm_sd_id_tbl);
 MODULE_VERSION(DRIVER_VERSION);
 
 module_init(tifm_sd_init);

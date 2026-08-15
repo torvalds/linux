@@ -109,7 +109,7 @@ static void clmul64(u64 a, u64 b, u64 *out_lo, u64 *out_hi)
 #else /* CONFIG_ARCH_SUPPORTS_INT128 */
 
 /* Do a 32 x 32 => 64 bit carryless multiplication. */
-static u64 clmul32(u32 a, u32 b)
+static noinline_for_stack u64 clmul32(u32 a, u32 b)
 {
 	/*
 	 * With 32-bit multiplicands and one term every 4 bits, there are up to

@@ -53,11 +53,11 @@ static int ntfs_ea_lookup(char *ea_buf, s64 ea_buf_size, const char *name,
 	loff_t offset, p_ea_size;
 	unsigned int next;
 
-	if (ea_buf_size < sizeof(struct ea_attr))
-		goto out;
-
 	offset = 0;
 	do {
+		if (ea_buf_size - offset < sizeof(struct ea_attr))
+			break;
+
 		p_ea = (const struct ea_attr *)&ea_buf[offset];
 		next = le32_to_cpu(p_ea->next_entry_offset);
 		p_ea_size = next ? next : (ea_buf_size - offset);
@@ -479,13 +479,13 @@ ssize_t ntfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	if (ea_info_qsize > ea_buf_size || ea_info_qsize == 0)
 		goto out;
 
-	if (ea_info_qsize < sizeof(struct ea_attr)) {
-		err = -EIO;
-		goto out;
-	}
-
 	offset = 0;
 	do {
+		if (ea_info_qsize - offset < sizeof(struct ea_attr)) {
+			err = -EIO;
+			goto out;
+		}
+
 		p_ea = (const struct ea_attr *)&ea_buf[offset];
 		next = le32_to_cpu(p_ea->next_entry_offset);
 		ea_size = next ? next : (ea_info_qsize - offset);

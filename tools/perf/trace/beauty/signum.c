@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: LGPL-2.1
+#include "trace/beauty/beauty.h"
+
 #include <signal.h>
 
-static size_t syscall_arg__scnprintf_signum(char *bf, size_t size, struct syscall_arg *arg)
+size_t syscall_arg__scnprintf_signum(char *bf, size_t size, struct syscall_arg *arg)
 {
 	bool show_prefix = arg->show_string_prefix;
 	const char *prefix = "SIG";
@@ -53,5 +55,3 @@ static size_t syscall_arg__scnprintf_signum(char *bf, size_t size, struct syscal
 
 	return scnprintf(bf, size, "%#x", sig);
 }
-
-#define SCA_SIGNUM syscall_arg__scnprintf_signum

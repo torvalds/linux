@@ -298,14 +298,18 @@ static ssize_t qat_vf_resume_write(struct file *filp, const char __user *buf,
 		return -ESPIPE;
 	offs = &filp->f_pos;
 
-	if (*offs < 0 ||
-	    check_add_overflow(len, *offs, &end))
-		return -EOVERFLOW;
-
-	if (end > mig_dev->state_size)
-		return -ENOMEM;
-
 	mutex_lock(&migf->lock);
+
+	if (*offs < 0 || check_add_overflow(len, *offs, &end)) {
+		done = -EOVERFLOW;
+		goto out_unlock;
+	}
+
+	if (end > mig_dev->state_size) {
+		done = -ENOMEM;
+		goto out_unlock;
+	}
+
 	if (migf->disabled) {
 		done = -ENODEV;
 		goto out_unlock;

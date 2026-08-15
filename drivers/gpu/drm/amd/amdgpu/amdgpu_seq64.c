@@ -173,16 +173,17 @@ error:
 int amdgpu_seq64_alloc(struct amdgpu_device *adev, u64 *va,
 		       u64 *gpu_addr, u64 **cpu_addr)
 {
-	unsigned long bit_pos;
+	unsigned long bit_pos = 0;
 
-	for (;;) {
-		bit_pos = find_first_zero_bit(adev->seq64.used, adev->seq64.num_sem);
+	do {
+		bit_pos = find_next_zero_bit(adev->seq64.used,
+				     adev->seq64.num_sem, bit_pos);
 		if (bit_pos >= adev->seq64.num_sem)
 			return -ENOSPC;
-
 		if (!test_and_set_bit(bit_pos, adev->seq64.used))
 			break;
-	}
+		bit_pos++;
+	} while (1);
 
 	*va = bit_pos * sizeof(u64) + amdgpu_seq64_get_va_base(adev);
 

@@ -4,6 +4,7 @@
 #include <linux/of_address.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
 
 #include <drm/clients/drm_client_setup.h>
 #include <drm/drm_atomic.h>
@@ -20,6 +21,7 @@
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_managed.h>
+#include <drm/drm_modeset_helper.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
@@ -725,7 +727,7 @@ static const struct drm_plane_funcs ofdrm_primary_plane_funcs = {
 	.destroy = drm_plane_cleanup,
 };
 
-static void ofdrm_crtc_helper_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_state *state)
+static void ofdrm_crtc_helper_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_commit *state)
 {
 	struct ofdrm_device *odev = ofdrm_device_of_dev(crtc->dev);
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
@@ -1097,6 +1099,22 @@ static struct drm_driver ofdrm_driver = {
  * Platform driver
  */
 
+static int ofdrm_pm_suspend(struct device *dev)
+{
+	struct drm_device *drm = dev_get_drvdata(dev);
+
+	return drm_mode_config_helper_suspend(drm);
+}
+
+static int ofdrm_pm_resume(struct device *dev)
+{
+	struct drm_device *drm = dev_get_drvdata(dev);
+
+	return drm_mode_config_helper_resume(drm);
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(ofdrm_pm_ops, ofdrm_pm_suspend, ofdrm_pm_resume);
+
 static int ofdrm_probe(struct platform_device *pdev)
 {
 	struct ofdrm_device *odev;
@@ -1136,6 +1154,7 @@ static struct platform_driver ofdrm_platform_driver = {
 	.driver = {
 		.name = "of-display",
 		.of_match_table = ofdrm_of_match_display,
+		.pm = pm_sleep_ptr(&ofdrm_pm_ops),
 	},
 	.probe = ofdrm_probe,
 	.remove = ofdrm_remove,

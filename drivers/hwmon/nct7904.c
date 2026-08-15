@@ -1146,8 +1146,8 @@ static int nct7904_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id nct7904_id[] = {
-	{"nct7904"},
-	{}
+	{ .name = "nct7904" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, nct7904_id);
 

@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/ti/ti,omap-dmm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: OMAP Dynamic Memory Manager (DMM)
+
+maintainers:
+  - Bhargav Joshi <j.bhargav.u@gmail.com>
+
+description:
+  The dynamic memory manager (DMM) is a module located immediately in front of
+  the SDRAM controllers (called EMIFs on OMAP). DMM manages various aspects of
+  memory accesses such as priority generation amongst initiators, configuration
+  of SDRAM interleaving, optimizing transfer of 2D block objects, and provide
+  MMU-like page translation for initiators which need contiguous dma bus
+  addresses.
+
+properties:
+  compatible:
+    enum:
+      - ti,omap4-dmm
+      - ti,omap5-dmm
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  ti,hwmods:
+    $ref: /schemas/types.yaml#/definitions/string
+    description: Name of the hwmod associated to DMM, which is typically "dmm"
+    deprecated: true
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    dmm@4e000000 {
+      compatible = "ti,omap4-dmm";
+      reg = <0x4e000000 0x800>;
+      interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
+      ti,hwmods = "dmm";
+    };

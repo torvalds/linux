@@ -10,6 +10,8 @@ struct drm_file;
 struct drm_gem_object;
 struct drm_mode_fb_cmd2;
 struct drm_scanout_buffer;
+struct fb_info;
+struct i915_vma;
 struct intel_display;
 struct intel_framebuffer;
 struct seq_file;
@@ -30,5 +32,11 @@ int intel_bo_framebuffer_init(struct drm_gem_object *obj, struct drm_mode_fb_cmd
 struct drm_gem_object *intel_bo_framebuffer_lookup(struct intel_display *display,
 						   struct drm_file *filp,
 						   const struct drm_mode_fb_cmd2 *user_mode_cmd);
+
+u32 intel_bo_fbdev_pitch_align(struct intel_display *display, u32 stride);
+struct drm_gem_object *intel_bo_fbdev_create(struct intel_display *display, int size);
+void intel_bo_fbdev_destroy(struct drm_gem_object *obj);
+int intel_bo_fbdev_fill_info(struct drm_gem_object *obj, struct fb_info *info,
+			     struct i915_vma *vma);
 
 #endif /* __INTEL_BO__ */

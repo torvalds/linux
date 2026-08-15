@@ -263,6 +263,7 @@ void opp1_set_dyn_expansion(
 	/*00 - 10-bit -> 12-bit dynamic expansion*/
 	/*01 - 8-bit  -> 12-bit dynamic expansion*/
 	if (signal == SIGNAL_TYPE_HDMI_TYPE_A ||
+		signal == SIGNAL_TYPE_HDMI_FRL ||
 		signal == SIGNAL_TYPE_DISPLAY_PORT ||
 		signal == SIGNAL_TYPE_DISPLAY_PORT_MST ||
 		signal == SIGNAL_TYPE_VIRTUAL) {

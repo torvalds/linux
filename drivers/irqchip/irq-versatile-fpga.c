@@ -89,7 +89,7 @@ static void fpga_irq_handle(struct irq_desc *desc)
 
 	status = readl(f->base + IRQ_STATUS);
 	if (status == 0) {
-		do_bad_IRQ(desc);
+		handle_bad_irq(desc);
 		goto out;
 	}
 

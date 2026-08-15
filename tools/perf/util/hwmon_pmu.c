@@ -202,7 +202,8 @@ bool parse_hwmon_filename(const char *filename,
 	fn_item_len = strlen(fn_item);
 	if (fn_item_len > 6 && !strcmp(&fn_item[fn_item_len - 6], "_alarm")) {
 		assert(strlen(LONGEST_HWMON_ITEM_STR) < sizeof(fn_type));
-		strlcpy(fn_type, fn_item, fn_item_len - 5);
+		/* fn_item_len - 5 strips "_alarm"; clamp to buffer size */
+		strlcpy(fn_type, fn_item, min_t(size_t, fn_item_len - 5, sizeof(fn_type)));
 		fn_item = fn_type;
 		*alarm = true;
 	}
@@ -289,13 +290,16 @@ static int hwmon_pmu__read_events(struct hwmon_pmu *pmu)
 			if (fd < 0)
 				continue;
 
-			read_len = read(fd, buf, sizeof(buf));
+			read_len = read(fd, buf, sizeof(buf) - 1);
 
 			while (read_len > 0 && buf[read_len - 1] == '\n')
 				read_len--;
 
-			if (read_len > 0)
-				buf[read_len] = '\0';
+			if (read_len <= 0) {
+				close(fd);
+				continue;
+			}
+			buf[read_len] = '\0';
 
 			if (buf[0] == '\0') {
 				pr_debug("hwmon_pmu: empty label file %s %s\n",
@@ -431,8 +435,8 @@ static size_t hwmon_pmu__describe_items(struct hwmon_pmu *hwm, char *out_buf, si
 			hwmon_item_strs[bit],
 			is_alarm ? "_alarm" : "");
 		fd = openat(dir, buf, O_RDONLY);
-		if (fd > 0) {
-			ssize_t read_len = read(fd, buf, sizeof(buf));
+		if (fd >= 0) {
+			ssize_t read_len = read(fd, buf, sizeof(buf) - 1);
 
 			while (read_len > 0 && buf[read_len - 1] == '\n')
 				read_len--;
@@ -442,12 +446,12 @@ static size_t hwmon_pmu__describe_items(struct hwmon_pmu *hwm, char *out_buf, si
 
 				buf[read_len] = '\0';
 				val = strtoll(buf, /*endptr=*/NULL, 10);
-				len += snprintf(out_buf + len, out_buf_len - len, "%s%s%s=%g%s",
-						len == 0 ? " " : ", ",
-						hwmon_item_strs[bit],
-						is_alarm ? "_alarm" : "",
-						(double)val / 1000.0,
-						hwmon_units[key.type]);
+				len += scnprintf(out_buf + len, out_buf_len - len, "%s%s%s=%g%s",
+						 len == 0 ? " " : ", ",
+						 hwmon_item_strs[bit],
+						 is_alarm ? "_alarm" : "",
+						 (double)val / 1000.0,
+						 hwmon_units[key.type]);
 			}
 			close(fd);
 		}
@@ -514,14 +518,14 @@ int hwmon_pmu__for_each_event(struct perf_pmu *pmu, void *state, pmu_event_callb
 		int ret;
 		size_t len;
 
-		len = snprintf(alias_buf, sizeof(alias_buf), "%s%d",
-			       hwmon_type_strs[key.type], key.num);
+		scnprintf(alias_buf, sizeof(alias_buf), "%s%d",
+			  hwmon_type_strs[key.type], key.num);
 		if (!info.name) {
 			info.name = info.alias;
 			info.alias = NULL;
 		}
 
-		len = snprintf(desc_buf, sizeof(desc_buf), "%s in unit %s named %s.",
+		len = scnprintf(desc_buf, sizeof(desc_buf), "%s in unit %s named %s.",
 			hwmon_desc[key.type],
 			pmu->name + 6,
 			value->label ?: info.name);
@@ -816,7 +820,7 @@ int evsel__hwmon_pmu_read(struct evsel *evsel, int cpu_map_idx, int thread)
 
 	count = perf_counts(evsel->counts, cpu_map_idx, thread);
 	fd = FD(evsel, cpu_map_idx, thread);
-	len = pread(fd, buf, sizeof(buf), 0);
+	len = pread(fd, buf, sizeof(buf) - 1, 0);
 	if (len <= 0) {
 		count->lost++;
 		return -EINVAL;

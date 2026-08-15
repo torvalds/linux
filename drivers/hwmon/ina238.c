@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/regmap.h>
+#include <linux/util_macros.h>
 
 /* INA238 register definitions */
 #define INA238_CONFIG			0x0
@@ -48,6 +49,17 @@
 #define INA238_DIAG_ALERT_BUSOL		BIT(4)
 #define INA238_DIAG_ALERT_BUSUL		BIT(3)
 #define INA238_DIAG_ALERT_POL		BIT(2)
+
+/* INA238_ADC_CONFIG register field masks and shifts */
+#define INA238_ADC_CONFIG_MODE_MASK	GENMASK(15, 12)
+#define INA238_ADC_CONFIG_VBUSCT_SHIFT	9
+#define INA238_ADC_CONFIG_VBUSCT_MASK	GENMASK(11, 9)
+#define INA238_ADC_CONFIG_VSHCT_SHIFT	6
+#define INA238_ADC_CONFIG_VSHCT_MASK	GENMASK(8, 6)
+#define INA238_ADC_CONFIG_VTCT_SHIFT	3
+#define INA238_ADC_CONFIG_VTCT_MASK	GENMASK(5, 3)
+#define INA238_ADC_CONFIG_AVG_SHIFT	0
+#define INA238_ADC_CONFIG_AVG_MASK	GENMASK(2, 0)
 
 #define INA238_REGISTERS		0x20
 
@@ -101,6 +113,21 @@ static const struct regmap_config ina238_regmap_config = {
 	.val_bits = 16,
 };
 
+/* Lookup table for conversion times in usec for INA238 family */
+static const u16 ina238_conv_time[] = {
+	50, 84, 150, 280, 540, 1052, 2074, 4120,
+};
+
+/* Lookup table for conversion times in usec for SQ52206 */
+static const u16 sq52206_conv_time[] = {
+	66, 118, 310, 566, 1070, 2090, 4140, 8230,
+};
+
+/* Lookup table for number of samples used in averaging mode */
+static const int ina238_avg_samples[] = {
+	1, 4, 16, 64, 128, 256, 512, 1024,
+};
+
 enum ina238_ids { ina228, ina237, ina238, ina700, ina780, sq52206 };
 
 struct ina238_config {
@@ -112,6 +139,7 @@ struct ina238_config {
 	u32 power_calculate_factor;	/* fixed parameter for power calculation, from datasheet */
 	u32 bus_voltage_lsb;		/* bus voltage LSB, in nV */
 	int current_lsb;		/* current LSB, in uA */
+	const u16 *conv_time;		/* conversion time lookup table */
 };
 
 struct ina238_data {
@@ -124,6 +152,7 @@ struct ina238_data {
 	int current_lsb;		/* current LSB, in uA */
 	int power_lsb;			/* power LSB, in uW */
 	int energy_lsb;			/* energy LSB, in uJ */
+	u16 adc_config;			/* cached ADC_CONFIG register value */
 };
 
 static const struct ina238_config ina238_config[] = {
@@ -135,6 +164,7 @@ static const struct ina238_config ina238_config[] = {
 		.config_default = INA238_CONFIG_DEFAULT,
 		.bus_voltage_lsb = INA238_BUS_VOLTAGE_LSB,
 		.temp_resolution = 16,
+		.conv_time = ina238_conv_time,
 	},
 	[ina237] = {
 		.has_20bit_voltage_current = false,
@@ -144,6 +174,7 @@ static const struct ina238_config ina238_config[] = {
 		.config_default = INA238_CONFIG_DEFAULT,
 		.bus_voltage_lsb = INA238_BUS_VOLTAGE_LSB,
 		.temp_resolution = 12,
+		.conv_time = ina238_conv_time,
 	},
 	[ina238] = {
 		.has_20bit_voltage_current = false,
@@ -153,6 +184,7 @@ static const struct ina238_config ina238_config[] = {
 		.config_default = INA238_CONFIG_DEFAULT,
 		.bus_voltage_lsb = INA238_BUS_VOLTAGE_LSB,
 		.temp_resolution = 12,
+		.conv_time = ina238_conv_time,
 	},
 	[ina700] = {
 		.has_20bit_voltage_current = false,
@@ -163,6 +195,7 @@ static const struct ina238_config ina238_config[] = {
 		.bus_voltage_lsb = INA238_BUS_VOLTAGE_LSB,
 		.temp_resolution = 12,
 		.current_lsb = 480,
+		.conv_time = ina238_conv_time,
 	},
 	[ina780] = {
 		.has_20bit_voltage_current = false,
@@ -173,6 +206,7 @@ static const struct ina238_config ina238_config[] = {
 		.bus_voltage_lsb = INA238_BUS_VOLTAGE_LSB,
 		.temp_resolution = 12,
 		.current_lsb = 2400,
+		.conv_time = ina238_conv_time,
 	},
 	[sq52206] = {
 		.has_20bit_voltage_current = false,
@@ -182,6 +216,7 @@ static const struct ina238_config ina238_config[] = {
 		.config_default = SQ52206_CONFIG_DEFAULT,
 		.bus_voltage_lsb = SQ52206_BUS_VOLTAGE_LSB,
 		.temp_resolution = 16,
+		.conv_time = sq52206_conv_time,
 	},
 };
 
@@ -259,6 +294,111 @@ static int ina228_read_voltage(struct ina238_data *data, int channel, long *val)
 
 	*val = DIV_S64_ROUND_CLOSEST((s64)regval * lsb, factor);
 	return 0;
+}
+
+/* Converting ADC_CONFIG register value to update_interval in usec */
+static inline u32 ina238_reg_to_interval_us(struct ina238_data *data)
+{
+	const u16 *ct = data->config->conv_time;
+	u32 vbusct = ct[(data->adc_config & INA238_ADC_CONFIG_VBUSCT_MASK) >>
+			INA238_ADC_CONFIG_VBUSCT_SHIFT];
+	u32 vshct  = ct[(data->adc_config & INA238_ADC_CONFIG_VSHCT_MASK) >>
+			INA238_ADC_CONFIG_VSHCT_SHIFT];
+	u32 vtct   = ct[(data->adc_config & INA238_ADC_CONFIG_VTCT_MASK) >>
+			INA238_ADC_CONFIG_VTCT_SHIFT];
+
+	return vbusct + vshct + vtct;
+}
+
+static inline u32 ina238_samples(struct ina238_data *data)
+{
+	return ina238_avg_samples[(data->adc_config & INA238_ADC_CONFIG_AVG_MASK) >>
+				  INA238_ADC_CONFIG_AVG_SHIFT];
+}
+
+/* Converting update_interval(_us) to a per-field conversion time in usec.
+ * interval_us is the total ADC cycle time including averaging in microseconds.
+ * All three conversion fields (VBUSCT, VSHCT, VTCT) are set equal, so the
+ * per-field time is interval_us / (samples * 3).
+ */
+static inline u32 ina238_interval_us_to_conv_time(u32 interval_us, u32 samples)
+{
+	return DIV_ROUND_CLOSEST_ULL(interval_us, samples * 3);
+}
+
+/* Write a per-field conversion time (in usec) to the ADC_CONFIG register */
+static int ina238_write_conv_time(struct ina238_data *data, u32 conv_time_us)
+{
+	u16 adc_config;
+	int idx, ret;
+
+	idx = find_closest(conv_time_us, data->config->conv_time,
+			   ARRAY_SIZE(ina238_conv_time));
+	adc_config = (data->adc_config &
+		      ~(INA238_ADC_CONFIG_VBUSCT_MASK |
+			INA238_ADC_CONFIG_VSHCT_MASK |
+			INA238_ADC_CONFIG_VTCT_MASK)) |
+		     ((u16)idx << INA238_ADC_CONFIG_VBUSCT_SHIFT) |
+		     ((u16)idx << INA238_ADC_CONFIG_VSHCT_SHIFT) |
+		     ((u16)idx << INA238_ADC_CONFIG_VTCT_SHIFT);
+	ret = regmap_write(data->regmap, INA238_ADC_CONFIG, adc_config);
+	if (ret)
+		return ret;
+	data->adc_config = adc_config;
+	return 0;
+}
+
+static int ina238_read_chip(struct device *dev, u32 attr, long *val)
+{
+	struct ina238_data *data = dev_get_drvdata(dev);
+
+	switch (attr) {
+	case hwmon_chip_samples:
+		*val = ina238_samples(data);
+		return 0;
+	case hwmon_chip_update_interval:
+		/* Return in msec */
+		*val = DIV_ROUND_CLOSEST(ina238_reg_to_interval_us(data) *
+					ina238_samples(data), 1000);
+		return 0;
+	case hwmon_chip_update_interval_us:
+		/* Return in usec */
+		*val = ina238_reg_to_interval_us(data) * ina238_samples(data);
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int ina238_write_chip(struct device *dev, u32 attr, long val)
+{
+	struct ina238_data *data = dev_get_drvdata(dev);
+	u16 adc_config;
+	int idx, ret;
+
+	switch (attr) {
+	case hwmon_chip_samples:
+		idx = find_closest(val, ina238_avg_samples,
+				   ARRAY_SIZE(ina238_avg_samples));
+		adc_config = (data->adc_config & ~INA238_ADC_CONFIG_AVG_MASK) |
+			     (idx << INA238_ADC_CONFIG_AVG_SHIFT);
+		ret = regmap_write(data->regmap, INA238_ADC_CONFIG, adc_config);
+		if (ret)
+			return ret;
+		data->adc_config = adc_config;
+		return 0;
+	case hwmon_chip_update_interval:
+		/* Convert ms to us before passing to the shared helper */
+		val = clamp_val(val, 0, INT_MAX / 1000) * 1000;
+		return ina238_write_conv_time(data,
+			ina238_interval_us_to_conv_time((u32)val, ina238_samples(data)));
+	case hwmon_chip_update_interval_us:
+		val = clamp_val(val, 0, INT_MAX);
+		return ina238_write_conv_time(data,
+			ina238_interval_us_to_conv_time((u32)val, ina238_samples(data)));
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static int ina238_read_in(struct device *dev, u32 attr, int channel,
@@ -587,6 +727,8 @@ static int ina238_read(struct device *dev, enum hwmon_sensor_types type,
 		       u32 attr, int channel, long *val)
 {
 	switch (type) {
+	case hwmon_chip:
+		return ina238_read_chip(dev, attr, val);
 	case hwmon_in:
 		return ina238_read_in(dev, attr, channel, val);
 	case hwmon_curr:
@@ -607,6 +749,8 @@ static int ina238_write(struct device *dev, enum hwmon_sensor_types type,
 			u32 attr, int channel, long val)
 {
 	switch (type) {
+	case hwmon_chip:
+		return ina238_write_chip(dev, attr, val);
 	case hwmon_in:
 		return ina238_write_in(dev, attr, channel, val);
 	case hwmon_curr:
@@ -629,6 +773,15 @@ static umode_t ina238_is_visible(const void *drvdata,
 	bool has_energy = data->config->has_energy;
 
 	switch (type) {
+	case hwmon_chip:
+		switch (attr) {
+		case hwmon_chip_samples:
+		case hwmon_chip_update_interval:
+		case hwmon_chip_update_interval_us:
+			return 0644;
+		default:
+			return 0;
+		}
 	case hwmon_in:
 		switch (attr) {
 		case hwmon_in_input:
@@ -692,6 +845,9 @@ static umode_t ina238_is_visible(const void *drvdata,
 				HWMON_I_MIN | HWMON_I_MIN_ALARM)
 
 static const struct hwmon_channel_info * const ina238_info[] = {
+	HWMON_CHANNEL_INFO(chip,
+			   HWMON_C_SAMPLES | HWMON_C_UPDATE_INTERVAL |
+			   HWMON_C_UPDATE_INTERVAL_US),
 	HWMON_CHANNEL_INFO(in,
 			   /* 0: shunt voltage */
 			   INA238_HWMON_IN_CONFIG,
@@ -798,8 +954,8 @@ static int ina238_probe(struct i2c_client *client)
 	}
 
 	/* Setup ADC_CONFIG register */
-	ret = regmap_write(data->regmap, INA238_ADC_CONFIG,
-			   INA238_ADC_CONFIG_DEFAULT);
+	data->adc_config = INA238_ADC_CONFIG_DEFAULT;
+	ret = regmap_write(data->regmap, INA238_ADC_CONFIG, data->adc_config);
 	if (ret < 0) {
 		dev_err(dev, "error configuring the device: %d\n", ret);
 		return -ENODEV;
@@ -837,12 +993,12 @@ static int ina238_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ina238_id[] = {
-	{ "ina228", ina228 },
-	{ "ina237", ina237 },
-	{ "ina238", ina238 },
-	{ "ina700", ina700 },
-	{ "ina780", ina780 },
-	{ "sq52206", sq52206 },
+	{ .name = "ina228", .driver_data = ina228 },
+	{ .name = "ina237", .driver_data = ina237 },
+	{ .name = "ina238", .driver_data = ina238 },
+	{ .name = "ina700", .driver_data = ina700 },
+	{ .name = "ina780", .driver_data = ina780 },
+	{ .name = "sq52206", .driver_data = sq52206 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ina238_id);

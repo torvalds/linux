@@ -114,6 +114,9 @@
 	status = "disabled";
 };
 
+i2c_dhpdk_panel: &i2c5 {
+};
+
 &irqsteer_hdmi {
 	status = "disabled";
 };

@@ -51,14 +51,28 @@ static const struct nla_policy netdev_dev_get_nl_policy[NETDEV_A_DEV_IFINDEX + 1
 
 /* NETDEV_CMD_PAGE_POOL_GET - do */
 #ifdef CONFIG_PAGE_POOL
-static const struct nla_policy netdev_page_pool_get_nl_policy[NETDEV_A_PAGE_POOL_ID + 1] = {
+static const struct nla_policy netdev_page_pool_get_do_nl_policy[NETDEV_A_PAGE_POOL_ID + 1] = {
 	[NETDEV_A_PAGE_POOL_ID] = NLA_POLICY_FULL_RANGE(NLA_UINT, &netdev_a_page_pool_id_range),
+};
+#endif /* CONFIG_PAGE_POOL */
+
+/* NETDEV_CMD_PAGE_POOL_GET - dump */
+#ifdef CONFIG_PAGE_POOL
+static const struct nla_policy netdev_page_pool_get_dump_nl_policy[NETDEV_A_PAGE_POOL_IFINDEX + 1] = {
+	[NETDEV_A_PAGE_POOL_IFINDEX] = NLA_POLICY_FULL_RANGE(NLA_U32, &netdev_a_page_pool_ifindex_range),
 };
 #endif /* CONFIG_PAGE_POOL */
 
 /* NETDEV_CMD_PAGE_POOL_STATS_GET - do */
 #ifdef CONFIG_PAGE_POOL_STATS
-static const struct nla_policy netdev_page_pool_stats_get_nl_policy[NETDEV_A_PAGE_POOL_STATS_INFO + 1] = {
+static const struct nla_policy netdev_page_pool_stats_get_do_nl_policy[NETDEV_A_PAGE_POOL_STATS_INFO + 1] = {
+	[NETDEV_A_PAGE_POOL_STATS_INFO] = NLA_POLICY_NESTED(netdev_page_pool_info_nl_policy),
+};
+#endif /* CONFIG_PAGE_POOL_STATS */
+
+/* NETDEV_CMD_PAGE_POOL_STATS_GET - dump */
+#ifdef CONFIG_PAGE_POOL_STATS
+static const struct nla_policy netdev_page_pool_stats_get_dump_nl_policy[NETDEV_A_PAGE_POOL_STATS_INFO + 1] = {
 	[NETDEV_A_PAGE_POOL_STATS_INFO] = NLA_POLICY_NESTED(netdev_page_pool_info_nl_policy),
 };
 #endif /* CONFIG_PAGE_POOL_STATS */
@@ -138,28 +152,32 @@ static const struct genl_split_ops netdev_nl_ops[] = {
 	{
 		.cmd		= NETDEV_CMD_PAGE_POOL_GET,
 		.doit		= netdev_nl_page_pool_get_doit,
-		.policy		= netdev_page_pool_get_nl_policy,
+		.policy		= netdev_page_pool_get_do_nl_policy,
 		.maxattr	= NETDEV_A_PAGE_POOL_ID,
 		.flags		= GENL_CMD_CAP_DO,
 	},
 	{
-		.cmd	= NETDEV_CMD_PAGE_POOL_GET,
-		.dumpit	= netdev_nl_page_pool_get_dumpit,
-		.flags	= GENL_CMD_CAP_DUMP,
+		.cmd		= NETDEV_CMD_PAGE_POOL_GET,
+		.dumpit		= netdev_nl_page_pool_get_dumpit,
+		.policy		= netdev_page_pool_get_dump_nl_policy,
+		.maxattr	= NETDEV_A_PAGE_POOL_IFINDEX,
+		.flags		= GENL_CMD_CAP_DUMP,
 	},
 #endif /* CONFIG_PAGE_POOL */
 #ifdef CONFIG_PAGE_POOL_STATS
 	{
 		.cmd		= NETDEV_CMD_PAGE_POOL_STATS_GET,
 		.doit		= netdev_nl_page_pool_stats_get_doit,
-		.policy		= netdev_page_pool_stats_get_nl_policy,
+		.policy		= netdev_page_pool_stats_get_do_nl_policy,
 		.maxattr	= NETDEV_A_PAGE_POOL_STATS_INFO,
 		.flags		= GENL_CMD_CAP_DO,
 	},
 	{
-		.cmd	= NETDEV_CMD_PAGE_POOL_STATS_GET,
-		.dumpit	= netdev_nl_page_pool_stats_get_dumpit,
-		.flags	= GENL_CMD_CAP_DUMP,
+		.cmd		= NETDEV_CMD_PAGE_POOL_STATS_GET,
+		.dumpit		= netdev_nl_page_pool_stats_get_dumpit,
+		.policy		= netdev_page_pool_stats_get_dump_nl_policy,
+		.maxattr	= NETDEV_A_PAGE_POOL_STATS_INFO,
+		.flags		= GENL_CMD_CAP_DUMP,
 	},
 #endif /* CONFIG_PAGE_POOL_STATS */
 	{
@@ -202,7 +220,7 @@ static const struct genl_split_ops netdev_nl_ops[] = {
 		.doit		= netdev_nl_bind_rx_doit,
 		.policy		= netdev_bind_rx_nl_policy,
 		.maxattr	= NETDEV_A_DMABUF_FD,
-		.flags		= GENL_ADMIN_PERM | GENL_CMD_CAP_DO,
+		.flags		= GENL_UNS_ADMIN_PERM | GENL_CMD_CAP_DO,
 	},
 	{
 		.cmd		= NETDEV_CMD_NAPI_SET,

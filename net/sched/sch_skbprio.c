@@ -93,7 +93,7 @@ static int skbprio_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		if (prio < q->lowest_prio)
 			q->lowest_prio = prio;
 
-		sch->q.qlen++;
+		qdisc_qlen_inc(sch);
 		return NET_XMIT_SUCCESS;
 	}
 
@@ -145,7 +145,7 @@ static struct sk_buff *skbprio_dequeue(struct Qdisc *sch)
 	if (unlikely(!skb))
 		return NULL;
 
-	sch->q.qlen--;
+	qdisc_qlen_dec(sch);
 	qdisc_qstats_backlog_dec(sch, skb);
 	qdisc_bstats_update(sch, skb);
 

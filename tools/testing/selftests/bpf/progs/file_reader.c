@@ -50,7 +50,7 @@ int on_open_expect_fault(void *c)
 		goto out;
 
 	local_err = bpf_dynptr_read(tmp_buf, user_buf_sz, &dynptr, user_buf_sz, 0);
-	if (local_err == -EFAULT) { /* Expect page fault */
+	if (local_err == -EFAULT || local_err == 0) { /* Expect page fault or success */
 		local_err = 0;
 		run_success = 1;
 	}

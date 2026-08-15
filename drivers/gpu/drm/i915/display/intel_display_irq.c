@@ -23,6 +23,7 @@
 #include "intel_fifo_underrun.h"
 #include "intel_gmbus.h"
 #include "intel_hotplug_irq.h"
+#include "intel_lpe_audio.h"
 #include "intel_parent.h"
 #include "intel_pipe_crc_regs.h"
 #include "intel_plane.h"
@@ -30,7 +31,7 @@
 #include "intel_psr.h"
 #include "intel_psr_regs.h"
 
-static void irq_reset(struct intel_display *display, struct i915_irq_regs regs)
+static void irq_reset(struct intel_display *display, struct intel_irq_regs regs)
 {
 	intel_de_write(display, regs.imr, 0xffffffff);
 	intel_de_posting_read(display, regs.imr);
@@ -47,7 +48,7 @@ static void irq_reset(struct intel_display *display, struct i915_irq_regs regs)
 /*
  * We should clear IMR at preinstall/uninstall, and just check at postinstall.
  */
-static void assert_iir_is_zero(struct intel_display *display, i915_reg_t reg)
+static void assert_iir_is_zero(struct intel_display *display, intel_reg_t reg)
 {
 	u32 val = intel_de_read(display, reg);
 
@@ -56,14 +57,14 @@ static void assert_iir_is_zero(struct intel_display *display, i915_reg_t reg)
 
 	drm_WARN(display->drm, 1,
 		 "Interrupt register 0x%x is not zero: 0x%08x\n",
-		 i915_mmio_reg_offset(reg), val);
+		 intel_reg_offset(reg), val);
 	intel_de_write(display, reg, 0xffffffff);
 	intel_de_posting_read(display, reg);
 	intel_de_write(display, reg, 0xffffffff);
 	intel_de_posting_read(display, reg);
 }
 
-static void irq_init(struct intel_display *display, struct i915_irq_regs regs,
+static void irq_init(struct intel_display *display, struct intel_irq_regs regs,
 		     u32 imr_val, u32 ier_val)
 {
 	assert_iir_is_zero(display, regs.iir);
@@ -73,7 +74,7 @@ static void irq_init(struct intel_display *display, struct i915_irq_regs regs,
 	intel_de_posting_read(display, regs.imr);
 }
 
-static void error_reset(struct intel_display *display, struct i915_error_regs regs)
+static void error_reset(struct intel_display *display, struct intel_error_regs regs)
 {
 	intel_de_write(display, regs.emr, 0xffffffff);
 	intel_de_posting_read(display, regs.emr);
@@ -84,7 +85,7 @@ static void error_reset(struct intel_display *display, struct i915_error_regs re
 	intel_de_posting_read(display, regs.eir);
 }
 
-static void error_init(struct intel_display *display, struct i915_error_regs regs,
+static void error_init(struct intel_display *display, struct intel_error_regs regs,
 		       u32 emr_val)
 {
 	intel_de_write(display, regs.eir, 0xffffffff);
@@ -343,7 +344,7 @@ out:
 void i915_enable_pipestat(struct intel_display *display,
 			  enum pipe pipe, u32 status_mask)
 {
-	i915_reg_t reg = PIPESTAT(display, pipe);
+	intel_reg_t reg = PIPESTAT(display, pipe);
 	u32 enable_mask;
 
 	drm_WARN_ONCE(display->drm, status_mask & ~PIPESTAT_INT_STATUS_MASK,
@@ -366,7 +367,7 @@ void i915_enable_pipestat(struct intel_display *display,
 void i915_disable_pipestat(struct intel_display *display,
 			   enum pipe pipe, u32 status_mask)
 {
-	i915_reg_t reg = PIPESTAT(display, pipe);
+	intel_reg_t reg = PIPESTAT(display, pipe);
 	u32 enable_mask;
 
 	drm_WARN_ONCE(display->drm, status_mask & ~PIPESTAT_INT_STATUS_MASK,
@@ -529,8 +530,8 @@ static void i9xx_pipestat_irq_reset(struct intel_display *display)
 	}
 }
 
-void i9xx_pipestat_irq_ack(struct intel_display *display,
-			   u32 iir, u32 pipe_stats[I915_MAX_PIPES])
+static void i9xx_pipestat_irq_ack(struct intel_display *display,
+				  u32 iir, u32 pipe_stats[I915_MAX_PIPES])
 {
 	enum pipe pipe;
 
@@ -543,7 +544,7 @@ void i9xx_pipestat_irq_ack(struct intel_display *display,
 	}
 
 	for_each_pipe(display, pipe) {
-		i915_reg_t reg;
+		intel_reg_t reg;
 		u32 status_mask, enable_mask, iir_bit = 0;
 
 		/*
@@ -596,8 +597,8 @@ void i9xx_pipestat_irq_ack(struct intel_display *display,
 	spin_unlock(&display->irq.lock);
 }
 
-void i915_pipestat_irq_handler(struct intel_display *display,
-			       u32 iir, u32 pipe_stats[I915_MAX_PIPES])
+static void i915_pipestat_irq_handler(struct intel_display *display,
+				      u32 iir, const u32 pipe_stats[I915_MAX_PIPES])
 {
 	bool blc_event = false;
 	enum pipe pipe;
@@ -620,8 +621,8 @@ void i915_pipestat_irq_handler(struct intel_display *display,
 		intel_opregion_asle_intr(display);
 }
 
-void i965_pipestat_irq_handler(struct intel_display *display,
-			       u32 iir, u32 pipe_stats[I915_MAX_PIPES])
+static void i965_pipestat_irq_handler(struct intel_display *display,
+				      u32 iir, const u32 pipe_stats[I915_MAX_PIPES])
 {
 	bool blc_event = false;
 	enum pipe pipe;
@@ -647,8 +648,8 @@ void i965_pipestat_irq_handler(struct intel_display *display,
 		intel_gmbus_irq_handler(display);
 }
 
-void valleyview_pipestat_irq_handler(struct intel_display *display,
-				     u32 pipe_stats[I915_MAX_PIPES])
+static void valleyview_pipestat_irq_handler(struct intel_display *display,
+					    const u32 pipe_stats[I915_MAX_PIPES])
 {
 	enum pipe pipe;
 
@@ -1020,7 +1021,8 @@ void ilk_display_irq_master_enable(struct intel_display *display, u32 de_ier, u3
 		intel_de_write_fw(display, SDEIER, sde_ier);
 }
 
-bool ilk_display_irq_handler(struct intel_display *display)
+static bool ilk_display_irq_handler(struct intel_display *display,
+				    const struct intel_display_irq_state *state)
 {
 	u32 de_iir;
 	bool handled = false;
@@ -1284,7 +1286,7 @@ gen8_de_misc_irq_handler(struct intel_display *display, u32 iir)
 	if (iir & GEN8_DE_EDP_PSR) {
 		struct intel_encoder *encoder;
 		u32 psr_iir;
-		i915_reg_t iir_reg;
+		intel_reg_t iir_reg;
 
 		for_each_intel_encoder_with_psr(display->drm, encoder) {
 			struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
@@ -1404,7 +1406,7 @@ static void gen8_read_and_ack_pch_irqs(struct intel_display *display, u32 *pch_i
 		intel_de_write(display, PICAINTERRUPT_IER, pica_ier);
 }
 
-void gen8_de_irq_handler(struct intel_display *display, u32 master_ctl)
+static void gen8_de_irq_handler(struct intel_display *display, u32 master_ctl)
 {
 	u32 iir;
 	enum pipe pipe;
@@ -1565,6 +1567,14 @@ void gen8_de_irq_handler(struct intel_display *display, u32 master_ctl)
 	}
 }
 
+static bool gen8_display_irq_handler(struct intel_display *display,
+				     const struct intel_display_irq_state *state)
+{
+	gen8_de_irq_handler(display, state->master_ctl);
+
+	return true;
+}
+
 u32 gen11_gu_misc_irq_ack(struct intel_display *display, const u32 master_ctl)
 {
 	u32 iir;
@@ -1589,7 +1599,8 @@ void gen11_gu_misc_irq_handler(struct intel_display *display, const u32 iir)
 		intel_opregion_asle_intr(display);
 }
 
-void gen11_display_irq_handler(struct intel_display *display)
+static bool gen11_display_irq_handler(struct intel_display *display,
+				      const struct intel_display_irq_state *state)
 {
 	u32 disp_ctl;
 
@@ -1605,6 +1616,8 @@ void gen11_display_irq_handler(struct intel_display *display)
 	intel_de_write(display, GEN11_DISPLAY_INT_CTL, GEN11_DISPLAY_IRQ_ENABLE);
 
 	intel_display_rpm_assert_unblock(display);
+
+	return true;
 }
 
 static void i915gm_irq_cstate_wa_enable(struct intel_display *display)
@@ -1902,8 +1915,8 @@ static void vlv_page_table_error_irq_handler(struct intel_display *display, u32 
 	}
 }
 
-void vlv_display_error_irq_ack(struct intel_display *display,
-			       u32 *eir, u32 *dpinvgtt)
+static void vlv_display_error_irq_ack(struct intel_display *display,
+				      u32 *eir, u32 *dpinvgtt)
 {
 	u32 emr;
 
@@ -1924,8 +1937,8 @@ void vlv_display_error_irq_ack(struct intel_display *display,
 	intel_de_write(display, VLV_EMR, emr);
 }
 
-void vlv_display_error_irq_handler(struct intel_display *display,
-				   u32 eir, u32 dpinvgtt)
+static void vlv_display_error_irq_handler(struct intel_display *display,
+					  u32 eir, u32 dpinvgtt)
 {
 	drm_dbg(display->drm, "Master Error, EIR 0x%08x\n", eir);
 
@@ -1951,7 +1964,7 @@ static void _vlv_display_irq_reset(struct intel_display *display)
 	display->irq.vlv_imr_mask = ~0u;
 }
 
-void vlv_display_irq_reset(struct intel_display *display)
+static void vlv_display_irq_reset(struct intel_display *display)
 {
 	spin_lock_irq(&display->irq.lock);
 	if (display->irq.vlv_display_irqs_enabled)
@@ -1959,7 +1972,7 @@ void vlv_display_irq_reset(struct intel_display *display)
 	spin_unlock_irq(&display->irq.lock);
 }
 
-void i9xx_display_irq_reset(struct intel_display *display)
+static void i9xx_display_irq_reset(struct intel_display *display)
 {
 	if (HAS_HOTPLUG(display)) {
 		i915_hotplug_interrupt_update(display, 0xffffffff, 0);
@@ -1985,7 +1998,7 @@ u32 i9xx_display_irq_enable_mask(struct intel_display *display)
 	return enable_mask;
 }
 
-void i915_display_irq_postinstall(struct intel_display *display)
+static void i915_display_irq_postinstall(struct intel_display *display)
 {
 	/*
 	 * Interrupt setup is already guaranteed to be single-threaded, this is
@@ -1999,7 +2012,7 @@ void i915_display_irq_postinstall(struct intel_display *display)
 	i915_enable_asle_pipestat(display);
 }
 
-void i965_display_irq_postinstall(struct intel_display *display)
+static void i965_display_irq_postinstall(struct intel_display *display)
 {
 	/*
 	 * Interrupt setup is already guaranteed to be single-threaded, this is
@@ -2012,6 +2025,38 @@ void i965_display_irq_postinstall(struct intel_display *display)
 	spin_unlock_irq(&display->irq.lock);
 
 	i915_enable_asle_pipestat(display);
+}
+
+static void i9xx_display_irq_ack(struct intel_display *display,
+				 struct intel_display_irq_state *state)
+{
+	if (state->iir & I915_DISPLAY_PORT_INTERRUPT)
+		state->hotplug_status = i9xx_hpd_irq_ack(display);
+
+	/* Call regardless, as some status bits might not be signalled in IIR */
+	i9xx_pipestat_irq_ack(display, state->iir, state->pipe_stats);
+}
+
+static bool i965_display_irq_handler(struct intel_display *display,
+				     const struct intel_display_irq_state *state)
+{
+	if (state->hotplug_status)
+		i9xx_hpd_irq_handler(display, state->hotplug_status);
+
+	i965_pipestat_irq_handler(display, state->iir, state->pipe_stats);
+
+	return true;
+}
+
+static bool i915_display_irq_handler(struct intel_display *display,
+				     const struct intel_display_irq_state *state)
+{
+	if (state->hotplug_status)
+		i9xx_hpd_irq_handler(display, state->hotplug_status);
+
+	i915_pipestat_irq_handler(display, state->iir, state->pipe_stats);
+
+	return true;
 }
 
 static u32 vlv_error_mask(void)
@@ -2061,12 +2106,52 @@ static void _vlv_display_irq_postinstall(struct intel_display *display)
 	irq_init(display, VLV_IRQ_REGS, display->irq.vlv_imr_mask, enable_mask);
 }
 
-void vlv_display_irq_postinstall(struct intel_display *display)
+static void vlv_display_irq_postinstall(struct intel_display *display)
 {
 	spin_lock_irq(&display->irq.lock);
 	if (display->irq.vlv_display_irqs_enabled)
 		_vlv_display_irq_postinstall(display);
 	spin_unlock_irq(&display->irq.lock);
+}
+
+static u32 vlv_lpe_irq_mask(struct intel_display *display)
+{
+	if (display->platform.cherryview)
+		return I915_LPE_PIPE_A_INTERRUPT | I915_LPE_PIPE_B_INTERRUPT |
+			I915_LPE_PIPE_C_INTERRUPT;
+	else
+		return I915_LPE_PIPE_A_INTERRUPT | I915_LPE_PIPE_B_INTERRUPT;
+}
+
+static void vlv_display_irq_ack(struct intel_display *display,
+				struct intel_display_irq_state *state)
+{
+	if (state->iir & I915_DISPLAY_PORT_INTERRUPT)
+		state->hotplug_status = i9xx_hpd_irq_ack(display);
+
+	if (state->iir & I915_MASTER_ERROR_INTERRUPT)
+		vlv_display_error_irq_ack(display, &state->eir, &state->dpinvgtt);
+
+	/* Call regardless, as some status bits might not be signalled in IIR */
+	i9xx_pipestat_irq_ack(display, state->iir, state->pipe_stats);
+
+	/* The handler acks the irq, so need to call the handler here */
+	if (state->iir & vlv_lpe_irq_mask(display))
+		intel_lpe_audio_irq_handler(display);
+}
+
+static bool vlv_display_irq_handler(struct intel_display *display,
+				    const struct intel_display_irq_state *state)
+{
+	if (state->hotplug_status)
+		i9xx_hpd_irq_handler(display, state->hotplug_status);
+
+	if (state->iir & I915_MASTER_ERROR_INTERRUPT)
+		vlv_display_error_irq_handler(display, state->eir, state->dpinvgtt);
+
+	valleyview_pipestat_irq_handler(display, state->pipe_stats);
+
+	return true;
 }
 
 static void ibx_display_irq_reset(struct intel_display *display)
@@ -2080,7 +2165,7 @@ static void ibx_display_irq_reset(struct intel_display *display)
 		intel_de_write(display, SERR_INT, 0xffffffff);
 }
 
-void ilk_display_irq_reset(struct intel_display *display)
+static void ilk_display_irq_reset(struct intel_display *display)
 {
 	irq_reset(display, DE_IRQ_REGS);
 	display->irq.ilk_de_imr_mask = ~0u;
@@ -2096,12 +2181,9 @@ void ilk_display_irq_reset(struct intel_display *display)
 	ibx_display_irq_reset(display);
 }
 
-void gen8_display_irq_reset(struct intel_display *display)
+static void gen8_display_irq_reset(struct intel_display *display)
 {
 	enum pipe pipe;
-
-	if (!HAS_DISPLAY(display))
-		return;
 
 	intel_de_write(display, EDP_PSR_IMR, 0xffffffff);
 	intel_de_write(display, EDP_PSR_IIR, 0xffffffff);
@@ -2118,14 +2200,11 @@ void gen8_display_irq_reset(struct intel_display *display)
 		ibx_display_irq_reset(display);
 }
 
-void gen11_display_irq_reset(struct intel_display *display)
+static void gen11_display_irq_reset(struct intel_display *display)
 {
 	enum pipe pipe;
 	u32 trans_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |
 		BIT(TRANSCODER_C) | BIT(TRANSCODER_D);
-
-	if (!HAS_DISPLAY(display))
-		return;
 
 	intel_de_write(display, GEN11_DISPLAY_INT_CTL, 0);
 
@@ -2272,7 +2351,7 @@ out:
 	spin_unlock_irq(&display->irq.lock);
 }
 
-void ilk_de_irq_postinstall(struct intel_display *display)
+static void ilk_de_irq_postinstall(struct intel_display *display)
 {
 	u32 display_mask, extra_mask;
 
@@ -2316,7 +2395,7 @@ void ilk_de_irq_postinstall(struct intel_display *display)
 static void mtp_irq_postinstall(struct intel_display *display);
 static void icp_irq_postinstall(struct intel_display *display);
 
-void gen8_de_irq_postinstall(struct intel_display *display)
+static void gen8_de_irq_postinstall(struct intel_display *display)
 {
 	u32 de_pipe_masked = gen8_de_pipe_fault_mask(display) |
 		GEN8_PIPE_CDCLK_CRC_DONE;
@@ -2443,23 +2522,91 @@ static void icp_irq_postinstall(struct intel_display *display)
 	irq_init(display, SDE_IRQ_REGS, ~mask, 0xffffffff);
 }
 
-void gen11_de_irq_postinstall(struct intel_display *display)
+static void gen11_de_irq_postinstall(struct intel_display *display)
 {
-	if (!HAS_DISPLAY(display))
-		return;
-
 	gen8_de_irq_postinstall(display);
 
 	intel_de_write(display, GEN11_DISPLAY_INT_CTL, GEN11_DISPLAY_IRQ_ENABLE);
 }
 
-void dg1_de_irq_postinstall(struct intel_display *display)
+struct intel_display_irq_funcs {
+	void (*reset)(struct intel_display *display);
+	void (*postinstall)(struct intel_display *display);
+	void (*ack)(struct intel_display *display, struct intel_display_irq_state *state);
+	bool (*handler)(struct intel_display *display, const struct intel_display_irq_state *state);
+};
+
+static const struct intel_display_irq_funcs gen11_display_irq_funcs = {
+	.reset = gen11_display_irq_reset,
+	.postinstall = gen11_de_irq_postinstall,
+	.handler = gen11_display_irq_handler,
+};
+
+static const struct intel_display_irq_funcs gen8_display_irq_funcs = {
+	.reset = gen8_display_irq_reset,
+	.postinstall = gen8_de_irq_postinstall,
+	.handler = gen8_display_irq_handler,
+};
+
+static const struct intel_display_irq_funcs vlv_display_irq_funcs = {
+	.reset = vlv_display_irq_reset,
+	.postinstall = vlv_display_irq_postinstall,
+	.ack = vlv_display_irq_ack,
+	.handler = vlv_display_irq_handler,
+};
+
+static const struct intel_display_irq_funcs ilk_display_irq_funcs = {
+	.reset = ilk_display_irq_reset,
+	.postinstall = ilk_de_irq_postinstall,
+	.handler = ilk_display_irq_handler,
+};
+
+static const struct intel_display_irq_funcs i965_display_irq_funcs = {
+	.reset = i9xx_display_irq_reset,
+	.postinstall = i965_display_irq_postinstall,
+	.ack = i9xx_display_irq_ack,
+	.handler = i965_display_irq_handler,
+};
+
+static const struct intel_display_irq_funcs i915_display_irq_funcs = {
+	.reset = i9xx_display_irq_reset,
+	.postinstall = i915_display_irq_postinstall,
+	.ack = i9xx_display_irq_ack,
+	.handler = i915_display_irq_handler,
+};
+
+void intel_display_irq_reset(struct intel_display *display)
 {
 	if (!HAS_DISPLAY(display))
 		return;
 
-	gen8_de_irq_postinstall(display);
-	intel_de_write(display, GEN11_DISPLAY_INT_CTL, GEN11_DISPLAY_IRQ_ENABLE);
+	display->irq.funcs->reset(display);
+}
+
+void intel_display_irq_postinstall(struct intel_display *display)
+{
+	if (!HAS_DISPLAY(display))
+		return;
+
+	display->irq.funcs->postinstall(display);
+}
+
+void intel_display_irq_ack(struct intel_display *display,
+			   struct intel_display_irq_state *state)
+{
+	if (!HAS_DISPLAY(display) || !display->irq.funcs->ack)
+		return;
+
+	display->irq.funcs->ack(display, state);
+}
+
+bool intel_display_irq_handler(struct intel_display *display,
+			       const struct intel_display_irq_state *state)
+{
+	if (!HAS_DISPLAY(display) || !display->irq.funcs->handler)
+		return true;
+
+	return display->irq.funcs->handler(display, state);
 }
 
 void intel_display_irq_init(struct intel_display *display)
@@ -2472,6 +2619,19 @@ void intel_display_irq_init(struct intel_display *display)
 
 	INIT_WORK(&display->irq.vblank_notify_work,
 		  intel_display_vblank_notify_work);
+
+	if (DISPLAY_VER(display) >= 11)
+		display->irq.funcs = &gen11_display_irq_funcs;
+	else if (display->platform.cherryview || display->platform.valleyview)
+		display->irq.funcs = &vlv_display_irq_funcs;
+	else if (DISPLAY_VER(display) >= 8)
+		display->irq.funcs = &gen8_display_irq_funcs;
+	else if (DISPLAY_VER(display) >= 5)
+		display->irq.funcs = &ilk_display_irq_funcs;
+	else if (DISPLAY_VER(display) == 4)
+		display->irq.funcs = &i965_display_irq_funcs;
+	else
+		display->irq.funcs = &i915_display_irq_funcs;
 }
 
 struct intel_display_irq_snapshot {

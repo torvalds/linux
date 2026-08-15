@@ -1230,8 +1230,8 @@ static void tda10071_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tda10071_id_table[] = {
-	{ "tda10071_cx24118" },
-	{}
+	{ .name = "tda10071_cx24118" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tda10071_id_table);
 

@@ -1,0 +1,63 @@
+Iterations:        100
+Instructions:      1200
+Total Cycles:      374
+Total uOps:        1300
+
+Dispatch Width:    4
+uOps Per Cycle:    3.48
+IPC:               3.21
+Block RThroughput: 3.3
+
+
+Instruction Info:
+[1]: #uOps
+[2]: Latency
+[3]: RThroughput
+[4]: MayLoad
+[5]: MayStore
+[6]: HasSideEffects (U)
+
+[1]    [2]    [3]    [4]    [5]    [6]    Instructions:
+ 1      1     0.33                        cmp	rsi, 6
+ 1      1     0.50                        setb	al
+ 1      1     0.33                        or	al, dil
+ 1      1     0.33                        test	al, 1
+ 1      1     1.00                        jne	.LBB5_2
+ 1      5     0.50    *                   movzx	eax, word ptr [rdi]
+ 1      1     0.33                        cmp	eax, 49344
+ 1      1     0.33                        mov	eax, 2
+ 2      2     0.67                        cmove	rax, rdi
+ 1      1     1.00                        je	.LBB5_3
+ 1      0     0.25                        xor	eax, eax
+ 1      1     1.00                  U     ret
+
+
+Resources:
+[0]   - SBDivider
+[1]   - SBFPDivider
+[2]   - SBPort0
+[3]   - SBPort1
+[4]   - SBPort4
+[5]   - SBPort5
+[6.0] - SBPort23
+[6.1] - SBPort23
+
+
+Resource pressure per iteration:
+[0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  
+ -      -     3.66   3.65    -     3.69   0.50   0.50   
+
+Resource pressure by instruction:
+[0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  Instructions:
+ -      -     0.35   0.64    -     0.01    -      -     cmp	rsi, 6
+ -      -     1.00    -      -      -      -      -     setb	al
+ -      -     0.02   0.66    -     0.32    -      -     or	al, dil
+ -      -     0.03   0.65    -     0.32    -      -     test	al, 1
+ -      -      -      -      -     1.00    -      -     jne	.LBB5_2
+ -      -      -      -      -      -     0.50   0.50   movzx	eax, word ptr [rdi]
+ -      -     0.92   0.07    -     0.01    -      -     cmp	eax, 49344
+ -      -     0.37   0.63    -      -      -      -     mov	eax, 2
+ -      -     0.97   1.00    -     0.03    -      -     cmove	rax, rdi
+ -      -      -      -      -     1.00    -      -     je	.LBB5_3
+ -      -      -      -      -      -      -      -     xor	eax, eax
+ -      -      -      -      -     1.00    -      -     ret

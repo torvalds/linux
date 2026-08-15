@@ -182,6 +182,5 @@ int amdgpu_userq_input_va_validate(struct amdgpu_device *adev,
 				   u64 addr, u64 expected_size, u64 *va_out);
 
 void amdgpu_userq_gem_va_unmap_validate(struct amdgpu_device *adev,
-					struct amdgpu_bo_va_mapping *mapping,
-					uint64_t saddr);
+					struct amdgpu_bo_va_mapping *mapping);
 #endif

@@ -388,24 +388,15 @@ __setup("forcepae", forcepae_setup);
 
 static void intel_workarounds(struct cpuinfo_x86 *c)
 {
-#ifdef CONFIG_X86_F00F_BUG
 	/*
 	 * All models of Pentium and Pentium with MMX technology CPUs
 	 * have the F0 0F bug, which lets nonprivileged users lock up the
-	 * system. Announce that the fault handler will be checking for it.
+	 * system. The fault handler always checks for it.
 	 * The Quark is also family 5, but does not have the same bug.
 	 */
-	clear_cpu_bug(c, X86_BUG_F00F);
-	if (c->x86_vfm >= INTEL_FAM5_START && c->x86_vfm < INTEL_QUARK_X1000) {
-		static int f00f_workaround_enabled;
-
+	if (IS_ENABLED(CONFIG_X86_F00F_BUG) &&
+	    (c->x86_vfm >= INTEL_FAM5_START && c->x86_vfm < INTEL_QUARK_X1000))
 		set_cpu_bug(c, X86_BUG_F00F);
-		if (!f00f_workaround_enabled) {
-			pr_notice("Intel Pentium with F0 0F bug - workaround enabled.\n");
-			f00f_workaround_enabled = 1;
-		}
-	}
-#endif
 
 	/*
 	 * SEP CPUID bug: Pentium Pro reports SEP but doesn't have it until

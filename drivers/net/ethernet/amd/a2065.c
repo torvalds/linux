@@ -647,10 +647,10 @@ static void a2065_remove_one(struct zorro_dev *z);
 
 
 static const struct zorro_device_id a2065_zorro_tbl[] = {
-	{ ZORRO_PROD_CBM_A2065_1 },
-	{ ZORRO_PROD_CBM_A2065_2 },
-	{ ZORRO_PROD_AMERISTAR_A2065 },
-	{ 0 }
+	{ .id = ZORRO_PROD_CBM_A2065_1 },
+	{ .id = ZORRO_PROD_CBM_A2065_2 },
+	{ .id = ZORRO_PROD_AMERISTAR_A2065 },
+	{ }
 };
 MODULE_DEVICE_TABLE(zorro, a2065_zorro_tbl);
 

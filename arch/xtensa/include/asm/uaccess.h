@@ -237,8 +237,7 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 	prefetch(from);
 	return __xtensa_copy_user((__force void *)to, from, n);
 }
-#define INLINE_COPY_FROM_USER
-#define INLINE_COPY_TO_USER
+#define INLINE_COPY_USER
 
 /*
  * We need to return the number of bytes not cleared.  Our memset()

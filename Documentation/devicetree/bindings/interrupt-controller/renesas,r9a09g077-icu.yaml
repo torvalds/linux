@@ -165,7 +165,7 @@ examples:
     icu: interrupt-controller@802a0000 {
       compatible = "renesas,r9a09g077-icu";
       reg = <0x802a0000 0x10000>,
-            <0x812a0000 0x50>;
+            <0x812a0000 0x10000>;
       #interrupt-cells = <2>;
       #address-cells = <0>;
       interrupt-controller;

@@ -24,6 +24,7 @@ Possible options for midisynth module:
 #include <sound/seq_device.h>
 #include <sound/seq_midi_event.h>
 #include <sound/initval.h>
+#include "seq_lock.h"
 
 MODULE_AUTHOR("Frank van de Pol <fvdpol@coil.demon.nl>, Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("Advanced Linux Sound Architecture sequencer MIDI synth.");
@@ -42,6 +43,8 @@ struct seq_midisynth {
 	int device;
 	int subdevice;
 	struct snd_rawmidi_file input_rfile;
+	spinlock_t output_lock;		/* protects output_rfile publication */
+	snd_use_lock_t output_use_lock;	/* in-flight event_input users */
 	struct snd_rawmidi_file output_rfile;
 	int seq_client;
 	int seq_port;
@@ -125,31 +128,42 @@ static int event_process_midi(struct snd_seq_event *ev, int direct,
 	struct seq_midisynth *msynth = private_data;
 	unsigned char msg[10];	/* buffer for constructing midi messages */
 	struct snd_rawmidi_substream *substream;
+	int err = 0;
 	int len;
 
 	if (snd_BUG_ON(!msynth))
 		return -EINVAL;
-	substream = msynth->output_rfile.output;
-	if (substream == NULL)
-		return -ENODEV;
+
+	scoped_guard(spinlock_irqsave, &msynth->output_lock) {
+		substream = msynth->output_rfile.output;
+		if (!substream)
+			return -ENODEV;
+		snd_use_lock_use(&msynth->output_use_lock);
+	}
+
 	if (ev->type == SNDRV_SEQ_EVENT_SYSEX) {	/* special case, to save space */
 		if ((ev->flags & SNDRV_SEQ_EVENT_LENGTH_MASK) != SNDRV_SEQ_EVENT_LENGTH_VARIABLE) {
 			/* invalid event */
 			pr_debug("ALSA: seq_midi: invalid sysex event flags = 0x%x\n", ev->flags);
-			return 0;
+			goto out;
 		}
 		snd_seq_dump_var_event(ev, __dump_midi, substream);
 		snd_midi_event_reset_decode(msynth->parser);
 	} else {
-		if (msynth->parser == NULL)
-			return -EIO;
+		if (!msynth->parser) {
+			err = -EIO;
+			goto out;
+		}
 		len = snd_midi_event_decode(msynth->parser, msg, sizeof(msg), ev);
 		if (len < 0)
-			return 0;
+			goto out;
 		if (dump_midi(substream, msg, len) < 0)
 			snd_midi_event_reset_decode(msynth->parser);
 	}
-	return 0;
+
+out:
+	snd_use_lock_free(&msynth->output_use_lock);
+	return err;
 }
 
 
@@ -163,6 +177,8 @@ static int snd_seq_midisynth_new(struct seq_midisynth *msynth,
 	msynth->card = card;
 	msynth->device = device;
 	msynth->subdevice = subdevice;
+	spin_lock_init(&msynth->output_lock);
+	snd_use_lock_init(&msynth->output_use_lock);
 	return 0;
 }
 
@@ -215,12 +231,13 @@ static int midisynth_use(void *private_data, struct snd_seq_port_subscribe *info
 {
 	int err;
 	struct seq_midisynth *msynth = private_data;
+	struct snd_rawmidi_file rfile = {};
 	struct snd_rawmidi_params params;
 
 	/* open midi port */
 	err = snd_rawmidi_kernel_open(msynth->rmidi, msynth->subdevice,
 				      SNDRV_RAWMIDI_LFLG_OUTPUT,
-				      &msynth->output_rfile);
+				      &rfile);
 	if (err < 0) {
 		pr_debug("ALSA: seq_midi: midi output open failed!!!\n");
 		return err;
@@ -229,12 +246,14 @@ static int midisynth_use(void *private_data, struct snd_seq_port_subscribe *info
 	params.avail_min = 1;
 	params.buffer_size = output_buffer_size;
 	params.no_active_sensing = 1;
-	err = snd_rawmidi_output_params(msynth->output_rfile.output, &params);
+	err = snd_rawmidi_output_params(rfile.output, &params);
 	if (err < 0) {
-		snd_rawmidi_kernel_release(&msynth->output_rfile);
+		snd_rawmidi_kernel_release(&rfile);
 		return err;
 	}
 	snd_midi_event_reset_decode(msynth->parser);
+	scoped_guard(spinlock_irqsave, &msynth->output_lock)
+		msynth->output_rfile = rfile;
 	return 0;
 }
 
@@ -242,11 +261,19 @@ static int midisynth_use(void *private_data, struct snd_seq_port_subscribe *info
 static int midisynth_unuse(void *private_data, struct snd_seq_port_subscribe *info)
 {
 	struct seq_midisynth *msynth = private_data;
+	struct snd_rawmidi_file rfile = {};
 
-	if (snd_BUG_ON(!msynth->output_rfile.output))
+	scoped_guard(spinlock_irqsave, &msynth->output_lock) {
+		rfile = msynth->output_rfile;
+		msynth->output_rfile = (struct snd_rawmidi_file){};
+	}
+
+	if (snd_BUG_ON(!rfile.output))
 		return -EINVAL;
-	snd_rawmidi_drain_output(msynth->output_rfile.output);
-	return snd_rawmidi_kernel_release(&msynth->output_rfile);
+
+	snd_use_lock_sync(&msynth->output_use_lock);
+	snd_rawmidi_drain_output(rfile.output);
+	return snd_rawmidi_kernel_release(&rfile);
 }
 
 /* delete given midi synth port */

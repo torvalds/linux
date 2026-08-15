@@ -20,7 +20,6 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/stat.h>
@@ -267,8 +266,8 @@ static int si7020_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id si7020_id[] = {
-	{ "si7020" },
-	{ "th06" },
+	{ .name = "si7020" },
+	{ .name = "th06" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, si7020_id);

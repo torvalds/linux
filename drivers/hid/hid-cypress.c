@@ -25,6 +25,10 @@
 
 #define VA_INVAL_LOGICAL_BOUNDARY	0x08
 
+struct cp_device {
+	unsigned long quirks;
+};
+
 /*
  * Some USB barcode readers from cypress have usage min and usage max in
  * the wrong order
@@ -70,7 +74,8 @@ static __u8 *va_logical_boundary_fixup(struct hid_device *hdev, __u8 *rdesc,
 static const __u8 *cp_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
-	unsigned long quirks = (unsigned long)hid_get_drvdata(hdev);
+	const struct cp_device *cp_device = hid_get_drvdata(hdev);
+	unsigned long quirks = cp_device->quirks;
 
 	if (quirks & CP_RDESC_SWAPPED_MIN_MAX)
 		rdesc = cp_rdesc_fixup(hdev, rdesc, rsize);
@@ -84,7 +89,8 @@ static int cp_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 		struct hid_field *field, struct hid_usage *usage,
 		unsigned long **bit, int *max)
 {
-	unsigned long quirks = (unsigned long)hid_get_drvdata(hdev);
+	const struct cp_device *cp_device = hid_get_drvdata(hdev);
+	unsigned long quirks = cp_device->quirks;
 
 	if (!(quirks & CP_2WHEEL_MOUSE_HACK))
 		return 0;
@@ -100,22 +106,21 @@ static int cp_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 static int cp_event(struct hid_device *hdev, struct hid_field *field,
 		struct hid_usage *usage, __s32 value)
 {
-	unsigned long quirks = (unsigned long)hid_get_drvdata(hdev);
+	struct cp_device *cp_device = hid_get_drvdata(hdev);
 
 	if (!(hdev->claimed & HID_CLAIMED_INPUT) || !field->hidinput ||
-			!usage->type || !(quirks & CP_2WHEEL_MOUSE_HACK))
+			!usage->type || !(cp_device->quirks & CP_2WHEEL_MOUSE_HACK))
 		return 0;
 
 	if (usage->hid == 0x00090005) {
 		if (value)
-			quirks |=  CP_2WHEEL_MOUSE_HACK_ON;
+			cp_device->quirks |= CP_2WHEEL_MOUSE_HACK_ON;
 		else
-			quirks &= ~CP_2WHEEL_MOUSE_HACK_ON;
-		hid_set_drvdata(hdev, (void *)quirks);
+			cp_device->quirks &= ~CP_2WHEEL_MOUSE_HACK_ON;
 		return 1;
 	}
 
-	if (usage->code == REL_WHEEL && (quirks & CP_2WHEEL_MOUSE_HACK_ON)) {
+	if (usage->code == REL_WHEEL && (cp_device->quirks & CP_2WHEEL_MOUSE_HACK_ON)) {
 		struct input_dev *input = field->hidinput->input;
 
 		input_event(input, usage->type, REL_HWHEEL, value);
@@ -127,10 +132,17 @@ static int cp_event(struct hid_device *hdev, struct hid_field *field,
 
 static int cp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
-	unsigned long quirks = id->driver_data;
 	int ret;
+	struct cp_device *cp_device;
 
-	hid_set_drvdata(hdev, (void *)quirks);
+	cp_device = devm_kzalloc(&hdev->dev, sizeof(*cp_device), GFP_KERNEL);
+
+	if (!cp_device)
+		return -ENOMEM;
+
+	cp_device->quirks = id->driver_data;
+
+	hid_set_drvdata(hdev, cp_device);
 
 	ret = hid_parse(hdev);
 	if (ret) {

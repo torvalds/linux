@@ -42,7 +42,7 @@
 
 #define LS_I2S_DRVNAME		"loongson-i2s"
 
-struct loongson_dma_data {
+struct loongson_idma_data {
 	dma_addr_t dev_addr;		/* device physical address for DMA */
 	void __iomem *order_addr;	/* DMA order register */
 	int irq;			/* DMA irq */
@@ -52,11 +52,11 @@ struct loongson_i2s {
 	struct device *dev;
 	union {
 		struct snd_dmaengine_dai_dma_data playback_dma_data;
-		struct loongson_dma_data tx_dma_data;
+		struct loongson_idma_data tx_dma_data;
 	};
 	union {
 		struct snd_dmaengine_dai_dma_data capture_dma_data;
-		struct loongson_dma_data rx_dma_data;
+		struct loongson_idma_data rx_dma_data;
 	};
 	struct regmap *regmap;
 	void __iomem *reg_base;
@@ -65,6 +65,7 @@ struct loongson_i2s {
 	u32 sysclk;
 };
 
+extern const struct regmap_config loongson_i2s_regmap_config;
 extern const struct dev_pm_ops loongson_i2s_pm;
 extern struct snd_soc_dai_driver loongson_i2s_dai;
 

@@ -191,8 +191,8 @@ static int ltc4306_deselect_mux(struct i2c_mux_core *muxc, u32 chan)
 }
 
 static const struct i2c_device_id ltc4306_id[] = {
-	{ "ltc4305", ltc_4305 },
-	{ "ltc4306", ltc_4306 },
+	{ .name = "ltc4305", .driver_data = ltc_4305 },
+	{ .name = "ltc4306", .driver_data = ltc_4306 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ltc4306_id);

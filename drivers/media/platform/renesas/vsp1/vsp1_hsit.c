@@ -115,15 +115,12 @@ static int hsit_set_format(struct v4l2_subdev *subdev,
 	struct vsp1_hsit *hsit = to_hsit(subdev);
 	struct v4l2_subdev_state *state;
 	struct v4l2_mbus_framefmt *format;
-	int ret = 0;
 
-	mutex_lock(&hsit->entity.lock);
+	guard(mutex)(&hsit->entity.lock);
 
 	state = vsp1_entity_get_state(&hsit->entity, sd_state, fmt->which);
-	if (!state) {
-		ret = -EINVAL;
-		goto done;
-	}
+	if (!state)
+		return -EINVAL;
 
 	format = v4l2_subdev_state_get_format(state, fmt->pad);
 
@@ -133,7 +130,7 @@ static int hsit_set_format(struct v4l2_subdev *subdev,
 		 * modified.
 		 */
 		fmt->format = *format;
-		goto done;
+		return 0;
 	}
 
 	format->code = hsit->inverse ? MEDIA_BUS_FMT_AHSV8888_1X32
@@ -161,9 +158,7 @@ static int hsit_set_format(struct v4l2_subdev *subdev,
 
 	vsp1_entity_adjust_color_space(format);
 
-done:
-	mutex_unlock(&hsit->entity.lock);
-	return ret;
+	return 0;
 }
 
 static const struct v4l2_subdev_pad_ops hsit_pad_ops = {

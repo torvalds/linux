@@ -553,11 +553,12 @@
 &pcie0 {
 	pinctrl-0 = <&pinctrl_pcie0>;
 	pinctrl-names = "default";
+	/* This property is deprecated, use reset-gpios from the Root Port node. */
 	reset-gpio = <&gpio5 13 GPIO_ACTIVE_LOW>;
 	vpcie-supply = <&reg_m2_pwr>;
 	vpcie3v3aux-supply = <&reg_m2_pwr>;
 	supports-clkreq;
-	status = "okay";
+	status = "disabled";
 };
 
 &pcie0_ep {
@@ -565,6 +566,10 @@
 	pinctrl-names = "default";
 	vpcie-supply = <&reg_m2_pwr>;
 	status = "disabled";
+};
+
+&pcie0_port0 {
+	reset-gpios = <&gpio5 13 GPIO_ACTIVE_LOW>;
 };
 
 &sai1 {
@@ -1137,7 +1142,7 @@
 	status = "okay";
 };
 
-&usdhc3 {
+m2_usdhc: &usdhc3 {
 	bus-width = <4>;
 	keep-power-in-suspend;
 	mmc-pwrseq = <&usdhc3_pwrseq>;

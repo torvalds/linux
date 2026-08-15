@@ -3,7 +3,6 @@
 config DRM_AMDGPU
 	tristate "AMD GPU"
 	depends on DRM && PCI
-	depends on !UML
 	select FW_LOADER
 	select DRM_CLIENT
 	select DRM_CLIENT_SELECTION

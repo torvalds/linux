@@ -168,9 +168,9 @@ static void store_vector(
 	//load_vector (&v[1][0], &to[ISP_NWAY]); /* Fetch the next vector, since it will be overwritten. */
 	hive_uedge *data = (hive_uedge *)v;
 
-	for (i = 0; i < ISP_NWAY; i++) {
+	for (i = 0; i < ISP_NWAY; i++)
 		hive_sim_wide_pack(data, (hive_wide)&from[i], ISP_VEC_ELEMBITS, i);
-	}
+
 	assert(ISP_BAMEM_BASE[ID] != (hrt_address) - 1);
 #if !defined(HRT_MEMORY_ACCESS)
 	ia_css_device_store(ISP_BAMEM_BASE[ID] + (unsigned long)to, &v, size);

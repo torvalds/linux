@@ -1396,8 +1396,6 @@ static void icom_set_termios(struct uart_port *port, struct ktermios *termios,
 	baud = uart_get_baud_rate(port, termios, old_termios,
 				  icom_acfg_baud[0],
 				  icom_acfg_baud[BAUD_TABLE_LIMIT]);
-	if (!baud)
-		baud = 9600;	/* B0 transition handled in rs_set_termios */
 
 	for (index = 0; index < BAUD_TABLE_LIMIT; index++) {
 		if (icom_acfg_baud[index] == baud) {

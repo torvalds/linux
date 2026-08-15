@@ -257,7 +257,7 @@ static int elo_command_10(struct elo *elo, unsigned char *packet)
 
 static int elo_setup_10(struct elo *elo)
 {
-	static const char *elo_types[] = { "Accu", "Dura", "Intelli", "Carroll" };
+	static const char * const elo_types[] = { "Accu", "Dura", "Intelli", "Carroll" };
 	struct input_dev *dev = elo->dev;
 	unsigned char packet[ELO10_PACKET_LEN] = { ELO10_ID_CMD };
 
@@ -273,7 +273,7 @@ static int elo_setup_10(struct elo *elo)
 
 	dev_info(&elo->serio->dev,
 		 "%sTouch touchscreen, fw: %02x.%02x, features: 0x%02x, controller: 0x%02x\n",
-		 elo_types[(packet[1] -'0') & 0x03],
+		 elo_types[(packet[1] - '0') & 0x03],
 		 packet[5], packet[4], packet[3], packet[7]);
 
 	return 0;

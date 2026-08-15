@@ -716,12 +716,12 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 	seq_printf(p, "%*s: ", prec, "RES");
 	for_each_online_cpu(cpu)
 		seq_printf(p, "%10u ", irq_stats(cpu)->irq_resched_count);
-	seq_puts(p, "  Rescheduling interrupts\n");
+	seq_puts(p, " Rescheduling interrupts\n");
 
 	seq_printf(p, "%*s: ", prec, "CAL");
 	for_each_online_cpu(cpu)
 		seq_printf(p, "%10u ", irq_stats(cpu)->irq_call_count);
-	seq_puts(p, "  Function call interrupts\n");
+	seq_puts(p, " Function call interrupts\n");
 #endif
 
 	return 0;

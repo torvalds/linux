@@ -1,12 +1,13 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0+
 #
-# Usage: kvm-series.sh config-list commit-id-list [ kvm.sh parameters ]
+# Usage: kvm-series.sh config-list commit-id-range [ kvm.sh parameters ]
 #
-# Tests the specified list of unadorned configs ("TREE01 SRCU-P" but not
-# "CFLIST" or "3*TRACE01") and an indication of a set of commits to test,
-# then runs each commit through the specified list of commits using kvm.sh.
-# The runs are grouped into a -series/config/commit directory tree.
+# Tests the specified list of unadorned configs ("TREE01 SRCU-P" but
+# not "CFLIST" or "3*TRACE01") and an indication of a range of commits
+# ("v7.0-rc1..rcu/dev", but not "cd0ce7bab0408 ff74db28df623 17c52d7b31a1f")
+# to test, then runs each commit through the specified list of commits using
+# kvm.sh.  The runs are grouped into a -series/config/commit directory tree.
 # Each run defaults to a duration of one minute.
 #
 # Run in top-level Linux source directory.  Please note that this is in

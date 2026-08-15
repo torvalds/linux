@@ -236,8 +236,8 @@ static int setup_xor_mapping(void)
 	if (!cximsd)
 		return -ENOMEM;
 
-	memcpy(cximsd->xormaps, xormaps, nr_maps * sizeof(*cximsd->xormaps));
 	cximsd->nr_maps = nr_maps;
+	memcpy(cximsd->xormaps, xormaps, nr_maps * sizeof(*cximsd->xormaps));
 
 	return 0;
 }

@@ -278,27 +278,13 @@ static u8 rtw8922a_chlk_reload_sel_tbl(struct rtw89_dev *rtwdev,
 
 static void rtw8922a_chlk_reload(struct rtw89_dev *rtwdev)
 {
-	const struct rtw89_chan *chan0, *chan1;
+	struct rtw89_entity_conf conf;
 	u8 s0_tbl, s1_tbl;
 
-	switch (rtwdev->mlo_dbcc_mode) {
-	default:
-	case MLO_2_PLUS_0_1RF:
-		chan0 = rtw89_mgnt_chan_get(rtwdev, 0);
-		chan1 = chan0;
-		break;
-	case MLO_0_PLUS_2_1RF:
-		chan1 = rtw89_mgnt_chan_get(rtwdev, 1);
-		chan0 = chan1;
-		break;
-	case MLO_1_PLUS_1_1RF:
-		chan0 = rtw89_mgnt_chan_get(rtwdev, 0);
-		chan1 = rtw89_mgnt_chan_get(rtwdev, 1);
-		break;
-	}
+	rtw89_entity_get_conf(rtwdev, &conf);
 
-	s0_tbl = rtw8922a_chlk_reload_sel_tbl(rtwdev, chan0, 0);
-	s1_tbl = rtw8922a_chlk_reload_sel_tbl(rtwdev, chan1, 1);
+	s0_tbl = rtw8922a_chlk_reload_sel_tbl(rtwdev, conf.chans[0], 0);
+	s1_tbl = rtw8922a_chlk_reload_sel_tbl(rtwdev, conf.chans[1], 1);
 
 	rtw8922a_chlk_ktbl_sel(rtwdev, RF_A, s0_tbl);
 	rtw8922a_chlk_ktbl_sel(rtwdev, RF_B, s1_tbl);

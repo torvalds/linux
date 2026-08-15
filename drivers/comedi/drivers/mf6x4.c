@@ -290,9 +290,14 @@ static int mf6x4_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 }
 
 static const struct pci_device_id mf6x4_pci_table[] = {
-	{ PCI_VDEVICE(HUMUSOFT, 0x0634), BOARD_MF634 },
-	{ PCI_VDEVICE(HUMUSOFT, 0x0624), BOARD_MF624 },
-	{ 0 }
+	{
+		PCI_VDEVICE(HUMUSOFT, 0x0634),
+		.driver_data = BOARD_MF634,
+	}, {
+		PCI_VDEVICE(HUMUSOFT, 0x0624),
+		.driver_data = BOARD_MF624,
+	},
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, mf6x4_pci_table);
 

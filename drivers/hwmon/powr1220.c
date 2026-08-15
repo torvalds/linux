@@ -306,8 +306,8 @@ static int powr1220_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id powr1220_ids[] = {
-	{ "powr1014", powr1014, },
-	{ "powr1220", powr1220, },
+	{ .name = "powr1014", .driver_data = powr1014 },
+	{ .name = "powr1220", .driver_data = powr1220 },
 	{ }
 };
 

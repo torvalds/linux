@@ -180,9 +180,8 @@ static const struct seq_operations recursed_function_seq_ops = {
 
 static int recursed_function_open(struct inode *inode, struct file *file)
 {
-	int ret = 0;
+	guard(mutex)(&recursed_function_lock);
 
-	mutex_lock(&recursed_function_lock);
 	/* If this file was opened for write, then erase contents */
 	if ((file->f_mode & FMODE_WRITE) && (file->f_flags & O_TRUNC)) {
 		/* disable updating records */
@@ -194,10 +193,9 @@ static int recursed_function_open(struct inode *inode, struct file *file)
 		atomic_set(&nr_records, 0);
 	}
 	if (file->f_mode & FMODE_READ)
-		ret = seq_open(file, &recursed_function_seq_ops);
-	mutex_unlock(&recursed_function_lock);
+		return seq_open(file, &recursed_function_seq_ops);
 
-	return ret;
+	return 0;
 }
 
 static ssize_t recursed_function_write(struct file *file,

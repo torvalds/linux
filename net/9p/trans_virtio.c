@@ -532,6 +532,11 @@ req_retry_pinned:
 	p9_debug(P9_DEBUG_TRANS, "virtio request kicked\n");
 	err = io_wait_event_killable(req->wq,
 				     READ_ONCE(req->status) >= REQ_STATUS_RCVD);
+	/*
+	 * Make sure our req is coherent with regard to updates in other
+	 * threads - echoes to wmb() in the callback
+	 */
+	smp_rmb();
 	// RERROR needs reply (== error string) in static data
 	if (READ_ONCE(req->status) == REQ_STATUS_RCVD &&
 	    unlikely(req->rc.sdata[4] == P9_RERROR))

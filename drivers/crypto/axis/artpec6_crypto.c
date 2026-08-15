@@ -706,22 +706,19 @@ artpec6_crypto_setup_out_descr(struct artpec6_crypto_req_common *common,
 			       void *dst, unsigned int len, bool eop,
 			       bool use_short)
 {
-	if (use_short && len < 7) {
+	dma_addr_t dma_addr;
+	int ret;
+
+	if (use_short && len < 7)
 		return artpec6_crypto_setup_out_descr_short(common, dst, len,
 							    eop);
-	} else {
-		int ret;
-		dma_addr_t dma_addr;
 
-		ret = artpec6_crypto_dma_map_single(common, dst, len,
-						   DMA_TO_DEVICE,
-						   &dma_addr);
-		if (ret)
-			return ret;
+	ret = artpec6_crypto_dma_map_single(common, dst, len, DMA_TO_DEVICE,
+					    &dma_addr);
+	if (ret)
+		return ret;
 
-		return artpec6_crypto_setup_out_descr_phys(common, dma_addr,
-							   len, eop);
-	}
+	return artpec6_crypto_setup_out_descr_phys(common, dma_addr, len, eop);
 }
 
 /** artpec6_crypto_setup_in_descr_phys - Setup an in channel with a

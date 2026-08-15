@@ -22,13 +22,7 @@
 #include "mxl862xx-api.h"
 #include "mxl862xx-cmd.h"
 #include "mxl862xx-host.h"
-
-#define MXL862XX_API_WRITE(dev, cmd, data) \
-	mxl862xx_api_wrap(dev, cmd, &(data), sizeof((data)), false, false)
-#define MXL862XX_API_READ(dev, cmd, data) \
-	mxl862xx_api_wrap(dev, cmd, &(data), sizeof((data)), true, false)
-#define MXL862XX_API_READ_QUIET(dev, cmd, data) \
-	mxl862xx_api_wrap(dev, cmd, &(data), sizeof((data)), true, true)
+#include "mxl862xx-phylink.h"
 
 /* Polling interval for RMON counter accumulation. At 2.5 Gbps with
  * minimum-size (64-byte) frames, a 32-bit packet counter wraps in ~880s.
@@ -257,6 +251,9 @@ static int mxl862xx_wait_ready(struct dsa_switch *ds)
 			 ver.iv_major, ver.iv_minor,
 			 le16_to_cpu(ver.iv_revision),
 			 le32_to_cpu(ver.iv_build_num));
+		priv->fw_version.major = ver.iv_major;
+		priv->fw_version.minor = ver.iv_minor;
+		priv->fw_version.revision = le16_to_cpu(ver.iv_revision);
 		return 0;
 
 not_ready_yet:
@@ -625,7 +622,7 @@ static int mxl862xx_setup(struct dsa_switch *ds)
 	int n_user_ports = 0, max_vlans;
 	int ingress_finals, vid_rules;
 	struct dsa_port *dp;
-	int ret;
+	int ret, i;
 
 	ret = mxl862xx_reset(priv);
 	if (ret)
@@ -634,6 +631,11 @@ static int mxl862xx_setup(struct dsa_switch *ds)
 	ret = mxl862xx_wait_ready(ds);
 	if (ret)
 		return ret;
+
+	mutex_init(&priv->serdes_lock);
+	for (i = 0; i < ARRAY_SIZE(priv->serdes_ports); i++)
+		mxl862xx_setup_pcs(priv, &priv->serdes_ports[i],
+				   i + MXL862XX_FIRST_SERDES_PORT);
 
 	/* Calculate Extended VLAN block sizes.
 	 * With VLAN Filter handling VID membership checks:
@@ -1421,16 +1423,6 @@ static void mxl862xx_port_teardown(struct dsa_switch *ds, int port)
 	priv->ports[port].setup_done = false;
 }
 
-static void mxl862xx_phylink_get_caps(struct dsa_switch *ds, int port,
-				      struct phylink_config *config)
-{
-	config->mac_capabilities = MAC_ASYM_PAUSE | MAC_SYM_PAUSE | MAC_10 |
-				   MAC_100 | MAC_1000 | MAC_2500FD;
-
-	__set_bit(PHY_INTERFACE_MODE_INTERNAL,
-		  config->supported_interfaces);
-}
-
 static int mxl862xx_get_fid(struct dsa_switch *ds, struct dsa_db db)
 {
 	struct mxl862xx_priv *priv = ds->priv;
@@ -2094,33 +2086,6 @@ static const struct dsa_switch_ops mxl862xx_switch_ops = {
 	.get_pause_stats = mxl862xx_get_pause_stats,
 	.get_rmon_stats = mxl862xx_get_rmon_stats,
 	.get_stats64 = mxl862xx_get_stats64,
-};
-
-static void mxl862xx_phylink_mac_config(struct phylink_config *config,
-					unsigned int mode,
-					const struct phylink_link_state *state)
-{
-}
-
-static void mxl862xx_phylink_mac_link_down(struct phylink_config *config,
-					   unsigned int mode,
-					   phy_interface_t interface)
-{
-}
-
-static void mxl862xx_phylink_mac_link_up(struct phylink_config *config,
-					 struct phy_device *phydev,
-					 unsigned int mode,
-					 phy_interface_t interface,
-					 int speed, int duplex,
-					 bool tx_pause, bool rx_pause)
-{
-}
-
-static const struct phylink_mac_ops mxl862xx_phylink_mac_ops = {
-	.mac_config = mxl862xx_phylink_mac_config,
-	.mac_link_down = mxl862xx_phylink_mac_link_down,
-	.mac_link_up = mxl862xx_phylink_mac_link_up,
 };
 
 static int mxl862xx_probe(struct mdio_device *mdiodev)

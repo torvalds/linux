@@ -138,7 +138,6 @@ extern bool super_trylock_shared(struct super_block *sb);
 struct super_block *user_get_super(dev_t, bool excl);
 void put_super(struct super_block *sb);
 extern bool mount_capable(struct fs_context *);
-int sb_init_dio_done_wq(struct super_block *sb);
 
 /*
  * Prepare superblock for changing its read-only state (i.e., either remount

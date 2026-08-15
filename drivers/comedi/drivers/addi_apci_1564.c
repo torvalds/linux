@@ -802,8 +802,8 @@ static int apci1564_pci_probe(struct pci_dev *dev,
 }
 
 static const struct pci_device_id apci1564_pci_table[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x1006) },
-	{ 0 }
+	{ PCI_VDEVICE(ADDIDATA, 0x1006) },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, apci1564_pci_table);
 

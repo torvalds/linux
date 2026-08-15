@@ -18,7 +18,6 @@
 #define VMWARE_CMD_PCLK(nr) ((nr << 16) | 97)
 #define VMWARE_CMD_PCLK_GETTIME VMWARE_CMD_PCLK(0)
 
-static struct acpi_device *ptp_vmw_acpi_device;
 static struct ptp_clock *ptp_vmw_clock;
 
 
@@ -91,8 +90,6 @@ static int ptp_vmw_acpi_probe(struct platform_device *pdev)
 		pr_err("failed to register ptp clock\n");
 		return PTR_ERR(ptp_vmw_clock);
 	}
-
-	ptp_vmw_acpi_device = ACPI_COMPANION(&pdev->dev);
 	return 0;
 }
 

@@ -5727,12 +5727,15 @@ int mtree_store(struct maple_tree *mt, unsigned long index, void *entry,
 EXPORT_SYMBOL(mtree_store);
 
 /**
- * mtree_insert_range() - Insert an entry at a given range if there is no value.
+ * mtree_insert_range() - Insert an entry from [first, last] at a given range
+ *                        if there is no value.
  * @mt: The maple tree
  * @first: The start of the range
- * @last: The end of the range
+ * @last: The end of the range (inclusive)
  * @entry: The entry to store
  * @gfp: The GFP_FLAGS to use for allocations.
+ *
+ * Note that @last is inclusive. That is, @last = @first + length - 1;
  *
  * Return: 0 on success, -EEXISTS if the range is occupied, -EINVAL on invalid
  * request, -ENOMEM if memory could not be allocated.

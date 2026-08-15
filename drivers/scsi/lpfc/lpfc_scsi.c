@@ -2497,7 +2497,7 @@ lpfc_bg_scsi_adjust_dl(struct lpfc_hba *phba,
 
 	/*
 	 * If we are in DIF Type 1 mode every data block has a 8 byte
-	 * DIF (trailer) attached to it. Must ajust FCP data length
+	 * DIF (trailer) attached to it. Must adjust FCP data length
 	 * to account for the protection data.
 	 */
 	fcpdl += (fcpdl / scsi_prot_interval(sc)) * 8;
@@ -2596,7 +2596,7 @@ lpfc_bg_scsi_prep_dma_buf_s3(struct lpfc_hba *phba,
 			lpfc_cmd->prot_seg_cnt = protsegcnt;
 
 			/*
-			 * There is a minimun of 4 BPLs used for every
+			 * There is a minimum of 4 BPLs used for every
 			 * protection data segment.
 			 */
 			if ((lpfc_cmd->prot_seg_cnt * 4) >
@@ -2678,7 +2678,7 @@ err:
 
 /*
  * This function calcuates the T10 DIF guard tag
- * on the specified data using a CRC algorithmn
+ * on the specified data using a CRC algorithm
  * using crc_t10dif.
  */
 static uint16_t
@@ -2694,7 +2694,7 @@ lpfc_bg_crc(uint8_t *data, int count)
 
 /*
  * This function calcuates the T10 DIF guard tag
- * on the specified data using a CSUM algorithmn
+ * on the specified data using a CSUM algorithm
  * using ip_compute_csum.
  */
 static uint16_t
@@ -3378,7 +3378,7 @@ lpfc_bg_scsi_prep_dma_buf_s4(struct lpfc_hba *phba,
 
 			lpfc_cmd->prot_seg_cnt = protsegcnt;
 			/*
-			 * There is a minimun of 3 SGEs used for every
+			 * There is a minimum of 3 SGEs used for every
 			 * protection data segment.
 			 */
 			if (((lpfc_cmd->prot_seg_cnt * 3) >
@@ -5712,7 +5712,7 @@ lpfc_taskmgmt_name(uint8_t task_mgmt_cmd)
  * @vport: The virtual port for which this call is being executed.
  * @lpfc_cmd: Pointer to lpfc_io_buf data structure.
  *
- * This routine checks the FCP RSP INFO to see if the tsk mgmt command succeded
+ * This routine checks the FCP RSP INFO to see if the tsk mgmt command succeeded
  *
  * Return code :
  *   0x2003 - Error

@@ -49,7 +49,7 @@ static int imx8mp_hdmi_pvi_bridge_attach(struct drm_bridge *bridge,
 }
 
 static void imx8mp_hdmi_pvi_bridge_enable(struct drm_bridge *bridge,
-					  struct drm_atomic_state *state)
+					  struct drm_atomic_commit *state)
 {
 	struct imx8mp_hdmi_pvi *pvi = to_imx8mp_hdmi_pvi(bridge);
 	struct drm_connector_state *conn_state;
@@ -89,7 +89,7 @@ static void imx8mp_hdmi_pvi_bridge_enable(struct drm_bridge *bridge,
 }
 
 static void imx8mp_hdmi_pvi_bridge_disable(struct drm_bridge *bridge,
-					   struct drm_atomic_state *state)
+					   struct drm_atomic_commit *state)
 {
 	struct imx8mp_hdmi_pvi *pvi = to_imx8mp_hdmi_pvi(bridge);
 

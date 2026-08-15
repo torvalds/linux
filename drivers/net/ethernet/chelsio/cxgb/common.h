@@ -48,7 +48,7 @@
 #define DRV_NAME "cxgb"
 
 #define CH_DEVICE(devid, ssid, idx) \
-	{ PCI_VENDOR_ID_CHELSIO, devid, PCI_ANY_ID, ssid, 0, 0, idx }
+	{ PCI_VDEVICE_SUB(CHELSIO, devid, PCI_ANY_ID, ssid), .driver_data = idx }
 
 #define SUPPORTED_PAUSE       (1 << 13)
 #define SUPPORTED_LOOPBACK    (1 << 15)

@@ -23,7 +23,6 @@
 #include <linux/irq.h>
 
 #include <linux/of.h>
-#include <linux/mod_devicetable.h>
 #include <linux/property.h>
 
 #define DRIVER_NAME "uio_pdrv_genirq"

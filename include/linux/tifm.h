@@ -97,7 +97,7 @@ struct tifm_dev {
 };
 
 struct tifm_driver {
-	struct tifm_device_id *id_table;
+	const struct tifm_device_id *id_table;
 	int                   (*probe)(struct tifm_dev *dev);
 	void                  (*remove)(struct tifm_dev *dev);
 	int                   (*suspend)(struct tifm_dev *dev,

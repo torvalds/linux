@@ -1236,11 +1236,8 @@ static int sta350_i2c_probe(struct i2c_client *i2c)
 	return ret;
 }
 
-static void sta350_i2c_remove(struct i2c_client *client)
-{}
-
 static const struct i2c_device_id sta350_i2c_id[] = {
-	{ "sta350" },
+	{ .name = "sta350" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, sta350_i2c_id);
@@ -1250,8 +1247,7 @@ static struct i2c_driver sta350_i2c_driver = {
 		.name = "sta350",
 		.of_match_table = of_match_ptr(st350_dt_ids),
 	},
-	.probe =    sta350_i2c_probe,
-	.remove =   sta350_i2c_remove,
+	.probe = sta350_i2c_probe,
 	.id_table = sta350_i2c_id,
 };
 

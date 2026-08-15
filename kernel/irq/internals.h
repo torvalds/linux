@@ -9,7 +9,11 @@
 #include <linux/irqdesc.h>
 #include <linux/kernel_stat.h>
 #include <linux/pm_runtime.h>
+#include <linux/rcuref.h>
 #include <linux/sched/clock.h>
+
+#include "debugfs.h"
+#include "proc.h"
 
 #ifdef CONFIG_SPARSE_IRQ
 # define MAX_SPARSE_IRQS	INT_MAX
@@ -21,6 +25,7 @@
 
 extern bool noirqdebug;
 extern int irq_poll_cpu;
+extern unsigned int total_nr_irqs;
 
 extern struct irqaction chained_action;
 
@@ -100,9 +105,23 @@ extern void unmask_irq(struct irq_desc *desc);
 extern void unmask_threaded_irq(struct irq_desc *desc);
 
 #ifdef CONFIG_SPARSE_IRQ
-static inline void irq_mark_irq(unsigned int irq) { }
+static __always_inline void irq_mark_irq(unsigned int irq) { }
+void irq_desc_free_rcu(struct irq_desc *desc);
+
+static __always_inline bool irq_desc_get_ref(struct irq_desc *desc)
+{
+	return rcuref_get(&desc->refcnt);
+}
+
+static __always_inline void irq_desc_put_ref(struct irq_desc *desc)
+{
+	if (rcuref_put(&desc->refcnt))
+		irq_desc_free_rcu(desc);
+}
 #else
 extern void irq_mark_irq(unsigned int irq);
+static __always_inline bool irq_desc_get_ref(struct irq_desc *desc) { return true; }
+static __always_inline void irq_desc_put_ref(struct irq_desc *desc) { }
 #endif
 
 irqreturn_t __handle_irq_event_percpu(struct irq_desc *desc);
@@ -122,6 +141,7 @@ extern void register_irq_proc(unsigned int irq, struct irq_desc *desc);
 extern void unregister_irq_proc(unsigned int irq, struct irq_desc *desc);
 extern void register_handler_proc(unsigned int irq, struct irqaction *action);
 extern void unregister_handler_proc(unsigned int irq, struct irqaction *action);
+void irq_proc_update_valid(struct irq_desc *desc);
 #else
 static inline void register_irq_proc(unsigned int irq, struct irq_desc *desc) { }
 static inline void unregister_irq_proc(unsigned int irq, struct irq_desc *desc) { }
@@ -129,7 +149,10 @@ static inline void register_handler_proc(unsigned int irq,
 					 struct irqaction *action) { }
 static inline void unregister_handler_proc(unsigned int irq,
 					   struct irqaction *action) { }
+static inline void irq_proc_update_valid(struct irq_desc *desc) { }
 #endif
+
+struct irq_desc *irq_find_desc_at_or_after(unsigned int offset);
 
 extern bool irq_can_set_affinity_usr(unsigned int irq);
 
@@ -171,7 +194,7 @@ void __irq_put_desc_unlock(struct irq_desc *desc, unsigned long flags, bool bus)
 
 __DEFINE_CLASS_IS_CONDITIONAL(irqdesc_lock, true);
 __DEFINE_UNLOCK_GUARD(irqdesc_lock, struct irq_desc,
-		      __irq_put_desc_unlock(_T->lock, _T->flags, _T->bus),
+		      if (_T->lock) __irq_put_desc_unlock(_T->lock, _T->flags, _T->bus),
 		      unsigned long flags; bool bus);
 
 static inline class_irqdesc_lock_t class_irqdesc_lock_constructor(unsigned int irq, bool bus,
@@ -372,42 +395,3 @@ static inline struct irq_data *irqd_get_parent_data(struct irq_data *irqd)
 	return NULL;
 #endif
 }
-
-#ifdef CONFIG_GENERIC_IRQ_DEBUGFS
-#include <linux/debugfs.h>
-
-struct irq_bit_descr {
-	unsigned int	mask;
-	char		*name;
-};
-
-#define BIT_MASK_DESCR(m)	{ .mask = m, .name = #m }
-
-void irq_debug_show_bits(struct seq_file *m, int ind, unsigned int state,
-			 const struct irq_bit_descr *sd, int size);
-
-void irq_add_debugfs_entry(unsigned int irq, struct irq_desc *desc);
-static inline void irq_remove_debugfs_entry(struct irq_desc *desc)
-{
-	debugfs_remove(desc->debugfs_file);
-	kfree(desc->dev_name);
-}
-void irq_debugfs_copy_devname(int irq, struct device *dev);
-# ifdef CONFIG_IRQ_DOMAIN
-void irq_domain_debugfs_init(struct dentry *root);
-# else
-static inline void irq_domain_debugfs_init(struct dentry *root)
-{
-}
-# endif
-#else /* CONFIG_GENERIC_IRQ_DEBUGFS */
-static inline void irq_add_debugfs_entry(unsigned int irq, struct irq_desc *d)
-{
-}
-static inline void irq_remove_debugfs_entry(struct irq_desc *d)
-{
-}
-static inline void irq_debugfs_copy_devname(int irq, struct device *dev)
-{
-}
-#endif /* CONFIG_GENERIC_IRQ_DEBUGFS */

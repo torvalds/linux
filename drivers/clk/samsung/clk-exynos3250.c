@@ -7,7 +7,6 @@
 
 #include <linux/clk-provider.h>
 #include <linux/io.h>
-#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <dt-bindings/clock/exynos3250.h>
 

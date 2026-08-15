@@ -8,9 +8,7 @@ config PINCTRL_SPACEMIT_K1
 	depends on ARCH_SPACEMIT || COMPILE_TEST
 	depends on OF
 	default ARCH_SPACEMIT
-	select GENERIC_PINCTRL_GROUPS
-	select GENERIC_PINMUX_FUNCTIONS
-	select GENERIC_PINCONF
+	select GENERIC_PINCTRL
 	help
 	  Say Y to select the pinctrl driver for K1/K3 SoC.
 	  This pin controller allows selecting the mux function for

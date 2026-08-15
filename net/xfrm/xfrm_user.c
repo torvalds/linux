@@ -248,6 +248,72 @@ static inline int verify_replay(struct xfrm_usersa_info *p,
 	return 0;
 }
 
+static int verify_mtimer_thresh(bool has_encap, u8 dir,
+				struct netlink_ext_ack *extack)
+{
+	if (!has_encap) {
+		NL_SET_ERR_MSG(extack,
+			       "MTIMER_THRESH requires encapsulation");
+		return -EINVAL;
+	}
+	if (dir == XFRM_SA_DIR_OUT) {
+		NL_SET_ERR_MSG(extack,
+			       "MTIMER_THRESH should not be set on output SA");
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int verify_xfrm_family(u16 family, struct netlink_ext_ack *extack)
+{
+	switch (family) {
+	case AF_INET:
+		return 0;
+	case AF_INET6:
+#if IS_ENABLED(CONFIG_IPV6)
+		return 0;
+#else
+		NL_SET_ERR_MSG(extack, "IPv6 support disabled");
+		return -EAFNOSUPPORT;
+#endif
+	default:
+		NL_SET_ERR_MSG(extack, "Invalid address family");
+		return -EINVAL;
+	}
+}
+
+static int verify_selector_prefixlen(u16 family,
+				     const struct xfrm_selector *sel,
+				     struct netlink_ext_ack *extack)
+{
+	switch (family) {
+	case AF_UNSPEC:
+		return 0;
+	case AF_INET:
+		if (sel->prefixlen_d > 32 || sel->prefixlen_s > 32) {
+			NL_SET_ERR_MSG(extack,
+				       "Invalid prefix length in selector (must be <= 32 for IPv4)");
+			return -EINVAL;
+		}
+		return 0;
+	case AF_INET6:
+#if IS_ENABLED(CONFIG_IPV6)
+		if (sel->prefixlen_d > 128 || sel->prefixlen_s > 128) {
+			NL_SET_ERR_MSG(extack,
+				       "Invalid prefix length in selector (must be <= 128 for IPv6)");
+			return -EINVAL;
+		}
+		return 0;
+#else
+		NL_SET_ERR_MSG(extack, "IPv6 support disabled");
+		return -EAFNOSUPPORT;
+#endif
+	default:
+		NL_SET_ERR_MSG(extack, "Invalid address family in selector");
+		return -EINVAL;
+	}
+}
+
 static int verify_newsa_info(struct xfrm_usersa_info *p,
 			     struct nlattr **attrs,
 			     struct netlink_ext_ack *extack)
@@ -256,58 +322,16 @@ static int verify_newsa_info(struct xfrm_usersa_info *p,
 	u8 sa_dir = nla_get_u8_default(attrs[XFRMA_SA_DIR], 0);
 	u16 family = p->sel.family;
 
-	err = -EINVAL;
-	switch (p->family) {
-	case AF_INET:
-		break;
-
-	case AF_INET6:
-#if IS_ENABLED(CONFIG_IPV6)
-		break;
-#else
-		err = -EAFNOSUPPORT;
-		NL_SET_ERR_MSG(extack, "IPv6 support disabled");
+	err = verify_xfrm_family(p->family, extack);
+	if (err)
 		goto out;
-#endif
-
-	default:
-		NL_SET_ERR_MSG(extack, "Invalid address family");
-		goto out;
-	}
 
 	if (!family && !(p->flags & XFRM_STATE_AF_UNSPEC))
 		family = p->family;
 
-	switch (family) {
-	case AF_UNSPEC:
-		break;
-
-	case AF_INET:
-		if (p->sel.prefixlen_d > 32 || p->sel.prefixlen_s > 32) {
-			NL_SET_ERR_MSG(extack, "Invalid prefix length in selector (must be <= 32 for IPv4)");
-			goto out;
-		}
-
-		break;
-
-	case AF_INET6:
-#if IS_ENABLED(CONFIG_IPV6)
-		if (p->sel.prefixlen_d > 128 || p->sel.prefixlen_s > 128) {
-			NL_SET_ERR_MSG(extack, "Invalid prefix length in selector (must be <= 128 for IPv6)");
-			goto out;
-		}
-
-		break;
-#else
-		NL_SET_ERR_MSG(extack, "IPv6 support disabled");
-		err = -EAFNOSUPPORT;
+	err = verify_selector_prefixlen(family, &p->sel, extack);
+	if (err)
 		goto out;
-#endif
-
-	default:
-		NL_SET_ERR_MSG(extack, "Invalid address family in selector");
-		goto out;
-	}
 
 	err = -EINVAL;
 	switch (p->id.proto) {
@@ -455,18 +479,9 @@ static int verify_newsa_info(struct xfrm_usersa_info *p,
 	err = 0;
 
 	if (attrs[XFRMA_MTIMER_THRESH]) {
-		if (!attrs[XFRMA_ENCAP]) {
-			NL_SET_ERR_MSG(extack, "MTIMER_THRESH attribute can only be set on ENCAP states");
-			err = -EINVAL;
+		err = verify_mtimer_thresh(!!attrs[XFRMA_ENCAP], sa_dir, extack);
+		if (err)
 			goto out;
-		}
-
-		if (sa_dir == XFRM_SA_DIR_OUT) {
-			NL_SET_ERR_MSG(extack,
-				       "MTIMER_THRESH attribute should not be set on output SA");
-			err = -EINVAL;
-			goto out;
-		}
 	}
 
 	if (sa_dir == XFRM_SA_DIR_OUT) {
@@ -937,8 +952,14 @@ static struct xfrm_state *xfrm_state_construct(struct net *net,
 				   attrs[XFRMA_ALG_COMP], extack)))
 		goto error;
 
-	if (attrs[XFRMA_TFCPAD])
+	if (attrs[XFRMA_TFCPAD]) {
 		x->tfcpad = nla_get_u32(attrs[XFRMA_TFCPAD]);
+		if (x->tfcpad > IP_MAX_MTU) {
+			NL_SET_ERR_MSG(extack, "Excessive TFC padding");
+			err = -EINVAL;
+			goto error;
+		}
+	}
 
 	xfrm_mark_get(attrs, &x->mark);
 
@@ -1180,6 +1201,16 @@ static int copy_sec_ctx(struct xfrm_sec_ctx *s, struct sk_buff *skb)
 	return 0;
 }
 
+static void xso_to_xuo(const struct xfrm_dev_offload *xso,
+		       struct xfrm_user_offload *xuo)
+{
+	xuo->ifindex = xso->dev->ifindex;
+	if (xso->dir == XFRM_DEV_OFFLOAD_IN)
+		xuo->flags = XFRM_OFFLOAD_INBOUND;
+	if (xso->type == XFRM_DEV_OFFLOAD_PACKET)
+		xuo->flags |= XFRM_OFFLOAD_PACKET;
+}
+
 static int copy_user_offload(struct xfrm_dev_offload *xso, struct sk_buff *skb)
 {
 	struct xfrm_user_offload *xuo;
@@ -1191,11 +1222,7 @@ static int copy_user_offload(struct xfrm_dev_offload *xso, struct sk_buff *skb)
 
 	xuo = nla_data(attr);
 	memset(xuo, 0, sizeof(*xuo));
-	xuo->ifindex = xso->dev->ifindex;
-	if (xso->dir == XFRM_DEV_OFFLOAD_IN)
-		xuo->flags = XFRM_OFFLOAD_INBOUND;
-	if (xso->type == XFRM_DEV_OFFLOAD_PACKET)
-		xuo->flags |= XFRM_OFFLOAD_PACKET;
+	xso_to_xuo(xso, xuo);
 
 	return 0;
 }
@@ -1320,7 +1347,7 @@ static int copy_to_user_encap(struct xfrm_encap_tmpl *ep, struct sk_buff *skb)
 	return 0;
 }
 
-static int xfrm_smark_put(struct sk_buff *skb, struct xfrm_mark *m)
+static int xfrm_smark_put(struct sk_buff *skb, const struct xfrm_mark *m)
 {
 	int ret = 0;
 
@@ -2267,9 +2294,8 @@ static int xfrm_add_policy(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	if (err) {
 		xfrm_dev_policy_delete(xp);
-		xfrm_dev_policy_free(xp);
-		security_xfrm_policy_free(xp->security);
-		kfree(xp);
+		xp->walk.dead = 1;
+		xfrm_policy_destroy(xp);
 		return err;
 	}
 
@@ -2485,9 +2511,9 @@ static int xfrm_notify_userpolicy(struct net *net)
 	}
 
 	up = nlmsg_data(nlh);
-	up->in = net->xfrm.policy_default[XFRM_POLICY_IN];
-	up->fwd = net->xfrm.policy_default[XFRM_POLICY_FWD];
-	up->out = net->xfrm.policy_default[XFRM_POLICY_OUT];
+	up->in = READ_ONCE(net->xfrm.policy_default[XFRM_POLICY_IN]);
+	up->fwd = READ_ONCE(net->xfrm.policy_default[XFRM_POLICY_FWD]);
+	up->out = READ_ONCE(net->xfrm.policy_default[XFRM_POLICY_OUT]);
 
 	nlmsg_end(skb, nlh);
 
@@ -2511,13 +2537,13 @@ static int xfrm_set_default(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct xfrm_userpolicy_default *up = nlmsg_data(nlh);
 
 	if (xfrm_userpolicy_is_valid(up->in))
-		net->xfrm.policy_default[XFRM_POLICY_IN] = up->in;
+		WRITE_ONCE(net->xfrm.policy_default[XFRM_POLICY_IN], up->in);
 
 	if (xfrm_userpolicy_is_valid(up->fwd))
-		net->xfrm.policy_default[XFRM_POLICY_FWD] = up->fwd;
+		WRITE_ONCE(net->xfrm.policy_default[XFRM_POLICY_FWD], up->fwd);
 
 	if (xfrm_userpolicy_is_valid(up->out))
-		net->xfrm.policy_default[XFRM_POLICY_OUT] = up->out;
+		WRITE_ONCE(net->xfrm.policy_default[XFRM_POLICY_OUT], up->out);
 
 	rt_genid_bump_all(net);
 
@@ -2547,9 +2573,9 @@ static int xfrm_get_default(struct sk_buff *skb, struct nlmsghdr *nlh,
 	}
 
 	r_up = nlmsg_data(r_nlh);
-	r_up->in = net->xfrm.policy_default[XFRM_POLICY_IN];
-	r_up->fwd = net->xfrm.policy_default[XFRM_POLICY_FWD];
-	r_up->out = net->xfrm.policy_default[XFRM_POLICY_OUT];
+	r_up->in = READ_ONCE(net->xfrm.policy_default[XFRM_POLICY_IN]);
+	r_up->fwd = READ_ONCE(net->xfrm.policy_default[XFRM_POLICY_FWD]);
+	r_up->out = READ_ONCE(net->xfrm.policy_default[XFRM_POLICY_OUT]);
 	nlmsg_end(r_skb, r_nlh);
 
 	return nlmsg_unicast(xfrm_net_nlsk(net, skb), r_skb, portid);
@@ -3070,6 +3096,25 @@ nomem:
 }
 
 #ifdef CONFIG_XFRM_MIGRATE
+static void copy_from_user_migrate_state(struct xfrm_migrate *ma,
+					 const struct xfrm_user_migrate_state *um)
+{
+	memcpy(&ma->old_daddr, &um->id.daddr, sizeof(ma->old_daddr));
+	memcpy(&ma->new_daddr, &um->new_daddr, sizeof(ma->new_daddr));
+	memcpy(&ma->new_saddr, &um->new_saddr, sizeof(ma->new_saddr));
+
+	ma->proto = um->id.proto;
+	ma->new_reqid = um->new_reqid;
+
+	ma->old_family = um->id.family;
+	ma->new_family = um->new_family;
+
+	ma->old_mark = um->old_mark;
+	ma->flags    = um->flags;
+	ma->new_sel  = &um->new_sel;
+	ma->msg_type = XFRM_MSG_MIGRATE_STATE;
+}
+
 static int copy_from_user_migrate(struct xfrm_migrate *ma,
 				  struct xfrm_kmaddress *k,
 				  struct nlattr **attrs, int *num,
@@ -3105,10 +3150,11 @@ static int copy_from_user_migrate(struct xfrm_migrate *ma,
 
 		ma->proto = um->proto;
 		ma->mode = um->mode;
-		ma->reqid = um->reqid;
+		ma->old_reqid = um->reqid;
 
 		ma->old_family = um->old_family;
 		ma->new_family = um->new_family;
+		ma->msg_type   = XFRM_MSG_MIGRATE;
 	}
 
 	*num = i;
@@ -3119,7 +3165,7 @@ static int xfrm_do_migrate(struct sk_buff *skb, struct nlmsghdr *nlh,
 			   struct nlattr **attrs, struct netlink_ext_ack *extack)
 {
 	struct xfrm_userpolicy_id *pi = nlmsg_data(nlh);
-	struct xfrm_migrate m[XFRM_MAX_DEPTH];
+	struct xfrm_migrate m[XFRM_MAX_DEPTH] = {};
 	struct xfrm_kmaddress km, *kmp;
 	u8 type;
 	int err;
@@ -3172,7 +3218,298 @@ error:
 	kfree(xuo);
 	return err;
 }
+
+static int build_migrate_state(struct sk_buff *skb,
+			       const struct xfrm_user_migrate_state *um,
+			       const struct xfrm_migrate *m,
+			       u8 dir, u32 portid, u32 seq)
+{
+	int err;
+	struct nlmsghdr *nlh;
+	struct xfrm_user_migrate_state *hdr;
+
+	nlh = nlmsg_put(skb, portid, seq, XFRM_MSG_MIGRATE_STATE,
+			sizeof(struct xfrm_user_migrate_state), 0);
+	if (!nlh)
+		return -EMSGSIZE;
+
+	hdr = nlmsg_data(nlh);
+	*hdr = *um;
+	hdr->new_sel = *m->new_sel;
+
+	if (m->encap) {
+		err = nla_put(skb, XFRMA_ENCAP, sizeof(*m->encap), m->encap);
+		if (err)
+			goto out_cancel;
+	}
+
+	if (m->xuo) {
+		err = nla_put(skb, XFRMA_OFFLOAD_DEV, sizeof(*m->xuo), m->xuo);
+		if (err)
+			goto out_cancel;
+	}
+
+	if (m->new_mark) {
+		err = nla_put(skb, XFRMA_MARK, sizeof(*m->new_mark),
+			      m->new_mark);
+		if (err)
+			goto out_cancel;
+	}
+
+	err = xfrm_smark_put(skb, &m->smark);
+	if (err)
+		goto out_cancel;
+
+	if (m->mapping_maxage) {
+		err = nla_put_u32(skb, XFRMA_MTIMER_THRESH, m->mapping_maxage);
+		if (err)
+			goto out_cancel;
+	}
+
+	if (m->nat_keepalive_interval) {
+		err = nla_put_u32(skb, XFRMA_NAT_KEEPALIVE_INTERVAL,
+				  m->nat_keepalive_interval);
+		if (err)
+			goto out_cancel;
+	}
+
+	if (dir) {
+		err = nla_put_u8(skb, XFRMA_SA_DIR, dir);
+		if (err)
+			goto out_cancel;
+	}
+
+	nlmsg_end(skb, nlh);
+	return 0;
+
+out_cancel:
+	nlmsg_cancel(skb, nlh);
+	return err;
+}
+
+static unsigned int xfrm_migrate_state_msgsize(const struct xfrm_migrate *m,
+					       u8 dir)
+{
+	return NLMSG_ALIGN(sizeof(struct xfrm_user_migrate_state)) +
+		(m->encap ? nla_total_size(sizeof(struct xfrm_encap_tmpl)) : 0) +
+		(m->xuo ? nla_total_size(sizeof(struct xfrm_user_offload)) : 0) +
+		(m->new_mark ? nla_total_size(sizeof(struct xfrm_mark)) : 0) +
+		((m->smark.v | m->smark.m) ? nla_total_size(sizeof(u32)) * 2 : 0) +
+		(m->mapping_maxage ? nla_total_size(sizeof(u32)) : 0) +
+		(m->nat_keepalive_interval ? nla_total_size(sizeof(u32)) : 0) +
+		(dir ? nla_total_size(sizeof(u8)) : 0); /* XFRMA_SA_DIR */
+}
+
+static int xfrm_send_migrate_state(struct net *net,
+				   const struct xfrm_user_migrate_state *um,
+				   const struct xfrm_migrate *m,
+				   u8 dir, u32 portid, u32 seq)
+{
+	int err;
+	struct sk_buff *skb;
+
+	skb = nlmsg_new(xfrm_migrate_state_msgsize(m, dir), GFP_ATOMIC);
+	if (!skb)
+		return -ENOMEM;
+
+	err = build_migrate_state(skb, um, m, dir, portid, seq);
+	if (err < 0) {
+		kfree_skb(skb);
+		return err;
+	}
+
+	return xfrm_nlmsg_multicast(net, skb, 0, XFRMNLGRP_MIGRATE);
+}
+
+static int xfrm_do_migrate_state(struct sk_buff *skb, struct nlmsghdr *nlh,
+				 struct nlattr **attrs, struct netlink_ext_ack *extack)
+{
+	struct xfrm_user_migrate_state *um = nlmsg_data(nlh);
+	struct net *net = sock_net(skb->sk);
+	struct xfrm_user_offload xuo = {};
+	struct xfrm_migrate m = {};
+	struct xfrm_state *xc;
+	struct xfrm_state *x;
+	int err;
+
+	if (!um->id.spi) {
+		NL_SET_ERR_MSG(extack, "Invalid SPI 0x0");
+		return -EINVAL;
+	}
+
+	if (um->reserved) {
+		NL_SET_ERR_MSG(extack, "Reserved field must be zero");
+		return -EINVAL;
+	}
+
+	if (um->flags & ~XFRM_MIGRATE_STATE_KNOWN_FLAGS) {
+		NL_SET_ERR_MSG_FMT(extack, "Unknown flags: 0x%x",
+				   um->flags & ~XFRM_MIGRATE_STATE_KNOWN_FLAGS);
+		return -EINVAL;
+	}
+
+	err = verify_xfrm_family(um->new_family, extack);
+	if (err)
+		return err;
+
+	if (!(um->flags & XFRM_MIGRATE_STATE_UPDATE_H2H_SEL)) {
+		err = verify_selector_prefixlen(um->new_sel.family,
+						&um->new_sel, extack);
+		if (err)
+			return err;
+	}
+
+	copy_from_user_migrate_state(&m, um);
+
+	x = xfrm_state_lookup(net, m.old_mark.v & m.old_mark.m,
+			      &um->id.daddr, um->id.spi,
+			      um->id.proto, um->id.family);
+	if (!x) {
+		NL_SET_ERR_MSG(extack, "Can not find state");
+		return -ESRCH;
+	}
+
+	if (um->flags & XFRM_MIGRATE_STATE_UPDATE_H2H_SEL) {
+		u8 prefixlen = (x->props.family == AF_INET6) ? 128 : 32;
+
+		if (x->sel.prefixlen_s != x->sel.prefixlen_d ||
+		    x->sel.prefixlen_d != prefixlen ||
+		    !xfrm_addr_equal(&x->sel.daddr, &x->id.daddr, x->props.family) ||
+		    !xfrm_addr_equal(&x->sel.saddr, &x->props.saddr, x->props.family)) {
+			NL_SET_ERR_MSG(extack,
+				       "SA selector is not a single-host match for SA addresses");
+			err = -EINVAL;
+			goto out;
+		}
+	}
+
+	if (attrs[XFRMA_ENCAP]) {
+		m.encap = nla_data(attrs[XFRMA_ENCAP]);
+		if (m.encap->encap_type == 0) {
+			m.encap = NULL; /* sentinel: remove encap */
+		} else if (m.encap->encap_type != UDP_ENCAP_ESPINUDP) {
+			NL_SET_ERR_MSG(extack, "Unsupported encapsulation type");
+			err = -EINVAL;
+			goto out;
+		}
+	} else {
+		m.encap = x->encap; /* omit-to-inherit */
+	}
+
+	if (attrs[XFRMA_MTIMER_THRESH]) {
+		err = verify_mtimer_thresh(!!m.encap, x->dir, extack);
+		if (err)
+			goto out;
+	}
+
+	if (nla_get_u32_default(attrs[XFRMA_NAT_KEEPALIVE_INTERVAL], 0) && !m.encap) {
+		NL_SET_ERR_MSG(extack,
+			       "NAT_KEEPALIVE_INTERVAL requires encapsulation");
+		err = -EINVAL;
+		goto out;
+	}
+
+	if (attrs[XFRMA_OFFLOAD_DEV]) {
+		m.xuo = nla_data(attrs[XFRMA_OFFLOAD_DEV]);
+	} else {
+		bool inherit_offload = !(um->flags & XFRM_MIGRATE_STATE_CLEAR_OFFLOAD);
+
+		if (inherit_offload && x->xso.dev) {
+			xso_to_xuo(&x->xso, &xuo);
+			m.xuo = &xuo;
+		}
+	}
+
+	if (attrs[XFRMA_MARK])
+		m.new_mark = nla_data(attrs[XFRMA_MARK]);
+
+	if (attrs[XFRMA_SET_MARK])
+		xfrm_smark_init(attrs, &m.smark);
+	else
+		m.smark = x->props.smark;
+
+	m.mapping_maxage = nla_get_u32_default(attrs[XFRMA_MTIMER_THRESH],
+					       x->mapping_maxage);
+	m.nat_keepalive_interval = nla_get_u32_default(attrs[XFRMA_NAT_KEEPALIVE_INTERVAL],
+						       x->nat_keepalive_interval);
+
+	if (m.new_family != um->id.family ||
+	    !xfrm_addr_equal(&m.new_daddr, &um->id.daddr, um->id.family)) {
+		u32 new_mark_key = m.new_mark ? m.new_mark->v & m.new_mark->m :
+						m.old_mark.v & m.old_mark.m;
+		struct xfrm_state *x_new;
+
+		x_new = xfrm_state_lookup(net, new_mark_key, &m.new_daddr,
+					  um->id.spi, um->id.proto, m.new_family);
+		if (x_new) {
+			xfrm_state_put(x_new);
+			NL_SET_ERR_MSG(extack, "New SA tuple already occupied");
+			err = -EEXIST;
+			goto out;
+		}
+	}
+
+	xc = xfrm_state_migrate_create(x, &m, net, extack);
+	if (!xc) {
+		NL_SET_ERR_MSG_WEAK(extack, "State migration clone failed");
+		err = -EINVAL;
+		goto out;
+	}
+
+	spin_lock_bh(&x->lock);
+	if (x->km.state != XFRM_STATE_VALID) {
+		spin_unlock_bh(&x->lock);
+		NL_SET_ERR_MSG(extack, "State already deleted");
+		err = -ESRCH;
+		goto out_xc;
+	}
+	xfrm_migrate_sync(xc, x); /* to prevent SN/IV reuse */
+	__xfrm_state_delete(x);
+	spin_unlock_bh(&x->lock);
+
+	err = xfrm_state_migrate_install(x, xc, &m, extack);
+	if (err < 0) {
+		/*
+		 * Should not occur: pre-check above ensures the new tuple is
+		 * free under xfrm_cfg_mutex. Both SAs are gone if it does;
+		 * restoring x would risk SN/IV reuse.
+		 */
+		goto out;
+	}
+
+	/* Restore encap cleared by sentinel (type=0) during migration. */
+	if (attrs[XFRMA_ENCAP])
+		m.encap = nla_data(attrs[XFRMA_ENCAP]);
+
+	m.new_sel = &xc->sel;
+	m.mapping_maxage = xc->mapping_maxage;
+	m.nat_keepalive_interval = xc->nat_keepalive_interval;
+
+	err = xfrm_send_migrate_state(net, um, &m, xc->dir,
+				      nlh->nlmsg_pid, nlh->nlmsg_seq);
+	if (err < 0) {
+		NL_SET_ERR_MSG(extack, "Failed to send migration notification");
+		err = 0;
+	}
+
+out:
+	xfrm_state_put(x);
+	return err;
+out_xc:
+	xc->km.state = XFRM_STATE_DEAD;
+	xfrm_state_put(xc);
+	xfrm_state_put(x);
+	return err;
+}
+
 #else
+static int xfrm_do_migrate_state(struct sk_buff *skb, struct nlmsghdr *nlh,
+				 struct nlattr **attrs, struct netlink_ext_ack *extack)
+{
+	NL_SET_ERR_MSG(extack, "XFRM_MSG_MIGRATE_STATE is not supported");
+	return -ENOPROTOOPT;
+}
+
 static int xfrm_do_migrate(struct sk_buff *skb, struct nlmsghdr *nlh,
 			   struct nlattr **attrs, struct netlink_ext_ack *extack)
 {
@@ -3188,7 +3525,7 @@ static int copy_to_user_migrate(const struct xfrm_migrate *m, struct sk_buff *sk
 	memset(&um, 0, sizeof(um));
 	um.proto = m->proto;
 	um.mode = m->mode;
-	um.reqid = m->reqid;
+	um.reqid = m->old_reqid;
 	um.old_family = m->old_family;
 	memcpy(&um.old_daddr, &m->old_daddr, sizeof(um.old_daddr));
 	memcpy(&um.old_saddr, &m->old_saddr, sizeof(um.old_saddr));
@@ -3325,6 +3662,7 @@ const int xfrm_msg_min[XFRM_NR_MSGTYPES] = {
 	[XFRM_MSG_MAPPING     - XFRM_MSG_BASE] = XMSGSIZE(xfrm_user_mapping),
 	[XFRM_MSG_SETDEFAULT  - XFRM_MSG_BASE] = XMSGSIZE(xfrm_userpolicy_default),
 	[XFRM_MSG_GETDEFAULT  - XFRM_MSG_BASE] = XMSGSIZE(xfrm_userpolicy_default),
+	[XFRM_MSG_MIGRATE_STATE - XFRM_MSG_BASE] = XMSGSIZE(xfrm_user_migrate_state),
 };
 EXPORT_SYMBOL_GPL(xfrm_msg_min);
 
@@ -3418,6 +3756,7 @@ static const struct xfrm_link {
 	[XFRM_MSG_GETSPDINFO  - XFRM_MSG_BASE] = { .doit = xfrm_get_spdinfo   },
 	[XFRM_MSG_SETDEFAULT  - XFRM_MSG_BASE] = { .doit = xfrm_set_default   },
 	[XFRM_MSG_GETDEFAULT  - XFRM_MSG_BASE] = { .doit = xfrm_get_default   },
+	[XFRM_MSG_MIGRATE_STATE - XFRM_MSG_BASE] = { .doit = xfrm_do_migrate_state },
 };
 
 static int xfrm_reject_unused_attr(int type, struct nlattr **attrs,
@@ -3449,6 +3788,30 @@ static int xfrm_reject_unused_attr(int type, struct nlattr **attrs,
 		}
 	}
 
+	if (type == XFRM_MSG_MIGRATE_STATE) {
+		int i;
+
+		for (i = 0; i <= XFRMA_MAX; i++) {
+			if (!attrs[i])
+				continue;
+
+			switch (i) {
+			case XFRMA_MARK:
+			case XFRMA_ENCAP:
+			case XFRMA_OFFLOAD_DEV:
+			case XFRMA_SET_MARK:
+			case XFRMA_SET_MARK_MASK:
+			case XFRMA_MTIMER_THRESH:
+			case XFRMA_NAT_KEEPALIVE_INTERVAL:
+				break;
+			default:
+				NL_SET_ERR_MSG_ATTR(extack, attrs[i],
+						    "Unsupported attribute in XFRM_MSG_MIGRATE_STATE");
+				return -EINVAL;
+			}
+		}
+	}
+
 	return 0;
 }
 
@@ -3472,7 +3835,7 @@ static int xfrm_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (!netlink_net_capable(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
-	if (in_compat_syscall()) {
+	if (IS_ENABLED(CONFIG_COMPAT_FOR_U64_ALIGNMENT) && in_compat_syscall()) {
 		struct xfrm_translator *xtr = xfrm_get_translator();
 
 		if (!xtr)

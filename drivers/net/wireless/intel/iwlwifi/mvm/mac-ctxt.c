@@ -935,9 +935,9 @@ u16 iwl_mvm_mac_ctxt_get_beacon_flags(const struct iwl_fw *fw, u8 rate_idx)
 			  : IWL_MAC_BEACON_CCK_V1;
 
 	if (iwl_fw_lookup_cmd_ver(fw, TX_CMD, 0) > 8)
-		flags |= iwl_mvm_mac80211_idx_to_hwrate(fw, rate_idx);
+		flags |= iwl_mvm_rate_idx_to_fw_idx(fw, rate_idx);
 	else
-		flags |= iwl_fw_rate_idx_to_plcp(rate_idx);
+		flags |= iwl_mvm_rate_idx_to_plcp(rate_idx);
 
 	return flags;
 }
@@ -998,7 +998,7 @@ static void iwl_mvm_mac_ctxt_set_tx(struct iwl_mvm *mvm,
 	else
 		rate_n_flags |= RATE_MCS_MOD_TYPE_LEGACY_OFDM;
 
-	rate_n_flags |= iwl_mvm_mac80211_idx_to_hwrate(mvm->fw, rate);
+	rate_n_flags |= iwl_mvm_rate_idx_to_fw_idx(mvm->fw, rate);
 
 	tx_params->rate_n_flags = iwl_mvm_v3_rate_to_fw(rate_n_flags,
 							mvm->fw_rates_ver);

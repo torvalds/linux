@@ -449,6 +449,9 @@ static bool annotate_browser__toggle_source(struct annotate_browser *browser,
 	struct annotation_line *al;
 	off_t offset = browser->b.index - browser->b.top_idx;
 
+	if (browser->b.nr_entries == 0)
+		return false;
+
 	browser->b.seek(&browser->b, offset, SEEK_CUR);
 	al = list_entry(browser->b.top, struct annotation_line, node);
 
@@ -542,8 +545,8 @@ static void annotate_browser__show_full_location(struct ui_browser *browser)
 static void ui_browser__init_asm_mode(struct ui_browser *browser)
 {
 	struct annotation *notes = browser__annotation(browser);
-	ui_browser__reset_index(browser);
 	browser->nr_entries = notes->src->nr_asm_entries;
+	ui_browser__reset_index(browser);
 }
 
 static int sym_title(struct symbol *sym, struct map *map, char *title,
@@ -1185,7 +1188,7 @@ int __hist_entry__tui_annotate(struct hist_entry *he, struct map_symbol *ms,
 	if (dso__annotate_warned(dso))
 		return -1;
 
-	if (not_annotated || !sym->annotate2) {
+	if (not_annotated || !symbol__is_annotate2(sym)) {
 		err = symbol__annotate2(ms, evsel, &browser.arch);
 		if (err) {
 			annotate_browser__symbol_annotate_error(&browser, err);

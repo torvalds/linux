@@ -60,7 +60,7 @@ struct hdac_ext_link *hdac_bus_eml_sdw_get_hlink(struct hdac_bus *bus);
 
 struct mutex *hdac_bus_eml_get_mutex(struct hdac_bus *bus, bool alt, int elid);
 
-int hdac_bus_eml_enable_offload(struct hdac_bus *bus, bool alt, int elid, bool enable);
+void hdac_bus_eml_enable_offload(struct hdac_bus *bus, bool alt, int elid, bool enable);
 
 /* microphone privacy specific function supported by ACE3+ architecture */
 void hdac_bus_eml_set_mic_privacy_mask(struct hdac_bus *bus, bool alt, int elid,
@@ -186,10 +186,9 @@ hdac_bus_eml_sdw_get_hlink(struct hdac_bus *bus) { return NULL; }
 static inline struct mutex *
 hdac_bus_eml_get_mutex(struct hdac_bus *bus, bool alt, int elid) { return NULL; }
 
-static inline int
+static inline void
 hdac_bus_eml_enable_offload(struct hdac_bus *bus, bool alt, int elid, bool enable)
 {
-	return 0;
 }
 
 static inline void

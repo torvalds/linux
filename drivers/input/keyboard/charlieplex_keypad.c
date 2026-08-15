@@ -17,7 +17,6 @@
 #include <linux/input/matrix_keypad.h>
 #include <linux/math.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/string_helpers.h>
@@ -78,7 +77,9 @@ static int charlieplex_keypad_scan_line(struct charlieplex_keypad *keypad,
 	int err;
 
 	/* Activate only one line as output at a time. */
-	gpiod_direction_output(line_gpios->desc[oline], 1);
+	err = gpiod_direction_output(line_gpios->desc[oline], 1);
+	if (err)
+		return err;
 
 	if (keypad->settling_time_us)
 		fsleep(keypad->settling_time_us);

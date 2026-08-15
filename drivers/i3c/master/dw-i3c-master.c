@@ -1435,7 +1435,11 @@ static void dw_i3c_master_irq_handle_ibis(struct dw_i3c_master *master)
 	u32 reg;
 
 	reg = readl(master->regs + QUEUE_STATUS_LEVEL);
-	n_ibis = QUEUE_STATUS_IBI_STATUS_CNT(reg);
+	if (master->has_ibi_data)
+		n_ibis = QUEUE_STATUS_IBI_STATUS_CNT(reg);
+	else
+		n_ibis = QUEUE_STATUS_IBI_BUF_BLR(reg);
+
 	if (!n_ibis)
 		return;
 
@@ -1445,7 +1449,7 @@ static void dw_i3c_master_irq_handle_ibis(struct dw_i3c_master *master)
 		if (IBI_TYPE_SIRQ(reg)) {
 			dw_i3c_master_handle_ibi_sir(master, reg);
 		} else if (IBI_TYPE_HJ(reg)) {
-			queue_work(master->base.wq, &master->hj_work);
+			i3c_master_queue_hotjoin(&master->base);
 		} else {
 			len = IBI_QUEUE_STATUS_DATA_LEN(reg);
 			dev_info(&master->base.dev,
@@ -1481,7 +1485,7 @@ static irqreturn_t dw_i3c_master_irq_handler(int irq, void *dev_id)
 }
 
 static int dw_i3c_master_set_dev_nack_retry(struct i3c_master_controller *m,
-					    unsigned long dev_nack_retry_cnt)
+					    unsigned int dev_nack_retry_cnt)
 {
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
 	u32 reg;
@@ -1489,7 +1493,7 @@ static int dw_i3c_master_set_dev_nack_retry(struct i3c_master_controller *m,
 
 	if (dev_nack_retry_cnt > DW_I3C_DEV_NACK_RETRY_CNT_MAX) {
 		dev_err(&master->base.dev,
-			"Value %ld exceeds maximum %d\n",
+			"Value %u exceeds maximum %d\n",
 			dev_nack_retry_cnt, DW_I3C_DEV_NACK_RETRY_CNT_MAX);
 		return -ERANGE;
 	}
@@ -1554,18 +1558,11 @@ static const struct dw_i3c_platform_ops dw_i3c_platform_ops_default = {
 	.set_dat_ibi = dw_i3c_platform_set_dat_ibi_nop,
 };
 
-static void dw_i3c_hj_work(struct work_struct *work)
-{
-	struct dw_i3c_master *master =
-		container_of(work, typeof(*master), hj_work);
-
-	i3c_master_do_daa(&master->base);
-}
-
 int dw_i3c_common_probe(struct dw_i3c_master *master,
 			struct platform_device *pdev)
 {
 	int ret, irq;
+	u32 thld_ctrl;
 	const struct dw_i3c_drvdata *drvdata;
 	unsigned long quirks = 0;
 
@@ -1623,6 +1620,20 @@ int dw_i3c_common_probe(struct dw_i3c_master *master,
 	master->maxdevs = ret >> 16;
 	master->free_pos = GENMASK(master->maxdevs - 1, 0);
 
+	/*
+	 * Detect IBI data capability (IC_HAS_IBI_DATA): write a non-zero value
+	 * to IBI_DATA_THLD and read back. On controllers like Versalnet
+	 * the field is hardwired to 0 and the write is ignored. Restore the
+	 * original register value after detection.
+	 */
+	thld_ctrl = readl(master->regs + QUEUE_THLD_CTRL);
+	ret = thld_ctrl | QUEUE_THLD_CTRL_IBI_DATA(2);
+	writel(ret, master->regs + QUEUE_THLD_CTRL);
+	ret = readl(master->regs + QUEUE_THLD_CTRL);
+	if (ret & QUEUE_THLD_CTRL_IBI_DATA_MASK)
+		master->has_ibi_data = true;
+	writel(thld_ctrl, master->regs + QUEUE_THLD_CTRL);
+
 	if (has_acpi_companion(&pdev->dev)) {
 		quirks = (unsigned long)device_get_match_data(&pdev->dev);
 	} else if (pdev->dev.of_node) {
@@ -1635,8 +1646,6 @@ int dw_i3c_common_probe(struct dw_i3c_master *master,
 	/* Keep controller enabled by preventing runtime suspend */
 	if (master->quirks & DW_I3C_DISABLE_RUNTIME_PM_QUIRK)
 		pm_runtime_get_noresume(&pdev->dev);
-
-	INIT_WORK(&master->hj_work, dw_i3c_hj_work);
 
 	device_set_of_node_from_dev(&master->base.i2c.dev, &pdev->dev);
 	ret = i3c_master_register(&master->base, &pdev->dev,
@@ -1659,7 +1668,6 @@ EXPORT_SYMBOL_GPL(dw_i3c_common_probe);
 
 void dw_i3c_common_remove(struct dw_i3c_master *master)
 {
-	cancel_work_sync(&master->hj_work);
 	i3c_master_unregister(&master->base);
 
 	/* Balance pm_runtime_get_noresume() from probe() */
@@ -1803,8 +1811,6 @@ static void dw_i3c_shutdown(struct platform_device *pdev)
 			__func__, ret);
 		return;
 	}
-
-	cancel_work_sync(&master->hj_work);
 
 	/* Disable interrupts */
 	writel((u32)~INTR_ALL, master->regs + INTR_STATUS_EN);

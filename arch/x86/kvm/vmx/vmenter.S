@@ -2,44 +2,20 @@
 #include <linux/linkage.h>
 #include <asm/asm.h>
 #include <asm/bitsperlong.h>
-#include <asm/kvm_vcpu_regs.h>
 #include <asm/nospec-branch.h>
 #include <asm/percpu.h>
 #include <asm/segment.h>
 #include "kvm-asm-offsets.h"
-#include "run_flags.h"
-
-#define WORD_SIZE (BITS_PER_LONG / 8)
-
-#define VCPU_RAX	__VCPU_REGS_RAX * WORD_SIZE
-#define VCPU_RCX	__VCPU_REGS_RCX * WORD_SIZE
-#define VCPU_RDX	__VCPU_REGS_RDX * WORD_SIZE
-#define VCPU_RBX	__VCPU_REGS_RBX * WORD_SIZE
-/* Intentionally omit RSP as it's context switched by hardware */
-#define VCPU_RBP	__VCPU_REGS_RBP * WORD_SIZE
-#define VCPU_RSI	__VCPU_REGS_RSI * WORD_SIZE
-#define VCPU_RDI	__VCPU_REGS_RDI * WORD_SIZE
-
-#ifdef CONFIG_X86_64
-#define VCPU_R8		__VCPU_REGS_R8  * WORD_SIZE
-#define VCPU_R9		__VCPU_REGS_R9  * WORD_SIZE
-#define VCPU_R10	__VCPU_REGS_R10 * WORD_SIZE
-#define VCPU_R11	__VCPU_REGS_R11 * WORD_SIZE
-#define VCPU_R12	__VCPU_REGS_R12 * WORD_SIZE
-#define VCPU_R13	__VCPU_REGS_R13 * WORD_SIZE
-#define VCPU_R14	__VCPU_REGS_R14 * WORD_SIZE
-#define VCPU_R15	__VCPU_REGS_R15 * WORD_SIZE
-#endif
+#include "vmenter.h"
 
 .section .noinstr.text, "ax"
 
 /**
  * __vmx_vcpu_run - Run a vCPU via a transition to VMX guest mode
  * @vmx:	struct vcpu_vmx *
- * @regs:	unsigned long * (to guest registers)
- * @flags:	VMX_RUN_VMRESUME:	use VMRESUME instead of VMLAUNCH
- *		VMX_RUN_SAVE_SPEC_CTRL: save guest SPEC_CTRL into vmx->spec_ctrl
- *		VMX_RUN_CLEAR_CPU_BUFFERS_FOR_MMIO: vCPU can access host MMIO
+ * @flags:	KVM_ENTER_VMRESUME:	use VMRESUME instead of VMLAUNCH
+ *		KVM_ENTER_SAVE_SPEC_CTRL: save guest SPEC_CTRL into vmx->spec_ctrl
+ *		KVM_ENTER_CLEAR_CPU_BUFFERS_FOR_MMIO: vCPU can access host MMIO
  *
  * Returns:
  *	0 on VM-Exit, 1 on VM-Fail
@@ -62,76 +38,39 @@ SYM_FUNC_START(__vmx_vcpu_run)
 	push %_ASM_ARG1
 
 	/* Save @flags (used for VMLAUNCH vs. VMRESUME and mitigations). */
-	push %_ASM_ARG3
-
-	/*
-	 * Save @regs, _ASM_ARG2 may be modified by vmx_update_host_rsp() and
-	 * @regs is needed after VM-Exit to save the guest's register values.
-	 */
 	push %_ASM_ARG2
 
 	lea (%_ASM_SP), %_ASM_ARG2
 	call vmx_update_host_rsp
 
-	ALTERNATIVE "jmp .Lspec_ctrl_done", "", X86_FEATURE_MSR_SPEC_CTRL
+	/* Reload @vmx, _ASM_ARG1 may be modified by vmx_update_host_rsp().  */
+	mov WORD_SIZE(%_ASM_SP), %_ASM_DI
 
 	/*
-	 * SPEC_CTRL handling: if the guest's SPEC_CTRL value differs from the
-	 * host's, write the MSR.
-	 *
-	 * IMPORTANT: To avoid RSB underflow attacks and any other nastiness,
-	 * there must not be any returns or indirect branches between this code
-	 * and vmentry.
+	 * Unlike AMD there's no V_SPEC_CTRL here, so do not leave the body
+	 * out of line.  Clobbers RAX, RCX, RDX, RSI.
 	 */
-	mov 2*WORD_SIZE(%_ASM_SP), %_ASM_DI
-#ifdef CONFIG_X86_64
-	mov VMX_spec_ctrl(%rdi), %rdx
-	cmp PER_CPU_VAR(x86_spec_ctrl_current), %rdx
-	je .Lspec_ctrl_done
-	movl %edx, %eax
-	shr $32, %rdx
-#else
-	mov VMX_spec_ctrl(%edi), %eax
-	mov PER_CPU_VAR(x86_spec_ctrl_current), %ecx
-	xor %eax, %ecx
-	mov VMX_spec_ctrl + 4(%edi), %edx
-	mov PER_CPU_VAR(x86_spec_ctrl_current + 4), %edi
-	xor %edx, %edi
-	or %edi, %ecx
-	je .Lspec_ctrl_done
-#endif
-	mov $MSR_IA32_SPEC_CTRL, %ecx
-	wrmsr
-
-.Lspec_ctrl_done:
+	ALTERNATIVE "jmp .Lspec_ctrl_guest_done", "", X86_FEATURE_MSR_SPEC_CTRL
+	RESTORE_GUEST_SPEC_CTRL_BODY VMX_spec_ctrl(%_ASM_DI), .Lspec_ctrl_guest_done
+.Lspec_ctrl_guest_done:
 
 	/*
 	 * Since vmentry is serializing on affected CPUs, there's no need for
 	 * an LFENCE to stop speculation from skipping the wrmsr.
 	 */
 
-	/* Load @regs to RAX. */
-	mov (%_ASM_SP), %_ASM_AX
-
-	/* Load guest registers.  Don't clobber flags. */
-	mov VCPU_RCX(%_ASM_AX), %_ASM_CX
-	mov VCPU_RDX(%_ASM_AX), %_ASM_DX
-	mov VCPU_RBX(%_ASM_AX), %_ASM_BX
-	mov VCPU_RBP(%_ASM_AX), %_ASM_BP
-	mov VCPU_RSI(%_ASM_AX), %_ASM_SI
-	mov VCPU_RDI(%_ASM_AX), %_ASM_DI
+	/*
+	 * Load guest registers.  Don't clobber flags. Intentionally omit
+	 * %_ASM_SP as it's context switched by hardware
+	 */
+	LOAD_REGS %_ASM_DI, VMX_vcpu_arch_regs, \
+		  %_ASM_AX, %_ASM_CX, %_ASM_DX, %_ASM_BX, %_ASM_BP, %_ASM_SI
 #ifdef CONFIG_X86_64
-	mov VCPU_R8 (%_ASM_AX),  %r8
-	mov VCPU_R9 (%_ASM_AX),  %r9
-	mov VCPU_R10(%_ASM_AX), %r10
-	mov VCPU_R11(%_ASM_AX), %r11
-	mov VCPU_R12(%_ASM_AX), %r12
-	mov VCPU_R13(%_ASM_AX), %r13
-	mov VCPU_R14(%_ASM_AX), %r14
-	mov VCPU_R15(%_ASM_AX), %r15
+	LOAD_REGS %_ASM_DI, VMX_vcpu_arch_regs, \
+		  %r8, %r9, %r10, %r11, %r12, %r13, %r14, %r15
 #endif
-	/* Load guest RAX.  This kills the @regs pointer! */
-	mov VCPU_RAX(%_ASM_AX), %_ASM_AX
+	/* Load guest RDI.  This kills the @vmx pointer! */
+	LOAD_REGS %_ASM_DI, VMX_vcpu_arch_regs, %_ASM_DI
 
 	/*
 	 * Note, ALTERNATIVE_2 works in reverse order.  If CLEAR_CPU_BUF_VM is
@@ -140,7 +79,7 @@ SYM_FUNC_START(__vmx_vcpu_run)
 	 * do VERW.  Else, do nothing (no mitigations needed/enabled).
 	 */
 	ALTERNATIVE_2 "",									  \
-		      __stringify(testl $VMX_RUN_CLEAR_CPU_BUFFERS_FOR_MMIO, WORD_SIZE(%_ASM_SP); \
+		      __stringify(testl $KVM_ENTER_CLEAR_CPU_BUFFERS_FOR_MMIO, (%_ASM_SP);	  \
 				  jz .Lskip_mmio_verw;						  \
 				  VERW;								  \
 				  .Lskip_mmio_verw:),					  	  \
@@ -148,7 +87,7 @@ SYM_FUNC_START(__vmx_vcpu_run)
 		      __stringify(VERW), X86_FEATURE_CLEAR_CPU_BUF_VM
 
 	/* Check @flags to see if VMLAUNCH or VMRESUME is needed. */
-	testl $VMX_RUN_VMRESUME, WORD_SIZE(%_ASM_SP)
+	testl $KVM_ENTER_VMRESUME, (%_ASM_SP)
 	jz .Lvmlaunch
 
 	/*
@@ -180,38 +119,28 @@ SYM_INNER_LABEL_ALIGN(vmx_vmexit, SYM_L_GLOBAL)
 	UNWIND_HINT_RESTORE
 	ENDBR
 
-	/* Temporarily save guest's RAX. */
-	push %_ASM_AX
+	/* Temporarily save guest's RDI. */
+	push %_ASM_DI
 
-	/* Reload @regs to RAX. */
-	mov WORD_SIZE(%_ASM_SP), %_ASM_AX
+	/* Reload @vmx to RDI. */
+	mov 2*WORD_SIZE(%_ASM_SP), %_ASM_DI
 
-	/* Save all guest registers, including RAX from the stack */
-	pop           VCPU_RAX(%_ASM_AX)
-	mov %_ASM_CX, VCPU_RCX(%_ASM_AX)
-	mov %_ASM_DX, VCPU_RDX(%_ASM_AX)
-	mov %_ASM_BX, VCPU_RBX(%_ASM_AX)
-	mov %_ASM_BP, VCPU_RBP(%_ASM_AX)
-	mov %_ASM_SI, VCPU_RSI(%_ASM_AX)
-	mov %_ASM_DI, VCPU_RDI(%_ASM_AX)
+	/*
+	 * Save all guest registers, including RDI from the stack. Intentionally
+	 * omit %_ASM_SP as it's context switched by hardware
+	 */
+	STORE_REGS %_ASM_DI, VMX_vcpu_arch_regs, \
+		   %_ASM_AX, %_ASM_CX, %_ASM_DX, %_ASM_BX, %_ASM_BP, %_ASM_SI
+	POP_REGS   %_ASM_DI, VMX_vcpu_arch_regs, %_ASM_DI
 #ifdef CONFIG_X86_64
-	mov %r8,  VCPU_R8 (%_ASM_AX)
-	mov %r9,  VCPU_R9 (%_ASM_AX)
-	mov %r10, VCPU_R10(%_ASM_AX)
-	mov %r11, VCPU_R11(%_ASM_AX)
-	mov %r12, VCPU_R12(%_ASM_AX)
-	mov %r13, VCPU_R13(%_ASM_AX)
-	mov %r14, VCPU_R14(%_ASM_AX)
-	mov %r15, VCPU_R15(%_ASM_AX)
+	STORE_REGS %_ASM_DI, VMX_vcpu_arch_regs, \
+		   %r8, %r9, %r10, %r11, %r12, %r13, %r14, %r15
 #endif
 
 	/* Clear return value to indicate VM-Exit (as opposed to VM-Fail). */
 	xor %ebx, %ebx
 
 .Lclear_regs:
-	/* Discard @regs.  The register is irrelevant, it just can't be RBX. */
-	pop %_ASM_AX
-
 	/*
 	 * Clear all general purpose registers except RSP and RBX to prevent
 	 * speculative use of the guest's values, even those that are reloaded
@@ -222,21 +151,9 @@ SYM_INNER_LABEL_ALIGN(vmx_vmexit, SYM_L_GLOBAL)
 	 * VM-Exit and RBX is explicitly loaded with 0 or 1 to hold the return
 	 * value.
 	 */
-	xor %eax, %eax
-	xor %ecx, %ecx
-	xor %edx, %edx
-	xor %ebp, %ebp
-	xor %esi, %esi
-	xor %edi, %edi
+	CLEAR_REGS %eax, %ecx, %edx, %ebp, %esi, %edi
 #ifdef CONFIG_X86_64
-	xor %r8d,  %r8d
-	xor %r9d,  %r9d
-	xor %r10d, %r10d
-	xor %r11d, %r11d
-	xor %r12d, %r12d
-	xor %r13d, %r13d
-	xor %r14d, %r14d
-	xor %r15d, %r15d
+	CLEAR_REGS %r8d, %r9d, %r10d, %r11d, %r12d, %r13d, %r14d, %r15d
 #endif
 
 	/*
@@ -254,16 +171,32 @@ SYM_INNER_LABEL_ALIGN(vmx_vmexit, SYM_L_GLOBAL)
 	FILL_RETURN_BUFFER %_ASM_CX, RSB_CLEAR_LOOPS, X86_FEATURE_RSB_VMEXIT,\
 			   X86_FEATURE_RSB_VMEXIT_LITE
 
-	pop %_ASM_ARG2	/* @flags */
-	pop %_ASM_ARG1	/* @vmx */
+	/* Clobbers RAX, RCX, RDX, RSI.  */
+	ALTERNATIVE "jmp .Lspec_ctrl_host_done", "", X86_FEATURE_MSR_SPEC_CTRL
+	mov WORD_SIZE(%_ASM_SP), %_ASM_DI
+	RESTORE_HOST_SPEC_CTRL_BODY VMX_spec_ctrl(%_ASM_DI), (%_ASM_SP), .Lspec_ctrl_host_done
+.Lspec_ctrl_host_done:
 
-	call vmx_spec_ctrl_restore_host
+	/*
+	 * Halt speculation past a conditional wrmsr.  Intel's eIBRS
+	 * guarantees that the guest cannot control the RSB "once IBRS is
+	 * set", but in the eIBRS case speculative execution past the 'je'
+	 * can go all the way to the RET below while MSR_IA32_SPEC_CTRL
+	 * still holds the guest value.
+	 */
+	ALTERNATIVE_2 "", "lfence", X86_FEATURE_MSR_SPEC_CTRL, \
+		"", X86_FEATURE_KERNEL_IBRS
 
 	CLEAR_BRANCH_HISTORY_VMEXIT
 
 	/* Put return value in AX */
 	mov %_ASM_BX, %_ASM_AX
 
+	/* Pop our saved arguments from the stack */
+	pop %_ASM_BX
+	pop %_ASM_BX
+
+	/* ... and then the callee-save registers */
 	pop %_ASM_BX
 #ifdef CONFIG_X86_64
 	pop %r12

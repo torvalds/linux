@@ -362,13 +362,12 @@ static int pdc202xx_init_one(struct pci_dev *dev, const struct pci_device_id *id
 }
 
 static const struct pci_device_id pdc202xx[] = {
-	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20246), 0 },
-	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20262), 1 },
-	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20263), 1 },
-	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20265), 2 },
-	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20267), 2 },
-
-	{ },
+	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20246), .driver_data = 0 },
+	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20262), .driver_data = 1 },
+	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20263), .driver_data = 1 },
+	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20265), .driver_data = 2 },
+	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20267), .driver_data = 2 },
+	{ }
 };
 
 static struct pci_driver pdc202xx_pci_driver = {

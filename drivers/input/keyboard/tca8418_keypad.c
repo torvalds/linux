@@ -254,7 +254,8 @@ static int tca8418_configure(struct tca8418_keypad *keypad_data,
 		return error;
 
 	error = tca8418_write_byte(keypad_data, REG_CFG,
-				CFG_INT_CFG | CFG_OVR_FLOW_IEN | CFG_KE_IEN);
+				   CFG_INT_CFG | CFG_OVR_FLOW_IEN |
+					CFG_OVR_FLOW_M | CFG_KE_IEN);
 
 	return error;
 }

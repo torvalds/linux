@@ -262,7 +262,7 @@ static struct platform_device * __init apu_create_pdev(const char *name,
 		.id = PLATFORM_DEVID_NONE,
 		.data = data,
 		.size_data = size,
-		.fwnode = software_node_fwnode(swnode),
+		.swnode = swnode,
 	};
 	struct platform_device *pdev;
 	int err;

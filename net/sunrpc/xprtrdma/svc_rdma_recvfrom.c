@@ -242,6 +242,10 @@ void svc_rdma_recv_ctxt_put(struct svcxprt_rdma *rdma,
  * Ensure that the recv_ctxt is released whether or not a Reply
  * was sent. For example, the client could close the connection,
  * or svc_process could drop an RPC, before the Reply is sent.
+ *
+ * Also drain any send_ctxts queued for deferred release so that
+ * DMA unmap and page release run in nfsd thread context between
+ * RPCs rather than on the Send completion path.
  */
 void svc_rdma_release_ctxt(struct svc_xprt *xprt, void *vctxt)
 {
@@ -251,6 +255,8 @@ void svc_rdma_release_ctxt(struct svc_xprt *xprt, void *vctxt)
 
 	if (ctxt)
 		svc_rdma_recv_ctxt_put(rdma, ctxt);
+
+	svc_rdma_send_ctxts_drain(rdma);
 }
 
 static bool svc_rdma_refresh_recvs(struct svcxprt_rdma *rdma,
@@ -377,13 +383,16 @@ flushed:
 		trace_svcrdma_wc_recv_err(wc, &ctxt->rc_cid);
 dropped:
 	svc_rdma_recv_ctxt_put(rdma, ctxt);
-	svc_xprt_deferred_close(&rdma->sc_xprt);
+	svc_rdma_xprt_deferred_close(rdma);
 }
 
 /**
  * svc_rdma_flush_recv_queues - Drain pending Receive work
  * @rdma: svcxprt_rdma being shut down
  *
+ * Caller must guarantee that @rdma's Send and Recv Completion
+ * Queues are empty (e.g., via ib_drain_qp()), so that no completion
+ * handlers can still produce work on the queues being drained.
  */
 void svc_rdma_flush_recv_queues(struct svcxprt_rdma *rdma)
 {
@@ -1001,7 +1010,7 @@ out_readlist:
 		if (ret == -EINVAL)
 			svc_rdma_send_error(rdma_xprt, ctxt, ret);
 		svc_rdma_recv_ctxt_put(rdma_xprt, ctxt);
-		svc_xprt_deferred_close(xprt);
+		svc_rdma_xprt_deferred_close(rdma_xprt);
 		return ret;
 	}
 	return 0;

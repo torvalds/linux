@@ -805,7 +805,7 @@ irqreturn_t cs42l43_tip_sense(int irq, void *data)
 	if (priv->suspend_jack_debounce)
 		db_delay += priv->tip_fall_db_ms + priv->tip_rise_db_ms;
 
-	queue_delayed_work(system_long_wq, &priv->tip_sense_work,
+	queue_delayed_work(system_dfl_long_wq, &priv->tip_sense_work,
 			   msecs_to_jiffies(db_delay));
 
 	return IRQ_HANDLED;
@@ -932,7 +932,8 @@ int cs42l43_jack_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *u
 	snd_soc_jack_report(priv->jack_hp, 0, 0xFFFF);
 
 	if (!override) {
-		queue_delayed_work(system_long_wq, &priv->tip_sense_work, 0);
+		queue_delayed_work(system_dfl_long_wq, &priv->tip_sense_work,
+				   0);
 	} else {
 		override--;
 

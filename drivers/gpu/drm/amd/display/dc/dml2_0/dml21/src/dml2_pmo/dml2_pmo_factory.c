@@ -3,8 +3,9 @@
 // Copyright 2024 Advanced Micro Devices, Inc.
 
 #include "dml2_pmo_factory.h"
-#include "dml2_pmo_dcn3.h"
 #include "dml2_pmo_dcn4_fams2.h"
+#include "dml2_pmo_dcn3.h"
+#include "dml2_pmo_dcn42.h"
 #include "dml2_external_lib_deps.h"
 
 static bool dummy_init_for_stutter(struct dml2_pmo_init_for_stutter_in_out *in_out)
@@ -40,7 +41,6 @@ bool dml2_pmo_create(enum dml2_project_id project_id, struct dml2_pmo_instance *
 		out->optimize_dcc_mcache = pmo_dcn4_fams2_optimize_dcc_mcache;
 		result = true;
 		break;
-	case dml2_project_dcn40:
 	case dml2_project_dcn4x_stage2:
 		out->initialize = pmo_dcn3_initialize;
 
@@ -61,6 +61,21 @@ bool dml2_pmo_create(enum dml2_project_id project_id, struct dml2_pmo_instance *
 		result = true;
 		break;
 	case dml2_project_dcn42:
+		out->initialize = pmo_dcn42_initialize;
+
+		out->init_for_vmin = pmo_dcn4_fams2_init_for_vmin;
+		out->test_for_vmin = pmo_dcn4_fams2_test_for_vmin;
+		out->optimize_for_vmin = pmo_dcn4_fams2_optimize_for_vmin;
+
+		out->init_for_uclk_pstate = pmo_dcn42_init_for_pstate_support;
+		out->test_for_uclk_pstate = pmo_dcn42_test_for_pstate_support;
+		out->optimize_for_uclk_pstate = pmo_dcn42_fams2_optimize_for_pstate_support;
+
+		out->init_for_stutter = pmo_dcn4_fams2_init_for_stutter;
+		out->test_for_stutter = pmo_dcn4_fams2_test_for_stutter;
+		out->optimize_for_stutter = pmo_dcn4_fams2_optimize_for_stutter;
+		result = true;
+		break;
 	case dml2_project_dcn4x_stage2_auto_drr_svp:
 		out->initialize = pmo_dcn4_fams2_initialize;
 

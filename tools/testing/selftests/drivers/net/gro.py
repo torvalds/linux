@@ -40,7 +40,7 @@ import glob
 import os
 import re
 from lib.py import ksft_run, ksft_exit, ksft_pr
-from lib.py import NetDrvEpEnv, KsftXfailEx
+from lib.py import NetDrvEpEnv, KsftFailEx, KsftXfailEx
 from lib.py import NetdevFamily, EthtoolFamily
 from lib.py import bkg, cmd, defer, ethtool, ip
 from lib.py import ksft_variants, KsftNamedVariant
@@ -132,11 +132,21 @@ def _get_queue_stats(cfg, queue_id):
     return {}
 
 
+def _require_ntuple(cfg):
+    features = ethtool(f"-k {cfg.ifname}", json=True)[0]
+    if not features["ntuple-filters"]["active"]:
+        if features["ntuple-filters"]["fixed"]:
+            raise KsftXfailEx("Device does not support ntuple-filters")
+        ethtool(f"-K {cfg.ifname} ntuple-filters on")
+        defer(ethtool, f"-K {cfg.ifname} ntuple-filters off")
+
+
 def _setup_isolated_queue(cfg):
     """Set up an isolated queue for testing using ntuple filter.
 
     Remove queue 1 from the default RSS context and steer test traffic to it.
     """
+    _require_ntuple(cfg)
     test_queue = 1
 
     qcnt = len(glob.glob(f"/sys/class/net/{cfg.ifname}/queues/rx-*"))
@@ -313,6 +323,12 @@ def _gro_variants():
         "ip_frag6", "ip_v6ext_same", "ip_v6ext_diff",
     ]
 
+    # Tests specific to PPPoE
+    pppoe_tests = [
+        "data_same", "data_lrg_sml", "data_sml_lrg", "data_lrg_1byte",
+        "data_burst", "pppoe_sid",
+    ]
+
     for mode in ["sw", "hw", "lro"]:
         for protocol in ["ipv4", "ipv6", "ipip", "ip6ip6"]:
             for test_name in common_tests:
@@ -324,6 +340,11 @@ def _gro_variants():
             elif protocol == "ipv6":
                 for test_name in ipv6_tests:
                     yield mode, protocol, test_name
+
+    for mode in ["sw"]:
+        for protocol in ["pppoev4", "pppoev6"]:
+            for test_name in pppoe_tests:
+                yield mode, protocol, test_name
 
 
 @ksft_variants(_gro_variants())
@@ -348,6 +369,12 @@ def test(cfg, mode, protocol, test_name):
             return
 
         ksft_pr(rx_proc)
+
+        # ret==42 means the receiver detected over-coalescing.
+        # This is unambiguous proof of a bug, retries can only cause
+        # false negatives.
+        if rx_proc.ret == 42:
+            raise KsftFailEx(f"GRO over-coalesced in {protocol}/{test_name}")
 
         if test_name.startswith("large_") and os.environ.get("KSFT_MACHINE_SLOW"):
             ksft_pr(f"Ignoring {protocol}/{test_name} failure due to slow environment")

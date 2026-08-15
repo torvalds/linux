@@ -19,7 +19,6 @@
 #include <linux/errno.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/regmap.h>
@@ -288,7 +287,7 @@ static int bno055_ser_write_reg(void *context, const void *_data, size_t count)
 	struct bno055_ser_priv *priv = context;
 
 	if (count < 2) {
-		dev_err(&priv->serdev->dev, "Invalid write count %zu", count);
+		dev_err(&priv->serdev->dev, "Invalid write count %zu\n", count);
 		return -EINVAL;
 	}
 
@@ -306,7 +305,7 @@ static int bno055_ser_read_reg(void *context,
 	struct bno055_ser_priv *priv = context;
 
 	if (val_size > 128) {
-		dev_err(&priv->serdev->dev, "Invalid read valsize %zu", val_size);
+		dev_err(&priv->serdev->dev, "Invalid read valsize %zu\n", val_size);
 		return -EINVAL;
 	}
 

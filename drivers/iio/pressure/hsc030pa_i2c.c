@@ -12,7 +12,6 @@
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/i2c.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/types.h>
 
@@ -58,7 +57,7 @@ static const struct of_device_id hsc_i2c_match[] = {
 MODULE_DEVICE_TABLE(of, hsc_i2c_match);
 
 static const struct i2c_device_id hsc_i2c_id[] = {
-	{ "hsc030pa" },
+	{ .name = "hsc030pa" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, hsc_i2c_id);

@@ -152,7 +152,7 @@ void dcn351_hw_block_power_down(struct dc *dc,
 void dcn351_hw_block_power_up(struct dc *dc,
 	struct pg_block_update *update_state)
 {
-	int i = 0;
+	unsigned int i = 0;
 	struct pg_cntl *pg_cntl = dc->res_pool->pg_cntl;
 
 	if (!pg_cntl || dc->debug.ignore_pg)

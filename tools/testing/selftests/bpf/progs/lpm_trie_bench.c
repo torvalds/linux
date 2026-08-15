@@ -7,7 +7,7 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_core_read.h>
 #include "bpf_misc.h"
-#include "bpf_atomic.h"
+#include <bpf_atomic.h>
 #include "progs/lpm_trie.h"
 
 #define BPF_OBJ_NAME_LEN 16U

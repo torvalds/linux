@@ -5,7 +5,7 @@
 
 #include <linux/cpu.h>
 #include <linux/device.h>
-#include <linux/sprintf.h>
+#include <linux/sysfs.h>
 
 #include <asm/bugs.h>
 #include <asm/vendor_extensions/thead.h>
@@ -46,15 +46,15 @@ ssize_t cpu_show_ghostwrite(struct device *dev, struct device_attribute *attr, c
 	if (IS_ENABLED(CONFIG_RISCV_ISA_XTHEADVECTOR)) {
 		switch (ghostwrite_state) {
 		case UNAFFECTED:
-			return sprintf(buf, "Not affected\n");
+			return sysfs_emit(buf, "Not affected\n");
 		case MITIGATED:
-			return sprintf(buf, "Mitigation: xtheadvector disabled\n");
+			return sysfs_emit(buf, "Mitigation: xtheadvector disabled\n");
 		case VULNERABLE:
 			fallthrough;
 		default:
-			return sprintf(buf, "Vulnerable\n");
+			return sysfs_emit(buf, "Vulnerable\n");
 		}
-	} else {
-		return sprintf(buf, "Not affected\n");
 	}
+
+	return sysfs_emit(buf, "Not affected\n");
 }

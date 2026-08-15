@@ -131,6 +131,8 @@ static int __init page_frag_test_init(void)
 	init_completion(&wait);
 
 	if (test_alloc_len > PAGE_SIZE || test_alloc_len <= 0 ||
+	    test_push_cpu < 0 || test_push_cpu >= nr_cpu_ids ||
+	    test_pop_cpu < 0 || test_pop_cpu >= nr_cpu_ids ||
 	    !cpu_active(test_push_cpu) || !cpu_active(test_pop_cpu))
 		return -EINVAL;
 

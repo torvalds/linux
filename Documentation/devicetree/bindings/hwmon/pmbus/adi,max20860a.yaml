@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/hwmon/pmbus/adi,max20860a.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices MAX20860A Step-Down Converter
+
+maintainers:
+  - Sanman Pradhan <psanman@juniper.net>
+
+description: |
+  The MAX20860A is a fully integrated step-down DC-DC switching regulator
+  with PMBus interface for monitoring input/output voltage, output current
+  and temperature.
+
+  Datasheet: https://www.analog.com/en/products/max20860a.html
+
+allOf:
+  - $ref: /schemas/regulator/regulator.yaml#
+
+properties:
+  compatible:
+    const: adi,max20860a
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        regulator@40 {
+            compatible = "adi,max20860a";
+            reg = <0x40>;
+        };
+    };

@@ -17,6 +17,8 @@
 #include "ctatc.h"
 #include "ctresource.h"
 
+struct snd_kcontrol;
+
 #define INIT_VOL	0x1c00
 
 enum MIXER_PORT_T {
@@ -41,8 +43,8 @@ enum MIXER_PORT_T {
 struct ct_mixer {
 	struct ct_atc *atc;
 
-	void **amixers;		/* amixer resources for volume control */
-	void **sums;		/* sum resources for signal collection */
+	struct sum **sums;		/* sum resources for signal collection */
+	struct snd_kcontrol *line_mic_kctls[2]; /* line/mic capture switch controls */
 	unsigned int switch_state; /* A bit-map to indicate state of switches */
 
 	int (*get_output_ports)(struct ct_mixer *mixer, enum MIXER_PORT_T type,
@@ -55,6 +57,7 @@ struct ct_mixer {
 #ifdef CONFIG_PM_SLEEP
 	int (*resume)(struct ct_mixer *mixer);
 #endif
+	struct amixer *amixers[];		/* amixer resources for volume control */
 };
 
 int ct_alsa_mix_create(struct ct_atc *atc,

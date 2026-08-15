@@ -22,7 +22,7 @@
 #include "sti_vtg.h"
 
 static void sti_crtc_atomic_enable(struct drm_crtc *crtc,
-				   struct drm_atomic_state *state)
+				   struct drm_atomic_commit *state)
 {
 	struct sti_mixer *mixer = to_sti_mixer(crtc);
 
@@ -34,7 +34,7 @@ static void sti_crtc_atomic_enable(struct drm_crtc *crtc,
 }
 
 static void sti_crtc_atomic_disable(struct drm_crtc *crtc,
-				    struct drm_atomic_state *state)
+				    struct drm_atomic_commit *state)
 {
 	struct sti_mixer *mixer = to_sti_mixer(crtc);
 
@@ -132,7 +132,7 @@ sti_crtc_mode_set_nofb(struct drm_crtc *crtc)
 }
 
 static void sti_crtc_atomic_flush(struct drm_crtc *crtc,
-				  struct drm_atomic_state *state)
+				  struct drm_atomic_commit *state)
 {
 	struct drm_device *drm_dev = crtc->dev;
 	struct sti_mixer *mixer = to_sti_mixer(crtc);

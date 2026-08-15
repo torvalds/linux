@@ -5,7 +5,6 @@
 
 config X86_INTEL_PSTATE
 	bool "Intel P state control"
-	depends on X86
 	select ACPI_PROCESSOR if ACPI
 	select ACPI_CPPC_LIB if X86_64 && ACPI && SCHED_MC_PRIO
 	select CPU_FREQ_GOV_PERFORMANCE
@@ -36,7 +35,7 @@ config X86_PCC_CPUFREQ
 
 config X86_AMD_PSTATE
 	bool "AMD Processor P-State driver"
-	depends on X86 && ACPI
+	depends on ACPI
 	select ACPI_PROCESSOR
 	select ACPI_CPPC_LIB if X86_64
 	select CPU_FREQ_GOV_SCHEDUTIL if SMP
@@ -72,7 +71,7 @@ config X86_AMD_PSTATE_DEFAULT_MODE
 
 config X86_AMD_PSTATE_UT
 	tristate "selftest for AMD Processor P-State driver"
-	depends on X86 && ACPI_PROCESSOR
+	depends on ACPI_PROCESSOR
 	depends on X86_AMD_PSTATE
 	default n
 	help
@@ -113,32 +112,6 @@ config X86_ACPI_CPUFREQ_CPB
 
 	  By enabling this option the acpi_cpufreq driver provides the old
 	  entry in addition to the new boost ones, for compatibility reasons.
-
-config ELAN_CPUFREQ
-	tristate "AMD Elan SC400 and SC410"
-	depends on MELAN
-	help
-	  This adds the CPUFreq driver for AMD Elan SC400 and SC410
-	  processors.
-
-	  You need to specify the processor maximum speed as boot
-	  parameter: elanfreq=maxspeed (in kHz) or as module
-	  parameter "max_freq".
-
-	  For details, take a look at <file:Documentation/cpu-freq/>.
-
-	  If in doubt, say N.
-
-config SC520_CPUFREQ
-	tristate "AMD Elan SC520"
-	depends on MELAN
-	help
-	  This adds the CPUFreq driver for AMD Elan SC520 processor.
-
-	  For details, take a look at <file:Documentation/cpu-freq/>.
-
-	  If in doubt, say N.
-
 
 config X86_POWERNOW_K6
 	tristate "AMD Mobile K6-2/K6-3 PowerNow!"

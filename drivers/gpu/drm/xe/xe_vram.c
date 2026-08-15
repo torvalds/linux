@@ -13,6 +13,7 @@
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_regs.h"
 #include "xe_assert.h"
+#include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_force_wake.h"
 #include "xe_gt_mcr.h"
@@ -247,6 +248,27 @@ static int vram_region_init(struct xe_device *xe, struct xe_vram_region *vram,
 	print_vram_region_info(xe, vram);
 
 	return 0;
+}
+
+/**
+ * xe_map_resource_to_region - Map ttm resource to vram memory region
+ * @res: The ttm resource
+ *
+ * Get vram memory region using vram memory manager managing this resource
+ *
+ * Returns: pointer to xe_vram_region
+ */
+struct xe_vram_region *xe_map_resource_to_region(struct ttm_resource *res)
+{
+	struct xe_device *xe = ttm_to_xe_device(res->bo->bdev);
+	struct ttm_resource_manager *mgr;
+	struct xe_ttm_vram_mgr *vram_mgr;
+
+	xe_assert(xe, mem_type_is_vram(res->mem_type));
+	mgr = ttm_manager_type(&xe->ttm, res->mem_type);
+	vram_mgr = to_xe_ttm_vram_mgr(mgr);
+
+	return container_of(vram_mgr, struct xe_vram_region, ttm);
 }
 
 /**

@@ -7,6 +7,9 @@
 #include <linux/stop_machine.h>
 #include <linux/string_helpers.h>
 
+#include <drm/intel/mchbar_regs.h>
+#include <drm/intel/pci_config.h>
+
 #include "display/intel_display_reset.h"
 #include "display/intel_overlay.h"
 #include "gem/i915_gem_context.h"
@@ -27,8 +30,6 @@
 #include "intel_gt_pm.h"
 #include "intel_gt_print.h"
 #include "intel_gt_requests.h"
-#include "intel_mchbar_regs.h"
-#include "intel_pci_config.h"
 #include "intel_reset.h"
 
 #define RESET_MAX_RETRIES 3
@@ -967,6 +968,7 @@ static void nop_submit_request(struct i915_request *request)
 
 static void __intel_gt_set_wedged(struct intel_gt *gt)
 {
+	struct intel_display *display = gt->i915->display;
 	struct intel_engine_cs *engine;
 	intel_engine_mask_t awake;
 	enum intel_engine_id id;
@@ -984,7 +986,8 @@ static void __intel_gt_set_wedged(struct intel_gt *gt)
 	awake = reset_prepare(gt);
 
 	/* Even if the GPU reset fails, it should still stop the engines */
-	if (!intel_gt_gpu_reset_clobbers_display(gt))
+	if (!intel_gt_gpu_reset_clobbers_display(gt) &&
+	    !intel_display_reset_test(display))
 		intel_gt_reset_all_engines(gt);
 
 	for_each_engine(engine, gt, id)
@@ -1398,11 +1401,6 @@ int intel_engine_reset(struct intel_engine_cs *engine, const char *msg)
 	return err;
 }
 
-static void display_reset_modeset_stuck(void *gt)
-{
-	intel_gt_set_wedged(gt);
-}
-
 static void intel_gt_reset_global(struct intel_gt *gt,
 				  u32 engine_mask,
 				  const char *reason)
@@ -1425,16 +1423,25 @@ static void intel_gt_reset_global(struct intel_gt *gt,
 		bool need_display_reset;
 		bool reset_display;
 
-		need_display_reset = intel_gt_gpu_reset_clobbers_display(gt) &&
+		need_display_reset =
+			intel_display_reset_supported(display) &&
+			intel_gt_gpu_reset_clobbers_display(gt) &&
 			intel_has_gpu_reset(gt);
 
-		reset_display = intel_display_reset_test(display) ||
+		reset_display =
+			intel_display_reset_test(display) ||
 			need_display_reset;
 
-		if (reset_display)
-			reset_display = intel_display_reset_prepare(display,
-								    display_reset_modeset_stuck,
-								    gt);
+		if (reset_display) {
+			if (atomic_read(&i915->pending_fb_pin)) {
+				drm_dbg_kms(&i915->drm,
+					    "Modeset potentially stuck, unbreaking through wedging\n");
+
+				intel_gt_set_wedged(gt);
+			}
+
+			intel_display_reset_prepare(display);
+		}
 
 		intel_gt_reset(gt, engine_mask, reason);
 
@@ -1502,9 +1509,10 @@ void intel_gt_handle_error(struct intel_gt *gt,
 
 	/*
 	 * Try engine reset when available. We fall back to full reset if
-	 * single reset fails.
+	 * single reset fails. Display reset test needs a full reset.
 	 */
-	if (!intel_uc_uses_guc_submission(&gt->uc) &&
+	if (!intel_display_reset_test(gt->i915->display) &&
+	    !intel_uc_uses_guc_submission(&gt->uc) &&
 	    intel_has_reset_engine(gt) && !intel_gt_is_wedged(gt)) {
 		local_bh_disable();
 		for_each_engine_masked(engine, gt, engine_mask, tmp) {

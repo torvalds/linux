@@ -164,7 +164,6 @@ struct hidpp_battery {
 /**
  * struct hidpp_scroll_counter - Utility class for processing high-resolution
  *                             scroll events.
- * @dev: the input device for which events should be reported.
  * @wheel_multiplier: the scalar multiplier to be applied to each wheel event
  * @remainder: counts the number of high-resolution units moved since the last
  *             low-resolution event (REL_WHEEL or REL_HWHEEL) was sent. Should
@@ -206,6 +205,9 @@ struct hidpp_device {
 	struct hidpp_scroll_counter vertical_wheel_counter;
 
 	u8 wireless_feature_index;
+
+	int hires_wheel_multiplier;
+	u8 hires_wheel_feature_index;
 
 	bool connected_once;
 };
@@ -3710,6 +3712,7 @@ static int hi_res_scroll_enable(struct hidpp_device *hidpp)
 		multiplier = 1;
 	}
 
+	hidpp->hires_wheel_multiplier = multiplier;
 	hidpp->vertical_wheel_counter.wheel_multiplier = multiplier;
 	hid_dbg(hidpp->hid_dev, "wheel multiplier = %d\n", multiplier);
 	return 0;
@@ -3720,6 +3723,7 @@ static int hidpp_initialize_hires_scroll(struct hidpp_device *hidpp)
 	int ret;
 	unsigned long capabilities;
 
+	hidpp->hires_wheel_feature_index = 0xff;
 	capabilities = hidpp->capabilities;
 
 	if (hidpp->protocol_major >= 2) {
@@ -3729,6 +3733,7 @@ static int hidpp_initialize_hires_scroll(struct hidpp_device *hidpp)
 					     &feature_index);
 		if (!ret) {
 			hidpp->capabilities |= HIDPP_CAPABILITY_HIDPP20_HI_RES_WHEEL;
+			hidpp->hires_wheel_feature_index = feature_index;
 			hid_dbg(hidpp->hid_dev, "Detected HID++ 2.0 hi-res scroll wheel\n");
 			return 0;
 		}
@@ -3748,6 +3753,31 @@ static int hidpp_initialize_hires_scroll(struct hidpp_device *hidpp)
 
 	if (hidpp->capabilities == capabilities)
 		hid_dbg(hidpp->hid_dev, "Did not detect HID++ hi-res scrolling hardware support\n");
+	return 0;
+}
+
+static int hidpp20_hires_wheel_raw_event(struct hidpp_device *hidpp,
+						u8 *data, int size)
+{
+	if (hidpp->hires_wheel_feature_index == 0xff)
+		return 0;
+
+	if (size < 5)
+		return 0;
+
+	if (data[0] != REPORT_ID_HIDPP_LONG ||
+	    data[2] != hidpp->hires_wheel_feature_index)
+		return 0;
+
+	if ((data[3] & 0xf0) == CMD_HIRES_WHEEL_SET_WHEEL_MODE) {
+		u8 mode = data[4];
+		bool hires = (mode & 0x02) != 0;
+		int new_multiplier = (hires && hidpp->hires_wheel_multiplier > 0)
+			? hidpp->hires_wheel_multiplier : 1;
+		hidpp->vertical_wheel_counter.wheel_multiplier = new_multiplier;
+		return 1;
+	}
+
 	return 0;
 }
 
@@ -3943,6 +3973,12 @@ static int hidpp_raw_hidpp_event(struct hidpp_device *hidpp, u8 *data,
 
 	if (hidpp->quirks & HIDPP_QUIRK_HIDPP_CONSUMER_VENDOR_KEYS) {
 		ret = hidpp10_consumer_keys_raw_event(hidpp, data, size);
+		if (ret != 0)
+			return ret;
+	}
+
+	if (hidpp->capabilities & HIDPP_CAPABILITY_HIDPP20_HI_RES_WHEEL) {
+		ret = hidpp20_hires_wheel_raw_event(hidpp, data, size);
 		if (ret != 0)
 			return ret;
 	}
@@ -4295,6 +4331,7 @@ static void hidpp_connect_event(struct work_struct *work)
 
 	ret = input_register_device(input);
 	if (ret) {
+		hidpp->input = NULL;
 		input_free_device(input);
 		return;
 	}

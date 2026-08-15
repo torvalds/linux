@@ -522,7 +522,8 @@ struct uvc_streaming {
 		unsigned int size;
 		unsigned int last_sof_overflow;
 
-		u16 last_sof;
+		u16 last_sof_processed;
+		u16 last_sof_raw;
 		u16 sof_offset;
 
 		u8 last_scr[6];
@@ -666,6 +667,7 @@ extern unsigned int uvc_no_drop_param;
 extern unsigned int uvc_dbg_param;
 extern unsigned int uvc_timeout_param;
 extern unsigned int uvc_hw_timestamps_param;
+extern bool uvc_allow_privacy_override_param;
 
 #define uvc_dbg(_dev, flag, fmt, ...)					\
 do {									\
@@ -791,6 +793,7 @@ int uvc_xu_ctrl_query(struct uvc_video_chain *chain,
 		      struct uvc_xu_control_query *xqry);
 
 void uvc_ctrl_cleanup_fh(struct uvc_fh *handle);
+bool uvc_ctrl_is_privacy_control(u8 entity[16], u8 selector);
 
 /* Utility functions */
 struct usb_host_endpoint *uvc_find_endpoint(struct usb_host_interface *alts,

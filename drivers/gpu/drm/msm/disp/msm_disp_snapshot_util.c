@@ -164,7 +164,7 @@ void msm_disp_state_free(void *data)
 	struct msm_disp_state_block *block, *tmp;
 
 	if (disp_state->atomic_state) {
-		drm_atomic_state_put(disp_state->atomic_state);
+		drm_atomic_commit_put(disp_state->atomic_state);
 		disp_state->atomic_state = NULL;
 	}
 

@@ -17,7 +17,7 @@
 用户空间verbs访问
 =================
 
-  ib_uverbs模块，通过启用CONFIG_INFINIBAND_USER_VERBS构建，使用户空间
+  ib_uverbs模块，通过启用CONFIG_INFINIBAND_USER_ACCESS构建，使用户空间
   通过“verbs”直接访问IB硬件，如InfiniBand架构规范第11章所述。
 
   要使用verbs，需要libibverbs库，可从https://github.com/linux-rdma/rdma-core。

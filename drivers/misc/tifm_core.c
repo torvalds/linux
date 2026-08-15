@@ -31,7 +31,7 @@ static const char *tifm_media_type_name(unsigned char type, unsigned char nt)
 	return card_type_name[nt][type - 1];
 }
 
-static int tifm_dev_match(struct tifm_dev *sock, struct tifm_device_id *id)
+static int tifm_dev_match(struct tifm_dev *sock, const struct tifm_device_id *id)
 {
 	if (sock->type == id->type)
 		return 1;
@@ -43,7 +43,7 @@ static int tifm_bus_match(struct device *dev, const struct device_driver *drv)
 	struct tifm_dev *sock = container_of(dev, struct tifm_dev, dev);
 	const struct tifm_driver *fm_drv = container_of_const(drv, struct tifm_driver,
 							      driver);
-	struct tifm_device_id *ids = fm_drv->id_table;
+	const struct tifm_device_id *ids = fm_drv->id_table;
 
 	if (ids) {
 		while (ids->type) {

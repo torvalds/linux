@@ -3388,9 +3388,9 @@ static void cxgb4vf_pci_shutdown(struct pci_dev *pdev)
 #define CH_PCI_DEVICE_ID_FUNCTION	0x8
 
 #define CH_PCI_ID_TABLE_ENTRY(devid) \
-		{ PCI_VDEVICE(CHELSIO, (devid)), 0 }
+		{ PCI_VDEVICE(CHELSIO, (devid)) }
 
-#define CH_PCI_DEVICE_ID_TABLE_DEFINE_END { 0, } }
+#define CH_PCI_DEVICE_ID_TABLE_DEFINE_END { } }
 
 #include "../cxgb4/t4_pci_id_tbl.h"
 

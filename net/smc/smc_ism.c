@@ -467,17 +467,14 @@ static struct smcd_dev *smcd_alloc_dev(const char *name, int max_dmbs)
 {
 	struct smcd_dev *smcd;
 
-	smcd = kzalloc_obj(*smcd);
+	smcd = kzalloc_flex(*smcd, conn, max_dmbs);
 	if (!smcd)
 		return NULL;
-	smcd->conn = kzalloc_objs(struct smc_connection *, max_dmbs);
-	if (!smcd->conn)
-		goto free_smcd;
 
 	smcd->event_wq = alloc_ordered_workqueue("ism_evt_wq-%s)",
 						 WQ_MEM_RECLAIM, name);
 	if (!smcd->event_wq)
-		goto free_conn;
+		goto free_smcd;
 
 	spin_lock_init(&smcd->lock);
 	spin_lock_init(&smcd->lgr_lock);
@@ -486,8 +483,6 @@ static struct smcd_dev *smcd_alloc_dev(const char *name, int max_dmbs)
 	init_waitqueue_head(&smcd->lgrs_deleted);
 	return smcd;
 
-free_conn:
-	kfree(smcd->conn);
 free_smcd:
 	kfree(smcd);
 	return NULL;
@@ -557,7 +552,6 @@ static void smcd_unregister_dev(struct dibs_dev *dibs)
 	list_del_init(&smcd->list);
 	mutex_unlock(&smcd_dev_list.mutex);
 	destroy_workqueue(smcd->event_wq);
-	kfree(smcd->conn);
 	kfree(smcd);
 }
 

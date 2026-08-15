@@ -100,6 +100,11 @@
 			status = "disabled";
 		};
 
+		otp: otp@e0021000 {
+			compatible = "microchip,lan9691-otpc";
+			reg = <0xe0021000 0x1000>;
+		};
+
 		flx0: flexcom@e0040000 {
 			compatible = "microchip,lan9691-flexcom", "atmel,sama5d2-flexcom";
 			reg = <0xe0040000 0x100>;

@@ -10,6 +10,10 @@
 
 #define MKEX_CN20K_SIGN	0x19bbfdbd160
 
+/* MAX_NUM_BANKS, MAX_SUBBANK_DEPTH and MAX_NUM_SUB_BANKS represent
+ * hard limit on all silicon variants, preventing any possibility of
+ * out-of-bounds access on matrix defined using these values.
+ */
 #define MAX_NUM_BANKS 2
 #define MAX_NUM_SUB_BANKS 32
 #define MAX_SUBBANK_DEPTH 256
@@ -170,6 +174,7 @@ struct npc_defrag_show_node {
  * @num_banks:		Number of banks.
  * @num_subbanks:	Number of subbanks.
  * @subbank_depth:	Depth of subbank.
+ * @en_map:		Enable/disable status.
  * @kw:			Kex configured key type.
  * @sb:			Subbank array.
  * @xa_sb_used:		Array of used subbanks.
@@ -178,7 +183,6 @@ struct npc_defrag_show_node {
  * @xa_idx2pf_map:	Mcam index to PF map.
  * @xa_pf_map:		Pcifunc to index map.
  * @pf_cnt:		Number of PFs.
- * @init_done:		Indicates MCAM initialization is done.
  * @xa_pf2dfl_rmap:	PF to default rule index map.
  * @xa_idx2vidx_map:	Mcam index to virtual index map.
  * @xa_vidx2idx_map:	virtual index to mcam index map.
@@ -190,9 +194,12 @@ struct npc_defrag_show_node {
  */
 struct npc_priv_t {
 	int bank_depth;
-	const int num_banks;
+	int num_banks;
 	int num_subbanks;
 	int subbank_depth;
+	DECLARE_BITMAP(en_map, MAX_NUM_BANKS *
+		       MAX_NUM_SUB_BANKS *
+		       MAX_SUBBANK_DEPTH);
 	u8 kw;
 	struct npc_subbank *sb;
 	struct xarray xa_sb_used;
@@ -206,7 +213,6 @@ struct npc_priv_t {
 	struct list_head defrag_lh;
 	struct mutex lock; /* protect defrag nodes */
 	int pf_cnt;
-	bool init_done;
 };
 
 struct npc_kpm_action0 {
@@ -336,5 +342,11 @@ u16 npc_cn20k_vidx2idx(u16 index);
 u16 npc_cn20k_idx2vidx(u16 idx);
 int npc_cn20k_defrag(struct rvu *rvu);
 bool npc_is_cgx_or_lbk(struct rvu *rvu, u16 pcifunc);
+int npc_mcam_idx_2_subbank_idx(struct rvu *rvu, u16 mcam_idx,
+			       struct npc_subbank **sb,
+			       int *sb_off);
+const u32 *npc_cn20k_search_order_get(bool *restricted_order, u32 *sz);
+int npc_cn20k_search_order_set(struct rvu *rvu, u64 narr[MAX_NUM_SUB_BANKS],
+			       int cnt);
 
 #endif /* NPC_CN20K_H */

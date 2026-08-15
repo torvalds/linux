@@ -2,10 +2,12 @@
 /* Microchip LAN937X switch driver main logic
  * Copyright (C) 2019-2024 Microchip Technology Inc.
  */
+#include <linux/dsa/ksz_common.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/iopoll.h>
 #include <linux/phy.h>
+#include <linux/of_mdio.h>
 #include <linux/of_net.h>
 #include <linux/if_bridge.h>
 #include <linux/if_vlan.h>
@@ -15,6 +17,7 @@
 
 #include "lan937x_reg.h"
 #include "ksz_common.h"
+#include "ksz_dcb.h"
 #include "ksz9477.h"
 #include "lan937x.h"
 
@@ -137,7 +140,7 @@ static int lan937x_port_cfg(struct ksz_device *dev, int port, int offset,
  *
  * Return: 0 on success, error code on failure.
  */
-int lan937x_create_phy_addr_map(struct ksz_device *dev, bool side_mdio)
+static int lan937x_create_phy_addr_map(struct ksz_device *dev, bool side_mdio)
 {
 	static const u8 *phy_addr_map;
 	u32 strap_val;
@@ -221,7 +224,7 @@ int lan937x_create_phy_addr_map(struct ksz_device *dev, bool side_mdio)
  *
  * Return: 0 on success, error code on failure.
  */
-int lan937x_mdio_bus_preinit(struct ksz_device *dev, bool side_mdio)
+static int lan937x_mdio_bus_preinit(struct ksz_device *dev, bool side_mdio)
 {
 	u16 data16;
 	int ret;
@@ -332,17 +335,32 @@ static int lan937x_internal_phy_read(struct ksz_device *dev, int addr, int reg,
 	return ksz_read16(dev, REG_VPHY_IND_DATA__2, val);
 }
 
-int lan937x_r_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 *data)
+static int lan937x_phy_read16(struct dsa_switch *ds, int addr, int reg)
 {
-	return lan937x_internal_phy_read(dev, addr, reg, data);
+	struct ksz_device *dev = ds->priv;
+	u16 val = 0xffff;
+	int ret;
+
+	ret =  lan937x_internal_phy_read(dev, addr, reg, &val);
+	if (ret)
+		return ret;
+
+	return val;
 }
 
-int lan937x_w_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 val)
+static int lan937x_phy_write16(struct dsa_switch *ds, int addr, int reg, u16 val)
 {
-	return lan937x_internal_phy_write(dev, addr, reg, val);
+	struct ksz_device *dev = ds->priv;
+	int ret;
+
+	ret = lan937x_internal_phy_write(dev, addr, reg, val);
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
-int lan937x_reset_switch(struct ksz_device *dev)
+static int lan937x_reset_switch(struct ksz_device *dev)
 {
 	u32 data32;
 	int ret;
@@ -373,7 +391,7 @@ int lan937x_reset_switch(struct ksz_device *dev)
 	return ksz_read32(dev, REG_SW_PORT_INT_STATUS__4, &data32);
 }
 
-void lan937x_port_setup(struct ksz_device *dev, int port, bool cpu_port)
+static void lan937x_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 {
 	const u32 *masks = dev->info->masks;
 	const u16 *regs = dev->info->regs;
@@ -409,7 +427,24 @@ void lan937x_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 	dev->dev_ops->cfg_port_member(dev, port, member);
 }
 
-void lan937x_config_cpu_port(struct dsa_switch *ds)
+static int lan937x_dsa_port_setup(struct dsa_switch *ds, int port)
+{
+	struct ksz_device *dev = ds->priv;
+	int ret;
+
+	if (!dsa_is_user_port(ds, port))
+		return 0;
+
+	lan937x_port_setup(dev, port, false);
+
+	ret = ksz9477_set_default_prio_queue_mapping(dev, port);
+	if (ret)
+		return ret;
+
+	return ksz_dcb_init_port(dev, port);
+}
+
+static void lan937x_config_cpu_port(struct dsa_switch *ds)
 {
 	struct ksz_device *dev = ds->priv;
 	struct dsa_port *dp;
@@ -428,9 +463,9 @@ void lan937x_config_cpu_port(struct dsa_switch *ds)
 	}
 }
 
-int lan937x_change_mtu(struct ksz_device *dev, int port, int new_mtu)
+static int lan937x_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
 {
-	struct dsa_switch *ds = dev->ds;
+	struct ksz_device *dev = ds->priv;
 	int ret;
 
 	new_mtu += VLAN_ETH_HLEN + ETH_FCS_LEN;
@@ -459,8 +494,9 @@ int lan937x_change_mtu(struct ksz_device *dev, int port, int new_mtu)
 	return 0;
 }
 
-int lan937x_set_ageing_time(struct ksz_device *dev, unsigned int msecs)
+static int lan937x_set_ageing_time(struct dsa_switch *ds, unsigned int msecs)
 {
+	struct ksz_device *dev = ds->priv;
 	u8 data, mult, value8;
 	bool in_msec = false;
 	u32 max_val, value;
@@ -572,9 +608,11 @@ static void lan937x_set_rgmii_rx_delay(struct ksz_device *dev, int port)
 	lan937x_set_tune_adj(dev, port, REG_PORT_XMII_CTRL_4, val);
 }
 
-void lan937x_phylink_get_caps(struct ksz_device *dev, int port,
-			      struct phylink_config *config)
+static void lan937x_phylink_get_caps(struct dsa_switch *ds, int port,
+				     struct phylink_config *config)
 {
+	struct ksz_device *dev = ds->priv;
+
 	config->mac_capabilities = MAC_100FD;
 
 	if (dev->info->supports_rgmii[port]) {
@@ -585,9 +623,11 @@ void lan937x_phylink_get_caps(struct ksz_device *dev, int port,
 		config->mac_capabilities |= MAC_ASYM_PAUSE | MAC_SYM_PAUSE |
 					    MAC_100HD | MAC_10;
 	}
+
+	ksz_phylink_get_caps(ds, port, config);
 }
 
-void lan937x_setup_rgmii_delay(struct ksz_device *dev, int port)
+static void lan937x_setup_rgmii_delay(struct ksz_device *dev, int port)
 {
 	struct ksz_port *p = &dev->ports[port];
 
@@ -604,22 +644,172 @@ void lan937x_setup_rgmii_delay(struct ksz_device *dev, int port)
 	}
 }
 
-int lan937x_tc_cbs_set_cinc(struct ksz_device *dev, int port, u32 val)
+static void lan937x_phylink_mac_config(struct phylink_config *config,
+				       unsigned int mode,
+				       const struct phylink_link_state *state)
+{
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct ksz_device *dev = dp->ds->priv;
+	int port = dp->index;
+
+	if (ksz_phylink_need_config(config, mode)) {
+		ksz_set_xmii(dev, port, state->interface);
+		lan937x_setup_rgmii_delay(dev, port);
+	}
+}
+
+static int lan937x_tc_cbs_set_cinc(struct ksz_device *dev, int port, u32 val)
 {
 	return ksz_pwrite32(dev, port, REG_PORT_MTI_CREDIT_INCREMENT, val);
 }
 
-int lan937x_switch_init(struct ksz_device *dev)
+static int lan937x_switch_init(struct ksz_device *dev)
 {
 	dev->port_mask = (1 << dev->info->port_cnt) - 1;
 
 	return 0;
 }
 
-int lan937x_setup(struct dsa_switch *ds)
+/**
+ * lan937x_mdio_register - Register and configure the MDIO bus for the LAN937x.
+ * @dev: Pointer to the KSZ device structure.
+ *
+ * This function sets up and registers an MDIO bus for a LAN937x switch,
+ * allowing access to its internal PHYs. If the device supports side MDIO,
+ * the function will configure the external MDIO controller specified by the
+ * "mdio-parent-bus" device tree property to directly manage internal PHYs.
+ * Otherwise, SPI or I2C access is set up for PHY access.
+ *
+ * Return: 0 on success, or a negative error code on failure.
+ */
+static int lan937x_mdio_register(struct ksz_device *dev)
+{
+	struct device_node *parent_bus_node;
+	struct mii_bus *parent_bus = NULL;
+	struct dsa_switch *ds = dev->ds;
+	struct device_node *mdio_np;
+	struct mii_bus *bus;
+	int ret;
+
+	mdio_np = of_get_child_by_name(dev->dev->of_node, "mdio");
+	if (!mdio_np)
+		return 0;
+
+	parent_bus_node = of_parse_phandle(mdio_np, "mdio-parent-bus", 0);
+	if (parent_bus_node && !dev->info->phy_side_mdio_supported) {
+		dev_err(dev->dev, "Side MDIO bus is not supported for this HW, ignoring 'mdio-parent-bus' property.\n");
+		ret = -EINVAL;
+
+		goto put_mdio_node;
+	} else if (parent_bus_node) {
+		parent_bus = of_mdio_find_bus(parent_bus_node);
+		if (!parent_bus) {
+			ret = -EPROBE_DEFER;
+
+			goto put_mdio_node;
+		}
+
+		dev->parent_mdio_bus = parent_bus;
+	}
+
+	bus = devm_mdiobus_alloc(ds->dev);
+	if (!bus) {
+		ret = -ENOMEM;
+		goto put_mdio_node;
+	}
+
+	ret = lan937x_mdio_bus_preinit(dev, !!parent_bus);
+	if (ret)
+		goto put_mdio_node;
+
+	ret = lan937x_create_phy_addr_map(dev, !!parent_bus);
+	if (ret)
+		goto put_mdio_node;
+
+	bus->priv = dev;
+	if (parent_bus) {
+		bus->read = ksz_parent_mdio_read;
+		bus->write = ksz_parent_mdio_write;
+		bus->name = "KSZ side MDIO";
+		snprintf(bus->id, MII_BUS_ID_SIZE, "ksz-side-mdio-%d",
+			 ds->index);
+	} else {
+		bus->read = ksz_sw_mdio_read;
+		bus->write = ksz_sw_mdio_write;
+		bus->name = "ksz user smi";
+		if (ds->dst->index != 0)
+			snprintf(bus->id, MII_BUS_ID_SIZE, "SMI-%d-%d",
+				 ds->dst->index, ds->index);
+		else
+			snprintf(bus->id, MII_BUS_ID_SIZE, "SMI-%d", ds->index);
+	}
+
+	ret = ksz_parse_dt_phy_config(dev, bus, mdio_np);
+	if (ret)
+		goto put_mdio_node;
+
+	ds->phys_mii_mask = bus->phy_mask;
+	bus->parent = ds->dev;
+
+	ds->user_mii_bus = bus;
+
+	ret = devm_of_mdiobus_register(ds->dev, bus, mdio_np);
+	if (ret)
+		dev_err(ds->dev, "unable to register MDIO bus %s\n",
+			bus->id);
+
+put_mdio_node:
+	of_node_put(mdio_np);
+	of_node_put(parent_bus_node);
+
+	return ret;
+}
+
+static int lan937x_setup(struct dsa_switch *ds)
 {
 	struct ksz_device *dev = ds->priv;
+	u16 storm_mask, storm_rate;
+	struct dsa_port *dp;
+	struct ksz_port *p;
+	const u16 *regs;
 	int ret;
+
+	regs = dev->info->regs;
+
+	dev->vlan_cache = devm_kcalloc(dev->dev, sizeof(struct vlan_table),
+				       dev->info->num_vlans, GFP_KERNEL);
+	if (!dev->vlan_cache)
+		return -ENOMEM;
+
+	ret = lan937x_reset_switch(dev);
+	if (ret) {
+		dev_err(ds->dev, "failed to reset switch\n");
+		return ret;
+	}
+
+	ret = ksz_parse_drive_strength(dev);
+	if (ret)
+		return ret;
+
+	/* set broadcast storm protection 10% rate */
+	storm_mask = BROADCAST_STORM_RATE;
+	storm_rate = (BROADCAST_STORM_VALUE * BROADCAST_STORM_PROT_RATE) / 100;
+	regmap_update_bits(ksz_regmap_16(dev), regs[S_BROADCAST_CTRL],
+			   storm_mask, storm_rate);
+
+	lan937x_config_cpu_port(ds);
+
+	ksz9477_enable_stp_addr(dev);
+
+	ds->num_tx_queues = dev->info->num_tx_queues;
+
+	regmap_update_bits(ksz_regmap_8(dev), regs[S_MULTICAST_CTRL],
+			   MULTICAST_STORM_DISABLE, MULTICAST_STORM_DISABLE);
+
+	ksz_init_mib_timer(dev);
+
+	ds->configure_vlan_while_not_filtering = false;
+	ds->dscp_prio_mapping_is_global = true;
 
 	/* The VLAN aware is a global setting. Mixed vlan
 	 * filterings are not supported.
@@ -652,19 +842,164 @@ int lan937x_setup(struct dsa_switch *ds)
 		return ret;
 
 	/* Disable global VPHY support. Related to CPU interface only? */
-	return ksz_rmw32(dev, REG_SW_CFG_STRAP_OVR, SW_VPHY_DISABLE,
-			 SW_VPHY_DISABLE);
+	ret = ksz_rmw32(dev, REG_SW_CFG_STRAP_OVR, SW_VPHY_DISABLE,
+			SW_VPHY_DISABLE);
+	if (ret < 0)
+		return ret;
+
+	/* Start with learning disabled on standalone user ports, and enabled
+	 * on the CPU port. In lack of other finer mechanisms, learning on the
+	 * CPU port will avoid flooding bridge local addresses on the network
+	 * in some cases.
+	 */
+	p = &dev->ports[dev->cpu_port];
+	p->learning = true;
+
+	if (dev->irq > 0) {
+		ret = ksz_girq_setup(dev);
+		if (ret)
+			return ret;
+
+		dsa_switch_for_each_user_port(dp, dev->ds) {
+			ret = ksz_pirq_setup(dev, dp->index);
+			if (ret)
+				goto port_release;
+
+			ret = ksz_ptp_irq_setup(ds, dp->index);
+			if (ret)
+				goto pirq_release;
+		}
+	}
+
+	ret = ksz_ptp_clock_register(ds);
+	if (ret) {
+		dev_err(dev->dev, "Failed to register PTP clock: %d\n",
+			ret);
+		goto port_release;
+	}
+
+	ret = lan937x_mdio_register(dev);
+	if (ret < 0) {
+		dev_err(dev->dev, "failed to register the mdio");
+		goto out_ptp_clock_unregister;
+	}
+
+	ret = ksz_dcb_init(dev);
+	if (ret)
+		goto out_ptp_clock_unregister;
+
+	/* start switch */
+	regmap_update_bits(ksz_regmap_8(dev), regs[S_START_CTRL],
+			   SW_START, SW_START);
+
+	return 0;
+
+out_ptp_clock_unregister:
+	ksz_ptp_clock_unregister(ds);
+port_release:
+	if (dev->irq > 0) {
+		dsa_switch_for_each_user_port_continue_reverse(dp, dev->ds) {
+			ksz_ptp_irq_free(ds, dp->index);
+pirq_release:
+			ksz_irq_free(&dev->ports[dp->index].pirq);
+		}
+		ksz_irq_free(&dev->girq);
+	}
+
+	return ret;
 }
 
-void lan937x_teardown(struct dsa_switch *ds)
+static enum dsa_tag_protocol lan937x_get_tag_protocol(struct dsa_switch *ds,
+						      int port,
+						      enum dsa_tag_protocol mp)
 {
-
+	return DSA_TAG_PROTO_LAN937X;
 }
 
-void lan937x_switch_exit(struct ksz_device *dev)
+static int lan937x_connect_tag_protocol(struct dsa_switch *ds,
+					enum dsa_tag_protocol proto)
 {
-	lan937x_reset_switch(dev);
+	struct ksz_tagger_data *tagger_data;
+
+	if (proto != DSA_TAG_PROTO_LAN937X)
+		return -EPROTONOSUPPORT;
+
+	tagger_data = ksz_tagger_data(ds);
+	tagger_data->xmit_work_fn = ksz_port_deferred_xmit;
+
+	return 0;
 }
+
+const struct phylink_mac_ops lan937x_phylink_mac_ops = {
+	.mac_config	= lan937x_phylink_mac_config,
+	.mac_link_down	= ksz_phylink_mac_link_down,
+	.mac_link_up	= ksz9477_phylink_mac_link_up,
+	.mac_disable_tx_lpi = ksz_phylink_mac_disable_tx_lpi,
+	.mac_enable_tx_lpi = ksz_phylink_mac_enable_tx_lpi,
+};
+
+const struct ksz_dev_ops lan937x_dev_ops = {
+	.get_port_addr = ksz9477_get_port_addr,
+	.cfg_port_member = ksz9477_cfg_port_member,
+	.r_mib_cnt = ksz9477_r_mib_cnt,
+	.r_mib_pkt = ksz9477_r_mib_pkt,
+	.r_mib_stat64 = ksz_r_mib_stats64,
+	.freeze_mib = ksz9477_freeze_mib,
+	.port_init_cnt = ksz9477_port_init_cnt,
+	.tc_cbs_set_cinc = lan937x_tc_cbs_set_cinc,
+	.init = lan937x_switch_init,
+};
+
+const struct dsa_switch_ops lan937x_switch_ops = {
+	.get_tag_protocol	= lan937x_get_tag_protocol,
+	.connect_tag_protocol   = lan937x_connect_tag_protocol,
+	.setup			= lan937x_setup,
+	.teardown		= ksz_teardown,
+	.phy_read		= lan937x_phy_read16,
+	.phy_write		= lan937x_phy_write16,
+	.phylink_get_caps	= lan937x_phylink_get_caps,
+	.port_setup		= lan937x_dsa_port_setup,
+	.set_ageing_time	= lan937x_set_ageing_time,
+	.get_strings		= ksz_get_strings,
+	.get_ethtool_stats	= ksz_get_ethtool_stats,
+	.get_sset_count		= ksz_sset_count,
+	.port_bridge_join	= ksz_port_bridge_join,
+	.port_bridge_leave	= ksz_port_bridge_leave,
+	.port_set_mac_address	= ksz_port_set_mac_address,
+	.port_stp_state_set	= ksz_port_stp_state_set,
+	.port_pre_bridge_flags	= ksz_port_pre_bridge_flags,
+	.port_bridge_flags	= ksz_port_bridge_flags,
+	.port_fast_age		= ksz9477_flush_dyn_mac_table,
+	.port_vlan_filtering	= ksz9477_port_vlan_filtering,
+	.port_vlan_add		= ksz9477_port_vlan_add,
+	.port_vlan_del		= ksz9477_port_vlan_del,
+	.port_fdb_dump		= ksz9477_fdb_dump,
+	.port_fdb_add		= ksz9477_fdb_add,
+	.port_fdb_del		= ksz9477_fdb_del,
+	.port_mdb_add           = ksz9477_mdb_add,
+	.port_mdb_del           = ksz9477_mdb_del,
+	.port_mirror_add	= ksz9477_port_mirror_add,
+	.port_mirror_del	= ksz9477_port_mirror_del,
+	.get_stats64		= ksz_get_stats64,
+	.get_pause_stats	= ksz_get_pause_stats,
+	.port_change_mtu	= lan937x_change_mtu,
+	.port_max_mtu		= ksz_max_mtu,
+	.suspend		= ksz_suspend,
+	.resume			= ksz_resume,
+	.get_ts_info		= ksz_get_ts_info,
+	.port_hwtstamp_get	= ksz_hwtstamp_get,
+	.port_hwtstamp_set	= ksz_hwtstamp_set,
+	.port_txtstamp		= ksz_port_txtstamp,
+	.port_rxtstamp		= ksz_port_rxtstamp,
+	.port_setup_tc		= ksz_setup_tc,
+	.port_get_default_prio	= ksz_port_get_default_prio,
+	.port_set_default_prio	= ksz_port_set_default_prio,
+	.port_get_dscp_prio	= ksz_port_get_dscp_prio,
+	.port_add_dscp_prio	= ksz_port_add_dscp_prio,
+	.port_del_dscp_prio	= ksz_port_del_dscp_prio,
+	.port_get_apptrust	= ksz_port_get_apptrust,
+	.port_set_apptrust	= ksz_port_set_apptrust,
+};
 
 MODULE_AUTHOR("Arun Ramadoss <arun.ramadoss@microchip.com>");
 MODULE_DESCRIPTION("Microchip LAN937x Series Switch DSA Driver");

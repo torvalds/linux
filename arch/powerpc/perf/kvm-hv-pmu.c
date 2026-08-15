@@ -16,6 +16,7 @@
 #include <linux/perf_event.h>
 #include <linux/spinlock_types.h>
 #include <linux/spinlock.h>
+#include <linux/sysfs.h>
 
 #include <asm/types.h>
 #include <asm/kvm_ppc.h>
@@ -48,7 +49,7 @@ static ssize_t kvmppc_events_sysfs_show(struct device *dev,
 	struct perf_pmu_events_attr *pmu_attr;
 
 	pmu_attr = container_of(attr, struct perf_pmu_events_attr, attr);
-	return sprintf(page, "event=0x%02llx\n", pmu_attr->id);
+	return sysfs_emit(page, "event=0x%02llx\n", pmu_attr->id);
 }
 
 /* Holds the hostwide stats */

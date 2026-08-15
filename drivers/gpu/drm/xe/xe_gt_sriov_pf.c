@@ -219,6 +219,7 @@ static void pf_restart(struct xe_gt *gt)
 
 	xe_gt_assert(gt, !xe_pm_runtime_suspended(xe));
 
+	xe_gt_sriov_pf_policy_restart(gt);
 	xe_gt_sriov_pf_config_restart(gt);
 	xe_gt_sriov_pf_control_restart(gt);
 

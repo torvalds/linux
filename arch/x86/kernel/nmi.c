@@ -576,7 +576,7 @@ nmi_restart:
 
 	irq_state = irqentry_nmi_enter(regs);
 
-	inc_irq_stat(__nmi_count);
+	inc_irq_stat(NMI);
 
 	if (IS_ENABLED(CONFIG_NMI_CHECK_CPU) && ignore_nmis) {
 		WRITE_ONCE(nsp->idt_ignored, nsp->idt_ignored + 1);
@@ -724,7 +724,7 @@ DEFINE_FREDENTRY_NMI(exc_nmi)
 
 	irq_state = irqentry_nmi_enter(regs);
 
-	inc_irq_stat(__nmi_count);
+	inc_irq_stat(NMI);
 	default_do_nmi(regs);
 
 	irqentry_nmi_exit(regs, irq_state);

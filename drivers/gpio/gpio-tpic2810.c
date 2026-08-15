@@ -112,7 +112,7 @@ static int tpic2810_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tpic2810_id_table[] = {
-	{ "tpic2810", },
+	{ .name = "tpic2810" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, tpic2810_id_table);

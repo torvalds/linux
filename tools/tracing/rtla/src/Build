@@ -11,4 +11,4 @@ rtla-y += timerlat_hist.o
 rtla-y += timerlat_u.o
 rtla-y += timerlat_aa.o
 rtla-y += timerlat_bpf.o
-rtla-y += rtla.o
+rtla-y += cli.o

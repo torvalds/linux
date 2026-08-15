@@ -1,0 +1,40 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (C) 2022-2026 Marek Vasut
+ */
+/dts-v1/;
+/plugin/;
+
+#include "imx8mp-dhcom-overlay-panel-lvds.dtsi"
+#include "imx8mp-dhcom-overlay-panel-ch101olhlwh.dtsi"
+
+&{/} {
+	gpio-keys {
+		button-1 {
+			/* BUTTON1 GPIO conflicts with Touchscreen RESET GPIO-B */
+			status = "disabled";
+		};
+	};
+
+	led {
+		led-2 {
+			/* LED7 GPIO conflicts with Touchscreen IRQ GPIO-H */
+			status = "disabled";
+		};
+	};
+};
+
+&media_blk_ctrl {
+	/*
+	 * The Chefree CH101OLHLWH-002 panel requires 71.1 MHz LVDS clock.
+	 * Set IMX8MP_VIDEO_PLL1 to 497.7 MHz , since 497.7 MHz / 7 = 71.1 MHz .
+	 */
+	assigned-clock-rates = <500000000>, <200000000>, <0>, <0>, <0>, <497700000>;
+};
+
+&touch_lvds {
+	pinctrl-0 = <&pinctrl_dhcom_b &pinctrl_dhcom_h>;
+	pinctrl-names = "default";
+	interrupt-parent = <&gpio1>;
+	interrupts = <11 IRQ_TYPE_EDGE_FALLING>;
+};

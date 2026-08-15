@@ -1,0 +1,2 @@
+# mode=relaxed
+bad/yaml-tab.yaml:28: example 0 [tab-in-dts] tab character not allowed in DTS example

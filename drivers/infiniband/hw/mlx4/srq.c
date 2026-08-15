@@ -116,7 +116,7 @@ int mlx4_ib_create_srq(struct ib_srq *ib_srq,
 			return err;
 
 		srq->umem =
-			ib_umem_get(ib_srq->device, ucmd.buf_addr, buf_size, 0);
+			ib_umem_get_va(ib_srq->device, ucmd.buf_addr, buf_size, 0);
 		if (IS_ERR(srq->umem))
 			return PTR_ERR(srq->umem);
 
@@ -191,11 +191,15 @@ int mlx4_ib_create_srq(struct ib_srq *ib_srq,
 	srq->msrq.event = mlx4_ib_srq_event;
 	srq->ibsrq.ext.xrc.srq_num = srq->msrq.srqn;
 
-	if (udata)
-		if (ib_copy_to_udata(udata, &srq->msrq.srqn, sizeof (__u32))) {
-			err = -EFAULT;
+	if (udata) {
+		struct mlx4_ib_create_srq_resp uresp = {
+			.srqn = srq->msrq.srqn
+		};
+
+		err = ib_respond_udata(udata, uresp);
+		if (err)
 			goto err_srq;
-		}
+	}
 
 	init_attr->attr.max_wr = srq->msrq.max - 1;
 

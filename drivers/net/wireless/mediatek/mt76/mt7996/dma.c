@@ -683,7 +683,7 @@ int mt7996_dma_init(struct mt7996_dev *dev)
 		ret = mt7996_init_tx_queues(&dev->phy, MT_TXQ_ID(0),
 					    MT7996_NPU_TX_RING_SIZE,
 					    MT_TXQ_RING_BASE(0) + hif1_ofs,
-					    NULL);
+					    wed);
 	else
 		ret = mt7996_init_tx_queues(&dev->phy,
 					    MT_TXQ_ID(dev->mphy.band_idx),

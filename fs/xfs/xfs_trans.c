@@ -1164,7 +1164,7 @@ xfs_trans_reserve_more_inode(
 	if (error)
 		return error;
 
-	if (!XFS_IS_QUOTA_ON(mp) || xfs_is_quota_inode(&mp->m_sb, ip->i_ino))
+	if (!XFS_IS_QUOTA_ON(mp) || xfs_is_quota_inode(&mp->m_sb, I_INO(ip)))
 		return 0;
 
 	if (tp->t_flags & XFS_TRANS_RESERVE)

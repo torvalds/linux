@@ -4,6 +4,7 @@
  * Copyright © 2019 Intel Corporation
  */
 
+#include <kunit/test.h>
 #include <linux/delay.h>
 #include <linux/dma-fence.h>
 #include <linux/dma-fence-chain.h>
@@ -14,8 +15,6 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/random.h>
-
-#include "selftest.h"
 
 #define CHAIN_SZ (4 << 10)
 
@@ -74,27 +73,23 @@ static struct dma_fence *mock_chain(struct dma_fence *prev,
 	return &f->base;
 }
 
-static int sanitycheck(void *arg)
+static void test_sanitycheck(struct kunit *test)
 {
 	struct dma_fence *f, *chain;
-	int err = 0;
 
 	f = mock_fence();
-	if (!f)
-		return -ENOMEM;
+	KUNIT_ASSERT_NOT_NULL(test, f);
 
 	chain = mock_chain(NULL, f, 1);
 	if (chain)
 		dma_fence_enable_sw_signaling(chain);
 	else
-		err = -ENOMEM;
+		KUNIT_FAIL(test, "Failed to create chain");
 
 	dma_fence_signal(f);
 	dma_fence_put(f);
 
 	dma_fence_put(chain);
-
-	return err;
 }
 
 struct fence_chains {
@@ -176,7 +171,7 @@ static void fence_chains_fini(struct fence_chains *fc)
 	kvfree(fc->chains);
 }
 
-static int find_seqno(void *arg)
+static void test_find_seqno(struct kunit *test)
 {
 	struct fence_chains fc;
 	struct dma_fence *fence;
@@ -184,14 +179,13 @@ static int find_seqno(void *arg)
 	int i;
 
 	err = fence_chains_init(&fc, 64, seqno_inc);
-	if (err)
-		return err;
+	KUNIT_ASSERT_EQ_MSG(test, err, 0, "Failed to init fence chains");
 
 	fence = dma_fence_get(fc.tail);
 	err = dma_fence_chain_find_seqno(&fence, 0);
 	dma_fence_put(fence);
 	if (err) {
-		pr_err("Reported %d for find_seqno(0)!\n", err);
+		KUNIT_FAIL(test, "Reported %d for find_seqno(0)!", err);
 		goto err;
 	}
 
@@ -200,14 +194,13 @@ static int find_seqno(void *arg)
 		err = dma_fence_chain_find_seqno(&fence, i + 1);
 		dma_fence_put(fence);
 		if (err) {
-			pr_err("Reported %d for find_seqno(%d:%d)!\n",
-			       err, fc.chain_length + 1, i + 1);
+			KUNIT_FAIL(test, "Reported %d for find_seqno(%d:%d)!",
+				   err, fc.chain_length + 1, i + 1);
 			goto err;
 		}
 		if (fence != fc.chains[i]) {
-			pr_err("Incorrect fence reported by find_seqno(%d:%d)\n",
-			       fc.chain_length + 1, i + 1);
-			err = -EINVAL;
+			KUNIT_FAIL(test, "Incorrect fence reported by find_seqno(%d:%d)",
+				   fc.chain_length + 1, i + 1);
 			goto err;
 		}
 
@@ -215,12 +208,11 @@ static int find_seqno(void *arg)
 		err = dma_fence_chain_find_seqno(&fence, i + 1);
 		dma_fence_put(fence);
 		if (err) {
-			pr_err("Error reported for finding self\n");
+			KUNIT_FAIL(test, "Error reported for finding self");
 			goto err;
 		}
 		if (fence != fc.chains[i]) {
-			pr_err("Incorrect fence reported by find self\n");
-			err = -EINVAL;
+			KUNIT_FAIL(test, "Incorrect fence reported by find self");
 			goto err;
 		}
 
@@ -228,9 +220,8 @@ static int find_seqno(void *arg)
 		err = dma_fence_chain_find_seqno(&fence, i + 2);
 		dma_fence_put(fence);
 		if (!err) {
-			pr_err("Error not reported for future fence: find_seqno(%d:%d)!\n",
-			       i + 1, i + 2);
-			err = -EINVAL;
+			KUNIT_FAIL(test, "Error not reported for future fence: find_seqno(%d:%d)!",
+				   i + 1, i + 2);
 			goto err;
 		}
 
@@ -238,31 +229,28 @@ static int find_seqno(void *arg)
 		err = dma_fence_chain_find_seqno(&fence, i);
 		dma_fence_put(fence);
 		if (err) {
-			pr_err("Error reported for previous fence!\n");
+			KUNIT_FAIL(test, "Error reported for previous fence!");
 			goto err;
 		}
 		if (i > 0 && fence != fc.chains[i - 1]) {
-			pr_err("Incorrect fence reported by find_seqno(%d:%d)\n",
-			       i + 1, i);
-			err = -EINVAL;
+			KUNIT_FAIL(test, "Incorrect fence reported by find_seqno(%d:%d)",
+				   i + 1, i);
 			goto err;
 		}
 	}
 
 err:
 	fence_chains_fini(&fc);
-	return err;
 }
 
-static int find_signaled(void *arg)
+static void test_find_signaled(struct kunit *test)
 {
 	struct fence_chains fc;
 	struct dma_fence *fence;
 	int err;
 
 	err = fence_chains_init(&fc, 2, seqno_inc);
-	if (err)
-		return err;
+	KUNIT_ASSERT_EQ_MSG(test, err, 0, "Failed to init fence chains");
 
 	dma_fence_signal(fc.fences[0]);
 
@@ -270,37 +258,33 @@ static int find_signaled(void *arg)
 	err = dma_fence_chain_find_seqno(&fence, 1);
 	dma_fence_put(fence);
 	if (err) {
-		pr_err("Reported %d for find_seqno()!\n", err);
+		KUNIT_FAIL(test, "Reported %d for find_seqno()!", err);
 		goto err;
 	}
 
 	if (fence && fence != fc.chains[0]) {
-		pr_err("Incorrect chain-fence.seqno:%lld reported for completed seqno:1\n",
-		       fence->seqno);
+		KUNIT_FAIL(test, "Incorrect chain-fence.seqno:%lld reported for completed seqno:1",
+			   fence->seqno);
 
 		dma_fence_get(fence);
 		err = dma_fence_chain_find_seqno(&fence, 1);
 		dma_fence_put(fence);
 		if (err)
-			pr_err("Reported %d for finding self!\n", err);
-
-		err = -EINVAL;
+			KUNIT_FAIL(test, "Reported %d for finding self!", err);
 	}
 
 err:
 	fence_chains_fini(&fc);
-	return err;
 }
 
-static int find_out_of_order(void *arg)
+static void test_find_out_of_order(struct kunit *test)
 {
 	struct fence_chains fc;
 	struct dma_fence *fence;
 	int err;
 
 	err = fence_chains_init(&fc, 3, seqno_inc);
-	if (err)
-		return err;
+	KUNIT_ASSERT_EQ_MSG(test, err, 0, "Failed to init fence chains");
 
 	dma_fence_signal(fc.fences[1]);
 
@@ -308,7 +292,7 @@ static int find_out_of_order(void *arg)
 	err = dma_fence_chain_find_seqno(&fence, 2);
 	dma_fence_put(fence);
 	if (err) {
-		pr_err("Reported %d for find_seqno()!\n", err);
+		KUNIT_FAIL(test, "Reported %d for find_seqno()!", err);
 		goto err;
 	}
 
@@ -319,16 +303,12 @@ static int find_out_of_order(void *arg)
 	 * we should get as fence to wait upon (fence 2 being garbage
 	 * collected during the traversal of the chain).
 	 */
-	if (fence != fc.chains[0]) {
-		pr_err("Incorrect chain-fence.seqno:%lld reported for completed seqno:2\n",
-		       fence ? fence->seqno : 0);
-
-		err = -EINVAL;
-	}
+	if (fence != fc.chains[0])
+		KUNIT_FAIL(test, "Incorrect chain-fence.seqno:%lld reported for completed seqno:2",
+			   fence ? fence->seqno : 0);
 
 err:
 	fence_chains_fini(&fc);
-	return err;
 }
 
 static uint64_t seqno_inc2(unsigned int i)
@@ -336,7 +316,7 @@ static uint64_t seqno_inc2(unsigned int i)
 	return 2 * i + 2;
 }
 
-static int find_gap(void *arg)
+static void test_find_gap(struct kunit *test)
 {
 	struct fence_chains fc;
 	struct dma_fence *fence;
@@ -344,24 +324,22 @@ static int find_gap(void *arg)
 	int i;
 
 	err = fence_chains_init(&fc, 64, seqno_inc2);
-	if (err)
-		return err;
+	KUNIT_ASSERT_EQ_MSG(test, err, 0, "Failed to init fence chains");
 
 	for (i = 0; i < fc.chain_length; i++) {
 		fence = dma_fence_get(fc.tail);
 		err = dma_fence_chain_find_seqno(&fence, 2 * i + 1);
 		dma_fence_put(fence);
 		if (err) {
-			pr_err("Reported %d for find_seqno(%d:%d)!\n",
-			       err, fc.chain_length + 1, 2 * i + 1);
+			KUNIT_FAIL(test, "Reported %d for find_seqno(%d:%d)!",
+				   err, fc.chain_length + 1, 2 * i + 1);
 			goto err;
 		}
 		if (fence != fc.chains[i]) {
-			pr_err("Incorrect fence.seqno:%lld reported by find_seqno(%d:%d)\n",
-			       fence->seqno,
-			       fc.chain_length + 1,
-			       2 * i + 1);
-			err = -EINVAL;
+			KUNIT_FAIL(test, "Incorrect fence.seqno:%lld reported by find_seqno(%d:%d)",
+				   fence->seqno,
+				   fc.chain_length + 1,
+				   2 * i + 1);
 			goto err;
 		}
 
@@ -369,19 +347,17 @@ static int find_gap(void *arg)
 		err = dma_fence_chain_find_seqno(&fence, 2 * i + 2);
 		dma_fence_put(fence);
 		if (err) {
-			pr_err("Error reported for finding self\n");
+			KUNIT_FAIL(test, "Error reported for finding self");
 			goto err;
 		}
 		if (fence != fc.chains[i]) {
-			pr_err("Incorrect fence reported by find self\n");
-			err = -EINVAL;
+			KUNIT_FAIL(test, "Incorrect fence reported by find self");
 			goto err;
 		}
 	}
 
 err:
 	fence_chains_fini(&fc);
-	return err;
 }
 
 struct find_race {
@@ -437,7 +413,7 @@ signal:
 	return err;
 }
 
-static int find_race(void *arg)
+static void test_find_race(struct kunit *test)
 {
 	struct find_race data;
 	int ncpus = num_online_cpus();
@@ -447,12 +423,11 @@ static int find_race(void *arg)
 	int i;
 
 	err = fence_chains_init(&data.fc, CHAIN_SZ, seqno_inc);
-	if (err)
-		return err;
+	KUNIT_ASSERT_EQ_MSG(test, err, 0, "Failed to init fence chains");
 
 	threads = kmalloc_objs(*threads, ncpus);
 	if (!threads) {
-		err = -ENOMEM;
+		KUNIT_FAIL(test, "Failed to allocate threads array");
 		goto err;
 	}
 
@@ -486,74 +461,67 @@ static int find_race(void *arg)
 			count++;
 	pr_info("Completed %lu cycles\n", count);
 
+	KUNIT_EXPECT_EQ(test, err, 0);
+
 err:
 	fence_chains_fini(&data.fc);
-	return err;
 }
 
-static int signal_forward(void *arg)
+static void test_signal_forward(struct kunit *test)
 {
 	struct fence_chains fc;
 	int err;
 	int i;
 
 	err = fence_chains_init(&fc, 64, seqno_inc);
-	if (err)
-		return err;
+	KUNIT_ASSERT_EQ_MSG(test, err, 0, "Failed to init fence chains");
 
 	for (i = 0; i < fc.chain_length; i++) {
 		dma_fence_signal(fc.fences[i]);
 
 		if (!dma_fence_is_signaled(fc.chains[i])) {
-			pr_err("chain[%d] not signaled!\n", i);
-			err = -EINVAL;
+			KUNIT_FAIL(test, "chain[%d] not signaled!", i);
 			goto err;
 		}
 
 		if (i + 1 < fc.chain_length &&
 		    dma_fence_is_signaled(fc.chains[i + 1])) {
-			pr_err("chain[%d] is signaled!\n", i);
-			err = -EINVAL;
+			KUNIT_FAIL(test, "chain[%d] is signaled!", i);
 			goto err;
 		}
 	}
 
 err:
 	fence_chains_fini(&fc);
-	return err;
 }
 
-static int signal_backward(void *arg)
+static void test_signal_backward(struct kunit *test)
 {
 	struct fence_chains fc;
 	int err;
 	int i;
 
 	err = fence_chains_init(&fc, 64, seqno_inc);
-	if (err)
-		return err;
+	KUNIT_ASSERT_EQ_MSG(test, err, 0, "Failed to init fence chains");
 
 	for (i = fc.chain_length; i--; ) {
 		dma_fence_signal(fc.fences[i]);
 
 		if (i > 0 && dma_fence_is_signaled(fc.chains[i])) {
-			pr_err("chain[%d] is signaled!\n", i);
-			err = -EINVAL;
+			KUNIT_FAIL(test, "chain[%d] is signaled!", i);
 			goto err;
 		}
 	}
 
 	for (i = 0; i < fc.chain_length; i++) {
 		if (!dma_fence_is_signaled(fc.chains[i])) {
-			pr_err("chain[%d] was not signaled!\n", i);
-			err = -EINVAL;
+			KUNIT_FAIL(test, "chain[%d] was not signaled!", i);
 			goto err;
 		}
 	}
 
 err:
 	fence_chains_fini(&fc);
-	return err;
 }
 
 static int __wait_fence_chains(void *arg)
@@ -566,7 +534,7 @@ static int __wait_fence_chains(void *arg)
 	return 0;
 }
 
-static int wait_forward(void *arg)
+static void test_wait_forward(struct kunit *test)
 {
 	struct fence_chains fc;
 	struct task_struct *tsk;
@@ -574,12 +542,11 @@ static int wait_forward(void *arg)
 	int i;
 
 	err = fence_chains_init(&fc, CHAIN_SZ, seqno_inc);
-	if (err)
-		return err;
+	KUNIT_ASSERT_EQ_MSG(test, err, 0, "Failed to init fence chains");
 
 	tsk = kthread_run(__wait_fence_chains, &fc, "dmabuf/wait");
 	if (IS_ERR(tsk)) {
-		err = PTR_ERR(tsk);
+		KUNIT_FAIL(test, "Failed to create kthread");
 		goto err;
 	}
 	get_task_struct(tsk);
@@ -589,13 +556,13 @@ static int wait_forward(void *arg)
 		dma_fence_signal(fc.fences[i]);
 
 	err = kthread_stop_put(tsk);
+	KUNIT_EXPECT_EQ(test, err, 0);
 
 err:
 	fence_chains_fini(&fc);
-	return err;
 }
 
-static int wait_backward(void *arg)
+static void test_wait_backward(struct kunit *test)
 {
 	struct fence_chains fc;
 	struct task_struct *tsk;
@@ -603,12 +570,11 @@ static int wait_backward(void *arg)
 	int i;
 
 	err = fence_chains_init(&fc, CHAIN_SZ, seqno_inc);
-	if (err)
-		return err;
+	KUNIT_ASSERT_EQ_MSG(test, err, 0, "Failed to init fence chains");
 
 	tsk = kthread_run(__wait_fence_chains, &fc, "dmabuf/wait");
 	if (IS_ERR(tsk)) {
-		err = PTR_ERR(tsk);
+		KUNIT_FAIL(test, "Failed to create kthread");
 		goto err;
 	}
 	get_task_struct(tsk);
@@ -618,10 +584,10 @@ static int wait_backward(void *arg)
 		dma_fence_signal(fc.fences[i]);
 
 	err = kthread_stop_put(tsk);
+	KUNIT_EXPECT_EQ(test, err, 0);
 
 err:
 	fence_chains_fini(&fc);
-	return err;
 }
 
 static void randomise_fences(struct fence_chains *fc)
@@ -640,7 +606,7 @@ static void randomise_fences(struct fence_chains *fc)
 	}
 }
 
-static int wait_random(void *arg)
+static void test_wait_random(struct kunit *test)
 {
 	struct fence_chains fc;
 	struct task_struct *tsk;
@@ -648,14 +614,13 @@ static int wait_random(void *arg)
 	int i;
 
 	err = fence_chains_init(&fc, CHAIN_SZ, seqno_inc);
-	if (err)
-		return err;
+	KUNIT_ASSERT_EQ_MSG(test, err, 0, "Failed to init fence chains");
 
 	randomise_fences(&fc);
 
 	tsk = kthread_run(__wait_fence_chains, &fc, "dmabuf/wait");
 	if (IS_ERR(tsk)) {
-		err = PTR_ERR(tsk);
+		KUNIT_FAIL(test, "Failed to create kthread");
 		goto err;
 	}
 	get_task_struct(tsk);
@@ -665,29 +630,14 @@ static int wait_random(void *arg)
 		dma_fence_signal(fc.fences[i]);
 
 	err = kthread_stop_put(tsk);
+	KUNIT_EXPECT_EQ(test, err, 0);
 
 err:
 	fence_chains_fini(&fc);
-	return err;
 }
 
-int dma_fence_chain(void)
+static int dma_fence_chain_suite_init(struct kunit_suite *suite)
 {
-	static const struct subtest tests[] = {
-		SUBTEST(sanitycheck),
-		SUBTEST(find_seqno),
-		SUBTEST(find_signaled),
-		SUBTEST(find_out_of_order),
-		SUBTEST(find_gap),
-		SUBTEST(find_race),
-		SUBTEST(signal_forward),
-		SUBTEST(signal_backward),
-		SUBTEST(wait_forward),
-		SUBTEST(wait_backward),
-		SUBTEST(wait_random),
-	};
-	int ret;
-
 	pr_info("sizeof(dma_fence_chain)=%zu\n",
 		sizeof(struct dma_fence_chain));
 
@@ -696,9 +646,34 @@ int dma_fence_chain(void)
 				 SLAB_HWCACHE_ALIGN);
 	if (!slab_fences)
 		return -ENOMEM;
-
-	ret = subtests(tests, NULL);
-
-	kmem_cache_destroy(slab_fences);
-	return ret;
+	return 0;
 }
+
+static void dma_fence_chain_suite_exit(struct kunit_suite *suite)
+{
+	kmem_cache_destroy(slab_fences);
+}
+
+static struct kunit_case dma_fence_chain_cases[] = {
+	KUNIT_CASE(test_sanitycheck),
+	KUNIT_CASE(test_find_seqno),
+	KUNIT_CASE(test_find_signaled),
+	KUNIT_CASE(test_find_out_of_order),
+	KUNIT_CASE(test_find_gap),
+	KUNIT_CASE(test_find_race),
+	KUNIT_CASE(test_signal_forward),
+	KUNIT_CASE(test_signal_backward),
+	KUNIT_CASE(test_wait_forward),
+	KUNIT_CASE(test_wait_backward),
+	KUNIT_CASE(test_wait_random),
+	{}
+};
+
+static struct kunit_suite dma_fence_chain_test_suite = {
+	.name = "dma-buf-fence-chain",
+	.suite_init = dma_fence_chain_suite_init,
+	.suite_exit = dma_fence_chain_suite_exit,
+	.test_cases = dma_fence_chain_cases,
+};
+
+kunit_test_suite(dma_fence_chain_test_suite);

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2024-2025 Intel Corporation
+ * Copyright (C) 2024-2026 Intel Corporation
  */
 #include "mld.h"
 
@@ -41,6 +41,12 @@ enum iwl_mld_d3_notif {
 struct iwl_mld_resume_key_iter_data {
 	struct iwl_mld *mld;
 	struct iwl_mld_wowlan_status *wowlan_status;
+};
+
+struct iwl_mld_rsc_resume_iter_data {
+	struct iwl_mld *mld;
+	const struct iwl_wowlan_all_rsc_tsc_v5 *notif;
+	int queue;
 };
 
 struct iwl_mld_suspend_key_iter_data {
@@ -282,7 +288,8 @@ static void
 iwl_mld_convert_gtk_resume_data(struct iwl_mld *mld,
 				struct iwl_mld_wowlan_status *wowlan_status,
 				const struct iwl_wowlan_gtk_status *gtk_data,
-				const struct iwl_wowlan_all_rsc_tsc_v5 *sc)
+				const struct iwl_wowlan_all_rsc_tsc_v5 *sc,
+				int rsc_notif_ver)
 {
 	int status_idx = 0;
 
@@ -305,14 +312,18 @@ iwl_mld_convert_gtk_resume_data(struct iwl_mld *mld,
 		wowlan_status->gtk[status_idx].id =
 			wowlan_status->gtk[status_idx].flags &
 			IWL_WOWLAN_GTK_IDX_MASK;
-		/* The rsc for both gtk keys are stored in gtk[0]->sc->mcast_rsc
-		 * The gtk ids can be any two numbers between 0 and 3,
-		 * the id_map maps between the key id and the index in sc->mcast
-		 */
-		rsc_idx =
-			sc->mcast_key_id_map[wowlan_status->gtk[status_idx].id];
-		iwl_mld_convert_gtk_resume_seq(&wowlan_status->gtk[status_idx],
-					       sc, rsc_idx);
+		/* If RSC_NOTIF is not supported */
+		if (rsc_notif_ver == IWL_FW_CMD_VER_UNKNOWN) {
+			/* The rsc for both gtk keys are stored in
+			 * gtk[0]->sc->mcast_rsc. The gtk ids can be any two
+			 * numbers between 0 and 3, the id_map maps between the
+			 * key id and the index in sc->mcast
+			 */
+			rsc_idx =
+				sc->mcast_key_id_map[wowlan_status->gtk[status_idx].id];
+			iwl_mld_convert_gtk_resume_seq(&wowlan_status->gtk[status_idx],
+						       sc, rsc_idx);
+		}
 
 		if (key_status == IWL_WOWLAN_STATUS_NEW_KEY) {
 			memcpy(wowlan_status->gtk[status_idx].key,
@@ -598,6 +609,10 @@ iwl_mld_handle_wowlan_info_notif(struct iwl_mld *mld,
 						      PROT_OFFLOAD_GROUP,
 						      WOWLAN_INFO_NOTIFICATION,
 						      IWL_FW_CMD_VER_UNKNOWN);
+	int rsc_notif_ver = iwl_fw_lookup_notif_ver(mld->fw,
+						    DATA_PATH_GROUP,
+						    RSC_NOTIF,
+						    IWL_FW_CMD_VER_UNKNOWN);
 
 	if (wowlan_info_ver == 5) {
 		/* v5 format - validate before conversion */
@@ -642,8 +657,10 @@ iwl_mld_handle_wowlan_info_notif(struct iwl_mld *mld,
 		return true;
 
 	iwl_mld_convert_gtk_resume_data(mld, wowlan_status, notif->gtk,
-					&notif->gtk[0].sc);
-	iwl_mld_convert_ptk_resume_seq(mld, wowlan_status, &notif->gtk[0].sc);
+					&notif->gtk[0].sc, rsc_notif_ver);
+	if (rsc_notif_ver == IWL_FW_CMD_VER_UNKNOWN)
+		iwl_mld_convert_ptk_resume_seq(mld, wowlan_status,
+					       &notif->gtk[0].sc);
 	/* only one igtk is passed by FW */
 	iwl_mld_convert_igtk_resume_data(wowlan_status, &notif->igtk[0]);
 	iwl_mld_convert_bigtk_resume_data(wowlan_status, notif->bigtk);
@@ -902,8 +919,14 @@ iwl_mld_resume_keys_iter(struct ieee80211_hw *hw,
 	struct iwl_mld_resume_key_iter_data *data = _data;
 	struct iwl_mld_wowlan_status *wowlan_status = data->wowlan_status;
 	u8 status_idx;
+	int rsc_notif_ver = iwl_fw_lookup_notif_ver(data->mld->fw,
+						    DATA_PATH_GROUP,
+						    RSC_NOTIF,
+						    IWL_FW_CMD_VER_UNKNOWN);
 
-	if (key->keyidx >= 0 && key->keyidx <= 3) {
+	/* If RSC_NOTIF is not supported */
+	if (rsc_notif_ver == IWL_FW_CMD_VER_UNKNOWN &&
+	    key->keyidx >= 0 && key->keyidx <= 3) {
 		/* PTK */
 		if (sta) {
 			iwl_mld_update_ptk_rx_seq(data->mld, wowlan_status,
@@ -933,6 +956,105 @@ iwl_mld_resume_keys_iter(struct ieee80211_hw *hw,
 }
 
 static void
+iwl_mld_rsc_update_key_iter(struct ieee80211_hw *hw,
+			    struct ieee80211_vif *vif,
+			    struct ieee80211_sta *sta,
+			    struct ieee80211_key_conf *key,
+			    void *_data)
+{
+	struct iwl_mld_rsc_resume_iter_data *data = _data;
+	struct ieee80211_key_seq seq;
+
+	if (key->keyidx > 3)
+		return;
+
+	if (sta) {
+		/* PTK */
+		BUILD_BUG_ON(ARRAY_SIZE(data->notif->ucast_rsc) !=
+			     IWL_MAX_TID_COUNT);
+
+		if (key->cipher == WLAN_CIPHER_SUITE_TKIP) {
+			/* TKIP: just update key sequences */
+			for (int tid = 0; tid < IWL_MAX_TID_COUNT; tid++) {
+				iwl_mld_le64_to_tkip_seq(data->notif->ucast_rsc[tid],
+							 &seq);
+				ieee80211_set_key_rx_seq(key, tid, &seq);
+			}
+		} else {
+			struct iwl_mld_sta *mld_sta = iwl_mld_sta_from_mac80211(sta);
+			struct iwl_mld_ptk_pn *mld_ptk_pn =
+				rcu_dereference_wiphy(data->mld->wiphy,
+						      mld_sta->ptk_pn[key->keyidx]);
+
+			if (WARN_ON(!mld_ptk_pn))
+				return;
+
+			if (WARN_ON(data->queue >=
+				    data->mld->trans->info.num_rxqs))
+				return;
+
+			for (int tid = 0; tid < IWL_MAX_TID_COUNT; tid++) {
+				iwl_mld_le64_to_aes_seq(data->notif->ucast_rsc[tid],
+							&seq);
+				ieee80211_set_key_rx_seq(key, tid, &seq);
+				memcpy(mld_ptk_pn->q[data->queue].pn[tid],
+				       seq.ccmp.pn,
+				       IEEE80211_CCMP_PN_LEN);
+			}
+		}
+
+		IWL_DEBUG_WOWLAN(data->mld,
+				 "Updated PTK RSC for key %d on queue %d\n",
+				 key->keyidx, data->queue);
+	} else {
+		/* GTK */
+		int rsc_idx = data->notif->mcast_key_id_map[key->keyidx];
+
+		if (rsc_idx == IWL_MCAST_KEY_MAP_INVALID)
+			return;
+
+		if (IWL_FW_CHECK(data->mld,
+				 rsc_idx >= ARRAY_SIZE(data->notif->mcast_rsc),
+				 "Invalid mcast key mapping: %d for key %d\n",
+				 rsc_idx, key->keyidx))
+			return;
+
+		for (int tid = 0; tid < IWL_MAX_TID_COUNT; tid++) {
+			__le64 rsc =
+				data->notif->mcast_rsc[rsc_idx][tid];
+
+			if (key->cipher == WLAN_CIPHER_SUITE_TKIP)
+				iwl_mld_le64_to_tkip_seq(rsc, &seq);
+			else
+				iwl_mld_le64_to_aes_seq(rsc, &seq);
+			ieee80211_set_key_rx_seq(key, tid, &seq);
+		}
+
+		IWL_DEBUG_WOWLAN(data->mld,
+				 "Updated GTK %d RSC (rsc_idx %d) on queue %d\n",
+				 key->keyidx, rsc_idx, data->queue);
+	}
+}
+
+void
+iwl_mld_process_rsc_notification(struct iwl_mld *mld,
+				 struct ieee80211_vif *vif,
+				 const struct iwl_wowlan_all_rsc_tsc_v5 *notif,
+				 int queue)
+{
+	struct iwl_mld_rsc_resume_iter_data iter_data = {
+		.mld = mld,
+		.notif = notif,
+		.queue = queue,
+	};
+
+	/* Iterate through all active keys and update RSC */
+	ieee80211_iter_keys_rcu(mld->hw, vif,
+				iwl_mld_rsc_update_key_iter,
+				&iter_data);
+}
+
+static void
 iwl_mld_add_mcast_rekey(struct ieee80211_vif *vif,
 			struct iwl_mld *mld,
 			struct iwl_mld_mcast_key_data *key_data,
@@ -951,19 +1073,25 @@ iwl_mld_add_mcast_rekey(struct ieee80211_vif *vif,
 
 	iwl_mld_update_mcast_rx_seq(key_config, key_data);
 
-	/* The FW holds only one igtk so we keep track of the valid one */
+	/* The FW holds only one IGTK so we keep track of the valid one */
 	if (key_config->keyidx == 4 || key_config->keyidx == 5) {
-		struct iwl_mld_link *mld_link =
-			iwl_mld_link_from_mac80211(link_conf);
+		struct iwl_mld_link_sta *mld_ap_link_sta;
+
+		mld_ap_link_sta = iwl_mld_get_ap_link_sta(vif,
+							  link_conf->link_id);
+		if (WARN_ON(!mld_ap_link_sta))
+			return;
 
 		/* If we had more than one rekey, mac80211 will tell us to
 		 * remove the old and add the new so we will update the IGTK in
 		 * drv_set_key
 		 */
-		if (mld_link->igtk && mld_link->igtk != key_config) {
+		if (mld_ap_link_sta->rx_igtk &&
+		    mld_ap_link_sta->rx_igtk != key_config) {
 			/* mark the old IGTK as not in FW */
-			mld_link->igtk->hw_key_idx = STA_KEY_IDX_INVALID;
-			mld_link->igtk = key_config;
+			mld_ap_link_sta->rx_igtk->hw_key_idx =
+				STA_KEY_IDX_INVALID;
+			mld_ap_link_sta->rx_igtk = key_config;
 		}
 	}
 
@@ -1938,8 +2066,11 @@ int iwl_mld_wowlan_suspend(struct iwl_mld *mld, struct cfg80211_wowlan *wowlan)
 
 	if (!bss_vif->cfg.assoc) {
 		int ret;
-		/* If we're not associated, this must be netdetect */
-		if (WARN_ON(!wowlan->nd_config))
+		/*
+		 * If not associated we can only do netdetect, if
+		 * that's not enabled then just suspend normally.
+		 */
+		if (!wowlan->nd_config)
 			return 1;
 
 		ret = iwl_mld_netdetect_config(mld, bss_vif, wowlan);

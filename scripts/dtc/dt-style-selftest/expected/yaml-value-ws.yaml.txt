@@ -1,0 +1,2 @@
+# mode=strict
+bad/yaml-value-ws.yaml:28: example 0 [value-whitespace] extra whitespace inside <...>

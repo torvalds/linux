@@ -17,22 +17,68 @@
 #include <asm/gmap_helpers.h>
 
 /**
- * ptep_zap_softleaf_entry() - discard a software leaf entry.
+ * try_get_locked_pte() - like get_locked_pte(), but atomic and with trylock
  * @mm: the mm
- * @entry: the software leaf entry that needs to be zapped
+ * @vmaddr: the userspace virtual address whose pte is to be found
+ * @ptl: will be set to the pointer to the lock used to lock the pte in case
+ *       of success.
  *
- * Discards the given software leaf entry. If the leaf entry was an actual
- * swap entry (and not a migration entry, for example), the actual swapped
- * page is also discarded from swap.
+ * This function returns the pointer to the pte corresponding to @addr in @mm,
+ * similarly to get_locked_pte(). Unlike get_locked_pte(), no attempt is made
+ * to allocate missing page tables. If a missing or large entry is found, the
+ * function will return NULL. If the ptl lock is contended, %-EAGAIN is
+ * returned.
+ *
+ * In case of success, *@ptl will point to the locked pte lock for the returned
+ * pte, like get_locked_pte() does.
+ *
+ * Context: mmap_lock or vma lock for read or for write needs to be held.
+ * Return:
+ * * %NULL if the pte cannot be reached.
+ * * %-EAGAIN if the pte can be reached, but cannot be locked.
+ * * the pointer to the pte corresponding to @addr in @mm, if it can be reached
+ *   and locked.
  */
-static void ptep_zap_softleaf_entry(struct mm_struct *mm, softleaf_t entry)
+pte_t *try_get_locked_pte(struct mm_struct *mm, unsigned long vmaddr, spinlock_t **ptl)
 {
-	if (softleaf_is_swap(entry))
-		dec_mm_counter(mm, MM_SWAPENTS);
-	else if (softleaf_is_migration(entry))
-		dec_mm_counter(mm, mm_counter(softleaf_to_folio(entry)));
-	swap_put_entries_direct(entry, 1);
+	pmd_t *pmdp, pmd, pmdval;
+	pud_t *pudp, pud;
+	p4d_t *p4dp, p4d;
+	pgd_t *pgdp, pgd;
+	pte_t *ptep;
+
+	pgdp = pgd_offset(mm, vmaddr);
+	pgd = pgdp_get(pgdp);
+	if (pgd_none(pgd) || !pgd_present(pgd))
+		return NULL;
+	p4dp = p4d_offset_lockless(pgdp, pgd, vmaddr);
+	p4d = p4dp_get(p4dp);
+	if (p4d_none(p4d) || !p4d_present(p4d))
+		return NULL;
+	pudp = pud_offset_lockless(p4dp, p4d, vmaddr);
+	pud = pudp_get(pudp);
+	if (pud_none(pud) || pud_leaf(pud) || !pud_present(pud))
+		return NULL;
+	pmdp = pmd_offset_lockless(pudp, pud, vmaddr);
+	pmd = pmdp_get_lockless(pmdp);
+	if (pmd_none(pmd) || pmd_leaf(pmd) || !pmd_present(pmd))
+		return NULL;
+	ptep = pte_offset_map_rw_nolock(mm, pmdp, vmaddr, &pmdval, ptl);
+	if (!ptep)
+		return NULL;
+
+	if (spin_trylock(*ptl)) {
+		if (unlikely(!pmd_same(pmdval, pmdp_get_lockless(pmdp)))) {
+			pte_unmap_unlock(ptep, *ptl);
+			return ERR_PTR(-EAGAIN);
+		}
+		return ptep;
+	}
+
+	pte_unmap(ptep);
+	return ERR_PTR(-EAGAIN);
 }
+EXPORT_SYMBOL_GPL(try_get_locked_pte);
 
 /**
  * gmap_helper_zap_one_page() - discard a page if it was swapped.
@@ -46,7 +92,8 @@ static void ptep_zap_softleaf_entry(struct mm_struct *mm, softleaf_t entry)
 void gmap_helper_zap_one_page(struct mm_struct *mm, unsigned long vmaddr)
 {
 	struct vm_area_struct *vma;
-	spinlock_t *ptl;
+	spinlock_t *ptl;	/* Lock for the host (userspace) page table */
+	softleaf_t sl;
 	pte_t *ptep;
 
 	mmap_assert_locked(mm);
@@ -57,11 +104,13 @@ void gmap_helper_zap_one_page(struct mm_struct *mm, unsigned long vmaddr)
 		return;
 
 	/* Get pointer to the page table entry */
-	ptep = get_locked_pte(mm, vmaddr, &ptl);
-	if (unlikely(!ptep))
+	ptep = try_get_locked_pte(mm, vmaddr, &ptl);
+	if (IS_ERR_OR_NULL(ptep))
 		return;
-	if (pte_swap(*ptep)) {
-		ptep_zap_softleaf_entry(mm, softleaf_from_pte(*ptep));
+	sl = softleaf_from_pte(*ptep);
+	if (pte_swap(*ptep) && softleaf_is_swap(sl)) {
+		dec_mm_counter(mm, MM_SWAPENTS);
+		swap_put_entries_direct(sl, 1);
 		pte_clear(mm, vmaddr, ptep);
 	}
 	pte_unmap_unlock(ptep, ptl);
@@ -113,36 +162,8 @@ EXPORT_SYMBOL_GPL(gmap_helper_discard);
  */
 void gmap_helper_try_set_pte_unused(struct mm_struct *mm, unsigned long vmaddr)
 {
-	pmd_t *pmdp, pmd, pmdval;
-	pud_t *pudp, pud;
-	p4d_t *p4dp, p4d;
-	pgd_t *pgdp, pgd;
 	spinlock_t *ptl;	/* Lock for the host (userspace) page table */
 	pte_t *ptep;
-
-	pgdp = pgd_offset(mm, vmaddr);
-	pgd = pgdp_get(pgdp);
-	if (pgd_none(pgd) || !pgd_present(pgd))
-		return;
-
-	p4dp = p4d_offset(pgdp, vmaddr);
-	p4d = p4dp_get(p4dp);
-	if (p4d_none(p4d) || !p4d_present(p4d))
-		return;
-
-	pudp = pud_offset(p4dp, vmaddr);
-	pud = pudp_get(pudp);
-	if (pud_none(pud) || pud_leaf(pud) || !pud_present(pud))
-		return;
-
-	pmdp = pmd_offset(pudp, vmaddr);
-	pmd = pmdp_get_lockless(pmdp);
-	if (pmd_none(pmd) || pmd_leaf(pmd) || !pmd_present(pmd))
-		return;
-
-	ptep = pte_offset_map_rw_nolock(mm, pmdp, vmaddr, &pmdval, &ptl);
-	if (!ptep)
-		return;
 
 	/*
 	 * Several paths exists that takes the ptl lock and then call the
@@ -156,21 +177,13 @@ void gmap_helper_try_set_pte_unused(struct mm_struct *mm, unsigned long vmaddr)
 	 * If the lock is contended the bit is not set and the deadlock is
 	 * avoided.
 	 */
-	if (spin_trylock(ptl)) {
-		/*
-		 * Make sure the pte we are touching is still the correct
-		 * one. In theory this check should not be needed, but
-		 * better safe than sorry.
-		 * Disabling interrupts or holding the mmap lock is enough to
-		 * guarantee that no concurrent updates to the page tables
-		 * are possible.
-		 */
-		if (likely(pmd_same(pmdval, pmdp_get_lockless(pmdp))))
-			__atomic64_or(_PAGE_UNUSED, (long *)ptep);
-		spin_unlock(ptl);
-	}
+	ptep = try_get_locked_pte(mm, vmaddr, &ptl);
+	if (IS_ERR_OR_NULL(ptep))
+		return;
 
-	pte_unmap(ptep);
+	if (pte_present(*ptep))
+		__atomic64_or(_PAGE_UNUSED, (long *)ptep);
+	pte_unmap_unlock(ptep, ptl);
 }
 EXPORT_SYMBOL_GPL(gmap_helper_try_set_pte_unused);
 

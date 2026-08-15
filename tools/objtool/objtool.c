@@ -16,9 +16,6 @@
 #include <objtool/objtool.h>
 #include <objtool/warn.h>
 
-bool debug;
-int indent;
-
 static struct objtool_file file;
 
 struct objtool_file *objtool_open_read(const char *filename)

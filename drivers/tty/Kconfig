@@ -231,21 +231,12 @@ config MOXA_SMARTIO
 	  This driver can also be built as a module. The module will be called
 	  mxser. If you want to do that, say M here.
 
-config SYNCLINK_GT
-	tristate "SyncLink GT/AC support"
-	depends on SERIAL_NONSTANDARD && PCI
-	depends on BROKEN
-	help
-	  Support for SyncLink GT and SyncLink AC families of
-	  synchronous and asynchronous serial adapters
-	  manufactured by Microgate Systems, Ltd. (www.microgate.com)
-
 config N_HDLC
 	tristate "HDLC line discipline support"
 	depends on SERIAL_NONSTANDARD
 	help
 	  Allows synchronous HDLC communications with tty device drivers that
-	  support synchronous HDLC such as the Microgate SyncLink adapter.
+	  support synchronous HDLC.
 
 	  This driver can be built as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want).

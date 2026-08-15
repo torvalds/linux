@@ -106,4 +106,8 @@ energy1_input		Energy measurement (uJ)
 temp1_input		Die temperature measurement (mC)
 temp1_max		Maximum die temperature threshold (mC)
 temp1_max_alarm		Maximum die temperature alarm
+
+samples			ADC averaging count (1, 4, 16, 64, 128, 256, 512, 1024)
+update_interval		Total ADC conversion cycle time including averaging (ms)
+update_interval_us	Total ADC conversion cycle time including averaging (us)
 ======================= =======================================================

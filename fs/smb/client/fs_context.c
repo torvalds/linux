@@ -693,6 +693,41 @@ static int smb3_handle_conflicting_options(struct fs_context *fc)
 {
 	struct smb3_fs_context *ctx = smb3_fc2context(fc);
 
+	if (ctx->rdma && ctx->vals->protocol_id < SMB30_PROT_ID) {
+		cifs_errorf(fc, "SMB Direct requires Version >=3.0\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (ctx->multiuser && !IS_ENABLED(CONFIG_KEYS)) {
+		cifs_errorf(fc, "Multiuser mounts require kernels with CONFIG_KEYS enabled\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (ctx->multiuser && ctx->upcall_target == UPTARGET_MOUNT) {
+		cifs_errorf(fc, "multiuser mount option not supported with upcalltarget set as 'mount'\n");
+		return -EINVAL;
+	}
+
+	if (ctx->uid_specified && !ctx->forceuid_specified) {
+		ctx->override_uid = 1;
+		pr_notice("enabling forceuid mount option implicitly because uid= option is specified\n");
+	}
+
+	if (ctx->gid_specified && !ctx->forcegid_specified) {
+		ctx->override_gid = 1;
+		pr_notice("enabling forcegid mount option implicitly because gid= option is specified\n");
+	}
+
+	if (ctx->override_uid && !ctx->uid_specified) {
+		ctx->override_uid = 0;
+		pr_notice("ignoring forceuid mount option specified with no uid= option\n");
+	}
+
+	if (ctx->override_gid && !ctx->gid_specified) {
+		ctx->override_gid = 0;
+		pr_notice("ignoring forcegid mount option specified with no gid= option\n");
+	}
+
 	if (ctx->multichannel_specified) {
 		if (ctx->multichannel) {
 			if (!ctx->max_channels_specified) {
@@ -711,19 +746,14 @@ static int smb3_handle_conflicting_options(struct fs_context *fc)
 				return -EINVAL;
 			}
 		}
-	} else {
-		if (ctx->max_channels_specified) {
-			if (ctx->max_channels > 1)
-				ctx->multichannel = true;
-			else
-				ctx->multichannel = false;
-		} else {
+	} else if (ctx->max_channels_specified) {
+		if (ctx->max_channels > 1)
+			ctx->multichannel = true;
+		else
 			ctx->multichannel = false;
-			ctx->max_channels = 1;
-		}
 	}
 
-	//resetting default values as remount doesn't initialize fs_context again
+	/* clear parse-time latches so they don't persist across remounts */
 	ctx->multichannel_specified = false;
 	ctx->max_channels_specified = false;
 
@@ -804,28 +834,23 @@ static int smb3_fs_context_parse_monolithic(struct fs_context *fc,
 		if (ret < 0)
 			break;
 	}
-	return ret ?: smb3_handle_conflicting_options(fc);
+	return ret;
 }
 
 /*
- * Validate the preparsed information in the config.
+ * smb3_fs_context_validate - check initial-mount-only constraints:
+ * UNC presence, address resolution, dialect warnings
+ *
+ * @fc: generic mount context
  */
 static int smb3_fs_context_validate(struct fs_context *fc)
 {
 	struct smb3_fs_context *ctx = smb3_fc2context(fc);
+	int rc;
 
-	if (ctx->rdma && ctx->vals->protocol_id < SMB30_PROT_ID) {
-		cifs_errorf(fc, "SMB Direct requires Version >=3.0\n");
-		return -EOPNOTSUPP;
-	}
-
-#ifndef CONFIG_KEYS
-	/* Muliuser mounts require CONFIG_KEYS support */
-	if (ctx->multiuser) {
-		cifs_errorf(fc, "Multiuser mounts require kernels with CONFIG_KEYS enabled\n");
-		return -1;
-	}
-#endif
+	rc = smb3_handle_conflicting_options(fc);
+	if (rc)
+		return rc;
 
 	if (ctx->got_version == false)
 		pr_warn_once("No dialect specified on mount. Default has changed to a more secure dialect, SMB2.1 or later (e.g. SMB3.1.1), from CIFS (SMB1). To use the less secure SMB1 dialect to access old servers which do not support SMB3.1.1 (or even SMB3 or SMB2.1) specify vers=1.0 on mount.\n");
@@ -860,26 +885,6 @@ static int smb3_fs_context_validate(struct fs_context *fc)
 	/* set the port that we got earlier */
 	cifs_set_port((struct sockaddr *)&ctx->dstaddr, ctx->port);
 
-	if (ctx->uid_specified && !ctx->forceuid_specified) {
-		ctx->override_uid = 1;
-		pr_notice("enabling forceuid mount option implicitly because uid= option is specified\n");
-	}
-
-	if (ctx->gid_specified && !ctx->forcegid_specified) {
-		ctx->override_gid = 1;
-		pr_notice("enabling forcegid mount option implicitly because gid= option is specified\n");
-	}
-
-	if (ctx->override_uid && !ctx->uid_specified) {
-		ctx->override_uid = 0;
-		pr_notice("ignoring forceuid mount option specified with no uid= option\n");
-	}
-
-	if (ctx->override_gid && !ctx->gid_specified) {
-		ctx->override_gid = 0;
-		pr_notice("ignoring forcegid mount option specified with no gid= option\n");
-	}
-
 	return 0;
 }
 
@@ -889,7 +894,7 @@ static int smb3_get_tree_common(struct fs_context *fc)
 	struct dentry *root;
 	int rc = 0;
 
-	root = cifs_smb3_do_mount(fc->fs_type, 0, ctx);
+	root = cifs_smb3_do_mount(fc, ctx);
 	if (IS_ERR(root))
 		return PTR_ERR(root);
 
@@ -1078,15 +1083,17 @@ static int smb3_reconfigure(struct fs_context *fc)
 	if (rc)
 		return rc;
 
+	rc = smb3_handle_conflicting_options(fc);
+	if (rc)
+		return rc;
+
 	old_ctx = kzalloc_obj(*old_ctx);
 	if (!old_ctx)
 		return -ENOMEM;
 
 	rc = smb3_fs_context_dup(old_ctx, cifs_sb->ctx);
-	if (rc) {
-		kfree(old_ctx);
-		return rc;
-	}
+	if (rc)
+		goto free_old_ctx;
 
 	/*
 	 * We can not change UNC/username/password/domainname/
@@ -1235,6 +1242,7 @@ restore_ctx:
 	kfree_sensitive(new_password2);
 	smb3_cleanup_fs_context_contents(cifs_sb->ctx);
 	memcpy(cifs_sb->ctx, old_ctx, sizeof(*old_ctx));
+free_old_ctx:
 	kfree(old_ctx);
 
 	return rc;
@@ -1932,11 +1940,6 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 		break;
 	}
 	/* case Opt_ignore: - is ignored as expected ... */
-
-	if (ctx->multiuser && ctx->upcall_target == UPTARGET_MOUNT) {
-		cifs_errorf(fc, "multiuser mount option not supported with upcalltarget set as 'mount'\n");
-		goto cifs_parse_mount_err;
-	}
 
 	return 0;
 

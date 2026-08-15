@@ -57,6 +57,7 @@ void test_percpu_hash_refcounted_kptr_refcount_leak(void)
 		    .data_size_in = sizeof(pkt_v4),
 		    .repeat = 1,
 	);
+	LIBBPF_OPTS(bpf_test_run_opts, syscall_opts);
 
 	cpu_nr = libbpf_num_possible_cpus();
 	if (!ASSERT_GT(cpu_nr, 0, "libbpf_num_possible_cpus"))
@@ -87,8 +88,11 @@ void test_percpu_hash_refcounted_kptr_refcount_leak(void)
 	if (!ASSERT_EQ(opts.retval, 2, "opts.retval"))
 		goto out;
 
-	err = bpf_map__update_elem(map, &key, sizeof(key), values, values_sz, 0);
-	if (!ASSERT_OK(err, "bpf_map__update_elem"))
+	fd = bpf_program__fd(skel->progs.clear_percpu_hash_kptr);
+	err = bpf_prog_test_run_opts(fd, &syscall_opts);
+	if (!ASSERT_OK(err, "bpf_prog_test_run_opts"))
+		goto out;
+	if (!ASSERT_EQ(syscall_opts.retval, 1, "syscall_opts.retval"))
 		goto out;
 
 	fd = bpf_program__fd(skel->progs.check_percpu_hash_refcount);

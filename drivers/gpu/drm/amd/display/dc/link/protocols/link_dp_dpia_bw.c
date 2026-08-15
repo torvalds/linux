@@ -112,7 +112,7 @@ static int get_estimated_bw(struct dc_link *link)
 	return bw_estimated_bw * (Kbps_TO_Gbps / link->dpia_bw_alloc_config.bw_granularity);
 }
 
-static int get_non_reduced_max_link_rate(struct dc_link *link)
+static uint8_t get_non_reduced_max_link_rate(struct dc_link *link)
 {
 	uint8_t nrd_max_link_rate = 0;
 
@@ -125,7 +125,7 @@ static int get_non_reduced_max_link_rate(struct dc_link *link)
 	return nrd_max_link_rate;
 }
 
-static int get_non_reduced_max_lane_count(struct dc_link *link)
+static uint8_t get_non_reduced_max_lane_count(struct dc_link *link)
 {
 	uint8_t nrd_max_lane_count = 0;
 
@@ -180,7 +180,7 @@ static void dpia_bw_alloc_unplug(struct dc_link *link)
 
 static void link_dpia_send_bw_alloc_request(struct dc_link *link, int req_bw)
 {
-	uint8_t request_reg_val;
+	uint32_t request_reg_val;
 	uint32_t temp, request_bw;
 
 	if (link->dpia_bw_alloc_config.bw_granularity == 0) {
@@ -197,7 +197,7 @@ static void link_dpia_send_bw_alloc_request(struct dc_link *link, int req_bw)
 
 	request_bw = request_reg_val * (Kbps_TO_Gbps / link->dpia_bw_alloc_config.bw_granularity);
 
-	if (request_bw > link->dpia_bw_alloc_config.estimated_bw) {
+	if (request_bw > (uint32_t)link->dpia_bw_alloc_config.estimated_bw) {
 		DC_LOG_ERROR("%s:  Link[%d]:  Request BW (%d --> %d) > Estimated BW (%d)... Set to Estimated BW!",
 				__func__, link->link_index,
 				req_bw, request_bw, link->dpia_bw_alloc_config.estimated_bw);
@@ -212,8 +212,8 @@ static void link_dpia_send_bw_alloc_request(struct dc_link *link, int req_bw)
 	link->dpia_bw_alloc_config.allocated_bw = request_bw;
 	DC_LOG_DC("%s:  Link[%d]:  Request BW:  %d", __func__, link->link_index, request_bw);
 
-	core_link_write_dpcd(link, REQUESTED_BW,
-		&request_reg_val,
+	uint8_t requested_bw_dpcd = (uint8_t)request_reg_val;
+	core_link_write_dpcd(link, REQUESTED_BW, &requested_bw_dpcd,
 		sizeof(uint8_t));
 }
 

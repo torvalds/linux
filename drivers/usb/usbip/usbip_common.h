@@ -282,9 +282,7 @@ struct usbip_device {
 		void (*unusable)(struct usbip_device *);
 	} eh_ops;
 
-#ifdef CONFIG_KCOV
-	u64 kcov_handle;
-#endif
+	struct kcov_common_handle_id kcov_handle;
 };
 
 #define kthread_get_run(threadfn, data, namefmt, ...)			   \
@@ -338,30 +336,5 @@ static inline int interface_to_devnum(struct usb_interface *interface)
 
 	return udev->devnum;
 }
-
-#ifdef CONFIG_KCOV
-
-static inline void usbip_kcov_handle_init(struct usbip_device *ud)
-{
-	ud->kcov_handle = kcov_common_handle();
-}
-
-static inline void usbip_kcov_remote_start(struct usbip_device *ud)
-{
-	kcov_remote_start_common(ud->kcov_handle);
-}
-
-static inline void usbip_kcov_remote_stop(void)
-{
-	kcov_remote_stop();
-}
-
-#else /* CONFIG_KCOV */
-
-static inline void usbip_kcov_handle_init(struct usbip_device *ud) { }
-static inline void usbip_kcov_remote_start(struct usbip_device *ud) { }
-static inline void usbip_kcov_remote_stop(void) { }
-
-#endif /* CONFIG_KCOV */
 
 #endif /* __USBIP_COMMON_H */

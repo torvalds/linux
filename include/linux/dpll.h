@@ -13,6 +13,7 @@
 #include <linux/netdevice.h>
 #include <linux/notifier.h>
 #include <linux/rtnetlink.h>
+#include <net/netlink.h>
 
 struct dpll_device;
 struct dpll_pin;
@@ -60,7 +61,20 @@ struct dpll_device_ops {
 				struct netlink_ext_ack *extack);
 };
 
+enum dpll_ffo_type {
+	DPLL_FFO_PORT_RXTX_RATE,
+	DPLL_FFO_PIN_DEVICE,
+
+	__DPLL_FFO_TYPE_MAX,
+};
+
+struct dpll_ffo_param {
+	enum dpll_ffo_type type;
+	s64 ffo;
+};
+
 struct dpll_pin_ops {
+	unsigned long supported_ffo;
 	int (*frequency_set)(const struct dpll_pin *pin, void *pin_priv,
 			     const struct dpll_device *dpll, void *dpll_priv,
 			     const u64 frequency,
@@ -85,6 +99,12 @@ struct dpll_pin_ops {
 				 const struct dpll_device *dpll,
 				 void *dpll_priv, enum dpll_pin_state *state,
 				 struct netlink_ext_ack *extack);
+	int (*operstate_on_dpll_get)(const struct dpll_pin *pin,
+				     void *pin_priv,
+				     const struct dpll_device *dpll,
+				     void *dpll_priv,
+				     enum dpll_pin_operstate *operstate,
+				     struct netlink_ext_ack *extack);
 	int (*state_on_pin_set)(const struct dpll_pin *pin, void *pin_priv,
 				const struct dpll_pin *parent_pin,
 				void *parent_pin_priv,
@@ -115,7 +135,8 @@ struct dpll_pin_ops {
 				struct netlink_ext_ack *extack);
 	int (*ffo_get)(const struct dpll_pin *pin, void *pin_priv,
 		       const struct dpll_device *dpll, void *dpll_priv,
-		       s64 *ffo, struct netlink_ext_ack *extack);
+		       struct dpll_ffo_param *ffo,
+		       struct netlink_ext_ack *extack);
 	int (*measured_freq_get)(const struct dpll_pin *pin, void *pin_priv,
 				 const struct dpll_device *dpll,
 				 void *dpll_priv, u64 *measured_freq,
@@ -212,13 +233,18 @@ struct dpll_pin_notifier_info {
 	u64 clock_id;
 	const struct fwnode_handle *fwnode;
 	const struct dpll_pin_properties *prop;
+	u64 src_clock_id;
 };
 
 #if IS_ENABLED(CONFIG_DPLL)
 void dpll_netdev_pin_set(struct net_device *dev, struct dpll_pin *dpll_pin);
 void dpll_netdev_pin_clear(struct net_device *dev);
 
-size_t dpll_netdev_pin_handle_size(const struct net_device *dev);
+static inline size_t dpll_netdev_pin_handle_size(void)
+{
+	return nla_total_size(4); /* DPLL_A_PIN_ID */
+}
+
 int dpll_netdev_add_pin_handle(struct sk_buff *msg,
 			       const struct net_device *dev);
 
@@ -229,7 +255,7 @@ static inline void
 dpll_netdev_pin_set(struct net_device *dev, struct dpll_pin *dpll_pin) { }
 static inline void dpll_netdev_pin_clear(struct net_device *dev) { }
 
-static inline size_t dpll_netdev_pin_handle_size(const struct net_device *dev)
+static inline size_t dpll_netdev_pin_handle_size(void)
 {
 	return 0;
 }

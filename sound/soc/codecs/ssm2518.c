@@ -794,7 +794,7 @@ MODULE_DEVICE_TABLE(of, ssm2518_dt_ids);
 #endif
 
 static const struct i2c_device_id ssm2518_i2c_ids[] = {
-	{ "ssm2518" },
+	{ .name = "ssm2518" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ssm2518_i2c_ids);

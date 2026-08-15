@@ -37,6 +37,49 @@
 #include "wm_adsp.h"
 #include "cs35l56.h"
 
+void cs35l56_mask_soundwire_interrupts(struct sdw_slave *peripheral)
+{
+	 /*
+	  * The read of GEN_INT_STAT_1 is required as per the SoundWire spec
+	  * for interrupt status bits to clear.
+	  * GEN_INT_MASK_1 masks the _inputs_ to GEN_INT_STAT1.
+	  */
+	sdw_write_no_pm(peripheral, CS35L56_SDW_GEN_INT_MASK_1, 0);
+	sdw_read_no_pm(peripheral, CS35L56_SDW_GEN_INT_STAT_1);
+	sdw_write_no_pm(peripheral, CS35L56_SDW_GEN_INT_STAT_1, 0xFF);
+}
+EXPORT_SYMBOL_NS_GPL(cs35l56_mask_soundwire_interrupts, "SND_SOC_CS35L56_CORE");
+
+void cs35l56_unmask_soundwire_interrupts(struct sdw_slave *peripheral)
+{
+	sdw_write_no_pm(peripheral, CS35L56_SDW_GEN_INT_MASK_1, CS35L56_SDW_INT_MASK_CODEC_IRQ);
+}
+EXPORT_SYMBOL_NS_GPL(cs35l56_unmask_soundwire_interrupts, "SND_SOC_CS35L56_CORE");
+
+void cs35l56_disable_sdw_interrupts(struct cs35l56_private *cs35l56)
+{
+	if (!cs35l56->sdw_peripheral)
+		return;
+
+	cs35l56->sdw_irq_no_unmask = true;
+	flush_work(&cs35l56->sdw_irq_work);
+
+	/* Mask interrupts and flush in case sdw_irq_work was queued again */
+	cs35l56_mask_soundwire_interrupts(cs35l56->sdw_peripheral);
+	flush_work(&cs35l56->sdw_irq_work);
+}
+EXPORT_SYMBOL_NS_GPL(cs35l56_disable_sdw_interrupts, "SND_SOC_CS35L56_CORE");
+
+void cs35l56_enable_sdw_interrupts(struct cs35l56_private *cs35l56)
+{
+	if (!cs35l56->sdw_peripheral)
+		return;
+
+	cs35l56->sdw_irq_no_unmask = false;
+	cs35l56_unmask_soundwire_interrupts(cs35l56->sdw_peripheral);
+}
+EXPORT_SYMBOL_NS_GPL(cs35l56_enable_sdw_interrupts, "SND_SOC_CS35L56_CORE");
+
 static int cs35l56_dsp_event(struct snd_soc_dapm_widget *w,
 			     struct snd_kcontrol *kcontrol, int event);
 
@@ -426,6 +469,8 @@ static unsigned int cs35l56_make_tdm_config_word(unsigned int reg_val, unsigned 
 		reg_val &= ~(0x3f << channel_shift);
 		reg_val |= bit_num << channel_shift;
 		channel_shift += 8;
+		if (channel_shift > 24)
+			break;
 	}
 
 	return reg_val;
@@ -788,14 +833,7 @@ static void cs35l56_patch(struct cs35l56_private *cs35l56, bool firmware_missing
 	 * Setting sdw_irq_no_unmask prevents the handler re-enabling
 	 * the SoundWire interrupt.
 	 */
-	if (cs35l56->sdw_peripheral) {
-		cs35l56->sdw_irq_no_unmask = true;
-		flush_work(&cs35l56->sdw_irq_work);
-		sdw_write_no_pm(cs35l56->sdw_peripheral, CS35L56_SDW_GEN_INT_MASK_1, 0);
-		sdw_read_no_pm(cs35l56->sdw_peripheral, CS35L56_SDW_GEN_INT_STAT_1);
-		sdw_write_no_pm(cs35l56->sdw_peripheral, CS35L56_SDW_GEN_INT_STAT_1, 0xFF);
-		flush_work(&cs35l56->sdw_irq_work);
-	}
+	cs35l56_disable_sdw_interrupts(cs35l56);
 
 	ret = cs35l56_firmware_shutdown(&cs35l56->base);
 	if (ret)
@@ -847,12 +885,7 @@ static void cs35l56_patch(struct cs35l56_private *cs35l56, bool firmware_missing
 err_unlock:
 	mutex_unlock(&cs35l56->base.irq_lock);
 err:
-	/* Re-enable SoundWire interrupts */
-	if (cs35l56->sdw_peripheral) {
-		cs35l56->sdw_irq_no_unmask = false;
-		sdw_write_no_pm(cs35l56->sdw_peripheral, CS35L56_SDW_GEN_INT_MASK_1,
-				CS35L56_SDW_INT_MASK_CODEC_IRQ);
-	}
+	cs35l56_enable_sdw_interrupts(cs35l56);
 }
 
 static void cs35l56_dsp_work(struct work_struct *work)
@@ -1326,7 +1359,7 @@ VISIBLE_IF_KUNIT int cs35l56_set_fw_name(struct snd_soc_component *component)
 }
 EXPORT_SYMBOL_IF_KUNIT(cs35l56_set_fw_name);
 
-static int cs35l56_component_probe(struct snd_soc_component *component)
+static int _cs35l56_component_probe(struct snd_soc_component *component)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(component);
@@ -1426,6 +1459,17 @@ static void cs35l56_component_remove(struct snd_soc_component *component)
 	cs35l56->component = NULL;
 }
 
+static int cs35l56_component_probe(struct snd_soc_component *component)
+{
+	int ret;
+
+	ret = _cs35l56_component_probe(component);
+	if (ret < 0)
+		cs35l56_component_remove(component);
+
+	return ret;
+}
+
 static int cs35l56_set_bias_level(struct snd_soc_component *component,
 				  enum snd_soc_bias_level level)
 {
@@ -1480,6 +1524,7 @@ static int __maybe_unused cs35l56_runtime_resume_i2c_spi(struct device *dev)
 int cs35l56_system_suspend(struct device *dev)
 {
 	struct cs35l56_private *cs35l56 = dev_get_drvdata(dev);
+	int ret;
 
 	dev_dbg(dev, "system_suspend\n");
 
@@ -1495,7 +1540,11 @@ int cs35l56_system_suspend(struct device *dev)
 	if (cs35l56->base.irq)
 		disable_irq(cs35l56->base.irq);
 
-	return pm_runtime_force_suspend(dev);
+	ret = pm_runtime_force_suspend(dev);
+	if ((ret < 0) && cs35l56->base.irq)
+		enable_irq(cs35l56->base.irq);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(cs35l56_system_suspend);
 
@@ -1964,10 +2013,13 @@ int cs35l56_common_probe(struct cs35l56_private *cs35l56)
 					 cs35l56_dai, ARRAY_SIZE(cs35l56_dai));
 	if (ret < 0) {
 		dev_err_probe(cs35l56->base.dev, ret, "Register codec failed\n");
-		goto err;
+		goto err_remove_wm_adsp;
 	}
 
 	return 0;
+
+err_remove_wm_adsp:
+	wm_adsp2_remove(&cs35l56->dsp);
 
 err:
 	gpiod_set_value_cansleep(cs35l56->base.reset_gpio, 0);
@@ -1994,7 +2046,8 @@ int cs35l56_init(struct cs35l56_private *cs35l56)
 	if (cs35l56->base.init_done)
 		return 0;
 
-	pm_runtime_set_autosuspend_delay(cs35l56->base.dev, 100);
+	pm_runtime_set_autosuspend_delay(cs35l56->base.dev,
+					 CS35L56_FW_REQ_ACTIVE_TIMEOUT_MS + 50);
 	pm_runtime_use_autosuspend(cs35l56->base.dev);
 	pm_runtime_set_active(cs35l56->base.dev);
 	pm_runtime_enable(cs35l56->base.dev);
@@ -2075,6 +2128,8 @@ void cs35l56_remove(struct cs35l56_private *cs35l56)
 		devm_free_irq(cs35l56->base.dev, cs35l56->base.irq, &cs35l56->base);
 
 	destroy_workqueue(cs35l56->dsp_wq);
+
+	wm_adsp2_remove(&cs35l56->dsp);
 
 	pm_runtime_dont_use_autosuspend(cs35l56->base.dev);
 	pm_runtime_suspend(cs35l56->base.dev);

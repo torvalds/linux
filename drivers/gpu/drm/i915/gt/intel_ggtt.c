@@ -12,6 +12,7 @@
 #include <drm/drm_print.h>
 #include <drm/intel/i915_drm.h>
 #include <drm/intel/intel-gtt.h>
+#include <drm/intel/pci_config.h>
 
 #include "gem/i915_gem_lmem.h"
 
@@ -20,7 +21,6 @@
 #include "intel_gpu_commands.h"
 #include "intel_gt.h"
 #include "intel_gt_regs.h"
-#include "intel_pci_config.h"
 #include "intel_ring.h"
 #include "i915_drv.h"
 #include "i915_pci.h"

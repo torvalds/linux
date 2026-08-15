@@ -2621,9 +2621,9 @@ err_enable:
 }
 
 static const struct i2c_device_id wm8904_i2c_id[] = {
-	{ "wm8904", WM8904 },
-	{ "wm8912", WM8912 },
-	{ "wm8918", WM8904 },   /* Actually a subset, updates to follow */
+	{ .name = "wm8904", .driver_data = WM8904 },
+	{ .name = "wm8912", .driver_data = WM8912 },
+	{ .name = "wm8918", .driver_data = WM8904 },   /* Actually a subset, updates to follow */
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm8904_i2c_id);

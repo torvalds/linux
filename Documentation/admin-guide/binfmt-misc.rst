@@ -68,10 +68,10 @@ Here is what the fields mean:
 	    Legacy behavior of binfmt_misc is to pass the full path
             of the binary to the interpreter as an argument. When this flag is
             included, binfmt_misc will open the file for reading and pass its
-            descriptor as an argument, instead of the full path, thus allowing
-            the interpreter to execute non-readable binaries. This feature
-            should be used with care - the interpreter has to be trusted not to
-            emit the contents of the non-readable binary.
+            descriptor into the auxilary vector with the key "AT_EXECFD", thus
+            allowing the interpreter to execute non-readable binaries. This
+            feature should be used with care - the interpreter has to be trusted
+            not to emit the contents of the non-readable binary.
       ``C`` - credentials
             Currently, the behavior of binfmt_misc is to calculate
             the credentials and security token of the new process according to

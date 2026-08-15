@@ -3,6 +3,7 @@ config NOVA_CORE
 	depends on 64BIT
 	depends on PCI
 	depends on RUST
+	depends on !CPU_BIG_ENDIAN
 	select AUXILIARY_BUS
 	select RUST_FW_LOADER_ABSTRACTIONS
 	default n
@@ -13,4 +14,4 @@ config NOVA_CORE
 
 	  This driver is work in progress and may not be functional.
 
-	  If M is selected, the module will be called nova_core.
+	  If M is selected, the module will be called nova-core.

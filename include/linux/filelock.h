@@ -4,19 +4,22 @@
 
 #include <linux/fs.h>
 
-#define FL_POSIX	1
-#define FL_FLOCK	2
-#define FL_DELEG	4	/* NFSv4 delegation */
-#define FL_ACCESS	8	/* not trying to lock, just looking */
-#define FL_EXISTS	16	/* when unlocking, test for existence */
-#define FL_LEASE	32	/* lease held on this file */
-#define FL_CLOSE	64	/* unlock on close */
-#define FL_SLEEP	128	/* A blocking lock */
-#define FL_DOWNGRADE_PENDING	256 /* Lease is being downgraded */
-#define FL_UNLOCK_PENDING	512 /* Lease is being broken */
-#define FL_OFDLCK	1024	/* lock is "owned" by struct file */
-#define FL_LAYOUT	2048	/* outstanding pNFS layout */
-#define FL_RECLAIM	4096	/* reclaiming from a reboot server */
+#define FL_POSIX		BIT(0)	/* POSIX lock */
+#define FL_FLOCK		BIT(1)	/* BSD lock */
+#define FL_DELEG		BIT(2)	/* NFSv4 delegation */
+#define FL_ACCESS		BIT(3)	/* not trying to lock, just looking */
+#define FL_EXISTS		BIT(4)	/* when unlocking, test for existence */
+#define FL_LEASE		BIT(5)	/* file lease */
+#define FL_CLOSE		BIT(6)	/* unlock on close */
+#define FL_SLEEP		BIT(7)	/* A blocking lock */
+#define FL_DOWNGRADE_PENDING	BIT(8)	/* Lease is being downgraded */
+#define FL_UNLOCK_PENDING	BIT(9)	/* Lease is being broken */
+#define FL_OFDLCK		BIT(10) /* POSIX lock "owned" by struct file */
+#define FL_LAYOUT		BIT(11) /* outstanding pNFS layout */
+#define FL_RECLAIM		BIT(12) /* reclaiming from a reboot server */
+#define FL_IGN_DIR_CREATE	BIT(13) /* ignore DIR_CREATE events */
+#define FL_IGN_DIR_DELETE	BIT(14) /* ignore DIR_DELETE events */
+#define FL_IGN_DIR_RENAME	BIT(15) /* ignore DIR_RENAME events */
 
 #define FL_CLOSE_POSIX (FL_POSIX | FL_CLOSE)
 
@@ -25,6 +28,15 @@
  * asynchronous locking.
  */
 #define FILE_LOCK_DEFERRED 1
+
+#define LEASE_BREAK_LEASE		BIT(0)	// break leases and delegations
+#define LEASE_BREAK_DELEG		BIT(1)	// break delegations only
+#define LEASE_BREAK_LAYOUT		BIT(2)	// break layouts only
+#define LEASE_BREAK_NONBLOCK		BIT(3)	// non-blocking break
+#define LEASE_BREAK_OPEN_RDONLY		BIT(4)	// readonly open event
+#define LEASE_BREAK_DIR_CREATE		BIT(5)  // dir deleg create event
+#define LEASE_BREAK_DIR_DELETE		BIT(6)  // dir deleg delete event
+#define LEASE_BREAK_DIR_RENAME		BIT(7)  // dir deleg rename event
 
 struct file_lock;
 struct file_lease;
@@ -216,19 +228,13 @@ int locks_lock_inode_wait(struct inode *inode, struct file_lock *fl);
 void locks_init_lease(struct file_lease *);
 void locks_free_lease(struct file_lease *fl);
 struct file_lease *locks_alloc_lease(void);
-
-#define LEASE_BREAK_LEASE		BIT(0)	// break leases and delegations
-#define LEASE_BREAK_DELEG		BIT(1)	// break delegations only
-#define LEASE_BREAK_LAYOUT		BIT(2)	// break layouts only
-#define LEASE_BREAK_NONBLOCK		BIT(3)	// non-blocking break
-#define LEASE_BREAK_OPEN_RDONLY		BIT(4)	// readonly open event
-
 int __break_lease(struct inode *inode, unsigned int flags);
 void lease_get_mtime(struct inode *, struct timespec64 *time);
 int generic_setlease(struct file *, int, struct file_lease **, void **priv);
 int kernel_setlease(struct file *, int, struct file_lease **, void **);
 int vfs_setlease(struct file *, int, struct file_lease **, void **);
 int lease_modify(struct file_lease *, int, struct list_head *);
+u32 inode_lease_ignore_mask(struct inode *inode);
 
 struct notifier_block;
 int lease_register_notifier(struct notifier_block *);
@@ -516,12 +522,26 @@ static inline bool is_delegated(struct delegated_inode *di)
 	return di->di_inode;
 }
 
-static inline int try_break_deleg(struct inode *inode,
+/**
+ * try_break_deleg - do a non-blocking delegation break
+ * @inode: inode that should have its delegations broken
+ * @flags: extra LEASE_BREAK_* flags to pass to break_deleg()
+ * @di: returns pointer to delegated inode (may be NULL)
+ *
+ * Break delegations in a non-blocking fashion. If there are
+ * outstanding delegations and @di is set, then an extra reference
+ * will be taken on @inode and @di->di_inode will be populated so
+ * that it may be waited upon.
+ *
+ * Returns 0 if there is no need to wait or an error. If -EWOULDBLOCK
+ * is returned, then @di will be populated (if non-NULL).
+ */
+static inline int try_break_deleg(struct inode *inode, unsigned int flags,
 				  struct delegated_inode *di)
 {
 	int ret;
 
-	ret = break_deleg(inode, LEASE_BREAK_NONBLOCK);
+	ret = break_deleg(inode, flags | LEASE_BREAK_NONBLOCK);
 	if (ret == -EWOULDBLOCK && di) {
 		di->di_inode = inode;
 		ihold(inode);
@@ -564,7 +584,7 @@ static inline bool is_delegated(struct delegated_inode *di)
 	return false;
 }
 
-static inline int break_lease(struct inode *inode, bool wait)
+static inline int break_lease(struct inode *inode, unsigned int mode)
 {
 	return 0;
 }
@@ -574,7 +594,7 @@ static inline int break_deleg(struct inode *inode, unsigned int flags)
 	return 0;
 }
 
-static inline int try_break_deleg(struct inode *inode,
+static inline int try_break_deleg(struct inode *inode, unsigned int flags,
 				  struct delegated_inode *delegated_inode)
 {
 	return 0;

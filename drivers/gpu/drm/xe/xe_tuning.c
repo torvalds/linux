@@ -20,7 +20,7 @@
 #undef XE_REG_MCR
 #define XE_REG_MCR(...)     XE_REG(__VA_ARGS__, .mcr = 1)
 
-static const struct xe_rtp_entry_sr gt_tunings[] = {
+static const struct xe_rtp_table_sr gt_tunings = XE_RTP_TABLE_SR(
 	{ XE_RTP_NAME("Tuning: Blend Fill Caching Optimization Disable"),
 	  XE_RTP_RULES(PLATFORM(DG2)),
 	  XE_RTP_ACTIONS(SET(XEHP_L3SCQREG7, BLEND_FILL_CACHING_OPT_DIS))
@@ -43,7 +43,7 @@ static const struct xe_rtp_entry_sr gt_tunings[] = {
 				   REG_FIELD_PREP(L3_PWM_TIMER_INIT_VAL_MASK, 0x7f)))
 	},
 	{ XE_RTP_NAME("Tuning: Compression Overfetch"),
-	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(2001, XE_RTP_END_VERSION_UNDEFINED),
+	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(2001, 3499),
 		       FUNC(xe_rtp_match_has_flat_ccs)),
 	  XE_RTP_ACTIONS(CLR(CCCHKNREG1, ENCOMPPERFFIX),
 			 SET(CCCHKNREG1, L3CMPCTRL))
@@ -100,9 +100,9 @@ static const struct xe_rtp_entry_sr gt_tunings[] = {
 	  XE_RTP_ACTIONS(FIELD_SET(GAMSTLB_CTRL, BANK_HASH_MODE,
 				   BANK_HASH_4KB_MODE))
 	},
-};
+);
 
-static const struct xe_rtp_entry_sr engine_tunings[] = {
+static const struct xe_rtp_table_sr engine_tunings = XE_RTP_TABLE_SR(
 	{ XE_RTP_NAME("Tuning: L3 Hashing Mask"),
 	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(1200, 1210),
 		       FUNC(xe_rtp_match_first_render_or_compute)),
@@ -124,9 +124,14 @@ static const struct xe_rtp_entry_sr engine_tunings[] = {
 			     GHWSP_CSB_REPORT_DIS,
 			     XE_RTP_ACTION_FLAG(ENGINE_BASE)))
 	},
-};
+	{ XE_RTP_NAME("Tuning: TileY 2x2 Walk"),
+	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(3510, XE_RTP_END_VERSION_UNDEFINED),
+		       FUNC(xe_rtp_match_first_render_or_compute)),
+	  XE_RTP_ACTIONS(SET(TDL_TSL_CHICKEN2, TILEY_LOCALID))
+	},
+);
 
-static const struct xe_rtp_entry_sr lrc_tunings[] = {
+static const struct xe_rtp_table_sr lrc_tunings = XE_RTP_TABLE_SR(
 	{ XE_RTP_NAME("Tuning: Windower HW Filtering"),
 	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(3000, 3599), ENGINE_CLASS(RENDER)),
 	  XE_RTP_ACTIONS(SET(XEHP_COMMON_SLICE_CHICKEN4, HW_FILTERING))
@@ -166,7 +171,7 @@ static const struct xe_rtp_entry_sr lrc_tunings[] = {
 	  XE_RTP_ACTIONS(FIELD_SET(FF_MODE, VS_HIT_MAX_VALUE_MASK,
 				   REG_FIELD_PREP(VS_HIT_MAX_VALUE_MASK, 0x3f)))
 	},
-};
+);
 
 /**
  * xe_tuning_init - initialize gt with tunings bookkeeping
@@ -180,9 +185,9 @@ int xe_tuning_init(struct xe_gt *gt)
 	size_t n_lrc, n_engine, n_gt, total;
 	unsigned long *p;
 
-	n_gt = BITS_TO_LONGS(ARRAY_SIZE(gt_tunings));
-	n_engine = BITS_TO_LONGS(ARRAY_SIZE(engine_tunings));
-	n_lrc = BITS_TO_LONGS(ARRAY_SIZE(lrc_tunings));
+	n_gt = BITS_TO_LONGS(gt_tunings.n_entries);
+	n_engine = BITS_TO_LONGS(engine_tunings.n_entries);
+	n_lrc = BITS_TO_LONGS(lrc_tunings.n_entries);
 	total = n_gt + n_engine + n_lrc;
 
 	p = drmm_kzalloc(&xe->drm, sizeof(*p) * total, GFP_KERNEL);
@@ -205,9 +210,8 @@ void xe_tuning_process_gt(struct xe_gt *gt)
 
 	xe_rtp_process_ctx_enable_active_tracking(&ctx,
 						  gt->tuning_active.gt,
-						  ARRAY_SIZE(gt_tunings));
-	xe_rtp_process_to_sr(&ctx, gt_tunings, ARRAY_SIZE(gt_tunings),
-			     &gt->reg_sr, false);
+						  gt_tunings.n_entries);
+	xe_rtp_process_to_sr(&ctx, &gt_tunings, &gt->reg_sr, false);
 }
 EXPORT_SYMBOL_IF_KUNIT(xe_tuning_process_gt);
 
@@ -217,9 +221,8 @@ void xe_tuning_process_engine(struct xe_hw_engine *hwe)
 
 	xe_rtp_process_ctx_enable_active_tracking(&ctx,
 						  hwe->gt->tuning_active.engine,
-						  ARRAY_SIZE(engine_tunings));
-	xe_rtp_process_to_sr(&ctx, engine_tunings, ARRAY_SIZE(engine_tunings),
-			     &hwe->reg_sr, false);
+						  engine_tunings.n_entries);
+	xe_rtp_process_to_sr(&ctx, &engine_tunings, &hwe->reg_sr, false);
 }
 EXPORT_SYMBOL_IF_KUNIT(xe_tuning_process_engine);
 
@@ -237,9 +240,8 @@ void xe_tuning_process_lrc(struct xe_hw_engine *hwe)
 
 	xe_rtp_process_ctx_enable_active_tracking(&ctx,
 						  hwe->gt->tuning_active.lrc,
-						  ARRAY_SIZE(lrc_tunings));
-	xe_rtp_process_to_sr(&ctx, lrc_tunings, ARRAY_SIZE(lrc_tunings),
-			     &hwe->reg_lrc, true);
+						  lrc_tunings.n_entries);
+	xe_rtp_process_to_sr(&ctx, &lrc_tunings, &hwe->reg_lrc, true);
 }
 
 /**
@@ -254,18 +256,18 @@ int xe_tuning_dump(struct xe_gt *gt, struct drm_printer *p)
 	size_t idx;
 
 	drm_printf(p, "GT Tunings\n");
-	for_each_set_bit(idx, gt->tuning_active.gt, ARRAY_SIZE(gt_tunings))
-		drm_printf_indent(p, 1, "%s\n", gt_tunings[idx].name);
+	for_each_set_bit(idx, gt->tuning_active.gt, gt_tunings.n_entries)
+		drm_printf_indent(p, 1, "%s\n", gt_tunings.entries[idx].name);
 
 	drm_puts(p, "\n");
 	drm_printf(p, "Engine Tunings\n");
-	for_each_set_bit(idx, gt->tuning_active.engine, ARRAY_SIZE(engine_tunings))
-		drm_printf_indent(p, 1, "%s\n", engine_tunings[idx].name);
+	for_each_set_bit(idx, gt->tuning_active.engine, engine_tunings.n_entries)
+		drm_printf_indent(p, 1, "%s\n", engine_tunings.entries[idx].name);
 
 	drm_puts(p, "\n");
 	drm_printf(p, "LRC Tunings\n");
-	for_each_set_bit(idx, gt->tuning_active.lrc, ARRAY_SIZE(lrc_tunings))
-		drm_printf_indent(p, 1, "%s\n", lrc_tunings[idx].name);
+	for_each_set_bit(idx, gt->tuning_active.lrc, lrc_tunings.n_entries)
+		drm_printf_indent(p, 1, "%s\n", lrc_tunings.entries[idx].name);
 
 	return 0;
 }

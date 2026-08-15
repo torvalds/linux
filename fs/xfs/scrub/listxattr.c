@@ -115,7 +115,7 @@ xchk_xattr_walk_leaf(
 	struct xfs_buf			*leaf_bp;
 	int				error;
 
-	error = xfs_attr3_leaf_read(sc->tp, ip, ip->i_ino, 0, &leaf_bp);
+	error = xfs_attr3_leaf_read(sc->tp, ip, I_INO(ip), 0, &leaf_bp);
 	if (error)
 		return error;
 
@@ -166,7 +166,7 @@ xchk_xattr_find_leftmost_leaf(
 		    magic != XFS_DA3_NODE_MAGIC)
 			goto out_buf;
 
-		fa = xfs_da3_node_header_check(bp, ip->i_ino);
+		fa = xfs_da3_node_header_check(bp, I_INO(ip));
 		if (fa)
 			goto out_buf;
 
@@ -195,7 +195,7 @@ xchk_xattr_find_leftmost_leaf(
 	}
 
 	error = -EFSCORRUPTED;
-	fa = xfs_attr3_leaf_header_check(bp, ip->i_ino);
+	fa = xfs_attr3_leaf_header_check(bp, I_INO(ip));
 	if (fa)
 		goto out_buf;
 
@@ -266,8 +266,8 @@ xchk_xattr_walk_node(
 			goto out_bitmap;
 		}
 
-		error = xfs_attr3_leaf_read(sc->tp, ip, ip->i_ino,
-				leafhdr.forw, &leaf_bp);
+		error = xfs_attr3_leaf_read(sc->tp, ip, I_INO(ip), leafhdr.forw,
+				&leaf_bp);
 		if (error)
 			goto out_bitmap;
 

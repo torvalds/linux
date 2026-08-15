@@ -558,11 +558,6 @@ static inline void fpstate_init_fstate(struct fpstate *fpstate)
  */
 void fpstate_init_user(struct fpstate *fpstate)
 {
-	if (!cpu_feature_enabled(X86_FEATURE_FPU)) {
-		fpstate_init_soft(&fpstate->regs.soft);
-		return;
-	}
-
 	xstate_init_xcomp_bv(&fpstate->regs.xsave, fpstate->xfeatures);
 
 	if (cpu_feature_enabled(X86_FEATURE_FXSR))

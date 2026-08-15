@@ -15,7 +15,7 @@ struct bpf_res_spin_lock lockA __hidden SEC(".data.A");
 struct bpf_res_spin_lock lockB __hidden SEC(".data.B");
 
 SEC("?tc")
-__failure __msg("arg#0 doesn't point to an irq flag on stack")
+__failure __msg("R1 doesn't point to an irq flag on stack")
 int irq_save_bad_arg(struct __sk_buff *ctx)
 {
 	bpf_local_irq_save(&global_flags);
@@ -23,7 +23,7 @@ int irq_save_bad_arg(struct __sk_buff *ctx)
 }
 
 SEC("?tc")
-__failure __msg("arg#0 doesn't point to an irq flag on stack")
+__failure __msg("R1 doesn't point to an irq flag on stack")
 int irq_restore_bad_arg(struct __sk_buff *ctx)
 {
 	bpf_local_irq_restore(&global_flags);

@@ -18,11 +18,11 @@
 #include "tlv320aic3x.h"
 
 static const struct i2c_device_id aic3x_i2c_id[] = {
-	{ "tlv320aic3x", AIC3X_MODEL_3X },
-	{ "tlv320aic33", AIC3X_MODEL_33 },
-	{ "tlv320aic3007", AIC3X_MODEL_3007 },
-	{ "tlv320aic3104", AIC3X_MODEL_3104 },
-	{ "tlv320aic3106", AIC3X_MODEL_3106 },
+	{ .name = "tlv320aic3x", .driver_data = AIC3X_MODEL_3X },
+	{ .name = "tlv320aic33", .driver_data = AIC3X_MODEL_33 },
+	{ .name = "tlv320aic3007", .driver_data = AIC3X_MODEL_3007 },
+	{ .name = "tlv320aic3104", .driver_data = AIC3X_MODEL_3104 },
+	{ .name = "tlv320aic3106", .driver_data = AIC3X_MODEL_3106 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, aic3x_i2c_id);

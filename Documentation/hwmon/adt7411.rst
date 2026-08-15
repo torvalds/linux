@@ -30,11 +30,36 @@ Check the datasheet for details.
 sysfs-Interface
 ---------------
 
-================ =================
-in0_input	 vdd voltage input
-in[1-8]_input	 analog 1-8 input
-temp1_input	 temperature input
-================ =================
+================    =================================
+in0_input           vdd voltage input
+in0_min             vdd low limit
+in0_max             vdd high limit
+in0_alarm           vdd alarm
+in[1-8]_input       analog 1-8 input
+in[1-8]_min         analog input low limit
+in[1-8]_max         analog input high limit
+in[1-8]_alarm       analog input alarm
+temp1_input         internal temperature input
+temp1_min           internal temperature low limit
+temp1_max           internal temperature high limit
+temp1_min_alarm     internal temperature low alarm
+temp1_max_alarm     internal temperature high alarm
+================    =================================
+
+If the external temperature sensor is enabled, the following attributes are
+also available:
+
+================ ================================================
+temp2_input      external temperature input
+temp2_min        external temperature low limit
+temp2_max        external temperature high limit
+temp2_min_alarm  external temperature low alarm
+temp2_max_alarm  external temperature high alarm
+temp2_fault      external temperature sensor fault
+================ ================================================
+
+If the external temperature sensor is enabled, analog inputs in1 and in2 are
+not available.
 
 Besides standard interfaces, this driver adds (0 = off, 1 = on):
 
@@ -47,4 +72,4 @@ Besides standard interfaces, this driver adds (0 = off, 1 = on):
 Notes
 -----
 
-SPI, external temperature sensor and limit registers are not supported yet.
+SPI is not supported yet.

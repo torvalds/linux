@@ -5,6 +5,7 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include <errno.h>
+#include "err.h"
 
 extern int tcp_memory_per_cpu_fw_alloc __ksym;
 extern int udp_memory_per_cpu_fw_alloc __ksym;
@@ -97,6 +98,7 @@ int sock_create(struct bpf_sock *ctx)
 	return 1;
 
 err:
+	set_if_not_errno_or_zero(err, -EFAULT);
 	bpf_set_retval(err);
 	return 0;
 }

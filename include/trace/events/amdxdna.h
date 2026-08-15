@@ -30,26 +30,30 @@ TRACE_EVENT(amdxdna_debug_point,
 );
 
 TRACE_EVENT(xdna_job,
-	    TP_PROTO(struct drm_sched_job *sched_job, const char *name, const char *str, u64 seq),
+	    TP_PROTO(struct drm_sched_job *sched_job, const char *name,
+		     const char *str, u64 seq, u32 op),
 
-	    TP_ARGS(sched_job, name, str, seq),
+	    TP_ARGS(sched_job, name, str, seq, op),
 
 	    TP_STRUCT__entry(__string(name, name)
 			     __string(str, str)
 			     __field(u64, fence_context)
 			     __field(u64, fence_seqno)
-			     __field(u64, seq)),
+			     __field(u64, seq)
+			     __field(u32, op)),
 
 	    TP_fast_assign(__assign_str(name);
 			   __assign_str(str);
 			   __entry->fence_context = sched_job->s_fence->finished.context;
 			   __entry->fence_seqno = sched_job->s_fence->finished.seqno;
-			   __entry->seq = seq;),
+			   __entry->seq = seq;
+			   __entry->op = op;),
 
-	    TP_printk("fence=(context:%llu, seqno:%lld), %s seq#:%lld %s",
+	    TP_printk("fence=(context:%llu, seqno:%llu), %s seq#:%llu %s, op=%u",
 		      __entry->fence_context, __entry->fence_seqno,
 		      __get_str(name), __entry->seq,
-		      __get_str(str))
+		      __get_str(str),
+		      __entry->op)
 );
 
 DECLARE_EVENT_CLASS(xdna_mbox_msg,
@@ -81,18 +85,28 @@ DEFINE_EVENT(xdna_mbox_msg, mbox_set_head,
 	     TP_ARGS(name, chann_id, opcode, id)
 );
 
-TRACE_EVENT(mbox_irq_handle,
-	    TP_PROTO(char *name, int irq),
+DECLARE_EVENT_CLASS(xdna_mbox_name_id,
+		    TP_PROTO(char *name, int irq),
 
-	    TP_ARGS(name, irq),
+		    TP_ARGS(name, irq),
 
-	    TP_STRUCT__entry(__string(name, name)
-			     __field(int, irq)),
+		    TP_STRUCT__entry(__string(name, name)
+				     __field(int, irq)),
 
-	    TP_fast_assign(__assign_str(name);
-			   __entry->irq = irq;),
+		    TP_fast_assign(__assign_str(name);
+				   __entry->irq = irq;),
 
-	    TP_printk("%s.%d", __get_str(name), __entry->irq)
+		    TP_printk("%s.%d", __get_str(name), __entry->irq)
+);
+
+DEFINE_EVENT(xdna_mbox_name_id, mbox_irq_handle,
+	     TP_PROTO(char *name, int irq),
+	     TP_ARGS(name, irq)
+);
+
+DEFINE_EVENT(xdna_mbox_name_id, mbox_rx_worker,
+	     TP_PROTO(char *name, int irq),
+	     TP_ARGS(name, irq)
 );
 
 #endif /* !defined(_TRACE_AMDXDNA_H) || defined(TRACE_HEADER_MULTI_READ) */

@@ -161,7 +161,8 @@ static __maybe_unused int tegra_vde_runtime_suspend(struct device *dev)
 	int err;
 
 	if (!dev->pm_domain) {
-		err = tegra_powergate_power_off(TEGRA_POWERGATE_VDEC);
+		err = tegra_pmc_powergate_power_off(vde->pmc,
+						    TEGRA_POWERGATE_VDEC);
 		if (err) {
 			dev_err(dev, "Failed to power down HW: %d\n", err);
 			return err;
@@ -193,15 +194,16 @@ static __maybe_unused int tegra_vde_runtime_resume(struct device *dev)
 	}
 
 	if (!dev->pm_domain) {
-		err = tegra_powergate_sequence_power_up(TEGRA_POWERGATE_VDEC,
-							vde->clk, vde->rst);
+		err = tegra_pmc_powergate_sequence_power_up(vde->pmc,
+							    TEGRA_POWERGATE_VDEC,
+							    vde->clk, vde->rst);
 		if (err) {
 			dev_err(dev, "Failed to power up HW : %d\n", err);
 			goto release_reset;
 		}
 	} else {
 		/*
-		 * tegra_powergate_sequence_power_up() leaves clocks enabled,
+		 * tegra_pmc_powergate_sequence_power_up() leaves clocks enabled,
 		 * while GENPD not.
 		 */
 		err = clk_prepare_enable(vde->clk);
@@ -292,6 +294,11 @@ static int tegra_vde_probe(struct platform_device *pdev)
 		dev_err(dev, "Could not get MC reset %d\n", err);
 		return err;
 	}
+
+	vde->pmc = devm_tegra_pmc_get(dev);
+	if (IS_ERR(vde->pmc))
+		return dev_err_probe(dev, PTR_ERR(vde->pmc),
+				     "failed to get PMC\n");
 
 	irq = platform_get_irq_byname(pdev, "sync-token");
 	if (irq < 0)

@@ -113,7 +113,7 @@ static char *gmin_cfg_get_dsm(struct acpi_device *adev, const char *key)
 	if (!obj)
 		return NULL;
 
-	for (i = 0; i < obj->package.count - 1; i += 2) {
+	for (i = 0; i + 1 < obj->package.count; i += 2) {
 		key_el = &obj->package.elements[i + 0];
 		val_el = &obj->package.elements[i + 1];
 

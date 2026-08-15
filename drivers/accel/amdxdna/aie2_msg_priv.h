@@ -31,7 +31,10 @@ enum aie2_msg_opcode {
 	MSG_OP_SET_RUNTIME_CONFIG          = 0x10A,
 	MSG_OP_GET_RUNTIME_CONFIG          = 0x10B,
 	MSG_OP_REGISTER_ASYNC_EVENT_MSG    = 0x10C,
+	MSG_OP_UPDATE_PROPERTY             = 0x113,
 	MSG_OP_GET_APP_HEALTH              = 0x114,
+	MSG_OP_ADD_HOST_BUFFER             = 0x115,
+	MSG_OP_GET_DEV_REVISION            = 0x117,
 	MSG_OP_MAX_DRV_OPCODE,
 	MSG_OP_GET_PROTOCOL_VERSION        = 0x301,
 	MSG_OP_MAX_OPCODE
@@ -460,7 +463,7 @@ struct fatal_error_info {
 	__u32 exception_pc;       /* Program Counter at the time of the exception */
 	__u32 app_module;         /* Error module name */
 	__u32 task_index;         /* Index of the task in which the error occurred */
-	__u32 reserved[128];
+	__u32 reserved[127];
 };
 
 struct app_health_report {
@@ -503,4 +506,41 @@ struct get_app_health_resp {
 	__u32 required_buffer_size;
 	__u32 reserved[7];
 } __packed;
+
+struct update_property_req {
+#define UPDATE_PROPERTY_TIME_QUOTA 0
+	__u32 type;
+#define AIE2_UPDATE_PROPERTY_ALL_CTX	0xFF
+	__u8 context_id;
+	__u8 reserved[7];
+	__u32 time_quota_us;
+	__u32 reserved1;
+} __packed;
+
+struct update_property_resp {
+	enum aie2_msg_status status;
+} __packed;
+
+enum aie2_dev_revision {
+	AIE2_DEV_REVISION_STXA = 1,
+	AIE2_DEV_REVISION_STXB,
+	AIE2_DEV_REVISION_KRK1,
+	AIE2_DEV_REVISION_KRK2,
+	AIE2_DEV_REVISION_HALO,
+	AIE2_DEV_REVISION_GPT1,
+	AIE2_DEV_REVISION_GPT2,
+	AIE2_DEV_REVISION_GPT3,
+	AIE2_DEV_REVISION_UNKN,
+};
+
+struct get_dev_revision_req {
+	__u32			place_holder;
+} __packed;
+
+struct get_dev_revision_resp {
+	enum aie2_msg_status	status;
+	enum aie2_dev_revision	rev;
+	__u32			raw_fuse_data;
+} __packed;
+
 #endif /* _AIE2_MSG_PRIV_H_ */

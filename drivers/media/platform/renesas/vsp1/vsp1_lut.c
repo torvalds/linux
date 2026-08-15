@@ -50,9 +50,9 @@ static int lut_set_table(struct vsp1_lut *lut, struct v4l2_ctrl *ctrl)
 		vsp1_dl_body_write(dlb, VI6_LUT_TABLE + 4 * i,
 				       ctrl->p_new.p_u32[i]);
 
-	spin_lock_irq(&lut->lock);
-	swap(lut->lut, dlb);
-	spin_unlock_irq(&lut->lock);
+	scoped_guard(spinlock_irq, &lut->lock) {
+		swap(lut->lut, dlb);
+	}
 
 	vsp1_dl_body_put(dlb);
 	return 0;
@@ -132,12 +132,11 @@ static void lut_configure_frame(struct vsp1_entity *entity,
 {
 	struct vsp1_lut *lut = to_lut(&entity->subdev);
 	struct vsp1_dl_body *lut_dlb;
-	unsigned long flags;
 
-	spin_lock_irqsave(&lut->lock, flags);
-	lut_dlb = lut->lut;
-	lut->lut = NULL;
-	spin_unlock_irqrestore(&lut->lock, flags);
+	scoped_guard(spinlock_irqsave, &lut->lock) {
+		lut_dlb = lut->lut;
+		lut->lut = NULL;
+	}
 
 	if (lut_dlb) {
 		vsp1_dl_list_add_body(dl, lut_dlb);

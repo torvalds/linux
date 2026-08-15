@@ -7,7 +7,7 @@
 #ifndef __ASM_ARCH_GICV3_H
 #define __ASM_ARCH_GICV3_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/io.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
@@ -257,5 +257,5 @@ static inline bool gic_has_relaxed_pmr_sync(void)
 	return false;
 }
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 #endif /* !__ASM_ARCH_GICV3_H */

@@ -53,7 +53,17 @@ Properties
    - DON'T use wildcards or device-family names in compatible strings.
 
    - DO use fallback compatibles when devices are the same as or a superset of
-     prior implementations.
+     prior implementations. Fallback compatibles are applicable especially
+     when sharing a programming interface or when able to discover the
+     variants.
+
+   - DON'T add fake fallback compatibles when software cannot use such to match
+     and bind to a device, and still operate correctly.
+
+   - DO use the commit message to explain why devices that may appear
+     compatible in a diff (e.g. no differences in property use, same handling
+     by the software) but are not made compatible in the binding, are not
+     compatible.
 
    - DO add new compatibles in case there are new features or bugs.
 

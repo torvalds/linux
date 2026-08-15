@@ -14,8 +14,8 @@
 /*
  * DOS share for a specific file
  */
-struct nlm_share {
-	struct nlm_share *	s_next;		/* linked list */
+struct lockd_share {
+	struct lockd_share *	s_next;		/* linked list */
 	struct nlm_host *	s_host;		/* client host */
 	struct nlm_file *	s_file;		/* shared file */
 	struct xdr_netobj	s_owner;	/* owner handle */

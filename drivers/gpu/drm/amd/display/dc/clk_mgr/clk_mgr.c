@@ -49,6 +49,7 @@
 #include "dcn35/dcn35_clk_mgr.h"
 #include "dcn401/dcn401_clk_mgr.h"
 #include "dcn42/dcn42_clk_mgr.h"
+#include "dcn42b/dcn42b_clk_mgr.h"
 
 int clk_mgr_helper_get_active_display_cnt(
 		struct dc *dc,
@@ -338,6 +339,16 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 	break;
 
 	case AMDGPU_FAMILY_GC_11_5_0: {
+		if (ctx->dce_version == DCN_VERSION_4_2B) {
+			struct clk_mgr_dcn42 *clk_mgr = kzalloc_obj(*clk_mgr);
+
+			if (clk_mgr == NULL) {
+				BREAK_TO_DEBUGGER();
+				return NULL;
+			}
+			dcn42b_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
+			return &clk_mgr->base.base;
+		}
 		struct clk_mgr_dcn35 *clk_mgr = kzalloc_obj(*clk_mgr);
 
 		if (clk_mgr == NULL) {
@@ -428,6 +439,10 @@ void dc_destroy_clk_mgr(struct clk_mgr *clk_mgr_base)
 		break;
 
 	case AMDGPU_FAMILY_GC_11_5_0:
+		if (clk_mgr_base->ctx->dce_version == DCN_VERSION_4_2B) {
+			dcn42_clk_mgr_destroy(clk_mgr);
+			break;
+		}
 		dcn35_clk_mgr_destroy(clk_mgr);
 		break;
 	case AMDGPU_FAMILY_GC_12_0_0:

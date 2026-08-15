@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0 or MIT */
 /* Copyright 2019 Linaro, Ltd, Rob Herring <robh@kernel.org> */
 /* Copyright 2023 Collabora ltd. */
+/* Copyright 2025 ARM Limited. All rights reserved. */
 
 #ifndef __PANTHOR_GEM_H__
 #define __PANTHOR_GEM_H__
 
-#include <drm/drm_gem_shmem_helper.h>
+#include <drm/drm_gem.h>
 #include <drm/drm_mm.h>
 
 #include <linux/iosys-map.h>
@@ -18,12 +19,16 @@ struct panthor_vm;
 enum panthor_debugfs_gem_state_flags {
 	PANTHOR_DEBUGFS_GEM_STATE_IMPORTED_BIT = 0,
 	PANTHOR_DEBUGFS_GEM_STATE_EXPORTED_BIT = 1,
+	PANTHOR_DEBUGFS_GEM_STATE_EVICTED_BIT = 2,
 
 	/** @PANTHOR_DEBUGFS_GEM_STATE_FLAG_IMPORTED: GEM BO is PRIME imported. */
 	PANTHOR_DEBUGFS_GEM_STATE_FLAG_IMPORTED = BIT(PANTHOR_DEBUGFS_GEM_STATE_IMPORTED_BIT),
 
 	/** @PANTHOR_DEBUGFS_GEM_STATE_FLAG_EXPORTED: GEM BO is PRIME exported. */
 	PANTHOR_DEBUGFS_GEM_STATE_FLAG_EXPORTED = BIT(PANTHOR_DEBUGFS_GEM_STATE_EXPORTED_BIT),
+
+	/** @PANTHOR_DEBUGFS_GEM_STATE_FLAG_EVICTED: GEM BO is evicted to swap. */
+	PANTHOR_DEBUGFS_GEM_STATE_FLAG_EVICTED = BIT(PANTHOR_DEBUGFS_GEM_STATE_EVICTED_BIT),
 };
 
 enum panthor_debugfs_gem_usage_flags {
@@ -61,11 +66,121 @@ struct panthor_gem_debugfs {
 };
 
 /**
+ * struct panthor_gem_backing - GEM memory backing related data
+ */
+struct panthor_gem_backing {
+	/** @pages: Pages requested with drm_gem_get_pages() */
+	struct page **pages;
+
+	/** @pin_count: Number of active pin requests on this GEM */
+	refcount_t pin_count;
+};
+
+/**
+ * struct panthor_gem_cpu_map - GEM CPU mapping related data
+ */
+struct panthor_gem_cpu_map {
+	/** @vaddr: Address returned by vmap() */
+	void *vaddr;
+
+	/** @vaddr_use_count: Number of active vmap() requests on this GEM */
+	refcount_t vaddr_use_count;
+
+	/** @mmap_count: Number of active mmap() requests on this GEM */
+	refcount_t mmap_count;
+};
+
+/**
+ * struct panthor_gem_dev_map - GEM device mapping related data
+ */
+struct panthor_gem_dev_map {
+	/** @sgt: Device mapped sg_table for this GEM */
+	struct sg_table *sgt;
+};
+
+/**
+ * enum panthor_gem_reclaim_state - Reclaim state of a GEM object
+ *
+ * This is defined in descending reclaimability order and some part
+ * of the code depends on that.
+ */
+enum panthor_gem_reclaim_state {
+	/**
+	 * @PANTHOR_GEM_UNUSED: GEM is currently unused
+	 *
+	 * This can happen when the GEM was previously vmap-ed, mmap-ed,
+	 * and/or GPU mapped and got unmapped. Because pages are lazily
+	 * returned to the shmem layer, we want to keep a list of such
+	 * BOs, because they should be fairly easy to reclaim (no need
+	 * to wait for GPU to be done, and no need to tear down user
+	 * mappings either).
+	 */
+	PANTHOR_GEM_UNUSED,
+
+	/**
+	 * @PANTHOR_GEM_MMAPPED: GEM is currently mmap-ed
+	 *
+	 * When a GEM has pages allocated and the mmap_count is > 0, the
+	 * GEM is placed in the mmapped list. This comes right after
+	 * unused because we can relatively easily tear down user mappings.
+	 */
+	PANTHOR_GEM_MMAPPED,
+
+	/**
+	 * @PANTHOR_GEM_GPU_MAPPED_SINGLE_VM: GEM is GPU mapped to only one VM
+	 *
+	 * When a GEM is mapped to a single VM, reclaim requests have more
+	 * chances to succeed, because we only need to synchronize against
+	 * a single GPU context. This is more annoying than reclaiming
+	 * mmap-ed pages still, because we have to wait for in-flight jobs
+	 * to land, and we might not be able to acquire all necessary locks
+	 * at reclaim time either.
+	 */
+	PANTHOR_GEM_GPU_MAPPED_SINGLE_VM,
+
+	/**
+	 * @PANTHOR_GEM_GPU_MAPPED_MULTI_VM: GEM is GPU mapped to multiple VMs
+	 *
+	 * Like PANTHOR_GEM_GPU_MAPPED_SINGLE_VM, but the synchronization across
+	 * VMs makes such BOs harder to reclaim.
+	 */
+	PANTHOR_GEM_GPU_MAPPED_MULTI_VM,
+
+	/**
+	 * @PANTHOR_GEM_UNRECLAIMABLE: GEM can't be reclaimed
+	 *
+	 * Happens when the GEM memory is pinned. It's also the state all GEM
+	 * objects start in, because no memory is allocated until explicitly
+	 * requested by a CPU or GPU map, meaning there's nothing to reclaim
+	 * until such an allocation happens.
+	 */
+	PANTHOR_GEM_UNRECLAIMABLE,
+};
+
+/**
  * struct panthor_gem_object - Driver specific GEM object.
  */
 struct panthor_gem_object {
-	/** @base: Inherit from drm_gem_shmem_object. */
-	struct drm_gem_shmem_object base;
+	/** @base: Inherit from drm_gem_object. */
+	struct drm_gem_object base;
+
+	/** @backing: Memory backing state */
+	struct panthor_gem_backing backing;
+
+	/** @cmap: CPU mapping state */
+	struct panthor_gem_cpu_map cmap;
+
+	/** @dmap: Device mapping state */
+	struct panthor_gem_dev_map dmap;
+
+	/** @reclaim_state: Cached reclaim state */
+	enum panthor_gem_reclaim_state reclaim_state;
+
+	/**
+	 * @reclaimed_count: How many times object has been evicted to swap.
+	 * The count saturates at %INT_MAX and will never wrap around to 0.
+	 */
+	atomic_t reclaimed_count;
 
 	/**
 	 * @exclusive_vm_root_gem: Root GEM of the exclusive VM this GEM object
@@ -130,21 +245,29 @@ struct panthor_kernel_bo {
 	void *kmap;
 };
 
-static inline
-struct panthor_gem_object *to_panthor_bo(struct drm_gem_object *obj)
-{
-	return container_of(to_drm_gem_shmem_obj(obj), struct panthor_gem_object, base);
-}
+#define to_panthor_bo(obj) container_of_const(obj, struct panthor_gem_object, base)
 
 void panthor_gem_init(struct panthor_device *ptdev);
 
-struct drm_gem_object *panthor_gem_create_object(struct drm_device *ddev, size_t size);
-
+struct drm_gem_object *
+panthor_gem_prime_import_sg_table(struct drm_device *dev,
+				  struct dma_buf_attachment *attach,
+				  struct sg_table *sgt);
 int
 panthor_gem_create_with_handle(struct drm_file *file,
 			       struct drm_device *ddev,
 			       struct panthor_vm *exclusive_vm,
 			       u64 *size, u32 flags, uint32_t *handle);
+
+struct sg_table *
+panthor_gem_get_dev_sgt(struct panthor_gem_object *bo);
+int panthor_gem_pin(struct panthor_gem_object *bo);
+void panthor_gem_unpin(struct panthor_gem_object *bo);
+int panthor_gem_swapin_locked(struct panthor_gem_object *bo);
+void panthor_gem_update_reclaim_state_locked(struct panthor_gem_object *bo,
+					     enum panthor_gem_reclaim_state *old_state);
+int panthor_gem_shrinker_init(struct panthor_device *ptdev);
+void panthor_gem_shrinker_unplug(struct panthor_device *ptdev);
 
 void panthor_gem_bo_set_label(struct drm_gem_object *obj, const char *label);
 void panthor_gem_kernel_bo_set_label(struct panthor_kernel_bo *bo, const char *label);
@@ -203,8 +326,7 @@ panthor_kernel_bo_create(struct panthor_device *ptdev, struct panthor_vm *vm,
 void panthor_kernel_bo_destroy(struct panthor_kernel_bo *bo);
 
 #ifdef CONFIG_DEBUG_FS
-void panthor_gem_debugfs_print_bos(struct panthor_device *pfdev,
-				   struct seq_file *m);
+void panthor_gem_debugfs_init(struct drm_minor *minor);
 #endif
 
 #endif /* __PANTHOR_GEM_H__ */

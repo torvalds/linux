@@ -14,7 +14,6 @@
 #include <linux/i2c.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
@@ -499,7 +498,7 @@ static DEFINE_RUNTIME_DEV_PM_OPS(tlv493d_pm_ops, tlv493d_runtime_suspend,
 				 tlv493d_runtime_resume, NULL);
 
 static const struct i2c_device_id tlv493d_id[] = {
-	{ "tlv493d" },
+	{ .name = "tlv493d" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tlv493d_id);

@@ -731,6 +731,8 @@ static void test_filter_ioctl(struct kvm_vcpu *vcpu)
 
 static void intel_run_fixed_counter_guest_code(u8 idx)
 {
+	u8 nr_fixed_counters = this_cpu_property(X86_PROPERTY_PMU_NR_FIXED_COUNTERS);
+
 	for (;;) {
 		wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, 0);
 		wrmsr(MSR_CORE_PERF_FIXED_CTR0 + idx, 0);
@@ -738,6 +740,10 @@ static void intel_run_fixed_counter_guest_code(u8 idx)
 		/* Only OS_EN bit is enabled for fixed counter[idx]. */
 		wrmsr(MSR_CORE_PERF_FIXED_CTR_CTRL, FIXED_PMC_CTRL(idx, FIXED_PMC_KERNEL));
 		wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, FIXED_PMC_GLOBAL_CTRL_ENABLE(idx));
+		if (nr_fixed_counters > 1)
+			wrmsr(MSR_CORE_PERF_FIXED_CTR_CTRL,
+			      FIXED_PMC_CTRL(idx, FIXED_PMC_KERNEL) |
+			      FIXED_PMC_CTRL((idx + 1) % nr_fixed_counters, FIXED_PMC_KERNEL));
 		__asm__ __volatile__("loop ." : "+c"((int){NUM_BRANCHES}));
 		wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, 0);
 

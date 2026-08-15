@@ -165,7 +165,7 @@ config SND_SOC_IMX_AUDMUX
 
 config SND_POWERPC_SOC
 	tristate "SoC Audio for Freescale PowerPC CPUs"
-	depends on FSL_SOC || PPC_MPC52xx
+	depends on FSL_SOC || PPC_MPC52xx || (PPC && COMPILE_TEST)
 	help
 	  Say Y or M if you want to add support for codecs attached to
 	  the PowerPC CPUs.
@@ -226,7 +226,7 @@ config SND_SOC_P1022_RDK
 
 config SND_SOC_MPC5200_I2S
 	tristate "Freescale MPC5200 PSC in I2S mode driver"
-	depends on PPC_MPC52xx && PPC_BESTCOMM
+	depends on PPC_BESTCOMM
 	select SND_MPC52xx_DMA
 	select PPC_BESTCOMM_GEN_BD
 	help
@@ -234,7 +234,7 @@ config SND_SOC_MPC5200_I2S
 
 config SND_SOC_MPC5200_AC97
 	tristate "Freescale MPC5200 PSC in AC97 mode driver"
-	depends on PPC_MPC52xx && PPC_BESTCOMM
+	depends on PPC_BESTCOMM
 	select SND_SOC_AC97_BUS
 	select SND_MPC52xx_DMA
 	select PPC_BESTCOMM_GEN_BD
@@ -358,6 +358,7 @@ config SND_SOC_IMX_RPMSG
 	depends on OF && I2C
 	select SND_SOC_IMX_PCM_RPMSG
 	select SND_SOC_IMX_AUDIO_RPMSG
+	select SND_SIMPLE_CARD_UTILS
 	help
 	  SoC Audio support for i.MX boards with rpmsg.
 	  There should be rpmsg devices defined in other core (M core)

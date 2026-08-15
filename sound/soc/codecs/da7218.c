@@ -3282,8 +3282,8 @@ static int da7218_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id da7218_i2c_id[] = {
-	{ "da7217", DA7217_DEV_ID },
-	{ "da7218", DA7218_DEV_ID },
+	{ .name = "da7217", .driver_data = DA7217_DEV_ID },
+	{ .name = "da7218", .driver_data = DA7218_DEV_ID },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, da7218_i2c_id);

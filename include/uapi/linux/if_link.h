@@ -1085,6 +1085,22 @@ enum {
  *   Note that this option only takes effect when *IFLA_BRPORT_NEIGH_SUPPRESS*
  *   is enabled for a given port.
  *
+ * @IFLA_BRPORT_NEIGH_FORWARD_GRAT
+ *   Controls whether gratuitous ARP packets and unsolicited Neighbor
+ *   Advertisement packets are forwarded on a given port even when neighbor
+ *   suppression is enabled.
+ *   By default this flag is off, meaning gratuitous ARP and unsolicited NA
+ *   packets will be suppressed when neighbor suppression is enabled.
+ *   Setting this flag to on allows these packets to be forwarded even
+ *   when *IFLA_BRPORT_NEIGH_SUPPRESS* or *IFLA_BRPORT_NEIGH_VLAN_SUPPRESS*
+ *   is enabled.
+ *
+ *   Note that this option only takes effect when *IFLA_BRPORT_NEIGH_SUPPRESS*
+ *   or *IFLA_BRPORT_NEIGH_VLAN_SUPPRESS* is enabled for a given port.
+ *   When *IFLA_BRPORT_NEIGH_VLAN_SUPPRESS* is set, this port-level flag is
+ *   ignored and per-VLAN control is available via
+ *   *BRIDGE_VLANDB_ENTRY_NEIGH_FORWARD_GRAT*.
+ *
  * @IFLA_BRPORT_BACKUP_NHID
  *   The FDB nexthop object ID to attach to packets being redirected to a
  *   backup port that has VLAN tunnel mapping enabled (via the
@@ -1137,6 +1153,7 @@ enum {
 	IFLA_BRPORT_MCAST_MAX_GROUPS,
 	IFLA_BRPORT_NEIGH_VLAN_SUPPRESS,
 	IFLA_BRPORT_BACKUP_NHID,
+	IFLA_BRPORT_NEIGH_FORWARD_GRAT,
 	__IFLA_BRPORT_MAX
 };
 #define IFLA_BRPORT_MAX (__IFLA_BRPORT_MAX - 1)
@@ -1489,6 +1506,8 @@ enum {
 	IFLA_GENEVE_INNER_PROTO_INHERIT,
 	IFLA_GENEVE_PORT_RANGE,
 	IFLA_GENEVE_GRO_HINT,
+	IFLA_GENEVE_LOCAL,
+	IFLA_GENEVE_LOCAL6,
 	__IFLA_GENEVE_MAX
 };
 #define IFLA_GENEVE_MAX	(__IFLA_GENEVE_MAX - 1)
@@ -1584,6 +1603,7 @@ enum {
 	IFLA_BOND_NS_IP6_TARGET,
 	IFLA_BOND_COUPLED_CONTROL,
 	IFLA_BOND_BROADCAST_NEIGH,
+	IFLA_BOND_LACP_STRICT,
 	__IFLA_BOND_MAX,
 };
 

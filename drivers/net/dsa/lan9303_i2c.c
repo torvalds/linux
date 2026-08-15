@@ -89,7 +89,7 @@ static void lan9303_i2c_shutdown(struct i2c_client *client)
 /*-------------------------------------------------------------------------*/
 
 static const struct i2c_device_id lan9303_i2c_id[] = {
-	{ "lan9303" },
+	{ .name = "lan9303" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, lan9303_i2c_id);

@@ -24,7 +24,6 @@
 	IP_PNP	IP DHCP, BOOTP, or RARP is enabled.
 	IPV6	IPv6 support is enabled.
 	ISAPNP	ISA PnP code is enabled.
-	ISDN	Appropriate ISDN support is enabled.
 	ISOL	CPU Isolation is enabled.
 	JOY	Appropriate joystick support is enabled.
 	KGDB	Kernel debugger support is enabled.
@@ -36,7 +35,6 @@
 	M68k	M68k architecture is enabled.
 			These options have more detailed description inside of
 			Documentation/arch/m68k/kernel-options.rst.
-	MDA	MDA console support is enabled.
 	MIPS	MIPS architecture is enabled.
 	MOUSE	Appropriate mouse support is enabled.
 	MSI	Message Signaled Interrupts (PCI).
@@ -558,9 +556,6 @@ Kernel parameters
 			1 -- enable.
 			Default value is set via kernel config option.
 
-	arcrimi=	[HW,NET] ARCnet - "RIM I" (entirely mem-mapped) cards
-			Format: <io>,<irq>,<nodeID>
-
 	arm64.no32bit_el0 [ARM64] Unconditionally disable the execution of
 			32 bit applications.
 
@@ -877,6 +872,10 @@ Kernel parameters
 			contiguous memory allocations. It will reserve CMA
 			area for the specified node.
 
+			If it is setup together with upper 'cmd_pernuma='
+			(unlikely), its size setting takes priority for the
+			specified numa nodes.
+
 			With numa CMA enabled, DMA users on node nid will
 			first try to allocate buffer from the numa area
 			which is located in node nid, if the allocation fails,
@@ -892,17 +891,6 @@ Kernel parameters
 	coherent_pool=nn[KMG]	[ARM,KNL,EARLY]
 			Sets the size of memory pool for coherent, atomic dma
 			allocations, by default set to 256K.
-
-	com20020=	[HW,NET] ARCnet - COM20020 chipset
-			Format:
-			<io>[,<irq>[,<nodeID>[,<backplane>[,<ckp>[,<timeout>]]]]]
-
-	com90io=	[HW,NET] ARCnet - COM90xx chipset (IO-mapped buffers)
-			Format: <io>[,<irq>]
-
-	com90xx=	[HW,NET]
-			ARCnet - COM90xx chipset (memory-mapped buffers)
-			Format: <io>[,<irq>[,<memstart>]]
 
 	condev=		[HW,S390] console device
 	conmode=
@@ -1228,8 +1216,9 @@ Kernel parameters
 			deferred probe to give up waiting on dependencies to
 			probe. Only specific dependencies (subsystems or
 			drivers) that have opted in will be ignored. A timeout
-			of 0 will timeout at the end of initcalls. If the time
-			out hasn't expired, it'll be restarted by each
+			of 0 will timeout at the end of initcalls; a negative
+			value is treated as an infinite timeout value. If the
+			timeout hasn't expired, it'll be restarted by each
 			successful driver registration. This option will also
 			dump out devices still on the deferred probe list after
 			retrying.
@@ -1650,10 +1639,6 @@ Kernel parameters
 			but can only be used if the backing tty is available
 			very early in the boot process. For early debugging
 			via a serial port see kgdboc_earlycon instead.
-
-	elanfreq=	[X86-32]
-			See comment before function elanfreq_setup() in
-			arch/x86/kernel/cpu/cpufreq/elanfreq.c.
 
 	elfcorehdr=[size[KMG]@]offset[KMG] [PPC,SH,X86,S390,EARLY]
 			Specifies physical address of start of kernel core
@@ -2082,6 +2067,10 @@ Kernel parameters
 			Format: nn[KMGTPE] or (node format)
 				<node>:nn[KMGTPE][,<node>:nn[KMGTPE]]
 
+			The size must be a multiple of the gigantic page size.
+			When using node format, this applies to each per-node size.
+			Missaligned values are dropped with a warning.
+
 			Reserve a CMA area of given size and allocate gigantic
 			hugepages using the CMA allocator. If enabled, the
 			boot-time allocation of gigantic hugepages is skipped.
@@ -2227,9 +2216,6 @@ Kernel parameters
 			syscalls, essentially overriding IA32_EMULATION_DEFAULT_DISABLED at
 			boot time. When false, unconditionally disables IA32 emulation.
 
-	icn=		[HW,ISDN]
-			Format: <io>[,<membase>[,<icn_id>[,<icn_id2>]]]
-
 
 	idle=		[X86,EARLY]
 			Format: idle=poll, idle=halt, idle=nomwait
@@ -2324,6 +2310,12 @@ Kernel parameters
 	ima_canonical_fmt [IMA]
 			Use the canonical format for the binary runtime
 			measurements, instead of host native format.
+
+	ima_flush_htable  [IMA]
+			Flush the IMA hash table when deleting all the
+			staged measurement records, to achieve maximum
+			memory saving at the cost of having duplicate
+			records across the staged measurement lists.
 
 	ima_hash=	[IMA]
 			Format: { md5 | sha1 | rmd160 | sha256 | sha384
@@ -2566,28 +2558,49 @@ Kernel parameters
 			Don't force hardware IOMMU usage when it is not
 			needed. (default).
 
-		biomerge
-		panic
-		nopanic
 		merge
+			Do scatter-gather (SG) merging. Implies "force"
+			(experimental).
+
 		nomerge
+			Don't do scatter-gather (SG) merging.
+
+		biomerge
+			Do scatter-gather (SG) merging. Implies "force"
+			(experimental). [same as "merge"]
+
+		panic
+			Always panic when IOMMU overflows.
+
+		nopanic
+			Don't panic on IOMMU overflows.
+
+		pt
+			Use passththrough mode by default
+			(Equivalent to iommu.passthrough=1)
+
+		nopt
+			Use translated mode for DMA by default
+			(Equivalent to iommu.passthrough=0)
 
 		soft
 			Use software bounce buffering (SWIOTLB) (default for
 			Intel machines). This can be used to prevent the usage
 			of an available hardware IOMMU.
 
-		pt
-		nopt
-		nobypass	[PPC/POWERNV]
-			Disable IOMMU bypass, using IOMMU for PCI devices.
+		usedac
+			Use the DAC on VIA PCI bridge
+			(default: disable the VIA PCI bridge DAC)
 
-		AMD Gart HW IOMMU-specific options:
+	    AMD Gart HW IOMMU-specific options: (CONFIG_GART_IOMMU)
 
 		<size>
 			Set the size of the remapping area in bytes.
 
 		allowed
+			Overwrite iommu off workarounds for specific chipsets
+
+		force
 			Overwrite iommu off workarounds for specific chipsets
 
 		fullflush
@@ -2600,21 +2613,16 @@ Kernel parameters
 			Allocate an own aperture over RAM with size
 			32MB<<order.  (default: order=1, i.e. 64MB)
 
-		merge
-			Do scatter-gather (SG) merging. Implies "force"
-			(experimental).
-
-		nomerge
-			Don't do scatter-gather (SG) merging.
-
 		noaperture
 			Ask the IOMMU not to touch the aperture for AGP.
 
 		noagp
 			Don't initialize the AGP driver and use full aperture.
 
-		panic
-			Always panic when IOMMU overflows.
+	iommu=		[PPC/POWERNV]
+
+		nobypass
+			Disable IOMMU bypass, using IOMMU for PCI devices.
 
 	iommu.forcedac=	[ARM64,X86,EARLY] Control IOVA allocation for PCI devices.
 			Format: { "0" | "1" }
@@ -2737,7 +2745,6 @@ Kernel parameters
 			Format: <RDP>,<reset>,<pci_scan>,<verbosity>
 
 	isolcpus=	[KNL,SMP,ISOL] Isolate a given set of CPUs from disturbance.
-			[Deprecated - use cpusets instead]
 			Format: [flag-list,]<cpu-list>
 
 			Specify one or more CPUs to isolate from disturbances
@@ -2762,11 +2769,10 @@ Kernel parameters
 			  Isolate from the general SMP balancing and scheduling
 			  algorithms. Note that performing domain isolation this way
 			  is irreversible: it's not possible to bring back a CPU to
-			  the domains once isolated through isolcpus. It's strongly
-			  advised to use cpusets instead to disable scheduler load
-			  balancing through the "cpuset.sched_load_balance" file.
-			  It offers a much more flexible interface where CPUs can
-			  move in and out of an isolated set anytime.
+			  the domains once isolated through this boot time
+			  configuration. Use cpusets for a dynamic configuration
+			  which can be altered at runtime. For details see
+			  Documentation/admin-guide/cpu-isolation.rst.
 
 			  You can move a process onto or off an "isolated" CPU via
 			  the CPU affinity syscalls or cpuset.
@@ -3798,10 +3804,6 @@ Kernel parameters
 	md=		[HW] RAID subsystems devices and level
 			See Documentation/admin-guide/md.rst.
 
-	mdacon=		[MDA]
-			Format: <first>,<last>
-			Specifies range of consoles to be captured by the MDA.
-
 	mds=		[X86,INTEL,EARLY]
 			Control mitigation for the Micro-architectural Data
 			Sampling (MDS) vulnerability.
@@ -4248,12 +4250,8 @@ Kernel parameters
 
 	n2=		[NET] SDL Inc. RISCom/N2 synchronous serial card
 
-	netdev=		[NET] Network devices parameters
+	netdev=		[NET] NE2000 ISA network devices parameters
 			Format: <irq>,<io>,<mem_start>,<mem_end>,<name>
-			Note that mem_start is often overloaded to mean
-			something different and driver-specific.
-			This usage is only documented in each driver source
-			file if at all.
 
 	netpoll.carrier_timeout=
 			[NET] Specifies amount of time (in seconds) that
@@ -4289,13 +4287,6 @@ Kernel parameters
 			after a reply of NFS4ERR_DELAY from the server.
 			Only applies if the softerr mount option is enabled,
 			and the specified value is >= 0.
-
-	nfs.enable_ino64=
-			[NFS] enable 64-bit inode numbers.
-			If zero, the NFS client will fake up a 32-bit inode
-			number for the readdir() and stat() syscalls instead
-			of returning the full 64-bit number.
-			The default is to return 64-bit inode numbers.
 
 	nfs.idmap_cache_timeout=
 			[NFS] set the maximum lifetime for idmapper cache
@@ -4418,10 +4409,6 @@ Kernel parameters
 
 			These settings can be accessed at runtime via
 			the nmi_watchdog and hardlockup_panic sysctls.
-
-	no387		[BUGS=X86-32] Tells the kernel to use the 387 maths
-			emulation library even if a 387 maths coprocessor
-			is present.
 
 	no4lvl		[RISCV,EARLY] Disable 4-level and 5-level paging modes.
 			Forces kernel to use 3-level paging instead.
@@ -4626,7 +4613,7 @@ Kernel parameters
 	nosmt		[KNL,MIPS,PPC,EARLY] Disable symmetric multithreading (SMT).
 			Equivalent to smt=1.
 
-			[KNL,LOONGARCH,X86,PPC,S390] Disable symmetric multithreading (SMT).
+			[KNL,LOONGARCH,X86,ARM64,PPC,S390] Disable symmetric multithreading (SMT).
 			nosmt=force: Force disable SMT, cannot be undone
 				     via the sysfs control file.
 
@@ -5018,8 +5005,6 @@ Kernel parameters
 			Halt all CPUs after the first oops has been printed for
 			the specified number of seconds.  This is to be used if
 			your oopses keep scrolling off the screen.
-
-	pcbit=		[HW,ISDN]
 
 	pci=option[,option...]	[PCI,EARLY] various PCI subsystem options.
 
@@ -5844,13 +5829,13 @@ Kernel parameters
 			use a call_rcu[_hurry]() path. Please note, this is for a
 			normal grace period.
 
-			How to enable it:
+			How to disable it:
 
-			echo 1 > /sys/module/rcutree/parameters/rcu_normal_wake_from_gp
-			or pass a boot parameter "rcutree.rcu_normal_wake_from_gp=1"
+			echo 0 > /sys/module/rcutree/parameters/rcu_normal_wake_from_gp
+			or pass a boot parameter "rcutree.rcu_normal_wake_from_gp=0"
 
-			Default is 1 if num_possible_cpus() <= 16 and it is not explicitly
-			disabled by the boot parameter passing 0.
+			Default is 1 if it is not explicitly disabled by the boot parameter
+			passing 0.
 
 	rcuscale.gp_async= [KNL]
 			Measure performance of asynchronous
@@ -6760,8 +6745,6 @@ Kernel parameters
 			restrictions other than those given by hardware at the
 			cost of significant additional memory use for tables.
 
-	sa1100ir	[NET]
-			See drivers/net/irda/sa1100_ir.c.
 
 	sched_proxy_exec= [KNL]
 			Enables or disables "proxy execution" style
@@ -7218,6 +7201,18 @@ Kernel parameters
 			Not specifying this option is equivalent to
 			spec_store_bypass_disable=auto.
 
+	split_llc=
+			[X86,EARLY] Split the LLC N-ways
+
+			When set, the LLC is split this many ways by matching
+			'core_id % n'. This is setup before SMP bringup and
+			used during SMP bringup before it knows the full
+			topology. If your core count doesn't nicely divide by
+			the number given, you get to keep the pieces.
+
+			This is mostly a debug feature to emulate multiple LLCs
+			on hardware that only have a single LLC.
+
 	split_lock_detect=
 			[X86] Enable split lock detection or bus lock detection
 
@@ -7396,10 +7391,10 @@ Kernel parameters
 			Set the STI (builtin display/keyboard on the HP-PARISC
 			machines) console (graphic card) which should be used
 			as the initial boot-console.
-			See also comment in drivers/video/console/sticore.c.
+			See also comment in drivers/video/sticore.c.
 
 	sti_font=	[HW]
-			See comment in drivers/video/console/sticore.c.
+			See comment in drivers/video/sticore.c.
 
 	stifb=		[HW]
 			Format: bpp:<bpp1>[:<bpp2>[:<bpp3>...]]
@@ -7869,6 +7864,22 @@ Kernel parameters
 			the trust source list starting with TPM and assigns the
 			first trust source as a backend which is initialized
 			successfully during iteration.
+
+	trusted.debug=	[KEYS]
+			Format: <bool>
+			Enable trusted keys debug traces at runtime when
+			CONFIG_TRUSTED_KEYS_DEBUG=y.
+
+			To make the traces visible after enabling the option,
+			use trusted.dyndbg='+p' as needed. By convention,
+			the subsystem uses pr_debug() for these traces.
+
+			SAFETY: The traces can leak sensitive data, so be
+			cautious before enabling this. They remain inactive
+			unless this parameter is set this option to  a true
+			value.
+
+			Default: false
 
 	trusted.rng=	[KEYS]
 			Format: <string>

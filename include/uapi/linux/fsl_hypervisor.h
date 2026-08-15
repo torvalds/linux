@@ -114,9 +114,9 @@ struct fsl_hv_ioctl_stop {
  * @target: the partition ID of the target partition, or -1 for this
  *          partition
  * @reserved: reserved, must be set to 0
- * @local_addr: user-space virtual address of a buffer in the local
+ * @local_vaddr: user-space virtual address of a buffer in the local
  *              partition
- * @remote_addr: guest physical address of a buffer in the
+ * @remote_paddr: guest physical address of a buffer in the
  *           remote partition
  * @count: the number of bytes to copy.  Both the local and remote
  *         buffers must be at least 'count' bytes long

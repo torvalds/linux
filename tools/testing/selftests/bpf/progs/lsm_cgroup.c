@@ -35,6 +35,8 @@ int called_socket_bind;
 int called_socket_bind2;
 int called_socket_alloc;
 int called_socket_clone;
+int skipcap_retval = -4095;
+int socket_retval = -4095;
 
 static __always_inline int test_local_storage(void)
 {
@@ -188,5 +190,33 @@ int BPF_PROG(socket_clone, struct sock *newsk, const struct request_sock *req)
 
 	called_socket_clone++;
 
+	return 1;
+}
+
+SEC("lsm_cgroup/inode_xattr_skipcap")
+int BPF_PROG(skipcap_first, const char *name)
+{
+	return 0;
+}
+
+SEC("lsm_cgroup/inode_xattr_skipcap")
+int BPF_PROG(skipcap_second, const char *name)
+{
+	skipcap_retval = bpf_get_retval();
+	bpf_set_retval(0);
+	return 1;
+}
+
+SEC("lsm_cgroup/socket_create")
+int BPF_PROG(socket_first, int family, int type, int protocol, int kern)
+{
+	return 0;
+}
+
+SEC("lsm_cgroup/socket_create")
+int BPF_PROG(socket_second, int family, int type, int protocol, int kern)
+{
+	socket_retval = bpf_get_retval();
+	bpf_set_retval(0);
 	return 1;
 }

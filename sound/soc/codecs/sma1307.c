@@ -1592,6 +1592,7 @@ static void sma1307_check_fault_worker(struct work_struct *work)
 	struct sma1307_priv *sma1307 =
 	    container_of(work, struct sma1307_priv, check_fault_work.work);
 	unsigned int status1_val, status2_val;
+	char volume[sizeof("VOLUME=0x12345678")];
 	char *envp[3] = { NULL, NULL, NULL };
 
 	if (sma1307->tsdw_cnt)
@@ -1607,7 +1608,7 @@ static void sma1307_check_fault_worker(struct work_struct *work)
 	if (~status1_val & SMA1307_OT1_OK_STATUS) {
 		dev_crit(sma1307->dev,
 			 "%s: OT1(Over Temperature Level 1)\n", __func__);
-		envp[0] = kasprintf(GFP_KERNEL, "STATUS=OT1");
+		envp[0] = "STATUS=OT1";
 		if (sma1307->sw_ot1_prot) {
 			/* Volume control (Current Volume -3dB) */
 			if ((sma1307->cur_vol + 6) <= 0xFA) {
@@ -1615,8 +1616,9 @@ static void sma1307_check_fault_worker(struct work_struct *work)
 				regmap_write(sma1307->regmap,
 						     SMA1307_0A_SPK_VOL,
 						     sma1307->cur_vol);
-				envp[1] = kasprintf(GFP_KERNEL,
-					"VOLUME=0x%02X", sma1307->cur_vol);
+				snprintf(volume, sizeof(volume),
+					 "VOLUME=0x%02X", sma1307->cur_vol);
+				envp[1] = volume;
 			}
 		}
 		sma1307->tsdw_cnt++;
@@ -1625,48 +1627,53 @@ static void sma1307_check_fault_worker(struct work_struct *work)
 				     SMA1307_0A_SPK_VOL, sma1307->init_vol);
 		sma1307->tsdw_cnt = 0;
 		sma1307->cur_vol = sma1307->init_vol;
-		envp[0] = kasprintf(GFP_KERNEL, "STATUS=OT1_CLEAR");
-		envp[1] = kasprintf(GFP_KERNEL,
-				"VOLUME=0x%02X", sma1307->cur_vol);
+		envp[0] = "STATUS=OT1_CLEAR";
+		snprintf(volume, sizeof(volume), "VOLUME=0x%02X",
+			 sma1307->cur_vol);
+		envp[1] = volume;
 	}
 
 	if (~status1_val & SMA1307_OT2_OK_STATUS) {
 		dev_crit(sma1307->dev,
 			 "%s: OT2(Over Temperature Level 2)\n", __func__);
-		envp[0] = kasprintf(GFP_KERNEL, "STATUS=OT2");
+		envp[0] = "STATUS=OT2";
+		envp[1] = NULL;
 	}
 	if (status1_val & SMA1307_UVLO_STATUS) {
 		dev_crit(sma1307->dev,
 			 "%s: UVLO(Under Voltage Lock Out)\n", __func__);
-		envp[0] = kasprintf(GFP_KERNEL, "STATUS=UVLO");
+		envp[0] = "STATUS=UVLO";
+		envp[1] = NULL;
 	}
 	if (status1_val & SMA1307_OVP_BST_STATUS) {
 		dev_crit(sma1307->dev,
 			 "%s: OVP_BST(Over Voltage Protection)\n", __func__);
-		envp[0] = kasprintf(GFP_KERNEL, "STATUS=OVP_BST");
+		envp[0] = "STATUS=OVP_BST";
+		envp[1] = NULL;
 	}
 	if (status2_val & SMA1307_OCP_SPK_STATUS) {
 		dev_crit(sma1307->dev,
 			 "%s: OCP_SPK(Over Current Protect SPK)\n", __func__);
-		envp[0] = kasprintf(GFP_KERNEL, "STATUS=OCP_SPK");
+		envp[0] = "STATUS=OCP_SPK";
+		envp[1] = NULL;
 	}
 	if (status2_val & SMA1307_OCP_BST_STATUS) {
 		dev_crit(sma1307->dev,
 			 "%s: OCP_BST(Over Current Protect Boost)\n", __func__);
-		envp[0] = kasprintf(GFP_KERNEL, "STATUS=OCP_BST");
+		envp[0] = "STATUS=OCP_BST";
+		envp[1] = NULL;
 	}
 	if (status2_val & SMA1307_CLK_MON_STATUS) {
 		dev_crit(sma1307->dev,
 			 "%s: CLK_FAULT(No clock input)\n", __func__);
-		envp[0] = kasprintf(GFP_KERNEL, "STATUS=CLK_FAULT");
+		envp[0] = "STATUS=CLK_FAULT";
+		envp[1] = NULL;
 	}
 
 	if (envp[0] != NULL) {
 		if (kobject_uevent_env(sma1307->kobj, KOBJ_CHANGE, envp))
 			dev_err(sma1307->dev,
 				"%s: Error sending uevent\n", __func__);
-		kfree(envp[0]);
-		kfree(envp[1]);
 	}
 
 	if (sma1307->check_fault_status) {
@@ -2008,8 +2015,8 @@ static void sma1307_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id sma1307_i2c_id[] = {
-	{ "sma1307a" },
-	{ "sma1307aq" },
+	{ .name = "sma1307a" },
+	{ .name = "sma1307aq" },
 	{ }
 };
 

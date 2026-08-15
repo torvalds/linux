@@ -124,20 +124,28 @@ void cdnsp_set_link_state(struct cdnsp_device *pdev,
 }
 
 static void cdnsp_disable_port(struct cdnsp_device *pdev,
-			       __le32 __iomem *port_regs)
+			       struct cdnsp_port *port)
 {
-	u32 temp = cdnsp_port_state_to_neutral(readl(port_regs));
+	u32 temp;
 
-	writel(temp | PORT_PED, port_regs);
+	if (!port->exist)
+		return;
+
+	temp = cdnsp_port_state_to_neutral(readl(&port->regs->portsc));
+	writel(temp | PORT_PED, &port->regs->portsc);
 }
 
 static void cdnsp_clear_port_change_bit(struct cdnsp_device *pdev,
-					__le32 __iomem *port_regs)
+					struct cdnsp_port *port)
 {
-	u32 portsc = readl(port_regs);
+	u32 portsc;
 
+	if (!port->exist)
+		return;
+
+	portsc = readl(&port->regs->portsc);
 	writel(cdnsp_port_state_to_neutral(portsc) |
-	       (portsc & PORT_CHANGE_BITS), port_regs);
+	       (portsc & PORT_CHANGE_BITS), &port->regs->portsc);
 }
 
 static void cdnsp_set_apb_timeout_value(struct cdnsp_device *pdev)
@@ -944,7 +952,7 @@ void cdnsp_set_usb2_hardware_lpm(struct cdnsp_device *pdev,
 				 struct usb_request *req,
 				 int enable)
 {
-	if (pdev->active_port != &pdev->usb2_port || !pdev->gadget.lpm_capable)
+	if (pdev->active_port == &pdev->usb3_port || !pdev->gadget.lpm_capable)
 		return;
 
 	trace_cdnsp_lpm(enable);
@@ -1310,20 +1318,26 @@ static int cdnsp_run(struct cdnsp_device *pdev,
 		break;
 	}
 
-	if (speed >= USB_SPEED_SUPER) {
+	if (pdev->usb3_port.exist && speed >= USB_SPEED_SUPER) {
 		writel(temp, &pdev->port3x_regs->mode_addr);
 		cdnsp_set_link_state(pdev, &pdev->usb3_port.regs->portsc,
 				     XDEV_RXDETECT);
 	} else {
-		cdnsp_disable_port(pdev, &pdev->usb3_port.regs->portsc);
+		cdnsp_disable_port(pdev, &pdev->usb3_port);
 	}
 
-	cdnsp_set_link_state(pdev, &pdev->usb2_port.regs->portsc,
-			     XDEV_RXDETECT);
+	if (pdev->usb2_port.exist) {
+		cdnsp_set_link_state(pdev, &pdev->usb2_port.regs->portsc,
+				     XDEV_RXDETECT);
+		writel(PORT_REG6_L1_L0_HW_EN | fs_speed, &pdev->port20_regs->port_reg6);
+	}
+
+	if (pdev->eusb_port.exist)
+		cdnsp_set_link_state(pdev, &pdev->eusb_port.regs->portsc,
+				     XDEV_RXDETECT);
 
 	cdnsp_gadget_ep0_desc.wMaxPacketSize = cpu_to_le16(512);
 
-	writel(PORT_REG6_L1_L0_HW_EN | fs_speed, &pdev->port20_regs->port_reg6);
 
 	ret = cdnsp_start(pdev);
 	if (ret) {
@@ -1469,8 +1483,10 @@ static void cdnsp_stop(struct cdnsp_device *pdev)
 			cdnsp_ep_dequeue(&pdev->eps[0], req);
 	}
 
-	cdnsp_disable_port(pdev, &pdev->usb2_port.regs->portsc);
-	cdnsp_disable_port(pdev, &pdev->usb3_port.regs->portsc);
+	cdnsp_disable_port(pdev, &pdev->usb2_port);
+	cdnsp_disable_port(pdev, &pdev->usb3_port);
+	cdnsp_disable_port(pdev, &pdev->eusb_port);
+
 	cdnsp_disable_slot(pdev);
 	cdnsp_halt(pdev);
 
@@ -1479,8 +1495,9 @@ static void cdnsp_stop(struct cdnsp_device *pdev)
 	temp = readl(&pdev->ir_set->irq_pending);
 	writel(IMAN_IE_CLEAR(temp), &pdev->ir_set->irq_pending);
 
-	cdnsp_clear_port_change_bit(pdev, &pdev->usb2_port.regs->portsc);
-	cdnsp_clear_port_change_bit(pdev, &pdev->usb3_port.regs->portsc);
+	cdnsp_clear_port_change_bit(pdev, &pdev->usb2_port);
+	cdnsp_clear_port_change_bit(pdev, &pdev->eusb_port);
+	cdnsp_clear_port_change_bit(pdev, &pdev->usb3_port);
 
 	/* Clear interrupt line */
 	temp = readl(&pdev->ir_set->irq_pending);
@@ -2075,3 +2092,4 @@ int cdnsp_gadget_init(struct cdns *cdns)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cdnsp_gadget_init);

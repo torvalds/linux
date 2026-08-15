@@ -8,7 +8,7 @@
 #include <linux/wmi.h>
 #include "dell-wmi-sysman.h"
 
-static int call_password_interface(struct wmi_device *wdev, char *in_args, size_t size)
+static int call_password_interface(struct wmi_device *wdev, u8 *in_args, size_t size)
 {
 	struct acpi_buffer output = {ACPI_ALLOCATE_BUFFER, NULL};
 	struct acpi_buffer input;
@@ -42,7 +42,7 @@ int set_new_password(const char *password_type, const char *new)
 {
 	size_t password_type_size, current_password_size, new_size;
 	size_t security_area_size, buffer_size;
-	char *buffer = NULL, *start;
+	u8 *buffer = NULL, *start;
 	char *current_password;
 	int ret;
 

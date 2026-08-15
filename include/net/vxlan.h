@@ -185,7 +185,8 @@ struct vxlan_metadata {
 /* per UDP socket information */
 struct vxlan_sock {
 	struct hlist_node hlist;
-	struct socket	 *sock;
+	struct sock	  *sk;
+	struct rcu_head	  rcu;
 	struct hlist_head vni_list[VNI_HASH_SIZE];
 	refcount_t	  refcnt;
 	u32		  flags;
@@ -448,7 +449,7 @@ static inline __be32 vxlan_compute_rco(unsigned int start, unsigned int offset)
 
 static inline unsigned short vxlan_get_sk_family(struct vxlan_sock *vs)
 {
-	return vs->sock->sk->sk_family;
+	return vs->sk->sk_family;
 }
 
 #if IS_ENABLED(CONFIG_IPV6)

@@ -289,6 +289,9 @@ static int _kstrtoull(const char *s, unsigned int base, unsigned long long *res)
 	unsigned long long _res;
 	unsigned int rv;
 
+	if (s[0] == '+')
+		s++;
+
 	s = _parse_integer_fixup_radix(s, &base);
 	rv = _parse_integer(s, base, &_res);
 	if (rv & KSTRTOX_OVERFLOW)
@@ -304,35 +307,12 @@ static int _kstrtoull(const char *s, unsigned int base, unsigned long long *res)
 	return 0;
 }
 
-/**
- * kstrtoull - convert a string to an unsigned long long
- * @s: The start of the string. The string must be null-terminated, and may also
- *  include a single newline before its terminating null. The first character
- *  may also be a plus sign, but not a minus sign.
- * @base: The number base to use. The maximum supported base is 16. If base is
- *  given as 0, then the base of the string is automatically detected with the
- *  conventional semantics - If it begins with 0x the number will be parsed as a
- *  hexadecimal (case insensitive), if it otherwise begins with 0, it will be
- *  parsed as an octal number. Otherwise it will be parsed as a decimal.
- * @res: Where to write the result of the conversion on success.
- *
- * Returns 0 on success, -ERANGE on overflow and -EINVAL on parsing error.
- * Used as a replacement for the obsolete simple_strtoull. Return code must
- * be checked.
- */
-int kstrtoull(const char *s, unsigned int base, unsigned long long *res)
-{
-	if (s[0] == '+')
-		s++;
-	return _kstrtoull(s, base, res);
-}
-
 static int _kstrtoul(const char *s, unsigned int base, unsigned long *res)
 {
 	unsigned long long tmp;
 	int rv;
 
-	rv = kstrtoull(s, base, &tmp);
+	rv = _kstrtoull(s, base, &tmp);
 	if (rv < 0)
 		return rv;
 	if (tmp != (unsigned long)tmp)
@@ -364,7 +344,7 @@ int boot_kstrtoul(const char *s, unsigned int base, unsigned long *res)
 	 */
 	if (sizeof(unsigned long) == sizeof(unsigned long long) &&
 	    __alignof__(unsigned long) == __alignof__(unsigned long long))
-		return kstrtoull(s, base, (unsigned long long *)res);
+		return _kstrtoull(s, base, (unsigned long long *)res);
 	else
 		return _kstrtoul(s, base, res);
 }

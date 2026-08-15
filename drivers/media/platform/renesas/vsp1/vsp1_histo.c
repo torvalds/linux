@@ -35,20 +35,18 @@ to_vsp1_histogram_buffer(struct vb2_v4l2_buffer *vbuf)
 struct vsp1_histogram_buffer *
 vsp1_histogram_buffer_get(struct vsp1_histogram *histo)
 {
-	struct vsp1_histogram_buffer *buf = NULL;
+	struct vsp1_histogram_buffer *buf;
 
-	spin_lock(&histo->irqlock);
+	guard(spinlock)(&histo->irqlock);
 
 	if (list_empty(&histo->irqqueue))
-		goto done;
+		return NULL;
 
 	buf = list_first_entry(&histo->irqqueue, struct vsp1_histogram_buffer,
 			       queue);
 	list_del(&buf->queue);
 	histo->readout = true;
 
-done:
-	spin_unlock(&histo->irqlock);
 	return buf;
 }
 
@@ -68,10 +66,10 @@ void vsp1_histogram_buffer_complete(struct vsp1_histogram *histo,
 	vb2_set_plane_payload(&buf->buf.vb2_buf, 0, size);
 	vb2_buffer_done(&buf->buf.vb2_buf, VB2_BUF_STATE_DONE);
 
-	spin_lock(&histo->irqlock);
+	guard(spinlock)(&histo->irqlock);
+
 	histo->readout = false;
 	wake_up(&histo->wait_queue);
-	spin_unlock(&histo->irqlock);
 }
 
 /* -----------------------------------------------------------------------------
@@ -123,9 +121,9 @@ static void histo_buffer_queue(struct vb2_buffer *vb)
 	struct vsp1_histogram *histo = vb2_get_drv_priv(vb->vb2_queue);
 	struct vsp1_histogram_buffer *buf = to_vsp1_histogram_buffer(vbuf);
 
-	spin_lock_irq(&histo->irqlock);
+	guard(spinlock_irq)(&histo->irqlock);
+
 	list_add_tail(&buf->queue, &histo->irqqueue);
-	spin_unlock_irq(&histo->irqlock);
 }
 
 static int histo_start_streaming(struct vb2_queue *vq, unsigned int count)
@@ -138,7 +136,7 @@ static void histo_stop_streaming(struct vb2_queue *vq)
 	struct vsp1_histogram *histo = vb2_get_drv_priv(vq);
 	struct vsp1_histogram_buffer *buffer;
 
-	spin_lock_irq(&histo->irqlock);
+	guard(spinlock_irq)(&histo->irqlock);
 
 	/* Remove all buffers from the IRQ queue. */
 	list_for_each_entry(buffer, &histo->irqqueue, queue)
@@ -147,8 +145,6 @@ static void histo_stop_streaming(struct vb2_queue *vq)
 
 	/* Wait for the buffer being read out (if any) to complete. */
 	wait_event_lock_irq(histo->wait_queue, !histo->readout, histo->irqlock);
-
-	spin_unlock_irq(&histo->irqlock);
 }
 
 static const struct vb2_ops histo_video_queue_qops = {
@@ -196,18 +192,15 @@ static int histo_get_selection(struct v4l2_subdev *subdev,
 	struct v4l2_subdev_state *state;
 	struct v4l2_mbus_framefmt *format;
 	struct v4l2_rect *crop;
-	int ret = 0;
 
 	if (sel->pad != HISTO_PAD_SINK)
 		return -EINVAL;
 
-	mutex_lock(&histo->entity.lock);
+	guard(mutex)(&histo->entity.lock);
 
 	state = vsp1_entity_get_state(&histo->entity, sd_state, sel->which);
-	if (!state) {
-		ret = -EINVAL;
-		goto done;
-	}
+	if (!state)
+		return -EINVAL;
 
 	switch (sel->target) {
 	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
@@ -237,13 +230,10 @@ static int histo_get_selection(struct v4l2_subdev *subdev,
 		break;
 
 	default:
-		ret = -EINVAL;
-		break;
+		return -EINVAL;
 	}
 
-done:
-	mutex_unlock(&histo->entity.lock);
-	return ret;
+	return 0;
 }
 
 static int histo_set_crop(struct v4l2_subdev *subdev,
@@ -321,29 +311,22 @@ static int histo_set_selection(struct v4l2_subdev *subdev,
 {
 	struct vsp1_histogram *histo = subdev_to_histo(subdev);
 	struct v4l2_subdev_state *state;
-	int ret;
 
 	if (sel->pad != HISTO_PAD_SINK)
 		return -EINVAL;
 
-	mutex_lock(&histo->entity.lock);
+	guard(mutex)(&histo->entity.lock);
 
 	state = vsp1_entity_get_state(&histo->entity, sd_state, sel->which);
-	if (!state) {
-		ret = -EINVAL;
-		goto done;
-	}
+	if (!state)
+		return -EINVAL;
 
 	if (sel->target == V4L2_SEL_TGT_CROP)
-		ret = histo_set_crop(subdev, state, sel);
+		return histo_set_crop(subdev, state, sel);
 	else if (sel->target == V4L2_SEL_TGT_COMPOSE)
-		ret = histo_set_compose(subdev, state, sel);
+		return histo_set_compose(subdev, state, sel);
 	else
-		ret = -EINVAL;
-
-done:
-	mutex_unlock(&histo->entity.lock);
-	return ret;
+		return -EINVAL;
 }
 
 static int histo_set_format(struct v4l2_subdev *subdev,

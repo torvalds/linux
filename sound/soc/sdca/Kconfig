@@ -2,7 +2,7 @@
 menu "SoundWire (SDCA)"
 
 config SND_SOC_SDCA
-	tristate
+	tristate "SDCA core support"
 	depends on ACPI
 	select AUXILIARY_BUS
 	help

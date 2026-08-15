@@ -704,44 +704,6 @@ zl3073x_ref_freq_meas_update(struct zl3073x_dev *zldev)
 	return 0;
 }
 
-/**
- * zl3073x_ref_ffo_update - update reference fractional frequency offsets
- * @zldev: pointer to zl3073x_dev structure
- *
- * The function asks device to latch the latest measured fractional
- * frequency offset values, reads and stores them into the ref state.
- *
- * Return: 0 on success, <0 on error
- */
-static int
-zl3073x_ref_ffo_update(struct zl3073x_dev *zldev)
-{
-	int i, rc;
-
-	rc = zl3073x_ref_freq_meas_latch(zldev,
-					 ZL_REF_FREQ_MEAS_CTRL_REF_FREQ_OFF);
-	if (rc)
-		return rc;
-
-	/* Read DPLL-to-REFx frequency offset measurements */
-	for (i = 0; i < ZL3073X_NUM_REFS; i++) {
-		s32 value;
-
-		/* Read value stored in units of 2^-32 signed */
-		rc = zl3073x_read_u32(zldev, ZL_REG_REF_FREQ(i), &value);
-		if (rc)
-			return rc;
-
-		/* Convert to ppt
-		 * ffo = (10^12 * value) / 2^32
-		 * ffo = ( 5^12 * value) / 2^20
-		 */
-		zldev->ref[i].ffo = mul_s64_u64_shr(value, 244140625, 20);
-	}
-
-	return 0;
-}
-
 static void
 zl3073x_dev_periodic_work(struct kthread_work *work)
 {
@@ -772,13 +734,6 @@ zl3073x_dev_periodic_work(struct kthread_work *work)
 				 "Failed to update measured frequencies: %pe\n",
 				 ERR_PTR(rc));
 	}
-
-	/* Update references' fractional frequency offsets */
-	rc = zl3073x_ref_ffo_update(zldev);
-	if (rc)
-		dev_warn(zldev->dev,
-			 "Failed to update fractional frequency offsets: %pe\n",
-			 ERR_PTR(rc));
 
 	list_for_each_entry(zldpll, &zldev->dplls, list)
 		zl3073x_dpll_changes_check(zldpll);

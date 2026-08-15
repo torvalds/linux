@@ -2780,7 +2780,7 @@ invalid_mapping:
 		error = -EFSCORRUPTED;
 		if (xfs_error_level >= XFS_ERRLEVEL_LOW) {
 			xfs_alert(mp, "%s: bno %u inode %llu",
-					__func__, bno, dp->i_ino);
+					__func__, bno, I_INO(dp));
 
 			for (i = 0; i < nirecs; i++) {
 				xfs_alert(mp,

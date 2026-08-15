@@ -6,9 +6,6 @@
 #ifndef _EFA_ADMIN_CMDS_H_
 #define _EFA_ADMIN_CMDS_H_
 
-#define EFA_ADMIN_API_VERSION_MAJOR          0
-#define EFA_ADMIN_API_VERSION_MINOR          1
-
 /* EFA admin queue opcodes */
 enum efa_admin_aq_opcode {
 	EFA_ADMIN_CREATE_QP                         = 1,

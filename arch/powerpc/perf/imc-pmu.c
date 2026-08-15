@@ -421,7 +421,6 @@ static int ppc_nest_imc_cpu_offline(unsigned int cpu)
 static int ppc_nest_imc_cpu_online(unsigned int cpu)
 {
 	const struct cpumask *l_cpumask;
-	static struct cpumask tmp_mask;
 	int res;
 
 	/* Get the cpumask of this node */
@@ -431,7 +430,7 @@ static int ppc_nest_imc_cpu_online(unsigned int cpu)
 	 * If this is not the first online CPU on this node, then
 	 * just return.
 	 */
-	if (cpumask_and(&tmp_mask, l_cpumask, &nest_imc_cpumask))
+	if (cpumask_intersects(l_cpumask, &nest_imc_cpumask))
 		return 0;
 
 	/*
@@ -647,14 +646,13 @@ static bool is_core_imc_mem_inited(int cpu)
 static int ppc_core_imc_cpu_online(unsigned int cpu)
 {
 	const struct cpumask *l_cpumask;
-	static struct cpumask tmp_mask;
 	int ret = 0;
 
 	/* Get the cpumask for this core */
 	l_cpumask = cpu_sibling_mask(cpu);
 
 	/* If a cpu for this core is already set, then, don't do anything */
-	if (cpumask_and(&tmp_mask, l_cpumask, &core_imc_cpumask))
+	if (cpumask_intersects(l_cpumask, &core_imc_cpumask))
 		return 0;
 
 	if (!is_core_imc_mem_inited(cpu)) {

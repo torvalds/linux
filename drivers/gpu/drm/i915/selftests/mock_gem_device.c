@@ -277,6 +277,7 @@ void mock_destroy_device(struct drm_i915_private *i915)
 	struct device *dev = i915->drm.dev;
 
 	intel_display_device_remove(i915->display);
+	i915->display = NULL;
 
 	devres_release_group(dev, NULL);
 	put_device(dev);

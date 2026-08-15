@@ -16,15 +16,6 @@ config IIO_HRTIMER_TRIGGER
 	  To compile this driver as a module, choose M here: the
 	  module will be called iio-trig-hrtimer.
 
-config IIO_INTERRUPT_TRIGGER
-	tristate "Generic interrupt trigger"
-	help
-	  Provides support for using an interrupt of any type as an IIO
-	  trigger.  This may be provided by a gpio driver for example.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called iio-trig-interrupt.
-
 config IIO_STM32_LPTIMER_TRIGGER
 	tristate "STM32 Low-Power Timer Trigger"
 	depends on MFD_STM32_LPTIMER || COMPILE_TEST

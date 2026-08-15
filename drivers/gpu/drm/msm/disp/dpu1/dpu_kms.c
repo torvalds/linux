@@ -331,7 +331,7 @@ dpu_kms_get_existing_global_state(struct dpu_kms *dpu_kms)
  * This acquires the modeset lock set aside for global state, creates
  * a new duplicated private object state.
  */
-struct dpu_global_state *dpu_kms_get_global_state(struct drm_atomic_state *s)
+struct dpu_global_state *dpu_kms_get_global_state(struct drm_atomic_commit *s)
 {
 	struct msm_drm_private *priv = s->dev->dev_private;
 	struct dpu_kms *dpu_kms = to_dpu_kms(priv->kms);
@@ -449,7 +449,7 @@ static void dpu_kms_disable_commit(struct msm_kms *kms)
 	pm_runtime_put_sync(&dpu_kms->pdev->dev);
 }
 
-static int dpu_kms_check_mode_changed(struct msm_kms *kms, struct drm_atomic_state *state)
+static int dpu_kms_check_mode_changed(struct msm_kms *kms, struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *new_crtc_state;
 	struct drm_crtc_state *old_crtc_state;
@@ -1483,6 +1483,7 @@ static const struct of_device_id dpu_dt_match[] = {
 	{ .compatible = "qcom,eliza-dpu", .data = &dpu_eliza_cfg, },
 	{ .compatible = "qcom,glymur-dpu", .data = &dpu_glymur_cfg, },
 	{ .compatible = "qcom,kaanapali-dpu", .data = &dpu_kaanapali_cfg, },
+	{ .compatible = "qcom,milos-dpu", .data = &dpu_milos_cfg, },
 	{ .compatible = "qcom,msm8917-mdp5", .data = &dpu_msm8917_cfg, },
 	{ .compatible = "qcom,msm8937-mdp5", .data = &dpu_msm8937_cfg, },
 	{ .compatible = "qcom,msm8953-mdp5", .data = &dpu_msm8953_cfg, },

@@ -112,6 +112,8 @@ properties:
           - renesas,r9a07g043-mtu3  # RZ/{G2UL,Five}
           - renesas,r9a07g044-mtu3  # RZ/G2{L,LC}
           - renesas,r9a07g054-mtu3  # RZ/V2L
+          - renesas,r9a09g077-mtu3  # RZ/T2H
+          - renesas,r9a09g087-mtu3  # RZ/N2H
       - const: renesas,rz-mtu3
 
   reg:
@@ -162,7 +164,6 @@ properties:
       - description: MTU8.TGRC input capture/compare match
       - description: MTU8.TGRD input capture/compare match
       - description: MTU8.TCNT overflow
-      - description: MTU8.TCNT underflow
 
   interrupt-names:
     items:
@@ -209,7 +210,6 @@ properties:
       - const: tgic8
       - const: tgid8
       - const: tciv8
-      - const: tciu8
 
   clocks:
     maxItems: 1
@@ -233,7 +233,22 @@ required:
   - interrupt-names
   - clocks
   - power-domains
-  - resets
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - renesas,r9a07g043-mtu3
+              - renesas,r9a07g044-mtu3
+              - renesas,r9a07g054-mtu3
+    then:
+      required:
+        - resets
+    else:
+      properties:
+        resets: false
 
 additionalProperties: false
 
@@ -287,8 +302,7 @@ examples:
                    <GIC_SPI 209 IRQ_TYPE_EDGE_RISING>,
                    <GIC_SPI 210 IRQ_TYPE_EDGE_RISING>,
                    <GIC_SPI 211 IRQ_TYPE_EDGE_RISING>,
-                   <GIC_SPI 212 IRQ_TYPE_EDGE_RISING>,
-                   <GIC_SPI 213 IRQ_TYPE_EDGE_RISING>;
+                   <GIC_SPI 212 IRQ_TYPE_EDGE_RISING>;
       interrupt-names = "tgia0", "tgib0", "tgic0", "tgid0", "tciv0", "tgie0",
                         "tgif0",
                         "tgia1", "tgib1", "tciv1", "tciu1",
@@ -298,7 +312,7 @@ examples:
                         "tgiu5", "tgiv5", "tgiw5",
                         "tgia6", "tgib6", "tgic6", "tgid6", "tciv6",
                         "tgia7", "tgib7", "tgic7", "tgid7", "tciv7",
-                        "tgia8", "tgib8", "tgic8", "tgid8", "tciv8", "tciu8";
+                        "tgia8", "tgib8", "tgic8", "tgid8", "tciv8";
       clocks = <&cpg CPG_MOD R9A07G044_MTU_X_MCK_MTU3>;
       power-domains = <&cpg>;
       resets = <&cpg R9A07G044_MTU_X_PRESET_MTU3>;

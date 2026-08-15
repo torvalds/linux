@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * llc_c_ac.c - actions performed during connection state transition.
  *
@@ -9,13 +10,6 @@
  *
  * Copyright (c) 1997 by Procom Technology, Inc.
  * 		 2001-2003 by Arnaldo Carvalho de Melo <acme@conectiva.com.br>
- *
- * This program can be redistributed or modified under the terms of the
- * GNU General Public License as published by the Free Software Foundation.
- * This program is distributed without any warranty or implied warranty
- * of merchantability or fitness for a particular purpose.
- *
- * See the GNU General Public License for more details.
  */
 #include <linux/netdevice.h>
 #include <linux/slab.h>
@@ -1005,8 +999,8 @@ static int llc_conn_ac_inc_npta_value(struct sock *sk, struct sk_buff *skb)
 		llc->dec_step = 0;
 		llc->dec_cntr = llc->inc_cntr = 2;
 		++llc->npta;
-		if (llc->npta > (u8) ~LLC_2_SEQ_NBR_MODULO)
-			llc->npta = (u8) ~LLC_2_SEQ_NBR_MODULO;
+		if (llc->npta > LLC_2_SEQ_NBR_MODULO - 1)
+			llc->npta = LLC_2_SEQ_NBR_MODULO - 1;
 	} else
 		--llc->inc_cntr;
 	return 0;
@@ -1096,8 +1090,8 @@ int llc_conn_ac_inc_tx_win_size(struct sock *sk, struct sk_buff *skb)
 	struct llc_sock *llc = llc_sk(sk);
 
 	llc->k += 1;
-	if (llc->k > (u8) ~LLC_2_SEQ_NBR_MODULO)
-		llc->k = (u8) ~LLC_2_SEQ_NBR_MODULO;
+	if (llc->k > LLC_2_SEQ_NBR_MODULO - 1)
+		llc->k = LLC_2_SEQ_NBR_MODULO - 1;
 	return 0;
 }
 

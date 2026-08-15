@@ -279,6 +279,13 @@ xprt_rdma_destroy(struct rpc_xprt *xprt)
 	cancel_delayed_work_sync(&r_xprt->rx_connect_worker);
 
 	rpcrdma_xprt_disconnect(r_xprt);
+
+	/* The disconnect's sendctx drain can return bc_prealloc reqs
+	 * to bc_pa_list after xprt_destroy_backchannel() emptied it.
+	 */
+#if defined(CONFIG_SUNRPC_BACKCHANNEL)
+	xprt_rdma_bc_destroy(xprt, 0);
+#endif
 	rpcrdma_buffer_destroy(&r_xprt->rx_buf);
 
 	xprt_rdma_free_addresses(xprt);
@@ -484,7 +491,52 @@ xprt_rdma_connect(struct rpc_xprt *xprt, struct rpc_task *task)
 		xprt_reconnect_backoff(xprt, RPCRDMA_INIT_REEST_TO);
 	}
 	trace_xprtrdma_op_connect(r_xprt, delay);
-	queue_delayed_work(system_long_wq, &r_xprt->rx_connect_worker, delay);
+	queue_delayed_work(system_dfl_long_wq, &r_xprt->rx_connect_worker,
+			   delay);
+}
+
+/* rl_kref has two owners while a Send is outstanding: the rpc_rqst
+ * owner and the sendctx. Replies complete the RPC but do not drop
+ * either reference. The req returns to its free pool only after
+ * xprt_rdma_free_slot() or xprt_rdma_bc_free_rqst() has dropped the
+ * RPC-layer reference and rpcrdma_sendctx_unmap() has dropped the
+ * Send-side reference.
+ */
+static void rpcrdma_req_release(struct kref *kref)
+{
+	struct rpcrdma_req *req =
+		container_of(kref, struct rpcrdma_req, rl_kref);
+	struct rpc_rqst *rqst = &req->rl_slot;
+	struct rpc_xprt *xprt = rqst->rq_xprt;
+	struct rpcrdma_xprt *r_xprt;
+
+	/* I4: both the RPC-layer and Send-side owners have dropped,
+	 * so rpcrdma_sendctx_unmap() has cleared rl_sendctx.
+	 */
+	WARN_ON_ONCE(req->rl_sendctx);
+
+	kref_init(&req->rl_kref);
+
+#if defined(CONFIG_SUNRPC_BACKCHANNEL)
+	if (bc_prealloc(rqst)) {
+		spin_lock(&xprt->bc_pa_lock);
+		list_add_tail(&rqst->rq_bc_pa_list, &xprt->bc_pa_list);
+		spin_unlock(&xprt->bc_pa_lock);
+		return;
+	}
+#endif
+
+	if (xprt_wake_up_backlog(xprt, rqst))
+		return;
+
+	r_xprt = rpcx_to_rdmax(xprt);
+	memset(rqst, 0, sizeof(*rqst));
+	rpcrdma_buffer_put(&r_xprt->rx_buf, req);
+}
+
+void rpcrdma_req_put(struct rpcrdma_req *req)
+{
+	kref_put(&req->rl_kref, rpcrdma_req_release);
 }
 
 /**
@@ -505,6 +557,7 @@ xprt_rdma_alloc_slot(struct rpc_xprt *xprt, struct rpc_task *task)
 	req = rpcrdma_buffer_get(&r_xprt->rx_buf);
 	if (!req)
 		goto out_sleep;
+	kref_init(&req->rl_kref);
 	task->tk_rqstp = &req->rl_slot;
 	task->tk_status = 0;
 	return;
@@ -520,6 +573,7 @@ out_sleep:
 	if (req) {
 		struct rpc_rqst *rqst = &req->rl_slot;
 
+		kref_init(&req->rl_kref);
 		if (!xprt_wake_up_backlog(xprt, rqst)) {
 			memset(rqst, 0, sizeof(*rqst));
 			rpcrdma_buffer_put(&r_xprt->rx_buf, req);
@@ -540,10 +594,7 @@ xprt_rdma_free_slot(struct rpc_xprt *xprt, struct rpc_rqst *rqst)
 		container_of(xprt, struct rpcrdma_xprt, rx_xprt);
 
 	rpcrdma_reply_put(&r_xprt->rx_buf, rpcr_to_rdmar(rqst));
-	if (!xprt_wake_up_backlog(xprt, rqst)) {
-		memset(rqst, 0, sizeof(*rqst));
-		rpcrdma_buffer_put(&r_xprt->rx_buf, rpcr_to_rdmar(rqst));
-	}
+	rpcrdma_req_put(rpcr_to_rdmar(rqst));
 }
 
 static bool rpcrdma_check_regbuf(struct rpcrdma_xprt *r_xprt,
@@ -607,10 +658,10 @@ xprt_rdma_free(struct rpc_task *task)
 		frwr_unmap_sync(rpcx_to_rdmax(rqst->rq_xprt), req);
 	}
 
-	/* XXX: If the RPC is completing because of a signal and
-	 * not because a reply was received, we ought to ensure
-	 * that the Send completion has fired, so that memory
-	 * involved with the Send is not still visible to the NIC.
+	/* The Send-side rl_kref owner keeps req out of its free pool
+	 * until rpcrdma_sendctx_unmap() has fired -- see I4 above
+	 * rpcrdma_reply_handler() -- so signal-driven release here
+	 * does not let the HCA touch a recycled send buffer.
 	 */
 }
 
@@ -716,7 +767,7 @@ void xprt_rdma_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
 		   r_xprt->rx_stats.mrs_allocated,
 		   r_xprt->rx_stats.local_inv_needed,
 		   r_xprt->rx_stats.empty_sendctx_q,
-		   r_xprt->rx_stats.reply_waits_for_send);
+		   0LU); /* was reply_waits_for_send; column preserved */
 }
 
 static int

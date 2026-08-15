@@ -142,17 +142,6 @@ static void swap_two_test_pages(gpa_t pte_gva1, gpa_t pte_gva2)
 }
 
 /*
- * TODO: replace the silly NOP loop with a proper udelay() implementation.
- */
-static inline void do_delay(void)
-{
-	int i;
-
-	for (i = 0; i < 1000000; i++)
-		asm volatile("nop");
-}
-
-/*
  * Prepare to test: 'disable' workers by setting the expectation to '0',
  * clear hypercall input page and then swap two test pages.
  */
@@ -169,7 +158,7 @@ static inline void prepare_to_test(struct test_data *data)
 	wmb();
 
 	/* Make sure workers have enough time to notice */
-	do_delay();
+	udelay(100);
 
 	/* Swap test page mappings */
 	swap_two_test_pages(data->test_pages_pte[0], data->test_pages_pte[1]);
@@ -189,7 +178,7 @@ static inline void post_test(struct test_data *data, u64 exp1, u64 exp2)
 	set_expected_val((void *)data->test_pages, exp2, WORKER_VCPU_ID_2);
 
 	/* Make sure workers have enough time to test */
-	do_delay();
+	udelay(100);
 }
 
 #define TESTVAL1 0x0101010101010101

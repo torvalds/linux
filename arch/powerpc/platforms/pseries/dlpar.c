@@ -14,6 +14,7 @@
 #include <linux/spinlock.h>
 #include <linux/cpu.h>
 #include <linux/slab.h>
+#include <linux/sysfs.h>
 #include <linux/of.h>
 
 #include "of_helpers.h"
@@ -798,7 +799,7 @@ dlpar_store_out:
 static ssize_t dlpar_show(const struct class *class, const struct class_attribute *attr,
 			  char *buf)
 {
-	return sprintf(buf, "%s\n", "memory,cpu,dt");
+	return sysfs_emit(buf, "%s\n", "memory,cpu,dt");
 }
 
 static CLASS_ATTR_RW(dlpar);

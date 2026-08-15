@@ -7,4 +7,4 @@ TEST_GEN_PROGS := pointer_masking
 include ../../lib.mk
 
 $(OUTPUT)/pointer_masking: pointer_masking.c
-	$(CC) -static -o$@ $(CFLAGS) $(LDFLAGS) $^
+	$(CC) -static -o $@ $(CFLAGS) $(LDFLAGS) $^

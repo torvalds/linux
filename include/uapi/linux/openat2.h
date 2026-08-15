@@ -22,6 +22,13 @@ struct open_how {
 	__u64 resolve;
 };
 
+/*
+ * how->flags bits exclusive to openat2(2). These live in the upper 32 bits
+ * of @flags so that they cannot be expressed by open(2) / openat(2), whose
+ * @flags argument is a C int.
+ */
+#define OPENAT2_REGULAR		((__u64)1 << 32) /* Only open regular files. */
+
 /* how->resolve flags for openat2(2). */
 #define RESOLVE_NO_XDEV		0x01 /* Block mount-point crossings
 					(includes bind-mounts). */

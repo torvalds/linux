@@ -132,7 +132,7 @@ DECLARE_EVENT_CLASS(xfs_attr_list_class,
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(ctx->dp)->i_sb->s_dev;
-		__entry->ino = ctx->dp->i_ino;
+		__entry->ino = I_INO(ctx->dp);
 		__entry->hashval = ctx->cursor.hashval;
 		__entry->blkno = ctx->cursor.blkno;
 		__entry->offset = ctx->cursor.offset;
@@ -634,7 +634,7 @@ TRACE_EVENT(xfs_attr_list_node_descend,
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(ctx->dp)->i_sb->s_dev;
-		__entry->ino = ctx->dp->i_ino;
+		__entry->ino = I_INO(ctx->dp);
 		__entry->hashval = ctx->cursor.hashval;
 		__entry->blkno = ctx->cursor.blkno;
 		__entry->offset = ctx->cursor.offset;
@@ -688,7 +688,7 @@ DECLARE_EVENT_CLASS(xfs_bmap_class,
 		ifp = xfs_iext_state_to_fork(ip, state);
 		xfs_iext_get_extent(ifp, cur, &r);
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
-		__entry->ino = ip->i_ino;
+		__entry->ino = I_INO(ip);
 		__entry->leaf = cur->leaf;
 		__entry->pos = cur->pos;
 		__entry->startoff = r.br_startoff;
@@ -1021,7 +1021,7 @@ DECLARE_EVENT_CLASS(xfs_lock_class,
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
-		__entry->ino = ip->i_ino;
+		__entry->ino = I_INO(ip);
 		__entry->lock_flags = lock_flags;
 		__entry->caller_ip = caller_ip;
 	),
@@ -1052,7 +1052,7 @@ DECLARE_EVENT_CLASS(xfs_inode_class,
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
-		__entry->ino = ip->i_ino;
+		__entry->ino = I_INO(ip);
 		__entry->iflags = ip->i_flags;
 	),
 	TP_printk("dev %d:%d ino 0x%llx iflags 0x%lx",
@@ -1128,7 +1128,7 @@ DECLARE_EVENT_CLASS(xfs_fault_class,
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
-		__entry->ino = ip->i_ino;
+		__entry->ino = I_INO(ip);
 		__entry->order = order;
 	),
 	TP_printk("dev %d:%d ino 0x%llx order %u",
@@ -1157,8 +1157,8 @@ DECLARE_EVENT_CLASS(xfs_iref_class,
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
-		__entry->ino = ip->i_ino;
-		__entry->count = icount_read(VFS_I(ip));
+		__entry->ino = I_INO(ip);
+		__entry->count = icount_read_once(VFS_I(ip));
 		__entry->pincount = atomic_read(&ip->i_pincount);
 		__entry->iflags = ip->i_flags;
 		__entry->caller_ip = caller_ip;
@@ -1185,7 +1185,7 @@ TRACE_EVENT(xfs_iomap_prealloc_size,
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
-		__entry->ino = ip->i_ino;
+		__entry->ino = I_INO(ip);
 		__entry->blocks = blocks;
 		__entry->shift = shift;
 		__entry->writeio_blocks = writeio_blocks;
@@ -1272,7 +1272,7 @@ DECLARE_EVENT_CLASS(xfs_namespace_class,
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(dp)->i_sb->s_dev;
-		__entry->dp_ino = dp->i_ino;
+		__entry->dp_ino = I_INO(dp);
 		__entry->namelen = name->len;
 		memcpy(__get_str(name), name->name, name->len);
 	),
@@ -1308,8 +1308,8 @@ TRACE_EVENT(xfs_rename,
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(src_dp)->i_sb->s_dev;
-		__entry->src_dp_ino = src_dp->i_ino;
-		__entry->target_dp_ino = target_dp->i_ino;
+		__entry->src_dp_ino = I_INO(src_dp);
+		__entry->target_dp_ino = I_INO(target_dp);
 		__entry->src_namelen = src_name->len;
 		__entry->target_namelen = target_name->len;
 		memcpy(__get_str(src_name), src_name->name, src_name->len);
@@ -1760,7 +1760,7 @@ DECLARE_EVENT_CLASS(xfs_file_class,
 	),
 	TP_fast_assign(
 		__entry->dev = file_inode(iocb->ki_filp)->i_sb->s_dev;
-		__entry->ino = XFS_I(file_inode(iocb->ki_filp))->i_ino;
+		__entry->ino = file_inode(iocb->ki_filp)->i_ino;
 		__entry->size = XFS_I(file_inode(iocb->ki_filp))->i_disk_size;
 		__entry->offset = iocb->ki_pos;
 		__entry->count = iov_iter_count(iter);
@@ -1796,7 +1796,7 @@ TRACE_EVENT(xfs_iomap_atomic_write_cow,
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
-		__entry->ino = ip->i_ino;
+		__entry->ino = I_INO(ip);
 		__entry->offset = offset;
 		__entry->count = count;
 	),
@@ -1824,7 +1824,7 @@ DECLARE_EVENT_CLASS(xfs_imap_class,
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
-		__entry->ino = ip->i_ino;
+		__entry->ino = I_INO(ip);
 		__entry->size = ip->i_disk_size;
 		__entry->offset = offset;
 		__entry->count = count;
@@ -1869,7 +1869,7 @@ DECLARE_EVENT_CLASS(xfs_simple_io_class,
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
-		__entry->ino = ip->i_ino;
+		__entry->ino = I_INO(ip);
 		__entry->isize = VFS_I(ip)->i_size;
 		__entry->disize = ip->i_disk_size;
 		__entry->offset = offset;
@@ -1908,7 +1908,7 @@ DECLARE_EVENT_CLASS(xfs_itrunc_class,
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
-		__entry->ino = ip->i_ino;
+		__entry->ino = I_INO(ip);
 		__entry->size = ip->i_disk_size;
 		__entry->new_size = new_size;
 	),
@@ -1941,7 +1941,7 @@ TRACE_EVENT(xfs_bunmap,
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
-		__entry->ino = ip->i_ino;
+		__entry->ino = I_INO(ip);
 		__entry->size = ip->i_disk_size;
 		__entry->fileoff = fileoff;
 		__entry->len = len;
@@ -2344,7 +2344,7 @@ DECLARE_EVENT_CLASS(xfs_da_class,
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(args->dp)->i_sb->s_dev;
-		__entry->ino = args->dp->i_ino;
+		__entry->ino = I_INO(args->dp);
 		if (args->namelen)
 			memcpy(__get_str(name), args->name, args->namelen);
 		__entry->namelen = args->namelen;
@@ -2411,7 +2411,7 @@ DECLARE_EVENT_CLASS(xfs_attr_class,
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(args->dp)->i_sb->s_dev;
-		__entry->ino = args->dp->i_ino;
+		__entry->ino = I_INO(args->dp);
 		if (args->namelen)
 			memcpy(__get_str(name), args->name, args->namelen);
 		__entry->namelen = args->namelen;
@@ -2511,7 +2511,7 @@ DECLARE_EVENT_CLASS(xfs_dir2_space_class,
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(args->dp)->i_sb->s_dev;
-		__entry->ino = args->dp->i_ino;
+		__entry->ino = I_INO(args->dp);
 		__entry->op_flags = args->op_flags;
 		__entry->idx = idx;
 	),
@@ -2544,7 +2544,7 @@ TRACE_EVENT(xfs_dir2_leafn_moveents,
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(args->dp)->i_sb->s_dev;
-		__entry->ino = args->dp->i_ino;
+		__entry->ino = I_INO(args->dp);
 		__entry->op_flags = args->op_flags;
 		__entry->src_idx = src_idx;
 		__entry->dst_idx = dst_idx;
@@ -2586,7 +2586,7 @@ DECLARE_EVENT_CLASS(xfs_swap_extent_class,
 	TP_fast_assign(
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
 		__entry->which = which;
-		__entry->ino = ip->i_ino;
+		__entry->ino = I_INO(ip);
 		__entry->format = ip->i_df.if_format;
 		__entry->nex = ip->i_df.if_nextents;
 		__entry->broot_size = ip->i_df.if_broot_bytes;
@@ -2944,7 +2944,7 @@ TRACE_EVENT(xfs_btree_alloc_block,
 		switch (cur->bc_ops->type) {
 		case XFS_BTREE_TYPE_INODE:
 			__entry->agno = 0;
-			__entry->ino = cur->bc_ino.ip->i_ino;
+			__entry->ino = I_INO(cur->bc_ino.ip);
 			break;
 		case XFS_BTREE_TYPE_AG:
 			__entry->agno = cur->bc_group->xg_gno;
@@ -2996,7 +2996,7 @@ TRACE_EVENT(xfs_btree_free_block,
 		__entry->agno = xfs_daddr_to_agno(cur->bc_mp,
 							xfs_buf_daddr(bp));
 		if (cur->bc_ops->type == XFS_BTREE_TYPE_INODE)
-			__entry->ino = cur->bc_ino.ip->i_ino;
+			__entry->ino = I_INO(cur->bc_ino.ip);
 		else
 			__entry->ino = 0;
 		__assign_str(name);
@@ -3251,7 +3251,7 @@ DECLARE_EVENT_CLASS(xfs_btree_error_class,
 		switch (cur->bc_ops->type) {
 		case XFS_BTREE_TYPE_INODE:
 			__entry->agno = 0;
-			__entry->ino = cur->bc_ino.ip->i_ino;
+			__entry->ino = I_INO(cur->bc_ino.ip);
 			break;
 		case XFS_BTREE_TYPE_AG:
 			__entry->agno = cur->bc_group->xg_gno;
@@ -3470,7 +3470,7 @@ DECLARE_EVENT_CLASS(xfs_bmap_deferred_class,
 						bi->bi_bmap.br_startblock,
 						bi->bi_group->xg_type);
 		}
-		__entry->ino = ip->i_ino;
+		__entry->ino = I_INO(ip);
 		__entry->whichfork = bi->bi_whichfork;
 		__entry->l_loff = bi->bi_bmap.br_startoff;
 		__entry->l_len = bi->bi_bmap.br_blockcount;
@@ -3974,7 +3974,7 @@ DECLARE_EVENT_CLASS(xfs_inode_error_class,
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
-		__entry->ino = ip->i_ino;
+		__entry->ino = I_INO(ip);
 		__entry->error = error;
 		__entry->caller_ip = caller_ip;
 	),
@@ -4012,12 +4012,12 @@ DECLARE_EVENT_CLASS(xfs_double_io_class,
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(src)->i_sb->s_dev;
-		__entry->src_ino = src->i_ino;
+		__entry->src_ino = I_INO(src);
 		__entry->src_isize = VFS_I(src)->i_size;
 		__entry->src_disize = src->i_disk_size;
 		__entry->src_offset = soffset;
 		__entry->len = len;
-		__entry->dest_ino = dest->i_ino;
+		__entry->dest_ino = I_INO(dest);
 		__entry->dest_isize = VFS_I(dest)->i_size;
 		__entry->dest_disize = dest->i_disk_size;
 		__entry->dest_offset = doffset;
@@ -4057,7 +4057,7 @@ DECLARE_EVENT_CLASS(xfs_inode_irec_class,
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
-		__entry->ino = ip->i_ino;
+		__entry->ino = I_INO(ip);
 		__entry->lblk = irec->br_startoff;
 		__entry->len = irec->br_blockcount;
 		__entry->pblk = irec->br_startblock;
@@ -4093,7 +4093,7 @@ DECLARE_EVENT_CLASS(xfs_wb_invalid_class,
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
-		__entry->ino = ip->i_ino;
+		__entry->ino = I_INO(ip);
 		__entry->addr = iomap->addr;
 		__entry->pos = iomap->offset;
 		__entry->len = iomap->length;
@@ -4136,7 +4136,7 @@ DECLARE_EVENT_CLASS(xfs_iomap_invalid_class,
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
-		__entry->ino = ip->i_ino;
+		__entry->ino = I_INO(ip);
 		__entry->addr = iomap->addr;
 		__entry->pos = iomap->offset;
 		__entry->len = iomap->length;
@@ -4183,10 +4183,10 @@ TRACE_EVENT(xfs_reflink_remap_blocks,
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(src)->i_sb->s_dev;
-		__entry->src_ino = src->i_ino;
+		__entry->src_ino = I_INO(src);
 		__entry->src_lblk = soffset;
 		__entry->len = len;
-		__entry->dest_ino = dest->i_ino;
+		__entry->dest_ino = I_INO(dest);
 		__entry->dest_lblk = doffset;
 	),
 	TP_printk("dev %d:%d fsbcount 0x%llx "
@@ -4504,8 +4504,7 @@ TRACE_EVENT(xfs_iunlink_update_dinode,
 	TP_fast_assign(
 		__entry->dev = pag_mount(iup->pag)->m_super->s_dev;
 		__entry->agno = pag_agno(iup->pag);
-		__entry->agino =
-			XFS_INO_TO_AGINO(iup->ip->i_mount, iup->ip->i_ino);
+		__entry->agino = XFS_INODE_TO_AGINO(iup->ip);
 		__entry->old_ptr = old_ptr;
 		__entry->new_ptr = iup->next_agino;
 	),
@@ -4529,8 +4528,8 @@ TRACE_EVENT(xfs_iunlink_reload_next,
 	),
 	TP_fast_assign(
 		__entry->dev = ip->i_mount->m_super->s_dev;
-		__entry->agno = XFS_INO_TO_AGNO(ip->i_mount, ip->i_ino);
-		__entry->agino = XFS_INO_TO_AGINO(ip->i_mount, ip->i_ino);
+		__entry->agno = XFS_INODE_TO_AGNO(ip);
+		__entry->agino = XFS_INODE_TO_AGINO(ip);
 		__entry->prev_agino = ip->i_prev_unlinked;
 		__entry->next_agino = ip->i_next_unlinked;
 	),
@@ -4552,8 +4551,8 @@ TRACE_EVENT(xfs_inode_reload_unlinked_bucket,
 	),
 	TP_fast_assign(
 		__entry->dev = ip->i_mount->m_super->s_dev;
-		__entry->agno = XFS_INO_TO_AGNO(ip->i_mount, ip->i_ino);
-		__entry->agino = XFS_INO_TO_AGINO(ip->i_mount, ip->i_ino);
+		__entry->agno = XFS_INODE_TO_AGNO(ip);
+		__entry->agino = XFS_INODE_TO_AGINO(ip);
 	),
 	TP_printk("dev %d:%d agno 0x%x agino 0x%x bucket %u",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
@@ -4572,8 +4571,8 @@ DECLARE_EVENT_CLASS(xfs_ag_inode_class,
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
-		__entry->agno = XFS_INO_TO_AGNO(ip->i_mount, ip->i_ino);
-		__entry->agino = XFS_INO_TO_AGINO(ip->i_mount, ip->i_ino);
+		__entry->agno = XFS_INODE_TO_AGNO(ip);
+		__entry->agino = XFS_INODE_TO_AGINO(ip);
 	),
 	TP_printk("dev %d:%d agno 0x%x agino 0x%x",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
@@ -4650,7 +4649,7 @@ DECLARE_EVENT_CLASS(xfs_inode_corrupt_class,
 	),
 	TP_fast_assign(
 		__entry->dev = ip->i_mount->m_super->s_dev;
-		__entry->ino = ip->i_ino;
+		__entry->ino = I_INO(ip);
 		__entry->flags = flags;
 	),
 	TP_printk("dev %d:%d ino 0x%llx flags 0x%x",
@@ -4769,10 +4768,8 @@ TRACE_EVENT(xfs_btree_commit_ifakeroot,
 	TP_fast_assign(
 		__entry->dev = cur->bc_mp->m_super->s_dev;
 		__assign_str(name);
-		__entry->agno = XFS_INO_TO_AGNO(cur->bc_mp,
-					cur->bc_ino.ip->i_ino);
-		__entry->agino = XFS_INO_TO_AGINO(cur->bc_mp,
-					cur->bc_ino.ip->i_ino);
+		__entry->agno = XFS_INODE_TO_AGNO(cur->bc_ino.ip);
+		__entry->agino = XFS_INODE_TO_AGINO(cur->bc_ino.ip);
 		__entry->levels = cur->bc_ino.ifake->if_levels;
 		__entry->blocks = cur->bc_ino.ifake->if_blocks;
 		__entry->whichfork = cur->bc_ino.whichfork;
@@ -5031,7 +5028,7 @@ DECLARE_EVENT_CLASS(xfs_das_state_class,
 	),
 	TP_fast_assign(
 		__entry->das = das;
-		__entry->ino = ip->i_ino;
+		__entry->ino = I_INO(ip);
 	),
 	TP_printk("state change %s ino 0x%llx",
 		  __print_symbolic(__entry->das, XFS_DAS_STRINGS),
@@ -5296,7 +5293,7 @@ DECLARE_EVENT_CLASS(xfs_exchrange_inode_class,
 	TP_fast_assign(
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
 		__entry->whichfile = whichfile;
-		__entry->ino = ip->i_ino;
+		__entry->ino = I_INO(ip);
 		__entry->format = ip->i_df.if_format;
 		__entry->nex = ip->i_df.if_nextents;
 		__entry->fork_off = xfs_inode_fork_boff(ip);
@@ -5349,10 +5346,10 @@ DECLARE_EVENT_CLASS(xfs_exchrange_class,
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(ip1)->i_sb->s_dev;
-		__entry->ip1_ino = ip1->i_ino;
+		__entry->ip1_ino = I_INO(ip1);
 		__entry->ip1_isize = VFS_I(ip1)->i_size;
 		__entry->ip1_disize = ip1->i_disk_size;
-		__entry->ip2_ino = ip2->i_ino;
+		__entry->ip2_ino = I_INO(ip2);
 		__entry->ip2_isize = VFS_I(ip2)->i_size;
 		__entry->ip2_disize = ip2->i_disk_size;
 
@@ -5408,7 +5405,7 @@ TRACE_EVENT(xfs_exchrange_freshness,
 		struct inode		*inode2 = VFS_I(ip2);
 
 		__entry->dev = inode2->i_sb->s_dev;
-		__entry->ip2_ino = ip2->i_ino;
+		__entry->ip2_ino = I_INO(ip2);
 
 		ts64 = inode_get_ctime(inode2);
 		__entry->ip2_ctime = ts64.tv_sec;
@@ -5480,8 +5477,8 @@ DECLARE_EVENT_CLASS(xfs_exchmaps_estimate_class,
 	),
 	TP_fast_assign(
 		__entry->dev = req->ip1->i_mount->m_super->s_dev;
-		__entry->ino1 = req->ip1->i_ino;
-		__entry->ino2 = req->ip2->i_ino;
+		__entry->ino1 = I_INO(req->ip1);
+		__entry->ino2 = I_INO(req->ip2);
 		__entry->startoff1 = req->startoff1;
 		__entry->startoff2 = req->startoff2;
 		__entry->blockcount = req->blockcount;
@@ -5532,8 +5529,8 @@ DECLARE_EVENT_CLASS(xfs_exchmaps_intent_class,
 	),
 	TP_fast_assign(
 		__entry->dev = mp->m_super->s_dev;
-		__entry->ino1 = xmi->xmi_ip1->i_ino;
-		__entry->ino2 = xmi->xmi_ip2->i_ino;
+		__entry->ino1 = I_INO(xmi->xmi_ip1);
+		__entry->ino2 = I_INO(xmi->xmi_ip2);
 		__entry->flags = xmi->xmi_flags;
 		__entry->startoff1 = xmi->xmi_startoff1;
 		__entry->startoff2 = xmi->xmi_startoff2;
@@ -5628,8 +5625,8 @@ TRACE_EVENT(xfs_exchmaps_delta_nextents,
 		int whichfork = xfs_exchmaps_reqfork(req);
 
 		__entry->dev = req->ip1->i_mount->m_super->s_dev;
-		__entry->ino1 = req->ip1->i_ino;
-		__entry->ino2 = req->ip2->i_ino;
+		__entry->ino1 = I_INO(req->ip1);
+		__entry->ino2 = I_INO(req->ip2);
 		__entry->nexts1 = xfs_ifork_ptr(req->ip1, whichfork)->if_nextents;
 		__entry->nexts2 = xfs_ifork_ptr(req->ip2, whichfork)->if_nextents;
 		__entry->d_nexts1 = d_nexts1;
@@ -5659,7 +5656,7 @@ DECLARE_EVENT_CLASS(xfs_getparents_rec_class,
 	),
 	TP_fast_assign(
 		__entry->dev = ip->i_mount->m_super->s_dev;
-		__entry->ino = ip->i_ino;
+		__entry->ino = I_INO(ip);
 		__entry->firstu = context->firstu;
 		__entry->reclen = pptr->gpr_reclen;
 		__entry->bufsize = ppi->gp_bufsize;
@@ -5703,7 +5700,7 @@ DECLARE_EVENT_CLASS(xfs_getparents_class,
 	),
 	TP_fast_assign(
 		__entry->dev = ip->i_mount->m_super->s_dev;
-		__entry->ino = ip->i_ino;
+		__entry->ino = I_INO(ip);
 		__entry->iflags = ppi->gp_iflags;
 		__entry->oflags = ppi->gp_oflags;
 		__entry->bufsize = ppi->gp_bufsize;
@@ -5742,8 +5739,8 @@ DECLARE_EVENT_CLASS(xfs_metadir_update_class,
 	),
 	TP_fast_assign(
 		__entry->dev = upd->dp->i_mount->m_super->s_dev;
-		__entry->dp_ino = upd->dp->i_ino;
-		__entry->ino = upd->ip ? upd->ip->i_ino : NULLFSINO;
+		__entry->dp_ino = I_INO(upd->dp);
+		__entry->ino = upd->ip ? I_INO(upd->ip) : NULLFSINO;
 		__assign_str(fname);
 	),
 	TP_printk("dev %d:%d dp 0x%llx fname '%s' ino 0x%llx",
@@ -5777,8 +5774,8 @@ DECLARE_EVENT_CLASS(xfs_metadir_update_error_class,
 	),
 	TP_fast_assign(
 		__entry->dev = upd->dp->i_mount->m_super->s_dev;
-		__entry->dp_ino = upd->dp->i_ino;
-		__entry->ino = upd->ip ? upd->ip->i_ino : NULLFSINO;
+		__entry->dp_ino = I_INO(upd->dp);
+		__entry->ino = upd->ip ? I_INO(upd->ip) : NULLFSINO;
 		__entry->error = error;
 		__assign_str(fname);
 	),
@@ -5810,7 +5807,7 @@ DECLARE_EVENT_CLASS(xfs_metadir_class,
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(dp)->i_sb->s_dev;
-		__entry->dp_ino = dp->i_ino;
+		__entry->dp_ino = I_INO(dp);
 		__entry->ino = ino,
 		__entry->ftype = name->type;
 		__entry->namelen = name->len;
@@ -6328,7 +6325,7 @@ TRACE_EVENT(xfs_healthmon_report_file_ioerror,
 	TP_fast_assign(
 		__entry->dev = hm->dev;
 		__entry->type = p->type;
-		__entry->ino = XFS_I(p->inode)->i_ino;
+		__entry->ino = p->inode->i_ino;
 		__entry->gen = p->inode->i_generation;
 		__entry->pos = p->pos;
 		__entry->len = p->len;

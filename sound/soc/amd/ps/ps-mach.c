@@ -45,7 +45,6 @@ static struct snd_soc_card acp63_card = {
 
 static int acp63_probe(struct platform_device *pdev)
 {
-	struct acp63_pdm *machine = NULL;
 	struct snd_soc_card *card;
 	int ret;
 
@@ -53,7 +52,6 @@ static int acp63_probe(struct platform_device *pdev)
 	card = platform_get_drvdata(pdev);
 	acp63_card.dev = &pdev->dev;
 
-	snd_soc_card_set_drvdata(card, machine);
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret) {
 		return dev_err_probe(&pdev->dev, ret,

@@ -564,6 +564,7 @@ static int xive_find_target_in_mask(const struct cpumask *mask,
 			return cpu;
 	}
 
+	WARN_ONCE(1, "target CPU not found in mask: %*pbl\n", cpumask_pr_args(mask));
 	return -1;
 }
 

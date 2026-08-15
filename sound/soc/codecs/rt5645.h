@@ -118,6 +118,7 @@
 #define RT5645_A_JD_CTRL1			0x94
 #define RT5645_VAD_CTRL4			0x9d
 #define RT5645_CLSD_OUT_CTRL			0xa0
+#define RT5645_CLSD_OUT_CTRL1			0xa1
 /* Function - Digital */
 #define RT5645_ADC_EQ_CTRL1			0xae
 #define RT5645_ADC_EQ_CTRL2			0xaf

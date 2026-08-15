@@ -109,8 +109,8 @@ u32 i915_get_vblank_counter(struct drm_crtc *crtc)
 	 * we get a low value that's stable across two reads of the high
 	 * register.
 	 */
-	frame = intel_de_read64_2x32(display, PIPEFRAMEPIXEL(display, pipe),
-				     PIPEFRAME(display, pipe));
+	frame = intel_de_read64_2x32_volatile(display, PIPEFRAMEPIXEL(display, pipe),
+					      PIPEFRAME(display, pipe));
 
 	pixel = frame & PIPE_PIXEL_MASK;
 	frame = (frame >> PIPE_FRAME_LOW_SHIFT) & 0xffffff;
@@ -482,7 +482,7 @@ int intel_get_crtc_scanline(struct intel_crtc *crtc)
 static bool pipe_scanline_is_moving(struct intel_display *display,
 				    enum pipe pipe)
 {
-	i915_reg_t reg = PIPEDSL(display, pipe);
+	intel_reg_t reg = PIPEDSL(display, pipe);
 	u32 line1, line2;
 
 	line1 = intel_de_read(display, reg) & PIPEDSL_LINE_MASK;

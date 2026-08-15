@@ -261,7 +261,7 @@ static const struct drm_plane_funcs panel_mipi_dbi_plane_funcs = {
 };
 
 static void panel_mipi_dbi_crtc_helper_atomic_enable(struct drm_crtc *crtc,
-						     struct drm_atomic_state *state)
+						     struct drm_atomic_commit *state)
 {
 	struct drm_device *drm = crtc->dev;
 	struct panel_mipi_dbi_device *panel_mipi_dbi = to_panel_mipi_dbi_device(drm);

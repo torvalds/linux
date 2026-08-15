@@ -106,9 +106,9 @@
 #define MAX77759_CHGR_REG_CHG_CNFG_10                  0xc3
 #define MAX77759_CHGR_REG_CHG_CNFG_11                  0xc4
 #define MAX77759_CHGR_REG_CHG_CNFG_12                  0xc5
-/* Wireless Charging input channel select */
+/* Setting this enables the Wireless Charging input channel. */
 #define   MAX77759_CHGR_REG_CHG_CNFG_12_WCINSEL        BIT(6)
-/* CHGIN/USB input channel select */
+/* Setting this enables the CHGIN/USB input channel. */
 #define   MAX77759_CHGR_REG_CHG_CNFG_12_CHGINSEL       BIT(5)
 #define MAX77759_CHGR_REG_CHG_CNFG_13                  0xc6
 #define MAX77759_CHGR_REG_CHG_CNFG_14                  0xc7
@@ -204,7 +204,7 @@ enum max77759_chgr_chg_dtls_states {
 };
 
 enum max77759_chgr_mode {
-	MAX77759_CHGR_MODE_OFF,
+	MAX77759_CHGR_MODE_OFF = 0x0,
 	MAX77759_CHGR_MODE_CHG_BUCK_ON = 0x5,
 	MAX77759_CHGR_MODE_OTG_BOOST_ON = 0xA,
 };

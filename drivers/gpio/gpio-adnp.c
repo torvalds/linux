@@ -7,7 +7,6 @@
 #include <linux/gpio/driver.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/property.h>
@@ -501,8 +500,8 @@ static int adnp_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id adnp_i2c_id[] = {
-	{ "gpio-adnp" },
-	{ },
+	{ .name = "gpio-adnp" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adnp_i2c_id);
 

@@ -33,6 +33,7 @@
 #include <asm/div64.h>
 #include <asm/x86_init.h>
 #include <asm/hypervisor.h>
+#include <asm/cpuid/api.h>
 #include <asm/timer.h>
 #include <asm/apic.h>
 #include <asm/vmware.h>

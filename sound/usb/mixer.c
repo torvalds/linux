@@ -434,6 +434,11 @@ int snd_usb_get_cur_mix_value(struct usb_mixer_elem_info *cval,
 		*value = cval->cache_val[index];
 		return 0;
 	}
+
+	/* The current value is always provided by the cache after initialization. */
+	if (cval->get_cur_broken)
+		return -ENXIO;
+
 	err = get_cur_mix_raw(cval, channel, value);
 	if (err < 0) {
 		if (!cval->head.mixer->ignore_ctl_error)
@@ -665,17 +670,13 @@ static int get_term_name(struct snd_usb_audio *chip, struct usb_audio_term *iter
 			return 0;
 		switch (iterm->type >> 16) {
 		case UAC3_SELECTOR_UNIT:
-			strscpy(name, "Selector", maxlen);
-			return 8;
+			return strscpy(name, "Selector", maxlen);
 		case UAC3_PROCESSING_UNIT:
-			strscpy(name, "Process Unit", maxlen);
-			return 12;
+			return strscpy(name, "Process Unit", maxlen);
 		case UAC3_EXTENSION_UNIT:
-			strscpy(name, "Ext Unit", maxlen);
-			return 8;
+			return strscpy(name, "Ext Unit", maxlen);
 		case UAC3_MIXER_UNIT:
-			strscpy(name, "Mixer", maxlen);
-			return 5;
+			return strscpy(name, "Mixer", maxlen);
 		default:
 			return scnprintf(name, maxlen, "Unit %d", iterm->id);
 		}
@@ -683,25 +684,18 @@ static int get_term_name(struct snd_usb_audio *chip, struct usb_audio_term *iter
 
 	switch (iterm->type & 0xff00) {
 	case 0x0100:
-		strscpy(name, "PCM", maxlen);
-		return 3;
+		return strscpy(name, "PCM", maxlen);
 	case 0x0200:
-		strscpy(name, "Mic", maxlen);
-		return 3;
+		return strscpy(name, "Mic", maxlen);
 	case 0x0400:
-		strscpy(name, "Headset", maxlen);
-		return 7;
+		return strscpy(name, "Headset", maxlen);
 	case 0x0500:
-		strscpy(name, "Phone", maxlen);
-		return 5;
+		return strscpy(name, "Phone", maxlen);
 	}
 
-	for (names = iterm_names; names->type; names++) {
-		if (names->type == iterm->type) {
-			strscpy(name, names->name, maxlen);
-			return strlen(names->name);
-		}
-	}
+	for (names = iterm_names; names->type; names++)
+		if (names->type == iterm->type)
+			return strscpy(name, names->name, maxlen);
 
 	return 0;
 }
@@ -1234,7 +1228,7 @@ static void init_cur_mix_raw(struct usb_mixer_elem_info *cval, int ch, int idx)
 	err = snd_usb_get_cur_mix_value(cval, ch, idx, &val);
 	if (!err)
 		return;
-	if (!cval->head.mixer->ignore_ctl_error)
+	if (!cval->head.mixer->ignore_ctl_error && !cval->get_cur_broken)
 		usb_audio_warn(cval->head.mixer->chip,
 			       "%d:%d: failed to get current value for ch %d (%d)\n",
 			       cval->head.id, mixer_ctrl_intf(cval->head.mixer),
@@ -1248,8 +1242,16 @@ static void init_cur_mix_raw(struct usb_mixer_elem_info *cval, int ch, int idx)
  * Some devices' volume control mixers are sticky, which accept SET_CUR but
  * do absolutely nothing.
  *
- * Prevent sticky mixers from being registered, otherwise they confuses
- * userspace and results in ineffective volume control.
+ * Check the return values of GET_CUR with different SET_CUR values. Consider
+ * the mixer as sticky if GET_CUR always returns a constant value.
+ *
+ * Some devices have effective SET_CUR despite GET_CUR being constant. Do not
+ * consider the mixer as sticky if a quirk flag indicates that.
+ *
+ * Gate the registration of sticky mixers to prevent confusing userspace, so
+ * that they won't cause ineffective volume control. However, for mixers with
+ * effective SET_CUR but broken GET_CUR, the registration can continue normally
+ * but further GET_CUR requests will be gated.
  */
 static int check_sticky_volume_control(struct usb_mixer_elem_info *cval,
 				       int channel, int saved)
@@ -1269,10 +1271,22 @@ static int check_sticky_volume_control(struct usb_mixer_elem_info *cval,
 			return 0;
 	}
 
+	if (cval->head.mixer->chip->quirk_flags & QUIRK_FLAG_MIXER_GET_CUR_BROKEN) {
+		usb_audio_info(cval->head.mixer->chip,
+			       "%d:%d: broken mixer GET_CUR (%d/%d/%d => %d)\n",
+			       cval->head.id, mixer_ctrl_intf(cval->head.mixer),
+			       cval->min, cval->max, cval->res, saved);
+
+		cval->get_cur_broken = 1;
+		return -ENXIO;
+	}
+
 	usb_audio_err(cval->head.mixer->chip,
 		      "%d:%d: sticky mixer values (%d/%d/%d => %d), disabling\n",
 		      cval->head.id, mixer_ctrl_intf(cval->head.mixer),
 		      cval->min, cval->max, cval->res, saved);
+	usb_audio_info(cval->head.mixer->chip,
+		       "check MIXER_GET_CUR_BROKEN if you believe the mixer is non-sticky");
 
 	return -ENODEV;
 }
@@ -1315,7 +1329,7 @@ static void check_volume_control_res(struct usb_mixer_elem_info *cval,
 static int get_min_max_with_quirks(struct usb_mixer_elem_info *cval,
 				   int default_min, struct snd_kcontrol *kctl)
 {
-	int i, idx, ret;
+	int i, idx, ret = 0;
 
 	/* for failsafe */
 	cval->min = default_min;
@@ -1371,10 +1385,10 @@ static int get_min_max_with_quirks(struct usb_mixer_elem_info *cval,
 				goto no_checks;
 
 			ret = check_sticky_volume_control(cval, minchn, saved);
-			if (ret < 0) {
-				snd_usb_set_cur_mix_value(cval, minchn, 0, saved);
-				return ret;
-			}
+			if (ret == -ENODEV)
+				goto sticky;
+			if (ret)
+				goto no_checks;
 
 			if (cval->min + cval->res < cval->max)
 				check_volume_control_res(cval, minchn, saved);
@@ -1383,6 +1397,16 @@ static int get_min_max_with_quirks(struct usb_mixer_elem_info *cval,
 		}
 
 no_checks:
+		/*
+		 * Got a non-fatal failure during sanity checks.
+		 *
+		 * Do not propagate mixer values written by sanity checks.
+		 * Instead, rely on init_cur_mix_raw() to initialize the mixer
+		 * properly.
+		 */
+		if (ret)
+			cval->cached = 0;
+
 		cval->initialized = 1;
 	}
 
@@ -1431,6 +1455,33 @@ no_checks:
 	}
 
 	return 0;
+
+sticky:
+	/*
+	 * It makes no sense to restore the saved value for a sticky mixer,
+	 * since setting any value is a no-op.
+	 *
+	 * However, in some rare cases, SET_CUR is effective despite GET_CUR
+	 * always returns a constant value. These mixers are not sticky, but
+	 * there's no way to distinguish them. Without any additional
+	 * information, the best thing we can do is to set the mixer value to
+	 * the maximum before bailing out, so that a soft mixer can still reach
+	 * the maximum hardware volume if the mixer turns out to be non-sticky.
+	 * Meanwhile, all channels must be synchronized to prevent imbalance
+	 * volume.
+	 */
+	if (!cval->cmask) {
+		snd_usb_set_cur_mix_value(cval, 0, 0, cval->max);
+	} else {
+		for (i = 0; i < MAX_CHANNELS; i++) {
+			idx = 0;
+			if (cval->cmask & BIT(i)) {
+				snd_usb_set_cur_mix_value(cval, i + 1, idx, cval->max);
+				idx++;
+			}
+		}
+	}
+	return ret;
 }
 
 #define get_min_max(cval, def)	get_min_max_with_quirks(cval, def, NULL)
@@ -1536,7 +1587,10 @@ static int mixer_ctl_feature_put(struct snd_kcontrol *kcontrol,
 				return -EINVAL;
 			val = get_abs_value(cval, val);
 			if (oval != val) {
-				snd_usb_set_cur_mix_value(cval, c + 1, cnt, val);
+				err = snd_usb_set_cur_mix_value(cval, c + 1,
+								cnt, val);
+				if (err < 0)
+					return filter_error(cval, err);
 				changed = 1;
 			}
 			cnt++;
@@ -1551,7 +1605,9 @@ static int mixer_ctl_feature_put(struct snd_kcontrol *kcontrol,
 			return -EINVAL;
 		val = get_abs_value(cval, val);
 		if (val != oval) {
-			snd_usb_set_cur_mix_value(cval, 0, 0, val);
+			err = snd_usb_set_cur_mix_value(cval, 0, 0, val);
+			if (err < 0)
+				return filter_error(cval, err);
 			changed = 1;
 		}
 	}
@@ -1988,7 +2044,9 @@ static void get_connector_control_name(struct usb_mixer_interface *mixer,
 	int name_len = get_term_name(mixer->chip, term, name, name_size, 0);
 
 	if (name_len == 0)
-		strscpy(name, "Unknown", name_size);
+		name_len = strscpy(name, "Unknown", name_size);
+	if (name_len < 0)
+		return;
 
 	/*
 	 *  sound/core/ctljack.c has a convention of naming jack controls
@@ -1996,9 +2054,9 @@ static void get_connector_control_name(struct usb_mixer_interface *mixer,
 	 * indicating Input or Output after the terminal name.
 	 */
 	if (is_input)
-		strlcat(name, " - Input Jack", name_size);
+		strscpy(name + name_len, " - Input Jack", name_size - name_len);
 	else
-		strlcat(name, " - Output Jack", name_size);
+		strscpy(name + name_len, " - Output Jack", name_size - name_len);
 }
 
 /* get connector value to "wake up" the USB audio */
@@ -2476,7 +2534,9 @@ static int mixer_ctl_procunit_put(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 	val = get_abs_value(cval, val);
 	if (val != oval) {
-		set_cur_ctl_value(cval, cval->control << 8, val);
+		err = set_cur_ctl_value(cval, cval->control << 8, val);
+		if (err < 0)
+			return filter_error(cval, err);
 		return 1;
 	}
 	return 0;
@@ -2842,7 +2902,9 @@ static int mixer_ctl_selector_put(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 	val = get_abs_value(cval, val);
 	if (val != oval) {
-		set_cur_ctl_value(cval, cval->control << 8, val);
+		err = set_cur_ctl_value(cval, cval->control << 8, val);
+		if (err < 0)
+			return filter_error(cval, err);
 		return 1;
 	}
 	return 0;
@@ -3513,7 +3575,8 @@ void snd_usb_mixer_notify_id(struct usb_mixer_interface *mixer, int unitid)
 			continue;
 		info = mixer_elem_list_to_info(list);
 		/* invalidate cache, so the value is read from the device */
-		info->cached = 0;
+		if (!info->get_cur_broken)
+			info->cached = 0;
 		snd_ctl_notify(mixer->chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &list->kctl->id);
 	}
@@ -3610,10 +3673,12 @@ static void snd_usb_mixer_interrupt_v2(struct usb_mixer_interface *mixer,
 		switch (attribute) {
 		case UAC2_CS_CUR:
 			/* invalidate cache, so the value is read from the device */
-			if (channel)
-				info->cached &= ~BIT(channel);
-			else /* master channel */
-				info->cached = 0;
+			if (!info->get_cur_broken) {
+				if (channel)
+					info->cached &= ~BIT(channel);
+				else /* master channel */
+					info->cached = 0;
+			}
 
 			snd_ctl_notify(mixer->chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				       &info->head.kctl->id);

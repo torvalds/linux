@@ -490,6 +490,7 @@ arch_initcall(VNAME(var, reg))
 __DEFINE_STATIC_AREA(var);						\
 static debug_info_t __refdata var =					\
 	__DEBUG_INFO_INIT(var, (name), (buf_size));			\
+static debug_info_t __used __section(".s390dbf_info") *VNAME(var, info) = &var; \
 __REGISTER_STATIC_DEBUG_INFO(var, name, pages, nr_areas, view)
 
 void debug_register_static(debug_info_t *id, int pages_per_area, int nr_areas);

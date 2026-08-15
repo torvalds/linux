@@ -207,6 +207,15 @@ struct sched_ext_entity {
 	u64			core_sched_at;	/* see scx_prio_less() */
 #endif
 
+	/*
+	 * Unique non-zero task ID assigned at fork. Persists across exec and
+	 * is never reused. Lets BPF schedulers identify tasks without storing
+	 * kernel pointers - arena-backed schedulers being one example. See
+	 * scx_bpf_tid_to_task().
+	 */
+	u64			tid;
+	struct rhash_head	tid_hash_node;	/* see SCX_OPS_TID_TO_TASK */
+
 	/* BPF scheduler modifiable fields */
 
 	/*

@@ -46,7 +46,6 @@ config ASPEED_P2A_CTRL
 
 config ASPEED_SOCINFO
 	bool "ASPEED SoC Information driver"
-	default ARCH_ASPEED
 	select SOC_BUS
 	default ARCH_ASPEED
 	help

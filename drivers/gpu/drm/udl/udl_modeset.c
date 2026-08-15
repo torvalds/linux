@@ -264,7 +264,7 @@ static const uint64_t udl_primary_plane_fmtmods[] = {
 };
 
 static int udl_primary_plane_helper_atomic_check(struct drm_plane *plane,
-						 struct drm_atomic_state *state)
+						 struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state, plane);
 	struct drm_crtc *new_crtc = new_plane_state->crtc;
@@ -280,7 +280,7 @@ static int udl_primary_plane_helper_atomic_check(struct drm_plane *plane,
 }
 
 static void udl_primary_plane_helper_atomic_update(struct drm_plane *plane,
-						   struct drm_atomic_state *state)
+						   struct drm_atomic_commit *state)
 {
 	struct drm_device *dev = plane->dev;
 	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state, plane);
@@ -329,7 +329,7 @@ static const struct drm_plane_funcs udl_primary_plane_funcs = {
  * CRTC
  */
 
-static void udl_crtc_helper_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_state *state)
+static void udl_crtc_helper_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_commit *state)
 {
 	struct drm_device *dev = crtc->dev;
 	struct udl_device *udl = to_udl(dev);
@@ -366,7 +366,7 @@ out:
 	drm_dev_exit(idx);
 }
 
-static void udl_crtc_helper_atomic_disable(struct drm_crtc *crtc, struct drm_atomic_state *state)
+static void udl_crtc_helper_atomic_disable(struct drm_crtc *crtc, struct drm_atomic_commit *state)
 {
 	struct drm_device *dev = crtc->dev;
 	struct udl_device *udl = to_udl(dev);

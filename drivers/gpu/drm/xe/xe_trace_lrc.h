@@ -12,6 +12,7 @@
 #include <linux/tracepoint.h>
 #include <linux/types.h>
 
+#include "xe_exec_queue_types.h"
 #include "xe_gt_types.h"
 #include "xe_lrc.h"
 #include "xe_lrc_types.h"
@@ -38,6 +39,32 @@ TRACE_EVENT(xe_lrc_update_timestamp,
 		   ),
 	    TP_printk("lrc=:%p lrc->name=%s old=%llu new=%llu device_id:%s",
 		      __entry->lrc, __get_str(name),
+		      __entry->old, __entry->new,
+		      __get_str(device_id))
+);
+
+TRACE_EVENT(xe_lrc_update_queue_timestamp,
+	    TP_PROTO(struct xe_lrc *lrc, uint64_t old),
+	    TP_ARGS(lrc, old),
+	    TP_STRUCT__entry(
+		     __field(struct xe_lrc *, lrc)
+		     __field(struct xe_lrc *, primary_lrc)
+		     __field(u64, old)
+		     __field(u64, new)
+		     __string(name, lrc->fence_ctx.name)
+		     __string(device_id, __dev_name_lrc(lrc))
+		     ),
+
+	    TP_fast_assign(
+		   __entry->lrc = lrc;
+		   __entry->primary_lrc = lrc->multi_queue.primary_lrc;
+		   __entry->old = old;
+		   __entry->new = lrc->queue_timestamp;
+		   __assign_str(name);
+		   __assign_str(device_id);
+		   ),
+	    TP_printk("lrc=%p primary_lrc=%p lrc->name=%s old=%llu new=%llu device_id:%s",
+		      __entry->lrc, __entry->primary_lrc, __get_str(name),
 		      __entry->old, __entry->new,
 		      __get_str(device_id))
 );

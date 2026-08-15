@@ -416,7 +416,8 @@ static int elan_smbus_prepare_fw_update(struct i2c_client *client, u16 ic_type,
 
 
 static int elan_smbus_write_fw_block(struct i2c_client *client, u16 fw_page_size,
-				     const u8 *page, u16 checksum, int idx)
+				     u16 fw_page_delay, const u8 *page, u16 checksum,
+				     int idx)
 {
 	struct device *dev = &client->dev;
 	int error;

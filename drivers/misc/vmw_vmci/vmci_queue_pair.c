@@ -420,7 +420,7 @@ static int qp_memcpy_from_queue_iter(struct iov_iter *to,
 
 /*
  * Allocates two list of PPNs --- one for the pages in the produce queue,
- * and the other for the pages in the consume queue. Intializes the list
+ * and the other for the pages in the consume queue. Initializes the list
  * of PPNs with the page frame numbers of the KVA for the two queues (and
  * the queue headers).
  */

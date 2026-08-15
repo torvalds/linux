@@ -141,4 +141,13 @@ enum gpio_result dal_hw_gpio_change_mode(
 void dal_hw_gpio_close(
 	struct hw_gpio_pin *ptr);
 
+/*
+ * Shared helper used by all GPIO register helpers that pass a field shift
+ * (stored as uint32_t) into register functions that expect uint8_t.
+ */
+static inline uint8_t gpio_reg_shift(uint32_t shift)
+{
+	return (uint8_t)shift;
+}
+
 #endif

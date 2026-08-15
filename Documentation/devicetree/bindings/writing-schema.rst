@@ -132,7 +132,7 @@ examples
   provider binding, other nodes referenced by phandle.
   Note: YAML doesn't allow leading tabs, so spaces must be used instead.
 
-Unless noted otherwise, all properties are required.
+Unless noted otherwise, all above schema properties are required.
 
 Property Schema
 ---------------

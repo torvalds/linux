@@ -1,0 +1,22 @@
+bench_split_via_runtime_check_dynamic_padding:
+	mov rax, rdi
+	mov rdx, qword ptr [rsi + 16]
+	mov ecx, edx
+	and ecx, 3
+	cmp ecx, 1
+	jne .LBB5_1
+	mov rcx, qword ptr [rsi]
+	mov rsi, qword ptr [rsi + 8]
+	lea rdi, [rdx + 2*rdx]
+	add rdi, rcx
+	add rdi, 9
+	sub rsi, rdx
+	mov qword ptr [rax + 8], rdx
+	mov qword ptr [rax + 16], rdi
+	mov qword ptr [rax + 24], rsi
+	mov qword ptr [rax], rcx
+	ret
+.LBB5_1:
+	xor ecx, ecx
+	mov qword ptr [rax], rcx
+	ret

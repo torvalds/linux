@@ -923,7 +923,7 @@ static bool vop2_gamma_lut_in_use(struct vop2 *vop2, struct vop2_video_port *vp)
 }
 
 static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
-				     struct drm_atomic_state *state)
+				     struct drm_atomic_commit *state)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
@@ -979,7 +979,7 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 }
 
 static int vop2_plane_atomic_check(struct drm_plane *plane,
-				   struct drm_atomic_state *astate)
+				   struct drm_atomic_commit *astate)
 {
 	struct drm_plane_state *pstate = drm_atomic_get_new_plane_state(astate, plane);
 	struct drm_framebuffer *fb = pstate->fb;
@@ -1091,7 +1091,7 @@ static int vop2_plane_atomic_check(struct drm_plane *plane,
 }
 
 static void vop2_plane_atomic_disable(struct drm_plane *plane,
-				      struct drm_atomic_state *state)
+				      struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *old_pstate = NULL;
 	struct vop2_win *win = to_vop2_win(plane);
@@ -1159,7 +1159,7 @@ static void vop2_plane_setup_color_key(struct drm_plane *plane, u32 color_key)
 }
 
 static void vop2_plane_atomic_update(struct drm_plane *plane,
-				     struct drm_atomic_state *state)
+				     struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *pstate = plane->state;
 	struct drm_crtc *crtc = pstate->crtc;
@@ -1622,7 +1622,7 @@ static int us_to_vertical_line(struct drm_display_mode *mode, int us)
 }
 
 static void vop2_crtc_atomic_enable(struct drm_crtc *crtc,
-				    struct drm_atomic_state *state)
+				    struct drm_atomic_commit *state)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
@@ -1814,7 +1814,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc,
 
 static int vop2_crtc_atomic_check_gamma(struct vop2_video_port *vp,
 					struct drm_crtc *crtc,
-					struct drm_atomic_state *state,
+					struct drm_atomic_commit *state,
 					struct drm_crtc_state *crtc_state)
 {
 	struct vop2 *vop2 = vp->vop2;
@@ -1840,7 +1840,7 @@ static int vop2_crtc_atomic_check_gamma(struct vop2_video_port *vp,
 }
 
 static int vop2_crtc_atomic_check(struct drm_crtc *crtc,
-				  struct drm_atomic_state *state)
+				  struct drm_atomic_commit *state)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct drm_plane *plane;
@@ -1862,7 +1862,7 @@ static int vop2_crtc_atomic_check(struct drm_crtc *crtc,
 }
 
 static void vop2_crtc_atomic_begin(struct drm_crtc *crtc,
-				   struct drm_atomic_state *state)
+				   struct drm_atomic_commit *state)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
@@ -1871,7 +1871,7 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc,
 }
 
 static void vop2_crtc_atomic_flush(struct drm_crtc *crtc,
-				   struct drm_atomic_state *state)
+				   struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);

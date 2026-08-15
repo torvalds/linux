@@ -18,6 +18,8 @@ event handling, memory management, output management, framebuffer
 management, command submission & fencing, suspend/resume support, and
 DMA services.
 
+.. contents::
+
 Driver Initialization
 =====================
 

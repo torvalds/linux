@@ -276,7 +276,10 @@ static int of_ipmi_probe(struct platform_device *pdev)
 	io.regspacing	= regspacing ? be32_to_cpup(regspacing) : DEFAULT_REGSPACING;
 	io.regshift	= regshift ? be32_to_cpup(regshift) : 0;
 
-	io.irq		= irq_of_parse_and_map(pdev->dev.of_node, 0);
+	io.irq = platform_get_irq_optional(pdev, 0);
+	if (io.irq < 0)
+		io.irq = 0;
+
 	io.dev		= &pdev->dev;
 
 	dev_dbg(&pdev->dev, "addr 0x%lx regsize %d spacing %d irq %d\n",
@@ -433,9 +436,9 @@ void ipmi_remove_platform_device_by_name(char *name)
 }
 
 static const struct platform_device_id si_plat_ids[] = {
-	{ "dmi-ipmi-si", 0 },
-	{ "hardcode-ipmi-si", 0 },
-	{ "hotmod-ipmi-si", 0 },
+	{ .name = "dmi-ipmi-si" },
+	{ .name = "hardcode-ipmi-si" },
+	{ .name = "hotmod-ipmi-si" },
 	{ }
 };
 

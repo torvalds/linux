@@ -50,10 +50,15 @@ properties:
           - enum:
               - mscc,ocelot-spi
               - mscc,jaguar2-spi
-              - renesas,rzn1-spi
               - sophgo,sg2042-spi
               - thead,th1520-spi
           - const: snps,dw-apb-ssi
+      - description: Vendor controllers which use snps,dwc-ssi-2.00a as fallback
+        items:
+          - enum:
+              - starfive,jhb100-spi
+          - const: snps,dwc-ssi-2.00a
+          - const: snps,dwc-ssi-1.01a
       - description: Intel Keem Bay SPI Controller
         const: intel,keembay-ssi
       - description: Intel Mount Evans Integrated Management Complex SPI Controller
@@ -87,6 +92,9 @@ properties:
     items:
       - const: ssi_clk
       - const: pclk
+
+  power-domains:
+    maxItems: 1
 
   resets:
     maxItems: 1

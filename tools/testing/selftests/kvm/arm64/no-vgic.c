@@ -159,6 +159,7 @@ static void guest_code_gicv5(void)
 	check_gicv5_gic_op(CDAFF);
 	check_gicv5_gic_op(CDDI);
 	check_gicv5_gic_op(CDDIS);
+	check_gicv5_gic_op(CDEN);
 	check_gicv5_gic_op(CDEOI);
 	check_gicv5_gic_op(CDHM);
 	check_gicv5_gic_op(CDPEND);

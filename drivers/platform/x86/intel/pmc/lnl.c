@@ -544,6 +544,8 @@ static struct pmc_info lnl_pmc_info_list[] = {
 	{}
 };
 
+static const u8 lnl_pmc_list[] = {PMC_IDX_MAIN};
+
 #define LNL_NPU_PCI_DEV		0x643e
 #define LNL_IPU_PCI_DEV		0x645d
 
@@ -571,7 +573,8 @@ static int lnl_core_init(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_in
 }
 
 struct pmc_dev_info lnl_pmc_dev = {
-	.pci_func = 2,
+	.num_pmcs = ARRAY_SIZE(lnl_pmc_list),
+	.pmc_list = lnl_pmc_list,
 	.regmap_list = lnl_pmc_info_list,
 	.map = &lnl_socm_reg_map,
 	.sub_req_show = &pmc_core_substate_req_regs_fops,
@@ -579,4 +582,5 @@ struct pmc_dev_info lnl_pmc_dev = {
 	.resume = lnl_resume,
 	.init = lnl_core_init,
 	.sub_req = pmc_core_pmt_get_lpm_req,
+	.ssram_hidden = true,
 };

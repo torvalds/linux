@@ -91,6 +91,8 @@
 		pinctrl-0 = <&pinctrl_display_power>;
 		backlight = <&backlight_parallel>;
 		enable-gpios = <&gpio3 24 GPIO_ACTIVE_HIGH>;
+		dvdd-supply = <&reg_3p2v>;
+		avdd-supply = <&reg_5v>;
 
 		port {
 			panel_in: endpoint {
@@ -104,6 +106,14 @@
 		regulator-name = "3P2V";
 		regulator-min-microvolt = <3200000>;
 		regulator-max-microvolt = <3200000>;
+		regulator-always-on;
+	};
+
+	reg_5v: regulator-5v {
+		compatible = "regulator-fixed";
+		regulator-name = "5V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
 		regulator-always-on;
 	};
 

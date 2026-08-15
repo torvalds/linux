@@ -8,7 +8,7 @@
 #include <bpf/bpf_tracing.h>
 #include "bpf_misc.h"
 #include "bpf_experimental.h"
-#include "bpf_arena_common.h"
+#include <bpf_arena_common.h>
 
 #define private(name) SEC(".bss." #name) __hidden __attribute__((aligned(8)))
 
@@ -606,5 +606,72 @@ int non_arena_ptr_add_to_arena_ptr(void *ctx)
 }
 
 #endif
+
+static __noinline
+u32 __arena *check_arena_arg_nonglobal(u32 __arena *arg)
+{
+	volatile u32 val = *arg;
+
+	*arg = val + 1;
+
+	return arg;
+}
+
+__weak
+u32 __arena *check_arena_arg_global(u32 __arena *arg)
+{
+	volatile u32 val = *arg;
+
+	*arg = val + 1;
+
+	return arg;
+}
+
+__weak
+u32 volatile __arena *check_arena_arg_quals1(u32 volatile __arena *arg1, u32 __arena volatile *arg2)
+{
+	*arg1 = *arg1 + 1;
+	*arg2 = *arg1 + 1;
+
+	return arg2;
+}
+
+__weak
+u32 __arena volatile *check_arena_arg_quals2(u32 volatile __arena *arg1, u32 __arena volatile *arg2)
+{
+	*arg1 = *arg1 + 1;
+	*arg2 = *arg2 + 1;
+
+	return arg2;
+}
+
+SEC("syscall")
+__success __retval(0)
+int check_arena_arg_ret(void *ctx)
+{
+	u32 __arena *page = bpf_arena_alloc_pages(&arena, NULL, 1, NUMA_NO_NODE, 0);
+	u32 __arena *arg = page;
+	u32 __arena volatile *arg1;
+	u32 __arena volatile *ret1;
+	u32 volatile __arena *arg2;
+	u32 volatile __arena *ret2;
+
+	if (!arg)
+		return 1;
+
+	/* Make sure we use {arg, ret}{1, 2}. */
+
+	arg = check_arena_arg_nonglobal(page);
+	arg = check_arena_arg_global(arg);
+
+	arg1 = arg2 = page;
+	ret1 = check_arena_arg_quals1(arg1, arg2);
+	ret2 = check_arena_arg_quals2(arg1, arg2);
+
+	if (!(*ret1 ||*ret2))
+		return -EINVAL;
+
+	return 0;
+}
 
 char _license[] SEC("license") = "GPL";

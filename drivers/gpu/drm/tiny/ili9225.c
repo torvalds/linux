@@ -179,7 +179,7 @@ static const u64 ili9225_plane_format_modifiers[] = {
 };
 
 static void ili9225_plane_helper_atomic_update(struct drm_plane *plane,
-					       struct drm_atomic_state *state)
+					       struct drm_atomic_commit *state)
 {
 	struct drm_device *drm = plane->dev;
 	struct drm_plane_state *plane_state = plane->state;
@@ -214,7 +214,7 @@ static const struct drm_plane_funcs ili9225_plane_funcs = {
 };
 
 static void ili9225_crtc_helper_atomic_enable(struct drm_crtc *crtc,
-					      struct drm_atomic_state *state)
+					      struct drm_atomic_commit *state)
 {
 	struct drm_device *drm = crtc->dev;
 	struct ili9225_device *ili9225 = to_ili9225_device(drm);
@@ -316,7 +316,7 @@ out_exit:
 }
 
 static void ili9225_crtc_helper_atomic_disable(struct drm_crtc *crtc,
-					       struct drm_atomic_state *state)
+					       struct drm_atomic_commit *state)
 {
 	struct drm_device *drm = crtc->dev;
 	struct ili9225_device *ili9225 = to_ili9225_device(drm);

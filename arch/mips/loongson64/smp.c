@@ -381,6 +381,13 @@ loongson3_send_ipi_mask(const struct cpumask *mask, unsigned int action)
 		ipi_write_action(cpu_logical_map(i), (u32)action);
 }
 
+#ifdef CONFIG_IRQ_WORK
+void arch_irq_work_raise(void)
+{
+	loongson3_send_ipi_single(smp_processor_id(), SMP_IRQ_WORK);
+}
+#endif
+
 static irqreturn_t loongson3_ipi_interrupt(int irq, void *dev_id)
 {
 	int cpu = smp_processor_id();
@@ -396,6 +403,9 @@ static irqreturn_t loongson3_ipi_interrupt(int irq, void *dev_id)
 		generic_smp_call_function_interrupt();
 		irq_exit();
 	}
+
+	if (action & SMP_IRQ_WORK)
+		irq_work_run();
 
 	return IRQ_HANDLED;
 }

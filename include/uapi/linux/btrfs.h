@@ -1100,6 +1100,38 @@ enum btrfs_err_code {
 	BTRFS_ERROR_DEV_RAID1C4_MIN_NOT_MET,
 };
 
+/* Flags for struct btrfs_ioctl_get_csums_entry::type. */
+#define BTRFS_GET_CSUMS_HAS_CSUMS			(1U << 0)
+#define BTRFS_GET_CSUMS_ZEROED				(1U << 1)
+#define BTRFS_GET_CSUMS_NODATASUM			(1U << 2)
+#define BTRFS_GET_CSUMS_COMPRESSED			(1U << 3)
+#define BTRFS_GET_CSUMS_ENCRYPTED			(1U << 4)
+#define BTRFS_GET_CSUMS_INLINE				(1U << 5)
+
+struct btrfs_ioctl_get_csums_entry {
+	/* File offset of this range. */
+	__u64 offset;
+	/* Length in bytes. */
+	__u64 length;
+	/* One of BTRFS_GET_CSUMS_* types. */
+	__u32 type;
+	/* Padding, must be 0. */
+	__u32 reserved;
+};
+
+struct btrfs_ioctl_get_csums_args {
+	/* In/out: file offset in bytes. */
+	__u64 offset;
+	/* In/out: range length in bytes. */
+	__u64 length;
+	/* In/out: buffer capacity / bytes written. */
+	__u64 buf_size;
+	/* In: flags, must be 0 for now. */
+	__u64 flags;
+	/* Out: entries of type btrfs_ioctl_get_csums_entry + csum data */
+	__u8 buf[];
+};
+
 /* Flags for IOC_SHUTDOWN, must match XFS_FSOP_GOING_FLAGS_* flags. */
 #define BTRFS_SHUTDOWN_FLAGS_DEFAULT			0x0
 #define BTRFS_SHUTDOWN_FLAGS_LOGFLUSH			0x1
@@ -1226,6 +1258,8 @@ enum btrfs_err_code {
 				     struct btrfs_ioctl_encoded_io_args)
 #define BTRFS_IOC_SUBVOL_SYNC_WAIT _IOW(BTRFS_IOCTL_MAGIC, 65, \
 					struct btrfs_ioctl_subvol_wait)
+#define BTRFS_IOC_GET_CSUMS _IOWR(BTRFS_IOCTL_MAGIC, 66, \
+				  struct btrfs_ioctl_get_csums_args)
 
 /* Shutdown ioctl should follow XFS's interfaces, thus not using btrfs magic. */
 #define BTRFS_IOC_SHUTDOWN	_IOR('X', 125, __u32)

@@ -22,7 +22,6 @@
 #include <linux/list.h>
 #include <linux/netdevice.h>
 #include <linux/ptp_mock.h>
-#include <linux/u64_stats_sync.h>
 #include <net/devlink.h>
 #include <net/udp_tunnel.h>
 #include <net/xdp.h>
@@ -115,11 +114,10 @@ struct netdevsim {
 	int rq_reset_mode;
 
 	struct {
-		u64_stats_t rx_packets;
-		u64_stats_t rx_bytes;
-		u64_stats_t tx_packets;
-		u64_stats_t tx_bytes;
-		struct u64_stats_sync syncp;
+		atomic64_t rx_packets;
+		atomic64_t rx_bytes;
+		atomic64_t tx_packets;
+		atomic64_t tx_bytes;
 		struct psp_dev __rcu *dev;
 		struct dentry *rereg;
 		struct mutex rereg_lock;
@@ -156,6 +154,7 @@ struct netdevsim {
 	struct dentry *pp_dfs;
 	struct dentry *qr_dfs;
 	struct dentry *vlan_dfs;
+	struct dentry *ethtool_ddir;
 
 	struct nsim_ethtool ethtool;
 	struct netdevsim __rcu *peer;
@@ -171,6 +170,7 @@ void nsim_destroy(struct netdevsim *ns);
 bool netdev_is_nsim(struct net_device *dev);
 
 void nsim_ethtool_init(struct netdevsim *ns);
+void nsim_ethtool_fini(struct netdevsim *ns);
 
 void nsim_udp_tunnels_debugfs_create(struct nsim_dev *nsim_dev);
 int nsim_udp_tunnels_info_create(struct nsim_dev *nsim_dev,

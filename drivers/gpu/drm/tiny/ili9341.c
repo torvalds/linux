@@ -84,7 +84,7 @@ static const struct drm_plane_funcs ili9341_plane_funcs = {
 };
 
 static void ili9341_crtc_helper_atomic_enable(struct drm_crtc *crtc,
-					      struct drm_atomic_state *state)
+					      struct drm_atomic_commit *state)
 {
 	struct drm_device *drm = crtc->dev;
 	struct ili9341_device *ili9341 = to_ili9341_device(drm);

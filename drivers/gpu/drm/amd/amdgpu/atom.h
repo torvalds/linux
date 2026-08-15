@@ -153,6 +153,9 @@ struct atom_context {
 	uint8_t vbios_ver_str[STRLEN_NORMAL];
 	uint8_t date[STRLEN_NORMAL];
 	uint8_t build_num[STRLEN_NORMAL];
+
+	/* Nesting depth for ATOM_OP_CALLTABLE */
+	unsigned int execute_depth;
 };
 
 extern int amdgpu_atom_debug;

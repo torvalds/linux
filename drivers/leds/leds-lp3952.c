@@ -266,8 +266,8 @@ static int lp3952_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id lp3952_id[] = {
-	{ LP3952_NAME },
-	{}
+	{ .name = LP3952_NAME },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lp3952_id);
 

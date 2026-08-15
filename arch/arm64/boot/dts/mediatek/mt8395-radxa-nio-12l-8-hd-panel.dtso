@@ -29,7 +29,7 @@
 		compatible = "radxa,display-8hd-ad002", "jadard,jd9365da-h3";
 		reg = <0>;
 		backlight = <&backlight>;
-		vdd-supply = <&mt6359_vcn33_2_bt_ldo_reg>;
+		vdd-supply = <&mt6359_vcn33_2_ldo_reg>;
 		vccio-supply = <&mt6360_ldo2>;
 		reset-gpios = <&pio 108 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
@@ -57,7 +57,7 @@
 		interrupts-extended = <&pio 132 IRQ_TYPE_EDGE_RISING>;
 		irq-gpios = <&pio 132 GPIO_ACTIVE_HIGH>;
 		reset-gpios = <&pio 133 GPIO_ACTIVE_HIGH>;
-		VDDIO-supply = <&mt6359_vcn33_2_bt_ldo_reg>;
+		VDDIO-supply = <&mt6359_vcn33_2_ldo_reg>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&touch_pins>;
 	};

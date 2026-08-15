@@ -3,10 +3,13 @@
  * Copyright (c) 2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved
  */
 
+#include <linux/bitfield.h>
 #include <linux/sizes.h>
+#include <linux/time64.h>
 #include <linux/vfio_pci_core.h>
 #include <linux/delay.h>
 #include <linux/jiffies.h>
+#include <linux/sched.h>
 #include <linux/pci-p2pdma.h>
 #include <linux/pm_runtime.h>
 #include <linux/memory-failure.h>
@@ -61,9 +64,12 @@ struct nvgrace_gpu_pci_core_device {
 	struct mem_region resmem;
 	/* Lock to control device memory kernel mapping */
 	struct mutex remap_lock;
+	void __iomem *bar0_base;
 	bool has_mig_hw_bug;
 	/* GPU has just been reset */
 	bool reset_done;
+	/* CXL Device DVSEC offset; 0 if not present (legacy GB path) */
+	int cxl_dvsec;
 };
 
 static void nvgrace_gpu_init_fake_bar_emu_regs(struct vfio_device *core_vdev)
@@ -171,6 +177,7 @@ static int nvgrace_gpu_open_device(struct vfio_device *core_vdev)
 	struct nvgrace_gpu_pci_core_device *nvdev =
 		container_of(core_vdev, struct nvgrace_gpu_pci_core_device,
 			     core_device.vdev);
+	void __iomem *io;
 	int ret;
 
 	ret = vfio_pci_core_enable(vdev);
@@ -184,14 +191,14 @@ static int nvgrace_gpu_open_device(struct vfio_device *core_vdev)
 
 	/*
 	 * GPU readiness is checked by reading the BAR0 registers.
-	 *
-	 * ioremap BAR0 to ensure that the BAR0 mapping is present before
-	 * register reads on first fault before establishing any GPU
-	 * memory mapping.
+	 * The BAR map was just set up by vfio_pci_core_enable(), so
+	 * bail early if that wasn't successful:
 	 */
-	ret = vfio_pci_core_setup_barmap(vdev, 0);
-	if (ret)
+	io = vfio_pci_core_get_iomap(vdev, 0);
+	if (IS_ERR(io)) {
+		ret = PTR_ERR(io);
 		goto error_exit;
+	}
 
 	if (nvdev->resmem.memlength) {
 		ret = nvgrace_gpu_vfio_pci_register_pfn_range(core_vdev, &nvdev->resmem);
@@ -204,6 +211,8 @@ static int nvgrace_gpu_open_device(struct vfio_device *core_vdev)
 		goto register_mem_failed;
 
 	vfio_pci_core_finish_enable(vdev);
+	nvdev->bar0_base = io;
+
 	return 0;
 
 register_mem_failed:
@@ -219,6 +228,8 @@ static void nvgrace_gpu_close_device(struct vfio_device *core_vdev)
 	struct nvgrace_gpu_pci_core_device *nvdev =
 		container_of(core_vdev, struct nvgrace_gpu_pci_core_device,
 			     core_device.vdev);
+
+	nvdev->bar0_base = NULL;
 
 	if (nvdev->resmem.memlength)
 		unregister_pfn_address_space(&nvdev->resmem.pfn_address_space);
@@ -242,7 +253,7 @@ static void nvgrace_gpu_close_device(struct vfio_device *core_vdev)
 	vfio_pci_core_close_device(core_vdev);
 }
 
-static int nvgrace_gpu_wait_device_ready(void __iomem *io)
+static int nvgrace_gpu_wait_device_ready_legacy(void __iomem *io)
 {
 	unsigned long timeout = jiffies + msecs_to_jiffies(POLL_TIMEOUT_MS);
 
@@ -250,16 +261,97 @@ static int nvgrace_gpu_wait_device_ready(void __iomem *io)
 		if ((ioread32(io + C2C_LINK_BAR0_OFFSET) == STATUS_READY) &&
 		    (ioread32(io + HBM_TRAINING_BAR0_OFFSET) == STATUS_READY))
 			return 0;
-		msleep(POLL_QUANTUM_MS);
+		if (schedule_timeout_killable(msecs_to_jiffies(POLL_QUANTUM_MS)))
+			return -EINTR;
 	} while (!time_after(jiffies, timeout));
 
 	return -ETIME;
 }
 
 /*
+ * Decode the 3-bit Memory_Active_Timeout field from CXL DVSEC Range 1 Low
+ * (bits 15:13) into milliseconds. Encoding per CXL spec r4.0 sec 8.1.3.8.2:
+ * 000b = 1s, 001b = 4s, 010b = 16s, 011b = 64s, 100b = 256s,
+ * 101b-111b = reserved (clamped to 256s).
+ */
+static inline unsigned long cxl_mem_active_timeout_ms(u8 timeout)
+{
+	return MSEC_PER_SEC << (2 * min_t(u8, timeout, 4));
+}
+
+/*
+ * Check if CXL DVSEC reports memory as valid and active.
+ */
+static inline bool cxl_dvsec_mem_is_active(u32 status)
+{
+	return (status & PCI_DVSEC_CXL_MEM_INFO_VALID) &&
+	       (status & PCI_DVSEC_CXL_MEM_ACTIVE);
+}
+
+static int nvgrace_gpu_test_device_ready_cxl(struct nvgrace_gpu_pci_core_device *nvdev,
+					     u32 *status)
+{
+	struct pci_dev *pdev = nvdev->core_device.pdev;
+	int cxl_dvsec = nvdev->cxl_dvsec;
+	u32 val;
+
+	pci_read_config_dword(pdev,
+			      cxl_dvsec + PCI_DVSEC_CXL_RANGE_SIZE_LOW(0),
+			      &val);
+
+	if (val == ~0U)
+		return -ENODEV;
+
+	if (status)
+		*status = val;
+
+	if (cxl_dvsec_mem_is_active(val))
+		return 0;
+
+	return -EAGAIN;
+}
+
+/*
+ * As per CXL spec r4.0 sec 8.1.3.8.2, MEM_INFO_VALID needs to be set
+ * within 1s and MEM_ACTIVE within Memory_Active_Timeout (up to ~256s)
+ * after reset and bootup.
+ */
+static int nvgrace_gpu_wait_device_ready_cxl(struct nvgrace_gpu_pci_core_device *nvdev)
+{
+	unsigned long deadline = jiffies + msecs_to_jiffies(POLL_QUANTUM_MS);
+	bool active_phase = false;
+	u32 status;
+	int ret;
+
+	for (;;) {
+		ret = nvgrace_gpu_test_device_ready_cxl(nvdev, &status);
+		if (ret != -EAGAIN)
+			return ret;
+
+		if (!active_phase && (status & PCI_DVSEC_CXL_MEM_INFO_VALID)) {
+			u8 t = FIELD_GET(PCI_DVSEC_CXL_MEM_ACTIVE_TIMEOUT, status);
+
+			deadline = jiffies +
+				   msecs_to_jiffies(cxl_mem_active_timeout_ms(t));
+			active_phase = true;
+		}
+
+		if (time_after(jiffies, deadline))
+			return -ETIME;
+
+		if (schedule_timeout_killable(msecs_to_jiffies(POLL_QUANTUM_MS)))
+			return -EINTR;
+	}
+}
+
+/*
  * If the GPU memory is accessed by the CPU while the GPU is not ready
  * after reset, it can cause harmless corrected RAS events to be logged.
  * Make sure the GPU is ready before establishing the mappings.
+ *
+ * Since the CXL polling wait could take 256s, it happens outside
+ * memory_lock. Only do quick readiness check under the lock. Legacy
+ * keeps the in-lock poll.
  */
 static int
 nvgrace_gpu_check_device_ready(struct nvgrace_gpu_pci_core_device *nvdev)
@@ -275,7 +367,10 @@ nvgrace_gpu_check_device_ready(struct nvgrace_gpu_pci_core_device *nvdev)
 	if (!__vfio_pci_memory_enabled(vdev))
 		return -EIO;
 
-	ret = nvgrace_gpu_wait_device_ready(vdev->barmap[0]);
+	if (nvdev->cxl_dvsec)
+		ret = nvgrace_gpu_test_device_ready_cxl(nvdev, NULL);
+	else
+		ret = nvgrace_gpu_wait_device_ready_legacy(nvdev->bar0_base);
 	if (ret)
 		return ret;
 
@@ -313,9 +408,33 @@ static vm_fault_t nvgrace_gpu_vfio_pci_huge_fault(struct vm_fault *vmf,
 	pfn = PHYS_PFN(memregion->memphys) + addr_to_pgoff(vma, addr);
 
 	if (is_aligned_for_order(vma, addr, pfn, order)) {
+		/*
+		 * Exit early under memory_lock to avoid a potentially lengthy
+		 * device readiness wait on a runtime-suspended device. Any
+		 * race after the lock is dropped is benign as the re-check
+		 * inside the scoped guard below catches it.
+		 */
 		scoped_guard(rwsem_read, &vdev->memory_lock) {
-			if (vdev->pm_runtime_engaged ||
-			    nvgrace_gpu_check_device_ready(nvdev))
+			if (vdev->pm_runtime_engaged)
+				return VM_FAULT_SIGBUS;
+		}
+
+retry:
+		if (nvdev->cxl_dvsec && READ_ONCE(nvdev->reset_done) &&
+		    nvgrace_gpu_wait_device_ready_cxl(nvdev))
+			return VM_FAULT_SIGBUS;
+
+		scoped_guard(rwsem_read, &vdev->memory_lock) {
+			int rc;
+
+			if (vdev->pm_runtime_engaged)
+				return VM_FAULT_SIGBUS;
+
+			/* Re-run the wait if a reset raced us, not SIGBUS. */
+			rc = nvgrace_gpu_check_device_ready(nvdev);
+			if (rc == -EAGAIN)
+				goto retry;
+			if (rc)
 				return VM_FAULT_SIGBUS;
 
 			ret = vfio_pci_vmf_insert_pfn(vdev, vmf, pfn, order);
@@ -712,6 +831,12 @@ nvgrace_gpu_read_mem(struct nvgrace_gpu_pci_core_device *nvdev,
 	else
 		mem_count = min(count, memregion->memlength - (size_t)offset);
 
+	if (nvdev->cxl_dvsec && READ_ONCE(nvdev->reset_done)) {
+		ret = nvgrace_gpu_wait_device_ready_cxl(nvdev);
+		if (ret)
+			return ret;
+	}
+
 	scoped_guard(rwsem_read, &vdev->memory_lock) {
 		ret = nvgrace_gpu_check_device_ready(nvdev);
 		if (ret)
@@ -845,6 +970,12 @@ nvgrace_gpu_write_mem(struct nvgrace_gpu_pci_core_device *nvdev,
 	 * memory on the hardware.
 	 */
 	mem_count = min(count, memregion->memlength - (size_t)offset);
+
+	if (nvdev->cxl_dvsec && READ_ONCE(nvdev->reset_done)) {
+		ret = nvgrace_gpu_wait_device_ready_cxl(nvdev);
+		if (ret)
+			return ret;
+	}
 
 	scoped_guard(rwsem_read, &vdev->memory_lock) {
 		ret = nvgrace_gpu_check_device_ready(nvdev);
@@ -1143,13 +1274,23 @@ static bool nvgrace_gpu_has_mig_hw_bug(struct pci_dev *pdev)
  * is beneficial to make the check to ensure the device is in an
  * expected state.
  *
- * Ensure that the BAR0 region is enabled before accessing the
+ * On Blackwell-Next systems, memory readiness is determined via the
+ * CXL Device DVSEC in PCI config space and does not require BAR0.
+ * For the legacy path, ensure BAR0 is enabled before accessing the
  * registers.
  */
-static int nvgrace_gpu_probe_check_device_ready(struct pci_dev *pdev)
+static int nvgrace_gpu_probe_check_device_ready(struct nvgrace_gpu_pci_core_device *nvdev)
 {
+	struct pci_dev *pdev = nvdev->core_device.pdev;
 	void __iomem *io;
 	int ret;
+
+	/*
+	 * Note that the worst-case wait here is ~256s (vs ~30s on the
+	 * legacy path) and may block device unbind/sysfs for the duration.
+	 */
+	if (nvdev->cxl_dvsec)
+		return nvgrace_gpu_wait_device_ready_cxl(nvdev);
 
 	ret = pci_enable_device(pdev);
 	if (ret)
@@ -1165,7 +1306,7 @@ static int nvgrace_gpu_probe_check_device_ready(struct pci_dev *pdev)
 		goto iomap_exit;
 	}
 
-	ret = nvgrace_gpu_wait_device_ready(io);
+	ret = nvgrace_gpu_wait_device_ready_legacy(io);
 
 	pci_iounmap(pdev, io);
 iomap_exit:
@@ -1183,10 +1324,6 @@ static int nvgrace_gpu_probe(struct pci_dev *pdev,
 	u64 memphys, memlength;
 	int ret;
 
-	ret = nvgrace_gpu_probe_check_device_ready(pdev);
-	if (ret)
-		return ret;
-
 	ret = nvgrace_gpu_fetch_memory_property(pdev, &memphys, &memlength);
 	if (!ret)
 		ops = &nvgrace_gpu_pci_ops;
@@ -1195,6 +1332,13 @@ static int nvgrace_gpu_probe(struct pci_dev *pdev,
 				  &pdev->dev, ops);
 	if (IS_ERR(nvdev))
 		return PTR_ERR(nvdev);
+
+	nvdev->cxl_dvsec = pci_find_dvsec_capability(pdev, PCI_VENDOR_ID_CXL,
+						     PCI_DVSEC_CXL_DEVICE);
+
+	ret = nvgrace_gpu_probe_check_device_ready(nvdev);
+	if (ret)
+		goto out_put_vdev;
 
 	dev_set_drvdata(&pdev->dev, &nvdev->core_device);
 

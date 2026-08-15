@@ -62,23 +62,33 @@ allOf:
   - if:
       properties:
         compatible:
-          const: qcom,sm6115-cnoc
+          const: qcom,sm6115-bimc
+    then:
+      properties:
+        clocks: false
+        clock-names: false
+      patternProperties:
+        '^interconnect-[a-z0-9]+$': false
 
+  - if:
+      properties:
+        compatible:
+          const: qcom,sm6115-cnoc
     then:
       properties:
         clocks:
           items:
             - description: USB-NoC AXI clock
-
         clock-names:
           items:
             - const: usb_axi
+      patternProperties:
+        '^interconnect-[a-z0-9]+$': false
 
   - if:
       properties:
         compatible:
           const: qcom,sm6115-snoc
-
     then:
       properties:
         clocks:
@@ -87,27 +97,12 @@ allOf:
             - description: UFS-NoC AXI clock.
             - description: USB-NoC AXI clock.
             - description: IPA clock.
-
         clock-names:
           items:
             - const: cpu_axi
             - const: ufs_axi
             - const: usb_axi
             - const: ipa
-
-  - if:
-      properties:
-        compatible:
-          enum:
-            - qcom,sm6115-bimc
-            - qcom,sm6115-clk-virt
-            - qcom,sm6115-mmrt-virt
-            - qcom,sm6115-mmnrt-virt
-
-    then:
-      properties:
-        clocks: false
-        clock-names: false
 
 unevaluatedProperties: false
 
@@ -149,4 +144,6 @@ examples:
         compatible = "qcom,sm6115-cnoc";
         reg = <0x01900000 0x8200>;
         #interconnect-cells = <1>;
+        clocks = <&gcc GCC_CFG_NOC_USB3_PRIM_AXI_CLK>;
+        clock-names = "usb_axi";
     };

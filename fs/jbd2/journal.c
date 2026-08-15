@@ -95,8 +95,6 @@ EXPORT_SYMBOL(jbd2_journal_release_jbd_inode);
 EXPORT_SYMBOL(jbd2_journal_begin_ordered_truncate);
 EXPORT_SYMBOL(jbd2_inode_cache);
 
-static int jbd2_journal_create_slab(size_t slab_size);
-
 #ifdef CONFIG_JBD2_DEBUG
 void __jbd2_debug(int level, const char *file, const char *func,
 		  unsigned int line, const char *fmt, ...)
@@ -385,10 +383,10 @@ int jbd2_journal_write_metadata_buffer(transaction_t *transaction,
 			goto escape_done;
 
 		spin_unlock(&jh_in->b_state_lock);
-		tmp = jbd2_alloc(bh_in->b_size, GFP_NOFS | __GFP_NOFAIL);
+		tmp = kmalloc(bh_in->b_size, GFP_NOFS | __GFP_NOFAIL);
 		spin_lock(&jh_in->b_state_lock);
 		if (jh_in->b_frozen_data) {
-			jbd2_free(tmp, bh_in->b_size);
+			kfree(tmp);
 			goto copy_done;
 		}
 
@@ -1820,9 +1818,7 @@ static int jbd2_write_superblock(journal_t *journal, blk_opf_t write_flags)
 	}
 	if (jbd2_journal_has_csum_v2or3(journal))
 		sb->s_checksum = jbd2_superblock_csum(sb);
-	get_bh(bh);
-	bh->b_end_io = end_buffer_write_sync;
-	submit_bh(REQ_OP_WRITE | write_flags, bh);
+	bh_submit(bh, REQ_OP_WRITE | write_flags, bh_end_write);
 	wait_on_buffer(bh);
 	if (buffer_write_io_error(bh)) {
 		clear_buffer_write_io_error(bh);
@@ -2064,14 +2060,6 @@ EXPORT_SYMBOL(jbd2_journal_update_sb_errno);
 int jbd2_journal_load(journal_t *journal)
 {
 	int err;
-	journal_superblock_t *sb = journal->j_superblock;
-
-	/*
-	 * Create a slab for this blocksize
-	 */
-	err = jbd2_journal_create_slab(be32_to_cpu(sb->s_blocksize));
-	if (err)
-		return err;
 
 	/* Let the recovery code check whether it needs to recover any
 	 * data from the journal. */
@@ -2263,6 +2251,8 @@ jbd2_journal_initialize_fast_commit(journal_t *journal)
 	unsigned long long num_fc_blks;
 
 	num_fc_blks = jbd2_journal_get_num_fc_blks(sb);
+	if (num_fc_blks > journal->j_last)
+		return -EFSCORRUPTED;
 	if (journal->j_last - num_fc_blks < JBD2_MIN_JOURNAL_BLOCKS)
 		return -ENOSPC;
 
@@ -2700,108 +2690,6 @@ size_t journal_tag_bytes(journal_t *journal)
 }
 
 /*
- * JBD memory management
- *
- * These functions are used to allocate block-sized chunks of memory
- * used for making copies of buffer_head data.  Very often it will be
- * page-sized chunks of data, but sometimes it will be in
- * sub-page-size chunks.  (For example, 16k pages on Power systems
- * with a 4k block file system.)  For blocks smaller than a page, we
- * use a SLAB allocator.  There are slab caches for each block size,
- * which are allocated at mount time, if necessary, and we only free
- * (all of) the slab caches when/if the jbd2 module is unloaded.  For
- * this reason we don't need to a mutex to protect access to
- * jbd2_slab[] allocating or releasing memory; only in
- * jbd2_journal_create_slab().
- */
-#define JBD2_MAX_SLABS 8
-static struct kmem_cache *jbd2_slab[JBD2_MAX_SLABS];
-
-static const char *jbd2_slab_names[JBD2_MAX_SLABS] = {
-	"jbd2_1k", "jbd2_2k", "jbd2_4k", "jbd2_8k",
-	"jbd2_16k", "jbd2_32k", "jbd2_64k", "jbd2_128k"
-};
-
-
-static void jbd2_journal_destroy_slabs(void)
-{
-	int i;
-
-	for (i = 0; i < JBD2_MAX_SLABS; i++) {
-		kmem_cache_destroy(jbd2_slab[i]);
-		jbd2_slab[i] = NULL;
-	}
-}
-
-static int jbd2_journal_create_slab(size_t size)
-{
-	static DEFINE_MUTEX(jbd2_slab_create_mutex);
-	int i = order_base_2(size) - 10;
-	size_t slab_size;
-
-	if (size == PAGE_SIZE)
-		return 0;
-
-	if (i >= JBD2_MAX_SLABS)
-		return -EINVAL;
-
-	if (unlikely(i < 0))
-		i = 0;
-	mutex_lock(&jbd2_slab_create_mutex);
-	if (jbd2_slab[i]) {
-		mutex_unlock(&jbd2_slab_create_mutex);
-		return 0;	/* Already created */
-	}
-
-	slab_size = 1 << (i+10);
-	jbd2_slab[i] = kmem_cache_create(jbd2_slab_names[i], slab_size,
-					 slab_size, 0, NULL);
-	mutex_unlock(&jbd2_slab_create_mutex);
-	if (!jbd2_slab[i]) {
-		printk(KERN_EMERG "JBD2: no memory for jbd2_slab cache\n");
-		return -ENOMEM;
-	}
-	return 0;
-}
-
-static struct kmem_cache *get_slab(size_t size)
-{
-	int i = order_base_2(size) - 10;
-
-	BUG_ON(i >= JBD2_MAX_SLABS);
-	if (unlikely(i < 0))
-		i = 0;
-	BUG_ON(jbd2_slab[i] == NULL);
-	return jbd2_slab[i];
-}
-
-void *jbd2_alloc(size_t size, gfp_t flags)
-{
-	void *ptr;
-
-	BUG_ON(size & (size-1)); /* Must be a power of 2 */
-
-	if (size < PAGE_SIZE)
-		ptr = kmem_cache_alloc(get_slab(size), flags);
-	else
-		ptr = (void *)__get_free_pages(flags, get_order(size));
-
-	/* Check alignment; SLUB has gotten this wrong in the past,
-	 * and this can lead to user data corruption! */
-	BUG_ON(((unsigned long) ptr) & (size-1));
-
-	return ptr;
-}
-
-void jbd2_free(void *ptr, size_t size)
-{
-	if (size < PAGE_SIZE)
-		kmem_cache_free(get_slab(size), ptr);
-	else
-		free_pages((unsigned long)ptr, get_order(size));
-};
-
-/*
  * Journal_head storage management
  */
 static struct kmem_cache *jbd2_journal_head_cache;
@@ -2974,15 +2862,15 @@ static void __journal_remove_journal_head(struct buffer_head *bh)
 	clear_buffer_jbd(bh);
 }
 
-static void journal_release_journal_head(struct journal_head *jh, size_t b_size)
+static void journal_release_journal_head(struct journal_head *jh)
 {
 	if (jh->b_frozen_data) {
 		printk(KERN_WARNING "%s: freeing b_frozen_data\n", __func__);
-		jbd2_free(jh->b_frozen_data, b_size);
+		kfree(jh->b_frozen_data);
 	}
 	if (jh->b_committed_data) {
 		printk(KERN_WARNING "%s: freeing b_committed_data\n", __func__);
-		jbd2_free(jh->b_committed_data, b_size);
+		kfree(jh->b_committed_data);
 	}
 	journal_free_journal_head(jh);
 }
@@ -3001,7 +2889,7 @@ void jbd2_journal_put_journal_head(struct journal_head *jh)
 	if (!jh->b_jcount) {
 		__journal_remove_journal_head(bh);
 		jbd_unlock_bh_journal_head(bh);
-		journal_release_journal_head(jh, bh->b_size);
+		journal_release_journal_head(jh);
 		__brelse(bh);
 	} else {
 		jbd_unlock_bh_journal_head(bh);
@@ -3143,7 +3031,6 @@ static void jbd2_journal_destroy_caches(void)
 	jbd2_journal_destroy_handle_cache();
 	jbd2_journal_destroy_inode_cache();
 	jbd2_journal_destroy_transaction_cache();
-	jbd2_journal_destroy_slabs();
 }
 
 static int __init journal_init(void)

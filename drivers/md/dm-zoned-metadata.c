@@ -2871,7 +2871,7 @@ int dmz_ctr_metadata(struct dmz_dev *dev, int num_dev,
 	if (!zmd)
 		return -ENOMEM;
 
-	strcpy(zmd->devname, devname);
+	strscpy(zmd->devname, devname);
 	zmd->dev = dev;
 	zmd->nr_devs = num_dev;
 	zmd->mblk_rbtree = RB_ROOT;

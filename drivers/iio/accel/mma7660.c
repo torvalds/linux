@@ -8,7 +8,6 @@
  */
 
 #include <linux/i2c.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -259,7 +258,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(mma7660_pm_ops, mma7660_suspend,
 				mma7660_resume);
 
 static const struct i2c_device_id mma7660_i2c_id[] = {
-	{ "mma7660" },
+	{ .name = "mma7660" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mma7660_i2c_id);

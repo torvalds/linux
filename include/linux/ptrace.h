@@ -17,6 +17,7 @@ struct syscall_info {
 	struct seccomp_data	data;
 };
 
+bool ptracer_access_allowed(struct task_struct *tsk);
 extern int ptrace_access_vm(struct task_struct *tsk, unsigned long addr,
 			    void *buf, int len, unsigned int gup_flags);
 

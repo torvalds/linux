@@ -251,7 +251,7 @@ static int mes_userq_detect_and_reset(struct amdgpu_device *adev,
 
 	if (found_hung_queue) {
 		/* Resume scheduling after hang recovery */
-		r = amdgpu_mes_resume(adev);
+		r = amdgpu_mes_resume(adev, input.xcc_id);
 	}
 
 	return r;
@@ -467,6 +467,11 @@ static void mes_userq_mqd_destroy(struct amdgpu_usermode_queue *queue)
 	kfree(queue->userq_prop);
 	amdgpu_bo_free_kernel(&queue->mqd.obj, &queue->mqd.gpu_addr,
 			      &queue->mqd.cpu_ptr);
+
+	amdgpu_bo_reserve(queue->wptr_obj.obj, true);
+	amdgpu_bo_unpin(queue->wptr_obj.obj);
+	amdgpu_bo_unreserve(queue->wptr_obj.obj);
+	amdgpu_bo_unref(&queue->wptr_obj.obj);
 }
 
 static int mes_userq_preempt(struct amdgpu_usermode_queue *queue)

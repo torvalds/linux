@@ -322,6 +322,10 @@
 };
 
 &hdmi0 {
+	frl-enable-gpios = <&gpio4 RK_PA0 GPIO_ACTIVE_LOW>;
+	pinctrl-0 = <&hdmim0_tx0_cec &hdmim0_tx0_hpd
+		     &hdmim0_tx0_scl &hdmim0_tx0_sda &hdmi0_tx_on_h>;
+	pinctrl-names = "default";
 	status = "okay";
 };
 
@@ -487,6 +491,12 @@
 		};
 	};
 
+	hdmi {
+		hdmi0_tx_on_h: hdmi0-tx-on-h {
+			rockchip,pins = <4 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
 	hym8563 {
 		hym8563_int: hym8563-int {
 			rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>;
@@ -558,11 +568,13 @@
 /* uart/232/485 */
 &uart0 {
 	pinctrl-0 = <&uart0m2_xfer>;
+	pinctrl-names = "default";
 	status = "okay";
 };
 
 &uart1 {
 	pinctrl-0 = <&uart1m1_xfer>;
+	pinctrl-names = "default";
 	status = "okay";
 };
 

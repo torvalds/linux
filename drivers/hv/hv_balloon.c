@@ -1862,9 +1862,7 @@ static int hv_balloon_debug_show(struct seq_file *f, void *offset)
 	if (hot_add_enabled())
 		seq_puts(f, " hot_add");
 
-	seq_puts(f, "\n");
-
-	seq_printf(f, "%-22s: %u", "state", dm->state);
+	seq_printf(f, "\n%-22s: %u", "state", dm->state);
 	switch (dm->state) {
 	case DM_INITIALIZING:
 			sname = "Initializing";

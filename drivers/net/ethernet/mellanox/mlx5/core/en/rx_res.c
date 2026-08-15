@@ -40,13 +40,38 @@ static u32 *get_vhca_ids(struct mlx5e_rx_res *res, int offset)
 	return multi_vhca ? res->rss_vhca_ids + offset : NULL;
 }
 
-void mlx5e_rx_res_rss_update_num_channels(struct mlx5e_rx_res *res, u32 nch)
+/* Updates the indirection table SW shadow, does not update the HW resources yet
+ */
+void mlx5e_rx_res_rss_update_num_channels(struct mlx5e_rx_res *res, u32 nch,
+					  struct net_device *netdev)
 {
+	u32 new_size = mlx5e_rqt_size(res->mdev, nch);
 	int i;
 
-	for (i = 0; i < MLX5E_MAX_NUM_RSS; i++) {
-		if (res->rss[i])
-			mlx5e_rss_params_indir_modify_actual_size(res->rss[i], nch);
+	WARN_ON_ONCE(res->rss_active);
+
+	/* Default context: fold/unfold user-configured table, then update size
+	 * and reset to uniform when unconfigured.
+	 */
+	mlx5e_rss_indir_resize(res->rss[0], netdev, new_size);
+
+	/* mlx5e_rss_indir_resize() is a no-op when the table is not
+	 * user-configured. actual_table_size is updated after the resize
+	 * because ethtool_rxfh_indir_resize() uses it as the old size to
+	 * replicate the pattern; updating it first would make the grow a no-op.
+	 * It must be updated before mlx5e_rss_set_indir_uniform() so that
+	 * the uniform fill covers all new entries, not just the old ones.
+	 */
+	mlx5e_rss_set_indir_actual_size(res->rss[0], new_size);
+	if (!netif_is_rxfh_configured(netdev))
+		mlx5e_rss_set_indir_uniform(res->rss[0], nch);
+
+	/* Non-default contexts */
+	for (i = 1; i < MLX5E_MAX_NUM_RSS; i++) {
+		if (res->rss[i]) {
+			mlx5e_rss_ctx_resize(res->rss[i], new_size);
+			mlx5e_rss_set_indir_actual_size(res->rss[i], new_size);
+		}
 	}
 }
 
@@ -207,13 +232,6 @@ static void mlx5e_rx_res_rss_disable(struct mlx5e_rx_res *res)
 			continue;
 		mlx5e_rss_disable(rss);
 	}
-}
-
-/* Updates the indirection table SW shadow, does not update the HW resources yet */
-void mlx5e_rx_res_rss_set_indir_uniform(struct mlx5e_rx_res *res, unsigned int nch)
-{
-	WARN_ON_ONCE(res->rss_active);
-	mlx5e_rss_set_indir_uniform(res->rss[0], nch);
 }
 
 void mlx5e_rx_res_rss_get_rxfh(struct mlx5e_rx_res *res, u32 rss_idx,

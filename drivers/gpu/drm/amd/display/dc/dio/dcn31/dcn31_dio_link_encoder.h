@@ -285,6 +285,14 @@ bool dcn31_link_encoder_is_in_alt_mode(
 void dcn31_link_encoder_get_max_link_cap(struct link_encoder *enc,
 	struct dc_link_settings *link_settings);
 
+void dpcs31_program_eq_setting(
+		struct link_encoder *enc,
+		uint8_t FFE_Level,
+		bool de_emphasis_only,
+		bool pre_shoot_only,
+		bool no_ffe,
+		const struct dc_hdmi_frl_link_settings *link_settings);
+
 void enc31_hw_init(struct link_encoder *enc);
 
 #endif /* __DC_LINK_ENCODER__DCN31_H__ */

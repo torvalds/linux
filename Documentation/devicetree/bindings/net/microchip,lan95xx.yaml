@@ -20,6 +20,8 @@ properties:
   compatible:
     items:
       - enum:
+          - usb424,7500   # SMSC LAN7500 USB Ethernet Device
+          - usb424,7505   # SMSC LAN7505 USB Ethernet Device
           - usb424,9500   # SMSC9500 USB Ethernet Device
           - usb424,9505   # SMSC9505 USB Ethernet Device
           - usb424,9530   # SMSC LAN9530 USB Ethernet Device

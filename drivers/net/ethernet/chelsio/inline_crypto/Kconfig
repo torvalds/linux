@@ -13,18 +13,6 @@ config CHELSIO_INLINE_CRYPTO
 
 if CHELSIO_INLINE_CRYPTO
 
-config CRYPTO_DEV_CHELSIO_TLS
-	tristate "Chelsio Crypto Inline TLS Driver"
-	depends on CHELSIO_T4
-	depends on TLS
-	depends on TLS_TOE
-	help
-	  Support Chelsio Inline TLS with Chelsio crypto accelerator.
-	  Enable inline TLS support for Tx and Rx.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called chtls.
-
 config CHELSIO_IPSEC_INLINE
        tristate "Chelsio IPSec XFRM Tx crypto offload"
        depends on CHELSIO_T4

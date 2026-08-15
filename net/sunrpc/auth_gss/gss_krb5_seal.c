@@ -61,9 +61,9 @@
 #include <linux/types.h>
 #include <linux/jiffies.h>
 #include <linux/sunrpc/gss_krb5.h>
-#include <linux/random.h>
-#include <linux/crypto.h>
 #include <linux/atomic.h>
+#include <linux/scatterlist.h>
+#include <linux/slab.h>
 
 #include "gss_krb5_internal.h"
 
@@ -78,10 +78,10 @@ setup_token_v2(struct krb5_ctx *ctx, struct xdr_netobj *token)
 	void *krb5_hdr;
 	u8 *p, flags = 0x00;
 
-	if ((ctx->flags & KRB5_CTX_FLAG_INITIATOR) == 0)
-		flags |= 0x01;
+	if (!ctx->initiate)
+		flags |= KG2_TOKEN_FLAG_SENTBYACCEPTOR;
 	if (ctx->flags & KRB5_CTX_FLAG_ACCEPTOR_SUBKEY)
-		flags |= 0x04;
+		flags |= KG2_TOKEN_FLAG_ACCEPTORSUBKEY;
 
 	/* Per rfc 4121, sec 4.2.6.1, there is no header,
 	 * just start the token.
@@ -97,7 +97,7 @@ setup_token_v2(struct krb5_ctx *ctx, struct xdr_netobj *token)
 	*ptr++ = 0xffff;
 	*ptr = 0xffff;
 
-	token->len = GSS_KRB5_TOK_HDR_LEN + ctx->gk5e->cksumlength;
+	token->len = GSS_KRB5_TOK_HDR_LEN + ctx->krb5e->cksum_len;
 	return krb5_hdr;
 }
 
@@ -105,14 +105,17 @@ u32
 gss_krb5_get_mic_v2(struct krb5_ctx *ctx, struct xdr_buf *text,
 		    struct xdr_netobj *token)
 {
-	struct crypto_ahash *tfm = ctx->initiate ?
-				   ctx->initiator_sign : ctx->acceptor_sign;
-	struct xdr_netobj cksumobj = {
-		.len =	ctx->gk5e->cksumlength,
-	};
+	const struct krb5_enctype *krb5 = ctx->krb5e;
+	struct crypto_shash *shash = ctx->initiate ?
+		ctx->initiator_sign_shash : ctx->acceptor_sign_shash;
+	unsigned int cksum_len = krb5->cksum_len;
+	struct scatterlist sg_head[XDR_BUF_TO_SG_NENTS];
+	struct scatterlist *sg_overflow;
 	__be64 seq_send_be64;
 	void *krb5_hdr;
 	time64_t now;
+	ssize_t ret;
+	int nsg;
 
 	dprintk("RPC:       %s\n", __func__);
 
@@ -123,9 +126,25 @@ gss_krb5_get_mic_v2(struct krb5_ctx *ctx, struct xdr_buf *text,
 	seq_send_be64 = cpu_to_be64(atomic64_fetch_inc(&ctx->seq_send64));
 	memcpy(krb5_hdr + 8, (char *) &seq_send_be64, 8);
 
-	cksumobj.data = krb5_hdr + GSS_KRB5_TOK_HDR_LEN;
-	if (gss_krb5_checksum(tfm, krb5_hdr, GSS_KRB5_TOK_HDR_LEN,
-			      text, 0, &cksumobj))
+	/*
+	 * The checksum is written directly into the token buffer.
+	 * This is safe: crypto_krb5_get_mic uses shash (software
+	 * hash), so the scatterlist is never DMA-mapped.
+	 */
+	nsg = gss_krb5_mic_build_sg(text,
+				    krb5_hdr + GSS_KRB5_TOK_HDR_LEN,
+				    cksum_len, krb5_hdr,
+				    sg_head, &sg_overflow);
+	if (nsg < 0)
+		return GSS_S_FAILURE;
+
+	ret = crypto_krb5_get_mic(krb5, shash, NULL, sg_head, nsg,
+				  cksum_len + text->len +
+					GSS_KRB5_TOK_HDR_LEN,
+				  cksum_len,
+				  text->len + GSS_KRB5_TOK_HDR_LEN);
+	kfree(sg_overflow);
+	if (ret < 0)
 		return GSS_S_FAILURE;
 
 	now = ktime_get_real_seconds();

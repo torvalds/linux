@@ -698,18 +698,6 @@ static int imx335_update_test_pattern(struct imx335 *imx335, u32 pattern_index)
 	return ret;
 }
 
-/**
- * imx335_set_ctrl() - Set subdevice control
- * @ctrl: pointer to v4l2_ctrl structure
- *
- * Supported controls:
- * - V4L2_CID_VBLANK
- * - cluster controls:
- *   - V4L2_CID_ANALOGUE_GAIN
- *   - V4L2_CID_EXPOSURE
- *
- * Return: 0 if successful, error code otherwise.
- */
 static int imx335_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct imx335 *imx335 =
@@ -800,14 +788,6 @@ static int imx335_get_format_code(struct imx335 *imx335, u32 code)
 	return imx335_mbus_codes[0];
 }
 
-/**
- * imx335_enum_mbus_code() - Enumerate V4L2 sub-device mbus codes
- * @sd: pointer to imx335 V4L2 sub-device structure
- * @sd_state: V4L2 sub-device configuration
- * @code: V4L2 sub-device code enumeration need to be filled
- *
- * Return: 0 if successful, error code otherwise.
- */
 static int imx335_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
@@ -820,14 +800,6 @@ static int imx335_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
-/**
- * imx335_enum_frame_size() - Enumerate V4L2 sub-device frame sizes
- * @sd: pointer to imx335 V4L2 sub-device structure
- * @sd_state: V4L2 sub-device configuration
- * @fsize: V4L2 sub-device size enumeration need to be filled
- *
- * Return: 0 if successful, error code otherwise.
- */
 static int imx335_enum_frame_size(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fsize)
@@ -871,14 +843,6 @@ static void imx335_fill_pad_format(struct imx335 *imx335,
 	fmt->format.xfer_func = V4L2_XFER_FUNC_NONE;
 }
 
-/**
- * imx335_set_pad_format() - Set subdevice pad format
- * @sd: pointer to imx335 V4L2 sub-device structure
- * @sd_state: V4L2 sub-device configuration
- * @fmt: V4L2 sub-device format need to be set
- *
- * Return: 0 if successful, error code otherwise.
- */
 static int imx335_set_pad_format(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_format *fmt)
@@ -923,13 +887,6 @@ static int imx335_set_pad_format(struct v4l2_subdev *sd,
 	return ret;
 }
 
-/**
- * imx335_init_state() - Initialize sub-device state
- * @sd: pointer to imx335 V4L2 sub-device structure
- * @sd_state: V4L2 sub-device configuration
- *
- * Return: 0 if successful, error code otherwise.
- */
 static int imx335_init_state(struct v4l2_subdev *sd,
 			     struct v4l2_subdev_state *sd_state)
 {
@@ -947,14 +904,6 @@ static int imx335_init_state(struct v4l2_subdev *sd,
 	return imx335_set_pad_format(sd, sd_state, &fmt);
 }
 
-/**
- * imx335_get_selection() - Selection API
- * @sd: pointer to imx335 V4L2 sub-device structure
- * @sd_state: V4L2 sub-device configuration
- * @sel: V4L2 selection info
- *
- * Return: 0 if successful, error code otherwise.
- */
 static int imx335_get_selection(struct v4l2_subdev *sd,
 				struct v4l2_subdev_state *sd_state,
 				struct v4l2_subdev_selection *sel)
@@ -1011,15 +960,6 @@ static int imx335_set_framefmt(struct imx335 *imx335)
 	return ret;
 }
 
-/**
- * imx335_enable_streams() - Enable sensor streams
- * @sd: V4L2 subdevice
- * @state: V4L2 subdevice state
- * @pad: The pad to enable
- * @streams_mask: Bitmask of streams to enable
- *
- * Return: 0 if successful, error code otherwise.
- */
 static int imx335_enable_streams(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_state *state, u32 pad,
 				 u64 streams_mask)
@@ -1097,15 +1037,6 @@ err_rpm_put:
 	return ret;
 }
 
-/**
- * imx335_disable_streams() - Disable sensor streams
- * @sd: V4L2 subdevice
- * @state: V4L2 subdevice state
- * @pad: The pad to disable
- * @streams_mask: Bitmask of streams to disable
- *
- * Return: 0 if successful, error code otherwise.
- */
 static int imx335_disable_streams(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *state, u32 pad,
 				  u64 streams_mask)
@@ -1299,12 +1230,6 @@ error_reset:
 	return ret;
 }
 
-/**
- * imx335_power_off() - Sensor power off sequence
- * @dev: pointer to i2c device
- *
- * Return: 0 if successful, error code otherwise.
- */
 static int imx335_power_off(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
@@ -1430,12 +1355,6 @@ static int imx335_init_controls(struct imx335 *imx335)
 	return 0;
 }
 
-/**
- * imx335_probe() - I2C client device binding
- * @client: pointer to i2c client device
- *
- * Return: 0 if successful, error code otherwise.
- */
 static int imx335_probe(struct i2c_client *client)
 {
 	struct imx335 *imx335;
@@ -1530,12 +1449,6 @@ error_power_off:
 	return ret;
 }
 
-/**
- * imx335_remove() - I2C client device unbinding
- * @client: pointer to I2C client device
- *
- * Return: 0 if successful, error code otherwise.
- */
 static void imx335_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);

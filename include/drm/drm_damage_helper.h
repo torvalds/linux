@@ -64,7 +64,7 @@ struct drm_atomic_helper_damage_iter {
 	bool full_update;
 };
 
-void drm_atomic_helper_check_plane_damage(struct drm_atomic_state *state,
+void drm_atomic_helper_check_plane_damage(struct drm_atomic_commit *state,
 					  struct drm_plane_state *plane_state);
 int drm_atomic_helper_dirtyfb(struct drm_framebuffer *fb,
 			      struct drm_file *file_priv, unsigned int flags,

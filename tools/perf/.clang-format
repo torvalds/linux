@@ -1,0 +1,20 @@
+BasedOnStyle: InheritParentConfig
+SortIncludes: true
+IncludeBlocks: Regroup
+IncludeCategories:
+  # Implicitly the corresponding header for the C file has Priority 0
+  # C Standard Library Headers
+  - Regex:           '^<(assert|complex|ctype|errno|fenv|float|inttypes|iso646|limits|locale|math|setjmp|signal|stdalign|stdarg|stdatomic|stdbool|stddef|stdint|stdio|stdlib|stdnoreturn|string|tgmath|threads|time|uchar|wchar|wctype)\.h>'
+    Priority:        1
+  # OS/System-Specific Headers (directories)
+  - Regex:           '^<(sys|linux|asm|arpa|net|netinet|x86_64|machine)/.*>'
+    Priority:        2
+  # OS/System-Specific Headers (POSIX/System flat headers)
+  - Regex:           '^<(unistd|pthread|fcntl|dirent|dlfcn|poll|sched|semaphore|spawn|syslog|termios|pwd|grp|netdb|sysexits|err|paths|pty|utmp|resolv|ifaddrs|elf|libelf|gelf)\.h>'
+    Priority:        2
+  # Third-Party Library Headers
+  - Regex:           '^<.*>'
+    Priority:        3
+  # Your Project's Other Headers
+  - Regex:           '^".*"'
+    Priority:        4

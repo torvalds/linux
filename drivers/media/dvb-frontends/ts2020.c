@@ -716,9 +716,9 @@ static void ts2020_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ts2020_id_table[] = {
-	{ "ts2020" },
-	{ "ts2022" },
-	{}
+	{ .name = "ts2020" },
+	{ .name = "ts2022" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ts2020_id_table);
 

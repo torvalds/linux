@@ -2342,7 +2342,7 @@ static int __init tegra194_cbb_init(void)
 {
 	return platform_driver_register(&tegra194_cbb_driver);
 }
-pure_initcall(tegra194_cbb_init);
+core_initcall(tegra194_cbb_init);
 
 static void __exit tegra194_cbb_exit(void)
 {

@@ -13,6 +13,7 @@
 #include "adf_common_drv.h"
 #include "adf_cfg.h"
 #include "adf_heartbeat.h"
+#include "adf_kpt.h"
 #include "icp_qat_fw_init_admin.h"
 
 #define ADF_ADMIN_MAILBOX_STRIDE 0x1000
@@ -604,6 +605,44 @@ int adf_send_admin_arb_commit(struct adf_accel_dev *accel_dev)
 	struct icp_qat_fw_init_admin_resp resp = { };
 
 	return adf_send_admin_svn(accel_dev, ICP_QAT_FW_SVN_COMMIT, &resp);
+}
+
+static_assert(sizeof(struct icp_qat_fw_init_admin_kpt_cfg) < PAGE_SIZE);
+
+static void adf_cfg_kpt_config(struct adf_accel_dev *accel_dev,
+			       struct icp_qat_fw_init_admin_kpt_cfg *kpt_config)
+{
+	struct adf_kpt_interface_data *user_data = GET_KPT_USER_DATA(accel_dev);
+
+	kpt_config->swk_cnt_per_fn = user_data->swk_cnt_per_fn;
+	kpt_config->swk_cnt_per_pasid = user_data->swk_cnt_per_pasid;
+	kpt_config->swk_ttl_in_secs = user_data->swk_max_ttl;
+	kpt_config->swk_shared_disable = !user_data->swk_shared;
+}
+
+int adf_send_admin_kpt_init(struct adf_accel_dev *accel_dev, void *init_cfg,
+			    size_t init_cfg_sz, dma_addr_t init_ptr)
+{
+	struct icp_qat_fw_init_admin_kpt_cfg *kpt_config = init_cfg;
+	u32 ae_mask = GET_HW_DATA(accel_dev)->admin_ae_mask;
+	struct icp_qat_fw_init_admin_resp resp = { };
+	struct icp_qat_fw_init_admin_req req = { };
+	int ret;
+
+	if (!kpt_config || init_cfg_sz < sizeof(*kpt_config))
+		return -EINVAL;
+
+	adf_cfg_kpt_config(accel_dev, kpt_config);
+
+	req.cmd_id = ICP_QAT_FW_KPT_ENABLE;
+	req.init_cfg_ptr = init_ptr;
+	req.init_cfg_sz = sizeof(*kpt_config);
+
+	ret = adf_send_admin(accel_dev, &req, &resp, ae_mask);
+	if (ret)
+		dev_err(&GET_DEV(accel_dev), "Failed to send KPT init admin message\n");
+
+	return ret;
 }
 
 int adf_init_admin_comms(struct adf_accel_dev *accel_dev)

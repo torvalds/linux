@@ -13,11 +13,11 @@ static bool CheckPositive(
 )
 {
 	u8 _BoardType =
-			((pDM_Odm->BoardType & BIT4) >> 4) << 0 | /*  _GLNA */
-			((pDM_Odm->BoardType & BIT3) >> 3) << 1 | /*  _GPA */
-			((pDM_Odm->BoardType & BIT7) >> 7) << 2 | /*  _ALNA */
-			((pDM_Odm->BoardType & BIT6) >> 6) << 3 | /*  _APA */
-			((pDM_Odm->BoardType & BIT2) >> 2) << 4;  /*  _BT */
+			((pDM_Odm->BoardType & BIT(4)) >> 4) << 0 | /*  _GLNA */
+			((pDM_Odm->BoardType & BIT(3)) >> 3) << 1 | /*  _GPA */
+			((pDM_Odm->BoardType & BIT(7)) >> 7) << 2 | /*  _ALNA */
+			((pDM_Odm->BoardType & BIT(6)) >> 6) << 3 | /*  _APA */
+			((pDM_Odm->BoardType & BIT(2)) >> 2) << 4;  /*  _BT */
 
 	u32 cond1 = Condition1, cond2 = Condition2;
 	u32 driver1 =
@@ -59,13 +59,13 @@ static bool CheckPositive(
 		if ((cond1 & 0x0F) == 0) /*  BoardType is DONTCARE */
 			return true;
 
-		if ((cond1 & BIT0) != 0) /* GLNA */
+		if ((cond1 & BIT(0)) != 0) /* GLNA */
 			bitMask |= 0x000000FF;
-		if ((cond1 & BIT1) != 0) /* GPA */
+		if ((cond1 & BIT(1)) != 0) /* GPA */
 			bitMask |= 0x0000FF00;
-		if ((cond1 & BIT2) != 0) /* ALNA */
+		if ((cond1 & BIT(2)) != 0) /* ALNA */
 			bitMask |= 0x00FF0000;
-		if ((cond1 & BIT3) != 0) /* APA */
+		if ((cond1 & BIT(3)) != 0) /* APA */
 			bitMask |= 0xFF000000;
 
 		/*  BoardType of each RF path is matched */
@@ -227,7 +227,7 @@ void ODM_ReadAndConfig_MP_8723B_RadioA(struct dm_odm_t *pDM_Odm)
 		} else {
 			/*  This line is the beginning of branch. */
 			bool bMatched = true;
-			u8  cCond  = (u8)((v1 & (BIT29|BIT28)) >> 28);
+			u8  cCond  = (u8)((v1 & (BIT(29)|BIT(28))) >> 28);
 
 			if (cCond == COND_ELSE) { /*  ELSE, ENDIF */
 				bMatched = true;
@@ -259,10 +259,10 @@ void ODM_ReadAndConfig_MP_8723B_RadioA(struct dm_odm_t *pDM_Odm)
 				}
 
 				/*  Keeps reading until ENDIF. */
-				cCond = (u8)((v1 & (BIT29|BIT28)) >> 28);
+				cCond = (u8)((v1 & (BIT(29)|BIT(28))) >> 28);
 				while (cCond != COND_ENDIF && i < ArrayLen-2) {
 					READ_NEXT_PAIR(v1, v2, i);
-					cCond = (u8)((v1 & (BIT29|BIT28)) >> 28);
+					cCond = (u8)((v1 & (BIT(29)|BIT(28))) >> 28);
 				}
 			}
 		}
@@ -309,7 +309,6 @@ static u8 gDeltaSwingTableIdx_MP_2GCCKA_P_TxPowerTrack_SDIO_8723B[] = {
 void ODM_ReadAndConfig_MP_8723B_TxPowerTrack_SDIO(struct dm_odm_t *pDM_Odm)
 {
 	struct odm_rf_cal_t *pRFCalibrateInfo = &pDM_Odm->RFCalibrateInfo;
-
 
 	memcpy(
 		pRFCalibrateInfo->DeltaSwingTableIdx_2GA_P,

@@ -82,12 +82,18 @@ static int test__parse_no_sample_id_all(struct test_suite *test __maybe_unused,
 			.type = PERF_RECORD_HEADER_ATTR,
 			.size = sizeof(struct test_attr_event),
 		},
+		.attr = {
+			.size = sizeof(struct perf_event_attr),
+		},
 		.id = 1,
 	};
 	struct test_attr_event event2 = {
 		.header = {
 			.type = PERF_RECORD_HEADER_ATTR,
 			.size = sizeof(struct test_attr_event),
+		},
+		.attr = {
+			.size = sizeof(struct perf_event_attr),
 		},
 		.id = 2,
 	};

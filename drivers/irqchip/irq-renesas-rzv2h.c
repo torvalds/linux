@@ -151,6 +151,12 @@ struct rzv2h_hw_info {
 #define ICU_DMAC_PREP_DMAREQ(sel, up)		(FIELD_PREP(ICU_DMAC_DkRQ_SEL_MASK, (sel)) \
 						 << ICU_DMAC_DMAREQ_SHIFT(up))
 
+/* DMAC ACK routing - 4 x 7-bit fields per 32-bit register, 8-bit spacing */
+#define ICU_DMAC_DACK_SEL_MASK			GENMASK(6, 0)
+#define ICU_DMAC_DACK_SHIFT(n)			((n) * 8)
+#define ICU_DMAC_DACK_FIELD_MASK(n)		(ICU_DMAC_DACK_SEL_MASK << ICU_DMAC_DACK_SHIFT(n))
+#define ICU_DMAC_PREP_DACK(val, n)		(((val) & ICU_DMAC_DACK_SEL_MASK) << ICU_DMAC_DACK_SHIFT(n))
+
 /**
  * struct rzv2h_icu_priv - Interrupt Control Unit controller private data structure.
  * @base:	Controller's base address
@@ -187,6 +193,40 @@ void rzv2h_icu_register_dma_req(struct platform_device *icu_dev, u8 dmac_index, 
 	writel(icu_dmksely, priv->base + ICU_DMkSELy(dmac_index, y));
 }
 EXPORT_SYMBOL_GPL(rzv2h_icu_register_dma_req);
+
+/**
+ * rzv2h_icu_register_dma_ack - Configure DMA ACK signal routing
+ * @icu_dev:      ICU platform device
+ * @dmac_index:   DMAC instance index (0-4)
+ * @dmac_channel: DMAC channel number (0-15), or RZV2H_ICU_DMAC_ACK_NO_DEFAULT
+ *                to disconnect routing for a given ack_no
+ * @ack_no:       Peripheral ACK number (0-88) per RZ/G3E manual Table 4.6-28,
+ *                used as index into ICU_DMACKSELk
+ *
+ * Routes the ACK signal of the peripheral identified by @ack_no to DMAC
+ * channel @dmac_channel of instance @dmac_index. When @dmac_channel is
+ * RZV2H_ICU_DMAC_ACK_NO_DEFAULT the field is reset, disconnecting any
+ * previously configured routing for that peripheral.
+ */
+void rzv2h_icu_register_dma_ack(struct platform_device *icu_dev, u8 dmac_index,
+				u8 dmac_channel, u16 ack_no)
+{
+	struct rzv2h_icu_priv *priv = platform_get_drvdata(icu_dev);
+	u8 reg_idx = ack_no / 4;
+	u8 field_idx = ack_no & 0x3;
+	u8 dmac_ack_src = (dmac_channel == RZV2H_ICU_DMAC_ACK_NO_DEFAULT) ?
+			  RZV2H_ICU_DMAC_ACK_NO_DEFAULT :
+			  (dmac_index * 16 + dmac_channel);
+	u32 val;
+
+	guard(raw_spinlock_irqsave)(&priv->lock);
+
+	val = readl(priv->base + ICU_DMACKSELk(reg_idx));
+	val &= ~ICU_DMAC_DACK_FIELD_MASK(field_idx);
+	val |= ICU_DMAC_PREP_DACK(dmac_ack_src, field_idx);
+	writel(val, priv->base + ICU_DMACKSELk(reg_idx));
+}
+EXPORT_SYMBOL_GPL(rzv2h_icu_register_dma_ack);
 
 static inline struct rzv2h_icu_priv *irq_data_to_priv(struct irq_data *data)
 {

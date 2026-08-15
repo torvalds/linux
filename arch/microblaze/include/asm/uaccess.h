@@ -250,8 +250,7 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 {
 	return __copy_tofrom_user(to, (__force const void __user *)from, n);
 }
-#define INLINE_COPY_FROM_USER
-#define INLINE_COPY_TO_USER
+#define INLINE_COPY_USER
 
 /*
  * Copy a null terminated string from userspace.

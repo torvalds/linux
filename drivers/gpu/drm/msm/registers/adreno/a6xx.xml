@@ -10,19 +10,24 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 <import file="adreno/a8xx_enums.xml"/>
 <import file="adreno/a6xx_perfcntrs.xml"/>
 <import file="adreno/a7xx_perfcntrs.xml"/>
+<import file="adreno/a8xx_perfcntrs.xml"/>
 <import file="adreno/a6xx_descriptors.xml"/>
 <import file="adreno/a8xx_descriptors.xml"/>
 
 <!--
 Each register that is actually being used by driver should have "usage" defined,
 currently there are following usages:
+- "init" - registers written (in ib1 generally, or ambles) to get the
+		GPU into a known state.
 - "cmd" - the register is used outside of renderpass and blits,
 		roughly corresponds to registers used in ib1 for Freedreno
-- "rp_blit" - the register is used inside renderpass or blits
-		(ib2 for Freedreno)
+- "draw" - used by 3d draw cmds
+- "compute" - used by compute cmds
+- "blit" - used by CP_BLIT cmds
+- "resolve" - used by CCU_RESOLVE (resolve/unresolve/clear) events
 
-It is expected that register with "cmd" usage may be written into only at
-the start of the command buffer (ib1), while "rp_blit" usage indicates that register
+It is expected that register with "cmd" and "init" usage may be written into only at
+the start of the command buffer (ib1), while other usages indicates that register
 is either overwritten by renderpass/blit (ib2) or not used if not overwritten
 by a particular renderpass/blit.
 -->
@@ -1321,7 +1326,7 @@ by a particular renderpass/blit.
 
 	<reg32 offset="0x0c00" name="VSC_DBG_ECO_CNTL"/>
 	<reg32 offset="0x0df0" name="VSC_KMD_DBG_ECO_CNTL" variants="A8XX-"/>
-	<reg32 offset="0x0c02" name="VSC_BIN_SIZE" usage="rp_blit" variants="A6XX-A7XX">
+	<reg32 offset="0x0c02" name="VSC_BIN_SIZE" usage="cmd" variants="A6XX-A7XX">
 		<bitfield name="BINW" low="0" high="7" shr="5" type="uint"/>
 		<bitfield name="BINH" low="8" high="16" shr="4" type="uint"/>
 	</reg32>
@@ -1331,13 +1336,13 @@ by a particular renderpass/blit.
 		<bitfield name="BINH" low="16" high="26" shr="4" type="uint"/>
 	</bitset>
 
-	<reg32 offset="0x0c02" name="VSC_BIN_SIZE" type="a8xx_bin_size" usage="rp_blit" variants="A8XX"/>
+	<reg32 offset="0x0c02" name="VSC_BIN_SIZE" type="a8xx_bin_size" usage="cmd" variants="A8XX"/>
 	<reg64 offset="0x0c03" name="VSC_SIZE_BASE" type="waddress" usage="cmd"/>
-	<reg32 offset="0x0c06" name="VSC_EXPANDED_BIN_CNTL" usage="rp_blit">
+	<reg32 offset="0x0c06" name="VSC_EXPANDED_BIN_CNTL" usage="cmd">
 		<bitfield name="NX" low="1" high="10" type="uint"/>
 		<bitfield name="NY" low="11" high="20" type="uint"/>
 	</reg32>
-	<array offset="0x0c10" name="VSC_PIPE_CONFIG" stride="1" length="32" usage="rp_blit">
+	<array offset="0x0c10" name="VSC_PIPE_CONFIG" stride="1" length="32" usage="cmd">
 		<reg32 offset="0x0" name="REG">
 			<doc>
 				Configures the mapping between VSC_PIPE buffer and
@@ -1370,7 +1375,7 @@ by a particular renderpass/blit.
 	<reg32 offset="0x0c36" name="VSC_PIPE_DATA_DRAW_STRIDE" usage="cmd"/>
 	<reg32 offset="0x0c37" name="VSC_PIPE_DATA_DRAW_LENGTH" usage="cmd"/>
 
-	<array offset="0x0c38" name="VSC_CHANNEL_VISIBILITY" stride="1" length="32" usage="rp_blit">
+	<array offset="0x0c38" name="VSC_CHANNEL_VISIBILITY" stride="1" length="32" usage="cmd">
 		<doc>
 			Seems to be a bitmap of which tiles mapped to the VSC
 			pipe contain geometry.
@@ -1381,7 +1386,7 @@ by a particular renderpass/blit.
 		<reg32 offset="0x0" name="REG"/>
 	</array>
 
-	<array offset="0x0c58" name="VSC_PIPE_DATA_PRIM_SIZE" stride="1" length="32" variants="A6XX" usage="rp_blit">
+	<array offset="0x0c58" name="VSC_PIPE_DATA_PRIM_SIZE" stride="1" length="32" variants="A6XX" usage="cmd">
 		<doc>
 			Has the size of data written to corresponding VSC_PRIM_STRM
 			buffer.
@@ -1389,7 +1394,7 @@ by a particular renderpass/blit.
 		<reg32 offset="0x0" name="REG"/>
 	</array>
 
-	<array offset="0x0c78" name="VSC_PIPE_DATA_DRAW_SIZE" stride="1" length="32" variants="A6XX" usage="rp_blit">
+	<array offset="0x0c78" name="VSC_PIPE_DATA_DRAW_SIZE" stride="1" length="32" variants="A6XX" usage="cmd">
 		<doc>
 			Has the size of data written to corresponding VSC pipe, ie.
 			same thing that is written out to VSC_SIZE_BASE
@@ -1397,7 +1402,7 @@ by a particular renderpass/blit.
 		<reg32 offset="0x0" name="REG"/>
 	</array>
 
-	<reg32 offset="0x0d08" name="VSC_UNKNOWN_0D08" variants="A7XX-" usage="rp_blit"/>
+	<reg32 offset="0x0d08" name="VSC_UNKNOWN_0D08" variants="A7XX-" usage="cmd"/>
 
 	<reg32 offset="0x0e10" name="UCHE_UNKNOWN_0E10" variants="A7XX" usage="init"/>
 	<reg32 offset="0x0e10" name="UCHE_VARB_IDLE_TIMEOUT" variants="A8XX-"/>
@@ -1428,29 +1433,22 @@ by a particular renderpass/blit.
 		<bitfield name="PERSP_DIVISION_DISABLE" pos="9" type="boolean"/>
 	</bitset>
 
-	<reg32 offset="0x8000" name="GRAS_CL_CNTL" type="a6xx_gras_cl_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x8200" name="GRAS_CL_CNTL" type="a6xx_gras_cl_cntl" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x8000" name="GRAS_CL_CNTL" type="a6xx_gras_cl_cntl" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x8200" name="GRAS_CL_CNTL" type="a6xx_gras_cl_cntl" variants="A8XX-" usage="draw"/>
 
 	<bitset name="a6xx_gras_xs_clip_cull_distance" inline="yes">
 		<bitfield name="CLIP_MASK" low="0" high="7"/>
 		<bitfield name="CULL_MASK" low="8" high="15"/>
 	</bitset>
-	<reg32 offset="0x8001" name="GRAS_CL_VS_CLIP_CULL_DISTANCE" type="a6xx_gras_xs_clip_cull_distance" usage="rp_blit" variants="A6XX-A7XX" />
-	<reg32 offset="0x8002" name="GRAS_CL_DS_CLIP_CULL_DISTANCE" type="a6xx_gras_xs_clip_cull_distance" usage="rp_blit" variants="A6XX-A7XX" />
-	<reg32 offset="0x8003" name="GRAS_CL_GS_CLIP_CULL_DISTANCE" type="a6xx_gras_xs_clip_cull_distance" usage="rp_blit" variants="A6XX-A7XX" />
-	<reg32 offset="0x8004" name="GRAS_CL_ARRAY_SIZE" low="0" high="10" type="uint" usage="rp_blit" variants="A6XX-A7XX" />
+	<reg32 offset="0x8001" name="GRAS_CL_VS_CLIP_CULL_DISTANCE" type="a6xx_gras_xs_clip_cull_distance" usage="draw" variants="A6XX-A7XX" />
+	<reg32 offset="0x8002" name="GRAS_CL_DS_CLIP_CULL_DISTANCE" type="a6xx_gras_xs_clip_cull_distance" usage="draw" variants="A6XX-A7XX" />
+	<reg32 offset="0x8003" name="GRAS_CL_GS_CLIP_CULL_DISTANCE" type="a6xx_gras_xs_clip_cull_distance" usage="draw" variants="A6XX-A7XX" />
+	<reg32 offset="0x8004" name="GRAS_CL_ARRAY_SIZE" low="0" high="10" type="uint" usage="draw" variants="A6XX-A7XX" />
 
-	<reg32 offset="0x8201" name="GRAS_CL_VS_CLIP_CULL_DISTANCE" type="a6xx_gras_xs_clip_cull_distance" usage="rp_blit" variants="A8XX" />
-	<reg32 offset="0x8202" name="GRAS_CL_DS_CLIP_CULL_DISTANCE" type="a6xx_gras_xs_clip_cull_distance" usage="rp_blit" variants="A8XX" />
-	<reg32 offset="0x8203" name="GRAS_CL_GS_CLIP_CULL_DISTANCE" type="a6xx_gras_xs_clip_cull_distance" usage="rp_blit" variants="A8XX" />
-	<reg32 offset="0x8204" name="GRAS_CL_ARRAY_SIZE" low="0" high="10" type="uint" usage="rp_blit" variants="A8XX" />
-
-	<reg32 offset="0x8228" name="GRAS_UNKNOWN_8228" variants="A8XX-"/>
-	<reg32 offset="0x8229" name="GRAS_UNKNOWN_8229" variants="A8XX-"/>
-	<reg32 offset="0x822a" name="GRAS_UNKNOWN_822A" variants="A8XX-"/>
-	<reg32 offset="0x822b" name="GRAS_UNKNOWN_822B" variants="A8XX-"/>
-	<reg32 offset="0x822c" name="GRAS_UNKNOWN_822C" variants="A8XX-"/>
-	<reg32 offset="0x822d" name="GRAS_UNKNOWN_822D" variants="A8XX-"/>
+	<reg32 offset="0x8201" name="GRAS_CL_VS_CLIP_CULL_DISTANCE" type="a6xx_gras_xs_clip_cull_distance" usage="draw" variants="A8XX" />
+	<reg32 offset="0x8202" name="GRAS_CL_DS_CLIP_CULL_DISTANCE" type="a6xx_gras_xs_clip_cull_distance" usage="draw" variants="A8XX" />
+	<reg32 offset="0x8203" name="GRAS_CL_GS_CLIP_CULL_DISTANCE" type="a6xx_gras_xs_clip_cull_distance" usage="draw" variants="A8XX" />
+	<reg32 offset="0x8204" name="GRAS_CL_ARRAY_SIZE" low="0" high="10" type="uint" usage="draw" variants="A8XX" />
 
 	<bitset name="a6xx_gras_cl_interp_cntl" inline="yes">
 		<!-- see also RB_INTERP_CNTL -->
@@ -1465,16 +1463,16 @@ by a particular renderpass/blit.
 		<bitfield name="UNK11" pos="11" type="boolean" variants="A7XX-"/>
 	</bitset>
 
-	<reg32 offset="0x8005" name="GRAS_CL_INTERP_CNTL" type="a6xx_gras_cl_interp_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x8080" name="GRAS_CL_INTERP_CNTL" type="a6xx_gras_cl_interp_cntl" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x8005" name="GRAS_CL_INTERP_CNTL" type="a6xx_gras_cl_interp_cntl" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x8080" name="GRAS_CL_INTERP_CNTL" type="a6xx_gras_cl_interp_cntl" variants="A8XX-" usage="draw"/>
 
 	<bitset name="a6xx_gras_cl_guardband_clip_adj" inline="true">
 		<bitfield name="HORZ" low="0" high="8" type="uint"/>
 		<bitfield name="VERT" low="10" high="18" type="uint"/>
 	</bitset>
 
-	<reg32 offset="0x8006" name="GRAS_CL_GUARDBAND_CLIP_ADJ" type="a6xx_gras_cl_guardband_clip_adj" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x8205" name="GRAS_CL_GUARDBAND_CLIP_ADJ" type="a6xx_gras_cl_guardband_clip_adj" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x8006" name="GRAS_CL_GUARDBAND_CLIP_ADJ" type="a6xx_gras_cl_guardband_clip_adj" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x8205" name="GRAS_CL_GUARDBAND_CLIP_ADJ" type="a6xx_gras_cl_guardband_clip_adj" variants="A8XX-" usage="draw"/>
 
 	<!-- the scale/offset is per view, with up to 6 views -->
 	<bitset name="a6xx_gras_bin_foveat" inline="yes">
@@ -1499,33 +1497,48 @@ by a particular renderpass/blit.
 	</bitset>
 
 	<reg32 offset="0x8008" name="GRAS_BIN_FOVEAT" type="a6xx_gras_bin_foveat" variants="A7XX" usage="cmd"/>
-	<reg32 offset="0x8206" name="GRAS_BIN_FOVEAT" type="a6xx_gras_bin_foveat" variants="A8XX-" usage="cmd"/>
+	<reg32 offset="0x8206" name="GRAS_BIN_FOVEAT" type="a6xx_gras_bin_foveat" variants="A8XX-" usage="cmd">
+		<bitfield name="FDM_OFFSET_EN" pos="7" type="boolean"/>
+	</reg32>
 
-	<reg32 offset="0x8009" name="GRAS_BIN_FOVEAT_OFFSET_0" variants="A7XX-" usage="cmd">
+	<reg32 offset="0x8009" name="GRAS_BIN_FOVEAT_OFFSET_0" variants="A7XX" usage="cmd">
 		<bitfield name="XOFFSET_0" low="0" high="9" shr="2" type="uint"/>
 		<bitfield name="XOFFSET_1" low="10" high="19" shr="2" type="uint"/>
 		<bitfield name="XOFFSET_2" low="20" high="29" shr="2" type="uint"/>
 	</reg32>
-	<reg32 offset="0x800a" name="GRAS_BIN_FOVEAT_OFFSET_1" variants="A7XX-" usage="cmd">
+	<reg32 offset="0x800a" name="GRAS_BIN_FOVEAT_OFFSET_1" variants="A7XX" usage="cmd">
 		<bitfield name="XOFFSET_3" low="0" high="9" shr="2" type="uint"/>
 		<bitfield name="XOFFSET_4" low="10" high="19" shr="2" type="uint"/>
 		<bitfield name="XOFFSET_5" low="20" high="29" shr="2" type="uint"/>
 	</reg32>
-	<reg32 offset="0x800b" name="GRAS_BIN_FOVEAT_OFFSET_2" variants="A7XX-" usage="cmd">
+	<reg32 offset="0x800b" name="GRAS_BIN_FOVEAT_OFFSET_2" variants="A7XX" usage="cmd">
 		<bitfield name="YOFFSET_0" low="0" high="9" shr="2" type="uint"/>
 		<bitfield name="YOFFSET_1" low="10" high="19" shr="2" type="uint"/>
 		<bitfield name="YOFFSET_2" low="20" high="29" shr="2" type="uint"/>
 	</reg32>
-	<reg32 offset="0x800c" name="GRAS_BIN_FOVEAT_OFFSET_3" variants="A7XX-" usage="cmd">
+	<reg32 offset="0x800c" name="GRAS_BIN_FOVEAT_OFFSET_3" variants="A7XX" usage="cmd">
 		<bitfield name="YOFFSET_3" low="0" high="9" shr="2" type="uint"/>
 		<bitfield name="YOFFSET_4" low="10" high="19" shr="2" type="uint"/>
 		<bitfield name="YOFFSET_5" low="20" high="29" shr="2" type="uint"/>
 	</reg32>
 
+	<bitset name="a8xx_bin_foveat_xy" inline="yes">
+		<bitfield name="XOFFSET" low="0" high="13" type="uint"/>
+		<bitfield name="YOFFSET" low="16" high="29" type="uint"/>
+	</bitset>
+
+	<array offset="0x8220" name="GRAS_BIN_FOVEAT_XY" stride="1" length="6" variants="A8XX-" usage="cmd">
+		<reg32 offset="0" name="OFFSET" type="a8xx_bin_foveat_xy"/>
+	</array>
+
+	<array offset="0x8228" name="GRAS_BIN_FOVEAT_XY_FDM" stride="1" length="6" variants="A8XX-" usage="cmd">
+		<reg32 offset="0" name="OFFSET" type="a8xx_bin_foveat_xy"/>
+	</array>
+
 	<!-- <reg32 offset="0x80f0" name="GRAS_UNKNOWN_80F0" type="a6xx_reg_xy"/> -->
 
 	<!-- 0x8006-0x800f invalid -->
-	<array offset="0x8010" name="GRAS_CL_VIEWPORT" stride="6" length="16" variants="A6XX-A7XX" usage="rp_blit">
+	<array offset="0x8010" name="GRAS_CL_VIEWPORT" stride="6" length="16" variants="A6XX-A7XX" usage="draw">
 		<reg32 offset="0" name="XOFFSET" type="float"/>
 		<reg32 offset="1" name="XSCALE" type="float"/>
 		<reg32 offset="2" name="YOFFSET" type="float"/>
@@ -1534,7 +1547,7 @@ by a particular renderpass/blit.
 		<reg32 offset="5" name="ZSCALE" type="float"/>
 	</array>
 
-	<array offset="0x82d0" name="GRAS_CL_VIEWPORT" stride="6" length="16" variants="A8XX-" usage="rp_blit">
+	<array offset="0x82d0" name="GRAS_CL_VIEWPORT" stride="6" length="16" variants="A8XX-" usage="draw">
 		<reg32 offset="0" name="XOFFSET" type="float"/>
 		<reg32 offset="1" name="XSCALE" type="float"/>
 		<reg32 offset="2" name="YOFFSET" type="float"/>
@@ -1543,16 +1556,16 @@ by a particular renderpass/blit.
 		<reg32 offset="5" name="ZSCALE" type="float"/>
 	</array>
 
-	<array offset="0x8070" name="GRAS_CL_VIEWPORT_ZCLAMP" stride="2" length="16" variants="A6XX-A7XX" usage="rp_blit">
+	<array offset="0x8070" name="GRAS_CL_VIEWPORT_ZCLAMP" stride="2" length="16" variants="A6XX-A7XX" usage="draw">
 		<reg32 offset="0" name="MIN" type="float"/>
 		<reg32 offset="1" name="MAX" type="float"/>
 	</array>
-	<array offset="0x80c0" name="GRAS_CL_VIEWPORT_ZCLAMP" stride="2" length="16" variants="A8XX-" usage="rp_blit">
+	<array offset="0x80c0" name="GRAS_CL_VIEWPORT_ZCLAMP" stride="2" length="16" variants="A8XX-" usage="draw">
 		<reg32 offset="0" name="MIN" type="float"/>
 		<reg32 offset="1" name="MAX" type="float"/>
 	</array>
 
-	<bitset name="a6xx_gras_su_cntl" varset="chip">
+	<bitset name="a6xx_gras_su_cntl" inline="yes">
 		<bitfield name="CULL_FRONT" pos="0" type="boolean"/>
 		<bitfield name="CULL_BACK" pos="1" type="boolean"/>
 		<bitfield name="FRONT_CW" pos="2" type="boolean"/>
@@ -1572,17 +1585,18 @@ by a particular renderpass/blit.
 			TODO: what about gen2 (a640)?
 		-->
 		<bitfield name="MULTIVIEW_ENABLE" pos="17" type="boolean"/>
-		<bitfield name="RENDERTARGETINDEXINCR" pos="18" type="boolean" variants="A6XX-A7XX"/>
-		<bitfield name="VIEWPORTINDEXINCR" pos="19" type="boolean" variants="A6XX-A7XX"/>
-		<bitfield name="UNK20" low="20" high="22" variants="A6XX-A7XX"/>
 	</bitset>
-	<reg32 offset="0x8090" name="GRAS_SU_CNTL" type="a6xx_gras_su_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x8209" name="GRAS_SU_CNTL" type="a6xx_gras_su_cntl" variants="A8XX-" usage="rp_blit"/>
-
-	<!-- Fields moved from GRAS_SU_CNTL on earlier gens: -->
-	<reg32 offset="0x820c" name="GRAS_SU_STEREO_CNTL" variants="A8XX-" usage="rp_blit">
+	<reg32 offset="0x8090" name="GRAS_SU_CNTL" type="a6xx_gras_su_cntl" variants="A6XX-A7XX" usage="draw">
 		<bitfield name="RENDERTARGETINDEXINCR" pos="18" type="boolean"/>
 		<bitfield name="VIEWPORTINDEXINCR" pos="19" type="boolean"/>
+		<bitfield name="UNK20" low="20" high="22"/>
+	</reg32>
+	<reg32 offset="0x8209" name="GRAS_SU_CNTL" type="a6xx_gras_su_cntl" variants="A8XX-" usage="draw"/>
+
+	<!-- Fields moved from GRAS_SU_CNTL on earlier gens: -->
+	<reg32 offset="0x820c" name="GRAS_SU_STEREO_CNTL" variants="A8XX-" usage="draw">
+		<bitfield name="RENDERTARGETINDEXINCR" pos="0" type="boolean"/>
+		<bitfield name="VIEWPORTINDEXINCR" pos="1" type="boolean"/>
 	</reg32>
 
 	<bitset name="a6xx_gras_su_point_minmax" inline="yes">
@@ -1590,49 +1604,49 @@ by a particular renderpass/blit.
 		<bitfield name="MAX" low="16" high="31" type="ufixed" radix="4"/>
 	</bitset>
 
-	<reg32 offset="0x8091" name="GRAS_SU_POINT_MINMAX" type="a6xx_gras_su_point_minmax" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x820a" name="GRAS_SU_POINT_MINMAX" type="a6xx_gras_su_point_minmax" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x8091" name="GRAS_SU_POINT_MINMAX" type="a6xx_gras_su_point_minmax" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x820a" name="GRAS_SU_POINT_MINMAX" type="a6xx_gras_su_point_minmax" variants="A8XX-" usage="draw"/>
 
-	<reg32 offset="0x8092" name="GRAS_SU_POINT_SIZE" low="0" high="15" type="fixed" radix="4" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x820b" name="GRAS_SU_POINT_SIZE" low="0" high="15" type="fixed" radix="4" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x8092" name="GRAS_SU_POINT_SIZE" low="0" high="15" type="fixed" radix="4" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x820b" name="GRAS_SU_POINT_SIZE" low="0" high="15" type="fixed" radix="4" variants="A8XX-" usage="draw"/>
 
 	<bitset name="a6xx_gras_su_depth_cntl" inline="yes">
 		<bitfield name="Z_TEST_ENABLE" pos="0" type="boolean"/>
 	</bitset>
 
-	<reg32 offset="0x8114" name="GRAS_SU_DEPTH_CNTL" variants="A6XX-A7XX" type="a6xx_gras_su_depth_cntl" usage="rp_blit"/>
-	<reg32 offset="0x8086" name="GRAS_SU_DEPTH_CNTL" variants="A8XX-" type="a6xx_gras_su_depth_cntl" usage="rp_blit"/>
+	<reg32 offset="0x8114" name="GRAS_SU_DEPTH_CNTL" variants="A6XX-A7XX" type="a6xx_gras_su_depth_cntl" usage="draw"/>
+	<reg32 offset="0x8086" name="GRAS_SU_DEPTH_CNTL" variants="A8XX-" type="a6xx_gras_su_depth_cntl" usage="draw"/>
 
 	<bitset name="a6xx_gras_su_stencil_cntl" inline="yes">
 		<bitfield name="STENCIL_ENABLE" pos="0" type="boolean"/>
 	</bitset>
 
-	<reg32 offset="0x8115" name="GRAS_SU_STENCIL_CNTL" type="a6xx_gras_su_stencil_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x8087" name="GRAS_SU_STENCIL_CNTL" type="a6xx_gras_su_stencil_cntl" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x8115" name="GRAS_SU_STENCIL_CNTL" type="a6xx_gras_su_stencil_cntl" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x8087" name="GRAS_SU_STENCIL_CNTL" type="a6xx_gras_su_stencil_cntl" variants="A8XX-" usage="draw"/>
 
 	<bitset name="a6xx_gras_su_render_cntl" inline="yes">
 		<bitfield name="FS_DISABLE" pos="7" type="boolean"/>
 	</bitset>
 
-	<reg32 offset="0x8116" name="GRAS_SU_RENDER_CNTL" type="a6xx_gras_su_render_cntl" variants="A7XX" usage="rp_blit"/>
-	<reg32 offset="0x8088" name="GRAS_SU_RENDER_CNTL" type="a6xx_gras_su_render_cntl" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x8116" name="GRAS_SU_RENDER_CNTL" type="a6xx_gras_su_render_cntl" variants="A7XX" usage="draw"/>
+	<reg32 offset="0x8088" name="GRAS_SU_RENDER_CNTL" type="a6xx_gras_su_render_cntl" variants="A8XX-" usage="draw"/>
 
 	<!-- 0x8093 invalid -->
 	<bitset name="a6xx_depth_plane_cntl" inline="yes">
 		<bitfield name="Z_MODE" low="0" high="1" type="a6xx_ztest_mode"/>
 	</bitset>
 
-	<reg32 offset="0x8094" name="GRAS_SU_DEPTH_PLANE_CNTL" type="a6xx_depth_plane_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x8089" name="GRAS_SU_DEPTH_PLANE_CNTL" type="a6xx_depth_plane_cntl" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x8094" name="GRAS_SU_DEPTH_PLANE_CNTL" type="a6xx_depth_plane_cntl" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x8089" name="GRAS_SU_DEPTH_PLANE_CNTL" type="a6xx_depth_plane_cntl" variants="A8XX-" usage="draw"/>
 
-	<reg32 offset="0x8095" name="GRAS_SU_POLY_OFFSET_SCALE" type="float" variants="A6XX-A7XX"  usage="rp_blit"/>
-	<reg32 offset="0x808a" name="GRAS_SU_POLY_OFFSET_SCALE" type="float" variants="A8XX-"  usage="rp_blit"/>
+	<reg32 offset="0x8095" name="GRAS_SU_POLY_OFFSET_SCALE" type="float" variants="A6XX-A7XX"  usage="draw"/>
+	<reg32 offset="0x808a" name="GRAS_SU_POLY_OFFSET_SCALE" type="float" variants="A8XX-"  usage="draw"/>
 
-	<reg32 offset="0x8096" name="GRAS_SU_POLY_OFFSET_OFFSET" type="float" variants="A6XX-A7XX"  usage="rp_blit"/>
-	<reg32 offset="0x808b" name="GRAS_SU_POLY_OFFSET_OFFSET" type="float" variants="A8XX-"  usage="rp_blit"/>
+	<reg32 offset="0x8096" name="GRAS_SU_POLY_OFFSET_OFFSET" type="float" variants="A6XX-A7XX"  usage="draw"/>
+	<reg32 offset="0x808b" name="GRAS_SU_POLY_OFFSET_OFFSET" type="float" variants="A8XX-"  usage="draw"/>
 
-	<reg32 offset="0x8097" name="GRAS_SU_POLY_OFFSET_OFFSET_CLAMP" type="float" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x808c" name="GRAS_SU_POLY_OFFSET_OFFSET_CLAMP" type="float" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x8097" name="GRAS_SU_POLY_OFFSET_OFFSET_CLAMP" type="float" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x808c" name="GRAS_SU_POLY_OFFSET_OFFSET_CLAMP" type="float" variants="A8XX-" usage="draw"/>
 
 	<bitset name="a6xx_depth_buffer_info" inline="yes">
 		<bitfield name="DEPTH_FORMAT" low="0" high="2" type="a6xx_depth_format"/>
@@ -1640,8 +1654,8 @@ by a particular renderpass/blit.
 	</bitset>
 
 	<!-- duplicates RB_DEPTH_BUFFER_INFO: -->
-	<reg32 offset="0x8098" name="GRAS_SU_DEPTH_BUFFER_INFO" type="a6xx_depth_buffer_info" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x808d" name="GRAS_SU_DEPTH_BUFFER_INFO" type="a6xx_depth_buffer_info" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x8098" name="GRAS_SU_DEPTH_BUFFER_INFO" type="a6xx_depth_buffer_info" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x808d" name="GRAS_SU_DEPTH_BUFFER_INFO" type="a6xx_depth_buffer_info" variants="A8XX-" usage="draw"/>
 
 	<bitset name="a6xx_gras_su_conservative_ras_cntl" inline="yes">
 		<bitfield name="CONSERVATIVERASEN" pos="0" type="boolean"/>
@@ -1667,19 +1681,19 @@ by a particular renderpass/blit.
 		<bitfield name="WRITES_LAYER" pos="0" type="boolean"/>
 		<bitfield name="WRITES_VIEW" pos="1" type="boolean"/>
 	</bitset>
-	<reg32 offset="0x809b" name="GRAS_SU_VS_SIV_CNTL" type="a6xx_gras_us_xs_siv_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x809c" name="GRAS_SU_GS_SIV_CNTL" type="a6xx_gras_us_xs_siv_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x809d" name="GRAS_SU_DS_SIV_CNTL" type="a6xx_gras_us_xs_siv_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
+	<reg32 offset="0x809b" name="GRAS_SU_VS_SIV_CNTL" type="a6xx_gras_us_xs_siv_cntl" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x809c" name="GRAS_SU_GS_SIV_CNTL" type="a6xx_gras_us_xs_siv_cntl" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x809d" name="GRAS_SU_DS_SIV_CNTL" type="a6xx_gras_us_xs_siv_cntl" variants="A6XX-A7XX" usage="draw"/>
 
-	<reg32 offset="0x820e" name="GRAS_SU_VS_SIV_CNTL" type="a6xx_gras_us_xs_siv_cntl" variants="A8XX" usage="rp_blit"/>
-	<reg32 offset="0x820f" name="GRAS_SU_GS_SIV_CNTL" type="a6xx_gras_us_xs_siv_cntl" variants="A8XX" usage="rp_blit"/>
-	<reg32 offset="0x8210" name="GRAS_SU_DS_SIV_CNTL" type="a6xx_gras_us_xs_siv_cntl" variants="A8XX" usage="rp_blit"/>
+	<reg32 offset="0x820e" name="GRAS_SU_VS_SIV_CNTL" type="a6xx_gras_us_xs_siv_cntl" variants="A8XX" usage="draw"/>
+	<reg32 offset="0x820f" name="GRAS_SU_GS_SIV_CNTL" type="a6xx_gras_us_xs_siv_cntl" variants="A8XX" usage="draw"/>
+	<reg32 offset="0x8210" name="GRAS_SU_DS_SIV_CNTL" type="a6xx_gras_us_xs_siv_cntl" variants="A8XX" usage="draw"/>
 
 	<bitset name="a6xx_rast_cntl" inline="yes">
 		<bitfield name="MODE" low="0" high="1" type="a6xx_polygon_mode"/>
 	</bitset>
 
-	<reg32 offset="0x8211" name="GRAS_RAST_CNTL" type="a6xx_rast_cntl" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x8211" name="GRAS_RAST_CNTL" type="a6xx_rast_cntl" variants="A8XX-" usage="draw"/>
 
 	<enum name="a6xx_sequenced_thread_dist">
 		<value value="0x0" name="DIST_SCREEN_COORD"/>
@@ -1738,10 +1752,10 @@ by a particular renderpass/blit.
 		<bitfield name="EARLYVIZOUTEN" pos="12" type="boolean"/>
 	</bitset>
 
-	<reg32 offset="0x80a0" name="GRAS_SC_CNTL" type="a6xx_gras_sc_cntl" variants="A6XX-A7XX" usage="rp_blit">
+	<reg32 offset="0x80a0" name="GRAS_SC_CNTL" type="a6xx_gras_sc_cntl" variants="A6XX-A7XX" usage="draw">
 		<bitfield name="CCUSINGLECACHELINESIZE" low="0" high="2" variants="A6XX-A7XX"/>
 	</reg32>
-	<reg32 offset="0x8230" name="GRAS_SC_CNTL" type="a6xx_gras_sc_cntl" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x8230" name="GRAS_SC_CNTL" type="a6xx_gras_sc_cntl" variants="A8XX-" usage="draw"/>
 
 	<enum name="a6xx_render_mode">
 		<value value="0x0" name="RENDERING_PASS"/>
@@ -1778,7 +1792,7 @@ by a particular renderpass/blit.
 		<bitfield name="FORCE_LRZ_DIS" pos="27" type="boolean"/>
 	</bitset>
 
-	<reg32 offset="0x80a1" name="GRAS_SC_BIN_CNTL" type="a6xx_bin_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
+	<reg32 offset="0x80a1" name="GRAS_SC_BIN_CNTL" type="a6xx_bin_cntl" variants="A6XX-A7XX" usage="cmd"/>
 
 	<!-- Common fields for RB_CNTL and GRAS_SC_BIN_CNTL -->
 	<bitset name="a8xx_bin_cntl" inline="yes">
@@ -1795,7 +1809,7 @@ by a particular renderpass/blit.
 		<bitfield name="FORCE_LRZ_WRITE_DIS" pos="31" type="boolean"/>
 	</bitset>
 
-	<reg32 offset="0x8231" name="GRAS_SC_BIN_CNTL" type="a8xx_bin_cntl" variants="A8XX-" usage="rp_blit">
+	<reg32 offset="0x8231" name="GRAS_SC_BIN_CNTL" type="a8xx_bin_cntl" variants="A8XX-" usage="cmd">
 		<bitfield name="CONS_VIS_IN_BINNING" pos="10" type="boolean"/>
 		<bitfield name="FORCE_BI_DIR_LRZ_DISABLE" pos="14" type="boolean"/>
 		<bitfield name="FORCE_LRZ_DIS" pos="15" type="boolean"/>
@@ -1808,16 +1822,16 @@ by a particular renderpass/blit.
 		<bitfield name="UNK3" pos="3"/>
 	</bitset>
 
-	<reg32 offset="0x80a2" name="GRAS_SC_RAS_MSAA_CNTL" type="a6xx_gras_sc_ras_msaa_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x8232" name="GRAS_SC_RAS_MSAA_CNTL" type="a6xx_gras_sc_ras_msaa_cntl" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x80a2" name="GRAS_SC_RAS_MSAA_CNTL" type="a6xx_gras_sc_ras_msaa_cntl" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x8232" name="GRAS_SC_RAS_MSAA_CNTL" type="a6xx_gras_sc_ras_msaa_cntl" variants="A8XX-" usage="draw"/>
 
 	<bitset name="a6xx_gras_sc_dest_msaa_cntl" inline="yes">
 		<bitfield name="SAMPLES" low="0" high="1" type="a3xx_msaa_samples"/>
 		<bitfield name="MSAA_DISABLE" pos="2" type="boolean"/>
 	</bitset>
 
-	<reg32 offset="0x80a3" name="GRAS_SC_DEST_MSAA_CNTL" type="a6xx_gras_sc_dest_msaa_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x8233" name="GRAS_SC_DEST_MSAA_CNTL" type="a6xx_gras_sc_dest_msaa_cntl" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x80a3" name="GRAS_SC_DEST_MSAA_CNTL" type="a6xx_gras_sc_dest_msaa_cntl" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x8233" name="GRAS_SC_DEST_MSAA_CNTL" type="a6xx_gras_sc_dest_msaa_cntl" variants="A8XX-" usage="draw"/>
 
 	<bitset name="a6xx_msaa_sample_pos_cntl" inline="yes">
 		<bitfield name="UNK0" pos="0"/>
@@ -1835,15 +1849,15 @@ by a particular renderpass/blit.
 		<bitfield name="SAMPLE_3_Y" low="28" high="31" radix="4" type="fixed"/>
 	</bitset>
 
-	<reg32 offset="0x80a4" name="GRAS_SC_MSAA_SAMPLE_POS_CNTL" type="a6xx_msaa_sample_pos_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x80a5" name="GRAS_SC_PROGRAMMABLE_MSAA_POS_0" type="a6xx_programmable_msaa_pos" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x80a6" name="GRAS_SC_PROGRAMMABLE_MSAA_POS_1" type="a6xx_programmable_msaa_pos" variants="A6XX-A7XX" usage="rp_blit"/>
+	<reg32 offset="0x80a4" name="GRAS_SC_MSAA_SAMPLE_POS_CNTL" type="a6xx_msaa_sample_pos_cntl" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x80a5" name="GRAS_SC_PROGRAMMABLE_MSAA_POS_0" type="a6xx_programmable_msaa_pos" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x80a6" name="GRAS_SC_PROGRAMMABLE_MSAA_POS_1" type="a6xx_programmable_msaa_pos" variants="A6XX-A7XX" usage="draw"/>
 
-	<reg32 offset="0x8237" name="GRAS_SC_MSAA_SAMPLE_POS_CNTL" type="a6xx_msaa_sample_pos_cntl" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x8238" name="GRAS_SC_PROGRAMMABLE_MSAA_POS_0" type="a6xx_programmable_msaa_pos" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x8239" name="GRAS_SC_PROGRAMMABLE_MSAA_POS_1" type="a6xx_programmable_msaa_pos" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x823a" name="GRAS_SC_PROGRAMMABLE_MSAA_POS_2" type="a6xx_programmable_msaa_pos" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x823b" name="GRAS_SC_PROGRAMMABLE_MSAA_POS_3" type="a6xx_programmable_msaa_pos" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x8237" name="GRAS_SC_MSAA_SAMPLE_POS_CNTL" type="a6xx_msaa_sample_pos_cntl" variants="A8XX-" usage="draw"/>
+	<reg32 offset="0x8238" name="GRAS_SC_PROGRAMMABLE_MSAA_POS_0" type="a6xx_programmable_msaa_pos" variants="A8XX-" usage="draw"/>
+	<reg32 offset="0x8239" name="GRAS_SC_PROGRAMMABLE_MSAA_POS_1" type="a6xx_programmable_msaa_pos" variants="A8XX-" usage="draw"/>
+	<reg32 offset="0x823a" name="GRAS_SC_PROGRAMMABLE_MSAA_POS_2" type="a6xx_programmable_msaa_pos" variants="A8XX-" usage="draw"/>
+	<reg32 offset="0x823b" name="GRAS_SC_PROGRAMMABLE_MSAA_POS_3" type="a6xx_programmable_msaa_pos" variants="A8XX-" usage="draw"/>
 
 	<reg32 offset="0x80a7" name="GRAS_ROTATION_CNTL" variants="A7XX" usage="cmd"/>
 	<reg32 offset="0x8207" name="GRAS_ROTATION_CNTL" variants="A8XX-" usage="cmd"/>
@@ -1860,30 +1874,53 @@ by a particular renderpass/blit.
 		<bitfield name="Y" low="16" high="31" type="uint"/>
 	</bitset>
 
-	<array offset="0x80b0" name="GRAS_SC_SCREEN_SCISSOR" stride="2" length="16" variants="A6XX-A7XX" usage="rp_blit">
+	<array offset="0x80b0" name="GRAS_SC_SCREEN_SCISSOR" stride="2" length="16" variants="A6XX-A7XX" usage="draw">
 		<reg32 offset="0" name="TL" type="a6xx_scissor_xy"/>
 		<reg32 offset="1" name="BR" type="a6xx_scissor_xy"/>
 	</array>
 
-	<array offset="0x8240" name="GRAS_SC_SCREEN_SCISSOR" stride="2" length="16" variants="A8XX-" usage="rp_blit">
+	<array offset="0x8240" name="GRAS_SC_SCREEN_SCISSOR" stride="2" length="16" variants="A8XX-" usage="draw">
 		<reg32 offset="0" name="TL" type="a6xx_scissor_xy"/>
 		<reg32 offset="1" name="BR" type="a6xx_scissor_xy"/>
 	</array>
 
-	<array offset="0x80d0" name="GRAS_SC_VIEWPORT_SCISSOR" stride="2" length="16" variants="A6XX-A7XX" usage="rp_blit">
+	<array offset="0x80d0" name="GRAS_SC_VIEWPORT_SCISSOR" stride="2" length="16" variants="A6XX-A7XX" usage="draw">
 		<reg32 offset="0" name="TL" type="a6xx_scissor_xy"/>
 		<reg32 offset="1" name="BR" type="a6xx_scissor_xy"/>
 	</array>
-	<array offset="0x8270" name="GRAS_SC_VIEWPORT_SCISSOR" stride="2" length="16" variants="A8XX-" usage="rp_blit">
+	<array offset="0x8270" name="GRAS_SC_VIEWPORT_SCISSOR" stride="2" length="16" variants="A8XX-" usage="draw">
 		<reg32 offset="0" name="TL" type="a6xx_scissor_xy"/>
 		<reg32 offset="1" name="BR" type="a6xx_scissor_xy"/>
 	</array>
 
-	<reg32 offset="0x80f0" name="GRAS_SC_WINDOW_SCISSOR_TL" type="a6xx_reg_xy" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x80f1" name="GRAS_SC_WINDOW_SCISSOR_BR" type="a6xx_reg_xy" variants="A6XX-A7XX" usage="rp_blit"/>
+	<reg32 offset="0x829f" name="GRAS_SC_WINDOW_INV_SCISSOR_CNTL" variants="A8XX-">
+		<bitfield name="INCLUSION" pos="0" type="boolean"/> <!-- if not set, EXCLUSION -->
+		<bitfield name="VP0_INV_SCISSOR_0_EN" pos="4" type="boolean"/>
+		<bitfield name="VP0_INV_SCISSOR_1_EN" pos="5" type="boolean"/>
+		<bitfield name="VP1_INV_SCISSOR_0_EN" pos="6" type="boolean"/>
+		<bitfield name="VP1_INV_SCISSOR_1_EN" pos="7" type="boolean"/>
+		<bitfield name="VP2_INV_SCISSOR_0_EN" pos="8" type="boolean"/>
+		<bitfield name="VP2_INV_SCISSOR_1_EN" pos="9" type="boolean"/>
+		<bitfield name="VP3_INV_SCISSOR_0_EN" pos="10" type="boolean"/>
+		<bitfield name="VP3_INV_SCISSOR_1_EN" pos="11" type="boolean"/>
+		<bitfield name="VP4_INV_SCISSOR_0_EN" pos="12" type="boolean"/>
+		<bitfield name="VP4_INV_SCISSOR_1_EN" pos="13" type="boolean"/>
+		<bitfield name="VP5_INV_SCISSOR_0_EN" pos="14" type="boolean"/>
+		<bitfield name="VP5_INV_SCISSOR_1_EN" pos="15" type="boolean"/>
+	</reg32>
 
-	<reg32 offset="0x8235" name="GRAS_SC_WINDOW_SCISSOR_TL" type="a6xx_reg_xy" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x8236" name="GRAS_SC_WINDOW_SCISSOR_BR" type="a6xx_reg_xy" variants="A8XX-" usage="rp_blit"/>
+	<array offset="0x82a0" name="GRAS_SC_WINDOW_VP" stride="4" length="6" variants="A8XX-">
+		<reg32 offset="0" name="INV_SCISSOR_0_TL" type="a6xx_scissor_xy"/>
+		<reg32 offset="1" name="INV_SCISSOR_0_BR" type="a6xx_scissor_xy"/>
+		<reg32 offset="2" name="INV_SCISSOR_1_TL" type="a6xx_scissor_xy"/>
+		<reg32 offset="3" name="INV_SCISSOR_1_BR" type="a6xx_scissor_xy"/>
+	</array>
+
+	<reg32 offset="0x80f0" name="GRAS_SC_WINDOW_SCISSOR_TL" type="a6xx_reg_xy" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x80f1" name="GRAS_SC_WINDOW_SCISSOR_BR" type="a6xx_reg_xy" variants="A6XX-A7XX" usage="draw"/>
+
+	<reg32 offset="0x8235" name="GRAS_SC_WINDOW_SCISSOR_TL" type="a6xx_reg_xy" variants="A8XX-" usage="draw"/>
+	<reg32 offset="0x8236" name="GRAS_SC_WINDOW_SCISSOR_BR" type="a6xx_reg_xy" variants="A8XX-" usage="draw"/>
 
 	<enum name="a6xx_fsr_combiner">
 		<value value="0" name="FSR_COMBINER_OP_KEEP"/>
@@ -1893,45 +1930,59 @@ by a particular renderpass/blit.
 		<value value="4" name="FSR_COMBINER_OP_MUL"/>
 	</enum>
 
-	<bitset name="a6xx_gras_vrs_config">
+	<enum name="a6xx_fsr_combiner_clamp_mode">
+		<value value="0" name="FSR_COMBINER_CLAMP_4x4"/>
+		<value value="1" name="FSR_COMBINER_CLAMP_2x2"/>
+		<!-- gen8 and later, reserved on earlier gens: -->
+		<value value="2" name="FSR_COMBINER_CLAMP_16_SAMP"/>
+	</enum>
+
+	<bitset name="a6xx_gras_vrs_config" inline="yes">
 		<bitfield name="PIPELINE_FSR_ENABLE" pos="0" type="boolean"/>
 		<bitfield name="FRAG_SIZE_X" low="1" high="2" type="uint"/>
 		<bitfield name="FRAG_SIZE_Y" low="3" high="4" type="uint"/>
 		<bitfield name="COMBINER_OP_1" low="5" high="7" type="a6xx_fsr_combiner"/>
 		<bitfield name="COMBINER_OP_2" low="8" high="10" type="a6xx_fsr_combiner"/>
+		<bitfield name="COMBINER_CLAMP_MODE" low="11" high="12" type="a6xx_fsr_combiner_clamp_mode"/>
 		<bitfield name="ATTACHMENT_FSR_ENABLE" pos="13" type="boolean"/>
 		<bitfield name="PRIMITIVE_FSR_ENABLE" pos="20" type="boolean"/>
 	</bitset>
 
-	<reg32 offset="0x80f4" name="GRAS_VRS_CONFIG" type="a6xx_gras_vrs_config" variants="A7XX" usage="rp_blit"/>
-	<reg32 offset="0x8208" name="GRAS_VRS_CONFIG" type="a6xx_gras_vrs_config" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x80f4" name="GRAS_VRS_CONFIG" type="a6xx_gras_vrs_config" variants="A7XX" usage="draw">
+		<bitfield name="QUALITY_BUFFER_SHIFT_X" low="14" high="15" type="uint"/>
+		<bitfield name="QUALITY_BUFFER_SHIFT_Y" low="16" high="17" type="uint"/>
+	</reg32>
+	<reg32 offset="0x8208" name="GRAS_VRS_CONFIG" type="a6xx_gras_vrs_config" variants="A8XX-" usage="draw"/>
 
 	<bitset name="a6xx_gras_quality_buffer_info" inline="yes">
 		<bitfield name="LAYERED" pos="0" type="boolean"/>
 		<bitfield name="TILE_MODE" low="1" high="2" type="a6xx_tile_mode"/>
 	</bitset>
 
-	<reg32 offset="0x80f5" name="GRAS_QUALITY_BUFFER_INFO" type="a6xx_gras_quality_buffer_info" variants="A7XX" usage="rp_blit"/>
-	<reg32 offset="0x808e" name="GRAS_QUALITY_BUFFER_INFO" type="a6xx_gras_quality_buffer_info" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x80f5" name="GRAS_QUALITY_BUFFER_INFO" type="a6xx_gras_quality_buffer_info" variants="A7XX" usage="draw"/>
+	<reg32 offset="0x808e" name="GRAS_QUALITY_BUFFER_INFO" type="a6xx_gras_quality_buffer_info" variants="A8XX-" usage="draw">
+		<bitfield name="QUALITY_BUFFER_SHIFT_X" low="4" high="5" type="uint"/>
+		<bitfield name="QUALITY_BUFFER_SHIFT_Y" low="6" high="7" type="uint"/>
+	</reg32>
 
 	<bitset name="a6xx_gras_quality_buffer_dimension" inline="yes">
 		<bitfield name="WIDTH" low="0" high="15" type="uint"/>
 		<bitfield name="HEIGHT" low="16" high="31" type="uint"/>
 	</bitset>
 
-	<reg32 offset="0x80f6" name="GRAS_QUALITY_BUFFER_DIMENSION" type="a6xx_gras_quality_buffer_dimension" variants="A7XX" usage="rp_blit"/>
-	<reg32 offset="0x808f" name="GRAS_QUALITY_BUFFER_DIMENSION" type="a6xx_gras_quality_buffer_dimension" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x80f6" name="GRAS_QUALITY_BUFFER_DIMENSION" type="a6xx_gras_quality_buffer_dimension" variants="A7XX" usage="draw"/>
+	<reg32 offset="0x808f" name="GRAS_QUALITY_BUFFER_DIMENSION" type="a6xx_gras_quality_buffer_dimension" variants="A8XX-" usage="draw"/>
 
-	<reg64 offset="0x80f8" name="GRAS_QUALITY_BUFFER_BASE" variants="A7XX" type="waddress" usage="rp_blit"/>
-	<reg64 offset="0x8090" name="GRAS_QUALITY_BUFFER_BASE" variants="A8XX-" type="waddress" usage="rp_blit"/>
+	<reg64 offset="0x80f8" name="GRAS_QUALITY_BUFFER_BASE" variants="A7XX" type="waddress" usage="draw"/>
+	<reg64 offset="0x8090" name="GRAS_QUALITY_BUFFER_BASE" variants="A8XX-" type="waddress" usage="draw"/>
 
 	<bitset name="a6xx_gras_quality_buffer_pitch" inline="yes">
 		<bitfield name="PITCH" shr="6" low="0" high="7" type="uint"/>
 		<bitfield name="ARRAY_PITCH" shr="6" low="10" high="28" type="uint"/>
 	</bitset>
 
-	<reg32 offset="0x80fa" name="GRAS_QUALITY_BUFFER_PITCH" type="a6xx_gras_quality_buffer_pitch" variants="A7XX" usage="rp_blit"/>
-	<reg32 offset="0x8092" name="GRAS_QUALITY_BUFFER_PITCH" type="a6xx_gras_quality_buffer_pitch" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x80fa" name="GRAS_QUALITY_BUFFER_PITCH" type="a6xx_gras_quality_buffer_pitch" variants="A7XX" usage="draw"/>
+	<reg32 offset="0x8092" name="GRAS_QUALITY_BUFFER_PITCH" type="a6xx_gras_quality_buffer_pitch" variants="A8XX-" usage="draw"/>
 
 	<enum name="a6xx_lrz_dir_status">
 		<value value="0x1" name="LRZ_DIR_LE"/>
@@ -1966,24 +2017,23 @@ by a particular renderpass/blit.
 		<bitfield name="Z_FUNC" low="11" high="13" type="adreno_compare_func" variants="A7XX-"/>
 	</bitset>
 
-	<reg32 offset="0x8100" name="GRAS_LRZ_CNTL" type="a6xx_gras_lrz_cntl" usage="rp_blit" variants="A6XX">
+	<reg32 offset="0x8100" name="GRAS_LRZ_CNTL" type="a6xx_gras_lrz_cntl" usage="draw" variants="A6XX">
 		<bitfield name="FC_ENABLE" pos="3" type="boolean" variants="A6XX"/>
 		<bitfield name="DISABLE_ON_WRONG_DIR" pos="9" type="boolean" variants="A6XX"/>
 	</reg32>
-	<reg32 offset="0x8100" name="GRAS_LRZ_CNTL" type="a6xx_gras_lrz_cntl" usage="rp_blit" variants="A7XX"/>
-	<reg32 offset="0x8212" name="GRAS_LRZ_CNTL" type="a6xx_gras_lrz_cntl" usage="rp_blit" variants="A8XX-"/>
+	<reg32 offset="0x8100" name="GRAS_LRZ_CNTL" type="a6xx_gras_lrz_cntl" usage="draw" variants="A7XX"/>
+	<reg32 offset="0x8212" name="GRAS_LRZ_CNTL" type="a6xx_gras_lrz_cntl" usage="draw" variants="A8XX-"/>
 
-	<reg32 offset="0x8007" name="GRAS_LRZ_CB_CNTL" variants="A7XX" usage="rp_blit">
+	<bitset name="a7xx_gras_lrz_cb_cntl" inline="yes">
 		<doc>
 			The total size of the LRZ image array (not including
 			fast clear buffer), used as a stride for double
 			buffering used with concurrent binning.
 		</doc>
-		<bitfield name="DOUBLE_BUFFER_STRIDE" low="8" high="31" shr="8"/>
-	</reg32>
-	<reg32 offset="0x8101" name="GRAS_LRZ_CB_CNTL" usage="rp_blit" variants="A8XX-">
 		<bitfield name="DOUBLE_BUFFER_PITCH" low="8" high="31" shr="8"/>
-	</reg32>
+	</bitset>
+	<reg32 offset="0x8007" name="GRAS_LRZ_CB_CNTL" type="a7xx_gras_lrz_cb_cntl" variants="A7XX" usage="draw"/>
+	<reg32 offset="0x8101" name="GRAS_LRZ_CB_CNTL" type="a7xx_gras_lrz_cb_cntl" variants="A8XX-" usage="draw"/>
 
 	<enum name="a6xx_fragcoord_sample_mode">
 		<value value="0" name="FRAGCOORD_CENTER"/>
@@ -1995,28 +2045,28 @@ by a particular renderpass/blit.
 		<bitfield name="FRAGCOORDSAMPLEMODE" low="1" high="2" type="a6xx_fragcoord_sample_mode"/>
 	</bitset>
 
-	<reg32 offset="0x8101" name="GRAS_LRZ_PS_INPUT_CNTL" type="a6xx_gras_lrz_ps_input_cntl" usage="rp_blit" variants="A6XX-A7XX"/>
-	<reg32 offset="0x8102" name="GRAS_LRZ_PS_INPUT_CNTL" type="a6xx_gras_lrz_ps_input_cntl" usage="rp_blit" variants="A8XX-"/>
+	<reg32 offset="0x8101" name="GRAS_LRZ_PS_INPUT_CNTL" type="a6xx_gras_lrz_ps_input_cntl" usage="draw" variants="A6XX-A7XX"/>
+	<reg32 offset="0x8102" name="GRAS_LRZ_PS_INPUT_CNTL" type="a6xx_gras_lrz_ps_input_cntl" usage="draw" variants="A8XX-"/>
 
 	<bitset name="a6xx_gras_lrz_mrt_buffer_info_0" inline="yes">
 		<bitfield name="COLOR_FORMAT" low="0" high="7" type="a6xx_format"/>
 	</bitset>
 
-	<reg32 offset="0x8102" name="GRAS_LRZ_MRT_BUFFER_INFO_0" type="a6xx_gras_lrz_mrt_buffer_info_0" usage="rp_blit" variants="A6XX-A7XX"/>
-	<reg32 offset="0x8103" name="GRAS_LRZ_MRT_BUFFER_INFO_0" type="a6xx_gras_lrz_mrt_buffer_info_0" usage="rp_blit" variants="A8XX-"/>
+	<reg32 offset="0x8102" name="GRAS_LRZ_MRT_BUFFER_INFO_0" type="a6xx_gras_lrz_mrt_buffer_info_0" usage="draw" variants="A6XX-A7XX"/>
+	<reg32 offset="0x8103" name="GRAS_LRZ_MRT_BUFFER_INFO_0" type="a6xx_gras_lrz_mrt_buffer_info_0" usage="draw" variants="A8XX-"/>
 
-	<reg64 offset="0x8103" name="GRAS_LRZ_BUFFER_BASE" align="256" type="waddress" usage="rp_blit" variants="A6XX-A7XX"/>
-	<reg64 offset="0x8104" name="GRAS_LRZ_BUFFER_BASE" align="256" type="waddress" usage="rp_blit" variants="A8XX-"/>
+	<reg64 offset="0x8103" name="GRAS_LRZ_BUFFER_BASE" align="256" type="waddress" usage="draw" variants="A6XX-A7XX"/>
+	<reg64 offset="0x8104" name="GRAS_LRZ_BUFFER_BASE" align="256" type="waddress" usage="draw" variants="A8XX-"/>
 
 	<bitset name="a6xx_gras_lrz_buffer_pitch" inline="yes">
-		<bitfield name="PITCH" low="0" high="7" shr="5" type="uint"/>
+		<bitfield name="PITCH" low="0" high="7" shr="6" type="uint"/>
 		<bitfield name="ARRAY_PITCH" low="10" high="28" shr="8" type="uint"/>
 	</bitset>
 
-	<reg32 offset="0x8105" name="GRAS_LRZ_BUFFER_PITCH" type="a6xx_gras_lrz_buffer_pitch" usage="rp_blit" variants="A6XX-A7XX"/>
-	<reg32 offset="0x8108" name="GRAS_LRZ_BUFFER_PITCH" type="a6xx_gras_lrz_buffer_pitch" usage="rp_blit" variants="A8XX-"/>
+	<reg32 offset="0x8105" name="GRAS_LRZ_BUFFER_PITCH" type="a6xx_gras_lrz_buffer_pitch" usage="draw" variants="A6XX-A7XX"/>
+	<reg32 offset="0x8108" name="GRAS_LRZ_BUFFER_PITCH" type="a6xx_gras_lrz_buffer_pitch" usage="draw" variants="A8XX-"/>
 
-	<reg32 offset="0x810e" name="GRAS_LRZ_BUFFER_STRIDE" usage="rp_blit" low="0" high="16" shr="12" variants="A8XX-"/>
+	<reg32 offset="0x810e" name="GRAS_LRZ_BUFFER_STRIDE" usage="draw" low="0" high="16" shr="12" variants="A8XX-"/>
 
 	<!--
 	The LRZ "fast clear" buffer is initialized to zero's by blob, and
@@ -2048,8 +2098,8 @@ by a particular renderpass/blit.
 	increases beyond 1 page.  Not sure if that is an actual limit or
 	not.
 	 -->
-	<reg64 offset="0x8106" name="GRAS_LRZ_FAST_CLEAR_BUFFER_BASE" align="64" type="waddress" usage="rp_blit"/>
-	<reg32 offset="0x8109" name="GRAS_LRZ_PS_SAMPLEFREQ_CNTL" usage="rp_blit">
+	<reg64 offset="0x8106" name="GRAS_LRZ_FAST_CLEAR_BUFFER_BASE" align="64" type="waddress" usage="resolve"/>
+	<reg32 offset="0x8109" name="GRAS_LRZ_PS_SAMPLEFREQ_CNTL" usage="draw">
 		<bitfield name="PER_SAMP_MODE" pos="0" type="boolean"/>
 	</reg32>
 	<!--
@@ -2066,14 +2116,14 @@ by a particular renderpass/blit.
 		<bitfield name="BASE_MIP_LEVEL" low="28" high="31" type="uint"/>
 	</reg32>
 
-	<reg32 offset="0x810b" name="GRAS_LRZ_CNTL2" variants="A7XX-" usage="rp_blit">
+	<reg32 offset="0x810b" name="GRAS_LRZ_CNTL2" variants="A7XX-" usage="draw">
 		<bitfield name="DISABLE_ON_WRONG_DIR" pos="0" type="boolean"/>
 		<bitfield name="FC_ENABLE" pos="1" type="boolean"/>
 	</reg32>
 
 	<!-- 0x810c-0x810f invalid -->
 
-	<reg32 offset="0x8110" name="GRAS_LRZ_BUFFER_SLICE_PITCH" low="0" high="31" shr="8" type="uint" variants="A8XX-"/>
+	<reg32 offset="0x8110" name="GRAS_LRZ_BUFFER_SLICE_PITCH" low="8" high="31" shr="8" type="uint" variants="A8XX-"/>
 
 	<reg32 offset="0x8110" name="GRAS_MODE_CNTL" low="0" high="1" variants="A6XX-A7XX" usage="cmd"/>
 	<reg32 offset="0x8213" name="GRAS_MODE_CNTL" low="0" high="1" variants="A8XX-" usage="cmd"/>
@@ -2082,8 +2132,8 @@ by a particular renderpass/blit.
 	<reg32 offset="0x8111" name="GRAS_LRZ_DEPTH_CLEAR" type="float" variants="A7XX"/>
 	<reg32 offset="0x810d" name="GRAS_LRZ_DEPTH_CLEAR" type="float" variants="A8XX-"/>
 
-	<reg32 offset="0x8113" name="GRAS_LRZ_DEPTH_BUFFER_INFO" type="a6xx_depth_buffer_info" variants="A7XX" usage="rp_blit"/>
-	<reg32 offset="0x810f" name="GRAS_LRZ_DEPTH_BUFFER_INFO" type="a6xx_depth_buffer_info" variants="A8XX" usage="rp_blit"/>
+	<reg32 offset="0x8113" name="GRAS_LRZ_DEPTH_BUFFER_INFO" type="a6xx_depth_buffer_info" variants="A7XX" usage="draw"/>
+	<reg32 offset="0x810f" name="GRAS_LRZ_DEPTH_BUFFER_INFO" type="a6xx_depth_buffer_info" variants="A8XX" usage="draw"/>
 
 	<doc>LUT used to convert quality buffer values to HW shading rate values. An array of 4-bit values.</doc>
 	<array offset="0x8120" name="GRAS_LRZ_QUALITY_LOOKUP_TABLE" variants="A7XX" stride="1" length="2"/>
@@ -2128,32 +2178,32 @@ by a particular renderpass/blit.
 		<bitfield name="COPY" pos="30" type="boolean" variants="A7XX-"/>
 	</bitset>
 
-	<reg32 offset="0x8400" name="GRAS_A2D_BLT_CNTL" type="a6xx_a2d_blt_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
+	<reg32 offset="0x8400" name="GRAS_A2D_BLT_CNTL" type="a6xx_a2d_blt_cntl" variants="A6XX-A7XX" usage="blit"/>
 	<!-- note: the low 8 bits for src coords are valid, probably fixed point
 	     it would be a bit weird though, since we subtract 1 from BR coords
 	     apparently signed, gallium driver uses negative coords and it works?
 	 -->
-	<reg32 offset="0x8401" name="GRAS_A2D_SRC_XMIN" low="8" high="24" type="int" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x8402" name="GRAS_A2D_SRC_XMAX" low="8" high="24" type="int" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x8403" name="GRAS_A2D_SRC_YMIN" low="8" high="24" type="int" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x8404" name="GRAS_A2D_SRC_YMAX" low="8" high="24" type="int" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x8405" name="GRAS_A2D_DEST_TL" type="a6xx_reg_xy" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x8406" name="GRAS_A2D_DEST_BR" type="a6xx_reg_xy" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x8407" name="GRAS_2D_UNKNOWN_8407" low="0" high="31"/>
-	<reg32 offset="0x8408" name="GRAS_2D_UNKNOWN_8408" low="0" high="31"/>
-	<reg32 offset="0x8409" name="GRAS_2D_UNKNOWN_8409" low="0" high="31"/>
-	<reg32 offset="0x840a" name="GRAS_A2D_SCISSOR_TL" type="a6xx_reg_xy" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x840b" name="GRAS_A2D_SCISSOR_BR" type="a6xx_reg_xy" variants="A6XX-A7XX" usage="rp_blit"/>
+	<reg32 offset="0x8401" name="GRAS_A2D_SRC_XMIN" low="8" high="24" type="int" variants="A6XX-A7XX" usage="blit"/>
+	<reg32 offset="0x8402" name="GRAS_A2D_SRC_XMAX" low="8" high="24" type="int" variants="A6XX-A7XX" usage="blit"/>
+	<reg32 offset="0x8403" name="GRAS_A2D_SRC_YMIN" low="8" high="24" type="int" variants="A6XX-A7XX" usage="blit"/>
+	<reg32 offset="0x8404" name="GRAS_A2D_SRC_YMAX" low="8" high="24" type="int" variants="A6XX-A7XX" usage="blit"/>
+	<reg32 offset="0x8405" name="GRAS_A2D_DEST_TL" type="a6xx_reg_xy" variants="A6XX-A7XX" usage="blit"/>
+	<reg32 offset="0x8406" name="GRAS_A2D_DEST_BR" type="a6xx_reg_xy" variants="A6XX-A7XX" usage="blit"/>
+	<reg32 offset="0x8407" name="GRAS_A2D_UNKNOWN_8407" low="0" high="31" variants="A6XX" usage="blit"/>
+	<reg32 offset="0x8408" name="GRAS_A2D_UNKNOWN_8408" low="0" high="31" variants="A6XX" usage="blit"/>
+	<reg32 offset="0x8409" name="GRAS_A2D_UNKNOWN_8409" low="0" high="31" variants="A6XX" usage="blit"/>
+	<reg32 offset="0x840a" name="GRAS_A2D_SCISSOR_TL" type="a6xx_reg_xy" variants="A6XX-A7XX" usage="blit"/>
+	<reg32 offset="0x840b" name="GRAS_A2D_SCISSOR_BR" type="a6xx_reg_xy" variants="A6XX-A7XX" usage="blit"/>
 
-	<reg32 offset="0x8500" name="GRAS_A2D_BLT_CNTL" type="a6xx_a2d_blt_cntl" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x8501" name="GRAS_A2D_SRC_XMIN" low="8" high="24" type="int" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x8502" name="GRAS_A2D_SRC_XMAX" low="8" high="24" type="int" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x8503" name="GRAS_A2D_SRC_YMIN" low="8" high="24" type="int" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x8504" name="GRAS_A2D_SRC_YMAX" low="8" high="24" type="int" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x8505" name="GRAS_A2D_DEST_TL" type="a6xx_reg_xy" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x8506" name="GRAS_A2D_DEST_BR" type="a6xx_reg_xy" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x8507" name="GRAS_A2D_SCISSOR_TL" type="a6xx_reg_xy" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x8508" name="GRAS_A2D_SCISSOR_BR" type="a6xx_reg_xy" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x8500" name="GRAS_A2D_BLT_CNTL" type="a6xx_a2d_blt_cntl" variants="A8XX-" usage="blit"/>
+	<reg32 offset="0x8501" name="GRAS_A2D_SRC_XMIN" low="8" high="24" type="int" variants="A8XX-" usage="blit"/>
+	<reg32 offset="0x8502" name="GRAS_A2D_SRC_XMAX" low="8" high="24" type="int" variants="A8XX-" usage="blit"/>
+	<reg32 offset="0x8503" name="GRAS_A2D_SRC_YMIN" low="8" high="24" type="int" variants="A8XX-" usage="blit"/>
+	<reg32 offset="0x8504" name="GRAS_A2D_SRC_YMAX" low="8" high="24" type="int" variants="A8XX-" usage="blit"/>
+	<reg32 offset="0x8505" name="GRAS_A2D_DEST_TL" type="a6xx_reg_xy" variants="A8XX-" usage="blit"/>
+	<reg32 offset="0x8506" name="GRAS_A2D_DEST_BR" type="a6xx_reg_xy" variants="A8XX-" usage="blit"/>
+	<reg32 offset="0x8507" name="GRAS_A2D_SCISSOR_TL" type="a6xx_reg_xy" variants="A8XX-" usage="blit"/>
+	<reg32 offset="0x8508" name="GRAS_A2D_SCISSOR_BR" type="a6xx_reg_xy" variants="A8XX-" usage="blit"/>
 
 	<!-- always 0x880 ? (and 0 in a640/a650 traces?) -->
 	<reg32 offset="0x8600" name="GRAS_DBG_ECO_CNTL" usage="init" variants="A6XX-A7XX">
@@ -2180,10 +2230,10 @@ by a particular renderpass/blit.
 	-->
 
 	<!-- same as GRAS_BIN_CONTROL, but without bit 27: -->
-	<reg32 offset="0x8800" name="RB_CNTL" variants="A6XX-A7XX" type="a6xx_bin_cntl" usage="rp_blit"/>
-	<reg32 offset="0x8800" name="RB_CNTL" variants="A8XX-" type="a8xx_bin_cntl" usage="rp_blit"/>
+	<reg32 offset="0x8800" name="RB_CNTL" variants="A6XX-A7XX" type="a6xx_bin_cntl" usage="cmd"/>
+	<reg32 offset="0x8800" name="RB_CNTL" variants="A8XX-" type="a8xx_bin_cntl" usage="cmd"/>
 
-	<reg32 offset="0x8801" name="RB_RENDER_CNTL" variants="A6XX" usage="rp_blit">
+	<reg32 offset="0x8801" name="RB_RENDER_CNTL" variants="A6XX" usage="draw">
 		<bitfield name="CCUSINGLECACHELINESIZE" low="3" high="5"/>
 		<bitfield name="EARLYVIZOUTEN" pos="6" type="boolean"/>
 		<bitfield name="FS_DISABLE" pos="7" type="boolean"/>
@@ -2197,7 +2247,7 @@ by a particular renderpass/blit.
 		<!-- bitmask of MRTs using UBWC flag buffer: -->
 		<bitfield name="FLAG_MRTS" low="16" high="23"/>
 	</reg32>
-	<reg32 offset="0x8801" name="RB_RENDER_CNTL" variants="A7XX-" usage="rp_blit">
+	<reg32 offset="0x8801" name="RB_RENDER_CNTL" variants="A7XX-" usage="draw">
 		<bitfield name="EARLYVIZOUTEN" pos="6" type="boolean"/>
 		<bitfield name="FS_DISABLE" pos="7" type="boolean"/>
 		<bitfield name="RASTER_MODE" pos="8" type="a6xx_raster_mode"/>
@@ -2206,26 +2256,26 @@ by a particular renderpass/blit.
 		<bitfield name="INNERCONSERVATIVERASEN" pos="12" type="boolean"/>
 	</reg32>
 
-	<reg32 offset="0x8802" name="RB_RAS_MSAA_CNTL" usage="rp_blit">
+	<reg32 offset="0x8802" name="RB_RAS_MSAA_CNTL" usage="draw">
 		<bitfield name="SAMPLES" low="0" high="1" type="a3xx_msaa_samples"/>
 		<bitfield name="UNK2" pos="2"/>
 		<bitfield name="UNK3" pos="3"/>
 	</reg32>
-	<reg32 offset="0x8803" name="RB_DEST_MSAA_CNTL" usage="rp_blit">
+	<reg32 offset="0x8803" name="RB_DEST_MSAA_CNTL" usage="draw">
 		<bitfield name="SAMPLES" low="0" high="1" type="a3xx_msaa_samples"/>
 		<bitfield name="MSAA_DISABLE" pos="2" type="boolean"/>
 	</reg32>
 
-	<reg32 offset="0x8804" name="RB_MSAA_SAMPLE_POS_CNTL" type="a6xx_msaa_sample_pos_cntl" usage="rp_blit"/>
-	<reg32 offset="0x8805" name="RB_PROGRAMMABLE_MSAA_POS_0" type="a6xx_programmable_msaa_pos" usage="rp_blit"/>
-	<reg32 offset="0x8806" name="RB_PROGRAMMABLE_MSAA_POS_1" type="a6xx_programmable_msaa_pos" usage="rp_blit"/>
-	<reg32 offset="0x8807" name="RB_PROGRAMMABLE_MSAA_POS_2" type="a6xx_programmable_msaa_pos" usage="rp_blit" variants="A8XX-"/>
-	<reg32 offset="0x8808" name="RB_PROGRAMMABLE_MSAA_POS_3" type="a6xx_programmable_msaa_pos" usage="rp_blit" variants="A8XX-"/>
+	<reg32 offset="0x8804" name="RB_MSAA_SAMPLE_POS_CNTL" type="a6xx_msaa_sample_pos_cntl" usage="draw"/>
+	<reg32 offset="0x8805" name="RB_PROGRAMMABLE_MSAA_POS_0" type="a6xx_programmable_msaa_pos" usage="draw"/>
+	<reg32 offset="0x8806" name="RB_PROGRAMMABLE_MSAA_POS_1" type="a6xx_programmable_msaa_pos" usage="draw"/>
+	<reg32 offset="0x8807" name="RB_PROGRAMMABLE_MSAA_POS_2" type="a6xx_programmable_msaa_pos" usage="draw" variants="A8XX-"/>
+	<reg32 offset="0x8808" name="RB_PROGRAMMABLE_MSAA_POS_3" type="a6xx_programmable_msaa_pos" usage="draw" variants="A8XX-"/>
 	<!--
 	note: maybe not actually called RB_RENDER_CONTROLn (since RB_RENDER_CNTL
 	name comes from kernel and is probably right)
 	 -->
-	<reg32 offset="0x8809" name="RB_INTERP_CNTL" usage="rp_blit">
+	<reg32 offset="0x8809" name="RB_INTERP_CNTL" usage="draw">
 		<!-- see also GRAS_CL_INTERP_CNTL -->
 		<bitfield name="IJ_PERSP_PIXEL" pos="0" type="boolean"/>
 		<bitfield name="IJ_PERSP_CENTROID" pos="1" type="boolean"/>
@@ -2236,7 +2286,7 @@ by a particular renderpass/blit.
 		<bitfield name="COORD_MASK" low="6" high="9" type="hex"/>
 		<bitfield name="INTERP_EN" pos="10" type="boolean"/>
 	</reg32>
-	<reg32 offset="0x880a" name="RB_PS_INPUT_CNTL" usage="rp_blit">
+	<reg32 offset="0x880a" name="RB_PS_INPUT_CNTL" usage="draw">
 		<!-- enable bits for various FS sysvalue regs: -->
 		<bitfield name="SAMPLEMASK" pos="0" type="boolean"/>
 		<bitfield name="POSTDEPTHCOVERAGE" pos="1" type="boolean"/>
@@ -2248,16 +2298,16 @@ by a particular renderpass/blit.
 		<bitfield name="FOVEATION" pos="8" type="boolean"/>
 	</reg32>
 
-	<reg32 offset="0x880b" name="RB_PS_OUTPUT_CNTL" usage="rp_blit">
+	<reg32 offset="0x880b" name="RB_PS_OUTPUT_CNTL" usage="draw">
 		<bitfield name="DUAL_COLOR_IN_ENABLE" pos="0" type="boolean"/>
 		<bitfield name="FRAG_WRITES_Z" pos="1" type="boolean"/>
 		<bitfield name="FRAG_WRITES_SAMPMASK" pos="2" type="boolean"/>
 		<bitfield name="FRAG_WRITES_STENCILREF" pos="3" type="boolean"/>
 	</reg32>
-	<reg32 offset="0x880c" name="RB_PS_MRT_CNTL" usage="rp_blit">
+	<reg32 offset="0x880c" name="RB_PS_MRT_CNTL" usage="draw">
 		<bitfield name="MRT" low="0" high="3" type="uint"/>
 	</reg32>
-	<reg32 offset="0x880d" name="RB_PS_OUTPUT_MASK" usage="rp_blit">
+	<reg32 offset="0x880d" name="RB_PS_OUTPUT_MASK" usage="draw">
 		<bitfield name="RT0" low="0" high="3"/>
 		<bitfield name="RT1" low="4" high="7"/>
 		<bitfield name="RT2" low="8" high="11"/>
@@ -2277,7 +2327,7 @@ by a particular renderpass/blit.
 		<bitfield name="DITHER_MODE_MRT6" low="12" high="13" type="adreno_rb_dither_mode"/>
 		<bitfield name="DITHER_MODE_MRT7" low="14" high="15" type="adreno_rb_dither_mode"/>
 	</reg32>
-	<reg32 offset="0x880f" name="RB_SRGB_CNTL" usage="rp_blit">
+	<reg32 offset="0x880f" name="RB_SRGB_CNTL" usage="draw">
 		<!-- Same as SP_SRGB_CNTL -->
 		<bitfield name="SRGB_MRT0" pos="0" type="boolean"/>
 		<bitfield name="SRGB_MRT1" pos="1" type="boolean"/>
@@ -2289,11 +2339,11 @@ by a particular renderpass/blit.
 		<bitfield name="SRGB_MRT7" pos="7" type="boolean"/>
 	</reg32>
 
-	<reg32 offset="0x8810" name="RB_PS_SAMPLEFREQ_CNTL" usage="rp_blit">
+	<reg32 offset="0x8810" name="RB_PS_SAMPLEFREQ_CNTL" usage="draw">
 		<bitfield name="PER_SAMP_MODE" pos="0" type="boolean"/>
 	</reg32>
 	<reg32 offset="0x8811" name="RB_MODE_CNTL" low="4" high="6" usage="cmd"/>
-	<reg32 offset="0x8812" name="RB_BUFFER_CNTL" variants="A7XX-" usage="rp_blit">
+	<reg32 offset="0x8812" name="RB_BUFFER_CNTL" variants="A7XX-" usage="draw">
 		<bitfield name="Z_SYSMEM" pos="0" type="boolean"/>
 		<bitfield name="S_SYSMEM" pos="1" type="boolean"/>
 		<bitfield name="RT0_SYSMEM" pos="2" type="boolean"/>
@@ -2316,7 +2366,7 @@ by a particular renderpass/blit.
 		<bitfield name="RT7_FULL_IN_GMEM" pos="19" type="boolean" variants="A8XX-"/>
 	</reg32>
 
-	<reg32 offset="0x8816" name="RB_RESOLVE_CR_CNTL" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x8816" name="RB_RESOLVE_CR_CNTL" variants="A8XX-" usage="resolve"/>
 
 	<!-- 0x8813-0x8817 invalid -->
 	<!-- always 0x0 ? -->
@@ -2330,12 +2380,12 @@ by a particular renderpass/blit.
 	<reg32 offset="0x881e" name="RB_UNKNOWN_881E" usage="cmd"/>
 
 	<!-- Duplicates fields from SP_PS_CNTL_0 -->
-	<reg32 offset="0x881f" name="RB_PS_CNTL" variants="A8XX-" usage="rp_blit">
+	<reg32 offset="0x881f" name="RB_PS_CNTL" variants="A8XX-" usage="draw">
 		<bitfield name="PIXLODENABLE" pos="0" type="boolean"/>
 		<bitfield name="LODPIXMASK" pos="1" type="boolean"/>
 	</reg32>
 
-	<array offset="0x8820" name="RB_MRT" stride="8" length="8" usage="rp_blit">
+	<array offset="0x8820" name="RB_MRT" stride="8" length="8" usage="draw">
 		<reg32 offset="0x0" name="CONTROL">
 			<bitfield name="COLOR_BLEND_EN" pos="0" type="boolean"/>
 			<bitfield name="ALPHA_BLEND_EN" pos="1" type="boolean"/>
@@ -2383,16 +2433,16 @@ by a particular renderpass/blit.
 		<reg32 offset="0x7" name="BASE_GMEM" low="12" high="31" shr="12"/>
 	</array>
 
-	<reg32 offset="0x8860" name="RB_BLEND_CONSTANT_RED_FP32" type="float" usage="rp_blit"/>
-	<reg32 offset="0x8861" name="RB_BLEND_CONSTANT_GREEN_FP32" type="float" usage="rp_blit"/>
-	<reg32 offset="0x8862" name="RB_BLEND_CONSTANT_BLUE_FP32" type="float" usage="rp_blit"/>
-	<reg32 offset="0x8863" name="RB_BLEND_CONSTANT_ALPHA_FP32" type="float" usage="rp_blit"/>
+	<reg32 offset="0x8860" name="RB_BLEND_CONSTANT_RED_FP32" type="float" usage="draw"/>
+	<reg32 offset="0x8861" name="RB_BLEND_CONSTANT_GREEN_FP32" type="float" usage="draw"/>
+	<reg32 offset="0x8862" name="RB_BLEND_CONSTANT_BLUE_FP32" type="float" usage="draw"/>
+	<reg32 offset="0x8863" name="RB_BLEND_CONSTANT_ALPHA_FP32" type="float" usage="draw"/>
 	<reg32 offset="0x8864" name="RB_ALPHA_TEST_CNTL" usage="cmd">
 		<bitfield name="ALPHA_REF" low="0" high="7" type="hex"/>
 		<bitfield name="ALPHA_TEST" pos="8" type="boolean"/>
 		<bitfield name="ALPHA_TEST_FUNC" low="9" high="11" type="adreno_compare_func"/>
 	</reg32>
-	<reg32 offset="0x8865" name="RB_BLEND_CNTL" usage="rp_blit">
+	<reg32 offset="0x8865" name="RB_BLEND_CNTL" usage="draw">
 		<!-- per-mrt enable bit -->
 		<bitfield name="BLEND_READS_DEST" low="0" high="7"/>
 		<bitfield name="INDEPENDENT_BLEND" pos="8" type="boolean"/>
@@ -2401,12 +2451,12 @@ by a particular renderpass/blit.
 		<bitfield name="ALPHA_TO_ONE" pos="11" type="boolean"/>
 		<bitfield name="SAMPLE_MASK" low="16" high="31"/>
 	</reg32>
-	<reg32 offset="0x8866" name="RB_LB_PARAM_LIMIT" variants="A8XX-" usage="rp_blit">
+	<reg32 offset="0x8866" name="RB_LB_PARAM_LIMIT" variants="A8XX-" usage="draw">
 		<bitfield name="PRIMALLOCTHRESHOLD" low="0" high="2" type="uint"/>
 	</reg32>
-	<reg32 offset="0x8870" name="RB_DEPTH_PLANE_CNTL" type="a6xx_depth_plane_cntl" usage="rp_blit"/>
+	<reg32 offset="0x8870" name="RB_DEPTH_PLANE_CNTL" type="a6xx_depth_plane_cntl" usage="draw"/>
 
-	<reg32 offset="0x8871" name="RB_DEPTH_CNTL" usage="rp_blit">
+	<reg32 offset="0x8871" name="RB_DEPTH_CNTL" usage="draw">
 		<bitfield name="Z_TEST_ENABLE" pos="0" type="boolean"/>
 		<bitfield name="Z_WRITE_ENABLE" pos="1" type="boolean"/>
 		<bitfield name="ZFUNC" low="2" high="4" type="adreno_compare_func"/>
@@ -2422,23 +2472,23 @@ by a particular renderpass/blit.
 	</reg32>
 
 	<!-- duplicates GRAS_SU_DEPTH_BUFFER_INFO: -->
-	<reg32 offset="0x8872" name="RB_DEPTH_BUFFER_INFO" variants="A6XX" type="a6xx_depth_buffer_info" usage="rp_blit"/>
+	<reg32 offset="0x8872" name="RB_DEPTH_BUFFER_INFO" variants="A6XX" type="a6xx_depth_buffer_info" usage="draw"/>
 	<!-- first 4 bits duplicates GRAS_SU_DEPTH_BUFFER_INFO -->
-	<reg32 offset="0x8872" name="RB_DEPTH_BUFFER_INFO" type="a6xx_depth_buffer_info" variants="A7XX-" usage="rp_blit">
+	<reg32 offset="0x8872" name="RB_DEPTH_BUFFER_INFO" type="a6xx_depth_buffer_info" variants="A7XX-" usage="draw">
 		<bitfield name="PRT" low="3" high="4"/>
 		<bitfield name="TILEMODE" low="5" high="6" type="a6xx_tile_mode"/>
 		<bitfield name="LOSSLESSCOMPEN" pos="7" type="boolean"/>
 	</reg32>
 
-	<reg32 offset="0x8873" name="RB_DEPTH_BUFFER_PITCH" low="0" high="13" shr="6" type="uint" usage="rp_blit"/>
-	<reg32 offset="0x8874" name="RB_DEPTH_BUFFER_ARRAY_PITCH" low="0" high="27" shr="6" type="uint" usage="rp_blit"/>
-	<reg64 offset="0x8875" name="RB_DEPTH_BUFFER_BASE" type="waddress" align="64" usage="rp_blit"/>
-	<reg32 offset="0x8877" name="RB_DEPTH_GMEM_BASE" low="12" high="31" shr="12" usage="rp_blit"/>
+	<reg32 offset="0x8873" name="RB_DEPTH_BUFFER_PITCH" low="0" high="13" shr="6" type="uint" usage="draw"/>
+	<reg32 offset="0x8874" name="RB_DEPTH_BUFFER_ARRAY_PITCH" low="0" high="27" shr="6" type="uint" usage="draw"/>
+	<reg64 offset="0x8875" name="RB_DEPTH_BUFFER_BASE" type="waddress" align="64" usage="draw"/>
+	<reg32 offset="0x8877" name="RB_DEPTH_GMEM_BASE" low="12" high="31" shr="12" usage="draw"/>
 
-	<reg32 offset="0x8878" name="RB_DEPTH_BOUND_MIN" type="float" usage="rp_blit"/>
-	<reg32 offset="0x8879" name="RB_DEPTH_BOUND_MAX" type="float" usage="rp_blit"/>
+	<reg32 offset="0x8878" name="RB_DEPTH_BOUND_MIN" type="float" usage="draw"/>
+	<reg32 offset="0x8879" name="RB_DEPTH_BOUND_MAX" type="float" usage="draw"/>
 	<!-- 0x887a-0x887f invalid -->
-	<reg32 offset="0x8880" name="RB_STENCIL_CNTL" usage="rp_blit">
+	<reg32 offset="0x8880" name="RB_STENCIL_CNTL" usage="draw">
 		<bitfield name="STENCIL_ENABLE" pos="0" type="boolean"/>
 		<bitfield name="STENCIL_ENABLE_BF" pos="1" type="boolean"/>
 		<!--
@@ -2458,39 +2508,39 @@ by a particular renderpass/blit.
 		<bitfield name="ZFAIL_BF" low="29" high="31" type="adreno_stencil_op"/>
 	</reg32>
 
-	<reg32 offset="0x8881" name="RB_STENCIL_BUFFER_INFO" variants="A6XX" usage="rp_blit">
+	<reg32 offset="0x8881" name="RB_STENCIL_BUFFER_INFO" variants="A6XX" usage="draw">
 		<bitfield name="SEPARATE_STENCIL" pos="0" type="boolean"/>
 		<bitfield name="UNK1" pos="1" type="boolean"/>
 	</reg32>
-	<reg32 offset="0x8881" name="RB_STENCIL_BUFFER_INFO" variants="A7XX-" usage="rp_blit">
+	<reg32 offset="0x8881" name="RB_STENCIL_BUFFER_INFO" variants="A7XX-" usage="draw">
 		<bitfield name="SEPARATE_STENCIL" pos="0" type="boolean"/>
 		<bitfield name="UNK1" pos="1" type="boolean"/>
 		<bitfield name="TILEMODE" low="2" high="3" type="a6xx_tile_mode"/>
 	</reg32>
-	<reg32 offset="0x8882" name="RB_STENCIL_BUFFER_PITCH" low="0" high="11" shr="6" type="uint" usage="rp_blit"/>
-	<reg32 offset="0x8883" name="RB_STENCIL_BUFFER_ARRAY_PITCH" low="0" high="23" shr="6" type="uint" usage="rp_blit"/>
-	<reg64 offset="0x8884" name="RB_STENCIL_BUFFER_BASE" type="waddress" align="64" usage="rp_blit"/>
-	<reg32 offset="0x8886" name="RB_STENCIL_GMEM_BASE" low="12" high="31" shr="12" usage="rp_blit"/>
-	<reg32 offset="0x8887" name="RB_STENCIL_REF_CNTL" usage="rp_blit">
+	<reg32 offset="0x8882" name="RB_STENCIL_BUFFER_PITCH" low="0" high="11" shr="6" type="uint" usage="draw"/>
+	<reg32 offset="0x8883" name="RB_STENCIL_BUFFER_ARRAY_PITCH" low="0" high="23" shr="6" type="uint" usage="draw"/>
+	<reg64 offset="0x8884" name="RB_STENCIL_BUFFER_BASE" type="waddress" align="64" usage="draw"/>
+	<reg32 offset="0x8886" name="RB_STENCIL_GMEM_BASE" low="12" high="31" shr="12" usage="draw"/>
+	<reg32 offset="0x8887" name="RB_STENCIL_REF_CNTL" usage="draw">
 		<bitfield name="REF" low="0" high="7"/>
 		<bitfield name="BFREF" low="8" high="15"/>
 	</reg32>
-	<reg32 offset="0x8888" name="RB_STENCIL_MASK" usage="rp_blit">
+	<reg32 offset="0x8888" name="RB_STENCIL_MASK" usage="draw">
 		<bitfield name="MASK" low="0" high="7"/>
 		<bitfield name="BFMASK" low="8" high="15"/>
 	</reg32>
-	<reg32 offset="0x8889" name="RB_STENCIL_WRITE_MASK" usage="rp_blit">
+	<reg32 offset="0x8889" name="RB_STENCIL_WRITE_MASK" usage="draw">
 		<bitfield name="WRMASK" low="0" high="7"/>
 		<bitfield name="BFWRMASK" low="8" high="15"/>
 	</reg32>
 	<!-- 0x888a-0x888f invalid -->
-	<reg32 offset="0x8890" name="RB_WINDOW_OFFSET" type="a6xx_reg_xy" usage="rp_blit"/>
+	<reg32 offset="0x8890" name="RB_WINDOW_OFFSET" type="a6xx_reg_xy" usage="cmd"/>
 	<reg32 offset="0x8891" name="RB_SAMPLE_COUNTER_CNTL" usage="cmd">
 		<bitfield name="DISABLE" pos="0" type="boolean"/>
 		<bitfield name="COPY" pos="1" type="boolean"/>
 	</reg32>
 	<!-- 0x8892-0x8897 invalid -->
-	<reg32 offset="0x8898" name="RB_LRZ_CNTL" usage="rp_blit">
+	<reg32 offset="0x8898" name="RB_LRZ_CNTL" usage="draw">
 		<bitfield name="ENABLE" pos="0" type="boolean"/>
 	</reg32>
 	<reg32 offset="0x8899" name="RB_LRZ_CNTL2" variants="A7XX-" usage="cmd">
@@ -2498,41 +2548,41 @@ by a particular renderpass/blit.
 	</reg32>
 	<!-- 0x8899-0x88bf invalid -->
 	<!-- clamps depth value for depth test/write -->
-	<reg32 offset="0x88c0" name="RB_VIEWPORT_ZCLAMP_MIN" type="float" usage="rp_blit" variants="A6XX-A7XX"/>
-	<reg32 offset="0x88c1" name="RB_VIEWPORT_ZCLAMP_MAX" type="float" usage="rp_blit" variants="A6XX-A7XX"/>
+	<reg32 offset="0x88c0" name="RB_VIEWPORT_ZCLAMP_MIN" type="float" usage="draw" variants="A6XX-A7XX"/>
+	<reg32 offset="0x88c1" name="RB_VIEWPORT_ZCLAMP_MAX" type="float" usage="draw" variants="A6XX-A7XX"/>
 
 <!-- todo allow type="float" on an <array/> -->
-	<array offset="0x88b0" name="RB_VIEWPORT_ZCLAMP_MIN" stride="1" length="16" usage="rp_blit" variants="A8XX-">
+	<array offset="0x88b0" name="RB_VIEWPORT_ZCLAMP_MIN" stride="1" length="16" usage="draw" variants="A8XX-">
 		<reg32 offset="0" name="REG" type="float"/>
 	</array>
-	<array offset="0x88c0" name="RB_VIEWPORT_ZCLAMP_MAX" stride="1" length="16" usage="rp_blit" variants="A8XX-">
+	<array offset="0x88c0" name="RB_VIEWPORT_ZCLAMP_MAX" stride="1" length="16" usage="draw" variants="A8XX-">
 		<reg32 offset="0" name="REG" type="float"/>
 	</array>
 
 	<!-- 0x88c2-0x88cf invalid-->
-	<reg32 offset="0x88d0" name="RB_RESOLVE_CNTL_0" usage="rp_blit">
+	<reg32 offset="0x88d0" name="RB_RESOLVE_CNTL_0" usage="resolve">
 		<bitfield name="UNK0" low="0" high="12"/>
 		<bitfield name="UNK16" low="16" high="26"/>
 	</reg32>
-	<reg32 offset="0x88d1" name="RB_RESOLVE_CNTL_1" type="a6xx_reg_xy" usage="rp_blit"/>
-	<reg32 offset="0x88d2" name="RB_RESOLVE_CNTL_2" type="a6xx_reg_xy" usage="rp_blit"/>
+	<reg32 offset="0x88d1" name="RB_RESOLVE_CNTL_1" type="a6xx_reg_xy" usage="resolve"/>
+	<reg32 offset="0x88d2" name="RB_RESOLVE_CNTL_2" type="a6xx_reg_xy" usage="resolve"/>
 	<!-- weird to duplicate other regs from same block?? -->
-	<reg32 offset="0x88d3" name="RB_RESOLVE_CNTL_3" variants="A6XX-A7XX" usage="rp_blit">
+	<reg32 offset="0x88d3" name="RB_RESOLVE_CNTL_3" variants="A6XX-A7XX" usage="resolve">
 		<bitfield name="BINW" low="0" high="5" shr="5" type="uint"/>
 		<bitfield name="BINH" low="8" high="14" shr="4" type="uint"/>
 	</reg32>
 
-	<reg32 offset="0x88d3" name="RB_RESOLVE_CNTL_3" type="a8xx_bin_size" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x88f0" name="RB_RESOLVE_CNTL_4" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x88f1" name="RB_RESOLVE_CNTL_5" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x88d3" name="RB_RESOLVE_CNTL_3" type="a8xx_bin_size" variants="A8XX-" usage="resolve"/>
+	<reg32 offset="0x88f0" name="RB_RESOLVE_CNTL_4" variants="A8XX-" usage="resolve"/>
+	<reg32 offset="0x88f1" name="RB_RESOLVE_CNTL_5" variants="A8XX-" usage="resolve"/>
 
-	<reg32 offset="0x88d4" name="RB_RESOLVE_WINDOW_OFFSET" type="a6xx_reg_xy" usage="rp_blit"/>
-	<reg32 offset="0x88d5" name="RB_RESOLVE_GMEM_BUFFER_INFO" usage="rp_blit">
+	<reg32 offset="0x88d4" name="RB_RESOLVE_WINDOW_OFFSET" type="a6xx_reg_xy" usage="resolve"/>
+	<reg32 offset="0x88d5" name="RB_RESOLVE_GMEM_BUFFER_INFO" usage="resolve">
 		<bitfield name="SAMPLES" low="3" high="4" type="a3xx_msaa_samples"/>
 	</reg32>
-	<reg32 offset="0x88d6" name="RB_RESOLVE_GMEM_BUFFER_BASE" low="12" high="31" shr="12" usage="rp_blit"/>
+	<reg32 offset="0x88d6" name="RB_RESOLVE_GMEM_BUFFER_BASE" low="12" high="31" shr="12" usage="resolve"/>
 	<!-- s/DST_FORMAT/DST_INFO/ probably: -->
-	<reg32 offset="0x88d7" name="RB_RESOLVE_SYSTEM_BUFFER_INFO" usage="rp_blit">
+	<reg32 offset="0x88d7" name="RB_RESOLVE_SYSTEM_BUFFER_INFO" usage="resolve">
 		<bitfield name="TILE_MODE" low="0" high="1" type="a6xx_tile_mode"/>
 		<bitfield name="FLAGS" pos="2" type="boolean"/>
 		<bitfield name="SAMPLES" low="3" high="4" type="a3xx_msaa_samples"/>
@@ -2541,23 +2591,23 @@ by a particular renderpass/blit.
 		<bitfield name="UNK15" pos="15" type="boolean"/>
 		<bitfield name="MUTABLEEN" pos="16" type="boolean" variants="A7XX-"/>
 	</reg32>
-	<reg64 offset="0x88d8" name="RB_RESOLVE_SYSTEM_BUFFER_BASE" type="waddress" align="64" usage="rp_blit"/>
-	<reg32 offset="0x88da" name="RB_RESOLVE_SYSTEM_BUFFER_PITCH" low="0" high="15" shr="6" type="uint" usage="rp_blit"/>
+	<reg64 offset="0x88d8" name="RB_RESOLVE_SYSTEM_BUFFER_BASE" type="waddress" align="64" usage="resolve"/>
+	<reg32 offset="0x88da" name="RB_RESOLVE_SYSTEM_BUFFER_PITCH" low="0" high="15" shr="6" type="uint" usage="resolve"/>
 	<!-- array-pitch is size of layer -->
-	<reg32 offset="0x88db" name="RB_RESOLVE_SYSTEM_BUFFER_ARRAY_PITCH" low="0" high="28" shr="6" type="uint" usage="rp_blit"/>
-	<reg64 offset="0x88dc" name="RB_RESOLVE_SYSTEM_FLAG_BUFFER_BASE" type="waddress" align="64" usage="rp_blit"/>
+	<reg32 offset="0x88db" name="RB_RESOLVE_SYSTEM_BUFFER_ARRAY_PITCH" low="0" high="28" shr="6" type="uint" usage="resolve"/>
+	<reg64 offset="0x88dc" name="RB_RESOLVE_SYSTEM_FLAG_BUFFER_BASE" type="waddress" align="64" usage="resolve"/>
 
 	<bitset name="a6xx_flag_buffer_pitch" inline="yes">
 		<bitfield name="PITCH" low="0" high="10" shr="6" type="uint"/>
 		<bitfield name="ARRAY_PITCH" low="11" high="28" shr="7" type="uint"/>
 	</bitset>
 
-	<reg32 offset="0x88de" name="RB_RESOLVE_SYSTEM_FLAG_BUFFER_PITCH" type="a6xx_flag_buffer_pitch" usage="rp_blit"/>
+	<reg32 offset="0x88de" name="RB_RESOLVE_SYSTEM_FLAG_BUFFER_PITCH" type="a6xx_flag_buffer_pitch" usage="resolve"/>
 
-	<reg32 offset="0x88df" name="RB_RESOLVE_CLEAR_COLOR_DW0" usage="rp_blit"/>
-	<reg32 offset="0x88e0" name="RB_RESOLVE_CLEAR_COLOR_DW1" usage="rp_blit"/>
-	<reg32 offset="0x88e1" name="RB_RESOLVE_CLEAR_COLOR_DW2" usage="rp_blit"/>
-	<reg32 offset="0x88e2" name="RB_RESOLVE_CLEAR_COLOR_DW3" usage="rp_blit"/>
+	<reg32 offset="0x88df" name="RB_RESOLVE_CLEAR_COLOR_DW0" usage="resolve"/>
+	<reg32 offset="0x88e0" name="RB_RESOLVE_CLEAR_COLOR_DW1" usage="resolve"/>
+	<reg32 offset="0x88e1" name="RB_RESOLVE_CLEAR_COLOR_DW2" usage="resolve"/>
+	<reg32 offset="0x88e2" name="RB_RESOLVE_CLEAR_COLOR_DW3" usage="resolve"/>
 
 	<enum name="a6xx_blit_event_type">
 		<value value="0x0" name="BLIT_EVENT_STORE"/>
@@ -2567,7 +2617,7 @@ by a particular renderpass/blit.
 	</enum>
 
 	<!-- seems somewhat similar to what we called RB_CLEAR_CNTL on a5xx: -->
-	<reg32 offset="0x88e3" name="RB_RESOLVE_OPERATION" usage="rp_blit">
+	<reg32 offset="0x88e3" name="RB_RESOLVE_OPERATION" usage="resolve">
 		<bitfield name="TYPE" low="0" high="1" type="a6xx_blit_event_type"/>
 		<bitfield name="SAMPLE_0" pos="2" type="boolean"/> <!-- takes sample 0 instead of averaging -->
 		<bitfield name="DEPTH" pos="3" type="boolean"/> <!-- z16/z32/z24s8/x24x8 clear or resolve? -->
@@ -2595,7 +2645,7 @@ by a particular renderpass/blit.
 		<value value="0x0" name="CLEAR_MODE_SYSMEM"/>
 		<value value="0x1" name="CLEAR_MODE_GMEM"/>
 	</enum>
-	<reg32 offset="0x88e4" name="RB_CLEAR_TARGET" variants="A7XX-" usage="rp_blit">
+	<reg32 offset="0x88e4" name="RB_CLEAR_TARGET" variants="A7XX-" usage="resolve">
 			<bitfield name="CLEAR_MODE" pos="0" type="a7xx_blit_clear_mode"/>
 	</reg32>
 
@@ -2637,17 +2687,17 @@ by a particular renderpass/blit.
 		<bitfield name="DEPTH_CACHE_SIZE" low="30" high="31" type="a6xx_ccu_cache_size"/>
 	</reg32>
 
-	<reg32 offset="0x88e6" name="RB_RESOLVE_GMEM_BUFFER_CNTL" variants="A8XX-">
+	<reg32 offset="0x88e6" name="RB_RESOLVE_GMEM_BUFFER_CNTL" variants="A8XX-" usage="resolve">
 		<bitfield name="FULL_IN_GMEM" pos="0" type="boolean"/>
 	</reg32>
 
 	<!-- always 0x0 ? -->
-	<reg32 offset="0x88f0" name="RB_UNKNOWN_88F0" low="0" high="11" variants="A6XX" usage="cmd"/>
+	<reg32 offset="0x88f0" name="RB_UNKNOWN_88F0" low="0" high="11" variants="A6XX" usage="resolve"/>
 	<!-- could be for separate stencil? (or may not be a flag buffer at all) -->
 	<reg64 offset="0x88f1" name="RB_UNK_FLAG_BUFFER_BASE" type="waddress" align="64" variants="A6XX"/>
 	<reg32 offset="0x88f3" name="RB_UNK_FLAG_BUFFER_PITCH" type="a6xx_flag_buffer_pitch" variants="A6XX"/>
 
-	<reg32 offset="0x88f4" name="RB_VRS_CONFIG" usage="rp_blit">
+	<reg32 offset="0x88f4" name="RB_VRS_CONFIG" usage="draw">
 		<bitfield name="UNK2" pos="2" type="boolean"/>
 		<bitfield name="PIPELINE_FSR_ENABLE" pos="4" type="boolean"/>
 		<bitfield name="ATTACHMENT_FSR_ENABLE" pos="5" type="boolean"/>
@@ -2656,16 +2706,25 @@ by a particular renderpass/blit.
 	<reg32 offset="0x88f5" name="RB_BIN_FOVEAT" variants="A7XX-" usage="cmd">
 		<bitfield name="BINSCALEEN" pos="6" type="boolean"/>
 	</reg32>
+
+	<array offset="0x8950" name="RB_BIN_FOVEAT_XY" stride="1" length="6" variants="A8XX-" usage="cmd">
+		<reg32 offset="0" name="OFFSET" type="a8xx_bin_foveat_xy"/>
+	</array>
+
+	<array offset="0x8960" name="RB_BIN_FOVEAT_XY_FDM" stride="1" length="6" variants="A8XX-" usage="cmd">
+		<reg32 offset="0" name="OFFSET" type="a8xx_bin_foveat_xy"/>
+	</array>
+
 	<!-- 0x88f6-0x88ff invalid -->
-	<reg64 offset="0x8900" name="RB_DEPTH_FLAG_BUFFER_BASE" type="waddress" align="64" usage="rp_blit"/>
-	<reg32 offset="0x8902" name="RB_DEPTH_FLAG_BUFFER_PITCH" usage="rp_blit">
+	<reg64 offset="0x8900" name="RB_DEPTH_FLAG_BUFFER_BASE" type="waddress" align="64" usage="draw"/>
+	<reg32 offset="0x8902" name="RB_DEPTH_FLAG_BUFFER_PITCH" usage="draw">
 		<bitfield name="PITCH" low="0" high="6" shr="6" type="uint"/>
 		<!-- TODO: actually part of array pitch -->
 		<bitfield name="UNK8" low="8" high="10"/>
 		<bitfield name="ARRAY_PITCH" low="11" high="27" shr="7" type="uint"/>
 	</reg32>
 
-	<array offset="0x8903" name="RB_COLOR_FLAG_BUFFER" stride="3" length="8" usage="rp_blit">
+	<array offset="0x8903" name="RB_COLOR_FLAG_BUFFER" stride="3" length="8" usage="draw">
 		<reg64 offset="0" name="ADDR" type="waddress" align="64"/>
 		<reg32 offset="2" name="PITCH" type="a6xx_flag_buffer_pitch"/>
 	</array>
@@ -2683,7 +2742,8 @@ by a particular renderpass/blit.
 
 	<reg32 offset="0x8813" name="RB_DEPTH_GMEM_DIMENSION" type="a8xx_gmem_dimension" variants="A8XX-"/>
 	<reg32 offset="0x8814" name="RB_STENCIL_GMEM_DIMENSION" type="a8xx_gmem_dimension" variants="A8XX-"/>
-	<reg32 offset="0x8815" name="RB_RESOLVE_GMEM_DIMENSION" type="a8xx_gmem_dimension" variants="A8XX-"/>
+	<reg32 offset="0x8815" name="RB_RESOLVE_GMEM_DIMENSION" type="a8xx_gmem_dimension" variants="A8XX-" usage="resolve"/>
+	<reg32 offset="0x88af" name="RB_RESOLVE_GMEM_PARTITION" variants="A8XX-" usage="resolve"/>
 
 	<array offset="0x8930" name="RB_MRT_GMEM_DIMENSION" variants="A8XX-" stride="1" length="8">
 		<reg32 offset="0" name="REG" type="a8xx_gmem_dimension"/>
@@ -2693,13 +2753,13 @@ by a particular renderpass/blit.
 		These show up in a6xx gen3+ but so far haven't found an example of
 		blob writing non-zero:
 	 -->
-	<reg32 offset="0x8a00" name="RB_UNKNOWN_8A00" variants="A6XX" usage="rp_blit"/>
-	<reg32 offset="0x8a10" name="RB_UNKNOWN_8A10" variants="A6XX" usage="rp_blit"/>
-	<reg32 offset="0x8a20" name="RB_UNKNOWN_8A20" variants="A6XX" usage="rp_blit"/>
-	<reg32 offset="0x8a30" name="RB_UNKNOWN_8A30" variants="A6XX" usage="rp_blit"/>
+	<reg32 offset="0x8a00" name="RB_UNKNOWN_8A00" variants="A6XX" usage="draw"/>
+	<reg32 offset="0x8a10" name="RB_UNKNOWN_8A10" variants="A6XX" usage="draw"/>
+	<reg32 offset="0x8a20" name="RB_UNKNOWN_8A20" variants="A6XX" usage="draw"/>
+	<reg32 offset="0x8a30" name="RB_UNKNOWN_8A30" variants="A6XX" usage="draw"/>
 
-	<reg32 offset="0x8c00" name="RB_A2D_BLT_CNTL" type="a6xx_a2d_blt_cntl" usage="rp_blit"/>
-	<reg32 offset="0x8c01" name="RB_A2D_PIXEL_CNTL" low="0" high="31" usage="rp_blit"/>
+	<reg32 offset="0x8c00" name="RB_A2D_BLT_CNTL" type="a6xx_a2d_blt_cntl" usage="blit"/>
+	<reg32 offset="0x8c01" name="RB_A2D_PIXEL_CNTL" low="0" high="31" usage="blit"/>
 
 	<bitset name="a6xx_a2d_src_texture_info" inline="yes">
 		<bitfield name="COLOR_FORMAT" low="0" high="7" type="a6xx_format"/>
@@ -2731,28 +2791,28 @@ by a particular renderpass/blit.
 	</bitset>
 
 	<!-- 0x8c02-0x8c16 invalid -->
-	<reg32 offset="0x8c17" name="RB_A2D_DEST_BUFFER_INFO" type="a6xx_a2d_dest_buffer_info" usage="rp_blit"/>
-	<reg64 offset="0x8c18" name="RB_A2D_DEST_BUFFER_BASE" type="waddress" align="64" usage="rp_blit"/>
-	<reg32 offset="0x8c1a" name="RB_A2D_DEST_BUFFER_PITCH" low="0" high="15" shr="6" type="uint" usage="rp_blit"/>
+	<reg32 offset="0x8c17" name="RB_A2D_DEST_BUFFER_INFO" type="a6xx_a2d_dest_buffer_info" usage="blit"/>
+	<reg64 offset="0x8c18" name="RB_A2D_DEST_BUFFER_BASE" type="waddress" align="64" usage="blit"/>
+	<reg32 offset="0x8c1a" name="RB_A2D_DEST_BUFFER_PITCH" low="0" high="15" shr="6" type="uint" usage="blit"/>
 	<!-- this is a guess but seems likely (for NV12/IYUV): -->
-	<reg64 offset="0x8c1b" name="RB_A2D_DEST_BUFFER_BASE_1" type="waddress" align="64" usage="rp_blit"/>
-	<reg32 offset="0x8c1d" name="RB_A2D_DEST_BUFFER_PITCH_1" low="0" high="15" shr="6" type="uint" usage="rp_blit"/>
-	<reg64 offset="0x8c1e" name="RB_A2D_DEST_BUFFER_BASE_2" type="waddress" align="64" usage="rp_blit"/>
+	<reg64 offset="0x8c1b" name="RB_A2D_DEST_BUFFER_BASE_1" type="waddress" align="64" usage="blit"/>
+	<reg32 offset="0x8c1d" name="RB_A2D_DEST_BUFFER_PITCH_1" low="0" high="15" shr="6" type="uint" usage="blit"/>
+	<reg64 offset="0x8c1e" name="RB_A2D_DEST_BUFFER_BASE_2" type="waddress" align="64" usage="blit"/>
 
-	<reg64 offset="0x8c20" name="RB_A2D_DEST_FLAG_BUFFER_BASE" type="waddress" align="64" usage="rp_blit"/>
-	<reg32 offset="0x8c22" name="RB_A2D_DEST_FLAG_BUFFER_PITCH" type="a6xx_flag_buffer_pitch" usage="rp_blit"/>
+	<reg64 offset="0x8c20" name="RB_A2D_DEST_FLAG_BUFFER_BASE" type="waddress" align="64" usage="blit"/>
+	<reg32 offset="0x8c22" name="RB_A2D_DEST_FLAG_BUFFER_PITCH" type="a6xx_flag_buffer_pitch" usage="blit"/>
 	<!-- this is a guess but seems likely (for NV12 with UBWC): -->
-	<reg64 offset="0x8c23" name="RB_A2D_DEST_FLAG_BUFFER_BASE_1" type="waddress" align="64" usage="rp_blit"/>
-	<reg32 offset="0x8c25" name="RB_A2D_DEST_FLAG_BUFFER_PITCH_1" low="0" high="7" shr="6" type="uint" usage="rp_blit"/>
+	<reg64 offset="0x8c23" name="RB_A2D_DEST_FLAG_BUFFER_BASE_1" type="waddress" align="64" usage="blit"/>
+	<reg32 offset="0x8c25" name="RB_A2D_DEST_FLAG_BUFFER_PITCH_1" low="0" high="7" shr="6" type="uint" usage="blit"/>
 
 	<!-- TODO: 0x8c26-0x8c33 are all full 32-bit registers -->
 	<!-- unlike a5xx, these are per channel values rather than packed -->
-	<reg32 offset="0x8c2c" name="RB_A2D_CLEAR_COLOR_DW0" usage="rp_blit"/>
-	<reg32 offset="0x8c2d" name="RB_A2D_CLEAR_COLOR_DW1" usage="rp_blit"/>
-	<reg32 offset="0x8c2e" name="RB_A2D_CLEAR_COLOR_DW2" usage="rp_blit"/>
-	<reg32 offset="0x8c2f" name="RB_A2D_CLEAR_COLOR_DW3" usage="rp_blit"/>
+	<reg32 offset="0x8c2c" name="RB_A2D_CLEAR_COLOR_DW0" usage="blit"/>
+	<reg32 offset="0x8c2d" name="RB_A2D_CLEAR_COLOR_DW1" usage="blit"/>
+	<reg32 offset="0x8c2e" name="RB_A2D_CLEAR_COLOR_DW2" usage="blit"/>
+	<reg32 offset="0x8c2f" name="RB_A2D_CLEAR_COLOR_DW3" usage="blit"/>
 
-	<reg32 offset="0x8c34" name="RB_UNKNOWN_8C34" variants="A7XX-" usage="cmd"/>
+	<reg32 offset="0x8c34" name="RB_A2D_UNKNOWN_8C34" variants="A7XX-" usage="blit"/>
 
 	<!-- 0x8c35-0x8dff invalid -->
 
@@ -2821,7 +2881,7 @@ by a particular renderpass/blit.
 	<!-- 0x8e26-0x8e27 invalid -->
 
 	<reg32 offset="0x8f00" name="RB_CMP_NC_MODE_CNTL" variants="A8XX-"/>
-	<reg32 offset="0x8f01" name="RB_RESOLVE_PREFETCH_CNTL" variants="A8XX-"/>
+	<reg32 offset="0x8f01" name="RB_RESOLVE_PREFETCH_CNTL" variants="A8XX-" usage="resolve"/>
 	<reg32 offset="0x8f02" name="RB_CMP_DBG_ECO_CNTL" variants="A8XX-"/>
 
 	<reg32 offset="0x8f03" name="RB_UNSLICE_STATUS" variants="A8XX-"/>
@@ -2847,7 +2907,7 @@ by a particular renderpass/blit.
 
 	<!-- 0x9000-0x90ff invalid -->
 
-	<reg32 offset="0x9100" name="VPC_GS_PARAM" variants="A6XX" usage="rp_blit">
+	<reg32 offset="0x9100" name="VPC_GS_PARAM" variants="A6XX" usage="draw">
 		<bitfield name="LINELENGTHLOC" low="0" high="7" type="uint"/>
 	</reg32>
 
@@ -2860,17 +2920,17 @@ by a particular renderpass/blit.
 		<bitfield name="CLIP_DIST_03_LOC" low="8" high="15" type="uint"/>
 		<bitfield name="CLIP_DIST_47_LOC" low="16" high="23" type="uint"/>
 	</bitset>
-	<reg32 offset="0x9101" name="VPC_VS_CLIP_CULL_CNTL" type="a6xx_vpc_xs_clip_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x9102" name="VPC_GS_CLIP_CULL_CNTL" type="a6xx_vpc_xs_clip_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x9103" name="VPC_DS_CLIP_CULL_CNTL" type="a6xx_vpc_xs_clip_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
+	<reg32 offset="0x9101" name="VPC_VS_CLIP_CULL_CNTL" type="a6xx_vpc_xs_clip_cntl" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x9102" name="VPC_GS_CLIP_CULL_CNTL" type="a6xx_vpc_xs_clip_cntl" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x9103" name="VPC_DS_CLIP_CULL_CNTL" type="a6xx_vpc_xs_clip_cntl" variants="A6XX-A7XX" usage="draw"/>
 
-	<reg32 offset="0x9307" name="VPC_VS_CLIP_CULL_CNTL" type="a6xx_vpc_xs_clip_cntl" variants="A8XX" usage="rp_blit"/>
-	<reg32 offset="0x9308" name="VPC_GS_CLIP_CULL_CNTL" type="a6xx_vpc_xs_clip_cntl" variants="A8XX" usage="rp_blit"/>
-	<reg32 offset="0x9309" name="VPC_DS_CLIP_CULL_CNTL" type="a6xx_vpc_xs_clip_cntl" variants="A8XX" usage="rp_blit"/>
+	<reg32 offset="0x9307" name="VPC_VS_CLIP_CULL_CNTL" type="a6xx_vpc_xs_clip_cntl" variants="A8XX" usage="draw"/>
+	<reg32 offset="0x9308" name="VPC_GS_CLIP_CULL_CNTL" type="a6xx_vpc_xs_clip_cntl" variants="A8XX" usage="draw"/>
+	<reg32 offset="0x9309" name="VPC_DS_CLIP_CULL_CNTL" type="a6xx_vpc_xs_clip_cntl" variants="A8XX" usage="draw"/>
 
-	<reg32 offset="0x9311" name="VPC_VS_CLIP_CULL_CNTL_V2" type="a6xx_vpc_xs_clip_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x9312" name="VPC_GS_CLIP_CULL_CNTL_V2" type="a6xx_vpc_xs_clip_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x9313" name="VPC_DS_CLIP_CULL_CNTL_V2" type="a6xx_vpc_xs_clip_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
+	<reg32 offset="0x9311" name="VPC_VS_CLIP_CULL_CNTL_V2" type="a6xx_vpc_xs_clip_cntl" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x9312" name="VPC_GS_CLIP_CULL_CNTL_V2" type="a6xx_vpc_xs_clip_cntl" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x9313" name="VPC_DS_CLIP_CULL_CNTL_V2" type="a6xx_vpc_xs_clip_cntl" variants="A6XX-A7XX" usage="draw"/>
 
 	<bitset name="a6xx_vpc_xs_siv_cntl" inline="yes">
 		<bitfield name="LAYERLOC" low="0" high="7" type="uint"/>
@@ -2878,17 +2938,17 @@ by a particular renderpass/blit.
 		<bitfield name="SHADINGRATELOC" low="16" high="23" type="uint" variants="A7XX-"/>
 	</bitset>
 
-	<reg32 offset="0x9104" name="VPC_VS_SIV_CNTL" type="a6xx_vpc_xs_siv_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x9105" name="VPC_GS_SIV_CNTL" type="a6xx_vpc_xs_siv_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x9106" name="VPC_DS_SIV_CNTL" type="a6xx_vpc_xs_siv_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
+	<reg32 offset="0x9104" name="VPC_VS_SIV_CNTL" type="a6xx_vpc_xs_siv_cntl" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x9105" name="VPC_GS_SIV_CNTL" type="a6xx_vpc_xs_siv_cntl" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x9106" name="VPC_DS_SIV_CNTL" type="a6xx_vpc_xs_siv_cntl" variants="A6XX-A7XX" usage="draw"/>
 
-	<reg32 offset="0x930a" name="VPC_VS_SIV_CNTL" type="a6xx_vpc_xs_siv_cntl" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x930b" name="VPC_GS_SIV_CNTL" type="a6xx_vpc_xs_siv_cntl" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x930c" name="VPC_DS_SIV_CNTL" type="a6xx_vpc_xs_siv_cntl" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x930a" name="VPC_VS_SIV_CNTL" type="a6xx_vpc_xs_siv_cntl" variants="A8XX-" usage="draw"/>
+	<reg32 offset="0x930b" name="VPC_GS_SIV_CNTL" type="a6xx_vpc_xs_siv_cntl" variants="A8XX-" usage="draw"/>
+	<reg32 offset="0x930c" name="VPC_DS_SIV_CNTL" type="a6xx_vpc_xs_siv_cntl" variants="A8XX-" usage="draw"/>
 
-	<reg32 offset="0x9314" name="VPC_VS_SIV_CNTL_V2" type="a6xx_vpc_xs_siv_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x9315" name="VPC_GS_SIV_CNTL_V2" type="a6xx_vpc_xs_siv_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x9316" name="VPC_DS_SIV_CNTL_V2" type="a6xx_vpc_xs_siv_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
+	<reg32 offset="0x9314" name="VPC_VS_SIV_CNTL_V2" type="a6xx_vpc_xs_siv_cntl" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x9315" name="VPC_GS_SIV_CNTL_V2" type="a6xx_vpc_xs_siv_cntl" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x9316" name="VPC_DS_SIV_CNTL_V2" type="a6xx_vpc_xs_siv_cntl" variants="A6XX-A7XX" usage="draw"/>
 
 	<bitset name="a6xx_vpc_rast_stream_cntl" inline="yes">
 		<!-- which stream to send to GRAS -->
@@ -2897,19 +2957,19 @@ by a particular renderpass/blit.
 		<bitfield name="DISCARD" pos="2" type="boolean"/>
 	</bitset>
 
-	<reg32 offset="0x9980" name="VPC_RAST_STREAM_CNTL" type="a6xx_vpc_rast_stream_cntl" variants="A6XX" usage="rp_blit"/>
-	<reg32 offset="0x9107" name="VPC_RAST_STREAM_CNTL" type="a6xx_vpc_rast_stream_cntl" variants="A7XX" usage="rp_blit"/>
-	<reg32 offset="0x930d" name="VPC_RAST_STREAM_CNTL" type="a6xx_vpc_rast_stream_cntl" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x9317" name="VPC_RAST_STREAM_CNTL_V2" type="a6xx_vpc_rast_stream_cntl" variants="A7XX" usage="rp_blit"/>
+	<reg32 offset="0x9980" name="VPC_RAST_STREAM_CNTL" type="a6xx_vpc_rast_stream_cntl" variants="A6XX" usage="draw"/>
+	<reg32 offset="0x9107" name="VPC_RAST_STREAM_CNTL" type="a6xx_vpc_rast_stream_cntl" variants="A7XX" usage="draw"/>
+	<reg32 offset="0x930d" name="VPC_RAST_STREAM_CNTL" type="a6xx_vpc_rast_stream_cntl" variants="A8XX-" usage="draw"/>
+	<reg32 offset="0x9317" name="VPC_RAST_STREAM_CNTL_V2" type="a6xx_vpc_rast_stream_cntl" variants="A7XX" usage="draw"/>
 
-	<reg32 offset="0x9107" name="VPC_UNKNOWN_9107" variants="A6XX" usage="rp_blit">
+	<reg32 offset="0x9107" name="VPC_UNKNOWN_9107" variants="A6XX" usage="draw">
 		<!-- this mirrors VPC_RAST_STREAM_CNTL::DISCARD, although it seems it's unused -->
 		<bitfield name="RASTER_DISCARD" pos="0" type="boolean"/>
 		<bitfield name="UNK2" pos="2" type="boolean"/>
 	</reg32>
 
-	<reg32 offset="0x9108" name="VPC_RAST_CNTL" type="a6xx_rast_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x930e" name="VPC_RAST_CNTL" type="a6xx_rast_cntl" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x9108" name="VPC_RAST_CNTL" type="a6xx_rast_cntl" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x930e" name="VPC_RAST_CNTL" type="a6xx_rast_cntl" variants="A8XX-" usage="draw"/>
 	<bitset name="a6xx_pc_cntl" inline="yes">
 		<bitfield name="PRIMITIVE_RESTART" pos="0" type="boolean"/>
 		<bitfield name="PROVOKING_VTX_LAST" pos="1" type="boolean"/>
@@ -2949,14 +3009,14 @@ by a particular renderpass/blit.
 		<bitfield name="VIEWS" low="2" high="6" type="uint"/>
 	</bitset>
 
-	<reg32 offset="0x9109" name="VPC_PC_CNTL" type="a6xx_pc_cntl" variants="A7XX" usage="rp_blit"/>
-	<reg32 offset="0x930f" name="VPC_PC_CNTL" type="a6xx_pc_cntl" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x910a" name="VPC_GS_PARAM_0" type="a6xx_gs_param_0" variants="A7XX" usage="rp_blit"/>
-	<reg32 offset="0x90c0" name="VPC_GS_PARAM_0" type="a6xx_gs_param_0" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x910b" name="VPC_STEREO_RENDERING_VIEWMASK" type="hex" low="0" high="15" variants="A7XX" usage="rp_blit"/>
-	<reg32 offset="0x90c1" name="VPC_STEREO_RENDERING_VIEWMASK" type="hex" low="0" high="15" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x910c" name="VPC_STEREO_RENDERING_CNTL" type="a6xx_stereo_rendering_cntl" variants="A7XX" usage="rp_blit"/>
-	<reg32 offset="0x931a" name="VPC_STEREO_RENDERING_CNTL" type="a6xx_stereo_rendering_cntl" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x9109" name="VPC_PC_CNTL" type="a6xx_pc_cntl" variants="A7XX" usage="draw"/>
+	<reg32 offset="0x930f" name="VPC_PC_CNTL" type="a6xx_pc_cntl" variants="A8XX-" usage="draw"/>
+	<reg32 offset="0x910a" name="VPC_GS_PARAM_0" type="a6xx_gs_param_0" variants="A7XX" usage="draw"/>
+	<reg32 offset="0x90c0" name="VPC_GS_PARAM_0" type="a6xx_gs_param_0" variants="A8XX-" usage="draw"/>
+	<reg32 offset="0x910b" name="VPC_STEREO_RENDERING_VIEWMASK" type="hex" low="0" high="15" variants="A7XX" usage="draw"/>
+	<reg32 offset="0x90c1" name="VPC_STEREO_RENDERING_VIEWMASK" type="hex" low="0" high="15" variants="A8XX-" usage="draw"/>
+	<reg32 offset="0x910c" name="VPC_STEREO_RENDERING_CNTL" type="a6xx_stereo_rendering_cntl" variants="A7XX" usage="draw"/>
+	<reg32 offset="0x931a" name="VPC_STEREO_RENDERING_CNTL" type="a6xx_stereo_rendering_cntl" variants="A8XX-" usage="draw"/>
 
 	<enum name="a6xx_varying_interp_mode">
 		<value value="0" name="INTERP_SMOOTH"/>
@@ -2973,20 +3033,20 @@ by a particular renderpass/blit.
 	</enum>
 
 	<!-- 0x9109-0x91ff invalid -->
-	<array offset="0x9200" name="VPC_VARYING_INTERP_MODE" stride="1" length="8" variants="A6XX-A7XX" usage="rp_blit">
+	<array offset="0x9200" name="VPC_VARYING_INTERP_MODE" stride="1" length="8" variants="A6XX-A7XX" usage="draw">
 		<doc>Packed array of a6xx_varying_interp_mode</doc>
 		<reg32 offset="0x0" name="MODE"/>
 	</array>
-	<array offset="0x9208" name="VPC_VARYING_REPLACE_MODE" stride="1" length="8" variants="A6XX-A7XX" usage="rp_blit">
+	<array offset="0x9208" name="VPC_VARYING_REPLACE_MODE" stride="1" length="8" variants="A6XX-A7XX" usage="draw">
 		<doc>Packed array of a6xx_varying_ps_repl_mode</doc>
 		<reg32 offset="0x0" name="MODE"/>
 	</array>
 
-	<array offset="0x9240" name="VPC_VARYING_INTERP_MODE" stride="1" length="8" variants="A8XX-" usage="rp_blit">
+	<array offset="0x9240" name="VPC_VARYING_INTERP_MODE" stride="1" length="8" variants="A8XX-" usage="draw">
 		<doc>Packed array of a6xx_varying_interp_mode</doc>
 		<reg32 offset="0x0" name="MODE"/>
 	</array>
-	<array offset="0x9248" name="VPC_VARYING_REPLACE_MODE" stride="1" length="8" variants="A8XX-" usage="rp_blit">
+	<array offset="0x9248" name="VPC_VARYING_REPLACE_MODE" stride="1" length="8" variants="A8XX-" usage="draw">
 		<doc>Packed array of a6xx_varying_ps_repl_mode</doc>
 		<reg32 offset="0x0" name="MODE"/>
 	</array>
@@ -2995,12 +3055,12 @@ by a particular renderpass/blit.
 	<reg32 offset="0x9210" name="VPC_UNKNOWN_9210" low="0" high="31" variants="A6XX" usage="cmd"/>
 	<reg32 offset="0x9211" name="VPC_UNKNOWN_9211" low="0" high="31" variants="A6XX" usage="cmd"/>
 
-	<array offset="0x9212" name="VPC_VARYING_LM_TRANSFER_CNTL" stride="1" length="4" variants="A6XX-A7XX" usage="rp_blit">
+	<array offset="0x9212" name="VPC_VARYING_LM_TRANSFER_CNTL" stride="1" length="4" variants="A6XX-A7XX" usage="draw">
 		<!-- one bit per varying component: -->
 		<reg32 offset="0" name="DISABLE"/>
 	</array>
 
-	<array offset="0x9252" name="VPC_VARYING_LM_TRANSFER_CNTL" stride="1" length="4" variants="A8XX-" usage="rp_blit">
+	<array offset="0x9252" name="VPC_VARYING_LM_TRANSFER_CNTL" stride="1" length="4" variants="A8XX-" usage="draw">
 		<!-- one bit per varying component: -->
 		<reg32 offset="0" name="DISABLE"/>
 	</array>
@@ -3034,8 +3094,8 @@ by a particular renderpass/blit.
 		<bitfield name="RESET" pos="16" type="boolean"/>
 	</bitset>
 
-	<reg32 offset="0x9216" name="VPC_SO_MAPPING_WPTR" type="a6xx_vpc_so_mapping_wptr" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x9180" name="VPC_SO_MAPPING_WPTR" type="a6xx_vpc_so_mapping_wptr" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x9216" name="VPC_SO_MAPPING_WPTR" type="a6xx_vpc_so_mapping_wptr" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x9180" name="VPC_SO_MAPPING_WPTR" type="a6xx_vpc_so_mapping_wptr" variants="A8XX-" usage="draw"/>
 
 	<bitset name="a6xx_vpc_so_mapping_port" inline="yes">
 		<bitfield name="A_BUF" low="0" high="1" type="uint"/>
@@ -3047,8 +3107,8 @@ by a particular renderpass/blit.
 	</bitset>
 
 	<!-- special register, write multiple times to load SO program (not readable) -->
-	<reg32 offset="0x9217" name="VPC_SO_MAPPING_PORT" type="a6xx_vpc_so_mapping_port" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x9181" name="VPC_SO_MAPPING_PORT" type="a6xx_vpc_so_mapping_port" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x9217" name="VPC_SO_MAPPING_PORT" type="a6xx_vpc_so_mapping_port" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x9181" name="VPC_SO_MAPPING_PORT" type="a6xx_vpc_so_mapping_port" variants="A8XX-" usage="draw"/>
 
 	<reg64 offset="0x9218" name="VPC_SO_QUERY_BASE" type="waddress" align="32" variants="A6XX-A7XX" usage="cmd"/>
 	<reg64 offset="0x9182" name="VPC_SO_QUERY_BASE" type="waddress" align="32" variants="A8XX-" usage="cmd"/>
@@ -3097,13 +3157,13 @@ by a particular renderpass/blit.
 		</bitfield>
 	</bitset>
 
-	<reg32 offset="0x9301" name="VPC_VS_CNTL" type="a6xx_vpc_xs_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x9302" name="VPC_GS_CNTL" type="a6xx_vpc_xs_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x9303" name="VPC_DS_CNTL" type="a6xx_vpc_xs_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
+	<reg32 offset="0x9301" name="VPC_VS_CNTL" type="a6xx_vpc_xs_cntl" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x9302" name="VPC_GS_CNTL" type="a6xx_vpc_xs_cntl" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x9303" name="VPC_DS_CNTL" type="a6xx_vpc_xs_cntl" variants="A6XX-A7XX" usage="draw"/>
 
-	<reg32 offset="0x9300" name="VPC_VS_CNTL" type="a6xx_vpc_xs_cntl" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x9301" name="VPC_GS_CNTL" type="a6xx_vpc_xs_cntl" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x9302" name="VPC_DS_CNTL" type="a6xx_vpc_xs_cntl" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x9300" name="VPC_VS_CNTL" type="a6xx_vpc_xs_cntl" variants="A8XX-" usage="draw"/>
+	<reg32 offset="0x9301" name="VPC_GS_CNTL" type="a6xx_vpc_xs_cntl" variants="A8XX-" usage="draw"/>
+	<reg32 offset="0x9302" name="VPC_DS_CNTL" type="a6xx_vpc_xs_cntl" variants="A8XX-" usage="draw"/>
 
 	<bitset name="a6xx_vpc_ps_cntl" inline="yes">
 		<bitfield name="NUMNONPOSVAR" low="0" high="7" type="uint"/>
@@ -3124,8 +3184,8 @@ by a particular renderpass/blit.
 		</bitfield>
 	</bitset>
 
-	<reg32 offset="0x9304" name="VPC_PS_CNTL" type="a6xx_vpc_ps_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x9303" name="VPC_PS_CNTL" type="a6xx_vpc_ps_cntl" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x9304" name="VPC_PS_CNTL" type="a6xx_vpc_ps_cntl" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x9303" name="VPC_PS_CNTL" type="a6xx_vpc_ps_cntl" variants="A8XX-" usage="draw"/>
 
 	<bitset name="a6xx_vpc_so_cntl" inline="yes">
 		<!--
@@ -3138,21 +3198,21 @@ by a particular renderpass/blit.
 		<bitfield name="STREAM_ENABLE" low="15" high="18" type="hex"/>
 	</bitset>
 
-	<reg32 offset="0x9305" name="VPC_SO_CNTL" type="a6xx_vpc_so_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x9304" name="VPC_SO_CNTL" type="a6xx_vpc_so_cntl" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x9305" name="VPC_SO_CNTL" type="a6xx_vpc_so_cntl" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x9304" name="VPC_SO_CNTL" type="a6xx_vpc_so_cntl" variants="A8XX-" usage="draw"/>
 
 	<bitset name="a6xx_so_override" inline="yes">
 		<bitfield name="DISABLE" pos="0" type="boolean"/>
 	</bitset>
 
-	<reg32 offset="0x9306" name="VPC_SO_OVERRIDE" type="a6xx_so_override" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x9305" name="VPC_SO_OVERRIDE" type="a6xx_so_override" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x9306" name="VPC_SO_OVERRIDE" type="a6xx_so_override" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x9305" name="VPC_SO_OVERRIDE" type="a6xx_so_override" variants="A8XX-" usage="draw"/>
 
-	<reg32 offset="0x9807" name="PC_DGEN_SO_OVERRIDE" type="a6xx_so_override" variants="A7XX" usage="rp_blit"/>
-	<reg32 offset="0x9b0a" name="PC_DGEN_SO_OVERRIDE" type="a6xx_so_override" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x9807" name="PC_DGEN_SO_OVERRIDE" type="a6xx_so_override" variants="A7XX" usage="draw"/>
+	<reg32 offset="0x9b0a" name="PC_DGEN_SO_OVERRIDE" type="a6xx_so_override" variants="A8XX-" usage="draw"/>
 
-	<reg32 offset="0x9307" name="VPC_PS_RAST_CNTL" type="a6xx_rast_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x9306" name="VPC_PS_RAST_CNTL" type="a6xx_rast_cntl" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x9307" name="VPC_PS_RAST_CNTL" type="a6xx_rast_cntl" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x9306" name="VPC_PS_RAST_CNTL" type="a6xx_rast_cntl" variants="A8XX-" usage="draw"/>
 
 	<reg32 offset="0x9308" name="VPC_ATTR_BUF_GMEM_SIZE" variants="A7XX" type="uint" usage="cmd"/>
 	<reg32 offset="0x9309" name="VPC_ATTR_BUF_GMEM_BASE" variants="A7XX" type="hex" usage="cmd"/>
@@ -3172,10 +3232,10 @@ by a particular renderpass/blit.
 	<reg32 offset="0x9b17" name="PC_POS_BUF_GMEM_SIZE" variants="A8XX-" type="uint" usage="cmd"/>
 	<reg32 offset="0x9b18" name="PC_BV_POS_BUF_GMEM_SIZE" variants="A8XX-" type="uint" usage="cmd"/>
 
-	<reg32 offset="0x930a" name="VPC_UNKNOWN_930A" variants="A7XX"/>
+	<reg32 offset="0x930a" name="VPC_UNKNOWN_CNTL" variants="A7XX" usage="draw"/>
+	<reg32 offset="0x9313" name="VPC_UNKNOWN_CNTL" variants="A8XX-" usage="draw"/>
 
-	<reg32 offset="0x9313" name="VPC_UNKNOWN_9313" variants="A8XX-"/>
-	<reg32 offset="0x9e17" name="PC_UNKNOWN_9E17" variants="A8XX-"/>
+	<reg32 offset="0x9e17" name="PC_UNKNOWN_9E17" variants="A8XX-" usage="draw"/>
 
 	<reg32 offset="0x960a" name="VPC_FLATSHADE_MODE_CNTL" variants="A7XX"/>
 	<reg32 offset="0x9741" name="VPC_FLATSHADE_MODE_CNTL" variants="A8XX-"/>
@@ -3204,47 +3264,47 @@ by a particular renderpass/blit.
 
 	<reg32 offset="0x980b" name="PC_UNKNOWN_980B" variants="A8XX-"/>
 
-	<reg32 offset="0x9800" name="PC_HS_PARAM_0" low="0" high="5" type="uint" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x9b10" name="PC_HS_PARAM_0" low="0" high="5" type="uint" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x9800" name="PC_HS_PARAM_0" low="0" high="5" type="uint" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x9b10" name="PC_HS_PARAM_0" low="0" high="5" type="uint" variants="A8XX-" usage="draw"/>
 
 	<bitset name="a6xx_pc_hs_param_1" inline="yes">
 		<bitfield name="SIZE" low="0" high="10" type="uint"/>
 		<bitfield name="UNK13" pos="13"/>
 	</bitset>
 
-	<reg32 offset="0x9801" name="PC_HS_PARAM_1" type="a6xx_pc_hs_param_1" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x9b11" name="PC_HS_PARAM_1" type="a6xx_pc_hs_param_1" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x9801" name="PC_HS_PARAM_1" type="a6xx_pc_hs_param_1" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x9b11" name="PC_HS_PARAM_1" type="a6xx_pc_hs_param_1" variants="A8XX-" usage="draw"/>
 
 	<bitset name="a6xx_pc_ds_param" inline="yes">
 		<bitfield name="SPACING" low="0" high="1" type="a6xx_tess_spacing"/>
 		<bitfield name="OUTPUT" low="2" high="3" type="a6xx_tess_output"/>
 	</bitset>
 
-	<reg32 offset="0x9802" name="PC_DS_PARAM" type="a6xx_pc_ds_param" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x9b12" name="PC_DS_PARAM" type="a6xx_pc_ds_param" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x9802" name="PC_DS_PARAM" type="a6xx_pc_ds_param" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x9b12" name="PC_DS_PARAM" type="a6xx_pc_ds_param" variants="A8XX-" usage="draw"/>
 
-	<reg32 offset="0x9803" name="PC_RESTART_INDEX" low="0" high="31" type="uint" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x9b15" name="PC_RESTART_INDEX" low="0" high="31" type="uint" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x9803" name="PC_RESTART_INDEX" low="0" high="31" type="uint" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x9b15" name="PC_RESTART_INDEX" low="0" high="31" type="uint" variants="A8XX-" usage="draw"/>
 
-	<reg32 offset="0x9804" name="PC_MODE_CNTL" low="0" high="7" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x9b00" name="PC_MODE_CNTL" low="0" high="14" variants="A8XX" usage="rp_blit"/>
+	<reg32 offset="0x9804" name="PC_MODE_CNTL" low="0" high="7" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x9b00" name="PC_MODE_CNTL" low="0" high="14" variants="A8XX" usage="draw"/>
 
-	<reg32 offset="0x9805" name="PC_POWER_CNTL" low="0" high="2" usage="rp_blit"/>
+	<reg32 offset="0x9805" name="PC_POWER_CNTL" low="0" high="2" variants="A6XX" usage="draw"/>
 
 	<bitset name="a6xx_pc_ps_cntl" inline="yes">
 		<bitfield name="PRIMITIVEIDEN" pos="0" type="boolean"/>
 	</bitset>
 
-	<reg32 offset="0x9806" name="PC_PS_CNTL" type="a6xx_pc_ps_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x9b06" name="PC_PS_CNTL" type="a6xx_pc_ps_cntl" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x9806" name="PC_PS_CNTL" type="a6xx_pc_ps_cntl" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x9b06" name="PC_PS_CNTL" type="a6xx_pc_ps_cntl" variants="A8XX-" usage="draw"/>
 
 	<bitset name="a6xx_pc_dgen_so_cntl" inline="yes">
 		<bitfield name="STREAM_ENABLE" low="15" high="18" type="hex"/>
 	</bitset>
 
 	<!-- New in a6xx gen3+ -->
-	<reg32 offset="0x9808" name="PC_DGEN_SO_CNTL" type="a6xx_pc_dgen_so_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x9b0b" name="PC_DGEN_SO_CNTL" type="a6xx_pc_dgen_so_cntl" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x9808" name="PC_DGEN_SO_CNTL" type="a6xx_pc_dgen_so_cntl" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x9b0b" name="PC_DGEN_SO_CNTL" type="a6xx_pc_dgen_so_cntl" variants="A8XX-" usage="draw"/>
 
 	<bitset name="a6xx_pc_dgen_su_conservative_ras_cntl" inline="yes">
 		<bitfield name="CONSERVATIVERASEN" pos="0" type="boolean"/>
@@ -3253,7 +3313,7 @@ by a particular renderpass/blit.
 	<reg32 offset="0x980a" name="PC_DGEN_SU_CONSERVATIVE_RAS_CNTL" type="a6xx_pc_dgen_su_conservative_ras_cntl" variants="A6XX-A7XX"/>
 	<reg32 offset="0x9b08" name="PC_DGEN_SU_CONSERVATIVE_RAS_CNTL" type="a6xx_pc_dgen_su_conservative_ras_cntl" variants="A8XX-"/>
 
-	<reg32 offset="0x9b0c" name="PC_VS_INPUT_CNTL" variants="A8XX-" usage="rp_blit">
+	<reg32 offset="0x9b0c" name="PC_VS_INPUT_CNTL" variants="A8XX-" usage="draw">
 		<bitfield name="INSTR_CNT" low="0" high="5" type="uint"/>
 		<bitfield name="SIDEBAND_CNT" low="6" high="8" type="uint"/>
 	</reg32>
@@ -3287,9 +3347,12 @@ by a particular renderpass/blit.
 
 	<!-- 0x9843-0x997f invalid -->
 
-	<reg32 offset="0x9981" name="PC_DGEN_RAST_CNTL" type="a6xx_rast_cntl" variants="A6XX" usage="rp_blit"/>
-	<reg32 offset="0x9809" name="PC_DGEN_RAST_CNTL" type="a6xx_rast_cntl" variants="A7XX" usage="rp_blit"/>
-	<reg32 offset="0x9812" name="PC_DGEN_RAST_CNTL" type="a6xx_rast_cntl" variants="A8XX" usage="rp_blit"/>
+	<reg32 offset="0x9981" name="PC_DGEN_RAST_CNTL" type="a6xx_rast_cntl" variants="A6XX" usage="draw"/>
+	<reg32 offset="0x9809" name="PC_DGEN_RAST_CNTL" type="a6xx_rast_cntl" variants="A7XX" usage="draw"/>
+	<reg32 offset="0x9812" name="PC_DGEN_RAST_CNTL" type="a6xx_rast_cntl" variants="A8XX" usage="draw"/>
+
+	<reg32 offset="0x9884" name="PC_HS_PATCH_SIZE" variants="A7XX" usage="cmd"/>
+	<reg32 offset="0x9813" name="PC_HS_PATCH_SIZE" variants="A8XX-" usage="cmd"/>
 
 	<!-- Both are a750+.
 	     Probably needed to correctly overlap execution of several draws.
@@ -3304,8 +3367,8 @@ by a particular renderpass/blit.
 
 	<!-- 0x9982-0x9aff invalid -->
 
-	<reg32 offset="0x9b00" name="PC_CNTL" type="a6xx_pc_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x9b01" name="PC_CNTL" type="a6xx_pc_cntl" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x9b00" name="PC_CNTL" type="a6xx_pc_cntl" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x9b01" name="PC_CNTL" type="a6xx_pc_cntl" variants="A8XX-" usage="draw"/>
 
 	<bitset name="a6xx_pc_xs_cntl" inline="yes">
 		<doc>
@@ -3324,31 +3387,31 @@ by a particular renderpass/blit.
 		<bitfield name="SHADINGRATE" pos="24" type="boolean" variants="A7XX-"/>
 	</bitset>
 
-	<reg32 offset="0x9b01" name="PC_VS_CNTL" type="a6xx_pc_xs_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x9b02" name="PC_GS_CNTL" type="a6xx_pc_xs_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x9b03" name="PC_HS_CNTL" type="a6xx_pc_xs_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x9b04" name="PC_DS_CNTL" type="a6xx_pc_xs_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
+	<reg32 offset="0x9b01" name="PC_VS_CNTL" type="a6xx_pc_xs_cntl" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x9b02" name="PC_GS_CNTL" type="a6xx_pc_xs_cntl" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x9b03" name="PC_HS_CNTL" type="a6xx_pc_xs_cntl" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x9b04" name="PC_DS_CNTL" type="a6xx_pc_xs_cntl" variants="A6XX-A7XX" usage="draw"/>
 
-	<reg32 offset="0x9b02" name="PC_VS_CNTL" type="a6xx_pc_xs_cntl" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x9b03" name="PC_GS_CNTL" type="a6xx_pc_xs_cntl" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x9b04" name="PC_HS_CNTL" type="a6xx_pc_xs_cntl" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x9b05" name="PC_DS_CNTL" type="a6xx_pc_xs_cntl" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x9b02" name="PC_VS_CNTL" type="a6xx_pc_xs_cntl" variants="A8XX-" usage="draw"/>
+	<reg32 offset="0x9b03" name="PC_GS_CNTL" type="a6xx_pc_xs_cntl" variants="A8XX-" usage="draw"/>
+	<reg32 offset="0x9b04" name="PC_HS_CNTL" type="a6xx_pc_xs_cntl" variants="A8XX-" usage="draw"/>
+	<reg32 offset="0x9b05" name="PC_DS_CNTL" type="a6xx_pc_xs_cntl" variants="A8XX-" usage="draw"/>
 
-	<reg32 offset="0x9b05" name="PC_GS_PARAM_0" type="a6xx_gs_param_0" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x9b13" name="PC_GS_PARAM_0" type="a6xx_gs_param_0" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x9b05" name="PC_GS_PARAM_0" type="a6xx_gs_param_0" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x9b13" name="PC_GS_PARAM_0" type="a6xx_gs_param_0" variants="A8XX-" usage="draw"/>
 
-	<reg32 offset="0x9b06" name="PC_PRIMITIVE_CNTL_6" variants="A6XX" usage="rp_blit">
+	<reg32 offset="0x9b06" name="PC_PRIMITIVE_CNTL_6" variants="A6XX" usage="draw">
 		<doc>
 		  size in vec4s of per-primitive storage for gs. TODO: not actually in VPC
 		</doc>
 		<bitfield name="STRIDE_IN_VPC" low="0" high="10" type="uint"/>
 	</reg32>
 
-	<reg32 offset="0x9b07" name="PC_STEREO_RENDERING_CNTL" type="a6xx_stereo_rendering_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x9b09" name="PC_STEREO_RENDERING_CNTL" type="a6xx_stereo_rendering_cntl" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x9b07" name="PC_STEREO_RENDERING_CNTL" type="a6xx_stereo_rendering_cntl" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x9b09" name="PC_STEREO_RENDERING_CNTL" type="a6xx_stereo_rendering_cntl" variants="A8XX-" usage="draw"/>
 	<!-- mask of enabled views, doesn't exist on A630 -->
-	<reg32 offset="0x9b08" name="PC_STEREO_RENDERING_VIEWMASK" type="hex" low="0" high="15" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x9b0d" name="PC_STEREO_RENDERING_VIEWMASK" type="hex" low="0" high="15" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x9b08" name="PC_STEREO_RENDERING_VIEWMASK" type="hex" low="0" high="15" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0x9b0d" name="PC_STEREO_RENDERING_VIEWMASK" type="hex" low="0" high="15" variants="A8XX-" usage="draw"/>
 	<!-- 0x9b09-0x9bff invalid -->
 	<reg32 offset="0x9c00" name="PC_2D_EVENT_CMD">
 		<!-- special register (but note first 8 bits can be written/read) -->
@@ -3426,18 +3489,18 @@ by a particular renderpass/blit.
 	<reg32 offset="0x9e63" name="PC_CONTEXT_SWITCH_GFX_PREEMPTION_MODE" variants="A8XX-"/>
 	<reg32 offset="0x9e64" name="PC_CONTEXT_SWITCH_STABILIZE_CNTL_1" variants="A8XX-"/>
 
-	<reg32 offset="0xa000" name="VFD_CNTL_0" usage="rp_blit">
+	<reg32 offset="0xa000" name="VFD_CNTL_0" usage="draw">
 		<bitfield name="FETCH_CNT" low="0" high="5" type="uint"/>
 		<bitfield name="DECODE_CNT" low="8" high="13" type="uint"/>
 	</reg32>
-	<reg32 offset="0xa001" name="VFD_CNTL_1" usage="rp_blit">
+	<reg32 offset="0xa001" name="VFD_CNTL_1" usage="draw">
 		<bitfield name="REGID4VTX" low="0" high="7" type="a3xx_regid"/>
 		<bitfield name="REGID4INST" low="8" high="15" type="a3xx_regid"/>
 		<bitfield name="REGID4PRIMID" low="16" high="23" type="a3xx_regid"/>
 		<!-- only used for VS in non-multi-position-output case -->
 		<bitfield name="REGID4VIEWID" low="24" high="31" type="a3xx_regid"/>
 	</reg32>
-	<reg32 offset="0xa002" name="VFD_CNTL_2" usage="rp_blit">
+	<reg32 offset="0xa002" name="VFD_CNTL_2" usage="draw">
 		<bitfield name="REGID_HSRELPATCHID" low="0" high="7" type="a3xx_regid">
 			<doc>
 				This is the ID of the current patch within the
@@ -3450,20 +3513,20 @@ by a particular renderpass/blit.
 		</bitfield>
 		<bitfield name="REGID_INVOCATIONID" low="8" high="15" type="a3xx_regid"/>
 	</reg32>
-	<reg32 offset="0xa003" name="VFD_CNTL_3" usage="rp_blit">
+	<reg32 offset="0xa003" name="VFD_CNTL_3" usage="draw">
 		<bitfield name="REGID_DSPRIMID" low="0" high="7" type="a3xx_regid"/>
 		<bitfield name="REGID_DSRELPATCHID" low="8" high="15" type="a3xx_regid"/>
 		<bitfield name="REGID_TESSX" low="16" high="23" type="a3xx_regid"/>
 		<bitfield name="REGID_TESSY" low="24" high="31" type="a3xx_regid"/>
 	</reg32>
-	<reg32 offset="0xa004" name="VFD_CNTL_4" usage="rp_blit">
-		<bitfield name="UNK0" low="0" high="7" type="a3xx_regid"/>
+	<reg32 offset="0xa004" name="VFD_CNTL_4" usage="draw">
+		<bitfield name="REGID_DSVIEWID" low="0" high="7" type="a3xx_regid"/>
 	</reg32>
-	<reg32 offset="0xa005" name="VFD_CNTL_5" usage="rp_blit">
+	<reg32 offset="0xa005" name="VFD_CNTL_5" usage="draw">
 		<bitfield name="REGID_GSHEADER" low="0" high="7" type="a3xx_regid"/>
-		<bitfield name="UNK8" low="8" high="15" type="a3xx_regid"/>
+		<bitfield name="REGID_GSVIEWID" low="8" high="15" type="a3xx_regid"/>
 	</reg32>
-	<reg32 offset="0xa006" name="VFD_CNTL_6" usage="rp_blit">
+	<reg32 offset="0xa006" name="VFD_CNTL_6" usage="draw">
 		<!--
 			True if gl_PrimitiveID is read via the FS
 		-->
@@ -3474,7 +3537,7 @@ by a particular renderpass/blit.
 		<bitfield name="RENDER_MODE" low="0" high="2" type="a6xx_render_mode"/>
 	</reg32>
 
-	<reg32 offset="0xa008" name="VFD_STEREO_RENDERING_CNTL" type="a6xx_stereo_rendering_cntl" usage="rp_blit"/>
+	<reg32 offset="0xa008" name="VFD_STEREO_RENDERING_CNTL" type="a6xx_stereo_rendering_cntl" usage="draw"/>
 	<reg32 offset="0xa009" name="VFD_MODE_CNTL" usage="cmd">
 		<!-- add VFD_INDEX_OFFSET to REGID4VTX -->
 		<bitfield name="VERTEX" pos="0" type="boolean"/>
@@ -3482,14 +3545,14 @@ by a particular renderpass/blit.
 		<bitfield name="INSTANCE" pos="1" type="boolean"/>
 	</reg32>
 
-	<reg32 offset="0xa00e" name="VFD_INDEX_OFFSET" usage="rp_blit"/>
-	<reg32 offset="0xa00f" name="VFD_INSTANCE_START_OFFSET" usage="rp_blit"/>
-	<array offset="0xa010" name="VFD_VERTEX_BUFFER" stride="4" length="32" usage="rp_blit">
+	<reg32 offset="0xa00e" name="VFD_INDEX_OFFSET" usage="draw"/>
+	<reg32 offset="0xa00f" name="VFD_INSTANCE_START_OFFSET" usage="draw"/>
+	<array offset="0xa010" name="VFD_VERTEX_BUFFER" stride="4" length="32" usage="draw">
 		<reg64 offset="0x0" name="BASE" type="address" align="1"/>
 		<reg32 offset="0x2" name="SIZE" type="uint"/>
 		<reg32 offset="0x3" name="STRIDE" low="0" high="11" type="uint"/>
 	</array>
-	<array offset="0xa090" name="VFD_FETCH_INSTR" stride="2" length="32" usage="rp_blit">
+	<array offset="0xa090" name="VFD_FETCH_INSTR" stride="2" length="32" usage="draw">
 		<reg32 offset="0x0" name="INSTR">
 			<!-- IDX and byte OFFSET into VFD_VERTEX_BUFFER -->
 			<bitfield name="IDX" low="0" high="4" type="uint"/>
@@ -3502,14 +3565,14 @@ by a particular renderpass/blit.
 		</reg32>
 		<reg32 offset="0x1" name="STEP_RATE" type="uint"/>
 	</array>
-	<array offset="0xa0d0" name="VFD_DEST_CNTL" stride="1" length="32" usage="rp_blit">
+	<array offset="0xa0d0" name="VFD_DEST_CNTL" stride="1" length="32" usage="draw">
 		<reg32 offset="0x0" name="INSTR">
 			<bitfield name="WRITEMASK" low="0" high="3" type="hex"/>
 			<bitfield name="REGID" low="4" high="11" type="a3xx_regid"/>
 		</reg32>
 	</array>
 
-	<reg32 offset="0xa0f8" name="VFD_POWER_CNTL" low="0" high="2" usage="rp_blit"/>
+	<reg32 offset="0xa0f8" name="VFD_POWER_CNTL" low="0" high="2" variants="A6XX" usage="draw"/>
 
 	<reg32 offset="0xa600" name="VFD_DBG_ECO_CNTL" variants="A7XX-" usage="init"/>
 
@@ -3549,10 +3612,12 @@ by a particular renderpass/blit.
 		 -->
 		<bitfield name="HALFREGFOOTPRINT" low="1" high="6" type="uint"/>
 		<bitfield name="FULLREGFOOTPRINT" low="7" high="12" type="uint"/>
-		<!-- could it be a low bit of branchstack? -->
-		<bitfield name="UNK13" pos="13" type="boolean"/>
 		<!-- seems to be nesting level for flow control:.. -->
-		<bitfield name="BRANCHSTACK" low="14" high="19" type="uint"/>
+		<bitfield name="BRANCHSTACK" low="13" high="19" type="uint"/>
+
+		<!-- gen8: -->
+		<bitfield name="FULLREGFOOTPRINT_LSB" pos="27" type="uint" variants="A8XX-"/>
+		<bitfield name="HALFREGFOOTPRINT_LSB" pos="30" type="uint" variants="A8XX-"/>
 	</bitset>
 
 	<bitset name="a6xx_sp_xs_config" inline="yes">
@@ -3580,7 +3645,7 @@ by a particular renderpass/blit.
 		<bitfield name="OUT" low="0" high="5" type="uint"/>
 	</bitset>
 
-	<reg32 offset="0xa800" name="SP_VS_CNTL_0" type="a6xx_sp_xs_cntl_0" usage="rp_blit">
+	<reg32 offset="0xa800" name="SP_VS_CNTL_0" type="a6xx_sp_xs_cntl_0" usage="draw">
 		<!--
 		This field actually controls all geometry stages. TCS, TES, and
 		GS must have the same mergedregs setting as VS.
@@ -3607,8 +3672,8 @@ by a particular renderpass/blit.
 	     bit N corresponds to brac.N -->
 	<reg32 offset="0xa801" name="SP_VS_BOOLEAN_CF_MASK" type="hex"/>
 	<!-- # of VS outputs including pos/psize -->
-	<reg32 offset="0xa802" name="SP_VS_OUTPUT_CNTL" type="a6xx_sp_xs_output_cntl" usage="rp_blit"/>
-	<array offset="0xa803" name="SP_VS_OUTPUT" stride="1" length="16" usage="rp_blit">
+	<reg32 offset="0xa802" name="SP_VS_OUTPUT_CNTL" type="a6xx_sp_xs_output_cntl" usage="draw"/>
+	<array offset="0xa803" name="SP_VS_OUTPUT" stride="1" length="16" usage="draw">
 		<reg32 offset="0x0" name="REG">
 			<bitfield name="A_REGID" low="0" high="7" type="a3xx_regid"/>
 			<bitfield name="A_COMPMASK" low="8" high="11" type="hex"/>
@@ -3623,7 +3688,7 @@ by a particular renderpass/blit.
 	an extra varying after, but with a lower OUTLOC position.  If present,
 	psize is last, preceded by position.
 	 -->
-	<array offset="0xa813" name="SP_VS_VPC_DEST" stride="1" length="8" usage="rp_blit">
+	<array offset="0xa813" name="SP_VS_VPC_DEST" stride="1" length="8" usage="draw">
 		<reg32 offset="0x0" name="REG">
 			<bitfield name="OUTLOC0" low="0" high="7" type="uint"/>
 			<bitfield name="OUTLOC1" low="8" high="15" type="uint"/>
@@ -3712,20 +3777,20 @@ by a particular renderpass/blit.
 		<!-- seen 0x400, 0xc00, 0x1000, 0x1c00, 0x1000, 0x2000, 0x3000 -->
 	</bitset>
 
-	<reg32 offset="0xa81b" name="SP_VS_PROGRAM_COUNTER_OFFSET" type="uint" usage="rp_blit"/>
-	<reg64 offset="0xa81c" name="SP_VS_BASE" type="address" align="32" usage="rp_blit"/>
-	<reg32 offset="0xa81e" name="SP_VS_PVT_MEM_PARAM" type="a6xx_sp_xs_pvt_mem_param" usage="rp_blit"/>
-	<reg64 offset="0xa81f" name="SP_VS_PVT_MEM_BASE" type="waddress" align="32" usage="rp_blit"/>
-	<reg32 offset="0xa821" name="SP_VS_PVT_MEM_SIZE" type="a6xx_sp_xs_pvt_mem_size" usage="rp_blit"/>
-	<reg32 offset="0xa822" name="SP_VS_TSIZE" low="0" high="7" type="uint" usage="rp_blit"/>
-	<reg32 offset="0xa823" name="SP_VS_CONFIG" type="a6xx_sp_xs_config" usage="rp_blit"/>
-	<reg32 offset="0xa824" name="SP_VS_INSTR_SIZE" low="0" high="27" type="uint" usage="rp_blit"/>
-	<reg32 offset="0xa825" name="SP_VS_PVT_MEM_STACK_OFFSET" type="a6xx_sp_xs_pvt_mem_stack_offset" usage="rp_blit"/>
+	<reg32 offset="0xa81b" name="SP_VS_PROGRAM_COUNTER_OFFSET" type="uint" usage="draw"/>
+	<reg64 offset="0xa81c" name="SP_VS_BASE" type="address" align="32" usage="draw"/>
+	<reg32 offset="0xa81e" name="SP_VS_PVT_MEM_PARAM" type="a6xx_sp_xs_pvt_mem_param" usage="draw"/>
+	<reg64 offset="0xa81f" name="SP_VS_PVT_MEM_BASE" type="waddress" align="32" usage="draw"/>
+	<reg32 offset="0xa821" name="SP_VS_PVT_MEM_SIZE" type="a6xx_sp_xs_pvt_mem_size" usage="draw"/>
+	<reg32 offset="0xa822" name="SP_VS_TSIZE" low="0" high="7" type="uint" usage="draw"/>
+	<reg32 offset="0xa823" name="SP_VS_CONFIG" type="a6xx_sp_xs_config" usage="draw"/>
+	<reg32 offset="0xa824" name="SP_VS_INSTR_SIZE" low="0" high="27" type="uint" usage="draw"/>
+	<reg32 offset="0xa825" name="SP_VS_PVT_MEM_STACK_OFFSET" type="a6xx_sp_xs_pvt_mem_stack_offset" usage="draw"/>
 	<reg32 offset="0xa826" name="SP_VS_HYSTERESIS" type="a6xx_sp_xs_hysteresis" variants="A6XX-A7XX"/>
 	<reg32 offset="0xa826" name="SP_VS_HYSTERESIS" type="a8xx_sp_xs_hysteresis" variants="A8XX-"/>
 	<reg32 offset="0xa82d" name="SP_VS_VGS_CNTL" variants="A7XX-" usage="cmd"/>
 
-	<reg32 offset="0xa830" name="SP_HS_CNTL_0" type="a6xx_sp_xs_cntl_0" usage="rp_blit">
+	<reg32 offset="0xa830" name="SP_HS_CNTL_0" type="a6xx_sp_xs_cntl_0" usage="draw">
 		<!-- There is no mergedregs bit, that comes from the VS. -->
 		<bitfield name="EARLYPREAMBLE" pos="20" type="boolean"/>
 	</reg32>
@@ -3735,32 +3800,32 @@ by a particular renderpass/blit.
 	the maximum size of local storage should be:
 	 64 (wavesize) * 64 (SP_HS_CNTL_1) * 4 = 16k
 	-->
-	<reg32 offset="0xa831" name="SP_HS_CNTL_1" low="0" high="7" type="uint" usage="rp_blit"/>
-	<reg32 offset="0xa832" name="SP_HS_BOOLEAN_CF_MASK" type="hex" usage="rp_blit"/>
+	<reg32 offset="0xa831" name="SP_HS_CNTL_1" low="0" high="7" type="uint" usage="draw"/>
+	<reg32 offset="0xa832" name="SP_HS_BOOLEAN_CF_MASK" type="hex" usage="draw"/>
 
 	<!-- TODO: exact same layout as 0xa81b-0xa825 -->
-	<reg32 offset="0xa833" name="SP_HS_PROGRAM_COUNTER_OFFSET" type="uint" usage="rp_blit"/>
-	<reg64 offset="0xa834" name="SP_HS_BASE" type="address" align="32" usage="rp_blit"/>
-	<reg32 offset="0xa836" name="SP_HS_PVT_MEM_PARAM" type="a6xx_sp_xs_pvt_mem_param" usage="rp_blit"/>
-	<reg64 offset="0xa837" name="SP_HS_PVT_MEM_BASE" type="waddress" align="32" usage="rp_blit"/>
-	<reg32 offset="0xa839" name="SP_HS_PVT_MEM_SIZE" type="a6xx_sp_xs_pvt_mem_size" usage="rp_blit"/>
-	<reg32 offset="0xa83a" name="SP_HS_TSIZE" low="0" high="7" type="uint" usage="rp_blit"/>
-	<reg32 offset="0xa83b" name="SP_HS_CONFIG" type="a6xx_sp_xs_config" usage="rp_blit"/>
-	<reg32 offset="0xa83c" name="SP_HS_INSTR_SIZE" low="0" high="27" type="uint" usage="rp_blit"/>
-	<reg32 offset="0xa83d" name="SP_HS_PVT_MEM_STACK_OFFSET" type="a6xx_sp_xs_pvt_mem_stack_offset" usage="rp_blit"/>
+	<reg32 offset="0xa833" name="SP_HS_PROGRAM_COUNTER_OFFSET" type="uint" usage="draw"/>
+	<reg64 offset="0xa834" name="SP_HS_BASE" type="address" align="32" usage="draw"/>
+	<reg32 offset="0xa836" name="SP_HS_PVT_MEM_PARAM" type="a6xx_sp_xs_pvt_mem_param" usage="draw"/>
+	<reg64 offset="0xa837" name="SP_HS_PVT_MEM_BASE" type="waddress" align="32" usage="draw"/>
+	<reg32 offset="0xa839" name="SP_HS_PVT_MEM_SIZE" type="a6xx_sp_xs_pvt_mem_size" usage="draw"/>
+	<reg32 offset="0xa83a" name="SP_HS_TSIZE" low="0" high="7" type="uint" usage="draw"/>
+	<reg32 offset="0xa83b" name="SP_HS_CONFIG" type="a6xx_sp_xs_config" usage="draw"/>
+	<reg32 offset="0xa83c" name="SP_HS_INSTR_SIZE" low="0" high="27" type="uint" usage="draw"/>
+	<reg32 offset="0xa83d" name="SP_HS_PVT_MEM_STACK_OFFSET" type="a6xx_sp_xs_pvt_mem_stack_offset" usage="draw"/>
 	<reg32 offset="0xa83e" name="SP_HS_HYSTERESIS" type="a6xx_sp_xs_hysteresis" variants="A6XX-A7XX"/>
 	<reg32 offset="0xa83e" name="SP_HS_HYSTERESIS" type="a8xx_sp_xs_hysteresis" variants="A8XX-"/>
 	<reg32 offset="0xa82f" name="SP_HS_VGS_CNTL" variants="A7XX-" usage="cmd"/>
 
-	<reg32 offset="0xa840" name="SP_DS_CNTL_0" type="a6xx_sp_xs_cntl_0" usage="rp_blit">
+	<reg32 offset="0xa840" name="SP_DS_CNTL_0" type="a6xx_sp_xs_cntl_0" usage="draw">
 		<!-- There is no mergedregs bit, that comes from the VS. -->
 		<bitfield name="EARLYPREAMBLE" pos="20" type="boolean"/>
 	</reg32>
 	<reg32 offset="0xa841" name="SP_DS_BOOLEAN_CF_MASK" type="hex"/>
 
 	<!-- TODO: exact same layout as 0xa802-0xa81a -->
-	<reg32 offset="0xa842" name="SP_DS_OUTPUT_CNTL" type="a6xx_sp_xs_output_cntl" usage="rp_blit"/>
-	<array offset="0xa843" name="SP_DS_OUTPUT" stride="1" length="16" usage="rp_blit">
+	<reg32 offset="0xa842" name="SP_DS_OUTPUT_CNTL" type="a6xx_sp_xs_output_cntl" usage="draw"/>
+	<array offset="0xa843" name="SP_DS_OUTPUT" stride="1" length="16" usage="draw">
 		<reg32 offset="0x0" name="REG">
 			<bitfield name="A_REGID" low="0" high="7" type="a3xx_regid"/>
 			<bitfield name="A_COMPMASK" low="8" high="11" type="hex"/>
@@ -3768,7 +3833,7 @@ by a particular renderpass/blit.
 			<bitfield name="B_COMPMASK" low="24" high="27" type="hex"/>
 		</reg32>
 	</array>
-	<array offset="0xa853" name="SP_DS_VPC_DEST" stride="1" length="8" usage="rp_blit">
+	<array offset="0xa853" name="SP_DS_VPC_DEST" stride="1" length="8" usage="draw">
 		<reg32 offset="0x0" name="REG">
 			<bitfield name="OUTLOC0" low="0" high="7" type="uint"/>
 			<bitfield name="OUTLOC1" low="8" high="15" type="uint"/>
@@ -3778,24 +3843,24 @@ by a particular renderpass/blit.
 	</array>
 
 	<!-- TODO: exact same layout as 0xa81b-0xa825 -->
-	<reg32 offset="0xa85b" name="SP_DS_PROGRAM_COUNTER_OFFSET" type="uint" usage="rp_blit"/>
-	<reg64 offset="0xa85c" name="SP_DS_BASE" type="address" align="32" usage="rp_blit"/>
-	<reg32 offset="0xa85e" name="SP_DS_PVT_MEM_PARAM" type="a6xx_sp_xs_pvt_mem_param" usage="rp_blit"/>
-	<reg64 offset="0xa85f" name="SP_DS_PVT_MEM_BASE" type="waddress" align="32" usage="rp_blit"/>
-	<reg32 offset="0xa861" name="SP_DS_PVT_MEM_SIZE" type="a6xx_sp_xs_pvt_mem_size" usage="rp_blit"/>
-	<reg32 offset="0xa862" name="SP_DS_TSIZE" low="0" high="7" type="uint" usage="rp_blit"/>
-	<reg32 offset="0xa863" name="SP_DS_CONFIG" type="a6xx_sp_xs_config" usage="rp_blit"/>
-	<reg32 offset="0xa864" name="SP_DS_INSTR_SIZE" low="0" high="27" type="uint" usage="rp_blit"/>
-	<reg32 offset="0xa865" name="SP_DS_PVT_MEM_STACK_OFFSET" type="a6xx_sp_xs_pvt_mem_stack_offset" usage="rp_blit"/>
+	<reg32 offset="0xa85b" name="SP_DS_PROGRAM_COUNTER_OFFSET" type="uint" usage="draw"/>
+	<reg64 offset="0xa85c" name="SP_DS_BASE" type="address" align="32" usage="draw"/>
+	<reg32 offset="0xa85e" name="SP_DS_PVT_MEM_PARAM" type="a6xx_sp_xs_pvt_mem_param" usage="draw"/>
+	<reg64 offset="0xa85f" name="SP_DS_PVT_MEM_BASE" type="waddress" align="32" usage="draw"/>
+	<reg32 offset="0xa861" name="SP_DS_PVT_MEM_SIZE" type="a6xx_sp_xs_pvt_mem_size" usage="draw"/>
+	<reg32 offset="0xa862" name="SP_DS_TSIZE" low="0" high="7" type="uint" usage="draw"/>
+	<reg32 offset="0xa863" name="SP_DS_CONFIG" type="a6xx_sp_xs_config" usage="draw"/>
+	<reg32 offset="0xa864" name="SP_DS_INSTR_SIZE" low="0" high="27" type="uint" usage="draw"/>
+	<reg32 offset="0xa865" name="SP_DS_PVT_MEM_STACK_OFFSET" type="a6xx_sp_xs_pvt_mem_stack_offset" usage="draw"/>
 	<reg32 offset="0xa866" name="SP_DS_HYSTERESIS" type="a6xx_sp_xs_hysteresis" variants="A6XX-A7XX"/>
 	<reg32 offset="0xa866" name="SP_DS_HYSTERESIS" type="a8xx_sp_xs_hysteresis" variants="A8XX-"/>
 	<reg32 offset="0xa868" name="SP_DS_VGS_CNTL" variants="A7XX-" usage="cmd"/>
 
-	<reg32 offset="0xa870" name="SP_GS_CNTL_0" type="a6xx_sp_xs_cntl_0" usage="rp_blit">
+	<reg32 offset="0xa870" name="SP_GS_CNTL_0" type="a6xx_sp_xs_cntl_0" usage="draw">
 		<!-- There is no mergedregs bit, that comes from the VS. -->
 		<bitfield name="EARLYPREAMBLE" pos="20" type="boolean"/>
 	</reg32>
-	<reg32 offset="0xa871" name="SP_GS_CNTL_1" low="0" high="7" type="uint" usage="rp_blit">
+	<reg32 offset="0xa871" name="SP_GS_CNTL_1" low="0" high="7" type="uint" usage="draw">
 		<doc>
 			Normally the size of the output of the last stage in
 			dwords. It should be programmed as follows:
@@ -3809,14 +3874,14 @@ by a particular renderpass/blit.
 			doesn't matter in practice.
 		</doc>
 	</reg32>
-	<reg32 offset="0xa872" name="SP_GS_BOOLEAN_CF_MASK" type="hex" usage="rp_blit"/>
+	<reg32 offset="0xa872" name="SP_GS_BOOLEAN_CF_MASK" type="hex" usage="draw"/>
 
 	<!-- TODO: exact same layout as 0xa802-0xa81a -->
-	<reg32 offset="0xa873" name="SP_GS_OUTPUT_CNTL" type="a6xx_sp_xs_output_cntl" usage="rp_blit">
+	<reg32 offset="0xa873" name="SP_GS_OUTPUT_CNTL" type="a6xx_sp_xs_output_cntl" usage="draw">
 		<!-- FLAGS_REGID only for GS -->
 		<bitfield name="FLAGS_REGID" low="6" high="13" type="a3xx_regid"/>
 	</reg32>
-	<array offset="0xa874" name="SP_GS_OUTPUT" stride="1" length="16" usage="rp_blit">
+	<array offset="0xa874" name="SP_GS_OUTPUT" stride="1" length="16" usage="draw">
 		<reg32 offset="0x0" name="REG">
 			<bitfield name="A_REGID" low="0" high="7" type="a3xx_regid"/>
 			<bitfield name="A_COMPMASK" low="8" high="11" type="hex"/>
@@ -3825,7 +3890,7 @@ by a particular renderpass/blit.
 		</reg32>
 	</array>
 
-	<array offset="0xa884" name="SP_GS_VPC_DEST" stride="1" length="8" usage="rp_blit">
+	<array offset="0xa884" name="SP_GS_VPC_DEST" stride="1" length="8" usage="draw">
 		<reg32 offset="0x0" name="REG">
 			<bitfield name="OUTLOC0" low="0" high="7" type="uint"/>
 			<bitfield name="OUTLOC1" low="8" high="15" type="uint"/>
@@ -3835,15 +3900,15 @@ by a particular renderpass/blit.
 	</array>
 
 	<!-- TODO: exact same layout as 0xa81b-0xa825 -->
-	<reg32 offset="0xa88c" name="SP_GS_PROGRAM_COUNTER_OFFSET" type="uint" usage="rp_blit"/>
-	<reg64 offset="0xa88d" name="SP_GS_BASE" type="address" align="32" usage="rp_blit"/>
-	<reg32 offset="0xa88f" name="SP_GS_PVT_MEM_PARAM" type="a6xx_sp_xs_pvt_mem_param" usage="rp_blit"/>
-	<reg64 offset="0xa890" name="SP_GS_PVT_MEM_BASE" type="waddress" align="32" usage="rp_blit"/>
-	<reg32 offset="0xa892" name="SP_GS_PVT_MEM_SIZE" type="a6xx_sp_xs_pvt_mem_size" usage="rp_blit"/>
-	<reg32 offset="0xa893" name="SP_GS_TSIZE" low="0" high="7" type="uint" usage="rp_blit"/>
-	<reg32 offset="0xa894" name="SP_GS_CONFIG" type="a6xx_sp_xs_config" usage="rp_blit"/>
-	<reg32 offset="0xa895" name="SP_GS_INSTR_SIZE" low="0" high="27" type="uint" usage="rp_blit"/>
-	<reg32 offset="0xa896" name="SP_GS_PVT_MEM_STACK_OFFSET" type="a6xx_sp_xs_pvt_mem_stack_offset" usage="rp_blit"/>
+	<reg32 offset="0xa88c" name="SP_GS_PROGRAM_COUNTER_OFFSET" type="uint" usage="draw"/>
+	<reg64 offset="0xa88d" name="SP_GS_BASE" type="address" align="32" usage="draw"/>
+	<reg32 offset="0xa88f" name="SP_GS_PVT_MEM_PARAM" type="a6xx_sp_xs_pvt_mem_param" usage="draw"/>
+	<reg64 offset="0xa890" name="SP_GS_PVT_MEM_BASE" type="waddress" align="32" usage="draw"/>
+	<reg32 offset="0xa892" name="SP_GS_PVT_MEM_SIZE" type="a6xx_sp_xs_pvt_mem_size" usage="draw"/>
+	<reg32 offset="0xa893" name="SP_GS_TSIZE" low="0" high="7" type="uint" usage="draw"/>
+	<reg32 offset="0xa894" name="SP_GS_CONFIG" type="a6xx_sp_xs_config" usage="draw"/>
+	<reg32 offset="0xa895" name="SP_GS_INSTR_SIZE" low="0" high="27" type="uint" usage="draw"/>
+	<reg32 offset="0xa896" name="SP_GS_PVT_MEM_STACK_OFFSET" type="a6xx_sp_xs_pvt_mem_stack_offset" usage="draw"/>
 	<reg32 offset="0xa897" name="SP_GS_HYSTERESIS" type="a6xx_sp_xs_hysteresis" variants="A6XX-A7XX"/>
 	<reg32 offset="0xa897" name="SP_GS_HYSTERESIS" type="a8xx_sp_xs_hysteresis" variants="A8XX-"/>
 	<reg32 offset="0xa899" name="SP_GS_VGS_CNTL" variants="A7XX-" usage="cmd"/>
@@ -3859,7 +3924,7 @@ by a particular renderpass/blit.
 
 	<!-- TODO: 4 unknown bool registers 0xa8c0-0xa8c3 -->
 
-	<reg32 offset="0xa980" name="SP_PS_CNTL_0" type="a6xx_sp_xs_cntl_0" usage="rp_blit">
+	<reg32 offset="0xa980" name="SP_PS_CNTL_0" type="a6xx_sp_xs_cntl_0" usage="draw">
 		<bitfield name="THREADSIZE" pos="20" type="a6xx_threadsize"/>
 		<bitfield name="UNK21" pos="21" type="boolean"/>
 		<bitfield name="VARYING" pos="22" type="boolean"/>
@@ -3878,16 +3943,15 @@ by a particular renderpass/blit.
 				and so one pixel's value is always unused.
 			</doc>
 		</bitfield>
-		<bitfield name="UNK27" pos="27" type="boolean"/>
 		<bitfield name="EARLYPREAMBLE" pos="28" type="boolean"/>
 		<bitfield name="MERGEDREGS" pos="31" type="boolean"/>
 	</reg32>
 	<reg32 offset="0xa981" name="SP_PS_BOOLEAN_CF_MASK" type="hex"/>
-	<reg32 offset="0xa982" name="SP_PS_PROGRAM_COUNTER_OFFSET" type="uint" usage="rp_blit"/>
-	<reg64 offset="0xa983" name="SP_PS_BASE" type="address" align="32" usage="rp_blit"/>
-	<reg32 offset="0xa985" name="SP_PS_PVT_MEM_PARAM" type="a6xx_sp_xs_pvt_mem_param" usage="rp_blit"/>
-	<reg64 offset="0xa986" name="SP_PS_PVT_MEM_BASE" type="waddress" align="32" usage="rp_blit"/>
-	<reg32 offset="0xa988" name="SP_PS_PVT_MEM_SIZE" type="a6xx_sp_xs_pvt_mem_size" usage="rp_blit"/>
+	<reg32 offset="0xa982" name="SP_PS_PROGRAM_COUNTER_OFFSET" type="uint" usage="draw"/>
+	<reg64 offset="0xa983" name="SP_PS_BASE" type="address" align="32" usage="draw"/>
+	<reg32 offset="0xa985" name="SP_PS_PVT_MEM_PARAM" type="a6xx_sp_xs_pvt_mem_param" usage="draw"/>
+	<reg64 offset="0xa986" name="SP_PS_PVT_MEM_BASE" type="waddress" align="32" usage="draw"/>
+	<reg32 offset="0xa988" name="SP_PS_PVT_MEM_SIZE" type="a6xx_sp_xs_pvt_mem_size" usage="draw"/>
 
 	<bitset name="a6xx_sp_blend_cntl" inline="yes">
 		<!-- per-mrt enable bit -->
@@ -3897,12 +3961,12 @@ by a particular renderpass/blit.
 		<bitfield name="ALPHA_TO_COVERAGE" pos="10" type="boolean"/>
 	</bitset>
 
-	<reg32 offset="0xa989" name="SP_BLEND_CNTL" type="a6xx_sp_blend_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0xa989" name="SP_BLEND_CNTL" type="a6xx_sp_blend_cntl" variants="A8XX-" usage="rp_blit">
+	<reg32 offset="0xa989" name="SP_BLEND_CNTL" type="a6xx_sp_blend_cntl" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0xa989" name="SP_BLEND_CNTL" type="a6xx_sp_blend_cntl" variants="A8XX-" usage="draw">
 		<bitfield name="ALPHA_TO_ONE" pos="11" type="boolean" variants="A8XX-"/>
 	</reg32>
 
-	<reg32 offset="0xa98a" name="SP_SRGB_CNTL" usage="rp_blit">
+	<reg32 offset="0xa98a" name="SP_SRGB_CNTL" usage="draw">
 		<!-- Same as RB_SRGB_CNTL -->
 		<bitfield name="SRGB_MRT0" pos="0" type="boolean"/>
 		<bitfield name="SRGB_MRT1" pos="1" type="boolean"/>
@@ -3913,7 +3977,7 @@ by a particular renderpass/blit.
 		<bitfield name="SRGB_MRT6" pos="6" type="boolean"/>
 		<bitfield name="SRGB_MRT7" pos="7" type="boolean"/>
 	</reg32>
-	<reg32 offset="0xa98b" name="SP_PS_OUTPUT_MASK" usage="rp_blit">
+	<reg32 offset="0xa98b" name="SP_PS_OUTPUT_MASK" usage="draw">
 		<bitfield name="RT0" low="0" high="3"/>
 		<bitfield name="RT1" low="4" high="7"/>
 		<bitfield name="RT2" low="8" high="11"/>
@@ -3923,17 +3987,17 @@ by a particular renderpass/blit.
 		<bitfield name="RT6" low="24" high="27"/>
 		<bitfield name="RT7" low="28" high="31"/>
 	</reg32>
-	<reg32 offset="0xa98c" name="SP_PS_OUTPUT_CNTL" usage="rp_blit">
+	<reg32 offset="0xa98c" name="SP_PS_OUTPUT_CNTL" usage="draw">
 		<bitfield name="DUAL_COLOR_IN_ENABLE" pos="0" type="boolean"/>
 		<bitfield name="DEPTH_REGID" low="8" high="15" type="a3xx_regid"/>
 		<bitfield name="SAMPMASK_REGID" low="16" high="23" type="a3xx_regid"/>
 		<bitfield name="STENCILREF_REGID" low="24" high="31" type="a3xx_regid"/>
 	</reg32>
-	<reg32 offset="0xa98d" name="SP_PS_MRT_CNTL" usage="rp_blit">
+	<reg32 offset="0xa98d" name="SP_PS_MRT_CNTL" usage="draw">
 		<bitfield name="MRT" low="0" high="3" type="uint"/>
 	</reg32>
 
-	<array offset="0xa98e" name="SP_PS_OUTPUT" stride="1" length="8" usage="rp_blit">
+	<array offset="0xa98e" name="SP_PS_OUTPUT" stride="1" length="8" usage="draw">
 		<doc>per MRT</doc>
 		<reg32 offset="0x0" name="REG">
 			<bitfield name="REGID" low="0" high="7" type="a3xx_regid"/>
@@ -3941,7 +4005,7 @@ by a particular renderpass/blit.
 		</reg32>
 	</array>
 
-	<array offset="0xa996" name="SP_PS_MRT" stride="1" length="8" usage="rp_blit">
+	<array offset="0xa996" name="SP_PS_MRT" stride="1" length="8" usage="draw">
 		<reg32 offset="0" name="REG">
 			<bitfield name="COLOR_FORMAT" low="0" high="7" type="a6xx_format"/>
 			<bitfield name="COLOR_SINT" pos="8" type="boolean"/>
@@ -3950,7 +4014,7 @@ by a particular renderpass/blit.
 		</reg32>
 	</array>
 
-	<reg32 offset="0xa99e" name="SP_PS_INITIAL_TEX_LOAD_CNTL" usage="rp_blit">
+	<reg32 offset="0xa99e" name="SP_PS_INITIAL_TEX_LOAD_CNTL" usage="draw">
 		<bitfield name="COUNT" low="0" high="2" type="uint"/>
 		<bitfield name="IJ_WRITE_DISABLE" pos="3" type="boolean"/>
 		<doc>
@@ -3967,7 +4031,7 @@ by a particular renderpass/blit.
 		<!-- Blob never uses it -->
 		<bitfield name="CONSTSLOTID4COORD" low="16" high="24" type="uint" variants="A7XX-"/>
 	</reg32>
-	<array offset="0xa99f" name="SP_PS_INITIAL_TEX_LOAD" stride="1" length="4" variants="A6XX" usage="rp_blit">
+	<array offset="0xa99f" name="SP_PS_INITIAL_TEX_LOAD" stride="1" length="4" variants="A6XX" usage="draw">
 		<reg32 offset="0" name="CMD" variants="A6XX">
 			<bitfield name="SRC" low="0" high="6" type="uint"/>
 			<bitfield name="SAMP_ID" low="7" high="10" type="uint"/>
@@ -3981,7 +4045,7 @@ by a particular renderpass/blit.
 			<bitfield name="CMD" low="29" high="31" type="a6xx_tex_prefetch_cmd"/>
 		</reg32>
 	</array>
-	<array offset="0xa99f" name="SP_PS_INITIAL_TEX_LOAD" stride="1" length="4" variants="A7XX-" usage="rp_blit">
+	<array offset="0xa99f" name="SP_PS_INITIAL_TEX_LOAD" stride="1" length="4" variants="A7XX-" usage="draw">
 		<reg32 offset="0" name="CMD" variants="A7XX-">
 			<bitfield name="SRC" low="0" high="6" type="uint"/>
 			<bitfield name="SAMP_ID" low="7" high="9" type="uint"/>
@@ -3993,21 +4057,21 @@ by a particular renderpass/blit.
 			<bitfield name="CMD" low="26" high="29" type="a6xx_tex_prefetch_cmd"/>
 		</reg32>
 	</array>
-	<array offset="0xa9a3" name="SP_PS_INITIAL_TEX_INDEX" stride="1" length="4" usage="rp_blit">
+	<array offset="0xa9a3" name="SP_PS_INITIAL_TEX_INDEX" stride="1" length="4" usage="draw">
 		<reg32 offset="0" name="CMD">
 			<bitfield name="SAMP_ID" low="0" high="15" type="uint"/>
 			<bitfield name="TEX_ID" low="16" high="31" type="uint"/>
 		</reg32>
 	</array>
-	<reg32 offset="0xa9a7" name="SP_PS_TSIZE" low="0" high="7" type="uint" usage="rp_blit"/>
+	<reg32 offset="0xa9a7" name="SP_PS_TSIZE" low="0" high="7" type="uint" usage="draw"/>
 	<reg32 offset="0xa9a8" name="SP_UNKNOWN_A9A8" low="0" high="16" usage="cmd"/> <!-- always 0x0 ? -->
-	<reg32 offset="0xa9a9" name="SP_PS_PVT_MEM_STACK_OFFSET" type="a6xx_sp_xs_pvt_mem_stack_offset" usage="rp_blit"/>
+	<reg32 offset="0xa9a9" name="SP_PS_PVT_MEM_STACK_OFFSET" type="a6xx_sp_xs_pvt_mem_stack_offset" usage="draw"/>
 	<reg32 offset="0xa9ab" name="SP_PS_HYSTERESIS" type="a6xx_sp_xs_hysteresis" variants="A6XX-A7XX"/>
 	<reg32 offset="0xa9ab" name="SP_PS_HYSTERESIS" type="a8xx_sp_xs_hysteresis" variants="A8XX-"/>
 
 	<!-- TODO: unknown bool register at 0xa9aa, likely same as 0xa8c0-0xa8c3 but for FS -->
 
-	<reg32 offset="0xa9b0" name="SP_CS_CNTL_0" type="a6xx_sp_xs_cntl_0" usage="cmd">
+	<reg32 offset="0xa9b0" name="SP_CS_CNTL_0" type="a6xx_sp_xs_cntl_0" usage="compute">
 		<bitfield name="THREADSIZE" pos="20" type="a6xx_threadsize"/>
 		<!-- seems to make SP use less concurrent threads when possible? -->
 		<bitfield name="UNK21" pos="21" type="boolean"/>
@@ -4025,7 +4089,7 @@ by a particular renderpass/blit.
 	</enum>
 
 	<!-- set for compute shaders -->
-	<reg32 offset="0xa9b1" name="SP_CS_CNTL_1" usage="cmd">
+	<reg32 offset="0xa9b1" name="SP_CS_CNTL_1" usage="compute">
 		<bitfield name="SHARED_SIZE" low="0" high="4" type="uint">
 			<doc>
 				If 0 - all 32k of shared storage is enabled, otherwise
@@ -4045,29 +4109,29 @@ by a particular renderpass/blit.
 		</bitfield>
 		<bitfield name="ALT_LM_ENCODE" pos="26" type="boolean"/>
 	</reg32>
-	<reg32 offset="0xa9b2" name="SP_CS_BOOLEAN_CF_MASK" type="hex" usage="cmd"/>
-	<reg32 offset="0xa9b3" name="SP_CS_PROGRAM_COUNTER_OFFSET" type="uint" usage="cmd"/>
-	<reg64 offset="0xa9b4" name="SP_CS_BASE" type="address" align="32" usage="cmd"/>
-	<reg32 offset="0xa9b6" name="SP_CS_PVT_MEM_PARAM" type="a6xx_sp_xs_pvt_mem_param" usage="cmd"/>
-	<reg64 offset="0xa9b7" name="SP_CS_PVT_MEM_BASE" type="waddress" align="32" usage="cmd"/>
-	<reg32 offset="0xa9b9" name="SP_CS_PVT_MEM_SIZE" type="a6xx_sp_xs_pvt_mem_size" usage="cmd"/>
-	<reg32 offset="0xa9ba" name="SP_CS_TSIZE" low="0" high="7" type="uint" usage="cmd"/>
-	<reg32 offset="0xa9bb" name="SP_CS_CONFIG" type="a6xx_sp_xs_config" usage="cmd"/>
-	<reg32 offset="0xa9bc" name="SP_CS_INSTR_SIZE" low="0" high="27" type="uint" usage="cmd"/>
-	<reg32 offset="0xa9bd" name="SP_CS_PVT_MEM_STACK_OFFSET" type="a6xx_sp_xs_pvt_mem_stack_offset" usage="cmd"/>
-	<reg32 offset="0xa9be" name="SP_CS_HYSTERESIS" type="a6xx_sp_xs_hysteresis" variants="A6XX-A7XX"/>
-	<reg32 offset="0xa9be" name="SP_CS_HYSTERESIS" type="a8xx_sp_xs_hysteresis" variants="A8XX-"/>
+	<reg32 offset="0xa9b2" name="SP_CS_BOOLEAN_CF_MASK" type="hex" usage="compute"/>
+	<reg32 offset="0xa9b3" name="SP_CS_PROGRAM_COUNTER_OFFSET" type="uint" usage="compute"/>
+	<reg64 offset="0xa9b4" name="SP_CS_BASE" type="address" align="32" usage="compute"/>
+	<reg32 offset="0xa9b6" name="SP_CS_PVT_MEM_PARAM" type="a6xx_sp_xs_pvt_mem_param" usage="compute"/>
+	<reg64 offset="0xa9b7" name="SP_CS_PVT_MEM_BASE" type="waddress" align="32" usage="compute"/>
+	<reg32 offset="0xa9b9" name="SP_CS_PVT_MEM_SIZE" type="a6xx_sp_xs_pvt_mem_size" usage="compute"/>
+	<reg32 offset="0xa9ba" name="SP_CS_TSIZE" low="0" high="7" type="uint" usage="compute"/>
+	<reg32 offset="0xa9bb" name="SP_CS_CONFIG" type="a6xx_sp_xs_config" usage="compute"/>
+	<reg32 offset="0xa9bc" name="SP_CS_INSTR_SIZE" low="0" high="27" type="uint" usage="compute"/>
+	<reg32 offset="0xa9bd" name="SP_CS_PVT_MEM_STACK_OFFSET" type="a6xx_sp_xs_pvt_mem_stack_offset" usage="compute"/>
+	<reg32 offset="0xa9be" name="SP_CS_HYSTERESIS" type="a6xx_sp_xs_hysteresis" variants="A6XX-A7XX" usage="compute"/>
+	<reg32 offset="0xa9be" name="SP_CS_HYSTERESIS" type="a8xx_sp_xs_hysteresis" variants="A8XX-" usage="compute"/>
 	<reg32 offset="0xa9c5" name="SP_CS_VGS_CNTL" variants="A7XX-" usage="cmd"/>
 
 	<!-- new in a6xx gen4, matches SP_CS_CONST_CONFIG_0 -->
-	<reg32 offset="0xa9c2" name="SP_CS_WIE_CNTL_0" usage="cmd">
+	<reg32 offset="0xa9c2" name="SP_CS_WIE_CNTL_0" usage="compute">
 		<bitfield name="WGIDCONSTID" low="0" high="7" type="a3xx_regid"/>
 		<bitfield name="WGSIZECONSTID" low="8" high="15" type="a3xx_regid"/>
 		<bitfield name="WGOFFSETCONSTID" low="16" high="23" type="a3xx_regid"/>
 		<bitfield name="LOCALIDREGID" low="24" high="31" type="a3xx_regid"/>
 	</reg32>
 	<!-- new in a6xx gen4, matches SP_CS_WGE_CNTL -->
-	<reg32 offset="0xa9c3" name="SP_CS_WIE_CNTL_1" variants="A6XX" usage="cmd">
+	<reg32 offset="0xa9c3" name="SP_CS_WIE_CNTL_1" variants="A6XX" usage="compute">
 		<!-- gl_LocalInvocationIndex -->
 		<bitfield name="LINEARLOCALIDREGID" low="0" high="7" type="a3xx_regid"/>
 		<!-- a650 has 6 "SP cores" (but 3 "SP"). this makes it use only
@@ -4090,7 +4154,7 @@ by a particular renderpass/blit.
 		<value value="0x1" name="WORKITEMRASTORDER_TILED"/>
 	</enum>
 
-	<reg32 offset="0xa9c3" name="SP_CS_WIE_CNTL_1" variants="A7XX-" usage="cmd">
+	<reg32 offset="0xa9c3" name="SP_CS_WIE_CNTL_1" variants="A7XX-" usage="compute">
 		<!-- gl_LocalInvocationIndex -->
 		<bitfield name="LINEARLOCALIDREGID" low="0" high="7" type="a3xx_regid"/>
 		<!-- Must match SP_CS_CTRL -->
@@ -4104,10 +4168,10 @@ by a particular renderpass/blit.
 
 	<!-- TODO: two 64kb aligned addresses at a9d0/a9d2 -->
 
-	<reg64 offset="0xa9e0" name="SP_PS_SAMPLER_BASE" type="address" align="16" usage="rp_blit"/>
-	<reg64 offset="0xa9e2" name="SP_CS_SAMPLER_BASE" type="address" align="16" usage="cmd"/>
-	<reg64 offset="0xa9e4" name="SP_PS_TEXMEMOBJ_BASE" type="address" align="64" usage="rp_blit"/>
-	<reg64 offset="0xa9e6" name="SP_CS_TEXMEMOBJ_BASE" type="address" align="64" usage="cmd"/>
+	<reg64 offset="0xa9e0" name="SP_PS_SAMPLER_BASE" type="address" align="16" usage="draw"/>
+	<reg64 offset="0xa9e2" name="SP_CS_SAMPLER_BASE" type="address" align="16" usage="compute"/>
+	<reg64 offset="0xa9e4" name="SP_PS_TEXMEMOBJ_BASE" type="address" align="64" usage="draw"/>
+	<reg64 offset="0xa9e6" name="SP_CS_TEXMEMOBJ_BASE" type="address" align="64" usage="compute"/>
 
 	<enum name="a6xx_bindless_descriptor_size">
 		<doc>
@@ -4118,13 +4182,13 @@ by a particular renderpass/blit.
 		<value value="3" name="BINDLESS_DESCRIPTOR_64B"/>
 	</enum>
 
-	<array offset="0xa9e8" name="SP_CS_BINDLESS_BASE" stride="2" length="5" variants="A6XX" usage="cmd">
+	<array offset="0xa9e8" name="SP_CS_BINDLESS_BASE" stride="2" length="5" variants="A6XX" usage="compute">
 		<reg64 offset="0" name="DESCRIPTOR" variants="A6XX">
 			<bitfield name="DESC_SIZE" low="0" high="1" type="a6xx_bindless_descriptor_size"/>
 			<bitfield name="ADDR" low="2" high="63" shr="2" type="address"/>
 		</reg64>
 	</array>
-	<array offset="0xa9e8" name="SP_CS_BINDLESS_BASE" stride="2" length="8" variants="A7XX-" usage="cmd">
+	<array offset="0xa9e8" name="SP_CS_BINDLESS_BASE" stride="2" length="8" variants="A7XX-" usage="compute">
 		<reg64 offset="0" name="DESCRIPTOR" variants="A7XX-">
 			<bitfield name="DESC_SIZE" low="0" high="1" type="a6xx_bindless_descriptor_size"/>
 			<bitfield name="ADDR" low="2" high="63" shr="2" type="address"/>
@@ -4134,9 +4198,9 @@ by a particular renderpass/blit.
 	<!--
 	UAV state for compute shader:
 	 -->
-	<reg64 offset="0xa9f2" name="SP_CS_UAV_BASE" type="address" align="16" variants="A6XX"/>
-	<reg64 offset="0xa9f8" name="SP_CS_UAV_BASE" type="address" align="16" variants="A7XX-"/>
-	<reg32 offset="0xaa00" name="SP_CS_USIZE" low="0" high="6" type="uint"/>
+	<reg64 offset="0xa9f2" name="SP_CS_UAV_BASE" type="address" align="16" variants="A6XX" usage="compute"/>
+	<reg64 offset="0xa9f8" name="SP_CS_UAV_BASE" type="address" align="16" variants="A7XX-" usage="compute"/>
+	<reg32 offset="0xaa00" name="SP_CS_USIZE" low="0" high="6" type="uint" usage="compute"/>
 
 	<!-- Correlated with avgs/uvgs usage in FS -->
 	<reg32 offset="0xaa01" name="SP_PS_VGS_CNTL" type="uint" variants="A7XX-" usage="cmd"/>
@@ -4192,7 +4256,7 @@ by a particular renderpass/blit.
 		<value value="0x2" name="ISAMMODE_GL"/>
 	</enum>
 
-	<reg32 offset="0xab00" name="SP_MODE_CNTL" usage="rp_blit">
+	<reg32 offset="0xab00" name="SP_MODE_CNTL" usage="draw">
 	  <!--
 	  When set, half register loads from the constant file will
 	  load a 32-bit value (so hc0.y loads the same value as c0.y)
@@ -4203,26 +4267,26 @@ by a particular renderpass/blit.
 	  -->
 		<bitfield name="CONSTANT_DEMOTION_ENABLE" pos="0" type="boolean"/>
 		<bitfield name="ISAMMODE" low="1" high="2" type="a6xx_isam_mode"/>
-		<bitfield name="SHARED_CONSTS_ENABLE" pos="3" type="boolean"/> <!-- see SP_SHARED_CONSTANT -->
+		<bitfield name="SHARED_CONSTS_ENABLE" pos="3" type="boolean"/> <!-- see HLSQ_SHARED_CONSTS -->
 	</reg32>
 
 	<reg32 offset="0xab01" name="SP_UNKNOWN_AB01" variants="A7XX-" usage="cmd"/>
 	<reg32 offset="0xab02" name="SP_HLSQ_MODE_CNTL" variants="A7XX-" usage="cmd">
-		<bitfield name="SHARED_CONSTS_ENABLE" pos="0" type="boolean"/> <!-- see SP_SHARED_CONSTANT -->
+		<bitfield name="SHARED_CONSTS_ENABLE" pos="0" type="boolean"/> <!-- see HLSQ_SHARED_CONSTS -->
 	</reg32>
 
-	<reg32 offset="0xab04" name="SP_PS_CONFIG" type="a6xx_sp_xs_config" usage="rp_blit"/>
-	<reg32 offset="0xab05" name="SP_PS_INSTR_SIZE" low="0" high="27" type="uint" usage="rp_blit"/>
+	<reg32 offset="0xab04" name="SP_PS_CONFIG" type="a6xx_sp_xs_config" usage="draw"/>
+	<reg32 offset="0xab05" name="SP_PS_INSTR_SIZE" low="0" high="27" type="uint" usage="draw"/>
 
-	<reg32 offset="0xab06" name="SP_BIN_SIZE" type="a8xx_bin_size" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0xab06" name="SP_BIN_SIZE" type="a8xx_bin_size" variants="A8XX-" usage="cmd"/>
 
-	<array offset="0xab10" name="SP_GFX_BINDLESS_BASE" stride="2" length="5" variants="A6XX" usage="rp_blit">
+	<array offset="0xab10" name="SP_GFX_BINDLESS_BASE" stride="2" length="5" variants="A6XX" usage="draw">
 		<reg64 offset="0" name="DESCRIPTOR" variants="A6XX">
 			<bitfield name="DESC_SIZE" low="0" high="1" type="a6xx_bindless_descriptor_size"/>
 			<bitfield name="ADDR" low="2" high="63" shr="2" type="address"/>
 		</reg64>
 	</array>
-	<array offset="0xab0a" name="SP_GFX_BINDLESS_BASE" stride="2" length="8" variants="A7XX-" usage="rp_blit">
+	<array offset="0xab0a" name="SP_GFX_BINDLESS_BASE" stride="2" length="8" variants="A7XX-" usage="draw">
 		<reg64 offset="0" name="DESCRIPTOR" variants="A7XX-">
 			<bitfield name="DESC_SIZE" low="0" high="1" type="a6xx_bindless_descriptor_size"/>
 			<bitfield name="ADDR" low="2" high="63" shr="2" type="address"/>
@@ -4259,8 +4323,8 @@ by a particular renderpass/blit.
 		<bitfield name="MASK" low="12" high="15"/>
 	</bitset>
 
-	<reg32 offset="0xacc0" name="SP_A2D_OUTPUT_INFO" type="a6xx_sp_a2d_output_info" variants="A6XX" usage="rp_blit"/>
-	<reg32 offset="0xa9bf" name="SP_A2D_OUTPUT_INFO" type="a6xx_sp_a2d_output_info" variants="A7XX-" usage="rp_blit"/>
+	<reg32 offset="0xacc0" name="SP_A2D_OUTPUT_INFO" type="a6xx_sp_a2d_output_info" variants="A6XX" usage="blit"/>
+	<reg32 offset="0xa9bf" name="SP_A2D_OUTPUT_INFO" type="a6xx_sp_a2d_output_info" variants="A7XX-" usage="blit"/>
 
 	<reg32 offset="0xae00" name="SP_DBG_ECO_CNTL" usage="init"/>
 	<reg32 offset="0xae01" name="SP_ADDR_MODE_CNTL" pos="0" type="a5xx_address_mode" variants="A6XX"/>
@@ -4268,7 +4332,14 @@ by a particular renderpass/blit.
 	<reg32 offset="0xae02" name="SP_NC_MODE_CNTL">
 		<!-- TODO: valid bits 0x3c3f, see kernel -->
 	</reg32>
-	<reg32 offset="0xae03" name="SP_CHICKEN_BITS" usage="init"/>
+	<reg32 offset="0xae03" name="SP_CHICKEN_BITS" usage="init">
+		<doc>
+			When this bit is enabled, new waves may be unlocked once
+			all invocations have signaled they don't need local
+			memory anymore using (eolm)nop.
+		</doc>
+		<bitfield name="EOLM_ENABLE" pos="1" type="boolean"/>
+	</reg32>
 	<reg32 offset="0xae04" name="SP_NC_MODE_CNTL_2" usage="init">
 		<bitfield name="F16_NO_INF" pos="3" type="boolean"/>
 	</reg32>
@@ -4333,7 +4404,7 @@ by a particular renderpass/blit.
 	<reg64 offset="0xae3c" name="SP_SW_DEBUG_ADDR" variants="A7XX-"/>
 	<reg64 offset="0xae3e" name="SP_ISDB_DEBUG_ADDR" variants="A7XX-"/>
 
-	<array offset="0xaec0" name="SP_PERFCTR_HLSQ_SEL_2_0" stride="1" length="6" variants="A7XX-"/>
+	<array offset="0xaec0" name="SP_PERFCTR_HLSQ_SEL_2" stride="1" length="6" variants="A7XX-"/>
 
 	<!--
 	The downstream kernel calls the debug cluster of registers
@@ -4347,39 +4418,39 @@ by a particular renderpass/blit.
 	<reg32 offset="0xb190" name="SP_UNKNOWN_B190"/>
 	<reg32 offset="0xb191" name="SP_UNKNOWN_B191"/>
 
-	<reg32 offset="0xb2d6" name="TPL1_A2D_BIN_SIZE" type="a8xx_bin_size" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0xb2d7" name="TPL1_A2D_FILTER_CNTL" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0xb2d6" name="TPL1_A2D_BIN_SIZE" type="a8xx_bin_size" variants="A8XX-" usage="cmd"/>
+	<reg32 offset="0xb2d7" name="TPL1_A2D_FILTER_CNTL" variants="A8XX-" usage="blit"/>
 
-	<reg32 offset="0xb300" name="TPL1_RAS_MSAA_CNTL" usage="rp_blit">
+	<reg32 offset="0xb300" name="TPL1_RAS_MSAA_CNTL" usage="draw">
 		<bitfield name="SAMPLES" low="0" high="1" type="a3xx_msaa_samples"/>
 		<bitfield name="UNK2" low="2" high="3"/>
 	</reg32>
-	<reg32 offset="0xb301" name="TPL1_DEST_MSAA_CNTL" usage="rp_blit">
+	<reg32 offset="0xb301" name="TPL1_DEST_MSAA_CNTL" usage="draw">
 		<bitfield name="SAMPLES" low="0" high="1" type="a3xx_msaa_samples"/>
 		<bitfield name="MSAA_DISABLE" pos="2" type="boolean"/>
 	</reg32>
 
 	<!-- looks to work in the same way as a5xx: -->
 	<reg64 offset="0xb302" name="TPL1_GFX_BORDER_COLOR_BASE" type="address" align="128" usage="cmd"/>
-	<reg32 offset="0xb304" name="TPL1_MSAA_SAMPLE_POS_CNTL" type="a6xx_msaa_sample_pos_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0xb305" name="TPL1_PROGRAMMABLE_MSAA_POS_0" type="a6xx_programmable_msaa_pos" usage="rp_blit" variants="A6XX-A7XX" />
-	<reg32 offset="0xb306" name="TPL1_PROGRAMMABLE_MSAA_POS_1" type="a6xx_programmable_msaa_pos" usage="rp_blit" variants="A6XX-A7XX" />
-	<reg32 offset="0xb307" name="TPL1_WINDOW_OFFSET" type="a6xx_reg_xy" usage="rp_blit"/>
+	<reg32 offset="0xb304" name="TPL1_MSAA_SAMPLE_POS_CNTL" type="a6xx_msaa_sample_pos_cntl" variants="A6XX-A7XX" usage="draw"/>
+	<reg32 offset="0xb305" name="TPL1_PROGRAMMABLE_MSAA_POS_0" type="a6xx_programmable_msaa_pos" usage="draw" variants="A6XX-A7XX" />
+	<reg32 offset="0xb306" name="TPL1_PROGRAMMABLE_MSAA_POS_1" type="a6xx_programmable_msaa_pos" usage="draw" variants="A6XX-A7XX" />
+	<reg32 offset="0xb307" name="TPL1_WINDOW_OFFSET" type="a6xx_reg_xy" usage="cmd"/>
 
-	<reg32 offset="0xb304" name="TPL1_BIN_SIZE" type="a8xx_bin_size" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0xb304" name="TPL1_BIN_SIZE" type="a8xx_bin_size" variants="A8XX-" usage="cmd"/>
 
 	<enum name="a6xx_coord_round">
 		<value value="0" name="COORD_TRUNCATE"/>
 		<value value="1" name="COORD_ROUND_NEAREST_EVEN"/>
+		<value value="2" name="ROUND_FLOAT_TO_INT"/> <!-- only ARRAYCOORDROUNDMODE -->
 	</enum>
 
 	<enum name="a6xx_nearest_mode">
 		<value value="0" name="ROUND_CLAMP_TRUNCATE"/>
 		<value value="1" name="CLAMP_ROUND_TRUNCATE"/>
-		<value value="2" name="ROUND_FLOAT_TO_INT"/> <!-- only ARRAYCOORDROUNDMODE -->
 	</enum>
 
-	<reg32 offset="0xb309" name="TPL1_MODE_CNTL" usage="cmd">
+	<bitset name="a6xx_tpl1_mode_cntl" inline="yes">
 		<bitfield name="ISAMMODE" low="0" high="1" type="a6xx_isam_mode"/>
 		<bitfield name="TEXCOORDROUNDMODE" pos="2" type="a6xx_coord_round"/>
 		<bitfield name="ARRAYCOORDROUNDMODE" low="3" high="4" type="a6xx_coord_round"/>
@@ -4387,6 +4458,11 @@ by a particular renderpass/blit.
 		<bitfield name="SAMPLEREPLICATE" pos="6" type="boolean"/>
 		<bitfield name="DESTDATATYPEOVERRIDE" pos="7" type="boolean"/>
 		<bitfield name="PACK_SAMP_REDUCED_PRECISION" pos="8" type="boolean"/>
+	</bitset>
+
+	<reg32 offset="0xb309" name="TPL1_MODE_CNTL" usage="cmd" type="a6xx_tpl1_mode_cntl" variants="A6XX-A7XX"/>
+	<reg32 offset="0xb309" name="TPL1_MODE_CNTL" usage="cmd" type="a6xx_tpl1_mode_cntl" variants="A8XX-">
+		<bitfield name="CLAMP_DISABLE" pos="12" type="boolean"/>
 	</reg32>
 	<reg32 offset="0xb310" name="SP_UNKNOWN_B310" variants="A7XX-" usage="cmd"/>
 
@@ -4395,24 +4471,26 @@ by a particular renderpass/blit.
 	badly named or the functionality moved in a6xx.  But downstream kernel
 	calls this "a6xx_sp_ps_tp_2d_cluster"
 	 -->
-	<reg32 offset="0xb4c0" name="TPL1_A2D_SRC_TEXTURE_INFO" type="a6xx_a2d_src_texture_info" variants="A6XX" usage="rp_blit"/>
-	<reg32 offset="0xb4c1" name="TPL1_A2D_SRC_TEXTURE_SIZE" variants="A6XX" usage="rp_blit">
+	<reg32 offset="0xb4c0" name="TPL1_A2D_SRC_TEXTURE_INFO" type="a6xx_a2d_src_texture_info" variants="A6XX" usage="blit"/>
+	<reg32 offset="0xb4c1" name="TPL1_A2D_SRC_TEXTURE_SIZE" variants="A6XX" usage="blit">
 		<bitfield name="WIDTH" low="0" high="14" type="uint"/>
 		<bitfield name="HEIGHT" low="15" high="29" type="uint"/>
 	</reg32>
-	<reg64 offset="0xb4c2" name="TPL1_A2D_SRC_TEXTURE_BASE" type="address" align="16" variants="A6XX" usage="rp_blit"/>
-	<reg32 offset="0xb4c4" name="TPL1_A2D_SRC_TEXTURE_PITCH" variants="A6XX" usage="rp_blit">
+	<reg64 offset="0xb4c2" name="TPL1_A2D_SRC_TEXTURE_BASE" type="address" align="16" variants="A6XX" usage="blit"/>
+	<reg32 offset="0xb4c4" name="TPL1_A2D_SRC_TEXTURE_PITCH" variants="A6XX" usage="blit">
 		<bitfield name="UNK0" low="0" high="8"/>
 		<bitfield name="PITCH" low="9" high="23" shr="6" type="uint"/>
 	</reg32>
 
-	<reg32 offset="0xb2c0" name="TPL1_A2D_SRC_TEXTURE_INFO" type="a6xx_a2d_src_texture_info" variants="A7XX-" usage="rp_blit"/>
-	<reg32 offset="0xb2c1" name="TPL1_A2D_SRC_TEXTURE_SIZE" variants="A7XX-">
+	<reg32 offset="0xb2c0" name="TPL1_A2D_SRC_TEXTURE_INFO" type="a6xx_a2d_src_texture_info" variants="A7XX-" usage="blit"/>
+	<reg32 offset="0xb2c1" name="TPL1_A2D_SRC_TEXTURE_SIZE" variants="A7XX-" usage="blit">
 		<bitfield name="WIDTH" low="0" high="14" type="uint"/>
 		<bitfield name="HEIGHT" low="15" high="29" type="uint"/>
 	</reg32>
-	<reg64 offset="0xb2c2" name="TPL1_A2D_SRC_TEXTURE_BASE" type="address" align="16" variants="A7XX-" usage="rp_blit"/>
-	<reg32 offset="0xb2c4" name="TPL1_A2D_SRC_TEXTURE_PITCH" variants="A7XX-">
+	<reg64 offset="0xb2c2" name="TPL1_A2D_SRC_TEXTURE_BASE" type="address" align="16" variants="A7XX" usage="blit"/>
+	<!-- gen8 can use an unaligned base for IMG_BUFFER: -->
+	<reg64 offset="0xb2c2" name="TPL1_A2D_SRC_TEXTURE_BASE" type="address" variants="A8XX-" usage="blit"/>
+	<reg32 offset="0xb2c4" name="TPL1_A2D_SRC_TEXTURE_PITCH" variants="A7XX-" usage="blit">
 		<!--
 		Bits from 3..9 must be zero unless 'TPL1_A2D_BLT_CNTL::TYPE'
 		is A6XX_TEX_IMG_BUFFER, which allows for lower alignment.
@@ -4421,41 +4499,45 @@ by a particular renderpass/blit.
 	</reg32>
 
 	<!-- planes for NV12, etc. (TODO: not tested) -->
-	<reg64 offset="0xb4c5" name="TPL1_A2D_SRC_TEXTURE_BASE_1" type="address" align="16" variants="A6XX"/>
-	<reg32 offset="0xb4c7" name="TPL1_A2D_SRC_TEXTURE_PITCH_1" low="0" high="11" shr="6" type="uint" variants="A6XX"/>
-	<reg64 offset="0xb4c8" name="TPL1_A2D_SRC_TEXTURE_BASE_2" type="address" align="16" variants="A6XX"/>
+	<reg64 offset="0xb4c5" name="TPL1_A2D_SRC_TEXTURE_BASE_1" type="address" align="16" variants="A6XX" usage="blit"/>
+	<reg32 offset="0xb4c7" name="TPL1_A2D_SRC_TEXTURE_PITCH_1" low="0" high="11" shr="6" type="uint" variants="A6XX" usage="blit"/>
+	<reg64 offset="0xb4c8" name="TPL1_A2D_SRC_TEXTURE_BASE_2" type="address" align="16" variants="A6XX" usage="blit"/>
 
-	<reg64 offset="0xb2c5" name="TPL1_A2D_SRC_TEXTURE_BASE_1" type="address" align="16" variants="A7XX-"/>
-	<reg32 offset="0xb2c7" name="TPL1_A2D_SRC_TEXTURE_PITCH_1" low="0" high="11" shr="6" type="uint" variants="A7XX-"/>
-	<reg64 offset="0xb2c8" name="TPL1_A2D_SRC_TEXTURE_BASE_2" type="address" align="16" variants="A7XX-"/>
+	<reg64 offset="0xb2c5" name="TPL1_A2D_SRC_TEXTURE_BASE_1" type="address" align="16" variants="A7XX-" usage="blit"/>
+	<reg32 offset="0xb2c7" name="TPL1_A2D_SRC_TEXTURE_PITCH_1" low="0" high="11" shr="6" type="uint" variants="A7XX-" usage="blit"/>
+	<reg64 offset="0xb2c8" name="TPL1_A2D_SRC_TEXTURE_BASE_2" type="address" align="16" variants="A7XX-" usage="blit"/>
 
-	<reg64 offset="0xb4ca" name="TPL1_A2D_SRC_TEXTURE_FLAG_BASE" type="address" align="16" variants="A6XX" usage="rp_blit"/>
-	<reg32 offset="0xb4cc" name="TPL1_A2D_SRC_TEXTURE_FLAG_PITCH" low="0" high="7" shr="6" type="uint" variants="A6XX" usage="rp_blit"/>
+	<reg64 offset="0xb4ca" name="TPL1_A2D_SRC_TEXTURE_FLAG_BASE" type="address" align="16" variants="A6XX" usage="blit"/>
+	<reg32 offset="0xb4cc" name="TPL1_A2D_SRC_TEXTURE_FLAG_PITCH" low="0" high="7" shr="6" type="uint" variants="A6XX" usage="blit"/>
 
-	<reg64 offset="0xb2ca" name="TPL1_A2D_SRC_TEXTURE_FLAG_BASE" type="address" align="16" variants="A7XX-" usage="rp_blit"/>
-	<reg32 offset="0xb2cc" name="TPL1_A2D_SRC_TEXTURE_FLAG_PITCH" low="0" high="7" shr="6" type="uint" variants="A7XX-" usage="rp_blit"/>
+	<reg64 offset="0xb2ca" name="TPL1_A2D_SRC_TEXTURE_FLAG_BASE" type="address" align="16" variants="A7XX-" usage="blit"/>
+	<reg32 offset="0xb2cc" name="TPL1_A2D_SRC_TEXTURE_FLAG_PITCH" low="0" high="7" shr="6" type="uint" variants="A7XX-" usage="blit"/>
 
-	<reg32 offset="0xb4cd" name="SP_PS_UNKNOWN_B4CD" low="6" high="31" variants="A6XX"/>
-	<reg32 offset="0xb4ce" name="SP_PS_UNKNOWN_B4CE" low="0" high="31" variants="A6XX"/>
-	<reg32 offset="0xb4cf" name="SP_PS_UNKNOWN_B4CF" low="0" high="30" variants="A6XX"/>
-	<reg32 offset="0xb4d0" name="SP_PS_UNKNOWN_B4D0" low="0" high="29" variants="A6XX"/>
-	<reg32 offset="0xb4d1" name="SP_WINDOW_OFFSET" type="a6xx_reg_xy" variants="A6XX" usage="rp_blit"/>
+	<reg32 offset="0xb4cd" name="SP_PS_UNKNOWN_B4CD" low="6" high="31" variants="A6XX" usage="blit"/>
+	<reg32 offset="0xb4ce" name="SP_PS_UNKNOWN_B4CE" low="0" high="31" variants="A6XX" usage="blit"/>
+	<reg32 offset="0xb4cf" name="SP_PS_UNKNOWN_B4CF" low="0" high="30" variants="A6XX" usage="blit"/>
+	<reg32 offset="0xb4d0" name="SP_PS_UNKNOWN_B4D0" low="0" high="29" variants="A6XX" usage="blit"/>
+	<reg32 offset="0xb4d1" name="SP_WINDOW_OFFSET" type="a6xx_reg_xy" variants="A6XX" usage="cmd"/>
 
-	<reg32 offset="0xb2cd" name="SP_PS_UNKNOWN_B4CD" low="6" high="31" variants="A7XX"/>
-	<reg32 offset="0xb2ce" name="SP_PS_UNKNOWN_B4CE" low="0" high="31" variants="A7XX"/>
-	<reg32 offset="0xb2cf" name="SP_PS_UNKNOWN_B4CF" low="0" high="30" variants="A7XX"/>
-	<reg32 offset="0xb2d0" name="SP_PS_UNKNOWN_B4D0" low="0" high="29" variants="A7XX"/>
-	<reg32 offset="0xb2d1" name="TPL1_A2D_WINDOW_OFFSET" type="a6xx_reg_xy" variants="A7XX-"/>
-	<reg32 offset="0xb2d2" name="TPL1_A2D_BLT_CNTL" variants="A7XX-" usage="rp_blit">
+	<reg32 offset="0xb2cd" name="SP_PS_UNKNOWN_B4CD" low="6" high="31" variants="A7XX" usage="blit"/>
+	<reg32 offset="0xb2ce" name="SP_PS_UNKNOWN_B4CE" low="0" high="31" variants="A7XX" usage="blit"/>
+	<reg32 offset="0xb2cf" name="SP_PS_UNKNOWN_B4CF" low="0" high="30" variants="A7XX" usage="blit"/>
+	<reg32 offset="0xb2d0" name="SP_PS_UNKNOWN_B4D0" low="0" high="29" variants="A7XX" usage="blit"/>
+	<reg32 offset="0xb2d1" name="TPL1_A2D_WINDOW_OFFSET" type="a6xx_reg_xy" variants="A7XX-" usage="cmd"/>
+	<bitset name="a7xx_tpl1_a2d_blt_cntl" inline="yes">
 		<bitfield name="RAW_COPY" pos="0" type="boolean"/>
-		<bitfield name="START_OFFSET_TEXELS" low="16" high="21"/>
 		<bitfield name="TYPE" low="29" high="31" type="a6xx_tex_type"/>
+	</bitset>
+	<reg32 offset="0xb2d2" name="TPL1_A2D_BLT_CNTL" type="a7xx_tpl1_a2d_blt_cntl" variants="A7XX" usage="blit">
+		<bitfield name="START_OFFSET_TEXELS" low="16" high="21"/>
 	</reg32>
-	<reg32 offset="0xab21" name="SP_WINDOW_OFFSET" type="a6xx_reg_xy" variants="A7XX" usage="rp_blit"/>
-	<reg32 offset="0xab07" name="SP_WINDOW_OFFSET" type="a6xx_reg_xy" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0xb2d2" name="TPL1_A2D_BLT_CNTL" type="a7xx_tpl1_a2d_blt_cntl" variants="A8XX-" usage="blit"/>
+	<reg32 offset="0xab21" name="SP_WINDOW_OFFSET" type="a6xx_reg_xy" variants="A7XX" usage="cmd"/>
+	<reg32 offset="0xab07" name="SP_WINDOW_OFFSET" type="a6xx_reg_xy" variants="A8XX-" usage="cmd"/>
 
-	<!-- always 0x100000 or 0x1000000? -->
-	<reg32 offset="0xb600" name="TPL1_DBG_ECO_CNTL" low="0" high="25" usage="init"/>
+	<reg32 offset="0xb600" name="TPL1_DBG_ECO_CNTL" usage="init">
+		<bitfield name="LINEAR_MIPMAP_FALLBACK_IN_BLOCKS" pos="25" type="boolean" variants="A6XX-A7XX"/>
+	</reg32>
 	<reg32 offset="0xb601" name="TPL1_ADDR_MODE_CNTL" type="a5xx_address_mode" variants="A6XX"/>
 	<reg32 offset="0xb602" name="TPL1_DBG_ECO_CNTL1" usage="init">
 		<!-- Affects UBWC in some way, if BLIT_OP_SCALE is done with this bit set
@@ -4496,17 +4578,17 @@ by a particular renderpass/blit.
 		<bitfield name="READ_IMM_SHARED_CONSTS" pos="9" type="boolean" variants="A7XX-"/>
 	</bitset>
 
-	<reg32 offset="0xb800" name="SP_VS_CONST_CONFIG" type="a6xx_xs_const_config" variants="A6XX" usage="rp_blit"/>
-	<reg32 offset="0xb801" name="SP_HS_CONST_CONFIG" type="a6xx_xs_const_config" variants="A6XX" usage="rp_blit"/>
-	<reg32 offset="0xb802" name="SP_DS_CONST_CONFIG" type="a6xx_xs_const_config" variants="A6XX" usage="rp_blit"/>
-	<reg32 offset="0xb803" name="SP_GS_CONST_CONFIG" type="a6xx_xs_const_config" variants="A6XX" usage="rp_blit"/>
+	<reg32 offset="0xb800" name="SP_VS_CONST_CONFIG" type="a6xx_xs_const_config" variants="A6XX" usage="draw"/>
+	<reg32 offset="0xb801" name="SP_HS_CONST_CONFIG" type="a6xx_xs_const_config" variants="A6XX" usage="draw"/>
+	<reg32 offset="0xb802" name="SP_DS_CONST_CONFIG" type="a6xx_xs_const_config" variants="A6XX" usage="draw"/>
+	<reg32 offset="0xb803" name="SP_GS_CONST_CONFIG" type="a6xx_xs_const_config" variants="A6XX" usage="draw"/>
 
-	<reg32 offset="0xa827" name="SP_VS_CONST_CONFIG" type="a6xx_xs_const_config" variants="A7XX-" usage="rp_blit"/>
-	<reg32 offset="0xa83f" name="SP_HS_CONST_CONFIG" type="a6xx_xs_const_config" variants="A7XX-" usage="rp_blit"/>
-	<reg32 offset="0xa867" name="SP_DS_CONST_CONFIG" type="a6xx_xs_const_config" variants="A7XX-" usage="rp_blit"/>
-	<reg32 offset="0xa898" name="SP_GS_CONST_CONFIG" type="a6xx_xs_const_config" variants="A7XX-" usage="rp_blit"/>
+	<reg32 offset="0xa827" name="SP_VS_CONST_CONFIG" type="a6xx_xs_const_config" variants="A7XX-" usage="draw"/>
+	<reg32 offset="0xa83f" name="SP_HS_CONST_CONFIG" type="a6xx_xs_const_config" variants="A7XX-" usage="draw"/>
+	<reg32 offset="0xa867" name="SP_DS_CONST_CONFIG" type="a6xx_xs_const_config" variants="A7XX-" usage="draw"/>
+	<reg32 offset="0xa898" name="SP_GS_CONST_CONFIG" type="a6xx_xs_const_config" variants="A7XX-" usage="draw"/>
 
-	<reg32 offset="0xa9aa" name="SP_RENDER_CNTL" variants="A7XX-" usage="rp_blit">
+	<reg32 offset="0xa9aa" name="SP_RENDER_CNTL" variants="A7XX-" usage="draw">
 		<bitfield name="FS_DISABLE" pos="0" type="boolean"/>
 	</reg32>
 
@@ -4521,16 +4603,18 @@ by a particular renderpass/blit.
 		<bitfield name="DITHER_MODE_MRT7" low="14" high="15" type="adreno_rb_dither_mode"/>
 	</reg32>
 
-	<reg32 offset="0xa9ad" name="SP_VRS_CONFIG" variants="A7XX-" usage="rp_blit">
+	<reg32 offset="0xa9ad" name="SP_VRS_CONFIG" variants="A7XX-" usage="draw">
 		<bitfield name="PIPELINE_FSR_ENABLE" pos="0" type="boolean"/>
 		<bitfield name="ATTACHMENT_FSR_ENABLE" pos="1" type="boolean"/>
 		<bitfield name="PRIMITIVE_FSR_ENABLE" pos="3" type="boolean"/>
 	</reg32>
 
-	<reg32 offset="0xa9ae" name="SP_PS_CNTL_1" variants="A7XX-" usage="rp_blit">
+	<reg32 offset="0xa9ae" name="SP_PS_CNTL_1" variants="A7XX-" usage="draw">
 		<bitfield name="SYSVAL_REGS_COUNT" low="0" high="7" type="uint"/>
 		<bitfield name="DEFER_WAVE_ALLOC_DIS" pos="8" type="boolean"/>
 		<bitfield name="EVICT_BUF_MODE" low="9" high="10"/>
+		<bitfield name="WAVE_PAIR_MODE" low="11" high="12"/>
+		<bitfield name="NUM_TOTAL_VAR" low="13" high="20"/>
 	</reg32>
 
 	<reg32 offset="0xb820" name="HLSQ_LOAD_STATE_GEOM_CMD"/>
@@ -4562,71 +4646,71 @@ by a particular renderpass/blit.
 		<bitfield name="FOVEATIONQUALITYREGID" low="8" high="15" type="a3xx_regid"/>
 	</bitset>
 
-	<reg32 offset="0xb980" type="a6xx_sp_ps_wave_cntl" name="SP_PS_WAVE_CNTL" variants="A6XX" usage="rp_blit"/>
-	<reg32 offset="0xb981" name="HLSQ_UNKNOWN_B981" pos="0" type="boolean" variants="A6XX"/> <!-- never used by blob -->
-	<reg32 offset="0xb982" name="SP_LB_PARAM_LIMIT" low="0" high="2" variants="A6XX" usage="rp_blit">
+	<reg32 offset="0xb980" type="a6xx_sp_ps_wave_cntl" name="SP_PS_WAVE_CNTL" variants="A6XX" usage="draw"/>
+	<reg32 offset="0xb981" name="HLSQ_UNKNOWN_B981" pos="0" type="boolean" variants="A6XX" usage="draw"/> <!-- never used by blob -->
+	<reg32 offset="0xb982" name="SP_LB_PARAM_LIMIT" low="0" high="2" variants="A6XX" usage="draw">
 		<!-- Sets the maximum number of primitives allowed in one FS wave minus one, similarly to the
 				 A3xx field, except that it's not necessary to set it to anything but the maximum, since
 				 the hardware will simply emit smaller waves when it runs out of space.	-->
 		<bitfield name="PRIMALLOCTHRESHOLD" low="0" high="2" type="uint"/>
 	</reg32>
-	<reg32 offset="0xb983" name="SP_REG_PROG_ID_0" variants="A6XX" usage="rp_blit">
+	<reg32 offset="0xb983" name="SP_REG_PROG_ID_0" variants="A6XX" usage="draw">
 		<bitfield name="FACEREGID" low="0" high="7" type="a3xx_regid"/>
 		<!-- SAMPLEID is loaded into a half-precision register: -->
 		<bitfield name="SAMPLEID" low="8" high="15" type="a3xx_regid"/>
 		<bitfield name="SAMPLEMASK" low="16" high="23" type="a3xx_regid"/>
 		<bitfield name="CENTERRHW" low="24" high="31" type="a3xx_regid"/>
 	</reg32>
-	<reg32 offset="0xb984" type="a6xx_sp_reg_prog_id_1" name="SP_REG_PROG_ID_1" variants="A6XX" usage="rp_blit"/>
-	<reg32 offset="0xb985" type="a6xx_sp_reg_prog_id_2" name="SP_REG_PROG_ID_2" variants="A6XX" usage="rp_blit"/>
-	<reg32 offset="0xb986" type="a6xx_sp_reg_prog_id_3" name="SP_REG_PROG_ID_3" variants="A6XX" usage="rp_blit"/>
-	<reg32 offset="0xb987" name="SP_CS_CONST_CONFIG" type="a6xx_xs_const_config" variants="A6XX" usage="cmd"/>
-	<reg32 offset="0xa9c6" type="a6xx_sp_ps_wave_cntl" name="SP_PS_WAVE_CNTL" variants="A7XX" usage="rp_blit"/>
-	<reg32 offset="0xa9c6" name="SP_PS_WAVE_CNTL" variants="A8XX-" usage="rp_blit">
+	<reg32 offset="0xb984" type="a6xx_sp_reg_prog_id_1" name="SP_REG_PROG_ID_1" variants="A6XX" usage="draw"/>
+	<reg32 offset="0xb985" type="a6xx_sp_reg_prog_id_2" name="SP_REG_PROG_ID_2" variants="A6XX" usage="draw"/>
+	<reg32 offset="0xb986" type="a6xx_sp_reg_prog_id_3" name="SP_REG_PROG_ID_3" variants="A6XX" usage="draw"/>
+	<reg32 offset="0xb987" name="SP_CS_CONST_CONFIG" type="a6xx_xs_const_config" variants="A6XX" usage="compute"/>
+	<reg32 offset="0xa9c6" type="a6xx_sp_ps_wave_cntl" name="SP_PS_WAVE_CNTL" variants="A7XX" usage="draw"/>
+	<reg32 offset="0xa9c6" name="SP_PS_WAVE_CNTL" variants="A8XX-" usage="draw">
 		<bitfield name="VARYINGS" pos="1" type="boolean"/>
 	</reg32>
-	<reg32 offset="0xa9c7" name="SP_LB_PARAM_LIMIT" low="0" high="2" variants="A7XX-" usage="rp_blit">
+	<reg32 offset="0xa9c7" name="SP_LB_PARAM_LIMIT" low="0" high="2" variants="A7XX-" usage="draw">
 		<bitfield name="PRIMALLOCTHRESHOLD" low="0" high="2" type="uint"/>
 	</reg32>
-	<reg32 offset="0xa9c8" name="SP_REG_PROG_ID_0" variants="A7XX-" usage="rp_blit">
+	<reg32 offset="0xa9c8" name="SP_REG_PROG_ID_0" variants="A7XX-" usage="draw">
 		<bitfield name="FACEREGID" low="0" high="7" type="a3xx_regid"/>
 		<!-- SAMPLEID is loaded into a half-precision register: -->
 		<bitfield name="SAMPLEID" low="8" high="15" type="a3xx_regid"/>
 		<bitfield name="SAMPLEMASK" low="16" high="23" type="a3xx_regid"/>
 		<bitfield name="CENTERRHW" low="24" high="31" type="a3xx_regid"/>
 	</reg32>
-	<reg32 offset="0xa9c9" type="a6xx_sp_reg_prog_id_1" name="SP_REG_PROG_ID_1" variants="A7XX-" usage="rp_blit"/>
-	<reg32 offset="0xa9ca" type="a6xx_sp_reg_prog_id_2" name="SP_REG_PROG_ID_2" variants="A7XX-" usage="rp_blit"/>
-	<reg32 offset="0xa9cb" type="a6xx_sp_reg_prog_id_3" name="SP_REG_PROG_ID_3" variants="A7XX-" usage="rp_blit"/>
-	<reg32 offset="0xa9cd" name="SP_CS_CONST_CONFIG" type="a6xx_xs_const_config" variants="A7XX-" usage="cmd"/>
+	<reg32 offset="0xa9c9" type="a6xx_sp_reg_prog_id_1" name="SP_REG_PROG_ID_1" variants="A7XX-" usage="draw"/>
+	<reg32 offset="0xa9ca" type="a6xx_sp_reg_prog_id_2" name="SP_REG_PROG_ID_2" variants="A7XX-" usage="draw"/>
+	<reg32 offset="0xa9cb" type="a6xx_sp_reg_prog_id_3" name="SP_REG_PROG_ID_3" variants="A7XX-" usage="draw"/>
+	<reg32 offset="0xa9cd" name="SP_CS_CONST_CONFIG" type="a6xx_xs_const_config" variants="A7XX-" usage="compute"/>
 
 	<!-- TODO: what does KERNELDIM do exactly (blob sets it differently from turnip) -->
-	<reg32 offset="0xb990" name="SP_CS_NDRANGE_0" variants="A6XX" usage="rp_blit">
+	<reg32 offset="0xb990" name="SP_CS_NDRANGE_0" variants="A6XX" usage="compute">
 		<bitfield name="KERNELDIM" low="0" high="1" type="uint"/>
 		<!-- localsize is value minus one: -->
 		<bitfield name="LOCALSIZEX" low="2" high="11" type="uint"/>
 		<bitfield name="LOCALSIZEY" low="12" high="21" type="uint"/>
 		<bitfield name="LOCALSIZEZ" low="22" high="31" type="uint"/>
 	</reg32>
-	<reg32 offset="0xb991" name="SP_CS_NDRANGE_1" variants="A6XX" usage="rp_blit">
+	<reg32 offset="0xb991" name="SP_CS_NDRANGE_1" variants="A6XX" usage="compute">
 		<bitfield name="GLOBALSIZE_X" low="0" high="31" type="uint"/>
 	</reg32>
-	<reg32 offset="0xb992" name="SP_CS_NDRANGE_2" variants="A6XX" usage="rp_blit">
+	<reg32 offset="0xb992" name="SP_CS_NDRANGE_2" variants="A6XX" usage="compute">
 		<bitfield name="GLOBALOFF_X" low="0" high="31" type="uint"/>
 	</reg32>
-	<reg32 offset="0xb993" name="SP_CS_NDRANGE_3" variants="A6XX" usage="rp_blit">
+	<reg32 offset="0xb993" name="SP_CS_NDRANGE_3" variants="A6XX" usage="compute">
 		<bitfield name="GLOBALSIZE_Y" low="0" high="31" type="uint"/>
 	</reg32>
-	<reg32 offset="0xb994" name="SP_CS_NDRANGE_4" variants="A6XX" usage="rp_blit">
+	<reg32 offset="0xb994" name="SP_CS_NDRANGE_4" variants="A6XX" usage="compute">
 		<bitfield name="GLOBALOFF_Y" low="0" high="31" type="uint"/>
 	</reg32>
-	<reg32 offset="0xb995" name="SP_CS_NDRANGE_5" variants="A6XX" usage="rp_blit">
+	<reg32 offset="0xb995" name="SP_CS_NDRANGE_5" variants="A6XX" usage="compute">
 		<bitfield name="GLOBALSIZE_Z" low="0" high="31" type="uint"/>
 	</reg32>
-	<reg32 offset="0xb996" name="SP_CS_NDRANGE_6" variants="A6XX" usage="rp_blit">
+	<reg32 offset="0xb996" name="SP_CS_NDRANGE_6" variants="A6XX" usage="compute">
 		<bitfield name="GLOBALOFF_Z" low="0" high="31" type="uint"/>
 	</reg32>
-	<reg32 offset="0xb997" name="SP_CS_CONST_CONFIG_0" variants="A6XX" usage="rp_blit">
+	<reg32 offset="0xb997" name="SP_CS_CONST_CONFIG_0" variants="A6XX" usage="compute">
 		<!-- these are all vec3. first 3 need to be high regs
 		     WGSIZECONSTID is the local size (from SP_CS_NDRANGE_0)
 		     WGOFFSETCONSTID is WGIDCONSTID*WGSIZECONSTID
@@ -4636,7 +4720,7 @@ by a particular renderpass/blit.
 		<bitfield name="WGOFFSETCONSTID" low="16" high="23" type="a3xx_regid"/>
 		<bitfield name="LOCALIDREGID" low="24" high="31" type="a3xx_regid"/>
 	</reg32>
-	<reg32 offset="0xb998" name="SP_CS_WGE_CNTL" variants="A6XX" usage="rp_blit">
+	<reg32 offset="0xb998" name="SP_CS_WGE_CNTL" variants="A6XX" usage="compute">
 		<!-- gl_LocalInvocationIndex -->
 		<bitfield name="LINEARLOCALIDREGID" low="0" high="7" type="a3xx_regid"/>
 		<!-- a650 has 6 "SP cores" (but 3 "SP"). this makes it use only
@@ -4648,40 +4732,40 @@ by a particular renderpass/blit.
 		<bitfield name="THREADSIZE_SCALAR" pos="10" type="boolean"/>
 	</reg32>
 	<!--note: vulkan blob doesn't use these -->
-	<reg32 offset="0xb999" name="SP_CS_KERNEL_GROUP_X" variants="A6XX" usage="rp_blit"/>
-	<reg32 offset="0xb99a" name="SP_CS_KERNEL_GROUP_Y" variants="A6XX" usage="rp_blit"/>
-	<reg32 offset="0xb99b" name="SP_CS_KERNEL_GROUP_Z" variants="A6XX" usage="rp_blit"/>
+	<reg32 offset="0xb999" name="SP_CS_KERNEL_GROUP_X" variants="A6XX" usage="compute"/>
+	<reg32 offset="0xb99a" name="SP_CS_KERNEL_GROUP_Y" variants="A6XX" usage="compute"/>
+	<reg32 offset="0xb99b" name="SP_CS_KERNEL_GROUP_Z" variants="A6XX" usage="compute"/>
 
 	<!-- TODO: what does KERNELDIM do exactly (blob sets it differently from turnip) -->
-	<reg32 offset="0xa9d4" name="SP_CS_NDRANGE_0" variants="A7XX-" usage="rp_blit">
+	<reg32 offset="0xa9d4" name="SP_CS_NDRANGE_0" variants="A7XX-" usage="compute">
 		<bitfield name="KERNELDIM" low="0" high="1" type="uint"/>
 		<!-- localsize is value minus one: -->
 		<bitfield name="LOCALSIZEX" low="2" high="11" type="uint"/>
 		<bitfield name="LOCALSIZEY" low="12" high="21" type="uint"/>
 		<bitfield name="LOCALSIZEZ" low="22" high="31" type="uint"/>
 	</reg32>
-	<reg32 offset="0xa9d5" name="SP_CS_NDRANGE_1" variants="A7XX-" usage="rp_blit">
+	<reg32 offset="0xa9d5" name="SP_CS_NDRANGE_1" variants="A7XX-" usage="compute">
 		<bitfield name="GLOBALSIZE_X" low="0" high="31" type="uint"/>
 	</reg32>
-	<reg32 offset="0xa9d6" name="SP_CS_NDRANGE_2" variants="A7XX-" usage="rp_blit">
+	<reg32 offset="0xa9d6" name="SP_CS_NDRANGE_2" variants="A7XX-" usage="compute">
 		<bitfield name="GLOBALOFF_X" low="0" high="31" type="uint"/>
 	</reg32>
-	<reg32 offset="0xa9d7" name="SP_CS_NDRANGE_3" variants="A7XX-" usage="rp_blit">
+	<reg32 offset="0xa9d7" name="SP_CS_NDRANGE_3" variants="A7XX-" usage="compute">
 		<bitfield name="GLOBALSIZE_Y" low="0" high="31" type="uint"/>
 	</reg32>
-	<reg32 offset="0xa9d8" name="SP_CS_NDRANGE_4" variants="A7XX-" usage="rp_blit">
+	<reg32 offset="0xa9d8" name="SP_CS_NDRANGE_4" variants="A7XX-" usage="compute">
 		<bitfield name="GLOBALOFF_Y" low="0" high="31" type="uint"/>
 	</reg32>
-	<reg32 offset="0xa9d9" name="SP_CS_NDRANGE_5" variants="A7XX-" usage="rp_blit">
+	<reg32 offset="0xa9d9" name="SP_CS_NDRANGE_5" variants="A7XX-" usage="compute">
 		<bitfield name="GLOBALSIZE_Z" low="0" high="31" type="uint"/>
 	</reg32>
-	<reg32 offset="0xa9da" name="SP_CS_NDRANGE_6" variants="A7XX-" usage="rp_blit">
+	<reg32 offset="0xa9da" name="SP_CS_NDRANGE_6" variants="A7XX-" usage="compute">
 		<bitfield name="GLOBALOFF_Z" low="0" high="31" type="uint"/>
 	</reg32>
 	<!--note: vulkan blob doesn't use these -->
-	<reg32 offset="0xa9dc" name="SP_CS_KERNEL_GROUP_X" variants="A7XX-" usage="rp_blit"/>
-	<reg32 offset="0xa9dd" name="SP_CS_KERNEL_GROUP_Y" variants="A7XX-" usage="rp_blit"/>
-	<reg32 offset="0xa9de" name="SP_CS_KERNEL_GROUP_Z" variants="A7XX-" usage="rp_blit"/>
+	<reg32 offset="0xa9dc" name="SP_CS_KERNEL_GROUP_X" variants="A7XX-" usage="compute"/>
+	<reg32 offset="0xa9dd" name="SP_CS_KERNEL_GROUP_Y" variants="A7XX-" usage="compute"/>
+	<reg32 offset="0xa9de" name="SP_CS_KERNEL_GROUP_Z" variants="A7XX-" usage="compute"/>
 
 	<enum name="a7xx_cs_yalign">
 		<value name="CS_YALIGN_1" value="8"/>
@@ -4690,7 +4774,7 @@ by a particular renderpass/blit.
 		<value name="CS_YALIGN_8" value="1"/>
 	</enum>
 
-	<reg32 offset="0xa9db" name="SP_CS_WGE_CNTL" variants="A7XX-" usage="rp_blit">
+	<reg32 offset="0xa9db" name="SP_CS_WGE_CNTL" variants="A7XX-" usage="compute">
 		<!-- gl_LocalInvocationIndex -->
 		<bitfield name="LINEARLOCALIDREGID" low="0" high="7" type="a3xx_regid"/>
 		<!-- Must match SP_CS_CTRL -->
@@ -4711,7 +4795,7 @@ by a particular renderpass/blit.
 		<bitfield name="WGTILEHEIGHT" low="26" high="31"/>
 	</reg32>
 
-	<reg32 offset="0xa9df" name="SP_CS_NDRANGE_7" variants="A7XX-" usage="cmd">
+	<reg32 offset="0xa9df" name="SP_CS_NDRANGE_7" variants="A7XX-" usage="compute">
 		<!-- The size of the last workgroup. localsize is value minus one: -->
 		<bitfield name="LOCALSIZEX" low="2" high="11" type="uint"/>
 		<bitfield name="LOCALSIZEY" low="12" high="21" type="uint"/>
@@ -4723,7 +4807,7 @@ by a particular renderpass/blit.
 	<reg32 offset="0xb9a3" name="HLSQ_LOAD_STATE_FRAG_DATA"/>
 
 	<!-- mirror of SP_CS_BINDLESS_BASE -->
-	<array offset="0xb9c0" name="HLSQ_CS_BINDLESS_BASE" stride="2" length="5" variants="A6XX" usage="rp_blit">
+	<array offset="0xb9c0" name="HLSQ_CS_BINDLESS_BASE" stride="2" length="5" variants="A6XX" usage="compute">
 		<reg64 offset="0" name="DESCRIPTOR">
 			<bitfield name="DESC_SIZE" low="0" high="1" type="a6xx_bindless_descriptor_size"/>
 			<bitfield name="ADDR" low="2" high="63" shr="2" type="address"/>
@@ -4731,7 +4815,7 @@ by a particular renderpass/blit.
 	</array>
 
 	<!-- new in a6xx gen4, mirror of SP_CS_CNTL_1? -->
-	<reg32 offset="0xb9d0" name="HLSQ_CS_CTRL_REG1" variants="A6XX" usage="cmd">
+	<reg32 offset="0xb9d0" name="HLSQ_CS_CTRL_REG1" variants="A6XX" usage="compute">
 		<bitfield name="SHARED_SIZE" low="0" high="4" type="uint"/>
 		<bitfield name="CONSTANTRAMMODE" low="5" high="6" type="a6xx_const_ram_mode"/>
 	</reg32>
@@ -4750,7 +4834,7 @@ by a particular renderpass/blit.
 		<bitfield name="EVENT" low="0" high="6" type="vgt_event_type"/>
 	</reg32>
 
-	<reg32 offset="0xbb08" name="SP_UPDATE_CNTL" variants="A6XX" usage="cmd">
+	<reg32 offset="0xbb08" name="SP_UPDATE_CNTL" variants="A6XX" usage="cmd,compute">
 		<doc>
 			This register clears pending loads queued up by
 			CP_LOAD_STATE6. Each bit resets a particular kind(s) of
@@ -4790,7 +4874,7 @@ by a particular renderpass/blit.
 		<bitfield name="EVENT" low="0" high="6" type="vgt_event_type"/>
 	</reg32>
 
-	<reg32 offset="0xab1f" name="SP_UPDATE_CNTL" variants="A7XX" usage="cmd">
+	<reg32 offset="0xab1f" name="SP_UPDATE_CNTL" variants="A7XX" usage="cmd,compute">
 		<doc>
 			This register clears pending loads queued up by
 			CP_LOAD_STATE6. Each bit resets a particular kind(s) of
@@ -4813,7 +4897,7 @@ by a particular renderpass/blit.
 		<bitfield name="GFX_BINDLESS" low="17" high="24" type="hex"/>
 	</reg32>
 
-	<reg32 offset="0xab1f" name="SP_UPDATE_CNTL" variants="A8XX" usage="cmd">
+	<reg32 offset="0xab1f" name="SP_UPDATE_CNTL" variants="A8XX" usage="cmd,compute">
 		<doc>
 			This register clears pending loads queued up by
 			CP_LOAD_STATE6. Each bit resets a particular kind(s) of
@@ -4829,16 +4913,16 @@ by a particular renderpass/blit.
 		<bitfield name="CS_STATE" pos="5" type="boolean"/>
 	</reg32>
 
-	<reg32 offset="0xa9c0" name="SP_CS_BINDLESS_INVALIDATE"/>
-	<reg32 offset="0xab08" name="SP_GFX_BINDLESS_INVALIDATE"/>
+	<reg32 offset="0xa9c0" name="SP_CS_BINDLESS_INVALIDATE" usage="compute"/>
+	<reg32 offset="0xab08" name="SP_GFX_BINDLESS_INVALIDATE" usage="draw"/>
 
-	<reg32 offset="0xbb10" name="SP_PS_CONST_CONFIG" type="a6xx_xs_const_config" variants="A6XX" usage="rp_blit"/>
-	<reg32 offset="0xab03" name="SP_PS_CONST_CONFIG" type="a6xx_xs_const_config" variants="A7XX-" usage="rp_blit"/>
+	<reg32 offset="0xbb10" name="SP_PS_CONST_CONFIG" type="a6xx_xs_const_config" variants="A6XX" usage="draw"/>
+	<reg32 offset="0xab03" name="SP_PS_CONST_CONFIG" type="a6xx_xs_const_config" variants="A7XX-" usage="draw"/>
 
-	<array offset="0xab40" name="SP_SHARED_CONSTANT_GFX" stride="1" length="64" variants="A7XX"/>
-	<array offset="0xab30" name="SP_SHARED_CONSTANT_GFX" stride="1" length="128" variants="A8XX-"/>
+	<array offset="0xab40" name="SP_SHARED_CONSTANT_GFX" stride="1" length="64" variants="A7XX" usage="draw"/>
+	<array offset="0xab30" name="SP_SHARED_CONSTANT_GFX" stride="1" length="128" variants="A8XX-" usage="draw"/>
 
-	<reg32 offset="0xbb11" name="HLSQ_SHARED_CONSTS" variants="A6XX" usage="cmd">
+	<reg32 offset="0xbb11" name="HLSQ_SHARED_CONSTS" variants="A6XX" usage="cmd,compute">
 		<doc>
 			Shared constants are intended to be used for Vulkan push
 			constants. When enabled, 8 vec4's are reserved in the FS

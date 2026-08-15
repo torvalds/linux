@@ -48,6 +48,7 @@ enum stat_id {
 	SIZE,
 	JITED_SIZE,
 	STACK,
+	MAX_STACK,
 	PROG_TYPE,
 	ATTACH_TYPE,
 	MEMORY_PEAK,
@@ -789,13 +790,13 @@ cleanup:
 }
 
 static const struct stat_specs default_csv_output_spec = {
-	.spec_cnt = 15,
+	.spec_cnt = 16,
 	.ids = {
 		FILE_NAME, PROG_NAME, VERDICT, DURATION,
 		TOTAL_INSNS, TOTAL_STATES, PEAK_STATES,
 		MAX_STATES_PER_INSN, MARK_READ_MAX_LEN,
 		SIZE, JITED_SIZE, PROG_TYPE, ATTACH_TYPE,
-		STACK, MEMORY_PEAK,
+		STACK, MAX_STACK, MEMORY_PEAK,
 	},
 };
 
@@ -834,6 +835,7 @@ static struct stat_def {
 	[SIZE] = { "Program size", {"prog_size"}, },
 	[JITED_SIZE] = { "Jited size", {"prog_size_jited"}, },
 	[STACK] = {"Stack depth", {"stack_depth", "stack"}, },
+	[MAX_STACK] = {"Max stack depth", {"max_stack_depth"}, },
 	[PROG_TYPE] = { "Program type", {"prog_type"}, },
 	[ATTACH_TYPE] = { "Attach type", {"attach_type", }, },
 	[MEMORY_PEAK] = { "Peak memory (MiB)", {"mem_peak", }, },
@@ -1023,7 +1025,7 @@ static int parse_verif_log(char * const buf, size_t buf_sz, struct verif_stats *
 				&s->stats[MARK_READ_MAX_LEN]))
 			continue;
 
-		if (1 == sscanf(cur, "stack depth %511s", stack))
+		if (2 == sscanf(cur, "stack depth %511s max %ld", stack, &s->stats[MAX_STACK]))
 			continue;
 	}
 	while ((token = strtok_r(cnt++ ? NULL : stack, "+", &state))) {
@@ -2278,6 +2280,7 @@ static int cmp_stat(const struct verif_stats *s1, const struct verif_stats *s2,
 	case SIZE:
 	case JITED_SIZE:
 	case STACK:
+	case MAX_STACK:
 	case VERDICT:
 	case DURATION:
 	case TOTAL_INSNS:
@@ -2512,6 +2515,7 @@ static void prepare_value(const struct verif_stats *s, enum stat_id id,
 	case MAX_STATES_PER_INSN:
 	case MARK_READ_MAX_LEN:
 	case STACK:
+	case MAX_STACK:
 	case SIZE:
 	case JITED_SIZE:
 	case MEMORY_PEAK:
@@ -2602,7 +2606,8 @@ static int parse_stat_value(const char *str, enum stat_id id, struct verif_stats
 	case SIZE:
 	case JITED_SIZE:
 	case MEMORY_PEAK:
-	case STACK: {
+	case STACK:
+	case MAX_STACK: {
 		long val;
 		int err, n;
 

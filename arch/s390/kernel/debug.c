@@ -26,6 +26,8 @@
 #include <linux/math.h>
 #include <linux/minmax.h>
 #include <linux/debugfs.h>
+#include <linux/glob.h>
+#include <linux/stringify.h>
 
 #include <asm/debug.h>
 
@@ -154,6 +156,7 @@ static unsigned int __used debug_feature_version = __DEBUG_FEATURE_VERSION;
 static debug_info_t *debug_area_first;
 static debug_info_t *debug_area_last;
 static DEFINE_MUTEX(debug_mutex);
+extern debug_info_t *__s390dbf_info[], *__s390dbf_info_end[];
 
 static int initialized;
 static int debug_critical;
@@ -168,7 +171,91 @@ static const struct file_operations debug_file_ops = {
 
 static struct dentry *debug_debugfs_root_entry;
 
+/* List of debug area parameters to override */
+#define PARAM_UNSET	-2
+#define PARAM_NUM	16
+static struct debug_param_t {
+	char name[DEBUG_MAX_NAME_LEN + 1];
+	int level;
+	int pages;
+} debug_param[PARAM_NUM];
+static int debug_param_num;
+
 /* functions */
+static void debug_get_param(const char *name, int *level, int *pages)
+{
+	struct debug_param_t *p;
+	int i;
+
+	for (i = 0; i < debug_param_num; i++) {
+		p = &debug_param[i];
+		if (!glob_match(p->name, name))
+			continue;
+		if (level && p->level != PARAM_UNSET) {
+			pr_info("%s: override level to %d\n", name, p->level);
+			*level = p->level;
+		}
+		if (pages && p->pages != PARAM_UNSET) {
+			pr_info("%s: override pages to %d\n", name, p->pages);
+			*pages = p->pages;
+		}
+	}
+}
+
+#define LVL_LEN		10
+#define LVL_FMT		"%" __stringify(LVL_LEN) "[^:]"
+#define NAME_FMT	"%" __stringify(DEBUG_MAX_NAME_LEN) "[^:]"
+
+static bool __init s390dbf_parse_one(const char *arg, struct debug_param_t *param)
+{
+	struct debug_param_t p = { { 0 }, PARAM_UNSET, PARAM_UNSET };
+	char level[LVL_LEN + 1] = { 0 };
+
+	/* arg: <name|pattern>:[<level>|-]:[<pages>] */
+	if (sscanf(arg, NAME_FMT ":" LVL_FMT ":%d", p.name, level, &p.pages) > 1) {
+		if (strcmp(level, "-") == 0)
+			p.level = DEBUG_OFF_LEVEL;
+		else if (kstrtoint(level, 0, &p.level) != 0)
+			return false;
+	} else if (sscanf(arg, NAME_FMT "::%d", p.name, &p.pages) != 2) {
+		return false;
+	}
+
+	if (p.level != PARAM_UNSET && p.level != DEBUG_OFF_LEVEL &&
+	    (p.level < 0 || p.level > DEBUG_MAX_LEVEL))
+		return false;
+	if (p.pages != PARAM_UNSET && p.pages < 0)
+		return false;
+	*param = p;
+
+	return true;
+}
+
+static int __init s390dbf_parse(char *arg)
+{
+	debug_info_t **id;
+	int i, rc = 0;
+
+	while (arg && debug_param_num < PARAM_NUM) {
+		if (s390dbf_parse_one(arg, &debug_param[debug_param_num]))
+			debug_param_num++;
+		else
+			rc = -EINVAL;
+		arg = strchr(arg, ',');
+		if (arg)
+			arg++;
+	}
+
+	/*
+	 * Apply level to static debug areas, delay buffer size changes until
+	 * regular memory allocations are possible.
+	 */
+	for (i = 0, id = __s390dbf_info; &id[i] < __s390dbf_info_end; i++)
+		debug_get_param(id[i]->name, &id[i]->level, NULL);
+
+	return rc;
+}
+early_param("s390dbf", s390dbf_parse);
 
 /*
  * debug_areas_alloc
@@ -305,10 +392,11 @@ static void debug_info_free(debug_info_t *db_info)
 static debug_info_t *debug_info_create(const char *name, int pages_per_area,
 				       int nr_areas, int buf_size, umode_t mode)
 {
+	int level = DEBUG_DEFAULT_LEVEL;
 	debug_info_t *rc;
 
-	rc = debug_info_alloc(name, pages_per_area, nr_areas, buf_size,
-			      DEBUG_DEFAULT_LEVEL, ALL_AREAS);
+	debug_get_param(name, &level, &pages_per_area);
+	rc = debug_info_alloc(name, pages_per_area, nr_areas, buf_size, level, ALL_AREAS);
 	if (!rc)
 		goto out;
 
@@ -872,6 +960,7 @@ void debug_register_static(debug_info_t *id, int pages_per_area, int nr_areas)
 		return;
 	}
 
+	debug_get_param(id->name, &id->level, &pages_per_area);
 	copy = debug_info_alloc("", pages_per_area, nr_areas, id->buf_size,
 				id->level, ALL_AREAS);
 	if (!copy) {
@@ -975,16 +1064,7 @@ static int debug_set_size(debug_info_t *id, int nr_areas, int pages_per_area)
 	return 0;
 }
 
-/**
- * debug_set_level() - Sets new actual debug level if new_level is valid.
- *
- * @id:		handle for debug log
- * @new_level:	new debug level
- *
- * Return:
- *    none
- */
-void debug_set_level(debug_info_t *id, int new_level)
+static void _debug_set_level(debug_info_t *id, int new_level)
 {
 	unsigned long flags;
 
@@ -1002,6 +1082,23 @@ void debug_set_level(debug_info_t *id, int new_level)
 	raw_spin_lock_irqsave(&id->lock, flags);
 	id->level = new_level;
 	raw_spin_unlock_irqrestore(&id->lock, flags);
+}
+
+/**
+ * debug_set_level() - Sets new actual debug level if new_level is valid.
+ *
+ * @id:		handle for debug log
+ * @new_level:	new debug level
+ *
+ * Return:
+ *    none
+ */
+void debug_set_level(debug_info_t *id, int new_level)
+{
+	/* Level specified via kernel parameter takes precedence */
+	debug_get_param(id->name, &new_level, NULL);
+
+	_debug_set_level(id, new_level);
 }
 EXPORT_SYMBOL(debug_set_level);
 
@@ -1136,8 +1233,6 @@ static const struct ctl_table s390dbf_table[] = {
 		.proc_handler	= s390dbf_procactive,
 	},
 };
-
-static struct ctl_table_header *s390dbf_sysctl_header;
 
 /**
  * debug_stop_all() - stops the debug feature if stopping is allowed.
@@ -1529,7 +1624,7 @@ static int debug_input_level_fn(debug_info_t *id, struct debug_view *view,
 		goto out;
 	}
 	if (str[0] == '-') {
-		debug_set_level(id, DEBUG_OFF_LEVEL);
+		_debug_set_level(id, DEBUG_OFF_LEVEL);
 		rc = user_len;
 		goto free_str;
 	} else {
@@ -1539,7 +1634,7 @@ static int debug_input_level_fn(debug_info_t *id, struct debug_view *view,
 		pr_warn("%s is not a valid level for a debug feature\n", str);
 		rc = -EINVAL;
 	} else {
-		debug_set_level(id, new_level);
+		_debug_set_level(id, new_level);
 		rc = user_len;
 	}
 free_str:
@@ -1728,7 +1823,7 @@ EXPORT_SYMBOL(debug_sprintf_format_fn);
  */
 static int __init debug_init(void)
 {
-	s390dbf_sysctl_header = register_sysctl("s390dbf", s390dbf_table);
+	register_sysctl("s390dbf", s390dbf_table);
 	mutex_lock(&debug_mutex);
 	debug_debugfs_root_entry = debugfs_create_dir(DEBUG_DIR_ROOT, NULL);
 	initialized = 1;

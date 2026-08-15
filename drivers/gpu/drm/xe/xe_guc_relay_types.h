@@ -15,7 +15,7 @@
  * struct xe_guc_relay - Data used by the VF-PF Relay Communication over GuC.
  */
 struct xe_guc_relay {
-	/**@lock: protects all internal data. */
+	/** @lock: protects all internal data. */
 	spinlock_t lock;
 
 	/** @worker: dispatches incoming action messages. */

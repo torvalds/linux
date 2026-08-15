@@ -343,7 +343,7 @@ static int cs42l43_pin_set_db(struct cs42l43_pin *priv, unsigned int pin,
 
 	return regmap_update_bits(priv->regmap, CS42L43_GPIO_CTRL2,
 				  CS42L43_GPIO1_DEGLITCH_BYP_MASK << pin,
-				  !!us << pin);
+				  !us << pin);
 }
 
 static int cs42l43_pin_config_get(struct pinctrl_dev *pctldev,
@@ -499,12 +499,10 @@ static int cs42l43_gpio_set(struct gpio_chip *chip, unsigned int offset,
 
 	ret = regmap_update_bits(priv->regmap, CS42L43_GPIO_CTRL1,
 				 BIT(shift), value << shift);
-	if (ret)
-		return ret;
 
 	pm_runtime_put(priv->dev);
 
-	return 0;
+	return ret;
 }
 
 static int cs42l43_gpio_direction_out(struct gpio_chip *chip,
@@ -604,8 +602,8 @@ static int cs42l43_pin_probe(struct platform_device *pdev)
 }
 
 static const struct platform_device_id cs42l43_pin_id_table[] = {
-	{ "cs42l43-pinctrl", },
-	{}
+	{ .name = "cs42l43-pinctrl" },
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, cs42l43_pin_id_table);
 

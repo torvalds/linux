@@ -311,6 +311,7 @@ enum fsnotify_data_type {
 	FSNOTIFY_EVENT_DENTRY,
 	FSNOTIFY_EVENT_MNT,
 	FSNOTIFY_EVENT_ERROR,
+	FSNOTIFY_EVENT_RENAME,
 };
 
 struct fs_error_report {
@@ -335,6 +336,11 @@ struct fsnotify_mnt {
 	u64 mnt_id;
 };
 
+struct fsnotify_rename_data {
+	struct dentry *moved;	/* the dentry that was renamed */
+	struct inode *target;	/* inode overwritten by rename, or NULL */
+};
+
 static inline struct inode *fsnotify_data_inode(const void *data, int data_type)
 {
 	switch (data_type) {
@@ -348,6 +354,8 @@ static inline struct inode *fsnotify_data_inode(const void *data, int data_type)
 		return d_inode(file_range_path(data)->dentry);
 	case FSNOTIFY_EVENT_ERROR:
 		return ((struct fs_error_report *)data)->inode;
+	case FSNOTIFY_EVENT_RENAME:
+		return d_inode(((const struct fsnotify_rename_data *)data)->moved);
 	default:
 		return NULL;
 	}
@@ -363,6 +371,8 @@ static inline struct dentry *fsnotify_data_dentry(const void *data, int data_typ
 		return ((const struct path *)data)->dentry;
 	case FSNOTIFY_EVENT_FILE_RANGE:
 		return file_range_path(data)->dentry;
+	case FSNOTIFY_EVENT_RENAME:
+		return ((struct fsnotify_rename_data *)data)->moved;
 	default:
 		return NULL;
 	}
@@ -395,6 +405,8 @@ static inline struct super_block *fsnotify_data_sb(const void *data,
 		return file_range_path(data)->dentry->d_sb;
 	case FSNOTIFY_EVENT_ERROR:
 		return ((struct fs_error_report *) data)->sb;
+	case FSNOTIFY_EVENT_RENAME:
+		return ((const struct fsnotify_rename_data *)data)->moved->d_sb;
 	default:
 		return NULL;
 	}
@@ -428,6 +440,14 @@ static inline struct fs_error_report *fsnotify_data_error_report(
 	default:
 		return NULL;
 	}
+}
+
+static inline struct inode *fsnotify_data_rename_target(const void *data,
+							int data_type)
+{
+	if (data_type == FSNOTIFY_EVENT_RENAME)
+		return ((const struct fsnotify_rename_data *)data)->target;
+	return NULL;
 }
 
 static inline const struct file_range *fsnotify_data_file_range(
@@ -918,6 +938,7 @@ extern void fsnotify_put_mark(struct fsnotify_mark *mark);
 struct fsnotify_mark *fsnotify_next_mark(struct fsnotify_mark *mark);
 extern void fsnotify_finish_user_wait(struct fsnotify_iter_info *iter_info);
 extern bool fsnotify_prepare_user_wait(struct fsnotify_iter_info *iter_info);
+extern void fsnotify_modify_mark_mask(struct fsnotify_mark *mark, u32 set, u32 clear);
 
 static inline void fsnotify_init_event(struct fsnotify_event *event)
 {

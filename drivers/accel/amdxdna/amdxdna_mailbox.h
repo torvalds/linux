@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2022-2024, Advanced Micro Devices, Inc.
+ * Copyright (C) 2022-2026, Advanced Micro Devices, Inc.
  */
 
-#ifndef _AIE2_MAILBOX_H_
-#define _AIE2_MAILBOX_H_
+#ifndef _AIE_MAILBOX_H_
+#define _AIE_MAILBOX_H_
 
 struct mailbox;
 struct mailbox_channel;
@@ -124,4 +124,4 @@ void xdna_mailbox_stop_channel(struct mailbox_channel *mailbox_chann);
 int xdna_mailbox_send_msg(struct mailbox_channel *mailbox_chann,
 			  const struct xdna_mailbox_msg *msg, u64 tx_timeout);
 
-#endif /* _AIE2_MAILBOX_ */
+#endif /* _AIE_MAILBOX_ */

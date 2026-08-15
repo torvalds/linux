@@ -136,7 +136,7 @@ int SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 	      struct cifs_tcon *tcon, const struct nls_table *cp);
 int SMB2_tdis(const unsigned int xid, struct cifs_tcon *tcon);
 int SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms,
-	      __le16 *path, __u8 *oplock, struct smb2_file_all_info *buf,
+	      __le16 *path, __u8 *oplock, struct cifs_open_info_data *buf,
 	      struct create_posix_rsp *posix, struct kvec *err_iov,
 	      int *buftype);
 int SMB2_open_init(struct cifs_tcon *tcon, struct TCP_Server_Info *server,
@@ -216,7 +216,8 @@ int SMB2_set_ea(const unsigned int xid, struct cifs_tcon *tcon,
 		u64 persistent_fid, u64 volatile_fid,
 		struct smb2_file_full_ea_info *buf, int len);
 int SMB2_set_compression(const unsigned int xid, struct cifs_tcon *tcon,
-			 u64 persistent_fid, u64 volatile_fid);
+			 u64 persistent_fid, u64 volatile_fid,
+			 __u16 compression_state);
 int SMB2_oplock_break(const unsigned int xid, struct cifs_tcon *tcon,
 		      const u64 persistent_fid, const u64 volatile_fid,
 		      __u8 oplock_level);

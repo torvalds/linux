@@ -2397,7 +2397,7 @@ static void rt5640_jack_work(struct work_struct *work)
 		 * disabled the OVCD IRQ, the IRQ pin will stay high and as
 		 * we react to edges, we miss the unplug event -> recheck.
 		 */
-		queue_delayed_work(system_long_wq, &rt5640->jack_work, 0);
+		queue_delayed_work(system_dfl_long_wq, &rt5640->jack_work, 0);
 	}
 }
 
@@ -2410,7 +2410,8 @@ static irqreturn_t rt5640_irq(int irq, void *data)
 		delay = 100;
 
 	if (rt5640->jack)
-		mod_delayed_work(system_long_wq, &rt5640->jack_work, delay);
+		mod_delayed_work(system_dfl_long_wq, &rt5640->jack_work,
+				 delay);
 
 	return IRQ_HANDLED;
 }
@@ -2419,7 +2420,7 @@ static irqreturn_t rt5640_jd_gpio_irq(int irq, void *data)
 {
 	struct rt5640_priv *rt5640 = data;
 
-	queue_delayed_work(system_long_wq, &rt5640->jack_work,
+	queue_delayed_work(system_dfl_long_wq, &rt5640->jack_work,
 			   msecs_to_jiffies(JACK_SETTLE_TIME));
 
 	return IRQ_HANDLED;
@@ -2553,10 +2554,12 @@ static void rt5640_enable_jack_detect(struct snd_soc_component *component,
 		rt5640->jd_gpio = jack_data->jd_gpio;
 		rt5640->jd_gpio_irq = gpiod_to_irq(rt5640->jd_gpio);
 
-		ret = request_irq(rt5640->jd_gpio_irq, rt5640_jd_gpio_irq,
-				  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-				  "rt5640-jd-gpio", rt5640);
-		if (ret) {
+		ret = request_any_context_irq(rt5640->jd_gpio_irq,
+					      rt5640_jd_gpio_irq,
+					      IRQF_TRIGGER_RISING |
+					      IRQF_TRIGGER_FALLING,
+					      "rt5640-jd-gpio", rt5640);
+		if (ret < 0) {
 			dev_warn(component->dev, "Failed to request jd GPIO IRQ %d: %d\n",
 				 rt5640->jd_gpio_irq, ret);
 			rt5640_disable_jack_detect(component);
@@ -2568,10 +2571,10 @@ static void rt5640_enable_jack_detect(struct snd_soc_component *component,
 	if (jack_data && jack_data->use_platform_clock)
 		rt5640->use_platform_clock = jack_data->use_platform_clock;
 
-	ret = request_irq(rt5640->irq, rt5640_irq,
-			  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-			  "rt5640", rt5640);
-	if (ret) {
+	ret = request_any_context_irq(rt5640->irq, rt5640_irq,
+				      IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+				      "rt5640", rt5640);
+	if (ret < 0) {
 		dev_warn(component->dev, "Failed to request IRQ %d: %d\n", rt5640->irq, ret);
 		rt5640_disable_jack_detect(component);
 		return;
@@ -2579,7 +2582,7 @@ static void rt5640_enable_jack_detect(struct snd_soc_component *component,
 	rt5640->irq_requested = true;
 
 	/* sync initial jack state */
-	queue_delayed_work(system_long_wq, &rt5640->jack_work, 0);
+	queue_delayed_work(system_dfl_long_wq, &rt5640->jack_work, 0);
 }
 
 static const struct snd_soc_dapm_route rt5640_hda_jack_dapm_routes[] = {
@@ -2622,9 +2625,9 @@ static void rt5640_enable_hda_jack_detect(
 
 	rt5640->jack = jack;
 
-	ret = request_irq(rt5640->irq, rt5640_irq,
-			  IRQF_TRIGGER_RISING, "rt5640", rt5640);
-	if (ret) {
+	ret = request_any_context_irq(rt5640->irq, rt5640_irq,
+				      IRQF_TRIGGER_RISING, "rt5640", rt5640);
+	if (ret < 0) {
 		dev_warn(component->dev, "Failed to request IRQ %d: %d\n", rt5640->irq, ret);
 		rt5640->jack = NULL;
 		return;
@@ -2632,7 +2635,7 @@ static void rt5640_enable_hda_jack_detect(
 	rt5640->irq_requested = true;
 
 	/* sync initial jack state */
-	queue_delayed_work(system_long_wq, &rt5640->jack_work, 0);
+	queue_delayed_work(system_dfl_long_wq, &rt5640->jack_work, 0);
 
 	snd_soc_dapm_add_routes(dapm, rt5640_hda_jack_dapm_routes,
 		ARRAY_SIZE(rt5640_hda_jack_dapm_routes));
@@ -2860,7 +2863,7 @@ static int rt5640_resume(struct snd_soc_component *component)
 		}
 
 		enable_irq(rt5640->irq);
-		queue_delayed_work(system_long_wq, &rt5640->jack_work, 0);
+		queue_delayed_work(system_dfl_long_wq, &rt5640->jack_work, 0);
 	}
 
 	return 0;
@@ -2958,9 +2961,9 @@ static const struct regmap_config rt5640_regmap = {
 };
 
 static const struct i2c_device_id rt5640_i2c_id[] = {
-	{ "rt5640" },
-	{ "rt5639" },
-	{ "rt5642" },
+	{ .name = "rt5640" },
+	{ .name = "rt5639" },
+	{ .name = "rt5642" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rt5640_i2c_id);

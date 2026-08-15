@@ -8,4 +8,4 @@
 extern void purgatory(void);
 #endif	/* __ASSEMBLER__ */
 
-#endif /* _ASM_PURGATORY_H */
+#endif /* _ASM_X86_PURGATORY_H */

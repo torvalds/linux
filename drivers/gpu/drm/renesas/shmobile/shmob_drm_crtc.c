@@ -198,7 +198,7 @@ static inline struct shmob_drm_crtc *to_shmob_crtc(struct drm_crtc *crtc)
 }
 
 static void shmob_drm_crtc_atomic_enable(struct drm_crtc *crtc,
-					 struct drm_atomic_state *state)
+					 struct drm_atomic_commit *state)
 {
 	struct shmob_drm_crtc *scrtc = to_shmob_crtc(crtc);
 	struct shmob_drm_device *sdev = to_shmob_device(crtc->dev);
@@ -256,7 +256,7 @@ static void shmob_drm_crtc_atomic_enable(struct drm_crtc *crtc,
 }
 
 static void shmob_drm_crtc_atomic_disable(struct drm_crtc *crtc,
-					  struct drm_atomic_state *state)
+					  struct drm_atomic_commit *state)
 {
 	struct shmob_drm_crtc *scrtc = to_shmob_crtc(crtc);
 	struct shmob_drm_device *sdev = to_shmob_device(crtc->dev);
@@ -279,7 +279,7 @@ static void shmob_drm_crtc_atomic_disable(struct drm_crtc *crtc,
 }
 
 static void shmob_drm_crtc_atomic_flush(struct drm_crtc *crtc,
-					struct drm_atomic_state *state)
+					struct drm_atomic_commit *state)
 {
 	struct drm_pending_vblank_event *event;
 	struct drm_device *dev = crtc->dev;
@@ -583,6 +583,13 @@ shmob_drm_connector_init(struct shmob_drm_device *sdev,
 
 	drm_connector_helper_add(connector, &connector_helper_funcs);
 
+	ret = drm_connector_attach_encoder(connector, encoder);
+	if (ret < 0) {
+		drm_connector_cleanup(connector);
+		kfree(scon);
+		return ERR_PTR(ret);
+	}
+
 	return connector;
 }
 
@@ -594,7 +601,6 @@ int shmob_drm_connector_create(struct shmob_drm_device *sdev,
 			       struct drm_encoder *encoder)
 {
 	struct drm_connector *connector;
-	int ret;
 
 	if (sdev->pdata)
 		connector = shmob_drm_connector_init(sdev, encoder);
@@ -606,17 +612,9 @@ int shmob_drm_connector_create(struct shmob_drm_device *sdev,
 		return PTR_ERR(connector);
 	}
 
-	ret = drm_connector_attach_encoder(connector, encoder);
-	if (ret < 0)
-		goto error;
-
 	connector->dpms = DRM_MODE_DPMS_OFF;
 
 	sdev->connector = connector;
 
 	return 0;
-
-error:
-	drm_connector_cleanup(connector);
-	return ret;
 }

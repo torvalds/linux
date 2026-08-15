@@ -7,6 +7,8 @@
 #include <linux/sched/rt.h>
 #include <linux/sched/task.h>
 #include <linux/sched/ext.h>
+#include <linux/sched/exec_state.h>
+#include <linux/user_namespace.h>
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
@@ -54,6 +56,13 @@ static struct sighand_struct init_sighand = {
 	.action		= { { { .sa_handler = SIG_DFL, } }, },
 	.siglock	= __SPIN_LOCK_UNLOCKED(init_sighand.siglock),
 	.signalfd_wqh	= __WAIT_QUEUE_HEAD_INITIALIZER(init_sighand.signalfd_wqh),
+};
+
+/* init to 2 - one for init_task, one to ensure it is never freed */
+struct task_exec_state init_task_exec_state = {
+	.count		= REFCOUNT_INIT(2),
+	.dumpable	= TASK_DUMPABLE_OWNER,
+	.user_ns	= &init_user_ns,
 };
 
 #ifdef CONFIG_SHADOW_CALL_STACK
@@ -113,6 +122,7 @@ struct task_struct init_task __aligned(L1_CACHE_BYTES) = {
 	.nr_cpus_allowed= NR_CPUS,
 	.mm		= NULL,
 	.active_mm	= &init_mm,
+	.exec_state	= &init_task_exec_state,
 	.restart_block	= {
 		.fn = do_no_restart_syscall,
 	},
@@ -200,6 +210,7 @@ struct task_struct init_task __aligned(L1_CACHE_BYTES) = {
 	.mems_allowed_seq = SEQCNT_SPINLOCK_ZERO(init_task.mems_allowed_seq,
 						 &init_task.alloc_lock),
 #endif
+	.blocked_donor = NULL,
 #ifdef CONFIG_RT_MUTEXES
 	.pi_waiters	= RB_ROOT_CACHED,
 	.pi_top_task	= NULL,
@@ -214,6 +225,10 @@ struct task_struct init_task __aligned(L1_CACHE_BYTES) = {
 	.numa_preferred_nid = NUMA_NO_NODE,
 	.numa_group	= NULL,
 	.numa_faults	= NULL,
+#endif
+#ifdef CONFIG_SCHED_CACHE
+	.preferred_llc  = -1,
+	.pref_llc_queued  = 0,
 #endif
 #if defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KASAN_SW_TAGS)
 	.kasan_depth	= 1,

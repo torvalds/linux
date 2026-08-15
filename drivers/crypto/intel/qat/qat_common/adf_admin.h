@@ -29,5 +29,7 @@ int adf_send_admin_tl_start(struct adf_accel_dev *accel_dev,
 int adf_send_admin_tl_stop(struct adf_accel_dev *accel_dev);
 int adf_send_admin_arb_query(struct adf_accel_dev *accel_dev, int cmd, u8 *svn);
 int adf_send_admin_arb_commit(struct adf_accel_dev *accel_dev);
+int adf_send_admin_kpt_init(struct adf_accel_dev *accel_dev, void *init_cfg,
+			    size_t init_cfg_sz, dma_addr_t init_ptr);
 
 #endif

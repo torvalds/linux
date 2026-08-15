@@ -10,6 +10,7 @@ config FSL_ENETC_CORE
 
 config NXP_ENETC_PF_COMMON
 	tristate
+	select CRC_ITU_T
 	help
 	  This module supports common functionality between drivers of
 	  different versions of NXP ENETC PF controllers.
@@ -70,6 +71,7 @@ config FSL_ENETC_VF
 	select FSL_ENETC_MDIO
 	select PHYLINK
 	select DIMLIB
+	select CRC_ITU_T
 	help
 	  This driver supports NXP ENETC gigabit ethernet controller PCIe
 	  virtual function (VF) devices enabled by the ENETC PF driver.

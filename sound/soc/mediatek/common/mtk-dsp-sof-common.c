@@ -228,11 +228,10 @@ int mtk_sof_card_late_probe(struct snd_soc_card *card)
 }
 EXPORT_SYMBOL_GPL(mtk_sof_card_late_probe);
 
-int mtk_sof_dailink_parse_of(struct snd_soc_card *card, struct device_node *np,
-			     const char *propname, struct snd_soc_dai_link *pre_dai_links,
-			     int pre_num_links)
+int mtk_sof_dailink_parse_of(struct device *dev, struct snd_soc_card *card,
+			     const char *propname)
 {
-	struct device *dev = card->dev;
+	struct device_node *np = dev->of_node;
 	struct snd_soc_dai_link *parsed_dai_link;
 	const char *dai_name = NULL;
 	int i, j, ret, num_links, parsed_num_links = 0;
@@ -255,9 +254,9 @@ int mtk_sof_dailink_parse_of(struct snd_soc_card *card, struct device_node *np,
 			return ret;
 		}
 		dev_dbg(dev, "ASoC: Property get dai_name:%s\n", dai_name);
-		for (j = 0; j < pre_num_links; j++) {
-			if (!strcmp(dai_name, pre_dai_links[j].name)) {
-				memcpy(&parsed_dai_link[parsed_num_links++], &pre_dai_links[j],
+		for (j = 0; j < card->num_links; j++) {
+			if (!strcmp(dai_name, card->dai_link[j].name)) {
+				memcpy(&parsed_dai_link[parsed_num_links++], &card->dai_link[j],
 				       sizeof(struct snd_soc_dai_link));
 				break;
 			}

@@ -33,6 +33,8 @@
 #define RAC_REG_REV2			0x1B
 #define BAC_CMU_EN_DLY_MASK		GENMASK(15, 12)
 #define PCIE_DPHY_DLY_25US		0x1
+#define RAC_ANA14			0x14
+#define EIEOS_L1SS_WAIT_CLKRDY		BIT(2)
 #define RAC_ANA19			0x19
 #define B_PCIE_BIT_RD_SEL		BIT(2)
 #define RAC_REG_FLD_0			0x1D
@@ -56,7 +58,7 @@
 #define B_AX_DIV			GENMASK(15, 14)
 #define RAC_SET_PPR_V1			0x31
 #define RAC_ANA40			0x40
-#define PHY_ERR_IMR_DIS			(BIT(9) | BIT(0))
+#define PHY_ERR_IMR_DIS			(BIT(9) | BIT(8) | BIT(0))
 #define RAC_ANA41			0x41
 #define PHY_ERR_FLAG_EN		        BIT(6)
 
@@ -960,6 +962,8 @@
 
 #define R_BE_PCIE_HRPWM 0x30C0
 #define R_BE_PCIE_CRPWM 0x30C4
+
+#define R_BE_PCIE_HCI2FW_ISR 0x30CC
 
 #define R_BE_L1_2_CTRL_HCILDO 0x3110
 #define B_BE_PM_CLKREQ_EXT_RB BIT(11)

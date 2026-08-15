@@ -79,17 +79,24 @@ static struct key *request_asymmetric_key(struct key *keyring, uint32_t keyid)
 	return key;
 }
 
-int asymmetric_verify(struct key *keyring, const char *sig,
-		      int siglen, const char *data, int datalen)
+/**
+ * asymmetric_verify_common -- sigv2 and sigv3 common verify function
+ * @key: The key to use for signature verification; caller must free it
+ * @pk: The associated public key; must not be NULL
+ * @sig: The xattr signature
+ * @siglen: The length of the xattr signature; must be at least
+ *          sizeof(struct signature_v2_hdr)
+ * @data: The data to verify the signature on
+ * @datalen: Length of @data
+ */
+static int asymmetric_verify_common(const struct key *key,
+				    const struct public_key *pk,
+				    const char *sig, int siglen,
+				    const char *data, int datalen)
 {
-	struct public_key_signature pks;
 	struct signature_v2_hdr *hdr = (struct signature_v2_hdr *)sig;
-	const struct public_key *pk;
-	struct key *key;
+	struct public_key_signature pks;
 	int ret;
-
-	if (siglen <= sizeof(*hdr))
-		return -EBADMSG;
 
 	siglen -= sizeof(*hdr);
 
@@ -99,15 +106,9 @@ int asymmetric_verify(struct key *keyring, const char *sig,
 	if (hdr->hash_algo >= HASH_ALGO__LAST)
 		return -ENOPKG;
 
-	key = request_asymmetric_key(keyring, be32_to_cpu(hdr->keyid));
-	if (IS_ERR(key))
-		return PTR_ERR(key);
-
 	memset(&pks, 0, sizeof(pks));
 
 	pks.hash_algo = hash_algo_name[hdr->hash_algo];
-
-	pk = asymmetric_key_public_key(key);
 	pks.pkey_algo = pk->pkey_algo;
 	if (!strcmp(pk->pkey_algo, "rsa")) {
 		pks.encoding = "pkcs1";
@@ -127,15 +128,42 @@ int asymmetric_verify(struct key *keyring, const char *sig,
 	pks.s_size = siglen;
 	ret = verify_signature(key, &pks);
 out:
-	key_put(key);
 	pr_debug("%s() = %d\n", __func__, ret);
+	return ret;
+}
+
+int asymmetric_verify(struct key *keyring, const char *sig,
+		      int siglen, const char *data, int datalen)
+{
+	struct signature_v2_hdr *hdr = (struct signature_v2_hdr *)sig;
+	const struct public_key *pk;
+	struct key *key;
+	int ret;
+
+	if (siglen <= sizeof(*hdr))
+		return -EBADMSG;
+
+	key = request_asymmetric_key(keyring, be32_to_cpu(hdr->keyid));
+	if (IS_ERR(key))
+		return PTR_ERR(key);
+	pk = asymmetric_key_public_key(key);
+	if (!pk) {
+		ret = -ENOKEY;
+		goto out;
+	}
+
+	ret = asymmetric_verify_common(key, pk, sig, siglen, data, datalen);
+
+out:
+	key_put(key);
+
 	return ret;
 }
 
 /*
  * calc_file_id_hash - calculate the hash of the ima_file_id struct data
  * @type: xattr type [enum evm_ima_xattr_type]
- * @algo: hash algorithm [enum hash_algo]
+ * @algo: hash algorithm [enum hash_algo]; caller must ensure valid value
  * @digest: pointer to the digest to be hashed
  * @hash: (out) pointer to the hash
  *
@@ -176,17 +204,99 @@ static int calc_file_id_hash(enum evm_ima_xattr_type type,
 	return rc;
 }
 
+/**
+ * asymmetric_verify_v3_hashless - Use hashless signature verification on sigv3
+ * @key: The key to use for signature verification; caller must free it
+ * @pk: The associated public key; must not be NULL
+ * @encoding: The encoding the key type uses
+ * @sig: The xattr signature
+ * @siglen: The length of the xattr signature; must be at least
+ *          sizeof(struct signature_v2_hdr)
+ * @algo: hash algorithm [enum hash_algo]; caller must ensure valid value
+ * @digest: The file digest
+ *
+ * Create an ima_file_id structure and use it for signature verification
+ * directly. This can be used for ML-DSA in pure mode for example.
+ */
+static int asymmetric_verify_v3_hashless(struct key *key,
+					 const struct public_key *pk,
+					 const char *encoding,
+					 const char *sig, int siglen,
+					 u8 algo,
+					 const u8 *digest)
+{
+	struct signature_v2_hdr *hdr = (struct signature_v2_hdr *)sig;
+	struct ima_file_id file_id = {
+		.hash_type = hdr->type,
+		.hash_algorithm = algo,
+	};
+	size_t digest_size = hash_digest_size[algo];
+	struct public_key_signature pks = {
+		.m = (u8 *)&file_id,
+		.m_size = sizeof(file_id) - (HASH_MAX_DIGESTSIZE - digest_size),
+		.s = hdr->sig,
+		.s_size = siglen - sizeof(*hdr),
+		.pkey_algo = pk->pkey_algo,
+		.hash_algo = "none",
+		.encoding = encoding,
+	};
+	int ret;
+
+	if (hdr->type != IMA_VERITY_DIGSIG &&
+	    hdr->type != EVM_IMA_XATTR_DIGSIG &&
+	    hdr->type != EVM_XATTR_PORTABLE_DIGSIG)
+		return -EINVAL;
+
+	if (pks.s_size != be16_to_cpu(hdr->sig_size))
+		return -EBADMSG;
+
+	memcpy(file_id.hash, digest, digest_size);
+
+	ret = verify_signature(key, &pks);
+	pr_debug("%s() = %d\n", __func__, ret);
+	return ret;
+}
+
 int asymmetric_verify_v3(struct key *keyring, const char *sig, int siglen,
 			 const char *data, int datalen, u8 algo)
 {
 	struct signature_v2_hdr *hdr = (struct signature_v2_hdr *)sig;
 	struct ima_max_digest_data hash;
+	const struct public_key *pk;
+	struct key *key;
 	int rc;
 
-	rc = calc_file_id_hash(hdr->type, algo, data, &hash);
-	if (rc)
-		return -EINVAL;
+	if (algo >= HASH_ALGO__LAST)
+		return -ENOPKG;
 
-	return asymmetric_verify(keyring, sig, siglen, hash.digest,
-				 hash.hdr.length);
+	if (siglen <= sizeof(*hdr))
+		return -EBADMSG;
+
+	key = request_asymmetric_key(keyring, be32_to_cpu(hdr->keyid));
+	if (IS_ERR(key))
+		return PTR_ERR(key);
+
+	pk = asymmetric_key_public_key(key);
+	if (!pk) {
+		rc = -ENOKEY;
+		goto out;
+	}
+	if (!strncmp(pk->pkey_algo, "mldsa", 5)) {
+		rc = asymmetric_verify_v3_hashless(key, pk, "raw",
+						   sig, siglen, algo, data);
+	} else {
+		rc = calc_file_id_hash(hdr->type, algo, data, &hash);
+		if (rc) {
+			rc = -EINVAL;
+			goto out;
+		}
+
+		rc = asymmetric_verify_common(key, pk, sig, siglen, hash.digest,
+					      hash.hdr.length);
+	}
+
+out:
+	key_put(key);
+
+	return rc;
 }

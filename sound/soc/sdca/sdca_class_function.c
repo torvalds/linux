@@ -27,6 +27,7 @@
 #include <sound/soc-dai.h>
 #include <sound/soc.h>
 #include "sdca_class.h"
+#include "sdca_function_device.h"
 
 struct class_function_drv {
 	struct device *dev;
@@ -294,8 +295,7 @@ static int class_function_probe(struct auxiliary_device *auxdev,
 {
 	struct device *dev = &auxdev->dev;
 	struct sdca_class_drv *core = dev_get_drvdata(dev->parent);
-	struct sdca_device_data *data = &core->sdw->sdca_data;
-	struct sdca_function_desc *desc;
+	struct sdca_dev *sdev = auxiliary_dev_to_sdca_dev(auxdev);
 	struct snd_soc_component_driver *cmp_drv;
 	struct snd_soc_dai_driver *dais;
 	struct class_function_drv *drv;
@@ -305,7 +305,6 @@ static int class_function_probe(struct auxiliary_device *auxdev,
 	int ndefaults;
 	int num_dais;
 	int ret;
-	int i;
 
 	drv = devm_kzalloc(dev, sizeof(*drv), GFP_KERNEL);
 	if (!drv)
@@ -328,21 +327,9 @@ static int class_function_probe(struct auxiliary_device *auxdev,
 
 	drv->dev = dev;
 	drv->core = core;
+	drv->function = &sdev->function;
 
-	for (i = 0; i < data->num_functions; i++) {
-		desc = &data->function[i];
-
-		if (desc->type == aux_dev_id->driver_data)
-			break;
-	}
-	if (i == core->sdw->sdca_data.num_functions) {
-		dev_err(dev, "failed to locate function\n");
-		return -EINVAL;
-	}
-
-	drv->function = &core->functions[i];
-
-	ret = sdca_parse_function(dev, core->sdw, desc, drv->function);
+	ret = sdca_parse_function(dev, core->sdw, drv->function);
 	if (ret)
 		return ret;
 
@@ -377,7 +364,7 @@ static int class_function_probe(struct auxiliary_device *auxdev,
 		return dev_err_probe(dev, PTR_ERR(drv->regmap),
 				     "failed to create regmap");
 
-	switch (desc->type) {
+	switch (drv->function->desc->type) {
 	case SDCA_FUNCTION_TYPE_UAJ:
 	case SDCA_FUNCTION_TYPE_RJ:
 		cmp_drv->set_jack = class_function_set_jack;

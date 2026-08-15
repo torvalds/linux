@@ -7,6 +7,7 @@
 #include <drm/intel/intel_gmd_misc_regs.h>
 
 #include <drm/intel/intel_gmd_interrupt_regs.h>
+#include <drm/intel/mchbar_regs.h>
 
 #include "display/bxt_dpio_phy_regs.h"
 #include "display/i9xx_plane_regs.h"
@@ -44,7 +45,6 @@
 #include "i915_pvinfo.h"
 #include "i915_reg.h"
 #include "intel_gvt.h"
-#include "intel_mchbar_regs.h"
 
 #define MMIO_F(reg, s) do { \
 	int ret; \

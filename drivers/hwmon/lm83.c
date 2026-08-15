@@ -443,8 +443,8 @@ static int lm83_probe(struct i2c_client *client)
  */
 
 static const struct i2c_device_id lm83_id[] = {
-	{ "lm83", lm83 },
-	{ "lm82", lm82 },
+	{ .name = "lm83", .driver_data = lm83 },
+	{ .name = "lm82", .driver_data = lm82 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm83_id);

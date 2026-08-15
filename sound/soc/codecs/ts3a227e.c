@@ -423,7 +423,7 @@ static const struct dev_pm_ops ts3a227e_pm = {
 };
 
 static const struct i2c_device_id ts3a227e_i2c_ids[] = {
-	{ "ts3a227e" },
+	{ .name = "ts3a227e" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ts3a227e_i2c_ids);

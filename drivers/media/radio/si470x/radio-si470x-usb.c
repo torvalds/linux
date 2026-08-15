@@ -565,8 +565,7 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 {
 	struct si470x_device *radio;
 	struct usb_host_interface *iface_desc;
-	struct usb_endpoint_descriptor *endpoint;
-	int i, int_end_size, retval;
+	int int_end_size, retval;
 	unsigned char version_warning = 0;
 
 	/* private data allocation and initialization */
@@ -595,12 +594,8 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 	iface_desc = intf->cur_altsetting;
 
 	/* Set up interrupt endpoint information. */
-	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
-		endpoint = &iface_desc->endpoint[i].desc;
-		if (usb_endpoint_is_int_in(endpoint))
-			radio->int_in_endpoint = endpoint;
-	}
-	if (!radio->int_in_endpoint) {
+	retval = usb_find_int_in_endpoint(iface_desc, &radio->int_in_endpoint);
+	if (retval) {
 		dev_info(&intf->dev, "could not find interrupt in endpoint\n");
 		retval = -EIO;
 		goto err_usbbuf;

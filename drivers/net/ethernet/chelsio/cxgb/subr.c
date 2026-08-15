@@ -533,7 +533,7 @@ const struct pci_device_id t1_pci_tbl[] = {
 	CH_DEVICE(11, 1, CH_BRD_T210_1F),
 	CH_DEVICE(14, 1, CH_BRD_T210_1CU),
 	CH_DEVICE(16, 1, CH_BRD_N204_4CU),
-	{ 0 }
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, t1_pci_tbl);

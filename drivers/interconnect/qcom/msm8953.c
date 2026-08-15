@@ -2,7 +2,6 @@
 
 #include <linux/clk.h>
 #include <linux/interconnect-provider.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
@@ -1307,6 +1306,7 @@ static const struct of_device_id msm8953_noc_of_match[] = {
 	{ .compatible = "qcom,msm8953-snoc-mm", .data = &msm8953_snoc_mm },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, msm8953_noc_of_match);
 
 static struct platform_driver msm8953_noc_driver = {
 	.probe = qnoc_probe,
@@ -1318,6 +1318,5 @@ static struct platform_driver msm8953_noc_driver = {
 };
 
 module_platform_driver(msm8953_noc_driver);
-MODULE_DEVICE_TABLE(of, msm8953_noc_of_match);
 MODULE_DESCRIPTION("Qualcomm MSM8953 NoC driver");
 MODULE_LICENSE("GPL");

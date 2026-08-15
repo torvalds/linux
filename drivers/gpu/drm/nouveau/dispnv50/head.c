@@ -330,7 +330,7 @@ nv50_head_atomic_check_mode(struct nv50_head *head, struct nv50_head_atom *asyh)
 }
 
 static int
-nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *state)
+nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state,
 									      crtc);

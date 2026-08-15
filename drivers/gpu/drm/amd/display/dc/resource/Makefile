@@ -239,5 +239,12 @@ CFLAGS_$(AMDDALPATH)/dc/resource/dcn42/dcn42_resource_fpu.o := $(resource_ccflag
 CFLAGS_REMOVE_$(AMDDALPATH)/dc/resource/dcn42/dcn42_resource_fpu.o := $(resource_rcflags)
 
 ###############################################################################
+# DCN42B
+###############################################################################
+RESOURCE_DCN42B = dcn42b_resource.o
+
+AMD_DAL_RESOURCE_DCN42B = $(addprefix $(AMDDALPATH)/dc/resource/dcn42b/,$(RESOURCE_DCN42B))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_RESOURCE_DCN42B)
 endif
 

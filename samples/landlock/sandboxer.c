@@ -58,10 +58,15 @@ static inline int landlock_restrict_self(const int ruleset_fd,
 
 #define ENV_FS_RO_NAME "LL_FS_RO"
 #define ENV_FS_RW_NAME "LL_FS_RW"
+#define ENV_FS_QUIET_NAME "LL_FS_QUIET"
 #define ENV_TCP_BIND_NAME "LL_TCP_BIND"
 #define ENV_TCP_CONNECT_NAME "LL_TCP_CONNECT"
+#define ENV_NET_QUIET_NAME "LL_NET_QUIET"
 #define ENV_SCOPED_NAME "LL_SCOPED"
+#define ENV_QUIET_ACCESS_NAME "LL_QUIET_ACCESS"
 #define ENV_FORCE_LOG_NAME "LL_FORCE_LOG"
+#define ENV_UDP_BIND_NAME "LL_UDP_BIND"
+#define ENV_UDP_CONNECT_SEND_NAME "LL_UDP_CONNECT_SEND"
 #define ENV_DELIMITER ":"
 
 static int str2num(const char *numstr, __u64 *num_dst)
@@ -117,7 +122,7 @@ static int parse_path(char *env_path, const char ***const path_list)
 /* clang-format on */
 
 static int populate_ruleset_fs(const char *const env_var, const int ruleset_fd,
-			       const __u64 allowed_access)
+			       const __u64 allowed_access, __u32 flags)
 {
 	int num_paths, i, ret = 1;
 	char *env_path_name;
@@ -167,7 +172,7 @@ static int populate_ruleset_fs(const char *const env_var, const int ruleset_fd,
 		if (!S_ISDIR(statbuf.st_mode))
 			path_beneath.allowed_access &= ACCESS_FILE;
 		if (landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH,
-				      &path_beneath, 0)) {
+				      &path_beneath, flags)) {
 			fprintf(stderr,
 				"Failed to update the ruleset with \"%s\": %s\n",
 				path_list[i], strerror(errno));
@@ -185,7 +190,7 @@ out_free_name:
 }
 
 static int populate_ruleset_net(const char *const env_var, const int ruleset_fd,
-				const __u64 allowed_access)
+				const __u64 allowed_access, __u32 flags)
 {
 	int ret = 1;
 	char *env_port_name, *env_port_name_next, *strport;
@@ -213,7 +218,7 @@ static int populate_ruleset_net(const char *const env_var, const int ruleset_fd,
 		}
 		net_port.port = port;
 		if (landlock_add_rule(ruleset_fd, LANDLOCK_RULE_NET_PORT,
-				      &net_port, 0)) {
+				      &net_port, flags)) {
 			fprintf(stderr,
 				"Failed to update the ruleset with port \"%llu\": %s\n",
 				net_port.port, strerror(errno));
@@ -301,7 +306,70 @@ out_unset:
 
 /* clang-format on */
 
-#define LANDLOCK_ABI_LAST 9
+/*
+ * Parses ENV_QUIET_ACCESS_NAME and sets the quiet_access_fs, quiet_access_net
+ * and quiet_scoped masks of @ruleset_attr accordingly.
+ */
+static int add_quiet_access(const char *const env_var,
+			    struct landlock_ruleset_attr *const ruleset_attr)
+{
+	char *env_quiet_access, *env_quiet_access_next, *str_access;
+
+	env_quiet_access = getenv(env_var);
+	if (!env_quiet_access)
+		return 0;
+
+	env_quiet_access = strdup(env_quiet_access);
+	env_quiet_access_next = env_quiet_access;
+	unsetenv(env_var);
+
+	while ((str_access = strsep(&env_quiet_access_next, ENV_DELIMITER))) {
+		if (strcmp(str_access, "") == 0)
+			continue;
+		else if (strcmp(str_access, "all") == 0) {
+			ruleset_attr->quiet_access_fs =
+				ruleset_attr->handled_access_fs;
+			ruleset_attr->quiet_access_net =
+				ruleset_attr->handled_access_net;
+			ruleset_attr->quiet_scoped = ruleset_attr->scoped;
+		} else if (strcmp(str_access, "read") == 0)
+			ruleset_attr->quiet_access_fs |= ACCESS_FS_ROUGHLY_READ;
+		else if (strcmp(str_access, "write") == 0)
+			ruleset_attr->quiet_access_fs |=
+				ACCESS_FS_ROUGHLY_WRITE;
+		else if (strcmp(str_access, "tcp_bind") == 0)
+			ruleset_attr->quiet_access_net |=
+				LANDLOCK_ACCESS_NET_BIND_TCP;
+		else if (strcmp(str_access, "tcp_connect") == 0)
+			ruleset_attr->quiet_access_net |=
+				LANDLOCK_ACCESS_NET_CONNECT_TCP;
+		else if (strcmp(str_access, "udp_bind") == 0)
+			ruleset_attr->quiet_access_net |=
+				LANDLOCK_ACCESS_NET_BIND_UDP;
+		else if (strcmp(str_access, "udp_connect") == 0)
+			ruleset_attr->quiet_access_net |=
+				LANDLOCK_ACCESS_NET_CONNECT_SEND_UDP;
+		else if (strcmp(str_access, "abstract_unix_socket") == 0)
+			ruleset_attr->quiet_scoped |=
+				LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET;
+		else if (strcmp(str_access, "signal") == 0)
+			ruleset_attr->quiet_scoped |= LANDLOCK_SCOPE_SIGNAL;
+		else {
+			fprintf(stderr, "Unknown quiet access \"%s\"\n",
+				str_access);
+			free(env_quiet_access);
+			return -1;
+		}
+	}
+
+	free(env_quiet_access);
+	ruleset_attr->quiet_access_fs &= ruleset_attr->handled_access_fs;
+	ruleset_attr->quiet_access_net &= ruleset_attr->handled_access_net;
+	ruleset_attr->quiet_scoped &= ruleset_attr->scoped;
+	return 0;
+}
+
+#define LANDLOCK_ABI_LAST 10
 
 #define XSTR(s) #s
 #define STR(s) XSTR(s)
@@ -324,18 +392,37 @@ static const char help[] =
 	"means an empty list):\n"
 	"* " ENV_TCP_BIND_NAME ": ports allowed to bind (server)\n"
 	"* " ENV_TCP_CONNECT_NAME ": ports allowed to connect (client)\n"
+	"* " ENV_UDP_BIND_NAME ": local UDP ports allowed to bind (server: "
+	"prepare to receive on port / client: set as source port)\n"
+	"* " ENV_UDP_CONNECT_SEND_NAME ": remote UDP ports allowed to connect "
+	"or send to (client: use as destination port / server: receive only from it)\n"
+	"(caution: sending requires being able to bind to a local source port)\n"
 	"* " ENV_SCOPED_NAME ": actions denied on the outside of the landlock domain\n"
 	"  - \"a\" to restrict opening abstract unix sockets\n"
 	"  - \"s\" to restrict sending signals\n"
 	"\n"
 	"A sandboxer should not log denied access requests to avoid spamming logs, "
 	"but to test audit we can set " ENV_FORCE_LOG_NAME "=1\n"
+	ENV_FS_QUIET_NAME " and " ENV_NET_QUIET_NAME ", both optional, can then be used "
+	"to make access to some denied paths or network ports not trigger audit logging.\n"
+	ENV_QUIET_ACCESS_NAME " can be used to specify which accesses should be quieted "
+	"(required when " ENV_FS_QUIET_NAME " or " ENV_NET_QUIET_NAME " is set):\n"
+	"  - \"all\" to quiet all of the accesses below\n"
+	"  - \"read\" to quiet all file/dir read accesses\n"
+	"  - \"write\" to quiet all file/dir write accesses\n"
+	"  - \"tcp_bind\" to quiet tcp bind denials\n"
+	"  - \"tcp_connect\" to quiet tcp connect denials\n"
+	"  - \"udp_bind\" to quiet udp bind denials\n"
+	"  - \"udp_connect\" to quiet udp connect / send denials\n"
+	"  - \"abstract_unix_socket\" to quiet abstract unix socket denials\n"
+	"  - \"signal\" to quiet signal denials\n"
 	"\n"
 	"Example:\n"
 	ENV_FS_RO_NAME "=\"${PATH}:/lib:/usr:/proc:/etc:/dev/urandom\" "
 	ENV_FS_RW_NAME "=\"/dev/null:/dev/full:/dev/zero:/dev/pts:/tmp\" "
 	ENV_TCP_BIND_NAME "=\"9418\" "
 	ENV_TCP_CONNECT_NAME "=\"80:443\" "
+	ENV_UDP_CONNECT_SEND_NAME "=\"53\" "
 	ENV_SCOPED_NAME "=\"a:s\" "
 	"%1$s bash -i\n"
 	"\n"
@@ -356,10 +443,16 @@ int main(const int argc, char *const argv[], char *const *const envp)
 	struct landlock_ruleset_attr ruleset_attr = {
 		.handled_access_fs = access_fs_rw,
 		.handled_access_net = LANDLOCK_ACCESS_NET_BIND_TCP |
-				      LANDLOCK_ACCESS_NET_CONNECT_TCP,
+				      LANDLOCK_ACCESS_NET_CONNECT_TCP |
+				      LANDLOCK_ACCESS_NET_BIND_UDP |
+				      LANDLOCK_ACCESS_NET_CONNECT_SEND_UDP,
 		.scoped = LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET |
 			  LANDLOCK_SCOPE_SIGNAL,
+		.quiet_access_fs = 0,
+		.quiet_access_net = 0,
+		.quiet_scoped = 0,
 	};
+	bool quiet_supported = true;
 	int supported_restrict_flags = LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON;
 	int set_restrict_flags = 0;
 
@@ -444,6 +537,15 @@ int main(const int argc, char *const argv[], char *const *const envp)
 		/* Removes LANDLOCK_ACCESS_FS_RESOLVE_UNIX for ABI < 9 */
 		ruleset_attr.handled_access_fs &=
 			~LANDLOCK_ACCESS_FS_RESOLVE_UNIX;
+		__attribute__((fallthrough));
+	case 9:
+		/* Removes UDP support for ABI < 10 */
+		ruleset_attr.handled_access_net &=
+			~(LANDLOCK_ACCESS_NET_BIND_UDP |
+			  LANDLOCK_ACCESS_NET_CONNECT_SEND_UDP);
+		/* Removes quiet flags for ABI < 10 later on. */
+		quiet_supported = false;
+
 		/* Must be printed for any ABI < LANDLOCK_ABI_LAST. */
 		fprintf(stderr,
 			"Hint: You should update the running kernel "
@@ -475,6 +577,18 @@ int main(const int argc, char *const argv[], char *const *const envp)
 		ruleset_attr.handled_access_net &=
 			~LANDLOCK_ACCESS_NET_CONNECT_TCP;
 	}
+	/* Removes UDP bind access control if not supported by a user. */
+	env_port_name = getenv(ENV_UDP_BIND_NAME);
+	if (!env_port_name) {
+		ruleset_attr.handled_access_net &=
+			~LANDLOCK_ACCESS_NET_BIND_UDP;
+	}
+	/* Removes UDP connect/send access control if not supported by a user. */
+	env_port_name = getenv(ENV_UDP_CONNECT_SEND_NAME);
+	if (!env_port_name) {
+		ruleset_attr.handled_access_net &=
+			~LANDLOCK_ACCESS_NET_CONNECT_SEND_UDP;
+	}
 
 	if (check_ruleset_scope(ENV_SCOPED_NAME, &ruleset_attr))
 		return 1;
@@ -497,6 +611,25 @@ int main(const int argc, char *const argv[], char *const *const envp)
 		unsetenv(ENV_FORCE_LOG_NAME);
 	}
 
+	/* Set the quiet access masks. */
+	if (quiet_supported) {
+		if ((getenv(ENV_FS_QUIET_NAME) || getenv(ENV_NET_QUIET_NAME)) &&
+		    !getenv(ENV_QUIET_ACCESS_NAME)) {
+			fprintf(stderr,
+				"%s must be set (e.g. to \"all\") when %s or %s is used\n",
+				ENV_QUIET_ACCESS_NAME, ENV_FS_QUIET_NAME,
+				ENV_NET_QUIET_NAME);
+			return 1;
+		}
+		if (add_quiet_access(ENV_QUIET_ACCESS_NAME, &ruleset_attr))
+			return 1;
+	} else if (getenv(ENV_FS_QUIET_NAME) || getenv(ENV_NET_QUIET_NAME) ||
+		   getenv(ENV_QUIET_ACCESS_NAME)) {
+		fprintf(stderr,
+			"Quiet flags not supported by current kernel\n");
+		return 1;
+	}
+
 	ruleset_fd =
 		landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
 	if (ruleset_fd < 0) {
@@ -504,20 +637,40 @@ int main(const int argc, char *const argv[], char *const *const envp)
 		return 1;
 	}
 
-	if (populate_ruleset_fs(ENV_FS_RO_NAME, ruleset_fd, access_fs_ro)) {
+	if (populate_ruleset_fs(ENV_FS_RO_NAME, ruleset_fd, access_fs_ro, 0))
 		goto err_close_ruleset;
-	}
-	if (populate_ruleset_fs(ENV_FS_RW_NAME, ruleset_fd, access_fs_rw)) {
+	if (populate_ruleset_fs(ENV_FS_RW_NAME, ruleset_fd, access_fs_rw, 0))
 		goto err_close_ruleset;
+
+	/* Don't require this env to be present. */
+	if (quiet_supported && getenv(ENV_FS_QUIET_NAME)) {
+		if (populate_ruleset_fs(ENV_FS_QUIET_NAME, ruleset_fd, 0,
+					LANDLOCK_ADD_RULE_QUIET))
+			goto err_close_ruleset;
 	}
 
 	if (populate_ruleset_net(ENV_TCP_BIND_NAME, ruleset_fd,
-				 LANDLOCK_ACCESS_NET_BIND_TCP)) {
+				 LANDLOCK_ACCESS_NET_BIND_TCP, 0)) {
 		goto err_close_ruleset;
 	}
 	if (populate_ruleset_net(ENV_TCP_CONNECT_NAME, ruleset_fd,
-				 LANDLOCK_ACCESS_NET_CONNECT_TCP)) {
+				 LANDLOCK_ACCESS_NET_CONNECT_TCP, 0)) {
 		goto err_close_ruleset;
+	}
+	if (populate_ruleset_net(ENV_UDP_BIND_NAME, ruleset_fd,
+				 LANDLOCK_ACCESS_NET_BIND_UDP, 0)) {
+		goto err_close_ruleset;
+	}
+	if (populate_ruleset_net(ENV_UDP_CONNECT_SEND_NAME, ruleset_fd,
+				 LANDLOCK_ACCESS_NET_CONNECT_SEND_UDP, 0)) {
+		goto err_close_ruleset;
+	}
+
+	if (quiet_supported) {
+		if (populate_ruleset_net(ENV_NET_QUIET_NAME, ruleset_fd, 0,
+					 LANDLOCK_ADD_RULE_QUIET)) {
+			goto err_close_ruleset;
+		}
 	}
 
 	if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {

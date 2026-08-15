@@ -125,7 +125,6 @@ struct snd_emux {
  */
 struct snd_emux_port {
 
-	struct snd_midi_channel_set chset;
 	struct snd_emux *emu;
 
 	char port_mode;			/* operation mode */
@@ -138,6 +137,7 @@ struct snd_emux_port {
 #if IS_ENABLED(CONFIG_SND_SEQUENCER_OSS)
 	struct snd_seq_oss_arg *oss_arg;
 #endif
+	struct snd_midi_channel_set chset;
 };
 
 /* port_mode */

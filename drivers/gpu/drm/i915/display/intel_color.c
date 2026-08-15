@@ -1102,19 +1102,37 @@ static void skl_get_config(struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	u32 color;
 
 	crtc_state->gamma_mode = hsw_read_gamma_mode(crtc);
 	crtc_state->csc_mode = ilk_read_csc_mode(crtc);
 
+	color = intel_de_read(display, SKL_BOTTOM_COLOR(crtc->pipe));
 	if (DISPLAY_VER(display) < 35) {
-		u32 tmp = intel_de_read(display, SKL_BOTTOM_COLOR(crtc->pipe));
-
-		if (tmp & SKL_BOTTOM_COLOR_GAMMA_ENABLE)
+		if (color & SKL_BOTTOM_COLOR_GAMMA_ENABLE)
 			crtc_state->gamma_enable = true;
 
-		if (tmp & SKL_BOTTOM_COLOR_CSC_ENABLE)
+		if (color & SKL_BOTTOM_COLOR_CSC_ENABLE)
 			crtc_state->csc_enable = true;
 	}
+
+	crtc_state->hw.background_color = color & GENMASK(29, 0);
+}
+
+u32 intel_color_background_color_drm_to_hw(u64 drm_background_color)
+{
+	return (DRM_ARGB64_GETR_BPC(drm_background_color, 10) << 20) |
+	       (DRM_ARGB64_GETG_BPC(drm_background_color, 10) << 10) |
+	       (DRM_ARGB64_GETB_BPC(drm_background_color, 10));
+}
+
+u64 intel_color_background_color_hw_to_drm(u32 hw_background_color)
+{
+	u16 r = (hw_background_color >> 20) & 0x3ff;
+	u16 g = (hw_background_color >> 10) & 0x3ff;
+	u16 b = hw_background_color & 0x3ff;
+
+	return DRM_ARGB64_PREP_BPC(0x3ff, r, g, b, 10);
 }
 
 static void skl_color_commit_arm(struct intel_dsb *dsb,
@@ -1123,16 +1141,11 @@ static void skl_color_commit_arm(struct intel_dsb *dsb,
 	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	enum pipe pipe = crtc->pipe;
-	u32 val = 0;
+	u32 val = crtc_state->hw.background_color;
 
 	if (crtc_state->has_psr)
 		ilk_load_csc_matrix(dsb, crtc_state);
 
-	/*
-	 * We don't (yet) allow userspace to control the pipe background color,
-	 * so force it to black, but apply pipe gamma and CSC appropriately
-	 * so that its handling will match how we program our planes.
-	 */
 	if (crtc_state->gamma_enable)
 		val |= SKL_BOTTOM_COLOR_GAMMA_ENABLE;
 	if (crtc_state->csc_enable)
@@ -1151,11 +1164,7 @@ static void icl_color_commit_arm(struct intel_dsb *dsb,
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	enum pipe pipe = crtc->pipe;
 
-	/*
-	 * We don't (yet) allow userspace to control the pipe background color,
-	 * so force it to black.
-	 */
-	intel_de_write_dsb(display, dsb, SKL_BOTTOM_COLOR(pipe), 0);
+	intel_de_write_dsb(display, dsb, SKL_BOTTOM_COLOR(pipe), crtc_state->hw.background_color);
 
 	intel_de_write_dsb(display, dsb, GAMMA_MODE(crtc->pipe), crtc_state->gamma_mode);
 
@@ -1348,7 +1357,7 @@ static void i965_load_luts(const struct intel_crtc_state *crtc_state)
 }
 
 static void ilk_lut_write(const struct intel_crtc_state *crtc_state,
-			  i915_reg_t reg, u32 val)
+			  intel_reg_t reg, u32 val)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 
@@ -1359,7 +1368,7 @@ static void ilk_lut_write(const struct intel_crtc_state *crtc_state,
 }
 
 static void ilk_lut_write_indexed(const struct intel_crtc_state *crtc_state,
-				  i915_reg_t reg, u32 val)
+				  intel_reg_t reg, u32 val)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 
@@ -1933,7 +1942,7 @@ void intel_color_load_luts(const struct intel_crtc_state *crtc_state)
 	if (crtc_state->dsb_color)
 		return;
 
-	display->funcs.color->load_luts(crtc_state);
+	display->color.funcs->load_luts(crtc_state);
 }
 
 void intel_color_commit_noarm(struct intel_dsb *dsb,
@@ -1941,8 +1950,8 @@ void intel_color_commit_noarm(struct intel_dsb *dsb,
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 
-	if (display->funcs.color->color_commit_noarm)
-		display->funcs.color->color_commit_noarm(dsb, crtc_state);
+	if (display->color.funcs->color_commit_noarm)
+		display->color.funcs->color_commit_noarm(dsb, crtc_state);
 }
 
 void intel_color_commit_arm(struct intel_dsb *dsb,
@@ -1950,15 +1959,15 @@ void intel_color_commit_arm(struct intel_dsb *dsb,
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 
-	display->funcs.color->color_commit_arm(dsb, crtc_state);
+	display->color.funcs->color_commit_arm(dsb, crtc_state);
 }
 
 void intel_color_post_update(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 
-	if (display->funcs.color->color_post_update)
-		display->funcs.color->color_post_update(crtc_state);
+	if (display->color.funcs->color_post_update)
+		display->color.funcs->color_post_update(crtc_state);
 }
 
 void intel_color_modeset(const struct intel_crtc_state *crtc_state)
@@ -2022,7 +2031,7 @@ void intel_color_prepare_commit(struct intel_atomic_state *state,
 	if (!intel_color_uses_dsb(crtc_state))
 		return;
 
-	display->funcs.color->load_luts(crtc_state);
+	display->color.funcs->load_luts(crtc_state);
 
 	if (crtc_state->use_dsb && intel_color_uses_chained_dsb(crtc_state)) {
 		intel_vrr_send_push(crtc_state->dsb_color, crtc_state);
@@ -2107,25 +2116,31 @@ int intel_color_check(struct intel_atomic_state *state,
 	 * May need to update pipe gamma enable bits
 	 * when C8 planes are getting enabled/disabled.
 	 */
-	if (!old_crtc_state->c8_planes != !new_crtc_state->c8_planes)
+	if (!old_crtc_state->c8_planes != !new_crtc_state->c8_planes ||
+	    old_crtc_state->hw.background_color != new_crtc_state->hw.background_color)
 		new_crtc_state->uapi.color_mgmt_changed = true;
+
+	if (DRM_ARGB64_GETA(new_crtc_state->uapi.background_color) != 0xffff) {
+		drm_dbg_kms(display->drm, "New background not completely opaque\n");
+		return -EINVAL;
+	}
 
 	if (!intel_crtc_needs_color_update(new_crtc_state))
 		return 0;
 
-	return display->funcs.color->color_check(state, crtc);
+	return display->color.funcs->color_check(state, crtc);
 }
 
 void intel_color_get_config(struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 
-	display->funcs.color->get_config(crtc_state);
+	display->color.funcs->get_config(crtc_state);
 
-	display->funcs.color->read_luts(crtc_state);
+	display->color.funcs->read_luts(crtc_state);
 
-	if (display->funcs.color->read_csc)
-		display->funcs.color->read_csc(crtc_state);
+	if (display->color.funcs->read_csc)
+		display->color.funcs->read_csc(crtc_state);
 }
 
 bool intel_color_lut_equal(const struct intel_crtc_state *crtc_state,
@@ -2142,7 +2157,7 @@ bool intel_color_lut_equal(const struct intel_crtc_state *crtc_state,
 	if (!is_pre_csc_lut && crtc_state->c8_planes)
 		return true;
 
-	return display->funcs.color->lut_equal(crtc_state, blob1, blob2,
+	return display->color.funcs->lut_equal(crtc_state, blob1, blob2,
 					       is_pre_csc_lut);
 }
 
@@ -4253,8 +4268,8 @@ intel_color_load_plane_csc_matrix(struct intel_dsb *dsb,
 {
 	struct intel_display *display = to_intel_display(plane_state);
 
-	if (display->funcs.color->load_plane_csc_matrix)
-		display->funcs.color->load_plane_csc_matrix(dsb, plane_state);
+	if (display->color.funcs->load_plane_csc_matrix)
+		display->color.funcs->load_plane_csc_matrix(dsb, plane_state);
 }
 
 static void
@@ -4263,8 +4278,8 @@ intel_color_load_plane_luts(struct intel_dsb *dsb,
 {
 	struct intel_display *display = to_intel_display(plane_state);
 
-	if (display->funcs.color->load_plane_luts)
-		display->funcs.color->load_plane_luts(dsb, plane_state);
+	if (display->color.funcs->load_plane_luts)
+		display->color.funcs->load_plane_luts(dsb, plane_state);
 }
 
 bool
@@ -4346,29 +4361,29 @@ void intel_color_init_hooks(struct intel_display *display)
 {
 	if (HAS_GMCH(display)) {
 		if (display->platform.cherryview)
-			display->funcs.color = &chv_color_funcs;
+			display->color.funcs = &chv_color_funcs;
 		else if (display->platform.valleyview)
-			display->funcs.color = &vlv_color_funcs;
+			display->color.funcs = &vlv_color_funcs;
 		else if (DISPLAY_VER(display) >= 4)
-			display->funcs.color = &i965_color_funcs;
+			display->color.funcs = &i965_color_funcs;
 		else
-			display->funcs.color = &i9xx_color_funcs;
+			display->color.funcs = &i9xx_color_funcs;
 	} else {
 		if (DISPLAY_VER(display) >= 12)
-			display->funcs.color = &tgl_color_funcs;
+			display->color.funcs = &tgl_color_funcs;
 		else if (DISPLAY_VER(display) == 11)
-			display->funcs.color = &icl_color_funcs;
+			display->color.funcs = &icl_color_funcs;
 		else if (DISPLAY_VER(display) == 10)
-			display->funcs.color = &glk_color_funcs;
+			display->color.funcs = &glk_color_funcs;
 		else if (DISPLAY_VER(display) == 9)
-			display->funcs.color = &skl_color_funcs;
+			display->color.funcs = &skl_color_funcs;
 		else if (DISPLAY_VER(display) == 8)
-			display->funcs.color = &bdw_color_funcs;
+			display->color.funcs = &bdw_color_funcs;
 		else if (display->platform.haswell)
-			display->funcs.color = &hsw_color_funcs;
+			display->color.funcs = &hsw_color_funcs;
 		else if (DISPLAY_VER(display) == 7)
-			display->funcs.color = &ivb_color_funcs;
+			display->color.funcs = &ivb_color_funcs;
 		else
-			display->funcs.color = &ilk_color_funcs;
+			display->color.funcs = &ilk_color_funcs;
 	}
 }

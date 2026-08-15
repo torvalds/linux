@@ -28,7 +28,6 @@
 #include <linux/usb/serial.h>
 #include <linux/serial_reg.h>
 #include <linux/module.h>
-#include <linux/uaccess.h>
 
 /* Serial Port register Address */
 #define F81534_UART_BASE_ADDRESS	0x1200

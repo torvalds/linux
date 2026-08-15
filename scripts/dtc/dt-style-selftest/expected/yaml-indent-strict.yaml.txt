@@ -1,0 +1,2 @@
+# mode=strict
+bad/yaml-indent-strict.yaml:26: example 0 [indent-unit-strict] indent unit must be 4 spaces in strict mode, got '  '

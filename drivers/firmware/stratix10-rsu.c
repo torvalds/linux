@@ -244,27 +244,26 @@ static void rsu_async_get_spt_table_callback(struct device *dev,
 }
 
 /**
- * rsu_send_msg() - send a message to Intel service layer
+ * __rsu_send_msg_locked() - send a message to Intel service layer
  * @priv: pointer to rsu private data
  * @command: RSU status or update command
  * @arg: the request argument, the bitstream address or notify status
  * @callback: function pointer for the callback (status or update)
  *
- * Start an Intel service layer transaction to perform the SMC call that
- * is necessary to get RSU boot log or set the address of bitstream to
- * boot after reboot.
+ * Perform the actual SMC transaction. The caller must hold @priv->lock.
  *
- * Returns 0 on success or -ETIMEDOUT on error.
+ * Returns 0 on success or a negative errno on failure.
  */
-static int rsu_send_msg(struct stratix10_rsu_priv *priv,
-			enum stratix10_svc_command_code command,
-			unsigned long arg,
-			rsu_callback callback)
+static int __rsu_send_msg_locked(struct stratix10_rsu_priv *priv,
+				 enum stratix10_svc_command_code command,
+				 unsigned long arg,
+				 rsu_callback callback)
 {
 	struct stratix10_svc_client_msg msg;
 	int ret;
 
-	mutex_lock(&priv->lock);
+	lockdep_assert_held(&priv->lock);
+
 	reinit_completion(&priv->completion);
 	priv->client.receive_cb = callback;
 
@@ -293,6 +292,59 @@ static int rsu_send_msg(struct stratix10_rsu_priv *priv,
 
 status_done:
 	stratix10_svc_done(priv->chan);
+	return ret;
+}
+
+/**
+ * rsu_send_msg() - send a message to Intel service layer
+ * @priv: pointer to rsu private data
+ * @command: RSU status or update command
+ * @arg: the request argument, the bitstream address or notify status
+ * @callback: function pointer for the callback (status or update)
+ *
+ * Start an Intel service layer transaction to perform the SMC call that
+ * is necessary to get RSU boot log or set the address of bitstream to
+ * boot after reboot. This call will block until the RSU lock can be
+ * acquired.
+ *
+ * Returns 0 on success or a negative errno on failure.
+ */
+static int rsu_send_msg(struct stratix10_rsu_priv *priv,
+			enum stratix10_svc_command_code command,
+			unsigned long arg,
+			rsu_callback callback)
+{
+	int ret;
+
+	mutex_lock(&priv->lock);
+	ret = __rsu_send_msg_locked(priv, command, arg, callback);
+	mutex_unlock(&priv->lock);
+	return ret;
+}
+
+/**
+ * rsu_try_send_msg() - non-blocking variant of rsu_send_msg()
+ * @priv: pointer to rsu private data
+ * @command: RSU status or update command
+ * @arg: the request argument, the bitstream address or notify status
+ * @callback: function pointer for the callback (status or update)
+ *
+ * Same as rsu_send_msg() but returns -EBUSY immediately when another
+ * RSU operation is already in flight, instead of waiting for the lock.
+ *
+ * Returns 0 on success, -EBUSY if the RSU is busy, or another negative
+ * errno on failure.
+ */
+static int rsu_try_send_msg(struct stratix10_rsu_priv *priv,
+			    enum stratix10_svc_command_code command,
+			    unsigned long arg,
+			    rsu_callback callback)
+{
+	int ret;
+
+	if (!mutex_trylock(&priv->lock))
+		return -EBUSY;
+	ret = __rsu_send_msg_locked(priv, command, arg, callback);
 	mutex_unlock(&priv->lock);
 	return ret;
 }
@@ -595,8 +647,17 @@ static ssize_t reboot_image_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	ret = rsu_send_msg(priv, COMMAND_RSU_UPDATE,
-			   address, rsu_command_callback);
+	/*
+	 * Use the non-blocking variant so a write to this sysfs attribute
+	 * does not stall the caller while another RSU operation is in
+	 * flight. Userspace can retry on -EBUSY.
+	 */
+	ret = rsu_try_send_msg(priv, COMMAND_RSU_UPDATE,
+			       address, rsu_command_callback);
+	if (ret == -EBUSY) {
+		dev_dbg(dev, "RSU busy, reboot_image write rejected\n");
+		return ret;
+	}
 	if (ret) {
 		dev_err(dev, "Error, RSU update returned %i\n", ret);
 		return ret;
@@ -723,15 +784,9 @@ static int stratix10_rsu_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	priv->client.dev = dev;
-	priv->client.receive_cb = NULL;
 	priv->client.priv = priv;
-	priv->status.current_image = 0;
-	priv->status.fail_image = 0;
-	priv->status.error_location = 0;
-	priv->status.error_details = 0;
-	priv->status.version = 0;
-	priv->status.state = 0;
 	priv->retry_counter = INVALID_RETRY_COUNTER;
+	priv->max_retry = INVALID_RETRY_COUNTER;
 	priv->dcmf_version.dcmf0 = INVALID_DCMF_VERSION;
 	priv->dcmf_version.dcmf1 = INVALID_DCMF_VERSION;
 	priv->dcmf_version.dcmf2 = INVALID_DCMF_VERSION;
@@ -740,11 +795,11 @@ static int stratix10_rsu_probe(struct platform_device *pdev)
 	priv->dcmf_status.dcmf1 = INVALID_DCMF_STATUS;
 	priv->dcmf_status.dcmf2 = INVALID_DCMF_STATUS;
 	priv->dcmf_status.dcmf3 = INVALID_DCMF_STATUS;
-	priv->max_retry = INVALID_RETRY_COUNTER;
-	priv->spt0_address = INVALID_SPT_ADDRESS;
-	priv->spt1_address = INVALID_SPT_ADDRESS;
+	/* spt0/1_address and status fields default to 0 from kzalloc */
 
 	mutex_init(&priv->lock);
+	init_completion(&priv->completion);
+
 	priv->chan = stratix10_svc_request_channel_byname(&priv->client,
 							  SVC_CLIENT_RSU);
 	if (IS_ERR(priv->chan)) {
@@ -756,11 +811,9 @@ static int stratix10_rsu_probe(struct platform_device *pdev)
 	ret = stratix10_svc_add_async_client(priv->chan, false);
 	if (ret) {
 		dev_err(dev, "failed to add async client\n");
-		stratix10_svc_free_channel(priv->chan);
-		return ret;
+		goto free_channel;
 	}
 
-	init_completion(&priv->completion);
 	platform_set_drvdata(pdev, priv);
 
 	/* get the initial state from firmware */
@@ -768,41 +821,44 @@ static int stratix10_rsu_probe(struct platform_device *pdev)
 				 rsu_async_status_callback);
 	if (ret) {
 		dev_err(dev, "Error, getting RSU status %i\n", ret);
-		stratix10_svc_remove_async_client(priv->chan);
-		stratix10_svc_free_channel(priv->chan);
-		return ret;
+		goto remove_async_client;
 	}
 
 	/* get DCMF version from firmware */
-	ret = rsu_send_msg(priv, COMMAND_RSU_DCMF_VERSION,
-			   0, rsu_dcmf_version_callback);
+	ret = rsu_send_msg(priv, COMMAND_RSU_DCMF_VERSION, 0,
+			   rsu_dcmf_version_callback);
 	if (ret) {
 		dev_err(dev, "Error, getting DCMF version %i\n", ret);
-		stratix10_svc_free_channel(priv->chan);
+		goto remove_async_client;
 	}
 
-	ret = rsu_send_msg(priv, COMMAND_RSU_DCMF_STATUS,
-			   0, rsu_dcmf_status_callback);
+	ret = rsu_send_msg(priv, COMMAND_RSU_DCMF_STATUS, 0,
+			   rsu_dcmf_status_callback);
 	if (ret) {
 		dev_err(dev, "Error, getting DCMF status %i\n", ret);
-		stratix10_svc_free_channel(priv->chan);
+		goto remove_async_client;
 	}
 
 	ret = rsu_send_msg(priv, COMMAND_RSU_MAX_RETRY, 0,
 			   rsu_max_retry_callback);
 	if (ret) {
 		dev_err(dev, "Error, getting RSU max retry %i\n", ret);
-		stratix10_svc_free_channel(priv->chan);
+		goto remove_async_client;
 	}
-
 
 	ret = rsu_send_async_msg(dev, priv, COMMAND_RSU_GET_SPT_TABLE, 0,
 				 rsu_async_get_spt_table_callback);
 	if (ret) {
 		dev_err(dev, "Error, getting SPT table %i\n", ret);
-		stratix10_svc_free_channel(priv->chan);
+		goto remove_async_client;
 	}
 
+	return 0;
+
+remove_async_client:
+	stratix10_svc_remove_async_client(priv->chan);
+free_channel:
+	stratix10_svc_free_channel(priv->chan);
 	return ret;
 }
 

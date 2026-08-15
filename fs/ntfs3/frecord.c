@@ -1330,7 +1330,7 @@ int ni_expand_list(struct ntfs_inode *ni)
 {
 	int err = 0;
 	u32 asize, done = 0;
-	struct ATTRIB *attr, *ins_attr;
+	struct ATTRIB *attr, *ins_attr = NULL;
 	struct ATTR_LIST_ENTRY *le;
 	bool is_mft = ni->mi.rno == MFT_REC_MFT;
 	struct MFT_REF ref;
@@ -1363,7 +1363,7 @@ int ni_expand_list(struct ntfs_inode *ni)
 				      le16_to_cpu(attr->name_off), true,
 				      &ins_attr, NULL, NULL);
 
-		if (err)
+		if (err || !ins_attr)
 			goto out;
 
 		memcpy(ins_attr, attr, asize);
@@ -1855,8 +1855,8 @@ enum REPARSE_SIGN ni_parse_reparse(struct ntfs_inode *ni, struct ATTRIB *attr,
 static struct folio *ntfs_lock_new_page(struct address_space *mapping,
 					pgoff_t index, gfp_t gfp)
 {
-	struct folio *folio = __filemap_get_folio(mapping, index,
-			FGP_LOCK | FGP_ACCESSED | FGP_CREAT, gfp);
+	struct folio *folio = __filemap_get_folio(
+		mapping, index, FGP_LOCK | FGP_ACCESSED | FGP_CREAT, gfp);
 
 	if (IS_ERR(folio))
 		return folio;
@@ -2800,8 +2800,8 @@ int ni_rename(struct ntfs_inode *dir_ni, struct ntfs_inode *new_dir_ni,
 	err = ni_add_name(new_dir_ni, ni, new_de);
 	if (!err) {
 		err = ni_remove_name(dir_ni, ni, de, &de2, &undo);
-		WARN_ON(err &&
-			ni_remove_name(new_dir_ni, ni, new_de, &de2, &undo));
+		if (err && ni_remove_name(new_dir_ni, ni, new_de, &de2, &undo))
+			_ntfs_bad_inode(&ni->vfs_inode);
 	}
 
 	/*
@@ -2859,6 +2859,11 @@ loff_t ni_seek_data_or_hole(struct ntfs_inode *ni, loff_t offset, bool data)
 			return err;
 		}
 
+		if (!clen) {
+			/* Corrupted file. */
+			return -EINVAL;
+		}
+
 		if (lcn == RESIDENT_LCN) {
 			/* clen - resident size in bytes. clen == ni->vfs_inode.i_size */
 			if (offset >= clen) {
@@ -2889,8 +2894,14 @@ loff_t ni_seek_data_or_hole(struct ntfs_inode *ni, loff_t offset, bool data)
 			 * the file offset is set to offset.
 			 */
 			if (lcn != SPARSE_LCN) {
-				vbo = (u64)vcn << cluster_bits;
-				return max(vbo, offset);
+				/* Normal cluster. */
+				break;
+			}
+
+			if ((ni->std_fa & FILE_ATTRIBUTE_COMPRESSED) &&
+			    (vcn & (NTFS_LZNT_CLUSTERS - 1))) {
+				/* Compressed cluster in compressed frame. */
+				break;
 			}
 		} else {
 			/*
@@ -2904,16 +2915,15 @@ loff_t ni_seek_data_or_hole(struct ntfs_inode *ni, loff_t offset, bool data)
 			    /* native compression hole begins at aligned vcn. */
 			    (!(ni->std_fa & FILE_ATTRIBUTE_COMPRESSED) ||
 			     !(vcn & (NTFS_LZNT_CLUSTERS - 1)))) {
-				vbo = (u64)vcn << cluster_bits;
-				return max(vbo, offset);
+				/* Hole in sparsed or compressed file frame. */
+				break;
 			}
 		}
 
-		if (!clen) {
-			/* Corrupted file. */
-			return -EINVAL;
-		}
 	}
+
+	vbo = (u64)vcn << cluster_bits;
+	return max(vbo, offset);
 }
 
 /*

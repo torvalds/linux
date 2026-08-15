@@ -744,16 +744,13 @@ void mlx5e_ktls_del_rx(struct net_device *netdev, struct tls_context *tls_ctx)
 	mlx5e_ktls_priv_rx_put(priv_rx);
 }
 
-bool mlx5e_ktls_rx_handle_resync_list(struct mlx5e_channel *c, int budget)
+bool mlx5e_ktls_rx_handle_resync_list(struct mlx5e_icosq *sq, int budget)
 {
 	struct mlx5e_ktls_offload_context_rx *priv_rx, *tmp;
 	struct mlx5e_ktls_resync_resp *ktls_resync;
 	struct mlx5_wqe_ctrl_seg *db_cseg;
-	struct mlx5e_icosq *sq;
 	LIST_HEAD(local_list);
 	int i, j;
-
-	sq = c->async_icosq;
 
 	if (unlikely(!test_bit(MLX5E_SQ_STATE_ENABLED, &sq->state)))
 		return false;

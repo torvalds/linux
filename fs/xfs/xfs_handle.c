@@ -124,7 +124,7 @@ xfs_find_handle(
 	if (cmd == XFS_IOC_PATH_TO_FSHANDLE)
 		hsize = xfs_fshandle_init(ip->i_mount, &handle);
 	else
-		hsize = xfs_filehandle_init(ip->i_mount, ip->i_ino,
+		hsize = xfs_filehandle_init(ip->i_mount, inode->i_ino,
 				inode->i_generation, &handle);
 
 	error = -EFAULT;
@@ -808,7 +808,7 @@ xfs_getparents(
 			sizeof(struct xfs_attrlist_cursor));
 
 	/* Is this the root directory? */
-	if (ip->i_ino == mp->m_sb.sb_rootino)
+	if (I_INO(ip) == mp->m_sb.sb_rootino)
 		gp->gp_oflags |= XFS_GETPARENTS_OFLAG_ROOT;
 
 	if (gpx->context.seen_enough == 0) {

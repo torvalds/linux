@@ -295,7 +295,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_verifier_env *env, struct bpf_pr
 	alloclen = proglen + FUNCTION_DESCR_SIZE + fixup_len + extable_len;
 
 	fhdr = bpf_jit_binary_pack_alloc(alloclen, &fimage, 4, &hdr, &image,
-					      bpf_jit_fill_ill_insns);
+					 bpf_jit_fill_ill_insns, bpf_prog_was_classic(fp));
 	if (!fhdr)
 		goto out_err;
 
@@ -517,6 +517,11 @@ bool bpf_jit_supports_subprog_tailcalls(void)
 	return IS_ENABLED(CONFIG_PPC64);
 }
 
+bool bpf_jit_supports_timed_may_goto(void)
+{
+	return IS_ENABLED(CONFIG_PPC64);
+}
+
 bool bpf_jit_supports_kfunc_call(void)
 {
 	return IS_ENABLED(CONFIG_PPC64);
@@ -583,7 +588,7 @@ bool bpf_jit_inlines_helper_call(s32 imm)
 
 void *arch_alloc_bpf_trampoline(unsigned int size)
 {
-	return bpf_prog_pack_alloc(size, bpf_jit_fill_ill_insns);
+	return bpf_prog_pack_alloc(size, bpf_jit_fill_ill_insns, false);
 }
 
 void arch_free_bpf_trampoline(void *image, unsigned int size)
@@ -597,22 +602,22 @@ int arch_protect_bpf_trampoline(void *image, unsigned int size)
 }
 
 static int invoke_bpf_prog(u32 *image, u32 *ro_image, struct codegen_context *ctx,
-			   struct bpf_tramp_link *l, int regs_off, int retval_off,
+			   struct bpf_tramp_node *n, int regs_off, int retval_off,
 			   int run_ctx_off, bool save_ret)
 {
-	struct bpf_prog *p = l->link.prog;
+	struct bpf_prog *p = n->link->prog;
 	ppc_inst_t branch_insn;
 	u32 jmp_idx;
 	int ret = 0;
 
 	/* Save cookie */
 	if (IS_ENABLED(CONFIG_PPC64)) {
-		PPC_LI64(_R3, l->cookie);
+		PPC_LI64(_R3, n->cookie);
 		EMIT(PPC_RAW_STD(_R3, _R1, run_ctx_off + offsetof(struct bpf_tramp_run_ctx,
 				 bpf_cookie)));
 	} else {
-		PPC_LI32(_R3, l->cookie >> 32);
-		PPC_LI32(_R4, l->cookie);
+		PPC_LI32(_R3, n->cookie >> 32);
+		PPC_LI32(_R4, n->cookie);
 		EMIT(PPC_RAW_STW(_R3, _R1,
 				 run_ctx_off + offsetof(struct bpf_tramp_run_ctx, bpf_cookie)));
 		EMIT(PPC_RAW_STW(_R4, _R1,
@@ -679,7 +684,7 @@ static int invoke_bpf_prog(u32 *image, u32 *ro_image, struct codegen_context *ct
 }
 
 static int invoke_bpf_mod_ret(u32 *image, u32 *ro_image, struct codegen_context *ctx,
-			      struct bpf_tramp_links *tl, int regs_off, int retval_off,
+			      struct bpf_tramp_nodes *tn, int regs_off, int retval_off,
 			      int run_ctx_off, u32 *branches)
 {
 	int i;
@@ -690,8 +695,8 @@ static int invoke_bpf_mod_ret(u32 *image, u32 *ro_image, struct codegen_context 
 	 */
 	EMIT(PPC_RAW_LI(_R3, 0));
 	EMIT(PPC_RAW_STL(_R3, _R1, retval_off));
-	for (i = 0; i < tl->nr_links; i++) {
-		if (invoke_bpf_prog(image, ro_image, ctx, tl->links[i], regs_off, retval_off,
+	for (i = 0; i < tn->nr_nodes; i++) {
+		if (invoke_bpf_prog(image, ro_image, ctx, tn->nodes[i], regs_off, retval_off,
 				    run_ctx_off, true))
 			return -EINVAL;
 
@@ -807,18 +812,18 @@ static void bpf_trampoline_restore_args_stack(u32 *image, struct codegen_context
 static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *rw_image,
 					 void *rw_image_end, void *ro_image,
 					 const struct btf_func_model *m, u32 flags,
-					 struct bpf_tramp_links *tlinks,
+					 struct bpf_tramp_nodes *tnodes,
 					 void *func_addr)
 {
 	int regs_off, func_meta_off, ip_off, run_ctx_off, retval_off;
 	int nvr_off, alt_lr_off, r4_off = 0;
-	struct bpf_tramp_links *fmod_ret = &tlinks[BPF_TRAMP_MODIFY_RETURN];
-	struct bpf_tramp_links *fentry = &tlinks[BPF_TRAMP_FENTRY];
-	struct bpf_tramp_links *fexit = &tlinks[BPF_TRAMP_FEXIT];
+	struct bpf_tramp_nodes *fmod_ret = &tnodes[BPF_TRAMP_MODIFY_RETURN];
+	struct bpf_tramp_nodes *fentry = &tnodes[BPF_TRAMP_FENTRY];
+	struct bpf_tramp_nodes *fexit = &tnodes[BPF_TRAMP_FEXIT];
 	int i, ret, nr_regs, retaddr_off, bpf_frame_size = 0;
 	struct codegen_context codegen_ctx, *ctx;
 	int cookie_off, cookie_cnt, cookie_ctx_off;
-	int fsession_cnt = bpf_fsession_cnt(tlinks);
+	int fsession_cnt = bpf_fsession_cnt(tnodes);
 	u64 func_meta;
 	u32 *image = (u32 *)rw_image;
 	ppc_inst_t branch_insn;
@@ -893,7 +898,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *rw_im
 
 	/* room for session cookies */
 	cookie_off = bpf_frame_size;
-	cookie_cnt = bpf_fsession_cookie_cnt(tlinks);
+	cookie_cnt = bpf_fsession_cookie_cnt(tnodes);
 	bpf_frame_size += cookie_cnt * 8;
 
 	/* Room for IP address argument */
@@ -1030,21 +1035,21 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *rw_im
 
 	cookie_ctx_off = (regs_off - cookie_off) / 8;
 
-	for (i = 0; i < fentry->nr_links; i++) {
-		if (bpf_prog_calls_session_cookie(fentry->links[i])) {
+	for (i = 0; i < fentry->nr_nodes; i++) {
+		if (bpf_prog_calls_session_cookie(fentry->nodes[i])) {
 			u64 meta = func_meta | (cookie_ctx_off << BPF_TRAMP_COOKIE_INDEX_SHIFT);
 
 			store_func_meta(image, ctx, meta, func_meta_off);
 			cookie_ctx_off--;
 		}
 
-		if (invoke_bpf_prog(image, ro_image, ctx, fentry->links[i], regs_off, retval_off,
+		if (invoke_bpf_prog(image, ro_image, ctx, fentry->nodes[i], regs_off, retval_off,
 				    run_ctx_off, flags & BPF_TRAMP_F_RET_FENTRY_RET))
 			return -EINVAL;
 	}
 
-	if (fmod_ret->nr_links) {
-		branches = kcalloc(fmod_ret->nr_links, sizeof(u32), GFP_KERNEL);
+	if (fmod_ret->nr_nodes) {
+		branches = kcalloc(fmod_ret->nr_nodes, sizeof(u32), GFP_KERNEL);
 		if (!branches)
 			return -ENOMEM;
 
@@ -1093,7 +1098,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *rw_im
 	}
 
 	/* Update branches saved in invoke_bpf_mod_ret with address of do_fexit */
-	for (i = 0; i < fmod_ret->nr_links && image; i++) {
+	for (i = 0; i < fmod_ret->nr_nodes && image; i++) {
 		if (create_cond_branch(&branch_insn, &image[branches[i]],
 				       (unsigned long)&image[ctx->idx], COND_NE << 16)) {
 			ret = -EINVAL;
@@ -1110,15 +1115,15 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *rw_im
 
 	cookie_ctx_off = (regs_off - cookie_off) / 8;
 
-	for (i = 0; i < fexit->nr_links; i++) {
-		if (bpf_prog_calls_session_cookie(fexit->links[i])) {
+	for (i = 0; i < fexit->nr_nodes; i++) {
+		if (bpf_prog_calls_session_cookie(fexit->nodes[i])) {
 			u64 meta = func_meta | (cookie_ctx_off << BPF_TRAMP_COOKIE_INDEX_SHIFT);
 
 			store_func_meta(image, ctx, meta, func_meta_off);
 			cookie_ctx_off--;
 		}
 
-		if (invoke_bpf_prog(image, ro_image, ctx, fexit->links[i], regs_off, retval_off,
+		if (invoke_bpf_prog(image, ro_image, ctx, fexit->nodes[i], regs_off, retval_off,
 				    run_ctx_off, false)) {
 			ret = -EINVAL;
 			goto cleanup;
@@ -1185,18 +1190,18 @@ cleanup:
 }
 
 int arch_bpf_trampoline_size(const struct btf_func_model *m, u32 flags,
-			     struct bpf_tramp_links *tlinks, void *func_addr)
+			     struct bpf_tramp_nodes *tnodes, void *func_addr)
 {
 	struct bpf_tramp_image im;
 	int ret;
 
-	ret = __arch_prepare_bpf_trampoline(&im, NULL, NULL, NULL, m, flags, tlinks, func_addr);
+	ret = __arch_prepare_bpf_trampoline(&im, NULL, NULL, NULL, m, flags, tnodes, func_addr);
 	return ret;
 }
 
 int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image, void *image_end,
 				const struct btf_func_model *m, u32 flags,
-				struct bpf_tramp_links *tlinks,
+				struct bpf_tramp_nodes *tnodes,
 				void *func_addr)
 {
 	u32 size = image_end - image;
@@ -1212,7 +1217,7 @@ int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image, void *i
 		return -ENOMEM;
 
 	ret = __arch_prepare_bpf_trampoline(im, rw_image, rw_image + size, image, m,
-					    flags, tlinks, func_addr);
+					    flags, tnodes, func_addr);
 	if (ret < 0)
 		goto out;
 

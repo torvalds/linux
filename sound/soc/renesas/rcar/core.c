@@ -106,6 +106,8 @@ static const struct of_device_id rsnd_of_match[] = {
 	{ .compatible = "renesas,rcar_sound-gen4", .data = (void *)RSND_GEN4 },
 	/* Special Handling */
 	{ .compatible = "renesas,rcar_sound-r8a77990", .data = (void *)(RSND_GEN3 | RSND_SOC_E) },
+	{ .compatible = "renesas,r9a09g047-sound",
+			.data = (void *)(RSND_RZ3 | RSND_RZG3E | RSND_SSIU_BUSIF_STATUS_COUNT_2) },
 	{},
 };
 MODULE_DEVICE_TABLE(of, rsnd_of_match);
@@ -196,18 +198,29 @@ int rsnd_mod_init(struct rsnd_priv *priv,
 		  struct rsnd_mod *mod,
 		  struct rsnd_mod_ops *ops,
 		  struct clk *clk,
+		  struct reset_control *rstc,
 		  enum rsnd_mod_type type,
 		  int id)
 {
-	int ret = clk_prepare(clk);
+	int ret;
 
+	ret = clk_prepare_enable(clk);
 	if (ret)
 		return ret;
+
+	ret = reset_control_deassert(rstc);
+	if (ret) {
+		clk_disable_unprepare(clk);
+		return ret;
+	}
+
+	clk_disable(clk);
 
 	mod->id		= id;
 	mod->ops	= ops;
 	mod->type	= type;
 	mod->clk	= clk;
+	mod->rstc	= rstc;
 	mod->priv	= priv;
 
 	return 0;
@@ -215,6 +228,8 @@ int rsnd_mod_init(struct rsnd_priv *priv,
 
 void rsnd_mod_quit(struct rsnd_mod *mod)
 {
+	reset_control_assert(mod->rstc);
+	mod->rstc = NULL;
 	clk_unprepare(mod->clk);
 	mod->clk = NULL;
 }
@@ -947,7 +962,8 @@ static int rsnd_soc_hw_rule_channels(struct snd_pcm_hw_params *params,
 static const struct snd_pcm_hardware rsnd_pcm_hardware = {
 	.info =		SNDRV_PCM_INFO_INTERLEAVED	|
 			SNDRV_PCM_INFO_MMAP		|
-			SNDRV_PCM_INFO_MMAP_VALID,
+			SNDRV_PCM_INFO_MMAP_VALID	|
+			SNDRV_PCM_INFO_RESUME,
 	.buffer_bytes_max	= 64 * 1024,
 	.period_bytes_min	= 32,
 	.period_bytes_max	= 8192,
@@ -1042,9 +1058,6 @@ static const u64 rsnd_soc_dai_formats[] = {
 	 * 1st Priority
 	 *
 	 * Well tested formats.
-	 * Select below from Sound Card, not auto
-	 *	SND_SOC_DAIFMT_CBC_CFC
-	 *	SND_SOC_DAIFMT_CBP_CFP
 	 */
 	SND_SOC_POSSIBLE_DAIFMT_I2S	|
 	SND_SOC_POSSIBLE_DAIFMT_RIGHT_J	|
@@ -1058,8 +1071,15 @@ static const u64 rsnd_soc_dai_formats[] = {
 	 *
 	 * Supported, but not well tested
 	 */
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_RIGHT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|
 	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
-	SND_SOC_POSSIBLE_DAIFMT_DSP_B,
+	SND_SOC_POSSIBLE_DAIFMT_DSP_B	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_IF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_IF,
 };
 
 static void rsnd_parse_tdm_split_mode(struct rsnd_priv *priv,
@@ -1217,6 +1237,107 @@ int rsnd_node_count(struct rsnd_priv *priv, struct device_node *node, char *name
 	}
 
 	return i;
+}
+
+/*
+ * Build "<base>-<index>" or "<base>.<index>" and try the hyphen form first,
+ * falling back to the dot form if the hyphen form is not present. This lets
+ * the driver accept both the new DT convention ("ssi-0", "src-0", ...) and
+ * the legacy R-Car convention ("ssi.0", "src.0", ...) transparently.
+ *
+ * @base: name prefix ("ssi", "src", "ctu", "mix", "dvc", "adg.ssi", ...)
+ * @index: integer suffix
+ *
+ * On -ENOENT from the hyphen form, the dot form is tried. All other errors
+ * (including -EPROBE_DEFER) are returned to the caller unchanged, so
+ * behaviour against the clock and reset frameworks is preserved.
+ */
+#define RSND_INDEXED_NAME_MAX	32
+
+static void rsnd_format_indexed_name(char *buf, size_t buflen, char sep,
+				     const char *base, int index)
+{
+	snprintf(buf, buflen, "%s%c%d", base, sep, index);
+}
+
+struct clk *rsnd_devm_clk_get_indexed(struct device *dev,
+				      const char *base, int index)
+{
+	char name[RSND_INDEXED_NAME_MAX];
+	struct clk *clk;
+
+	rsnd_format_indexed_name(name, sizeof(name), '-', base, index);
+	clk = devm_clk_get(dev, name);
+	if (!IS_ERR(clk) || PTR_ERR(clk) != -ENOENT)
+		return clk;
+
+	rsnd_format_indexed_name(name, sizeof(name), '.', base, index);
+	return devm_clk_get(dev, name);
+}
+
+struct clk *rsnd_devm_clk_get_optional_indexed(struct device *dev,
+					       const char *base, int index)
+{
+	char name[RSND_INDEXED_NAME_MAX];
+	struct clk *clk;
+
+	rsnd_format_indexed_name(name, sizeof(name), '-', base, index);
+	clk = devm_clk_get_optional(dev, name);
+	if (IS_ERR(clk) || clk)
+		return clk;
+
+	rsnd_format_indexed_name(name, sizeof(name), '.', base, index);
+	return devm_clk_get_optional(dev, name);
+}
+
+struct reset_control *
+rsnd_devm_reset_control_get_optional_indexed(struct device *dev,
+					     const char *base, int index)
+{
+	char name[RSND_INDEXED_NAME_MAX];
+	struct reset_control *rstc;
+
+	rsnd_format_indexed_name(name, sizeof(name), '-', base, index);
+	rstc = devm_reset_control_get_optional(dev, name);
+	if (IS_ERR(rstc) || rstc)
+		return rstc;
+
+	rsnd_format_indexed_name(name, sizeof(name), '.', base, index);
+	return devm_reset_control_get_optional(dev, name);
+}
+
+/*
+ * Strip the "rcar_sound," prefix from a legacy node name.
+ *
+ * The RZ/G3E binding uses unprefixed sub-node names (e.g. "ssi",
+ * "ssiu") while earlier R-Car bindings use the legacy "rcar_sound,*"
+ * form. This helper returns the unprefixed portion (the part after
+ * the comma) or NULL if there is no prefix.
+ *
+ * Centralising the convention here keeps every call site consistent.
+ */
+static const char *rsnd_node_name_strip_prefix(const char *name)
+{
+	const char *comma = strchr(name, ',');
+
+	return comma ? comma + 1 : NULL;
+}
+
+struct device_node *rsnd_parse_of_node(struct rsnd_priv *priv, const char *name)
+{
+	struct device_node *np = rsnd_priv_to_dev(priv)->of_node;
+	struct device_node *node;
+	const char *unprefixed;
+
+	node = of_get_child_by_name(np, name);
+	if (node)
+		return node;
+
+	unprefixed = rsnd_node_name_strip_prefix(name);
+	if (unprefixed)
+		node = of_get_child_by_name(np, unprefixed);
+
+	return node;
 }
 
 static struct device_node*
@@ -2043,11 +2164,35 @@ static void rsnd_remove(struct platform_device *pdev)
 		remove_func[i](priv);
 }
 
+void rsnd_suspend_clk_reset(struct clk *clk, struct reset_control *rstc)
+{
+	clk_unprepare(clk);
+	reset_control_assert(rstc);
+}
+
+void rsnd_resume_clk_reset(struct clk *clk, struct reset_control *rstc)
+{
+	reset_control_deassert(rstc);
+	clk_prepare(clk);
+}
+
 static int rsnd_suspend(struct device *dev)
 {
 	struct rsnd_priv *priv = dev_get_drvdata(dev);
 
+	/*
+	 * Reverse order of probe:
+	 * ADG -> DVC -> MIX -> CTU -> SRC -> SSIU -> SSI -> DMA
+	 */
 	rsnd_adg_clk_disable(priv);
+	rsnd_adg_suspend(priv);
+	rsnd_dvc_suspend(priv);
+	rsnd_mix_suspend(priv);
+	rsnd_ctu_suspend(priv);
+	rsnd_src_suspend(priv);
+	rsnd_ssiu_suspend(priv);
+	rsnd_ssi_suspend(priv);
+	rsnd_dma_suspend(priv);
 
 	return 0;
 }
@@ -2056,7 +2201,21 @@ static int rsnd_resume(struct device *dev)
 {
 	struct rsnd_priv *priv = dev_get_drvdata(dev);
 
-	return rsnd_adg_clk_enable(priv);
+	/*
+	 * Same order as probe:
+	 * DMA -> SSI -> SSIU -> SRC -> CTU -> MIX -> DVC -> ADG
+	 */
+	rsnd_dma_resume(priv);
+	rsnd_ssi_resume(priv);
+	rsnd_ssiu_resume(priv);
+	rsnd_src_resume(priv);
+	rsnd_ctu_resume(priv);
+	rsnd_mix_resume(priv);
+	rsnd_dvc_resume(priv);
+	rsnd_adg_resume(priv);
+	rsnd_adg_clk_enable(priv);
+
+	return 0;
 }
 
 static const struct dev_pm_ops rsnd_pm_ops = {

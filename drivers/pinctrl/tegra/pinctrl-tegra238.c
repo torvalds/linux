@@ -1,0 +1,2079 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Pinctrl data for the NVIDIA Tegra238 pinmux
+ *
+ * Copyright (c) 2022-2026, NVIDIA CORPORATION.  All rights reserved.
+ */
+
+#include <linux/module.h>
+#include <linux/platform_device.h>
+#include <linux/property.h>
+#include <linux/pinctrl/pinctrl.h>
+#include <linux/pinctrl/pinmux.h>
+
+#include "pinctrl-tegra.h"
+
+/* Define unique ID for each pins */
+enum {
+	TEGRA_PIN_GPU_PWR_REQ_PA0,
+	TEGRA_PIN_GP_PWM5_PA1,
+	TEGRA_PIN_GP_PWM6_PA2,
+	TEGRA_PIN_SPI3_SCK_PA3,
+	TEGRA_PIN_SPI3_MISO_PA4,
+	TEGRA_PIN_SPI3_MOSI_PA5,
+	TEGRA_PIN_SPI3_CS0_PA6,
+	TEGRA_PIN_SPI3_CS1_PA7,
+	TEGRA_PIN_SPI1_SCK_PB0,
+	TEGRA_PIN_SPI1_MISO_PB1,
+	TEGRA_PIN_SPI1_MOSI_PB2,
+	TEGRA_PIN_SPI1_CS0_PB3,
+	TEGRA_PIN_SPI1_CS1_PB4,
+	TEGRA_PIN_PWR_I2C_SCL_PC0,
+	TEGRA_PIN_PWR_I2C_SDA_PC1,
+	TEGRA_PIN_EXTPERIPH1_CLK_PC2,
+	TEGRA_PIN_EXTPERIPH2_CLK_PC3,
+	TEGRA_PIN_CAM_I2C_SCL_PC4,
+	TEGRA_PIN_CAM_I2C_SDA_PC5,
+	TEGRA_PIN_SOC_GPIO23_PC6,
+	TEGRA_PIN_SOC_GPIO24_PC7,
+	TEGRA_PIN_SOC_GPIO27_PD0,
+	TEGRA_PIN_SOC_GPIO55_PD1,
+	TEGRA_PIN_SOC_GPIO29_PD2,
+	TEGRA_PIN_SOC_GPIO33_PD3,
+	TEGRA_PIN_SOC_GPIO32_PD4,
+	TEGRA_PIN_SOC_GPIO35_PD5,
+	TEGRA_PIN_SOC_GPIO37_PD6,
+	TEGRA_PIN_SOC_GPIO56_PD7,
+	TEGRA_PIN_UART1_TX_PE0,
+	TEGRA_PIN_UART1_RX_PE1,
+	TEGRA_PIN_UART1_RTS_PE2,
+	TEGRA_PIN_UART1_CTS_PE3,
+	TEGRA_PIN_SOC_GPIO13_PF0,
+	TEGRA_PIN_SOC_GPIO14_PF1,
+	TEGRA_PIN_SOC_GPIO15_PF2,
+	TEGRA_PIN_SOC_GPIO16_PF3,
+	TEGRA_PIN_SOC_GPIO17_PF4,
+	TEGRA_PIN_SOC_GPIO18_PF5,
+	TEGRA_PIN_SOC_GPIO20_PF6,
+	TEGRA_PIN_SOC_GPIO21_PF7,
+	TEGRA_PIN_SOC_GPIO22_PG0,
+	TEGRA_PIN_SOC_GPIO06_PG1,
+	TEGRA_PIN_UART4_TX_PG2,
+	TEGRA_PIN_UART4_RX_PG3,
+	TEGRA_PIN_UART4_RTS_PG4,
+	TEGRA_PIN_UART4_CTS_PG5,
+	TEGRA_PIN_SOC_GPIO41_PG6,
+	TEGRA_PIN_SOC_GPIO42_PG7,
+	TEGRA_PIN_SOC_GPIO43_PH0,
+	TEGRA_PIN_SOC_GPIO44_PH1,
+	TEGRA_PIN_GEN1_I2C_SCL_PH2,
+	TEGRA_PIN_GEN1_I2C_SDA_PH3,
+	TEGRA_PIN_CPU_PWR_REQ_PH4,
+	TEGRA_PIN_SOC_GPIO07_PH5,
+	TEGRA_PIN_DAP3_CLK_PJ0,
+	TEGRA_PIN_DAP3_DOUT_PJ1,
+	TEGRA_PIN_DAP3_DIN_PJ2,
+	TEGRA_PIN_DAP3_FS_PJ3,
+	TEGRA_PIN_SOC_GPIO57_PJ4,
+	TEGRA_PIN_SOC_GPIO58_PJ5,
+	TEGRA_PIN_SOC_GPIO59_PJ6,
+	TEGRA_PIN_SOC_GPIO60_PJ7,
+	TEGRA_PIN_SOC_GPIO45_PK0,
+	TEGRA_PIN_SOC_GPIO46_PK1,
+	TEGRA_PIN_SOC_GPIO47_PK2,
+	TEGRA_PIN_SOC_GPIO48_PK3,
+	TEGRA_PIN_QSPI0_SCK_PL0,
+	TEGRA_PIN_QSPI0_IO0_PL1,
+	TEGRA_PIN_QSPI0_IO1_PL2,
+	TEGRA_PIN_QSPI0_CS_N_PL3,
+	TEGRA_PIN_SOC_GPIO152_PL4,
+	TEGRA_PIN_SOC_GPIO153_PL5,
+	TEGRA_PIN_SOC_GPIO154_PL6,
+	TEGRA_PIN_SOC_GPIO155_PL7,
+	TEGRA_PIN_SOC_GPIO156_PM0,
+	TEGRA_PIN_SOC_GPIO157_PM1,
+	TEGRA_PIN_SOC_GPIO158_PM2,
+	TEGRA_PIN_SOC_GPIO159_PM3,
+	TEGRA_PIN_SOC_GPIO160_PM4,
+	TEGRA_PIN_SOC_GPIO161_PM5,
+	TEGRA_PIN_SOC_GPIO162_PM6,
+	TEGRA_PIN_UART7_TX_PM7,
+	TEGRA_PIN_UART7_RX_PN0,
+	TEGRA_PIN_UART7_RTS_PN1,
+	TEGRA_PIN_UART7_CTS_PN2,
+	TEGRA_PIN_SOC_GPIO167_PP0,
+	TEGRA_PIN_SOC_GPIO168_PP1,
+	TEGRA_PIN_SOC_GPIO169_PP2,
+	TEGRA_PIN_SOC_GPIO170_PP3,
+	TEGRA_PIN_DAP4_SCLK_PP4,
+	TEGRA_PIN_DAP4_DOUT_PP5,
+	TEGRA_PIN_DAP4_DIN_PP6,
+	TEGRA_PIN_DAP4_FS_PP7,
+	TEGRA_PIN_SOC_GPIO171_PQ0,
+	TEGRA_PIN_SOC_GPIO172_PQ1,
+	TEGRA_PIN_SOC_GPIO173_PQ2,
+	TEGRA_PIN_SOC_GPIO61_PR0,
+	TEGRA_PIN_SOC_GPIO62_PR1,
+	TEGRA_PIN_SOC_GPIO63_PR2,
+	TEGRA_PIN_SOC_GPIO64_PR3,
+	TEGRA_PIN_SOC_GPIO65_PR4,
+	TEGRA_PIN_SOC_GPIO66_PR5,
+	TEGRA_PIN_SOC_GPIO67_PR6,
+	TEGRA_PIN_SOC_GPIO68_PR7,
+	TEGRA_PIN_GEN4_I2C_SCL_PS0,
+	TEGRA_PIN_GEN4_I2C_SDA_PS1,
+	TEGRA_PIN_SOC_GPIO75_PS2,
+	TEGRA_PIN_GEN7_I2C_SCL_PS3,
+	TEGRA_PIN_GEN7_I2C_SDA_PS4,
+	TEGRA_PIN_SOC_GPIO78_PS5,
+	TEGRA_PIN_GEN9_I2C_SCL_PS6,
+	TEGRA_PIN_GEN9_I2C_SDA_PS7,
+	TEGRA_PIN_SOC_GPIO81_PT0,
+	TEGRA_PIN_SOC_GPIO36_PT1,
+	TEGRA_PIN_SOC_GPIO53_PT2,
+	TEGRA_PIN_SOC_GPIO38_PT3,
+	TEGRA_PIN_SOC_GPIO40_PT4,
+	TEGRA_PIN_SOC_GPIO34_PT5,
+	TEGRA_PIN_USB_VBUS_EN0_PT6,
+	TEGRA_PIN_USB_VBUS_EN1_PT7,
+	TEGRA_PIN_SDMMC1_CLK_PU0,
+	TEGRA_PIN_SDMMC1_CMD_PU1,
+	TEGRA_PIN_SDMMC1_DAT0_PU2,
+	TEGRA_PIN_SDMMC1_DAT1_PU3,
+	TEGRA_PIN_SDMMC1_DAT2_PU4,
+	TEGRA_PIN_SDMMC1_DAT3_PU5,
+	TEGRA_PIN_UFS0_REF_CLK_PV0,
+	TEGRA_PIN_UFS0_RST_N_PV1,
+	TEGRA_PIN_PEX_L0_CLKREQ_N_PW0,
+	TEGRA_PIN_PEX_L0_RST_N_PW1,
+	TEGRA_PIN_PEX_L1_CLKREQ_N_PW2,
+	TEGRA_PIN_PEX_L1_RST_N_PW3,
+	TEGRA_PIN_PEX_L2_CLKREQ_N_PW4,
+	TEGRA_PIN_PEX_L2_RST_N_PW5,
+	TEGRA_PIN_PEX_L3_CLKREQ_N_PW6,
+	TEGRA_PIN_PEX_L3_RST_N_PW7,
+	TEGRA_PIN_PEX_WAKE_N_PX0,
+	TEGRA_PIN_DP_AUX_CH0_HPD_PX1,
+	TEGRA_PIN_SDMMC1_COMP,
+};
+
+enum {
+	TEGRA_PIN_BOOTV_CTL_N_PAA0,
+	TEGRA_PIN_SOC_GPIO00_PAA1,
+	TEGRA_PIN_VCOMP_ALERT_PAA2,
+	TEGRA_PIN_PWM1_PAA3,
+	TEGRA_PIN_BATT_OC_PAA4,
+	TEGRA_PIN_SOC_GPIO04_PAA5,
+	TEGRA_PIN_SOC_GPIO25_PAA6,
+	TEGRA_PIN_SOC_GPIO26_PAA7,
+	TEGRA_PIN_HDMI_CEC_PBB0,
+	TEGRA_PIN_SPI2_SCK_PCC0,
+	TEGRA_PIN_SPI2_MISO_PCC1,
+	TEGRA_PIN_SPI2_MOSI_PCC2,
+	TEGRA_PIN_SPI2_CS0_PCC3,
+	TEGRA_PIN_SPI2_CS1_PCC4,
+	TEGRA_PIN_UART3_TX_PCC5,
+	TEGRA_PIN_UART3_RX_PCC6,
+	TEGRA_PIN_GEN2_I2C_SCL_PCC7,
+	TEGRA_PIN_GEN2_I2C_SDA_PDD0,
+	TEGRA_PIN_GEN8_I2C_SCL_PDD1,
+	TEGRA_PIN_GEN8_I2C_SDA_PDD2,
+	TEGRA_PIN_TOUCH_CLK_PDD3,
+	TEGRA_PIN_DMIC1_CLK_PDD4,
+	TEGRA_PIN_DMIC1_DAT_PDD5,
+	TEGRA_PIN_SOC_GPIO19_PDD6,
+	TEGRA_PIN_PWM2_PDD7,
+	TEGRA_PIN_PWM3_PEE0,
+	TEGRA_PIN_PWM7_PEE1,
+	TEGRA_PIN_SOC_GPIO49_PEE2,
+	TEGRA_PIN_SOC_GPIO82_PEE3,
+	TEGRA_PIN_SOC_GPIO50_PEE4,
+	TEGRA_PIN_SOC_GPIO83_PEE5,
+	TEGRA_PIN_SOC_GPIO69_PFF0,
+	TEGRA_PIN_SOC_GPIO70_PFF1,
+	TEGRA_PIN_SOC_GPIO71_PFF2,
+	TEGRA_PIN_SOC_GPIO72_PFF3,
+	TEGRA_PIN_SOC_GPIO73_PFF4,
+	TEGRA_PIN_SOC_GPIO74_PFF5,
+	TEGRA_PIN_SOC_GPIO80_PFF6,
+	TEGRA_PIN_SOC_GPIO76_PFF7,
+	TEGRA_PIN_SOC_GPIO77_PGG0,
+	TEGRA_PIN_SOC_GPIO84_PGG1,
+	TEGRA_PIN_UART2_TX_PGG2,
+	TEGRA_PIN_UART2_RX_PGG3,
+	TEGRA_PIN_UART2_RTS_PGG4,
+	TEGRA_PIN_UART2_CTS_PGG5,
+	TEGRA_PIN_SOC_GPIO85_PGG6,
+	TEGRA_PIN_UART5_TX_PGG7,
+	TEGRA_PIN_UART5_RX_PHH0,
+	TEGRA_PIN_UART5_RTS_PHH1,
+	TEGRA_PIN_UART5_CTS_PHH2,
+	TEGRA_PIN_SOC_GPIO86_PHH3,
+};
+
+/* Table for pin descriptor */
+static const struct pinctrl_pin_desc tegra238_pins[] = {
+	PINCTRL_PIN(TEGRA_PIN_GPU_PWR_REQ_PA0, "GPU_PWR_REQ_PA0"),
+	PINCTRL_PIN(TEGRA_PIN_GP_PWM5_PA1, "GP_PWM5_PA1"),
+	PINCTRL_PIN(TEGRA_PIN_GP_PWM6_PA2, "GP_PWM6_PA2"),
+	PINCTRL_PIN(TEGRA_PIN_SPI3_SCK_PA3, "SPI3_SCK_PA3"),
+	PINCTRL_PIN(TEGRA_PIN_SPI3_MISO_PA4, "SPI3_MISO_PA4"),
+	PINCTRL_PIN(TEGRA_PIN_SPI3_MOSI_PA5, "SPI3_MOSI_PA5"),
+	PINCTRL_PIN(TEGRA_PIN_SPI3_CS0_PA6, "SPI3_CS0_PA6"),
+	PINCTRL_PIN(TEGRA_PIN_SPI3_CS1_PA7, "SPI3_CS1_PA7"),
+	PINCTRL_PIN(TEGRA_PIN_SPI1_SCK_PB0, "SPI1_SCK_PB0"),
+	PINCTRL_PIN(TEGRA_PIN_SPI1_MISO_PB1, "SPI1_MISO_PB1"),
+	PINCTRL_PIN(TEGRA_PIN_SPI1_MOSI_PB2, "SPI1_MOSI_PB2"),
+	PINCTRL_PIN(TEGRA_PIN_SPI1_CS0_PB3, "SPI1_CS0_PB3"),
+	PINCTRL_PIN(TEGRA_PIN_SPI1_CS1_PB4, "SPI1_CS1_PB4"),
+	PINCTRL_PIN(TEGRA_PIN_PWR_I2C_SCL_PC0, "PWR_I2C_SCL_PC0"),
+	PINCTRL_PIN(TEGRA_PIN_PWR_I2C_SDA_PC1, "PWR_I2C_SDA_PC1"),
+	PINCTRL_PIN(TEGRA_PIN_EXTPERIPH1_CLK_PC2, "EXTPERIPH1_CLK_PC2"),
+	PINCTRL_PIN(TEGRA_PIN_EXTPERIPH2_CLK_PC3, "EXTPERIPH2_CLK_PC3"),
+	PINCTRL_PIN(TEGRA_PIN_CAM_I2C_SCL_PC4, "CAM_I2C_SCL_PC4"),
+	PINCTRL_PIN(TEGRA_PIN_CAM_I2C_SDA_PC5, "CAM_I2C_SDA_PC5"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO23_PC6, "SOC_GPIO23_PC6"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO24_PC7, "SOC_GPIO24_PC7"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO27_PD0, "SOC_GPIO27_PD0"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO55_PD1, "SOC_GPIO55_PD1"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO29_PD2, "SOC_GPIO29_PD2"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO33_PD3, "SOC_GPIO33_PD3"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO32_PD4, "SOC_GPIO32_PD4"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO35_PD5, "SOC_GPIO35_PD5"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO37_PD6, "SOC_GPIO37_PD6"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO56_PD7, "SOC_GPIO56_PD7"),
+	PINCTRL_PIN(TEGRA_PIN_UART1_TX_PE0, "UART1_TX_PE0"),
+	PINCTRL_PIN(TEGRA_PIN_UART1_RX_PE1, "UART1_RX_PE1"),
+	PINCTRL_PIN(TEGRA_PIN_UART1_RTS_PE2, "UART1_RTS_PE2"),
+	PINCTRL_PIN(TEGRA_PIN_UART1_CTS_PE3, "UART1_CTS_PE3"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO13_PF0, "SOC_GPIO13_PF0"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO14_PF1, "SOC_GPIO14_PF1"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO15_PF2, "SOC_GPIO15_PF2"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO16_PF3, "SOC_GPIO16_PF3"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO17_PF4, "SOC_GPIO17_PF4"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO18_PF5, "SOC_GPIO18_PF5"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO20_PF6, "SOC_GPIO20_PF6"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO21_PF7, "SOC_GPIO21_PF7"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO22_PG0, "SOC_GPIO22_PG0"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO06_PG1, "SOC_GPIO06_PG1"),
+	PINCTRL_PIN(TEGRA_PIN_UART4_TX_PG2, "UART4_TX_PG2"),
+	PINCTRL_PIN(TEGRA_PIN_UART4_RX_PG3, "UART4_RX_PG3"),
+	PINCTRL_PIN(TEGRA_PIN_UART4_RTS_PG4, "UART4_RTS_PG4"),
+	PINCTRL_PIN(TEGRA_PIN_UART4_CTS_PG5, "UART4_CTS_PG5"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO41_PG6, "SOC_GPIO41_PG6"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO42_PG7, "SOC_GPIO42_PG7"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO43_PH0, "SOC_GPIO43_PH0"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO44_PH1, "SOC_GPIO44_PH1"),
+	PINCTRL_PIN(TEGRA_PIN_GEN1_I2C_SCL_PH2, "GEN1_I2C_SCL_PH2"),
+	PINCTRL_PIN(TEGRA_PIN_GEN1_I2C_SDA_PH3, "GEN1_I2C_SDA_PH3"),
+	PINCTRL_PIN(TEGRA_PIN_CPU_PWR_REQ_PH4, "CPU_PWR_REQ_PH4"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO07_PH5, "SOC_GPIO07_PH5"),
+	PINCTRL_PIN(TEGRA_PIN_DAP3_CLK_PJ0, "DAP3_CLK_PJ0"),
+	PINCTRL_PIN(TEGRA_PIN_DAP3_DOUT_PJ1, "DAP3_DOUT_PJ1"),
+	PINCTRL_PIN(TEGRA_PIN_DAP3_DIN_PJ2, "DAP3_DIN_PJ2"),
+	PINCTRL_PIN(TEGRA_PIN_DAP3_FS_PJ3, "DAP3_FS_PJ3"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO57_PJ4, "SOC_GPIO57_PJ4"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO58_PJ5, "SOC_GPIO58_PJ5"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO59_PJ6, "SOC_GPIO59_PJ6"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO60_PJ7, "SOC_GPIO60_PJ7"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO45_PK0, "SOC_GPIO45_PK0"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO46_PK1, "SOC_GPIO46_PK1"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO47_PK2, "SOC_GPIO47_PK2"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO48_PK3, "SOC_GPIO48_PK3"),
+	PINCTRL_PIN(TEGRA_PIN_QSPI0_SCK_PL0, "QSPI0_SCK_PL0"),
+	PINCTRL_PIN(TEGRA_PIN_QSPI0_IO0_PL1, "QSPI0_IO0_PL1"),
+	PINCTRL_PIN(TEGRA_PIN_QSPI0_IO1_PL2, "QSPI0_IO1_PL2"),
+	PINCTRL_PIN(TEGRA_PIN_QSPI0_CS_N_PL3, "QSPI0_CS_N_PL3"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO152_PL4, "SOC_GPIO152_PL4"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO153_PL5, "SOC_GPIO153_PL5"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO154_PL6, "SOC_GPIO154_PL6"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO155_PL7, "SOC_GPIO155_PL7"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO156_PM0, "SOC_GPIO156_PM0"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO157_PM1, "SOC_GPIO157_PM1"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO158_PM2, "SOC_GPIO158_PM2"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO159_PM3, "SOC_GPIO159_PM3"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO160_PM4, "SOC_GPIO160_PM4"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO161_PM5, "SOC_GPIO161_PM5"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO162_PM6, "SOC_GPIO162_PM6"),
+	PINCTRL_PIN(TEGRA_PIN_UART7_TX_PM7, "UART7_TX_PM7"),
+	PINCTRL_PIN(TEGRA_PIN_UART7_RX_PN0, "UART7_RX_PN0"),
+	PINCTRL_PIN(TEGRA_PIN_UART7_RTS_PN1, "UART7_RTS_PN1"),
+	PINCTRL_PIN(TEGRA_PIN_UART7_CTS_PN2, "UART7_CTS_PN2"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO167_PP0, "SOC_GPIO167_PP0"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO168_PP1, "SOC_GPIO168_PP1"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO169_PP2, "SOC_GPIO169_PP2"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO170_PP3, "SOC_GPIO170_PP3"),
+	PINCTRL_PIN(TEGRA_PIN_DAP4_SCLK_PP4, "DAP4_SCLK_PP4"),
+	PINCTRL_PIN(TEGRA_PIN_DAP4_DOUT_PP5, "DAP4_DOUT_PP5"),
+	PINCTRL_PIN(TEGRA_PIN_DAP4_DIN_PP6, "DAP4_DIN_PP6"),
+	PINCTRL_PIN(TEGRA_PIN_DAP4_FS_PP7, "DAP4_FS_PP7"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO171_PQ0, "SOC_GPIO171_PQ0"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO172_PQ1, "SOC_GPIO172_PQ1"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO173_PQ2, "SOC_GPIO173_PQ2"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO61_PR0, "SOC_GPIO61_PR0"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO62_PR1, "SOC_GPIO62_PR1"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO63_PR2, "SOC_GPIO63_PR2"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO64_PR3, "SOC_GPIO64_PR3"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO65_PR4, "SOC_GPIO65_PR4"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO66_PR5, "SOC_GPIO66_PR5"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO67_PR6, "SOC_GPIO67_PR6"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO68_PR7, "SOC_GPIO68_PR7"),
+	PINCTRL_PIN(TEGRA_PIN_GEN4_I2C_SCL_PS0, "GEN4_I2C_SCL_PS0"),
+	PINCTRL_PIN(TEGRA_PIN_GEN4_I2C_SDA_PS1, "GEN4_I2C_SDA_PS1"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO75_PS2, "SOC_GPIO75_PS2"),
+	PINCTRL_PIN(TEGRA_PIN_GEN7_I2C_SCL_PS3, "GEN7_I2C_SCL_PS3"),
+	PINCTRL_PIN(TEGRA_PIN_GEN7_I2C_SDA_PS4, "GEN7_I2C_SDA_PS4"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO78_PS5, "SOC_GPIO78_PS5"),
+	PINCTRL_PIN(TEGRA_PIN_GEN9_I2C_SCL_PS6, "GEN9_I2C_SCL_PS6"),
+	PINCTRL_PIN(TEGRA_PIN_GEN9_I2C_SDA_PS7, "GEN9_I2C_SDA_PS7"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO81_PT0, "SOC_GPIO81_PT0"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO36_PT1, "SOC_GPIO36_PT1"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO53_PT2, "SOC_GPIO53_PT2"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO38_PT3, "SOC_GPIO38_PT3"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO40_PT4, "SOC_GPIO40_PT4"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO34_PT5, "SOC_GPIO34_PT5"),
+	PINCTRL_PIN(TEGRA_PIN_USB_VBUS_EN0_PT6, "USB_VBUS_EN0_PT6"),
+	PINCTRL_PIN(TEGRA_PIN_USB_VBUS_EN1_PT7, "USB_VBUS_EN1_PT7"),
+	PINCTRL_PIN(TEGRA_PIN_SDMMC1_CLK_PU0, "SDMMC1_CLK_PU0"),
+	PINCTRL_PIN(TEGRA_PIN_SDMMC1_CMD_PU1, "SDMMC1_CMD_PU1"),
+	PINCTRL_PIN(TEGRA_PIN_SDMMC1_DAT0_PU2, "SDMMC1_DAT0_PU2"),
+	PINCTRL_PIN(TEGRA_PIN_SDMMC1_DAT1_PU3, "SDMMC1_DAT1_PU3"),
+	PINCTRL_PIN(TEGRA_PIN_SDMMC1_DAT2_PU4, "SDMMC1_DAT2_PU4"),
+	PINCTRL_PIN(TEGRA_PIN_SDMMC1_DAT3_PU5, "SDMMC1_DAT3_PU5"),
+	PINCTRL_PIN(TEGRA_PIN_UFS0_REF_CLK_PV0, "UFS0_REF_CLK_PV0"),
+	PINCTRL_PIN(TEGRA_PIN_UFS0_RST_N_PV1, "UFS0_RST_N_PV1"),
+	PINCTRL_PIN(TEGRA_PIN_PEX_L0_CLKREQ_N_PW0, "PEX_L0_CLKREQ_N_PW0"),
+	PINCTRL_PIN(TEGRA_PIN_PEX_L0_RST_N_PW1, "PEX_L0_RST_N_PW1"),
+	PINCTRL_PIN(TEGRA_PIN_PEX_L1_CLKREQ_N_PW2, "PEX_L1_CLKREQ_N_PW2"),
+	PINCTRL_PIN(TEGRA_PIN_PEX_L1_RST_N_PW3, "PEX_L1_RST_N_PW3"),
+	PINCTRL_PIN(TEGRA_PIN_PEX_L2_CLKREQ_N_PW4, "PEX_L2_CLKREQ_N_PW4"),
+	PINCTRL_PIN(TEGRA_PIN_PEX_L2_RST_N_PW5, "PEX_L2_RST_N_PW5"),
+	PINCTRL_PIN(TEGRA_PIN_PEX_L3_CLKREQ_N_PW6, "PEX_L3_CLKREQ_N_PW6"),
+	PINCTRL_PIN(TEGRA_PIN_PEX_L3_RST_N_PW7, "PEX_L3_RST_N_PW7"),
+	PINCTRL_PIN(TEGRA_PIN_PEX_WAKE_N_PX0, "PEX_WAKE_N_PX0"),
+	PINCTRL_PIN(TEGRA_PIN_DP_AUX_CH0_HPD_PX1, "DP_AUX_CH0_HPD_PX1"),
+	PINCTRL_PIN(TEGRA_PIN_SDMMC1_COMP, "SDMMC1_COMP"),
+};
+
+static const struct pinctrl_pin_desc tegra238_aon_pins[] = {
+	PINCTRL_PIN(TEGRA_PIN_BOOTV_CTL_N_PAA0, "BOOTV_CTL_N_PAA0"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO00_PAA1, "SOC_GPIO00_PAA1"),
+	PINCTRL_PIN(TEGRA_PIN_VCOMP_ALERT_PAA2, "VCOMP_ALERT_PAA2"),
+	PINCTRL_PIN(TEGRA_PIN_PWM1_PAA3, "PWM1_PAA3"),
+	PINCTRL_PIN(TEGRA_PIN_BATT_OC_PAA4, "BATT_OC_PAA4"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO04_PAA5, "SOC_GPIO04_PAA5"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO25_PAA6, "SOC_GPIO25_PAA6"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO26_PAA7, "SOC_GPIO26_PAA7"),
+	PINCTRL_PIN(TEGRA_PIN_HDMI_CEC_PBB0, "HDMI_CEC_PBB0"),
+	PINCTRL_PIN(TEGRA_PIN_SPI2_SCK_PCC0, "SPI2_SCK_PCC0"),
+	PINCTRL_PIN(TEGRA_PIN_SPI2_MISO_PCC1, "SPI2_MISO_PCC1"),
+	PINCTRL_PIN(TEGRA_PIN_SPI2_MOSI_PCC2, "SPI2_MOSI_PCC2"),
+	PINCTRL_PIN(TEGRA_PIN_SPI2_CS0_PCC3, "SPI2_CS0_PCC3"),
+	PINCTRL_PIN(TEGRA_PIN_SPI2_CS1_PCC4, "SPI2_CS1_PCC4"),
+	PINCTRL_PIN(TEGRA_PIN_UART3_TX_PCC5, "UART3_TX_PCC5"),
+	PINCTRL_PIN(TEGRA_PIN_UART3_RX_PCC6, "UART3_RX_PCC6"),
+	PINCTRL_PIN(TEGRA_PIN_GEN2_I2C_SCL_PCC7, "GEN2_I2C_SCL_PCC7"),
+	PINCTRL_PIN(TEGRA_PIN_GEN2_I2C_SDA_PDD0, "GEN2_I2C_SDA_PDD0"),
+	PINCTRL_PIN(TEGRA_PIN_GEN8_I2C_SCL_PDD1, "GEN8_I2C_SCL_PDD1"),
+	PINCTRL_PIN(TEGRA_PIN_GEN8_I2C_SDA_PDD2, "GEN8_I2C_SDA_PDD2"),
+	PINCTRL_PIN(TEGRA_PIN_TOUCH_CLK_PDD3, "TOUCH_CLK_PDD3"),
+	PINCTRL_PIN(TEGRA_PIN_DMIC1_CLK_PDD4, "DMIC1_CLK_PDD4"),
+	PINCTRL_PIN(TEGRA_PIN_DMIC1_DAT_PDD5, "DMIC1_DAT_PDD5"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO19_PDD6, "SOC_GPIO19_PDD6"),
+	PINCTRL_PIN(TEGRA_PIN_PWM2_PDD7, "PWM2_PDD7"),
+	PINCTRL_PIN(TEGRA_PIN_PWM3_PEE0, "PWM3_PEE0"),
+	PINCTRL_PIN(TEGRA_PIN_PWM7_PEE1, "PWM7_PEE1"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO49_PEE2, "SOC_GPIO49_PEE2"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO82_PEE3, "SOC_GPIO82_PEE3"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO50_PEE4, "SOC_GPIO50_PEE4"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO83_PEE5, "SOC_GPIO83_PEE5"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO69_PFF0, "SOC_GPIO69_PFF0"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO70_PFF1, "SOC_GPIO70_PFF1"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO71_PFF2, "SOC_GPIO71_PFF2"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO72_PFF3, "SOC_GPIO72_PFF3"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO73_PFF4, "SOC_GPIO73_PFF4"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO74_PFF5, "SOC_GPIO74_PFF5"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO80_PFF6, "SOC_GPIO80_PFF6"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO76_PFF7, "SOC_GPIO76_PFF7"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO77_PGG0, "SOC_GPIO77_PGG0"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO84_PGG1, "SOC_GPIO84_PGG1"),
+	PINCTRL_PIN(TEGRA_PIN_UART2_TX_PGG2, "UART2_TX_PGG2"),
+	PINCTRL_PIN(TEGRA_PIN_UART2_RX_PGG3, "UART2_RX_PGG3"),
+	PINCTRL_PIN(TEGRA_PIN_UART2_RTS_PGG4, "UART2_RTS_PGG4"),
+	PINCTRL_PIN(TEGRA_PIN_UART2_CTS_PGG5, "UART2_CTS_PGG5"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO85_PGG6, "SOC_GPIO85_PGG6"),
+	PINCTRL_PIN(TEGRA_PIN_UART5_TX_PGG7, "UART5_TX_PGG7"),
+	PINCTRL_PIN(TEGRA_PIN_UART5_RX_PHH0, "UART5_RX_PHH0"),
+	PINCTRL_PIN(TEGRA_PIN_UART5_RTS_PHH1, "UART5_RTS_PHH1"),
+	PINCTRL_PIN(TEGRA_PIN_UART5_CTS_PHH2, "UART5_CTS_PHH2"),
+	PINCTRL_PIN(TEGRA_PIN_SOC_GPIO86_PHH3, "SOC_GPIO86_PHH3"),
+};
+
+static const unsigned int gpu_pwr_req_pa0_pins[] = {
+	TEGRA_PIN_GPU_PWR_REQ_PA0,
+};
+
+static const unsigned int gp_pwm5_pa1_pins[] = {
+	TEGRA_PIN_GP_PWM5_PA1,
+};
+
+static const unsigned int gp_pwm6_pa2_pins[] = {
+	TEGRA_PIN_GP_PWM6_PA2,
+};
+
+static const unsigned int spi3_sck_pa3_pins[] = {
+	TEGRA_PIN_SPI3_SCK_PA3,
+};
+
+static const unsigned int spi3_miso_pa4_pins[] = {
+	TEGRA_PIN_SPI3_MISO_PA4,
+};
+
+static const unsigned int spi3_mosi_pa5_pins[] = {
+	TEGRA_PIN_SPI3_MOSI_PA5,
+};
+
+static const unsigned int spi3_cs0_pa6_pins[] = {
+	TEGRA_PIN_SPI3_CS0_PA6,
+};
+
+static const unsigned int spi3_cs1_pa7_pins[] = {
+	TEGRA_PIN_SPI3_CS1_PA7,
+};
+
+static const unsigned int spi1_sck_pb0_pins[] = {
+	TEGRA_PIN_SPI1_SCK_PB0,
+};
+
+static const unsigned int spi1_miso_pb1_pins[] = {
+	TEGRA_PIN_SPI1_MISO_PB1,
+};
+
+static const unsigned int spi1_mosi_pb2_pins[] = {
+	TEGRA_PIN_SPI1_MOSI_PB2,
+};
+
+static const unsigned int spi1_cs0_pb3_pins[] = {
+	TEGRA_PIN_SPI1_CS0_PB3,
+};
+
+static const unsigned int spi1_cs1_pb4_pins[] = {
+	TEGRA_PIN_SPI1_CS1_PB4,
+};
+
+static const unsigned int pwr_i2c_scl_pc0_pins[] = {
+	TEGRA_PIN_PWR_I2C_SCL_PC0,
+};
+
+static const unsigned int pwr_i2c_sda_pc1_pins[] = {
+	TEGRA_PIN_PWR_I2C_SDA_PC1,
+};
+
+static const unsigned int extperiph1_clk_pc2_pins[] = {
+	TEGRA_PIN_EXTPERIPH1_CLK_PC2,
+};
+
+static const unsigned int extperiph2_clk_pc3_pins[] = {
+	TEGRA_PIN_EXTPERIPH2_CLK_PC3,
+};
+
+static const unsigned int cam_i2c_scl_pc4_pins[] = {
+	TEGRA_PIN_CAM_I2C_SCL_PC4,
+};
+
+static const unsigned int cam_i2c_sda_pc5_pins[] = {
+	TEGRA_PIN_CAM_I2C_SDA_PC5,
+};
+
+static const unsigned int soc_gpio23_pc6_pins[] = {
+	TEGRA_PIN_SOC_GPIO23_PC6,
+};
+
+static const unsigned int soc_gpio24_pc7_pins[] = {
+	TEGRA_PIN_SOC_GPIO24_PC7,
+};
+
+static const unsigned int soc_gpio27_pd0_pins[] = {
+	TEGRA_PIN_SOC_GPIO27_PD0,
+};
+
+static const unsigned int soc_gpio55_pd1_pins[] = {
+	TEGRA_PIN_SOC_GPIO55_PD1,
+};
+
+static const unsigned int soc_gpio29_pd2_pins[] = {
+	TEGRA_PIN_SOC_GPIO29_PD2,
+};
+
+static const unsigned int soc_gpio33_pd3_pins[] = {
+	TEGRA_PIN_SOC_GPIO33_PD3,
+};
+
+static const unsigned int soc_gpio32_pd4_pins[] = {
+	TEGRA_PIN_SOC_GPIO32_PD4,
+};
+
+static const unsigned int soc_gpio35_pd5_pins[] = {
+	TEGRA_PIN_SOC_GPIO35_PD5,
+};
+
+static const unsigned int soc_gpio37_pd6_pins[] = {
+	TEGRA_PIN_SOC_GPIO37_PD6,
+};
+
+static const unsigned int soc_gpio56_pd7_pins[] = {
+	TEGRA_PIN_SOC_GPIO56_PD7,
+};
+
+static const unsigned int uart1_tx_pe0_pins[] = {
+	TEGRA_PIN_UART1_TX_PE0,
+};
+
+static const unsigned int uart1_rx_pe1_pins[] = {
+	TEGRA_PIN_UART1_RX_PE1,
+};
+
+static const unsigned int uart1_rts_pe2_pins[] = {
+	TEGRA_PIN_UART1_RTS_PE2,
+};
+
+static const unsigned int uart1_cts_pe3_pins[] = {
+	TEGRA_PIN_UART1_CTS_PE3,
+};
+
+static const unsigned int soc_gpio13_pf0_pins[] = {
+	TEGRA_PIN_SOC_GPIO13_PF0,
+};
+
+static const unsigned int soc_gpio14_pf1_pins[] = {
+	TEGRA_PIN_SOC_GPIO14_PF1,
+};
+
+static const unsigned int soc_gpio15_pf2_pins[] = {
+	TEGRA_PIN_SOC_GPIO15_PF2,
+};
+
+static const unsigned int soc_gpio16_pf3_pins[] = {
+	TEGRA_PIN_SOC_GPIO16_PF3,
+};
+
+static const unsigned int soc_gpio17_pf4_pins[] = {
+	TEGRA_PIN_SOC_GPIO17_PF4,
+};
+
+static const unsigned int soc_gpio18_pf5_pins[] = {
+	TEGRA_PIN_SOC_GPIO18_PF5,
+};
+
+static const unsigned int soc_gpio20_pf6_pins[] = {
+	TEGRA_PIN_SOC_GPIO20_PF6,
+};
+
+static const unsigned int soc_gpio21_pf7_pins[] = {
+	TEGRA_PIN_SOC_GPIO21_PF7,
+};
+
+static const unsigned int soc_gpio22_pg0_pins[] = {
+	TEGRA_PIN_SOC_GPIO22_PG0,
+};
+
+static const unsigned int soc_gpio06_pg1_pins[] = {
+	TEGRA_PIN_SOC_GPIO06_PG1,
+};
+
+static const unsigned int uart4_tx_pg2_pins[] = {
+	TEGRA_PIN_UART4_TX_PG2,
+};
+
+static const unsigned int uart4_rx_pg3_pins[] = {
+	TEGRA_PIN_UART4_RX_PG3,
+};
+
+static const unsigned int uart4_rts_pg4_pins[] = {
+	TEGRA_PIN_UART4_RTS_PG4,
+};
+
+static const unsigned int uart4_cts_pg5_pins[] = {
+	TEGRA_PIN_UART4_CTS_PG5,
+};
+
+static const unsigned int soc_gpio41_pg6_pins[] = {
+	TEGRA_PIN_SOC_GPIO41_PG6,
+};
+
+static const unsigned int soc_gpio42_pg7_pins[] = {
+	TEGRA_PIN_SOC_GPIO42_PG7,
+};
+
+static const unsigned int soc_gpio43_ph0_pins[] = {
+	TEGRA_PIN_SOC_GPIO43_PH0,
+};
+
+static const unsigned int soc_gpio44_ph1_pins[] = {
+	TEGRA_PIN_SOC_GPIO44_PH1,
+};
+
+static const unsigned int gen1_i2c_scl_ph2_pins[] = {
+	TEGRA_PIN_GEN1_I2C_SCL_PH2,
+};
+
+static const unsigned int gen1_i2c_sda_ph3_pins[] = {
+	TEGRA_PIN_GEN1_I2C_SDA_PH3,
+};
+
+static const unsigned int cpu_pwr_req_ph4_pins[] = {
+	TEGRA_PIN_CPU_PWR_REQ_PH4,
+};
+
+static const unsigned int soc_gpio07_ph5_pins[] = {
+	TEGRA_PIN_SOC_GPIO07_PH5,
+};
+
+static const unsigned int dap3_clk_pj0_pins[] = {
+	TEGRA_PIN_DAP3_CLK_PJ0,
+};
+
+static const unsigned int dap3_dout_pj1_pins[] = {
+	TEGRA_PIN_DAP3_DOUT_PJ1,
+};
+
+static const unsigned int dap3_din_pj2_pins[] = {
+	TEGRA_PIN_DAP3_DIN_PJ2,
+};
+
+static const unsigned int dap3_fs_pj3_pins[] = {
+	TEGRA_PIN_DAP3_FS_PJ3,
+};
+
+static const unsigned int soc_gpio57_pj4_pins[] = {
+	TEGRA_PIN_SOC_GPIO57_PJ4,
+};
+
+static const unsigned int soc_gpio58_pj5_pins[] = {
+	TEGRA_PIN_SOC_GPIO58_PJ5,
+};
+
+static const unsigned int soc_gpio59_pj6_pins[] = {
+	TEGRA_PIN_SOC_GPIO59_PJ6,
+};
+
+static const unsigned int soc_gpio60_pj7_pins[] = {
+	TEGRA_PIN_SOC_GPIO60_PJ7,
+};
+
+static const unsigned int soc_gpio45_pk0_pins[] = {
+	TEGRA_PIN_SOC_GPIO45_PK0,
+};
+
+static const unsigned int soc_gpio46_pk1_pins[] = {
+	TEGRA_PIN_SOC_GPIO46_PK1,
+};
+
+static const unsigned int soc_gpio47_pk2_pins[] = {
+	TEGRA_PIN_SOC_GPIO47_PK2,
+};
+
+static const unsigned int soc_gpio48_pk3_pins[] = {
+	TEGRA_PIN_SOC_GPIO48_PK3,
+};
+
+static const unsigned int qspi0_sck_pl0_pins[] = {
+	TEGRA_PIN_QSPI0_SCK_PL0,
+};
+
+static const unsigned int qspi0_io0_pl1_pins[] = {
+	TEGRA_PIN_QSPI0_IO0_PL1,
+};
+
+static const unsigned int qspi0_io1_pl2_pins[] = {
+	TEGRA_PIN_QSPI0_IO1_PL2,
+};
+
+static const unsigned int qspi0_cs_n_pl3_pins[] = {
+	TEGRA_PIN_QSPI0_CS_N_PL3,
+};
+
+static const unsigned int soc_gpio152_pl4_pins[] = {
+	TEGRA_PIN_SOC_GPIO152_PL4,
+};
+
+static const unsigned int soc_gpio153_pl5_pins[] = {
+	TEGRA_PIN_SOC_GPIO153_PL5,
+};
+
+static const unsigned int soc_gpio154_pl6_pins[] = {
+	TEGRA_PIN_SOC_GPIO154_PL6,
+};
+
+static const unsigned int soc_gpio155_pl7_pins[] = {
+	TEGRA_PIN_SOC_GPIO155_PL7,
+};
+
+static const unsigned int soc_gpio156_pm0_pins[] = {
+	TEGRA_PIN_SOC_GPIO156_PM0,
+};
+
+static const unsigned int soc_gpio157_pm1_pins[] = {
+	TEGRA_PIN_SOC_GPIO157_PM1,
+};
+
+static const unsigned int soc_gpio158_pm2_pins[] = {
+	TEGRA_PIN_SOC_GPIO158_PM2,
+};
+
+static const unsigned int soc_gpio159_pm3_pins[] = {
+	TEGRA_PIN_SOC_GPIO159_PM3,
+};
+
+static const unsigned int soc_gpio160_pm4_pins[] = {
+	TEGRA_PIN_SOC_GPIO160_PM4,
+};
+
+static const unsigned int soc_gpio161_pm5_pins[] = {
+	TEGRA_PIN_SOC_GPIO161_PM5,
+};
+
+static const unsigned int soc_gpio162_pm6_pins[] = {
+	TEGRA_PIN_SOC_GPIO162_PM6,
+};
+
+static const unsigned int uart7_tx_pm7_pins[] = {
+	TEGRA_PIN_UART7_TX_PM7,
+};
+
+static const unsigned int uart7_rx_pn0_pins[] = {
+	TEGRA_PIN_UART7_RX_PN0,
+};
+
+static const unsigned int uart7_rts_pn1_pins[] = {
+	TEGRA_PIN_UART7_RTS_PN1,
+};
+
+static const unsigned int uart7_cts_pn2_pins[] = {
+	TEGRA_PIN_UART7_CTS_PN2,
+};
+
+static const unsigned int soc_gpio167_pp0_pins[] = {
+	TEGRA_PIN_SOC_GPIO167_PP0,
+};
+
+static const unsigned int soc_gpio168_pp1_pins[] = {
+	TEGRA_PIN_SOC_GPIO168_PP1,
+};
+
+static const unsigned int soc_gpio169_pp2_pins[] = {
+	TEGRA_PIN_SOC_GPIO169_PP2,
+};
+
+static const unsigned int soc_gpio170_pp3_pins[] = {
+	TEGRA_PIN_SOC_GPIO170_PP3,
+};
+
+static const unsigned int dap4_sclk_pp4_pins[] = {
+	TEGRA_PIN_DAP4_SCLK_PP4,
+};
+
+static const unsigned int dap4_dout_pp5_pins[] = {
+	TEGRA_PIN_DAP4_DOUT_PP5,
+};
+
+static const unsigned int dap4_din_pp6_pins[] = {
+	TEGRA_PIN_DAP4_DIN_PP6,
+};
+
+static const unsigned int dap4_fs_pp7_pins[] = {
+	TEGRA_PIN_DAP4_FS_PP7,
+};
+
+static const unsigned int soc_gpio171_pq0_pins[] = {
+	TEGRA_PIN_SOC_GPIO171_PQ0,
+};
+
+static const unsigned int soc_gpio172_pq1_pins[] = {
+	TEGRA_PIN_SOC_GPIO172_PQ1,
+};
+
+static const unsigned int soc_gpio173_pq2_pins[] = {
+	TEGRA_PIN_SOC_GPIO173_PQ2,
+};
+
+static const unsigned int soc_gpio61_pr0_pins[] = {
+	TEGRA_PIN_SOC_GPIO61_PR0,
+};
+
+static const unsigned int soc_gpio62_pr1_pins[] = {
+	TEGRA_PIN_SOC_GPIO62_PR1,
+};
+
+static const unsigned int soc_gpio63_pr2_pins[] = {
+	TEGRA_PIN_SOC_GPIO63_PR2,
+};
+
+static const unsigned int soc_gpio64_pr3_pins[] = {
+	TEGRA_PIN_SOC_GPIO64_PR3,
+};
+
+static const unsigned int soc_gpio65_pr4_pins[] = {
+	TEGRA_PIN_SOC_GPIO65_PR4,
+};
+
+static const unsigned int soc_gpio66_pr5_pins[] = {
+	TEGRA_PIN_SOC_GPIO66_PR5,
+};
+
+static const unsigned int soc_gpio67_pr6_pins[] = {
+	TEGRA_PIN_SOC_GPIO67_PR6,
+};
+
+static const unsigned int soc_gpio68_pr7_pins[] = {
+	TEGRA_PIN_SOC_GPIO68_PR7,
+};
+
+static const unsigned int gen4_i2c_scl_ps0_pins[] = {
+	TEGRA_PIN_GEN4_I2C_SCL_PS0,
+};
+
+static const unsigned int gen4_i2c_sda_ps1_pins[] = {
+	TEGRA_PIN_GEN4_I2C_SDA_PS1,
+};
+
+static const unsigned int soc_gpio75_ps2_pins[] = {
+	TEGRA_PIN_SOC_GPIO75_PS2,
+};
+
+static const unsigned int gen7_i2c_scl_ps3_pins[] = {
+	TEGRA_PIN_GEN7_I2C_SCL_PS3,
+};
+
+static const unsigned int gen7_i2c_sda_ps4_pins[] = {
+	TEGRA_PIN_GEN7_I2C_SDA_PS4,
+};
+
+static const unsigned int soc_gpio78_ps5_pins[] = {
+	TEGRA_PIN_SOC_GPIO78_PS5,
+};
+
+static const unsigned int gen9_i2c_scl_ps6_pins[] = {
+	TEGRA_PIN_GEN9_I2C_SCL_PS6,
+};
+
+static const unsigned int gen9_i2c_sda_ps7_pins[] = {
+	TEGRA_PIN_GEN9_I2C_SDA_PS7,
+};
+
+static const unsigned int soc_gpio81_pt0_pins[] = {
+	TEGRA_PIN_SOC_GPIO81_PT0,
+};
+
+static const unsigned int soc_gpio36_pt1_pins[] = {
+	TEGRA_PIN_SOC_GPIO36_PT1,
+};
+
+static const unsigned int soc_gpio53_pt2_pins[] = {
+	TEGRA_PIN_SOC_GPIO53_PT2,
+};
+
+static const unsigned int soc_gpio38_pt3_pins[] = {
+	TEGRA_PIN_SOC_GPIO38_PT3,
+};
+
+static const unsigned int soc_gpio40_pt4_pins[] = {
+	TEGRA_PIN_SOC_GPIO40_PT4,
+};
+
+static const unsigned int soc_gpio34_pt5_pins[] = {
+	TEGRA_PIN_SOC_GPIO34_PT5,
+};
+
+static const unsigned int usb_vbus_en0_pt6_pins[] = {
+	TEGRA_PIN_USB_VBUS_EN0_PT6,
+};
+
+static const unsigned int usb_vbus_en1_pt7_pins[] = {
+	TEGRA_PIN_USB_VBUS_EN1_PT7,
+};
+
+static const unsigned int sdmmc1_clk_pu0_pins[] = {
+	TEGRA_PIN_SDMMC1_CLK_PU0,
+};
+
+static const unsigned int sdmmc1_cmd_pu1_pins[] = {
+	TEGRA_PIN_SDMMC1_CMD_PU1,
+};
+
+static const unsigned int sdmmc1_dat0_pu2_pins[] = {
+	TEGRA_PIN_SDMMC1_DAT0_PU2,
+};
+
+static const unsigned int sdmmc1_dat1_pu3_pins[] = {
+	TEGRA_PIN_SDMMC1_DAT1_PU3,
+};
+
+static const unsigned int sdmmc1_dat2_pu4_pins[] = {
+	TEGRA_PIN_SDMMC1_DAT2_PU4,
+};
+
+static const unsigned int sdmmc1_dat3_pu5_pins[] = {
+	TEGRA_PIN_SDMMC1_DAT3_PU5,
+};
+
+static const unsigned int ufs0_ref_clk_pv0_pins[] = {
+	TEGRA_PIN_UFS0_REF_CLK_PV0,
+};
+
+static const unsigned int ufs0_rst_n_pv1_pins[] = {
+	TEGRA_PIN_UFS0_RST_N_PV1,
+};
+
+static const unsigned int pex_l0_clkreq_n_pw0_pins[] = {
+	TEGRA_PIN_PEX_L0_CLKREQ_N_PW0,
+};
+
+static const unsigned int pex_l0_rst_n_pw1_pins[] = {
+	TEGRA_PIN_PEX_L0_RST_N_PW1,
+};
+
+static const unsigned int pex_l1_clkreq_n_pw2_pins[] = {
+	TEGRA_PIN_PEX_L1_CLKREQ_N_PW2,
+};
+
+static const unsigned int pex_l1_rst_n_pw3_pins[] = {
+	TEGRA_PIN_PEX_L1_RST_N_PW3,
+};
+
+static const unsigned int pex_l2_clkreq_n_pw4_pins[] = {
+	TEGRA_PIN_PEX_L2_CLKREQ_N_PW4,
+};
+
+static const unsigned int pex_l2_rst_n_pw5_pins[] = {
+	TEGRA_PIN_PEX_L2_RST_N_PW5,
+};
+
+static const unsigned int pex_l3_clkreq_n_pw6_pins[] = {
+	TEGRA_PIN_PEX_L3_CLKREQ_N_PW6,
+};
+
+static const unsigned int pex_l3_rst_n_pw7_pins[] = {
+	TEGRA_PIN_PEX_L3_RST_N_PW7,
+};
+
+static const unsigned int pex_wake_n_px0_pins[] = {
+	TEGRA_PIN_PEX_WAKE_N_PX0,
+};
+
+static const unsigned int dp_aux_ch0_hpd_px1_pins[] = {
+	TEGRA_PIN_DP_AUX_CH0_HPD_PX1,
+};
+
+static const unsigned int bootv_ctl_n_paa0_pins[] = {
+	TEGRA_PIN_BOOTV_CTL_N_PAA0,
+};
+
+static const unsigned int soc_gpio00_paa1_pins[] = {
+	TEGRA_PIN_SOC_GPIO00_PAA1,
+};
+
+static const unsigned int vcomp_alert_paa2_pins[] = {
+	TEGRA_PIN_VCOMP_ALERT_PAA2,
+};
+
+static const unsigned int pwm1_paa3_pins[] = {
+	TEGRA_PIN_PWM1_PAA3,
+};
+
+static const unsigned int batt_oc_paa4_pins[] = {
+	TEGRA_PIN_BATT_OC_PAA4,
+};
+
+static const unsigned int soc_gpio04_paa5_pins[] = {
+	TEGRA_PIN_SOC_GPIO04_PAA5,
+};
+
+static const unsigned int soc_gpio25_paa6_pins[] = {
+	TEGRA_PIN_SOC_GPIO25_PAA6,
+};
+
+static const unsigned int soc_gpio26_paa7_pins[] = {
+	TEGRA_PIN_SOC_GPIO26_PAA7,
+};
+
+static const unsigned int hdmi_cec_pbb0_pins[] = {
+	TEGRA_PIN_HDMI_CEC_PBB0,
+};
+
+static const unsigned int spi2_sck_pcc0_pins[] = {
+	TEGRA_PIN_SPI2_SCK_PCC0,
+};
+
+static const unsigned int spi2_miso_pcc1_pins[] = {
+	TEGRA_PIN_SPI2_MISO_PCC1,
+};
+
+static const unsigned int spi2_mosi_pcc2_pins[] = {
+	TEGRA_PIN_SPI2_MOSI_PCC2,
+};
+
+static const unsigned int spi2_cs0_pcc3_pins[] = {
+	TEGRA_PIN_SPI2_CS0_PCC3,
+};
+
+static const unsigned int spi2_cs1_pcc4_pins[] = {
+	TEGRA_PIN_SPI2_CS1_PCC4,
+};
+
+static const unsigned int uart3_tx_pcc5_pins[] = {
+	TEGRA_PIN_UART3_TX_PCC5,
+};
+
+static const unsigned int uart3_rx_pcc6_pins[] = {
+	TEGRA_PIN_UART3_RX_PCC6,
+};
+
+static const unsigned int gen2_i2c_scl_pcc7_pins[] = {
+	TEGRA_PIN_GEN2_I2C_SCL_PCC7,
+};
+
+static const unsigned int gen2_i2c_sda_pdd0_pins[] = {
+	TEGRA_PIN_GEN2_I2C_SDA_PDD0,
+};
+
+static const unsigned int gen8_i2c_scl_pdd1_pins[] = {
+	TEGRA_PIN_GEN8_I2C_SCL_PDD1,
+};
+
+static const unsigned int gen8_i2c_sda_pdd2_pins[] = {
+	TEGRA_PIN_GEN8_I2C_SDA_PDD2,
+};
+
+static const unsigned int touch_clk_pdd3_pins[] = {
+	TEGRA_PIN_TOUCH_CLK_PDD3,
+};
+
+static const unsigned int dmic1_clk_pdd4_pins[] = {
+	TEGRA_PIN_DMIC1_CLK_PDD4,
+};
+
+static const unsigned int dmic1_dat_pdd5_pins[] = {
+	TEGRA_PIN_DMIC1_DAT_PDD5,
+};
+
+static const unsigned int soc_gpio19_pdd6_pins[] = {
+	TEGRA_PIN_SOC_GPIO19_PDD6,
+};
+
+static const unsigned int pwm2_pdd7_pins[] = {
+	TEGRA_PIN_PWM2_PDD7,
+};
+
+static const unsigned int pwm3_pee0_pins[] = {
+	TEGRA_PIN_PWM3_PEE0,
+};
+
+static const unsigned int pwm7_pee1_pins[] = {
+	TEGRA_PIN_PWM7_PEE1,
+};
+
+static const unsigned int soc_gpio49_pee2_pins[] = {
+	TEGRA_PIN_SOC_GPIO49_PEE2,
+};
+
+static const unsigned int soc_gpio82_pee3_pins[] = {
+	TEGRA_PIN_SOC_GPIO82_PEE3,
+};
+
+static const unsigned int soc_gpio50_pee4_pins[] = {
+	TEGRA_PIN_SOC_GPIO50_PEE4,
+};
+
+static const unsigned int soc_gpio83_pee5_pins[] = {
+	TEGRA_PIN_SOC_GPIO83_PEE5,
+};
+
+static const unsigned int soc_gpio69_pff0_pins[] = {
+	TEGRA_PIN_SOC_GPIO69_PFF0,
+};
+
+static const unsigned int soc_gpio70_pff1_pins[] = {
+	TEGRA_PIN_SOC_GPIO70_PFF1,
+};
+
+static const unsigned int soc_gpio71_pff2_pins[] = {
+	TEGRA_PIN_SOC_GPIO71_PFF2,
+};
+
+static const unsigned int soc_gpio72_pff3_pins[] = {
+	TEGRA_PIN_SOC_GPIO72_PFF3,
+};
+
+static const unsigned int soc_gpio73_pff4_pins[] = {
+	TEGRA_PIN_SOC_GPIO73_PFF4,
+};
+
+static const unsigned int soc_gpio74_pff5_pins[] = {
+	TEGRA_PIN_SOC_GPIO74_PFF5,
+};
+
+static const unsigned int soc_gpio80_pff6_pins[] = {
+	TEGRA_PIN_SOC_GPIO80_PFF6,
+};
+
+static const unsigned int soc_gpio76_pff7_pins[] = {
+	TEGRA_PIN_SOC_GPIO76_PFF7,
+};
+
+static const unsigned int soc_gpio77_pgg0_pins[] = {
+	TEGRA_PIN_SOC_GPIO77_PGG0,
+};
+
+static const unsigned int soc_gpio84_pgg1_pins[] = {
+	TEGRA_PIN_SOC_GPIO84_PGG1,
+};
+
+static const unsigned int uart2_tx_pgg2_pins[] = {
+	TEGRA_PIN_UART2_TX_PGG2,
+};
+
+static const unsigned int uart2_rx_pgg3_pins[] = {
+	TEGRA_PIN_UART2_RX_PGG3,
+};
+
+static const unsigned int uart2_rts_pgg4_pins[] = {
+	TEGRA_PIN_UART2_RTS_PGG4,
+};
+
+static const unsigned int uart2_cts_pgg5_pins[] = {
+	TEGRA_PIN_UART2_CTS_PGG5,
+};
+
+static const unsigned int soc_gpio85_pgg6_pins[] = {
+	TEGRA_PIN_SOC_GPIO85_PGG6,
+};
+
+static const unsigned int uart5_tx_pgg7_pins[] = {
+	TEGRA_PIN_UART5_TX_PGG7,
+};
+
+static const unsigned int uart5_rx_phh0_pins[] = {
+	TEGRA_PIN_UART5_RX_PHH0,
+};
+
+static const unsigned int uart5_rts_phh1_pins[] = {
+	TEGRA_PIN_UART5_RTS_PHH1,
+};
+
+static const unsigned int uart5_cts_phh2_pins[] = {
+	TEGRA_PIN_UART5_CTS_PHH2,
+};
+
+static const unsigned int soc_gpio86_phh3_pins[] = {
+	TEGRA_PIN_SOC_GPIO86_PHH3,
+};
+
+static const unsigned int sdmmc1_comp_pins[] = {
+	TEGRA_PIN_SDMMC1_COMP,
+};
+
+/* Define unique ID for each function */
+enum tegra_mux_dt {
+	TEGRA_MUX_DCA_VSYNC,
+	TEGRA_MUX_DCA_HSYNC,
+	TEGRA_MUX_DISPLAYA,
+	TEGRA_MUX_RSVD0,
+	TEGRA_MUX_I2C7_CLK,
+	TEGRA_MUX_I2C7_DAT,
+	TEGRA_MUX_I2C4_DAT,
+	TEGRA_MUX_I2C4_CLK,
+	TEGRA_MUX_I2C9_DAT,
+	TEGRA_MUX_I2C9_CLK,
+	TEGRA_MUX_USB_VBUS_EN0,
+	TEGRA_MUX_USB_VBUS_EN1,
+	TEGRA_MUX_SPI3_DIN,
+	TEGRA_MUX_SPI1_CS0,
+	TEGRA_MUX_SPI3_CS0,
+	TEGRA_MUX_SPI1_DIN,
+	TEGRA_MUX_SPI3_CS1,
+	TEGRA_MUX_SPI1_SCK,
+	TEGRA_MUX_SPI3_SCK,
+	TEGRA_MUX_SPI1_CS1,
+	TEGRA_MUX_SPI1_DOUT,
+	TEGRA_MUX_SPI3_DOUT,
+	TEGRA_MUX_GP_PWM5,
+	TEGRA_MUX_GP_PWM6,
+	TEGRA_MUX_EXTPERIPH2_CLK,
+	TEGRA_MUX_EXTPERIPH1_CLK,
+	TEGRA_MUX_I2C3_DAT,
+	TEGRA_MUX_I2C3_CLK,
+	TEGRA_MUX_EXTPERIPH4_CLK,
+	TEGRA_MUX_EXTPERIPH3_CLK,
+	TEGRA_MUX_DMIC2_DAT,
+	TEGRA_MUX_DMIC2_CLK,
+	TEGRA_MUX_UARTA_CTS,
+	TEGRA_MUX_UARTA_RTS,
+	TEGRA_MUX_UARTA_RXD,
+	TEGRA_MUX_UARTA_TXD,
+	TEGRA_MUX_I2C5_CLK,
+	TEGRA_MUX_I2C5_DAT,
+	TEGRA_MUX_UARTD_CTS,
+	TEGRA_MUX_UARTD_RTS,
+	TEGRA_MUX_UARTD_RXD,
+	TEGRA_MUX_UARTD_TXD,
+	TEGRA_MUX_I2C1_CLK,
+	TEGRA_MUX_I2C1_DAT,
+	TEGRA_MUX_SDMMC1_CD,
+	TEGRA_MUX_I2S2_SCLK,
+	TEGRA_MUX_I2S2_SDATA_OUT,
+	TEGRA_MUX_I2S2_SDATA_IN,
+	TEGRA_MUX_I2S2_LRCK,
+	TEGRA_MUX_I2S4_SCLK,
+	TEGRA_MUX_I2S4_SDATA_OUT,
+	TEGRA_MUX_I2S4_SDATA_IN,
+	TEGRA_MUX_I2S4_LRCK,
+	TEGRA_MUX_I2S1_SCLK,
+	TEGRA_MUX_I2S1_SDATA_OUT,
+	TEGRA_MUX_I2S1_SDATA_IN,
+	TEGRA_MUX_I2S1_LRCK,
+	TEGRA_MUX_AUD_MCLK,
+	TEGRA_MUX_I2S3_LRCK,
+	TEGRA_MUX_I2S3_SCLK,
+	TEGRA_MUX_I2S3_SDATA_IN,
+	TEGRA_MUX_I2S3_SDATA_OUT,
+	TEGRA_MUX_PE2_CLKREQ_L,
+	TEGRA_MUX_PE1_CLKREQ_L,
+	TEGRA_MUX_PE1_RST_L,
+	TEGRA_MUX_PE0_CLKREQ_L,
+	TEGRA_MUX_PE0_RST_L,
+	TEGRA_MUX_PE2_RST_L,
+	TEGRA_MUX_PE3_CLKREQ_L,
+	TEGRA_MUX_PE3_RST_L,
+	TEGRA_MUX_DP_AUX_CH0_HPD,
+	TEGRA_MUX_QSPI0_IO0,
+	TEGRA_MUX_QSPI0_IO1,
+	TEGRA_MUX_QSPI0_SCK,
+	TEGRA_MUX_QSPI0_CS_N,
+	TEGRA_MUX_UARTG_CTS,
+	TEGRA_MUX_UARTG_RTS,
+	TEGRA_MUX_UARTG_TXD,
+	TEGRA_MUX_UARTG_RXD,
+	TEGRA_MUX_SDMMC1_CLK,
+	TEGRA_MUX_SDMMC1_CMD,
+	TEGRA_MUX_SDMMC1_COMP,
+	TEGRA_MUX_SDMMC1_DAT3,
+	TEGRA_MUX_SDMMC1_DAT2,
+	TEGRA_MUX_SDMMC1_DAT1,
+	TEGRA_MUX_SDMMC1_DAT0,
+	TEGRA_MUX_UFS0,
+	TEGRA_MUX_SOC_THERM_OC1,
+	TEGRA_MUX_HDMI_CEC,
+	TEGRA_MUX_GP_PWM4,
+	TEGRA_MUX_UARTC_RXD,
+	TEGRA_MUX_UARTC_TXD,
+	TEGRA_MUX_I2C8_DAT,
+	TEGRA_MUX_I2C8_CLK,
+	TEGRA_MUX_SPI2_DOUT,
+	TEGRA_MUX_I2C2_CLK,
+	TEGRA_MUX_SPI2_CS0,
+	TEGRA_MUX_I2C2_DAT,
+	TEGRA_MUX_SPI2_SCK,
+	TEGRA_MUX_SPI2_DIN,
+	TEGRA_MUX_PPC_MODE_1,
+	TEGRA_MUX_PPC_READY,
+	TEGRA_MUX_PPC_MODE_2,
+	TEGRA_MUX_PPC_CC,
+	TEGRA_MUX_PPC_MODE_0,
+	TEGRA_MUX_PPC_INT_N,
+	TEGRA_MUX_UARTE_TXD,
+	TEGRA_MUX_UARTE_RXD,
+	TEGRA_MUX_UARTB_TXD,
+	TEGRA_MUX_UARTB_RXD,
+	TEGRA_MUX_UARTB_CTS,
+	TEGRA_MUX_UARTB_RTS,
+	TEGRA_MUX_UARTE_CTS,
+	TEGRA_MUX_UARTE_RTS,
+	TEGRA_MUX_GP_PWM7,
+	TEGRA_MUX_GP_PWM2,
+	TEGRA_MUX_GP_PWM3,
+	TEGRA_MUX_GP_PWM1,
+	TEGRA_MUX_SPI2_CS1,
+	TEGRA_MUX_DMIC1_CLK,
+	TEGRA_MUX_DMIC1_DAT,
+	TEGRA_MUX_RSVD1,
+	TEGRA_MUX_DCB_HSYNC,
+	TEGRA_MUX_DCB_VSYNC,
+	TEGRA_MUX_SOC_THERM_OC4,
+	TEGRA_MUX_GP_PWM8,
+	TEGRA_MUX_NV_THERM_FAN_TACH0,
+	TEGRA_MUX_WDT_RESET_OUTA,
+	TEGRA_MUX_CCLA_LA_TRIGGER_MUX,
+	TEGRA_MUX_DSPK1_DAT,
+	TEGRA_MUX_DSPK1_CLK,
+	TEGRA_MUX_NV_THERM_FAN_TACH1,
+	TEGRA_MUX_DSPK0_DAT,
+	TEGRA_MUX_DSPK0_CLK,
+	TEGRA_MUX_I2S5_SCLK,
+	TEGRA_MUX_I2S6_LRCK,
+	TEGRA_MUX_I2S6_SDATA_IN,
+	TEGRA_MUX_I2S6_SCLK,
+	TEGRA_MUX_I2S6_SDATA_OUT,
+	TEGRA_MUX_I2S5_LRCK,
+	TEGRA_MUX_I2S5_SDATA_OUT,
+	TEGRA_MUX_I2S5_SDATA_IN,
+	TEGRA_MUX_SDMMC1_PE3_RST_L,
+	TEGRA_MUX_SDMMC1_PE3_CLKREQ_L,
+	TEGRA_MUX_TOUCH_CLK,
+	TEGRA_MUX_PPC_I2C_DAT,
+	TEGRA_MUX_WDT_RESET_OUTB,
+	TEGRA_MUX_SPI5_CS1,
+	TEGRA_MUX_PPC_RST_N,
+	TEGRA_MUX_PPC_I2C_CLK,
+	TEGRA_MUX_SPI4_CS1,
+	TEGRA_MUX_SOC_THERM_OC3,
+	TEGRA_MUX_SPI5_SCK,
+	TEGRA_MUX_SPI5_MISO,
+	TEGRA_MUX_SPI4_SCK,
+	TEGRA_MUX_SPI4_MISO,
+	TEGRA_MUX_SPI4_CS0,
+	TEGRA_MUX_SPI4_MOSI,
+	TEGRA_MUX_SPI5_CS0,
+	TEGRA_MUX_SPI5_MOSI,
+	TEGRA_MUX_LED_BLINK,
+	TEGRA_MUX_RSVD2,
+	TEGRA_MUX_DMIC3_CLK,
+	TEGRA_MUX_DMIC3_DAT,
+	TEGRA_MUX_DMIC4_CLK,
+	TEGRA_MUX_DMIC4_DAT,
+	TEGRA_MUX_TSC_EDGE_OUT0,
+	TEGRA_MUX_TSC_EDGE_OUT3,
+	TEGRA_MUX_TSC_EDGE_OUT1,
+	TEGRA_MUX_TSC_EDGE_OUT2,
+	TEGRA_MUX_DMIC5_CLK,
+	TEGRA_MUX_DMIC5_DAT,
+	TEGRA_MUX_RSVD3,
+	TEGRA_MUX_SDMMC1_WP,
+	TEGRA_MUX_TSC_EDGE_OUT0A,
+	TEGRA_MUX_TSC_EDGE_OUT0D,
+	TEGRA_MUX_TSC_EDGE_OUT0B,
+	TEGRA_MUX_TSC_EDGE_OUT0C,
+	TEGRA_MUX_SOC_THERM_OC2,
+};
+
+/* Make list of each function name */
+#define TEGRA_PIN_FUNCTION(lid) #lid
+
+static const char * const tegra238_functions[] = {
+	TEGRA_PIN_FUNCTION(dca_vsync),
+	TEGRA_PIN_FUNCTION(dca_hsync),
+	TEGRA_PIN_FUNCTION(displaya),
+	TEGRA_PIN_FUNCTION(rsvd0),
+	TEGRA_PIN_FUNCTION(i2c7_clk),
+	TEGRA_PIN_FUNCTION(i2c7_dat),
+	TEGRA_PIN_FUNCTION(i2c4_dat),
+	TEGRA_PIN_FUNCTION(i2c4_clk),
+	TEGRA_PIN_FUNCTION(i2c9_dat),
+	TEGRA_PIN_FUNCTION(i2c9_clk),
+	TEGRA_PIN_FUNCTION(usb_vbus_en0),
+	TEGRA_PIN_FUNCTION(usb_vbus_en1),
+	TEGRA_PIN_FUNCTION(spi3_din),
+	TEGRA_PIN_FUNCTION(spi1_cs0),
+	TEGRA_PIN_FUNCTION(spi3_cs0),
+	TEGRA_PIN_FUNCTION(spi1_din),
+	TEGRA_PIN_FUNCTION(spi3_cs1),
+	TEGRA_PIN_FUNCTION(spi1_sck),
+	TEGRA_PIN_FUNCTION(spi3_sck),
+	TEGRA_PIN_FUNCTION(spi1_cs1),
+	TEGRA_PIN_FUNCTION(spi1_dout),
+	TEGRA_PIN_FUNCTION(spi3_dout),
+	TEGRA_PIN_FUNCTION(gp_pwm5),
+	TEGRA_PIN_FUNCTION(gp_pwm6),
+	TEGRA_PIN_FUNCTION(extperiph2_clk),
+	TEGRA_PIN_FUNCTION(extperiph1_clk),
+	TEGRA_PIN_FUNCTION(i2c3_dat),
+	TEGRA_PIN_FUNCTION(i2c3_clk),
+	TEGRA_PIN_FUNCTION(extperiph4_clk),
+	TEGRA_PIN_FUNCTION(extperiph3_clk),
+	TEGRA_PIN_FUNCTION(dmic2_dat),
+	TEGRA_PIN_FUNCTION(dmic2_clk),
+	TEGRA_PIN_FUNCTION(uarta_cts),
+	TEGRA_PIN_FUNCTION(uarta_rts),
+	TEGRA_PIN_FUNCTION(uarta_rxd),
+	TEGRA_PIN_FUNCTION(uarta_txd),
+	TEGRA_PIN_FUNCTION(i2c5_clk),
+	TEGRA_PIN_FUNCTION(i2c5_dat),
+	TEGRA_PIN_FUNCTION(uartd_cts),
+	TEGRA_PIN_FUNCTION(uartd_rts),
+	TEGRA_PIN_FUNCTION(uartd_rxd),
+	TEGRA_PIN_FUNCTION(uartd_txd),
+	TEGRA_PIN_FUNCTION(i2c1_clk),
+	TEGRA_PIN_FUNCTION(i2c1_dat),
+	TEGRA_PIN_FUNCTION(sdmmc1_cd),
+	TEGRA_PIN_FUNCTION(i2s2_sclk),
+	TEGRA_PIN_FUNCTION(i2s2_sdata_out),
+	TEGRA_PIN_FUNCTION(i2s2_sdata_in),
+	TEGRA_PIN_FUNCTION(i2s2_lrck),
+	TEGRA_PIN_FUNCTION(i2s4_sclk),
+	TEGRA_PIN_FUNCTION(i2s4_sdata_out),
+	TEGRA_PIN_FUNCTION(i2s4_sdata_in),
+	TEGRA_PIN_FUNCTION(i2s4_lrck),
+	TEGRA_PIN_FUNCTION(i2s1_sclk),
+	TEGRA_PIN_FUNCTION(i2s1_sdata_out),
+	TEGRA_PIN_FUNCTION(i2s1_sdata_in),
+	TEGRA_PIN_FUNCTION(i2s1_lrck),
+	TEGRA_PIN_FUNCTION(aud_mclk),
+	TEGRA_PIN_FUNCTION(i2s3_lrck),
+	TEGRA_PIN_FUNCTION(i2s3_sclk),
+	TEGRA_PIN_FUNCTION(i2s3_sdata_in),
+	TEGRA_PIN_FUNCTION(i2s3_sdata_out),
+	TEGRA_PIN_FUNCTION(pe2_clkreq_l),
+	TEGRA_PIN_FUNCTION(pe1_clkreq_l),
+	TEGRA_PIN_FUNCTION(pe1_rst_l),
+	TEGRA_PIN_FUNCTION(pe0_clkreq_l),
+	TEGRA_PIN_FUNCTION(pe0_rst_l),
+	TEGRA_PIN_FUNCTION(pe2_rst_l),
+	TEGRA_PIN_FUNCTION(pe3_clkreq_l),
+	TEGRA_PIN_FUNCTION(pe3_rst_l),
+	TEGRA_PIN_FUNCTION(dp_aux_ch0_hpd),
+	TEGRA_PIN_FUNCTION(qspi0_io0),
+	TEGRA_PIN_FUNCTION(qspi0_io1),
+	TEGRA_PIN_FUNCTION(qspi0_sck),
+	TEGRA_PIN_FUNCTION(qspi0_cs_n),
+	TEGRA_PIN_FUNCTION(uartg_cts),
+	TEGRA_PIN_FUNCTION(uartg_rts),
+	TEGRA_PIN_FUNCTION(uartg_txd),
+	TEGRA_PIN_FUNCTION(uartg_rxd),
+	TEGRA_PIN_FUNCTION(sdmmc1_clk),
+	TEGRA_PIN_FUNCTION(sdmmc1_cmd),
+	TEGRA_PIN_FUNCTION(sdmmc1_comp),
+	TEGRA_PIN_FUNCTION(sdmmc1_dat3),
+	TEGRA_PIN_FUNCTION(sdmmc1_dat2),
+	TEGRA_PIN_FUNCTION(sdmmc1_dat1),
+	TEGRA_PIN_FUNCTION(sdmmc1_dat0),
+	TEGRA_PIN_FUNCTION(ufs0),
+	TEGRA_PIN_FUNCTION(soc_therm_oc1),
+	TEGRA_PIN_FUNCTION(hdmi_cec),
+	TEGRA_PIN_FUNCTION(gp_pwm4),
+	TEGRA_PIN_FUNCTION(uartc_rxd),
+	TEGRA_PIN_FUNCTION(uartc_txd),
+	TEGRA_PIN_FUNCTION(i2c8_dat),
+	TEGRA_PIN_FUNCTION(i2c8_clk),
+	TEGRA_PIN_FUNCTION(spi2_dout),
+	TEGRA_PIN_FUNCTION(i2c2_clk),
+	TEGRA_PIN_FUNCTION(spi2_cs0),
+	TEGRA_PIN_FUNCTION(i2c2_dat),
+	TEGRA_PIN_FUNCTION(spi2_sck),
+	TEGRA_PIN_FUNCTION(spi2_din),
+	TEGRA_PIN_FUNCTION(ppc_mode_1),
+	TEGRA_PIN_FUNCTION(ppc_ready),
+	TEGRA_PIN_FUNCTION(ppc_mode_2),
+	TEGRA_PIN_FUNCTION(ppc_cc),
+	TEGRA_PIN_FUNCTION(ppc_mode_0),
+	TEGRA_PIN_FUNCTION(ppc_int_n),
+	TEGRA_PIN_FUNCTION(uarte_txd),
+	TEGRA_PIN_FUNCTION(uarte_rxd),
+	TEGRA_PIN_FUNCTION(uartb_txd),
+	TEGRA_PIN_FUNCTION(uartb_rxd),
+	TEGRA_PIN_FUNCTION(uartb_cts),
+	TEGRA_PIN_FUNCTION(uartb_rts),
+	TEGRA_PIN_FUNCTION(uarte_cts),
+	TEGRA_PIN_FUNCTION(uarte_rts),
+	TEGRA_PIN_FUNCTION(gp_pwm7),
+	TEGRA_PIN_FUNCTION(gp_pwm2),
+	TEGRA_PIN_FUNCTION(gp_pwm3),
+	TEGRA_PIN_FUNCTION(gp_pwm1),
+	TEGRA_PIN_FUNCTION(spi2_cs1),
+	TEGRA_PIN_FUNCTION(dmic1_clk),
+	TEGRA_PIN_FUNCTION(dmic1_dat),
+	TEGRA_PIN_FUNCTION(rsvd1),
+	TEGRA_PIN_FUNCTION(dcb_hsync),
+	TEGRA_PIN_FUNCTION(dcb_vsync),
+	TEGRA_PIN_FUNCTION(soc_therm_oc4),
+	TEGRA_PIN_FUNCTION(gp_pwm8),
+	TEGRA_PIN_FUNCTION(nv_therm_fan_tach0),
+	TEGRA_PIN_FUNCTION(wdt_reset_outa),
+	TEGRA_PIN_FUNCTION(ccla_la_trigger_mux),
+	TEGRA_PIN_FUNCTION(dspk1_dat),
+	TEGRA_PIN_FUNCTION(dspk1_clk),
+	TEGRA_PIN_FUNCTION(nv_therm_fan_tach1),
+	TEGRA_PIN_FUNCTION(dspk0_dat),
+	TEGRA_PIN_FUNCTION(dspk0_clk),
+	TEGRA_PIN_FUNCTION(i2s5_sclk),
+	TEGRA_PIN_FUNCTION(i2s6_lrck),
+	TEGRA_PIN_FUNCTION(i2s6_sdata_in),
+	TEGRA_PIN_FUNCTION(i2s6_sclk),
+	TEGRA_PIN_FUNCTION(i2s6_sdata_out),
+	TEGRA_PIN_FUNCTION(i2s5_lrck),
+	TEGRA_PIN_FUNCTION(i2s5_sdata_out),
+	TEGRA_PIN_FUNCTION(i2s5_sdata_in),
+	TEGRA_PIN_FUNCTION(sdmmc1_pe3_rst_l),
+	TEGRA_PIN_FUNCTION(sdmmc1_pe3_clkreq_l),
+	TEGRA_PIN_FUNCTION(touch_clk),
+	TEGRA_PIN_FUNCTION(ppc_i2c_dat),
+	TEGRA_PIN_FUNCTION(wdt_reset_outb),
+	TEGRA_PIN_FUNCTION(spi5_cs1),
+	TEGRA_PIN_FUNCTION(ppc_rst_n),
+	TEGRA_PIN_FUNCTION(ppc_i2c_clk),
+	TEGRA_PIN_FUNCTION(spi4_cs1),
+	TEGRA_PIN_FUNCTION(soc_therm_oc3),
+	TEGRA_PIN_FUNCTION(spi5_sck),
+	TEGRA_PIN_FUNCTION(spi5_miso),
+	TEGRA_PIN_FUNCTION(spi4_sck),
+	TEGRA_PIN_FUNCTION(spi4_miso),
+	TEGRA_PIN_FUNCTION(spi4_cs0),
+	TEGRA_PIN_FUNCTION(spi4_mosi),
+	TEGRA_PIN_FUNCTION(spi5_cs0),
+	TEGRA_PIN_FUNCTION(spi5_mosi),
+	TEGRA_PIN_FUNCTION(led_blink),
+	TEGRA_PIN_FUNCTION(rsvd2),
+	TEGRA_PIN_FUNCTION(dmic3_clk),
+	TEGRA_PIN_FUNCTION(dmic3_dat),
+	TEGRA_PIN_FUNCTION(dmic4_clk),
+	TEGRA_PIN_FUNCTION(dmic4_dat),
+	TEGRA_PIN_FUNCTION(tsc_edge_out0),
+	TEGRA_PIN_FUNCTION(tsc_edge_out3),
+	TEGRA_PIN_FUNCTION(tsc_edge_out1),
+	TEGRA_PIN_FUNCTION(tsc_edge_out2),
+	TEGRA_PIN_FUNCTION(dmic5_clk),
+	TEGRA_PIN_FUNCTION(dmic5_dat),
+	TEGRA_PIN_FUNCTION(rsvd3),
+	TEGRA_PIN_FUNCTION(sdmmc1_wp),
+	TEGRA_PIN_FUNCTION(tsc_edge_out0a),
+	TEGRA_PIN_FUNCTION(tsc_edge_out0d),
+	TEGRA_PIN_FUNCTION(tsc_edge_out0b),
+	TEGRA_PIN_FUNCTION(tsc_edge_out0c),
+	TEGRA_PIN_FUNCTION(soc_therm_oc2),
+};
+
+#define PINGROUP_REG_Y(r) ((r))
+#define PINGROUP_REG_N(r) -1
+
+#define DRV_PINGROUP_Y(r) ((r))
+
+#define DRV_PINGROUP_ENTRY_N					\
+		.drv_reg = -1,					\
+		.drv_bank = -1,					\
+		.drvdn_bit = -1,				\
+		.drvup_bit = -1,				\
+		.slwr_bit = -1,					\
+		.slwf_bit = -1
+
+#define DRV_PINGROUP_ENTRY_Y(r, drvdn_b, drvdn_w, drvup_b,	\
+			     drvup_w, slwr_b, slwr_w, slwf_b,	\
+			     slwf_w, bank)			\
+		.drv_reg = DRV_PINGROUP_Y(r),			\
+		.drv_bank = bank,				\
+		.drvdn_bit = drvdn_b,				\
+		.drvdn_width = drvdn_w,				\
+		.drvup_bit = drvup_b,				\
+		.drvup_width = drvup_w,				\
+		.slwr_bit = slwr_b,				\
+		.slwr_width = slwr_w,				\
+		.slwf_bit = slwf_b,				\
+		.slwf_width = slwf_w
+
+#define PIN_PINGROUP_ENTRY_N					\
+		.mux_reg = -1,					\
+		.pupd_reg = -1,					\
+		.tri_reg = -1,					\
+		.einput_bit = -1,				\
+		.e_io_hv_bit = -1,				\
+		.odrain_bit = -1,				\
+		.lock_bit = -1,					\
+		.parked_bit = -1,				\
+		.lpmd_bit = -1,					\
+		.drvtype_bit = -1,				\
+		.lpdr_bit = -1,					\
+		.pbias_buf_bit = -1,				\
+		.preemp_bit = -1,				\
+		.rfu_in_bit = -1
+
+#define PIN_PINGROUP_ENTRY_Y(r, bank, pupd, e_io_hv, e_lpbk, e_input,	\
+				e_lpdr, e_pbias_buf, gpio_sfio_sel,	\
+				schmitt_b)				\
+		.mux_reg = PINGROUP_REG_Y(r),			\
+		.lpmd_bit = -1,					\
+		.lock_bit = -1,					\
+		.hsm_bit = -1,					\
+		.mux_bank = bank,				\
+		.mux_bit = 0,					\
+		.pupd_reg = PINGROUP_REG_##pupd(r),		\
+		.pupd_bank = bank,				\
+		.pupd_bit = 2,					\
+		.tri_reg = PINGROUP_REG_Y(r),			\
+		.tri_bank = bank,				\
+		.tri_bit = 4,					\
+		.einput_bit = e_input,				\
+		.sfsel_bit = gpio_sfio_sel,			\
+		.schmitt_bit = schmitt_b,			\
+		.drvtype_bit = 13,				\
+		.lpdr_bit = e_lpdr,
+
+#define drive_soc_gpio36_pt1		DRV_PINGROUP_ENTRY_Y(0x10004,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio53_pt2		DRV_PINGROUP_ENTRY_Y(0x1000c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio38_pt3		DRV_PINGROUP_ENTRY_Y(0x1001c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio40_pt4		DRV_PINGROUP_ENTRY_Y(0x1002c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio75_ps2		DRV_PINGROUP_ENTRY_Y(0x10034,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio81_pt0		DRV_PINGROUP_ENTRY_Y(0x1003c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio78_ps5		DRV_PINGROUP_ENTRY_Y(0x10044,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio34_pt5		DRV_PINGROUP_ENTRY_Y(0x1004c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_gen7_i2c_scl_ps3		DRV_PINGROUP_ENTRY_Y(0x100a4,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_gen7_i2c_sda_ps4		DRV_PINGROUP_ENTRY_Y(0x100ac,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_gen4_i2c_sda_ps1		DRV_PINGROUP_ENTRY_Y(0x100b4,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_gen4_i2c_scl_ps0		DRV_PINGROUP_ENTRY_Y(0x100bc,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_gen9_i2c_sda_ps7		DRV_PINGROUP_ENTRY_Y(0x100c4,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_gen9_i2c_scl_ps6		DRV_PINGROUP_ENTRY_Y(0x100cc,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_usb_vbus_en0_pt6		DRV_PINGROUP_ENTRY_Y(0x100d4,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_usb_vbus_en1_pt7		DRV_PINGROUP_ENTRY_Y(0x100dc,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio61_pr0		DRV_PINGROUP_ENTRY_Y(0x1f004,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio62_pr1		DRV_PINGROUP_ENTRY_Y(0x1f00c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio63_pr2		DRV_PINGROUP_ENTRY_Y(0x1f014,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio64_pr3		DRV_PINGROUP_ENTRY_Y(0x1f01c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio65_pr4		DRV_PINGROUP_ENTRY_Y(0x1f024,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio66_pr5		DRV_PINGROUP_ENTRY_Y(0x1f02c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio67_pr6		DRV_PINGROUP_ENTRY_Y(0x1f034,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio68_pr7		DRV_PINGROUP_ENTRY_Y(0x1f03c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_spi3_miso_pa4		    DRV_PINGROUP_ENTRY_Y(0xd004,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_spi1_cs0_pb3		    DRV_PINGROUP_ENTRY_Y(0xd00c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_spi3_cs0_pa6		    DRV_PINGROUP_ENTRY_Y(0xd014,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_spi1_miso_pb1		    DRV_PINGROUP_ENTRY_Y(0xd01c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_spi3_cs1_pa7		    DRV_PINGROUP_ENTRY_Y(0xd024,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_spi1_sck_pb0		    DRV_PINGROUP_ENTRY_Y(0xd02c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_spi3_sck_pa3		    DRV_PINGROUP_ENTRY_Y(0xd034,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_spi1_cs1_pb4		    DRV_PINGROUP_ENTRY_Y(0xd03c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_spi1_mosi_pb2	        DRV_PINGROUP_ENTRY_Y(0xd044,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_spi3_mosi_pa5		    DRV_PINGROUP_ENTRY_Y(0xd04c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_gpu_pwr_req_pa0		DRV_PINGROUP_ENTRY_Y(0xd054,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_gp_pwm5_pa1		    DRV_PINGROUP_ENTRY_Y(0xd05c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_gp_pwm6_pa2		    DRV_PINGROUP_ENTRY_Y(0xd064,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_extperiph2_clk_pc3	DRV_PINGROUP_ENTRY_Y(0x4,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_extperiph1_clk_pc2	DRV_PINGROUP_ENTRY_Y(0xc,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_cam_i2c_sda_pc5		DRV_PINGROUP_ENTRY_Y(0x14,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_cam_i2c_scl_pc4		DRV_PINGROUP_ENTRY_Y(0x1c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio23_pc6		DRV_PINGROUP_ENTRY_Y(0x24,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio24_pc7		DRV_PINGROUP_ENTRY_Y(0x2c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio27_pd0		DRV_PINGROUP_ENTRY_Y(0x44,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio29_pd2		DRV_PINGROUP_ENTRY_Y(0x54,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio32_pd4		DRV_PINGROUP_ENTRY_Y(0x6c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio33_pd3		DRV_PINGROUP_ENTRY_Y(0x74,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio35_pd5		DRV_PINGROUP_ENTRY_Y(0x7c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio37_pd6		DRV_PINGROUP_ENTRY_Y(0x84,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio56_pd7		DRV_PINGROUP_ENTRY_Y(0x8c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio55_pd1		DRV_PINGROUP_ENTRY_Y(0x94,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_uart1_cts_pe3		    DRV_PINGROUP_ENTRY_Y(0x9c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_uart1_rts_pe2		    DRV_PINGROUP_ENTRY_Y(0xa4,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_uart1_rx_pe1		    DRV_PINGROUP_ENTRY_Y(0xac,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_uart1_tx_pe0		    DRV_PINGROUP_ENTRY_Y(0xb4,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_pwr_i2c_scl_pc0		DRV_PINGROUP_ENTRY_Y(0xbc,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_pwr_i2c_sda_pc1		DRV_PINGROUP_ENTRY_Y(0xc4,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_cpu_pwr_req_ph4		DRV_PINGROUP_ENTRY_Y(0x4004,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_uart4_cts_pg5		    DRV_PINGROUP_ENTRY_Y(0x400c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_uart4_rts_pg4		    DRV_PINGROUP_ENTRY_Y(0x4014,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_uart4_rx_pg3		    DRV_PINGROUP_ENTRY_Y(0x401c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_uart4_tx_pg2		    DRV_PINGROUP_ENTRY_Y(0x4024,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_gen1_i2c_scl_ph2		DRV_PINGROUP_ENTRY_Y(0x402c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_gen1_i2c_sda_ph3		DRV_PINGROUP_ENTRY_Y(0x4034,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio20_pf6		DRV_PINGROUP_ENTRY_Y(0x403c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio21_pf7		DRV_PINGROUP_ENTRY_Y(0x4044,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio22_pg0		DRV_PINGROUP_ENTRY_Y(0x404c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio13_pf0		DRV_PINGROUP_ENTRY_Y(0x4054,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio14_pf1		DRV_PINGROUP_ENTRY_Y(0x405c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio15_pf2		DRV_PINGROUP_ENTRY_Y(0x4064,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio16_pf3		DRV_PINGROUP_ENTRY_Y(0x406c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio17_pf4		DRV_PINGROUP_ENTRY_Y(0x4074,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio18_pf5		DRV_PINGROUP_ENTRY_Y(0x407c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio41_pg6		DRV_PINGROUP_ENTRY_Y(0x408c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio42_pg7		DRV_PINGROUP_ENTRY_Y(0x4094,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio43_ph0		DRV_PINGROUP_ENTRY_Y(0x409c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio44_ph1		DRV_PINGROUP_ENTRY_Y(0x40a4,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio06_pg1		DRV_PINGROUP_ENTRY_Y(0x40ac,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio07_ph5		DRV_PINGROUP_ENTRY_Y(0x40b4,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_dap4_sclk_pp4		    DRV_PINGROUP_ENTRY_Y(0x2004,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_dap4_dout_pp5		    DRV_PINGROUP_ENTRY_Y(0x200c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_dap4_din_pp6		    DRV_PINGROUP_ENTRY_Y(0x2014,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_dap4_fs_pp7		    DRV_PINGROUP_ENTRY_Y(0x201c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio167_pp0		DRV_PINGROUP_ENTRY_Y(0x2044,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio168_pp1		DRV_PINGROUP_ENTRY_Y(0x204c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio169_pp2		DRV_PINGROUP_ENTRY_Y(0x2054,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio170_pp3		DRV_PINGROUP_ENTRY_Y(0x205c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio171_pq0		DRV_PINGROUP_ENTRY_Y(0x2064,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio172_pq1		DRV_PINGROUP_ENTRY_Y(0x206c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio173_pq2		DRV_PINGROUP_ENTRY_Y(0x2074,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio45_pk0		DRV_PINGROUP_ENTRY_Y(0x18004,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio46_pk1		DRV_PINGROUP_ENTRY_Y(0x1800c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio47_pk2		DRV_PINGROUP_ENTRY_Y(0x18014,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio48_pk3		DRV_PINGROUP_ENTRY_Y(0x1801c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio57_pj4		DRV_PINGROUP_ENTRY_Y(0x18024,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio58_pj5		DRV_PINGROUP_ENTRY_Y(0x1802c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio59_pj6		DRV_PINGROUP_ENTRY_Y(0x18034,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio60_pj7		DRV_PINGROUP_ENTRY_Y(0x1803c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_dap3_fs_pj3		    DRV_PINGROUP_ENTRY_Y(0x18064,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_dap3_clk_pj0		    DRV_PINGROUP_ENTRY_Y(0x1806c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_dap3_din_pj2		    DRV_PINGROUP_ENTRY_Y(0x18074,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_dap3_dout_pj1		    DRV_PINGROUP_ENTRY_Y(0x1807c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_pex_l2_clkreq_n_pw4	DRV_PINGROUP_ENTRY_Y(0x7004,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_pex_wake_n_px0		DRV_PINGROUP_ENTRY_Y(0x700c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_pex_l1_clkreq_n_pw2	DRV_PINGROUP_ENTRY_Y(0x7014,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_pex_l1_rst_n_pw3		DRV_PINGROUP_ENTRY_Y(0x701c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_pex_l0_clkreq_n_pw0	DRV_PINGROUP_ENTRY_Y(0x7024,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_pex_l0_rst_n_pw1		DRV_PINGROUP_ENTRY_Y(0x702c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_pex_l2_rst_n_pw5		DRV_PINGROUP_ENTRY_Y(0x7034,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_pex_l3_clkreq_n_pw6	DRV_PINGROUP_ENTRY_Y(0x703c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_pex_l3_rst_n_pw7		DRV_PINGROUP_ENTRY_Y(0x7044,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_dp_aux_ch0_hpd_px1	DRV_PINGROUP_ENTRY_Y(0x704c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_qspi0_io0_pl1		    DRV_PINGROUP_ENTRY_Y(0xb004,	12,	5,	24,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_qspi0_io1_pl2		    DRV_PINGROUP_ENTRY_Y(0xb00c,	12,	5,	24,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_qspi0_sck_pl0		    DRV_PINGROUP_ENTRY_Y(0xb014,	12,	5,	24,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_qspi0_cs_n_pl3		DRV_PINGROUP_ENTRY_Y(0xb01c,	12,	5,	24,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio156_pm0		DRV_PINGROUP_ENTRY_Y(0xb024,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio155_pl7		DRV_PINGROUP_ENTRY_Y(0xb02c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio160_pm4		DRV_PINGROUP_ENTRY_Y(0xb034,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio154_pl6		DRV_PINGROUP_ENTRY_Y(0xb03c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio152_pl4		DRV_PINGROUP_ENTRY_Y(0xb044,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio153_pl5		DRV_PINGROUP_ENTRY_Y(0xb04c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio161_pm5		DRV_PINGROUP_ENTRY_Y(0xb054,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio162_pm6		DRV_PINGROUP_ENTRY_Y(0xb05c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio159_pm3		DRV_PINGROUP_ENTRY_Y(0xb064,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio157_pm1		DRV_PINGROUP_ENTRY_Y(0xb06c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_soc_gpio158_pm2		DRV_PINGROUP_ENTRY_Y(0xb074,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_uart7_cts_pn2		    DRV_PINGROUP_ENTRY_Y(0xb07c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_uart7_rts_pn1		    DRV_PINGROUP_ENTRY_Y(0xb084,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_uart7_tx_pm7		    DRV_PINGROUP_ENTRY_Y(0xb08c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_uart7_rx_pn0		    DRV_PINGROUP_ENTRY_Y(0xb094,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_sdmmc1_clk_pu0		DRV_PINGROUP_ENTRY_Y(0x8004,	28,	2,	30,	2,	-1,	-1,	-1,	-1,	0)
+#define drive_sdmmc1_cmd_pu1		DRV_PINGROUP_ENTRY_Y(0x800c,	28,	2,	30,	2,	-1,	-1,	-1,	-1,	0)
+#define drive_sdmmc1_dat3_pu5		DRV_PINGROUP_ENTRY_Y(0x801c,	28,	2,	30,	2,	-1,	-1,	-1,	-1,	0)
+#define drive_sdmmc1_dat2_pu4		DRV_PINGROUP_ENTRY_Y(0x8024,	28,	2,	30,	2,	-1,	-1,	-1,	-1,	0)
+#define drive_sdmmc1_dat1_pu3		DRV_PINGROUP_ENTRY_Y(0x802c,	28,	2,	30,	2,	-1,	-1,	-1,	-1,	0)
+#define drive_sdmmc1_dat0_pu2		DRV_PINGROUP_ENTRY_Y(0x8034,	28,	2,	30,	2,	-1,	-1,	-1,	-1,	0)
+#define drive_ufs0_rst_n_pv1		DRV_PINGROUP_ENTRY_Y(0x11004,	12,	5,	24,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_ufs0_ref_clk_pv0		DRV_PINGROUP_ENTRY_Y(0x1100c,	12,	5,	24,	5,	-1,	-1,	-1,	-1,	0)
+#define drive_batt_oc_paa4		    DRV_PINGROUP_ENTRY_Y(0x1024,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_bootv_ctl_n_paa0		DRV_PINGROUP_ENTRY_Y(0x102c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_vcomp_alert_paa2		DRV_PINGROUP_ENTRY_Y(0x105c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_hdmi_cec_pbb0		    DRV_PINGROUP_ENTRY_Y(0x1064,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_touch_clk_pdd3		DRV_PINGROUP_ENTRY_Y(0x106c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_uart3_rx_pcc6		    DRV_PINGROUP_ENTRY_Y(0x1074,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_uart3_tx_pcc5		    DRV_PINGROUP_ENTRY_Y(0x107c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_gen8_i2c_sda_pdd2		DRV_PINGROUP_ENTRY_Y(0x1084,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_gen8_i2c_scl_pdd1		DRV_PINGROUP_ENTRY_Y(0x108c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_spi2_mosi_pcc2		DRV_PINGROUP_ENTRY_Y(0x1094,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_gen2_i2c_scl_pcc7		DRV_PINGROUP_ENTRY_Y(0x109c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_spi2_cs0_pcc3		    DRV_PINGROUP_ENTRY_Y(0x10a4,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_gen2_i2c_sda_pdd0		DRV_PINGROUP_ENTRY_Y(0x10ac,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_spi2_sck_pcc0		    DRV_PINGROUP_ENTRY_Y(0x10b4,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_spi2_miso_pcc1		DRV_PINGROUP_ENTRY_Y(0x10bc,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_soc_gpio49_pee2		DRV_PINGROUP_ENTRY_Y(0x10c4,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_soc_gpio50_pee4		DRV_PINGROUP_ENTRY_Y(0x10cc,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_soc_gpio82_pee3		DRV_PINGROUP_ENTRY_Y(0x10d4,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_soc_gpio71_pff2		DRV_PINGROUP_ENTRY_Y(0x10dc,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_soc_gpio76_pff7		DRV_PINGROUP_ENTRY_Y(0x10e4,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_soc_gpio74_pff5		DRV_PINGROUP_ENTRY_Y(0x10ec,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_soc_gpio00_paa1		DRV_PINGROUP_ENTRY_Y(0x10f4,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_soc_gpio19_pdd6		DRV_PINGROUP_ENTRY_Y(0x10fc,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_soc_gpio86_phh3		DRV_PINGROUP_ENTRY_Y(0x1104,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_soc_gpio72_pff3		DRV_PINGROUP_ENTRY_Y(0x110c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_soc_gpio77_pgg0		DRV_PINGROUP_ENTRY_Y(0x1114,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_soc_gpio80_pff6		DRV_PINGROUP_ENTRY_Y(0x111c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_soc_gpio84_pgg1		DRV_PINGROUP_ENTRY_Y(0x1124,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_soc_gpio83_pee5		DRV_PINGROUP_ENTRY_Y(0x112c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_soc_gpio73_pff4		DRV_PINGROUP_ENTRY_Y(0x1134,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_soc_gpio70_pff1		DRV_PINGROUP_ENTRY_Y(0x113c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_soc_gpio04_paa5		DRV_PINGROUP_ENTRY_Y(0x1144,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_soc_gpio85_pgg6		DRV_PINGROUP_ENTRY_Y(0x114c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_soc_gpio69_pff0		DRV_PINGROUP_ENTRY_Y(0x1154,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_soc_gpio25_paa6		DRV_PINGROUP_ENTRY_Y(0x115c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_soc_gpio26_paa7		DRV_PINGROUP_ENTRY_Y(0x1164,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_uart5_tx_pgg7		    DRV_PINGROUP_ENTRY_Y(0x116c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_uart5_rx_phh0		    DRV_PINGROUP_ENTRY_Y(0x1174,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_uart2_tx_pgg2		    DRV_PINGROUP_ENTRY_Y(0x117c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_uart2_rx_pgg3		    DRV_PINGROUP_ENTRY_Y(0x1184,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_uart2_cts_pgg5		DRV_PINGROUP_ENTRY_Y(0x118c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_uart2_rts_pgg4		DRV_PINGROUP_ENTRY_Y(0x1194,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_uart5_cts_phh2		DRV_PINGROUP_ENTRY_Y(0x119c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_uart5_rts_phh1		DRV_PINGROUP_ENTRY_Y(0x11a4,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_pwm7_pee1			    DRV_PINGROUP_ENTRY_Y(0x11ac,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_pwm2_pdd7			    DRV_PINGROUP_ENTRY_Y(0x11b4,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_pwm3_pee0			    DRV_PINGROUP_ENTRY_Y(0x11bc,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_pwm1_paa3			    DRV_PINGROUP_ENTRY_Y(0x11c4,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_spi2_cs1_pcc4		    DRV_PINGROUP_ENTRY_Y(0x11cc,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_dmic1_clk_pdd4		DRV_PINGROUP_ENTRY_Y(0x11d4,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+#define drive_dmic1_dat_pdd5		DRV_PINGROUP_ENTRY_Y(0x11dc,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
+
+#define drive_sdmmc1_comp		DRV_PINGROUP_ENTRY_N
+
+#define PINGROUP(pg_name, f0, f1, f2, f3, r, bank, pupd, e_io_hv, e_lpbk, e_input, e_lpdr, e_pbias_buf,	\
+			gpio_sfio_sel, schmitt_b)							\
+	{								\
+		.name = #pg_name,					\
+		.pins = pg_name##_pins,					\
+		.npins = ARRAY_SIZE(pg_name##_pins),			\
+			.funcs = {					\
+				TEGRA_MUX_##f0,				\
+				TEGRA_MUX_##f1,				\
+				TEGRA_MUX_##f2,				\
+				TEGRA_MUX_##f3,				\
+			},						\
+		PIN_PINGROUP_ENTRY_Y(r, bank, pupd, e_io_hv, e_lpbk,	\
+					e_input, e_lpdr, e_pbias_buf,	\
+					gpio_sfio_sel, schmitt_b)	\
+		drive_##pg_name,					\
+	}
+
+static const struct tegra_pingroup tegra238_groups[] = {
+	PINGROUP(soc_gpio36_pt1,	DCA_VSYNC,	RSVD1,			RSVD2,		RSVD3,		0x10000,	0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio53_pt2,	DCA_HSYNC,	RSVD1,			RSVD2,		RSVD3,		0x10008,	0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio38_pt3,	DISPLAYA,	DCB_HSYNC,		RSVD2,		RSVD3,		0x10018,	0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio40_pt4,	RSVD0,		DCB_VSYNC,		RSVD2,		RSVD3,		0x10028,	0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio75_ps2,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x10030,	0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio81_pt0,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x10038,	0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio78_ps5,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x10040,	0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio34_pt5,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x10048,	0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(gen7_i2c_scl_ps3,	I2C7_CLK,	RSVD1,			RSVD2,		RSVD3,		0x100a0,	0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(gen7_i2c_sda_ps4,	I2C7_DAT,	RSVD1,			RSVD2,		RSVD3,		0x100a8,	0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(gen4_i2c_sda_ps1,	I2C4_DAT,	RSVD1,			RSVD2,		RSVD3,		0x100b0,	0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(gen4_i2c_scl_ps0,	I2C4_CLK,	RSVD1,			RSVD2,		RSVD3,		0x100b8,	0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(gen9_i2c_sda_ps7,	I2C9_DAT,	RSVD1,			RSVD2,		RSVD3,		0x100c0,	0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(gen9_i2c_scl_ps6,	I2C9_CLK,	RSVD1,			RSVD2,		RSVD3,		0x100c8,	0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(usb_vbus_en0_pt6,	USB_VBUS_EN0,	RSVD1,			RSVD2,		RSVD3,		0x100d0,	0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(usb_vbus_en1_pt7,	USB_VBUS_EN1,	RSVD1,			RSVD2,		RSVD3,		0x100d8,	0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio61_pr0,	RSVD0,		SOC_THERM_OC4,		RSVD2,		RSVD3,		0x1f000,	0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio62_pr1,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x1f008,	0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio63_pr2,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x1f010,	0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio64_pr3,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x1f018,	0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio65_pr4,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x1f020,	0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio66_pr5,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x1f028,	0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio67_pr6,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x1f030,	0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio68_pr7,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x1f038,	0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(spi3_miso_pa4,		SPI3_DIN,	RSVD1,			RSVD2,		RSVD3,		0xd000,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(spi1_cs0_pb3,		SPI1_CS0,	RSVD1,			RSVD2,		RSVD3,		0xd008,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(spi3_cs0_pa6,		SPI3_CS0,	RSVD1,			RSVD2,		RSVD3,		0xd010,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(spi1_miso_pb1,		SPI1_DIN,	RSVD1,			RSVD2,		RSVD3,		0xd018,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(spi3_cs1_pa7,		SPI3_CS1,	RSVD1,			RSVD2,		RSVD3,		0xd020,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(spi1_sck_pb0,		SPI1_SCK,	RSVD1,			RSVD2,		RSVD3,		0xd028,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(spi3_sck_pa3,		SPI3_SCK,	RSVD1,			RSVD2,		RSVD3,		0xd030,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(spi1_cs1_pb4,		SPI1_CS1,	RSVD1,			RSVD2,		RSVD3,		0xd038,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(spi1_mosi_pb2,		SPI1_DOUT,	RSVD1,			RSVD2,		RSVD3,		0xd040,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(spi3_mosi_pa5,		SPI3_DOUT,	RSVD1,			RSVD2,		RSVD3,		0xd048,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(gpu_pwr_req_pa0,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0xd050,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(gp_pwm5_pa1,		GP_PWM5,	RSVD1,			RSVD2,		RSVD3,		0xd058,		0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(gp_pwm6_pa2,		GP_PWM6,	RSVD1,			RSVD2,		RSVD3,		0xd060,		0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(extperiph2_clk_pc3,	EXTPERIPH2_CLK,	RSVD1,			RSVD2,		RSVD3,		0x0000,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(extperiph1_clk_pc2,	EXTPERIPH1_CLK,	RSVD1,			RSVD2,		RSVD3,		0x0008,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(cam_i2c_sda_pc5,	I2C3_DAT,	RSVD1,			RSVD2,		RSVD3,		0x0010,		0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(cam_i2c_scl_pc4,	I2C3_CLK,	RSVD1,			RSVD2,		RSVD3,		0x0018,		0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio23_pc6,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x0020,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio24_pc7,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x0028,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio27_pd0,	RSVD0,		GP_PWM8,		RSVD2,		RSVD3,		0x0040,		0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio29_pd2,	RSVD0,		NV_THERM_FAN_TACH0,	RSVD2,		RSVD3,		0x0050,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio32_pd4,	EXTPERIPH4_CLK,	RSVD1,			RSVD2,		RSVD3,		0x0068,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio33_pd3,	EXTPERIPH3_CLK,	RSVD1,			RSVD2,		RSVD3,		0x0070,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio35_pd5,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x0078,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio37_pd6,	DMIC2_DAT,	RSVD1,			RSVD2,		RSVD3,		0x0080,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio56_pd7,	DMIC2_CLK,	RSVD1,			RSVD2,		RSVD3,		0x0088,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio55_pd1,	RSVD0,		WDT_RESET_OUTA,		RSVD2,		RSVD3,		0x0090,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(uart1_cts_pe3,		UARTA_CTS,	RSVD1,			RSVD2,		RSVD3,		0x0098,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(uart1_rts_pe2,		UARTA_RTS,	RSVD1,			RSVD2,		RSVD3,		0x00a0,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(uart1_rx_pe1,		UARTA_RXD,	RSVD1,			RSVD2,		RSVD3,		0x00a8,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(uart1_tx_pe0,		UARTA_TXD,	RSVD1,			RSVD2,		RSVD3,		0x00b0,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(pwr_i2c_scl_pc0,	I2C5_CLK,	RSVD1,			RSVD2,		RSVD3,		0x00b8,		0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(pwr_i2c_sda_pc1,	I2C5_DAT,	RSVD1,			RSVD2,		RSVD3,		0x00c0,		0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(cpu_pwr_req_ph4,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x4000,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(uart4_cts_pg5,		UARTD_CTS,	RSVD1,			RSVD2,		RSVD3,		0x4008,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(uart4_rts_pg4,		UARTD_RTS,	RSVD1,			RSVD2,		RSVD3,		0x4010,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(uart4_rx_pg3,		UARTD_RXD,	RSVD1,			RSVD2,		RSVD3,		0x4018,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(uart4_tx_pg2,		UARTD_TXD,	RSVD1,			RSVD2,		RSVD3,		0x4020,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(gen1_i2c_scl_ph2,	I2C1_CLK,	RSVD1,			RSVD2,		RSVD3,		0x4028,		0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(gen1_i2c_sda_ph3,	I2C1_DAT,	RSVD1,			RSVD2,		RSVD3,		0x4030,		0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio20_pf6,	SDMMC1_CD,	RSVD1,			RSVD2,		RSVD3,		0x4038,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio21_pf7,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x4040,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio22_pg0,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x4048,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio13_pf0,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x4050,		0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio14_pf1,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x4058,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio15_pf2,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x4060,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio16_pf3,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x4068,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio17_pf4,	RSVD0,		CCLA_LA_TRIGGER_MUX,	RSVD2,		RSVD3,		0x4070,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio18_pf5,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x4078,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio41_pg6,	I2S2_SCLK,	RSVD1,			RSVD2,		RSVD3,		0x4088,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio42_pg7,	I2S2_SDATA_OUT,	RSVD1,			RSVD2,		RSVD3,		0x4090,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio43_ph0,	I2S2_SDATA_IN,	RSVD1,			RSVD2,		RSVD3,		0x4098,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio44_ph1,	I2S2_LRCK,	RSVD1,			RSVD2,		RSVD3,		0x40a0,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio06_pg1,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x40a8,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio07_ph5,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x40b0,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(dap4_sclk_pp4,		I2S4_SCLK,	RSVD1,			RSVD2,		RSVD3,		0x2000,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(dap4_dout_pp5,		I2S4_SDATA_OUT,	RSVD1,			RSVD2,		RSVD3,		0x2008,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(dap4_din_pp6,		I2S4_SDATA_IN,	RSVD1,			RSVD2,		RSVD3,		0x2010,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(dap4_fs_pp7,		I2S4_LRCK,	RSVD1,			RSVD2,		RSVD3,		0x2018,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio167_pp0,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x2040,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio168_pp1,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x2048,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio169_pp2,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x2050,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio170_pp3,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x2058,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio171_pq0,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x2060,		0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio172_pq1,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x2068,		0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio173_pq2,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x2070,		0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio45_pk0,	I2S1_SCLK,	DSPK1_DAT,		DMIC3_CLK,	RSVD3,		0x18000,	0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio46_pk1,	I2S1_SDATA_OUT,	DSPK1_CLK,		DMIC3_DAT,	RSVD3,		0x18008,	0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio47_pk2,	I2S1_SDATA_IN,	RSVD1,			RSVD2,		RSVD3,		0x18010,	0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio48_pk3,	I2S1_LRCK,	RSVD1,			RSVD2,		RSVD3,		0x18018,	0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio57_pj4,	RSVD0,		RSVD1,			RSVD2,		SDMMC1_WP,	0x18020,	0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio58_pj5,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x18028,	0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio59_pj6,	AUD_MCLK,	RSVD1,			RSVD2,		RSVD3,		0x18030,	0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio60_pj7,	RSVD0,		NV_THERM_FAN_TACH1,	RSVD2,		RSVD3,		0x18038,	0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(dap3_fs_pj3,		I2S3_LRCK,	RSVD1,			RSVD2,		RSVD3,		0x18060,	0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(dap3_clk_pj0,		I2S3_SCLK,	DSPK0_DAT,		DMIC4_CLK,	RSVD3,		0x18068,	0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(dap3_din_pj2,		I2S3_SDATA_IN,	RSVD1,			RSVD2,		RSVD3,		0x18070,	0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(dap3_dout_pj1,		I2S3_SDATA_OUT,	DSPK0_CLK,		DMIC4_DAT,	RSVD3,		0x18078,	0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(pex_l2_clkreq_n_pw4,	PE2_CLKREQ_L,	RSVD1,			RSVD2,		RSVD3,		0x7000,		0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(pex_wake_n_px0,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x7008,		0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(pex_l1_clkreq_n_pw2,	PE1_CLKREQ_L,	RSVD1,			RSVD2,		RSVD3,		0x7010,		0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(pex_l1_rst_n_pw3,	PE1_RST_L,	RSVD1,			RSVD2,		RSVD3,		0x7018,		0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(pex_l0_clkreq_n_pw0,	PE0_CLKREQ_L,	RSVD1,			RSVD2,		RSVD3,		0x7020,		0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(pex_l0_rst_n_pw1,	PE0_RST_L,	RSVD1,			RSVD2,		RSVD3,		0x7028,		0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(pex_l2_rst_n_pw5,	PE2_RST_L,	RSVD1,			RSVD2,		RSVD3,		0x7030,		0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(pex_l3_clkreq_n_pw6,	PE3_CLKREQ_L,	RSVD1,			RSVD2,		RSVD3,		0x7038,		0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(pex_l3_rst_n_pw7,	PE3_RST_L,	RSVD1,			RSVD2,		RSVD3,		0x7040,		0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(dp_aux_ch0_hpd_px1,	DP_AUX_CH0_HPD,	RSVD1,			RSVD2,		RSVD3,		0x7048,		0,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(qspi0_io0_pl1,		QSPI0_IO0,	RSVD1,			RSVD2,		RSVD3,		0xb000,		0,	Y,	-1,	5,	6,	-1,	-1,	10,	12),
+	PINGROUP(qspi0_io1_pl2,		QSPI0_IO1,	RSVD1,			RSVD2,		RSVD3,		0xb008,		0,	Y,	-1,	5,	6,	-1,	-1,	10,	12),
+	PINGROUP(qspi0_sck_pl0,		QSPI0_SCK,	RSVD1,			RSVD2,		RSVD3,		0xb010,		0,	Y,	-1,	5,	6,	-1,	-1,	10,	12),
+	PINGROUP(qspi0_cs_n_pl3,	QSPI0_CS_N,	RSVD1,			RSVD2,		RSVD3,		0xb018,		0,	Y,	-1,	5,	6,	-1,	-1,	10,	12),
+	PINGROUP(soc_gpio156_pm0,	RSVD0,		I2S5_SCLK,		RSVD2,		RSVD3,		0xb020,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio155_pl7,	RSVD0,		I2S6_LRCK,		RSVD2,		RSVD3,		0xb028,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio160_pm4,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0xb030,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio154_pl6,	RSVD0,		I2S6_SDATA_IN,		RSVD2,		RSVD3,		0xb038,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio152_pl4,	RSVD0,		I2S6_SCLK,		RSVD2,		RSVD3,		0xb040,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio153_pl5,	RSVD0,		I2S6_SDATA_OUT,		RSVD2,		RSVD3,		0xb048,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio161_pm5,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0xb050,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio162_pm6,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0xb058,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio159_pm3,	RSVD0,		I2S5_LRCK,		RSVD2,		RSVD3,		0xb060,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio157_pm1,	RSVD0,		I2S5_SDATA_OUT,		RSVD2,		RSVD3,		0xb068,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio158_pm2,	RSVD0,		I2S5_SDATA_IN,		RSVD2,		RSVD3,		0xb070,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(uart7_cts_pn2,		UARTG_CTS,	RSVD1,			RSVD2,		RSVD3,		0xb078,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(uart7_rts_pn1,		UARTG_RTS,	RSVD1,			RSVD2,		RSVD3,		0xb080,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(uart7_tx_pm7,		UARTG_TXD,	RSVD1,			RSVD2,		RSVD3,		0xb088,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(uart7_rx_pn0,		UARTG_RXD,	RSVD1,			RSVD2,		RSVD3,		0xb090,		0,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(sdmmc1_clk_pu0,	SDMMC1_CLK,	RSVD1,			RSVD2,		RSVD3,		0x8000,		0,	Y,	-1,	5,	6,	-1,	9,	10,	12),
+	PINGROUP(sdmmc1_cmd_pu1,	SDMMC1_CMD,	RSVD1,			RSVD2,		RSVD3,		0x8008,		0,	Y,	-1,	5,	6,	-1,	9,	10,	12),
+	PINGROUP(sdmmc1_comp,		SDMMC1_COMP,	RSVD1,			RSVD2,		RSVD3,		0x8010,		0,	N,	-1,	-1,	-1,	-1,	-1,	-1,	-1),
+	PINGROUP(sdmmc1_dat3_pu5,	SDMMC1_DAT3,	SDMMC1_PE3_RST_L,	RSVD2,		RSVD3,		0x8018,		0,	Y,	-1,	5,	6,	-1,	9,	10,	12),
+	PINGROUP(sdmmc1_dat2_pu4,	SDMMC1_DAT2,	SDMMC1_PE3_CLKREQ_L,	RSVD2,		RSVD3,		0x8020,		0,	Y,	-1,	5,	6,	-1,	9,	10,	12),
+	PINGROUP(sdmmc1_dat1_pu3,	SDMMC1_DAT1,	RSVD1,			RSVD2,		RSVD3,		0x8028,		0,	Y,	-1,	5,	6,	-1,	9,	10,	12),
+	PINGROUP(sdmmc1_dat0_pu2,	SDMMC1_DAT0,	RSVD1,			RSVD2,		RSVD3,		0x8030,		0,	Y,	-1,	5,	6,	-1,	9,	10,	12),
+	PINGROUP(ufs0_rst_n_pv1,	UFS0,		RSVD1,			RSVD2,		RSVD3,		0x11000,	0,	Y,	-1,	5,	6,	-1,	-1,	10,	12),
+	PINGROUP(ufs0_ref_clk_pv0,	UFS0,		RSVD1,			RSVD2,		RSVD3,		0x11008,	0,	Y,	-1,	5,	6,	-1,	-1,	10,	12),
+
+};
+
+static const struct tegra_pingroup tegra238_aon_groups[] = {
+	PINGROUP(bootv_ctl_n_paa0,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x1028,		1,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio00_paa1,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x10f0,		1,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(vcomp_alert_paa2,	SOC_THERM_OC1,	RSVD1,			RSVD2,		RSVD3,		0x1058,		1,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(pwm1_paa3,		GP_PWM1,	RSVD1,			RSVD2,		RSVD3,		0x11c0,		1,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(batt_oc_paa4,		SOC_THERM_OC2,	RSVD1,			RSVD2,		RSVD3,		0x1020,		1,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio04_paa5,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x1140,		1,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio25_paa6,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x1158,		1,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio26_paa7,	RSVD0,		SOC_THERM_OC3,		RSVD2,		RSVD3,		0x1160,		1,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(hdmi_cec_pbb0,		HDMI_CEC,	RSVD1,			RSVD2,		RSVD3,		0x1060,		1,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(spi2_sck_pcc0,		SPI2_SCK,	RSVD1,			RSVD2,		RSVD3,		0x10b0,		1,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(spi2_miso_pcc1,	SPI2_DIN,	RSVD1,			RSVD2,		RSVD3,		0x10b8,		1,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(spi2_mosi_pcc2,	SPI2_DOUT,	RSVD1,			RSVD2,		RSVD3,		0x1090,		1,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(spi2_cs0_pcc3,		SPI2_CS0,	RSVD1,			RSVD2,		RSVD3,		0x10a0,		1,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(spi2_cs1_pcc4,		SPI2_CS1,	RSVD1,			RSVD2,		RSVD3,		0x11c8,		1,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(uart3_tx_pcc5,		UARTC_TXD,	RSVD1,			RSVD2,		RSVD3,		0x1078,		1,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(uart3_rx_pcc6,		UARTC_RXD,	RSVD1,			RSVD2,		RSVD3,		0x1070,		1,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(gen2_i2c_scl_pcc7,	I2C2_CLK,	RSVD1,			RSVD2,		RSVD3,		0x1098,		1,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(gen2_i2c_sda_pdd0,	I2C2_DAT,	RSVD1,			RSVD2,		RSVD3,		0x10a8,		1,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(gen8_i2c_scl_pdd1,	I2C8_CLK,	RSVD1,			RSVD2,		RSVD3,		0x1088,		1,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(gen8_i2c_sda_pdd2,	I2C8_DAT,	RSVD1,			RSVD2,		RSVD3,		0x1080,		1,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(touch_clk_pdd3,	GP_PWM4,	TOUCH_CLK,		RSVD2,		RSVD3,		0x1068,		1,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(dmic1_clk_pdd4,	DMIC1_CLK,	RSVD1,			DMIC5_CLK,	RSVD3,		0x11d0,		1,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(dmic1_dat_pdd5,	DMIC1_DAT,	RSVD1,			DMIC5_DAT,	RSVD3,		0x11d8,		1,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio19_pdd6,	RSVD0,		WDT_RESET_OUTB,		RSVD2,		RSVD3,		0x10f8,		1,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio49_pee2,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x10c0,		1,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio50_pee4,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x10c8,		1,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio82_pee3,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x10d0,		1,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio71_pff2,	PPC_MODE_1,	RSVD1,			RSVD2,		RSVD3,		0x10d8,		1,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio76_pff7,	RSVD0,		RSVD1,			TSC_EDGE_OUT0,	TSC_EDGE_OUT0A,	0x10e0,		1,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio74_pff5,	PPC_READY,	PPC_I2C_DAT,		RSVD2,		RSVD3,		0x10e8,		1,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio86_phh3,	RSVD0,		SPI5_CS1,		TSC_EDGE_OUT3,	TSC_EDGE_OUT0D,	0x1100,		1,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio72_pff3,	PPC_MODE_2,	RSVD1,			RSVD2,		RSVD3,		0x1108,		1,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio77_pgg0,	RSVD0,		RSVD1,			TSC_EDGE_OUT1,	TSC_EDGE_OUT0B,	0x1110,		1,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio80_pff6,	RSVD0,		PPC_RST_N,		RSVD2,		RSVD3,		0x1118,		1,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio84_pgg1,	RSVD0,		RSVD1,			TSC_EDGE_OUT2,	TSC_EDGE_OUT0C,	0x1120,		1,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio83_pee5,	RSVD0,		RSVD1,			RSVD2,		RSVD3,		0x1128,		1,	Y,	-1,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio73_pff4,	PPC_CC,		PPC_I2C_CLK,		RSVD2,		RSVD3,		0x1130,		1,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio70_pff1,	PPC_MODE_0,	RSVD1,			RSVD2,		RSVD3,		0x1138,		1,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio85_pgg6,	RSVD0,		SPI4_CS1,		RSVD2,		RSVD3,		0x1148,		1,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(soc_gpio69_pff0,	PPC_INT_N,	RSVD1,			RSVD2,		RSVD3,		0x1150,		1,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(uart5_tx_pgg7,		UARTE_TXD,	SPI5_SCK,		RSVD2,		RSVD3,		0x1168,		1,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(uart5_rx_phh0,		UARTE_RXD,	SPI5_MISO,		RSVD2,		RSVD3,		0x1170,		1,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(uart2_tx_pgg2,		UARTB_TXD,	SPI4_SCK,		RSVD2,		RSVD3,		0x1178,		1,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(uart2_rx_pgg3,		UARTB_RXD,	SPI4_MISO,		RSVD2,		RSVD3,		0x1180,		1,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(uart2_cts_pgg5,	UARTB_CTS,	SPI4_CS0,		RSVD2,		RSVD3,		0x1188,		1,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(uart2_rts_pgg4,	UARTB_RTS,	SPI4_MOSI,		RSVD2,		RSVD3,		0x1190,		1,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(uart5_cts_phh2,	UARTE_CTS,	SPI5_CS0,		RSVD2,		RSVD3,		0x1198,		1,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(uart5_rts_phh1,	UARTE_RTS,	SPI5_MOSI,		RSVD2,		RSVD3,		0x11a0,		1,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(pwm2_pdd7,		GP_PWM2,	LED_BLINK,		RSVD2,		RSVD3,		0x11b0,		1,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(pwm3_pee0,		GP_PWM3,	RSVD1,			RSVD2,		RSVD3,		0x11b8,		1,	Y,	5,	7,	6,	8,	-1,	10,	12),
+	PINGROUP(pwm7_pee1,		GP_PWM7,	RSVD1,			RSVD2,		RSVD3,		0x11a8,		1,	Y,	5,	7,	6,	8,	-1,	10,	12),
+};
+
+static const struct tegra_pinctrl_soc_data tegra238_pinctrl_aon = {
+	.pins = tegra238_aon_pins,
+	.npins = ARRAY_SIZE(tegra238_aon_pins),
+	.functions = tegra238_functions,
+	.nfunctions = ARRAY_SIZE(tegra238_functions),
+	.groups = tegra238_aon_groups,
+	.ngroups = ARRAY_SIZE(tegra238_aon_groups),
+	.hsm_in_mux = false,
+	.schmitt_in_mux = true,
+	.drvtype_in_mux = true,
+	.sfsel_in_mux = true,
+};
+
+static const struct tegra_pinctrl_soc_data tegra238_pinctrl = {
+	.pins = tegra238_pins,
+	.npins = ARRAY_SIZE(tegra238_pins),
+	.functions = tegra238_functions,
+	.nfunctions = ARRAY_SIZE(tegra238_functions),
+	.groups = tegra238_groups,
+	.ngroups = ARRAY_SIZE(tegra238_groups),
+	.hsm_in_mux = false,
+	.schmitt_in_mux = true,
+	.drvtype_in_mux = true,
+	.sfsel_in_mux = true,
+};
+
+static int tegra238_pinctrl_probe(struct platform_device *pdev)
+{
+	const struct tegra_pinctrl_soc_data *soc = device_get_match_data(&pdev->dev);
+
+	return tegra_pinctrl_probe(pdev, soc);
+}
+
+static const struct of_device_id tegra238_pinctrl_of_match[] = {
+	{ .compatible = "nvidia,tegra238-pinmux", .data = &tegra238_pinctrl },
+	{ .compatible = "nvidia,tegra238-pinmux-aon", .data = &tegra238_pinctrl_aon },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, tegra238_pinctrl_of_match);
+
+static struct platform_driver tegra238_pinctrl_driver = {
+	.driver = {
+		.name = "tegra238-pinctrl",
+		.of_match_table = tegra238_pinctrl_of_match,
+	},
+	.probe = tegra238_pinctrl_probe,
+};
+
+static int __init tegra238_pinctrl_init(void)
+{
+	return platform_driver_register(&tegra238_pinctrl_driver);
+}
+module_init(tegra238_pinctrl_init);
+
+static void __exit tegra238_pinctrl_exit(void)
+{
+	platform_driver_unregister(&tegra238_pinctrl_driver);
+}
+module_exit(tegra238_pinctrl_exit);
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("NVIDIA Corporation");
+MODULE_DESCRIPTION("NVIDIA Tegra238 pinctrl driver");

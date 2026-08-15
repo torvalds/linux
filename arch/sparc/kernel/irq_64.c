@@ -303,10 +303,10 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 {
 	int j;
 
-	seq_printf(p, "NMI:");
+	seq_printf(p, "%*s:", prec, "NMI");
 	for_each_online_cpu(j)
 		seq_put_decimal_ull_width(p, " ", cpu_data(j).__nmi_count, 10);
-	seq_printf(p, "     Non-maskable interrupts\n");
+	seq_printf(p, " Non-maskable interrupts\n");
 	return 0;
 }
 

@@ -584,7 +584,7 @@ static int stc3117_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id stc3117_id[] = {
-	{ "stc3117", 0 },
+	{ .name = "stc3117", .driver_data = 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, stc3117_id);

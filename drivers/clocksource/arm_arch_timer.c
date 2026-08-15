@@ -688,6 +688,7 @@ static void __arch_timer_setup(struct clock_event_device *clk)
 	clk->irq = arch_timer_ppi[arch_timer_uses_ppi];
 	switch (arch_timer_uses_ppi) {
 	case ARCH_TIMER_VIRT_PPI:
+	case ARCH_TIMER_HYP_VIRT_PPI:
 		clk->set_state_shutdown = arch_timer_shutdown_virt;
 		clk->set_state_oneshot_stopped = arch_timer_shutdown_virt;
 		sne = erratum_handler(set_next_event_virt);
@@ -879,7 +880,7 @@ static void __init arch_timer_banner(void)
 	pr_info("cp15 timer running at %lu.%02luMHz (%s).\n",
 		(unsigned long)arch_timer_rate / 1000000,
 		(unsigned long)(arch_timer_rate / 10000) % 100,
-		(arch_timer_uses_ppi == ARCH_TIMER_VIRT_PPI) ? "virt" : "phys");
+		arch_timer_ppi_names[arch_timer_uses_ppi]);
 }
 
 u32 arch_timer_get_rate(void)
@@ -912,7 +913,8 @@ static void __init arch_counter_register(void)
 	int width;
 
 	if ((IS_ENABLED(CONFIG_ARM64) && !is_hyp_mode_available()) ||
-	    arch_timer_uses_ppi == ARCH_TIMER_VIRT_PPI) {
+	    arch_timer_uses_ppi == ARCH_TIMER_VIRT_PPI ||
+	    arch_timer_uses_ppi == ARCH_TIMER_HYP_VIRT_PPI) {
 		if (arch_timer_counter_has_wa()) {
 			rd = arch_counter_get_cntvct_stable;
 			scr = raw_counter_get_cntvct_stable;
@@ -1023,6 +1025,7 @@ static int __init arch_timer_register(void)
 	ppi = arch_timer_ppi[arch_timer_uses_ppi];
 	switch (arch_timer_uses_ppi) {
 	case ARCH_TIMER_VIRT_PPI:
+	case ARCH_TIMER_HYP_VIRT_PPI:
 		err = request_percpu_irq(ppi, arch_timer_handler_virt,
 					 "arch_timer", arch_timer_evt);
 		break;
@@ -1090,25 +1093,34 @@ static int __init arch_timer_common_init(void)
 /**
  * arch_timer_select_ppi() - Select suitable PPI for the current system.
  *
- * If HYP mode is available, we know that the physical timer
- * has been configured to be accessible from PL1. Use it, so
- * that a guest can use the virtual timer instead.
+ * On AArch32, if HYP mode is available, we know that the physical
+ * timer has been configured to be accessible from PL1. Use it, so
+ * that a guest can use the virtual timer instead (though KVM host
+ * support has long been removed).
  *
- * On ARMv8.1 with VH extensions, the kernel runs in HYP. VHE
- * accesses to CNTP_*_EL1 registers are silently redirected to
- * their CNTHP_*_EL2 counterparts, and use a different PPI
- * number.
+ * On ARMv8.1 with FEAT_VHE, the kernel runs in EL2. Accesses to
+ * CNTV_*_EL1 registers are silently redirected to their CNTHV_*_EL2
+ * counterparts, and the timer uses a different PPI number. Similar
+ * thing happen when using the EL2 physical timer. Note that a bunch
+ * of DTs out there omit the virtual EL2 timer, so fallback gracefully
+ * on the physical timer.
  *
- * If no interrupt provided for virtual timer, we'll have to
- * stick to the physical timer. It'd better be accessible...
+ * Without VHE, if no interrupt provided for virtual timer, we'll have
+ * to stick to the physical timer. It'd better be accessible...
+ *
  * For arm64 we never use the secure interrupt.
  *
  * Return: a suitable PPI type for the current system.
  */
 static enum arch_timer_ppi_nr __init arch_timer_select_ppi(void)
 {
-	if (is_kernel_in_hyp_mode())
+	if (is_kernel_in_hyp_mode()) {
+		if (arch_timer_ppi[ARCH_TIMER_HYP_VIRT_PPI])
+			return ARCH_TIMER_HYP_VIRT_PPI;
+
+		pr_warn_once(FW_BUG "VHE-capable CPU without EL2 virtual timer interrupt\n");
 		return ARCH_TIMER_HYP_PPI;
+	}
 
 	if (!is_hyp_mode_available() && arch_timer_ppi[ARCH_TIMER_VIRT_PPI])
 		return ARCH_TIMER_VIRT_PPI;
@@ -1200,14 +1212,9 @@ static int __init arch_timer_acpi_init(struct acpi_table_header *table)
 	if (ret)
 		return ret;
 
-	arch_timer_ppi[ARCH_TIMER_PHYS_NONSECURE_PPI] =
-		acpi_gtdt_map_ppi(ARCH_TIMER_PHYS_NONSECURE_PPI);
-
-	arch_timer_ppi[ARCH_TIMER_VIRT_PPI] =
-		acpi_gtdt_map_ppi(ARCH_TIMER_VIRT_PPI);
-
-	arch_timer_ppi[ARCH_TIMER_HYP_PPI] =
-		acpi_gtdt_map_ppi(ARCH_TIMER_HYP_PPI);
+	/* The GTDT parser can't be bothered with the secure timer */
+	for (int i = ARCH_TIMER_PHYS_NONSECURE_PPI; i < ARCH_TIMER_MAX_TIMER_PPI; i++)
+		arch_timer_ppi[i] = acpi_gtdt_map_ppi(i);
 
 	arch_timer_populate_kvm_info();
 
@@ -1253,10 +1260,14 @@ int kvm_arch_ptp_get_crosststamp(u64 *cycle, struct timespec64 *ts,
 	if (!IS_ENABLED(CONFIG_HAVE_ARM_SMCCC_DISCOVERY))
 		return -EOPNOTSUPP;
 
-	if (arch_timer_uses_ppi == ARCH_TIMER_VIRT_PPI)
+	switch (arch_timer_uses_ppi) {
+	case ARCH_TIMER_VIRT_PPI:
+	case ARCH_TIMER_HYP_VIRT_PPI:
 		ptp_counter = KVM_PTP_VIRT_COUNTER;
-	else
+		break;
+	default:
 		ptp_counter = KVM_PTP_PHYS_COUNTER;
+	}
 
 	arm_smccc_1_1_invoke(ARM_SMCCC_VENDOR_HYP_KVM_PTP_FUNC_ID,
 			     ptp_counter, &hvc_res);

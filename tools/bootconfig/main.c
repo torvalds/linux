@@ -286,7 +286,41 @@ static int init_xbc_with_error(char *buf, int len)
 	return ret;
 }
 
-static int show_xbc(const char *path, bool list)
+static int show_xbc_kernel_cmdline(void)
+{
+	struct xbc_node *root;
+	char *buf = NULL;
+	int len, ret;
+
+	root = xbc_find_node("kernel");
+	if (!root)
+		return 0;	/* no kernel.* keys: emit empty output */
+
+	len = xbc_snprint_cmdline(NULL, 0, root);
+	if (len < 0) {
+		pr_err("Failed to size cmdline output: %d\n", len);
+		return len;
+	}
+	if (len == 0)
+		return 0;
+
+	buf = malloc(len + 1);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = xbc_snprint_cmdline(buf, len + 1, root);
+	if (ret < 0) {
+		pr_err("Failed to render cmdline output: %d\n", ret);
+		free(buf);
+		return ret;
+	}
+
+	fputs(buf, stdout);
+	free(buf);
+	return 0;
+}
+
+static int show_xbc(const char *path, bool list, bool render_cmdline)
 {
 	int ret, fd;
 	char *buf = NULL;
@@ -322,11 +356,14 @@ static int show_xbc(const char *path, bool list)
 		if (init_xbc_with_error(buf, ret) < 0)
 			goto out;
 	}
-	if (list)
+	if (render_cmdline)
+		ret = show_xbc_kernel_cmdline();
+	else if (list)
 		xbc_show_list();
 	else
 		xbc_show_compact_tree();
-	ret = 0;
+	if (ret > 0)
+		ret = 0;
 out:
 	free(buf);
 
@@ -488,7 +525,10 @@ static int usage(void)
 		" Options:\n"
 		"		-a <config>: Apply boot config to initrd\n"
 		"		-d : Delete boot config file from initrd\n"
-		"		-l : list boot config in initrd or file\n\n"
+		"		-l : list boot config in initrd or file\n"
+		"		-C : render the kernel.* subtree as a flat cmdline\n"
+		"		     string (suitable for embedding in a kernel image)\n"
+		"		     and print it to stdout\n\n"
 		" If no option is given, show the bootconfig in the given file.\n");
 	return -1;
 }
@@ -497,10 +537,11 @@ int main(int argc, char **argv)
 {
 	char *path = NULL;
 	char *apply = NULL;
+	bool render_cmdline = false;
 	bool delete = false, list = false;
 	int opt;
 
-	while ((opt = getopt(argc, argv, "hda:l")) != -1) {
+	while ((opt = getopt(argc, argv, "hda:lC")) != -1) {
 		switch (opt) {
 		case 'd':
 			delete = true;
@@ -511,14 +552,17 @@ int main(int argc, char **argv)
 		case 'l':
 			list = true;
 			break;
+		case 'C':
+			render_cmdline = true;
+			break;
 		case 'h':
 		default:
 			return usage();
 		}
 	}
 
-	if ((apply && delete) || (delete && list) || (apply && list)) {
-		pr_err("Error: You can give one of -a, -d or -l at once.\n");
+	if ((!!apply + !!delete + !!list + !!render_cmdline) > 1) {
+		pr_err("Error: You can give one of -a, -d, -l or -C at once.\n");
 		return usage();
 	}
 
@@ -534,5 +578,5 @@ int main(int argc, char **argv)
 	else if (delete)
 		return delete_xbc(path);
 
-	return show_xbc(path, list);
+	return show_xbc(path, list, render_cmdline);
 }

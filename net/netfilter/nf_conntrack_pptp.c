@@ -124,65 +124,6 @@ static void pptp_expectfn(struct nf_conn *ct,
 	}
 }
 
-static int destroy_sibling_or_exp(struct net *net, struct nf_conn *ct,
-				  const struct nf_conntrack_tuple *t)
-{
-	const struct nf_conntrack_tuple_hash *h;
-	const struct nf_conntrack_zone *zone;
-	struct nf_conntrack_expect *exp;
-	struct nf_conn *sibling;
-
-	pr_debug("trying to timeout ct or exp for tuple ");
-	nf_ct_dump_tuple(t);
-
-	zone = nf_ct_zone(ct);
-	h = nf_conntrack_find_get(net, zone, t);
-	if (h)  {
-		sibling = nf_ct_tuplehash_to_ctrack(h);
-		pr_debug("setting timeout of conntrack %p to 0\n", sibling);
-		sibling->proto.gre.timeout	  = 0;
-		sibling->proto.gre.stream_timeout = 0;
-		nf_ct_kill(sibling);
-		nf_ct_put(sibling);
-		return 1;
-	} else {
-		exp = nf_ct_expect_find_get(net, zone, t);
-		if (exp) {
-			pr_debug("unexpect_related of expect %p\n", exp);
-			nf_ct_unexpect_related(exp);
-			nf_ct_expect_put(exp);
-			return 1;
-		}
-	}
-	return 0;
-}
-
-/* timeout GRE data connections */
-static void pptp_destroy_siblings(struct nf_conn *ct)
-{
-	struct net *net = nf_ct_net(ct);
-	const struct nf_ct_pptp_master *ct_pptp_info = nfct_help_data(ct);
-	struct nf_conntrack_tuple t;
-
-	nf_ct_gre_keymap_destroy(ct);
-
-	/* try original (pns->pac) tuple */
-	memcpy(&t, &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple, sizeof(t));
-	t.dst.protonum = IPPROTO_GRE;
-	t.src.u.gre.key = ct_pptp_info->pns_call_id;
-	t.dst.u.gre.key = ct_pptp_info->pac_call_id;
-	if (!destroy_sibling_or_exp(net, ct, &t))
-		pr_debug("failed to timeout original pns->pac ct/exp\n");
-
-	/* try reply (pac->pns) tuple */
-	memcpy(&t, &ct->tuplehash[IP_CT_DIR_REPLY].tuple, sizeof(t));
-	t.dst.protonum = IPPROTO_GRE;
-	t.src.u.gre.key = ct_pptp_info->pac_call_id;
-	t.dst.u.gre.key = ct_pptp_info->pns_call_id;
-	if (!destroy_sibling_or_exp(net, ct, &t))
-		pr_debug("failed to timeout reply pac->pns ct/exp\n");
-}
-
 /* expect GRE connections (PNS->PAC and PAC->PNS direction) */
 static int exp_gre(struct nf_conn *ct, __be16 callid, __be16 peer_callid)
 {
@@ -256,6 +197,9 @@ pptp_inbound_pkt(struct sk_buff *skb, unsigned int protoff,
 	const struct nf_nat_pptp_hook *hook;
 	u_int16_t msg;
 	__be16 cid = 0, pcid = 0;
+
+	if (!info)
+		return NF_DROP;
 
 	msg = ntohs(ctlh->messageType);
 	pr_debug("inbound control message %s\n", pptp_msg_name(msg));
@@ -343,7 +287,7 @@ pptp_inbound_pkt(struct sk_buff *skb, unsigned int protoff,
 		info->cstate = PPTP_CALL_NONE;
 
 		/* untrack this call id, unexpect GRE packets */
-		pptp_destroy_siblings(ct);
+		gre_pptp_destroy_siblings(ct);
 		break;
 
 	case PPTP_WAN_ERROR_NOTIFY:
@@ -383,6 +327,9 @@ pptp_outbound_pkt(struct sk_buff *skb, unsigned int protoff,
 	const struct nf_nat_pptp_hook *hook;
 	u_int16_t msg;
 	__be16 cid = 0, pcid = 0;
+
+	if (!info)
+		return NF_DROP;
 
 	msg = ntohs(ctlh->messageType);
 	pr_debug("outbound control message %s\n", pptp_msg_name(msg));
@@ -502,6 +449,9 @@ conntrack_pptp_help(struct sk_buff *skb, unsigned int protoff,
 	int ret;
 	u_int16_t msg;
 
+	if (!info)
+		return NF_DROP;
+
 #if IS_ENABLED(CONFIG_NF_NAT)
 	if (!nf_ct_is_confirmed(ct) && (ct->status & IPS_NAT_MASK)) {
 		struct nf_conn_nat *nat = nf_ct_ext_find(ct, NF_CT_EXT_NAT);
@@ -582,27 +532,27 @@ static const struct nf_conntrack_expect_policy pptp_exp_policy = {
 };
 
 /* control protocol helper */
-static struct nf_conntrack_helper pptp __read_mostly = {
-	.name			= "pptp",
-	.me			= THIS_MODULE,
-	.tuple.src.l3num	= AF_INET,
-	.tuple.src.u.tcp.port	= cpu_to_be16(PPTP_CONTROL_PORT),
-	.tuple.dst.protonum	= IPPROTO_TCP,
-	.help			= conntrack_pptp_help,
-	.destroy		= pptp_destroy_siblings,
-	.expect_policy		= &pptp_exp_policy,
-};
+static struct nf_conntrack_helper pptp __read_mostly;
+static struct nf_conntrack_helper *pptp_ptr __read_mostly;
 
 static int __init nf_conntrack_pptp_init(void)
 {
 	NF_CT_HELPER_BUILD_BUG_ON(sizeof(struct nf_ct_pptp_master));
 
-	return nf_conntrack_helper_register(&pptp);
+	nf_ct_helper_init(&pptp, AF_INET, IPPROTO_TCP,
+			  "pptp", PPTP_CONTROL_PORT, PPTP_CONTROL_PORT, PPTP_CONTROL_PORT,
+			  &pptp_exp_policy, 0, conntrack_pptp_help, NULL, THIS_MODULE);
+
+	pptp.destroy = gre_pptp_destroy_siblings;
+
+	nf_conntrack_helper_deprecated(pptp.name);
+
+	return nf_conntrack_helper_register(&pptp, &pptp_ptr);
 }
 
 static void __exit nf_conntrack_pptp_fini(void)
 {
-	nf_conntrack_helper_unregister(&pptp);
+	nf_conntrack_helper_unregister(pptp_ptr);
 }
 
 module_init(nf_conntrack_pptp_init);

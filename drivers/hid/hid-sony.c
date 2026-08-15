@@ -1852,18 +1852,8 @@ static int sony_play_effect(struct input_dev *dev, void *data,
 
 static int sony_init_ff(struct sony_sc *sc)
 {
-	struct hid_input *hidinput;
-	struct input_dev *input_dev;
-
-	if (list_empty(&sc->hdev->inputs)) {
-		hid_err(sc->hdev, "no inputs found\n");
-		return -ENODEV;
-	}
-	hidinput = list_entry(sc->hdev->inputs.next, struct hid_input, list);
-	input_dev = hidinput->input;
-
-	input_set_capability(input_dev, EV_FF, FF_RUMBLE);
-	return input_ff_create_memless(input_dev, NULL, sony_play_effect);
+	input_set_capability(sc->input_dev, EV_FF, FF_RUMBLE);
+	return input_ff_create_memless(sc->input_dev, NULL, sony_play_effect);
 }
 
 #else
@@ -2150,6 +2140,8 @@ static int sony_input_configured(struct hid_device *hdev,
 	int append_dev_id;
 	int ret;
 
+	sc->input_dev = hidinput->input;
+
 	ret = sony_set_device_id(sc);
 	if (ret < 0) {
 		hid_err(hdev, "failed to allocate the device id\n");
@@ -2310,7 +2302,6 @@ static int sony_input_configured(struct hid_device *hdev,
 			goto err_close;
 	}
 
-	sc->input_dev = hidinput->input;
 	return 0;
 err_close:
 	hid_hw_close(hdev);

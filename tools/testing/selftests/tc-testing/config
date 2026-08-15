@@ -4,6 +4,7 @@
 
 CONFIG_DUMMY=y
 CONFIG_VETH=y
+CONFIG_IFB=y
 
 #
 # Core Netfilter Configuration

@@ -66,7 +66,7 @@ static const struct drm_crtc_funcs kmb_crtc_funcs = {
 };
 
 static void kmb_crtc_set_mode(struct drm_crtc *crtc,
-			      struct drm_atomic_state *old_state)
+			      struct drm_atomic_commit *old_state)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_display_mode *m = &crtc->state->adjusted_mode;
@@ -133,7 +133,7 @@ static void kmb_crtc_set_mode(struct drm_crtc *crtc,
 }
 
 static void kmb_crtc_atomic_enable(struct drm_crtc *crtc,
-				   struct drm_atomic_state *state)
+				   struct drm_atomic_commit *state)
 {
 	struct kmb_drm_private *kmb = crtc_to_kmb_priv(crtc);
 
@@ -143,7 +143,7 @@ static void kmb_crtc_atomic_enable(struct drm_crtc *crtc,
 }
 
 static void kmb_crtc_atomic_disable(struct drm_crtc *crtc,
-				    struct drm_atomic_state *state)
+				    struct drm_atomic_commit *state)
 {
 	struct kmb_drm_private *kmb = crtc_to_kmb_priv(crtc);
 	struct drm_crtc_state *old_state = drm_atomic_get_old_crtc_state(state, crtc);
@@ -156,7 +156,7 @@ static void kmb_crtc_atomic_disable(struct drm_crtc *crtc,
 }
 
 static void kmb_crtc_atomic_begin(struct drm_crtc *crtc,
-				  struct drm_atomic_state *state)
+				  struct drm_atomic_commit *state)
 {
 	struct drm_device *dev = crtc->dev;
 	struct kmb_drm_private *kmb = to_kmb(dev);
@@ -166,7 +166,7 @@ static void kmb_crtc_atomic_begin(struct drm_crtc *crtc,
 }
 
 static void kmb_crtc_atomic_flush(struct drm_crtc *crtc,
-				  struct drm_atomic_state *state)
+				  struct drm_atomic_commit *state)
 {
 	struct drm_device *dev = crtc->dev;
 	struct kmb_drm_private *kmb = to_kmb(dev);

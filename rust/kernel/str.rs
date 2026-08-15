@@ -3,14 +3,27 @@
 //! String representations.
 
 use crate::{
-    alloc::{flags::*, AllocError, KVec},
-    error::{to_result, Result},
-    fmt::{self, Write},
-    prelude::*,
+    alloc::{
+        AllocError,
+        KVec, //
+    },
+    error::{
+        to_result,
+        Result, //
+    },
+    fmt::{
+        self,
+        Write, //
+    },
+    prelude::*, //
 };
 use core::{
     marker::PhantomData,
-    ops::{Deref, DerefMut, Index},
+    ops::{
+        Deref,
+        DerefMut,
+        Index, //
+    }, //
 };
 
 pub use crate::prelude::CStr;
@@ -415,6 +428,7 @@ macro_rules! c_str {
     }};
 }
 
+#[cfg(CONFIG_RUST_STR_KUNIT_TEST)]
 #[kunit_tests(rust_kernel_str)]
 mod tests {
     use super::*;

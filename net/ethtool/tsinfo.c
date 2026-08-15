@@ -6,6 +6,7 @@
 #include <linux/ptp_clock_kernel.h>
 #include <net/netdev_lock.h>
 
+#include "../core/dev.h"
 #include "bitset.h"
 #include "common.h"
 #include "netlink.h"
@@ -473,28 +474,25 @@ int ethnl_tsinfo_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct ethnl_tsinfo_dump_ctx *ctx = (void *)cb->ctx;
 	struct net *net = sock_net(skb->sk);
-	struct net_device *dev;
 	int ret = 0;
 
-	rtnl_lock();
 	if (ctx->req_info->base.dev) {
-		dev = ctx->req_info->base.dev;
-		netdev_lock_ops(dev);
+		struct net_device *dev = ctx->req_info->base.dev;
+
+		netdev_lock_ops_compat(dev);
 		ret = ethnl_tsinfo_dump_one_net_topo(skb, dev, cb);
-		netdev_unlock_ops(dev);
-	} else {
-		for_each_netdev_dump(net, dev, ctx->pos_ifindex) {
-			netdev_lock_ops(dev);
-			ret = ethnl_tsinfo_dump_one_net_topo(skb, dev, cb);
-			netdev_unlock_ops(dev);
-			if (ret < 0 && ret != -EOPNOTSUPP)
-				break;
-			ctx->pos_phyindex = 0;
-			ctx->netdev_dump_done = false;
-			ctx->pos_phcqualifier = HWTSTAMP_PROVIDER_QUALIFIER_PRECISE;
-		}
+		netdev_unlock_ops_compat(dev);
+		return ret;
 	}
-	rtnl_unlock();
+
+	for_each_netdev_lock_ops_compat_scoped(net, dev, ctx->pos_ifindex) {
+		ret = ethnl_tsinfo_dump_one_net_topo(skb, dev, cb);
+		if (ret < 0 && ret != -EOPNOTSUPP)
+			break;
+		ctx->pos_phyindex = 0;
+		ctx->netdev_dump_done = false;
+		ctx->pos_phcqualifier = HWTSTAMP_PROVIDER_QUALIFIER_PRECISE;
+	}
 
 	return ret;
 }

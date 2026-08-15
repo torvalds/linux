@@ -44,8 +44,8 @@
 					 PN544_HCI_I2C_LLC_MAX_PAYLOAD)
 
 static const struct i2c_device_id pn544_hci_i2c_id_table[] = {
-	{ "pn544" },
-	{}
+	{ .name = "pn544" },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, pn544_hci_i2c_id_table);

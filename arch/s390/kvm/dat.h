@@ -501,6 +501,7 @@ struct guest_fault {
 	bool write_attempt;	/* Write access attempted */
 	bool attempt_pfault;	/* Attempt a pfault first */
 	bool valid;		/* This entry contains valid data */
+	bool crste_region3;     /* Whether crstep refers to a region3 entry */
 	void (*callback)(struct guest_fault *f);
 	void *priv;
 };

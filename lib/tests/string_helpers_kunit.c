@@ -5,11 +5,16 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <kunit/test.h>
+
 #include <linux/array_size.h>
-#include <linux/kernel.h>
+#include <linux/bug.h>
+#include <linux/limits.h>
+#include <linux/module.h>
 #include <linux/random.h>
-#include <linux/string.h>
+#include <linux/slab.h>
+#include <linux/sprintf.h>
 #include <linux/string_helpers.h>
+#include <linux/types.h>
 
 static void test_string_check_buf(struct kunit *test,
 				  const char *name, unsigned int flags,
@@ -601,6 +606,11 @@ static void test_unescape(struct kunit *test)
 		test_string_unescape(test, "unescape", i, false);
 	test_string_unescape(test, "unescape inplace",
 			     get_random_u32_below(UNESCAPE_ALL_MASK + 1), true);
+}
+
+static void test_escape(struct kunit *test)
+{
+	unsigned int i;
 
 	/* Without dictionary */
 	for (i = 0; i < ESCAPE_ALL_MASK + 1; i++)
@@ -615,6 +625,7 @@ static struct kunit_case string_helpers_test_cases[] = {
 	KUNIT_CASE(test_get_size),
 	KUNIT_CASE(test_upper_lower),
 	KUNIT_CASE(test_unescape),
+	KUNIT_CASE(test_escape),
 	{}
 };
 

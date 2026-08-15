@@ -19,7 +19,6 @@
 #include <linux/smp.h>
 #include <linux/bitmap.h>
 #include <linux/math64.h>
-#include <linux/mod_devicetable.h>
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
 #include <asm/processor.h>
@@ -2016,7 +2015,7 @@ static bool sb_decode_ddr4(struct mem_ctl_info *mci, int ch, u8 rank,
 static bool sb_decode_ddr3(struct mem_ctl_info *mci, int ch, u8 rank,
 			   u64 rank_addr, char *msg)
 {
-	pr_warn_once("DDR3 row/column decode not support yet!\n");
+	pr_warn_once("DDR3 row/column decode is not supported yet!\n");
 	msg[0] = '\0';
 	return false;
 }

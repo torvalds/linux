@@ -13,11 +13,11 @@
 #include <linux/pm.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
-#include <linux/leds.h>
-#include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/platform_data/i2c-gpio.h>
 #include <linux/gpio/machine.h>
+#include <linux/gpio/property.h>
+#include <linux/property.h>
 #include <asm/bootinfo.h>
 #include <asm/idle.h>
 #include <asm/reboot.h>
@@ -161,66 +161,90 @@ static struct platform_device gpr_mtd_device = {
 /*
  * LEDs
  */
-static const struct gpio_led gpr_gpio_leds[] = {
-	{	/* green */
-		.name			= "gpr:green",
-		.gpio			= 4,
-		.active_low		= 1,
-	},
-	{	/* red */
-		.name			= "gpr:red",
-		.gpio			= 5,
-		.active_low		= 1,
-	}
+static const struct software_node gpr_gpio_leds_node = {
+	.name = "gpr-leds",
 };
 
-static struct gpio_led_platform_data gpr_led_data = {
-	.num_leds = ARRAY_SIZE(gpr_gpio_leds),
-	.leds = gpr_gpio_leds,
+static const struct property_entry gpr_green_led_props[] = {
+	PROPERTY_ENTRY_GPIO("gpios", &alchemy_gpio1_node, 4, GPIO_ACTIVE_LOW),
+	{ }
 };
 
-static struct platform_device gpr_led_devices = {
-	.name = "leds-gpio",
-	.id = -1,
-	.dev = {
-		.platform_data = &gpr_led_data,
-	}
+static const struct software_node gpr_green_led_node = {
+	.name = "gpr:green",
+	.parent = &gpr_gpio_leds_node,
+	.properties = gpr_green_led_props,
 };
+
+static const struct property_entry gpr_red_led_props[] = {
+	PROPERTY_ENTRY_GPIO("gpios", &alchemy_gpio1_node, 5, GPIO_ACTIVE_LOW),
+	{ }
+};
+
+static const struct software_node gpr_red_led_node = {
+	.name = "gpr:red",
+	.parent = &gpr_gpio_leds_node,
+	.properties = gpr_red_led_props,
+};
+
+static const struct software_node * const gpr_gpio_leds_swnodes[] __initconst = {
+	&gpr_gpio_leds_node,
+	&gpr_green_led_node,
+	&gpr_red_led_node,
+	NULL
+};
+
+static void __init gpr_leds_init(void)
+{
+	const struct platform_device_info pdevinfo = {
+		.name	= "leds-gpio",
+		.id	= PLATFORM_DEVID_NONE,
+		.swnode = &gpr_gpio_leds_node,
+	};
+	struct platform_device *pd;
+	int err;
+
+	err = software_node_register_node_group(gpr_gpio_leds_swnodes);
+	if (err) {
+		pr_err("failed to register LED software nodes: %d\n", err);
+		return;
+	}
+
+	pd = platform_device_register_full(&pdevinfo);
+	err = PTR_ERR_OR_ZERO(pd);
+	if (err)
+		pr_err("failed to create LED device: %d\n", err);
+}
 
 /*
  * I2C
  */
-static struct gpiod_lookup_table gpr_i2c_gpiod_table = {
-	.dev_id = "i2c-gpio",
-	.table = {
-		/*
-		 * This should be on "GPIO2" which has base at 200 so
-		 * the global numbers 209 and 210 should correspond to
-		 * local offsets 9 and 10.
-		 */
-		GPIO_LOOKUP_IDX("alchemy-gpio2", 9, NULL, 0,
-				GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP_IDX("alchemy-gpio2", 10, NULL, 1,
-				GPIO_ACTIVE_HIGH),
-	},
+static const struct property_entry gpr_i2c_props[] __initconst = {
+	PROPERTY_ENTRY_GPIO("sda-gpios", &alchemy_gpio2_node, 9, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("scl-gpios", &alchemy_gpio2_node, 10, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_U32("i2c-gpio,delay-us", 2),	/* ~100 kHz */
+	PROPERTY_ENTRY_U32("i2c-gpio,timeout-ms", 1000),
+	PROPERTY_ENTRY_BOOL("i2c-gpio,sda-open-drain"),
+	PROPERTY_ENTRY_BOOL("i2c-gpio,scl-open-drain"),
+	{ }
 };
 
-static struct i2c_gpio_platform_data gpr_i2c_data = {
-	/*
-	 * The open drain mode is hardwired somewhere or an electrical
-	 * property of the alchemy GPIO controller.
-	 */
-	.sda_is_open_drain	= 1,
-	.scl_is_open_drain	= 1,
-	.udelay			= 2,		/* ~100 kHz */
-	.timeout		= HZ,
+static const struct platform_device_info gpr_i2c_pdev_info __initconst = {
+	.name		= "i2c-gpio",
+	.id		= PLATFORM_DEVID_NONE,
+	.properties	= gpr_i2c_props,
 };
 
-static struct platform_device gpr_i2c_device = {
-	.name			= "i2c-gpio",
-	.id			= -1,
-	.dev.platform_data	= &gpr_i2c_data,
-};
+static void __init gpr_i2c_init(void)
+{
+	struct platform_device *pd;
+	int err;
+
+	pd = platform_device_register_full(&gpr_i2c_pdev_info);
+	err = PTR_ERR_OR_ZERO(pd);
+	if (err)
+		pr_err("failed to create I2C device: %d\n", err);
+}
 
 static struct i2c_board_info gpr_i2c_info[] __initdata = {
 	{
@@ -270,8 +294,6 @@ static struct platform_device gpr_pci_host_dev = {
 static struct platform_device *gpr_devices[] __initdata = {
 	&gpr_wdt_device,
 	&gpr_mtd_device,
-	&gpr_i2c_device,
-	&gpr_led_devices,
 };
 
 static int __init gpr_pci_init(void)
@@ -284,8 +306,9 @@ arch_initcall(gpr_pci_init);
 
 static int __init gpr_dev_init(void)
 {
-	gpiod_add_lookup_table(&gpr_i2c_gpiod_table);
 	i2c_register_board_info(0, gpr_i2c_info, ARRAY_SIZE(gpr_i2c_info));
+	gpr_i2c_init();
+	gpr_leds_init();
 
 	return platform_add_devices(gpr_devices, ARRAY_SIZE(gpr_devices));
 }

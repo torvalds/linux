@@ -306,13 +306,10 @@ static bool drivetemp_sct_avoid(struct drivetemp_data *st)
 	struct scsi_device *sdev = st->sdev;
 	unsigned int ctr;
 
-	if (!sdev->model)
-		return false;
-
 	/*
 	 * The "model" field contains just the raw SCSI INQUIRY response
 	 * "product identification" field, which has a width of 16 bytes.
-	 * This field is space-filled, but is NOT NULL-terminated.
+	 * This field is space-filled and NUL-terminated.
 	 */
 	for (ctr = 0; ctr < ARRAY_SIZE(sct_avoid_models); ctr++)
 		if (!strncmp(sdev->model, sct_avoid_models[ctr],

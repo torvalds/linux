@@ -58,6 +58,15 @@ Description:
 			* 1 - overboost,
 			* 2 - silent
 
+What:		/sys/devices/platform/<platform>/keystone
+Date:		Jun 2026
+KernelVersion:	7.2
+Contact:	"Dariusz Figzał" <dariuszfigzal@gmail.com>
+Description:
+		Reports the Keystone dongle insert state (read-only):
+			* 0 - not inserted
+			* 1 - inserted
+
 What:		/sys/devices/platform/<platform>/gpu_mux_mode
 Date:		Aug 2022
 KernelVersion:	6.1
