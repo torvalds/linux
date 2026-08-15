@@ -80,10 +80,11 @@ struct net_shaper {
  * disallowed at the uAPI level will never be made at the driver level.
  * The shaper core performs automatic reparenting and cleanup, generating
  * additional calls. Notably:
- *  - @group calls in the driver facing API may have nodes as leaves (user is
- *    only allowed to construct groups with queues as leaves)
- *  - @group calls may update leaf's parent if the parent is about
- *    to be removed (re-parenting nodes explicitly is not supported in the uAPI)
+ *
+ * - @group calls in the driver facing API may have nodes as leaves (user is
+ *   only allowed to construct groups with queues as leaves)
+ * - @group calls may update leaf's parent if the parent is about
+ *   to be removed (re-parenting nodes explicitly is not supported in the uAPI)
  *
  * Implicit creation
  * -----------------
