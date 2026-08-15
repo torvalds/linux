@@ -995,16 +995,15 @@ bool ksmbd_has_other_active_fd(struct ksmbd_file *fp)
 	return ret;
 }
 
-static struct ksmbd_file *ksmbd_lookup_fd_app_instance_id(char *app_instance_id)
+struct ksmbd_file *ksmbd_lookup_fd_app_instance_id(char *app_instance_id)
 {
 	struct ksmbd_file *fp = NULL;
 	unsigned int id;
 
-	if (!memchr_inv(app_instance_id, 0, SMB2_CREATE_GUID_SIZE))
-		return NULL;
-
 	read_lock(&global_ft.lock);
 	idr_for_each_entry(global_ft.idr, fp, id) {
+		if (!fp->has_app_instance_id)
+			continue;
 		if (!memcmp(fp->app_instance_id, app_instance_id,
 			    SMB2_CREATE_GUID_SIZE)) {
 			fp = ksmbd_fp_get(fp);

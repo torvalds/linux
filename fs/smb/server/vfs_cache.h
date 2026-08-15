@@ -149,6 +149,10 @@ struct ksmbd_file {
 	bool				is_durable;
 	bool				is_persistent;
 	bool				is_resilient;
+	bool				has_app_instance_id;
+	bool				app_instance_version_valid;
+	u64				app_instance_version_high;
+	u64				app_instance_version_low;
 	bool				durable_reconnect_disabled;
 	bool				durable_replay_consumed;
 
@@ -209,6 +213,7 @@ void ksmbd_put_durable_fd(struct ksmbd_file *fp);
 int ksmbd_invalidate_durable_fd(unsigned long long id);
 bool ksmbd_has_other_active_fd(struct ksmbd_file *fp);
 bool ksmbd_has_stream_without_delete_share(struct ksmbd_file *fp);
+struct ksmbd_file *ksmbd_lookup_fd_app_instance_id(char *app_instance_id);
 int ksmbd_close_fd_app_instance_id(char *app_instance_id);
 struct ksmbd_file *ksmbd_lookup_fd_cguid(char *cguid);
 struct ksmbd_file *ksmbd_lookup_fd_inode(struct dentry *dentry);

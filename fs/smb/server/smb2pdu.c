@@ -16,6 +16,7 @@
 #include <linux/filelock.h>
 #include <linux/fileattr.h>
 #include <linux/timekeeping.h>
+#include <linux/unaligned.h>
 
 #include "glob.h"
 #include "../common/smbfsctl.h"
@@ -3451,9 +3452,12 @@ struct durable_info {
 	bool replay;
 	bool replay_consumed;
 	bool app_instance_id;
+	bool app_instance_version_valid;
 	unsigned int timeout;
 	char *CreateGuid;
 	char AppInstanceId[SMB2_CREATE_GUID_SIZE];
+	u64 app_instance_version_high;
+	u64 app_instance_version_low;
 };
 
 static int smb2_check_durable_replay(struct ksmbd_work *work,
@@ -3819,6 +3823,68 @@ static int parse_app_instance_id(struct smb2_create_req *req,
 	return 0;
 }
 
+static int parse_app_instance_version(struct smb2_create_req *req,
+				      struct durable_info *dh_info)
+{
+	struct create_context *context;
+	char *data;
+
+	context = smb2_find_context_vals(req, SMB2_CREATE_APP_INSTANCE_VERSION,
+					 SMB2_CREATE_GUID_SIZE);
+	if (IS_ERR(context))
+		return PTR_ERR(context);
+	if (!context)
+		return 0;
+
+	if (le32_to_cpu(context->DataLength) < 24)
+		return -EINVAL;
+
+	data = (char *)context + le16_to_cpu(context->DataOffset);
+	if (get_unaligned_le16(data) != 24 ||
+	    get_unaligned_le16(data + 2) != 0)
+		return -EINVAL;
+
+	dh_info->app_instance_version_high = get_unaligned_le64(data + 8);
+	dh_info->app_instance_version_low = get_unaligned_le64(data + 16);
+	dh_info->app_instance_version_valid = true;
+	return 0;
+}
+
+static int smb2_handle_app_instance_id(struct smb2_create_rsp *rsp,
+				       struct durable_info *dh_info)
+{
+	struct ksmbd_file *old_fp;
+	bool reject = false;
+
+	if (!dh_info->app_instance_id)
+		return 0;
+
+	old_fp = ksmbd_lookup_fd_app_instance_id(dh_info->AppInstanceId);
+	if (!old_fp)
+		return 0;
+
+	if (dh_info->app_instance_version_valid) {
+		if (old_fp->app_instance_version_valid &&
+		    (dh_info->app_instance_version_high <
+			 old_fp->app_instance_version_high ||
+		     (dh_info->app_instance_version_high ==
+			      old_fp->app_instance_version_high &&
+			      dh_info->app_instance_version_low <=
+			      old_fp->app_instance_version_low)))
+			reject = true;
+	} else if (old_fp->app_instance_version_valid) {
+		reject = true;
+	}
+
+	ksmbd_put_durable_fd(old_fp);
+	if (reject) {
+		rsp->hdr.Status = STATUS_FILE_FORCED_CLOSED;
+		return -EIO;
+	}
+
+	return ksmbd_close_fd_app_instance_id(dh_info->AppInstanceId);
+}
+
 /**
  * smb2_open() - handler for smb file open request
  * @work:	smb work containing request buffer
@@ -3946,6 +4012,15 @@ int smb2_open(struct ksmbd_work *work)
 
 	req_op_level = req->RequestedOplockLevel;
 
+	if (req->CreateContextsOffset) {
+		rc = parse_app_instance_id(req, &dh_info);
+		if (rc)
+			goto err_out2;
+		rc = parse_app_instance_version(req, &dh_info);
+		if (rc)
+			goto err_out2;
+	}
+
 	if (server_conf.flags & KSMBD_GLOBAL_FLAG_DURABLE_HANDLE &&
 	    req->CreateContextsOffset) {
 		lc = parse_lease_state(req);
@@ -3960,9 +4035,6 @@ int smb2_open(struct ksmbd_work *work)
 			if (req_op_level == SMB2_OPLOCK_LEVEL_LEASE)
 				req_op_level = SMB2_OPLOCK_LEVEL_NONE;
 		}
-		rc = parse_app_instance_id(req, &dh_info);
-		if (rc)
-			goto err_out2;
 		rc = parse_durable_handle_context(work, req, lc, &dh_info);
 		if (rc) {
 			ksmbd_debug(SMB, "error parsing durable handle context\n");
@@ -4010,8 +4082,6 @@ int smb2_open(struct ksmbd_work *work)
 			goto reconnected_fp;
 		}
 
-		if (dh_info.type == DURABLE_REQ_V2 && dh_info.app_instance_id)
-			ksmbd_close_fd_app_instance_id(dh_info.AppInstanceId);
 	} else if (req_op_level == SMB2_OPLOCK_LEVEL_LEASE) {
 		lc = parse_lease_state(req);
 		if (IS_ERR(lc)) {
@@ -4024,6 +4094,13 @@ int smb2_open(struct ksmbd_work *work)
 			lc = NULL;
 			req_op_level = SMB2_OPLOCK_LEVEL_NONE;
 		}
+	}
+
+	if (dh_info.app_instance_id && !dh_info.reconnected &&
+	    !dh_info.replay) {
+		rc = smb2_handle_app_instance_id(rsp, &dh_info);
+		if (rc)
+			goto err_out2;
 	}
 
 	if (le32_to_cpu(req->ImpersonationLevel) > le32_to_cpu(IL_DELEGATE)) {
@@ -4426,6 +4503,17 @@ int smb2_open(struct ksmbd_work *work)
 	 * waiting on the same break again.
 	 */
 	memcpy(fp->client_guid, conn->ClientGUID, SMB2_CLIENT_GUID_SIZE);
+	if (dh_info.app_instance_id) {
+		memcpy(fp->app_instance_id, dh_info.AppInstanceId,
+		       SMB2_CREATE_GUID_SIZE);
+		fp->has_app_instance_id = true;
+	}
+	if (dh_info.app_instance_version_valid) {
+		fp->app_instance_version_high =
+			dh_info.app_instance_version_high;
+		fp->app_instance_version_low = dh_info.app_instance_version_low;
+		fp->app_instance_version_valid = true;
+	}
 	if (dh_info.CreateGuid) {
 		memcpy(fp->create_guid, dh_info.CreateGuid, SMB2_CREATE_GUID_SIZE);
 		fp->durable_replay_consumed = dh_info.replay_consumed;
