@@ -1344,13 +1344,14 @@ static int clone_reloc_klp(struct elfs *e, struct reloc *patched_reloc,
 			   struct section *sec, unsigned long offset,
 			   struct export *export)
 {
+	const char *sym_modname, *sym_orig_name, *sec_objname;
 	struct symbol *patched_sym = patched_reloc->sym;
 	s64 addend = reloc_addend(patched_reloc);
-	const char *sym_modname, *sym_orig_name;
-	static struct section *klp_relocs;
 	char tombstone_name[SYM_NAME_LEN];
 	struct symbol *sym, *klp_sym;
 	unsigned long klp_reloc_off;
+	struct section *klp_relocs;
+	char sec_name[SEC_NAME_LEN];
 	char sym_name[SYM_NAME_LEN];
 	struct klp_reloc klp_reloc;
 	unsigned long sympos;
@@ -1441,20 +1442,28 @@ static int clone_reloc_klp(struct elfs *e, struct reloc *patched_reloc,
 	 * This intermediate step is necessary to prevent corruption by the
 	 * linker, which doesn't know how to properly handle two rela sections
 	 * applying to the same base section.
+	 *
+	 * The objname decides when the reloc gets applied.  A reference to a
+	 * vmlinux symbol goes in the vmlinux section so it gets applied when
+	 * the patch module loads.  Everything else goes in the patched
+	 * object's section, applied when the patched module is loaded.
 	 */
 
+	if (!strcmp(sym_modname, "vmlinux")) {
+		sec_objname = "vmlinux";
+	} else {
+		sec_objname = find_modname(e);
+		if (!sec_objname)
+			return -1;
+	}
+
+	/* section format: __klp_relocs.objname */
+	if (snprintf_check(sec_name, SEC_NAME_LEN,
+			   KLP_RELOCS_SEC ".%s", sec_objname))
+		return -1;
+
+	klp_relocs = find_section_by_name(e->out, sec_name);
 	if (!klp_relocs) {
-		const char *objname = find_modname(e);
-		char sec_name[SEC_NAME_LEN];
-
-		if (!objname)
-			return -1;
-
-		/* section format: __klp_relocs.objname */
-		if (snprintf_check(sec_name, SEC_NAME_LEN,
-				   KLP_RELOCS_SEC ".%s", objname))
-			return -1;
-
 		klp_relocs = elf_create_section(e->out, sec_name, 0,
 						0, SHT_PROGBITS, 8, SHF_ALLOC);
 		if (!klp_relocs)

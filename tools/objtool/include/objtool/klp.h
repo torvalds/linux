@@ -20,8 +20,9 @@
  * SHF_RELA_LIVEPATCH, nor does it support having two RELA sections for a
  * single PROGBITS section.
  *
- * "objname" is the name of the object being patched ("vmlinux" or a module
- * name).  post-link uses it to name the resulting
+ * "objname" is the object whose loading gates the relocation: "vmlinux" for
+ * references to vmlinux symbols, otherwise the name of the module being
+ * patched.  post-link uses it to name the resulting
  * .klp.rela.objname.section_name sections.
  */
 #define KLP_RELOCS_SEC	"__klp_relocs"
