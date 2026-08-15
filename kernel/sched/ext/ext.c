@@ -2267,9 +2267,9 @@ static bool dequeue_task_scx(struct rq *rq, struct task_struct *p, int core_deq_
 
 	/*
 	 * Set %SCX_DEQ_SCHED_CHANGE when the dequeue is due to a property
-	 * change (not sleep or core-sched pick).
+	 * change (not sleep).
 	 */
-	if (!(deq_flags & (DEQUEUE_SLEEP | SCX_DEQ_CORE_SCHED_EXEC)))
+	if (!(deq_flags & DEQUEUE_SLEEP))
 		deq_flags |= SCX_DEQ_SCHED_CHANGE;
 
 	if (!(p->scx.flags & SCX_TASK_QUEUED)) {
