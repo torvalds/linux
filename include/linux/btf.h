@@ -214,6 +214,7 @@ int btf_type_seq_show_flags(const struct btf *btf, u32 type_id, void *obj,
  */
 int btf_type_snprintf_show(const struct btf *btf, u32 type_id, void *obj,
 			   char *buf, int len, u64 flags);
+int btf_type_name_to_buf(const struct btf *btf, u32 type_id, char *buf, int len);
 
 int btf_get_fd_by_id(u32 id);
 u32 btf_obj_id(const struct btf *btf);
