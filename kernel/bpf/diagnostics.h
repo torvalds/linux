@@ -9,6 +9,7 @@
 #include <linux/stdarg.h>
 #include <linux/types.h>
 
+struct bpf_reference_state;
 struct bpf_func_state;
 struct bpf_reg_state;
 struct bpf_verifier_env;
@@ -68,6 +69,14 @@ void bpf_diag_memory(struct bpf_verifier_env *env, u32 insn_idx, const char *pro
 void bpf_diag_mem_bounds(struct bpf_verifier_env *env, u32 insn_idx, int regno,
 			 const char *reg_name, const char *type_name, const char *proof,
 			 int off, int size, u32 mem_size, const struct bpf_reg_state *reg);
+void bpf_diag_res(struct bpf_verifier_env *env, u32 insn_idx, const char *problem,
+		  const char *reason, const char *suggestion);
+void bpf_diag_lock(struct bpf_verifier_env *env, u32 insn_idx, const char *problem,
+		   const char *reason, const char *suggestion,
+		   const struct bpf_reference_state *active_lock);
+void bpf_diag_irq(struct bpf_verifier_env *env, u32 insn_idx, const char *problem,
+		  const char *reason, const char *suggestion, u32 depth);
+void bpf_diag_leak(struct bpf_verifier_env *env, u32 ref_id, u32 alloc_insn, u32 fail_insn);
 void bpf_diag_record_branch(struct bpf_verifier_env *env, u32 insn_idx, bool cond_true);
 void bpf_diag_mod_begin(struct bpf_verifier_env *env, const struct bpf_reg_state *reg,
 			const struct bpf_reg_state *origin, enum bpf_diag_mod_reason reason);

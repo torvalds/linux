@@ -18,6 +18,7 @@
 
 #define REGISTER_TYPE_SAFETY "Register Type Safety"
 #define MEMORY_SAFETY "Memory Safety"
+#define RESOURCE_LIFETIME_SAFETY "Resource Lifetime Safety"
 
 #define BPF_DIAG_TEXT_WIDTH 100
 #define BPF_DIAG_TEXT_INDENT "  "
@@ -1733,6 +1734,96 @@ void bpf_diag_mem_bounds(struct bpf_verifier_env *env, u32 insn_idx, int regno,
 
 	diag_suggestion(
 		env, "Add or adjust a bounds check that proves offset + access_size stays within the object.");
+}
+
+static const char *diag_lock_name(const struct bpf_reference_state *lock)
+{
+	switch (lock->type) {
+	case REF_TYPE_LOCK:
+		return "bpf_spin_lock";
+	case REF_TYPE_RES_LOCK:
+		return "resource spin lock";
+	case REF_TYPE_RES_LOCK_IRQ:
+		return "IRQ-saving resource spin lock";
+	default:
+		return "lock";
+	}
+}
+
+static void diag_res_report(struct bpf_verifier_env *env, u32 insn_idx, const char *problem,
+			    const char *reason)
+{
+	bpf_diag_header(env, RESOURCE_LIFETIME_SAFETY, problem);
+	diag_reason(env, "%s", reason);
+
+	diag_section(env, "At");
+	bpf_diag_source(env, insn_idx, "error", "%s", problem);
+}
+
+void bpf_diag_res(struct bpf_verifier_env *env, u32 insn_idx, const char *problem,
+		  const char *reason, const char *suggestion)
+{
+	diag_res_report(env, insn_idx, problem, reason);
+	diag_suggestion(env, "%s", suggestion);
+}
+
+void bpf_diag_lock(struct bpf_verifier_env *env, u32 insn_idx, const char *problem,
+		   const char *reason, const char *suggestion,
+		   const struct bpf_reference_state *active_lock)
+{
+	diag_res_report(env, insn_idx, problem, reason);
+
+	if (active_lock) {
+		diag_section(env, "Active lock");
+		bpf_diag_source(env, active_lock->insn_idx, "acquired",
+				"active %s has verifier identity %d",
+				diag_lock_name(active_lock), active_lock->id);
+	}
+
+	diag_suggestion(env, "%s", suggestion);
+}
+
+void bpf_diag_irq(struct bpf_verifier_env *env, u32 insn_idx, const char *problem,
+		  const char *reason, const char *suggestion, u32 depth)
+{
+	struct bpf_diag_history_opts opts = {
+		.scope = BPF_DIAG_HISTORY_SCOPE_CONTEXT,
+		.ctx_kind = BPF_DIAG_CONTEXT_IRQ,
+		.ctx_depth = depth,
+	};
+
+	bpf_diag_header(env, RESOURCE_LIFETIME_SAFETY, problem);
+	diag_reason(env, "%s", reason);
+
+	diag_section(env, "At");
+	bpf_diag_source(env, insn_idx, "error", "%s", problem);
+
+	if (depth)
+		diag_print_history(env, &opts);
+
+	diag_suggestion(env, "%s", suggestion);
+}
+
+void bpf_diag_leak(struct bpf_verifier_env *env, u32 ref_id, u32 alloc_insn, u32 fail_insn)
+{
+	struct bpf_diag_history_opts opts = {
+		.scope = BPF_DIAG_HISTORY_SCOPE_REF,
+		.ref_id = ref_id,
+	};
+
+	bpf_diag_header(env, RESOURCE_LIFETIME_SAFETY, "unreleased resource");
+	diag_reason(
+		env, "Owned resource (id=%u) was acquired at instruction %u and still needs to be released before this exit path.",
+		ref_id, alloc_insn);
+
+	diag_section(env, "At");
+	bpf_diag_source(env, fail_insn, "error",
+			"owned resource (id=%u) still needs release", ref_id);
+
+	diag_print_history(env, &opts);
+
+	diag_suggestion(
+		env, "Release or transfer ownership of the acquired resource on every path before the program exits.");
 }
 
 static const char *diag_var_offset(struct bpf_verifier_env *env,
