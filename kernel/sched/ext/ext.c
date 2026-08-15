@@ -10604,19 +10604,23 @@ static void scx_read_events(struct scx_sched *sch, struct scx_event_stats *event
 	}
 }
 
-/*
- * scx_bpf_events - Get a system-wide event counter to
+/**
+ * scx_bpf_events - Read the event counters of the calling scheduler
  * @events: output buffer from a BPF program
- * @events__sz: @events len, must end in '__sz'' for the verifier
+ * @events__sz: @events len, must end in '__sz' for the verifier
+ * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
+ *
+ * Read the event counters of the scheduler associated with the calling program.
+ * @events is zeroed when no scheduler can be resolved.
  */
-__bpf_kfunc void scx_bpf_events(struct scx_event_stats *events,
-				size_t events__sz)
+__bpf_kfunc void scx_bpf_events(struct scx_event_stats *events, size_t events__sz,
+				const struct bpf_prog_aux *aux)
 {
 	struct scx_sched *sch;
 	struct scx_event_stats e_sys;
 
 	rcu_read_lock();
-	sch = rcu_dereference(scx_root);
+	sch = scx_prog_sched(aux);
 	if (sch)
 		scx_read_events(sch, &e_sys);
 	else
@@ -10739,7 +10743,7 @@ BTF_ID_FLAGS(func, scx_bpf_cpu_curr, KF_IMPLICIT_ARGS | KF_RET_NULL | KF_RCU_PRO
 BTF_ID_FLAGS(func, scx_bpf_cid_curr, KF_IMPLICIT_ARGS | KF_RET_NULL | KF_RCU_PROTECTED)
 BTF_ID_FLAGS(func, scx_bpf_tid_to_task, KF_RET_NULL | KF_RCU_PROTECTED)
 BTF_ID_FLAGS(func, scx_bpf_now)
-BTF_ID_FLAGS(func, scx_bpf_events)
+BTF_ID_FLAGS(func, scx_bpf_events, KF_IMPLICIT_ARGS)
 #ifdef CONFIG_CGROUP_SCHED
 BTF_ID_FLAGS(func, scx_bpf_task_cgroup, KF_IMPLICIT_ARGS | KF_RCU | KF_ACQUIRE)
 #endif
