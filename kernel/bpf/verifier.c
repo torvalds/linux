@@ -3020,6 +3020,12 @@ static int check_subprogs(struct bpf_verifier_env *env)
 		off = i + bpf_jmp_offset(&insn[i]) + 1;
 		if (off < subprog_start || off >= subprog_end) {
 			verbose(env, "jump out of range from insn %d to %d\n", i, off);
+			bpf_diag_program_structure(
+				env, i, "jump out of range",
+				"Keep branch targets within the same subprogram, or use an explicit subprogram call.",
+				"Instruction %d jumps to instruction %d, but subprogram %d only contains instructions %d through %d. "
+				"A branch target must stay inside the same subprogram.",
+				i, off, cur_subprog, subprog_start, subprog_end - 1);
 			return -EINVAL;
 		}
 next:
@@ -3032,6 +3038,11 @@ next:
 			    code != (BPF_JMP32 | BPF_JA) &&
 			    code != (BPF_JMP | BPF_JA)) {
 				verbose(env, "last insn is not an exit or jmp\n");
+				bpf_diag_program_structure(
+					env, i, "subprogram can fall through",
+					"End each subprogram with an exit or an explicit jump that keeps control flow inside the subprogram.",
+					"Subprogram %d reaches its last instruction %d without an exit or jump, so control could continue into the next subprogram.",
+					cur_subprog, i);
 				return -EINVAL;
 			}
 			subprog_start = subprog_end;
@@ -3104,6 +3115,11 @@ static int sort_subprogs_topo(struct bpf_verifier_env *env)
 					verbose(env, "recursive call from %s() to %s()\n",
 						bpf_subprog_name(env, cur),
 						bpf_subprog_name(env, callee));
+					bpf_diag_program_structure(
+						env, idx, "recursive subprogram call",
+						"Rewrite the recursion as an explicit bounded loop, or split the logic so subprogram calls do not form a cycle.",
+						"This bpf2bpf call would make the subprogram call graph recursive. "
+						"The verifier requires a finite, acyclic call graph so it can bound stack depth and analysis.");
 					ret = -EINVAL;
 					goto out;
 				}

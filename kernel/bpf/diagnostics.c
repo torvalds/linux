@@ -21,6 +21,7 @@
 #define RESOURCE_LIFETIME_SAFETY "Resource Lifetime Safety"
 #define CALL_TYPE_SAFETY "Call Type Safety"
 #define EXECUTION_CONTEXT_SAFETY "Execution Context Safety"
+#define PROGRAM_STRUCTURE "Program Structure"
 
 #define BPF_DIAG_TEXT_WIDTH 100
 #define BPF_DIAG_TEXT_INDENT "  "
@@ -1192,6 +1193,24 @@ void bpf_diag_ctx_underflow(struct bpf_verifier_env *env, u32 insn_idx,
 	diag_suggestion(env, "%s", suggestion);
 }
 
+void bpf_diag_program_structure(struct bpf_verifier_env *env, u32 insn_idx,
+				const char *problem, const char *suggestion,
+				const char *reason_fmt, ...)
+{
+	va_list args;
+
+	bpf_diag_header(env, PROGRAM_STRUCTURE, problem);
+	diag_section(env, "Reason");
+
+	va_start(args, reason_fmt);
+	diag_vprint_indented(env, reason_fmt, args);
+	va_end(args);
+
+	diag_section(env, "At");
+	bpf_diag_source(env, insn_idx, "error", "%s", problem);
+
+	diag_suggestion(env, "%s", suggestion);
+}
 void bpf_diag_invalid_deref(struct bpf_verifier_env *env, u32 insn_idx, int regno,
 			    const char *reg_name, const struct bpf_reg_state *reg,
 			    enum bpf_diag_invalid_deref_kind kind, s64 offset)
