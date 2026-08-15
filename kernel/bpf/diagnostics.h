@@ -80,6 +80,15 @@ void bpf_diag_leak(struct bpf_verifier_env *env, u32 ref_id, u32 alloc_insn, u32
 void bpf_diag_call_type(struct bpf_verifier_env *env, u32 insn_idx, int argno, int regno,
 			int stack_arg_slot, const char *call_name, const char *arg_name,
 			const char *reason, const char *suggestion);
+void bpf_diag_ctx_forbidden(struct bpf_verifier_env *env, u32 insn_idx,
+			    const char *operation, const char *suggestion);
+void bpf_diag_ctx_active(struct bpf_verifier_env *env, u32 insn_idx, const char *operation,
+			 enum bpf_diag_context_kind ctx_kind, const char *suggestion);
+void bpf_diag_ctx_required(struct bpf_verifier_env *env, u32 insn_idx, const char *operation,
+			   enum bpf_diag_context_kind ctx_kind, const char *suggestion);
+void bpf_diag_ctx_underflow(struct bpf_verifier_env *env, u32 insn_idx,
+			    const char *operation, enum bpf_diag_context_kind ctx_kind,
+			    const char *suggestion);
 void bpf_diag_record_branch(struct bpf_verifier_env *env, u32 insn_idx, bool cond_true);
 void bpf_diag_mod_begin(struct bpf_verifier_env *env, const struct bpf_reg_state *reg,
 			const struct bpf_reg_state *origin, enum bpf_diag_mod_reason reason);

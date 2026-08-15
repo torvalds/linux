@@ -7739,6 +7739,9 @@ static int process_iter_arg(struct bpf_verifier_env *env, struct bpf_reg_state *
 			return err;
 		case -EPROTO:
 			verbose(env, "expected an RCU CS when using %s\n", meta->func_name);
+			bpf_diag_ctx_required(
+				env, insn_idx, meta->func_name, BPF_DIAG_CONTEXT_RCU,
+				"Wrap iterator use in bpf_rcu_read_lock() and bpf_rcu_read_unlock(), keeping all exit paths balanced.");
 			return err;
 		default:
 			return err;
@@ -9838,17 +9841,24 @@ static int check_func_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 		return err;
 	if (bpf_subprog_is_global(env, subprog)) {
 		const char *sub_name = bpf_subprog_name(env, subprog);
+		const char *operation;
 		bool returns_void;
 
 		if (env->cur_state->active_locks) {
 			verbose(env, "global function calls are not allowed while holding a lock,\n"
 				     "use static function instead\n");
+			operation = bpf_diag_fmt(env, "global function %s()", sub_name);
+			bpf_diag_ctx_active(env, *insn_idx, operation, BPF_DIAG_CONTEXT_LOCK,
+					    "Release the lock before calling the global function, or use a static function instead.");
 			return -EINVAL;
 		}
 
 		if (env->subprog_info[subprog].might_sleep && !in_sleepable_context(env)) {
 			verbose(env, "sleepable global function %s() called in %s\n",
 				sub_name, non_sleepable_context_description(env));
+			operation = bpf_diag_fmt(env, "sleepable global function %s()", sub_name);
+			bpf_diag_ctx_forbidden(env, *insn_idx, operation,
+				"Move the call outside the critical section, or use a non-sleepable function.");
 			return -EINVAL;
 		}
 
@@ -10495,6 +10505,8 @@ static int check_resource_leak(struct bpf_verifier_env *env, bool exception_exit
 
 	if (check_lock && env->cur_state->active_locks) {
 		verbose(env, "%s cannot be used inside bpf_spin_lock-ed region\n", prefix);
+		bpf_diag_ctx_active(env, env->insn_idx, prefix, BPF_DIAG_CONTEXT_LOCK,
+				    "Release the BPF spin lock before this operation on every path.");
 		return -EINVAL;
 	}
 
@@ -10506,16 +10518,23 @@ static int check_resource_leak(struct bpf_verifier_env *env, bool exception_exit
 
 	if (check_lock && env->cur_state->active_irq_id) {
 		verbose(env, "%s cannot be used inside bpf_local_irq_save-ed region\n", prefix);
+		bpf_diag_ctx_active(env, env->insn_idx, prefix, BPF_DIAG_CONTEXT_IRQ,
+				    "Restore the saved IRQ state before this operation on every path.");
 		return -EINVAL;
 	}
 
 	if (check_lock && env->cur_state->active_rcu_locks) {
 		verbose(env, "%s cannot be used inside bpf_rcu_read_lock-ed region\n", prefix);
+		bpf_diag_ctx_active(env, env->insn_idx, prefix, BPF_DIAG_CONTEXT_RCU,
+				    "Call bpf_rcu_read_unlock() before this operation on every path.");
 		return -EINVAL;
 	}
 
 	if (check_lock && env->cur_state->active_preempt_locks) {
 		verbose(env, "%s cannot be used inside bpf_preempt_disable-ed region\n", prefix);
+		bpf_diag_ctx_active(
+			env, env->insn_idx, prefix, BPF_DIAG_CONTEXT_PREEMPT,
+			"Call bpf_preempt_enable() before this operation on every path.");
 		return -EINVAL;
 	}
 
@@ -10697,6 +10716,7 @@ static int check_helper_call(struct bpf_verifier_env *env, struct bpf_insn *insn
 	enum bpf_type_flag ret_flag;
 	struct bpf_reg_state *regs;
 	struct bpf_call_arg_meta meta;
+	const char *operation;
 	int insn_idx = *insn_idx_p;
 	bool changes_data;
 	int i, err, func_id;
@@ -10744,6 +10764,10 @@ static int check_helper_call(struct bpf_verifier_env *env, struct bpf_insn *insn
 	if (fn->might_sleep && !in_sleepable_context(env)) {
 		verbose(env, "sleepable helper %s#%d in %s\n", func_id_name(func_id), func_id,
 			non_sleepable_context_description(env));
+		operation = bpf_diag_fmt(env, "sleepable helper %s#%d",
+					 func_id_name(func_id), func_id);
+		bpf_diag_ctx_forbidden(env, insn_idx, operation,
+			"Move the helper call outside the critical section, or use a non-sleepable helper.");
 		return -EINVAL;
 	}
 
@@ -13591,6 +13615,7 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 	const struct btf_type *t, *ptr_type;
 	struct bpf_call_arg_meta meta;
 	struct bpf_insn_aux_data *insn_aux;
+	const char *operation;
 	int err, insn_idx = *insn_idx_p;
 	u32 i, nargs, ptr_type_id;
 	struct bpf_kfunc_desc *desc;
@@ -13656,6 +13681,9 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 	sleepable = bpf_is_kfunc_sleepable(&meta);
 	if (sleepable && !in_sleepable(env)) {
 		verbose(env, "program must be sleepable to call sleepable kfunc %s\n", func_name);
+		operation = bpf_diag_fmt(env, "sleepable kfunc %s", func_name);
+		bpf_diag_ctx_forbidden(env, insn_idx, operation,
+			"Mark the program sleepable if the program type allows it, or use a non-sleepable kfunc.");
 		return -EACCES;
 	}
 
@@ -13726,6 +13754,9 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 	} else if (rcu_unlock) {
 		if (env->cur_state->active_rcu_locks == 0) {
 			verbose(env, "unmatched rcu read unlock (kernel function %s)\n", func_name);
+			bpf_diag_ctx_underflow(
+				env, insn_idx, func_name, BPF_DIAG_CONTEXT_RCU,
+				"Remove the extra bpf_rcu_read_unlock() call, or ensure this path first enters an RCU read lock region.");
 			return -EINVAL;
 		}
 		env->cur_state->active_rcu_locks--;
@@ -13740,6 +13771,9 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 	} else if (preempt_enable) {
 		if (env->cur_state->active_preempt_locks == 0) {
 			verbose(env, "unmatched attempt to enable preemption (kernel function %s)\n", func_name);
+			bpf_diag_ctx_underflow(
+				env, insn_idx, func_name, BPF_DIAG_CONTEXT_PREEMPT,
+				"Remove the extra bpf_preempt_enable() call, or ensure this path first disables preemption.");
 			return -EINVAL;
 		}
 		env->cur_state->active_preempt_locks--;
@@ -13752,6 +13786,9 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 	if (sleepable && !in_sleepable_context(env)) {
 		verbose(env, "kernel func %s is sleepable within %s\n",
 			func_name, non_sleepable_context_description(env));
+		operation = bpf_diag_fmt(env, "sleepable kfunc %s", func_name);
+		bpf_diag_ctx_forbidden(env, insn_idx, operation,
+			"Move the kfunc call outside the critical section, or use a non-sleepable kfunc.");
 		return -EACCES;
 	}
 
@@ -13762,6 +13799,9 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 
 	if (is_kfunc_rcu_protected(&meta) && !in_rcu_cs(env)) {
 		verbose(env, "kernel func %s requires RCU critical section protection\n", func_name);
+		bpf_diag_ctx_required(
+			env, insn_idx, func_name, BPF_DIAG_CONTEXT_RCU,
+			"Call this kfunc between bpf_rcu_read_lock() and bpf_rcu_read_unlock(), keeping all exit paths balanced.");
 		return -EACCES;
 	}
 
@@ -18039,6 +18079,10 @@ static int do_check_insn(struct bpf_verifier_env *env, bool *do_print_state)
 				     !kfunc_spin_allowed(env, insn->imm, insn->off))) {
 					verbose(env,
 						"function calls are not allowed while holding a lock\n");
+					bpf_diag_ctx_active(
+						env, env->insn_idx,
+						"function call", BPF_DIAG_CONTEXT_LOCK,
+						"Release the BPF spin lock before making this call, or move the call outside the locked region.");
 					return -EINVAL;
 				}
 			}
