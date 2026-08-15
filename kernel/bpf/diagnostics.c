@@ -102,6 +102,8 @@ struct bpf_diag_reg_snapshot {
 enum bpf_diag_history_kind {
 	BPF_DIAG_HISTORY_BRANCH,
 	BPF_DIAG_HISTORY_MOD,
+	BPF_DIAG_HISTORY_REF_ACQUIRE,
+	BPF_DIAG_HISTORY_REF_RELEASE,
 };
 
 struct bpf_diag_history_event {
@@ -119,6 +121,9 @@ struct bpf_diag_history_event {
 			u8 reason;
 			bool origin_valid;
 		} mod;
+		struct {
+			u32 ref_id;
+		} ref;
 	};
 };
 
@@ -1020,4 +1025,27 @@ void bpf_diag_record_scrub_stack(struct bpf_verifier_env *env,
 	diag_record_mod(env, env->insn_idx,
 			diag_stack_range_target(state->diag_frame_id, state->frameno, min_off, max_off),
 			reason, NULL, NULL, NULL);
+}
+
+static void diag_record_ref(struct bpf_verifier_env *env, u32 insn_idx, u8 kind, u32 ref_id)
+{
+	struct bpf_diag_history_event event = {
+		.insn_idx = insn_idx,
+		.kind = kind,
+		.ref = {
+			.ref_id = ref_id,
+		},
+	};
+
+	diag_append_history(env, &event);
+}
+
+void bpf_diag_record_ref_acquire(struct bpf_verifier_env *env, u32 insn_idx, u32 ref_id)
+{
+	diag_record_ref(env, insn_idx, BPF_DIAG_HISTORY_REF_ACQUIRE, ref_id);
+}
+
+void bpf_diag_record_ref_release(struct bpf_verifier_env *env, u32 insn_idx, u32 ref_id)
+{
+	diag_record_ref(env, insn_idx, BPF_DIAG_HISTORY_REF_RELEASE, ref_id);
 }
