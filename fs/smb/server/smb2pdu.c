@@ -3584,7 +3584,9 @@ static int parse_durable_handle_context(struct ksmbd_work *work,
 				goto out;
 			}
 
-			if (dh_info->fp->durable_volatile_id !=
+			/* A zero VolatileFileId means that the client did not specify it. */
+			if (recon_v2->dcontext.Fid.VolatileFileId &&
+			    dh_info->fp->durable_volatile_id !=
 			    recon_v2->dcontext.Fid.VolatileFileId) {
 				err = -EBADF;
 				ksmbd_put_durable_fd(dh_info->fp);
@@ -3637,7 +3639,9 @@ static int parse_durable_handle_context(struct ksmbd_work *work,
 				goto out;
 			}
 
-			if (dh_info->fp->durable_volatile_id !=
+			/* A zero VolatileFileId means that the client did not specify it. */
+			if (recon->Data.Fid.VolatileFileId &&
+			    dh_info->fp->durable_volatile_id !=
 			    recon->Data.Fid.VolatileFileId) {
 				err = -EBADF;
 				ksmbd_put_durable_fd(dh_info->fp);
