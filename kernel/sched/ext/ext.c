@@ -3355,11 +3355,6 @@ static enum scx_dsp_verdict dispatch_pick(struct rq *rq, struct rq_flags *rf,
 				       kick_sync_wait_bal_cb);
 	}
 
-	if (unlikely(verdict == SCX_DSP_PREV && prev->sched_class != &ext_sched_class)) {
-		WARN_ON_ONCE(scx_enable_state() == SCX_ENABLED);
-		verdict = SCX_DSP_LOCAL;
-	}
-
 	return verdict;
 }
 
@@ -3409,13 +3404,6 @@ static enum scx_dsp_verdict dispatch_core_pick(struct rq *rq, struct rq_flags *r
 	/* if balance_one() released the rq lock, restart the selection */
 	if (rq->scx.lock_drop_seq != seq)
 		return SCX_DSP_RETRY;
-
-	/* see dispatch_pick() */
-	if (unlikely(verdict == SCX_DSP_PREV &&
-		     prev->sched_class != &ext_sched_class)) {
-		WARN_ON_ONCE(scx_enable_state() == SCX_ENABLED);
-		verdict = SCX_DSP_LOCAL;
-	}
 
 	return verdict;
 }
