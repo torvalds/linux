@@ -866,15 +866,10 @@ void BPF_STRUCT_OPS(qmap_tick, struct task_struct *p)
  * The distance from the head of the queue scaled by the weight of the queue.
  * The lower the number, the older the task and the higher the priority.
  */
-static s64 task_qdist(struct task_struct *p)
+static s64 task_qdist(struct task_struct *p, task_ctx_t *taskc)
 {
 	int idx = weight_to_idx(p->scx.weight);
-	task_ctx_t *taskc;
 	s64 qdist;
-
-	taskc = lookup_task_ctx(p);
-	if (!taskc)
-		return 0;
 
 	qdist = taskc->core_sched_seq - qa.core_sched_head_seqs[idx];
 
@@ -900,7 +895,21 @@ static s64 task_qdist(struct task_struct *p)
 bool BPF_STRUCT_OPS(qmap_core_sched_before,
 		    struct task_struct *a, struct task_struct *b)
 {
-	return task_qdist(a) < task_qdist(b);
+	task_ctx_t *taskc_a = lookup_task_ctx(a);
+	task_ctx_t *taskc_b = lookup_task_ctx(b);
+
+	/*
+	 * A task delegated to a sub-scheduler has no task_ctx here. Order such
+	 * pairs by the kernel's default ordering - a running task after every
+	 * waiting task, then by runnable_at.
+	 */
+	if (!taskc_a || !taskc_b) {
+		if (a->on_cpu != b->on_cpu)
+			return b->on_cpu;
+		return time_before(a->scx.runnable_at, b->scx.runnable_at);
+	}
+
+	return task_qdist(a, taskc_a) < task_qdist(b, taskc_b);
 }
 
 /*

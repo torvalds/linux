@@ -521,6 +521,11 @@ struct sched_ext_ops {
 	 * the BPF scheduler. Should return %true if @a should run before @b.
 	 * %false if there's no required ordering or @b should run before @a.
 	 *
+	 * In a scheduler hierarchy, a pair spanning two schedulers is ordered
+	 * by the nearest common ancestor implementing this op, so the op may be
+	 * called on tasks that the scheduler delegated to its sub-schedulers
+	 * and is not scheduling anymore. See scx_prio_less().
+	 *
 	 * If not specified, the default is ordering them according to when they
 	 * became runnable.
 	 */

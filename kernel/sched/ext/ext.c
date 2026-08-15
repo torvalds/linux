@@ -3459,10 +3459,16 @@ void ext_server_init(struct rq *rq)
  * usual sched_class'es and needs to find out the expected task ordering. For
  * SCX, core-sched calls this function to interrogate the task ordering.
  *
- * Unless overridden by ops.core_sched_before(), the default task ordering runs
- * the task which has been waiting longer first. A running task counts as the
- * most recently serviced and orders after every waiting task. Waiting tasks are
- * compared by @p->scx.runnable_at.
+ * A pair of tasks owned by one scheduler is ordered by the owner's
+ * ops.core_sched_before(). A pair spanning two schedulers is ordered by their
+ * nearest common ancestor which implements the op - the one case where the op
+ * is called on tasks that the scheduler delegated to its sub-schedulers and may
+ * not be scheduling anymore.
+ *
+ * When neither applies, or the deciding scheduler is bypassing on either task's
+ * CPU, the default ordering runs the task which has been waiting longer first.
+ * A running task counts as the most recently serviced and orders after every
+ * waiting task. Waiting tasks are compared by @p->scx.runnable_at.
  *
  * Return: %true if @a should run after @b.
  */
@@ -3471,7 +3477,25 @@ bool scx_prio_less(const struct task_struct *a, const struct task_struct *b,
 {
 	struct scx_sched *sch_a = scx_task_sched(a);
 	struct scx_sched *sch_b = scx_task_sched(b);
+	struct scx_sched *sch = NULL;
 	bool a_running, b_running;
+
+	if (sch_a == sch_b) {
+		if (SCX_HAS_OP(sch_a, core_sched_before))
+			sch = sch_a;
+	} else {
+		s32 level;
+
+		for (level = min(sch_a->level, sch_b->level); level >= 0; level--) {
+			struct scx_sched *anc = sch_a->ancestors[level];
+
+			if (anc == sch_b->ancestors[level] &&
+			    SCX_HAS_OP(anc, core_sched_before)) {
+				sch = anc;
+				break;
+			}
+		}
+	}
 
 	/*
 	 * scx_prio_less() returns whether @a should run after @b while
@@ -3482,10 +3506,8 @@ bool scx_prio_less(const struct task_struct *a, const struct task_struct *b,
 	 * calling ops.core_sched_before(). Accesses are controlled by the
 	 * verifier.
 	 */
-	if (sch_a == sch_b && SCX_HAS_OP(sch_a, core_sched_before) &&
-	    !scx_bypassing(sch_a, task_cpu(a)))
-		return SCX_CALL_OP_2TASKS_RET(sch_a, core_sched_before,
-					      task_rq(a),
+	if (sch && !scx_bypassing(sch, task_cpu(a)) && !scx_bypassing(sch, task_cpu(b)))
+		return SCX_CALL_OP_2TASKS_RET(sch, core_sched_before, task_rq(a),
 					      (struct task_struct *)b,
 					      (struct task_struct *)a);
 
