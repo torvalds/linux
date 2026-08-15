@@ -92,6 +92,8 @@ void bpf_diag_ctx_underflow(struct bpf_verifier_env *env, u32 insn_idx,
 void bpf_diag_program_structure(struct bpf_verifier_env *env, u32 insn_idx,
 				const char *problem, const char *suggestion,
 				const char *reason_fmt, ...) __printf(5, 6);
+void bpf_diag_policy(struct bpf_verifier_env *env, u32 insn_idx, const char *operation,
+		     const char *reason, const char *suggestion);
 void bpf_diag_record_branch(struct bpf_verifier_env *env, u32 insn_idx, bool cond_true);
 void bpf_diag_mod_begin(struct bpf_verifier_env *env, const struct bpf_reg_state *reg,
 			const struct bpf_reg_state *origin, enum bpf_diag_mod_reason reason);
