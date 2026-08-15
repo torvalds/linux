@@ -9,6 +9,7 @@
 #include <linux/sched.h>
 #include <linux/list.h>
 #include <linux/file.h>
+#include <linux/math64.h>
 #include <linux/seq_file.h>
 #include <trace/events/block.h>
 
@@ -287,6 +288,11 @@ struct llbitmap {
 	unsigned long chunksize;
 	/* total number of chunks */
 	unsigned long chunks;
+	/* total number of sectors tracked by current bitmap geometry */
+	sector_t sync_size;
+	unsigned long reshape_chunksize;
+	unsigned long reshape_chunks;
+	sector_t reshape_sync_size;
 	unsigned long last_end_sync;
 	/*
 	 * time in seconds that dirty bits will be cleared if the page is not
@@ -296,6 +302,11 @@ struct llbitmap {
 	/* fires on first BitDirty state */
 	struct timer_list pending_timer;
 	struct work_struct daemon_work;
+	/*
+	 * Serialize reshape checkpoint remapping against normal I/O bitmap
+	 * updates without blocking concurrent I/O updates on each other.
+	 */
+	rwlock_t reshape_lock;
 
 	unsigned long flags;
 	__u64	events_cleared;
@@ -414,6 +425,140 @@ static char state_machine[BitStateCount][BitmapActionCount] = {
 };
 
 static void __llbitmap_flush(struct mddev *mddev);
+static void llbitmap_flush(struct mddev *mddev);
+static void llbitmap_update_sb(void *data);
+
+static void llbitmap_calculate_chunks(struct mddev *mddev, sector_t blocks,
+				      unsigned long *chunksize,
+				      unsigned long *chunks)
+{
+	*chunks = DIV_ROUND_UP_SECTOR_T(blocks, *chunksize);
+	while (*chunks > mddev->bitmap_info.space << SECTOR_SHIFT) {
+		*chunksize = *chunksize << 1;
+		*chunks = DIV_ROUND_UP_SECTOR_T(blocks, *chunksize);
+	}
+}
+
+static sector_t llbitmap_personality_sync_size(struct llbitmap *llbitmap,
+					       bool previous)
+{
+	struct mddev *mddev = llbitmap->mddev;
+
+	if (READ_ONCE(mddev->reshape_position) == MaxSector ||
+	    !mddev->private || !mddev->pers ||
+	    !mddev->pers->bitmap_sync_size)
+		return llbitmap->sync_size;
+	return mddev->pers->bitmap_sync_size(mddev, previous);
+}
+
+static sector_t llbitmap_logical_size(struct llbitmap *llbitmap, bool previous)
+{
+	struct mddev *mddev = llbitmap->mddev;
+
+	if (!mddev->private || !mddev->pers ||
+	    !mddev->pers->bitmap_array_sectors)
+		return llbitmap_personality_sync_size(llbitmap, previous);
+	return mddev->pers->bitmap_array_sectors(mddev, previous);
+}
+
+static void llbitmap_refresh_reshape(struct llbitmap *llbitmap)
+{
+	unsigned long old_chunks = DIV_ROUND_UP_SECTOR_T(llbitmap->sync_size,
+						 llbitmap->chunksize);
+	sector_t blocks = llbitmap_personality_sync_size(llbitmap, false);
+	unsigned long chunksize = llbitmap->chunksize;
+	unsigned long chunks = DIV_ROUND_UP_SECTOR_T(blocks, chunksize);
+
+	llbitmap->reshape_sync_size = blocks;
+	llbitmap->reshape_chunksize = chunksize;
+	llbitmap->reshape_chunks = chunks;
+	llbitmap_calculate_chunks(llbitmap->mddev, blocks,
+				  &llbitmap->reshape_chunksize,
+				  &llbitmap->reshape_chunks);
+	llbitmap->chunks = max(old_chunks, llbitmap->reshape_chunks);
+}
+
+static void llbitmap_map_layout(struct llbitmap *llbitmap, sector_t *offset,
+				unsigned long *sectors, bool previous)
+{
+	sector_t limit = llbitmap_logical_size(llbitmap, previous);
+	sector_t start = *offset;
+	sector_t end = start + *sectors;
+
+	if (start >= limit) {
+		*sectors = 0;
+		return;
+	}
+	if (end > limit)
+		end = limit;
+
+	*offset = start;
+	*sectors = end - start;
+	if (!*sectors)
+		return;
+
+	if (llbitmap->mddev->pers->bitmap_sector_map)
+		llbitmap->mddev->pers->bitmap_sector_map(llbitmap->mddev, offset,
+							 sectors, previous);
+	else if (!previous && llbitmap->mddev->pers->bitmap_sector)
+		llbitmap->mddev->pers->bitmap_sector(llbitmap->mddev, offset,
+							 sectors);
+
+	limit = llbitmap_personality_sync_size(llbitmap, previous);
+	start = *offset;
+	end = start + *sectors;
+	if (start >= limit)
+		*sectors = 0;
+	else if (end > limit)
+		*sectors = limit - start;
+}
+
+static void llbitmap_encode_range(struct llbitmap *llbitmap, sector_t *offset,
+				  unsigned long *sectors, bool previous)
+{
+	unsigned long chunksize = previous ? llbitmap->chunksize :
+				      llbitmap->reshape_chunksize;
+	u64 start;
+	u64 end;
+
+	if (!*sectors) {
+		*offset = 0;
+		return;
+	}
+
+	start = div64_u64(*offset, chunksize);
+	end = div64_u64(*offset + *sectors - 1, chunksize);
+	*offset = (sector_t)start << llbitmap->chunkshift;
+	*sectors = (end - start + 1) << llbitmap->chunkshift;
+}
+
+static void llbitmap_encode_discard_range(struct llbitmap *llbitmap,
+					  sector_t *offset,
+					  unsigned long *sectors,
+					  bool previous)
+{
+	unsigned long chunksize = previous ? llbitmap->chunksize :
+					      llbitmap->reshape_chunksize;
+	sector_t end = *offset + *sectors;
+	u64 start;
+	u64 last;
+
+	if (!*sectors) {
+		*offset = 0;
+		return;
+	}
+
+	start = DIV_ROUND_UP_SECTOR_T(*offset, chunksize);
+	last = div64_u64(end, chunksize);
+	if (start >= last) {
+		*offset = 0;
+		*sectors = 0;
+		return;
+	}
+
+	*offset = (sector_t)start << llbitmap->chunkshift;
+	*sectors = (last - start) << llbitmap->chunkshift;
+}
 
 static enum llbitmap_state llbitmap_read(struct llbitmap *llbitmap, loff_t pos)
 {
@@ -510,20 +655,28 @@ static void llbitmap_write(struct llbitmap *llbitmap, enum llbitmap_state state,
 		llbitmap_set_page_dirty(llbitmap, idx, bit, false);
 }
 
+static unsigned int llbitmap_used_pages(struct llbitmap *llbitmap,
+					unsigned long chunks)
+{
+	return DIV_ROUND_UP(chunks + BITMAP_DATA_OFFSET, PAGE_SIZE);
+}
+
 static struct page *llbitmap_read_page(struct llbitmap *llbitmap, int idx)
 {
 	struct mddev *mddev = llbitmap->mddev;
 	struct page *page = NULL;
 	struct md_rdev *rdev;
 
-	if (llbitmap->pctl && llbitmap->pctl[idx])
+	if (llbitmap->pctl && idx < llbitmap->nr_pages && llbitmap->pctl[idx])
 		page = llbitmap->pctl[idx]->page;
 	if (page)
 		return page;
 
-	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+	page = alloc_page(GFP_NOIO | __GFP_ZERO);
 	if (!page)
 		return ERR_PTR(-ENOMEM);
+	if (idx >= llbitmap_used_pages(llbitmap, llbitmap->chunks))
+		return page;
 
 	rdev_for_each(rdev, mddev) {
 		sector_t sector;
@@ -594,61 +747,120 @@ static void llbitmap_free_pages(struct llbitmap *llbitmap)
 	for (i = 0; i < llbitmap->nr_pages; i++) {
 		struct llbitmap_page_ctl *pctl = llbitmap->pctl[i];
 
-		if (!pctl || !pctl->page)
-			break;
-
-		__free_page(pctl->page);
+		if (!pctl)
+			continue;
+		if (pctl->page)
+			__free_page(pctl->page);
 		percpu_ref_exit(&pctl->active);
+		kfree(pctl);
 	}
 
-	kfree(llbitmap->pctl[0]);
 	kfree(llbitmap->pctl);
 	llbitmap->pctl = NULL;
 }
 
-static int llbitmap_cache_pages(struct llbitmap *llbitmap)
+static struct llbitmap_page_ctl *
+llbitmap_alloc_page_ctl(struct llbitmap *llbitmap, int idx)
 {
 	struct llbitmap_page_ctl *pctl;
-	unsigned int nr_pages = DIV_ROUND_UP(llbitmap->chunks +
-					     BITMAP_DATA_OFFSET, PAGE_SIZE);
+	struct page *page;
 	unsigned int size = struct_size(pctl, dirty, BITS_TO_LONGS(
 						llbitmap->blocks_per_page));
+
+	size = round_up(size, cache_line_size());
+	pctl = kzalloc(size, GFP_NOIO);
+	if (!pctl)
+		return ERR_PTR(-ENOMEM);
+
+	page = llbitmap_read_page(llbitmap, idx);
+
+	if (IS_ERR(page)) {
+		kfree(pctl);
+		return ERR_CAST(page);
+	}
+
+	if (percpu_ref_init(&pctl->active, active_release,
+			    PERCPU_REF_ALLOW_REINIT, GFP_NOIO)) {
+		__free_page(page);
+		kfree(pctl);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	pctl->page = page;
+	pctl->state = page_address(page);
+	init_waitqueue_head(&pctl->wait);
+	return pctl;
+}
+
+static unsigned int llbitmap_reserved_pages(struct llbitmap *llbitmap)
+{
+	return DIV_ROUND_UP(llbitmap->mddev->bitmap_info.space << SECTOR_SHIFT,
+			    PAGE_SIZE);
+}
+
+static int llbitmap_expand_pages(struct llbitmap *llbitmap,
+				 unsigned long chunks)
+{
+	struct llbitmap_page_ctl **pctl;
+	unsigned int old_nr_pages = llbitmap->nr_pages;
+	unsigned int nr_pages = llbitmap_used_pages(llbitmap, chunks);
+	unsigned int i;
+	int ret;
+
+	if (nr_pages <= old_nr_pages)
+		return 0;
+
+	pctl = kcalloc(nr_pages, sizeof(*pctl), GFP_NOIO);
+	if (!pctl)
+		return -ENOMEM;
+
+	if (llbitmap->pctl)
+		memcpy(pctl, llbitmap->pctl,
+		       array_size(old_nr_pages, sizeof(*pctl)));
+
+	for (i = old_nr_pages; i < nr_pages; i++) {
+		pctl[i] = llbitmap_alloc_page_ctl(llbitmap, i);
+		if (IS_ERR(pctl[i]))
+			goto err_alloc_ptr;
+	}
+
+	kfree(llbitmap->pctl);
+	llbitmap->pctl = pctl;
+	llbitmap->nr_pages = nr_pages;
+	return 0;
+
+err_alloc_ptr:
+	ret = PTR_ERR(pctl[i]);
+	while (i-- > old_nr_pages) {
+		__free_page(pctl[i]->page);
+		percpu_ref_exit(&pctl[i]->active);
+		kfree(pctl[i]);
+	}
+	kfree(pctl);
+	return ret;
+}
+
+static int llbitmap_alloc_pages(struct llbitmap *llbitmap)
+{
+	unsigned int used_pages = llbitmap_used_pages(llbitmap, llbitmap->chunks);
+	unsigned int nr_pages = max(used_pages, llbitmap_reserved_pages(llbitmap));
 	int i;
 
-	llbitmap->pctl = kmalloc_array(nr_pages, sizeof(void *),
-				       GFP_KERNEL | __GFP_ZERO);
+	llbitmap->pctl = kcalloc(nr_pages, sizeof(*llbitmap->pctl), GFP_NOIO);
 	if (!llbitmap->pctl)
 		return -ENOMEM;
 
-	size = round_up(size, cache_line_size());
-	pctl = kmalloc_array(nr_pages, size, GFP_KERNEL | __GFP_ZERO);
-	if (!pctl) {
-		kfree(llbitmap->pctl);
-		return -ENOMEM;
-	}
-
 	llbitmap->nr_pages = nr_pages;
 
-	for (i = 0; i < nr_pages; i++, pctl = (void *)pctl + size) {
-		struct page *page = llbitmap_read_page(llbitmap, i);
+	for (i = 0; i < nr_pages; i++) {
+		llbitmap->pctl[i] = llbitmap_alloc_page_ctl(llbitmap, i);
+		if (IS_ERR(llbitmap->pctl[i])) {
+			int ret = PTR_ERR(llbitmap->pctl[i]);
 
-		llbitmap->pctl[i] = pctl;
-
-		if (IS_ERR(page)) {
+			llbitmap->pctl[i] = NULL;
 			llbitmap_free_pages(llbitmap);
-			return PTR_ERR(page);
+			return ret;
 		}
-
-		if (percpu_ref_init(&pctl->active, active_release,
-				    PERCPU_REF_ALLOW_REINIT, GFP_KERNEL)) {
-			__free_page(page);
-			llbitmap_free_pages(llbitmap);
-			return -ENOMEM;
-		}
-
-		pctl->page = page;
-		pctl->state = page_address(page);
-		init_waitqueue_head(&pctl->wait);
 	}
 
 	return 0;
@@ -703,6 +915,61 @@ static bool llbitmap_zero_all_disks(struct llbitmap *llbitmap)
 	return true;
 }
 
+static void llbitmap_mark_range(struct llbitmap *llbitmap,
+				unsigned long start,
+				unsigned long end,
+				enum llbitmap_state state)
+{
+	while (start <= end) {
+		llbitmap_write(llbitmap, state, start);
+		start++;
+	}
+}
+
+static int llbitmap_prepare_resize(struct llbitmap *llbitmap,
+				   unsigned long old_chunks,
+				   unsigned long new_chunks,
+				   unsigned long cache_chunks)
+{
+	int ret;
+
+	llbitmap_flush(llbitmap->mddev);
+	ret = llbitmap_expand_pages(llbitmap, cache_chunks);
+	if (ret)
+		return ret;
+	if (new_chunks > old_chunks)
+		llbitmap_mark_range(llbitmap, old_chunks, new_chunks - 1,
+				    BitUnwritten);
+	return 0;
+}
+
+static enum llbitmap_state
+llbitmap_rmerge_state(struct llbitmap *llbitmap,
+		      enum llbitmap_state dst,
+		      enum llbitmap_state src)
+{
+	bool level_456 = raid_is_456(llbitmap->mddev);
+
+	if (dst == BitNeedSync || dst == BitSyncing ||
+	    src == BitNeedSync || src == BitSyncing)
+		return BitNeedSync;
+
+	if (dst == BitDirty || src == BitDirty)
+		return BitDirty;
+
+	/*
+	 * Reshape generates valid target parity/data for both already-written
+	 * and not-yet-written regions in the checkpointed range, so a mix of
+	 * clean and unwritten still results in a clean destination bit.
+	 */
+	if (level_456 && ((dst == BitClean && src == BitUnwritten) ||
+			  (src == BitClean && dst == BitUnwritten)))
+		return BitClean;
+	if (dst == BitClean || src == BitClean)
+		return BitClean;
+	return BitUnwritten;
+}
+
 static void llbitmap_init_state(struct llbitmap *llbitmap)
 {
 	struct mddev *mddev = llbitmap->mddev;
@@ -745,7 +1012,10 @@ static enum llbitmap_state llbitmap_state_machine(struct llbitmap *llbitmap,
 		llbitmap_init_state(llbitmap);
 		return BitNone;
 	}
-
+	if (start >= llbitmap->chunks)
+		return BitNone;
+	if (end >= llbitmap->chunks)
+		end = llbitmap->chunks - 1;
 	while (start <= end) {
 		enum llbitmap_state c = llbitmap_read(llbitmap, start);
 
@@ -789,6 +1059,7 @@ write_bitmap:
 		if (state == BitNeedSync || state == BitNeedSyncUnwritten)
 			need_resync = !mddev->degraded;
 		else if (state == BitDirty &&
+			 !test_bit(BITMAP_SHUTDOWN, &llbitmap->flags) &&
 			 !timer_pending(&llbitmap->pending_timer))
 			mod_timer(&llbitmap->pending_timer,
 				  jiffies + mddev->bitmap_info.daemon_sleep * HZ);
@@ -918,9 +1189,11 @@ static int llbitmap_init(struct llbitmap *llbitmap)
 	llbitmap->chunkshift = ffz(~chunksize);
 	llbitmap->chunksize = chunksize;
 	llbitmap->chunks = chunks;
+	llbitmap->sync_size = blocks;
+	llbitmap_refresh_reshape(llbitmap);
 	mddev->bitmap_info.daemon_sleep = DEFAULT_DAEMON_SLEEP;
 
-	ret = llbitmap_cache_pages(llbitmap);
+	ret = llbitmap_alloc_pages(llbitmap);
 	if (ret)
 		return ret;
 
@@ -938,6 +1211,7 @@ static int llbitmap_read_sb(struct llbitmap *llbitmap)
 	unsigned long daemon_sleep;
 	unsigned long chunksize;
 	unsigned long events;
+	sector_t sync_size;
 	struct page *sb_page;
 	bitmap_super_t *sb;
 	int ret = -EINVAL;
@@ -981,12 +1255,20 @@ static int llbitmap_read_sb(struct llbitmap *llbitmap)
 		else
 			mddev->bitmap_info.space = mddev->bitmap_info.default_space;
 	}
-	llbitmap->flags = le32_to_cpu(sb->state);
+	llbitmap->flags = le32_to_cpu(sb->state) & ~BIT(BITMAP_SHUTDOWN);
 	if (test_and_clear_bit(BITMAP_FIRST_USE, &llbitmap->flags)) {
 		ret = llbitmap_init(llbitmap);
 		goto out_put_page;
 	}
 
+	sync_size = le64_to_cpu(sb->sync_size);
+	if (!sync_size)
+		sync_size = mddev->resync_max_sectors;
+	if (sync_size > mddev->resync_max_sectors) {
+		pr_err("md/llbitmap: %s: sync_size %llu exceeds array sync size %llu",
+		       mdname(mddev), sync_size, mddev->resync_max_sectors);
+		goto out_put_page;
+	}
 	chunksize = le32_to_cpu(sb->chunksize);
 	if (!is_power_of_2(chunksize)) {
 		pr_err("md/llbitmap: %s: chunksize not a power of 2",
@@ -994,10 +1276,10 @@ static int llbitmap_read_sb(struct llbitmap *llbitmap)
 		goto out_put_page;
 	}
 
-	if (chunksize < DIV_ROUND_UP_SECTOR_T(mddev->resync_max_sectors,
+	if (chunksize < DIV_ROUND_UP_SECTOR_T(sync_size,
 					      mddev->bitmap_info.space << SECTOR_SHIFT)) {
 		pr_err("md/llbitmap: %s: chunksize too small %lu < %llu / %lu",
-		       mdname(mddev), chunksize, mddev->resync_max_sectors,
+		       mdname(mddev), chunksize, sync_size,
 		       mddev->bitmap_info.space);
 		goto out_put_page;
 	}
@@ -1022,9 +1304,11 @@ static int llbitmap_read_sb(struct llbitmap *llbitmap)
 
 	llbitmap->barrier_idle = DEFAULT_BARRIER_IDLE;
 	llbitmap->chunksize = chunksize;
-	llbitmap->chunks = DIV_ROUND_UP_SECTOR_T(mddev->resync_max_sectors, chunksize);
+	llbitmap->chunks = DIV_ROUND_UP_SECTOR_T(sync_size, chunksize);
 	llbitmap->chunkshift = ffz(~chunksize);
-	ret = llbitmap_cache_pages(llbitmap);
+	llbitmap->sync_size = sync_size;
+	llbitmap_refresh_reshape(llbitmap);
+	ret = llbitmap_alloc_pages(llbitmap);
 
 out_put_page:
 	__free_page(sb_page);
@@ -1036,6 +1320,9 @@ static void llbitmap_pending_timer_fn(struct timer_list *pending_timer)
 {
 	struct llbitmap *llbitmap =
 		container_of(pending_timer, struct llbitmap, pending_timer);
+
+	if (test_bit(BITMAP_SHUTDOWN, &llbitmap->flags))
+		return;
 
 	if (work_busy(&llbitmap->daemon_work)) {
 		pr_warn("md/llbitmap: %s daemon_work not finished in %lu seconds\n",
@@ -1057,8 +1344,12 @@ static void md_llbitmap_daemon_fn(struct work_struct *work)
 	bool restart;
 	int idx;
 
+	if (test_bit(BITMAP_SHUTDOWN, &llbitmap->flags))
+		return;
+
 	if (llbitmap->mddev->degraded)
 		return;
+
 retry:
 	start = 0;
 	end = min(llbitmap->chunks, PAGE_SIZE - BITMAP_DATA_OFFSET) - 1;
@@ -1066,14 +1357,14 @@ retry:
 
 	for (idx = 0; idx < llbitmap->nr_pages; idx++) {
 		struct llbitmap_page_ctl *pctl = llbitmap->pctl[idx];
+		bool flush = test_and_clear_bit(LLPageFlush, &pctl->flags);
 
 		if (idx > 0) {
 			start = end + 1;
 			end = min(end + PAGE_SIZE, llbitmap->chunks - 1);
 		}
 
-		if (!test_bit(LLPageFlush, &pctl->flags) &&
-		    time_before(jiffies, pctl->expire)) {
+		if (!flush && time_before(jiffies, pctl->expire)) {
 			restart = true;
 			continue;
 		}
@@ -1096,7 +1387,7 @@ retry:
 		goto retry;
 
 	/* If some page is dirty but not expired, setup timer again */
-	if (restart)
+	if (restart && !test_bit(BITMAP_SHUTDOWN, &llbitmap->flags))
 		mod_timer(&llbitmap->pending_timer,
 			  jiffies + llbitmap->mddev->bitmap_info.daemon_sleep * HZ);
 }
@@ -1110,7 +1401,7 @@ static int llbitmap_create(struct mddev *mddev)
 	if (ret)
 		return ret;
 
-	llbitmap = kzalloc_obj(*llbitmap);
+	llbitmap = kzalloc_obj(*llbitmap, GFP_NOIO);
 	if (!llbitmap)
 		return -ENOMEM;
 
@@ -1120,16 +1411,18 @@ static int llbitmap_create(struct mddev *mddev)
 
 	timer_setup(&llbitmap->pending_timer, llbitmap_pending_timer_fn, 0);
 	INIT_WORK(&llbitmap->daemon_work, md_llbitmap_daemon_fn);
+	rwlock_init(&llbitmap->reshape_lock);
 	atomic_set(&llbitmap->behind_writes, 0);
 	init_waitqueue_head(&llbitmap->behind_wait);
 
 	mutex_lock(&mddev->bitmap_info.mutex);
 	mddev->bitmap = llbitmap;
 	ret = llbitmap_read_sb(llbitmap);
+	if (ret)
+		mddev->bitmap = NULL;
 	mutex_unlock(&mddev->bitmap_info.mutex);
 	if (ret) {
 		kfree(llbitmap);
-		mddev->bitmap = NULL;
 	}
 
 	return ret;
@@ -1138,34 +1431,86 @@ static int llbitmap_create(struct mddev *mddev)
 static int llbitmap_resize(struct mddev *mddev, sector_t blocks, int chunksize)
 {
 	struct llbitmap *llbitmap = mddev->bitmap;
+	sector_t old_blocks = llbitmap->sync_size;
+	unsigned long old_chunks = llbitmap->chunks;
 	unsigned long chunks;
+	unsigned long cache_chunks;
+	int ret = 0;
+	unsigned long bitmap_chunksize;
+	bool reshape;
+	bool quiesced = false;
 
 	if (chunksize == 0)
 		chunksize = llbitmap->chunksize;
 
-	/* If there is enough space, leave the chunksize unchanged. */
-	chunks = DIV_ROUND_UP_SECTOR_T(blocks, chunksize);
-	while (chunks > mddev->bitmap_info.space << SECTOR_SHIFT) {
-		chunksize = chunksize << 1;
-		chunks = DIV_ROUND_UP_SECTOR_T(blocks, chunksize);
+	bitmap_chunksize = chunksize;
+	llbitmap_calculate_chunks(mddev, blocks, &bitmap_chunksize, &chunks);
+
+	reshape = mddev->delta_disks || mddev->new_level != mddev->level ||
+		mddev->new_layout != mddev->layout ||
+		mddev->new_chunk_sectors != mddev->chunk_sectors;
+	if (!reshape && bitmap_chunksize != llbitmap->chunksize)
+		return -EOPNOTSUPP;
+	if (blocks == old_blocks && chunks == llbitmap->chunks)
+		return 0;
+
+	if (mddev->pers->quiesce) {
+		mddev->pers->quiesce(mddev, 1);
+		quiesced = true;
 	}
 
-	llbitmap->chunkshift = ffz(~chunksize);
-	llbitmap->chunksize = chunksize;
-	llbitmap->chunks = chunks;
+	mutex_lock(&mddev->bitmap_info.mutex);
+	cache_chunks = reshape ? max(old_chunks, chunks) : chunks;
+	ret = llbitmap_prepare_resize(llbitmap, old_chunks, chunks, cache_chunks);
+	if (ret)
+		goto out;
 
+	if (reshape) {
+		llbitmap->reshape_sync_size = blocks;
+		llbitmap->reshape_chunksize = bitmap_chunksize;
+		llbitmap->reshape_chunks = chunks;
+		llbitmap->chunks = max(old_chunks, chunks);
+	} else {
+		if (blocks < old_blocks && chunks < old_chunks)
+			llbitmap_mark_range(llbitmap, chunks, old_chunks - 1,
+					    BitUnwritten);
+		mddev->bitmap_info.chunksize = bitmap_chunksize;
+		llbitmap->chunks = chunks;
+		llbitmap->sync_size = blocks;
+		llbitmap_refresh_reshape(llbitmap);
+		llbitmap_update_sb(llbitmap);
+	}
+	__llbitmap_flush(mddev);
+	mutex_unlock(&mddev->bitmap_info.mutex);
+	if (quiesced)
+		mddev->pers->quiesce(mddev, 0);
 	return 0;
+
+out:
+	mutex_unlock(&mddev->bitmap_info.mutex);
+	if (quiesced)
+		mddev->pers->quiesce(mddev, 0);
+	return ret;
 }
 
 static int llbitmap_load(struct mddev *mddev)
 {
 	enum llbitmap_action action = BitmapActionReload;
 	struct llbitmap *llbitmap = mddev->bitmap;
+	int ret;
 
 	if (test_and_clear_bit(BITMAP_STALE, &llbitmap->flags))
 		action = BitmapActionStale;
 
+	mutex_lock(&mddev->bitmap_info.mutex);
+	llbitmap_refresh_reshape(llbitmap);
+	ret = llbitmap_expand_pages(llbitmap, llbitmap->chunks);
+	if (ret) {
+		mutex_unlock(&mddev->bitmap_info.mutex);
+		return ret;
+	}
 	llbitmap_state_machine(llbitmap, 0, llbitmap->chunks - 1, action);
+	mutex_unlock(&mddev->bitmap_info.mutex);
 	return 0;
 }
 
@@ -1178,7 +1523,9 @@ static void llbitmap_destroy(struct mddev *mddev)
 
 	mutex_lock(&mddev->bitmap_info.mutex);
 
-	timer_delete_sync(&llbitmap->pending_timer);
+	set_bit(BITMAP_SHUTDOWN, &llbitmap->flags);
+	timer_shutdown_sync(&llbitmap->pending_timer);
+	cancel_work_sync(&llbitmap->daemon_work);
 	flush_workqueue(md_llbitmap_io_wq);
 	flush_workqueue(md_llbitmap_unplug_wq);
 
@@ -1186,6 +1533,37 @@ static void llbitmap_destroy(struct mddev *mddev)
 	llbitmap_free_pages(llbitmap);
 	kfree(llbitmap);
 	mutex_unlock(&mddev->bitmap_info.mutex);
+}
+
+static bool llbitmap_map_previous(struct llbitmap *llbitmap, sector_t offset,
+				  unsigned long sectors)
+{
+	struct mddev *mddev = llbitmap->mddev;
+	sector_t boundary = READ_ONCE(mddev->reshape_position);
+
+	if (boundary == MaxSector)
+		return false;
+
+	WARN_ON_ONCE(sectors && offset < boundary && offset + sectors > boundary);
+
+	return mddev->reshape_backwards ? offset < boundary : offset >= boundary;
+}
+
+static void llbitmap_prepare_range(struct mddev *mddev, sector_t *offset,
+				   unsigned long *sectors, bool discard)
+{
+	struct llbitmap *llbitmap = mddev->bitmap;
+	bool previous;
+
+	if (!llbitmap)
+		return;
+
+	previous = llbitmap_map_previous(llbitmap, *offset, *sectors);
+	llbitmap_map_layout(llbitmap, offset, sectors, previous);
+	if (discard)
+		llbitmap_encode_discard_range(llbitmap, offset, sectors, previous);
+	else
+		llbitmap_encode_range(llbitmap, offset, sectors, previous);
 }
 
 static void llbitmap_start_write(struct mddev *mddev, sector_t offset,
@@ -1202,7 +1580,9 @@ static void llbitmap_start_write(struct mddev *mddev, sector_t offset,
 		page_start++;
 	}
 
+	read_lock(&llbitmap->reshape_lock);
 	llbitmap_state_machine(llbitmap, start, end, BitmapActionStartwrite);
+	read_unlock(&llbitmap->reshape_lock);
 }
 
 static void llbitmap_end_write(struct mddev *mddev, sector_t offset,
@@ -1234,7 +1614,9 @@ static void llbitmap_start_discard(struct mddev *mddev, sector_t offset,
 		page_start++;
 	}
 
+	read_lock(&llbitmap->reshape_lock);
 	llbitmap_state_machine(llbitmap, start, end, BitmapActionDiscard);
+	read_unlock(&llbitmap->reshape_lock);
 }
 
 static void llbitmap_end_discard(struct mddev *mddev, sector_t offset,
@@ -1354,7 +1736,11 @@ static bool llbitmap_blocks_synced(struct mddev *mddev, sector_t offset)
 {
 	struct llbitmap *llbitmap = mddev->bitmap;
 	unsigned long p = offset >> llbitmap->chunkshift;
-	enum llbitmap_state c = llbitmap_read(llbitmap, p);
+	enum llbitmap_state c;
+
+	if (p >= llbitmap->chunks)
+		return false;
+	c = llbitmap_read(llbitmap, p);
 
 	return c == BitClean || c == BitDirty || c == BitCleanUnwritten;
 }
@@ -1364,7 +1750,19 @@ static sector_t llbitmap_skip_sync_blocks(struct mddev *mddev, sector_t offset)
 	struct llbitmap *llbitmap = mddev->bitmap;
 	unsigned long p = offset >> llbitmap->chunkshift;
 	int blocks = llbitmap->chunksize - (offset & (llbitmap->chunksize - 1));
-	enum llbitmap_state c = llbitmap_read(llbitmap, p);
+	enum llbitmap_state c;
+
+	if (p >= llbitmap->chunks)
+		return 0;
+	c = llbitmap_read(llbitmap, p);
+
+	/*
+	 * Reshape progress is tracked by array metadata rather than llbitmap.
+	 * Skipping reshape ranges from stale bitmap state can lose data after a
+	 * restart before the corresponding bits are checkpointed to disk.
+	 */
+	if (test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery))
+		return 0;
 
 	/* always skip unwritten blocks */
 	if (c == BitUnwritten)
@@ -1409,6 +1807,8 @@ static bool llbitmap_start_sync(struct mddev *mddev, sector_t offset,
 	 * if md_do_sync() loop more times.
 	 */
 	*blocks = llbitmap->chunksize - (offset & (llbitmap->chunksize - 1));
+	if (p >= llbitmap->chunks)
+		return false;
 	state = llbitmap_state_machine(llbitmap, p, p, BitmapActionStartsync);
 	return state == BitSyncing || state == BitSyncingUnwritten;
 }
@@ -1450,22 +1850,27 @@ static void llbitmap_cond_end_sync(struct mddev *mddev, sector_t sector,
 				   bool force)
 {
 	struct llbitmap *llbitmap = mddev->bitmap;
+	sector_t complete;
 
 	if (sector == 0) {
 		llbitmap->last_end_sync = jiffies;
 		return;
 	}
 
-	if (time_before(jiffies, llbitmap->last_end_sync +
-				 HZ * mddev->bitmap_info.daemon_sleep))
+	if (!force && time_before(jiffies, llbitmap->last_end_sync +
+				  HZ * mddev->bitmap_info.daemon_sleep))
 		return;
 
 	wait_event(mddev->recovery_wait, !atomic_read(&mddev->recovery_active));
 
 	mddev->curr_resync_completed = sector;
 	set_bit(MD_SB_CHANGE_CLEAN, &mddev->sb_flags);
-	llbitmap_state_machine(llbitmap, 0, sector >> llbitmap->chunkshift,
-			       BitmapActionEndsync);
+
+	complete = round_down(sector, llbitmap->chunksize);
+	if (complete)
+		llbitmap_state_machine(llbitmap, 0,
+				       (complete >> llbitmap->chunkshift) - 1,
+				       BitmapActionEndsync);
 	__llbitmap_flush(mddev);
 
 	llbitmap->last_end_sync = jiffies;
@@ -1483,6 +1888,210 @@ static void llbitmap_dirty_bits(struct mddev *mddev, unsigned long s,
 				unsigned long e)
 {
 	llbitmap_state_machine(mddev->bitmap, s, e, BitmapActionStartwrite);
+}
+
+static int llbitmap_reshape_can_start(struct mddev *mddev)
+{
+	struct llbitmap *llbitmap = mddev->bitmap;
+	unsigned long chunk;
+	int ret = 0;
+
+	if (!llbitmap)
+		return 0;
+
+	mutex_lock(&mddev->bitmap_info.mutex);
+	for (chunk = 0; chunk < llbitmap->chunks; chunk++) {
+		enum llbitmap_state state = llbitmap_read(llbitmap, chunk);
+
+		if (state == BitNeedSync || state == BitSyncing) {
+			ret = -EBUSY;
+			break;
+		}
+	}
+	mutex_unlock(&mddev->bitmap_info.mutex);
+
+	return ret;
+}
+
+struct llbitmap_reshape_range {
+	sector_t offset;
+	unsigned long sectors;
+	sector_t start;
+	sector_t end;
+};
+
+static enum llbitmap_state
+llbitmap_reshape_init_dst(struct llbitmap *llbitmap, unsigned long dst,
+			  const struct llbitmap_reshape_range *new)
+{
+	u64 bit_start = (u64)dst * llbitmap->reshape_chunksize;
+	u64 bit_end = bit_start + llbitmap->reshape_chunksize;
+
+	if (!llbitmap->mddev->reshape_backwards)
+		return bit_start < new->offset ? llbitmap_read(llbitmap, dst) :
+		       BitUnwritten;
+	return bit_end > new->end ? llbitmap_read(llbitmap, dst) : BitUnwritten;
+}
+
+static void llbitmap_reshape_dst_range(struct llbitmap *llbitmap,
+				       unsigned long dst,
+				       const struct llbitmap_reshape_range *new,
+				       struct llbitmap_reshape_range *dst_range)
+{
+	sector_t dst_bit_start = (sector_t)dst * llbitmap->reshape_chunksize;
+
+	dst_range->start = max(dst_bit_start, new->offset);
+	dst_range->end = min(dst_bit_start + llbitmap->reshape_chunksize,
+			     new->end);
+	dst_range->offset = dst_range->start;
+	dst_range->sectors = dst_range->end - dst_range->start;
+}
+
+static void llbitmap_reshape_map_range(struct llbitmap *llbitmap,
+				       sector_t lo, sector_t hi,
+				       bool previous,
+				       struct llbitmap_reshape_range *range)
+{
+	range->offset = lo;
+	range->sectors = hi - lo;
+	llbitmap_map_layout(llbitmap, &range->offset, &range->sectors, previous);
+	range->start = range->offset;
+	range->end = range->offset + range->sectors;
+}
+
+static bool llbitmap_reshape_src_range(const struct llbitmap_reshape_range *old,
+				       const struct llbitmap_reshape_range *new,
+				       const struct llbitmap_reshape_range *dst,
+				       struct llbitmap_reshape_range *src)
+{
+	if (!old->sectors)
+		return false;
+
+	src->start = old->offset +
+		mul_u64_u64_div_u64(dst->start - new->offset,
+				    old->sectors, new->sectors);
+	src->end = old->offset +
+		mul_u64_u64_div_u64_roundup(dst->end - new->offset,
+					    old->sectors, new->sectors);
+	if (src->end > old->end)
+		src->end = old->end;
+	src->offset = src->start;
+	src->sectors = src->end - src->start;
+
+	return src->sectors;
+}
+
+static enum llbitmap_state llbitmap_rmerge_src(struct llbitmap *llbitmap,
+					       enum llbitmap_state state,
+					       const struct llbitmap_reshape_range *src)
+{
+	unsigned long bit = div64_u64(src->start, llbitmap->chunksize);
+	unsigned long end = div64_u64(src->end - 1, llbitmap->chunksize);
+
+	while (bit <= end) {
+		enum llbitmap_state src_state = llbitmap_read(llbitmap, bit);
+
+		state = llbitmap_rmerge_state(llbitmap, state, src_state);
+		bit++;
+	}
+
+	return state;
+}
+
+static void llbitmap_reshape_merge(struct llbitmap *llbitmap,
+				   const struct llbitmap_reshape_range *old,
+				   const struct llbitmap_reshape_range *new)
+{
+	unsigned long dst_start;
+	unsigned long dst_end;
+	unsigned long dst;
+	bool backwards = false;
+
+	if (!new->sectors)
+		return;
+
+	dst_start = div64_u64(new->offset, llbitmap->reshape_chunksize);
+	dst_end = div64_u64(new->end - 1, llbitmap->reshape_chunksize);
+	if (old->sectors) {
+		unsigned long src_start = div64_u64(old->offset,
+						    llbitmap->chunksize);
+		unsigned long src_end = div64_u64(old->end - 1,
+						  llbitmap->chunksize);
+
+		backwards = src_start < dst_start && src_end >= dst_start;
+	}
+
+	dst = backwards ? dst_end : dst_start;
+	while (true) {
+		struct llbitmap_reshape_range dst_range;
+		struct llbitmap_reshape_range src;
+		enum llbitmap_state state;
+
+		llbitmap_reshape_dst_range(llbitmap, dst, new, &dst_range);
+		state = llbitmap_reshape_init_dst(llbitmap, dst, new);
+		if (llbitmap_reshape_src_range(old, new, &dst_range, &src))
+			state = llbitmap_rmerge_src(llbitmap, state, &src);
+		else
+			state = llbitmap_rmerge_state(llbitmap, state, BitUnwritten);
+		llbitmap_write(llbitmap, state, dst);
+		if (dst == (backwards ? dst_start : dst_end))
+			break;
+		if (backwards)
+			dst--;
+		else
+			dst++;
+	}
+}
+
+static void llbitmap_reshape_finish(struct mddev *mddev)
+{
+	struct llbitmap *llbitmap = mddev->bitmap;
+
+	if (mddev->pers->quiesce)
+		mddev->pers->quiesce(mddev, 1);
+
+	mutex_lock(&mddev->bitmap_info.mutex);
+	llbitmap_flush(mddev);
+
+	llbitmap->chunksize = llbitmap->reshape_chunksize;
+	llbitmap->chunkshift = ffz(~llbitmap->chunksize);
+	llbitmap->chunks = llbitmap->reshape_chunks;
+	llbitmap->sync_size = llbitmap->reshape_sync_size;
+	llbitmap_refresh_reshape(llbitmap);
+	mddev->bitmap_info.chunksize = llbitmap->chunksize;
+	llbitmap_update_sb(llbitmap);
+	__llbitmap_flush(mddev);
+	mutex_unlock(&mddev->bitmap_info.mutex);
+
+	if (mddev->pers->quiesce)
+		mddev->pers->quiesce(mddev, 0);
+}
+
+static void llbitmap_reshape_mark(struct mddev *mddev, sector_t old_pos,
+				  sector_t new_pos)
+{
+	struct llbitmap *llbitmap = mddev->bitmap;
+	sector_t lo;
+	sector_t hi;
+	struct llbitmap_reshape_range old;
+	struct llbitmap_reshape_range new;
+
+	if (!llbitmap || old_pos == new_pos)
+		return;
+
+	lo = min(old_pos, new_pos);
+	hi = max(old_pos, new_pos);
+	if (!hi)
+		return;
+
+	llbitmap_reshape_map_range(llbitmap, lo, hi, true, &old);
+	llbitmap_reshape_map_range(llbitmap, lo, hi, false, &new);
+	if (!new.sectors)
+		return;
+
+	write_lock(&llbitmap->reshape_lock);
+	llbitmap_reshape_merge(llbitmap, &old, &new);
+	write_unlock(&llbitmap->reshape_lock);
 }
 
 static void llbitmap_write_sb(struct llbitmap *llbitmap)
@@ -1517,9 +2126,9 @@ static void llbitmap_update_sb(void *data)
 
 	sb = kmap_local_page(sb_page);
 	sb->events = cpu_to_le64(mddev->events);
-	sb->state = cpu_to_le32(llbitmap->flags);
+	sb->state = cpu_to_le32(llbitmap->flags & ~BIT(BITMAP_SHUTDOWN));
 	sb->chunksize = cpu_to_le32(llbitmap->chunksize);
-	sb->sync_size = cpu_to_le64(mddev->resync_max_sectors);
+	sb->sync_size = cpu_to_le64(llbitmap->sync_size);
 	sb->events_cleared = cpu_to_le64(llbitmap->events_cleared);
 	sb->sectors_reserved = cpu_to_le32(mddev->bitmap_info.space);
 	sb->daemon_sleep = cpu_to_le32(mddev->bitmap_info.daemon_sleep);
@@ -1537,6 +2146,7 @@ static int llbitmap_get_stats(void *data, struct md_bitmap_stats *stats)
 	stats->missing_pages = 0;
 	stats->pages = llbitmap->nr_pages;
 	stats->file_pages = llbitmap->nr_pages;
+	stats->sync_size = llbitmap->sync_size;
 
 	stats->behind_writes = atomic_read(&llbitmap->behind_writes);
 	stats->behind_wait = wq_has_sleeper(&llbitmap->behind_wait);
@@ -1574,19 +2184,13 @@ static void llbitmap_end_behind_write(struct mddev *mddev)
 		wake_up(&llbitmap->behind_wait);
 }
 
-static bool llbitmap_wait_behind_writes(struct mddev *mddev, bool nowait)
+static void llbitmap_wait_behind_writes(struct mddev *mddev)
 {
 	struct llbitmap *llbitmap = mddev->bitmap;
 
-	if (llbitmap && atomic_read(&llbitmap->behind_writes) > 0) {
-		if (nowait)
-			return false;
-
+	if (llbitmap && atomic_read(&llbitmap->behind_writes) > 0)
 		wait_event(llbitmap->behind_wait,
 			   atomic_read(&llbitmap->behind_writes) == 0);
-	}
-
-	return true;
 }
 
 static ssize_t bits_show(struct mddev *mddev, char *page)
@@ -1780,6 +2384,10 @@ static struct bitmap_operations llbitmap_ops = {
 	.update_sb		= llbitmap_update_sb,
 	.get_stats		= llbitmap_get_stats,
 	.dirty_bits		= llbitmap_dirty_bits,
+	.prepare_range		= llbitmap_prepare_range,
+	.reshape_finish		= llbitmap_reshape_finish,
+	.reshape_can_start	= llbitmap_reshape_can_start,
+	.reshape_mark		= llbitmap_reshape_mark,
 	.write_all		= llbitmap_write_all,
 
 	.groups			= md_llbitmap_groups,
