@@ -3130,6 +3130,7 @@ static int __check_reg_arg(struct bpf_verifier_env *env, struct bpf_reg_state *r
 		/* check whether register used as source operand can be read */
 		if (reg->type == NOT_INIT) {
 			verbose(env, "R%d !read_ok\n", regno);
+			bpf_diag_unreadable_reg(env, env->insn_idx, regno);
 			return -EACCES;
 		}
 		/* We don't need to worry about FP liveness because it's read-only */
@@ -4149,7 +4150,8 @@ static int mark_stack_arg_precision(struct bpf_verifier_env *env, int arg_idx)
 }
 
 static int check_outgoing_stack_args(struct bpf_verifier_env *env, struct bpf_func_state *caller,
-				     int nargs)
+				     int nargs, const char *callee_name, const struct btf *btf,
+				     const struct btf_param *args)
 {
 	int i, spi;
 
@@ -4157,8 +4159,14 @@ static int check_outgoing_stack_args(struct bpf_verifier_env *env, struct bpf_fu
 		spi = i - MAX_BPF_FUNC_REG_ARGS;
 		if (spi >= caller->out_stack_arg_cnt ||
 		    caller->stack_arg_regs[spi].type == NOT_INIT) {
+			const char *arg_name = NULL;
+
+			if (args && args[i].name_off)
+				arg_name = btf_name_by_offset(btf, args[i].name_off);
 			verbose(env, "callee expects %d args, stack arg%d is not initialized\n",
 				nargs, spi + 1);
+			bpf_diag_stack_arg_uninit(env, env->insn_idx, nargs, spi,
+						  callee_name, arg_name);
 			return -EFAULT;
 		}
 	}
@@ -4313,6 +4321,9 @@ static int __check_ptr_off_reg(struct bpf_verifier_env *env,
 	if (!fixed_off_ok && reg->var_off.value != 0) {
 		verbose(env, "dereference of modified %s ptr %s off=%lld disallowed\n",
 			reg_type_str(env, reg->type), reg_arg_name(env, argno), reg->var_off.value);
+		bpf_diag_invalid_deref(env, env->insn_idx, reg_from_argno(argno),
+				       reg_arg_name(env, argno), reg,
+					      BPF_DIAG_DEREF_MODIFIED_PTR, reg->var_off.value);
 		return -EACCES;
 	}
 
@@ -6258,6 +6269,9 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, struct b
 		if (type_may_be_null(reg->type)) {
 			verbose(env, "%s invalid mem access '%s'\n", reg_arg_name(env, argno),
 				reg_type_str(env, reg->type));
+			bpf_diag_invalid_deref(env, insn_idx, reg_from_argno(argno),
+					       reg_arg_name(env, argno), reg,
+						      BPF_DIAG_DEREF_NULLABLE_PTR, 0);
 			return -EACCES;
 		}
 
@@ -6408,8 +6422,16 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, struct b
 		if (t == BPF_READ && value_regno >= 0)
 			mark_reg_unknown(env, regs, value_regno);
 	} else {
+		enum bpf_diag_invalid_deref_kind kind = BPF_DIAG_DEREF_INVALID_PTR;
+
 		verbose(env, "%s invalid mem access '%s'\n", reg_arg_name(env, argno),
 			reg_type_str(env, reg->type));
+		if (reg->type == SCALAR_VALUE)
+			kind = BPF_DIAG_DEREF_SCALAR;
+		else if (type_may_be_null(reg->type))
+			kind = BPF_DIAG_DEREF_NULLABLE_PTR;
+		bpf_diag_invalid_deref(env, insn_idx, reg_from_argno(argno),
+				       reg_arg_name(env, argno), reg, kind, 0);
 		return -EACCES;
 	}
 
@@ -9297,20 +9319,28 @@ static int btf_check_func_arg_match(struct bpf_verifier_env *env, int subprog,
 	struct bpf_func_state *caller = cur_func(env);
 	struct bpf_verifier_log *log = &env->log;
 	struct ref_obj_desc ref_obj = {};
+	const struct btf_param *args;
+	const struct btf_type *func, *func_proto;
 	u32 i;
 	int ret, err;
 
 	ret = btf_prepare_func_args(env, subprog);
 	if (ret) {
 		if (bpf_in_stack_arg_cnt(sub) > 0) {
-			err = check_outgoing_stack_args(env, caller, sub->arg_cnt);
+			err = check_outgoing_stack_args(env, caller, sub->arg_cnt,
+							bpf_subprog_name(env, subprog),
+							NULL, NULL);
 			if (err)
 				return err;
 		}
 		return ret;
 	}
 
-	ret = check_outgoing_stack_args(env, caller, sub->arg_cnt);
+	func = btf_type_by_id(btf, env->prog->aux->func_info[subprog].type_id);
+	func_proto = btf_type_by_id(btf, func->type);
+	args = btf_params(func_proto);
+	ret = check_outgoing_stack_args(env, caller, sub->arg_cnt,
+					bpf_subprog_name(env, subprog), btf, args);
 	if (ret)
 		return ret;
 
@@ -12191,7 +12221,7 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_call_arg_me
 	args = (const struct btf_param *)(meta->func_proto + 1);
 	nargs = btf_type_vlen(meta->func_proto);
 
-	ret = check_outgoing_stack_args(env, caller, nargs);
+	ret = check_outgoing_stack_args(env, caller, nargs, func_name, btf, args);
 	if (ret)
 		return ret;
 
@@ -13872,9 +13902,8 @@ static int sanitize_check_bounds(struct bpf_verifier_env *env,
  * If we return -EACCES, caller may want to try again treating pointer as a
  * scalar.  So we only emit a diagnostic if !env->allow_ptr_leaks.
  */
-static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
-				   struct bpf_insn *insn,
-				   const struct bpf_reg_state *ptr_reg,
+static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env, struct bpf_insn *insn,
+				   u32 ptr_regno, const struct bpf_reg_state *ptr_reg,
 				   const struct bpf_reg_state *off_reg)
 {
 	struct bpf_verifier_state *vstate = env->cur_state;
@@ -13886,6 +13915,7 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 	struct bpf_sanitize_info info = {};
 	u8 opcode = BPF_OP(insn->code);
 	u32 dst = insn->dst_reg;
+	const char *reason;
 	int ret, bounds_ret;
 
 	dst_reg = &regs[dst];
@@ -13909,12 +13939,24 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 		verbose(env,
 			"R%d 32-bit pointer arithmetic prohibited\n",
 			dst);
+		reason = bpf_diag_fmt(
+			env, "R%d holds %s. 32-bit ALU operations on pointers discard pointer tracking, so the verifier cannot keep the result as a safe pointer.",
+			ptr_regno, bpf_diag_reg_type_plain(env, ptr_reg->type));
+		bpf_diag_register_type(
+			env, env->insn_idx, ptr_regno, "32-bit pointer arithmetic", reason,
+			"Use a 64-bit ALU instruction with an allowed, bounded scalar offset.");
 		return -EACCES;
 	}
 
 	if (ptr_reg->type & PTR_MAYBE_NULL) {
 		verbose(env, "R%d pointer arithmetic on %s prohibited, null-check it first\n",
 			dst, reg_type_str(env, ptr_reg->type));
+		reason = bpf_diag_fmt(
+			env, "R%d may be NULL (%s). Pointer arithmetic is allowed only after the program proves the pointer is non-NULL on this path.",
+			ptr_regno, reg_type_str(env, ptr_reg->type));
+		bpf_diag_register_type(
+			env, env->insn_idx, ptr_regno, "pointer arithmetic before NULL check", reason,
+			"Make sure that a NULL check precedes any arithmetic performed on the pointer.");
 		return -EACCES;
 	}
 
@@ -13944,6 +13986,12 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 	default:
 		verbose(env, "R%d pointer arithmetic on %s prohibited\n",
 			dst, reg_type_str(env, ptr_reg->type));
+		reason = bpf_diag_fmt(
+			env, "R%d holds %s. This pointer kind does not allow offset arithmetic.",
+			ptr_regno, bpf_diag_reg_type_plain(env, ptr_reg->type));
+		bpf_diag_register_type(
+			env, env->insn_idx, ptr_regno, "pointer arithmetic is not allowed", reason,
+			"Do not change this pointer's offset; use it only in operations accepted for its kind.");
 		return -EACCES;
 	}
 
@@ -13961,9 +14009,25 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 	if (base_type(ptr_reg->type) == PTR_TO_MEM && (ptr_reg->type & PTR_UNTRUSTED))
 		return 0;
 
-	if (!check_reg_sane_offset_scalar(env, off_reg, ptr_reg->type) ||
-	    !check_reg_sane_offset_ptr(env, ptr_reg, ptr_reg->type))
+	if (!check_reg_sane_offset_scalar(env, off_reg, ptr_reg->type)) {
+		reason = bpf_diag_fmt(
+			env, "The scalar offset used with R%d is unbounded or outside the verifier's safe pointer-offset range [-%u, %u].",
+			ptr_regno, BPF_MAX_VAR_OFF, BPF_MAX_VAR_OFF);
+		bpf_diag_register_type(
+			env, env->insn_idx, ptr_regno, "pointer offset is not safe", reason,
+			"Clamp or bounds-check the scalar offset before applying it to the pointer.");
 		return -EINVAL;
+	}
+	if (!check_reg_sane_offset_ptr(env, ptr_reg, ptr_reg->type)) {
+		reason = bpf_diag_fmt(
+			env, "R%d already has an offset outside the verifier's safe range [-%u, %u] for %s.",
+			ptr_regno, BPF_MAX_VAR_OFF, BPF_MAX_VAR_OFF,
+			bpf_diag_reg_type_plain(env, ptr_reg->type));
+		bpf_diag_register_type(
+			env, env->insn_idx, ptr_regno, "pointer offset is not safe", reason,
+			"Keep the base pointer within the verifier's allowed offset range before applying more arithmetic.");
+		return -EINVAL;
+	}
 
 	/* pointer types do not carry 32-bit bounds at the moment. */
 	__mark_reg32_unbounded(dst_reg);
@@ -14006,6 +14070,13 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 			/* scalar -= pointer.  Creates an unknown scalar */
 			verbose(env, "R%d tried to subtract pointer from scalar\n",
 				dst);
+			reason = bpf_diag_fmt(
+				env, "This operation subtracts pointer register R%d from scalar register R%d. "
+				"The verifier only tracks pointer-minus-scalar arithmetic for allowed pointer types.",
+				ptr_regno, dst);
+			bpf_diag_register_type(
+				env, env->insn_idx, ptr_regno, "pointer subtracted from scalar", reason,
+				"Keep the pointer as the base; only add or subtract bounded scalars when permitted.");
 			return -EACCES;
 		}
 		/* We don't allow subtraction from FP, because (according to
@@ -14015,6 +14086,12 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 		if (ptr_reg->type == PTR_TO_STACK) {
 			verbose(env, "R%d subtraction from stack pointer prohibited\n",
 				dst);
+			reason = bpf_diag_fmt(
+				env, "R%d is a stack pointer. The verifier does not allow BPF_SUB to move stack pointers.",
+				ptr_regno);
+			bpf_diag_register_type(
+				env, env->insn_idx, ptr_regno, "subtraction from stack pointer", reason,
+				"Use addition from R10 to form stack addresses within the tracked stack frame.");
 			return -EACCES;
 		}
 		dst_reg->r64 = cnum64_add(ptr_reg->r64, cnum64_negate(off_reg->r64));
@@ -14040,16 +14117,38 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 		/* bitwise ops on pointers are troublesome, prohibit. */
 		verbose(env, "R%d bitwise operator %s on pointer prohibited\n",
 			dst, bpf_alu_string[opcode >> 4]);
+		reason = bpf_diag_fmt(
+			env, "R%d holds %s. Bitwise operator %s would destroy the pointer value the verifier is tracking.",
+			ptr_regno, bpf_diag_reg_type_plain(env, ptr_reg->type),
+			bpf_alu_string[opcode >> 4]);
+		bpf_diag_register_type(
+			env, env->insn_idx, ptr_regno, "bitwise operation on pointer", reason,
+			"Do bitwise operations on scalar values, not on pointer-valued registers.");
 		return -EACCES;
 	default:
 		/* other operators (e.g. MUL,LSH) produce non-pointer results */
 		verbose(env, "R%d pointer arithmetic with %s operator prohibited\n",
 			dst, bpf_alu_string[opcode >> 4]);
+		reason = bpf_diag_fmt(
+			env, "R%d holds %s. Operator %s is not one of the limited pointer arithmetic operations the verifier can track.",
+			ptr_regno, bpf_diag_reg_type_plain(env, ptr_reg->type),
+			bpf_alu_string[opcode >> 4]);
+		bpf_diag_register_type(
+			env, env->insn_idx, ptr_regno, "invalid pointer arithmetic operator", reason,
+			"Use only verifier-supported addition or subtraction with a bounded scalar offset, or perform this operation on a scalar value.");
 		return -EACCES;
 	}
 
-	if (!check_reg_sane_offset_ptr(env, dst_reg, ptr_reg->type))
+	if (!check_reg_sane_offset_ptr(env, dst_reg, ptr_reg->type)) {
+		reason = bpf_diag_fmt(
+			env, "After this arithmetic, R%d would be outside the verifier's safe offset range [-%u, %u] for %s.",
+			dst, BPF_MAX_VAR_OFF, BPF_MAX_VAR_OFF,
+			bpf_diag_reg_type_plain(env, ptr_reg->type));
+		bpf_diag_register_type(
+			env, env->insn_idx, ptr_regno, "pointer offset is not safe", reason,
+			"Tighten the scalar bounds before the arithmetic so the resulting pointer remains within the allowed range.");
 		return -EINVAL;
+	}
 	reg_bounds_sync(dst_reg);
 	bounds_ret = sanitize_check_bounds(env, insn, dst_reg);
 	if (bounds_ret == -EACCES)
@@ -15021,15 +15120,15 @@ static int adjust_reg_min_max_vals(struct bpf_verifier_env *env,
 				if (err)
 					return err;
 				off_reg = *dst_reg;
-				return adjust_ptr_min_max_vals(env, insn, src_reg, &off_reg);
+				return adjust_ptr_min_max_vals(env, insn, insn->src_reg, src_reg,
+							       &off_reg);
 			}
 		} else if (ptr_reg) {
 			/* pointer += scalar */
 			err = mark_chain_precision(env, insn->src_reg);
 			if (err)
 				return err;
-			return adjust_ptr_min_max_vals(env, insn,
-						       dst_reg, src_reg);
+			return adjust_ptr_min_max_vals(env, insn, insn->dst_reg, dst_reg, src_reg);
 		} else if (dst_reg->precise) {
 			/* if dst_reg is precise, src_reg should be precise as well */
 			err = mark_chain_precision(env, insn->src_reg);
@@ -15044,8 +15143,7 @@ static int adjust_reg_min_max_vals(struct bpf_verifier_env *env,
 		__mark_reg_known(&off_reg, insn->imm);
 		src_reg = &off_reg;
 		if (ptr_reg) /* pointer += K */
-			return adjust_ptr_min_max_vals(env, insn,
-						       ptr_reg, src_reg);
+			return adjust_ptr_min_max_vals(env, insn, insn->dst_reg, ptr_reg, src_reg);
 	}
 
 	/* Got here implies adding two SCALAR_VALUEs */
