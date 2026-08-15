@@ -17439,6 +17439,27 @@ static int do_check(struct bpf_verifier_env *env)
 
 		state->last_insn_idx = env->prev_insn_idx;
 		state->insn_idx = env->insn_idx;
+		/*
+		 * Record the incoming edge so active and queued paths use the same
+		 * branch-recording path. A zero-offset conditional has identical
+		 * successors, so its outcome cannot be reconstructed from the edge.
+		 */
+		if (!state->speculative && prev_insn_idx >= 0 && prev_insn_idx < insn_cnt) {
+			struct bpf_insn *prev_insn = &insns[prev_insn_idx];
+			int fallthrough_idx = prev_insn_idx + 1;
+			int branch_idx = prev_insn_idx + bpf_jmp_offset(prev_insn) + 1;
+			u8 class = BPF_CLASS(prev_insn->code);
+			u8 opcode = BPF_OP(prev_insn->code);
+
+			if ((class == BPF_JMP || class == BPF_JMP32) &&
+			    opcode != BPF_JA && opcode != BPF_CALL && opcode != BPF_EXIT &&
+			    opcode <= BPF_JCOND && branch_idx != fallthrough_idx) {
+				if (env->insn_idx == branch_idx)
+					bpf_diag_record_branch(env, prev_insn_idx, true);
+				else if (env->insn_idx == fallthrough_idx)
+					bpf_diag_record_branch(env, prev_insn_idx, false);
+			}
+		}
 
 		if (bpf_is_prune_point(env, env->insn_idx)) {
 			err = bpf_is_state_visited(env, env->insn_idx);

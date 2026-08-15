@@ -22,7 +22,23 @@
 #define BPF_DIAG_TAB_WIDTH 8
 #define BPF_DIAG_FMT_CHUNK_SIZE (PAGE_SIZE - sizeof(struct diag_fmt_chunk))
 #define BPF_DIAG_FMT_BUF_SIZE 256
+#define BPF_DIAG_EVENT_LOG_MAX_SIZE (64U << 20)
 #define DISASM_LINE_LEN 160
+
+enum bpf_diag_history_kind {
+	BPF_DIAG_HISTORY_BRANCH,
+};
+
+struct bpf_diag_history_event {
+	u32 insn_idx : 24;
+	u32 kind : 8;
+	u8 in_lineage : 1;
+	union {
+		struct {
+			bool cond_true;
+		} branch;
+	};
+};
 
 struct disasm_line {
 	char text[DISASM_LINE_LEN];
@@ -46,12 +62,23 @@ struct diag_fmt_mark {
 	size_t len;
 };
 
+struct bpf_diag_log {
+	struct bpf_diag_history_event *events;
+	/* Sequence number of the oldest retained event on the active path. */
+	u64 first_seq;
+	u32 cnt;
+	u32 cap;
+	u32 head;
+	bool growth_failed;
+};
+
 struct bpf_diag_scratch {
 	struct bpf_linfo_source source_lines[BPF_DIAG_CONTEXT_CNT];
 	struct disasm_line disasm_lines[BPF_DIAG_CONTEXT_CNT];
 };
 
 struct bpf_diag {
+	struct bpf_diag_log log;
 	struct bpf_diag_scratch scratch;
 	struct list_head fmt_chunks;
 };
@@ -191,6 +218,7 @@ void bpf_diag_free(struct bpf_verifier_env *env)
 		return;
 
 	diag_fmt_restore(env, (struct diag_fmt_mark){});
+	kvfree(diag->log.events);
 	kfree(diag);
 	env->diag = NULL;
 }
@@ -205,6 +233,95 @@ static void diag_write(struct bpf_verifier_env *env, const char *fmt, ...)
 	va_start(args, fmt);
 	bpf_verifier_vlog(&env->log, fmt, args);
 	va_end(args);
+}
+
+static u64 log_end(const struct bpf_diag_log *log)
+{
+	return log->first_seq + log->cnt;
+}
+
+static u32 log_pos(const struct bpf_diag_log *log, u32 idx)
+{
+	u32 pos = log->head + idx;
+
+	return pos < log->cap ? pos : pos - log->cap;
+}
+
+u64 bpf_diag_event_log_save(struct bpf_verifier_env *env)
+{
+	struct bpf_diag *diag = env->diag;
+
+	return diag ? log_end(&diag->log) : 0;
+}
+
+void bpf_diag_event_log_restore(struct bpf_verifier_env *env, u64 log_pos)
+{
+	struct bpf_diag *diag = env->diag;
+	struct bpf_diag_log *log;
+	u64 end_seq;
+
+	if (!diag)
+		return;
+
+	log = &diag->log;
+	end_seq = log_end(log);
+	if (WARN_ON_ONCE(log_pos > end_seq))
+		log_pos = end_seq;
+
+	/*
+	 * A deep abandoned path may have rotated away the shared prefix. In
+	 * that case, restart with an empty retained suffix and remember that
+	 * every event before the restored mark is unavailable.
+	 */
+	if (log_pos <= log->first_seq) {
+		log->first_seq = log_pos;
+		log->head = 0;
+		log->cnt = 0;
+		return;
+	}
+
+	log->cnt = log_pos - log->first_seq;
+}
+
+static void diag_append_history(struct bpf_verifier_env *env,
+				const struct bpf_diag_history_event *event)
+{
+	struct bpf_diag_history_event *events;
+	struct bpf_diag *diag = env->diag;
+	struct bpf_diag_log *log;
+	u32 cap, max_events;
+
+	if (!diag)
+		return;
+	log = &diag->log;
+
+	if (log->cnt < log->cap) {
+		log->events[log_pos(log, log->cnt++)] = *event;
+		return;
+	}
+
+	max_events = BPF_DIAG_EVENT_LOG_MAX_SIZE / sizeof(*events);
+	if (log->growth_failed || log->cap == max_events)
+		goto rotate;
+
+	cap = min(log->cap ? log->cap * 2 : 64, max_events);
+	events = kvrealloc(log->events, array_size(cap, sizeof(*events)), GFP_KERNEL_ACCOUNT);
+	if (!events) {
+		log->growth_failed = true;
+		goto rotate;
+	}
+	log->events = events;
+	log->cap = cap;
+	log->events[log->cnt++] = *event;
+	return;
+
+rotate:
+	if (log->cap) {
+		log->events[log->head++] = *event;
+		if (log->head == log->cap)
+			log->head = 0;
+	}
+	log->first_seq++;
 }
 
 static void diag_print_wrapped_prefixed(struct bpf_verifier_env *env, const char *first_prefix,
@@ -534,4 +651,17 @@ static void bpf_diag_source(struct bpf_verifier_env *env, u32 insn_idx, const ch
 
 out_restore:
 	diag_fmt_restore(env, mark);
+}
+
+void bpf_diag_record_branch(struct bpf_verifier_env *env, u32 insn_idx, bool cond_true)
+{
+	struct bpf_diag_history_event event = {
+		.insn_idx = insn_idx,
+		.kind = BPF_DIAG_HISTORY_BRANCH,
+		.branch = {
+			.cond_true = cond_true,
+		},
+	};
+
+	diag_append_history(env, &event);
 }
