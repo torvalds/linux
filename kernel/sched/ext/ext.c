@@ -3269,10 +3269,25 @@ switch_class:
 
 static void kick_sync_wait_bal_cb(struct rq *rq)
 {
-	struct scx_kick_syncs __rcu *ks = __this_cpu_read(scx_kick_syncs);
-	unsigned long *ksyncs = rcu_dereference_sched(ks)->syncs;
+	struct scx_kick_syncs __rcu *ks;
+	unsigned long *ksyncs;
 	bool waited;
 	s32 cpu;
+
+	/*
+	 * This callback is queued and normally flushed within @rq's own
+	 * scheduling pass. However, dispatch can drop the rq lock while it sits
+	 * queued, and lock takers in that window (the sched class change paths,
+	 * the scx task iterator) flush pending balance callbacks on release,
+	 * running this one on a foreign CPU whose snapshots are unrelated. The
+	 * kicked CPUs are already on their way to advance the kick_syncs being
+	 * waited on. Don't get in the way.
+	 */
+	if (unlikely(cpu_of(rq) != smp_processor_id()))
+		return;
+
+	ks = __this_cpu_read(scx_kick_syncs);
+	ksyncs = rcu_dereference_sched(ks)->syncs;
 
 	/*
 	 * Drop rq lock and enable IRQs while waiting. IRQs must be enabled
