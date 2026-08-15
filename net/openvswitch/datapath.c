@@ -1473,33 +1473,34 @@ static int ovs_flow_cmd_del(struct sk_buff *skb, struct genl_info *info)
 		goto unlock;
 	}
 
+	reply = ovs_flow_cmd_alloc_info(ovsl_dereference(flow->sf_acts),
+					&flow->id, info, false, ufid_flags);
+	if (IS_ERR(reply)) {
+		netlink_set_err(sock_net(skb->sk)->genl_sock, 0, 0,
+				PTR_ERR(reply));
+		reply = NULL;
+	}
+
+	if (likely(reply)) {
+		err = ovs_flow_cmd_fill_info(flow, ovs_header->dp_ifindex,
+					     reply, info->snd_portid,
+					     info->snd_seq, 0,
+					     OVS_FLOW_CMD_DEL, ufid_flags);
+		if (WARN_ON_ONCE(err < 0)) {
+			kfree_skb(reply);
+			reply = NULL;
+		}
+	}
+	/* Removal has to happen after ovs_flow_cmd_fill_info(), as it uses
+	 * the flow->mask that can be scheduled to be freed by the
+	 * ovs_flow_tbl_remove() and we're not holding the RCU read lock.
+	 */
 	ovs_flow_tbl_remove(&dp->table, flow);
 	ovs_unlock();
 
-	reply = ovs_flow_cmd_alloc_info((const struct sw_flow_actions __force *) flow->sf_acts,
-					&flow->id, info, false, ufid_flags);
-	if (likely(reply)) {
-		if (!IS_ERR(reply)) {
-			rcu_read_lock();	/*To keep RCU checker happy. */
-			err = ovs_flow_cmd_fill_info(flow, ovs_header->dp_ifindex,
-						     reply, info->snd_portid,
-						     info->snd_seq, 0,
-						     OVS_FLOW_CMD_DEL,
-						     ufid_flags);
-			rcu_read_unlock();
-			if (WARN_ON_ONCE(err < 0)) {
-				kfree_skb(reply);
-				goto out_free;
-			}
+	if (likely(reply))
+		ovs_notify(&dp_flow_genl_family, reply, info);
 
-			ovs_notify(&dp_flow_genl_family, reply, info);
-		} else {
-			netlink_set_err(sock_net(skb->sk)->genl_sock, 0, 0,
-					PTR_ERR(reply));
-		}
-	}
-
-out_free:
 	ovs_flow_free(flow, true);
 	return 0;
 unlock:
