@@ -1155,53 +1155,6 @@ void schedule_dsq_reenq(struct scx_sched *sch, struct scx_dispatch_q *dsq,
 		schedule_deferred(rq);
 }
 
-/**
- * touch_core_sched - Update timestamp used for core-sched task ordering
- * @rq: rq to read clock from, must be locked
- * @p: task to update the timestamp for
- *
- * Update @p->scx.core_sched_at timestamp. This is used by scx_prio_less() to
- * implement global or local-DSQ FIFO ordering for core-sched. Should be called
- * when a task becomes runnable and its turn on the CPU ends (e.g. slice
- * exhaustion).
- */
-static void touch_core_sched(struct rq *rq, struct task_struct *p)
-{
-	lockdep_assert_rq_held(rq);
-
-#ifdef CONFIG_SCHED_CORE
-	/*
-	 * It's okay to update the timestamp spuriously. Use
-	 * sched_core_disabled() which is cheaper than enabled().
-	 *
-	 * As this is used to determine ordering between tasks of sibling CPUs,
-	 * it may be better to use per-core dispatch sequence instead.
-	 */
-	if (!sched_core_disabled())
-		p->scx.core_sched_at = sched_clock_cpu(cpu_of(rq));
-#endif
-}
-
-/**
- * touch_core_sched_dispatch - Update core-sched timestamp on dispatch
- * @rq: rq to read clock from, must be locked
- * @p: task being dispatched
- *
- * If the BPF scheduler implements custom core-sched ordering via
- * ops.core_sched_before(), @p->scx.core_sched_at is used to implement FIFO
- * ordering within each local DSQ. This function is called from dispatch paths
- * and updates @p->scx.core_sched_at if custom core-sched ordering is in effect.
- */
-static void touch_core_sched_dispatch(struct rq *rq, struct task_struct *p)
-{
-	lockdep_assert_rq_held(rq);
-
-#ifdef CONFIG_SCHED_CORE
-	if (unlikely(SCX_HAS_OP(scx_root, core_sched_before)))
-		touch_core_sched(rq, p);
-#endif
-}
-
 /*
  * p->scx.slice_oob packs an out-of-band slice request into one atomic64. A zero
  * word means no request. Otherwise the fields are:
@@ -1446,11 +1399,8 @@ static void update_curr_scx(struct rq *rq)
 	if (unlikely(delta_exec <= 0))
 		return;
 
-	if (curr->scx.slice != SCX_SLICE_INF) {
+	if (curr->scx.slice != SCX_SLICE_INF)
 		curr->scx.slice -= min_t(u64, curr->scx.slice, delta_exec);
-		if (!curr->scx.slice)
-			touch_core_sched(rq, curr);
-	}
 
 	if (unlikely(curr == scx_rescuee(rq)))
 		scx_rescue_charge(rq, delta_exec);
@@ -1963,8 +1913,6 @@ static void direct_dispatch(struct scx_sched *sch, struct task_struct *p,
 		find_dsq_for_dispatch(sch, rq, p->scx.ddsp_dsq_id, task_cpu(p));
 	u64 ddsp_enq_flags, slice, vtime;
 
-	touch_core_sched_dispatch(rq, p);
-
 	p->scx.ddsp_enq_flags |= enq_flags;
 
 	/*
@@ -2143,12 +2091,6 @@ bypass:
 	goto enqueue;
 
 enqueue:
-	/*
-	 * For task-ordering, slice refill must be treated as implying the end
-	 * of the current slice. Otherwise, the longer @p stays on the CPU, the
-	 * higher priority it becomes from scx_prio_less()'s POV.
-	 */
-	touch_core_sched(rq, p);
 	refill_task_slice_dfl(sch, p);
 	clear_direct_dispatch(p);
 	scx_dispatch_enqueue(sch, rq, dsq, p, 0, 0, enq_flags);
@@ -2225,9 +2167,6 @@ static void enqueue_task_scx(struct rq *rq, struct task_struct *p, int core_enq_
 
 	if (SCX_HAS_OP(sch, runnable) && !task_on_rq_migrating(p))
 		SCX_CALL_OP_TASK(sch, runnable, rq, p, enq_flags);
-
-	if (enq_flags & SCX_ENQ_WAKEUP)
-		touch_core_sched(rq, p);
 
 	/* Start dl_server if this is the first task being enqueued */
 	if (rq->scx.nr_running == 1)
@@ -2886,7 +2825,6 @@ static void finish_dispatch(struct scx_sched *sch, struct rq *rq, struct task_st
 	struct scx_dispatch_q *dsq;
 	unsigned long opss;
 
-	touch_core_sched_dispatch(rq, p);
 retry:
 	/*
 	 * No need for _acquire here. @p is accessed only after a successful
@@ -3521,13 +3459,10 @@ void ext_server_init(struct rq *rq)
  * usual sched_class'es and needs to find out the expected task ordering. For
  * SCX, core-sched calls this function to interrogate the task ordering.
  *
- * Unless overridden by ops.core_sched_before(), @p->scx.core_sched_at is used
- * to implement the default task ordering. The older the timestamp, the higher
- * priority the task - the global FIFO ordering matching the default scheduling
- * behavior.
- *
- * When ops.core_sched_before() is enabled, @p->scx.core_sched_at is used to
- * implement FIFO ordering within each local DSQ. See pick_task_scx().
+ * Unless overridden by ops.core_sched_before(), the default task ordering runs
+ * the task which has been waiting longer first. A running task counts as the
+ * most recently serviced and orders after every waiting task. Waiting tasks are
+ * compared by @p->scx.runnable_at.
  *
  * Return: %true if @a should run after @b.
  */
@@ -3536,6 +3471,7 @@ bool scx_prio_less(const struct task_struct *a, const struct task_struct *b,
 {
 	struct scx_sched *sch_a = scx_task_sched(a);
 	struct scx_sched *sch_b = scx_task_sched(b);
+	bool a_running, b_running;
 
 	/*
 	 * scx_prio_less() returns whether @a should run after @b while
@@ -3552,8 +3488,19 @@ bool scx_prio_less(const struct task_struct *a, const struct task_struct *b,
 					      task_rq(a),
 					      (struct task_struct *)b,
 					      (struct task_struct *)a);
-	else
-		return time_after64(a->scx.core_sched_at, b->scx.core_sched_at);
+
+	/*
+	 * runnable_at is refreshed only on enqueue, so a task which keeps
+	 * occupying its CPU carries a stale stamp. A running task is the most
+	 * recently serviced whatever its stamp says. Order it after every
+	 * waiting task.
+	 */
+	a_running = a->on_cpu;
+	b_running = b->on_cpu;
+	if (a_running != b_running)
+		return a_running;
+
+	return time_after(a->scx.runnable_at, b->scx.runnable_at);
 }
 #endif	/* CONFIG_SCHED_CORE */
 
@@ -3824,15 +3771,13 @@ static void task_tick_scx(struct rq *rq, struct task_struct *curr, int queued)
 	update_curr_scx(rq);
 
 	/*
-	 * While disabling, always resched and refresh core-sched timestamp as
-	 * we can't trust the slice management or ops.core_sched_before().
+	 * While disabling, always resched as we can't trust the slice
+	 * management.
 	 */
-	if (scx_bypassing(sch, cpu_of(rq))) {
+	if (scx_bypassing(sch, cpu_of(rq)))
 		scx_set_task_slice(curr, 0);
-		touch_core_sched(rq, curr);
-	} else if (SCX_HAS_OP(sch, tick)) {
+	else if (SCX_HAS_OP(sch, tick))
 		SCX_CALL_OP_TASK(sch, tick, rq, curr);
-	}
 
 	if (!curr->scx.slice)
 		resched_curr(rq);
@@ -6085,14 +6030,14 @@ static void unbypass_renotify_idle(struct rq *rq, struct scx_sched *pos,
  *
  * - dispatch_one() does not report %SCX_DSP_PREV on non-zero slice as slice
  *   can't be trusted. Whenever a tick triggers, the running task is rotated to
- *   the tail of the queue with core_sched_at touched.
+ *   the tail of the queue.
  *
  * - pick_next_task() suppresses zero slice warning.
  *
  * - scx_kick_cpu() is disabled to avoid irq_work malfunction during PM
  *   operations.
  *
- * - scx_prio_less() reverts to the default core_sched_at order.
+ * - scx_prio_less() reverts to the default runnable_at order.
  */
 void scx_bypass(struct scx_sched *sch, bool bypass)
 {

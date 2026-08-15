@@ -212,9 +212,6 @@ struct sched_ext_entity {
 	struct list_head	runnable_node;	/* rq->scx.runnable_list */
 	unsigned long		runnable_at;
 
-#ifdef CONFIG_SCHED_CORE
-	u64			core_sched_at;	/* see scx_prio_less() */
-#endif
 #ifdef CONFIG_EXT_SUB_SCHED
 	unsigned long		rescue_at;	/* queued on a rescue DSQ at, jiffies */
 #endif
