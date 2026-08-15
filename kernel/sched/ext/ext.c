@@ -6476,12 +6476,9 @@ static void scx_root_disable(struct scx_sched *sch)
 	percpu_up_write(&scx_fork_rwsem);
 
 	/*
-	 * Invalidate all the rq clocks to prevent getting outdated
-	 * rq clocks from a previous scx scheduler.
-	 *
-	 * Also re-balance the dl_server bandwidth reservations: detach
-	 * ext_server (no more sched_ext tasks) and reinstate fair_server if it
-	 * was previously detached because we were running in full mode.
+	 * Re-balance the dl_server bandwidth reservations: detach ext_server
+	 * (no more sched_ext tasks) and reinstate fair_server if it was
+	 * previously detached because we were running in full mode.
 	 *
 	 * Unlike the enable path, this runs on a recovery path that cannot
 	 * fail, so we use dl_server_swap_bw() to atomically free ext_server's
@@ -6493,8 +6490,6 @@ static void scx_root_disable(struct scx_sched *sch)
 	 */
 	for_each_possible_cpu(cpu) {
 		struct rq *rq = cpu_rq(cpu);
-
-		scx_rq_clock_invalidate(rq);
 
 		scoped_guard(rq_lock_irqsave, rq) {
 			update_rq_clock(rq);
