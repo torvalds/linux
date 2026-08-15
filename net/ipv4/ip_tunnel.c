@@ -1054,7 +1054,7 @@ int ip_tunnel_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_siocdevprivate);
 
-int __ip_tunnel_change_mtu(struct net_device *dev, int new_mtu, bool strict)
+int ip_tunnel_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	int t_hlen = tunnel->hlen + sizeof(struct iphdr);
@@ -1063,24 +1063,11 @@ int __ip_tunnel_change_mtu(struct net_device *dev, int new_mtu, bool strict)
 	if (dev->type == ARPHRD_ETHER)
 		max_mtu -= dev->hard_header_len;
 
-	if (new_mtu < ETH_MIN_MTU)
+	if (new_mtu < ETH_MIN_MTU || new_mtu > max_mtu)
 		return -EINVAL;
-
-	if (new_mtu > max_mtu) {
-		if (strict)
-			return -EINVAL;
-
-		new_mtu = max_mtu;
-	}
 
 	WRITE_ONCE(dev->mtu, new_mtu);
 	return 0;
-}
-EXPORT_SYMBOL_GPL(__ip_tunnel_change_mtu);
-
-int ip_tunnel_change_mtu(struct net_device *dev, int new_mtu)
-{
-	return __ip_tunnel_change_mtu(dev, new_mtu, true);
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_change_mtu);
 
