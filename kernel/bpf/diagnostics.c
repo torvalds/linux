@@ -104,6 +104,7 @@ enum bpf_diag_history_kind {
 	BPF_DIAG_HISTORY_MOD,
 	BPF_DIAG_HISTORY_REF_ACQUIRE,
 	BPF_DIAG_HISTORY_REF_RELEASE,
+	BPF_DIAG_HISTORY_CONTEXT,
 };
 
 struct bpf_diag_history_event {
@@ -124,6 +125,11 @@ struct bpf_diag_history_event {
 		struct {
 			u32 ref_id;
 		} ref;
+		struct {
+			u32 depth;
+			u8 kind;
+			bool enter;
+		} ctx;
 	};
 };
 
@@ -386,6 +392,19 @@ void bpf_diag_event_log_restore(struct bpf_verifier_env *env, u64 log_pos)
 	}
 
 	log->cnt = log_pos - log->first_seq;
+}
+
+u32 bpf_diag_irq_depth(const struct bpf_verifier_state *state)
+{
+	u32 depth = 0;
+	int i;
+
+	for (i = 0; i < state->acquired_refs; i++) {
+		if (state->refs[i].type == REF_TYPE_IRQ)
+			depth++;
+	}
+
+	return depth;
 }
 
 static void diag_append_history(struct bpf_verifier_env *env,
@@ -1048,4 +1067,24 @@ void bpf_diag_record_ref_acquire(struct bpf_verifier_env *env, u32 insn_idx, u32
 void bpf_diag_record_ref_release(struct bpf_verifier_env *env, u32 insn_idx, u32 ref_id)
 {
 	diag_record_ref(env, insn_idx, BPF_DIAG_HISTORY_REF_RELEASE, ref_id);
+}
+
+void bpf_diag_record_context(struct bpf_verifier_env *env, u32 insn_idx,
+			     enum bpf_diag_context_kind ctx_kind, bool enter, u32 depth)
+{
+	/*
+	 * Keep leave events so context rendering can stop at a depth-zero exit
+	 * and show nested-region depth accurately for the active path.
+	 */
+	struct bpf_diag_history_event event = {
+		.insn_idx = insn_idx,
+		.kind = BPF_DIAG_HISTORY_CONTEXT,
+		.ctx = {
+			.kind = ctx_kind,
+			.enter = enter,
+			.depth = depth,
+		},
+	};
+
+	diag_append_history(env, &event);
 }
