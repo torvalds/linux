@@ -3470,7 +3470,16 @@ static int check_stack_write_fixed_off(struct bpf_verifier_env *env,
 	    bpf_is_spilled_reg(&state->stack[spi]) &&
 	    !bpf_is_spilled_scalar_reg(&state->stack[spi]) &&
 	    size != BPF_REG_SIZE) {
+		const char *reason;
+
 		verbose(env, "attempt to corrupt spilled pointer on stack\n");
+		reason = bpf_diag_fmt(env,
+				      "This store writes %d bytes at stack offset %d into a stack slot that currently holds a spilled pointer. "
+			"Partial writes to spilled pointers are rejected because they can corrupt pointer metadata and leak kernel pointers.",
+			size, off);
+		bpf_diag_memory(
+			env, insn_idx, "stack spill corruption", reason,
+			"Write the full 8-byte spilled pointer slot, or use a separate stack slot for scalar data before overwriting only part of it.");
 		return -EACCES;
 	}
 
@@ -3762,6 +3771,21 @@ static int mark_reg_stack_read(struct bpf_verifier_env *env,
 	return 0;
 }
 
+static void bpf_diag_stack_read_uninit(struct bpf_verifier_env *env, int off, int i,
+				       int size)
+{
+	const char *reason;
+
+	reason = bpf_diag_fmt(env,
+			      "This rejected read uses %d bytes at stack offset %d, but byte %d in that range is uninitialized on this path. "
+		"Programs loaded with CAP_PERFMON can be allowed to read uninitialized stack bytes, but this program is being rejected without that allowance.",
+		size, off, i);
+	bpf_diag_memory(
+		env, env->insn_idx, "uninitialized stack read", reason,
+		"Initialize every byte in the stack range before reading it, adjust the offset and size so the read covers only initialized bytes, "
+		"or load with CAP_PERFMON if uninitialized stack reads are intended.");
+}
+
 /* Read the stack at 'off' and put the results into the register indicated by
  * 'dst_regno'. It handles reg filling if the addressed stack slot is a
  * spilled reg.
@@ -3851,6 +3875,7 @@ static int check_stack_read_fixed_off(struct bpf_verifier_env *env,
 					} else {
 						verbose(env, "invalid read from stack off %d+%d size %d\n",
 							off, i, size);
+						bpf_diag_stack_read_uninit(env, off, i, size);
 					}
 					return -EACCES;
 				}
@@ -3909,6 +3934,7 @@ static int check_stack_read_fixed_off(struct bpf_verifier_env *env,
 			} else {
 				verbose(env, "invalid read from stack off %d+%d size %d\n",
 					off, i, size);
+				bpf_diag_stack_read_uninit(env, off, i, size);
 			}
 			return -EACCES;
 		}
@@ -4001,11 +4027,19 @@ static int check_stack_read(struct bpf_verifier_env *env,
 	 * check_stack_read_fixed_off).
 	 */
 	if (dst_regno < 0 && var_off) {
+		const char *reason;
 		char tn_buf[48];
 
 		tnum_strn(tn_buf, sizeof(tn_buf), reg->var_off);
 		verbose(env, "variable offset stack pointer cannot be passed into helper function; var_off=%s off=%d size=%d\n",
 			tn_buf, off, size);
+		reason = bpf_diag_fmt(env,
+				      "The helper would access the stack through variable offset %s plus fixed offset %d and size %d. "
+			"Helper stack memory arguments require a constant stack offset and a precise initialized range.",
+			tn_buf, off, size);
+		bpf_diag_memory(
+			env, env->insn_idx, "variable stack access", reason,
+			"Use a fixed stack offset for helper memory arguments, or copy the needed bytes into a fixed stack slot first.");
 		return -EACCES;
 	}
 	/* Variable offset is prohibited for unprivileged mode for simplicity
@@ -4247,6 +4281,9 @@ static int check_mem_region_access(struct bpf_verifier_env *env, struct bpf_reg_
 				   int off, int size, u32 mem_size,
 				   bool zero_size_allowed)
 {
+	const char *proof = "";
+	const char *start;
+	s64 max_start, max_end;
 	int err;
 
 	/* We may have adjusted the register pointing to memory region, so we
@@ -4265,14 +4302,28 @@ static int check_mem_region_access(struct bpf_verifier_env *env, struct bpf_reg_
 	      reg_smin(reg) + off < 0)) {
 		verbose(env, "%s min value is negative, either use unsigned index or do a if (index >=0) check.\n",
 			reg_arg_name(env, argno));
-		return -EACCES;
+		err = -EACCES;
+		if (bpf_diag_enabled(env)) {
+			start = bpf_diag_fmt_s64_sum(env, reg_smin(reg), off);
+			proof = bpf_diag_fmt(
+				env, "the minimal bound for a memory access is a negative value: %s",
+				start);
+		}
+		goto report_error;
 	}
+
 	err = __check_mem_access(env, reg, argno, reg_smin(reg) + off, size,
 				 mem_size, zero_size_allowed);
 	if (err) {
 		verbose(env, "%s min value is outside of the allowed memory range\n",
 			reg_arg_name(env, argno));
-		return err;
+		if (bpf_diag_enabled(env)) {
+			start = bpf_diag_fmt_s64_sum(env, reg_smin(reg), off);
+			proof = bpf_diag_fmt(
+				env, "the minimal bound for a memory access is %s and is outside of the object of size %u",
+				start, mem_size);
+		}
+		goto report_error;
 	}
 
 	/* If we haven't set a max value then we need to bail since we can't be
@@ -4282,17 +4333,36 @@ static int check_mem_region_access(struct bpf_verifier_env *env, struct bpf_reg_
 	if (reg_umax(reg) >= BPF_MAX_VAR_OFF) {
 		verbose(env, "%s unbounded memory access, make sure to bounds check any such access\n",
 			reg_arg_name(env, argno));
-		return -EACCES;
+		err = -EACCES;
+		if (bpf_diag_enabled(env))
+			proof = bpf_diag_fmt(
+				env, "the maximal bound for a memory access is %llu and exceeds maximum allowed offset of %u",
+				reg_umax(reg), BPF_MAX_VAR_OFF);
+		goto report_error;
 	}
+
 	err = __check_mem_access(env, reg, argno, reg_umax(reg) + off, size,
 				 mem_size, zero_size_allowed);
 	if (err) {
 		verbose(env, "%s max value is outside of the allowed memory range\n",
 			reg_arg_name(env, argno));
-		return err;
+		if (bpf_diag_enabled(env)) {
+			max_start = (s64)reg_umax(reg) + off;
+			max_end = max_start + size;
+			proof = bpf_diag_fmt(
+				env, "the maximal bound for a memory access is %lld: start %lld + access_size %d, beyond object_size %u",
+				max_end, max_start, size, mem_size);
+		}
+		goto report_error;
 	}
 
 	return 0;
+
+report_error:
+	bpf_diag_mem_bounds(env, env->insn_idx, reg_from_argno(argno),
+			    reg_arg_name(env, argno), reg_type_str(env, reg->type), proof,
+			    off, size, mem_size, reg);
+	return err;
 }
 
 static int __check_ptr_off_reg(struct bpf_verifier_env *env,

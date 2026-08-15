@@ -8,6 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/seq_buf.h>
+#include <linux/overflow.h>
 #include <linux/slab.h>
 #include <linux/stdarg.h>
 #include <linux/string.h>
@@ -16,6 +17,7 @@
 #include "diagnostics.h"
 
 #define REGISTER_TYPE_SAFETY "Register Type Safety"
+#define MEMORY_SAFETY "Memory Safety"
 
 #define BPF_DIAG_TEXT_WIDTH 100
 #define BPF_DIAG_TEXT_INDENT "  "
@@ -1164,6 +1166,18 @@ void bpf_diag_stack_arg_uninit(struct bpf_verifier_env *env, u32 insn_idx, int n
 		env, "Write the outgoing stack argument after any operation that may invalidate stored pointer values, and before making this call.");
 }
 
+void bpf_diag_memory(struct bpf_verifier_env *env, u32 insn_idx, const char *problem,
+		     const char *reason, const char *suggestion)
+{
+	bpf_diag_header(env, MEMORY_SAFETY, problem);
+	diag_reason(env, "%s", reason);
+
+	diag_section(env, "At");
+	bpf_diag_source(env, insn_idx, "error", "%s", problem);
+
+	diag_suggestion(env, "%s", suggestion);
+}
+
 void bpf_diag_record_branch(struct bpf_verifier_env *env, u32 insn_idx, bool cond_true)
 {
 	struct bpf_diag_history_event event = {
@@ -1655,6 +1669,70 @@ static const char *diag_scalar_range(struct bpf_verifier_env *env, struct cnum64
 			    diag_s64_str(env, cnum64_smax(range)),
 			    diag_u64_str(env, cnum64_umin(range)),
 			    diag_u64_str(env, cnum64_umax(range)));
+}
+
+const char *bpf_diag_fmt_s64_sum(struct bpf_verifier_env *env, s64 value, int addend)
+{
+	s64 sum;
+
+	if (check_add_overflow(value, (s64)addend, &sum))
+		return bpf_diag_fmt(env, "%lld plus %d (%s)", value, addend,
+				    addend < 0 ? "below S64_MIN" : "above S64_MAX");
+
+	return bpf_diag_fmt(env, "%lld", sum);
+}
+
+static const char *diag_access_offset(struct bpf_verifier_env *env, int off,
+				      const struct bpf_reg_state *reg)
+{
+	if (tnum_is_const(reg->var_off))
+		return bpf_diag_fmt(env, "constant %s",
+				    bpf_diag_fmt_s64_sum(env, (s64)reg->var_off.value, off));
+
+	if (tnum_is_unknown(reg->var_off) && diag_cnum64_unknown(reg->r64))
+		return bpf_diag_fmt(env, "unbounded");
+
+	if (off)
+		return bpf_diag_fmt(env,
+			"variable: known bits %#llx, unknown mask %#llx, plus fixed offset %d; %s",
+			(u64)reg->var_off.value, reg->var_off.mask, off,
+			diag_scalar_range(env, reg->r64));
+	return bpf_diag_fmt(env, "variable: known bits %#llx, unknown mask %#llx; %s",
+			    (u64)reg->var_off.value, reg->var_off.mask,
+			    diag_scalar_range(env, reg->r64));
+}
+
+void bpf_diag_mem_bounds(struct bpf_verifier_env *env, u32 insn_idx, int regno,
+			 const char *reg_name, const char *type_name, const char *proof,
+			 int off, int size, u32 mem_size, const struct bpf_reg_state *reg)
+{
+	const struct bpf_func_state *frame = diag_current_frame(env);
+	struct bpf_diag_history_opts opts = {
+		.scope = BPF_DIAG_HISTORY_SCOPE_REG,
+		.frame_id = frame->diag_frame_id,
+		.frameno = frame->frameno,
+		.regno = regno,
+	};
+	const char *offset_desc;
+
+	if (!bpf_diag_enabled(env))
+		return;
+
+	offset_desc = diag_access_offset(env, off, reg);
+
+	bpf_diag_header(env, MEMORY_SAFETY, "access outside bounds");
+	diag_reason(
+		env, "The verifier cannot prove offset + access_size <= object_size. Here, %s. %s is %s; offset is %s; access_size is %d; object_size is %u.",
+		proof, reg_name, type_name, offset_desc, size, mem_size);
+
+	diag_section(env, "At");
+	bpf_diag_source(env, insn_idx, "error", "access may be outside object bounds");
+
+	if (regno >= 0)
+		diag_print_history(env, &opts);
+
+	diag_suggestion(
+		env, "Add or adjust a bounds check that proves offset + access_size stays within the object.");
 }
 
 static const char *diag_var_offset(struct bpf_verifier_env *env,
