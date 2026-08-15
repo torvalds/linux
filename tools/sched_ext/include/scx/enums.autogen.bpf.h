@@ -34,6 +34,9 @@ const volatile u64 __SCX_RQ_IN_WAKEUP __weak;
 const volatile u64 __SCX_RQ_IN_BALANCE __weak;
 #define SCX_RQ_IN_BALANCE __SCX_RQ_IN_BALANCE
 
+const volatile u64 __SCX_RQ_IN_DISPATCH __weak;
+#define SCX_RQ_IN_DISPATCH __SCX_RQ_IN_DISPATCH
+
 const volatile u64 __SCX_DSQ_FLAG_BUILTIN __weak;
 #define SCX_DSQ_FLAG_BUILTIN __SCX_DSQ_FLAG_BUILTIN
 

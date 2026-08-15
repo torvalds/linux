@@ -918,7 +918,7 @@ static u64 calc_effective_caps(struct scx_pshard *ps, s32 cid)
  * @cid: cid to update
  *
  * Queue an ecaps update for @sch's @cid and kick the cpu so that it syncs in
- * balance_one().
+ * dispatch_one().
  */
 static void queue_sync_ecaps(struct scx_sched *sch, s32 cid)
 {
@@ -953,7 +953,7 @@ static void discard_queued_syncs(struct rq *rq)
 /**
  * scx_process_sync_ecaps - Sync this cpu's ecaps to pshard->caps[]
  * @rq: the cid's cpu rq
- * @prev: @rq's previous task from the in-progress balance
+ * @prev: @rq's previous task from the in-progress dispatch
  *
  * pshard->caps[] is the target configuration. pcpu->ecaps is the effective
  * transposed copy owned by the cid's cpu and written only here under @rq's
@@ -1069,7 +1069,7 @@ void scx_process_sync_ecaps(struct rq *rq, struct task_struct *prev)
  * sync when bypass lifts, so without a replay a cid that never changes again
  * would never be notified. The attach-time initial grants are the acute case
  * as they are consumed during the enable bypass window. Re-queue a sync for
- * any undelivered delta so the next balance delivers it.
+ * any undelivered delta so the next dispatch delivers it.
  */
 void scx_unbypass_replay_ecaps(struct rq *rq, struct scx_sched *sch)
 {
@@ -2248,7 +2248,7 @@ __bpf_kfunc bool scx_bpf_sub_dispatch(u64 cgroup_id, const struct bpf_prog_aux *
 	/*
 	 * Skip a child that does not effectively hold the base cap on this cpu:
 	 * its inserts would only be rejected. ecaps are synced at the top of
-	 * balance_one() before dispatch, so this reflects the in-effect state.
+	 * dispatch_one() before dispatch, so this reflects the in-effect state.
 	 */
 	if (scx_missing_caps(child, cpu_of(rq), SCX_CAP_BASE))
 		return false;
