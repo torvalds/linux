@@ -835,6 +835,85 @@ static int tcf_tunnel_key_offload_act_setup(struct tc_action *act,
 	return 0;
 }
 
+static size_t
+tunnel_key_geneve_opts_fill_size(const struct ip_tunnel_info *info)
+{
+	const u8 *src = ip_tunnel_info_opts(info);
+	int len = info->options_len;
+	size_t size = 0;
+
+	while (len > 0) {
+		const struct geneve_opt *opt = (const struct geneve_opt *)src;
+
+		/* TCA_TUNNEL_KEY_ENC_OPT_GENEVE_{CLASS,TYPE,DATA} */
+		size += nla_total_size(2)
+			+ nla_total_size(1)
+			+ nla_total_size(opt->length * 4);
+
+		len -= sizeof(struct geneve_opt) + opt->length * 4;
+		src += sizeof(struct geneve_opt) + opt->length * 4;
+	}
+
+	return size;
+}
+
+static size_t tunnel_key_opts_fill_size(const struct ip_tunnel_info *info)
+{
+	size_t size;
+
+	if (!info->options_len)
+		return 0;
+
+	/* TCA_TUNNEL_KEY_ENC_OPTS and the per-protocol nest inside it */
+	size = nla_total_size(0) + nla_total_size(0);
+
+	if (test_bit(IP_TUNNEL_GENEVE_OPT_BIT, info->key.tun_flags)) {
+		size += tunnel_key_geneve_opts_fill_size(info);
+	} else if (test_bit(IP_TUNNEL_VXLAN_OPT_BIT, info->key.tun_flags)) {
+		/* TCA_TUNNEL_KEY_ENC_OPT_VXLAN_GBP */
+		size += nla_total_size(sizeof(u32));
+	} else if (test_bit(IP_TUNNEL_ERSPAN_OPT_BIT, info->key.tun_flags)) {
+		/* TCA_TUNNEL_KEY_ENC_OPT_ERSPAN_{VER,INDEX,DIR,HWID} */
+		size += nla_total_size(sizeof(u8))
+			+ nla_total_size(sizeof(__be32))
+			+ nla_total_size(sizeof(u8))
+			+ nla_total_size(sizeof(u8));
+	}
+
+	return size;
+}
+
+static size_t tunnel_key_get_fill_size(const struct tc_action *act)
+{
+	struct tcf_tunnel_key *t = to_tunnel_key(act);
+	const struct tcf_tunnel_key_params *params;
+	/* TCA_TUNNEL_KEY_PARMS */
+	size_t size = nla_total_size(sizeof(struct tc_tunnel_key));
+
+	rcu_read_lock();
+	params = rcu_dereference(t->params);
+	if (params->tcft_action == TCA_TUNNEL_KEY_ACT_SET) {
+		const struct ip_tunnel_info *info =
+			&params->tcft_enc_metadata->u.tun_info;
+
+		/* In dump order: TCA_TUNNEL_KEY_ENC_KEY_ID, the IPv6 address
+		 * pair (larger than the IPv4 one), ..._ENC_DST_PORT,
+		 * ..._NO_CSUM, ..._NO_FRAG, the options and ..._ENC_{TOS,TTL}.
+		 */
+		size += nla_total_size(sizeof(__be32))
+			+ 2 * nla_total_size(sizeof(struct in6_addr))
+			+ nla_total_size(sizeof(__be16))
+			+ nla_total_size(sizeof(u8))
+			+ nla_total_size(0)
+			+ tunnel_key_opts_fill_size(info)
+			+ nla_total_size(sizeof(u8))
+			+ nla_total_size(sizeof(u8));
+	}
+	rcu_read_unlock();
+
+	return size;
+}
+
 static struct tc_action_ops act_tunnel_key_ops = {
 	.kind		=	"tunnel_key",
 	.id		=	TCA_ID_TUNNEL_KEY,
@@ -843,6 +922,7 @@ static struct tc_action_ops act_tunnel_key_ops = {
 	.dump		=	tunnel_key_dump,
 	.init		=	tunnel_key_init,
 	.cleanup	=	tunnel_key_release,
+	.get_fill_size	=	tunnel_key_get_fill_size,
 	.offload_act_setup =	tcf_tunnel_key_offload_act_setup,
 	.size		=	sizeof(struct tcf_tunnel_key),
 };

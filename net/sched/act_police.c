@@ -490,6 +490,17 @@ static int tcf_police_offload_act_setup(struct tc_action *act, void *entry_data,
 	return 0;
 }
 
+static size_t tcf_police_get_fill_size(const struct tc_action *act)
+{
+	return nla_total_size(sizeof(struct tc_police)) /* TCA_POLICE_TBF */
+		+ nla_total_size_64bit(sizeof(u64)) /* TCA_POLICE_RATE64 */
+		+ nla_total_size_64bit(sizeof(u64)) /* TCA_POLICE_PEAKRATE64 */
+		+ nla_total_size_64bit(sizeof(u64)) /* TCA_POLICE_PKTRATE64 */
+		+ nla_total_size_64bit(sizeof(u64)) /* TCA_POLICE_PKTBURST64 */
+		+ nla_total_size(sizeof(u32)) /* TCA_POLICE_RESULT */
+		+ nla_total_size(sizeof(u32)); /* TCA_POLICE_AVRATE */
+}
+
 MODULE_AUTHOR("Alexey Kuznetsov");
 MODULE_DESCRIPTION("Policing actions");
 MODULE_LICENSE("GPL");
@@ -503,6 +514,7 @@ static struct tc_action_ops act_police_ops = {
 	.dump		=	tcf_police_dump,
 	.init		=	tcf_police_init,
 	.cleanup	=	tcf_police_cleanup,
+	.get_fill_size	=	tcf_police_get_fill_size,
 	.offload_act_setup =	tcf_police_offload_act_setup,
 	.size		=	sizeof(struct tcf_police),
 };
