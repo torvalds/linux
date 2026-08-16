@@ -63,6 +63,7 @@ long rbtree_refcounted_node_ref_escapes(void *ctx)
 
 SEC("?tc")
 __failure __msg("Possibly NULL pointer passed to trusted R1")
+__msg("requires a non-NULL value of type (void *)")
 long refcount_acquire_maybe_null(void *ctx)
 {
 	struct node_acquire *n, *m;
@@ -78,6 +79,14 @@ long refcount_acquire_maybe_null(void *ctx)
 		bpf_obj_drop(n);
 
 	return 0;
+}
+
+SEC("?tc")
+__failure __msg("R1 is neither owning or non-owning ref")
+__msg("expects a pointer to a BPF-managed refcounted object, but R1 is a context pointer")
+long refcount_acquire_non_object(void *ctx)
+{
+	return bpf_refcount_acquire(ctx) != NULL;
 }
 
 SEC("?tc")

@@ -1590,6 +1590,7 @@ __u32 hdr_size = sizeof(struct ethhdr);
 /* Can't pass in variable-sized len to bpf_dynptr_slice */
 SEC("?tc")
 __failure __msg("must be a known constant")
+__msg("requires this memory size to be a verifier-known constant")
 int dynptr_slice_var_len1(struct __sk_buff *skb)
 {
 	struct bpf_dynptr ptr;
@@ -1609,6 +1610,7 @@ int dynptr_slice_var_len1(struct __sk_buff *skb)
 /* Can't pass in variable-sized len to bpf_dynptr_slice */
 SEC("?tc")
 __failure __msg("must be a known constant")
+__msg("requires this memory size to be a verifier-known constant")
 int dynptr_slice_var_len2(struct __sk_buff *skb)
 {
 	char buffer[sizeof(struct ethhdr)] = {};
