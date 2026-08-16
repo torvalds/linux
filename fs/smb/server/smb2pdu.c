@@ -11817,18 +11817,27 @@ int smb3_decrypt_req(struct ksmbd_work *work)
 	char *buf = work->request_buf;
 	unsigned int pdu_length = get_rfc1002_len(buf);
 	struct kvec iov[2];
-	int buf_data_size = pdu_length - sizeof(struct smb2_transform_hdr);
+	unsigned int buf_data_size;
 	struct smb2_transform_hdr *tr_hdr = smb_get_msg(buf);
+	unsigned int original_msg_size;
 	int rc = 0;
 
-	if (pdu_length < sizeof(struct smb2_transform_hdr) ||
-	    buf_data_size < sizeof(struct smb2_hdr)) {
+	if (pdu_length < sizeof(struct smb2_transform_hdr)) {
 		pr_err("Transform message is too small (%u)\n",
 		       pdu_length);
 		return -ECONNABORTED;
 	}
 
-	if (buf_data_size < le32_to_cpu(tr_hdr->OriginalMessageSize)) {
+	buf_data_size = pdu_length - sizeof(struct smb2_transform_hdr);
+	original_msg_size = le32_to_cpu(tr_hdr->OriginalMessageSize);
+	if (buf_data_size < sizeof(struct smb2_compression_hdr) ||
+	    original_msg_size < sizeof(struct smb2_compression_hdr)) {
+		pr_err("Transform message is too small (%u)\n",
+		       pdu_length);
+		return -ECONNABORTED;
+	}
+
+	if (buf_data_size < original_msg_size) {
 		pr_err("Transform message is broken\n");
 		return -ECONNABORTED;
 	}
@@ -11841,8 +11850,9 @@ int smb3_decrypt_req(struct ksmbd_work *work)
 	if (rc)
 		return rc;
 
-	memmove(buf + 4, iov[1].iov_base, buf_data_size);
-	*(__be32 *)buf = cpu_to_be32(buf_data_size);
+	/* Drop the AEAD authentication tag from the inner RFC1002 frame. */
+	memmove(buf + 4, iov[1].iov_base, original_msg_size);
+	*(__be32 *)buf = cpu_to_be32(original_msg_size);
 
 	return rc;
 }

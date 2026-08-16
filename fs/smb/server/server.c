@@ -193,6 +193,28 @@ static void __handle_ksmbd_work(struct ksmbd_work *work,
 			return;
 		}
 		work->encrypted = true;
+
+		/*
+		 * SMB3 applies compression before encryption.  The receive loop
+		 * handles a plain compression transform before allocating work, but
+		 * an encrypted request exposes that transform only after decryption.
+		 */
+		if (((struct smb2_hdr *)smb_get_msg(work->request_buf))->ProtocolId ==
+		    SMB2_COMPRESSION_TRANSFORM_ID) {
+			rc = ksmbd_decompress_work_request(work);
+			if (rc < 0) {
+				ksmbd_conn_abort(conn);
+				return;
+			}
+		}
+
+		/* The decrypted payload must now be a complete SMB2 request. */
+		if (((struct smb2_hdr *)smb_get_msg(work->request_buf))->ProtocolId !=
+			SMB2_PROTO_NUMBER ||
+		    get_rfc1002_len(work->request_buf) < sizeof(struct smb2_pdu)) {
+			ksmbd_conn_abort(conn);
+			return;
+		}
 	}
 
 	if (conn->ops->allocate_rsp_buf(work))
