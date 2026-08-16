@@ -1116,8 +1116,6 @@ static int hws_bwc_send_queues_init(struct mlx5hws_context *ctx)
 	if (!mlx5hws_context_bwc_supported(ctx))
 		return 0;
 
-	ctx->queues += bwc_queues;
-
 	ctx->bwc_send_queue_locks = kzalloc_objs(*ctx->bwc_send_queue_locks,
 						 bwc_queues);
 
@@ -1128,6 +1126,8 @@ static int hws_bwc_send_queues_init(struct mlx5hws_context *ctx)
 						bwc_queues);
 	if (!ctx->bwc_lock_class_keys)
 		goto err_lock_class_keys;
+
+	ctx->queues += bwc_queues;
 
 	for (i = 0; i < bwc_queues; i++) {
 		mutex_init(&ctx->bwc_send_queue_locks[i]);
