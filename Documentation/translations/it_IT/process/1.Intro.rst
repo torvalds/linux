@@ -279,13 +279,13 @@ una versione 3 della licenza GPL nel prossimo futuro.
 
 È imperativo che tutto il codice che contribuisce al kernel sia legittimamente
 software libero.  Per questa ragione, un codice proveniente da un contributore
-anonimo (o sotto pseudonimo) non verrà accettato.  È richiesto a tutti i
-contributori di firmare il proprio codice, attestando così che quest'ultimo
-può essere distribuito insieme al kernel sotto la licenza GPL.  Il codice che
-non è stato licenziato come software libero dal proprio creatore, o che
-potrebbe creare problemi di copyright per il kernel (come il codice derivante
-da processi di ingegneria inversa senza le opportune tutele), non può essere
-diffuso.
+la cui identità non è nota, o da un contributore anonimo, non verrà accettato.
+È richiesto a tutti i contributori di firmare il proprio codice, attestando
+così che quest'ultimo può essere distribuito insieme al kernel sotto la licenza
+GPL.  Il codice che non è stato licenziato come software libero dal proprio
+creatore, o che potrebbe creare problemi di copyright per il kernel (come il
+codice derivante da processi di ingegneria inversa senza le opportune tutele),
+non può essere diffuso.
 
 Domande relative a questioni legate al copyright sono frequenti nelle liste
 di discussione dedicate allo sviluppo di Linux.  Tali quesiti, normalmente,

@@ -18,25 +18,22 @@ processo si svolge per poter esserne parte attiva.
 Il quadro d'insieme
 -------------------
 
-Gli sviluppatori kernel utilizzano un calendario di rilascio generico, dove
-ogni due o tre mesi viene effettuata un rilascio importante del kernel.
-I rilasci più recenti sono stati:
+Il kernel Linux utilizza un modello di sviluppo a rilascio continuo,
+vagamente basato sul tempo.  Un nuovo rilascio principale del kernel (che
+chiameremo, come esempio, 9.x) [1]_ avviene ogni due o tre mesi, e porta
+con sé nuove funzionalità, modifiche interne alle API e molto altro. Un
+tipico rilascio può contenere circa 13.000 gruppi di modifiche che toccano
+diverse centinaia di migliaia di righe di codice. I rilasci più recenti,
+assieme alle rispettive date, si possono trovare su `Wikipedia
+<https://en.wikipedia.org/wiki/Linux_kernel_version_history>`_.
 
-	======  =================
-	5.0     3 marzo, 2019
-	5.1     5 maggio, 2019
-	5.2     7 luglio, 2019
-	5.3     15 settembre, 2019
-	5.4     24 novembre, 2019
-	5.5     6 gennaio, 2020
-	======  =================
-
-Ciascun rilascio 5.x è un importante rilascio del kernel con nuove
-funzionalità, modifiche interne dell'API, e molto altro.  Un tipico
-rilascio contiene quasi 13,000 gruppi di modifiche con ulteriori
-modifiche a parecchie migliaia di linee di codice.  La 5.x. è pertanto la
-linea di confine nello sviluppo del kernel Linux; il kernel utilizza un sistema
-di sviluppo continuo che integra costantemente nuove importanti modifiche.
+.. [1] A rigor di termini, il kernel Linux non utilizza uno schema di
+       numerazione semantica delle versioni (semantic versioning), bensì
+       la coppia 9.x identifica la versione del rilascio principale come
+       numero intero. Per ogni rilascio, x viene incrementato, mentre
+       9 viene incrementato solo quando x è ritenuto sufficientemente
+       grande (per esempio, Linux 5.0 è stato rilasciato dopo Linux
+       4.20).
 
 Viene seguita una disciplina abbastanza lineare per l'inclusione delle
 patch di ogni rilascio. All'inizio di ogni ciclo di sviluppo, la
@@ -55,8 +52,8 @@ verrà descritto dettagliatamente più avanti).
 La finestra di inclusione resta attiva approssimativamente per due settimane.
 Al termine di questo periodo, Linus Torvald dichiarerà che la finestra è
 chiusa e rilascerà il primo degli "rc" del kernel.
-Per il kernel che è destinato ad essere 5.6, per esempio, il rilascio
-che emerge al termine della finestra d'inclusione si chiamerà 5.6-rc1.
+Per il kernel che è destinato ad essere 9.x, per esempio, il rilascio
+che emerge al termine della finestra d'inclusione si chiamerà 9.x-rc1.
 Questo rilascio indica che il momento di aggiungere nuovi componenti è
 passato, e che è iniziato il periodo di stabilizzazione del prossimo kernel.
 
@@ -109,17 +106,19 @@ tipo di perfezione difficilmente viene raggiunta; esistono troppe variabili
 in un progetto di questa portata.  Arriva un punto dove ritardare il rilascio
 finale peggiora la situazione; la quantità di modifiche in attesa della
 prossima finestra di inclusione crescerà enormemente, creando ancor più
-regressioni al giro successivo.  Quindi molti kernel 5.x escono con una
+regressioni al giro successivo.  Quindi molti kernel escono con una
 manciata di regressioni delle quali, si spera, nessuna è grave.
 
 Una volta che un rilascio stabile è fatto, il suo costante mantenimento è
-affidato al "squadra stabilità", attualmente composta da Greg Kroah-Hartman.
-Questa squadra rilascia occasionalmente degli aggiornamenti relativi al
-rilascio stabile usando la numerazione 5.x.y.  Per essere presa in
-considerazione per un rilascio d'aggiornamento, una modifica deve:
-(1) correggere un baco importante (2) essere già inserita nel ramo principale
-per il prossimo sviluppo del kernel.  Solitamente, passato il loro rilascio
-iniziale, i kernel ricevono aggiornamenti per più di un ciclo di sviluppo.
+affidato alla "squadra stabilità", attualmente composta da Greg Kroah-Hartman
+e Sasha Levin. Questa squadra rilascia occasionalmente degli aggiornamenti
+relativi al rilascio stabile usando la numerazione 9.x.y.
+
+Per essere presa in considerazione per un rilascio d'aggiornamento, una
+modifica deve: (1) correggere un baco importante (2) essere già inserita nel
+ramo principale per il prossimo sviluppo del kernel.  Solitamente, passato il
+loro rilascio iniziale, i kernel ricevono aggiornamenti per più di un ciclo di
+sviluppo.
 Quindi, per esempio, la storia del kernel 5.2 appare così (anno 2019):
 
 	==============  ===============================
@@ -314,7 +313,7 @@ the moment) all'indirizzo:
 frustrante; ci sono buone probabilità che non compili nemmeno.
 
 I sorgenti principali per il prossimo ciclo d'integrazione delle patch
-è linux-next, gestito da Stephen Rothwell.  I sorgenti linux-next sono, per
+è linux-next, gestito da Mark Brown.  I sorgenti linux-next sono, per
 definizione, un'istantanea di come dovrà apparire il ramo principale dopo che
 la prossima finestra di inclusione si chiuderà.  I linux-next sono annunciati
 sulla lista di discussione linux-kernel e linux-next nel momento in cui

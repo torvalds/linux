@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 :Original: Documentation/process/maintainers.rst
 
 Lista dei manutentori e come inviare modifiche al kernel
