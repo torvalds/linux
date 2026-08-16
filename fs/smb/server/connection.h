@@ -139,6 +139,9 @@ struct ksmbd_conn {
 	/* Negotiated SMB 3.1.1 compression capabilities. */
 	bool				compress_chained;
 	bool				compress_pattern;
+	/* Bitmap indexed by SMB2_RDMA_TRANSFORM_* IDs. */
+	unsigned long			rdma_transform_ids;
+	bool				rdma_transform_negotiated;
 	bool				posix_ext_supported;
 	bool				signing_negotiated;
 	__le16				signing_algorithm;

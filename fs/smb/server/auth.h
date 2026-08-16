@@ -38,6 +38,10 @@ struct kvec;
 
 int ksmbd_crypt_message(struct ksmbd_work *work, struct kvec *iov,
 			unsigned int nvec, int enc);
+int ksmbd_crypt_rdma(struct ksmbd_conn *conn, const u8 *key,
+		     void *buf, unsigned int buflen, const u8 *nonce,
+		     unsigned int nonce_len, u8 *tag, unsigned int tag_len,
+		     bool enc);
 void ksmbd_copy_gss_neg_header(void *buf);
 int ksmbd_auth_ntlmv2(struct ksmbd_conn *conn, struct ksmbd_session *sess,
 		      struct ntlmv2_resp *ntlmv2, int blen, char *domain_name,

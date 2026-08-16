@@ -77,6 +77,8 @@ static void proc_show_conn_features(struct seq_file *m,
 	proc_show_conn_feature(m, &separator,
 			       conn->compress_algorithm != SMB3_COMPRESS_NONE,
 			       "compress");
+	proc_show_conn_feature(m, &separator, conn->rdma_transform_ids,
+			       "rdma-transform");
 	proc_show_conn_feature(m, &separator, conn->posix_ext_supported, "posix");
 	if (!separator)
 		seq_puts(m, "none");

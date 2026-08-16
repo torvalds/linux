@@ -743,6 +743,28 @@ struct smb2_close_rsp {
 #define SMB2_CHANNEL_RDMA_V1_INVALIDATE cpu_to_le32(0x00000002)
 #define SMB2_CHANNEL_RDMA_TRANSFORM     cpu_to_le32(0x00000003)
 
+/* See MS-SMB2 2.2.43. */
+struct smb2_rdma_transform {
+	__le16 RdmaDescriptorOffset;
+	__le16 RdmaDescriptorLength;
+	__le32 Channel;
+	__le16 TransformCount;
+	__le16 Reserved1;
+	__le32 Reserved2;
+} __packed;
+
+#define SMB2_RDMA_TRANSFORM_TYPE_ENCRYPTION	0x0001
+#define SMB2_RDMA_TRANSFORM_TYPE_SIGNING	0x0002
+
+struct smb2_rdma_crypto_transform {
+	__le16 TransformType;
+	__le16 SignatureLength;
+	__le16 NonceLength;
+	__le16 Reserved;
+	__u8 Signature[];
+	/* Followed by Nonce[] and optional alignment padding. */
+} __packed;
+
 /* SMB2 read request without RFC1001 length at the beginning */
 struct smb2_read_req {
 	struct smb2_hdr hdr;

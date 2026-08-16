@@ -1356,6 +1356,37 @@ static void build_compress_ctxt(struct smb2_compression_capabilities_context *pn
 	pneg_ctxt->CompressionAlgorithms[3] = 0;
 }
 
+/**
+ * build_rdma_ctx() - build an RDMA transform negotiate response context
+ * @ctxt: response context header to populate
+ * @transform_ids: bitmap of transforms common to the client and server
+ *
+ * Return: encoded negotiate context length
+ */
+static int build_rdma_ctx(struct smb2_neg_context *ctxt,
+			  unsigned long transform_ids)
+{
+	struct smb2_rdma_transform_capabilities_context *pneg_ctxt;
+	int count = 0;
+
+	pneg_ctxt = (void *)ctxt;
+	pneg_ctxt->ContextType = SMB2_RDMA_TRANSFORM_CAPABILITIES;
+	pneg_ctxt->Reserved = 0;
+	pneg_ctxt->Reserved1 = 0;
+	pneg_ctxt->Reserved2 = 0;
+	if (transform_ids & BIT(SMB2_RDMA_TRANSFORM_ENCRYPTION))
+		pneg_ctxt->RDMATransformIds[count++] =
+			cpu_to_le16(SMB2_RDMA_TRANSFORM_ENCRYPTION);
+	if (!count)
+		pneg_ctxt->RDMATransformIds[count++] =
+			cpu_to_le16(SMB2_RDMA_TRANSFORM_NONE);
+
+	pneg_ctxt->TransformCount = cpu_to_le16(count);
+	pneg_ctxt->DataLength = cpu_to_le16(8 + count * sizeof(__le16));
+	return sizeof(struct smb2_neg_context) +
+		le16_to_cpu(pneg_ctxt->DataLength);
+}
+
 static void build_sign_cap_ctxt(struct smb2_signing_capabilities *pneg_ctxt,
 				__le16 sign_algo)
 {
@@ -1429,6 +1460,18 @@ static unsigned int assemble_neg_contexts(struct ksmbd_conn *conn,
 		neg_ctxt_cnt++;
 		ctxt_size += sizeof(struct smb2_neg_context) +
 			(conn->compress_pattern ? 12 : 10);
+	}
+
+	if (conn->rdma_transform_negotiated) {
+		struct smb2_neg_context *rdma_ctxt;
+
+		ctxt_size = round_up(ctxt_size, 8);
+		ksmbd_debug(SMB,
+			    "assemble SMB2_RDMA_TRANSFORM_CAPABILITIES context\n");
+		rdma_ctxt = (void *)(pneg_ctxt + ctxt_size);
+		ctxt_size += build_rdma_ctx(rdma_ctxt,
+					     conn->rdma_transform_ids);
+		neg_ctxt_cnt++;
 	}
 
 	if (conn->posix_ext_supported) {
@@ -1631,6 +1674,46 @@ static void decode_sign_cap_ctxt(struct ksmbd_conn *conn,
 	}
 }
 
+/**
+ * decode_rdma_ctx() - decode an RDMA transform negotiate request context
+ * @conn: connection being negotiated
+ * @ctxt: request context header to decode
+ * @ctxt_len: total context length, including the negotiate context header
+ *
+ * Record transforms supported by both peers only for SMB Direct connections.
+ *
+ * Return: NT status describing the decode result
+ */
+static __le32 decode_rdma_ctx(struct ksmbd_conn *conn,
+			      struct smb2_neg_context *ctxt, int ctxt_len)
+{
+	struct smb2_rdma_transform_capabilities_context *pneg_ctxt;
+	unsigned int count, i;
+
+	pneg_ctxt = (void *)ctxt;
+	/* RDMA transforms are a node capability, not just a transport capability. */
+	if (!ksmbd_rdma_enabled())
+		return STATUS_SUCCESS;
+
+	if (ctxt_len < sizeof(*pneg_ctxt))
+		return STATUS_INVALID_PARAMETER;
+
+	count = le16_to_cpu(pneg_ctxt->TransformCount);
+	if (!count || count >
+	    (ctxt_len - sizeof(*pneg_ctxt)) / sizeof(__le16))
+		return STATUS_INVALID_PARAMETER;
+
+	conn->rdma_transform_negotiated = true;
+	conn->rdma_transform_ids = 0;
+	for (i = 0; i < count; i++) {
+		u16 id = le16_to_cpu(pneg_ctxt->RDMATransformIds[i]);
+
+		if (id == SMB2_RDMA_TRANSFORM_ENCRYPTION)
+			conn->rdma_transform_ids |= BIT(id);
+	}
+	return STATUS_SUCCESS;
+}
+
 static __le32 deassemble_neg_contexts(struct ksmbd_conn *conn,
 				      struct smb2_negotiate_req *req,
 				      unsigned int len_of_smb)
@@ -1641,7 +1724,7 @@ static __le32 deassemble_neg_contexts(struct ksmbd_conn *conn,
 	unsigned int offset = le32_to_cpu(req->NegotiateContextOffset);
 	unsigned int neg_ctxt_cnt = le16_to_cpu(req->NegotiateContextCount);
 	__le32 status = STATUS_INVALID_PARAMETER;
-	int compress_ctxt_cnt = 0;
+	int compress_ctxt_cnt = 0, rdma_transform_ctxt_cnt = 0;
 
 	ksmbd_debug(SMB, "decoding %d negotiate contexts\n", neg_ctxt_cnt);
 	if (len_of_smb <= offset) {
@@ -1700,6 +1783,17 @@ static __le32 deassemble_neg_contexts(struct ksmbd_conn *conn,
 		} else if (pctx->ContextType == SMB2_NETNAME_NEGOTIATE_CONTEXT_ID) {
 			ksmbd_debug(SMB,
 				    "deassemble SMB2_NETNAME_NEGOTIATE_CONTEXT_ID context\n");
+		} else if (pctx->ContextType == SMB2_RDMA_TRANSFORM_CAPABILITIES) {
+			ksmbd_debug(SMB,
+				    "deassemble SMB2_RDMA_TRANSFORM_CAPABILITIES context\n");
+			if (ksmbd_rdma_enabled() &&
+			    rdma_transform_ctxt_cnt++) {
+				status = STATUS_INVALID_PARAMETER;
+				break;
+			}
+			status = decode_rdma_ctx(conn, pctx, ctxt_len);
+			if (status != STATUS_SUCCESS)
+				break;
 		} else if (pctx->ContextType == SMB2_POSIX_EXTENSIONS_AVAILABLE) {
 			ksmbd_debug(SMB,
 				    "deassemble SMB2_POSIX_EXTENSIONS_AVAILABLE context\n");
@@ -1807,6 +1901,9 @@ int smb2_handle_negotiate(struct ksmbd_work *work)
 			conn->preauth_info = NULL;
 			goto err_out;
 		}
+		if (!conn->cipher_type)
+			conn->rdma_transform_ids &=
+				~BIT(SMB2_RDMA_TRANSFORM_ENCRYPTION);
 
 		rc = init_smb3_11_server(conn);
 		if (rc < 0) {
@@ -8553,18 +8650,31 @@ out:
 	return err;
 }
 
-static int smb2_set_remote_key_for_rdma(struct ksmbd_work *work,
-					struct smbdirect_buffer_descriptor_v1 *desc,
-					__le32 Channel,
-					__le16 ChannelInfoLength)
+/**
+ * smb2_set_rdma_key() - validate descriptors and save invalidation state
+ * @work: request work item
+ * @desc: first RDMA buffer descriptor
+ * @Channel: nested RDMA channel type
+ * @channel_info_len: descriptor array length
+ *
+ * Return: 0 on success, otherwise -EINVAL
+ */
+static int smb2_set_rdma_key(struct ksmbd_work *work,
+			     struct smbdirect_buffer_descriptor_v1 *desc,
+			     __le32 Channel, __le16 channel_info_len)
 {
 	unsigned int i, ch_count;
 
+	if (Channel != SMB2_CHANNEL_RDMA_V1 &&
+	    Channel != SMB2_CHANNEL_RDMA_V1_INVALIDATE)
+		return -EINVAL;
 	if (work->conn->dialect == SMB30_PROT_ID &&
 	    Channel != SMB2_CHANNEL_RDMA_V1)
 		return -EINVAL;
+	if (le16_to_cpu(channel_info_len) % sizeof(*desc))
+		return -EINVAL;
 
-	ch_count = le16_to_cpu(ChannelInfoLength) / sizeof(*desc);
+	ch_count = le16_to_cpu(channel_info_len) / sizeof(*desc);
 	if (ksmbd_debug_types & KSMBD_DEBUG_RDMA) {
 		for (i = 0; i < ch_count; i++) {
 			pr_info("RDMA r/w request %#x: token %#x, length %#x\n",
@@ -8583,9 +8693,223 @@ static int smb2_set_remote_key_for_rdma(struct ksmbd_work *work,
 	return 0;
 }
 
-static ssize_t smb2_read_rdma_channel(struct ksmbd_work *work,
-				      struct smb2_read_req *req, void *data_buf,
-				      size_t length)
+/**
+ * smb2_prep_rdma_read() - transform an RDMA READ payload
+ * @work: request work item
+ * @req: READ request controlling encryption or signing
+ * @rsp: READ response receiving transform metadata
+ * @data: data that will be transferred through RDMA
+ * @datalen: data length
+ *
+ * Encrypt the payload in place and encode the detached crypto metadata in
+ * the response buffer.
+ *
+ * Return: metadata length, zero when no transform applies, or negative errno
+ */
+static int smb2_prep_rdma_read(struct ksmbd_work *work,
+			       struct smb2_read_req *req,
+			       struct smb2_read_rsp *rsp,
+			       void *data, unsigned int datalen)
+{
+	struct ksmbd_conn *conn = work->conn;
+	struct smb2_rdma_transform *transform;
+	struct smb2_rdma_crypto_transform *crypto;
+	u8 *nonce;
+	unsigned int nonce_len = 0, transform_len;
+	u16 transform_type;
+	int err;
+
+	if (work->encrypted &&
+	    (conn->rdma_transform_ids & BIT(SMB2_RDMA_TRANSFORM_ENCRYPTION))) {
+		transform_type = SMB2_RDMA_TRANSFORM_TYPE_ENCRYPTION;
+		nonce_len = (conn->cipher_type == SMB2_ENCRYPTION_AES128_GCM ||
+			     conn->cipher_type == SMB2_ENCRYPTION_AES256_GCM) ?
+			SMB3_AES_GCM_NONCE : SMB3_AES_CCM_NONCE;
+	} else {
+		return 0;
+	}
+
+	transform = (struct smb2_rdma_transform *)rsp->Buffer;
+	crypto = (struct smb2_rdma_crypto_transform *)(transform + 1);
+	memset(transform, 0, sizeof(*transform) + sizeof(*crypto) +
+	       SMB2_SIGNATURE_SIZE + nonce_len);
+	transform->Channel = SMB2_CHANNEL_NONE;
+	transform->TransformCount = cpu_to_le16(1);
+
+	crypto->TransformType = cpu_to_le16(transform_type);
+	crypto->SignatureLength = cpu_to_le16(SMB2_SIGNATURE_SIZE);
+	crypto->NonceLength = cpu_to_le16(nonce_len);
+	nonce = crypto->Signature + SMB2_SIGNATURE_SIZE;
+
+	get_random_bytes(nonce, nonce_len);
+	err = ksmbd_crypt_rdma(conn,
+			       work->sess->smb3encryptionkey,
+			       data, datalen, nonce, nonce_len,
+			       crypto->Signature,
+			       SMB2_SIGNATURE_SIZE, true);
+	if (err)
+		return err;
+
+	transform_len = sizeof(*transform) + sizeof(*crypto) +
+		SMB2_SIGNATURE_SIZE + nonce_len;
+	rsp->Flags = SMB2_READFLAG_RESPONSE_RDMA_TRANSFORM;
+	rsp->DataLength = cpu_to_le32(transform_len);
+	return transform_len;
+}
+
+struct smb2_rdma_write_transform {
+	struct smbdirect_buffer_descriptor_v1 *desc;
+	struct smb2_rdma_crypto_transform *crypto;
+	u8 *nonce;
+	unsigned int desc_len;
+	unsigned int nonce_len;
+	unsigned int signature_len;
+	u16 type;
+	__le32 channel;
+};
+
+/**
+ * smb2_current_req_len() - return the current compound request element size
+ * @work: request work item
+ * @hdr: current SMB2 header
+ *
+ * Return: current request element length measured from the SMB2 header
+ */
+static unsigned int smb2_current_req_len(struct ksmbd_work *work,
+					 struct smb2_hdr *hdr)
+{
+	if (hdr->NextCommand)
+		return le32_to_cpu(hdr->NextCommand);
+	return get_rfc1002_len(work->request_buf) -
+		work->next_smb2_rcv_hdr_off;
+}
+
+/**
+ * check_rdma_desc() - validate an RDMA descriptor array
+ * @desc: descriptor array
+ * @desc_len: descriptor array length
+ * @required_len: minimum aggregate buffer length
+ *
+ * Return: 0 when the descriptors cover the transfer, otherwise -EINVAL
+ */
+static int check_rdma_desc(struct smbdirect_buffer_descriptor_v1 *desc,
+			   unsigned int desc_len,
+			   unsigned int required_len)
+{
+	unsigned int i, count;
+	u64 described_len = 0;
+
+	if (!desc_len || desc_len % sizeof(*desc))
+		return -EINVAL;
+	count = desc_len / sizeof(*desc);
+	if (!le32_to_cpu(desc[0].length))
+		return -EINVAL;
+	for (i = 0; i < count; i++)
+		described_len += le32_to_cpu(desc[i].length);
+	return described_len < required_len ? -EINVAL : 0;
+}
+
+/**
+ * smb2_parse_rdma_write_transform() - validate RDMA WRITE transform metadata
+ * @work: request work item
+ * @req: WRITE request containing the transform
+ * @info: parsed transform information
+ *
+ * Validate transform counts, crypto fields, descriptor alignment and bounds,
+ * negotiated algorithms, and the nested RDMA channel.
+ *
+ * Return: 0 on success, otherwise a negative errno
+ */
+static int smb2_parse_rdma_write_transform(struct ksmbd_work *work,
+					   struct smb2_write_req *req,
+					   struct smb2_rdma_write_transform *info)
+{
+	struct smb2_rdma_transform *transform;
+	struct smb2_rdma_crypto_transform *crypto;
+	unsigned int req_len = smb2_current_req_len(work, &req->hdr);
+	unsigned int offset = le16_to_cpu(req->WriteChannelInfoOffset);
+	unsigned int length = le16_to_cpu(req->WriteChannelInfoLength);
+	unsigned int desc_offset, desc_len, crypto_len, expected_desc_offset;
+
+	if (!work->conn->rdma_transform_ids ||
+	    offset < offsetof(struct smb2_write_req, Buffer) ||
+	    length < sizeof(*transform) || offset > req_len ||
+	    length > req_len - offset)
+		return -EINVAL;
+
+	transform = (struct smb2_rdma_transform *)((char *)req + offset);
+	if (le16_to_cpu(transform->TransformCount) != 1 ||
+	    (transform->Channel != SMB2_CHANNEL_RDMA_V1 &&
+	     transform->Channel != SMB2_CHANNEL_RDMA_V1_INVALIDATE))
+		return -EINVAL;
+
+	desc_offset = le16_to_cpu(transform->RdmaDescriptorOffset);
+	desc_len = le16_to_cpu(transform->RdmaDescriptorLength);
+	if (!desc_len || desc_len % sizeof(*info->desc) ||
+	    desc_offset < sizeof(*transform) || desc_offset > length ||
+	    desc_len > length - desc_offset)
+		return -EINVAL;
+
+	crypto = (struct smb2_rdma_crypto_transform *)(transform + 1);
+	if (length - sizeof(*transform) < sizeof(*crypto))
+		return -EINVAL;
+	info->type = le16_to_cpu(crypto->TransformType);
+	info->signature_len = le16_to_cpu(crypto->SignatureLength);
+	info->nonce_len = le16_to_cpu(crypto->NonceLength);
+	if (!info->signature_len)
+		return info->type == SMB2_RDMA_TRANSFORM_TYPE_ENCRYPTION ?
+			-EBADMSG : -EINVAL;
+	if (info->signature_len > SMB2_SIGNATURE_SIZE)
+		return info->type == SMB2_RDMA_TRANSFORM_TYPE_ENCRYPTION ?
+			-EBADMSG : -EINVAL;
+	if (info->signature_len > length - sizeof(*transform) - sizeof(*crypto) ||
+	    info->nonce_len > length - sizeof(*transform) - sizeof(*crypto) -
+				 info->signature_len)
+		return -EINVAL;
+
+	crypto_len = sizeof(*crypto) + info->signature_len + info->nonce_len;
+	expected_desc_offset = ALIGN(sizeof(*transform) + crypto_len, 8);
+	if (desc_offset != expected_desc_offset)
+		return -EINVAL;
+
+	if (info->type == SMB2_RDMA_TRANSFORM_TYPE_ENCRYPTION) {
+		unsigned int expected_nonce_len;
+
+		if (!(work->conn->rdma_transform_ids &
+		      BIT(SMB2_RDMA_TRANSFORM_ENCRYPTION)) || !work->encrypted)
+			return -EINVAL;
+		expected_nonce_len =
+			(work->conn->cipher_type == SMB2_ENCRYPTION_AES128_GCM ||
+			 work->conn->cipher_type == SMB2_ENCRYPTION_AES256_GCM) ?
+			SMB3_AES_GCM_NONCE : SMB3_AES_CCM_NONCE;
+		if (info->nonce_len != expected_nonce_len)
+			return -EBADMSG;
+	} else {
+		return -EINVAL;
+	}
+
+	info->desc = (struct smbdirect_buffer_descriptor_v1 *)
+		((char *)transform + desc_offset);
+	info->desc_len = desc_len;
+	info->crypto = crypto;
+	info->nonce = crypto->Signature + info->signature_len;
+	info->channel = transform->Channel;
+	return check_rdma_desc(info->desc, info->desc_len,
+			       le32_to_cpu(req->RemainingBytes));
+}
+
+/**
+ * smb2_read_rdma() - transfer READ data to client RDMA buffers
+ * @work: request work item
+ * @req: READ request containing client descriptors
+ * @data_buf: data to transfer
+ * @length: data length
+ *
+ * Return: transferred length on success, otherwise a negative errno
+ */
+static ssize_t smb2_read_rdma(struct ksmbd_work *work,
+			      struct smb2_read_req *req, void *data_buf,
+			      size_t length)
 {
 	int err;
 
@@ -8615,6 +8939,7 @@ int smb2_read(struct ksmbd_work *work)
 	size_t length, mincount;
 	ssize_t nbytes = 0, remain_bytes = 0;
 	int err = 0;
+	int rdma_transform_len = 0;
 	bool is_rdma_channel = false, async_interim = false;
 	unsigned int max_read_size = conn->vals->max_read_size;
 	unsigned int id = KSMBD_NO_FID, pid = KSMBD_NO_FID;
@@ -8649,6 +8974,12 @@ int smb2_read(struct ksmbd_work *work)
 		pid = req->PersistentFileId;
 	}
 
+	if (req->Channel != SMB2_CHANNEL_NONE &&
+	    req->Channel != SMB2_CHANNEL_RDMA_V1 &&
+	    req->Channel != SMB2_CHANNEL_RDMA_V1_INVALIDATE) {
+		err = -EINVAL;
+		goto out;
+	}
 	if (req->Channel == SMB2_CHANNEL_RDMA_V1_INVALIDATE ||
 	    req->Channel == SMB2_CHANNEL_RDMA_V1) {
 		is_rdma_channel = true;
@@ -8661,16 +8992,24 @@ int smb2_read(struct ksmbd_work *work)
 
 	if (is_rdma_channel == true) {
 		unsigned int ch_offset = le16_to_cpu(req->ReadChannelInfoOffset);
+		unsigned int ch_len = le16_to_cpu(req->ReadChannelInfoLength);
+		unsigned int req_len = smb2_current_req_len(work, &req->hdr);
+		struct smbdirect_buffer_descriptor_v1 *desc;
 
-		if (ch_offset < offsetof(struct smb2_read_req, Buffer)) {
+		if (!le32_to_cpu(req->Length) ||
+		    ch_offset < offsetof(struct smb2_read_req, Buffer) ||
+		    ch_offset > req_len || ch_len > req_len - ch_offset) {
 			err = -EINVAL;
 			goto out;
 		}
-		err = smb2_set_remote_key_for_rdma(work,
-						   (struct smbdirect_buffer_descriptor_v1 *)
-						   ((char *)req + ch_offset),
-						   req->Channel,
-						   req->ReadChannelInfoLength);
+		desc = (struct smbdirect_buffer_descriptor_v1 *)
+			((char *)req + ch_offset);
+		err = check_rdma_desc(desc, ch_len, le32_to_cpu(req->Length));
+		if (err)
+			goto out;
+		err = smb2_set_rdma_key(work, desc,
+					req->Channel,
+					req->ReadChannelInfoLength);
 		if (err)
 			goto out;
 	}
@@ -8753,10 +9092,19 @@ int smb2_read(struct ksmbd_work *work)
 		    nbytes, offset, mincount);
 
 	if (is_rdma_channel == true) {
+		rdma_transform_len = smb2_prep_rdma_read(work, req,
+							 rsp,
+							 aux_payload_buf,
+							 nbytes);
+		if (rdma_transform_len < 0) {
+			kvfree(aux_payload_buf);
+			err = rdma_transform_len;
+			goto out;
+		}
 		/* write data to the client using rdma channel */
-		remain_bytes = smb2_read_rdma_channel(work, req,
-						      aux_payload_buf,
-						      nbytes);
+		remain_bytes = smb2_read_rdma(work, req,
+					      aux_payload_buf,
+					      nbytes);
 		kvfree(aux_payload_buf);
 		aux_payload_buf = NULL;
 		nbytes = 0;
@@ -8769,11 +9117,13 @@ int smb2_read(struct ksmbd_work *work)
 	rsp->StructureSize = cpu_to_le16(17);
 	rsp->DataOffset = 80;
 	rsp->Reserved = 0;
-	rsp->DataLength = cpu_to_le32(nbytes);
+	rsp->DataLength = cpu_to_le32(rdma_transform_len ?: nbytes);
 	rsp->DataRemaining = cpu_to_le32(remain_bytes);
-	rsp->Flags = 0;
+	rsp->Flags = rdma_transform_len ?
+		SMB2_READFLAG_RESPONSE_RDMA_TRANSFORM : 0;
 	err = ksmbd_iov_pin_rsp_read(work, (void *)rsp,
-				     offsetof(struct smb2_read_rsp, Buffer),
+				     offsetof(struct smb2_read_rsp, Buffer) +
+				     rdma_transform_len,
 				     aux_payload_buf, nbytes);
 	if (err) {
 		kvfree(aux_payload_buf);
@@ -8885,10 +9235,28 @@ out:
 	return err;
 }
 
-static ssize_t smb2_write_rdma_channel(struct ksmbd_work *work,
-				       struct smb2_write_req *req,
-				       struct ksmbd_file *fp,
-				       loff_t offset, size_t length, bool sync)
+/**
+ * smb2_write_rdma() - receive and store an RDMA WRITE payload
+ * @work: request work item
+ * @desc: client RDMA buffer descriptors
+ * @desc_len: descriptor array length
+ * @transform: parsed transform, or NULL for an untransformed transfer
+ * @fp: target open file
+ * @offset: target file offset
+ * @length: transfer length
+ * @sync: request synchronous storage completion
+ *
+ * Receive the payload, authenticate or decrypt it when required, and write it
+ * to the target file.
+ *
+ * Return: written byte count on success, otherwise a negative errno
+ */
+static ssize_t smb2_write_rdma(struct ksmbd_work *work,
+			       struct smbdirect_buffer_descriptor_v1 *desc,
+			       unsigned int desc_len,
+			       struct smb2_rdma_write_transform *transform,
+			       struct ksmbd_file *fp, loff_t offset,
+			       size_t length, bool sync)
 {
 	char *data_buf;
 	int ret;
@@ -8898,13 +9266,25 @@ static ssize_t smb2_write_rdma_channel(struct ksmbd_work *work,
 	if (!data_buf)
 		return -ENOMEM;
 
-	ret = ksmbd_conn_rdma_read(work->conn, data_buf, length,
-				   (struct smbdirect_buffer_descriptor_v1 *)
-				   ((char *)req + le16_to_cpu(req->WriteChannelInfoOffset)),
-				   le16_to_cpu(req->WriteChannelInfoLength));
+	ret = ksmbd_conn_rdma_read(work->conn, data_buf, length, desc,
+				   desc_len);
 	if (ret < 0) {
 		kvfree(data_buf);
 		return ret;
+	}
+
+	if (transform &&
+	    transform->type == SMB2_RDMA_TRANSFORM_TYPE_ENCRYPTION) {
+		ret = ksmbd_crypt_rdma(work->conn,
+				       work->sess->smb3decryptionkey,
+				       data_buf, length, transform->nonce,
+				       transform->nonce_len,
+				       transform->crypto->Signature,
+				       transform->signature_len, false);
+		if (ret) {
+			kvfree(data_buf);
+			return ret == -ENOMEM ? ret : -EBADMSG;
+		}
 	}
 
 	ret = ksmbd_vfs_write(work, fp, data_buf, length, &offset, sync, &nbytes);
@@ -8925,6 +9305,10 @@ int smb2_write(struct ksmbd_work *work)
 {
 	struct smb2_write_req *req;
 	struct smb2_write_rsp *rsp;
+	struct smb2_rdma_write_transform rdma_transform = {};
+	struct smb2_rdma_write_transform *rdma_info = NULL;
+	struct smbdirect_buffer_descriptor_v1 *rdma_desc = NULL;
+	unsigned int rdma_desc_len = 0;
 	struct ksmbd_file *fp = NULL;
 	loff_t offset;
 	size_t length;
@@ -8969,8 +9353,21 @@ int smb2_write(struct ksmbd_work *work)
 	}
 	length = le32_to_cpu(req->Length);
 
+	if (req->Channel != SMB2_CHANNEL_NONE &&
+	    req->Channel != SMB2_CHANNEL_RDMA_V1 &&
+	    req->Channel != SMB2_CHANNEL_RDMA_V1_INVALIDATE &&
+	    req->Channel != SMB2_CHANNEL_RDMA_TRANSFORM) {
+		err = -EINVAL;
+		goto out;
+	}
+	if (req->Channel == SMB2_CHANNEL_RDMA_TRANSFORM &&
+	    work->conn->dialect != SMB311_PROT_ID) {
+		err = -EINVAL;
+		goto out;
+	}
 	if (req->Channel == SMB2_CHANNEL_RDMA_V1 ||
-	    req->Channel == SMB2_CHANNEL_RDMA_V1_INVALIDATE) {
+	    req->Channel == SMB2_CHANNEL_RDMA_V1_INVALIDATE ||
+	    req->Channel == SMB2_CHANNEL_RDMA_TRANSFORM) {
 		is_rdma_channel = true;
 		max_write_size = get_smbd_max_read_write_size(work->conn->transport);
 		if (max_write_size == 0) {
@@ -8995,17 +9392,37 @@ int smb2_write(struct ksmbd_work *work)
 
 	if (is_rdma_channel == true) {
 		unsigned int ch_offset = le16_to_cpu(req->WriteChannelInfoOffset);
+		unsigned int ch_len = le16_to_cpu(req->WriteChannelInfoLength);
+		unsigned int req_len = smb2_current_req_len(work, &req->hdr);
 
-		if (req->Length != 0 || req->DataOffset != 0 ||
-		    ch_offset < offsetof(struct smb2_write_req, Buffer)) {
+		if (!length || req->Length != 0 || req->DataOffset != 0 ||
+		    ch_offset < offsetof(struct smb2_write_req, Buffer) ||
+		    ch_offset > req_len || ch_len > req_len - ch_offset) {
 			err = -EINVAL;
 			goto out;
 		}
-		err = smb2_set_remote_key_for_rdma(work,
-						   (struct smbdirect_buffer_descriptor_v1 *)
-						   ((char *)req + ch_offset),
-						   req->Channel,
-						   req->WriteChannelInfoLength);
+		if (req->Channel == SMB2_CHANNEL_RDMA_TRANSFORM) {
+			err = smb2_parse_rdma_write_transform(work, req,
+							      &rdma_transform);
+			if (err)
+				goto out;
+			rdma_desc = rdma_transform.desc;
+			rdma_desc_len = rdma_transform.desc_len;
+			rdma_info = &rdma_transform;
+			err = smb2_set_rdma_key(work, rdma_desc,
+						rdma_transform.channel,
+						cpu_to_le16(rdma_desc_len));
+		} else {
+			rdma_desc = (struct smbdirect_buffer_descriptor_v1 *)
+				((char *)req + ch_offset);
+			rdma_desc_len = ch_len;
+			err = check_rdma_desc(rdma_desc, rdma_desc_len, length);
+			if (err)
+				goto out;
+			err = smb2_set_rdma_key(work, rdma_desc,
+						req->Channel,
+						req->WriteChannelInfoLength);
+		}
 		if (err)
 			goto out;
 	}
@@ -9074,8 +9491,9 @@ int smb2_write(struct ksmbd_work *work)
 		/* read data from the client using rdma channel, and
 		 * write the data.
 		 */
-		nbytes = smb2_write_rdma_channel(work, req, fp, offset, length,
-						 writethrough);
+		nbytes = smb2_write_rdma(work, rdma_desc, rdma_desc_len,
+					 rdma_info, fp, offset, length,
+					 writethrough);
 		if (nbytes < 0) {
 			err = (int)nbytes;
 			goto out;
@@ -9112,6 +9530,10 @@ out:
 		rsp->hdr.Status = STATUS_SHARING_VIOLATION;
 	else if (err == -EINVAL)
 		rsp->hdr.Status = STATUS_INVALID_PARAMETER;
+	else if (err == -EBADMSG)
+		rsp->hdr.Status = STATUS_AUTH_TAG_MISMATCH;
+	else if (err == -EKEYREJECTED)
+		rsp->hdr.Status = STATUS_INVALID_SIGNATURE;
 	else if (rsp->hdr.Status == 0)
 		rsp->hdr.Status = STATUS_INVALID_HANDLE;
 
