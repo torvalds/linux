@@ -635,7 +635,37 @@ int non_arena_ptr_add_to_arena_ptr(void *ctx)
 	return 0;
 }
 
-#endif
+SEC("socket")
+__description("arena and stack atomic at the same instruction")
+__failure __msg("same insn cannot be used with different pointers")
+__arch_x86_64
+__load_if_JITed()
+__naked void mixed_arena_stack_atomic(void)
+{
+	asm volatile ("					\
+	r1 = %[arena] ll;				\
+	r6 = r10;					\
+	r6 += -8;					\
+	r9 = 0;						\
+	*(u64 *)(r6 + 0) = r9;				\
+	r7 = 8192;					\
+	r7 = addr_space_cast(r7, 0, 1);			\
+	call %[bpf_get_prandom_u32];			\
+	if w0 != 0 goto 1f;				\
+	r8 = r6;					\
+	goto 2f;					\
+1:	r8 = r7;					\
+2:	r9 = 1;						\
+	lock *(u64 *)(r8 + 0) += r9;			\
+	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm_addr(arena),
+	  __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+#endif /* defined(__BPF_FEATURE_ADDR_SPACE_CAST) */
 
 static __noinline
 u32 __arena *check_arena_arg_nonglobal(u32 __arena *arg)
