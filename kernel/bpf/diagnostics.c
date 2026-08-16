@@ -2164,7 +2164,7 @@ static const char *diag_mod_target_desc(struct bpf_verifier_env *env,
 	case BPF_DIAG_MOD_TARGET_REG:
 		return bpf_diag_fmt(env, "R%u", target->regno);
 	case BPF_DIAG_MOD_TARGET_STACK_ARG:
-		return bpf_diag_fmt(env, "stack arg%d", diag_stack_argno(target->stack_arg));
+		return bpf_diag_fmt(env, "*(R11-%u)", (target->stack_arg + 1) * BPF_REG_SIZE);
 	case BPF_DIAG_MOD_TARGET_STACK_SLOT:
 		return bpf_diag_fmt(env, "stack slot fp%d", -(target->spi + 1) * BPF_REG_SIZE);
 	default:
