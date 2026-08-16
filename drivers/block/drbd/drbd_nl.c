@@ -3307,6 +3307,26 @@ nla_put_failure:
 }
 
 /*
+ * net_conf_to_skb() serializes the shared secret verbatim. Any path that can
+ * answer a request from an unprivileged process must pass exclude_sensitive,
+ * so the secret is blanked in a private copy before it reaches the skb.
+ */
+static int net_conf_to_skb_sanitized(struct sk_buff *skb, struct net_conf *nc,
+				     bool exclude_sensitive)
+{
+	struct net_conf nc_clean;
+
+	if (!exclude_sensitive)
+		return net_conf_to_skb(skb, nc);
+
+	nc_clean = *nc;
+	memset(nc_clean.shared_secret, 0, sizeof(nc_clean.shared_secret));
+	nc_clean.shared_secret_len = 0;
+
+	return net_conf_to_skb(skb, &nc_clean);
+}
+
+/*
  * The generic netlink dump callbacks are called outside the genl_lock(), so
  * they cannot use the simple attribute parsing code which uses global
  * attribute tables.
@@ -3621,7 +3641,8 @@ put_result:
 			goto out;
 		net_conf = rcu_dereference(connection->net_conf);
 		if (net_conf) {
-			err = net_conf_to_skb(skb, net_conf);
+			err = net_conf_to_skb_sanitized(skb, net_conf,
+							!capable(CAP_SYS_ADMIN));
 			if (err)
 				goto out;
 		}
@@ -3842,18 +3863,8 @@ static int nla_put_status_info(struct sk_buff *skb, struct drbd_device *device,
 		struct net_conf *nc;
 
 		nc = rcu_dereference(first_peer_device(device)->connection->net_conf);
-		if (nc) {
-			if (exclude_sensitive) {
-				struct net_conf nc_clean = *nc;
-
-				memset(nc_clean.shared_secret, 0,
-				       sizeof(nc_clean.shared_secret));
-				nc_clean.shared_secret_len = 0;
-				err = net_conf_to_skb(skb, &nc_clean);
-			} else {
-				err = net_conf_to_skb(skb, nc);
-			}
-		}
+		if (nc)
+			err = net_conf_to_skb_sanitized(skb, nc, exclude_sensitive);
 	}
 	rcu_read_unlock();
 	if (err)
@@ -4058,7 +4069,7 @@ next_resource:
 				struct net_conf *nc;
 
 				nc = rcu_dereference(connection->net_conf);
-				if (nc && net_conf_to_skb(skb, nc) != 0)
+				if (nc && net_conf_to_skb_sanitized(skb, nc, true) != 0)
 					goto cancel;
 			}
 			goto done;
