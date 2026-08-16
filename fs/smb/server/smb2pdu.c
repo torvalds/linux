@@ -1012,6 +1012,14 @@ int smb2_check_user_session(struct ksmbd_work *work)
 				1 : -EKEYEXPIRED;
 		}
 		if (work->sess->state != SMB2_SESSION_VALID) {
+			/*
+			 * Keep the reference for an encrypted request so the caller can
+			 * return STATUS_USER_SESSION_DELETED encrypted with the old key.
+			 */
+			if (work->encrypted &&
+			    work->sess->state == SMB2_SESSION_EXPIRED &&
+			    work->sess->enc)
+				return -ENOENT;
 			ksmbd_user_session_put(work->sess);
 			work->sess = NULL;
 			return -ENOENT;
