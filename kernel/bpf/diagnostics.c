@@ -833,11 +833,9 @@ static void bpf_diag_source(struct bpf_verifier_env *env, u32 insn_idx, const ch
 	linfo = bpf_find_linfo(env->prog, insn_idx);
 	if (btf && linfo)
 		bpf_get_linfo_source(btf, linfo, &src);
-	if (!src.file || !*src.file || !src.line || !*src.line) {
+	if (!src.file || !*src.file) {
 		diag_write(env, "  insn %u\n", insn_idx);
-		diag_print_source_annotation(env, 0, 0, label, msg);
-		diag_print_insn_context(env, insn_idx, disasm_lines);
-		goto out_restore;
+		goto out_annotation;
 	}
 
 	subprog = bpf_find_containing_subprog(env, insn_idx);
@@ -847,6 +845,8 @@ static void bpf_diag_source(struct bpf_verifier_env *env, u32 insn_idx, const ch
 		diag_write(env, "  %s @ %s:%d:%d\n", func, src.file, src.line_num, src.line_col);
 	else
 		diag_write(env, "  %s:%d:%d\n", src.file, src.line_num, src.line_col);
+	if (!src.line || !*src.line)
+		goto out_annotation;
 
 	start_line = src.line_num - BPF_DIAG_CONTEXT;
 	end_line = src.line_num + BPF_DIAG_CONTEXT;
@@ -889,7 +889,11 @@ static void bpf_diag_source(struct bpf_verifier_env *env, u32 insn_idx, const ch
 			diag_print_source_annotation(env, width, indent, label, msg);
 	}
 	diag_print_insn_context(env, insn_idx, disasm_lines);
+	goto out_restore;
 
+out_annotation:
+	diag_print_source_annotation(env, 0, 0, label, msg);
+	diag_print_insn_context(env, insn_idx, disasm_lines);
 out_restore:
 	diag_fmt_restore(env, mark);
 }
