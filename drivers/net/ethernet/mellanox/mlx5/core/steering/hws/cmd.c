@@ -1182,12 +1182,6 @@ int mlx5hws_cmd_query_caps(struct mlx5_core_dev *mdev,
 						capability.e_switch_cap.merged_eswitch);
 	}
 
-	ret = mlx5_cmd_exec(mdev, in, sizeof(in), out, out_size);
-	if (ret) {
-		mlx5_core_err(mdev, "Failed to query device attributes\n");
-		goto out;
-	}
-
 	snprintf(caps->fw_ver, sizeof(caps->fw_ver), "%d.%d.%d",
 		 fw_rev_maj(mdev), fw_rev_min(mdev), fw_rev_sub(mdev));
 
