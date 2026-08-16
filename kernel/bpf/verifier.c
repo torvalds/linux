@@ -2912,6 +2912,7 @@ static int add_subprogs(struct bpf_verifier_env *env)
 	struct bpf_subprog_info *subprog = env->subprog_info;
 	int i, ret, insn_cnt = env->prog->len, ex_cb_insn;
 	struct bpf_insn *insn = env->prog->insnsi;
+	const char *operation, *suggestion;
 
 	/* Add entry function. */
 	ret = add_subprog(env, 0);
@@ -2923,11 +2924,18 @@ static int add_subprogs(struct bpf_verifier_env *env)
 			continue;
 
 		if (!env->bpf_capable) {
+			if (bpf_pseudo_func(insn)) {
+				operation = "BPF function reference";
+				suggestion = "Load this program with the required capability, or avoid BPF function references in unprivileged programs.";
+			} else {
+				operation = "BPF-to-BPF function call";
+				suggestion = "Load this program with the required capability, or avoid BPF-to-BPF function calls in unprivileged programs.";
+			}
 			verbose(env, "loading/calling other bpf or kernel functions are allowed for CAP_BPF and CAP_SYS_ADMIN\n");
 			bpf_diag_policy(
-				env, i, "BPF-to-BPF function call",
+				env, i, operation,
 				"loading or calling other BPF functions requires CAP_BPF or CAP_SYS_ADMIN",
-				"Load this program with the required capability, or avoid BPF-to-BPF function calls in unprivileged programs.");
+				suggestion);
 			return -EPERM;
 		}
 
