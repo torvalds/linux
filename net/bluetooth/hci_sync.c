@@ -1287,6 +1287,7 @@ hci_set_ext_adv_params_sync(struct hci_dev *hdev, u8 instance,
 }
 
 static int hci_set_ext_adv_data_sync(struct hci_dev *hdev, u8 instance)
+	__context_unsafe(/* conditional locking */)
 {
 	DEFINE_FLEX(struct hci_cp_le_set_ext_adv_data, pdu, data, length,
 		    HCI_MAX_EXT_AD_LENGTH);
@@ -1375,6 +1376,7 @@ int hci_update_adv_data_sync(struct hci_dev *hdev, u8 instance)
 }
 
 int hci_setup_ext_adv_instance_sync(struct hci_dev *hdev, u8 instance)
+	__context_unsafe(/* conditional locking */)
 {
 	struct hci_cp_le_set_ext_adv_params cp;
 	struct hci_rp_le_set_ext_adv_params rp;
@@ -1535,6 +1537,7 @@ int hci_setup_ext_adv_instance_sync(struct hci_dev *hdev, u8 instance)
 }
 
 static int hci_set_ext_scan_rsp_data_sync(struct hci_dev *hdev, u8 instance)
+	__context_unsafe(/* conditional locking */)
 {
 	DEFINE_FLEX(struct hci_cp_le_set_ext_scan_rsp_data, pdu, data, length,
 		    HCI_MAX_EXT_AD_LENGTH);
@@ -1588,6 +1591,7 @@ static int hci_set_ext_scan_rsp_data_sync(struct hci_dev *hdev, u8 instance)
 }
 
 static int __hci_set_scan_rsp_data_sync(struct hci_dev *hdev, u8 instance)
+	__context_unsafe(/* conditional locking */)
 {
 	struct hci_cp_le_set_scan_rsp_data cp;
 	u8 len;
@@ -1729,6 +1733,7 @@ static int hci_set_per_adv_params_sync(struct hci_dev *hdev, u8 instance,
 }
 
 static int hci_set_per_adv_data_sync(struct hci_dev *hdev, u8 instance)
+	__context_unsafe(/* conditional locking */)
 {
 	DEFINE_FLEX(struct hci_cp_le_set_per_adv_data, pdu, data, length,
 		    HCI_MAX_PER_AD_LENGTH);
