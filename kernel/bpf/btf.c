@@ -1169,19 +1169,19 @@ static const char *btf_show_name(struct btf_show *show)
 			id = t->type;
 			break;
 		default:
-			id = 0;
-			break;
+			goto resolved;
 		}
+		t = btf_type_skip_qualifiers(show->btf, id);
 		if (!id)
 			break;
-		t = btf_type_skip_qualifiers(show->btf, id);
 	}
 	/* We may not be able to represent this type; bail to be safe */
 	if (i == BTF_SHOW_MAX_ITER)
 		return "";
 
+resolved:
 	if (!name)
-		name = btf_name_by_offset(show->btf, t->name_off);
+		name = btf_type_is_void(t) ? "void" : btf_name_by_offset(show->btf, t->name_off);
 
 	switch (BTF_INFO_KIND(t->info)) {
 	case BTF_KIND_STRUCT:

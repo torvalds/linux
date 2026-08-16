@@ -12616,12 +12616,12 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_call_arg_me
 		    !type_may_be_null(kf_arg_type)) {
 			const char *expected_type;
 
-			expected_type = bpf_diag_fmt_btf_type(env, btf, ref_id);
+			expected_type = bpf_diag_fmt_btf_type(env, btf, args[i].type);
 			verbose(env, "Possibly NULL pointer passed to trusted %s\n",
 				reg_arg_name(env, argno));
 			bpf_diag_call_arg_fmt(env, insn_idx, argno, func_name,
 					      "Add a NULL check and call the kfunc only on the non-NULL path.",
-					      "the pointer may be NULL, but this kfunc requires a non-NULL pointer to %s",
+					      "the pointer may be NULL, but this kfunc requires a non-NULL value of type %s",
 					      expected_type);
 			return -EACCES;
 		}
@@ -13058,8 +13058,14 @@ check_ok:
 			break;
 		case KF_ARG_CONST_MEM_SIZE:
 			ret = process_const_arg(env, reg, argno, meta);
-			if (ret < 0)
+			if (ret < 0) {
+				if (ret == -EINVAL)
+					bpf_diag_call_arg_fmt(env, insn_idx, argno, func_name,
+							      "Pass a compile-time constant or a value the verifier can prove is constant at this call.",
+							      "the kfunc requires this memory size to be a verifier-known constant, but %s is variable on this path",
+							      reg_arg_name(env, argno));
 				return ret;
+			}
 			fallthrough;
 		case KF_ARG_MEM_SIZE:
 		{
@@ -13123,15 +13129,13 @@ check_ok:
 			break;
 		case KF_ARG_PTR_TO_REFCOUNTED_KPTR:
 			if (!type_is_ptr_alloc_obj(reg->type)) {
-				const char *expected_type;
-
-				expected_type = bpf_diag_fmt_btf_type(env, btf, ref_id);
 				verbose(env, "%s is neither owning or non-owning ref\n",
 					reg_arg_name(env, argno));
 				bpf_diag_call_arg_fmt(env, insn_idx, argno, func_name,
-						      "Pass a pointer returned by the matching BPF object allocation or lookup operation for this kfunc.",
-						      "the kfunc expects a pointer to BPF-managed refcounted object type %s, but this argument is not such an object pointer",
-						      expected_type);
+						      "Pass an owning or non-owning pointer to a BPF-managed object containing a bpf_refcount field.",
+						      "the kfunc expects a pointer to a BPF-managed refcounted object, but %s is %s",
+						      reg_arg_name(env, argno),
+						      bpf_diag_reg_type_plain(env, reg->type));
 				return -EINVAL;
 			}
 			if (!type_is_non_owning_ref(reg->type))
