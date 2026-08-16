@@ -2013,6 +2013,12 @@ static const struct usb_device_id cdc_devs[] = {
 	},
 
 	/* Mac */
+	{ USB_DEVICE_INTERFACE_NUMBER(0x05ac, 0x1902, 0),
+		.driver_info = (unsigned long)&apple_private_interface_info,
+	},
+	{ USB_DEVICE_INTERFACE_NUMBER(0x05ac, 0x1902, 2),
+		.driver_info = (unsigned long)&apple_private_interface_info,
+	},
 	{ USB_DEVICE_INTERFACE_NUMBER(0x05ac, 0x1905, 0),
 		.driver_info = (unsigned long)&apple_private_interface_info,
 	},
