@@ -47,6 +47,7 @@ static const struct ksmbd_const_name ksmbd_share_flag_names[] = {
 	{KSMBD_SHARE_FLAG_UPDATE, "update"},
 	{KSMBD_SHARE_FLAG_CROSSMNT, "crossmnt"},
 	{KSMBD_SHARE_FLAG_CONTINUOUS_AVAILABILITY, "continuous-availability"},
+	{KSMBD_SHARE_FLAG_ENCRYPT_DATA, "encrypt-data"},
 };
 
 static int proc_show_shares(struct seq_file *m, void *v)

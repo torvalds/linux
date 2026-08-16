@@ -2636,12 +2636,22 @@ int smb2_tree_connect(struct ksmbd_work *work)
 		    name, treename);
 
 	status = ksmbd_tree_conn_connect(work, name);
-	if (status.ret == KSMBD_TREE_CONN_STATUS_OK)
+	if (status.ret == KSMBD_TREE_CONN_STATUS_OK) {
 		rsp->hdr.Id.SyncId.TreeId = cpu_to_le32(status.tree_conn->id);
-	else
+		share = status.tree_conn->share_conf;
+
+		/* A share that requires encryption needs a negotiated SMB3 cipher. */
+		if (test_share_config_flag(share, KSMBD_SHARE_FLAG_ENCRYPT_DATA) &&
+		    !smb3_encryption_negotiated(conn)) {
+			ksmbd_tree_conn_disconnect(sess, status.tree_conn);
+			status.tree_conn = NULL;
+			share = NULL;
+			status.ret = KSMBD_TREE_CONN_STATUS_ERROR;
+			goto out_err1;
+		}
+	} else
 		goto out_err1;
 
-	share = status.tree_conn->share_conf;
 	if (test_share_config_flag(share, KSMBD_SHARE_FLAG_PIPE)) {
 		ksmbd_debug(SMB, "IPC share path request\n");
 		rsp->ShareType = SMB2_SHARE_TYPE_PIPE;
@@ -2687,9 +2697,13 @@ out_err1:
 	    conn->compress_algorithm != SMB3_COMPRESS_NONE)
 		rsp->ShareFlags |= cpu_to_le32(SMB2_SHAREFLAG_COMPRESS_DATA);
 	if (share && test_share_config_flag(share,
-					  KSMBD_SHARE_FLAG_HIDE_UNREADABLE))
+					    KSMBD_SHARE_FLAG_HIDE_UNREADABLE))
 		rsp->ShareFlags |=
 			cpu_to_le32(SMB2_SHAREFLAG_ACCESS_BASED_DIRECTORY_ENUM);
+	if (share && test_share_config_flag(share,
+					    KSMBD_SHARE_FLAG_ENCRYPT_DATA))
+		rsp->ShareFlags |=
+			cpu_to_le32(SMB2_SHAREFLAG_ENCRYPT_DATA);
 
 	rc = ksmbd_iov_pin_rsp(work, rsp, sizeof(struct smb2_tree_connect_rsp));
 	if (rc) {

@@ -381,6 +381,8 @@ enum KSMBD_TREE_CONN_STATUS {
 #define KSMBD_SHARE_FLAG_CONTINUOUS_AVAILABILITY	BIT(16)
 #define KSMBD_SHARE_FLAG_HIDE_UNREADABLE		BIT(17)
 #define KSMBD_SHARE_FLAG_TIME_MACHINE			BIT(18)
+/* Keep BIT(19) reserved for the existing ksmbd-tools WIDE_LINKS flag. */
+#define KSMBD_SHARE_FLAG_ENCRYPT_DATA			BIT(20)
 
 /*
  * Tree connect request flags.

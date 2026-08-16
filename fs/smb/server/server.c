@@ -24,6 +24,8 @@
 #include "auth.h"
 #include "stats.h"
 #include "compress.h"
+#include "mgmt/share_config.h"
+#include "mgmt/tree_connect.h"
 
 int ksmbd_debug_types;
 
@@ -234,6 +236,15 @@ static void __handle_ksmbd_work(struct ksmbd_work *work,
 					else
 						conn->ops->set_rsp_status(work,
 							STATUS_NETWORK_NAME_DELETED);
+					goto send;
+				}
+
+				if (work->tcon &&
+				    test_share_config_flag(work->tcon->share_conf,
+							   KSMBD_SHARE_FLAG_ENCRYPT_DATA) &&
+				    !work->encrypted) {
+					conn->ops->set_rsp_status(work,
+								  STATUS_ACCESS_DENIED);
 					goto send;
 				}
 			}
