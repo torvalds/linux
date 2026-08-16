@@ -153,6 +153,16 @@ config PINCTRL_KAANAPALI
 	  Qualcomm Technologies Inc TLMM block found on the Qualcomm
 	  Technologies Inc Kaanapali platform.
 
+config PINCTRL_MAILI
+	tristate "Qualcomm Technologies Inc Maili pin controller driver"
+	depends on ARM64 || COMPILE_TEST
+	default ARCH_QCOM
+	help
+	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+	  Qualcomm Technologies Inc TLMM block found on the Maili platform.
+	  Say Y here to compile statically, or M here to compile it as a module.
+	  If unsure, say N.
+
 config PINCTRL_MSM8226
 	tristate "Qualcomm 8226 pin controller driver"
 	depends on ARM || COMPILE_TEST
