@@ -4123,7 +4123,7 @@ static int hci_send_cmd_sync(struct hci_dev *hdev, struct sk_buff *skb)
 	if (!hdev->sent_cmd) {
 		skb_queue_head(&hdev->cmd_q, skb);
 		queue_work(hdev->workqueue, &hdev->cmd_work);
-		return -EINVAL;
+		return -ENOMEM;
 	}
 
 	if (hci_skb_opcode(skb) != HCI_OP_NOP) {
