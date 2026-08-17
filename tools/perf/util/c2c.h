@@ -98,4 +98,6 @@ struct c2c_fmt {
 void c2c_fmt_free(struct perf_hpp_fmt *fmt);
 bool c2c_fmt_equal(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b);
 
+struct hist_entry *c2c_function__find_cacheline(struct hist_entry *he);
+
 #endif /* __PERF_UTIL_C2C_H */
