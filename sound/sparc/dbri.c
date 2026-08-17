@@ -1840,6 +1840,7 @@ static void dbri_process_one_interrupt(struct snd_dbri *dbri, int x)
 	int rval = D_INTR_GETRVAL(x);
 #endif
 
+#ifdef DBRI_DEBUG
 	if (channel == D_INTR_CMD) {
 		dprintk(D_CMD, "INTR: Command: %-5s  Value:%d\n",
 			cmds[command], val);
@@ -1847,6 +1848,7 @@ static void dbri_process_one_interrupt(struct snd_dbri *dbri, int x)
 		dprintk(D_INT, "INTR: Chan:%d Code:%d Val:%#x\n",
 			channel, code, rval);
 	}
+#endif
 
 	switch (code) {
 	case D_INTR_CMDI:

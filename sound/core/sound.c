@@ -167,11 +167,10 @@ static int snd_open(struct inode *inode, struct file *file)
 	return err;
 }
 
-static const struct file_operations snd_fops =
-{
-	.owner =	THIS_MODULE,
-	.open =		snd_open,
-	.llseek =	noop_llseek,
+static const struct file_operations snd_fops = {
+	.owner	=	THIS_MODULE,
+	.open	=	snd_open,
+	.llseek	=	noop_llseek,
 };
 
 #ifdef CONFIG_SND_DYNAMIC_MINORS
@@ -358,7 +357,7 @@ static void snd_minor_info_read(struct snd_info_entry *entry, struct snd_info_bu
 	struct snd_minor *mptr;
 
 	guard(mutex)(&sound_mutex);
-	for (minor = 0; minor < SNDRV_OS_MINORS; ++minor) {
+	for (minor = 0; minor < ARRAY_SIZE(snd_minors); ++minor) {
 		mptr = snd_minors[minor];
 		if (!mptr)
 			continue;
@@ -395,15 +394,21 @@ int __init snd_minor_info_init(void)
 
 static int __init alsa_sound_init(void)
 {
+	int err;
+
 	snd_major = major;
 	snd_ecards_limit = cards_limit;
-	if (register_chrdev(major, "alsa", &snd_fops)) {
+
+	err = register_chrdev(major, "alsa", &snd_fops);
+	if (err < 0) {
 		pr_err("ALSA core: unable to register native major device number %d\n", major);
-		return -EIO;
+		return err;
 	}
-	if (snd_info_init() < 0) {
+
+	err = snd_info_init();
+	if (err < 0) {
 		unregister_chrdev(major, "alsa");
-		return -ENOMEM;
+		return err;
 	}
 
 #ifdef CONFIG_SND_DEBUG

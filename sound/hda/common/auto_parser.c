@@ -601,9 +601,9 @@ static int find_idx_in_nid_list(hda_nid_t nid, const hda_nid_t *list, int nums)
 	return -1;
 }
 
-/* get a unique suffix or an index number */
+/* get a unique suffix */
 static const char *check_output_sfx(hda_nid_t nid, const hda_nid_t *pins,
-				    int num_pins, int *indexp)
+				    int num_pins)
 {
 	static const char * const channel_sfx[] = {
 		" Front", " Surround", " CLFE", " Side"
@@ -615,11 +615,8 @@ static const char *check_output_sfx(hda_nid_t nid, const hda_nid_t *pins,
 		return NULL;
 	if (num_pins == 1)
 		return "";
-	if (num_pins > ARRAY_SIZE(channel_sfx)) {
-		if (indexp)
-			*indexp = i;
+	if (num_pins > ARRAY_SIZE(channel_sfx))
 		return "";
-	}
 	return channel_sfx[i];
 }
 
@@ -638,27 +635,9 @@ static const char *check_output_pfx(struct hda_codec *codec, hda_nid_t nid)
 	return "";
 }
 
-static int get_hp_label_index(struct hda_codec *codec, hda_nid_t nid,
-			      const hda_nid_t *pins, int num_pins)
-{
-	int i, j, idx = 0;
-
-	const char *pfx = check_output_pfx(codec, nid);
-
-	i = find_idx_in_nid_list(nid, pins, num_pins);
-	if (i < 0)
-		return -1;
-	for (j = 0; j < i; j++)
-		if (pfx == check_output_pfx(codec, pins[j]))
-			idx++;
-
-	return idx;
-}
-
 static int fill_audio_out_name(struct hda_codec *codec, hda_nid_t nid,
 			       const struct auto_pin_cfg *cfg,
-			       const char *name, char *label, int maxlen,
-			       int *indexp)
+			       const char *name, char *label, int maxlen)
 {
 	unsigned int def_conf = snd_hda_codec_get_pincfg(codec, nid);
 	int attr = snd_hda_get_input_pin_attr(def_conf);
@@ -671,19 +650,11 @@ static int fill_audio_out_name(struct hda_codec *codec, hda_nid_t nid,
 
 	if (cfg) {
 		/* try to give a unique suffix if needed */
-		sfx = check_output_sfx(nid, cfg->line_out_pins, cfg->line_outs,
-				       indexp);
+		sfx = check_output_sfx(nid, cfg->line_out_pins, cfg->line_outs);
 		if (!sfx)
-			sfx = check_output_sfx(nid, cfg->speaker_pins, cfg->speaker_outs,
-					       indexp);
-		if (!sfx) {
-			/* don't add channel suffix for Headphone controls */
-			int idx = get_hp_label_index(codec, nid, cfg->hp_pins,
-						     cfg->hp_outs);
-			if (idx >= 0 && indexp)
-				*indexp = idx;
+			sfx = check_output_sfx(nid, cfg->speaker_pins, cfg->speaker_outs);
+		if (!sfx)
 			sfx = "";
-		}
 	}
 	snprintf(label, maxlen, "%s%s%s", pfx, name, sfx);
 	return 1;
@@ -699,7 +670,6 @@ static int fill_audio_out_name(struct hda_codec *codec, hda_nid_t nid,
  * @cfg: the parsed pin configuration
  * @label: the string buffer to store
  * @maxlen: the max length of string buffer (including termination)
- * @indexp: the pointer to return the index number (for multiple ctls)
  *
  * Get a label for the given pin.  This function works for both input and
  * output pins.  When @cfg is given as non-NULL, the function tries to get
@@ -708,47 +678,33 @@ static int fill_audio_out_name(struct hda_codec *codec, hda_nid_t nid,
  * This function tries to give a unique label string for the pin as much as
  * possible.  For example, when the multiple line-outs are present, it adds
  * the channel suffix like "Front", "Surround", etc (only when @cfg is given).
- * If no unique name with a suffix is available and @indexp is non-NULL, the
- * index number is stored in the pointer.
  */
 int snd_hda_get_pin_label(struct hda_codec *codec, hda_nid_t nid,
 			  const struct auto_pin_cfg *cfg,
-			  char *label, int maxlen, int *indexp)
+			  char *label, int maxlen)
 {
 	unsigned int def_conf = snd_hda_codec_get_pincfg(codec, nid);
 	const char *name = NULL;
 	int i;
 	bool hdmi;
 
-	if (indexp)
-		*indexp = 0;
 	if (get_defcfg_connect(def_conf) == AC_JACK_PORT_NONE)
 		return 0;
 
 	switch (get_defcfg_device(def_conf)) {
 	case AC_JACK_LINE_OUT:
 		return fill_audio_out_name(codec, nid, cfg, "Line Out",
-					   label, maxlen, indexp);
+					   label, maxlen);
 	case AC_JACK_SPEAKER:
 		return fill_audio_out_name(codec, nid, cfg, "Speaker",
-					   label, maxlen, indexp);
+					   label, maxlen);
 	case AC_JACK_HP_OUT:
 		return fill_audio_out_name(codec, nid, cfg, "Headphone",
-					   label, maxlen, indexp);
+					   label, maxlen);
 	case AC_JACK_SPDIF_OUT:
 	case AC_JACK_DIG_OTHER_OUT:
 		hdmi = is_hdmi_cfg(def_conf);
 		name = hdmi ? "HDMI" : "SPDIF";
-		if (cfg && indexp)
-			for (i = 0; i < cfg->dig_outs; i++) {
-				hda_nid_t pin = cfg->dig_out_pins[i];
-				unsigned int c;
-				if (pin == nid)
-					break;
-				c = snd_hda_codec_get_pincfg(codec, pin);
-				if (hdmi == is_hdmi_cfg(c))
-					(*indexp)++;
-			}
 		break;
 	default:
 		if (cfg) {

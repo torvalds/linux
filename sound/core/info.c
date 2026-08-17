@@ -78,7 +78,7 @@ static int alloc_info_private(struct snd_info_entry *entry,
 	if (!entry || !entry->p)
 		return -ENODEV;
 	if (!try_module_get(entry->module))
-		return -EFAULT;
+		return -ENODEV;
 	data = kzalloc_obj(*data);
 	if (!data) {
 		module_put(entry->module);

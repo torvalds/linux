@@ -257,7 +257,7 @@ int snd_pcm_info_user(struct snd_pcm_substream *substream,
 }
 
 /* macro for simplified cast */
-#define PARAM_MASK_BIT(b)	(1U << (__force int)(b))
+#define PARAM_MASK_BIT(b)	(1U << (b))
 
 static bool hw_support_mmap(struct snd_pcm_substream *substream)
 {
@@ -489,7 +489,7 @@ static int fixup_unreferenced_params(struct snd_pcm_substream *substream,
 			params->msbits = snd_interval_value(i);
 		m = hw_param_mask_c(params, SNDRV_PCM_HW_PARAM_FORMAT);
 		if (snd_mask_single(m)) {
-			snd_pcm_format_t format = (__force snd_pcm_format_t)snd_mask_min(m);
+			snd_pcm_format_t format = snd_mask_min(m);
 			params->msbits = snd_pcm_format_width(format);
 		}
 	}
@@ -497,13 +497,13 @@ static int fixup_unreferenced_params(struct snd_pcm_substream *substream,
 	if (params->msbits) {
 		m = hw_param_mask_c(params, SNDRV_PCM_HW_PARAM_FORMAT);
 		if (snd_mask_single(m)) {
-			snd_pcm_format_t format = (__force snd_pcm_format_t)snd_mask_min(m);
+			snd_pcm_format_t format = snd_mask_min(m);
 
 			if (snd_pcm_format_linear(format) &&
 			    snd_pcm_format_width(format) != params->msbits) {
 				m_rw = hw_param_mask(params, SNDRV_PCM_HW_PARAM_SUBFORMAT);
 				snd_mask_reset(m_rw,
-					       (__force unsigned)SNDRV_PCM_SUBFORMAT_MSBITS_MAX);
+					       SNDRV_PCM_SUBFORMAT_MSBITS_MAX);
 				if (snd_mask_empty(m_rw))
 					return -EINVAL;
 			}
@@ -1252,7 +1252,7 @@ static void snd_pcm_trigger_tstamp(struct snd_pcm_substream *substream)
 	runtime->trigger_master = NULL;
 }
 
-#define ACTION_ARG_IGNORE	(__force snd_pcm_state_t)0
+#define ACTION_ARG_IGNORE	0
 
 struct action_ops {
 	int (*pre_action)(struct snd_pcm_substream *substream,
@@ -1635,7 +1635,7 @@ EXPORT_SYMBOL_GPL(snd_pcm_stop_xrun);
 /*
  * pause callbacks: pass boolean (to start pause or resume) as state argument
  */
-#define pause_pushed(state)	(__force bool)(state)
+#define pause_pushed(state)	(bool)(state)
 
 static int snd_pcm_pre_pause(struct snd_pcm_substream *substream,
 			     snd_pcm_state_t state)
@@ -1707,14 +1707,14 @@ static const struct action_ops snd_pcm_action_pause = {
 static int snd_pcm_pause(struct snd_pcm_substream *substream, bool push)
 {
 	return snd_pcm_action(&snd_pcm_action_pause, substream,
-			      (__force snd_pcm_state_t)push);
+			      (snd_pcm_state_t)push);
 }
 
 static int snd_pcm_pause_lock_irq(struct snd_pcm_substream *substream,
 				  bool push)
 {
 	return snd_pcm_action_lock_irq(&snd_pcm_action_pause, substream,
-				       (__force snd_pcm_state_t)push);
+				       (snd_pcm_state_t)push);
 }
 
 #ifdef CONFIG_PM
@@ -1982,7 +1982,7 @@ static int snd_pcm_pre_prepare(struct snd_pcm_substream *substream,
 			       snd_pcm_state_t state)
 {
 	snd_pcm_state_t cur_state = snd_pcm_get_state(substream);
-	int f_flags = (__force int)state;
+	int f_flags = state;
 
 	if (cur_state == SNDRV_PCM_STATE_OPEN ||
 	    cur_state == SNDRV_PCM_STATE_DISCONNECTED)
@@ -2050,7 +2050,7 @@ static int snd_pcm_prepare(struct snd_pcm_substream *substream,
 
 	return snd_pcm_action_nonatomic(&snd_pcm_action_prepare,
 					substream,
-					(__force snd_pcm_state_t)f_flags);
+					(snd_pcm_state_t)f_flags);
 }
 
 /*
@@ -2461,7 +2461,7 @@ static int snd_pcm_hw_rule_format(struct snd_pcm_hw_params *params,
 		if (bits <= 0)
 			continue; /* ignore invalid formats */
 		if ((unsigned)bits < i->min || (unsigned)bits > i->max)
-			snd_mask_reset(&m, (__force unsigned)k);
+			snd_mask_reset(&m, k);
 	}
 	return snd_mask_refine(mask, &m);
 }
@@ -2543,16 +2543,16 @@ static int snd_pcm_hw_rule_subformats(struct snd_pcm_hw_params *params,
 
 	snd_mask_none(&m);
 	/* All PCMs support at least the default STD subformat. */
-	snd_mask_set(&m, (__force unsigned)SNDRV_PCM_SUBFORMAT_STD);
+	snd_mask_set(&m, SNDRV_PCM_SUBFORMAT_STD);
 
 	pcm_for_each_format(f) {
-		if (!snd_mask_test(fmask, (__force unsigned)f))
+		if (!snd_mask_test(fmask, f))
 			continue;
 
 		if (f == SNDRV_PCM_FORMAT_S32_LE && *subformats)
 			m.bits[0] |= *subformats;
 		else if (snd_pcm_format_linear(f))
-			snd_mask_set(&m, (__force unsigned)SNDRV_PCM_SUBFORMAT_MSBITS_MAX);
+			snd_mask_set(&m, SNDRV_PCM_SUBFORMAT_MSBITS_MAX);
 	}
 
 	return snd_mask_refine(sfmask, &m);
@@ -2880,9 +2880,10 @@ static int snd_pcm_open_file(struct file *file,
 static int snd_pcm_playback_open(struct inode *inode, struct file *file)
 {
 	struct snd_pcm *pcm;
-	int err = nonseekable_open(inode, file);
-	if (err < 0)
-		return err;
+	int err;
+
+	nonseekable_open(inode, file);
+
 	pcm = snd_lookup_minor_data(iminor(inode),
 				    SNDRV_DEVICE_TYPE_PCM_PLAYBACK);
 	err = snd_pcm_open(file, pcm, SNDRV_PCM_STREAM_PLAYBACK);
@@ -2894,9 +2895,10 @@ static int snd_pcm_playback_open(struct inode *inode, struct file *file)
 static int snd_pcm_capture_open(struct inode *inode, struct file *file)
 {
 	struct snd_pcm *pcm;
-	int err = nonseekable_open(inode, file);
-	if (err < 0)
-		return err;
+	int err;
+
+	nonseekable_open(inode, file);
+
 	pcm = snd_lookup_minor_data(iminor(inode),
 				    SNDRV_DEVICE_TYPE_PCM_CAPTURE);
 	err = snd_pcm_open(file, pcm, SNDRV_PCM_STREAM_CAPTURE);
@@ -2918,7 +2920,7 @@ static int snd_pcm_open(struct file *file, struct snd_pcm *pcm, int stream)
 	if (err < 0)
 		goto __error1;
 	if (!try_module_get(pcm->card->module)) {
-		err = -EFAULT;
+		err = -ENODEV;
 		goto __error2;
 	}
 	init_waitqueue_entry(&wait, current);
@@ -3914,6 +3916,8 @@ static vm_fault_t snd_pcm_mmap_data_fault(struct vm_fault *vmf)
 	if (substream == NULL)
 		return VM_FAULT_SIGBUS;
 	runtime = substream->runtime;
+	if (runtime->state == SNDRV_PCM_STATE_DISCONNECTED)
+		return VM_FAULT_SIGBUS;
 	offset = vmf->pgoff << PAGE_SHIFT;
 	dma_bytes = PAGE_ALIGN(runtime->dma_bytes);
 	if (offset > dma_bytes - PAGE_SIZE)
@@ -4239,29 +4243,29 @@ static unsigned long snd_pcm_get_unmapped_area(struct file *file,
 
 const struct file_operations snd_pcm_f_ops[2] = {
 	{
-		.owner =		THIS_MODULE,
-		.write =		snd_pcm_write,
-		.write_iter =		snd_pcm_writev,
-		.open =			snd_pcm_playback_open,
-		.release =		snd_pcm_release,
-		.poll =			snd_pcm_poll,
-		.unlocked_ioctl =	snd_pcm_ioctl,
-		.compat_ioctl = 	snd_pcm_ioctl_compat,
-		.mmap =			snd_pcm_mmap,
-		.fasync =		snd_pcm_fasync,
-		.get_unmapped_area =	snd_pcm_get_unmapped_area,
+		.owner			=	THIS_MODULE,
+		.write			=	snd_pcm_write,
+		.write_iter		=	snd_pcm_writev,
+		.open			=	snd_pcm_playback_open,
+		.release		=	snd_pcm_release,
+		.poll			=	snd_pcm_poll,
+		.unlocked_ioctl		=	snd_pcm_ioctl,
+		.compat_ioctl		=	snd_pcm_ioctl_compat,
+		.mmap			=	snd_pcm_mmap,
+		.fasync			=	snd_pcm_fasync,
+		.get_unmapped_area	=	snd_pcm_get_unmapped_area,
 	},
 	{
-		.owner =		THIS_MODULE,
-		.read =			snd_pcm_read,
-		.read_iter =		snd_pcm_readv,
-		.open =			snd_pcm_capture_open,
-		.release =		snd_pcm_release,
-		.poll =			snd_pcm_poll,
-		.unlocked_ioctl =	snd_pcm_ioctl,
-		.compat_ioctl = 	snd_pcm_ioctl_compat,
-		.mmap =			snd_pcm_mmap,
-		.fasync =		snd_pcm_fasync,
-		.get_unmapped_area =	snd_pcm_get_unmapped_area,
+		.owner			=	THIS_MODULE,
+		.read			=	snd_pcm_read,
+		.read_iter		=	snd_pcm_readv,
+		.open			=	snd_pcm_capture_open,
+		.release		=	snd_pcm_release,
+		.poll			=	snd_pcm_poll,
+		.unlocked_ioctl		=	snd_pcm_ioctl,
+		.compat_ioctl		=	snd_pcm_ioctl_compat,
+		.mmap			=	snd_pcm_mmap,
+		.fasync			=	snd_pcm_fasync,
+		.get_unmapped_area	=	snd_pcm_get_unmapped_area,
 	}
 };

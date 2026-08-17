@@ -531,7 +531,7 @@ static int be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 
 	mask = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
 	snd_mask_none(mask);
-	snd_mask_set(mask, (__force unsigned int)data->asrc_format);
+	snd_mask_set(mask, data->asrc_format);
 
 	return 0;
 }
@@ -684,7 +684,7 @@ static int imx_card_parse_of(struct imx_card_data *data)
 			}
 
 			ret = of_property_read_u32(args.np, "fsl,asrc-format", &asrc_fmt);
-			data->asrc_format = (__force snd_pcm_format_t)asrc_fmt;
+			data->asrc_format = asrc_fmt;
 			if (ret) {
 				/* Fallback to old binding; translate to asrc_format */
 				ret = of_property_read_u32(args.np, "fsl,asrc-width", &width);

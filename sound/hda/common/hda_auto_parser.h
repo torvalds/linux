@@ -46,7 +46,7 @@ const char *hda_get_autocfg_input_label(struct hda_codec *codec,
 					int input);
 int snd_hda_get_pin_label(struct hda_codec *codec, hda_nid_t nid,
 			  const struct auto_pin_cfg *cfg,
-			  char *label, int maxlen, int *indexp);
+			  char *label, int maxlen);
 
 enum {
 	INPUT_PIN_ATTR_UNUSED,	/* pin not connected */

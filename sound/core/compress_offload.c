@@ -1393,17 +1393,17 @@ static long snd_compr_ioctl_compat(struct file *file, unsigned int cmd,
 #endif
 
 static const struct file_operations snd_compr_file_ops = {
-		.owner =	THIS_MODULE,
-		.open =		snd_compr_open,
-		.release =	snd_compr_free,
-		.write =	snd_compr_write,
-		.read =		snd_compr_read,
-		.unlocked_ioctl = snd_compr_ioctl,
+		.owner		=	THIS_MODULE,
+		.open		=	snd_compr_open,
+		.release	=	snd_compr_free,
+		.write		=	snd_compr_write,
+		.read		=	snd_compr_read,
+		.unlocked_ioctl	=	snd_compr_ioctl,
 #ifdef CONFIG_COMPAT
-		.compat_ioctl = snd_compr_ioctl_compat,
+		.compat_ioctl	=	snd_compr_ioctl_compat,
 #endif
-		.mmap =		snd_compr_mmap,
-		.poll =		snd_compr_poll,
+		.mmap		=	snd_compr_mmap,
+		.poll		=	snd_compr_poll,
 };
 
 static int snd_compress_dev_register(struct snd_device *device)

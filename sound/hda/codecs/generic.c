@@ -2695,30 +2695,13 @@ static const struct snd_kcontrol_new out_jack_mode_enum = {
 	.put = out_jack_mode_put,
 };
 
-static bool find_kctl_name(struct hda_codec *codec, const char *name, int idx)
-{
-	struct hda_gen_spec *spec = codec->spec;
-	const struct snd_kcontrol_new *kctl;
-	int i;
-
-	snd_array_for_each(&spec->kctls, i, kctl) {
-		if (!strcmp(kctl->name, name) && kctl->index == idx)
-			return true;
-	}
-	return false;
-}
-
 static void get_jack_mode_name(struct hda_codec *codec, hda_nid_t pin,
 			       char *name, size_t name_len)
 {
 	struct hda_gen_spec *spec = codec->spec;
-	int idx = 0;
 
-	snd_hda_get_pin_label(codec, pin, &spec->autocfg, name, name_len, &idx);
-	strlcat(name, " Jack Mode", name_len);
-
-	for (; find_kctl_name(codec, name, idx); idx++)
-		;
+	snd_hda_get_pin_label(codec, pin, &spec->autocfg, name, name_len);
+	hda_append_suffix(name, " Jack Mode", name_len);
 }
 
 static int get_out_jack_num_items(struct hda_codec *codec, hda_nid_t pin)
@@ -5695,7 +5678,7 @@ static void fill_pcm_stream_name(char *str, size_t len, const char *sfx,
 			break;
 		}
 	}
-	strlcat(str, sfx, len);
+	hda_append_suffix(str, sfx, len);
 }
 
 /* copy PCM stream info from @default_str, and override non-NULL entries

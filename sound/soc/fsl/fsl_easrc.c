@@ -2227,7 +2227,7 @@ static int fsl_easrc_probe(struct platform_device *pdev)
 	}
 
 	ret = of_property_read_u32(np, "fsl,asrc-format", &asrc_fmt);
-	easrc->asrc_format = (__force snd_pcm_format_t)asrc_fmt;
+	easrc->asrc_format = asrc_fmt;
 	if (ret) {
 		dev_err(dev, "failed to asrc format\n");
 		return ret;

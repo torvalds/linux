@@ -612,10 +612,10 @@ static int add_jack_kctl(struct hda_codec *codec, hda_nid_t nid,
 	if (base_name)
 		strscpy(name, base_name, sizeof(name));
 	else
-		snd_hda_get_pin_label(codec, nid, cfg, name, sizeof(name), NULL);
+		snd_hda_get_pin_label(codec, nid, cfg, name, sizeof(name));
 	if (phantom_jack)
 		/* Example final name: "Internal Mic Phantom Jack" */
-		strncat(name, " Phantom", sizeof(name) - strlen(name) - 1);
+		hda_append_suffix(name, " Phantom", sizeof(name));
 	err = snd_hda_jack_add_kctl(codec, nid, name, phantom_jack, 0, NULL);
 	if (err < 0)
 		return err;

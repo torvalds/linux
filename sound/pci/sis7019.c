@@ -1260,16 +1260,16 @@ static int sis_chip_create(struct snd_card *card,
 	sis->irq = -1;
 	sis->ioport = pci_resource_start(pci, 0);
 
-	rc = pcim_request_all_regions(pci, "SiS7019");
+	rc = pcim_request_region(pci, 0, "SiS7019");
 	if (rc) {
-		dev_err(&pci->dev, "unable request regions\n");
+		dev_err(&pci->dev, "unable request I/O region\n");
 		return rc;
 	}
 
-	sis->ioaddr = devm_ioremap(&pci->dev, pci_resource_start(pci, 1), 0x4000);
-	if (!sis->ioaddr) {
+	sis->ioaddr = pcim_iomap_region(pci, 1, "SiS7019");
+	if (IS_ERR(sis->ioaddr)) {
 		dev_err(&pci->dev, "unable to remap MMIO, aborting\n");
-		return -EIO;
+		return PTR_ERR(sis->ioaddr);
 	}
 
 	rc = sis_alloc_suspend(sis);

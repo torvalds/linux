@@ -33,6 +33,7 @@ config SND_HDA_TEGRA
 config SND_HDA_CIX_IPBLOQ
 	tristate "CIX IPBLOQ HD Audio"
 	depends on ARCH_CIX || COMPILE_TEST
+	depends on ARCH_DMA_ADDR_T_64BIT
 	select SND_HDA
 	select SND_HDA_ALIGNED_MMIO
 	help

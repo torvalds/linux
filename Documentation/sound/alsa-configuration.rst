@@ -2401,6 +2401,11 @@ quirk_flags
           disabling GET_CUR instead of the whole mixer. The current volume will
           then be provided by the internal cache that stores the last set
           volume
+        * bit 31: ``playback_urb_fixup``
+          Some devices show the stuttering at playback, and this quirk
+          works around it by enforcing the fixed max URBs (12) instead of
+          the dynamic calculation from the buffer size, and passing the
+          `URB_ISO_ASAP` URB flag.
 
 This module supports multiple devices, autoprobe and hotplugging.
 

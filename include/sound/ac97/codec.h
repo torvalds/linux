@@ -33,7 +33,7 @@ struct ac97_id {
 };
 
 /**
- * ac97_codec_device - a ac97 codec
+ * struct ac97_codec_device - a ac97 codec
  * @dev: the core device
  * @vendor_id: the vendor_id of the codec, as sensed on the AC-link
  * @num: the codec number, 0 is primary, 1 is first slave, etc ...
@@ -53,7 +53,7 @@ struct ac97_codec_device {
 };
 
 /**
- * ac97_codec_driver - a ac97 codec driver
+ * struct ac97_codec_driver - a ac97 codec driver
  * @driver: the device driver structure
  * @probe: the function called when a ac97_codec_device is matched
  * @remove: the function called when the device is unbound/removed

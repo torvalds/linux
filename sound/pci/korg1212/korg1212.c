@@ -1980,7 +1980,7 @@ static int snd_korg1212_create(struct snd_card *card, struct pci_dev *pci)
 	__maybe_unused unsigned ioport_size;
 	__maybe_unused unsigned iomem2_size;
 	struct snd_korg1212 *korg1212 = card->private_data;
-	const struct firmware *dsp_code;
+	const struct firmware *dsp_code __free(firmware) = NULL;
 
 	err = pcim_enable_device(pci);
 	if (err < 0)
@@ -2147,18 +2147,14 @@ static int snd_korg1212_create(struct snd_card *card, struct pci_dev *pci)
 
 	korg1212->dma_dsp = snd_devm_alloc_pages(&pci->dev, SNDRV_DMA_TYPE_DEV,
 						 dsp_code->size);
-	if (!korg1212->dma_dsp) {
-		release_firmware(dsp_code);
+	if (!korg1212->dma_dsp)
 		return -ENOMEM;
-	}
 
         K1212_DEBUG_PRINTK("K1212_DEBUG: DSP Code area = 0x%p (0x%08x) %d bytes [%s]\n",
 		   korg1212->dma_dsp->area, korg1212->dma_dsp->addr, dsp_code->size,
 		   stateName[korg1212->cardState]);
 
 	memcpy(korg1212->dma_dsp->area, dsp_code->data, dsp_code->size);
-
-	release_firmware(dsp_code);
 
 	rc = snd_korg1212_Send1212Command(korg1212, K1212_DB_RebootCard, 0, 0, 0, 0);
 
