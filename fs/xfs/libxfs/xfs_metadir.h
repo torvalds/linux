@@ -32,14 +32,16 @@ int xfs_metadir_load(struct xfs_trans *tp, struct xfs_inode *dp,
 		const char *path, enum xfs_metafile_type metafile_type,
 		struct xfs_inode **ipp);
 
-int xfs_metadir_start_create(struct xfs_metadir_update *upd);
-int xfs_metadir_create(struct xfs_metadir_update *upd, umode_t mode);
+typedef int (*xfs_metadir_createfn)(struct xfs_metadir_update *upd, void *priv);
+
+int xfs_metadir_create_file(struct xfs_metadir_update *upd, umode_t mode,
+		xfs_metadir_createfn create, void *priv,
+		struct xfs_inode **ipp);
 
 int xfs_metadir_start_link(struct xfs_metadir_update *upd);
 int xfs_metadir_link(struct xfs_metadir_update *upd);
 
 int xfs_metadir_commit(struct xfs_metadir_update *upd);
-void xfs_metadir_cancel(struct xfs_metadir_update *upd, int error);
 
 int xfs_metadir_mkdir(struct xfs_inode *dp, const char *path,
 		struct xfs_inode **ipp);

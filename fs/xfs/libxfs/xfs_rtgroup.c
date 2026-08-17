@@ -517,6 +517,25 @@ xfs_rtginode_irele(
 	*ipp = NULL;
 }
 
+struct xfs_rtginode_create {
+	struct xfs_rtgroup		*rtg;
+	enum xfs_rtg_inodes		type;
+	bool				init;
+};
+
+static int
+xfs_rtginode_init(
+	struct xfs_metadir_update	*upd,
+	void				*priv)
+{
+	struct xfs_rtginode_create	*rc = priv;
+	const struct xfs_rtginode_ops	*ops = &xfs_rtginode_ops[rc->type];
+
+	xfs_rtginode_lockdep_setup(upd->ip, rtg_rgno(rc->rtg), rc->type);
+	upd->ip->i_projid = rtg_rgno(rc->rtg);
+	return ops->create(rc->rtg, upd->ip, upd->tp, rc->init);
+}
+
 /* Add a metadata inode for a realtime rmap btree. */
 int
 xfs_rtginode_create(
@@ -526,6 +545,11 @@ xfs_rtginode_create(
 {
 	const struct xfs_rtginode_ops	*ops = &xfs_rtginode_ops[type];
 	struct xfs_mount		*mp = rtg_mount(rtg);
+	struct xfs_rtginode_create	rc = {
+		.rtg			= rtg,
+		.type			= type,
+		.init			= init,
+	};
 	struct xfs_metadir_update	upd = {
 		.dp			= mp->m_rtdirip,
 		.metafile_type		= ops->metafile_type,
@@ -544,38 +568,8 @@ xfs_rtginode_create(
 	if (!upd.path)
 		return -ENOMEM;
 
-	error = xfs_metadir_start_create(&upd);
-	if (error)
-		goto out_path;
-
-	error = xfs_metadir_create(&upd, S_IFREG);
-	if (error)
-		goto out_cancel;
-
-	xfs_rtginode_lockdep_setup(upd.ip, rtg_rgno(rtg), type);
-
-	upd.ip->i_projid = rtg_rgno(rtg);
-	error = ops->create(rtg, upd.ip, upd.tp, init);
-	if (error)
-		goto out_cancel;
-
-	error = xfs_metadir_commit(&upd);
-	if (error)
-		goto out_path;
-
-	kfree(upd.path);
-	xfs_finish_inode_setup(upd.ip);
-	rtg->rtg_inodes[type] = upd.ip;
-	return 0;
-
-out_cancel:
-	xfs_metadir_cancel(&upd, error);
-	/* Have to finish setting up the inode to ensure it's deleted. */
-	if (upd.ip) {
-		xfs_finish_inode_setup(upd.ip);
-		xfs_irele(upd.ip);
-	}
-out_path:
+	error = xfs_metadir_create_file(&upd, S_IFREG, xfs_rtginode_init, &rc,
+			&rtg->rtg_inodes[type]);
 	kfree(upd.path);
 	return error;
 }

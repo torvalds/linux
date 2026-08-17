@@ -501,7 +501,7 @@ xfs_do_force_shutdown(
 		return;
 	}
 	if (mp->m_sb_bp)
-		mp->m_sb_bp->b_flags |= XBF_DONE;
+		xfs_buf_set_uptodate(mp->m_sb_bp);
 
 	if (flags & SHUTDOWN_FORCE_UMOUNT)
 		xfs_alert(mp, "User initiated shutdown received.");

@@ -448,7 +448,6 @@ xlog_recover_validate_buf_type(
 	if (bp->b_ops) {
 		struct xfs_buf_log_item	*bip;
 
-		bp->b_flags |= _XBF_LOGRECOVERY;
 		xfs_buf_item_init(bp, mp);
 		bip = bp->b_log_item;
 		bip->bli_item.li_lsn = current_lsn;
@@ -1122,7 +1121,6 @@ xlog_recover_buf_commit_pass2(
 			xfs_buf_lock(rtsb_bp);
 			xfs_buf_hold(rtsb_bp);
 			xfs_update_rtsb(rtsb_bp, bp);
-			rtsb_bp->b_flags |= _XBF_LOGRECOVERY;
 			xfs_buf_delwri_queue(rtsb_bp, buffer_list);
 			xfs_buf_relse(rtsb_bp);
 		}
@@ -1164,7 +1162,6 @@ out_writebuf:
 		error = xfs_bwrite(bp);
 	} else {
 		ASSERT(bp->b_mount == mp);
-		bp->b_flags |= _XBF_LOGRECOVERY;
 		xfs_buf_delwri_queue(bp, buffer_list);
 	}
 
