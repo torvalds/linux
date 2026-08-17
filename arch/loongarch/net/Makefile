@@ -4,4 +4,4 @@
 #
 # Copyright (C) 2022 Loongson Technology Corporation Limited
 #
-obj-$(CONFIG_BPF_JIT) += bpf_jit.o
+obj-$(CONFIG_BPF_JIT) += bpf_jit.o bpf_timed_may_goto.o
