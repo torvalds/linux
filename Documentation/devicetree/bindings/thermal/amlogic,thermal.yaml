@@ -87,9 +87,12 @@ examples:
         amlogic,ao-secure = <&sec_AO>;
     };
   - |
+    #include <dt-bindings/clock/amlogic,t7-peripherals-clkc.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
     temperature-sensor@20000 {
         compatible = "amlogic,t7-thermal";
-        reg = <0x0 0x20000 0x0 0x50>;
+        reg = <0x20000 0x50>;
         interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
         clocks = <&clkc_periphs CLKID_TS>;
         #thermal-sensor-cells = <0>;

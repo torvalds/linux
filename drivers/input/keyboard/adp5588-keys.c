@@ -20,7 +20,6 @@
 #include <linux/irq.h>
 #include <linux/ktime.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
@@ -842,8 +841,8 @@ static int adp5588_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(adp5588_dev_pm_ops, adp5588_suspend, adp5588_resume);
 
 static const struct i2c_device_id adp5588_id[] = {
-	{ "adp5588-keys" },
-	{ "adp5587-keys" },
+	{ .name = "adp5588-keys" },
+	{ .name = "adp5587-keys" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adp5588_id);

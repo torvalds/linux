@@ -513,7 +513,7 @@ unregister all the kernel hook points.
 
 All kgdb I/O drivers can be reconfigured at run time, if
 ``CONFIG_SYSFS`` and ``CONFIG_MODULES`` are enabled, by echo'ing a new
-config string to ``/sys/module/<driver>/parameter/<option>``. The driver
+config string to ``/sys/module/<driver>/parameters/<option>``. The driver
 can be unconfigured by passing an empty string. You cannot change the
 configuration while the debugger is attached. Make sure to detach the
 debugger with the ``detach`` command prior to trying to unconfigure a

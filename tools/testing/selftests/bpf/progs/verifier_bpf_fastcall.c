@@ -660,6 +660,7 @@ __naked void may_goto_interaction_x86_64(void)
 
 SEC("raw_tp")
 __arch_arm64
+__arch_riscv64
 __log_level(4) __msg("stack depth 24")
 /* may_goto counter at -24 */
 __xlated("0: *(u64 *)(r10 -24) =")
@@ -679,7 +680,7 @@ __xlated("10: *(u64 *)(r10 -24) = r12")
 __xlated("11: *(u64 *)(r10 -8) = r1")
 __xlated("12: exit")
 __success
-__naked void may_goto_interaction_arm64(void)
+__naked void may_goto_interaction(void)
 {
 	asm volatile (
 	"r1 = 1;"

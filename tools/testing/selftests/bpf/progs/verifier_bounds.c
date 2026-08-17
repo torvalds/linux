@@ -1195,7 +1195,7 @@ l0_%=:	r1 = r6;					\
 	r3 += -8;					\
 	r5 = 0;						\
 	/* The 4th argument of bpf_skb_store_bytes is defined as \
-	 * ARG_CONST_SIZE, so 0 is not allowed. The 'r4 != 0' \
+	 * ARG_MEM_SIZE, so 0 is not allowed. The 'r4 != 0' \
 	 * is providing us this exclusion of zero from initial \
 	 * [0, 7] range.				\
 	 */						\

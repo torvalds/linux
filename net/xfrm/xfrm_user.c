@@ -1201,17 +1201,26 @@ static int copy_sec_ctx(struct xfrm_sec_ctx *s, struct sk_buff *skb)
 	return 0;
 }
 
-static void xso_to_xuo(const struct xfrm_dev_offload *xso,
-		       struct xfrm_user_offload *xuo)
+static void xso_to_xuo_ifindex(const struct xfrm_dev_offload *xso, int ifindex,
+			       struct xfrm_user_offload *xuo)
 {
-	xuo->ifindex = xso->dev->ifindex;
+	xuo->ifindex = ifindex;
 	if (xso->dir == XFRM_DEV_OFFLOAD_IN)
 		xuo->flags = XFRM_OFFLOAD_INBOUND;
 	if (xso->type == XFRM_DEV_OFFLOAD_PACKET)
 		xuo->flags |= XFRM_OFFLOAD_PACKET;
 }
 
-static int copy_user_offload(struct xfrm_dev_offload *xso, struct sk_buff *skb)
+#ifdef CONFIG_XFRM_MIGRATE
+static void xso_to_xuo(const struct xfrm_dev_offload *xso,
+		       struct xfrm_user_offload *xuo)
+{
+	xso_to_xuo_ifindex(xso, xso->dev->ifindex, xuo);
+}
+#endif
+
+static int copy_user_offload_ifindex(const struct xfrm_dev_offload *xso,
+				     int ifindex, struct sk_buff *skb)
 {
 	struct xfrm_user_offload *xuo;
 	struct nlattr *attr;
@@ -1222,9 +1231,20 @@ static int copy_user_offload(struct xfrm_dev_offload *xso, struct sk_buff *skb)
 
 	xuo = nla_data(attr);
 	memset(xuo, 0, sizeof(*xuo));
-	xso_to_xuo(xso, xuo);
+	xso_to_xuo_ifindex(xso, ifindex, xuo);
 
 	return 0;
+}
+
+static int copy_user_offload(struct xfrm_dev_offload *xso, struct sk_buff *skb)
+{
+	return copy_user_offload_ifindex(xso, xso->dev->ifindex, skb);
+}
+
+static int copy_user_state_offload(const struct xfrm_dev_offload *xso,
+				   struct sk_buff *skb)
+{
+	return copy_user_offload_ifindex(xso, READ_ONCE(xso->ifindex), skb);
 }
 
 static bool xfrm_redact(void)
@@ -1433,8 +1453,8 @@ static int copy_to_user_state_extra(struct xfrm_state *x,
 			      &x->replay);
 	if (ret)
 		goto out;
-	if(x->xso.dev)
-		ret = copy_user_offload(&x->xso, skb);
+	if (READ_ONCE(x->xso.dev))
+		ret = copy_user_state_offload(&x->xso, skb);
 	if (ret)
 		goto out;
 	if (x->if_id) {
@@ -2104,12 +2124,11 @@ static int validate_tmpl(int nr, struct xfrm_user_tmpl *ut, u16 family,
 		switch (ut[i].mode) {
 		case XFRM_MODE_TUNNEL:
 		case XFRM_MODE_BEET:
+		case XFRM_MODE_IPTFS:
 			if (ut[i].optional && dir == XFRM_POLICY_OUT) {
 				NL_SET_ERR_MSG(extack, "Mode in optional template not allowed in outbound policy");
 				return -EINVAL;
 			}
-			break;
-		case XFRM_MODE_IPTFS:
 			break;
 		default:
 			if (ut[i].family != prev_family) {
@@ -2511,9 +2530,9 @@ static int xfrm_notify_userpolicy(struct net *net)
 	}
 
 	up = nlmsg_data(nlh);
-	up->in = net->xfrm.policy_default[XFRM_POLICY_IN];
-	up->fwd = net->xfrm.policy_default[XFRM_POLICY_FWD];
-	up->out = net->xfrm.policy_default[XFRM_POLICY_OUT];
+	up->in = READ_ONCE(net->xfrm.policy_default[XFRM_POLICY_IN]);
+	up->fwd = READ_ONCE(net->xfrm.policy_default[XFRM_POLICY_FWD]);
+	up->out = READ_ONCE(net->xfrm.policy_default[XFRM_POLICY_OUT]);
 
 	nlmsg_end(skb, nlh);
 
@@ -2537,13 +2556,13 @@ static int xfrm_set_default(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct xfrm_userpolicy_default *up = nlmsg_data(nlh);
 
 	if (xfrm_userpolicy_is_valid(up->in))
-		net->xfrm.policy_default[XFRM_POLICY_IN] = up->in;
+		WRITE_ONCE(net->xfrm.policy_default[XFRM_POLICY_IN], up->in);
 
 	if (xfrm_userpolicy_is_valid(up->fwd))
-		net->xfrm.policy_default[XFRM_POLICY_FWD] = up->fwd;
+		WRITE_ONCE(net->xfrm.policy_default[XFRM_POLICY_FWD], up->fwd);
 
 	if (xfrm_userpolicy_is_valid(up->out))
-		net->xfrm.policy_default[XFRM_POLICY_OUT] = up->out;
+		WRITE_ONCE(net->xfrm.policy_default[XFRM_POLICY_OUT], up->out);
 
 	rt_genid_bump_all(net);
 
@@ -2573,9 +2592,9 @@ static int xfrm_get_default(struct sk_buff *skb, struct nlmsghdr *nlh,
 	}
 
 	r_up = nlmsg_data(r_nlh);
-	r_up->in = net->xfrm.policy_default[XFRM_POLICY_IN];
-	r_up->fwd = net->xfrm.policy_default[XFRM_POLICY_FWD];
-	r_up->out = net->xfrm.policy_default[XFRM_POLICY_OUT];
+	r_up->in = READ_ONCE(net->xfrm.policy_default[XFRM_POLICY_IN]);
+	r_up->fwd = READ_ONCE(net->xfrm.policy_default[XFRM_POLICY_FWD]);
+	r_up->out = READ_ONCE(net->xfrm.policy_default[XFRM_POLICY_OUT]);
 	nlmsg_end(r_skb, r_nlh);
 
 	return nlmsg_unicast(xfrm_net_nlsk(net, skb), r_skb, portid);
@@ -3835,7 +3854,7 @@ static int xfrm_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (!netlink_net_capable(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
-	if (in_compat_syscall()) {
+	if (IS_ENABLED(CONFIG_COMPAT_FOR_U64_ALIGNMENT) && in_compat_syscall()) {
 		struct xfrm_translator *xtr = xfrm_get_translator();
 
 		if (!xtr)
@@ -4046,8 +4065,8 @@ static inline unsigned int xfrm_sa_len(struct xfrm_state *x)
 		l += nla_total_size(sizeof(*x->coaddr));
 	if (x->props.extra_flags)
 		l += nla_total_size(sizeof(x->props.extra_flags));
-	if (x->xso.dev)
-		 l += nla_total_size(sizeof(struct xfrm_user_offload));
+	if (READ_ONCE(x->xso.dev))
+		l += nla_total_size(sizeof(struct xfrm_user_offload));
 	if (x->props.smark.v | x->props.smark.m) {
 		l += nla_total_size(sizeof(x->props.smark.v));
 		l += nla_total_size(sizeof(x->props.smark.m));

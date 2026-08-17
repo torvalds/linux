@@ -149,8 +149,6 @@ struct io_uring_task {
 
 	struct { /* task_work */
 		struct mpscq		task_list;
-		/* BIT(0) guards adding tw only once */
-		unsigned long		tw_pending;
 		struct callback_head	task_work;
 	} ____cacheline_aligned_in_smp;
 };

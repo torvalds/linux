@@ -14,7 +14,6 @@
 #include <linux/linear_range.h>
 #include <linux/mfd/max77759.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>

@@ -251,13 +251,14 @@ struct pnv_iov_data {
 	struct resource holes[PCI_SRIOV_NUM_BARS];
 };
 
-static inline struct pnv_iov_data *pnv_iov_get(struct pci_dev *pdev)
+static inline struct pnv_iov_data *pnv_iov_get(const struct pci_dev *pdev)
 {
 	return pdev->dev.archdata.iov_data;
 }
 
 void pnv_pci_ioda_fixup_iov(struct pci_dev *pdev);
-resource_size_t pnv_pci_iov_resource_alignment(struct pci_dev *pdev, int resno);
+resource_size_t pnv_pci_iov_resource_alignment(const struct pci_dev *pdev,
+					       int resno);
 
 int pnv_pcibios_sriov_enable(struct pci_dev *pdev, u16 num_vfs);
 int pnv_pcibios_sriov_disable(struct pci_dev *pdev);

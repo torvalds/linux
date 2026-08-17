@@ -24,7 +24,11 @@ allOf:
 
 properties:
   compatible:
-    const: spacemit,k1-spi
+    oneOf:
+      - const: spacemit,k1-spi
+      - items:
+          - const: spacemit,k3-spi
+          - const: spacemit,k1-spi
 
   reg:
     maxItems: 1

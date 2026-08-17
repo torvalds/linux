@@ -631,10 +631,10 @@ static int rv8803_suspend(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(rv8803_pm_ops, rv8803_suspend, rv8803_resume);
 
 static const struct i2c_device_id rv8803_id[] = {
-	{ "rv8803", rv_8803 },
-	{ "rv8804", rx_8804 },
-	{ "rx8803", rx_8803 },
-	{ "rx8900", rx_8900 },
+	{ .name = "rv8803", .driver_data = rv_8803 },
+	{ .name = "rv8804", .driver_data = rx_8804 },
+	{ .name = "rx8803", .driver_data = rx_8803 },
+	{ .name = "rx8900", .driver_data = rx_8900 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rv8803_id);

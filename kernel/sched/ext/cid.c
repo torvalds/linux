@@ -449,10 +449,10 @@ __bpf_kfunc_start_defs();
 
 /**
  * scx_bpf_cid_override - Install an explicit cpu->cid mapping with shard info
- * @cpu_to_cid_src: array of nr_cpu_ids s32 entries (cid for each cpu)
- * @cpu_to_cid_src__sz: must be nr_cpu_ids * sizeof(s32) bytes
- * @shard_start_src: array of first-cid-of-each-shard, strictly increasing from 0
- * @shard_start_src__sz: nr_shards * sizeof(s32) bytes
+ * @cpu_to_cid__arena: array of nr_cpu_ids s32 entries (cid for each cpu)
+ * @cpu_to_cid_cnt: number of entries, must be nr_cpu_ids
+ * @shard_start__arena: array of first-cid-of-each-shard, one entry per shard
+ * @shard_start_cnt: number of shards
  * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
  *
  * May only be called from ops.init_cids() of the root scheduler. Replace the
@@ -464,9 +464,9 @@ __bpf_kfunc_start_defs();
  * (core/LLC/node) is cleared and the shard layout is set from the input. On
  * invalid input, abort the scheduler.
  */
-__bpf_kfunc void scx_bpf_cid_override(const s32 *cpu_to_cid_src, u32 cpu_to_cid_src__sz,
-				       const s32 *shard_start_src, u32 shard_start_src__sz,
-				       const struct bpf_prog_aux *aux)
+__bpf_kfunc void scx_bpf_cid_override(const s32 *cpu_to_cid__arena, u32 cpu_to_cid_cnt,
+				      const s32 *shard_start__arena, u32 shard_start_cnt,
+				      const struct bpf_prog_aux *aux)
 {
 	cpumask_var_t seen __free(free_cpumask_var) = CPUMASK_VAR_NULL;
 	u32 *node_counts __free(kfree) = NULL;
@@ -475,19 +475,28 @@ __bpf_kfunc void scx_bpf_cid_override(const s32 *cpu_to_cid_src, u32 cpu_to_cid_
 	u32 npossible = num_possible_cpus();
 	struct scx_cid_tables *tbls;
 	struct scx_sched *sch;
-	u32 nr_shards;
+	u32 nr_shards = shard_start_cnt;
 	bool alloced;
 	s32 cpu, cid, si;
 
 	/*
 	 * GFP_KERNEL allocs must happen before the rcu read section. Snapshot
-	 * the BPF-supplied arrays so a concurrent map mutation can't change
+	 * the BPF-supplied arrays so a concurrent arena write can't change
 	 * them between validation and use.
+	 *
+	 * The BPF-supplied counts size the snapshots and thus the arena reads.
+	 * Gate the copies on the count bounds, reported below once @sch is
+	 * available. The bounded reads, at most 32KB, stay within the guard
+	 * region that arena fault recovery covers.
 	 */
 	alloced = zalloc_cpumask_var(&seen, GFP_KERNEL);
 	node_counts = kcalloc(nr_node_ids, sizeof(*node_counts), GFP_KERNEL);
-	cpu_to_cid = kmemdup(cpu_to_cid_src, cpu_to_cid_src__sz, GFP_KERNEL);
-	shard_start = kmemdup(shard_start_src, shard_start_src__sz, GFP_KERNEL);
+	if (cpu_to_cid_cnt == nr_cpu_ids)
+		cpu_to_cid = kmemdup(cpu_to_cid__arena, cpu_to_cid_cnt * sizeof(s32),
+				     GFP_KERNEL);
+	if (nr_shards && nr_shards <= npossible)
+		shard_start = kmemdup(shard_start__arena, nr_shards * sizeof(s32),
+				      GFP_KERNEL);
 
 	guard(rcu)();
 
@@ -499,24 +508,22 @@ __bpf_kfunc void scx_bpf_cid_override(const s32 *cpu_to_cid_src, u32 cpu_to_cid_
 	lockdep_assert_held(&scx_enable_mutex);
 	tbls = scx_cid_tables;
 
+	if (cpu_to_cid_cnt != nr_cpu_ids) {
+		scx_error(sch, "scx_bpf_cid_override: cpu_to_cid expected %u entries, got %u",
+			  nr_cpu_ids, cpu_to_cid_cnt);
+		return;
+	}
+
+	if (!nr_shards || nr_shards > npossible) {
+		scx_error(sch, "scx_bpf_cid_override: invalid shard_start count %u",
+			  nr_shards);
+		return;
+	}
+
 	if (!alloced || !node_counts || !cpu_to_cid || !shard_start) {
 		scx_error(sch, "scx_bpf_cid_override: allocation failed");
 		return;
 	}
-
-	if (cpu_to_cid_src__sz != nr_cpu_ids * sizeof(s32)) {
-		scx_error(sch, "scx_bpf_cid_override: cpu_to_cid expected %zu bytes, got %u",
-			  nr_cpu_ids * sizeof(s32), cpu_to_cid_src__sz);
-		return;
-	}
-
-	if (!shard_start_src__sz || shard_start_src__sz % sizeof(s32)) {
-		scx_error(sch, "scx_bpf_cid_override: invalid shard_start size %u",
-			  shard_start_src__sz);
-		return;
-	}
-
-	nr_shards = shard_start_src__sz / sizeof(s32);
 
 	/* validate shard_start[]: starts at 0, strictly increasing, in range */
 	if (shard_start[0] != 0) {
@@ -957,7 +964,7 @@ static const struct btf_kfunc_id_set scx_kfunc_set_cid = {
 /**
  * scx_cmask_ref_init - Bind a scx_cmask_ref to a BPF-arena cmask
  * @sch: scheduler whose arena hosts @src
- * @src: BPF-supplied cmask pointer
+ * @src: BPF-supplied cmask, rebased to its kernel address
  * @ref: output ref
  *
  * Snapshot @src's @base, @nr_cids and @alloc_words. The snapshot is necessary
@@ -969,20 +976,19 @@ static const struct btf_kfunc_id_set scx_kfunc_set_cid = {
 int scx_cmask_ref_init(struct scx_sched *sch, const struct scx_cmask *src,
 		       struct scx_cmask_ref *ref)
 {
-	struct scx_cmask *kern_src = scx_arena_to_kaddr(sch, src);
 	u32 base, nr_cids, alloc_words, npossible = num_possible_cpus();
 	s32 *cid_to_shard;
 
-	base = READ_ONCE(kern_src->base);
-	nr_cids = READ_ONCE(kern_src->nr_cids);
-	alloc_words = READ_ONCE(kern_src->alloc_words);
+	base = READ_ONCE(src->base);
+	nr_cids = READ_ONCE(src->nr_cids);
+	alloc_words = READ_ONCE(src->alloc_words);
 
 	if (unlikely(base >= npossible || nr_cids > npossible - base ||
 		     SCX_CMASK_NR_WORDS(nr_cids) > alloc_words))
 		return -EINVAL;
 
 	ref->sch = sch;
-	ref->src = kern_src;
+	ref->src = (struct scx_cmask *)src;
 	ref->base = base;
 	ref->nr_cids = nr_cids;
 

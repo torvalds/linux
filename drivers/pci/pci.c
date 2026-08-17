@@ -33,6 +33,7 @@
 #include <asm/dma.h>
 #include <linux/aer.h>
 #include <linux/bitfield.h>
+#include <linux/suspend.h>
 #include "pci.h"
 
 DEFINE_MUTEX(pci_slot_mutex);
@@ -120,17 +121,7 @@ unsigned long pci_hotplug_bus_size = DEFAULT_HOTPLUG_BUS_SIZE;
 
 
 /* PCIe MPS/MRRS strategy; can be overridden by kernel command-line param */
-#ifdef CONFIG_PCIE_BUS_TUNE_OFF
-enum pcie_bus_config_types pcie_bus_config = PCIE_BUS_TUNE_OFF;
-#elif defined CONFIG_PCIE_BUS_SAFE
-enum pcie_bus_config_types pcie_bus_config = PCIE_BUS_SAFE;
-#elif defined CONFIG_PCIE_BUS_PERFORMANCE
-enum pcie_bus_config_types pcie_bus_config = PCIE_BUS_PERFORMANCE;
-#elif defined CONFIG_PCIE_BUS_PEER2PEER
-enum pcie_bus_config_types pcie_bus_config = PCIE_BUS_PEER2PEER;
-#else
 enum pcie_bus_config_types pcie_bus_config = PCIE_BUS_DEFAULT;
-#endif
 
 /*
  * The default CLS is used if arch didn't set CLS explicitly and not
@@ -1253,8 +1244,8 @@ static int pci_dev_wait(struct pci_dev *dev, char *reset_type, int timeout)
 		}
 
 		if (delay > timeout) {
-			pci_warn(dev, "not ready %dms after %s; giving up\n",
-				 delay - 1, reset_type);
+			pci_err(dev, "not ready %dms after %s; giving up\n",
+				delay - 1, reset_type);
 			return -ENOTTY;
 		}
 
@@ -1300,7 +1291,18 @@ int pci_power_up(struct pci_dev *dev)
 	bool need_restore;
 	pci_power_t state;
 	u16 pmcsr;
+	int ret;
 
+	/*
+	 * When setting power state to D0, platform_pci_set_power_state()
+	 * ensures main power is on.  If it puts the device in D0, it also
+	 * completes any required delays after the transition; if it leaves
+	 * the device in D1, D2, or D3hot, we use the PM Capability to
+	 * transition to D0.
+	 *
+	 * In all cases, the device is either Configuration-Ready or
+	 * inaccessible upon return.
+	 */
 	platform_pci_set_power_state(dev, PCI_D0);
 
 	if (!dev->pm_cap) {
@@ -1341,10 +1343,19 @@ int pci_power_up(struct pci_dev *dev)
 	pci_write_config_word(dev, dev->pm_cap + PCI_PM_CTRL, 0);
 
 	/* Mandatory transition delays; see PCI PM 1.2. */
-	if (state == PCI_D3hot)
+	if (state == PCI_D3hot) {
 		pci_dev_d3_sleep(dev);
-	else if (state == PCI_D2)
+		if (!(pmcsr & PCI_PM_CTRL_NO_SOFT_RESET)) {
+			ret = pci_dev_wait(dev, "power up D3hot->D0uninitialized",
+					   PCIE_RESET_READY_POLL_MS);
+			if (ret) {
+				dev->current_state = PCI_D3cold;
+				return -EIO;
+			}
+		}
+	} else if (state == PCI_D2) {
 		udelay(PCI_PM_D2_DELAY);
+	}
 
 end:
 	dev->current_state = PCI_D0;
@@ -1513,9 +1524,6 @@ static int pci_set_low_power_state(struct pci_dev *dev, pci_power_t state, bool 
 		pci_info_ratelimited(dev, "Refused to change power state from %s to %s\n",
 				     pci_power_name(dev->current_state),
 				     pci_power_name(state));
-
-	if (dev->bus->self)
-		pcie_aspm_pm_state_change(dev->bus->self, locked);
 
 	return 0;
 }
@@ -1764,7 +1772,7 @@ int pci_save_state(struct pci_dev *dev)
 EXPORT_SYMBOL(pci_save_state);
 
 static void pci_restore_config_dword(struct pci_dev *pdev, int offset,
-				     u32 saved_val, int retry, bool force)
+				     u32 saved_val, bool force)
 {
 	u32 val;
 
@@ -1772,52 +1780,42 @@ static void pci_restore_config_dword(struct pci_dev *pdev, int offset,
 	if (!force && val == saved_val)
 		return;
 
-	for (;;) {
-		pci_dbg(pdev, "restore config %#04x: %#010x -> %#010x\n",
-			offset, val, saved_val);
-		pci_write_config_dword(pdev, offset, saved_val);
-		if (retry-- <= 0)
-			return;
+	pci_dbg(pdev, "restore config %#04x: %#010x -> %#010x\n", offset, val,
+		saved_val);
 
-		pci_read_config_dword(pdev, offset, &val);
-		if (val == saved_val)
-			return;
-
-		mdelay(1);
-	}
+	pci_write_config_dword(pdev, offset, saved_val);
 }
 
 static void pci_restore_config_space_range(struct pci_dev *pdev,
-					   int start, int end, int retry,
-					   bool force)
+					   int start, int end, bool force)
 {
 	int index;
 
 	for (index = end; index >= start; index--)
 		pci_restore_config_dword(pdev, 4 * index,
 					 pdev->saved_config_space[index],
-					 retry, force);
+					 force);
 }
 
 static void pci_restore_config_space(struct pci_dev *pdev)
 {
 	if (pdev->hdr_type == PCI_HEADER_TYPE_NORMAL) {
-		pci_restore_config_space_range(pdev, 10, 15, 0, false);
+		pci_restore_config_space_range(pdev, 10, 15, false);
 		/* Restore BARs before the command register. */
-		pci_restore_config_space_range(pdev, 4, 9, 10, false);
-		pci_restore_config_space_range(pdev, 0, 3, 0, false);
+		pci_restore_config_space_range(pdev, 4, 9, false);
+		pci_restore_config_space_range(pdev, 0, 3, false);
 	} else if (pdev->hdr_type == PCI_HEADER_TYPE_BRIDGE) {
-		pci_restore_config_space_range(pdev, 12, 15, 0, false);
+		pci_restore_config_space_range(pdev, 12, 15, false);
 
 		/*
 		 * Force rewriting of prefetch registers to avoid S3 resume
 		 * issues on Intel PCI bridges that occur when these
 		 * registers are not explicitly written.
 		 */
-		pci_restore_config_space_range(pdev, 9, 11, 0, true);
-		pci_restore_config_space_range(pdev, 0, 8, 0, false);
+		pci_restore_config_space_range(pdev, 9, 11, true);
+		pci_restore_config_space_range(pdev, 0, 8, false);
 	} else {
-		pci_restore_config_space_range(pdev, 0, 15, 0, false);
+		pci_restore_config_space_range(pdev, 0, 15, false);
 	}
 }
 
@@ -2898,6 +2896,40 @@ void pci_config_pm_runtime_put(struct pci_dev *pdev)
 	if (parent)
 		pm_runtime_put_sync(parent);
 }
+
+/**
+ * pci_suspend_retains_context - Check if the platform can retain the device
+ *				 context during system suspend
+ * @pdev: PCI device to check
+ *
+ * Return: true if the platform can guarantee to retain the device context,
+ * false otherwise.
+ */
+bool pci_suspend_retains_context(struct pci_dev *pdev)
+{
+	struct pci_host_bridge *bridge = pci_find_host_bridge(pdev->bus);
+
+	/*
+	 * If the platform firmware (like ACPI) is involved at the end of
+	 * system suspend, device context may not be retained.
+	 */
+	if (pm_suspend_via_firmware())
+		return false;
+
+	/*
+	 * Some host bridges power off the PHY to enter deep low-power
+	 * modes during system suspend. Exiting L1SS from this condition
+	 * may violate timing requirements and result in Link Down (LDn),
+	 * which causes a reset of the device.  On such platforms, the
+	 * endpoint must be prepared for context loss.
+	 */
+	if (bridge && bridge->broken_l1ss_resume)
+		return false;
+
+	/* Assume that the context is retained by default */
+	return true;
+}
+EXPORT_SYMBOL_GPL(pci_suspend_retains_context);
 
 static const struct dmi_system_id bridge_d3_blacklist[] = {
 #ifdef CONFIG_X86
@@ -5770,8 +5802,7 @@ int pcix_set_mmrbc(struct pci_dev *dev, int mmrbc)
 		if (v > o && (dev->bus->bus_flags & PCI_BUS_FLAGS_NO_MMRBC))
 			return -EIO;
 
-		cmd &= ~PCI_X_CMD_MAX_READ;
-		cmd |= FIELD_PREP(PCI_X_CMD_MAX_READ, v);
+		FIELD_MODIFY(PCI_X_CMD_MAX_READ, &cmd, v);
 		if (pci_write_config_word(dev, cap + PCI_X_CMD, cmd))
 			return -EIO;
 	}

@@ -268,6 +268,7 @@ static void inject_sync64(struct kvm_vcpu *vcpu, u64 esr)
 
 	write_sysreg_el1(esr, SYS_ESR);
 	write_sysreg_el1(read_sysreg_el2(SYS_ELR), SYS_ELR);
+	write_sysreg_el1(read_sysreg_el2(SYS_SPSR), SYS_SPSR);
 	write_sysreg_el2(*vcpu_pc(vcpu), SYS_ELR);
 	write_sysreg_el2(*vcpu_cpsr(vcpu), SYS_SPSR);
 }
@@ -278,7 +279,7 @@ static void inject_sync64(struct kvm_vcpu *vcpu, u64 esr)
  */
 static void inject_undef64(struct kvm_vcpu *vcpu)
 {
-	inject_sync64(vcpu, (ESR_ELx_EC_UNKNOWN << ESR_ELx_EC_SHIFT));
+	inject_sync64(vcpu, (ESR_ELx_EC_UNKNOWN << ESR_ELx_EC_SHIFT) | ESR_ELx_IL);
 }
 
 static u64 read_id_reg(const struct kvm_vcpu *vcpu,

@@ -12,15 +12,17 @@
 
 #define private(name) SEC(".bss." #name) __hidden __attribute__((aligned(8)))
 
+#ifdef __TARGET_ARCH_arm64
+#define ARENA_VM_START ((1ull << 32) | (~0u - __PAGE_SIZE * 2 + 1))
+#else
+#define ARENA_VM_START ((1ull << 44) | (~0u - __PAGE_SIZE * 2 + 1))
+#endif
+
 struct {
 	__uint(type, BPF_MAP_TYPE_ARENA);
 	__uint(map_flags, BPF_F_MMAPABLE);
 	__uint(max_entries, 2); /* arena of two pages close to 32-bit boundary*/
-#ifdef __TARGET_ARCH_arm64
-        __ulong(map_extra, (1ull << 32) | (~0u - __PAGE_SIZE * 2 + 1)); /* start of mmap() region */
-#else
-        __ulong(map_extra, (1ull << 44) | (~0u - __PAGE_SIZE * 2 + 1)); /* start of mmap() region */
-#endif
+	__ulong(map_extra, ARENA_VM_START); /* start of mmap() region */
 } arena SEC(".maps");
 
 SEC("socket")
@@ -90,6 +92,34 @@ int basic_alloc1(void *ctx)
 	if (*page1 != 1)
 		return 10;
 #endif
+	return 0;
+}
+
+SEC("syscall")
+__success __retval(0)
+int free_scalar_below_arena(void *ctx)
+{
+	void __arena *page1, *page2, *page3;
+	__u64 bad_addr = ARENA_VM_START - __PAGE_SIZE;
+
+	page1 = bpf_arena_alloc_pages(&arena, NULL, 1, NUMA_NO_NODE, 0);
+	if (!page1)
+		return 1;
+
+	page2 = bpf_arena_alloc_pages(&arena, NULL, 1, NUMA_NO_NODE, 0);
+	if (!page2)
+		return 2;
+
+	page3 = bpf_arena_alloc_pages(&arena, NULL, 1, NUMA_NO_NODE, 0);
+	if (page3)
+		return 3;
+
+	bpf_arena_free_pages(&arena, (void __arena *)bad_addr, 1);
+
+	page3 = bpf_arena_alloc_pages(&arena, NULL, 1, NUMA_NO_NODE, 0);
+	if (page3)
+		return 4;
+
 	return 0;
 }
 

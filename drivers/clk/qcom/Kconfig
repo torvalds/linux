@@ -200,6 +200,17 @@ config CLK_X1E80100_TCSRCC
 	  Support for the TCSR clock controller on X1E80100 devices.
 	  Say Y if you want to use peripheral devices such as SD/UFS.
 
+config CLK_X1P42100_CAMCC
+	tristate "X1P42100 Camera Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select CLK_X1E80100_GCC
+	default m if ARCH_QCOM
+	help
+	  Support for the camera clock controller on Qualcomm Technologies, Inc.
+	  X1P42100 devices.
+	  Say Y if you want to support camera devices and camera functionality
+	  such as capturing pictures.
+
 config CLK_X1P42100_GPUCC
 	tristate "X1P42100 Graphics Clock Controller"
 	depends on ARM64 || COMPILE_TEST
@@ -208,6 +219,17 @@ config CLK_X1P42100_GPUCC
 	  Support for the graphics clock controller on X1P42100 devices.
 	  Say Y if you want to support graphics controller devices and
 	  functionality such as 3D graphics.
+
+config CLK_X1P42100_VIDEOCC
+	tristate "X1P42100 Video Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select CLK_X1E80100_GCC
+	default m if ARCH_QCOM
+	help
+	  Support for the video clock controller on Qualcomm Technologies, Inc.
+	  X1P42100 devices.
+	  Say Y if you want to support video devices and functionality such as
+	  video encode/decode.
 
 config CLK_QCM2290_GPUCC
 	tristate "QCM2290 Graphics Clock Controller"
@@ -295,6 +317,22 @@ config QCOM_CLK_RPMH
 	 SoCs. It accepts requests from other hardware subsystems via RSC.
 	 Say Y if you want to support the clocks exposed by RPMh on
 	 platforms such as SDM845.
+
+config CLK_HAWI_GCC
+	tristate "Hawi Global Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select QCOM_GDSC
+	help
+	  Support for the global clock controller on Hawi devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  I2C, USB, UFS, SD/eMMC, PCIe, etc.
+
+config CLK_HAWI_TCSRCC
+	tristate "Hawi TCSR Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	help
+	  Support for the TCSR clock controller on Hawi devices.
+	  Say Y if you want to use peripheral devices such as PCIe, USB, UFS.
 
 config APQ_GCC_8084
 	tristate "APQ8084 Global Clock Controller"
@@ -433,6 +471,16 @@ config IPQ_GCC_9574
 	  Say Y if you want to use peripheral devices such as UART, SPI,
 	  i2c, USB, SD/eMMC, etc. Select this for the root clock
 	  of ipq9574.
+
+config IPQ_GCC_9650
+	tristate "IPQ9650 Global Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	default ARCH_QCOM
+	help
+	  Support for global clock controller on ipq9650 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  i2c, USB, SD/eMMC, etc. Select this for the root clock
+	  of ipq9650.
 
 config IPQ_NSSCC_5424
 	tristate "IPQ5424 NSS Clock Controller"

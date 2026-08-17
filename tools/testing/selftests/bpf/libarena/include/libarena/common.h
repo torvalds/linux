@@ -43,7 +43,7 @@ struct {
  * imprecise. To force the variable to be imprecise, initialize it with
  * the opaque volatile variable 0 instead of the constant 0.
  */
-extern const volatile u32 zero;
+volatile u32 zero __weak;
 extern volatile u64 asan_violated;
 
 int arena_fls(__u64 word);

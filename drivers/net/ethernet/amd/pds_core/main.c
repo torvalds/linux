@@ -238,6 +238,10 @@ static int pdsc_init_pf(struct pdsc *pdsc)
 	/* General workqueue and timer, but don't start timer yet */
 	snprintf(wq_name, sizeof(wq_name), "%s.%d", PDS_CORE_DRV_NAME, pdsc->uid);
 	pdsc->wq = create_singlethread_workqueue(wq_name);
+	if (!pdsc->wq) {
+		err = -ENOMEM;
+		goto err_out_unmap_bars;
+	}
 	INIT_WORK(&pdsc->health_work, pdsc_health_thread);
 	INIT_WORK(&pdsc->pci_reset_work, pdsc_pci_reset_thread);
 	timer_setup(&pdsc->wdtimer, pdsc_wdtimer_cb, 0);
@@ -253,7 +257,7 @@ static int pdsc_init_pf(struct pdsc *pdsc)
 	err = pdsc_setup(pdsc, PDSC_SETUP_INIT);
 	if (err) {
 		mutex_unlock(&pdsc->config_lock);
-		goto err_out_unmap_bars;
+		goto err_out_shutdown_timer;
 	}
 
 	err = pdsc_start(pdsc);
@@ -305,13 +309,14 @@ err_out_stop:
 	pdsc_stop(pdsc);
 err_out_teardown:
 	pdsc_teardown(pdsc, PDSC_TEARDOWN_REMOVING);
-err_out_unmap_bars:
+err_out_shutdown_timer:
 	timer_shutdown_sync(&pdsc->wdtimer);
 	if (pdsc->wq)
 		destroy_workqueue(pdsc->wq);
 	mutex_destroy(&pdsc->config_lock);
 	mutex_destroy(&pdsc->devcmd_lock);
 	pci_free_irq_vectors(pdsc->pdev);
+err_out_unmap_bars:
 	pdsc_unmap_bars(pdsc);
 err_out_release_regions:
 	pci_release_regions(pdsc->pdev);
@@ -435,8 +440,6 @@ static void pdsc_remove(struct pci_dev *pdev)
 		pdsc_auxbus_dev_del(pdsc, pdsc, &pdsc->padev);
 
 		timer_shutdown_sync(&pdsc->wdtimer);
-		if (pdsc->wq)
-			destroy_workqueue(pdsc->wq);
 
 		mutex_lock(&pdsc->config_lock);
 		set_bit(PDSC_S_STOPPING_DRIVER, &pdsc->state);
@@ -444,6 +447,9 @@ static void pdsc_remove(struct pci_dev *pdev)
 		pdsc_stop(pdsc);
 		pdsc_teardown(pdsc, PDSC_TEARDOWN_REMOVING);
 		mutex_unlock(&pdsc->config_lock);
+
+		if (pdsc->wq)
+			destroy_workqueue(pdsc->wq);
 		mutex_destroy(&pdsc->config_lock);
 		mutex_destroy(&pdsc->devcmd_lock);
 
@@ -464,8 +470,10 @@ static void pdsc_stop_health_thread(struct pdsc *pdsc)
 		return;
 
 	timer_shutdown_sync(&pdsc->wdtimer);
-	if (pdsc->health_work.func)
-		cancel_work_sync(&pdsc->health_work);
+	if (pdsc->health_work.func && !pdsc->health_stopped) {
+		disable_work_sync(&pdsc->health_work);
+		pdsc->health_stopped = true;
+	}
 }
 
 static void pdsc_restart_health_thread(struct pdsc *pdsc)
@@ -473,6 +481,10 @@ static void pdsc_restart_health_thread(struct pdsc *pdsc)
 	if (pdsc->pdev->is_virtfn)
 		return;
 
+	if (pdsc->health_stopped) {
+		enable_work(&pdsc->health_work);
+		pdsc->health_stopped = false;
+	}
 	timer_setup(&pdsc->wdtimer, pdsc_wdtimer_cb, 0);
 	mod_timer(&pdsc->wdtimer, jiffies + 1);
 }
@@ -549,7 +561,11 @@ static pci_ers_result_t pdsc_pci_error_detected(struct pci_dev *pdev,
 						pci_channel_state_t error)
 {
 	if (error == pci_channel_io_frozen) {
+		struct pdsc *pdsc = pci_get_drvdata(pdev);
+
 		pdsc_reset_prepare(pdev);
+		if (!pdev->is_virtfn)
+			cancel_work_sync(&pdsc->pci_reset_work);
 		return PCI_ERS_RESULT_NEED_RESET;
 	}
 

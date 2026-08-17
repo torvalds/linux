@@ -5,7 +5,6 @@
 
 #include <linux/errno.h>
 #include <linux/gpio/driver.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
@@ -28,12 +27,6 @@ static int pin_control_gpio_get_direction(struct gpio_chip *gc, unsigned int off
 	return GPIO_LINE_DIRECTION_IN;
 }
 
-static int pin_control_gpio_direction_output(struct gpio_chip *chip,
-					     unsigned int offset, int val)
-{
-	return pinctrl_gpio_direction_output(chip, offset);
-}
-
 static int pin_control_gpio_get(struct gpio_chip *chip, unsigned int offset)
 {
 	unsigned long config;
@@ -54,6 +47,18 @@ static int pin_control_gpio_set(struct gpio_chip *chip, unsigned int offset,
 
 	config = pinconf_to_config_packed(PIN_CONFIG_LEVEL, val);
 	return pinctrl_gpio_set_config(chip, offset, config);
+}
+
+static int pin_control_gpio_direction_output(struct gpio_chip *chip,
+					     unsigned int offset, int val)
+{
+	int ret;
+
+	ret = pinctrl_gpio_direction_output(chip, offset);
+	if (ret)
+		return ret;
+
+	return pin_control_gpio_set(chip, offset, val);
 }
 
 static int pin_control_gpio_probe(struct platform_device *pdev)

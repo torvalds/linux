@@ -16,6 +16,7 @@
 #include <linux/kstrtox.h>
 #include <linux/errno.h>
 #include <linux/bcd.h>
+#include <linux/delay.h>
 
 #define BQ32K_SECONDS		0x00	/* Seconds register address */
 #define BQ32K_SECONDS_MASK	0x7F	/* Mask over seconds value */
@@ -89,8 +90,16 @@ static int bq32k_write(struct device *dev, void *data, uint8_t off, uint8_t len)
 
 static int bq32k_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct bq32k_regs regs;
 	int error;
+
+	/*
+	 * When the device doesn't have the interrupt connected, prevent
+	 * userpace from polling the RTC registers too frequently.
+	 */
+	if (client->irq <= 0)
+		usleep_range(2000, 2500);
 
 	error = bq32k_read(dev, &regs, 0, sizeof(regs));
 	if (error)
@@ -304,7 +313,7 @@ static void bq32k_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id bq32k_id[] = {
-	{ "bq32000" },
+	{ .name = "bq32000" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, bq32k_id);

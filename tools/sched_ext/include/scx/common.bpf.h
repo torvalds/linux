@@ -26,6 +26,7 @@
 #include <asm-generic/errno.h>
 #include "user_exit_info.bpf.h"
 #include "enum_defs.autogen.h"
+#include "bpf_arena_common.bpf.h"
 
 #define PF_IDLE				0x00000002	/* I am an IDLE thread */
 #define PF_IO_WORKER			0x00000010	/* Task is an IO worker */
@@ -115,12 +116,10 @@ u32 scx_bpf_cidperf_cur(s32 cid) __ksym __weak;
 s32 scx_bpf_cidperf_set(s32 cid, u32 perf) __ksym __weak;
 
 /* sub-scheduler cap control, scx_bpf_sub_caps() cgroup_id 0 == self */
-s32 scx_bpf_sub_grant(u64 cgroup_id, u64 caps, const struct scx_cmask *cmask,
-		      struct scx_cmask *denied) __ksym __weak;
-void scx_bpf_sub_revoke(u64 cgroup_id, u64 caps, const struct scx_cmask *cmask) __ksym __weak;
-s32 scx_bpf_sub_caps(u64 cgroup_id, u64 caps, struct scx_cmask *out) __ksym __weak;
-s32 scx_bpf_sub_kill_bstr(u64 cgroup_id, char *fmt,
-			  unsigned long long *data, u32 data__sz) __ksym __weak;
+s32 scx_bpf_sub_grant(u64 cgroup_id, u64 caps, const struct scx_cmask __arena *cmask__arena, struct scx_cmask __arena *denied_out__arena__nullable) __ksym __weak;
+void scx_bpf_sub_revoke(u64 cgroup_id, u64 caps, const struct scx_cmask __arena *cmask__arena) __ksym __weak;
+s32 scx_bpf_sub_caps(u64 cgroup_id, u64 caps, struct scx_cmask __arena *out__arena) __ksym __weak;
+s32 scx_bpf_sub_kill_bstr(u64 cgroup_id, char *fmt, unsigned long long *data, u32 data__sz) __ksym __weak;
 
 /*
  * Use the following as @it__iter when calling scx_bpf_dsq_move[_vtime]() from

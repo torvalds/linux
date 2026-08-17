@@ -1140,7 +1140,7 @@ static int wdt87xx_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(wdt87xx_pm_ops, wdt87xx_suspend, wdt87xx_resume);
 
 static const struct i2c_device_id wdt87xx_dev_id[] = {
-	{ WDT87XX_NAME },
+	{ .name = WDT87XX_NAME },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wdt87xx_dev_id);

@@ -436,18 +436,19 @@ static void __clean_func_state(struct bpf_verifier_env *env,
 				continue;
 
 			/*
-			 * Only destroy spilled_ptr when hi half is dead.
-			 * If hi half is still live with STACK_SPILL, the
-			 * spilled_ptr metadata is needed for correct state
-			 * comparison in stacksafe().
-			 * is_spilled_reg() is using slot_type[7], but
-			 * is_spilled_scalar_after() check either slot_type[0] or [4]
+			 * Only scalar spills can be degraded to raw stack bytes
+			 * when their high half is dead. Pointer spills need the
+			 * saved spilled_ptr metadata so partial fills keep
+			 * rejecting as non-scalar register fills.
 			 */
 			if (!hi_live) {
 				struct bpf_reg_state *spill = &st->stack[i].spilled_ptr;
 
 				if (lo_live && stype == STACK_SPILL) {
 					u8 val = STACK_MISC;
+
+					if (spill->type != SCALAR_VALUE)
+						continue;
 
 					/*
 					 * 8 byte spill of scalar 0 where half slot is dead

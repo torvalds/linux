@@ -102,6 +102,82 @@ close_skel:
 	return err;
 }
 
+/*
+ * Replacing a link's program (bpf_link_update) must target the correct slot in
+ * the effective array even when a BPF_F_PREORDER program is attached to the
+ * same cgroup. All programs here are attached to a single cgroup; "parent" is
+ * reused only as a third distinct program.
+ *
+ * Attach child(1) normally and child_2(2) with BPF_F_PREORDER, so the effective
+ * order is [2, 1]. Then replace child(1)'s program with parent(3): only the
+ * non-preorder slot changes, giving [2, 3].
+ */
+static int run_link_replace_test(int cgroup_fd, int sock_fd)
+{
+	LIBBPF_OPTS(bpf_link_create_opts, create_opts);
+	int err = 0, normal_link = -1, preorder_link = -1;
+	struct cgroup_preorder *skel = NULL;
+	enum bpf_attach_type atype;
+	__u8 *result, buf = 0x00;
+	socklen_t optlen = 1;
+
+	skel = cgroup_preorder__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "cgroup_preorder__open_and_load"))
+		return -1;
+
+	err = setsockopt(sock_fd, SOL_IP, IP_TOS, &buf, 1);
+	if (!ASSERT_OK(err, "setsockopt"))
+		goto close_skel;
+
+	atype = bpf_program__expected_attach_type(skel->progs.child);
+
+	create_opts.flags = 0;
+	normal_link = bpf_link_create(bpf_program__fd(skel->progs.child),
+				      cgroup_fd, atype, &create_opts);
+	if (!ASSERT_GE(normal_link, 0, "create_normal_link")) {
+		err = normal_link;
+		goto close_skel;
+	}
+
+	create_opts.flags = BPF_F_PREORDER;
+	preorder_link = bpf_link_create(bpf_program__fd(skel->progs.child_2),
+					cgroup_fd, atype, &create_opts);
+	if (!ASSERT_GE(preorder_link, 0, "create_preorder_link")) {
+		err = preorder_link;
+		goto close_links;
+	}
+
+	result = skel->bss->result;
+	skel->bss->idx = 0;
+	memset(result, 0, 4);
+
+	err = getsockopt(sock_fd, SOL_IP, IP_TOS, &buf, &optlen);
+	if (!ASSERT_OK(err, "getsockopt-before"))
+		goto close_links;
+	ASSERT_TRUE(result[0] == 2 && result[1] == 1, "order before update");
+
+	/* Replace the normal link's program child(1) -> parent(3). */
+	err = bpf_link_update(normal_link, bpf_program__fd(skel->progs.parent), NULL);
+	if (!ASSERT_OK(err, "bpf_link_update"))
+		goto close_links;
+
+	skel->bss->idx = 0;
+	memset(result, 0, 4);
+
+	err = getsockopt(sock_fd, SOL_IP, IP_TOS, &buf, &optlen);
+	if (!ASSERT_OK(err, "getsockopt-after"))
+		goto close_links;
+	ASSERT_TRUE(result[0] == 2 && result[1] == 3, "order after update");
+
+close_links:
+	if (preorder_link >= 0)
+		close(preorder_link);
+	close(normal_link);
+close_skel:
+	cgroup_preorder__destroy(skel);
+	return err;
+}
+
 void test_cgroup_preorder(void)
 {
 	int cg_parent = -1, cg_child = -1, sock_fd = -1;
@@ -120,6 +196,7 @@ void test_cgroup_preorder(void)
 
 	ASSERT_OK(run_getsockopt_test(cg_parent, cg_child, sock_fd, false), "getsockopt_test_1");
 	ASSERT_OK(run_getsockopt_test(cg_parent, cg_child, sock_fd, true), "getsockopt_test_2");
+	ASSERT_OK(run_link_replace_test(cg_child, sock_fd), "link_replace_test");
 
 out:
 	close(sock_fd);

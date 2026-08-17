@@ -18,10 +18,6 @@
 #include "bpf.h"
 #endif
 
-#ifndef SHA256_DIGEST_LENGTH
-#define SHA256_DIGEST_LENGTH 32
-#endif
-
 #ifndef __NR_bpf
 # if defined(__mips__) && defined(_ABIO32)
 #  define __NR_bpf 4355
@@ -320,25 +316,6 @@ static inline int skel_link_create(int prog_fd, int target_fd,
 	return skel_sys_bpf(BPF_LINK_CREATE, &attr, attr_sz);
 }
 
-static inline int skel_obj_get_info_by_fd(int fd)
-{
-	const size_t attr_sz = offsetofend(union bpf_attr, info);
-	__u8 sha[SHA256_DIGEST_LENGTH];
-	struct bpf_map_info info;
-	__u32 info_len = sizeof(info);
-	union bpf_attr attr;
-
-	memset(&info, 0, sizeof(info));
-	info.hash = (long) &sha;
-	info.hash_size = SHA256_DIGEST_LENGTH;
-
-	memset(&attr, 0, attr_sz);
-	attr.info.bpf_fd = fd;
-	attr.info.info = (long) &info;
-	attr.info.info_len = info_len;
-	return skel_sys_bpf(BPF_OBJ_GET_INFO_BY_FD, &attr, attr_sz);
-}
-
 static inline int skel_map_freeze(int fd)
 {
 	const size_t attr_sz = offsetofend(union bpf_attr, map_fd);
@@ -384,12 +361,6 @@ static inline int bpf_load_and_run(struct bpf_load_and_run_opts *opts)
 		set_err;
 		goto out;
 	}
-	err = skel_obj_get_info_by_fd(map_fd);
-	if (err < 0) {
-		opts->errstr = "failed to fetch obj info";
-		set_err;
-		goto out;
-	}
 #endif
 
 	memset(&attr, 0, prog_load_attr_sz);
@@ -400,6 +371,8 @@ static inline int bpf_load_and_run(struct bpf_load_and_run_opts *opts)
 #ifndef __KERNEL__
 	attr.signature = (long) opts->signature;
 	attr.signature_size = opts->signature_sz;
+	if (opts->signature)
+		attr.fd_array_cnt = 1;
 #else
 	if (opts->signature || opts->signature_sz)
 		pr_warn("signatures are not supported from bpf_preload\n");

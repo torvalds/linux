@@ -1112,7 +1112,7 @@ int dynptr_overwrite_ref(void *ctx)
 
 /* Reject writes to dynptr slot from bpf_dynptr_read */
 SEC("?raw_tp")
-__failure __msg("potential write to dynptr at off=-16")
+__failure __msg("cannot overwrite referenced dynptr")
 int dynptr_read_into_slot(void *ctx)
 {
 	union {
@@ -1558,7 +1558,7 @@ int BPF_PROG(skb_invalid_ctx_fexit, void *skb)
 
 /* Reject writes to dynptr slot for uninit arg */
 SEC("?raw_tp")
-__failure __msg("potential write to dynptr at off=-16")
+__failure __msg("cannot overwrite referenced dynptr")
 int uninit_write_into_slot(void *ctx)
 {
 	struct {
@@ -1589,7 +1589,7 @@ int xdp_invalid_ctx(void *ctx)
 __u32 hdr_size = sizeof(struct ethhdr);
 /* Can't pass in variable-sized len to bpf_dynptr_slice */
 SEC("?tc")
-__failure __msg("unbounded memory access")
+__failure __msg("must be a known constant")
 int dynptr_slice_var_len1(struct __sk_buff *skb)
 {
 	struct bpf_dynptr ptr;
@@ -1633,6 +1633,36 @@ static int callback(__u32 index, void *data)
         *(__u32 *)data = 123;
 
         return 0;
+}
+
+/* A commuted add should preserve the parent id of a dynptr data slice. */
+SEC("?raw_tp")
+__failure __msg("invalid mem access 'scalar'")
+int dynptr_slice_commuted_invalidate(void *ctx)
+{
+	struct bpf_dynptr ptr;
+	__u32 *slice, *derived;
+
+	bpf_ringbuf_reserve_dynptr(&ringbuf, sizeof(__u32), 0, &ptr);
+
+	slice = bpf_dynptr_data(&ptr, 0, sizeof(__u32));
+	if (!slice)
+		goto done;
+
+	asm volatile ("%[dst] = 0;"
+		"%[dst] += %[src];"
+		"%[src] = 0;"
+		: [dst]"=&r"(derived), [src]"+r"(slice)
+		:
+		: "memory");
+
+	bpf_ringbuf_discard_dynptr(&ptr, 0);
+	val = *derived;
+	return 0;
+
+done:
+	bpf_ringbuf_discard_dynptr(&ptr, 0);
+	return 0;
 }
 
 /* If the dynptr is written into in a callback function, its data

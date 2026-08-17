@@ -139,6 +139,48 @@ int devm_pci_pwrctrl_device_set_ready(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(devm_pci_pwrctrl_device_set_ready);
 
+/*
+ * Check whether the pwrctrl device really needs to be created or not. The
+ * pwrctrl device will only be created if the node satisfies below requirements:
+ *
+ * 1. Presence of compatible property with "pci" prefix to match against the
+ *    pwrctrl driver (AND)
+ * 2. At least one of the power supplies defined in the devicetree node of the
+ *    device (OR) in the remote endpoint parent node to indicate pwrctrl
+ *    requirement.
+ */
+static bool pci_pwrctrl_is_required(struct device_node *np)
+{
+	struct device_node *endpoint;
+	const char *compat;
+	int ret;
+
+	ret = of_property_read_string(np, "compatible", &compat);
+	if (ret < 0)
+		return false;
+
+	if (!strstarts(compat, "pci"))
+		return false;
+
+	if (of_pci_supply_present(np))
+		return true;
+
+	if (of_graph_is_present(np)) {
+		for_each_endpoint_of_node(np, endpoint) {
+			struct device_node *remote __free(device_node) =
+				of_graph_get_remote_port_parent(endpoint);
+			if (remote) {
+				if (of_pci_supply_present(remote)) {
+					of_node_put(endpoint);
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
 static int __pci_pwrctrl_power_off_device(struct device *dev)
 {
 	struct pci_pwrctrl *pwrctrl = dev_get_drvdata(dev);
@@ -157,14 +199,19 @@ static void pci_pwrctrl_power_off_device(struct device_node *np)
 	for_each_available_child_of_node_scoped(np, child)
 		pci_pwrctrl_power_off_device(child);
 
+	if (!pci_pwrctrl_is_required(np))
+		return;
+
 	pdev = of_find_device_by_node(np);
 	if (!pdev)
 		return;
 
-	if (device_is_bound(&pdev->dev)) {
-		ret = __pci_pwrctrl_power_off_device(&pdev->dev);
-		if (ret)
-			dev_err(&pdev->dev, "Failed to power off device: %d", ret);
+	scoped_guard(device, &pdev->dev) {
+		if (device_is_bound(&pdev->dev)) {
+			ret = __pci_pwrctrl_power_off_device(&pdev->dev);
+			if (ret)
+				dev_err(&pdev->dev, "Failed to power off device: %d", ret);
+		}
 	}
 
 	platform_device_put(pdev);
@@ -205,7 +252,7 @@ static int __pci_pwrctrl_power_on_device(struct device *dev)
 static int pci_pwrctrl_power_on_device(struct device_node *np)
 {
 	struct platform_device *pdev;
-	int ret;
+	int ret = 0;
 
 	for_each_available_child_of_node_scoped(np, child) {
 		ret = pci_pwrctrl_power_on_device(child);
@@ -213,16 +260,21 @@ static int pci_pwrctrl_power_on_device(struct device_node *np)
 			return ret;
 	}
 
+	if (!pci_pwrctrl_is_required(np))
+		return 0;
+
 	pdev = of_find_device_by_node(np);
 	if (!pdev)
 		return 0;
 
-	if (device_is_bound(&pdev->dev)) {
-		ret = __pci_pwrctrl_power_on_device(&pdev->dev);
-	} else {
-		/* FIXME: Use blocking wait instead of probe deferral */
-		dev_dbg(&pdev->dev, "driver is not bound\n");
-		ret = -EPROBE_DEFER;
+	scoped_guard(device, &pdev->dev) {
+		if (device_is_bound(&pdev->dev)) {
+			ret = __pci_pwrctrl_power_on_device(&pdev->dev);
+		} else {
+			/* FIXME: Use blocking wait instead of probe deferral */
+			dev_dbg(&pdev->dev, "driver is not bound\n");
+			ret = -EPROBE_DEFER;
+		}
 	}
 
 	platform_device_put(pdev);
@@ -267,48 +319,6 @@ err_power_off:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(pci_pwrctrl_power_on_devices);
-
-/*
- * Check whether the pwrctrl device really needs to be created or not. The
- * pwrctrl device will only be created if the node satisfies below requirements:
- *
- * 1. Presence of compatible property with "pci" prefix to match against the
- *    pwrctrl driver (AND)
- * 2. At least one of the power supplies defined in the devicetree node of the
- *    device (OR) in the remote endpoint parent node to indicate pwrctrl
- *    requirement.
- */
-static bool pci_pwrctrl_is_required(struct device_node *np)
-{
-	struct device_node *endpoint;
-	const char *compat;
-	int ret;
-
-	ret = of_property_read_string(np, "compatible", &compat);
-	if (ret < 0)
-		return false;
-
-	if (!strstarts(compat, "pci"))
-		return false;
-
-	if (of_pci_supply_present(np))
-		return true;
-
-	if (of_graph_is_present(np)) {
-		for_each_endpoint_of_node(np, endpoint) {
-			struct device_node *remote __free(device_node) =
-				of_graph_get_remote_port_parent(endpoint);
-			if (remote) {
-				if (of_pci_supply_present(remote)) {
-					of_node_put(endpoint);
-					return true;
-				}
-			}
-		}
-	}
-
-	return false;
-}
 
 static int pci_pwrctrl_create_device(struct device_node *np,
 				     struct device *parent)

@@ -1178,7 +1178,12 @@ static int add_exception_handler(const struct bpf_insn *insn,
 
 	ex->insn = ins_offset;
 
-	if (BPF_CLASS(insn->code) != BPF_LDX)
+	/*
+	 * A load-acquire is of BPF_STX class, but reads from src_reg into
+	 * dst_reg like a BPF_LDX does, hence it must not be treated as a store
+	 * here.
+	 */
+	if (BPF_CLASS(insn->code) != BPF_LDX && !bpf_atomic_is_load_acq(insn))
 		dst_reg = DONT_CLEAR;
 
 	ex->fixup = FIELD_PREP(BPF_FIXUP_REG_MASK, dst_reg);
@@ -1193,7 +1198,7 @@ static int add_exception_handler(const struct bpf_insn *insn,
 		 * memory access. Pass the reg holding the unmodified 32-bit address to
 		 * ex_handler_bpf.
 		 */
-		if (BPF_CLASS(insn->code) == BPF_LDX)
+		if (BPF_CLASS(insn->code) == BPF_LDX || bpf_atomic_is_load_acq(insn))
 			arena_reg = bpf2a64[insn->src_reg];
 		else
 			arena_reg = bpf2a64[insn->dst_reg];
@@ -1284,12 +1289,25 @@ static int build_insn(const struct bpf_verifier_env *env, const struct bpf_insn 
 	case BPF_ALU | BPF_MOV | BPF_X:
 	case BPF_ALU64 | BPF_MOV | BPF_X:
 		if (insn_is_cast_user(insn)) {
-			emit(A64_MOV(0, tmp, src), ctx); // 32-bit mov clears the upper 32 bits
-			emit_a64_mov_i(0, dst, ctx->user_vm_start >> 32, ctx);
-			emit(A64_LSL(1, dst, dst, 32), ctx);
-			emit(A64_CBZ(1, tmp, 2), ctx);
-			emit(A64_ORR(1, tmp, dst, tmp), ctx);
-			emit(A64_MOV(1, dst, tmp), ctx);
+			u32 upper = ctx->user_vm_start >> 32;
+			u16 upper_low = upper & 0xffff;
+			u16 upper_high = upper >> 16;
+			int nr_movk = !!upper_low + !!upper_high;
+
+			/*
+			 * Build the user address: the low 32 bits are the arena
+			 * offset, the upper 32 bits come from user_vm_start. A
+			 * zero offset must stay NULL, so branch over the MOVKs
+			 * when it is zero.
+			 */
+			emit(A64_MOV(0, dst, src), ctx); /* 32-bit mov clears the upper 32 bits */
+			if (nr_movk) {
+				emit(A64_CBZ(0, dst, nr_movk + 1), ctx);
+				if (upper_low)
+					emit(A64_MOVK(1, dst, upper_low, 32), ctx);
+				if (upper_high)
+					emit(A64_MOVK(1, dst, upper_high, 48), ctx);
+			}
 			break;
 		} else if (insn_is_mov_percpu_addr(insn)) {
 			if (dst != src)
@@ -2177,7 +2195,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_verifier_env *env, struct bpf_pr
 	image_size = extable_offset + extable_size;
 	ro_header = bpf_jit_binary_pack_alloc(image_size, &ro_image_ptr,
 					      sizeof(u64), &header, &image_ptr,
-					      jit_fill_hole);
+					      jit_fill_hole, was_classic);
 	if (!ro_header)
 		goto out_off;
 
@@ -2544,12 +2562,6 @@ static void restore_args(struct jit_ctx *ctx, int bargs_off, int nregs)
 	}
 }
 
-static bool is_struct_ops_tramp(const struct bpf_tramp_nodes *fentry_nodes)
-{
-	return fentry_nodes->nr_nodes == 1 &&
-		fentry_nodes->nodes[0]->link->type == BPF_LINK_TYPE_STRUCT_OPS;
-}
-
 static void store_func_meta(struct jit_ctx *ctx, u64 func_meta, int func_meta_off)
 {
 	emit_a64_mov_i64(A64_R(10), func_meta, ctx);
@@ -2870,7 +2882,7 @@ int arch_bpf_trampoline_size(const struct btf_func_model *m, u32 flags,
 
 void *arch_alloc_bpf_trampoline(unsigned int size)
 {
-	return bpf_prog_pack_alloc(size, jit_fill_hole);
+	return bpf_prog_pack_alloc(size, jit_fill_hole, false);
 }
 
 void arch_free_bpf_trampoline(void *image, unsigned int size)

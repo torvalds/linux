@@ -380,6 +380,11 @@
 #define CLK_APMU_ISIM_VCLK1      86
 #define CLK_APMU_ISIM_VCLK2      87
 #define CLK_APMU_ISIM_VCLK3      88
+#define CLK_APMU_PCIE_PORTA_DBI  89
+#define CLK_APMU_PCIE_PORTB_DBI  90
+#define CLK_APMU_PCIE_PORTC_DBI  91
+#define CLK_APMU_PCIE_PORTD_DBI  92
+#define CLK_APMU_PCIE_PORTE_DBI  93
 
 /* DCIU clocks */
 #define CLK_DCIU_HDMA            0

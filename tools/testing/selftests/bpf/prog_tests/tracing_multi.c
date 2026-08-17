@@ -460,6 +460,73 @@ static void test_intersect(void)
 	tracing_multi_intersect__destroy(skel);
 }
 
+static void test_fentry_after_multi(void)
+{
+	static const char * const funcs[] = {
+		"bpf_fentry_test1",
+	};
+	struct bpf_link *fentry_link = NULL, *multi_link = NULL;
+	struct tracing_multi_intersect *skel = NULL;
+	LIBBPF_OPTS(bpf_tracing_multi_opts, opts);
+	LIBBPF_OPTS(bpf_test_run_opts, topts);
+	__u32 *ids = NULL;
+	int err;
+
+	skel = tracing_multi_intersect__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "tracing_multi_intersect__open_and_load"))
+		return;
+
+	skel->bss->pid = getpid();
+
+	ids = get_ids(funcs, ARRAY_SIZE(funcs), NULL);
+	if (!ASSERT_OK_PTR(ids, "get_ids"))
+		goto cleanup;
+
+	opts.ids = ids;
+	opts.cnt = ARRAY_SIZE(funcs);
+	multi_link = bpf_program__attach_tracing_multi(skel->progs.fentry_1, NULL, &opts);
+	if (!ASSERT_OK_PTR(multi_link, "attach_multi"))
+		goto cleanup;
+
+	fentry_link = bpf_program__attach(skel->progs.fentry);
+	if (!ASSERT_OK_PTR(fentry_link, "attach_fentry"))
+		goto cleanup;
+
+	err = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.fentry_1), &topts);
+	if (!ASSERT_OK(err, "test_run"))
+		goto cleanup;
+	ASSERT_EQ(skel->bss->test_result_fentry_1, 1, "multi_fentry");
+	ASSERT_EQ(skel->bss->test_result_fentry, 1, "fentry");
+
+	err = bpf_link__destroy(fentry_link);
+	fentry_link = NULL;
+	if (!ASSERT_OK(err, "destroy_fentry"))
+		goto cleanup;
+
+	err = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.fentry_1), &topts);
+	if (!ASSERT_OK(err, "test_run_multi"))
+		goto cleanup;
+	ASSERT_EQ(skel->bss->test_result_fentry_1, 2, "multi_fentry_only");
+	ASSERT_EQ(skel->bss->test_result_fentry, 1, "fentry_detached");
+
+	err = bpf_link__destroy(multi_link);
+	multi_link = NULL;
+	if (!ASSERT_OK(err, "destroy_multi"))
+		goto cleanup;
+
+	err = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.fentry_1), &topts);
+	if (!ASSERT_OK(err, "test_run_detached"))
+		goto cleanup;
+	ASSERT_EQ(skel->bss->test_result_fentry_1, 2, "multi_fentry_detached");
+	ASSERT_EQ(skel->bss->test_result_fentry, 1, "fentry_still_detached");
+
+cleanup:
+	bpf_link__destroy(fentry_link);
+	bpf_link__destroy(multi_link);
+	free(ids);
+	tracing_multi_intersect__destroy(skel);
+}
+
 static void test_session(void)
 {
 	LIBBPF_OPTS(bpf_test_run_opts, topts);
@@ -957,4 +1024,6 @@ void test_tracing_multi_test(void)
 	if (test__start_subtest("attach_api_fails"))
 		test_attach_api_fails();
 	RUN_TESTS(tracing_multi_verifier);
+	if (test__start_subtest("fentry_after_multi"))
+		test_fentry_after_multi();
 }

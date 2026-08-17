@@ -8,7 +8,6 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/pm_runtime.h>
-#include <linux/mod_devicetable.h>
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_type.h>
 #include <linux/soundwire/sdw_registers.h>
@@ -774,8 +773,10 @@ static int rt1308_dev_resume(struct device *dev)
 		return 0;
 
 	ret = sdw_slave_wait_for_init(slave, RT1308_PROBE_TIMEOUT);
-	if (ret)
+	if (ret) {
+		sdw_show_ping_status(slave->bus, true);
 		return ret;
+	}
 
 	regcache_cache_only(rt1308->regmap, false);
 	regcache_sync_region(rt1308->regmap, 0xc000, 0xcfff);

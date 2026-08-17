@@ -45,6 +45,7 @@ struct rsnd_adg {
 	struct rsnd_mod mod;
 	int clkin_rate[CLKINMAX];
 	bool ssi_clk_prepared;
+	bool clk_enabled;
 	int clkin_size;
 	int clkout_size;
 	u32 ckr;
@@ -463,6 +464,22 @@ int rsnd_adg_clk_control(struct rsnd_priv *priv, int enable)
 	struct clk *clk;
 	int ret = 0, i;
 
+	/*
+	 * rsnd_adg_clk_enable() and rsnd_adg_clk_disable() can be called
+	 * redundantly, for example when system suspend follows a resume
+	 * whose enable failed. Make this function idempotent so that the
+	 * "adg" clock, which has no clkin_rate[] style guard, is never
+	 * disabled twice.
+	 */
+	if (enable) {
+		if (adg->clk_enabled)
+			return 0;
+	} else {
+		if (!adg->clk_enabled)
+			return 0;
+		adg->clk_enabled = false;
+	}
+
 	if (enable) {
 		ret = clk_prepare_enable(adg->adg);
 		if (ret < 0)
@@ -520,12 +537,22 @@ int rsnd_adg_clk_control(struct rsnd_priv *priv, int enable)
 	 * rsnd_adg_clk_enable() might return error (_disable() will not).
 	 * We need to rollback in such case
 	 */
-	if (ret < 0)
+	if (ret < 0) {
+		/*
+		 * Mark as enabled so that the rollback below is not
+		 * short-circuited by the idempotency guard. It clears
+		 * the flag again on its way through.
+		 */
+		adg->clk_enabled = true;
 		rsnd_adg_clk_disable(priv);
+		return ret;
+	}
 
 	/* disable adg */
 	if (!enable)
 		clk_disable_unprepare(adg->adg);
+	else
+		adg->clk_enabled = true;
 
 	return ret;
 }

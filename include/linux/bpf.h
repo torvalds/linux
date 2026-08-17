@@ -299,7 +299,6 @@ struct bpf_map_owner {
 
 struct bpf_map {
 	u8 sha[SHA256_DIGEST_SIZE];
-	u32 excl;
 	const struct bpf_map_ops *ops;
 	struct bpf_map *inner_map_meta;
 #ifdef CONFIG_SECURITY
@@ -570,7 +569,7 @@ static inline void bpf_obj_memcpy(struct btf_record *rec,
 
 	if (IS_ERR_OR_NULL(rec)) {
 		if (long_memcpy)
-			bpf_long_memcpy(dst, src, round_up(size, 8));
+			bpf_long_memcpy(dst, src, size);
 		else
 			memcpy(dst, src, size);
 		return;
@@ -593,7 +592,7 @@ static inline void copy_map_value(struct bpf_map *map, void *dst, void *src)
 
 static inline void copy_map_value_long(struct bpf_map *map, void *dst, void *src)
 {
-	bpf_obj_memcpy(map->record, dst, src, map->value_size, true);
+	bpf_obj_memcpy(map->record, dst, src, round_up(map->value_size, 8), true);
 }
 
 static inline void bpf_obj_swap_uptrs(const struct btf_record *rec, void *dst, void *src)
@@ -889,8 +888,8 @@ enum bpf_arg_type {
 	ARG_PTR_TO_MEM,		/* pointer to valid memory (stack, packet, map value) */
 	ARG_PTR_TO_ARENA,
 
-	ARG_CONST_SIZE,		/* number of bytes accessed from memory */
-	ARG_CONST_SIZE_OR_ZERO,	/* number of bytes accessed from memory or 0 */
+	ARG_MEM_SIZE,		/* number of bytes accessed from memory */
+	ARG_MEM_SIZE_OR_ZERO,	/* number of bytes accessed from memory or 0 */
 
 	ARG_PTR_TO_CTX,		/* pointer to context */
 	ARG_ANYTHING,		/* any (initialized) argument is ok */
@@ -961,6 +960,21 @@ enum bpf_return_type {
 };
 static_assert(__BPF_RET_TYPE_MAX <= BPF_BASE_TYPE_LIMIT);
 
+/* The longest tracepoint has 12 args.
+ * See include/trace/bpf_probe.h
+ *
+ * Also reuse this macro for maximum number of arguments a BPF function
+ * or a kfunc can have. Args 1-5 are passed in registers, args 6-12 via
+ * stack arg slots. The JIT may map some stack arg slots to registers based
+ * on the native calling convention (e.g., arg 6 to R9 on x86-64).
+ */
+#define MAX_BPF_FUNC_ARGS 12
+
+/* The maximum number of arguments passed through registers
+ * a single function may have.
+ */
+#define MAX_BPF_FUNC_REG_ARGS 5
+
 /* eBPF function prototype used by verifier to allow BPF_CALLs from eBPF programs
  * to in-kernel helper functions and for adjusting imm32 field in BPF_CALL
  * instructions after verifying
@@ -985,7 +999,7 @@ struct bpf_func_proto {
 			enum bpf_arg_type arg4_type;
 			enum bpf_arg_type arg5_type;
 		};
-		enum bpf_arg_type arg_type[5];
+		enum bpf_arg_type arg_type[MAX_BPF_FUNC_ARGS];
 	};
 	union {
 		struct {
@@ -995,7 +1009,7 @@ struct bpf_func_proto {
 			u32 *arg4_btf_id;
 			u32 *arg5_btf_id;
 		};
-		u32 *arg_btf_id[5];
+		u32 *arg_btf_id[MAX_BPF_FUNC_ARGS];
 		struct {
 			size_t arg1_size;
 			size_t arg2_size;
@@ -1003,7 +1017,7 @@ struct bpf_func_proto {
 			size_t arg4_size;
 			size_t arg5_size;
 		};
-		size_t arg_size[5];
+		size_t arg_size[MAX_BPF_FUNC_ARGS];
 	};
 	int *ret_btf_id; /* return value btf_id */
 	bool (*allowed)(const struct bpf_prog *prog);
@@ -1118,21 +1132,6 @@ static inline bool bpf_pseudo_func(const struct bpf_insn *insn)
 	return bpf_is_ldimm64(insn) && insn->src_reg == BPF_PSEUDO_FUNC;
 }
 
-/* Given a BPF_ATOMIC instruction @atomic_insn, return true if it is an
- * atomic load or store, and false if it is a read-modify-write instruction.
- */
-static inline bool
-bpf_atomic_is_load_store(const struct bpf_insn *atomic_insn)
-{
-	switch (atomic_insn->imm) {
-	case BPF_LOAD_ACQ:
-	case BPF_STORE_REL:
-		return true;
-	default:
-		return false;
-	}
-}
-
 struct bpf_prog_ops {
 	int (*test_run)(struct bpf_prog *prog, const union bpf_attr *kattr,
 			union bpf_attr __user *uattr);
@@ -1193,26 +1192,14 @@ struct bpf_prog_offload {
 	u32			jited_len;
 };
 
-/* The longest tracepoint has 12 args.
- * See include/trace/bpf_probe.h
- *
- * Also reuse this macro for maximum number of arguments a BPF function
- * or a kfunc can have. Args 1-5 are passed in registers, args 6-12 via
- * stack arg slots. The JIT may map some stack arg slots to registers based
- * on the native calling convention (e.g., arg 6 to R9 on x86-64).
- */
-#define MAX_BPF_FUNC_ARGS 12
-
-/* The maximum number of arguments passed through registers
- * a single function may have.
- */
-#define MAX_BPF_FUNC_REG_ARGS 5
-
-/* The argument is a structure or a union. */
-#define BTF_FMODEL_STRUCT_ARG		BIT(0)
-
 /* The argument is signed. */
 #define BTF_FMODEL_SIGNED_ARG		BIT(1)
+
+/* The argument is an arena pointer. */
+#define BTF_FMODEL_ARENA_ARG		BIT(2)
+
+/* The argument is nullable. */
+#define BTF_FMODEL_NULLABLE_ARG		BIT(3)
 
 struct btf_func_model {
 	u8 ret_size;
@@ -1286,6 +1273,15 @@ struct bpf_tramp_nodes {
 	struct bpf_tramp_node *nodes[BPF_MAX_TRAMP_LINKS];
 	int nr_nodes;
 };
+
+/*
+ * The arena base against which a struct_ops trampoline converts the
+ * arguments marked with BTF_FMODEL_ARENA_ARG while saving them into the BPF
+ * ctx, ctx[arg] = (u32)(kaddr - kern_vm_start). Zero when the trampoline
+ * converts nothing.
+ */
+u64 bpf_tramp_arena_base(const struct btf_func_model *m,
+			 struct bpf_tramp_nodes *tnodes, u32 flags);
 
 struct bpf_tramp_run_ctx;
 
@@ -1524,6 +1520,7 @@ int bpf_trampoline_multi_attach(struct bpf_prog *prog, u32 *ids,
 				struct bpf_tracing_multi_link *link);
 int bpf_trampoline_multi_detach(struct bpf_prog *prog,
 				struct bpf_tracing_multi_link *link);
+void bpf_trampoline_set_flags(struct bpf_trampoline *tr, u32 flags);
 
 /*
  * When the architecture supports STATIC_CALL replace the bpf_dispatcher_fn
@@ -1647,6 +1644,7 @@ static inline int bpf_trampoline_multi_detach(struct bpf_prog *prog,
 {
 	return -ENOTSUPP;
 }
+static inline void bpf_trampoline_set_flags(struct bpf_trampoline *tr, u32 flags) {}
 #endif
 
 struct bpf_func_info_aux {
@@ -1865,8 +1863,9 @@ struct bpf_prog_aux {
 
 struct bpf_prog {
 	u16			pages;		/* Number of allocated pages */
-	u16			jited:1,	/* Is our filter JIT'ed? */
+	u32			jited:1,	/* Is our filter JIT'ed? */
 				jit_requested:1,/* archs need to JIT the prog */
+				jit_required:1,	/* program strictly requires JIT compiler */
 				gpl_compatible:1, /* Is filter GPL compatible? */
 				cb_access:1,	/* Is control block accessed? */
 				dst_needed:1,	/* Do we need dst entry? */
@@ -2194,6 +2193,12 @@ static inline bool is_tracing_multi(enum bpf_attach_type type)
 {
 	return type == BPF_TRACE_FENTRY_MULTI || type == BPF_TRACE_FEXIT_MULTI ||
 	       type == BPF_TRACE_FSESSION_MULTI;
+}
+
+static inline bool is_struct_ops_tramp(const struct bpf_tramp_nodes *fentry_nodes)
+{
+	return fentry_nodes->nr_nodes == 1 &&
+	       fentry_nodes->nodes[0]->link->type == BPF_LINK_TYPE_STRUCT_OPS;
 }
 
 #if defined(CONFIG_BPF_JIT) && defined(CONFIG_BPF_SYSCALL)
@@ -3146,7 +3151,7 @@ int btf_struct_access(struct bpf_verifier_log *log,
 bool btf_struct_ids_match(struct bpf_verifier_log *log,
 			  const struct btf *btf, u32 id, int off,
 			  const struct btf *need_btf, u32 need_type_id,
-			  bool strict);
+			  bool strict, bool walk_flex_arrays);
 
 int btf_distill_func_proto(struct bpf_verifier_log *log,
 			   struct btf *btf,
@@ -3170,7 +3175,6 @@ const struct bpf_func_proto *bpf_base_func_proto(enum bpf_func_id func_id,
 						 const struct bpf_prog *prog);
 void bpf_task_storage_free(struct task_struct *task);
 void bpf_cgrp_storage_free(struct cgroup *cgroup);
-bool bpf_prog_has_kfunc_call(const struct bpf_prog *prog);
 const struct btf_func_model *
 bpf_jit_find_kfunc_model(const struct bpf_prog *prog,
 			 const struct bpf_insn *insn);
@@ -3507,11 +3511,6 @@ bpf_base_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 
 static inline void bpf_task_storage_free(struct task_struct *task)
 {
-}
-
-static inline bool bpf_prog_has_kfunc_call(const struct bpf_prog *prog)
-{
-	return false;
 }
 
 static inline const struct btf_func_model *
@@ -4169,7 +4168,7 @@ bpf_prog_update_insn_ptrs(struct bpf_prog *prog, u32 *offsets, void *image)
 }
 #endif
 
-static inline bool bpf_map_supports_cpu_flags(enum bpf_map_type map_type)
+static inline bool bpf_map_is_percpu_map(enum bpf_map_type map_type)
 {
 	switch (map_type) {
 	case BPF_MAP_TYPE_PERCPU_ARRAY:
@@ -4196,7 +4195,7 @@ static inline int bpf_map_check_op_flags(struct bpf_map *map, u64 flags, u64 all
 		return -EINVAL;
 
 	if (flags & (BPF_F_CPU | BPF_F_ALL_CPUS)) {
-		if (!bpf_map_supports_cpu_flags(map->map_type))
+		if (!bpf_map_is_percpu_map(map->map_type))
 			return -EINVAL;
 		if ((flags & BPF_F_CPU) && (flags & BPF_F_ALL_CPUS))
 			return -EINVAL;

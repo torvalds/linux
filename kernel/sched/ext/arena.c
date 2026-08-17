@@ -6,8 +6,7 @@
  *
  * Each chunk added to @sch->arena_pool comes from one
  * bpf_arena_alloc_pages_sleepable() call and is registered at the
- * kernel-side mapping address. Callers translate to the BPF-arena form
- * themselves if needed.
+ * kernel-side mapping address.
  *
  * Allocations grow the pool on demand. Underlying arena pages are released
  * when the arena map itself is torn down.

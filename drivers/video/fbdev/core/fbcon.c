@@ -1273,6 +1273,7 @@ static void fbcon_deinit(struct vc_data *vc)
 	int idx;
 
 	fbcon_free_font(p);
+	p->mode = NULL;
 	idx = con2fb_map[vc->vc_num];
 
 	if (idx == -1)
@@ -1443,12 +1444,12 @@ static void fbcon_set_disp(struct fb_info *info, struct fb_var_screeninfo *var,
 
 	p = &fb_display[unit];
 
-	if (var_to_display(p, var, info))
-		return;
-
 	vc = vc_cons[unit].d;
 
 	if (!vc)
+		return;
+
+	if (var_to_display(p, var, info))
 		return;
 
 	default_mode = vc->vc_display_fg;
@@ -2405,6 +2406,7 @@ static int fbcon_do_set_font(struct vc_data *vc, int w, int h, int charcount,
 	int resize, ret, old_width, old_height, old_charcount;
 	font_data_t *old_fontdata = p->fontdata;
 	const u8 *old_data = vc->vc_font.data;
+	unsigned short old_hi_font_mask = vc->vc_hi_font_mask;
 
 	font_data_get(data);
 
@@ -2450,6 +2452,12 @@ err_out:
 	vc->vc_font.width = old_width;
 	vc->vc_font.height = old_height;
 	vc->vc_font.charcount = old_charcount;
+
+	/* Restore the hi_font state and screen buffer */
+	if (old_hi_font_mask && !vc->vc_hi_font_mask)
+		set_vc_hi_font(vc, true);
+	else if (!old_hi_font_mask && vc->vc_hi_font_mask)
+		set_vc_hi_font(vc, false);
 
 	font_data_put(data);
 

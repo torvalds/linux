@@ -1410,9 +1410,10 @@ static bool wrprot_gfn_range(struct kvm *kvm, struct kvm_mmu_page *root,
 	u64 new_spte;
 	bool spte_set = false;
 
-	rcu_read_lock();
+	if (KVM_BUG_ON(min_level > KVM_MAX_HUGEPAGE_LEVEL, kvm))
+		return false;
 
-	BUG_ON(min_level > KVM_MAX_HUGEPAGE_LEVEL);
+	rcu_read_lock();
 
 	for_each_tdp_pte_min_level(iter, kvm, root, min_level, start, end) {
 retry:
@@ -1844,7 +1845,8 @@ static bool write_protect_gfn(struct kvm *kvm, struct kvm_mmu_page *root,
 	u64 new_spte;
 	bool spte_set = false;
 
-	BUG_ON(min_level > KVM_MAX_HUGEPAGE_LEVEL);
+	if (KVM_BUG_ON(min_level > KVM_MAX_HUGEPAGE_LEVEL, kvm))
+		return false;
 
 	rcu_read_lock();
 

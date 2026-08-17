@@ -645,12 +645,6 @@ retry_private:
 				continue;
 			}
 
-			/* Self-deadlock: non-top waiter already owns the PI futex. */
-			if (rt_mutex_owner(&pi_state->pi_mutex) == this->task) {
-				ret = -EDEADLK;
-				break;
-			}
-
 			ret = rt_mutex_start_proxy_lock(&pi_state->pi_mutex,
 							this->rt_waiter,
 							this->task);

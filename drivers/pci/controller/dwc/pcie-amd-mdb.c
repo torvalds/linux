@@ -7,7 +7,7 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
@@ -507,6 +507,13 @@ static int amd_mdb_pcie_probe(struct platform_device *pdev)
 	return amd_mdb_add_pcie_port(pcie, pdev);
 }
 
+static void amd_mdb_pcie_shutdown(struct platform_device *pdev)
+{
+	struct amd_mdb_pcie *pcie = platform_get_drvdata(pdev);
+
+	gpiod_set_value_cansleep(pcie->perst_gpio, 1);
+}
+
 static const struct of_device_id amd_mdb_pcie_of_match[] = {
 	{
 		.compatible = "amd,versal2-mdb-host",
@@ -521,6 +528,7 @@ static struct platform_driver amd_mdb_pcie_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe = amd_mdb_pcie_probe,
+	.shutdown = amd_mdb_pcie_shutdown,
 };
 
 builtin_platform_driver(amd_mdb_pcie_driver);

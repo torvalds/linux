@@ -103,7 +103,7 @@ static int cyttsp_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id cyttsp_i2c_id[] = {
-	{ CY_I2C_NAME },
+	{ .name = CY_I2C_NAME },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, cyttsp_i2c_id);

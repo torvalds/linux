@@ -21,7 +21,6 @@
 #include <linux/jiffies.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/max77759.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>

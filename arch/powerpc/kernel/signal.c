@@ -356,6 +356,6 @@ void signal_fault(struct task_struct *tsk, struct pt_regs *regs,
 void arch_do_signal_or_restart(struct pt_regs *regs)
 {
 	BUG_ON(regs != current->thread.regs);
-	regs->exit_flags |= _TIF_RESTOREALL;
+	current_thread_info()->exit_flags |= _TIF_RESTOREALL;
 	do_signal(current);
 }

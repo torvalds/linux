@@ -80,14 +80,6 @@ const volatile u64 round_robin_ns;
  */
 const volatile u32 cid_override_mode;
 const volatile u32 cid_override_nr_shards;
-/*
- * Arrays live in bss (writable) because scx_bpf_cid_override()'s BPF
- * verifier signature treats its len-paired pointers as read/write - rodata
- * fails verification with "write into map forbidden". Userspace populates
- * them before SCX_OPS_LOAD, same as rodata, and nothing writes them after.
- */
-s32 cid_override_cpu_to_cid[SCX_QMAP_MAX_CPUS];
-s32 cid_override_shard_start[SCX_QMAP_MAX_CPUS];
 
 UEI_DEFINE(uei);
 
@@ -1394,8 +1386,8 @@ __noinline void compute_partition(void)
 	}
 
 	/* find out the cids we hold */
-	scx_bpf_sub_caps(0, SCX_CAP_ENQ, (void *)(long)&qa.held_excl.mask);
-	scx_bpf_sub_caps(0, SCX_CAP_ENQ_IMMED, (void *)(long)&qa.held_shared.mask);
+	scx_bpf_sub_caps(0, SCX_CAP_ENQ, &qa.held_excl.mask);
+	scx_bpf_sub_caps(0, SCX_CAP_ENQ_IMMED, &qa.held_shared.mask);
 	cmask_andnot(&qa.held_shared.mask, &qa.held_excl.mask);	/* held only as ENQ_IMMED */
 
 	qa.part.nr_shared = 0;
@@ -1622,13 +1614,13 @@ __noinline void apply_partition(void)
 		cmask_andnot(&qa.to_grant_cids.mask, &ssc->prev_granted.mask);
 
 		scx_bpf_sub_revoke(cgid, SCX_CAP_ENQ_IMMED | SCX_CAP_PERF,
-				   (void *)(long)&qa.prev_rr_cids.mask);
+				   &qa.prev_rr_cids.mask);
 		scx_bpf_sub_revoke(cgid, SCX_CAP_ENQ | SCX_CAP_PREEMPT |
 				   SCX_CAP_ENQ_IMMED | SCX_CAP_PERF,
-				   (void *)(long)&qa.to_revoke_cids.mask);
+				   &qa.to_revoke_cids.mask);
 		scx_bpf_sub_grant(cgid, SCX_CAP_ENQ | SCX_CAP_PREEMPT |
 				  SCX_CAP_ENQ_IMMED | SCX_CAP_PERF,
-				  (void *)(long)&qa.to_grant_cids.mask, NULL);
+				  &qa.to_grant_cids.mask, NULL);
 	}
 
 	/* the current holder of the shared pool gets ENQ_IMMED on all of it */
@@ -1645,7 +1637,7 @@ __noinline void apply_partition(void)
 		if (holder_cgid)
 			scx_bpf_sub_grant(holder_cgid,
 					  SCX_CAP_ENQ_IMMED | SCX_CAP_PERF,
-					  (void *)(long)&qa.rr_cids.mask, NULL);
+					  &qa.rr_cids.mask, NULL);
 	}
 }
 
@@ -1737,11 +1729,11 @@ static void rr_advance(void)
 		if (old_cgid)
 			scx_bpf_sub_revoke(old_cgid,
 					   SCX_CAP_ENQ_IMMED | SCX_CAP_PERF,
-					   (void *)(long)&qa.rr_cids.mask);
+					   &qa.rr_cids.mask);
 		if (new_cgid)
 			scx_bpf_sub_grant(new_cgid,
 					  SCX_CAP_ENQ_IMMED | SCX_CAP_PERF,
-					  (void *)(long)&qa.rr_cids.mask, NULL);
+					  &qa.rr_cids.mask, NULL);
 	}
 
 	part_end();
@@ -1770,17 +1762,15 @@ s32 BPF_STRUCT_OPS_SLEEPABLE(qmap_init_cids)
 	if (!cid_override_mode)
 		return 0;
 
-	/* bound the count so the verifier accepts cpu_to_cid's mem/len pair */
+	/* the arena arrays are sized SCX_QMAP_MAX_CPUS */
 	if (nr_cpu_ids > SCX_QMAP_MAX_CPUS) {
 		scx_bpf_error("nr_cpu_ids=%u exceeds SCX_QMAP_MAX_CPUS=%d",
 			      nr_cpu_ids, SCX_QMAP_MAX_CPUS);
 		return -EINVAL;
 	}
 
-	scx_bpf_cid_override((const s32 *)cid_override_cpu_to_cid,
-			     nr_cpu_ids * sizeof(s32),
-			     (const s32 *)cid_override_shard_start,
-			     cid_override_nr_shards * sizeof(s32));
+	scx_bpf_cid_override(qa.cid_override_cpu_to_cid, nr_cpu_ids,
+			     qa.cid_override_shard_start, cid_override_nr_shards);
 	return 0;
 }
 
@@ -1849,8 +1839,8 @@ s32 BPF_STRUCT_OPS_SLEEPABLE(qmap_init)
 	cmask_init(&qa.held_excl.mask, 0, nr_cids);
 	cmask_init(&qa.held_shared.mask, 0, nr_cids);
 
-	scx_bpf_sub_caps(0, SCX_CAP_ENQ, (void *)(long)&qa.held_excl.mask);
-	scx_bpf_sub_caps(0, SCX_CAP_ENQ_IMMED, (void *)(long)&qa.held_shared.mask);
+	scx_bpf_sub_caps(0, SCX_CAP_ENQ, &qa.held_excl.mask);
+	scx_bpf_sub_caps(0, SCX_CAP_ENQ_IMMED, &qa.held_shared.mask);
 	cmask_andnot(&qa.held_shared.mask, &qa.held_excl.mask);
 
 	bpf_for(i, 0, MAX_SUB_SCHEDS) {

@@ -35,7 +35,7 @@ struct ioam6_lwt_freq {
 };
 
 struct ioam6_lwt {
-	struct dst_entry null_dst;
+	struct rt6_info null_rt;
 	struct dst_cache cache;
 	struct ioam6_lwt_freq freq;
 	atomic_t pkt_cnt;
@@ -176,7 +176,7 @@ static int ioam6_build_state(struct net *net, struct nlattr *nla,
 	 * it is stored in the cache. Then, +1/-1 each time we read the cache
 	 * and release it. Long story short, we're fine.
 	 */
-	dst_init(&ilwt->null_dst, NULL, NULL, DST_OBSOLETE_NONE, DST_NOCOUNT);
+	dst_init(&ilwt->null_rt.dst, NULL, NULL, DST_OBSOLETE_NONE, DST_NOCOUNT);
 
 	atomic_set(&ilwt->pkt_cnt, 0);
 	ilwt->freq.k = freq_k;
@@ -360,7 +360,7 @@ static int ioam6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 	/* This is how we notify that the destination does not change after
 	 * transformation and that we need to use orig_dst instead of the cache
 	 */
-	if (dst == &ilwt->null_dst) {
+	if (dst == &ilwt->null_rt.dst) {
 		dst_release(dst);
 
 		dst = orig_dst;
@@ -429,7 +429,7 @@ do_encap:
 		local_bh_disable();
 		if (orig_dst->lwtstate == dst->lwtstate)
 			dst_cache_set_ip6(&ilwt->cache,
-					  &ilwt->null_dst, &fl6.saddr);
+					  &ilwt->null_rt.dst, &fl6.saddr);
 		else
 			dst_cache_set_ip6(&ilwt->cache, dst, &fl6.saddr);
 		local_bh_enable();

@@ -13,7 +13,7 @@
 #include <linux/types.h>
 #include <linux/uuid.h>
 
-#define PALC_DSM_FN_TRIGGER_PLDR    BIT(1)
+#define PALC_DSM_FN_TRIGGER_PLDR    1
 
 static guid_t palc_dsm_guid =
 	GUID_INIT(0x5a1a4bba, 0x8006, 0x487e, 0xbe, 0x0a, 0xac, 0xf5, 0xd8, 0xfd, 0xfe, 0x59);
@@ -66,7 +66,7 @@ static int palc_probe(struct platform_device *pdev)
 	if (!handle)
 		return -ENODEV;
 
-	if (!acpi_check_dsm(handle, &palc_dsm_guid, 1, PALC_DSM_FN_TRIGGER_PLDR))
+	if (!acpi_check_dsm(handle, &palc_dsm_guid, 1, BIT(PALC_DSM_FN_TRIGGER_PLDR)))
 		return -ENODEV;
 
 	return 0;

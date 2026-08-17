@@ -26,7 +26,6 @@ u32 default_cpu_present_to_apicid(int mps_cpu)
 	else
 		return BAD_APICID;
 }
-EXPORT_SYMBOL_FOR_KVM(default_cpu_present_to_apicid);
 
 /*
  * Set up the logical destination ID when the APIC operates in logical

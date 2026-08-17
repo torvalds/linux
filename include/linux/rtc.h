@@ -190,6 +190,8 @@ extern int rtc_set_time(struct rtc_device *rtc, struct rtc_time *tm);
 int __rtc_read_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm);
 extern int rtc_read_alarm(struct rtc_device *rtc,
 			struct rtc_wkalrm *alrm);
+extern int rtc_read_next_alarm(struct rtc_device *rtc,
+			       struct rtc_wkalrm *alrm);
 extern int rtc_set_alarm(struct rtc_device *rtc,
 				struct rtc_wkalrm *alrm);
 extern int rtc_initialize_alarm(struct rtc_device *rtc,

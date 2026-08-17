@@ -44,8 +44,18 @@ int bpf_prog2(struct __sk_buff *skb)
 	__sink(lport);
 	__sink(rport);
 
-	if (data + 8 > data_end)
-		return SK_DROP;
+	if (data + 8 > data_end) {
+		if (bpf_skb_pull_data(skb, 8))
+			return SK_DROP;
+
+		data = (void *)(long)skb->data;
+		data_end = (void *)(long)skb->data_end;
+
+		if (data + 8 > data_end)
+			return SK_DROP;
+
+		d = data;
+	}
 
 	map = d[0];
 	sk = d[1];

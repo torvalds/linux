@@ -823,6 +823,7 @@ static int unix_listen(struct socket *sock, int backlog)
 	if (err)
 		goto out;
 	unix_state_lock(sk);
+	err = -EINVAL;
 	if (sk->sk_state != TCP_CLOSE && sk->sk_state != TCP_LISTEN)
 		goto out_unlock;
 	if (backlog > sk->sk_max_ack_backlog)
@@ -3659,8 +3660,8 @@ static int bpf_iter_unix_realloc_batch(struct bpf_unix_iter_state *iter,
 {
 	struct sock **new_batch;
 
-	new_batch = kvmalloc(sizeof(*new_batch) * new_batch_sz,
-			     GFP_USER | __GFP_NOWARN);
+	new_batch = kvmalloc_array(new_batch_sz, sizeof(*new_batch),
+				   GFP_USER | __GFP_NOWARN);
 	if (!new_batch)
 		return -ENOMEM;
 

@@ -64,6 +64,7 @@ SEC("syscall")
 __arch_x86_64
 __arch_arm64
 __arch_s390x
+__arch_riscv64
 __success __retval(0)
 __stderr("ERROR: Timeout detected for may_goto instruction")
 __stderr("CPU: {{[0-9]+}} UID: 0 PID: {{[0-9]+}} Comm: {{.*}}")
@@ -182,6 +183,50 @@ int stream_arena_read_fault(void *ctx)
 		: "r1"
 	);
 	return 0;
+}
+
+SEC("syscall")
+__arch_x86_64
+__arch_arm64
+__success __retval(0)
+__stderr("ERROR: Arena READ access at unmapped address 0x{{.*}}")
+__stderr("CPU: {{[0-9]+}} UID: 0 PID: {{[0-9]+}} Comm: {{.*}}")
+__stderr("Call trace:\n"
+"{{([a-zA-Z_][a-zA-Z0-9_]*\\+0x[0-9a-fA-F]+/0x[0-9a-fA-F]+\n"
+"|[ \t]+[^\n]+\n)*}}")
+int stream_arena_load_acquire_fault(void *ctx)
+{
+	static const struct bpf_insn load_acquire_insn = {
+		.code	 = 0xc3,	/* BPF_STX | BPF_ATOMIC | BPF_W */
+		.dst_reg = 0,		/* BPF_REG_0 */
+		.src_reg = 1,		/* BPF_REG_1 */
+		.off	 = 0x7fff,
+		.imm	 = 0x100,	/* BPF_LOAD_ACQ */
+	};
+	struct bpf_arena *ptr = (void *)&arena;
+	u64 user_vm_start, val;
+
+	/*
+	 * Prevent GCC bounds warning: casting &arena to struct bpf_arena *
+	 * triggers bounds checking since the map definition is smaller than
+	 * struct bpf_arena. barrier_var() makes the pointer opaque to GCC,
+	 * preventing the bounds analysis.
+	 */
+	barrier_var(ptr);
+	user_vm_start = ptr->user_vm_start;
+	fault_addr = user_vm_start + 0x7fff;
+	bpf_addr_space_cast(user_vm_start, 0, 1);
+	asm volatile (
+		"r1 = %[user_vm_start];"
+		"r0 = 1;"
+		".8byte %[load_acquire_insn];" /* r0 = load_acquire((u32 *)(r1 + 0x7fff)) */
+		"%[val] = r0;"
+		: [val] "=r" (val)
+		: [user_vm_start] "r" (user_vm_start),
+		  __imm_insn(load_acquire_insn, load_acquire_insn)
+		: "r0", "r1"
+	);
+	return val;
 }
 
 static __noinline void subprog(void)

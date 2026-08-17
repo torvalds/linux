@@ -329,7 +329,7 @@ ump_to_endpoint(struct snd_ump_endpoint *ump, int dir)
 {
 	struct snd_usb_midi2_ump *rmidi = ump->private_data;
 
-	return rmidi->eps[dir];
+	return rmidi ? rmidi->eps[dir] : NULL;
 }
 
 /* ump open callback */
@@ -470,6 +470,11 @@ static int create_midi2_endpoint(struct snd_usb_midi2_interface *umidi,
 static void free_midi2_endpoint(struct snd_usb_midi2_endpoint *ep)
 {
 	list_del(&ep->list);
+	if (!ep->disconnected) {
+		ep->disconnected = 1;
+		kill_midi_urbs(ep, false);
+		drain_urb_queue(ep);
+	}
 	free_midi_urbs(ep);
 	kfree(ep);
 }
@@ -680,6 +685,8 @@ static void free_all_midi2_umps(struct snd_usb_midi2_interface *umidi)
 		rmidi = list_first_entry(&umidi->rawmidi_list,
 					 struct snd_usb_midi2_ump, list);
 		list_del(&rmidi->list);
+		if (rmidi->ump)
+			rmidi->ump->private_data = NULL;
 		kfree(rmidi);
 	}
 }

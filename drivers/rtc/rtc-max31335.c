@@ -745,8 +745,8 @@ static int max31335_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id max31335_id[] = {
-	{ "max31331", (kernel_ulong_t)&chip[ID_MAX31331] },
-	{ "max31335", (kernel_ulong_t)&chip[ID_MAX31335] },
+	{ .name = "max31331", .driver_data = (kernel_ulong_t)&chip[ID_MAX31331] },
+	{ .name = "max31335", .driver_data = (kernel_ulong_t)&chip[ID_MAX31335] },
 	{ }
 };
 

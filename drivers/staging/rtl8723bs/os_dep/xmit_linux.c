@@ -24,9 +24,11 @@ void _rtw_open_pktfile(struct sk_buff *pktptr, struct pkt_file *pfile)
 int _rtw_pktfile_read(struct pkt_file *pfile, u8 *rmem, unsigned int rlen)
 {
 	int ret;
+	unsigned int remain = rtw_remainder_len(pfile);
 
-	if (rtw_remainder_len(pfile) < rlen)
-		return -EINVAL;
+	/* clamp to bytes remaining; the coalesce loop relies on short reads */
+	if (rlen > remain)
+		rlen = remain;
 
 	if (rmem) {
 		ret = skb_copy_bits(pfile->pkt, pfile->buf_len - pfile->pkt_len, rmem, rlen);

@@ -1323,6 +1323,15 @@ static bool amdgpu_device_pcie_dynamic_switching_supported(struct amdgpu_device 
 
 	if (c->x86_vendor == X86_VENDOR_INTEL)
 		return false;
+
+	/*
+	 * AMD Ryzen Pinnacle Ridge (Zen+, family 0x17 model 0x08) CPUs don't
+	 * support PCIe dynamic speed switching.
+	 * https://gitlab.freedesktop.org/drm/amd/-/work_items/5436
+	 */
+	if (c->x86_vendor == X86_VENDOR_AMD && c->x86 == 0x17 &&
+	    c->x86_model == 0x08)
+		return false;
 #endif
 	return true;
 }
@@ -1333,7 +1342,8 @@ static bool amdgpu_device_aspm_support_quirk(struct amdgpu_device *adev)
 	 * It's unclear if this is a platform-specific or GPU-specific issue.
 	 * Disable ASPM on SI for the time being.
 	 */
-	if (adev->family == AMDGPU_FAMILY_SI)
+	if (adev->family == AMDGPU_FAMILY_SI ||
+		(!(adev->pm.pp_feature & PP_PCIE_DPM_MASK) && adev->family == AMDGPU_FAMILY_VI))
 		return true;
 
 #if IS_ENABLED(CONFIG_X86)
@@ -3043,7 +3053,7 @@ static int amdgpu_device_ip_suspend_phase2(struct amdgpu_device *adev)
 		amdgpu_dpm_gfx_state_change(adev, sGpuChangeState_D3Entry);
 
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
-		if (!adev->ip_blocks[i].status.valid)
+		if (!adev->ip_blocks[i].status.valid || !adev->ip_blocks[i].status.hw)
 			continue;
 		/* displays are handled in phase1 */
 		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_DCE)
@@ -3771,6 +3781,8 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	mutex_init(&adev->gfx.workload_profile_mutex);
 	mutex_init(&adev->vcn.workload_profile_mutex);
 
+	spin_lock_init(&adev->irq.lock);
+
 	amdgpu_device_init_apu_flags(adev);
 
 	r = amdgpu_device_check_arguments(adev);
@@ -4182,8 +4194,6 @@ static void amdgpu_device_unmap_mmio(struct amdgpu_device *adev)
 
 	iounmap(adev->rmmio);
 	adev->rmmio = NULL;
-	if (adev->mman.aper_base_kaddr)
-		iounmap(adev->mman.aper_base_kaddr);
 	adev->mman.aper_base_kaddr = NULL;
 
 	/* Memory manager related */

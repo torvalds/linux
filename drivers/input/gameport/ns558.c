@@ -148,29 +148,29 @@ static int ns558_isa_probe(int io)
 #ifdef CONFIG_PNP
 
 static const struct pnp_device_id pnp_devids[] = {
-	{ .id = "@P@0001", .driver_data = 0 }, /* ALS 100 */
-	{ .id = "@P@0020", .driver_data = 0 }, /* ALS 200 */
-	{ .id = "@P@1001", .driver_data = 0 }, /* ALS 100+ */
-	{ .id = "@P@2001", .driver_data = 0 }, /* ALS 120 */
-	{ .id = "ASB16fd", .driver_data = 0 }, /* AdLib NSC16 */
-	{ .id = "AZT3001", .driver_data = 0 }, /* AZT1008 */
-	{ .id = "CDC0001", .driver_data = 0 }, /* Opl3-SAx */
-	{ .id = "CSC0001", .driver_data = 0 }, /* CS4232 */
-	{ .id = "CSC000f", .driver_data = 0 }, /* CS4236 */
-	{ .id = "CSC0101", .driver_data = 0 }, /* CS4327 */
-	{ .id = "CTL7001", .driver_data = 0 }, /* SB16 */
-	{ .id = "CTL7002", .driver_data = 0 }, /* AWE64 */
-	{ .id = "CTL7005", .driver_data = 0 }, /* Vibra16 */
-	{ .id = "ENS2020", .driver_data = 0 }, /* SoundscapeVIVO */
-	{ .id = "ESS0001", .driver_data = 0 }, /* ES1869 */
-	{ .id = "ESS0005", .driver_data = 0 }, /* ES1878 */
-	{ .id = "ESS6880", .driver_data = 0 }, /* ES688 */
-	{ .id = "IBM0012", .driver_data = 0 }, /* CS4232 */
-	{ .id = "OPT0001", .driver_data = 0 }, /* OPTi Audio16 */
-	{ .id = "YMH0006", .driver_data = 0 }, /* Opl3-SA */
-	{ .id = "YMH0022", .driver_data = 0 }, /* Opl3-SAx */
-	{ .id = "PNPb02f", .driver_data = 0 }, /* Generic */
-	{ .id = "", },
+	{ .id = "@P@0001" }, /* ALS 100 */
+	{ .id = "@P@0020" }, /* ALS 200 */
+	{ .id = "@P@1001" }, /* ALS 100+ */
+	{ .id = "@P@2001" }, /* ALS 120 */
+	{ .id = "ASB16fd" }, /* AdLib NSC16 */
+	{ .id = "AZT3001" }, /* AZT1008 */
+	{ .id = "CDC0001" }, /* Opl3-SAx */
+	{ .id = "CSC0001" }, /* CS4232 */
+	{ .id = "CSC000f" }, /* CS4236 */
+	{ .id = "CSC0101" }, /* CS4327 */
+	{ .id = "CTL7001" }, /* SB16 */
+	{ .id = "CTL7002" }, /* AWE64 */
+	{ .id = "CTL7005" }, /* Vibra16 */
+	{ .id = "ENS2020" }, /* SoundscapeVIVO */
+	{ .id = "ESS0001" }, /* ES1869 */
+	{ .id = "ESS0005" }, /* ES1878 */
+	{ .id = "ESS6880" }, /* ES688 */
+	{ .id = "IBM0012" }, /* CS4232 */
+	{ .id = "OPT0001" }, /* OPTi Audio16 */
+	{ .id = "YMH0006" }, /* Opl3-SA */
+	{ .id = "YMH0022" }, /* Opl3-SAx */
+	{ .id = "PNPb02f" }, /* Generic */
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pnp, pnp_devids);

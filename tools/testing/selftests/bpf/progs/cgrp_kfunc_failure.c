@@ -64,7 +64,7 @@ int BPF_PROG(cgrp_kfunc_acquire_no_null_check, struct cgroup *cgrp, const char *
 }
 
 SEC("tp_btf/cgroup_mkdir")
-__failure __msg("R1 pointer type STRUCT cgroup must point")
+__failure __msg("R1 is fp expected STRUCT cgroup")
 int BPF_PROG(cgrp_kfunc_acquire_fp, struct cgroup *cgrp, const char *path)
 {
 	struct cgroup *acquired, *stack_cgrp = (struct cgroup *)&path;

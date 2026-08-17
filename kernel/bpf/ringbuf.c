@@ -634,7 +634,7 @@ const struct bpf_func_proto bpf_ringbuf_output_proto = {
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_CONST_MAP_PTR,
 	.arg2_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg3_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg3_type	= ARG_MEM_SIZE_OR_ZERO,
 	.arg4_type	= ARG_ANYTHING,
 };
 

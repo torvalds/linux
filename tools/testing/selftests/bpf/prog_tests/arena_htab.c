@@ -81,7 +81,7 @@ static void test_arena_htab_asm(void)
 	arena_htab_asm__destroy(skel);
 }
 
-void test_arena_htab(void)
+void serial_test_arena_htab(void)
 {
 	if (test__start_subtest("arena_htab_llvm"))
 		test_arena_htab_llvm();

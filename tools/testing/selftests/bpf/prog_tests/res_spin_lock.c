@@ -3,6 +3,8 @@
 #include <test_progs.h>
 #include <network_helpers.h>
 #include <sys/sysinfo.h>
+#include <sys/syscall.h>
+#include <linux/perf_event.h>
 
 #include "res_spin_lock.skel.h"
 #include "res_spin_lock_fail.skel.h"
@@ -102,10 +104,28 @@ end:
 
 void serial_test_res_spin_lock_stress(void)
 {
+	struct perf_event_attr attr = {
+		.size = sizeof(attr),
+		.type = PERF_TYPE_HARDWARE,
+		.config = PERF_COUNT_HW_CPU_CYCLES,
+	};
+	int pmu_fd;
+
 	if (libbpf_num_possible_cpus() < 3) {
 		test__skip();
 		return;
 	}
+
+	pmu_fd = syscall(__NR_perf_event_open, &attr, 0, -1, -1, 0);
+	if (pmu_fd < 0) {
+		if (errno == ENOENT || errno == EOPNOTSUPP) {
+			test__skip();
+			return;
+		}
+		ASSERT_OK(-errno, "perf_event_open pmu probe");
+		return;
+	}
+	close(pmu_fd);
 
 	ASSERT_OK(load_module("bpf_test_rqspinlock.ko", false), "load module AA");
 	sleep(5);

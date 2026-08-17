@@ -61,7 +61,6 @@ struct iproc_msi;
  * @base_addr: PCIe host controller register base physical address
  * @mem: host bridge memory window resource
  * @phy: optional PHY device that controls the Serdes
- * @map_irq: function callback to map interrupts
  * @ep_is_internal: indicates an internal emulated endpoint device is connected
  * @iproc_cfg_read: indicates the iProc config read function should be used
  * @rej_unconfig_pf: indicates the root complex needs to detect and reject
@@ -91,7 +90,6 @@ struct iproc_pcie {
 	phys_addr_t base_addr;
 	struct resource mem;
 	struct phy *phy;
-	int (*map_irq)(const struct pci_dev *, u8, u8);
 	bool ep_is_internal;
 	bool iproc_cfg_read;
 	bool rej_unconfig_pf;

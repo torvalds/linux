@@ -4121,8 +4121,6 @@ static struct btf_raw_test raw_tests[] = {
 	.key_type_id = 1,
 	.value_type_id = 1,
 	.max_entries = 1,
-	.btf_load_err = true,
-	.err_str = "Type tags don't precede modifiers",
 },
 {
 	.descr = "type_tag test #3, type tag order",
@@ -4141,8 +4139,6 @@ static struct btf_raw_test raw_tests[] = {
 	.key_type_id = 1,
 	.value_type_id = 1,
 	.max_entries = 1,
-	.btf_load_err = true,
-	.err_str = "Type tags don't precede modifiers",
 },
 {
 	.descr = "type_tag test #4, type tag order",
@@ -4161,8 +4157,6 @@ static struct btf_raw_test raw_tests[] = {
 	.key_type_id = 1,
 	.value_type_id = 1,
 	.max_entries = 1,
-	.btf_load_err = true,
-	.err_str = "Type tags don't precede modifiers",
 },
 {
 	.descr = "type_tag test #5, type tag order",
@@ -4198,11 +4192,9 @@ static struct btf_raw_test raw_tests[] = {
 	.map_name = "tag_type_check_btf",
 	.key_size = sizeof(int),
 	.value_size = 4,
-	.key_type_id = 1,
-	.value_type_id = 1,
+	.key_type_id = 4,
+	.value_type_id = 4,
 	.max_entries = 1,
-	.btf_load_err = true,
-	.err_str = "Type tags don't precede modifiers",
 },
 {
 	.descr = "type_tag test #7, tag with kflag",
@@ -4256,6 +4248,54 @@ static struct btf_raw_test raw_tests[] = {
 	.key_type_id = 1,
 	.value_type_id = 2,
 	.max_entries = 1,
+},
+
+/*
+ * struct inner {
+ *     struct bpf_spin_lock lock;
+ * };
+ *
+ * struct value {
+ *     struct bpf_spin_lock lock;
+ *     struct inner nested;
+ * };
+ */
+{
+	.descr = "struct test duplicate nested unique fields",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_STRUCT_ENC(NAME_TBD, 1, 4),				/* [2] */
+		BTF_MEMBER_ENC(NAME_TBD, 1, 0),
+		BTF_STRUCT_ENC(NAME_TBD, 1, 4),				/* [3] */
+		BTF_MEMBER_ENC(NAME_TBD, 2, 0),
+		BTF_STRUCT_ENC(NAME_TBD, 2, 8),				/* [4] */
+		BTF_MEMBER_ENC(NAME_TBD, 2, 0),
+		BTF_MEMBER_ENC(NAME_TBD, 3, 32),
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0int\0bpf_spin_lock\0val\0inner\0lock\0value\0lock\0nested"),
+	.btf_load_err = true,
+},
+
+/*
+ * struct value {
+ *     struct bpf_refcount a;
+ *     struct bpf_refcount b;
+ * };
+ */
+{
+	.descr = "struct test duplicate bpf_refcount fields",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_STRUCT_ENC(NAME_TBD, 1, 4),				/* [2] */
+		BTF_MEMBER_ENC(NAME_TBD, 1, 0),
+		BTF_STRUCT_ENC(NAME_TBD, 2, 8),				/* [3] */
+		BTF_MEMBER_ENC(NAME_TBD, 2, 0),
+		BTF_MEMBER_ENC(NAME_TBD, 2, 32),
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0int\0bpf_refcount\0refs\0value\0a\0b"),
+	.btf_load_err = true,
 },
 
 {

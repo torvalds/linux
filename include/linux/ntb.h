@@ -567,7 +567,7 @@ void ntb_msg_event(struct ntb_dev *ntb);
 int ntb_default_port_number(struct ntb_dev *ntb);
 
 /**
- * ntb_default_port_count() - get the default number of peer device ports
+ * ntb_default_peer_port_count() - get the default number of peer device ports
  * @ntb:	NTB device context.
  *
  * By default hardware driver supports just one peer device.
@@ -582,7 +582,7 @@ int ntb_default_peer_port_count(struct ntb_dev *ntb);
 /**
  * ntb_default_peer_port_number() - get the default peer port by given index
  * @ntb:	NTB device context.
- * @idx:	Peer port index (should not differ from zero).
+ * @pidx:	Peer port index (should not differ from zero).
  *
  * By default hardware driver supports just one peer device, so this method
  * shall return the corresponding value from enum ntb_default_port.

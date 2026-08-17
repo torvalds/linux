@@ -117,8 +117,6 @@ static int ice_eswitch_setup_repr(struct ice_pf *pf, struct ice_repr *repr)
 	if (!repr->dst)
 		return -ENOMEM;
 
-	netif_keep_dst(uplink_vsi->netdev);
-
 	dst = repr->dst;
 	dst->u.port_info.port_id = vsi->vsi_num;
 	dst->u.port_info.lower_dev = uplink_vsi->netdev;
@@ -311,6 +309,8 @@ static int ice_eswitch_enable_switchdev(struct ice_pf *pf)
 
 	if (ice_eswitch_br_offloads_init(pf))
 		goto err_br_offloads;
+
+	netif_keep_dst(uplink_vsi->netdev);
 
 	pf->eswitch.is_running = true;
 
@@ -511,9 +511,6 @@ int ice_eswitch_attach_vf(struct ice_pf *pf, struct ice_vf *vf)
 	struct devlink *devlink = priv_to_devlink(pf);
 	struct ice_repr *repr;
 	int err;
-
-	if (!ice_is_eswitch_mode_switchdev(pf))
-		return 0;
 
 	repr = ice_repr_create_vf(vf);
 	if (IS_ERR(repr))

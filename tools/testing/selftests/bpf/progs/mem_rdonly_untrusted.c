@@ -137,7 +137,7 @@ int helper_param_not_ok(void *ctx)
 
 	p = bpf_rdonly_cast(0, 0);
 	/*
-	 * Any helper with ARG_CONST_SIZE_OR_ZERO constraint will do,
+	 * Any helper with ARG_MEM_SIZE_OR_ZERO constraint will do,
 	 * the most permissive constraint
 	 */
 	bpf_copy_from_user(p, 0, (void *)42);
@@ -224,6 +224,23 @@ int null_check(void *ctx)
 		 */
 		return return_one();
 	return 0;
+}
+
+SEC("socket")
+__success
+__retval(1)
+int ldx_is_ok_commuted_addr(void *ctx)
+{
+	int v, *p, *derived;
+
+	v = 1;
+	p = bpf_rdonly_cast(&v, 0);
+	asm volatile ("%[dst] = 0;"
+		"%[dst] += %[src];"
+		: [dst]"=&r"(derived)
+		: [src]"r"(p)
+		: "memory");
+	return *derived;
 }
 
 char _license[] SEC("license") = "GPL";

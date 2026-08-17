@@ -2138,6 +2138,16 @@ void btrfs_finish_ordered_zoned(struct btrfs_ordered_extent *ordered)
 	if (test_bit(BTRFS_ORDERED_PREALLOC, &ordered->flags))
 		return;
 
+	/*
+	 * A fully truncated ordered extent wrote no data and so has
+	 * no zone append result to record.
+	 */
+	if (test_bit(BTRFS_ORDERED_TRUNCATED, &ordered->flags) &&
+	    ordered->truncated_len == 0) {
+		ASSERT(list_empty(&ordered->csum_list));
+		return;
+	}
+
 	ASSERT(!list_empty(&ordered->csum_list));
 	sum = list_first_entry(&ordered->csum_list, struct btrfs_ordered_sum, list);
 	logical = sum->logical;
@@ -2190,7 +2200,11 @@ static bool check_bg_is_active(struct btrfs_eb_write_context *ctx,
 
 	if (fs_info->treelog_bg == block_group->start) {
 		if (!btrfs_zone_activate(block_group)) {
-			int ret_fin = btrfs_zone_finish_one_bg(fs_info);
+			int ret_fin;
+
+			btrfs_zoned_meta_io_unlock(fs_info);
+			ret_fin = btrfs_zone_finish_one_bg(fs_info);
+			btrfs_zoned_meta_io_lock(fs_info);
 
 			if (ret_fin != 1 || !btrfs_zone_activate(block_group))
 				return false;
@@ -3185,6 +3199,17 @@ int btrfs_reset_unused_block_groups(struct btrfs_space_info *space_info, u64 num
 		reclaimed = bg->alloc_offset;
 		bg->zone_unusable = bg->length - bg->zone_capacity;
 		bg->alloc_offset = 0;
+		/*
+		 * The zone was just reset to empty, so alloc_offset went back to
+		 * the start of the zone. For metadata/system block groups the
+		 * write pointer must follow it back to the start of the zone;
+		 * otherwise it stays stale at the previous (finished) zone end,
+		 * and metadata written into the reused zone would sit behind the
+		 * write pointer, could never be written out in sequential order,
+		 * and would be stranded (pinning its folio) until unmount.
+		 */
+		if (bg->flags & (BTRFS_BLOCK_GROUP_METADATA | BTRFS_BLOCK_GROUP_SYSTEM))
+			bg->meta_write_pointer = bg->start;
 		/*
 		 * This holds because we currently reset fully used then freed
 		 * block group.

@@ -242,6 +242,7 @@ int main(int argc, char **argv)
 	char tbuf[32];
 	u32 inject_mode = 0;
 	u64 own_cgid = 0;
+	s32 cid_override_shard_sz = 4;
 
 	libbpf_set_print(libbpf_print_fn);
 	signal(SIGINT, sigint_handler);
@@ -328,8 +329,7 @@ restart:
 			break;
 		case 'C': {
 			u32 nr_cpus = libbpf_num_possible_cpus();
-			u32 mode, i;
-			s32 shard_sz = 4;
+			u32 mode;
 
 			if (!strcmp(optarg, "shuffle"))
 				mode = QMAP_CID_OVR_SHUFFLE;
@@ -344,18 +344,7 @@ restart:
 				return 1;
 			}
 			skel->rodata->cid_override_mode = mode;
-
-			/* shuffle: reversed cpu_to_cid; others: identity */
-			for (i = 0; i < nr_cpus; i++) {
-				if (mode == QMAP_CID_OVR_SHUFFLE)
-					skel->bss->cid_override_cpu_to_cid[i] = nr_cpus - 1 - i;
-				else
-					skel->bss->cid_override_cpu_to_cid[i] = i;
-			}
-			if (mode == QMAP_CID_OVR_BAD_DUP && nr_cpus >= 2)
-				skel->bss->cid_override_cpu_to_cid[1] = 0;
-			if (mode == QMAP_CID_OVR_BAD_RANGE)
-				skel->bss->cid_override_cpu_to_cid[0] = (s32)nr_cpus;
+			cid_override_shard_sz = 4;
 
 			/*
 			 * bad-mono needs >= 3 shards to build a 0-based but
@@ -368,21 +357,12 @@ restart:
 						nr_cpus);
 					return 1;
 				}
-				shard_sz = nr_cpus / 3;
+				cid_override_shard_sz = nr_cpus / 3;
 			}
 
 			/* shards of shard_sz each */
-			skel->rodata->cid_override_nr_shards = (nr_cpus + shard_sz - 1) / shard_sz;
-			for (i = 0; i < skel->rodata->cid_override_nr_shards; i++)
-				skel->bss->cid_override_shard_start[i] = i * shard_sz;
-
-			if (mode == QMAP_CID_OVR_BAD_MONO) {
-				/* swap [1] and [2] to break monotonicity */
-				s32 tmp = skel->bss->cid_override_shard_start[1];
-				skel->bss->cid_override_shard_start[1] =
-					skel->bss->cid_override_shard_start[2];
-				skel->bss->cid_override_shard_start[2] = tmp;
-			}
+			skel->rodata->cid_override_nr_shards =
+				(nr_cpus + cid_override_shard_sz - 1) / cid_override_shard_sz;
 			break;
 		}
 		case 'i':
@@ -428,9 +408,43 @@ restart:
 	skel->rodata->round_robin_ns = (u64)round_robin_ms * 1000000;
 
 	SCX_OPS_LOAD(skel, qmap_ops, scx_qmap, uei);
-	link = SCX_OPS_ATTACH(skel, qmap_ops, scx_qmap);
 
 	qa = &skel->arena->qa;
+
+	/*
+	 * The cid-override arrays live in the arena, which is mmapped at load.
+	 * Populate them before qmap_init_cids() consumes them at attach.
+	 */
+	if (skel->rodata->cid_override_mode) {
+		u32 mode = skel->rodata->cid_override_mode;
+		u32 nr_cpus = libbpf_num_possible_cpus();
+		u32 i;
+
+		/* shuffle: reversed cpu_to_cid; others: identity */
+		for (i = 0; i < nr_cpus; i++) {
+			if (mode == QMAP_CID_OVR_SHUFFLE)
+				qa->cid_override_cpu_to_cid[i] = nr_cpus - 1 - i;
+			else
+				qa->cid_override_cpu_to_cid[i] = i;
+		}
+		if (mode == QMAP_CID_OVR_BAD_DUP && nr_cpus >= 2)
+			qa->cid_override_cpu_to_cid[1] = 0;
+		if (mode == QMAP_CID_OVR_BAD_RANGE)
+			qa->cid_override_cpu_to_cid[0] = (s32)nr_cpus;
+
+		for (i = 0; i < skel->rodata->cid_override_nr_shards; i++)
+			qa->cid_override_shard_start[i] = i * cid_override_shard_sz;
+
+		if (mode == QMAP_CID_OVR_BAD_MONO) {
+			/* swap [1] and [2] to break monotonicity */
+			s32 tmp = qa->cid_override_shard_start[1];
+			qa->cid_override_shard_start[1] = qa->cid_override_shard_start[2];
+			qa->cid_override_shard_start[2] = tmp;
+		}
+	}
+
+	link = SCX_OPS_ATTACH(skel, qmap_ops, scx_qmap);
+
 	qa->test_error_cnt = test_error_cnt;
 	qa->inject_mode = inject_mode;
 

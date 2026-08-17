@@ -317,7 +317,7 @@ int generate_smb311signingkey(struct cifs_ses *ses,
 
 #ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
 #endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
-void cifs_autodisable_serverino(struct cifs_sb_info *cifs_sb);
+void cifs_autodisable_serverino(struct cifs_sb_info *cifs_sb, const char *reason, int rc);
 bool couldbe_mf_symlink(const struct cifs_fattr *fattr);
 int check_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 		     struct cifs_sb_info *cifs_sb, struct cifs_fattr *fattr,

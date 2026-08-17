@@ -8,7 +8,6 @@
  */
 #include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -22,7 +21,6 @@
 
 struct dw_plat_pcie {
 	struct dw_pcie			*pci;
-	enum dw_pcie_device_mode	mode;
 };
 
 struct dw_plat_pcie_of_data {
@@ -118,11 +116,11 @@ static int dw_plat_pcie_probe(struct platform_device *pdev)
 	pci->dev = dev;
 
 	dw_plat_pcie->pci = pci;
-	dw_plat_pcie->mode = mode;
+	dw_plat_pcie->pci->mode = mode;
 
 	platform_set_drvdata(pdev, dw_plat_pcie);
 
-	switch (dw_plat_pcie->mode) {
+	switch (dw_plat_pcie->pci->mode) {
 	case DW_PCIE_RC_TYPE:
 		if (!IS_ENABLED(CONFIG_PCIE_DW_PLAT_HOST))
 			return -ENODEV;
@@ -148,7 +146,7 @@ static int dw_plat_pcie_probe(struct platform_device *pdev)
 
 		break;
 	default:
-		dev_err(dev, "INVALID device type %d\n", dw_plat_pcie->mode);
+		dev_err(dev, "INVALID device type %d\n", dw_plat_pcie->pci->mode);
 		ret = -EINVAL;
 		break;
 	}

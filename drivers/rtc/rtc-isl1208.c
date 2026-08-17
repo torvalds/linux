@@ -110,11 +110,11 @@ static const struct isl1208_config config_raa215300_a0 = {
 };
 
 static const struct i2c_device_id isl1208_id[] = {
-	{ "isl1208", .driver_data = (kernel_ulong_t)&config_isl1208 },
-	{ "isl1209", .driver_data = (kernel_ulong_t)&config_isl1209 },
-	{ "isl1218", .driver_data = (kernel_ulong_t)&config_isl1218 },
-	{ "isl1219", .driver_data = (kernel_ulong_t)&config_isl1219 },
-	{ "raa215300_a0", .driver_data = (kernel_ulong_t)&config_raa215300_a0 },
+	{ .name = "isl1208", .driver_data = (kernel_ulong_t)&config_isl1208 },
+	{ .name = "isl1209", .driver_data = (kernel_ulong_t)&config_isl1209 },
+	{ .name = "isl1218", .driver_data = (kernel_ulong_t)&config_isl1218 },
+	{ .name = "isl1219", .driver_data = (kernel_ulong_t)&config_isl1219 },
+	{ .name = "raa215300_a0", .driver_data = (kernel_ulong_t)&config_raa215300_a0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, isl1208_id);
@@ -822,6 +822,11 @@ static const struct nvmem_config isl1208_nvmem_config = {
 	.reg_write = isl1208_nvmem_write,
 };
 
+static void isl1208_disable_irq_wake_action(void *data)
+{
+	disable_irq_wake((unsigned long)data);
+}
+
 static int isl1208_setup_irq(struct i2c_client *client, int irq)
 {
 	int rc = devm_request_threaded_irq(&client->dev, irq, NULL,
@@ -831,7 +836,15 @@ static int isl1208_setup_irq(struct i2c_client *client, int irq)
 					client);
 	if (!rc) {
 		device_init_wakeup(&client->dev, true);
-		enable_irq_wake(irq);
+		rc = enable_irq_wake(irq);
+		if (rc)
+			return rc;
+
+		rc = devm_add_action_or_reset(&client->dev,
+					      isl1208_disable_irq_wake_action,
+					      (void *)(unsigned long)irq);
+		if (rc)
+			return rc;
 	} else {
 		dev_err(&client->dev,
 			"Unable to request irq %d, no alarm support\n",

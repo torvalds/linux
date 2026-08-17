@@ -254,7 +254,7 @@ resource_size_t pcibios_default_alignment(void)
 }
 
 #ifdef CONFIG_PCI_IOV
-resource_size_t pcibios_iov_resource_alignment(struct pci_dev *pdev, int resno)
+resource_size_t pcibios_iov_resource_alignment(const struct pci_dev *pdev, int resno)
 {
 	if (ppc_md.pcibios_iov_resource_alignment)
 		return ppc_md.pcibios_iov_resource_alignment(pdev, resno);

@@ -1248,6 +1248,29 @@ static void fixup_obj_maps(struct bpf_object *obj)
 
 		/* fix up map size, if necessary */
 		switch (bpf_map__type(map)) {
+		/*
+		 * if the verifier doesn't use max_entries
+		 * then set to 1 to avoid -ENOMEM
+		 */
+		case BPF_MAP_TYPE_HASH:
+		case BPF_MAP_TYPE_PERCPU_HASH:
+		case BPF_MAP_TYPE_LRU_HASH:
+		case BPF_MAP_TYPE_LRU_PERCPU_HASH:
+		case BPF_MAP_TYPE_SOCKHASH:
+		case BPF_MAP_TYPE_DEVMAP_HASH:
+		case BPF_MAP_TYPE_QUEUE:
+		case BPF_MAP_TYPE_STACK:
+		case BPF_MAP_TYPE_BLOOM_FILTER:
+		case BPF_MAP_TYPE_STACK_TRACE:
+			bpf_map__set_max_entries(map, 1);
+			break;
+
+		/* ringbufs must be page-aligned */
+		case BPF_MAP_TYPE_RINGBUF:
+		case BPF_MAP_TYPE_USER_RINGBUF:
+			bpf_map__set_max_entries(map, sysconf(_SC_PAGESIZE));
+			break;
+
 		case BPF_MAP_TYPE_SK_STORAGE:
 		case BPF_MAP_TYPE_TASK_STORAGE:
 		case BPF_MAP_TYPE_INODE_STORAGE:

@@ -353,14 +353,23 @@ static void throtl_pd_online(struct blkg_policy_data *pd)
 	tg_update_has_rules(tg);
 }
 
+static void tg_release(struct rcu_head *rcu)
+{
+	struct blkg_policy_data *pd =
+		container_of(rcu, struct blkg_policy_data, rcu_head);
+	struct throtl_grp *tg = pd_to_tg(pd);
+
+	blkg_rwstat_exit(&tg->stat_bytes);
+	blkg_rwstat_exit(&tg->stat_ios);
+	kfree(tg);
+}
+
 static void throtl_pd_free(struct blkg_policy_data *pd)
 {
 	struct throtl_grp *tg = pd_to_tg(pd);
 
 	timer_delete_sync(&tg->service_queue.pending_timer);
-	blkg_rwstat_exit(&tg->stat_bytes);
-	blkg_rwstat_exit(&tg->stat_ios);
-	kfree(tg);
+	call_rcu(&pd->rcu_head, tg_release);
 }
 
 static struct throtl_grp *

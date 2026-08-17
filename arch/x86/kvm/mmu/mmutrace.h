@@ -303,7 +303,7 @@ TRACE_EVENT(
 
 	TP_fast_assign(
 		__entry->mmu_valid_gen = kvm->arch.mmu_valid_gen;
-		__entry->mmu_used_pages = kvm->arch.n_used_mmu_pages;
+		__entry->mmu_used_pages = kvm->stat.mmu_shadow_pages;
 	),
 
 	TP_printk("kvm-mmu-valid-gen %u used_pages %x",

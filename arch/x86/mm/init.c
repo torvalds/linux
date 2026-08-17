@@ -1107,10 +1107,10 @@ struct execmem_info __init *execmem_arch_setup(void)
 				.alignment = MODULE_ALIGN,
 			},
 			[EXECMEM_BPF] = {
-				.flags	= EXECMEM_KASAN_SHADOW,
+				.flags	= flags,
 				.start	= start,
 				.end	= MODULES_END,
-				.pgprot	= PAGE_KERNEL,
+				.pgprot	= pgprot,
 				.alignment = MODULE_ALIGN,
 			},
 			[EXECMEM_MODULE_DATA] = {

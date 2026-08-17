@@ -5,6 +5,7 @@
 // Copyright (c) 2017 Andi Shyti <andi@etezian.org>
 
 #include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/input/mt.h>
 #include <linux/input/touchscreen.h>
@@ -69,20 +70,21 @@
 #define STMFTS_MAX_FINGERS	10
 #define STMFTS_DEV_NAME		"stmfts"
 
-enum stmfts_regulators {
-	STMFTS_REGULATOR_VDD,
-	STMFTS_REGULATOR_AVDD,
+static const struct regulator_bulk_data stmfts_supplies[] = {
+	{ .supply = "vdd" },
+	{ .supply = "avdd" },
 };
 
 struct stmfts_data {
 	struct i2c_client *client;
 	struct input_dev *input;
+	struct gpio_desc *reset_gpio;
 	struct led_classdev led_cdev;
 	struct mutex mutex;
 
 	struct touchscreen_properties prop;
 
-	struct regulator_bulk_data regulators[2];
+	struct regulator_bulk_data *supplies;
 
 	/*
 	 * Presence of ledvdd will be used also to check
@@ -107,7 +109,7 @@ struct stmfts_data {
 };
 
 static int stmfts_brightness_set(struct led_classdev *led_cdev,
-					enum led_brightness value)
+				 enum led_brightness value)
 {
 	struct stmfts_data *sdata = container_of(led_cdev,
 					struct stmfts_data, led_cdev);
@@ -250,7 +252,6 @@ static void stmfts_parse_events(struct stmfts_data *sdata)
 		u8 *event = &sdata->data[i * STMFTS_EVENT_SIZE];
 
 		switch (event[0]) {
-
 		case STMFTS_EV_CONTROLLER_READY:
 		case STMFTS_EV_SLEEP_OUT_CONTROLLER_READY:
 		case STMFTS_EV_STATUS:
@@ -263,7 +264,6 @@ static void stmfts_parse_events(struct stmfts_data *sdata)
 		}
 
 		switch (event[0] & STMFTS_MASK_EVENT_ID) {
-
 		case STMFTS_EV_MULTI_TOUCH_ENTER:
 		case STMFTS_EV_MULTI_TOUCH_MOTION:
 			stmfts_report_contact_event(sdata, event);
@@ -285,9 +285,9 @@ static void stmfts_parse_events(struct stmfts_data *sdata)
 
 		case STMFTS_EV_ERROR:
 			dev_warn(&sdata->client->dev,
-					"error code: 0x%x%x%x%x%x%x",
-					event[6], event[5], event[4],
-					event[3], event[2], event[1]);
+				 "error code: 0x%x%x%x%x%x%x",
+				 event[6], event[5], event[4],
+				 event[3], event[2], event[1]);
 			break;
 
 		default:
@@ -404,7 +404,7 @@ static void stmfts_input_close(struct input_dev *dev)
 }
 
 static ssize_t stmfts_sysfs_chip_id(struct device *dev,
-				struct device_attribute *attr, char *buf)
+				    struct device_attribute *attr, char *buf)
 {
 	struct stmfts_data *sdata = dev_get_drvdata(dev);
 
@@ -412,7 +412,8 @@ static ssize_t stmfts_sysfs_chip_id(struct device *dev,
 }
 
 static ssize_t stmfts_sysfs_chip_version(struct device *dev,
-				struct device_attribute *attr, char *buf)
+					 struct device_attribute *attr,
+					 char *buf)
 {
 	struct stmfts_data *sdata = dev_get_drvdata(dev);
 
@@ -420,7 +421,7 @@ static ssize_t stmfts_sysfs_chip_version(struct device *dev,
 }
 
 static ssize_t stmfts_sysfs_fw_ver(struct device *dev,
-				struct device_attribute *attr, char *buf)
+				   struct device_attribute *attr, char *buf)
 {
 	struct stmfts_data *sdata = dev_get_drvdata(dev);
 
@@ -428,7 +429,7 @@ static ssize_t stmfts_sysfs_fw_ver(struct device *dev,
 }
 
 static ssize_t stmfts_sysfs_config_id(struct device *dev,
-				struct device_attribute *attr, char *buf)
+				      struct device_attribute *attr, char *buf)
 {
 	struct stmfts_data *sdata = dev_get_drvdata(dev);
 
@@ -436,7 +437,8 @@ static ssize_t stmfts_sysfs_config_id(struct device *dev,
 }
 
 static ssize_t stmfts_sysfs_config_version(struct device *dev,
-				struct device_attribute *attr, char *buf)
+					   struct device_attribute *attr,
+					   char *buf)
 {
 	struct stmfts_data *sdata = dev_get_drvdata(dev);
 
@@ -444,7 +446,8 @@ static ssize_t stmfts_sysfs_config_version(struct device *dev,
 }
 
 static ssize_t stmfts_sysfs_read_status(struct device *dev,
-				struct device_attribute *attr, char *buf)
+					struct device_attribute *attr,
+					char *buf)
 {
 	struct stmfts_data *sdata = dev_get_drvdata(dev);
 	u8 status[4];
@@ -459,7 +462,8 @@ static ssize_t stmfts_sysfs_read_status(struct device *dev,
 }
 
 static ssize_t stmfts_sysfs_hover_enable_read(struct device *dev,
-				struct device_attribute *attr, char *buf)
+					      struct device_attribute *attr,
+					      char *buf)
 {
 	struct stmfts_data *sdata = dev_get_drvdata(dev);
 
@@ -467,8 +471,8 @@ static ssize_t stmfts_sysfs_hover_enable_read(struct device *dev,
 }
 
 static ssize_t stmfts_sysfs_hover_enable_write(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf, size_t len)
+					       struct device_attribute *attr,
+					       const char *buf, size_t len)
 {
 	struct stmfts_data *sdata = dev_get_drvdata(dev);
 	unsigned long value;
@@ -485,8 +489,8 @@ static ssize_t stmfts_sysfs_hover_enable_write(struct device *dev,
 	if (hover != sdata->hover_enabled) {
 		if (sdata->running) {
 			err = i2c_smbus_write_byte(sdata->client,
-					   value ? STMFTS_SS_HOVER_SENSE_ON :
-						   STMFTS_SS_HOVER_SENSE_OFF);
+						   value ? STMFTS_SS_HOVER_SENSE_ON :
+							   STMFTS_SS_HOVER_SENSE_OFF);
 			if (err)
 				return err;
 		}
@@ -518,21 +522,10 @@ static struct attribute *stmfts_sysfs_attrs[] = {
 };
 ATTRIBUTE_GROUPS(stmfts_sysfs);
 
-static int stmfts_power_on(struct stmfts_data *sdata)
+static int stmfts_read_system_info(struct stmfts_data *sdata)
 {
 	int err;
 	u8 reg[8];
-
-	err = regulator_bulk_enable(ARRAY_SIZE(sdata->regulators),
-				    sdata->regulators);
-	if (err)
-		return err;
-
-	/*
-	 * The datasheet does not specify the power on time, but considering
-	 * that the reset time is < 10ms, I sleep 20ms to be sure
-	 */
-	msleep(20);
 
 	err = i2c_smbus_read_i2c_block_data(sdata->client, STMFTS_READ_INFO,
 					    sizeof(reg), reg);
@@ -547,9 +540,21 @@ static int stmfts_power_on(struct stmfts_data *sdata)
 	sdata->config_id = reg[4];
 	sdata->config_ver = reg[5];
 
-	enable_irq(sdata->client->irq);
+	return 0;
+}
 
+static void stmfts_reset(struct stmfts_data *sdata)
+{
+	gpiod_set_value_cansleep(sdata->reset_gpio, 1);
+	msleep(20);
+
+	gpiod_set_value_cansleep(sdata->reset_gpio, 0);
 	msleep(50);
+}
+
+static int stmfts_configure(struct stmfts_data *sdata)
+{
+	int err;
 
 	err = stmfts_command(sdata, STMFTS_SYSTEM_RESET);
 	if (err)
@@ -575,13 +580,52 @@ static int stmfts_power_on(struct stmfts_data *sdata)
 	if (err)
 		return err;
 
+	return 0;
+}
+
+static int stmfts_power_on(struct stmfts_data *sdata)
+{
+	int err;
+
+	err = regulator_bulk_enable(ARRAY_SIZE(stmfts_supplies),
+				    sdata->supplies);
+	if (err)
+		return err;
+
+	/*
+	 * The datasheet does not specify the power on time, but considering
+	 * that the reset time is < 10ms, I sleep 20ms to be sure
+	 */
+	msleep(20);
+
+	if (sdata->reset_gpio)
+		stmfts_reset(sdata);
+
+	err = stmfts_read_system_info(sdata);
+	if (err)
+		goto err_disable_regulators;
+
+	enable_irq(sdata->client->irq);
+
+	msleep(50);
+
+	err = stmfts_configure(sdata);
+	if (err)
+		goto err_disable_irq;
+
 	/*
 	 * At this point no one is using the touchscreen
 	 * and I don't really care about the return value
 	 */
-	(void) i2c_smbus_write_byte(sdata->client, STMFTS_SLEEP_IN);
+	(void)i2c_smbus_write_byte(sdata->client, STMFTS_SLEEP_IN);
 
 	return 0;
+
+err_disable_irq:
+	disable_irq(sdata->client->irq);
+err_disable_regulators:
+	regulator_bulk_disable(ARRAY_SIZE(stmfts_supplies), sdata->supplies);
+	return err;
 }
 
 static void stmfts_power_off(void *data)
@@ -589,8 +633,11 @@ static void stmfts_power_off(void *data)
 	struct stmfts_data *sdata = data;
 
 	disable_irq(sdata->client->irq);
-	regulator_bulk_disable(ARRAY_SIZE(sdata->regulators),
-						sdata->regulators);
+
+	if (sdata->reset_gpio)
+		gpiod_set_value_cansleep(sdata->reset_gpio, 1);
+
+	regulator_bulk_disable(ARRAY_SIZE(stmfts_supplies), sdata->supplies);
 }
 
 static int stmfts_enable_led(struct stmfts_data *sdata)
@@ -619,6 +666,7 @@ static int stmfts_enable_led(struct stmfts_data *sdata)
 
 static int stmfts_probe(struct i2c_client *client)
 {
+	struct device *dev = &client->dev;
 	int err;
 	struct stmfts_data *sdata;
 
@@ -627,7 +675,7 @@ static int stmfts_probe(struct i2c_client *client)
 						I2C_FUNC_SMBUS_I2C_BLOCK))
 		return -ENODEV;
 
-	sdata = devm_kzalloc(&client->dev, sizeof(*sdata), GFP_KERNEL);
+	sdata = devm_kzalloc(dev, sizeof(*sdata), GFP_KERNEL);
 	if (!sdata)
 		return -ENOMEM;
 
@@ -637,15 +685,19 @@ static int stmfts_probe(struct i2c_client *client)
 	mutex_init(&sdata->mutex);
 	init_completion(&sdata->cmd_done);
 
-	sdata->regulators[STMFTS_REGULATOR_VDD].supply = "vdd";
-	sdata->regulators[STMFTS_REGULATOR_AVDD].supply = "avdd";
-	err = devm_regulator_bulk_get(&client->dev,
-				      ARRAY_SIZE(sdata->regulators),
-				      sdata->regulators);
+	err = devm_regulator_bulk_get_const(dev,
+					    ARRAY_SIZE(stmfts_supplies),
+					    stmfts_supplies,
+					    &sdata->supplies);
 	if (err)
 		return err;
 
-	sdata->input = devm_input_allocate_device(&client->dev);
+	sdata->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(sdata->reset_gpio))
+		return dev_err_probe(dev, PTR_ERR(sdata->reset_gpio),
+				     "Failed to get GPIO 'reset'\n");
+
+	sdata->input = devm_input_allocate_device(dev);
 	if (!sdata->input)
 		return -ENOMEM;
 
@@ -664,8 +716,7 @@ static int stmfts_probe(struct i2c_client *client)
 	input_set_abs_params(sdata->input, ABS_MT_PRESSURE, 0, 255, 0, 0);
 	input_set_abs_params(sdata->input, ABS_DISTANCE, 0, 255, 0, 0);
 
-	sdata->use_key = device_property_read_bool(&client->dev,
-						   "touch-key-connected");
+	sdata->use_key = device_property_read_bool(dev, "touch-key-connected");
 	if (sdata->use_key) {
 		input_set_capability(sdata->input, EV_KEY, KEY_MENU);
 		input_set_capability(sdata->input, EV_KEY, KEY_BACK);
@@ -685,20 +736,20 @@ static int stmfts_probe(struct i2c_client *client)
 	 * interrupts. To be on the safe side it's better to not enable
 	 * the interrupts during their request.
 	 */
-	err = devm_request_threaded_irq(&client->dev, client->irq,
+	err = devm_request_threaded_irq(dev, client->irq,
 					NULL, stmfts_irq_handler,
 					IRQF_ONESHOT | IRQF_NO_AUTOEN,
 					"stmfts_irq", sdata);
 	if (err)
 		return err;
 
-	dev_dbg(&client->dev, "initializing ST-Microelectronics FTS...\n");
+	dev_dbg(dev, "initializing ST-Microelectronics FTS...\n");
 
 	err = stmfts_power_on(sdata);
 	if (err)
 		return err;
 
-	err = devm_add_action_or_reset(&client->dev, stmfts_power_off, sdata);
+	err = devm_add_action_or_reset(dev, stmfts_power_off, sdata);
 	if (err)
 		return err;
 
@@ -715,13 +766,13 @@ static int stmfts_probe(struct i2c_client *client)
 			 * without LEDs. The ledvdd regulator pointer will be
 			 * used as a flag.
 			 */
-			dev_warn(&client->dev, "unable to use touchkey leds\n");
+			dev_warn(dev, "unable to use touchkey leds\n");
 			sdata->ledvdd = NULL;
 		}
 	}
 
-	pm_runtime_enable(&client->dev);
-	device_enable_async_suspend(&client->dev);
+	pm_runtime_enable(dev);
+	device_enable_async_suspend(dev);
 
 	return 0;
 }
@@ -746,9 +797,10 @@ static int stmfts_runtime_suspend(struct device *dev)
 static int stmfts_runtime_resume(struct device *dev)
 {
 	struct stmfts_data *sdata = dev_get_drvdata(dev);
+	struct i2c_client *client = sdata->client;
 	int ret;
 
-	ret = i2c_smbus_write_byte(sdata->client, STMFTS_SLEEP_OUT);
+	ret = i2c_smbus_write_byte(client, STMFTS_SLEEP_OUT);
 	if (ret)
 		dev_err(dev, "failed to resume device: %d\n", ret);
 
@@ -785,7 +837,7 @@ MODULE_DEVICE_TABLE(of, stmfts_of_match);
 #endif
 
 static const struct i2c_device_id stmfts_id[] = {
-	{ "stmfts" },
+	{ .name = "stmfts" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, stmfts_id);
@@ -807,4 +859,4 @@ module_i2c_driver(stmfts_driver);
 
 MODULE_AUTHOR("Andi Shyti <andi.shyti@samsung.com>");
 MODULE_DESCRIPTION("STMicroelectronics FTS Touch Screen");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
