@@ -260,20 +260,16 @@ static int sev_cmd_buffer_len(int cmd)
 
 static struct file *open_file_as_root(const char *filename, int flags, umode_t mode)
 {
-	struct path root __free(path_put) = {};
-
-	task_lock(&init_task);
-	get_fs_root(init_task.fs, &root);
-	task_unlock(&init_task);
-
 	CLASS(prepare_creds, cred)();
 	if (!cred)
 		return ERR_PTR(-ENOMEM);
 
 	cred->fsuid = GLOBAL_ROOT_UID;
 
-	scoped_with_creds(cred)
-		return file_open_root(&root, filename, flags, mode);
+	scoped_with_init_fs() {
+		scoped_with_creds(cred)
+			return filp_open(filename, flags, mode);
+	}
 }
 
 static int sev_read_init_ex_file(void)

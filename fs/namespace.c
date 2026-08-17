@@ -6184,12 +6184,14 @@ static void __init init_mount_tree(void)
 	struct path root;
 
 	/*
-	 * We create two mounts:
+	 * We create three mounts:
 	 *
 	 * (1) nullfs with mount id 1
 	 * (2) mutable rootfs with mount id 2
+	 * (3) private nullfs for kthreads (SB_KERNMOUNT)
 	 *
-	 * with (2) mounted on top of (1).
+	 * with (2) mounted on top of (1). The init_task's root and pwd
+	 * are pointed at (3) so all kthreads start isolated in nullfs.
 	 */
 	nullfs_mnt = vfs_kern_mount(&nullfs_fs_type, 0, "nullfs", NULL);
 	if (IS_ERR(nullfs_mnt))
@@ -6229,12 +6231,14 @@ static void __init init_mount_tree(void)
 		init_mnt_ns.nr_mounts++;
 	}
 
+	nullfs_mnt = kern_mount(&nullfs_fs_type);
+	if (IS_ERR(nullfs_mnt))
+		panic("VFS: Failed to create private nullfs instance");
+	root.mnt	= nullfs_mnt;
+	root.dentry	= nullfs_mnt->mnt_root;
+
 	init_task.nsproxy->mnt_ns = &init_mnt_ns;
 	get_mnt_ns(&init_mnt_ns);
-
-	/* The root and pwd always point to the mutable rootfs. */
-	root.mnt	= mnt;
-	root.dentry	= mnt->mnt_root;
 	set_fs_pwd(current->fs, &root);
 	set_fs_root(current->fs, &root);
 

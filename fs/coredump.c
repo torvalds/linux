@@ -921,15 +921,10 @@ static bool coredump_file(struct core_name *cn, struct coredump_params *cprm,
 		 * with a fully qualified path" rule is to control where
 		 * coredumps may be placed using root privileges,
 		 * current->fs->root must not be used. Instead, use the
-		 * root directory of init_task.
+		 * root directory of PID 1.
 		 */
-		struct path root;
-
-		task_lock(&init_task);
-		get_fs_root(init_task.fs, &root);
-		task_unlock(&init_task);
-		file = file_open_root(&root, cn->corename, open_flags, 0600);
-		path_put(&root);
+		scoped_with_init_fs()
+			file = filp_open(cn->corename, open_flags, 0600);
 	} else {
 		file = filp_open(cn->corename, open_flags, 0600);
 	}

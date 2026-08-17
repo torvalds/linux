@@ -40,14 +40,9 @@ static int nullfs_fs_fill_super(struct super_block *s, struct fs_context *fc)
 	return 0;
 }
 
-/*
- * For now this is a single global instance. If needed we can make it
- * mountable by userspace at which point we will need to make it
- * multi-instance.
- */
 static int nullfs_fs_get_tree(struct fs_context *fc)
 {
-	return get_tree_single(fc, nullfs_fs_fill_super);
+	return get_tree_nodev(fc, nullfs_fs_fill_super);
 }
 
 static const struct fs_context_operations nullfs_fs_context_ops = {
@@ -57,9 +52,8 @@ static const struct fs_context_operations nullfs_fs_context_ops = {
 static int nullfs_init_fs_context(struct fs_context *fc)
 {
 	fc->ops		= &nullfs_fs_context_ops;
-	fc->global	= true;
-	fc->sb_flags	= SB_NOUSER;
-	fc->s_iflags	= SB_I_NOEXEC | SB_I_NODEV;
+	fc->sb_flags	|= SB_NOUSER;
+	fc->s_iflags	|= SB_I_NOEXEC | SB_I_NODEV;
 	return 0;
 }
 

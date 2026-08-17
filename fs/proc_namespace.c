@@ -254,13 +254,13 @@ static int mounts_open_common(struct inode *inode, struct file *file,
 	}
 	ns = nsp->mnt_ns;
 	get_mnt_ns(ns);
-	if (!task->fs) {
+	if (!task->real_fs) {
 		task_unlock(task);
 		put_task_struct(task);
 		ret = -ENOENT;
 		goto err_put_ns;
 	}
-	get_fs_root(task->fs, &root);
+	get_fs_root(task->real_fs, &root);
 	task_unlock(task);
 	put_task_struct(task);
 

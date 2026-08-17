@@ -12,6 +12,7 @@
 #include <linux/uuid.h>
 #include <linux/list_sort.h>
 #include <linux/namei.h>
+#include <linux/fs_struct.h>
 #include "misc.h"
 #include "disk-io.h"
 #include "extent-tree.h"
@@ -2125,8 +2126,16 @@ static int btrfs_add_dev_item(struct btrfs_trans_handle *trans,
 static void update_dev_time(const char *device_path)
 {
 	struct path path;
+	int err;
 
-	if (!kern_path(device_path, LOOKUP_FOLLOW, &path)) {
+	if (tsk_is_kthread(current)) {
+		scoped_with_init_fs()
+			err = kern_path(device_path, LOOKUP_FOLLOW, &path);
+	} else {
+		err = kern_path(device_path, LOOKUP_FOLLOW, &path);
+	}
+
+	if (!err) {
 		vfs_utimes(&path, NULL);
 		path_put(&path);
 	}
