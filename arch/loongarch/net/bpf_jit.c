@@ -869,7 +869,6 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx, bool ext
 	/* dst = -dst */
 	case BPF_ALU | BPF_NEG:
 	case BPF_ALU64 | BPF_NEG:
-		move_imm(ctx, t1, imm, is32);
 		emit_insn(ctx, subd, dst, LOONGARCH_GPR_ZERO, dst);
 		emit_zext_32(ctx, dst, is32);
 		break;
