@@ -481,7 +481,12 @@ btrfs_get_bdev_and_sb(const char *device_path, blk_mode_t flags, void *holder,
 	struct block_device *bdev;
 	int ret;
 
-	*bdev_file = bdev_file_open_by_path(device_path, flags, holder, &fs_holder_ops);
+	if (holder)
+		*bdev_file = fs_bdev_file_open_by_path(device_path, flags,
+						       holder, holder);
+	else
+		*bdev_file = bdev_file_open_by_path(device_path, flags, NULL,
+						    NULL);
 
 	if (IS_ERR(*bdev_file)) {
 		ret = PTR_ERR(*bdev_file);
@@ -496,7 +501,7 @@ btrfs_get_bdev_and_sb(const char *device_path, blk_mode_t flags, void *holder,
 	if (holder) {
 		ret = set_blocksize(*bdev_file, BTRFS_BDEV_BLOCKSIZE);
 		if (ret) {
-			bdev_fput(*bdev_file);
+			fs_bdev_file_release(*bdev_file, holder);
 			goto error;
 		}
 	}
@@ -504,7 +509,10 @@ btrfs_get_bdev_and_sb(const char *device_path, blk_mode_t flags, void *holder,
 	*disk_super = btrfs_read_disk_super(bdev, 0, false);
 	if (IS_ERR(*disk_super)) {
 		ret = PTR_ERR(*disk_super);
-		bdev_fput(*bdev_file);
+		if (holder)
+			fs_bdev_file_release(*bdev_file, holder);
+		else
+			bdev_fput(*bdev_file);
 		goto error;
 	}
 
@@ -728,7 +736,7 @@ static int btrfs_open_one_device(struct btrfs_fs_devices *fs_devices,
 
 error_free_page:
 	btrfs_release_disk_super(disk_super);
-	bdev_fput(bdev_file);
+	fs_bdev_file_release(bdev_file, holder);
 
 	return -EINVAL;
 }
@@ -1088,7 +1096,7 @@ static void __btrfs_free_extra_devids(struct btrfs_fs_devices *fs_devices,
 			continue;
 
 		if (device->bdev_file) {
-			bdev_fput(device->bdev_file);
+			fs_bdev_file_release(device->bdev_file, device->bdev_file->private_data);
 			device->bdev = NULL;
 			device->bdev_file = NULL;
 			fs_devices->open_devices--;
@@ -1125,7 +1133,18 @@ void btrfs_free_extra_devids(struct btrfs_fs_devices *fs_devices)
 	mutex_unlock(&uuid_mutex);
 }
 
-static void btrfs_close_bdev(struct btrfs_device *device)
+/* Release a device that was made unfreezable for a membership change. */
+void btrfs_release_device_allow_freeze(struct file *bdev_file)
+{
+	struct super_block *sb = bdev_file->private_data;
+
+	/* Unregister before re-allowing (strand-safe); file still open (UAF-safe). */
+	fs_bdev_unregister(bdev_file, sb);
+	bdev_allow_freeze(file_bdev(bdev_file));
+	bdev_fput(bdev_file);
+}
+
+static void btrfs_close_bdev(struct btrfs_device *device, bool allow_freeze)
 {
 	if (!device->bdev)
 		return;
@@ -1135,7 +1154,12 @@ static void btrfs_close_bdev(struct btrfs_device *device)
 		invalidate_bdev(device->bdev);
 	}
 
-	bdev_fput(device->bdev_file);
+	/* @allow_freeze undoes a replace-time deny; unmount-close was never denied. */
+	if (allow_freeze)
+		btrfs_release_device_allow_freeze(device->bdev_file);
+	else
+		fs_bdev_file_release(device->bdev_file,
+				     device->bdev_file->private_data);
 }
 
 static void btrfs_close_one_device(struct btrfs_device *device)
@@ -1156,7 +1180,7 @@ static void btrfs_close_one_device(struct btrfs_device *device)
 		fs_devices->missing_devices--;
 	}
 
-	btrfs_close_bdev(device);
+	btrfs_close_bdev(device, false);
 	if (device->bdev) {
 		fs_devices->open_devices--;
 		device->bdev = NULL;
@@ -2382,6 +2406,13 @@ int btrfs_rm_device(struct btrfs_fs_info *fs_info,
 	    fs_info->fs_devices->rw_devices == 1)
 		return BTRFS_ERROR_DEV_ONLY_WRITABLE;
 
+	/* Removal and freezing are mutually exclusive; refuse if frozen now. */
+	if (device->bdev) {
+		ret = bdev_deny_freeze(device->bdev);
+		if (ret)
+			return ret;
+	}
+
 	if (test_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state)) {
 		mutex_lock(&fs_info->chunk_mutex);
 		list_del_init(&device->dev_alloc_list);
@@ -2408,6 +2439,8 @@ int btrfs_rm_device(struct btrfs_fs_info *fs_info,
 			   device->devid, ret);
 		btrfs_abort_transaction(trans, ret);
 		btrfs_end_transaction(trans);
+		if (device->bdev)
+			bdev_allow_freeze(device->bdev);
 		return ret;
 	}
 
@@ -2499,6 +2532,8 @@ int btrfs_rm_device(struct btrfs_fs_info *fs_info,
 	return btrfs_commit_transaction(trans);
 
 error_undo:
+	if (device->bdev)
+		bdev_allow_freeze(device->bdev);
 	if (test_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state)) {
 		mutex_lock(&fs_info->chunk_mutex);
 		list_add(&device->dev_alloc_list,
@@ -2543,7 +2578,8 @@ void btrfs_rm_dev_replace_free_srcdev(struct btrfs_device *srcdev)
 
 	mutex_lock(&uuid_mutex);
 
-	btrfs_close_bdev(srcdev);
+	/* The source was made unfreezable for the replace; undo it. */
+	btrfs_close_bdev(srcdev, true);
 	synchronize_rcu();
 	btrfs_free_device(srcdev);
 
@@ -2564,7 +2600,8 @@ void btrfs_rm_dev_replace_free_srcdev(struct btrfs_device *srcdev)
 	mutex_unlock(&uuid_mutex);
 }
 
-void btrfs_destroy_dev_replace_tgtdev(struct btrfs_device *tgtdev)
+void btrfs_destroy_dev_replace_tgtdev(struct btrfs_device *tgtdev,
+				      bool allow_freeze)
 {
 	struct btrfs_fs_devices *fs_devices = tgtdev->fs_info->fs_devices;
 
@@ -2585,7 +2622,7 @@ void btrfs_destroy_dev_replace_tgtdev(struct btrfs_device *tgtdev)
 
 	btrfs_scratch_superblocks(tgtdev->fs_info, tgtdev);
 
-	btrfs_close_bdev(tgtdev);
+	btrfs_close_bdev(tgtdev, allow_freeze);
 	synchronize_rcu();
 	btrfs_free_device(tgtdev);
 }
@@ -2854,6 +2891,37 @@ next_slot:
 	return 0;
 }
 
+/*
+ * Open @path for @sb with freezing denied before the holder claim is published,
+ * so a racing bdev_freeze() can never reach a claim a device add or replace may
+ * still abort.  The deny is taken on a throwaway non-holder probe open, then the
+ * holder is opened by the probe's dev_t.  Balanced by the caller.
+ */
+struct file *btrfs_open_device_deny_freeze(const char *path,
+					   struct super_block *sb)
+{
+	struct file *probe_file, *bdev_file;
+	int ret;
+
+	/* WRITE so bdev_file_open_by_path() rejects a read-only device. */
+	probe_file = bdev_file_open_by_path(path, BLK_OPEN_WRITE, NULL, NULL);
+	if (IS_ERR(probe_file))
+		return probe_file;
+
+	ret = bdev_deny_freeze(file_bdev(probe_file));
+	if (ret) {
+		bdev_fput(probe_file);
+		return ERR_PTR(ret);
+	}
+
+	bdev_file = fs_bdev_file_open_by_dev(file_bdev(probe_file)->bd_dev,
+					     BLK_OPEN_WRITE, sb, sb);
+	if (IS_ERR(bdev_file))
+		bdev_allow_freeze(file_bdev(probe_file));
+	bdev_fput(probe_file);
+	return bdev_file;
+}
+
 int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path)
 {
 	struct btrfs_root *root = fs_info->dev_root;
@@ -2872,8 +2940,8 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	if (sb_rdonly(sb) && !fs_devices->seeding)
 		return -EROFS;
 
-	bdev_file = bdev_file_open_by_path(device_path, BLK_OPEN_WRITE,
-					   fs_info->sb, &fs_holder_ops);
+	/* Forbid freezing until the device is a committed member (or unwound). */
+	bdev_file = btrfs_open_device_deny_freeze(device_path, fs_info->sb);
 	if (IS_ERR(bdev_file))
 		return PTR_ERR(bdev_file);
 
@@ -3044,8 +3112,10 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 		up_write(&sb->s_umount);
 		locked = false;
 
-		if (ret) /* transaction commit */
+		if (ret) { /* transaction commit */
+			bdev_allow_freeze(file_bdev(bdev_file));
 			return ret;
+		}
 
 		ret = btrfs_relocate_sys_chunks(fs_info);
 		if (ret < 0)
@@ -3053,8 +3123,10 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 				    "Failed to relocate sys chunks after device initialization. This can be fixed using the \"btrfs balance\" command.");
 		trans = btrfs_attach_transaction(root);
 		if (IS_ERR(trans)) {
-			if (PTR_ERR(trans) == -ENOENT)
+			if (PTR_ERR(trans) == -ENOENT) {
+				bdev_allow_freeze(file_bdev(bdev_file));
 				return 0;
+			}
 			ret = PTR_ERR(trans);
 			trans = NULL;
 			goto error_sysfs;
@@ -3074,6 +3146,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	/* Update ctime/mtime for blkid or udev */
 	update_dev_time(device_path);
 
+	bdev_allow_freeze(file_bdev(bdev_file));
 	return ret;
 
 error_sysfs:
@@ -3103,7 +3176,7 @@ error_free_zone:
 error_free_device:
 	btrfs_free_device(device);
 error:
-	bdev_fput(bdev_file);
+	btrfs_release_device_allow_freeze(bdev_file);
 	if (locked) {
 		mutex_unlock(&uuid_mutex);
 		up_write(&sb->s_umount);

@@ -304,7 +304,12 @@ int bdev_freeze(struct block_device *bdev)
 
 	mutex_lock(&bdev->bd_fsfreeze_mutex);
 
-	if (atomic_inc_return(&bdev->bd_fsfreeze_count) > 1) {
+	/* A device being removed from its filesystem refuses freezes. */
+	if (!atomic_inc_unless_negative(&bdev->bd_fsfreeze_count)) {
+		mutex_unlock(&bdev->bd_fsfreeze_mutex);
+		return -EBUSY;
+	}
+	if (atomic_read(&bdev->bd_fsfreeze_count) > 1) {
 		mutex_unlock(&bdev->bd_fsfreeze_mutex);
 		return 0;
 	}
@@ -340,18 +345,18 @@ int bdev_thaw(struct block_device *bdev)
 
 	mutex_lock(&bdev->bd_fsfreeze_mutex);
 
-	/*
-	 * If this returns < 0 it means that @bd_fsfreeze_count was
-	 * already 0 and no decrement was performed.
-	 */
-	nr_freeze = atomic_dec_if_positive(&bdev->bd_fsfreeze_count);
-	if (nr_freeze < 0)
+	/* <= 0: not frozen (0) or a freeze deny is held (< 0); leave it. */
+	nr_freeze = atomic_read(&bdev->bd_fsfreeze_count);
+	if (nr_freeze <= 0)
 		goto out;
 
 	error = 0;
-	if (nr_freeze > 0)
+	if (nr_freeze > 1) {
+		atomic_dec(&bdev->bd_fsfreeze_count);
 		goto out;
+	}
 
+	/* Keep the count positive across the thaw so a deny is refused. */
 	mutex_lock(&bdev->bd_holder_lock);
 	if (bdev->bd_holder_ops && bdev->bd_holder_ops->thaw) {
 		error = bdev->bd_holder_ops->thaw(bdev);
@@ -360,13 +365,51 @@ int bdev_thaw(struct block_device *bdev)
 		mutex_unlock(&bdev->bd_holder_lock);
 	}
 
-	if (error)
-		atomic_inc(&bdev->bd_fsfreeze_count);
+	if (!error)
+		atomic_dec(&bdev->bd_fsfreeze_count);
 out:
 	mutex_unlock(&bdev->bd_fsfreeze_mutex);
 	return error;
 }
 EXPORT_SYMBOL(bdev_thaw);
+
+/**
+ * bdev_deny_freeze - make a block device unfreezable
+ * @bdev: block device
+ *
+ * Reserve @bdev against bdev_freeze() the way deny_write_access() reserves a
+ * file against writers.  bd_fsfreeze_count is sign-encoded: > 0 counts active
+ * freezes, < 0 counts deniers, so a deny succeeds only while no freeze is in
+ * progress.  While held, bdev_freeze() returns -EBUSY.  Pair with
+ * bdev_allow_freeze().
+ *
+ * A filesystem removing, adding or replacing a member device denies freezes on
+ * it for the duration, so a claim a freeze walk might act on is never torn down
+ * behind the freezer's back.  The deny is device-scoped, not (device,
+ * superblock)-scoped: a device shared by several superblocks is refused for all
+ * of them.  No in-tree filesystem removes a shared claim from a live superblock.
+ *
+ * Return: 0, or -EBUSY if the device is currently frozen.
+ */
+int bdev_deny_freeze(struct block_device *bdev)
+{
+	return atomic_dec_unless_positive(&bdev->bd_fsfreeze_count) ? 0 : -EBUSY;
+}
+EXPORT_SYMBOL_GPL(bdev_deny_freeze);
+
+/**
+ * bdev_allow_freeze - allow freezing a block device again
+ * @bdev: block device
+ *
+ * Undo one bdev_deny_freeze().
+ */
+void bdev_allow_freeze(struct block_device *bdev)
+{
+	/* A deny must be held, i.e. the count must be negative. */
+	WARN_ON_ONCE(atomic_read(&bdev->bd_fsfreeze_count) >= 0);
+	atomic_inc(&bdev->bd_fsfreeze_count);
+}
+EXPORT_SYMBOL_GPL(bdev_allow_freeze);
 
 /*
  * pseudo-fs
@@ -1153,6 +1196,39 @@ put_no_open:
 }
 
 /**
+ * bdev_yield_claim - give up the holder claim on an open block device
+ * @bdev_file: open block device
+ *
+ * Yield the holder and any write access for @bdev_file without closing it, so
+ * the caller can still act on the device - e.g. bdev_allow_freeze() it - before
+ * the final bdev_fput().  bdev_fput() yields too, so calling it afterwards is
+ * safe.
+ */
+void bdev_yield_claim(struct file *bdev_file)
+{
+	struct block_device *bdev;
+	struct gendisk *disk;
+
+	if (!bdev_file->private_data)
+		return;
+
+	bdev = file_bdev(bdev_file);
+	disk = bdev->bd_disk;
+
+	mutex_lock(&disk->open_mutex);
+	bdev_yield_write_access(bdev_file);
+	bd_yield_claim(bdev_file);
+	/*
+	 * Tell release we already gave up our hold on the
+	 * device and if write restrictions are available that
+	 * we already gave up write access to the device.
+	 */
+	bdev_file->private_data = BDEV_I(bdev_file->f_mapping->host);
+	mutex_unlock(&disk->open_mutex);
+}
+EXPORT_SYMBOL_GPL(bdev_yield_claim);
+
+/**
  * bdev_fput - yield claim to the block device and put the file
  * @bdev_file: open block device
  *
@@ -1165,22 +1241,7 @@ void bdev_fput(struct file *bdev_file)
 	if (WARN_ON_ONCE(bdev_file->f_op != &def_blk_fops))
 		return;
 
-	if (bdev_file->private_data) {
-		struct block_device *bdev = file_bdev(bdev_file);
-		struct gendisk *disk = bdev->bd_disk;
-
-		mutex_lock(&disk->open_mutex);
-		bdev_yield_write_access(bdev_file);
-		bd_yield_claim(bdev_file);
-		/*
-		 * Tell release we already gave up our hold on the
-		 * device and if write restrictions are available that
-		 * we already gave up write access to the device.
-		 */
-		bdev_file->private_data = BDEV_I(bdev_file->f_mapping->host);
-		mutex_unlock(&disk->open_mutex);
-	}
-
+	bdev_yield_claim(bdev_file);
 	fput(bdev_file);
 }
 EXPORT_SYMBOL(bdev_fput);
@@ -1215,6 +1276,18 @@ int lookup_bdev(const char *pathname, dev_t *dev)
 		goto out_path_put;
 	error = -EACCES;
 	if (!may_open_dev(&path))
+		goto out_path_put;
+
+	/*
+	 * Reject a block device inode with i_rdev == 0.  A dev_t of 0 is
+	 * never valid for a block device: no real block device driver
+	 * registers major 0.  Fake block device inodes (e.g. fuse with
+	 * rootmode=S_IFBLK) can expose i_rdev == 0, and letting that
+	 * propagate would confuse superblock lookup and trigger warnings
+	 * in the device-to-superblock table (super_dev_register).
+	 */
+	error = -ENODEV;
+	if (!inode->i_rdev)
 		goto out_path_put;
 
 	*dev = inode->i_rdev;

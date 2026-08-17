@@ -126,8 +126,6 @@ struct blk_integrity {
 	unsigned char				pi_tuple_size;
 };
 
-typedef unsigned int __bitwise blk_mode_t;
-
 /* open for reading */
 #define BLK_OPEN_READ		((__force blk_mode_t)(1 << 0))
 /* open for writing */
@@ -1771,13 +1769,6 @@ struct blk_holder_ops {
 };
 
 /*
- * For filesystems using @fs_holder_ops, the @holder argument passed to
- * helpers used to open and claim block devices via
- * bd_prepare_to_claim() must point to a superblock.
- */
-extern const struct blk_holder_ops fs_holder_ops;
-
-/*
  * Return the correct open flags for blkdev_get_by_* for super block flags
  * as stored in sb->s_flags.
  */
@@ -1837,7 +1828,10 @@ static inline int early_lookup_bdev(const char *pathname, dev_t *dev)
 
 int bdev_freeze(struct block_device *bdev);
 int bdev_thaw(struct block_device *bdev);
+int bdev_deny_freeze(struct block_device *bdev);
+void bdev_allow_freeze(struct block_device *bdev);
 void bdev_fput(struct file *bdev_file);
+void bdev_yield_claim(struct file *bdev_file);
 
 struct io_comp_batch {
 	struct rq_list req_list;
