@@ -1037,7 +1037,7 @@ static void wait_barrier(struct r10conf *conf)
 static void allow_barrier(struct r10conf *conf)
 {
 	if ((atomic_dec_and_test(&conf->nr_pending)) ||
-			(conf->array_freeze_pending))
+	    READ_ONCE(conf->array_freeze_pending))
 		wake_up_barrier(conf);
 }
 
@@ -1056,12 +1056,12 @@ static void freeze_array(struct r10conf *conf, int extra)
 	 * we continue.
 	 */
 	write_seqlock_irq(&conf->resync_lock);
-	conf->array_freeze_pending++;
+	WRITE_ONCE(conf->array_freeze_pending, conf->array_freeze_pending + 1);
 	WRITE_ONCE(conf->barrier, conf->barrier + 1);
 	conf->nr_waiting++;
 	wait_event_barrier_cmd(conf, atomic_read(&conf->nr_pending) ==
 			conf->nr_queued + extra, flush_pending_writes(conf));
-	conf->array_freeze_pending--;
+	WRITE_ONCE(conf->array_freeze_pending, conf->array_freeze_pending - 1);
 	write_sequnlock_irq(&conf->resync_lock);
 }
 
