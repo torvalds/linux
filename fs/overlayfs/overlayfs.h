@@ -320,6 +320,7 @@ static inline int ovl_do_setxattr(struct ovl_fs *ofs, struct dentry *dentry,
 				  const char *name, const void *value,
 				  size_t size, int flags)
 {
+	/* Use vfs_setxattr(), not __vfs_setxattr(): it idmaps the security.capability rootid. */
 	int err = vfs_setxattr(ovl_upper_mnt_idmap(ofs), dentry, name,
 			       value, size, flags);
 
