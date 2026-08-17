@@ -882,7 +882,7 @@ static int migrate_vma_insert_huge_pmd_page(struct migrate_vma *migrate,
 
 	if (flush) {
 		pte_free(vma->vm_mm, pgtable);
-		flush_cache_page(vma, addr, addr + HPAGE_PMD_SIZE);
+		flush_cache_range(vma, addr, addr + HPAGE_PMD_SIZE);
 		pmdp_invalidate(vma, addr, pmdp);
 	} else {
 		pgtable_trans_huge_deposit(vma->vm_mm, pmdp, pgtable);
