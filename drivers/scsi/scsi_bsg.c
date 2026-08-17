@@ -18,6 +18,7 @@ struct scsi_bsg_uring_cmd_pdu {
 	struct bio *bio;		/* mapped user buffer, unmap in task work */
 	struct request *req;		/* block request, freed in task work */
 	u64 response_addr;		/* user space response buffer address */
+	u32 max_response_len;		/* user response buffer size */
 };
 static_assert(sizeof(struct scsi_bsg_uring_cmd_pdu) <= sizeof_field(struct io_uring_cmd, pdu));
 
@@ -45,8 +46,8 @@ static void scsi_bsg_uring_task_cb(struct io_tw_req tw_req, io_tw_token_t tw)
 	if (scsi_status_is_check_condition(scmd->result)) {
 		driver_status = DRIVER_SENSE;
 		if (pdu->response_addr)
-			sense_len_wr = min_t(u8, scmd->sense_len,
-					     SCSI_SENSE_BUFFERSIZE);
+			sense_len_wr = min_t(unsigned int, pdu->max_response_len,
+					     scmd->sense_len);
 	}
 
 	if (sense_len_wr) {
@@ -155,8 +156,7 @@ static int scsi_bsg_uring_cmd(struct request_queue *q, struct io_uring_cmd *iouc
 	}
 
 	pdu->response_addr = cmd->response;
-	scmd->sense_len = cmd->max_response_len ?
-		min(cmd->max_response_len, SCSI_SENSE_BUFFERSIZE) : SCSI_SENSE_BUFFERSIZE;
+	pdu->max_response_len = cmd->max_response_len;
 
 	if (cmd->dout_xfer_len || cmd->din_xfer_len) {
 		ret = scsi_bsg_map_user_buffer(req, ioucmd, issue_flags, gfp_mask);
