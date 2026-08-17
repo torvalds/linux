@@ -2908,6 +2908,9 @@ static int do_change_type(const struct path *path, int ms_flags)
 	for (m = mnt; m; m = (recurse ? next_mnt(m, mnt) : NULL))
 		change_mnt_propagation(m, type);
 
+	guard(mount_locked_reader)();
+	touch_mnt_namespace(mnt->mnt_ns);
+
 	return 0;
 }
 
@@ -3481,6 +3484,10 @@ static int do_set_group(const struct path *from_path, const struct path *to_path
 		list_add(&to->mnt_share, &from->mnt_share);
 		set_mnt_shared(to);
 	}
+
+	guard(mount_locked_reader)();
+	touch_mnt_namespace(to->mnt_ns);
+
 	return 0;
 }
 
@@ -6262,9 +6269,6 @@ void __init mnt_init(void)
 				mphash_entries, 19,
 				HASH_ZERO,
 				&mp_hash_shift, &mp_hash_mask, 0, 0);
-
-	if (!mount_hashtable || !mountpoint_hashtable)
-		panic("Failed to allocate mount hash table\n");
 
 	kernfs_init();
 
