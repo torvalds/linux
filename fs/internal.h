@@ -362,3 +362,7 @@ int anon_inode_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		       struct iattr *attr);
 void pidfs_get_root(struct path *path);
 void nsfs_get_root(struct path *path);
+void failfs_get_root(struct path *path);
+void __init failfs_init(void);
+bool failfs_mnt(const struct vfsmount *mnt);
+int failfs_current_chdir(void);

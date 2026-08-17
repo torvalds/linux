@@ -6274,6 +6274,7 @@ void __init mnt_init(void)
 	shmem_init();
 	init_rootfs();
 	init_mount_tree();
+	failfs_init();
 }
 
 void put_mnt_ns(struct mnt_namespace *ns)
