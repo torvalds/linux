@@ -422,7 +422,7 @@ static struct dentry *dlmfs_mkdir(struct mnt_idmap * idmap,
 		goto bail;
 	}
 
-	inode = dlmfs_get_inode(dir, dentry, mode | S_IFDIR);
+	inode = dlmfs_get_inode(dir, dentry, mode);
 	if (!inode) {
 		status = -ENOMEM;
 		mlog_errno(status);

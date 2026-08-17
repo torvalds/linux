@@ -361,7 +361,6 @@ static struct dentry *v9fs_vfs_mkdir_dotl(struct mnt_idmap *idmap,
 	p9_debug(P9_DEBUG_VFS, "name %pd\n", dentry);
 	v9ses = v9fs_inode2v9ses(dir);
 
-	omode |= S_IFDIR;
 	if (dir->i_mode & S_ISGID)
 		omode |= S_ISGID;
 

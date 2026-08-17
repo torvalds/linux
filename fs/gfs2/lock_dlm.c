@@ -126,7 +126,7 @@ static void gdlm_ast(void *arg)
 	clear_bit(GLF_BLOCKING, &gl->gl_flags);
 
 	/* If the glock is dead, we only react to a dlm_unlock() reply. */
-	if (__lockref_is_dead(&gl->gl_lockref) &&
+	if (lockref_is_dead(&gl->gl_lockref) &&
 	    gl->gl_lksb.sb_status != -DLM_EUNLOCK)
 		return;
 
@@ -182,7 +182,7 @@ static void gdlm_bast(void *arg, int mode)
 {
 	struct gfs2_glock *gl = arg;
 
-	if (__lockref_is_dead(&gl->gl_lockref))
+	if (lockref_is_dead(&gl->gl_lockref))
 		return;
 
 	switch (mode) {
@@ -329,7 +329,7 @@ static void gdlm_put_lock(struct gfs2_glock *gl)
 	uint32_t flags = 0;
 	int error;
 
-	BUG_ON(!__lockref_is_dead(&gl->gl_lockref));
+	BUG_ON(!lockref_is_dead(&gl->gl_lockref));
 
 	if (test_bit(GLF_INITIAL, &gl->gl_flags)) {
 		gfs2_glock_free(gl);

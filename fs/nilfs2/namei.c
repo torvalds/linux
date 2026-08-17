@@ -231,7 +231,7 @@ static struct dentry *nilfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 
 	inc_nlink(dir);
 
-	inode = nilfs_new_inode(dir, S_IFDIR | mode);
+	inode = nilfs_new_inode(dir, mode);
 	err = PTR_ERR(inode);
 	if (IS_ERR(inode))
 		goto out_dir;

@@ -2080,7 +2080,7 @@ static void clear_glock(struct gfs2_glock *gl)
 	gfs2_glock_remove_from_lru(gl);
 
 	spin_lock(&gl->gl_lockref.lock);
-	if (!__lockref_is_dead(&gl->gl_lockref)) {
+	if (!lockref_is_dead(&gl->gl_lockref)) {
 		gl->gl_lockref.count++;
 		if (gl->gl_state != LM_ST_UNLOCKED)
 			request_demote(gl, LM_ST_UNLOCKED, 0, false);
@@ -2115,7 +2115,7 @@ static void dump_glock_func(struct gfs2_glock *gl)
 static void withdraw_glock(struct gfs2_glock *gl)
 {
 	spin_lock(&gl->gl_lockref.lock);
-	if (!__lockref_is_dead(&gl->gl_lockref)) {
+	if (!lockref_is_dead(&gl->gl_lockref)) {
 		/*
 		 * We don't want to write back any more dirty data.  Unlock the
 		 * remaining inode and resource group glocks; this will cause
@@ -2483,7 +2483,7 @@ static void gfs2_glock_iter_next(struct gfs2_glock_iter *gi, loff_t n)
 				continue;
 			break;
 		} else {
-			if (__lockref_is_dead(&gl->gl_lockref))
+			if (lockref_is_dead(&gl->gl_lockref))
 				continue;
 			n--;
 		}

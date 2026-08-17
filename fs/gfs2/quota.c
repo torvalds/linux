@@ -342,7 +342,7 @@ static void qd_put(struct gfs2_quota_data *qd)
 	if (lockref_put_or_lock(&qd->qd_lockref))
 		return;
 
-	BUG_ON(__lockref_is_dead(&qd->qd_lockref));
+	BUG_ON(lockref_is_dead(&qd->qd_lockref));
 	sdp = qd->qd_sbd;
 	if (unlikely(!test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags))) {
 		lockref_mark_dead(&qd->qd_lockref);
@@ -486,7 +486,7 @@ static bool qd_grab_sync(struct gfs2_sbd *sdp, struct gfs2_quota_data *qd,
 	    qd->qd_sync_gen >= sync_gen)
 		goto out;
 
-	if (__lockref_is_dead(&qd->qd_lockref))
+	if (lockref_is_dead(&qd->qd_lockref))
 		goto out;
 	qd->qd_lockref.count++;
 

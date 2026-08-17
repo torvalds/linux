@@ -971,7 +971,7 @@ static struct dentry *hugetlbfs_mkdir(struct mnt_idmap *idmap, struct inode *dir
 				      struct dentry *dentry, umode_t mode)
 {
 	int retval = hugetlbfs_mknod(idmap, dir, dentry,
-				     mode | S_IFDIR, 0);
+				     mode, 0);
 	if (!retval)
 		inc_nlink(dir);
 	return ERR_PTR(retval);

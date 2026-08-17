@@ -305,7 +305,7 @@ xfs_vn_mkdir(
 	struct dentry		*dentry,
 	umode_t			mode)
 {
-	return ERR_PTR(xfs_generic_create(idmap, dir, dentry, mode | S_IFDIR, 0, NULL));
+	return ERR_PTR(xfs_generic_create(idmap, dir, dentry, mode, 0, NULL));
 }
 
 STATIC struct dentry *

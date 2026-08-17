@@ -1117,6 +1117,14 @@ static struct dentry *fuse_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	if (!fm->fc->dont_mask)
 		mode &= ~current_umask();
 
+	/*
+	 * vfs_mkdir() now passes S_IFDIR in @mode, but @mode is forwarded
+	 * verbatim to the userspace server which has only ever been given the
+	 * permission bits. Strip the type bit until the protocol is known to
+	 * cope with it.
+	 */
+	mode &= ~S_IFDIR;
+
 	memset(&inarg, 0, sizeof(inarg));
 	inarg.mode = mode;
 	inarg.umask = current_umask();

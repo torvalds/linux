@@ -4,6 +4,8 @@
 #include <linux/fs_context.h>
 #include <linux/magic.h>
 
+#include "mount.h"
+
 static const struct super_operations nullfs_super_operations = {
 	.statfs	= simple_statfs,
 };

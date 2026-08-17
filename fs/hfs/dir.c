@@ -219,7 +219,7 @@ static struct dentry *hfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	struct inode *inode;
 	int res;
 
-	inode = hfs_new_inode(dir, &dentry->d_name, S_IFDIR | mode);
+	inode = hfs_new_inode(dir, &dentry->d_name, mode);
 	if (IS_ERR(inode))
 		return ERR_CAST(inode);
 

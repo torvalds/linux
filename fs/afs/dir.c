@@ -1333,7 +1333,7 @@ static struct dentry *afs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	op->file[0].modification = true;
 	op->file[0].update_ctime = true;
 	op->dentry	= dentry;
-	op->create.mode	= S_IFDIR | mode;
+	op->create.mode	= mode;
 	op->create.reason = afs_edit_dir_for_mkdir;
 	op->mtime	= current_time(dir);
 	op->ops		= &afs_mkdir_operation;

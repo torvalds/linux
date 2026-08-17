@@ -104,7 +104,7 @@ static inline void seq_setwidth(struct seq_file *m, size_t size)
 }
 void seq_pad(struct seq_file *m, char c);
 
-char *mangle_path(char *s, const char *p, const char *esc);
+char *seq_mangle_path(char *s, const char *p, const char *esc);
 int seq_open(struct file *, const struct seq_operations *);
 ssize_t seq_read(struct file *, char __user *, size_t, loff_t *);
 ssize_t seq_read_iter(struct kiocb *iocb, struct iov_iter *iter);

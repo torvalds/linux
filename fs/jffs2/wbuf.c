@@ -1177,7 +1177,7 @@ void jffs2_dirty_trigger(struct jffs2_sb_info *c)
 		return;
 
 	delay = msecs_to_jiffies(dirty_writeback_interval * 10);
-	if (queue_delayed_work(system_long_wq, &c->wbuf_dwork, delay))
+	if (queue_delayed_work(system_dfl_long_wq, &c->wbuf_dwork, delay))
 		jffs2_dbg(1, "%s()\n", __func__);
 }
 

@@ -287,7 +287,7 @@ affs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	if (!inode)
 		return ERR_PTR(-ENOSPC);
 
-	inode->i_mode = S_IFDIR | mode;
+	inode->i_mode = mode;
 	affs_mode_to_prot(inode);
 
 	inode->i_op = &affs_dir_inode_operations;

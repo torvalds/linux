@@ -24,6 +24,7 @@
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/blkdev.h>
+#include <linux/memcontrol.h>
 #include <linux/mount.h>
 #include <linux/security.h>
 #include <linux/writeback.h>		/* for the emergency remount stuff */
@@ -170,6 +171,19 @@ static void super_wake(struct super_block *sb, unsigned int flag)
 }
 
 /*
+ * The s_op->nr_cached_objects hooks (used for example by btrfs and xfs)
+ * operate on filesystem-global state and ignore sc->memcg. Driving them
+ * from per-memcg shrink_slab_memcg() invocations only burns CPU walking
+ * per-cpu counters and queueing duplicate work: the actual reclaim happens on
+ * the global path (kswapd or root direct reclaim) regardless. Restrict them
+ * to that path.
+ */
+static inline bool super_fs_objects_eligible(struct shrink_control *sc)
+{
+	return !sc->memcg || mem_cgroup_is_root(sc->memcg);
+}
+
+/*
  * One thing we have to be careful of with a per-sb shrinker is that we don't
  * drop the last active reference to the superblock from within the shrinker.
  * If that happens we could trigger unregistering the shrinker from within the
@@ -198,7 +212,7 @@ static unsigned long super_cache_scan(struct shrinker *shrink,
 	if (!super_trylock_shared(sb))
 		return SHRINK_STOP;
 
-	if (sb->s_op->nr_cached_objects)
+	if (sb->s_op->nr_cached_objects && super_fs_objects_eligible(sc))
 		fs_objects = sb->s_op->nr_cached_objects(sb, sc);
 
 	inodes = list_lru_shrink_count(&sb->s_inode_lru, sc);
@@ -259,7 +273,8 @@ static unsigned long super_cache_count(struct shrinker *shrink,
 		return 0;
 	smp_rmb();
 
-	if (sb->s_op && sb->s_op->nr_cached_objects)
+	if (sb->s_op && sb->s_op->nr_cached_objects &&
+	    super_fs_objects_eligible(sc))
 		total_objects = sb->s_op->nr_cached_objects(sb, sc);
 
 	total_objects += list_lru_shrink_count(&sb->s_dentry_lru, sc);

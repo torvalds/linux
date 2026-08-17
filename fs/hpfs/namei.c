@@ -105,10 +105,10 @@ static struct dentry *hpfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 
 	if (!uid_eq(result->i_uid, current_fsuid()) ||
 	    !gid_eq(result->i_gid, current_fsgid()) ||
-	    result->i_mode != (mode | S_IFDIR)) {
+	    result->i_mode != mode) {
 		result->i_uid = current_fsuid();
 		result->i_gid = current_fsgid();
-		result->i_mode = mode | S_IFDIR;
+		result->i_mode = mode;
 		hpfs_write_inode_nolock(result);
 	}
 	hpfs_update_directory_times(dir);

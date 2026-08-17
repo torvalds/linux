@@ -201,17 +201,17 @@ SYSCALL_DEFINE3(sysfs, int, option, unsigned long, arg1, unsigned long, arg2)
 	int retval = -EINVAL;
 
 	switch (option) {
-		case 1:
-			retval = fs_index((const char __user *) arg1);
-			break;
+	case 1:
+		retval = fs_index((const char __user *) arg1);
+		break;
 
-		case 2:
-			retval = fs_name(arg1, (char __user *) arg2);
-			break;
+	case 2:
+		retval = fs_name(arg1, (char __user *) arg2);
+		break;
 
-		case 3:
-			retval = fs_maxindex();
-			break;
+	case 3:
+		retval = fs_maxindex();
+		break;
 	}
 	return retval;
 }

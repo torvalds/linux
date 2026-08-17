@@ -4140,11 +4140,6 @@ EXPORT_SYMBOL(end_renaming);
  * after setgid stripping allows the same ordering for both non-POSIX ACL and
  * POSIX ACL supporting filesystems.
  *
- * Note that it's currently valid for @type to be 0 if a directory is created.
- * Filesystems raise that flag individually and we need to check whether each
- * filesystem can deal with receiving S_IFDIR from the vfs before we enforce a
- * non-zero type.
- *
  * Returns: mode to be passed to the filesystem
  */
 static inline umode_t vfs_prepare_mode(struct mnt_idmap *idmap,
@@ -5399,7 +5394,7 @@ struct dentry *vfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	if (!dir->i_op->mkdir)
 		goto err;
 
-	mode = vfs_prepare_mode(idmap, dir, mode, S_IRWXUGO | S_ISVTX, 0);
+	mode = vfs_prepare_mode(idmap, dir, mode, S_IRWXUGO | S_ISVTX, S_IFDIR);
 	error = security_inode_mkdir(dir, dentry, mode);
 	if (error)
 		goto err;

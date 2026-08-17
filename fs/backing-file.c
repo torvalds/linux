@@ -35,7 +35,7 @@ struct file *backing_file_open(const struct file *user_file, int flags,
 			       const struct path *real_path,
 			       const struct cred *cred)
 {
-	const struct path *user_path = &user_file->f_path;
+	const struct path *user_path = file_user_path(user_file);
 	struct file *f;
 	int error;
 

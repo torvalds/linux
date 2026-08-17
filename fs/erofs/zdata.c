@@ -725,7 +725,7 @@ static bool z_erofs_get_pcluster(struct z_erofs_pcluster *pcl)
 		return true;
 
 	spin_lock(&pcl->lockref.lock);
-	if (__lockref_is_dead(&pcl->lockref)) {
+	if (lockref_is_dead(&pcl->lockref)) {
 		spin_unlock(&pcl->lockref.lock);
 		return false;
 	}
@@ -945,7 +945,7 @@ static void z_erofs_put_pcluster(struct erofs_sb_info *sbi,
 	if (lockref_put_or_lock(&pcl->lockref))
 		return;
 
-	DBG_BUGON(__lockref_is_dead(&pcl->lockref));
+	DBG_BUGON(lockref_is_dead(&pcl->lockref));
 	if (!--pcl->lockref.count) {
 		if (try_free && xa_trylock(&sbi->managed_pslots)) {
 			free = __erofs_try_to_release_pcluster(sbi, pcl);

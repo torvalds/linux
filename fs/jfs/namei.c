@@ -223,7 +223,7 @@ static struct dentry *jfs_mkdir(struct mnt_idmap *idmap, struct inode *dip,
 	 * block there while holding dtree page, so we allocate the inode &
 	 * begin the transaction before we search the directory.
 	 */
-	ip = ialloc(dip, S_IFDIR | mode);
+	ip = ialloc(dip, mode);
 	if (IS_ERR(ip)) {
 		rc = PTR_ERR(ip);
 		goto out2;

@@ -110,7 +110,7 @@ static struct dentry *minix_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	struct inode * inode;
 	int err;
 
-	inode = minix_new_inode(dir, S_IFDIR | mode);
+	inode = minix_new_inode(dir, mode);
 	if (IS_ERR(inode))
 		return ERR_CAST(inode);
 

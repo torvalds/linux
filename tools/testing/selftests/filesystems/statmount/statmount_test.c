@@ -82,6 +82,9 @@ static void cleanup_namespace(void)
 {
 	int ret;
 
+	if (f_mountinfo)
+		fclose(f_mountinfo);
+
 	ret = fchdir(orig_root);
 	if (ret == -1)
 		ksft_perror("fchdir to original root");
@@ -515,7 +518,7 @@ static void test_statmount_mnt_opts(void)
 		return;
 	}
 
-	ksft_test_result_fail("didnt't find mount entry\n");
+	ksft_test_result_fail("didn't find mount entry\n");
 	free(sm);
 	free(line);
 }

@@ -428,7 +428,7 @@ static struct dentry *udf_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	struct udf_inode_info *dinfo = UDF_I(dir);
 	struct udf_inode_info *iinfo;
 
-	inode = udf_new_inode(dir, S_IFDIR | mode);
+	inode = udf_new_inode(dir, mode);
 	if (IS_ERR(inode))
 		return ERR_CAST(inode);
 

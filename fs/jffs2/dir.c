@@ -462,8 +462,6 @@ static struct dentry *jffs2_mkdir (struct mnt_idmap *idmap, struct inode *dir_i,
 	uint32_t alloclen;
 	int ret;
 
-	mode |= S_IFDIR;
-
 	ri = jffs2_alloc_raw_inode();
 	if (!ri)
 		return ERR_PTR(-ENOMEM);

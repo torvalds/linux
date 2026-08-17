@@ -7111,7 +7111,7 @@ static struct dentry *btrfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	inode = new_inode(dir->i_sb);
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
-	inode_init_owner(idmap, inode, dir, S_IFDIR | mode);
+	inode_init_owner(idmap, inode, dir, mode);
 	inode->i_op = &btrfs_dir_inode_operations;
 	inode->i_fop = &btrfs_dir_file_operations;
 	return ERR_PTR(btrfs_create_common(dir, dentry, inode));

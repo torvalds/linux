@@ -1188,7 +1188,6 @@ static bool iomap_write_end(struct iomap_iter *iter, size_t len, size_t copied,
 static int iomap_write_iter(struct iomap_iter *iter, struct iov_iter *i,
 		const struct iomap_write_ops *write_ops)
 {
-	ssize_t total_written = 0;
 	int status = 0;
 	struct address_space *mapping = iter->inode->i_mapping;
 	size_t chunk = mapping_max_folio_size(mapping);
@@ -1284,12 +1283,11 @@ retry:
 				goto retry;
 			}
 		} else {
-			total_written += written;
 			iomap_iter_advance(iter, written);
 		}
 	} while (iov_iter_count(i) && iomap_length(iter));
 
-	return total_written ? 0 : status;
+	return status;
 }
 
 ssize_t
