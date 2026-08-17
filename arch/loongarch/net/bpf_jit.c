@@ -2366,6 +2366,44 @@ void bpf_jit_free(struct bpf_prog *prog)
 	bpf_prog_unlock_free(prog);
 }
 
+#if defined(CONFIG_UNWINDER_ORC)
+#include <asm/unwind.h>
+
+static noinline void walk_bpf_stackframe(bool (*consume_fn)(void *cookie, u64 ip, u64 sp, u64 bp),
+					 void *cookie, unsigned long fp)
+{
+	unsigned long addr;
+	struct unwind_state state;
+	struct pt_regs dummyregs;
+	struct pt_regs *regs = &dummyregs;
+
+	regs->regs[1] = 0;
+	regs->regs[22] = fp;
+	regs->regs[3] = (unsigned long)__builtin_frame_address(0);
+	regs->csr_era = (unsigned long)__builtin_return_address(0);
+
+	for (unwind_start(&state, current, regs);
+	     !unwind_done(&state); unwind_next_frame(&state)) {
+		addr = unwind_get_return_address(&state);
+		if (!addr || !consume_fn(cookie, (u64)addr, (u64)state.sp, (u64)state.fp))
+			break;
+	}
+}
+
+void arch_bpf_stack_walk(bool (*consume_fn)(void *cookie, u64 ip, u64 sp, u64 bp), void *cookie)
+{
+	unsigned long fp;
+
+	/*
+	 * Capture the live frame pointer ($r22) at the very front-line before
+	 * any kernel C code clobbers it. This must be a thin wrapper with no
+	 * large stack locals to prevent the compiler from reusing $r22 early.
+	 */
+	asm volatile("move %0, $r22" : "=r"(fp));
+	walk_bpf_stackframe(consume_fn, cookie, fp);
+}
+#endif /* CONFIG_UNWINDER_ORC */
+
 bool bpf_jit_bypass_spec_v1(void)
 {
 	return true;
