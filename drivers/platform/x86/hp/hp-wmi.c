@@ -256,6 +256,10 @@ static const struct dmi_system_id hp_wmi_feature_boards[] __initconst = {
 		.driver_data = (void *)&omen_v1_legacy_board_params,
 	},
 	{
+		.matches = { DMI_MATCH(DMI_BOARD_NAME, "8BAA") },
+		.driver_data = (void *)&omen_v1_board_params,
+	},
+	{
 		.matches = { DMI_MATCH(DMI_BOARD_NAME, "8BA9") },
 		.driver_data = (void *)&omen_v1_board_params,
 	},
