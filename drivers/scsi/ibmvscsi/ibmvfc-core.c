@@ -6151,7 +6151,7 @@ static void ibmvfc_do_work(struct ibmvfc_host *vhost)
 				timer_delete_sync(&tgt->timer);
 				kref_put(&tgt->kref, ibmvfc_release_tgt);
 				return;
-			} else if (rport && tgt->action == IBMVFC_TGT_ACTION_DEL_AND_LOGOUT_RPORT) {
+			} else if (tgt->action == IBMVFC_TGT_ACTION_DEL_AND_LOGOUT_RPORT) {
 				tgt_dbg(tgt, "Deleting NVMe rport with outstanding I/O\n");
 				nvme_rport = tgt->nvme_remote_port;
 				ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_LOGOUT_DELETED_RPORT);
