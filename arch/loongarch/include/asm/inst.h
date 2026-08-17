@@ -411,6 +411,7 @@ enum loongarch_gpr {
 	LOONGARCH_GPR_T6,
 	LOONGARCH_GPR_T7,
 	LOONGARCH_GPR_T8,
+	LOONGARCH_GPR_U0 = 21,	/* Kernel per-CPU base register ($r21) */
 	LOONGARCH_GPR_FP = 22,
 	LOONGARCH_GPR_S0 = 23,
 	LOONGARCH_GPR_S1,

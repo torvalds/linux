@@ -722,6 +722,15 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx, bool ext
 			move_reg(ctx, dst, t1);
 			break;
 		}
+		if (insn_is_mov_percpu_addr(insn)) {
+			if (dst != src)
+				move_reg(ctx, dst, src);
+#ifdef CONFIG_SMP
+			/* dst += __my_cpu_offset, held in $r21 */
+			emit_insn(ctx, addd, dst, dst, LOONGARCH_GPR_U0);
+#endif
+			break;
+		}
 		switch (off) {
 		case 0:
 			move_reg(ctx, dst, src);
@@ -2367,6 +2376,11 @@ bool bpf_jit_supports_arena(void)
 }
 
 bool bpf_jit_supports_fsession(void)
+{
+	return true;
+}
+
+bool bpf_jit_supports_percpu_insn(void)
 {
 	return true;
 }
