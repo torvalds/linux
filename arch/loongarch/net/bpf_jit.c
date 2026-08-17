@@ -8,6 +8,9 @@
 #include <asm/asm-offsets.h>
 #include "bpf_jit.h"
 
+/* DBAR hint for LL/SC completion ordering, see __WEAK_LLSC_MB */
+#define DBAR_LLSC_MB	0x700
+
 #define LOONGARCH_MAX_REG_ARGS 8
 
 #define LOONGARCH_SAVE_RA_NINSNS   1
@@ -408,7 +411,7 @@ static int emit_atomic_rmw(const struct bpf_insn *insn, struct jit_ctx *ctx)
 				pr_err_once("bpf-jit: amadd.b instruction is not supported\n");
 				return -EINVAL;
 			}
-			emit_insn(ctx, amaddb, src, t1, t3);
+			emit_insn(ctx, amadddbb, src, t1, t3);
 			emit_zext_32(ctx, src, true);
 			break;
 		case BPF_H:
@@ -416,39 +419,39 @@ static int emit_atomic_rmw(const struct bpf_insn *insn, struct jit_ctx *ctx)
 				pr_err_once("bpf-jit: amadd.h instruction is not supported\n");
 				return -EINVAL;
 			}
-			emit_insn(ctx, amaddh, src, t1, t3);
+			emit_insn(ctx, amadddbh, src, t1, t3);
 			emit_zext_32(ctx, src, true);
 			break;
 		case BPF_W:
-			emit_insn(ctx, amaddw, src, t1, t3);
+			emit_insn(ctx, amadddbw, src, t1, t3);
 			emit_zext_32(ctx, src, true);
 			break;
 		case BPF_DW:
-			emit_insn(ctx, amaddd, src, t1, t3);
+			emit_insn(ctx, amadddbd, src, t1, t3);
 			break;
 		}
 		break;
 	case BPF_AND | BPF_FETCH:
 		if (isdw) {
-			emit_insn(ctx, amandd, src, t1, t3);
+			emit_insn(ctx, amanddbd, src, t1, t3);
 		} else {
-			emit_insn(ctx, amandw, src, t1, t3);
+			emit_insn(ctx, amanddbw, src, t1, t3);
 			emit_zext_32(ctx, src, true);
 		}
 		break;
 	case BPF_OR | BPF_FETCH:
 		if (isdw) {
-			emit_insn(ctx, amord, src, t1, t3);
+			emit_insn(ctx, amordbd, src, t1, t3);
 		} else {
-			emit_insn(ctx, amorw, src, t1, t3);
+			emit_insn(ctx, amordbw, src, t1, t3);
 			emit_zext_32(ctx, src, true);
 		}
 		break;
 	case BPF_XOR | BPF_FETCH:
 		if (isdw) {
-			emit_insn(ctx, amxord, src, t1, t3);
+			emit_insn(ctx, amxordbd, src, t1, t3);
 		} else {
-			emit_insn(ctx, amxorw, src, t1, t3);
+			emit_insn(ctx, amxordbw, src, t1, t3);
 			emit_zext_32(ctx, src, true);
 		}
 		break;
@@ -460,7 +463,7 @@ static int emit_atomic_rmw(const struct bpf_insn *insn, struct jit_ctx *ctx)
 				pr_err_once("bpf-jit: amswap.b instruction is not supported\n");
 				return -EINVAL;
 			}
-			emit_insn(ctx, amswapb, src, t1, t3);
+			emit_insn(ctx, amswapdbb, src, t1, t3);
 			emit_zext_32(ctx, src, true);
 			break;
 		case BPF_H:
@@ -468,15 +471,15 @@ static int emit_atomic_rmw(const struct bpf_insn *insn, struct jit_ctx *ctx)
 				pr_err_once("bpf-jit: amswap.h instruction is not supported\n");
 				return -EINVAL;
 			}
-			emit_insn(ctx, amswaph, src, t1, t3);
+			emit_insn(ctx, amswapdbh, src, t1, t3);
 			emit_zext_32(ctx, src, true);
 			break;
 		case BPF_W:
-			emit_insn(ctx, amswapw, src, t1, t3);
+			emit_insn(ctx, amswapdbw, src, t1, t3);
 			emit_zext_32(ctx, src, true);
 			break;
 		case BPF_DW:
-			emit_insn(ctx, amswapd, src, t1, t3);
+			emit_insn(ctx, amswapdbd, src, t1, t3);
 			break;
 		}
 		break;
@@ -499,6 +502,7 @@ static int emit_atomic_rmw(const struct bpf_insn *insn, struct jit_ctx *ctx)
 			emit_insn(ctx, beq, t3, LOONGARCH_GPR_ZERO, -6);
 			emit_zext_32(ctx, r0, true);
 		}
+		emit_insn(ctx, dbar, DBAR_LLSC_MB);
 		break;
 	default:
 		pr_err_once("bpf-jit: invalid atomic read-modify-write opcode %02x\n", imm);
