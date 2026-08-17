@@ -832,8 +832,13 @@ struct xps_dev_maps {
 #define TC_BITMASK	15
 /* HW offloaded queuing disciplines txq count and offset maps */
 struct netdev_tc_txq {
-	u16 count;
-	u16 offset;
+	union {
+		struct {
+			u16 count;
+			u16 offset;
+		};
+		u32 combined;
+	};
 };
 
 #if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
@@ -2667,16 +2672,16 @@ static inline bool netif_elide_gro(const struct net_device *dev)
 static inline
 int netdev_get_prio_tc_map(const struct net_device *dev, u32 prio)
 {
-	return dev->prio_tc_map[prio & TC_BITMASK];
+	return READ_ONCE(dev->prio_tc_map[prio & TC_BITMASK]);
 }
 
 static inline
 int netdev_set_prio_tc_map(struct net_device *dev, u8 prio, u8 tc)
 {
-	if (tc >= dev->num_tc)
+	if (tc >= READ_ONCE(dev->num_tc))
 		return -EINVAL;
 
-	dev->prio_tc_map[prio & TC_BITMASK] = tc & TC_BITMASK;
+	WRITE_ONCE(dev->prio_tc_map[prio & TC_BITMASK], tc & TC_BITMASK);
 	return 0;
 }
 
@@ -2686,9 +2691,9 @@ int netdev_set_tc_queue(struct net_device *dev, u8 tc, u16 count, u16 offset);
 int netdev_set_num_tc(struct net_device *dev, u8 num_tc);
 
 static inline
-int netdev_get_num_tc(struct net_device *dev)
+int netdev_get_num_tc(const struct net_device *dev)
 {
-	return dev->num_tc;
+	return READ_ONCE(dev->num_tc);
 }
 
 static inline void net_prefetch(void *p)
@@ -2715,7 +2720,7 @@ int netdev_bind_sb_channel_queue(struct net_device *dev,
 int netdev_set_sb_channel(struct net_device *dev, u16 channel);
 static inline int netdev_get_sb_channel(struct net_device *dev)
 {
-	return max_t(int, -dev->num_tc, 0);
+	return max_t(int, -READ_ONCE(dev->num_tc), 0);
 }
 
 static inline
