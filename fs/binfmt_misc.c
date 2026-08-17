@@ -10,45 +10,98 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/hex.h>
-#include <linux/init.h>
-#include <linux/sched/mm.h>
-#include <linux/magic.h>
+#include <linux/array_size.h>
+#include <linux/binfmt_misc.h>
 #include <linux/binfmts.h>
-#include <linux/slab.h>
+#include <linux/bitops.h>
+#include <linux/bits.h>
+#include <linux/bug.h>
+#include <linux/cleanup.h>
+#include <linux/cred.h>
 #include <linux/ctype.h>
-#include <linux/string_helpers.h>
 #include <linux/file.h>
-#include <linux/pagemap.h>
-#include <linux/namei.h>
-#include <linux/mount.h>
-#include <linux/fs_context.h>
-#include <linux/syscalls.h>
 #include <linux/fs.h>
+#include <linux/fs_context.h>
+#include <linux/init.h>
+#include <linux/kstrtox.h>
+#include <linux/limits.h>
+#include <linux/list.h>
+#include <linux/magic.h>
+#include <linux/module.h>
+#include <linux/printk.h>
+#include <linux/rculist.h>
+#include <linux/refcount.h>
+#include <linux/seq_file.h>
+#include <linux/slab.h>
+#include <linux/srcu.h>
+#include <linux/string.h>
+#include <linux/string_helpers.h>
 #include <linux/uaccess.h>
+#include <linux/user_namespace.h>
 
 #include "internal.h"
 
-#ifdef DEBUG
-# define USE_DEBUG 1
-#else
-# define USE_DEBUG 0
-#endif
-
-enum {
-	VERBOSE_STATUS = 1 /* make it zero to save 400 bytes kernel memory */
+/* Entry status and match type bit numbers. */
+enum binfmt_misc_entry_bits {
+	MISC_FMT_ENABLED_BIT	= 0,
+	MISC_FMT_MAGIC_BIT	= 1,
+	MISC_FMT_BPF_BIT	= 2,
 };
 
-enum {Enabled, Magic};
-#define MISC_FMT_PRESERVE_ARGV0 (1UL << 31)
-#define MISC_FMT_OPEN_BINARY (1UL << 30)
-#define MISC_FMT_CREDENTIALS (1UL << 29)
-#define MISC_FMT_OPEN_FILE (1UL << 28)
+/* Entry behavior flags, fixed at registration time. */
+enum binfmt_misc_entry_flags {
+	MISC_FMT_PRESERVE_ARGV0	= (1U << 31),
+	MISC_FMT_OPEN_BINARY	= (1U << 30),
+	MISC_FMT_CREDENTIALS	= (1U << 29),
+	MISC_FMT_OPEN_FILE	= (1U << 28),
+	MISC_FMT_TRANSPARENT	= (1U << 27),
+	MISC_FMT_LOADER		= (1U << 26),
+	MISC_FMT_DISABLED	= (1U << 25),
+};
 
-typedef struct {
-	struct list_head list;
+/* The flags that shape the invocation; a 'B' handler picks those per exec. */
+#define MISC_FMT_INVOCATION_FLAGS (MISC_FMT_PRESERVE_ARGV0 |	\
+				   MISC_FMT_OPEN_BINARY |	\
+				   MISC_FMT_CREDENTIALS |	\
+				   MISC_FMT_OPEN_FILE |		\
+				   MISC_FMT_TRANSPARENT |	\
+				   MISC_FMT_LOADER)
+
+/**
+ * struct binfmt_misc_flag - a flag character of the register string
+ * @c: the character userspace writes and reads back
+ * @flag: the entry flag it sets
+ * @implies: entry flags it turns on in addition
+ * @desc: what it does, for the registration debug output
+ */
+struct binfmt_misc_flag {
+	char		c;
+	unsigned long	flag;
+	unsigned long	implies;
+	const char	*desc;
+};
+
+static const struct binfmt_misc_flag misc_flags[] = {
+	{ 'P', MISC_FMT_PRESERVE_ARGV0,	0,			"preserve argv0"		},
+	{ 'O', MISC_FMT_OPEN_BINARY,	0,			"open binary"			},
+	{ 'C', MISC_FMT_CREDENTIALS,	MISC_FMT_OPEN_BINARY,	"credentials from the binary"	},
+	{ 'F', MISC_FMT_OPEN_FILE,	0,			"open interpreter file now"	},
+	{ 'T', MISC_FMT_TRANSPARENT,	MISC_FMT_OPEN_BINARY,	"transparent"			},
+	{ 'L', MISC_FMT_LOADER,		0,			"loader substitution"		},
+	{ 'D', MISC_FMT_DISABLED,	0,			"register disabled"		},
+};
+
+/* Look up a flag character, NULL if @c is not one. */
+static const struct binfmt_misc_flag *misc_flag_by_char(const char c)
+{
+	for (int i = 0; i < ARRAY_SIZE(misc_flags); i++)
+		if (misc_flags[i].c == c)
+			return &misc_flags[i];
+	return NULL;
+}
+
+struct binfmt_misc_entry {
+	struct hlist_node node;
 	unsigned long flags;		/* type, status, etc. */
 	int offset;			/* offset of magic */
 	int size;			/* size of magic/mask */
@@ -57,11 +110,13 @@ typedef struct {
 	const char *interpreter;	/* filename of interpreter */
 	char *name;
 	struct dentry *dentry;
-	struct file *interp_file;
+	const struct binfmt_misc_ops *bpf_ops;	/* bpf-backed handler ('B') */
+	const char *bpf_ops_name;
+	struct list_head interps;	/* the interpreters it bound */
 	refcount_t users;		/* sync removal with load_misc_binary() */
-} Node;
-
-static struct file_system_type bm_fs_type;
+	struct rcu_head rcu;
+	char buf[];			/* register string, fields point in here */
+};
 
 /*
  * Max length of the register string.  Determined by:
@@ -74,9 +129,38 @@ static struct file_system_type bm_fs_type;
  *  - interp: ~50 bytes
  *  - flags:  5 bytes
  * Round that up a bit, and then back off to hold the internal data
- * (like struct Node).
+ * (like struct binfmt_misc_entry).
  */
 #define MAX_REGISTER_LENGTH 1920
+
+/* Trailing delimiter pad so field parsing always terminates at a delimiter. */
+#define MISC_DELIM_PAD 8
+
+/* Protects the entry walk in load_misc_binary(), which may sleep in it. */
+DEFINE_STATIC_SRCU_FAST(bm_entries_srcu);
+
+/* Check if @e's magic matches @bprm's buffer, applying the mask if set. */
+static bool entry_matches_magic(const struct binfmt_misc_entry *e,
+				const struct linux_binprm *bprm)
+{
+	const char *s = bprm->buf + e->offset;
+	int i;
+
+	if (!e->mask)
+		return !memcmp(s, e->magic, e->size);
+
+	for (i = 0; i < e->size; i++)
+		if ((s[i] ^ e->magic[i]) & e->mask[i])
+			return false;
+	return true;
+}
+
+/* Check if @e's registered extension matches @ext, NULL if there is none. */
+static bool entry_matches_extension(const struct binfmt_misc_entry *e,
+				    const char *ext)
+{
+	return ext && !strcmp(e->magic, ext);
+}
 
 /**
  * search_binfmt_handler - search for a binary handler for @bprm
@@ -84,44 +168,49 @@ static struct file_system_type bm_fs_type;
  * @bprm: binary for which we are looking for a handler
  *
  * Search for a binary type handler for @bprm in the list of registered binary
- * type handlers.
+ * type handlers. A 'B' entry's match program decides whether the handler
+ * applies; it may sleep to read the binary. The matched entry is returned
+ * with a reference taken while the walk still held it; a dying entry -
+ * unlinked with its last reference gone - cannot be matched and the walk
+ * moves on.
  *
- * Return: binary type list entry on success, NULL on failure
+ * The caller must hold the bm_entries_srcu read lock, which allows an
+ * entry's evaluation to sleep.
+ *
+ * Return: referenced binary type list entry on success, NULL on failure
  */
-static Node *search_binfmt_handler(struct binfmt_misc *misc,
-				   struct linux_binprm *bprm)
+static struct binfmt_misc_entry *
+search_binfmt_handler(struct binfmt_misc *misc, struct linux_binprm *bprm)
 {
-	char *p = strrchr(bprm->interp, '.');
-	Node *e;
+	char *dot = strrchr(bprm->interp, '.');
+	const char *ext = dot ? dot + 1 : NULL;
+	struct binfmt_misc_entry *e;
 
 	/* Walk all the registered handlers. */
-	list_for_each_entry(e, &misc->entries, list) {
-		char *s;
-		int j;
-
-		/* Make sure this one is currently enabled. */
-		if (!test_bit(Enabled, &e->flags))
+	hlist_for_each_entry_rcu(e, &misc->entries, node,
+				 srcu_read_lock_held(&bm_entries_srcu)) {
+		/*
+		 * Make sure this one is currently enabled. An entry enters
+		 * the list at most once and only whole: its configuration is
+		 * ordered before the rcu insertion that makes it visible
+		 * here.
+		 */
+		if (!test_bit(MISC_FMT_ENABLED_BIT, &e->flags))
 			continue;
 
-		/* Do matching based on extension if applicable. */
-		if (!test_bit(Magic, &e->flags)) {
-			if (p && !strcmp(e->magic, p + 1))
-				return e;
-			continue;
-		}
-
-		/* Do matching based on magic & mask. */
-		s = bprm->buf + e->offset;
-		if (e->mask) {
-			for (j = 0; j < e->size; j++)
-				if ((*s++ ^ e->magic[j]) & e->mask[j])
-					break;
+		if (test_bit(MISC_FMT_BPF_BIT, &e->flags)) {
+			if (!e->bpf_ops->match(bprm))
+				continue;
+		} else if (test_bit(MISC_FMT_MAGIC_BIT, &e->flags)) {
+			if (!entry_matches_magic(e, bprm))
+				continue;
 		} else {
-			for (j = 0; j < e->size; j++)
-				if ((*s++ ^ e->magic[j]))
-					break;
+			if (!entry_matches_extension(e, ext))
+				continue;
 		}
-		if (j == e->size)
+
+		/* A dying entry cannot be matched, walk on. */
+		if (refcount_inc_not_zero(&e->users))
 			return e;
 	}
 
@@ -133,70 +222,397 @@ static Node *search_binfmt_handler(struct binfmt_misc *misc,
  * @misc: handle to binfmt_misc instance
  * @bprm: binary for which we are looking for a handler
  *
- * Try to find a binfmt handler for the binary type. If one is found take a
- * reference to protect against removal via bm_{entry,status}_write().
+ * Try to find a binfmt handler for the binary type. If one is found it is
+ * returned with a reference protecting it against removal via
+ * bm_{entry,status}_write().
  *
  * Return: binary type list entry on success, NULL on failure
  */
-static Node *get_binfmt_handler(struct binfmt_misc *misc,
-				struct linux_binprm *bprm)
+static struct binfmt_misc_entry *get_binfmt_handler(struct binfmt_misc *misc,
+						    struct linux_binprm *bprm)
 {
-	Node *e;
-
-	read_lock(&misc->entries_lock);
-	e = search_binfmt_handler(misc, bprm);
-	if (e)
-		refcount_inc(&e->users);
-	read_unlock(&misc->entries_lock);
-	return e;
+	guard(srcu_fast)(&bm_entries_srcu);
+	return search_binfmt_handler(misc, bprm);
 }
 
 /**
- * put_binfmt_handler - put binary handler node
- * @e: node to put
+ * binfmt_misc_find_interp - find a bound interpreter by name
+ * @interps: the interpreters the matched entry was registered with
+ * @name: the name to look for
  *
- * Free node syncing with load_misc_binary() and defer final free to
- * load_misc_binary() in case it is using the binary type handler we were
- * requested to remove.
+ * Return: the interpreter on success, NULL if @interps has none by that name
  */
-static void put_binfmt_handler(Node *e)
+const struct binfmt_misc_interp *
+binfmt_misc_find_interp(const struct list_head *interps, const char *name)
 {
-	if (refcount_dec_and_test(&e->users)) {
-		if (e->flags & MISC_FMT_OPEN_FILE) {
-			exe_file_allow_write_access(e->interp_file);
-			filp_close(e->interp_file, NULL);
-		}
-		kfree(e);
+	struct binfmt_misc_interp *interp;
+
+	list_for_each_entry(interp, interps, list)
+		if (!strcmp(interp->name, name))
+			return interp;
+	return NULL;
+}
+
+/* Undo the open_exec() a pre-opened interpreter file came from. */
+static void close_interp_file(struct file *f)
+{
+	if (IS_ERR_OR_NULL(f))
+		return;
+	exe_file_allow_write_access(f);
+	filp_close(f, NULL);
+}
+
+DEFINE_FREE(close_interp_file, struct file *, close_interp_file(_T))
+
+/*
+ * Open an interpreter @path for execution: now, in the writer's context,
+ * and - since binfmt_misc mounts can be unprivileged - with @cred, the
+ * credentials the control file being written was opened with, not the
+ * writer's own.
+ */
+static struct file *open_interp_file(const struct cred *cred, const char *path)
+{
+	struct file *f;
+
+	scoped_with_creds(cred)
+		f = open_exec(path);
+	if (IS_ERR(f))
+		pr_notice("register: failed to install interpreter %s\n", path);
+	return f;
+}
+
+/* Release the interpreters an entry was registered with. */
+static void entry_put_interpreters(struct binfmt_misc_entry *e)
+{
+	struct binfmt_misc_interp *interp, *tmp;
+
+	list_for_each_entry_safe(interp, tmp, &e->interps, list) {
+		list_del(&interp->list);
+		close_interp_file(interp->file);
+		dec_ucount(interp->ucounts, UCOUNT_BINFMT_MISC_INTERPRETERS);
+		kfree(interp);
 	}
 }
 
 /**
- * load_binfmt_misc - load the binfmt_misc of the caller's user namespace
+ * entry_attach_interpreter - bind an opened interpreter to @e
+ * @e: entry being configured
+ * @name: name the load program will select it by; empty for the fixed
+ *        interpreter of a static entry
+ * @path: the path @f was opened from
+ * @f: the interpreter, opened for execution
  *
- * To be called in load_misc_binary() to load the relevant struct binfmt_misc.
- * If a user namespace doesn't have its own binfmt_misc mount it can make use
- * of its ancestor's binfmt_misc handlers. This mimicks the behavior of
- * pre-namespaced binfmt_misc where all registered binfmt_misc handlers where
- * available to all user and user namespaces on the system.
+ * Every exec runs a clone of @f, so the path decided which file is bound
+ * and nothing else: it is not resolved again, in any namespace.
+ *
+ * The caller has to have validated @name and @path, established that @e
+ * cannot be matched yet, and owns @f until this succeeds.
+ *
+ * Return: 0 on success, -ENOSPC if the entry is full or the binder is out of
+ *         UCOUNT_BINFMT_MISC_INTERPRETERS budget, a negative errno on failure
+ */
+static int entry_attach_interpreter(struct binfmt_misc_entry *e,
+				    const char *name, const char *path,
+				    struct file *f)
+{
+	size_t nlen = strlen(name), plen = strlen(path);
+	struct binfmt_misc_interp *interp;
+	struct ucounts *ucounts;
+
+	if (binfmt_misc_find_interp(&e->interps, name))
+		return -EEXIST;
+	if (list_count_nodes(&e->interps) >= BINFMT_MISC_INTERP_MAX)
+		return -ENOSPC;
+
+	/* The binding keeps a file open, so charge it to whoever binds it. */
+	ucounts = inc_ucount(current_user_ns(), current_euid(),
+			     UCOUNT_BINFMT_MISC_INTERPRETERS);
+	if (!ucounts)
+		return -ENOSPC;
+
+	/* One allocation, both strings in it, like the entry's own buffer. */
+	interp = kmalloc(struct_size(interp, name, nlen + plen + 2),
+			 GFP_KERNEL_ACCOUNT);
+	if (!interp) {
+		dec_ucount(ucounts, UCOUNT_BINFMT_MISC_INTERPRETERS);
+		return -ENOMEM;
+	}
+
+	interp->path = interp->name + nlen + 1;
+	strscpy(interp->name, name, nlen + 1);
+	strscpy(interp->name + nlen + 1, path, plen + 1);
+	interp->file = f;
+	interp->ucounts = ucounts;
+	/* Publish the node: a lockless cat may be walking the list. */
+	list_add_tail_rcu(&interp->list, &e->interps);
+	pr_debug("register: interpreter: %s {%s}\n", name, path);
+	return 0;
+}
+
+static void bm_entry_free_rcu(struct rcu_head *rcu)
+{
+	struct binfmt_misc_entry *e = container_of(rcu, struct binfmt_misc_entry, rcu);
+
+	/* No walker that could sleep in the handler's programs is left. */
+	if (e->bpf_ops)
+		binfmt_misc_put_ops(e->bpf_ops);
+	kfree(e);
+}
+
+/**
+ * put_binfmt_handler - put binary handler entry
+ * @e: entry to put
+ *
+ * Free entry syncing with load_misc_binary() and defer final free to
+ * load_misc_binary() in case it is using the binary type handler we were
+ * requested to remove. Also the teardown for a registration that fails
+ * before add_entry() publishes the entry.
+ */
+static void put_binfmt_handler(struct binfmt_misc_entry *e)
+{
+	if (IS_ERR_OR_NULL(e))
+		return;
+
+	if (refcount_dec_and_test(&e->users)) {
+		entry_put_interpreters(e);
+		/* Walkers may still dereference this entry, even sleeping. */
+		call_srcu(&bm_entries_srcu, &e->rcu, bm_entry_free_rcu);
+	}
+}
+
+DEFINE_FREE(put_binfmt_handler, struct binfmt_misc_entry *, put_binfmt_handler(_T))
+
+/* Drop everything a load program staged for this exec. */
+static void drop_staged_selection(struct linux_binprm *bprm)
+{
+	kfree(bprm->bpf_interp);
+	bprm->bpf_interp = NULL;
+	kfree(bprm->bpf_interp_arg);
+	bprm->bpf_interp_arg = NULL;
+	if (bprm->bpf_interp_file) {
+		fput(bprm->bpf_interp_file);
+		bprm->bpf_interp_file = NULL;
+	}
+	bprm->bpf_flags = 0;
+}
+
+/**
+ * current_binfmt_misc - get the binfmt_misc instance of the caller's user namespace
+ *
+ * If a user namespace doesn't have its own binfmt_misc mount it uses the
+ * handlers of its closest ancestor with one. This mimics the behavior of
+ * pre-namespaced binfmt_misc where all registered handlers were available
+ * to all users and user namespaces on the system. The init user namespace
+ * instance is statically set up so the fallback is never reached in
+ * practice.
  *
  * Return: the binfmt_misc instance of the caller's user namespace
  */
-static struct binfmt_misc *load_binfmt_misc(void)
+static struct binfmt_misc *current_binfmt_misc(void)
 {
 	const struct user_namespace *user_ns;
 	struct binfmt_misc *misc;
 
-	user_ns = current_user_ns();
-	while (user_ns) {
+	for (user_ns = current_user_ns(); user_ns; user_ns = user_ns->parent) {
 		/* Pairs with smp_store_release() in bm_fill_super(). */
 		misc = smp_load_acquire(&user_ns->binfmt_misc);
 		if (misc)
 			return misc;
-
-		user_ns = user_ns->parent;
 	}
 
 	return &init_binfmt_misc;
+}
+
+/**
+ * entry_select_interpreter - get the interpreter for the matched @e
+ * @e: matched binary type handler
+ * @bprm: binary that is being executed
+ *
+ * A static entry carries its interpreter path, for a 'B' entry the
+ * handler's load program selects it, either by path or by the name of one
+ * of the interpreters the entry bound. The match is committed, so a failing
+ * program fails the exec.
+ *
+ * Return: the interpreter on success, an ERR_PTR on failure
+ */
+static const char *entry_select_interpreter(const struct binfmt_misc_entry *e,
+					    struct linux_binprm *bprm)
+{
+	int retval;
+
+	/*
+	 * Drop what a previous chain level staged before anything can pick it
+	 * up. A static entry stages nothing but consumes a staged file just
+	 * like a 'B' entry does.
+	 */
+	drop_staged_selection(bprm);
+
+	if (!test_bit(MISC_FMT_BPF_BIT, &e->flags))
+		return e->interpreter;
+
+	/* The interpreters this entry lets the program choose from. */
+	bprm->bpf_interps = &e->interps;
+	retval = e->bpf_ops->load(bprm);
+	bprm->bpf_interps = NULL;
+	if (retval) {
+		/* Keep a program-supplied error within errno range. */
+		if (retval > 0 || retval < -MAX_ERRNO)
+			retval = -ENOEXEC;
+		goto drop_staged;
+	}
+
+	/* Selecting an interpreter is part of the contract. */
+	if (!bprm->bpf_interp) {
+		retval = -ENOEXEC;
+		goto drop_staged;
+	}
+
+	return bprm->bpf_interp;
+
+drop_staged:
+	/* A failing load leaves nothing behind for later entries. */
+	drop_staged_selection(bprm);
+	return ERR_PTR(retval);
+}
+
+/**
+ * entry_invocation_flags - the invocation flags in effect for this exec
+ * @e: matched binary type handler
+ * @bprm: binary that is being executed
+ *
+ * A static entry fixes its flags at registration, a 'B' entry's load program
+ * picks them per exec with bpf_binprm_set_flags(). Translate the latter into
+ * the former, implications included, so the dispatch has one set to act on.
+ *
+ * Return: the invocation flags for this exec
+ */
+static unsigned long entry_invocation_flags(const struct binfmt_misc_entry *e,
+					    struct linux_binprm *bprm)
+{
+	unsigned long flags = 0;
+	u64 bpf_flags;
+
+	if (!test_bit(MISC_FMT_BPF_BIT, &e->flags))
+		return e->flags;
+
+	bpf_flags = bprm->bpf_flags;
+	/* Clear so they can't accumulate into a nested interpreter level. */
+	bprm->bpf_flags = 0;
+
+	if (bpf_flags & BPF_BINPRM_PRESERVE_ARGV0)
+		flags |= MISC_FMT_PRESERVE_ARGV0;
+	if (bpf_flags & BPF_BINPRM_EXECFD)
+		flags |= MISC_FMT_OPEN_BINARY;
+	if (bpf_flags & BPF_BINPRM_CREDENTIALS)
+		flags |= MISC_FMT_CREDENTIALS | MISC_FMT_OPEN_BINARY;
+	if (bpf_flags & BPF_BINPRM_TRANSPARENT)
+		flags |= MISC_FMT_TRANSPARENT | MISC_FMT_OPEN_BINARY;
+	if (bpf_flags & BPF_BINPRM_LOADER)
+		flags |= MISC_FMT_LOADER;
+
+	return flags;
+}
+
+/**
+ * entry_open_interpreter - open the entry's interpreter for execution
+ * @e: matched binary type handler
+ * @bprm: binary that is being executed
+ * @interpreter: the interpreter selected for this exec
+ *
+ * An 'F' entry hands out a clone of the file it pre-opened at registration,
+ * and so does a 'B' entry whose load program selected one of the
+ * interpreters it bound. Any other entry opens the selected path.
+ *
+ * Return: the opened interpreter on success, an ERR_PTR on failure
+ */
+static struct file *entry_open_interpreter(const struct binfmt_misc_entry *e,
+					   struct linux_binprm *bprm,
+					   const char *interpreter)
+{
+	struct file *interp_file __free(fput) = NULL;
+	struct binfmt_misc_interp *interp;
+	struct file *bound;
+	int retval;
+
+	if (bprm->bpf_interp_file) {
+		bound = bprm->bpf_interp_file;
+	} else if (e->flags & MISC_FMT_OPEN_FILE) {
+		/* An 'F' entry pre-opened exactly one interpreter. */
+		interp = list_first_entry(&e->interps,
+					  struct binfmt_misc_interp, list);
+		bound = interp->file;
+	} else {
+		return open_exec(interpreter);
+	}
+
+	interp_file = file_clone_open(bound);
+	if (IS_ERR(interp_file))
+		return interp_file;
+
+	retval = exe_file_deny_write_access(interp_file);
+	if (retval)
+		return ERR_PTR(retval);
+
+	return no_free_ptr(interp_file);
+}
+
+/**
+ * build_interp_argv - splice the interpreter invocation into the argv
+ * @bprm: binary that is being executed
+ * @interpreter: the interpreter selected for this exec
+ * @flags: invocation flags in effect for this exec
+ *
+ * The interpreter becomes argv[0] and the binary its last argument, with an
+ * optional staged argument in between. The caller's argv[0] is dropped
+ * unless 'P' keeps it.
+ *
+ * Return: 0 on success, a negative error code on failure
+ */
+static int build_interp_argv(struct linux_binprm *bprm, const char *interpreter,
+			     unsigned long flags)
+{
+	int retval;
+
+	/* The interpreter has to be able to load the binary by path. */
+	if (bprm->interp_flags & BINPRM_FLAGS_PATH_INACCESSIBLE)
+		return -ENOENT;
+
+	/* The entry's own choice - not one accumulated from an earlier level. */
+	if (flags & MISC_FMT_PRESERVE_ARGV0) {
+		bprm->interp_flags |= BINPRM_FLAGS_PRESERVE_ARGV0;
+	} else {
+		retval = remove_arg_zero(bprm);
+		if (retval)
+			return retval;
+	}
+
+	/* make the binary the last argument to the interpreter */
+	retval = copy_string_kernel(bprm->interp, bprm);
+	if (retval < 0)
+		return retval;
+	bprm->argc++;
+
+	/*
+	 * A single optional argument to the interpreter, inserted between it
+	 * and the binary just like the argument of a #! interpreter line.
+	 */
+	if (bprm->bpf_interp_arg) {
+		retval = copy_string_kernel(bprm->bpf_interp_arg, bprm);
+		if (retval < 0)
+			return retval;
+		bprm->argc++;
+		/* Consumed - don't let it leak into a nested interpreter's argv. */
+		kfree(bprm->bpf_interp_arg);
+		bprm->bpf_interp_arg = NULL;
+	}
+
+	/* add the interp as argv[0] */
+	retval = copy_string_kernel(interpreter, bprm);
+	if (retval < 0)
+		return retval;
+	bprm->argc++;
+
+	return 0;
 }
 
 /*
@@ -204,94 +620,85 @@ static struct binfmt_misc *load_binfmt_misc(void)
  */
 static int load_misc_binary(struct linux_binprm *bprm)
 {
-	Node *fmt;
-	struct file *interp_file = NULL;
-	int retval = -ENOEXEC;
+	struct binfmt_misc_entry *fmt __free(put_binfmt_handler) = NULL;
+	const char *interpreter;
+	struct file *interp_file;
 	struct binfmt_misc *misc;
+	unsigned long flags;
+	int retval;
 
-	misc = load_binfmt_misc();
-	if (!misc->enabled)
-		return retval;
+	/* Only binfmt_misc stages one and exec_binprm() clears it per round. */
+	WARN_ON_ONCE(bprm->loader);
+
+	misc = current_binfmt_misc();
+	if (!READ_ONCE(misc->enabled))
+		return -ENOEXEC;
 
 	fmt = get_binfmt_handler(misc, bprm);
 	if (!fmt)
-		return retval;
+		return -ENOEXEC;
 
-	/* Need to be able to load the file after exec */
-	retval = -ENOENT;
-	if (bprm->interp_flags & BINPRM_FLAGS_PATH_INACCESSIBLE)
-		goto ret;
+	interpreter = entry_select_interpreter(fmt, bprm);
+	if (IS_ERR(interpreter))
+		return PTR_ERR(interpreter);
 
-	if (fmt->flags & MISC_FMT_PRESERVE_ARGV0) {
-		bprm->interp_flags |= BINPRM_FLAGS_PRESERVE_ARGV0;
-	} else {
-		retval = remove_arg_zero(bprm);
-		if (retval)
-			goto ret;
-	}
+	flags = entry_invocation_flags(fmt, bprm);
 
-	/* make argv[1] be the path to the binary */
-	retval = copy_string_kernel(bprm->interp, bprm);
-	if (retval < 0)
-		goto ret;
-	bprm->argc++;
-
-	/* add the interp as argv[0] */
-	retval = copy_string_kernel(fmt->interpreter, bprm);
-	if (retval < 0)
-		goto ret;
-	bprm->argc++;
-
-	/* Update interp in case binfmt_script needs it. */
-	retval = bprm_change_interp(fmt->interpreter, bprm);
-	if (retval < 0)
-		goto ret;
-
-	if (fmt->flags & MISC_FMT_OPEN_FILE) {
-		interp_file = file_clone_open(fmt->interp_file);
-		if (!IS_ERR(interp_file)) {
-			int err = exe_file_deny_write_access(interp_file);
-
-			if (err) {
-				fput(interp_file);
-				interp_file = ERR_PTR(err);
-			}
-		}
-	} else {
-		interp_file = open_exec(fmt->interpreter);
-	}
-	retval = PTR_ERR(interp_file);
-	if (IS_ERR(interp_file))
-		goto ret;
-
-	bprm->interpreter = interp_file;
-	if (fmt->flags & MISC_FMT_OPEN_BINARY)
-		bprm->have_execfd = 1;
-	if (fmt->flags & MISC_FMT_CREDENTIALS)
-		bprm->execfd_creds = 1;
-
-	retval = 0;
-ret:
+	/* No argv is built for a staged argument to land in. */
+	if ((flags & (MISC_FMT_LOADER | MISC_FMT_TRANSPARENT)) &&
+	    bprm->bpf_interp_arg)
+		return -EINVAL;
 
 	/*
-	 * If we actually put the node here all concurrent calls to
-	 * load_misc_binary() will have finished. We also know
-	 * that for the refcount to be zero someone must have concurently
-	 * removed the binary type handler from the list and it's our job to
-	 * free it.
+	 * Stash the interpreter for binfmt_elf to consume in place of the
+	 * binary's PT_INTERP and decline the match, so the search continues
+	 * to the real format in the same round.
 	 */
-	put_binfmt_handler(fmt);
+	if (flags & MISC_FMT_LOADER) {
+		interp_file = entry_open_interpreter(fmt, bprm, interpreter);
+		if (IS_ERR(interp_file)) {
+			retval = PTR_ERR(interp_file);
+			/* Declining here would run the binary's own PT_INTERP. */
+			return retval == -ENOEXEC ? -EACCES : retval;
+		}
 
-	return retval;
+		bprm->loader = interp_file;
+		return -ENOEXEC;
+	}
+
+	if (!(flags & MISC_FMT_TRANSPARENT)) {
+		retval = build_interp_argv(bprm, interpreter, flags);
+		if (retval)
+			return retval;
+	}
+
+	/* Update interp for the next round; sched_prepare_exec reports it. */
+	retval = bprm_change_interp(interpreter, bprm);
+	if (retval < 0)
+		return retval;
+
+	interp_file = entry_open_interpreter(fmt, bprm, interpreter);
+	if (IS_ERR(interp_file))
+		return PTR_ERR(interp_file);
+
+	/* Raise only past the last failure, or an -ENOEXEC decline leaks it. */
+	if (flags & MISC_FMT_TRANSPARENT)
+		bprm->interp_flags |= BINPRM_FLAGS_TRANSPARENT_INTERP;
+
+	bprm->interpreter = interp_file;
+	if (flags & MISC_FMT_OPEN_BINARY)
+		bprm->have_execfd = 1;
+	if (flags & MISC_FMT_CREDENTIALS)
+		bprm->execfd_creds = 1;
+	return 0;
 }
 
 /* Command parsers */
 
 /*
- * parses and copies one argument enclosed in del from *sp to *dp,
- * recognising the \x special.
- * returns pointer to the copied argument or NULL in case of an
- * error (and sets err) or null argument length.
+ * Scan the argument starting at @s up to the delimiter @del, recognising
+ * the \x escape. Terminates the argument with a NUL and returns a pointer
+ * past it or NULL on a malformed escape.
  */
 static char *scanarg(char *s, char del)
 {
@@ -306,45 +713,129 @@ static char *scanarg(char *s, char del)
 				return NULL;
 		}
 	}
-	s[-1] ='\0';
+	s[-1] = '\0';
 	return s;
 }
 
-static char *check_special_flags(char *sfs, Node *e)
+/* Parse the 'flags' field, stopping at the first character that is not one. */
+static char *check_special_flags(char *p, struct binfmt_misc_entry *e)
 {
-	char *p = sfs;
-	int cont = 1;
+	for (;; p++) {
+		const struct binfmt_misc_flag *f = misc_flag_by_char(*p);
 
-	/* special flags */
-	while (cont) {
-		switch (*p) {
-		case 'P':
-			pr_debug("register: flag: P (preserve argv0)\n");
-			p++;
-			e->flags |= MISC_FMT_PRESERVE_ARGV0;
-			break;
-		case 'O':
-			pr_debug("register: flag: O (open binary)\n");
-			p++;
-			e->flags |= MISC_FMT_OPEN_BINARY;
-			break;
-		case 'C':
-			pr_debug("register: flag: C (preserve creds)\n");
-			p++;
-			/* this flags also implies the
-			   open-binary flag */
-			e->flags |= (MISC_FMT_CREDENTIALS |
-					MISC_FMT_OPEN_BINARY);
-			break;
-		case 'F':
-			pr_debug("register: flag: F: open interpreter file now\n");
-			p++;
-			e->flags |= MISC_FMT_OPEN_FILE;
-			break;
-		default:
-			cont = 0;
-		}
+		if (!f)
+			return p;
+		pr_debug("register: flag: %c (%s)\n", f->c, f->desc);
+		e->flags |= f->flag | f->implies;
 	}
+}
+
+/* Parse the 'offset', 'magic' and 'mask' fields of an 'M' entry. */
+static char *parse_magic_fields(struct binfmt_misc_entry *e, char *p, char del)
+{
+	char *s;
+
+	/* Parse the 'offset' field. */
+	s = strchr(p, del);
+	if (!s)
+		return NULL;
+	*s = '\0';
+	if (p != s) {
+		if (kstrtoint(p, 10, &e->offset) || e->offset < 0)
+			return NULL;
+	}
+	p = s + 1;
+	pr_debug("register: offset: %#x\n", e->offset);
+
+	/* Parse the 'magic' field. */
+	e->magic = p;
+	p = scanarg(p, del);
+	if (!p || !e->magic[0])
+		return NULL;
+	print_hex_dump_debug(
+		KBUILD_MODNAME ": register: magic[raw]: ",
+		DUMP_PREFIX_NONE, 16, 1, e->magic, p - e->magic, true);
+
+	/* Parse the 'mask' field. */
+	e->mask = p;
+	p = scanarg(p, del);
+	if (!p)
+		return NULL;
+	if (!e->mask[0]) {
+		e->mask = NULL;
+		pr_debug("register:  mask[raw]: none\n");
+	} else {
+		print_hex_dump_debug(
+			KBUILD_MODNAME ": register:  mask[raw]: ",
+			DUMP_PREFIX_NONE, 16, 1, e->mask, p - e->mask, true);
+	}
+
+	/*
+	 * Decode the magic & mask fields. Note: while we might have accepted
+	 * embedded NUL bytes from above, the unescape helpers will stop at
+	 * the first one they encounter.
+	 */
+	e->size = string_unescape_inplace(e->magic, UNESCAPE_HEX);
+	if (e->mask && string_unescape_inplace(e->mask, UNESCAPE_HEX) != e->size)
+		return NULL;
+	if (e->size > BINPRM_BUF_SIZE || BINPRM_BUF_SIZE - e->size < e->offset)
+		return NULL;
+	pr_debug("register: magic/mask length: %i\n", e->size);
+	print_hex_dump_debug(
+		KBUILD_MODNAME ": register: magic[decoded]: ",
+		DUMP_PREFIX_NONE, 16, 1, e->magic, e->size, true);
+	if (e->mask)
+		print_hex_dump_debug(
+			KBUILD_MODNAME ": register:  mask[decoded]: ",
+			DUMP_PREFIX_NONE, 16, 1, e->mask, e->size, true);
+	return p;
+}
+
+/* Parse the 'magic' field of an 'E' entry: the filename extension. */
+static char *parse_extension_fields(struct binfmt_misc_entry *e, char *p,
+				    char del)
+{
+	/* Skip the 'offset' field. */
+	p = strchr(p, del);
+	if (!p)
+		return NULL;
+	*p++ = '\0';
+
+	/* Parse the 'magic' field. */
+	e->magic = p;
+	p = strchr(p, del);
+	if (!p)
+		return NULL;
+	*p++ = '\0';
+	if (!e->magic[0] || strchr(e->magic, '/'))
+		return NULL;
+	pr_debug("register: extension: {%s}\n", e->magic);
+
+	/* Skip the 'mask' field. */
+	p = strchr(p, del);
+	if (!p)
+		return NULL;
+	*p++ = '\0';
+	return p;
+}
+
+/*
+ * Parse the fields of a 'B' entry: the 'offset', 'magic' and 'mask' fields
+ * must be empty. The handler name is carried in the 'interpreter' field.
+ */
+static char *parse_bpf_fields(struct binfmt_misc_entry *e, char *p, char del)
+{
+	/* The 'offset' field must be empty. */
+	if (*p++ != del)
+		return NULL;
+
+	/* The 'magic' field must be empty. */
+	if (*p++ != del)
+		return NULL;
+
+	/* The 'mask' field must be empty. */
+	if (*p++ != del)
+		return NULL;
 
 	return p;
 }
@@ -354,54 +845,53 @@ static char *check_special_flags(char *sfs, Node *e)
  * ':name:type:offset:magic:mask:interpreter:flags'
  * where the ':' is the IFS, that can be chosen with the first char
  */
-static Node *create_entry(const char __user *buffer, size_t count)
+static struct binfmt_misc_entry *create_entry(const char __user *buffer,
+					      size_t count)
 {
-	Node *e;
-	int memsize, err;
+	struct binfmt_misc_entry *e __free(kfree) = NULL;
 	char *buf, *p;
 	char del;
 
 	pr_debug("register: received %zu bytes\n", count);
 
 	/* some sanity checks */
-	err = -EINVAL;
 	if ((count < 11) || (count > MAX_REGISTER_LENGTH))
-		goto out;
+		return ERR_PTR(-EINVAL);
 
-	err = -ENOMEM;
-	memsize = sizeof(Node) + count + 8;
-	e = kmalloc(memsize, GFP_KERNEL_ACCOUNT);
+	e = kmalloc(struct_size(e, buf, count + MISC_DELIM_PAD),
+		    GFP_KERNEL_ACCOUNT);
 	if (!e)
-		goto out;
+		return ERR_PTR(-ENOMEM);
 
-	p = buf = (char *)e + sizeof(Node);
+	p = buf = e->buf;
 
-	memset(e, 0, sizeof(Node));
+	memset(e, 0, sizeof(*e));
+	INIT_LIST_HEAD(&e->interps);
 	if (copy_from_user(buf, buffer, count))
-		goto efault;
+		return ERR_PTR(-EFAULT);
 
-	del = *p++;	/* delimeter */
+	del = *p++;	/* delimiter */
 
 	pr_debug("register: delim: %#x {%c}\n", del, del);
 
 	/* A flag-char delimiter runs the flag scan off the buffer. */
-	if (del == 'P' || del == 'O' || del == 'C' || del == 'F')
-		goto einval;
+	if (misc_flag_by_char(del))
+		return ERR_PTR(-EINVAL);
 
 	/* Pad the buffer with the delim to simplify parsing below. */
-	memset(buf + count, del, 8);
+	memset(buf + count, del, MISC_DELIM_PAD);
 
 	/* Parse the 'name' field. */
 	e->name = p;
 	p = strchr(p, del);
 	if (!p)
-		goto einval;
+		return ERR_PTR(-EINVAL);
 	*p++ = '\0';
 	if (!e->name[0] ||
 	    !strcmp(e->name, ".") ||
 	    !strcmp(e->name, "..") ||
 	    strchr(e->name, '/'))
-		goto einval;
+		return ERR_PTR(-EINVAL);
 
 	pr_debug("register: name: {%s}\n", e->name);
 
@@ -409,225 +899,213 @@ static Node *create_entry(const char __user *buffer, size_t count)
 	switch (*p++) {
 	case 'E':
 		pr_debug("register: type: E (extension)\n");
-		e->flags = 1 << Enabled;
+		e->flags = BIT(MISC_FMT_ENABLED_BIT);
 		break;
 	case 'M':
 		pr_debug("register: type: M (magic)\n");
-		e->flags = (1 << Enabled) | (1 << Magic);
+		e->flags = BIT(MISC_FMT_ENABLED_BIT) | BIT(MISC_FMT_MAGIC_BIT);
+		break;
+	case 'B':
+		pr_debug("register: type: B (bpf)\n");
+		if (!IS_ENABLED(CONFIG_BINFMT_MISC_BPF))
+			return ERR_PTR(-EINVAL);
+		e->flags = BIT(MISC_FMT_ENABLED_BIT) | BIT(MISC_FMT_BPF_BIT);
 		break;
 	default:
-		goto einval;
+		return ERR_PTR(-EINVAL);
 	}
 	if (*p++ != del)
-		goto einval;
+		return ERR_PTR(-EINVAL);
 
-	if (test_bit(Magic, &e->flags)) {
-		/* Handle the 'M' (magic) format. */
-		char *s;
-
-		/* Parse the 'offset' field. */
-		s = strchr(p, del);
-		if (!s)
-			goto einval;
-		*s = '\0';
-		if (p != s) {
-			int r = kstrtoint(p, 10, &e->offset);
-			if (r != 0 || e->offset < 0)
-				goto einval;
-		}
-		p = s;
-		if (*p++)
-			goto einval;
-		pr_debug("register: offset: %#x\n", e->offset);
-
-		/* Parse the 'magic' field. */
-		e->magic = p;
-		p = scanarg(p, del);
-		if (!p)
-			goto einval;
-		if (!e->magic[0])
-			goto einval;
-		if (USE_DEBUG)
-			print_hex_dump_bytes(
-				KBUILD_MODNAME ": register: magic[raw]: ",
-				DUMP_PREFIX_NONE, e->magic, p - e->magic);
-
-		/* Parse the 'mask' field. */
-		e->mask = p;
-		p = scanarg(p, del);
-		if (!p)
-			goto einval;
-		if (!e->mask[0]) {
-			e->mask = NULL;
-			pr_debug("register:  mask[raw]: none\n");
-		} else if (USE_DEBUG)
-			print_hex_dump_bytes(
-				KBUILD_MODNAME ": register:  mask[raw]: ",
-				DUMP_PREFIX_NONE, e->mask, p - e->mask);
-
-		/*
-		 * Decode the magic & mask fields.
-		 * Note: while we might have accepted embedded NUL bytes from
-		 * above, the unescape helpers here will stop at the first one
-		 * it encounters.
-		 */
-		e->size = string_unescape_inplace(e->magic, UNESCAPE_HEX);
-		if (e->mask &&
-		    string_unescape_inplace(e->mask, UNESCAPE_HEX) != e->size)
-			goto einval;
-		if (e->size > BINPRM_BUF_SIZE ||
-		    BINPRM_BUF_SIZE - e->size < e->offset)
-			goto einval;
-		pr_debug("register: magic/mask length: %i\n", e->size);
-		if (USE_DEBUG) {
-			print_hex_dump_bytes(
-				KBUILD_MODNAME ": register: magic[decoded]: ",
-				DUMP_PREFIX_NONE, e->magic, e->size);
-
-			if (e->mask) {
-				int i;
-				char *masked = kmalloc(e->size, GFP_KERNEL_ACCOUNT);
-
-				print_hex_dump_bytes(
-					KBUILD_MODNAME ": register:  mask[decoded]: ",
-					DUMP_PREFIX_NONE, e->mask, e->size);
-
-				if (masked) {
-					for (i = 0; i < e->size; ++i)
-						masked[i] = e->magic[i] & e->mask[i];
-					print_hex_dump_bytes(
-						KBUILD_MODNAME ": register:  magic[masked]: ",
-						DUMP_PREFIX_NONE, masked, e->size);
-
-					kfree(masked);
-				}
-			}
-		}
-	} else {
-		/* Handle the 'E' (extension) format. */
-
-		/* Skip the 'offset' field. */
-		p = strchr(p, del);
-		if (!p)
-			goto einval;
-		*p++ = '\0';
-
-		/* Parse the 'magic' field. */
-		e->magic = p;
-		p = strchr(p, del);
-		if (!p)
-			goto einval;
-		*p++ = '\0';
-		if (!e->magic[0] || strchr(e->magic, '/'))
-			goto einval;
-		pr_debug("register: extension: {%s}\n", e->magic);
-
-		/* Skip the 'mask' field. */
-		p = strchr(p, del);
-		if (!p)
-			goto einval;
-		*p++ = '\0';
-	}
+	if (test_bit(MISC_FMT_BPF_BIT, &e->flags))
+		p = parse_bpf_fields(e, p, del);
+	else if (test_bit(MISC_FMT_MAGIC_BIT, &e->flags))
+		p = parse_magic_fields(e, p, del);
+	else
+		p = parse_extension_fields(e, p, del);
+	if (!p)
+		return ERR_PTR(-EINVAL);
 
 	/* Parse the 'interpreter' field. */
 	e->interpreter = p;
 	p = strchr(p, del);
 	if (!p)
-		goto einval;
+		return ERR_PTR(-EINVAL);
 	*p++ = '\0';
-	if (!e->interpreter[0])
-		goto einval;
-	pr_debug("register: interpreter: {%s}\n", e->interpreter);
+	if (test_bit(MISC_FMT_BPF_BIT, &e->flags)) {
+		/* The 'interpreter' field carries the handler name. */
+		e->bpf_ops_name = e->interpreter;
+		e->interpreter = NULL;
+		if (!e->bpf_ops_name[0])
+			return ERR_PTR(-EINVAL);
+		pr_debug("register: bpf handler: {%s}\n", e->bpf_ops_name);
+	} else if (!e->interpreter[0]) {
+		return ERR_PTR(-EINVAL);
+	} else {
+		pr_debug("register: interpreter: {%s}\n", e->interpreter);
+	}
 
 	/* Parse the 'flags' field. */
 	p = check_special_flags(p, e);
+
+	/*
+	 * A bpf handler decides the invocation flags per exec with
+	 * bpf_binprm_set_flags() rather than fixing them at registration, and
+	 * the interpreters it binds pre-open what 'F' would have, so a 'B'
+	 * entry carries no invocation flags.
+	 */
+	if (test_bit(MISC_FMT_BPF_BIT, &e->flags) &&
+	    (e->flags & MISC_FMT_INVOCATION_FLAGS))
+		return ERR_PTR(-EINVAL);
+
+	/*
+	 * 'D' is a directive for this registration rather than a lasting
+	 * property, so consume it: the entry is created disabled and stays
+	 * out of the search list until '1' is written to its entry file.
+	 * Staying out is what leaves it open to being given interpreters;
+	 * the first enable publishes it, for good.
+	 */
+	if (e->flags & MISC_FMT_DISABLED) {
+		e->flags &= ~MISC_FMT_DISABLED;
+		clear_bit(MISC_FMT_ENABLED_BIT, &e->flags);
+	}
+
+	/* Transparency preserves the whole argv, argv[0] included. */
+	if ((e->flags & MISC_FMT_TRANSPARENT) &&
+	    (e->flags & MISC_FMT_PRESERVE_ARGV0))
+		return ERR_PTR(-EINVAL);
+
+	/* A native exec splices no argv, passes no execfd and needs no creds. */
+	if ((e->flags & MISC_FMT_LOADER) &&
+	    (e->flags & (MISC_FMT_TRANSPARENT | MISC_FMT_PRESERVE_ARGV0 |
+			 MISC_FMT_CREDENTIALS | MISC_FMT_OPEN_BINARY)))
+		return ERR_PTR(-EINVAL);
+
 	if (*p == '\n')
 		p++;
 	if (p != buf + count)
-		goto einval;
+		return ERR_PTR(-EINVAL);
 
-	return e;
+	/* Non-F opens the interp at exec against the caller's cwd; require absolute. */
+	if ((e->flags & (MISC_FMT_LOADER | MISC_FMT_CREDENTIALS)) &&
+	    !(e->flags & MISC_FMT_OPEN_FILE) &&
+	    e->interpreter[0] != '/')
+		return ERR_PTR(-EINVAL);
 
-out:
-	return ERR_PTR(err);
-
-efault:
-	kfree(e);
-	return ERR_PTR(-EFAULT);
-einval:
-	kfree(e);
-	return ERR_PTR(-EINVAL);
+	/* Born holding one reference; put_binfmt_handler() is the teardown. */
+	refcount_set(&e->users, 1);
+	return no_free_ptr(e);
 }
 
-/*
- * Set status of entry/binfmt_misc:
- * '1' enables, '0' disables and '-1' clears entry/binfmt_misc
- */
-static int parse_command(const char __user *buffer, size_t count)
-{
-	char s[4];
+/* Commands accepted by the /status and /<entry> files. */
+enum bm_command {
+	BM_CMD_IGNORE,	/* empty write */
+	BM_CMD_DISABLE,	/* "0" */
+	BM_CMD_ENABLE,	/* "1" */
+	BM_CMD_REMOVE,	/* "-1" */
+};
 
-	if (count > 3)
+/* Longest of the commands above, "-1\n". */
+#define MAX_COMMAND_LENGTH 3
+
+/*
+ * Parse what userspace wrote to /status or an entry file: '1' enables,
+ * '0' disables and '-1' removes the entry or all entries.
+ */
+static int parse_command(const char *s, size_t count)
+{
+	if (count > MAX_COMMAND_LENGTH)
 		return -EINVAL;
-	if (copy_from_user(s, buffer, count))
-		return -EFAULT;
 	if (!count)
-		return 0;
+		return BM_CMD_IGNORE;
 	if (s[count - 1] == '\n')
 		count--;
 	if (count == 1 && s[0] == '0')
-		return 1;
+		return BM_CMD_DISABLE;
 	if (count == 1 && s[0] == '1')
-		return 2;
+		return BM_CMD_ENABLE;
 	if (count == 2 && s[0] == '-' && s[1] == '1')
-		return 3;
+		return BM_CMD_REMOVE;
 	return -EINVAL;
+}
+
+/* Copy in a command from a file that takes nothing else, and parse it. */
+static int read_command(const char __user *buffer, size_t count)
+{
+	char s[MAX_COMMAND_LENGTH + 1];
+
+	if (count > sizeof(s) - 1)
+		return -EINVAL;
+	if (copy_from_user(s, buffer, count))
+		return -EFAULT;
+	return parse_command(s, count);
 }
 
 /* generic stuff */
 
-static void entry_status(Node *e, char *page)
+/* The root directory's inode; its lock serializes configuring an instance. */
+static struct inode *bm_root_inode(struct super_block *sb)
 {
-	char *dp = page;
-	const char *status = "disabled";
-
-	if (test_bit(Enabled, &e->flags))
-		status = "enabled";
-
-	if (!VERBOSE_STATUS) {
-		sprintf(page, "%s\n", status);
-		return;
-	}
-
-	dp += sprintf(dp, "%s\ninterpreter %s\n", status, e->interpreter);
-
-	/* print the special flags */
-	dp += sprintf(dp, "flags: ");
-	if (e->flags & MISC_FMT_PRESERVE_ARGV0)
-		*dp++ = 'P';
-	if (e->flags & MISC_FMT_OPEN_BINARY)
-		*dp++ = 'O';
-	if (e->flags & MISC_FMT_CREDENTIALS)
-		*dp++ = 'C';
-	if (e->flags & MISC_FMT_OPEN_FILE)
-		*dp++ = 'F';
-	*dp++ = '\n';
-
-	if (!test_bit(Magic, &e->flags)) {
-		sprintf(dp, "extension .%s\n", e->magic);
-	} else {
-		dp += sprintf(dp, "offset %i\nmagic ", e->offset);
-		dp = bin2hex(dp, e->magic, e->size);
-		if (e->mask) {
-			dp += sprintf(dp, "\nmask ");
-			dp = bin2hex(dp, e->mask, e->size);
-		}
-		*dp++ = '\n';
-		*dp = '\0';
-	}
+	return d_inode(sb->s_root);
 }
 
-static struct inode *bm_get_inode(struct super_block *sb, int mode)
+static void bm_seq_hex(struct seq_file *m, const u8 *data, int size)
+{
+	for (int i = 0; i < size; i++)
+		seq_printf(m, "%02x", data[i]);
+}
+
+static int bm_entry_show(struct seq_file *m, void *unused)
+{
+	struct binfmt_misc_entry *e = m->private;
+
+	if (test_bit(MISC_FMT_ENABLED_BIT, &e->flags))
+		seq_puts(m, "enabled\n");
+	else
+		seq_puts(m, "disabled\n");
+
+	if (test_bit(MISC_FMT_BPF_BIT, &e->flags)) {
+		struct binfmt_misc_interp *interp;
+
+		seq_printf(m, "bpf %s\n", e->bpf_ops->name);
+		/*
+		 * A staged entry's set can still grow, so every binding is
+		 * rcu-published. The open file pins the entry and with it
+		 * every node, so rcu is for the tearing, not the lifetime.
+		 */
+		rcu_read_lock();
+		list_for_each_entry_rcu(interp, &e->interps, list)
+			seq_printf(m, "bpf-interpreter %s %s\n",
+				   interp->name, interp->path);
+		rcu_read_unlock();
+	} else {
+		seq_printf(m, "interpreter %s\n", e->interpreter);
+	}
+
+	/* print the special flags */
+	seq_puts(m, "flags: ");
+	for (int i = 0; i < ARRAY_SIZE(misc_flags); i++)
+		if (e->flags & misc_flags[i].flag)
+			seq_putc(m, misc_flags[i].c);
+	seq_putc(m, '\n');
+
+	if (test_bit(MISC_FMT_BPF_BIT, &e->flags)) {
+		/* The program does the matching. */
+	} else if (!test_bit(MISC_FMT_MAGIC_BIT, &e->flags)) {
+		seq_printf(m, "extension .%s\n", e->magic);
+	} else {
+		seq_printf(m, "offset %i\nmagic ", e->offset);
+		bm_seq_hex(m, e->magic, e->size);
+		if (e->mask) {
+			seq_puts(m, "\nmask ");
+			bm_seq_hex(m, e->mask, e->size);
+		}
+		seq_putc(m, '\n');
+	}
+	return 0;
+}
+
+static struct inode *bm_get_inode(struct super_block *sb, umode_t mode)
 {
 	struct inode *inode = new_inode(sb);
 
@@ -663,14 +1141,14 @@ static struct binfmt_misc *i_binfmt_misc(struct inode *inode)
  * entry is removed or the filesystem is unmounted and the super block is
  * shutdown.
  *
- * If the ->evict call was not caused by a super block shutdown but by a write
- * to remove the entry or all entries via bm_{entry,status}_write() the entry
- * will have already been removed from the list. We keep the list_empty() check
- * to make that explicit.
+ * If the ->evict call was not caused by a super block shutdown but by
+ * removing the entry via bm_{entry,status}_write() or unlink(2) the entry
+ * will have already been removed from the list. We keep the hlist_unhashed()
+ * check to make that explicit.
 */
 static void bm_evict_inode(struct inode *inode)
 {
-	Node *e = inode->i_private;
+	struct binfmt_misc_entry *e = inode->i_private;
 
 	clear_inode(inode);
 
@@ -678,12 +1156,32 @@ static void bm_evict_inode(struct inode *inode)
 		struct binfmt_misc *misc;
 
 		misc = i_binfmt_misc(inode);
-		write_lock(&misc->entries_lock);
-		if (!list_empty(&e->list))
-			list_del_init(&e->list);
-		write_unlock(&misc->entries_lock);
+		spin_lock(&misc->entries_lock);
+		if (!hlist_unhashed(&e->node))
+			hlist_del_init_rcu(&e->node);
+		spin_unlock(&misc->entries_lock);
 		put_binfmt_handler(e);
 	}
+}
+
+/**
+ * unlink_binfmt_handler - unhash a binary type handler
+ * @misc: handle to binfmt_misc instance
+ * @e: binary type handler to unhash
+ *
+ * Adding and removing entries via bm_{entry,register,status}_write() and
+ * unlink(2) happens under the exclusively held inode lock of the root
+ * dentry keeping the list stable for writers. load_misc_binary() walks it
+ * concurrently under SRCU. The entries_lock is only held around the actual
+ * unlink to serialize against bm_evict_inode() which unlinks entries
+ * during umount without holding the root inode lock.
+ */
+static void unlink_binfmt_handler(struct binfmt_misc *misc,
+				  struct binfmt_misc_entry *e)
+{
+	spin_lock(&misc->entries_lock);
+	hlist_del_init_rcu(&e->node);
+	spin_unlock(&misc->entries_lock);
 }
 
 /**
@@ -692,75 +1190,225 @@ static void bm_evict_inode(struct inode *inode)
  * @e: binary type handler to remove
  *
  * Remove a binary type handler from the list of binary type handlers and
- * remove its associated dentry. This is called from
- * binfmt_{entry,status}_write(). In the future, we might want to think about
- * adding a proper ->unlink() method to binfmt_misc instead of forcing caller's
- * to use writes to files in order to delete binary type handlers. But it has
- * worked for so long that it's not a pressing issue.
+ * remove its associated dentry.
  */
-static void remove_binfmt_handler(struct binfmt_misc *misc, Node *e)
+static void remove_binfmt_handler(struct binfmt_misc *misc,
+				  struct binfmt_misc_entry *e)
 {
-	write_lock(&misc->entries_lock);
-	list_del_init(&e->list);
-	write_unlock(&misc->entries_lock);
+	unlink_binfmt_handler(misc, e);
 	locked_recursive_removal(e->dentry, NULL);
 }
 
+/* Remove @e unless it was already removed. */
+static void bm_remove_entry(struct binfmt_misc_entry *e, struct super_block *sb)
+{
+	struct inode *root = bm_root_inode(sb);
+
+	inode_lock_nested(root, I_MUTEX_PARENT);
+	/* A staged entry is not hashed; the dentry says if it was removed. */
+	if (!d_unhashed(e->dentry))
+		remove_binfmt_handler(i_binfmt_misc(root), e);
+	inode_unlock(root);
+}
+
+/* Remove all entries of the binfmt_misc instance @misc belonging to @sb. */
+static void bm_remove_all_entries(struct binfmt_misc *misc,
+				  struct super_block *sb)
+{
+	struct inode *root = bm_root_inode(sb);
+	struct dentry *child = NULL;
+
+	inode_lock_nested(root, I_MUTEX_PARENT);
+	/*
+	 * Walk the directory rather than the search list: a staged entry
+	 * is in the former but not yet in the latter. The control files
+	 * carry no entry and stay.
+	 */
+	while ((child = find_next_child(sb->s_root, child))) {
+		struct binfmt_misc_entry *e = d_inode(child)->i_private;
+
+		if (e)
+			remove_binfmt_handler(misc, e);
+	}
+	inode_unlock(root);
+}
+
+/**
+ * bm_unlink - remove a binary type handler via unlink(2)
+ * @dir: inode of the root directory
+ * @dentry: entry file to remove
+ *
+ * Removing the entry file removes its binary type handler, exactly like
+ * writing -1 to it does. The status and register control files can't be
+ * removed. The VFS calls this with the root inode lock held which
+ * serializes against the write based add and remove paths.
+ */
+static int bm_unlink(struct inode *dir, struct dentry *dentry)
+{
+	struct binfmt_misc_entry *e = d_inode(dentry)->i_private;
+
+	if (!e)
+		return -EPERM;
+
+	unlink_binfmt_handler(i_binfmt_misc(dir), e);
+	return simple_unlink(dir, dentry);
+}
+
+static const struct inode_operations bm_dir_inode_operations = {
+	.lookup		= simple_lookup,
+	.unlink		= bm_unlink,
+};
+
 /* /<entry> */
 
-static ssize_t
-bm_entry_read(struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
+static int bm_entry_open(struct inode *inode, struct file *file)
 {
-	Node *e = file_inode(file)->i_private;
-	ssize_t res;
-	char *page;
+	int ret;
 
-	page = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!page)
-		return -ENOMEM;
+	ret = single_open(file, bm_entry_show, inode->i_private);
+	if (ret)
+		return ret;
 
-	entry_status(e, page);
+	/* seq_open() clears FMODE_PWRITE, bm_entry_write() takes any offset */
+	if (file->f_mode & FMODE_WRITE)
+		file->f_mode |= FMODE_PWRITE;
+	return 0;
+}
 
-	res = simple_read_from_buffer(buf, nbytes, ppos, page, strlen(page));
+/*
+ * Longest '+<name> <path>' a write can spell, and with it the longest
+ * command an entry file takes: the two delimiters and a newline on top of
+ * the two names.
+ */
+#define MAX_BINDING_LENGTH (BINFMT_MISC_INTERP_NAME_MAX + PATH_MAX + 3)
 
-	kfree(page);
-	return res;
+/**
+ * bm_entry_add_interp - bind another interpreter to a staged entry
+ * @e: the entry
+ * @file: the entry file being written to, for its credentials
+ * @buf: the '+<name> <path>' command, parsed in place and owned by the caller
+ * @count: its length
+ *
+ * A 'D' entry is registered outside the search list, which is what leaves
+ * it open to being configured: it cannot be matched, so no exec can be
+ * holding its interpreters and the set can still grow. Its first enable
+ * publishes it and ends that. One interpreter per write, up to
+ * BINFMT_MISC_INTERP_MAX of them, none of which has to fit in a register
+ * string.
+ *
+ * Return: @count on success, a negative errno on failure
+ */
+static ssize_t bm_entry_add_interp(struct binfmt_misc_entry *e,
+				   struct file *file, char *buf, size_t count)
+{
+	struct file *f __free(close_interp_file) = NULL;
+	struct inode *root = bm_root_inode(file_inode(file)->i_sb);
+	size_t nlen, plen;
+	char *name, *path;
+	int retval;
+
+	/* Settled before the open: type is fixed, publication is permanent. */
+	if (!test_bit(MISC_FMT_BPF_BIT, &e->flags))
+		return -EINVAL;
+	if (!hlist_unhashed_lockless(&e->node))
+		return -EBUSY;
+
+	/* '+<name> <path>': the path is everything past the first space. */
+	name = buf + 1;
+	path = strchr(name, ' ');
+	if (!path)
+		return -EINVAL;
+	*path++ = '\0';
+
+	plen = strlen(path);
+	/* The command has to end at the write, like a register string. */
+	if (path + plen != buf + count)
+		return -EINVAL;
+	if (plen && path[plen - 1] == '\n')
+		path[--plen] = '\0';
+	/* Resolved now, so a relative path would name the writer's cwd. */
+	if (path[0] != '/')
+		return -EINVAL;
+
+	nlen = path - name - 1;
+	if (!nlen || nlen > BINFMT_MISC_INTERP_NAME_MAX)
+		return -EINVAL;
+	/* The name prints between delimiters, so keep it a printable word. */
+	for (const char *p = name; *p; p++)
+		if (!isascii(*p) || !isgraph(*p))
+			return -EINVAL;
+
+	/* Opened before the lock: resolving it may walk this very filesystem. */
+	f = open_interp_file(file->f_cred, path);
+	if (IS_ERR(f))
+		return PTR_ERR(f);
+
+	inode_lock(root);
+	if (d_unhashed(e->dentry))
+		retval = -ENOENT;	/* removed while we were opening it */
+	else if (!hlist_unhashed(&e->node))
+		retval = -EBUSY;	/* published while we were opening it */
+	else
+		retval = entry_attach_interpreter(e, name, path, f);
+	inode_unlock(root);
+	if (retval)
+		return retval;
+
+	/* The file is owned by the entry now. */
+	retain_and_null_ptr(f);
+	return count;
 }
 
 static ssize_t bm_entry_write(struct file *file, const char __user *buffer,
 				size_t count, loff_t *ppos)
 {
 	struct inode *inode = file_inode(file);
-	Node *e = inode->i_private;
-	int res = parse_command(buffer, count);
+	struct binfmt_misc_entry *e = inode->i_private;
+	char *buf __free(kfree) = NULL;
+	int res;
+
+	/* A binding is the longest command this file takes. */
+	if (count > MAX_BINDING_LENGTH)
+		return -E2BIG;
+
+	buf = memdup_user_nul(buffer, count);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
+
+	/* '+<name> <path>' binds an interpreter, everything else toggles. */
+	if (buf[0] == '+')
+		return bm_entry_add_interp(e, file, buf, count);
+
+	res = parse_command(buf, count);
 
 	switch (res) {
-	case 1:
-		/* Disable this handler. */
-		clear_bit(Enabled, &e->flags);
+	case BM_CMD_DISABLE:
+		clear_bit(MISC_FMT_ENABLED_BIT, &e->flags);
 		break;
-	case 2:
-		/* Enable this handler. */
-		set_bit(Enabled, &e->flags);
-		break;
-	case 3:
-		/* Delete this handler. */
-		inode = d_inode(inode->i_sb->s_root);
-		inode_lock_nested(inode, I_MUTEX_PARENT);
+	case BM_CMD_ENABLE: {
+		struct inode *root = bm_root_inode(inode->i_sb);
 
 		/*
-		 * In order to add new element or remove elements from the list
-		 * via bm_{entry,register,status}_write() inode_lock() on the
-		 * root inode must be held.
-		 * The lock is exclusive ensuring that the list can't be
-		 * modified. Only load_misc_binary() can access but does so
-		 * read-only. So we only need to take the write lock when we
-		 * actually remove the entry from the list.
+		 * The first enable publishes a 'D' entry into the search
+		 * list, whole. The lock keeps that ordered against a second
+		 * enable, against removal - a removed entry has nothing left
+		 * to publish - and against binding: what can be matched can
+		 * no longer be configured.
 		 */
-		if (!list_empty(&e->list))
-			remove_binfmt_handler(i_binfmt_misc(inode), e);
+		inode_lock(root);
+		set_bit(MISC_FMT_ENABLED_BIT, &e->flags);
+		if (hlist_unhashed(&e->node) && !d_unhashed(e->dentry)) {
+			struct binfmt_misc *misc = i_binfmt_misc(inode);
 
-		inode_unlock(inode);
+			spin_lock(&misc->entries_lock);
+			hlist_add_head_rcu(&e->node, &misc->entries);
+			spin_unlock(&misc->entries_lock);
+		}
+		inode_unlock(root);
+		break;
+	}
+	case BM_CMD_REMOVE:
+		bm_remove_entry(e, inode->i_sb);
 		break;
 	default:
 		return res;
@@ -770,15 +1418,17 @@ static ssize_t bm_entry_write(struct file *file, const char __user *buffer,
 }
 
 static const struct file_operations bm_entry_operations = {
-	.read		= bm_entry_read,
+	.open		= bm_entry_open,
+	.read		= seq_read,
 	.write		= bm_entry_write,
-	.llseek		= default_llseek,
+	.llseek		= seq_lseek,
+	.release	= single_release,
 };
 
 /* /register */
 
 /* add to filesystem */
-static int add_entry(Node *e, struct super_block *sb)
+static int add_entry(struct binfmt_misc_entry *e, struct super_block *sb)
 {
 	struct dentry *dentry = simple_start_creating(sb->s_root, e->name);
 	struct inode *inode;
@@ -793,16 +1443,18 @@ static int add_entry(Node *e, struct super_block *sb)
 		return -ENOMEM;
 	}
 
-	refcount_set(&e->users, 1);
 	e->dentry = dentry;
 	inode->i_private = e;
 	inode->i_fop = &bm_entry_operations;
 
 	d_make_persistent(dentry, inode);
-	misc = i_binfmt_misc(inode);
-	write_lock(&misc->entries_lock);
-	list_add(&e->list, &misc->entries);
-	write_unlock(&misc->entries_lock);
+	/* A 'D' entry stays out of the search list until its first enable. */
+	if (test_bit(MISC_FMT_ENABLED_BIT, &e->flags)) {
+		misc = i_binfmt_misc(inode);
+		spin_lock(&misc->entries_lock);
+		hlist_add_head_rcu(&e->node, &misc->entries);
+		spin_unlock(&misc->entries_lock);
+	}
 	simple_done_creating(dentry);
 	return 0;
 }
@@ -810,44 +1462,41 @@ static int add_entry(Node *e, struct super_block *sb)
 static ssize_t bm_register_write(struct file *file, const char __user *buffer,
 			       size_t count, loff_t *ppos)
 {
-	Node *e;
+	struct binfmt_misc_entry *e __free(put_binfmt_handler) = NULL;
 	struct super_block *sb = file_inode(file)->i_sb;
-	int err = 0;
-	struct file *f = NULL;
+	int err;
 
 	e = create_entry(buffer, count);
-
 	if (IS_ERR(e))
 		return PTR_ERR(e);
 
-	if (e->flags & MISC_FMT_OPEN_FILE) {
-		/*
-		 * Now that we support unprivileged binfmt_misc mounts make
-		 * sure we use the credentials that the register @file was
-		 * opened with to also open the interpreter. Before that this
-		 * didn't matter much as only a privileged process could open
-		 * the register file.
-		 */
-		scoped_with_creds(file->f_cred)
-			f = open_exec(e->interpreter);
-		if (IS_ERR(f)) {
-			pr_notice("register: failed to install interpreter file %s\n",
-				 e->interpreter);
-			kfree(e);
-			return PTR_ERR(f);
+	if (test_bit(MISC_FMT_BPF_BIT, &e->flags)) {
+		e->bpf_ops = binfmt_misc_get_ops(sb->s_user_ns, e->bpf_ops_name);
+		if (!e->bpf_ops) {
+			pr_notice("register: no bpf handler named %s\n",
+				  e->bpf_ops_name);
+			return -ENOENT;
 		}
-		e->interp_file = f;
+	}
+
+	if (e->flags & MISC_FMT_OPEN_FILE) {
+		struct file *f = open_interp_file(file->f_cred, e->interpreter);
+
+		if (IS_ERR(f))
+			return PTR_ERR(f);
+		err = entry_attach_interpreter(e, "", e->interpreter, f);
+		if (err) {
+			close_interp_file(f);
+			return err;
+		}
 	}
 
 	err = add_entry(e, sb);
-	if (err) {
-		if (f) {
-			exe_file_allow_write_access(f);
-			filp_close(f, NULL);
-		}
-		kfree(e);
+	if (err)
 		return err;
-	}
+
+	/* The entry is owned by its inode now. */
+	retain_and_null_ptr(e);
 	return count;
 }
 
@@ -862,10 +1511,10 @@ static ssize_t
 bm_status_read(struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
 {
 	struct binfmt_misc *misc;
-	char *s;
+	const char *s;
 
 	misc = i_binfmt_misc(file_inode(file));
-	s = misc->enabled ? "enabled\n" : "disabled\n";
+	s = READ_ONCE(misc->enabled) ? "enabled\n" : "disabled\n";
 	return simple_read_from_buffer(buf, nbytes, ppos, s, strlen(s));
 }
 
@@ -873,38 +1522,18 @@ static ssize_t bm_status_write(struct file *file, const char __user *buffer,
 		size_t count, loff_t *ppos)
 {
 	struct binfmt_misc *misc;
-	int res = parse_command(buffer, count);
-	Node *e, *next;
-	struct inode *inode;
+	int res = read_command(buffer, count);
 
 	misc = i_binfmt_misc(file_inode(file));
 	switch (res) {
-	case 1:
-		/* Disable all handlers. */
-		misc->enabled = false;
+	case BM_CMD_DISABLE:
+		WRITE_ONCE(misc->enabled, false);
 		break;
-	case 2:
-		/* Enable all handlers. */
-		misc->enabled = true;
+	case BM_CMD_ENABLE:
+		WRITE_ONCE(misc->enabled, true);
 		break;
-	case 3:
-		/* Delete all handlers. */
-		inode = d_inode(file_inode(file)->i_sb->s_root);
-		inode_lock_nested(inode, I_MUTEX_PARENT);
-
-		/*
-		 * In order to add new element or remove elements from the list
-		 * via bm_{entry,register,status}_write() inode_lock() on the
-		 * root inode must be held.
-		 * The lock is exclusive ensuring that the list can't be
-		 * modified. Only load_misc_binary() can access but does so
-		 * read-only. So we only need to take the write lock when we
-		 * actually remove the entry from the list.
-		 */
-		list_for_each_entry_safe(e, next, &misc->entries, list)
-			remove_binfmt_handler(misc, e);
-
-		inode_unlock(inode);
+	case BM_CMD_REMOVE:
+		bm_remove_all_entries(misc, file_inode(file)->i_sb);
 		break;
 	default:
 		return res;
@@ -921,7 +1550,7 @@ static const struct file_operations bm_status_operations = {
 
 /* Superblock handling */
 
-static const struct super_operations s_ops = {
+static const struct super_operations bm_super_ops = {
 	.statfs		= simple_statfs,
 	.evict_inode	= bm_evict_inode,
 };
@@ -972,10 +1601,10 @@ static int bm_fill_super(struct super_block *sb, struct fs_context *fc)
 		if (!misc)
 			return -ENOMEM;
 
-		INIT_LIST_HEAD(&misc->entries);
-		rwlock_init(&misc->entries_lock);
+		INIT_HLIST_HEAD(&misc->entries);
+		spin_lock_init(&misc->entries_lock);
 
-		/* Pairs with smp_load_acquire() in load_binfmt_misc(). */
+		/* Pairs with smp_load_acquire() in current_binfmt_misc(). */
 		smp_store_release(&user_ns->binfmt_misc, misc);
 	}
 
@@ -989,12 +1618,15 @@ static int bm_fill_super(struct super_block *sb, struct fs_context *fc)
 	 * is true. Instead, if someone mounts binfmt_misc for the first time or
 	 * again we simply reset ->enabled to true.
 	 */
-	misc->enabled = true;
+	WRITE_ONCE(misc->enabled, true);
 
 	err = simple_fill_super(sb, BINFMTFS_MAGIC, bm_files);
-	if (!err)
-		sb->s_op = &s_ops;
-	return err;
+	if (err)
+		return err;
+
+	sb->s_op = &bm_super_ops;
+	d_inode(sb->s_root)->i_op = &bm_dir_inode_operations;
+	return 0;
 }
 
 static void bm_free(struct fs_context *fc)
@@ -1053,6 +1685,8 @@ static void __exit exit_misc_binfmt(void)
 {
 	unregister_binfmt(&misc_format);
 	unregister_filesystem(&bm_fs_type);
+	/* Flush pending bm_entry_free_rcu() callbacks before the text goes. */
+	srcu_barrier(&bm_entries_srcu);
 }
 
 core_initcall(init_misc_binfmt);

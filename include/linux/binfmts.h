@@ -12,6 +12,16 @@ struct coredump_params;
 
 #define CORENAME_MAX_SIZE 128
 
+/* Interpreter selection staged by a bpf binfmt_misc handler. */
+struct binfmt_misc_bpf {
+	/* interpreters the matched entry bound, selectable by name */
+	const struct list_head *bpf_interps;
+	const char *bpf_interp;		/* interpreter selected by a bpf handler */
+	struct file *bpf_interp_file;	/* the bound interpreter it selected */
+	const char *bpf_interp_arg;	/* interpreter argument from a bpf handler */
+	u64 bpf_flags;			/* enum bpf_binprm_flags from a bpf handler */
+};
+
 /*
  * This structure is used to hold the arguments that are used when loading binaries.
  */
@@ -55,6 +65,7 @@ struct linux_binprm {
 		is_check:1;
 	struct file *executable; /* Executable to pass to the interpreter */
 	struct file *interpreter;
+	struct file *loader;
 	struct file *file;
 	struct cred *cred;	/* new credentials */
 	int unsafe;		/* how unsafe this exec is (mask of LSM_UNSAFE_*) */
@@ -65,6 +76,7 @@ struct linux_binprm {
 				   of the time same as filename, but could be
 				   different for binfmt_{misc,script} */
 	const char *fdpath;	/* generated filename for execveat */
+	struct binfmt_misc_bpf;	/* bpf handler interpreter selection */
 	unsigned interp_flags;
 	int execfd;		/* File descriptor of the executable */
 	unsigned long exec;
@@ -85,6 +97,28 @@ struct linux_binprm {
 #define BINPRM_FLAGS_PRESERVE_ARGV0_BIT 3
 #define BINPRM_FLAGS_PRESERVE_ARGV0 (1 << BINPRM_FLAGS_PRESERVE_ARGV0_BIT)
 
+/* binfmt_misc dispatched to the interpreter transparently */
+#define BINPRM_FLAGS_TRANSPARENT_INTERP_BIT 4
+#define BINPRM_FLAGS_TRANSPARENT_INTERP (1 << BINPRM_FLAGS_TRANSPARENT_INTERP_BIT)
+
+/**
+ * bprm_at_flags - the AT_FLAGS this invocation implies
+ * @bprm: binary that is being executed
+ *
+ * Tell the program on the receiving end which dispatch contract it got.
+ *
+ * Return: the AT_FLAGS value for this exec
+ */
+static inline unsigned long bprm_at_flags(const struct linux_binprm *bprm)
+{
+	/* Transparency preserves the whole argv, argv[0] included. */
+	if (bprm->interp_flags & BINPRM_FLAGS_TRANSPARENT_INTERP)
+		return AT_FLAGS_TRANSPARENT_INTERP;
+	if (bprm->interp_flags & BINPRM_FLAGS_PRESERVE_ARGV0)
+		return AT_FLAGS_PRESERVE_ARGV0;
+	return 0;
+}
+
 /*
  * This structure defines the functions that are used to load the binary formats that
  * linux accepts.
@@ -101,8 +135,8 @@ struct linux_binfmt {
 
 #if IS_ENABLED(CONFIG_BINFMT_MISC)
 struct binfmt_misc {
-	struct list_head entries;
-	rwlock_t entries_lock;
+	struct hlist_head entries;
+	spinlock_t entries_lock;
 	bool enabled;
 } __randomize_layout;
 
@@ -129,6 +163,8 @@ extern int begin_new_exec(struct linux_binprm * bprm);
 extern void setup_new_exec(struct linux_binprm * bprm);
 extern void finalize_exec(struct linux_binprm *bprm);
 extern void would_dump(struct linux_binprm *, struct file *);
+struct file *bprm_open_interpreter(struct linux_binprm *bprm, const char *path);
+void bprm_drop_loader(struct linux_binprm *bprm);
 
 extern int suid_dumpable;
 
