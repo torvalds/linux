@@ -911,26 +911,42 @@ int ksmbd_crypt_rdma(struct ksmbd_conn *conn, const u8 *key,
 	unsigned int iv_len, crypt_len;
 	u8 auth_tag[SMB2_SIGNATURE_SIZE] = {};
 	u8 *iv = NULL;
+	u16 cipher = le16_to_cpu(conn->cipher_type);
 	int rc;
 	DECLARE_CRYPTO_WAIT(wait);
 
-	if (!buflen || !tag_len || tag_len > SMB2_SIGNATURE_SIZE)
+	if (!buflen || !tag_len || tag_len > SMB2_SIGNATURE_SIZE) {
+		pr_err("RDMA %s rejected: cipher=0x%04x payload=%u nonce=%u tag=%u\n",
+		       enc ? "encryption" : "decryption", cipher, buflen,
+		       nonce_len, tag_len);
 		return -EINVAL;
+	}
 	if (!enc)
 		memcpy(auth_tag, tag, tag_len);
 
 	if (conn->cipher_type == SMB2_ENCRYPTION_AES128_GCM ||
 	    conn->cipher_type == SMB2_ENCRYPTION_AES256_GCM) {
-		if (nonce_len != SMB3_AES_GCM_NONCE)
+		if (nonce_len != SMB3_AES_GCM_NONCE) {
+			pr_err("RDMA %s rejected: cipher=0x%04x invalid nonce=%u expected=%u\n",
+			       enc ? "encryption" : "decryption", cipher,
+			       nonce_len, SMB3_AES_GCM_NONCE);
 			return -EINVAL;
+		}
 		ctx = ksmbd_crypto_ctx_find_gcm();
 	} else {
-		if (nonce_len != SMB3_AES_CCM_NONCE)
+		if (nonce_len != SMB3_AES_CCM_NONCE) {
+			pr_err("RDMA %s rejected: cipher=0x%04x invalid nonce=%u expected=%u\n",
+			       enc ? "encryption" : "decryption", cipher,
+			       nonce_len, SMB3_AES_CCM_NONCE);
 			return -EINVAL;
+		}
 		ctx = ksmbd_crypto_ctx_find_ccm();
 	}
-	if (!ctx)
+	if (!ctx) {
+		pr_err("RDMA %s failed: cipher=0x%04x crypto context unavailable\n",
+		       enc ? "encryption" : "decryption", cipher);
 		return -ENOMEM;
+	}
 
 	tfm = (conn->cipher_type == SMB2_ENCRYPTION_AES128_GCM ||
 	       conn->cipher_type == SMB2_ENCRYPTION_AES256_GCM) ?
@@ -988,6 +1004,15 @@ out:
 	kfree(sg);
 	aead_request_free(req);
 	ksmbd_release_crypto_ctx(ctx);
+	if (rc)
+		pr_err("RDMA %s failed: cipher=0x%04x payload=%u nonce=%u tag=%u rc=%d\n",
+		       enc ? "encryption" : "decryption", cipher, buflen,
+		       nonce_len, tag_len, rc);
+	else
+		ksmbd_debug(RDMA,
+			    "RDMA %s completed: cipher=0x%04x payload=%u nonce=%u tag=%u\n",
+			    enc ? "encryption" : "decryption", cipher, buflen,
+			    nonce_len, tag_len);
 	return rc;
 }
 
