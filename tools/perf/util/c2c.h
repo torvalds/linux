@@ -98,6 +98,16 @@ struct c2c_fmt {
 void c2c_fmt_free(struct perf_hpp_fmt *fmt);
 bool c2c_fmt_equal(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b);
 
+/*
+ * Build the function-view hierarchy. Returns -EOPNOTSUPP when @cl_sort lacks
+ * iaddr. On success, *@hists remains valid until the next
+ * c2c_function__build() or c2c_function__reset(). On failure, *@hists is
+ * NULL.
+ */
+int c2c_function__build(struct c2c_hists *cl_hists, const char *cl_sort,
+			bool symbol_full, struct hists **hists);
+void c2c_function__reset(void);
+/* Valid only between a successful build and c2c_function__reset(). */
 struct hist_entry *c2c_function__find_cacheline(struct hist_entry *he);
 
 #endif /* __PERF_UTIL_C2C_H */
