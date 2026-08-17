@@ -285,6 +285,7 @@ int sock_recvmsg(struct socket *sock, struct msghdr *msg, int flags);
 struct file *sock_alloc_file(struct socket *sock, int flags, const char *dname);
 struct socket *sockfd_lookup(int fd, int *err);
 struct socket *sock_from_file(struct file *file);
+int sock_read_xattr(struct socket *sock, const char *name, void *value, size_t size);
 #define		     sockfd_put(sock) fput(sock->file)
 int net_ratelimit(void);
 
