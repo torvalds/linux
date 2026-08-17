@@ -1809,6 +1809,28 @@ static void nxp_coredump_notify(struct hci_dev *hdev, int state)
 	kobject_uevent_env(&serdev->dev.kobj, KOBJ_CHANGE, envp);
 }
 
+/*
+ * Check if the remote M.2 connector device linked via OF graph is present
+ * and available. This is used to determine whether the pwrseq path should
+ * be taken. When the remote connector node is disabled (e.g., by a DT
+ * overlay switching from PCIe WiFi to SDIO WiFi), the pwrseq path is
+ * skipped, allowing the BT driver to use a direct bluetooth child node
+ * instead.
+ */
+static bool nxp_m2_connector_is_available(struct device *dev)
+{
+	struct device_node *ep __free(device_node) =
+		of_graph_get_next_endpoint(dev_of_node(dev), NULL);
+
+	if (!ep)
+		return false;
+
+	struct device_node *remote __free(device_node) =
+		of_graph_get_remote_port_parent(ep);
+
+	return remote && of_device_is_available(remote);
+}
+
 static int nxp_serdev_probe(struct serdev_device *serdev)
 {
 	struct hci_dev *hdev;
@@ -1863,7 +1885,7 @@ static int nxp_serdev_probe(struct serdev_device *serdev)
 		return err;
 	}
 
-	if (of_graph_is_present(dev_of_node(&serdev->ctrl->dev))) {
+	if (nxp_m2_connector_is_available(&serdev->ctrl->dev)) {
 		struct pwrseq_desc *pwrseq;
 
 		pwrseq = pwrseq_get(&serdev->ctrl->dev, "uart");
