@@ -87,6 +87,8 @@ struct super_operations {
 	void (*free_inode)(struct inode *inode);
 	void (*dirty_inode)(struct inode *inode, int flags);
 	int (*write_inode)(struct inode *inode, struct writeback_control *wbc);
+	int (*sync_inode_metadata)(struct inode *inode,
+				   struct writeback_control *wbc);
 	int (*drop_inode)(struct inode *inode);
 	void (*evict_inode)(struct inode *inode);
 	void (*put_super)(struct super_block *sb);
