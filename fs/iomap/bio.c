@@ -179,10 +179,11 @@ int iomap_bio_read_folio_range_sync(const struct iomap_iter *iter,
 	if (srcmap->flags & IOMAP_F_INTEGRITY)
 		fs_bio_integrity_alloc(&bio);
 	error = submit_bio_wait(&bio);
-	if (srcmap->flags & IOMAP_F_INTEGRITY) {
+	if (bio_integrity(&bio)) {
 		if (!error)
 			error = fs_bio_integrity_verify(&bio, sector, len);
 		fs_bio_integrity_free(&bio);
 	}
+	bio_uninit(&bio);
 	return error;
 }
