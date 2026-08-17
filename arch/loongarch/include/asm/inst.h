@@ -97,6 +97,7 @@ enum reg2i6_op {
 };
 
 enum reg2i12_op {
+	sltui_op	= 0x09,
 	addiw_op	= 0x0a,
 	addid_op	= 0x0b,
 	lu52id_op	= 0x0c,
@@ -153,6 +154,8 @@ enum reg3_op {
 	addd_op		= 0x21,
 	subw_op		= 0x22,
 	subd_op		= 0x23,
+	maskeqz_op	= 0x26,
+	masknez_op	= 0x27,
 	nor_op		= 0x28,
 	and_op		= 0x29,
 	or_op		= 0x2a,
@@ -644,6 +647,7 @@ static inline void emit_##NAME(union loongarch_instruction *insn,	\
 	insn->reg2i12_format.rj = rj;					\
 }
 
+DEF_EMIT_REG2I12_FORMAT(sltui, sltui_op)
 DEF_EMIT_REG2I12_FORMAT(addiw, addiw_op)
 DEF_EMIT_REG2I12_FORMAT(addid, addid_op)
 DEF_EMIT_REG2I12_FORMAT(lu52id, lu52id_op)
@@ -749,6 +753,8 @@ DEF_EMIT_REG3_FORMAT(divd, divd_op)
 DEF_EMIT_REG3_FORMAT(modd, modd_op)
 DEF_EMIT_REG3_FORMAT(divdu, divdu_op)
 DEF_EMIT_REG3_FORMAT(moddu, moddu_op)
+DEF_EMIT_REG3_FORMAT(maskeqz, maskeqz_op)
+DEF_EMIT_REG3_FORMAT(masknez, masknez_op)
 DEF_EMIT_REG3_FORMAT(and, and_op)
 DEF_EMIT_REG3_FORMAT(or, or_op)
 DEF_EMIT_REG3_FORMAT(xor, xor_op)
