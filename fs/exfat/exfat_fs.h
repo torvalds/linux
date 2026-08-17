@@ -298,8 +298,6 @@ struct exfat_inode_info {
 	loff_t zeroed_size;
 	/* hash by i_location */
 	struct hlist_node i_hash_fat;
-	/* protect bmap against truncate */
-	struct rw_semaphore truncate_lock;
 	struct inode vfs_inode;
 	/* File creation time */
 	struct timespec64 i_crtime;

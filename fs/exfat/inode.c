@@ -291,10 +291,9 @@ static sector_t exfat_aop_bmap(struct address_space *mapping, sector_t block)
 {
 	sector_t blocknr;
 
-	/* exfat_get_cluster() assumes the requested blocknr isn't truncated. */
-	down_read(&EXFAT_I(mapping->host)->truncate_lock);
+	inode_lock_shared(mapping->host);
 	blocknr = iomap_bmap(mapping, block, &exfat_iomap_ops);
-	up_read(&EXFAT_I(mapping->host)->truncate_lock);
+	inode_unlock_shared(mapping->host);
 	return blocknr;
 }
 
