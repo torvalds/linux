@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
    BlueZ - Bluetooth protocol stack for Linux
    Copyright (C) 2000-2001 Qualcomm Incorporated
    Copyright 2023-2024 NXP
 
    Written 2000,2001 by Maxim Krasnyansky <maxk@qualcomm.com>
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License version 2 as
-   published by the Free Software Foundation;
 
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -2485,6 +2482,12 @@ struct hci_rp_le_cs_test {
 } __packed;
 
 #define HCI_OP_LE_CS_TEST_END			0x2096
+
+#define HCI_OP_LE_SET_HOST_FEATURE_V2		0x2097
+struct hci_cp_le_set_host_feature_v2 {
+	__le16	bit_number;
+	__u8	bit_value;
+} __packed;
 
 /* ---- HCI Events ---- */
 struct hci_ev_status {

@@ -1,0 +1,2 @@
+# mode=strict
+bad/yaml-unused-label.yaml:26: example 0 [unused-labels] label 'dev' defined but never &-referenced

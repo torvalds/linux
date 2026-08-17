@@ -16,6 +16,7 @@
 #include <linux/bits.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
+#include <linux/dmi.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/limits.h>
@@ -85,9 +86,108 @@ static const struct amd_pmc_bit_map soc15_ip_blk[] = {
 	{"VPE",		BIT(21)},
 };
 
+/* CPU info structures for different SoC variants */
+static const struct amd_pmc_cpu_info amd_pco_cpu_info = {
+	.smu_msg	= AMD_PMC_REGISTER_MESSAGE,
+	.smu_arg	= AMD_PMC_REGISTER_ARGUMENT,
+	.smu_rsp	= AMD_PMC_REGISTER_RESPONSE,
+	.num_ips	= 12,
+	.ips_ptr	= soc15_ip_blk,
+	.os_hint	= MSG_OS_HINT_PCO,
+};
+
+static const struct amd_pmc_cpu_info amd_czn_cpu_info = {
+	.smu_msg	= AMD_PMC_REGISTER_MESSAGE,
+	.smu_arg	= AMD_PMC_REGISTER_ARGUMENT,
+	.smu_rsp	= AMD_PMC_REGISTER_RESPONSE,
+	.num_ips	= 12,
+	.scratch_reg	= AMD_PMC_SCRATCH_REG_CZN,
+	.ips_ptr	= soc15_ip_blk,
+	.os_hint	= MSG_OS_HINT_RN,
+};
+
+static const struct amd_pmc_cpu_info amd_vg_cpu_info = {
+	.smu_msg	= AMD_PMC_REGISTER_MESSAGE,
+	.smu_arg	= AMD_PMC_REGISTER_ARGUMENT,
+	.smu_rsp	= AMD_PMC_REGISTER_RESPONSE,
+	.num_ips	= 12,
+	.ips_ptr	= soc15_ip_blk,
+	.os_hint	= MSG_OS_HINT_RN,
+};
+
+static const struct amd_pmc_cpu_info amd_yc_cpu_info = {
+	.smu_msg	= AMD_PMC_REGISTER_MESSAGE,
+	.smu_arg	= AMD_PMC_REGISTER_ARGUMENT,
+	.smu_rsp	= AMD_PMC_REGISTER_RESPONSE,
+	.num_ips	= 12,
+	.scratch_reg	= AMD_PMC_SCRATCH_REG_YC,
+	.ips_ptr	= soc15_ip_blk,
+	.os_hint	= MSG_OS_HINT_RN,
+};
+
+static const struct amd_pmc_cpu_info amd_ps_cpu_info = {
+	.smu_msg	= AMD_PMC_REGISTER_MESSAGE,
+	.smu_arg	= AMD_PMC_REGISTER_ARGUMENT,
+	.smu_rsp	= AMD_PMC_REGISTER_RESPONSE,
+	.num_ips	= 21,
+	.scratch_reg	= AMD_PMC_SCRATCH_REG_YC,
+	.ips_ptr	= soc15_ip_blk,
+	.os_hint	= MSG_OS_HINT_RN,
+};
+
+static const struct amd_pmc_cpu_info amd_1ah_cpu_info = {
+	.smu_msg	= AMD_PMC_REGISTER_MSG_1AH_20H,
+	.smu_arg	= AMD_PMC_REGISTER_ARGUMENT,
+	.smu_rsp	= AMD_PMC_REGISTER_RESPONSE,
+	.num_ips	= ARRAY_SIZE(soc15_ip_blk),
+	.scratch_reg	= AMD_PMC_SCRATCH_REG_1AH,
+	.ips_ptr	= soc15_ip_blk,
+	.os_hint	= MSG_OS_HINT_RN,
+};
+
+static const struct amd_pmc_cpu_info amd_1ah_m70_cpu_info = {
+	.smu_msg	= AMD_PMC_REGISTER_MSG_1AH_20H,
+	.smu_arg	= AMD_PMC_REGISTER_ARGUMENT,
+	.smu_rsp	= AMD_PMC_REGISTER_RESPONSE,
+	.num_ips	= ARRAY_SIZE(soc15_ip_blk_v2),
+	.scratch_reg	= AMD_PMC_SCRATCH_REG_1AH,
+	.ips_ptr	= soc15_ip_blk_v2,
+	.os_hint	= MSG_OS_HINT_RN,
+};
+
+static const struct amd_pmc_cpu_info amd_1ah_m80_cpu_info = {
+	.smu_msg	= AMD_PMC_REGISTER_MSG_1AH_80H,
+	.smu_arg	= AMD_PMC_REGISTER_ARG_1AH_80H,
+	.smu_rsp	= AMD_PMC_REGISTER_RSP_1AH_80H,
+	.num_ips	= ARRAY_SIZE(soc15_ip_blk),
+	.scratch_reg	= AMD_PMC_SCRATCH_REG_1AH,
+	.ips_ptr	= soc15_ip_blk,
+	.os_hint	= MSG_OS_HINT_RN,
+};
+
+static const struct pci_device_id pmc_pci_ids[] = {
+	{ PCI_DEVICE_DATA(AMD, CPU_ID_PCO, &amd_pco_cpu_info) },
+	{ PCI_DEVICE_DATA(AMD, CPU_ID_CZN, &amd_czn_cpu_info) },
+	{ PCI_DEVICE_DATA(AMD, CPU_ID_VG, &amd_vg_cpu_info) },
+	{ PCI_DEVICE_DATA(AMD, CPU_ID_YC, &amd_yc_cpu_info) },
+	{ PCI_DEVICE_DATA(AMD, CPU_ID_CB, &amd_yc_cpu_info) },
+	{ PCI_DEVICE_DATA(AMD, CPU_ID_PS, &amd_ps_cpu_info) },
+	{ PCI_DEVICE_DATA(AMD, CPU_ID_SP, NULL) },
+	{ PCI_DEVICE_DATA(AMD, CPU_ID_SHP, NULL) },
+	{ PCI_DEVICE_DATA(AMD, 1AH_M20H_ROOT, NULL) },
+	{ PCI_DEVICE_DATA(AMD, 1AH_M60H_ROOT, NULL) },
+	{ PCI_DEVICE_DATA(AMD, 1AH_M80H_ROOT, &amd_1ah_m80_cpu_info) },
+	{ }
+};
+
 static bool disable_workarounds;
 module_param(disable_workarounds, bool, 0644);
 MODULE_PARM_DESC(disable_workarounds, "Disable workarounds for platform bugs");
+
+static int delay_suspend = -1;
+module_param(delay_suspend, int, 0644);
+MODULE_PARM_DESC(delay_suspend,
+		 "Delays s2idle by 2.5 seconds to work around buggy ECs, often causing keyboard issues after suspend. 0: don't delay, 1: do delay, -1 (default): let amd_pmc decide. If you need this please report this to: platform-driver-x86@vger.kernel.org");
 
 static struct amd_pmc_dev pmc;
 
@@ -101,35 +201,40 @@ static inline void amd_pmc_reg_write(struct amd_pmc_dev *dev, int reg_offset, u3
 	iowrite32(val, dev->regbase + reg_offset);
 }
 
-static void amd_pmc_get_ip_info(struct amd_pmc_dev *dev)
+static int amd_pmc_set_cpu_info(struct amd_pmc_dev *dev, struct pci_dev *rdev)
 {
+	const struct pci_device_id *id;
+
+	id = pci_match_id(pmc_pci_ids, rdev);
+	if (!id)
+		return -ENODEV;
+
+	dev->cpu_id = rdev->device;
+
+	if (id->driver_data) {
+		dev->cpu_info = (const struct amd_pmc_cpu_info *)id->driver_data;
+		return 0;
+	}
+
+	/* Special case: 1Ah M20H/M60H needs x86_model detection */
 	switch (dev->cpu_id) {
-	case AMD_CPU_ID_PCO:
-	case AMD_CPU_ID_RN:
-	case AMD_CPU_ID_VG:
-	case AMD_CPU_ID_YC:
-	case AMD_CPU_ID_CB:
-		dev->num_ips = 12;
-		dev->ips_ptr = soc15_ip_blk;
-		dev->smu_msg = 0x538;
-		break;
-	case AMD_CPU_ID_PS:
-		dev->num_ips = 21;
-		dev->ips_ptr = soc15_ip_blk;
-		dev->smu_msg = 0x538;
-		break;
 	case PCI_DEVICE_ID_AMD_1AH_M20H_ROOT:
 	case PCI_DEVICE_ID_AMD_1AH_M60H_ROOT:
-		if (boot_cpu_data.x86_model == 0x70) {
-			dev->num_ips = ARRAY_SIZE(soc15_ip_blk_v2);
-			dev->ips_ptr = soc15_ip_blk_v2;
-		} else {
-			dev->num_ips = ARRAY_SIZE(soc15_ip_blk);
-			dev->ips_ptr = soc15_ip_blk;
-		}
-		dev->smu_msg = 0x938;
+		if (boot_cpu_data.x86_model == 0x70)
+			dev->cpu_info = &amd_1ah_m70_cpu_info;
+		else
+			dev->cpu_info = &amd_1ah_cpu_info;
 		break;
+	case AMD_CPU_ID_SP:
+	case AMD_CPU_ID_SHP:
+		dev_warn_once(dev->dev, "S0i3 is not supported on this hardware\n");
+		return -ENODEV;
+	default:
+		dev_err(dev->dev, "Unknown CPU ID: 0x%x\n", dev->cpu_id);
+		return -ENODEV;
 	}
+
+	return 0;
 }
 
 static int amd_pmc_setup_smu_logging(struct amd_pmc_dev *dev)
@@ -296,9 +401,9 @@ static int smu_fw_info_show(struct seq_file *s, void *unused)
 		   table.timeto_resume_to_os_lastcapture);
 
 	seq_puts(s, "\n=== Active time (in us) ===\n");
-	for (idx = 0 ; idx < dev->num_ips ; idx++) {
-		if (dev->ips_ptr[idx].bit_mask & dev->active_ips)
-			seq_printf(s, "%-8s : %lld\n", dev->ips_ptr[idx].name,
+	for (idx = 0 ; idx < dev->cpu_info->num_ips ; idx++) {
+		if (dev->cpu_info->ips_ptr[idx].bit_mask & dev->active_ips)
+			seq_printf(s, "%-8s : %lld\n", dev->cpu_info->ips_ptr[idx].name,
 				   table.timecondition_notmet_lastcapture[idx]);
 	}
 
@@ -347,31 +452,21 @@ static int amd_pmc_idlemask_read(struct amd_pmc_dev *pdev, struct device *dev,
 	u32 val;
 	int rc;
 
-	switch (pdev->cpu_id) {
-	case AMD_CPU_ID_CZN:
-		/* we haven't yet read SMU version */
+	/* we haven't yet read SMU version */
+	if (pdev->cpu_id == AMD_CPU_ID_CZN) {
 		if (!pdev->major) {
 			rc = amd_pmc_get_smu_version(pdev);
 			if (rc)
 				return rc;
 		}
-		if (pdev->major > 56 || (pdev->major >= 55 && pdev->minor >= 37))
-			val = amd_pmc_reg_read(pdev, AMD_PMC_SCRATCH_REG_CZN);
-		else
+		if (!(pdev->major > 56 || (pdev->major >= 55 && pdev->minor >= 37)))
 			return -EINVAL;
-		break;
-	case AMD_CPU_ID_YC:
-	case AMD_CPU_ID_CB:
-	case AMD_CPU_ID_PS:
-		val = amd_pmc_reg_read(pdev, AMD_PMC_SCRATCH_REG_YC);
-		break;
-	case PCI_DEVICE_ID_AMD_1AH_M20H_ROOT:
-	case PCI_DEVICE_ID_AMD_1AH_M60H_ROOT:
-		val = amd_pmc_reg_read(pdev, AMD_PMC_SCRATCH_REG_1AH);
-		break;
-	default:
-		return -EINVAL;
 	}
+
+	if (!pdev->cpu_info->scratch_reg)
+		return -EINVAL;
+
+	val = amd_pmc_reg_read(pdev, pdev->cpu_info->scratch_reg);
 
 	if (dev)
 		pm_pr_dbg("SMU idlemask s0i3: 0x%x\n", val);
@@ -425,9 +520,9 @@ static void amd_pmc_dump_registers(struct amd_pmc_dev *dev)
 		argument = dev->stb_arg.arg;
 		response = dev->stb_arg.resp;
 	} else {
-		message = dev->smu_msg;
-		argument = AMD_PMC_REGISTER_ARGUMENT;
-		response = AMD_PMC_REGISTER_RESPONSE;
+		message = dev->cpu_info->smu_msg;
+		argument = dev->cpu_info->smu_arg;
+		response = dev->cpu_info->smu_rsp;
 	}
 
 	value = amd_pmc_reg_read(dev, response);
@@ -452,9 +547,9 @@ int amd_pmc_send_cmd(struct amd_pmc_dev *dev, u32 arg, u32 *data, u8 msg, bool r
 		argument = dev->stb_arg.arg;
 		response = dev->stb_arg.resp;
 	} else {
-		message = dev->smu_msg;
-		argument = AMD_PMC_REGISTER_ARGUMENT;
-		response = AMD_PMC_REGISTER_RESPONSE;
+		message = dev->cpu_info->smu_msg;
+		argument = dev->cpu_info->smu_arg;
+		response = dev->cpu_info->smu_rsp;
 	}
 
 	/* Wait until we get a valid response */
@@ -512,23 +607,6 @@ int amd_pmc_send_cmd(struct amd_pmc_dev *dev, u32 arg, u32 *data, u8 msg, bool r
 	return rc;
 }
 
-static int amd_pmc_get_os_hint(struct amd_pmc_dev *dev)
-{
-	switch (dev->cpu_id) {
-	case AMD_CPU_ID_PCO:
-		return MSG_OS_HINT_PCO;
-	case AMD_CPU_ID_RN:
-	case AMD_CPU_ID_VG:
-	case AMD_CPU_ID_YC:
-	case AMD_CPU_ID_CB:
-	case AMD_CPU_ID_PS:
-	case PCI_DEVICE_ID_AMD_1AH_M20H_ROOT:
-	case PCI_DEVICE_ID_AMD_1AH_M60H_ROOT:
-		return MSG_OS_HINT_RN;
-	}
-	return -EINVAL;
-}
-
 static int amd_pmc_wa_irq1(struct amd_pmc_dev *pdev)
 {
 	struct device *d;
@@ -567,9 +645,12 @@ static int amd_pmc_verify_czn_rtc(struct amd_pmc_dev *pdev, u32 *arg)
 	rtc_device = rtc_class_open("rtc0");
 	if (!rtc_device)
 		return 0;
-	rc = rtc_read_alarm(rtc_device, &alarm);
-	if (rc)
-		return rc;
+	rc = rtc_read_next_alarm(rtc_device, &alarm);
+	if (rc) {
+		if (rc == -ENOENT)
+			dev_dbg(pdev->dev, "no alarm pending\n");
+		return rc == -ENOENT ? 0 : rc;
+	}
 	if (!alarm.enabled) {
 		dev_dbg(pdev->dev, "alarm not enabled\n");
 		return 0;
@@ -598,12 +679,80 @@ static int amd_pmc_verify_czn_rtc(struct amd_pmc_dev *pdev, u32 *arg)
 	return rc;
 }
 
+static bool amd_pmc_intermediate_wakeup_need_delay(struct amd_pmc_dev *pdev)
+{
+	/*
+	 * Starting a new HW sleep cycle right after waking from one
+	 * can cause electrical problems triggering the over voltage protection.
+	 * That is avoided by delaying the next suspend a bit, see also
+	 * https://lore.kernel.org/all/20250414162446.3853194-1-superm1@kernel.org/
+	 */
+	struct smu_metrics table;
+
+	return get_metrics_table(pdev, &table) == 0 && table.s0i3_last_entry_status;
+}
+
+static bool amd_pmc_want_suspend_delay(struct amd_pmc_dev *pdev)
+{
+	/*
+	 * intermediate_wakeup implies that the machine didn't get to deepest sleep
+	 * state before - otherwise this function isn't called in amd_pmc_s2idle_check()
+	 * because amd_pmc_intermediate_wakeup_need_delay() returns true first.
+	 * On some IdeaPads that happens when charging, because the EC seems
+	 * to send lots of messages then that wake the machine.
+	 *
+	 * But even in that case, the sleep here is necessary (on those IdeaPads),
+	 * otherwise they wake up completely (resume) after a few seconds.
+	 * So this variable is only used to avoid spamming dmesg on each
+	 * intermediate wakeup.
+	 */
+	bool intermediate_wakeup = !pdev->is_first_check_after_suspend;
+
+	/*
+	 * Some Lenovo Laptops (like different IdeaPad 3 Slims) need some
+	 * me-time before sleeping or they get uncooperative after waking
+	 * up and don't send events for keyboard and lid switch anymore.
+	 *
+	 * Unfortunately this doesn't entirely fix the problem: It can still
+	 * happen when resuming with a timer (wakealarm), but at least the
+	 * more common usecases (wakeup by opening lid or pressing a key)
+	 * work fine with this workaround.
+	 *
+	 * See https://bugzilla.kernel.org/show_bug.cgi?id=221383
+	 */
+	if (amd_pmc_quirk_need_suspend_delay(pdev)) {
+		/*
+		 * delay_suspend=1 force-enables this, otherwise it can be
+		 * disabled with disable_workarounds or delay_suspend=0
+		 */
+		if (delay_suspend == 1 || (delay_suspend == -1 && !disable_workarounds)) {
+			if (!intermediate_wakeup)
+				dev_info(pdev->dev, "Delaying suspend by 2.5s to avoid platform bug\n");
+			return true;
+		}
+		if (!intermediate_wakeup)
+			dev_info(pdev->dev, "Not delaying suspend because of module parameter, even though your device is assumed to need it!\n");
+	} else if (delay_suspend == 1) {
+		if (!intermediate_wakeup)
+			dev_info(pdev->dev, "Delaying suspend by 2.5s because delay_suspend=1. If this solves problems on your machine, please report this whole line to: platform-driver-x86@vger.kernel.org so it can be automatically detected as affected in the future. System Vendor: \"%s\" Product Name: \"%s\" Product Family: \"%s\" Board Vendor: \"%s\" Board Name: \"%s\"\n",
+				 dmi_get_system_info(DMI_SYS_VENDOR),
+				 dmi_get_system_info(DMI_PRODUCT_NAME),
+				 dmi_get_system_info(DMI_PRODUCT_FAMILY),
+				 dmi_get_system_info(DMI_BOARD_VENDOR),
+				 dmi_get_system_info(DMI_BOARD_NAME));
+		return true;
+	}
+	return false;
+}
+
 static void amd_pmc_s2idle_prepare(void)
 {
 	struct amd_pmc_dev *pdev = &pmc;
 	int rc;
-	u8 msg;
 	u32 arg = 1;
+
+	/* Reset this variable because this is a fresh suspend */
+	pdev->is_first_check_after_suspend = true;
 
 	/* Reset and Start SMU logging - to monitor the s0i3 stats */
 	amd_pmc_setup_smu_logging(pdev);
@@ -617,8 +766,7 @@ static void amd_pmc_s2idle_prepare(void)
 		}
 	}
 
-	msg = amd_pmc_get_os_hint(pdev);
-	rc = amd_pmc_send_cmd(pdev, arg, NULL, msg, false);
+	rc = amd_pmc_send_cmd(pdev, arg, NULL, pdev->cpu_info->os_hint, false);
 	if (rc) {
 		dev_err(pdev->dev, "suspend failed: %d\n", rc);
 		return;
@@ -632,11 +780,10 @@ static void amd_pmc_s2idle_prepare(void)
 static void amd_pmc_s2idle_check(void)
 {
 	struct amd_pmc_dev *pdev = &pmc;
-	struct smu_metrics table;
 	int rc;
 
-	/* Avoid triggering OVP */
-	if (!get_metrics_table(pdev, &table) && table.s0i3_last_entry_status)
+	if (amd_pmc_intermediate_wakeup_need_delay(pdev) ||
+	    amd_pmc_want_suspend_delay(pdev))
 		msleep(2500);
 
 	/* Dump the IdleMask before we add to the STB */
@@ -645,6 +792,9 @@ static void amd_pmc_s2idle_check(void)
 	rc = amd_stb_write(pdev, AMD_PMC_STB_S2IDLE_CHECK);
 	if (rc)
 		dev_err(pdev->dev, "error writing to STB: %d\n", rc);
+
+	/* remember that first check after suspend is done (until next prepare) */
+	pdev->is_first_check_after_suspend = false;
 }
 
 static int amd_pmc_dump_data(struct amd_pmc_dev *pdev)
@@ -659,10 +809,8 @@ static void amd_pmc_s2idle_restore(void)
 {
 	struct amd_pmc_dev *pdev = &pmc;
 	int rc;
-	u8 msg;
 
-	msg = amd_pmc_get_os_hint(pdev);
-	rc = amd_pmc_send_cmd(pdev, 0, NULL, msg, false);
+	rc = amd_pmc_send_cmd(pdev, 0, NULL, pdev->cpu_info->os_hint, false);
 	if (rc)
 		dev_err(pdev->dev, "resume failed: %d\n", rc);
 
@@ -709,22 +857,6 @@ static const struct dev_pm_ops amd_pmc_pm = {
 	.suspend = amd_pmc_suspend_handler,
 };
 
-static const struct pci_device_id pmc_pci_ids[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, AMD_CPU_ID_PS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, AMD_CPU_ID_CB) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, AMD_CPU_ID_YC) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, AMD_CPU_ID_CZN) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, AMD_CPU_ID_RN) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, AMD_CPU_ID_PCO) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, AMD_CPU_ID_RV) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, AMD_CPU_ID_SP) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, AMD_CPU_ID_SHP) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, AMD_CPU_ID_VG) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_1AH_M20H_ROOT) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_1AH_M60H_ROOT) },
-	{ }
-};
-
 static int amd_pmc_probe(struct platform_device *pdev)
 {
 	struct amd_pmc_dev *dev = &pmc;
@@ -736,17 +868,14 @@ static int amd_pmc_probe(struct platform_device *pdev)
 
 	dev->dev = &pdev->dev;
 	rdev = pci_get_domain_bus_and_slot(0, 0, PCI_DEVFN(0, 0));
-	if (!rdev || !pci_match_id(pmc_pci_ids, rdev)) {
+	if (!rdev) {
 		err = -ENODEV;
 		goto err_pci_dev_put;
 	}
 
-	dev->cpu_id = rdev->device;
-	if (dev->cpu_id == AMD_CPU_ID_SP || dev->cpu_id == AMD_CPU_ID_SHP) {
-		dev_warn_once(dev->dev, "S0i3 is not supported on this hardware\n");
-		err = -ENODEV;
+	err = amd_pmc_set_cpu_info(dev, rdev);
+	if (err)
 		goto err_pci_dev_put;
-	}
 
 	dev->rdev = rdev;
 	err = amd_smn_read(0, AMD_PMC_BASE_ADDR_LO, &val);
@@ -777,9 +906,6 @@ static int amd_pmc_probe(struct platform_device *pdev)
 	err = devm_mutex_init(dev->dev, &dev->lock);
 	if (err)
 		goto err_pci_dev_put;
-
-	/* Get num of IP blocks within the SoC */
-	amd_pmc_get_ip_info(dev);
 
 	platform_set_drvdata(pdev, dev);
 	if (IS_ENABLED(CONFIG_SUSPEND)) {
@@ -825,6 +951,7 @@ static const struct acpi_device_id amd_pmc_acpi_ids[] = {
 	{"AMDI0009", 0},
 	{"AMDI000A", 0},
 	{"AMDI000B", 0},
+	{"AMDI000C", 0},
 	{"AMD0004", 0},
 	{"AMD0005", 0},
 	{ }

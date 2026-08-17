@@ -265,8 +265,8 @@ void ras_log_ring_add_log_event(struct ras_core_context *ras_core,
 	ras_log_ring_add_data(ras_core, log, batch_tag);
 }
 
-static struct ras_log_info *ras_log_ring_lookup_data(struct ras_core_context *ras_core,
-					uint64_t idx)
+static int ras_log_ring_lookup_data(struct ras_core_context *ras_core,
+					uint64_t idx, struct ras_log_info *log)
 {
 	struct ras_log_ring *log_ring = &ras_core->ras_log_ring;
 	unsigned long flags = 0;
@@ -274,30 +274,27 @@ static struct ras_log_info *ras_log_ring_lookup_data(struct ras_core_context *ra
 
 	spin_lock_irqsave(&log_ring->spin_lock, flags);
 	data = radix_tree_lookup(&log_ring->ras_log_root, idx);
+	if (data)
+		memcpy(log, data, sizeof(*log));
 	spin_unlock_irqrestore(&log_ring->spin_lock, flags);
 
-	return (struct ras_log_info *)data;
+	return data ? 0 : -ENODATA;
 }
 
 int ras_log_ring_get_batch_records(struct ras_core_context *ras_core, uint64_t batch_id,
-		struct ras_log_info **log_arr, uint32_t arr_num)
+		struct ras_log_info *log_arr, uint32_t arr_num)
 {
 	struct ras_log_ring *log_ring = &ras_core->ras_log_ring;
 	uint32_t i, idx, count = 0;
-	void *data;
 
-	if ((batch_id >= log_ring->mono_upward_batch_id) ||
+	if (!log_arr || !arr_num || (batch_id >= log_ring->mono_upward_batch_id) ||
 		(batch_id < log_ring->last_del_batch_id))
 		return -EINVAL;
 
-	for (i = 0; i < MAX_RECORD_PER_BATCH; i++) {
+	for (i = 0; i < MAX_RECORD_PER_BATCH && i < arr_num; i++) {
 		idx = BATCH_IDX_TO_TREE_IDX(batch_id, i);
-		data = ras_log_ring_lookup_data(ras_core, idx);
-		if (data) {
-			log_arr[count++] = data;
-			if (count >= arr_num)
-				break;
-		}
+		if (!ras_log_ring_lookup_data(ras_core, idx, &log_arr[count]))
+			count++;
 	}
 
 	return count;

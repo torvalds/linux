@@ -976,9 +976,13 @@ static acpi_status hpet_resources(struct acpi_resource *res, void *data)
 
 static int hpet_acpi_probe(struct platform_device *pdev)
 {
-	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
+	struct acpi_device *device;
 	acpi_status result;
 	struct hpet_data data;
+
+	device = ACPI_COMPANION(&pdev->dev);
+	if (!device)
+		return -ENODEV;
 
 	memset(&data, 0, sizeof(data));
 

@@ -987,10 +987,10 @@ static int ni_pcidio_pci_probe(struct pci_dev *dev,
 }
 
 static const struct pci_device_id ni_pcidio_pci_table[] = {
-	{ PCI_VDEVICE(NI, 0x1150), BOARD_PCIDIO_32HS },
-	{ PCI_VDEVICE(NI, 0x12b0), BOARD_PCI6534 },
-	{ PCI_VDEVICE(NI, 0x1320), BOARD_PXI6533 },
-	{ 0 }
+	{ PCI_VDEVICE(NI, 0x1150), .driver_data = BOARD_PCIDIO_32HS },
+	{ PCI_VDEVICE(NI, 0x12b0), .driver_data = BOARD_PCI6534 },
+	{ PCI_VDEVICE(NI, 0x1320), .driver_data = BOARD_PXI6533 },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, ni_pcidio_pci_table);
 

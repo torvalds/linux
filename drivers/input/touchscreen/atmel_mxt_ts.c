@@ -275,8 +275,8 @@ struct mxt_cfg {
 	off_t raw_pos;
 
 	u8 *mem;
-	size_t mem_size;
-	int start_ofs;
+	u16 mem_size;
+	u16 start_ofs;
 
 	struct mxt_info info;
 };
@@ -1397,7 +1397,8 @@ static int mxt_prepare_cfg_mem(struct mxt_data *data, struct mxt_cfg *cfg)
 {
 	struct device *dev = &data->client->dev;
 	struct mxt_object *object;
-	unsigned int type, instance, size, byte_offset;
+	unsigned int type, instance, size;
+	int byte_offset;
 	int offset;
 	int ret;
 	int i;
@@ -1473,7 +1474,7 @@ static int mxt_prepare_cfg_mem(struct mxt_data *data, struct mxt_cfg *cfg)
 			}
 			cfg->raw_pos += offset;
 
-			if (i > mxt_obj_size(object))
+			if (i >= mxt_obj_size(object))
 				continue;
 
 			byte_offset = reg + i - cfg->start_ofs;
@@ -1627,6 +1628,13 @@ static int mxt_update_cfg(struct mxt_data *data, const struct firmware *fw)
 	cfg.start_ofs = MXT_OBJECT_START +
 			data->info->object_num * sizeof(struct mxt_object) +
 			MXT_INFO_CHECKSUM_SIZE;
+
+	if (data->mem_size <= cfg.start_ofs) {
+		dev_err(dev, "Memory size too small: %u < %u\n",
+			data->mem_size, cfg.start_ofs);
+		return -EINVAL;
+	}
+
 	cfg.mem_size = data->mem_size - cfg.start_ofs;
 
 	u8 *mem_buf __free(kfree) = cfg.mem = kzalloc(cfg.mem_size, GFP_KERNEL);
@@ -2833,14 +2841,12 @@ static ssize_t mxt_object_show(struct device *dev,
 	int count = 0;
 	int i, j;
 	int error;
-	u8 *obuf;
 
 	/* Pre-allocate buffer large enough to hold max sized object. */
-	obuf = kmalloc(256, GFP_KERNEL);
+	u8 *obuf __free(kfree) = kmalloc(256, GFP_KERNEL);
 	if (!obuf)
 		return -ENOMEM;
 
-	error = 0;
 	for (i = 0; i < data->info->object_num; i++) {
 		object = data->object_table + i;
 
@@ -2855,15 +2861,13 @@ static ssize_t mxt_object_show(struct device *dev,
 
 			error = __mxt_read_reg(data->client, addr, size, obuf);
 			if (error)
-				goto done;
+				return error;
 
 			count = mxt_show_instance(buf, count, object, j, obuf);
 		}
 	}
 
-done:
-	kfree(obuf);
-	return error ?: count;
+	return count;
 }
 
 static int mxt_check_firmware_format(struct device *dev,
@@ -3413,11 +3417,11 @@ MODULE_DEVICE_TABLE(acpi, mxt_acpi_id);
 #endif
 
 static const struct i2c_device_id mxt_id[] = {
-	{ "qt602240_ts" },
-	{ "atmel_mxt_ts" },
-	{ "atmel_mxt_tp" },
-	{ "maxtouch" },
-	{ "mXT224" },
+	{ .name = "qt602240_ts" },
+	{ .name = "atmel_mxt_ts" },
+	{ .name = "atmel_mxt_tp" },
+	{ .name = "maxtouch" },
+	{ .name = "mXT224" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mxt_id);

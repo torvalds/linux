@@ -77,6 +77,50 @@ struct ceph_fs_client;
 struct ceph_cap;
 
 #define MDS_AUTH_UID_ANY -1
+#define CEPH_CAP_FLUSH_WAIT_TIMEOUT_SEC 60
+#define CEPH_CAP_FLUSH_MAX_DUMP_ENTRIES 5
+#define CEPH_CAP_FLUSH_MAX_DUMP_ITERS 5
+#define CEPH_CLIENT_RESET_REASON_LEN	64
+#define CEPH_CLIENT_RESET_DRAIN_SEC	30
+#define CEPH_CLIENT_RESET_CLOSE_GRACE_MS 100
+#define CEPH_CLIENT_RESET_WAIT_TIMEOUT_SEC 120
+
+enum ceph_client_reset_phase {
+	CEPH_CLIENT_RESET_IDLE = 0,
+	/*
+	 * QUIESCING is set synchronously by schedule_reset() before the
+	 * workqueue item is dispatched.  It gates new requests (any
+	 * phase != IDLE blocks callers) during the window between
+	 * scheduling and the work function's transition to DRAINING.
+	 */
+	CEPH_CLIENT_RESET_QUIESCING,
+	CEPH_CLIENT_RESET_DRAINING,
+	CEPH_CLIENT_RESET_TEARDOWN,
+};
+
+struct ceph_client_reset_state {
+	spinlock_t lock;		/* protects all fields below */
+	u64 trigger_count;		/* number of resets triggered */
+	u64 success_count;		/* number of successful resets */
+	u64 failure_count;		/* number of failed resets */
+	unsigned long last_start;	/* jiffies when last reset started */
+	unsigned long last_finish;	/* jiffies when last reset finished */
+	int last_errno;			/* result of most recent reset */
+	enum ceph_client_reset_phase phase; /* current reset phase */
+	bool drain_timed_out;		/* drain exceeded timeout */
+	bool shutdown;			/* destroy in progress */
+	int sessions_reset;		/* sessions torn down in last reset */
+	char last_reason[CEPH_CLIENT_RESET_REASON_LEN]; /* operator-supplied reason */
+
+	/* Request blocking during reset */
+	wait_queue_head_t blocked_wq;	/* waitqueue for blocked callers */
+	atomic_t blocked_requests;	/* count of blocked callers */
+};
+
+static inline bool ceph_reset_is_idle(struct ceph_client_reset_state *st)
+{
+	return READ_ONCE(st->phase) == CEPH_CLIENT_RESET_IDLE;
+}
 
 struct ceph_mds_cap_match {
 	s64 uid;  /* default to MDS_AUTH_UID_ANY */
@@ -540,6 +584,8 @@ struct ceph_mds_client {
 	struct list_head  dentry_dir_leases; /* lru list */
 
 	struct ceph_client_metric metric;
+	struct work_struct	reset_work;
+	struct ceph_client_reset_state reset_state;
 	struct ceph_subvolume_metrics_tracker subvol_metrics;
 
 	/* Subvolume metrics send tracking */
@@ -571,10 +617,14 @@ extern struct ceph_mds_session *
 __ceph_lookup_mds_session(struct ceph_mds_client *, int mds);
 
 extern const char *ceph_session_state_name(int s);
+extern const char *ceph_reset_phase_name(enum ceph_client_reset_phase phase);
 
 extern struct ceph_mds_session *
 ceph_get_mds_session(struct ceph_mds_session *s);
 extern void ceph_put_mds_session(struct ceph_mds_session *s);
+int ceph_mdsc_schedule_reset(struct ceph_mds_client *mdsc,
+			     const char *reason);
+int ceph_mdsc_wait_for_reset(struct ceph_mds_client *mdsc);
 
 extern int ceph_mdsc_init(struct ceph_fs_client *fsc);
 extern void ceph_mdsc_close_sessions(struct ceph_mds_client *mdsc);
@@ -670,7 +720,7 @@ static inline int ceph_wait_on_async_create(struct inode *inode)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
 
-	return wait_on_bit(&ci->i_ceph_flags, CEPH_ASYNC_CREATE_BIT,
+	return wait_on_bit(&ci->i_ceph_flags, CEPH_I_ASYNC_CREATE_BIT,
 			   TASK_KILLABLE);
 }
 

@@ -26,6 +26,9 @@ properties:
   vdd-supply: true
   vddio-supply: true
 
+  mount-matrix:
+    description: an optional 3x3 mounting rotation matrix.
+
   spi-max-frequency:
     maximum: 10000000
 
@@ -56,6 +59,9 @@ examples:
             reg = <0x69>;
             interrupt-parent = <&gpio6>;
             interrupts = <18 IRQ_TYPE_EDGE_RISING>;
+            mount-matrix = "0", "1", "0",
+                           "1", "0", "0",
+                           "0", "0", "1";
         };
     };
 ...

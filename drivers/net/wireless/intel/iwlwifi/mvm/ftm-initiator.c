@@ -261,20 +261,28 @@ iwl_mvm_ftm_target_chandef_v2(struct iwl_mvm *mvm,
 
 	switch (peer->chandef.width) {
 	case NL80211_CHAN_WIDTH_20_NOHT:
-		*format_bw = IWL_LOCATION_FRAME_FORMAT_LEGACY;
-		*format_bw |= IWL_LOCATION_BW_20MHZ << LOCATION_BW_POS;
+		*format_bw = u8_encode_bits(IWL_LOCATION_FRAME_FORMAT_LEGACY,
+					    IWL_LOCATION_FMT_BW_FORMAT);
+		*format_bw |= u8_encode_bits(IWL_LOCATION_BW_20MHZ,
+					     IWL_LOCATION_FMT_BW_BANDWIDTH);
 		break;
 	case NL80211_CHAN_WIDTH_20:
-		*format_bw = IWL_LOCATION_FRAME_FORMAT_HT;
-		*format_bw |= IWL_LOCATION_BW_20MHZ << LOCATION_BW_POS;
+		*format_bw = u8_encode_bits(IWL_LOCATION_FRAME_FORMAT_HT,
+					    IWL_LOCATION_FMT_BW_FORMAT);
+		*format_bw |= u8_encode_bits(IWL_LOCATION_BW_20MHZ,
+					     IWL_LOCATION_FMT_BW_BANDWIDTH);
 		break;
 	case NL80211_CHAN_WIDTH_40:
-		*format_bw = IWL_LOCATION_FRAME_FORMAT_HT;
-		*format_bw |= IWL_LOCATION_BW_40MHZ << LOCATION_BW_POS;
+		*format_bw = u8_encode_bits(IWL_LOCATION_FRAME_FORMAT_HT,
+					    IWL_LOCATION_FMT_BW_FORMAT);
+		*format_bw |= u8_encode_bits(IWL_LOCATION_BW_40MHZ,
+					     IWL_LOCATION_FMT_BW_BANDWIDTH);
 		break;
 	case NL80211_CHAN_WIDTH_80:
-		*format_bw = IWL_LOCATION_FRAME_FORMAT_VHT;
-		*format_bw |= IWL_LOCATION_BW_80MHZ << LOCATION_BW_POS;
+		*format_bw = u8_encode_bits(IWL_LOCATION_FRAME_FORMAT_VHT,
+					    IWL_LOCATION_FMT_BW_FORMAT);
+		*format_bw |= u8_encode_bits(IWL_LOCATION_BW_80MHZ,
+					     IWL_LOCATION_FMT_BW_BANDWIDTH);
 		break;
 	case NL80211_CHAN_WIDTH_160:
 		cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
@@ -282,8 +290,10 @@ iwl_mvm_ftm_target_chandef_v2(struct iwl_mvm *mvm,
 						IWL_FW_CMD_VER_UNKNOWN);
 
 		if (cmd_ver >= 13) {
-			*format_bw = IWL_LOCATION_FRAME_FORMAT_HE;
-			*format_bw |= IWL_LOCATION_BW_160MHZ << LOCATION_BW_POS;
+			*format_bw = u8_encode_bits(IWL_LOCATION_FRAME_FORMAT_HE,
+						    IWL_LOCATION_FMT_BW_FORMAT);
+			*format_bw |= u8_encode_bits(IWL_LOCATION_BW_160MHZ,
+						     IWL_LOCATION_FMT_BW_BANDWIDTH);
 			break;
 		}
 		fallthrough;

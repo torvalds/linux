@@ -56,8 +56,7 @@ static int ncp5623_brightness_set(struct led_classdev *cdev,
 	for (int i = 0; i < mc_cdev->num_colors; i++) {
 		ret = ncp5623_write(ncp->client,
 				    NCP5623_PWM_REG(mc_cdev->subled_info[i].channel),
-				    min(mc_cdev->subled_info[i].intensity,
-					NCP5623_MAX_BRIGHTNESS));
+				    mc_cdev->subled_info[i].intensity);
 		if (ret)
 			return ret;
 	}
@@ -190,6 +189,7 @@ static int ncp5623_probe(struct i2c_client *client)
 			goto release_led_node;
 
 		subled_info[ncp->mc_dev.num_colors].channel = reg;
+		subled_info[ncp->mc_dev.num_colors].max_intensity = NCP5623_MAX_BRIGHTNESS;
 		subled_info[ncp->mc_dev.num_colors++].color_index = color_index;
 	}
 

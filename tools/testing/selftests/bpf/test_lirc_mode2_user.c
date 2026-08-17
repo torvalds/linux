@@ -50,8 +50,8 @@ int main(int argc, char **argv)
 {
 	struct bpf_object *obj;
 	int ret, lircfd, progfd, inputfd;
-	int testir1 = 0x1dead;
-	int testir2 = 0x20101;
+	int testir1 = 0x1ead;
+	int testir2 = 0x2101;
 	u32 prog_ids[10], prog_flags[10], prog_cnt;
 
 	if (argc != 3) {
@@ -125,7 +125,7 @@ int main(int argc, char **argv)
 		}
 
 		if (event.type == EV_MSC && event.code == MSC_SCAN &&
-		    event.value == 0xdead) {
+		    event.value == 0x1ead) {
 			break;
 		}
 	}

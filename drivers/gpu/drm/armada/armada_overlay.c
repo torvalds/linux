@@ -69,7 +69,7 @@ static inline u32 armada_csc(struct drm_plane_state *state)
 
 /* === Plane support === */
 static void armada_drm_overlay_plane_atomic_update(struct drm_plane *plane,
-	struct drm_atomic_state *state)
+	struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
 									   plane);
@@ -220,7 +220,7 @@ static void armada_drm_overlay_plane_atomic_update(struct drm_plane *plane,
 }
 
 static void armada_drm_overlay_plane_atomic_disable(struct drm_plane *plane,
-	struct drm_atomic_state *state)
+	struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
 									   plane);
@@ -262,7 +262,7 @@ armada_overlay_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	uint32_t src_x, uint32_t src_y, uint32_t src_w, uint32_t src_h,
 	struct drm_modeset_acquire_ctx *ctx)
 {
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_plane_state *plane_state;
 	int ret = 0;
 
@@ -270,7 +270,7 @@ armada_overlay_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 				 crtc_x, crtc_y, crtc_w, crtc_h,
 				 src_x, src_y, src_w, src_h);
 
-	state = drm_atomic_state_alloc(plane->dev);
+	state = drm_atomic_commit_alloc(plane->dev);
 	if (!state)
 		return -ENOMEM;
 
@@ -297,7 +297,7 @@ armada_overlay_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	ret = drm_atomic_nonblocking_commit(state);
 fail:
-	drm_atomic_state_put(state);
+	drm_atomic_commit_put(state);
 	return ret;
 }
 

@@ -248,22 +248,75 @@ config SLUB_STATS
 	  out which slabs are relevant to a particular load.
 	  Try running: slabinfo -DA
 
-config RANDOM_KMALLOC_CACHES
-	default n
+config KMALLOC_PARTITION_CACHES
 	depends on !SLUB_TINY
-	bool "Randomize slab caches for normal kmalloc"
+	bool "Partitioned slab caches for normal kmalloc"
+	default RANDOM_KMALLOC_CACHES
 	help
-	  A hardening feature that creates multiple copies of slab caches for
-	  normal kmalloc allocation and makes kmalloc randomly pick one based
-	  on code address, which makes the attackers more difficult to spray
-	  vulnerable memory objects on the heap for the purpose of exploiting
-	  memory vulnerabilities.
+	  A hardening feature that creates multiple isolated copies of slab
+	  caches for normal kmalloc allocations. This makes it more difficult
+	  to exploit memory-safety vulnerabilities by attacking vulnerable
+	  co-located memory objects. Several modes are provided.
 
 	  Currently the number of copies is set to 16, a reasonably large value
 	  that effectively diverges the memory objects allocated for different
 	  subsystems or modules into different caches, at the expense of a
-	  limited degree of memory and CPU overhead that relates to hardware and
-	  system workload.
+	  limited degree of memory and CPU overhead that relates to hardware
+	  and system workload.
+
+choice
+	prompt "Partitioned slab cache mode"
+	depends on KMALLOC_PARTITION_CACHES
+	default KMALLOC_PARTITION_TYPED if CC_HAS_ALLOC_TOKEN
+	default KMALLOC_PARTITION_RANDOM
+	help
+	  Selects the slab cache partitioning mode.
+
+config KMALLOC_PARTITION_RANDOM
+	bool "Randomize slab caches for normal kmalloc"
+	help
+	  Randomly pick a slab cache based on code address and a per-boot
+	  random seed.
+
+	  This makes it harder for attackers to predict object co-location.
+	  The placement is random: while attackers don't know which kmalloc
+	  cache an object will be allocated from, they might circumvent
+	  the randomization by retrying attacks across multiple machines until
+	  the target objects are co-located.
+
+config KMALLOC_PARTITION_TYPED
+	bool "Type based slab cache selection for normal kmalloc"
+	depends on CC_HAS_ALLOC_TOKEN
+	help
+	  Rely on Clang's allocation tokens to choose a slab cache, where token
+	  IDs are derived from the allocated type.
+
+	  Unlike KMALLOC_PARTITION_RANDOM, cache assignment is deterministic based
+	  on type, which guarantees that objects of certain types are not
+	  placed in the same cache. This effectively mitigates certain classes
+	  of exploits that probabilistic defenses like KMALLOC_PARTITION_RANDOM
+	  only make harder but not impossible. However, this also means the
+	  cache assignment is predictable.
+
+	  Clang's default token ID calculation returns a bounded hash with
+	  disjoint ranges for pointer-containing and pointerless objects: when
+	  used as the slab cache index, this prevents buffer overflows on
+	  primitive buffers from directly corrupting pointer-containing
+	  objects.
+
+	  The current effectiveness of Clang's type inference can be judged by
+	  -Rpass=alloc-token, which provides diagnostics where (after dead-code
+	  elimination) type inference failed.
+
+	  Requires Clang 22 or later.
+
+endchoice
+
+config RANDOM_KMALLOC_CACHES
+	bool
+	transitional
+	help
+	  Transitional config for migration to KMALLOC_PARTITION_CACHES.
 
 endmenu # Slab allocator options
 
@@ -537,7 +590,7 @@ endchoice
 
 config MEMORY_HOTREMOVE
 	bool "Allow for memory hot remove"
-	select HAVE_BOOTMEM_INFO_NODE if (X86_64 || PPC64)
+	select HAVE_BOOTMEM_INFO_NODE if X86_64
 	depends on MEMORY_HOTPLUG
 	select MIGRATION
 
@@ -810,7 +863,6 @@ if TRANSPARENT_HUGEPAGE
 
 choice
 	prompt "Transparent Hugepage Support sysfs defaults"
-	depends on TRANSPARENT_HUGEPAGE
 	default TRANSPARENT_HUGEPAGE_ALWAYS
 	help
 	  Selects the sysfs defaults for Transparent Hugepage Support.
@@ -840,7 +892,6 @@ endchoice
 
 choice
 	prompt "Shmem hugepage allocation defaults"
-	depends on TRANSPARENT_HUGEPAGE
 	default TRANSPARENT_HUGEPAGE_SHMEM_HUGE_NEVER
 	help
 	  Selects the hugepage allocation policy defaults for
@@ -886,7 +937,6 @@ endchoice
 
 choice
 	prompt "Tmpfs hugepage allocation defaults"
-	depends on TRANSPARENT_HUGEPAGE
 	default TRANSPARENT_HUGEPAGE_TMPFS_HUGE_NEVER
 	help
 	  Selects the hugepage allocation policy defaults for
@@ -931,24 +981,13 @@ endchoice
 
 config THP_SWAP
 	def_bool y
-	depends on TRANSPARENT_HUGEPAGE && ARCH_WANTS_THP_SWAP && SWAP && 64BIT
+	depends on ARCH_WANTS_THP_SWAP && SWAP && 64BIT
 	help
 	  Swap transparent huge pages in one piece, without splitting.
 	  XXX: For now, swap cluster backing transparent huge page
 	  will be split after swapout.
 
 	  For selection by architectures with reasonable THP sizes.
-
-config READ_ONLY_THP_FOR_FS
-	bool "Read-only THP for filesystems (EXPERIMENTAL)"
-	depends on TRANSPARENT_HUGEPAGE
-
-	help
-	  Allow khugepaged to put read-only file-backed pages in THP.
-
-	  This is marked experimental because it is a new feature. Write
-	  support of file THPs will be developed in the next few release
-	  cycles.
 
 config NO_PAGE_MAPCOUNT
 	bool "No per-page mapcount (EXPERIMENTAL)"
@@ -1303,7 +1342,7 @@ config ARCH_HAS_PTE_SPECIAL
 	bool
 
 config MAPPING_DIRTY_HELPERS
-        bool
+	bool
 
 config KMAP_LOCAL
 	bool
@@ -1434,7 +1473,7 @@ config ARCH_HAS_USER_SHADOW_STACK
 	bool
 	help
 	  The architecture has hardware support for userspace shadow call
-          stacks (eg, x86 CET, arm64 GCS or RISC-V Zicfiss).
+	  stacks (eg, x86 CET, arm64 GCS or RISC-V Zicfiss).
 
 config HAVE_ARCH_TLB_REMOVE_TABLE
 	def_bool n

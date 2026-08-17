@@ -614,8 +614,8 @@ static int sh_tmu_probe(struct platform_device *pdev)
 }
 
 static const struct platform_device_id sh_tmu_id_table[] = {
-	{ "sh-tmu", SH_TMU },
-	{ "sh-tmu-sh3", SH_TMU_SH3 },
+	{ .name = "sh-tmu", .driver_data = SH_TMU },
+	{ .name = "sh-tmu-sh3", .driver_data = SH_TMU_SH3 },
 	{ }
 };
 MODULE_DEVICE_TABLE(platform, sh_tmu_id_table);

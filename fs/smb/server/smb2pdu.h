@@ -23,7 +23,7 @@
 #define MAX_SMB2_HDR_SIZE 0x78 /* 4 len + 64 hdr + (2*24 wct) + 2 bct + 2 pad */
 
 #define SMB21_DEFAULT_IOSIZE	(1024 * 1024)
-#define SMB3_DEFAULT_TRANS_SIZE	(1024 * 1024)
+#define SMB3_DEFAULT_TRANS_SIZE	(4 * 1024 * 1024)
 #define SMB3_MIN_IOSIZE		(64 * 1024)
 #define SMB3_MAX_IOSIZE		(8 * 1024 * 1024)
 #define SMB3_MAX_MSGSIZE	(4 * 4096)
@@ -229,9 +229,6 @@ struct smb2_file_pos_info {
 struct smb2_file_mode_info {
 	__le32 Mode;
 } __packed;
-
-#define COMPRESSION_FORMAT_NONE 0x0000
-#define COMPRESSION_FORMAT_LZNT1 0x0002
 
 struct smb2_file_comp_info {
 	__le64 CompressedFileSize;

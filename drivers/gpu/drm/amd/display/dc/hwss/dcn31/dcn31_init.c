@@ -98,6 +98,7 @@ static const struct hw_sequencer_funcs dcn31_funcs = {
 	.set_flip_control_gsl = dcn20_set_flip_control_gsl,
 	.get_vupdate_offset_from_vsync = dcn10_get_vupdate_offset_from_vsync,
 	.calc_vupdate_position = dcn10_calc_vupdate_position,
+	.setup_hdmi_frl_link = dcn30_setup_hdmi_frl_link,
 	.set_backlight_level = dcn21_set_backlight_level,
 	.set_abm_immediate_disable = dcn21_set_abm_immediate_disable,
 	.set_pipe = dcn21_set_pipe,
@@ -147,6 +148,8 @@ static const struct hwseq_private_funcs dcn31_private_funcs = {
 	.set_blend_lut = dcn30_set_blend_lut,
 	.set_shaper_3dlut = dcn20_set_shaper_3dlut,
 	.setup_hpo_hw_control = dcn31_setup_hpo_hw_control,
+	.wait_for_pipe_update_if_needed = dcn10_wait_for_pipe_update_if_needed,
+	.set_wait_for_update_needed_for_pipe = dcn10_set_wait_for_update_needed_for_pipe,
 };
 
 void dcn31_hw_sequencer_construct(struct dc *dc)

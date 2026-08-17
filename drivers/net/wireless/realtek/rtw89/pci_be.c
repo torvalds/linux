@@ -83,6 +83,17 @@ static void _patch_pcie_power_wake_be(struct rtw89_dev *rtwdev, bool power_up)
 		rtw89_write32_clr(rtwdev, R_BE_HCI_OPT_CTRL, BIT_WAKE_CTRL_V1);
 }
 
+static void _patch_pre_init_be(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+
+	if (!(rtwdev->chip->chip_id == RTL8922D && hal->cid == RTL8922D_CID7090))
+		return;
+
+	rtw89_write16_clr(rtwdev, R_RAC_DIRECT_OFFSET_BE_LANE0_G2 +
+				  RAC_ANA14 * RAC_MULT, EIEOS_L1SS_WAIT_CLKRDY);
+}
+
 static void rtw89_pci_set_io_rcy_be(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_pci_info *info = rtwdev->pci_info;
@@ -336,6 +347,7 @@ static void rtw89_pci_pcie_setting_be(struct rtw89_dev *rtwdev)
 
 	rtw89_write32_set(rtwdev, R_BE_RSV_CTRL, B_BE_R_SYM_PRST_CPHY_RST);
 	rtw89_write32_set(rtwdev, R_BE_SYS_PW_CTRL, B_BE_USUS_OFFCAPC_EN);
+	rtw89_write32(rtwdev, R_BE_PCIE_HCI2FW_ISR, 0xFFFFFFFF);
 }
 
 static void rtw89_pci_ser_setting_be(struct rtw89_dev *rtwdev)
@@ -475,6 +487,7 @@ static int rtw89_pci_ops_mac_pre_init_be(struct rtw89_dev *rtwdev)
 
 	rtw89_pci_set_io_rcy_be(rtwdev);
 	_patch_pcie_power_wake_be(rtwdev, true);
+	_patch_pre_init_be(rtwdev);
 	rtw89_pci_ctrl_wpdma_pcie_be(rtwdev, false);
 	rtw89_pci_ctrl_trxdma_pcie_be(rtwdev, MAC_AX_PCIE_DISABLE,
 				      MAC_AX_PCIE_DISABLE, MAC_AX_PCIE_DISABLE);
@@ -831,6 +844,8 @@ clear_phy_isr:
 			rtw89_write16_set(rtwdev, RAC_DIRECT_OFFESET_L0_G1 +
 						  RAC_ANA41 * RAC_MULT, PHY_ERR_FLAG_EN);
 		}
+
+		rtw89_write32(rtwdev, R_BE_PCIE_HCI2FW_ISR, 0xFFFFFFFF);
 	}
 
 	rtw89_pci_basic_cfg(rtwdev, true);

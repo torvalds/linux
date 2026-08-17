@@ -39,6 +39,11 @@ struct pinctrl_pin_desc;
 					fname##_groups,		\
 					ARRAY_SIZE(fname##_groups))
 
+#define QCA_GPIO_PIN_FUNCTION(fname)				\
+	[qca_mux_##fname] = PINCTRL_GPIO_PINFUNCTION(#fname,	\
+					fname##_groups,		\
+					ARRAY_SIZE(fname##_groups))
+
 /**
  * struct msm_pingroup - Qualcomm pingroup definition
  * @grp:                  Generic data of the pin group (name and pins)

@@ -25,6 +25,7 @@
 			       NFC_PROTO_FELICA_MASK | \
 			       NFC_PROTO_ISO14443_MASK | \
 			       NFC_PROTO_ISO14443_B_MASK | \
+			       NFC_PROTO_ISO15693_MASK | \
 			       NFC_PROTO_NFC_DEP_MASK)
 
 #define NXP_NCI_RF_PLL_UNLOCKED_NTF nci_opcode_pack(NCI_GID_RF_MGMT, 0x21)

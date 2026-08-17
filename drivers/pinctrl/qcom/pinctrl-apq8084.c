@@ -1198,6 +1198,7 @@ static const struct of_device_id apq8084_pinctrl_of_match[] = {
 	{ .compatible = "qcom,apq8084-pinctrl", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, apq8084_pinctrl_of_match);
 
 static struct platform_driver apq8084_pinctrl_driver = {
 	.driver = {
@@ -1221,4 +1222,3 @@ module_exit(apq8084_pinctrl_exit);
 
 MODULE_DESCRIPTION("Qualcomm APQ8084 pinctrl driver");
 MODULE_LICENSE("GPL v2");
-MODULE_DEVICE_TABLE(of, apq8084_pinctrl_of_match);

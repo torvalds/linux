@@ -50,4 +50,20 @@ bool dcn32_link_encoder_is_in_alt_mode(struct link_encoder *enc);
 void dcn32_link_encoder_get_max_link_cap(struct link_encoder *enc,
 	struct dc_link_settings *link_settings);
 
+void dpcs32_program_eq_setting(
+		struct link_encoder *enc,
+		uint8_t FFE_Level,
+		bool de_emphasis_only,
+		bool pre_shoot_only,
+		bool no_ffe,
+		const struct dc_hdmi_frl_link_settings *link_settings);
+
+void dpcs32_get_txffe(
+		struct link_encoder *enc,
+		struct frl_txffe *lane_settings);
+
+void dpcs32_set_txffe(
+		struct link_encoder *enc,
+		struct frl_txffe *lane_settings);
+
 #endif /* __DC_LINK_ENCODER__DCN32_H__ */

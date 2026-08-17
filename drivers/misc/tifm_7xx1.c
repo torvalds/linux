@@ -400,12 +400,9 @@ static void tifm_7xx1_remove(struct pci_dev *dev)
 }
 
 static const struct pci_device_id tifm_7xx1_pci_tbl[] = {
-	{ PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_XX21_XX11_FM, PCI_ANY_ID,
-	  PCI_ANY_ID, 0, 0, 0 }, /* xx21 - the one I have */
-        { PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_XX12_FM, PCI_ANY_ID,
-	  PCI_ANY_ID, 0, 0, 0 },
-	{ PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_XX20_FM, PCI_ANY_ID,
-	  PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VDEVICE(TI, PCI_DEVICE_ID_TI_XX21_XX11_FM) }, /* xx21 - the one I have */
+	{ PCI_VDEVICE(TI, PCI_DEVICE_ID_TI_XX12_FM) },
+	{ PCI_VDEVICE(TI, PCI_DEVICE_ID_TI_XX20_FM) },
 	{ }
 };
 

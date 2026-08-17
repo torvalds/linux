@@ -115,7 +115,6 @@ struct fw_blobs_by_type {
 #define XE_GT_TYPE_ANY XE_GT_TYPE_UNINITIALIZED
 
 #define XE_GUC_FIRMWARE_DEFS(fw_def, mmp_ver, major_ver)					\
-	fw_def(NOVALAKE_S,	GT_TYPE_ANY,	mmp_ver(xe,	guc,	nvl,	70, 55, 4))	\
 	fw_def(PANTHERLAKE,	GT_TYPE_ANY,	major_ver(xe,	guc,	ptl,	70, 54, 0))	\
 	fw_def(BATTLEMAGE,	GT_TYPE_ANY,	major_ver(xe,	guc,	bmg,	70, 54, 0))	\
 	fw_def(LUNARLAKE,	GT_TYPE_ANY,	major_ver(xe,	guc,	lnl,	70, 53, 0))	\
@@ -213,6 +212,17 @@ static struct xe_device *uc_fw_to_xe(struct xe_uc_fw *uc_fw)
 {
 	return gt_to_xe(uc_fw_to_gt(uc_fw));
 }
+
+#if IS_ENABLED(CONFIG_DRM_XE_DEBUG_GUC)
+void xe_uc_fw_change_status(struct xe_uc_fw *uc_fw, enum xe_uc_fw_status status)
+{
+	xe_gt_dbg(uc_fw_to_gt(uc_fw), "%s %s->%s\n",
+		  xe_uc_fw_type_repr(uc_fw->type),
+		  xe_uc_fw_status_repr(uc_fw->status),
+		  xe_uc_fw_status_repr(status));
+	uc_fw->__status = status;
+}
+#endif
 
 static void
 uc_fw_auto_select(struct xe_device *xe, struct xe_uc_fw *uc_fw)

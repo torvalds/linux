@@ -702,7 +702,7 @@ static struct dma_fence *
 msm_vma_job_run(struct drm_sched_job *_job)
 {
 	struct msm_vm_bind_job *job = to_msm_vm_bind_job(_job);
-	struct msm_drm_private *priv = job->vm->drm->dev_private;
+	struct drm_device *dev = job->vm->drm;
 	struct msm_gem_vm *vm = to_msm_vm(job->vm);
 	struct drm_gem_object *obj;
 	int ret = vm->unusable ? -EINVAL : 0;
@@ -745,13 +745,13 @@ msm_vma_job_run(struct drm_sched_job *_job)
 	if (ret)
 		msm_gem_vm_unusable(job->vm);
 
-	mutex_lock(&priv->lru.lock);
+	mutex_lock(&dev->gem_lru_mutex);
 
 	job_foreach_bo (obj, job) {
 		msm_gem_unpin_active(obj);
 	}
 
-	mutex_unlock(&priv->lru.lock);
+	mutex_unlock(&dev->gem_lru_mutex);
 
 	/* VM_BIND ops are synchronous, so no fence to wait on: */
 	return NULL;
@@ -841,7 +841,6 @@ msm_gem_vm_create(struct drm_device *drm, struct msm_mmu *mmu, const char *name,
 	if (!managed) {
 		struct drm_sched_init_args args = {
 			.ops = &msm_vm_bind_ops,
-			.num_rqs = 1,
 			.credit_limit = 1,
 			.timeout = MAX_SCHEDULE_TIMEOUT,
 			.name = "msm-vm-bind",
@@ -1305,7 +1304,7 @@ vm_bind_job_pin_objects(struct msm_vm_bind_job *job)
 			return PTR_ERR(pages);
 	}
 
-	struct msm_drm_private *priv = job->vm->drm->dev_private;
+	struct drm_device *dev = job->vm->drm;
 
 	/*
 	 * A second loop while holding the LRU lock (a) avoids acquiring/dropping
@@ -1314,10 +1313,10 @@ vm_bind_job_pin_objects(struct msm_vm_bind_job *job)
 	 * get_pages() which could trigger reclaim.. and if we held the LRU lock
 	 * could trigger deadlock with the shrinker).
 	 */
-	mutex_lock(&priv->lru.lock);
+	mutex_lock(&dev->gem_lru_mutex);
 	job_foreach_bo (obj, job)
 		msm_gem_pin_obj_locked(obj);
-	mutex_unlock(&priv->lru.lock);
+	mutex_unlock(&dev->gem_lru_mutex);
 
 	job->bos_pinned = true;
 

@@ -943,7 +943,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 /* this function is called at probe and resume time */
 static int sd_init(struct gspca_dev *gspca_dev)
 {
-	const __u8 stop = 0x09; /* Disable stream turn of LED */
+	const __u8 stop = 0x09; /* Disable stream, turn off LED */
 
 	reg_w(gspca_dev, 0x01, &stop, 1);
 

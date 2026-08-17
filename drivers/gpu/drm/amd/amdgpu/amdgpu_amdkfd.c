@@ -36,6 +36,9 @@
 #include "amdgpu_ras.h"
 #include "amdgpu_umc.h"
 #include "amdgpu_reset.h"
+#if IS_ENABLED(CONFIG_HSA_AMD)
+#include "kfd_priv.h"
+#endif
 
 /* Total memory size in system memory and all GPU VRAM. Used to
  * estimate worst case amount of memory to reserve for page tables
@@ -320,6 +323,28 @@ void amdgpu_amdkfd_gpu_reset(struct amdgpu_device *adev)
 		(void)amdgpu_reset_domain_schedule(adev->reset_domain, &adev->kfd.reset_work);
 }
 
+void amdgpu_amdkfd_clear_kfd_mapping(struct amdgpu_device *adev)
+{
+#if IS_ENABLED(CONFIG_HSA_AMD)
+	struct kfd_dev *kfd = adev->kfd.dev;
+	unsigned int i;
+
+	if (!kfd)
+		return;
+
+	for (i = 0; i < kfd->num_nodes; i++) {
+		struct kfd_node *node = kfd->nodes[i];
+
+		kfd_dev_unmap_mapping_range(KFD_MMAP_TYPE_DOORBELL |
+					    KFD_MMAP_GPU_ID(node->id),
+					    kfd_doorbell_process_slice(kfd));
+		kfd_dev_unmap_mapping_range(KFD_MMAP_TYPE_MMIO |
+					    KFD_MMAP_GPU_ID(node->id),
+					    PAGE_SIZE);
+	}
+#endif
+}
+
 int amdgpu_amdkfd_alloc_kernel_mem(struct amdgpu_device *adev, size_t size,
 				u32 domain, void **mem_obj, uint64_t *gpu_addr,
 				void **cpu_ptr, bool cp_mqd_gfx9)
@@ -533,7 +558,7 @@ uint32_t amdgpu_amdkfd_get_max_engine_clock_in_mhz(struct amdgpu_device *adev)
 
 int amdgpu_amdkfd_get_dmabuf_info(struct amdgpu_device *adev, int dma_buf_fd,
 				  struct amdgpu_device **dmabuf_adev,
-				  uint64_t *bo_size, void *metadata_buffer,
+				  uint64_t *bo_size, void **metadata_buffer,
 				  size_t buffer_size, uint32_t *metadata_size,
 				  uint32_t *flags, int8_t *xcp_id)
 {
@@ -568,9 +593,24 @@ int amdgpu_amdkfd_get_dmabuf_info(struct amdgpu_device *adev, int dma_buf_fd,
 		*dmabuf_adev = adev;
 	if (bo_size)
 		*bo_size = amdgpu_bo_size(bo);
-	if (metadata_buffer)
-		r = amdgpu_bo_get_metadata(bo, metadata_buffer, buffer_size,
-					   metadata_size, &metadata_flags);
+	if (metadata_buffer) {
+		/* first get metadata_size by buffer = NULL */
+		r = amdgpu_bo_get_metadata(bo, NULL, 0,
+					   metadata_size, NULL);
+
+		/* user buf_size is bigger than bo metadata_size
+		 * allocate a buf at kernel space and copy */
+		if (*metadata_size <= buffer_size) {
+			*metadata_buffer = kzalloc(*metadata_size, GFP_KERNEL);
+
+			if (!*metadata_buffer)
+				return -ENOMEM;
+
+			r = amdgpu_bo_get_metadata(bo, *metadata_buffer, *metadata_size,
+						   NULL, &metadata_flags);
+		} else
+			r = -EINVAL;
+	}
 	if (flags) {
 		*flags = (bo->preferred_domains & AMDGPU_GEM_DOMAIN_VRAM) ?
 				KFD_IOC_ALLOC_MEM_FLAGS_VRAM

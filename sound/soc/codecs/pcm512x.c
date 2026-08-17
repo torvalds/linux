@@ -235,7 +235,7 @@ static int pcm512x_overclock_pll_put(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_to_dapm(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct pcm512x_priv *pcm512x = snd_soc_component_get_drvdata(component);
 
 	switch (snd_soc_dapm_get_bias_level(dapm)) {
@@ -264,7 +264,7 @@ static int pcm512x_overclock_dsp_put(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_to_dapm(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct pcm512x_priv *pcm512x = snd_soc_component_get_drvdata(component);
 
 	switch (snd_soc_dapm_get_bias_level(dapm)) {
@@ -293,7 +293,7 @@ static int pcm512x_overclock_dac_put(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_to_dapm(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct pcm512x_priv *pcm512x = snd_soc_component_get_drvdata(component);
 
 	switch (snd_soc_dapm_get_bias_level(dapm)) {
@@ -633,7 +633,7 @@ static int pcm512x_dai_startup_slave(struct snd_pcm_substream *substream,
 	struct regmap *regmap = pcm512x->regmap;
 
 	if (IS_ERR(pcm512x->sclk)) {
-		dev_info(dev, "No SCLK, using BCLK: %ld\n",
+		dev_info_once(dev, "No SCLK, using BCLK: %ld\n",
 			 PTR_ERR(pcm512x->sclk));
 
 		/* Disable reporting of missing SCLK as an error */

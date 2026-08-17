@@ -27,11 +27,24 @@ static LIST_HEAD(leds_lookup_list);
 
 static struct workqueue_struct *leds_wq;
 
+static bool led_trigger_is_hw_controlled(struct led_classdev *led_cdev)
+{
+#ifdef CONFIG_LEDS_TRIGGERS
+	guard(rwsem_read)(&led_cdev->trigger_lock);
+	return led_cdev->trigger && led_cdev->trigger->trigger_type;
+#else
+	return false;
+#endif
+}
+
 static ssize_t brightness_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	unsigned int brightness;
+
+	if (led_trigger_is_hw_controlled(led_cdev))
+		return -ENODATA;
 
 	mutex_lock(&led_cdev->led_access);
 	led_update_brightness(led_cdev);
@@ -249,32 +262,34 @@ static const struct class leds_class = {
 };
 
 /**
- * of_led_get() - request a LED device via the LED framework
- * @np: device node to get the LED device from
+ * fwnode_led_get() - request a LED device via the LED framework
+ * @fwnode: firmware node to get the LED device from
  * @index: the index of the LED
  * @name: the name of the LED used to map it to its function, if present
  *
  * Returns the LED device parsed from the phandle specified in the "leds"
  * property of a device tree node or a negative error-code on failure.
  */
-static struct led_classdev *of_led_get(struct device_node *np, int index,
-				       const char *name)
+static struct led_classdev *fwnode_led_get(struct fwnode_handle *fwnode,
+					   int index, const char *name)
 {
+	struct fwnode_handle *led_node;
 	struct device *led_dev;
-	struct device_node *led_node;
 
 	/*
 	 * For named LEDs, first look up the name in the "led-names" property.
-	 * If it cannot be found, then of_parse_phandle() will propagate the error.
+	 * If it cannot be found, then fwnode_find_reference() will propagate
+	 * the error.
 	 */
 	if (name)
-		index = of_property_match_string(np, "led-names", name);
-	led_node = of_parse_phandle(np, "leds", index);
-	if (!led_node)
-		return ERR_PTR(-ENOENT);
+		index = fwnode_property_match_string(fwnode, "led-names",
+						     name);
+	led_node = fwnode_find_reference(fwnode, "leds", index);
+	if (IS_ERR(led_node))
+		return ERR_CAST(led_node);
 
-	led_dev = class_find_device_by_fwnode(&leds_class, of_fwnode_handle(led_node));
-	of_node_put(led_node);
+	led_dev = class_find_device_by_fwnode(&leds_class, led_node);
+	fwnode_handle_put(led_node);
 
 	return led_module_get(led_dev);
 }
@@ -332,7 +347,7 @@ struct led_classdev *__must_check devm_of_led_get(struct device *dev,
 	if (!dev)
 		return ERR_PTR(-EINVAL);
 
-	led = of_led_get(dev->of_node, index, NULL);
+	led = fwnode_led_get(dev_fwnode(dev), index, NULL);
 	if (IS_ERR(led))
 		return led;
 
@@ -354,7 +369,7 @@ struct led_classdev *led_get(struct device *dev, char *con_id)
 	const char *provider = NULL;
 	struct device *led_dev;
 
-	led_cdev = of_led_get(dev->of_node, -1, con_id);
+	led_cdev = fwnode_led_get(dev_fwnode(dev), -1, con_id);
 	if (!IS_ERR(led_cdev) || PTR_ERR(led_cdev) != -ENOENT)
 		return led_cdev;
 

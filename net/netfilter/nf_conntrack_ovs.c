@@ -12,6 +12,9 @@
 int nf_ct_helper(struct sk_buff *skb, struct nf_conn *ct,
 		 enum ip_conntrack_info ctinfo, u16 proto)
 {
+	int (*helper_cb)(struct sk_buff *skb, unsigned int protoff,
+			 struct nf_conn *ct,
+			 enum ip_conntrack_info conntrackinfo);
 	const struct nf_conntrack_helper *helper;
 	const struct nf_conn_help *help;
 	unsigned int protoff;
@@ -60,7 +63,11 @@ int nf_ct_helper(struct sk_buff *skb, struct nf_conn *ct,
 	if (helper->tuple.dst.protonum != proto)
 		return NF_ACCEPT;
 
-	err = helper->help(skb, protoff, ct, ctinfo);
+	helper_cb = rcu_dereference(helper->help);
+	if (!helper_cb)
+		return NF_ACCEPT;
+
+	err = helper_cb(skb, protoff, ct, ctinfo);
 	if (err != NF_ACCEPT)
 		return err;
 

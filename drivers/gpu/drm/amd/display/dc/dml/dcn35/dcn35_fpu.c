@@ -233,7 +233,7 @@ void dcn35_update_bw_bounding_box_fpu(struct dc *dc,
 	struct clk_limit_table *clk_table = &bw_params->clk_table;
 	struct _vcs_dpi_voltage_scaling_st *clock_limits =
 		dc->scratch.update_bw_bounding_box.clock_limits;
-	int max_dispclk_mhz = 0, max_dppclk_mhz = 0;
+	unsigned int max_dispclk_mhz = 0, max_dppclk_mhz = 0;
 
 	dc_assert_fp_enabled();
 
@@ -357,21 +357,21 @@ void dcn35_update_bw_bounding_box_fpu(struct dc *dc,
 			dc->dml2_options.bbox_overrides.clks_table.num_states =
 				clk_table->num_entries;
 			dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].dcfclk_mhz =
-				clock_limits[i].dcfclk_mhz;
+				(unsigned int)clock_limits[i].dcfclk_mhz;
 			dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].fclk_mhz =
-				clock_limits[i].fabricclk_mhz;
+				(unsigned int)clock_limits[i].fabricclk_mhz;
 			dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].dispclk_mhz =
-				clock_limits[i].dispclk_mhz;
+				(unsigned int)clock_limits[i].dispclk_mhz;
 			dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].dppclk_mhz =
-				clock_limits[i].dppclk_mhz;
+				(unsigned int)clock_limits[i].dppclk_mhz;
 			dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].socclk_mhz =
-				clock_limits[i].socclk_mhz;
+				(unsigned int)clock_limits[i].socclk_mhz;
 			dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].memclk_mhz =
 				clk_table->entries[i].memclk_mhz * clk_table->entries[i].wck_ratio;
 
-			dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].dram_speed_mts = clock_limits[i].dram_speed_mts;
+			dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].dram_speed_mts = (unsigned int)clock_limits[i].dram_speed_mts;
 			dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].dtbclk_mhz =
-				clock_limits[i].dtbclk_mhz;
+				(unsigned int)clock_limits[i].dtbclk_mhz;
 			dc->dml2_options.bbox_overrides.clks_table.num_entries_per_clk.num_dcfclk_levels =
 				clk_table->num_entries;
 			dc->dml2_options.bbox_overrides.clks_table.num_entries_per_clk.num_fclk_levels =
@@ -415,11 +415,11 @@ static bool is_dual_plane(enum surface_pixel_format format)
 static unsigned int micro_sec_to_vert_lines(unsigned int num_us, struct dc_crtc_timing *timing)
 {
 	unsigned int num_lines = 0;
-	unsigned int lines_time_in_ns = 1000.0 *
-			(((float)timing->h_total * 1000.0) /
-			 ((float)timing->pix_clk_100hz / 10.0));
+	double lines_time_in_ns = 1000.0 *
+			(((double)timing->h_total * 1000.0) /
+			 ((double)timing->pix_clk_100hz / 10.0));
 
-	num_lines = dml_ceil(1000.0 * num_us / lines_time_in_ns, 1.0);
+	num_lines = (unsigned int)dml_ceil(1000.0 * num_us / lines_time_in_ns, 1.0);
 
 	return num_lines;
 }
@@ -440,7 +440,8 @@ int dcn35_populate_dml_pipes_from_context_fpu(struct dc *dc,
 					      display_e2e_pipe_params_st *pipes,
 					      enum dc_validate_mode validate_mode)
 {
-	int i, pipe_cnt;
+	unsigned int i;
+	int pipe_cnt;
 	struct resource_context *res_ctx = &context->res_ctx;
 	struct pipe_ctx *pipe = 0;
 	bool upscaled = false;
@@ -550,16 +551,16 @@ int dcn35_populate_dml_pipes_from_context_fpu(struct dc *dc,
 	}
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *cur_pipe = &context->res_ctx.pipe_ctx[i];
 
-		if (!pipe->stream)
+		if (!cur_pipe->stream)
 			continue;
 
-		if (pipe->stream->signal == SIGNAL_TYPE_EDP &&
+		if (cur_pipe->stream->signal == SIGNAL_TYPE_EDP &&
 		    dc->debug.seamless_boot_odm_combine &&
-		    pipe->stream->apply_seamless_boot_optimization) {
+		    cur_pipe->stream->apply_seamless_boot_optimization) {
 
-			if (pipe->stream->apply_boot_odm_mode ==
+			if (cur_pipe->stream->apply_boot_odm_mode ==
 			    dm_odm_combine_policy_2to1) {
 				context->bw_ctx.dml.vba.ODMCombinePolicy =
 					dm_odm_combine_policy_2to1;

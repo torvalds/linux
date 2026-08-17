@@ -1421,8 +1421,8 @@ static void vga16fb_remove(struct platform_device *dev)
 }
 
 static const struct platform_device_id vga16fb_driver_id_table[] = {
-	{"ega-framebuffer", 0},
-	{"vga-framebuffer", 0},
+	{ .name = "ega-framebuffer" },
+	{ .name = "vga-framebuffer" },
 	{ }
 };
 MODULE_DEVICE_TABLE(platform, vga16fb_driver_id_table);

@@ -51,11 +51,11 @@ static void __init m523x_qspi_init(void)
 	u16 par;
 
 	/* setup QSPS pins for QSPI with gpio CS control */
-	writeb(0x1f, MCFGPIO_PAR_QSPI);
+	mcf_write8(0x1f, MCFGPIO_PAR_QSPI);
 	/* and CS2 & CS3 as gpio */
-	par = readw(MCFGPIO_PAR_TIMER);
+	par = mcf_read16(MCFGPIO_PAR_TIMER);
 	par &= 0x3f3f;
-	writew(par, MCFGPIO_PAR_TIMER);
+	mcf_write16(par, MCFGPIO_PAR_TIMER);
 #endif /* IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI) */
 }
 
@@ -68,9 +68,9 @@ static void __init m523x_i2c_init(void)
 
 	/* setup Port AS Pin Assignment Register for I2C */
 	/*  set PASPA0 to SCL and PASPA1 to SDA */
-	par = readb(MCFGPIO_PAR_FECI2C);
+	par = mcf_read8(MCFGPIO_PAR_FECI2C);
 	par |= 0x0f;
-	writeb(par, MCFGPIO_PAR_FECI2C);
+	mcf_write8(par, MCFGPIO_PAR_FECI2C);
 #endif /* IS_ENABLED(CONFIG_I2C_IMX) */
 }
 
@@ -79,7 +79,7 @@ static void __init m523x_i2c_init(void)
 static void __init m523x_fec_init(void)
 {
 	/* Set multi-function pins to ethernet use */
-	writeb(readb(MCFGPIO_PAR_FECI2C) | 0xf0, MCFGPIO_PAR_FECI2C);
+	mcf_write8(read8(MCFGPIO_PAR_FECI2C) | 0xf0, MCFGPIO_PAR_FECI2C);
 }
 
 /***************************************************************************/

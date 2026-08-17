@@ -649,8 +649,8 @@ static int lm78_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id lm78_i2c_id[] = {
-	{ "lm78", lm78 },
-	{ "lm79", lm79 },
+	{ .name = "lm78", .driver_data = lm78 },
+	{ .name = "lm79", .driver_data = lm79 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm78_i2c_id);

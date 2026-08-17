@@ -70,9 +70,8 @@ static int sysfs_kf_seq_show(struct seq_file *sf, void *v)
 	 * The code works fine with PAGE_SIZE return but it's likely to
 	 * indicate truncated result or overflow in normal use cases.
 	 */
-	if (count >= (ssize_t)PAGE_SIZE) {
-		printk("fill_read_buffer: %pS returned bad count\n",
-				ops->show);
+	if (count >= PAGE_SIZE) {
+		WARN(1, "OOB write or bad count %zd at %pS\n", count, ops->show);
 		/* Try to struggle along */
 		count = PAGE_SIZE - 1;
 	}
@@ -120,6 +119,10 @@ static ssize_t sysfs_kf_read(struct kernfs_open_file *of, char *buf,
 	len = ops->show(kobj, of->kn->priv, buf);
 	if (len < 0)
 		return len;
+	if (len >= (ssize_t)PAGE_SIZE) {
+		printk("fill_read_buffer: %pS returned bad count\n", ops->show);
+		len = PAGE_SIZE - 1;
+	}
 	if (pos) {
 		if (len <= pos)
 			return 0;

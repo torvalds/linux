@@ -250,7 +250,7 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 			   str_enabled_disabled(pipe_config->has_sel_update),
 			   str_enabled_disabled(pipe_config->has_panel_replay),
 			   str_enabled_disabled(pipe_config->enable_psr2_sel_fetch));
-		drm_printf(&p, "minimum HBlank: %d\n", pipe_config->min_hblank);
+		drm_printf(&p, "minimum hblank: %d\n", pipe_config->min_hblank);
 	}
 
 	drm_printf(&p, "audio: %i, infoframes: %i, infoframes enabled: 0x%x\n",
@@ -320,19 +320,23 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 	drm_printf(&p, "pipe mode: " DRM_MODE_FMT "\n",
 		   DRM_MODE_ARG(&pipe_config->hw.pipe_mode));
 	intel_dump_crtc_timings(&p, &pipe_config->hw.pipe_mode);
-	drm_printf(&p, "port clock: %d, pipe src: " DRM_RECT_FMT ", pixel rate %d, min cdclk %d\n",
-		   pipe_config->port_clock, DRM_RECT_ARG(&pipe_config->pipe_src),
-		   pipe_config->pixel_rate, pipe_config->min_cdclk);
+	drm_printf(&p, "port clock: %d, pixel rate %d, min cdclk %d, min voltage level %d\n",
+		   pipe_config->port_clock, pipe_config->pixel_rate,
+		   pipe_config->min_cdclk, pipe_config->min_voltage_level);
 
 	drm_printf(&p, "linetime: %d, ips linetime: %d\n",
 		   pipe_config->linetime, pipe_config->ips_linetime);
 
 	if (DISPLAY_VER(display) >= 9)
-		drm_printf(&p, "num_scalers: %d, scaler_users: 0x%x, scaler_id: %d, scaling_filter: %d\n",
+		drm_printf(&p, "num_scalers: %d, scaler_users: 0x%x, scaler_id: %d, scaling_filter: %d, sharpness_strength: %d\n",
 			   crtc->num_scalers,
 			   pipe_config->scaler_state.scaler_users,
 			   pipe_config->scaler_state.scaler_id,
-			   pipe_config->hw.scaling_filter);
+			   pipe_config->hw.scaling_filter,
+			   pipe_config->hw.sharpness_strength);
+
+	drm_printf(&p, "pipe src: " DRM_RECT_FMT "\n",
+		   DRM_RECT_ARG(&pipe_config->pipe_src));
 
 	if (HAS_GMCH(display))
 		drm_printf(&p, "gmch pfit: control: 0x%08x, ratios: 0x%08x, lvds border: 0x%08x\n",
@@ -344,6 +348,11 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 			   DRM_RECT_ARG(&pipe_config->pch_pfit.dst),
 			   str_enabled_disabled(pipe_config->pch_pfit.enabled),
 			   str_yes_no(pipe_config->pch_pfit.force_thru));
+
+	drm_printf(&p, "sharpness strength: %d, sharpness tap size: %d, sharpness enable: %d\n",
+		   pipe_config->pch_pfit.casf.strength,
+		   pipe_config->pch_pfit.casf.win_size,
+		   pipe_config->pch_pfit.casf.enable);
 
 	drm_printf(&p, "ips: %i, double wide: %i, drrs: %i\n",
 		   pipe_config->ips_enabled, pipe_config->double_wide,
@@ -379,11 +388,6 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 		vlv_dump_csc(&p, "wgc csc", &pipe_config->csc);
 
 	intel_vdsc_state_dump(&p, 0, pipe_config);
-
-	drm_printf(&p, "sharpness strength: %d, sharpness tap size: %d, sharpness enable: %d\n",
-		   pipe_config->hw.casf_params.strength,
-		   pipe_config->hw.casf_params.win_size,
-		   pipe_config->hw.casf_params.casf_enable);
 
 dump_planes:
 	if (!state)

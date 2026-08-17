@@ -7,13 +7,34 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/acpi.h>
+#include <linux/cleanup.h>
+#include <linux/compiler_attributes.h>
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/types.h>
 #include <linux/wmi.h>
 #include "dell-wmi-descriptor.h"
 
 #define DELL_WMI_DESCRIPTOR_GUID "8D9DDCBC-A997-11DA-B012-B622A1EF5492"
+
+/*
+ * Descriptor buffer is 128 byte long and contains:
+ *
+ *       Name             Offset  Length  Value
+ * Vendor Signature          0       4    "DELL"
+ * Object Signature          4       4    " WMI"
+ * WMI Interface Version     8       4    <version>
+ * WMI buffer length        12       4    <length>
+ * WMI hotfix number        16       4    <hotfix>
+ */
+struct descriptor {
+	/* Both fields are NOT null-terminated */
+	char vendor_signature[4] __nonstring;
+	char object_signature[4] __nonstring;
+	__le32 interface_version;
+	__le32 buffer_length;
+	__le32 hotfix_number;
+} __packed;
 
 struct descriptor_priv {
 	struct list_head list;
@@ -88,77 +109,46 @@ bool dell_wmi_get_hotfix(u32 *hotfix)
 }
 EXPORT_SYMBOL_GPL(dell_wmi_get_hotfix);
 
-/*
- * Descriptor buffer is 128 byte long and contains:
- *
- *       Name             Offset  Length  Value
- * Vendor Signature          0       4    "DELL"
- * Object Signature          4       4    " WMI"
- * WMI Interface Version     8       4    <version>
- * WMI buffer length        12       4    <length>
- * WMI hotfix number        16       4    <hotfix>
- */
-static int dell_wmi_descriptor_probe(struct wmi_device *wdev,
-				     const void *context)
+static int dell_wmi_descriptor_probe(struct wmi_device *wdev, const void *context)
 {
-	union acpi_object *obj = NULL;
 	struct descriptor_priv *priv;
-	u32 *buffer;
+	struct wmi_buffer buffer;
 	int ret;
 
-	obj = wmidev_block_query(wdev, 0);
-	if (!obj) {
-		dev_err(&wdev->dev, "failed to read Dell WMI descriptor\n");
-		ret = -EIO;
-		goto out;
+	ret = wmidev_query_block(wdev, 0, &buffer, sizeof(struct descriptor));
+	if (ret < 0) {
+		descriptor_valid = ret;
+		return ret;
 	}
 
-	if (obj->type != ACPI_TYPE_BUFFER) {
-		dev_err(&wdev->dev, "Dell descriptor has wrong type\n");
-		ret = -EINVAL;
-		descriptor_valid = ret;
-		goto out;
+	struct descriptor *desc __free(kfree) = buffer.data;
+
+	if (strncmp(desc->vendor_signature, "DELL", sizeof(desc->vendor_signature))) {
+		dev_err(&wdev->dev, "Dell descriptor buffer has invalid vendor signature (%4ph)\n",
+			desc->vendor_signature);
+		descriptor_valid = -ENOMSG;
+		return -ENOMSG;
 	}
 
-	/* Although it's not technically a failure, this would lead to
-	 * unexpected behavior
-	 */
-	if (obj->buffer.length != 128) {
-		dev_err(&wdev->dev,
-			"Dell descriptor buffer has unexpected length (%d)\n",
-			obj->buffer.length);
-		ret = -EINVAL;
-		descriptor_valid = ret;
-		goto out;
-	}
-
-	buffer = (u32 *)obj->buffer.pointer;
-
-	if (strncmp(obj->string.pointer, "DELL WMI", 8) != 0) {
-		dev_err(&wdev->dev, "Dell descriptor buffer has invalid signature (%8ph)\n",
-			buffer);
-		ret = -EINVAL;
-		descriptor_valid = ret;
-		goto out;
+	if (strncmp(desc->object_signature, " WMI", sizeof(desc->object_signature))) {
+		dev_err(&wdev->dev, "Dell descriptor buffer has invalid object signature (%4ph)\n",
+			desc->object_signature);
+		descriptor_valid = -ENOMSG;
+		return -ENOMSG;
 	}
 	descriptor_valid = 0;
 
-	if (buffer[2] != 0 && buffer[2] != 1)
-		dev_warn(&wdev->dev, "Dell descriptor buffer has unknown version (%lu)\n",
-			(unsigned long) buffer[2]);
+	if (le32_to_cpu(desc->interface_version) > 1)
+		dev_warn(&wdev->dev, "Dell descriptor buffer has unknown version (%u)\n",
+			 le32_to_cpu(desc->interface_version));
 
-	priv = devm_kzalloc(&wdev->dev, sizeof(struct descriptor_priv),
-	GFP_KERNEL);
+	priv = devm_kzalloc(&wdev->dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
 
-	if (!priv) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	priv->interface_version = buffer[2];
-	priv->size = buffer[3];
-	priv->hotfix = buffer[4];
-	ret = 0;
+	priv->interface_version = le32_to_cpu(desc->interface_version);
+	priv->size = le32_to_cpu(desc->buffer_length);
+	priv->hotfix = le32_to_cpu(desc->hotfix_number);
 	dev_set_drvdata(&wdev->dev, priv);
 	mutex_lock(&list_mutex);
 	list_add_tail(&priv->list, &wmi_list);
@@ -169,8 +159,6 @@ static int dell_wmi_descriptor_probe(struct wmi_device *wdev,
 		(unsigned long) priv->size,
 		(unsigned long) priv->hotfix);
 
-out:
-	kfree(obj);
 	return ret;
 }
 

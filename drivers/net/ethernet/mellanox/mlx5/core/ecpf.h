@@ -17,8 +17,8 @@ bool mlx5_read_embedded_cpu(struct mlx5_core_dev *dev);
 int mlx5_ec_init(struct mlx5_core_dev *dev);
 void mlx5_ec_cleanup(struct mlx5_core_dev *dev);
 
-int mlx5_cmd_host_pf_enable_hca(struct mlx5_core_dev *dev);
-int mlx5_cmd_host_pf_disable_hca(struct mlx5_core_dev *dev);
+int mlx5_cmd_pf_enable_hca(struct mlx5_core_dev *dev, u16 vport_num);
+int mlx5_cmd_pf_disable_hca(struct mlx5_core_dev *dev, u16 vport_num);
 
 #else  /* CONFIG_MLX5_ESWITCH */
 

@@ -1033,7 +1033,7 @@ static void aw9523_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id aw9523_i2c_id_table[] = {
-	{ "aw9523_i2c" },
+	{ .name = "aw9523_i2c" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, aw9523_i2c_id_table);

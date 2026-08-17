@@ -521,12 +521,8 @@ static int veml6030_write_persistence(struct iio_dev *indio_dev,
 
 static int veml6030_set_scale(struct iio_dev *indio_dev, int val, int val2)
 {
-	int ret, gain_sel, it_idx, it_sel;
+	int ret, gain_sel, it_sel;
 	struct veml6030_data *data = iio_priv(indio_dev);
-
-	ret = regmap_field_read(data->rf.it, &it_idx);
-	if (ret)
-		return ret;
 
 	ret = iio_gts_find_gain_time_sel_for_scale(&data->gts, val, val2,
 						   &gain_sel, &it_sel);
@@ -875,9 +871,11 @@ static irqreturn_t veml6030_event_handler(int irq, void *private)
 	else
 		evtdir = IIO_EV_DIR_FALLING;
 
-	iio_push_event(indio_dev, IIO_UNMOD_EVENT_CODE(IIO_INTENSITY,
-					0, IIO_EV_TYPE_THRESH, evtdir),
-					iio_get_time_ns(indio_dev));
+	iio_push_event(indio_dev, IIO_UNMOD_EVENT_CODE(IIO_LIGHT,
+						       0,
+						       IIO_EV_TYPE_THRESH,
+						       evtdir),
+		       iio_get_time_ns(indio_dev));
 
 	return IRQ_HANDLED;
 }
@@ -1218,9 +1216,9 @@ static const struct of_device_id veml6030_of_match[] = {
 MODULE_DEVICE_TABLE(of, veml6030_of_match);
 
 static const struct i2c_device_id veml6030_id[] = {
-	{ "veml6030", (kernel_ulong_t)&veml6030_chip},
-	{ "veml6035", (kernel_ulong_t)&veml6035_chip},
-	{ "veml7700", (kernel_ulong_t)&veml7700_chip},
+	{ .name = "veml6030", .driver_data = (kernel_ulong_t)&veml6030_chip },
+	{ .name = "veml6035", .driver_data = (kernel_ulong_t)&veml6035_chip },
+	{ .name = "veml7700", .driver_data = (kernel_ulong_t)&veml7700_chip },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, veml6030_id);

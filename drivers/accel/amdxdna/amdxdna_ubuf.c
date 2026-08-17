@@ -69,60 +69,10 @@ static void amdxdna_ubuf_release(struct dma_buf *dbuf)
 	kfree(ubuf);
 }
 
-static vm_fault_t amdxdna_ubuf_vm_fault(struct vm_fault *vmf)
-{
-	struct vm_area_struct *vma = vmf->vma;
-	struct amdxdna_ubuf_priv *ubuf;
-	unsigned long pfn;
-	pgoff_t pgoff;
-
-	ubuf = vma->vm_private_data;
-	pgoff = (vmf->address - vma->vm_start) >> PAGE_SHIFT;
-
-	pfn = page_to_pfn(ubuf->pages[pgoff]);
-	return vmf_insert_pfn(vma, vmf->address, pfn);
-}
-
-static const struct vm_operations_struct amdxdna_ubuf_vm_ops = {
-	.fault = amdxdna_ubuf_vm_fault,
-};
-
-static int amdxdna_ubuf_mmap(struct dma_buf *dbuf, struct vm_area_struct *vma)
-{
-	struct amdxdna_ubuf_priv *ubuf = dbuf->priv;
-
-	vma->vm_ops = &amdxdna_ubuf_vm_ops;
-	vma->vm_private_data = ubuf;
-	vm_flags_set(vma, VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP);
-
-	return 0;
-}
-
-static int amdxdna_ubuf_vmap(struct dma_buf *dbuf, struct iosys_map *map)
-{
-	struct amdxdna_ubuf_priv *ubuf = dbuf->priv;
-	void *kva;
-
-	kva = vmap(ubuf->pages, ubuf->nr_pages, VM_MAP, PAGE_KERNEL);
-	if (!kva)
-		return -EINVAL;
-
-	iosys_map_set_vaddr(map, kva);
-	return 0;
-}
-
-static void amdxdna_ubuf_vunmap(struct dma_buf *dbuf, struct iosys_map *map)
-{
-	vunmap(map->vaddr);
-}
-
 static const struct dma_buf_ops amdxdna_ubuf_dmabuf_ops = {
 	.map_dma_buf = amdxdna_ubuf_map,
 	.unmap_dma_buf = amdxdna_ubuf_unmap,
 	.release = amdxdna_ubuf_release,
-	.mmap = amdxdna_ubuf_mmap,
-	.vmap = amdxdna_ubuf_vmap,
-	.vunmap = amdxdna_ubuf_vunmap,
 };
 
 struct dma_buf *amdxdna_get_ubuf(struct drm_device *dev,
@@ -196,13 +146,17 @@ struct dma_buf *amdxdna_get_ubuf(struct drm_device *dev,
 		ret = pin_user_pages_fast(va_ent[i].vaddr, npages,
 					  FOLL_WRITE | FOLL_LONGTERM,
 					  &ubuf->pages[start]);
-		if (ret < 0 || ret != npages) {
-			ret = -ENOMEM;
+		if (ret >= 0) {
+			start += ret;
+			if (ret != npages) {
+				XDNA_ERR(xdna, "Partially pinned pages %d/%u", ret, npages);
+				ret = -ENOMEM;
+				goto destroy_pages;
+			}
+		} else {
 			XDNA_ERR(xdna, "Failed to pin pages ret %d", ret);
 			goto destroy_pages;
 		}
-
-		start += ret;
 	}
 
 	exp_info.ops = &amdxdna_ubuf_dmabuf_ops;

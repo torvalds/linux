@@ -27,6 +27,20 @@ Description:
 		Some devices have a variable update rate or interval.
 		This attribute can be used to change it to the desired value.
 
+What:		/sys/class/hwmon/hwmonX/update_interval_us
+Description:
+		The interval at which the chip will update readings,
+		expressed in microseconds.
+		Unit: microsecond
+
+		RW
+
+		Some devices have a variable update rate or interval and
+		require finer-than-millisecond control.
+		This attribute can be used to change it to the desired value.
+		Drivers implementing this attribute should also implement
+		update_interval for millisecond-based userspace interfaces.
+
 What:		/sys/class/hwmon/hwmonX/inY_min
 Description:
 		Voltage min value.

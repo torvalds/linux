@@ -1,0 +1,57 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+Kernel driver max20860a
+=======================
+
+Supported chips:
+
+  * Analog Devices MAX20860A
+
+    Prefix: 'max20860a'
+
+    Addresses scanned: -
+
+    Datasheet: https://www.analog.com/en/products/max20860a.html
+
+Author:
+
+  - Syed Arif <arif.syed@hpe.com>
+  - Sanman Pradhan <psanman@juniper.net>
+
+
+Description
+-----------
+
+This driver supports hardware monitoring for Analog Devices MAX20860A
+Step-Down Switching Regulator with PMBus Interface.
+
+The MAX20860A is a fully integrated step-down DC-DC switching regulator.
+Through the PMBus interface, the device can monitor input/output voltages,
+output current and temperature.
+
+The driver is a client driver to the core PMBus driver. Please see
+Documentation/hwmon/pmbus.rst for details on PMBus client drivers.
+
+Usage Notes
+-----------
+
+This driver does not auto-detect devices. You will have to instantiate
+the devices explicitly.
+
+Sysfs entries
+-------------
+
+================= ========================================
+in1_label         "vin"
+in1_input         Measured input voltage
+in1_alarm         Input voltage alarm
+in2_label         "vout1"
+in2_input         Measured output voltage
+in2_alarm         Output voltage alarm
+curr1_label       "iout1"
+curr1_input       Measured output current
+curr1_alarm       Output current alarm
+temp1_input       Measured temperature
+temp1_alarm       Chip temperature alarm
+temp2_input       Measured temperature (secondary)
+================= ========================================

@@ -210,7 +210,7 @@ bool dce110_vblank_set(struct irq_service *irq_service,
 			dc_interrupt_to_irq_source(irq_service->ctx->dc,
 						   info->src_id,
 						   info->ext_id);
-	uint8_t pipe_offset = dal_irq_src - IRQ_TYPE_VBLANK;
+	unsigned int pipe_offset = dal_irq_src - IRQ_TYPE_VBLANK;
 
 	struct timing_generator *tg;
 

@@ -77,7 +77,7 @@ const struct kernel_param_ops pvr_fw_trace_init_mask_ops = {
 };
 
 param_check_hexint(init_fw_trace_mask, &pvr_fw_trace_init_mask);
-module_param_cb(init_fw_trace_mask, &pvr_fw_trace_init_mask_ops, &pvr_fw_trace_init_mask, 0600);
+module_param_cb(init_fw_trace_mask, &pvr_fw_trace_init_mask_ops, &pvr_fw_trace_init_mask, 0400);
 __MODULE_PARM_TYPE(init_fw_trace_mask, "hexint");
 MODULE_PARM_DESC(init_fw_trace_mask,
 		 "Enable FW trace for the specified groups at device init time");

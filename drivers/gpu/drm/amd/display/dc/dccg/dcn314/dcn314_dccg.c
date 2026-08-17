@@ -286,6 +286,28 @@ void dccg314_set_dpstreamclk(
 	}
 }
 
+static void dccg314_set_hdmistreamclk(
+		struct dccg *dccg,
+		enum streamclk_source src,
+		uint32_t otg_inst)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	/* set the dtbclk_p source */
+	dccg314_set_dtbclk_p_src(dccg, src, otg_inst);
+
+	if (src == REFCLK) {
+		REG_UPDATE_2(HDMISTREAMCLK_CNTL,
+				HDMISTREAMCLK0_EN, 0,             /* SEL_REFCLK */
+				HDMISTREAMCLK0_DTO_FORCE_DIS, 1); /* DTO_FORCE_BYPASS */
+	} else {
+		REG_UPDATE_3(HDMISTREAMCLK_CNTL,
+				HDMISTREAMCLK0_EN, 1,             /* selects one of the dtbclk_p as per HDMISTREAMCLK0_SRC_SEL */
+				HDMISTREAMCLK0_SRC_SEL, otg_inst, /* Selects dtbclk_p as source for hdmistreamclk */
+				HDMISTREAMCLK0_DTO_FORCE_DIS, 1); /* DTO_FORCE_BYPASS */
+	}
+}
+
 static void dccg314_init(struct dccg *dccg)
 {
 	int otg_inst;
@@ -355,6 +377,9 @@ static void dccg314_dpp_root_clock_control(
 }
 
 static const struct dccg_funcs dccg314_funcs = {
+	.enable_hdmicharclk = dccg31_enable_hdmicharclk,
+	.disable_hdmicharclk = dccg31_disable_hdmicharclk,
+	.set_hdmistreamclk = dccg314_set_hdmistreamclk,
 	.update_dpp_dto = dccg31_update_dpp_dto,
 	.dpp_root_clock_control = dccg314_dpp_root_clock_control,
 	.get_dccg_ref_freq = dccg31_get_dccg_ref_freq,

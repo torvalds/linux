@@ -81,9 +81,6 @@ snd_midi_process_event(const struct snd_midi_op *ops,
 		pr_debug("ALSA: seq_midi_emul: ev or chanbase NULL (snd_midi_process_event)\n");
 		return;
 	}
-	if (chanset->channels == NULL)
-		return;
-
 	if (snd_seq_ev_is_channel_type(ev)) {
 		dest_channel = ev->data.note.channel;
 		if (dest_channel >= chanset->max_channels) {
@@ -643,23 +640,6 @@ static void snd_midi_channel_init(struct snd_midi_channel *p, int n)
 }
 
 /*
- * Allocate and initialise a set of midi channel control blocks.
- */
-static struct snd_midi_channel *snd_midi_channel_init_set(int n)
-{
-	struct snd_midi_channel *chan;
-	int  i;
-
-	chan = kmalloc_objs(struct snd_midi_channel, n);
-	if (chan) {
-		for (i = 0; i < n; i++)
-			snd_midi_channel_init(chan+i, i);
-	}
-
-	return chan;
-}
-
-/*
  * reset all midi channels
  */
 static void
@@ -687,13 +667,18 @@ reset_all_channels(struct snd_midi_channel_set *chset)
 struct snd_midi_channel_set *snd_midi_channel_alloc_set(int n)
 {
 	struct snd_midi_channel_set *chset;
+	int i;
 
-	chset = kmalloc_obj(*chset);
-	if (chset) {
-		chset->channels = snd_midi_channel_init_set(n);
-		chset->private_data = NULL;
-		chset->max_channels = n;
-	}
+	chset = kmalloc_flex(*chset, channels, n);
+	if (!chset)
+		return NULL;
+
+	chset->max_channels = n;
+	chset->private_data = NULL;
+
+	for (i = 0; i < n; i++)
+		snd_midi_channel_init(&chset->channels[i], i);
+
 	return chset;
 }
 EXPORT_SYMBOL(snd_midi_channel_alloc_set);
@@ -717,7 +702,6 @@ void snd_midi_channel_free_set(struct snd_midi_channel_set *chset)
 {
 	if (chset == NULL)
 		return;
-	kfree(chset->channels);
 	kfree(chset);
 }
 EXPORT_SYMBOL(snd_midi_channel_free_set);

@@ -18,7 +18,7 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/list.h>
-#include <linux/mod_devicetable.h> /* hid_device_id */
+#include <linux/device-id/hid.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <linux/input.h>
@@ -1316,8 +1316,6 @@ void hid_quirks_exit(__u16 bus);
 	dev_notice(&(hid)->dev, fmt, ##__VA_ARGS__)
 #define hid_warn(hid, fmt, ...)				\
 	dev_warn(&(hid)->dev, fmt, ##__VA_ARGS__)
-#define hid_warn_ratelimited(hid, fmt, ...)				\
-	dev_warn_ratelimited(&(hid)->dev, fmt, ##__VA_ARGS__)
 #define hid_info(hid, fmt, ...)				\
 	dev_info(&(hid)->dev, fmt, ##__VA_ARGS__)
 #define hid_dbg(hid, fmt, ...)				\

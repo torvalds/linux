@@ -21,7 +21,6 @@
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <video/of_videomode.h>
 #include <video/of_display_timing.h>
 #include <linux/regulator/consumer.h>
@@ -56,7 +55,7 @@ struct atmel_lcdfb_info {
 
 	struct atmel_lcdfb_pdata pdata;
 
-	struct atmel_lcdfb_config *config;
+	const struct atmel_lcdfb_config *config;
 	struct regulator	*reg_lcd;
 };
 
@@ -930,8 +929,7 @@ static int atmel_lcdfb_of_init(struct atmel_lcdfb_info *sinfo)
 	int ret;
 	int i;
 
-	sinfo->config = (struct atmel_lcdfb_config*)
-		of_match_device(atmel_lcdfb_dt_ids, dev)->data;
+	sinfo->config = of_device_get_match_data(dev);
 
 	display_np = of_parse_phandle(np, "display", 0);
 	if (!display_np) {
@@ -1062,7 +1060,7 @@ static int atmel_lcdfb_probe(struct platform_device *pdev)
 	info->fbops = &atmel_lcdfb_ops;
 
 	info->fix = atmel_lcdfb_fix;
-	strcpy(info->fix.id, sinfo->pdev->name);
+	strscpy(info->fix.id, sinfo->pdev->name);
 
 	/* Enable LCDC Clocks */
 	sinfo->bus_clk = clk_get(dev, "hclk");

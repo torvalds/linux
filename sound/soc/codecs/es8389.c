@@ -1015,7 +1015,7 @@ MODULE_DEVICE_TABLE(of, es8389_if_dt_ids);
 #endif
 
 static const struct i2c_device_id es8389_i2c_id[] = {
-	{"es8389"},
+	{ .name = "es8389" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, es8389_i2c_id);

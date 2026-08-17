@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
+#include <linux/uaccess.h>
 #include <linux/usb.h>
 #include <linux/usb/cdc.h>
 #include <linux/usb/serial.h>

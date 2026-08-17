@@ -83,7 +83,6 @@ void odm_ConfigRFReg_8723B(
 	}
 }
 
-
 void odm_ConfigRF_RadioA_8723B(struct dm_odm_t *pDM_Odm, u32 Addr, u32 Data)
 {
 	u32  content = 0x1000; /*  RF_Content: radioa_txt */

@@ -65,19 +65,65 @@ struct dp_hdmi_dongle_signature_data {
 #define HDMI_SCDC_CONFIG_1 0x31
 #define HDMI_SCDC_SOURCE_TEST_REQ 0x35
 #define HDMI_SCDC_STATUS_FLAGS 0x40
+#define HDMI_SCDC_LTP_REQ 0x41
 #define HDMI_SCDC_ERR_DETECT 0x50
 #define HDMI_SCDC_TEST_CONFIG 0xC0
 
 #define HDMI_SCDC_MANUFACTURER_OUI 0xD0
 #define HDMI_SCDC_DEVICE_ID 0xDB
 
+/* IDCC defines (HDMI 2.0) */
+#define HDMI_IDCC_ADDRESS 0x50
+#define HDMI_IDCC_MARKER0 0xAE
+#define HDMI_IDCC_MARKER1 0x6E
+#define HDMI_IDCC_MARKER2 0x60
+
+enum hdmi_idcc_scope {
+	HDMI_IDCC_SCOPE_WRITE = 0x00,
+	HDMI_IDCC_SCOPE_RW_CA = 0x01,
+	HDMI_IDCC_SCOPE_RW_SINK = 0x02,
+};
+
+union hdmi_idcc_source_id {
+	struct {
+		uint8_t SI_PCA_n:1;
+		uint8_t AC_n:1;
+		uint8_t RESERVED:6;
+	} bits;
+	uint8_t raw;
+};
+
+union hdmi_idcc_cable_id {
+	struct {
+		uint8_t Cat1_n:1;
+		uint8_t Cat2_n:1;
+		uint8_t Cat3_n:1;
+		uint8_t Cat4_n:1;
+		uint8_t RESERVED:4;
+		uint8_t HEAC_n:1;
+		uint8_t PCA_DEP_n:1;
+		uint8_t MonoDir_n:1;
+		uint8_t MonoDirErr_n:1;
+		uint8_t PCA_ON_n:1;
+		uint8_t no_DeEmphasis_n:1;
+		uint8_t no_PreShoot_n:1;
+		uint8_t RESERVED2:1;
+		uint8_t RND_bits_7_0:8;
+		uint8_t RND_bits_15_8:8;
+	} bits;
+	uint8_t raw[4];
+};
 union hdmi_scdc_update_read_data {
 	uint8_t byte[2];
 	struct {
 		uint8_t STATUS_UPDATE:1;
 		uint8_t CED_UPDATE:1;
 		uint8_t RR_TEST:1;
-		uint8_t RESERVED:5;
+		uint8_t SOURCE_TEST_UPDATE:1;
+		uint8_t FRL_START:1;
+		uint8_t FLT_UPDATE:1;
+		uint8_t RSED_UPDATE:1;
+		uint8_t RESERVED:1;
 		uint8_t RESERVED2:8;
 	} fields;
 };
@@ -89,7 +135,20 @@ union hdmi_scdc_status_flags_data {
 		uint8_t CH0_LOCKED:1;
 		uint8_t CH1_LOCKED:1;
 		uint8_t CH2_LOCKED:1;
-		uint8_t RESERVED:4;
+		uint8_t LANE3_LOCKED:1;
+		uint8_t RESERVED:1;
+		uint8_t FLT_READY:1;
+		uint8_t DSC_DECODEFAIL:1;
+	} fields;
+};
+
+union hdmi_scdc_LTP_req_data {
+	uint8_t byte[2];
+	struct {
+		uint8_t LN0_LTP_REQ:4;
+		uint8_t LN1_LTP_REQ:4;
+		uint8_t LN2_LTP_REQ:4;
+		uint8_t LN3_LTP_REQ:4;
 	} fields;
 };
 
@@ -106,10 +165,12 @@ union hdmi_scdc_ced_data {
 		uint8_t CH2_7HIGH:7;
 		uint8_t CH2_VALID:1;
 		uint8_t CHECKSUM:8;
-		uint8_t RESERVED:8;
-		uint8_t RESERVED2:8;
-		uint8_t RESERVED3:8;
-		uint8_t RESERVED4:4;
+		uint8_t LN3_8LOW:8;
+		uint8_t LN3_7HIGH:7;
+		uint8_t LN3_VALID:1;
+		uint8_t RSC_8LOW:8;
+		uint8_t RSC_7HIGH:7;
+		uint8_t RSC_VALID:1;
 	} fields;
 };
 
@@ -130,4 +191,95 @@ union hdmi_scdc_device_id_data {
 	} fields;
 };
 
+union hdmi_scdc_configuration {
+	uint8_t byte[2];
+	struct {
+		uint8_t RR_ENABLE:1;
+		uint8_t FLT_NO_RETRAIN:1;
+		uint8_t RESERVED:6;
+		uint8_t FRL_RATE:4;
+		uint8_t FFE_LEVELS:4;
+	} fields;
+};
+
+union hdmi_scdc_source_test_req {
+	uint8_t byte;
+	struct {
+		uint8_t RESERVED:1;
+		uint8_t TXFFE_PRESHOOT:1;
+		uint8_t TXFFE_DEEMPHASIS:1;
+		uint8_t TXFFE_NOFFE:1;
+		uint8_t RESERVED2:1;
+		uint8_t FLT_NO_TIMEOUT:1;
+		uint8_t DSC_FRL_MAX:1;
+		uint8_t FRL_MAX:1;
+	} fields;
+};
+
+union hdmi_scdc_test_config_Data {
+	uint8_t byte;
+	struct {
+		uint8_t TEST_READ_REQUEST_DELAY:7;
+		uint8_t TEST_READ_REQUEST: 1;
+	} fields;
+};
+
+enum hdmi_frl_borrow_mode {
+	HDMI_FRL_BORROW_MODE_NONE,
+	HDMI_FRL_BORROW_MODE_FROM_ACTIVE,
+	HDMI_FRL_BORROW_MODE_FROM_BLANK
+};
+
+enum link_result {
+	LINK_RESULT_UNKNOWN = 0,
+	LINK_RESULT_SUCCESS,
+	LINK_RESULT_LOWER_LINKRATE,
+	LINK_RESULT_TIMEOUT,
+	LINK_RESULT_FALLBACK
+};
+
+enum hdmi_frl_link_rate {
+	HDMI_FRL_LINK_RATE_DISABLE = 0,
+	HDMI_FRL_LINK_RATE_3GBPS,
+	HDMI_FRL_LINK_RATE_6GBPS,
+	HDMI_FRL_LINK_RATE_6GBPS_4LANE,
+	HDMI_FRL_LINK_RATE_8GBPS,
+	HDMI_FRL_LINK_RATE_10GBPS,
+	HDMI_FRL_LINK_RATE_12GBPS,
+	HDMI_FRL_LINK_RATE_16GBPS,
+	HDMI_FRL_LINK_RATE_20GBPS,
+	HDMI_FRL_LINK_RATE_24GBPS
+};
+
+struct frl_borrow_params {
+	int audio_packets_line;
+	int hc_active_target;
+	int hc_blank_target;
+	enum hdmi_frl_borrow_mode borrow_mode;
+};
+
+struct dc_hdmi_frl_link_settings {
+	enum hdmi_frl_link_rate frl_link_rate;
+	uint8_t frl_num_lanes;
+	struct frl_borrow_params borrow_params;
+	int average_tribyte_rate;
+};
+
+struct dc_hdmi_frl_flags {
+	unsigned int force_frl_rate;
+	bool ignore_ffe;
+	int  select_ffe;
+	int  limit_ffe;
+	bool force_frl_always;
+	bool force_frl_dsc;
+	bool force_frl_max;
+	bool apply_vsdb_rcc_wa;
+};
+
+struct dc_hdmi_frl_link_training_overrides {
+	bool force_frl_always;
+	bool force_frl_max;
+	uint8_t max_retries;
+	bool valid;
+};
 #endif /* DC_HDMI_TYPES_H */

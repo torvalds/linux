@@ -334,7 +334,10 @@ int ieee80211_nan_set_local_sched(struct ieee80211_sub_if_data *sdata,
 			sched_idx_to_chan[i] = chan;
 			ieee80211_nan_init_channel(chan,
 						   &sched->nan_channels[i]);
+		}
 
+		/* Also a pre-existing channel might have been ULWed, so no chanctx */
+		if (!chan->chanctx_conf) {
 			ret = ieee80211_nan_use_chanctx(sdata, chan, false);
 			if (ret) {
 				memset(chan, 0, sizeof(*chan));
@@ -708,3 +711,137 @@ out:
 	ieee80211_nan_free_peer_sched(to_free);
 	return ret;
 }
+
+void
+ieee80211_nan_evacuate_channel(struct ieee80211_sub_if_data *sdata,
+			       struct ieee80211_nan_channel *nan_channel)
+{
+	struct ieee80211_chanctx_conf *conf;
+	struct ieee80211_chanctx *ctx;
+
+	lockdep_assert_wiphy(sdata->local->hw.wiphy);
+
+	if (WARN_ON(!nan_channel || !nan_channel->chanreq.oper.chan))
+		return;
+
+	conf = nan_channel->chanctx_conf;
+	if (WARN_ON(!conf))
+		return;
+
+	nan_channel->chanctx_conf = NULL;
+
+	/* Update all peer channels that reference this chanctx */
+	ieee80211_nan_update_peer_channels(sdata, conf);
+
+	drv_vif_cfg_changed(sdata->local, sdata, BSS_CHANGED_NAN_LOCAL_SCHED);
+
+	cfg80211_nan_channel_evac(&sdata->wdev, &nan_channel->chanreq.oper,
+				  GFP_KERNEL);
+
+	/* Update NDI carrier states */
+	ieee80211_nan_update_all_ndi_carriers(sdata->local);
+
+	/* Clean up the channel context if no longer used */
+	ctx = container_of(conf, struct ieee80211_chanctx, conf);
+
+	if (ieee80211_chanctx_num_assigned(sdata->local, ctx) > 0) {
+		ieee80211_recalc_chanctx_chantype(sdata->local, ctx);
+		ieee80211_recalc_smps_chanctx(sdata->local, ctx);
+		ieee80211_recalc_chanctx_min_def(sdata->local, ctx);
+	}
+
+	if (ieee80211_chanctx_refcount(sdata->local, ctx) == 0)
+		ieee80211_free_chanctx(sdata->local, ctx, false);
+}
+
+struct ieee80211_nan_channel *
+ieee80211_nan_find_evac_chan(struct ieee80211_local *local,
+			     struct ieee80211_sub_if_data *sdata,
+			     struct ieee80211_chanctx *ctx)
+{
+	struct ieee80211_nan_sched_cfg *sched_cfg;
+	struct ieee80211_nan_channel *evac_chan = NULL;
+	int min_slot_count = INT_MAX;
+	int usable_channels = 0;
+
+	lockdep_assert_wiphy(local->hw.wiphy);
+
+	if (WARN_ON(sdata->vif.type != NL80211_IFTYPE_NAN))
+		return NULL;
+
+	sched_cfg = &sdata->vif.cfg.nan_sched;
+
+	/* Find the channel to evacuate and count usable channels */
+	for (int i = 0; i < IEEE80211_NAN_MAX_CHANNELS; i++) {
+		struct ieee80211_nan_channel *chan =
+			&sched_cfg->channels[i];
+		struct ieee80211_chanctx *chan_ctx;
+		int slot_count = 0;
+
+		if (!chan->chanreq.oper.chan || !chan->chanctx_conf)
+			continue;
+
+		usable_channels++;
+
+		chan_ctx = container_of(chan->chanctx_conf,
+					struct ieee80211_chanctx, conf);
+
+		/* If ctx specified, only consider that specific chanctx */
+		if (ctx) {
+			if (chan_ctx == ctx)
+				evac_chan = chan;
+			continue;
+		}
+
+		/* Can only evacuate channels whose chanctx is NAN-only */
+		if (ieee80211_chanctx_refcount(local, chan_ctx) > 1)
+			continue;
+
+		/* Count how many time slots use this channel */
+		for (int s = 0; s < CFG80211_NAN_SCHED_NUM_TIME_SLOTS; s++)
+			if (sched_cfg->schedule[s] == chan)
+				slot_count++;
+
+		if (slot_count < min_slot_count) {
+			min_slot_count = slot_count;
+			evac_chan = chan;
+		}
+	}
+
+	/* No suitable NAN channel found */
+	if (!evac_chan)
+		return NULL;
+
+	/* NAN needs at least one remaining usable channel after evacuation */
+	if (usable_channels < 2)
+		return NULL;
+
+	return evac_chan;
+}
+
+bool ieee80211_nan_try_evacuate(struct ieee80211_hw *hw,
+				struct ieee80211_chanctx_conf *conf)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+	struct ieee80211_sub_if_data *sdata =
+		ieee80211_find_nan_sdata(local);
+	struct ieee80211_nan_channel *evac_chan;
+	struct ieee80211_chanctx *ctx = NULL;
+
+	lockdep_assert_wiphy(local->hw.wiphy);
+
+	if (!sdata)
+		return false;
+
+	if (conf)
+		ctx = container_of(conf, struct ieee80211_chanctx, conf);
+
+	evac_chan = ieee80211_nan_find_evac_chan(local, sdata, ctx);
+	if (!evac_chan)
+		return false;
+
+	ieee80211_nan_evacuate_channel(sdata, evac_chan);
+
+	return true;
+}
+EXPORT_SYMBOL(ieee80211_nan_try_evacuate);

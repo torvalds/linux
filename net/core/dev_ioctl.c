@@ -260,7 +260,7 @@ int dev_get_hwtstamp_phylib(struct net_device *dev,
 {
 	struct hwtstamp_provider *hwprov;
 
-	hwprov = rtnl_dereference(dev->hwprov);
+	hwprov = netdev_ops_lock_dereference(dev->hwprov, dev);
 	if (hwprov) {
 		cfg->qualifier = hwprov->desc.qualifier;
 		if (hwprov->source == HWTSTAMP_SOURCE_PHYLIB &&
@@ -337,7 +337,7 @@ int dev_set_hwtstamp_phylib(struct net_device *dev,
 	bool phy_ts;
 	int err;
 
-	hwprov = rtnl_dereference(dev->hwprov);
+	hwprov = netdev_ops_lock_dereference(dev->hwprov, dev);
 	if (hwprov) {
 		if (hwprov->source == HWTSTAMP_SOURCE_PHYLIB &&
 		    hwprov->phydev) {

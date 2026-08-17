@@ -1924,7 +1924,7 @@ static int disk_alloc_zone_resources(struct gendisk *disk,
 		goto free_hash;
 
 	disk->zone_wplugs_wq =
-		alloc_workqueue("%s_zwplugs", WQ_MEM_RECLAIM | WQ_HIGHPRI,
+		alloc_workqueue("%s_zwplugs", WQ_MEM_RECLAIM | WQ_HIGHPRI | WQ_PERCPU,
 				pool_size, disk->disk_name);
 	if (!disk->zone_wplugs_wq)
 		goto destroy_pool;
@@ -2001,8 +2001,10 @@ static void disk_set_zones_cond_array(struct gendisk *disk, u8 *zones_cond)
 
 void disk_free_zone_resources(struct gendisk *disk)
 {
-	if (disk->zone_wplugs_worker)
+	if (disk->zone_wplugs_worker) {
 		kthread_stop(disk->zone_wplugs_worker);
+		disk->zone_wplugs_worker = NULL;
+	}
 	WARN_ON_ONCE(!list_empty(&disk->zone_wplugs_list));
 
 	if (disk->zone_wplugs_wq) {
@@ -2135,9 +2137,6 @@ commit:
 	ret = queue_limits_commit_update(q, &lim);
 
 unfreeze:
-	if (ret)
-		disk_free_zone_resources(disk);
-
 	blk_mq_unfreeze_queue(q, memflags);
 
 	return ret;

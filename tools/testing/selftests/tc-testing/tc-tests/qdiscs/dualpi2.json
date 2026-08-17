@@ -250,5 +250,49 @@
         "teardown": [
             "$TC qdisc del dev $DUMMY handle 1: root"
         ]
+    },
+    {
+        "id": "891f",
+        "name": "Verify DualPI2 GSO backlog accounting with QFQ parent",
+        "category": [
+            "qdisc",
+            "dualpi2",
+            "qfq",
+            "gso"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$IP link set dev $DUMMY up || true",
+            "$IP addr add 10.10.10.10/24 dev $DUMMY || true",
+            "$TC qdisc add dev $DUMMY root handle 1: qfq",
+            "$TC class add dev $DUMMY parent 1: classid 1:1 qfq weight 1 maxpkt 4096",
+            "$TC qdisc add dev $DUMMY parent 1:1 handle 2: dualpi2",
+            "$TC filter add dev $DUMMY parent 1: matchall classid 1:1"
+        ],
+        "cmdUnderTest": "./tdc_gso.py 10.10.10.10 10.10.10.1 9000 1200 2400",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -j -s qdisc ls dev $DUMMY",
+        "matchJSON": [
+            {
+                "kind": "qfq",
+                "handle": "1:",
+                "packets": 2,
+                "backlog": 0,
+                "qlen": 0
+            },
+            {
+                "kind": "dualpi2",
+                "handle": "2:",
+                "packets": 2,
+                "backlog": 0,
+                "qlen": 0
+            }
+        ],
+        "teardown": [
+            "$TC qdisc del dev $DUMMY root",
+            "$IP addr del 10.10.10.10/24 dev $DUMMY || true"
+        ]
     }
 ]

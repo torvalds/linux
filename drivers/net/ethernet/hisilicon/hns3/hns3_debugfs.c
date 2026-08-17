@@ -274,6 +274,12 @@ static struct hns3_dbg_cmd_info hns3_dbg_cmd[] = {
 		.init = hns3_dbg_common_init_t2,
 	},
 	{
+		.name = "fd_rule",
+		.cmd = HNAE3_DBG_CMD_FD_RULE,
+		.dentry = HNS3_DBG_DENTRY_FD,
+		.init = hns3_dbg_common_init_t2,
+	},
+	{
 		.name = "service_task_info",
 		.cmd = HNAE3_DBG_CMD_SERV_INFO,
 		.dentry = HNS3_DBG_DENTRY_COMMON,

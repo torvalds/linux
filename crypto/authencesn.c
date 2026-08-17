@@ -94,11 +94,11 @@ static int crypto_authenc_esn_genicv_tail(struct aead_request *req,
 	u32 tmp[2];
 
 	/* Move high-order bits of sequence number back. */
-	scatterwalk_map_and_copy(tmp, dst, 4, 4, 0);
-	scatterwalk_map_and_copy(tmp + 1, dst, assoclen + cryptlen, 4, 0);
-	scatterwalk_map_and_copy(tmp, dst, 0, 8, 1);
+	memcpy_from_sglist(tmp, dst, 4, 4);
+	memcpy_from_sglist(tmp + 1, dst, assoclen + cryptlen, 4);
+	memcpy_to_sglist(dst, 0, tmp, 8);
 
-	scatterwalk_map_and_copy(hash, dst, assoclen + cryptlen, authsize, 1);
+	memcpy_to_sglist(dst, assoclen + cryptlen, hash, authsize);
 	return 0;
 }
 
@@ -129,9 +129,9 @@ static int crypto_authenc_esn_genicv(struct aead_request *req,
 		return 0;
 
 	/* Move high-order bits of sequence number to the end. */
-	scatterwalk_map_and_copy(tmp, dst, 0, 8, 0);
-	scatterwalk_map_and_copy(tmp, dst, 4, 4, 1);
-	scatterwalk_map_and_copy(tmp + 1, dst, assoclen + cryptlen, 4, 1);
+	memcpy_from_sglist(tmp, dst, 0, 8);
+	memcpy_to_sglist(dst, 4, tmp, 4);
+	memcpy_to_sglist(dst, assoclen + cryptlen, tmp + 1, 4);
 
 	sg_init_table(areq_ctx->dst, 2);
 	dst = scatterwalk_ffwd(areq_ctx->dst, dst, 4);
@@ -217,9 +217,9 @@ static int crypto_authenc_esn_decrypt_tail(struct aead_request *req,
 
 	if (src == dst) {
 		/* Move high-order bits of sequence number back. */
-		scatterwalk_map_and_copy(tmp, dst, 4, 4, 0);
-		scatterwalk_map_and_copy(tmp + 1, dst, assoclen + cryptlen, 4, 0);
-		scatterwalk_map_and_copy(tmp, dst, 0, 8, 1);
+		memcpy_from_sglist(tmp, dst, 4, 4);
+		memcpy_from_sglist(tmp + 1, dst, assoclen + cryptlen, 4);
+		memcpy_to_sglist(dst, 0, tmp, 8);
 	} else
 		memcpy_sglist(dst, src, assoclen);
 
@@ -274,18 +274,17 @@ static int crypto_authenc_esn_decrypt(struct aead_request *req)
 		goto tail;
 
 	cryptlen -= authsize;
-	scatterwalk_map_and_copy(ihash, req->src, assoclen + cryptlen,
-				 authsize, 0);
+	memcpy_from_sglist(ihash, req->src, assoclen + cryptlen, authsize);
 
 	/* Move high-order bits of sequence number to the end. */
-	scatterwalk_map_and_copy(tmp, src, 0, 8, 0);
+	memcpy_from_sglist(tmp, src, 0, 8);
 	if (src == dst) {
-		scatterwalk_map_and_copy(tmp, dst, 4, 4, 1);
-		scatterwalk_map_and_copy(tmp + 1, dst, assoclen + cryptlen, 4, 1);
+		memcpy_to_sglist(dst, 4, tmp, 4);
+		memcpy_to_sglist(dst, assoclen + cryptlen, tmp + 1, 4);
 		dst = scatterwalk_ffwd(areq_ctx->dst, dst, 4);
 	} else {
-		scatterwalk_map_and_copy(tmp, dst, 0, 4, 1);
-		scatterwalk_map_and_copy(tmp + 1, dst, assoclen + cryptlen - 4, 4, 1);
+		memcpy_to_sglist(dst, 0, tmp, 4);
+		memcpy_to_sglist(dst, assoclen + cryptlen - 4, tmp + 1, 4);
 
 		src = scatterwalk_ffwd(areq_ctx->src, src, 8);
 		dst = scatterwalk_ffwd(areq_ctx->dst, dst, 4);

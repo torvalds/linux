@@ -375,6 +375,8 @@ int statmount_mnt_idmap(struct mnt_idmap *idmap, struct seq_file *seq, bool uid_
 			continue;
 
 		seq_printf(seq, "%u %u %u", extent->first, lower, extent->count);
+		if (seq_has_overflowed(seq))
+			return -EAGAIN;
 
 		seq->count++; /* mappings are separated by \0 */
 		if (seq_has_overflowed(seq))

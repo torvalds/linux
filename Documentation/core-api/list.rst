@@ -112,7 +112,7 @@ list:
 
           /* State 1 */
 
-          grock = kzalloc(sizeof(*grock), GFP_KERNEL);
+          grock = kzalloc_obj(*grock);
           if (!grock)
                   return -ENOMEM;
           grock->name = "Grock";
@@ -123,7 +123,7 @@ list:
 
           /* State 2 */
 
-          dimitri = kzalloc(sizeof(*dimitri), GFP_KERNEL);
+          dimitri = kzalloc_obj(*dimitri);
           if (!dimitri)
                   return -ENOMEM;
           dimitri->name = "Dimitri";
@@ -752,7 +752,7 @@ This is because list_splice() did not reinitialize the list_head it took
 entries from, leaving its pointer pointing into what is now a different list.
 
 If we want to avoid this situation, list_splice_init() can be used. It does the
-same thing as list_splice(), except reinitalizes the donor list_head after the
+same thing as list_splice(), except reinitializes the donor list_head after the
 transplant.
 
 Concurrency considerations

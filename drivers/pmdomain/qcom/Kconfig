@@ -2,7 +2,7 @@
 menu "Qualcomm PM Domains"
 
 config QCOM_CPR
-	tristate "QCOM Core Power Reduction (CPR) support"
+	tristate "Qualcomm Core Power Reduction (CPR) support"
 	depends on (ARCH_QCOM || COMPILE_TEST) && HAS_IOMEM
 	select PM_OPP
 	select REGMAP

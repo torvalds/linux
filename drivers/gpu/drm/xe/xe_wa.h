@@ -3,8 +3,8 @@
  * Copyright © 2022 Intel Corporation
  */
 
-#ifndef _XE_WA_
-#define _XE_WA_
+#ifndef _XE_WA_H_
+#define _XE_WA_H_
 
 #include "xe_assert.h"
 

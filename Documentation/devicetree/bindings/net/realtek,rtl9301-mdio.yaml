@@ -18,7 +18,14 @@ properties:
               - realtek,rtl9302c-mdio
               - realtek,rtl9303-mdio
           - const: realtek,rtl9301-mdio
-      - const: realtek,rtl9301-mdio
+      - items:
+          - enum:
+              - realtek,rtl9312-mdio
+              - realtek,rtl9313-mdio
+          - const: realtek,rtl9311-mdio
+      - enum:
+          - realtek,rtl9301-mdio
+          - realtek,rtl9311-mdio
 
   '#address-cells':
     const: 1

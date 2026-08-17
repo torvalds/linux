@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * Copyright (C) 2022-2026 Marek Vasut
+ */
+/dts-v1/;
+/plugin/;
+
+#include "imx8mp-dhcom-overlay-panel-etm0700g0edh6.dtsi"
+#include "imx8mp-pinfunc.h"
+
+&{/} {
+	led {
+		led-0 {
+			/* LED5 GPIO conflicts with Touchscreen IRQ GPIO-E */
+			status = "disabled";
+		};
+	};
+};
+
+&pinctrl_dhcom_e {
+	fsl,pins = <
+		/* GPIO_E */
+		MX8MP_IOMUXC_UART1_RXD__GPIO5_IO22 0x40000000
+	>;
+};

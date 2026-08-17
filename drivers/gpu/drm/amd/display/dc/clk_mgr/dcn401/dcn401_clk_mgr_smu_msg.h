@@ -10,7 +10,7 @@
 
 struct clk_mgr_internal;
 
-bool dcn401_smu_get_smu_version(struct clk_mgr_internal *clk_mgr, unsigned int *version);
+bool dcn401_smu_get_smu_version(struct clk_mgr_internal *clk_mgr, int *version);
 bool dcn401_smu_check_driver_if_version(struct clk_mgr_internal *clk_mgr);
 bool dcn401_smu_check_msg_header_version(struct clk_mgr_internal *clk_mgr);
 void dcn401_smu_send_fclk_pstate_message(struct clk_mgr_internal *clk_mgr, bool support);

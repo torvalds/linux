@@ -178,12 +178,8 @@ static __always_inline u64 __arch_counter_get_cntpct_stable(void)
 
 static __always_inline u64 __arch_counter_get_cntpct(void)
 {
-	u64 cnt;
+	u64 cnt = arch_timer_read_cntpct_el0();
 
-	asm volatile(ALTERNATIVE("isb\n mrs %0, cntpct_el0",
-				 "nop\n" __mrs_s("%0", SYS_CNTPCTSS_EL0),
-				 ARM64_HAS_ECV)
-		     : "=r" (cnt));
 	arch_counter_enforce_ordering(cnt);
 	return cnt;
 }
@@ -199,12 +195,8 @@ static __always_inline u64 __arch_counter_get_cntvct_stable(void)
 
 static __always_inline u64 __arch_counter_get_cntvct(void)
 {
-	u64 cnt;
+	u64 cnt = arch_timer_read_cntvct_el0();
 
-	asm volatile(ALTERNATIVE("isb\n mrs %0, cntvct_el0",
-				 "nop\n" __mrs_s("%0", SYS_CNTVCTSS_EL0),
-				 ARM64_HAS_ECV)
-		     : "=r" (cnt));
 	arch_counter_enforce_ordering(cnt);
 	return cnt;
 }

@@ -36,6 +36,7 @@ struct kvm_pmu_ops {
 	void (*reset)(struct kvm_vcpu *vcpu);
 	void (*deliver_pmi)(struct kvm_vcpu *vcpu);
 	void (*cleanup)(struct kvm_vcpu *vcpu);
+	bool (*pmc_is_disabled_in_current_mode)(struct kvm_pmc *pmc);
 
 	bool (*is_mediated_pmu_supported)(struct x86_pmu_capability *host_pmu);
 	void (*mediated_load)(struct kvm_vcpu *vcpu);
@@ -52,6 +53,17 @@ struct kvm_pmu_ops {
 	const u32 FIXED_COUNTER_BASE;
 	const u32 MSR_STRIDE;
 };
+
+#define kvm_pmu_call(func) static_call(kvm_x86_pmu_##func)
+
+#define KVM_X86_PMU_OP(func) \
+	DECLARE_STATIC_CALL(kvm_x86_pmu_##func, *(((struct kvm_pmu_ops *)0)->func));
+#define KVM_X86_PMU_OP_OPTIONAL KVM_X86_PMU_OP
+#define KVM_X86_PMU_OP_OPTIONAL_RET0 KVM_X86_PMU_OP
+#include <asm/kvm-x86-pmu-ops.h>
+
+extern bool enable_pmu;
+extern bool enable_mediated_pmu;
 
 void kvm_pmu_ops_update(const struct kvm_pmu_ops *pmu_ops);
 
@@ -190,7 +202,13 @@ static inline bool pmc_is_locally_enabled(struct kvm_pmc *pmc)
 					pmc->idx - KVM_FIXED_PMC_BASE_IDX) &
 					(INTEL_FIXED_0_KERNEL | INTEL_FIXED_0_USER);
 
-	return pmc->eventsel & ARCH_PERFMON_EVENTSEL_ENABLE;
+	if (!(pmc->eventsel & ARCH_PERFMON_EVENTSEL_ENABLE))
+		return false;
+
+	if (!test_bit(pmc->idx, pmu->pmc_has_mode_specific_enables))
+		return true;
+
+	return !kvm_pmu_call(pmc_is_disabled_in_current_mode)(pmc);
 }
 
 extern struct x86_pmu_capability kvm_pmu_cap;
@@ -198,6 +216,7 @@ extern struct x86_pmu_capability kvm_pmu_cap;
 void kvm_init_pmu_capability(struct kvm_pmu_ops *pmu_ops);
 
 void kvm_pmu_recalc_pmc_emulation(struct kvm_pmu *pmu, struct kvm_pmc *pmc);
+void kvm_pmu_handle_event(struct kvm_vcpu *vcpu);
 
 static inline void kvm_pmu_request_counter_reprogram(struct kvm_pmc *pmc)
 {
@@ -207,16 +226,24 @@ static inline void kvm_pmu_request_counter_reprogram(struct kvm_pmc *pmc)
 	kvm_make_request(KVM_REQ_PMU, pmc->vcpu);
 }
 
-static inline void reprogram_counters(struct kvm_pmu *pmu, u64 diff)
+static inline void __kvm_pmu_reprogram_counters(struct kvm_pmu *pmu,
+						u64 counters,
+						bool defer)
 {
-	int bit;
-
-	if (!diff)
+	if (!counters)
 		return;
 
-	for_each_set_bit(bit, (unsigned long *)&diff, X86_PMC_IDX_MAX)
-		set_bit(bit, pmu->reprogram_pmi);
-	kvm_make_request(KVM_REQ_PMU, pmu_to_vcpu(pmu));
+	atomic64_or(counters, &pmu->__reprogram_pmi);
+	if (defer)
+		kvm_make_request(KVM_REQ_PMU, pmu_to_vcpu(pmu));
+	else
+		kvm_pmu_handle_event(pmu_to_vcpu(pmu));
+}
+
+static inline void kvm_pmu_request_counters_reprogram(struct kvm_pmu *pmu,
+						      u64 counters)
+{
+	__kvm_pmu_reprogram_counters(pmu, counters, true);
 }
 
 /*
@@ -245,7 +272,6 @@ static inline bool kvm_pmu_is_fastpath_emulation_allowed(struct kvm_vcpu *vcpu)
 }
 
 void kvm_pmu_deliver_pmi(struct kvm_vcpu *vcpu);
-void kvm_pmu_handle_event(struct kvm_vcpu *vcpu);
 int kvm_pmu_rdpmc(struct kvm_vcpu *vcpu, unsigned pmc, u64 *data);
 int kvm_pmu_check_rdpmc_early(struct kvm_vcpu *vcpu, unsigned int idx);
 bool kvm_pmu_is_valid_msr(struct kvm_vcpu *vcpu, u32 msr);

@@ -186,6 +186,13 @@ static u64 pai_getctr(unsigned long *page, int nr, unsigned long offset)
 	return page[nr];
 }
 
+static void pai_setctr(unsigned long *page, int nr, unsigned long offset, u64 v)
+{
+	if (offset)
+		nr += offset / sizeof(*page);
+	page[nr] = v;
+}
+
 /* Read the counter values. Return value from location in CMP. For base
  * event xxx_ALL sum up all events. Returns counter value.
  */
@@ -551,6 +558,8 @@ static void paicrypt_del(struct perf_event *event, int flags)
 /* Create raw data and save it in buffer. Calculate the delta for each
  * counter between this invocation and the last invocation.
  * Returns number of bytes copied.
+ * After reading from PAI counter page, save the read value to the old
+ * page to calculate PAI counter deltas.
  * Saves only entries with positive counter difference of the form
  * 2 bytes: Number of counter
  * 8 bytes: Value of counter
@@ -562,16 +571,22 @@ static size_t pai_copy(struct pai_userdata *userdata, unsigned long *page,
 	int i, outidx = 0;
 
 	for (i = 1; i <= pp->num_avail; i++) {
-		u64 val = 0, val_old = 0;
+		u64 val = 0, val_old = 0, val_k = 0, val_old_k = 0;
 
 		if (!exclude_kernel) {
-			val += pai_getctr(page, i, pp->kernel_offset);
-			val_old += pai_getctr(page_old, i, pp->kernel_offset);
+			val_k = pai_getctr(page, i, pp->kernel_offset);
+			val_old_k = pai_getctr(page_old, i, pp->kernel_offset);
+			if (val_k != val_old_k)
+				pai_setctr(page_old, i, pp->kernel_offset, val_k);
 		}
 		if (!exclude_user) {
-			val += pai_getctr(page, i, 0);
-			val_old += pai_getctr(page_old, i, 0);
+			val = pai_getctr(page, i, 0);
+			val_old = pai_getctr(page_old, i, 0);
+			if (val != val_old)
+				pai_setctr(page_old, i, 0, val);
 		}
+		val += val_k;
+		val_old += val_old_k;
 		if (val >= val_old)
 			val -= val_old;
 		else
@@ -602,8 +617,6 @@ static size_t pai_copy(struct pai_userdata *userdata, unsigned long *page,
 static int pai_push_sample(size_t rawsize, struct pai_map *cpump,
 			   struct perf_event *event)
 {
-	int idx = PAI_PMU_IDX(event);
-	struct pai_pmu *pp = &pai_pmu[idx];
 	struct perf_sample_data data;
 	struct perf_raw_record raw;
 	struct pt_regs regs;
@@ -634,8 +647,6 @@ static int pai_push_sample(size_t rawsize, struct pai_map *cpump,
 
 	overflow = perf_event_overflow(event, &data, &regs);
 	perf_event_update_userpage(event);
-	/* Save crypto counter lowcore page after reading event data. */
-	memcpy((void *)PAI_SAVE_AREA(event), cpump->area, pp->area_size);
 	return overflow;
 }
 
@@ -651,7 +662,7 @@ static void pai_have_sample(struct perf_event *event, struct pai_map *cpump)
 	rawsize = pai_copy(cpump->save, cpump->area, pp,
 			   (unsigned long *)PAI_SAVE_AREA(event),
 			   event->attr.exclude_user,
-			   event->attr.exclude_kernel);
+			   !pp->kernel_offset ? true : event->attr.exclude_kernel);
 	if (rawsize)			/* No incremented counters */
 		pai_push_sample(rawsize, cpump, event);
 }

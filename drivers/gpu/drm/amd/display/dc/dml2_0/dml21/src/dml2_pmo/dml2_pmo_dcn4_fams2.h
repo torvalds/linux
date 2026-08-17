@@ -9,14 +9,6 @@
 
 struct display_configuation_with_meta;
 
-int dcn4_get_vactive_pstate_margin(
-	const struct display_configuation_with_meta *display_cfg,
-	int plane_mask);
-
-int dcn4_get_minimum_reserved_time_us_for_planes(
-	const struct display_configuation_with_meta *display_config,
-	int plane_mask);
-
 bool pmo_dcn4_fams2_initialize(struct dml2_pmo_initialize_in_out *in_out);
 
 bool pmo_dcn4_fams2_optimize_dcc_mcache(struct dml2_pmo_optimize_dcc_mcache_in_out *in_out);
@@ -39,5 +31,43 @@ void pmo_dcn4_fams2_expand_base_pstate_strategies(
 	const unsigned int stream_count,
 	struct dml2_pmo_pstate_strategy *expanded_strategy_list,
 	unsigned int *num_expanded_strategies);
+
+/* Helpers shared with derived PMO implementations (e.g. DCN42). */
+int dcn4_get_vactive_pstate_margin(
+	const struct display_configuation_with_meta *display_cfg,
+	int plane_mask);
+
+int dcn4_get_minimum_reserved_time_us_for_planes(
+	const struct display_configuation_with_meta *display_config,
+	int plane_mask);
+
+enum dml2_pstate_method dcn4_uclk_pstate_strategy_override_to_pstate_method(
+	const enum dml2_uclk_pstate_change_strategy override_strategy);
+
+struct dml2_pmo_pstate_strategy *dcn4_get_expanded_strategy_list(
+	struct dml2_pmo_init_data *init_data,
+	int stream_count);
+
+unsigned int dcn4_get_num_expanded_strategies(
+	struct dml2_pmo_init_data *init_data,
+	int stream_count);
+
+void dcn4_insert_strategy_into_expanded_list(
+	const struct dml2_pmo_pstate_strategy *per_stream_pstate_strategy,
+	const int stream_count,
+	struct dml2_pmo_pstate_strategy *expanded_strategy_list,
+	unsigned int *num_expanded_strategies);
+
+void dcn4_expand_variant_strategy(
+	const struct dml2_pmo_pstate_strategy *base_strategy,
+	const unsigned int stream_count,
+	const bool should_permute,
+	struct dml2_pmo_pstate_strategy *expanded_strategy_list,
+	unsigned int *num_expanded_strategies);
+
+void dcn4_insert_into_candidate_list(
+	const struct dml2_pmo_pstate_strategy *pstate_strategy,
+	int stream_count,
+	struct dml2_pmo_scratch *scratch);
 
 #endif

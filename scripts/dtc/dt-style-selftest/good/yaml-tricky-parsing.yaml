@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/test-good-tricky-parsing.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Test fixture exercising parser corner cases
+
+description: |
+  Covers patterns that previously broke the classifier:
+    - "/* ... */ code;" with code following the closing of a one-line
+      block comment must still parse the code.
+    - a label on a node whose name starts with a digit (1wire@10).
+    - a multi-line C preprocessor macro using backslash continuations
+      must not be parsed as DTS lines.
+    - a /* comment that opens and closes on the same code line must
+      not leave the parser in block-comment state.
+
+maintainers:
+  - Test User <test@example.com>
+
+properties:
+  compatible:
+    const: example,test-tricky-parsing
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #define MY_REG(a, b) \
+        ((a) << 16 |     \
+         (b) << 0)
+
+    one_wire: 1wire@10 {
+        compatible = "example,test-tricky-parsing";
+        reg = <MY_REG(0x10, 0)>;
+        /* inline-closed */ status = "okay";
+    };
+
+    other: device@20 {
+        compatible = "example,test-tricky-parsing";
+        reg = <0x20 0x10>;
+    };
+
+    &one_wire {
+        status = "okay";
+    };
+
+    &other {
+        status = "okay";
+    };

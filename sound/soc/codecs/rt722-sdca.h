@@ -36,10 +36,15 @@ struct  rt722_sdca_priv {
 	bool fu0f_dapm_mute;
 	bool fu0f_mixer_l_mute;
 	bool fu0f_mixer_r_mute;
+	/* For AMP */
+	bool fu06_dapm_mute;
+	bool fu06_mixer_l_mute;
+	bool fu06_mixer_r_mute;
 	/* For DMIC */
 	bool fu1e_dapm_mute;
 	bool fu1e_mixer_mute[4];
 	int hw_vid;
+	int cae_update_done;
 };
 
 struct rt722_sdca_dmic_kctrl_priv {
@@ -51,6 +56,7 @@ struct rt722_sdca_dmic_kctrl_priv {
 
 /* NID */
 #define RT722_VENDOR_REG			0x20
+#define RT722_VENDOR_EQ_CAE			0x53
 #define RT722_VENDOR_CALI			0x58
 #define RT722_VENDOR_SPK_EFUSE			0x5c
 #define RT722_VENDOR_IMS_DRE			0x5b
@@ -60,6 +66,7 @@ struct rt722_sdca_dmic_kctrl_priv {
 /* Index (NID:20h) */
 #define RT722_JD_PRODUCT_NUM			0x00
 #define RT722_ANALOG_BIAS_CTL3			0x04
+#define RT722_MISC_CTRL1			0x07
 #define RT722_JD_CTRL1				0x09
 #define RT722_LDO2_3_CTL1			0x0e
 #define RT722_LDO1_CTL				0x1a
@@ -74,6 +81,12 @@ struct rt722_sdca_dmic_kctrl_priv {
 #define RT722_SDCA_INTR_REC			0x82
 #define RT722_SW_CONFIG1			0x8a
 #define RT722_SW_CONFIG2			0x8b
+
+/* Index (NID:53h) */
+#define RT722_EQ_CTRL_SPK			0x00
+#define RT722_EQ_CTRL_HP			0x100
+#define RT722_EQ_CTRL_DMIC			0x200
+#define RT722_EQ_CTRL_AMIC			0x300
 
 /* Index (NID:58h) */
 #define RT722_DAC_DC_CALI_CTL0			0x00
@@ -151,6 +164,20 @@ struct rt722_sdca_dmic_kctrl_priv {
 /* Buffer address for HID */
 #define RT722_BUF_ADDR_HID1			0x44030000
 #define RT722_BUF_ADDR_HID2			0x44030020
+
+/* RT722 CAE parameter settings */
+#define RT722_SPK_CAE_PARAM1			0x44012000
+#define RT722_SPK_CAE_PARAM34			0x44012021
+#define RT722_SPK_CAE_PARAM35			0x44012022
+#define RT722_SPK_CAE_PARAM38			0x44012025
+#define RT722_HP_CAE_PARAM39			0x44022000
+#define RT722_HP_CAE_PARAM64			0x44022019
+#define RT722_HP_CAE_PARAM65			0x4402201a
+#define RT722_HP_CAE_PARAM68			0x4402201d
+#define RT722_MIC_CAE_PARAM39			0x44042000
+#define RT722_MIC_CAE_PARAM95			0x44042019
+#define RT722_MIC_CAE_PARAM96			0x4404201a
+#define RT722_MIC_CAE_PARAM99			0x4404201d
 
 /* RT722 SDCA Control - function number */
 #define FUNC_NUM_JACK_CODEC			0x01

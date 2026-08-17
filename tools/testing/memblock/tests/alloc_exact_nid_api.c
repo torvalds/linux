@@ -368,7 +368,7 @@ static int alloc_exact_nid_bottom_up_numa_part_reserved_check(void)
 	max_addr = memblock_end_of_DRAM();
 	total_size = size + r1.size;
 
-	memblock_reserve(r1.base, r1.size);
+	__memblock_reserve(r1.base, r1.size, nid_req, MEMBLOCK_RSRV_KERN);
 	allocated_ptr = memblock_alloc_exact_nid_raw(size, SMP_CACHE_BYTES,
 						     min_addr, max_addr,
 						     nid_req);
@@ -861,8 +861,8 @@ static int alloc_exact_nid_numa_reserved_full_merge_generic_check(void)
 	min_addr = r2.base + r2.size;
 	max_addr = r1.base;
 
-	memblock_reserve(r1.base, r1.size);
-	memblock_reserve(r2.base, r2.size);
+	__memblock_reserve(r1.base, r1.size, nid_req, MEMBLOCK_RSRV_KERN);
+	__memblock_reserve(r2.base, r2.size, nid_req, MEMBLOCK_RSRV_KERN);
 
 	allocated_ptr = memblock_alloc_exact_nid_raw(size, SMP_CACHE_BYTES,
 						     min_addr, max_addr,

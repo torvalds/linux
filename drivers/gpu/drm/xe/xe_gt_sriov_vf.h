@@ -35,9 +35,9 @@ bool xe_gt_sriov_vf_sched_groups_enabled(struct xe_gt *gt);
 u32 xe_gt_sriov_vf_read32(struct xe_gt *gt, struct xe_reg reg);
 void xe_gt_sriov_vf_write32(struct xe_gt *gt, struct xe_reg reg, u32 val);
 
-void xe_gt_sriov_vf_print_config(struct xe_gt *gt, struct drm_printer *p);
-void xe_gt_sriov_vf_print_runtime(struct xe_gt *gt, struct drm_printer *p);
-void xe_gt_sriov_vf_print_version(struct xe_gt *gt, struct drm_printer *p);
+int xe_gt_sriov_vf_print_config(struct xe_gt *gt, struct drm_printer *p);
+int xe_gt_sriov_vf_print_runtime(struct xe_gt *gt, struct drm_printer *p);
+int xe_gt_sriov_vf_print_version(struct xe_gt *gt, struct drm_printer *p);
 
 int xe_gt_sriov_vf_wait_valid_ggtt(struct xe_gt *gt);
 int xe_vf_migration_fixups_complete_count(struct xe_gt *gt);

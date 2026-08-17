@@ -152,7 +152,7 @@
 	};
 };
 
-&i2c5 {
+i2c_dhpdk_panel: &i2c5 {
 	sgtl5000: codec@a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;

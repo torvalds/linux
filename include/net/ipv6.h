@@ -955,6 +955,18 @@ static inline u32 ip6_multipath_hash_fields(const struct net *net)
 }
 #endif
 
+/* Derive the IPv6 ECMP hash from txhash so a rehash may pick a different path;
+ * policy 0 only, and only when txhash is set.  >> 1 clears the top bit
+ * (fib6_select_path() uses mp_hash as a signed 31-bit value); ?: 1 keeps the
+ * result non-zero, since mp_hash 0 falls back to rt6_multipath_hash().
+ */
+static inline void ip6_ecmp_set_mp_hash(const struct net *net,
+					struct flowi6 *fl6, u32 txhash)
+{
+	if (ip6_multipath_hash_policy(net) == 0 && txhash)
+		fl6->mp_hash = (txhash >> 1) ?: 1;
+}
+
 /*
  *	Header manipulation
  */

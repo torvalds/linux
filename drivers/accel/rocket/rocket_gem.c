@@ -79,11 +79,6 @@ int rocket_ioctl_create_bo(struct drm_device *dev, void *data, struct drm_file *
 	rkt_obj->size = args->size;
 	rkt_obj->offset = 0;
 
-	ret = drm_gem_handle_create(file, gem_obj, &args->handle);
-	drm_gem_object_put(gem_obj);
-	if (ret)
-		goto err;
-
 	sgt = drm_gem_shmem_get_pages_sgt(shmem_obj);
 	if (IS_ERR(sgt)) {
 		ret = PTR_ERR(sgt);
@@ -95,6 +90,8 @@ int rocket_ioctl_create_bo(struct drm_device *dev, void *data, struct drm_file *
 					 rkt_obj->size, PAGE_SIZE,
 					 0, 0);
 	mutex_unlock(&rocket_priv->mm_lock);
+	if (ret)
+		goto err;
 
 	ret = iommu_map_sgtable(rocket_priv->domain->domain,
 				rkt_obj->mm.start,
@@ -112,7 +109,17 @@ int rocket_ioctl_create_bo(struct drm_device *dev, void *data, struct drm_file *
 	args->offset = drm_vma_node_offset_addr(&gem_obj->vma_node);
 	args->dma_address = rkt_obj->mm.start;
 
+	ret = drm_gem_handle_create(file, gem_obj, &args->handle);
+	if (ret)
+		goto err_unmap;
+
+	drm_gem_object_put(gem_obj);
+
 	return 0;
+
+err_unmap:
+	iommu_unmap(rocket_priv->domain->domain,
+		    rkt_obj->mm.start, rkt_obj->size);
 
 err_remove_node:
 	mutex_lock(&rocket_priv->mm_lock);

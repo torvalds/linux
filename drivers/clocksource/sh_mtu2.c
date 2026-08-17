@@ -484,8 +484,8 @@ static int sh_mtu2_probe(struct platform_device *pdev)
 }
 
 static const struct platform_device_id sh_mtu2_id_table[] = {
-	{ "sh-mtu2", 0 },
-	{ },
+	{ .name = "sh-mtu2" },
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, sh_mtu2_id_table);
 

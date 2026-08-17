@@ -193,8 +193,8 @@ static void icy_remove(struct zorro_dev *z)
 }
 
 static const struct zorro_device_id icy_zorro_tbl[] = {
-	{ ZORRO_ID(VMC, 15, 0), },
-	{ 0 }
+	{ .id = ZORRO_ID(VMC, 15, 0) },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(zorro, icy_zorro_tbl);

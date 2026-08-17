@@ -162,6 +162,13 @@ properties:
       of transmitter.
     type: boolean
 
+  fsl,sai-bit-clock-swap:
+    description:
+      Enable Bit Clock Swap, which swaps the bit clock used by the transmitter
+      or receiver in asynchronous mode, i.e. makes transmitter use RX_BCLK and
+      TX_SYNC, and vice versa, makes receiver use TX_BCLK and RX_SYNC.
+    type: boolean
+
   fsl,shared-interrupt:
     description: Interrupt is shared with other modules.
     type: boolean

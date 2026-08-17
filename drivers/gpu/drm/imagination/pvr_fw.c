@@ -1004,7 +1004,7 @@ pvr_fw_init(struct pvr_device *pvr_dev)
 		goto err_fw_stop;
 	}
 
-	fw_dev->booted = true;
+	WRITE_ONCE(fw_dev->initialised, true);
 
 	return 0;
 
@@ -1044,7 +1044,7 @@ pvr_fw_fini(struct pvr_device *pvr_dev)
 {
 	struct pvr_fw_device *fw_dev = &pvr_dev->fw_dev;
 
-	fw_dev->booted = false;
+	WRITE_ONCE(fw_dev->initialised, false);
 
 	pvr_fw_destroy_structures(pvr_dev);
 	pvr_fw_object_unmap_and_destroy(pvr_dev->kccb.rtn_obj);

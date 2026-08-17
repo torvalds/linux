@@ -63,10 +63,6 @@
 };
 
 &gpio0 {
-	interrupts = <13>, <14>, <15>, <16>,
-		     <17>, <18>, <19>, <20>,
-		     <21>, <22>, <23>, <24>,
-		     <25>, <26>;
 	status ="okay";
 	gpio-line-names =
 		"", "", "", "", "", "", "", "",
@@ -74,12 +70,6 @@
 };
 
 &gpio1 {
-	interrupts = <27>, <28>, <29>, <30>,
-		     <31>, <32>, <33>, <34>,
-		     <35>, <36>, <37>, <38>,
-		     <39>, <40>, <41>, <42>,
-		     <43>, <44>, <45>, <46>,
-		     <47>, <48>, <49>, <50>;
 	status ="okay";
 	gpio-line-names =
 		"", "", "LED1", "LED2", "LED3", "LED4", "LED5", "LED6",
@@ -88,14 +78,6 @@
 };
 
 &gpio2 {
-	interrupts = <53>, <53>, <53>, <53>,
-		     <53>, <53>, <53>, <53>,
-		     <53>, <53>, <53>, <53>,
-		     <53>, <53>, <53>, <53>,
-		     <53>, <53>, <53>, <53>,
-		     <53>, <53>, <53>, <53>,
-		     <53>, <53>, <53>, <53>,
-		     <53>, <53>, <53>, <53>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&mdio1_gpio>, <&spi0_gpio>, <&can0_gpio>, <&pcie_gpio>,
 		    <&qspi_gpio>, <&uart3_gpio>, <&uart4_gpio>, <&can1_gpio>;
@@ -105,6 +87,43 @@
 		"DIP1", "DIP2", "", "DIP3", "USR_IO1", "USR_IO2", "USR_IO7", "USR_IO8",
 		"USR_IO3", "USR_IO4", "USR_IO5", "USR_IO6", "", "", "USR_IO9", "USR_IO10",
 		"DIP4", "USR_IO11", "", "", "SWITCH1", "", "", "";
+};
+
+&i2c0 {
+	status = "okay";
+};
+
+&i2c1 {
+	status = "okay";
+};
+
+&irqmux {
+	interrupt-map = <0 &plic 13>, <1 &plic 14>, <2 &plic 15>,
+			<3 &plic 16>, <4 &plic 17>, <5 &plic 18>,
+			<6 &plic 19>, <7 &plic 20>, <8 &plic 21>,
+			<9 &plic 22>, <10 &plic 23>, <11 &plic 24>,
+			<12 &plic 25>, <13 &plic 26>,
+
+			<32 &plic 27>, <33 &plic 28>, <34 &plic 29>,
+			<35 &plic 30>, <36 &plic 31>, <37 &plic 32>,
+			<38 &plic 33>, <39 &plic 34>, <40 &plic 35>,
+			<41 &plic 36>, <42 &plic 37>, <43 &plic 38>,
+			<44 &plic 39>, <45 &plic 40>, <46 &plic 41>,
+			<47 &plic 42>, <48 &plic 43>, <49 &plic 44>,
+			<50 &plic 45>, <51 &plic 46>, <52 &plic 47>,
+			<53 &plic 48>, <54 &plic 49>, <55 &plic 50>,
+
+			<64 &plic 53>, <65 &plic 53>, <66 &plic 53>,
+			<67 &plic 53>, <68 &plic 53>, <69 &plic 53>,
+			<70 &plic 53>, <71 &plic 53>, <72 &plic 53>,
+			<73 &plic 53>, <74 &plic 53>, <75 &plic 53>,
+			<76 &plic 53>, <77 &plic 53>, <78 &plic 53>,
+			<79 &plic 53>, <80 &plic 53>, <81 &plic 53>,
+			<82 &plic 53>, <83 &plic 53>, <84 &plic 53>,
+			<85 &plic 53>, <86 &plic 53>, <87 &plic 53>,
+			<88 &plic 53>, <89 &plic 53>, <90 &plic 53>,
+			<91 &plic 53>, <92 &plic 53>, <93 &plic 53>,
+			<94 &plic 53>, <95 &plic 53>;
 };
 
 &mac0 {
@@ -120,14 +139,6 @@
 };
 
 &mbox {
-	status = "okay";
-};
-
-&i2c0 {
-	status = "okay";
-};
-
-&i2c1 {
 	status = "okay";
 };
 
@@ -157,9 +168,5 @@
 };
 
 &rtc {
-	status = "okay";
-};
-
-&syscontroller {
 	status = "okay";
 };

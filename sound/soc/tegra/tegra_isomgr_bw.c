@@ -6,6 +6,7 @@
 
 #include <linux/interconnect.h>
 #include <linux/module.h>
+#include <sound/dmaengine_pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include "tegra_isomgr_bw.h"
@@ -55,18 +56,17 @@ int tegra_isomgr_adma_setbw(struct snd_pcm_substream *substream,
 				sample_bytes;
 	}
 
-	mutex_lock(&adma_isomgr->mutex);
+	scoped_guard(mutex, &adma_isomgr->mutex) {
+		if (is_running) {
+			if (bandwidth + adma_isomgr->current_bandwidth > adma_isomgr->max_bw)
+				bandwidth = adma_isomgr->max_bw - adma_isomgr->current_bandwidth;
 
-	if (is_running) {
-		if (bandwidth + adma_isomgr->current_bandwidth > adma_isomgr->max_bw)
-			bandwidth = adma_isomgr->max_bw - adma_isomgr->current_bandwidth;
-
-		adma_isomgr->current_bandwidth += bandwidth;
-	} else {
-		adma_isomgr->current_bandwidth -= adma_isomgr->bw_per_dev[type][pcm->device];
+			adma_isomgr->current_bandwidth += bandwidth;
+		} else {
+			adma_isomgr->current_bandwidth -=
+				adma_isomgr->bw_per_dev[type][pcm->device];
+		}
 	}
-
-	mutex_unlock(&adma_isomgr->mutex);
 
 	adma_isomgr->bw_per_dev[type][pcm->device] = bandwidth;
 

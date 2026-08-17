@@ -830,6 +830,8 @@ struct vif_params {
  * @seq_len: length of @seq.
  * @vlan_id: vlan_id for VLAN group key (if nonzero)
  * @mode: key install mode (RX_TX, NO_TX or SET_TX)
+ * @ltf_keyseed: LTF key seed material
+ * @ltf_keyseed_len: length of LTF key seed material
  */
 struct key_params {
 	const u8 *key;
@@ -839,11 +841,18 @@ struct key_params {
 	u16 vlan_id;
 	u32 cipher;
 	enum nl80211_key_mode mode;
+	const u8 *ltf_keyseed;
+	size_t ltf_keyseed_len;
 };
 
 /**
  * struct cfg80211_chan_def - channel definition
  * @chan: the (control) channel
+ * @npca_chan: the NPCA primary channel
+ *	Note that if DBE is in use, this channel may appear to be
+ *	inside the primary half of the chandef. Implementations
+ *	can use the position of this channel to understand how
+ *	NPCA is used.
  * @width: channel width
  * @center_freq1: center frequency of first segment
  * @center_freq2: center frequency of second segment
@@ -856,18 +865,24 @@ struct key_params {
  * @punctured: mask of the punctured 20 MHz subchannels, with
  *	bits turned on being disabled (punctured); numbered
  *	from lower to higher frequency (like in the spec)
+ * @npca_punctured: NPCA puncturing bitmap, like @punctured but for
+ *	NPCA transmissions. If NPCA is used (@npca_chan is not %NULL)
+ *	this will be a superset of the @punctured bimap.
+ *	Note that if DBE is used, this bitmap is also shifted to be in
+ *	accordance with the overall chandef bandwidth.
  * @s1g_primary_2mhz: Indicates if the control channel pointed to
  *	by 'chan' exists as a 1MHz primary subchannel within an
  *	S1G 2MHz primary channel.
  */
 struct cfg80211_chan_def {
 	struct ieee80211_channel *chan;
+	struct ieee80211_channel *npca_chan;
 	enum nl80211_chan_width width;
 	u32 center_freq1;
 	u32 center_freq2;
 	struct ieee80211_edmg edmg;
 	u16 freq1_offset;
-	u16 punctured;
+	u16 punctured, npca_punctured;
 	bool s1g_primary_2mhz;
 };
 
@@ -1014,7 +1029,9 @@ cfg80211_chandef_identical(const struct cfg80211_chan_def *chandef1,
 		chandef1->freq1_offset == chandef2->freq1_offset &&
 		chandef1->center_freq2 == chandef2->center_freq2 &&
 		chandef1->punctured == chandef2->punctured &&
-		chandef1->s1g_primary_2mhz == chandef2->s1g_primary_2mhz);
+		chandef1->s1g_primary_2mhz == chandef2->s1g_primary_2mhz &&
+		chandef1->npca_chan == chandef2->npca_chan &&
+		chandef1->npca_punctured == chandef2->npca_punctured);
 }
 
 /**
@@ -1142,6 +1159,46 @@ cfg80211_chandef_dfs_cac_time(struct wiphy *wiphy,
 int cfg80211_chandef_primary(const struct cfg80211_chan_def *chandef,
 			     enum nl80211_chan_width primary_chan_width,
 			     u16 *punctured);
+
+/**
+ * cfg80211_chandef_npca_valid - check that NPCA information is valid
+ * @wiphy: the wiphy to check for, for channel pointer lookup
+ * @chandef: the BSS channel chandef to check against
+ * @npca: NPCA information, can be %NULL in which case this
+ *	always returns %true
+ *
+ * Note that DBE must not have been configured into the chandef yet
+ * before checking NPCA, i.e. @chandef must represent the BSS channel.
+ *
+ * Returns: %true if the NPCA channel and puncturing bitmap are valid
+ *	according to the chandef, %false otherwise
+ */
+bool cfg80211_chandef_npca_valid(struct wiphy *wiphy,
+				 const struct cfg80211_chan_def *chandef,
+				 const struct ieee80211_uhr_npca_info *npca);
+
+/**
+ * cfg80211_chandef_add_npca - parse and add NPCA information to chandef
+ * @wiphy: the wiphy this will be used for, for channel pointer lookup
+ * @chandef: the chandef to modify, must be a valid chandef without NPCA
+ * @npca: the NPCA information, can be %NULL
+ *
+ * Returns: 0 if the NPCA information was added and the resulting
+ *	chandef is valid, a negative error code on errors
+ */
+int cfg80211_chandef_add_npca(struct wiphy *wiphy,
+			      struct cfg80211_chan_def *chandef,
+			      const struct ieee80211_uhr_npca_info *npca);
+
+/**
+ * cfg80211_chandef_add_dbe - parse and add DBE information to chandef
+ * @chandef: the chandef to expand
+ * @dbe: the DBE information, must be size-checked if not %NULL
+ *
+ * Returns: 0 for success, a negative error code otherwise
+ */
+int cfg80211_chandef_add_dbe(struct cfg80211_chan_def *chandef,
+			     const struct ieee80211_uhr_dbe_info *dbe);
 
 /**
  * nl80211_send_chandef - sends the channel definition.
@@ -1396,6 +1453,13 @@ struct cfg80211_rnr_elems {
  * @he_bss_color: BSS Color settings
  * @he_bss_color_valid: indicates whether bss color
  *	attribute is present in beacon data or not.
+ * @ht_required: stations must support HT
+ * @vht_required: stations must support VHT
+ * @ht_oper: HT operation element (or %NULL if HT isn't enabled)
+ * @vht_oper: VHT operation element (or %NULL if VHT isn't enabled)
+ * @he_oper: HE operation IE (or %NULL if HE isn't enabled)
+ * @eht_oper: EHT operation IE (or %NULL if EHT isn't enabled)
+ * @uhr_oper: UHR operation (or %NULL if UHR isn't enabled)
  */
 struct cfg80211_beacon_data {
 	unsigned int link_id;
@@ -1420,6 +1484,13 @@ struct cfg80211_beacon_data {
 	size_t civicloc_len;
 	struct cfg80211_he_bss_color he_bss_color;
 	bool he_bss_color_valid;
+
+	bool ht_required, vht_required;
+	const struct ieee80211_ht_operation *ht_oper;
+	const struct ieee80211_vht_operation *vht_oper;
+	const struct ieee80211_he_operation *he_oper;
+	const struct ieee80211_eht_operation *eht_oper;
+	const struct ieee80211_uhr_operation *uhr_oper;
 };
 
 struct mac_address {
@@ -1524,16 +1595,9 @@ struct cfg80211_s1g_short_beacon {
  * @vht_cap: VHT capabilities (or %NULL if VHT isn't enabled)
  * @he_cap: HE capabilities (or %NULL if HE isn't enabled)
  * @eht_cap: EHT capabilities (or %NULL if EHT isn't enabled)
- * @eht_oper: EHT operation IE (or %NULL if EHT isn't enabled)
- * @uhr_oper: UHR operation (or %NULL if UHR isn't enabled)
- * @ht_required: stations must support HT
- * @vht_required: stations must support VHT
  * @twt_responder: Enable Target Wait Time
- * @he_required: stations must support HE
- * @sae_h2e_required: stations must support direct H2E technique in SAE
  * @flags: flags, as defined in &enum nl80211_ap_settings_flags
  * @he_obss_pd: OBSS Packet Detection settings
- * @he_oper: HE operation IE (or %NULL if HE isn't enabled)
  * @fils_discovery: FILS discovery transmission parameters
  * @unsol_bcast_probe_resp: Unsolicited broadcast probe response parameters
  * @mbssid_config: AP settings for multiple bssid
@@ -1562,11 +1626,7 @@ struct cfg80211_ap_settings {
 	const struct ieee80211_ht_cap *ht_cap;
 	const struct ieee80211_vht_cap *vht_cap;
 	const struct ieee80211_he_cap_elem *he_cap;
-	const struct ieee80211_he_operation *he_oper;
 	const struct ieee80211_eht_cap_elem *eht_cap;
-	const struct ieee80211_eht_operation *eht_oper;
-	const struct ieee80211_uhr_operation *uhr_oper;
-	bool ht_required, vht_required, he_required, sae_h2e_required;
 	bool twt_responder;
 	u32 flags;
 	struct ieee80211_he_obss_pd he_obss_pd;
@@ -4433,6 +4493,25 @@ struct cfg80211_ftm_responder_stats {
  *	(must have either this or @rtt_avg)
  * @dist_variance: variance of distances measured (see also @rtt_variance)
  * @dist_spread: spread of distances measured (see also @rtt_spread)
+ * @tx_ltf_repetition_count: negotiated value of number of tx ltf repetitions
+ *	in NDP frames
+ * @rx_ltf_repetition_count: negotiated value of number of rx ltf repetitions
+ *	in NDP frames
+ * @max_time_between_measurements: the negotiated maximum interval (in units of
+ *	10 ms) by which the ISTA must complete the next measurement cycle.
+ * @min_time_between_measurements: the negotiated minimum interval (in units of
+ *	100 us) between two consecutive range measurements initiated by the
+ *	ISTA.
+ * @num_tx_spatial_streams: number of Tx space-time streams used in the NDP
+ *	frame during the measurement sounding phase.
+ * @num_rx_spatial_streams: number of Rx space-time streams used in the NDP
+ *	frame during the measurement sounding phase.
+ * @nominal_time: negotiated nominal duration between adjacent availability
+ *	windows in units of milliseconds (u32).
+ * @availability_window: negotiated availability window time used in this
+ *	session in units of milliseconds (u8).
+ * @chan_width: band width used for measurement.
+ * @preamble: preamble used for measurement.
  * @num_ftmr_attempts_valid: @num_ftmr_attempts is valid
  * @num_ftmr_successes_valid: @num_ftmr_successes is valid
  * @rssi_avg_valid: @rssi_avg is valid
@@ -4445,6 +4524,18 @@ struct cfg80211_ftm_responder_stats {
  * @dist_avg_valid: @dist_avg is valid
  * @dist_variance_valid: @dist_variance is valid
  * @dist_spread_valid: @dist_spread is valid
+ * @tx_ltf_repetition_count_valid: @tx_ltf_repetition_count is valid
+ * @rx_ltf_repetition_count_valid: @rx_ltf_repetition_count is valid
+ * @max_time_between_measurements_valid: @max_time_between_measurements is valid
+ * @min_time_between_measurements_valid: @min_time_between_measurements is valid
+ * @num_tx_spatial_streams_valid: @num_tx_spatial_streams is valid
+ * @num_rx_spatial_streams_valid: @num_rx_spatial_streams is valid
+ * @nominal_time_valid: @nominal_time is valid
+ * @availability_window_valid: @availability_window is valid
+ * @chan_width_valid: @chan_width is valid.
+ * @preamble_valid: @preamble is valid.
+ * @is_delayed_lmr: indicates if the reported LMR is of the current burst or the
+ *	previous burst, flag.
  */
 struct cfg80211_pmsr_ftm_result {
 	const u8 *lci;
@@ -4468,8 +4559,18 @@ struct cfg80211_pmsr_ftm_result {
 	s64 dist_avg;
 	s64 dist_variance;
 	s64 dist_spread;
+	u32 tx_ltf_repetition_count;
+	u32 rx_ltf_repetition_count;
+	u32 max_time_between_measurements;
+	u32 min_time_between_measurements;
+	u8 num_tx_spatial_streams;
+	u8 num_rx_spatial_streams;
+	u32 nominal_time;
+	u8 availability_window;
+	enum nl80211_chan_width chan_width;
+	enum nl80211_preamble preamble;
 
-	u16 num_ftmr_attempts_valid:1,
+	u32 num_ftmr_attempts_valid:1,
 	    num_ftmr_successes_valid:1,
 	    rssi_avg_valid:1,
 	    rssi_spread_valid:1,
@@ -4480,7 +4581,18 @@ struct cfg80211_pmsr_ftm_result {
 	    rtt_spread_valid:1,
 	    dist_avg_valid:1,
 	    dist_variance_valid:1,
-	    dist_spread_valid:1;
+	    dist_spread_valid:1,
+	    tx_ltf_repetition_count_valid:1,
+	    rx_ltf_repetition_count_valid:1,
+	    max_time_between_measurements_valid:1,
+	    min_time_between_measurements_valid:1,
+	    num_tx_spatial_streams_valid:1,
+	    num_rx_spatial_streams_valid:1,
+	    nominal_time_valid:1,
+	    availability_window_valid:1,
+	    chan_width_valid:1,
+	    preamble_valid:1,
+	    is_delayed_lmr:1;
 };
 
 /**
@@ -4524,7 +4636,8 @@ struct cfg80211_pmsr_result {
  * @burst_duration: burst duration. If @trigger_based or @non_trigger_based is
  *	set, this is the burst duration in milliseconds, and zero means the
  *	device should pick an appropriate value based on @ftms_per_burst.
- * @ftms_per_burst: number of FTMs per burst
+ * @ftms_per_burst: number of FTMs per burst. If set to 0, the firmware or
+ *	driver can automatically select an appropriate value.
  * @ftmr_retries: number of retries for FTM request
  * @request_lci: request LCI information
  * @request_civicloc: request civic location information
@@ -4541,6 +4654,48 @@ struct cfg80211_pmsr_result {
  * @bss_color: the bss color of the responder. Optional. Set to zero to
  *	indicate the driver should set the BSS color. Only valid if
  *	@non_trigger_based or @trigger_based is set.
+ * @request_type: ranging request type, one of
+ *	&enum nl80211_peer_measurement_ftm_req_type. Defaults to
+ *	%NL80211_PMSR_FTM_REQ_TYPE_INFRA if not specified.
+ * @min_time_between_measurements: minimum time between two consecutive range
+ *	measurements in units of 100 microseconds, for non-trigger based
+ *	ranging. Should be set as short as possible to minimize turnaround
+ *	time, since two-way ranging with delayed LMR requires two measurements.
+ *	Only valid if @non_trigger_based is set.
+ * @max_time_between_measurements: maximum time between two consecutive range
+ *	measurements in units of 10 milliseconds, for non-trigger based
+ *	ranging. Acts as a session timeout; if exceeded, the ranging session
+ *	should be terminated. Only valid if @non_trigger_based is set.
+ * @availability_window: duration of the availability window (AW) in units of
+ *	1 millisecond (0-255 ms). Only valid if @non_trigger_based is set.
+ *	If set to 0, the firmware or driver can automatically select an
+ *	appropriate value.
+ * @nominal_time: Nominal duration between adjacent availability windows
+ *	in units of milli seconds. Only valid if @non_trigger_based is set.
+ *	If set to 0, the firmware or driver can automatically select an
+ *	appropriate value.
+ * @num_measurements: number of Availability Windows (AWs) to schedule
+ *	for non-trigger-based ranging. Each AW may contain multiple FTM
+ *	exchanges as configured by @ftms_per_burst. Only valid if
+ *	@non_trigger_based is set. If set to 0, the firmware or driver
+ *	can automatically select an appropriate value.
+ * @ingress_distance: optional ingress threshold in units of mm. When set,
+ *	the measurement result of the peer needs to be indicated if the device
+ *	moves into this range. Measurement results need to be sent on a burst
+ *	index basis in this case.
+ * @egress_distance: optional egress threshold in units of mm. When set,
+ *	the measurement result of the peer needs to be indicated if the device
+ *	moves out of this range. Measurement results need to be sent on a burst
+ *	index basis in this case.
+ *	If neither or only one of @ingress_distance and @egress_distance
+ *	is set, only the specified threshold is used. If both are set, both
+ *	thresholds are applied. If neither is set, results are reported without
+ *	threshold filtering.
+ * @pd_suppress_range_results: flag to suppress ranging results for PD
+ *	requests. When set, the device performs ranging measurements to
+ *	provide ranging services to a peer (e.g. in RSTA role) but does
+ *	not report the measurement results to userspace. Only valid when
+ *	@request_type is %NL80211_PMSR_FTM_REQ_TYPE_PD.
  *
  * See also nl80211 for the respective attribute documentation.
  */
@@ -4560,6 +4715,16 @@ struct cfg80211_pmsr_ftm_request_peer {
 	u8 ftms_per_burst;
 	u8 ftmr_retries;
 	u8 bss_color;
+
+	u32 request_type;
+	u32 min_time_between_measurements;
+	u32 max_time_between_measurements;
+	u8 availability_window;
+	u32 nominal_time;
+	u32 num_measurements;
+	u64 ingress_distance;
+	u64 egress_distance;
+	u8 pd_suppress_range_results:1;
 };
 
 /**
@@ -5085,6 +5250,9 @@ struct mgmt_frame_regs {
  *	links by calling cfg80211_mlo_reconf_add_done(). When calling
  *	cfg80211_mlo_reconf_add_done() the bss pointer must be given for each
  *	link for which MLO reconfiguration 'add' operation was requested.
+ *
+ * @start_pd: Start the PD interface.
+ * @stop_pd: Stop the PD interface.
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy, struct cfg80211_wowlan *wow);
@@ -5267,7 +5435,7 @@ struct cfg80211_ops {
 				     struct wireless_dev *wdev,
 				     struct ieee80211_channel *chan,
 				     unsigned int duration,
-				     u64 *cookie);
+				     u64 *cookie, const u8 *rx_addr);
 	int	(*cancel_remain_on_channel)(struct wiphy *wiphy,
 					    struct wireless_dev *wdev,
 					    u64 cookie);
@@ -5461,6 +5629,8 @@ struct cfg80211_ops {
 				   struct cfg80211_ml_reconf_req *req);
 	int	(*set_epcs)(struct wiphy *wiphy, struct net_device *dev,
 			    bool val);
+	int	(*start_pd)(struct wiphy *wiphy, struct wireless_dev *wdev);
+	void	(*stop_pd)(struct wiphy *wiphy, struct wireless_dev *wdev);
 };
 
 /*
@@ -5506,7 +5676,6 @@ struct cfg80211_ops {
  *	responds to probe-requests in hardware.
  * @WIPHY_FLAG_OFFCHAN_TX: Device supports direct off-channel TX.
  * @WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL: Device supports remain-on-channel call.
- * @WIPHY_FLAG_SUPPORTS_5_10_MHZ: Device supports 5 MHz and 10 MHz channels.
  * @WIPHY_FLAG_HAS_CHANNEL_SWITCH: Device supports channel switch in
  *	beaconing mode (AP, IBSS, Mesh, ...).
  * @WIPHY_FLAG_SUPPORTS_EXT_KEK_KCK: The device supports bigger kek and kck keys
@@ -5546,7 +5715,6 @@ enum wiphy_flags {
 	WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD	= BIT(19),
 	WIPHY_FLAG_OFFCHAN_TX			= BIT(20),
 	WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL	= BIT(21),
-	WIPHY_FLAG_SUPPORTS_5_10_MHZ		= BIT(22),
 	WIPHY_FLAG_HAS_CHANNEL_SWITCH		= BIT(23),
 	WIPHY_FLAG_NOTIFY_REGDOM_BY_DRIVER	= BIT(24),
 	WIPHY_FLAG_CHANNEL_CHANGE_ON_BEACON     = BIT(25),
@@ -5852,6 +6020,7 @@ struct wiphy_vendor_command {
  * @extended_capabilities_len: length of the extended capabilities
  * @eml_capabilities: EML capabilities (for MLO)
  * @mld_capa_and_ops: MLD capabilities and operations (for MLO)
+ * @ext_mld_capa_and_ops: Extended MLD capabilities and operations (for MLO)
  */
 struct wiphy_iftype_ext_capab {
 	enum nl80211_iftype iftype;
@@ -5860,6 +6029,7 @@ struct wiphy_iftype_ext_capab {
 	u8 extended_capabilities_len;
 	u16 eml_capabilities;
 	u16 mld_capa_and_ops;
+	u16 ext_mld_capa_and_ops;
 };
 
 /**
@@ -5903,7 +6073,53 @@ cfg80211_get_iftype_ext_capa(struct wiphy *wiphy, enum nl80211_iftype type);
  *	(0 means unknown)
  * @ftm.max_total_ltf_rx: maximum total number of LTFs that can be received
  *	(0 means unknown)
- * @ftm.support_rsta: supports operating as RSTA in PMSR FTM request
+ * @ftm.ista: initiator role capabilities
+ * @ftm.ista.support_ntb: supports operating as ISTA in PMSR FTM request for
+ *	NTB ranging.
+ * @ftm.ista.support_tb: supports operating as ISTA in PMSR FTM request for
+ *	TB ranging.
+ * @ftm.ista.support_edca: supports operating as ISTA in PMSR FTM request for
+ *	EDCA based ranging.
+ * @ftm.ista.max_peers: maximum number of peers supported in the ISTA role.
+ *	If zero, no role-specific peer limit applies.
+ * @ftm.rsta: responder role capabilities
+ * @ftm.rsta.support_ntb: supports operating as RSTA in PMSR FTM request for
+ *	NTB ranging.
+ * @ftm.rsta.support_tb: supports operating as RSTA in PMSR FTM request for
+ *	TB ranging.
+ * @ftm.rsta.support_edca: supports operating as RSTA in PMSR FTM request for
+ *	EDCA based ranging.
+ * @ftm.rsta.max_peers: maximum number of peers supported in the RSTA role.
+ *	If zero, no role-specific peer limit applies.
+ * @ftm.max_no_of_tx_antennas: maximum number of transmit antennas supported for
+ *	EDCA based ranging (0 means unknown)
+ * @ftm.max_no_of_rx_antennas: maximum number of receive antennas supported for
+ *	EDCA based ranging (0 means unknown)
+ * @ftm.min_allowed_ranging_interval_edca: Minimum EDCA ranging
+ *	interval supported by the device in milli seconds. (0 means unknown).
+ *	Applications can use this value to estimate the burst period to be
+ *	given in the FTM request for the EDCA based ranging case. If
+ *	non-zero, this value will be used to validate the burst period in
+ *	the FTM request.
+ * @ftm.min_allowed_ranging_interval_ntb: Minimum NTB ranging
+ *	interval supported by the device in milli seconds. (0 means unknown).
+ *	Applications can use this value to estimate the burst period to be
+ *	given in the FTM request for the NTB ranging case. If non-zero,
+ *	this value will be used to validate the nominal time in the FTM
+ *	request.
+ * @ftm.type: ranging type capabilities
+ * @ftm.type.infra_support: supports infrastructure ranging (STA-to-AP or
+ *	AP-to-STA) as part of Proximity Detection
+ * @ftm.type.pd_support: supports peer-to-peer ranging as mentioned in the
+ *	specification "PR Implementation Consideration Draft 1.9 rev 1" where
+ *	PD stands for proximity detection
+ * @ftm.concurrent_ista_rsta_support: indicates if the device can
+ *	simultaneously act as initiator and responder in a multi-peer
+ *	measurement request. Only valid if @ftm.rsta_support is set.
+ * @ftm.pd_preambles: bitmap of preambles supported (&enum nl80211_preamble)
+ *	for PD ranging requests. Ignored if @ftm.type.pd_support is not set.
+ * @ftm.pd_bandwidths: bitmap of bandwidths supported (&enum nl80211_chan_width)
+ *	for PD ranging requests. Ignored if @ftm.type.pd_support is not set.
  */
 struct cfg80211_pmsr_capabilities {
 	unsigned int max_peers;
@@ -5929,7 +6145,29 @@ struct cfg80211_pmsr_capabilities {
 		u8 max_rx_sts;
 		u8 max_total_ltf_tx;
 		u8 max_total_ltf_rx;
-		u8 support_rsta:1;
+		struct {
+			u8 support_ntb:1,
+			   support_tb:1,
+			   support_edca:1;
+			u32 max_peers;
+		} ista;
+		struct {
+			u8 support_ntb:1,
+			   support_tb:1,
+			   support_edca:1;
+			u32 max_peers;
+		} rsta;
+		u8 max_no_of_tx_antennas;
+		u8 max_no_of_rx_antennas;
+		u32 min_allowed_ranging_interval_edca;
+		u32 min_allowed_ranging_interval_ntb;
+		struct {
+			u8 infra_support:1,
+			   pd_support:1;
+		} type;
+		u8 concurrent_ista_rsta_support:1;
+		u32 pd_preambles;
+		u32 pd_bandwidths;
 	} ftm;
 };
 
@@ -6024,7 +6262,7 @@ enum wiphy_nan_flags {
  *     nibble indicates the number of TX antennas and upper nibble indicates the
  *     number of RX antennas. Value 0 indicates the information is not
  *     available.
- * @max_channel_switch_time: maximum channel switch time in milliseconds.
+ * @max_channel_switch_time: maximum channel switch time in microseconds.
  * @dev_capabilities: NAN device capabilities as defined in Wi-Fi Aware (TM)
  *     specification Table 79 (Capabilities field).
  * @phy: Band-agnostic capabilities for NAN data interfaces. Since NAN
@@ -8302,6 +8540,7 @@ void cfg80211_auth_timeout(struct net_device *dev, const u8 *addr);
  *	as the AC bitmap in the QoS info field
  * @req_ies: information elements from the (Re)Association Request frame
  * @req_ies_len: length of req_ies data
+ * @assoc_encrypted: indicate if the (re)association exchange is encrypted.
  * @ap_mld_addr: AP MLD address (in case of MLO)
  * @links: per-link information indexed by link ID, use links[0] for
  *	non-MLO connections
@@ -8316,6 +8555,7 @@ struct cfg80211_rx_assoc_resp_data {
 	const u8 *req_ies;
 	size_t req_ies_len;
 	int uapsd_queues;
+	bool assoc_encrypted;
 	const u8 *ap_mld_addr;
 	struct {
 		u8 addr[ETH_ALEN] __aligned(2);
@@ -8445,7 +8685,7 @@ void cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid,
  * cfg80211 then sends a notification to userspace.
  */
 void cfg80211_notify_new_peer_candidate(struct net_device *dev,
-		const u8 *macaddr, const u8 *ie, u8 ie_len,
+		const u8 *macaddr, const u8 *ie, size_t ie_len,
 		int sig_dbm, gfp_t gfp);
 
 /**
@@ -8835,6 +9075,9 @@ struct cfg80211_fils_resp_params {
  * @links.status: per-link status code, to report a status code that's not
  *	%WLAN_STATUS_SUCCESS for a given link, it must also be in the
  *	@valid_links bitmap and may have a BSS pointer (which is then released)
+ * @assoc_encrypted: The driver should set this flag to indicate that the
+ *	(Re)Association Request/Response frames are transmitted encrypted over
+ *	the air.
  */
 struct cfg80211_connect_resp_params {
 	int status;
@@ -8844,6 +9087,7 @@ struct cfg80211_connect_resp_params {
 	size_t resp_ie_len;
 	struct cfg80211_fils_resp_params fils;
 	enum nl80211_timeout_reason timeout_reason;
+	bool assoc_encrypted;
 
 	const u8 *ap_mld_addr;
 	u16 valid_links;

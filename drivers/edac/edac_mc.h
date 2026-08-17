@@ -88,8 +88,8 @@ do {									\
 
 #endif				/* !CONFIG_EDAC_DEBUG */
 
-#define PCI_VEND_DEV(vend, dev) PCI_VENDOR_ID_ ## vend, \
-	PCI_DEVICE_ID_ ## vend ## _ ## dev
+#define PCI_VEND_DEV(vend, dev) \
+	PCI_DEVICE(PCI_VENDOR_ID_ ## vend, PCI_DEVICE_ID_ ## vend ## _ ## dev)
 
 #define edac_dev_name(dev) (dev)->dev_name
 

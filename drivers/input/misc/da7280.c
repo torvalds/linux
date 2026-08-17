@@ -1305,7 +1305,7 @@ MODULE_DEVICE_TABLE(of, da7280_of_match);
 #endif
 
 static const struct i2c_device_id da7280_i2c_id[] = {
-	{ "da7280", },
+	{ .name = "da7280" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, da7280_i2c_id);

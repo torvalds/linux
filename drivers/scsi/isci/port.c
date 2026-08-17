@@ -464,7 +464,7 @@ static enum sci_status sci_port_set_phy(struct isci_port *iport, struct isci_phy
 {
 	/* Check to see if we can add this phy to a port
 	 * that means that the phy is not part of a port and that the port does
-	 * not already have a phy assinged to the phy index.
+	 * not already have a phy assigned to the phy index.
 	 */
 	if (!iport->phy_table[iphy->phy_index] &&
 	    !phy_get_non_dummy_port(iphy) &&

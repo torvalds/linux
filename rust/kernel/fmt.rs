@@ -4,7 +4,14 @@
 //!
 //! This module is intended to be used in place of `core::fmt` in kernel code.
 
-pub use core::fmt::{Arguments, Debug, Error, Formatter, Result, Write};
+pub use core::fmt::{
+    Arguments,
+    Debug,
+    Error,
+    Formatter,
+    Result,
+    Write, //
+};
 
 /// Internal adapter used to route and allow implementations of formatting traits for foreign types.
 ///
@@ -27,7 +34,15 @@ macro_rules! impl_fmt_adapter_forward {
     };
 }
 
-use core::fmt::{Binary, LowerExp, LowerHex, Octal, Pointer, UpperExp, UpperHex};
+use core::fmt::{
+    Binary,
+    LowerExp,
+    LowerHex,
+    Octal,
+    Pointer,
+    UpperExp,
+    UpperHex, //
+};
 impl_fmt_adapter_forward!(Debug, LowerHex, UpperHex, Octal, Binary, Pointer, LowerExp, UpperExp);
 
 /// A copy of [`core::fmt::Display`] that allows us to implement it for foreign types.

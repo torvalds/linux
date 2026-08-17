@@ -150,7 +150,7 @@ void poll_freewait(struct poll_wqueues *pwq)
 		} while (entry > p->entries);
 		old = p;
 		p = p->next;
-		free_page((unsigned long) old);
+		kfree(old);
 	}
 }
 EXPORT_SYMBOL(poll_freewait);
@@ -165,7 +165,7 @@ static struct poll_table_entry *poll_get_entry(struct poll_wqueues *p)
 	if (!table || POLL_TABLE_FULL(table)) {
 		struct poll_table_page *new_table;
 
-		new_table = (struct poll_table_page *) __get_free_page(GFP_KERNEL);
+		new_table = kmalloc(PAGE_SIZE, GFP_KERNEL);
 		if (!new_table) {
 			p->error = -ENOMEM;
 			return NULL;
@@ -707,6 +707,17 @@ static int kern_select(int n, fd_set __user *inp, fd_set __user *outp,
 	if (tvp) {
 		if (copy_from_user(&tv, tvp, sizeof(tv)))
 			return -EFAULT;
+
+		/*
+		 * Reject negative components before normalisation. The seconds
+		 * sum below is performed in signed long and a crafted negative
+		 * timeval can wrap to a positive value that passes
+		 * timespec64_valid() and turns into an effectively-infinite
+		 * deadline via timespec64_add_safe()'s saturation, instead of
+		 * the -EINVAL POSIX requires for negative timeouts.
+		 */
+		if (tv.tv_sec < 0 || tv.tv_usec < 0)
+			return -EINVAL;
 
 		to = &end_time;
 		if (poll_select_set_timeout(to,

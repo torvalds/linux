@@ -1525,6 +1525,7 @@ static const struct of_device_id msm8998_pinctrl_of_match[] = {
 	{ .compatible = "qcom,msm8998-pinctrl", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, msm8998_pinctrl_of_match);
 
 static struct platform_driver msm8998_pinctrl_driver = {
 	.driver = {
@@ -1548,4 +1549,3 @@ module_exit(msm8998_pinctrl_exit);
 
 MODULE_DESCRIPTION("QTI msm8998 pinctrl driver");
 MODULE_LICENSE("GPL v2");
-MODULE_DEVICE_TABLE(of, msm8998_pinctrl_of_match);

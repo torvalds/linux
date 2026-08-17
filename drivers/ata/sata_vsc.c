@@ -400,11 +400,15 @@ static int vsc_sata_init_one(struct pci_dev *pdev,
 }
 
 static const struct pci_device_id vsc_sata_pci_tbl[] = {
-	{ PCI_VENDOR_ID_VITESSE, 0x7174,
-	  PCI_ANY_ID, PCI_ANY_ID, 0x10600, 0xFFFFFF, 0 },
-	{ PCI_VENDOR_ID_INTEL, 0x3200,
-	  PCI_ANY_ID, PCI_ANY_ID, 0x10600, 0xFFFFFF, 0 },
-
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_VITESSE, 0x7174),
+		.class = 0x10600,
+		.class_mask = 0xFFFFFF,
+	}, {
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x3200),
+		.class = 0x10600,
+		.class_mask = 0xFFFFFF,
+	},
 	{ }	/* terminate list */
 };
 

@@ -92,7 +92,7 @@ static void icl_set_procmon_ref_values(struct intel_display *display,
 }
 
 static bool check_phy_reg(struct intel_display *display,
-			  enum phy phy, i915_reg_t reg, u32 mask,
+			  enum phy phy, intel_reg_t reg, u32 mask,
 			  u32 expected_val)
 {
 	u32 val = intel_de_read(display, reg);

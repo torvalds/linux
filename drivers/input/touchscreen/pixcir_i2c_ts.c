@@ -580,8 +580,8 @@ static const struct pixcir_i2c_chip_data pixcir_tangoc_data = {
 };
 
 static const struct i2c_device_id pixcir_i2c_ts_id[] = {
-	{ "pixcir_ts", (unsigned long) &pixcir_ts_data },
-	{ "pixcir_tangoc", (unsigned long) &pixcir_tangoc_data },
+	{ .name = "pixcir_ts", .driver_data = (unsigned long)&pixcir_ts_data },
+	{ .name = "pixcir_tangoc", .driver_data = (unsigned long)&pixcir_tangoc_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pixcir_i2c_ts_id);

@@ -3,7 +3,7 @@
 # Makefile for the ATM Protocol Families.
 #
 
-atm-y		:= addr.o pvc.o signaling.o svc.o ioctl.o common.o atm_misc.o raw.o resources.o atm_sysfs.o
+atm-y		:= pvc.o ioctl.o common.o atm_misc.o raw.o resources.o atm_sysfs.o
 
 obj-$(CONFIG_ATM) += atm.o
 obj-$(CONFIG_ATM_BR2684) += br2684.o

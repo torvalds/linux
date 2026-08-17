@@ -486,6 +486,7 @@ enum WX_MSCA_CMD_value {
 
 #define WX_VMDQ_4Q_MASK              0x7C
 #define WX_VMDQ_2Q_MASK              0x7E
+#define WX_VMDQ_1Q_MASK              0x7F
 
 /****************** Manageablility Host Interface defines ********************/
 #define WX_HI_MAX_BLOCK_BYTE_LENGTH  256 /* Num of bytes in range */
@@ -1202,6 +1203,7 @@ struct wx_last_stats {
 };
 
 enum wx_state {
+	WX_STATE_DOWN,
 	WX_STATE_RESETTING,
 	WX_STATE_SWFW_BUSY,
 	WX_STATE_PTP_RUNNING,

@@ -98,7 +98,14 @@
 
 #define ZL_REG_REF_MON_STATUS(_idx)					\
 	ZL_REG_IDX(_idx, 2, 0x02, 1, ZL3073X_NUM_REFS, 1)
-#define ZL_REF_MON_STATUS_OK			0 /* all bits zeroed */
+#define ZL_REF_MON_STATUS_OK			0
+#define ZL_REF_MON_STATUS_LOS			BIT(0)
+#define ZL_REF_MON_STATUS_SCM			BIT(1)
+#define ZL_REF_MON_STATUS_CFM			BIT(2)
+#define ZL_REF_MON_STATUS_GST			BIT(3)
+#define ZL_REF_MON_STATUS_PFM			BIT(4)
+#define ZL_REF_MON_STATUS_ESYNC			BIT(6)
+#define ZL_REF_MON_STATUS_SPLIT_XO		BIT(7)
 
 #define ZL_REG_DPLL_MON_STATUS(_idx)					\
 	ZL_REG_IDX(_idx, 2, 0x10, 1, ZL3073X_MAX_CHANNELS, 1)
@@ -157,6 +164,11 @@
 #define ZL_DPLL_MODE_REFSEL_MODE_NCO		4
 #define ZL_DPLL_MODE_REFSEL_REF			GENMASK(7, 4)
 
+#define ZL_REG_DPLL_DF_READ(_idx)					\
+	ZL_REG_IDX(_idx, 5, 0x28, 1, ZL3073X_MAX_CHANNELS, 1)
+#define ZL_DPLL_DF_READ_SEM			BIT(4)
+#define ZL_DPLL_DF_READ_REF_OFST		BIT(3)
+
 #define ZL_REG_DPLL_MEAS_CTRL			ZL_REG(5, 0x50, 1)
 #define ZL_DPLL_MEAS_CTRL_EN			BIT(0)
 #define ZL_DPLL_MEAS_CTRL_AVG_FACTOR		GENMASK(7, 4)
@@ -168,6 +180,16 @@
 
 #define ZL_REG_DPLL_PHASE_ERR_DATA(_idx)				\
 	ZL_REG_IDX(_idx, 5, 0x55, 6, ZL3073X_MAX_CHANNELS, 6)
+
+/*******************************
+ * Register Pages 6-7, DPLL Data
+ *******************************/
+
+#define ZL_REG_DPLL_DF_OFFSET_03(_idx)					\
+	ZL_REG_IDX(_idx, 6, 0x00, 6, 4, 0x20)
+#define ZL_REG_DPLL_DF_OFFSET_4		ZL_REG(7, 0x00, 6)
+#define ZL_REG_DPLL_DF_OFFSET(_idx)					\
+	((_idx) < 4 ? ZL_REG_DPLL_DF_OFFSET_03(_idx) : ZL_REG_DPLL_DF_OFFSET_4)
 
 /***********************************
  * Register Page 9, Synth and Output

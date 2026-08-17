@@ -334,7 +334,7 @@ int snd_parse_eld(struct device *dev, struct snd_parsed_hdmi_eld *e,
 	e->eld_ver = GRAB_BITS(buf, 0, 3, 5);
 	if (e->eld_ver != ELD_VER_CEA_861D &&
 	    e->eld_ver != ELD_VER_PARTIAL) {
-		dev_info(dev, "HDMI: Unknown ELD version %d\n", e->eld_ver);
+		dev_info_ratelimited(dev, "HDMI: Unknown ELD version %d\n", e->eld_ver);
 		goto out_fail;
 	}
 
@@ -357,7 +357,7 @@ int snd_parse_eld(struct device *dev, struct snd_parsed_hdmi_eld *e,
 	e->product_id	  = get_unaligned_le16(buf + 18);
 
 	if (mnl > ELD_MAX_MNL) {
-		dev_info(dev, "HDMI: MNL is reserved value %d\n", mnl);
+		dev_info_ratelimited(dev, "HDMI: MNL is reserved value %d\n", mnl);
 		goto out_fail;
 	} else if (ELD_FIXED_BYTES + mnl > size) {
 		dev_info(dev, "HDMI: out of range MNL %d\n", mnl);

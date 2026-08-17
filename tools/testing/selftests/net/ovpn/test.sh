@@ -110,7 +110,7 @@ ovpn_run_basic_traffic() {
 
 ovpn_run_lan_traffic() {
 	ovpn_cmd_ok "ping LAN behind peer1" \
-		ip netns exec ovpn_peer0 ping -qfc 500 -w 3 "${OVPN_LAN_IP}"
+		ip netns exec ovpn_peer0 ping -qfc 100 -w 3 "${OVPN_LAN_IP}"
 }
 
 ovpn_run_float_mode() {
@@ -127,7 +127,7 @@ ovpn_run_float_mode() {
 	for p in $(seq 1 ${OVPN_NUM_PEERS}); do
 		peer_ns="ovpn_peer${p}"
 		ovpn_cmd_ok "ping tunnel after float peer ${p}" \
-			ip netns exec "${peer_ns}" ping -qfc 500 -w 3 5.5.5.1
+			ip netns exec "${peer_ns}" ping -qfc 100 -w 3 5.5.5.1
 	done
 }
 

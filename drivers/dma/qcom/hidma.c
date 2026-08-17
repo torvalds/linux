@@ -45,7 +45,6 @@
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
 #include <linux/list.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -624,12 +623,10 @@ static ssize_t hidma_show_values(struct device *dev,
 {
 	struct hidma_dev *mdev = dev_get_drvdata(dev);
 
-	buf[0] = 0;
-
 	if (strcmp(attr->attr.name, "chid") == 0)
-		sprintf(buf, "%d\n", mdev->chidx);
+		return sysfs_emit(buf, "%d\n", mdev->chidx);
 
-	return strlen(buf);
+	return 0;
 }
 
 static inline void  hidma_sysfs_uninit(struct hidma_dev *dev)

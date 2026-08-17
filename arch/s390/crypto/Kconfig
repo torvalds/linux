@@ -4,6 +4,7 @@ menu "Accelerated Cryptographic Algorithms for CPU (s390)"
 
 config CRYPTO_AES_S390
 	tristate "Ciphers: AES, modes: ECB, CBC, CTR, XTS, GCM"
+	select CRYPTO_AEAD
 	select CRYPTO_SKCIPHER
 	help
 	  AEAD cipher: AES with GCM

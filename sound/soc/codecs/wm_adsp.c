@@ -679,6 +679,9 @@ static void wm_adsp_control_remove(struct cs_dsp_coeff_ctl *cs_ctl)
 {
 	struct wm_coeff_ctl *ctl = cs_ctl->priv;
 
+	if (!ctl)
+		return;
+
 	cancel_work_sync(&ctl->work);
 
 	kfree(ctl->name);
@@ -1167,7 +1170,14 @@ EXPORT_SYMBOL_GPL(wm_adsp2_component_probe);
 
 int wm_adsp2_component_remove(struct wm_adsp *dsp, struct snd_soc_component *component)
 {
+	if (!dsp)
+		return 0;
+
+	if (!dsp->component)
+		return 0;
+
 	cs_dsp_cleanup_debugfs(&dsp->cs_dsp);
+	dsp->component = NULL;
 
 	return 0;
 }

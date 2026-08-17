@@ -19,53 +19,24 @@
 #include <linux/types.h>
 
 #include "rkvdec.h"
+#include "rkvdec-bitwriter.h"
 
-struct rkvdec_rps_refs {
-	u16 lt_ref_pic_poc_lsb;
-	u16 used_by_curr_pic_lt_flag	: 1;
-	u16 reserved			: 15;
-} __packed;
+#define RPS_LT_REF_PIC_POC_LSB(i)	BW_FIELD(0 + (i) * 32, 16) // i: 0-31
+#define RPS_LT_REF_USED_BY_CURR_PIC(i)	BW_FIELD(16 + (i) * 32, 1) // i: 0-31
 
-struct rkvdec_rps_short_term_ref_set {
-	u32 num_negative	: 4;
-	u32 num_positive	: 4;
-	u32 delta_poc0		: 16;
-	u32 used_flag0		: 1;
-	u32 delta_poc1		: 16;
-	u32 used_flag1		: 1;
-	u32 delta_poc2		: 16;
-	u32 used_flag2		: 1;
-	u32 delta_poc3		: 16;
-	u32 used_flag3		: 1;
-	u32 delta_poc4		: 16;
-	u32 used_flag4		: 1;
-	u32 delta_poc5		: 16;
-	u32 used_flag5		: 1;
-	u32 delta_poc6		: 16;
-	u32 used_flag6		: 1;
-	u32 delta_poc7		: 16;
-	u32 used_flag7		: 1;
-	u32 delta_poc8		: 16;
-	u32 used_flag8		: 1;
-	u32 delta_poc9		: 16;
-	u32 used_flag9		: 1;
-	u32 delta_poc10		: 16;
-	u32 used_flag10		: 1;
-	u32 delta_poc11		: 16;
-	u32 used_flag11		: 1;
-	u32 delta_poc12		: 16;
-	u32 used_flag12		: 1;
-	u32 delta_poc13		: 16;
-	u32 used_flag13		: 1;
-	u32 delta_poc14		: 16;
-	u32 used_flag14		: 1;
-	u32 reserved_bits	: 25;
-	u32 reserved[3];
-} __packed;
+#define RPS_ST_REF_SET_NUM_NEGATIVE(i)	BW_FIELD(1024 + ((i) * 384), 4) // i: 0-63
+#define RPS_ST_REF_SET_NUM_POSITIVE(i)	BW_FIELD(1028 + ((i) * 384), 4) // i: 0-63
+
+// i: 0-63, j: 0-14
+#define RPS_ST_REF_SET_DELTA_POC(i, j)	BW_FIELD(1032 + ((i) * 384) + ((j) * 17), 16)
+
+// i: 0-63, j: 0-14
+#define RPS_ST_REF_SET_USED(i, j)	BW_FIELD(1048 + ((i) * 384) + ((j) * 17), 1)
+
+#define RKVDEC_RPS_HEVC_SIZE		ALIGN(1032 + 64 * 384, 128)
 
 struct rkvdec_rps {
-	struct rkvdec_rps_refs refs[32];
-	struct rkvdec_rps_short_term_ref_set short_term_ref_sets[64];
+	u32 info[RKVDEC_RPS_HEVC_SIZE / 8 / 4];
 } __packed;
 
 struct rkvdec_hevc_run {

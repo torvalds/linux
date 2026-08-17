@@ -513,7 +513,7 @@ unregister all the kernel hook points.
 
 All kgdb I/O drivers can be reconfigured at run time, if
 ``CONFIG_SYSFS`` and ``CONFIG_MODULES`` are enabled, by echo'ing a new
-config string to ``/sys/module/<driver>/parameter/<option>``. The driver
+config string to ``/sys/module/<driver>/parameters/<option>``. The driver
 can be unconfigured by passing an empty string. You cannot change the
 configuration while the debugger is attached. Make sure to detach the
 debugger with the ``detach`` command prior to trying to unconfigure a
@@ -696,7 +696,7 @@ The kernel debugger is organized into a number of components:
 
 1. The debug core
 
-   The debug core is found in ``kernel/debugger/debug_core.c``. It
+   The debug core is found in ``kernel/debug/debug_core.c``. It
    contains:
 
    -  A generic OS exception handler which includes sync'ing the
@@ -877,7 +877,7 @@ attached keyboard. The keyboard infrastructure is only compiled into the
 kernel when ``CONFIG_KDB_KEYBOARD=y`` is set in the kernel configuration.
 
 The core polled keyboard driver for PS/2 type keyboards is in
-``drivers/char/kdb_keyboard.c``. This driver is hooked into the debug core
+``kernel/debug/kdb/kdb_keyboard.c``. This driver is hooked into the debug core
 when kgdboc populates the callback in the array called
 :c:expr:`kdb_poll_funcs[]`. The kdb_get_kbd_char() is the top-level
 function which polls hardware for single character input.

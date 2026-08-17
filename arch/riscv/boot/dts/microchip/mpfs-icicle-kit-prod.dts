@@ -14,6 +14,16 @@
 		     "microchip,mpfs";
 };
 
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_fabric>;
+};
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_mssio>;
+};
+
 &syscontroller {
 	microchip,bitstream-flash = <&sys_ctrl_flash>;
 };

@@ -123,7 +123,7 @@ static ssize_t nvdimm_pmu_cpumask_show(struct device *dev,
 
 	nd_pmu = container_of(pmu, struct nvdimm_pmu, pmu);
 
-	return cpumap_print_to_pagebuf(true, buf, cpumask_of(nd_pmu->cpu));
+	return sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(cpumask_of(nd_pmu->cpu)));
 }
 
 static int nvdimm_pmu_cpu_offline(unsigned int cpu, struct hlist_node *node)

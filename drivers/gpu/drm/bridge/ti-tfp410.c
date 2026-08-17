@@ -114,7 +114,7 @@ static void tfp410_hpd_callback(void *arg, enum drm_connector_status status)
 {
 	struct tfp410 *dvi = arg;
 
-	mod_delayed_work(system_wq, &dvi->hpd_work,
+	mod_delayed_work(system_percpu_wq, &dvi->hpd_work,
 			 msecs_to_jiffies(HOTPLUG_DEBOUNCE_MS));
 }
 

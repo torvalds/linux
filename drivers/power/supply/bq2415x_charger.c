@@ -1738,20 +1738,20 @@ static void bq2415x_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id bq2415x_i2c_id_table[] = {
-	{ "bq2415x", BQUNKNOWN },
-	{ "bq24150", BQ24150 },
-	{ "bq24150a", BQ24150A },
-	{ "bq24151", BQ24151 },
-	{ "bq24151a", BQ24151A },
-	{ "bq24152", BQ24152 },
-	{ "bq24153", BQ24153 },
-	{ "bq24153a", BQ24153A },
-	{ "bq24155", BQ24155 },
-	{ "bq24156", BQ24156 },
-	{ "bq24156a", BQ24156A },
-	{ "bq24157s", BQ24157S },
-	{ "bq24158", BQ24158 },
-	{},
+	{ .name = "bq2415x", .driver_data = BQUNKNOWN },
+	{ .name = "bq24150", .driver_data = BQ24150 },
+	{ .name = "bq24150a", .driver_data = BQ24150A },
+	{ .name = "bq24151", .driver_data = BQ24151 },
+	{ .name = "bq24151a", .driver_data = BQ24151A },
+	{ .name = "bq24152", .driver_data = BQ24152 },
+	{ .name = "bq24153", .driver_data = BQ24153 },
+	{ .name = "bq24153a", .driver_data = BQ24153A },
+	{ .name = "bq24155", .driver_data = BQ24155 },
+	{ .name = "bq24156", .driver_data = BQ24156 },
+	{ .name = "bq24156a", .driver_data = BQ24156A },
+	{ .name = "bq24157s", .driver_data = BQ24157S },
+	{ .name = "bq24158", .driver_data = BQ24158 },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, bq2415x_i2c_id_table);
 

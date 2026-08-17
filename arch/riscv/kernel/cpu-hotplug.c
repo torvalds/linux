@@ -57,8 +57,8 @@ void arch_cpuhp_cleanup_dead_cpu(unsigned int cpu)
 	/* Verify from the firmware if the cpu is really stopped*/
 	if (cpu_ops->cpu_is_stopped)
 		ret = cpu_ops->cpu_is_stopped(cpu);
-	if (ret)
-		pr_warn("CPU%u may not have stopped: %d\n", cpu, ret);
+	if (!ret)
+		pr_warn("CPU%u may not have stopped\n", cpu);
 }
 
 /*

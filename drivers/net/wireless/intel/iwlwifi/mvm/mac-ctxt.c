@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2026 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -927,12 +927,17 @@ u8 iwl_mvm_mac_ctxt_get_lowest_rate(struct iwl_mvm *mvm,
 
 u16 iwl_mvm_mac_ctxt_get_beacon_flags(const struct iwl_fw *fw, u8 rate_idx)
 {
-	u16 flags = iwl_mvm_mac80211_idx_to_hwrate(fw, rate_idx);
 	bool is_new_rate = iwl_fw_lookup_cmd_ver(fw, BEACON_TEMPLATE_CMD, 0) > 10;
+	u16 flags = 0;
 
 	if (rate_idx <= IWL_LAST_CCK_RATE)
 		flags |= is_new_rate ? IWL_MAC_BEACON_CCK
 			  : IWL_MAC_BEACON_CCK_V1;
+
+	if (iwl_fw_lookup_cmd_ver(fw, TX_CMD, 0) > 8)
+		flags |= iwl_mvm_rate_idx_to_fw_idx(fw, rate_idx);
+	else
+		flags |= iwl_mvm_rate_idx_to_plcp(rate_idx);
 
 	return flags;
 }
@@ -962,6 +967,7 @@ static void iwl_mvm_mac_ctxt_set_tx(struct iwl_mvm *mvm,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct ieee80211_tx_info *info;
+	u32 rate_n_flags = 0;
 	u8 rate;
 	u32 tx_flags;
 
@@ -981,18 +987,21 @@ static void iwl_mvm_mac_ctxt_set_tx(struct iwl_mvm *mvm,
 			 IWL_UCODE_TLV_CAPA_BEACON_ANT_SELECTION)) {
 		iwl_mvm_toggle_tx_ant(mvm, &mvm->mgmt_last_antenna_idx);
 
-		tx_params->rate_n_flags =
-			cpu_to_le32(BIT(mvm->mgmt_last_antenna_idx) <<
-				    RATE_MCS_ANT_POS);
+		rate_n_flags |= BIT(mvm->mgmt_last_antenna_idx) <<
+					RATE_MCS_ANT_POS;
 	}
 
 	rate = iwl_mvm_mac_ctxt_get_beacon_rate(mvm, info, vif);
 
-	tx_params->rate_n_flags |=
-		cpu_to_le32(iwl_mvm_mac80211_idx_to_hwrate(mvm->fw, rate));
-	if (rate == IWL_FIRST_CCK_RATE)
-		tx_params->rate_n_flags |= cpu_to_le32(RATE_MCS_CCK_MSK_V1);
+	if (rate < IWL_FIRST_OFDM_RATE)
+		rate_n_flags |= RATE_MCS_MOD_TYPE_CCK;
+	else
+		rate_n_flags |= RATE_MCS_MOD_TYPE_LEGACY_OFDM;
 
+	rate_n_flags |= iwl_mvm_rate_idx_to_fw_idx(mvm->fw, rate);
+
+	tx_params->rate_n_flags = iwl_mvm_v3_rate_to_fw(rate_n_flags,
+							mvm->fw_rates_ver);
 }
 
 int iwl_mvm_mac_ctxt_send_beacon_cmd(struct iwl_mvm *mvm,

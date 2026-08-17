@@ -1715,10 +1715,10 @@ static int adl_pci9118_pci_probe(struct pci_dev *dev,
 
 /* FIXME: All the supported board types have the same device ID! */
 static const struct pci_device_id adl_pci9118_pci_table[] = {
-	{ PCI_VDEVICE(AMCC, 0x80d9), BOARD_PCI9118DG },
-/*	{ PCI_VDEVICE(AMCC, 0x80d9), BOARD_PCI9118HG }, */
-/*	{ PCI_VDEVICE(AMCC, 0x80d9), BOARD_PCI9118HR }, */
-	{ 0 }
+	{ PCI_VDEVICE(AMCC, 0x80d9), .driver_data = BOARD_PCI9118DG },
+/*	{ PCI_VDEVICE(AMCC, 0x80d9), .driver_data = BOARD_PCI9118HG }, */
+/*	{ PCI_VDEVICE(AMCC, 0x80d9), .driver_data = BOARD_PCI9118HR }, */
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, adl_pci9118_pci_table);
 

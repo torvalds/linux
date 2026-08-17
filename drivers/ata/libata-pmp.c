@@ -110,13 +110,24 @@ int sata_pmp_qc_defer_cmd_switch(struct ata_queued_cmd *qc)
 {
 	struct ata_link *link = qc->dev->link;
 	struct ata_port *ap = link->ap;
+	int ret;
 
 	if (ap->excl_link == NULL || ap->excl_link == link) {
 		if (ap->nr_active_links == 0 || ata_link_active(link)) {
 			qc->flags |= ATA_QCFLAG_CLEAR_EXCL;
-			return ata_std_qc_defer(qc);
+			ret = ata_std_qc_defer(qc);
+			if (ret == ATA_DEFER_LINK)
+				return ATA_DEFER_LINK_EXCL;
+			return ret;
 		}
 
+		/*
+		 * Note: ap->excl_link contains the link that is next in line,
+		 * i.e. implicit round robin. If there is only one link
+		 * dispatching, ap->excl_link will be left unclaimed, allowing
+		 * other links to set ap->excl_link, ensuring that the currently
+		 * active link cannot queue any more.
+		 */
 		ap->excl_link = link;
 	}
 
@@ -446,8 +457,13 @@ static void sata_pmp_quirks(struct ata_port *ap)
 		 * otherwise.  Don't try hard to recover it.
 		 */
 		ap->pmp_link[ap->nr_pmp_links - 1].flags |= ATA_LFLAG_NO_RETRY;
-	} else if (vendor == 0x197b && (devid == 0x2352 || devid == 0x0325)) {
+	} else if (vendor == 0x197b &&
+		   (devid == 0x0562 || devid == 0x2352 || devid == 0x0325)) {
 		/*
+		 * 0x0562: JMicron JMS562, as used in QNAP QDA-A2AR RAID1
+		 *         adapters.  The exported device may stay not ready
+		 *         while the array is rebuilding, and SRST/classify can
+		 *         time out before the RAID volume is exported.
 		 * 0x2352: found in Thermaltake BlackX Duet, jmicron JMB350?
 		 * 0x0325: jmicron JMB394.
 		 */
@@ -571,8 +587,11 @@ static void sata_pmp_detach(struct ata_device *dev)
 	if (ap->ops->pmp_detach)
 		ap->ops->pmp_detach(ap);
 
-	ata_for_each_link(tlink, ap, EDGE)
+	ata_for_each_link(tlink, ap, EDGE) {
+		WARN_ON(tlink->deferred_qc);
+		cancel_work_sync(&tlink->deferred_qc_work);
 		ata_eh_detach_dev(tlink->device);
+	}
 
 	spin_lock_irqsave(ap->lock, flags);
 	ap->nr_pmp_links = 0;
@@ -742,6 +761,7 @@ static int sata_pmp_revalidate_quick(struct ata_device *dev)
  */
 static int sata_pmp_eh_recover_pmp(struct ata_port *ap,
 				   struct ata_reset_operations *reset_ops)
+	__must_hold(&ap->host->eh_mutex)
 {
 	struct ata_link *link = &ap->link;
 	struct ata_eh_context *ehc = &link->eh_context;
@@ -763,7 +783,7 @@ static int sata_pmp_eh_recover_pmp(struct ata_port *ap,
 		struct ata_link *tlink;
 
 		/* reset */
-		rc = ata_eh_reset(link, 0, reset_ops);
+		rc = ata_eh_reset(ap, link, 0, reset_ops);
 		if (rc) {
 			ata_link_err(link, "failed to reset PMP, giving up\n");
 			goto fail;
@@ -907,6 +927,7 @@ static int sata_pmp_handle_link_fail(struct ata_link *link, int *link_tries)
  *	0 on success, -errno on failure.
  */
 static int sata_pmp_eh_recover(struct ata_port *ap)
+	__must_hold(&ap->host->eh_mutex)
 {
 	struct ata_port_operations *ops = ap->ops;
 	int pmp_tries, link_tries[SATA_PMP_MAX_PORTS];
@@ -1084,6 +1105,7 @@ static int sata_pmp_eh_recover(struct ata_port *ap)
  *	Kernel thread context (may sleep).
  */
 void sata_pmp_error_handler(struct ata_port *ap)
+	__must_hold(&ap->host->eh_mutex)
 {
 	ata_eh_autopsy(ap);
 	ata_eh_report(ap);

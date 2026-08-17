@@ -30,6 +30,7 @@
 #ifndef __DM_HELPERS__
 #define __DM_HELPERS__
 
+#include "modules/inc/mod_info_packet_types.h"
 #include "dc_types.h"
 #include "dc.h"
 

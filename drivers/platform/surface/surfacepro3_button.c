@@ -185,11 +185,14 @@ static bool surface_button_check_MSHW0040(struct device *dev, acpi_handle handle
 
 static int surface_button_probe(struct platform_device *pdev)
 {
-	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
 	struct surface_button *button;
+	struct acpi_device *device;
 	struct input_dev *input;
-	const char *hid = acpi_device_hid(device);
 	int error;
+
+	device = ACPI_COMPANION(&pdev->dev);
+	if (!device)
+		return -ENODEV;
 
 	if (strncmp(acpi_device_bid(device), SURFACE_BUTTON_OBJ_NAME,
 	    strlen(SURFACE_BUTTON_OBJ_NAME)))
@@ -210,7 +213,8 @@ static int surface_button_probe(struct platform_device *pdev)
 	}
 
 	strscpy(acpi_device_name(device), SURFACE_BUTTON_DEVICE_NAME);
-	snprintf(button->phys, sizeof(button->phys), "%s/buttons", hid);
+	snprintf(button->phys, sizeof(button->phys), "%s/buttons",
+		 acpi_device_hid(device));
 
 	input->name = acpi_device_name(device);
 	input->phys = button->phys;

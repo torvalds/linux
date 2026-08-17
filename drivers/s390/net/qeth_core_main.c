@@ -3362,9 +3362,9 @@ static int qeth_query_setdiagass(struct qeth_card *card)
 
 static void qeth_get_trap_id(struct qeth_card *card, struct qeth_trap_id *tid)
 {
-	unsigned long info = get_zeroed_page(GFP_KERNEL);
-	struct sysinfo_2_2_2 *info222 = (struct sysinfo_2_2_2 *)info;
-	struct sysinfo_3_2_2 *info322 = (struct sysinfo_3_2_2 *)info;
+	void *info = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	struct sysinfo_2_2_2 *info222 = info;
+	struct sysinfo_3_2_2 *info322 = info;
 	struct ccw_dev_id ccwid;
 	int level;
 
@@ -3381,7 +3381,7 @@ static void qeth_get_trap_id(struct qeth_card *card, struct qeth_trap_id *tid)
 		EBCASC(info322->vm[0].name, sizeof(info322->vm[0].name));
 		memcpy(tid->vmname, info322->vm[0].name, sizeof(tid->vmname));
 	}
-	free_page(info);
+	kfree(info);
 }
 
 static int qeth_hw_trap_cb(struct qeth_card *card,

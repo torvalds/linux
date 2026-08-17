@@ -80,13 +80,13 @@ struct dsc_mst_fairness_vars {
 	struct amdgpu_dm_connector *aconnector;
 };
 
-int compute_mst_dsc_configs_for_state(struct drm_atomic_state *state,
+int compute_mst_dsc_configs_for_state(struct drm_atomic_commit *state,
 				      struct dc_state *dc_state,
 				      struct dsc_mst_fairness_vars *vars);
 
 bool needs_dsc_aux_workaround(struct dc_link *link);
 
-int pre_validate_dsc(struct drm_atomic_state *state,
+int pre_validate_dsc(struct drm_atomic_commit *state,
 		     struct dm_atomic_state **dm_state_ptr,
 		     struct dsc_mst_fairness_vars *vars);
 

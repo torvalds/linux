@@ -23,7 +23,6 @@
 #include "xfs_attr_sf.h"
 #include "xfs_bmap.h"
 #include "xfs_defer.h"
-#include "xfs_log.h"
 #include "xfs_xattr.h"
 #include "xfs_parent.h"
 #include "xfs_trans_space.h"
@@ -202,7 +201,7 @@ xfs_parent_addname(
 
 	xfs_inode_to_parent_rec(&ppargs->rec, dp);
 	xfs_parent_da_args_init(&ppargs->args, tp, &ppargs->rec, child,
-			child->i_ino, parent_name);
+			I_INO(child), parent_name);
 
 	return xfs_attr_setname(&ppargs->args, 0);
 }
@@ -224,7 +223,7 @@ xfs_parent_removename(
 
 	xfs_inode_to_parent_rec(&ppargs->rec, dp);
 	xfs_parent_da_args_init(&ppargs->args, tp, &ppargs->rec, child,
-			child->i_ino, parent_name);
+			I_INO(child), parent_name);
 
 	return xfs_attr_removename(&ppargs->args);
 }
@@ -248,7 +247,7 @@ xfs_parent_replacename(
 
 	xfs_inode_to_parent_rec(&ppargs->rec, old_dp);
 	xfs_parent_da_args_init(&ppargs->args, tp, &ppargs->rec, child,
-			child->i_ino, old_name);
+			I_INO(child), old_name);
 
 	xfs_inode_to_parent_rec(&ppargs->new_rec, new_dp);
 
@@ -312,7 +311,7 @@ xfs_parent_lookup(
 	struct xfs_da_args		*scratch)
 {
 	memset(scratch, 0, sizeof(struct xfs_da_args));
-	xfs_parent_da_args_init(scratch, tp, pptr, ip, ip->i_ino, parent_name);
+	xfs_parent_da_args_init(scratch, tp, pptr, ip, I_INO(ip), parent_name);
 	return xfs_attr_get_ilocked(scratch);
 }
 

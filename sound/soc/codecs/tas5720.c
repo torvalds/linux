@@ -716,9 +716,9 @@ static struct snd_soc_dai_driver tas5720_dai[] = {
 };
 
 static const struct i2c_device_id tas5720_id[] = {
-	{ "tas5720", TAS5720 },
-	{ "tas5720a-q1", TAS5720A_Q1 },
-	{ "tas5722", TAS5722 },
+	{ .name = "tas5720", .driver_data = TAS5720 },
+	{ .name = "tas5720a-q1", .driver_data = TAS5720A_Q1 },
+	{ .name = "tas5722", .driver_data = TAS5722 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tas5720_id);

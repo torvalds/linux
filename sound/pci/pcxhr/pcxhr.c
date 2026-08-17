@@ -89,41 +89,41 @@ enum {
 };
 
 static const struct pci_device_id pcxhr_ids[] = {
-	{ 0x10b5, 0x9656, 0x1369, 0xb001, 0, 0, PCI_ID_VX882HR, },
-	{ 0x10b5, 0x9656, 0x1369, 0xb101, 0, 0, PCI_ID_PCX882HR, },
-	{ 0x10b5, 0x9656, 0x1369, 0xb201, 0, 0, PCI_ID_VX881HR, },
-	{ 0x10b5, 0x9656, 0x1369, 0xb301, 0, 0, PCI_ID_PCX881HR, },
-	{ 0x10b5, 0x9056, 0x1369, 0xb021, 0, 0, PCI_ID_VX882E, },
-	{ 0x10b5, 0x9056, 0x1369, 0xb121, 0, 0, PCI_ID_PCX882E, },
-	{ 0x10b5, 0x9056, 0x1369, 0xb221, 0, 0, PCI_ID_VX881E, },
-	{ 0x10b5, 0x9056, 0x1369, 0xb321, 0, 0, PCI_ID_PCX881E, },
-	{ 0x10b5, 0x9656, 0x1369, 0xb401, 0, 0, PCI_ID_VX1222HR, },
-	{ 0x10b5, 0x9656, 0x1369, 0xb501, 0, 0, PCI_ID_PCX1222HR, },
-	{ 0x10b5, 0x9656, 0x1369, 0xb601, 0, 0, PCI_ID_VX1221HR, },
-	{ 0x10b5, 0x9656, 0x1369, 0xb701, 0, 0, PCI_ID_PCX1221HR, },
-	{ 0x10b5, 0x9056, 0x1369, 0xb421, 0, 0, PCI_ID_VX1222E, },
-	{ 0x10b5, 0x9056, 0x1369, 0xb521, 0, 0, PCI_ID_PCX1222E, },
-	{ 0x10b5, 0x9056, 0x1369, 0xb621, 0, 0, PCI_ID_VX1221E, },
-	{ 0x10b5, 0x9056, 0x1369, 0xb721, 0, 0, PCI_ID_PCX1221E, },
-	{ 0x10b5, 0x9056, 0x1369, 0xba01, 0, 0, PCI_ID_VX222HR, },
-	{ 0x10b5, 0x9056, 0x1369, 0xba21, 0, 0, PCI_ID_VX222E, },
-	{ 0x10b5, 0x9056, 0x1369, 0xbd01, 0, 0, PCI_ID_PCX22HR, },
-	{ 0x10b5, 0x9056, 0x1369, 0xbd21, 0, 0, PCI_ID_PCX22E, },
-	{ 0x10b5, 0x9056, 0x1369, 0xbc01, 0, 0, PCI_ID_VX222HRMIC, },
-	{ 0x10b5, 0x9056, 0x1369, 0xbc21, 0, 0, PCI_ID_VX222E_MIC, },
-	{ 0x10b5, 0x9056, 0x1369, 0xbb01, 0, 0, PCI_ID_PCX924HR, },
-	{ 0x10b5, 0x9056, 0x1369, 0xbb21, 0, 0, PCI_ID_PCX924E, },
-	{ 0x10b5, 0x9056, 0x1369, 0xbf01, 0, 0, PCI_ID_PCX924HRMIC, },
-	{ 0x10b5, 0x9056, 0x1369, 0xbf21, 0, 0, PCI_ID_PCX924E_MIC, },
-	{ 0x10b5, 0x9656, 0x1369, 0xd001, 0, 0, PCI_ID_VX442HR, },
-	{ 0x10b5, 0x9656, 0x1369, 0xd101, 0, 0, PCI_ID_PCX442HR, },
-	{ 0x10b5, 0x9056, 0x1369, 0xd021, 0, 0, PCI_ID_VX442E, },
-	{ 0x10b5, 0x9056, 0x1369, 0xd121, 0, 0, PCI_ID_PCX442E, },
-	{ 0x10b5, 0x9656, 0x1369, 0xd201, 0, 0, PCI_ID_VX822HR, },
-	{ 0x10b5, 0x9656, 0x1369, 0xd301, 0, 0, PCI_ID_PCX822HR, },
-	{ 0x10b5, 0x9056, 0x1369, 0xd221, 0, 0, PCI_ID_VX822E, },
-	{ 0x10b5, 0x9056, 0x1369, 0xd321, 0, 0, PCI_ID_PCX822E, },
-	{ 0, }
+	{ PCI_DEVICE_SUB(0x10b5, 0x9656, 0x1369, 0xb001), .driver_data = PCI_ID_VX882HR },
+	{ PCI_DEVICE_SUB(0x10b5, 0x9656, 0x1369, 0xb101), .driver_data = PCI_ID_PCX882HR },
+	{ PCI_DEVICE_SUB(0x10b5, 0x9656, 0x1369, 0xb201), .driver_data = PCI_ID_VX881HR },
+	{ PCI_DEVICE_SUB(0x10b5, 0x9656, 0x1369, 0xb301), .driver_data = PCI_ID_PCX881HR },
+	{ PCI_DEVICE_SUB(0x10b5, 0x9056, 0x1369, 0xb021), .driver_data = PCI_ID_VX882E },
+	{ PCI_DEVICE_SUB(0x10b5, 0x9056, 0x1369, 0xb121), .driver_data = PCI_ID_PCX882E },
+	{ PCI_DEVICE_SUB(0x10b5, 0x9056, 0x1369, 0xb221), .driver_data = PCI_ID_VX881E },
+	{ PCI_DEVICE_SUB(0x10b5, 0x9056, 0x1369, 0xb321), .driver_data = PCI_ID_PCX881E },
+	{ PCI_DEVICE_SUB(0x10b5, 0x9656, 0x1369, 0xb401), .driver_data = PCI_ID_VX1222HR },
+	{ PCI_DEVICE_SUB(0x10b5, 0x9656, 0x1369, 0xb501), .driver_data = PCI_ID_PCX1222HR },
+	{ PCI_DEVICE_SUB(0x10b5, 0x9656, 0x1369, 0xb601), .driver_data = PCI_ID_VX1221HR },
+	{ PCI_DEVICE_SUB(0x10b5, 0x9656, 0x1369, 0xb701), .driver_data = PCI_ID_PCX1221HR },
+	{ PCI_DEVICE_SUB(0x10b5, 0x9056, 0x1369, 0xb421), .driver_data = PCI_ID_VX1222E },
+	{ PCI_DEVICE_SUB(0x10b5, 0x9056, 0x1369, 0xb521), .driver_data = PCI_ID_PCX1222E },
+	{ PCI_DEVICE_SUB(0x10b5, 0x9056, 0x1369, 0xb621), .driver_data = PCI_ID_VX1221E },
+	{ PCI_DEVICE_SUB(0x10b5, 0x9056, 0x1369, 0xb721), .driver_data = PCI_ID_PCX1221E },
+	{ PCI_DEVICE_SUB(0x10b5, 0x9056, 0x1369, 0xba01), .driver_data = PCI_ID_VX222HR },
+	{ PCI_DEVICE_SUB(0x10b5, 0x9056, 0x1369, 0xba21), .driver_data = PCI_ID_VX222E },
+	{ PCI_DEVICE_SUB(0x10b5, 0x9056, 0x1369, 0xbd01), .driver_data = PCI_ID_PCX22HR },
+	{ PCI_DEVICE_SUB(0x10b5, 0x9056, 0x1369, 0xbd21), .driver_data = PCI_ID_PCX22E },
+	{ PCI_DEVICE_SUB(0x10b5, 0x9056, 0x1369, 0xbc01), .driver_data = PCI_ID_VX222HRMIC },
+	{ PCI_DEVICE_SUB(0x10b5, 0x9056, 0x1369, 0xbc21), .driver_data = PCI_ID_VX222E_MIC },
+	{ PCI_DEVICE_SUB(0x10b5, 0x9056, 0x1369, 0xbb01), .driver_data = PCI_ID_PCX924HR },
+	{ PCI_DEVICE_SUB(0x10b5, 0x9056, 0x1369, 0xbb21), .driver_data = PCI_ID_PCX924E },
+	{ PCI_DEVICE_SUB(0x10b5, 0x9056, 0x1369, 0xbf01), .driver_data = PCI_ID_PCX924HRMIC },
+	{ PCI_DEVICE_SUB(0x10b5, 0x9056, 0x1369, 0xbf21), .driver_data = PCI_ID_PCX924E_MIC },
+	{ PCI_DEVICE_SUB(0x10b5, 0x9656, 0x1369, 0xd001), .driver_data = PCI_ID_VX442HR },
+	{ PCI_DEVICE_SUB(0x10b5, 0x9656, 0x1369, 0xd101), .driver_data = PCI_ID_PCX442HR },
+	{ PCI_DEVICE_SUB(0x10b5, 0x9056, 0x1369, 0xd021), .driver_data = PCI_ID_VX442E },
+	{ PCI_DEVICE_SUB(0x10b5, 0x9056, 0x1369, 0xd121), .driver_data = PCI_ID_PCX442E },
+	{ PCI_DEVICE_SUB(0x10b5, 0x9656, 0x1369, 0xd201), .driver_data = PCI_ID_VX822HR },
+	{ PCI_DEVICE_SUB(0x10b5, 0x9656, 0x1369, 0xd301), .driver_data = PCI_ID_PCX822HR },
+	{ PCI_DEVICE_SUB(0x10b5, 0x9056, 0x1369, 0xd221), .driver_data = PCI_ID_VX822E },
+	{ PCI_DEVICE_SUB(0x10b5, 0x9056, 0x1369, 0xd321), .driver_data = PCI_ID_PCX822E },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, pcxhr_ids);
@@ -180,16 +180,18 @@ static const struct board_parameters pcxhr_board_params[] = {
 				      (x->fw_file_set == 0)   || \
 				      (x->fw_file_set == 2))
 
-static int pcxhr_pll_freq_register(unsigned int freq, unsigned int* pllreg,
-				   unsigned int* realfreq)
+int pcxhr_pll_freq_register(unsigned int freq, unsigned int max_freq,
+			    unsigned int *pllreg, unsigned int *realfreq)
 {
 	unsigned int reg;
 
-	if (freq < 6900 || freq > 110000)
+	if (freq < 6900 || freq > max_freq)
 		return -EINVAL;
 	reg = (28224000 * 2) / freq;
 	reg = (reg - 1) / 2;
-	if (reg < 0x200)
+	if (reg < 0x100)
+		*pllreg = reg + 0xc00;
+	else if (reg < 0x200)
 		*pllreg = reg + 0x800;
 	else if (reg < 0x400)
 		*pllreg = reg & 0x1ff;
@@ -260,7 +262,8 @@ static int pcxhr_get_clock_reg(struct pcxhr_mgr *mgr, unsigned int rate,
 		default :
 			val = PCXHR_FREQ_PLL;
 			/* get the value for the pll register */
-			err = pcxhr_pll_freq_register(rate, &pllreg, &realfreq);
+			err = pcxhr_pll_freq_register(rate, 110000, &pllreg,
+						      &realfreq);
 			if (err)
 				return err;
 			pcxhr_init_rmh(&rmh, CMD_ACCESS_IO_WRITE);

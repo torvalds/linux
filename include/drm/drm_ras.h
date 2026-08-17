@@ -6,6 +6,8 @@
 #ifndef __DRM_RAS_H__
 #define __DRM_RAS_H__
 
+#include <linux/types.h>
+
 #include <uapi/drm/drm_ras.h>
 
 /**
@@ -57,6 +59,17 @@ struct drm_ras_node {
 	 */
 	int (*query_error_counter)(struct drm_ras_node *node, u32 error_id,
 				   const char **name, u32 *val);
+
+	/**
+	 * @clear_error_counter:
+	 *
+	 * This callback is used by drm_ras to clear a specific error counter.
+	 * Driver should implement this callback to support clearing error counters
+	 * of a node.
+	 *
+	 * Returns: 0 on success, negative error code on failure.
+	 */
+	int (*clear_error_counter)(struct drm_ras_node *node, u32 error_id);
 
 	/** @priv: Driver private data */
 	void *priv;

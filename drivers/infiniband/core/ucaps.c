@@ -46,12 +46,7 @@ static const struct file_operations ucaps_cdev_fops = {
 	.open = simple_open,
 };
 
-/**
- * ib_cleanup_ucaps - cleanup all API resources and class.
- *
- * This is called once, when removing the ib_uverbs module.
- */
-void ib_cleanup_ucaps(void)
+static __exit void ib_cleanup_ucaps(void)
 {
 	mutex_lock(&ucaps_mutex);
 	if (!ucaps_class_is_registered) {
@@ -82,14 +77,12 @@ static int get_ucap_from_devt(dev_t devt, u64 *idx_mask)
 
 static int get_devt_from_fd(unsigned int fd, dev_t *ret_dev)
 {
-	struct file *file;
+	CLASS(fd, f)(fd);
 
-	file = fget(fd);
-	if (!file)
+	if (fd_empty(f) || fd_file(f)->f_op != &ucaps_cdev_fops)
 		return -EBADF;
 
-	*ret_dev = file_inode(file)->i_rdev;
-	fput(file);
+	*ret_dev = file_inode(fd_file(f))->i_rdev;
 	return 0;
 }
 
@@ -265,3 +258,6 @@ end:
 	mutex_unlock(&ucaps_mutex);
 	return ret;
 }
+EXPORT_SYMBOL_NS_GPL(ib_get_ucaps, "rdma_core");
+
+module_exit(ib_cleanup_ucaps);

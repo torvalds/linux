@@ -539,12 +539,22 @@ static int psci_system_suspend(unsigned long unused)
 
 static int psci_system_suspend_enter(suspend_state_t state)
 {
+	pm_set_resume_via_firmware();
+
 	return cpu_suspend(0, psci_system_suspend);
+}
+
+static int psci_system_suspend_begin(suspend_state_t state)
+{
+	pm_set_suspend_via_firmware();
+
+	return 0;
 }
 
 static const struct platform_suspend_ops psci_suspend_ops = {
 	.valid          = suspend_valid_only_mem,
 	.enter          = psci_system_suspend_enter,
+	.begin          = psci_system_suspend_begin,
 };
 
 static void __init psci_init_system_reset2(void)

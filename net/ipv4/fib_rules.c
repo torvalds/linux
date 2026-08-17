@@ -352,24 +352,17 @@ errout:
 static int fib4_rule_delete(struct fib_rule *rule)
 {
 	struct net *net = rule->fr_net;
-	int err;
-
-	/* split local/main if they are not already split */
-	err = fib_unmerge(net);
-	if (err)
-		goto errout;
 
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	if (((struct fib4_rule *)rule)->tclassid)
 		atomic_dec(&net->ipv4.fib_num_tclassid_users);
 #endif
-	net->ipv4.fib_has_custom_rules = true;
 
 	if (net->ipv4.fib_rules_require_fldissect &&
 	    fib_rule_requires_fldissect(rule))
 		net->ipv4.fib_rules_require_fldissect--;
-errout:
-	return err;
+
+	return 0;
 }
 
 static int fib4_rule_compare(struct fib_rule *rule, struct fib_rule_hdr *frh,

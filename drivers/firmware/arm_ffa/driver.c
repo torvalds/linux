@@ -36,16 +36,20 @@
 #include <linux/mm.h>
 #include <linux/mutex.h>
 #include <linux/of_irq.h>
+#include <linux/platform_device.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/smp.h>
 #include <linux/uuid.h>
 #include <linux/xarray.h>
 
+#include <asm/virt.h>
+
 #include "common.h"
 
 #define FFA_DRIVER_VERSION	FFA_VERSION_1_2
 #define FFA_MIN_VERSION		FFA_VERSION_1_0
+#define FFA_PLATFORM_NAME	"arm-ffa"
 
 #define SENDER_ID_MASK		GENMASK(31, 16)
 #define RECEIVER_ID_MASK	GENMASK(15, 0)
@@ -87,6 +91,7 @@ static inline int ffa_to_linux_errno(int errno)
 
 struct ffa_pcpu_irq {
 	struct ffa_drv_info *info;
+	struct work_struct notif_pcpu_work;
 };
 
 struct ffa_drv_info {
@@ -100,13 +105,13 @@ struct ffa_drv_info {
 	bool mem_ops_native;
 	bool msg_direct_req2_supp;
 	bool bitmap_created;
+	bool bus_notifier_registered;
 	bool notif_enabled;
 	unsigned int sched_recv_irq;
 	unsigned int notif_pend_irq;
 	unsigned int cpuhp_state;
 	struct ffa_pcpu_irq __percpu *irq_pcpu;
 	struct workqueue_struct *notif_pcpu_wq;
-	struct work_struct notif_pcpu_work;
 	struct work_struct sched_recv_irq_work;
 	struct xarray partition_info;
 	DECLARE_HASHTABLE(notifier_hash, ilog2(FFA_MAX_NOTIFICATIONS));
@@ -114,6 +119,7 @@ struct ffa_drv_info {
 };
 
 static struct ffa_drv_info *drv_info;
+static struct platform_device *ffa_pdev;
 
 /*
  * The driver must be able to support all the versions from the earliest
@@ -322,6 +328,10 @@ __ffa_partition_info_get(u32 uuid0, u32 uuid1, u32 uuid2, u32 uuid3,
 #define PART_INFO_ID_MASK	GENMASK(15, 0)
 #define PART_INFO_EXEC_CXT_MASK	GENMASK(31, 16)
 #define PART_INFO_PROPS_MASK	GENMASK(63, 32)
+#define FFA_PART_INFO_GET_REGS_FIRST_REG	3
+#define FFA_PART_INFO_GET_REGS_MIN_REGS_PER_DESC	3
+#define FFA_PART_INFO_GET_REGS_NUM_REGS \
+	(sizeof(ffa_value_t) / sizeof_field(ffa_value_t, a0))
 #define PART_INFO_ID(x)		((u16)(FIELD_GET(PART_INFO_ID_MASK, (x))))
 #define PART_INFO_EXEC_CXT(x)	((u16)(FIELD_GET(PART_INFO_EXEC_CXT_MASK, (x))))
 #define PART_INFO_PROPERTIES(x)	((u32)(FIELD_GET(PART_INFO_PROPS_MASK, (x))))
@@ -329,15 +339,13 @@ static int
 __ffa_partition_info_get_regs(u32 uuid0, u32 uuid1, u32 uuid2, u32 uuid3,
 			      struct ffa_partition_info *buffer, int num_parts)
 {
-	u16 buf_sz, start_idx, cur_idx, count = 0, prev_idx = 0, tag = 0;
+	u16 buf_sz, start_idx = 0, cur_idx, count = 0, tag = 0;
 	struct ffa_partition_info *buf = buffer;
 	ffa_value_t partition_info;
 
 	do {
 		__le64 *regs;
-		int idx;
-
-		start_idx = prev_idx ? prev_idx + 1 : 0;
+		int idx, nr_desc, buf_idx, regs_per_desc, max_desc;
 
 		invoke_ffa_fn((ffa_value_t){
 			      .a0 = FFA_PARTITION_INFO_GET_REGS,
@@ -353,15 +361,35 @@ __ffa_partition_info_get_regs(u32 uuid0, u32 uuid1, u32 uuid2, u32 uuid3,
 			count = PARTITION_COUNT(partition_info.a2);
 		if (!buffer || !num_parts) /* count only */
 			return count;
+		if (count > num_parts)
+			return -EINVAL;
 
 		cur_idx = CURRENT_INDEX(partition_info.a2);
-		tag = UUID_INFO_TAG(partition_info.a2);
+		if (cur_idx < start_idx || cur_idx >= count)
+			return -EINVAL;
+
 		buf_sz = PARTITION_INFO_SZ(partition_info.a2);
-		if (buf_sz > sizeof(*buffer))
-			buf_sz = sizeof(*buffer);
+		if (buf_sz % sizeof(*regs))
+			return -EINVAL;
+
+		regs_per_desc = buf_sz / sizeof(*regs);
+		if (regs_per_desc < FFA_PART_INFO_GET_REGS_MIN_REGS_PER_DESC)
+			return -EINVAL;
+
+		nr_desc = cur_idx - start_idx + 1;
+		max_desc = (FFA_PART_INFO_GET_REGS_NUM_REGS -
+			    FFA_PART_INFO_GET_REGS_FIRST_REG) / regs_per_desc;
+		if (nr_desc > max_desc)
+			return -EINVAL;
+
+		buf_idx = buf - buffer;
+		if (buf_idx + nr_desc > num_parts)
+			return -EINVAL;
+
+		tag = UUID_INFO_TAG(partition_info.a2);
 
 		regs = (void *)&partition_info.a3;
-		for (idx = 0; idx < cur_idx - start_idx + 1; idx++, buf++) {
+		for (idx = 0; idx < nr_desc; idx++, buf++) {
 			union {
 				uuid_t uuid;
 				u64 regs[2];
@@ -377,9 +405,9 @@ __ffa_partition_info_get_regs(u32 uuid0, u32 uuid1, u32 uuid2, u32 uuid3,
 			buf->exec_ctxt = PART_INFO_EXEC_CXT(val);
 			buf->properties = PART_INFO_PROPERTIES(val);
 			uuid_copy(&buf->uuid, &uuid_regs.uuid);
-			regs += 3;
+			regs += regs_per_desc;
 		}
-		prev_idx = cur_idx;
+		start_idx = cur_idx + 1;
 
 	} while (cur_idx < (count - 1));
 
@@ -1189,7 +1217,7 @@ static int
 ffa_sched_recv_cb_update(struct ffa_device *dev, ffa_sched_recv_cb callback,
 			 void *cb_data, bool is_registration)
 {
-	struct ffa_dev_part_info *partition = NULL, *tmp;
+	struct ffa_dev_part_info *partition = NULL;
 	struct list_head *phead;
 	bool cb_valid;
 
@@ -1202,11 +1230,11 @@ ffa_sched_recv_cb_update(struct ffa_device *dev, ffa_sched_recv_cb callback,
 		return -EINVAL;
 	}
 
-	list_for_each_entry_safe(partition, tmp, phead, node)
+	list_for_each_entry(partition, phead, node)
 		if (partition->dev == dev)
 			break;
 
-	if (!partition) {
+	if (&partition->node == phead) {
 		pr_err("%s: No such partition ID 0x%x\n", __func__, dev->vm_id);
 		return -EINVAL;
 	}
@@ -1445,20 +1473,25 @@ static int ffa_notify_send(struct ffa_device *dev, int notify_id,
 
 static void handle_notif_callbacks(u64 bitmap, enum notify_type type)
 {
+	ffa_notifier_cb cb;
+	void *cb_data;
 	int notify_id;
-	struct notifier_cb_info *cb_info = NULL;
 
 	for (notify_id = 0; notify_id <= FFA_MAX_NOTIFICATIONS && bitmap;
 	     notify_id++, bitmap >>= 1) {
 		if (!(bitmap & 1))
 			continue;
 
-		read_lock(&drv_info->notify_lock);
-		cb_info = notifier_hnode_get_by_type(notify_id, type);
-		read_unlock(&drv_info->notify_lock);
+		scoped_guard(read_lock, &drv_info->notify_lock) {
+			struct notifier_cb_info *cb_info;
 
-		if (cb_info && cb_info->cb)
-			cb_info->cb(notify_id, cb_info->cb_data);
+			cb_info = notifier_hnode_get_by_type(notify_id, type);
+			cb = cb_info ? cb_info->cb : NULL;
+			cb_data = cb_info ? cb_info->cb_data : NULL;
+		}
+
+		if (cb)
+			cb(notify_id, cb_data);
 	}
 }
 
@@ -1466,39 +1499,56 @@ static void handle_fwk_notif_callbacks(u32 bitmap)
 {
 	void *buf;
 	uuid_t uuid;
+	void *fwk_cb_data;
 	int notify_id = 0, target;
+	ffa_fwk_notifier_cb fwk_cb;
 	struct ffa_indirect_msg_hdr *msg;
-	struct notifier_cb_info *cb_info = NULL;
+	size_t min_offset = offsetof(struct ffa_indirect_msg_hdr, uuid);
 
 	/* Only one framework notification defined and supported for now */
 	if (!(bitmap & FRAMEWORK_NOTIFY_RX_BUFFER_FULL))
 		return;
 
-	mutex_lock(&drv_info->rx_lock);
+	scoped_guard(mutex, &drv_info->rx_lock) {
+		u32 offset, size;
 
-	msg = drv_info->rx_buffer;
-	buf = kmemdup((void *)msg + msg->offset, msg->size, GFP_KERNEL);
-	if (!buf) {
-		mutex_unlock(&drv_info->rx_lock);
-		return;
+		msg = drv_info->rx_buffer;
+		offset = msg->offset;
+		size = msg->size;
+
+		if (!size || (offset != min_offset && offset < sizeof(*msg)) ||
+		    offset > drv_info->rxtx_bufsz ||
+		    size > drv_info->rxtx_bufsz - offset) {
+			pr_err("invalid framework notification message\n");
+			ffa_rx_release();
+			return;
+		}
+
+		buf = kmemdup((void *)msg + offset, size, GFP_KERNEL);
+		if (!buf) {
+			ffa_rx_release();
+			return;
+		}
+
+		target = SENDER_ID(msg->send_recv_id);
+		if (offset >= sizeof(*msg))
+			uuid_copy(&uuid, &msg->uuid);
+		else
+			uuid_copy(&uuid, &uuid_null);
+		ffa_rx_release();
 	}
 
-	target = SENDER_ID(msg->send_recv_id);
-	if (msg->offset >= sizeof(*msg))
-		uuid_copy(&uuid, &msg->uuid);
-	else
-		uuid_copy(&uuid, &uuid_null);
+	scoped_guard(read_lock, &drv_info->notify_lock) {
+		struct notifier_cb_info *cb_info;
 
-	mutex_unlock(&drv_info->rx_lock);
+		cb_info = notifier_hnode_get_by_vmid_uuid(notify_id, target,
+							  &uuid);
+		fwk_cb = cb_info ? cb_info->fwk_cb : NULL;
+		fwk_cb_data = cb_info ? cb_info->cb_data : NULL;
+	}
 
-	ffa_rx_release();
-
-	read_lock(&drv_info->notify_lock);
-	cb_info = notifier_hnode_get_by_vmid_uuid(notify_id, target, &uuid);
-	read_unlock(&drv_info->notify_lock);
-
-	if (cb_info && cb_info->fwk_cb)
-		cb_info->fwk_cb(notify_id, cb_info->cb_data, buf);
+	if (fwk_cb)
+		fwk_cb(notify_id, fwk_cb_data, buf);
 	kfree(buf);
 }
 
@@ -1539,10 +1589,11 @@ ffa_self_notif_handle(u16 vcpu, bool is_per_vcpu, void *cb_data)
 
 static void notif_pcpu_irq_work_fn(struct work_struct *work)
 {
-	struct ffa_drv_info *info = container_of(work, struct ffa_drv_info,
+	struct ffa_pcpu_irq *pcpu = container_of(work, struct ffa_pcpu_irq,
 						 notif_pcpu_work);
+	struct ffa_drv_info *info = pcpu->info;
 
-	ffa_self_notif_handle(smp_processor_id(), true, info);
+	notif_get_and_handle(info);
 }
 
 static const struct ffa_info_ops ffa_drv_info_ops = {
@@ -1629,6 +1680,15 @@ static struct notifier_block ffa_bus_nb = {
 	.notifier_call = ffa_bus_notifier,
 };
 
+static void ffa_bus_notifier_unregister(void)
+{
+	if (!drv_info->bus_notifier_registered)
+		return;
+
+	bus_unregister_notifier(&ffa_bus_type, &ffa_bus_nb);
+	drv_info->bus_notifier_registered = false;
+}
+
 static int ffa_xa_add_partition_info(struct ffa_device *dev)
 {
 	struct ffa_dev_part_info *info;
@@ -1685,7 +1745,7 @@ static int ffa_setup_host_partition(int vm_id)
 	int ret;
 
 	buf.id = vm_id;
-	ffa_dev = ffa_device_register(&buf, &ffa_drv_ops);
+	ffa_dev = ffa_device_register(&buf, &ffa_drv_ops, &ffa_pdev->dev);
 	if (!ffa_dev) {
 		pr_err("%s: failed to register host partition ID 0x%x\n",
 		       __func__, vm_id);
@@ -1711,6 +1771,8 @@ static void ffa_partitions_cleanup(void)
 {
 	struct list_head *phead;
 	unsigned long idx;
+
+	ffa_bus_notifier_unregister();
 
 	/* Clean up/free all registered devices */
 	ffa_devices_unregister();
@@ -1739,11 +1801,14 @@ static int ffa_setup_partitions(void)
 		ret = bus_register_notifier(&ffa_bus_type, &ffa_bus_nb);
 		if (ret)
 			pr_err("Failed to register FF-A bus notifiers\n");
+		else
+			drv_info->bus_notifier_registered = true;
 	}
 
 	count = ffa_partition_probe(&uuid_null, &pbuf);
 	if (count <= 0) {
 		pr_info("%s: No partitions found, error %d\n", __func__, count);
+		ffa_bus_notifier_unregister();
 		return -EINVAL;
 	}
 
@@ -1755,7 +1820,8 @@ static int ffa_setup_partitions(void)
 		 * provides UUID here for each partition as part of the
 		 * discovery API and the same is passed.
 		 */
-		ffa_dev = ffa_device_register(tpbuf, &ffa_drv_ops);
+		ffa_dev = ffa_device_register(tpbuf, &ffa_drv_ops,
+					      &ffa_pdev->dev);
 		if (!ffa_dev) {
 			pr_err("%s: failed to register partition ID 0x%x\n",
 			       __func__, tpbuf->id);
@@ -1811,7 +1877,7 @@ static irqreturn_t notif_pend_irq_handler(int irq, void *irq_data)
 	struct ffa_drv_info *info = pcpu->info;
 
 	queue_work_on(smp_processor_id(), info->notif_pcpu_wq,
-		      &info->notif_pcpu_work);
+		      &pcpu->notif_pcpu_work);
 
 	return IRQ_HANDLED;
 }
@@ -1928,8 +1994,11 @@ static int ffa_init_pcpu_irq(void)
 	if (!irq_pcpu)
 		return -ENOMEM;
 
-	for_each_present_cpu(cpu)
+	for_each_present_cpu(cpu) {
 		per_cpu_ptr(irq_pcpu, cpu)->info = drv_info;
+		INIT_WORK(&per_cpu_ptr(irq_pcpu, cpu)->notif_pcpu_work,
+			  notif_pcpu_irq_work_fn);
+	}
 
 	drv_info->irq_pcpu = irq_pcpu;
 
@@ -1958,7 +2027,6 @@ static int ffa_init_pcpu_irq(void)
 	}
 
 	INIT_WORK(&drv_info->sched_recv_irq_work, ffa_sched_recv_irq_work_fn);
-	INIT_WORK(&drv_info->notif_pcpu_work, notif_pcpu_irq_work_fn);
 	drv_info->notif_pcpu_wq = create_workqueue("ffa_pcpu_irq_notification");
 	if (!drv_info->notif_pcpu_wq)
 		return -EINVAL;
@@ -2029,23 +2097,31 @@ cleanup:
 	ffa_notifications_cleanup();
 }
 
-static int __init ffa_init(void)
+static int ffa_probe(struct platform_device *pdev)
 {
 	int ret;
 	u32 buf_sz;
 	size_t rxtx_bufsz = SZ_4K;
 
+	if (IS_BUILTIN(CONFIG_ARM_FFA_TRANSPORT) &&
+	    is_protected_kvm_enabled() && !is_pkvm_initialized())
+		return -EPROBE_DEFER;
+
 	ret = ffa_transport_init(&invoke_ffa_fn);
 	if (ret)
-		return ret;
+		return ret == -EOPNOTSUPP ? -ENODEV : ret;
 
 	drv_info = kzalloc_obj(*drv_info);
 	if (!drv_info)
 		return -ENOMEM;
+	platform_set_drvdata(pdev, drv_info);
 
 	ret = ffa_version_check(&drv_info->version);
-	if (ret)
+	if (ret) {
+		if (ret == -EOPNOTSUPP)
+			ret = -ENODEV;
 		goto free_drv_info;
+	}
 
 	if (ffa_id_get(&drv_info->vm_id)) {
 		pr_err("failed to obtain VM id for self\n");
@@ -2063,11 +2139,12 @@ static int __init ffa_init(void)
 			rxtx_bufsz = SZ_4K;
 	}
 
+	rxtx_bufsz = PAGE_ALIGN(rxtx_bufsz);
 	drv_info->rxtx_bufsz = rxtx_bufsz;
 	drv_info->rx_buffer = alloc_pages_exact(rxtx_bufsz, GFP_KERNEL);
 	if (!drv_info->rx_buffer) {
 		ret = -ENOMEM;
-		goto free_pages;
+		goto free_drv_info;
 	}
 
 	drv_info->tx_buffer = alloc_pages_exact(rxtx_bufsz, GFP_KERNEL);
@@ -2078,7 +2155,7 @@ static int __init ffa_init(void)
 
 	ret = ffa_rxtx_map(virt_to_phys(drv_info->tx_buffer),
 			   virt_to_phys(drv_info->rx_buffer),
-			   PAGE_ALIGN(rxtx_bufsz) / FFA_PAGE_SIZE);
+			   rxtx_bufsz / FFA_PAGE_SIZE);
 	if (ret) {
 		pr_err("failed to register FFA RxTx buffers\n");
 		goto free_pages;
@@ -2103,19 +2180,56 @@ free_pages:
 		free_pages_exact(drv_info->tx_buffer, rxtx_bufsz);
 	free_pages_exact(drv_info->rx_buffer, rxtx_bufsz);
 free_drv_info:
+	platform_set_drvdata(pdev, NULL);
 	kfree(drv_info);
+	drv_info = NULL;
 	return ret;
 }
-rootfs_initcall(ffa_init);
 
-static void __exit ffa_exit(void)
+static void ffa_remove(struct platform_device *pdev)
 {
+	struct ffa_drv_info *info = platform_get_drvdata(pdev);
+
 	ffa_notifications_cleanup();
 	ffa_partitions_cleanup();
 	ffa_rxtx_unmap();
-	free_pages_exact(drv_info->tx_buffer, drv_info->rxtx_bufsz);
-	free_pages_exact(drv_info->rx_buffer, drv_info->rxtx_bufsz);
-	kfree(drv_info);
+	free_pages_exact(info->tx_buffer, info->rxtx_bufsz);
+	free_pages_exact(info->rx_buffer, info->rxtx_bufsz);
+	kfree(info);
+	platform_set_drvdata(pdev, NULL);
+	drv_info = NULL;
+}
+
+static struct platform_driver ffa_driver = {
+	.probe = ffa_probe,
+	.remove = ffa_remove,
+	.driver = {
+		.name = FFA_PLATFORM_NAME,
+	},
+};
+
+static int __init ffa_init(void)
+{
+	int ret;
+
+	ffa_pdev = platform_device_register_simple(FFA_PLATFORM_NAME,
+						   PLATFORM_DEVID_NONE,
+						   NULL, 0);
+	if (IS_ERR(ffa_pdev))
+		return PTR_ERR(ffa_pdev);
+
+	ret = platform_driver_register(&ffa_driver);
+	if (ret)
+		platform_device_unregister(ffa_pdev);
+
+	return ret;
+}
+module_init(ffa_init);
+
+static void __exit ffa_exit(void)
+{
+	platform_device_unregister(ffa_pdev);
+	platform_driver_unregister(&ffa_driver);
 }
 module_exit(ffa_exit);
 

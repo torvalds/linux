@@ -216,8 +216,8 @@ static int eic7700_sata_phy_probe(struct platform_device *pdev)
 		return -ENOENT;
 
 	regs = devm_ioremap(dev, res->start, resource_size(res));
-	if (IS_ERR(regs))
-		return PTR_ERR(regs);
+	if (!regs)
+		return -ENOMEM;
 
 	sata_phy->regmap = devm_regmap_init_mmio
 			   (dev, regs, &eic7700_sata_phy_regmap_config);

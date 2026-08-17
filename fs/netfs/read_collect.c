@@ -83,7 +83,7 @@ static void netfs_unlock_read_folio(struct netfs_io_request *rreq,
 	}
 
 just_unlock:
-	if (folio->index == rreq->no_unlock_folio &&
+	if (folio == rreq->no_unlock_folio &&
 	    test_bit(NETFS_RREQ_NO_UNLOCK_FOLIO, &rreq->flags)) {
 		_debug("no unlock");
 	} else {
@@ -205,8 +205,10 @@ reassess:
 	 * in progress.  The issuer thread may be adding stuff to the tail
 	 * whilst we're doing this.
 	 */
-	front = list_first_entry_or_null(&stream->subrequests,
-					 struct netfs_io_subrequest, rreq_link);
+	front = list_first_entry_or_null_acquire(&stream->subrequests,
+						 struct netfs_io_subrequest, rreq_link);
+	/* Read first subreq pointer before IN_PROGRESS flag. */
+
 	while (front) {
 		size_t transferred;
 
@@ -574,6 +576,17 @@ skip_error_checks:
 	netfs_put_subrequest(subreq, netfs_sreq_trace_put_terminated);
 }
 EXPORT_SYMBOL(netfs_read_subreq_terminated);
+
+/*
+ * Cancel a read subrequest due to preparation failure.
+ */
+void netfs_cancel_read(struct netfs_io_subrequest *subreq, int error)
+{
+	trace_netfs_sreq(subreq, netfs_sreq_trace_cancel);
+	subreq->error = error;
+	__set_bit(NETFS_SREQ_FAILED, &subreq->flags);
+	netfs_read_subreq_terminated(subreq);
+}
 
 /*
  * Handle termination of a read from the cache.

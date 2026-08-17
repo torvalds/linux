@@ -8,6 +8,7 @@
  */
 
 #include <linux/mempolicy.h>
+#include <linux/minmax.h>
 #include <linux/mman.h>
 #include <linux/mm.h>
 #include <linux/mm_inline.h>
@@ -65,8 +66,8 @@ static int mseal_apply(struct mm_struct *mm,
 		prev = vma;
 
 	for_each_vma_range(vmi, vma, end) {
-		const unsigned long curr_start = MAX(vma->vm_start, start);
-		const unsigned long curr_end = MIN(vma->vm_end, end);
+		const unsigned long curr_start = max(vma->vm_start, start);
+		const unsigned long curr_end = min(vma->vm_end, end);
 
 		if (!vma_test(vma, VMA_SEALED_BIT)) {
 			vma_flags_t vma_flags = vma->flags;

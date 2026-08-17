@@ -9,7 +9,6 @@
  * Based on wm8731.c by Richard Purdie
  */
 
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
@@ -455,7 +454,7 @@ static int wm8711_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id wm8711_i2c_id[] = {
-	{ "wm8711" },
+	{ .name = "wm8711" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm8711_i2c_id);

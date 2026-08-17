@@ -17,6 +17,7 @@
 #include <linux/freezer.h>
 #include <linux/sched/signal.h>
 #include <linux/random.h>
+#include <linux/fserror.h>
 
 #include "f2fs.h"
 #include "segment.h"
@@ -444,6 +445,13 @@ void f2fs_balance_fs(struct f2fs_sb_info *sbi, bool need)
 	if (has_enough_free_secs(sbi, 0, 0))
 		return;
 
+	/*
+	 * Submit all cached OPU/IPU DATA bios before triggering
+	 * foreground GC to avoid potential deadlocks.
+	 */
+	f2fs_submit_merged_write(sbi, DATA);
+	f2fs_submit_all_merged_ipu_writes(sbi);
+
 	if (test_opt(sbi, GC_MERGE) && sbi->gc_thread &&
 				sbi->gc_thread->f2fs_gc_task) {
 		DEFINE_WAIT(wait);
@@ -462,6 +470,7 @@ void f2fs_balance_fs(struct f2fs_sb_info *sbi, bool need)
 			.should_migrate_blocks = false,
 			.err_gc_skipped = false,
 			.nr_free_secs = 1 };
+
 		f2fs_down_write_trace(&sbi->gc_lock, &gc_control.lc);
 		stat_inc_gc_call_count(sbi, FOREGROUND);
 		f2fs_gc(sbi, &gc_control);
@@ -2446,9 +2455,6 @@ static int update_sit_entry_for_release(struct f2fs_sb_info *sbi, struct seg_ent
 				unsigned int segno, block_t blkaddr, unsigned int offset, int del)
 {
 	bool exist;
-#ifdef CONFIG_F2FS_CHECK_FS
-	bool mir_exist;
-#endif
 	int i;
 	int del_count = -del;
 
@@ -2456,15 +2462,6 @@ static int update_sit_entry_for_release(struct f2fs_sb_info *sbi, struct seg_ent
 
 	for (i = 0; i < del_count; i++) {
 		exist = f2fs_test_and_clear_bit(offset + i, se->cur_valid_map);
-#ifdef CONFIG_F2FS_CHECK_FS
-		mir_exist = f2fs_test_and_clear_bit(offset + i,
-						se->cur_valid_map_mir);
-		if (unlikely(exist != mir_exist)) {
-			f2fs_err(sbi, "Inconsistent error when clearing bitmap, blk:%u, old bit:%d",
-				blkaddr + i, exist);
-			f2fs_bug_on(sbi, 1);
-		}
-#endif
 		if (unlikely(!exist)) {
 			f2fs_err(sbi, "Bitmap was wrongly cleared, blk:%u", blkaddr + i);
 			f2fs_bug_on(sbi, 1);
@@ -2505,20 +2502,8 @@ static int update_sit_entry_for_alloc(struct f2fs_sb_info *sbi, struct seg_entry
 				unsigned int segno, block_t blkaddr, unsigned int offset, int del)
 {
 	bool exist;
-#ifdef CONFIG_F2FS_CHECK_FS
-	bool mir_exist;
-#endif
 
 	exist = f2fs_test_and_set_bit(offset, se->cur_valid_map);
-#ifdef CONFIG_F2FS_CHECK_FS
-	mir_exist = f2fs_test_and_set_bit(offset,
-					se->cur_valid_map_mir);
-	if (unlikely(exist != mir_exist)) {
-		f2fs_err(sbi, "Inconsistent error when setting bitmap, blk:%u, old bit:%d",
-			blkaddr, exist);
-		f2fs_bug_on(sbi, 1);
-	}
-#endif
 	if (unlikely(exist)) {
 		f2fs_err(sbi, "Bitmap was wrongly set, blk:%u", blkaddr);
 		f2fs_bug_on(sbi, 1);
@@ -2896,6 +2881,7 @@ got_it:
 	/* set it as dirty segment in free segmap */
 	if (test_bit(segno, free_i->free_segmap)) {
 		ret = -EFSCORRUPTED;
+		fserror_report_metadata(sbi->sb, -EFSCORRUPTED, GFP_NOFS);
 		f2fs_stop_checkpoint(sbi, false, STOP_CP_REASON_CORRUPTED_FREE_BITMAP);
 		goto out_unlock;
 	}
@@ -3634,6 +3620,19 @@ enum rw_hint f2fs_io_type_to_rw_hint(struct f2fs_sb_info *sbi,
 	default:
 		return WRITE_LIFE_NONE;
 	}
+}
+
+u8 f2fs_io_type_to_write_stream(struct block_device *bdev,
+				enum page_type type, enum temp_type temp)
+{
+	unsigned short nr = bdev_max_write_streams(bdev);
+
+	if (type != DATA || !nr)
+		return 0;
+	if (nr < NR_TEMP_TYPE)
+		return temp == COLD ? nr : HOT + 1;
+
+	return temp + 1;
 }
 
 static int __get_segment_type_2(struct f2fs_io_info *fio)
@@ -4748,11 +4747,6 @@ void f2fs_flush_sit_entries(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 			int offset, sit_offset;
 
 			se = get_seg_entry(sbi, segno);
-#ifdef CONFIG_F2FS_CHECK_FS
-			if (memcmp(se->cur_valid_map, se->cur_valid_map_mir,
-						SIT_VBLOCK_MAP_SIZE))
-				f2fs_bug_on(sbi, 1);
-#endif
 
 			/* add discard candidates */
 			if (!(cpc->reason & CP_DISCARD)) {
@@ -4779,10 +4773,8 @@ void f2fs_flush_sit_entries(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 			}
 
 			/* update ckpt_valid_block */
-			if (__is_large_section(sbi)) {
+			if (__is_large_section(sbi))
 				set_ckpt_valid_blocks(sbi, segno);
-				sanity_check_valid_blocks(sbi, segno);
-			}
 
 			__clear_bit(segno, bitmap);
 			sit_i->dirty_sentries--;
@@ -4843,11 +4835,7 @@ static int build_sit_info(struct f2fs_sb_info *sbi)
 	if (!sit_i->dirty_sentries_bitmap)
 		return -ENOMEM;
 
-#ifdef CONFIG_F2FS_CHECK_FS
-	bitmap_size = MAIN_SEGS(sbi) * SIT_VBLOCK_MAP_SIZE * (3 + discard_map);
-#else
 	bitmap_size = MAIN_SEGS(sbi) * SIT_VBLOCK_MAP_SIZE * (2 + discard_map);
-#endif
 	sit_i->bitmap = f2fs_kvzalloc(sbi, bitmap_size, GFP_KERNEL);
 	if (!sit_i->bitmap)
 		return -ENOMEM;
@@ -4860,11 +4848,6 @@ static int build_sit_info(struct f2fs_sb_info *sbi)
 
 		sit_i->sentries[start].ckpt_valid_map = bitmap;
 		bitmap += SIT_VBLOCK_MAP_SIZE;
-
-#ifdef CONFIG_F2FS_CHECK_FS
-		sit_i->sentries[start].cur_valid_map_mir = bitmap;
-		bitmap += SIT_VBLOCK_MAP_SIZE;
-#endif
 
 		if (discard_map) {
 			sit_i->sentries[start].discard_map = bitmap;
@@ -4897,11 +4880,6 @@ static int build_sit_info(struct f2fs_sb_info *sbi)
 		return -ENOMEM;
 
 #ifdef CONFIG_F2FS_CHECK_FS
-	sit_i->sit_bitmap_mir = kmemdup(src_bitmap,
-					sit_bitmap_size, GFP_KERNEL);
-	if (!sit_i->sit_bitmap_mir)
-		return -ENOMEM;
-
 	sit_i->invalid_segmap = f2fs_kvzalloc(sbi,
 					main_bitmap_size, GFP_KERNEL);
 	if (!sit_i->invalid_segmap)
@@ -5110,10 +5088,8 @@ init_discard_map_done:
 	if (__is_large_section(sbi)) {
 		unsigned int segno;
 
-		for (segno = 0; segno < MAIN_SEGS(sbi); segno += SEGS_PER_SEC(sbi)) {
+		for (segno = 0; segno < MAIN_SEGS(sbi); segno += SEGS_PER_SEC(sbi))
 			set_ckpt_valid_blocks(sbi, segno);
-			sanity_check_valid_blocks(sbi, segno);
-		}
 	}
 
 	if (err)
@@ -5864,7 +5840,6 @@ static void destroy_sit_info(struct f2fs_sb_info *sbi)
 	SM_I(sbi)->sit_info = NULL;
 	kfree(sit_i->sit_bitmap);
 #ifdef CONFIG_F2FS_CHECK_FS
-	kfree(sit_i->sit_bitmap_mir);
 	kvfree(sit_i->invalid_segmap);
 #endif
 	kfree(sit_i);

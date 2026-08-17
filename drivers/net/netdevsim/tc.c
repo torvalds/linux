@@ -9,7 +9,22 @@
 static int
 nsim_setup_tc_block_cb(enum tc_setup_type type, void *type_data, void *cb_priv)
 {
-	return nsim_bpf_setup_tc_block_cb(type, type_data, cb_priv);
+	struct flow_cls_common_offload *common = type_data;
+	int err = 0;
+
+	switch (type) {
+	case TC_SETUP_CLSBPF:
+		err = nsim_bpf_setup_tc_block_cb(type, type_data, cb_priv);
+		break;
+	case TC_SETUP_CLSFLOWER:
+		break;
+	default:
+		NSIM_EA(common->extack, "offload type not supported");
+		err = -EOPNOTSUPP;
+		break;
+	}
+
+	return err;
 }
 
 static void nsim_taprio_stats(struct tc_taprio_qopt_stats *stats)
@@ -73,7 +88,10 @@ nsim_setup_tc(struct net_device *dev, enum tc_setup_type type, void *type_data)
 						  &nsim_block_cb_list,
 						  nsim_setup_tc_block_cb,
 						  ns, ns, true);
+	case TC_SETUP_FT:
+		return 0;
 	default:
 		return -EOPNOTSUPP;
 	}
 }
+ALLOW_ERROR_INJECTION(nsim_setup_tc, ERRNO);

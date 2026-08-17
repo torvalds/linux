@@ -554,20 +554,20 @@ static void e7xxx_remove_one(struct pci_dev *pdev)
 
 static const struct pci_device_id e7xxx_pci_tbl[] = {
 	{
-	 PCI_VEND_DEV(INTEL, 7205_0), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	 E7205},
-	{
-	 PCI_VEND_DEV(INTEL, 7500_0), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	 E7500},
-	{
-	 PCI_VEND_DEV(INTEL, 7501_0), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	 E7501},
-	{
-	 PCI_VEND_DEV(INTEL, 7505_0), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	 E7505},
-	{
-	 0,
-	 }			/* 0 terminated list. */
+		PCI_VEND_DEV(INTEL, 7205_0),
+		.driver_data = E7205,
+	}, {
+		PCI_VEND_DEV(INTEL, 7500_0),
+		.driver_data = E7500,
+	}, {
+		PCI_VEND_DEV(INTEL, 7501_0),
+		.driver_data = E7501,
+	}, {
+		PCI_VEND_DEV(INTEL, 7505_0),
+		.driver_data = E7505
+	}, {
+		/* 0 terminated list. */
+	}
 };
 
 MODULE_DEVICE_TABLE(pci, e7xxx_pci_tbl);

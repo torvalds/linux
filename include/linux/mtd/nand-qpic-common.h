@@ -9,6 +9,8 @@
 #ifndef __MTD_NAND_QPIC_COMMON_H__
 #define __MTD_NAND_QPIC_COMMON_H__
 
+#include <linux/mtd/rawnand.h>
+
 /* NANDc reg offsets */
 #define	NAND_FLASH_CMD			0x00
 #define	NAND_ADDR0			0x04
@@ -394,7 +396,7 @@ struct qcom_nand_controller {
 
 	const struct qcom_nandc_props *props;
 
-	struct nand_controller *controller;
+	struct nand_controller controller;
 	struct qpic_spi_nand *qspi;
 	struct list_head host_list;
 

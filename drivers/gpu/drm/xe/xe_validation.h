@@ -146,7 +146,7 @@ bool xe_validation_should_retry(struct xe_validation_ctx *ctx, int *ret);
 #define xe_validation_retry_on_oom(_ctx, _ret)				\
 	do {								\
 		if (xe_validation_should_retry(_ctx, _ret))		\
-			goto *__drm_exec_retry_ptr;			\
+			drm_exec_retry((_ctx)->exec);			\
 	} while (0)
 
 /**

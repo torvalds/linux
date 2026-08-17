@@ -246,7 +246,7 @@ tu102_gsp_wpr_meta_init(struct nvkm_gsp *gsp)
 	meta->bootBinOffset = gsp->fb.wpr2.boot.addr;
 	meta->frtsOffset = gsp->fb.wpr2.frts.addr;
 	meta->frtsSize = gsp->fb.wpr2.frts.size;
-	meta->gspFwWprEnd = ALIGN_DOWN(gsp->fb.bios.vga_workspace.addr, 0x20000);
+	meta->gspFwWprEnd = ALIGN_DOWN(gsp->fb.bios.addr, 0x20000);
 	meta->fbSize = gsp->fb.size;
 	meta->vgaWorkspaceOffset = gsp->fb.bios.vga_workspace.addr;
 	meta->vgaWorkspaceSize = gsp->fb.bios.vga_workspace.size;
@@ -291,6 +291,42 @@ tu102_gsp_vga_workspace_addr(struct nvkm_gsp *gsp, u64 fb_size)
 	return addr;
 }
 
+/*
+ * Read the MMU_LOCK range programmed by VBIOS.
+ *
+ * The row remapper reserves a small amount of DRAM at the end of FB for
+ * spare rows used to repair memory errors.  The register used to report
+ * FB size rounds to 1GB boundaries, and VBIOS rounds up rather than
+ * down -- reporting a larger size than is actually usable.  To
+ * compensate, VBIOS programs MMU_LOCK to fence off the unusable region
+ * at the top.  We must read this and keep WPR below it.
+ *
+ * Returns the low address of the locked region, or 0 if not set.
+ */
+static u64
+ga100_gsp_mmu_lock_lo(struct nvkm_gsp *gsp)
+{
+	struct nvkm_device *device = gsp->subdev.device;
+	u32 lo, hi;
+	u64 addr_lo, addr_hi;
+
+	/* NV_PFB_PRI_MMU_LOCK_CFG_PRIV_LEVEL_MASK */
+	if (!(nvkm_rd32(device, 0x1fa7c8) & 0x00000001))
+		return 0;
+
+	lo = nvkm_rd32(device, 0x1fa82c); /* NV_PFB_PRI_MMU_LOCK_ADDR_LO */
+	hi = nvkm_rd32(device, 0x1fa830); /* NV_PFB_PRI_MMU_LOCK_ADDR_HI */
+
+	addr_lo = (u64)(lo >> 4) << 12;
+	addr_hi = (u64)(hi >> 4) << 12;
+
+	if (addr_hi < addr_lo)
+		return 0;
+
+	nvkm_debug(&gsp->subdev, "MMU_LOCK range: 0x%llx - 0x%llx\n", addr_lo, addr_hi);
+	return addr_lo;
+}
+
 int
 tu102_gsp_oneinit(struct nvkm_gsp *gsp)
 {
@@ -303,6 +339,19 @@ tu102_gsp_oneinit(struct nvkm_gsp *gsp)
 	gsp->fb.bios.vga_workspace.size = gsp->fb.size - gsp->fb.bios.vga_workspace.addr;
 	gsp->fb.bios.addr = gsp->fb.bios.vga_workspace.addr;
 	gsp->fb.bios.size = gsp->fb.bios.vga_workspace.size;
+
+	/*
+	 * On GA100, VBIOS may lock the top of FB via MMU_LOCK to reserve
+	 * space for the row remapper.  Mirror OpenRM's kgspCalculateFbLayout
+	 * by clamping bios.addr to min(mmuLockLo, vgaWorkspace) so that the
+	 * entire WPR2 layout and gspFwWprEnd stay within usable FB.
+	 */
+	if (device->chipset == 0x170) {
+		u64 lock_lo = ga100_gsp_mmu_lock_lo(gsp);
+
+		if (lock_lo)
+			gsp->fb.bios.addr = min(gsp->fb.bios.addr, lock_lo);
+	}
 
 	ret = gsp->func->booter.ctor(gsp, "booter-load", gsp->fws.booter.load,
 				     &device->sec2->falcon, &gsp->booter.load);
@@ -318,8 +367,13 @@ tu102_gsp_oneinit(struct nvkm_gsp *gsp)
 	if (ret)
 		return ret;
 
-	/* Calculate FB layout. */
-	gsp->fb.wpr2.frts.size = 0x100000;
+	/*
+	 * Calculate FB layout. FRTS is a memory region created by running the FWSEC-FRTS
+	 * command, which writes power management data into WPR2. On GA100, the booter
+	 * firmware handles WPR2 setup directly and FRTS data is not needed, so no FRTS
+	 * region is reserved.
+	 */
+	gsp->fb.wpr2.frts.size = device->chipset == 0x170 ? 0 : 0x100000;
 	gsp->fb.wpr2.frts.addr = ALIGN_DOWN(gsp->fb.bios.addr, 0x20000) - gsp->fb.wpr2.frts.size;
 
 	gsp->fb.wpr2.boot.size = gsp->boot.fw.size;
@@ -343,9 +397,12 @@ tu102_gsp_oneinit(struct nvkm_gsp *gsp)
 	if (ret)
 		return ret;
 
-	ret = nvkm_gsp_fwsec_frts(gsp);
-	if (WARN_ON(ret))
-		return ret;
+	/* Only boot FWSEC-FRTS if it actually exists */
+	if (gsp->fb.wpr2.frts.size) {
+		ret = nvkm_gsp_fwsec_frts(gsp);
+		if (WARN_ON(ret))
+			return ret;
+	}
 
 	/* Reset GSP into RISC-V mode. */
 	ret = gsp->func->reset(gsp);

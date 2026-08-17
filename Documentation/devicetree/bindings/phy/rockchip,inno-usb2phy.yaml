@@ -20,6 +20,7 @@ properties:
       - rockchip,rk3328-usb2phy
       - rockchip,rk3366-usb2phy
       - rockchip,rk3399-usb2phy
+      - rockchip,rk3528-usb2phy
       - rockchip,rk3562-usb2phy
       - rockchip,rk3568-usb2phy
       - rockchip,rk3576-usb2phy
@@ -41,11 +42,15 @@ properties:
     maxItems: 3
 
   clock-names:
-    minItems: 1
-    items:
+    oneOf:
       - const: phyclk
-      - const: aclk
-      - const: aclk_slv
+      - items:
+          - const: phyclk
+          - const: pclk
+      - items:
+          - const: phyclk
+          - const: aclk
+          - const: aclk_slv
 
   assigned-clocks:
     description:
@@ -63,6 +68,9 @@ properties:
 
   interrupts:
     description: Muxed interrupt for both ports
+    maxItems: 1
+
+  power-domains:
     maxItems: 1
 
   resets:
@@ -150,6 +158,21 @@ allOf:
         compatible:
           contains:
             enum:
+              - rockchip,rk3528-usb2phy
+              - rockchip,rk3568-usb2phy
+              - rockchip,rv1108-usb2phy
+    then:
+      required:
+        - rockchip,usbgrf
+    else:
+      properties:
+        rockchip,usbgrf: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
               - rockchip,rk3568-usb2phy
               - rockchip,rk3588-usb2phy
 
@@ -203,6 +226,19 @@ allOf:
           maxItems: 1
         clock-names:
           maxItems: 1
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - rockchip,rk3528-usb2phy
+    then:
+      properties:
+        clocks:
+          minItems: 2
+        clock-names:
+          minItems: 2
 
   - if:
       properties:

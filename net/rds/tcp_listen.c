@@ -69,7 +69,7 @@ rds_tcp_get_peer_sport(struct socket *sock)
 
 /* rds_tcp_accept_one_path(): if accepting on cp_index > 0, make sure the
  * client's ipaddr < server's ipaddr. Otherwise, close the accepted
- * socket and force a reconneect from smaller -> larger ip addr. The reason
+ * socket and force a reconnect from smaller -> larger ip addr. The reason
  * we special case cp_index 0 is to allow the rds probe ping itself to itself
  * get through efficiently.
  */
@@ -143,7 +143,7 @@ void rds_tcp_conn_slots_available(struct rds_connection *conn, bool fan_out)
 	 *
 	 * Doing so is necessary to address the case where an
 	 * incoming connection on "rds_tcp_listen_sock" is ready
-	 * to be acccepted prior to a free slot being available:
+	 * to be accepted prior to a free slot being available:
 	 * the -ENOBUFS case in "rds_tcp_accept_one".
 	 */
 	rds_tcp_accept_work(rtn);

@@ -189,7 +189,7 @@ static bool cpt_can_enable_serr_int(struct intel_display *display)
 static void i9xx_check_fifo_underruns(struct intel_crtc *crtc)
 {
 	struct intel_display *display = to_intel_display(crtc);
-	i915_reg_t reg = PIPESTAT(display, crtc->pipe);
+	intel_reg_t reg = PIPESTAT(display, crtc->pipe);
 	u32 enable_mask;
 
 	lockdep_assert_held(&display->irq.lock);
@@ -209,7 +209,7 @@ static void i9xx_set_fifo_underrun_reporting(struct intel_display *display,
 					     enum pipe pipe,
 					     bool enable, bool old)
 {
-	i915_reg_t reg = PIPESTAT(display, pipe);
+	intel_reg_t reg = PIPESTAT(display, pipe);
 
 	lockdep_assert_held(&display->irq.lock);
 
@@ -527,7 +527,7 @@ void intel_check_cpu_fifo_underruns(struct intel_display *display)
 
 	spin_lock_irq(&display->irq.lock);
 
-	for_each_intel_crtc(display->drm, crtc) {
+	for_each_intel_crtc(display, crtc) {
 		if (crtc->cpu_fifo_underrun_disabled)
 			continue;
 
@@ -554,7 +554,7 @@ void intel_check_pch_fifo_underruns(struct intel_display *display)
 
 	spin_lock_irq(&display->irq.lock);
 
-	for_each_intel_crtc(display->drm, crtc) {
+	for_each_intel_crtc(display, crtc) {
 		if (crtc->pch_fifo_underrun_disabled)
 			continue;
 

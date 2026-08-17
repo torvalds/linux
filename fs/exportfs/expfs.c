@@ -53,10 +53,10 @@ find_acceptable_alias(struct dentry *result,
 	inode = result->d_inode;
 	spin_lock(&inode->i_lock);
 	for_each_alias(dentry, inode) {
-		dget(dentry);
+		if (!dget_alias_ilocked(dentry))
+			continue;
 		spin_unlock(&inode->i_lock);
-		if (toput)
-			dput(toput);
+		dput(toput);
 		if (dentry != result && acceptable(context, dentry)) {
 			dput(result);
 			return dentry;
@@ -66,8 +66,7 @@ find_acceptable_alias(struct dentry *result,
 	}
 	spin_unlock(&inode->i_lock);
 
-	if (toput)
-		dput(toput);
+	dput(toput);
 	return NULL;
 }
 

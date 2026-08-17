@@ -36,7 +36,7 @@ metadata available in which case the driver returns ``-ENODATA``.
 
 Not all kfuncs have to be implemented by the device driver; when not
 implemented, the default ones that return ``-EOPNOTSUPP`` will be used
-to indicate the device driver have not implemented this kfunc.
+to indicate the device driver has not implemented this kfunc.
 
 
 Within an XDP frame, the metadata layout (accessed via ``xdp_buff``) is

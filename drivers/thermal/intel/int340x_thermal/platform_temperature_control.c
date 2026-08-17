@@ -138,7 +138,7 @@ static void ptc_mmio_write(struct pci_dev *pdev, u32 offset, int index, u32 valu
 
 	reg_val = readq((void __iomem *) (proc_priv->mmio_base + offset));
 	reg_val &= ~mask;
-	reg_val |= (value << ptc_mmio_regs[index].shift);
+	reg_val |= ((u64)value << ptc_mmio_regs[index].shift);
 	writeq(reg_val, (void __iomem *) (proc_priv->mmio_base + offset));
 }
 
@@ -278,12 +278,18 @@ static void ptc_delete_debugfs(void)
 int proc_thermal_ptc_add(struct pci_dev *pdev, struct proc_thermal_device *proc_priv)
 {
 	if (proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_PTC) {
-		int i;
+		int i, ret;
 
 		for (i = 0; i < PTC_MAX_INSTANCES; i++) {
 			ptc_instance[i].offset = ptc_offsets[i];
 			ptc_instance[i].pdev = pdev;
-			ptc_create_groups(pdev, i, &ptc_instance[i]);
+			ret = ptc_create_groups(pdev, i, &ptc_instance[i]);
+			if (ret) {
+				while (i--)
+					sysfs_remove_group(&pdev->dev.kobj,
+							&ptc_instance[i].ptc_attr_group);
+				return ret;
+			}
 		}
 
 		ptc_create_debugfs();

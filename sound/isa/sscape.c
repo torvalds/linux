@@ -71,8 +71,8 @@ module_param_array(joystick, bool, NULL, 0444);
 MODULE_PARM_DESC(joystick, "Enable gameport.");
 
 #ifdef CONFIG_PNP
-static int isa_registered;
-static int pnp_registered;
+static int isa_registered __ro_after_init;
+static int pnp_registered __ro_after_init;
 
 static const struct pnp_card_device_id sscape_pnpids[] = {
 	{ .id = "ENS3081", .devs = { { "ENS0000" } } }, /* Soundscape PnP */

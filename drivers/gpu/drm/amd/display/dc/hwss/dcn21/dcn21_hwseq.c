@@ -146,10 +146,10 @@ bool dcn21_dmub_abm_set_pipe(struct abm *abm, uint32_t otg_inst,
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.abm_set_pipe.header.type = DMUB_CMD__ABM;
 	cmd.abm_set_pipe.header.sub_type = DMUB_CMD__ABM_SET_PIPE;
-	cmd.abm_set_pipe.abm_set_pipe_data.otg_inst = otg_inst;
-	cmd.abm_set_pipe.abm_set_pipe_data.pwrseq_inst = pwrseq_inst;
-	cmd.abm_set_pipe.abm_set_pipe_data.set_pipe_option = option;
-	cmd.abm_set_pipe.abm_set_pipe_data.panel_inst = panel_inst;
+	cmd.abm_set_pipe.abm_set_pipe_data.otg_inst = (uint8_t)otg_inst;
+	cmd.abm_set_pipe.abm_set_pipe_data.pwrseq_inst = (uint8_t)pwrseq_inst;
+	cmd.abm_set_pipe.abm_set_pipe_data.set_pipe_option = (uint8_t)option;
+	cmd.abm_set_pipe.abm_set_pipe_data.panel_inst = (uint8_t)panel_inst;
 	cmd.abm_set_pipe.abm_set_pipe_data.ramping_boundary = ramping_boundary;
 	cmd.abm_set_pipe.header.payload_bytes = sizeof(struct dmub_cmd_abm_set_pipe_data);
 
@@ -287,7 +287,7 @@ bool dcn21_set_backlight_level(struct pipe_ctx *pipe_ctx,
 bool dcn21_is_abm_supported(struct dc *dc,
 		struct dc_state *context, struct dc_stream_state *stream)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];

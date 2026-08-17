@@ -25,6 +25,7 @@
  */
 
 #include <linux/f2fs_fs.h>
+#include <linux/fserror.h>
 
 #include "f2fs.h"
 #include "xattr.h"
@@ -243,6 +244,7 @@ static int f2fs_get_verity_descriptor(struct inode *inode, void *buf,
 		f2fs_warn(F2FS_I_SB(inode), "invalid verity xattr");
 		f2fs_handle_error(F2FS_I_SB(inode),
 				ERROR_CORRUPTED_VERITY_XATTR);
+		fserror_report_file_metadata(inode, -EFSCORRUPTED, GFP_NOFS);
 		return -EFSCORRUPTED;
 	}
 	if (buf_size) {

@@ -75,7 +75,6 @@ static inline struct amd_northbridge *amd_init_l3_cache(int index)
 }
 #endif
 
-unsigned int aperfmperf_get_khz(int cpu);
 void cpu_select_mitigations(void);
 
 extern void x86_spec_ctrl_setup_ap(void);

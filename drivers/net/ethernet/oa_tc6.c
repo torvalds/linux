@@ -7,6 +7,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/iopoll.h>
+#include <linux/interrupt.h>
 #include <linux/mdio.h>
 #include <linux/phy.h>
 #include <linux/oa_tc6.h>
@@ -44,6 +45,8 @@
 #define INT_MASK0_LOSS_OF_FRAME_ERR_MASK	BIT(4)
 #define INT_MASK0_RX_BUFFER_OVERFLOW_ERR_MASK	BIT(3)
 #define INT_MASK0_TX_PROTOCOL_ERR_MASK		BIT(0)
+#define INT_MASK0_ALL_INTERRUPTS                (GENMASK(5, 0) | \
+						 GENMASK(12, 7))
 
 /* PHY Clause 22 registers base address and mask */
 #define OA_TC6_PHY_STD_REG_ADDR_BASE		0xFF00
@@ -107,7 +110,6 @@
 
 /* Internal structure for MAC-PHY drivers */
 struct oa_tc6 {
-	struct device *dev;
 	struct net_device *netdev;
 	struct phy_device *phydev;
 	struct mii_bus *mdiobus;
@@ -121,14 +123,13 @@ struct oa_tc6 {
 	struct sk_buff *ongoing_tx_skb;
 	struct sk_buff *waiting_tx_skb;
 	struct sk_buff *rx_skb;
-	struct task_struct *spi_thread;
-	wait_queue_head_t spi_wq;
 	u16 tx_skb_offset;
 	u16 spi_data_tx_buf_offset;
 	u16 tx_credits;
 	u8 rx_chunks_available;
 	bool rx_buf_overflow;
 	bool int_flag;
+	bool disable_traffic;
 };
 
 enum oa_tc6_header_type {
@@ -518,7 +519,7 @@ static int oa_tc6_mdiobus_register(struct oa_tc6 *tc6)
 	tc6->mdiobus->read_c45 = oa_tc6_mdiobus_read_c45;
 	tc6->mdiobus->write_c45 = oa_tc6_mdiobus_write_c45;
 	tc6->mdiobus->name = "oa-tc6-mdiobus";
-	tc6->mdiobus->parent = tc6->dev;
+	tc6->mdiobus->parent = &tc6->spi->dev;
 
 	snprintf(tc6->mdiobus->id, ARRAY_SIZE(tc6->mdiobus->id), "%s",
 		 dev_name(&tc6->spi->dev));
@@ -669,6 +670,38 @@ static void oa_tc6_cleanup_ongoing_tx_skb(struct oa_tc6 *tc6)
 	}
 }
 
+static void oa_tc6_cleanup_waiting_tx_skb(struct oa_tc6 *tc6)
+{
+	if (tc6->waiting_tx_skb) {
+		tc6->netdev->stats.tx_dropped++;
+		kfree_skb(tc6->waiting_tx_skb);
+		tc6->waiting_tx_skb = NULL;
+	}
+}
+
+static void oa_tc6_free_pending_skbs(struct oa_tc6 *tc6)
+{
+	oa_tc6_cleanup_ongoing_tx_skb(tc6);
+	oa_tc6_cleanup_ongoing_rx_skb(tc6);
+	oa_tc6_cleanup_waiting_tx_skb(tc6);
+}
+
+/* If the failure is at SPI interface level, masking and clearing
+ * the interrupt of the device won't work. Since SPI interrupt is
+ * disabled, it should stop the repeated interrupts.
+ */
+static void oa_tc6_disable_traffic(struct oa_tc6 *tc6)
+{
+	u32 regval = INT_MASK0_ALL_INTERRUPTS;
+
+	tc6->disable_traffic = true;
+	oa_tc6_free_pending_skbs(tc6);
+	oa_tc6_write_register(tc6, OA_TC6_REG_INT_MASK0, regval);
+	oa_tc6_read_register(tc6, OA_TC6_REG_STATUS0, &regval);
+	oa_tc6_write_register(tc6, OA_TC6_REG_STATUS0, regval);
+	dev_err(&tc6->spi->dev, "Device interrupt disabled to avoid interrupt storm");
+}
+
 static int oa_tc6_process_extended_status(struct oa_tc6 *tc6)
 {
 	u32 value;
@@ -752,6 +785,17 @@ static int oa_tc6_process_rx_chunk_footer(struct oa_tc6 *tc6, u32 footer)
 
 static void oa_tc6_submit_rx_skb(struct oa_tc6 *tc6)
 {
+	/* MAC-PHY delivers each frame with its Ethernet FCS attached.
+	 * Strip it before handing over to the stack, unless the user
+	 * has asked to keep it via NETIF_F_RXFCS. Keeping the FCS
+	 * in the frame is harmless for IP traffic, but is parsed as
+	 * a (malformed) suffix TLV by PTP, which makes ptp4l reject
+	 * every message with "bad message" error.
+	 */
+	if (!(tc6->netdev->features & NETIF_F_RXFCS) &&
+	    tc6->rx_skb->len > ETH_FCS_LEN)
+		skb_trim(tc6->rx_skb, tc6->rx_skb->len - ETH_FCS_LEN);
+
 	tc6->rx_skb->protocol = eth_type_trans(tc6->rx_skb, tc6->netdev);
 	tc6->netdev->stats.rx_packets++;
 	tc6->netdev->stats.rx_bytes += tc6->rx_skb->len;
@@ -1105,29 +1149,29 @@ static int oa_tc6_try_spi_transfer(struct oa_tc6 *tc6)
 	return 0;
 }
 
-static int oa_tc6_spi_thread_handler(void *data)
+static irqreturn_t oa_tc6_macphy_threaded_irq(int irq, void *data)
 {
 	struct oa_tc6 *tc6 = data;
-	int ret;
+	int ret = 0;
 
-	while (likely(!kthread_should_stop())) {
-		/* This kthread will be waken up if there is a tx skb or mac-phy
-		 * interrupt to perform spi transfer with tx chunks.
-		 */
-		wait_event_interruptible(tc6->spi_wq, tc6->int_flag ||
-					 (tc6->waiting_tx_skb &&
-					 tc6->tx_credits) ||
-					 kthread_should_stop());
-
-		if (kthread_should_stop())
-			break;
-
-		ret = oa_tc6_try_spi_transfer(tc6);
-		if (ret)
-			return ret;
+	/* It is possible that interrupt woke the thread before it is
+	 * disabled. Until we come up with good recovery mechanism,
+	 * no need to attempt spi transfer, once it fails. Pending skbs
+	 * are already freed.
+	 */
+	if (!tc6->disable_traffic) {
+		while (tc6->int_flag ||
+		       (tc6->waiting_tx_skb && tc6->tx_credits)) {
+			ret = oa_tc6_try_spi_transfer(tc6);
+			if (ret) {
+				disable_irq_nosync(tc6->spi->irq);
+				oa_tc6_disable_traffic(tc6);
+				break;
+			}
+		}
 	}
 
-	return 0;
+	return IRQ_HANDLED;
 }
 
 static int oa_tc6_update_buffer_status_from_register(struct oa_tc6 *tc6)
@@ -1161,11 +1205,15 @@ static irqreturn_t oa_tc6_macphy_isr(int irq, void *data)
 	 *   the previous rx footer.
 	 * - extended status event not reported in the previous rx footer.
 	 */
-	tc6->int_flag = true;
-	/* Wake spi kthread to perform spi transfer */
-	wake_up_interruptible(&tc6->spi_wq);
-
-	return IRQ_HANDLED;
+	if (tc6->disable_traffic)
+		disable_irq_nosync(tc6->spi->irq);
+	else
+		tc6->int_flag = true;
+	/* Wake IRQ thread to perform spi transfer . In case
+	 * disable_traffic is set, threaded irq may run again
+	 * one more time.
+	 */
+	return IRQ_WAKE_THREAD;
 }
 
 /**
@@ -1202,7 +1250,7 @@ EXPORT_SYMBOL_GPL(oa_tc6_zero_align_receive_frame_enable);
  */
 netdev_tx_t oa_tc6_start_xmit(struct oa_tc6 *tc6, struct sk_buff *skb)
 {
-	if (tc6->waiting_tx_skb) {
+	if (tc6->disable_traffic || tc6->waiting_tx_skb) {
 		netif_stop_queue(tc6->netdev);
 		return NETDEV_TX_BUSY;
 	}
@@ -1217,8 +1265,8 @@ netdev_tx_t oa_tc6_start_xmit(struct oa_tc6 *tc6, struct sk_buff *skb)
 	tc6->waiting_tx_skb = skb;
 	spin_unlock_bh(&tc6->tx_skb_lock);
 
-	/* Wake spi kthread to perform spi transfer */
-	wake_up_interruptible(&tc6->spi_wq);
+	/* Wake the threaded IRQ to perform spi transfer. */
+	irq_wake_thread(tc6->spi->irq, tc6);
 
 	return NETDEV_TX_OK;
 }
@@ -1311,24 +1359,15 @@ struct oa_tc6 *oa_tc6_init(struct spi_device *spi, struct net_device *netdev)
 		goto phy_exit;
 	}
 
-	init_waitqueue_head(&tc6->spi_wq);
-
-	tc6->spi_thread = kthread_run(oa_tc6_spi_thread_handler, tc6,
-				      "oa-tc6-spi-thread");
-	if (IS_ERR(tc6->spi_thread)) {
-		dev_err(&tc6->spi->dev, "Failed to create SPI thread\n");
-		goto phy_exit;
-	}
-
-	sched_set_fifo(tc6->spi_thread);
-
-	ret = devm_request_irq(&tc6->spi->dev, tc6->spi->irq, oa_tc6_macphy_isr,
-			       IRQF_TRIGGER_FALLING, dev_name(&tc6->spi->dev),
-			       tc6);
+	ret = devm_request_threaded_irq(&tc6->spi->dev, tc6->spi->irq,
+					oa_tc6_macphy_isr,
+					oa_tc6_macphy_threaded_irq,
+					IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+					dev_name(&tc6->spi->dev), tc6);
 	if (ret) {
 		dev_err(&tc6->spi->dev, "Failed to request macphy isr %d\n",
 			ret);
-		goto kthread_stop;
+		goto phy_exit;
 	}
 
 	/* oa_tc6_sw_reset_macphy() function resets and clears the MAC-PHY reset
@@ -1338,12 +1377,10 @@ struct oa_tc6 *oa_tc6_init(struct spi_device *spi, struct net_device *netdev)
 	 * 7.7 and 9.2.8.8 in the OPEN Alliance specification for more details.
 	 */
 	tc6->int_flag = true;
-	wake_up_interruptible(&tc6->spi_wq);
+	irq_wake_thread(tc6->spi->irq, tc6);
 
 	return tc6;
 
-kthread_stop:
-	kthread_stop(tc6->spi_thread);
 phy_exit:
 	oa_tc6_phy_exit(tc6);
 	return NULL;
@@ -1356,11 +1393,10 @@ EXPORT_SYMBOL_GPL(oa_tc6_init);
  */
 void oa_tc6_exit(struct oa_tc6 *tc6)
 {
+	tc6->disable_traffic = true;
+	disable_irq(tc6->spi->irq);
 	oa_tc6_phy_exit(tc6);
-	kthread_stop(tc6->spi_thread);
-	dev_kfree_skb_any(tc6->ongoing_tx_skb);
-	dev_kfree_skb_any(tc6->waiting_tx_skb);
-	dev_kfree_skb_any(tc6->rx_skb);
+	oa_tc6_free_pending_skbs(tc6);
 }
 EXPORT_SYMBOL_GPL(oa_tc6_exit);
 

@@ -2,8 +2,8 @@
 /*
  * Copyright © 2025 Intel Corporation
  */
-#ifndef XE_HW_ERROR_H_
-#define XE_HW_ERROR_H_
+#ifndef _XE_HW_ERROR_H_
+#define _XE_HW_ERROR_H_
 
 #include <linux/types.h>
 

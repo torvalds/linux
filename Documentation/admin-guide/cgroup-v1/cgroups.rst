@@ -525,7 +525,7 @@ cgroup. It may also be taken to prevent cgroups from being
 modified, but more specific locks may be more appropriate in that
 situation.
 
-See kernel/cgroup.c for more details.
+See kernel/cgroup/cgroup.c for more details.
 
 Subsystems can take/release the cgroup_mutex via the functions
 cgroup_lock()/cgroup_unlock().

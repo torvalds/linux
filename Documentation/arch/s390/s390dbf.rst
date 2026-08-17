@@ -106,6 +106,36 @@ the ``debug_stoppable`` sysctl. If you set ``debug_stoppable`` to 0 the debug
 feature cannot be stopped. If the debug feature is already stopped, it
 will stay deactivated.
 
+Kernel parameters
+-----------------
+The size and log levels of debug logs can be configured early during boot using
+the ``s390dbf`` kernel parameter. The parameter accepts a debug log name, a log
+level, and a log size, separated by colon characters (``:``). To configure only
+a single attribute, either the log level or the log size may be omitted.
+
+To configure multiple debug logs, the parameter may be specified multiple times,
+or multiple parameter sets may be provided in a single instance, separated by
+commas.
+
+Parameter format::
+
+	s390dbf=<name|pattern>:[<level>|-]:[<pages>][,...]
+
+where:
+
+- ``name`` specifies either an exact debug log name or a shell-style wildcard
+  pattern
+- ``level`` specifies the log level, or ``-`` to completely deactivate the log
+- ``pages`` specifies the debug area size in pages
+
+Example::
+
+	s390dbf=cio*:6:128,sclp_err::2
+
+This example sets the log level to 6 and the log size to 128 pages for all debug
+logs whose names start with ``cio``. It also sets the log level of the
+``sclp_err`` debug log to 2.
+
 Kernel Interfaces:
 ------------------
 

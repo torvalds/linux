@@ -47,7 +47,6 @@ static void __start_lrc(struct xe_hw_engine *hwe, struct xe_lrc *lrc,
 	struct xe_mmio *mmio = &gt->mmio;
 	struct xe_device *xe = gt_to_xe(gt);
 	u64 lrc_desc;
-	u32 ring_mode = REG_MASKED_FIELD_ENABLE(GFX_DISABLE_LEGACY_MODE);
 
 	lrc_desc = xe_lrc_descriptor(lrc);
 
@@ -58,10 +57,6 @@ static void __start_lrc(struct xe_hw_engine *hwe, struct xe_lrc *lrc,
 		xe_gt_assert(hwe->gt, FIELD_FIT(SW_CTX_ID, ctx_id));
 		lrc_desc |= FIELD_PREP(SW_CTX_ID, ctx_id);
 	}
-
-	if (hwe->class == XE_ENGINE_CLASS_COMPUTE)
-		xe_mmio_write32(mmio, RCU_MODE,
-				REG_MASKED_FIELD_ENABLE(RCU_MODE_CCS_ENABLE));
 
 	xe_lrc_write_ctx_reg(lrc, CTX_RING_TAIL, lrc->ring.tail);
 	lrc->ring.old_tail = lrc->ring.tail;
@@ -81,10 +76,6 @@ static void __start_lrc(struct xe_hw_engine *hwe, struct xe_lrc *lrc,
 	xe_mmio_write32(mmio, RING_HWS_PGA(hwe->mmio_base),
 			xe_bo_ggtt_addr(hwe->hwsp));
 	xe_mmio_read32(mmio, RING_HWS_PGA(hwe->mmio_base));
-
-	if (xe_device_has_msix(gt_to_xe(hwe->gt)))
-		ring_mode |= REG_MASKED_FIELD_ENABLE(GFX_MSIX_INTERRUPT_ENABLE);
-	xe_mmio_write32(mmio, RING_MODE(hwe->mmio_base), ring_mode);
 
 	xe_mmio_write32(mmio, RING_EXECLIST_SQ_CONTENTS_LO(hwe->mmio_base),
 			lower_32_bits(lrc_desc));
@@ -337,7 +328,6 @@ static int execlist_exec_queue_init(struct xe_exec_queue *q)
 	struct drm_gpu_scheduler *sched;
 	const struct drm_sched_init_args args = {
 		.ops = &drm_sched_ops,
-		.num_rqs = 1,
 		.credit_limit = xe_lrc_ring_size() / MAX_JOB_SIZE_BYTES,
 		.hang_limit = XE_SCHED_HANG_LIMIT,
 		.timeout = XE_SCHED_JOB_TIMEOUT,

@@ -34,16 +34,26 @@ static void measure(struct bench_res *res)
 {
 }
 
-static void setup(void)
+static void hashmap_full_update_setup(enum bpf_map_type map_type)
 {
 	struct bpf_link *link;
 	int map_fd, i, max_entries;
 
 	setup_libbpf();
 
-	ctx.skel = bpf_hashmap_full_update_bench__open_and_load();
+	ctx.skel = bpf_hashmap_full_update_bench__open();
 	if (!ctx.skel) {
 		fprintf(stderr, "failed to open skeleton\n");
+		exit(1);
+	}
+
+	bpf_map__set_type(ctx.skel->maps.hash_map_bench, map_type);
+	if (map_type == BPF_MAP_TYPE_RHASH)
+		bpf_map__set_map_flags(ctx.skel->maps.hash_map_bench,
+				       BPF_F_NO_PREALLOC);
+
+	if (bpf_hashmap_full_update_bench__load(ctx.skel)) {
+		fprintf(stderr, "failed to load skeleton\n");
 		exit(1);
 	}
 
@@ -60,6 +70,16 @@ static void setup(void)
 	max_entries = bpf_map__max_entries(ctx.skel->maps.hash_map_bench);
 	for (i = 0; i < max_entries; i++)
 		bpf_map_update_elem(map_fd, &i, &i, BPF_ANY);
+}
+
+static void setup(void)
+{
+	hashmap_full_update_setup(BPF_MAP_TYPE_HASH);
+}
+
+static void rhash_setup(void)
+{
+	hashmap_full_update_setup(BPF_MAP_TYPE_RHASH);
 }
 
 static void hashmap_report_final(struct bench_res res[], int res_cnt)
@@ -82,6 +102,16 @@ const struct bench bench_bpf_hashmap_full_update = {
 	.name = "bpf-hashmap-full-update",
 	.validate = validate,
 	.setup = setup,
+	.producer_thread = producer,
+	.measure = measure,
+	.report_progress = NULL,
+	.report_final = hashmap_report_final,
+};
+
+const struct bench bench_bpf_rhashmap_full_update = {
+	.name = "bpf-rhashmap-full-update",
+	.validate = validate,
+	.setup = rhash_setup,
 	.producer_thread = producer,
 	.measure = measure,
 	.report_progress = NULL,

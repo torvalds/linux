@@ -156,4 +156,17 @@ windows_names=<BOOL>    Refuse creation/rename of files with characters or
 discard=<BOOL>          Issue block device discard for clusters freed on
                         file deletion/truncation to inform underlying
                         storage.
+
+native_symlink=raw|rel  Configure how absolute symbolic links and mount
+                        points (junctions) are handled. Under "raw"
+                        (default), the absolute target path is returned
+                        as-is without translation. Under "rel", it is
+                        rewritten as a relative path anchored at
+                        the volume root.
+
+symlink=wsl|native      Configure how symbolic links are created. Under
+                        "wsl" (default), WSL (Windows Subsystem for
+                        Linux) compatible symlinks are created. Under
+                        "native", Windows native symbolic links are
+                        created.
 ======================= ====================================================

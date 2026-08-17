@@ -78,7 +78,7 @@ static int motu_probe(struct fw_unit *unit, const struct ieee1394_device_id *ent
 	dev_set_drvdata(&unit->device, motu);
 	motu->card = card;
 
-	motu->spec = (const struct snd_motu_spec *)entry->driver_data;
+	motu->spec = entry->driver_data_ptr;
 	mutex_init(&motu->mutex);
 	spin_lock_init(&motu->lock);
 	init_waitqueue_head(&motu->hwdep_wait);
@@ -148,7 +148,7 @@ static void motu_bus_update(struct fw_unit *unit)
 	snd_motu_transaction_reregister(motu);
 }
 
-#define SND_MOTU_DEV_ENTRY(model, data)			\
+#define SND_MOTU_DEV_ENTRY(model, data_ptr)		\
 {							\
 	.match_flags	= IEEE1394_MATCH_VENDOR_ID |	\
 			  IEEE1394_MATCH_SPECIFIER_ID |	\
@@ -156,7 +156,7 @@ static void motu_bus_update(struct fw_unit *unit)
 	.vendor_id	= OUI_MOTU,			\
 	.specifier_id	= OUI_MOTU,			\
 	.version	= model,			\
-	.driver_data	= (kernel_ulong_t)data,		\
+	.driver_data_ptr = data_ptr,			\
 }
 
 static const struct ieee1394_device_id motu_id_table[] = {

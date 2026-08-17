@@ -378,6 +378,7 @@ static int pdc_intc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "cannot add IRQ domain\n");
 		return -ENOMEM;
 	}
+	priv->domain->flags |= IRQ_DOMAIN_FLAG_DESTROY_GC;
 
 	/*
 	 * Set up 2 generic irq chips with 2 chip types.
@@ -464,6 +465,11 @@ err_generic:
 static void pdc_intc_remove(struct platform_device *pdev)
 {
 	struct pdc_intc_priv *priv = platform_get_drvdata(pdev);
+
+	for (unsigned int i = 0; i < priv->nr_perips; ++i)
+		irq_set_chained_handler_and_data(priv->perip_irqs[i], NULL, NULL);
+
+	irq_set_chained_handler_and_data(priv->syswake_irq, NULL, NULL);
 
 	irq_domain_remove(priv->domain);
 }

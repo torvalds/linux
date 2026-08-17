@@ -417,8 +417,10 @@ static enum hrtimer_restart io_link_timeout_fn(struct hrtimer *timer)
 	 * done in io_req_task_link_timeout(), if needed.
 	 */
 	if (prev) {
-		if (!req_ref_inc_not_zero(prev))
+		if (!req_ref_inc_not_zero(prev)) {
+			io_remove_next_linked(prev);
 			prev = NULL;
+		}
 	}
 	list_del(&timeout->list);
 	timeout->prev = prev;

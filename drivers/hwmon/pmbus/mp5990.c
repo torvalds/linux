@@ -148,8 +148,8 @@ static struct pmbus_driver_info mp5998_info = {
 };
 
 static const struct i2c_device_id mp5990_id[] = {
-	{"mp5990", mp5990},
-	{"mp5998", mp5998},
+	{ .name = "mp5990", .driver_data = mp5990 },
+	{ .name = "mp5998", .driver_data = mp5998 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mp5990_id);

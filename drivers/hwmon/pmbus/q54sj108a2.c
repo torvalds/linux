@@ -270,10 +270,10 @@ static const struct file_operations q54sj108a2_fops = {
 };
 
 static const struct i2c_device_id q54sj108a2_id[] = {
-	{ "q54sj108a2", q54sj108a2 },
-	{ "q54sn120a1", q54sj108a2 },
-	{ "q54sw120a7", q54sj108a2 },
-	{ },
+	{ .name = "q54sj108a2", .driver_data = q54sj108a2 },
+	{ .name = "q54sn120a1", .driver_data = q54sj108a2 },
+	{ .name = "q54sw120a7", .driver_data = q54sj108a2 },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, q54sj108a2_id);

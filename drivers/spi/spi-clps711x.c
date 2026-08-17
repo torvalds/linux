@@ -99,7 +99,7 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	host = spi_alloc_host(&pdev->dev, sizeof(*hw));
+	host = devm_spi_alloc_host(&pdev->dev, sizeof(*hw));
 	if (!host)
 		return -ENOMEM;
 
@@ -113,22 +113,16 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 	hw = spi_controller_get_devdata(host);
 
 	hw->spi_clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(hw->spi_clk)) {
-		ret = PTR_ERR(hw->spi_clk);
-		goto err_out;
-	}
+	if (IS_ERR(hw->spi_clk))
+		return PTR_ERR(hw->spi_clk);
 
 	hw->syscon = syscon_regmap_lookup_by_phandle(np, "syscon");
-	if (IS_ERR(hw->syscon)) {
-		ret = PTR_ERR(hw->syscon);
-		goto err_out;
-	}
+	if (IS_ERR(hw->syscon))
+		return PTR_ERR(hw->syscon);
 
 	hw->syncio = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(hw->syncio)) {
-		ret = PTR_ERR(hw->syncio);
-		goto err_out;
-	}
+	if (IS_ERR(hw->syncio))
+		return PTR_ERR(hw->syncio);
 
 	/* Disable extended mode due hardware problems */
 	regmap_update_bits(hw->syscon, SYSCON_OFFSET, SYSCON3_ADCCON, 0);
@@ -139,16 +133,9 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, irq, spi_clps711x_isr, 0,
 			       dev_name(&pdev->dev), host);
 	if (ret)
-		goto err_out;
+		return ret;
 
-	ret = devm_spi_register_controller(&pdev->dev, host);
-	if (!ret)
-		return 0;
-
-err_out:
-	spi_controller_put(host);
-
-	return ret;
+	return devm_spi_register_controller(&pdev->dev, host);
 }
 
 static const struct of_device_id clps711x_spi_dt_ids[] = {

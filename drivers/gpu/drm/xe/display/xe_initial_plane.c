@@ -7,33 +7,19 @@
 
 #include "regs/xe_gtt_defs.h"
 
-#include "intel_crtc.h"
-#include "intel_display_regs.h"
-#include "intel_display_types.h"
+/* FIXME move intel_remapped_info_size() & co. */
 #include "intel_fb.h"
-#include "intel_fb_pin.h"
-#include "intel_fbdev_fb.h"
+
+/* FIXME move intel_initial_plane_config */
+#include "intel_display_types.h"
+
 #include "xe_bo.h"
+#include "xe_display_bo.h"
 #include "xe_display_vma.h"
+#include "xe_fb_pin.h"
 #include "xe_ggtt.h"
 #include "xe_mmio.h"
 #include "xe_vram_types.h"
-
-/* Early xe has no irq */
-static void xe_initial_plane_vblank_wait(struct drm_crtc *_crtc)
-{
-	struct intel_crtc *crtc = to_intel_crtc(_crtc);
-	struct xe_device *xe = to_xe_device(crtc->base.dev);
-	struct xe_reg pipe_frmtmstmp = XE_REG(i915_mmio_reg_offset(PIPE_FRMTMSTMP(crtc->pipe)));
-	u32 timestamp;
-	int ret;
-
-	timestamp = xe_mmio_read32(xe_root_tile_mmio(xe), pipe_frmtmstmp);
-
-	ret = xe_mmio_wait32_not(xe_root_tile_mmio(xe), pipe_frmtmstmp, ~0U, timestamp, 40000U, &timestamp, false);
-	if (ret < 0)
-		drm_warn(&xe->drm, "waiting for early vblank failed with %i\n", ret);
-}
 
 static struct xe_bo *
 initial_plane_bo(struct xe_device *xe,
@@ -86,7 +72,8 @@ initial_plane_bo(struct xe_device *xe,
 		flags |= XE_BO_FLAG_STOLEN;
 
 		if (IS_ENABLED(CONFIG_FRAMEBUFFER_CONSOLE) &&
-		    !intel_fbdev_fb_prefer_stolen(&xe->drm, plane_config->size)) {
+		    IS_ENABLED(CONFIG_DRM_FBDEV_EMULATION) &&
+		    !xe_display_bo_fbdev_prefer_stolen(xe, plane_config->size)) {
 			drm_info(&xe->drm, "Initial FB size exceeds half of stolen, discarding\n");
 			return NULL;
 		}
@@ -114,7 +101,7 @@ xe_alloc_initial_plane_obj(struct drm_device *drm,
 {
 	struct xe_device *xe = to_xe_device(drm);
 	struct drm_mode_fb_cmd2 mode_cmd = { 0 };
-	struct drm_framebuffer *fb = &plane_config->fb->base;
+	struct drm_framebuffer *fb = plane_config->fb;
 	struct xe_bo *bo;
 
 	mode_cmd.pixel_format = fb->format->format;
@@ -151,15 +138,19 @@ xe_initial_plane_setup(struct drm_plane_state *_plane_state,
 {
 	struct intel_plane_state *plane_state = to_intel_plane_state(_plane_state);
 	struct i915_vma *vma;
+	struct intel_fb_pin_params pin_params = {
+		.view = &plane_state->view.gtt,
+	};
+	u32 offset;
+	int ret;
 
-	vma = intel_fb_pin_to_ggtt(fb, &plane_state->view.gtt,
-				   0, 0, 0, false, &plane_state->flags);
-	if (IS_ERR(vma))
-		return PTR_ERR(vma);
+	ret = xe_fb_pin_ggtt_pin(intel_fb_bo(fb), &pin_params, &vma, &offset, NULL);
+	if (ret)
+		return ret;
 
 	plane_state->ggtt_vma = vma;
 
-	plane_state->surf = xe_ggtt_node_addr(plane_state->ggtt_vma->node);
+	plane_state->surf = offset;
 
 	plane_config->vma = vma;
 
@@ -171,7 +162,6 @@ static void xe_plane_config_fini(struct intel_initial_plane_config *plane_config
 }
 
 const struct intel_display_initial_plane_interface xe_display_initial_plane_interface = {
-	.vblank_wait = xe_initial_plane_vblank_wait,
 	.alloc_obj = xe_alloc_initial_plane_obj,
 	.setup = xe_initial_plane_setup,
 	.config_fini = xe_plane_config_fini,

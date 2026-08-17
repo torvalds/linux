@@ -353,6 +353,7 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter *adapter, u16 addr,
 			  && size != I2C_SMBUS_I2C_BLOCK_DATA);
 
 	msgbuf0[0] = command;
+	msgbuf1[0] = 0;
 	switch (size) {
 	case I2C_SMBUS_QUICK:
 		msg[0].len = 0;

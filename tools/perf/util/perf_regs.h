@@ -53,6 +53,7 @@ const char *__perf_reg_name_powerpc(int id);
 uint64_t __perf_reg_ip_powerpc(void);
 uint64_t __perf_reg_sp_powerpc(void);
 
+int __perf_sdt_arg_parse_op_riscv(char *old_op, char **new_op);
 uint64_t __perf_reg_mask_riscv(bool intr);
 const char *__perf_reg_name_riscv(int id);
 uint64_t __perf_reg_ip_riscv(void);

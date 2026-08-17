@@ -692,7 +692,7 @@ config PATA_EFAR
 
 config PATA_EP93XX
 	tristate "Cirrus Logic EP93xx PATA support"
-	depends on ARCH_EP93XX
+	depends on ARCH_EP93XX || COMPILE_TEST
 	select PATA_TIMINGS
 	help
 	  This option enables support for the PATA controller in

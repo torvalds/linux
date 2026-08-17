@@ -2267,6 +2267,8 @@ enum {
 	IO_REPARSE_PLUGIN_SELECT	= cpu_to_le32(0xffff0fff),
 };
 
+#define SYMLINK_FLAG_RELATIVE		1
+
 /*
  * struct reparse_point - $REPARSE_POINT attribute content (0xc0)\
  *
@@ -2285,6 +2287,23 @@ struct reparse_point {
 	__le16 reparse_data_length;
 	__le16 reserved;
 	u8 reparse_data[];
+} __packed;
+
+struct mount_point_reparse_data {
+	__le16 substitute_name_offset;
+	__le16 substitute_name_length;
+	__le16 print_name_offset;
+	__le16 print_name_length;
+	__le16 path_buffer[];
+} __packed;
+
+struct symlink_reparse_data {
+	__le16 substitute_name_offset;
+	__le16 substitute_name_length;
+	__le16 print_name_offset;
+	__le16 print_name_length;
+	__le32 flags;
+	__le16 path_buffer[];
 } __packed;
 
 /*

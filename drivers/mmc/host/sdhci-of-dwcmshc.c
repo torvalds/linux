@@ -277,6 +277,7 @@
 #define PHY_DELAY_CODE_MAX		0x7f
 #define PHY_DELAY_CODE_EMMC		0x17
 #define PHY_DELAY_CODE_SD		0x55
+#define PHY_DELAY_CODE_SDIO		0x29
 
 struct rk35xx_priv {
 	struct reset_control *reset;
@@ -917,11 +918,9 @@ static int dwcmshc_rk35xx_init(struct device *dev, struct sdhci_host *host,
 		return -ENOMEM;
 
 	priv->reset = devm_reset_control_array_get_optional_exclusive(mmc_dev(host->mmc));
-	if (IS_ERR(priv->reset)) {
-		err = PTR_ERR(priv->reset);
-		dev_err(mmc_dev(host->mmc), "failed to get reset control %d\n", err);
-		return err;
-	}
+	if (IS_ERR(priv->reset))
+		return dev_err_probe(mmc_dev(host->mmc), PTR_ERR(priv->reset),
+				     "failed to get reset control\n");
 
 	err = dwcmshc_get_enable_other_clks(mmc_dev(host->mmc), dwc_priv,
 					    ARRAY_SIZE(clk_ids), clk_ids);
@@ -1433,10 +1432,7 @@ static void sdhci_eic7700_set_clock(struct sdhci_host *host, unsigned int clock)
 	clk_set_rate(pltfm_host->clk, clock);
 
 	clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
-	clk |= SDHCI_CLOCK_INT_EN;
-	sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
-
-	dwcmshc_enable_card_clk(host);
+	sdhci_enable_clk(host, clk);
 }
 
 static void sdhci_eic7700_config_phy_delay(struct sdhci_host *host, int delay)
@@ -1497,7 +1493,7 @@ static void sdhci_eic7700_config_phy(struct sdhci_host *host)
 
 static void sdhci_eic7700_reset(struct sdhci_host *host, u8 mask)
 {
-	sdhci_reset(host, mask);
+	dwcmshc_reset(host, mask);
 
 	/* after reset all, the phy's config will be clear */
 	if (mask == SDHCI_RESET_ALL)
@@ -1594,18 +1590,17 @@ static int sdhci_eic7700_phase_code_tuning(struct sdhci_host *host, u32 opcode)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct dwcmshc_priv *priv = sdhci_pltfm_priv(pltfm_host);
-	u32 sd_caps = MMC_CAP2_NO_MMC | MMC_CAP2_NO_SDIO;
+	u32 emmc_caps = MMC_CAP2_NO_SD | MMC_CAP2_NO_SDIO;
 	int phase_code = -1;
 	int code_range = -1;
-	bool is_sd = false;
 	int code_min = -1;
 	int code_max = -1;
 	int cmd_error = 0;
+	bool is_emmc;
 	int ret = 0;
 	int i = 0;
 
-	if ((host->mmc->caps2 & sd_caps) == sd_caps)
-		is_sd = true;
+	is_emmc = (host->mmc->caps2 & emmc_caps) == emmc_caps;
 
 	for (i = 0; i <= MAX_PHASE_CODE; i++) {
 		/* Centered Phase code */
@@ -1614,8 +1609,8 @@ static int sdhci_eic7700_phase_code_tuning(struct sdhci_host *host, u32 opcode)
 		host->ops->reset(host, SDHCI_RESET_CMD | SDHCI_RESET_DATA);
 
 		if (ret) {
-			/* SD specific range tracking */
-			if (is_sd && code_min != -1 && code_max != -1) {
+			/* SD/SDIO specific range tracking */
+			if (!is_emmc && code_min != -1 && code_max != -1) {
 				if (code_max - code_min > code_range) {
 					code_range = code_max - code_min;
 					phase_code = (code_min + code_max) / 2;
@@ -1626,17 +1621,17 @@ static int sdhci_eic7700_phase_code_tuning(struct sdhci_host *host, u32 opcode)
 				code_max = -1;
 			}
 			/* EMMC breaks after first valid range */
-			if (!is_sd && code_min != -1 && code_max != -1)
+			if (is_emmc && code_min != -1 && code_max != -1)
 				break;
 		} else {
 			/* Track valid phase code range */
 			if (code_min == -1) {
 				code_min = i;
-				if (!is_sd)
+				if (is_emmc)
 					continue;
 			}
 			code_max = i;
-			if (is_sd && i == MAX_PHASE_CODE) {
+			if (!is_emmc && i == MAX_PHASE_CODE) {
 				if (code_max - code_min > code_range) {
 					code_range = code_max - code_min;
 					phase_code = (code_min + code_max) / 2;
@@ -1646,19 +1641,19 @@ static int sdhci_eic7700_phase_code_tuning(struct sdhci_host *host, u32 opcode)
 	}
 
 	/* Handle tuning failure case */
-	if ((is_sd && phase_code == -1) ||
-	    (!is_sd && code_min == -1 && code_max == -1)) {
+	if ((!is_emmc && phase_code == -1) ||
+	    (is_emmc && code_min == -1 && code_max == -1)) {
 		pr_err("%s: phase code tuning failed!\n", mmc_hostname(host->mmc));
 		sdhci_writew(host, 0, priv->vendor_specific_area1 + DWCMSHC_AT_STAT);
 		return -EIO;
 	}
-	if (!is_sd)
+	if (is_emmc)
 		phase_code = (code_min + code_max) / 2;
 
 	sdhci_writew(host, phase_code, priv->vendor_specific_area1 + DWCMSHC_AT_STAT);
 
-	/* SD specific final verification */
-	if (is_sd) {
+	/* SD/SDIO specific final verification */
+	if (!is_emmc) {
 		ret = mmc_send_tuning(host->mmc, opcode, &cmd_error);
 		host->ops->reset(host, SDHCI_RESET_CMD | SDHCI_RESET_DATA);
 		if (ret) {
@@ -1756,9 +1751,9 @@ static void sdhci_eic7700_set_uhs_signaling(struct sdhci_host *host, unsigned in
 
 static void sdhci_eic7700_set_uhs_wrapper(struct sdhci_host *host, unsigned int timing)
 {
-	u32 sd_caps = MMC_CAP2_NO_MMC | MMC_CAP2_NO_SDIO;
+	u32 emmc_caps = MMC_CAP2_NO_SD | MMC_CAP2_NO_SDIO;
 
-	if ((host->mmc->caps2 & sd_caps) == sd_caps)
+	if ((host->mmc->caps2 & emmc_caps) != emmc_caps)
 		sdhci_set_uhs_signaling(host, timing);
 	else
 		sdhci_eic7700_set_uhs_signaling(host, timing);
@@ -1767,6 +1762,7 @@ static void sdhci_eic7700_set_uhs_wrapper(struct sdhci_host *host, unsigned int 
 static int eic7700_init(struct device *dev, struct sdhci_host *host, struct dwcmshc_priv *dwc_priv)
 {
 	u32 emmc_caps = MMC_CAP2_NO_SD | MMC_CAP2_NO_SDIO;
+	u32 sd_caps = MMC_CAP2_NO_MMC | MMC_CAP2_NO_SDIO;
 	unsigned int val, hsp_int_status, hsp_pwr_ctrl;
 	static const char * const clk_ids[] = {"axi"};
 	struct of_phandle_args args;
@@ -1781,10 +1777,8 @@ static int eic7700_init(struct device *dev, struct sdhci_host *host, struct dwcm
 	dwc_priv->priv = priv;
 
 	ret = sdhci_eic7700_reset_init(dev, dwc_priv->priv);
-	if (ret) {
-		dev_err(dev, "failed to reset\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to reset\n");
 
 	ret = dwcmshc_get_enable_other_clks(mmc_dev(host->mmc), dwc_priv,
 					    ARRAY_SIZE(clk_ids), clk_ids);
@@ -1792,16 +1786,14 @@ static int eic7700_init(struct device *dev, struct sdhci_host *host, struct dwcm
 		return ret;
 
 	ret = of_parse_phandle_with_fixed_args(dev->of_node, "eswin,hsp-sp-csr", 2, 0, &args);
-	if (ret) {
-		dev_err(dev, "Fail to parse 'eswin,hsp-sp-csr' phandle (%d)\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Fail to parse 'eswin,hsp-sp-csr' phandle\n");
 
 	hsp_regmap = syscon_node_to_regmap(args.np);
 	if (IS_ERR(hsp_regmap)) {
-		dev_err(dev, "Failed to get regmap for 'eswin,hsp-sp-csr'\n");
 		of_node_put(args.np);
-		return PTR_ERR(hsp_regmap);
+		return dev_err_probe(dev, PTR_ERR(hsp_regmap),
+				     "Failed to get regmap for 'eswin,hsp-sp-csr'\n");
 	}
 	hsp_int_status = args.args[0];
 	hsp_pwr_ctrl = args.args[1];
@@ -1821,8 +1813,10 @@ static int eic7700_init(struct device *dev, struct sdhci_host *host, struct dwcm
 
 	if ((host->mmc->caps2 & emmc_caps) == emmc_caps)
 		dwc_priv->delay_line = PHY_DELAY_CODE_EMMC;
-	else
+	else if ((host->mmc->caps2 & sd_caps) == sd_caps)
 		dwc_priv->delay_line = PHY_DELAY_CODE_SD;
+	else
+		dwc_priv->delay_line = PHY_DELAY_CODE_SDIO;
 
 	if (!of_property_read_u32(dev->of_node, "eswin,drive-impedance-ohms", &val))
 		priv->drive_impedance = eic7700_convert_drive_impedance_ohm(dev, val);
@@ -2408,10 +2402,8 @@ static int dwcmshc_probe(struct platform_device *pdev)
 	u32 extra, caps;
 
 	pltfm_data = device_get_match_data(&pdev->dev);
-	if (!pltfm_data) {
-		dev_err(&pdev->dev, "Error: No device match data found\n");
-		return -ENODEV;
-	}
+	if (!pltfm_data)
+		return dev_err_probe(&pdev->dev, -ENODEV, "No device match data found\n");
 
 	host = sdhci_pltfm_init(pdev, &pltfm_data->pdata,
 				sizeof(struct dwcmshc_priv));
@@ -2564,8 +2556,7 @@ static int dwcmshc_suspend(struct device *dev)
 		return ret;
 
 	clk_disable_unprepare(pltfm_host->clk);
-	if (!IS_ERR(priv->bus_clk))
-		clk_disable_unprepare(priv->bus_clk);
+	clk_disable_unprepare(priv->bus_clk);
 
 	clk_bulk_disable_unprepare(priv->num_other_clks, priv->other_clks);
 
@@ -2608,8 +2599,7 @@ static int dwcmshc_resume(struct device *dev)
 disable_other_clks:
 	clk_bulk_disable_unprepare(priv->num_other_clks, priv->other_clks);
 disable_bus_clk:
-	if (!IS_ERR(priv->bus_clk))
-		clk_disable_unprepare(priv->bus_clk);
+	clk_disable_unprepare(priv->bus_clk);
 disable_clk:
 	clk_disable_unprepare(pltfm_host->clk);
 	return ret;

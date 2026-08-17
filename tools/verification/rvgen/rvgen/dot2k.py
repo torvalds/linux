@@ -215,14 +215,14 @@ class ha2k(dot2k):
     def __get_constraint_env(self, constr: str) -> str:
         """Extract the second argument from an ha_ function"""
         env = constr.split("(")[1].split()[1].rstrip(")").rstrip(",")
-        assert env.rstrip(f"_{self.name}") in self.envs
+        assert env.removesuffix(f"_{self.name}") in self.envs
         return env
 
     def __start_to_invariant_check(self, constr: str) -> str:
         # by default assume the timer has ns expiration
         env = self.__get_constraint_env(constr)
         clock_type = "ns"
-        if self.env_types.get(env.rstrip(f"_{self.name}")) == "j":
+        if self.env_types.get(env.removesuffix(f"_{self.name}")) == "j":
             clock_type = "jiffy"
 
         return f"return ha_check_invariant_{clock_type}(ha_mon, {env}, time_ns)"

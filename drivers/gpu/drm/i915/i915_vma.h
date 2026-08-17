@@ -476,6 +476,4 @@ int i915_vma_module_init(void);
 I915_SELFTEST_DECLARE(int i915_vma_get_pages(struct i915_vma *vma));
 I915_SELFTEST_DECLARE(void i915_vma_put_pages(struct i915_vma *vma));
 
-extern const struct intel_display_vma_interface i915_display_vma_interface;
-
 #endif

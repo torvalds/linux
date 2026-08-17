@@ -34,6 +34,7 @@
 #include "amdgpu_dm_plane.h"
 #include "amdgpu_dm_trace.h"
 #include "amdgpu_dm_debugfs.h"
+#include "modules/inc/mod_power.h"
 
 #define HPD_DETECTION_PERIOD_uS 2000000
 #define HPD_DETECTION_TIME_uS 100000
@@ -100,68 +101,33 @@ bool amdgpu_dm_crtc_vrr_active(const struct dm_crtc_state *dm_state)
 }
 
 /**
- * amdgpu_dm_crtc_set_panel_sr_feature() - Manage panel self-refresh features.
- * @dm: amdgpu display manager instance.
- * @acrtc: CRTC whose panel self-refresh state is being updated.
- * @stream: DC stream associated with @acrtc.
- * @vblank_enabled: Whether the DRM vblank counter is currently enabled.
- * @allow_sr_entry: Whether entry into self-refresh mode is allowed.
+ * amdgpu_dm_crtc_set_static_screen_optimze() - Toggle static screen optimizations.
  *
- * The DRM vblank counter enable/disable action is used as the trigger to enable
- * or disable various panel self-refresh features:
+ * @dm: display manager
+ * @stream: DC stream state
+ * @sso_enable: desired static screen optimization state
+ * @allow_sr_entry: whether entry into self-refresh mode is allowed
  *
- * Panel Replay and PSR SU
- * - Enable when:
- *   - VRR is disabled
- *   - vblank counter is disabled
- *   - entry is allowed: usermode demonstrates an adequate number of fast
- *     commits
- *   - CRC capture window isn't active
- * - Keep enabled even when vblank counter gets enabled
- *
- * PSR1
- * - Enable condition same as above
- * - Disable when vblank counter is enabled
+ * This function uses the static-screen optimization state as the trigger to
+ * set/clear the Replay and PSR vsync-related events.
  */
-void amdgpu_dm_crtc_set_panel_sr_feature(
+void amdgpu_dm_crtc_set_static_screen_optimze(
 	struct amdgpu_display_manager *dm,
-	struct amdgpu_crtc *acrtc,
 	struct dc_stream_state *stream,
-	bool vblank_enabled, bool allow_sr_entry)
+	bool sso_enable, bool allow_sr_entry)
 {
 	struct dc_link *link = stream->link;
-	bool is_sr_active = (link->replay_settings.replay_allow_active ||
-				 link->psr_settings.psr_allow_active);
-	bool is_crc_window_active = false;
-	bool vrr_active = amdgpu_dm_crtc_vrr_active_irq(acrtc);
+	bool set_vsync_event = !sso_enable;
 
-#ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
-	is_crc_window_active =
-		amdgpu_dm_crc_window_is_activated(&acrtc->base);
-#endif
+	if (!allow_sr_entry)
+		return;
 
-	if (link->replay_settings.replay_feature_enabled && !vrr_active &&
-		allow_sr_entry && !is_sr_active && !is_crc_window_active) {
-		amdgpu_dm_replay_enable(stream, true);
-	} else if (vblank_enabled) {
-		if (link->psr_settings.psr_version < DC_PSR_VERSION_SU_1 && is_sr_active)
-			amdgpu_dm_psr_disable(stream, false);
-	} else if (link->psr_settings.psr_feature_enabled && !vrr_active &&
-		allow_sr_entry && !is_sr_active && !is_crc_window_active) {
+	amdgpu_dm_replay_set_event(dm, stream,
+		set_vsync_event, replay_event_vsync, set_vsync_event);
 
-		struct amdgpu_dm_connector *aconn =
-			(struct amdgpu_dm_connector *) stream->dm_stream_context;
-
-		if (!aconn->disallow_edp_enter_psr) {
-			amdgpu_dm_psr_enable(stream);
-			if (dm->idle_workqueue &&
-			    (dm->dc->config.disable_ips == DMUB_IPS_ENABLE) &&
-			    dm->dc->idle_optimizations_allowed &&
-			    dm->idle_workqueue->enable &&
-			    !dm->idle_workqueue->running)
-				schedule_work(&dm->idle_workqueue->work);
-		}
-	}
+	if (link->psr_settings.psr_version < DC_PSR_VERSION_SU_1)
+		amdgpu_dm_psr_set_event(dm, stream,
+			set_vsync_event, psr_event_vsync, set_vsync_event);
 }
 
 bool amdgpu_dm_is_headless(struct amdgpu_device *adev)
@@ -584,7 +550,7 @@ static void amdgpu_dm_crtc_helper_disable(struct drm_crtc *crtc)
 
 static int amdgpu_dm_crtc_count_crtc_active_planes(struct drm_crtc_state *new_crtc_state)
 {
-	struct drm_atomic_state *state = new_crtc_state->state;
+	struct drm_atomic_commit *state = new_crtc_state->state;
 	struct drm_plane *plane;
 	int num_active = 0;
 
@@ -637,7 +603,7 @@ static bool amdgpu_dm_crtc_helper_mode_fixup(struct drm_crtc *crtc,
 }
 
 static int amdgpu_dm_crtc_helper_atomic_check(struct drm_crtc *crtc,
-					      struct drm_atomic_state *state)
+					      struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
 										crtc);

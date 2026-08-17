@@ -2697,6 +2697,8 @@ static void set_vma_user_defined_fields(struct vm_area_struct *vma,
 {
 	if (map->vm_ops)
 		vma->vm_ops = map->vm_ops;
+	else	/* Only /dev/zero should do this. */
+		vma_set_anonymous(vma);
 	vma->vm_private_data = map->vm_private_data;
 }
 
@@ -2744,6 +2746,7 @@ static unsigned long __mmap_region(struct file *file, unsigned long addr,
 		.action = {
 			.type = MMAP_NOTHING, /* Default to no further action. */
 		},
+		.vm_ops = &vma_dummy_vm_ops,
 	};
 	bool allocated_new = false;
 	int error;

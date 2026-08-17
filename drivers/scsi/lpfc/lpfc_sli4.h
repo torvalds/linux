@@ -280,9 +280,10 @@ struct lpfc_queue {
 	uint64_t isr_timestamp;
 	struct lpfc_queue *assoc_qp;
 	struct list_head _poll_list;
-	void **q_pgs;	/* array to index entries per page */
 
 	enum lpfc_poll_mode poll_mode;
+
+	void *q_pgs[];	/* array to index entries per page */
 };
 
 struct lpfc_sli4_link {
@@ -335,7 +336,7 @@ struct lpfc_fcf {
 #define FCF_AVAILABLE	0x01 /* FCF available for discovery */
 #define FCF_REGISTERED	0x02 /* FCF registered with FW */
 #define FCF_SCAN_DONE	0x04 /* FCF table scan done */
-#define FCF_IN_USE	0x08 /* Atleast one discovery completed */
+#define FCF_IN_USE	0x08 /* At Least one discovery completed */
 #define FCF_INIT_DISC	0x10 /* Initial FCF discovery */
 #define FCF_DEAD_DISC	0x20 /* FCF DEAD fast FCF failover discovery */
 #define FCF_ACVL_DISC	0x40 /* All CVL fast FCF failover discovery */

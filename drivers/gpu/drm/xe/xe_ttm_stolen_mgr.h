@@ -12,6 +12,18 @@ struct ttm_resource;
 struct xe_bo;
 struct xe_device;
 
+/**
+ * struct xe_ttm_stolen_mgr - Xe TTM stolen memory manager
+ */
+struct xe_ttm_stolen_mgr {
+	/** @io_base: PCI base offset for CPU I/O access */
+	resource_size_t io_base;
+	/** @stolen_base: GPU base offset */
+	resource_size_t stolen_base;
+	/** @mapping: I/O memory mapping for CPU access */
+	void __iomem *mapping;
+};
+
 int xe_ttm_stolen_mgr_init(struct xe_device *xe);
 int xe_ttm_stolen_io_mem_reserve(struct xe_device *xe, struct ttm_resource *mem);
 bool xe_ttm_stolen_cpu_access_needs_ggtt(struct xe_device *xe);

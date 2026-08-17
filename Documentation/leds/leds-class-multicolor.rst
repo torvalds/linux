@@ -25,9 +25,13 @@ color name to indexed value.
 The ``multi_index`` file is an array that contains the string list of the colors as
 they are defined in each ``multi_*`` array file.
 
-The ``multi_intensity`` is an array that can be read or written to for the
+The ``multi_intensity`` file is an array that can be read or written to for the
 individual color intensities.  All elements within this array must be written in
 order for the color LED intensities to be updated.
+
+The ``multi_max_intensity`` file is an array that contains the maximum intensity
+value supported by each color intensity. Intensity values above this will be
+automatically clamped into the supported range.
 
 Directory Layout Example
 ========================
@@ -38,6 +42,7 @@ Directory Layout Example
     -r--r--r--    1 root     root          4096 Oct 19 16:16 max_brightness
     -r--r--r--    1 root     root          4096 Oct 19 16:16 multi_index
     -rw-r--r--    1 root     root          4096 Oct 19 16:16 multi_intensity
+    -r--r--r--    1 root     root          4096 Oct 19 16:16 multi_max_intensity
 
 ..
 
@@ -102,5 +107,19 @@ the color LED group.
 
     # cat /sys/class/leds/multicolor:status/brightness
     128
+
+..
+
+Writing intensity values larger than the maximum specified in ``multi_max_intensity``
+will result in those values being clamped into the supported range.
+
+.. code-block:: console
+
+   # cat /sys/class/leds/multicolor:status/multi_max_intensity
+   255 255 255
+
+   # echo 512 512 512 > /sys/class/leds/multicolor:status/multi_intensity
+   # cat /sys/class/leds/multicolor:status/multi_intensity
+   255 255 255
 
 ..

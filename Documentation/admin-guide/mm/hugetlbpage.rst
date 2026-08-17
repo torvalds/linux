@@ -455,7 +455,7 @@ used to change the file attributes on hugetlbfs.
 Also, it is important to note that no such mount command is required if
 applications are going to use only shmat/shmget system calls or mmap with
 MAP_HUGETLB.  For an example of how to use mmap with MAP_HUGETLB see
-:ref:`map_hugetlb <map_hugetlb>` below.
+:ref:`examples <examples>` below.
 
 Users who wish to use hugetlb memory via shared memory segment should be
 members of a supplementary group and system admin needs to configure that gid
@@ -473,16 +473,13 @@ a hugetlb page and the length is smaller than the hugepage size.
 Examples
 ========
 
-.. _map_hugetlb:
+.. _examples:
 
-``map_hugetlb``
-	see tools/testing/selftests/mm/map_hugetlb.c
+``hugetlb-shm``
+	see tools/testing/selftests/mm/hugetlb-shm.c
 
-``hugepage-shm``
-	see tools/testing/selftests/mm/hugepage-shm.c
-
-``hugepage-mmap``
-	see tools/testing/selftests/mm/hugepage-mmap.c
+``hugetlb-mmap``
+	see tools/testing/selftests/mm/hugetlb-mmap.c
 
 The `libhugetlbfs`_  library provides a wide range of userspace tools
 to help with huge page usability, environment setup, and control.

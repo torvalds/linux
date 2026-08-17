@@ -786,6 +786,7 @@ networking/altera_tse networking/device_drivers/ethernet/altera/altera_tse
 networking/bpf_flow_dissector bpf/prog_flow_dissector
 networking/cxacru networking/device_drivers/atm/cxacru
 networking/defza networking/device_drivers/fddi/defza
+networking/device_drivers/3com/3c509 networking/device_drivers/ethernet/3com/3c509
 networking/device_drivers/3com/vortex networking/device_drivers/ethernet/3com/vortex
 networking/device_drivers/amazon/ena networking/device_drivers/ethernet/amazon/ena
 networking/device_drivers/aquantia/atlantic networking/device_drivers/ethernet/aquantia/atlantic

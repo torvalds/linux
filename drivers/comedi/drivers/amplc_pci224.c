@@ -1122,9 +1122,9 @@ static int amplc_pci224_pci_probe(struct pci_dev *dev,
 }
 
 static const struct pci_device_id amplc_pci224_pci_table[] = {
-	{ PCI_VDEVICE(AMPLICON, 0x0007), pci224_model },
-	{ PCI_VDEVICE(AMPLICON, 0x0008), pci234_model },
-	{ 0 }
+	{ PCI_VDEVICE(AMPLICON, 0x0007), .driver_data = pci224_model },
+	{ PCI_VDEVICE(AMPLICON, 0x0008), .driver_data = pci234_model },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, amplc_pci224_pci_table);
 

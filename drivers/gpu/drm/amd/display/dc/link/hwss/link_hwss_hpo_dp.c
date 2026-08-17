@@ -63,7 +63,7 @@ void set_hpo_dp_hblank_min_symbol_width(struct pipe_ctx *pipe_ctx,
 		time_slot_in_ms = dc_fixpt_from_fraction(32 * 4, link_bw_in_kbps);
 		mtp_cnt_per_h_blank = dc_fixpt_div(h_blank_in_ms,
 				dc_fixpt_mul_int(time_slot_in_ms, 64));
-		hblank_min_symbol_width = dc_fixpt_floor(
+		hblank_min_symbol_width = (uint16_t)dc_fixpt_floor(
 				dc_fixpt_mul(mtp_cnt_per_h_blank, throttled_vcp_size));
 	}
 
@@ -98,7 +98,7 @@ void setup_hpo_dp_stream_attribute(struct pipe_ctx *pipe_ctx)
 			&stream->timing,
 			stream->output_color_space,
 			stream->use_vsc_sdp_for_colorimetry,
-			stream->timing.flags.DSC,
+			(stream->timing.flags.DSC != 0),
 			false);
 	link->dc->link_srv->dp_trace_source_sequence(link,
 			DPCD_SOURCE_SEQ_AFTER_DP_STREAM_ATTR);

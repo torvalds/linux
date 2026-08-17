@@ -31,7 +31,7 @@ properties:
           - const: starfive,jh7110-dwmac
           - const: snps,dwmac-5.20
       - items:
-          - const: starfive,jh8100-dwmac
+          - const: starfive,jhb100-dwmac
           - const: starfive,jh7110-dwmac
           - const: snps,dwmac-5.20
 
@@ -39,20 +39,24 @@ properties:
     maxItems: 1
 
   clocks:
+    minItems: 5
     items:
       - description: GMAC main clock
       - description: GMAC AHB clock
       - description: PTP clock
       - description: TX clock
       - description: GTX clock
+      - description: SGMII RX clock
 
   clock-names:
+    minItems: 5
     items:
       - const: stmmaceth
       - const: pclk
       - const: ptp_ref
       - const: tx
       - const: gtx
+      - const: sgmii_rx
 
   starfive,tx-use-rgmii-clk:
     description:
@@ -111,22 +115,19 @@ allOf:
           contains:
             const: starfive,jh7110-dwmac
     then:
-      properties:
-        interrupts:
-          minItems: 3
-          maxItems: 3
-
-        interrupt-names:
-          minItems: 3
-          maxItems: 3
-
       if:
         properties:
           compatible:
             contains:
-              const: starfive,jh8100-dwmac
+              const: starfive,jhb100-dwmac
       then:
         properties:
+          interrupts:
+            maxItems: 1
+
+          interrupt-names:
+            const: macirq
+
           resets:
             maxItems: 1
 
@@ -134,6 +135,14 @@ allOf:
             const: stmmaceth
       else:
         properties:
+          interrupts:
+            minItems: 3
+            maxItems: 3
+
+          interrupt-names:
+            minItems: 3
+            maxItems: 3
+
           resets:
             minItems: 2
 

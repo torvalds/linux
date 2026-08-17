@@ -17,6 +17,20 @@ config NET_VENDOR_3COM
 
 if NET_VENDOR_3COM
 
+config EL3
+	tristate "3c509/3c579 \"EtherLink III\" support"
+	depends on (ISA || EISA)
+	help
+	  If you have a network (Ethernet) card belonging to the 3Com
+	  EtherLinkIII series, say Y here.
+
+	  If your card is not working you may need to use the DOS
+	  setup disk to disable Plug & Play mode, and to select the default
+	  media type.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called 3c509.
+
 config VORTEX
 	tristate "3c590/3c900 series (592/595/597) \"Vortex/Boomerang\" support"
 	depends on (PCI || EISA) && HAS_IOPORT_MAP

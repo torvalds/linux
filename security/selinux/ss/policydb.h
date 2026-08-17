@@ -48,7 +48,7 @@ struct common_datum {
 
 /* Class attributes */
 struct class_datum {
-	u32 value; /* class value */
+	u16 value; /* class value */
 	char *comkey; /* common name */
 	struct common_datum *comdatum; /* common datum */
 	struct symtab permissions; /* class-specific permission symbol table */
@@ -74,7 +74,7 @@ struct class_datum {
 /* Role attributes */
 struct role_datum {
 	u32 value; /* internal role value */
-	u32 bounds; /* boundary of role */
+	u32 bounds; /* boundary of role, 0 for none */
 	struct ebitmap dominates; /* set of roles dominated by this role */
 	struct ebitmap types; /* set of authorized types for role */
 };
@@ -82,7 +82,7 @@ struct role_datum {
 struct role_trans_key {
 	u32 role; /* current role */
 	u32 type; /* program executable type, or new object type */
-	u32 tclass; /* process class, or new object class */
+	u16 tclass; /* process class, or new object class */
 };
 
 struct role_trans_datum {
@@ -110,7 +110,8 @@ struct role_allow {
 /* Type attributes */
 struct type_datum {
 	u32 value; /* internal type value */
-	u32 bounds; /* boundary of type */
+	u32 bounds; /* boundary of type, 0 for none */
+	/* internally unused, only forwarded via policydb_write() */
 	unsigned char primary; /* primary name? */
 	unsigned char attribute; /* attribute ?*/
 };
@@ -118,7 +119,7 @@ struct type_datum {
 /* User attributes */
 struct user_datum {
 	u32 value; /* internal user value */
-	u32 bounds; /* bounds of user */
+	u32 bounds; /* bounds of user, 0 for none */
 	struct ebitmap roles; /* set of authorized roles for user */
 	struct mls_range range; /* MLS range (min - max) for user */
 	struct mls_level dfltlevel; /* default login MLS level for user */
@@ -139,7 +140,7 @@ struct cat_datum {
 struct range_trans {
 	u32 source_type;
 	u32 target_type;
-	u32 target_class;
+	u16 target_class;
 };
 
 /* Boolean data type */
@@ -195,7 +196,7 @@ struct ocontext {
 		} ibendport;
 	} u;
 	union {
-		u32 sclass; /* security class for genfs */
+		u16 sclass; /* security class for genfs (can be 0 for wildcard) */
 		u32 behavior; /* labeling behavior for fs_use */
 	} v;
 	struct context context[2]; /* security context(s) */
@@ -321,10 +322,13 @@ struct policy_file {
 
 extern void policydb_destroy(struct policydb *p);
 extern int policydb_load_isids(struct policydb *p, struct sidtab *s);
-extern int policydb_context_isvalid(struct policydb *p, struct context *c);
-extern int policydb_class_isvalid(struct policydb *p, unsigned int class);
-extern int policydb_type_isvalid(struct policydb *p, unsigned int type);
-extern int policydb_role_isvalid(struct policydb *p, unsigned int role);
+extern bool policydb_context_isvalid(const struct policydb *p,
+				     const struct context *c);
+extern bool policydb_class_isvalid(const struct policydb *p, u16 class);
+extern bool policydb_type_isvalid(const struct policydb *p, u32 type);
+extern bool policydb_simpletype_isvalid(const struct policydb *p, u32 type);
+extern bool policydb_role_isvalid(const struct policydb *p, u32 role);
+extern bool policydb_user_isvalid(const struct policydb *p, u32 user);
 extern int policydb_read(struct policydb *p, struct policy_file *fp);
 extern int policydb_write(struct policydb *p, struct policy_file *fp);
 
@@ -354,6 +358,20 @@ struct policy_data {
 	struct policy_file *fp;
 };
 
+static inline int size_check(size_t bytes, size_t num,
+			     const struct policy_file *fp)
+{
+	size_t len;
+
+	if (unlikely(check_mul_overflow(bytes, num, &len)))
+		return -EINVAL;
+
+	if (unlikely(len > fp->len))
+		return -EINVAL;
+
+	return 0;
+}
+
 static inline int next_entry(void *buf, struct policy_file *fp, size_t bytes)
 {
 	if (bytes > fp->len)
@@ -382,15 +400,29 @@ static inline int put_entry(const void *buf, size_t bytes, size_t num,
 	return 0;
 }
 
-static inline char *sym_name(struct policydb *p, unsigned int sym_num,
+static inline const char *sym_name(const struct policydb *p, unsigned int sym_num,
 			     unsigned int element_nr)
 {
 	return p->sym_val_to_name[sym_num][element_nr];
+}
+
+static inline bool val_is_boolean(u32 value)
+{
+	return value == 0 || value == 1;
 }
 
 extern int str_read(char **strp, gfp_t flags, struct policy_file *fp, u32 len);
 
 extern u16 string_to_security_class(struct policydb *p, const char *name);
 extern u32 string_to_av_perm(struct policydb *p, u16 tclass, const char *name);
+
+#define pr_warn_once_policyload(policy, fmt, ...)    \
+	do {                                         \
+		static const void *prev_policy__;    \
+		if (prev_policy__ != policy) {       \
+			pr_warn(fmt, ##__VA_ARGS__); \
+			prev_policy__ = policy;      \
+		}                                    \
+	} while (0)
 
 #endif /* _SS_POLICYDB_H_ */

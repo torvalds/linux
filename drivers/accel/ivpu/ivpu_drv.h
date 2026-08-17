@@ -111,7 +111,6 @@ struct ivpu_wa_table {
 	bool clear_runtime_mem;
 	bool interrupt_clear_with_0;
 	bool disable_clock_relinquish;
-	bool disable_d0i3_msg;
 	bool wp0_during_power_up;
 	bool disable_d0i2;
 };
@@ -220,8 +219,6 @@ extern bool ivpu_force_snoop;
 #define IVPU_TEST_MODE_FW_TEST            BIT(0)
 #define IVPU_TEST_MODE_NULL_HW            BIT(1)
 #define IVPU_TEST_MODE_NULL_SUBMISSION    BIT(2)
-#define IVPU_TEST_MODE_D0I3_MSG_DISABLE   BIT(4)
-#define IVPU_TEST_MODE_D0I3_MSG_ENABLE    BIT(5)
 #define IVPU_TEST_MODE_MIP_DISABLE        BIT(6)
 #define IVPU_TEST_MODE_DISABLE_TIMEOUTS   BIT(8)
 #define IVPU_TEST_MODE_TURBO_ENABLE       BIT(9)

@@ -815,6 +815,7 @@ static bool dce110_link_encoder_validate_hdmi_output(
 {
 	enum dc_color_depth max_deep_color =
 			enc110->base.features.max_hdmi_deep_color;
+	int max_hdmi_pixel_clock_khz = (int)enc110->base.features.max_hdmi_pixel_clock;
 
 	if (max_deep_color < crtc_timing->display_color_depth)
 		return false;
@@ -825,7 +826,7 @@ static bool dce110_link_encoder_validate_hdmi_output(
 		return false;
 
 	if ((adjusted_pix_clk_khz == 0) ||
-		(adjusted_pix_clk_khz > enc110->base.features.max_hdmi_pixel_clock))
+		(adjusted_pix_clk_khz > max_hdmi_pixel_clock_khz))
 		return false;
 
 	/* DCE11 HW does not support 420 */

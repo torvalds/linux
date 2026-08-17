@@ -67,7 +67,7 @@ static const struct drm_driver komeda_kms_driver = {
 	.minor = 1,
 };
 
-static void komeda_kms_atomic_commit_hw_done(struct drm_atomic_state *state)
+static void komeda_kms_atomic_commit_hw_done(struct drm_atomic_commit *state)
 {
 	struct drm_device *dev = state->dev;
 	struct komeda_kms_dev *kms = to_kdev(dev);
@@ -86,7 +86,7 @@ static void komeda_kms_atomic_commit_hw_done(struct drm_atomic_state *state)
 	drm_atomic_helper_commit_hw_done(state);
 }
 
-static void komeda_kms_commit_tail(struct drm_atomic_state *old_state)
+static void komeda_kms_commit_tail(struct drm_atomic_commit *old_state)
 {
 	struct drm_device *dev = old_state->dev;
 	bool fence_cookie = dma_fence_begin_signalling();
@@ -153,7 +153,7 @@ static int komeda_plane_state_list_add(struct drm_plane_state *plane_st,
 static int komeda_crtc_normalize_zpos(struct drm_crtc *crtc,
 				      struct drm_crtc_state *crtc_st)
 {
-	struct drm_atomic_state *state = crtc_st->state;
+	struct drm_atomic_commit *state = crtc_st->state;
 	struct komeda_crtc *kcrtc = to_kcrtc(crtc);
 	struct komeda_crtc_state *kcrtc_st = to_kcrtc_st(crtc_st);
 	struct komeda_plane_state *kplane_st;
@@ -216,7 +216,7 @@ static int komeda_crtc_normalize_zpos(struct drm_crtc *crtc,
 }
 
 static int komeda_kms_check(struct drm_device *dev,
-			    struct drm_atomic_state *state)
+			    struct drm_atomic_commit *state)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *new_crtc_st;
@@ -228,7 +228,7 @@ static int komeda_kms_check(struct drm_device *dev,
 
 	/* Komeda need to re-calculate resource assumption in every commit
 	 * so need to add all affected_planes (even unchanged) to
-	 * drm_atomic_state.
+	 * drm_atomic_commit.
 	 */
 	for_each_new_crtc_in_state(state, crtc, new_crtc_st, i) {
 		err = drm_atomic_add_affected_planes(state, crtc);

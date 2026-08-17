@@ -1,0 +1,2 @@
+# mode=strict
+bad/yaml-unclosed-comment.yaml:26: example 0 [unclosed-block-comment] unclosed /* block comment

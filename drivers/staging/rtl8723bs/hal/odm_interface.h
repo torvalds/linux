@@ -5,11 +5,8 @@
  *
  ******************************************************************************/
 
-
 #ifndef	__ODM_INTERFACE_H__
 #define __ODM_INTERFACE_H__
-
-
 
 /*  =========== Macro Define */
 
@@ -17,14 +14,6 @@
 #define _reg_ic(_name, _ic)		ODM_##_name##_ic
 #define _bit_all(_name)			BIT_##_name
 #define _bit_ic(_name, _ic)		BIT_##_name##_ic
-
-/*===================================
-
-#define ODM_REG_DIG_11N		0xC50
-#define ODM_REG_DIG_11AC	0xDDD
-
-ODM_REG(DIG)
-=====================================*/
 
 #define _reg_11N(_name)			ODM_REG_##_name##_11N
 #define _bit_11N(_name)			ODM_BIT_##_name##_11N

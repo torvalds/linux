@@ -52,6 +52,17 @@ static int psp_load_smu_fw(struct psp_context *psp);
 static int psp_rap_terminate(struct psp_context *psp);
 static int psp_securedisplay_terminate(struct psp_context *psp);
 
+static const char * const amdgpu_ptl_fmt_str[] = {
+	[AMDGPU_PTL_FMT_I8]      = "I8",
+	[AMDGPU_PTL_FMT_F16]     = "F16",
+	[AMDGPU_PTL_FMT_BF16]    = "BF16",
+	[AMDGPU_PTL_FMT_F32]     = "F32",
+	[AMDGPU_PTL_FMT_F64]     = "F64",
+	[AMDGPU_PTL_FMT_F8]      = "F8",
+	[AMDGPU_PTL_FMT_VECTOR]  = "VECTOR",
+	[AMDGPU_PTL_FMT_INVALID] = "INVALID",
+};
+
 static int psp_ring_init(struct psp_context *psp,
 			 enum psp_ring_type ring_type)
 {
@@ -518,7 +529,7 @@ static int psp_sw_init(struct amdgpu_ip_block *ip_block)
 	}
 
 	ret = amdgpu_bo_create_kernel(adev, PSP_1_MEG, PSP_1_MEG,
-				      (amdgpu_sriov_vf(adev) || adev->debug_use_vram_fw_buf) ?
+				      (amdgpu_sriov_vf(adev) || adev->debug_use_vram_fw_buf || adev->gmc.xgmi.connected_to_cpu) ?
 				      AMDGPU_GEM_DOMAIN_VRAM : AMDGPU_GEM_DOMAIN_GTT,
 				      &psp->fw_pri_bo,
 				      &psp->fw_pri_mc_addr,
@@ -682,6 +693,8 @@ static const char *psp_gfx_cmd_name(enum psp_gfx_cmd_id cmd_id)
 		return "SPATIAL_PARTITION";
 	case GFX_CMD_ID_FB_NPS_MODE:
 		return "NPS_MODE_CHANGE";
+	case GFX_CMD_ID_PERF_HW:
+		return "PERF MONITORING HW";
 	default:
 		return "UNKNOWN CMD";
 	}
@@ -844,7 +857,11 @@ static int psp_load_toc(struct psp_context *psp,
 	struct psp_gfx_cmd_resp *cmd = acquire_psp_cmd_buf(psp);
 
 	/* Copy toc to psp firmware private buffer */
-	psp_copy_fw(psp, psp->toc.start_addr, psp->toc.size_bytes);
+	ret = psp_copy_fw(psp, psp->toc.start_addr, psp->toc.size_bytes);
+	if (ret) {
+		release_psp_cmd_buf(psp);
+		return ret;
+	}
 
 	psp_prep_load_toc_cmd_buf(cmd, psp->fw_pri_mc_addr, psp->toc.size_bytes);
 
@@ -1160,8 +1177,11 @@ static int psp_rl_load(struct amdgpu_device *adev)
 
 	cmd = acquire_psp_cmd_buf(psp);
 
-	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
-	memcpy(psp->fw_pri_buf, psp->rl.start_addr, psp->rl.size_bytes);
+	ret = psp_copy_fw(psp, psp->rl.start_addr, psp->rl.size_bytes);
+	if (ret) {
+		release_psp_cmd_buf(psp);
+		return ret;
+	}
 
 	cmd->cmd_id = GFX_CMD_ID_LOAD_IP_FW;
 	cmd->cmd.cmd_load_ip_fw.fw_phy_addr_lo = lower_32_bits(psp->fw_pri_mc_addr);
@@ -1199,6 +1219,369 @@ int psp_memory_partition(struct psp_context *psp, int mode)
 	release_psp_cmd_buf(psp);
 
 	return ret;
+}
+
+static int psp_ptl_fmt_verify(struct psp_context *psp, enum amdgpu_ptl_fmt fmt,
+						 uint32_t *ptl_fmt)
+{
+	struct amdgpu_device *adev = psp->adev;
+
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) != IP_VERSION(9, 4, 4))
+		return -EINVAL;
+
+	switch (fmt) {
+	case AMDGPU_PTL_FMT_I8:
+		*ptl_fmt = GFX_FTYPE_I8;
+		break;
+	case AMDGPU_PTL_FMT_F16:
+		*ptl_fmt = GFX_FTYPE_F16;
+		break;
+	case AMDGPU_PTL_FMT_BF16:
+		*ptl_fmt = GFX_FTYPE_BF16;
+		break;
+	case AMDGPU_PTL_FMT_F32:
+		*ptl_fmt = GFX_FTYPE_F32;
+		break;
+	case AMDGPU_PTL_FMT_F64:
+		*ptl_fmt = GFX_FTYPE_F64;
+		break;
+	case AMDGPU_PTL_FMT_F8:
+		*ptl_fmt = GFX_FTYPE_F8;
+		break;
+	case AMDGPU_PTL_FMT_VECTOR:
+		*ptl_fmt = GFX_FTYPE_VECTOR;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int psp_ptl_invoke(struct psp_context *psp, u32 req_code,
+		uint32_t *ptl_state, uint32_t *fmt1, uint32_t *fmt2)
+{
+	struct psp_gfx_cmd_resp *cmd;
+	struct amdgpu_ptl *ptl = &psp->ptl;
+	int ret;
+
+	cmd = acquire_psp_cmd_buf(psp);
+
+	cmd->cmd_id                     = GFX_CMD_ID_PERF_HW;
+	cmd->cmd.cmd_req_perf_hw.req    = req_code;
+	cmd->cmd.cmd_req_perf_hw.ptl_state    = *ptl_state;
+	cmd->cmd.cmd_req_perf_hw.pref_format1 = *fmt1;
+	cmd->cmd.cmd_req_perf_hw.pref_format2 = *fmt2;
+
+	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
+	if (ret)
+		goto out;
+
+	/*
+	 * Check response status explicitly to avoid
+	 * updating cached PTL state with invalid data.
+	 */
+	if (cmd->resp.status) {
+		dev_err(psp->adev->dev,
+				"PTL command 0x%x failed, PSP response status: 0x%X fw resp=0x%X\n",
+				req_code, cmd->resp.status,
+				cmd->resp.uresp.perf_hw_info.resp);
+		ret = -EIO;
+		goto out;
+	}
+
+	/* Parse response */
+	switch (req_code) {
+	case PSP_PTL_PERF_MON_QUERY:
+		*ptl_state = cmd->resp.uresp.perf_hw_info.ptl_state;
+		*fmt1      = cmd->resp.uresp.perf_hw_info.pref_format1;
+		*fmt2      = cmd->resp.uresp.perf_hw_info.pref_format2;
+		dev_dbg(psp->adev->dev, "PTL query: state=%d, fmt1=%d, fmt2=%d\n",
+				*ptl_state, *fmt1, *fmt2);
+		break;
+	case PSP_PTL_PERF_MON_SET:
+		/* Update cached state only on success */
+		ptl->enabled = *ptl_state;
+		ptl->fmt1    = *fmt1;
+		ptl->fmt2    = *fmt2;
+		dev_dbg(psp->adev->dev, "PTL set: state=%d, fmt1=%d, fmt2=%d\n",
+				*ptl_state, *fmt1, *fmt2);
+		break;
+	}
+
+out:
+	release_psp_cmd_buf(psp);
+	return ret;
+}
+
+int amdgpu_ptl_perf_monitor_ctrl(struct amdgpu_device *adev, u32 req_code,
+				uint32_t *ptl_state,
+				enum amdgpu_ptl_fmt *fmt1,
+				enum amdgpu_ptl_fmt *fmt2)
+{
+	uint32_t ptl_fmt1, ptl_fmt2;
+	struct psp_context *psp;
+	struct amdgpu_ptl *ptl;
+	int ret;
+
+	if (!adev || !ptl_state || !fmt1 || !fmt2)
+		return -EINVAL;
+
+	if (amdgpu_sriov_vf(adev))
+		return 0;
+
+	psp = &adev->psp;
+	ptl = &psp->ptl;
+
+	if (ptl->permanently_disabled && *ptl_state == 1)
+		return 0;
+
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) != IP_VERSION(9, 4, 4) ||
+			psp->sos.fw_version < 0x0036081a)
+		return -EOPNOTSUPP;
+
+	/* Verify formats */
+	if (psp_ptl_fmt_verify(psp, *fmt1, &ptl_fmt1) ||
+			psp_ptl_fmt_verify(psp, *fmt2, &ptl_fmt2))
+		return -EINVAL;
+
+	/*
+	 * Add check to skip if state and formats are identical to current ones
+	 */
+	if (req_code == PSP_PTL_PERF_MON_SET &&
+			ptl->enabled == *ptl_state &&
+			ptl->fmt1 == ptl_fmt1 &&
+			ptl->fmt2 == ptl_fmt2)
+		return 0;
+
+	/* If enabling PTL, check disable bitmap */
+	if (req_code == PSP_PTL_PERF_MON_SET && *ptl_state == 1) {
+		if (!bitmap_empty(ptl->disable_bitmap,
+					AMDGPU_PTL_DISABLE_MAX)) {
+			dev_dbg(adev->dev,
+					"PTL enable blocked: SYSFS=%d, PROFILER=%d (ref=%d)\n",
+					test_bit(AMDGPU_PTL_DISABLE_SYSFS,
+						ptl->disable_bitmap),
+					test_bit(AMDGPU_PTL_DISABLE_PROFILER,
+						ptl->disable_bitmap),
+					atomic_read(&ptl->disable_ref));
+			return 0;
+		}
+	}
+
+	if (req_code == PSP_PTL_PERF_MON_SET) {
+		amdgpu_amdkfd_stop_sched_all(adev);
+		/* Wait for GFX engine idle before PTL state transition */
+		ret = amdgpu_device_ip_wait_for_idle(adev,
+				AMD_IP_BLOCK_TYPE_GFX);
+		if (ret) {
+			amdgpu_amdkfd_start_sched_all(adev);
+			dev_err(adev->dev, "GFX not idle before PTL operation (%d)\n", ret);
+			return ret;
+		}
+		ret = psp_ptl_invoke(psp, req_code, ptl_state, &ptl_fmt1, &ptl_fmt2);
+		amdgpu_amdkfd_start_sched_all(adev);
+	} else {
+		ret = psp_ptl_invoke(psp, req_code, ptl_state, &ptl_fmt1, &ptl_fmt2);
+	}
+
+	return ret;
+}
+
+static enum amdgpu_ptl_fmt str_to_ptl_fmt(const char *str)
+{
+	int i;
+
+	for (i = 0; i < AMDGPU_PTL_FMT_INVALID; ++i) {
+		if (!strcmp(str, amdgpu_ptl_fmt_str[i]))
+			return (enum amdgpu_ptl_fmt)i;
+	}
+
+	return AMDGPU_PTL_FMT_INVALID;
+}
+
+static ssize_t ptl_supported_formats_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	ssize_t len = 0;
+
+	for (int i = 0; i < AMDGPU_PTL_FMT_INVALID; ++i) {
+		const char *fmt = amdgpu_ptl_fmt_str[i];
+
+		len += sysfs_emit_at(buf, len, "%s%s",
+				fmt ? fmt : "UNKNOWN",
+				(i < AMDGPU_PTL_FMT_INVALID - 1) ? "," : "\n");
+	}
+
+	return len;
+}
+
+static ssize_t ptl_enable_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	struct amdgpu_ptl *ptl = &adev->psp.ptl;
+	uint32_t ptl_state, fmt1, fmt2;
+	int ret;
+	bool enable;
+	bool bit_changed = false;
+
+	mutex_lock(&ptl->mutex);
+	if (sysfs_streq(buf, "enabled") || sysfs_streq(buf, "1")) {
+		enable = true;
+	} else if (sysfs_streq(buf, "disabled") || sysfs_streq(buf, "0")) {
+		enable = false;
+	} else {
+		mutex_unlock(&ptl->mutex);
+		return -EINVAL;
+	}
+
+	/* Block enable when permanently disabled */
+	if (ptl->permanently_disabled) {
+		mutex_unlock(&ptl->mutex);
+		return -EPERM;
+	}
+
+	fmt1 = ptl->fmt1;
+	fmt2 = ptl->fmt2;
+	ptl_state = enable ? 1 : 0;
+
+	if (enable)
+		bit_changed = test_and_clear_bit(AMDGPU_PTL_DISABLE_SYSFS,
+				ptl->disable_bitmap);
+
+	ret = amdgpu_ptl_perf_monitor_ctrl(adev, PSP_PTL_PERF_MON_SET, &ptl_state, &fmt1, &fmt2);
+	if (ret) {
+		dev_err(adev->dev, "Failed to set PTL err = %d\n", ret);
+		if (enable && bit_changed)
+			set_bit(AMDGPU_PTL_DISABLE_SYSFS, ptl->disable_bitmap);
+		mutex_unlock(&ptl->mutex);
+		return ret;
+	}
+
+	if (!enable)
+		set_bit(AMDGPU_PTL_DISABLE_SYSFS, ptl->disable_bitmap);
+
+	mutex_unlock(&ptl->mutex);
+
+	return count;
+}
+
+static ssize_t ptl_enable_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	struct amdgpu_ptl *ptl = &adev->psp.ptl;
+
+	if (ptl->permanently_disabled)
+		return sysfs_emit(buf, "permanently disabled\n");
+
+	return sysfs_emit(buf, "%s\n", ptl->enabled ? "enabled" : "disabled");
+}
+
+static ssize_t ptl_format_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	char fmt1_str[8], fmt2_str[8];
+	enum amdgpu_ptl_fmt fmt1_enum, fmt2_enum;
+	struct amdgpu_ptl *ptl = &adev->psp.ptl;
+	uint32_t ptl_state, fmt1, fmt2;
+	int ret;
+
+	/* Only allow format update when PTL is enabled */
+	if (!ptl->enabled)
+		return -EPERM;
+
+	mutex_lock(&ptl->mutex);
+	/* Parse input, expecting "FMT1,FMT2" */
+	if (sscanf(buf, "%7[^,],%7s", fmt1_str, fmt2_str) != 2) {
+		mutex_unlock(&ptl->mutex);
+		return -EINVAL;
+	}
+
+	fmt1_enum = str_to_ptl_fmt(fmt1_str);
+	fmt2_enum = str_to_ptl_fmt(fmt2_str);
+
+	if (fmt1_enum >= AMDGPU_PTL_FMT_INVALID ||
+			fmt2_enum >= AMDGPU_PTL_FMT_INVALID ||
+			fmt1_enum == fmt2_enum) {
+		mutex_unlock(&ptl->mutex);
+		return -EINVAL;
+	}
+
+	ptl_state = ptl->enabled;
+	fmt1 = fmt1_enum;
+	fmt2 = fmt2_enum;
+	ret = amdgpu_ptl_perf_monitor_ctrl(adev, PSP_PTL_PERF_MON_SET, &ptl_state, &fmt1, &fmt2);
+	if (ret) {
+		dev_err(adev->dev, "Failed to update PTL err = %d\n", ret);
+		mutex_unlock(&ptl->mutex);
+		return ret;
+	}
+	mutex_unlock(&ptl->mutex);
+
+	return count;
+}
+
+static ssize_t ptl_format_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	struct psp_context *psp = &adev->psp;
+
+	return sysfs_emit(buf, "%s,%s\n",
+			amdgpu_ptl_fmt_str[psp->ptl.fmt1],
+			amdgpu_ptl_fmt_str[psp->ptl.fmt2]);
+}
+
+static umode_t amdgpu_ptl_is_visible(struct kobject *kobj, struct attribute *attr, int idx)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+
+	/* Only show PTL sysfs files if PTL hardware is supported */
+	if (!adev->psp.ptl.hw_supported)
+		return 0;
+
+	return attr->mode;
+}
+
+int amdgpu_ptl_sysfs_init(struct amdgpu_device *adev)
+{
+	struct amdgpu_ptl *ptl = &adev->psp.ptl;
+	int ret;
+
+	if (!ptl->hw_supported)
+		return 0;
+
+	if (ptl->ptl_sysfs_created)
+		return 0;
+
+	ret = sysfs_create_group(&adev->dev->kobj, &amdgpu_ptl_attr_group);
+	if (!ret)
+		ptl->ptl_sysfs_created = true;
+
+	return ret;
+}
+
+void amdgpu_ptl_sysfs_fini(struct amdgpu_device *adev)
+{
+	struct amdgpu_ptl *ptl = &adev->psp.ptl;
+
+	if (!ptl->hw_supported)
+		return;
+
+	if (!ptl->ptl_sysfs_created)
+		return;
+
+	sysfs_remove_group(&adev->dev->kobj, &amdgpu_ptl_attr_group);
+	ptl->ptl_sysfs_created = false;
 }
 
 int psp_spatial_partition(struct psp_context *psp, int mode)
@@ -1384,8 +1767,12 @@ int psp_ta_load(struct psp_context *psp, struct ta_context *context)
 
 	cmd = acquire_psp_cmd_buf(psp);
 
-	psp_copy_fw(psp, context->bin_desc.start_addr,
-		    context->bin_desc.size_bytes);
+	ret = psp_copy_fw(psp, context->bin_desc.start_addr,
+			  context->bin_desc.size_bytes);
+	if (ret) {
+		release_psp_cmd_buf(psp);
+		return ret;
+	}
 
 	if (amdgpu_virt_xgmi_migrate_enabled(psp->adev) &&
 		context->mem_context.shared_bo)
@@ -3527,7 +3914,12 @@ int psp_init_toc_microcode(struct psp_context *psp, const char *chip_name)
 	const struct psp_firmware_header_v1_0 *toc_hdr;
 	int err = 0;
 
-	err = amdgpu_ucode_request(adev, &adev->psp.toc_fw, AMDGPU_UCODE_REQUIRED,
+	if (amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(15, 0, 8) &&
+	    adev->rev_id == 0)
+		err = amdgpu_ucode_request(adev, &adev->psp.toc_fw, AMDGPU_UCODE_REQUIRED,
+				   "amdgpu/%s_toc_1.bin", chip_name);
+	else
+		err = amdgpu_ucode_request(adev, &adev->psp.toc_fw, AMDGPU_UCODE_REQUIRED,
 				   "amdgpu/%s_toc.bin", chip_name);
 	if (err)
 		goto out;
@@ -4181,17 +4573,24 @@ fail:
 	return count;
 }
 
-void psp_copy_fw(struct psp_context *psp, uint8_t *start_addr, uint32_t bin_size)
+int psp_copy_fw(struct psp_context *psp, uint8_t *start_addr, uint32_t bin_size)
 {
 	int idx;
 
 	if (!drm_dev_enter(adev_to_drm(psp->adev), &idx))
-		return;
+		return -ENODEV;
+
+	if (!bin_size || bin_size > PSP_1_MEG) {
+		dev_err(psp->adev->dev, "PSP firmware is invalid\n");
+		drm_dev_exit(idx);
+		return -EINVAL;
+	}
 
 	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
 	memcpy(psp->fw_pri_buf, start_addr, bin_size);
 
 	drm_dev_exit(idx);
+	return 0;
 }
 
 /**
@@ -4202,6 +4601,31 @@ void psp_copy_fw(struct psp_context *psp, uint8_t *start_addr, uint32_t bin_size
 static DEVICE_ATTR(usbc_pd_fw, 0644,
 		   psp_usbc_pd_fw_sysfs_read,
 		   psp_usbc_pd_fw_sysfs_write);
+/**
+ * DOC: PTL sysfs attributes
+ * These sysfs files under /sys/class/drm/cardX/device/ptl allow users to enable or disable
+ * the Peak Tops Limiter (PTL), configure preferred PTL data formats, and query supported
+ * formats for each GPU.
+ */
+static DEVICE_ATTR(ptl_enable, 0644,
+			ptl_enable_show, ptl_enable_store);
+static DEVICE_ATTR(ptl_format, 0644,
+			ptl_format_show, ptl_format_store);
+static DEVICE_ATTR(ptl_supported_formats, 0444,
+			ptl_supported_formats_show, NULL);
+
+static struct attribute *ptl_attrs[] = {
+	&dev_attr_ptl_enable.attr,
+	&dev_attr_ptl_format.attr,
+	&dev_attr_ptl_supported_formats.attr,
+	NULL,
+};
+
+const struct attribute_group amdgpu_ptl_attr_group = {
+	.name = "ptl",
+	.attrs = ptl_attrs,
+	.is_visible = amdgpu_ptl_is_visible,
+};
 
 int is_psp_fw_valid(struct psp_bin_desc bin)
 {
@@ -4227,14 +4651,17 @@ static ssize_t amdgpu_psp_vbflash_write(struct file *filp, struct kobject *kobj,
 		return -ENOMEM;
 	}
 
+	mutex_lock(&adev->psp.mutex);
+
 	/* TODO Just allocate max for now and optimize to realloc later if needed */
 	if (!adev->psp.vbflash_tmp_buf) {
 		adev->psp.vbflash_tmp_buf = kvmalloc(AMD_VBIOS_FILE_MAX_SIZE_B, GFP_KERNEL);
-		if (!adev->psp.vbflash_tmp_buf)
+		if (!adev->psp.vbflash_tmp_buf) {
+			mutex_unlock(&adev->psp.mutex);
 			return -ENOMEM;
+		}
 	}
 
-	mutex_lock(&adev->psp.mutex);
 	memcpy(adev->psp.vbflash_tmp_buf + pos, buffer, count);
 	adev->psp.vbflash_image_size += count;
 	mutex_unlock(&adev->psp.mutex);
@@ -4299,7 +4726,7 @@ rel_buf:
  */
 static const struct bin_attribute psp_vbflash_bin_attr = {
 	.attr = {.name = "psp_vbflash", .mode = 0660},
-	.size = 0,
+	.size = AMD_VBIOS_FILE_MAX_SIZE_B,
 	.write = amdgpu_psp_vbflash_write,
 	.read = amdgpu_psp_vbflash_read,
 };

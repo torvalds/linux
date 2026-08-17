@@ -246,8 +246,8 @@ struct via82xx_modem {
 };
 
 static const struct pci_device_id snd_via82xx_modem_ids[] = {
-	{ PCI_VDEVICE(VIA, 0x3068), TYPE_CARD_VIA82XX_MODEM, },
-	{ 0, }
+	{ PCI_VDEVICE(VIA, 0x3068), .driver_data = TYPE_CARD_VIA82XX_MODEM },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, snd_via82xx_modem_ids);

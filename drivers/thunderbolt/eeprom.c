@@ -465,7 +465,7 @@ static void tb_switch_drom_free(struct tb_switch *sw)
  */
 static int tb_drom_copy_efi(struct tb_switch *sw, u16 *size)
 {
-	struct device *dev = &sw->tb->nhi->pdev->dev;
+	struct device *dev = sw->tb->nhi->dev;
 	int len, res;
 
 	len = device_property_count_u8(dev, "ThunderboltDROM");

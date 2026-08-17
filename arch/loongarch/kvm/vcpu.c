@@ -239,26 +239,17 @@ static void kvm_late_check_requests(struct kvm_vcpu *vcpu)
 			vcpu->arch.flush_gpa = INVALID_GPA;
 		}
 
-	if (kvm_check_request(KVM_REQ_AUX_LOAD, vcpu)) {
-		switch (vcpu->arch.aux_ldtype) {
-		case KVM_LARCH_FPU:
-			kvm_own_fpu(vcpu);
-			break;
-		case KVM_LARCH_LSX:
-			kvm_own_lsx(vcpu);
-			break;
-		case KVM_LARCH_LASX:
+	if (kvm_check_request(KVM_REQ_FPU_LOAD, vcpu)) {
+		if (kvm_guest_has_lasx(&vcpu->arch))
 			kvm_own_lasx(vcpu);
-			break;
-		case KVM_LARCH_LBT:
-			kvm_own_lbt(vcpu);
-			break;
-		default:
-			break;
-		}
-
-		vcpu->arch.aux_ldtype = 0;
+		else if (kvm_guest_has_lsx(&vcpu->arch))
+			kvm_own_lsx(vcpu);
+		else if (kvm_guest_has_fpu(&vcpu->arch))
+			kvm_own_fpu(vcpu);
 	}
+
+	if (kvm_check_request(KVM_REQ_LBT_LOAD, vcpu))
+		kvm_own_lbt(vcpu);
 }
 
 /*
@@ -308,10 +299,10 @@ static int kvm_pre_enter_guest(struct kvm_vcpu *vcpu)
 		 * check vmid before vcpu enter guest
 		 */
 		local_irq_disable();
-		kvm_deliver_intr(vcpu);
 		kvm_deliver_exception(vcpu);
 		/* Make sure the vcpu mode has been written */
 		smp_store_mb(vcpu->mode, IN_GUEST_MODE);
+		kvm_deliver_intr(vcpu);
 		kvm_check_vpid(vcpu);
 
 		/*
@@ -348,7 +339,7 @@ static int kvm_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	u32 intr = estat & CSR_ESTAT_IS;
 	u32 ecode = (estat & CSR_ESTAT_EXC) >> CSR_ESTAT_EXC_SHIFT;
 
-	vcpu->mode = OUTSIDE_GUEST_MODE;
+	smp_store_mb(vcpu->mode, OUTSIDE_GUEST_MODE);
 
 	/* Set a default exit reason */
 	run->exit_reason = KVM_EXIT_UNKNOWN;
@@ -602,7 +593,7 @@ struct kvm_vcpu *kvm_get_vcpu_by_cpuid(struct kvm *kvm, int cpuid)
 
 static int _kvm_getcsr(struct kvm_vcpu *vcpu, unsigned int id, u64 *val)
 {
-	unsigned long gintc;
+	unsigned long estat, gintc;
 	struct loongarch_csrs *csr = vcpu->arch.csr;
 
 	if (get_gcsr_flag(id) & INVALID_GCSR)
@@ -621,8 +612,9 @@ static int _kvm_getcsr(struct kvm_vcpu *vcpu, unsigned int id, u64 *val)
 		preempt_enable();
 
 		/* ESTAT IP0~IP7 get from GINTC */
-		gintc = kvm_read_sw_gcsr(csr, LOONGARCH_CSR_GINTC) & 0xff;
-		*val = kvm_read_sw_gcsr(csr, LOONGARCH_CSR_ESTAT) | (gintc << 2);
+		gintc = kvm_read_sw_gcsr(csr, LOONGARCH_CSR_GINTC) & KVM_GINTC_IRQ_MASK;
+		estat = kvm_read_sw_gcsr(csr, LOONGARCH_CSR_ESTAT) & ~KVM_ESTAT_EXTI_MASK;
+		*val = estat | (gintc << VIP_DELTA);
 		return 0;
 	}
 
@@ -637,7 +629,8 @@ static int _kvm_getcsr(struct kvm_vcpu *vcpu, unsigned int id, u64 *val)
 
 static int _kvm_setcsr(struct kvm_vcpu *vcpu, unsigned int id, u64 val)
 {
-	int ret = 0, gintc;
+	int ret = 0;
+	unsigned long estat, gintc;
 	struct loongarch_csrs *csr = vcpu->arch.csr;
 
 	if (get_gcsr_flag(id) & INVALID_GCSR)
@@ -648,11 +641,16 @@ static int _kvm_setcsr(struct kvm_vcpu *vcpu, unsigned int id, u64 val)
 
 	if (id == LOONGARCH_CSR_ESTAT) {
 		/* ESTAT IP0~IP7 inject through GINTC */
-		gintc = (val >> 2) & 0xff;
-		kvm_set_sw_gcsr(csr, LOONGARCH_CSR_GINTC, gintc);
+		gintc = (val >> VIP_DELTA) & KVM_GINTC_IRQ_MASK;
+		gintc |= kvm_read_sw_gcsr(csr, LOONGARCH_CSR_GINTC) & ~KVM_GINTC_IRQ_MASK;
+		kvm_write_sw_gcsr(csr, LOONGARCH_CSR_GINTC, gintc);
 
-		gintc = val & ~(0xffUL << 2);
-		kvm_set_sw_gcsr(csr, LOONGARCH_CSR_ESTAT, gintc);
+		/* Only set valid ESTAT bits */
+		estat = val & ~KVM_ESTAT_EXTI_MASK;
+		estat &= CSR_ESTAT_IS | CSR_ESTAT_EXC | CSR_ESTAT_ESUBCODE;
+		if (!kvm_guest_has_msgint(&vcpu->arch))
+			estat &= ~CPU_AVEC;
+		kvm_write_sw_gcsr(csr, LOONGARCH_CSR_ESTAT, estat);
 
 		return ret;
 	}
@@ -1108,7 +1106,8 @@ static int kvm_loongarch_cpucfg_get_attr(struct kvm_vcpu *vcpu,
 		return -ENXIO;
 	}
 
-	put_user(val, uaddr);
+	if (put_user(val, uaddr))
+		return -EFAULT;
 
 	return ret;
 }
@@ -1312,7 +1311,7 @@ int kvm_arch_vcpu_ioctl_get_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 	fpu->fcc = vcpu->arch.fpu.fcc;
 	fpu->fcsr = vcpu->arch.fpu.fcsr;
 	for (i = 0; i < NUM_FPU_REGS; i++)
-		memcpy(&fpu->fpr[i], &vcpu->arch.fpu.fpr[i], FPU_REG_WIDTH / 64);
+		memcpy(&fpu->fpr[i], &vcpu->arch.fpu.fpr[i], sizeof(union fpureg));
 
 	return 0;
 }
@@ -1324,7 +1323,7 @@ int kvm_arch_vcpu_ioctl_set_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 	vcpu->arch.fpu.fcc = fpu->fcc;
 	vcpu->arch.fpu.fcsr = fpu->fcsr;
 	for (i = 0; i < NUM_FPU_REGS; i++)
-		memcpy(&vcpu->arch.fpu.fpr[i], &fpu->fpr[i], FPU_REG_WIDTH / 64);
+		memcpy(&vcpu->arch.fpu.fpr[i], &fpu->fpr[i], sizeof(union fpureg));
 
 	return 0;
 }
@@ -1398,24 +1397,10 @@ int kvm_own_lsx(struct kvm_vcpu *vcpu)
 	/* Enable LSX for guest */
 	kvm_check_fcsr(vcpu, vcpu->arch.fpu.fcsr);
 	set_csr_euen(CSR_EUEN_LSXEN | CSR_EUEN_FPEN);
-	switch (vcpu->arch.aux_inuse & KVM_LARCH_FPU) {
-	case KVM_LARCH_FPU:
-		/*
-		 * Guest FPU state already loaded,
-		 * only restore upper LSX state
-		 */
-		_restore_lsx_upper(&vcpu->arch.fpu);
-		break;
-	default:
-		/* Neither FP or LSX already active,
-		 * restore full LSX state
-		 */
-		kvm_restore_lsx(&vcpu->arch.fpu);
-		break;
-	}
 
+	kvm_restore_lsx(&vcpu->arch.fpu);
+	vcpu->arch.aux_inuse |= KVM_LARCH_FPU;
 	trace_kvm_aux(vcpu, KVM_TRACE_AUX_RESTORE, KVM_TRACE_AUX_LSX);
-	vcpu->arch.aux_inuse |= KVM_LARCH_LSX | KVM_LARCH_FPU;
 
 	return 0;
 }
@@ -1427,25 +1412,10 @@ int kvm_own_lasx(struct kvm_vcpu *vcpu)
 {
 	kvm_check_fcsr(vcpu, vcpu->arch.fpu.fcsr);
 	set_csr_euen(CSR_EUEN_FPEN | CSR_EUEN_LSXEN | CSR_EUEN_LASXEN);
-	switch (vcpu->arch.aux_inuse & (KVM_LARCH_FPU | KVM_LARCH_LSX)) {
-	case KVM_LARCH_LSX:
-	case KVM_LARCH_LSX | KVM_LARCH_FPU:
-		/* Guest LSX state already loaded, only restore upper LASX state */
-		_restore_lasx_upper(&vcpu->arch.fpu);
-		break;
-	case KVM_LARCH_FPU:
-		/* Guest FP state already loaded, only restore upper LSX & LASX state */
-		_restore_lsx_upper(&vcpu->arch.fpu);
-		_restore_lasx_upper(&vcpu->arch.fpu);
-		break;
-	default:
-		/* Neither FP or LSX already active, restore full LASX state */
-		kvm_restore_lasx(&vcpu->arch.fpu);
-		break;
-	}
 
+	kvm_restore_lasx(&vcpu->arch.fpu);
+	vcpu->arch.aux_inuse |= KVM_LARCH_FPU;
 	trace_kvm_aux(vcpu, KVM_TRACE_AUX_RESTORE, KVM_TRACE_AUX_LASX);
-	vcpu->arch.aux_inuse |= KVM_LARCH_LASX | KVM_LARCH_LSX | KVM_LARCH_FPU;
 
 	return 0;
 }
@@ -1456,29 +1426,32 @@ void kvm_lose_fpu(struct kvm_vcpu *vcpu)
 {
 	preempt_disable();
 
+	if (!(vcpu->arch.aux_inuse & KVM_LARCH_FPU))
+		goto done;
+
 	kvm_check_fcsr_alive(vcpu);
-	if (vcpu->arch.aux_inuse & KVM_LARCH_LASX) {
+	if (kvm_guest_has_lasx(&vcpu->arch)) {
 		kvm_save_lasx(&vcpu->arch.fpu);
-		vcpu->arch.aux_inuse &= ~(KVM_LARCH_LSX | KVM_LARCH_FPU | KVM_LARCH_LASX);
 		trace_kvm_aux(vcpu, KVM_TRACE_AUX_SAVE, KVM_TRACE_AUX_LASX);
 
 		/* Disable LASX & LSX & FPU */
 		clear_csr_euen(CSR_EUEN_FPEN | CSR_EUEN_LSXEN | CSR_EUEN_LASXEN);
-	} else if (vcpu->arch.aux_inuse & KVM_LARCH_LSX) {
+	} else if (kvm_guest_has_lsx(&vcpu->arch)) {
 		kvm_save_lsx(&vcpu->arch.fpu);
-		vcpu->arch.aux_inuse &= ~(KVM_LARCH_LSX | KVM_LARCH_FPU);
 		trace_kvm_aux(vcpu, KVM_TRACE_AUX_SAVE, KVM_TRACE_AUX_LSX);
 
 		/* Disable LSX & FPU */
 		clear_csr_euen(CSR_EUEN_FPEN | CSR_EUEN_LSXEN);
 	} else if (vcpu->arch.aux_inuse & KVM_LARCH_FPU) {
 		kvm_save_fpu(&vcpu->arch.fpu);
-		vcpu->arch.aux_inuse &= ~KVM_LARCH_FPU;
 		trace_kvm_aux(vcpu, KVM_TRACE_AUX_SAVE, KVM_TRACE_AUX_FPU);
 
 		/* Disable FPU */
 		clear_csr_euen(CSR_EUEN_FPEN);
 	}
+	vcpu->arch.aux_inuse &= ~KVM_LARCH_FPU;
+
+done:
 	kvm_lose_lbt(vcpu);
 
 	preempt_enable();
@@ -1487,6 +1460,13 @@ void kvm_lose_fpu(struct kvm_vcpu *vcpu)
 int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu, struct kvm_interrupt *irq)
 {
 	int intr = (int)irq->irq;
+	unsigned int vector = abs(intr);
+
+	if (vector >= EXCCODE_INT_NUM)
+		return -EINVAL;
+
+	if (!kvm_guest_has_msgint(&vcpu->arch) && (vector == INT_AVEC))
+		return -EINVAL;
 
 	if (intr > 0)
 		kvm_queue_irq(vcpu, intr);

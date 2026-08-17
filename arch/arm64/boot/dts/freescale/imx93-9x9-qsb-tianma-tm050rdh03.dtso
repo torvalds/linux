@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2026 NXP
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include "imx93-9x9-qsb-ontat-kd50g21-40nt-a1.dtsi"
+
+&{/} {
+	panel {
+		compatible = "tianma,tm050rdh03";
+		enable-gpios = <&pcal6524 8 GPIO_ACTIVE_HIGH>;
+	};
+};

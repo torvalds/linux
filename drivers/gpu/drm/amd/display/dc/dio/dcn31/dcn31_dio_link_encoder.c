@@ -67,6 +67,17 @@
 #define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
 #endif
 
+// HDMI FRL EQ Setting masks/shifts
+// EQ level 0-32 bits[0:1]
+#define HDMI_FRL_EQ__LEVEL__SHIFT 0x0
+#define HDMI_FRL_EQ__LEVEL__MASK 0x3
+// Enable no preshoot bit[5]
+#define HDMI_FRL_EQ__NO_PRE__SHIFT 0x5
+// Enable no demphasis bit[6]
+#define HDMI_FRL_EQ__NO_DEMPH__SHIFT 0x6
+// Enable no FFE bit[4]
+#define HDMI_FRL_EQ__NO_FFE__SHIFT 0x4
+
 static uint8_t phy_id_from_transmitter(enum transmitter t)
 {
 	uint8_t phy_id;
@@ -246,6 +257,89 @@ void enc31_hw_init(struct link_encoder *enc)
 	dcn10_aux_initialize(enc10);
 }
 
+static enum bp_result link_transmitter_control(
+	struct dcn10_link_encoder *enc10,
+	struct bp_transmitter_control *cntl)
+{
+	enum bp_result result;
+	struct dc_bios *bp = enc10->base.ctx->dc_bios;
+
+	result = bp->funcs->transmitter_control(bp, cntl);
+
+	return result;
+}
+//---------------------------------------------------
+// Task: Program EQ setting in HDMI FRL mode
+// Note:
+//      EQ setting can be dont during P2 state or P0 state
+//      If set in P0 state, The values are latched in a single
+//      cycle of txX_clk but will take maximum of 40 txX_clk symbols
+//      to be reflected on the output. During this period the
+//      analog serial lines might have a transitional behavior.
+//---------------------------------------------------
+void dpcs31_program_eq_setting(
+		struct link_encoder *enc,
+		uint8_t FFE_Level,
+		bool de_emphasis_only,
+		bool pre_shoot_only,
+		bool no_ffe,
+		const struct dc_hdmi_frl_link_settings *link_settings)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+	struct bp_transmitter_control cntl = { 0 };
+	/* EQ setting for DP lane0 */
+
+	if (enc10->base.ctx->dc->debug.ignore_ffe)
+		return;
+
+	if (FFE_Level < 0x5)
+		enc10->base.txffe_state = FFE_Level;
+
+	if (FFE_Level == 0xEE) {
+		enc10->base.txffe_state++;
+		if (enc10->base.txffe_state > 3)
+			enc10->base.txffe_state = 0;
+	}
+
+	if (no_ffe) {
+		de_emphasis_only = true;
+		pre_shoot_only = true;
+	}
+	/* Pass on the input params to DMCUB for proper calc of eq settings */
+	cntl.lane_settings = ((de_emphasis_only ? 1 : 0) << HDMI_FRL_EQ__NO_PRE__SHIFT) |
+						 ((pre_shoot_only ? 1 : 0) << HDMI_FRL_EQ__NO_DEMPH__SHIFT) |
+						 ((enc10->base.txffe_state & HDMI_FRL_EQ__LEVEL__MASK)
+						  << HDMI_FRL_EQ__LEVEL__SHIFT);
+	cntl.lane_select = 0;
+	cntl.action = TRANSMITTER_CONTROL_SET_VOLTAGE_AND_PREEMPASIS;
+	cntl.transmitter = enc10->base.transmitter;
+	cntl.connector_obj_id = enc10->base.connector;
+	cntl.lanes_number = link_settings->frl_num_lanes;
+	cntl.hpd_sel = enc10->base.hpd_source;
+	/* Use below or dc_link_frl_bandwidth_kbps()? */
+	switch (link_settings->frl_link_rate) {
+	case HDMI_FRL_LINK_RATE_3GBPS:
+		cntl.pixel_clock = 166667 / 10;
+		break;
+	case HDMI_FRL_LINK_RATE_6GBPS:
+	case HDMI_FRL_LINK_RATE_6GBPS_4LANE:
+		cntl.pixel_clock = 333333 / 10;
+		break;
+	case HDMI_FRL_LINK_RATE_8GBPS:
+		cntl.pixel_clock = 444444 / 10;
+		break;
+	case HDMI_FRL_LINK_RATE_10GBPS:
+		cntl.pixel_clock = 555555 / 10;
+		break;
+	case HDMI_FRL_LINK_RATE_12GBPS:
+	default:
+		cntl.pixel_clock = 666667 / 10;
+		break;
+	}
+	/* call VBIOS table to set eq settings - voltage swing and pre-emphasis */
+	link_transmitter_control(enc10, &cntl);
+}
+
 static const struct link_encoder_funcs dcn31_link_enc_funcs = {
 	.read_state = link_enc2_read_state,
 	.validate_output_with_stream =
@@ -275,6 +369,15 @@ static const struct link_encoder_funcs dcn31_link_enc_funcs = {
 	.get_dig_mode = dcn10_get_dig_mode,
 	.is_in_alt_mode = dcn31_link_encoder_is_in_alt_mode,
 	.get_max_link_cap = dcn31_link_encoder_get_max_link_cap,
+	.dpcstx_set_order_invert_18_bit = NULL,
+	.set_phy_source = NULL,
+	.dpcs_initialize_phy = NULL,
+	.dpcs_configure_phypll = NULL,
+	.dpcs_configure_dpcs = NULL,
+	.dpcs_enable_dpcs = NULL,
+	.prog_eq_setting = dpcs31_program_eq_setting,
+	.get_txffe = dpcs30_get_txffe,
+	.set_txffe = dpcs30_set_txffe,
 	.set_dio_phy_mux = dcn31_link_encoder_set_dio_phy_mux,
 	.get_hpd_state = dcn10_get_hpd_state,
 	.program_hpd_filter = dcn10_program_hpd_filter,
@@ -387,6 +490,11 @@ void dcn31_link_encoder_construct(
 		enc10->base.features.flags.bits.IS_UHBR20_CAPABLE = bp_cap_info.DP_UHBR20_EN;
 		enc10->base.features.flags.bits.DP_IS_USB_C =
 				bp_cap_info.DP_IS_USB_C;
+		enc10->base.features.flags.bits.IS_HDMI_FRL_CAPABLE = bp_cap_info.IS_HDMI_FRL_CAPABLE;
+		enc10->base.features.flags.bits.IS_FRL_8G_CAPABLE = bp_cap_info.FRL_8G_EN;
+		enc10->base.features.flags.bits.IS_FRL_10G_CAPABLE = bp_cap_info.FRL_10G_EN;
+		enc10->base.features.flags.bits.IS_FRL_12G_CAPABLE = bp_cap_info.FRL_12G_EN;
+		enc10->base.txffe_state = 0;
 	} else {
 		DC_LOG_WARNING("%s: Failed to get encoder_cap_info from VBIOS with error code %d!\n",
 				__func__,
@@ -394,6 +502,12 @@ void dcn31_link_encoder_construct(
 	}
 	if (enc10->base.ctx->dc->debug.hdmi20_disable) {
 		enc10->base.features.flags.bits.HDMI_6GB_EN = 0;
+	}
+	if (enc10->base.ctx->dc->config.force_hdmi21_frl_enc_enable) {
+		enc10->base.features.flags.bits.IS_HDMI_FRL_CAPABLE = 1;
+		enc10->base.features.flags.bits.IS_FRL_8G_CAPABLE = 1;
+		enc10->base.features.flags.bits.IS_FRL_10G_CAPABLE = 1;
+		enc10->base.features.flags.bits.IS_FRL_12G_CAPABLE = 1;
 	}
 }
 

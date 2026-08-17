@@ -62,14 +62,13 @@ struct ac97_controller_ops {
 #if IS_ENABLED(CONFIG_AC97_BUS_NEW)
 struct ac97_controller *snd_ac97_controller_register(
 	const struct ac97_controller_ops *ops, struct device *dev,
-	unsigned short slots_available, void **codecs_pdata);
+	unsigned short slots_available);
 void snd_ac97_controller_unregister(struct ac97_controller *ac97_ctrl);
 #else
 static inline struct ac97_controller *
 snd_ac97_controller_register(const struct ac97_controller_ops *ops,
 			     struct device *dev,
-			     unsigned short slots_available,
-			     void **codecs_pdata)
+			     unsigned short slots_available)
 {
 	return ERR_PTR(-ENODEV);
 }

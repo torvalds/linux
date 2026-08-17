@@ -58,7 +58,7 @@ int mismatch_map(struct pt_regs *args)
 }
 
 SEC("perf_event")
-__failure __msg("arg#1 doesn't point to a map value")
+__failure __msg("R2 doesn't point to a map value")
 int no_map_task_work(struct pt_regs *args)
 {
 	struct task_struct *task;
@@ -70,7 +70,7 @@ int no_map_task_work(struct pt_regs *args)
 }
 
 SEC("perf_event")
-__failure __msg("Possibly NULL pointer passed to trusted arg1")
+__failure __msg("Possibly NULL pointer passed to trusted R2")
 int task_work_null(struct pt_regs *args)
 {
 	struct task_struct *task;
@@ -81,7 +81,7 @@ int task_work_null(struct pt_regs *args)
 }
 
 SEC("perf_event")
-__failure __msg("Possibly NULL pointer passed to trusted arg2")
+__failure __msg("Possibly NULL pointer passed to trusted R3")
 int map_null(struct pt_regs *args)
 {
 	struct elem *work;

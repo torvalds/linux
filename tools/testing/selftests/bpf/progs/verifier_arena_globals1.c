@@ -6,7 +6,7 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include "bpf_experimental.h"
-#include "bpf_arena_common.h"
+#include <bpf_arena_common.h>
 #include "bpf_misc.h"
 
 #define ARENA_PAGES (1UL<< (32 - __builtin_ffs(__PAGE_SIZE) + 1))

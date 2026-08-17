@@ -1035,14 +1035,14 @@ static int drm_client_modeset_commit_atomic(struct drm_client_dev *client, bool 
 {
 	struct drm_device *dev = client->dev;
 	struct drm_plane *plane;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_modeset_acquire_ctx ctx;
 	struct drm_mode_set *mode_set;
 	int ret;
 
 	drm_modeset_acquire_init(&ctx, 0);
 
-	state = drm_atomic_state_alloc(dev);
+	state = drm_atomic_commit_alloc(dev);
 	if (!state) {
 		ret = -ENOMEM;
 		goto out_ctx;
@@ -1107,7 +1107,7 @@ out_state:
 	if (ret == -EDEADLK)
 		goto backoff;
 
-	drm_atomic_state_put(state);
+	drm_atomic_commit_put(state);
 out_ctx:
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
@@ -1115,7 +1115,7 @@ out_ctx:
 	return ret;
 
 backoff:
-	drm_atomic_state_clear(state);
+	drm_atomic_commit_clear(state);
 	drm_modeset_backoff(&ctx);
 
 	goto retry;

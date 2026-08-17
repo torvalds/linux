@@ -14,8 +14,8 @@
 #include "ad193x.h"
 
 static const struct i2c_device_id ad193x_id[] = {
-	{ "ad1936", AD193X },
-	{ "ad1937", AD193X },
+	{ .name = "ad1936", .driver_data = AD193X },
+	{ .name = "ad1937", .driver_data = AD193X },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ad193x_id);

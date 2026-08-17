@@ -36,6 +36,7 @@ enum {
 	FSME_FA64_BIT,
 	FSME2_BIT,
 	FGCS_BIT,
+	FPOE_BIT,
 	FMAX_END
 };
 
@@ -45,6 +46,7 @@ enum {
 #define FEAT_SME_FA64		(1UL << FSME_FA64_BIT)
 #define FEAT_SME2		(1UL << FSME2_BIT)
 #define FEAT_GCS		(1UL << FGCS_BIT)
+#define FEAT_POE		(1UL << FPOE_BIT)
 
 /*
  * A descriptor used to describe and configure a test case.

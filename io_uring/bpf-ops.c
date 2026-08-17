@@ -14,15 +14,18 @@ static const struct btf_type *loop_params_type;
 
 __bpf_kfunc_start_defs();
 
-__bpf_kfunc int bpf_io_uring_submit_sqes(struct io_ring_ctx *ctx, u32 nr)
+__bpf_kfunc int bpf_io_uring_submit_sqes(struct iou_ctx *loop_ctx, u32 nr)
 {
+	struct io_ring_ctx *ctx = io_loop_demangle_ctx(loop_ctx);
+
 	return io_submit_sqes(ctx, nr);
 }
 
 __bpf_kfunc
-__u8 *bpf_io_uring_get_region(struct io_ring_ctx *ctx, __u32 region_id,
+__u8 *bpf_io_uring_get_region(struct iou_ctx *loop_ctx, __u32 region_id,
 			      const size_t rdwr_buf_size)
 {
+	struct io_ring_ctx *ctx = io_loop_demangle_ctx(loop_ctx);
 	struct io_mapped_region *r;
 
 	lockdep_assert_held(&ctx->uring_lock);
@@ -58,7 +61,7 @@ static const struct btf_kfunc_id_set bpf_io_uring_kfunc_set = {
 	.set = &io_uring_kfunc_set,
 };
 
-static int io_bpf_ops__loop_step(struct io_ring_ctx *ctx,
+static int io_bpf_ops__loop_step(struct iou_ctx *ctx,
 				 struct iou_loop_params *lp)
 {
 	return IOU_LOOP_STOP;

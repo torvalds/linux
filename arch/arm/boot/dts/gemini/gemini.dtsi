@@ -61,6 +61,12 @@
 						groups = "rtcgrp";
 					};
 				};
+				ssp_default_pins: pinctrl-ssp {
+					mux {
+						function = "ssp";
+						groups = "sspgrp";
+					};
+				};
 				power_default_pins: pinctrl-power {
 					mux {
 						function = "power";
@@ -226,6 +232,17 @@
 			resets = <&syscon GEMINI_RESET_INTCON0>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+		};
+
+		spi@4a000000 {
+			compatible = "faraday,ftssp010";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x4a000000 0x100>;
+			interrupts = <21 IRQ_TYPE_LEVEL_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&ssp_default_pins>;
+			status = "disabled";
 		};
 
 		power-controller@4b000000 {

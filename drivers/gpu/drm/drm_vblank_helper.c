@@ -49,7 +49,7 @@
  * See also struct &drm_crtc_helper_funcs.atomic_flush.
  */
 void drm_crtc_vblank_atomic_flush(struct drm_crtc *crtc,
-				  struct drm_atomic_state *state)
+				  struct drm_atomic_commit *state)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
@@ -82,7 +82,7 @@ EXPORT_SYMBOL(drm_crtc_vblank_atomic_flush);
  * See also struct &drm_crtc_helper_funcs.atomic_enable.
  */
 void drm_crtc_vblank_atomic_enable(struct drm_crtc *crtc,
-				   struct drm_atomic_state *state)
+				   struct drm_atomic_commit *state)
 {
 	drm_crtc_vblank_on(crtc);
 }
@@ -99,7 +99,7 @@ EXPORT_SYMBOL(drm_crtc_vblank_atomic_enable);
  * See also struct &drm_crtc_funcs.atomic_disable.
  */
 void drm_crtc_vblank_atomic_disable(struct drm_crtc *crtc,
-				    struct drm_atomic_state *state)
+				    struct drm_atomic_commit *state)
 {
 	drm_crtc_vblank_off(crtc);
 }

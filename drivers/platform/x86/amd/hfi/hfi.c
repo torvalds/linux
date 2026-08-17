@@ -33,7 +33,8 @@
 
 #define AMD_HFI_DRIVER		"amd_hfi"
 #define AMD_HFI_MAILBOX_COUNT		1
-#define AMD_HETERO_RANKING_TABLE_VER	2
+#define AMD_HETERO_RANKING_TABLE_MIN_VER	2
+#define AMD_HETERO_RANKING_TABLE_MAX_VER	3
 
 #define AMD_HETERO_CPUID_27	0x80000027
 
@@ -158,7 +159,8 @@ static int amd_hfi_fill_metadata(struct amd_hfi_data *amd_hfi_data)
 		dev_err(amd_hfi_data->dev, "invalid signature in shared memory\n");
 		return -EINVAL;
 	}
-	if (amd_hfi_data->shmem->version_number != AMD_HETERO_RANKING_TABLE_VER) {
+	if (amd_hfi_data->shmem->version_number < AMD_HETERO_RANKING_TABLE_MIN_VER ||
+	    amd_hfi_data->shmem->version_number > AMD_HETERO_RANKING_TABLE_MAX_VER) {
 		dev_err(amd_hfi_data->dev, "invalid version %d\n",
 			amd_hfi_data->shmem->version_number);
 		return -EINVAL;

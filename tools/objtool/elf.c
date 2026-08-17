@@ -27,27 +27,16 @@
 
 static ssize_t demangled_name_len(const char *name);
 
-static inline u32 str_hash(const char *str)
-{
-	return jhash(str, strlen(str), 0);
-}
-
-static inline u32 str_hash_demangled(const char *str)
+u32 str_hash_demangled(const char *str)
 {
 	return jhash(str, demangled_name_len(str), 0);
 }
 
-#define __elf_table(name)	(elf->name##_hash)
-#define __elf_bits(name)	(elf->name##_bits)
-
-#define __elf_table_entry(name, key) \
-	__elf_table(name)[hash_min(key, __elf_bits(name))]
-
 #define elf_hash_add(name, node, key)					\
 ({									\
 	struct elf_hash_node *__node = node;				\
-	__node->next = __elf_table_entry(name, key);			\
-	__elf_table_entry(name, key) = __node;				\
+	__node->next = __elf_table_entry(elf, name, key);		\
+	__elf_table_entry(elf, name, key) = __node;			\
 })
 
 static inline void __elf_hash_del(struct elf_hash_node *node,
@@ -69,30 +58,20 @@ static inline void __elf_hash_del(struct elf_hash_node *node,
 }
 
 #define elf_hash_del(name, node, key) \
-	__elf_hash_del(node, &__elf_table_entry(name, key))
-
-#define elf_list_entry(ptr, type, member)				\
-({									\
-	typeof(ptr) __ptr = (ptr);					\
-	__ptr ? container_of(__ptr, type, member) : NULL;		\
-})
-
-#define elf_hash_for_each_possible(name, obj, member, key)		\
-	for (obj = elf_list_entry(__elf_table_entry(name, key), typeof(*obj), member); \
-	     obj;							\
-	     obj = elf_list_entry(obj->member.next, typeof(*(obj)), member))
+	__elf_hash_del(node, &__elf_table_entry(elf, name, key))
 
 #define elf_alloc_hash(name, size)					\
 ({									\
-	__elf_bits(name) = max(10, ilog2(size));			\
-	__elf_table(name) = mmap(NULL, sizeof(struct elf_hash_node *) << __elf_bits(name), \
+	__elf_bits(elf, name) = max(10, ilog2(size));			\
+	__elf_table(elf, name) = mmap(NULL,				\
+				 sizeof(struct elf_hash_node *) << __elf_bits(elf, name), \
 				 PROT_READ|PROT_WRITE,			\
 				 MAP_PRIVATE|MAP_ANON, -1, 0);		\
-	if (__elf_table(name) == (void *)-1L) {				\
+	if (__elf_table(elf, name) == (void *)-1L) {			\
 		ERROR_GLIBC("mmap fail " #name);			\
-		__elf_table(name) = NULL;				\
+		__elf_table(elf, name) = NULL;				\
 	}								\
-	__elf_table(name);						\
+	__elf_table(elf, name);						\
 })
 
 static inline unsigned long __sym_start(struct symbol *s)
@@ -141,7 +120,7 @@ struct section *find_section_by_name(const struct elf *elf, const char *name)
 {
 	struct section *sec;
 
-	elf_hash_for_each_possible(section_name, sec, name_hash, str_hash(name)) {
+	elf_hash_for_each_possible(elf, section_name, sec, name_hash, str_hash(name)) {
 		if (!strcmp(sec->name, name))
 			return sec;
 	}
@@ -154,7 +133,7 @@ static struct section *find_section_by_index(struct elf *elf,
 {
 	struct section *sec;
 
-	elf_hash_for_each_possible(section, sec, hash, idx) {
+	elf_hash_for_each_possible(elf, section, sec, hash, idx) {
 		if (sec->idx == idx)
 			return sec;
 	}
@@ -166,7 +145,7 @@ static struct symbol *find_symbol_by_index(struct elf *elf, unsigned int idx)
 {
 	struct symbol *sym;
 
-	elf_hash_for_each_possible(symbol, sym, hash, idx) {
+	elf_hash_for_each_possible(elf, symbol, sym, hash, idx) {
 		if (sym->idx == idx)
 			return sym;
 	}
@@ -229,6 +208,20 @@ struct symbol *find_symbol_containing(const struct section *sec, unsigned long o
 }
 
 /*
+ * Also match the symbol end address which can be used for a bounds comparison.
+ */
+struct symbol *find_symbol_containing_inclusive(const struct section *sec,
+						unsigned long offset)
+{
+	struct symbol *sym = find_symbol_containing(sec, offset);
+
+	if (!sym && offset)
+		sym = find_symbol_containing(sec, offset - 1);
+
+	return sym;
+}
+
+/*
  * Returns size of hole starting at @offset.
  */
 int find_symbol_hole_containing(const struct section *sec, unsigned long offset)
@@ -285,7 +278,7 @@ struct symbol *find_symbol_by_name(const struct elf *elf, const char *name)
 {
 	struct symbol *sym;
 
-	elf_hash_for_each_possible(symbol_name, sym, name_hash, str_hash(name)) {
+	elf_hash_for_each_possible(elf, symbol_name, sym, name_hash, str_hash(name)) {
 		if (!strcmp(sym->name, name))
 			return sym;
 	}
@@ -300,7 +293,7 @@ static struct symbol *find_local_symbol_by_file_and_name(const struct elf *elf,
 {
 	struct symbol *sym;
 
-	elf_hash_for_each_possible(symbol_name, sym, name_hash, str_hash_demangled(name)) {
+	elf_hash_for_each_possible(elf, symbol_name, sym, name_hash, str_hash_demangled(name)) {
 		if (sym->bind == STB_LOCAL && sym->file == file &&
 		    !strcmp(sym->name, name)) {
 			return sym;
@@ -314,7 +307,7 @@ struct symbol *find_global_symbol_by_name(const struct elf *elf, const char *nam
 {
 	struct symbol *sym;
 
-	elf_hash_for_each_possible(symbol_name, sym, name_hash, str_hash_demangled(name)) {
+	elf_hash_for_each_possible(elf, symbol_name, sym, name_hash, str_hash_demangled(name)) {
 		if (!strcmp(sym->name, name) && !is_local_sym(sym))
 			return sym;
 	}
@@ -322,21 +315,9 @@ struct symbol *find_global_symbol_by_name(const struct elf *elf, const char *nam
 	return NULL;
 }
 
-void iterate_global_symbol_by_demangled_name(const struct elf *elf,
-					     const char *demangled_name,
-					     void (*process)(struct symbol *sym, void *data),
-					     void *data)
-{
-	struct symbol *sym;
-
-	elf_hash_for_each_possible(symbol_name, sym, name_hash, str_hash(demangled_name)) {
-		if (!strcmp(sym->demangled_name, demangled_name) && !is_local_sym(sym))
-			process(sym, data);
-	}
-}
-
+/* If there are multiple matches, return the first one in the range */
 struct reloc *find_reloc_by_dest_range(const struct elf *elf, struct section *sec,
-				     unsigned long offset, unsigned int len)
+				       unsigned long offset, unsigned int len)
 {
 	struct reloc *reloc, *r = NULL;
 	struct section *rsec;
@@ -347,7 +328,7 @@ struct reloc *find_reloc_by_dest_range(const struct elf *elf, struct section *se
 		return NULL;
 
 	for_offset_range(o, offset, offset + len) {
-		elf_hash_for_each_possible(reloc, reloc, hash,
+		elf_hash_for_each_possible(elf, reloc, reloc, hash,
 					   sec_offset_hash(rsec, o)) {
 			if (reloc->sec != rsec)
 				continue;
@@ -358,11 +339,11 @@ struct reloc *find_reloc_by_dest_range(const struct elf *elf, struct section *se
 					r = reloc;
 			}
 		}
-		if (r)
+		if (r && (reloc_offset(r) & OFFSET_STRIDE_MASK) == o)
 			return r;
 	}
 
-	return NULL;
+	return r;
 }
 
 struct reloc *find_reloc_by_dest(const struct elf *elf, struct section *sec, unsigned long offset)
@@ -668,7 +649,7 @@ static int read_symbols(struct elf *elf)
 
 		if (is_file_sym(sym))
 			file = sym;
-		else if (sym->bind == STB_LOCAL)
+		else if (sym->bind == STB_LOCAL && !is_sec_sym(sym))
 			sym->file = file;
 	}
 
@@ -1016,6 +997,26 @@ non_local:
 	return sym;
 }
 
+int elf_write_symbol(struct elf *elf, struct symbol *sym)
+{
+	struct section *symtab, *symtab_shndx;
+
+	symtab = find_section_by_name(elf, ".symtab");
+	if (!symtab) {
+		ERROR("no .symtab");
+		return -1;
+	}
+
+	symtab_shndx = find_section_by_name(elf, ".symtab_shndx");
+
+	if (elf_update_symbol(elf, symtab, symtab_shndx, sym))
+		return -1;
+
+	mark_sec_changed(elf, symtab, true);
+
+	return 0;
+}
+
 struct symbol *elf_create_section_symbol(struct elf *elf, struct section *sec)
 {
 	struct symbol *sym = calloc(1, sizeof(*sym));
@@ -1172,6 +1173,17 @@ static int read_relocs(struct elf *elf)
 	return 0;
 }
 
+static void mark_rodata(struct elf *elf)
+{
+	struct section *sec;
+
+	for_each_sec(elf, sec) {
+		if ((strstarts(sec->name, ".rodata") && !strstr(sec->name, ".str1.")) ||
+		    strstarts(sec->name, ".data.rel.ro"))
+			sec->rodata = true;
+	}
+}
+
 struct elf *elf_open_read(const char *name, int flags)
 {
 	struct elf *elf;
@@ -1221,6 +1233,8 @@ struct elf *elf_open_read(const char *name, int flags)
 
 	if (read_sections(elf))
 		goto err;
+
+	mark_rodata(elf);
 
 	if (read_symbols(elf))
 		goto err;

@@ -1222,14 +1222,8 @@ static void clocksource_enqueue(struct clocksource *cs)
  * @cs:		clocksource to be registered
  * @scale:	Scale factor multiplied against freq to get clocksource hz
  * @freq:	clocksource frequency (cycles per second) divided by scale
- *
- * This should only be called from the clocksource->enable() method.
- *
- * This *SHOULD NOT* be called directly! Please use the
- * __clocksource_update_freq_hz() or __clocksource_update_freq_khz() helper
- * functions.
  */
-void __clocksource_update_freq_scale(struct clocksource *cs, u32 scale, u32 freq)
+static void __clocksource_update_freq_scale(struct clocksource *cs, u32 scale, u32 freq)
 {
 	u64 sec;
 
@@ -1287,7 +1281,6 @@ void __clocksource_update_freq_scale(struct clocksource *cs, u32 scale, u32 freq
 	pr_info("%s: mask: 0x%llx max_cycles: 0x%llx, max_idle_ns: %lld ns\n",
 		cs->name, cs->mask, cs->max_cycles, cs->max_idle_ns);
 }
-EXPORT_SYMBOL_GPL(__clocksource_update_freq_scale);
 
 /**
  * __clocksource_register_scale - Used to install new clocksources

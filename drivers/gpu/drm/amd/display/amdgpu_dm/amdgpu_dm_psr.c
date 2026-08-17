@@ -25,10 +25,13 @@
  */
 
 #include "amdgpu_dm_psr.h"
+#include "amdgpu.h"
 #include "dc_dmub_srv.h"
 #include "dc.h"
 #include "amdgpu_dm.h"
 #include "modules/power/power_helpers.h"
+#include "amdgpu_dm_kunit_helpers.h"
+
 
 static bool link_supports_psrsu(struct dc_link *link)
 {
@@ -58,171 +61,78 @@ static bool link_supports_psrsu(struct dc_link *link)
 	return false;
 }
 
+STATIC_IFN_KUNIT
+void amdgpu_dm_psr_fill_caps(struct dc_link *link, struct psr_caps *caps)
+{
+	struct dpcd_caps *dpcd_caps = &link->dpcd_caps;
+	unsigned int power_opts = 0;
+
+	if (amdgpu_dc_feature_mask & DC_PSR_ALLOW_SMU_OPT)
+		power_opts |= psr_power_opt_smu_opt_static_screen;
+	power_opts |= psr_power_opt_z10_static_screen;
+
+	if (link->psr_settings.psr_version == DC_PSR_VERSION_1)
+		caps->psr_version = 1;
+	else if (link->psr_settings.psr_version == DC_PSR_VERSION_SU_1)
+		caps->psr_version = 2;
+
+	caps->psr_rfb_setup_time = (6 - dpcd_caps->psr_info.psr_dpcd_caps.bits.PSR_SETUP_TIME) * 55;
+	caps->psr_exit_link_training_required =
+		!dpcd_caps->psr_info.psr_dpcd_caps.bits.LINK_TRAINING_ON_EXIT_NOT_REQUIRED;
+	caps->edp_revision = dpcd_caps->edp_rev;
+	caps->support_ver = dpcd_caps->psr_info.psr_version;
+	caps->su_granularity_required =
+		dpcd_caps->psr_info.psr_dpcd_caps.bits.SU_GRANULARITY_REQUIRED;
+	caps->y_coordinate_required = dpcd_caps->psr_info.psr_dpcd_caps.bits.Y_COORDINATE_REQUIRED;
+	caps->su_y_granularity = dpcd_caps->psr_info.psr2_su_y_granularity_cap;
+	caps->alpm_cap = dpcd_caps->alpm_caps.bits.AUX_WAKE_ALPM_CAP;
+	caps->standby_support = dpcd_caps->alpm_caps.bits.PM_STATE_2A_SUPPORT;
+	caps->rate_control_caps = 0; /* TODO: read in rc caps from aux */
+	caps->psr_power_opt_flag = power_opts;
+}
+EXPORT_IF_KUNIT(amdgpu_dm_psr_fill_caps);
+
 /*
  * amdgpu_dm_set_psr_caps() - set link psr capabilities
  * @link: link
- *
+ * @aconnector: amdgpu_dm_connector
  */
-void amdgpu_dm_set_psr_caps(struct dc_link *link)
+bool amdgpu_dm_set_psr_caps(struct dc_link *link, struct amdgpu_dm_connector *aconnector)
 {
-	if (!(link->connector_signal & SIGNAL_TYPE_EDP)) {
-		link->psr_settings.psr_feature_enabled = false;
-		return;
-	}
+	struct dc *dc;
+	unsigned int panel_inst = 0;
 
-	if (link->type == dc_connection_none) {
-		link->psr_settings.psr_feature_enabled = false;
-		return;
-	}
-
-	if (link->dpcd_caps.psr_info.psr_version == 0) {
-		link->psr_settings.psr_version = DC_PSR_VERSION_UNSUPPORTED;
-		link->psr_settings.psr_feature_enabled = false;
-
-	} else {
-		unsigned int panel_inst = 0;
-
-		if (link_supports_psrsu(link))
-			link->psr_settings.psr_version = DC_PSR_VERSION_SU_1;
-		else
-			link->psr_settings.psr_version = DC_PSR_VERSION_1;
-
-		link->psr_settings.psr_feature_enabled = true;
-
-		/*disable allow psr/psrsu/replay on eDP1*/
-		if (dc_get_edp_link_panel_inst(link->ctx->dc, link, &panel_inst) && panel_inst == 1) {
-			link->psr_settings.psr_version = DC_PSR_VERSION_UNSUPPORTED;
-			link->psr_settings.psr_feature_enabled = false;
-		}
-	}
-}
-
-/*
- * amdgpu_dm_link_setup_psr() - configure psr link
- * @stream: stream state
- *
- * Return: true if success
- */
-bool amdgpu_dm_link_setup_psr(struct dc_stream_state *stream)
-{
-	struct dc_link *link = NULL;
-	struct psr_config psr_config = {0};
-	struct psr_context psr_context = {0};
-	struct dc *dc = NULL;
-	bool ret = false;
-
-	if (stream == NULL)
+	if (!link || !aconnector)
 		return false;
 
-	link = stream->link;
 	dc = link->ctx->dc;
 
-	if (link->psr_settings.psr_version != DC_PSR_VERSION_UNSUPPORTED) {
-		mod_power_calc_psr_configs(&psr_config, link, stream);
+	/* Reset psr version first */
+	link->psr_settings.psr_version = DC_PSR_VERSION_UNSUPPORTED;
 
-		/* linux DM specific updating for psr config fields */
-		psr_config.allow_smu_optimizations =
-			(amdgpu_dc_feature_mask & DC_PSR_ALLOW_SMU_OPT) &&
-			mod_power_only_edp(dc->current_state, stream);
-		psr_config.allow_multi_disp_optimizations =
-			(amdgpu_dc_feature_mask & DC_PSR_ALLOW_MULTI_DISP_OPT);
+	if (!dc->caps.dmub_caps.psr)
+		return false;
 
-		if (link->psr_settings.psr_version == DC_PSR_VERSION_SU_1) {
-			if (!psr_su_set_dsc_slice_height(dc, link, stream, &psr_config))
-				return false;
-		}
+	if (!(link->connector_signal & SIGNAL_TYPE_EDP))
+		return false;
 
-		ret = dc_link_setup_psr(link, stream, &psr_config, &psr_context);
+	if (link->type == dc_connection_none)
+		return false;
 
-	}
-	DRM_DEBUG_DRIVER("PSR link: %d\n",	link->psr_settings.psr_feature_enabled);
+	if (link->dpcd_caps.psr_info.psr_version == 0)
+		return false;
 
-	return ret;
-}
+	/*disable allow psr/psrsu/replay on eDP1*/
+	if (dc_get_edp_link_panel_inst(dc, link, &panel_inst) && panel_inst == 1)
+		return false;
 
-/*
- * amdgpu_dm_psr_enable() - enable psr f/w
- * @stream: stream state
- *
- */
-void amdgpu_dm_psr_enable(struct dc_stream_state *stream)
-{
-	struct dc_link *link = stream->link;
-	unsigned int vsync_rate_hz = 0;
-	struct dc_static_screen_params params = {0};
-	/* Calculate number of static frames before generating interrupt to
-	 * enter PSR.
-	 */
-	// Init fail safe of 2 frames static
-	unsigned int num_frames_static = 2;
-	unsigned int power_opt = 0;
-	bool psr_enable = true;
+	if (link_supports_psrsu(link))
+		link->psr_settings.psr_version = DC_PSR_VERSION_SU_1;
+	else
+		link->psr_settings.psr_version = DC_PSR_VERSION_1;
 
-	DRM_DEBUG_DRIVER("Enabling psr...\n");
-
-	vsync_rate_hz = div64_u64(div64_u64((
-			stream->timing.pix_clk_100hz * (uint64_t)100),
-			stream->timing.v_total),
-			stream->timing.h_total);
-
-	/* Round up
-	 * Calculate number of frames such that at least 30 ms of time has
-	 * passed.
-	 */
-	if (vsync_rate_hz != 0) {
-		unsigned int frame_time_microsec = 1000000 / vsync_rate_hz;
-
-		num_frames_static = (30000 / frame_time_microsec) + 1;
-	}
-
-	params.triggers.cursor_update = true;
-	params.triggers.overlay_update = true;
-	params.triggers.surface_update = true;
-	params.num_frames = num_frames_static;
-
-	dc_stream_set_static_screen_params(link->ctx->dc,
-					   &stream, 1,
-					   &params);
-
-	/*
-	 * Only enable static-screen optimizations for PSR1. For PSR SU, this
-	 * causes vstartup interrupt issues, used by amdgpu_dm to send vblank
-	 * events.
-	 */
-	if (link->psr_settings.psr_version < DC_PSR_VERSION_SU_1)
-		power_opt |= psr_power_opt_z10_static_screen;
-
-	dc_link_set_psr_allow_active(link, &psr_enable, false, false, &power_opt);
-
-	if (link->ctx->dc->caps.ips_support)
-		dc_allow_idle_optimizations(link->ctx->dc, true);
-}
-
-/*
- * amdgpu_dm_psr_disable() - disable psr f/w
- * @stream:  stream state
- *
- * Return: true if success
- */
-bool amdgpu_dm_psr_disable(struct dc_stream_state *stream, bool wait)
-{
-	bool psr_enable = false;
-
-	DRM_DEBUG_DRIVER("Disabling psr...\n");
-
-	return dc_link_set_psr_allow_active(stream->link, &psr_enable, wait, false, NULL);
-}
-
-/*
- * amdgpu_dm_psr_disable_all() - disable psr f/w for all streams
- * if psr is enabled on any stream
- *
- * Return: true if success
- */
-bool amdgpu_dm_psr_disable_all(struct amdgpu_display_manager *dm)
-{
-	DRM_DEBUG_DRIVER("Disabling psr if psr is enabled on any stream\n");
-	return dc_set_psr_allow_active(dm->dc, false);
+	amdgpu_dm_psr_fill_caps(link, &aconnector->psr_caps);
+	return true;
 }
 
 /*
@@ -235,51 +145,48 @@ bool amdgpu_dm_psr_disable_all(struct amdgpu_display_manager *dm)
 bool amdgpu_dm_psr_is_active_allowed(struct amdgpu_display_manager *dm)
 {
 	unsigned int i;
-	bool allow_active = false;
 
-	for (i = 0; i < dm->dc->current_state->stream_count ; i++) {
-		struct dc_link *link;
-		struct dc_stream_state *stream = dm->dc->current_state->streams[i];
+	for (i = 0; i < dm->dc->current_state->stream_count; i++) {
+		const struct dc_link *link = dm->dc->current_state->streams[i]->link;
 
-		link = stream->link;
 		if (!link)
 			continue;
-		if (link->psr_settings.psr_feature_enabled &&
-		    link->psr_settings.psr_allow_active) {
-			allow_active = true;
-			break;
-		}
-	}
 
-	return allow_active;
+		if (link->psr_settings.psr_feature_enabled && link->psr_settings.psr_allow_active)
+			return true;
+	}
+	return false;
 }
 
-/**
- * amdgpu_dm_psr_wait_disable() - Wait for eDP panel to exit PSR
- * @stream: stream state attached to the eDP link
+/*
+ * amdgpu_dm_psr_set_event() - set or clear PSR event for stream
+ * @dm: pointer to amdgpu_display_manager
+ * @stream: pointer to dc_stream_state
+ * @set_event: true to set event, false to clear event
+ * @event: PSR event type
+ * @wait_for_disable: whether to wait for PSR to be disabled
  *
- * Waits for a max of 500ms for the eDP panel to exit PSR.
- *
- * Return: true if panel exited PSR, false otherwise.
+ * Return: true if successful, false otherwise
  */
-bool amdgpu_dm_psr_wait_disable(struct dc_stream_state *stream)
+bool amdgpu_dm_psr_set_event(struct amdgpu_display_manager *dm, struct dc_stream_state *stream,
+		bool set_event, enum psr_event event, bool wait_for_disable)
 {
-	enum dc_psr_state psr_state = PSR_STATE0;
-	struct dc_link *link = stream->link;
-	int retry_count;
+	unsigned int psr_events;
 
-	if (link == NULL)
+	/* Validate all required parameters */
+	if (!stream || !stream->link ||
+		!stream->link->psr_settings.psr_feature_enabled)
 		return false;
 
-	for (retry_count = 0; retry_count <= 1000; retry_count++) {
-		dc_link_get_psr_state(link, &psr_state);
-		if (psr_state == PSR_STATE0)
-			break;
-		udelay(500);
-	}
-
-	if (retry_count == 1000)
+	/* Get current psr events */
+	if (!mod_power_get_psr_event(dm->power_module, stream, &psr_events))
 		return false;
 
-	return true;
+	/* If all events already in desired state, return true. */
+	if ((psr_events & event) == (set_event ? event : 0))
+		return true;
+
+	return mod_power_set_psr_event(dm->power_module, stream,
+				       set_event, event, wait_for_disable);
 }
+EXPORT_IF_KUNIT(amdgpu_dm_psr_set_event);

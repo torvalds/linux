@@ -106,6 +106,9 @@ static int map_addr(struct sk_buff *skb, unsigned int protoff,
 	union nf_inet_addr newaddr;
 	__be16 newport;
 
+	if (!ct_sip_info)
+		return 0;
+
 	if (nf_inet_addr_cmp(&ct->tuplehash[dir].tuple.src.u3, addr) &&
 	    ct->tuplehash[dir].tuple.src.u.udp.port == port) {
 		newaddr = ct->tuplehash[!dir].tuple.dst.u3;
@@ -157,6 +160,9 @@ static unsigned int nf_nat_sip(struct sk_buff *skb, unsigned int protoff,
 	union nf_inet_addr addr;
 	__be16 port;
 	int request, in_header;
+
+	if (!ct_sip_info)
+		return NF_DROP;
 
 	/* Basic rules: requests and responses. */
 	if (strncasecmp(*dptr, "SIP/2.0", strlen("SIP/2.0")) != 0) {
@@ -326,6 +332,9 @@ static void nf_nat_sip_expected(struct nf_conn *ct,
 	int range_set_for_snat = 0;
 	struct nf_nat_range2 range;
 
+	if (!help)
+		return;
+
 	/* This must be a fresh one. */
 	BUG_ON(ct->status & IPS_NAT_DONE_MASK);
 
@@ -389,6 +398,9 @@ static unsigned int nf_nat_sip_expect(struct sk_buff *skb, unsigned int protoff,
 	__be16 srcport;
 	char buffer[INET6_ADDRSTRLEN + sizeof("[]:nnnnn")];
 	unsigned int buflen;
+
+	if (!ct_sip_info)
+		return NF_DROP;
 
 	/* Connection will come from reply */
 	if (nf_inet_addr_cmp(&ct->tuplehash[dir].tuple.src.u3,
@@ -655,6 +667,7 @@ static void __exit nf_nat_sip_fini(void)
 	RCU_INIT_POINTER(nf_nat_sip_hooks, NULL);
 	nf_ct_helper_expectfn_unregister(&sip_nat);
 	synchronize_rcu();
+	nf_ct_helper_expectfn_destroy(&sip_nat);
 }
 
 static const struct nf_nat_sip_hooks sip_hooks = {

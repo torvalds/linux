@@ -90,11 +90,12 @@ enum tpm_tis_flags {
 	TPM_TIS_DEFAULT_CANCELLATION	= 2,
 	TPM_TIS_IRQ_TESTED		= 3,
 	TPM_TIS_STATUS_VALID_RETRY	= 4,
+	TPM_TIS_SETTLE_AFTER_RELINQUISH	= 5,
 };
 
 struct tpm_tis_data {
 	struct tpm_chip *chip;
-	u16 manufacturer_id;
+	u32 did_vid;
 	struct mutex locality_count_mutex;
 	unsigned int locality_count;
 	int locality;

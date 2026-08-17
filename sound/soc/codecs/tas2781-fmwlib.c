@@ -921,7 +921,8 @@ static int tasdevice_process_block(void *context, unsigned char *data,
 						data[subblk_offset + 1],
 						data[subblk_offset + 2]),
 					data[subblk_offset + 3]);
-				if (rc < 0) {
+				if (rc < 0 &&
+				    !(tas_priv->isspi && rc == -EXDEV)) {
 					is_err = true;
 					dev_err(tas_priv->dev,
 					"process_block: single write error\n");
@@ -953,7 +954,7 @@ static int tasdevice_process_block(void *context, unsigned char *data,
 				data[subblk_offset + 1],
 				data[subblk_offset + 2]),
 				&(data[subblk_offset + 4]), len);
-			if (rc < 0) {
+			if (rc < 0 && !(tas_priv->isspi && rc == -EXDEV)) {
 				is_err = true;
 				dev_err(tas_priv->dev,
 					"%s: bulk_write error = %d\n",
@@ -991,7 +992,7 @@ static int tasdevice_process_block(void *context, unsigned char *data,
 				data[subblk_offset + 4]),
 				data[subblk_offset + 1],
 				data[subblk_offset + 5]);
-			if (rc < 0) {
+			if (rc < 0 && !(tas_priv->isspi && rc == -EXDEV)) {
 				is_err = true;
 				dev_err(tas_priv->dev,
 					"%s: update_bits error = %d\n",

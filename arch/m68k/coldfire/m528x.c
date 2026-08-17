@@ -51,7 +51,7 @@ static void __init m528x_qspi_init(void)
 {
 #if IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI)
 	/* setup Port QS for QSPI with gpio CS control */
-	__raw_writeb(0x07, MCFGPIO_PQSPAR);
+	mcf_write8(0x07, MCFGPIO_PQSPAR);
 #endif /* IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI) */
 }
 
@@ -64,9 +64,9 @@ static void __init m528x_i2c_init(void)
 
 	/* setup Port AS Pin Assignment Register for I2C */
 	/*  set PASPA0 to SCL and PASPA1 to SDA */
-	paspar = readw(MCFGPIO_PASPAR);
+	paspar = mcf_read16(MCFGPIO_PASPAR);
 	paspar |= 0xF;
-	writew(paspar, MCFGPIO_PASPAR);
+	mcf_write16(paspar, MCFGPIO_PASPAR);
 #endif /* IS_ENABLED(CONFIG_I2C_IMX) */
 }
 
@@ -77,9 +77,9 @@ static void __init m528x_uarts_init(void)
 	u8 port;
 
 	/* make sure PUAPAR is set for UART0 and UART1 */
-	port = readb(MCFGPIO_PUAPAR);
+	port = mcf_read8(MCFGPIO_PUAPAR);
 	port |= 0x03 | (0x03 << 2);
-	writeb(port, MCFGPIO_PUAPAR);
+	mcf_write8(port, MCFGPIO_PUAPAR);
 }
 
 /***************************************************************************/
@@ -89,9 +89,9 @@ static void __init m528x_fec_init(void)
 	u16 v16;
 
 	/* Set multi-function pins to ethernet mode for fec0 */
-	v16 = readw(MCFGPIO_PASPAR);
-	writew(v16 | 0xf00, MCFGPIO_PASPAR);
-	writeb(0xc0, MCFGPIO_PEHLPAR);
+	v16 = mcf_read16(MCFGPIO_PASPAR);
+	mcf_write16(v16 | 0xf00, MCFGPIO_PASPAR);
+	mcf_write8(0xc0, MCFGPIO_PEHLPAR);
 }
 
 /***************************************************************************/
@@ -99,8 +99,8 @@ static void __init m528x_fec_init(void)
 #ifdef CONFIG_WILDFIRE
 void wildfire_halt(void)
 {
-	writeb(0, 0x30000007);
-	writeb(0x2, 0x30000007);
+	mcf_write8(0, 0x30000007);
+	mcf_write8(0x2, 0x30000007);
 }
 #endif
 
@@ -110,14 +110,14 @@ void wildfiremod_halt(void)
 	printk(KERN_INFO "WildFireMod hibernating...\n");
 
 	/* Set portE.5 to Digital IO */
-	writew(readw(MCFGPIO_PEPAR) & ~(1 << (5 * 2)), MCFGPIO_PEPAR);
+	mcf_write16(read16(MCFGPIO_PEPAR) & ~(1 << (5 * 2)), MCFGPIO_PEPAR);
 
 	/* Make portE.5 an output */
-	writeb(readb(MCFGPIO_PDDR_E) | (1 << 5), MCFGPIO_PDDR_E);
+	mcf_write8(read8(MCFGPIO_PDDR_E) | (1 << 5), MCFGPIO_PDDR_E);
 
 	/* Now toggle portE.5 from low to high */
-	writeb(readb(MCFGPIO_PODR_E) & ~(1 << 5), MCFGPIO_PODR_E);
-	writeb(readb(MCFGPIO_PODR_E) | (1 << 5), MCFGPIO_PODR_E);
+	mcf_write8(read8(MCFGPIO_PODR_E) & ~(1 << 5), MCFGPIO_PODR_E);
+	mcf_write8(read8(MCFGPIO_PODR_E) | (1 << 5), MCFGPIO_PODR_E);
 
 	printk(KERN_EMERG "Failed to hibernate. Halting!\n");
 }

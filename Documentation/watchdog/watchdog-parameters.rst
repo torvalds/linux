@@ -14,13 +14,22 @@ modules.
 -------------------------------------------------
 
 watchdog core:
+    handle_boot_enabled:
+	Watchdog core auto-updates boot-enabled watchdogs before userspace
+	takes over. Default is set by the kconfig option
+	CONFIG_WATCHDOG_HANDLE_BOOT_ENABLED.
+
     open_timeout:
 	Maximum time, in seconds, for which the watchdog framework will take
 	care of pinging a running hardware watchdog until userspace opens the
 	corresponding /dev/watchdogN device. A value of 0 means an infinite
 	timeout. Setting this to a non-zero value can be useful to ensure that
 	either userspace comes up properly, or the board gets reset and allows
-	fallback logic in the bootloader to try something else.
+	fallback logic in the bootloader to try something else. Default is set
+	by the kconfig option CONFIG_WATCHDOG_OPEN_TIMEOUT.
+
+    stop_on_reboot:
+	Stops watchdogs on reboot (0 = keep watching, 1 = stop).
 
 -------------------------------------------------
 
@@ -284,16 +293,6 @@ ixp4xx_wdt:
 
 -------------------------------------------------
 
-machzwd:
-    nowayout:
-	Watchdog cannot be stopped once started
-	(default=kernel config parameter)
-    action:
-	after watchdog resets, generate:
-	0 = RESET(*)  1 = SMI  2 = NMI  3 = SCI
-
--------------------------------------------------
-
 max63xx_wdt:
     heartbeat:
 	Watchdog heartbeat period in seconds from 1 to 60, default 60
@@ -526,15 +525,6 @@ sc1200wdt:
 	io port
     timeout:
 	range is 0-255 minutes, default is 1
-    nowayout:
-	Watchdog cannot be stopped once started
-	(default=kernel config parameter)
-
--------------------------------------------------
-
-sc520_wdt:
-    timeout:
-	Watchdog timeout in seconds. (1 <= timeout <= 3600, default=30)
     nowayout:
 	Watchdog cannot be stopped once started
 	(default=kernel config parameter)

@@ -129,7 +129,6 @@ static void dpt_cleanup(struct i915_address_space *vm)
 struct i915_vma *i915_dpt_pin_to_ggtt(struct intel_dpt *dpt, unsigned int alignment)
 {
 	struct drm_i915_private *i915 = dpt->vm.i915;
-	struct intel_display *display = i915->display;
 	struct ref_tracker *wakeref;
 	struct i915_vma *vma;
 	void __iomem *iomem;
@@ -141,7 +140,7 @@ struct i915_vma *i915_dpt_pin_to_ggtt(struct intel_dpt *dpt, unsigned int alignm
 		pin_flags |= PIN_MAPPABLE;
 
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
-	atomic_inc(&display->restore.pending_fb_pin);
+	atomic_inc(&i915->pending_fb_pin);
 
 	for_i915_gem_ww(&ww, err, true) {
 		err = i915_gem_object_lock(dpt->obj, &ww);
@@ -171,7 +170,7 @@ struct i915_vma *i915_dpt_pin_to_ggtt(struct intel_dpt *dpt, unsigned int alignm
 
 	dpt->obj->mm.dirty = true;
 
-	atomic_dec(&display->restore.pending_fb_pin);
+	atomic_dec(&i915->pending_fb_pin);
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 
 	return err ? ERR_PTR(err) : vma;

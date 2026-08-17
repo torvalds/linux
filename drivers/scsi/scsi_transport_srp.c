@@ -234,7 +234,7 @@ static ssize_t store_reconnect_delay(struct device *dev,
 
 	if (rport->reconnect_delay <= 0 && delay > 0 &&
 	    rport->state != SRP_RPORT_RUNNING) {
-		queue_delayed_work(system_long_wq, &rport->reconnect_work,
+		queue_delayed_work(system_dfl_long_wq, &rport->reconnect_work,
 				   delay * HZ);
 	} else if (delay <= 0) {
 		cancel_delayed_work(&rport->reconnect_work);
@@ -390,7 +390,7 @@ static void srp_reconnect_work(struct work_struct *work)
 		delay = rport->reconnect_delay *
 			clamp(rport->failed_reconnects - 10, 1, 100);
 		if (delay > 0)
-			queue_delayed_work(system_long_wq,
+			queue_delayed_work(system_dfl_long_wq,
 					   &rport->reconnect_work, delay * HZ);
 	}
 }
@@ -474,7 +474,7 @@ static void __srp_start_tl_fail_timers(struct srp_rport *rport)
 	if (rport->state == SRP_RPORT_LOST)
 		return;
 	if (delay > 0)
-		queue_delayed_work(system_long_wq, &rport->reconnect_work,
+		queue_delayed_work(system_dfl_long_wq, &rport->reconnect_work,
 				   1UL * delay * HZ);
 	if ((fast_io_fail_tmo >= 0 || dev_loss_tmo >= 0) &&
 	    srp_rport_set_state(rport, SRP_RPORT_BLOCKED) == 0) {
@@ -482,11 +482,11 @@ static void __srp_start_tl_fail_timers(struct srp_rport *rport)
 			 rport->state);
 		scsi_block_targets(shost, &shost->shost_gendev);
 		if (fast_io_fail_tmo >= 0)
-			queue_delayed_work(system_long_wq,
+			queue_delayed_work(system_dfl_long_wq,
 					   &rport->fast_io_fail_work,
 					   1UL * fast_io_fail_tmo * HZ);
 		if (dev_loss_tmo >= 0)
-			queue_delayed_work(system_long_wq,
+			queue_delayed_work(system_dfl_long_wq,
 					   &rport->dev_loss_work,
 					   1UL * dev_loss_tmo * HZ);
 	}

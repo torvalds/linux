@@ -2048,7 +2048,7 @@ static void it6505_start_hdcp(struct it6505 *it6505)
 
 	DRM_DEV_DEBUG_DRIVER(dev, "start");
 	it6505_reset_hdcp(it6505);
-	queue_delayed_work(system_wq, &it6505->hdcp_work,
+	queue_delayed_work(system_percpu_wq, &it6505->hdcp_work,
 			   msecs_to_jiffies(2400));
 }
 
@@ -3119,7 +3119,7 @@ it6505_bridge_mode_valid(struct drm_bridge *bridge,
 }
 
 static void it6505_bridge_atomic_enable(struct drm_bridge *bridge,
-					struct drm_atomic_state *state)
+					struct drm_atomic_commit *state)
 {
 	struct it6505 *it6505 = bridge_to_it6505(bridge);
 	struct device *dev = it6505->dev;
@@ -3173,7 +3173,7 @@ static void it6505_bridge_atomic_enable(struct drm_bridge *bridge,
 }
 
 static void it6505_bridge_atomic_disable(struct drm_bridge *bridge,
-					 struct drm_atomic_state *state)
+					 struct drm_atomic_commit *state)
 {
 	struct it6505 *it6505 = bridge_to_it6505(bridge);
 	struct device *dev = it6505->dev;
@@ -3187,7 +3187,7 @@ static void it6505_bridge_atomic_disable(struct drm_bridge *bridge,
 }
 
 static void it6505_bridge_atomic_pre_enable(struct drm_bridge *bridge,
-					    struct drm_atomic_state *state)
+					    struct drm_atomic_commit *state)
 {
 	struct it6505 *it6505 = bridge_to_it6505(bridge);
 	struct device *dev = it6505->dev;
@@ -3198,7 +3198,7 @@ static void it6505_bridge_atomic_pre_enable(struct drm_bridge *bridge,
 }
 
 static void it6505_bridge_atomic_post_disable(struct drm_bridge *bridge,
-					      struct drm_atomic_state *state)
+					      struct drm_atomic_commit *state)
 {
 	struct it6505 *it6505 = bridge_to_it6505(bridge);
 	struct device *dev = it6505->dev;

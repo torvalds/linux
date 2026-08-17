@@ -1630,14 +1630,14 @@ static void aic31xx_configure_ocmv(struct aic31xx_priv *priv)
 }
 
 static const struct i2c_device_id aic31xx_i2c_id[] = {
-	{ "tlv320aic310x", AIC3100 },
-	{ "tlv320aic311x", AIC3110 },
-	{ "tlv320aic3100", AIC3100 },
-	{ "tlv320aic3110", AIC3110 },
-	{ "tlv320aic3120", AIC3120 },
-	{ "tlv320aic3111", AIC3111 },
-	{ "tlv320dac3100", DAC3100 },
-	{ "tlv320dac3101", DAC3101 },
+	{ .name = "tlv320aic310x", .driver_data = AIC3100 },
+	{ .name = "tlv320aic311x", .driver_data = AIC3110 },
+	{ .name = "tlv320aic3100", .driver_data = AIC3100 },
+	{ .name = "tlv320aic3110", .driver_data = AIC3110 },
+	{ .name = "tlv320aic3120", .driver_data = AIC3120 },
+	{ .name = "tlv320aic3111", .driver_data = AIC3111 },
+	{ .name = "tlv320dac3100", .driver_data = DAC3100 },
+	{ .name = "tlv320dac3101", .driver_data = DAC3101 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, aic31xx_i2c_id);

@@ -25,6 +25,11 @@
  *   GPIO 6 -> S/PDIF from optical (0) or coaxial (1) input
  *   GPIO 8 -> enable headphone amplifier
  *
+ * eClaro model:
+ *   GPIO 2 -> M0 of CS5361
+ *   GPIO 3 -> M1 of CS5361
+ *   GPIO 8 -> enable headphone amplifier
+ *
  * CM9780:
  *
  *   LINE_OUT -> input of ADC
@@ -51,6 +56,7 @@
 #include "oxygen.h"
 #include "xonar_dg.h"
 #include "ak4396.h"
+#include "cs4362a.h"
 #include "wm8785.h"
 
 MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");
@@ -74,6 +80,7 @@ enum {
 	MODEL_MERIDIAN_2G,
 	MODEL_CLARO,
 	MODEL_CLARO_HALO,
+	MODEL_ECLARO,
 	MODEL_FANTASIA,
 	MODEL_SERENADE,
 	MODEL_2CH_OUTPUT,
@@ -113,6 +120,8 @@ static const struct pci_device_id oxygen_ids[] = {
 	{ OXYGEN_PCI_SUBID(0x7284, 0x9761), .driver_data = MODEL_CLARO },
 	/* HT-Omega Claro halo */
 	{ OXYGEN_PCI_SUBID(0x7284, 0x9781), .driver_data = MODEL_CLARO_HALO },
+	/* HT-Omega eClaro */
+	{ OXYGEN_PCI_SUBID(0x7284, 0x9783), .driver_data = MODEL_ECLARO },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, oxygen_ids);
@@ -130,27 +139,35 @@ MODULE_DEVICE_TABLE(pci, oxygen_ids);
 #define GPIO_CLARO_DIG_COAX	0x0040
 #define GPIO_CLARO_HP		0x0100
 
+#define GPIO_ECLARO_CS4362A_NRESET	0x0001	/* GPIO 0: CS4362A RESET# (active-low) */
+#define GPIO_ECLARO_FRONT_ENABLE	0x0020	/* GPIO 5: front output stage enable */
+
+/* CS4362A SPI: 3-byte frame [0x30, reg, value] on CE1, 1280 ns/bit clock */
+#define ECLARO_CS4362A_SPI_CONTROL \
+	(OXYGEN_SPI_TRIGGER | OXYGEN_SPI_DATA_LENGTH_3 | \
+	 OXYGEN_SPI_CLOCK_1280 | (1 << OXYGEN_SPI_CODEC_SHIFT) | \
+	 OXYGEN_SPI_CEN_LATCH_CLOCK_HI)
+
 struct generic_data {
 	unsigned int dacs;
+	u8 spi_map[4];
+	u16 spi_prefix[4];
 	u8 ak4396_regs[4][5];
+	u8 cs4362a_regs[15];
 	u16 wm8785_regs[3];
 };
 
 static void ak4396_write(struct oxygen *chip, unsigned int codec,
 			 u8 reg, u8 value)
 {
-	/* maps ALSA channel pair number to SPI output */
-	static const u8 codec_spi_map[4] = {
-		0, 1, 2, 4
-	};
 	struct generic_data *data = chip->model_data;
 
 	oxygen_write_spi(chip, OXYGEN_SPI_TRIGGER |
 			 OXYGEN_SPI_DATA_LENGTH_2 |
 			 OXYGEN_SPI_CLOCK_160 |
-			 (codec_spi_map[codec] << OXYGEN_SPI_CODEC_SHIFT) |
+			 (data->spi_map[codec] << OXYGEN_SPI_CODEC_SHIFT) |
 			 OXYGEN_SPI_CEN_LATCH_CLOCK_HI,
-			 AK4396_WRITE | (reg << 8) | value);
+			 data->spi_prefix[codec] | (reg << 8) | value);
 	data->ak4396_regs[codec][reg] = value;
 }
 
@@ -161,6 +178,51 @@ static void ak4396_write_cached(struct oxygen *chip, unsigned int codec,
 
 	if (value != data->ak4396_regs[codec][reg])
 		ak4396_write(chip, codec, reg, value);
+}
+
+static void eclaro_cs4362a_write(struct oxygen *chip, u8 reg, u8 value)
+{
+	struct generic_data *data = chip->model_data;
+	int err;
+
+	if (reg < ARRAY_SIZE(data->cs4362a_regs))
+		data->cs4362a_regs[reg] = value;
+
+	err = oxygen_write_spi(chip, ECLARO_CS4362A_SPI_CONTROL,
+			       (0x30u << 16) | ((u32)reg << 8) | value);
+	if (err)
+		dev_err(chip->card->dev,
+			"CS4362A SPI timeout: reg=0x%02x val=0x%02x\n",
+			reg, value);
+}
+
+static void eclaro_cs4362a_write_cached(struct oxygen *chip, u8 reg, u8 value)
+{
+	struct generic_data *data = chip->model_data;
+
+	if (value != data->cs4362a_regs[reg])
+		eclaro_cs4362a_write(chip, reg, value);
+}
+
+static void eclaro_cs4362a_registers_init(struct oxygen *chip)
+{
+	struct generic_data *data = chip->model_data;
+
+	eclaro_cs4362a_write(chip, 1, CS4362A_CPEN | CS4362A_PDN);
+	eclaro_cs4362a_write(chip, 2, CS4362A_DIF_LJUST);
+	eclaro_cs4362a_write(chip, 3, CS4362A_SOFT_RAMP | CS4362A_AMUTE);
+	eclaro_cs4362a_write(chip, 4, data->cs4362a_regs[4]);
+	eclaro_cs4362a_write(chip, 5, 0);
+	eclaro_cs4362a_write(chip, 6,  data->cs4362a_regs[6]);
+	eclaro_cs4362a_write(chip, 7,  data->cs4362a_regs[7]);
+	eclaro_cs4362a_write(chip, 8,  data->cs4362a_regs[8]);
+	eclaro_cs4362a_write(chip, 9,  data->cs4362a_regs[9]);
+	eclaro_cs4362a_write(chip, 10, data->cs4362a_regs[10]);
+	eclaro_cs4362a_write(chip, 11, data->cs4362a_regs[11]);
+	eclaro_cs4362a_write(chip, 12, data->cs4362a_regs[12]);
+	eclaro_cs4362a_write(chip, 13, data->cs4362a_regs[13]);
+	eclaro_cs4362a_write(chip, 14, data->cs4362a_regs[14]);
+	eclaro_cs4362a_write(chip, 1, CS4362A_CPEN);
 }
 
 static void wm8785_write(struct oxygen *chip, u8 reg, unsigned int value)
@@ -199,8 +261,13 @@ static void ak4396_registers_init(struct oxygen *chip)
 static void ak4396_init(struct oxygen *chip)
 {
 	struct generic_data *data = chip->model_data;
+	static const u8 default_spi_map[4] = { 0, 1, 2, 4 };
+	unsigned int i;
 
 	data->dacs = chip->model.dac_channels_pcm / 2;
+	memcpy(data->spi_map, default_spi_map, sizeof(default_spi_map));
+	for (i = 0; i < 4; ++i)
+		data->spi_prefix[i] = AK4396_WRITE;
 	data->ak4396_regs[0][AK4396_CONTROL_2] =
 		AK4396_SMUTE | AK4396_DEM_OFF | AK4396_DFS_NORMAL;
 	ak4396_registers_init(chip);
@@ -322,6 +389,102 @@ static void claro_resume(struct oxygen *chip)
 	claro_enable_hp(chip);
 }
 
+#define GPIO_CS5361_M_MASK	0x000c
+#define GPIO_CS5361_M_SINGLE	0x0000
+#define GPIO_CS5361_M_DOUBLE	0x0004
+#define GPIO_CS5361_M_QUAD	0x0008
+
+static void cs5361_init(struct oxygen *chip)
+{
+	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL, GPIO_CS5361_M_MASK);
+	oxygen_write16_masked(chip, OXYGEN_GPIO_DATA,
+			      GPIO_CS5361_M_SINGLE, GPIO_CS5361_M_MASK);
+}
+
+static void set_cs5361_params(struct oxygen *chip,
+			      struct snd_pcm_hw_params *params)
+{
+	unsigned int value;
+
+	if (params_rate(params) <= 54000)
+		value = GPIO_CS5361_M_SINGLE;
+	else if (params_rate(params) <= 108000)
+		value = GPIO_CS5361_M_DOUBLE;
+	else
+		value = GPIO_CS5361_M_QUAD;
+	oxygen_write16_masked(chip, OXYGEN_GPIO_DATA,
+			      value, GPIO_CS5361_M_MASK);
+}
+
+static void eclaro_init(struct oxygen *chip)
+{
+	struct generic_data *data = chip->model_data;
+
+	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL, GPIO_CLARO_DIG_COAX);
+	oxygen_clear_bits16(chip, OXYGEN_GPIO_DATA, GPIO_CLARO_DIG_COAX);
+
+	/* Single AK4396VF on SPI CE0/CA=00 handles front L/R */
+	data->dacs = 1;
+	data->spi_map[0] = 0;
+	data->spi_prefix[0] = AK4396_WRITE;
+	data->ak4396_regs[0][AK4396_CONTROL_2] =
+		AK4396_SMUTE | AK4396_DEM_OFF | AK4396_DFS_NORMAL;
+
+	ak4396_write(chip, 0, AK4396_CONTROL_1, AK4396_DIF_24_MSB | AK4396_ACKS);
+	ak4396_write(chip, 0, AK4396_CONTROL_2,
+		     data->ak4396_regs[0][AK4396_CONTROL_2]);
+	ak4396_write(chip, 0, AK4396_CONTROL_3, AK4396_PCM);
+	ak4396_write(chip, 0, AK4396_LCH_ATT, chip->dac_volume[0] * 2);
+	ak4396_write(chip, 0, AK4396_RCH_ATT, chip->dac_volume[1] * 2);
+	ak4396_write(chip, 0, AK4396_CONTROL_1, AK4396_DIF_24_MSB | AK4396_ACKS | AK4396_RSTN);
+
+	/* CS4362A (SPI CE1): surround/center-LFE/side L/R.
+	 * GPIO 0 (RESET#, active-low) and GPIO 5 (front output enable) must
+	 * be driven high. GPIOs 1 and 7 are outputs driven high.
+	 */
+	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL, 0x00a3);
+	oxygen_set_bits16(chip, OXYGEN_GPIO_DATA, 0x00a3);
+	usleep_range(1000, 2000);
+
+	data->cs4362a_regs[4] = CS4362A_RMP_DN | CS4362A_DEM_NONE;
+	data->cs4362a_regs[6] = CS4362A_FM_SINGLE |
+				 CS4362A_ATAPI_B_R | CS4362A_ATAPI_A_L;
+	data->cs4362a_regs[7] = CS4362A_MUTE;
+	data->cs4362a_regs[9] = data->cs4362a_regs[6];
+	data->cs4362a_regs[12] = data->cs4362a_regs[6];
+
+	eclaro_cs4362a_registers_init(chip);
+
+	snd_component_add(chip->card, "AK4396");
+	snd_component_add(chip->card, "CS4362A");
+	cs5361_init(chip);
+	claro_enable_hp(chip);
+	snd_component_add(chip->card, "CS5361");
+}
+
+static void eclaro_resume(struct oxygen *chip)
+{
+	struct generic_data *data = chip->model_data;
+
+	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL,
+			  GPIO_ECLARO_CS4362A_NRESET | GPIO_ECLARO_FRONT_ENABLE);
+	oxygen_set_bits16(chip, OXYGEN_GPIO_DATA,
+			  GPIO_ECLARO_CS4362A_NRESET | GPIO_ECLARO_FRONT_ENABLE);
+
+	/* AK4396 chip 0 */
+	ak4396_write(chip, 0, AK4396_CONTROL_1, AK4396_DIF_24_MSB | AK4396_ACKS | AK4396_RSTN);
+	ak4396_write(chip, 0, AK4396_CONTROL_2,
+		     data->ak4396_regs[0][AK4396_CONTROL_2]);
+	ak4396_write(chip, 0, AK4396_CONTROL_3, AK4396_PCM);
+	ak4396_write(chip, 0, AK4396_LCH_ATT, chip->dac_volume[0] * 2);
+	ak4396_write(chip, 0, AK4396_RCH_ATT, chip->dac_volume[1] * 2);
+
+	eclaro_cs4362a_registers_init(chip);
+
+	cs5361_init(chip);
+	claro_enable_hp(chip);
+}
+
 static void stereo_resume(struct oxygen *chip)
 {
 	ak4396_registers_init(chip);
@@ -353,6 +516,76 @@ static void set_ak4396_params(struct oxygen *chip,
 				     AK4396_DIF_24_MSB | AK4396_RSTN);
 		}
 	}
+}
+
+static void eclaro_set_dac_params(struct oxygen *chip,
+				  struct snd_pcm_hw_params *params)
+{
+	struct generic_data *data = chip->model_data;
+	u8 ak_value, cs_fm;
+
+	ak_value = data->ak4396_regs[0][AK4396_CONTROL_2] & ~AK4396_DFS_MASK;
+	if (params_rate(params) <= 54000) {
+		ak_value |= AK4396_DFS_NORMAL;
+		cs_fm = CS4362A_FM_SINGLE;
+	} else if (params_rate(params) <= 108000) {
+		ak_value |= AK4396_DFS_DOUBLE;
+		cs_fm = CS4362A_FM_DOUBLE;
+	} else {
+		ak_value |= AK4396_DFS_QUAD;
+		cs_fm = CS4362A_FM_QUAD;
+	}
+
+	usleep_range(1000, 2000);
+
+	if (ak_value != data->ak4396_regs[0][AK4396_CONTROL_2]) {
+		ak4396_write(chip, 0, AK4396_CONTROL_1, AK4396_DIF_24_MSB | AK4396_ACKS);
+		ak4396_write(chip, 0, AK4396_CONTROL_2, ak_value);
+		ak4396_write(chip, 0, AK4396_CONTROL_1,
+			     AK4396_DIF_24_MSB | AK4396_ACKS | AK4396_RSTN);
+		data->ak4396_regs[0][AK4396_CONTROL_2] = ak_value;
+	}
+
+	/* Update CS4362A FM mode for all three DAC pairs */
+	cs_fm |= data->cs4362a_regs[6] & ~CS4362A_FM_MASK;
+	eclaro_cs4362a_write_cached(chip, 6, cs_fm);
+	eclaro_cs4362a_write_cached(chip, 12, cs_fm);
+	cs_fm &= CS4362A_FM_MASK;
+	cs_fm |= data->cs4362a_regs[9] & ~CS4362A_FM_MASK;
+	eclaro_cs4362a_write_cached(chip, 9, cs_fm);
+}
+
+static void update_eclaro_volume(struct oxygen *chip)
+{
+	u8 mute = chip->dac_mute ? CS4362A_MUTE : 0;
+
+	ak4396_write_cached(chip, 0, AK4396_LCH_ATT, chip->dac_volume[0] * 2);
+	ak4396_write_cached(chip, 0, AK4396_RCH_ATT, chip->dac_volume[1] * 2);
+
+	/* CS4362A attenuation is inverse: 0 = 0 dB, 127 = max attenuation.
+	 * Pair 1 (regs 7/8) is wired to the side outputs (ALSA ch 6/7);
+	 * pair 3 (regs 13/14) is wired to the rear outputs (ALSA ch 2/3).
+	 */
+	eclaro_cs4362a_write_cached(chip, 7,  mute | (127 - chip->dac_volume[6]));
+	eclaro_cs4362a_write_cached(chip, 8,  mute | (127 - chip->dac_volume[7]));
+	eclaro_cs4362a_write_cached(chip, 10, mute | (127 - chip->dac_volume[4]));
+	eclaro_cs4362a_write_cached(chip, 11, mute | (127 - chip->dac_volume[5]));
+	eclaro_cs4362a_write_cached(chip, 13, mute | (127 - chip->dac_volume[2]));
+	eclaro_cs4362a_write_cached(chip, 14, mute | (127 - chip->dac_volume[3]));
+}
+
+static void update_eclaro_mute(struct oxygen *chip)
+{
+	struct generic_data *data = chip->model_data;
+	u8 value;
+
+	value = data->ak4396_regs[0][AK4396_CONTROL_2] & ~AK4396_SMUTE;
+	if (chip->dac_mute)
+		value |= AK4396_SMUTE;
+	ak4396_write_cached(chip, 0, AK4396_CONTROL_2, value);
+
+	/* Re-apply volume+mute to CS4362A so the mute bit is set correctly */
+	update_eclaro_volume(chip);
 }
 
 static void update_ak4396_volume(struct oxygen *chip)
@@ -702,6 +935,8 @@ static void dump_oxygen_registers(struct oxygen *chip,
 }
 
 static const DECLARE_TLV_DB_LINEAR(ak4396_db_scale, TLV_DB_GAIN_MUTE, 0);
+/* CS4362A: 0.5 dB/step, raw=127 -> 0 dB, raw=0 -> -63.5 dB */
+static const DECLARE_TLV_DB_SCALE(eclaro_db_scale, -6350, 50, 0);
 
 static const struct oxygen_model model_generic = {
 	.shortname = "C-Media CMI8788",
@@ -745,6 +980,7 @@ static int get_oxygen_model(struct oxygen *chip,
 		[MODEL_MERIDIAN_2G]	= "AuzenTech X-Meridian 2G",
 		[MODEL_CLARO]		= "HT-Omega Claro",
 		[MODEL_CLARO_HALO]	= "HT-Omega Claro halo",
+		[MODEL_ECLARO]		= "HT-Omega eClaro",
 		[MODEL_FANTASIA]	= "TempoTec HiFier Fantasia",
 		[MODEL_SERENADE]	= "TempoTec HiFier Serenade",
 		[MODEL_HG2PCI]		= "CMI8787-HG2PCI",
@@ -787,6 +1023,28 @@ static int get_oxygen_model(struct oxygen *chip,
 					    PLAYBACK_1_TO_SPDIF |
 					    CAPTURE_0_FROM_I2S_2 |
 					    CAPTURE_1_FROM_SPDIF;
+		break;
+	case MODEL_ECLARO:
+		chip->model.init = eclaro_init;
+		chip->model.mixer_init = generic_mixer_init;
+		chip->model.cleanup = claro_cleanup;
+		chip->model.suspend = claro_suspend;
+		chip->model.resume = eclaro_resume;
+		chip->model.set_dac_params = eclaro_set_dac_params;
+		chip->model.set_adc_params = set_cs5361_params;
+		chip->model.update_dac_volume = update_eclaro_volume;
+		chip->model.update_dac_mute = update_eclaro_mute;
+		chip->model.dump_registers = dump_ak4396_registers;
+		chip->model.device_config = PLAYBACK_0_TO_I2S |
+					    PLAYBACK_1_TO_SPDIF |
+					    CAPTURE_0_FROM_I2S_2 |
+					    CAPTURE_1_FROM_SPDIF;
+		chip->model.function_flags = OXYGEN_FUNCTION_SPI |
+					      OXYGEN_FUNCTION_ENABLE_SPI_4_5;
+		chip->model.dac_mclks = OXYGEN_MCLKS(256, 128, 128);
+		chip->model.dac_volume_min = 0;
+		chip->model.dac_volume_max = 127;
+		chip->model.dac_tlv = eclaro_db_scale;
 		break;
 	case MODEL_FANTASIA:
 	case MODEL_SERENADE:

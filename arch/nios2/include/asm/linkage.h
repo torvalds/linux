@@ -12,4 +12,6 @@
 #define __ALIGN .align 4
 #define __ALIGN_STR ".align 4"
 
+#define _THIS_IP_ ({ unsigned long __ip; asm volatile("nextpc %0" : "=r" (__ip)); __ip; })
+
 #endif

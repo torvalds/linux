@@ -18,15 +18,19 @@ properties:
       - items:
           - enum:
               - qcom,apss-wdt-glymur
+              - qcom,apss-wdt-hawi
               - qcom,kpss-wdt-ipq4019
               - qcom,apss-wdt-ipq5018
+              - qcom,apss-wdt-ipq5210
               - qcom,apss-wdt-ipq5332
               - qcom,apss-wdt-ipq5424
               - qcom,apss-wdt-ipq9574
+              - qcom,apss-wdt-ipq9650
               - qcom,apss-wdt-kaanapali
               - qcom,apss-wdt-msm8226
               - qcom,apss-wdt-msm8974
               - qcom,apss-wdt-msm8994
+              - qcom,apss-wdt-nord
               - qcom,apss-wdt-qcm2290
               - qcom,apss-wdt-qcs404
               - qcom,apss-wdt-qcs615
@@ -40,6 +44,7 @@ properties:
               - qcom,apss-wdt-sdm845
               - qcom,apss-wdt-sdx55
               - qcom,apss-wdt-sdx65
+              - qcom,apss-wdt-shikra
               - qcom,apss-wdt-sm6115
               - qcom,apss-wdt-sm6350
               - qcom,apss-wdt-sm8150
@@ -83,6 +88,12 @@ properties:
   interrupts:
     minItems: 1
     maxItems: 5
+
+  sram:
+    maxItems: 1
+    description:
+      A reference to an region residing in IMEM(on-chip SRAM), which contains
+      the system restart reason value populated by the bootloader.
 
 required:
   - compatible

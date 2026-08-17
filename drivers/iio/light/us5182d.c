@@ -9,7 +9,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/iio/events.h>
@@ -949,7 +948,7 @@ static const struct acpi_device_id us5182d_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, us5182d_acpi_match);
 
 static const struct i2c_device_id us5182d_id[] = {
-	{ "usd5182" },
+	{ .name = "usd5182" },
 	{ }
 };
 

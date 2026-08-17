@@ -53,7 +53,8 @@ nvkm_vmm_pt_new(const struct nvkm_vmm_desc *desc, bool sparse,
 		}
 	}
 
-	if (!(pgt = kzalloc(sizeof(*pgt) + (sizeof(pgt->pte[0]) * lpte), GFP_KERNEL)))
+	pgt = kzalloc_flex(*pgt, pte, lpte);
+	if (!pgt)
 		return NULL;
 	pgt->page = page ? page->shift : 0;
 	pgt->sparse = sparse;

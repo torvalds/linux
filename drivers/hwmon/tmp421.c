@@ -56,11 +56,11 @@ static const u8 TMP421_TEMP_LSB[MAX_CHANNELS]	= { 0x10, 0x11, 0x12, 0x13 };
 #define TMP442_DEVICE_ID			0x42
 
 static const struct i2c_device_id tmp421_id[] = {
-	{ "tmp421", 2 },
-	{ "tmp422", 3 },
-	{ "tmp423", 4 },
-	{ "tmp441", 2 },
-	{ "tmp442", 3 },
+	{ .name = "tmp421", .driver_data = 2 },
+	{ .name = "tmp422", .driver_data = 3 },
+	{ .name = "tmp423", .driver_data = 4 },
+	{ .name = "tmp441", .driver_data = 2 },
+	{ .name = "tmp442", .driver_data = 3 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tmp421_id);

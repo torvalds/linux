@@ -7,8 +7,11 @@
 #ifndef _NOLIBC_ARCH_POWERPC_H
 #define _NOLIBC_ARCH_POWERPC_H
 
+#include <linux/unistd.h>
+
 #include "compiler.h"
 #include "crt.h"
+#include "std.h"
 
 /* Syscalls for PowerPC :
  *   - stack is 16-byte aligned
@@ -177,15 +180,15 @@
  * "omit-frame-pointer" fails with __attribute__((no_stack_protector)) but
  * works with __attribute__((__optimize__("-fno-stack-protector")))
  */
-#ifdef __no_stack_protector
-#undef __no_stack_protector
-#define __no_stack_protector __attribute__((__optimize__("-fno-stack-protector")))
+#ifdef __nolibc_no_stack_protector
+#undef __nolibc_no_stack_protector
+#define __nolibc_no_stack_protector __attribute__((__optimize__("-fno-stack-protector")))
 #endif
 #endif /* !__powerpc64__ */
 
 #ifndef NOLIBC_NO_RUNTIME
 /* startup code */
-void __attribute__((weak, noreturn)) __nolibc_entrypoint __no_stack_protector _start(void)
+void __attribute__((weak, noreturn)) __nolibc_entrypoint __nolibc_no_stack_protector _start(void)
 {
 #ifdef __powerpc64__
 #if _CALL_ELF == 2
@@ -217,5 +220,14 @@ void __attribute__((weak, noreturn)) __nolibc_entrypoint __no_stack_protector _s
 	__nolibc_entrypoint_epilogue();
 }
 #endif /* NOLIBC_NO_RUNTIME */
+
+#if !defined(__powerpc64__)
+static __attribute__((unused))
+int _sys_ftruncate64(int fd, uint32_t length0, uint32_t length1)
+{
+	return __nolibc_syscall4(__NR_ftruncate64, fd, 0, length0, length1);
+}
+#define _sys_ftruncate64 _sys_ftruncate64
+#endif
 
 #endif /* _NOLIBC_ARCH_POWERPC_H */

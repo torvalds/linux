@@ -218,7 +218,7 @@ def _get_qemu_ops(config_path: str,
 	# exists (I learned this through experimentation and could not find it
 	# anywhere in the Python documentation).
 	#
-	# Bascially, we completely ignore the actual file location of the config
+	# Basically, we completely ignore the actual file location of the config
 	# we are loading and just tell Python that the module lives in the
 	# QEMU_CONFIGS_DIR for import purposes regardless of where it actually
 	# exists as a file.

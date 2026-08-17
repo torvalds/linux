@@ -265,6 +265,7 @@
 #define MGAREG_CRTCEXT1_HRSTEN		BIT(3)
 
 #define MGAREG_CRTCEXT3_MGAMODE		BIT(7)
+#define MGAREG_CRTCEXT3_SCALE_MASK	GENMASK(2, 0)
 
 /* Cursor X and Y position */
 #define MGA_CURPOSXL 0x3c0c

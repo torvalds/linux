@@ -628,12 +628,6 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 			ret = PTR_ERR(connector);
 			goto err_free_bridge;
 		}
-
-		ret = drm_connector_attach_encoder(connector, encoder);
-		if (ret < 0) {
-			drm_err(drm_dev, "failed to attach encoder: %d\n", ret);
-			goto err_free_bridge;
-		}
 	}
 
 	pm_runtime_enable(dev);

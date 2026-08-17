@@ -126,6 +126,12 @@ struct dw_hdmi_phy_ops {
 struct dw_hdmi_plat_data {
 	struct regmap *regm;
 
+	/*
+	 * The HDMI output port number must be 1 if the port is described
+	 * in the device tree. 0 if the device tree does not describe the
+	 * next component (legacy mode, i.e. without
+	 * DRM_BRIDGE_ATTACH_NO_CONNECTOR flag when attaching bridge).
+	 */
 	unsigned int output_port;
 
 	unsigned long input_bus_encoding;

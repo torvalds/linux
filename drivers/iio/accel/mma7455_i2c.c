@@ -32,8 +32,8 @@ static void mma7455_i2c_remove(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id mma7455_i2c_ids[] = {
-	{ "mma7455" },
-	{ "mma7456" },
+	{ .name = "mma7455" },
+	{ .name = "mma7456" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mma7455_i2c_ids);

@@ -139,7 +139,7 @@ static int ags02ma_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ags02ma_id_table[] = {
-	{ "ags02ma" },
+	{ .name = "ags02ma" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ags02ma_id_table);

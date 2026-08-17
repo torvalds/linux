@@ -400,7 +400,7 @@ retry:
 		/*
 		 * If the inode was already deleted, skip over it.
 		 */
-		if (error == -ENOENT) {
+		if (error == -ENOENT || error == -EINVAL) {
 			iter->rec_idx++;
 			goto retry;
 		}
@@ -924,9 +924,7 @@ xfs_zone_gc_finish_reset(
 		goto out;
 	}
 
-	xfs_group_set_mark(rtg_group(rtg), XFS_RTG_FREE);
-	atomic_inc(&zi->zi_nr_free_zones);
-
+	xfs_zone_mark_free(rtg);
 	xfs_zoned_add_available(mp, rtg_blocks(rtg));
 
 	wake_up_all(&zi->zi_zone_wait);

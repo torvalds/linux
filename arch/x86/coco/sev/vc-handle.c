@@ -954,7 +954,7 @@ static __always_inline bool vc_is_db(unsigned long error_code)
  * Runtime #VC exception handler when raised from kernel mode. Runs in NMI mode
  * and will panic when an error happens.
  */
-DEFINE_IDTENTRY_VC_KERNEL(exc_vmm_communication)
+noinstr void kernel_exc_vmm_communication(struct pt_regs *regs, unsigned long error_code)
 {
 	irqentry_state_t irq_state;
 
@@ -1006,7 +1006,7 @@ DEFINE_IDTENTRY_VC_KERNEL(exc_vmm_communication)
  * Runtime #VC exception handler when raised from user mode. Runs in IRQ mode
  * and will kill the current task with SIGBUS when an error happens.
  */
-DEFINE_IDTENTRY_VC_USER(exc_vmm_communication)
+noinstr void user_exc_vmm_communication(struct pt_regs *regs, unsigned long error_code)
 {
 	/*
 	 * Handle #DB before calling into !noinstr code to avoid recursive #DB.
@@ -1030,6 +1030,14 @@ DEFINE_IDTENTRY_VC_USER(exc_vmm_communication)
 
 	instrumentation_end();
 	irqentry_exit_to_user_mode(regs);
+}
+
+DEFINE_IDTENTRY_RAW_ERRORCODE(exc_vmm_communication)
+{
+	if (user_mode(regs))
+		return user_exc_vmm_communication(regs, error_code);
+	else
+		return kernel_exc_vmm_communication(regs, error_code);
 }
 
 bool __init handle_vc_boot_ghcb(struct pt_regs *regs)

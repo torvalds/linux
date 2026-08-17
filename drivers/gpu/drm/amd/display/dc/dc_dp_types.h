@@ -1217,7 +1217,7 @@ struct dc_lttpr_caps {
 	union dp_main_link_channel_coding_lttpr_cap main_link_channel_coding;
 	union dp_128b_132b_supported_lttpr_link_rates supported_128b_132b_rates;
 	union dp_alpm_lttpr_cap alpm;
-	uint8_t aux_rd_interval[MAX_REPEATER_CNT - 1];
+	uint8_t aux_rd_interval[MAX_REPEATER_CNT];
 	uint8_t lttpr_ieee_oui[3]; // Always read from closest LTTPR to host
 	uint8_t lttpr_device_id[6]; // Always read from closest LTTPR to host
 };
@@ -1363,7 +1363,10 @@ union replay_enable_and_configuration {
 		unsigned char FREESYNC_PANEL_REPLAY_MODE              :1;
 		unsigned char TIMING_DESYNC_ERROR_VERIFICATION        :1;
 		unsigned char STATE_TRANSITION_ERROR_DETECTION        :1;
-		unsigned char RESERVED                                :5;
+		unsigned char FSFT_ENABLED                            :1;
+		unsigned char FRAME_SKIPPING_ERROR_DETECTION          :1;
+		unsigned char FRAME_SKIPPING_ENABLE                   :1;
+		unsigned char RESERVED                                :2;
 	} bits;
 	unsigned char raw;
 };

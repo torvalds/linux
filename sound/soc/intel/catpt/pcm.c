@@ -99,19 +99,15 @@ catpt_get_stream_template(struct snd_pcm_substream *substream)
 }
 
 /* Caller responsible for holding ->stream_mutex. */
-struct catpt_stream_runtime *
-catpt_stream_find(struct catpt_dev *cdev, u8 stream_hw_id)
+struct catpt_stream_runtime *catpt_stream_find(struct catpt_dev *cdev, u8 stream_hw_id)
 {
-	struct catpt_stream_runtime *pos, *result = NULL;
+	struct catpt_stream_runtime *stream;
 
-	list_for_each_entry(pos, &cdev->stream_list, node) {
-		if (pos->info.stream_hw_id == stream_hw_id) {
-			result = pos;
-			break;
-		}
-	}
+	list_for_each_entry(stream, &cdev->stream_list, node)
+		if (stream->info.stream_hw_id == stream_hw_id)
+			return stream;
 
-	return result;
+	return NULL;
 }
 
 /* Caller responsible for holding ->stream_mutex. */
@@ -972,32 +968,7 @@ static int catpt_loopback_mute_put(struct snd_kcontrol *kctl, struct snd_ctl_ele
 	return 1;
 }
 
-static int catpt_waves_switch_get(struct snd_kcontrol *kcontrol,
-				  struct snd_ctl_elem_value *ucontrol)
-{
-	return 0;
-}
-
-static int catpt_waves_switch_put(struct snd_kcontrol *kcontrol,
-				  struct snd_ctl_elem_value *ucontrol)
-{
-	return 0;
-}
-
-static int catpt_waves_param_get(struct snd_kcontrol *kcontrol,
-				 unsigned int __user *bytes,
-				 unsigned int size)
-{
-	return 0;
-}
-
-static int catpt_waves_param_put(struct snd_kcontrol *kcontrol,
-				 const unsigned int __user *bytes,
-				 unsigned int size)
-{
-	return 0;
-}
-
+static bool catpt_loopback_mute;
 static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(catpt_volume_tlv, -9000, 300, 1);
 
 #define CATPT_VOLUME_CTL(kname, pname) {		\
@@ -1014,20 +985,12 @@ static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(catpt_volume_tlv, -9000, 300, 1);
 }
 
 static const struct snd_kcontrol_new component_kcontrols[] = {
-/* Master volume (mixer stream) */
-CATPT_VOLUME_CTL("Master Playback Volume", MIXER),
-/* Individual volume controls for offload and capture */
-CATPT_VOLUME_CTL("Media0 Playback Volume", OFFLOAD1),
-CATPT_VOLUME_CTL("Media1 Playback Volume", OFFLOAD2),
-CATPT_VOLUME_CTL("Mic Capture Volume", CAPTURE1),
-SOC_SINGLE_BOOL_EXT("Loopback Mute", (unsigned long)&(bool[1]) {0},
-		    catpt_loopback_mute_get, catpt_loopback_mute_put),
-/* Enable or disable WAVES module */
-SOC_SINGLE_BOOL_EXT("Waves Switch", 0,
-		    catpt_waves_switch_get, catpt_waves_switch_put),
-/* WAVES module parameter control */
-SND_SOC_BYTES_TLV("Waves Set Param", 128,
-		  catpt_waves_param_get, catpt_waves_param_put),
+	CATPT_VOLUME_CTL("Master Playback Volume", MIXER),
+	CATPT_VOLUME_CTL("Media0 Playback Volume", OFFLOAD1),
+	CATPT_VOLUME_CTL("Media1 Playback Volume", OFFLOAD2),
+	CATPT_VOLUME_CTL("Mic Capture Volume", CAPTURE1),
+	SOC_SINGLE_BOOL_EXT("Loopback Mute", (unsigned long)&catpt_loopback_mute,
+			    catpt_loopback_mute_get, catpt_loopback_mute_put),
 };
 
 static const struct snd_soc_dapm_widget component_widgets[] = {

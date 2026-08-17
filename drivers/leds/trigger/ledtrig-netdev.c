@@ -26,6 +26,7 @@
 #include <linux/phy.h>
 #include <linux/rtnetlink.h>
 #include <linux/timer.h>
+#include <net/netdev_lock.h>
 #include "../leds.h"
 
 #define NETDEV_LED_DEFAULT_INTERVAL	50
@@ -228,7 +229,7 @@ static void get_device_state(struct led_netdev_data *trigger_data)
 
 	trigger_data->carrier_link_up = netif_carrier_ok(trigger_data->net_dev);
 
-	if (__ethtool_get_link_ksettings(trigger_data->net_dev, &cmd))
+	if (netif_get_link_ksettings(trigger_data->net_dev, &cmd))
 		return;
 
 	if (trigger_data->carrier_link_up) {
@@ -259,31 +260,33 @@ static ssize_t device_name_show(struct device *dev,
 static int set_device_name(struct led_netdev_data *trigger_data,
 			   const char *name, size_t size)
 {
+	struct net_device *new_dev = NULL;
+	char device_name[IFNAMSIZ];
+
 	if (size >= IFNAMSIZ)
 		return -EINVAL;
 
 	cancel_delayed_work_sync(&trigger_data->work);
 
+	memcpy(device_name, name, size);
+	device_name[size] = 0;
+	if (size > 0 && device_name[size - 1] == '\n')
+		device_name[size - 1] = 0;
+
 	/*
-	 * Take RTNL lock before trigger_data lock to prevent potential
-	 * deadlock with netdev notifier registration.
+	 * Lock order: rtnl_lock -> netdev instance lock -> trigger_data lock.
 	 */
 	rtnl_lock();
+	if (device_name[0]) {
+		new_dev = dev_get_by_name(&init_net, device_name);
+		if (new_dev)
+			netdev_lock_ops(new_dev);
+	}
 	mutex_lock(&trigger_data->lock);
 
-	if (trigger_data->net_dev) {
-		dev_put(trigger_data->net_dev);
-		trigger_data->net_dev = NULL;
-	}
-
-	memcpy(trigger_data->device_name, name, size);
-	trigger_data->device_name[size] = 0;
-	if (size > 0 && trigger_data->device_name[size - 1] == '\n')
-		trigger_data->device_name[size - 1] = 0;
-
-	if (trigger_data->device_name[0] != 0)
-		trigger_data->net_dev =
-		    dev_get_by_name(&init_net, trigger_data->device_name);
+	dev_put(trigger_data->net_dev);
+	trigger_data->net_dev = new_dev;
+	strscpy(trigger_data->device_name, device_name);
 
 	trigger_data->carrier_link_up = false;
 	trigger_data->link_speed = SPEED_UNKNOWN;
@@ -298,6 +301,8 @@ static int set_device_name(struct led_netdev_data *trigger_data,
 		set_baseline_state(trigger_data);
 
 	mutex_unlock(&trigger_data->lock);
+	if (new_dev)
+		netdev_unlock_ops(new_dev);
 	rtnl_unlock();
 
 	return 0;

@@ -169,11 +169,11 @@ static DEFINE_MUTEX(pch_mutex);
 #define PCI_DEVICE_ID_ML7831_I2C	0x8817
 
 static const struct pci_device_id pch_pcidev_id[] = {
-	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_PCH_I2C),   1, },
-	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7213_I2C), 2, },
-	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7223_I2C), 1, },
-	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7831_I2C), 1, },
-	{0,}
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_PCH_I2C),   .driver_data = 1 },
+	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7213_I2C), .driver_data = 2 },
+	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7223_I2C), .driver_data = 1 },
+	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7831_I2C), .driver_data = 1 },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, pch_pcidev_id);
 

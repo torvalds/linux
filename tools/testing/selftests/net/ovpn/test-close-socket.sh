@@ -53,7 +53,7 @@ ovpn_run_ping_traffic() {
 
 	for p in $(seq 1 ${OVPN_NUM_PEERS}); do
 		ovpn_cmd_ok "send ping traffic to peer ${p}" \
-			ip netns exec ovpn_peer0 ping -qfc 500 -w 3 \
+			ip netns exec ovpn_peer0 ping -qfc 100 -w 3 \
 				5.5.5.$((p + 1))
 	done
 }

@@ -39,7 +39,7 @@ static inline struct page *dma_direct_to_page(struct device *dev,
 
 u64 dma_direct_get_required_mask(struct device *dev)
 {
-	phys_addr_t phys = (phys_addr_t)(max_pfn - 1) << PAGE_SHIFT;
+	phys_addr_t phys = ((phys_addr_t)max_pfn << PAGE_SHIFT) - 1;
 	u64 max_dma = phys_to_dma_direct(dev, phys);
 
 	return (1ULL << (fls64(max_dma) - 1)) * 2 - 1;
@@ -476,7 +476,7 @@ int dma_direct_map_sg(struct device *dev, struct scatterlist *sgl, int nents,
 			 * must be mapped with CPU physical address and not PCI
 			 * bus addresses.
 			 */
-			break;
+			fallthrough;
 		case PCI_P2PDMA_MAP_NONE:
 			need_sync = true;
 			sg->dma_address = dma_direct_map_phys(dev, sg_phys(sg),
@@ -553,7 +553,7 @@ int dma_direct_mmap(struct device *dev, struct vm_area_struct *vma,
 
 int dma_direct_supported(struct device *dev, u64 mask)
 {
-	u64 min_mask = (max_pfn - 1) << PAGE_SHIFT;
+	u64 min_mask = ((u64)max_pfn << PAGE_SHIFT) - 1;
 
 	/*
 	 * Because 32-bit DMA masks are so common we expect every architecture

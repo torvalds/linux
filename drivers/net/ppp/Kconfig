@@ -110,8 +110,12 @@ config PPPOATM
 	  which can lead to bad results if the ATM peer loses state and
 	  changes its encapsulation unilaterally.
 
+config PPPOX
+	tristate
+
 config PPPOE
 	tristate "PPP over Ethernet"
+	select PPPOX
 	help
 	  Support for PPP over Ethernet.
 
@@ -157,6 +161,7 @@ config PPPOE_HASH_BITS
 config PPTP
 	tristate "PPP over IPv4 (PPTP)"
 	depends on NET_IPGRE_DEMUX
+	select PPPOX
 	help
 	  Support for PPP over IPv4.(Point-to-Point Tunneling Protocol)
 
@@ -168,6 +173,7 @@ config PPTP
 config PPPOL2TP
 	tristate "PPP over L2TP"
 	depends on L2TP
+	select PPPOX
 	help
 	  Support for PPP-over-L2TP socket family. L2TP is a protocol
 	  used by ISPs and enterprises to tunnel PPP traffic over UDP
@@ -191,8 +197,8 @@ config PPP_SYNC_TTY
 	tristate "PPP support for sync tty ports"
 	help
 	  Say Y (or M) here if you want to be able to use PPP over synchronous
-	  (HDLC) tty devices, such as the SyncLink adapter. These devices
-	  are often used for high-speed leased lines like T1/E1.
+	  (HDLC) tty devices. These devices are often used for high-speed leased
+	  lines like T1/E1.
 
 	  To compile this driver as a module, choose M here.
 

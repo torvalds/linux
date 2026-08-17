@@ -1,0 +1,34 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/fpga/altr,a10-pr-ip.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Altera Arria10 Partial Reconfiguration IP
+
+maintainers:
+  - Matthew Gerlach <matthew.gerlach@linux.intel.com>
+
+description:
+  The Altera Arria 10 Partial Reconfiguration IP core allows the host
+  processor to perform partial reconfiguration of the FPGA fabric.
+
+properties:
+  compatible:
+    const: altr,a10-pr-ip
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    fpga-mgr@ff20c000 {
+        compatible = "altr,a10-pr-ip";
+        reg = <0xff20c000 0x10>;
+    };

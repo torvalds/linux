@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2005-2014, 2018-2025 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2026 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -1294,8 +1294,9 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 
 			if (tlv_len != sizeof(*fseq_ver))
 				goto invalid_tlv_len;
-			IWL_DEBUG_INFO(drv, "TLV_FW_FSEQ_VERSION: %.32s\n",
-				       fseq_ver->version);
+			IWL_DEBUG_INFO(drv,
+				       "TLV_FW_FSEQ_VERSION: %.32s (sha1: %.20s)\n",
+				       fseq_ver->version, fseq_ver->sha1);
 			}
 			break;
 		case IWL_UCODE_TLV_FW_NUM_STATIONS:
@@ -1328,6 +1329,18 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			if (tlv_len != sizeof(u32))
 				goto invalid_tlv_len;
 			capa->num_beacons =
+				le32_to_cpup((const __le32 *)tlv_data);
+			break;
+		case IWL_UCODE_TLV_FW_NUM_MCAST_KEY_ENTRIES:
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			capa->num_mcast_key_entries =
+				le32_to_cpup((const __le32 *)tlv_data);
+			break;
+		case IWL_UCODE_TLV_FW_NAN_MAX_CHAN_SWITCH_TIME:
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			capa->nan_max_chan_switch_time =
 				le32_to_cpup((const __le32 *)tlv_data);
 			break;
 		case IWL_UCODE_TLV_UMAC_DEBUG_ADDRS: {
@@ -1640,6 +1653,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	fw->ucode_capa.n_scan_channels = IWL_DEFAULT_SCAN_CHANNELS;
 	fw->ucode_capa.num_stations = IWL_STATION_COUNT_MAX;
 	fw->ucode_capa.num_beacons = 1;
+	fw->ucode_capa.num_mcast_key_entries = 2;
 	/* dump all fw memory areas by default */
 	fw->dbg.dump_mask = 0xffffffff;
 

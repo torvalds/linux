@@ -15,7 +15,6 @@
 #include <linux/irq.h>
 #include <linux/irq_work.h>
 #include <linux/i2c.h>
-#include <linux/mod_devicetable.h>
 #include <linux/regmap.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
@@ -586,11 +585,11 @@ static const struct iio_info atlas_info = {
 };
 
 static const struct i2c_device_id atlas_id[] = {
-	{ "atlas-ph-sm", (kernel_ulong_t)&atlas_devices[ATLAS_PH_SM] },
-	{ "atlas-ec-sm", (kernel_ulong_t)&atlas_devices[ATLAS_EC_SM] },
-	{ "atlas-orp-sm", (kernel_ulong_t)&atlas_devices[ATLAS_ORP_SM] },
-	{ "atlas-do-sm", (kernel_ulong_t)&atlas_devices[ATLAS_DO_SM] },
-	{ "atlas-rtd-sm", (kernel_ulong_t)&atlas_devices[ATLAS_RTD_SM] },
+	{ .name = "atlas-ph-sm", .driver_data = (kernel_ulong_t)&atlas_devices[ATLAS_PH_SM] },
+	{ .name = "atlas-ec-sm", .driver_data = (kernel_ulong_t)&atlas_devices[ATLAS_EC_SM] },
+	{ .name = "atlas-orp-sm", .driver_data = (kernel_ulong_t)&atlas_devices[ATLAS_ORP_SM] },
+	{ .name = "atlas-do-sm", .driver_data = (kernel_ulong_t)&atlas_devices[ATLAS_DO_SM] },
+	{ .name = "atlas-rtd-sm", .driver_data = (kernel_ulong_t)&atlas_devices[ATLAS_RTD_SM] },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, atlas_id);

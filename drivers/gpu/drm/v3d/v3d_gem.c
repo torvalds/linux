@@ -36,13 +36,6 @@ v3d_init_core(struct v3d_dev *v3d, int core)
 	V3D_CORE_WRITE(core, V3D_CTL_L2TFLEND, ~0);
 }
 
-/* Sets invariant state for the HW. */
-static void
-v3d_init_hw_state(struct v3d_dev *v3d)
-{
-	v3d_init_core(v3d, 0);
-}
-
 static void
 v3d_idle_axi(struct v3d_dev *v3d, int core)
 {
@@ -213,6 +206,14 @@ v3d_clean_caches(struct v3d_dev *v3d)
 
 	trace_v3d_cache_clean_begin(dev);
 
+	/* GFXH-1897: Ensure pending flushes complete before writing L2TCACTL */
+	if (v3d->ver < V3D_GEN_71) {
+		if (wait_for(!(V3D_CORE_READ(core, V3D_CTL_L2TCACTL) &
+			       V3D_L2TCACTL_L2TFLS), 100)) {
+			drm_err(dev, "Timeout waiting for L2T clean\n");
+		}
+	}
+
 	V3D_CORE_WRITE(core, V3D_CTL_L2TCACTL, V3D_L2TCACTL_TMUWCF);
 	if (wait_for(!(V3D_CORE_READ(core, V3D_CTL_L2TCACTL) &
 		       V3D_L2TCACTL_TMUWCF), 100)) {
@@ -257,6 +258,13 @@ v3d_invalidate_caches(struct v3d_dev *v3d)
 	v3d_invalidate_l2c(v3d, 0);
 	v3d_flush_l2t(v3d, 0);
 	v3d_invalidate_slices(v3d, 0);
+}
+
+/* Sets invariant state for the HW. */
+void
+v3d_init_hw_state(struct v3d_dev *v3d)
+{
+	v3d_init_core(v3d, 0);
 }
 
 static void
@@ -327,9 +335,6 @@ v3d_gem_init(struct drm_device *dev)
 		ret = -ENOMEM;
 		goto err_dma_alloc;
 	}
-
-	v3d_init_hw_state(v3d);
-	v3d_mmu_set_page_table(v3d);
 
 	v3d_huge_mnt_init(v3d);
 

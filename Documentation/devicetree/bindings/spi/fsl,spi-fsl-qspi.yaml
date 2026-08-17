@@ -21,6 +21,9 @@ properties:
           - fsl,ls2080a-qspi
           - spacemit,k1-qspi
       - items:
+          - const: spacemit,k3-qspi
+          - const: spacemit,k1-qspi
+      - items:
           - enum:
               - fsl,ls1043a-qspi
           - const: fsl,ls1021a-qspi

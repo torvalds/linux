@@ -34,10 +34,6 @@
 	(FIELD_GET(CXLMDEV_RESET_NEEDED_MASK, status) !=                       \
 	 CXLMDEV_RESET_NEEDED_NOT)
 
-struct cxl_memdev_attach {
-	int (*probe)(struct cxl_memdev *cxlmd);
-};
-
 /**
  * struct cxl_memdev - CXL bus object representing a Type-3 Memory Device
  * @dev: driver core device object
@@ -101,10 +97,36 @@ static inline bool is_cxl_endpoint(struct cxl_port *port)
 	return is_cxl_memdev(port->uport_dev);
 }
 
+struct cxl_memdev_attach {
+	int (*probe)(struct cxl_memdev *cxlmd);
+};
+
+/**
+ * struct cxl_attach_region - coordinate mapping a region at memdev registration
+ * @attach: common core attachment descriptor
+ * @hpa_range: physical address range of the region
+ *
+ * For the common simple case of a CXL device with private (non-general purpose
+ * / "accelerator") memory, enumerate firmware instantiated region, or
+ * instantiate a region for the device's capacity. Destroy the region on detach.
+ */
+struct cxl_attach_region {
+	struct cxl_memdev_attach attach;
+	struct range hpa_range;
+};
+
+#ifdef CONFIG_CXL_REGION
+int cxl_memdev_attach_region(struct cxl_memdev *cxlmd);
+#else
+static inline int cxl_memdev_attach_region(struct cxl_memdev *cxlmd)
+{
+	return -EOPNOTSUPP;
+}
+#endif
+
+struct cxl_memdev *devm_cxl_add_classdev(struct cxl_dev_state *cxlds);
 struct cxl_memdev *__devm_cxl_add_memdev(struct cxl_dev_state *cxlds,
 					 const struct cxl_memdev_attach *attach);
-struct cxl_memdev *devm_cxl_add_memdev(struct cxl_dev_state *cxlds,
-				       const struct cxl_memdev_attach *attach);
 int devm_cxl_sanitize_setup_notifier(struct device *host,
 				     struct cxl_memdev *cxlmd);
 struct cxl_memdev_state;

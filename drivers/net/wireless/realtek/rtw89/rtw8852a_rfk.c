@@ -334,8 +334,8 @@ static void _check_addc(struct rtw89_dev *rtwdev, enum rtw89_rf_path path)
 
 	for (i = 0; i < ADDC_T_AVG; i++) {
 		tmp = rtw89_phy_read32_mask(rtwdev, R_DBG32_D, MASKDWORD);
-		dc_re += sign_extend32(FIELD_GET(0xfff000, tmp), 11);
-		dc_im += sign_extend32(FIELD_GET(0xfff, tmp), 11);
+		dc_re += FIELD_GET_SIGNED(0xfff000, tmp);
+		dc_im += FIELD_GET_SIGNED(0xfff, tmp);
 	}
 
 	dc_re /= ADDC_T_AVG;

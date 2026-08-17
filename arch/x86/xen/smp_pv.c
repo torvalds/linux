@@ -400,7 +400,7 @@ static void xen_pv_stop_other_cpus(int wait)
 static irqreturn_t xen_irq_work_interrupt(int irq, void *dev_id)
 {
 	irq_work_run();
-	inc_irq_stat(apic_irq_work_irqs);
+	inc_irq_stat(IRQ_WORK);
 
 	return IRQ_HANDLED;
 }

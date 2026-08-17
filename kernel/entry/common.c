@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 
-#include <linux/irq-entry-common.h>
-#include <linux/resume_user_mode.h>
+#include <linux/futex.h>
 #include <linux/highmem.h>
+#include <linux/irq-entry-common.h>
 #include <linux/jump_label.h>
 #include <linux/kmsan.h>
 #include <linux/livepatch.h>
+#include <linux/resume_user_mode.h>
 #include <linux/tick.h>
 
 /* Workaround to allow gradual conversion of architecture code */
@@ -60,8 +61,10 @@ static __always_inline unsigned long __exit_to_user_mode_loop(struct pt_regs *re
 		if (ti_work & _TIF_PATCH_PENDING)
 			klp_update_patch_state(current);
 
-		if (ti_work & (_TIF_SIGPENDING | _TIF_NOTIFY_SIGNAL))
+		if (ti_work & (_TIF_SIGPENDING | _TIF_NOTIFY_SIGNAL)) {
+			futex_fixup_robust_unlock(regs);
 			arch_do_signal_or_restart(regs);
+		}
 
 		if (ti_work & _TIF_NOTIFY_RESUME)
 			resume_user_mode_work(regs);

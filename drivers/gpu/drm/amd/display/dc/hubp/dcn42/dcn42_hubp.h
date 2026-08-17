@@ -48,6 +48,25 @@
 	HUBP_SF(CURSOR0_0_HUBP_3DLUT_ADDRESS_LOW, HUBP_3DLUT_ADDRESS_LOW, mask_sh),\
 	HUBP_SF(CURSOR0_0_HUBP_3DLUT_DLG_PARAM, REFCYC_PER_3DLUT_GROUP, mask_sh)
 
+#define HUBP_MASK_SH_LIST_DCN42B(mask_sh)\
+	HUBP_MASK_SH_LIST_DCN35(mask_sh),\
+	HUBP_SF(HUBP0_3DLUT_FL_CONFIG, HUBP0_3DLUT_FL_MODE, mask_sh),\
+	HUBP_SF(HUBP0_3DLUT_FL_CONFIG, HUBP0_3DLUT_FL_FORMAT, mask_sh),\
+	HUBP_SF(HUBP0_3DLUT_FL_BIAS_SCALE, HUBP0_3DLUT_FL_BIAS, mask_sh),\
+	HUBP_SF(HUBP0_3DLUT_FL_BIAS_SCALE, HUBP0_3DLUT_FL_SCALE, mask_sh),\
+	HUBP_SF(CURSOR0_0_HUBP_3DLUT_CONTROL, HUBP_3DLUT_ENABLE, mask_sh),\
+	HUBP_SF(CURSOR0_0_HUBP_3DLUT_CONTROL, HUBP_3DLUT_DONE, mask_sh),\
+	HUBP_SF(CURSOR0_0_HUBP_3DLUT_CONTROL, HUBP_3DLUT_ADDRESSING_MODE, mask_sh),\
+	HUBP_SF(CURSOR0_0_HUBP_3DLUT_CONTROL, HUBP_3DLUT_WIDTH, mask_sh),\
+	HUBP_SF(CURSOR0_0_HUBP_3DLUT_CONTROL, HUBP_3DLUT_MPC_WIDTH, mask_sh),\
+	HUBP_SF(CURSOR0_0_HUBP_3DLUT_CONTROL, HUBP_3DLUT_TMZ, mask_sh),\
+	HUBP_SF(CURSOR0_0_HUBP_3DLUT_CONTROL, HUBP_3DLUT_CROSSBAR_SEL_B, mask_sh),\
+	HUBP_SF(CURSOR0_0_HUBP_3DLUT_CONTROL, HUBP_3DLUT_CROSSBAR_SEL_G, mask_sh),\
+	HUBP_SF(CURSOR0_0_HUBP_3DLUT_CONTROL, HUBP_3DLUT_CROSSBAR_SEL_R, mask_sh),\
+	HUBP_SF(CURSOR0_0_HUBP_3DLUT_ADDRESS_HIGH, HUBP_3DLUT_ADDRESS_HIGH, mask_sh),\
+	HUBP_SF(CURSOR0_0_HUBP_3DLUT_ADDRESS_LOW, HUBP_3DLUT_ADDRESS_LOW, mask_sh),\
+	HUBP_SF(CURSOR0_0_HUBP_3DLUT_DLG_PARAM, REFCYC_PER_3DLUT_GROUP, mask_sh)
+
 struct dml2_display_rq_regs;
 
 bool hubp42_construct(
@@ -58,11 +77,11 @@ bool hubp42_construct(
 	const struct dcn_hubp2_shift *hubp_shift,
 	const struct dcn_hubp2_mask *hubp_mask);
 
-void hubp42_program_3dlut_fl_crossbar(struct hubp *hubp,
-		const enum dc_cm_lut_pixel_format format);
-
-void hubp42_program_3dlut_fl_config(struct hubp *hubp,
-		const struct dc_3dlut_dma *config);
+void hubp42_program_3dlut_fl_crossbar(
+	struct hubp *hubp,
+	enum hubp_3dlut_fl_crossbar_bit_slice bit_slice_r,
+	enum hubp_3dlut_fl_crossbar_bit_slice bit_slice_g,
+	enum hubp_3dlut_fl_crossbar_bit_slice bit_slice_b);
 
 void hubp42_read_state(struct hubp *hubp);
 

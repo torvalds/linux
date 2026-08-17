@@ -99,7 +99,7 @@ operations:
       flags: [admin-perm]
       do:
         request:
-          attributes:
+          attributes: &id-attrs
             - node-id
             - error-id
         reply:
@@ -113,3 +113,14 @@ operations:
             - node-id
         reply:
           attributes: *errorinfo
+    -
+      name: clear-error-counter
+      doc: >-
+           Clear error counter for a given node.
+           The request includes the error-id and node-id of the
+           counter to be cleared.
+      attribute-set: error-counter-attrs
+      flags: [admin-perm]
+      do:
+        request:
+          attributes: *id-attrs

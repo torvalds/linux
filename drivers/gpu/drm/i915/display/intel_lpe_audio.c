@@ -70,11 +70,11 @@
 
 #include <drm/drm_print.h>
 #include <drm/intel/intel_lpe_audio.h>
+#include <drm/intel/pci_config.h>
 
 #include "intel_audio_regs.h"
 #include "intel_de.h"
 #include "intel_lpe_audio.h"
-#include "intel_pci_config.h"
 
 #define HAS_LPE_AUDIO(display) ((display)->audio.lpe.platdev)
 

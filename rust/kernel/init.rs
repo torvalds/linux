@@ -151,6 +151,7 @@ pub trait InPlaceInit<T>: Sized {
     /// type.
     ///
     /// If `T: !Unpin` it will not be able to move afterwards.
+    #[inline]
     fn pin_init<E>(init: impl PinInit<T, E>, flags: Flags) -> error::Result<Self::PinnedSelf>
     where
         Error: From<E>,
@@ -168,6 +169,7 @@ pub trait InPlaceInit<T>: Sized {
         E: From<AllocError>;
 
     /// Use the given initializer to in-place initialize a `T`.
+    #[inline]
     fn init<E>(init: impl Init<T, E>, flags: Flags) -> error::Result<Self>
     where
         Error: From<E>,

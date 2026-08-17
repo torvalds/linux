@@ -18,6 +18,7 @@
 #include "rkvdec-regs.h"
 #include "rkvdec-cabac.h"
 #include "rkvdec-hevc-common.h"
+#include "rkvdec-bitwriter.h"
 
 /* Size in u8/u32 units. */
 #define RKV_SCALING_LIST_SIZE		1360
@@ -34,80 +35,72 @@ struct rkvdec_rps_packet {
 	u32 info[RKV_RPS_SIZE];
 };
 
-struct rkvdec_ps_field {
-	u16 offset;
-	u8 len;
-};
-
-#define PS_FIELD(_offset, _len) \
-	((struct rkvdec_ps_field){ _offset, _len })
-
 /* SPS */
-#define VIDEO_PARAMETER_SET_ID				PS_FIELD(0, 4)
-#define SEQ_PARAMETER_SET_ID				PS_FIELD(4, 4)
-#define CHROMA_FORMAT_IDC				PS_FIELD(8, 2)
-#define PIC_WIDTH_IN_LUMA_SAMPLES			PS_FIELD(10, 13)
-#define PIC_HEIGHT_IN_LUMA_SAMPLES			PS_FIELD(23, 13)
-#define BIT_DEPTH_LUMA					PS_FIELD(36, 4)
-#define BIT_DEPTH_CHROMA				PS_FIELD(40, 4)
-#define LOG2_MAX_PIC_ORDER_CNT_LSB			PS_FIELD(44, 5)
-#define LOG2_DIFF_MAX_MIN_LUMA_CODING_BLOCK_SIZE	PS_FIELD(49, 2)
-#define LOG2_MIN_LUMA_CODING_BLOCK_SIZE			PS_FIELD(51, 3)
-#define LOG2_MIN_TRANSFORM_BLOCK_SIZE			PS_FIELD(54, 3)
-#define LOG2_DIFF_MAX_MIN_LUMA_TRANSFORM_BLOCK_SIZE	PS_FIELD(57, 2)
-#define MAX_TRANSFORM_HIERARCHY_DEPTH_INTER		PS_FIELD(59, 3)
-#define MAX_TRANSFORM_HIERARCHY_DEPTH_INTRA		PS_FIELD(62, 3)
-#define SCALING_LIST_ENABLED_FLAG			PS_FIELD(65, 1)
-#define AMP_ENABLED_FLAG				PS_FIELD(66, 1)
-#define SAMPLE_ADAPTIVE_OFFSET_ENABLED_FLAG		PS_FIELD(67, 1)
-#define PCM_ENABLED_FLAG				PS_FIELD(68, 1)
-#define PCM_SAMPLE_BIT_DEPTH_LUMA			PS_FIELD(69, 4)
-#define PCM_SAMPLE_BIT_DEPTH_CHROMA			PS_FIELD(73, 4)
-#define PCM_LOOP_FILTER_DISABLED_FLAG			PS_FIELD(77, 1)
-#define LOG2_DIFF_MAX_MIN_PCM_LUMA_CODING_BLOCK_SIZE	PS_FIELD(78, 3)
-#define LOG2_MIN_PCM_LUMA_CODING_BLOCK_SIZE		PS_FIELD(81, 3)
-#define NUM_SHORT_TERM_REF_PIC_SETS			PS_FIELD(84, 7)
-#define LONG_TERM_REF_PICS_PRESENT_FLAG			PS_FIELD(91, 1)
-#define NUM_LONG_TERM_REF_PICS_SPS			PS_FIELD(92, 6)
-#define SPS_TEMPORAL_MVP_ENABLED_FLAG			PS_FIELD(98, 1)
-#define STRONG_INTRA_SMOOTHING_ENABLED_FLAG		PS_FIELD(99, 1)
+#define VIDEO_PARAMETER_SET_ID				BW_FIELD(0, 4)
+#define SEQ_PARAMETER_SET_ID				BW_FIELD(4, 4)
+#define CHROMA_FORMAT_IDC				BW_FIELD(8, 2)
+#define PIC_WIDTH_IN_LUMA_SAMPLES			BW_FIELD(10, 13)
+#define PIC_HEIGHT_IN_LUMA_SAMPLES			BW_FIELD(23, 13)
+#define BIT_DEPTH_LUMA					BW_FIELD(36, 4)
+#define BIT_DEPTH_CHROMA				BW_FIELD(40, 4)
+#define LOG2_MAX_PIC_ORDER_CNT_LSB			BW_FIELD(44, 5)
+#define LOG2_DIFF_MAX_MIN_LUMA_CODING_BLOCK_SIZE	BW_FIELD(49, 2)
+#define LOG2_MIN_LUMA_CODING_BLOCK_SIZE			BW_FIELD(51, 3)
+#define LOG2_MIN_TRANSFORM_BLOCK_SIZE			BW_FIELD(54, 3)
+#define LOG2_DIFF_MAX_MIN_LUMA_TRANSFORM_BLOCK_SIZE	BW_FIELD(57, 2)
+#define MAX_TRANSFORM_HIERARCHY_DEPTH_INTER		BW_FIELD(59, 3)
+#define MAX_TRANSFORM_HIERARCHY_DEPTH_INTRA		BW_FIELD(62, 3)
+#define SCALING_LIST_ENABLED_FLAG			BW_FIELD(65, 1)
+#define AMP_ENABLED_FLAG				BW_FIELD(66, 1)
+#define SAMPLE_ADAPTIVE_OFFSET_ENABLED_FLAG		BW_FIELD(67, 1)
+#define PCM_ENABLED_FLAG				BW_FIELD(68, 1)
+#define PCM_SAMPLE_BIT_DEPTH_LUMA			BW_FIELD(69, 4)
+#define PCM_SAMPLE_BIT_DEPTH_CHROMA			BW_FIELD(73, 4)
+#define PCM_LOOP_FILTER_DISABLED_FLAG			BW_FIELD(77, 1)
+#define LOG2_DIFF_MAX_MIN_PCM_LUMA_CODING_BLOCK_SIZE	BW_FIELD(78, 3)
+#define LOG2_MIN_PCM_LUMA_CODING_BLOCK_SIZE		BW_FIELD(81, 3)
+#define NUM_SHORT_TERM_REF_PIC_SETS			BW_FIELD(84, 7)
+#define LONG_TERM_REF_PICS_PRESENT_FLAG			BW_FIELD(91, 1)
+#define NUM_LONG_TERM_REF_PICS_SPS			BW_FIELD(92, 6)
+#define SPS_TEMPORAL_MVP_ENABLED_FLAG			BW_FIELD(98, 1)
+#define STRONG_INTRA_SMOOTHING_ENABLED_FLAG		BW_FIELD(99, 1)
 /* PPS */
-#define PIC_PARAMETER_SET_ID				PS_FIELD(128, 6)
-#define PPS_SEQ_PARAMETER_SET_ID			PS_FIELD(134, 4)
-#define DEPENDENT_SLICE_SEGMENTS_ENABLED_FLAG		PS_FIELD(138, 1)
-#define OUTPUT_FLAG_PRESENT_FLAG			PS_FIELD(139, 1)
-#define NUM_EXTRA_SLICE_HEADER_BITS			PS_FIELD(140, 13)
-#define SIGN_DATA_HIDING_ENABLED_FLAG			PS_FIELD(153, 1)
-#define CABAC_INIT_PRESENT_FLAG				PS_FIELD(154, 1)
-#define NUM_REF_IDX_L0_DEFAULT_ACTIVE			PS_FIELD(155, 4)
-#define NUM_REF_IDX_L1_DEFAULT_ACTIVE			PS_FIELD(159, 4)
-#define INIT_QP_MINUS26					PS_FIELD(163, 7)
-#define CONSTRAINED_INTRA_PRED_FLAG			PS_FIELD(170, 1)
-#define TRANSFORM_SKIP_ENABLED_FLAG			PS_FIELD(171, 1)
-#define CU_QP_DELTA_ENABLED_FLAG			PS_FIELD(172, 1)
-#define LOG2_MIN_CU_QP_DELTA_SIZE			PS_FIELD(173, 3)
-#define PPS_CB_QP_OFFSET				PS_FIELD(176, 5)
-#define PPS_CR_QP_OFFSET				PS_FIELD(181, 5)
-#define PPS_SLICE_CHROMA_QP_OFFSETS_PRESENT_FLAG	PS_FIELD(186, 1)
-#define WEIGHTED_PRED_FLAG				PS_FIELD(187, 1)
-#define WEIGHTED_BIPRED_FLAG				PS_FIELD(188, 1)
-#define TRANSQUANT_BYPASS_ENABLED_FLAG			PS_FIELD(189, 1)
-#define TILES_ENABLED_FLAG				PS_FIELD(190, 1)
-#define ENTROPY_CODING_SYNC_ENABLED_FLAG		PS_FIELD(191, 1)
-#define PPS_LOOP_FILTER_ACROSS_SLICES_ENABLED_FLAG	PS_FIELD(192, 1)
-#define LOOP_FILTER_ACROSS_TILES_ENABLED_FLAG		PS_FIELD(193, 1)
-#define DEBLOCKING_FILTER_OVERRIDE_ENABLED_FLAG		PS_FIELD(194, 1)
-#define PPS_DEBLOCKING_FILTER_DISABLED_FLAG		PS_FIELD(195, 1)
-#define PPS_BETA_OFFSET_DIV2				PS_FIELD(196, 4)
-#define PPS_TC_OFFSET_DIV2				PS_FIELD(200, 4)
-#define LISTS_MODIFICATION_PRESENT_FLAG			PS_FIELD(204, 1)
-#define LOG2_PARALLEL_MERGE_LEVEL			PS_FIELD(205, 3)
-#define SLICE_SEGMENT_HEADER_EXTENSION_PRESENT_FLAG	PS_FIELD(208, 1)
-#define NUM_TILE_COLUMNS				PS_FIELD(212, 5)
-#define NUM_TILE_ROWS					PS_FIELD(217, 5)
-#define COLUMN_WIDTH(i)					PS_FIELD(256 + ((i) * 8), 8)
-#define ROW_HEIGHT(i)					PS_FIELD(416 + ((i) * 8), 8)
-#define SCALING_LIST_ADDRESS				PS_FIELD(592, 32)
+#define PIC_PARAMETER_SET_ID				BW_FIELD(128, 6)
+#define PPS_SEQ_PARAMETER_SET_ID			BW_FIELD(134, 4)
+#define DEPENDENT_SLICE_SEGMENTS_ENABLED_FLAG		BW_FIELD(138, 1)
+#define OUTPUT_FLAG_PRESENT_FLAG			BW_FIELD(139, 1)
+#define NUM_EXTRA_SLICE_HEADER_BITS			BW_FIELD(140, 13)
+#define SIGN_DATA_HIDING_ENABLED_FLAG			BW_FIELD(153, 1)
+#define CABAC_INIT_PRESENT_FLAG				BW_FIELD(154, 1)
+#define NUM_REF_IDX_L0_DEFAULT_ACTIVE			BW_FIELD(155, 4)
+#define NUM_REF_IDX_L1_DEFAULT_ACTIVE			BW_FIELD(159, 4)
+#define INIT_QP_MINUS26					BW_FIELD(163, 7)
+#define CONSTRAINED_INTRA_PRED_FLAG			BW_FIELD(170, 1)
+#define TRANSFORM_SKIP_ENABLED_FLAG			BW_FIELD(171, 1)
+#define CU_QP_DELTA_ENABLED_FLAG			BW_FIELD(172, 1)
+#define LOG2_MIN_CU_QP_DELTA_SIZE			BW_FIELD(173, 3)
+#define PPS_CB_QP_OFFSET				BW_FIELD(176, 5)
+#define PPS_CR_QP_OFFSET				BW_FIELD(181, 5)
+#define PPS_SLICE_CHROMA_QP_OFFSETS_PRESENT_FLAG	BW_FIELD(186, 1)
+#define WEIGHTED_PRED_FLAG				BW_FIELD(187, 1)
+#define WEIGHTED_BIPRED_FLAG				BW_FIELD(188, 1)
+#define TRANSQUANT_BYPASS_ENABLED_FLAG			BW_FIELD(189, 1)
+#define TILES_ENABLED_FLAG				BW_FIELD(190, 1)
+#define ENTROPY_CODING_SYNC_ENABLED_FLAG		BW_FIELD(191, 1)
+#define PPS_LOOP_FILTER_ACROSS_SLICES_ENABLED_FLAG	BW_FIELD(192, 1)
+#define LOOP_FILTER_ACROSS_TILES_ENABLED_FLAG		BW_FIELD(193, 1)
+#define DEBLOCKING_FILTER_OVERRIDE_ENABLED_FLAG		BW_FIELD(194, 1)
+#define PPS_DEBLOCKING_FILTER_DISABLED_FLAG		BW_FIELD(195, 1)
+#define PPS_BETA_OFFSET_DIV2				BW_FIELD(196, 4)
+#define PPS_TC_OFFSET_DIV2				BW_FIELD(200, 4)
+#define LISTS_MODIFICATION_PRESENT_FLAG			BW_FIELD(204, 1)
+#define LOG2_PARALLEL_MERGE_LEVEL			BW_FIELD(205, 3)
+#define SLICE_SEGMENT_HEADER_EXTENSION_PRESENT_FLAG	BW_FIELD(208, 1)
+#define NUM_TILE_COLUMNS				BW_FIELD(212, 5)
+#define NUM_TILE_ROWS					BW_FIELD(217, 5)
+#define COLUMN_WIDTH(i)					BW_FIELD(256 + ((i) * 8), 8)
+#define ROW_HEIGHT(i)					BW_FIELD(416 + ((i) * 8), 8)
+#define SCALING_LIST_ADDRESS				BW_FIELD(592, 32)
 
 /* Data structure describing auxiliary buffer format. */
 struct rkvdec_hevc_priv_tbl {
@@ -122,20 +115,6 @@ struct rkvdec_hevc_ctx {
 	struct v4l2_ctrl_hevc_scaling_matrix scaling_matrix_cache;
 	struct rkvdec_regs regs;
 };
-
-static void set_ps_field(u32 *buf, struct rkvdec_ps_field field, u32 value)
-{
-	u8 bit = field.offset % 32, word = field.offset / 32;
-	u64 mask = GENMASK_ULL(bit + field.len - 1, bit);
-	u64 val = ((u64)value << bit) & mask;
-
-	buf[word] &= ~mask;
-	buf[word] |= val;
-	if (bit + field.len > 32) {
-		buf[word + 1] &= ~(mask >> 32);
-		buf[word + 1] |= val >> 32;
-	}
-}
 
 static void assemble_hw_pps(struct rkvdec_ctx *ctx,
 			    struct rkvdec_hevc_run *run)
@@ -159,7 +138,7 @@ static void assemble_hw_pps(struct rkvdec_ctx *ctx,
 	hw_ps = &priv_tbl->param_set[pps->pic_parameter_set_id];
 	memset(hw_ps, 0, sizeof(*hw_ps));
 
-#define WRITE_PPS(value, field) set_ps_field(hw_ps->info, field, value)
+#define WRITE_PPS(value, field) rkvdec_set_bw_field(hw_ps->info, field, value)
 	/* write sps */
 	WRITE_PPS(sps->video_parameter_set_id, VIDEO_PARAMETER_SET_ID);
 	WRITE_PPS(sps->seq_parameter_set_id, SEQ_PARAMETER_SET_ID);
@@ -321,17 +300,17 @@ static void assemble_sw_rps(struct rkvdec_ctx *ctx,
 	int i, j;
 	unsigned int lowdelay;
 
-#define WRITE_RPS(value, field) set_ps_field(hw_ps->info, field, value)
+#define WRITE_RPS(value, field) rkvdec_set_bw_field(hw_ps->info, field, value)
 
-#define REF_PIC_LONG_TERM_L0(i)			PS_FIELD((i) * 5, 1)
-#define REF_PIC_IDX_L0(i)			PS_FIELD(1 + ((i) * 5), 4)
-#define REF_PIC_LONG_TERM_L1(i)			PS_FIELD(((i) < 5 ? 75 : 132) + ((i) * 5), 1)
-#define REF_PIC_IDX_L1(i)			PS_FIELD(((i) < 4 ? 76 : 128) + ((i) * 5), 4)
+#define REF_PIC_LONG_TERM_L0(n)			BW_FIELD((n) * 5, 1)
+#define REF_PIC_IDX_L0(n)			BW_FIELD(1 + ((n) * 5), 4)
+#define REF_PIC_LONG_TERM_L1(n)			BW_FIELD(((n) < 5 ? 75 : 132) + ((n) * 5), 1)
+#define REF_PIC_IDX_L1(n)			BW_FIELD(((n) < 4 ? 76 : 128) + ((n) * 5), 4)
 
-#define LOWDELAY				PS_FIELD(182, 1)
-#define LONG_TERM_RPS_BIT_OFFSET		PS_FIELD(183, 10)
-#define SHORT_TERM_RPS_BIT_OFFSET		PS_FIELD(193, 9)
-#define NUM_RPS_POC				PS_FIELD(202, 4)
+#define LOWDELAY				BW_FIELD(182, 1)
+#define LONG_TERM_RPS_BIT_OFFSET		BW_FIELD(183, 10)
+#define SHORT_TERM_RPS_BIT_OFFSET		BW_FIELD(193, 9)
+#define NUM_RPS_POC				BW_FIELD(202, 4)
 
 	for (j = 0; j < run->num_slices; j++) {
 		uint st_bit_offset = 0;

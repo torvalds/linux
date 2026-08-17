@@ -1060,7 +1060,7 @@ static int __init hvc_iucv_alloc(int id, unsigned int is_console)
 	INIT_DELAYED_WORK(&priv->sndbuf_work, hvc_iucv_sndbuf_work);
 	init_waitqueue_head(&priv->sndbuf_waitq);
 
-	priv->sndbuf = (void *) get_zeroed_page(GFP_KERNEL);
+	priv->sndbuf = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!priv->sndbuf) {
 		kfree(priv);
 		return -ENOMEM;
@@ -1103,7 +1103,7 @@ static int __init hvc_iucv_alloc(int id, unsigned int is_console)
 out_error_dev:
 	hvc_remove(priv->hvc);
 out_error_hvc:
-	free_page((unsigned long) priv->sndbuf);
+	kfree(priv->sndbuf);
 	kfree(priv);
 
 	return rc;
@@ -1116,7 +1116,7 @@ static void __init hvc_iucv_destroy(struct hvc_iucv_private *priv)
 {
 	hvc_remove(priv->hvc);
 	device_unregister(priv->dev);
-	free_page((unsigned long) priv->sndbuf);
+	kfree(priv->sndbuf);
 	kfree(priv);
 }
 

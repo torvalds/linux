@@ -778,17 +778,13 @@ static int ak4619_dai_startup(struct snd_pcm_substream *substream,
 }
 
 static u64 ak4619_dai_formats[] = {
-	/*
-	 * Select below from Sound Card, not here
-	 *	SND_SOC_DAIFMT_CBC_CFC
-	 *	SND_SOC_DAIFMT_CBP_CFP
-	 */
-
 	/* First Priority */
 	SND_SOC_POSSIBLE_DAIFMT_I2S	|
 	SND_SOC_POSSIBLE_DAIFMT_LEFT_J,
 
 	/* Second Priority */
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|
 	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
 	SND_SOC_POSSIBLE_DAIFMT_DSP_B,
 };
@@ -831,7 +827,7 @@ static const struct of_device_id ak4619_of_match[] = {
 MODULE_DEVICE_TABLE(of, ak4619_of_match);
 
 static const struct i2c_device_id ak4619_i2c_id[] = {
-	{ "ak4619", (kernel_ulong_t)&ak4619_regmap_cfg },
+	{ .name = "ak4619", .driver_data = (kernel_ulong_t)&ak4619_regmap_cfg },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ak4619_i2c_id);

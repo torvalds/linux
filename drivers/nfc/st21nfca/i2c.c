@@ -572,8 +572,8 @@ static void st21nfca_hci_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id st21nfca_hci_i2c_id_table[] = {
-	{ ST21NFCA_HCI_DRIVER_NAME },
-	{}
+	{ .name = ST21NFCA_HCI_DRIVER_NAME },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, st21nfca_hci_i2c_id_table);
 

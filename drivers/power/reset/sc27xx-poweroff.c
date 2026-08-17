@@ -70,11 +70,18 @@ static int sc27xx_poweroff_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct platform_device_id sc27xx_poweroff_id_table[] = {
+	{ "sc2731-poweroff" },
+	{ }
+};
+MODULE_DEVICE_TABLE(platform, sc27xx_poweroff_id_table);
+
 static struct platform_driver sc27xx_poweroff_driver = {
 	.probe = sc27xx_poweroff_probe,
 	.driver = {
 		.name = "sc27xx-poweroff",
 	},
+	.id_table = sc27xx_poweroff_id_table,
 };
 module_platform_driver(sc27xx_poweroff_driver);
 

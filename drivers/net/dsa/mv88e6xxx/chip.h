@@ -454,6 +454,9 @@ struct mv88e6xxx_chip {
 
 	/* TCAM entries */
 	struct mv88e6xxx_tcam tcam;
+
+	/* Global2 scratch register config data3 */
+	u8 g2_scratch_config3;
 };
 
 #define TCAM_MATCH_SIZE 96
@@ -584,10 +587,6 @@ struct mv88e6xxx_ops {
 	 */
 	int (*port_set_speed_duplex)(struct mv88e6xxx_chip *chip, int port,
 				     int speed, int duplex);
-
-	/* What interface mode should be used for maximum speed? */
-	phy_interface_t (*port_max_speed_mode)(struct mv88e6xxx_chip *chip,
-					       int port);
 
 	int (*port_tag_remap)(struct mv88e6xxx_chip *chip, int port);
 

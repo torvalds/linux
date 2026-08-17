@@ -385,7 +385,19 @@ static u8 io_die_index_next;
 /* Lock to protect io_die_start, io_die_index_next */
 static DEFINE_MUTEX(domain_lock);
 
-static void set_domain_id(int id,  int num_resources,
+static inline void set_instance_id(int id, struct tpmi_uncore_cluster_info *cluster_info)
+{
+	/*
+	 * On non-partitioned systems domain_id can be used for mapping both
+	 * CPUs to compute die IDs and physical die indexes to MMIO mapped
+	 * memory. However on partitioned systems domain_id loses the second
+	 * association. Therefore instance_id should be used for that instead,
+	 * while domain_id should still be used to match CPUs to compute dies.
+	 */
+	cluster_info->uncore_data.instance_id = id;
+}
+
+static void set_domain_id(int id, int num_resources,
 			  struct oobmsm_plat_info *plat_info,
 			  struct tpmi_uncore_cluster_info *cluster_info)
 {
@@ -690,6 +702,7 @@ static int uncore_probe(struct auxiliary_device *auxdev, const struct auxiliary_
 			set_cdie_id(i, cluster_info, plat_info);
 
 			set_domain_id(i, num_resources, plat_info, cluster_info);
+			set_instance_id(i, cluster_info);
 
 			cluster_info->uncore_root = tpmi_uncore;
 

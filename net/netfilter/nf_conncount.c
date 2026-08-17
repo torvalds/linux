@@ -54,18 +54,22 @@ struct nf_conncount_rb {
 	struct rcu_head rcu_head;
 };
 
-static spinlock_t nf_conncount_locks[CONNCOUNT_SLOTS] __cacheline_aligned_in_smp;
+struct nf_conncount_root {
+	struct rb_root root;
+	spinlock_t lock;
+	seqcount_spinlock_t count;
+};
 
 struct nf_conncount_data {
 	unsigned int keylen;
-	struct rb_root root[CONNCOUNT_SLOTS];
+	u32 initval;
+	struct nf_conncount_root root[CONNCOUNT_SLOTS];
 	struct net *net;
 	struct work_struct gc_work;
 	unsigned long pending_trees[BITS_TO_LONGS(CONNCOUNT_SLOTS)];
 	unsigned int gc_tree;
 };
 
-static u_int32_t conncount_rnd __read_mostly;
 static struct kmem_cache *conncount_rb_cachep __read_mostly;
 static struct kmem_cache *conncount_conn_cachep __read_mostly;
 
@@ -179,17 +183,16 @@ static int __nf_conncount_add(struct net *net,
 		return -ENOENT;
 
 	if (ct && nf_ct_is_confirmed(ct)) {
-		/* local connections are confirmed in postrouting so confirmation
-		 * might have happened before hitting connlimit
+		/* Connection is confirmed but might still be in the setup phase.
+		 * Only skip the tracking if it is fully assured. This guarantees
+		 * that setup packets or retransmissions are properly counted and
+		 * deduplicated.
 		 */
-		if (skb->skb_iif != LOOPBACK_IFINDEX) {
+		if (test_bit(IPS_ASSURED_BIT, &ct->status)) {
 			err = -EEXIST;
 			goto out_put;
 		}
 
-		/* this is likely a local connection, skip optimization to avoid
-		 * adding duplicates from a 'packet train'
-		 */
 		goto check_connections;
 	}
 
@@ -367,19 +370,22 @@ static void __tree_nodes_free(struct rcu_head *h)
 	kmem_cache_free(conncount_rb_cachep, rbconn);
 }
 
-/* caller must hold tree nf_conncount_locks[] lock */
-static void tree_nodes_free(struct rb_root *root,
+static void tree_nodes_free(struct nf_conncount_root *root,
 			    struct nf_conncount_rb *gc_nodes[],
 			    unsigned int gc_count)
 {
 	struct nf_conncount_rb *rbconn;
 
+	lockdep_assert_held(&root->lock);
+
 	while (gc_count) {
 		rbconn = gc_nodes[--gc_count];
 		spin_lock(&rbconn->list.list_lock);
 		if (!rbconn->list.count) {
-			rb_erase(&rbconn->node, root);
+			write_seqcount_begin(&root->count);
+			rb_erase(&rbconn->node, &root->root);
 			call_rcu(&rbconn->rcu_head, __tree_nodes_free);
+			write_seqcount_end(&root->count);
 		}
 		spin_unlock(&rbconn->list.list_lock);
 	}
@@ -396,10 +402,10 @@ insert_tree(struct net *net,
 	    const struct sk_buff *skb,
 	    u16 l3num,
 	    struct nf_conncount_data *data,
-	    struct rb_root *root,
 	    unsigned int hash,
 	    const u32 *key)
 {
+	struct nf_conncount_root *root = &data->root[hash];
 	struct nf_conncount_rb *gc_nodes[CONNCOUNT_GC_MAX_NODES];
 	const struct nf_conntrack_zone *zone = &nf_ct_zone_dflt;
 	bool do_gc = true, refcounted = false;
@@ -410,10 +416,10 @@ insert_tree(struct net *net,
 	struct nf_conncount_rb *rbconn;
 	struct nf_conn *ct = NULL;
 
-	spin_lock_bh(&nf_conncount_locks[hash]);
+	spin_lock_bh(&root->lock);
 restart:
 	parent = NULL;
-	rbnode = &(root->rb_node);
+	rbnode = &root->root.rb_node;
 	while (*rbnode) {
 		int diff;
 		rbconn = rb_entry(*rbnode, struct nf_conncount_rb, node);
@@ -474,14 +480,51 @@ restart:
 		count = 1;
 		rbconn->list.count = count;
 
+		write_seqcount_begin(&root->count);
 		rb_link_node_rcu(&rbconn->node, parent, rbnode);
-		rb_insert_color(&rbconn->node, root);
+		rb_insert_color(&rbconn->node, &root->root);
+		write_seqcount_end(&root->count);
 	}
 out_unlock:
 	if (refcounted)
 		nf_ct_put(ct);
-	spin_unlock_bh(&nf_conncount_locks[hash]);
+	spin_unlock_bh(&root->lock);
 	return count;
+}
+
+static struct nf_conncount_rb *
+find_tree_node(struct nf_conncount_root *root, struct nf_conncount_data *data,
+	       const u32 *key)
+{
+	unsigned int seq = read_seqcount_begin(&root->count);
+	struct rb_node *parent;
+
+	parent = rcu_dereference_check(root->root.rb_node,
+				       lockdep_is_held(&root->lock));
+	while (parent) {
+		struct nf_conncount_rb *rbconn;
+		int diff;
+
+		rbconn = rb_entry(parent, struct nf_conncount_rb, node);
+
+		diff = key_diff(key, rbconn->key, data->keylen);
+		if (diff < 0)
+			parent = rcu_dereference_check(parent->rb_left,
+						       lockdep_is_held(&root->lock));
+		else if (diff > 0)
+			parent = rcu_dereference_check(parent->rb_right,
+						       lockdep_is_held(&root->lock));
+		else
+			return rbconn;
+
+		if (read_seqcount_retry(&root->count, seq))
+			return ERR_PTR(-EAGAIN);
+	}
+
+	if (read_seqcount_retry(&root->count, seq))
+		return ERR_PTR(-EAGAIN);
+
+	return ERR_PTR(-ENOENT);
 }
 
 static unsigned int
@@ -491,107 +534,114 @@ count_tree(struct net *net,
 	   struct nf_conncount_data *data,
 	   const u32 *key)
 {
-	struct rb_root *root;
-	struct rb_node *parent;
+	struct nf_conncount_root *root;
 	struct nf_conncount_rb *rbconn;
 	unsigned int hash;
+	int ret;
 
-	hash = jhash2(key, data->keylen, conncount_rnd) % CONNCOUNT_SLOTS;
+	hash = jhash2(key, data->keylen, data->initval) % CONNCOUNT_SLOTS;
 	root = &data->root[hash];
 
-	parent = rcu_dereference_raw(root->rb_node);
-	while (parent) {
-		int diff;
-
-		rbconn = rb_entry(parent, struct nf_conncount_rb, node);
-
-		diff = key_diff(key, rbconn->key, data->keylen);
-		if (diff < 0) {
-			parent = rcu_dereference_raw(parent->rb_left);
-		} else if (diff > 0) {
-			parent = rcu_dereference_raw(parent->rb_right);
-		} else {
-			int ret;
-
-			if (!skb) {
-				nf_conncount_gc_list(net, &rbconn->list);
-				return rbconn->list.count;
-			}
-
-			spin_lock_bh(&rbconn->list.list_lock);
-			/* Node might be about to be free'd.
-			 * We need to defer to insert_tree() in this case.
-			 */
-			if (rbconn->list.count == 0) {
-				spin_unlock_bh(&rbconn->list.list_lock);
-				break;
-			}
-
-			/* same source network -> be counted! */
-			ret = __nf_conncount_add(net, skb, l3num, &rbconn->list);
-			spin_unlock_bh(&rbconn->list.list_lock);
-			if (ret && ret != -EEXIST) {
-				return 0; /* hotdrop */
-			} else {
-				/* -EEXIST means add was skipped, update the list */
-				if (ret == -EEXIST)
-					nf_conncount_gc_list(net, &rbconn->list);
-				return rbconn->list.count;
-			}
+	rbconn = find_tree_node(root, data, key);
+	if (IS_ERR(rbconn)) {
+		if (PTR_ERR(rbconn) == -EAGAIN) {
+			spin_lock_bh(&root->lock);
+			rbconn = find_tree_node(root, data, key);
+			spin_unlock_bh(&root->lock);
 		}
+
+		if (PTR_ERR(rbconn) == -ENOENT) {
+			if (!skb)
+				return 0;
+
+			return insert_tree(net, skb, l3num, data, hash, key);
+		}
+		DEBUG_NET_WARN_ON_ONCE(IS_ERR(rbconn));
 	}
 
-	if (!skb)
+	DEBUG_NET_WARN_ON_ONCE(IS_ERR_OR_NULL(rbconn));
+	if (IS_ERR_OR_NULL(rbconn))
 		return 0;
 
-	return insert_tree(net, skb, l3num, data, root, hash, key);
+	if (!skb) {
+		nf_conncount_gc_list(net, &rbconn->list);
+		return rbconn->list.count;
+	}
+
+	spin_lock_bh(&rbconn->list.list_lock);
+	/* Node might be about to be free'd.
+	 * We need to defer to insert_tree() in this case.
+	 */
+	if (rbconn->list.count == 0) {
+		spin_unlock_bh(&rbconn->list.list_lock);
+		return insert_tree(net, skb, l3num, data, hash, key);
+	}
+
+	/* same source network -> be counted! */
+	ret = __nf_conncount_add(net, skb, l3num, &rbconn->list);
+	spin_unlock_bh(&rbconn->list.list_lock);
+
+	if (ret && ret != -EEXIST)
+		return 0; /* hotdrop */
+	/* -EEXIST means add was skipped, update the list */
+	if (ret == -EEXIST)
+		nf_conncount_gc_list(net, &rbconn->list);
+
+	return rbconn->list.count;
 }
 
 static void tree_gc_worker(struct work_struct *work)
 {
 	struct nf_conncount_data *data = container_of(work, struct nf_conncount_data, gc_work);
 	struct nf_conncount_rb *gc_nodes[CONNCOUNT_GC_MAX_NODES], *rbconn;
-	struct rb_root *root;
-	struct rb_node *node;
 	unsigned int tree, next_tree, gc_count = 0;
+	struct nf_conncount_root *root;
+	struct rb_node *node;
+
+	if (data->gc_tree == 0)
+		data->gc_tree = find_first_bit(data->pending_trees, CONNCOUNT_SLOTS);
 
 	tree = data->gc_tree % CONNCOUNT_SLOTS;
 	root = &data->root[tree];
 
-	local_bh_disable();
-	rcu_read_lock();
-	for (node = rb_first(root); node != NULL; node = rb_next(node)) {
-		rbconn = rb_entry(node, struct nf_conncount_rb, node);
-		if (nf_conncount_gc_list(data->net, &rbconn->list))
-			gc_count++;
-	}
-	rcu_read_unlock();
-	local_bh_enable();
-
-	cond_resched();
-
-	spin_lock_bh(&nf_conncount_locks[tree]);
-	if (gc_count < ARRAY_SIZE(gc_nodes))
-		goto next; /* do not bother */
-
+	spin_lock_bh(&root->lock);
 	gc_count = 0;
-	node = rb_first(root);
+	node = rb_first(&root->root);
 	while (node != NULL) {
+		u32 key[MAX_KEYLEN];
+		bool drop_lock;
+
 		rbconn = rb_entry(node, struct nf_conncount_rb, node);
 		node = rb_next(node);
 
-		if (rbconn->list.count > 0)
-			continue;
+		if (nf_conncount_gc_list(data->net, &rbconn->list))
+			gc_nodes[gc_count++] = rbconn;
 
-		gc_nodes[gc_count++] = rbconn;
-		if (gc_count >= ARRAY_SIZE(gc_nodes)) {
+		drop_lock = need_resched();
+
+		if (drop_lock || gc_count >= ARRAY_SIZE(gc_nodes)) {
 			tree_nodes_free(root, gc_nodes, gc_count);
 			gc_count = 0;
 		}
+
+		if (!drop_lock || !node)
+			continue;
+
+		rbconn = rb_entry(node, struct nf_conncount_rb, node);
+		memcpy(key, rbconn->key, sizeof(key));
+		spin_unlock_bh(&root->lock);
+
+		cond_resched();
+
+		spin_lock_bh(&root->lock);
+		rbconn = find_tree_node(root, data, key);
+		if (IS_ERR_OR_NULL(rbconn)) /* rbconn was reaped */
+			break;
+
+		node = &rbconn->node;
 	}
 
 	tree_nodes_free(root, gc_nodes, gc_count);
-next:
 	clear_bit(tree, data->pending_trees);
 
 	next_tree = (tree + 1) % CONNCOUNT_SLOTS;
@@ -600,9 +650,11 @@ next:
 	if (next_tree < CONNCOUNT_SLOTS) {
 		data->gc_tree = next_tree;
 		schedule_work(work);
+	} else {
+		data->gc_tree = 0;
 	}
 
-	spin_unlock_bh(&nf_conncount_locks[tree]);
+	spin_unlock_bh(&root->lock);
 }
 
 /* Count and return number of conntrack entries in 'net' with particular 'key'.
@@ -620,6 +672,13 @@ unsigned int nf_conncount_count_skb(struct net *net,
 }
 EXPORT_SYMBOL_GPL(nf_conncount_count_skb);
 
+static void nf_conncount_root_init(struct nf_conncount_root *r)
+{
+	r->root = RB_ROOT;
+	spin_lock_init(&r->lock);
+	seqcount_spinlock_init(&r->count, &r->lock);
+}
+
 struct nf_conncount_data *nf_conncount_init(struct net *net, unsigned int keylen)
 {
 	struct nf_conncount_data *data;
@@ -630,17 +689,16 @@ struct nf_conncount_data *nf_conncount_init(struct net *net, unsigned int keylen
 	    keylen == 0)
 		return ERR_PTR(-EINVAL);
 
-	net_get_random_once(&conncount_rnd, sizeof(conncount_rnd));
-
-	data = kmalloc_obj(*data);
+	data = kvzalloc_obj(*data);
 	if (!data)
 		return ERR_PTR(-ENOMEM);
 
 	for (i = 0; i < ARRAY_SIZE(data->root); ++i)
-		data->root[i] = RB_ROOT;
+		nf_conncount_root_init(&data->root[i]);
 
 	data->keylen = keylen / sizeof(u32);
 	data->net = net;
+	data->initval = get_random_u32();
 	INIT_WORK(&data->gc_work, tree_gc_worker);
 
 	return data;
@@ -656,15 +714,15 @@ void nf_conncount_cache_free(struct nf_conncount_list *list)
 }
 EXPORT_SYMBOL_GPL(nf_conncount_cache_free);
 
-static void destroy_tree(struct rb_root *r)
+static void destroy_tree(struct nf_conncount_root *r)
 {
 	struct nf_conncount_rb *rbconn;
 	struct rb_node *node;
 
-	while ((node = rb_first(r)) != NULL) {
+	while ((node = rb_first(&r->root)) != NULL) {
 		rbconn = rb_entry(node, struct nf_conncount_rb, node);
 
-		rb_erase(node, r);
+		rb_erase(node, &r->root);
 
 		nf_conncount_cache_free(&rbconn->list);
 
@@ -676,22 +734,17 @@ void nf_conncount_destroy(struct net *net, struct nf_conncount_data *data)
 {
 	unsigned int i;
 
-	cancel_work_sync(&data->gc_work);
+	disable_work_sync(&data->gc_work);
 
 	for (i = 0; i < ARRAY_SIZE(data->root); ++i)
 		destroy_tree(&data->root[i]);
 
-	kfree(data);
+	kvfree(data);
 }
 EXPORT_SYMBOL_GPL(nf_conncount_destroy);
 
 static int __init nf_conncount_modinit(void)
 {
-	int i;
-
-	for (i = 0; i < CONNCOUNT_SLOTS; ++i)
-		spin_lock_init(&nf_conncount_locks[i]);
-
 	conncount_conn_cachep = KMEM_CACHE(nf_conncount_tuple, 0);
 	if (!conncount_conn_cachep)
 		return -ENOMEM;
@@ -707,6 +760,7 @@ static int __init nf_conncount_modinit(void)
 
 static void __exit nf_conncount_modexit(void)
 {
+	rcu_barrier();
 	kmem_cache_destroy(conncount_conn_cachep);
 	kmem_cache_destroy(conncount_rb_cachep);
 }

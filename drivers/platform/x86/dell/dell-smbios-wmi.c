@@ -50,38 +50,32 @@ static inline struct wmi_smbios_priv *get_first_smbios_priv(void)
 
 static int run_smbios_call(struct wmi_device *wdev)
 {
-	struct acpi_buffer output = {ACPI_ALLOCATE_BUFFER, NULL};
-	struct wmi_smbios_priv *priv;
-	struct acpi_buffer input;
-	union acpi_object *obj;
-	acpi_status status;
-
-	priv = dev_get_drvdata(&wdev->dev);
-	input.length = priv->req_buf_size - sizeof(u64);
-	input.pointer = &priv->buf->std;
+	struct wmi_smbios_priv *priv = dev_get_drvdata(&wdev->dev);
+	const struct wmi_buffer input = {
+		.length = priv->req_buf_size - sizeof(u64),
+		.data = &priv->buf->std,
+	};
+	struct wmi_buffer output;
+	int ret;
 
 	dev_dbg(&wdev->dev, "evaluating: %u/%u [%x,%x,%x,%x]\n",
 		priv->buf->std.cmd_class, priv->buf->std.cmd_select,
 		priv->buf->std.input[0], priv->buf->std.input[1],
 		priv->buf->std.input[2], priv->buf->std.input[3]);
 
-	status = wmidev_evaluate_method(wdev, 0, 1, &input, &output);
-	if (ACPI_FAILURE(status))
-		return -EIO;
-	obj = (union acpi_object *)output.pointer;
-	if (obj->type != ACPI_TYPE_BUFFER) {
-		dev_dbg(&wdev->dev, "received type: %d\n", obj->type);
-		if (obj->type == ACPI_TYPE_INTEGER)
-			dev_dbg(&wdev->dev, "SMBIOS call failed: %llu\n",
-				obj->integer.value);
-		kfree(output.pointer);
-		return -EIO;
-	}
-	memcpy(input.pointer, obj->buffer.pointer, obj->buffer.length);
+	/*
+	 * The output buffer returned by the WMI method should have at least the size
+	 * of the input buffer.
+	 */
+	ret = wmidev_invoke_method(wdev, 0, 1, &input, &output, input.length);
+	if (ret < 0)
+		return ret;
+
+	memcpy(input.data, output.data, input.length);
+	kfree(output.data);
 	dev_dbg(&wdev->dev, "result: [%08x,%08x,%08x,%08x]\n",
 		priv->buf->std.output[0], priv->buf->std.output[1],
 		priv->buf->std.output[2], priv->buf->std.output[3]);
-	kfree(output.pointer);
 
 	return 0;
 }

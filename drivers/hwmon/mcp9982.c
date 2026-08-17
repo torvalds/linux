@@ -92,19 +92,19 @@ static const struct hwmon_channel_info * const mcp9985_info[] = {
 			   HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_MIN |
 			   HWMON_T_MIN_ALARM | HWMON_T_MAX | HWMON_T_MAX_ALARM |
 			   HWMON_T_MAX_HYST | HWMON_T_CRIT | HWMON_T_CRIT_ALARM |
-			   HWMON_T_CRIT_HYST,
+			   HWMON_T_CRIT_HYST | HWMON_T_FAULT,
 			   HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_MIN |
 			   HWMON_T_MIN_ALARM | HWMON_T_MAX | HWMON_T_MAX_ALARM |
 			   HWMON_T_MAX_HYST | HWMON_T_CRIT | HWMON_T_CRIT_ALARM |
-			   HWMON_T_CRIT_HYST,
+			   HWMON_T_CRIT_HYST | HWMON_T_FAULT,
 			   HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_MIN |
 			   HWMON_T_MIN_ALARM | HWMON_T_MAX | HWMON_T_MAX_ALARM |
 			   HWMON_T_MAX_HYST | HWMON_T_CRIT | HWMON_T_CRIT_ALARM |
-			   HWMON_T_CRIT_HYST,
+			   HWMON_T_CRIT_HYST | HWMON_T_FAULT,
 			   HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_MIN |
 			   HWMON_T_MIN_ALARM | HWMON_T_MAX | HWMON_T_MAX_ALARM |
 			   HWMON_T_MAX_HYST | HWMON_T_CRIT | HWMON_T_CRIT_ALARM |
-			   HWMON_T_CRIT_HYST),
+			   HWMON_T_CRIT_HYST | HWMON_T_FAULT),
 	HWMON_CHANNEL_INFO(chip,
 			   HWMON_C_UPDATE_INTERVAL),
 	NULL
@@ -369,7 +369,8 @@ static int mcp9982_read(struct device *dev, enum hwmon_sensor_types type, u32 at
 
 	/*
 	 * In Standby State the conversion cycle must be initated manually in
-	 * order to read fresh temperature values and the status of the alarms.
+	 * order to read fresh temperature values, the status of the alarms and
+	 * fault information.
 	 */
 	if (!priv->run_state) {
 		switch (type) {
@@ -379,6 +380,7 @@ static int mcp9982_read(struct device *dev, enum hwmon_sensor_types type, u32 at
 			case hwmon_temp_max_alarm:
 			case hwmon_temp_min_alarm:
 			case hwmon_temp_crit_alarm:
+			case hwmon_temp_fault:
 				ret = regmap_write(priv->regmap, MCP9982_ONE_SHOT_ADDR, 1);
 				if (ret)
 					return ret;
@@ -402,6 +404,11 @@ static int mcp9982_read(struct device *dev, enum hwmon_sensor_types type, u32 at
 	}
 
 	switch (type) {
+	/*
+	 * Because the ALERT/THERM pin is set in Therm(Comparator) mode,
+	 * the external diode fault status, high limit status and low
+	 * limit status registers do not clear the bits after reading.
+	 */
 	case hwmon_temp:
 		switch (attr) {
 		case hwmon_temp_input:
@@ -509,6 +516,13 @@ static int mcp9982_read(struct device *dev, enum hwmon_sensor_types type, u32 at
 				return ret;
 
 			*val -= hyst * 1000;
+
+			return 0;
+		case hwmon_temp_fault:
+			*val = regmap_test_bits(priv->regmap, MCP9982_EXT_FAULT_STATUS_ADDR,
+						BIT(channel));
+			if (*val < 0)
+				return *val;
 
 			return 0;
 		default:
@@ -681,6 +695,7 @@ static umode_t mcp9982_is_visible(const void *_data, enum hwmon_sensor_types typ
 		case hwmon_temp_max_alarm:
 		case hwmon_temp_max_hyst:
 		case hwmon_temp_crit_alarm:
+		case hwmon_temp_fault:
 			return 0444;
 		case hwmon_temp_min:
 		case hwmon_temp_max:

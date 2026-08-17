@@ -37,7 +37,7 @@
 #include <asm/delay.h>
 #include <linux/atomic.h>
 #include <linux/jump_label.h>
-#include "kvm_cache_regs.h"
+#include "regs.h"
 #include "irq.h"
 #include "ioapic.h"
 #include "trace.h"
@@ -767,7 +767,7 @@ static inline void apic_set_isr(int vec, struct kvm_lapic *apic)
 		kvm_x86_call(hwapic_isr_update)(apic->vcpu, vec);
 	else {
 		++apic->isr_count;
-		BUG_ON(apic->isr_count > MAX_APIC_VECTOR);
+		KVM_BUG_ON(apic->isr_count > MAX_APIC_VECTOR, apic->vcpu->kvm);
 		/*
 		 * ISR (in service register) bit is set when injecting an interrupt.
 		 * The highest vector is injected. Thus the latest bit set matches
@@ -808,7 +808,7 @@ static inline void apic_clear_isr(int vec, struct kvm_lapic *apic)
 		kvm_x86_call(hwapic_isr_update)(apic->vcpu, apic_find_highest_isr(apic));
 	else {
 		--apic->isr_count;
-		BUG_ON(apic->isr_count < 0);
+		KVM_BUG_ON(apic->isr_count < 0, apic->vcpu->kvm);
 		apic->highest_isr_cache = -1;
 	}
 }
@@ -980,6 +980,8 @@ static void apic_update_ppr(struct kvm_lapic *apic)
 	if (__apic_update_ppr(apic, &ppr) &&
 	    apic_has_interrupt_for_ppr(apic, ppr) != -1)
 		kvm_make_request(KVM_REQ_EVENT, apic->vcpu);
+	else
+		kvm_lapic_update_cr8_intercept(apic->vcpu);
 }
 
 void kvm_apic_update_ppr(struct kvm_vcpu *vcpu)
@@ -1730,7 +1732,7 @@ static inline struct kvm_lapic *to_lapic(struct kvm_io_device *dev)
 #define APIC_REGS_MASK(first, count) \
 	(APIC_REG_MASK(first) * ((1ull << (count)) - 1))
 
-u64 kvm_lapic_readable_reg_mask(struct kvm_lapic *apic)
+static u64 kvm_lapic_readable_reg_mask(struct kvm_lapic *apic)
 {
 	/* Leave bits '0' for reserved and write-only registers. */
 	u64 valid_reg_mask =
@@ -1766,7 +1768,24 @@ u64 kvm_lapic_readable_reg_mask(struct kvm_lapic *apic)
 
 	return valid_reg_mask;
 }
-EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_lapic_readable_reg_mask);
+
+u64 kvm_x2apic_disable_read_intercept_reg_mask(struct kvm_vcpu *vcpu)
+{
+	if (WARN_ON_ONCE(!lapic_in_kernel(vcpu)))
+		return 0;
+
+	/*
+	 * TMMCT, a.k.a. the current APIC timer count, reads aren't accelerated
+	 * by hardware (Intel or AMD) as the timer is emulated in software (by
+	 * KVM), i.e. reads from the virtual APIC page would return garbage.
+	 * Intercept RDMSR, as handling the fault-like APIC-access VM-Exit is
+	 * more expensive than handling a RDMSR VM-Exit (the APIC-access exit
+	 * requires slow emulation of the code stream).
+	 */
+	return kvm_lapic_readable_reg_mask(vcpu->arch.apic) &
+	       ~APIC_REG_MASK(APIC_TMCCT);
+}
+EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_x2apic_disable_read_intercept_reg_mask);
 
 static int kvm_lapic_reg_read(struct kvm_lapic *apic, u32 offset, int len,
 			      void *data)
@@ -2742,6 +2761,32 @@ u64 kvm_lapic_get_cr8(struct kvm_vcpu *vcpu)
 	tpr = (u64) kvm_lapic_get_reg(vcpu->arch.apic, APIC_TASKPRI);
 
 	return (tpr & 0xf0) >> 4;
+}
+
+void kvm_lapic_update_cr8_intercept(struct kvm_vcpu *vcpu)
+{
+	int max_irr, tpr;
+
+	if (!kvm_x86_ops.update_cr8_intercept)
+		return;
+
+	if (!lapic_in_kernel(vcpu))
+		return;
+
+	if (vcpu->arch.apic->apicv_active)
+		return;
+
+	if (!vcpu->arch.apic->vapic_addr)
+		max_irr = kvm_lapic_find_highest_irr(vcpu);
+	else
+		max_irr = -1;
+
+	if (max_irr != -1)
+		max_irr >>= 4;
+
+	tpr = kvm_lapic_get_cr8(vcpu);
+
+	kvm_x86_call(update_cr8_intercept)(vcpu, tpr, max_irr);
 }
 
 static void __kvm_apic_set_base(struct kvm_vcpu *vcpu, u64 value)

@@ -483,6 +483,11 @@ int kfd_criu_restore_event(struct file *devkfd,
 	}
 	*priv_data_offset += sizeof(*ev_priv);
 
+	if (ev_priv->event_id > INT_MAX) {
+		ret = -EINVAL;
+		goto exit;
+	}
+
 	if (ev_priv->user_handle) {
 		ret = kfd_kmap_event_page(p, ev_priv->user_handle);
 		if (ret)
@@ -795,6 +800,8 @@ static struct kfd_event_waiter *alloc_event_waiters(uint32_t num_events)
 	struct kfd_event_waiter *event_waiters;
 	uint32_t i;
 
+	if (num_events > KFD_SIGNAL_EVENT_LIMIT)
+		return NULL;
 	event_waiters = kzalloc_objs(struct kfd_event_waiter, num_events);
 	if (!event_waiters)
 		return NULL;

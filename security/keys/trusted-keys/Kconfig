@@ -1,10 +1,29 @@
 config HAVE_TRUSTED_KEYS
 	bool
 
+config HAVE_TRUSTED_KEYS_DEBUG
+	bool
+
+config TRUSTED_KEYS_DEBUG
+	bool "Debug trusted keys"
+	depends on HAVE_TRUSTED_KEYS_DEBUG
+	default n
+	help
+	  Trusted key backends and core code that support debug traces can
+	  opt-in that feature here. Traces must only use debug level output, as
+	  sensitive data may pass by. In the kernel-command line traces can be
+	  enabled via trusted.dyndbg='+p'.
+
+	  SAFETY: Debug dumps are inactive at runtime until trusted.debug is set
+	  to a true value on the kernel command-line. Use at your utmost
+	  consideration when enabling this feature on a production build. The
+	  general advice is not to do this.
+
 config TRUSTED_KEYS_TPM
 	bool "TPM-based trusted keys"
 	depends on TCG_TPM >= TRUSTED_KEYS
 	default y
+	select HAVE_TRUSTED_KEYS_DEBUG
 	select CRYPTO_HASH_INFO
 	select CRYPTO_LIB_SHA1
 	select CRYPTO_LIB_UTILS
@@ -23,6 +42,7 @@ config TRUSTED_KEYS_TEE
 	bool "TEE-based trusted keys"
 	depends on TEE >= TRUSTED_KEYS
 	default y
+	select HAVE_TRUSTED_KEYS_DEBUG
 	select HAVE_TRUSTED_KEYS
 	help
 	  Enable use of the Trusted Execution Environment (TEE) as trusted
@@ -33,6 +53,7 @@ config TRUSTED_KEYS_CAAM
 	depends on CRYPTO_DEV_FSL_CAAM_JR >= TRUSTED_KEYS
 	select CRYPTO_DEV_FSL_CAAM_BLOB_GEN
 	default y
+	select HAVE_TRUSTED_KEYS_DEBUG
 	select HAVE_TRUSTED_KEYS
 	help
 	  Enable use of NXP's Cryptographic Accelerator and Assurance Module
@@ -42,6 +63,7 @@ config TRUSTED_KEYS_DCP
 	bool "DCP-based trusted keys"
 	depends on CRYPTO_DEV_MXS_DCP >= TRUSTED_KEYS
 	default y
+	select HAVE_TRUSTED_KEYS_DEBUG
 	select HAVE_TRUSTED_KEYS
 	help
 	  Enable use of NXP's DCP (Data Co-Processor) as trusted key backend.
@@ -50,6 +72,7 @@ config TRUSTED_KEYS_PKWM
 	bool "PKWM-based trusted keys"
 	depends on PSERIES_PLPKS >= TRUSTED_KEYS
 	default y
+	select HAVE_TRUSTED_KEYS_DEBUG
 	select HAVE_TRUSTED_KEYS
 	help
 	  Enable use of IBM PowerVM Key Wrapping Module (PKWM) as a trusted key backend.

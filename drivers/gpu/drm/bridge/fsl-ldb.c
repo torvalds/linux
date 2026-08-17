@@ -124,7 +124,7 @@ static int fsl_ldb_attach(struct drm_bridge *bridge,
 }
 
 static void fsl_ldb_atomic_enable(struct drm_bridge *bridge,
-				  struct drm_atomic_state *state)
+				  struct drm_atomic_commit *state)
 {
 	struct fsl_ldb *fsl_ldb = to_fsl_ldb(bridge);
 	const struct drm_bridge_state *bridge_state;
@@ -228,7 +228,7 @@ static void fsl_ldb_atomic_enable(struct drm_bridge *bridge,
 }
 
 static void fsl_ldb_atomic_disable(struct drm_bridge *bridge,
-				   struct drm_atomic_state *state)
+				   struct drm_atomic_commit *state)
 {
 	struct fsl_ldb *fsl_ldb = to_fsl_ldb(bridge);
 

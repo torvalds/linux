@@ -29,6 +29,9 @@ int nf_conntrack_broadcast_help(struct sk_buff *skb,
 	struct nf_conn_help *help = nfct_help(ct);
 	__be32 mask = 0;
 
+	if (!help)
+		goto out;
+
 	/* we're only interested in locally generated packets */
 	if (skb->sk == NULL || !net_eq(nf_ct_net(ct), sock_net(skb->sk)))
 		goto out;
@@ -59,6 +62,7 @@ int nf_conntrack_broadcast_help(struct sk_buff *skb,
 	if (exp == NULL)
 		goto out;
 
+	exp->master_tuple	  = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple;
 	exp->tuple                = ct->tuplehash[IP_CT_DIR_REPLY].tuple;
 
 	helper = rcu_dereference(help->helper);

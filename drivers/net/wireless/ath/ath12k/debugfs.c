@@ -1450,6 +1450,44 @@ static const struct file_operations fops_pdev_stats = {
 	.llseek = default_llseek,
 };
 
+static ssize_t
+ath12k_write_simulate_incumbent_signal_interference(struct file *file,
+						    const char __user *user_buf,
+						    size_t count, loff_t *ppos)
+{
+	struct ath12k *ar = file->private_data;
+	struct ath12k_hw *ah = ath12k_ar_to_ah(ar);
+	struct wiphy *wiphy = ath12k_ar_to_hw(ar)->wiphy;
+	u32 chan_bw_interference_bitmap;
+	int ret;
+
+	if (ah->state != ATH12K_HW_STATE_ON)
+		return -ENETDOWN;
+
+	/*
+	 * Bitmap uses the firmware primary-based ordering documented in
+	 * ath12k_wmi_transform_interference_bitmap() & intf_map_80.
+	 */
+	if (kstrtou32_from_user(user_buf, count, 0, &chan_bw_interference_bitmap))
+		return -EINVAL;
+
+	wiphy_lock(wiphy);
+	ret = ath12k_wmi_simulate_incumbent_signal_interference(ar, chan_bw_interference_bitmap);
+	if (ret)
+		goto exit;
+
+	ret = count;
+
+exit:
+	wiphy_unlock(wiphy);
+	return ret;
+}
+
+static const struct file_operations fops_simulate_incumbent_signal_interference = {
+	.write = ath12k_write_simulate_incumbent_signal_interference,
+	.open = simple_open,
+};
+
 static
 void ath12k_debugfs_fw_stats_register(struct ath12k *ar)
 {
@@ -1514,6 +1552,14 @@ void ath12k_debugfs_register(struct ath12k *ar)
 	debugfs_create_file("tpc_stats_type", 0200, ar->debug.debugfs_pdev,
 			    ar, &fops_tpc_stats_type);
 	init_completion(&ar->debug.tpc_complete);
+
+	if (ar->mac.sbands[NL80211_BAND_6GHZ].channels &&
+	    test_bit(WMI_TLV_SERVICE_DCS_INCUMBENT_SIGNAL_INTERFERENCE_SUPPORT,
+		     ar->ab->wmi_ab.svc_map)) {
+		debugfs_create_file("simulate_incumbent_signal_interference", 0200,
+				    ar->debug.debugfs_pdev, ar,
+				    &fops_simulate_incumbent_signal_interference);
+	}
 
 	ath12k_debugfs_htt_stats_register(ar);
 	ath12k_debugfs_fw_stats_register(ar);

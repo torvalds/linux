@@ -48,6 +48,8 @@ struct dst_entry *inet6_csk_route_req(const struct sock *sk,
 	fl6->flowi6_uid = sk_uid(sk);
 	security_req_classify_flow(req, flowi6_to_flowi_common(fl6));
 
+	ip6_ecmp_set_mp_hash(sock_net(sk), fl6, tcp_rsk(req)->txhash);
+
 	if (!dst) {
 		dst = ip6_dst_lookup_flow(sock_net(sk), sk, fl6, final_p);
 		if (IS_ERR(dst))
@@ -70,6 +72,9 @@ struct dst_entry *inet6_csk_route_socket(struct sock *sk,
 	fl6->saddr = np->saddr;
 	fl6->flowlabel = np->flow_label;
 	IP6_ECN_flow_xmit(sk, fl6->flowlabel);
+
+	if (sk->sk_protocol == IPPROTO_TCP)
+		ip6_ecmp_set_mp_hash(sock_net(sk), fl6, sk->sk_txhash);
 	fl6->flowi6_oif = sk->sk_bound_dev_if;
 	fl6->flowi6_mark = sk->sk_mark;
 	fl6->fl6_sport = inet->inet_sport;
@@ -102,7 +107,8 @@ int inet6_csk_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl_unused
 		if (IS_ERR(dst)) {
 			WRITE_ONCE(sk->sk_err_soft, -PTR_ERR(dst));
 			sk->sk_route_caps = 0;
-			kfree_skb(skb);
+			sk_skb_reason_drop(sk, skb,
+					   SKB_DROP_REASON_IP_OUTNOROUTES);
 			return PTR_ERR(dst);
 		}
 		/* Restore final destination back after routing done */

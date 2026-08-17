@@ -62,13 +62,13 @@ static void gud_connector_backlight_update_status_work(struct work_struct *work)
 	struct drm_connector_state *connector_state;
 	struct drm_device *drm = connector->dev;
 	struct drm_modeset_acquire_ctx ctx;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	int idx, ret;
 
 	if (!drm_dev_enter(drm, &idx))
 		return;
 
-	state = drm_atomic_state_alloc(drm);
+	state = drm_atomic_commit_alloc(drm);
 	if (!state) {
 		ret = -ENOMEM;
 		goto exit;
@@ -89,12 +89,12 @@ retry:
 	ret = drm_atomic_commit(state);
 out:
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		drm_modeset_backoff(&ctx);
 		goto retry;
 	}
 
-	drm_atomic_state_put(state);
+	drm_atomic_commit_put(state);
 
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
@@ -285,7 +285,7 @@ out:
 }
 
 static int gud_connector_atomic_check(struct drm_connector *connector,
-				      struct drm_atomic_state *state)
+				      struct drm_atomic_commit *state)
 {
 	struct drm_connector_state *new_state;
 	struct drm_crtc_state *new_crtc_state;

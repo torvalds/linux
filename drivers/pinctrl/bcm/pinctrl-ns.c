@@ -204,6 +204,7 @@ static const struct of_device_id ns_pinctrl_of_match_table[] = {
 	{ .compatible = "brcm,bcm53012-pinmux", .data = (void *)FLAG_BCM53012, },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, ns_pinctrl_of_match_table);
 
 static int ns_pinctrl_probe(struct platform_device *pdev)
 {
@@ -295,4 +296,3 @@ static struct platform_driver ns_pinctrl_driver = {
 module_platform_driver(ns_pinctrl_driver);
 
 MODULE_AUTHOR("Rafał Miłecki");
-MODULE_DEVICE_TABLE(of, ns_pinctrl_of_match_table);

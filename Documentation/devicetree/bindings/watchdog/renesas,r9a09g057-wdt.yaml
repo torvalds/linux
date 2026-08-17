@@ -89,11 +89,11 @@ examples:
   - |
     #include <dt-bindings/clock/renesas,r9a09g057-cpg.h>
 
-    watchdog@11c00400 {
+    watchdog@14400000 {
             compatible = "renesas,r9a09g057-wdt";
-            reg = <0x11c00400 0x400>;
-            clocks = <&cpg CPG_MOD 0x4b>, <&cpg CPG_MOD 0x4c>;
+            reg = <0x14400000 0x400>;
+            clocks = <&cpg CPG_MOD 0x4d>, <&cpg CPG_MOD 0x4e>;
             clock-names = "pclk", "oscclk";
-            resets = <&cpg 0x75>;
+            resets = <&cpg 0x76>;
             power-domains = <&cpg>;
     };

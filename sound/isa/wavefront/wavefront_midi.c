@@ -455,6 +455,49 @@ snd_wavefront_midi_disable_virtual (snd_wavefront_card_t *card)
 	card->wavefront.midi.isvirtual = 0;
 }
 
+void
+snd_wavefront_midi_suspend(snd_wavefront_card_t *card)
+
+{
+	snd_wavefront_midi_t *midi = &card->wavefront.midi;
+
+	if (!midi->istimer)
+		return;
+
+	timer_delete_sync(&midi->timer);
+
+	guard(spinlock_irqsave)(&midi->virtual);
+	midi->istimer = 0;
+}
+
+void
+snd_wavefront_midi_resume(snd_wavefront_card_t *card)
+
+{
+	snd_wavefront_midi_t *midi = &card->wavefront.midi;
+	int istimer = 0;
+	bool pending_output = false;
+
+	midi->timer_card = card;
+
+	scoped_guard(spinlock_irqsave, &midi->virtual) {
+		if (midi->mode[internal_mpu] & MPU401_MODE_OUTPUT_TRIGGER)
+			istimer++;
+		if (midi->mode[external_mpu] & MPU401_MODE_OUTPUT_TRIGGER)
+			istimer++;
+		if (!istimer)
+			return;
+
+		midi->istimer = istimer;
+		timer_setup(&midi->timer, snd_wavefront_midi_output_timer, 0);
+		mod_timer(&midi->timer, 1 + jiffies);
+		pending_output = true;
+	}
+
+	if (pending_output)
+		snd_wavefront_midi_output_write(card);
+}
+
 int
 snd_wavefront_midi_start (snd_wavefront_card_t *card)
 
@@ -466,6 +509,7 @@ snd_wavefront_midi_start (snd_wavefront_card_t *card)
 
 	dev = &card->wavefront;
 	midi = &dev->midi;
+	midi->timer_card = card;
 
 	/* The ICS2115 MPU-401 interface doesn't do anything
 	   until its set into UART mode.
@@ -511,6 +555,8 @@ snd_wavefront_midi_start (snd_wavefront_card_t *card)
 		dev_warn(card->wavefront.card->dev,
 			 "can't enable MIDI-IN-2-synth routing.\n");
 		/* XXX error ? */
+	} else {
+		dev->midi_in_to_synth = 1;
 	}
 
 	/* Turn on Virtual MIDI, but first *always* turn it off,
@@ -553,4 +599,3 @@ const struct snd_rawmidi_ops snd_wavefront_midi_input =
 	.close =	snd_wavefront_midi_input_close,
 	.trigger =	snd_wavefront_midi_input_trigger,
 };
-

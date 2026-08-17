@@ -188,7 +188,7 @@ static int __init control_devkmsg(char *str)
 	/*
 	 * Sysctl cannot change it anymore. The kernel command line setting of
 	 * this parameter is to force the setting to be permanent throughout the
-	 * runtime of the system. This is a precation measure against userspace
+	 * runtime of the system. This is a precautionary measure against userspace
 	 * trying to be a smarta** and attempting to change it up on us.
 	 */
 	devkmsg_log |= DEVKMSG_LOG_MASK_LOCK;
@@ -1975,7 +1975,7 @@ int console_lock_spinning_disable_and_check(int cookie)
  * the current owner is running and cannot reschedule until it
  * is ready to lose the lock.
  *
- * Return: 1 if we got the lock, 0 othrewise
+ * Return: 1 if we got the lock, 0 otherwise
  */
 static int console_trylock_spinning(void)
 {
@@ -3285,7 +3285,7 @@ static bool console_flush_one_record(bool do_cond_resched, u64 *next_seq, bool *
 			continue;
 
 		/*
-		 * An usable console made a progress. There might still be
+		 * A usable console made progress. There might still be
 		 * pending messages.
 		 */
 		*try_again = true;

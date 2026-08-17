@@ -210,8 +210,6 @@ static void apbuart_set_termios(struct uart_port *port,
 
 	/* Ask the core to calculate the divisor for us. */
 	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk / 16);
-	if (baud == 0)
-		panic("invalid baudrate %i\n", port->uartclk / 16);
 
 	/* uart_get_divisor calc a *16 uart freq, apbuart is *8 */
 	quot = (uart_get_divisor(port, baud)) * 2;

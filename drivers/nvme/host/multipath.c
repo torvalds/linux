@@ -73,19 +73,29 @@ static const char *nvme_iopolicy_names[] = {
 
 static int iopolicy = NVME_IOPOLICY_NUMA;
 
+static int nvme_iopolicy_parse(const char *str)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(nvme_iopolicy_names); i++) {
+		if (sysfs_streq(str, nvme_iopolicy_names[i]))
+			return i;
+	}
+	return -EINVAL;
+}
+
 static int nvme_set_iopolicy(const char *val, const struct kernel_param *kp)
 {
+	int policy;
+
 	if (!val)
 		return -EINVAL;
-	if (!strncmp(val, "numa", 4))
-		iopolicy = NVME_IOPOLICY_NUMA;
-	else if (!strncmp(val, "round-robin", 11))
-		iopolicy = NVME_IOPOLICY_RR;
-	else if (!strncmp(val, "queue-depth", 11))
-		iopolicy = NVME_IOPOLICY_QD;
-	else
-		return -EINVAL;
 
+	policy = nvme_iopolicy_parse(val);
+	if (policy < 0)
+		return policy;
+
+	iopolicy = policy;
 	return 0;
 }
 
@@ -142,6 +152,7 @@ void nvme_failover_req(struct request *req)
 	struct bio *bio;
 
 	nvme_mpath_clear_current_path(ns);
+	atomic_long_inc(&ns->failover);
 
 	/*
 	 * If we got back an ANA error, we know the controller is alive but not
@@ -175,8 +186,11 @@ void nvme_mpath_start_request(struct request *rq)
 		nvme_req(rq)->flags |= NVME_MPATH_CNT_ACTIVE;
 	}
 
-	if (!blk_queue_io_stat(disk->queue) || blk_rq_is_passthrough(rq) ||
+	if (!blk_queue_io_stat(disk->queue) ||
 	    (nvme_req(rq)->flags & NVME_MPATH_IO_STATS))
+		return;
+	if (blk_rq_is_passthrough(rq) &&
+	    !blk_rq_passthrough_stats(rq, disk->queue))
 		return;
 
 	nvme_req(rq)->flags |= NVME_MPATH_IO_STATS;
@@ -254,10 +268,10 @@ void nvme_mpath_clear_ctrl_paths(struct nvme_ctrl *ctrl)
 	srcu_read_unlock(&ctrl->srcu, srcu_idx);
 }
 
-void nvme_mpath_revalidate_paths(struct nvme_ns *ns)
+void nvme_mpath_revalidate_paths(struct nvme_ns_head *head)
 {
-	struct nvme_ns_head *head = ns->head;
 	sector_t capacity = get_capacity(head->disk);
+	struct nvme_ns *ns;
 	int node;
 	int srcu_idx;
 
@@ -511,6 +525,12 @@ static void nvme_ns_head_submit_bio(struct bio *bio)
 	ns = nvme_find_path(head);
 	if (likely(ns)) {
 		bio_set_dev(bio, ns->disk->part0);
+		/*
+		 * Use BIO_REMAPPED to skip bio_check_eod() when this bio
+		 * enters submit_bio_noacct() for the per-path device. The EOD
+		 * check already passed on the multipath head.
+		 */
+		bio_set_flag(bio, BIO_REMAPPED);
 		bio->bi_opf |= REQ_NVME_MPATH;
 		trace_block_bio_remap(bio, disk_devt(ns->head->disk),
 				      bio->bi_iter.bi_sector);
@@ -521,10 +541,12 @@ static void nvme_ns_head_submit_bio(struct bio *bio)
 		spin_lock_irq(&head->requeue_lock);
 		bio_list_add(&head->requeue_list, bio);
 		spin_unlock_irq(&head->requeue_lock);
+		atomic_long_inc(&head->io_requeue_no_usable_path_count);
 	} else {
 		dev_warn_ratelimited(dev, "no available path - failing I/O\n");
 
 		bio_io_error(bio);
+		atomic_long_inc(&head->io_fail_no_available_path_count);
 	}
 
 	srcu_read_unlock(&head->srcu, srcu_idx);
@@ -617,18 +639,21 @@ static const struct file_operations nvme_ns_head_chr_fops = {
 	.uring_cmd_iopoll = nvme_ns_chr_uring_cmd_iopoll,
 };
 
-static int nvme_add_ns_head_cdev(struct nvme_ns_head *head)
+static void nvme_add_ns_head_cdev(struct nvme_ns_head *head)
 {
-	int ret;
+	char name[32];
 
 	head->cdev_device.parent = &head->subsys->dev;
-	ret = dev_set_name(&head->cdev_device, "ng%dn%d",
-			   head->subsys->instance, head->instance);
-	if (ret)
-		return ret;
-	ret = nvme_cdev_add(&head->cdev, &head->cdev_device,
-			    &nvme_ns_head_chr_fops, THIS_MODULE);
-	return ret;
+	snprintf(name, sizeof(name), "ng%dn%d", head->subsys->instance,
+		 head->instance);
+
+	if (nvme_cdev_add(name, &head->cdev, &head->cdev_device,
+			&nvme_ns_head_chr_fops, THIS_MODULE)) {
+		dev_err(disk_to_dev(head->disk),
+			"Unable to create the %s device\n", name);
+		return;
+	}
+	set_bit(NVME_NSHEAD_CDEV_LIVE, &head->flags);
 }
 
 static void nvme_partition_scan_work(struct work_struct *work)
@@ -672,7 +697,8 @@ static void nvme_remove_head(struct nvme_ns_head *head)
 		 */
 		kblockd_schedule_work(&head->requeue_work);
 
-		nvme_cdev_del(&head->cdev, &head->cdev_device);
+		if (test_and_clear_bit(NVME_NSHEAD_CDEV_LIVE, &head->flags))
+			nvme_cdev_del(&head->cdev, &head->cdev_device);
 		synchronize_srcu(&head->srcu);
 		del_gendisk(head->disk);
 	}
@@ -730,7 +756,7 @@ int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl, struct nvme_ns_head *head)
 	blk_set_stacking_limits(&lim);
 	lim.dma_alignment = 3;
 	lim.features |= BLK_FEAT_IO_STAT | BLK_FEAT_NOWAIT |
-		BLK_FEAT_POLL | BLK_FEAT_ATOMIC_WRITES;
+		BLK_FEAT_POLL | BLK_FEAT_ATOMIC_WRITES | BLK_FEAT_PCI_P2PDMA;
 	if (head->ids.csi == NVME_CSI_ZNS)
 		lim.features |= BLK_FEAT_ZONED;
 
@@ -1039,16 +1065,14 @@ static ssize_t nvme_subsys_iopolicy_store(struct device *dev,
 {
 	struct nvme_subsystem *subsys =
 		container_of(dev, struct nvme_subsystem, dev);
-	int i;
+	int policy;
 
-	for (i = 0; i < ARRAY_SIZE(nvme_iopolicy_names); i++) {
-		if (sysfs_streq(buf, nvme_iopolicy_names[i])) {
-			nvme_subsys_iopolicy_update(subsys, i);
-			return count;
-		}
-	}
+	policy = nvme_iopolicy_parse(buf);
+	if (policy < 0)
+		return policy;
 
-	return -EINVAL;
+	nvme_subsys_iopolicy_update(subsys, policy);
+	return count;
 }
 SUBSYS_ATTR_RW(iopolicy, S_IRUGO | S_IWUSR,
 		      nvme_subsys_iopolicy_show, nvme_subsys_iopolicy_store);
@@ -1150,6 +1174,90 @@ static ssize_t delayed_removal_secs_store(struct device *dev,
 }
 
 DEVICE_ATTR_RW(delayed_removal_secs);
+
+static ssize_t multipath_failover_count_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nvme_ns *ns = nvme_get_ns_from_dev(dev);
+
+	return sysfs_emit(buf, "%lu\n", atomic_long_read(&ns->failover));
+}
+
+static ssize_t multipath_failover_count_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	unsigned long failover;
+	int ret;
+	struct nvme_ns *ns = nvme_get_ns_from_dev(dev);
+
+	ret = kstrtoul(buf, 0, &failover);
+	if (ret)
+		return -EINVAL;
+
+	atomic_long_set(&ns->failover, failover);
+
+	return count;
+}
+
+DEVICE_ATTR_RW(multipath_failover_count);
+
+static ssize_t io_requeue_no_usable_path_count_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct gendisk *disk = dev_to_disk(dev);
+	struct nvme_ns_head *head = disk->private_data;
+
+	return sysfs_emit(buf, "%lu\n",
+		    atomic_long_read(&head->io_requeue_no_usable_path_count));
+}
+
+static ssize_t io_requeue_no_usable_path_count_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int err;
+	unsigned long requeue_cnt;
+	struct gendisk *disk = dev_to_disk(dev);
+	struct nvme_ns_head *head = disk->private_data;
+
+	err = kstrtoul(buf, 0, &requeue_cnt);
+	if (err)
+		return -EINVAL;
+
+	atomic_long_set(&head->io_requeue_no_usable_path_count, requeue_cnt);
+
+	return count;
+}
+
+DEVICE_ATTR_RW(io_requeue_no_usable_path_count);
+
+static ssize_t io_fail_no_available_path_count_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct gendisk *disk = dev_to_disk(dev);
+	struct nvme_ns_head *head = disk->private_data;
+
+	return sysfs_emit(buf, "%lu\n",
+		    atomic_long_read(&head->io_fail_no_available_path_count));
+}
+
+static ssize_t io_fail_no_available_path_count_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int err;
+	unsigned long fail_cnt;
+	struct gendisk *disk = dev_to_disk(dev);
+	struct nvme_ns_head *head = disk->private_data;
+
+	err = kstrtoul(buf, 0, &fail_cnt);
+	if (err)
+		return -EINVAL;
+
+	atomic_long_set(&head->io_fail_no_available_path_count, fail_cnt);
+
+	return count;
+}
+
+DEVICE_ATTR_RW(io_fail_no_available_path_count);
 
 static int nvme_lookup_ana_group_desc(struct nvme_ctrl *ctrl,
 		struct nvme_ana_group_desc *desc, void *data)

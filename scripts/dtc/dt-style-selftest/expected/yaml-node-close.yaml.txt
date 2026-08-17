@@ -1,0 +1,2 @@
+# mode=strict
+bad/yaml-node-close.yaml:30: example 0 [node-close-alone] closing brace must be on its own line

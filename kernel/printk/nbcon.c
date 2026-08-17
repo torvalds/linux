@@ -1487,7 +1487,7 @@ bool nbcon_allow_unsafe_takeover(void)
  *		or write_thread().
  *
  *		When false, the write_thread() callback is used and would be
- *		called in a preemtible context unless disabled by the
+ *		called in a preemptible context unless disabled by the
  *		device_lock. The legacy handover is not allowed in this mode.
  *
  * Context:	Any context except NMI.
@@ -1868,7 +1868,7 @@ void nbcon_free(struct console *con)
  * Return:	True if the console was acquired. False otherwise.
  *
  * Console drivers will usually use their own internal synchronization
- * mechasism to synchronize between console printing and non-printing
+ * mechanism to synchronize between console printing and non-printing
  * activities (such as setting baud rates). However, nbcon console drivers
  * supporting atomic consoles may also want to mark unsafe sections when
  * performing non-printing activities in order to synchronize against their
@@ -1954,7 +1954,7 @@ EXPORT_SYMBOL_GPL(nbcon_device_release);
  *
  * kdb emits messages on consoles registered for printk() without
  * storing them into the ring buffer. It has to acquire the console
- * ownerhip so that it could call con->write_atomic() callback a safe way.
+ * ownership so that it could call con->write_atomic() callback a safe way.
  *
  * This function acquires the nbcon console using priority NBCON_PRIO_EMERGENCY
  * and marks it unsafe for handover/takeover.

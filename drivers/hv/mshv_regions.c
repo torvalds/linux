@@ -29,29 +29,27 @@
  * Uses huge page stride if the backing page is huge and the guest mapping
  * is properly aligned; otherwise falls back to single page stride.
  *
- * Return: Stride in pages, or -EINVAL if page order is unsupported.
+ * Return: Stride in pages.
  */
-static int mshv_chunk_stride(struct page *page,
-			     u64 gfn, u64 page_count)
+static unsigned int mshv_chunk_stride(struct page *page, u64 gfn,
+				      u64 page_count)
 {
-	unsigned int page_order;
+	unsigned int page_order = folio_order(page_folio(page));
 
 	/*
 	 * Use single page stride by default. For huge page stride, the
-	 * page must be compound and point to the head of the compound
-	 * page, and both gfn and page_count must be huge-page aligned.
+	 * folio order must be at least PMD_ORDER, the page's PFN must be
+	 * 2M-aligned (so that a 2M-aligned tail page of a larger folio is
+	 * acceptable), and both gfn and page_count must be 2M-aligned.
 	 */
-	if (!PageCompound(page) || !PageHead(page) ||
+	if (page_order < PMD_ORDER ||
+	    !IS_ALIGNED(page_to_pfn(page), PTRS_PER_PMD) ||
 	    !IS_ALIGNED(gfn, PTRS_PER_PMD) ||
 	    !IS_ALIGNED(page_count, PTRS_PER_PMD))
 		return 1;
 
-	page_order = folio_order(page_folio(page));
-	/* The hypervisor only supports 2M huge page */
-	if (page_order != PMD_ORDER)
-		return -EINVAL;
-
-	return 1 << page_order;
+	/* Use 2M stride always i.e. process 1G folios as 2M chunks */
+	return 1 << PMD_ORDER;
 }
 
 /**
@@ -86,15 +84,14 @@ static long mshv_region_process_chunk(struct mshv_mem_region *region,
 	u64 gfn = region->start_gfn + page_offset;
 	u64 count;
 	struct page *page;
-	int stride, ret;
+	unsigned int stride;
+	int ret;
 
 	page = region->mreg_pages[page_offset];
 	if (!page)
 		return -EINVAL;
 
 	stride = mshv_chunk_stride(page, gfn, page_count);
-	if (stride < 0)
-		return stride;
 
 	/* Start at stride since the first stride is validated */
 	for (count = stride; count < page_count; count += stride) {

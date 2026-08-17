@@ -48,7 +48,7 @@ NLM_STATUS_LIST
 
 DECLARE_EVENT_CLASS(nlmclnt_lock_event,
 		TP_PROTO(
-			const struct nlm_lock *lock,
+			const struct lockd_lock *lock,
 			const struct sockaddr *addr,
 			unsigned int addrlen,
 			__be32 status
@@ -61,8 +61,8 @@ DECLARE_EVENT_CLASS(nlmclnt_lock_event,
 			__field(u32, svid)
 			__field(u32, fh)
 			__field(unsigned long, status)
-			__field(u64, start)
-			__field(u64, len)
+			__field(loff_t, start)
+			__field(loff_t, end)
 			__sockaddr(addr, addrlen)
 		),
 
@@ -70,16 +70,16 @@ DECLARE_EVENT_CLASS(nlmclnt_lock_event,
 			__entry->oh = ~crc32_le(0xffffffff, lock->oh.data, lock->oh.len);
 			__entry->svid = lock->svid;
 			__entry->fh = nfs_fhandle_hash(&lock->fh);
-			__entry->start = lock->lock_start;
-			__entry->len = lock->lock_len;
+			__entry->start = lock->fl.fl_start;
+			__entry->end = lock->fl.fl_end;
 			__entry->status = be32_to_cpu(status);
 			__assign_sockaddr(addr, addr, addrlen);
 		),
 
 		TP_printk(
-			"addr=%pISpc oh=0x%08x svid=0x%08x fh=0x%08x start=%llu len=%llu status=%s",
+			"addr=%pISpc oh=0x%08x svid=0x%08x fh=0x%08x start=%lld end=%lld status=%s",
 			__get_sockaddr(addr), __entry->oh, __entry->svid,
-			__entry->fh, __entry->start, __entry->len,
+			__entry->fh, __entry->start, __entry->end,
 			show_nlm_status(__entry->status)
 		)
 );
@@ -87,7 +87,7 @@ DECLARE_EVENT_CLASS(nlmclnt_lock_event,
 #define DEFINE_NLMCLNT_EVENT(name)				\
 	DEFINE_EVENT(nlmclnt_lock_event, name,			\
 			TP_PROTO(				\
-				const struct nlm_lock *lock,	\
+				const struct lockd_lock *lock,	\
 				const struct sockaddr *addr,	\
 				unsigned int addrlen,		\
 				__be32	status			\

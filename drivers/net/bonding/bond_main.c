@@ -787,6 +787,10 @@ down:
  * values are invalid, set speed and duplex to -1,
  * and return. Return 1 if speed or duplex settings are
  * UNKNOWN; 0 otherwise.
+ *
+ * Caller must hold the slave's netdev ops lock. The notifier path
+ * (bond_netdev_event NETDEV_CHANGE/UP) reaches us with the slave's ops
+ * lock held; other call sites take it explicitly.
  */
 static int bond_update_speed_duplex(struct slave *slave)
 {
@@ -794,7 +798,7 @@ static int bond_update_speed_duplex(struct slave *slave)
 	struct ethtool_link_ksettings ecmd;
 	int res;
 
-	res = __ethtool_get_link_ksettings(slave_dev, &ecmd);
+	res = netif_get_link_ksettings(slave_dev, &ecmd);
 	if (res < 0)
 		goto speed_duplex_unknown;
 	if (ecmd.base.speed == 0 || ecmd.base.speed == ((__u32)-1))
@@ -1890,6 +1894,12 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev,
 	struct sockaddr_storage ss;
 	int res = 0, i;
 
+	if (slave_dev->type == ARPHRD_CAN) {
+		BOND_NL_ERR(bond_dev, extack,
+			    "CAN devices cannot be enslaved");
+		return -EPERM;
+	}
+
 	if (slave_dev->flags & IFF_MASTER &&
 	    !netif_is_bond_master(slave_dev)) {
 		BOND_NL_ERR(bond_dev, extack,
@@ -2106,8 +2116,10 @@ skip_mac_set:
 	new_slave->delay = 0;
 	new_slave->link_failure_count = 0;
 
-	if (bond_update_speed_duplex(new_slave) &&
-	    bond_needs_speed_duplex(bond))
+	netdev_lock_ops(slave_dev);
+	res = bond_update_speed_duplex(new_slave);
+	netdev_unlock_ops(slave_dev);
+	if (res && bond_needs_speed_duplex(bond))
 		new_slave->link = BOND_LINK_DOWN;
 
 	new_slave->last_rx = jiffies -
@@ -2774,6 +2786,7 @@ static void bond_miimon_commit(struct bonding *bond)
 	struct slave *slave, *primary, *active;
 	bool do_failover = false;
 	struct list_head *iter;
+	int err;
 
 	ASSERT_RTNL();
 
@@ -2792,8 +2805,10 @@ static void bond_miimon_commit(struct bonding *bond)
 			continue;
 
 		case BOND_LINK_UP:
-			if (bond_update_speed_duplex(slave) &&
-			    bond_needs_speed_duplex(bond)) {
+			netdev_lock_ops(slave->dev);
+			err = bond_update_speed_duplex(slave);
+			netdev_unlock_ops(slave->dev);
+			if (err && bond_needs_speed_duplex(bond)) {
 				slave->link = BOND_LINK_DOWN;
 				if (net_ratelimit())
 					slave_warn(bond->dev, slave->dev,
@@ -4615,10 +4630,10 @@ static int bond_do_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cmd
 
 	slave_dev = __dev_get_by_name(net, ifr->ifr_slave);
 
-	slave_dbg(bond_dev, slave_dev, "slave_dev=%p:\n", slave_dev);
-
 	if (!slave_dev)
 		return -ENODEV;
+
+	slave_dbg(bond_dev, slave_dev, "slave_dev=%p:\n", slave_dev);
 
 	switch (cmd) {
 	case SIOCBONDENSLAVE:
@@ -5855,7 +5870,9 @@ static int bond_ethtool_get_link_ksettings(struct net_device *bond_dev,
 	 */
 	bond_for_each_slave(bond, slave, iter) {
 		if (bond_slave_can_tx(slave)) {
+			netdev_lock_ops(slave->dev);
 			bond_update_speed_duplex(slave);
+			netdev_unlock_ops(slave->dev);
 			if (slave->speed != SPEED_UNKNOWN) {
 				if (BOND_MODE(bond) == BOND_MODE_BROADCAST)
 					speed = bond_mode_bcast_speed(slave,
@@ -6440,6 +6457,7 @@ static int __init bond_check_params(struct bond_params *params)
 	params->ad_user_port_key = ad_user_port_key;
 	params->coupled_control = 1;
 	params->broadcast_neighbor = 0;
+	params->lacp_strict = 0;
 	if (packets_per_slave > 0) {
 		params->reciprocal_packets_per_slave =
 			reciprocal_value(packets_per_slave);

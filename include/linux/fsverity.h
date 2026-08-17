@@ -201,6 +201,8 @@ bool fsverity_verify_blocks(struct fsverity_info *vi, struct folio *folio,
 			    size_t len, size_t offset);
 void fsverity_verify_bio(struct fsverity_info *vi, struct bio *bio);
 void fsverity_enqueue_verify_work(struct work_struct *work);
+void fsverity_fill_zerohash(struct folio *folio, size_t offset, size_t len,
+			    struct fsverity_info *vi);
 
 #else /* !CONFIG_FS_VERITY */
 
@@ -277,6 +279,12 @@ static inline void fsverity_verify_bio(struct fsverity_info *vi,
 }
 
 static inline void fsverity_enqueue_verify_work(struct work_struct *work)
+{
+	WARN_ON_ONCE(1);
+}
+
+static inline void fsverity_fill_zerohash(struct folio *folio, size_t offset,
+		size_t len, struct fsverity_info *vi)
 {
 	WARN_ON_ONCE(1);
 }

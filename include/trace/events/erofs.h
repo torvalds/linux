@@ -90,7 +90,7 @@ TRACE_EVENT(erofs_read_folio,
 		__field(erofs_nid_t,    nid     )
 		__field(int,		dir	)
 		__field(pgoff_t,	index	)
-		__field(int,		uptodate)
+		__field(unsigned int,	order	)
 		__field(bool,		raw	)
 	),
 
@@ -99,16 +99,15 @@ TRACE_EVENT(erofs_read_folio,
 		__entry->nid	= EROFS_I(inode)->nid;
 		__entry->dir	= S_ISDIR(inode->i_mode);
 		__entry->index	= folio->index;
-		__entry->uptodate = folio_test_uptodate(folio);
+		__entry->order	= folio_order(folio);
 		__entry->raw = raw;
 	),
 
-	TP_printk("dev = (%d,%d), nid = %llu, %s, index = %lu, uptodate = %d "
-		"raw = %d",
+	TP_printk("dev = (%d,%d), nid = %llu, %s, index = %lu, order = %u, raw = %d",
 		show_dev_nid(__entry),
 		show_file_type(__entry->dir),
 		(unsigned long)__entry->index,
-		__entry->uptodate,
+		__entry->order,
 		__entry->raw)
 );
 

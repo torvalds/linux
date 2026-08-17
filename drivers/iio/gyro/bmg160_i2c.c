@@ -3,7 +3,6 @@
 #include <linux/regmap.h>
 #include <linux/iio/iio.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 
 #include "bmg160.h"
 
@@ -47,9 +46,9 @@ static const struct acpi_device_id bmg160_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, bmg160_acpi_match);
 
 static const struct i2c_device_id bmg160_i2c_id[] = {
-	{ "bmg160" },
-	{ "bmi055_gyro" },
-	{ "bmi088_gyro" },
+	{ .name = "bmg160" },
+	{ .name = "bmi055_gyro" },
+	{ .name = "bmi088_gyro" },
 	{ }
 };
 

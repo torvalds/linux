@@ -26,6 +26,8 @@ static int ffa_device_match(struct device *dev, const struct device_driver *drv)
 
 	id_table = to_ffa_driver(drv)->id_table;
 	ffa_dev = to_ffa_dev(dev);
+	if (!id_table)
+		return 0;
 
 	while (!uuid_is_null(&id_table->uuid)) {
 		/*
@@ -123,7 +125,7 @@ int ffa_driver_register(struct ffa_driver *driver, struct module *owner,
 {
 	int ret;
 
-	if (!driver->probe)
+	if (!driver->probe || !driver->id_table)
 		return -EINVAL;
 
 	driver->driver.bus = &ffa_bus_type;
@@ -190,7 +192,7 @@ bool ffa_device_is_valid(struct ffa_device *ffa_dev)
 
 struct ffa_device *
 ffa_device_register(const struct ffa_partition_info *part_info,
-		    const struct ffa_ops *ops)
+		    const struct ffa_ops *ops, struct device *parent)
 {
 	int id, ret;
 	struct device *dev;
@@ -210,6 +212,7 @@ ffa_device_register(const struct ffa_partition_info *part_info,
 	}
 
 	dev = &ffa_dev->dev;
+	dev->parent = parent;
 	dev->bus = &ffa_bus_type;
 	dev->release = ffa_release_device;
 	dev->dma_mask = &dev->coherent_dma_mask;

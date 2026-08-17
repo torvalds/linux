@@ -394,13 +394,13 @@ static struct comedi_driver dio200_pci_comedi_driver = {
 
 static const struct pci_device_id dio200_pci_table[] = {
 #ifdef CONFIG_HAS_IOPORT
-	{ PCI_VDEVICE(AMPLICON, 0x000b), pci215_model },
-	{ PCI_VDEVICE(AMPLICON, 0x000a), pci272_model },
+	{ PCI_VDEVICE(AMPLICON, 0x000b), .driver_data = pci215_model },
+	{ PCI_VDEVICE(AMPLICON, 0x000a), .driver_data = pci272_model },
 #endif /* CONFIG_HAS_IOPORT */
-	{ PCI_VDEVICE(AMPLICON, 0x0011), pcie236_model },
-	{ PCI_VDEVICE(AMPLICON, 0x0012), pcie215_model },
-	{ PCI_VDEVICE(AMPLICON, 0x0014), pcie296_model },
-	{0}
+	{ PCI_VDEVICE(AMPLICON, 0x0011), .driver_data = pcie236_model },
+	{ PCI_VDEVICE(AMPLICON, 0x0012), .driver_data = pcie215_model },
+	{ PCI_VDEVICE(AMPLICON, 0x0014), .driver_data = pcie296_model },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, dio200_pci_table);

@@ -427,11 +427,9 @@ static int tegra_sflash_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	host = spi_alloc_host(&pdev->dev, sizeof(*tsd));
-	if (!host) {
-		dev_err(&pdev->dev, "host allocation failed\n");
+	host = devm_spi_alloc_host(&pdev->dev, sizeof(*tsd));
+	if (!host)
 		return -ENOMEM;
-	}
 
 	/* the spi->mode bits understood by this driver: */
 	host->mode_bits = SPI_CPOL | SPI_CPHA;
@@ -450,14 +448,13 @@ static int tegra_sflash_probe(struct platform_device *pdev)
 		host->max_speed_hz = 25000000; /* 25MHz */
 
 	tsd->base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(tsd->base)) {
-		ret = PTR_ERR(tsd->base);
-		goto exit_free_host;
-	}
+	if (IS_ERR(tsd->base))
+		return PTR_ERR(tsd->base);
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0)
-		goto exit_free_host;
+		return ret;
+
 	tsd->irq = ret;
 
 	ret = request_irq(tsd->irq, tegra_sflash_isr, 0,
@@ -465,7 +462,7 @@ static int tegra_sflash_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register ISR for IRQ %d\n",
 					tsd->irq);
-		goto exit_free_host;
+		return ret;
 	}
 
 	tsd->clk = devm_clk_get(&pdev->dev, NULL);
@@ -518,8 +515,7 @@ exit_pm_disable:
 		tegra_sflash_runtime_suspend(&pdev->dev);
 exit_free_irq:
 	free_irq(tsd->irq, tsd);
-exit_free_host:
-	spi_controller_put(host);
+
 	return ret;
 }
 
@@ -528,8 +524,6 @@ static void tegra_sflash_remove(struct platform_device *pdev)
 	struct spi_controller *host = platform_get_drvdata(pdev);
 	struct tegra_sflash_data	*tsd = spi_controller_get_devdata(host);
 
-	spi_controller_get(host);
-
 	spi_unregister_controller(host);
 
 	free_irq(tsd->irq, tsd);
@@ -537,8 +531,6 @@ static void tegra_sflash_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		tegra_sflash_runtime_suspend(&pdev->dev);
-
-	spi_controller_put(host);
 }
 
 #ifdef CONFIG_PM_SLEEP

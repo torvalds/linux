@@ -1285,8 +1285,39 @@ Example::
 In this example, the file target maketools will be processed
 before descending down in the subdirectories.
 
-See also chapter XXX-TODO that describes how kbuild supports
-generating offset header files.
+Generating offset header files
+------------------------------
+
+The ``include/generated/asm-offsets.h`` header exposes C structure
+member offsets and other compile-time constants to assembly code. It
+is generated from ``arch/$(SRCARCH)/kernel/asm-offsets.c``.
+
+The source file uses ``DEFINE()``, ``OFFSET()``, ``BLANK()`` and
+``COMMENT()`` from ``<linux/kbuild.h>``. These emit marker strings
+through inline asm that Kbuild extracts from the compiled assembly
+output.
+
+Example::
+
+  #include <linux/kbuild.h>
+  #include <linux/sched.h>
+
+  int main(void)
+  {
+          OFFSET(TSK_ACTIVE_MM, task_struct, active_mm);
+          DEFINE(THREAD_SIZE, THREAD_SIZE);
+          BLANK();
+          return 0;
+  }
+
+The rules are defined in the top-level ``Kbuild`` and
+``scripts/Makefile.lib``. The header is built during Kbuild's
+``prepare`` phase, after ``archprepare`` and before descending into
+subdirectories.
+
+The same mechanism generates ``include/generated/bounds.h`` from
+``kernel/bounds.c`` and ``include/generated/rq-offsets.h`` from
+``kernel/sched/rq-offsets.c``.
 
 List directories to visit when descending
 -----------------------------------------
@@ -1690,9 +1721,3 @@ Credits
 - Updates by Kai Germaschewski <kai@tp1.ruhr-uni-bochum.de>
 - Updates by Sam Ravnborg <sam@ravnborg.org>
 - Language QA by Jan Engelhardt <jengelh@gmx.de>
-
-TODO
-====
-
-- Generating offset header files.
-- Add more variables to chapters 7 or 9?

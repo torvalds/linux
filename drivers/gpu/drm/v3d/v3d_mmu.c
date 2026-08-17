@@ -37,7 +37,12 @@ static bool v3d_mmu_is_aligned(u32 page, u32 page_address, size_t alignment)
 		IS_ALIGNED(page_address, alignment >> V3D_MMU_PAGE_SHIFT);
 }
 
-int v3d_mmu_flush_all(struct v3d_dev *v3d)
+/*
+ * Issue the MMUC flush and TLB clear unconditionally. The caller must
+ * already know that V3D is reachable. In particular, this is used from
+ * the runtime resume callback.
+ */
+static int v3d_mmu_flush_all_locked(struct v3d_dev *v3d)
 {
 	int ret;
 
@@ -62,6 +67,20 @@ int v3d_mmu_flush_all(struct v3d_dev *v3d)
 	return ret;
 }
 
+int v3d_mmu_flush_all(struct v3d_dev *v3d)
+{
+	int ret;
+
+	/* Flush the PTs only if we're already awake */
+	if (!pm_runtime_get_if_active(v3d->drm.dev))
+		return 0;
+
+	ret = v3d_mmu_flush_all_locked(v3d);
+
+	v3d_pm_runtime_put(v3d);
+	return ret;
+}
+
 int v3d_mmu_set_page_table(struct v3d_dev *v3d)
 {
 	V3D_WRITE(V3D_MMU_PT_PA_BASE, v3d->pt_paddr >> V3D_MMU_PAGE_SHIFT);
@@ -79,7 +98,7 @@ int v3d_mmu_set_page_table(struct v3d_dev *v3d)
 		  V3D_MMU_ILLEGAL_ADDR_ENABLE);
 	V3D_WRITE(V3D_MMUC_CONTROL, V3D_MMUC_CONTROL_ENABLE);
 
-	return v3d_mmu_flush_all(v3d);
+	return v3d_mmu_flush_all_locked(v3d);
 }
 
 void v3d_mmu_insert_ptes(struct v3d_bo *bo)

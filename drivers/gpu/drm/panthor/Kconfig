@@ -8,7 +8,6 @@ config DRM_PANTHOR
 	depends on MMU
 	select DEVFREQ_GOV_SIMPLE_ONDEMAND
 	select DRM_EXEC
-	select DRM_GEM_SHMEM_HELPER
 	select DRM_GPUVM
 	select DRM_SCHED
 	select IOMMU_IO_PGTABLE_LPAE

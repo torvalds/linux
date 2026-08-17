@@ -5,6 +5,8 @@ DEV_NAME="tun0"
 RXE_NAME="rxe0"
 RDMA_PORT=4791
 
+source "$(dirname "$0")/../kselftest/ktap_helpers.sh"
+
 exec > /dev/null
 
 # --- Cleanup Routine ---
@@ -19,8 +21,8 @@ trap cleanup EXIT
 
 # 1. Dependency Check
 if ! modinfo rdma_rxe >/dev/null 2>&1; then
-    echo "Error: rdma_rxe module not found."
-    exit 1
+    echo "SKIP: rdma_rxe module not found." >&2
+    exit $KSFT_SKIP
 fi
 
 modprobe rdma_rxe

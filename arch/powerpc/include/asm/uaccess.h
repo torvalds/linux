@@ -18,7 +18,33 @@
 /* Threshold above which VMX copy path is used */
 #define VMX_COPY_THRESHOLD 3328
 
+#define __access_ok __access_ok
+
 #include <asm-generic/access_ok.h>
+
+/*
+ * On powerpc64, TASK_SIZE_MAX is 0x0010000000000000 then even if both ptr and size
+ * are TASK_SIZE_MAX we are still inside the memory gap. So make it simple.
+ */
+static __always_inline int __access_ok(const void __user *ptr, unsigned long size)
+{
+	unsigned long addr = (unsigned long)ptr;
+
+	if (IS_ENABLED(CONFIG_PPC64)) {
+		BUILD_BUG_ON(!is_power_of_2(TASK_SIZE_MAX));
+		BUILD_BUG_ON(TASK_SIZE_MAX > 0x0010000000000000);
+
+		if (statically_true(size > TASK_SIZE_MAX))
+			return false;
+		if (statically_true(size <= TASK_SIZE_MAX))
+			return !(addr & ~(TASK_SIZE_MAX - 1));
+		return !((size | addr) & ~(TASK_SIZE_MAX - 1));
+	} else {
+		if (statically_true(size <= SZ_128K))
+			return addr < TASK_SIZE;
+		return size <= TASK_SIZE && addr <= TASK_SIZE - size;
+	}
+}
 
 /*
  * These are the main single-value transfer routines.  They automatically

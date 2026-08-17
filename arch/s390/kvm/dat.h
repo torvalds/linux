@@ -145,7 +145,8 @@ union pgste {
 		unsigned long cmma_d       : 1; /* Dirty flag for CMMA bits */
 		unsigned long prefix_notif : 1; /* Guest prefix invalidation notification */
 		unsigned long vsie_notif   : 1; /* Referenced in a shadow table */
-		unsigned long              : 5;
+		unsigned long vsie_gmem    : 1; /* Contains nested guest memory */
+		unsigned long              : 4;
 		unsigned long              : 8;
 	};
 	struct {
@@ -500,6 +501,7 @@ struct guest_fault {
 	bool write_attempt;	/* Write access attempted */
 	bool attempt_pfault;	/* Attempt a pfault first */
 	bool valid;		/* This entry contains valid data */
+	bool crste_region3;     /* Whether crstep refers to a region3 entry */
 	void (*callback)(struct guest_fault *f);
 	void *priv;
 };

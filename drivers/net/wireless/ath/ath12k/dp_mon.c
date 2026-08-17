@@ -115,13 +115,14 @@ ath12k_dp_mon_fill_rx_rate(struct ath12k_pdev_dp *dp_pdev,
 	bool is_cck;
 
 	pkt_type = ppdu_info->preamble_type;
-	rate_mcs = ppdu_info->rate;
+	rate_mcs = ppdu_info->mcs;
 	nss = ppdu_info->nss;
 	sgi = ppdu_info->gi;
 
 	switch (pkt_type) {
 	case RX_MSDU_START_PKT_TYPE_11A:
 	case RX_MSDU_START_PKT_TYPE_11B:
+		rate_mcs = ppdu_info->rate;
 		is_cck = (pkt_type == RX_MSDU_START_PKT_TYPE_11B);
 		if (rx_status->band < NUM_NL80211_BANDS) {
 			struct ath12k *ar = ath12k_pdev_dp_to_ar(dp_pdev);
@@ -471,13 +472,10 @@ void ath12k_dp_mon_update_radiotap(struct ath12k_pdev_dp *dp_pdev,
 		rxs->encoding = RX_ENC_HE;
 		ptr = skb_push(mon_skb, sizeof(struct ieee80211_radiotap_he));
 		ath12k_dp_mon_rx_update_radiotap_he(ppduinfo, ptr);
-		rxs->rate_idx = ppduinfo->rate;
 	} else if (ppduinfo->vht_flags) {
 		rxs->encoding = RX_ENC_VHT;
-		rxs->rate_idx = ppduinfo->rate;
 	} else if (ppduinfo->ht_flags) {
 		rxs->encoding = RX_ENC_HT;
-		rxs->rate_idx = ppduinfo->rate;
 	} else {
 		struct ath12k *ar;
 

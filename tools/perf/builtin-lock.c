@@ -21,6 +21,7 @@
 #include "util/tracepoint.h"
 
 #include "util/debug.h"
+#include "util/event.h"
 #include "util/session.h"
 #include "util/tool.h"
 #include "util/data.h"
@@ -31,6 +32,7 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/prctl.h>
+#include <sys/wait.h>
 #include <semaphore.h>
 #include <math.h>
 #include <limits.h>
@@ -473,28 +475,22 @@ static struct lock_stat *pop_from_result(void)
 
 struct trace_lock_handler {
 	/* it's used on CONFIG_LOCKDEP */
-	int (*acquire_event)(struct evsel *evsel,
-			     struct perf_sample *sample);
+	int (*acquire_event)(struct perf_sample *sample);
 
 	/* it's used on CONFIG_LOCKDEP && CONFIG_LOCK_STAT */
-	int (*acquired_event)(struct evsel *evsel,
-			      struct perf_sample *sample);
+	int (*acquired_event)(struct perf_sample *sample);
 
 	/* it's used on CONFIG_LOCKDEP && CONFIG_LOCK_STAT */
-	int (*contended_event)(struct evsel *evsel,
-			       struct perf_sample *sample);
+	int (*contended_event)(struct perf_sample *sample);
 
 	/* it's used on CONFIG_LOCKDEP */
-	int (*release_event)(struct evsel *evsel,
-			     struct perf_sample *sample);
+	int (*release_event)(struct perf_sample *sample);
 
 	/* it's used when CONFIG_LOCKDEP is off */
-	int (*contention_begin_event)(struct evsel *evsel,
-				      struct perf_sample *sample);
+	int (*contention_begin_event)(struct perf_sample *sample);
 
 	/* it's used when CONFIG_LOCKDEP is off */
-	int (*contention_end_event)(struct evsel *evsel,
-				    struct perf_sample *sample);
+	int (*contention_end_event)(struct perf_sample *sample);
 };
 
 static struct lock_seq_stat *get_seq(struct thread_stat *ts, u64 addr)
@@ -551,27 +547,26 @@ static int get_key_by_aggr_mode_simple(u64 *key, u64 addr, u32 tid)
 	return 0;
 }
 
-static u64 callchain_id(struct evsel *evsel, struct perf_sample *sample);
+static u64 callchain_id(struct perf_sample *sample);
 
-static int get_key_by_aggr_mode(u64 *key, u64 addr, struct evsel *evsel,
+static int get_key_by_aggr_mode(u64 *key, u64 addr,
 				 struct perf_sample *sample)
 {
 	if (aggr_mode == LOCK_AGGR_CALLER) {
-		*key = callchain_id(evsel, sample);
+		*key = callchain_id(sample);
 		return 0;
 	}
 	return get_key_by_aggr_mode_simple(key, addr, sample->tid);
 }
 
-static int report_lock_acquire_event(struct evsel *evsel,
-				     struct perf_sample *sample)
+static int report_lock_acquire_event(struct perf_sample *sample)
 {
 	struct lock_stat *ls;
 	struct thread_stat *ts;
 	struct lock_seq_stat *seq;
-	const char *name = evsel__strval(evsel, sample, "name");
-	u64 addr = evsel__intval(evsel, sample, "lockdep_addr");
-	int flag = evsel__intval(evsel, sample, "flags");
+	const char *name = perf_sample__strval(sample, "name");
+	u64 addr = perf_sample__intval(sample, "lockdep_addr");
+	int flag = perf_sample__intval(sample, "flags");
 	u64 key;
 	int ret;
 
@@ -638,15 +633,14 @@ end:
 	return 0;
 }
 
-static int report_lock_acquired_event(struct evsel *evsel,
-				      struct perf_sample *sample)
+static int report_lock_acquired_event(struct perf_sample *sample)
 {
 	struct lock_stat *ls;
 	struct thread_stat *ts;
 	struct lock_seq_stat *seq;
 	u64 contended_term;
-	const char *name = evsel__strval(evsel, sample, "name");
-	u64 addr = evsel__intval(evsel, sample, "lockdep_addr");
+	const char *name = perf_sample__strval(sample, "name");
+	u64 addr = perf_sample__intval(sample, "lockdep_addr");
 	u64 key;
 	int ret;
 
@@ -704,14 +698,13 @@ end:
 	return 0;
 }
 
-static int report_lock_contended_event(struct evsel *evsel,
-				       struct perf_sample *sample)
+static int report_lock_contended_event(struct perf_sample *sample)
 {
 	struct lock_stat *ls;
 	struct thread_stat *ts;
 	struct lock_seq_stat *seq;
-	const char *name = evsel__strval(evsel, sample, "name");
-	u64 addr = evsel__intval(evsel, sample, "lockdep_addr");
+	const char *name = perf_sample__strval(sample, "name");
+	u64 addr = perf_sample__intval(sample, "lockdep_addr");
 	u64 key;
 	int ret;
 
@@ -762,14 +755,13 @@ end:
 	return 0;
 }
 
-static int report_lock_release_event(struct evsel *evsel,
-				     struct perf_sample *sample)
+static int report_lock_release_event(struct perf_sample *sample)
 {
 	struct lock_stat *ls;
 	struct thread_stat *ts;
 	struct lock_seq_stat *seq;
-	const char *name = evsel__strval(evsel, sample, "name");
-	u64 addr = evsel__intval(evsel, sample, "lockdep_addr");
+	const char *name = perf_sample__strval(sample, "name");
+	u64 addr = perf_sample__intval(sample, "lockdep_addr");
 	u64 key;
 	int ret;
 
@@ -841,7 +833,7 @@ static int get_symbol_name_offset(struct map *map, struct symbol *sym, u64 ip,
 	else
 		return strlcpy(buf, sym->name, size);
 }
-static int lock_contention_caller(struct evsel *evsel, struct perf_sample *sample,
+static int lock_contention_caller(struct perf_sample *sample,
 				  char *buf, int size)
 {
 	struct thread *thread;
@@ -862,7 +854,7 @@ static int lock_contention_caller(struct evsel *evsel, struct perf_sample *sampl
 	cursor = get_tls_callchain_cursor();
 
 	/* use caller function name from the callchain */
-	ret = thread__resolve_callchain(thread, cursor, evsel, sample,
+	ret = thread__resolve_callchain(thread, cursor, sample,
 					NULL, NULL, max_stack_depth);
 	if (ret != 0) {
 		thread__put(thread);
@@ -896,7 +888,7 @@ next:
 	return -1;
 }
 
-static u64 callchain_id(struct evsel *evsel, struct perf_sample *sample)
+static u64 callchain_id(struct perf_sample *sample)
 {
 	struct callchain_cursor *cursor;
 	struct machine *machine = &session->machines.host;
@@ -911,7 +903,7 @@ static u64 callchain_id(struct evsel *evsel, struct perf_sample *sample)
 
 	cursor = get_tls_callchain_cursor();
 	/* use caller function name from the callchain */
-	ret = thread__resolve_callchain(thread, cursor, evsel, sample,
+	ret = thread__resolve_callchain(thread, cursor, sample,
 					NULL, NULL, max_stack_depth);
 	thread__put(thread);
 
@@ -948,9 +940,16 @@ static u64 *get_callstack(struct perf_sample *sample, int max_stack)
 	u64 i;
 	int c;
 
-	callstack = calloc(max_stack, sizeof(*callstack));
-	if (callstack == NULL)
+	if (!sample->callchain) {
+		pr_debug("Sample unexpectedly missing callchain\n");
 		return NULL;
+	}
+
+	callstack = calloc(max_stack, sizeof(*callstack));
+	if (callstack == NULL) {
+		pr_debug("Failed to allocate callstack\n");
+		return NULL;
+	}
 
 	for (i = 0, c = 0; i < sample->callchain->nr && c < max_stack; i++) {
 		u64 ip = sample->callchain->ips[i];
@@ -963,14 +962,13 @@ static u64 *get_callstack(struct perf_sample *sample, int max_stack)
 	return callstack;
 }
 
-static int report_lock_contention_begin_event(struct evsel *evsel,
-					      struct perf_sample *sample)
+static int report_lock_contention_begin_event(struct perf_sample *sample)
 {
 	struct lock_stat *ls;
 	struct thread_stat *ts;
 	struct lock_seq_stat *seq;
-	u64 addr = evsel__intval(evsel, sample, "lock_addr");
-	unsigned int flags = evsel__intval(evsel, sample, "flags");
+	u64 addr = perf_sample__intval(sample, "lock_addr");
+	unsigned int flags = perf_sample__intval(sample, "flags");
 	u64 key;
 	int i, ret;
 	static bool kmap_loaded;
@@ -978,7 +976,7 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 	struct map *kmap;
 	struct symbol *sym;
 
-	ret = get_key_by_aggr_mode(&key, addr, evsel, sample);
+	ret = get_key_by_aggr_mode(&key, addr, sample);
 	if (ret < 0)
 		return ret;
 
@@ -1025,7 +1023,7 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 			break;
 		case LOCK_AGGR_CALLER:
 			name = buf;
-			if (lock_contention_caller(evsel, sample, buf, sizeof(buf)) < 0)
+			if (lock_contention_caller(sample, buf, sizeof(buf)) < 0)
 				name = "Unknown";
 			break;
 		case LOCK_AGGR_CGROUP:
@@ -1070,7 +1068,7 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 	if (needs_callstack()) {
 		u64 *callstack = get_callstack(sample, max_stack_depth);
 		if (callstack == NULL)
-			return -ENOMEM;
+			return 0;
 
 		if (!match_callstack_filter(machine, callstack, max_stack_depth)) {
 			free(callstack);
@@ -1127,18 +1125,17 @@ end:
 	return 0;
 }
 
-static int report_lock_contention_end_event(struct evsel *evsel,
-					    struct perf_sample *sample)
+static int report_lock_contention_end_event(struct perf_sample *sample)
 {
 	struct lock_stat *ls;
 	struct thread_stat *ts;
 	struct lock_seq_stat *seq;
 	u64 contended_term;
-	u64 addr = evsel__intval(evsel, sample, "lock_addr");
+	u64 addr = perf_sample__intval(sample, "lock_addr");
 	u64 key;
 	int ret;
 
-	ret = get_key_by_aggr_mode(&key, addr, evsel, sample);
+	ret = get_key_by_aggr_mode(&key, addr, sample);
 	if (ret < 0)
 		return ret;
 
@@ -1191,7 +1188,7 @@ end:
 
 /* lock oriented handlers */
 /* TODO: handlers for CPU oriented, thread oriented */
-static struct trace_lock_handler report_lock_ops  = {
+static const struct trace_lock_handler report_lock_ops  = {
 	.acquire_event		= report_lock_acquire_event,
 	.acquired_event		= report_lock_acquired_event,
 	.contended_event	= report_lock_contended_event,
@@ -1200,53 +1197,53 @@ static struct trace_lock_handler report_lock_ops  = {
 	.contention_end_event	= report_lock_contention_end_event,
 };
 
-static struct trace_lock_handler contention_lock_ops  = {
+static const struct trace_lock_handler contention_lock_ops  = {
 	.contention_begin_event	= report_lock_contention_begin_event,
 	.contention_end_event	= report_lock_contention_end_event,
 };
 
 
-static struct trace_lock_handler *trace_handler;
+static const struct trace_lock_handler *trace_handler;
 
-static int evsel__process_lock_acquire(struct evsel *evsel, struct perf_sample *sample)
+static int evsel__process_lock_acquire(struct perf_sample *sample)
 {
 	if (trace_handler->acquire_event)
-		return trace_handler->acquire_event(evsel, sample);
+		return trace_handler->acquire_event(sample);
 	return 0;
 }
 
-static int evsel__process_lock_acquired(struct evsel *evsel, struct perf_sample *sample)
+static int evsel__process_lock_acquired(struct perf_sample *sample)
 {
 	if (trace_handler->acquired_event)
-		return trace_handler->acquired_event(evsel, sample);
+		return trace_handler->acquired_event(sample);
 	return 0;
 }
 
-static int evsel__process_lock_contended(struct evsel *evsel, struct perf_sample *sample)
+static int evsel__process_lock_contended(struct perf_sample *sample)
 {
 	if (trace_handler->contended_event)
-		return trace_handler->contended_event(evsel, sample);
+		return trace_handler->contended_event(sample);
 	return 0;
 }
 
-static int evsel__process_lock_release(struct evsel *evsel, struct perf_sample *sample)
+static int evsel__process_lock_release(struct perf_sample *sample)
 {
 	if (trace_handler->release_event)
-		return trace_handler->release_event(evsel, sample);
+		return trace_handler->release_event(sample);
 	return 0;
 }
 
-static int evsel__process_contention_begin(struct evsel *evsel, struct perf_sample *sample)
+static int evsel__process_contention_begin(struct perf_sample *sample)
 {
 	if (trace_handler->contention_begin_event)
-		return trace_handler->contention_begin_event(evsel, sample);
+		return trace_handler->contention_begin_event(sample);
 	return 0;
 }
 
-static int evsel__process_contention_end(struct evsel *evsel, struct perf_sample *sample)
+static int evsel__process_contention_end(struct perf_sample *sample)
 {
 	if (trace_handler->contention_end_event)
-		return trace_handler->contention_end_event(evsel, sample);
+		return trace_handler->contention_end_event(sample);
 	return 0;
 }
 
@@ -1424,28 +1421,28 @@ static int process_event_update(const struct perf_tool *tool,
 	return 0;
 }
 
-typedef int (*tracepoint_handler)(struct evsel *evsel,
-				  struct perf_sample *sample);
+typedef int (*tracepoint_handler)(struct perf_sample *sample);
 
 static int process_sample_event(const struct perf_tool *tool __maybe_unused,
 				union perf_event *event,
 				struct perf_sample *sample,
-				struct evsel *evsel,
 				struct machine *machine)
 {
+	struct evsel *evsel = sample->evsel;
 	int err = 0;
 	struct thread *thread = machine__findnew_thread(machine, sample->pid,
 							sample->tid);
 
 	if (thread == NULL) {
-		pr_debug("problem processing %d event, skipping it.\n",
-			event->header.type);
+		pr_debug("problem processing %s (%u) event at offset %#" PRIx64 ", skipping it.\n",
+			 perf_event__name(event->header.type), event->header.type,
+			 sample->file_offset);
 		return -1;
 	}
 
 	if (evsel->handler != NULL) {
 		tracepoint_handler f = evsel->handler;
-		err = f(evsel, sample);
+		err = f(sample);
 	}
 
 	thread__put(thread);
@@ -1921,8 +1918,11 @@ out_delete:
 	return err;
 }
 
+static volatile sig_atomic_t done;
+
 static void sighandler(int sig __maybe_unused)
 {
+	done = 1;
 }
 
 static int check_lock_contention_options(const struct option *options,
@@ -2060,6 +2060,7 @@ static int __cmd_contention(int argc, const char **argv)
 			goto out_delete;
 		}
 
+		done = 0;
 		signal(SIGINT, sighandler);
 		signal(SIGCHLD, sighandler);
 		signal(SIGTERM, sighandler);
@@ -2127,8 +2128,11 @@ static int __cmd_contention(int argc, const char **argv)
 		if (argc)
 			evlist__start_workload(con.evlist);
 
-		/* wait for signal */
-		pause();
+		while (!done) {
+			if (argc && waitpid(con.evlist->workload.pid, NULL, WNOHANG) > 0)
+				break;
+			sleep(1);
+		}
 
 		lock_contention_stop();
 		lock_contention_read(&con);

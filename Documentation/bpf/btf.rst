@@ -97,10 +97,8 @@ Each type contains the following common data::
     struct btf_type {
         __u32 name_off;
         /* "info" bits arrangement
-         * bits  0-15: vlen (e.g. # of struct's members)
-         * bits 16-23: unused
-         * bits 24-28: kind (e.g. int, ptr, array...etc)
-         * bits 29-30: unused
+         * bits  0-23: vlen (e.g. # of struct's members)
+         * bits 24-30: kind (e.g. int, ptr, array...etc)
          * bit     31: kind_flag, currently used by
          *             struct, union, enum, fwd, enum64,
          *             decl_tag and type_tag

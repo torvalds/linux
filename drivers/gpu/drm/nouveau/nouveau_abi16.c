@@ -176,7 +176,7 @@ nouveau_abi16_chan_fini(struct nouveau_abi16 *abi16,
 
 	/* Cancel all jobs from the entity's queue. */
 	if (chan->sched)
-		drm_sched_entity_fini(&chan->sched->entity);
+		drm_sched_entity_kill(&chan->sched->entity);
 
 	if (chan->chan)
 		nouveau_channel_idle(chan->chan);

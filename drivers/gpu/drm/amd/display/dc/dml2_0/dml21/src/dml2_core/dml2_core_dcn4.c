@@ -66,6 +66,7 @@ struct dml2_core_ip_params core_dcn4_ip_caps_base = {
 	.cursor_64bpp_support = true,
 	.dynamic_metadata_vm_enabled = false,
 
+	.max_num_hdmi_frl_outputs = 1,
 	.max_num_dp2p0_outputs = 4,
 	.max_num_dp2p0_streams = 4,
 	.imall_supported = 1,

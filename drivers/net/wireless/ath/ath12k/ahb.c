@@ -583,31 +583,36 @@ static int ath12k_ahb_config_ext_irq(struct ath12k_base *ab)
 		netif_napi_add(irq_grp->napi_ndev, &irq_grp->napi,
 			       ath12k_ahb_ext_grp_napi_poll);
 
-		for (j = 0; j < ATH12K_EXT_IRQ_NUM_MAX; j++) {
-			/* For TX ring, ensure that the ring mask and the
-			 * tcl_to_wbm_rbm_map point to the same ring number.
-			 */
+		for (j = 0; j < DP_TCL_NUM_RING_MAX; j++) {
 			if (ring_mask->tx[i] &
-			    BIT(ab->hal.tcl_to_wbm_rbm_map[j].wbm_ring_num)) {
+			    BIT(ab->hal.tcl_to_wbm_rbm_map[j].wbm_ring_num) &&
+			    num_irq < ATH12K_EXT_IRQ_NUM_MAX) {
 				irq_grp->irqs[num_irq++] =
 					wbm2host_tx_completions_ring1 - j;
 			}
+		}
 
-			if (ring_mask->rx[i] & BIT(j)) {
+		for (j = 0; j < ATH12K_EXT_IRQ_NUM_MAX; j++) {
+			if (ring_mask->rx[i] & BIT(j) &&
+			    num_irq < ATH12K_EXT_IRQ_NUM_MAX) {
 				irq_grp->irqs[num_irq++] =
 					reo2host_destination_ring1 - j;
 			}
 
-			if (ring_mask->rx_err[i] & BIT(j))
+			if (ring_mask->rx_err[i] & BIT(j) &&
+			    num_irq < ATH12K_EXT_IRQ_NUM_MAX)
 				irq_grp->irqs[num_irq++] = reo2host_exception;
 
-			if (ring_mask->rx_wbm_rel[i] & BIT(j))
+			if (ring_mask->rx_wbm_rel[i] & BIT(j) &&
+			    num_irq < ATH12K_EXT_IRQ_NUM_MAX)
 				irq_grp->irqs[num_irq++] = wbm2host_rx_release;
 
-			if (ring_mask->reo_status[i] & BIT(j))
+			if (ring_mask->reo_status[i] & BIT(j) &&
+			    num_irq < ATH12K_EXT_IRQ_NUM_MAX)
 				irq_grp->irqs[num_irq++] = reo2host_status;
 
-			if (ring_mask->rx_mon_dest[i] & BIT(j))
+			if (ring_mask->rx_mon_dest[i] & BIT(j) &&
+			    num_irq < ATH12K_EXT_IRQ_NUM_MAX)
 				irq_grp->irqs[num_irq++] =
 					rxdma2host_monitor_destination_mac1;
 		}

@@ -6,6 +6,7 @@
 #include <linux/refcount.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdatomic.h>
 #include <linux/list.h>
 #include <linux/rbtree.h>
 #include <stdio.h>
@@ -27,6 +28,22 @@ struct map;
 struct maps;
 struct option;
 struct build_id;
+struct perf_env;
+
+/*
+ * Ignore kernel mapping symbols, matching kernel is_mapping_symbol() logic.
+ * This checks for '$' prefix (used by ARM, AArch64, RISC-V) and
+ * x86 local symbol prefixes (.L* and L0*).
+ * Only use this for kernel symbols (kallsyms, ksymbol events, kernel ELF DSOs).
+ */
+static inline bool is_ignored_kernel_symbol(const char *str)
+{
+	if (str[0] == '.' && str[1] == 'L')
+		return true;
+	if (str[0] == 'L' && str[1] == '0')
+		return true;
+	return str[0] == '$';
+}
 
 /*
  * libelf 0.8.x and earlier do not support ELF_C_READ_MMAP;
@@ -43,6 +60,22 @@ Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
 			     GElf_Shdr *shp, const char *name, size_t *idx);
 #endif
 
+enum symbol_idle_kind {
+	SYMBOL_IDLE__UNKNOWN = 0,
+	SYMBOL_IDLE__NOT_IDLE = 1,
+	SYMBOL_IDLE__IDLE = 2,
+};
+
+#define SYMBOL_FLAG_TYPE_SHIFT      0
+#define SYMBOL_FLAG_TYPE_MASK       (0xF << SYMBOL_FLAG_TYPE_SHIFT)
+#define SYMBOL_FLAG_BINDING_SHIFT   4
+#define SYMBOL_FLAG_BINDING_MASK    (0xF << SYMBOL_FLAG_BINDING_SHIFT)
+#define SYMBOL_FLAG_IDLE_SHIFT      8
+#define SYMBOL_FLAG_IDLE_MASK       (0x3 << SYMBOL_FLAG_IDLE_SHIFT)
+#define SYMBOL_FLAG_IGNORE          (1 << 10)
+#define SYMBOL_FLAG_INLINED         (1 << 11)
+#define SYMBOL_FLAG_ANNOTATE2       (1 << 12)
+#define SYMBOL_FLAG_IFUNC_ALIAS     (1 << 13)
 /**
  * A symtab entry. When allocated this may be preceded by an annotation (see
  * symbol__annotation) and/or a browser_index (see symbol__browser_index).
@@ -54,20 +87,7 @@ struct symbol {
 	u64		end;
 	/** Length of the string name. */
 	u16		namelen;
-	/** ELF symbol type as defined for st_info. E.g STT_OBJECT or STT_FUNC. */
-	u8		type:4;
-	/** ELF binding type as defined for st_info. E.g. STB_WEAK or STB_GLOBAL. */
-	u8		binding:4;
-	/** Set true for kernel symbols of idle routines. */
-	u8		idle:1;
-	/** Resolvable but tools ignore it (e.g. idle routines). */
-	u8		ignore:1;
-	/** Symbol for an inlined function. */
-	u8		inlined:1;
-	/** Has symbol__annotate2 been performed. */
-	u8		annotate2:1;
-	/** Symbol is an alias of an STT_GNU_IFUNC */
-	u8		ifunc_alias:1;
+	_Atomic uint16_t flags;
 	/** Architecture specific. Unused except on PPC where it holds st_other. */
 	u8		arch_sym;
 	/** The name of length namelen associated with the symbol. */
@@ -76,6 +96,49 @@ struct symbol {
 
 void symbol__delete(struct symbol *sym);
 void symbols__delete(struct rb_root_cached *symbols);
+
+static inline u8 symbol__type(const struct symbol *sym)
+{
+	return (atomic_load_explicit(&sym->flags, memory_order_relaxed) &
+		SYMBOL_FLAG_TYPE_MASK) >> SYMBOL_FLAG_TYPE_SHIFT;
+}
+
+static inline u8 symbol__binding(const struct symbol *sym)
+{
+	return (atomic_load_explicit(&sym->flags, memory_order_relaxed) &
+		SYMBOL_FLAG_BINDING_MASK) >> SYMBOL_FLAG_BINDING_SHIFT;
+}
+
+static inline bool symbol__ignore(const struct symbol *sym)
+{
+	return (atomic_load_explicit(&sym->flags, memory_order_relaxed) &
+		SYMBOL_FLAG_IGNORE) != 0;
+}
+
+static inline bool symbol__inlined(const struct symbol *sym)
+{
+	return (atomic_load_explicit(&sym->flags, memory_order_relaxed) &
+		SYMBOL_FLAG_INLINED) != 0;
+}
+
+static inline bool symbol__is_annotate2(const struct symbol *sym)
+{
+	return (atomic_load_explicit(&sym->flags, memory_order_relaxed) &
+		SYMBOL_FLAG_ANNOTATE2) != 0;
+}
+
+static inline bool symbol__ifunc_alias(const struct symbol *sym)
+{
+	return (atomic_load_explicit(&sym->flags, memory_order_relaxed) &
+		SYMBOL_FLAG_IFUNC_ALIAS) != 0;
+}
+
+bool symbol__is_idle(struct symbol *sym, const struct dso *dso, struct perf_env *env);
+
+void symbol__set_ignore(struct symbol *sym, bool ignore);
+void symbol__set_annotate2(struct symbol *sym, bool annotate2);
+void symbol__set_inlined(struct symbol *sym, bool inlined);
+void symbol__set_ifunc_alias(struct symbol *sym, bool ifunc_alias);
 
 /* symbols__for_each_entry - iterate over symbols (rb_root)
  *
@@ -154,7 +217,6 @@ int filename__read_debuglink(const char *filename, char *debuglink,
 			     size_t size);
 bool filename__has_section(const char *filename, const char *sec);
 
-struct perf_env;
 int symbol__init(struct perf_env *env);
 void symbol__exit(void);
 void symbol__elf_init(void);
@@ -194,8 +256,7 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss);
 
 char *dso__demangle_sym(struct dso *dso, int kmodule, const char *elf_name);
 
-void __symbols__insert(struct rb_root_cached *symbols, struct symbol *sym,
-		       bool kernel);
+void __symbols__insert(struct rb_root_cached *symbols, struct symbol *sym);
 void symbols__insert(struct rb_root_cached *symbols, struct symbol *sym);
 void symbols__fixup_duplicate(struct rb_root_cached *symbols);
 void symbols__fixup_end(struct rb_root_cached *symbols, bool is_kallsyms);

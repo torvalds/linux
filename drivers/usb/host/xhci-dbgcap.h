@@ -113,6 +113,7 @@ struct dbc_ep {
 #define DBC_POLL_INTERVAL_DEFAULT	64	/* milliseconds */
 #define DBC_POLL_INTERVAL_MAX		5000	/* milliseconds */
 #define DBC_XFER_INACTIVITY_TIMEOUT	10	/* milliseconds */
+#define DBC_ENUMERATION_TIMEOUT		2000	/* milliseconds */
 /*
  * Private structure for DbC hardware state:
  */
@@ -140,6 +141,7 @@ struct dbc_driver {
 
 struct xhci_dbc {
 	spinlock_t			lock;		/* device access */
+	struct mutex			enable_mutex;
 	struct device			*dev;
 	struct xhci_hcd			*xhci;
 	struct dbc_regs __iomem		*regs;
@@ -162,6 +164,7 @@ struct xhci_dbc {
 	struct delayed_work		event_work;
 	unsigned int			poll_interval;	/* ms */
 	unsigned long			xfer_timestamp;
+	unsigned long			state_timestamp;
 	unsigned			resume_required:1;
 	struct dbc_ep			eps[2];
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2024-2025 Intel Corporation
+ * Copyright (C) 2024-2026 Intel Corporation
  */
 #include <linux/crc32.h>
 
@@ -236,6 +236,12 @@ iwl_mld_scan_type iwl_mld_get_scan_type(struct iwl_mld *mld,
 	if ((load == IWL_MLD_TRAFFIC_HIGH || data->global_low_latency) &&
 	    vif->type != NL80211_IFTYPE_P2P_DEVICE)
 		return IWL_SCAN_TYPE_FRAGMENTED;
+
+	/* While associated to MLD AP with active EMLSR, set all scan
+	 * operations as fast-balance scans.
+	 */
+	if (iwl_mld_emlsr_active(vif))
+		return IWL_SCAN_TYPE_FAST_BALANCE;
 
 	/* In case of DCM with P2P GO set all scan requests as
 	 * fast-balance scan

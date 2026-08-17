@@ -78,6 +78,7 @@ config AD4030
 config AD4062
 	tristate "Analog Devices AD4062 Driver"
 	depends on I3C
+	depends on GPIOLIB
 	select REGMAP_I3C
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
@@ -143,6 +144,22 @@ config AD4170_4
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called ad4170-4.
+
+config AD4691
+	tristate "Analog Devices AD4691 Family ADC Driver"
+	depends on SPI
+	depends on REGULATOR || COMPILE_TEST
+	select IIO_BUFFER
+	select IIO_BUFFER_DMAENGINE
+	select IIO_TRIGGERED_BUFFER
+	select REGMAP
+	select SPI_OFFLOAD
+	help
+	  Say yes here to build support for Analog Devices AD4691 Family MuxSAR
+	  SPI analog to digital converters (ADC).
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ad4691.
 
 config AD4695
 	tristate "Analog Device AD4695 ADC Driver"
@@ -414,6 +431,7 @@ config AD7766
 config AD7768_1
 	tristate "Analog Devices AD7768-1 ADC driver"
 	depends on SPI
+	select GPIOLIB
 	select REGULATOR
 	select REGMAP_SPI
 	select RATIONAL
@@ -1354,7 +1372,7 @@ config QCOM_SPMI_VADC
 	  be called qcom-spmi-vadc.
 
 config QCOM_SPMI_ADC5
-	tristate "Qualcomm Technologies Inc. SPMI PMIC5 ADC"
+	tristate "Qualcomm SPMI PMIC5 ADC"
 	depends on SPMI
 	select REGMAP_SPMI
 	select QCOM_VADC_COMMON
@@ -1374,7 +1392,7 @@ config QCOM_SPMI_ADC5
 	  be called qcom-spmi-adc5.
 
 config QCOM_SPMI_ADC5_GEN3
-	tristate "Qualcomm Technologies Inc. SPMI PMIC5 GEN3 ADC"
+	tristate "Qualcomm SPMI PMIC5 GEN3 ADC"
 	depends on SPMI && THERMAL
 	select REGMAP_SPMI
 	select QCOM_VADC_COMMON

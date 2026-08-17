@@ -89,14 +89,13 @@ static int cm3323_init(struct iio_dev *indio_dev)
 
 	/* enable sensor and set auto force mode */
 	ret &= ~(CM3323_CONF_SD_BIT | CM3323_CONF_AF_BIT);
+	data->reg_conf = ret;
 
-	ret = i2c_smbus_write_word_data(data->client, CM3323_CMD_CONF, ret);
+	ret = i2c_smbus_write_word_data(data->client, CM3323_CMD_CONF, data->reg_conf);
 	if (ret < 0) {
 		dev_err(&data->client->dev, "Error writing reg_conf\n");
 		return ret;
 	}
-
-	data->reg_conf = ret;
 
 	return 0;
 }
@@ -250,7 +249,7 @@ static int cm3323_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id cm3323_id[] = {
-	{ "cm3323" },
+	{ .name = "cm3323" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, cm3323_id);

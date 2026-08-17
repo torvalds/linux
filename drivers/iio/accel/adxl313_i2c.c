@@ -8,7 +8,6 @@
  */
 
 #include <linux/i2c.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
 
@@ -65,6 +64,7 @@ MODULE_DEVICE_TABLE(of, adxl313_of_match);
 static int adxl313_i2c_probe(struct i2c_client *client)
 {
 	const struct adxl313_chip_info *chip_data;
+	struct device *dev = &client->dev;
 	struct regmap *regmap;
 
 	/*
@@ -75,13 +75,10 @@ static int adxl313_i2c_probe(struct i2c_client *client)
 
 	regmap = devm_regmap_init_i2c(client,
 				      &adxl31x_i2c_regmap_config[chip_data->type]);
-	if (IS_ERR(regmap)) {
-		dev_err(&client->dev, "Error initializing i2c regmap: %ld\n",
-			PTR_ERR(regmap));
-		return PTR_ERR(regmap);
-	}
+	if (IS_ERR(regmap))
+		return dev_err_probe(dev, PTR_ERR(regmap), "Error initializing i2c regmap\n");
 
-	return adxl313_core_probe(&client->dev, regmap, chip_data, NULL);
+	return adxl313_core_probe(dev, regmap, chip_data, NULL);
 }
 
 static struct i2c_driver adxl313_i2c_driver = {

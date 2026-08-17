@@ -37,7 +37,13 @@ patternProperties:
         items:
           enum:
             - i2s
+            - left_j
+            - right_j
+            - dsp_a
             - dsp_b
+            - pdm
+            - msb
+            - lsb
 
       dai-tdm-slot-num: true
 

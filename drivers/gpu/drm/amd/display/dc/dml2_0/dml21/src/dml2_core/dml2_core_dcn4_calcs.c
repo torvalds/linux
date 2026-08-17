@@ -7,6 +7,7 @@
 #include "dml2_core_dcn4_calcs.h"
 #include "dml2_debug.h"
 #include "lib_float_math.h"
+#include "lib_frl_cap_check.h"
 #include "dml_top_types.h"
 
 #define DML2_MAX_FMT_420_BUFFER_WIDTH 4096
@@ -1294,19 +1295,39 @@ static double TruncToValidBPP(
 	unsigned int NonDSCBPP2;
 	enum dml2_odm_mode ODMMode;
 
+	enum lib_frl_cap_check_status hdmifrlresult = LIB_FRL_CAP_CHECK_OK;
+
+	l->hdmifrlparams.lanes = (int)Lanes;
+	l->hdmifrlparams.f_pixel_clock_nominal = PixelClock * 1000000;
+	l->hdmifrlparams.r_bit_nominal = LinkBitRate * 1000000;
+	l->hdmifrlparams.layout = (int)AudioLayout;
+	l->hdmifrlparams.f_audio = AudioRate * 1000;
+	l->hdmifrlparams.h_active = (int)HActive;
+	l->hdmifrlparams.h_blank = (int)(HTotal - HActive);
+	l->hdmifrlparams.bpc = (int)(DesiredBPP / 3);
+	l->hdmifrlparams.compressed = DSCEnable;
+	l->hdmifrlparams.slices = (int)DSCSlices;
+	l->hdmifrlparams.slice_width = (int)(math_ceil2((double)HActive / DSCSlices, 1.0));
+	l->hdmifrlparams.bpp_target = DesiredBPP;
 	if (Format == dml2_420) {
 		NonDSCBPP0 = 12;
 		NonDSCBPP1 = 15;
 		NonDSCBPP2 = 18;
 		MinDSCBPP = 6;
 		MaxDSCBPP = 16;
+		l->hdmifrlparams.pixel_encoding = LIB_FRL_CAP_CHECK_PIXEL_ENCODING_420;
+		l->hdmifrlparams.bpc = (int)(DesiredBPP / 1.5);
 	} else if (Format == dml2_444) {
 		NonDSCBPP0 = 24;
 		NonDSCBPP1 = 30;
 		NonDSCBPP2 = 36;
 		MinDSCBPP = 8;
 		MaxDSCBPP = 16;
+		l->hdmifrlparams.pixel_encoding = LIB_FRL_CAP_CHECK_PIXEL_ENCODING_444;
+		l->hdmifrlparams.bpc = (int)(DesiredBPP / 3.0);
 	} else {
+		l->hdmifrlparams.pixel_encoding = LIB_FRL_CAP_CHECK_PIXEL_ENCODING_422;
+		l->hdmifrlparams.bpc = (int)(DesiredBPP / 2.0);
 
 		if (Output == dml2_hdmi || Output == dml2_hdmifrl) {
 			NonDSCBPP0 = 24;
@@ -1326,7 +1347,11 @@ static double TruncToValidBPP(
 		}
 	}
 
-	if (Output == dml2_dp2p0) {
+	if (Output == dml2_hdmifrl) {
+		hdmifrlresult = frl_cap_check_intermediates(&l->hdmifrlparams, &l->hdmifrlinter);
+		MaxLinkBPP = (1 - l->hdmifrlinter.overhead_max) * math_min2(l->hdmifrlinter.r_frl_char_min * 16.0 * (double)Lanes / l->hdmifrlinter.f_pixel_clock_max + 24.0 * (double)DML2_FRL_CHK_TB_BORROWED_MAX / (double)HActive,
+			(l->hdmifrlinter.r_frl_char_min * 16.0 * (double)Lanes / l->hdmifrlinter.f_pixel_clock_max * (double)HTotal - 16.0 * (double)l->hdmifrlinter.blank_audio_min) / (double)HActive);
+	} else if (Output == dml2_dp2p0) {
 		MaxLinkBPP = LinkBitRate * Lanes / PixelClock * 128.0 / 132.0 * 383.0 / 384.0 * 65536.0 / 65540.0;
 	} else if (DSCEnable && Output == dml2_dp) {
 		MaxLinkBPP = LinkBitRate / 10.0 * 8.0 * Lanes / PixelClock * (1 - 2.4 / 100);
@@ -1363,6 +1388,8 @@ static double TruncToValidBPP(
 	} else {
 		if (!((DSCEnable == false && (DesiredBPP == NonDSCBPP2 || DesiredBPP == NonDSCBPP1 || DesiredBPP == NonDSCBPP0)) ||
 			(DSCEnable && DesiredBPP >= MinDSCBPP && DesiredBPP <= MaxDSCBPP))) {
+			return __DML2_CALCS_DPP_INVALID__;
+		} else if ((Output == dml2_hdmifrl && hdmifrlresult != LIB_FRL_CAP_CHECK_OK) || (Output != dml2_hdmifrl && MaxLinkBPP < DesiredBPP)) {
 			return __DML2_CALCS_DPP_INVALID__;
 		} else {
 			return DesiredBPP;

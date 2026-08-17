@@ -154,6 +154,7 @@ struct gpu_buddy_block {
  * @avail: Total free space currently available for allocation in bytes.
  * @clear_avail: Free space available in the clear tree (zeroed memory) in bytes.
  *               This is a subset of @avail.
+ * @lock_dep_map: Annotates gpu_buddy API with a driver provided lock.
  */
 struct gpu_buddy {
 /* private: */
@@ -179,7 +180,47 @@ struct gpu_buddy {
 	u64 size;
 	u64 avail;
 	u64 clear_avail;
+#ifdef CONFIG_LOCKDEP
+	struct lockdep_map *lock_dep_map;
+#endif
 };
+
+#ifdef CONFIG_LOCKDEP
+/**
+ * gpu_buddy_driver_set_lock() - Set the lock protecting accesses to GPU BUDDY
+ * @mm: Pointer to GPU buddy structure.
+ * @lock: the lock used to protect the gpu buddy. The locking primitive
+ * must contain a dep_map field.
+ *
+ * Call this to annotate gpu_buddy APIs which access/modify gpu_buddy manager
+ */
+#define gpu_buddy_driver_set_lock(mm, lock) \
+	do { \
+		struct gpu_buddy *__mm = (mm); \
+		if (!WARN(__mm->lock_dep_map, "GPU BUDDY MM lock should be set only once.")) \
+			__mm->lock_dep_map = &(lock)->dep_map; \
+	} while (0)
+#else
+#define gpu_buddy_driver_set_lock(mm, lock) do { (void)(mm); (void)(lock); } while (0)
+#endif
+
+#ifdef CONFIG_LOCKDEP
+/**
+ * gpu_buddy_driver_lock_held() - Assert GPU BUDDY manager lock is held
+ * @mm: Pointer to the GPU BUDDY structure.
+ *
+ * Ensure driver lock is held.
+ */
+static inline void gpu_buddy_driver_lock_held(struct gpu_buddy *mm)
+{
+	if (mm->lock_dep_map)
+		lockdep_assert(lock_is_held_type(mm->lock_dep_map, 0));
+}
+#else
+static inline void gpu_buddy_driver_lock_held(struct gpu_buddy *mm)
+{
+}
+#endif
 
 static inline u64
 gpu_buddy_block_offset(const struct gpu_buddy_block *block)

@@ -501,6 +501,10 @@ static int share_pfn_hyp(u64 pfn)
 	rb_link_node(&this->node, parent, node);
 	rb_insert_color(&this->node, &hyp_shared_pfns);
 	ret = kvm_call_hyp_nvhe(__pkvm_host_share_hyp, pfn);
+	if (ret) {
+		rb_erase(&this->node, &hyp_shared_pfns);
+		kfree(this);
+	}
 unlock:
 	mutex_unlock(&hyp_shared_pfns_lock);
 
@@ -520,13 +524,17 @@ static int unshare_pfn_hyp(u64 pfn)
 		goto unlock;
 	}
 
-	this->count--;
-	if (this->count)
+	if (this->count > 1) {
+		this->count--;
+		goto unlock;
+	}
+
+	ret = kvm_call_hyp_nvhe(__pkvm_host_unshare_hyp, pfn);
+	if (ret)
 		goto unlock;
 
 	rb_erase(&this->node, &hyp_shared_pfns);
 	kfree(this);
-	ret = kvm_call_hyp_nvhe(__pkvm_host_unshare_hyp, pfn);
 unlock:
 	mutex_unlock(&hyp_shared_pfns_lock);
 
@@ -536,8 +544,8 @@ unlock:
 int kvm_share_hyp(void *from, void *to)
 {
 	phys_addr_t start, end, cur;
+	int ret = 0;
 	u64 pfn;
-	int ret;
 
 	if (is_kernel_in_hyp_mode())
 		return 0;
@@ -559,10 +567,24 @@ int kvm_share_hyp(void *from, void *to)
 		pfn = __phys_to_pfn(cur);
 		ret = share_pfn_hyp(pfn);
 		if (ret)
-			return ret;
+			break;
 	}
 
-	return 0;
+	if (!ret)
+		return 0;
+
+	/*
+	 * Roll back the pages shared by this call. A failed unshare leaks
+	 * the page (it stays shared with the hypervisor and is no longer
+	 * reusable for pKVM) but breaks no isolation guarantee, so warn and
+	 * continue. Not expected in practice.
+	 */
+	for (end = cur, cur = start; cur < end; cur += PAGE_SIZE) {
+		pfn = __phys_to_pfn(cur);
+		WARN_ON(unshare_pfn_hyp(pfn));
+	}
+
+	return ret;
 }
 
 void kvm_unshare_hyp(void *from, void *to)
@@ -577,6 +599,11 @@ void kvm_unshare_hyp(void *from, void *to)
 	end = PAGE_ALIGN(__pa(to));
 	for (cur = start; cur < end; cur += PAGE_SIZE) {
 		pfn = __phys_to_pfn(cur);
+		/*
+		 * A failed unshare leaks the page: it stays shared with the
+		 * hypervisor and is no longer reusable for pKVM. No isolation
+		 * guarantee is broken, and this is not expected in practice.
+		 */
 		WARN_ON(unshare_pfn_hyp(pfn));
 	}
 }
@@ -1478,6 +1505,11 @@ static void sanitise_mte_tags(struct kvm *kvm, kvm_pfn_t pfn,
 
 	if (!kvm_has_mte(kvm))
 		return;
+
+	if (is_zero_pfn(pfn)) {
+		WARN_ON_ONCE(nr_pages != 1);
+		return;
+	}
 
 	if (folio_test_hugetlb(folio)) {
 		/* Hugetlb has MTE flags set on head page only */

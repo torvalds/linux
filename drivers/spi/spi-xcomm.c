@@ -269,8 +269,8 @@ static int spi_xcomm_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id spi_xcomm_ids[] = {
-	{ "spi-xcomm" },
-	{ },
+	{ .name = "spi-xcomm" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, spi_xcomm_ids);
 

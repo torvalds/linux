@@ -143,6 +143,8 @@ struct ath12k_dp_peer {
 	struct ath12k_dp_link_peer __rcu *link_peers[ATH12K_NUM_MAX_LINKS];
 	struct ath12k_reoq_buf reoq_bufs[IEEE80211_NUM_TIDS + 1];
 	struct ath12k_dp_rx_tid rx_tid[IEEE80211_NUM_TIDS + 1];
+
+	bool use_4addr;
 };
 
 struct ath12k_dp_link_peer *

@@ -28,9 +28,11 @@ static int afs_d_revalidate(struct inode *dir, const struct qstr *name,
 static int afs_d_delete(const struct dentry *dentry);
 static void afs_d_iput(struct dentry *dentry, struct inode *inode);
 static bool afs_lookup_one_filldir(struct dir_context *ctx, const char *name, int nlen,
-				  loff_t fpos, u64 ino, unsigned dtype);
+				   u64 ino, u32 uniquifier);
+#define AFS_LOOKUP_ONE ((filldir_t)0x123UL)
 static bool afs_lookup_filldir(struct dir_context *ctx, const char *name, int nlen,
-			      loff_t fpos, u64 ino, unsigned dtype);
+			       u64 ino, u32 uniquifier);
+#define AFS_LOOKUP ((filldir_t)0x137UL)
 static int afs_create(struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *dentry, umode_t mode, bool excl);
 static struct dentry *afs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
@@ -44,6 +46,8 @@ static int afs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 static int afs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 		      struct dentry *old_dentry, struct inode *new_dir,
 		      struct dentry *new_dentry, unsigned int flags);
+static int afs_dir_writepages(struct address_space *mapping,
+			      struct writeback_control *wbc);
 
 const struct file_operations afs_dir_file_operations = {
 	.open		= afs_dir_open,
@@ -68,7 +72,7 @@ const struct inode_operations afs_dir_inode_operations = {
 };
 
 const struct address_space_operations afs_dir_aops = {
-	.writepages	= afs_single_writepages,
+	.writepages	= afs_dir_writepages,
 };
 
 const struct dentry_operations afs_fs_dentry_operations = {
@@ -233,22 +237,13 @@ static ssize_t afs_do_read_single(struct afs_vnode *dvnode, struct file *file)
 	struct iov_iter iter;
 	ssize_t ret;
 	loff_t i_size;
-	bool is_dir = (S_ISDIR(dvnode->netfs.inode.i_mode) &&
-		       !test_bit(AFS_VNODE_MOUNTPOINT, &dvnode->flags));
 
 	i_size = i_size_read(&dvnode->netfs.inode);
-	if (is_dir) {
-		if (i_size < AFS_DIR_BLOCK_SIZE)
-			return afs_bad(dvnode, afs_file_error_dir_small);
-		if (i_size > AFS_DIR_BLOCK_SIZE * 1024) {
-			trace_afs_file_error(dvnode, -EFBIG, afs_file_error_dir_big);
-			return -EFBIG;
-		}
-	} else {
-		if (i_size > AFSPATHMAX) {
-			trace_afs_file_error(dvnode, -EFBIG, afs_file_error_dir_big);
-			return -EFBIG;
-		}
+	if (i_size < AFS_DIR_BLOCK_SIZE)
+		return afs_bad(dvnode, afs_file_error_dir_small);
+	if (i_size > AFS_DIR_BLOCK_SIZE * 1024) {
+		trace_afs_file_error(dvnode, -EFBIG, afs_file_error_dir_big);
+		return -EFBIG;
 	}
 
 	/* Expand the storage.  TODO: Shrink the storage too. */
@@ -277,24 +272,18 @@ static ssize_t afs_do_read_single(struct afs_vnode *dvnode, struct file *file)
 			 * buffer.
 			 */
 			ret = -ESTALE;
-		} else if (is_dir) {
+		} else {
 			int ret2 = afs_dir_check(dvnode);
 
 			if (ret2 < 0)
 				ret = ret2;
-		} else if (i_size < folioq_folio_size(dvnode->directory, 0)) {
-			/* NUL-terminate a symlink. */
-			char *symlink = kmap_local_folio(folioq_folio(dvnode->directory, 0), 0);
-
-			symlink[i_size] = 0;
-			kunmap_local(symlink);
 		}
 	}
 
 	return ret;
 }
 
-ssize_t afs_read_single(struct afs_vnode *dvnode, struct file *file)
+static ssize_t afs_read_single(struct afs_vnode *dvnode, struct file *file)
 {
 	ssize_t ret;
 
@@ -434,11 +423,18 @@ static int afs_dir_iterate_block(struct afs_vnode *dvnode,
 		}
 
 		/* found the next entry */
-		if (!dir_emit(ctx, dire->u.name, nlen,
-			      ntohl(dire->u.vnode),
-			      (ctx->actor == afs_lookup_filldir ||
-			       ctx->actor == afs_lookup_one_filldir)?
-			      ntohl(dire->u.unique) : DT_UNKNOWN)) {
+		if (ctx->actor == AFS_LOOKUP) {
+			if (!afs_lookup_filldir(ctx, dire->u.name, nlen,
+						ntohl(dire->u.vnode),
+						ntohl(dire->u.unique)))
+				return 0;
+		} else if (ctx->actor == AFS_LOOKUP_ONE) {
+			if (!afs_lookup_one_filldir(ctx, dire->u.name, nlen,
+						    ntohl(dire->u.vnode),
+						    ntohl(dire->u.unique)))
+				return 0;
+		} else if (!dir_emit(ctx, dire->u.name, nlen,
+				     ntohl(dire->u.vnode), DT_UNKNOWN)) {
 			_leave(" = 0 [full]");
 			return 0;
 		}
@@ -558,6 +554,7 @@ static int afs_readdir(struct file *file, struct dir_context *ctx)
 {
 	afs_dataversion_t dir_version;
 
+	ctx->dt_flags_mask = UINT_MAX;
 	return afs_dir_iterate(file_inode(file), ctx, file, &dir_version);
 }
 
@@ -567,14 +564,14 @@ static int afs_readdir(struct file *file, struct dir_context *ctx)
  *   uniquifier through dtype
  */
 static bool afs_lookup_one_filldir(struct dir_context *ctx, const char *name,
-				  int nlen, loff_t fpos, u64 ino, unsigned dtype)
+				  int nlen, u64 ino, u32 uniquifier)
 {
 	struct afs_lookup_one_cookie *cookie =
 		container_of(ctx, struct afs_lookup_one_cookie, ctx);
 
 	_enter("{%s,%u},%s,%u,,%llu,%u",
 	       cookie->name.name, cookie->name.len, name, nlen,
-	       (unsigned long long) ino, dtype);
+	       (unsigned long long) ino, uniquifier);
 
 	/* insanity checks first */
 	BUILD_BUG_ON(sizeof(union afs_xdr_dir_block) != 2048);
@@ -587,7 +584,7 @@ static bool afs_lookup_one_filldir(struct dir_context *ctx, const char *name,
 	}
 
 	cookie->fid.vnode = ino;
-	cookie->fid.unique = dtype;
+	cookie->fid.unique = uniquifier;
 	cookie->found = 1;
 
 	_leave(" = false [found]");
@@ -604,7 +601,7 @@ static int afs_do_lookup_one(struct inode *dir, const struct qstr *name,
 {
 	struct afs_super_info *as = dir->i_sb->s_fs_info;
 	struct afs_lookup_one_cookie cookie = {
-		.ctx.actor = afs_lookup_one_filldir,
+		.ctx.actor = AFS_LOOKUP_ONE,
 		.name = *name,
 		.fid.vid = as->volume->vid
 	};
@@ -635,14 +632,14 @@ static int afs_do_lookup_one(struct inode *dir, const struct qstr *name,
  *   uniquifier through dtype
  */
 static bool afs_lookup_filldir(struct dir_context *ctx, const char *name,
-			      int nlen, loff_t fpos, u64 ino, unsigned dtype)
+			      int nlen, u64 ino, u32 uniquifier)
 {
 	struct afs_lookup_cookie *cookie =
 		container_of(ctx, struct afs_lookup_cookie, ctx);
 
 	_enter("{%s,%u},%s,%u,,%llu,%u",
 	       cookie->name.name, cookie->name.len, name, nlen,
-	       (unsigned long long) ino, dtype);
+	       (unsigned long long) ino, uniquifier);
 
 	/* insanity checks first */
 	BUILD_BUG_ON(sizeof(union afs_xdr_dir_block) != 2048);
@@ -650,7 +647,7 @@ static bool afs_lookup_filldir(struct dir_context *ctx, const char *name,
 
 	if (cookie->nr_fids < 50) {
 		cookie->fids[cookie->nr_fids].vnode	= ino;
-		cookie->fids[cookie->nr_fids].unique	= dtype;
+		cookie->fids[cookie->nr_fids].unique	= uniquifier;
 		cookie->nr_fids++;
 	}
 
@@ -791,7 +788,7 @@ static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry)
 
 	for (i = 0; i < ARRAY_SIZE(cookie->fids); i++)
 		cookie->fids[i].vid = dvnode->fid.vid;
-	cookie->ctx.actor = afs_lookup_filldir;
+	cookie->ctx.actor = AFS_LOOKUP;
 	cookie->name = dentry->d_name;
 	cookie->nr_fids = 2; /* slot 1 is saved for the fid we actually want
 			      * and slot 0 for the directory */
@@ -1763,13 +1760,20 @@ error:
 	return ret;
 }
 
+static void afs_symlink_put(struct afs_operation *op)
+{
+	kfree(op->create.symlink);
+	op->create.symlink = NULL;
+	afs_create_put(op);
+}
+
 static const struct afs_operation_ops afs_symlink_operation = {
 	.issue_afs_rpc	= afs_fs_symlink,
 	.issue_yfs_rpc	= yfs_fs_symlink,
 	.success	= afs_create_success,
 	.aborted	= afs_check_for_remote_deletion,
 	.edit_dir	= afs_create_edit_dir,
-	.put		= afs_create_put,
+	.put		= afs_symlink_put,
 };
 
 /*
@@ -1779,7 +1783,9 @@ static int afs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, const char *content)
 {
 	struct afs_operation *op;
+	struct afs_symlink *symlink;
 	struct afs_vnode *dvnode = AFS_FS_I(dir);
+	size_t clen = strlen(content);
 	int ret;
 
 	_enter("{%llx:%llu},{%pd},%s",
@@ -1791,12 +1797,20 @@ static int afs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 		goto error;
 
 	ret = -EINVAL;
-	if (strlen(content) >= AFSPATHMAX)
+	if (clen >= AFSPATHMAX)
 		goto error;
+
+	ret = -ENOMEM;
+	symlink = kmalloc_flex(struct afs_symlink, content, clen + 1, GFP_KERNEL);
+	if (!symlink)
+		goto error;
+	refcount_set(&symlink->ref, 1);
+	memcpy(symlink->content, content, clen + 1);
 
 	op = afs_alloc_operation(NULL, dvnode->volume);
 	if (IS_ERR(op)) {
 		ret = PTR_ERR(op);
+		kfree(symlink);
 		goto error;
 	}
 
@@ -1808,7 +1822,7 @@ static int afs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 	op->dentry		= dentry;
 	op->ops			= &afs_symlink_operation;
 	op->create.reason	= afs_edit_dir_for_symlink;
-	op->create.symlink	= content;
+	op->create.symlink	= symlink;
 	op->mtime		= current_time(dir);
 	ret = afs_do_sync_operation(op);
 	afs_dir_unuse_cookie(dvnode, ret);
@@ -2192,28 +2206,33 @@ error:
 }
 
 /*
- * Write the file contents to the cache as a single blob.
+ * Write the directory contents to the cache as a single blob.
  */
-int afs_single_writepages(struct address_space *mapping,
-			  struct writeback_control *wbc)
+static int afs_dir_writepages(struct address_space *mapping,
+			      struct writeback_control *wbc)
 {
 	struct afs_vnode *dvnode = AFS_FS_I(mapping->host);
 	struct iov_iter iter;
-	bool is_dir = (S_ISDIR(dvnode->netfs.inode.i_mode) &&
-		       !test_bit(AFS_VNODE_MOUNTPOINT, &dvnode->flags));
 	int ret = 0;
 
 	/* Need to lock to prevent the folio queue and folios from being thrown
 	 * away.
 	 */
-	down_read(&dvnode->validate_lock);
+	if (!down_read_trylock(&dvnode->validate_lock)) {
+		if (wbc->sync_mode == WB_SYNC_NONE) {
+			/* The VFS will have undirtied the inode. */
+			netfs_single_mark_inode_dirty(&dvnode->netfs.inode);
+			return 0;
+		}
+		down_read(&dvnode->validate_lock);
+	}
 
-	if (is_dir ?
-	    test_bit(AFS_VNODE_DIR_VALID, &dvnode->flags) :
-	    atomic64_read(&dvnode->cb_expires_at) != AFS_NO_CB_PROMISE) {
+	if (test_bit(AFS_VNODE_DIR_VALID, &dvnode->flags)) {
 		iov_iter_folio_queue(&iter, ITER_SOURCE, dvnode->directory, 0, 0,
 				     i_size_read(&dvnode->netfs.inode));
 		ret = netfs_writeback_single(mapping, wbc, &iter);
+		if (ret == 1)
+			ret = 0; /* Skipped write due to lock conflict. */
 	}
 
 	up_read(&dvnode->validate_lock);

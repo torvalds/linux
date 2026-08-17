@@ -3257,6 +3257,9 @@ static int _regmap_update_bits(struct regmap *map, unsigned int reg,
 		*change = false;
 
 	if (regmap_volatile(map, reg) && map->reg_update_bits) {
+		if (map->cache_only)
+			return -EBUSY;
+
 		reg = regmap_reg_addr(map, reg);
 		ret = map->reg_update_bits(map->bus_context, reg, mask, val);
 		if (ret == 0 && change)

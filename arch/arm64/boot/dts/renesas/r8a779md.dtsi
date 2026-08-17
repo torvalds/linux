@@ -1,0 +1,59 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/*
+ * Device Tree Source for the R-Car M3Le (R8A779MD) SoC
+ *
+ * Copyright (C) 2025-2026 Renesas Electronics Corp.
+ */
+
+#include "r8a77965.dtsi"
+
+/ {
+	compatible = "renesas,r8a779md", "renesas,r8a77965";
+};
+
+/delete-node/ &csi20;
+/delete-node/ &drif00;
+/delete-node/ &drif01;
+/delete-node/ &drif10;
+/delete-node/ &drif11;
+/delete-node/ &drif20;
+/delete-node/ &drif21;
+/delete-node/ &drif30;
+/delete-node/ &drif31;
+/delete-node/ &du;
+/delete-node/ &ehci1;
+/delete-node/ &hdmi0;
+/delete-node/ &lvds0;
+/delete-node/ &mlp;
+/delete-node/ &ohci1;
+/delete-node/ &pciec1;
+/delete-node/ &sata;
+/delete-node/ &usb2_phy1;
+/delete-node/ &usb3_peri0;
+/delete-node/ &usb3_phy0;
+/delete-node/ &vin0csi20;
+/delete-node/ &vin1csi20;
+/delete-node/ &vin2csi20;
+/delete-node/ &vin3csi20;
+/delete-node/ &vin4csi20;
+/delete-node/ &vin5csi20;
+/delete-node/ &vin6csi20;
+/delete-node/ &vin7csi20;
+/delete-node/ &xhci0;
+
+&sdhi0 {
+	compatible = "renesas,sdhi-r8a779md", "renesas,rcar-gen3-sdhi";
+};
+
+&sdhi1 {
+	compatible = "renesas,sdhi-r8a779md", "renesas,rcar-gen3-sdhi";
+};
+
+&sdhi2 {
+	compatible = "renesas,sdhi-r8a779md", "renesas,rcar-gen3-sdhi";
+};
+
+&sdhi3 {
+	compatible = "renesas,sdhi-r8a779md", "renesas,rcar-gen3-sdhi";
+	no-mmc;
+};

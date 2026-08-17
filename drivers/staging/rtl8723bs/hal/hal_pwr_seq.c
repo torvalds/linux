@@ -6,16 +6,14 @@
  ******************************************************************************/
 
 /*
-*
-This file includes all kinds of Power Action event for RTL8723B
-and corresponding hardware configurations which are released from HW SD.
-
-Major Change History:
-	When       Who               What
-	---------- ---------------   -------------------------------
-	2011-08-08 Roger            Create.
-
-*/
+ * This file includes all kinds of Power Action event for RTL8723B
+ * and corresponding hardware configurations which are released from HW SD.
+ *
+ * Major Change History:
+ *	When       Who               What
+ *	---------- ---------------   -------------------------------
+ *	2011-08-08 Roger            Create.
+ */
 
 #include "hal_pwr_seq.h"
 

@@ -1804,7 +1804,7 @@ process_pp_resume:
 		if (!(pd_info->sst_header.cap_mask & SST_PP_CAP_PP_ENABLE))
 			continue;
 
-		writeq(pd_info->saved_pp_control, power_domain_info->sst_base +
+		writeq(pd_info->saved_pp_control, pd_info->sst_base +
 		       pd_info->sst_header.pp_offset + SST_PP_CONTROL_OFFSET);
 	}
 }

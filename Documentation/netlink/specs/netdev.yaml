@@ -127,7 +127,14 @@ attribute-sets:
         enum: xsk-flags
   -
     name: io-uring-provider-info
-    attributes: []
+    attributes:
+      -
+        name: rx-buf-len
+        type: uint
+        doc: |
+          RX buffer length in bytes for this io_uring memory provider.
+          Reflects the rx_buf_len passed at io_uring zerocopy rx
+          registration time.
   -
     name: page-pool
     attributes:
@@ -649,6 +656,9 @@ operations:
             - dmabuf
             - io-uring
       dump:
+        request:
+          attributes:
+            - ifindex
         reply: *pp-reply
       config-cond: page-pool
     -
@@ -692,6 +702,9 @@ operations:
             - recycle-ring-full
             - recycle-released-refcnt
       dump:
+        request:
+          attributes:
+            - info
         reply: *pp-stats-reply
       config-cond: page-pool-stats
     -
@@ -792,7 +805,7 @@ operations:
       name: bind-rx
       doc: Bind dmabuf to netdev
       attribute-set: dmabuf
-      flags: [admin-perm]
+      flags: [uns-admin-perm]
       do:
         request:
           attributes:

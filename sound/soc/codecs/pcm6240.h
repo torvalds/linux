@@ -199,7 +199,7 @@ struct pcmdevice_config_info {
 	unsigned int nblocks;
 	unsigned int real_nblocks;
 	unsigned char active_dev;
-	struct pcmdevice_block_data **blk_data;
+	struct pcmdevice_block_data *blk_data[] __counted_by(nblocks);
 };
 
 struct pcmdevice_regbin {

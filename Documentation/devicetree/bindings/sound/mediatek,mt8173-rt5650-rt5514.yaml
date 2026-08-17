@@ -18,7 +18,9 @@ properties:
     description: Phandles of rt5650 and rt5514 codecs
     items:
       - description: phandle of rt5650 codec
+        maxItems: 1
       - description: phandle of rt5514 codec
+        maxItems: 1
 
   mediatek,platform:
     $ref: /schemas/types.yaml#/definitions/phandle

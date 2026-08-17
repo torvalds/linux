@@ -65,13 +65,9 @@ struct amdtee_session {
 /**
  * struct amdtee_context_data - AMD-TEE driver context data
  * @sess_list:    Keeps track of sessions opened in current TEE context
- * @shm_list:     Keeps track of buffers allocated and mapped in current TEE
- *                context
  */
 struct amdtee_context_data {
 	struct list_head sess_list;
-	struct list_head shm_list;
-	struct mutex shm_mutex;   /* synchronizes access to @shm_list */
 };
 
 struct amdtee_driver_data {
@@ -81,17 +77,6 @@ struct amdtee_driver_data {
 struct shmem_desc {
 	void *kaddr;
 	u64 size;
-};
-
-/**
- * struct amdtee_shm_data - Shared memory data
- * @kaddr:	Kernel virtual address of shared memory
- * @buf_id:	Buffer id of memory mapped by TEE_CMD_ID_MAP_SHARED_MEM
- */
-struct amdtee_shm_data {
-	struct  list_head shm_node;
-	void    *kaddr;
-	u32     buf_id;
 };
 
 /**
@@ -168,5 +153,4 @@ int handle_invoke_cmd(struct tee_ioctl_invoke_arg *arg, u32 sinfo,
 
 struct tee_shm_pool *amdtee_config_shm(void);
 
-u32 get_buffer_id(struct tee_shm *shm);
 #endif /*AMDTEE_PRIVATE_H*/

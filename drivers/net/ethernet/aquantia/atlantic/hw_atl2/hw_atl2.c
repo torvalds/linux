@@ -7,10 +7,12 @@
 #include "aq_hw_utils.h"
 #include "aq_ring.h"
 #include "aq_nic.h"
+#include "aq_ptp.h"
 #include "hw_atl/hw_atl_b0.h"
 #include "hw_atl/hw_atl_utils.h"
 #include "hw_atl/hw_atl_llh.h"
 #include "hw_atl/hw_atl_llh_internal.h"
+#include "hw_atl2.h"
 #include "hw_atl2_utils.h"
 #include "hw_atl2_llh.h"
 #include "hw_atl2_internal.h"
@@ -18,6 +20,15 @@
 
 static int hw_atl2_act_rslvr_table_set(struct aq_hw_s *self, u8 location,
 				       u32 tag, u32 mask, u32 action);
+
+static void hw_atl2_enable_ptp(struct aq_hw_s *self,
+			       unsigned int param, int enable);
+static int hw_atl2_hw_tx_ptp_ring_init(struct aq_hw_s *self,
+				       struct aq_ring_s *aq_ring);
+static int hw_atl2_hw_rx_ptp_ring_init(struct aq_hw_s *self,
+				       struct aq_ring_s *aq_ring);
+static void aq_get_ptp_ts(struct aq_hw_s *self, u64 *stamp);
+static int hw_atl2_adj_clock_freq(struct aq_hw_s *self, s32 ppb);
 
 #define DEFAULT_BOARD_BASIC_CAPABILITIES \
 	.is_64_dma = true,		  \
@@ -86,6 +97,38 @@ const struct aq_hw_caps_s hw_atl2_caps_aqc116c = {
 			  AQ_NIC_RATE_10M,
 };
 
+/* Find tag with the same action or new free tag
+ *  top - top inclusive tag value
+ *  action - action for ActionResolverTable
+ */
+static int hw_atl2_filter_tag_get(struct hw_atl2_tag_policy *tags,
+				  int top, u16 action)
+{
+	int i;
+
+	for (i = 1; i <= top; i++)
+		if (tags[i].usage > 0 && tags[i].action == action) {
+			tags[i].usage++;
+			return i;
+		}
+
+	for (i = 1; i <= top; i++)
+		if (tags[i].usage == 0) {
+			tags[i].usage = 1;
+			tags[i].action = action;
+			return i;
+		}
+
+	return -ENOSPC;
+}
+
+static void hw_atl2_filter_tag_put(struct hw_atl2_tag_policy *tags,
+				   int tag)
+{
+	if (tags[tag].usage > 0)
+		tags[tag].usage--;
+}
+
 static u32 hw_atl2_sem_act_rslvr_get(struct aq_hw_s *self)
 {
 	return hw_atl_reg_glb_cpu_sem_get(self, HW_ATL2_FW_SM_ACT_RSLVR);
@@ -94,19 +137,54 @@ static u32 hw_atl2_sem_act_rslvr_get(struct aq_hw_s *self)
 static int hw_atl2_hw_reset(struct aq_hw_s *self)
 {
 	struct hw_atl2_priv *priv = self->priv;
+	s8 clk_sel;
 	int err;
+	int i;
 
 	err = hw_atl2_utils_soft_reset(self);
 	if (err)
 		return err;
 
-	memset(priv, 0, sizeof(*priv));
+	memset(&priv->last_stats, 0, sizeof(priv->last_stats));
+	memset(priv->l3_v4_filters, 0, sizeof(priv->l3_v4_filters));
+	memset(priv->l3_v6_filters, 0, sizeof(priv->l3_v6_filters));
+	memset(priv->l4_filters, 0, sizeof(priv->l4_filters));
+	memset(priv->etype_policy, 0, sizeof(priv->etype_policy));
+	for (i = 0; i < HW_ATL2_RPF_L3L4_FILTERS; i++) {
+		priv->l3l4_filters[i].l3_index = -1;
+		priv->l3l4_filters[i].l4_index = -1;
+	}
+
+	clk_sel = READ_ONCE(self->clk_select);
+	if (clk_sel != -1)
+		hw_atl2_enable_ptp(self,
+				   clk_sel,
+				   aq_utils_obj_test(&self->flags, AQ_HW_PTP_AVAILABLE) ?
+				   1 : 0);
 
 	self->aq_fw_ops->set_state(self, MPI_RESET);
 
 	err = aq_hw_err_from_flags(self);
 
 	return err;
+}
+
+static int hw_atl2_tc_ptp_set(struct aq_hw_s *self)
+{
+	/* Init TC2 for PTP_TX */
+	hw_atl_tpb_tx_pkt_buff_size_per_tc_set(self, HW_ATL2_PTP_TXBUF_SIZE,
+					       AQ_HW_PTP_TC);
+
+	/* Init TC2 for PTP_RX */
+	hw_atl_rpb_rx_pkt_buff_size_per_tc_set(self, HW_ATL2_PTP_RXBUF_SIZE,
+					       AQ_HW_PTP_TC);
+
+	/* No flow control for PTP */
+	hw_atl_rpb_rx_xoff_en_per_tc_set(self, 0U, AQ_HW_PTP_TC);
+
+	hw_atl2_tpb_tps_highest_priority_tc_set(self, AQ_HW_PTP_TC);
+
+	return aq_hw_err_from_flags(self);
 }
 
 static int hw_atl2_hw_queue_to_tc_map_set(struct aq_hw_s *self)
@@ -167,6 +245,11 @@ static int hw_atl2_hw_qos_set(struct aq_hw_s *self)
 	unsigned int prio = 0U;
 	u32 tc = 0U;
 
+	if (cfg->is_ptp) {
+		tx_buff_size -= HW_ATL2_PTP_TXBUF_SIZE;
+		rx_buff_size -= HW_ATL2_PTP_RXBUF_SIZE;
+	}
+
 	/* TPS Descriptor rate init */
 	hw_atl_tps_tx_pkt_shed_desc_rate_curr_time_res_set(self, 0x0U);
 	hw_atl_tps_tx_pkt_shed_desc_rate_lim_set(self, 0xA);
@@ -200,6 +283,9 @@ static int hw_atl2_hw_qos_set(struct aq_hw_s *self)
 		hw_atl_b0_set_fc(self, self->aq_nic_cfg->fc.req, tc);
 	}
 
+	if (cfg->is_ptp)
+		hw_atl2_tc_ptp_set(self);
+
 	/* QoS 802.1p priority -> TC mapping */
 	for (prio = 0; prio < 8; ++prio)
 		hw_atl_rpf_rpb_user_priority_tc_map_set(self, prio,
@@ -217,8 +303,9 @@ static int hw_atl2_hw_rss_set(struct aq_hw_s *self,
 	u8 *indirection_table = rss_params->indirection_table;
 	const u32 num_tcs = aq_hw_num_tcs(self);
 	u32 rpf_redir2_enable;
-	int tc;
-	int i;
+	u32 queue;
+	u32 tc;
+	u32 i;
 
 	rpf_redir2_enable = num_tcs > 4 ? 1 : 0;
 
@@ -226,10 +313,9 @@ static int hw_atl2_hw_rss_set(struct aq_hw_s *self,
 
 	for (i = HW_ATL2_RSS_REDIRECTION_MAX; i--;) {
 		for (tc = 0; tc != num_tcs; tc++) {
-			hw_atl2_new_rpf_rss_redir_set(self, tc, i,
-						      tc *
-						      aq_hw_q_per_tc(self) +
-						      indirection_table[i]);
+			queue = tc * aq_hw_q_per_tc(self) +
+				indirection_table[i];
+			hw_atl2_new_rpf_rss_redir_set(self, tc, i, queue);
 		}
 	}
 
@@ -373,13 +459,27 @@ static int hw_atl2_hw_init_tx_path(struct aq_hw_s *self)
 
 	hw_atl2_tpb_tx_buf_clk_gate_en_set(self, 0U);
 
+	if (hw_atl2_phi_ext_tag_get(self)) {
+		hw_atl2_tdm_tx_data_read_req_limit_set(self, 0x7F);
+		hw_atl2_tdm_tx_desc_read_req_limit_set(self, 0x0F);
+	}
+
 	return aq_hw_err_from_flags(self);
 }
 
+/* Initialise new rx filters
+ * L2 promisc OFF
+ * VLAN promisc OFF
+ *
+ * User priority to TC
+ */
 static void hw_atl2_hw_init_new_rx_filters(struct aq_hw_s *self)
 {
 	u8 *prio_tc_map = self->aq_nic_cfg->prio_tc_map;
 	struct hw_atl2_priv *priv = self->priv;
+	u32 art_first_sec, art_last_sec;
+	u32 art_sections;
+	u32 art_mask;
 	u16 action;
 	u8 index;
 	int i;
@@ -394,9 +494,20 @@ static void hw_atl2_hw_init_new_rx_filters(struct aq_hw_s *self)
 	 * REC entry is used for further processing. If multiple entries match,
 	 * the lowest REC entry, Action field will be selected.
 	 */
-	hw_atl2_rpf_act_rslvr_section_en_set(self, 0xFFFF);
+	art_last_sec = min_t(u32,
+			     priv->art_base_index / 8 + priv->art_count / 8,
+			     16U);
+	art_first_sec = min_t(u32, priv->art_base_index / 8, 16U);
+	art_mask = (BIT(art_last_sec) - 1) - (BIT(art_first_sec) - 1);
+	if (!art_mask) {
+		/* ART base index is out of range, enabling all sections */
+		art_mask = 0xFFFF;
+	}
+	art_sections = hw_atl2_rpf_act_rslvr_section_en_get(self) | art_mask;
+	hw_atl2_rpf_act_rslvr_section_en_set(self, art_sections);
+	hw_atl2_rpf_l3_v6_v4_select_set(self, 1);
 	hw_atl2_rpfl2_uc_flr_tag_set(self, HW_ATL2_RPF_TAG_BASE_UC,
-				     HW_ATL2_MAC_UC);
+				     priv->l2_filters_base_index);
 	hw_atl2_rpfl2_bc_flr_tag_set(self, HW_ATL2_RPF_TAG_BASE_UC);
 
 	/* FW reserves the beginning of ART, thus all driver entries must
@@ -484,6 +595,7 @@ static int hw_atl2_act_rslvr_table_set(struct aq_hw_s *self, u8 location,
 static int hw_atl2_hw_init_rx_path(struct aq_hw_s *self)
 {
 	struct aq_nic_cfg_s *cfg = self->aq_nic_cfg;
+	struct hw_atl2_priv *priv = self->priv;
 	int i;
 
 	/* Rx TC/RSS number config */
@@ -499,7 +611,9 @@ static int hw_atl2_hw_init_rx_path(struct aq_hw_s *self)
 
 	/* Multicast filters */
 	for (i = HW_ATL2_MAC_MAX; i--;) {
-		hw_atl_rpfl2_uc_flr_en_set(self, (i == 0U) ? 1U : 0U, i);
+		hw_atl_rpfl2_uc_flr_en_set(self,
+					   (i == priv->l2_filters_base_index) ?
+					   1U : 0U, i);
 		hw_atl_rpfl2unicast_flr_act_set(self, 1U, i);
 	}
 
@@ -530,6 +644,35 @@ static int hw_atl2_hw_init_rx_path(struct aq_hw_s *self)
 	return aq_hw_err_from_flags(self);
 }
 
+static int hw_atl2_hw_mac_addr_set(struct aq_hw_s *self, const u8 *mac_addr)
+{
+	struct hw_atl2_priv *priv = self->priv;
+	u32 location = priv->l2_filters_base_index;
+	unsigned int h;
+	unsigned int l;
+	int err;
+
+	if (!mac_addr) {
+		err = -EINVAL;
+		goto err_exit;
+	}
+	h = (mac_addr[0] << 8) | (mac_addr[1]);
+	l = (mac_addr[2] << 24) | (mac_addr[3] << 16) |
+		(mac_addr[4] << 8) | mac_addr[5];
+
+	hw_atl_rpfl2_uc_flr_en_set(self, 0U, location);
+	hw_atl_rpfl2unicast_dest_addresslsw_set(self, l, location);
+	hw_atl_rpfl2unicast_dest_addressmsw_set(self, h, location);
+	hw_atl_rpfl2unicast_flr_act_set(self, 1U, location);
+	hw_atl2_rpfl2_uc_flr_tag_set(self, HW_ATL2_RPF_TAG_BASE_UC, location);
+	hw_atl_rpfl2_uc_flr_en_set(self, 1U, location);
+
+	err = aq_hw_err_from_flags(self);
+
+err_exit:
+	return err;
+}
+
 static int hw_atl2_hw_init(struct aq_hw_s *self, const u8 *mac_addr)
 {
 	static u32 aq_hw_atl2_igcr_table_[4][2] = {
@@ -540,23 +683,14 @@ static int hw_atl2_hw_init(struct aq_hw_s *self, const u8 *mac_addr)
 	};
 
 	struct aq_nic_cfg_s *aq_nic_cfg = self->aq_nic_cfg;
-	struct hw_atl2_priv *priv = self->priv;
-	u8 base_index, count;
 	int err;
-
-	err = hw_atl2_utils_get_action_resolve_table_caps(self, &base_index,
-							  &count);
-	if (err)
-		return err;
-
-	priv->art_base_index = 8 * base_index;
 
 	hw_atl2_init_launchtime(self);
 
 	hw_atl2_hw_init_tx_path(self);
 	hw_atl2_hw_init_rx_path(self);
 
-	hw_atl_b0_hw_mac_addr_set(self, mac_addr);
+	hw_atl2_hw_mac_addr_set(self, mac_addr);
 
 	self->aq_fw_ops->set_link_speed(self, aq_nic_cfg->link_speed_msk);
 	self->aq_fw_ops->set_state(self, MPI_INIT);
@@ -600,14 +734,24 @@ static int hw_atl2_hw_ring_rx_init(struct aq_hw_s *self,
 				   struct aq_ring_s *aq_ring,
 				   struct aq_ring_param_s *aq_ring_param)
 {
-	return hw_atl_b0_hw_ring_rx_init(self, aq_ring, aq_ring_param);
+	int res = hw_atl_b0_hw_ring_rx_init(self, aq_ring, aq_ring_param);
+
+	if (!res && aq_ptp_ring(aq_ring->aq_nic, aq_ring))
+		res = hw_atl2_hw_rx_ptp_ring_init(self, aq_ring);
+
+	return res;
 }
 
 static int hw_atl2_hw_ring_tx_init(struct aq_hw_s *self,
 				   struct aq_ring_s *aq_ring,
 				   struct aq_ring_param_s *aq_ring_param)
 {
-	return hw_atl_b0_hw_ring_tx_init(self, aq_ring, aq_ring_param);
+	int res = hw_atl_b0_hw_ring_tx_init(self, aq_ring, aq_ring_param);
+
+	if (!res && aq_ptp_ring(aq_ring->aq_nic, aq_ring))
+		res = hw_atl2_hw_tx_ptp_ring_init(self, aq_ring);
+
+	return res;
 }
 
 #define IS_FILTER_ENABLED(_F_) ((packet_filter & (_F_)) ? 1U : 0U)
@@ -628,6 +772,8 @@ static int hw_atl2_hw_multicast_list_set(struct aq_hw_s *self,
 					 [ETH_ALEN],
 					 u32 count)
 {
+	struct hw_atl2_priv *priv = self->priv;
+	u32 base_location = priv->l2_filters_base_index + 1;
 	struct aq_nic_cfg_s *cfg = self->aq_nic_cfg;
 	int err = 0;
 
@@ -643,18 +789,18 @@ static int hw_atl2_hw_multicast_list_set(struct aq_hw_s *self,
 		u32 l = (ar_mac[i][2] << 24) | (ar_mac[i][3] << 16) |
 					(ar_mac[i][4] << 8) | ar_mac[i][5];
 
-		hw_atl_rpfl2_uc_flr_en_set(self, 0U, HW_ATL2_MAC_MIN + i);
+		hw_atl_rpfl2_uc_flr_en_set(self, 0U, base_location + i);
 
 		hw_atl_rpfl2unicast_dest_addresslsw_set(self, l,
-							HW_ATL2_MAC_MIN + i);
+							base_location + i);
 
 		hw_atl_rpfl2unicast_dest_addressmsw_set(self, h,
-							HW_ATL2_MAC_MIN + i);
+							base_location + i);
 
-		hw_atl2_rpfl2_uc_flr_tag_set(self, 1, HW_ATL2_MAC_MIN + i);
+		hw_atl2_rpfl2_uc_flr_tag_set(self, 1, base_location + i);
 
 		hw_atl_rpfl2_uc_flr_en_set(self, (cfg->is_mc_list_enabled),
-					   HW_ATL2_MAC_MIN + i);
+					   base_location + i);
 	}
 
 	err = aq_hw_err_from_flags(self);
@@ -767,6 +913,640 @@ static struct aq_stats_s *hw_atl2_utils_get_hw_stats(struct aq_hw_s *self)
 	return &self->curr_stats;
 }
 
+static void hw_atl2_enable_ptp(struct aq_hw_s *self,
+			       unsigned int param, int enable)
+{
+	s8 sel = (s8)param;
+
+	WRITE_ONCE(self->clk_select, sel);
+	/* enable tsg counter */
+	hw_atl2_tsg_clock_reset(self, sel);
+	hw_atl2_tsg_clock_en(self, !sel, enable);
+	hw_atl2_tsg_clock_en(self, sel, enable);
+
+	if (enable)
+		hw_atl2_adj_clock_freq(self, 0);
+
+	hw_atl2_tpb_tps_highest_priority_tc_enable_set(self, enable);
+}
+
+static void aq_get_ptp_ts(struct aq_hw_s *self, u64 *stamp)
+{
+	s8 clk_sel = READ_ONCE(self->clk_select);
+
+	if (clk_sel < 0) {
+		if (stamp)
+			*stamp = 0;
+		return;
+	}
+	if (stamp)
+		*stamp = hw_atl2_tsg_clock_read(self, clk_sel);
+}
+
+static u64 hw_atl2_hw_ring_tx_ptp_get_ts(struct aq_ring_s *ring)
+{
+	struct hw_atl2_txts_s *txts;
+	u32 ctrl;
+
+	txts = (struct hw_atl2_txts_s *)&ring->dx_ring[ring->sw_head *
+						HW_ATL2_TXD_SIZE];
+	/* DD + TS_VALID */
+	ctrl = le32_to_cpu(READ_ONCE(txts->ctrl));
+	if ((ctrl & HW_ATL2_TXTS_DD) && (ctrl & HW_ATL2_TXTS_TS_VALID)) {
+		dma_rmb();
+		return le64_to_cpu(txts->ts);
+	}
+
+	return 0;
+}
+
+static u16 hw_atl2_hw_rx_extract_ts(struct aq_hw_s *self, u8 *p,
+				    unsigned int len, u64 *timestamp)
+{
+	unsigned int offset = HW_ATL2_RX_TS_SIZE;
+	__le64 ts;
+	u8 *ptr;
+
+	if (len <= offset || !timestamp)
+		return 0;
+
+	ptr = p + (len - offset);
+	memcpy(&ts, ptr, sizeof(ts));
+	*timestamp = le64_to_cpu(ts);
+
+	return HW_ATL2_RX_TS_SIZE;
+}
+
+static int hw_atl2_adj_sys_clock(struct aq_hw_s *self, s64 delta)
+{
+	s8 clk_sel = READ_ONCE(self->clk_select);
+
+	if (clk_sel < 0)
+		return -ENODEV;
+	if (delta >= 0)
+		hw_atl2_tsg_clock_add(self, clk_sel, (u64)delta);
+	else
+		hw_atl2_tsg_clock_sub(self, clk_sel, (u64)(-delta));
+
+	return 0;
+}
+
+static int hw_atl2_adj_clock_freq(struct aq_hw_s *self, s32 ppb)
+{
+	u32 freq = AQ2_HW_PTP_COUNTER_HZ;
+	u64 divisor = 0, base_ns;
+	u32 nsi_frac = 0, nsi;
+	u32 nsi_rem;
+	s8 clk_sel;
+
+	base_ns = div_u64((u64)((s64)ppb + NSEC_PER_SEC) * NSEC_PER_SEC, freq);
+	nsi = (u32)div_u64_rem(base_ns, NSEC_PER_SEC, &nsi_rem);
+	if (nsi_rem != 0) {
+		divisor = div_u64(mul_u32_u32(NSEC_PER_SEC, NSEC_PER_SEC),
+				  nsi_rem);
+		nsi_frac = (u32)div64_u64(AQ_FRAC_PER_NS * NSEC_PER_SEC,
+					  divisor);
+	}
+
+	clk_sel = READ_ONCE(self->clk_select);
+	if (clk_sel < 0)
+		return -ENODEV;
+	hw_atl2_tsg_clock_increment_set(self, clk_sel, nsi, nsi_frac);
+
+	return 0;
+}
+
+static int hw_atl2_hw_tx_ptp_ring_init(struct aq_hw_s *self,
+				       struct aq_ring_s *aq_ring)
+{
+	hw_atl2_tdm_tx_desc_timestamp_writeback_en_set(self, true,
+						       aq_ring->idx);
+	hw_atl2_tdm_tx_desc_timestamp_en_set(self, true, aq_ring->idx);
+	hw_atl2_tdm_tx_desc_avb_en_set(self, true, aq_ring->idx);
+
+	return aq_hw_err_from_flags(self);
+}
+
+static int hw_atl2_hw_rx_ptp_ring_init(struct aq_hw_s *self,
+				       struct aq_ring_s *aq_ring)
+{
+	s8 clk_sel = READ_ONCE(self->clk_select);
+
+	hw_atl2_rpf_rx_desc_timestamp_req_set(self,
+					      clk_sel == ATL_TSG_CLOCK_SEL_1 ? 2 : 1,
+					      aq_ring->idx);
+	return aq_hw_err_from_flags(self);
+}
+
+static u32 hw_atl2_hw_get_clk_sel(struct aq_hw_s *self)
+{
+	return READ_ONCE(self->clk_select);
+}
+
+static int hw_atl2_gpio_pulse(struct aq_hw_s *self, u32 index, u32 clk_sel,
+			      u64 start, u32 period, u32 hightime)
+{
+	u32 mode;
+
+	if (index != 1 && index != 3)
+		return -EINVAL;
+
+	if (start == 0)
+		mode = HW_ATL2_GPIO_PIN_SPEC_MODE_GPIO;
+	else if (clk_sel == ATL_TSG_CLOCK_SEL_0)
+		mode = HW_ATL2_GPIO_PIN_SPEC_MODE_TSG0_EVENT_OUTPUT;
+	else
+		mode = HW_ATL2_GPIO_PIN_SPEC_MODE_TSG1_EVENT_OUTPUT;
+
+	hw_atl2_gpio_special_mode_set(self, mode, index);
+	hw_atl2_tsg_ptp_gpio_gen_pulse(self, clk_sel, start, period, hightime);
+
+	return 0;
+}
+
+static bool hw_atl2_rxf_l3_is_equal(struct hw_atl2_l3_filter *f1,
+				    struct hw_atl2_l3_filter *f2)
+{
+	if (f1->cmd != f2->cmd)
+		return false;
+
+	if (f1->cmd & HW_ATL2_RPF_L3_CMD_SA_EN)
+		if (f1->srcip[0] != f2->srcip[0])
+			return false;
+
+	if (f1->cmd & HW_ATL2_RPF_L3_CMD_DA_EN)
+		if (f1->dstip[0] != f2->dstip[0])
+			return false;
+
+	if (f1->cmd & (HW_ATL2_RPF_L3_CMD_PROTO_EN |
+		       HW_ATL2_RPF_L3_V6_CMD_PROTO_EN))
+		if (f1->proto != f2->proto)
+			return false;
+
+	if (f1->cmd & HW_ATL2_RPF_L3_V6_CMD_SA_EN)
+		if (memcmp(f1->srcip, f2->srcip, 16))
+			return false;
+
+	if (f1->cmd & HW_ATL2_RPF_L3_V6_CMD_DA_EN)
+		if (memcmp(f1->dstip, f2->dstip, 16))
+			return false;
+
+	return true;
+}
+
+static int hw_atl2_new_fl3l4_find_l3(struct aq_hw_s *self,
+				     struct hw_atl2_l3_filter *l3)
+{
+	struct hw_atl2_priv *priv = self->priv;
+	struct hw_atl2_l3_filter *l3_filters;
+	int i, first, last;
+
+	if (l3->cmd & HW_ATL2_RPF_L3_V6_CMD_EN) {
+		l3_filters = priv->l3_v6_filters;
+		first = priv->l3_v6_filter_base_index;
+		last = priv->l3_v6_filter_base_index +
+		       priv->l3_v6_filter_count;
+	} else {
+		l3_filters = priv->l3_v4_filters;
+		first = priv->l3_v4_filter_base_index;
+		last = priv->l3_v4_filter_base_index +
+		       priv->l3_v4_filter_count;
+	}
+	for (i = first; i < last; i++) {
+		if (hw_atl2_rxf_l3_is_equal(&l3_filters[i], l3))
+			return i;
+	}
+
+	for (i = first; i < last; i++) {
+		u32 l3_enable_mask = HW_ATL2_RPF_L3_CMD_EN |
+				     HW_ATL2_RPF_L3_V6_CMD_EN;
+
+		if (!(l3_filters[i].cmd & l3_enable_mask))
+			return i;
+	}
+
+	return -ENOSPC;
+}
+
+static void hw_atl2_rxf_l3_get(struct aq_hw_s *self,
+			       struct hw_atl2_l3_filter *l3, int idx,
+			       const struct hw_atl2_l3_filter *_l3)
+{
+	int i;
+
+	l3->usage++;
+	if (l3->usage == 1) {
+		l3->cmd = _l3->cmd;
+		for (i = 0; i < 4; i++) {
+			l3->srcip[i] = _l3->srcip[i];
+			l3->dstip[i] = _l3->dstip[i];
+		}
+		l3->proto = _l3->proto;
+
+		if (l3->cmd & HW_ATL2_RPF_L3_CMD_EN) {
+			hw_atl2_rpf_l3_v4_cmd_set(self, l3->cmd, idx);
+			hw_atl2_rpf_l3_v4_tag_set(self, idx + 1, idx);
+			hw_atl2_rpf_l3_v4_dest_addr_set(self,
+							idx,
+							l3->dstip[0]);
+			hw_atl2_rpf_l3_v4_src_addr_set(self,
+						       idx,
+						       l3->srcip[0]);
+		} else {
+			hw_atl2_rpf_l3_v6_cmd_set(self, l3->cmd, idx);
+			hw_atl2_rpf_l3_v6_tag_set(self, idx + 1, idx);
+			hw_atl2_rpf_l3_v6_dest_addr_set(self,
+							idx,
+							l3->dstip);
+			hw_atl2_rpf_l3_v6_src_addr_set(self,
+						       idx,
+						       l3->srcip);
+		}
+	}
+}
+
+static void hw_atl2_rxf_l3_put(struct aq_hw_s *self,
+			       struct hw_atl2_l3_filter *l3, int idx)
+{
+	if (l3->usage)
+		l3->usage--;
+
+	if (!l3->usage) {
+		if (l3->cmd & HW_ATL2_RPF_L3_V6_CMD_EN)
+			hw_atl2_rpf_l3_v6_cmd_set(self, 0, idx);
+		else
+			hw_atl2_rpf_l3_v4_cmd_set(self, 0, idx);
+		l3->cmd = 0;
+	}
+}
+
+static bool hw_atl2_rxf_l4_is_equal(struct hw_atl2_l4_filter *f1,
+				    struct hw_atl2_l4_filter *f2)
+{
+	if (f1->cmd != f2->cmd)
+		return false;
+
+	if (f1->cmd & HW_ATL2_RPF_L4_CMD_SP_EN)
+		if (f1->sport != f2->sport)
+			return false;
+
+	if (f1->cmd & HW_ATL2_RPF_L4_CMD_DP_EN)
+		if (f1->dport != f2->dport)
+			return false;
+
+	return true;
+}
+
+static int hw_atl2_new_fl3l4_find_l4(struct aq_hw_s *self,
+				     struct hw_atl2_l4_filter *l4)
+{
+	struct hw_atl2_priv *priv = self->priv;
+	int i, first, last;
+
+	first = priv->l4_filter_base_index;
+	last = priv->l4_filter_base_index + priv->l4_filter_count;
+
+	for (i = first; i < last; i++)
+		if (hw_atl2_rxf_l4_is_equal(&priv->l4_filters[i], l4))
+			return i;
+
+	for (i = first; i < last; i++)
+		if ((priv->l4_filters[i].cmd & HW_ATL2_RPF_L4_CMD_EN) == 0)
+			return i;
+
+	return -ENOSPC;
+}
+
+static void hw_atl2_rxf_l4_put(struct aq_hw_s *self,
+			       struct hw_atl2_l4_filter *l4, int idx)
+{
+	if (l4->usage)
+		l4->usage--;
+
+	if (!l4->usage) {
+		l4->cmd = 0;
+		hw_atl2_rpf_l4_cmd_set(self, l4->cmd, idx);
+	}
+}
+
+static void hw_atl2_rxf_l4_get(struct aq_hw_s *self,
+			       struct hw_atl2_l4_filter *l4, int idx,
+			       const struct hw_atl2_l4_filter *_l4)
+{
+	l4->usage++;
+	if (l4->usage == 1) {
+		l4->cmd = _l4->cmd;
+		l4->sport = _l4->sport;
+		l4->dport = _l4->dport;
+
+		hw_atl2_rpf_l4_cmd_set(self, l4->cmd, idx);
+		hw_atl2_rpf_l4_tag_set(self, idx + 1, idx);
+		hw_atl_rpf_l4_spd_set(self, l4->sport, idx);
+		hw_atl_rpf_l4_dpd_set(self, l4->dport, idx);
+	}
+}
+
+static int hw_atl2_new_fl3l4_configure(struct aq_hw_s *self,
+				       struct aq_rx_filter_l3l4 *data)
+{
+	struct hw_atl2_priv *priv = self->priv;
+	s8 old_l3_index = priv->l3l4_filters[data->location].l3_index;
+	s8 old_l4_index = priv->l3l4_filters[data->location].l4_index;
+	u8 old_ipv6 = priv->l3l4_filters[data->location].ipv6;
+	struct hw_atl2_l3_filter *l3_filters;
+	struct hw_atl2_l3_filter l3;
+	struct hw_atl2_l4_filter l4;
+	s8 l3_idx = -1;
+	s8 l4_idx = -1;
+
+	if (!(data->cmd & HW_ATL_RX_ENABLE_FLTR_L3L4))
+		return 0;
+
+	memset(&l3, 0, sizeof(l3));
+	memset(&l4, 0, sizeof(l4));
+
+	/* convert legacy filter to new */
+	if (data->cmd & HW_ATL_RX_ENABLE_CMP_PROT_L4) {
+		l3.cmd |= data->is_ipv6 ? HW_ATL2_RPF_L3_V6_CMD_PROTO_EN :
+					  HW_ATL2_RPF_L3_CMD_PROTO_EN;
+		l3.cmd |= data->is_ipv6 ? HW_ATL2_RPF_L3_V6_CMD_EN :
+					  HW_ATL2_RPF_L3_CMD_EN;
+		switch (data->cmd & 0x7) {
+		case HW_ATL_RX_TCP:
+			l3.cmd |= IPPROTO_TCP << (data->is_ipv6 ? 0x18 : 8);
+			break;
+		case HW_ATL_RX_UDP:
+			l3.cmd |= IPPROTO_UDP << (data->is_ipv6 ? 0x18 : 8);
+			break;
+		case HW_ATL_RX_SCTP:
+			l3.cmd |= IPPROTO_SCTP << (data->is_ipv6 ? 0x18 : 8);
+			break;
+		case HW_ATL_RX_ICMP:
+			l3.cmd |= IPPROTO_ICMP << (data->is_ipv6 ? 0x18 : 8);
+			break;
+		}
+	}
+
+	if (data->cmd & HW_ATL_RX_ENABLE_CMP_SRC_ADDR_L3) {
+		if (data->is_ipv6) {
+			l3.cmd |= HW_ATL2_RPF_L3_V6_CMD_SA_EN |
+				  HW_ATL2_RPF_L3_V6_CMD_EN;
+			memcpy(l3.srcip, data->ip_src, sizeof(l3.srcip));
+		} else {
+			l3.cmd |= HW_ATL2_RPF_L3_CMD_SA_EN |
+				  HW_ATL2_RPF_L3_CMD_EN;
+			l3.srcip[0] = data->ip_src[0];
+		}
+	}
+	if (data->cmd & HW_ATL_RX_ENABLE_CMP_DEST_ADDR_L3) {
+		if (data->is_ipv6) {
+			l3.cmd |= HW_ATL2_RPF_L3_V6_CMD_DA_EN |
+				  HW_ATL2_RPF_L3_V6_CMD_EN;
+			memcpy(l3.dstip, data->ip_dst, sizeof(l3.dstip));
+		} else {
+			l3.cmd |= HW_ATL2_RPF_L3_CMD_DA_EN |
+				  HW_ATL2_RPF_L3_CMD_EN;
+			l3.dstip[0] = data->ip_dst[0];
+		}
+	}
+
+	if (data->cmd & HW_ATL_RX_ENABLE_CMP_DEST_PORT_L4) {
+		l4.cmd |= HW_ATL2_RPF_L4_CMD_DP_EN | HW_ATL2_RPF_L4_CMD_EN;
+		l4.dport = data->p_dst;
+	}
+	if (data->cmd & HW_ATL_RX_ENABLE_CMP_SRC_PORT_L4) {
+		l4.cmd |= HW_ATL2_RPF_L4_CMD_SP_EN | HW_ATL2_RPF_L4_CMD_EN;
+		l4.sport = data->p_src;
+	}
+
+	/* find L3 and L4 filters */
+	if (l3.cmd & (HW_ATL2_RPF_L3_CMD_EN | HW_ATL2_RPF_L3_V6_CMD_EN)) {
+		l3_idx = hw_atl2_new_fl3l4_find_l3(self, &l3);
+		if (l3_idx < 0)
+			return l3_idx;
+
+		if (l3.cmd & HW_ATL2_RPF_L3_V6_CMD_EN)
+			l3_filters = priv->l3_v6_filters;
+		else
+			l3_filters = priv->l3_v4_filters;
+
+		if (priv->l3l4_filters[data->location].l3_index != l3_idx ||
+		    old_ipv6 != !!(l3.cmd & HW_ATL2_RPF_L3_V6_CMD_EN))
+			hw_atl2_rxf_l3_get(self, &l3_filters[l3_idx],
+					   l3_idx, &l3);
+	}
+
+	if (old_l3_index != -1) {
+		if (old_ipv6)
+			l3_filters = priv->l3_v6_filters;
+		else
+			l3_filters = priv->l3_v4_filters;
+
+		if (!(hw_atl2_rxf_l3_is_equal(&l3,
+					      &l3_filters[old_l3_index]))) {
+			hw_atl2_rxf_l3_put(self,
+					   &l3_filters[old_l3_index],
+					   old_l3_index);
+		}
+	}
+	if (l3.cmd & HW_ATL2_RPF_L3_V6_CMD_EN)
+		priv->l3l4_filters[data->location].ipv6 = 1;
+	else
+		priv->l3l4_filters[data->location].ipv6 = 0;
+	priv->l3l4_filters[data->location].l3_index = l3_idx;
+
+	if (l4.cmd & HW_ATL2_RPF_L4_CMD_EN) {
+		l4_idx = hw_atl2_new_fl3l4_find_l4(self, &l4);
+		if (l4_idx < 0)
+			return l4_idx;
+
+		if (priv->l3l4_filters[data->location].l4_index != l4_idx)
+			hw_atl2_rxf_l4_get(self, &priv->l4_filters[l4_idx],
+					   l4_idx, &l4);
+	}
+
+	if (old_l4_index != -1) {
+		if (!(hw_atl2_rxf_l4_is_equal(&priv->l4_filters[old_l4_index],
+					      &l4))) {
+			hw_atl2_rxf_l4_put(self,
+					   &priv->l4_filters[old_l4_index],
+					   old_l4_index);
+		}
+	}
+	priv->l3l4_filters[data->location].l4_index = l4_idx;
+
+	return 0;
+}
+
+static int hw_atl2_hw_fl3l4_set(struct aq_hw_s *self,
+				struct aq_rx_filter_l3l4 *data)
+{
+	struct hw_atl2_priv *priv = self->priv;
+	struct hw_atl2_l3_filter *l3_filters;
+	struct hw_atl2_l3_filter *l3 = NULL;
+	struct hw_atl2_l4_filter *l4 = NULL;
+	u8 location = data->location;
+	u32 req_tag = 0;
+	u16 action = 0;
+	int l3_index;
+	int l4_index;
+	u32 mask = 0;
+	u8 index;
+	u8 ipv6;
+	int res;
+
+	res = hw_atl2_new_fl3l4_configure(self, data);
+	if (res)
+		return res;
+
+	l3_index = priv->l3l4_filters[location].l3_index;
+	l4_index = priv->l3l4_filters[location].l4_index;
+	ipv6 = priv->l3l4_filters[location].ipv6;
+	if (ipv6)
+		l3_filters = priv->l3_v6_filters;
+	else
+		l3_filters = priv->l3_v4_filters;
+
+	if (!(data->cmd & HW_ATL_RX_ENABLE_FLTR_L3L4)) {
+		if (l3_index > -1)
+			hw_atl2_rxf_l3_put(self, &l3_filters[l3_index],
+					   l3_index);
+
+		if (l4_index > -1)
+			hw_atl2_rxf_l4_put(self, &priv->l4_filters[l4_index],
+					   l4_index);
+
+		priv->l3l4_filters[location].l3_index = -1;
+		priv->l3l4_filters[location].l4_index = -1;
+		index = priv->art_base_index + HW_ATL2_RPF_L3L4_USER_INDEX +
+			location;
+		hw_atl2_act_rslvr_table_set(self, index, 0, 0,
+					    HW_ATL2_ACTION_DISABLE);
+
+		return 0;
+	}
+
+	if (l3_index != -1)
+		l3 = &l3_filters[l3_index];
+	if (l4_index != -1)
+		l4 = &priv->l4_filters[l4_index];
+
+	if (l4 && (l4->cmd & HW_ATL2_RPF_L4_CMD_EN)) {
+		req_tag |= (l4_index + 1) << HW_ATL2_RPF_TAG_L4_OFFSET;
+		mask |= HW_ATL2_RPF_TAG_L4_MASK;
+	}
+
+	if (l3) {
+		if (l3->cmd & HW_ATL2_RPF_L3_V6_CMD_EN) {
+			req_tag |= (l3_index + 1) <<
+				   HW_ATL2_RPF_TAG_L3_V6_OFFSET;
+			mask |= HW_ATL2_RPF_TAG_L3_V6_MASK;
+		} else {
+			req_tag |= (l3_index + 1) <<
+				   HW_ATL2_RPF_TAG_L3_V4_OFFSET;
+			mask |= HW_ATL2_RPF_TAG_L3_V4_MASK;
+		}
+	}
+
+	if (data->cmd & (HW_ATL_RX_HOST << HW_ATL2_RPF_L3_L4_ACTF_SHIFT))
+		action = HW_ATL2_ACTION_ASSIGN_QUEUE((data->cmd  &
+						      HW_ATL2_RPF_L3_L4_RXQF_MSK) >>
+						     HW_ATL2_RPF_L3_L4_RXQF_SHIFT);
+	else
+		action = HW_ATL2_ACTION_DROP;
+
+	index = priv->art_base_index + HW_ATL2_RPF_L3L4_USER_INDEX + location;
+	hw_atl2_act_rslvr_table_set(self, index, req_tag, mask, action);
+	return 0;
+}
+
+static int hw_atl2_hw_fl2_set(struct aq_hw_s *self,
+			      struct aq_rx_filter_l2 *data)
+{
+	struct hw_atl2_priv *priv = self->priv;
+	u32 mask = HW_ATL2_RPF_TAG_ET_MASK;
+	u32 req_tag = 0;
+	u16 action = 0;
+	u32 location;
+	u8 index;
+	int tag;
+
+	location = priv->etype_filter_base_index + data->location;
+
+	hw_atl_rpf_etht_flr_set(self, data->ethertype, location);
+	hw_atl_rpf_etht_user_priority_en_set(self,
+					     !!data->user_priority_en,
+					     location);
+	if (data->user_priority_en) {
+		hw_atl_rpf_etht_user_priority_set(self,
+						  data->user_priority,
+						  location);
+		req_tag |= data->user_priority << HW_ATL2_RPF_TAG_PCP_OFFSET;
+		mask |= HW_ATL2_RPF_TAG_PCP_MASK;
+	}
+
+	if (data->queue < 0) {
+		hw_atl_rpf_etht_flr_act_set(self, 0U, location);
+		hw_atl_rpf_etht_rx_queue_en_set(self, 0U, location);
+		action = HW_ATL2_ACTION_DROP;
+	} else {
+		hw_atl_rpf_etht_flr_act_set(self, 1U, location);
+		hw_atl_rpf_etht_rx_queue_en_set(self, 1U, location);
+		hw_atl_rpf_etht_rx_queue_set(self, data->queue, location);
+		action = HW_ATL2_ACTION_ASSIGN_QUEUE(data->queue);
+	}
+
+	tag = hw_atl2_filter_tag_get(priv->etype_policy,
+				     priv->etype_filter_tag_top,
+				     action);
+
+	if (tag < 0)
+		return -ENOSPC;
+
+	req_tag |= tag << HW_ATL2_RPF_TAG_ET_OFFSET;
+	hw_atl2_rpf_etht_flr_tag_set(self, tag, location);
+	index = priv->art_base_index + HW_ATL2_RPF_ET_PCP_USER_INDEX +
+		data->location;
+	hw_atl2_act_rslvr_table_set(self, index, req_tag, mask, action);
+
+	hw_atl_rpf_etht_flr_en_set(self, 1U, location);
+
+	return aq_hw_err_from_flags(self);
+}
+
+static int hw_atl2_hw_fl2_clear(struct aq_hw_s *self,
+				struct aq_rx_filter_l2 *data)
+{
+	struct hw_atl2_priv *priv = self->priv;
+	u32 location;
+	u8 index;
+	u32 tag;
+
+	location = priv->etype_filter_base_index + data->location;
+	hw_atl_rpf_etht_flr_en_set(self, 0U, location);
+	hw_atl_rpf_etht_flr_set(self, 0U, location);
+	hw_atl_rpf_etht_user_priority_en_set(self, 0U, location);
+
+	index = priv->art_base_index + HW_ATL2_RPF_ET_PCP_USER_INDEX +
+		data->location;
+	hw_atl2_act_rslvr_table_set(self, index, 0, 0,
+				    HW_ATL2_ACTION_DISABLE);
+	tag = hw_atl2_rpf_etht_flr_tag_get(self, location);
+	hw_atl2_filter_tag_put(priv->etype_policy, tag);
+
+	return aq_hw_err_from_flags(self);
+}
+
+/*
+ * Set VLAN filter table
+ * Configure VLAN filter table to accept (and assign the queue) traffic
+ * for the particular vlan ids.
+ * Note: use this function under vlan promisc mode not to lost the traffic
+ *
+ * param - aq_hw_s
+ * param - aq_rx_filter_vlan VLAN filter configuration
+ * return 0 - OK, <0 - error
+ */
 static int hw_atl2_hw_vlan_set(struct aq_hw_s *self,
 			       struct aq_rx_filter_vlan *aq_vlans)
 {
@@ -825,7 +1605,7 @@ static int hw_atl2_hw_vlan_ctrl(struct aq_hw_s *self, bool enable)
 const struct aq_hw_ops hw_atl2_ops = {
 	.hw_soft_reset        = hw_atl2_utils_soft_reset,
 	.hw_prepare           = hw_atl2_utils_initfw,
-	.hw_set_mac_address   = hw_atl_b0_hw_mac_addr_set,
+	.hw_set_mac_address   = hw_atl2_hw_mac_addr_set,
 	.hw_init              = hw_atl2_hw_init,
 	.hw_reset             = hw_atl2_hw_reset,
 	.hw_start             = hw_atl_b0_hw_start,
@@ -848,6 +1628,9 @@ const struct aq_hw_ops hw_atl2_ops = {
 	.hw_ring_rx_init             = hw_atl2_hw_ring_rx_init,
 	.hw_ring_tx_init             = hw_atl2_hw_ring_tx_init,
 	.hw_packet_filter_set        = hw_atl2_hw_packet_filter_set,
+	.hw_filter_l2_set            = hw_atl2_hw_fl2_set,
+	.hw_filter_l2_clear          = hw_atl2_hw_fl2_clear,
+	.hw_filter_l3l4_set          = hw_atl2_hw_fl3l4_set,
 	.hw_filter_vlan_set          = hw_atl2_hw_vlan_set,
 	.hw_filter_vlan_ctrl         = hw_atl2_hw_vlan_ctrl,
 	.hw_multicast_list_set       = hw_atl2_hw_multicast_list_set,
@@ -855,9 +1638,27 @@ const struct aq_hw_ops hw_atl2_ops = {
 	.hw_rss_set                  = hw_atl2_hw_rss_set,
 	.hw_rss_hash_set             = hw_atl_b0_hw_rss_hash_set,
 	.hw_tc_rate_limit_set        = hw_atl2_hw_init_tx_tc_rate_limit,
+	.hw_get_regs                 = hw_atl2_utils_hw_get_regs,
 	.hw_get_hw_stats             = hw_atl2_utils_get_hw_stats,
 	.hw_get_fw_version           = hw_atl2_utils_get_fw_version,
 	.hw_set_offload              = hw_atl_b0_hw_offload_set,
 	.hw_set_loopback             = hw_atl_b0_set_loopback,
 	.hw_set_fc                   = hw_atl_b0_set_fc,
+
+	.hw_ring_hwts_rx_fill        = NULL,
+	.hw_ring_hwts_rx_receive     = NULL,
+
+	.hw_get_ptp_ts           = aq_get_ptp_ts,
+	.hw_adj_clock_freq       = hw_atl2_adj_clock_freq,
+	.hw_adj_sys_clock        = hw_atl2_adj_sys_clock,
+	.hw_gpio_pulse           = hw_atl2_gpio_pulse,
+
+	.enable_ptp              = hw_atl2_enable_ptp,
+	.hw_ring_tx_ptp_get_ts   = hw_atl2_hw_ring_tx_ptp_get_ts,
+	.rx_extract_ts           = hw_atl2_hw_rx_extract_ts,
+	.hw_tx_ptp_ring_init     = hw_atl2_hw_tx_ptp_ring_init,
+	.hw_rx_ptp_ring_init     = hw_atl2_hw_rx_ptp_ring_init,
+	.hw_get_clk_sel          = hw_atl2_hw_get_clk_sel,
+	.extract_hwts            = NULL,
+	.hw_extts_gpio_enable    = NULL,
 };

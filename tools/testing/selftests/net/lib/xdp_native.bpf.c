@@ -268,6 +268,17 @@ static int xdp_mode_tx_handler(struct xdp_md *ctx, __u16 port)
 	return XDP_PASS;
 }
 
+static __always_inline __u16 csum_fold_helper(__u32 csum)
+{
+	csum = (csum & 0xffff) + (csum >> 16);
+	return ~((csum & 0xffff) + (csum >> 16));
+}
+
+static __always_inline __u16 csum_fold_udp_helper(__u32 csum)
+{
+	return csum_fold_helper(csum) ? : 0xffff;
+}
+
 static void *update_pkt(struct xdp_md *ctx, __s16 offset, __u32 *udp_csum)
 {
 	void *data_end = (void *)(long)ctx->data_end;
@@ -281,21 +292,22 @@ static void *update_pkt(struct xdp_md *ctx, __s16 offset, __u32 *udp_csum)
 
 	if (eth->h_proto == bpf_htons(ETH_P_IP)) {
 		struct iphdr *iph = data + sizeof(*eth);
-		__u16 total_len;
 
 		if (iph + 1 > (struct iphdr *)data_end)
 			return NULL;
-
-		iph->tot_len = bpf_htons(bpf_ntohs(iph->tot_len) + offset);
 
 		udph = (void *)eth + sizeof(*iph) + sizeof(*eth);
 		if (!udph || udph + 1 > (struct udphdr *)data_end)
 			return NULL;
 
-		len_new = bpf_htons(bpf_ntohs(udph->len) + offset);
+		len = iph->tot_len;
+		len_new = bpf_htons(bpf_ntohs(len) + offset);
+		iph->tot_len = len_new;
+		iph->check = csum_fold_helper(
+			bpf_csum_diff(&len, sizeof(len), &len_new,
+				      sizeof(len_new), ~((__u32)iph->check)));
 	} else if (eth->h_proto  == bpf_htons(ETH_P_IPV6)) {
 		struct ipv6hdr *ipv6h = data + sizeof(*eth);
-		__u16 payload_len;
 
 		if (ipv6h + 1 > (struct ipv6hdr *)data_end)
 			return NULL;
@@ -304,31 +316,25 @@ static void *update_pkt(struct xdp_md *ctx, __s16 offset, __u32 *udp_csum)
 		if (!udph || udph + 1 > (struct udphdr *)data_end)
 			return NULL;
 
-		*udp_csum = ~((__u32)udph->check);
-
 		len = ipv6h->payload_len;
 		len_new = bpf_htons(bpf_ntohs(len) + offset);
 		ipv6h->payload_len = len_new;
-
-		*udp_csum = bpf_csum_diff(&len, sizeof(len), &len_new,
-					  sizeof(len_new), *udp_csum);
-
-		len = udph->len;
-		len_new = bpf_htons(bpf_ntohs(udph->len) + offset);
-		*udp_csum = bpf_csum_diff(&len, sizeof(len), &len_new,
-					  sizeof(len_new), *udp_csum);
 	} else {
 		return NULL;
 	}
 
+	len = udph->len;
+	len_new = bpf_htons(bpf_ntohs(len) + offset);
+
+	*udp_csum = ~((__u32)udph->check);
+	*udp_csum = bpf_csum_diff(&len, sizeof(len), &len_new,
+				  sizeof(len_new), *udp_csum);
+	*udp_csum = bpf_csum_diff(&len, sizeof(len), &len_new,
+				  sizeof(len_new), *udp_csum);
+
 	udph->len = len_new;
 
 	return udph;
-}
-
-static __u16 csum_fold_helper(__u32 csum)
-{
-	return ~((csum & 0xffff) + (csum >> 16)) ? : 0xffff;
 }
 
 static int xdp_adjst_tail_shrnk_data(struct xdp_md *ctx, __u16 offset,
@@ -359,7 +365,7 @@ static int xdp_adjst_tail_shrnk_data(struct xdp_md *ctx, __u16 offset,
 		return -1;
 
 	udp_csum = bpf_csum_diff((__be32 *)tmp_buff, offset, 0, 0, udp_csum);
-	udph->check = (__u16)csum_fold_helper(udp_csum);
+	udph->check = (__u16)csum_fold_udp_helper(udp_csum);
 
 	if (bpf_xdp_adjust_tail(ctx, 0 - offset) < 0)
 		return -1;
@@ -403,7 +409,7 @@ static int xdp_adjst_tail_grow_data(struct xdp_md *ctx, __u16 offset)
 		return -1;
 
 	udp_csum = bpf_csum_diff(0, 0, (__be32 *)tmp_buff, offset, udp_csum);
-	udph->check = (__u16)csum_fold_helper(udp_csum);
+	udph->check = (__u16)csum_fold_udp_helper(udp_csum);
 
 	buff_len = bpf_xdp_get_buff_len(ctx);
 
@@ -484,8 +490,7 @@ static int xdp_adjst_head_shrnk_data(struct xdp_md *ctx, __u64 hdr_len,
 		return -1;
 
 	udp_csum = bpf_csum_diff((__be32 *)tmp_buff, offset, 0, 0, udp_csum);
-
-	udph->check = (__u16)csum_fold_helper(udp_csum);
+	udph->check = (__u16)csum_fold_udp_helper(udp_csum);
 
 	if (bpf_xdp_load_bytes(ctx, 0, tmp_buff, MAX_ADJST_OFFSET) < 0)
 		return -1;
@@ -542,7 +547,7 @@ static int xdp_adjst_head_grow_data(struct xdp_md *ctx, __u64 hdr_len,
 		return -1;
 
 	udp_csum = bpf_csum_diff(0, 0, (__be32 *)data_buff, offset, udp_csum);
-	udph->check = (__u16)csum_fold_helper(udp_csum);
+	udph->check = (__u16)csum_fold_udp_helper(udp_csum);
 
 	if (hdr_len > MAX_ADJST_OFFSET || hdr_len == 0)
 		return -1;

@@ -1304,7 +1304,7 @@ static irqreturn_t rmi_f11_attention(int irq, void *ctx)
 	struct f11_data *f11 = dev_get_drvdata(&fn->dev);
 	u16 data_base_addr = fn->fd.data_base_addr;
 	int error;
-	int valid_bytes = f11->sensor.pkt_size;
+	u32 valid_bytes = f11->sensor.pkt_size;
 
 	if (drvdata->attn_data.data) {
 		/*

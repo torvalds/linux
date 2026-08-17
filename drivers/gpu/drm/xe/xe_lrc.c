@@ -21,8 +21,10 @@
 #include "xe_configfs.h"
 #include "xe_device.h"
 #include "xe_drm_client.h"
+#include "xe_exec_queue.h"
 #include "xe_exec_queue_types.h"
 #include "xe_gt.h"
+#include "xe_gt_clock.h"
 #include "xe_gt_printk.h"
 #include "xe_hw_fence.h"
 #include "xe_map.h"
@@ -682,25 +684,6 @@ static void set_memory_based_intr(u32 *regs, struct xe_hw_engine *hwe)
 	}
 }
 
-static int lrc_ring_mi_mode(struct xe_hw_engine *hwe)
-{
-	struct xe_device *xe = gt_to_xe(hwe->gt);
-
-	if (GRAPHICS_VERx100(xe) >= 1250)
-		return 0x70;
-	else
-		return 0x60;
-}
-
-static void reset_stop_ring(u32 *regs, struct xe_hw_engine *hwe)
-{
-	int x;
-
-	x = lrc_ring_mi_mode(hwe);
-	regs[x + 1] &= ~STOP_RING;
-	regs[x + 1] |= STOP_RING << 16;
-}
-
 static inline bool xe_lrc_has_indirect_ring_state(struct xe_lrc *lrc)
 {
 	return lrc->flags & XE_LRC_FLAG_INDIRECT_RING_STATE;
@@ -795,6 +778,16 @@ static u32 __xe_lrc_ctx_timestamp_udw_offset(struct xe_lrc *lrc)
 	return __xe_lrc_regs_offset(lrc) + CTX_TIMESTAMP_UDW * sizeof(u32);
 }
 
+static u32 __xe_lrc_queue_timestamp_offset(struct xe_lrc *lrc)
+{
+	return __xe_lrc_regs_offset(lrc) + CTX_QUEUE_TIMESTAMP * sizeof(u32);
+}
+
+static u32 __xe_lrc_queue_timestamp_udw_offset(struct xe_lrc *lrc)
+{
+	return __xe_lrc_regs_offset(lrc) + CTX_QUEUE_TIMESTAMP_UDW * sizeof(u32);
+}
+
 static inline u32 __xe_lrc_indirect_ring_offset(struct xe_lrc *lrc)
 {
 	u32 offset = xe_bo_size(lrc->bo) - LRC_WA_BB_SIZE -
@@ -844,6 +837,8 @@ DECL_MAP_ADDR_HELPERS(ctx_timestamp_udw, lrc->bo)
 DECL_MAP_ADDR_HELPERS(parallel, lrc->bo)
 DECL_MAP_ADDR_HELPERS(indirect_ring, lrc->bo)
 DECL_MAP_ADDR_HELPERS(engine_id, lrc->bo)
+DECL_MAP_ADDR_HELPERS(queue_timestamp, lrc->bo)
+DECL_MAP_ADDR_HELPERS(queue_timestamp_udw, lrc->bo)
 
 #undef DECL_MAP_ADDR_HELPERS
 
@@ -888,6 +883,29 @@ static u64 xe_lrc_ctx_timestamp(struct xe_lrc *lrc)
 		map = __xe_lrc_ctx_timestamp_udw_map(lrc);
 		udw = xe_map_read32(xe, &map);
 	}
+
+	return (u64)udw << 32 | ldw;
+}
+
+/**
+ * xe_lrc_queue_timestamp() - Read queue timestamp value
+ * @lrc: Pointer to the lrc.
+ *
+ * Returns: queue timestamp value
+ */
+static u64 xe_lrc_queue_timestamp(struct xe_lrc *lrc)
+{
+	struct xe_device *xe = lrc_to_xe(lrc);
+	struct iosys_map map;
+	u32 ldw, udw = 0;
+
+	xe_assert(xe, xe_lrc_is_multi_queue(lrc));
+
+	map = __xe_lrc_queue_timestamp_map(lrc);
+	ldw = xe_map_read32(xe, &map);
+
+	map = __xe_lrc_queue_timestamp_udw_map(lrc);
+	udw = xe_map_read32(xe, &map);
 
 	return (u64)udw << 32 | ldw;
 }
@@ -987,7 +1005,6 @@ static void *empty_lrc_data(struct xe_hw_engine *hwe)
 	set_offsets(regs, reg_offsets(gt_to_xe(gt), hwe->class), hwe);
 	set_context_control(regs, hwe);
 	set_memory_based_intr(regs, hwe);
-	reset_stop_ring(regs, hwe);
 	if (xe_gt_has_indirect_ring_state(gt)) {
 		regs = data + xe_gt_lrc_size(gt, hwe->class) -
 		       LRC_INDIRECT_RING_STATE_SIZE;
@@ -1556,6 +1573,18 @@ static int xe_lrc_ctx_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe, struct 
 	xe_lrc_write_ctx_reg(lrc, CTX_TIMESTAMP, 0);
 	if (lrc_to_xe(lrc)->info.has_64bit_timestamp)
 		xe_lrc_write_ctx_reg(lrc, CTX_TIMESTAMP_UDW, 0);
+
+	/*
+	 * Note: It's possible that this LRC may belong to an exec_queue that is
+	 * not part of a multi-queue group. That said, it doesn't hurt to set
+	 * this field anyways since any class that supports multi-queue will
+	 * have these LRC fields defined.
+	 */
+	if (xe_gt_supports_multi_queue(gt, hwe->class)) {
+		lrc->queue_timestamp = 0;
+		xe_lrc_write_ctx_reg(lrc, CTX_QUEUE_TIMESTAMP, 0);
+		xe_lrc_write_ctx_reg(lrc, CTX_QUEUE_TIMESTAMP_UDW, 0);
+	}
 
 	if (xe->info.has_asid && vm)
 		xe_lrc_write_ctx_reg(lrc, CTX_ASID, vm->usm.asid);
@@ -2482,7 +2511,17 @@ struct xe_lrc_snapshot *xe_lrc_snapshot_capture(struct xe_lrc *lrc)
 	snapshot->replay_offset = 0;
 	snapshot->replay_size = lrc->replay_size;
 	snapshot->lrc_snapshot = NULL;
-	snapshot->ctx_timestamp = lower_32_bits(xe_lrc_ctx_timestamp(lrc));
+	snapshot->ctx_timestamp = xe_lrc_ctx_timestamp(lrc);
+	snapshot->ctx_timestamp_ms =
+		xe_gt_clock_interval_to_ms(lrc->gt, xe_lrc_ctx_timestamp(lrc));
+	if (xe_lrc_is_multi_queue(lrc)) {
+		snapshot->queue_timestamp = xe_lrc_queue_timestamp(lrc);
+		snapshot->queue_timestamp_ms =
+			xe_gt_clock_interval_to_ms(lrc->gt, snapshot->queue_timestamp);
+	} else {
+		snapshot->queue_timestamp = 0;
+		snapshot->queue_timestamp_ms = 0;
+	}
 	snapshot->ctx_job_timestamp = xe_lrc_ctx_job_timestamp(lrc);
 	return snapshot;
 }
@@ -2535,7 +2574,10 @@ void xe_lrc_snapshot_print(struct xe_lrc_snapshot *snapshot, struct drm_printer 
 	drm_printf(p, "\tRing start: (memory) 0x%08x\n", snapshot->start);
 	drm_printf(p, "\tStart seqno: (memory) %d\n", snapshot->start_seqno);
 	drm_printf(p, "\tSeqno: (memory) %d\n", snapshot->seqno);
-	drm_printf(p, "\tTimestamp: 0x%08x\n", snapshot->ctx_timestamp);
+	drm_printf(p, "\tTimestamp: 0x%016llx\n", snapshot->ctx_timestamp);
+	drm_printf(p, "\tTimestamp ms: %llu\n", snapshot->ctx_timestamp_ms);
+	drm_printf(p, "\tQueue Timestamp: 0x%016llx\n", snapshot->queue_timestamp);
+	drm_printf(p, "\tQueue Timestamp ms: %llu\n", snapshot->queue_timestamp_ms);
 	drm_printf(p, "\tJob Timestamp: 0x%08x\n", snapshot->ctx_job_timestamp);
 
 	if (!snapshot->lrc_snapshot)
@@ -2576,17 +2618,27 @@ void xe_lrc_snapshot_free(struct xe_lrc_snapshot *snapshot)
 	kfree(snapshot);
 }
 
-static int get_ctx_timestamp(struct xe_lrc *lrc, u32 engine_id, u64 *reg_ctx_ts)
+static struct xe_hw_engine *engine_id_to_hwe(struct xe_gt *gt, u32 engine_id)
 {
 	u16 class = REG_FIELD_GET(ENGINE_CLASS_ID, engine_id);
 	u16 instance = REG_FIELD_GET(ENGINE_INSTANCE_ID, engine_id);
+	struct xe_hw_engine *hwe = xe_gt_hw_engine(gt, class, instance, false);
+
+	if (xe_gt_WARN_ONCE(gt, !hwe || xe_hw_engine_is_reserved(hwe),
+			    "Unexpected engine class:instance %d:%d for utilization\n",
+			    class, instance))
+		return NULL;
+
+	return hwe;
+}
+
+static int get_ctx_timestamp(struct xe_lrc *lrc, u32 engine_id, u64 *reg_ctx_ts)
+{
 	struct xe_hw_engine *hwe;
 	u64 val;
 
-	hwe = xe_gt_hw_engine(lrc->gt, class, instance, false);
-	if (xe_gt_WARN_ONCE(lrc->gt, !hwe || xe_hw_engine_is_reserved(hwe),
-			    "Unexpected engine class:instance %d:%d for context utilization\n",
-			    class, instance))
+	hwe = engine_id_to_hwe(lrc->gt, engine_id);
+	if (!hwe)
 		return -1;
 
 	if (lrc_to_xe(lrc)->info.has_64bit_timestamp)
@@ -2601,66 +2653,136 @@ static int get_ctx_timestamp(struct xe_lrc *lrc, u32 engine_id, u64 *reg_ctx_ts)
 	return 0;
 }
 
-/**
- * xe_lrc_timestamp() - Current ctx timestamp
- * @lrc: Pointer to the lrc.
- *
- * Return latest ctx timestamp. With support for active contexts, the
- * calculation may be slightly racy, so follow a read-again logic to ensure that
- * the context is still active before returning the right timestamp.
- *
- * Returns: New ctx timestamp value
- */
-u64 xe_lrc_timestamp(struct xe_lrc *lrc)
+static u64 get_queue_timestamp(struct xe_hw_engine *hwe)
 {
-	u64 lrc_ts, reg_ts, new_ts = lrc->ctx_timestamp;
-	u32 engine_id;
+	return xe_mmio_read64_2x32(&hwe->gt->mmio,
+				   RING_QUEUE_TIMESTAMP(hwe->mmio_base));
+}
 
-	lrc_ts = xe_lrc_ctx_timestamp(lrc);
+static u32 get_multi_queue_active_queue_id(struct xe_hw_engine *hwe)
+{
+	u32 val = xe_mmio_read32(&hwe->gt->mmio,
+				 RING_CSMQDEBUG(hwe->mmio_base));
+
+	return REG_FIELD_GET(CURRENT_ACTIVE_QUEUE_ID_MASK, val);
+}
+
+static bool context_active(struct xe_lrc *lrc)
+{
+	return xe_lrc_ctx_timestamp(lrc) == CONTEXT_ACTIVE;
+}
+
+static u64 xe_lrc_multi_queue_timestamp(struct xe_lrc *lrc)
+{
+	struct xe_device *xe = lrc_to_xe(lrc);
+	struct xe_lrc *primary_lrc = lrc->multi_queue.primary_lrc;
+	struct xe_hw_engine *hwe;
+	u64 reg_queue_ts = lrc->queue_timestamp;
+
+	if (IS_SRIOV_VF(xe))
+		return xe_lrc_queue_timestamp(lrc);
+
+	xe_assert(xe, primary_lrc);
+
+	/* WA BB populates CONTEXT_ACTIVE cookie for primary context only */
+	if (!context_active(primary_lrc))
+		return xe_lrc_queue_timestamp(lrc);
+
+	/* WA BB populates engine id in PPHWSP of primary context only */
+	hwe = engine_id_to_hwe(primary_lrc->gt, xe_lrc_engine_id(primary_lrc));
+	if (!hwe)
+		return xe_lrc_queue_timestamp(lrc);
+
+	if (get_multi_queue_active_queue_id(hwe) != lrc->multi_queue.pos)
+		return xe_lrc_queue_timestamp(lrc);
+
+	/* queue is active, so store the queue timestamp register */
+	reg_queue_ts = get_queue_timestamp(hwe);
+
+	/* double check queue and primary queue are both still active */
+	if (get_multi_queue_active_queue_id(hwe) != lrc->multi_queue.pos ||
+	    !context_active(primary_lrc))
+		return xe_lrc_queue_timestamp(lrc);
+
+	return reg_queue_ts;
+}
+
+static u64 xe_lrc_update_multi_queue_timestamp(struct xe_lrc *lrc, u64 *old_ts)
+{
+	*old_ts = lrc->queue_timestamp;
+	lrc->queue_timestamp = xe_lrc_multi_queue_timestamp(lrc);
+
+	trace_xe_lrc_update_queue_timestamp(lrc, *old_ts);
+
+	return lrc->queue_timestamp;
+}
+
+static u64 xe_lrc_context_timestamp(struct xe_lrc *lrc)
+{
+	u64 reg_ts, new_ts = lrc->ctx_timestamp;
+
 	/* CTX_TIMESTAMP mmio read is invalid on VF, so return the LRC value */
-	if (IS_SRIOV_VF(lrc_to_xe(lrc))) {
-		new_ts = lrc_ts;
-		goto done;
-	}
+	if (IS_SRIOV_VF(lrc_to_xe(lrc)))
+		return xe_lrc_ctx_timestamp(lrc);
 
-	if (lrc_ts == CONTEXT_ACTIVE) {
-		engine_id = xe_lrc_engine_id(lrc);
-		if (!get_ctx_timestamp(lrc, engine_id, &reg_ts))
-			new_ts = reg_ts;
-
-		/* read lrc again to ensure context is still active */
-		lrc_ts = xe_lrc_ctx_timestamp(lrc);
-	}
+	if (context_active(lrc) &&
+	    !get_ctx_timestamp(lrc, xe_lrc_engine_id(lrc), &reg_ts))
+		new_ts = reg_ts;
 
 	/*
-	 * If context switched out, just use the lrc_ts. Note that this needs to
-	 * be a separate if condition.
+	 * If context swicthed out while we were here, just return the latest
+	 * LRC CTX TIMESTAMP value.
 	 */
-	if (lrc_ts != CONTEXT_ACTIVE)
-		new_ts = lrc_ts;
+	if (!context_active(lrc))
+		return xe_lrc_ctx_timestamp(lrc);
 
-done:
 	return new_ts;
 }
 
-/**
- * xe_lrc_update_timestamp() - Update ctx timestamp
- * @lrc: Pointer to the lrc.
- * @old_ts: Old timestamp value
- *
- * Populate @old_ts current saved ctx timestamp, read new ctx timestamp and
- * update saved value.
- *
- * Returns: New ctx timestamp value
- */
-u64 xe_lrc_update_timestamp(struct xe_lrc *lrc, u64 *old_ts)
+static u64 xe_lrc_update_context_timestamp(struct xe_lrc *lrc, u64 *old_ts)
 {
 	*old_ts = lrc->ctx_timestamp;
-	lrc->ctx_timestamp = xe_lrc_timestamp(lrc);
+	lrc->ctx_timestamp = xe_lrc_context_timestamp(lrc);
 
 	trace_xe_lrc_update_timestamp(lrc, *old_ts);
 
 	return lrc->ctx_timestamp;
+}
+
+/**
+ * xe_lrc_timestamp() - Current lrc timestamp
+ * @lrc: Pointer to the lrc.
+ *
+ * Return latest lrc timestamp. With support for active contexts/queues, the
+ * calculation may be slightly racy, so follow a read-again logic to ensure that
+ * the context/queue is still active before returning the right timestamp.
+ *
+ * Returns: New lrc timestamp value
+ */
+u64 xe_lrc_timestamp(struct xe_lrc *lrc)
+{
+	if (xe_lrc_is_multi_queue(lrc))
+		return xe_lrc_multi_queue_timestamp(lrc);
+	else
+		return xe_lrc_context_timestamp(lrc);
+}
+
+/**
+ * xe_lrc_update_timestamp() - Update lrc timestamp
+ * @lrc: Pointer to the lrc.
+ * @old_ts: Old timestamp value
+ *
+ * Populate @old_ts with current saved lrc timestamp, read new lrc timestamp and
+ * update saved value.
+ *
+ * Returns: New lrc timestamp value
+ */
+u64 xe_lrc_update_timestamp(struct xe_lrc *lrc, u64 *old_ts)
+{
+	if (xe_lrc_is_multi_queue(lrc))
+		return xe_lrc_update_multi_queue_timestamp(lrc, old_ts);
+	else
+		return xe_lrc_update_context_timestamp(lrc, old_ts);
 }
 
 /**

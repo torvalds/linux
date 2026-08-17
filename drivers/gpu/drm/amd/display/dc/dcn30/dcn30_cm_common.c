@@ -172,11 +172,13 @@ bool cm3_helper_translate_curve_to_hw_format(struct dc_context *ctx,
 	hw_points = fixpoint ? (hw_points - 1) : hw_points;
 
 	j = 0;
-	for (k = 0; k < (region_end - region_start); k++) {
+	uint32_t region_span = (uint32_t)(region_end - region_start);
+	for (k = 0; k < region_span; k++) {
 		increment = NUMBER_SW_SEGMENTS / (1 << seg_distr[k]);
 		start_index = (region_start + k + MAX_LOW_POINT) *
 				NUMBER_SW_SEGMENTS;
-		for (i = start_index; i < start_index + NUMBER_SW_SEGMENTS;
+		int32_t index_end = (int32_t)(start_index + NUMBER_SW_SEGMENTS);
+		for (i = start_index; i < index_end;
 				i += increment) {
 			if (j == hw_points)
 				break;
@@ -258,7 +260,7 @@ bool cm3_helper_translate_curve_to_hw_format(struct dc_context *ctx,
 			uint32_t green_clamp;
 			uint32_t blue_clamp;
 
-			if (i >= hw_points) {
+			if ((uint32_t)i >= hw_points) {
 				if (dc_fixpt_lt(rgb_plus_1->red, rgb->red))
 					rgb_plus_1->red = dc_fixpt_add(rgb->red,
 							rgb_minus_1->delta_red);

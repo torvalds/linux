@@ -14,7 +14,6 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/log2.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/pm.h>
 #include <linux/property.h>
@@ -832,20 +831,20 @@ static int sx9360_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(sx9360_pm_ops, sx9360_suspend, sx9360_resume);
 
 static const struct acpi_device_id sx9360_acpi_match[] = {
-	{ "STH9360", SX9360_WHOAMI_VALUE },
-	{ "SAMM0208", SX9360_WHOAMI_VALUE },
+	{ .id = "STH9360" },
+	{ .id = "SAMM0208" },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, sx9360_acpi_match);
 
 static const struct of_device_id sx9360_of_match[] = {
-	{ .compatible = "semtech,sx9360", (void *)SX9360_WHOAMI_VALUE },
+	{ .compatible = "semtech,sx9360" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, sx9360_of_match);
 
 static const struct i2c_device_id sx9360_id[] = {
-	{"sx9360", SX9360_WHOAMI_VALUE },
+	{ .name = "sx9360" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, sx9360_id);

@@ -28,6 +28,8 @@
 #include <asm/mach-au1x00/au1550nd.h>
 #include <asm/mach-db1x00/bcsr.h>
 #include <prom.h>
+
+#include "db1xxx.h"
 #include "platform.h"
 
 static void __init db1550_hw_setup(void)

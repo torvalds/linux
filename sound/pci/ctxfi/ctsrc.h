@@ -103,10 +103,10 @@ struct srcimp_rsc_ops;
 struct srcimp {
 	struct rsc rsc;
 	unsigned char idx[8];
-	struct imapper *imappers;
 	unsigned int mapped; /* A bit-map indicating which conj rsc is mapped */
 	struct srcimp_mgr *mgr;
 	const struct srcimp_rsc_ops *ops;
+	struct imapper imappers[];
 };
 
 struct srcimp_rsc_ops {

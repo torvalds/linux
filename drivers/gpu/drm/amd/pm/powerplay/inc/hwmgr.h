@@ -292,8 +292,6 @@ struct pp_hwmgr_func {
 	int (*store_cc6_data)(struct pp_hwmgr *hwmgr, uint32_t separation_time,
 				bool cc6_disable, bool pstate_disable,
 				bool pstate_switch_disable);
-	int (*get_dal_power_level)(struct pp_hwmgr *hwmgr,
-			struct amd_pp_simple_clock_info *info);
 	int (*get_performance_level)(struct pp_hwmgr *, const struct pp_hw_power_state *,
 			PHM_PerformanceLevelDesignation, uint32_t, PHM_PerformanceLevel *);
 	int (*get_current_shallow_sleep_clocks)(struct pp_hwmgr *hwmgr,
@@ -364,6 +362,7 @@ struct pp_hwmgr_func {
 					bool disable);
 	ssize_t (*get_gpu_metrics)(struct pp_hwmgr *hwmgr, void **table);
 	int (*gfx_state_change)(struct pp_hwmgr *hwmgr, uint32_t state);
+	void (*notify_ac_dc)(struct pp_hwmgr *hwmgr);
 };
 
 struct pp_table_func {
@@ -540,7 +539,6 @@ struct phm_ppt_v1_information {
 	struct phm_clock_array *valid_dcefclk_values;
 	struct phm_clock_and_voltage_limits max_clock_voltage_on_dc;
 	struct phm_clock_and_voltage_limits max_clock_voltage_on_ac;
-	struct phm_clock_voltage_dependency_table *vddc_dep_on_dal_pwrl;
 	struct phm_ppm_table *ppm_parameter_table;
 	struct phm_cac_tdp_table *cac_dtp_table;
 	struct phm_tdp_table *tdp_table;
@@ -632,7 +630,6 @@ struct phm_dynamic_state_info {
 	struct phm_clock_voltage_dependency_table *vddc_dependency_on_mclk;
 	struct phm_clock_voltage_dependency_table *mvdd_dependency_on_mclk;
 	struct phm_clock_voltage_dependency_table *vddc_dependency_on_display_clock;
-	struct phm_clock_voltage_dependency_table *vddc_dep_on_dal_pwrl;
 	struct phm_clock_array                    *valid_sclk_values;
 	struct phm_clock_array                    *valid_mclk_values;
 	struct phm_clock_and_voltage_limits       max_clock_voltage_on_dc;

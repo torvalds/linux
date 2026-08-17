@@ -1433,6 +1433,7 @@ static const struct of_device_id sdm660_pinctrl_of_match[] = {
 	{ .compatible = "qcom,sdm630-pinctrl", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, sdm660_pinctrl_of_match);
 
 static struct platform_driver sdm660_pinctrl_driver = {
 	.driver = {
@@ -1456,4 +1457,3 @@ module_exit(sdm660_pinctrl_exit);
 
 MODULE_DESCRIPTION("QTI sdm660 pinctrl driver");
 MODULE_LICENSE("GPL v2");
-MODULE_DEVICE_TABLE(of, sdm660_pinctrl_of_match);

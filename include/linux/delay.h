@@ -110,7 +110,7 @@ static const unsigned int max_slack_shift = 2;
  * fsleep - flexible sleep which autoselects the best mechanism
  * @usecs:	requested sleep duration in microseconds
  *
- * flseep() selects the best mechanism that will provide maximum 25% slack
+ * fsleep() selects the best mechanism that will provide maximum 25% slack
  * to the requested sleep duration. Therefore it uses:
  *
  * * udelay() loop for sleep durations <= 10 microseconds to avoid hrtimer

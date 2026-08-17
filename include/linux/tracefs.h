@@ -30,7 +30,7 @@ struct eventfs_file;
  * @data: data to pass to the created file ops
  * @fops: the file operations of the created file
  *
- * The evetnfs files are dynamically created. The struct eventfs_entry array
+ * The eventfs files are dynamically created. The struct eventfs_entry array
  * is passed to eventfs_create_dir() or eventfs_create_events_dir() that will
  * be used to create the files within those directories. When a lookup
  * or access to a file within the directory is made, the struct eventfs_entry

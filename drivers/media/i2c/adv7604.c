@@ -3236,10 +3236,10 @@ static const struct adv76xx_chip_info adv76xx_chip_info[] = {
 };
 
 static const struct i2c_device_id adv76xx_i2c_id[] = {
-	{ "adv7604", (kernel_ulong_t)&adv76xx_chip_info[ADV7604] },
-	{ "adv7610", (kernel_ulong_t)&adv76xx_chip_info[ADV7611] },
-	{ "adv7611", (kernel_ulong_t)&adv76xx_chip_info[ADV7611] },
-	{ "adv7612", (kernel_ulong_t)&adv76xx_chip_info[ADV7612] },
+	{ .name = "adv7604", .driver_data = (kernel_ulong_t)&adv76xx_chip_info[ADV7604] },
+	{ .name = "adv7610", .driver_data = (kernel_ulong_t)&adv76xx_chip_info[ADV7611] },
+	{ .name = "adv7611", .driver_data = (kernel_ulong_t)&adv76xx_chip_info[ADV7611] },
+	{ .name = "adv7612", .driver_data = (kernel_ulong_t)&adv76xx_chip_info[ADV7612] },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adv76xx_i2c_id);
@@ -3668,6 +3668,12 @@ static int adv76xx_probe(struct i2c_client *client)
 
 	state->source_pad = state->info->num_dv_ports
 			  + (state->info->has_afe ? 2 : 0);
+	if (WARN_ON(state->source_pad >= ADV76XX_PAD_MAX)) {
+		err = -EINVAL;
+		v4l2_err(sd, "invalid chip info\n");
+		goto err_i2c;
+	}
+
 	for (i = 0; i < state->source_pad; ++i)
 		state->pads[i].flags = MEDIA_PAD_FL_SINK;
 	state->pads[state->source_pad].flags = MEDIA_PAD_FL_SOURCE;

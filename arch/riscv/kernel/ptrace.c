@@ -413,7 +413,7 @@ static struct user_regset riscv_user_regset[] __ro_after_init = {
 #endif
 #ifdef CONFIG_RISCV_USER_CFI
 	[REGSET_CFI] = {
-		.core_note_type = NT_RISCV_USER_CFI,
+		USER_REGSET_NOTE_TYPE(RISCV_USER_CFI),
 		.align = sizeof(__u64),
 		.n = sizeof(struct user_cfi_state) / sizeof(__u64),
 		.size = sizeof(__u64),

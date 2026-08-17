@@ -124,10 +124,8 @@ static int sh_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		dev_notice(dev, "no frequency table found, falling back "
 			   "to rate rounding.\n");
 
-		policy->min = policy->cpuinfo.min_freq =
-			(clk_round_rate(cpuclk, 1) + 500) / 1000;
-		policy->max = policy->cpuinfo.max_freq =
-			(clk_round_rate(cpuclk, ~0UL) + 500) / 1000;
+		policy->cpuinfo.min_freq = (clk_round_rate(cpuclk, 1) + 500) / 1000;
+		policy->cpuinfo.max_freq = (clk_round_rate(cpuclk, ~0UL) + 500) / 1000;
 	}
 
 	return 0;

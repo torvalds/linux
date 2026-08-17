@@ -147,6 +147,13 @@
 #define ASUS_WMI_DEVID_GPU_MUX		0x00090016
 #define ASUS_WMI_DEVID_GPU_MUX_VIVO	0x00090026
 
+/* Keystone dongle insert/remove state.
+ * PRESENCE_BIT (0x00010000) encodes insert state:
+ * 0x00010000 = inserted, 0x00000000 = absent. STATUS_BIT is never set.
+ * 0xFFFFFFFE means no keystone slot on this machine.
+ */
+#define ASUS_WMI_DEVID_KEYSTONE		0x00120091
+
 /* TUF laptop RGB modes/colours */
 #define ASUS_WMI_DEVID_TUF_RGB_MODE	0x00100056
 #define ASUS_WMI_DEVID_TUF_RGB_MODE2	0x0010005A

@@ -8,6 +8,7 @@
 #include <linux/percpu-refcount.h>
 #include <linux/semaphore.h>     /* struct semaphore */
 #include <linux/completion.h>
+#include <scsi/scsi_common.h>
 
 #define TARGET_CORE_VERSION		"v5.0"
 
@@ -45,10 +46,6 @@
 #define INQUIRY_VPD_SERIAL_LEN			254
 /* Used by transport_get_inquiry_vpd_device_ident() */
 #define INQUIRY_VPD_DEVICE_IDENTIFIER_LEN	254
-
-#define INQUIRY_VENDOR_LEN			8
-#define INQUIRY_MODEL_LEN			16
-#define INQUIRY_REVISION_LEN			4
 
 /* Attempts before moving from SHORT to LONG */
 #define PYX_TRANSPORT_WINDOW_CLOSED_THRESHOLD	3

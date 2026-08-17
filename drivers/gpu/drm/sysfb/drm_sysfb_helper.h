@@ -50,7 +50,7 @@ struct resource *drm_sysfb_get_memory_si(struct drm_device *dev,
 int drm_sysfb_get_stride_si(struct drm_device *dev, const struct screen_info *si,
 			    const struct drm_format_info *format,
 			    unsigned int width, unsigned int height, u64 size);
-u64 drm_sysfb_get_visible_size_si(struct drm_device *dev, const struct screen_info *si,
+s64 drm_sysfb_get_visible_size_si(struct drm_device *dev, const struct screen_info *si,
 				  unsigned int height, unsigned int stride, u64 size);
 #endif
 
@@ -111,11 +111,11 @@ size_t drm_sysfb_build_fourcc_list(struct drm_device *dev,
 int drm_sysfb_plane_helper_begin_fb_access(struct drm_plane *plane,
 					   struct drm_plane_state *plane_state);
 int drm_sysfb_plane_helper_atomic_check(struct drm_plane *plane,
-					struct drm_atomic_state *new_state);
+					struct drm_atomic_commit *new_state);
 void drm_sysfb_plane_helper_atomic_update(struct drm_plane *plane,
-					  struct drm_atomic_state *state);
+					  struct drm_atomic_commit *state);
 void drm_sysfb_plane_helper_atomic_disable(struct drm_plane *plane,
-					   struct drm_atomic_state *state);
+					   struct drm_atomic_commit *state);
 int drm_sysfb_plane_helper_get_scanout_buffer(struct drm_plane *plane,
 					      struct drm_scanout_buffer *sb);
 
@@ -165,7 +165,7 @@ to_drm_sysfb_crtc_state(struct drm_crtc_state *base)
 
 enum drm_mode_status drm_sysfb_crtc_helper_mode_valid(struct drm_crtc *crtc,
 						      const struct drm_display_mode *mode);
-int drm_sysfb_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *new_state);
+int drm_sysfb_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic_commit *new_state);
 
 #define DRM_SYSFB_CRTC_HELPER_FUNCS \
 	.mode_valid = drm_sysfb_crtc_helper_mode_valid, \

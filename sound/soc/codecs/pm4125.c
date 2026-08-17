@@ -1309,17 +1309,12 @@ static int pm4125_irq_init(struct pm4125_priv *pm4125, struct device *dev)
 static int pm4125_soc_codec_probe(struct snd_soc_component *component)
 {
 	struct pm4125_priv *pm4125 = snd_soc_component_get_drvdata(component);
-	struct sdw_slave *tx_sdw_dev = pm4125->tx_sdw_dev;
 	struct device *dev = component->dev;
-	unsigned long time_left;
 	int i, ret;
 
-	time_left = wait_for_completion_timeout(&tx_sdw_dev->initialization_complete,
-						msecs_to_jiffies(5000));
-	if (!time_left) {
-		dev_err(dev, "soundwire device init timeout\n");
-		return -ETIMEDOUT;
-	}
+	ret = sdw_slave_wait_for_init(pm4125->tx_sdw_dev, 5000);
+	if (ret)
+		return ret;
 
 	snd_soc_component_init_regmap(component, pm4125->regmap);
 	ret = pm_runtime_resume_and_get(dev);

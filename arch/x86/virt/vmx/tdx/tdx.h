@@ -46,6 +46,9 @@
 #define TDH_PHYMEM_PAGE_WBINVD		41
 #define TDH_VP_WR			43
 #define TDH_SYS_CONFIG			45
+#define TDH_SYS_SHUTDOWN		52
+#define TDH_SYS_UPDATE			53
+#define TDH_SYS_DISABLE			69
 
 /*
  * SEAMCALL leaf:
@@ -84,9 +87,6 @@ struct tdmr_info {
 	DECLARE_FLEX_ARRAY(struct tdmr_reserved_area, reserved_areas);
 } __packed __aligned(TDMR_INFO_ALIGNMENT);
 
-/* Bit definitions of TDX_FEATURES0 metadata field */
-#define TDX_FEATURES0_NO_RBP_MOD	BIT(18)
-
 /*
  * Do not put any hardware-defined TDX structure representations below
  * this comment!
@@ -109,5 +109,8 @@ struct tdmr_info_list {
 	int tdmr_sz;	/* Size of one 'tdmr_info' */
 	int max_tdmrs;	/* How many 'tdmr_info's are allocated */
 };
+
+int tdx_module_shutdown(void);
+int tdx_module_run_update(void);
 
 #endif

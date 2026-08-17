@@ -1932,27 +1932,23 @@ static const struct dsa_switch_ops hellcreek_ds_ops = {
 
 static int hellcreek_probe(struct platform_device *pdev)
 {
+	const struct hellcreek_platform_data *data;
 	struct device *dev = &pdev->dev;
 	struct hellcreek *hellcreek;
 	struct resource *res;
 	int ret, i;
 
-	hellcreek = devm_kzalloc(dev, sizeof(*hellcreek), GFP_KERNEL);
+	data = of_device_get_match_data(dev);
+	hellcreek = devm_kzalloc(dev, struct_size(hellcreek, ports, data->num_ports), GFP_KERNEL);
 	if (!hellcreek)
 		return -ENOMEM;
+
+	hellcreek->pdata = data;
 
 	hellcreek->vidmbrcfg = devm_kcalloc(dev, VLAN_N_VID,
 					    sizeof(*hellcreek->vidmbrcfg),
 					    GFP_KERNEL);
 	if (!hellcreek->vidmbrcfg)
-		return -ENOMEM;
-
-	hellcreek->pdata = of_device_get_match_data(dev);
-
-	hellcreek->ports = devm_kcalloc(dev, hellcreek->pdata->num_ports,
-					sizeof(*hellcreek->ports),
-					GFP_KERNEL);
-	if (!hellcreek->ports)
 		return -ENOMEM;
 
 	for (i = 0; i < hellcreek->pdata->num_ports; ++i) {

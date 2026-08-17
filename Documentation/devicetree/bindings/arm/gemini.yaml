@@ -55,6 +55,11 @@ properties:
           - const: itian,sq201
           - const: cortina,gemini
 
+      - description: Raidsonic NAS IB-4210-B
+        items:
+          - const: raidsonic,ib-4210-b
+          - const: cortina,gemini
+
       - description: Raidsonic NAS IB-4220-B
         items:
           - const: raidsonic,ib-4220-b
@@ -68,6 +73,11 @@ properties:
       - description: Teltonika RUT1xx Mobile Router
         items:
           - const: teltonika,rut1xx
+          - const: cortina,gemini
+
+      - description: Verbatim S08V1901-D1 NAS
+        items:
+          - const: verbatim,s08v1901-d1
           - const: cortina,gemini
 
       - description: Wiligear Wiliboard WBD-111

@@ -34,6 +34,7 @@ struct hal_tx_info {
 	u8 dscp_tid_tbl_idx;
 	bool enable_mesh;
 	int bank_id;
+	bool lookup_override;
 };
 
 /* TODO: Check if the actual desc macros can be used instead */

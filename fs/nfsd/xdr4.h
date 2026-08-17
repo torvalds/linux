@@ -432,6 +432,19 @@ struct nfsd4_read {
 	u32			rd_eof;             /* response */
 };
 
+/*
+ * Cache the case-folding properties of @dir so a batched encoder
+ * (e.g., READDIR) does not re-probe per child. @dir is the
+ * directory being read, held by the request, so it is stable
+ * against rename for the duration of the cache's lifetime.
+ */
+struct nfsd_case_attrs_cache {
+	struct dentry	*dir;
+	bool		valid;
+	bool		insensitive;
+	bool		preserving;
+};
+
 struct nfsd4_readdir {
 	u64		rd_cookie;          /* request */
 	nfs4_verifier	rd_verf;            /* request */
@@ -444,6 +457,7 @@ struct nfsd4_readdir {
 	struct readdir_cd	common;
 	struct xdr_stream	*xdr;
 	int			cookie_offset;
+	struct nfsd_case_attrs_cache rd_case_cache;
 };
 
 struct nfsd4_release_lockowner {

@@ -14,9 +14,8 @@ struct htab {
 	htab_bucket_t *buckets;
 	int n_buckets;
 };
-typedef struct htab __arena htab_t;
 
-static inline htab_bucket_t *__select_bucket(htab_t *htab, __u32 hash)
+static inline htab_bucket_t *__select_bucket(struct htab __arena *htab, __u32 hash)
 {
 	htab_bucket_t *b = htab->buckets;
 
@@ -24,7 +23,7 @@ static inline htab_bucket_t *__select_bucket(htab_t *htab, __u32 hash)
 	return &b[hash & (htab->n_buckets - 1)];
 }
 
-static inline arena_list_head_t *select_bucket(htab_t *htab, __u32 hash)
+static inline arena_list_head_t *select_bucket(struct htab __arena *htab, __u32 hash)
 {
 	return &__select_bucket(htab, hash)->head;
 }
@@ -53,7 +52,7 @@ static int htab_hash(int key)
 	return key;
 }
 
-__weak int htab_lookup_elem(htab_t *htab __arg_arena, int key)
+__weak int htab_lookup_elem(struct htab __arena *htab, int key)
 {
 	hashtab_elem_t *l_old;
 	arena_list_head_t *head;
@@ -66,7 +65,7 @@ __weak int htab_lookup_elem(htab_t *htab __arg_arena, int key)
 	return 0;
 }
 
-__weak int htab_update_elem(htab_t *htab __arg_arena, int key, int value)
+__weak int htab_update_elem(struct htab __arena *htab, int key, int value)
 {
 	hashtab_elem_t *l_new = NULL, *l_old;
 	arena_list_head_t *head;
@@ -90,7 +89,7 @@ __weak int htab_update_elem(htab_t *htab __arg_arena, int key, int value)
 	return 0;
 }
 
-void htab_init(htab_t *htab)
+void htab_init(struct htab __arena *htab)
 {
 	void __arena *buckets = bpf_arena_alloc_pages(&arena, NULL, 2, NUMA_NO_NODE, 0);
 

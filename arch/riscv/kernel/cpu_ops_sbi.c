@@ -30,10 +30,8 @@ static int sbi_hsm_hart_start(unsigned long hartid, unsigned long saddr,
 
 	ret = sbi_ecall(SBI_EXT_HSM, SBI_EXT_HSM_HART_START,
 			hartid, saddr, priv, 0, 0, 0);
-	if (ret.error)
-		return sbi_err_map_linux_errno(ret.error);
-	else
-		return 0;
+
+	return sbi_err_map_linux_errno(ret.error);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -43,10 +41,7 @@ static int sbi_hsm_hart_stop(void)
 
 	ret = sbi_ecall(SBI_EXT_HSM, SBI_EXT_HSM_HART_STOP, 0, 0, 0, 0, 0, 0);
 
-	if (ret.error)
-		return sbi_err_map_linux_errno(ret.error);
-	else
-		return 0;
+	return sbi_err_map_linux_errno(ret.error);
 }
 
 static int sbi_hsm_hart_get_status(unsigned long hartid)
@@ -88,16 +83,19 @@ static void sbi_cpu_stop(void)
 	pr_crit("Unable to stop the cpu %d (%d)\n", smp_processor_id(), ret);
 }
 
-static int sbi_cpu_is_stopped(unsigned int cpuid)
+static bool sbi_cpu_is_stopped(unsigned int cpuid)
 {
 	int rc;
 	unsigned long hartid = cpuid_to_hartid_map(cpuid);
 
 	rc = sbi_hsm_hart_get_status(hartid);
 
-	if (rc == SBI_HSM_STATE_STOPPED)
-		return 0;
-	return rc;
+	if (rc != SBI_HSM_STATE_STOPPED) {
+		pr_warn("HART%lu isn't stopped; status %d\n", hartid, rc);
+		return false;
+	}
+
+	return true;
 }
 #endif
 

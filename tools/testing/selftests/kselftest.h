@@ -346,9 +346,9 @@ void ksft_test_result_code(int exit_code, const char *test_name,
 }
 
 /**
- * ksft_test_result() - Report test success based on truth of condition
+ * ksft_test_result_report() - Report test result based on a kselftest exit code
  *
- * @condition: if true, report test success, otherwise failure.
+ * @result: a kselftest exit code
  */
 #define ksft_test_result_report(result, fmt, ...) do {		\
 	switch (result) {					\

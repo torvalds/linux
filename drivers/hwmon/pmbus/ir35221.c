@@ -126,8 +126,8 @@ static int ir35221_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ir35221_id[] = {
-	{"ir35221"},
-	{}
+	{ .name = "ir35221" },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, ir35221_id);

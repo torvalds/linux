@@ -694,7 +694,17 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	pthread_create(&vcpu_thread, NULL, vcpu_worker, vcpu);
 
 	for (iteration = 1; iteration <= p->iterations; iteration++) {
-		unsigned long i;
+		unsigned long i, reap_i;
+
+		/*
+		 * Select a random point in the time interval to reap the dirty
+		 * bitmap/ring while the guest is running, i.e. randomize how
+		 * long the guest gets to initially run and thus how many pages
+		 * it can dirty, before collecting the dirty bitmap/ring.  See
+		 * the loop below for details.
+		 */
+		reap_i = random() % p->interval;
+		printf("Reaping after a %lu ms delay\n", reap_i);
 
 		sync_global_to_guest(vm, iteration);
 
@@ -729,13 +739,17 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 			 * that's effectively blocked.  Collecting while the
 			 * guest is running also verifies KVM doesn't lose any
 			 * state.
-			 *
+			 */
+			if (i < reap_i)
+				continue;
+
+			/*
 			 * For bitmap modes, KVM overwrites the entire bitmap,
 			 * i.e. collecting the bitmaps is destructive.  Collect
-			 * the bitmap only on the first pass, otherwise this
-			 * test would lose track of dirty pages.
+			 * the bitmap while the guest is running only once,
+			 * otherwise this test would lose track of dirty pages.
 			 */
-			if (i && host_log_mode != LOG_MODE_DIRTY_RING)
+			if (i > reap_i && host_log_mode != LOG_MODE_DIRTY_RING)
 				continue;
 
 			/*
@@ -745,7 +759,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 			 * the ring on every pass would make it unlikely the
 			 * vCPU would ever fill the fing).
 			 */
-			if (i && !READ_ONCE(dirty_ring_vcpu_ring_full))
+			if (i > reap_i && !READ_ONCE(dirty_ring_vcpu_ring_full))
 				continue;
 
 			log_mode_collect_dirty_pages(vcpu, TEST_MEM_SLOT_INDEX,

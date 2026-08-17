@@ -1,15 +1,20 @@
 // SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
-#include "debug.h"
-#include "evlist.h"
 #include "hwmon_pmu.h"
-#include "parse-events.h"
-#include "tests.h"
+
 #include <errno.h>
+#include <inttypes.h>
+
 #include <fcntl.h>
-#include <sys/stat.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <sys/stat.h>
+
+#include "debug.h"
+#include "evlist.h"
+#include "parse-events.h"
+#include "pmus.h"
+#include "tests.h"
 
 static const struct test_event {
 	const char *name;
@@ -192,9 +197,9 @@ static int do_test(size_t i, bool with_pmu, bool with_alias)
 			continue;
 
 		if (evsel->core.attr.config != (u64)test_events[i].key.type_and_num) {
-			pr_debug("FAILED %s:%d Unexpected config for '%s', %lld != %ld\n",
+			pr_debug("FAILED %s:%d Unexpected config for '%s', %" PRIu64 " != %ld\n",
 				__FILE__, __LINE__, str,
-				evsel->core.attr.config,
+				(uint64_t)evsel->core.attr.config,
 				test_events[i].key.type_and_num);
 			ret = TEST_FAIL;
 			goto out;

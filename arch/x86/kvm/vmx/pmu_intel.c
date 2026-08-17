@@ -15,6 +15,7 @@
 #include <linux/perf_event.h>
 #include <asm/msr.h>
 #include <asm/perf_event.h>
+#include <asm/cpuid/api.h>
 #include "x86.h"
 #include "cpuid.h"
 #include "lapic.h"
@@ -56,8 +57,16 @@ static struct x86_pmu_lbr *vcpu_to_lbr_records(struct kvm_vcpu *vcpu)
 
 static void reprogram_fixed_counters(struct kvm_pmu *pmu, u64 data)
 {
+	/*
+	 * Compare against the value the mediated PMU shoves into hardware, not
+	 * the guest's desired value.  For the emulated PMU (proxied via perf),
+	 * they are one and the same (fixed_ctr_ctrl_hw isn't used other than
+	 * here).  For the mediated PMU, KVM needs to reprogram the actual MSR,
+	 * and so needs to react to potential changes in the value shoved into
+	 * hardware, e.g. to ensure the event filter is enforced.
+	 */
+	u64 old_fixed_ctr_ctrl = pmu->fixed_ctr_ctrl_hw;
 	struct kvm_pmc *pmc;
-	u64 old_fixed_ctr_ctrl = pmu->fixed_ctr_ctrl;
 	int i;
 
 	pmu->fixed_ctr_ctrl = data;
@@ -308,13 +317,15 @@ static bool intel_pmu_handle_lbr_msrs_access(struct kvm_vcpu *vcpu,
 	 */
 	local_irq_disable();
 	if (lbr_desc->event->state == PERF_EVENT_STATE_ACTIVE) {
+		int err = 0;
+
 		if (read)
 			rdmsrq(index, msr_info->data);
 		else
-			wrmsrq(index, msr_info->data);
+			err = wrmsrq_safe(index, msr_info->data);
 		__set_bit(INTEL_PMC_IDX_FIXED_VLBR, vcpu_to_pmu(vcpu)->pmc_in_use);
 		local_irq_enable();
-		return true;
+		return !err;
 	}
 	clear_bit(INTEL_PMC_IDX_FIXED_VLBR, vcpu_to_pmu(vcpu)->pmc_in_use);
 	local_irq_enable();
@@ -391,7 +402,7 @@ static int intel_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		if (pmu->pebs_enable != data) {
 			diff = pmu->pebs_enable ^ data;
 			pmu->pebs_enable = data;
-			reprogram_counters(pmu, diff);
+			kvm_pmu_request_counters_reprogram(pmu, diff);
 		}
 		break;
 	case MSR_IA32_DS_AREA:

@@ -351,7 +351,7 @@ static enum rcar_lvds_mode rcar_lvds_get_lvds_mode(struct rcar_lvds *lvds,
 }
 
 static void rcar_lvds_enable(struct drm_bridge *bridge,
-			     struct drm_atomic_state *state,
+			     struct drm_atomic_commit *state,
 			     struct drm_crtc *crtc,
 			     struct drm_connector *connector)
 {
@@ -582,7 +582,7 @@ EXPORT_SYMBOL_GPL(rcar_lvds_pclk_disable);
  */
 
 static void rcar_lvds_atomic_enable(struct drm_bridge *bridge,
-				    struct drm_atomic_state *state)
+				    struct drm_atomic_commit *state)
 {
 	struct drm_connector *connector;
 	struct drm_crtc *crtc;
@@ -595,7 +595,7 @@ static void rcar_lvds_atomic_enable(struct drm_bridge *bridge,
 }
 
 static void rcar_lvds_atomic_disable(struct drm_bridge *bridge,
-				     struct drm_atomic_state *state)
+				     struct drm_atomic_commit *state)
 {
 	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
 

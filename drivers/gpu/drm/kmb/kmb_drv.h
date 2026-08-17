@@ -52,7 +52,7 @@ struct kmb_drm_private {
 	struct kmb_clock		kmb_clk;
 	struct drm_crtc			crtc;
 	struct kmb_plane		*plane;
-	struct drm_atomic_state		*state;
+	struct drm_atomic_commit		*state;
 	spinlock_t			irq_lock;
 	int				irq_lcd;
 	int				sys_clk_mhz;

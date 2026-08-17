@@ -376,6 +376,13 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
 	}
 
 	/*
+	 * Generated trampoline may contain rIP-relative addressing which
+	 * displacement needs to be fixed.
+	 */
+	text_poke_apply_relocation(trampoline, trampoline, size,
+				   (void *)start_offset, size);
+
+	/*
 	 * The address of the ftrace_ops that is used for this trampoline
 	 * is stored at the end of the trampoline. This will be used to
 	 * load the third parameter for the callback. Basically, that

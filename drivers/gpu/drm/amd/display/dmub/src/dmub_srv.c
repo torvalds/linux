@@ -41,6 +41,7 @@
 #include "dmub_dcn36.h"
 #include "dmub_dcn401.h"
 #include "dmub_dcn42.h"
+#include "dmub_dcn42b.h"
 #include "os_types.h"
 /*
  * Note: the DMUB service is standalone. No additional headers should be
@@ -413,6 +414,7 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 			funcs->should_detect = dmub_dcn35_should_detect;
 			break;
 	case DMUB_ASIC_DCN42:
+	case DMUB_ASIC_DCN42B:
 			dmub->regs_dcn42 = &dmub_srv_dcn42_regs;
 			funcs->configure_dmub_in_system_memory = dmub_dcn42_configure_dmub_in_system_memory;
 			funcs->send_inbox0_cmd = dmub_dcn42_send_inbox0_cmd;
@@ -466,6 +468,8 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 			funcs->enable_reg_inbox0_rsp_int = dmub_dcn42_enable_reg_inbox0_rsp_int;
 			funcs->enable_reg_outbox0_rdy_int = dmub_dcn42_enable_reg_outbox0_rdy_int;
 			funcs->init_reg_offsets = dmub_srv_dcn42_regs_init;
+			if (asic == DMUB_ASIC_DCN42B)
+				funcs->init_reg_offsets = dmub_srv_dcn42b_regs_init;
 
 			funcs->is_hw_powered_up = dmub_dcn42_is_hw_powered_up;
 			funcs->should_detect = dmub_dcn42_should_detect;

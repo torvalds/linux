@@ -14,6 +14,7 @@
 #include "xe_gt_stats.h"
 #include "xe_migrate.h"
 #include "xe_page_reclaim.h"
+#include "xe_pat.h"
 #include "xe_pt_types.h"
 #include "xe_pt_walk.h"
 #include "xe_res_cursor.h"
@@ -62,7 +63,7 @@ static u64 __xe_pt_empty_pte(struct xe_tile *tile, struct xe_vm *vm,
 			     unsigned int level)
 {
 	struct xe_device *xe = tile_to_xe(tile);
-	u16 pat_index = xe->pat.idx[XE_CACHE_WB];
+	u16 pat_index = xe_cache_pat_idx(xe, XE_CACHE_WB);
 	u8 id = tile->id;
 
 	if (!xe_vm_has_scratch(vm))
@@ -432,6 +433,7 @@ xe_pt_insert_entry(struct xe_pt_stage_bind_walk *xe_walk, struct xe_pt *parent,
 static bool xe_pt_hugepte_possible(u64 addr, u64 next, unsigned int level,
 				   struct xe_pt_stage_bind_walk *xe_walk)
 {
+	struct xe_bo *bo = xe_vma_bo(xe_walk->vma);
 	u64 size, dma;
 
 	if (level > MAX_HUGEPTE_LEVEL)
@@ -445,8 +447,8 @@ static bool xe_pt_hugepte_possible(u64 addr, u64 next, unsigned int level,
 	if (next - xe_walk->va_curs_start > xe_walk->curs->size)
 		return false;
 
-	/* null VMA's do not have dma addresses */
-	if (xe_vma_is_null(xe_walk->vma))
+	/* null VMA's and purged BO's do not have dma addresses */
+	if (xe_vma_is_null(xe_walk->vma) || (bo && xe_bo_is_purged(bo)))
 		return true;
 
 	/* if we are clearing page table, no dma addresses*/
@@ -467,6 +469,7 @@ static bool xe_pt_hugepte_possible(u64 addr, u64 next, unsigned int level,
 static bool
 xe_pt_scan_64K(u64 addr, u64 next, struct xe_pt_stage_bind_walk *xe_walk)
 {
+	struct xe_bo *bo = xe_vma_bo(xe_walk->vma);
 	struct xe_res_cursor curs = *xe_walk->curs;
 
 	if (!IS_ALIGNED(addr, SZ_64K))
@@ -475,8 +478,8 @@ xe_pt_scan_64K(u64 addr, u64 next, struct xe_pt_stage_bind_walk *xe_walk)
 	if (next > xe_walk->l0_end_addr)
 		return false;
 
-	/* null VMA's do not have dma addresses */
-	if (xe_vma_is_null(xe_walk->vma))
+	/* null VMA's and purged BO's do not have dma addresses */
+	if (xe_vma_is_null(xe_walk->vma) || (bo && xe_bo_is_purged(bo)))
 		return true;
 
 	xe_res_next(&curs, addr - xe_walk->va_curs_start);
@@ -707,7 +710,7 @@ xe_pt_stage_bind(struct xe_tile *tile, struct xe_vma *vma,
 {
 	struct xe_device *xe = tile_to_xe(tile);
 	struct xe_bo *bo = xe_vma_bo(vma);
-	struct xe_res_cursor curs;
+	struct xe_res_cursor curs = {};
 	struct xe_vm *vm = xe_vma_vm(vma);
 	struct xe_pt_stage_bind_walk xe_walk = {
 		.base = {
@@ -884,11 +887,19 @@ static int xe_pt_zap_ptes_entry(struct xe_ptw *parent, pgoff_t offset,
 {
 	struct xe_pt_zap_ptes_walk *xe_walk =
 		container_of(walk, typeof(*xe_walk), base);
-	struct xe_pt *xe_child = container_of(*child, typeof(*xe_child), base);
+	struct xe_pt *xe_child;
 	pgoff_t end_offset;
 
-	XE_WARN_ON(!*child);
 	XE_WARN_ON(!level);
+
+	/*
+	 * Below would be unexpected behavior that needs to be root caused
+	 * but better warn and bail than crash the driver.
+	 */
+	if (XE_WARN_ON(!*child))
+		return 0;
+
+	xe_child = container_of(*child, typeof(*xe_child), base);
 
 	/*
 	 * Note that we're called from an entry callback, and we're dealing
@@ -1077,7 +1088,7 @@ static void xe_pt_commit_locks_assert(struct xe_vma *vma)
 	xe_pt_commit_prepare_locks_assert(vma);
 
 	if (xe_vma_is_userptr(vma))
-		xe_svm_assert_held_read(vm);
+		xe_svm_assert_held_read_or_inject_write(vm);
 }
 
 static void xe_pt_commit(struct xe_vma *vma,
@@ -1397,6 +1408,33 @@ static int xe_pt_pre_commit(struct xe_migrate_pt_update *pt_update)
 				     pt_update_ops, rftree);
 }
 
+/*
+ * Acquire/release the svm notifier_lock around xe_pt_svm_userptr_pre_commit()
+ * and the matching late release in xe_pt_update_ops_run(). Read mode by
+ * default; write mode when CONFIG_DRM_XE_USERPTR_INVAL_INJECT is on,
+ * because a userptr op in this critical section may invoke the injected
+ * xe_vma_userptr_force_invalidate() path that calls
+ * drm_gpusvm_unmap_pages() with ctx->in_notifier=true, which requires the
+ * lock held for write.
+ */
+static void xe_pt_svm_userptr_notifier_lock(struct xe_vm *vm)
+{
+#if IS_ENABLED(CONFIG_DRM_XE_USERPTR_INVAL_INJECT)
+	down_write(&vm->svm.gpusvm.notifier_lock);
+#else
+	xe_svm_notifier_lock(vm);
+#endif
+}
+
+static void xe_pt_svm_userptr_notifier_unlock(struct xe_vm *vm)
+{
+#if IS_ENABLED(CONFIG_DRM_XE_USERPTR_INVAL_INJECT)
+	up_write(&vm->svm.gpusvm.notifier_lock);
+#else
+	xe_svm_notifier_unlock(vm);
+#endif
+}
+
 #if IS_ENABLED(CONFIG_DRM_GPUSVM)
 #ifdef CONFIG_DRM_XE_USERPTR_INVAL_INJECT
 
@@ -1428,7 +1466,7 @@ static int vma_check_userptr(struct xe_vm *vm, struct xe_vma *vma,
 	struct xe_userptr_vma *uvma;
 	unsigned long notifier_seq;
 
-	xe_svm_assert_held_read(vm);
+	xe_svm_assert_held_read_or_inject_write(vm);
 
 	if (!xe_vma_is_userptr(vma))
 		return 0;
@@ -1458,7 +1496,7 @@ static int op_check_svm_userptr(struct xe_vm *vm, struct xe_vma_op *op,
 {
 	int err = 0;
 
-	xe_svm_assert_held_read(vm);
+	xe_svm_assert_held_read_or_inject_write(vm);
 
 	switch (op->base.op) {
 	case DRM_GPUVA_OP_MAP:
@@ -1530,12 +1568,12 @@ static int xe_pt_svm_userptr_pre_commit(struct xe_migrate_pt_update *pt_update)
 	if (err)
 		return err;
 
-	xe_svm_notifier_lock(vm);
+	xe_pt_svm_userptr_notifier_lock(vm);
 
 	list_for_each_entry(op, &vops->list, link) {
 		err = op_check_svm_userptr(vm, op, pt_update_ops);
 		if (err) {
-			xe_svm_notifier_unlock(vm);
+			xe_pt_svm_userptr_notifier_unlock(vm);
 			break;
 		}
 	}
@@ -1601,23 +1639,21 @@ static bool xe_pt_check_kill(u64 addr, u64 next, unsigned int level,
 	return false;
 }
 
-/* page_size = 2^(reclamation_size + XE_PTE_SHIFT) */
-#define COMPUTE_RECLAIM_ADDRESS_MASK(page_size)				\
-({									\
-	BUILD_BUG_ON(!__builtin_constant_p(page_size));			\
-	ilog2(page_size) - XE_PTE_SHIFT;				\
-})
-
 static int generate_reclaim_entry(struct xe_tile *tile,
 				  struct xe_page_reclaim_list *prl,
 				  u64 pte, struct xe_pt *xe_child)
 {
 	struct xe_gt *gt = tile->primary_gt;
 	struct xe_guc_page_reclaim_entry *reclaim_entries = prl->entries;
-	u64 phys_addr = pte & XE_PTE_ADDR_MASK;
+	bool is_2m = xe_child->level == 1 && (pte & XE_PDE_PS_2M);
+	bool is_64k = xe_child->level == 0 && ((pte & XE_PTE_PS64) || xe_child->is_compact);
+	u32 page_shift = is_2m ? ilog2(SZ_2M) : is_64k ? ilog2(SZ_64K) : ilog2(SZ_4K);
+	/* Physical address bits start at page shift: 2M->[51:21], 64K->[51:16], 4K->[51:12] */
+	u64 phys_addr = pte & XE_PAGE_ADDR_MASK(page_shift);
+	/* Page address is relative to 4K page regardless of entry level */
 	u64 phys_page = phys_addr >> XE_PTE_SHIFT;
 	int num_entries = prl->num_entries;
-	u32 reclamation_size;
+	u32 reclamation_size = page_shift - XE_PTE_SHIFT;
 
 	xe_tile_assert(tile, xe_child->level <= MAX_HUGEPTE_LEVEL);
 	xe_tile_assert(tile, reclaim_entries);
@@ -1632,18 +1668,12 @@ static int generate_reclaim_entry(struct xe_tile *tile,
 	 * Page size is computed as 2^(reclamation_size + XE_PTE_SHIFT) bytes.
 	 * Only 4K, 64K (level 0), and 2M pages are supported by hardware for page reclaim
 	 */
-	if (xe_child->level == 0 && !(pte & XE_PTE_PS64)) {
-		xe_gt_stats_incr(gt, XE_GT_STATS_ID_PRL_4K_ENTRY_COUNT, 1);
-		reclamation_size = COMPUTE_RECLAIM_ADDRESS_MASK(SZ_4K);  /* reclamation_size = 0 */
-		xe_tile_assert(tile, phys_addr % SZ_4K == 0);
-	} else if (xe_child->level == 0) {
-		xe_gt_stats_incr(gt, XE_GT_STATS_ID_PRL_64K_ENTRY_COUNT, 1);
-		reclamation_size = COMPUTE_RECLAIM_ADDRESS_MASK(SZ_64K); /* reclamation_size = 4 */
-		xe_tile_assert(tile, phys_addr % SZ_64K == 0);
-	} else if (xe_child->level == 1 && pte & XE_PDE_PS_2M) {
+	if (is_2m) {
 		xe_gt_stats_incr(gt, XE_GT_STATS_ID_PRL_2M_ENTRY_COUNT, 1);
-		reclamation_size = COMPUTE_RECLAIM_ADDRESS_MASK(SZ_2M);  /* reclamation_size = 9 */
-		xe_tile_assert(tile, phys_addr % SZ_2M == 0);
+	} else if (is_64k) {
+		xe_gt_stats_incr(gt, XE_GT_STATS_ID_PRL_64K_ENTRY_COUNT, 1);
+	} else if (xe_child->level == 0) {
+		xe_gt_stats_incr(gt, XE_GT_STATS_ID_PRL_4K_ENTRY_COUNT, 1);
 	} else {
 		xe_page_reclaim_list_abort(tile->primary_gt, prl,
 					   "unsupported PTE level=%u pte=%#llx",
@@ -1664,6 +1694,48 @@ static int generate_reclaim_entry(struct xe_tile *tile,
 	return 0;
 }
 
+static int add_pte_to_prl(struct xe_tile *tile, struct xe_page_reclaim_list *prl,
+			  struct xe_pt *xe_child, u64 pte, u64 addr)
+{
+	/*
+	 * In rare scenarios, pte may not be written yet due to racy conditions.
+	 * In such cases, invalidate the PRL and fallback to full PPC invalidation.
+	 */
+	if (!pte) {
+		xe_page_reclaim_list_abort(tile->primary_gt, prl,
+					   "found zero pte at addr=%#llx", addr);
+		return -EINVAL;
+	}
+
+	/* Ensure it is a defined page */
+	xe_tile_assert(tile, xe_child->level == 0 ||
+		       (pte & (XE_PDE_PS_2M | XE_PDPE_PS_1G)));
+
+	/* Account for NULL terminated entry on end (-1) */
+	if (prl->num_entries >= XE_PAGE_RECLAIM_MAX_ENTRIES - 1) {
+		xe_page_reclaim_list_abort(tile->primary_gt, prl,
+					   "overflow while adding pte=%#llx", pte);
+		return -ENOSPC;
+	}
+
+	return generate_reclaim_entry(tile, prl, pte, xe_child);
+}
+
+static bool add_compact_pt_prl(struct xe_tile *tile, struct xe_page_reclaim_list *prl,
+			       struct xe_device *xe, struct xe_pt *compact_pt, u64 addr)
+{
+	struct iosys_map *map = &compact_pt->bo->vmap;
+
+	for (pgoff_t i = 0; i < SZ_2M / SZ_64K && xe_page_reclaim_list_valid(prl); i++) {
+		u64 pte = xe_map_rd(xe, map, i * sizeof(u64), u64);
+
+		if (add_pte_to_prl(tile, prl, compact_pt, pte, addr + i * SZ_64K))
+			break;
+	}
+
+	return xe_page_reclaim_list_valid(prl);
+}
+
 static int xe_pt_stage_unbind_entry(struct xe_ptw *parent, pgoff_t offset,
 				    unsigned int level, u64 addr, u64 next,
 				    struct xe_ptw **child,
@@ -1673,21 +1745,22 @@ static int xe_pt_stage_unbind_entry(struct xe_ptw *parent, pgoff_t offset,
 	struct xe_pt *xe_child = container_of(*child, typeof(*xe_child), base);
 	struct xe_pt_stage_unbind_walk *xe_walk =
 		container_of(walk, typeof(*xe_walk), base);
-	struct xe_device *xe = tile_to_xe(xe_walk->tile);
+	struct xe_page_reclaim_list *prl = xe_walk->prl;
+	struct xe_tile *tile = xe_walk->tile;
+	struct xe_device *xe = tile_to_xe(tile);
 	pgoff_t first = xe_pt_offset(addr, xe_child->level, walk);
 	bool killed;
 
 	XE_WARN_ON(!*child);
 	XE_WARN_ON(!level);
 	/* Check for leaf node */
-	if (xe_walk->prl && xe_page_reclaim_list_valid(xe_walk->prl) &&
+	if (prl && xe_page_reclaim_list_valid(prl) &&
 	    xe_child->level <= MAX_HUGEPTE_LEVEL) {
 		struct iosys_map *leaf_map = &xe_child->bo->vmap;
 		pgoff_t count = xe_pt_num_entries(addr, next, xe_child->level, walk);
 
 		for (pgoff_t i = 0; i < count; i++) {
 			u64 pte;
-			int ret;
 
 			/*
 			 * If not a leaf pt, skip unless non-leaf pt is interleaved between
@@ -1697,10 +1770,23 @@ static int xe_pt_stage_unbind_entry(struct xe_ptw *parent, pgoff_t offset,
 				u64 pt_size = 1ULL << walk->shifts[xe_child->level];
 				bool edge_pt = (i == 0 && !IS_ALIGNED(addr, pt_size)) ||
 					       (i == count - 1 && !IS_ALIGNED(next, pt_size));
+				struct xe_pt *child_pt =
+					container_of(xe_child->base.children[first + i],
+						     struct xe_pt, base);
 
-				if (!edge_pt) {
-					xe_page_reclaim_list_abort(xe_walk->tile->primary_gt,
-								   xe_walk->prl,
+				/* Compact PTs always fill a full 2M-aligned slot, never an edge. */
+				XE_WARN_ON(child_pt->is_compact && edge_pt);
+				if (edge_pt)
+					continue;
+
+				/* Walker never descends into compact PTs, descend now */
+				if (child_pt->is_compact) {
+					if (!add_compact_pt_prl(tile, prl, xe, child_pt,
+								addr + (u64)i * pt_size))
+						break;
+				} else {
+					xe_page_reclaim_list_abort(tile->primary_gt,
+								   prl,
 								   "PT is skipped by walk at level=%u offset=%lu",
 								   xe_child->level, first + i);
 					break;
@@ -1710,37 +1796,12 @@ static int xe_pt_stage_unbind_entry(struct xe_ptw *parent, pgoff_t offset,
 
 			pte = xe_map_rd(xe, leaf_map, (first + i) * sizeof(u64), u64);
 
-			/*
-			 * In rare scenarios, pte may not be written yet due to racy conditions.
-			 * In such cases, invalidate the PRL and fallback to full PPC invalidation.
-			 */
-			if (!pte) {
-				xe_page_reclaim_list_abort(xe_walk->tile->primary_gt, xe_walk->prl,
-							   "found zero pte at addr=%#llx", addr);
+			if (add_pte_to_prl(tile, prl, xe_child, pte, addr))
 				break;
-			}
-
-			/* Ensure it is a defined page */
-			xe_tile_assert(xe_walk->tile, xe_child->level == 0 ||
-				       (pte & (XE_PDE_PS_2M | XE_PDPE_PS_1G)));
 
 			/* An entry should be added for 64KB but contigious 4K have XE_PTE_PS64 */
 			if (pte & XE_PTE_PS64)
 				i += 15; /* Skip other 15 consecutive 4K pages in the 64K page */
-
-			/* Account for NULL terminated entry on end (-1) */
-			if (xe_walk->prl->num_entries < XE_PAGE_RECLAIM_MAX_ENTRIES - 1) {
-				ret = generate_reclaim_entry(xe_walk->tile, xe_walk->prl,
-							     pte, xe_child);
-				if (ret)
-					break;
-			} else {
-				/* overflow, mark as invalid */
-				xe_page_reclaim_list_abort(xe_walk->tile->primary_gt, xe_walk->prl,
-							   "overflow while adding pte=%#llx",
-							   pte);
-				break;
-			}
 		}
 	}
 
@@ -1750,7 +1811,7 @@ static int xe_pt_stage_unbind_entry(struct xe_ptw *parent, pgoff_t offset,
 	 * Verify if any PTE are potentially dropped at non-leaf levels, either from being
 	 * killed or the page walk covers the region.
 	 */
-	if (xe_walk->prl && xe_page_reclaim_list_valid(xe_walk->prl) &&
+	if (prl && xe_page_reclaim_list_valid(prl) &&
 	    xe_child->level > MAX_HUGEPTE_LEVEL && xe_child->num_live) {
 		bool covered = xe_pt_covers(addr, next, xe_child->level, &xe_walk->base);
 
@@ -1759,7 +1820,7 @@ static int xe_pt_stage_unbind_entry(struct xe_ptw *parent, pgoff_t offset,
 		 * we need to invalidate the PRL.
 		 */
 		if (killed || covered)
-			xe_page_reclaim_list_abort(xe_walk->tile->primary_gt, xe_walk->prl,
+			xe_page_reclaim_list_abort(tile->primary_gt, prl,
 						   "kill at level=%u addr=%#llx next=%#llx num_live=%u",
 						   level, addr, next, xe_child->num_live);
 	}
@@ -2371,7 +2432,7 @@ static void bind_op_commit(struct xe_vm *vm, struct xe_tile *tile,
 			   vma->tile_invalidated & ~BIT(tile->id));
 	vma->tile_staged &= ~BIT(tile->id);
 	if (xe_vma_is_userptr(vma)) {
-		xe_svm_assert_held_read(vm);
+		xe_svm_assert_held_read_or_inject_write(vm);
 		to_userptr_vma(vma)->userptr.initial_bind = true;
 	}
 
@@ -2407,7 +2468,7 @@ static void unbind_op_commit(struct xe_vm *vm, struct xe_tile *tile,
 	if (!vma->tile_present) {
 		list_del_init(&vma->combined_links.rebind);
 		if (xe_vma_is_userptr(vma)) {
-			xe_svm_assert_held_read(vm);
+			xe_svm_assert_held_read_or_inject_write(vm);
 
 			spin_lock(&vm->userptr.invalidated_lock);
 			list_del_init(&to_userptr_vma(vma)->userptr.invalidate_link);
@@ -2683,7 +2744,7 @@ xe_pt_update_ops_run(struct xe_tile *tile, struct xe_vma_ops *vops)
 	}
 
 	if (pt_update_ops->needs_svm_lock)
-		xe_svm_notifier_unlock(vm);
+		xe_pt_svm_userptr_notifier_unlock(vm);
 
 	/*
 	 * The last fence is only used for zero bind queue idling; migrate

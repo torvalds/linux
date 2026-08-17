@@ -62,12 +62,14 @@ static int tegra_ahub_put_value_enum(struct snd_kcontrol *kctl,
 	struct snd_soc_dapm_update update[TEGRA_XBAR_UPDATE_MAX_REG] = { };
 	int val_bytes = snd_soc_component_regmap_val_bytes(cmpnt);
 	unsigned int *item = uctl->value.enumerated.item;
-	unsigned int value = e->values[item[0]];
+	unsigned int value;
 	unsigned int i, bit_pos, reg_idx = 0, reg_val = 0;
 	int change = 0;
 
 	if (item[0] >= e->items)
 		return -EINVAL;
+
+	value = e->values[item[0]];
 
 	if (value) {
 		/* Get the register index and value to set */

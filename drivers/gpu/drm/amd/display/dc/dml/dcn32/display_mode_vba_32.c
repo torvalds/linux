@@ -29,6 +29,8 @@
 #include "../dml_inline_defs.h"
 #include "display_mode_vba_util_32.h"
 
+#include "../dml1_frl_cap_chk.h"
+
 void dml32_recalculate(struct display_mode_lib *mode_lib);
 static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation(
 		struct display_mode_lib *mode_lib);
@@ -92,8 +94,8 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 							mode_lib->vba.WritebackHTaps[k],
 							mode_lib->vba.WritebackVTaps[k],
 							mode_lib->vba.WritebackSourceWidth[k],
-							mode_lib->vba.WritebackDestinationWidth[k],
-							mode_lib->vba.HTotal[k], mode_lib->vba.WritebackLineBufferSize,
+							(long)mode_lib->vba.WritebackDestinationWidth[k],
+							mode_lib->vba.HTotal[k], (unsigned int)mode_lib->vba.WritebackLineBufferSize,
 							mode_lib->vba.DISPCLKDPPCLKVCOSpeed));
 		}
 	}
@@ -305,8 +307,8 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 					 .dummy_boolean); /* bool *ViewportSizeSupport */
 	}
 
-	v->CompBufReservedSpaceZs     = v->CompBufReservedSpaceKBytes * 1024.0 / 256.0;
-	v->CompBufReservedSpace64B    = v->CompBufReservedSpaceKBytes * 1024.0 / 64.0;
+	v->CompBufReservedSpaceZs     = (unsigned int)(v->CompBufReservedSpaceKBytes * 1024.0 / 256.0);
+	v->CompBufReservedSpace64B    = (unsigned int)(v->CompBufReservedSpaceKBytes * 1024.0 / 64.0);
 
 	// DCFCLK Deep Sleep
 	dml32_CalculateDCFCLKDeepSleep(
@@ -326,7 +328,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 			mode_lib->vba.DPPCLK,
 			v->ReadBandwidthSurfaceLuma,
 			v->ReadBandwidthSurfaceChroma,
-			mode_lib->vba.ReturnBusWidth,
+			(int)mode_lib->vba.ReturnBusWidth,
 
 			/* Output */
 			&v->DCFCLKDeepSleep);
@@ -341,6 +343,8 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 			else if (mode_lib->vba.OutputFormat[k] == dm_444)
 				mode_lib->vba.DSCFormatFactor = 1;
 			else if (mode_lib->vba.OutputFormat[k] == dm_n422)
+				mode_lib->vba.DSCFormatFactor = 2;
+			else if (mode_lib->vba.Output[k] == dm_hdmifrl)
 				mode_lib->vba.DSCFormatFactor = 2;
 			else
 				mode_lib->vba.DSCFormatFactor = 1;
@@ -479,7 +483,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 				mode_lib->vba.HostVMMaxNonCachedPageTableLevels,
 				mode_lib->vba.GPUVMMaxPageTableLevels,
 				mode_lib->vba.GPUVMMinPageSizeKBytes,
-				mode_lib->vba.HostVMMinPageSize,
+				(unsigned int)mode_lib->vba.HostVMMinPageSize,
 
 				/* Output */
 				v->dummy_vars.DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation.dummy_boolean_array2[0],  // Boolean PTEBufferSizeNotExceeded[]
@@ -528,12 +532,12 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 	}
 
 
-	v->dummy_vars.DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation.ReorderBytes = mode_lib->vba.NumberOfChannels
+	v->dummy_vars.DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation.ReorderBytes = (unsigned int)(mode_lib->vba.NumberOfChannels
 			* dml_max3(mode_lib->vba.UrgentOutOfOrderReturnPerChannelPixelDataOnly,
 					mode_lib->vba.UrgentOutOfOrderReturnPerChannelPixelMixedWithVMData,
-					mode_lib->vba.UrgentOutOfOrderReturnPerChannelVMDataOnly);
+					mode_lib->vba.UrgentOutOfOrderReturnPerChannelVMDataOnly));
 
-	v->dummy_vars.DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation.VMDataOnlyReturnBW = dml32_get_return_bw_mbps_vm_only(
+	v->dummy_vars.DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation.VMDataOnlyReturnBW = (unsigned int)dml32_get_return_bw_mbps_vm_only(
 			&mode_lib->vba.soc,
 			mode_lib->vba.VoltageLevel,
 			mode_lib->vba.DCFCLK,
@@ -577,7 +581,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 	}
 
 	v->UrgentExtraLatency = dml32_CalculateExtraLatency(
-			mode_lib->vba.RoundTripPingLatencyCycles,
+			(int)mode_lib->vba.RoundTripPingLatencyCycles,
 			v->dummy_vars.DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation.ReorderBytes,
 			mode_lib->vba.DCFCLK,
 			mode_lib->vba.TotalActiveDPP,
@@ -591,7 +595,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 			mode_lib->vba.DPPPerPlane,
 			v->dpte_group_bytes,
 			v->dummy_vars.DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation.HostVMInefficiencyFactor,
-			mode_lib->vba.HostVMMinPageSize,
+			(unsigned int)mode_lib->vba.HostVMMinPageSize,
 			mode_lib->vba.HostVMMaxNonCachedPageTableLevels);
 
 	mode_lib->vba.TCalc = 24.0 / v->DCFCLKDeepSleep;
@@ -605,9 +609,9 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 								mode_lib->vba.WritebackHRatio[k],
 								mode_lib->vba.WritebackVRatio[k],
 								mode_lib->vba.WritebackVTaps[k],
-								mode_lib->vba.WritebackDestinationWidth[k],
-								mode_lib->vba.WritebackDestinationHeight[k],
-								mode_lib->vba.WritebackSourceHeight[k],
+								(long)mode_lib->vba.WritebackDestinationWidth[k],
+								(int)mode_lib->vba.WritebackDestinationHeight[k],
+								(int)mode_lib->vba.WritebackSourceHeight[k],
 								mode_lib->vba.HTotal[k]) / mode_lib->vba.DISPCLK;
 			} else
 				v->WritebackDelay[mode_lib->vba.VoltageLevel][k] = 0;
@@ -622,9 +626,9 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 								mode_lib->vba.WritebackHRatio[j],
 								mode_lib->vba.WritebackVRatio[j],
 								mode_lib->vba.WritebackVTaps[j],
-								mode_lib->vba.WritebackDestinationWidth[j],
-								mode_lib->vba.WritebackDestinationHeight[j],
-								mode_lib->vba.WritebackSourceHeight[j],
+								(int)mode_lib->vba.WritebackDestinationWidth[j],
+								(int)mode_lib->vba.WritebackDestinationHeight[j],
+								(int)mode_lib->vba.WritebackSourceHeight[j],
 								mode_lib->vba.HTotal[k]) / mode_lib->vba.DISPCLK);
 				}
 			}
@@ -693,12 +697,12 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 						mode_lib->vba.UseUnboundedRequesting);
 
 	for (k = 0; k < mode_lib->vba.NumberOfActiveSurfaces; ++k) {
-		v->MaxVStartupLines[k] = ((mode_lib->vba.Interlace[k] &&
+		v->MaxVStartupLines[k] = (unsigned int)(((mode_lib->vba.Interlace[k] &&
 				!mode_lib->vba.ProgressiveToInterlaceUnitInOPP) ?
 				dml_floor((mode_lib->vba.VTotal[k] - mode_lib->vba.VActive[k]) / 2.0, 1.0) :
 				mode_lib->vba.VTotal[k] - mode_lib->vba.VActive[k]) - dml_max(1.0,
 				dml_ceil((double) v->WritebackDelay[mode_lib->vba.VoltageLevel][k]
-				/ (mode_lib->vba.HTotal[k] / mode_lib->vba.PixelClock[k]), 1));
+				/ (mode_lib->vba.HTotal[k] / mode_lib->vba.PixelClock[k]), 1)));
 
 		// Clamp to max OTG vstartup register limit
 		if (v->MaxVStartupLines[k] > 1023)
@@ -714,7 +718,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 
 	v->MaximumMaxVStartupLines = 0;
 	for (k = 0; k < mode_lib->vba.NumberOfActiveSurfaces; ++k)
-		v->MaximumMaxVStartupLines = dml_max(v->MaximumMaxVStartupLines, v->MaxVStartupLines[k]);
+		v->MaximumMaxVStartupLines = (unsigned int)dml_max(v->MaximumMaxVStartupLines, v->MaxVStartupLines[k]);
 
 	ImmediateFlipRequirementFinal = false;
 
@@ -789,21 +793,21 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 					&v->dummy_vars.DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation.myPipe,
 					v->DSCDelay[k],
 					(unsigned int) (v->SwathWidthY[k] / v->HRatio[k]),
-					dml_min(v->VStartupLines, v->MaxVStartupLines[k]),
+					(unsigned int)dml_min(v->VStartupLines, v->MaxVStartupLines[k]),
 					v->MaxVStartupLines[k],
 					v->UrgentLatency,
 					v->UrgentExtraLatency,
 					v->TCalc,
-					v->PDEAndMetaPTEBytesFrame[k],
-					v->MetaRowByte[k],
-					v->PixelPTEBytesPerRow[k],
+					(unsigned int)v->PDEAndMetaPTEBytesFrame[k],
+					(unsigned int)v->MetaRowByte[k],
+					(unsigned int)v->PixelPTEBytesPerRow[k],
 					v->PrefetchSourceLinesY[k],
-					v->SwathWidthY[k],
-					v->VInitPreFillY[k],
+					(unsigned int)v->SwathWidthY[k],
+					(unsigned int)v->VInitPreFillY[k],
 					v->MaxNumSwathY[k],
 					v->PrefetchSourceLinesC[k],
-					v->SwathWidthC[k],
-					v->VInitPreFillC[k],
+					(unsigned int)v->SwathWidthC[k],
+					(unsigned int)v->VInitPreFillC[k],
 					v->MaxNumSwathC[k],
 					v->swath_width_luma_ub[k],
 					v->swath_width_chroma_ub[k],
@@ -839,7 +843,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 			dml_print("DML::%s: k=%0d Prefetch calculation errResult=%0d\n",
 					__func__, k, mode_lib->vba.ErrorResult[k]);
 #endif
-			v->VStartup[k] = dml_min(v->VStartupLines, v->MaxVStartupLines[k]);
+			v->VStartup[k] = (unsigned int)dml_min(v->VStartupLines, v->MaxVStartupLines[k]);
 		}
 
 		for (k = 0; k < mode_lib->vba.NumberOfActiveSurfaces; ++k) {
@@ -1019,18 +1023,18 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 			mode_lib->vba.TotImmediateFlipBytes = 0;
 			for (k = 0; k < mode_lib->vba.NumberOfActiveSurfaces; ++k) {
 				if (mode_lib->vba.ImmediateFlipRequirement[k] != dm_immediate_flip_not_required) {
-					mode_lib->vba.TotImmediateFlipBytes = mode_lib->vba.TotImmediateFlipBytes
+					mode_lib->vba.TotImmediateFlipBytes = (unsigned int)(mode_lib->vba.TotImmediateFlipBytes
 							+ mode_lib->vba.DPPPerPlane[k]
 									* (v->PDEAndMetaPTEBytesFrame[k]
-											+ v->MetaRowByte[k]);
+											+ v->MetaRowByte[k]));
 					if (v->use_one_row_for_frame_flip[k][0][0]) {
 						mode_lib->vba.TotImmediateFlipBytes =
-								mode_lib->vba.TotImmediateFlipBytes
-										+ 2 * v->PixelPTEBytesPerRow[k];
+								(unsigned int)(mode_lib->vba.TotImmediateFlipBytes
+										+ 2 * v->PixelPTEBytesPerRow[k]);
 					} else {
 						mode_lib->vba.TotImmediateFlipBytes =
-								mode_lib->vba.TotImmediateFlipBytes
-										+ v->PixelPTEBytesPerRow[k];
+								(unsigned int)(mode_lib->vba.TotImmediateFlipBytes
+										+ v->PixelPTEBytesPerRow[k]);
 					}
 				}
 			}
@@ -1042,10 +1046,10 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 						mode_lib->vba.HostVMEnable,
 						mode_lib->vba.HostVMMaxNonCachedPageTableLevels,
 						mode_lib->vba.GPUVMEnable,
-						mode_lib->vba.HostVMMinPageSize,
-						v->PDEAndMetaPTEBytesFrame[k],
-						v->MetaRowByte[k],
-						v->PixelPTEBytesPerRow[k],
+						(unsigned int)mode_lib->vba.HostVMMinPageSize,
+						(unsigned int)v->PDEAndMetaPTEBytesFrame[k],
+						(unsigned int)v->MetaRowByte[k],
+						(unsigned int)v->PixelPTEBytesPerRow[k],
 						mode_lib->vba.BandwidthAvailableForImmediateFlip,
 						mode_lib->vba.TotImmediateFlipBytes,
 						mode_lib->vba.SourcePixelFormat[k],
@@ -1439,14 +1443,14 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 		isInterlaceTiming = (mode_lib->vba.Interlace[k] &&
 				!mode_lib->vba.ProgressiveToInterlaceUnitInOPP);
 
-		v->MIN_DST_Y_NEXT_START[k] = ((isInterlaceTiming ? dml_floor((mode_lib->vba.VTotal[k] -
+		v->MIN_DST_Y_NEXT_START[k] = (unsigned int)(((isInterlaceTiming ? dml_floor((mode_lib->vba.VTotal[k] -
 						mode_lib->vba.VFrontPorch[k]) / 2.0, 1.0) :
 						mode_lib->vba.VTotal[k]) - mode_lib->vba.VFrontPorch[k])
 						+ dml_max(1.0,
 						dml_ceil(v->WritebackDelay[mode_lib->vba.VoltageLevel][k]
 						/ (mode_lib->vba.HTotal[k] / mode_lib->vba.PixelClock[k]), 1.0))
 						+ dml_floor(4.0 * v->TSetup[k] / (mode_lib->vba.HTotal[k]
-						/ mode_lib->vba.PixelClock[k]), 1.0) / 4.0;
+						/ mode_lib->vba.PixelClock[k]), 1.0) / 4.0);
 
 		v->VStartup[k] = (isInterlaceTiming ? (2 * v->MaxVStartupLines[k]) : v->MaxVStartupLines[k]);
 
@@ -1724,7 +1728,8 @@ static void mode_support_configuration(struct vba_vars_st *v,
 void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_lib)
 {
 	struct vba_vars_st *v = &mode_lib->vba;
-	int i, j, start_state;
+	int i, start_state;
+	unsigned int j;
 	unsigned int k, m;
 	unsigned int MaximumMPCCombine;
 	unsigned int NumberOfNonCombinedSurfaceOfMaximumBandwidth;
@@ -1931,7 +1936,7 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 
 		if (mode_lib->vba.SourcePixelFormat[k] == dm_420_8 || mode_lib->vba.SourcePixelFormat[k] == dm_420_10
 				|| mode_lib->vba.SourcePixelFormat[k] == dm_420_12) {
-			v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.MaximumSwathWidthSupportChroma = v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.MaximumSwathWidthSupportLuma / 2.0;
+			v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.MaximumSwathWidthSupportChroma = (unsigned int)(v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.MaximumSwathWidthSupportLuma / 2.0);
 		} else {
 			v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.MaximumSwathWidthSupportChroma = v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.MaximumSwathWidthSupportLuma;
 		}
@@ -2030,7 +2035,7 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 	mode_lib->vba.MPCCombineMethodIncompatible = v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.MPCCombineMethodAsNeededForPStateChangeAndVoltage
 			&& v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.MPCCombineMethodAsPossible;
 
-	for (i = start_state; i < v->soc.num_states; i++) {
+	for (i = start_state; i < (int)v->soc.num_states; i++) {
 		for (j = 0; j < 2; j++) {
 			mode_lib->vba.TotalNumberOfActiveDPP[i][j] = 0;
 			mode_lib->vba.TotalAvailablePipesSupport[i][j] = true;
@@ -2103,7 +2108,7 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 						v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.ODMModeNoDSC,
 						v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.ODMModeDSC,
 						mode_lib->vba.DSCEnable[k],
-						mode_lib->vba.OutputLinkDPLanes[k],
+						(int)mode_lib->vba.OutputLinkDPLanes[k],
 						mode_lib->vba.OutputLinkDPRate[k],
 
 						/* Output */
@@ -2237,9 +2242,9 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 									mode_lib->vba.WritebackHTaps[k],
 									mode_lib->vba.WritebackVTaps[k],
 									mode_lib->vba.WritebackSourceWidth[k],
-									mode_lib->vba.WritebackDestinationWidth[k],
+									(long)mode_lib->vba.WritebackDestinationWidth[k],
 									mode_lib->vba.HTotal[k],
-									mode_lib->vba.WritebackLineBufferSize,
+									(unsigned int)mode_lib->vba.WritebackLineBufferSize,
 									mode_lib->vba.DISPCLKDPPCLKVCOSpeed));
 				}
 			}
@@ -2281,6 +2286,8 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 	for (k = 0; k < mode_lib->vba.NumberOfActiveSurfaces; ++k) {
 		if (mode_lib->vba.BlendingAndTiming[k] == k) {
 			v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.TotalNumberOfActiveOTG = v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.TotalNumberOfActiveOTG + 1;
+			if (mode_lib->vba.Output[k] == dm_hdmifrl)
+				v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.TotalNumberOfActiveDP2p0 = v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.TotalNumberOfActiveDP2p0 + 1;
 			if (mode_lib->vba.Output[k] == dm_dp2p0) {
 				v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.TotalNumberOfActiveDP2p0 = v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.TotalNumberOfActiveDP2p0 + 1;
 				if (mode_lib->vba.OutputMultistreamId[k]
@@ -2307,7 +2314,7 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 		}
 	}
 
-	for (i = start_state; i < v->soc.num_states; ++i) {
+	for (i = start_state; i < (int)v->soc.num_states; ++i) {
 		mode_lib->vba.ExceededMultistreamSlots[i] = false;
 		for (k = 0; k < mode_lib->vba.NumberOfActiveSurfaces; ++k) {
 			if (mode_lib->vba.OutputMultistreamEn[k] == true && mode_lib->vba.OutputMultistreamId[k] == k) {
@@ -2327,6 +2334,7 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 			if (mode_lib->vba.BlendingAndTiming[k] == k
 				&& (mode_lib->vba.Output[k] == dm_dp || mode_lib->vba.Output[k] == dm_dp2p0
 					|| mode_lib->vba.Output[k] == dm_edp
+					|| mode_lib->vba.Output[k] == dm_hdmifrl
 					|| mode_lib->vba.Output[k] == dm_hdmi)
 				&& mode_lib->vba.OutputBppPerState[i][k] == 0 &&
 				(mode_lib->vba.UsesMALLForPStateChange[k] != dm_use_mall_pstate_change_phantom_pipe)) {
@@ -2352,6 +2360,7 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 		if (mode_lib->vba.BlendingAndTiming[k] == k
 				&& (mode_lib->vba.Output[k] == dm_dp || mode_lib->vba.Output[k] == dm_dp2p0
 						|| mode_lib->vba.Output[k] == dm_edp
+						|| mode_lib->vba.Output[k] == dm_hdmifrl
 						|| mode_lib->vba.Output[k] == dm_hdmi)) {
 			if (mode_lib->vba.OutputFormat[k]
 					== dm_420 && mode_lib->vba.Interlace[k] == 1 &&
@@ -2387,7 +2396,9 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				}
 			}
 
-			if ((mode_lib->vba.Output[k] == dm_edp || mode_lib->vba.Output[k] == dm_hdmi)) {
+			if ((mode_lib->vba.Output[k] == dm_edp
+					|| mode_lib->vba.Output[k] == dm_hdmifrl
+					|| mode_lib->vba.Output[k] == dm_hdmi)) {
 				if (mode_lib->vba.OutputMultistreamEn[k] == true && mode_lib->vba.OutputMultistreamId[k] == k)
 					mode_lib->vba.MultistreamWithHDMIOreDP = true;
 				for (j = 0; j < mode_lib->vba.NumberOfActiveSurfaces; ++j) {
@@ -2410,10 +2421,11 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 		}
 	}
 
-	for (i = start_state; i < v->soc.num_states; ++i) {
+	for (i = start_state; i < (int)v->soc.num_states; ++i) {
 		mode_lib->vba.DTBCLKRequiredMoreThanSupported[i] = false;
 		for (k = 0; k < mode_lib->vba.NumberOfActiveSurfaces; ++k) {
 			if (mode_lib->vba.BlendingAndTiming[k] == k
+					&& mode_lib->vba.Output[k] == dm_hdmifrl
 					&& dml32_RequiredDTBCLK(mode_lib->vba.RequiresDSC[i][k],
 							mode_lib->vba.PixelClockBackEnd[k],
 							mode_lib->vba.OutputFormat[k],
@@ -2427,7 +2439,7 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 		}
 	}
 
-	for (i = start_state; i < v->soc.num_states; ++i) {
+	for (i = start_state; i < (int)v->soc.num_states; ++i) {
 		mode_lib->vba.ODMCombine2To1SupportCheckOK[i] = true;
 		mode_lib->vba.ODMCombine4To1SupportCheckOK[i] = true;
 		for (k = 0; k < mode_lib->vba.NumberOfActiveSurfaces; ++k) {
@@ -2445,17 +2457,20 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 		}
 	}
 
-	for (i = start_state; i < v->soc.num_states; i++) {
+	for (i = start_state; i < (int)v->soc.num_states; i++) {
 		mode_lib->vba.DSCCLKRequiredMoreThanSupported[i] = false;
 		for (k = 0; k <= mode_lib->vba.NumberOfActiveSurfaces - 1; k++) {
 			if (mode_lib->vba.BlendingAndTiming[k] == k) {
 				if (mode_lib->vba.Output[k] == dm_dp || mode_lib->vba.Output[k] == dm_dp2p0
+						|| mode_lib->vba.Output[k] == dm_hdmifrl
 						|| mode_lib->vba.Output[k] == dm_edp) {
 					if (mode_lib->vba.OutputFormat[k] == dm_420) {
 						mode_lib->vba.DSCFormatFactor = 2;
 					} else if (mode_lib->vba.OutputFormat[k] == dm_444) {
 						mode_lib->vba.DSCFormatFactor = 1;
 					} else if (mode_lib->vba.OutputFormat[k] == dm_n422) {
+						mode_lib->vba.DSCFormatFactor = 2;
+					} else if (mode_lib->vba.Output[k] == dm_hdmifrl) {
 						mode_lib->vba.DSCFormatFactor = 2;
 					} else {
 						mode_lib->vba.DSCFormatFactor = 1;
@@ -2482,7 +2497,7 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 	/* Check DSC Unit and Slices Support */
 	v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.TotalDSCUnitsRequired = 0;
 
-	for (i = start_state; i < v->soc.num_states; ++i) {
+	for (i = start_state; i < (int)v->soc.num_states; ++i) {
 		mode_lib->vba.NotEnoughDSCUnits[i] = false;
 		mode_lib->vba.NotEnoughDSCSlices[i] = false;
 		v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.TotalDSCUnitsRequired = 0;
@@ -2517,7 +2532,7 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 	}
 
 	/*DSC Delay per state*/
-	for (i = start_state; i < v->soc.num_states; ++i) {
+	for (i = start_state; i < (int)v->soc.num_states; ++i) {
 		for (k = 0; k < mode_lib->vba.NumberOfActiveSurfaces; ++k) {
 			mode_lib->vba.DSCDelayPerState[i][k] = dml32_DSCDelayRequirement(
 					mode_lib->vba.RequiresDSC[i][k], mode_lib->vba.ODMCombineEnablePerState[i][k],
@@ -2531,7 +2546,7 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 
 		for (k = 0; k <= mode_lib->vba.NumberOfActiveSurfaces - 1; k++) {
 			for (m = 0; m <= mode_lib->vba.NumberOfActiveSurfaces - 1; m++) {
-				for (j = 0; j <= mode_lib->vba.NumberOfActiveSurfaces - 1; j++) {
+				for (j = 0; j < mode_lib->vba.NumberOfActiveSurfaces; j++) {
 					if (mode_lib->vba.BlendingAndTiming[k] == m &&
 							mode_lib->vba.RequiresDSC[i][m] == true) {
 						mode_lib->vba.DSCDelayPerState[i][k] =
@@ -2622,8 +2637,8 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 						mode_lib->vba.swath_width_luma_ub_this_state[k];
 				mode_lib->vba.swath_width_chroma_ub_all_states[i][j][k] =
 						mode_lib->vba.swath_width_chroma_ub_this_state[k];
-				mode_lib->vba.SwathWidthYAllStates[i][j][k] = mode_lib->vba.SwathWidthYThisState[k];
-				mode_lib->vba.SwathWidthCAllStates[i][j][k] = mode_lib->vba.SwathWidthCThisState[k];
+				mode_lib->vba.SwathWidthYAllStates[i][j][k] = (unsigned int)mode_lib->vba.SwathWidthYThisState[k];
+				mode_lib->vba.SwathWidthCAllStates[i][j][k] = (unsigned int)mode_lib->vba.SwathWidthCThisState[k];
 				mode_lib->vba.SwathHeightYAllStates[i][j][k] = mode_lib->vba.SwathHeightYThisState[k];
 				mode_lib->vba.SwathHeightCAllStates[i][j][k] = mode_lib->vba.SwathHeightCThisState[k];
 				mode_lib->vba.UnboundedRequestEnabledAllStates[i][j] =
@@ -2682,7 +2697,7 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 			mode_lib->vba.SurfaceSizeInMALL,
 			&mode_lib->vba.ExceededMALLSize);
 
-	for (i = start_state; i < v->soc.num_states; i++) {
+	for (i = start_state; i < (int)v->soc.num_states; i++) {
 		for (j = 0; j < 2; j++) {
 			for (k = 0; k <= mode_lib->vba.NumberOfActiveSurfaces - 1; k++) {
 				mode_lib->vba.swath_width_luma_ub_this_state[k] =
@@ -2696,9 +2711,9 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				mode_lib->vba.DETBufferSizeInKByteThisState[k] =
 						mode_lib->vba.DETBufferSizeInKByteAllStates[i][j][k];
 				mode_lib->vba.DETBufferSizeYThisState[k] =
-						mode_lib->vba.DETBufferSizeYAllStates[i][j][k];
+						(unsigned int)mode_lib->vba.DETBufferSizeYAllStates[i][j][k];
 				mode_lib->vba.DETBufferSizeCThisState[k] =
-						mode_lib->vba.DETBufferSizeCAllStates[i][j][k];
+						(unsigned int)mode_lib->vba.DETBufferSizeCAllStates[i][j][k];
 				mode_lib->vba.RequiredDPPCLKThisState[k] = mode_lib->vba.RequiredDPPCLK[i][j][k];
 				mode_lib->vba.NoOfDPPThisState[k] = mode_lib->vba.NoOfDPP[i][j][k];
 			}
@@ -2772,7 +2787,7 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 						mode_lib->vba.HostVMMaxNonCachedPageTableLevels,
 						mode_lib->vba.GPUVMMaxPageTableLevels,
 						mode_lib->vba.GPUVMMinPageSizeKBytes,
-						mode_lib->vba.HostVMMinPageSize,
+						(unsigned int)mode_lib->vba.HostVMMinPageSize,
 
 						/* Output */
 						mode_lib->vba.PTEBufferSizeNotExceededPerState,
@@ -2901,7 +2916,7 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 					mode_lib->vba.RequiredDPPCLKThisState,
 					mode_lib->vba.ReadBandwidthLuma,
 					mode_lib->vba.ReadBandwidthChroma,
-					mode_lib->vba.ReturnBusWidth,
+					(int)mode_lib->vba.ReturnBusWidth,
 
 					/* Output */
 					&mode_lib->vba.ProjectedDCFCLKDeepSleep[i][j]);
@@ -2921,9 +2936,9 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 							mode_lib->vba.WritebackHRatio[k],
 							mode_lib->vba.WritebackVRatio[k],
 							mode_lib->vba.WritebackVTaps[k],
-							mode_lib->vba.WritebackDestinationWidth[k],
-							mode_lib->vba.WritebackDestinationHeight[k],
-							mode_lib->vba.WritebackSourceHeight[k],
+							(long)mode_lib->vba.WritebackDestinationWidth[k],
+							(int)mode_lib->vba.WritebackDestinationHeight[k],
+							(int)mode_lib->vba.WritebackSourceHeight[k],
 							mode_lib->vba.HTotal[k])
 							/ mode_lib->vba.RequiredDISPCLK[i][j];
 					} else {
@@ -2940,9 +2955,9 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 									mode_lib->vba.WritebackHRatio[m],
 									mode_lib->vba.WritebackVRatio[m],
 									mode_lib->vba.WritebackVTaps[m],
-									mode_lib->vba.WritebackDestinationWidth[m],
-									mode_lib->vba.WritebackDestinationHeight[m],
-									mode_lib->vba.WritebackSourceHeight[m],
+									(int)mode_lib->vba.WritebackDestinationWidth[m],
+									(int)mode_lib->vba.WritebackDestinationHeight[m],
+									(int)mode_lib->vba.WritebackSourceHeight[m],
 									mode_lib->vba.HTotal[m]) /
 									mode_lib->vba.RequiredDISPCLK[i][j]);
 						}
@@ -2979,10 +2994,10 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 		}
 	}
 
-	v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.ReorderingBytes = mode_lib->vba.NumberOfChannels
+	v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.ReorderingBytes = (unsigned int)(mode_lib->vba.NumberOfChannels
 			* dml_max3(mode_lib->vba.UrgentOutOfOrderReturnPerChannelPixelDataOnly,
 					mode_lib->vba.UrgentOutOfOrderReturnPerChannelPixelMixedWithVMData,
-					mode_lib->vba.UrgentOutOfOrderReturnPerChannelVMDataOnly);
+					mode_lib->vba.UrgentOutOfOrderReturnPerChannelVMDataOnly));
 
 	dml32_CalculateMinAndMaxPrefetchMode(mode_lib->vba.AllowForPStateChangeOrStutterInVBlankFinal,
 			&mode_lib->vba.MinPrefetchMode,
@@ -3060,8 +3075,8 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				mode_lib->vba.DRAMClockChangeLatency,
 				mode_lib->vba.FCLKChangeLatency,
 				mode_lib->vba.SREnterPlusExitTime,
-				mode_lib->vba.ReturnBusWidth,
-				mode_lib->vba.RoundTripPingLatencyCycles,
+				(int)mode_lib->vba.ReturnBusWidth,
+				(int)mode_lib->vba.RoundTripPingLatencyCycles,
 				v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.ReorderingBytes,
 				mode_lib->vba.PixelChunkSizeInKByte,
 				mode_lib->vba.MetaChunkSize,
@@ -3069,7 +3084,7 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				mode_lib->vba.GPUVMMaxPageTableLevels,
 				mode_lib->vba.HostVMEnable,
 				mode_lib->vba.NumberOfActiveSurfaces,
-				mode_lib->vba.HostVMMinPageSize,
+				(unsigned int)mode_lib->vba.HostVMMinPageSize,
 				mode_lib->vba.HostVMMaxNonCachedPageTableLevels,
 				mode_lib->vba.DynamicMetadataVMEnabled,
 				mode_lib->vba.ImmediateFlipRequiredFinal,
@@ -3187,9 +3202,9 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				mode_lib->vba.DETBufferSizeInKByteThisState[k] =
 						mode_lib->vba.DETBufferSizeInKByteAllStates[i][j][k];
 				mode_lib->vba.DETBufferSizeYThisState[k] =
-						mode_lib->vba.DETBufferSizeYAllStates[i][j][k];
+						(unsigned int)mode_lib->vba.DETBufferSizeYAllStates[i][j][k];
 				mode_lib->vba.DETBufferSizeCThisState[k] =
-						mode_lib->vba.DETBufferSizeCAllStates[i][j][k];
+						(unsigned int)mode_lib->vba.DETBufferSizeCAllStates[i][j][k];
 			}
 
 			mode_lib->vba.VActiveBandwithSupport[i][j] = dml32_CalculateVActiveBandwithSupport(
@@ -3236,14 +3251,14 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 						/ v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.VMDataOnlyReturnBWPerState;
 
 			mode_lib->vba.ExtraLatency = dml32_CalculateExtraLatency(
-					mode_lib->vba.RoundTripPingLatencyCycles, v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.ReorderingBytes,
+					(int)mode_lib->vba.RoundTripPingLatencyCycles, v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.ReorderingBytes,
 					mode_lib->vba.DCFCLKState[i][j], mode_lib->vba.TotalNumberOfActiveDPP[i][j],
 					mode_lib->vba.PixelChunkSizeInKByte,
 					mode_lib->vba.TotalNumberOfDCCActiveDPP[i][j], mode_lib->vba.MetaChunkSize,
 					mode_lib->vba.ReturnBWPerState[i][j], mode_lib->vba.GPUVMEnable,
 					mode_lib->vba.HostVMEnable, mode_lib->vba.NumberOfActiveSurfaces,
 					mode_lib->vba.NoOfDPPThisState, mode_lib->vba.dpte_group_bytes,
-					v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.HostVMInefficiencyFactor, mode_lib->vba.HostVMMinPageSize,
+					v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.HostVMInefficiencyFactor, (unsigned int)mode_lib->vba.HostVMMinPageSize,
 					mode_lib->vba.HostVMMaxNonCachedPageTableLevels);
 
 			v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.NextPrefetchModeState = mode_lib->vba.MinPrefetchMode;
@@ -3295,23 +3310,23 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 							k,
 							v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.HostVMInefficiencyFactor,
 							&v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.myPipe,
-							v->DSCDelayPerState[i][k],
-							v->SwathWidthYThisState[k] / v->HRatio[k],
-							dml_min(v->MaxVStartup, v->MaximumVStartup[i][j][k]),
-							v->MaximumVStartup[i][j][k],
+							(unsigned int)v->DSCDelayPerState[i][k],
+							(unsigned int)(v->SwathWidthYThisState[k] / v->HRatio[k]),
+							(unsigned int)dml_min(v->MaxVStartup, v->MaximumVStartup[i][j][k]),
+							(unsigned int)v->MaximumVStartup[i][j][k],
 							v->UrgLatency[i],
 							v->ExtraLatency,
 							v->TimeCalc,
-							v->PDEAndMetaPTEBytesPerFrame[i][j][k],
-							v->MetaRowBytes[i][j][k],
-							v->DPTEBytesPerRow[i][j][k],
+							(unsigned int)v->PDEAndMetaPTEBytesPerFrame[i][j][k],
+							(unsigned int)v->MetaRowBytes[i][j][k],
+							(unsigned int)v->DPTEBytesPerRow[i][j][k],
 							v->PrefetchLinesY[i][j][k],
-							v->SwathWidthYThisState[k],
-							v->PrefillY[k],
+							(unsigned int)v->SwathWidthYThisState[k],
+							(unsigned int)v->PrefillY[k],
 							v->MaxNumSwY[k],
 							v->PrefetchLinesC[i][j][k],
-							v->SwathWidthCThisState[k],
-							v->PrefillC[k],
+							(unsigned int)v->SwathWidthCThisState[k],
+							(unsigned int)v->PrefillC[k],
 							v->MaxNumSwC[k],
 							v->swath_width_luma_ub_this_state[k],
 							v->swath_width_chroma_ub_this_state[k],
@@ -3451,23 +3466,23 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 							mode_lib->vba.UrgentBurstFactorChromaPre,
 							mode_lib->vba.UrgentBurstFactorCursorPre);
 
-					mode_lib->vba.TotImmediateFlipBytes = 0.0;
+					mode_lib->vba.TotImmediateFlipBytes = 0;
 					for (k = 0; k <= mode_lib->vba.NumberOfActiveSurfaces - 1; k++) {
 						if (!(mode_lib->vba.ImmediateFlipRequirement[k] ==
 								dm_immediate_flip_not_required)) {
 							mode_lib->vba.TotImmediateFlipBytes =
-									mode_lib->vba.TotImmediateFlipBytes
+									(unsigned int)(mode_lib->vba.TotImmediateFlipBytes
 								+ mode_lib->vba.NoOfDPP[i][j][k]
 								* mode_lib->vba.PDEAndMetaPTEBytesPerFrame[i][j][k]
-								+ mode_lib->vba.MetaRowBytes[i][j][k];
+								+ mode_lib->vba.MetaRowBytes[i][j][k]);
 							if (mode_lib->vba.use_one_row_for_frame_flip[i][j][k]) {
 								mode_lib->vba.TotImmediateFlipBytes =
-									mode_lib->vba.TotImmediateFlipBytes + 2
-								* mode_lib->vba.DPTEBytesPerRow[i][j][k];
+									(unsigned int)(mode_lib->vba.TotImmediateFlipBytes + 2
+								* mode_lib->vba.DPTEBytesPerRow[i][j][k]);
 							} else {
 								mode_lib->vba.TotImmediateFlipBytes =
-									mode_lib->vba.TotImmediateFlipBytes
-								+ mode_lib->vba.DPTEBytesPerRow[i][j][k];
+									(unsigned int)(mode_lib->vba.TotImmediateFlipBytes
+								+ mode_lib->vba.DPTEBytesPerRow[i][j][k]);
 							}
 						}
 					}
@@ -3480,7 +3495,7 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 							mode_lib->vba.HostVMEnable,
 							mode_lib->vba.HostVMMaxNonCachedPageTableLevels,
 							mode_lib->vba.GPUVMEnable,
-							mode_lib->vba.HostVMMinPageSize,
+							(unsigned int)mode_lib->vba.HostVMMinPageSize,
 							mode_lib->vba.PDEAndMetaPTEBytesPerFrame[i][j][k],
 							mode_lib->vba.MetaRowBytes[i][j][k],
 							mode_lib->vba.DPTEBytesPerRow[i][j][k],
@@ -3722,9 +3737,9 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 		mode_lib->vba.DETBufferSizeInKByte[k] =
 			mode_lib->vba.DETBufferSizeInKByteAllStates[mode_lib->vba.VoltageLevel][MaximumMPCCombine][k];
 		mode_lib->vba.DETBufferSizeY[k] =
-				mode_lib->vba.DETBufferSizeYAllStates[mode_lib->vba.VoltageLevel][MaximumMPCCombine][k];
+				(unsigned int)mode_lib->vba.DETBufferSizeYAllStates[mode_lib->vba.VoltageLevel][MaximumMPCCombine][k];
 		mode_lib->vba.DETBufferSizeC[k] =
-				mode_lib->vba.DETBufferSizeCAllStates[mode_lib->vba.VoltageLevel][MaximumMPCCombine][k];
+				(unsigned int)mode_lib->vba.DETBufferSizeCAllStates[mode_lib->vba.VoltageLevel][MaximumMPCCombine][k];
 		mode_lib->vba.OutputType[k] = mode_lib->vba.OutputTypePerState[mode_lib->vba.VoltageLevel][k];
 		mode_lib->vba.OutputRate[k] = mode_lib->vba.OutputRatePerState[mode_lib->vba.VoltageLevel][k];
 	}

@@ -23,7 +23,7 @@
 #ifndef __INTEL_DVO_DEV_H__
 #define __INTEL_DVO_DEV_H__
 
-#include "i915_reg_defs.h"
+#include "intel_display_reg_defs.h"
 
 #include "intel_display_limits.h"
 

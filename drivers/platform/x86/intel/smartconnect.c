@@ -12,9 +12,13 @@ MODULE_LICENSE("GPL");
 
 static int smartconnect_acpi_probe(struct platform_device *pdev)
 {
-	acpi_handle handle = ACPI_HANDLE(&pdev->dev);
 	unsigned long long value;
+	acpi_handle handle;
 	acpi_status status;
+
+	handle = ACPI_HANDLE(&pdev->dev);
+	if (!handle)
+		return -ENODEV;
 
 	status = acpi_evaluate_integer(handle, "GAOS", NULL, &value);
 	if (ACPI_FAILURE(status))

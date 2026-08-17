@@ -5475,6 +5475,14 @@
 #define regCHA_PERFCOUNTER3_HI_BASE_IDX                                                                 1
 
 
+// addressBlock: CHIP_XCD_gfxip_xcc_gfx_cpwd_perfddec
+// base address: 0x34000
+#define regGC_CANE_PERFCOUNTER0_LO                                                                      0x36c0
+#define regGC_CANE_PERFCOUNTER0_LO_BASE_IDX                                                             1
+#define regGC_CANE_PERFCOUNTER0_HI                                                                      0x36c1
+#define regGC_CANE_PERFCOUNTER0_HI_BASE_IDX                                                             1
+
+
 // addressBlock: CHIP_XCD_gfxip_xcc_gfx_cpwd_cpwd_perfsdec
 // base address: 0x36000
 #define regCPG_PERFCOUNTER1_SELECT                                                                      0x3800
@@ -5759,6 +5767,16 @@
 #define regCHA_PERFCOUNTER3_SELECT_BASE_IDX                                                             1
 #define regCHA_PERFCOUNTER3_SELECT1                                                                     0x3de7
 #define regCHA_PERFCOUNTER3_SELECT1_BASE_IDX                                                            1
+
+
+// addressBlock: CHIP_XCD_gfxip_xcc_gfx_cpwd_perfsdec
+// base address: 0x36000
+#define regGC_CANE_PERFCOUNTER0_SELECT                                                                  0x3e80
+#define regGC_CANE_PERFCOUNTER0_SELECT_BASE_IDX                                                         1
+#define regGC_CANE_PERFCOUNTER0_SELECT1                                                                 0x3e81
+#define regGC_CANE_PERFCOUNTER0_SELECT1_BASE_IDX                                                        1
+#define regGC_CANE_PERFCOUNTER0_MODE                                                                    0x3e82
+#define regGC_CANE_PERFCOUNTER0_MODE_BASE_IDX                                                           1
 
 
 // addressBlock: CHIP_XCD_gfxip_xcc_gfx_cpwd_gdfll_xvmin_xvmin_xvmin_reg_blk
@@ -12080,6 +12098,22 @@
 #define regGC_ATC_L2_PERFCOUNTER_HI_BASE_IDX                                                            1
 
 
+// addressBlock: CHIP_XCD_gfxip_aigc_gcutcl2_inst0_gcutcl2ffbmprdec
+// base address: 0x353d0
+#define regGCUTCL2_FFBM_PERFCOUNTER_LO                                                                  0x34f4
+#define regGCUTCL2_FFBM_PERFCOUNTER_LO_BASE_IDX                                                         1
+#define regGCUTCL2_FFBM_PERFCOUNTER_HI                                                                  0x34f5
+#define regGCUTCL2_FFBM_PERFCOUNTER_HI_BASE_IDX                                                         1
+
+
+// addressBlock: CHIP_XCD_gfxip_aigc_gcutcl2_inst0_gcutcl2nhttlbprdec
+// base address: 0x353e0
+#define regGCUTCL2_NHTTLB_PERFCOUNTER_LO                                                                0x34f8
+#define regGCUTCL2_NHTTLB_PERFCOUNTER_LO_BASE_IDX                                                       1
+#define regGCUTCL2_NHTTLB_PERFCOUNTER_HI                                                                0x34f9
+#define regGCUTCL2_NHTTLB_PERFCOUNTER_HI_BASE_IDX                                                       1
+
+
 // addressBlock: CHIP_XCD_gfxip_aigc_gcutcl2_inst0_gcl2tlbprdec
 // base address: 0x353f0
 #define regGC_L2TLB_PERFCOUNTER_LO                                                                      0x34fc
@@ -12174,6 +12208,82 @@
 #define regGC_ATC_L2_PERFCOUNTER15_CFG_BASE_IDX                                                         1
 #define regGC_ATC_L2_PERFCOUNTER_RSLT_CNTL                                                              0x3ee8
 #define regGC_ATC_L2_PERFCOUNTER_RSLT_CNTL_BASE_IDX                                                     1
+
+
+// addressBlock: CHIP_XCD_gfxip_aigc_gcutcl2_inst0_gcutcl2ffbmpldec
+// base address: 0x37bb0
+#define regGCUTCL2_FFBM_PERFCOUNTER0_CFG                                                                0x3eec
+#define regGCUTCL2_FFBM_PERFCOUNTER0_CFG_BASE_IDX                                                       1
+#define regGCUTCL2_FFBM_PERFCOUNTER1_CFG                                                                0x3eed
+#define regGCUTCL2_FFBM_PERFCOUNTER1_CFG_BASE_IDX                                                       1
+#define regGCUTCL2_FFBM_PERFCOUNTER2_CFG                                                                0x3eee
+#define regGCUTCL2_FFBM_PERFCOUNTER2_CFG_BASE_IDX                                                       1
+#define regGCUTCL2_FFBM_PERFCOUNTER3_CFG                                                                0x3eef
+#define regGCUTCL2_FFBM_PERFCOUNTER3_CFG_BASE_IDX                                                       1
+#define regGCUTCL2_FFBM_PERFCOUNTER4_CFG                                                                0x3ef0
+#define regGCUTCL2_FFBM_PERFCOUNTER4_CFG_BASE_IDX                                                       1
+#define regGCUTCL2_FFBM_PERFCOUNTER5_CFG                                                                0x3ef1
+#define regGCUTCL2_FFBM_PERFCOUNTER5_CFG_BASE_IDX                                                       1
+#define regGCUTCL2_FFBM_PERFCOUNTER6_CFG                                                                0x3ef2
+#define regGCUTCL2_FFBM_PERFCOUNTER6_CFG_BASE_IDX                                                       1
+#define regGCUTCL2_FFBM_PERFCOUNTER7_CFG                                                                0x3ef3
+#define regGCUTCL2_FFBM_PERFCOUNTER7_CFG_BASE_IDX                                                       1
+#define regGCUTCL2_FFBM_PERFCOUNTER8_CFG                                                                0x3ef4
+#define regGCUTCL2_FFBM_PERFCOUNTER8_CFG_BASE_IDX                                                       1
+#define regGCUTCL2_FFBM_PERFCOUNTER9_CFG                                                                0x3ef5
+#define regGCUTCL2_FFBM_PERFCOUNTER9_CFG_BASE_IDX                                                       1
+#define regGCUTCL2_FFBM_PERFCOUNTER10_CFG                                                               0x3ef6
+#define regGCUTCL2_FFBM_PERFCOUNTER10_CFG_BASE_IDX                                                      1
+#define regGCUTCL2_FFBM_PERFCOUNTER11_CFG                                                               0x3ef7
+#define regGCUTCL2_FFBM_PERFCOUNTER11_CFG_BASE_IDX                                                      1
+#define regGCUTCL2_FFBM_PERFCOUNTER12_CFG                                                               0x3ef8
+#define regGCUTCL2_FFBM_PERFCOUNTER12_CFG_BASE_IDX                                                      1
+#define regGCUTCL2_FFBM_PERFCOUNTER13_CFG                                                               0x3ef9
+#define regGCUTCL2_FFBM_PERFCOUNTER13_CFG_BASE_IDX                                                      1
+#define regGCUTCL2_FFBM_PERFCOUNTER14_CFG                                                               0x3efa
+#define regGCUTCL2_FFBM_PERFCOUNTER14_CFG_BASE_IDX                                                      1
+#define regGCUTCL2_FFBM_PERFCOUNTER15_CFG                                                               0x3efb
+#define regGCUTCL2_FFBM_PERFCOUNTER15_CFG_BASE_IDX                                                      1
+#define regGCUTCL2_FFBM_PERFCOUNTER_RSLT_CNTL                                                           0x3efc
+#define regGCUTCL2_FFBM_PERFCOUNTER_RSLT_CNTL_BASE_IDX                                                  1
+
+
+// addressBlock: CHIP_XCD_gfxip_aigc_gcutcl2_inst0_gcutcl2nhttlbpldec
+// base address: 0x37c00
+#define regGCUTCL2_NHTTLB_PERFCOUNTER0_CFG                                                              0x3f00
+#define regGCUTCL2_NHTTLB_PERFCOUNTER0_CFG_BASE_IDX                                                     1
+#define regGCUTCL2_NHTTLB_PERFCOUNTER1_CFG                                                              0x3f01
+#define regGCUTCL2_NHTTLB_PERFCOUNTER1_CFG_BASE_IDX                                                     1
+#define regGCUTCL2_NHTTLB_PERFCOUNTER2_CFG                                                              0x3f02
+#define regGCUTCL2_NHTTLB_PERFCOUNTER2_CFG_BASE_IDX                                                     1
+#define regGCUTCL2_NHTTLB_PERFCOUNTER3_CFG                                                              0x3f03
+#define regGCUTCL2_NHTTLB_PERFCOUNTER3_CFG_BASE_IDX                                                     1
+#define regGCUTCL2_NHTTLB_PERFCOUNTER4_CFG                                                              0x3f04
+#define regGCUTCL2_NHTTLB_PERFCOUNTER4_CFG_BASE_IDX                                                     1
+#define regGCUTCL2_NHTTLB_PERFCOUNTER5_CFG                                                              0x3f05
+#define regGCUTCL2_NHTTLB_PERFCOUNTER5_CFG_BASE_IDX                                                     1
+#define regGCUTCL2_NHTTLB_PERFCOUNTER6_CFG                                                              0x3f06
+#define regGCUTCL2_NHTTLB_PERFCOUNTER6_CFG_BASE_IDX                                                     1
+#define regGCUTCL2_NHTTLB_PERFCOUNTER7_CFG                                                              0x3f07
+#define regGCUTCL2_NHTTLB_PERFCOUNTER7_CFG_BASE_IDX                                                     1
+#define regGCUTCL2_NHTTLB_PERFCOUNTER8_CFG                                                              0x3f08
+#define regGCUTCL2_NHTTLB_PERFCOUNTER8_CFG_BASE_IDX                                                     1
+#define regGCUTCL2_NHTTLB_PERFCOUNTER9_CFG                                                              0x3f09
+#define regGCUTCL2_NHTTLB_PERFCOUNTER9_CFG_BASE_IDX                                                     1
+#define regGCUTCL2_NHTTLB_PERFCOUNTER10_CFG                                                             0x3f0a
+#define regGCUTCL2_NHTTLB_PERFCOUNTER10_CFG_BASE_IDX                                                    1
+#define regGCUTCL2_NHTTLB_PERFCOUNTER11_CFG                                                             0x3f0b
+#define regGCUTCL2_NHTTLB_PERFCOUNTER11_CFG_BASE_IDX                                                    1
+#define regGCUTCL2_NHTTLB_PERFCOUNTER12_CFG                                                             0x3f0c
+#define regGCUTCL2_NHTTLB_PERFCOUNTER12_CFG_BASE_IDX                                                    1
+#define regGCUTCL2_NHTTLB_PERFCOUNTER13_CFG                                                             0x3f0d
+#define regGCUTCL2_NHTTLB_PERFCOUNTER13_CFG_BASE_IDX                                                    1
+#define regGCUTCL2_NHTTLB_PERFCOUNTER14_CFG                                                             0x3f0e
+#define regGCUTCL2_NHTTLB_PERFCOUNTER14_CFG_BASE_IDX                                                    1
+#define regGCUTCL2_NHTTLB_PERFCOUNTER15_CFG                                                             0x3f0f
+#define regGCUTCL2_NHTTLB_PERFCOUNTER15_CFG_BASE_IDX                                                    1
+#define regGCUTCL2_NHTTLB_PERFCOUNTER_RSLT_CNTL                                                         0x3f10
+#define regGCUTCL2_NHTTLB_PERFCOUNTER_RSLT_CNTL_BASE_IDX                                                1
 
 
 // addressBlock: CHIP_XCD_gfxip_aigc_gcutcl2_inst0_gcl2tlbpldec

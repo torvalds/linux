@@ -64,6 +64,7 @@
 		compatible = "gpio-keys";
 
 		button-user {
+			/* GPIO on PA13 "User button 2 (B2)" */
 			label = "User-PA13";
 			linux,code = <BTN_1>;
 			gpios = <&gpioa 13 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
@@ -74,6 +75,7 @@
 		compatible = "gpio-leds";
 
 		led_blue: led-blue {
+			/* GPIO on PA14 "User LED (LD3)" */
 			function = LED_FUNCTION_HEARTBEAT;
 			color = <LED_COLOR_ID_BLUE>;
 			gpios = <&gpioa 14 GPIO_ACTIVE_LOW>;
@@ -82,6 +84,7 @@
 		};
 
 		led-red {
+			/* GPIO on PA13 "User LED (LD4)" */
 			function = LED_FUNCTION_STATUS;
 			color = <LED_COLOR_ID_RED>;
 			gpios = <&gpioa 13 GPIO_ACTIVE_LOW>;
@@ -252,6 +255,7 @@
 
 &i2c1 {
 	pinctrl-names = "default", "sleep";
+	/* SDA on PE8 = CN8.27, SCL on PD12 = CN8.28 */
 	pinctrl-0 = <&i2c1_pins_a>;
 	pinctrl-1 = <&i2c1_sleep_pins_a>;
 	i2c-scl-rising-time-ns = <96>;
@@ -486,7 +490,10 @@
 		status = "okay";
 	};
 	pwm {
-		/* PWM output on pin 7 of the expansion connector (CN8.7) using TIM3_CH4 func */
+		/*
+		 * CH4 on PB1 = CN8.7;
+		 * CH3 on PB0 = CN8.10 is possible (conflicting with usart1)
+		 */
 		pinctrl-0 = <&pwm3_pins_a>;
 		pinctrl-1 = <&pwm3_sleep_pins_a>;
 		pinctrl-names = "default", "sleep";
@@ -505,7 +512,10 @@
 		status = "okay";
 	};
 	pwm {
-		/* PWM output on pin 31 of the expansion connector (CN8.31) using TIM4_CH2 func */
+		/*
+		 * CH2 on PD13 = CN8.31;
+		 * CH1 on PD12 = CN8.28 is possible (conflicting with &i2c1)
+		 */
 		pinctrl-0 = <&pwm4_pins_a>;
 		pinctrl-1 = <&pwm4_sleep_pins_a>;
 		pinctrl-names = "default", "sleep";
@@ -524,7 +534,12 @@
 		status = "okay";
 	};
 	pwm {
-		/* PWM output on pin 32 of the expansion connector (CN8.32) using TIM8_CH3 func */
+		/*
+		 * CH3 on PE5 = CN8.32
+		 * CH1N on PA7 = CN8.36 is possible (conflicting with &usart1)
+		 * CH2N on PB0 = CN8.10 is possible (conflicting with &usart1)
+		 * CH3N on PB1 = CN8.7 is possible (conflicting with &timers3)
+		 */
 		pinctrl-0 = <&pwm8_pins_a>;
 		pinctrl-1 = <&pwm8_sleep_pins_a>;
 		pinctrl-names = "default", "sleep";
@@ -541,7 +556,7 @@
 		status = "okay";
 	};
 	pwm {
-		/* PWM output on pin 33 of the expansion connector (CN8.33) using TIM14_CH1 func */
+		/* CH1 on PF9 = CN8.33 (alternatively on PA7 = CN8.36 (conflicting with &usart1)) */
 		pinctrl-0 = <&pwm14_pins_a>;
 		pinctrl-1 = <&pwm14_sleep_pins_a>;
 		pinctrl-names = "default", "sleep";
@@ -553,6 +568,7 @@
 };
 
 &uart4 {
+	/* Accessible via micro USB ST-LINK USB (CN10) */
 	pinctrl-names = "default", "sleep", "idle";
 	pinctrl-0 = <&uart4_pins_a>;
 	pinctrl-1 = <&uart4_sleep_pins_a>;
@@ -564,6 +580,7 @@
 
 &uart8 {
 	pinctrl-names = "default", "sleep", "idle";
+	/* TX on PE1 = CN8.37, RX on PF9 = CN8.33 */
 	pinctrl-0 = <&uart8_pins_a>;
 	pinctrl-1 = <&uart8_sleep_pins_a>;
 	pinctrl-2 = <&uart8_idle_pins_a>;
@@ -574,6 +591,7 @@
 
 &usart1 {
 	pinctrl-names = "default", "sleep", "idle";
+	/* TX on PC0 = CN8.8, RX on PB0 = CN8.10, RTS on PC2 = CN8.11, CTS on PA7 = CN8.36 */
 	pinctrl-0 = <&usart1_pins_a>;
 	pinctrl-1 = <&usart1_sleep_pins_a>;
 	pinctrl-2 = <&usart1_idle_pins_a>;
@@ -584,6 +602,7 @@
 /* Bluetooth */
 &usart2 {
 	pinctrl-names = "default", "sleep", "idle";
+	/* TX on PH12, RX on PD15, RTS on PD4, CTS on PE11 */
 	pinctrl-0 = <&usart2_pins_a>;
 	pinctrl-1 = <&usart2_sleep_pins_a>;
 	pinctrl-2 = <&usart2_idle_pins_a>;
@@ -613,6 +632,7 @@
 };
 
 &usbotg_hs {
+	/* USB Type-C DRP (CN7) */
 	phys = <&usbphyc_port1 0>;
 	phy-names = "usb2-phy";
 	usb-role-switch;

@@ -93,7 +93,7 @@ optionally written. In both cases end of data is signified by
 returning zero bytes for two consecutive reads.
 
 Writing filemarks without the immediate bit set in the SCSI command block acts
-as a synchronization point, i.e., all remaining data form the drive buffers is
+as a synchronization point, i.e., all remaining data from the drive buffers is
 written to tape before the command returns. This makes sure that write errors
 are caught at that point, but this takes time. In some applications, several
 consecutive files must be written fast. The MTWEOFI operation can be used to

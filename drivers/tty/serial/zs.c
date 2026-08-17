@@ -56,6 +56,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/major.h>
+#include <linux/platform_device.h>
 #include <linux/serial.h>
 #include <linux/serial_core.h>
 #include <linux/spinlock.h>
@@ -66,10 +67,6 @@
 
 #include <linux/atomic.h>
 
-#include <asm/dec/interrupts.h>
-#include <asm/dec/ioasic_addrs.h>
-#include <asm/dec/system.h>
-
 #include "zs.h"
 
 
@@ -79,7 +76,7 @@ MODULE_LICENSE("GPL");
 
 
 static char zs_name[] __initdata = "DECstation Z85C30 serial driver version ";
-static char zs_version[] __initdata = "0.10";
+static char zs_version[] __initdata = "0.11";
 
 /*
  * It would be nice to dynamically allocate everything that
@@ -98,25 +95,27 @@ static char zs_version[] __initdata = "0.10";
 
 #define to_zport(uport) container_of(uport, struct zs_port, port)
 
-struct zs_parms {
-	resource_size_t scc[ZS_NUM_SCCS];
-	int irq[ZS_NUM_SCCS];
-};
-
 static struct zs_scc zs_sccs[ZS_NUM_SCCS];
+static struct uart_driver zs_reg;
 
+/*
+ * Set parameters in WR5, WR12, WR13 such as not to interfere
+ * with the initial PROM-based console.  Otherwise any output
+ * produced before the console handover would cause the system
+ * firmware to hang (TxENAB) or produce rubbish (Tx8, B9600).
+ */
 static u8 zs_init_regs[ZS_NUM_REGS] __initdata = {
 	0,				/* write 0 */
 	PAR_SPEC,			/* write 1 */
 	0,				/* write 2 */
 	0,				/* write 3 */
 	X16CLK | SB1,			/* write 4 */
-	0,				/* write 5 */
+	Tx8 | TxENAB,			/* write 5 */
 	0, 0, 0,			/* write 6, 7, 8 */
 	MIE | DLC | NV,			/* write 9 */
 	NRZ,				/* write 10 */
 	TCBR | RCBR,			/* write 11 */
-	0, 0,				/* BRG time constant, write 12 + 13 */
+	0x16, 0x00,			/* BRG time constant, write 12 + 13 */
 	BRSRC | BRENABL,		/* write 14 */
 	0,				/* write 15 */
 };
@@ -680,9 +679,9 @@ static void zs_status_handle(struct zs_port *zport, struct zs_port *zport_a)
 			uart_handle_dcd_change(uport,
 					       zport->mctrl & TIOCM_CAR);
 		if (delta & TIOCM_RNG)
-			uport->icount.dsr++;
-		if (delta & TIOCM_DSR)
 			uport->icount.rng++;
+		if (delta & TIOCM_DSR)
+			uport->icount.dsr++;
 
 		if (delta)
 			wake_up_interruptible(&uport->state->port.delta_msr_wait);
@@ -826,22 +825,22 @@ static void zs_shutdown(struct uart_port *uport)
 
 static void zs_reset(struct zs_port *zport)
 {
+	struct zs_port *zport_a = &zport->scc->zport[ZS_CHAN_A];
 	struct zs_scc *scc = zport->scc;
 	int irq;
 	unsigned long flags;
 
 	spin_lock_irqsave(&scc->zlock, flags);
 	irq = !irqs_disabled_flags(flags);
-	if (!scc->initialised) {
-		/* Reset the pointer first, just in case...  */
-		read_zsreg(zport, R0);
-		/* And let the current transmission finish.  */
-		zs_line_drain(zport, irq);
-		write_zsreg(zport, R9, FHWRES);
-		udelay(10);
-		write_zsreg(zport, R9, 0);
-		scc->initialised = 1;
-	}
+
+	/* Reset the pointer first, just in case...  */
+	read_zsreg(zport, R0);
+	/* And let the current transmission finish.  */
+	zs_line_drain(zport, irq);
+	write_zsreg(zport, R9, zport == zport_a ? CHRA : CHRB);
+	udelay(10);
+	write_zsreg(zport, R9, 0);
+
 	load_zsregs(zport, zport->regs, irq);
 	spin_unlock_irqrestore(&scc->zlock, flags);
 }
@@ -956,23 +955,6 @@ static void zs_set_termios(struct uart_port *uport, struct ktermios *termios,
 	spin_unlock_irqrestore(&scc->zlock, flags);
 }
 
-/*
- * Hack alert!
- * Required solely so that the initial PROM-based console
- * works undisturbed in parallel with this one.
- */
-static void zs_pm(struct uart_port *uport, unsigned int state,
-		  unsigned int oldstate)
-{
-	struct zs_port *zport = to_zport(uport);
-
-	if (state < 3)
-		zport->regs[5] |= TxENAB;
-	else
-		zport->regs[5] &= ~TxENAB;
-	write_zsreg(zport, R5, zport->regs[5]);
-}
-
 
 static const char *zs_type(struct uart_port *uport)
 {
@@ -1055,7 +1037,6 @@ static const struct uart_ops zs_ops = {
 	.startup	= zs_startup,
 	.shutdown	= zs_shutdown,
 	.set_termios	= zs_set_termios,
-	.pm		= zs_pm,
 	.type		= zs_type,
 	.release_port	= zs_release_port,
 	.request_port	= zs_request_port,
@@ -1066,61 +1047,60 @@ static const struct uart_ops zs_ops = {
 /*
  * Initialize Z85C30 port structures.
  */
-static int __init zs_probe_sccs(void)
+static int __init zs_probe(struct platform_device *pdev)
 {
-	static int probed;
-	struct zs_parms zs_parms;
-	int chip, side, irq;
-	int n_chips = 0;
+	struct resource *mem_resource, *irq_resource;
+	int chip, side;
 	int i;
 
-	if (probed)
-		return 0;
+	mem_resource = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	irq_resource = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	if (!mem_resource || !irq_resource)
+		return -ENODEV;
 
-	irq = dec_interrupt[DEC_IRQ_SCC0];
-	if (irq >= 0) {
-		zs_parms.scc[n_chips] = IOASIC_SCC0;
-		zs_parms.irq[n_chips] = dec_interrupt[DEC_IRQ_SCC0];
-		n_chips++;
-	}
-	irq = dec_interrupt[DEC_IRQ_SCC1];
-	if (irq >= 0) {
-		zs_parms.scc[n_chips] = IOASIC_SCC1;
-		zs_parms.irq[n_chips] = dec_interrupt[DEC_IRQ_SCC1];
-		n_chips++;
-	}
-	if (!n_chips)
-		return -ENXIO;
+	chip = pdev->id;
+	spin_lock_init(&zs_sccs[chip].zlock);
+	for (side = 0; side < ZS_NUM_CHAN; side++) {
+		struct zs_port *zport = &zs_sccs[chip].zport[side];
+		struct uart_port *uport = &zport->port;
 
-	probed = 1;
+		zport->scc	= &zs_sccs[chip];
+		zport->clk_mode	= 16;
 
-	for (chip = 0; chip < n_chips; chip++) {
-		spin_lock_init(&zs_sccs[chip].zlock);
-		for (side = 0; side < ZS_NUM_CHAN; side++) {
-			struct zs_port *zport = &zs_sccs[chip].zport[side];
-			struct uart_port *uport = &zport->port;
+		uport->dev	= &pdev->dev;
+		uport->has_sysrq = IS_ENABLED(CONFIG_SERIAL_ZS_CONSOLE);
+		uport->irq	= irq_resource->start;
+		uport->uartclk	= ZS_CLOCK;
+		uport->fifosize	= 1;
+		uport->iotype	= UPIO_MEM;
+		uport->flags	= UPF_BOOT_AUTOCONF;
+		uport->ops	= &zs_ops;
+		uport->line	= chip * ZS_NUM_CHAN + side;
+		uport->mapbase	= mem_resource->start +
+				  (side ^ ZS_CHAN_B) * ZS_CHAN_IO_SIZE;
 
-			zport->scc	= &zs_sccs[chip];
-			zport->clk_mode	= 16;
+		for (i = 0; i < ZS_NUM_REGS; i++)
+			zport->regs[i] = zs_init_regs[i];
 
-			uport->has_sysrq = IS_ENABLED(CONFIG_SERIAL_ZS_CONSOLE);
-			uport->irq	= zs_parms.irq[chip];
-			uport->uartclk	= ZS_CLOCK;
-			uport->fifosize	= 1;
-			uport->iotype	= UPIO_MEM;
-			uport->flags	= UPF_BOOT_AUTOCONF;
-			uport->ops	= &zs_ops;
-			uport->line	= chip * ZS_NUM_CHAN + side;
-			uport->mapbase	= dec_kn_slot_base +
-					  zs_parms.scc[chip] +
-					  (side ^ ZS_CHAN_B) * ZS_CHAN_IO_SIZE;
-
-			for (i = 0; i < ZS_NUM_REGS; i++)
-				zport->regs[i] = zs_init_regs[i];
-		}
+		if (uart_add_one_port(&zs_reg, uport))
+			uport->dev = NULL;
 	}
 
 	return 0;
+}
+
+static void __exit zs_remove(struct platform_device *pdev)
+{
+	int chip, side;
+
+	chip = pdev->id;
+	for (side = ZS_NUM_CHAN - 1; side >= 0; side--) {
+		struct zs_port *zport = &zs_sccs[chip].zport[side];
+		struct uart_port *uport = &zport->port;
+
+		if (uport->dev)
+			uart_remove_one_port(&zs_reg, uport);
+	}
 }
 
 
@@ -1203,21 +1183,14 @@ static int __init zs_console_setup(struct console *co, char *options)
 	int bits = 8;
 	int parity = 'n';
 	int flow = 'n';
-	int ret;
 
-	ret = zs_map_port(uport);
-	if (ret)
-		return ret;
-
-	zs_reset(zport);
-	zs_pm(uport, 0, -1);
-
+	if (!zport->scc)
+		return -ENODEV;
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
 	return uart_set_options(uport, co, baud, parity, bits, flow);
 }
 
-static struct uart_driver zs_reg;
 static struct console zs_console = {
 	.name	= "ttyS",
 	.write	= zs_console_write,
@@ -1227,23 +1200,6 @@ static struct console zs_console = {
 	.index	= -1,
 	.data	= &zs_reg,
 };
-
-/*
- *	Register console.
- */
-static int __init zs_serial_console_init(void)
-{
-	int ret;
-
-	ret = zs_probe_sccs();
-	if (ret)
-		return ret;
-	register_console(&zs_console);
-
-	return 0;
-}
-
-console_initcall(zs_serial_console_init);
 
 #define SERIAL_ZS_CONSOLE	&zs_console
 #else
@@ -1260,47 +1216,31 @@ static struct uart_driver zs_reg = {
 	.cons			= SERIAL_ZS_CONSOLE,
 };
 
+static struct platform_driver zs_driver = {
+	.remove = __exit_p(zs_remove),
+	.driver = { .name = "zs" },
+};
+
 /* zs_init inits the driver. */
 static int __init zs_init(void)
 {
-	int i, ret;
+	int ret;
 
 	pr_info("%s%s\n", zs_name, zs_version);
-
-	/* Find out how many Z85C30 SCCs we have.  */
-	ret = zs_probe_sccs();
-	if (ret)
-		return ret;
 
 	ret = uart_register_driver(&zs_reg);
 	if (ret)
 		return ret;
+	ret = platform_driver_probe(&zs_driver, zs_probe);
+	if (ret)
+		uart_unregister_driver(&zs_reg);
 
-	for (i = 0; i < ZS_NUM_SCCS * ZS_NUM_CHAN; i++) {
-		struct zs_scc *scc = &zs_sccs[i / ZS_NUM_CHAN];
-		struct zs_port *zport = &scc->zport[i % ZS_NUM_CHAN];
-		struct uart_port *uport = &zport->port;
-
-		if (zport->scc)
-			uart_add_one_port(&zs_reg, uport);
-	}
-
-	return 0;
+	return ret;
 }
 
 static void __exit zs_exit(void)
 {
-	int i;
-
-	for (i = ZS_NUM_SCCS * ZS_NUM_CHAN - 1; i >= 0; i--) {
-		struct zs_scc *scc = &zs_sccs[i / ZS_NUM_CHAN];
-		struct zs_port *zport = &scc->zport[i % ZS_NUM_CHAN];
-		struct uart_port *uport = &zport->port;
-
-		if (zport->scc)
-			uart_remove_one_port(&zs_reg, uport);
-	}
-
+	platform_driver_unregister(&zs_driver);
 	uart_unregister_driver(&zs_reg);
 }
 

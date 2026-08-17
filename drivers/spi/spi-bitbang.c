@@ -420,11 +420,6 @@ EXPORT_SYMBOL_GPL(spi_bitbang_init);
  * This routine registers the spi_controller, which will process requests in a
  * dedicated task, keeping IRQs unblocked most of the time.  To stop
  * processing those requests, call spi_bitbang_stop().
- *
- * On success, this routine will take a reference to the controller. The caller
- * is responsible for calling spi_bitbang_stop() to decrement the reference and
- * spi_controller_put() as counterpart of spi_alloc_host() to prevent a memory
- * leak.
  */
 int spi_bitbang_start(struct spi_bitbang *bitbang)
 {
@@ -438,11 +433,7 @@ int spi_bitbang_start(struct spi_bitbang *bitbang)
 	/* driver may get busy before register() returns, especially
 	 * if someone registered boardinfo for devices
 	 */
-	ret = spi_register_controller(spi_controller_get(ctlr));
-	if (ret)
-		spi_controller_put(ctlr);
-
-	return ret;
+	return spi_register_controller(ctlr);
 }
 EXPORT_SYMBOL_GPL(spi_bitbang_start);
 

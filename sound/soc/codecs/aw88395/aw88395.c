@@ -462,6 +462,7 @@ static void aw88395_hw_reset(struct aw88395 *aw88395)
 static int aw88395_request_firmware_file(struct aw88395 *aw88395)
 {
 	const struct firmware *cont = NULL;
+	struct aw_container *aw_cfg;
 	int ret;
 
 	aw88395->aw_pa->fw_status = AW88395_DEV_FW_FAILED;
@@ -475,14 +476,16 @@ static int aw88395_request_firmware_file(struct aw88395 *aw88395)
 	dev_info(aw88395->aw_pa->dev, "loaded %s - size: %zu\n",
 			AW88395_ACF_FILE, cont ? cont->size : 0);
 
-	aw88395->aw_cfg = devm_kzalloc(aw88395->aw_pa->dev, cont->size + sizeof(int), GFP_KERNEL);
-	if (!aw88395->aw_cfg) {
+	aw_cfg = devm_kzalloc(aw88395->aw_pa->dev, struct_size(aw_cfg, data, cont->size), GFP_KERNEL);
+	if (!aw_cfg) {
 		release_firmware(cont);
 		return -ENOMEM;
 	}
-	aw88395->aw_cfg->len = (int)cont->size;
-	memcpy(aw88395->aw_cfg->data, cont->data, cont->size);
+	aw_cfg->len = (int)cont->size;
+	memcpy(aw_cfg->data, cont->data, cont->size);
 	release_firmware(cont);
+
+	aw88395->aw_cfg = aw_cfg;
 
 	ret = aw88395_dev_load_acf_check(aw88395->aw_pa, aw88395->aw_cfg);
 	if (ret < 0) {
@@ -557,7 +560,7 @@ static int aw88395_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id aw88395_i2c_id[] = {
-	{ AW88395_I2C_NAME },
+	{ .name = AW88395_I2C_NAME },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, aw88395_i2c_id);

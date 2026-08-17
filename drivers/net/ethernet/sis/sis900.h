@@ -315,7 +315,7 @@ enum sis630_revision_id {
 #define MAX_FRAME_SIZE  (1518 + 4)
 #else
 #define MAX_FRAME_SIZE  1518
-#endif /* CONFIG_VLAN_802_1Q */
+#endif /* CONFIG_VLAN_8021Q */
 
 #define TX_BUF_SIZE     (MAX_FRAME_SIZE+18)
 #define RX_BUF_SIZE     (MAX_FRAME_SIZE+18)

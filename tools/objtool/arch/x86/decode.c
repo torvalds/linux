@@ -805,12 +805,25 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 		break;
 	}
 
-	if (ins.immediate.nbytes)
+	if (ins.immediate.nbytes) {
 		insn->immediate = ins.immediate.value;
-	else if (ins.displacement.nbytes)
+		insn->immediate_len = ins.immediate.nbytes;
+	} else if (ins.displacement.nbytes) {
 		insn->immediate = ins.displacement.value;
+		insn->immediate_len = ins.displacement.nbytes;
+	}
 
 	return 0;
+}
+
+size_t arch_jump_opcode_bytes(struct objtool_file *file, struct instruction *insn,
+			      unsigned char *buf)
+{
+	size_t len;
+
+	len = insn->len - insn->immediate_len;
+	memcpy(buf, insn->sec->data->d_buf + insn->offset, len);
+	return len;
 }
 
 void arch_initial_func_cfi_state(struct cfi_init_state *state)

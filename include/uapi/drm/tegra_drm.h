@@ -304,6 +304,7 @@ struct drm_tegra_cmdbuf {
  * struct drm_tegra_reloc - GEM object relocation structure
  */
 struct drm_tegra_reloc {
+	/** @cmdbuf: cmd information */
 	struct {
 		/**
 		 * @cmdbuf.handle:
@@ -321,6 +322,7 @@ struct drm_tegra_reloc {
 		 */
 		__u32 offset;
 	} cmdbuf;
+	/** @target: relocate target information */
 	struct {
 		/**
 		 * @target.handle:
@@ -778,6 +780,9 @@ struct drm_tegra_channel_unmap {
 /* Submission */
 
 /**
+ * define DRM_TEGRA_SUBMIT_RELOC_SECTOR_LAYOUT - \
+ *    Select sector layout swizzling for in-memory buffers.
+ *
  * Specify that bit 39 of the patched-in address should be set to switch
  * swizzling between Tegra and non-Tegra sector layout on systems that store
  * surfaces in system memory in non-Tegra sector layout.
@@ -830,16 +835,27 @@ struct drm_tegra_submit_buf {
 };
 
 /**
+ * define DRM_TEGRA_SUBMIT_CMD_GATHER_UPTR - \
+ *    Execute Host1x opcodes from user pointer.
+ *
  * Execute `words` words of Host1x opcodes specified in the `gather_data_ptr`
  * buffer. Each GATHER_UPTR command uses successive words from the buffer.
  */
 #define DRM_TEGRA_SUBMIT_CMD_GATHER_UPTR		0
+
 /**
+ * define DRM_TEGRA_SUBMIT_CMD_WAIT_SYNCPT - \
+ *    Wait for syncpoint (absolute).
+ *
  * Wait for a syncpoint to reach a value before continuing with further
  * commands.
  */
 #define DRM_TEGRA_SUBMIT_CMD_WAIT_SYNCPT		1
+
 /**
+ * define DRM_TEGRA_SUBMIT_CMD_WAIT_SYNCPT_RELATIVE - \
+ *    Wait for syncpoint (relative).
+ *
  * Wait for a syncpoint to reach a value before continuing with further
  * commands. The threshold is calculated relative to the start of the job.
  */

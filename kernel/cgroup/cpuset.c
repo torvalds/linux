@@ -432,7 +432,7 @@ static inline bool partition_is_populated(struct cpuset *cs,
 	 * nr_populated_domain_children may include populated
 	 * csets from descendants that are partitions.
 	 */
-	if (cs->css.cgroup->nr_populated_csets ||
+	if (cgroup_has_tasks(cs->css.cgroup) ||
 	    cs->attach_in_progress)
 		return true;
 
@@ -1004,8 +1004,11 @@ void rebuild_sched_domains_locked(void)
 	* prevent the panic.
 	*/
 	for (i = 0; doms && i < ndoms; i++) {
-		if (WARN_ON_ONCE(!cpumask_subset(doms[i], cpu_active_mask)))
+		if (WARN_ON_ONCE(!cpumask_subset(doms[i], cpu_active_mask))) {
+			free_sched_domains(doms, ndoms);
+			kfree(attr);
 			return;
+		}
 	}
 
 	/* Have scheduler rebuild the domains */
@@ -1811,9 +1814,9 @@ static int update_parent_effective_cpumask(struct cpuset *cs, int cmd,
 		 * Compute add/delete mask to/from effective_cpus
 		 *
 		 * For valid partition:
-		 *   addmask = exclusive_cpus & ~newmask
+		 *   addmask = effective_xcpus & ~newmask
 		 *			      & parent->effective_xcpus
-		 *   delmask = newmask & ~exclusive_cpus
+		 *   delmask = newmask & ~effective_xcpus
 		 *		       & parent->effective_xcpus
 		 *
 		 * For invalid partition:
@@ -1825,11 +1828,11 @@ static int update_parent_effective_cpumask(struct cpuset *cs, int cmd,
 			deleting = cpumask_and(tmp->delmask,
 					newmask, parent->effective_xcpus);
 		} else {
-			cpumask_andnot(tmp->addmask, xcpus, newmask);
+			cpumask_andnot(tmp->addmask, cs->effective_xcpus, newmask);
 			adding = cpumask_and(tmp->addmask, tmp->addmask,
 					     parent->effective_xcpus);
 
-			cpumask_andnot(tmp->delmask, newmask, xcpus);
+			cpumask_andnot(tmp->delmask, newmask, cs->effective_xcpus);
 			deleting = cpumask_and(tmp->delmask, tmp->delmask,
 					       parent->effective_xcpus);
 		}
@@ -1868,7 +1871,7 @@ static int update_parent_effective_cpumask(struct cpuset *cs, int cmd,
 			part_error = PERR_NOCPUS;
 			deleting = false;
 			adding = cpumask_and(tmp->addmask,
-					     xcpus, parent->effective_xcpus);
+					     cs->effective_xcpus, parent->effective_xcpus);
 		}
 	} else {
 		/*
@@ -1890,7 +1893,8 @@ static int update_parent_effective_cpumask(struct cpuset *cs, int cmd,
 			part_error = PERR_NOCPUS;
 			if (is_partition_valid(cs))
 				adding = cpumask_and(tmp->addmask,
-						xcpus, parent->effective_xcpus);
+						     cs->effective_xcpus,
+						     parent->effective_xcpus);
 		} else if (is_partition_invalid(cs) && !cpumask_empty(xcpus) &&
 			   cpumask_subset(xcpus, parent->effective_xcpus)) {
 			struct cgroup_subsys_state *css;
@@ -4234,6 +4238,9 @@ bool cpuset_current_node_allowed(int node, gfp_t gfp_mask)
 		return true;
 	if (gfp_mask & __GFP_HARDWALL)	/* If hardwall request, stop here */
 		return false;
+
+	if (cpuset_v2())
+		return true;
 
 	/* Not hardwall and node outside mems_allowed: scan up cpusets */
 	spin_lock_irqsave(&callback_lock, flags);

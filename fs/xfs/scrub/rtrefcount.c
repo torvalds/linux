@@ -555,7 +555,7 @@ xchk_rtrefcountbt(
 	if (error || (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
 		return error;
 
-	xfs_rmap_ino_bmbt_owner(&btree_oinfo, rtg_refcount(sc->sr.rtg)->i_ino,
+	xfs_rmap_inode_bmbt_owner(&btree_oinfo, rtg_refcount(sc->sr.rtg),
 			XFS_DATA_FORK);
 	error = xchk_btree(sc, sc->sr.refc_cur, xchk_rtrefcountbt_rec,
 			&btree_oinfo, &rrc);

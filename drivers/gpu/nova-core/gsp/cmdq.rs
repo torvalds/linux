@@ -237,7 +237,7 @@ impl DmaGspMem {
         let start = gsp_mem.dma_handle();
         // Write values one by one to avoid an on-stack instance of `PteArray`.
         for i in 0..GspMem::PTE_ARRAY_SIZE {
-            dma_write!(gsp_mem, .ptes.0[i], PteArray::<0>::entry(start, i)?);
+            dma_write!(gsp_mem, .ptes.0[build: i], PteArray::<0>::entry(start, i)?);
         }
 
         dma_write!(
@@ -260,7 +260,7 @@ impl DmaGspMem {
         let rx = self.gsp_read_ptr();
 
         // Pointer to the first entry of the CPU message queue.
-        let data = ptr::project!(mut self.0.as_mut_ptr(), .cpuq.msgq.data[0]);
+        let data = ptr::project!(mut self.0.as_mut_ptr(), .cpuq.msgq.data[build: 0]);
 
         let (tail_end, wrap_end) = if rx == 0 {
             // The write area is non-wrapping, and stops at the second-to-last entry of the command
@@ -322,7 +322,7 @@ impl DmaGspMem {
         let rx = self.cpu_read_ptr();
 
         // Pointer to the first entry of the GSP message queue.
-        let data = ptr::project!(self.0.as_ptr(), .gspq.msgq.data[0]);
+        let data = ptr::project!(self.0.as_ptr(), .gspq.msgq.data[build: 0]);
 
         let (tail_end, wrap_end) = if rx <= tx {
             // Read area is non-wrapping and stops right before `tx`.
@@ -532,7 +532,7 @@ impl Cmdq {
     }
 
     /// Notifies the GSP that we have updated the command queue pointers.
-    fn notify_gsp(bar: &Bar0) {
+    fn notify_gsp(bar: Bar0<'_>) {
         bar.write_reg(regs::NV_PGSP_QUEUE_HEAD::zeroed().with_address(0u32));
     }
 
@@ -552,7 +552,7 @@ impl Cmdq {
     ///   written to by its [`CommandToGsp::init_variable_payload`] method.
     ///
     /// Error codes returned by the command and reply initializers are propagated as-is.
-    pub(crate) fn send_command<M>(&self, bar: &Bar0, command: M) -> Result<M::Reply>
+    pub(crate) fn send_command<M>(&self, bar: Bar0<'_>, command: M) -> Result<M::Reply>
     where
         M: CommandToGsp,
         M::Reply: MessageFromGsp,
@@ -580,7 +580,7 @@ impl Cmdq {
     ///   written to by its [`CommandToGsp::init_variable_payload`] method.
     ///
     /// Error codes returned by the command initializers are propagated as-is.
-    pub(crate) fn send_command_no_wait<M>(&self, bar: &Bar0, command: M) -> Result
+    pub(crate) fn send_command_no_wait<M>(&self, bar: Bar0<'_>, command: M) -> Result
     where
         M: CommandToGsp<Reply = NoReply>,
         Error: From<M::InitError>,
@@ -624,7 +624,7 @@ impl CmdqInner {
     ///   written to by its [`CommandToGsp::init_variable_payload`] method.
     ///
     /// Error codes returned by the command initializers are propagated as-is.
-    fn send_single_command<M>(&mut self, bar: &Bar0, command: M) -> Result
+    fn send_single_command<M>(&mut self, bar: Bar0<'_>, command: M) -> Result
     where
         M: CommandToGsp,
         // This allows all error types, including `Infallible`, to be used for `M::InitError`.
@@ -694,7 +694,7 @@ impl CmdqInner {
     ///   written to by its [`CommandToGsp::init_variable_payload`] method.
     ///
     /// Error codes returned by the command initializers are propagated as-is.
-    fn send_command<M>(&mut self, bar: &Bar0, command: M) -> Result
+    fn send_command<M>(&mut self, bar: Bar0<'_>, command: M) -> Result
     where
         M: CommandToGsp,
         Error: From<M::InitError>,

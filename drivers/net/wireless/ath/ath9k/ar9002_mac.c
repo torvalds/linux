@@ -403,6 +403,19 @@ static int ar9002_hw_get_duration(struct ath_hw *ah, const void *ds, int index)
 	}
 }
 
+static void ath9k_hw_clear_rxdesc_status(struct ar5416_desc *ads)
+{
+	WRITE_ONCE(ads->u.rx.status0, 0);
+	WRITE_ONCE(ads->u.rx.status1, 0);
+	WRITE_ONCE(ads->u.rx.status2, 0);
+	WRITE_ONCE(ads->u.rx.status3, 0);
+	WRITE_ONCE(ads->u.rx.status4, 0);
+	WRITE_ONCE(ads->u.rx.status5, 0);
+	WRITE_ONCE(ads->u.rx.status6, 0);
+	WRITE_ONCE(ads->u.rx.status7, 0);
+	WRITE_ONCE(ads->u.rx.status8, 0);
+}
+
 void ath9k_hw_setuprxdesc(struct ath_hw *ah, struct ath_desc *ds,
 			  u32 size, u32 flags)
 {
@@ -412,7 +425,7 @@ void ath9k_hw_setuprxdesc(struct ath_hw *ah, struct ath_desc *ds,
 	if (flags & ATH9K_RXDESC_INTREQ)
 		ads->ds_ctl1 |= AR_RxIntrReq;
 
-	memset(&ads->u.rx, 0, sizeof(ads->u.rx));
+	ath9k_hw_clear_rxdesc_status(ads);
 }
 EXPORT_SYMBOL(ath9k_hw_setuprxdesc);
 

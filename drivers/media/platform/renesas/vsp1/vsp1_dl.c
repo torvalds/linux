@@ -336,17 +336,14 @@ void vsp1_dl_body_pool_destroy(struct vsp1_dl_body_pool *pool)
 struct vsp1_dl_body *vsp1_dl_body_get(struct vsp1_dl_body_pool *pool)
 {
 	struct vsp1_dl_body *dlb = NULL;
-	unsigned long flags;
 
-	spin_lock_irqsave(&pool->lock, flags);
+	guard(spinlock_irqsave)(&pool->lock);
 
 	if (!list_empty(&pool->free)) {
 		dlb = list_first_entry(&pool->free, struct vsp1_dl_body, free);
 		list_del(&dlb->free);
 		refcount_set(&dlb->refcnt, 1);
 	}
-
-	spin_unlock_irqrestore(&pool->lock, flags);
 
 	return dlb;
 }
@@ -359,8 +356,6 @@ struct vsp1_dl_body *vsp1_dl_body_get(struct vsp1_dl_body_pool *pool)
  */
 void vsp1_dl_body_put(struct vsp1_dl_body *dlb)
 {
-	unsigned long flags;
-
 	if (!dlb)
 		return;
 
@@ -369,9 +364,9 @@ void vsp1_dl_body_put(struct vsp1_dl_body *dlb)
 
 	dlb->num_entries = 0;
 
-	spin_lock_irqsave(&dlb->pool->lock, flags);
+	guard(spinlock_irqsave)(&dlb->pool->lock);
+
 	list_add_tail(&dlb->free, &dlb->pool->free);
-	spin_unlock_irqrestore(&dlb->pool->lock, flags);
 }
 
 /**
@@ -493,9 +488,8 @@ static
 struct vsp1_dl_ext_cmd *vsp1_dl_ext_cmd_get(struct vsp1_dl_cmd_pool *pool)
 {
 	struct vsp1_dl_ext_cmd *cmd = NULL;
-	unsigned long flags;
 
-	spin_lock_irqsave(&pool->lock, flags);
+	guard(spinlock_irqsave)(&pool->lock);
 
 	if (!list_empty(&pool->free)) {
 		cmd = list_first_entry(&pool->free, struct vsp1_dl_ext_cmd,
@@ -503,24 +497,20 @@ struct vsp1_dl_ext_cmd *vsp1_dl_ext_cmd_get(struct vsp1_dl_cmd_pool *pool)
 		list_del(&cmd->free);
 	}
 
-	spin_unlock_irqrestore(&pool->lock, flags);
-
 	return cmd;
 }
 
 static void vsp1_dl_ext_cmd_put(struct vsp1_dl_ext_cmd *cmd)
 {
-	unsigned long flags;
-
 	if (!cmd)
 		return;
 
 	/* Reset flags, these mark data usage. */
 	cmd->flags = 0;
 
-	spin_lock_irqsave(&cmd->pool->lock, flags);
+	guard(spinlock_irqsave)(&cmd->pool->lock);
+
 	list_add_tail(&cmd->free, &cmd->pool->free);
-	spin_unlock_irqrestore(&cmd->pool->lock, flags);
 }
 
 static void vsp1_dl_ext_cmd_pool_destroy(struct vsp1_dl_cmd_pool *pool)
@@ -611,11 +601,10 @@ static void vsp1_dl_list_free(struct vsp1_dl_list *dl)
 struct vsp1_dl_list *vsp1_dl_list_get(struct vsp1_dl_manager *dlm)
 {
 	struct vsp1_dl_list *dl = NULL;
-	unsigned long flags;
 
 	lockdep_assert_not_held(&dlm->lock);
 
-	spin_lock_irqsave(&dlm->lock, flags);
+	guard(spinlock_irqsave)(&dlm->lock);
 
 	if (!list_empty(&dlm->free)) {
 		dl = list_first_entry(&dlm->free, struct vsp1_dl_list, list);
@@ -628,8 +617,6 @@ struct vsp1_dl_list *vsp1_dl_list_get(struct vsp1_dl_manager *dlm)
 		INIT_LIST_HEAD(&dl->chain);
 		dl->allocated = true;
 	}
-
-	spin_unlock_irqrestore(&dlm->lock, flags);
 
 	return dl;
 }
@@ -690,14 +677,12 @@ static void __vsp1_dl_list_put(struct vsp1_dl_list *dl)
  */
 void vsp1_dl_list_put(struct vsp1_dl_list *dl)
 {
-	unsigned long flags;
-
 	if (!dl)
 		return;
 
-	spin_lock_irqsave(&dl->dlm->lock, flags);
+	guard(spinlock_irqsave)(&dl->dlm->lock);
+
 	__vsp1_dl_list_put(dl);
-	spin_unlock_irqrestore(&dl->dlm->lock, flags);
 }
 
 /**
@@ -937,7 +922,6 @@ void vsp1_dl_list_commit(struct vsp1_dl_list *dl, unsigned int dl_flags)
 {
 	struct vsp1_dl_manager *dlm = dl->dlm;
 	struct vsp1_dl_list *dl_next;
-	unsigned long flags;
 
 	/* Fill the header for the head and chained display lists. */
 	vsp1_dl_list_fill_header(dl, list_empty(&dl->chain));
@@ -950,14 +934,12 @@ void vsp1_dl_list_commit(struct vsp1_dl_list *dl, unsigned int dl_flags)
 
 	dl->flags = dl_flags & ~VSP1_DL_FRAME_END_COMPLETED;
 
-	spin_lock_irqsave(&dlm->lock, flags);
+	guard(spinlock_irqsave)(&dlm->lock);
 
 	if (dlm->singleshot)
 		vsp1_dl_list_commit_singleshot(dl);
 	else
 		vsp1_dl_list_commit_continuous(dl);
-
-	spin_unlock_irqrestore(&dlm->lock, flags);
 }
 
 /* -----------------------------------------------------------------------------
@@ -991,7 +973,7 @@ unsigned int vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 	u32 status = vsp1_read(vsp1, VI6_STATUS);
 	unsigned int flags = 0;
 
-	spin_lock(&dlm->lock);
+	guard(spinlock)(&dlm->lock);
 
 	/*
 	 * The mem-to-mem pipelines work in single-shot mode. No new display
@@ -1001,7 +983,7 @@ unsigned int vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 		__vsp1_dl_list_put(dlm->active);
 		dlm->active = NULL;
 		flags |= VSP1_DL_FRAME_END_COMPLETED;
-		goto done;
+		return flags;
 	}
 
 	/*
@@ -1011,7 +993,7 @@ unsigned int vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 	 * and retry.
 	 */
 	if (vsp1_dl_list_hw_update_pending(dlm))
-		goto done;
+		return flags;
 
 	/*
 	 * Progressive streams report only TOP fields. If we have a BOTTOM
@@ -1019,7 +1001,7 @@ unsigned int vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 	 * next frame end interrupt.
 	 */
 	if (status & VI6_STATUS_FLD_STD(dlm->index))
-		goto done;
+		return flags;
 
 	/*
 	 * If the active display list has the writeback flag set, the frame
@@ -1058,9 +1040,6 @@ unsigned int vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 		dlm->pending = NULL;
 	}
 
-done:
-	spin_unlock(&dlm->lock);
-
 	return flags;
 }
 
@@ -1085,17 +1064,15 @@ void vsp1_dlm_setup(struct vsp1_device *vsp1)
 
 void vsp1_dlm_reset(struct vsp1_dl_manager *dlm)
 {
-	unsigned long flags;
 	size_t list_count;
 
-	spin_lock_irqsave(&dlm->lock, flags);
+	scoped_guard(spinlock_irqsave, &dlm->lock) {
+		__vsp1_dl_list_put(dlm->active);
+		__vsp1_dl_list_put(dlm->queued);
+		__vsp1_dl_list_put(dlm->pending);
 
-	__vsp1_dl_list_put(dlm->active);
-	__vsp1_dl_list_put(dlm->queued);
-	__vsp1_dl_list_put(dlm->pending);
-
-	list_count = list_count_nodes(&dlm->free);
-	spin_unlock_irqrestore(&dlm->lock, flags);
+		list_count = list_count_nodes(&dlm->free);
+	}
 
 	WARN_ON_ONCE(list_count != dlm->list_count);
 

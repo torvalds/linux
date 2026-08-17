@@ -26,7 +26,8 @@ struct watchdog_device;
 struct watchdog_core_data;
 struct watchdog_governor;
 
-/** struct watchdog_ops - The watchdog-devices operations
+/**
+ * struct watchdog_ops - The watchdog-devices operations
  *
  * @owner:	The module owner.
  * @start:	The routine for starting the watchdog device.
@@ -59,7 +60,8 @@ struct watchdog_ops {
 	long (*ioctl)(struct watchdog_device *, unsigned int, unsigned long);
 };
 
-/** struct watchdog_device - The structure that defines a watchdog device
+/**
+ * struct watchdog_device - The structure that defines a watchdog device
  *
  * @id:		The watchdog's ID. (Allocated by watchdog_register_device)
  * @parent:	The parent bus device
@@ -83,6 +85,8 @@ struct watchdog_ops {
  *		Replaces max_timeout if specified.
  * @reboot_nb:	The notifier block to stop watchdog on reboot.
  * @restart_nb:	The notifier block to register a restart function.
+ * @pm_nb:	The notifier block to stop watchdog on suspend and restart it
+ *		on resume.
  * @driver_data:Pointer to the drivers private data.
  * @wd_data:	Pointer to watchdog core internal data.
  * @status:	Field that contains the devices internal status bits.

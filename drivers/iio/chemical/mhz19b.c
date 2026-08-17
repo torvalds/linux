@@ -17,7 +17,6 @@
 #include <linux/jiffies.h>
 #include <linux/kstrtox.h>
 #include <linux/minmax.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/regulator/consumer.h>
 #include <linux/serdev.h>
@@ -52,6 +51,8 @@ struct mhz19b_state {
 	struct completion buf_ready;
 
 	u8 buf_idx;
+	bool buf_overflow;
+
 	/*
 	 * Serdev receive buffer.
 	 * When data is received from the MH-Z19B,
@@ -106,6 +107,10 @@ static int mhz19b_serdev_cmd(struct iio_dev *indio_dev, int cmd, u16 arg)
 	cmd_buf[8] = mhz19b_get_checksum(cmd_buf);
 
 	/* Write buf to uart ctrl synchronously */
+	st->buf_idx = 0;
+	st->buf_overflow = false;
+	reinit_completion(&st->buf_ready);
+
 	ret = serdev_device_write(serdev, cmd_buf, MHZ19B_CMD_SIZE, 0);
 	if (ret < 0)
 		return ret;
@@ -120,6 +125,9 @@ static int mhz19b_serdev_cmd(struct iio_dev *indio_dev, int cmd, u16 arg)
 			return ret;
 		if (!ret)
 			return -ETIMEDOUT;
+
+		if (st->buf_overflow)
+			return -EMSGSIZE;
 
 		if (st->buf[8] != mhz19b_get_checksum(st->buf)) {
 			dev_err(dev, "checksum err");
@@ -240,6 +248,14 @@ static size_t mhz19b_receive_buf(struct serdev_device *serdev,
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(&serdev->dev);
 	struct mhz19b_state *st = iio_priv(indio_dev);
+	size_t remaining = MHZ19B_CMD_SIZE - st->buf_idx;
+
+	if (len > remaining) {
+		st->buf_idx = 0;
+		st->buf_overflow = true;
+		complete(&st->buf_ready);
+		return len;
+	}
 
 	memcpy(st->buf + st->buf_idx, data, len);
 	st->buf_idx += len;

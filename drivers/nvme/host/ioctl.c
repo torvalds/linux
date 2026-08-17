@@ -102,7 +102,16 @@ static struct request *nvme_alloc_user_request(struct request_queue *q,
 		struct nvme_command *cmd, blk_opf_t rq_flags,
 		blk_mq_req_flags_t blk_flags)
 {
+	struct nvme_ns *ns = q->queuedata;
 	struct request *req;
+
+	/*
+	 * The NVME_MPATH flag is set only for IO commands sent to a namespace
+	 * with a multipath enabled head. The request is not eligible for
+	 * failover as passthrough requests also append REQ_FAILFAST_DRIVER.
+	 */
+	if (ns && nvme_ns_head_multipath(ns->head))
+		rq_flags |= REQ_NVME_MPATH;
 
 	req = blk_mq_alloc_request(q, nvme_req_op(cmd) | rq_flags, blk_flags);
 	if (IS_ERR(req))

@@ -46,16 +46,20 @@ static struct sk_buff *qca_tag_rcv(struct sk_buff *skb, struct net_device *dev)
 
 	tagger_data = ds->tagger_data;
 
-	if (unlikely(!pskb_may_pull(skb, QCA_HDR_LEN)))
+	if (unlikely(!pskb_may_pull(skb, QCA_HDR_LEN))) {
+		kfree_skb(skb);
 		return NULL;
+	}
 
 	phdr = dsa_etype_header_pos_rx(skb);
 	hdr = ntohs(*phdr);
 
 	/* Make sure the version is correct */
 	ver = FIELD_GET(QCA_HDR_RECV_VERSION, hdr);
-	if (unlikely(ver != QCA_HDR_VERSION))
+	if (unlikely(ver != QCA_HDR_VERSION)) {
+		kfree_skb(skb);
 		return NULL;
+	}
 
 	/* Get pk type */
 	pk_type = FIELD_GET(QCA_HDR_RECV_TYPE, hdr);
@@ -64,6 +68,7 @@ static struct sk_buff *qca_tag_rcv(struct sk_buff *skb, struct net_device *dev)
 	if (pk_type == QCA_HDR_RECV_TYPE_RW_REG_ACK) {
 		if (likely(tagger_data->rw_reg_ack_handler))
 			tagger_data->rw_reg_ack_handler(ds, skb);
+		kfree_skb(skb);
 		return NULL;
 	}
 
@@ -71,6 +76,7 @@ static struct sk_buff *qca_tag_rcv(struct sk_buff *skb, struct net_device *dev)
 	if (pk_type == QCA_HDR_RECV_TYPE_MIB) {
 		if (likely(tagger_data->mib_autocast_handler))
 			tagger_data->mib_autocast_handler(ds, skb);
+		kfree_skb(skb);
 		return NULL;
 	}
 
@@ -78,8 +84,10 @@ static struct sk_buff *qca_tag_rcv(struct sk_buff *skb, struct net_device *dev)
 	port = FIELD_GET(QCA_HDR_RECV_SOURCE_PORT, hdr);
 
 	skb->dev = dsa_conduit_find_user(dev, 0, port);
-	if (!skb->dev)
+	if (!skb->dev) {
+		kfree_skb(skb);
 		return NULL;
+	}
 
 	/* Remove QCA tag and recalculate checksum */
 	skb_pull_rcsum(skb, QCA_HDR_LEN);

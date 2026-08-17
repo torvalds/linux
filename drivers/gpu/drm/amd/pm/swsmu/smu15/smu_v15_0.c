@@ -435,10 +435,12 @@ int smu_v15_0_fini_smc_tables(struct smu_context *smu)
 	smu_table->watermarks_table = NULL;
 	smu_table->metrics_time = 0;
 
+	kfree(smu_dpm->dpm_policies);
 	kfree(smu_dpm->dpm_context);
 	kfree(smu_dpm->golden_dpm_context);
 	kfree(smu_dpm->dpm_current_power_state);
 	kfree(smu_dpm->dpm_request_power_state);
+	smu_dpm->dpm_policies = NULL;
 	smu_dpm->dpm_context = NULL;
 	smu_dpm->golden_dpm_context = NULL;
 	smu_dpm->dpm_context_size = 0;
@@ -589,52 +591,47 @@ int smu_v15_0_notify_memory_pool_location(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct smu_table *memory_pool = &smu_table->memory_pool;
-	struct smu_msg_args args = {
-		.msg = SMU_MSG_DramLogSetDramAddr,
-		.num_args = 3,
-		.num_out_args = 0,
-	};
+	uint32_t params[3];
 
 	if (memory_pool->size == 0 || memory_pool->cpu_addr == NULL)
 		return 0;
 
 	/* SMU_MSG_DramLogSetDramAddr: ARG0=low, ARG1=high, ARG2=size */
-	args.args[0] = lower_32_bits(memory_pool->mc_address);
-	args.args[1] = upper_32_bits(memory_pool->mc_address);
-	args.args[2] = (u32)memory_pool->size;
+	params[0] = lower_32_bits(memory_pool->mc_address);
+	params[1] = upper_32_bits(memory_pool->mc_address);
+	params[2] = (u32)memory_pool->size;
 
-	return smu->msg_ctl.ops->send_msg(&smu->msg_ctl, &args);
+	return smu_cmn_send_smc_msg_with_params(smu,
+						SMU_MSG_DramLogSetDramAddr,
+						params, ARRAY_SIZE(params),
+						NULL, 0);
 }
 
 int smu_v15_0_set_driver_table_location(struct smu_context *smu)
 {
 	struct smu_table *driver_table = &smu->smu_table.driver_table;
-	struct smu_msg_args args = {
-		.msg = SMU_MSG_SetDriverDramAddr,
-		.num_args = 2,
-		.num_out_args = 0,
+	const uint32_t params[] = {
+		lower_32_bits(driver_table->mc_address),
+		upper_32_bits(driver_table->mc_address),
 	};
 
-	args.args[0] = lower_32_bits(driver_table->mc_address);
-	args.args[1] = upper_32_bits(driver_table->mc_address);
-
-	return smu->msg_ctl.ops->send_msg(&smu->msg_ctl, &args);
+	return smu_cmn_send_smc_msg_with_params(smu, SMU_MSG_SetDriverDramAddr,
+						params, ARRAY_SIZE(params),
+						NULL, 0);
 }
 
 int smu_v15_0_set_tool_table_location(struct smu_context *smu)
 {
 	struct smu_table *tool_table = &smu->smu_table.tables[SMU_TABLE_PMSTATUSLOG];
-	struct smu_msg_args args = {
-		.msg = SMU_MSG_SetToolsDramAddr,
-		.num_args = 2,
-		.num_out_args = 0,
+	const uint32_t params[] = {
+		lower_32_bits(tool_table->mc_address),
+		upper_32_bits(tool_table->mc_address),
 	};
 
 	/* SMU_MSG_SetToolsDramAddr: ARG0=low, ARG1=high */
-	args.args[0] = lower_32_bits(tool_table->mc_address);
-	args.args[1] = upper_32_bits(tool_table->mc_address);
-
-	return smu->msg_ctl.ops->send_msg(&smu->msg_ctl, &args);
+	return smu_cmn_send_smc_msg_with_params(smu, SMU_MSG_SetToolsDramAddr,
+						params, ARRAY_SIZE(params),
+						NULL, 0);
 }
 
 int smu_v15_0_set_allowed_mask(struct smu_context *smu)

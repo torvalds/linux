@@ -203,4 +203,10 @@ void enc42_se_enable_audio_clock(
 
 void enc42_reset_hdmi_stream_attribute(
 	struct stream_encoder *enc);
+
+bool enc42_dio_get_uncompressed_dp_pixel_format(
+	struct stream_encoder *enc,
+	enum dc_pixel_encoding *encoding,
+	enum dc_color_depth *depth);
+
 #endif /* __DC_DIO_STREAM_ENCODER_DCN42_H__ */

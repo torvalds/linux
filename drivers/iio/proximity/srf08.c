@@ -226,7 +226,7 @@ static int srf08_read_raw(struct iio_dev *indio_dev,
 static ssize_t srf08_show_range_mm_available(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "[0.043 0.043 11.008]\n");
+	return sysfs_emit(buf, "[0.043 0.043 11.008]\n");
 }
 
 static IIO_DEVICE_ATTR(sensor_max_range_available, S_IRUGO,
@@ -238,8 +238,8 @@ static ssize_t srf08_show_range_mm(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct srf08_data *data = iio_priv(indio_dev);
 
-	return sprintf(buf, "%d.%03d\n", data->range_mm / 1000,
-						data->range_mm % 1000);
+	return sysfs_emit(buf, "%d.%03d\n",
+			  data->range_mm / 1000, data->range_mm % 1000);
 }
 
 /*
@@ -316,10 +316,10 @@ static ssize_t srf08_show_sensitivity_available(struct device *dev,
 
 	for (i = 0; i < data->chip_info->num_sensitivity_avail; i++)
 		if (data->chip_info->sensitivity_avail[i])
-			len += sprintf(buf + len, "%d ",
-				data->chip_info->sensitivity_avail[i]);
+			len += sysfs_emit_at(buf, len, "%d ",
+					     data->chip_info->sensitivity_avail[i]);
 
-	len += sprintf(buf + len, "\n");
+	len += sysfs_emit_at(buf, len, "\n");
 
 	return len;
 }
@@ -332,11 +332,8 @@ static ssize_t srf08_show_sensitivity(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct srf08_data *data = iio_priv(indio_dev);
-	int len;
 
-	len = sprintf(buf, "%d\n", data->sensitivity);
-
-	return len;
+	return sysfs_emit(buf, "%d\n", data->sensitivity);
 }
 
 static ssize_t srf08_write_sensitivity(struct srf08_data *data,
@@ -533,9 +530,9 @@ static const struct of_device_id of_srf08_match[] = {
 MODULE_DEVICE_TABLE(of, of_srf08_match);
 
 static const struct i2c_device_id srf08_id[] = {
-	{ "srf02", SRF02 },
-	{ "srf08", SRF08 },
-	{ "srf10", SRF10 },
+	{ .name = "srf02", .driver_data = SRF02 },
+	{ .name = "srf08", .driver_data = SRF08 },
+	{ .name = "srf10", .driver_data = SRF10 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, srf08_id);

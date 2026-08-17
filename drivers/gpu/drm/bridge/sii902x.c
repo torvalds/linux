@@ -321,7 +321,7 @@ static const struct drm_connector_helper_funcs sii902x_connector_helper_funcs = 
 };
 
 static void sii902x_bridge_atomic_disable(struct drm_bridge *bridge,
-					  struct drm_atomic_state *state)
+					  struct drm_atomic_commit *state)
 {
 	struct sii902x *sii902x = bridge_to_sii902x(bridge);
 
@@ -335,7 +335,7 @@ static void sii902x_bridge_atomic_disable(struct drm_bridge *bridge,
 }
 
 static void sii902x_bridge_atomic_enable(struct drm_bridge *bridge,
-					 struct drm_atomic_state *state)
+					 struct drm_atomic_commit *state)
 {
 	struct sii902x *sii902x = bridge_to_sii902x(bridge);
 	struct drm_connector *connector;

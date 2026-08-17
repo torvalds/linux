@@ -162,9 +162,9 @@ static const struct acpi_device_id da280_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, da280_acpi_match);
 
 static const struct i2c_device_id da280_i2c_id[] = {
-	{ "da217", (kernel_ulong_t)&da217_match_data },
-	{ "da226", (kernel_ulong_t)&da226_match_data },
-	{ "da280", (kernel_ulong_t)&da280_match_data },
+	{ .name = "da217", .driver_data = (kernel_ulong_t)&da217_match_data },
+	{ .name = "da226", .driver_data = (kernel_ulong_t)&da226_match_data },
+	{ .name = "da280", .driver_data = (kernel_ulong_t)&da280_match_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, da280_i2c_id);

@@ -1,0 +1,23 @@
+bench_ref_from_suffix_with_elems_dynamic_size:
+	movabs rax, 4611686018427387901
+	cmp rdx, rax
+	ja .LBB5_1
+	lea r8d, [rsi + rdi]
+	xor ecx, ecx
+	mov eax, 0
+	test r8b, 1
+	jne .LBB5_5
+	lea rax, [2*rdx + 4]
+	sub rsi, rax
+	jae .LBB5_4
+.LBB5_1:
+	xor eax, eax
+	mov edx, 1
+	ret
+.LBB5_4:
+	add rdi, rsi
+	mov rcx, rdx
+	mov rax, rdi
+.LBB5_5:
+	mov rdx, rcx
+	ret

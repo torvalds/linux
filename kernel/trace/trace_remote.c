@@ -602,7 +602,7 @@ static int trace_pipe_open(struct inode *inode, struct file *filp)
 
 	filp->private_data = iter;
 
-	return IS_ERR(iter) ? PTR_ERR(iter) : 0;
+	return 0;
 }
 
 static int trace_pipe_release(struct inode *inode, struct file *filp)

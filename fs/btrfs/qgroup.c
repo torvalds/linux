@@ -373,10 +373,9 @@ static bool squota_check_parent_usage(struct btrfs_fs_info *fs_info, struct btrf
 		    parent->excl_cmpr != excl_cmpr_sum || parent->rfer_cmpr != rfer_cmpr_sum);
 
 	WARN(mismatch,
-	     "parent squota qgroup %hu/%llu has mismatched usage from its %d members. "
+	     "parent squota qgroup " BTRFS_QGROUP_FMT " has mismatched usage from its %d members. "
 	     "%llu %llu %llu %llu vs %llu %llu %llu %llu\n",
-	     btrfs_qgroup_level(parent->qgroupid),
-	     btrfs_qgroup_subvolid(parent->qgroupid), nr_members, parent->excl,
+	     BTRFS_QGROUP_FMT_VALUE(parent), nr_members, parent->excl,
 	     parent->rfer, parent->excl_cmpr, parent->rfer_cmpr, excl_sum,
 	     rfer_sum, excl_cmpr_sum, rfer_cmpr_sum);
 	return mismatch;
@@ -652,9 +651,8 @@ bool btrfs_check_quota_leak(const struct btrfs_fs_info *fs_info)
 			if (qgroup->rsv.values[i]) {
 				ret = true;
 				btrfs_warn(fs_info,
-		"qgroup %hu/%llu has unreleased space, type %d rsv %llu",
-				   btrfs_qgroup_level(qgroup->qgroupid),
-				   btrfs_qgroup_subvolid(qgroup->qgroupid),
+		"qgroup " BTRFS_QGROUP_FMT " has unreleased space, type %d rsv %llu",
+				   BTRFS_QGROUP_FMT_VALUE(qgroup),
 				   i, qgroup->rsv.values[i]);
 			}
 		}
@@ -1107,7 +1105,13 @@ int btrfs_quota_enable(struct btrfs_fs_info *fs_info,
 	if (simple) {
 		fs_info->qgroup_flags |= BTRFS_QGROUP_STATUS_FLAG_SIMPLE_MODE;
 		btrfs_set_fs_incompat(fs_info, SIMPLE_QUOTA);
-		btrfs_set_qgroup_status_enable_gen(leaf, ptr, trans->transid);
+		/*
+		 * Set the enable generation to the next transaction, as we cannot
+		 * ensure that extents written during this transaction will see any
+		 * state we have set here. So we should treat all extents of the
+		 * transaction as coming in before squotas was enabled.
+		 */
+		btrfs_set_qgroup_status_enable_gen(leaf, ptr, trans->transid + 1);
 	} else {
 		fs_info->qgroup_flags |= BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT;
 	}
@@ -1210,7 +1214,15 @@ out_add_root:
 		goto out_free_path;
 	}
 
-	fs_info->qgroup_enable_gen = trans->transid;
+	/*
+	 * Set fs_info->qgroup_enable_gen and BTRFS_FS_SQUOTA_ENABLING
+	 * under the transaction handle. We want to ensure that all extents in
+	 * the next transaction definitely see them.
+	 */
+	if (simple) {
+		fs_info->qgroup_enable_gen = trans->transid + 1;
+		set_bit(BTRFS_FS_SQUOTA_ENABLING, &fs_info->flags);
+	}
 
 	mutex_unlock(&fs_info->qgroup_ioctl_lock);
 	/*
@@ -1224,9 +1236,15 @@ out_add_root:
 	 */
 	ret = btrfs_commit_transaction(trans);
 	trans = NULL;
+
 	mutex_lock(&fs_info->qgroup_ioctl_lock);
-	if (ret)
+	if (ret) {
+		if (simple) {
+			clear_bit(BTRFS_FS_SQUOTA_ENABLING, &fs_info->flags);
+			fs_info->qgroup_enable_gen = 0;
+		}
 		goto out_free_path;
+	}
 
 	/*
 	 * Set quota enabled flag after committing the transaction, to avoid
@@ -1236,6 +1254,8 @@ out_add_root:
 	spin_lock(&fs_info->qgroup_lock);
 	fs_info->quota_root = quota_root;
 	set_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags);
+	if (simple)
+		clear_bit(BTRFS_FS_SQUOTA_ENABLING, &fs_info->flags);
 	spin_unlock(&fs_info->qgroup_lock);
 
 	/* Skip rescan for simple qgroups. */
@@ -1715,32 +1735,24 @@ out:
 	return ret;
 }
 
-static bool can_delete_parent_qgroup(struct btrfs_qgroup *qgroup)
-
+static bool can_delete_parent_qgroup(struct btrfs_fs_info *fs_info, struct btrfs_qgroup *qgroup)
 {
 	ASSERT(btrfs_qgroup_level(qgroup->qgroupid));
+	if (btrfs_qgroup_mode(fs_info) == BTRFS_QGROUP_MODE_SIMPLE)
+		squota_check_parent_usage(fs_info, qgroup);
 	return list_empty(&qgroup->members);
 }
 
 /*
- * Return true if we can delete the squota qgroup and false otherwise.
- *
- * Rules for whether we can delete:
- *
- * A subvolume qgroup can be removed iff the subvolume is fully deleted, which
- * is iff there is 0 usage in the qgroup.
- *
- * A higher level qgroup can be removed iff it has no members.
- * Note: We audit its usage to warn on inconsitencies without blocking deletion.
+ * Because a shared extent can outlive its owning subvolume, we cannot delete a
+ * subvol squota qgroup until all of the extents it owns are gone, even if the
+ * subvolume itself has been deleted.
  */
-static bool can_delete_squota_qgroup(struct btrfs_fs_info *fs_info, struct btrfs_qgroup *qgroup)
+static bool can_delete_squota_subvol_qgroup(struct btrfs_fs_info *fs_info,
+					    struct btrfs_qgroup *qgroup)
 {
 	ASSERT(btrfs_qgroup_mode(fs_info) == BTRFS_QGROUP_MODE_SIMPLE);
-
-	if (btrfs_qgroup_level(qgroup->qgroupid) > 0) {
-		squota_check_parent_usage(fs_info, qgroup);
-		return can_delete_parent_qgroup(qgroup);
-	}
+	ASSERT(btrfs_qgroup_level(qgroup->qgroupid) == 0);
 
 	return !(qgroup->rfer || qgroup->excl || qgroup->rfer_cmpr || qgroup->excl_cmpr);
 }
@@ -1754,14 +1766,11 @@ static int can_delete_qgroup(struct btrfs_fs_info *fs_info, struct btrfs_qgroup 
 {
 	struct btrfs_key key;
 	BTRFS_PATH_AUTO_FREE(path);
-
-	/* Since squotas cannot be inconsistent, they have special rules for deletion. */
-	if (btrfs_qgroup_mode(fs_info) == BTRFS_QGROUP_MODE_SIMPLE)
-		return can_delete_squota_qgroup(fs_info, qgroup);
+	int ret;
 
 	/* For higher level qgroup, we can only delete it if it has no child. */
 	if (btrfs_qgroup_level(qgroup->qgroupid))
-		return can_delete_parent_qgroup(qgroup);
+		return can_delete_parent_qgroup(fs_info, qgroup);
 
 	/*
 	 * For level-0 qgroups, we can only delete it if it has no subvolume
@@ -1777,10 +1786,21 @@ static int can_delete_qgroup(struct btrfs_fs_info *fs_info, struct btrfs_qgroup 
 		return -ENOMEM;
 
 	/*
-	 * The @ret from btrfs_find_root() exactly matches our definition for
-	 * the return value, thus can be returned directly.
+	 * Any subvol qgroup, regardless of mode, cannot be deleted if the
+	 * subvol still exists.
 	 */
-	return btrfs_find_root(fs_info->tree_root, &key, path, NULL, NULL);
+	ret = btrfs_find_root(fs_info->tree_root, &key, path, NULL, NULL);
+	/*
+	 * btrfs_find_root returns <0 on error, 0 if found, and >0 if not,
+	 * so the "found" and "error" cases match our desired return values.
+	 */
+	if (ret <= 0)
+		return ret;
+
+	/* Squotas require additional checks, even if the subvol is deleted. */
+	if (btrfs_qgroup_mode(fs_info) == BTRFS_QGROUP_MODE_SIMPLE)
+		return can_delete_squota_subvol_qgroup(fs_info, qgroup);
+	return 1;
 }
 
 int btrfs_remove_qgroup(struct btrfs_trans_handle *trans, u64 qgroupid)
@@ -1836,14 +1856,13 @@ int btrfs_remove_qgroup(struct btrfs_trans_handle *trans, u64 qgroupid)
 	 * Thus its reserved space should all be zero, no matter if qgroup
 	 * is consistent or the mode.
 	 */
-	if (qgroup->rsv.values[BTRFS_QGROUP_RSV_DATA] ||
-	    qgroup->rsv.values[BTRFS_QGROUP_RSV_META_PREALLOC] ||
-	    qgroup->rsv.values[BTRFS_QGROUP_RSV_META_PERTRANS]) {
+	if (unlikely(qgroup->rsv.values[BTRFS_QGROUP_RSV_DATA] ||
+		     qgroup->rsv.values[BTRFS_QGROUP_RSV_META_PREALLOC] ||
+		     qgroup->rsv.values[BTRFS_QGROUP_RSV_META_PERTRANS])) {
 		DEBUG_WARN();
 		btrfs_warn_rl(fs_info,
-"to be deleted qgroup %u/%llu has non-zero numbers, data %llu meta prealloc %llu meta pertrans %llu",
-			      btrfs_qgroup_level(qgroup->qgroupid),
-			      btrfs_qgroup_subvolid(qgroup->qgroupid),
+"to be deleted qgroup " BTRFS_QGROUP_FMT " has non-zero numbers, data %llu meta prealloc %llu meta pertrans %llu",
+			      BTRFS_QGROUP_FMT_VALUE(qgroup),
 			      qgroup->rsv.values[BTRFS_QGROUP_RSV_DATA],
 			      qgroup->rsv.values[BTRFS_QGROUP_RSV_META_PREALLOC],
 			      qgroup->rsv.values[BTRFS_QGROUP_RSV_META_PERTRANS]);
@@ -1857,13 +1876,12 @@ int btrfs_remove_qgroup(struct btrfs_trans_handle *trans, u64 qgroupid)
 	 */
 	if (btrfs_qgroup_mode(fs_info) == BTRFS_QGROUP_MODE_FULL &&
 	    !(fs_info->qgroup_flags & BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT)) {
-		if (qgroup->rfer || qgroup->excl ||
-		    qgroup->rfer_cmpr || qgroup->excl_cmpr) {
+		if (unlikely(qgroup->rfer || qgroup->excl ||
+			     qgroup->rfer_cmpr || qgroup->excl_cmpr)) {
 			DEBUG_WARN();
 			qgroup_mark_inconsistent(fs_info,
-				"to be deleted qgroup %u/%llu has non-zero numbers, rfer %llu rfer_cmpr %llu excl %llu excl_cmpr %llu",
-				btrfs_qgroup_level(qgroup->qgroupid),
-				btrfs_qgroup_subvolid(qgroup->qgroupid),
+"to be deleted qgroup " BTRFS_QGROUP_FMT " has non-zero numbers, rfer %llu rfer_cmpr %llu excl %llu excl_cmpr %llu",
+				BTRFS_QGROUP_FMT_VALUE(qgroup),
 				qgroup->rfer, qgroup->rfer_cmpr,
 				qgroup->excl, qgroup->excl_cmpr);
 		}
@@ -4800,9 +4818,9 @@ int btrfs_qgroup_add_swapped_blocks(struct btrfs_root *subvol_root,
 
 		entry = rb_entry(node, struct btrfs_qgroup_swapped_block, node);
 
-		if (entry->subvol_generation != block->subvol_generation ||
-		    entry->reloc_bytenr != block->reloc_bytenr ||
-		    entry->reloc_generation != block->reloc_generation) {
+		if (unlikely(entry->subvol_generation != block->subvol_generation ||
+			     entry->reloc_bytenr != block->reloc_bytenr ||
+			     entry->reloc_generation != block->reloc_generation)) {
 			/*
 			 * Duplicated but mismatch entry found.  Shouldn't happen.
 			 * Marking qgroup inconsistent should be enough for end
@@ -4922,7 +4940,8 @@ int btrfs_record_squota_delta(struct btrfs_fs_info *fs_info,
 	u64 num_bytes = delta->num_bytes;
 	const int sign = (delta->is_inc ? 1 : -1);
 
-	if (btrfs_qgroup_mode(fs_info) != BTRFS_QGROUP_MODE_SIMPLE)
+	if (btrfs_qgroup_mode(fs_info) != BTRFS_QGROUP_MODE_SIMPLE &&
+	    !test_bit(BTRFS_FS_SQUOTA_ENABLING, &fs_info->flags))
 		return 0;
 
 	if (!btrfs_is_fstree(root))
@@ -4934,8 +4953,9 @@ int btrfs_record_squota_delta(struct btrfs_fs_info *fs_info,
 
 	spin_lock(&fs_info->qgroup_lock);
 	qgroup = find_qgroup_rb(fs_info, root);
-	if (!qgroup) {
-		ret = -ENOENT;
+	if (WARN_ON_ONCE(!qgroup)) {
+		btrfs_warn(fs_info, "squota failed to find qgroup for root %llu", root);
+		ret = 0;
 		goto out;
 	}
 
@@ -4944,8 +4964,18 @@ int btrfs_record_squota_delta(struct btrfs_fs_info *fs_info,
 	list_for_each_entry(qg, &qgroup_list, iterator) {
 		struct btrfs_qgroup_list *glist;
 
-		qg->excl += num_bytes * sign;
-		qg->rfer += num_bytes * sign;
+		ASSERT(qg->excl == qg->rfer);
+		if (WARN_ON_ONCE(sign < 0 && qg->excl < num_bytes)) {
+			btrfs_warn(fs_info,
+				   "squota underflow qg " BTRFS_QGROUP_FMT " excl %llu num_bytes %llu",
+				   BTRFS_QGROUP_FMT_VALUE(qg),
+				   qg->excl, num_bytes);
+			qg->excl = 0;
+			qg->rfer = 0;
+		} else {
+			qg->excl += num_bytes * sign;
+			qg->rfer += num_bytes * sign;
+		}
 		qgroup_dirty(fs_info, qg);
 
 		list_for_each_entry(glist, &qg->groups, next_group)

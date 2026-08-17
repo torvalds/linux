@@ -123,12 +123,6 @@ int nsim_bpf_setup_tc_block_cb(enum tc_setup_type type,
 	struct netdevsim *ns = cb_priv;
 	struct bpf_prog *oldprog;
 
-	if (type != TC_SETUP_CLSBPF) {
-		NSIM_EA(cls_bpf->common.extack,
-			"only offload of BPF classifiers supported");
-		return -EOPNOTSUPP;
-	}
-
 	if (!tc_cls_can_offload_and_chain0(ns->netdev, &cls_bpf->common))
 		return -EOPNOTSUPP;
 

@@ -428,7 +428,8 @@ static int arm_spe_recording_options(struct auxtrace_record *itr,
 	evlist__for_each_entry_safe(evlist, tmp, evsel) {
 		if (evsel__is_aux_event(evsel)) {
 			arm_spe_setup_evsel(evsel, cpus);
-			if (!evsel__get_config_val(evsel, "discard", &discard_bit))
+			if (evsel__config_exists(evsel, "discard") &&
+			    !evsel__get_config_val(evsel, "discard", &discard_bit))
 				discard = !!discard_bit;
 		}
 	}

@@ -502,6 +502,8 @@ static __init int arch_reserve_pio_range(void)
 {
 	struct device_node *np;
 
+	acpi_add_early_pio();
+
 	for_each_node_by_name(np, "isa") {
 		struct of_range range;
 		struct of_range_parser parser;
@@ -593,6 +595,7 @@ void __init setup_arch(char **cmdline_p)
 {
 	cpu_probe();
 	unwind_init();
+	set_current(current);
 
 	init_environ();
 	efi_init();

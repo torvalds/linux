@@ -89,7 +89,8 @@ static int yoga_c630_ucsi_async_control(struct ucsi *ucsi, u64 command)
 static int yoga_c630_ucsi_sync_control(struct ucsi *ucsi,
 				       u64 command,
 				       u32 *cci,
-				       void *data, size_t size)
+				       void *data, size_t size,
+				       void *msg_out, size_t msg_out_size)
 {
 	int ret;
 
@@ -126,7 +127,8 @@ static int yoga_c630_ucsi_sync_control(struct ucsi *ucsi,
 		return 0;
 	}
 
-	ret = ucsi_sync_control_common(ucsi, command, cci, data, size);
+	ret = ucsi_sync_control_common(ucsi, command, cci,
+				       data, size, msg_out, msg_out_size);
 	if (ret < 0)
 		return ret;
 

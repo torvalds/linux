@@ -141,13 +141,10 @@ static int tcpci_set_cc(struct tcpc_dev *tcpc, enum typec_cc_status cc)
 	}
 
 	if (vconn_pres) {
-		if (polarity == TYPEC_POLARITY_CC2) {
-			reg &= ~TCPC_ROLE_CTRL_CC1;
-			reg |= FIELD_PREP(TCPC_ROLE_CTRL_CC1, TCPC_ROLE_CTRL_CC_OPEN);
-		} else {
-			reg &= ~TCPC_ROLE_CTRL_CC2;
-			reg |= FIELD_PREP(TCPC_ROLE_CTRL_CC2, TCPC_ROLE_CTRL_CC_OPEN);
-		}
+		if (polarity == TYPEC_POLARITY_CC2)
+			FIELD_MODIFY(TCPC_ROLE_CTRL_CC1, &reg, TCPC_ROLE_CTRL_CC_OPEN);
+		else
+			FIELD_MODIFY(TCPC_ROLE_CTRL_CC2, &reg, TCPC_ROLE_CTRL_CC_OPEN);
 	}
 
 	ret = regmap_write(tcpci->regmap, TCPC_ROLE_CTRL, reg);
@@ -1020,7 +1017,7 @@ static int tcpci_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(tcpci_pm_ops, tcpci_suspend, tcpci_resume);
 
 static const struct i2c_device_id tcpci_id[] = {
-	{ "tcpci" },
+	{ .name = "tcpci" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tcpci_id);

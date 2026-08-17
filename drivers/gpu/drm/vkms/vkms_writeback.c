@@ -32,7 +32,7 @@ static const struct drm_connector_funcs vkms_wb_connector_funcs = {
 };
 
 static int vkms_wb_atomic_check(struct drm_connector *connector,
-				struct drm_atomic_state *state)
+				struct drm_atomic_commit *state)
 {
 	struct drm_connector_state *conn_state =
 		drm_atomic_get_new_connector_state(state, connector);
@@ -123,7 +123,7 @@ static void vkms_wb_cleanup_job(struct drm_writeback_connector *connector,
 }
 
 static void vkms_wb_atomic_commit(struct drm_connector *conn,
-				  struct drm_atomic_state *state)
+				  struct drm_atomic_commit *state)
 {
 	struct drm_connector_state *connector_state = drm_atomic_get_new_connector_state(state,
 											 conn);

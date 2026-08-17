@@ -1,9 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * FUSE: Filesystem in Userspace
  * Copyright (C) 2016 Canonical Ltd. <seth.forshee@canonical.com>
- *
- * This program can be distributed under the terms of the GNU GPL.
- * See the file COPYING.
  */
 
 #include "fuse_i.h"

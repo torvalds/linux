@@ -2,8 +2,8 @@
 /*
  * MD5 and HMAC-MD5 library functions
  *
- * md5_block_generic() is derived from cryptoapi implementation, originally
- * based on the public domain implementation written by Colin Plumb in 1993.
+ * md5_block() is derived from cryptoapi implementation, originally based on the
+ * public domain implementation written by Colin Plumb in 1993.
  *
  * Copyright (c) Cryptoapi developers.
  * Copyright (c) 2002 James Morris <jmorris@intercode.com.au>
@@ -31,8 +31,8 @@ static const struct md5_block_state md5_iv = {
 #define MD5STEP(f, w, x, y, z, in, s) \
 	(w += f(x, y, z) + in, w = rol32(w, s) + x)
 
-static void md5_block_generic(struct md5_block_state *state,
-			      const u8 data[MD5_BLOCK_SIZE])
+static void md5_block(struct md5_block_state *state,
+		      const u8 data[MD5_BLOCK_SIZE])
 {
 	u32 in[MD5_BLOCK_WORDS];
 	u32 a, b, c, d;
@@ -119,20 +119,14 @@ static void md5_block_generic(struct md5_block_state *state,
 	state->h[3] += d;
 }
 
-static void __maybe_unused md5_blocks_generic(struct md5_block_state *state,
-					      const u8 *data, size_t nblocks)
+static void md5_blocks(struct md5_block_state *state,
+		       const u8 *data, size_t nblocks)
 {
 	do {
-		md5_block_generic(state, data);
+		md5_block(state, data);
 		data += MD5_BLOCK_SIZE;
 	} while (--nblocks);
 }
-
-#ifdef CONFIG_CRYPTO_LIB_MD5_ARCH
-#include "md5.h" /* $(SRCARCH)/md5.h */
-#else
-#define md5_blocks md5_blocks_generic
-#endif
 
 void md5_init(struct md5_ctx *ctx)
 {

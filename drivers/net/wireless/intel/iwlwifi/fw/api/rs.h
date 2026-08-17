@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2022, 2024-2025 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2022, 2024-2026 Intel Corporation
  * Copyright (C) 2017 Intel Deutschland GmbH
  */
 #ifndef __iwl_fw_api_rs_h__
@@ -205,37 +205,6 @@ struct iwl_tlc_config_cmd_v4 {
 	__le16 max_mpdu_len;
 	__le16 max_tx_op;
 } __packed; /* TLC_MNG_CONFIG_CMD_API_S_VER_4 */
-
-/**
- * struct iwl_tlc_config_cmd_v5 - TLC configuration
- * @sta_id: station id
- * @reserved1: reserved
- * @max_ch_width: max supported channel width from &enum iwl_tlc_mng_cfg_cw
- * @mode: &enum iwl_tlc_mng_cfg_mode
- * @chains: bitmask of &enum iwl_tlc_mng_cfg_chains
- * @sgi_ch_width_supp: bitmap of SGI support per channel width
- *		       use BIT(&enum iwl_tlc_mng_cfg_cw)
- * @flags: bitmask of &enum iwl_tlc_mng_cfg_flags
- * @non_ht_rates: bitmap of supported legacy rates
- * @ht_rates: bitmap of &enum iwl_tlc_mng_ht_rates, per <nss, channel-width>
- *	      pair (0 - 80mhz width and below, 1 - 160mhz, 2 - 320mhz).
- * @max_mpdu_len: max MPDU length, in bytes
- * @max_tx_op: max TXOP in uSecs for all AC (BK, BE, VO, VI),
- *	       set zero for no limit.
- */
-struct iwl_tlc_config_cmd_v5 {
-	u8 sta_id;
-	u8 reserved1[3];
-	u8 max_ch_width;
-	u8 mode;
-	u8 chains;
-	u8 sgi_ch_width_supp;
-	__le16 flags;
-	__le16 non_ht_rates;
-	__le32 ht_rates[IWL_TLC_NSS_MAX][IWL_TLC_MCS_PER_BW_NUM_V4];
-	__le16 max_mpdu_len;
-	__le16 max_tx_op;
-} __packed; /* TLC_MNG_CONFIG_CMD_API_S_VER_5 */
 
 /**
  * struct iwl_tlc_config_cmd - TLC configuration
@@ -889,7 +858,6 @@ struct iwl_lq_cmd {
 	__le32 ss_params;
 }; /* LINK_QUALITY_CMD_API_S_VER_1 */
 
-u8 iwl_fw_rate_idx_to_plcp(int idx);
 const struct iwl_rate_mcs_info *iwl_rate_mcs(int idx);
 const char *iwl_rs_pretty_ant(u8 ant);
 const char *iwl_rs_pretty_bw(int bw);

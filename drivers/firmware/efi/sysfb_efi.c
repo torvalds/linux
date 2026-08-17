@@ -311,11 +311,14 @@ static const struct dmi_system_id efifb_dmi_swap_width_height[] __initconst = {
 		.callback = efifb_swap_width_height,
 	},
 	{
-		/* Lenovo IdeaPad Duet 3 10IGL5 with 1200x1920 portrait screen */
+		/*
+		 * Lenovo IdeaPad Duet 3 10IGL5 and 10IGL5-LTE with
+		 * 1200x1920 portrait screen
+		 */
 		.matches = {
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_EXACT_MATCH(DMI_PRODUCT_VERSION,
-					"IdeaPad Duet 3 10IGL5"),
+			/* Non exact match to also match the LTE version */
+			DMI_MATCH(DMI_PRODUCT_VERSION, "IdeaPad Duet 3 10IGL5"),
 		},
 		.callback = efifb_swap_width_height,
 	},

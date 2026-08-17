@@ -324,35 +324,63 @@ int mlx5_modify_nic_vport_mtu(struct mlx5_core_dev *mdev, u16 mtu)
 }
 EXPORT_SYMBOL_GPL(mlx5_modify_nic_vport_mtu);
 
+static int mlx5_vport_max_mac_list_size(struct mlx5_core_dev *dev, u16 vport,
+					enum mlx5_list_type list_type)
+{
+	void *query_ctx, *hca_caps;
+	int ret = 0;
+
+	if (!vport && !mlx5_core_is_ecpf(dev))
+		return list_type == MLX5_NVPRT_LIST_TYPE_UC ?
+			1 << MLX5_CAP_GEN(dev, log_max_current_uc_list) :
+			1 << MLX5_CAP_GEN(dev, log_max_current_mc_list);
+
+	query_ctx = kzalloc(MLX5_ST_SZ_BYTES(query_hca_cap_out), GFP_KERNEL);
+	if (!query_ctx)
+		return -ENOMEM;
+
+	ret = mlx5_vport_get_other_func_general_cap(dev, vport, query_ctx);
+	if (ret)
+		goto out;
+
+	hca_caps = MLX5_ADDR_OF(query_hca_cap_out, query_ctx, capability);
+	ret = list_type == MLX5_NVPRT_LIST_TYPE_UC ?
+		1 << MLX5_GET(cmd_hca_cap, hca_caps, log_max_current_uc_list) :
+		1 << MLX5_GET(cmd_hca_cap, hca_caps, log_max_current_mc_list);
+
+out:
+	kfree(query_ctx);
+
+	return ret;
+}
+
 int mlx5_query_nic_vport_mac_list(struct mlx5_core_dev *dev,
 				  u16 vport,
 				  enum mlx5_list_type list_type,
-				  u8 addr_list[][ETH_ALEN],
-				  int *list_size)
+				  u8 (**addr_list)[ETH_ALEN],
+				  int *addr_list_size)
 {
 	u32 in[MLX5_ST_SZ_DW(query_nic_vport_context_in)] = {0};
+	int allowed_list_size;
 	void *nic_vport_ctx;
 	int max_list_size;
-	int req_list_size;
 	int out_sz;
 	void *out;
 	int err;
 	int i;
 
-	req_list_size = *list_size;
+	if (!addr_list || !addr_list_size)
+		return -EINVAL;
 
-	max_list_size = list_type == MLX5_NVPRT_LIST_TYPE_UC ?
-		1 << MLX5_CAP_GEN(dev, log_max_current_uc_list) :
-		1 << MLX5_CAP_GEN(dev, log_max_current_mc_list);
+	*addr_list = NULL;
+	*addr_list_size = 0;
 
-	if (req_list_size > max_list_size) {
-		mlx5_core_warn(dev, "Requested list size (%d) > (%d) max_list_size\n",
-			       req_list_size, max_list_size);
-		req_list_size = max_list_size;
-	}
+	max_list_size = mlx5_vport_max_mac_list_size(dev, vport, list_type);
+	if (max_list_size < 0)
+		return max_list_size;
 
 	out_sz = MLX5_ST_SZ_BYTES(query_nic_vport_context_out) +
-			req_list_size * MLX5_ST_SZ_BYTES(mac_address_layout);
+			max_list_size * MLX5_ST_SZ_BYTES(mac_address_layout);
 
 	out = kvzalloc(out_sz, GFP_KERNEL);
 	if (!out)
@@ -371,16 +399,24 @@ int mlx5_query_nic_vport_mac_list(struct mlx5_core_dev *dev,
 
 	nic_vport_ctx = MLX5_ADDR_OF(query_nic_vport_context_out, out,
 				     nic_vport_context);
-	req_list_size = MLX5_GET(nic_vport_context, nic_vport_ctx,
-				 allowed_list_size);
+	allowed_list_size = MLX5_GET(nic_vport_context, nic_vport_ctx,
+				     allowed_list_size);
+	if (!allowed_list_size)
+		goto out;
 
-	*list_size = req_list_size;
-	for (i = 0; i < req_list_size; i++) {
+	*addr_list = kcalloc(allowed_list_size, ETH_ALEN, GFP_KERNEL);
+	if (!*addr_list) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	for (i = 0; i < allowed_list_size; i++) {
 		u8 *mac_addr = MLX5_ADDR_OF(nic_vport_context,
 					nic_vport_ctx,
 					current_uc_mac_address[i]) + 2;
-		ether_addr_copy(addr_list[i], mac_addr);
+		ether_addr_copy((*addr_list)[i], mac_addr);
 	}
+	*addr_list_size = allowed_list_size;
 out:
 	kvfree(out);
 	return err;
@@ -1283,8 +1319,8 @@ void mlx5_query_nic_sw_system_image_guid(struct mlx5_core_dev *mdev, u8 *buf,
 		buf[(*len)++] = MLX5_CAP_GEN_2(mdev, load_balance_id);
 }
 
-static bool mlx5_vport_use_vhca_id_as_func_id(struct mlx5_core_dev *dev,
-					      u16 vport_num, u16 *vhca_id)
+bool mlx5_vport_use_vhca_id_as_func_id(struct mlx5_core_dev *dev,
+				       u16 vport_num, u16 *vhca_id)
 {
 	if (!MLX5_CAP_GEN_2(dev, function_id_type_vhca_id))
 		return false;
@@ -1336,7 +1372,7 @@ int mlx5_vport_get_vhca_id(struct mlx5_core_dev *dev, u16 vport, u16 *vhca_id)
 	if (mlx5_esw_vport_vhca_id(dev->priv.eswitch, vport, vhca_id))
 		return 0;
 
-	query_ctx = kzalloc(query_out_sz, GFP_KERNEL);
+	query_ctx = kvzalloc(query_out_sz, GFP_KERNEL);
 	if (!query_ctx)
 		return -ENOMEM;
 
@@ -1348,7 +1384,7 @@ int mlx5_vport_get_vhca_id(struct mlx5_core_dev *dev, u16 vport, u16 *vhca_id)
 	*vhca_id = MLX5_GET(cmd_hca_cap, hca_caps, vhca_id);
 
 out_free:
-	kfree(query_ctx);
+	kvfree(query_ctx);
 	return err;
 }
 EXPORT_SYMBOL_GPL(mlx5_vport_get_vhca_id);
@@ -1363,7 +1399,7 @@ int mlx5_vport_set_other_func_cap(struct mlx5_core_dev *dev, const void *hca_cap
 	void *set_ctx;
 	int ret;
 
-	set_ctx = kzalloc(set_sz, GFP_KERNEL);
+	set_ctx = kvzalloc(set_sz, GFP_KERNEL);
 	if (!set_ctx)
 		return -ENOMEM;
 
@@ -1392,6 +1428,6 @@ int mlx5_vport_set_other_func_cap(struct mlx5_core_dev *dev, const void *hca_cap
 	MLX5_SET(set_hca_cap_in, set_ctx, function_id, function_id);
 	ret = mlx5_cmd_exec_in(dev, set_hca_cap, set_ctx);
 
-	kfree(set_ctx);
+	kvfree(set_ctx);
 	return ret;
 }

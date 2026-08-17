@@ -2403,7 +2403,7 @@ static const struct wiimod_ops wiimod_guitar = {
 	.in_ext = wiimod_guitar_in_ext,
 };
 
-/* 
+/*
  * Turntable
  * DJ Hero came with a Turntable Controller that was plugged in
  * as an extension.
@@ -2439,15 +2439,15 @@ static const __u16 wiimod_turntable_map[] = {
 static void wiimod_turntable_in_ext(struct wiimote_data *wdata, const __u8 *ext)
 {
 	__u8 be, cs, sx, sy, ed, rtt, rbg, rbr, rbb, ltt, lbg, lbr, lbb, bp, bm;
-	/* 
+	/*
 	 * Byte |  7   |  6  |  5  |  4  |  3  |  2   |  1   |  0     |
 	 *------+------+-----+-----+-----+-----+------+------+--------+
-	 *   0  | RTT<4:3>   | 		      	  SX <5:0> 			      |
-	 *   1  | RTT<2:1>   |				  SY <5:0>			      |
+	 *   0  | RTT<4:3>   |                SX <5:0>                |
+	 *   1  | RTT<2:1>   |                SY <5:0>                |
 	 *------+------+-----+-----+-----+-----+------+------+--------+
 	 *   2  |RTT<0>|  ED<4:3>  |          CS<3:0>        | RTT<5> |
 	 *------+------+-----+-----+-----+-----+------+------+--------+
-	 *   3  |     ED<2:0> 	   | 			 LTT<4:0>			  |
+	 *   3  |     ED<2:0>      |             LTT<4:0>             |
 	 *------+------+-----+-----+-----+-----+------+------+--------+
 	 *   4  |  0   |  0  | LBR |  B- |  0  |  B+  |  RBR | LTT<5> |
 	 *------+------+-----+-----+-----+-----+------+------+--------+
@@ -2458,20 +2458,20 @@ static void wiimod_turntable_in_ext(struct wiimote_data *wdata, const __u8 *ext)
 	 * With Motion+ enabled, it will look like this:
 	 * Byte |  8   |  7  |  6  |  5  |  4  |  3   |  2   |  1     |
 	 *------+------+-----+-----+-----+-----+------+------+--------+
-	 *   1  | RTT<4:3>   | 		      	  SX <5:1> 		 |	  0   |
-	 *   2  | RTT<2:1>   |				  SY <5:1>		 |	  0   |
+	 *   1  | RTT<4:3>   |                SX <5:1>       |    0   |
+	 *   2  | RTT<2:1>   |                SY <5:1>       |    0   |
 	 *------+------+-----+-----+-----+-----+------+------+--------+
 	 *   3  |RTT<0>|  ED<4:3>  |          CS<3:0>        | RTT<5> |
 	 *------+------+-----+-----+-----+-----+------+------+--------+
-	 *   4  |     ED<2:0> 	   | 			 LTT<4:0>			  |
+	 *   4  |     ED<2:0>      |             LTT<4:0>             |
 	 *------+------+-----+-----+-----+-----+------+------+--------+
 	 *   5  |  0   |  0  | LBR |  B- |  0  |  B+  | RBR  |  XXXX  |
 	 *------+------+-----+-----+-----+-----+------+------+--------+
 	 *   6  | LBB  |  0  | RBG |  BE | LBG | RBB  | XXXX |  XXXX  |
 	 *------+------+-----+-----+-----+-----+------+------+--------+
 	 */
-	
-	be = !(ext[5] & 0x10); 
+
+	be = !(ext[5] & 0x10);
 	cs = ((ext[2] & 0x1e));
 	sx = ext[0] & 0x3f;
 	sy = ext[1] & 0x3f;
@@ -2499,32 +2499,32 @@ static void wiimod_turntable_in_ext(struct wiimote_data *wdata, const __u8 *ext)
 	input_report_abs(wdata->extension.input, ABS_HAT1X, ltt);
 	input_report_abs(wdata->extension.input, ABS_HAT2X, cs);
 	input_report_abs(wdata->extension.input, ABS_HAT3X, ed);
-	input_report_key(wdata->extension.input, 
-					wiimod_turntable_map[WIIMOD_TURNTABLE_KEY_G_RIGHT], 
+	input_report_key(wdata->extension.input,
+					wiimod_turntable_map[WIIMOD_TURNTABLE_KEY_G_RIGHT],
 					rbg);
 	input_report_key(wdata->extension.input,
 					wiimod_turntable_map[WIIMOD_TURNTABLE_KEY_R_RIGHT],
 					rbr);
-	input_report_key(wdata->extension.input, 
-					wiimod_turntable_map[WIIMOD_TURNTABLE_KEY_B_RIGHT], 
+	input_report_key(wdata->extension.input,
+					wiimod_turntable_map[WIIMOD_TURNTABLE_KEY_B_RIGHT],
 					rbb);
-	input_report_key(wdata->extension.input, 
-					wiimod_turntable_map[WIIMOD_TURNTABLE_KEY_G_LEFT], 
+	input_report_key(wdata->extension.input,
+					wiimod_turntable_map[WIIMOD_TURNTABLE_KEY_G_LEFT],
 					lbg);
-	input_report_key(wdata->extension.input, 
-					wiimod_turntable_map[WIIMOD_TURNTABLE_KEY_R_LEFT], 
+	input_report_key(wdata->extension.input,
+					wiimod_turntable_map[WIIMOD_TURNTABLE_KEY_R_LEFT],
 					lbr);
-	input_report_key(wdata->extension.input, 
-					wiimod_turntable_map[WIIMOD_TURNTABLE_KEY_B_LEFT], 
+	input_report_key(wdata->extension.input,
+					wiimod_turntable_map[WIIMOD_TURNTABLE_KEY_B_LEFT],
 					lbb);
-	input_report_key(wdata->extension.input, 
-					wiimod_turntable_map[WIIMOD_TURNTABLE_KEY_EUPHORIA], 
+	input_report_key(wdata->extension.input,
+					wiimod_turntable_map[WIIMOD_TURNTABLE_KEY_EUPHORIA],
 					be);
-	input_report_key(wdata->extension.input, 
-					wiimod_turntable_map[WIIMOD_TURNTABLE_KEY_PLUS], 
+	input_report_key(wdata->extension.input,
+					wiimod_turntable_map[WIIMOD_TURNTABLE_KEY_PLUS],
 					bp);
-	input_report_key(wdata->extension.input, 
-					wiimod_turntable_map[WIIMOD_TURNTABLE_KEY_MINUS], 
+	input_report_key(wdata->extension.input,
+					wiimod_turntable_map[WIIMOD_TURNTABLE_KEY_MINUS],
 					bm);
 
 	input_sync(wdata->extension.input);
@@ -2557,7 +2557,7 @@ static void wiimod_turntable_close(struct input_dev *dev)
 static int wiimod_turntable_probe(const struct wiimod_ops *ops,
 			       struct wiimote_data *wdata)
 {
- 	int ret, i;
+	int ret, i;
 
 	wdata->extension.input = input_allocate_device();
 	if (!wdata->extension.input)
@@ -2594,9 +2594,9 @@ static int wiimod_turntable_probe(const struct wiimod_ops *ops,
 	input_set_abs_params(wdata->extension.input,
 			     ABS_HAT1X, -8, 8, 0, 0);
 	input_set_abs_params(wdata->extension.input,
-			     ABS_HAT2X, 0, 31, 1, 1);	
+			     ABS_HAT2X, 0, 31, 1, 1);
 	input_set_abs_params(wdata->extension.input,
-			     ABS_HAT3X, 0, 7, 0, 0);	 
+			     ABS_HAT3X, 0, 7, 0, 0);
 	ret = input_register_device(wdata->extension.input);
 	if (ret)
 		goto err_free;

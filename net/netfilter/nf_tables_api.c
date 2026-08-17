@@ -3378,8 +3378,10 @@ static int nf_tables_delchain(struct sk_buff *skb, const struct nfnl_info *info,
  */
 int nft_register_expr(struct nft_expr_type *type)
 {
-	if (WARN_ON_ONCE(type->maxattr > NFT_EXPR_MAXATTR))
+	if (unlikely(type->maxattr > NFT_EXPR_MAXATTR)) {
+		DEBUG_NET_WARN_ON_ONCE(1);
 		return -ENOMEM;
+	}
 
 	nfnl_lock(NFNL_SUBSYS_NFTABLES);
 	if (type->family == NFPROTO_UNSPEC)
@@ -3691,8 +3693,10 @@ int nft_expr_clone(struct nft_expr *dst, struct nft_expr *src, gfp_t gfp)
 {
 	int err;
 
-	if (WARN_ON_ONCE(!src->ops->clone))
+	if (unlikely(!src->ops->clone)) {
+		DEBUG_NET_WARN_ON_ONCE(1);
 		return -EINVAL;
+	}
 
 	dst->ops = src->ops;
 	err = src->ops->clone(dst, src, gfp);
@@ -8327,8 +8331,10 @@ static int nf_tables_newobj(struct sk_buff *skb, const struct nfnl_info *info,
 			return 0;
 
 		type = nft_obj_type_get(net, objtype, family);
-		if (WARN_ON_ONCE(IS_ERR(type)))
+		if (IS_ERR(type)) {
+			DEBUG_NET_WARN_ON_ONCE(1);
 			return PTR_ERR(type);
+		}
 
 		nft_ctx_init(&ctx, net, skb, info->nlh, family, table, NULL, nla);
 
@@ -10306,19 +10312,25 @@ static int nf_tables_commit_chain_prepare(struct net *net, struct nft_chain *cha
 
 		prule = (struct nft_rule_dp *)data;
 		data += offsetof(struct nft_rule_dp, data);
-		if (WARN_ON_ONCE(data > data_boundary))
+		if (unlikely(data > data_boundary)) {
+			DEBUG_NET_WARN_ON_ONCE(1);
 			return -ENOMEM;
+		}
 
 		size = 0;
 		nft_rule_for_each_expr(expr, last, rule) {
-			if (WARN_ON_ONCE(data + size + expr->ops->size > data_boundary))
+			if (unlikely(data + size + expr->ops->size > data_boundary)) {
+				DEBUG_NET_WARN_ON_ONCE(1);
 				return -ENOMEM;
+			}
 
 			memcpy(data + size, expr, expr->ops->size);
 			size += expr->ops->size;
 		}
-		if (WARN_ON_ONCE(size >= 1 << 12))
+		if (unlikely(size >= 1 << 12)) {
+			DEBUG_NET_WARN_ON_ONCE(1);
 			return -ENOMEM;
+		}
 
 		prule->handle = rule->handle;
 		prule->dlen = size;
@@ -10329,8 +10341,10 @@ static int nf_tables_commit_chain_prepare(struct net *net, struct nft_chain *cha
 		chain->blob_next->size += (unsigned long)(data - (void *)prule);
 	}
 
-	if (WARN_ON_ONCE(data > data_boundary))
+	if (unlikely(data > data_boundary)) {
+		DEBUG_NET_WARN_ON_ONCE(1);
 		return -ENOMEM;
+	}
 
 	prule = (struct nft_rule_dp *)data;
 	nft_last_rule(chain, prule);
@@ -11636,8 +11650,10 @@ int nft_parse_register_load(const struct nft_ctx *ctx,
 	next_register = DIV_ROUND_UP(len, NFT_REG32_SIZE) + reg;
 
 	/* Can't happen: nft_validate_register_load() should have failed */
-	if (WARN_ON_ONCE(next_register > NFT_REG32_NUM))
+	if (unlikely(next_register > NFT_REG32_NUM)) {
+		DEBUG_NET_WARN_ON_ONCE(1);
 		return -EINVAL;
+	}
 
 	/* find first register that did not see an earlier store. */
 	invalid_reg = find_next_zero_bit(ctx->reg_inited, NFT_REG32_NUM, reg);
@@ -11884,8 +11900,10 @@ int nft_data_init(const struct nft_ctx *ctx, struct nft_data *data,
 	struct nlattr *tb[NFTA_DATA_MAX + 1];
 	int err;
 
-	if (WARN_ON_ONCE(!desc->size))
+	if (unlikely(!desc->size)) {
+		DEBUG_NET_WARN_ON_ONCE(1);
 		return -EINVAL;
+	}
 
 	err = nla_parse_nested_deprecated(tb, NFTA_DATA_MAX, nla,
 					  nft_data_policy, NULL);
@@ -11950,7 +11968,7 @@ int nft_data_dump(struct sk_buff *skb, int attr, const struct nft_data *data,
 		break;
 	default:
 		err = -EINVAL;
-		WARN_ON(1);
+		DEBUG_NET_WARN_ON_ONCE(1);
 	}
 
 	nla_nest_end(skb, nest);

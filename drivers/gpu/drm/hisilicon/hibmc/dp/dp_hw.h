@@ -55,6 +55,7 @@ struct hibmc_dp {
 	struct drm_dp_aux aux;
 	struct hibmc_dp_cbar_cfg cfg;
 	u32 irq_status;
+	int phys_status;
 };
 
 int hibmc_dp_hw_init(struct hibmc_dp *dp);

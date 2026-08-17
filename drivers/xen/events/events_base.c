@@ -40,6 +40,7 @@
 #include <linux/ktime.h>
 
 #ifdef CONFIG_X86
+#include <asm/cpuid/api.h>
 #include <asm/desc.h>
 #include <asm/ptrace.h>
 #include <asm/idtentry.h>

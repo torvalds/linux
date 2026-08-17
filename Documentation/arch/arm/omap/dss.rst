@@ -314,7 +314,7 @@ Kernel boot arguments
 
 omapfb.mode=<display>:<mode>[,...]
 	- Default video mode for specified displays. For example,
-	  "dvi:800x400MR-24@60".  See drivers/video/modedb.c.
+	  "dvi:800x400MR-24@60".  See drivers/video/fbdev/core/modedb.c.
 	  There are also two special modes: "pal" and "ntsc" that
 	  can be used to tv out.
 

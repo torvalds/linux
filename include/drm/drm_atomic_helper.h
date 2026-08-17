@@ -43,14 +43,14 @@
  */
 #define DRM_PLANE_NO_SCALING (1<<16)
 
-struct drm_atomic_state;
+struct drm_atomic_commit;
 struct drm_private_obj;
 struct drm_private_state;
 
 int drm_atomic_helper_check_modeset(struct drm_device *dev,
-				struct drm_atomic_state *state);
+				struct drm_atomic_commit *state);
 int drm_atomic_helper_check_wb_connector_state(struct drm_connector *connector,
-					       struct drm_atomic_state *state);
+					       struct drm_atomic_commit *state);
 int drm_atomic_helper_check_plane_state(struct drm_plane_state *plane_state,
 					const struct drm_crtc_state *crtc_state,
 					int min_scale,
@@ -58,92 +58,92 @@ int drm_atomic_helper_check_plane_state(struct drm_plane_state *plane_state,
 					bool can_position,
 					bool can_update_disabled);
 int drm_atomic_helper_check_planes(struct drm_device *dev,
-			       struct drm_atomic_state *state);
+			       struct drm_atomic_commit *state);
 int drm_atomic_helper_check_crtc_primary_plane(struct drm_crtc_state *crtc_state);
 void drm_atomic_helper_commit_encoder_bridge_disable(struct drm_device *dev,
-						     struct drm_atomic_state *state);
+						     struct drm_atomic_commit *state);
 void drm_atomic_helper_commit_crtc_disable(struct drm_device *dev,
-					   struct drm_atomic_state *state);
+					   struct drm_atomic_commit *state);
 void drm_atomic_helper_commit_encoder_bridge_post_disable(struct drm_device *dev,
-							  struct drm_atomic_state *state);
+							  struct drm_atomic_commit *state);
 int drm_atomic_helper_check(struct drm_device *dev,
-			    struct drm_atomic_state *state);
-void drm_atomic_helper_commit_tail(struct drm_atomic_state *state);
-void drm_atomic_helper_commit_tail_rpm(struct drm_atomic_state *state);
+			    struct drm_atomic_commit *state);
+void drm_atomic_helper_commit_tail(struct drm_atomic_commit *state);
+void drm_atomic_helper_commit_tail_rpm(struct drm_atomic_commit *state);
 int drm_atomic_helper_commit(struct drm_device *dev,
-			     struct drm_atomic_state *state,
+			     struct drm_atomic_commit *state,
 			     bool nonblock);
 int drm_atomic_helper_async_check(struct drm_device *dev,
-				  struct drm_atomic_state *state);
+				  struct drm_atomic_commit *state);
 void drm_atomic_helper_async_commit(struct drm_device *dev,
-				    struct drm_atomic_state *state);
+				    struct drm_atomic_commit *state);
 
 int drm_atomic_helper_wait_for_fences(struct drm_device *dev,
-					struct drm_atomic_state *state,
+					struct drm_atomic_commit *state,
 					bool pre_swap);
 
 void drm_atomic_helper_wait_for_vblanks(struct drm_device *dev,
-					struct drm_atomic_state *old_state);
+					struct drm_atomic_commit *old_state);
 
 void drm_atomic_helper_wait_for_flip_done(struct drm_device *dev,
-					  struct drm_atomic_state *old_state);
+					  struct drm_atomic_commit *old_state);
 
 void
 drm_atomic_helper_update_legacy_modeset_state(struct drm_device *dev,
-					      struct drm_atomic_state *old_state);
+					      struct drm_atomic_commit *old_state);
 
 void
-drm_atomic_helper_calc_timestamping_constants(struct drm_atomic_state *state);
+drm_atomic_helper_calc_timestamping_constants(struct drm_atomic_commit *state);
 
 void drm_atomic_helper_commit_crtc_set_mode(struct drm_device *dev,
-					    struct drm_atomic_state *state);
+					    struct drm_atomic_commit *state);
 
 void drm_atomic_helper_commit_modeset_disables(struct drm_device *dev,
-					       struct drm_atomic_state *state);
+					       struct drm_atomic_commit *state);
 
 void drm_atomic_helper_commit_writebacks(struct drm_device *dev,
-					 struct drm_atomic_state *state);
+					 struct drm_atomic_commit *state);
 
 void drm_atomic_helper_commit_encoder_bridge_pre_enable(struct drm_device *dev,
-							struct drm_atomic_state *state);
+							struct drm_atomic_commit *state);
 
 void drm_atomic_helper_commit_crtc_enable(struct drm_device *dev,
-					  struct drm_atomic_state *state);
+					  struct drm_atomic_commit *state);
 
 void drm_atomic_helper_commit_encoder_bridge_enable(struct drm_device *dev,
-						    struct drm_atomic_state *state);
+						    struct drm_atomic_commit *state);
 
 void drm_atomic_helper_commit_modeset_enables(struct drm_device *dev,
-					  struct drm_atomic_state *old_state);
+					  struct drm_atomic_commit *old_state);
 
 int drm_atomic_helper_prepare_planes(struct drm_device *dev,
-				     struct drm_atomic_state *state);
+				     struct drm_atomic_commit *state);
 void drm_atomic_helper_unprepare_planes(struct drm_device *dev,
-					struct drm_atomic_state *state);
+					struct drm_atomic_commit *state);
 
 #define DRM_PLANE_COMMIT_ACTIVE_ONLY			BIT(0)
 #define DRM_PLANE_COMMIT_NO_DISABLE_AFTER_MODESET	BIT(1)
 
 void drm_atomic_helper_commit_planes(struct drm_device *dev,
-				     struct drm_atomic_state *state,
+				     struct drm_atomic_commit *state,
 				     uint32_t flags);
 void drm_atomic_helper_cleanup_planes(struct drm_device *dev,
-				      struct drm_atomic_state *old_state);
+				      struct drm_atomic_commit *old_state);
 void drm_atomic_helper_commit_planes_on_crtc(struct drm_crtc_state *old_crtc_state);
 void
 drm_atomic_helper_disable_planes_on_crtc(struct drm_crtc_state *old_crtc_state,
 					 bool atomic);
 
-int __must_check drm_atomic_helper_swap_state(struct drm_atomic_state *state,
+int __must_check drm_atomic_helper_swap_state(struct drm_atomic_commit *state,
 					      bool stall);
 
 /* nonblocking commit helpers */
-int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
+int drm_atomic_helper_setup_commit(struct drm_atomic_commit *state,
 				   bool nonblock);
-void drm_atomic_helper_wait_for_dependencies(struct drm_atomic_state *state);
-void drm_atomic_helper_fake_vblank(struct drm_atomic_state *state);
-void drm_atomic_helper_commit_hw_done(struct drm_atomic_state *state);
-void drm_atomic_helper_commit_cleanup_done(struct drm_atomic_state *state);
+void drm_atomic_helper_wait_for_dependencies(struct drm_atomic_commit *state);
+void drm_atomic_helper_fake_vblank(struct drm_atomic_commit *state);
+void drm_atomic_helper_commit_hw_done(struct drm_atomic_commit *state);
+void drm_atomic_helper_commit_cleanup_done(struct drm_atomic_commit *state);
 
 /* implementations for legacy interfaces */
 int drm_atomic_helper_update_plane(struct drm_plane *plane,
@@ -164,14 +164,14 @@ int drm_atomic_helper_disable_all(struct drm_device *dev,
 int drm_atomic_helper_reset_crtc(struct drm_crtc *crtc,
 				 struct drm_modeset_acquire_ctx *ctx);
 void drm_atomic_helper_shutdown(struct drm_device *dev);
-struct drm_atomic_state *
+struct drm_atomic_commit *
 drm_atomic_helper_duplicate_state(struct drm_device *dev,
 				  struct drm_modeset_acquire_ctx *ctx);
-struct drm_atomic_state *drm_atomic_helper_suspend(struct drm_device *dev);
-int drm_atomic_helper_commit_duplicated_state(struct drm_atomic_state *state,
+struct drm_atomic_commit *drm_atomic_helper_suspend(struct drm_device *dev);
+int drm_atomic_helper_commit_duplicated_state(struct drm_atomic_commit *state,
 					      struct drm_modeset_acquire_ctx *ctx);
 int drm_atomic_helper_resume(struct drm_device *dev,
-			     struct drm_atomic_state *state);
+			     struct drm_atomic_commit *state);
 
 int drm_atomic_helper_page_flip(struct drm_crtc *crtc,
 				struct drm_framebuffer *fb,

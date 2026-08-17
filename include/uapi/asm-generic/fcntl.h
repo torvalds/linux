@@ -15,51 +15,55 @@
  * When introducing new O_* bits, please check its uniqueness in fcntl_init().
  */
 
-#define O_ACCMODE	00000003
-#define O_RDONLY	00000000
-#define O_WRONLY	00000001
-#define O_RDWR		00000002
+#define O_ACCMODE	3
+#define O_RDONLY	0
+#define O_WRONLY	(1 << 0)
+#define O_RDWR		(1 << 1)
+/* (1 << 2) must not be used -- it collides with flags on alpha, sparc */
+/* (1 << 3) must not be used -- it collides with flags on alpha, mips, parisc, sparc */
+/* (1 << 4) must not be used -- it collides with flags on mips */
+/* (1 << 5) is free */
 #ifndef O_CREAT
-#define O_CREAT		00000100	/* not fcntl */
+#define O_CREAT		(1 << 6)	/* not fcntl */
 #endif
 #ifndef O_EXCL
-#define O_EXCL		00000200	/* not fcntl */
+#define O_EXCL		(1 << 7)	/* not fcntl */
 #endif
 #ifndef O_NOCTTY
-#define O_NOCTTY	00000400	/* not fcntl */
+#define O_NOCTTY	(1 << 8)	/* not fcntl */
 #endif
 #ifndef O_TRUNC
-#define O_TRUNC		00001000	/* not fcntl */
+#define O_TRUNC		(1 << 9)	/* not fcntl */
 #endif
 #ifndef O_APPEND
-#define O_APPEND	00002000
+#define O_APPEND	(1 << 10)
 #endif
 #ifndef O_NONBLOCK
-#define O_NONBLOCK	00004000
+#define O_NONBLOCK	(1 << 11)
 #endif
 #ifndef O_DSYNC
-#define O_DSYNC		00010000	/* used to be O_SYNC, see below */
+#define O_DSYNC		(1 << 12)	/* used to be O_SYNC, see below */
 #endif
 #ifndef FASYNC
-#define FASYNC		00020000	/* fcntl, for BSD compatibility */
+#define FASYNC		(1 << 13)	/* fcntl, for BSD compatibility */
 #endif
 #ifndef O_DIRECT
-#define O_DIRECT	00040000	/* direct disk access hint */
+#define O_DIRECT	(1 << 14)	/* direct disk access hint */
 #endif
 #ifndef O_LARGEFILE
-#define O_LARGEFILE	00100000
+#define O_LARGEFILE	(1 << 15)
 #endif
 #ifndef O_DIRECTORY
-#define O_DIRECTORY	00200000	/* must be a directory */
+#define O_DIRECTORY	(1 << 16)	/* must be a directory */
 #endif
 #ifndef O_NOFOLLOW
-#define O_NOFOLLOW	00400000	/* don't follow links */
+#define O_NOFOLLOW	(1 << 17)	/* don't follow links */
 #endif
 #ifndef O_NOATIME
-#define O_NOATIME	01000000
+#define O_NOATIME	(1 << 18)
 #endif
 #ifndef O_CLOEXEC
-#define O_CLOEXEC	02000000	/* set close_on_exec */
+#define O_CLOEXEC	(1 << 19)	/* set close_on_exec */
 #endif
 
 /*
@@ -76,16 +80,20 @@
  * Note: __O_SYNC must never be used directly.
  */
 #ifndef O_SYNC
-#define __O_SYNC	04000000
+#define __O_SYNC	(1 << 20)
 #define O_SYNC		(__O_SYNC|O_DSYNC)
 #endif
 
 #ifndef O_PATH
-#define O_PATH		010000000
+#define O_PATH		(1 << 21)
 #endif
 
 #ifndef __O_TMPFILE
-#define __O_TMPFILE	020000000
+#define __O_TMPFILE	(1 << 22)
+#endif
+
+#ifndef O_EMPTYPATH
+#define O_EMPTYPATH	(1 << 26)	/* allow empty path */
 #endif
 
 /* a horrid kludge trying to make sure that this will fail on old kernels */
@@ -94,6 +102,10 @@
 #ifndef O_NDELAY
 #define O_NDELAY	O_NONBLOCK
 #endif
+
+/* (1 << 23) must not be used -- it collides with flags on alpha, parisc, sparc */
+/* (1 << 24) must not be used -- it collides with flags on alpha, sparc */
+/* (1 << 25) must not be used -- it collides with flags on sparc */
 
 #define F_DUPFD		0	/* dup */
 #define F_GETFD		1	/* get close_on_exec */

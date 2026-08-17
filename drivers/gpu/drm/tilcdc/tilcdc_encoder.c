@@ -35,12 +35,6 @@ int tilcdc_attach_bridge(struct drm_device *ddev, struct drm_bridge *bridge)
 		return PTR_ERR(connector);
 	}
 
-	ret = drm_connector_attach_encoder(connector, &priv->encoder->base);
-	if (ret) {
-		drm_err(ddev, "attaching encoder to connector failed\n");
-		return ret;
-	}
-
 	priv->connector = connector;
 	return 0;
 }

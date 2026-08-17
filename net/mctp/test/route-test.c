@@ -859,12 +859,6 @@ static void mctp_test_route_input_cloned_frag(struct kunit *test)
 	skb[0]->data[4] = 0;
 	skb[3]->data[4] = 0;
 
-	skb_dump("pkt1 ", skb[0], false);
-	skb_dump("pkt2 ", skb[1], false);
-	skb_dump("pkt3 ", skb[2], false);
-	skb_dump("pkt4 ", skb[3], false);
-	skb_dump("pkt5 ", skb[4], false);
-
 	for (int i = 0; i < 5; i++) {
 		KUNIT_EXPECT_EQ(test, refcount_read(&skb[i]->users), 1);
 		/* Take a reference so we can check refcounts at the end */

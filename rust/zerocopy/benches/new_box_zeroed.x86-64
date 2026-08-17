@@ -1,0 +1,7 @@
+bench_new_box_zeroed:
+	push rax
+	call qword ptr [rip + __rustc::__rust_no_alloc_shim_is_unstable_v2@GOTPCREL]
+	mov edi, 6
+	mov esi, 2
+	pop rax
+	jmp qword ptr [rip + __rustc::__rust_alloc_zeroed@GOTPCREL]

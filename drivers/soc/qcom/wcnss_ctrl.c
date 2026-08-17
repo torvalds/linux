@@ -221,8 +221,10 @@ static int wcnss_download_nv(struct wcnss_ctrl *wcnss, bool *expect_cbc)
 	left = fw->size;
 
 	req = kzalloc_flex(*req, fragment, NV_FRAGMENT_SIZE);
-	if (!req)
-		return -ENOMEM;
+	if (!req) {
+		ret = -ENOMEM;
+		goto release_fw;
+	}
 
 	req->frag_size = NV_FRAGMENT_SIZE;
 	req->hdr.type = WCNSS_DOWNLOAD_NV_REQ;
@@ -243,7 +245,7 @@ static int wcnss_download_nv(struct wcnss_ctrl *wcnss, bool *expect_cbc)
 		ret = rpmsg_send(wcnss->channel, req, req->hdr.len);
 		if (ret < 0) {
 			dev_err(dev, "failed to send smd packet\n");
-			goto release_fw;
+			goto release_req;
 		}
 
 		/* Increment for next fragment */
@@ -262,9 +264,10 @@ static int wcnss_download_nv(struct wcnss_ctrl *wcnss, bool *expect_cbc)
 		ret = 0;
 	}
 
+release_req:
+	kfree(req);
 release_fw:
 	release_firmware(fw);
-	kfree(req);
 
 	return ret;
 }

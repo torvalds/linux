@@ -38,7 +38,24 @@ extern u64 guest_tsc_khz;
 
 const char *ex_str(int vector);
 
-#define X86_EFLAGS_FIXED	 (1u << 1)
+#define X86_EFLAGS_CF		BIT(0)  /* Carry Flag */
+#define X86_EFLAGS_FIXED	BIT(1)  /* Bit 1 - always on */
+#define X86_EFLAGS_PF		BIT(2)  /* Parity Flag */
+#define X86_EFLAGS_AF		BIT(4)  /* Auxiliary carry Flag */
+#define X86_EFLAGS_ZF		BIT(6)  /* Zero Flag */
+#define X86_EFLAGS_SF		BIT(7)  /* Sign Flag */
+#define X86_EFLAGS_TF		BIT(8)  /* Trap Flag */
+#define X86_EFLAGS_IF		BIT(9)  /* Interrupt Flag */
+#define X86_EFLAGS_DF		BIT(10) /* Direction Flag */
+#define X86_EFLAGS_OF		BIT(11) /* Overflow Flag */
+#define X86_EFLAGS_IOPL		BIT(12) /* I/O Privilege Level (2 bits) */
+#define X86_EFLAGS_NT		BIT(14) /* Nested Task */
+#define X86_EFLAGS_RF		BIT(16) /* Resume Flag */
+#define X86_EFLAGS_VM		BIT(17) /* Virtual Mode */
+#define X86_EFLAGS_AC		BIT(18) /* Alignment Check/Access Control */
+#define X86_EFLAGS_VIF		BIT(19) /* Virtual Interrupt Flag */
+#define X86_EFLAGS_VIP		BIT(20) /* Virtual Interrupt Pending */
+#define X86_EFLAGS_ID		BIT(21) /* CPUID detection */
 
 #define X86_CR4_VME		(1ul << 0)
 #define X86_CR4_PVI		(1ul << 1)
@@ -209,6 +226,7 @@ struct kvm_x86_cpu_feature {
 #define X86_FEATURE_SEV			KVM_X86_CPU_FEATURE(0x8000001F, 0, EAX, 1)
 #define X86_FEATURE_SEV_ES		KVM_X86_CPU_FEATURE(0x8000001F, 0, EAX, 3)
 #define X86_FEATURE_SEV_SNP		KVM_X86_CPU_FEATURE(0x8000001F, 0, EAX, 4)
+#define	X86_FEATURE_GP_ON_USER_CPUID	KVM_X86_CPU_FEATURE(0x80000021, 0, EAX, 17)
 #define	X86_FEATURE_PERFMON_V2		KVM_X86_CPU_FEATURE(0x80000022, 0, EAX, 0)
 #define	X86_FEATURE_LBR_PMC_FREEZE	KVM_X86_CPU_FEATURE(0x80000022, 0, EAX, 2)
 
@@ -1555,6 +1573,15 @@ u64 *tdp_get_pte(struct kvm_vm *vm, u64 l2_gpa);
 #define PFERR_GUEST_FINAL_MASK	BIT_ULL(PFERR_GUEST_FINAL_BIT)
 #define PFERR_GUEST_PAGE_MASK	BIT_ULL(PFERR_GUEST_PAGE_BIT)
 #define PFERR_IMPLICIT_ACCESS	BIT_ULL(PFERR_IMPLICIT_ACCESS_BIT)
+
+#define EPT_VIOLATION_ACC_READ		BIT(0)
+#define EPT_VIOLATION_ACC_WRITE		BIT(1)
+#define EPT_VIOLATION_ACC_INSTR		BIT(2)
+#define EPT_VIOLATION_PROT_READ		BIT(3)
+#define EPT_VIOLATION_PROT_WRITE	BIT(4)
+#define EPT_VIOLATION_PROT_EXEC		BIT(5)
+#define EPT_VIOLATION_GVA_IS_VALID	BIT(7)
+#define EPT_VIOLATION_GVA_TRANSLATED	BIT(8)
 
 bool sys_clocksource_is_based_on_tsc(void);
 

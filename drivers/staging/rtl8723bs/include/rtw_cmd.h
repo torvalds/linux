@@ -33,8 +33,8 @@
 
 	/* cmd flags */
 	enum {
-		RTW_CMDF_DIRECTLY = BIT0,
-		RTW_CMDF_WAIT_ACK = BIT1,
+		RTW_CMDF_DIRECTLY = BIT(0),
+		RTW_CMDF_WAIT_ACK = BIT(1),
 	};
 
 	struct cmd_priv {
@@ -712,4 +712,4 @@ enum {
 #define _GetRFReg_CMD_		_Read_RFREG_CMD_
 #define _SetRFReg_CMD_		_Write_RFREG_CMD_
 
-#endif /*  _CMD_H_ */
+#endif /* __RTW_CMD_H_ */

@@ -5,7 +5,6 @@
 #include <linux/gpio/generic.h>
 #include <linux/irq.h>
 #include <linux/minmax.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
@@ -40,16 +39,18 @@
 #define REALTEK_GPIO_PORTS_PER_BANK	4
 
 /**
- * realtek_gpio_ctrl - Realtek Otto GPIO driver data
+ * struct realtek_gpio_ctrl - Realtek Otto GPIO driver data
  *
  * @chip: Associated gpio_generic_chip instance
  * @base: Base address of the register block for a GPIO bank
+ * @cpumask_base: Base address of the per-CPU interrupt mask registers
+ * @cpu_irq_maskable: CPUs that can receive GPIO interrupts
  * @lock: Lock for accessing the IRQ registers and values
  * @intr_mask: Mask for interrupts lines
  * @intr_type: Interrupt type selection
  * @bank_read: Read a bank setting as a single 32-bit value
  * @bank_write: Write a bank setting as a single 32-bit value
- * @imr_line_pos: Bit shift of an IRQ line's IMR value.
+ * @line_imr_pos: Bit shift of an IRQ line's IMR value.
  *
  * The DIR, DATA, and ISR registers consist of four 8-bit port values, packed
  * into a single 32-bit register. Use @bank_read (@bank_write) to get (assign)

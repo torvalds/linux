@@ -10,9 +10,9 @@
 #include "intel_de.h"
 
 static int __intel_de_wait_for_register(struct intel_display *display,
-					i915_reg_t reg, u32 mask, u32 value,
+					intel_reg_t reg, u32 mask, u32 value,
 					unsigned int timeout_us,
-					u32 (*read)(struct intel_display *display, i915_reg_t reg),
+					u32 (*read)(struct intel_display *display, intel_reg_t reg),
 					u32 *out_val, bool is_atomic)
 {
 	const ktime_t end = ktime_add_us(ktime_get_raw(), timeout_us);
@@ -61,10 +61,10 @@ static int __intel_de_wait_for_register(struct intel_display *display,
 }
 
 static int intel_de_wait_for_register(struct intel_display *display,
-				      i915_reg_t reg, u32 mask, u32 value,
+				      intel_reg_t reg, u32 mask, u32 value,
 				      unsigned int fast_timeout_us,
 				      unsigned int slow_timeout_us,
-				      u32 (*read)(struct intel_display *display, i915_reg_t reg),
+				      u32 (*read)(struct intel_display *display, intel_reg_t reg),
 				      u32 *out_value, bool is_atomic)
 {
 	int ret = -EINVAL;
@@ -82,7 +82,7 @@ static int intel_de_wait_for_register(struct intel_display *display,
 	return ret;
 }
 
-int intel_de_wait_us(struct intel_display *display, i915_reg_t reg,
+int intel_de_wait_us(struct intel_display *display, intel_reg_t reg,
 		     u32 mask, u32 value, unsigned int timeout_us,
 		     u32 *out_value)
 {
@@ -100,7 +100,7 @@ int intel_de_wait_us(struct intel_display *display, i915_reg_t reg,
 	return ret;
 }
 
-int intel_de_wait_ms(struct intel_display *display, i915_reg_t reg,
+int intel_de_wait_ms(struct intel_display *display, intel_reg_t reg,
 		     u32 mask, u32 value, unsigned int timeout_ms,
 		     u32 *out_value)
 {
@@ -118,7 +118,7 @@ int intel_de_wait_ms(struct intel_display *display, i915_reg_t reg,
 	return ret;
 }
 
-int intel_de_wait_fw_ms(struct intel_display *display, i915_reg_t reg,
+int intel_de_wait_fw_ms(struct intel_display *display, intel_reg_t reg,
 			u32 mask, u32 value, unsigned int timeout_ms,
 			u32 *out_value)
 {
@@ -128,7 +128,7 @@ int intel_de_wait_fw_ms(struct intel_display *display, i915_reg_t reg,
 					  out_value, false);
 }
 
-int intel_de_wait_fw_us_atomic(struct intel_display *display, i915_reg_t reg,
+int intel_de_wait_fw_us_atomic(struct intel_display *display, intel_reg_t reg,
 			       u32 mask, u32 value, unsigned int timeout_us,
 			       u32 *out_value)
 {
@@ -138,31 +138,31 @@ int intel_de_wait_fw_us_atomic(struct intel_display *display, i915_reg_t reg,
 					  out_value, true);
 }
 
-int intel_de_wait_for_set_us(struct intel_display *display, i915_reg_t reg,
+int intel_de_wait_for_set_us(struct intel_display *display, intel_reg_t reg,
 			     u32 mask, unsigned int timeout_us)
 {
 	return intel_de_wait_us(display, reg, mask, mask, timeout_us, NULL);
 }
 
-int intel_de_wait_for_clear_us(struct intel_display *display, i915_reg_t reg,
+int intel_de_wait_for_clear_us(struct intel_display *display, intel_reg_t reg,
 			       u32 mask, unsigned int timeout_us)
 {
 	return intel_de_wait_us(display, reg, mask, 0, timeout_us, NULL);
 }
 
-int intel_de_wait_for_set_ms(struct intel_display *display, i915_reg_t reg,
+int intel_de_wait_for_set_ms(struct intel_display *display, intel_reg_t reg,
 			     u32 mask, unsigned int timeout_ms)
 {
 	return intel_de_wait_ms(display, reg, mask, mask, timeout_ms, NULL);
 }
 
-int intel_de_wait_for_clear_ms(struct intel_display *display, i915_reg_t reg,
+int intel_de_wait_for_clear_ms(struct intel_display *display, intel_reg_t reg,
 			       u32 mask, unsigned int timeout_ms)
 {
 	return intel_de_wait_ms(display, reg, mask, 0, timeout_ms, NULL);
 }
 
-u8 intel_de_read8(struct intel_display *display, i915_reg_t reg)
+u8 intel_de_read8(struct intel_display *display, intel_reg_t reg)
 {
 	/* this is only used on VGA registers (possible on pre-g4x) */
 	drm_WARN_ON(display->drm, DISPLAY_VER(display) >= 5 || display->platform.g4x);
@@ -170,9 +170,17 @@ u8 intel_de_read8(struct intel_display *display, i915_reg_t reg)
 	return intel_uncore_read8(__to_uncore(display), reg);
 }
 
-void intel_de_write8(struct intel_display *display, i915_reg_t reg, u8 val)
+void intel_de_write8(struct intel_display *display, intel_reg_t reg, u8 val)
 {
 	drm_WARN_ON(display->drm, DISPLAY_VER(display) >= 5 || display->platform.g4x);
 
 	intel_uncore_write8(__to_uncore(display), reg, val);
+}
+
+u16 intel_de_read16(struct intel_display *display, intel_reg_t reg)
+{
+	/* this is only used on MCHBAR registers on pre-SNB */
+	drm_WARN_ON(display->drm, DISPLAY_VER(display) >= 6);
+
+	return intel_uncore_read16(__to_uncore(display), reg);
 }

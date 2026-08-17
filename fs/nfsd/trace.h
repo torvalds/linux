@@ -1985,23 +1985,43 @@ TRACE_EVENT(nfsd_cb_recall_any_done,
 TRACE_EVENT(nfsd_ctl_unlock_ip,
 	TP_PROTO(
 		const struct net *net,
-		const char *address
+		const struct sockaddr *addr,
+		const unsigned int addrlen
 	),
-	TP_ARGS(net, address),
+	TP_ARGS(net, addr, addrlen),
 	TP_STRUCT__entry(
 		__field(unsigned int, netns_ino)
-		__string(address, address)
+		__sockaddr(addr, addrlen)
 	),
 	TP_fast_assign(
 		__entry->netns_ino = net->ns.inum;
-		__assign_str(address);
+		__assign_sockaddr(addr, addr, addrlen);
 	),
-	TP_printk("address=%s",
-		__get_str(address)
+	TP_printk("addr=%pISpc",
+		__get_sockaddr(addr)
 	)
 );
 
 TRACE_EVENT(nfsd_ctl_unlock_fs,
+	TP_PROTO(
+		const struct net *net,
+		const char *path
+	),
+	TP_ARGS(net, path),
+	TP_STRUCT__entry(
+		__field(unsigned int, netns_ino)
+		__string(path, path)
+	),
+	TP_fast_assign(
+		__entry->netns_ino = net->ns.inum;
+		__assign_str(path);
+	),
+	TP_printk("path=%s",
+		__get_str(path)
+	)
+);
+
+TRACE_EVENT(nfsd_ctl_unlock_export,
 	TP_PROTO(
 		const struct net *net,
 		const char *path
@@ -2243,23 +2263,21 @@ TRACE_EVENT(nfsd_end_grace,
 
 TRACE_EVENT(nfsd_ctl_fh_key_set,
 	TP_PROTO(
-		const char *key,
+		bool changed,
 		int result
 	),
-	TP_ARGS(key, result),
+	TP_ARGS(changed, result),
 	TP_STRUCT__entry(
-		__field(u32, key_hash)
+		__field(bool, changed)
 		__field(int, result)
 	),
 	TP_fast_assign(
-		if (key)
-			__entry->key_hash = ~crc32_le(0xFFFFFFFF, key, 16);
-		else
-			__entry->key_hash = 0;
+		__entry->changed = changed;
 		__entry->result = result;
 	),
-	TP_printk("key=0x%08x result=%d",
-		__entry->key_hash, __entry->result
+	TP_printk("key %s, result=%d",
+		__entry->changed ? "updated" : "unmodified",
+		__entry->result
 	)
 );
 

@@ -218,6 +218,13 @@ config DRM_GPUVM
 	  GPU-VM representation providing helpers to manage a GPUs virtual
 	  address space
 
+config RUST_DRM_GPUVM
+	bool
+	depends on DRM
+	select DRM_GPUVM
+	help
+	  Choose this if you need GPUVM functions in Rust
+
 config DRM_GPUSVM
 	tristate
 	depends on DRM

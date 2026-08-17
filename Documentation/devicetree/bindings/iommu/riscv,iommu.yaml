@@ -32,22 +32,35 @@ properties:
   # should be specified along with 'reg' property providing MMIO location.
   compatible:
     oneOf:
-      - items:
+      - description: Platform (non-PCIe) IOMMU implementations
+        items:
           - enum:
               - qemu,riscv-iommu
+              - tenstorrent,riscv-iommu
           - const: riscv,iommu
-      - items:
+      - description: PCIe IOMMU implementations
+        items:
           - enum:
               - pci1efd,edf1
           - const: riscv,pci-iommu
 
   reg:
-    maxItems: 1
-    description:
-      For non-PCI devices this represents base address and size of for the
-      IOMMU memory mapped registers interface.
-      For PCI IOMMU hardware implementation this should represent an address
-      of the IOMMU, as defined in the PCI Bus Binding reference.
+    minItems: 1
+    items:
+      - description:
+          For non-PCI devices, base address and size of the IOMMU memory
+          mapped registers interface. For PCI IOMMU hardware
+          implementation, an address of the IOMMU, as defined in the PCI
+          Bus Binding reference.
+      - description:
+          Region containing platform specific MMRs for machine-mode
+          configuration, such as PMA and PMP registers.
+
+  reg-names:
+    minItems: 1
+    items:
+      - const: base
+      - const: machine
 
   '#iommu-cells':
     const: 1
@@ -74,6 +87,26 @@ required:
   - '#iommu-cells'
 
 additionalProperties: false
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - tenstorrent,riscv-iommu
+    then:
+      properties:
+        reg:
+          minItems: 2
+        reg-names:
+          minItems: 2
+    else:
+      properties:
+        reg:
+          maxItems: 1
+        reg-names:
+          maxItems: 1
 
 examples:
   - |+
@@ -144,4 +177,14 @@ examples:
                 #iommu-cells = <1>;
             };
         };
+    };
+
+  - |+
+    /* Example 5 (Tenstorrent IOMMU device with MSIs) */
+    iommu5: iommu@d2020000 {
+        compatible = "tenstorrent,riscv-iommu", "riscv,iommu";
+        reg = <0xd2020000 0x10000>, <0xaa000000 0x10000>;
+        reg-names = "base", "machine";
+        msi-parent = <&imsics_smode>;
+        #iommu-cells = <1>;
     };

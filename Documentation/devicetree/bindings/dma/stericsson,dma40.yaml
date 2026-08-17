@@ -136,13 +136,9 @@ properties:
     maxItems: 1
 
   sram:
-    $ref: /schemas/types.yaml#/definitions/phandle-array
-    description: A phandle array with inner size 1 (no arg cells).
-      First phandle is the LCPA (Logical Channel Parameter Address) memory.
-      Second phandle is the  LCLA (Logical Channel Link base Address) memory.
-    maxItems: 2
     items:
-      maxItems: 1
+      - description: LCPA (Logical Channel Parameter Address) memory.
+      - description: LCLA (Logical Channel Link base Address) memory.
 
   memcpy-channels:
     $ref: /schemas/types.yaml#/definitions/uint32-array

@@ -110,7 +110,7 @@ struct net_dm_alert_ops {
 	void (*kfree_skb_probe)(void *ignore, struct sk_buff *skb,
 				void *location,
 				enum skb_drop_reason reason,
-				struct sock *rx_sk);
+				const struct sock *rx_sk);
 	void (*napi_poll_probe)(void *ignore, struct napi_struct *napi,
 				int work, int budget);
 	void (*work_item_func)(struct work_struct *work);
@@ -266,7 +266,7 @@ out:
 static void trace_kfree_skb_hit(void *ignore, struct sk_buff *skb,
 				void *location,
 				enum skb_drop_reason reason,
-				struct sock *rx_sk)
+				const struct sock *rx_sk)
 {
 	trace_drop_common(skb, location);
 }
@@ -493,7 +493,7 @@ static void net_dm_packet_trace_kfree_skb_hit(void *ignore,
 					      struct sk_buff *skb,
 					      void *location,
 					      enum skb_drop_reason reason,
-					      struct sock *rx_sk)
+					      const struct sock *rx_sk)
 {
 	ktime_t tstamp = ktime_get_real();
 	struct per_cpu_dm_data *data;

@@ -50,7 +50,6 @@ static const char version2[] =
 #include <linux/etherdevice.h>
 #include <linux/jiffies.h>
 #include <linux/platform_device.h>
-#include <net/Space.h>
 
 #include <asm/io.h>
 
@@ -181,7 +180,6 @@ static void ne_block_input(struct net_device *dev, int count,
 			  struct sk_buff *skb, int ring_offset);
 static void ne_block_output(struct net_device *dev, const int count,
 		const unsigned char *buf, const int start_page);
-
 
 /*  Probe for various non-shared-memory ethercards.
 
@@ -918,31 +916,47 @@ static void __init ne_add_devices(void)
 	}
 }
 
-static int __init ne_init(void)
+/*
+ * This structure holds boot-time configured netdevice settings. They
+ * are then used in the device probing.
+ */
+struct netdev_boot_setup {
+	char name[IFNAMSIZ];
+	struct ifmap map;
+};
+#define NETDEV_BOOT_SETUP_MAX 8
+
+/* Boot time configuration table */
+static struct netdev_boot_setup dev_boot_setup[NETDEV_BOOT_SETUP_MAX];
+
+/**
+ * netdev_boot_setup_check	- check boot time settings
+ * @dev: the netdevice
+ *
+ * Check boot time settings for the device.
+ * The found settings are set for the device to be used
+ * later in the device probing.
+ * Returns 0 if no settings found, 1 if they are.
+ */
+static int netdev_boot_setup_check(struct net_device *dev)
 {
-	int retval;
+	struct netdev_boot_setup *s = dev_boot_setup;
+	int i;
 
-	if (IS_MODULE(CONFIG_NE2000))
-		ne_add_devices();
-
-	retval = platform_driver_probe(&ne_driver, ne_drv_probe);
-
-	if (IS_MODULE(CONFIG_NE2000) && retval) {
-		if (io[0] == 0)
-			pr_notice("ne.c: You must supply \"io=0xNNN\""
-			       " value(s) for ISA cards.\n");
-		ne_loop_rm_unreg(1);
-		return retval;
+	for (i = 0; i < NETDEV_BOOT_SETUP_MAX; i++) {
+		if (s[i].name[0] != '\0' && s[i].name[0] != ' ' &&
+		    !strcmp(dev->name, s[i].name)) {
+			dev->irq = s[i].map.irq;
+			dev->base_addr = s[i].map.base_addr;
+			dev->mem_start = s[i].map.mem_start;
+			dev->mem_end = s[i].map.mem_end;
+			return 1;
+		}
 	}
-
-	/* Unregister unused platform_devices. */
-	ne_loop_rm_unreg(0);
-	return retval;
+	return 0;
 }
-module_init(ne_init);
 
-#if !defined(MODULE) && defined(CONFIG_NETDEV_LEGACY_INIT)
-struct net_device * __init ne_probe(int unit)
+static struct net_device * __init ne_probe(int unit)
 {
 	int this_dev;
 	struct net_device *dev;
@@ -982,7 +996,186 @@ struct net_device * __init ne_probe(int unit)
 
 	return ERR_PTR(-ENODEV);
 }
+
+/******************************************************************************
+ *
+ *		      Device Boot-time Settings Routines
+ *
+ ******************************************************************************/
+
+/**
+ * netdev_boot_base	- get address from boot time settings
+ * @prefix: prefix for network device
+ * @unit: id for network device
+ *
+ * Check boot time settings for the base address of device.
+ * The found settings are set for the device to be used
+ * later in the device probing.
+ * Returns 0 if no settings found.
+ */
+static unsigned long netdev_boot_base(const char *prefix, int unit)
+{
+	const struct netdev_boot_setup *s = dev_boot_setup;
+	char name[IFNAMSIZ];
+	int i;
+
+	sprintf(name, "%s%d", prefix, unit);
+
+	/*
+	 * If device already registered then return base of 1
+	 * to indicate not to probe for this interface
+	 */
+	if (__dev_get_by_name(&init_net, name))
+		return 1;
+
+	for (i = 0; i < NETDEV_BOOT_SETUP_MAX; i++)
+		if (!strcmp(name, s[i].name))
+			return s[i].map.base_addr;
+	return 0;
+}
+
+#if !defined(MODULE) && defined(CONFIG_ISA)
+/**
+ *	netdev_boot_setup_add	- add new setup entry
+ *	@name: name of the device
+ *	@map: configured settings for the device
+ *
+ *	Adds new setup entry to the dev_boot_setup list.  The function
+ *	returns 0 on error and 1 on success.  This is a generic routine to
+ *	all netdevices.
+ */
+static int netdev_boot_setup_add(char *name, struct ifmap *map)
+{
+	struct netdev_boot_setup *s;
+	int i;
+
+	s = dev_boot_setup;
+	for (i = 0; i < NETDEV_BOOT_SETUP_MAX; i++) {
+		if (s[i].name[0] == '\0' || s[i].name[0] == ' ') {
+			strscpy_pad(s[i].name, name);
+			memcpy(&s[i].map, map, sizeof(s[i].map));
+			break;
+		}
+	}
+
+	return i >= NETDEV_BOOT_SETUP_MAX ? 0 : 1;
+}
+
+/*
+ * Saves at boot time configured settings for any netdevice.
+ */
+static int __init netdev_boot_setup(char *str)
+{
+	int ints[5];
+	struct ifmap map;
+
+	str = get_options(str, ARRAY_SIZE(ints), ints);
+	if (!str || !*str)
+		return 0;
+
+	/* Save settings */
+	memset(&map, 0, sizeof(map));
+	if (ints[0] > 0)
+		map.irq = ints[1];
+	if (ints[0] > 1)
+		map.base_addr = ints[2];
+	if (ints[0] > 2)
+		map.mem_start = ints[3];
+	if (ints[0] > 3)
+		map.mem_end = ints[4];
+
+	/* Add new entry to the list */
+	return netdev_boot_setup_add(str, &map);
+}
+
+__setup("netdev=", netdev_boot_setup);
+
+static int __init ether_boot_setup(char *str)
+{
+	return netdev_boot_setup(str);
+}
+__setup("ether=", ether_boot_setup);
 #endif
+
+/* A unified ethernet device probe.  This is the easiest way to have every
+ * ethernet adaptor have the name "eth[0123...]".
+ */
+
+struct devprobe2 {
+	struct net_device *(*probe)(int unit);
+	int status;	/* non-zero if autoprobe has failed */
+};
+
+static int __init probe_list2(int unit, struct devprobe2 *p, int autoprobe)
+{
+	struct net_device *dev;
+
+	for (; p->probe; p++) {
+		if (autoprobe && p->status)
+			continue;
+		dev = p->probe(unit);
+		if (!IS_ERR(dev))
+			return 0;
+		if (autoprobe)
+			p->status = PTR_ERR(dev);
+	}
+	return -ENODEV;
+}
+
+static struct devprobe2 isa_probes[] __initdata = {
+	{ne_probe, 0},
+	{NULL, 0},
+};
+
+/* Unified ethernet device probe, segmented per architecture and
+ * per bus interface. This drives the legacy devices only for now.
+ */
+
+static void __init ethif_probe2(int unit)
+{
+	unsigned long base_addr = netdev_boot_base("eth", unit);
+
+	if (base_addr == 1)
+		return;
+
+	probe_list2(unit, isa_probes, base_addr == 0);
+}
+
+/*  Statically configured drivers -- order matters here. */
+static int __init net_olddevs_init(void)
+{
+	int num;
+
+	for (num = 0; num < 8; ++num)
+		ethif_probe2(num);
+
+	return 0;
+}
+
+static int __init ne_init(void)
+{
+	int retval;
+
+	if (IS_MODULE(CONFIG_NE2000))
+		ne_add_devices();
+	else
+		net_olddevs_init();
+
+	retval = platform_driver_probe(&ne_driver, ne_drv_probe);
+
+	if (IS_MODULE(CONFIG_NE2000) && retval) {
+		if (io[0] == 0)
+			pr_notice("ne.c: You must supply \"io=0xNNN\""
+			       " value(s) for ISA cards.\n");
+		ne_loop_rm_unreg(1);
+		return retval;
+	}
+
+	/* Unregister unused platform_devices. */
+	ne_loop_rm_unreg(0);
+	return retval;
+}
+module_init(ne_init);
 
 static void __exit ne_exit(void)
 {

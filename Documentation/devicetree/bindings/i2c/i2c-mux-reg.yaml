@@ -1,0 +1,92 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/i2c/i2c-mux-reg.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Register-based I2C Bus Mux
+
+maintainers:
+  - Peter Rosin <peda@axentia.se>
+
+description: |
+  This binding describes an I2C bus multiplexer that uses a single
+  memory-mapped register to route the I2C signals.
+
+  Whenever an access is made to a device on a child bus, the value
+  set in the relevant node's reg property is output to the register.
+
+  If an idle state is defined via the idle-state property, the
+  register is set to that value whenever no access is being made.
+  Otherwise the most recently used value is left programmed.
+
+allOf:
+  - $ref: /schemas/i2c/i2c-mux.yaml#
+
+properties:
+  compatible:
+    const: i2c-mux-reg
+
+  reg:
+    maxItems: 1
+    description: |
+      Offset and size of the register that selects the active child
+      bus, relative to the parent node's address space. The size
+      determines the access width and must be 1, 2, or 4 bytes. If
+      omitted, the platform device's own memory resource is used
+      instead.
+
+  i2c-parent:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Phandle of the I2C bus that this multiplexer's master-side port
+      is connected to.
+
+  little-endian:
+    type: boolean
+    description: Register is accessed in little-endian byte order.
+
+  big-endian:
+    type: boolean
+    description: Register is accessed in big-endian byte order.
+
+  write-only:
+    type: boolean
+    description:
+      Register is write-only; the driver must not read back the
+      current selection.
+
+  idle-state:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Value to write to the register when no child bus is selected.
+
+required:
+  - compatible
+  - i2c-parent
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    i2c-mux@6028 {
+        compatible = "i2c-mux-reg";
+        reg = <0x6028 0x4>;
+        little-endian;
+        #address-cells = <1>;
+        #size-cells = <0>;
+        i2c-parent = <&i2c1>;
+
+        i2c@0 {
+            reg = <0>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+        };
+
+        i2c@1 {
+            reg = <1>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+        };
+    };
+...

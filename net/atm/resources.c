@@ -13,7 +13,6 @@
 #include <linux/ctype.h>
 #include <linux/string.h>
 #include <linux/atmdev.h>
-#include <linux/sonet.h>
 #include <linux/kernel.h> /* for barrier */
 #include <linux/module.h>
 #include <linux/bitops.h>
@@ -26,7 +25,6 @@
 
 #include "common.h"
 #include "resources.h"
-#include "addr.h"
 
 
 LIST_HEAD(atm_devs);
@@ -42,9 +40,6 @@ static struct atm_dev *__alloc_atm_dev(const char *type)
 	dev->type = type;
 	dev->signal = ATM_PHY_SIG_UNKNOWN;
 	dev->link_rate = ATM_OC3_PCR;
-	spin_lock_init(&dev->lock);
-	INIT_LIST_HEAD(&dev->local);
-	INIT_LIST_HEAD(&dev->lecs);
 
 	return dev;
 }
@@ -228,11 +223,8 @@ int atm_getnames(void __user *buf, int __user *iobuf_len)
 int atm_dev_ioctl(unsigned int cmd, void __user *buf, int __user *sioc_len,
 		  int number, int compat)
 {
-	int error, len, size = 0;
 	struct atm_dev *dev;
-
-	if (get_user(len, sioc_len))
-		return -EFAULT;
+	int error, size = 0;
 
 	dev = try_then_request_module(atm_dev_lookup(number), "atm-device-%d",
 				      number);
@@ -307,51 +299,6 @@ int atm_dev_ioctl(unsigned int cmd, void __user *buf, int __user *sioc_len,
 			goto done;
 		}
 		break;
-	case ATM_RSTADDR:
-		if (!capable(CAP_NET_ADMIN)) {
-			error = -EPERM;
-			goto done;
-		}
-		atm_reset_addr(dev, ATM_ADDR_LOCAL);
-		break;
-	case ATM_ADDADDR:
-	case ATM_DELADDR:
-	case ATM_ADDLECSADDR:
-	case ATM_DELLECSADDR:
-	{
-		struct sockaddr_atmsvc addr;
-
-		if (!capable(CAP_NET_ADMIN)) {
-			error = -EPERM;
-			goto done;
-		}
-
-		if (copy_from_user(&addr, buf, sizeof(addr))) {
-			error = -EFAULT;
-			goto done;
-		}
-		if (cmd == ATM_ADDADDR || cmd == ATM_ADDLECSADDR)
-			error = atm_add_addr(dev, &addr,
-					     (cmd == ATM_ADDADDR ?
-					      ATM_ADDR_LOCAL : ATM_ADDR_LECS));
-		else
-			error = atm_del_addr(dev, &addr,
-					     (cmd == ATM_DELADDR ?
-					      ATM_ADDR_LOCAL : ATM_ADDR_LECS));
-		goto done;
-	}
-	case ATM_GETADDR:
-	case ATM_GETLECSADDR:
-		error = atm_get_addr(dev, buf, len,
-				     (cmd == ATM_GETADDR ?
-				      ATM_ADDR_LOCAL : ATM_ADDR_LECS));
-		if (error < 0)
-			goto done;
-		size = error;
-		/* may return 0, but later on size == 0 means "don't
-		   write the length" */
-		error = put_user(size, sioc_len) ? -EFAULT : 0;
-		goto done;
 	case ATM_SETLOOP:
 		if (__ATM_LM_XTRMT((int) (unsigned long) buf) &&
 		    __ATM_LM_XTLOC((int) (unsigned long) buf) >
@@ -361,10 +308,6 @@ int atm_dev_ioctl(unsigned int cmd, void __user *buf, int __user *sioc_len,
 		}
 		fallthrough;
 	case ATM_SETCIRANGE:
-	case SONET_GETSTATZ:
-	case SONET_SETDIAG:
-	case SONET_CLRDIAG:
-	case SONET_SETFRAMING:
 		if (!capable(CAP_NET_ADMIN)) {
 			error = -EPERM;
 			goto done;

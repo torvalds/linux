@@ -67,6 +67,13 @@ struct encoder_feature_support {
 			uint32_t IS_UHBR13_5_CAPABLE:1;
 			uint32_t IS_UHBR20_CAPABLE:1;
 			uint32_t DP_IS_USB_C:1;
+			uint32_t IS_HDMI_FRL_CAPABLE:1;
+			uint32_t IS_FRL_8G_CAPABLE:1;
+			uint32_t IS_FRL_10G_CAPABLE:1;
+			uint32_t IS_FRL_12G_CAPABLE:1;
+			uint32_t IS_FRL_16G_CAPABLE:1;
+			uint32_t IS_FRL_20G_CAPABLE:1;
+			uint32_t IS_FRL_24G_CAPABLE:1;
 		} bits;
 		uint32_t raw;
 	} flags;
@@ -76,6 +83,11 @@ struct encoder_feature_support {
 	bool hdmi_ycbcr420_supported;
 	bool dp_ycbcr420_supported;
 	bool fec_supported;
+};
+
+enum phy_source_select {
+	PHY_SOURCE_DIG,
+	PHY_SOURCE_HPO
 };
 
 struct link_encoder {
@@ -93,6 +105,7 @@ struct link_encoder {
 	struct gpio *hpd_gpio;
 	enum hpd_source_id hpd_source;
 	bool usbc_combo_phy;
+	uint8_t txffe_state;
 };
 
 struct link_enc_state {
@@ -102,6 +115,12 @@ struct link_enc_state {
 		uint32_t dphy_fec_active_status;
 		uint32_t dp_link_training_complete;
 
+};
+
+struct frl_txffe {
+	uint32_t   amplitude[4];
+	uint32_t   pre_emphasis[4];
+	uint32_t   post_emphasis[4];
 };
 
 enum encoder_type_select {
@@ -172,6 +191,43 @@ struct link_encoder_funcs {
 	enum signal_type (*get_dig_mode)(
 		struct link_encoder *enc);
 
+	void (*dpcstx_set_order_invert_18_bit)(
+		struct link_encoder *enc,
+		bool invert);
+
+	void (*set_phy_source)(
+		struct link_encoder *enc,
+		enum phy_source_select src_sel,
+		uint32_t hpo_inst);
+
+	void (*dpcs_initialize_phy)(
+		struct link_encoder *enc,
+		uint32_t hpo_inst,
+		enum hdmi_frl_link_rate frl_link_rate);
+
+	void (*dpcs_configure_phypll)(
+		struct link_encoder *enc,
+		uint32_t hpo_inst,
+		enum hdmi_frl_link_rate frl_link_rate);
+
+	void (*dpcs_configure_dpcs)(
+		struct link_encoder *enc);
+
+	void (*dpcs_enable_dpcs)(
+		struct link_encoder *enc);
+	void (*prog_eq_setting)(
+		struct link_encoder *enc,
+		uint8_t FFE_Level,
+		bool de_emphasis_only,
+		bool pre_shoot_only,
+		bool no_ffe,
+		const struct dc_hdmi_frl_link_settings *link_settings);
+	void (*get_txffe)(
+		struct link_encoder *enc,
+		struct frl_txffe *lane_settings);
+	void (*set_txffe)(
+		struct link_encoder *enc,
+		struct frl_txffe *lane_settings);
 	void (*set_dio_phy_mux)(
 		struct link_encoder *enc,
 		enum encoder_type_select sel,
@@ -205,6 +261,126 @@ struct link_enc_assignment {
 enum link_enc_cfg_mode {
 	LINK_ENC_CFG_STEADY, /* Normal operation - use current_state. */
 	LINK_ENC_CFG_TRANSIENT /* During commit state - use state to be committed. */
+};
+
+struct hpo_frl_link_encoder {
+	const struct hpo_frl_link_encoder_funcs *funcs;
+	struct dc_context *ctx;
+	int inst;
+};
+
+/**
+ * @hpo_frl_link_enc_state - FRL data from the device
+ *
+ * This struct is used to store FRL information retrieved from the hardware.
+ * This is used as a parameter for the read_state function.
+ */
+struct hpo_frl_link_enc_state {
+	/**
+	 * @link_enc_enabled: 0 means disable and 1 enabled.
+	 */
+	uint32_t link_enc_enabled;
+
+	/**
+	 * @link_active:
+	 *
+	 * If link training is enable this field should be set to 1.
+	 */
+	uint32_t link_active;
+
+	/**
+	 * @lane_count: FRL lane count.
+	 */
+	uint32_t lane_count;
+};
+
+/***
+ * @hpo_frl_link_encoder_funcs - FRL encoder functions
+ *
+ * DC handles FRL as an encoder; each ASIC may have some peculiarities in
+ * setting FRL. Thus, this struct, adds all the necessary callbacks that each
+ * DCN version must implement.
+ */
+struct hpo_frl_link_encoder_funcs {
+	/**
+	 * @setup_link_encoder:
+	 *
+	 * This function is responsible for setup the ASIC to use FRL, i.e., it
+	 * contains a register configuration. This function implementation
+	 * expects the enablement of the link clock, lane count configuration,
+	 * any reset/cleanup, and, finally, the enablement of the link.
+	 */
+	void (*setup_link_encoder)(struct hpo_frl_link_encoder *enc,
+				   int lane_count);
+
+	/**
+	 * @disable_link_encoder:
+	 *
+	 * Disable the FRL link. Note that this function must do the reverse of
+	 * the setup_link_encoder.
+	 */
+	void (*disable_link_encoder)(struct hpo_frl_link_encoder *enc);
+
+	/**
+	 * @set_hdmi_training_pattern:
+	 *
+	 * Register level configuration for each lane.
+	 */
+	void (*set_hdmi_training_pattern)(struct hpo_frl_link_encoder *enc,
+					  uint32_t lane0_pattern,
+					  uint32_t lane1_pattern,
+					  uint32_t lane2_pattern,
+					  uint32_t lane3_pattern);
+
+	/**
+	 * @get_hdmi_training_pattern:
+	 *
+	 * Retrieve from the registers each of the lane pattern configurations.
+	 */
+	void (*get_hdmi_training_pattern)(struct hpo_frl_link_encoder *enc,
+					  uint32_t *lane0_pattern,
+					  uint32_t *lane1_pattern,
+					  uint32_t *lane2_pattern,
+					  uint32_t *lane3_pattern);
+
+	/**
+	 * @enable_frl_phy_output:
+	 *
+	 * Based on the parameters, this function should fill out the
+	 * bp_transmitter_control struct and use it to enable the FRL PHY link
+	 * via VBIOS.
+	 */
+	void (*enable_frl_phy_output)(struct hpo_frl_link_encoder *hpo_enc,
+				      struct link_encoder *enc,
+				      enum clock_source_id clock_source,
+				      enum hdmi_frl_link_rate frl_link_rate);
+
+	/**
+	 * @enable_output:
+	 *
+	 * Enable FRL by sending the enable packet training.
+	 */
+	void (*enable_output)(struct hpo_frl_link_encoder *enc);
+
+	/**
+	 * @read_state:
+	 *
+	 * Get the FRL information from registers and fill it out in the
+	 * hpo_frl_link_enc_state struct.
+	 */
+	void (*read_state)(struct hpo_frl_link_encoder *enc,
+			   struct hpo_frl_link_enc_state *state);
+
+	/**
+	 * @destroy:
+	 *
+	 * Destroy encoder object.
+	 */
+	void (*destroy)(struct hpo_frl_link_encoder **enc);
+
+	void (*apply_vsdb_rcc_wa)(
+		struct hpo_frl_link_encoder *enc);
+
 };
 
 enum dp2_link_mode {

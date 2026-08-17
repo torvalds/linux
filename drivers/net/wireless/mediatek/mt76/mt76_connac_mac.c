@@ -173,7 +173,7 @@ void mt76_connac_write_hw_txp(struct mt76_dev *dev,
 
 	txp->msdu_id[0] = cpu_to_le16(id | MT_MSDU_ID_VALID);
 
-	if (is_mt7663(dev) || is_connac2(dev) || is_mt7925(dev))
+	if (is_mt7663(dev) || is_connac2(dev) || is_connac3(dev))
 		last_mask = MT_TXD_LEN_LAST;
 	else
 		last_mask = MT_TXD_LEN_AMSDU_LAST |
@@ -217,7 +217,7 @@ mt76_connac_txp_skb_unmap_hw(struct mt76_dev *dev,
 	u32 last_mask;
 	int i;
 
-	if (is_mt7663(dev) || is_connac2(dev) || is_mt7925(dev))
+	if (is_mt7663(dev) || is_connac2(dev) || is_connac3(dev))
 		last_mask = MT_TXD_LEN_LAST;
 	else
 		last_mask = MT_TXD_LEN_MSDU_LAST;
@@ -274,6 +274,15 @@ int mt76_connac_init_tx_queues(struct mt76_phy *phy, int idx, int n_desc,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mt76_connac_init_tx_queues);
+
+void mt76_connac_set_txpower_cur(struct mt76_phy *phy, s8 max_power)
+{
+	int delta;
+
+	delta = mt76_tx_power_path_delta(hweight16(phy->chainmask));
+	phy->txpower_cur = max_power - delta;
+}
+EXPORT_SYMBOL_GPL(mt76_connac_set_txpower_cur);
 
 #define __bitrate_mask_check(_mcs, _mode)				\
 ({									\

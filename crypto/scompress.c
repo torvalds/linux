@@ -48,11 +48,9 @@ static DECLARE_WORK(scomp_scratch_work, scomp_scratch_workfn);
 static int __maybe_unused crypto_scomp_report(
 	struct sk_buff *skb, struct crypto_alg *alg)
 {
-	struct crypto_report_comp rscomp;
-
-	memset(&rscomp, 0, sizeof(rscomp));
-
-	strscpy(rscomp.type, "scomp", sizeof(rscomp.type));
+	struct crypto_report_comp rscomp = {
+		.type = "scomp",
+	};
 
 	return nla_put(skb, CRYPTOCFGA_REPORT_COMPRESS,
 		       sizeof(rscomp), &rscomp);

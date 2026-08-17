@@ -5,6 +5,7 @@
 
 #include <linux/mutex.h>
 #include <linux/refcount.h>
+#include <net/net_trackers.h>
 
 struct netlink_ext_ack;
 
@@ -43,9 +44,29 @@ struct psp_dev_config {
 	u32 versions;
 };
 
+/* Max number of devices that can be associated with a single PSP device.
+ * Each entry consumes ~24 bytes in the netlink dev-get response, and the
+ * response must fit in GENLMSG_DEFAULT_SIZE (~3.7KB).
+ */
+#define PSP_ASSOC_DEV_MAX	128
+
+/**
+ * struct psp_assoc_dev - wrapper for associated net_device
+ * @dev_list: list node for psp_dev::assoc_dev_list
+ * @assoc_dev: the associated net_device
+ * @dev_tracker: tracker for the net_device reference
+ */
+struct psp_assoc_dev {
+	struct list_head dev_list;
+	struct net_device *assoc_dev;
+	netdevice_tracker dev_tracker;
+};
+
 /**
  * struct psp_dev - PSP device struct
  * @main_netdev: original netdevice of this PSP device
+ * @assoc_dev_list: list of psp_assoc_dev entries associated with this PSP device
+ * @assoc_dev_cnt: number of entries in @assoc_dev_list
  * @ops:	driver callbacks
  * @caps:	device capabilities
  * @drv_priv:	driver priv pointer
@@ -67,6 +88,8 @@ struct psp_dev_config {
  */
 struct psp_dev {
 	struct net_device *main_netdev;
+	struct list_head assoc_dev_list;
+	int assoc_dev_cnt;
 
 	struct psp_dev_ops *ops;
 	struct psp_dev_caps *caps;

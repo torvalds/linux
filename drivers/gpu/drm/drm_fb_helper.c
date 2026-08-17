@@ -763,7 +763,7 @@ static int setcmap_atomic(struct fb_cmap *cmap, struct fb_info *info)
 	struct drm_property_blob *gamma_lut = NULL;
 	struct drm_modeset_acquire_ctx ctx;
 	struct drm_crtc_state *crtc_state;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_mode_set *modeset;
 	struct drm_crtc *crtc;
 	u16 *r, *g, *b;
@@ -772,7 +772,7 @@ static int setcmap_atomic(struct fb_cmap *cmap, struct fb_info *info)
 
 	drm_modeset_acquire_init(&ctx, 0);
 
-	state = drm_atomic_state_alloc(dev);
+	state = drm_atomic_commit_alloc(dev);
 	if (!state) {
 		ret = -ENOMEM;
 		goto out_ctx;
@@ -831,7 +831,7 @@ out_state:
 		goto backoff;
 
 	drm_property_blob_put(gamma_lut);
-	drm_atomic_state_put(state);
+	drm_atomic_commit_put(state);
 out_ctx:
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
@@ -839,7 +839,7 @@ out_ctx:
 	return ret;
 
 backoff:
-	drm_atomic_state_clear(state);
+	drm_atomic_commit_clear(state);
 	drm_modeset_backoff(&ctx);
 	goto retry;
 }

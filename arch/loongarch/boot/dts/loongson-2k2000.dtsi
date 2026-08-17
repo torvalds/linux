@@ -239,6 +239,8 @@
 		i2c@1fe00120 {
 			compatible = "loongson,ls2k-i2c";
 			reg = <0x0 0x1fe00120 0x0 0x8>;
+			clock-frequency = <100000>;
+			clocks = <&clk LOONGSON2_MISC_CLK>;
 			interrupt-parent = <&liointc>;
 			interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
@@ -247,6 +249,8 @@
 		i2c@1fe00130 {
 			compatible = "loongson,ls2k-i2c";
 			reg = <0x0 0x1fe00130 0x0 0x8>;
+			clock-frequency = <100000>;
+			clocks = <&clk LOONGSON2_MISC_CLK>;
 			interrupt-parent = <&liointc>;
 			interrupts = <9 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";

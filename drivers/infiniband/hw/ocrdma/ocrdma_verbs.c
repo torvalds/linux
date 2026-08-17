@@ -68,9 +68,11 @@ int ocrdma_query_device(struct ib_device *ibdev, struct ib_device_attr *attr,
 			struct ib_udata *uhw)
 {
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibdev);
+	int err;
 
-	if (uhw->inlen || uhw->outlen)
-		return -EINVAL;
+	err = ib_is_udata_in_empty(uhw);
+	if (err)
+		return err;
 
 	memset(attr, 0, sizeof *attr);
 	memcpy(&attr->fw_ver, &dev->attr.fw_ver[0],
@@ -110,7 +112,7 @@ int ocrdma_query_device(struct ib_device *ibdev, struct ib_device_attr *attr,
 	attr->local_ca_ack_delay = dev->attr.local_ca_ack_delay;
 	attr->max_fast_reg_page_list_len = dev->attr.max_pages_per_frmr;
 	attr->max_pkeys = 1;
-	return 0;
+	return ib_respond_empty_udata(uhw);
 }
 
 static inline void get_link_speed_and_width(struct ocrdma_dev *dev,
@@ -502,7 +504,7 @@ int ocrdma_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata)
 	resp.dpp_wqe_size = dev->attr.wqe_size;
 
 	memcpy(resp.fw_ver, dev->attr.fw_ver, sizeof(resp.fw_ver));
-	status = ib_copy_to_udata(udata, &resp, sizeof(resp));
+	status = ib_respond_udata(udata, resp);
 	if (status)
 		goto cpy_err;
 	return 0;
@@ -586,11 +588,10 @@ static int ocrdma_copy_pd_uresp(struct ocrdma_dev *dev, struct ocrdma_pd *pd,
 	u64 db_page_addr;
 	u64 dpp_page_addr = 0;
 	u32 db_page_size;
-	struct ocrdma_alloc_pd_uresp rsp;
+	struct ocrdma_alloc_pd_uresp rsp = {};
 	struct ocrdma_ucontext *uctx = rdma_udata_to_drv_context(
 		udata, struct ocrdma_ucontext, ibucontext);
 
-	memset(&rsp, 0, sizeof(rsp));
 	rsp.id = pd->id;
 	rsp.dpp_enabled = pd->dpp_enabled;
 	db_page_addr = ocrdma_get_db_addr(dev, pd->id);
@@ -611,7 +612,7 @@ static int ocrdma_copy_pd_uresp(struct ocrdma_dev *dev, struct ocrdma_pd *pd,
 		rsp.dpp_page_addr_lo = dpp_page_addr;
 	}
 
-	status = ib_copy_to_udata(udata, &rsp, sizeof(rsp));
+	status = ib_respond_udata(udata, rsp);
 	if (status)
 		goto ucopy_err;
 
@@ -865,7 +866,7 @@ struct ib_mr *ocrdma_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(status);
-	mr->umem = ib_umem_get(ibpd->device, start, len, acc);
+	mr->umem = ib_umem_get_va(ibpd->device, start, len, acc);
 	if (IS_ERR(mr->umem)) {
 		status = -EFAULT;
 		goto umem_err;
@@ -930,13 +931,12 @@ static int ocrdma_copy_cq_uresp(struct ocrdma_dev *dev, struct ocrdma_cq *cq,
 	int status;
 	struct ocrdma_ucontext *uctx = rdma_udata_to_drv_context(
 		udata, struct ocrdma_ucontext, ibucontext);
-	struct ocrdma_create_cq_uresp uresp;
+	struct ocrdma_create_cq_uresp uresp = {};
 
 	/* this must be user flow! */
 	if (!udata)
 		return -EINVAL;
 
-	memset(&uresp, 0, sizeof(uresp));
 	uresp.cq_id = cq->id;
 	uresp.page_size = PAGE_ALIGN(cq->len);
 	uresp.num_pages = 1;
@@ -945,12 +945,9 @@ static int ocrdma_copy_cq_uresp(struct ocrdma_dev *dev, struct ocrdma_cq *cq,
 	uresp.db_page_addr =  ocrdma_get_db_addr(dev, uctx->cntxt_pd->id);
 	uresp.db_page_size = dev->nic_info.db_page_size;
 	uresp.phase_change = cq->phase_change ? 1 : 0;
-	status = ib_copy_to_udata(udata, &uresp, sizeof(uresp));
-	if (status) {
-		pr_err("%s(%d) copy error cqid=0x%x.\n",
-		       __func__, dev->id, cq->id);
+	status = ib_respond_udata(udata, uresp);
+	if (status)
 		goto err;
-	}
 	status = ocrdma_add_mmap(uctx, uresp.db_page_addr, uresp.db_page_size);
 	if (status)
 		goto err;
@@ -1176,11 +1173,10 @@ static int ocrdma_copy_qp_uresp(struct ocrdma_qp *qp,
 {
 	int status;
 	u64 usr_db;
-	struct ocrdma_create_qp_uresp uresp;
+	struct ocrdma_create_qp_uresp uresp = {};
 	struct ocrdma_pd *pd = qp->pd;
 	struct ocrdma_dev *dev = get_ocrdma_dev(pd->ibpd.device);
 
-	memset(&uresp, 0, sizeof(uresp));
 	usr_db = dev->nic_info.unmapped_db +
 			(pd->id * dev->nic_info.db_page_size);
 	uresp.qp_id = qp->id;
@@ -1206,11 +1202,9 @@ static int ocrdma_copy_qp_uresp(struct ocrdma_qp *qp,
 		uresp.dpp_credit = dpp_credit_lmt;
 		uresp.dpp_offset = dpp_offset;
 	}
-	status = ib_copy_to_udata(udata, &uresp, sizeof(uresp));
-	if (status) {
-		pr_err("%s(%d) user copy error.\n", __func__, dev->id);
+	status = ib_respond_udata(udata, uresp);
+	if (status)
 		goto err;
-	}
 	status = ocrdma_add_mmap(pd->uctx, uresp.sq_page_addr[0],
 				 uresp.sq_page_size);
 	if (status)
@@ -1735,9 +1729,8 @@ static int ocrdma_copy_srq_uresp(struct ocrdma_dev *dev, struct ocrdma_srq *srq,
 				struct ib_udata *udata)
 {
 	int status;
-	struct ocrdma_create_srq_uresp uresp;
+	struct ocrdma_create_srq_uresp uresp = {};
 
-	memset(&uresp, 0, sizeof(uresp));
 	uresp.rq_dbid = srq->rq.dbid;
 	uresp.num_rq_pages = 1;
 	uresp.rq_page_addr[0] = virt_to_phys(srq->rq.va);
@@ -1754,7 +1747,7 @@ static int ocrdma_copy_srq_uresp(struct ocrdma_dev *dev, struct ocrdma_srq *srq,
 		uresp.db_shift = 16;
 	}
 
-	status = ib_copy_to_udata(udata, &uresp, sizeof(uresp));
+	status = ib_respond_udata(udata, uresp);
 	if (status)
 		return status;
 	status = ocrdma_add_mmap(srq->pd->uctx, uresp.rq_page_addr[0],

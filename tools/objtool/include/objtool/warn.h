@@ -77,13 +77,13 @@ static inline char *offstr(struct section *sec, unsigned long offset)
 #define WARN_INSN(insn, format, ...)					\
 ({									\
 	struct instruction *_insn = (insn);				\
-	if (!_insn->sym || !_insn->sym->warned)	{			\
+	if (!insn_sym(_insn) || !insn_sym(_insn)->warned)	{	\
 		WARN_FUNC(_insn->sec, _insn->offset, format,		\
 			  ##__VA_ARGS__);				\
 		BT_INSN(_insn, "");					\
 	}								\
-	if (_insn->sym)							\
-		_insn->sym->warned = 1;					\
+	if (insn_sym(_insn))						\
+		insn_sym(_insn)->warned = 1;				\
 })
 
 #define BT_INSN(insn, format, ...)				\
@@ -109,7 +109,7 @@ static inline char *offstr(struct section *sec, unsigned long offset)
 #define ERROR_FUNC(sec, offset, format, ...) __WARN_FUNC(ERROR_STR, sec, offset, format, ##__VA_ARGS__)
 #define ERROR_INSN(insn, format, ...) ERROR_FUNC(insn->sec, insn->offset, format, ##__VA_ARGS__)
 
-extern bool debug;
+extern bool debug, debug_correlate, debug_clone;
 extern int indent;
 
 static inline void unindent(int *unused) { indent--; }
@@ -130,32 +130,39 @@ static inline void unindent(int *unused) { indent--; }
 		objname ? ": " : "",					\
 		##__VA_ARGS__)
 
-#define dbg(args...)							\
+#define dbg_checksum_insn(func, insn, checksum)				\
 ({									\
-	if (unlikely(debug))						\
-		__dbg(args);						\
-})
-
-#define __dbg_indent(format, ...)					\
-({									\
-	if (unlikely(debug))						\
-		__dbg("%*s" format, indent * 8, "", ##__VA_ARGS__);	\
-})
-
-#define dbg_indent(args...)						\
-	int __cleanup(unindent) __dummy_##__COUNTER__;			\
-	__dbg_indent(args);						\
-	indent++
-
-#define dbg_checksum(func, insn, checksum)				\
-({									\
-	if (unlikely(insn->sym && insn->sym->pfunc &&			\
-		     insn->sym->pfunc->debug_checksum)) {		\
+	if (unlikely(func->debug_checksum)) {				\
 		char *insn_off = offstr(insn->sec, insn->offset);	\
-		__dbg("checksum: %s %s %016llx",			\
+		__dbg("checksum: %s(): %s %016llx",			\
 		      func->name, insn_off, (unsigned long long)checksum);\
 		free(insn_off);						\
 	}								\
 })
+
+#define dbg_checksum_object(sym, offset, what, checksum)		\
+({									\
+	if (unlikely(sym->debug_checksum))				\
+		__dbg("checksum: %s+0x%lx: %s %016llx",			\
+		      sym->name, offset, what,				\
+		      (unsigned long long)checksum);			\
+})
+
+#define dbg_correlate(args...)						\
+({									\
+	if (unlikely(debug_correlate))					\
+		__dbg(args);						\
+})
+
+#define __dbg_clone(format, ...)					\
+({									\
+	if (unlikely(debug_clone))					\
+		__dbg("%*s" format, indent * 8, "", ##__VA_ARGS__);	\
+})
+
+#define dbg_clone(args...)						\
+	int __cleanup(unindent) __dummy_##__COUNTER__;			\
+	__dbg_clone(args);						\
+	indent++
 
 #endif /* _WARN_H */

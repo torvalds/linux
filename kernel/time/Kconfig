@@ -16,10 +16,6 @@ config ARCH_CLOCKSOURCE_INIT
 config ARCH_WANTS_CLOCKSOURCE_READ_INLINE
 	bool
 
-# Timekeeping vsyscall support
-config GENERIC_TIME_VSYSCALL
-	bool
-
 # The generic clock events infrastructure
 config GENERIC_CLOCKEVENTS
 	def_bool !LEGACY_TIMER_TICK

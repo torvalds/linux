@@ -133,7 +133,7 @@ imx8qxp_pxl2dpi_bridge_mode_set(struct drm_bridge *bridge,
 }
 
 static void imx8qxp_pxl2dpi_bridge_atomic_disable(struct drm_bridge *bridge,
-						  struct drm_atomic_state *state)
+						  struct drm_atomic_commit *state)
 {
 	struct imx8qxp_pxl2dpi *p2d = bridge->driver_private;
 

@@ -1920,5 +1920,54 @@
         "teardown": [
             "$TC actions flush action pedit"
         ]
+    },
+    {
+        "id": "1a4f",
+        "name": "Pedit udp dport should not mangle TCP packet dport",
+        "category": [
+            "actions",
+            "pedit"
+        ],
+        "plugins": {
+            "requires": [
+                "nsPlugin",
+                "scapyPlugin"
+            ]
+        },
+        "setup": [
+            "$TC qdisc add dev $DEV1 clsact",
+            "$TC filter add dev $DEV1 ingress protocol ip pref 1 matchall action pedit ex munge udp dport set 18053 continue"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DEV1 ingress protocol ip pref 2 flower ip_proto tcp dst_port 2222 action drop index 1",
+        "scapy": {
+            "iface": "$DEV0",
+            "count": 1,
+            "packet": "Ether()/IP(dst='10.10.10.1')/TCP(dport=2222)"
+        },
+        "expExitCode": "0",
+        "verifyCmd": "$TC -j -s actions get action gact index 1",
+        "matchJSON": [
+            {
+                "total acts": 0
+            },
+            {
+                "actions": [
+                    {
+                        "order": 1,
+                        "kind": "gact",
+                        "control_action": {
+                            "type": "drop"
+                        },
+                        "index": 1,
+                        "stats": {
+                            "packets": 1
+                        }
+                    }
+                ]
+            }
+        ],
+        "teardown": [
+            "$TC qdisc del dev $DEV1 clsact"
+        ]
     }
 ]

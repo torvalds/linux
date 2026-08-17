@@ -75,7 +75,7 @@ static void __init m5249_qspi_init(void)
 {
 #if IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI)
 	/* QSPI irq setup */
-	writeb(MCFSIM_ICR_AUTOVEC | MCFSIM_ICR_LEVEL4 | MCFSIM_ICR_PRI0,
+	mcf_write8(MCFSIM_ICR_AUTOVEC | MCFSIM_ICR_LEVEL4 | MCFSIM_ICR_PRI0,
 	       MCFSIM_QSPIICR);
 	mcf_mapirq2imr(MCF_IRQ_QSPI, MCFINTC_QSPI);
 #endif /* IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI) */
@@ -89,15 +89,15 @@ static void __init m5249_i2c_init(void)
 	u32 r;
 
 	/* first I2C controller uses regular irq setup */
-	writeb(MCFSIM_ICR_AUTOVEC | MCFSIM_ICR_LEVEL5 | MCFSIM_ICR_PRI0,
+	mcf_write8(MCFSIM_ICR_AUTOVEC | MCFSIM_ICR_LEVEL5 | MCFSIM_ICR_PRI0,
 	       MCFSIM_I2CICR);
 	mcf_mapirq2imr(MCF_IRQ_I2C0, MCFINTC_I2C);
 
 	/* second I2C controller is completely different */
-	r = readl(MCFINTC2_INTPRI_REG(MCF_IRQ_I2C1));
+	r = mcf_read32(MCFINTC2_INTPRI_REG(MCF_IRQ_I2C1));
 	r &= ~MCFINTC2_INTPRI_BITS(0xf, MCF_IRQ_I2C1);
 	r |= MCFINTC2_INTPRI_BITS(0x5, MCF_IRQ_I2C1);
-	writel(r, MCFINTC2_INTPRI_REG(MCF_IRQ_I2C1));
+	mcf_write32(r, MCFINTC2_INTPRI_REG(MCF_IRQ_I2C1));
 #endif /* CONFIG_I2C_IMX */
 }
 
@@ -110,11 +110,11 @@ static void __init m5249_smc91x_init(void)
 	u32  gpio;
 
 	/* Set the GPIO line as interrupt source for smc91x device */
-	gpio = readl(MCFSIM2_GPIOINTENABLE);
-	writel(gpio | 0x40, MCFSIM2_GPIOINTENABLE);
+	gpio = mcf_read32(MCFSIM2_GPIOINTENABLE);
+	mcf_write32(gpio | 0x40, MCFSIM2_GPIOINTENABLE);
 
-	gpio = readl(MCFINTC2_INTPRI5);
-	writel(gpio | 0x04000000, MCFINTC2_INTPRI5);
+	gpio = mcf_read32(MCFINTC2_INTPRI5);
+	mcf_write32(gpio | 0x04000000, MCFINTC2_INTPRI5);
 }
 
 #endif /* CONFIG_M5249C3 */

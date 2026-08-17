@@ -182,7 +182,7 @@ struct imx274_mode {
 };
 
 /*
- * imx274 test pattern related structure
+ * imx274 test pattern related enum
  */
 enum {
 	TEST_PATTERN_DISABLED = 0,
@@ -533,7 +533,7 @@ static const struct imx274_mode imx274_modes[] = {
 /*
  * struct imx274_ctrls - imx274 ctrl structure
  * @handler: V4L2 ctrl handler structure
- * @exposure: Pointer to expsure ctrl structure
+ * @exposure: Pointer to exposure ctrl structure
  * @gain: Pointer to gain ctrl structure
  * @vflip: Pointer to vflip ctrl structure
  * @test_pattern: Pointer to test pattern ctrl structure
@@ -547,7 +547,7 @@ struct imx274_ctrls {
 };
 
 /*
- * struct stim274 - imx274 device structure
+ * struct stimx274 - imx274 device structure
  * @sd: V4L2 subdevice structure
  * @pad: Media pad structure
  * @client: Pointer to I2C client
@@ -587,9 +587,6 @@ struct stimx274 {
 	    ? rounddown((dim), (step))			\
 	    : rounddown((dim) + (step) / 2, (step))))
 
-/*
- * Function declaration
- */
 static int imx274_set_gain(struct stimx274 *priv, struct v4l2_ctrl *ctrl);
 static int imx274_set_exposure(struct stimx274 *priv, int val);
 static int imx274_set_vflip(struct stimx274 *priv, int val);
@@ -640,9 +637,9 @@ static int imx274_write_table(struct stimx274 *priv, const struct reg_8 table[])
 
 	for (next = table;; next++) {
 		if ((next->addr != range_start + range_count) ||
-		    (next->addr == IMX274_TABLE_END) ||
-		    (next->addr == IMX274_TABLE_WAIT_MS) ||
-		    (range_count == max_range_vals)) {
+		    next->addr == IMX274_TABLE_END ||
+		    next->addr == IMX274_TABLE_WAIT_MS ||
+		    range_count == max_range_vals) {
 			if (range_count == 1)
 				err = regmap_write(regmap,
 						   range_start, range_vals[0]);
@@ -650,8 +647,6 @@ static int imx274_write_table(struct stimx274 *priv, const struct reg_8 table[])
 				err = regmap_bulk_write(regmap, range_start,
 							&range_vals[0],
 							range_count);
-			else
-				err = 0;
 
 			if (err)
 				return err;
@@ -897,14 +892,6 @@ static int imx274_regulators_get(struct device *dev, struct stimx274 *imx274)
 					imx274->supplies);
 }
 
-/**
- * imx274_s_ctrl - This is used to set the imx274 V4L2 controls
- * @ctrl: V4L2 control to be set
- *
- * This function is used to set the V4L2 controls for the imx274 sensor.
- *
- * Return: 0 on success, errors otherwise
- */
 static int imx274_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct v4l2_subdev *sd = ctrl_to_sd(ctrl);
@@ -1059,16 +1046,6 @@ static int __imx274_change_compose(struct stimx274 *imx274,
 	return 0;
 }
 
-/**
- * imx274_get_fmt - Get the pad format
- * @sd: Pointer to V4L2 Sub device structure
- * @sd_state: Pointer to sub device state structure
- * @fmt: Pointer to pad level media bus format
- *
- * This function is used to get the pad format information.
- *
- * Return: 0 on success
- */
 static int imx274_get_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *fmt)
@@ -1081,16 +1058,6 @@ static int imx274_get_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-/**
- * imx274_set_fmt - This is used to set the pad format
- * @sd: Pointer to V4L2 Sub device structure
- * @sd_state: Pointer to sub device state information structure
- * @format: Pointer to pad level media bus format
- *
- * This function is used to set the pad format.
- *
- * Return: 0 on success
- */
 static int imx274_set_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *format)
@@ -1423,16 +1390,6 @@ static void imx274_load_default(struct stimx274 *priv)
 	priv->ctrls.test_pattern->val = TEST_PATTERN_DISABLED;
 }
 
-/**
- * imx274_s_stream - It is used to start/stop the streaming.
- * @sd: V4L2 Sub device
- * @on: Flag (True / False)
- *
- * This function controls the start or stop of streaming for the
- * imx274 sensor.
- *
- * Return: 0 on success, errors otherwise
- */
 static int imx274_s_stream(struct v4l2_subdev *sd, int on)
 {
 	struct stimx274 *imx274 = to_imx274(sd);
@@ -1951,7 +1908,7 @@ static const struct of_device_id imx274_of_id_table[] = {
 MODULE_DEVICE_TABLE(of, imx274_of_id_table);
 
 static const struct i2c_device_id imx274_id[] = {
-	{ "IMX274" },
+	{ .name = "IMX274" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, imx274_id);
@@ -1998,7 +1955,6 @@ static int imx274_probe(struct i2c_client *client)
 	struct device *dev = &client->dev;
 	int ret;
 
-	/* initialize imx274 */
 	imx274 = devm_kzalloc(dev, sizeof(*imx274), GFP_KERNEL);
 	if (!imx274)
 		return -ENOMEM;
@@ -2163,7 +2119,7 @@ static const struct dev_pm_ops imx274_pm_ops = {
 
 static struct i2c_driver imx274_i2c_driver = {
 	.driver = {
-		.name	= DRIVER_NAME,
+		.name = DRIVER_NAME,
 		.pm = &imx274_pm_ops,
 		.of_match_table	= imx274_of_id_table,
 	},

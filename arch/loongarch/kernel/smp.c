@@ -88,7 +88,7 @@ void show_ipi_list(struct seq_file *p, int prec)
 	unsigned int cpu, i;
 
 	for (i = 0; i < NR_IPI; i++) {
-		seq_printf(p, "%*s%u:%s", prec - 1, "IPI", i, prec >= 4 ? " " : "");
+		seq_printf(p, "%*s%u:", prec - 1, "IPI", i);
 		for_each_online_cpu(cpu)
 			seq_put_decimal_ull_width(p, " ", per_cpu(irq_stat, cpu).ipi_irqs[i], 10);
 		seq_printf(p, " LoongArch  %d  %s\n", i + 1, ipi_types[i]);
@@ -400,8 +400,9 @@ void loongson_boot_secondary(int cpu, struct task_struct *idle)
 	pr_info("Booting CPU#%d...\n", cpu);
 
 	entry = __pa_symbol((unsigned long)&smpboot_entry);
-	cpuboot_data.stack = (unsigned long)__KSTK_TOS(idle);
-	cpuboot_data.thread_info = (unsigned long)task_thread_info(idle);
+	cpuboot_data.task = (unsigned long)idle;
+	cpuboot_data.stack = (unsigned long)task_pt_regs(idle);
+	cpuboot_data.offset = per_cpu_offset(cpu);
 
 	csr_mail_send(entry, cpu_logical_map(cpu), 0);
 
@@ -663,6 +664,7 @@ asmlinkage void start_secondary(void)
 	set_my_cpu_offset(per_cpu_offset(cpu));
 
 	cpu_probe();
+	set_current(current);
 	constant_clockevent_init();
 	loongson_init_secondary();
 
@@ -705,6 +707,7 @@ static void stop_this_cpu(void *dummy)
 	set_cpu_online(smp_processor_id(), false);
 	calculate_cpu_foreign_map();
 	local_irq_disable();
+	rcutree_report_cpu_dead();
 	while (true);
 }
 

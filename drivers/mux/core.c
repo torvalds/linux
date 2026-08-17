@@ -533,14 +533,16 @@ static struct mux_chip *of_find_mux_chip_by_node(struct device_node *np)
  * @state: Pointer to where the requested state is returned, or NULL when
  *         the required multiplexer states are handled by other means.
  * @optional: Whether to return NULL and silence errors when mux doesn't exist.
+ * @node: the device nodes, use dev->of_node if it is NULL.
  *
  * Return: Pointer to the mux-control on success, an ERR_PTR with a negative
  * errno on error, or NULL if optional is true and mux doesn't exist.
  */
 static struct mux_control *mux_get(struct device *dev, const char *mux_name,
-				   unsigned int *state, bool optional)
+				   unsigned int *state, bool optional,
+				   struct device_node *node)
 {
-	struct device_node *np = dev->of_node;
+	struct device_node *np = node ? node : dev->of_node;
 	struct of_phandle_args args;
 	struct mux_chip *mux_chip;
 	unsigned int controller;
@@ -635,7 +637,7 @@ static struct mux_control *mux_get(struct device *dev, const char *mux_name,
  */
 struct mux_control *mux_control_get(struct device *dev, const char *mux_name)
 {
-	struct mux_control *mux = mux_get(dev, mux_name, NULL, false);
+	struct mux_control *mux = mux_get(dev, mux_name, NULL, false, NULL);
 
 	if (!mux)
 		return ERR_PTR(-ENOENT);
@@ -654,7 +656,7 @@ EXPORT_SYMBOL_GPL(mux_control_get);
  */
 struct mux_control *mux_control_get_optional(struct device *dev, const char *mux_name)
 {
-	return mux_get(dev, mux_name, NULL, true);
+	return mux_get(dev, mux_name, NULL, true, NULL);
 }
 EXPORT_SYMBOL_GPL(mux_control_get_optional);
 
@@ -712,11 +714,14 @@ EXPORT_SYMBOL_GPL(devm_mux_control_get);
  * @dev: The device that needs a mux-state.
  * @mux_name: The name identifying the mux-state.
  * @optional: Whether to return NULL and silence errors when mux doesn't exist.
+ * @np: the device nodes, use dev->of_node if it is NULL.
  *
  * Return: Pointer to the mux-state on success, an ERR_PTR with a negative
  * errno on error, or NULL if optional is true and mux doesn't exist.
  */
-static struct mux_state *mux_state_get(struct device *dev, const char *mux_name, bool optional)
+static struct mux_state *
+mux_state_get(struct device *dev, const char *mux_name, bool optional,
+	      struct device_node *np)
 {
 	struct mux_state *mstate;
 
@@ -724,7 +729,7 @@ static struct mux_state *mux_state_get(struct device *dev, const char *mux_name,
 	if (!mstate)
 		return ERR_PTR(-ENOMEM);
 
-	mstate->mux = mux_get(dev, mux_name, &mstate->state, optional);
+	mstate->mux = mux_get(dev, mux_name, &mstate->state, optional, np);
 	if (IS_ERR(mstate->mux)) {
 		int err = PTR_ERR(mstate->mux);
 
@@ -766,6 +771,7 @@ static void devm_mux_state_release(struct device *dev, void *res)
  * @dev: The device that needs a mux-state.
  * @mux_name: The name identifying the mux-state.
  * @optional: Whether to return NULL and silence errors when mux doesn't exist.
+ * @np: The device nodes, use dev->of_node if it is NULL.
  * @init: Optional function pointer for mux-state object initialisation.
  * @exit: Optional function pointer for mux-state object cleanup on release.
  *
@@ -773,7 +779,7 @@ static void devm_mux_state_release(struct device *dev, void *res)
  * errno on error, or NULL if optional is true and mux doesn't exist.
  */
 static struct mux_state *__devm_mux_state_get(struct device *dev, const char *mux_name,
-					      bool optional,
+					      bool optional, struct device_node *np,
 					      int (*init)(struct mux_state *mstate),
 					      int (*exit)(struct mux_state *mstate))
 {
@@ -781,7 +787,7 @@ static struct mux_state *__devm_mux_state_get(struct device *dev, const char *mu
 	struct mux_state *mstate;
 	int ret;
 
-	mstate = mux_state_get(dev, mux_name, optional);
+	mstate = mux_state_get(dev, mux_name, optional, np);
 	if (IS_ERR(mstate))
 		return ERR_CAST(mstate);
 	else if (optional && !mstate)
@@ -815,20 +821,23 @@ err_devres_alloc:
 }
 
 /**
- * devm_mux_state_get() - Get the mux-state for a device, with resource
- *			  management.
+ * devm_mux_state_get_from_np() - Get the mux-state for a device, with resource
+ *				  management.
  * @dev: The device that needs a mux-control.
  * @mux_name: The name identifying the mux-control.
+ * @np: the device nodes, use dev->of_node if it is NULL.
  *
  * Return: Pointer to the mux-state, or an ERR_PTR with a negative errno.
  *
  * The mux-state will automatically be freed on release.
  */
-struct mux_state *devm_mux_state_get(struct device *dev, const char *mux_name)
+struct mux_state *
+devm_mux_state_get_from_np(struct device *dev, const char *mux_name,
+			   struct device_node *np)
 {
-	return __devm_mux_state_get(dev, mux_name, false, NULL, NULL);
+	return __devm_mux_state_get(dev, mux_name, false, np, NULL, NULL);
 }
-EXPORT_SYMBOL_GPL(devm_mux_state_get);
+EXPORT_SYMBOL_GPL(devm_mux_state_get_from_np);
 
 /**
  * devm_mux_state_get_optional() - Get the optional mux-state for a device,
@@ -843,7 +852,7 @@ EXPORT_SYMBOL_GPL(devm_mux_state_get);
  */
 struct mux_state *devm_mux_state_get_optional(struct device *dev, const char *mux_name)
 {
-	return __devm_mux_state_get(dev, mux_name, true, NULL, NULL);
+	return __devm_mux_state_get(dev, mux_name, true, NULL, NULL, NULL);
 }
 EXPORT_SYMBOL_GPL(devm_mux_state_get_optional);
 
@@ -861,7 +870,8 @@ EXPORT_SYMBOL_GPL(devm_mux_state_get_optional);
  */
 struct mux_state *devm_mux_state_get_selected(struct device *dev, const char *mux_name)
 {
-	return __devm_mux_state_get(dev, mux_name, false, mux_state_select, mux_state_deselect);
+	return __devm_mux_state_get(dev, mux_name, false, NULL,
+				    mux_state_select, mux_state_deselect);
 }
 EXPORT_SYMBOL_GPL(devm_mux_state_get_selected);
 
@@ -881,7 +891,8 @@ EXPORT_SYMBOL_GPL(devm_mux_state_get_selected);
 struct mux_state *devm_mux_state_get_optional_selected(struct device *dev,
 						       const char *mux_name)
 {
-	return __devm_mux_state_get(dev, mux_name, true, mux_state_select, mux_state_deselect);
+	return __devm_mux_state_get(dev, mux_name, true, NULL,
+				    mux_state_select, mux_state_deselect);
 }
 EXPORT_SYMBOL_GPL(devm_mux_state_get_optional_selected);
 

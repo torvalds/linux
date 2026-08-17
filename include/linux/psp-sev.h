@@ -902,6 +902,42 @@ struct snp_feature_info {
 /* Feature bits in EBX */
 #define SNP_SEV_TIO_SUPPORTED			BIT(1)
 
+/**
+ * struct sev_snp_tcb_version_genoa_milan
+ *
+ * @boot_loader: SVN of PSP bootloader
+ * @tee: SVN of PSP operating system
+ * @reserved: reserved
+ * @snp: SVN of SNP firmware
+ * @microcode: Lowest current patch level of all cores
+ */
+struct sev_snp_tcb_version_genoa_milan {
+	u8 boot_loader;
+	u8 tee;
+	u8 reserved[4];
+	u8 snp;
+	u8 microcode;
+};
+
+/**
+ * struct sev_snp_tcb_version_turin
+ *
+ * @fmc: SVN of FMC firmware
+ * @boot_loader: SVN of PSP bootloader
+ * @tee: SVN of PSP operating system
+ * @snp: SVN of SNP firmware
+ * @reserved: reserved
+ * @microcode: Lowest current patch level of all cores
+ */
+struct sev_snp_tcb_version_turin {
+	u8 fmc;
+	u8 boot_loader;
+	u8 tee;
+	u8 snp;
+	u8 reserved[3];
+	u8 microcode;
+};
+
 #ifdef CONFIG_CRYPTO_DEV_SP_PSP
 
 /**
@@ -1048,6 +1084,7 @@ void snp_free_firmware_page(void *addr);
 void sev_platform_shutdown(void);
 bool sev_is_snp_ciphertext_hiding_supported(void);
 u64 sev_get_snp_policy_bits(void);
+int sev_firmware_supported_vm_types(void);
 
 #else	/* !CONFIG_CRYPTO_DEV_SP_PSP */
 

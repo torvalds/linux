@@ -3,10 +3,10 @@
  * HID Sensors Driver
  * Copyright (c) 2014, Intel Corporation.
  */
+#include <linux/bitops.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/slab.h>
 #include <linux/hid-sensor-hub.h>
 #include <linux/iio/iio.h>
@@ -52,17 +52,6 @@ static const struct iio_chan_spec press_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(CHANNEL_SCAN_INDEX_TIMESTAMP)
 
 };
-
-/* Adjust channel real bits based on report descriptor */
-static void press_adjust_channel_bit_mask(struct iio_chan_spec *channels,
-					int channel, int size)
-{
-	channels[channel].scan_type.sign = 's';
-	/* Real storage bits will change based on the report desc. */
-	channels[channel].scan_type.realbits = size * 8;
-	/* Maximum size of a sample to capture is u32 */
-	channels[channel].scan_type.storagebits = sizeof(u32) * 8;
-}
 
 /* Channel read_raw handler */
 static int press_read_raw(struct iio_dev *indio_dev,
@@ -225,8 +214,11 @@ static int press_parse_report(struct platform_device *pdev,
 			&st->press_attr);
 	if (ret < 0)
 		return ret;
-	press_adjust_channel_bit_mask(channels, CHANNEL_SCAN_INDEX_PRESSURE,
-					st->press_attr.size);
+	channels[CHANNEL_SCAN_INDEX_PRESSURE].scan_type = (struct iio_scan_type) {
+		.format = 's',
+		.realbits = BYTES_TO_BITS(st->press_attr.size),
+		.storagebits = BITS_PER_TYPE(u32),
+	};
 
 	dev_dbg(&pdev->dev, "press %x:%x\n", st->press_attr.index,
 			st->press_attr.report_id);

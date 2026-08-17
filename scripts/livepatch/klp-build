@@ -3,7 +3,7 @@
 #
 # Build a livepatch module
 
-# shellcheck disable=SC1090,SC2155
+# shellcheck disable=SC1090,SC2155,SC2164
 
 if (( BASH_VERSINFO[0]  < 4 || \
      (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 4) )); then
@@ -11,21 +11,19 @@ if (( BASH_VERSINFO[0]  < 4 || \
 	exit 1
 fi
 
-set -o errexit
 set -o errtrace
 set -o pipefail
 set -o nounset
 
 # Allow doing 'cmd | mapfile -t array' instead of 'mapfile -t array < <(cmd)'.
-# This helps keep execution in pipes so pipefail+errexit can catch errors.
+# This helps keep execution in pipes so pipefail+ERR trap can catch errors.
 shopt -s lastpipe
 
-unset DEBUG_CLONE DIFF_CHECKSUM SKIP_CLEANUP XTRACE
+unset DEBUG_CLONE DIFF_CHECKSUM SKIP_CLEANUP VERBOSE XTRACE
 
 REPLACE=1
 SHORT_CIRCUIT=0
 JOBS="$(getconf _NPROCESSORS_ONLN)"
-VERBOSE="-s"
 shopt -o xtrace | grep -q 'on' && XTRACE=1
 
 # Avoid removing the previous $TMP_DIR until args have been fully processed.
@@ -35,16 +33,16 @@ SCRIPT="$(basename "$0")"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FIX_PATCH_LINES="$SCRIPT_DIR/fix-patch-lines"
 
-SRC="$(pwd)"
-OBJ="$(pwd)"
+OBJTOOL="$PWD/tools/objtool/objtool"
+CONFIG="$PWD/.config"
+TMP_DIR="$PWD/klp-tmp"
 
-CONFIG="$OBJ/.config"
-TMP_DIR="$OBJ/klp-tmp"
-
-ORIG_DIR="$TMP_DIR/orig"
-PATCHED_DIR="$TMP_DIR/patched"
-DIFF_DIR="$TMP_DIR/diff"
-KMOD_DIR="$TMP_DIR/kmod"
+ORIG_DIR="$TMP_DIR/1-orig"
+PATCHED_DIR="$TMP_DIR/2-patched"
+ORIG_CSUM_DIR="$TMP_DIR/3-checksum-orig"
+PATCHED_CSUM_DIR="$TMP_DIR/3-checksum-patched"
+DIFF_DIR="$TMP_DIR/4-diff"
+KMOD_DIR="$TMP_DIR/5-kmod"
 
 STASH_DIR="$TMP_DIR/stash"
 TIMESTAMP="$TMP_DIR/timestamp"
@@ -90,7 +88,7 @@ declare -a STASHED_FILES
 
 stash_file() {
 	local file="$1"
-	local rel_file="${file#"$SRC"/}"
+	local rel_file="${file#"$PWD"/}"
 
 	[[ ! -e "$file" ]] && die "no file to stash: $file"
 
@@ -104,7 +102,7 @@ restore_files() {
 	local file
 
 	for file in "${STASHED_FILES[@]}"; do
-		mv -f "$STASH_DIR/$file" "$SRC/$file" || warn "can't restore file: $file"
+		mv -f "$STASH_DIR/$file" "$PWD/$file" || warn "can't restore file: $file"
 	done
 
 	STASHED_FILES=()
@@ -140,10 +138,11 @@ Options:
 Advanced Options:
    -d, --debug			Show symbol/reloc cloning decisions
    -S, --short-circuit=STEP	Start at build step (requires prior --keep-tmp)
-				   1|orig	Build original kernel (default)
-				   2|patched	Build patched kernel
-				   3|diff	Diff objects
-				   4|kmod	Build patch module
+				   1|orig		Build original kernel (default)
+				   2|patched		Build patched kernel
+				   3|checksum		Generate checksums
+				   4|diff		Diff objects
+				   5|kmod		Build patch module
    -T, --keep-tmp		Preserve tmp dir on exit
 
 EOF
@@ -158,6 +157,7 @@ process_args() {
 	local short
 	local long
 	local args
+	local patch
 
 	short="hfj:o:vdS:T"
 	long="help,show-first-changed,jobs:,output:,no-replace,verbose,debug,short-circuit:,keep-tmp"
@@ -194,7 +194,7 @@ process_args() {
 				shift
 				;;
 			-v | --verbose)
-				VERBOSE="V=1"
+				VERBOSE=1
 				shift
 				;;
 			-d | --debug)
@@ -206,10 +206,11 @@ process_args() {
 				[[ ! -d "$TMP_DIR" ]] && die "--short-circuit requires preserved klp-tmp dir"
 				keep_tmp=1
 				case "$2" in
-					1 | orig)	SHORT_CIRCUIT=1; ;;
-					2 | patched)	SHORT_CIRCUIT=2; ;;
-					3 | diff)	SHORT_CIRCUIT=3; ;;
-					4 | mod)	SHORT_CIRCUIT=4; ;;
+					1 | orig)		SHORT_CIRCUIT=1; ;;
+					2 | patched)		SHORT_CIRCUIT=2; ;;
+					3 | checksum)		SHORT_CIRCUIT=3; ;;
+					4 | diff)		SHORT_CIRCUIT=4; ;;
+					5 | kmod)		SHORT_CIRCUIT=5; ;;
 					*)		die "invalid short-circuit step '$2'" ;;
 				esac
 				shift 2
@@ -236,6 +237,10 @@ process_args() {
 
 	KEEP_TMP="$keep_tmp"
 	PATCHES=("$@")
+
+	for patch in "${PATCHES[@]}"; do
+		[[ -f "$patch" ]] || die "$patch doesn't exist"
+	done
 }
 
 # temporarily disable xtrace for especially verbose code
@@ -270,6 +275,9 @@ validate_config() {
 		[[ "$CONFIG_AS_VERSION" -lt 200000 ]] &&	\
 		die "Clang assembler version < 20 not supported"
 
+	[[ -x "$OBJTOOL" ]] && "$OBJTOOL" klp 2>&1 | command grep -q "not implemented" && \
+		die "objtool not built with KLP support; install xxhash-devel/libxxhash-dev (version >= 0.8) and recompile"
+
 	return 0
 }
 
@@ -301,12 +309,17 @@ set_module_name() {
 # Hardcode the value printed by the localversion script to prevent patch
 # application from appending it with '+' due to a dirty working tree.
 set_kernelversion() {
-	local file="$SRC/scripts/setlocalversion"
+	local file="$PWD/scripts/setlocalversion"
 	local kernelrelease
 
 	stash_file "$file"
 
-	kernelrelease="$(cd "$SRC" && make syncconfig &>/dev/null && make -s kernelrelease)"
+	if [[ -n "$(make -s listnewconfig 2>/dev/null)" ]]; then
+		die ".config mismatch, check your .config or run 'make olddefconfig'"
+	fi
+	make syncconfig &>/dev/null || die "make syncconfig failed"
+
+	kernelrelease="$(make -s kernelrelease)"
 	[[ -z "$kernelrelease" ]] && die "failed to get kernel version"
 
 	sed -i "2i echo $kernelrelease; exit 0" scripts/setlocalversion
@@ -349,7 +362,7 @@ check_unsupported_patches() {
 
 		for file in "${files[@]}"; do
 			case "$file" in
-				lib/*|*.S)
+				lib/*|*/vdso/*|*/realmode/rm/*|*.S)
 					die "${patch}: unsupported patch to $file"
 					;;
 			esac
@@ -367,24 +380,24 @@ apply_patch() {
 
 	[[ ! -f "$patch" ]] && die "$patch doesn't exist"
 	status=0
-	output=$(patch -d "$SRC" -p1 --dry-run --no-backup-if-mismatch -r /dev/null "${extra_args[@]}" < "$patch" 2>&1) || status=$?
+	output=$(patch -p1 --dry-run --no-backup-if-mismatch -r /dev/null "${extra_args[@]}" < "$patch" 2>&1) || status=$?
 	if [[ "$status" -ne 0 ]]; then
 		echo "$output" >&2
 		die "$patch did not apply"
 	elif [[ "$output" =~ $drift_regex ]]; then
-		echo "$output" >&2
+		[[ -v VERBOSE ]] && echo "$output" >&2
 		warn "${patch} applied with fuzz"
 	fi
 
-	patch -d "$SRC" -p1 --no-backup-if-mismatch -r /dev/null "${extra_args[@]}" --silent < "$patch"
 	APPLIED_PATCHES+=("$patch")
+	patch -p1 --no-backup-if-mismatch -r /dev/null "${extra_args[@]}" --silent < "$patch"
 }
 
 revert_patch() {
 	local patch="$1"
 	local tmp=()
 
-	patch -d "$SRC" -p1 -R --silent --no-backup-if-mismatch -r /dev/null < "$patch"
+	patch -p1 -R --force --no-backup-if-mismatch -r /dev/null &> /dev/null < "$patch" || true
 
 	for p in "${APPLIED_PATCHES[@]}"; do
 		[[ "$p" == "$patch" ]] && continue
@@ -422,8 +435,21 @@ validate_patches() {
 do_init() {
 	# We're not yet smart enough to handle anything other than in-tree
 	# builds in pwd.
-	[[ ! "$SRC" -ef "$SCRIPT_DIR/../.." ]] && die "please run from the kernel root directory"
-	[[ ! "$OBJ" -ef "$SCRIPT_DIR/../.." ]] && die "please run from the kernel root directory"
+	[[ ! "$PWD" -ef "$SCRIPT_DIR/../.." ]] && die "please run from the kernel root directory"
+
+	if (( SHORT_CIRCUIT >= 2 )); then
+		[[ -f "$ORIG_DIR/.complete" ]] || die "-S $SHORT_CIRCUIT requires completed $ORIG_DIR"
+	fi
+	if (( SHORT_CIRCUIT >= 3 )); then
+		[[ -f "$PATCHED_DIR/.complete" ]] || die "-S $SHORT_CIRCUIT requires completed $PATCHED_DIR"
+	fi
+	if (( SHORT_CIRCUIT >= 4 )); then
+		[[ -f "$ORIG_CSUM_DIR/.complete" ]] || die "-S $SHORT_CIRCUIT requires completed $ORIG_CSUM_DIR"
+		[[ -f "$PATCHED_CSUM_DIR/.complete" ]] || die "-S $SHORT_CIRCUIT requires completed $PATCHED_CSUM_DIR"
+	fi
+	if (( SHORT_CIRCUIT >= 5 )); then
+		[[ -f "$DIFF_DIR/.complete" ]] || die "-S $SHORT_CIRCUIT requires completed $DIFF_DIR"
+	fi
 
 	(( SHORT_CIRCUIT <= 1 )) && rm -rf "$TMP_DIR"
 	mkdir -p "$TMP_DIR"
@@ -454,11 +480,11 @@ refresh_patch() {
 	get_patch_output_files "$patch" | mapfile -t output_files
 
 	# Copy orig source files to 'a'
-	( cd "$SRC" && echo "${input_files[@]}" | xargs cp --parents --target-directory="$tmpdir/a" )
+	echo "${input_files[@]}" | xargs cp --parents --target-directory="$tmpdir/a"
 
 	# Copy patched source files to 'b'
 	apply_patch "$patch" "--silent"
-	( cd "$SRC" && echo "${output_files[@]}" | xargs cp --parents --target-directory="$tmpdir/b" )
+	echo "${output_files[@]}" | xargs cp --parents --target-directory="$tmpdir/b"
 	revert_patch "$patch"
 
 	# Diff 'a' and 'b' to make a clean patch
@@ -502,19 +528,13 @@ clean_kernel() {
 	cmd+=("-j$JOBS")
 	cmd+=("clean")
 
-	(
-		cd "$SRC"
-		"${cmd[@]}"
-	)
+	"${cmd[@]}"
 }
 
 build_kernel() {
 	local build="$1"
 	local log="$TMP_DIR/build.log"
-	local objtool_args=()
 	local cmd=()
-
-	objtool_args=("--checksum")
 
 	cmd=("make")
 
@@ -535,19 +555,20 @@ build_kernel() {
 	#
 	cmd+=("KBUILD_MODPOST_WARN=1")
 
-	cmd+=("$VERBOSE")
+	if [[ -v VERBOSE ]]; then
+		cmd+=("V=1")
+	else
+		cmd+=("-s")
+	fi
 	cmd+=("-j$JOBS")
 	cmd+=("KCFLAGS=-ffunction-sections -fdata-sections")
-	cmd+=("OBJTOOL_ARGS=${objtool_args[*]}")
 	cmd+=("vmlinux")
 	cmd+=("modules")
 
-	(
-		cd "$SRC"
-		"${cmd[@]}"							\
-			1> >(tee -a "$log")					\
-			2> >(tee -a "$log" | grep0 -v "modpost.*undefined!" >&2)
-	) || die "$build kernel build failed"
+	"${cmd[@]}"							\
+		1> >(tee -a "$log")					\
+		2> >(tee -a "$log" | grep0 -v "modpost.*undefined!" >&2) \
+		|| die "$build kernel build failed"
 }
 
 find_objects() {
@@ -555,9 +576,9 @@ find_objects() {
 
 	# Find root-level vmlinux.o and non-root-level .ko files,
 	# excluding klp-tmp/ and .git/
-	find "$OBJ" \( -path "$TMP_DIR" -o -path "$OBJ/.git" -o	-regex "$OBJ/[^/][^/]*\.ko" \) -prune -o \
+	find "$PWD" \( -path "$TMP_DIR" -o -path "$PWD/.git" -o -regex "$PWD/[^/][^/]*\.ko" \) -prune -o \
 		    -type f "${opts[@]}"				\
-		    \( -name "*.ko" -o -path "$OBJ/vmlinux.o" \)	\
+		    \( -name "*.ko" -o -path "$PWD/vmlinux.o" \)	\
 		    -printf '%P\n'
 }
 
@@ -570,10 +591,10 @@ copy_orig_objects() {
 
 	find_objects | mapfile -t files
 
-	xtrace_save "copying orig objects"
+	xtrace_save "copying original objects"
 	for _file in "${files[@]}"; do
 		local rel_file="${_file/.ko/.o}"
-		local file="$OBJ/$rel_file"
+		local file="$PWD/$rel_file"
 		local orig_file="$ORIG_DIR/$rel_file"
 		local orig_dir="$(dirname "$orig_file")"
 
@@ -586,6 +607,7 @@ copy_orig_objects() {
 
 	mv -f "$TMP_DIR/build.log" "$ORIG_DIR"
 	touch "$TIMESTAMP"
+	touch "$ORIG_DIR/.complete"
 }
 
 # Copy all changed objects to $PATCHED_DIR
@@ -606,7 +628,7 @@ copy_patched_objects() {
 	xtrace_save "copying changed objects"
 	for _file in "${files[@]}"; do
 		local rel_file="${_file/.ko/.o}"
-		local file="$OBJ/$rel_file"
+		local file="$PWD/$rel_file"
 		local orig_file="$ORIG_DIR/$rel_file"
 		local patched_file="$PATCHED_DIR/$rel_file"
 		local patched_dir="$(dirname "$patched_file")"
@@ -624,6 +646,36 @@ copy_patched_objects() {
 	(( found == 0 )) && die "no changes detected"
 
 	mv -f "$TMP_DIR/build.log" "$PATCHED_DIR"
+	touch "$PATCHED_DIR/.complete"
+}
+
+# Copy .o files to a separate directory and run "objtool klp checksum" on each
+# copy.  The checksums are written to a .discard.sym_checksum section.
+#
+# If match_dir is given, only process files which also exist there.
+generate_checksums() {
+	local src_dir="$1"
+	local dest_dir="$2"
+	local match_dir="${3:-}"
+	local files=()
+	local file
+
+	rm -rf "$dest_dir"
+	mkdir -p "$dest_dir"
+
+	find "$src_dir" -type f -name "*.o" | mapfile -t files
+	for file in "${files[@]}"; do
+		local rel="${file#"$src_dir"/}"
+		local dest="$dest_dir/$rel"
+
+		[[ -n "$match_dir" && ! -f "$match_dir/$rel" ]] && continue
+
+		mkdir -p "$(dirname "$dest")"
+		cp -f "$file" "$dest"
+		"$OBJTOOL" klp checksum "$dest"
+	done
+
+	touch "$dest_dir/.complete"
 }
 
 # Diff changed objects, writing output object to $DIFF_DIR
@@ -635,23 +687,23 @@ diff_objects() {
 	rm -rf "$DIFF_DIR"
 	mkdir -p "$DIFF_DIR"
 
-	find "$PATCHED_DIR" -type f -name "*.o" | mapfile -t files
+	find "$PATCHED_CSUM_DIR" -type f -name "*.o" | mapfile -t files
 	[[ ${#files[@]} -eq 0 ]] && die "no changes detected"
 
 	[[ -v DEBUG_CLONE ]] && opts=("--debug")
 
 	# Diff all changed objects
 	for file in "${files[@]}"; do
-		local rel_file="${file#"$PATCHED_DIR"/}"
+		local rel_file="${file#"$PATCHED_CSUM_DIR"/}"
 		local orig_file="$rel_file"
-		local patched_file="$PATCHED_DIR/$rel_file"
+		local patched_file="$PATCHED_CSUM_DIR/$rel_file"
 		local out_file="$DIFF_DIR/$rel_file"
 		local filter=()
 		local cmd=()
 
 		mkdir -p "$(dirname "$out_file")"
 
-		cmd=("$SRC/tools/objtool/objtool")
+		cmd=("$OBJTOOL")
 		cmd+=("klp")
 		cmd+=("diff")
 		(( ${#opts[@]} > 0 )) && cmd+=("${opts[@]}")
@@ -668,18 +720,21 @@ diff_objects() {
 		fi
 
 		(
-			cd "$ORIG_DIR"
+			cd "$ORIG_CSUM_DIR"
+			[[ -v VERBOSE ]] && echo "cd $ORIG_CSUM_DIR && ${cmd[*]}"
 			"${cmd[@]}"							\
 				1> >(tee -a "$log")					\
 				2> >(tee -a "$log" | "${filter[@]}" >&2) ||		\
 				die "objtool klp diff failed"
 		)
 	done
+
+	touch "$DIFF_DIR/.complete"
 }
 
-# For each changed object, run objtool with --debug-checksum to get the
-# per-instruction checksums, and then diff those to find the first changed
-# instruction for each function.
+# For each changed object, run "objtool klp checksum" with --debug-checksum to
+# get the per-instruction checksums, and then diff those to find the first
+# changed instruction for each function.
 diff_checksums() {
 	local orig_log="$ORIG_DIR/checksum.log"
 	local patched_log="$PATCHED_DIR/checksum.log"
@@ -703,9 +758,8 @@ diff_checksums() {
 		fi
 	done
 
-	cmd=("$SRC/tools/objtool/objtool")
-	cmd+=("--checksum")
-	cmd+=("--link")
+	cmd=("$OBJTOOL")
+	cmd+=("klp" "checksum")
 	cmd+=("--dry-run")
 
 	for file in "${!funcs[@]}"; do
@@ -714,21 +768,37 @@ diff_checksums() {
 		(
 			cd "$ORIG_DIR"
 			"${cmd[@]}" "$opt" "$file" &> "$orig_log" || \
-				( cat "$orig_log" >&2; die "objtool --debug-checksum failed" )
+				( cat "$orig_log" >&2; die "objtool klp checksum failed" )
 
 			cd "$PATCHED_DIR"
 			"${cmd[@]}" "$opt" "$file" &> "$patched_log" ||	\
-				( cat "$patched_log" >&2; die "objtool --debug-checksum failed" )
+				( cat "$patched_log" >&2; die "objtool klp checksum failed" )
 		)
 
 		for func in ${funcs[$file]}; do
-			diff <( grep0 -E "^DEBUG: .*checksum: $func " "$orig_log"    | sed "s|$ORIG_DIR/||")	\
-			     <( grep0 -E "^DEBUG: .*checksum: $func " "$patched_log" | sed "s|$PATCHED_DIR/||")	\
-				| gawk '/^< DEBUG: / {
-					gsub(/:/, "")
-					printf "%s: %s: %s\n", $3, $5, $6
-					exit
-			}' || true
+			local -a orig patched
+			paste <(grep0 -E "^DEBUG: .*checksum: $func " "$orig_log") \
+			      <(grep0 -E "^DEBUG: .*checksum: $func " "$patched_log") |
+			while IFS= read -r line; do
+				read -ra orig <<< "${line%%$'\t'*}"
+				read -ra patched <<< "${line#*$'\t'}"
+
+				if [[ ${#patched[@]} -eq 0 ]]; then
+					printf "%s: %s: %s (removed)\n" "${orig[1]%:}" "${orig[3]}" "${orig[-2]}"
+					break
+				elif [[ ${#orig[@]} -eq 0 ]]; then
+					printf "%s: %s: %s (added)\n" "${patched[1]%:}" "${patched[3]}" "${patched[-2]}"
+					break
+				fi
+
+				[[ "${orig[-1]}" == "${patched[-1]}" ]] && continue
+
+				printf "%s: %s: %s" "${orig[1]%:}" "${orig[3]}" "${orig[-2]}"
+				[[ "${orig[-2]}" != "${patched[-2]}" ]] && \
+					printf " (patched: %s)" "${patched[-2]}"
+				printf "\n"
+				break
+			done || true
 		done
 	done
 }
@@ -745,7 +815,7 @@ build_patch_module() {
 	rm -rf "$KMOD_DIR"
 	mkdir -p "$KMOD_DIR"
 
-	cp -f "$SRC/scripts/livepatch/init.c" "$KMOD_DIR"
+	cp -f "$SCRIPT_DIR/init.c" "$KMOD_DIR"
 
 	echo "obj-m := $NAME.o" > "$makefile"
 	echo -n "$NAME-y := init.o" >> "$makefile"
@@ -780,19 +850,20 @@ build_patch_module() {
 	[[ $REPLACE -eq 0 ]] && cflags+=("-DKLP_NO_REPLACE")
 
 	cmd=("make")
-	cmd+=("$VERBOSE")
+	if [[ -v VERBOSE ]]; then
+		cmd+=("V=1")
+	else
+		cmd+=("-s")
+	fi
 	cmd+=("-j$JOBS")
 	cmd+=("--directory=.")
 	cmd+=("M=$KMOD_DIR")
 	cmd+=("KCFLAGS=${cflags[*]}")
 
 	# Build a "normal" kernel module with init.c and the diffed objects
-	(
-		cd "$SRC"
-		"${cmd[@]}"							\
-			1> >(tee -a "$log")					\
-			2> >(tee -a "$log" >&2)
-	)
+	"${cmd[@]}"							\
+		1> >(tee -a "$log")					\
+		2> >(tee -a "$log" >&2)
 
 	kmod_file="$KMOD_DIR/$NAME.ko"
 
@@ -803,7 +874,7 @@ build_patch_module() {
 	objcopy --remove-section=.BTF "$kmod_file"
 
 	# Fix (and work around) linker wreckage for klp syms / relocs
-	"$SRC/tools/objtool/objtool" klp post-link "$kmod_file" || die "objtool klp post-link failed"
+	"$OBJTOOL" klp post-link "$kmod_file" || die "objtool klp post-link failed"
 
 	cp -f "$kmod_file" "$OUTFILE"
 }
@@ -839,6 +910,13 @@ if (( SHORT_CIRCUIT <= 2 )); then
 fi
 
 if (( SHORT_CIRCUIT <= 3 )); then
+	status "Generating original checksums"
+	generate_checksums "$ORIG_DIR" "$ORIG_CSUM_DIR" "$PATCHED_DIR"
+	status "Generating patched checksums"
+	generate_checksums "$PATCHED_DIR" "$PATCHED_CSUM_DIR"
+fi
+
+if (( SHORT_CIRCUIT <= 4 )); then
 	status "Diffing objects"
 	diff_objects
 	if [[ -v DIFF_CHECKSUM ]]; then
@@ -847,7 +925,7 @@ if (( SHORT_CIRCUIT <= 3 )); then
 	fi
 fi
 
-if (( SHORT_CIRCUIT <= 4 )); then
+if (( SHORT_CIRCUIT <= 5 )); then
 	status "Building patch module: $OUTFILE"
 	build_patch_module
 fi

@@ -1014,7 +1014,8 @@ static int ma35_pinctrl_parse_groups(struct fwnode_handle *fwnode, struct group_
 	grp->data = pin;
 
 	for (i = 0, j = 0; i < count; i += 3, j++) {
-		pin->offset = elems[i] * MA35_MFP_REG_SZ_PER_BANK + MA35_MFP_REG_BASE;
+		pin->offset = elems[i] * MA35_MFP_REG_SZ_PER_BANK + MA35_MFP_REG_BASE +
+			      (elems[i + 1] >= 8 ? 4 : 0);
 		pin->shift = (elems[i + 1] * MA35_MFP_BITS_PER_PORT) % 32;
 		pin->muxval = elems[i + 2];
 		pin->configs = configs;

@@ -4,7 +4,7 @@
  * Copyright (C) 2015-2024 Google LLC
  */
 
-#include <linux/rtnetlink.h>
+#include <net/netdev_lock.h>
 #include "gve.h"
 #include "gve_adminq.h"
 #include "gve_dqo.h"
@@ -171,7 +171,7 @@ gve_get_ethtool_stats(struct net_device *netdev,
 	int ring;
 	int i, j;
 
-	ASSERT_RTNL();
+	netdev_assert_locked(netdev);
 
 	priv = netdev_priv(netdev);
 	num_tx_queues = gve_num_tx_queues(priv);
@@ -983,6 +983,9 @@ const struct ethtool_ops gve_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS,
 	.supported_ring_params = ETHTOOL_RING_USE_TCP_DATA_SPLIT |
 				 ETHTOOL_RING_USE_RX_BUF_LEN,
+	.op_needs_rtnl = ETHTOOL_OP_NEEDS_RTNL_SCHANNELS |
+			 ETHTOOL_OP_NEEDS_RTNL_SRINGPARAM |
+			 ETHTOOL_OP_NEEDS_RTNL_GLINK,
 	.get_drvinfo = gve_get_drvinfo,
 	.get_strings = gve_get_strings,
 	.get_sset_count = gve_get_sset_count,

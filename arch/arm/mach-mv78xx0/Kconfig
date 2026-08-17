@@ -6,6 +6,7 @@ menuconfig ARCH_MV78XX0
 	depends on ATAGS
 	select CPU_FEROCEON
 	select GPIOLIB
+	select GPIOLIB_LEGACY
 	select MVEBU_MBUS
 	select FORCE_PCI
 	select PLAT_ORION_LEGACY

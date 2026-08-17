@@ -103,16 +103,16 @@ static uint64_t max732x_features[] = {
 };
 
 static const struct i2c_device_id max732x_id[] = {
-	{ "max7319", MAX7319 },
-	{ "max7320", MAX7320 },
-	{ "max7321", MAX7321 },
-	{ "max7322", MAX7322 },
-	{ "max7323", MAX7323 },
-	{ "max7324", MAX7324 },
-	{ "max7325", MAX7325 },
-	{ "max7326", MAX7326 },
-	{ "max7327", MAX7327 },
-	{ },
+	{ .name = "max7319", .driver_data = MAX7319 },
+	{ .name = "max7320", .driver_data = MAX7320 },
+	{ .name = "max7321", .driver_data = MAX7321 },
+	{ .name = "max7322", .driver_data = MAX7322 },
+	{ .name = "max7323", .driver_data = MAX7323 },
+	{ .name = "max7324", .driver_data = MAX7324 },
+	{ .name = "max7325", .driver_data = MAX7325 },
+	{ .name = "max7326", .driver_data = MAX7326 },
+	{ .name = "max7327", .driver_data = MAX7327 },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max732x_id);
 

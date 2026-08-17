@@ -295,9 +295,8 @@ static bool create_input_system_channel(
 	if (!rc)
 		return false;
 
-	if (!acquire_sid(me->stream2mmio_id, &me->stream2mmio_sid_id)) {
+	if (!acquire_sid(me->stream2mmio_id, &me->stream2mmio_sid_id))
 		return false;
-	}
 
 	if (!acquire_ib_buffer(
 		metadata ? cfg->metadata.bits_per_pixel :

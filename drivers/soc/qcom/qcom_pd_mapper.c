@@ -7,7 +7,6 @@
 
 #include <linux/auxiliary_bus.h>
 #include <linux/kernel.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/refcount.h>
@@ -266,6 +265,12 @@ static const struct qcom_pdm_domain_data adsp_charger_pd = {
 	.services = { NULL },
 };
 
+static const struct qcom_pdm_domain_data adsp_ois_pd = {
+	.domain = "msm/adsp/ois_pd",
+	.instance_id = 74,
+	.services = { NULL, },
+};
+
 static const struct qcom_pdm_domain_data adsp_root_pd = {
 	.domain = "msm/adsp/root_pd",
 	.instance_id = 74,
@@ -370,6 +375,7 @@ static const struct qcom_pdm_domain_data *glymur_domains[] = {
 
 static const struct qcom_pdm_domain_data *kaanapali_domains[] = {
 	&adsp_audio_pd,
+	&adsp_ois_pd,
 	&adsp_root_pd,
 	&adsp_sensor_pd,
 	&cdsp_root_pd,
@@ -581,6 +587,7 @@ static const struct of_device_id qcom_pdm_domains[] __maybe_unused = {
 	{ .compatible = "qcom,eliza", .data = sm8550_domains, },
 	{ .compatible = "qcom,apq8096", .data = msm8996_domains, },
 	{ .compatible = "qcom,glymur", .data = glymur_domains, },
+	{ .compatible = "qcom,hawi", .data = kaanapali_domains, },
 	{ .compatible = "qcom,kaanapali", .data = kaanapali_domains, },
 	{ .compatible = "qcom,mahua", .data = glymur_domains, },
 	{ .compatible = "qcom,milos", .data = sm8550_domains, },

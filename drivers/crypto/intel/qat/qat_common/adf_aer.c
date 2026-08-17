@@ -17,34 +17,78 @@ struct adf_fatal_error_data {
 static struct workqueue_struct *device_reset_wq;
 static struct workqueue_struct *device_sriov_wq;
 
-static pci_ers_result_t adf_error_detected(struct pci_dev *pdev,
-					   pci_channel_state_t state)
+static pci_ers_result_t reset_prepare(struct pci_dev *pdev)
 {
 	struct adf_accel_dev *accel_dev = adf_devmgr_pci_to_accel_dev(pdev);
 
-	dev_info(&pdev->dev, "Acceleration driver hardware error detected.\n");
 	if (!accel_dev) {
-		dev_err(&pdev->dev, "Can't find acceleration device\n");
+		pci_err(pdev, "Can't find acceleration device\n");
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 
-	if (state == pci_channel_io_perm_failure) {
-		dev_err(&pdev->dev, "Can't recover from device error\n");
-		return PCI_ERS_RESULT_DISCONNECT;
-	}
+	if (!adf_dev_started(accel_dev))
+		return PCI_ERS_RESULT_CAN_RECOVER;
 
 	set_bit(ADF_STATUS_RESTARTING, &accel_dev->status);
 	if (accel_dev->hw_device->exit_arb) {
 		dev_dbg(&pdev->dev, "Disabling arbitration\n");
 		accel_dev->hw_device->exit_arb(accel_dev);
 	}
-	adf_error_notifier(accel_dev);
-	adf_pf2vf_notify_fatal_error(accel_dev);
 	adf_dev_restarting_notify(accel_dev);
-	pci_clear_master(pdev);
 	adf_dev_down(accel_dev);
 
 	return PCI_ERS_RESULT_NEED_RESET;
+}
+
+static pci_ers_result_t reset_done(struct pci_dev *pdev)
+{
+	struct adf_accel_dev *accel_dev = adf_devmgr_pci_to_accel_dev(pdev);
+	int res;
+
+	if (!accel_dev) {
+		pci_err(pdev, "Can't find acceleration device\n");
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+
+	if (!adf_devmgr_in_reset(accel_dev))
+		goto reset_complete;
+
+	pci_restore_state(pdev);
+	res = adf_dev_up(accel_dev, false);
+	if (res && res != -EALREADY)
+		return PCI_ERS_RESULT_DISCONNECT;
+
+	adf_reenable_sriov(accel_dev);
+	adf_pf2vf_notify_restarted(accel_dev);
+	adf_dev_restarted_notify(accel_dev);
+	clear_bit(ADF_STATUS_RESTARTING, &accel_dev->status);
+
+reset_complete:
+	pci_info(pdev, "Device reset completed successfully\n");
+
+	return PCI_ERS_RESULT_RECOVERED;
+}
+
+static pci_ers_result_t adf_error_detected(struct pci_dev *pdev,
+					   pci_channel_state_t state)
+{
+	struct adf_accel_dev *accel_dev = adf_devmgr_pci_to_accel_dev(pdev);
+
+	pci_info(pdev, "Acceleration driver hardware error detected.\n");
+	if (!accel_dev) {
+		pci_err(pdev, "Can't find acceleration device\n");
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+
+	if (state == pci_channel_io_perm_failure) {
+		pci_err(pdev, "Can't recover from device error\n");
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+
+	adf_error_notifier(accel_dev);
+	adf_pf2vf_notify_fatal_error(accel_dev);
+
+	return reset_prepare(pdev);
 }
 
 /* reset dev data */
@@ -72,10 +116,9 @@ void adf_reset_sbr(struct adf_accel_dev *accel_dev)
 		parent = pdev;
 
 	if (!pci_wait_for_pending_transaction(pdev))
-		dev_info(&GET_DEV(accel_dev),
-			 "Transaction still in progress. Proceeding\n");
+		pci_info(pdev, "Transaction still in progress. Proceeding\n");
 
-	dev_info(&GET_DEV(accel_dev), "Secondary bus reset\n");
+	pci_info(pdev, "Secondary bus reset\n");
 
 	pci_read_config_word(parent, PCI_BRIDGE_CONTROL, &bridge_ctl);
 	bridge_ctl |= PCI_BRIDGE_CTL_BUS_RESET;
@@ -104,6 +147,13 @@ void adf_dev_restore(struct adf_accel_dev *accel_dev)
 		hw_device->reset_device(accel_dev);
 		pci_restore_state(pdev);
 	}
+}
+
+void adf_set_bme(struct adf_accel_dev *accel_dev)
+{
+	struct pci_dev *pdev = accel_to_pci_dev(accel_dev);
+
+	pci_set_master(pdev);
 }
 
 static void adf_device_sriov_worker(struct work_struct *work)
@@ -156,13 +206,14 @@ static int adf_dev_aer_schedule_reset(struct adf_accel_dev *accel_dev,
 	struct adf_reset_dev_data *reset_data;
 
 	if (!adf_dev_started(accel_dev) ||
-	    test_bit(ADF_STATUS_RESTARTING, &accel_dev->status))
+	    test_and_set_bit(ADF_STATUS_RESTARTING, &accel_dev->status))
 		return 0;
 
-	set_bit(ADF_STATUS_RESTARTING, &accel_dev->status);
 	reset_data = kzalloc_obj(*reset_data);
-	if (!reset_data)
+	if (!reset_data) {
+		clear_bit(ADF_STATUS_RESTARTING, &accel_dev->status);
 		return -ENOMEM;
+	}
 	reset_data->accel_dev = accel_dev;
 	init_completion(&reset_data->compl);
 	reset_data->mode = mode;
@@ -190,38 +241,31 @@ static int adf_dev_aer_schedule_reset(struct adf_accel_dev *accel_dev,
 
 static pci_ers_result_t adf_slot_reset(struct pci_dev *pdev)
 {
-	struct adf_accel_dev *accel_dev = adf_devmgr_pci_to_accel_dev(pdev);
-	int res = 0;
-
-	if (!accel_dev) {
-		pr_err("QAT: Can't find acceleration device\n");
-		return PCI_ERS_RESULT_DISCONNECT;
-	}
-
-	if (!pdev->is_busmaster)
-		pci_set_master(pdev);
-	pci_restore_state(pdev);
-	res = adf_dev_up(accel_dev, false);
-	if (res && res != -EALREADY)
-		return PCI_ERS_RESULT_DISCONNECT;
-
-	adf_reenable_sriov(accel_dev);
-	adf_pf2vf_notify_restarted(accel_dev);
-	adf_dev_restarted_notify(accel_dev);
-	clear_bit(ADF_STATUS_RESTARTING, &accel_dev->status);
-	return PCI_ERS_RESULT_RECOVERED;
+	return reset_done(pdev);
 }
 
 static void adf_resume(struct pci_dev *pdev)
 {
-	dev_info(&pdev->dev, "Acceleration driver reset completed\n");
-	dev_info(&pdev->dev, "Device is up and running\n");
+	pci_info(pdev, "Acceleration driver reset completed\n");
+	pci_info(pdev, "Device is up and running\n");
+}
+
+static void adf_reset_prepare(struct pci_dev *pdev)
+{
+	reset_prepare(pdev);
+}
+
+static void adf_reset_done(struct pci_dev *pdev)
+{
+	reset_done(pdev);
 }
 
 const struct pci_error_handlers adf_err_handler = {
 	.error_detected = adf_error_detected,
 	.slot_reset = adf_slot_reset,
 	.resume = adf_resume,
+	.reset_prepare = adf_reset_prepare,
+	.reset_done = adf_reset_done,
 };
 EXPORT_SYMBOL_GPL(adf_err_handler);
 

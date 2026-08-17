@@ -122,6 +122,11 @@ static struct rpmhpd gfx = {
 	.res_name = "gfx.lvl",
 };
 
+static struct rpmhpd gfx1 = {
+	.pd = { .name = "gfx1", },
+	.res_name = "gfx1.lvl",
+};
+
 static struct rpmhpd lcx = {
 	.pd = { .name = "lcx", },
 	.res_name = "lcx.lvl",
@@ -217,6 +222,11 @@ static struct rpmhpd nsp2 = {
 	.res_name = "nsp2.lvl",
 };
 
+static struct rpmhpd nsp3 = {
+	.pd = { .name = "nsp3", },
+	.res_name = "nsp3.lvl",
+};
+
 static struct rpmhpd qphy = {
 	.pd = { .name = "qphy", },
 	.res_name = "qphy.lvl",
@@ -306,6 +316,30 @@ static struct rpmhpd *sa8775p_rpmhpds[] = {
 static const struct rpmhpd_desc sa8775p_desc = {
 	.rpmhpds = sa8775p_rpmhpds,
 	.num_pds = ARRAY_SIZE(sa8775p_rpmhpds),
+};
+
+/* Nord RPMH powerdomains */
+static struct rpmhpd *nord_rpmhpds[] = {
+	[RPMHPD_CX] = &cx,
+	[RPMHPD_CX_AO] = &cx_ao,
+	[RPMHPD_EBI] = &ebi,
+	[RPMHPD_GFX] = &gfx,
+	[RPMHPD_GFX1] = &gfx1,
+	[RPMHPD_MX] = &mx,
+	[RPMHPD_MX_AO] = &mx_ao,
+	[RPMHPD_MMCX] = &mmcx,
+	[RPMHPD_MMCX_AO] = &mmcx_ao,
+	[RPMHPD_MXC] = &mxc,
+	[RPMHPD_MXC_AO] = &mxc_ao,
+	[RPMHPD_NSP0] = &nsp0,
+	[RPMHPD_NSP1] = &nsp1,
+	[RPMHPD_NSP2] = &nsp2,
+	[RPMHPD_NSP3] = &nsp3,
+};
+
+static const struct rpmhpd_desc nord_desc = {
+	.rpmhpds = nord_rpmhpds,
+	.num_pds = ARRAY_SIZE(nord_rpmhpds),
 };
 
 /* SAR2130P RPMH powerdomains */
@@ -856,6 +890,7 @@ static const struct of_device_id rpmhpd_match_table[] = {
 	{ .compatible = "qcom,hawi-rpmhpd", .data = &hawi_desc },
 	{ .compatible = "qcom,kaanapali-rpmhpd", .data = &kaanapali_desc },
 	{ .compatible = "qcom,milos-rpmhpd", .data = &milos_desc },
+	{ .compatible = "qcom,nord-rpmhpd", .data = &nord_desc },
 	{ .compatible = "qcom,qcs615-rpmhpd", .data = &qcs615_desc },
 	{ .compatible = "qcom,qcs8300-rpmhpd", .data = &qcs8300_desc },
 	{ .compatible = "qcom,qdu1000-rpmhpd", .data = &qdu1000_desc },

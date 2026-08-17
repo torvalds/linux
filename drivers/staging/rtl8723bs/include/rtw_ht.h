@@ -61,16 +61,16 @@ enum {
 	RT_HT_CAP_USE_JAGUAR_CCUT = 0x04,
 };
 
-#define	LDPC_HT_ENABLE_RX			BIT0
-#define	LDPC_HT_ENABLE_TX			BIT1
-#define	LDPC_HT_CAP_TX				BIT3
+#define	LDPC_HT_ENABLE_RX			BIT(0)
+#define	LDPC_HT_ENABLE_TX			BIT(1)
+#define	LDPC_HT_CAP_TX				BIT(3)
 
-#define	STBC_HT_ENABLE_RX			BIT0
-#define	STBC_HT_ENABLE_TX			BIT1
-#define	STBC_HT_CAP_TX				BIT3
+#define	STBC_HT_ENABLE_RX			BIT(0)
+#define	STBC_HT_ENABLE_TX			BIT(1)
+#define	STBC_HT_CAP_TX				BIT(3)
 
-#define	BEAMFORMING_HT_BEAMFORMER_ENABLE	BIT0	/*  Declare our NIC supports beamformer */
-#define	BEAMFORMING_HT_BEAMFORMEE_ENABLE	BIT1	/*  Declare our NIC supports beamformee */
+#define	BEAMFORMING_HT_BEAMFORMER_ENABLE	BIT(0)	/*  Declare our NIC supports beamformer */
+#define	BEAMFORMING_HT_BEAMFORMEE_ENABLE	BIT(1)	/*  Declare our NIC supports beamformee */
 
 /*  20/40 BSS Coexist */
 #define SET_EXT_CAPABILITY_ELE_BSS_COEXIST(_pEleStart, _val)			SET_BITS_TO_LE_1BYTE((_pEleStart), 0, 1, _val)

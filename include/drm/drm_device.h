@@ -375,6 +375,13 @@ struct drm_device {
 	 * Root directory for debugfs files.
 	 */
 	struct dentry *debugfs_root;
+
+	/**
+	 * @gem_lru_mutex:
+	 *
+	 * Lock protecting movement of GEM objects between LRUs.
+	 */
+	struct mutex gem_lru_mutex;
 };
 
 void drm_dev_set_dma_dev(struct drm_device *dev, struct device *dma_dev);

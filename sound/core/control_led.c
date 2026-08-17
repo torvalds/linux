@@ -240,8 +240,6 @@ static void snd_ctl_led_notify(struct snd_card *card, unsigned int mask,
 	}
 }
 
-DEFINE_FREE(snd_card_unref, struct snd_card *, if (_T) snd_card_unref(_T))
-
 static int snd_ctl_led_set_id(int card_number, struct snd_ctl_elem_id *id,
 			      unsigned int group, bool set)
 {
@@ -758,18 +756,17 @@ static int __init snd_ctl_led_init(void)
 static void __exit snd_ctl_led_exit(void)
 {
 	struct snd_ctl_led *led;
-	struct snd_card *card;
 	unsigned int group, card_number;
 
 	snd_ctl_disconnect_layer(&snd_ctl_led_lops);
 	for (card_number = 0; card_number < SNDRV_CARDS; card_number++) {
 		if (!snd_ctl_led_card_valid[card_number])
 			continue;
-		card = snd_card_ref(card_number);
-		if (card) {
+		struct snd_card *card __free(snd_card_unref) =
+			snd_card_ref(card_number);
+
+		if (card)
 			snd_ctl_led_sysfs_remove(card);
-			snd_card_unref(card);
-		}
 	}
 	for (group = 0; group < MAX_LED; group++) {
 		led = &snd_ctl_leds[group];

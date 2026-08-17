@@ -129,7 +129,7 @@ After these preparations you'll now enter the main part:
    situations; during the merge window that actually might be even the best
    approach, but in that development phase it can be an even better idea to
    suspend your efforts for a few days anyway. Whatever version you choose,
-   ideally use a 'vanilla' build. Ignoring these advices will dramatically
+   ideally use a 'vanilla' build. Ignoring all of this advice will dramatically
    increase the risk your report will be rejected or ignored.
 
  * Ensure the kernel you just installed does not 'taint' itself when
@@ -795,7 +795,7 @@ Install a fresh kernel for testing
     situations; during the merge window that actually might be even the best
     approach, but in that development phase it can be an even better idea to
     suspend your efforts for a few days anyway. Whatever version you choose,
-    ideally use a 'vanilla' built. Ignoring these advices will dramatically
+    ideally use a 'vanilla' built. Ignoring all of this advice will dramatically
     increase the risk your report will be rejected or ignored.*
 
 As mentioned in the detailed explanation for the first step already: Like most

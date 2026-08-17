@@ -34,8 +34,10 @@
 #include "intel_dp.h"
 #include "intel_dp_link_training.h"
 #include "intel_encoder.h"
+#include "intel_hdmi.h"
 #include "intel_hotplug.h"
 #include "intel_panel.h"
+#include "intel_psr.h"
 
 #define LT_MSG_PREFIX			"[CONNECTOR:%d:%s][ENCODER:%d:%s][%s] "
 #define LT_MSG_ARGS(_intel_dp, _dp_phy)	(_intel_dp)->attached_connector->base.base.id, \
@@ -710,14 +712,26 @@ static bool intel_dp_link_max_vswing_reached(struct intel_dp *intel_dp,
 	return true;
 }
 
-void intel_dp_link_training_set_mode(struct intel_dp *intel_dp, int link_rate, bool is_vrr)
+void intel_dp_link_training_set_mode(struct intel_dp *intel_dp, int link_rate,
+				     bool is_vrr,
+				     bool pr_with_as_sdp_enable)
 {
 	u8 link_config[2];
 
 	link_config[0] = is_vrr ? DP_MSA_TIMING_PAR_IGNORE_EN : 0;
+	link_config[0] |= pr_with_as_sdp_enable ? DP_FIXED_VTOTAL_AS_SDP_EN_IN_PR_ACTIVE : 0;
 	link_config[1] = drm_dp_is_uhbr_rate(link_rate) ?
 			 DP_SET_ANSI_128B132B : DP_SET_ANSI_8B10B;
 	drm_dp_dpcd_write(&intel_dp->aux, DP_DOWNSPREAD_CTRL, link_config, 2);
+}
+
+static bool
+intel_dp_pr_with_as_sdp_enabled(struct intel_dp *intel_dp,
+				const struct intel_crtc_state *crtc_state)
+{
+	return intel_psr_needs_alpm_aux_less(intel_dp, crtc_state) &&
+		(crtc_state->infoframes.enable &
+		 intel_hdmi_infoframe_enable(DP_SDP_ADAPTIVE_SYNC));
 }
 
 static void intel_dp_update_downspread_ctrl(struct intel_dp *intel_dp,
@@ -737,15 +751,20 @@ static void intel_dp_update_downspread_ctrl(struct intel_dp *intel_dp,
 	  * especially on the first real commit when clearing the inherited flag.
 	  */
 	intel_dp_link_training_set_mode(intel_dp,
-					crtc_state->port_clock, crtc_state->vrr.in_range);
+					crtc_state->port_clock,
+					crtc_state->vrr.in_range,
+					intel_dp_pr_with_as_sdp_enabled(intel_dp, crtc_state));
 }
 
 void intel_dp_link_training_set_bw(struct intel_dp *intel_dp,
 				   int link_bw, int rate_select, int lane_count,
-				   bool enhanced_framing)
+				   bool enhanced_framing, bool post_lt_adj_req)
 {
 	if (enhanced_framing)
 		lane_count |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
+
+	if (post_lt_adj_req)
+		lane_count |= DP_POST_LT_ADJ_REQ_GRANTED;
 
 	if (link_bw) {
 		/* DP and eDP v1.3 and earlier link bw set method. */
@@ -825,12 +844,21 @@ static u32 intel_dp_training_pattern(struct intel_dp *intel_dp,
 	return DP_TRAINING_PATTERN_2;
 }
 
+static bool intel_dp_use_post_lt_adj_req(struct intel_dp *intel_dp,
+					 const struct intel_crtc_state *crtc_state)
+{
+	return intel_dp->set_idle_link_train &&
+		drm_dp_post_lt_adj_req_supported(intel_dp->dpcd) &&
+		intel_dp_training_pattern(intel_dp, crtc_state, DP_PHY_DPRX) != DP_TRAINING_PATTERN_4;
+}
+
 static void intel_dp_update_link_bw_set(struct intel_dp *intel_dp,
 					const struct intel_crtc_state *crtc_state,
 					u8 link_bw, u8 rate_select)
 {
 	intel_dp_link_training_set_bw(intel_dp, link_bw, rate_select, crtc_state->lane_count,
-				      crtc_state->enhanced_framing);
+				      crtc_state->enhanced_framing,
+				      intel_dp_use_post_lt_adj_req(intel_dp, crtc_state));
 }
 
 /*
@@ -1089,6 +1117,109 @@ intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp,
 	}
 
 	return channel_eq;
+}
+
+static bool
+intel_dp_post_lt_adj_req(struct intel_dp *intel_dp,
+			 const struct intel_crtc_state *crtc_state)
+{
+	u8 link_status[DP_LINK_STATUS_SIZE];
+	unsigned long deadline;
+	bool timeout = false;
+	bool success = false;
+	int changes = 0;
+
+	if (!intel_dp_use_post_lt_adj_req(intel_dp, crtc_state))
+		return true;
+
+	if (drm_dp_dpcd_read_phy_link_status(&intel_dp->aux, DP_PHY_DPRX,
+					     link_status) < 0) {
+		lt_err(intel_dp, DP_PHY_DPRX, "Failed to get link status\n");
+		return false;
+	}
+
+	deadline = jiffies + msecs_to_jiffies_timeout(200);
+
+	for (;;) {
+		/* Make sure clock is still ok */
+		if (!drm_dp_clock_recovery_ok(link_status,
+					      crtc_state->lane_count)) {
+			intel_dp_dump_link_status(intel_dp, DP_PHY_DPRX, link_status);
+			lt_dbg(intel_dp, DP_PHY_DPRX,
+			       "Clock recovery check failed, cannot continue POST_LT_ADJ_REQ\n");
+			break;
+		}
+
+		if (!drm_dp_channel_eq_ok(link_status,
+					  crtc_state->lane_count)) {
+			intel_dp_dump_link_status(intel_dp, DP_PHY_DPRX, link_status);
+			lt_dbg(intel_dp, DP_PHY_DPRX, "Channel EQ check failed. cannot continue POST_LT_ADJ_REQ\n");
+			break;
+		}
+
+		if (!drm_dp_post_lt_adj_req_in_progress(link_status)) {
+			success = true;
+			intel_dp_dump_link_status(intel_dp, DP_PHY_DPRX, link_status);
+			lt_dbg(intel_dp, DP_PHY_DPRX,
+			       "POST_LT_ADJ_REQ done (%d changes). DP Training successful\n", changes);
+			break;
+		}
+
+		if (changes == 6) {
+			success = true;
+			intel_dp_dump_link_status(intel_dp, DP_PHY_DPRX, link_status);
+			lt_dbg(intel_dp, DP_PHY_DPRX,
+			       "POST_LT_ADJ_REQ limit reached (%d changes). DP Training successful\n", changes);
+			break;
+		}
+
+		if (timeout) {
+			success = true;
+			intel_dp_dump_link_status(intel_dp, DP_PHY_DPRX, link_status);
+			lt_dbg(intel_dp, DP_PHY_DPRX,
+			       "POST_LT_ADJ_REQ timeout reached (%d changes). DP Training successful\n", changes);
+			break;
+		}
+
+		fsleep(5000);
+
+		if (drm_dp_dpcd_read_phy_link_status(&intel_dp->aux, DP_PHY_DPRX,
+						     link_status) < 0) {
+			lt_err(intel_dp, DP_PHY_DPRX, "Failed to get link status\n");
+			break;
+		}
+
+		/* Update training set as requested by target */
+		if (intel_dp_get_adjust_train(intel_dp, crtc_state, DP_PHY_DPRX, link_status)) {
+			deadline = jiffies + msecs_to_jiffies_timeout(200);
+			changes++;
+
+			if (!intel_dp_update_link_train(intel_dp, crtc_state, DP_PHY_DPRX)) {
+				lt_err(intel_dp, DP_PHY_DPRX, "Failed to update link training\n");
+				break;
+			}
+		} else if (time_after(jiffies, deadline)) {
+			timeout = true;
+		}
+	}
+
+	return success;
+}
+
+static void intel_dp_stop_post_lt_adj_req(struct intel_dp *intel_dp,
+					  const struct intel_crtc_state *crtc_state)
+{
+	u8 lane_count;
+
+	if (!intel_dp_use_post_lt_adj_req(intel_dp, crtc_state))
+		return;
+
+	/* clear DP_POST_LT_ADJ_REQ_GRANTED */
+	lane_count = crtc_state->lane_count;
+	if (crtc_state->enhanced_framing)
+		lane_count |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
+
+	drm_dp_dpcd_writeb(&intel_dp->aux, DP_LANE_COUNT_SET, lane_count);
 }
 
 static bool intel_dp_disable_dpcd_training_pattern(struct intel_dp *intel_dp,
@@ -1388,6 +1519,11 @@ intel_dp_link_train_all_phys(struct intel_dp *intel_dp,
 
 	intel_dp_disable_dpcd_training_pattern(intel_dp, DP_PHY_DPRX);
 	intel_dp->set_idle_link_train(intel_dp, crtc_state);
+
+	if (ret)
+		ret = intel_dp_post_lt_adj_req(intel_dp, crtc_state);
+
+	intel_dp_stop_post_lt_adj_req(intel_dp, crtc_state);
 
 	return ret;
 }

@@ -7,8 +7,10 @@
  * Copyright (c) 2023, The Linux Foundation. All rights reserved.
  * Copyright (c) 2023 Qualcomm Technologies, Inc.
  */
+#include <linux/bits.h>
 #include <linux/bug.h>
 #include <linux/errno.h>
+#include <linux/lcm.h>
 
 #include "camss-format.h"
 
@@ -31,6 +33,18 @@ u8 camss_format_get_bpp(const struct camss_format_info *formats, unsigned int nf
 	WARN(1, "Unknown format\n");
 
 	return formats[0].mbus_bpp;
+}
+
+/*
+ * camss_format_get_bpl_alignment - Retrieve required BPL alignment for a given format.
+ * @format: a pointer to the format
+ *
+ * Return the required alignment, in bytes.
+ */
+unsigned int camss_format_get_bpl_alignment(const struct camss_format_info *format)
+{
+	/* Minimal number of bytes required to keep the line length an integer number of pixels */
+	return lcm_not_zero(format->mbus_bpp, BITS_PER_BYTE) / BITS_PER_BYTE;
 }
 
 /*

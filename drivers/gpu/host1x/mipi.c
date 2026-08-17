@@ -114,8 +114,10 @@ struct tegra_mipi_device *tegra_mipi_request(struct device *device,
 	if (err < 0)
 		return ERR_PTR(err);
 
-	if (provider.np != args.np)
-		return ERR_PTR(-ENODEV);
+	if (provider.np != args.np) {
+		err = -ENODEV;
+		goto out;
+	}
 
 	mipidev = kzalloc_obj(*mipidev);
 	if (!mipidev) {

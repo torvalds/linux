@@ -31,6 +31,7 @@
  * link training.
  */
 #include "link_ddc.h"
+#include "link_hdmi_frl.h"
 #include "vector.h"
 #include "dce/dce_aux.h"
 #include "dal_asic_id.h"
@@ -96,7 +97,7 @@ static void i2c_payloads_add(
 	for (pos = 0; pos < len; pos += payload_size) {
 		struct i2c_payload payload = {
 			.write = write,
-			.address = address,
+			.address = (uint8_t)address,
 			.length = DDC_MIN(payload_size, len - pos),
 			.data = data + pos };
 		dal_vector_append(&payloads->payloads, &payload);
@@ -119,25 +120,32 @@ static void ddc_service_construct(
 	ddc_service->link = init_data->link;
 	ddc_service->ctx = init_data->ctx;
 
-	if (init_data->is_dpia_link ||
-	    dcb->funcs->get_i2c_info(dcb, init_data->id, &i2c_info) != BP_RESULT_OK) {
-		ddc_service->ddc_pin = NULL;
-	} else {
-		DC_LOGGER_INIT(ddc_service->ctx->logger);
-		DC_LOG_DC("BIOS object table - i2c_line: %d", i2c_info.i2c_line);
-		DC_LOG_DC("BIOS object table - i2c_engine_id: %d", i2c_info.i2c_engine_id);
+	if (ddc_service->link && ddc_service->ctx->dc->config.dp_connector_no_native_i2c &&
+		ddc_service->link->no_ddc_pin) {
+		// Obtain aux instance info from i2c_info without GPIO DDC pin info
+		if (dcb->funcs->get_connector_aux_info(dcb, init_data->id, &i2c_info) == BP_RESULT_OK)
+			ddc_service->link->aux_hw_inst = (uint8_t)i2c_info.i2c_line;
+	}  else {
+		if (init_data->is_dpia_link ||
+		dcb->funcs->get_i2c_info(dcb, init_data->id, &i2c_info) != BP_RESULT_OK) {
+			ddc_service->ddc_pin = NULL;
+		} else {
+			DC_LOGGER_INIT(ddc_service->ctx->logger);
+			DC_LOG_DC("BIOS object table - i2c_line: %d", i2c_info.i2c_line);
+			DC_LOG_DC("BIOS object table - i2c_engine_id: %d", i2c_info.i2c_engine_id);
 
-		hw_info.ddc_channel = i2c_info.i2c_line;
-		if (ddc_service->link != NULL)
-			hw_info.hw_supported = i2c_info.i2c_hw_assist;
-		else
-			hw_info.hw_supported = false;
+			hw_info.ddc_channel = i2c_info.i2c_line;
+			if (ddc_service->link != NULL)
+				hw_info.hw_supported = i2c_info.i2c_hw_assist;
+			else
+				hw_info.hw_supported = false;
 
-		ddc_service->ddc_pin = dal_gpio_create_ddc(
-			gpio_service,
-			i2c_info.gpio_info.clk_a_register_index,
-			1 << i2c_info.gpio_info.clk_a_shift,
-			&hw_info);
+			ddc_service->ddc_pin = dal_gpio_create_ddc(
+				gpio_service,
+				i2c_info.gpio_info.clk_a_register_index,
+				1 << i2c_info.gpio_info.clk_a_shift,
+				&hw_info);
+		}
 	}
 
 	ddc_service->flags.EDID_QUERY_DONE_ONCE = false;
@@ -384,8 +392,7 @@ bool link_query_ddc_data(
 		i2c_payloads_add(
 			&payloads, address, read_size, read_buf, false);
 
-		command.number_of_payloads =
-			i2c_payloads_get_count(&payloads);
+		command.number_of_payloads = (uint8_t)i2c_payloads_get_count(&payloads);
 
 		success = dm_helpers_submit_i2c(
 				ddc->ctx,
@@ -402,12 +409,7 @@ int link_aux_transfer_raw(struct ddc_service *ddc,
 		struct aux_payload *payload,
 		enum aux_return_code_type *operation_result)
 {
-	if (ddc->ctx->dc->debug.enable_dmub_aux_for_legacy_ddc ||
-	    !ddc->ddc_pin) {
-		return dce_aux_transfer_dmub_raw(ddc, payload, operation_result);
-	} else {
-		return dce_aux_transfer_raw(ddc, payload, operation_result);
-	}
+	return dce_aux_transfer_raw(ddc, payload, operation_result);
 }
 
 uint32_t link_get_fixed_vs_pe_retimer_write_address(struct dc_link *link)
@@ -524,11 +526,18 @@ bool try_to_configure_aux_timeout(struct ddc_service *ddc,
 	if (ddc->link->ep_type != DISPLAY_ENDPOINT_PHY)
 		return true;
 
-	if (ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en]->funcs->configure_timeout) {
-		ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en]->funcs->configure_timeout(ddc, timeout);
-		result = true;
-	}
+	if (ddc->ctx->dc->config.dp_connector_no_native_i2c && ddc->link->no_ddc_pin) {
+		if (ddc->ctx->dc->res_pool->engines[ddc->link->aux_hw_inst]->funcs->configure_timeout) {
+			ddc->ctx->dc->res_pool->engines[ddc->link->aux_hw_inst]->funcs->configure_timeout(ddc, timeout);
+			result = true;
+		}
+	} else {
+		if (ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en]->funcs->configure_timeout) {
+			ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en]->funcs->configure_timeout(ddc, timeout);
+			result = true;
+		}
 
+	}
 	return result;
 }
 
@@ -552,6 +561,8 @@ void write_scdc_data(struct ddc_service *ddc_service,
 		(ddc_service->link->local_sink->edid_caps.panel_patch.skip_scdc_overwrite ||
 		!ddc_service->link->local_sink->edid_caps.scdc_present))
 		return;
+	hdmi_frl_LTS_clear_Link_Setting(ddc_service);
+	hdmi_frl_LTS_clear_Update_flag(ddc_service);
 
 	link_query_ddc_data(ddc_service, slave_address, &offset,
 			sizeof(offset), &sink_version, sizeof(sink_version));
@@ -601,4 +612,91 @@ void read_scdc_data(struct ddc_service *ddc_service)
 				&offset, sizeof(offset), &status_data.byte,
 				sizeof(status_data.byte));
 	}
+}
+void write_idcc_data(struct ddc_service *ddc_service, enum hdmi_idcc_scope idcc_scope,
+		uint8_t *write_buf, uint8_t offset, uint8_t write_len)
+{
+	uint8_t slave_address = HDMI_IDCC_ADDRESS;
+	uint8_t idcc_header[5] = {0};
+	uint8_t dummy_buf[1] = {0};
+	uint8_t checksum = 0;
+	int i;
+
+	idcc_header[0] = HDMI_IDCC_MARKER0;
+	idcc_header[1] = HDMI_IDCC_MARKER1;
+	idcc_header[2] = (uint8_t)(HDMI_IDCC_MARKER2 | idcc_scope);
+	idcc_header[3] = offset;
+	idcc_header[4] = write_len;
+
+	/* Write the IDCC header */
+	for (i = 0; i < sizeof(idcc_header); ++i) {
+		link_query_ddc_data(ddc_service, slave_address,
+				&idcc_header[i], 1,
+				&dummy_buf[0], 1);
+		checksum += idcc_header[i];
+	}
+
+	/* Write the payload */
+	for (i = 0; i < write_len; ++i) {
+		link_query_ddc_data(ddc_service, slave_address,
+				&write_buf[i], 1,
+				&dummy_buf[0], 1);
+		checksum += write_buf[i];
+	}
+
+	/* Write the checksum */
+	if (write_len > 0) {
+		checksum = 0xff - checksum + 1;
+		link_query_ddc_data(ddc_service, slave_address,
+			&checksum, 1,
+			&dummy_buf[0], 1);
+	}
+}
+
+int read_idcc_data(struct ddc_service *ddc_service, enum hdmi_idcc_scope idcc_scope,
+		uint8_t *read_buf, uint8_t offset, uint8_t read_len)
+{
+	uint8_t slave_address = HDMI_IDCC_ADDRESS;
+	uint8_t idcc_header[5] = {0};
+	uint8_t dummy_buf[1] = {0};
+	uint8_t read_buf_local[6] = {0};
+	uint8_t checksum = 0;
+	int i;
+
+	idcc_header[0] = HDMI_IDCC_MARKER0;
+	idcc_header[1] = HDMI_IDCC_MARKER1;
+	idcc_header[2] = (uint8_t)(HDMI_IDCC_MARKER2 | idcc_scope);
+	idcc_header[3] = offset;
+	idcc_header[4] = read_len;
+
+	/* Write the IDCC header */
+	for (i = 0; i < sizeof(idcc_header); ++i) {
+		link_query_ddc_data(ddc_service, slave_address,
+				&idcc_header[i], 1,
+				&dummy_buf[0], 1);
+		checksum += idcc_header[i];
+	}
+
+	/* Read the payload */
+	if (read_len > 0) {
+		dummy_buf[0] = 0x01;
+		if (read_len > 5)
+			read_len = 5;
+		link_query_ddc_data(ddc_service, slave_address,
+				&dummy_buf[0], 1,
+				&read_buf_local[0], read_len + 1);
+
+		memcpy(read_buf, read_buf_local, read_len);
+
+		/* Check checksum */
+		checksum = read_buf_local[read_len];
+		for (i = 0; i < 5; ++i)
+			checksum += idcc_header[i];
+		for (i = 0; i < read_len; ++i)
+			checksum += read_buf_local[i];
+		if (checksum != 0)
+			return -1;
+	}
+
+	return read_len;
 }

@@ -688,9 +688,9 @@ static void mfd_assert_grow_write(int fd)
 	if (hugetlbfs_test)
 		return;
 
-	buf = malloc(mfd_def_size * 8);
+	buf = calloc(1, mfd_def_size * 8);
 	if (!buf) {
-		printf("malloc(%zu) failed: %m\n", mfd_def_size * 8);
+		printf("calloc(1, %zu) failed: %m\n", mfd_def_size * 8);
 		abort();
 	}
 

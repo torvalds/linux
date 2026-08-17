@@ -176,7 +176,7 @@ regular bug:
   * problems seen only under development simulators, emulators, or combinations
     that do not exist on real systems at the time of reporting (issues
     involving tens of millions of threads, tens of thousands of CPUs,
-    unrealistic CPU frequencies, RAM sizes or disk capacities, network speeds.
+    unrealistic CPU frequencies, RAM sizes or disk capacities, network speeds).
 
   * issues whose reproduction requires hardware modification or emulation,
     including fake USB devices that pretend to be another one.

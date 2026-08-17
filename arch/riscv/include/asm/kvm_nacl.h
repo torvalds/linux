@@ -60,9 +60,11 @@ int kvm_riscv_nacl_init(void);
 #ifdef CONFIG_32BIT
 #define lelong_to_cpu(__x)	le32_to_cpu(__x)
 #define cpu_to_lelong(__x)	cpu_to_le32(__x)
+#define __lelong                __le32
 #else
 #define lelong_to_cpu(__x)	le64_to_cpu(__x)
 #define cpu_to_lelong(__x)	cpu_to_le64(__x)
+#define __lelong                __le64
 #endif
 
 #define nacl_shmem()							\
@@ -70,7 +72,7 @@ int kvm_riscv_nacl_init(void);
 
 #define nacl_scratch_read_long(__shmem, __offset)			\
 ({									\
-	unsigned long *__p = (__shmem) +				\
+	__lelong *__p = (__shmem) +					\
 			     SBI_NACL_SHMEM_SCRATCH_OFFSET +		\
 			     (__offset);				\
 	lelong_to_cpu(*__p);						\
@@ -78,7 +80,7 @@ int kvm_riscv_nacl_init(void);
 
 #define nacl_scratch_write_long(__shmem, __offset, __val)		\
 do {									\
-	unsigned long *__p = (__shmem) +				\
+	__lelong *__p = (__shmem) +					\
 			     SBI_NACL_SHMEM_SCRATCH_OFFSET +		\
 			     (__offset);				\
 	*__p = cpu_to_lelong(__val);					\
@@ -87,7 +89,7 @@ do {									\
 #define nacl_scratch_write_longs(__shmem, __offset, __array, __count)	\
 do {									\
 	unsigned int __i;						\
-	unsigned long *__p = (__shmem) +				\
+	__lelong *__p = (__shmem) +					\
 			     SBI_NACL_SHMEM_SCRATCH_OFFSET +		\
 			     (__offset);				\
 	for (__i = 0; __i < (__count); __i++)				\
@@ -168,7 +170,7 @@ __kvm_riscv_nacl_hfence(__shmem,					\
 
 #define nacl_csr_read(__shmem, __csr)					\
 ({									\
-	unsigned long *__a = (__shmem) + SBI_NACL_SHMEM_CSR_OFFSET;	\
+	__lelong *__a = (__shmem) + SBI_NACL_SHMEM_CSR_OFFSET;		\
 	lelong_to_cpu(__a[SBI_NACL_SHMEM_CSR_INDEX(__csr)]);		\
 })
 
@@ -176,7 +178,7 @@ __kvm_riscv_nacl_hfence(__shmem,					\
 do {									\
 	void *__s = (__shmem);						\
 	unsigned int __i = SBI_NACL_SHMEM_CSR_INDEX(__csr);		\
-	unsigned long *__a = (__s) + SBI_NACL_SHMEM_CSR_OFFSET;		\
+	__lelong *__a = (__s) + SBI_NACL_SHMEM_CSR_OFFSET;		\
 	u8 *__b = (__s) + SBI_NACL_SHMEM_DBITMAP_OFFSET;		\
 	__a[__i] = cpu_to_lelong(__val);				\
 	__b[__i >> 3] |= 1U << (__i & 0x7);				\
@@ -186,7 +188,7 @@ do {									\
 ({									\
 	void *__s = (__shmem);						\
 	unsigned int __i = SBI_NACL_SHMEM_CSR_INDEX(__csr);		\
-	unsigned long *__a = (__s) + SBI_NACL_SHMEM_CSR_OFFSET;		\
+	__lelong *__a = (__s) + SBI_NACL_SHMEM_CSR_OFFSET;		\
 	u8 *__b = (__s) + SBI_NACL_SHMEM_DBITMAP_OFFSET;		\
 	unsigned long __r = lelong_to_cpu(__a[__i]);			\
 	__a[__i] = cpu_to_lelong(__val);				\

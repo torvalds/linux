@@ -140,6 +140,11 @@ int __init ima_init(void)
 	rc = ima_init_digests();
 	if (rc != 0)
 		return rc;
+
+	rc = ima_init_htable();
+	if (rc != 0)
+		return rc;
+
 	rc = ima_add_boot_aggregate();	/* boot aggregate must be first entry */
 	if (rc != 0)
 		return rc;

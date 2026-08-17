@@ -23,7 +23,7 @@ static void mgag200_g200ew3_init_registers(struct mga_device *mdev)
  */
 
 static int mgag200_g200ew3_pixpllc_atomic_check(struct drm_crtc *crtc,
-						struct drm_atomic_state *new_state)
+						struct drm_atomic_commit *new_state)
 {
 	static const unsigned int vcomax = 800000;
 	static const unsigned int vcomin = 400000;

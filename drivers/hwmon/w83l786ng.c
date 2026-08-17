@@ -751,7 +751,7 @@ w83l786ng_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id w83l786ng_id[] = {
-	{ "w83l786ng" },
+	{ .name = "w83l786ng" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, w83l786ng_id);

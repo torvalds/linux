@@ -53,9 +53,9 @@ static void __maybe_unused crypto_sig_show(struct seq_file *m,
 static int __maybe_unused crypto_sig_report(struct sk_buff *skb,
 					    struct crypto_alg *alg)
 {
-	struct crypto_report_sig rsig = {};
-
-	strscpy(rsig.type, "sig", sizeof(rsig.type));
+	struct crypto_report_sig rsig = {
+		.type = "sig",
+	};
 
 	return nla_put(skb, CRYPTOCFGA_REPORT_SIG, sizeof(rsig), &rsig);
 }

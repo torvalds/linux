@@ -37,8 +37,13 @@ static void acer_wireless_notify(acpi_handle handle, u32 event, void *data)
 
 static int acer_wireless_probe(struct platform_device *pdev)
 {
+	struct acpi_device *adev;
 	struct input_dev *idev;
 	int ret;
+
+	adev = ACPI_COMPANION(&pdev->dev);
+	if (!adev)
+		return -ENODEV;
 
 	idev = devm_input_allocate_device(&pdev->dev);
 	if (!idev)
@@ -57,8 +62,7 @@ static int acer_wireless_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	return acpi_dev_install_notify_handler(ACPI_COMPANION(&pdev->dev),
-					       ACPI_DEVICE_NOTIFY,
+	return acpi_dev_install_notify_handler(adev, ACPI_DEVICE_NOTIFY,
 					       acer_wireless_notify,
 					       &pdev->dev);
 }

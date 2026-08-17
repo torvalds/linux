@@ -141,7 +141,7 @@ static inline int bio_integrity_add_page(struct bio *bio, struct page *page,
 }
 #endif /* CONFIG_BLK_DEV_INTEGRITY */
 
-void bio_integrity_alloc_buf(struct bio *bio, bool zero_buffer);
+void bio_integrity_alloc_buf(struct bio *bio, gfp_t gfp, bool zero_buffer);
 void bio_integrity_free_buf(struct bio_integrity_payload *bip);
 void bio_integrity_setup_default(struct bio *bio);
 

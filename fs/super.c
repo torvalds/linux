@@ -328,7 +328,7 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags,
 	init_rwsem(&s->s_umount);
 	lockdep_set_class(&s->s_umount, &type->s_umount_key);
 	/*
-	 * sget() can have s_umount recursion.
+	 * sget_fc() can have s_umount recursion.
 	 *
 	 * When it cannot find a suitable sb, it allocates a new
 	 * one (this one), and tries again to find a suitable old
@@ -359,6 +359,7 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags,
 		s->s_iflags |= SB_I_NODEV;
 	INIT_HLIST_NODE(&s->s_instances);
 	INIT_HLIST_BL_HEAD(&s->s_roots);
+	spin_lock_init(&s->s_roots_lock);
 	mutex_init(&s->s_sync_lock);
 	INIT_LIST_HEAD(&s->s_inodes);
 	spin_lock_init(&s->s_inode_list_lock);
@@ -439,7 +440,7 @@ static void kill_super_notify(struct super_block *sb)
 
 	/*
 	 * Remove it from @fs_supers so it isn't found by new
-	 * sget{_fc}() walkers anymore. Any concurrent mounter still
+	 * sget_fc() walkers anymore. Any concurrent mounter still
 	 * managing to grab a temporary reference is guaranteed to
 	 * already see SB_DYING and will wait until we notify them about
 	 * SB_DEAD.
@@ -517,7 +518,7 @@ EXPORT_SYMBOL(deactivate_super);
  * @sb: superblock to acquire
  *
  * Acquire a temporary reference on a superblock and try to trade it for
- * an active reference. This is used in sget{_fc}() to wait for a
+ * an active reference. This is used in sget_fc() to wait for a
  * superblock to either become SB_BORN or for it to pass through
  * sb->kill() and be marked as SB_DEAD.
  *
@@ -673,11 +674,11 @@ void generic_shutdown_super(struct super_block *sb)
 	/*
 	 * Broadcast to everyone that grabbed a temporary reference to this
 	 * superblock before we removed it from @fs_supers that the superblock
-	 * is dying. Every walker of @fs_supers outside of sget{_fc}() will now
+	 * is dying. Every walker of @fs_supers outside of sget_fc() will now
 	 * discard this superblock and treat it as dead.
 	 *
 	 * We leave the superblock on @fs_supers so it can be found by
-	 * sget{_fc}() until we passed sb->kill_sb().
+	 * sget_fc() until we passed sb->kill_sb().
 	 */
 	super_wake(sb, SB_DYING);
 	super_unlock_excl(sb);
@@ -741,12 +742,13 @@ struct super_block *sget_fc(struct fs_context *fc,
 	int err;
 
 	/*
-	 * Never allow s_user_ns != &init_user_ns when FS_USERNS_MOUNT is
-	 * not set, as the filesystem is likely unprepared to handle it.
-	 * This can happen when fsconfig() is called from init_user_ns with
-	 * an fs_fd opened in another user namespace.
+	 * Never allow s_user_ns != &init_user_ns when FS_USERNS_MOUNT or
+	 * FS_USERNS_DELEGATABLE is not set, as the filesystem is likely
+	 * unprepared to handle it. This can happen when fsconfig() is called
+	 * from init_user_ns with an fs_fd opened in another user namespace.
 	 */
-	if (user_ns != &init_user_ns && !(fc->fs_type->fs_flags & FS_USERNS_MOUNT)) {
+	if (user_ns != &init_user_ns &&
+	    !(fc->fs_type->fs_flags & (FS_USERNS_MOUNT | FS_USERNS_DELEGATABLE))) {
 		errorfc(fc, "VFS: Mounting from non-initial user namespace is not allowed");
 		return ERR_PTR(-EPERM);
 	}
@@ -808,67 +810,6 @@ share_extant_sb:
 }
 EXPORT_SYMBOL(sget_fc);
 
-/**
- *	sget	-	find or create a superblock
- *	@type:	  filesystem type superblock should belong to
- *	@test:	  comparison callback
- *	@set:	  setup callback
- *	@flags:	  mount flags
- *	@data:	  argument to each of them
- */
-struct super_block *sget(struct file_system_type *type,
-			int (*test)(struct super_block *,void *),
-			int (*set)(struct super_block *,void *),
-			int flags,
-			void *data)
-{
-	struct user_namespace *user_ns = current_user_ns();
-	struct super_block *s = NULL;
-	struct super_block *old;
-	int err;
-
-retry:
-	spin_lock(&sb_lock);
-	if (test) {
-		hlist_for_each_entry(old, &type->fs_supers, s_instances) {
-			if (!test(old, data))
-				continue;
-			if (user_ns != old->s_user_ns) {
-				spin_unlock(&sb_lock);
-				destroy_unused_super(s);
-				return ERR_PTR(-EBUSY);
-			}
-			if (!grab_super(old))
-				goto retry;
-			destroy_unused_super(s);
-			return old;
-		}
-	}
-	if (!s) {
-		spin_unlock(&sb_lock);
-		s = alloc_super(type, flags, user_ns);
-		if (!s)
-			return ERR_PTR(-ENOMEM);
-		goto retry;
-	}
-
-	err = set(s, data);
-	if (err) {
-		spin_unlock(&sb_lock);
-		destroy_unused_super(s);
-		return ERR_PTR(err);
-	}
-	s->s_type = type;
-	strscpy(s->s_id, type->name, sizeof(s->s_id));
-	list_add_tail(&s->s_list, &super_blocks);
-	hlist_add_head(&s->s_instances, &type->fs_supers);
-	spin_unlock(&sb_lock);
-	get_filesystem(type);
-	shrinker_register(s->s_shrink);
-	return s;
-}
-EXPORT_SYMBOL(sget);
-
 void drop_super(struct super_block *sb)
 {
 	super_unlock_shared(sb);
@@ -882,7 +823,6 @@ void drop_super_exclusive(struct super_block *sb)
 	super_unlock_excl(sb);
 	put_super(sb);
 }
-EXPORT_SYMBOL(drop_super_exclusive);
 
 enum super_iter_flags_t {
 	SUPER_ITER_EXCL		= (1U << 0),

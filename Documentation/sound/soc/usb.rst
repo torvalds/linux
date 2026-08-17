@@ -103,7 +103,7 @@ Returns 0 on success, and -EOPNOTSUPP on failure.
   - ``usbdev``: the usb device that was discovered
   - ``sdev``: capabilities of the device
 
-**snd_soc_usb_connect()** notifies the ASoC USB DCPM BE DAI link of a USB
+**snd_soc_usb_connect()** notifies the ASoC USB DPCM BE DAI link of a USB
 audio device detection.  This can be utilized in the BE DAI
 driver to keep track of available USB audio devices.  This is intended
 to be called by the USB offload driver residing in USB SND.
@@ -118,7 +118,7 @@ Returns 0 on success, negative error code on failure.
   - ``usbdev``: the usb device that was removed
   - ``sdev``: capabilities to free
 
-**snd_soc_usb_disconnect()** notifies the ASoC USB DCPM BE DAI link of a USB
+**snd_soc_usb_disconnect()** notifies the ASoC USB DPCM BE DAI link of a USB
 audio device removal.  This is intended to be called by the USB offload
 driver that resides in USB SND.
 

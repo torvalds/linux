@@ -12,6 +12,7 @@
 #include "smb_common.h"
 #include "mgmt/ksmbd_ida.h"
 #include "connection.h"
+#include "compress.h"
 #include "transport_tcp.h"
 #include "transport_rdma.h"
 #include "misc.h"
@@ -529,6 +530,17 @@ recheck:
 			pr_err("PDU error. Read: %d, Expected: %d\n",
 			       size, pdu_size);
 			continue;
+		}
+
+		if (((struct smb2_hdr *)smb_get_msg(conn->request_buf))->ProtocolId ==
+		    SMB2_COMPRESSION_TRANSFORM_ID) {
+			/*
+			 * Convert the transform into a normal RFC1002-framed SMB2
+			 * request before protocol validation and work allocation.
+			 */
+			if (ksmbd_decompress_request(conn))
+				break;
+			pdu_size = get_rfc1002_len(conn->request_buf);
 		}
 
 		if (!ksmbd_smb_request(conn))

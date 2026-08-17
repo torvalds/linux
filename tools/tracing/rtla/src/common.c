@@ -5,12 +5,11 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
-#include <getopt.h>
 #include <sys/sysinfo.h>
 
 #include "common.h"
 
-struct trace_instance *trace_inst;
+struct osnoise_tool *trace_tool;
 volatile int stop_tracing;
 int nr_cpus;
 
@@ -21,12 +20,16 @@ static void stop_trace(int sig)
 		 * Stop requested twice in a row; abort event processing and
 		 * exit immediately
 		 */
-		tracefs_iterate_stop(trace_inst->inst);
+		if (trace_tool)
+			tracefs_iterate_stop(trace_tool->trace.inst);
 		return;
 	}
 	stop_tracing = 1;
-	if (trace_inst)
-		trace_instance_stop(trace_inst);
+	if (trace_tool) {
+		trace_instance_stop(&trace_tool->trace);
+		if (trace_tool->record)
+			trace_instance_stop(&trace_tool->record->trace);
+	}
 }
 
 /*
@@ -51,114 +54,6 @@ static void unset_signals(struct common_params *params)
 		alarm(0);
 		signal(SIGALRM, SIG_DFL);
 	}
-}
-
-/*
- * getopt_auto - auto-generates optstring from long_options
- */
-int getopt_auto(int argc, char **argv, const struct option *long_opts)
-{
-	char opts[256];
-	int n = 0;
-
-	for (int i = 0; long_opts[i].name; i++) {
-		if (long_opts[i].val < 32 || long_opts[i].val > 127)
-			continue;
-
-		if (n + 4 >= sizeof(opts))
-			fatal("optstring buffer overflow");
-
-		opts[n++] = long_opts[i].val;
-
-		if (long_opts[i].has_arg == required_argument)
-			opts[n++] = ':';
-		else if (long_opts[i].has_arg == optional_argument) {
-			opts[n++] = ':';
-			opts[n++] = ':';
-		}
-	}
-
-	opts[n] = '\0';
-
-	return getopt_long(argc, argv, opts, long_opts, NULL);
-}
-
-/*
- * common_parse_options - parse common command line options
- *
- * @argc: argument count
- * @argv: argument vector
- * @common: common parameters structure
- *
- * Parse command line options that are common to all rtla tools.
- *
- * Returns: non zero if a common option was parsed, or 0
- * if the option should be handled by tool-specific parsing.
- */
-int common_parse_options(int argc, char **argv, struct common_params *common)
-{
-	struct trace_events *tevent;
-	int saved_state = optind;
-	int c;
-
-	static struct option long_options[] = {
-		{"cpus",                required_argument,      0, 'c'},
-		{"cgroup",              optional_argument,      0, 'C'},
-		{"debug",               no_argument,            0, 'D'},
-		{"duration",            required_argument,      0, 'd'},
-		{"event",               required_argument,      0, 'e'},
-		{"house-keeping",       required_argument,      0, 'H'},
-		{"priority",            required_argument,      0, 'P'},
-		{0, 0, 0, 0}
-	};
-
-	opterr = 0;
-	c = getopt_auto(argc, argv, long_options);
-	opterr = 1;
-
-	switch (c) {
-	case 'c':
-		if (parse_cpu_set(optarg, &common->monitored_cpus))
-			fatal("Invalid -c cpu list");
-		common->cpus = optarg;
-		break;
-	case 'C':
-		common->cgroup = 1;
-		common->cgroup_name = parse_optional_arg(argc, argv);
-		break;
-	case 'D':
-		config_debug = 1;
-		break;
-	case 'd':
-		common->duration = parse_seconds_duration(optarg);
-		if (!common->duration)
-			fatal("Invalid -d duration");
-		break;
-	case 'e':
-		tevent = trace_event_alloc(optarg);
-		if (!tevent)
-			fatal("Error alloc trace event");
-
-		if (common->events)
-			tevent->next = common->events;
-		common->events = tevent;
-		break;
-	case 'H':
-		common->hk_cpus = 1;
-		if (parse_cpu_set(optarg, &common->hk_cpu_set))
-			fatal("Error parsing house keeping CPUs");
-		break;
-	case 'P':
-		if (parse_prio(optarg, &common->sched_param) == -1)
-			fatal("Invalid -P priority");
-		common->set_sched = 1;
-		break;
-	default:
-		optind = saved_state;
-		return 0;
-	}
-
-	return c;
 }
 
 /*
@@ -273,11 +168,10 @@ int run_tool(struct tool_ops *ops, int argc, char *argv[])
 	tool->params = params;
 
 	/*
-	 * Save trace instance into global variable so that SIGINT can stop
-	 * the timerlat tracer.
+	 * Expose the tool to signal handlers so they can stop the trace.
 	 * Otherwise, rtla could loop indefinitely when overloaded.
 	 */
-	trace_inst = &tool->trace;
+	trace_tool = tool;
 
 	retval = ops->apply_config(tool);
 	if (retval) {
@@ -285,7 +179,7 @@ int run_tool(struct tool_ops *ops, int argc, char *argv[])
 		goto out_free;
 	}
 
-	retval = enable_tracer_by_name(trace_inst->inst, ops->tracer);
+	retval = enable_tracer_by_name(tool->trace.inst, ops->tracer);
 	if (retval) {
 		err_msg("Failed to enable %s tracer\n", ops->tracer);
 		goto out_free;

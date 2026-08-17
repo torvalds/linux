@@ -272,6 +272,16 @@ config PINCTRL_GEMINI
 	select GENERIC_PINCONF
 	select MFD_SYSCON
 
+config PINCTRL_GENERIC_MUX
+	tristate "Generic Pinctrl driver by using multiplexer"
+	depends on MULTIPLEXER
+	depends on OF
+	select PINMUX
+	select GENERIC_PINCTRL
+	help
+          Generic pinctrl driver by MULTIPLEXER framework to control on
+          board pin selection.
+
 config PINCTRL_INGENIC
 	bool "Pinctrl driver for the Ingenic JZ47xx SoCs"
 	default MACH_INGENIC
@@ -548,6 +558,7 @@ config PINCTRL_ST
 
 config PINCTRL_STMFX
 	tristate "STMicroelectronics STMFX GPIO expander pinctrl driver"
+	depends on OF
 	depends on I2C
 	depends on HAS_IOMEM
 	select GENERIC_PINCONF
@@ -679,6 +690,7 @@ config PINCTRL_RP1
 	  multi function device.
 
 source "drivers/pinctrl/actions/Kconfig"
+source "drivers/pinctrl/airoha/Kconfig"
 source "drivers/pinctrl/aspeed/Kconfig"
 source "drivers/pinctrl/bcm/Kconfig"
 source "drivers/pinctrl/berlin/Kconfig"
@@ -708,6 +720,7 @@ source "drivers/pinctrl/sunplus/Kconfig"
 source "drivers/pinctrl/sunxi/Kconfig"
 source "drivers/pinctrl/tegra/Kconfig"
 source "drivers/pinctrl/ti/Kconfig"
+source "drivers/pinctrl/ultrarisc/Kconfig"
 source "drivers/pinctrl/uniphier/Kconfig"
 source "drivers/pinctrl/visconti/Kconfig"
 source "drivers/pinctrl/vt8500/Kconfig"

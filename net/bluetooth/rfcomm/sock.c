@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
    RFCOMM implementation for Linux Bluetooth stack (BlueZ).
    Copyright (C) 2002 Maxim Krasnyansky <maxk@qualcomm.com>
    Copyright (C) 2002 Marcel Holtmann <marcel@holtmann.org>
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License version 2 as
-   published by the Free Software Foundation;
 
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -28,6 +25,7 @@
 #include <linux/export.h>
 #include <linux/debugfs.h>
 #include <linux/sched/signal.h>
+#include <linux/uio.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -122,7 +120,7 @@ static struct sock *__rfcomm_get_listen_sock_by_addr(u8 channel, bdaddr_t *src)
 }
 
 /* Find socket with channel and source bdaddr.
- * Returns closest match.
+ * Returns closest match with an extra reference held.
  */
 static struct sock *rfcomm_get_sock_by_channel(int state, u8 channel, bdaddr_t *src)
 {
@@ -136,14 +134,24 @@ static struct sock *rfcomm_get_sock_by_channel(int state, u8 channel, bdaddr_t *
 
 		if (rfcomm_pi(sk)->channel == channel) {
 			/* Exact match. */
-			if (!bacmp(&rfcomm_pi(sk)->src, src))
+			if (!bacmp(&rfcomm_pi(sk)->src, src)) {
+				sock_hold(sk);
 				break;
+			}
 
 			/* Closest match */
-			if (!bacmp(&rfcomm_pi(sk)->src, BDADDR_ANY))
+			if (!bacmp(&rfcomm_pi(sk)->src, BDADDR_ANY)) {
+				if (sk1)
+					sock_put(sk1);
+
 				sk1 = sk;
+				sock_hold(sk1);
+			}
 		}
 	}
+
+	if (sk && sk1)
+		sock_put(sk1);
 
 	read_unlock(&rfcomm_sk_list.lock);
 
@@ -180,6 +188,8 @@ static void rfcomm_sock_cleanup_listen(struct sock *parent)
 	while ((sk = bt_accept_dequeue(parent, NULL))) {
 		rfcomm_sock_close(sk);
 		rfcomm_sock_kill(sk);
+		/* Drop the reference handed back by bt_accept_dequeue(). */
+		sock_put(sk);
 	}
 
 	parent->sk_state  = BT_CLOSED;
@@ -497,8 +507,13 @@ static int rfcomm_sock_accept(struct socket *sock, struct socket *newsock,
 		}
 
 		nsk = bt_accept_dequeue(sk, newsock);
-		if (nsk)
+		if (nsk) {
+			/* Drop the bridging ref from bt_accept_dequeue();
+			 * the grafted socket keeps nsk alive from here.
+			 */
+			sock_put(nsk);
 			break;
+		}
 
 		if (!timeo) {
 			err = -EAGAIN;
@@ -723,7 +738,8 @@ static int rfcomm_sock_setsockopt(struct socket *sock, int level, int optname,
 	return err;
 }
 
-static int rfcomm_sock_getsockopt_old(struct socket *sock, int optname, char __user *optval, int __user *optlen)
+static int rfcomm_sock_getsockopt_old(struct socket *sock, int optname,
+				      sockopt_t *sopt)
 {
 	struct sock *sk = sock->sk;
 	struct sock *l2cap_sk;
@@ -735,8 +751,7 @@ static int rfcomm_sock_getsockopt_old(struct socket *sock, int optname, char __u
 
 	BT_DBG("sk %p", sk);
 
-	if (get_user(len, optlen))
-		return -EFAULT;
+	len = sopt->optlen;
 
 	lock_sock(sk);
 
@@ -765,7 +780,8 @@ static int rfcomm_sock_getsockopt_old(struct socket *sock, int optname, char __u
 		if (rfcomm_pi(sk)->role_switch)
 			opt |= RFCOMM_LM_MASTER;
 
-		if (put_user(opt, (u32 __user *) optval))
+		if (copy_to_iter(&opt, sizeof(opt), &sopt->iter_out) !=
+		    sizeof(opt))
 			err = -EFAULT;
 
 		break;
@@ -785,7 +801,7 @@ static int rfcomm_sock_getsockopt_old(struct socket *sock, int optname, char __u
 		memcpy(cinfo.dev_class, conn->hcon->dev_class, 3);
 
 		len = min(len, sizeof(cinfo));
-		if (copy_to_user(optval, (char *) &cinfo, len))
+		if (copy_to_iter(&cinfo, len, &sopt->iter_out) != len)
 			err = -EFAULT;
 
 		break;
@@ -799,23 +815,24 @@ static int rfcomm_sock_getsockopt_old(struct socket *sock, int optname, char __u
 	return err;
 }
 
-static int rfcomm_sock_getsockopt(struct socket *sock, int level, int optname, char __user *optval, int __user *optlen)
+static int rfcomm_sock_getsockopt(struct socket *sock, int level, int optname,
+				  sockopt_t *sopt)
 {
 	struct sock *sk = sock->sk;
 	struct bt_security sec;
 	int err = 0;
 	size_t len;
+	u32 opt;
 
 	BT_DBG("sk %p", sk);
 
 	if (level == SOL_RFCOMM)
-		return rfcomm_sock_getsockopt_old(sock, optname, optval, optlen);
+		return rfcomm_sock_getsockopt_old(sock, optname, sopt);
 
 	if (level != SOL_BLUETOOTH)
 		return -ENOPROTOOPT;
 
-	if (get_user(len, optlen))
-		return -EFAULT;
+	len = sopt->optlen;
 
 	lock_sock(sk);
 
@@ -830,7 +847,7 @@ static int rfcomm_sock_getsockopt(struct socket *sock, int level, int optname, c
 		sec.key_size = 0;
 
 		len = min(len, sizeof(sec));
-		if (copy_to_user(optval, (char *) &sec, len))
+		if (copy_to_iter(&sec, len, &sopt->iter_out) != len)
 			err = -EFAULT;
 
 		break;
@@ -841,8 +858,9 @@ static int rfcomm_sock_getsockopt(struct socket *sock, int level, int optname, c
 			break;
 		}
 
-		if (put_user(test_bit(BT_SK_DEFER_SETUP, &bt_sk(sk)->flags),
-			     (u32 __user *) optval))
+		opt = test_bit(BT_SK_DEFER_SETUP, &bt_sk(sk)->flags);
+		if (copy_to_iter(&opt, sizeof(opt), &sopt->iter_out) !=
+		    sizeof(opt))
 			err = -EFAULT;
 
 		break;
@@ -934,6 +952,7 @@ int rfcomm_connect_ind(struct rfcomm_session *s, u8 channel, struct rfcomm_dlc *
 {
 	struct sock *sk, *parent;
 	bdaddr_t src, dst;
+	bool defer_setup = false;
 	int result = 0;
 
 	BT_DBG("session %p channel %d", s, channel);
@@ -946,6 +965,11 @@ int rfcomm_connect_ind(struct rfcomm_session *s, u8 channel, struct rfcomm_dlc *
 		return 0;
 
 	lock_sock(parent);
+
+	if (parent->sk_state != BT_LISTEN)
+		goto done;
+
+	defer_setup = test_bit(BT_SK_DEFER_SETUP, &bt_sk(parent)->flags);
 
 	/* Check for backlog size */
 	if (sk_acceptq_is_full(parent)) {
@@ -974,8 +998,10 @@ int rfcomm_connect_ind(struct rfcomm_session *s, u8 channel, struct rfcomm_dlc *
 done:
 	release_sock(parent);
 
-	if (test_bit(BT_SK_DEFER_SETUP, &bt_sk(parent)->flags))
+	if (defer_setup)
 		parent->sk_state_change(parent);
+
+	sock_put(parent);
 
 	return result;
 }
@@ -1014,7 +1040,7 @@ static const struct proto_ops rfcomm_sock_ops = {
 	.recvmsg	= rfcomm_sock_recvmsg,
 	.shutdown	= rfcomm_sock_shutdown,
 	.setsockopt	= rfcomm_sock_setsockopt,
-	.getsockopt	= rfcomm_sock_getsockopt,
+	.getsockopt_iter = rfcomm_sock_getsockopt,
 	.ioctl		= rfcomm_sock_ioctl,
 	.gettstamp	= sock_gettstamp,
 	.poll		= bt_sock_poll,

@@ -12,6 +12,7 @@
 #include <linux/log2.h>
 #include <linux/intel_vsec.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/pci.h>
@@ -204,13 +205,14 @@ struct class intel_pmt_class = {
 };
 EXPORT_SYMBOL_GPL(intel_pmt_class);
 
-static int intel_pmt_populate_entry(struct intel_pmt_entry *entry,
-				    struct intel_vsec_device *ivdev,
-				    struct resource *disc_res)
+static int pmt_resolve_access_pci(struct intel_pmt_entry *entry,
+				  struct intel_vsec_device *ivdev,
+				  int idx)
 {
 	struct pci_dev *pci_dev = to_pci_dev(ivdev->dev);
 	struct device *dev = &ivdev->auxdev.dev;
 	struct intel_pmt_header *header = &entry->header;
+	struct resource *disc_res;
 	u8 bir;
 
 	/*
@@ -235,6 +237,7 @@ static int intel_pmt_populate_entry(struct intel_pmt_entry *entry,
 		 * For access_type LOCAL, the base address is as follows:
 		 * base address = end of discovery region + base offset
 		 */
+		disc_res = &ivdev->resource[idx];
 		entry->base_addr = disc_res->end + 1 + header->base_offset;
 
 		/*
@@ -284,6 +287,81 @@ static int intel_pmt_populate_entry(struct intel_pmt_entry *entry,
 	}
 
 	entry->pcidev = pci_dev;
+
+	return 0;
+}
+
+static int pmt_resolve_access_acpi(struct intel_pmt_entry *entry,
+				   struct intel_vsec_device *ivdev)
+{
+	struct pci_dev *pci_dev = NULL;
+	struct device *dev = &ivdev->auxdev.dev;
+	struct intel_pmt_header *header = &entry->header;
+	u8 bir;
+
+	if (dev_is_pci(ivdev->dev))
+		pci_dev = to_pci_dev(ivdev->dev);
+
+	/*
+	 * The base offset should always be 8 byte aligned.
+	 *
+	 * For non-local access types the lower 3 bits of base offset
+	 * contains the index of the base address register where the
+	 * telemetry can be found.
+	 */
+	bir = GET_BIR(header->base_offset);
+
+	switch (header->access_type) {
+	case ACCESS_BARID:
+		/* ACPI platform drivers use base_addr */
+		if (ivdev->base_addr) {
+			entry->base_addr = ivdev->base_addr +
+					   GET_ADDRESS(header->base_offset);
+			break;
+		}
+
+		/* If base_addr is not provided, then this is an ACPI companion device */
+		if (!pci_dev) {
+			dev_err(dev, "ACCESS_BARID requires PCI BAR resources or base_addr\n");
+			return -EINVAL;
+		}
+
+		entry->base_addr = pci_resource_start(pci_dev, bir) +
+				   GET_ADDRESS(header->base_offset);
+		break;
+	default:
+		dev_err(dev, "Unsupported access type %d for ACPI based PMT\n",
+			header->access_type);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int intel_pmt_populate_entry(struct intel_pmt_entry *entry,
+				    struct intel_vsec_device *ivdev,
+				    int idx)
+{
+	struct intel_pmt_header *header = &entry->header;
+	struct device *dev = &ivdev->auxdev.dev;
+	int ret;
+
+	switch (ivdev->src) {
+	case INTEL_VSEC_DISC_PCI:
+		ret = pmt_resolve_access_pci(entry, ivdev, idx);
+		if (ret)
+			return ret;
+		break;
+	case INTEL_VSEC_DISC_ACPI:
+		ret = pmt_resolve_access_acpi(entry, ivdev);
+		if (ret)
+			return ret;
+		break;
+	default:
+		dev_err(dev, "Unknown discovery source: %d\n", ivdev->src);
+		return -EINVAL;
+	}
+
 	entry->guid = header->guid;
 	entry->size = header->size;
 	entry->cb = ivdev->priv_data;
@@ -368,24 +446,84 @@ fail_dev_create:
 	return ret;
 }
 
+static int pmt_get_headers(struct intel_vsec_device *ivdev, int idx,
+			   struct intel_pmt_entry *entry)
+{
+	struct device *dev = &ivdev->auxdev.dev;
+	size_t header_bytes = sizeof(entry->disc_header);
+
+	switch (ivdev->src) {
+	case INTEL_VSEC_DISC_PCI: {
+		struct resource *disc_res = &ivdev->resource[idx];
+		void __iomem *disc_table;
+
+		disc_table = devm_ioremap_resource(dev, disc_res);
+		if (IS_ERR(disc_table))
+			return PTR_ERR(disc_table);
+
+		/*
+		 * The mapped resource is sized by the namespace's DVSEC
+		 * entry_size (in dwords), which can be less than the default
+		 * size (e.g. telemetry uses entry_size = 3, 12 bytes). Cap the
+		 * copy to resource_size() to avoid reading past the mapped
+		 * region.
+		 */
+		memset(entry->disc_header, 0, header_bytes);
+		memcpy_fromio(entry->disc_header, disc_table,
+			      min(header_bytes, resource_size(disc_res)));
+
+		/* Used by crashlog driver */
+		entry->disc_table = disc_table;
+
+		return 0;
+	}
+	case INTEL_VSEC_DISC_ACPI: {
+		memcpy(entry->disc_header, &ivdev->acpi_disc[idx][0], header_bytes);
+		/*
+		 * No MMIO mapping exists on the ACPI source path; the cached
+		 * headers are the only view of the discovery record. Consumers
+		 * that dereference disc_table (e.g. crashlog) must therefore
+		 * only be wired to namespaces backed by INTEL_VSEC_DISC_PCI.
+		 */
+		entry->disc_table = NULL;
+
+		return 0;
+	}
+	default:
+		dev_err(dev, "Unknown discovery source type: %d\n", ivdev->src);
+		break;
+	}
+
+	return -EINVAL;
+}
+
 int intel_pmt_dev_create(struct intel_pmt_entry *entry, struct intel_pmt_namespace *ns,
 			 struct intel_vsec_device *intel_vsec_dev, int idx)
 {
 	struct device *dev = &intel_vsec_dev->auxdev.dev;
-	struct resource	*disc_res;
 	int ret;
 
-	disc_res = &intel_vsec_dev->resource[idx];
+	ret = pmt_get_headers(intel_vsec_dev, idx, entry);
+	if (ret)
+		return ret;
 
-	entry->disc_table = devm_ioremap_resource(dev, disc_res);
-	if (IS_ERR(entry->disc_table))
-		return PTR_ERR(entry->disc_table);
+	if (ns->pmt_pre_decode) {
+		ret = ns->pmt_pre_decode(intel_vsec_dev, entry);
+		if (ret)
+			return ret;
+	}
 
 	ret = ns->pmt_header_decode(entry, dev);
 	if (ret)
 		return ret;
 
-	ret = intel_pmt_populate_entry(entry, intel_vsec_dev, disc_res);
+	if (ns->pmt_post_decode) {
+		ret = ns->pmt_post_decode(intel_vsec_dev, entry);
+		if (ret)
+			return ret;
+	}
+
+	ret = intel_pmt_populate_entry(entry, intel_vsec_dev, idx);
 	if (ret)
 		return ret;
 

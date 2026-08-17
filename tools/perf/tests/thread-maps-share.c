@@ -27,7 +27,7 @@ static int test__thread_maps_share(struct test_suite *test __maybe_unused, int s
 	 * other  group (pid: 4, tids: 4, 5)
 	*/
 
-	machines__init(&machines);
+	TEST_ASSERT_VAL("failed to init machines", machines__init(&machines) == 0);
 	machine = &machines.host;
 
 	/* create process with 4 threads */

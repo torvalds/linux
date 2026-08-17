@@ -371,6 +371,7 @@ enum {
 	/* return values for ->qc_defer */
 	ATA_DEFER_LINK		= 1,
 	ATA_DEFER_PORT		= 2,
+	ATA_DEFER_LINK_EXCL	= 3,
 
 	/* desc_len for ata_eh_info and context */
 	ATA_EH_DESC_LEN		= 80,
@@ -854,6 +855,9 @@ struct ata_link {
 	unsigned int		sata_spd;	/* current SATA PHY speed */
 	enum ata_lpm_policy	lpm_policy;
 
+	struct work_struct	deferred_qc_work;
+	struct ata_queued_cmd	*deferred_qc;
+
 	/* record runtime error info, protected by host_set lock */
 	struct ata_eh_info	eh_info;
 	/* EH context */
@@ -898,9 +902,6 @@ struct ata_port {
 	struct ata_queued_cmd	qcmd[ATA_MAX_QUEUE + 1];
 	u64			qc_active;
 	int			nr_active_links; /* #links with active qcs */
-
-	struct work_struct	deferred_qc_work;
-	struct ata_queued_cmd	*deferred_qc;
 
 	struct ata_link		link;		/* host default link */
 	struct ata_link		*slave_link;	/* see ata_slave_link_init() */
@@ -983,7 +984,8 @@ struct ata_port_operations {
 	void (*thaw)(struct ata_port *ap);
 	struct ata_reset_operations reset;
 	struct ata_reset_operations pmp_reset;
-	void (*error_handler)(struct ata_port *ap);
+	void (*error_handler)(struct ata_port *ap)
+		__must_hold(&ap->host->eh_mutex);
 	void (*lost_interrupt)(struct ata_port *ap);
 	void (*post_internal_cmd)(struct ata_queued_cmd *qc);
 	void (*sched_eh)(struct ata_port *ap);
@@ -1313,7 +1315,8 @@ extern int ata_tport_add(struct device *parent, struct ata_port *ap);
 extern void ata_tport_delete(struct ata_port *ap);
 int ata_sas_sdev_configure(struct scsi_device *sdev, struct queue_limits *lim,
 			   struct ata_port *ap);
-extern int ata_sas_queuecmd(struct scsi_cmnd *cmd, struct ata_port *ap);
+extern int ata_sas_queuecmd(struct scsi_cmnd *cmd, struct ata_port *ap)
+	__must_hold(ap->lock);
 extern void ata_tf_to_fis(const struct ata_taskfile *tf,
 			  u8 pmp, int is_cmd, u8 *fis);
 extern void ata_tf_from_fis(const u8 *fis, struct ata_taskfile *tf);
@@ -1418,7 +1421,8 @@ extern void ata_eh_thaw_port(struct ata_port *ap);
 extern void ata_eh_qc_complete(struct ata_queued_cmd *qc);
 extern void ata_eh_qc_retry(struct ata_queued_cmd *qc);
 
-extern void ata_std_error_handler(struct ata_port *ap);
+extern void ata_std_error_handler(struct ata_port *ap)
+	__must_hold(&ap->host->eh_mutex);
 extern void ata_std_sched_eh(struct ata_port *ap);
 extern void ata_std_end_eh(struct ata_port *ap);
 extern int ata_link_nr_enabled(struct ata_link *link);
@@ -1998,7 +2002,8 @@ extern void ata_timing_merge(const struct ata_timing *,
 extern const struct ata_port_operations sata_pmp_port_ops;
 
 extern int sata_pmp_qc_defer_cmd_switch(struct ata_queued_cmd *qc);
-extern void sata_pmp_error_handler(struct ata_port *ap);
+extern void sata_pmp_error_handler(struct ata_port *ap)
+	__must_hold(&ap->host->eh_mutex);
 
 #else /* CONFIG_SATA_PMP */
 
@@ -2062,7 +2067,8 @@ extern int sata_sff_hardreset(struct ata_link *link, unsigned int *class,
 			       unsigned long deadline);
 extern void ata_sff_postreset(struct ata_link *link, unsigned int *classes);
 extern void ata_sff_drain_fifo(struct ata_queued_cmd *qc);
-extern void ata_sff_error_handler(struct ata_port *ap);
+extern void ata_sff_error_handler(struct ata_port *ap)
+	__must_hold(&ap->host->eh_mutex);
 extern void ata_sff_std_ports(struct ata_ioports *ioaddr);
 #ifdef CONFIG_PCI
 extern int ata_pci_sff_init_host(struct ata_host *host);
@@ -2092,7 +2098,8 @@ extern enum ata_completion_errors ata_bmdma_dumb_qc_prep(struct ata_queued_cmd *
 extern unsigned int ata_bmdma_port_intr(struct ata_port *ap,
 				      struct ata_queued_cmd *qc);
 extern irqreturn_t ata_bmdma_interrupt(int irq, void *dev_instance);
-extern void ata_bmdma_error_handler(struct ata_port *ap);
+extern void ata_bmdma_error_handler(struct ata_port *ap)
+	__must_hold(&ap->host->eh_mutex);
 extern void ata_bmdma_post_internal_cmd(struct ata_queued_cmd *qc);
 extern void ata_bmdma_irq_clear(struct ata_port *ap);
 extern void ata_bmdma_setup(struct ata_queued_cmd *qc);

@@ -2708,17 +2708,18 @@ static const struct dev_pm_ops brcmf_pciedrvr_pm = {
 
 #define BRCMF_PCIE_DEVICE(dev_id, fw_vend) \
 	{ \
-		BRCM_PCIE_VENDOR_ID_BROADCOM, (dev_id), \
-		PCI_ANY_ID, PCI_ANY_ID, \
-		PCI_CLASS_NETWORK_OTHER << 8, 0xffff00, \
-		BRCMF_DRVDATA_ ## fw_vend \
+		PCI_DEVICE(BRCM_PCIE_VENDOR_ID_BROADCOM, (dev_id)), \
+		.class = PCI_CLASS_NETWORK_OTHER << 8, \
+		.class_mask = 0xffff00, \
+		.driver_data = BRCMF_DRVDATA_ ## fw_vend, \
 	}
 #define BRCMF_PCIE_DEVICE_SUB(dev_id, subvend, subdev, fw_vend) \
 	{ \
-		BRCM_PCIE_VENDOR_ID_BROADCOM, (dev_id), \
-		(subvend), (subdev), \
-		PCI_CLASS_NETWORK_OTHER << 8, 0xffff00, \
-		BRCMF_DRVDATA_ ## fw_vend \
+		PCI_DEVICE_SUB(BRCM_PCIE_VENDOR_ID_BROADCOM, (dev_id), \
+			       (subvend), (subdev)), \
+		.class = PCI_CLASS_NETWORK_OTHER << 8, \
+		.class_mask = 0xffff00, \
+		.driver_data = BRCMF_DRVDATA_ ## fw_vend, \
 	}
 
 static const struct pci_device_id brcmf_pcie_devid_table[] = {

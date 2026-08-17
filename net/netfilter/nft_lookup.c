@@ -50,7 +50,7 @@ __nft_set_do_lookup(const struct net *net, const struct nft_set *set,
 	if (set->ops == &nft_set_rbtree_type.ops)
 		return nft_rbtree_lookup(net, set, key);
 
-	WARN_ON_ONCE(1);
+	DEBUG_NET_WARN_ON_ONCE(1);
 #endif
 	return set->ops->lookup(net, set, key);
 }

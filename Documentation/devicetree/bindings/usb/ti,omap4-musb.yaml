@@ -81,9 +81,7 @@ properties:
     const: usb2-phy
 
   usb-phy:
-    $ref: /schemas/types.yaml#/definitions/phandle-array
-    description: Phandle for the PHY device.
-    deprecated: true
+    maxItems: 1
 
   ctrl-module:
     $ref: /schemas/types.yaml#/definitions/phandle
@@ -95,6 +93,9 @@ required:
   - compatible
   - interrupts
   - interrupt-names
+
+allOf:
+  - $ref: usb-hcd.yaml#
 
 unevaluatedProperties: false
 

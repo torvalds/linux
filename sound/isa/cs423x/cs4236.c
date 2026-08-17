@@ -69,9 +69,9 @@ module_param_hw_array(dma2, int, dma, NULL, 0444);
 MODULE_PARM_DESC(dma2, "DMA2 # for " IDENT " driver.");
 
 #ifdef CONFIG_PNP
-static int isa_registered;
-static int pnpc_registered;
-static int pnp_registered;
+static int isa_registered __ro_after_init;
+static int pnpc_registered __ro_after_init;
+static int pnp_registered __ro_after_init;
 #endif /* CONFIG_PNP */
 
 struct snd_card_cs4236 {
@@ -94,7 +94,7 @@ static const struct pnp_device_id snd_cs423x_pnpbiosids[] = {
 	/* Guillemot Turtlebeach something appears to be cs4232 compatible
 	 * (untested) */
 	{ .id = "GIM0100" },
-	{ .id = "" }
+	{ }
 };
 MODULE_DEVICE_TABLE(pnp, snd_cs423x_pnpbiosids);
 

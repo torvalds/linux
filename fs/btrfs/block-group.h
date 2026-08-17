@@ -122,6 +122,7 @@ struct btrfs_block_group {
 	struct btrfs_fs_info *fs_info;
 	struct btrfs_inode *inode;
 	spinlock_t lock;
+	unsigned int ro;
 	u64 start;
 	u64 length;
 	u64 pinned;
@@ -134,7 +135,8 @@ struct btrfs_block_group {
 	u64 global_root_id;
 	u64 remap_bytes;
 	u32 identity_remap_count;
-
+	/* The last commited identity_remap_count value of this block group. */
+	u32 last_identity_remap_count;
 	/*
 	 * The last committed used bytes of this block group, if the above @used
 	 * is still the same as @last_used, we don't need to update block
@@ -143,8 +145,6 @@ struct btrfs_block_group {
 	u64 last_used;
 	/* The last committed remap_bytes value of this block group. */
 	u64 last_remap_bytes;
-	/* The last commited identity_remap_count value of this block group. */
-	u32 last_identity_remap_count;
 	/* The last committed flags value for this block group. */
 	u64 last_flags;
 
@@ -171,12 +171,10 @@ struct btrfs_block_group {
 	unsigned long full_stripe_len;
 	unsigned long runtime_flags;
 
-	unsigned int ro;
-
-	int disk_cache_state;
+	enum btrfs_disk_cache_state disk_cache_state;
 
 	/* Cache tracking stuff */
-	int cached;
+	enum btrfs_caching_type cached;
 	struct btrfs_caching_control *caching_ctl;
 
 	struct btrfs_space_info *space_info;
@@ -191,6 +189,16 @@ struct btrfs_block_group {
 	struct list_head list;
 
 	refcount_t refs;
+
+	/*
+	 * When non-zero it means the block group's logical address and its
+	 * device extents can not be reused for future block group allocations
+	 * until the counter goes down to 0. This is to prevent them from being
+	 * reused while some task is still using the block group after it was
+	 * deleted - we want to make sure they can only be reused for new block
+	 * groups after that task is done with the deleted block group.
+	 */
+	atomic_t frozen;
 
 	/*
 	 * List of struct btrfs_free_clusters for this block group.
@@ -211,22 +219,12 @@ struct btrfs_block_group {
 	/* For read-only block groups */
 	struct list_head ro_list;
 
-	/*
-	 * When non-zero it means the block group's logical address and its
-	 * device extents can not be reused for future block group allocations
-	 * until the counter goes down to 0. This is to prevent them from being
-	 * reused while some task is still using the block group after it was
-	 * deleted - we want to make sure they can only be reused for new block
-	 * groups after that task is done with the deleted block group.
-	 */
-	atomic_t frozen;
-
 	/* For discard operations */
 	struct list_head discard_list;
 	int discard_index;
+	enum btrfs_discard_state discard_state;
 	u64 discard_eligible_time;
 	u64 discard_cursor;
-	enum btrfs_discard_state discard_state;
 
 	/* For dirty block groups */
 	struct list_head dirty_list;
@@ -263,6 +261,8 @@ struct btrfs_block_group {
 	/* Protected by @free_space_lock. */
 	bool using_free_space_bitmaps_cached;
 
+	enum btrfs_block_group_size_class size_class:8;
+
 	/*
 	 * Number of extents in this block group used for swap files.
 	 * All accesses protected by the spinlock 'lock'.
@@ -281,7 +281,6 @@ struct btrfs_block_group {
 	struct list_head active_bg_list;
 	struct work_struct zone_finish_work;
 	struct extent_buffer *last_eb;
-	enum btrfs_block_group_size_class size_class;
 	u64 reclaim_mark;
 };
 
@@ -319,6 +318,9 @@ static inline u64 btrfs_block_group_available_space(const struct btrfs_block_gro
 #ifdef CONFIG_BTRFS_DEBUG
 int btrfs_should_fragment_free_space(const struct btrfs_block_group *block_group);
 #endif
+
+int __init btrfs_init_block_group(void);
+void __cold btrfs_exit_block_group(void);
 
 struct btrfs_block_group *btrfs_lookup_first_block_group(
 		struct btrfs_fs_info *info, u64 bytenr);

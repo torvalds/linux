@@ -2037,7 +2037,7 @@ static irqreturn_t ab8500_fg_cc_convend_handler(int irq, void *_di)
 }
 
 /**
- * ab8500_fg_batt_ovv_handler() - Battery OVV occured
+ * ab8500_fg_batt_ovv_handler() - Battery OVV occurred
  * @irq:       interrupt number
  * @_di:       pointer to the ab8500_fg structure
  *

@@ -118,6 +118,7 @@ config BITLAND_MIFS_WMI
 	depends on ACPI_WMI
 	depends on HWMON
 	depends on INPUT
+	depends on LEDS_CLASS
 	depends on POWER_SUPPLY
 	select ACPI_PLATFORM_PROFILE
 	select INPUT_SPARSEKMAP
@@ -345,6 +346,7 @@ config AYANEO_EC
 config MERAKI_MX100
 	tristate "Cisco Meraki MX100 Platform Driver"
 	depends on GPIOLIB
+	depends on LPC_ICH
 	depends on GPIO_ICH
 	depends on LEDS_CLASS
 	select LEDS_GPIO

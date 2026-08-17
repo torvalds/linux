@@ -2,8 +2,8 @@
 /* Copyright (C) 2017 Andes Technology Corporation */
 #ifdef CONFIG_MODULE_SECTIONS
 SECTIONS {
-	.plt : { BYTE(0) }
-	.got : { BYTE(0) }
-	.got.plt : { BYTE(0) }
+	.plt 0 : { BYTE(0) }
+	.got 0 : { BYTE(0) }
+	.got.plt 0 : { BYTE(0) }
 }
 #endif

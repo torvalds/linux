@@ -499,28 +499,19 @@ static unsigned int trace_stack(struct synth_trace_event *entry,
 	return len;
 }
 
-static void trace_event_raw_event_synth(void *__data,
-					u64 *var_ref_vals,
-					unsigned int *var_ref_idx)
+static __always_inline int get_field_size(struct synth_event *event,
+					  u64 *var_ref_vals,
+					  unsigned int *var_ref_idx)
 {
-	unsigned int i, n_u64, val_idx, len, data_size = 0;
-	struct trace_event_file *trace_file = __data;
-	struct synth_trace_event *entry;
-	struct trace_event_buffer fbuffer;
-	struct trace_buffer *buffer;
-	struct synth_event *event;
-	int fields_size = 0;
-
-	event = trace_file->event_call->data;
-
-	if (trace_trigger_soft_disabled(trace_file))
-		return;
+	int fields_size;
 
 	fields_size = event->n_u64 * sizeof(u64);
 
-	for (i = 0; i < event->n_dynamic_fields; i++) {
+	for (int i = 0; i < event->n_dynamic_fields; i++) {
 		unsigned int field_pos = event->dynamic_fields[i]->field_pos;
 		char *str_val;
+		int val_idx;
+		int len;
 
 		val_idx = var_ref_idx[field_pos];
 		str_val = (char *)(long)var_ref_vals[val_idx];
@@ -535,18 +526,18 @@ static void trace_event_raw_event_synth(void *__data,
 
 		fields_size += len;
 	}
+	return fields_size;
+}
 
-	/*
-	 * Avoid ring buffer recursion detection, as this event
-	 * is being performed within another event.
-	 */
-	buffer = trace_file->tr->array_buffer.buffer;
-	guard(ring_buffer_nest)(buffer);
-
-	entry = trace_event_buffer_reserve(&fbuffer, trace_file,
-					   sizeof(*entry) + fields_size);
-	if (!entry)
-		return;
+static __always_inline void write_synth_entry(struct synth_event *event,
+					      struct synth_trace_event *entry,
+					      u64 *var_ref_vals,
+					      unsigned int *var_ref_idx)
+{
+	int data_size = 0;
+	int i, n_u64;
+	int val_idx;
+	int len;
 
 	for (i = 0, n_u64 = 0; i < event->n_fields; i++) {
 		val_idx = var_ref_idx[i];
@@ -587,9 +578,82 @@ static void trace_event_raw_event_synth(void *__data,
 			n_u64++;
 		}
 	}
+}
+
+static void trace_event_raw_event_synth(void *__data,
+					u64 *var_ref_vals,
+					unsigned int *var_ref_idx)
+{
+	struct trace_event_file *trace_file = __data;
+	struct synth_trace_event *entry;
+	struct trace_event_buffer fbuffer;
+	struct trace_buffer *buffer;
+	struct synth_event *event;
+	int fields_size;
+
+	event = trace_file->event_call->data;
+
+	if (trace_trigger_soft_disabled(trace_file))
+		return;
+
+	fields_size = get_field_size(event, var_ref_vals, var_ref_idx);
+
+	/*
+	 * Avoid ring buffer recursion detection, as this event
+	 * is being performed within another event.
+	 */
+	buffer = trace_file->tr->array_buffer.buffer;
+	guard(ring_buffer_nest)(buffer);
+
+	entry = trace_event_buffer_reserve(&fbuffer, trace_file,
+					   sizeof(*entry) + fields_size);
+	if (!entry)
+		return;
+
+	write_synth_entry(event, entry, var_ref_vals, var_ref_idx);
 
 	trace_event_buffer_commit(&fbuffer);
 }
+
+#ifdef CONFIG_PERF_EVENTS
+static void perf_event_raw_event_synth(void *__data,
+				       u64 *var_ref_vals,
+				       unsigned int *var_ref_idx)
+{
+	struct trace_event_call *call = __data;
+	struct synth_trace_event *entry;
+	struct hlist_head *perf_head;
+	struct synth_event *event;
+	struct pt_regs *regs;
+	int fields_size;
+	size_t size;
+	int context;
+
+	event = call->data;
+
+	perf_head = this_cpu_ptr(call->perf_events);
+
+	if (!perf_head || hlist_empty(perf_head))
+		return;
+
+	fields_size = get_field_size(event, var_ref_vals, var_ref_idx);
+
+	size = ALIGN(sizeof(*entry) + fields_size, 8);
+
+	entry = perf_trace_buf_alloc(size, &regs, &context);
+
+	if (unlikely(!entry))
+		return;
+
+	write_synth_entry(event, entry, var_ref_vals, var_ref_idx);
+
+	perf_fetch_caller_regs(regs);
+
+	perf_trace_buf_submit(entry, size, context,
+			      call->event.type, 1, regs,
+			      perf_head, NULL);
+}
+#endif
 
 static void free_synth_event_print_fmt(struct trace_event_call *call)
 {
@@ -917,6 +981,9 @@ static int register_synth_event(struct synth_event *event)
 	call->flags = TRACE_EVENT_FL_TRACEPOINT;
 	call->class->reg = synth_event_reg;
 	call->class->probe = trace_event_raw_event_synth;
+#ifdef CONFIG_PERF_EVENTS
+	call->class->perf_probe = perf_event_raw_event_synth;
+#endif
 	call->data = event;
 	call->tp = event->tp;
 

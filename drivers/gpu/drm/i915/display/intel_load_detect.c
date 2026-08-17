@@ -20,7 +20,7 @@ static const struct drm_display_mode load_detect_mode = {
 		 704, 832, 0, 480, 489, 491, 520, 0, DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC),
 };
 
-static int intel_modeset_disable_planes(struct drm_atomic_state *state,
+static int intel_modeset_disable_planes(struct drm_atomic_commit *state,
 					struct drm_crtc *crtc)
 {
 	struct drm_plane *plane;
@@ -45,7 +45,7 @@ static int intel_modeset_disable_planes(struct drm_atomic_state *state,
 	return 0;
 }
 
-struct drm_atomic_state *
+struct drm_atomic_commit *
 intel_load_detect_get_pipe(struct drm_connector *connector,
 			   struct drm_modeset_acquire_ctx *ctx)
 {
@@ -55,7 +55,7 @@ intel_load_detect_get_pipe(struct drm_connector *connector,
 	struct intel_crtc *possible_crtc;
 	struct intel_crtc *crtc = NULL;
 	struct drm_mode_config *config = &display->drm->mode_config;
-	struct drm_atomic_state *state = NULL, *restore_state = NULL;
+	struct drm_atomic_commit *state = NULL, *restore_state = NULL;
 	struct drm_connector_state *connector_state;
 	struct intel_crtc_state *crtc_state;
 	int ret;
@@ -89,7 +89,7 @@ intel_load_detect_get_pipe(struct drm_connector *connector,
 	}
 
 	/* Find an unused one (if possible) */
-	for_each_intel_crtc(display->drm, possible_crtc) {
+	for_each_intel_crtc(display, possible_crtc) {
 		if (!(encoder->base.possible_crtcs &
 		      drm_crtc_mask(&possible_crtc->base)))
 			continue;
@@ -118,8 +118,8 @@ intel_load_detect_get_pipe(struct drm_connector *connector,
 	}
 
 found:
-	state = drm_atomic_state_alloc(display->drm);
-	restore_state = drm_atomic_state_alloc(display->drm);
+	state = drm_atomic_commit_alloc(display->drm);
+	restore_state = drm_atomic_commit_alloc(display->drm);
 	if (!state || !restore_state) {
 		ret = -ENOMEM;
 		goto fail;
@@ -177,7 +177,7 @@ found:
 		goto fail;
 	}
 
-	drm_atomic_state_put(state);
+	drm_atomic_commit_put(state);
 
 	/* let the connector get through one full cycle before testing */
 	intel_crtc_wait_for_next_vblank(crtc);
@@ -186,11 +186,11 @@ found:
 
 fail:
 	if (state) {
-		drm_atomic_state_put(state);
+		drm_atomic_commit_put(state);
 		state = NULL;
 	}
 	if (restore_state) {
-		drm_atomic_state_put(restore_state);
+		drm_atomic_commit_put(restore_state);
 		restore_state = NULL;
 	}
 
@@ -201,7 +201,7 @@ fail:
 }
 
 void intel_load_detect_release_pipe(struct drm_connector *connector,
-				    struct drm_atomic_state *state,
+				    struct drm_atomic_commit *state,
 				    struct drm_modeset_acquire_ctx *ctx)
 {
 	struct intel_display *display = to_intel_display(connector->dev);
@@ -221,5 +221,5 @@ void intel_load_detect_release_pipe(struct drm_connector *connector,
 	if (ret)
 		drm_dbg_kms(display->drm,
 			    "Couldn't release load detect pipe: %i\n", ret);
-	drm_atomic_state_put(state);
+	drm_atomic_commit_put(state);
 }

@@ -74,20 +74,14 @@ int svsm_perform_call_protocol(struct svsm_call *call)
 
 	flags = native_local_irq_save();
 
-	if (sev_cfg.ghcbs_initialized)
-		ghcb = __sev_get_ghcb(&state);
-	else if (boot_ghcb)
-		ghcb = boot_ghcb;
-	else
-		ghcb = NULL;
+	ghcb = __sev_get_ghcb(&state);
 
 	do {
 		ret = ghcb ? svsm_perform_ghcb_protocol(ghcb, call)
 			   : __pi_svsm_perform_msr_protocol(call);
 	} while (ret == -EAGAIN);
 
-	if (sev_cfg.ghcbs_initialized)
-		__sev_put_ghcb(&state);
+	__sev_put_ghcb(&state);
 
 	native_local_irq_restore(flags);
 

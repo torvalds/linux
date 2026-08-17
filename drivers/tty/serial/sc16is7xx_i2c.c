@@ -3,7 +3,6 @@
 
 #include <linux/dev_printk.h>
 #include <linux/i2c.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
 #include <linux/string.h>
@@ -39,13 +38,13 @@ static void sc16is7xx_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id sc16is7xx_i2c_id_table[] = {
-	{ "sc16is74x",	(kernel_ulong_t)&sc16is74x_devtype, },
-	{ "sc16is740",	(kernel_ulong_t)&sc16is74x_devtype, },
-	{ "sc16is741",	(kernel_ulong_t)&sc16is74x_devtype, },
-	{ "sc16is750",	(kernel_ulong_t)&sc16is750_devtype, },
-	{ "sc16is752",	(kernel_ulong_t)&sc16is752_devtype, },
-	{ "sc16is760",	(kernel_ulong_t)&sc16is760_devtype, },
-	{ "sc16is762",	(kernel_ulong_t)&sc16is762_devtype, },
+	{ .name = "sc16is74x", .driver_data = (kernel_ulong_t)&sc16is74x_devtype },
+	{ .name = "sc16is740", .driver_data = (kernel_ulong_t)&sc16is74x_devtype },
+	{ .name = "sc16is741", .driver_data = (kernel_ulong_t)&sc16is74x_devtype },
+	{ .name = "sc16is750", .driver_data = (kernel_ulong_t)&sc16is750_devtype },
+	{ .name = "sc16is752", .driver_data = (kernel_ulong_t)&sc16is752_devtype },
+	{ .name = "sc16is760", .driver_data = (kernel_ulong_t)&sc16is760_devtype },
+	{ .name = "sc16is762", .driver_data = (kernel_ulong_t)&sc16is762_devtype },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, sc16is7xx_i2c_id_table);

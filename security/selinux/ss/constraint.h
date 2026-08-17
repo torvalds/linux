@@ -50,6 +50,7 @@ struct constraint_expr {
 	u32 op; /* operator */
 
 	struct ebitmap names; /* names */
+	/* internally unused, only forwarded via policydb_write() */
 	struct type_set *type_names;
 
 	struct constraint_expr *next; /* next expression */

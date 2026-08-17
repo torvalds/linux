@@ -10,7 +10,7 @@ for pkg in $_extrapackages; do
 	pkgname+=("${pkgbase}-${pkg}")
 done
 
-pkgver="${KERNELRELEASE//-/_}"
+pkgver="$(echo "${KERNELRELEASE}" | sed 's/-\(rc[0-9]\+\)/\1/;s/-/_/g')"
 # The PKGBUILD is evaluated multiple times.
 # Running scripts/build-version from here would introduce inconsistencies.
 pkgrel="${KBUILD_REVISION}"
@@ -121,6 +121,9 @@ _package-debug(){
 	install -Dt "${debugdir}" -m644 vmlinux
 	mkdir -p "${builddir}"
 	ln -sr "${debugdir}/vmlinux" "${builddir}/vmlinux"
+
+	echo "Installing unstripped vDSO(s)..."
+	${MAKE} INSTALL_MOD_PATH="${pkgdir}/usr" vdso_install
 }
 
 for _p in "${pkgname[@]}"; do

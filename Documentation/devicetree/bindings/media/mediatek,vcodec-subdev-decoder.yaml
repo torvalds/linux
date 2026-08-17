@@ -232,7 +232,7 @@ examples:
             #address-cells = <2>;
             #size-cells = <2>;
             ranges = <0 0 0 0x16000000 0 0x40000>;
-            reg = <0 0x16000000 0 0x1000>;		/* VDEC_SYS */
+            reg = <0 0x16000000 0 0x1000>; /* VDEC_SYS */
             video-codec@10000 {
                 compatible = "mediatek,mtk-vcodec-lat";
                 reg = <0 0x10000 0 0x800>;

@@ -93,19 +93,19 @@ static const struct of_device_id __maybe_unused nct6775_i2c_of_match[] = {
 MODULE_DEVICE_TABLE(of, nct6775_i2c_of_match);
 
 static const struct i2c_device_id nct6775_i2c_id[] = {
-	{ "nct6106", nct6106 },
-	{ "nct6116", nct6116 },
-	{ "nct6775", nct6775 },
-	{ "nct6776", nct6776 },
-	{ "nct6779", nct6779 },
-	{ "nct6791", nct6791 },
-	{ "nct6792", nct6792 },
-	{ "nct6793", nct6793 },
-	{ "nct6795", nct6795 },
-	{ "nct6796", nct6796 },
-	{ "nct6797", nct6797 },
-	{ "nct6798", nct6798 },
-	{ "nct6799", nct6799 },
+	{ .name = "nct6106", .driver_data = nct6106 },
+	{ .name = "nct6116", .driver_data = nct6116 },
+	{ .name = "nct6775", .driver_data = nct6775 },
+	{ .name = "nct6776", .driver_data = nct6776 },
+	{ .name = "nct6779", .driver_data = nct6779 },
+	{ .name = "nct6791", .driver_data = nct6791 },
+	{ .name = "nct6792", .driver_data = nct6792 },
+	{ .name = "nct6793", .driver_data = nct6793 },
+	{ .name = "nct6795", .driver_data = nct6795 },
+	{ .name = "nct6796", .driver_data = nct6796 },
+	{ .name = "nct6797", .driver_data = nct6797 },
+	{ .name = "nct6798", .driver_data = nct6798 },
+	{ .name = "nct6799", .driver_data = nct6799 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, nct6775_i2c_id);

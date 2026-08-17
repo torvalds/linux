@@ -9,6 +9,7 @@
 
 / {
 	compatible = "fsl,mpc8377rdb";
+	model = "fsl,mpc8377rdb";
 	#address-cells = <1>;
 	#size-cells = <1>;
 

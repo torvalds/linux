@@ -41,10 +41,10 @@
 #include <inttypes.h>
 #include <limits.h>
 #include <pthread.h>
-#include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include "kvm_syscalls.h"
 #include "kvm_util.h"
 #include "test_util.h"
 #include "memstress.h"

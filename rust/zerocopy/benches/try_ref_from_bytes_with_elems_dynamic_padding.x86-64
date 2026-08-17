@@ -1,0 +1,21 @@
+bench_try_ref_from_bytes_with_elems_dynamic_padding:
+	movabs rax, 3074457345618258598
+	cmp rdx, rax
+	seta cl
+	mov rax, rdi
+	test al, 3
+	setne dil
+	or dil, cl
+	jne .LBB5_3
+	lea rcx, [rdx + 2*rdx]
+	or rcx, 3
+	add rcx, 9
+	cmp rsi, rcx
+	jne .LBB5_3
+	cmp word ptr [rax], -16192
+	je .LBB5_4
+.LBB5_3:
+	xor eax, eax
+	mov rdx, rsi
+.LBB5_4:
+	ret

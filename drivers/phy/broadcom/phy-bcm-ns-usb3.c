@@ -65,6 +65,7 @@ static const struct of_device_id bcm_ns_usb3_id_table[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, bcm_ns_usb3_id_table);
 
 static int bcm_ns_usb3_mdio_phy_write(struct bcm_ns_usb3 *usb3, u16 reg,
 				      u16 value);
@@ -242,4 +243,3 @@ mdio_module_driver(bcm_ns_usb3_mdio_driver);
 
 MODULE_DESCRIPTION("Broadcom Northstar USB 3.0 PHY Driver");
 MODULE_LICENSE("GPL v2");
-MODULE_DEVICE_TABLE(of, bcm_ns_usb3_id_table);

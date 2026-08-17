@@ -4,6 +4,7 @@
 
 #include <linux/kvm_host.h>
 
+#include "capabilities.h"
 #include "x86.h"
 
 __init int vmx_hardware_setup(void);
@@ -103,6 +104,11 @@ void vmx_load_eoi_exitmap(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap);
 int vmx_set_tss_addr(struct kvm *kvm, unsigned int addr);
 int vmx_set_identity_map_addr(struct kvm *kvm, u64 ident_addr);
 u8 vmx_get_mt_mask(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio);
+
+static inline bool vmx_tdp_has_smep(struct kvm *kvm)
+{
+	return enable_mbec;
+}
 
 void vmx_get_exit_info(struct kvm_vcpu *vcpu, u32 *reason,
 		       u64 *info1, u64 *info2, u32 *intr_info, u32 *error_code);

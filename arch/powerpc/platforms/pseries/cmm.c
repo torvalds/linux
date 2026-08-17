@@ -18,6 +18,7 @@
 #include <linux/sched.h>
 #include <linux/stringify.h>
 #include <linux/swap.h>
+#include <linux/sysfs.h>
 #include <linux/device.h>
 #include <linux/balloon.h>
 #include <asm/firmware.h>
@@ -333,7 +334,7 @@ static int cmm_thread(void *dummy)
 				   struct device_attribute *attr,	\
 				   char *buf)			\
 	{							\
-		return sprintf(buf, format, ##args);		\
+		return sysfs_emit(buf, format, ##args);		\
 	}							\
 	static DEVICE_ATTR(name, 0444, show_##name, NULL)
 
@@ -343,7 +344,7 @@ CMM_SHOW(loaned_target_kb, "%lu\n", PAGES2KB(loaned_pages_target));
 static ssize_t show_oom_pages(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%lu\n", PAGES2KB(oom_freed_pages));
+	return sysfs_emit(buf, "%lu\n", PAGES2KB(oom_freed_pages));
 }
 
 static ssize_t store_oom_pages(struct device *dev,

@@ -585,12 +585,16 @@ int kvm_vm_ioctl_get_irqchip(struct kvm *kvm, struct kvm_irqchip *chip)
 	r = 0;
 	switch (chip->chip_id) {
 	case KVM_IRQCHIP_PIC_MASTER:
+		spin_lock(&pic->lock);
 		memcpy(&chip->chip.pic, &pic->pics[0],
 			sizeof(struct kvm_pic_state));
+		spin_unlock(&pic->lock);
 		break;
 	case KVM_IRQCHIP_PIC_SLAVE:
+		spin_lock(&pic->lock);
 		memcpy(&chip->chip.pic, &pic->pics[1],
 			sizeof(struct kvm_pic_state));
+		spin_unlock(&pic->lock);
 		break;
 	case KVM_IRQCHIP_IOAPIC:
 		kvm_get_ioapic(kvm, &chip->chip.ioapic);

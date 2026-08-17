@@ -253,7 +253,7 @@ struct vme_resource *vme_slave_request(struct vme_dev *vdev, u32 address,
 {
 	struct vme_bridge *bridge;
 	struct vme_slave_resource *allocated_image = NULL;
-	struct vme_slave_resource *slave_image = NULL;
+	struct vme_slave_resource *slave_image;
 	struct vme_resource *resource = NULL;
 
 	bridge = vdev->bridge;
@@ -274,7 +274,7 @@ struct vme_resource *vme_slave_request(struct vme_dev *vdev, u32 address,
 		mutex_lock(&slave_image->mtx);
 		if (((slave_image->address_attr & address) == address) &&
 		    ((slave_image->cycle_attr & cycle) == cycle) &&
-		    (slave_image->locked == 0)) {
+		    !slave_image->locked) {
 			slave_image->locked = 1;
 			mutex_unlock(&slave_image->mtx);
 			allocated_image = slave_image;
@@ -419,7 +419,7 @@ void vme_slave_free(struct vme_resource *resource)
 
 	/* Unlock image */
 	mutex_lock(&slave_image->mtx);
-	if (slave_image->locked == 0)
+	if (!slave_image->locked)
 		dev_err(bridge->parent, "Image is already free\n");
 
 	slave_image->locked = 0;
@@ -447,7 +447,7 @@ struct vme_resource *vme_master_request(struct vme_dev *vdev, u32 address,
 {
 	struct vme_bridge *bridge;
 	struct vme_master_resource *allocated_image = NULL;
-	struct vme_master_resource *master_image = NULL;
+	struct vme_master_resource *master_image;
 	struct vme_resource *resource = NULL;
 
 	bridge = vdev->bridge;
@@ -469,7 +469,7 @@ struct vme_resource *vme_master_request(struct vme_dev *vdev, u32 address,
 		if (((master_image->address_attr & address) == address) &&
 		    ((master_image->cycle_attr & cycle) == cycle) &&
 		    ((master_image->width_attr & dwidth) == dwidth) &&
-		    (master_image->locked == 0)) {
+		    !master_image->locked) {
 			master_image->locked = 1;
 			spin_unlock(&master_image->lock);
 			allocated_image = master_image;
@@ -793,7 +793,7 @@ void vme_master_free(struct vme_resource *resource)
 
 	/* Unlock image */
 	spin_lock(&master_image->lock);
-	if (master_image->locked == 0)
+	if (!master_image->locked)
 		dev_err(bridge->parent, "Image is already free\n");
 
 	master_image->locked = 0;
@@ -818,7 +818,7 @@ struct vme_resource *vme_dma_request(struct vme_dev *vdev, u32 route)
 {
 	struct vme_bridge *bridge;
 	struct vme_dma_resource *allocated_ctrlr = NULL;
-	struct vme_dma_resource *dma_ctrlr = NULL;
+	struct vme_dma_resource *dma_ctrlr;
 	struct vme_resource *resource = NULL;
 
 	/* XXX Not checking resource attributes */
@@ -841,7 +841,7 @@ struct vme_resource *vme_dma_request(struct vme_dev *vdev, u32 route)
 		/* Find an unlocked and compatible controller */
 		mutex_lock(&dma_ctrlr->mtx);
 		if (((dma_ctrlr->route_attr & route) == route) &&
-		    (dma_ctrlr->locked == 0)) {
+		    !dma_ctrlr->locked) {
 			dma_ctrlr->locked = 1;
 			mutex_unlock(&dma_ctrlr->mtx);
 			allocated_ctrlr = dma_ctrlr;
@@ -1365,7 +1365,7 @@ void vme_irq_free(struct vme_dev *vdev, int level, int statid)
 	bridge->irq[level - 1].count--;
 
 	/* Disable IRQ level if no more interrupts attached at this level*/
-	if (bridge->irq[level - 1].count == 0)
+	if (!bridge->irq[level - 1].count)
 		bridge->irq_set(bridge, level, 0, 1);
 
 	bridge->irq[level - 1].callback[statid].func = NULL;
@@ -1426,7 +1426,7 @@ struct vme_resource *vme_lm_request(struct vme_dev *vdev)
 {
 	struct vme_bridge *bridge;
 	struct vme_lm_resource *allocated_lm = NULL;
-	struct vme_lm_resource *lm = NULL;
+	struct vme_lm_resource *lm;
 	struct vme_resource *resource = NULL;
 
 	bridge = vdev->bridge;
@@ -1445,7 +1445,7 @@ struct vme_resource *vme_lm_request(struct vme_dev *vdev)
 
 		/* Find an unlocked controller */
 		mutex_lock(&lm->mtx);
-		if (lm->locked == 0) {
+		if (!lm->locked) {
 			lm->locked = 1;
 			mutex_unlock(&lm->mtx);
 			allocated_lm = lm;
@@ -1766,7 +1766,7 @@ int vme_register_bridge(struct vme_bridge *bridge)
 
 	mutex_lock(&vme_buses_lock);
 	for (i = 0; i < sizeof(vme_bus_numbers) * 8; i++) {
-		if ((vme_bus_numbers & (1 << i)) == 0) {
+		if (!(vme_bus_numbers & (1 << i))) {
 			vme_bus_numbers |= (1 << i);
 			bridge->num = i;
 			INIT_LIST_HEAD(&bridge->devices);

@@ -371,6 +371,10 @@ static enum bp_result transmitter_control_v1_7(
 	if (cntl->action == TRANSMITTER_CONTROL_ENABLE ||
 		cntl->action == TRANSMITTER_CONTROL_ACTIAVATE ||
 		cntl->action == TRANSMITTER_CONTROL_DEACTIVATE) {
+		if (dc_is_hdmi_frl_signal(cntl->signal))
+			DC_LOG_BIOS("%s:dig_v1_7.symclk_units.symclk_Hz = %d\n",
+			__func__, dig_v1_7.symclk_units.symclk_Hz);
+		else
 			DC_LOG_BIOS("%s:dig_v1_7.symclk_units.symclk_10khz = %d\n",
 			__func__, dig_v1_7.symclk_units.symclk_10khz);
 	}
@@ -395,6 +399,8 @@ static enum bp_result transmitter_control_v1_7(
 				process_phy_transition_init_params.sym_clock_10khz          = dig_v1_7.symclk_units.symclk_10khz;
 				process_phy_transition_init_params.display_port_link_rate   = link->cur_link_settings.link_rate;
 				process_phy_transition_init_params.transition_bitmask       = link->phy_transition_bitmask;
+				process_phy_transition_init_params.hdmi_frl_num_lanes       = link->frl_link_settings.frl_num_lanes;
+				process_phy_transition_init_params.hdmi_frl_link_rate       = link->frl_link_settings.frl_link_rate;
 			}
 			dig_v1_7.skip_phy_ssc_reduction = link->wa_flags.skip_phy_ssc_reduction;
 		}
@@ -929,8 +935,8 @@ static enum bp_result set_dce_clock_v2_1(
 					&atom_clock_type))
 		return BP_RESULT_BADINPUT;
 
-	params.param.dceclksrc  = atom_pll_id;
-	params.param.dceclktype = atom_clock_type;
+	params.param.dceclksrc = (uint8_t)atom_pll_id;
+	params.param.dceclktype = (uint8_t)atom_clock_type;
 
 	if (bp_params->clock_type == DCECLOCK_TYPE_DPREFCLK) {
 		if (bp_params->flags.USE_GENLOCK_AS_SOURCE_FOR_DPREFCLK)

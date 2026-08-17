@@ -164,15 +164,8 @@
 				regulator-min-microvolt = <900000>;
 				regulator-max-microvolt = <1300000>;
 			};
-			mt6359_vcn33_1_bt_ldo_reg: ldo_vcn33_1_bt {
-				regulator-name = "vcn33_1_bt";
-				regulator-min-microvolt = <2800000>;
-				regulator-max-microvolt = <3500000>;
-			};
-			mt6359_vcn33_1_wifi_ldo_reg: ldo_vcn33_1_wifi {
-				regulator-name = "vcn33_1_wifi";
-				regulator-min-microvolt = <2800000>;
-				regulator-max-microvolt = <3500000>;
+			mt6359_vcn33_1_ldo_reg: ldo_vcn33_1 {
+				regulator-name = "vcn33_1";
 			};
 			mt6359_vaux18_ldo_reg: ldo_vaux18 {
 				regulator-name = "vaux18";
@@ -231,15 +224,8 @@
 				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <3300000>;
 			};
-			mt6359_vcn33_2_bt_ldo_reg: ldo_vcn33_2_bt {
-				regulator-name = "vcn33_2_bt";
-				regulator-min-microvolt = <2800000>;
-				regulator-max-microvolt = <3500000>;
-			};
-			mt6359_vcn33_2_wifi_ldo_reg: ldo_vcn33_2_wifi {
-				regulator-name = "vcn33_2_wifi";
-				regulator-min-microvolt = <2800000>;
-				regulator-max-microvolt = <3500000>;
+			mt6359_vcn33_2_ldo_reg: ldo_vcn33_2 {
+				regulator-name = "vcn33_2";
 			};
 			mt6359_va12_ldo_reg: ldo_va12 {
 				regulator-name = "va12";

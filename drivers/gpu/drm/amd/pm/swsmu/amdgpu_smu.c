@@ -801,6 +801,7 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 		smu_v14_0_2_set_ppt_funcs(smu);
 		break;
 	case IP_VERSION(15, 0, 0):
+	case IP_VERSION(15, 0, 5):
 		smu_v15_0_0_set_ppt_funcs(smu);
 		break;
 	case IP_VERSION(15, 0, 8):

@@ -4,6 +4,7 @@
  * Copyright (c) 2015, Intel Corporation.
  */
 
+#include <linux/overflow.h>
 #include <linux/math.h>
 #include <linux/slab.h>
 
@@ -20,7 +21,8 @@
 
 #include "platform_support.h"
 
-/* Bilinear interpolation on shading tables:
+/*
+ * Bilinear interpolation on shading tables:
  * For each target point T, we calculate the 4 surrounding source points:
  * ul (upper left), ur (upper right), ll (lower left) and lr (lower right).
  * We then calculate the distances from the T to the source points: x0, x1,
@@ -116,8 +118,10 @@ crop_and_interpolate(unsigned int cropped_width,
 		 */
 		ty = out_start_row + i * out_cell_size;
 
-		/* calculate closest source points in shading table and
-		   make sure they fall within the table */
+		/*
+		 * calculate closest source points in shading table and
+		 * make sure they fall within the table
+		 */
 		src_y0 = ty / (int)in_cell_size;
 		if (in_cell_size < out_cell_size)
 			src_y1 = (ty + out_cell_size) / in_cell_size;
@@ -173,7 +177,8 @@ crop_and_interpolate(unsigned int cropped_width,
 			dx0 = tx - sx0;
 			dx1 = sx1 - tx;
 			divx = sx1 - sx0;
-			/* if we're at the edge, we just use the closest
+			/*
+			 * if we're at the edge, we just use the closest
 			 * point still in the grid. We make up for the divider
 			 * in this case by setting the distance to
 			 * out_cell_size, since it's actually 0.
@@ -291,8 +296,10 @@ prepare_shading_table(const struct ia_css_shading_table *in_table,
 	input_width  = min(input_width,  in_table->sensor_width);
 	input_height = min(input_height, in_table->sensor_height);
 
-	/* This prepare_shading_table() function is called only in legacy API (not in new API).
-	   Then, the legacy shading table width and height should be used. */
+	/*
+	 * This prepare_shading_table() function is called only in legacy API (not in new API).
+	 * Then, the legacy shading table width and height should be used.
+	 */
 	table_width  = binary->sctbl_width_per_color;
 	table_height = binary->sctbl_height;
 
@@ -339,7 +346,8 @@ ia_css_shading_table_alloc(
 	me->fraction_bits = 0;
 	for (i = 0; i < IA_CSS_SC_NUM_COLORS; i++) {
 		me->data[i] =
-		    kvmalloc(width * height * sizeof(*me->data[0]),
+		    kvmalloc(array3_size(width, height,
+					 sizeof(*me->data[0])),
 			     GFP_KERNEL);
 		if (!me->data[i]) {
 			unsigned int j;

@@ -356,8 +356,8 @@ struct opp_funcs {
 
 	void (*opp_program_dpg_dimensions)(
 				struct output_pixel_processor *opp,
-				int width,
-				int height);
+				uint32_t width,
+				uint32_t height);
 
 	bool (*dpg_is_blanked)(
 			struct output_pixel_processor *opp);

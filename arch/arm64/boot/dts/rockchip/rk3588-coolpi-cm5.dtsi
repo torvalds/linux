@@ -143,6 +143,7 @@
 
 &i2c0 {
 	pinctrl-0 = <&i2c0m2_xfer>;
+	pinctrl-names = "default";
 	status = "okay";
 
 	vdd_cpu_big0_s0: regulator@42 {
@@ -219,6 +220,7 @@
 
 &i2c7 {
 	pinctrl-0 = <&i2c7m0_xfer>;
+	pinctrl-names = "default";
 	status = "okay";
 
 	es8316: audio-codec@10 {
@@ -244,6 +246,7 @@
 		     &i2s0_sclk
 		     &i2s0_sdi0
 		     &i2s0_sdo0>;
+	pinctrl-names = "default";
 	status = "okay";
 
 	i2s0_8ch_p0: port {
@@ -656,5 +659,6 @@
 
 &uart2 {
 	pinctrl-0 = <&uart2m0_xfer>;
+	pinctrl-names = "default";
 	status = "okay";
 };

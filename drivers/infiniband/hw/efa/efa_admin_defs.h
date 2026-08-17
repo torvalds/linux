@@ -1,10 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018-2024 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2026 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef _EFA_ADMIN_H_
 #define _EFA_ADMIN_H_
+
+#define EFA_ADMIN_API_VERSION_MAJOR          0
+#define EFA_ADMIN_API_VERSION_MINOR          2
 
 enum efa_admin_aq_completion_status {
 	EFA_ADMIN_SUCCESS                           = 0,
@@ -12,7 +15,6 @@ enum efa_admin_aq_completion_status {
 	EFA_ADMIN_BAD_OPCODE                        = 2,
 	EFA_ADMIN_UNSUPPORTED_OPCODE                = 3,
 	EFA_ADMIN_MALFORMED_REQUEST                 = 4,
-	/* Additional status is provided in ACQ entry extended_status */
 	EFA_ADMIN_ILLEGAL_PARAMETER                 = 5,
 	EFA_ADMIN_UNKNOWN_ERROR                     = 6,
 	EFA_ADMIN_RESOURCE_BUSY                     = 7,
@@ -78,13 +80,10 @@ struct efa_admin_acq_common_desc {
 	 */
 	u8 flags;
 
-	u16 extended_status;
+	/* Poly 0x8005 CRC16 with initial value 0xFFFF and final XOR of 0xFFFF */
+	u16 checksum;
 
-	/*
-	 * indicates to the driver which AQ entry has been consumed by the
-	 * device and could be reused
-	 */
-	u16 sq_head_indx;
+	u16 reserved;
 };
 
 struct efa_admin_acq_entry {

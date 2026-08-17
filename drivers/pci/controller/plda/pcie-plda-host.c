@@ -640,8 +640,10 @@ EXPORT_SYMBOL_GPL(plda_pcie_host_init);
 
 void plda_pcie_host_deinit(struct plda_pcie_rp *port)
 {
+	pci_lock_rescan_remove();
 	pci_stop_root_bus(port->bridge->bus);
 	pci_remove_root_bus(port->bridge->bus);
+	pci_unlock_rescan_remove();
 
 	plda_pcie_irq_domain_deinit(port);
 

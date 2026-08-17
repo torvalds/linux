@@ -47,13 +47,13 @@ static double cpu2slot(int cpu)
 }
 
 static int *topology_map;
+static int topology_map_size;
 
 static double cpu2y(int cpu)
 {
-	if (topology_map)
+	if (topology_map && cpu >= 0 && cpu < topology_map_size)
 		return cpu2slot(topology_map[cpu]) * SLOT_MULT;
-	else
-		return cpu2slot(cpu) * SLOT_MULT;
+	return cpu2slot(cpu) * SLOT_MULT;
 }
 
 static double time2pixels(u64 __time)
@@ -736,7 +736,8 @@ static int str_to_bitmap(char *s, cpumask_t *b, int nr_cpus)
 		return -1;
 
 	perf_cpu_map__for_each_cpu(cpu, idx, map) {
-		if (cpu.cpu >= nr_cpus) {
+		/* perf_cpu_map__new("") returns cpu.cpu == -1 */
+		if (cpu.cpu < 0 || cpu.cpu >= nr_cpus) {
 			ret = -1;
 			break;
 		}
@@ -794,6 +795,7 @@ int svg_build_topology_map(struct perf_env *env)
 		fprintf(stderr, "topology: no memory\n");
 		goto exit;
 	}
+	topology_map_size = nr_cpus;
 
 	for (i = 0; i < nr_cpus; i++)
 		topology_map[i] = -1;

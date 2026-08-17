@@ -53,8 +53,7 @@ typedef struct qspinlock {
  *
  * When NR_CPUS < 16K
  *  0- 7: locked byte
- *     8: pending
- *  9-15: not used
+ *  8-15: pending byte
  * 16-17: tail index
  * 18-31: tail cpu (+1)
  *

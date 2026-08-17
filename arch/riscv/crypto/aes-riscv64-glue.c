@@ -19,6 +19,7 @@
 #include <crypto/scatterwalk.h>
 #include <crypto/xts.h>
 #include <linux/linkage.h>
+#include <linux/minmax.h>
 #include <linux/module.h>
 
 asmlinkage void aes_ecb_encrypt_zvkned(const struct crypto_aes_ctx *key,
@@ -266,8 +267,7 @@ static int riscv64_aes_ctr_crypt(struct skcipher_request *req)
 			 * operation into two at the point where the overflow
 			 * will occur.  After the first part, add the carry bit.
 			 */
-			p1_nbytes = min_t(unsigned int, nbytes,
-					  (nblocks - ctr32) * AES_BLOCK_SIZE);
+			p1_nbytes = min(nbytes, (nblocks - ctr32) * AES_BLOCK_SIZE);
 			aes_ctr32_crypt_zvkned_zvkb(ctx, walk.src.virt.addr,
 						    walk.dst.virt.addr,
 						    p1_nbytes, req->iv);

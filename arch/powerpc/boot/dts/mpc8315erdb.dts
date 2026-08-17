@@ -10,6 +10,7 @@
 
 / {
 	compatible = "fsl,mpc8315erdb";
+	model = "MPC8315E-RDB";
 	#address-cells = <1>;
 	#size-cells = <1>;
 

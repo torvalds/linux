@@ -70,8 +70,11 @@ static int drm_mode_align_dumb(struct drm_mode_create_dumb *args,
 	if (!pitch)
 		return -EINVAL;
 
-	if (hw_pitch_align)
+	if (hw_pitch_align) {
 		pitch = roundup(pitch, hw_pitch_align);
+		if (pitch < hw_pitch_align)
+			return -EINVAL;
+	}
 
 	if (!hw_size_align)
 		hw_size_align = PAGE_SIZE;
@@ -80,7 +83,7 @@ static int drm_mode_align_dumb(struct drm_mode_create_dumb *args,
 
 	if (check_mul_overflow(args->height, pitch, &size))
 		return -EINVAL;
-	size = ALIGN(size, hw_size_align);
+	size = roundup(size, hw_size_align);
 	if (!size)
 		return -EINVAL;
 

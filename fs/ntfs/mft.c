@@ -30,6 +30,8 @@ int ntfs_mft_record_check(const struct ntfs_volume *vol, struct mft_record *m,
 {
 	struct attr_record *a;
 	struct super_block *sb = vol->sb;
+	u16 attrs_offset;
+	u32 bytes_in_use;
 
 	if (!ntfs_is_file_record(m->magic)) {
 		ntfs_error(sb, "Record %llu has no FILE magic (0x%x)\n",
@@ -65,7 +67,16 @@ int ntfs_mft_record_check(const struct ntfs_volume *vol, struct mft_record *m,
 		goto err_out;
 	}
 
-	a = (struct attr_record *)((char *)m + le16_to_cpu(m->attrs_offset));
+	attrs_offset = le16_to_cpu(m->attrs_offset);
+	bytes_in_use = le32_to_cpu(m->bytes_in_use);
+
+	if (attrs_offset > bytes_in_use ||
+	    bytes_in_use - attrs_offset < sizeof_field(struct attr_record, type)) {
+		ntfs_error(sb, "Record %llu has corrupt attribute offset\n", mft_no);
+		goto err_out;
+	}
+
+	a = (struct attr_record *)((char *)m + attrs_offset);
 	if ((char *)a < (char *)m || (char *)a > (char *)m + vol->mft_record_size) {
 		ntfs_error(sb, "Record %llu is corrupt\n", mft_no);
 		goto err_out;
@@ -449,7 +460,7 @@ static void ntfs_bio_end_io(struct bio *bio)
 int ntfs_sync_mft_mirror(struct ntfs_volume *vol, const u64 mft_no,
 		struct mft_record *m)
 {
-	u8 *kmirr = NULL;
+	u8 *kmirr;
 	struct folio *folio;
 	unsigned int folio_ofs, lcn_folio_off = 0;
 	int err = 0;
@@ -479,6 +490,7 @@ int ntfs_sync_mft_mirror(struct ntfs_volume *vol, const u64 mft_no,
 	kmirr = kmap_local_folio(folio, 0) + folio_ofs;
 	/* Copy the mst protected mft record to the mirror. */
 	memcpy(kmirr, m, vol->mft_record_size);
+	kunmap_local(kmirr);
 
 	if (vol->cluster_size_bits > PAGE_SHIFT) {
 		lcn_folio_off = folio->index << PAGE_SHIFT;
@@ -490,20 +502,22 @@ int ntfs_sync_mft_mirror(struct ntfs_volume *vol, const u64 mft_no,
 		NTFS_B_TO_SECTOR(vol, NTFS_CLU_TO_B(vol, vol->mftmirr_lcn) +
 				 lcn_folio_off + folio_ofs);
 
-	if (!bio_add_folio(bio, folio, vol->mft_record_size, folio_ofs)) {
+	if (bio_add_folio(bio, folio, vol->mft_record_size, folio_ofs))
+		err = submit_bio_wait(bio);
+	else
 		err = -EIO;
-		bio_put(bio);
-		goto unlock_folio;
-	}
+	bio_put(bio);
 
-	bio->bi_end_io = ntfs_bio_end_io;
-	submit_bio(bio);
-	/* Current state: all buffers are clean, unlocked, and uptodate. */
+	/*
+	 * The in-memory mirror is now valid because we just memcpy()'d the
+	 * mst-protected mft record into it.  Mark the folio uptodate even on
+	 * write error so a subsequent read_mapping_folio() does not refetch
+	 * the stale on-disk mirror and overwrite this copy.  The error is
+	 * propagated to the caller via @err.
+	 */
 	folio_mark_uptodate(folio);
 
-unlock_folio:
 	folio_unlock(folio);
-	kunmap_local(kmirr);
 	folio_put(folio);
 	if (likely(!err)) {
 		ntfs_debug("Done.");
@@ -588,20 +602,36 @@ int write_mft_record_nolock(struct ntfs_inode *ni, struct mft_record *m, int syn
 		}
 
 		/* Synchronize the mft mirror now if not @sync. */
-		if (!sync && ni->mft_no < vol->mftmirr_size)
-			ntfs_sync_mft_mirror(vol, ni->mft_no, fixup_m);
+		if (!sync && ni->mft_no < vol->mftmirr_size) {
+			int sub_err = ntfs_sync_mft_mirror(vol, ni->mft_no,
+							   fixup_m);
+			if (unlikely(sub_err) && !err)
+				err = sub_err;
+		}
 
-		folio_get(folio);
-		bio->bi_private = folio;
-		bio->bi_end_io = ntfs_bio_end_io;
-		submit_bio(bio);
+		if (sync) {
+			int sub_err = submit_bio_wait(bio);
+
+			bio_put(bio);
+			if (unlikely(sub_err) && !err)
+				err = sub_err;
+		} else {
+			folio_get(folio);
+			bio->bi_private = folio;
+			bio->bi_end_io = ntfs_bio_end_io;
+			submit_bio(bio);
+		}
 		offset += vol->cluster_size;
 		i++;
 	}
 
 	/* If @sync, now synchronize the mft mirror. */
-	if (sync && ni->mft_no < vol->mftmirr_size)
-		ntfs_sync_mft_mirror(vol, ni->mft_no, fixup_m);
+	if (sync && ni->mft_no < vol->mftmirr_size) {
+		int sub_err = ntfs_sync_mft_mirror(vol, ni->mft_no, fixup_m);
+
+		if (unlikely(sub_err) && !err)
+			err = sub_err;
+	}
 	kunmap_local(kaddr);
 	if (unlikely(err)) {
 		/* I/O error during writing.  This is really bad! */
@@ -617,10 +647,10 @@ put_bio_out:
 	bio_put(bio);
 err_out:
 	/*
-	 * Current state: all buffers are clean, unlocked, and uptodate.
-	 * The caller should mark the base inode as bad so that no more i/o
-	 * happens.  ->drop_inode() will still be invoked so all extent inodes
-	 * and other allocated memory will be freed.
+	 * The caller should mark the base inode as bad so no more I/O
+	 * happens. ->drop_inode() will still be invoked so all extent inodes
+	 * and other allocated memory will be freed. ENOMEM is retried by
+	 * redirtying the mft record below.
 	 */
 	if (err == -ENOMEM) {
 		ntfs_error(vol->sb,
@@ -713,23 +743,6 @@ static int ntfs_test_inode_wb(struct inode *vi, u64 ino, void *data)
  *
  * If the mft record is not a FILE record or it is a base mft record, we can
  * safely write it and return 'true'.
- *
- * We now know the mft record is an extent mft record.  We check if the inode
- * corresponding to its base mft record is in icache. If it is not, we cannot
- * safely determine the state of the extent inode, so we return 'false'.
- *
- * We now have the base inode for the extent mft record.  We check if it has an
- * ntfs inode for the extent mft record attached. If not, it is safe to write
- * the extent mft record and we return 'true'.
- *
- * If the extent inode is attached, we check if it is dirty. If so, we return
- * 'false' (letting the standard write_inode path handle it).
- *
- * If it is not dirty, we attempt to lock the extent mft record. If the lock
- * was already taken, it is not safe to write and we return 'false'.
- *
- * If we manage to obtain the lock we have exclusive access to the extent mft
- * record. We set @locked_ni to the now locked ntfs inode and return 'true'.
  */
 static bool ntfs_may_write_mft_record(struct ntfs_volume *vol, const u64 mft_no,
 		const struct mft_record *m, struct ntfs_inode **locked_ni,
@@ -738,8 +751,7 @@ static bool ntfs_may_write_mft_record(struct ntfs_volume *vol, const u64 mft_no,
 	struct super_block *sb = vol->sb;
 	struct inode *mft_vi = vol->mft_ino;
 	struct inode *vi;
-	struct ntfs_inode *ni, *eni, **extent_nis;
-	int i;
+	struct ntfs_inode *ni;
 	struct ntfs_attr na = {0};
 
 	ntfs_debug("Entering for inode 0x%llx.", mft_no);
@@ -819,100 +831,10 @@ static bool ntfs_may_write_mft_record(struct ntfs_volume *vol, const u64 mft_no,
 				mft_no);
 		return true;
 	}
-	/*
-	 * This is an extent mft record.  Check if the inode corresponding to
-	 * its base mft record is in icache and obtain a reference to it if it
-	 * is.
-	 */
-	na.mft_no = MREF_LE(m->base_mft_record);
-	na.state = 0;
-	ntfs_debug("Mft record 0x%llx is an extent record.  Looking for base inode 0x%llx in icache.",
-			mft_no, na.mft_no);
-	if (!na.mft_no) {
-		/* Balance the below iput(). */
-		vi = igrab(mft_vi);
-		WARN_ON(vi != mft_vi);
-	} else {
-		vi = find_inode_nowait(sb, mft_no, ntfs_test_inode_wb, &na);
-		if (na.state == NI_BeingDeleted || na.state == NI_BeingCreated)
-			return false;
-	}
 
-	if (!vi)
-		return false;
-	ntfs_debug("Base inode 0x%llx is in icache.", na.mft_no);
-	/*
-	 * The base inode is in icache.  Check if it has the extent inode
-	 * corresponding to this extent mft record attached.
-	 */
-	ni = NTFS_I(vi);
-	mutex_lock(&ni->extent_lock);
-	if (ni->nr_extents <= 0) {
-		/*
-		 * The base inode has no attached extent inodes, write this
-		 * extent mft record.
-		 */
-		mutex_unlock(&ni->extent_lock);
-		*ref_vi = vi;
-		ntfs_debug("Base inode 0x%llx has no attached extent inodes, write the extent record.",
-				na.mft_no);
-		return true;
-	}
-	/* Iterate over the attached extent inodes. */
-	extent_nis = ni->ext.extent_ntfs_inos;
-	for (eni = NULL, i = 0; i < ni->nr_extents; ++i) {
-		if (mft_no == extent_nis[i]->mft_no) {
-			/*
-			 * Found the extent inode corresponding to this extent
-			 * mft record.
-			 */
-			eni = extent_nis[i];
-			break;
-		}
-	}
-	/*
-	 * If the extent inode was not attached to the base inode, write this
-	 * extent mft record.
-	 */
-	if (!eni) {
-		mutex_unlock(&ni->extent_lock);
-		*ref_vi = vi;
-		ntfs_debug("Extent inode 0x%llx is not attached to its base inode 0x%llx, write the extent record.",
-				mft_no, na.mft_no);
-		return true;
-	}
-	ntfs_debug("Extent inode 0x%llx is attached to its base inode 0x%llx.",
-			mft_no, na.mft_no);
-	/* Take a reference to the extent ntfs inode. */
-	atomic_inc(&eni->count);
-	mutex_unlock(&ni->extent_lock);
-
-	/* if extent inode is dirty, write_inode will write it */
-	if (NInoDirty(eni)) {
-		atomic_dec(&eni->count);
-		*ref_vi = vi;
-		return false;
-	}
-
-	/*
-	 * Found the extent inode coresponding to this extent mft record.
-	 * Try to take the mft record lock.
-	 */
-	if (unlikely(!mutex_trylock(&eni->mrec_lock))) {
-		atomic_dec(&eni->count);
-		*ref_vi = vi;
-		ntfs_debug("Extent mft record 0x%llx is already locked, do not write it.",
-				mft_no);
-		return false;
-	}
-	ntfs_debug("Managed to lock extent mft record 0x%llx, write it.",
-			mft_no);
-	/*
-	 * The write has to occur while we hold the mft record lock so return
-	 * the locked extent ntfs inode.
-	 */
-	*locked_ni = eni;
-	return true;
+	ntfs_debug("Mft record 0x%llx is an extent record, skip it.",
+		   mft_no);
+	return false;
 }
 
 static const char *es = "  Leaving inconsistent metadata.  Unmount and run chkdsk.";
@@ -1034,7 +956,7 @@ static s64 ntfs_mft_bitmap_find_and_alloc_free_rec_nolock(struct ntfs_volume *vo
 				b = ffz((unsigned long)*byte);
 				if (b < 8 && b >= (bit & 7)) {
 					ll = data_pos + (bit & ~7ull) + b;
-					if (unlikely(ll > (1ll << 32))) {
+					if (unlikely(ll >= (1ll << 32))) {
 						folio_unlock(folio);
 						kunmap_local(buf);
 						folio_put(folio);
@@ -2721,8 +2643,11 @@ static int ntfs_write_mft_block(struct folio *folio, struct writeback_control *w
 	ntfs_debug("Entering for inode 0x%llx, attribute type 0x%x, folio index 0x%lx.",
 			ni->mft_no, ni->type, folio->index);
 
-	if (!locked_nis || !ref_inos)
+	if (!locked_nis || !ref_inos) {
+		folio_redirty_for_writepage(wbc, folio);
+		folio_unlock(folio);
 		return -ENOMEM;
+	}
 
 	/* We have to zero every time due to mmap-at-end-of-file. */
 	if (folio->index >= (i_size >> folio_shift(folio)))
@@ -2757,19 +2682,6 @@ static int ntfs_write_mft_block(struct folio *folio, struct writeback_control *w
 					&tni, &ref_inos[nr_ref_inos])) {
 			unsigned int mft_record_off = 0;
 			s64 vcn_off = vcn;
-
-			/*
-			 * Skip $MFT extent mft records and let them being written
-			 * by writeback to avioid deadlocks. the $MFT runlist
-			 * lock must be taken before $MFT extent mrec_lock is taken.
-			 */
-			if (tni && tni->nr_extents < 0 &&
-				tni->ext.base_ntfs_ino == NTFS_I(vol->mft_ino)) {
-				mutex_unlock(&tni->mrec_lock);
-				atomic_dec(&tni->count);
-				iput(vol->mft_ino);
-				continue;
-			}
 
 			/*
 			 * The record should be written.  If a locked ntfs
@@ -2840,9 +2752,13 @@ flush_bio:
 			}
 			prev_mft_ofs = mft_ofs;
 
-			if (mft_no < vol->mftmirr_size)
-				ntfs_sync_mft_mirror(vol, mft_no,
+			if (mft_no < vol->mftmirr_size) {
+				int sub_err = ntfs_sync_mft_mirror(vol, mft_no,
 						(struct mft_record *)(kaddr + mft_ofs));
+
+				if (unlikely(sub_err) && !err)
+					err = sub_err;
+			}
 		} else if (ref_inos[nr_ref_inos])
 			nr_ref_inos++;
 	}

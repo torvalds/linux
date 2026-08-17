@@ -1644,7 +1644,7 @@ static int dw_dp_link_enable(struct dw_dp *dp)
 }
 
 static void dw_dp_bridge_atomic_enable(struct drm_bridge *bridge,
-				       struct drm_atomic_state *state)
+				       struct drm_atomic_commit *state)
 {
 	struct dw_dp *dp = bridge_to_dp(bridge);
 	struct drm_connector *connector;
@@ -1697,7 +1697,7 @@ static void dw_dp_reset(struct dw_dp *dp)
 }
 
 static void dw_dp_bridge_atomic_disable(struct drm_bridge *bridge,
-					struct drm_atomic_state *state)
+					struct drm_atomic_commit *state)
 {
 	struct dw_dp *dp = bridge_to_dp(bridge);
 
@@ -1969,10 +1969,6 @@ struct dw_dp *dw_dp_bind(struct device *dev, struct drm_encoder *encoder,
 	struct drm_bridge *bridge;
 	void __iomem *res;
 	int ret;
-
-	dp = devm_kzalloc(dev, sizeof(*dp), GFP_KERNEL);
-	if (!dp)
-		return ERR_PTR(-ENOMEM);
 
 	dp = devm_drm_bridge_alloc(dev, struct dw_dp, bridge, &dw_dp_bridge_funcs);
 	if (IS_ERR(dp))

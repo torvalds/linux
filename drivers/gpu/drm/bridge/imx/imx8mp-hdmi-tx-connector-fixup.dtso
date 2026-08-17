@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * DTS overlay adding an hdmi-connector node to boards using the imx8mp hdmi_tx
+ *
+ * Copyright (C) 2026 GE HealthCare
+ * Author: Luca Ceresoli <luca.ceresoli@bootlin.com>
+ */
+
+/dts-v1/;
+/plugin/;
+
+&{/} {
+	fixup-hdmi-connector {
+		compatible = "hdmi-connector";
+		label = "HDMI";
+		type = "a";
+
+		port {
+			fixup_hdmi_connector_in: endpoint {
+				remote-endpoint = <&hdmi_tx_out>;
+			};
+		};
+	};
+};
+
+&{/soc@0/bus@32c00000/hdmi@32fd8000/ports/port@1} {
+	hdmi_tx_out: endpoint {
+		remote-endpoint = <&fixup_hdmi_connector_in>;
+	};
+};

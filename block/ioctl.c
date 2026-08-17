@@ -951,7 +951,7 @@ int blkdev_uring_cmd(struct io_uring_cmd *cmd, unsigned int issue_flags)
 	u32 cmd_op = cmd->cmd_op;
 
 	/* Read what we need from the SQE on the first issue */
-	if (!(issue_flags & IORING_URING_CMD_REISSUE)) {
+	if (!(cmd->flags & IORING_URING_CMD_REISSUE)) {
 		const struct io_uring_sqe *sqe = cmd->sqe;
 
 		if (unlikely(sqe->ioprio || sqe->__pad1 || sqe->len ||

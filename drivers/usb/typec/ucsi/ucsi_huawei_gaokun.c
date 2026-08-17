@@ -18,6 +18,7 @@
 #include <linux/usb/pd_vdo.h>
 #include <linux/usb/typec_altmode.h>
 #include <linux/usb/typec_dp.h>
+#include <linux/usb/typec_mux.h>
 #include <linux/workqueue_types.h>
 
 #include "ucsi.h"
@@ -81,6 +82,8 @@ struct gaokun_ucsi_port {
 
 	struct gaokun_ucsi *ucsi;
 	struct auxiliary_device *bridge;
+
+	struct typec_mux *typec_mux;
 
 	int idx;
 	enum gaokun_ucsi_ccx ccx;
@@ -226,19 +229,18 @@ static void gaokun_ucsi_port_update(struct gaokun_ucsi_port *port,
 	port->hpd_state = FIELD_GET(GAOKUN_HPD_STATE_MASK, ddi);
 	port->hpd_irq = FIELD_GET(GAOKUN_HPD_IRQ_MASK, ddi);
 
-	/* Mode and SVID are unused; keeping them to make things clearer */
 	switch (port->mode) {
 	case USBC_DPAM_PAN_C:
 	case USBC_DPAM_PAN_C_REVERSE:
-		port->mode = DP_PIN_ASSIGN_C; /* correct it for usb later */
+		port->mode = TYPEC_DP_STATE_C; /* correct it for usb later */
 		break;
 	case USBC_DPAM_PAN_D:
 	case USBC_DPAM_PAN_D_REVERSE:
-		port->mode = DP_PIN_ASSIGN_D;
+		port->mode = TYPEC_DP_STATE_D;
 		break;
 	case USBC_DPAM_PAN_E:
 	case USBC_DPAM_PAN_E_REVERSE:
-		port->mode = DP_PIN_ASSIGN_E;
+		port->mode = TYPEC_DP_STATE_E;
 		break;
 	case USBC_DPAM_PAN_NONE:
 		port->mode = TYPEC_STATE_SAFE;
@@ -287,18 +289,32 @@ static int gaokun_ucsi_refresh(struct gaokun_ucsi *uec)
 	return idx;
 }
 
-static void gaokun_ucsi_handle_altmode(struct gaokun_ucsi_port *port)
+static void gaokun_ucsi_handle_usb_mode(struct gaokun_ucsi_port *port)
 {
 	struct gaokun_ucsi *uec = port->ucsi;
-	int idx = port->idx;
+	struct typec_mux_state state = {};
+	struct typec_altmode dp_alt = {};
+	int idx = port->idx, ret;
 
-	if (idx >= uec->ucsi->cap.num_connectors) {
+	/*
+	 * For every typec port on this platform, the only mode-switch is
+	 * controlled by its qmp combo phy which consumes svid and mode only.
+	 */
+	dp_alt.svid = port->svid;
+	state.mode = port->mode;
+	state.alt = &dp_alt;
+
+	if (idx >= uec->num_ports) {
 		dev_warn(uec->dev, "altmode port out of range: %d\n", idx);
 		return;
 	}
 
+	ret = typec_mux_set(port->typec_mux, &state);
+	if (ret)
+		dev_err(uec->dev, "failed to set mux %d\n", ret);
+
 	/* UCSI callback .connector_status() have set orientation */
-	if (port->bridge)
+	if (port->bridge && port->svid == USB_TYPEC_DP_SID)
 		drm_aux_hpd_bridge_notify(&port->bridge->dev,
 					  port->hpd_state ?
 					  connector_status_connected :
@@ -307,7 +323,7 @@ static void gaokun_ucsi_handle_altmode(struct gaokun_ucsi_port *port)
 	gaokun_ec_ucsi_pan_ack(uec->ec, port->idx);
 }
 
-static void gaokun_ucsi_altmode_notify_ind(struct gaokun_ucsi *uec)
+static void gaokun_ucsi_usb_notify_ind(struct gaokun_ucsi *uec)
 {
 	int idx;
 
@@ -320,7 +336,7 @@ static void gaokun_ucsi_altmode_notify_ind(struct gaokun_ucsi *uec)
 	if (idx == GAOKUN_UCSI_NO_PORT_UPDATE)
 		gaokun_ec_ucsi_pan_ack(uec->ec, idx); /* ack directly if no update */
 	else
-		gaokun_ucsi_handle_altmode(&uec->ports[idx]);
+		gaokun_ucsi_handle_usb_mode(&uec->ports[idx]);
 }
 
 /*
@@ -352,7 +368,7 @@ static void gaokun_ucsi_handle_no_usb_event(struct gaokun_ucsi *uec, int idx)
 	port = &uec->ports[idx];
 	if (!wait_for_completion_timeout(&port->usb_ack, 2 * HZ)) {
 		dev_warn(uec->dev, "No USB EVENT, triggered by UCSI EVENT");
-		gaokun_ucsi_altmode_notify_ind(uec);
+		gaokun_ucsi_usb_notify_ind(uec);
 	}
 }
 
@@ -366,7 +382,7 @@ static int gaokun_ucsi_notify(struct notifier_block *nb,
 	switch (action) {
 	case EC_EVENT_USB:
 		gaokun_ucsi_complete_usb_ack(uec);
-		gaokun_ucsi_altmode_notify_ind(uec);
+		gaokun_ucsi_usb_notify_ind(uec);
 		return NOTIFY_OK;
 
 	case EC_EVENT_UCSI:
@@ -429,8 +445,15 @@ static int gaokun_ucsi_ports_init(struct gaokun_ucsi *uec)
 			fwnode_handle_put(fwnode);
 			return PTR_ERR(ucsi_port->bridge);
 		}
-	}
 
+		ucsi_port->typec_mux = fwnode_typec_mux_get(fwnode);
+		if (IS_ERR(ucsi_port->typec_mux)) {
+			fwnode_handle_put(fwnode);
+			return dev_err_probe(dev, PTR_ERR(ucsi_port->typec_mux),
+					     "failed to acquire mode-switch for port: %d\n",
+					     port);
+		}
+	}
 	for (i = 0; i < num_ports; i++) {
 		if (!uec->ports[i].bridge)
 			continue;
@@ -502,10 +525,14 @@ static int gaokun_ucsi_probe(struct auxiliary_device *adev,
 static void gaokun_ucsi_remove(struct auxiliary_device *adev)
 {
 	struct gaokun_ucsi *uec = auxiliary_get_drvdata(adev);
+	int i;
 
 	disable_delayed_work_sync(&uec->work);
 	gaokun_ec_unregister_notify(uec->ec, &uec->nb);
 	ucsi_unregister(uec->ucsi);
+	for (i = 0; i < uec->num_ports; ++i)
+		typec_mux_put(uec->ports[i].typec_mux);
+
 	ucsi_destroy(uec->ucsi);
 }
 

@@ -84,8 +84,11 @@ static int i2c_acpi_resource_count(struct acpi_resource *ares, void *data)
  * i2c_acpi_client_count - Count the number of I2cSerialBus resources
  * @adev:	ACPI device
  *
- * Returns the number of I2cSerialBus resources in the ACPI-device's
+ * Return:
+ * The number of I2cSerialBus resources in the ACPI-device's
  * resource-list; or a negative error code.
+ *
+ * Specifically returns -ENOENT when no resources found.
  */
 int i2c_acpi_client_count(struct acpi_device *adev)
 {
@@ -97,7 +100,7 @@ int i2c_acpi_client_count(struct acpi_device *adev)
 		return ret;
 
 	acpi_dev_free_resource_list(&r);
-	return count;
+	return count ?: -ENOENT;
 }
 EXPORT_SYMBOL_GPL(i2c_acpi_client_count);
 

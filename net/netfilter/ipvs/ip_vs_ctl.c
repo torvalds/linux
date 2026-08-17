@@ -327,18 +327,22 @@ ip_vs_use_count_dec(void)
 /* Service hashing:
  * Operation			Locking order
  * ---------------------------------------------------------------------------
- * add table			service_mutex, svc_resize_sem(W)
- * del table			service_mutex
- * move between tables		svc_resize_sem(W), seqcount_t(W), bit lock
- * add/del service		service_mutex, bit lock
+ * add first table		service_mutex
+ * attach new table		service_mutex
+ * add/del service		service_mutex, RCU, bit lock
+ * move between tables (rehash)	svc_resize_sem(W), seqcount_t(W), bit lock
+ * replace old with attached	svc_resize_sem(W), svc_replace_sem(W)
  * find service			RCU, seqcount_t(R)
  * walk services(blocking)	service_mutex, svc_resize_sem(R)
  * walk services(non-blocking)	RCU, seqcount_t(R)
+ * walk services(non-blocking)	svc_resize_sem(R), RCU, seqcount_t(R)
+ * walk services(non-blocking)	svc_replace_sem(R), RCU, seqcount_t(R)
+ * del table			service_mutex after stopped work
  *
- * - new tables are linked/unlinked under service_mutex and svc_resize_sem
- * - new table is linked on resizing and all operations can run in parallel
- * in 2 tables until the new table is registered as current one
- * - two contexts can modify buckets: config and table resize, both in
+ * - new table is attached on resizing under service_mutex and all operations
+ * can run in parallel in 2 tables until the new table is registered as current
+ * one
+ * - two contexts can modify buckets: config and table resize (work), both in
  * process context
  * - only table resizer can move entries, so we do not protect t->seqc[]
  * items with t->lock[]
@@ -346,9 +350,13 @@ ip_vs_use_count_dec(void)
  * services are moved to new table
  * - move operations may disturb readers: find operation will not miss entries
  * but walkers may see same entry twice if they are forced to retry chains
- * - walkers using cond_resched_rcu() on !PREEMPT_RCU may need to hold
- * service_mutex to disallow new tables to be installed or to check
+ * or to walk the newly attached second table
+ * - walkers using cond_resched_rcu() on !PREEMPT_RCU may need to check
  * svc_table_changes and repeat the RCU read section if new table is installed
+ * - walkers may serialize with the whole resizing process (svc_resize_sem)
+ * to prevent seeing same service twice or just with the svc_table
+ * replace (svc_replace_sem) when we can see entries twice but we
+ * prefer to run concurrently with the rehashing.
  */
 
 /*
@@ -387,9 +395,16 @@ static int ip_vs_svc_hash(struct ip_vs_service *svc)
 	/* increase its refcnt because it is referenced by the svc table */
 	atomic_inc(&svc->refcnt);
 
+	/* We know if new table is attached under service_mutex but rely on
+	 * RCU to hold the old table to be freed in resizer
+	 */
+	rcu_read_lock();
+
+	/* This can be the old or the new table */
+	t = rcu_dereference(ipvs->svc_table);
+
 	/* New entries go into recent table */
-	t = rcu_dereference_protected(ipvs->svc_table, 1);
-	t = rcu_dereference_protected(t->new_tbl, 1);
+	t = rcu_dereference(t->new_tbl);
 
 	if (svc->fwmark == 0) {
 		/*
@@ -409,6 +424,8 @@ static int ip_vs_svc_hash(struct ip_vs_service *svc)
 	svc->flags |= IP_VS_SVC_F_HASHED;
 	hlist_bl_add_head_rcu(&svc->s_list, head);
 	hlist_bl_unlock(head);
+
+	rcu_read_unlock();
 
 	return 1;
 }
@@ -432,7 +449,13 @@ static int ip_vs_svc_unhash(struct ip_vs_service *svc)
 		return 0;
 	}
 
-	t = rcu_dereference_protected(ipvs->svc_table, 1);
+	/* We know if new table is attached under service_mutex but rely on
+	 * RCU to hold the old table to be freed in resizer
+	 */
+	rcu_read_lock();
+
+	/* This can be the old or the new table */
+	t = rcu_dereference(ipvs->svc_table);
 	hash_key = READ_ONCE(svc->hash_key);
 	/* We need to lock the bucket in the right table */
 	if (ip_vs_rht_same_table(t, hash_key)) {
@@ -443,13 +466,13 @@ static int ip_vs_svc_unhash(struct ip_vs_service *svc)
 		/* Moved to new table ? */
 		if (hash_key != hash_key2) {
 			hlist_bl_unlock(head);
-			t = rcu_dereference_protected(t->new_tbl, 1);
+			t = rcu_dereference(t->new_tbl);
 			head = t->buckets + (hash_key2 & t->mask);
 			hlist_bl_lock(head);
 		}
 	} else {
 		/* It is already moved to new table */
-		t = rcu_dereference_protected(t->new_tbl, 1);
+		t = rcu_dereference(t->new_tbl);
 		head = t->buckets + (hash_key & t->mask);
 		hlist_bl_lock(head);
 	}
@@ -459,6 +482,8 @@ static int ip_vs_svc_unhash(struct ip_vs_service *svc)
 	svc->flags &= ~IP_VS_SVC_F_HASHED;
 	atomic_dec(&svc->refcnt);
 	hlist_bl_unlock(head);
+
+	rcu_read_unlock();
 	return 1;
 }
 
@@ -666,15 +691,14 @@ static void svc_resize_work_handler(struct work_struct *work)
 		goto unlock_sem;
 	more_work = false;
 	clear_bit(IP_VS_WORK_SVC_RESIZE, &ipvs->work_flags);
-	if (!READ_ONCE(ipvs->enable) ||
-	    test_bit(IP_VS_WORK_SVC_NORESIZE, &ipvs->work_flags))
+	if (!READ_ONCE(ipvs->enable))
 		goto unlock_m;
 	t = rcu_dereference_protected(ipvs->svc_table, 1);
 	/* Do nothing if table is removed */
 	if (!t)
 		goto unlock_m;
-	/* New table needs to be registered? BUG! */
-	if (t != rcu_dereference_protected(t->new_tbl, 1))
+	/* New table already attached? BUG! */
+	if (t != rcu_access_pointer(t->new_tbl))
 		goto unlock_m;
 
 	lfactor = sysctl_svc_lfactor(ipvs);
@@ -691,6 +715,7 @@ static void svc_resize_work_handler(struct work_struct *work)
 	/* Flip the table_id */
 	t_new->table_id = t->table_id ^ IP_VS_RHT_TABLE_ID_MASK;
 
+	/* Attach new table */
 	rcu_assign_pointer(t->new_tbl, t_new);
 	/* Allow add/del to new_tbl while moving from old table */
 	mutex_unlock(&ipvs->service_mutex);
@@ -698,8 +723,8 @@ static void svc_resize_work_handler(struct work_struct *work)
 	ip_vs_rht_for_each_bucket(t, bucket, head) {
 same_bucket:
 		if (++limit >= 16) {
-			if (!READ_ONCE(ipvs->enable) ||
-			    test_bit(IP_VS_WORK_SVC_NORESIZE,
+			/* Check if work is stopped */
+			if (test_bit(IP_VS_WORK_SVC_NORESIZE,
 				     &ipvs->work_flags))
 				goto unlock_sem;
 			if (resched_score >= 100) {
@@ -764,16 +789,12 @@ same_bucket:
 			goto same_bucket;
 	}
 
-	/* Tables can be switched only under service_mutex */
-	while (!mutex_trylock(&ipvs->service_mutex)) {
-		cond_resched();
-		if (!READ_ONCE(ipvs->enable) ||
-		    test_bit(IP_VS_WORK_SVC_NORESIZE, &ipvs->work_flags))
-			goto unlock_sem;
-	}
-	if (!READ_ONCE(ipvs->enable) ||
-	    test_bit(IP_VS_WORK_SVC_NORESIZE, &ipvs->work_flags))
-		goto unlock_m;
+	/* Serialize with readers that don't like svc_table changes */
+	down_write(&ipvs->svc_replace_sem);
+
+	/* Check if work is stopped to avoid synchronize_rcu() */
+	if (test_bit(IP_VS_WORK_SVC_NORESIZE, &ipvs->work_flags))
+		goto unlock_repl;
 
 	rcu_assign_pointer(ipvs->svc_table, t_new);
 	/* Inform readers that new table is installed */
@@ -781,8 +802,8 @@ same_bucket:
 	atomic_inc(&ipvs->svc_table_changes);
 	t_free = t;
 
-unlock_m:
-	mutex_unlock(&ipvs->service_mutex);
+unlock_repl:
+	up_write(&ipvs->svc_replace_sem);
 
 unlock_sem:
 	up_write(&ipvs->svc_resize_sem);
@@ -800,7 +821,12 @@ out:
 	if (!READ_ONCE(ipvs->enable) || !more_work ||
 	    test_bit(IP_VS_WORK_SVC_NORESIZE, &ipvs->work_flags))
 		return;
-	queue_delayed_work(system_unbound_wq, &ipvs->svc_resize_work, 1);
+	queue_delayed_work(system_dfl_long_wq, &ipvs->svc_resize_work, 1);
+	return;
+
+unlock_m:
+	mutex_unlock(&ipvs->service_mutex);
+	goto unlock_sem;
 }
 
 static inline void
@@ -1691,6 +1717,7 @@ ip_vs_add_service(struct netns_ipvs *ipvs, struct ip_vs_service_user_kern *u,
 	struct ip_vs_pe *pe = NULL;
 	int ret_hooks = -1;
 	int ret = 0;
+	bool grow;
 
 	/* increase the module use count */
 	if (!ip_vs_use_count_inc())
@@ -1732,16 +1759,25 @@ ip_vs_add_service(struct netns_ipvs *ipvs, struct ip_vs_service_user_kern *u,
 	}
 #endif
 
-	t = rcu_dereference_protected(ipvs->svc_table, 1);
+	/* The old table can be freed, protect it with RCU */
+	rcu_read_lock();
+	t = rcu_dereference(ipvs->svc_table);
 	if (!t) {
 		int lfactor = sysctl_svc_lfactor(ipvs);
 		int new_size = ip_vs_svc_desired_size(ipvs, NULL, lfactor);
 
+		rcu_read_unlock();
 		t_new = ip_vs_svc_table_alloc(ipvs, new_size, lfactor);
 		if (!t_new) {
 			ret = -ENOMEM;
 			goto out_err;
 		}
+		grow = false;
+	} else {
+		/* Even the currently attached new table may need to grow */
+		t = rcu_dereference(t->new_tbl);
+		grow = ip_vs_get_num_services(ipvs) + 1 > t->u_thresh;
+		rcu_read_unlock();
 	}
 
 	if (!rcu_dereference_protected(ipvs->conn_tab, 1)) {
@@ -1800,6 +1836,7 @@ ip_vs_add_service(struct netns_ipvs *ipvs, struct ip_vs_service_user_kern *u,
 		goto out_err;
 
 	if (t_new) {
+		/* Add table for first time */
 		clear_bit(IP_VS_WORK_SVC_NORESIZE, &ipvs->work_flags);
 		rcu_assign_pointer(ipvs->svc_table, t_new);
 		t_new = NULL;
@@ -1831,9 +1868,8 @@ ip_vs_add_service(struct netns_ipvs *ipvs, struct ip_vs_service_user_kern *u,
 	ip_vs_svc_hash(svc);
 
 	/* Schedule resize work */
-	if (t && ip_vs_get_num_services(ipvs) > t->u_thresh &&
-	    !test_and_set_bit(IP_VS_WORK_SVC_RESIZE, &ipvs->work_flags))
-		queue_delayed_work(system_unbound_wq, &ipvs->svc_resize_work,
+	if (grow && !test_and_set_bit(IP_VS_WORK_SVC_RESIZE, &ipvs->work_flags))
+		queue_delayed_work(system_dfl_long_wq, &ipvs->svc_resize_work,
 				   1);
 
 	*svc_p = svc;
@@ -1862,7 +1898,7 @@ ip_vs_add_service(struct netns_ipvs *ipvs, struct ip_vs_service_user_kern *u,
 	if (ret_hooks >= 0)
 		ip_vs_unregister_hooks(ipvs, u->af);
 	if (svc != NULL) {
-		ip_vs_unbind_scheduler(svc, sched);
+		ip_vs_unbind_scheduler(svc);
 		ip_vs_service_free(svc);
 	}
 	ip_vs_scheduler_put(sched);
@@ -1926,9 +1962,8 @@ ip_vs_edit_service(struct ip_vs_service *svc, struct ip_vs_service_user_kern *u)
 	old_sched = rcu_dereference_protected(svc->scheduler, 1);
 	if (sched != old_sched) {
 		if (old_sched) {
-			ip_vs_unbind_scheduler(svc, old_sched);
-			RCU_INIT_POINTER(svc->scheduler, NULL);
-			/* Wait all svc->sched_data users */
+			ip_vs_unbind_scheduler(svc);
+			/* Wait all svc->scheduler/sched_data users */
 			synchronize_rcu();
 		}
 		/* Bind the new scheduler */
@@ -1936,6 +1971,10 @@ ip_vs_edit_service(struct ip_vs_service *svc, struct ip_vs_service_user_kern *u)
 			ret = ip_vs_bind_scheduler(svc, sched);
 			if (ret) {
 				ip_vs_scheduler_put(sched);
+				/* Try to restore the old_sched */
+				if (old_sched &&
+				    !ip_vs_bind_scheduler(svc, old_sched))
+					old_sched = NULL;
 				goto out;
 			}
 		}
@@ -1991,7 +2030,7 @@ static void __ip_vs_del_service(struct ip_vs_service *svc, bool cleanup)
 
 	/* Unbind scheduler */
 	old_sched = rcu_dereference_protected(svc->scheduler, 1);
-	ip_vs_unbind_scheduler(svc, old_sched);
+	ip_vs_unbind_scheduler(svc);
 	ip_vs_scheduler_put(old_sched);
 
 	/* Unbind persistence engine, keep svc->pe */
@@ -2054,7 +2093,6 @@ static int ip_vs_del_service(struct ip_vs_service *svc)
 		return -EEXIST;
 	ipvs = svc->ipvs;
 	ip_vs_unlink_service(svc, false);
-	t = rcu_dereference_protected(ipvs->svc_table, 1);
 
 	/* Drop the table if no more services */
 	ns = ip_vs_get_num_services(ipvs);
@@ -2062,6 +2100,7 @@ static int ip_vs_del_service(struct ip_vs_service *svc)
 		/* Stop the resizer and drop the tables */
 		set_bit(IP_VS_WORK_SVC_NORESIZE, &ipvs->work_flags);
 		cancel_delayed_work_sync(&ipvs->svc_resize_work);
+		t = rcu_dereference_protected(ipvs->svc_table, 1);
 		if (t) {
 			rcu_assign_pointer(ipvs->svc_table, NULL);
 			/* Inform readers that table is removed */
@@ -2075,11 +2114,19 @@ static int ip_vs_del_service(struct ip_vs_service *svc)
 				t = p;
 			}
 		}
-	} else if (ns <= t->l_thresh &&
-		   !test_and_set_bit(IP_VS_WORK_SVC_RESIZE,
-				     &ipvs->work_flags)) {
-		queue_delayed_work(system_unbound_wq, &ipvs->svc_resize_work,
-				   1);
+	} else {
+		bool shrink;
+
+		rcu_read_lock();
+		t = rcu_dereference(ipvs->svc_table);
+		/* Even the currently attached new table may need to shrink */
+		t = rcu_dereference(t->new_tbl);
+		shrink = ns <= t->l_thresh;
+		rcu_read_unlock();
+		if (shrink && !test_and_set_bit(IP_VS_WORK_SVC_RESIZE,
+						&ipvs->work_flags))
+			queue_delayed_work(system_dfl_long_wq,
+					   &ipvs->svc_resize_work, 1);
 	}
 	return 0;
 }
@@ -2184,17 +2231,21 @@ static int ip_vs_dst_event(struct notifier_block *this, unsigned long event,
 	struct ip_vs_service *svc;
 	struct hlist_bl_node *e;
 	struct ip_vs_dest *dest;
-	int old_gen, new_gen;
+	int old_gen;
 
 	if (event != NETDEV_DOWN || !ipvs)
 		return NOTIFY_DONE;
 	IP_VS_DBG(3, "%s() dev=%s\n", __func__, dev->name);
 
+	/* Allow concurrent rehashing on resize but to avoid loop
+	 * serialize with installing the new table.
+	 */
+	down_read(&ipvs->svc_replace_sem);
+
 	old_gen = atomic_read(&ipvs->svc_table_changes);
 
 	rcu_read_lock();
 
-repeat:
 	smp_rmb(); /* ipvs->svc_table and svc_table_changes */
 	ip_vs_rht_walk_buckets_rcu(ipvs->svc_table, head) {
 		hlist_bl_for_each_entry_rcu(svc, e, head, s_list) {
@@ -2207,17 +2258,17 @@ repeat:
 		}
 		resched_score++;
 		if (resched_score >= 100) {
-			resched_score = 0;
 			cond_resched_rcu();
-			new_gen = atomic_read(&ipvs->svc_table_changes);
-			/* New table installed ? */
-			if (old_gen != new_gen) {
-				old_gen = new_gen;
-				goto repeat;
-			}
+			/* Flushed? So no more dev refs */
+			if (atomic_read(&ipvs->svc_table_changes) != old_gen)
+				goto done;
+			resched_score = 0;
 		}
 	}
+
+done:
 	rcu_read_unlock();
+	up_read(&ipvs->svc_replace_sem);
 
 	return NOTIFY_DONE;
 }
@@ -2244,6 +2295,10 @@ static int ip_vs_zero_all(struct netns_ipvs *ipvs)
 	struct ip_vs_service *svc;
 	struct hlist_bl_node *e;
 
+	/* svc_table can not be replaced (svc_replace_sem) or
+	 * removed (service_mutex)
+	 */
+	down_read(&ipvs->svc_replace_sem);
 	rcu_read_lock();
 
 	ip_vs_rht_walk_buckets_rcu(ipvs->svc_table, head) {
@@ -2259,12 +2314,52 @@ static int ip_vs_zero_all(struct netns_ipvs *ipvs)
 	}
 
 	rcu_read_unlock();
+	up_read(&ipvs->svc_replace_sem);
 
 	ip_vs_zero_stats(&ipvs->tot_stats->s);
 	return 0;
 }
 
 #ifdef CONFIG_SYSCTL
+
+static int
+proc_do_conn_max(const struct ctl_table *table, int write,
+		 void *buffer, size_t *lenp, loff_t *ppos)
+{
+	int *valp = table->data;
+	/* We can not use *valp to check if new value is provided, use INT_MIN
+	 * for this because different admins change different limits.
+	 */
+	int unset = INT_MIN;
+	int val = write ? unset : READ_ONCE(*valp);
+	int rc;
+
+	const struct ctl_table tmp = {
+		.data = &val,
+		.maxlen = sizeof(int),
+	};
+
+	rc = proc_dointvec(&tmp, write, buffer, lenp, ppos);
+	if (write && !rc && val != unset) {
+		struct netns_ipvs *ipvs = table->extra2;
+		bool priv = capable(CAP_NET_ADMIN);
+		int max;
+
+		mutex_lock(&ipvs->service_mutex);
+		/* Unprivileged admins can not go above the hard limit */
+		max = priv ? IP_VS_CONN_MAX : ipvs->conn_max_limit;
+		if (val < 0 || val > max) {
+			rc = -EINVAL;
+		} else {
+			/* Privileged admin changes both limits */
+			if (priv)
+				ipvs->conn_max_limit = val;
+			WRITE_ONCE(*valp, val);
+		}
+		mutex_unlock(&ipvs->service_mutex);
+	}
+	return rc;
+}
 
 static int
 proc_do_defense_mode(const struct ctl_table *table, int write,
@@ -2511,7 +2606,7 @@ static int ipvs_proc_conn_lfactor(const struct ctl_table *table, int write,
 		} else {
 			WRITE_ONCE(*valp, val);
 			if (rcu_access_pointer(ipvs->conn_tab))
-				mod_delayed_work(system_unbound_wq,
+				mod_delayed_work(system_dfl_long_wq,
 						 &ipvs->conn_resize_work, 0);
 		}
 	}
@@ -2543,7 +2638,7 @@ static int ipvs_proc_svc_lfactor(const struct ctl_table *table, int write,
 			    READ_ONCE(ipvs->enable) &&
 			    !test_bit(IP_VS_WORK_SVC_NORESIZE,
 				      &ipvs->work_flags))
-				mod_delayed_work(system_unbound_wq,
+				mod_delayed_work(system_dfl_long_wq,
 						 &ipvs->svc_resize_work, 0);
 			mutex_unlock(&ipvs->service_mutex);
 		}
@@ -2569,6 +2664,12 @@ static struct ctl_table vs_vars[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "conn_max",
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_do_conn_max,
 	},
 	{
 		.procname	= "drop_entry",
@@ -3062,6 +3163,7 @@ static int ip_vs_status_show(struct seq_file *seq, void *v)
 	u32 sum;
 	int i;
 
+	/* Info for conns */
 	rcu_read_lock();
 
 	t = rcu_dereference(ipvs->conn_tab);
@@ -3123,6 +3225,12 @@ repeat_conn:
 	}
 
 after_conns:
+	rcu_read_unlock();
+
+	/* Info for services */
+	down_read(&ipvs->svc_replace_sem);
+	rcu_read_lock();
+
 	t = rcu_dereference(ipvs->svc_table);
 
 	count = ip_vs_get_num_services(ipvs);
@@ -3133,9 +3241,7 @@ after_conns:
 	if (!count)
 		goto after_svc;
 	old_gen = atomic_read(&ipvs->svc_table_changes);
-	loops = 0;
 
-repeat_svc:
 	smp_rmb(); /* ipvs->svc_table and svc_table_changes */
 	memset(counts, 0, sizeof(counts));
 	ip_vs_rht_for_each_table_rcu(ipvs->svc_table, t, pt) {
@@ -3157,15 +3263,10 @@ repeat_svc:
 			if (resched_score >= 100) {
 				resched_score = 0;
 				cond_resched_rcu();
-				new_gen = atomic_read(&ipvs->svc_table_changes);
-				/* New table installed ? */
-				if (old_gen != new_gen) {
-					/* Too many changes? */
-					if (++loops >= 5)
-						goto after_svc;
-					old_gen = new_gen;
-					goto repeat_svc;
-				}
+				/* Flushed? */
+				if (atomic_read(&ipvs->svc_table_changes) !=
+				    old_gen)
+					goto after_svc;
 			}
 			counts[count]++;
 		}
@@ -3184,6 +3285,9 @@ repeat_svc:
 	}
 
 after_svc:
+	rcu_read_unlock();
+	up_read(&ipvs->svc_replace_sem);
+
 	seq_printf(seq, "Stats thread slots:\t%d (max %lu)\n",
 		   ipvs->est_kt_count, ipvs->est_max_threads);
 	seq_printf(seq, "Stats chain max len:\t%d\n", ipvs->est_chain_max);
@@ -3191,7 +3295,6 @@ after_svc:
 		   ipvs->est_chain_max * IPVS_EST_CHAIN_FACTOR *
 		   IPVS_EST_NTICKS);
 
-	rcu_read_unlock();
 	return 0;
 }
 
@@ -3503,7 +3606,7 @@ __ip_vs_get_service_entries(struct netns_ipvs *ipvs,
 	int ret = 0;
 
 	lockdep_assert_held(&ipvs->svc_resize_sem);
-	/* All service modifications are disabled, go ahead */
+	/* All svc_table modifications are disabled, go ahead */
 	ip_vs_rht_walk_buckets(ipvs->svc_table, head) {
 		hlist_bl_for_each_entry(svc, e, head, s_list) {
 			/* Only expose IPv4 entries to old interface */
@@ -3687,7 +3790,7 @@ do_ip_vs_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 			pr_err("length: %u != %zu\n", *len, size);
 			return -EINVAL;
 		}
-		/* Protect against table resizer moving the entries.
+		/* Prevent modifications to the list with services.
 		 * Try reverse locking, so that we do not hold the mutex
 		 * while waiting for semaphore.
 		 */
@@ -4029,6 +4132,7 @@ static int ip_vs_genl_dump_services(struct sk_buff *skb,
 	int start = cb->args[0];
 	int idx = 0;
 
+	/* Make sure we do not see same service twice during resize */
 	down_read(&ipvs->svc_resize_sem);
 	rcu_read_lock();
 	ip_vs_rht_walk_buckets_safe_rcu(ipvs->svc_table, head) {
@@ -4921,6 +5025,14 @@ static int __net_init ip_vs_control_net_init_sysctl(struct netns_ipvs *ipvs)
 	tbl[idx++].data = &ipvs->sysctl_amemthresh;
 	ipvs->sysctl_am_droprate = 10;
 	tbl[idx++].data = &ipvs->sysctl_am_droprate;
+
+	/* Inherit both limits from init_net:conn_max */
+	ipvs->conn_max_limit = net_eq(net, &init_net) ? IP_VS_CONN_MAX :
+			       READ_ONCE(*(int *)vs_vars[idx].data);
+	ipvs->sysctl_conn_max = ipvs->conn_max_limit;
+	tbl[idx].extra2 = ipvs;
+	tbl[idx++].data = &ipvs->sysctl_conn_max;
+
 	tbl[idx++].data = &ipvs->sysctl_drop_entry;
 	tbl[idx++].data = &ipvs->sysctl_drop_packet;
 #ifdef CONFIG_IP_VS_NFCT
@@ -5072,6 +5184,7 @@ int __net_init ip_vs_control_net_init(struct netns_ipvs *ipvs)
 	/* Initialize service_mutex, svc_table per netns */
 	__mutex_init(&ipvs->service_mutex, "ipvs->service_mutex", &__ipvs_service_key);
 	init_rwsem(&ipvs->svc_resize_sem);
+	init_rwsem(&ipvs->svc_replace_sem);
 	INIT_DELAYED_WORK(&ipvs->svc_resize_work, svc_resize_work_handler);
 	atomic_set(&ipvs->svc_table_changes, 0);
 	RCU_INIT_POINTER(ipvs->svc_table, NULL);

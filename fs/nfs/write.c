@@ -927,7 +927,7 @@ static void nfs_write_completion(struct nfs_pgio_header *hdr)
 		}
 		if (nfs_write_need_commit(hdr)) {
 			struct nfs_open_context *ctx =
-				hdr->req->wb_lock_context->open_context;
+				req->wb_lock_context->open_context;
 
 			/* Reset wb_nio, since the write was successful. */
 			req->wb_nio = 0;
@@ -1817,7 +1817,7 @@ static void nfs_commit_release_pages(struct nfs_commit_data *data)
 
 		dprintk("NFS:       commit (%s/%llu %d@%lld)",
 			nfs_req_openctx(req)->dentry->d_sb->s_id,
-			(unsigned long long)NFS_FILEID(d_inode(nfs_req_openctx(req)->dentry)),
+			(unsigned long long)d_inode(nfs_req_openctx(req)->dentry)->i_ino,
 			req->wb_bytes,
 			(long long)req_offset(req));
 		if (status < 0) {

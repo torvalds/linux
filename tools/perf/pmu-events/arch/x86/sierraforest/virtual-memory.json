@@ -138,6 +138,14 @@
         "UMask": "0x10"
     },
     {
+        "BriefDescription": "Counts the number of cycles that the head (oldest load) of the load buffer is stalled due to a DTLB miss",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x05",
+        "EventName": "LD_HEAD.DTLB_MISS",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x10"
+    },
+    {
         "BriefDescription": "Counts the number of cycles that the head (oldest load) of the load buffer and retirement are both stalled due to a DTLB miss.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x05",

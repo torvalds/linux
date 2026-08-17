@@ -642,6 +642,25 @@ mt7996_vif_conf_link(struct mt7996_dev *dev, struct ieee80211_vif *vif,
 							    link_conf);
 }
 
+static inline struct mt7996_sta_link *
+mt7996_sta_link(struct mt7996_sta *msta, u8 link_id)
+{
+	if (link_id >= IEEE80211_MLD_MAX_NUM_LINKS)
+		return NULL;
+
+	return rcu_dereference(msta->link[link_id]);
+}
+
+static inline struct mt7996_sta_link *
+mt7996_sta_link_protected(struct mt7996_dev *dev, struct mt7996_sta *msta,
+			  u8 link_id)
+{
+	if (link_id >= IEEE80211_MLD_MAX_NUM_LINKS)
+		return NULL;
+
+	return mt76_dereference(msta->link[link_id], &dev->mt76);
+}
+
 #define mt7996_for_each_phy(dev, phy)					\
 	for (int __i = 0; __i < ARRAY_SIZE((dev)->radio_phy); __i++)	\
 		if (((phy) = (dev)->radio_phy[__i]) != NULL)
@@ -855,7 +874,8 @@ void mt7996_mac_enable_nf(struct mt7996_dev *dev, u8 band);
 void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
 			   struct sk_buff *skb, struct mt76_wcid *wcid,
 			   struct ieee80211_key_conf *key, int pid,
-			   enum mt76_txq_id qid, u32 changed);
+			   enum mt76_txq_id qid, u32 changed,
+			   unsigned int link_id);
 void mt7996_mac_update_beacons(struct mt7996_phy *phy);
 void mt7996_mac_set_coverage_class(struct mt7996_phy *phy);
 void mt7996_mac_work(struct work_struct *work);

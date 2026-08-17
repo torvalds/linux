@@ -47,6 +47,8 @@ static const u8 REG_VOLTAGE_LIMIT_MSB_SHIFT[2][5] = {
 #define REG_PWM(x)		(0x60 + (x))
 #define REG_SMARTFAN_EN(x)      (0x64 + (x) / 2)
 #define SMARTFAN_EN_SHIFT(x)    ((x) % 2 * 4)
+#define REG_SMARTFAN_STEP_UP_TIME	0x6e
+#define REG_SMARTFAN_STEP_DOWN_TIME	0x6f
 #define REG_VENDOR_ID		0xfd
 #define REG_CHIP_ID		0xfe
 #define REG_VERSION_ID		0xff
@@ -560,6 +562,77 @@ beep_store(struct device *dev, struct device_attribute *attr, const char *buf,
 	return err ? : count;
 }
 
+static ssize_t step_time_show(struct device *dev, struct device_attribute *attr,
+			      char *buf, bool step_up)
+{
+	struct nct7802_data *data = dev_get_drvdata(dev);
+	unsigned int reg, val;
+	int ret;
+
+	if (step_up)
+		reg = REG_SMARTFAN_STEP_UP_TIME;
+	else
+		reg = REG_SMARTFAN_STEP_DOWN_TIME;
+
+	ret = regmap_read(data->regmap, reg, &val);
+	if (ret < 0)
+		return ret;
+
+	return sprintf(buf, "%u\n", val * 100); /* Convert from ds to ms */
+}
+
+static ssize_t step_up_time_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	return step_time_show(dev, attr, buf, true);
+}
+
+static ssize_t step_down_time_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	return step_time_show(dev, attr, buf, false);
+}
+
+static ssize_t step_time_store(struct device *dev,
+			       struct device_attribute *attr, const char *buf,
+			       size_t count, bool step_up)
+{
+	struct nct7802_data *data = dev_get_drvdata(dev);
+	unsigned long val;
+	unsigned int reg;
+	int ret;
+
+	ret = kstrtoul(buf, 10, &val);
+	if (ret < 0)
+		return ret;
+
+	/* Clamp range, and convert from ms to ds */
+	val = DIV_ROUND_CLOSEST(clamp_val(val, 100, 25500), 100);
+
+	if (step_up)
+		reg = REG_SMARTFAN_STEP_UP_TIME;
+	else
+		reg = REG_SMARTFAN_STEP_DOWN_TIME;
+
+	ret = regmap_write(data->regmap, reg, val);
+
+	return ret ? : count;
+}
+
+static ssize_t step_up_time_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
+{
+	return step_time_store(dev, attr, buf, count, true);
+}
+
+static ssize_t step_down_time_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	return step_time_store(dev, attr, buf, count, false);
+}
+
 static SENSOR_DEVICE_ATTR_RW(temp1_type, temp_type, 0);
 static SENSOR_DEVICE_ATTR_2_RO(temp1_input, temp, 0x01, REG_TEMP_LSB);
 static SENSOR_DEVICE_ATTR_2_RW(temp1_min, temp, 0x31, 0);
@@ -975,12 +1048,30 @@ static const struct attribute_group nct7802_auto_point_group = {
 	.attrs = nct7802_auto_point_attrs,
 };
 
+/* 7.2.102 0x6E FANCTL Step Up Time Register */
+static SENSOR_DEVICE_ATTR_RW(step_up_time, step_up_time, 0);
+
+/* 7.2.103 0x6F FANCTL Step Down Time Register */
+static SENSOR_DEVICE_ATTR_RW(step_down_time, step_down_time, 0);
+
+static struct attribute *nct7802_step_time_attrs[] = {
+	&sensor_dev_attr_step_up_time.dev_attr.attr,
+	&sensor_dev_attr_step_down_time.dev_attr.attr,
+
+	NULL
+};
+
+static const struct attribute_group nct7802_step_time_group = {
+	.attrs = nct7802_step_time_attrs,
+};
+
 static const struct attribute_group *nct7802_groups[] = {
 	&nct7802_temp_group,
 	&nct7802_in_group,
 	&nct7802_fan_group,
 	&nct7802_pwm_group,
 	&nct7802_auto_point_group,
+	&nct7802_step_time_group,
 	NULL
 };
 
@@ -1193,7 +1284,7 @@ static const unsigned short nct7802_address_list[] = {
 };
 
 static const struct i2c_device_id nct7802_idtable[] = {
-	{ "nct7802" },
+	{ .name = "nct7802" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, nct7802_idtable);

@@ -58,6 +58,7 @@
 #include <linux/percpu-rwsem.h>
 #include <linux/unwind_deferred.h>
 #include <linux/kvm_types.h>
+#include <linux/seq_file.h>
 
 #include "internal.h"
 
@@ -4728,7 +4729,7 @@ static void perf_remove_from_owner(struct perf_event *event);
 static void perf_event_exit_event(struct perf_event *event,
 				  struct perf_event_context *ctx,
 				  struct task_struct *task,
-				  bool revoke);
+				  unsigned long detach_flags);
 
 /*
  * Removes all events from the current task that have been marked
@@ -4755,7 +4756,7 @@ static void perf_event_remove_on_exec(struct perf_event_context *ctx)
 
 		modified = true;
 
-		perf_event_exit_event(event, ctx, ctx->task, false);
+		perf_event_exit_event(event, ctx, ctx->task, DETACH_GROUP);
 	}
 
 	raw_spin_lock_irqsave(&ctx->lock, flags);
@@ -5303,6 +5304,7 @@ static void free_event_rcu(struct rcu_head *head)
 	if (event->ns)
 		put_pid_ns(event->ns);
 	perf_event_free_filter(event);
+	kfree(event->addr_filter_ranges);
 	kmem_cache_free(perf_event_cache, event);
 }
 
@@ -5749,8 +5751,6 @@ static void __free_event(struct perf_event *event)
 
 	if (event->attach_state & PERF_ATTACH_CALLCHAIN)
 		put_callchain_buffers();
-
-	kfree(event->addr_filter_ranges);
 
 	if (event->attach_state & PERF_ATTACH_EXCLUSIVE)
 		exclusive_event_destroy(event);
@@ -7546,6 +7546,33 @@ static int perf_fasync(int fd, struct file *filp, int on)
 	return 0;
 }
 
+static void perf_show_fdinfo(struct seq_file *m, struct file *f)
+{
+	struct perf_event *event = f->private_data;
+	struct perf_event_context *ctx;
+	struct mutex *child_mutex;
+
+	ctx = perf_event_ctx_lock(event);
+	child_mutex = event->parent ? &event->parent->child_mutex : &event->child_mutex;
+	mutex_lock(child_mutex);
+
+	seq_printf(m, "perf_event_attr.type:\t%u\n", event->orig_type);
+	if (event->pmu)
+		seq_printf(m, "pmu_type:\t%u\n", event->pmu->type);
+	seq_printf(m, "perf_event_attr.config:\t0x%llx\n", (unsigned long long)event->attr.config);
+	seq_printf(m, "perf_event_attr.config1:\t0x%llx\n",
+		   (unsigned long long)event->attr.config1);
+	seq_printf(m, "perf_event_attr.config2:\t0x%llx\n",
+		   (unsigned long long)event->attr.config2);
+	seq_printf(m, "perf_event_attr.config3:\t0x%llx\n",
+		   (unsigned long long)event->attr.config3);
+	seq_printf(m, "perf_event_attr.config4:\t0x%llx\n",
+		   (unsigned long long)event->attr.config4);
+
+	mutex_unlock(child_mutex);
+	perf_event_ctx_unlock(event, ctx);
+}
+
 static const struct file_operations perf_fops = {
 	.release		= perf_release,
 	.read			= perf_read,
@@ -7554,6 +7581,7 @@ static const struct file_operations perf_fops = {
 	.compat_ioctl		= perf_compat_ioctl,
 	.mmap			= perf_mmap,
 	.fasync			= perf_fasync,
+	.show_fdinfo		= perf_show_fdinfo,
 };
 
 /*
@@ -11683,6 +11711,15 @@ static int __perf_event_set_bpf_prog(struct perf_event *event,
 		/* only uprobe programs are allowed to be sleepable */
 		return -EINVAL;
 
+	if (prog->type == BPF_PROG_TYPE_TRACEPOINT && prog->sleepable) {
+		/*
+		 * Sleepable tracepoint programs can only attach to faultable
+		 * tracepoints. Currently only syscall tracepoints are faultable.
+		 */
+		if (!is_syscall_tp)
+			return -EINVAL;
+	}
+
 	/* Kprobe override only works for kprobes, not uprobes. */
 	if (prog->kprobe_override && !is_kprobe)
 		return -EINVAL;
@@ -12900,7 +12937,7 @@ static void __pmu_detach_event(struct pmu *pmu, struct perf_event *event,
 	/*
 	 * De-schedule the event and mark it REVOKED.
 	 */
-	perf_event_exit_event(event, ctx, ctx->task, true);
+	perf_event_exit_event(event, ctx, ctx->task, DETACH_REVOKE);
 
 	/*
 	 * All _free_event() bits that rely on event->pmu:
@@ -14488,11 +14525,12 @@ static void
 perf_event_exit_event(struct perf_event *event,
 		      struct perf_event_context *ctx,
 		      struct task_struct *task,
-		      bool revoke)
+		      unsigned long detach_flags)
 {
 	struct perf_event *parent_event = event->parent;
-	unsigned long detach_flags = DETACH_EXIT;
 	unsigned int attach_state;
+
+	detach_flags |= DETACH_EXIT;
 
 	if (parent_event) {
 		/*
@@ -14516,8 +14554,8 @@ perf_event_exit_event(struct perf_event *event,
 			sync_child_event(event, task);
 	}
 
-	if (revoke)
-		detach_flags |= DETACH_GROUP | DETACH_REVOKE;
+	if (detach_flags & DETACH_REVOKE)
+		detach_flags |= DETACH_GROUP;
 
 	perf_remove_from_context(event, detach_flags);
 	/*
@@ -14605,7 +14643,7 @@ static void perf_event_exit_task_context(struct task_struct *task, bool exit)
 		perf_event_task(task, ctx, 0);
 
 	list_for_each_entry_safe(child_event, next, &ctx->event_list, event_entry)
-		perf_event_exit_event(child_event, ctx, exit ? task : NULL, false);
+		perf_event_exit_event(child_event, ctx, exit ? task : NULL, 0);
 
 	mutex_unlock(&ctx->mutex);
 

@@ -28,3 +28,36 @@ config XOR_KUNIT_TEST
 
 	  This is intended to help people writing architecture-specific
 	  optimized versions.  If unsure, say N.
+
+config RAID6_PQ
+	tristate
+
+# selected by architectures that provide an optimized PQ implementation
+config RAID6_PQ_ARCH
+	depends on RAID6_PQ
+	default y if KERNEL_MODE_NEON		# arm32/arm64
+	default y if LOONGARCH
+	default y if ALTIVEC			# powerpc
+	default y if RISCV_ISA_V
+	default y if S390
+	default y if X86
+	bool
+
+config RAID6_PQ_KUNIT_TEST
+	tristate "KUnit tests for RAID6 PQ functions" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	depends on RAID6_PQ
+	default KUNIT_ALL_TESTS
+	help
+	  Unit tests for the RAID6 PQ library functions.
+
+	  This is intended to help people writing architecture-specific
+	  optimized versions.  If unsure, say N.
+
+config RAID6_PQ_BENCHMARK
+	bool "Automatically choose fastest RAID6 PQ functions"
+	depends on RAID6_PQ
+	default y
+	help
+	  Benchmark all available RAID6 PQ functions on init and choose the
+	  fastest one.

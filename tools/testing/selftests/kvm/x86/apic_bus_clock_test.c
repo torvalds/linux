@@ -137,6 +137,10 @@ static void run_apic_bus_clock_test(u64 apic_hz, u64 delay_ms,
 	vm_enable_cap(vm, KVM_CAP_X86_APIC_BUS_CYCLES_NS,
 		      NSEC_PER_SEC / apic_hz);
 
+	TEST_ASSERT_EQ(kvm_check_cap(KVM_CAP_X86_APIC_BUS_CYCLES_NS), 1);
+	TEST_ASSERT_EQ(vm_check_cap(vm, KVM_CAP_X86_APIC_BUS_CYCLES_NS),
+		       NSEC_PER_SEC / apic_hz);
+
 	vcpu = vm_vcpu_add(vm, 0, apic_guest_code);
 	vcpu_args_set(vcpu, 2, apic_hz, delay_ms);
 

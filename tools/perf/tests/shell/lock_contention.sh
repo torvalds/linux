@@ -208,6 +208,17 @@ test_lock_filter()
 		err=1
 		exit
 	fi
+
+	perf lock con -b -L mmap_lock -q -- perf bench mem mmap -t 2 -l 10 > /dev/null 2> ${result}
+
+	# find out the type of mmap_lock
+	test_lock_filter_type=$(head -1 "${result}" | awk '{ print $8 }' | sed -e 's/:.*//')
+
+	if [ "$(grep -c -v "${test_lock_filter_type}" "${result}")" != "0" ]; then
+		echo "[Fail] BPF result should not have non-${test_lock_filter_type} locks:" "$(cat "${result}")"
+		err=1
+		exit
+	fi
 }
 
 test_stack_filter()

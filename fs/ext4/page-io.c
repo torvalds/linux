@@ -168,7 +168,7 @@ static void ext4_release_io_end(ext4_io_end_t *io_end)
  * written. On IO failure, check if journal abort is needed. Note that
  * we are protected from truncate touching same part of extent tree by the
  * fact that truncate code waits for all DIO to finish (thus exclusion from
- * direct IO is achieved) and also waits for PageWriteback bits. Thus we
+ * direct IO is achieved) and also waits for writeback to complete. Thus we
  * cannot get to ext4_ext_truncate() before all IOs overlapping that range are
  * completed (happens from ext4_free_ioend()).
  */

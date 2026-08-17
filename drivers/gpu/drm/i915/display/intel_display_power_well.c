@@ -34,7 +34,6 @@
 #include "intel_vga.h"
 #include "skl_watermark.h"
 #include "vlv_dpio_phy_regs.h"
-#include "vlv_iosf_sb_reg.h"
 #include "vlv_sideband.h"
 
 /*
@@ -50,10 +49,10 @@ static enum skl_power_gate pw_idx_to_pg(struct intel_display *display, int pw_id
 }
 
 struct i915_power_well_regs {
-	i915_reg_t bios;
-	i915_reg_t driver;
-	i915_reg_t kvmr;
-	i915_reg_t debug;
+	intel_reg_t bios;
+	intel_reg_t driver;
+	intel_reg_t kvmr;
+	intel_reg_t debug;
 };
 
 struct i915_power_well_ops {
@@ -1189,28 +1188,28 @@ static void vlv_set_power_well(struct intel_display *display,
 	state = enable ? PUNIT_PWRGT_PWR_ON(pw_idx) :
 			 PUNIT_PWRGT_PWR_GATE(pw_idx);
 
-	vlv_punit_get(display->drm);
+	vlv_punit_get(display);
 
-	val = vlv_punit_read(display->drm, PUNIT_REG_PWRGT_STATUS);
+	val = vlv_punit_read(display, PUNIT_REG_PWRGT_STATUS);
 	if ((val & mask) == state)
 		goto out;
 
-	ctrl = vlv_punit_read(display->drm, PUNIT_REG_PWRGT_CTRL);
+	ctrl = vlv_punit_read(display, PUNIT_REG_PWRGT_CTRL);
 	ctrl &= ~mask;
 	ctrl |= state;
-	vlv_punit_write(display->drm, PUNIT_REG_PWRGT_CTRL, ctrl);
+	vlv_punit_write(display, PUNIT_REG_PWRGT_CTRL, ctrl);
 
-	ret = poll_timeout_us(val = vlv_punit_read(display->drm, PUNIT_REG_PWRGT_STATUS),
+	ret = poll_timeout_us(val = vlv_punit_read(display, PUNIT_REG_PWRGT_STATUS),
 			      (val & mask) == state,
 			      500, 100 * 1000, false);
 	if (ret)
 		drm_err(display->drm,
 			"timeout setting power well state %08x (%08x)\n",
 			state,
-			vlv_punit_read(display->drm, PUNIT_REG_PWRGT_CTRL));
+			vlv_punit_read(display, PUNIT_REG_PWRGT_CTRL));
 
 out:
-	vlv_punit_put(display->drm);
+	vlv_punit_put(display);
 }
 
 static void vlv_power_well_enable(struct intel_display *display,
@@ -1237,9 +1236,9 @@ static bool vlv_power_well_enabled(struct intel_display *display,
 	mask = PUNIT_PWRGT_MASK(pw_idx);
 	ctrl = PUNIT_PWRGT_PWR_ON(pw_idx);
 
-	vlv_punit_get(display->drm);
+	vlv_punit_get(display);
 
-	state = vlv_punit_read(display->drm, PUNIT_REG_PWRGT_STATUS) & mask;
+	state = vlv_punit_read(display, PUNIT_REG_PWRGT_STATUS) & mask;
 	/*
 	 * We only ever set the power-on and power-gate states, anything
 	 * else is unexpected.
@@ -1253,10 +1252,10 @@ static bool vlv_power_well_enabled(struct intel_display *display,
 	 * A transient state at this point would mean some unexpected party
 	 * is poking at the power controls too.
 	 */
-	ctrl = vlv_punit_read(display->drm, PUNIT_REG_PWRGT_CTRL) & mask;
+	ctrl = vlv_punit_read(display, PUNIT_REG_PWRGT_CTRL) & mask;
 	drm_WARN_ON(display->drm, ctrl != state);
 
-	vlv_punit_put(display->drm);
+	vlv_punit_put(display);
 
 	return enabled;
 }
@@ -1533,30 +1532,30 @@ static void chv_dpio_cmn_power_well_enable(struct intel_display *display,
 		drm_err(display->drm, "Display PHY %d is not power up\n",
 			phy);
 
-	vlv_dpio_get(display->drm);
+	vlv_dpio_get(display);
 
 	/* Enable dynamic power down */
-	tmp = vlv_dpio_read(display->drm, phy, CHV_CMN_DW28);
+	tmp = vlv_dpio_read(display, phy, CHV_CMN_DW28);
 	tmp |= DPIO_DYNPWRDOWNEN_CH0 | DPIO_CL1POWERDOWNEN |
 		DPIO_SUS_CLK_CONFIG_GATE_CLKREQ;
-	vlv_dpio_write(display->drm, phy, CHV_CMN_DW28, tmp);
+	vlv_dpio_write(display, phy, CHV_CMN_DW28, tmp);
 
 	if (id == VLV_DISP_PW_DPIO_CMN_BC) {
-		tmp = vlv_dpio_read(display->drm, phy, CHV_CMN_DW6_CH1);
+		tmp = vlv_dpio_read(display, phy, CHV_CMN_DW6_CH1);
 		tmp |= DPIO_DYNPWRDOWNEN_CH1;
-		vlv_dpio_write(display->drm, phy, CHV_CMN_DW6_CH1, tmp);
+		vlv_dpio_write(display, phy, CHV_CMN_DW6_CH1, tmp);
 	} else {
 		/*
 		 * Force the non-existing CL2 off. BXT does this
 		 * too, so maybe it saves some power even though
 		 * CL2 doesn't exist?
 		 */
-		tmp = vlv_dpio_read(display->drm, phy, CHV_CMN_DW30);
+		tmp = vlv_dpio_read(display, phy, CHV_CMN_DW30);
 		tmp |= DPIO_CL2_LDOFUSE_PWRENB;
-		vlv_dpio_write(display->drm, phy, CHV_CMN_DW30, tmp);
+		vlv_dpio_write(display, phy, CHV_CMN_DW30, tmp);
 	}
 
-	vlv_dpio_put(display->drm);
+	vlv_dpio_put(display);
 
 	display->power.chv_phy_control |= PHY_COM_LANE_RESET_DEASSERT(phy);
 	intel_de_write(display, DISPLAY_PHY_CONTROL,
@@ -1624,9 +1623,9 @@ static void assert_chv_phy_powergate(struct intel_display *display, enum dpio_ph
 	else
 		reg = CHV_CMN_DW6_CH1;
 
-	vlv_dpio_get(display->drm);
-	val = vlv_dpio_read(display->drm, phy, reg);
-	vlv_dpio_put(display->drm);
+	vlv_dpio_get(display);
+	val = vlv_dpio_read(display, phy, reg);
+	vlv_dpio_put(display);
 
 	/*
 	 * This assumes !override is only used when the port is disabled.
@@ -1740,9 +1739,9 @@ static bool chv_pipe_power_well_enabled(struct intel_display *display,
 	bool enabled;
 	u32 state, ctrl;
 
-	vlv_punit_get(display->drm);
+	vlv_punit_get(display);
 
-	state = vlv_punit_read(display->drm, PUNIT_REG_DSPSSPM) & DP_SSS_MASK(pipe);
+	state = vlv_punit_read(display, PUNIT_REG_DSPSSPM) & DP_SSS_MASK(pipe);
 	/*
 	 * We only ever set the power-on and power-gate states, anything
 	 * else is unexpected.
@@ -1755,10 +1754,10 @@ static bool chv_pipe_power_well_enabled(struct intel_display *display,
 	 * A transient state at this point would mean some unexpected party
 	 * is poking at the power controls too.
 	 */
-	ctrl = vlv_punit_read(display->drm, PUNIT_REG_DSPSSPM) & DP_SSC_MASK(pipe);
+	ctrl = vlv_punit_read(display, PUNIT_REG_DSPSSPM) & DP_SSC_MASK(pipe);
 	drm_WARN_ON(display->drm, ctrl << 16 != state);
 
-	vlv_punit_put(display->drm);
+	vlv_punit_put(display);
 
 	return enabled;
 }
@@ -1774,29 +1773,29 @@ static void chv_set_pipe_power_well(struct intel_display *display,
 
 	state = enable ? DP_SSS_PWR_ON(pipe) : DP_SSS_PWR_GATE(pipe);
 
-	vlv_punit_get(display->drm);
+	vlv_punit_get(display);
 
-	ctrl = vlv_punit_read(display->drm, PUNIT_REG_DSPSSPM);
+	ctrl = vlv_punit_read(display, PUNIT_REG_DSPSSPM);
 	if ((ctrl & DP_SSS_MASK(pipe)) == state)
 		goto out;
 
 	ctrl &= ~DP_SSC_MASK(pipe);
 	ctrl |= enable ? DP_SSC_PWR_ON(pipe) : DP_SSC_PWR_GATE(pipe);
-	vlv_punit_write(display->drm, PUNIT_REG_DSPSSPM, ctrl);
+	vlv_punit_write(display, PUNIT_REG_DSPSSPM, ctrl);
 
-	ret = poll_timeout_us(ctrl = vlv_punit_read(display->drm, PUNIT_REG_DSPSSPM),
+	ret = poll_timeout_us(ctrl = vlv_punit_read(display, PUNIT_REG_DSPSSPM),
 			      (ctrl & DP_SSS_MASK(pipe)) == state,
 			      500, 100 * 1000, false);
 	if (ret)
 		drm_err(display->drm,
 			"timeout setting power well state %08x (%08x)\n",
 			state,
-			vlv_punit_read(display->drm, PUNIT_REG_DSPSSPM));
+			vlv_punit_read(display, PUNIT_REG_DSPSSPM));
 
 #undef COND
 
 out:
-	vlv_punit_put(display->drm);
+	vlv_punit_put(display);
 }
 
 static void chv_pipe_power_well_sync_hw(struct intel_display *display,

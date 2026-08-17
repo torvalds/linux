@@ -277,16 +277,16 @@ config M5407C3
 	  Support for the Motorola M5407C3 board.
 
 config AMCORE
-	bool "Sysam AMCORE board support"
+	bool "Kernelspace AMCORE board support"
 	depends on M5307
 	help
-	  Support for the Sysam AMCORE open-hardware generic board.
+	  Support for the Kernelspace AMCORE open-hardware generic board.
 
 config STMARK2
-	bool "Sysam stmark2 board support"
+	bool "Kernelspace stmark2 board support"
 	depends on M5441x
 	help
-	  Support for the Sysam stmark2 open-hardware generic board.
+	  Support for the Kernelspace stmark2 open-hardware generic board.
 
 config FIREBEE
 	bool "FireBee board support"

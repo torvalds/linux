@@ -757,7 +757,7 @@ config REGULATOR_MAX20086
 	select REGMAP_I2C
 	help
 	  This driver controls a Maxim MAX20086-MAX20089 camera power
-	  protectorvia I2C bus. The regulator has 2 or 4 outputs depending on
+	  protector via I2C bus. The regulator has 2 or 4 outputs depending on
 	  the device model. This driver is only capable to turn on/off them.
 
 config REGULATOR_MAX20411
@@ -977,6 +977,7 @@ config REGULATOR_MT6363
 	tristate "MT6363 SPMI PMIC regulator driver"
 	depends on SPMI
 	select REGMAP_SPMI
+	select IRQ_DOMAIN
 	help
 	  Say Y here to enable support for regulators found in the MediaTek
 	  MT6363 SPMI PMIC.
@@ -1054,13 +1055,6 @@ config REGULATOR_PF9453
 	select REGMAP_I2C
 	help
 	  Say y here to support the NXP PF9453 PMIC regulator driver.
-
-config REGULATOR_PCAP
-	tristate "Motorola PCAP2 regulator driver"
-	depends on EZX_PCAP
-	help
-	 This driver provides support for the voltage regulators of the
-	 PCAP2 PMIC.
 
 config REGULATOR_PF0900
 	tristate "NXP PF0900/PF0901/PF09XX regulator driver"
@@ -1489,6 +1483,14 @@ config REGULATOR_SC2731
 	help
 	  This driver provides support for the voltage regulators on the
 	  SC2731 PMIC.
+
+config REGULATOR_SGM3804
+	tristate "SGMicro SGM3804 voltage regulator"
+	depends on I2C && OF
+	depends on GPIOLIB
+	select REGMAP_I2C
+	help
+	  This driver supports SGMicro SGM3804 dual-output voltage regulator.
 
 config REGULATOR_SKY81452
 	tristate "Skyworks Solutions SKY81452 voltage regulator"

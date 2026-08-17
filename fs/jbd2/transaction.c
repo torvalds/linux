@@ -1131,7 +1131,7 @@ repeat:
 		if (!frozen_buffer) {
 			JBUFFER_TRACE(jh, "allocate memory for buffer");
 			spin_unlock(&jh->b_state_lock);
-			frozen_buffer = jbd2_alloc(jh2bh(jh)->b_size,
+			frozen_buffer = kmalloc(jh2bh(jh)->b_size,
 						   GFP_NOFS | __GFP_NOFAIL);
 			goto repeat;
 		}
@@ -1159,7 +1159,7 @@ done:
 
 out:
 	if (unlikely(frozen_buffer))	/* It's usually NULL */
-		jbd2_free(frozen_buffer, bh->b_size);
+		kfree(frozen_buffer);
 
 	JBUFFER_TRACE(jh, "exit");
 	return error;
@@ -1424,7 +1424,7 @@ int jbd2_journal_get_undo_access(handle_t *handle, struct buffer_head *bh)
 
 repeat:
 	if (!jh->b_committed_data)
-		committed_data = jbd2_alloc(jh2bh(jh)->b_size,
+		committed_data = kmalloc(jh2bh(jh)->b_size,
 					    GFP_NOFS|__GFP_NOFAIL);
 
 	spin_lock(&jh->b_state_lock);
@@ -1445,7 +1445,7 @@ repeat:
 out:
 	jbd2_journal_put_journal_head(jh);
 	if (unlikely(committed_data))
-		jbd2_free(committed_data, bh->b_size);
+		kfree(committed_data);
 	return err;
 }
 
@@ -1516,13 +1516,18 @@ void jbd2_buffer_abort_trigger(struct journal_head *jh,
  */
 int jbd2_journal_dirty_metadata(handle_t *handle, struct buffer_head *bh)
 {
-	transaction_t *transaction = handle->h_transaction;
-	journal_t *journal = transaction->t_journal;
+	transaction_t *transaction;
+	journal_t *journal;
 	struct journal_head *jh;
 	int ret = 0;
 
+	if (is_handle_aborted(handle))
+		return -EROFS;
 	if (!buffer_jbd(bh))
 		return -EUCLEAN;
+
+	transaction = handle->h_transaction;
+	journal = transaction->t_journal;
 
 	/*
 	 * We don't grab jh reference here since the buffer must be part

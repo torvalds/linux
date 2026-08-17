@@ -687,7 +687,17 @@
 	};
 
 	/* VL53L3 ToF @ 0x29 */
-	/* AW86938FCR vibrator @ 0x5a */
+
+	vibrator@5a {
+		compatible = "awinic,aw86938", "awinic,aw86927";
+		reg = <0x5a>;
+
+		interrupts-extended = <&tlmm 80 IRQ_TYPE_EDGE_FALLING>;
+		reset-gpios = <&tlmm 78 GPIO_ACTIVE_LOW>;
+
+		pinctrl-0 = <&aw86938_int_default>, <&aw86938_reset_default>;
+		pinctrl-names = "default";
+	};
 };
 
 &pm8550vs_c {
@@ -786,6 +796,11 @@
 	status = "okay";
 };
 
+&rmtfs_mem {
+	/* Increase the size from 2.5 MiB to 6 MiB */
+	reg = <0x0 0xe1f00000 0x0 0x600000>;
+};
+
 &sdhc_2 {
 	cd-gpios = <&tlmm 65 GPIO_ACTIVE_HIGH>;
 
@@ -822,6 +837,20 @@
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
+	};
+
+	aw86938_reset_default: aw86938-reset-default-state {
+		pins = "gpio78";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+
+	aw86938_int_default: aw86938-int-default-state {
+		pins = "gpio80";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-up;
 	};
 
 	pm8008_int_default: pm8008-int-default-state {

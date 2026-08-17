@@ -576,7 +576,7 @@ void dccg31_set_dtbclk_dto(
 
 		// phase / modulo = dtbclk / dtbclk ref
 		modulo = params->ref_dtbclk_khz * 1000;
-		phase = div_u64((((unsigned long long)modulo * req_dtbclk_khz) + params->ref_dtbclk_khz - 1),
+		phase = (uint32_t)div_u64((((unsigned long long)modulo * req_dtbclk_khz) + params->ref_dtbclk_khz - 1),
 				params->ref_dtbclk_khz);
 
 		REG_UPDATE(OTG_PIXEL_RATE_CNTL[params->otg_inst],
@@ -620,7 +620,7 @@ void dccg31_set_audio_dtbclk_dto(
 
 		// phase / modulo = dtbclk / dtbclk ref
 		modulo = params->ref_dtbclk_khz * 1000;
-		phase = div_u64((((unsigned long long)modulo * params->req_audio_dtbclk_khz) + params->ref_dtbclk_khz - 1),
+		phase = (uint32_t)div_u64((((unsigned long long)modulo * params->req_audio_dtbclk_khz) + params->ref_dtbclk_khz - 1),
 			params->ref_dtbclk_khz);
 
 
@@ -664,6 +664,87 @@ void dccg31_set_dispclk_change_mode(
 		   change_mode == DISPCLK_CHANGE_MODE_RAMPING ? 2 : 0);
 }
 
+void dccg31_set_hdmistreamclk(
+		struct dccg *dccg,
+		enum streamclk_source src,
+		uint32_t otg_inst)
+{
+	(void)otg_inst;
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	if (src == REFCLK) {
+		REG_UPDATE_2(HDMISTREAMCLK_CNTL,
+				HDMISTREAMCLK0_SRC_SEL, 0,        /* SEL_REFCLK0 */
+				HDMISTREAMCLK0_DTO_FORCE_DIS, 1); /* DTO_FORCE_BYPASS */
+	} else {
+		REG_UPDATE_2(HDMISTREAMCLK_CNTL,
+				HDMISTREAMCLK0_SRC_SEL, 1,        /* SEL_DTBCLK0 */
+				HDMISTREAMCLK0_DTO_FORCE_DIS, 1); /* DTO_FORCE_BYPASS */
+	}
+}
+
+static void dccg31_disable_hdmistreamclk(struct dccg *dccg)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	if (dccg->ctx->dc->debug.root_clock_optimization.bits.hdmistream)
+		REG_UPDATE_2(HDMISTREAMCLK0_DTO_PARAM,
+			HDMISTREAMCLK0_DTO_PHASE, 0,
+			HDMISTREAMCLK0_DTO_MODULO, 1);
+}
+
+void dccg31_enable_hdmicharclk(struct dccg *dccg, int hpo_inst, int phypll_inst)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	ASSERT(hpo_inst >= 0 && phypll_inst >= 0);
+	if (dccg->ctx->dc->debug.root_clock_optimization.bits.hdmichar) {
+		REG_UPDATE(DCCG_GATE_DISABLE_CNTL4,
+			HDMICHARCLK0_ROOT_GATE_DISABLE, 1);
+		REG_UPDATE(DCCG_GATE_DISABLE_CNTL2,
+			HDMICHARCLK0_GATE_DISABLE, 1);
+	}
+
+	REG_UPDATE_2(HDMICHARCLK_CLOCK_CNTL[hpo_inst],
+			HDMICHARCLK0_EN, 1,
+			HDMICHARCLK0_SRC_SEL, phypll_inst);
+
+	/* Enable FORCE_EN for SYMCLK */
+	switch (phypll_inst) {
+	case 0:
+		REG_UPDATE_2(PHYASYMCLK_CLOCK_CNTL,
+				PHYASYMCLK_FORCE_EN, 1,
+				PHYASYMCLK_FORCE_SRC_SEL, 1);
+		break;
+	case 1:
+		REG_UPDATE_2(PHYBSYMCLK_CLOCK_CNTL,
+				PHYBSYMCLK_FORCE_EN, 1,
+				PHYBSYMCLK_FORCE_SRC_SEL, 1);
+		break;
+	case 2:
+		REG_UPDATE_2(PHYCSYMCLK_CLOCK_CNTL,
+				PHYCSYMCLK_FORCE_EN, 1,
+				PHYCSYMCLK_FORCE_SRC_SEL, 1);
+		break;
+	default:
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+}
+
+void dccg31_disable_hdmicharclk(struct dccg *dccg, int hpo_inst)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	REG_WRITE(HDMICHARCLK_CLOCK_CNTL[hpo_inst], 0);
+	if (dccg->ctx->dc->debug.root_clock_optimization.bits.hdmichar) {
+		REG_UPDATE(DCCG_GATE_DISABLE_CNTL2,
+			HDMICHARCLK0_GATE_DISABLE, 0);
+		REG_UPDATE(DCCG_GATE_DISABLE_CNTL4,
+			HDMICHARCLK0_ROOT_GATE_DISABLE, 0);
+	}
+}
+
 void dccg31_init(struct dccg *dccg)
 {
 	/* Set HPO stream encoder to use refclk to avoid case where PHY is
@@ -692,6 +773,10 @@ void dccg31_init(struct dccg *dccg)
 		dccg31_set_physymclk(dccg, 3, PHYSYMCLK_FORCE_SRC_SYMCLK, false);
 		dccg31_set_physymclk(dccg, 4, PHYSYMCLK_FORCE_SRC_SYMCLK, false);
 	}
+	dccg31_disable_hdmistreamclk(dccg);
+
+	if (dccg->ctx->dc->debug.root_clock_optimization.bits.hdmichar)
+		dccg31_disable_hdmicharclk(dccg, 0);
 }
 
 void dccg31_otg_add_pixel(struct dccg *dccg,
@@ -835,6 +920,9 @@ void dccg31_read_reg_state(struct dccg *dccg, struct dcn_dccg_reg_state *dccg_re
 }
 
 static const struct dccg_funcs dccg31_funcs = {
+	.enable_hdmicharclk = dccg31_enable_hdmicharclk,
+	.disable_hdmicharclk = dccg31_disable_hdmicharclk,
+	.set_hdmistreamclk = dccg31_set_hdmistreamclk,
 	.update_dpp_dto = dccg31_update_dpp_dto,
 	.get_dccg_ref_freq = dccg31_get_dccg_ref_freq,
 	.dccg_init = dccg31_init,

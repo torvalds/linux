@@ -130,6 +130,7 @@ void amdgpu_umc_handle_bad_pages(struct amdgpu_device *adev,
 			if (adev->umc.ras && adev->umc.ras->ras_block.hw_ops &&
 			    adev->umc.ras->ras_block.hw_ops->query_ras_error_address &&
 			    adev->umc.max_ras_err_cnt_per_query) {
+				kfree(err_data->err_addr);
 				err_data->err_addr =
 					kzalloc_objs(struct eeprom_table_record,
 						     adev->umc.max_ras_err_cnt_per_query);
@@ -160,6 +161,7 @@ void amdgpu_umc_handle_bad_pages(struct amdgpu_device *adev,
 			if (adev->umc.ras &&
 			    adev->umc.ras->ecc_info_query_ras_error_address &&
 			    adev->umc.max_ras_err_cnt_per_query) {
+				kfree(err_data->err_addr);
 				err_data->err_addr =
 					kzalloc_objs(struct eeprom_table_record,
 						     adev->umc.max_ras_err_cnt_per_query);

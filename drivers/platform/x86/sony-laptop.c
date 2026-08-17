@@ -3147,10 +3147,14 @@ static void sony_nc_backlight_cleanup(void)
 
 static int sony_nc_probe(struct platform_device *pdev)
 {
-	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
+	struct acpi_device *device;
 	acpi_status status;
 	int result = 0;
 	struct sony_nc_value *item;
+
+	device = ACPI_COMPANION(&pdev->dev);
+	if (!device)
+		return -ENODEV;
 
 	sony_nc_acpi_device = device;
 	strscpy(acpi_device_class(device), "sony/hotkey");
@@ -4509,10 +4513,14 @@ static void sony_pic_remove(struct platform_device *pdev)
 
 static int sony_pic_probe(struct platform_device *pdev)
 {
-	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
 	struct sony_pic_ioport *io, *tmp_io;
 	struct sony_pic_irq *irq, *tmp_irq;
+	struct acpi_device *device;
 	int result;
+
+	device = ACPI_COMPANION(&pdev->dev);
+	if (!device)
+		return -ENODEV;
 
 	spic_dev.acpi_dev = device;
 	strscpy(acpi_device_class(device), "sony/hotkey");

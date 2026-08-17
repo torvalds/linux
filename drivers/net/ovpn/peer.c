@@ -354,7 +354,7 @@ static void ovpn_peer_release_rcu(struct rcu_head *head)
  * ovpn_peer_release - release peer private members
  * @peer: the peer to release
  */
-void ovpn_peer_release(struct ovpn_peer *peer)
+static void ovpn_peer_release(struct ovpn_peer *peer)
 {
 	ovpn_crypto_state_release(&peer->crypto);
 	spin_lock_bh(&peer->lock);
@@ -1034,14 +1034,29 @@ static int ovpn_peer_add_p2p(struct ovpn_priv *ovpn, struct ovpn_peer *peer)
  */
 int ovpn_peer_add(struct ovpn_priv *ovpn, struct ovpn_peer *peer)
 {
+	int ret = -ENODEV;
+
+	/* Prevent adding new peers while destroying the ovpn interface.
+	 * Failing to do so would end up holding the device reference
+	 * endlessly hostage of the new peer object with no chance of
+	 * release..
+	 */
+	netdev_lock(ovpn->dev);
+	if (ovpn->dev->reg_state != NETREG_REGISTERED)
+		goto out;
+
 	switch (ovpn->mode) {
 	case OVPN_MODE_MP:
-		return ovpn_peer_add_mp(ovpn, peer);
+		ret = ovpn_peer_add_mp(ovpn, peer);
+		break;
 	case OVPN_MODE_P2P:
-		return ovpn_peer_add_p2p(ovpn, peer);
+		ret = ovpn_peer_add_p2p(ovpn, peer);
+		break;
 	}
+out:
+	netdev_unlock(ovpn->dev);
 
-	return -EOPNOTSUPP;
+	return ret;
 }
 
 /**

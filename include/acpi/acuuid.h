@@ -3,7 +3,7 @@
  *
  * Name: acuuid.h - ACPI-related UUID/GUID definitions
  *
- * Copyright (C) 2000 - 2025, Intel Corp.
+ * Copyright (C) 2000 - 2026, Intel Corp.
  *
  *****************************************************************************/
 
@@ -62,6 +62,11 @@
 
 #define UUID_CACHE_PROPERTIES           "6DC63E77-257E-4E78-A973-A21F2796898D"
 #define UUID_PHYSICAL_PROPERTY          "DDE4D59A-AA42-4349-B407-EA40F57D9FB7"
+
+/* Modern Standby */
+#define UUID_LPS0_MICROSOFT             "11E00D56-CE64-47CE-837B-1F898F9AA461"
+#define UUID_LPS0_INTEL                 "C4EB40A0-6CD2-11E2-BCFD-0800200C9A66"
+#define UUID_LPS0_AMD                   "E3F32452-FEBC-43CE-9039-932122D37721"
 
 /* Miscellaneous */
 

@@ -726,7 +726,7 @@ static int ice_finalize_update(struct pldmfw *context)
 	switch (priv->reset_level) {
 	case ICE_AQC_NVM_EMPR_FLAG:
 		devlink_flash_update_status_notify(devlink,
-						   "Activate new firmware by devlink reload",
+						   "Activate new firmware by devlink reload action fw_activate",
 						   NULL, 0, 0);
 		break;
 	case ICE_AQC_NVM_PERST_FLAG:

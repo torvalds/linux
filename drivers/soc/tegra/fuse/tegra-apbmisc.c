@@ -4,10 +4,10 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/arm-smccc.h>
 #include <linux/export.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
-#include <linux/mod_devicetable.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 
@@ -27,6 +27,11 @@
 #define PMC_STRAPPING_OPT_A_RAM_CODE_MASK_SHORT	\
 	(0x3 << PMC_STRAPPING_OPT_A_RAM_CODE_SHIFT)
 
+#define TEGRA_SMCCC_PLATFORM(x)		(((x) >> 8) & 0xff)
+#define TEGRA_SMCCC_CHIP_ID(x)		(((x) >> 4) & 0xff)
+#define TEGRA_SMCCC_MAJOR_REV(x)	((x) & 0xf)
+#define TEGRA_SMCCC_MINOR_REV(x)	((x) & 0xf)
+
 static void __iomem *apbmisc_base;
 static bool long_ram_code;
 static u32 strapping;
@@ -34,28 +39,56 @@ static u32 chipid;
 
 u32 tegra_read_chipid(void)
 {
-	WARN(!chipid, "Tegra APB MISC not yet available\n");
+	WARN(!apbmisc_base, "Tegra APB MISC not yet available\n");
+
+	if (!chipid)
+		chipid = readl_relaxed(apbmisc_base + 4);
 
 	return chipid;
 }
 
 u8 tegra_get_chip_id(void)
 {
+#if IS_ENABLED(CONFIG_HAVE_ARM_SMCCC_DISCOVERY)
+	s32 soc_id = arm_smccc_get_soc_id_version();
+
+	if (soc_id >= 0)
+		return TEGRA_SMCCC_CHIP_ID(soc_id);
+#endif
 	return (tegra_read_chipid() >> 8) & 0xff;
 }
 
 u8 tegra_get_major_rev(void)
 {
+#if IS_ENABLED(CONFIG_HAVE_ARM_SMCCC_DISCOVERY)
+	s32 soc_id = arm_smccc_get_soc_id_version();
+
+	if (soc_id >= 0)
+		return TEGRA_SMCCC_MAJOR_REV(soc_id);
+#endif
 	return (tegra_read_chipid() >> 4) & 0xf;
 }
 
 u8 tegra_get_minor_rev(void)
 {
+#if IS_ENABLED(CONFIG_HAVE_ARM_SMCCC_DISCOVERY)
+	s32 revision = arm_smccc_get_soc_id_revision();
+
+	if (revision >= 0)
+		return TEGRA_SMCCC_MINOR_REV(revision);
+#endif
 	return (tegra_read_chipid() >> 16) & 0xf;
+
 }
 
 u8 tegra_get_platform(void)
 {
+#if IS_ENABLED(CONFIG_HAVE_ARM_SMCCC_DISCOVERY)
+	s32 revision = arm_smccc_get_soc_id_revision();
+
+	if (revision >= 0)
+		return TEGRA_SMCCC_PLATFORM(revision);
+#endif
 	return (tegra_read_chipid() >> 20) & 0xf;
 }
 
@@ -170,9 +203,7 @@ static void tegra_init_apbmisc_resources(struct resource *apbmisc,
 	void __iomem *strapping_base;
 
 	apbmisc_base = ioremap(apbmisc->start, resource_size(apbmisc));
-	if (apbmisc_base)
-		chipid = readl_relaxed(apbmisc_base + 4);
-	else
+	if (!apbmisc_base)
 		pr_err("failed to map APBMISC registers\n");
 
 	strapping_base = ioremap(straps->start, resource_size(straps));

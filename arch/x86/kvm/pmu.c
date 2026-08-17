@@ -16,6 +16,7 @@
 #include <linux/perf_event.h>
 #include <linux/bsearch.h>
 #include <linux/sort.h>
+#include <linux/moduleparam.h>
 #include <asm/perf_event.h>
 #include <asm/cpu_device_id.h>
 #include "x86.h"
@@ -32,6 +33,15 @@ static struct x86_pmu_capability __read_mostly kvm_host_pmu;
 /* KVM's PMU capabilities, i.e. the intersection of KVM and hardware support. */
 struct x86_pmu_capability __read_mostly kvm_pmu_cap;
 EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_pmu_cap);
+
+/* Enable/disable PMU virtualization */
+bool __read_mostly enable_pmu = true;
+EXPORT_SYMBOL_FOR_KVM_INTERNAL(enable_pmu);
+module_param(enable_pmu, bool, 0444);
+
+/* Enable/disabled mediated PMU virtualization. */
+bool __read_mostly enable_mediated_pmu;
+EXPORT_SYMBOL_FOR_KVM_INTERNAL(enable_mediated_pmu);
 
 struct kvm_pmu_emulated_event_selectors {
 	u64 INSTRUCTIONS_RETIRED;
@@ -88,7 +98,9 @@ static struct kvm_pmu_ops kvm_pmu_ops __read_mostly;
 	DEFINE_STATIC_CALL_NULL(kvm_x86_pmu_##func,			     \
 				*(((struct kvm_pmu_ops *)0)->func));
 #define KVM_X86_PMU_OP_OPTIONAL KVM_X86_PMU_OP
+#define KVM_X86_PMU_OP_OPTIONAL_RET0 KVM_X86_PMU_OP
 #include <asm/kvm-x86-pmu-ops.h>
+EXPORT_STATIC_CALL_GPL(kvm_x86_pmu_pmc_is_disabled_in_current_mode);
 
 void kvm_pmu_ops_update(const struct kvm_pmu_ops *pmu_ops)
 {
@@ -99,6 +111,9 @@ void kvm_pmu_ops_update(const struct kvm_pmu_ops *pmu_ops)
 #define KVM_X86_PMU_OP(func) \
 	WARN_ON(!kvm_pmu_ops.func); __KVM_X86_PMU_OP(func)
 #define KVM_X86_PMU_OP_OPTIONAL __KVM_X86_PMU_OP
+#define KVM_X86_PMU_OP_OPTIONAL_RET0(func) \
+	static_call_update(kvm_x86_pmu_##func, (void *)kvm_pmu_ops.func ? : \
+					       (void *)__static_call_return0);
 #include <asm/kvm-x86-pmu-ops.h>
 #undef __KVM_X86_PMU_OP
 }
@@ -522,7 +537,7 @@ static bool pmc_is_event_allowed(struct kvm_pmc *pmc)
 
 static void kvm_mediated_pmu_refresh_event_filter(struct kvm_pmc *pmc)
 {
-	bool allowed = pmc_is_event_allowed(pmc);
+	bool allowed = pmc_is_locally_enabled(pmc) && pmc_is_event_allowed(pmc);
 	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
 
 	if (pmc_is_gp(pmc)) {
@@ -670,6 +685,7 @@ void kvm_pmu_handle_event(struct kvm_vcpu *vcpu)
 	kvm_for_each_pmc(pmu, pmc, bit, bitmap)
 		kvm_pmu_recalc_pmc_emulation(pmu, pmc);
 }
+EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_pmu_handle_event);
 
 int kvm_pmu_check_rdpmc_early(struct kvm_vcpu *vcpu, unsigned int idx)
 {
@@ -879,7 +895,7 @@ int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		if (pmu->global_ctrl != data) {
 			diff = pmu->global_ctrl ^ data;
 			pmu->global_ctrl = data;
-			reprogram_counters(pmu, diff);
+			kvm_pmu_request_counters_reprogram(pmu, diff);
 		}
 		/*
 		 * Unconditionally forward writes to vendor code, i.e. to the
@@ -921,6 +937,7 @@ static void kvm_pmu_reset(struct kvm_vcpu *vcpu)
 	pmu->need_cleanup = false;
 
 	bitmap_zero(pmu->reprogram_pmi, X86_PMC_IDX_MAX);
+	bitmap_zero(pmu->pmc_has_mode_specific_enables, X86_PMC_IDX_MAX);
 
 	kvm_for_each_pmc(pmu, pmc, i, pmu->all_valid_pmc_idx) {
 		pmc_stop_counter(pmc);
@@ -1313,14 +1330,14 @@ static void kvm_pmu_load_guest_pmcs(struct kvm_vcpu *vcpu)
 		pmc = &pmu->gp_counters[i];
 
 		if (pmc->counter != rdpmc(i))
-			wrmsrl(gp_counter_msr(i), pmc->counter);
-		wrmsrl(gp_eventsel_msr(i), pmc->eventsel_hw);
+			wrmsrq(gp_counter_msr(i), pmc->counter);
+		wrmsrq(gp_eventsel_msr(i), pmc->eventsel_hw);
 	}
 	for (i = 0; i < pmu->nr_arch_fixed_counters; i++) {
 		pmc = &pmu->fixed_counters[i];
 
 		if (pmc->counter != rdpmc(INTEL_PMC_FIXED_RDPMC_BASE | i))
-			wrmsrl(fixed_counter_msr(i), pmc->counter);
+			wrmsrq(fixed_counter_msr(i), pmc->counter);
 	}
 }
 

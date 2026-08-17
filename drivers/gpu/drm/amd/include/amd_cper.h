@@ -58,7 +58,7 @@
 
 enum cper_error_severity {
 	CPER_SEV_NON_FATAL_UNCORRECTED = 0,
-	CPER_SEV_FATAL                 = 1,
+	CPER_SEV_FATAL_UNCORRECTED     = 1,
 	CPER_SEV_NON_FATAL_CORRECTED   = 2,
 	CPER_SEV_NUM                   = 3,
 

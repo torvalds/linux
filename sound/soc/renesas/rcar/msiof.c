@@ -363,11 +363,6 @@ static int msiof_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	return 0;
 }
 
-/*
- * Select below from Sound Card, not auto
- *	SND_SOC_DAIFMT_CBC_CFC
- *	SND_SOC_DAIFMT_CBP_CFP
- */
 static const u64 msiof_dai_formats = SND_SOC_POSSIBLE_DAIFMT_I2S	|
 				     SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|
 				     SND_SOC_POSSIBLE_DAIFMT_NB_NF;

@@ -587,10 +587,15 @@ static bool nvme_dbbuf_update_and_check_event(u16 value, __le32 *dbbuf_db,
 }
 
 static struct nvme_descriptor_pools *
-nvme_setup_descriptor_pools(struct nvme_dev *dev, unsigned numa_node)
+nvme_setup_descriptor_pools(struct nvme_dev *dev, int numa_node)
 {
-	struct nvme_descriptor_pools *pools = &dev->descriptor_pools[numa_node];
+	struct nvme_descriptor_pools *pools;
 	size_t small_align = NVME_SMALL_POOL_SIZE;
+
+	if (numa_node == NUMA_NO_NODE)
+		numa_node = 0;
+
+	pools = &dev->descriptor_pools[numa_node];
 
 	if (pools->small)
 		return pools; /* already initialized */
@@ -660,7 +665,7 @@ static int nvme_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
 
 static int nvme_pci_init_request(struct blk_mq_tag_set *set,
 		struct request *req, unsigned int hctx_idx,
-		unsigned int numa_node)
+		int numa_node)
 {
 	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
 
@@ -966,7 +971,8 @@ static bool nvme_pci_prp_save_mapping(struct request *req,
 {
 	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
 
-	if (dma_use_iova(&iod->dma_state) || !dma_need_unmap(dma_dev))
+	if (dma_use_iova(&iod->dma_state) || !dma_need_unmap(dma_dev) ||
+	    (iod->flags & IOD_DATA_P2P))
 		return true;
 
 	if (!iod->nr_dma_vecs) {
@@ -996,6 +1002,23 @@ static bool nvme_pci_prp_iter_next(struct request *req, struct device *dma_dev,
 	return nvme_pci_prp_save_mapping(req, dma_dev, iter);
 }
 
+static void nvme_unmap_iter(struct request *req, struct blk_dma_iter *iter,
+			    struct dma_iova_state *state)
+{
+	struct nvme_queue *nvmeq = req->mq_hctx->driver_data;
+	struct device *dev = nvmeq->dev->dev;
+
+	if (!blk_rq_dma_unmap(req, dev, state, iter->len, iter->p2pdma.map)) {
+		unsigned int attrs = 0;
+
+		if (iter->p2pdma.map == PCI_P2PDMA_MAP_THRU_HOST_BRIDGE)
+			attrs |= DMA_ATTR_MMIO;
+
+		dma_unmap_phys(dev, iter->addr, iter->len, rq_dma_dir(req),
+			       attrs);
+	}
+}
+
 static blk_status_t nvme_pci_setup_data_prp(struct request *req,
 		struct blk_dma_iter *iter)
 {
@@ -1006,8 +1029,10 @@ static blk_status_t nvme_pci_setup_data_prp(struct request *req,
 	unsigned int prp_len, i;
 	__le64 *prp_list;
 
-	if (!nvme_pci_prp_save_mapping(req, nvmeq->dev->dev, iter))
+	if (!nvme_pci_prp_save_mapping(req, nvmeq->dev->dev, iter)) {
+		nvme_unmap_iter(req, iter, &iod->dma_state);
 		return iter->status;
+	}
 
 	/*
 	 * PRP1 always points to the start of the DMA transfers.
@@ -1112,6 +1137,7 @@ bad_sgl:
 	dev_err_once(nvmeq->dev->dev,
 		"Incorrectly formed request for payload:%d nents:%d\n",
 		blk_rq_payload_bytes(req), blk_rq_nr_phys_segments(req));
+	nvme_unmap_data(req);
 	return BLK_STS_IOERR;
 }
 
@@ -1155,8 +1181,11 @@ static blk_status_t nvme_pci_setup_data_sgl(struct request *req,
 
 	sg_list = dma_pool_alloc(nvme_dma_pool(nvmeq, iod), GFP_ATOMIC,
 			&sgl_dma);
-	if (!sg_list)
+	if (!sg_list) {
+		nvme_unmap_iter(req, iter, &iod->dma_state);
 		return BLK_STS_RESOURCE;
+	}
+
 	iod->descriptors[iod->nr_descriptors++] = sg_list;
 
 	do {
@@ -1313,8 +1342,10 @@ static blk_status_t nvme_pci_setup_meta_iter(struct request *req)
 
 	sg_list = dma_pool_alloc(nvmeq->descriptor_pools.small, GFP_ATOMIC,
 			&sgl_dma);
-	if (!sg_list)
+	if (!sg_list) {
+		nvme_unmap_iter(req, &iter, &iod->meta_dma_state);
 		return BLK_STS_RESOURCE;
+	}
 
 	iod->meta_descriptor = sg_list;
 	iod->meta_dma = sgl_dma;
@@ -2812,6 +2843,7 @@ static const struct attribute_group nvme_pci_dev_attrs_group = {
 static const struct attribute_group *nvme_pci_dev_attr_groups[] = {
 	&nvme_dev_attrs_group,
 	&nvme_pci_dev_attrs_group,
+	&nvme_dev_diag_attrs_group,
 	NULL,
 };
 
@@ -3096,7 +3128,7 @@ static bool __nvme_delete_io_queues(struct nvme_dev *dev, u8 opcode)
 	unsigned long timeout;
 
  retry:
-	timeout = NVME_ADMIN_TIMEOUT;
+	timeout = dev->ctrl.admin_timeout;
 	while (nr_queues > 0) {
 		if (nvme_delete_queue(&dev->queues[nr_queues], opcode))
 			break;
@@ -3278,7 +3310,7 @@ static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown)
 		 * if doing a safe shutdown.
 		 */
 		if (!dead && shutdown)
-			nvme_wait_freeze_timeout(&dev->ctrl, NVME_IO_TIMEOUT);
+			nvme_wait_freeze_timeout(&dev->ctrl);
 	}
 
 	nvme_quiesce_io_queues(&dev->ctrl);
@@ -3918,6 +3950,7 @@ static int nvme_suspend(struct device *dev)
 	 * use host managed nvme power settings for lowest idle power if
 	 * possible. This should have quicker resume latency than a full device
 	 * shutdown.  But if the firmware is involved after the suspend or the
+	 * platform has any limitation in waking from low power states or the
 	 * device does not support any non-default power states, shut down the
 	 * device fully.
 	 *
@@ -3926,7 +3959,7 @@ static int nvme_suspend(struct device *dev)
 	 * down, so as to allow the platform to achieve its minimum low-power
 	 * state (which may not be possible if the link is up).
 	 */
-	if (pm_suspend_via_firmware() || !ctrl->npss ||
+	if (!pci_suspend_retains_context(pdev) || !ctrl->npss ||
 	    !pcie_aspm_enabled(pdev) ||
 	    (ndev->ctrl.quirks & NVME_QUIRK_SIMPLE_SUSPEND))
 		return nvme_disable_prepare_reset(ndev, true);

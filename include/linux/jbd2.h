@@ -63,9 +63,6 @@ void __jbd2_debug(int level, const char *file, const char *func,
 #define jbd2_debug(n, fmt, a...)  no_printk(fmt, ##a)
 #endif
 
-extern void *jbd2_alloc(size_t size, gfp_t flags);
-extern void jbd2_free(void *ptr, size_t size);
-
 #define JBD2_MIN_JOURNAL_BLOCKS 1024
 #define JBD2_DEFAULT_FAST_COMMIT_BLOCKS 256
 

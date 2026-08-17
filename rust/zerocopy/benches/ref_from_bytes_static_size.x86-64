@@ -1,0 +1,8 @@
+bench_ref_from_bytes_static_size:
+	mov ecx, edi
+	and ecx, 1
+	xor rsi, 6
+	xor eax, eax
+	or rsi, rcx
+	cmove rax, rdi
+	ret

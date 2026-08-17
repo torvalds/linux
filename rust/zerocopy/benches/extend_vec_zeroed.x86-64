@@ -1,0 +1,60 @@
+bench_extend_vec_zeroed:
+	push r15
+	push r14
+	push r13
+	push r12
+	push rbx
+	sub rsp, 32
+	mov rbx, rdi
+	mov rax, qword ptr [rdi]
+	mov r12, qword ptr [rdi + 16]
+	mov rcx, rax
+	sub rcx, r12
+	cmp rsi, rcx
+	jbe .LBB6_3
+	mov r15, r12
+	add r15, rsi
+	jae .LBB6_6
+.LBB6_2:
+	xor eax, eax
+	jmp .LBB6_5
+.LBB6_3:
+	mov rax, qword ptr [rbx + 8]
+	lea r15, [r12 + rsi]
+.LBB6_4:
+	lea rcx, [r12 + 2*r12]
+	lea rdi, [rax + 2*rcx]
+	add rsi, rsi
+	lea rdx, [rsi + 2*rsi]
+	xor esi, esi
+	call qword ptr [rip + memset@GOTPCREL]
+	mov qword ptr [rbx + 16], r15
+	mov al, 1
+.LBB6_5:
+	add rsp, 32
+	pop rbx
+	pop r12
+	pop r13
+	pop r14
+	pop r15
+	ret
+.LBB6_6:
+	mov r13, rsi
+	lea rcx, [rax + rax]
+	cmp r15, rcx
+	cmova rcx, r15
+	cmp rcx, 5
+	mov r14d, 4
+	cmovae r14, rcx
+	mov rdx, qword ptr [rbx + 8]
+	lea rdi, [rsp + 8]
+	mov rsi, rax
+	mov rcx, r14
+	call <alloc::raw_vec::RawVecInner>::finish_grow
+	cmp dword ptr [rsp + 8], 1
+	je .LBB6_2
+	mov rax, qword ptr [rsp + 16]
+	mov qword ptr [rbx + 8], rax
+	mov qword ptr [rbx], r14
+	mov rsi, r13
+	jmp .LBB6_4

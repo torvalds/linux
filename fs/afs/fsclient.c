@@ -886,7 +886,7 @@ void afs_fs_symlink(struct afs_operation *op)
 	namesz = name->len;
 	padsz = (4 - (namesz & 3)) & 3;
 
-	c_namesz = strlen(op->create.symlink);
+	c_namesz = strlen(op->create.symlink->content);
 	c_padsz = (4 - (c_namesz & 3)) & 3;
 
 	reqsz = (6 * 4) + namesz + padsz + c_namesz + c_padsz + (6 * 4);
@@ -910,7 +910,7 @@ void afs_fs_symlink(struct afs_operation *op)
 		bp = (void *) bp + padsz;
 	}
 	*bp++ = htonl(c_namesz);
-	memcpy(bp, op->create.symlink, c_namesz);
+	memcpy(bp, op->create.symlink->content, c_namesz);
 	bp = (void *) bp + c_namesz;
 	if (c_padsz > 0) {
 		memset(bp, 0, c_padsz);

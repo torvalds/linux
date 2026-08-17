@@ -2221,12 +2221,10 @@ static bool mpls_rt_uses_dev(struct mpls_route *rt,
 
 static int mpls_dump_routes(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct mpls_route __rcu **platform_label;
 	const struct nlmsghdr *nlh = cb->nlh;
 	struct net *net = sock_net(skb->sk);
-	struct mpls_route __rcu **platform_label;
-	struct fib_dump_filter filter = {
-		.rtnl_held = false,
-	};
+	struct fib_dump_filter filter = {};
 	unsigned int flags = NLM_F_MULTI;
 	size_t platform_labels;
 	unsigned int index;

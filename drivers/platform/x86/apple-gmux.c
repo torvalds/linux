@@ -1013,8 +1013,8 @@ static void gmux_remove(struct pnp_dev *pnp)
 }
 
 static const struct pnp_device_id gmux_device_ids[] = {
-	{GMUX_ACPI_HID, 0},
-	{"", 0}
+	{ .id = GMUX_ACPI_HID },
+	{ }
 };
 
 static const struct dev_pm_ops gmux_dev_pm_ops = {

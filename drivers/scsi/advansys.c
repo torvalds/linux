@@ -36,7 +36,6 @@
 #include <linux/dmapool.h>
 
 #include <asm/io.h>
-#include <asm/dma.h>
 
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>

@@ -465,11 +465,17 @@ int afs_validate(struct afs_vnode *vnode, struct key *key)
 	vnode->cb_ro_snapshot = cb_ro_snapshot;
 	vnode->cb_scrub = cb_scrub;
 
-	/* if the vnode's data version number changed then its contents are
-	 * different */
+	/* If the vnode's data version number changed then its contents are
+	 * different.  Note that afs_apply_status() doesn't set ZAP_DATA on
+	 * directories.
+	 */
 	zap |= test_and_clear_bit(AFS_VNODE_ZAP_DATA, &vnode->flags);
-	if (zap)
-		afs_zap_data(vnode);
+	if (zap) {
+		if (S_ISREG(vnode->netfs.inode.i_mode))
+			afs_zap_data(vnode);
+		else if (S_ISLNK(vnode->netfs.inode.i_mode))
+			afs_invalidate_symlink(vnode);
+	}
 	up_write(&vnode->validate_lock);
 	_leave(" = 0");
 	return 0;

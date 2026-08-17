@@ -246,7 +246,7 @@ unsigned int get_total_surface_size_in_mall_bytes(
 		unsigned int num_pipes)
 {
 	unsigned int k;
-	unsigned int size = 0.0;
+	unsigned int size = 0;
 	recalculate_params(mode_lib, pipes, num_pipes);
 	for (k = 0; k < mode_lib->vba.NumberOfActiveSurfaces; ++k)
 		size += mode_lib->vba.SurfaceSizeInMALL[k];
@@ -304,7 +304,7 @@ bool get_is_phantom_pipe(struct display_mode_lib *mode_lib, const display_e2e_pi
 static void fetch_socbb_params(struct display_mode_lib *mode_lib)
 {
 	soc_bounding_box_st *soc = &mode_lib->vba.soc;
-	int i;
+	unsigned int i;
 
 	// SOC Bounding Box Parameters
 	mode_lib->vba.ReturnBusWidth = soc->return_bus_width_bytes;
@@ -343,7 +343,7 @@ static void fetch_socbb_params(struct display_mode_lib *mode_lib)
 	mode_lib->vba.FCLKChangeLatency = soc->fclk_change_latency_us;
 	mode_lib->vba.USRRetrainingLatency = soc->usr_retraining_latency_us;
 	mode_lib->vba.SMNLatency = soc->smn_latency_us;
-	mode_lib->vba.MALLAllocatedForDCNFinal = soc->mall_allocated_for_dcn_mbytes;
+	mode_lib->vba.MALLAllocatedForDCNFinal = (unsigned int)soc->mall_allocated_for_dcn_mbytes;
 
 	mode_lib->vba.PercentOfIdealDRAMBWReceivedAfterUrgLatencySTROBE = soc->pct_ideal_dram_bw_after_urgent_strobe;
 	mode_lib->vba.MaxAveragePercentOfIdealFabricBWDisplayCanUseInNormalSystemOperation =
@@ -946,7 +946,7 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
  */
 static void cache_debug_params(struct display_mode_lib *mode_lib)
 {
-	int k = 0;
+	unsigned int k = 0;
 
 	for (k = 0; k < mode_lib->vba.NumberOfActivePlanes; k++)
 		mode_lib->vba.CachedActiveDRAMClockChangeLatencyMargin[k] = mode_lib->vba.ActiveDRAMClockChangeLatencyMargin[k];

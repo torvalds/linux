@@ -2508,7 +2508,7 @@ int lancer_cmd_read_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
 
 	req->desired_read_len = cpu_to_le32(data_size);
 	req->read_offset = cpu_to_le32(data_offset);
-	strcpy(req->object_name, obj_name);
+	strscpy(req->object_name, obj_name);
 	req->descriptor_count = cpu_to_le32(1);
 	req->buf_len = cpu_to_le32(data_size);
 	req->addr_low = cpu_to_le32((cmd->dma & 0xFFFFFFFF));

@@ -466,7 +466,7 @@ static const struct knav_range_ops knav_acc_range_ops = {
  * @node:		device node
  * @range:		qmms range information
  *
- * Return 0 on success or error
+ * Return: 0 on success, errno otherwise.
  */
 int knav_init_acc_range(struct knav_device *kdev,
 			struct device_node *node,

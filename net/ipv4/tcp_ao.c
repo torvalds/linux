@@ -9,7 +9,9 @@
  */
 #define pr_fmt(fmt) "TCP: " fmt
 
-#include <crypto/hash.h>
+#include <crypto/aes-cbc-macs.h>
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
 #include <crypto/utils.h>
 #include <linux/inetdevice.h>
 #include <linux/tcp.h>
@@ -21,32 +23,133 @@
 
 DEFINE_STATIC_KEY_DEFERRED_FALSE(tcp_ao_needed, HZ);
 
-int tcp_ao_calc_traffic_key(struct tcp_ao_key *mkt, u8 *key, void *ctx,
-			    unsigned int len, struct tcp_sigpool *hp)
+static const struct tcp_ao_algo {
+	const char *name;
+	unsigned int digest_size;
+} tcp_ao_algos[] = {
+	[TCP_AO_ALGO_HMAC_SHA1] = {
+		.name = "hmac(sha1)",
+		.digest_size = SHA1_DIGEST_SIZE,
+	},
+	[TCP_AO_ALGO_HMAC_SHA256] = {
+		.name = "hmac(sha256)",
+		.digest_size = SHA256_DIGEST_SIZE,
+	},
+	[TCP_AO_ALGO_AES_128_CMAC] = {
+		.name = "cmac(aes128)",
+		.digest_size = AES_BLOCK_SIZE, /* same as AES_KEYSIZE_128 */
+	},
+};
+
+struct tcp_ao_mac_ctx {
+	enum tcp_ao_algo_id algo;
+	union {
+		struct hmac_sha1_ctx hmac_sha1;
+		struct hmac_sha256_ctx hmac_sha256;
+		struct {
+			struct aes_cmac_key key;
+			struct aes_cmac_ctx ctx;
+		} aes_cmac;
+	};
+};
+
+static const struct tcp_ao_algo *tcp_ao_find_algo(const char *name)
 {
-	struct scatterlist sg;
-	int ret;
+	for (size_t i = 0; i < ARRAY_SIZE(tcp_ao_algos); i++) {
+		const struct tcp_ao_algo *algo = &tcp_ao_algos[i];
 
-	if (crypto_ahash_setkey(crypto_ahash_reqtfm(hp->req),
-				mkt->key, mkt->keylen))
-		goto clear_hash;
+		if (!algo->name)
+			continue;
+		if (WARN_ON_ONCE(algo->digest_size > TCP_AO_MAX_MAC_LEN ||
+				 algo->digest_size >
+					 TCP_AO_MAX_TRAFFIC_KEY_LEN))
+			continue;
+		if (strcmp(name, algo->name) == 0)
+			return algo;
+	}
+	return NULL;
+}
 
-	ret = crypto_ahash_init(hp->req);
-	if (ret)
-		goto clear_hash;
+static void tcp_ao_mac_init(struct tcp_ao_mac_ctx *mac_ctx,
+			    enum tcp_ao_algo_id algo, const u8 *traffic_key)
+{
+	mac_ctx->algo = algo;
+	switch (mac_ctx->algo) {
+	case TCP_AO_ALGO_HMAC_SHA1:
+		hmac_sha1_init_usingrawkey(&mac_ctx->hmac_sha1, traffic_key,
+					   SHA1_DIGEST_SIZE);
+		return;
+	case TCP_AO_ALGO_HMAC_SHA256:
+		hmac_sha256_init_usingrawkey(&mac_ctx->hmac_sha256, traffic_key,
+					     SHA256_DIGEST_SIZE);
+		return;
+	case TCP_AO_ALGO_AES_128_CMAC:
+		aes_cmac_preparekey(&mac_ctx->aes_cmac.key, traffic_key,
+				    AES_KEYSIZE_128);
+		aes_cmac_init(&mac_ctx->aes_cmac.ctx, &mac_ctx->aes_cmac.key);
+		return;
+	default:
+		WARN_ON_ONCE(1); /* algo was validated earlier. */
+	}
+}
 
-	sg_init_one(&sg, ctx, len);
-	ahash_request_set_crypt(hp->req, &sg, key, len);
-	crypto_ahash_update(hp->req);
+void tcp_ao_mac_update(struct tcp_ao_mac_ctx *mac_ctx, const void *data,
+		       size_t data_len)
+{
+	switch (mac_ctx->algo) {
+	case TCP_AO_ALGO_HMAC_SHA1:
+		hmac_sha1_update(&mac_ctx->hmac_sha1, data, data_len);
+		return;
+	case TCP_AO_ALGO_HMAC_SHA256:
+		hmac_sha256_update(&mac_ctx->hmac_sha256, data, data_len);
+		return;
+	case TCP_AO_ALGO_AES_128_CMAC:
+		aes_cmac_update(&mac_ctx->aes_cmac.ctx, data, data_len);
+		return;
+	default:
+		WARN_ON_ONCE(1); /* algo was validated earlier. */
+	}
+}
 
-	ret = crypto_ahash_final(hp->req);
-	if (ret)
-		goto clear_hash;
+static void tcp_ao_mac_final(struct tcp_ao_mac_ctx *mac_ctx, u8 *out)
+{
+	switch (mac_ctx->algo) {
+	case TCP_AO_ALGO_HMAC_SHA1:
+		hmac_sha1_final(&mac_ctx->hmac_sha1, out);
+		return;
+	case TCP_AO_ALGO_HMAC_SHA256:
+		hmac_sha256_final(&mac_ctx->hmac_sha256, out);
+		return;
+	case TCP_AO_ALGO_AES_128_CMAC:
+		aes_cmac_final(&mac_ctx->aes_cmac.ctx, out);
+		return;
+	default:
+		WARN_ON_ONCE(1); /* algo was validated earlier. */
+	}
+}
 
-	return 0;
-clear_hash:
-	memset(key, 0, tcp_ao_digest_size(mkt));
-	return 1;
+void tcp_ao_calc_traffic_key(const struct tcp_ao_key *mkt, u8 *traffic_key,
+			     const void *input, unsigned int input_len)
+{
+	switch (mkt->algo) {
+	case TCP_AO_ALGO_HMAC_SHA1:
+		hmac_sha1_usingrawkey(mkt->key, mkt->keylen, input, input_len,
+				      traffic_key);
+		return;
+	case TCP_AO_ALGO_HMAC_SHA256:
+		hmac_sha256_usingrawkey(mkt->key, mkt->keylen, input, input_len,
+					traffic_key);
+		return;
+	case TCP_AO_ALGO_AES_128_CMAC: {
+		struct aes_cmac_key k;
+
+		aes_cmac_preparekey(&k, mkt->key, AES_KEYSIZE_128);
+		aes_cmac(&k, input, input_len, traffic_key);
+		return;
+	}
+	default:
+		WARN_ON_ONCE(1); /* algo was validated earlier. */
+	}
 }
 
 bool tcp_ao_ignore_icmp(const struct sock *sk, int family, int type, int code)
@@ -255,7 +358,6 @@ static struct tcp_ao_key *tcp_ao_copy_key(struct sock *sk,
 
 	*new_key = *key;
 	INIT_HLIST_NODE(&new_key->node);
-	tcp_sigpool_get(new_key->tcp_sigpool_id);
 	atomic64_set(&new_key->pkt_good, 0);
 	atomic64_set(&new_key->pkt_bad, 0);
 
@@ -266,18 +368,17 @@ static void tcp_ao_key_free_rcu(struct rcu_head *head)
 {
 	struct tcp_ao_key *key = container_of(head, struct tcp_ao_key, rcu);
 
-	tcp_sigpool_release(key->tcp_sigpool_id);
 	kfree_sensitive(key);
 }
 
-static void tcp_ao_info_free(struct tcp_ao_info *ao)
+static void tcp_ao_info_free_rcu(struct rcu_head *head)
 {
+	struct tcp_ao_info *ao = container_of(head, struct tcp_ao_info, rcu);
 	struct tcp_ao_key *key;
 	struct hlist_node *n;
 
 	hlist_for_each_entry_safe(key, n, &ao->head, node) {
 		hlist_del(&key->node);
-		tcp_sigpool_release(key->tcp_sigpool_id);
 		kfree_sensitive(key);
 	}
 	kfree(ao);
@@ -311,7 +412,7 @@ void tcp_ao_destroy_sock(struct sock *sk, bool twsk)
 
 	if (!twsk)
 		tcp_ao_sk_omem_free(sk, ao);
-	tcp_ao_info_free(ao);
+	call_rcu(&ao->rcu, tcp_ao_info_free_rcu);
 }
 
 void tcp_ao_time_wait(struct tcp_timewait_sock *tcptw, struct tcp_sock *tp)
@@ -336,10 +437,10 @@ void tcp_ao_time_wait(struct tcp_timewait_sock *tcptw, struct tcp_sock *tp)
 }
 
 /* 4 tuple and ISNs are expected in NBO */
-static int tcp_v4_ao_calc_key(struct tcp_ao_key *mkt, u8 *key,
-			      __be32 saddr, __be32 daddr,
-			      __be16 sport, __be16 dport,
-			      __be32 sisn,  __be32 disn)
+static void tcp_v4_ao_calc_key(struct tcp_ao_key *mkt, u8 *key,
+			       __be32 saddr, __be32 daddr,
+			       __be16 sport, __be16 dport,
+			       __be32 sisn, __be32 disn)
 {
 	/* See RFC5926 3.1.1 */
 	struct kdf_input_block {
@@ -347,148 +448,146 @@ static int tcp_v4_ao_calc_key(struct tcp_ao_key *mkt, u8 *key,
 		u8                      label[6];
 		struct tcp4_ao_context	ctx;
 		__be16                  outlen;
-	} __packed * tmp;
-	struct tcp_sigpool hp;
-	int err;
+	} __packed input = {
+		.counter = 1,
+		.label = "TCP-AO",
+		.ctx = {
+			.saddr = saddr,
+			.daddr = daddr,
+			.sport = sport,
+			.dport = dport,
+			.sisn = sisn,
+			.disn = disn,
+		},
+		.outlen = htons(tcp_ao_digest_size(mkt) * 8), /* in bits */
+	};
 
-	err = tcp_sigpool_start(mkt->tcp_sigpool_id, &hp);
-	if (err)
-		return err;
-
-	tmp = hp.scratch;
-	tmp->counter	= 1;
-	memcpy(tmp->label, "TCP-AO", 6);
-	tmp->ctx.saddr	= saddr;
-	tmp->ctx.daddr	= daddr;
-	tmp->ctx.sport	= sport;
-	tmp->ctx.dport	= dport;
-	tmp->ctx.sisn	= sisn;
-	tmp->ctx.disn	= disn;
-	tmp->outlen	= htons(tcp_ao_digest_size(mkt) * 8); /* in bits */
-
-	err = tcp_ao_calc_traffic_key(mkt, key, tmp, sizeof(*tmp), &hp);
-	tcp_sigpool_end(&hp);
-
-	return err;
+	tcp_ao_calc_traffic_key(mkt, key, &input, sizeof(input));
 }
 
-int tcp_v4_ao_calc_key_sk(struct tcp_ao_key *mkt, u8 *key,
-			  const struct sock *sk,
-			  __be32 sisn, __be32 disn, bool send)
+void tcp_v4_ao_calc_key_sk(struct tcp_ao_key *mkt, u8 *key,
+			   const struct sock *sk,
+			   __be32 sisn, __be32 disn, bool send)
 {
 	if (send)
-		return tcp_v4_ao_calc_key(mkt, key, sk->sk_rcv_saddr,
-					  sk->sk_daddr, htons(sk->sk_num),
-					  sk->sk_dport, sisn, disn);
+		tcp_v4_ao_calc_key(mkt, key, sk->sk_rcv_saddr, sk->sk_daddr,
+				   htons(sk->sk_num), sk->sk_dport, sisn, disn);
 	else
-		return tcp_v4_ao_calc_key(mkt, key, sk->sk_daddr,
-					  sk->sk_rcv_saddr, sk->sk_dport,
-					  htons(sk->sk_num), disn, sisn);
+		tcp_v4_ao_calc_key(mkt, key, sk->sk_daddr, sk->sk_rcv_saddr,
+				   sk->sk_dport, htons(sk->sk_num), disn, sisn);
 }
 
 static int tcp_ao_calc_key_sk(struct tcp_ao_key *mkt, u8 *key,
 			      const struct sock *sk,
 			      __be32 sisn, __be32 disn, bool send)
 {
-	if (mkt->family == AF_INET)
-		return tcp_v4_ao_calc_key_sk(mkt, key, sk, sisn, disn, send);
+	if (mkt->family == AF_INET) {
+		tcp_v4_ao_calc_key_sk(mkt, key, sk, sisn, disn, send);
+		return 0;
+	}
 #if IS_ENABLED(CONFIG_IPV6)
-	else if (mkt->family == AF_INET6)
-		return tcp_v6_ao_calc_key_sk(mkt, key, sk, sisn, disn, send);
+	if (mkt->family == AF_INET6) {
+		tcp_v6_ao_calc_key_sk(mkt, key, sk, sisn, disn, send);
+		return 0;
+	}
 #endif
-	else
-		return -EOPNOTSUPP;
+	return -EOPNOTSUPP;
 }
 
-int tcp_v4_ao_calc_key_rsk(struct tcp_ao_key *mkt, u8 *key,
-			   struct request_sock *req)
+void tcp_v4_ao_calc_key_rsk(struct tcp_ao_key *mkt, u8 *key,
+			    struct request_sock *req)
 {
 	struct inet_request_sock *ireq = inet_rsk(req);
 
-	return tcp_v4_ao_calc_key(mkt, key,
-				  ireq->ir_loc_addr, ireq->ir_rmt_addr,
-				  htons(ireq->ir_num), ireq->ir_rmt_port,
-				  htonl(tcp_rsk(req)->snt_isn),
-				  htonl(tcp_rsk(req)->rcv_isn));
+	tcp_v4_ao_calc_key(mkt, key, ireq->ir_loc_addr, ireq->ir_rmt_addr,
+			   htons(ireq->ir_num), ireq->ir_rmt_port,
+			   htonl(tcp_rsk(req)->snt_isn),
+			   htonl(tcp_rsk(req)->rcv_isn));
 }
 
-static int tcp_v4_ao_calc_key_skb(struct tcp_ao_key *mkt, u8 *key,
-				  const struct sk_buff *skb,
-				  __be32 sisn, __be32 disn)
+static void tcp_v4_ao_calc_key_skb(struct tcp_ao_key *mkt, u8 *key,
+				   const struct sk_buff *skb,
+				   __be32 sisn, __be32 disn)
 {
 	const struct iphdr *iph = ip_hdr(skb);
 	const struct tcphdr *th = tcp_hdr(skb);
 
-	return tcp_v4_ao_calc_key(mkt, key, iph->saddr, iph->daddr,
-				  th->source, th->dest, sisn, disn);
+	tcp_v4_ao_calc_key(mkt, key, iph->saddr, iph->daddr, th->source,
+			   th->dest, sisn, disn);
 }
 
 static int tcp_ao_calc_key_skb(struct tcp_ao_key *mkt, u8 *key,
 			       const struct sk_buff *skb,
 			       __be32 sisn, __be32 disn, int family)
 {
-	if (family == AF_INET)
-		return tcp_v4_ao_calc_key_skb(mkt, key, skb, sisn, disn);
+	if (family == AF_INET) {
+		tcp_v4_ao_calc_key_skb(mkt, key, skb, sisn, disn);
+		return 0;
+	}
 #if IS_ENABLED(CONFIG_IPV6)
-	else if (family == AF_INET6)
-		return tcp_v6_ao_calc_key_skb(mkt, key, skb, sisn, disn);
+	if (family == AF_INET6) {
+		tcp_v6_ao_calc_key_skb(mkt, key, skb, sisn, disn);
+		return 0;
+	}
 #endif
 	return -EAFNOSUPPORT;
 }
 
-static int tcp_v4_ao_hash_pseudoheader(struct tcp_sigpool *hp,
-				       __be32 daddr, __be32 saddr,
-				       int nbytes)
+static void tcp_v4_ao_hash_pseudoheader(struct tcp_ao_mac_ctx *mac_ctx,
+					__be32 daddr, __be32 saddr, int nbytes)
 {
-	struct tcp4_pseudohdr *bp;
-	struct scatterlist sg;
+	struct tcp4_pseudohdr phdr = {
+		.saddr = saddr,
+		.daddr = daddr,
+		.pad = 0,
+		.protocol = IPPROTO_TCP,
+		.len = cpu_to_be16(nbytes),
+	};
 
-	bp = hp->scratch;
-	bp->saddr = saddr;
-	bp->daddr = daddr;
-	bp->pad = 0;
-	bp->protocol = IPPROTO_TCP;
-	bp->len = cpu_to_be16(nbytes);
-
-	sg_init_one(&sg, bp, sizeof(*bp));
-	ahash_request_set_crypt(hp->req, &sg, NULL, sizeof(*bp));
-	return crypto_ahash_update(hp->req);
+	tcp_ao_mac_update(mac_ctx, &phdr, sizeof(phdr));
 }
 
 static int tcp_ao_hash_pseudoheader(unsigned short int family,
 				    const struct sock *sk,
 				    const struct sk_buff *skb,
-				    struct tcp_sigpool *hp, int nbytes)
+				    struct tcp_ao_mac_ctx *mac_ctx, int nbytes)
 {
 	const struct tcphdr *th = tcp_hdr(skb);
 
 	/* TODO: Can we rely on checksum being zero to mean outbound pkt? */
 	if (!th->check) {
-		if (family == AF_INET)
-			return tcp_v4_ao_hash_pseudoheader(hp, sk->sk_daddr,
-					sk->sk_rcv_saddr, skb->len);
+		if (family == AF_INET) {
+			tcp_v4_ao_hash_pseudoheader(mac_ctx, sk->sk_daddr,
+						    sk->sk_rcv_saddr, skb->len);
+			return 0;
+		}
 #if IS_ENABLED(CONFIG_IPV6)
-		else if (family == AF_INET6)
-			return tcp_v6_ao_hash_pseudoheader(hp, &sk->sk_v6_daddr,
-					&sk->sk_v6_rcv_saddr, skb->len);
+		if (family == AF_INET6) {
+			tcp_v6_ao_hash_pseudoheader(mac_ctx, &sk->sk_v6_daddr,
+						    &sk->sk_v6_rcv_saddr,
+						    skb->len);
+			return 0;
+		}
 #endif
-		else
-			return -EAFNOSUPPORT;
+		return -EAFNOSUPPORT;
 	}
 
 	if (family == AF_INET) {
 		const struct iphdr *iph = ip_hdr(skb);
 
-		return tcp_v4_ao_hash_pseudoheader(hp, iph->daddr,
-				iph->saddr, skb->len);
+		tcp_v4_ao_hash_pseudoheader(mac_ctx, iph->daddr, iph->saddr,
+					    skb->len);
+		return 0;
+	}
 #if IS_ENABLED(CONFIG_IPV6)
-	} else if (family == AF_INET6) {
+	if (family == AF_INET6) {
 		const struct ipv6hdr *iph = ipv6_hdr(skb);
 
-		return tcp_v6_ao_hash_pseudoheader(hp, &iph->daddr,
-				&iph->saddr, skb->len);
-#endif
+		tcp_v6_ao_hash_pseudoheader(mac_ctx, &iph->daddr, &iph->saddr,
+					    skb->len);
+		return 0;
 	}
+#endif
 	return -EAFNOSUPPORT;
 }
 
@@ -507,31 +606,20 @@ u32 tcp_ao_compute_sne(u32 next_sne, u32 next_seq, u32 seq)
 	return sne;
 }
 
-/* tcp_ao_hash_sne(struct tcp_sigpool *hp)
- * @hp	- used for hashing
- * @sne - sne value
- */
-static int tcp_ao_hash_sne(struct tcp_sigpool *hp, u32 sne)
+static void tcp_ao_hash_sne(struct tcp_ao_mac_ctx *mac_ctx, u32 sne)
 {
-	struct scatterlist sg;
-	__be32 *bp;
+	__be32 sne_be32 = htonl(sne);
 
-	bp = (__be32 *)hp->scratch;
-	*bp = htonl(sne);
-
-	sg_init_one(&sg, bp, sizeof(*bp));
-	ahash_request_set_crypt(hp->req, &sg, NULL, sizeof(*bp));
-	return crypto_ahash_update(hp->req);
+	tcp_ao_mac_update(mac_ctx, &sne_be32, sizeof(sne_be32));
 }
 
-static int tcp_ao_hash_header(struct tcp_sigpool *hp,
-			      const struct tcphdr *th,
-			      bool exclude_options, u8 *hash,
-			      int hash_offset, int hash_len)
+static void tcp_ao_hash_header(struct tcp_ao_mac_ctx *mac_ctx,
+			       const struct tcphdr *th, bool exclude_options,
+			       u8 *hash, int hash_offset, int hash_len)
 {
-	struct scatterlist sg;
-	u8 *hdr = hp->scratch;
-	int err, len;
+	/* Full TCP header (th->doff << 2) should fit into scratch area. */
+	u8 hdr[60];
+	int len;
 
 	/* We are not allowed to change tcphdr, make a local copy */
 	if (exclude_options) {
@@ -551,11 +639,7 @@ static int tcp_ao_hash_header(struct tcp_sigpool *hp,
 		memset(hdr + hash_offset, 0, hash_len);
 	}
 
-	sg_init_one(&sg, hdr, len);
-	ahash_request_set_crypt(hp->req, &sg, NULL, len);
-	err = crypto_ahash_update(hp->req);
-	WARN_ON_ONCE(err != 0);
-	return err;
+	tcp_ao_mac_update(mac_ctx, hdr, len);
 }
 
 int tcp_ao_hash_hdr(unsigned short int family, char *ao_hash,
@@ -564,59 +648,66 @@ int tcp_ao_hash_hdr(unsigned short int family, char *ao_hash,
 		    const union tcp_ao_addr *saddr,
 		    const struct tcphdr *th, u32 sne)
 {
-	int tkey_len = tcp_ao_digest_size(key);
 	int hash_offset = ao_hash - (char *)th;
-	struct tcp_sigpool hp;
-	void *hash_buf = NULL;
+	struct tcp_ao_mac_ctx mac_ctx;
+	u8 hash_buf[TCP_AO_MAX_MAC_LEN];
 
-	hash_buf = kmalloc(tkey_len, GFP_ATOMIC);
-	if (!hash_buf)
-		goto clear_hash_noput;
-
-	if (tcp_sigpool_start(key->tcp_sigpool_id, &hp))
-		goto clear_hash_noput;
-
-	if (crypto_ahash_setkey(crypto_ahash_reqtfm(hp.req), tkey, tkey_len))
-		goto clear_hash;
-
-	if (crypto_ahash_init(hp.req))
-		goto clear_hash;
-
-	if (tcp_ao_hash_sne(&hp, sne))
-		goto clear_hash;
+	tcp_ao_mac_init(&mac_ctx, key->algo, tkey);
+	tcp_ao_hash_sne(&mac_ctx, sne);
 	if (family == AF_INET) {
-		if (tcp_v4_ao_hash_pseudoheader(&hp, daddr->a4.s_addr,
-						saddr->a4.s_addr, th->doff * 4))
-			goto clear_hash;
+		tcp_v4_ao_hash_pseudoheader(&mac_ctx, daddr->a4.s_addr,
+					    saddr->a4.s_addr, th->doff * 4);
 #if IS_ENABLED(CONFIG_IPV6)
 	} else if (family == AF_INET6) {
-		if (tcp_v6_ao_hash_pseudoheader(&hp, &daddr->a6,
-						&saddr->a6, th->doff * 4))
-			goto clear_hash;
+		tcp_v6_ao_hash_pseudoheader(&mac_ctx, &daddr->a6,
+					    &saddr->a6, th->doff * 4);
 #endif
 	} else {
 		WARN_ON_ONCE(1);
 		goto clear_hash;
 	}
-	if (tcp_ao_hash_header(&hp, th,
-			       !!(key->keyflags & TCP_AO_KEYF_EXCLUDE_OPT),
-			       ao_hash, hash_offset, tcp_ao_maclen(key)))
-		goto clear_hash;
-	ahash_request_set_crypt(hp.req, NULL, hash_buf, 0);
-	if (crypto_ahash_final(hp.req))
-		goto clear_hash;
+	tcp_ao_hash_header(&mac_ctx, th,
+			   !!(key->keyflags & TCP_AO_KEYF_EXCLUDE_OPT),
+			   ao_hash, hash_offset, tcp_ao_maclen(key));
+	tcp_ao_mac_final(&mac_ctx, hash_buf);
 
 	memcpy(ao_hash, hash_buf, tcp_ao_maclen(key));
-	tcp_sigpool_end(&hp);
-	kfree(hash_buf);
 	return 0;
 
 clear_hash:
-	tcp_sigpool_end(&hp);
-clear_hash_noput:
 	memset(ao_hash, 0, tcp_ao_maclen(key));
-	kfree(hash_buf);
 	return 1;
+}
+
+static void tcp_ao_hash_skb_data(struct tcp_ao_mac_ctx *mac_ctx,
+				 const struct sk_buff *skb,
+				 unsigned int header_len)
+{
+	const unsigned int head_data_len = skb_headlen(skb) > header_len ?
+					   skb_headlen(skb) - header_len : 0;
+	const struct skb_shared_info *shi = skb_shinfo(skb);
+	struct sk_buff *frag_iter;
+	unsigned int i;
+
+	tcp_ao_mac_update(mac_ctx, (const u8 *)tcp_hdr(skb) + header_len,
+			  head_data_len);
+
+	for (i = 0; i < shi->nr_frags; ++i) {
+		const skb_frag_t *f = &shi->frags[i];
+		u32 p_off, p_len, copied;
+		const void *vaddr;
+		struct page *p;
+
+		skb_frag_foreach_page(f, skb_frag_off(f), skb_frag_size(f),
+				      p, p_off, p_len, copied) {
+			vaddr = kmap_local_page(p);
+			tcp_ao_mac_update(mac_ctx, vaddr + p_off, p_len);
+			kunmap_local(vaddr);
+		}
+	}
+
+	skb_walk_frags(skb, frag_iter)
+		tcp_ao_hash_skb_data(mac_ctx, frag_iter, 0);
 }
 
 int tcp_ao_hash_skb(unsigned short int family,
@@ -625,48 +716,24 @@ int tcp_ao_hash_skb(unsigned short int family,
 		    const u8 *tkey, int hash_offset, u32 sne)
 {
 	const struct tcphdr *th = tcp_hdr(skb);
-	int tkey_len = tcp_ao_digest_size(key);
-	struct tcp_sigpool hp;
-	void *hash_buf = NULL;
+	struct tcp_ao_mac_ctx mac_ctx;
+	u8 hash_buf[TCP_AO_MAX_MAC_LEN];
 
-	hash_buf = kmalloc(tkey_len, GFP_ATOMIC);
-	if (!hash_buf)
-		goto clear_hash_noput;
-
-	if (tcp_sigpool_start(key->tcp_sigpool_id, &hp))
-		goto clear_hash_noput;
-
-	if (crypto_ahash_setkey(crypto_ahash_reqtfm(hp.req), tkey, tkey_len))
+	tcp_ao_mac_init(&mac_ctx, key->algo, tkey);
+	tcp_ao_hash_sne(&mac_ctx, sne);
+	if (tcp_ao_hash_pseudoheader(family, sk, skb, &mac_ctx, skb->len))
 		goto clear_hash;
-
-	/* For now use sha1 by default. Depends on alg in tcp_ao_key */
-	if (crypto_ahash_init(hp.req))
-		goto clear_hash;
-
-	if (tcp_ao_hash_sne(&hp, sne))
-		goto clear_hash;
-	if (tcp_ao_hash_pseudoheader(family, sk, skb, &hp, skb->len))
-		goto clear_hash;
-	if (tcp_ao_hash_header(&hp, th,
-			       !!(key->keyflags & TCP_AO_KEYF_EXCLUDE_OPT),
-			       ao_hash, hash_offset, tcp_ao_maclen(key)))
-		goto clear_hash;
-	if (tcp_sigpool_hash_skb_data(&hp, skb, th->doff << 2))
-		goto clear_hash;
-	ahash_request_set_crypt(hp.req, NULL, hash_buf, 0);
-	if (crypto_ahash_final(hp.req))
-		goto clear_hash;
+	tcp_ao_hash_header(&mac_ctx, th,
+			   !!(key->keyflags & TCP_AO_KEYF_EXCLUDE_OPT),
+			   ao_hash, hash_offset, tcp_ao_maclen(key));
+	tcp_ao_hash_skb_data(&mac_ctx, skb, th->doff << 2);
+	tcp_ao_mac_final(&mac_ctx, hash_buf);
 
 	memcpy(ao_hash, hash_buf, tcp_ao_maclen(key));
-	tcp_sigpool_end(&hp);
-	kfree(hash_buf);
 	return 0;
 
 clear_hash:
-	tcp_sigpool_end(&hp);
-clear_hash_noput:
 	memset(ao_hash, 0, tcp_ao_maclen(key));
-	kfree(hash_buf);
 	return 1;
 }
 
@@ -682,22 +749,12 @@ int tcp_v4_ao_synack_hash(char *ao_hash, struct tcp_ao_key *ao_key,
 			  struct request_sock *req, const struct sk_buff *skb,
 			  int hash_offset, u32 sne)
 {
-	void *hash_buf = NULL;
-	int err;
+	u8 tkey_buf[TCP_AO_MAX_TRAFFIC_KEY_LEN];
 
-	hash_buf = kmalloc(tcp_ao_digest_size(ao_key), GFP_ATOMIC);
-	if (!hash_buf)
-		return -ENOMEM;
+	tcp_v4_ao_calc_key_rsk(ao_key, tkey_buf, req);
 
-	err = tcp_v4_ao_calc_key_rsk(ao_key, hash_buf, req);
-	if (err)
-		goto out;
-
-	err = tcp_ao_hash_skb(AF_INET, ao_hash, ao_key, req_to_sk(req), skb,
-			      hash_buf, hash_offset, sne);
-out:
-	kfree(hash_buf);
-	return err;
+	return tcp_ao_hash_skb(AF_INET, ao_hash, ao_key, req_to_sk(req), skb,
+			       tkey_buf, hash_offset, sne);
 }
 
 struct tcp_ao_key *tcp_v4_ao_lookup_rsk(const struct sock *sk,
@@ -807,14 +864,14 @@ int tcp_ao_prepare_reset(const struct sock *sk, struct sk_buff *skb,
 	return 0;
 }
 
-int tcp_ao_transmit_skb(struct sock *sk, struct sk_buff *skb,
-			struct tcp_ao_key *key, struct tcphdr *th,
-			__u8 *hash_location)
+void tcp_ao_transmit_skb(struct sock *sk, struct sk_buff *skb,
+			 struct tcp_ao_key *key, struct tcphdr *th,
+			 __u8 *hash_location)
 {
 	struct tcp_skb_cb *tcb = TCP_SKB_CB(skb);
+	u8 tkey_buf[TCP_AO_MAX_TRAFFIC_KEY_LEN];
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct tcp_ao_info *ao;
-	void *tkey_buf = NULL;
 	u8 *traffic_key;
 	u32 sne;
 
@@ -826,9 +883,6 @@ int tcp_ao_transmit_skb(struct sock *sk, struct sk_buff *skb,
 
 		if (!(tcb->tcp_flags & TCPHDR_ACK)) {
 			disn = 0;
-			tkey_buf = kmalloc(tcp_ao_digest_size(key), GFP_ATOMIC);
-			if (!tkey_buf)
-				return -ENOMEM;
 			traffic_key = tkey_buf;
 		} else {
 			disn = ao->risn;
@@ -840,8 +894,6 @@ int tcp_ao_transmit_skb(struct sock *sk, struct sk_buff *skb,
 				 ntohl(th->seq));
 	tp->af_specific->calc_ao_hash(hash_location, key, sk, skb, traffic_key,
 				      hash_location - (u8 *)th, sne);
-	kfree(tkey_buf);
-	return 0;
 }
 
 static struct tcp_ao_key *tcp_ao_inbound_lookup(unsigned short int family,
@@ -906,7 +958,7 @@ tcp_ao_verify_hash(const struct sock *sk, const struct sk_buff *skb,
 {
 	const struct tcphdr *th = tcp_hdr(skb);
 	u8 maclen = tcp_ao_hdr_maclen(aoh);
-	void *hash_buf = NULL;
+	u8 hash_buf[TCP_AO_MAX_MAC_LEN];
 
 	if (maclen != tcp_ao_maclen(key)) {
 		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPAOBAD);
@@ -917,10 +969,6 @@ tcp_ao_verify_hash(const struct sock *sk, const struct sk_buff *skb,
 		return SKB_DROP_REASON_TCP_AOFAILURE;
 	}
 
-	hash_buf = kmalloc(tcp_ao_digest_size(key), GFP_ATOMIC);
-	if (!hash_buf)
-		return SKB_DROP_REASON_NOT_SPECIFIED;
-
 	/* XXX: make it per-AF callback? */
 	tcp_ao_hash_skb(family, hash_buf, key, sk, skb, traffic_key,
 			(phash - (u8 *)th), sne);
@@ -930,13 +978,11 @@ tcp_ao_verify_hash(const struct sock *sk, const struct sk_buff *skb,
 		atomic64_inc(&key->pkt_bad);
 		trace_tcp_ao_mismatch(sk, skb, aoh->keyid,
 				      aoh->rnext_keyid, maclen);
-		kfree(hash_buf);
 		return SKB_DROP_REASON_TCP_AOFAILURE;
 	}
 	NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPAOGOOD);
 	atomic64_inc(&info->counters.pkt_good);
 	atomic64_inc(&key->pkt_good);
-	kfree(hash_buf);
 	return SKB_NOT_DROPPED_YET;
 }
 
@@ -945,11 +991,11 @@ tcp_inbound_ao_hash(struct sock *sk, const struct sk_buff *skb,
 		    unsigned short int family, const struct request_sock *req,
 		    int l3index, const struct tcp_ao_hdr *aoh)
 {
+	u8 tkey_buf[TCP_AO_MAX_TRAFFIC_KEY_LEN];
 	const struct tcphdr *th = tcp_hdr(skb);
 	u8 maclen = tcp_ao_hdr_maclen(aoh);
 	u8 *phash = (u8 *)(aoh + 1); /* hash goes just after the header */
 	struct tcp_ao_info *info;
-	enum skb_drop_reason ret;
 	struct tcp_ao_key *key;
 	__be32 sisn, disn;
 	u8 *traffic_key;
@@ -1057,14 +1103,9 @@ tcp_inbound_ao_hash(struct sock *sk, const struct sk_buff *skb,
 		return SKB_DROP_REASON_TCP_AOFAILURE;
 	}
 verify_hash:
-	traffic_key = kmalloc(tcp_ao_digest_size(key), GFP_ATOMIC);
-	if (!traffic_key)
-		return SKB_DROP_REASON_NOT_SPECIFIED;
-	tcp_ao_calc_key_skb(key, traffic_key, skb, sisn, disn, family);
-	ret = tcp_ao_verify_hash(sk, skb, family, info, aoh, key,
-				 traffic_key, phash, sne, l3index);
-	kfree(traffic_key);
-	return ret;
+	tcp_ao_calc_key_skb(key, tkey_buf, skb, sisn, disn, family);
+	return tcp_ao_verify_hash(sk, skb, family, info, aoh, key,
+				  tkey_buf, phash, sne, l3index);
 
 key_not_found:
 	NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPAOKEYNOTFOUND);
@@ -1281,7 +1322,6 @@ int tcp_ao_copy_all_matching(const struct sock *sk, struct sock *newsk,
 free_and_exit:
 	hlist_for_each_entry_safe(key, key_head, &new_ao->head, node) {
 		hlist_del(&key->node);
-		tcp_sigpool_release(key->tcp_sigpool_id);
 		atomic_sub(tcp_ao_sizeof_key(key), &newsk->sk_omem_alloc);
 		kfree_sensitive(key);
 	}
@@ -1337,23 +1377,10 @@ static int tcp_ao_verify_ipv4(struct sock *sk, struct tcp_ao_add *cmd,
 	return 0;
 }
 
-static int tcp_ao_parse_crypto(struct tcp_ao_add *cmd, struct tcp_ao_key *key)
+static int tcp_ao_parse_crypto(const struct tcp_ao_add *cmd,
+			       struct tcp_ao_key *key)
 {
 	unsigned int syn_tcp_option_space;
-	bool is_kdf_aes_128_cmac = false;
-	struct crypto_ahash *tfm;
-	struct tcp_sigpool hp;
-	void *tmp_key = NULL;
-	int err;
-
-	/* RFC5926, 3.1.1.2. KDF_AES_128_CMAC */
-	if (!strcmp("cmac(aes128)", cmd->alg_name)) {
-		strscpy(cmd->alg_name, "cmac(aes)", sizeof(cmd->alg_name));
-		is_kdf_aes_128_cmac = (cmd->keylen != 16);
-		tmp_key = kmalloc(cmd->keylen, GFP_KERNEL);
-		if (!tmp_key)
-			return -ENOMEM;
-	}
 
 	key->maclen = cmd->maclen ?: 12; /* 12 is the default in RFC5925 */
 
@@ -1389,64 +1416,27 @@ static int tcp_ao_parse_crypto(struct tcp_ao_add *cmd, struct tcp_ao_key *key)
 	syn_tcp_option_space -= TCPOLEN_MSS_ALIGNED;
 	syn_tcp_option_space -= TCPOLEN_TSTAMP_ALIGNED;
 	syn_tcp_option_space -= TCPOLEN_WSCALE_ALIGNED;
-	if (tcp_ao_len_aligned(key) > syn_tcp_option_space) {
-		err = -EMSGSIZE;
-		goto err_kfree;
+	if (tcp_ao_len_aligned(key) > syn_tcp_option_space)
+		return -EMSGSIZE;
+
+	if (key->algo == TCP_AO_ALGO_AES_128_CMAC &&
+	    cmd->keylen != AES_KEYSIZE_128) {
+		/* RFC5926, 3.1.1.2. KDF_AES_128_CMAC */
+		static const u8 zeroes[AES_KEYSIZE_128];
+		struct aes_cmac_key extractor;
+
+		aes_cmac_preparekey(&extractor, zeroes, AES_KEYSIZE_128);
+		aes_cmac(&extractor, cmd->key, cmd->keylen, key->key);
+		key->keylen = AES_KEYSIZE_128;
+	} else {
+		memcpy(key->key, cmd->key, cmd->keylen);
+		key->keylen = cmd->keylen;
 	}
-
-	key->keylen = cmd->keylen;
-	memcpy(key->key, cmd->key, cmd->keylen);
-
-	err = tcp_sigpool_start(key->tcp_sigpool_id, &hp);
-	if (err)
-		goto err_kfree;
-
-	tfm = crypto_ahash_reqtfm(hp.req);
-	if (is_kdf_aes_128_cmac) {
-		void *scratch = hp.scratch;
-		struct scatterlist sg;
-
-		memcpy(tmp_key, cmd->key, cmd->keylen);
-		sg_init_one(&sg, tmp_key, cmd->keylen);
-
-		/* Using zero-key of 16 bytes as described in RFC5926 */
-		memset(scratch, 0, 16);
-		err = crypto_ahash_setkey(tfm, scratch, 16);
-		if (err)
-			goto err_pool_end;
-
-		err = crypto_ahash_init(hp.req);
-		if (err)
-			goto err_pool_end;
-
-		ahash_request_set_crypt(hp.req, &sg, key->key, cmd->keylen);
-		err = crypto_ahash_update(hp.req);
-		if (err)
-			goto err_pool_end;
-
-		err |= crypto_ahash_final(hp.req);
-		if (err)
-			goto err_pool_end;
-		key->keylen = 16;
-	}
-
-	err = crypto_ahash_setkey(tfm, key->key, key->keylen);
-	if (err)
-		goto err_pool_end;
-
-	tcp_sigpool_end(&hp);
-	kfree_sensitive(tmp_key);
 
 	if (tcp_ao_maclen(key) > key->digest_size)
 		return -EINVAL;
 
 	return 0;
-
-err_pool_end:
-	tcp_sigpool_end(&hp);
-err_kfree:
-	kfree_sensitive(tmp_key);
-	return err;
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -1550,50 +1540,33 @@ static struct tcp_ao_info *getsockopt_ao_info(struct sock *sk)
 static struct tcp_ao_key *tcp_ao_key_alloc(struct sock *sk,
 					   struct tcp_ao_add *cmd)
 {
-	const char *algo = cmd->alg_name;
-	unsigned int digest_size;
-	struct crypto_ahash *tfm;
+	const struct tcp_ao_algo *algo;
 	struct tcp_ao_key *key;
-	struct tcp_sigpool hp;
-	int err, pool_id;
 	size_t size;
 
 	/* Force null-termination of alg_name */
 	cmd->alg_name[ARRAY_SIZE(cmd->alg_name) - 1] = '\0';
 
-	/* RFC5926, 3.1.1.2. KDF_AES_128_CMAC */
-	if (!strcmp("cmac(aes128)", algo))
-		algo = "cmac(aes)";
-
-	/* Full TCP header (th->doff << 2) should fit into scratch area,
-	 * see tcp_ao_hash_header().
+	/*
+	 * For backwards compatibility, accept "cmac(aes)" as an alias for
+	 * "cmac(aes128)", provided that the key length is exactly 128 bits.
 	 */
-	pool_id = tcp_sigpool_alloc_ahash(algo, 60);
-	if (pool_id < 0)
-		return ERR_PTR(pool_id);
+	if (strcmp(cmd->alg_name, "cmac(aes)") == 0 &&
+	    cmd->keylen == AES_KEYSIZE_128)
+		strscpy(cmd->alg_name, "cmac(aes128)");
 
-	err = tcp_sigpool_start(pool_id, &hp);
-	if (err)
-		goto err_free_pool;
+	algo = tcp_ao_find_algo(cmd->alg_name);
+	if (!algo)
+		return ERR_PTR(-ENOENT);
 
-	tfm = crypto_ahash_reqtfm(hp.req);
-	digest_size = crypto_ahash_digestsize(tfm);
-	tcp_sigpool_end(&hp);
-
-	size = sizeof(struct tcp_ao_key) + (digest_size << 1);
+	size = sizeof(struct tcp_ao_key) + (algo->digest_size << 1);
 	key = sock_kmalloc(sk, size, GFP_KERNEL);
-	if (!key) {
-		err = -ENOMEM;
-		goto err_free_pool;
-	}
+	if (!key)
+		return ERR_PTR(-ENOMEM);
 
-	key->tcp_sigpool_id = pool_id;
-	key->digest_size = digest_size;
+	key->algo = algo - tcp_ao_algos;
+	key->digest_size = algo->digest_size;
 	return key;
-
-err_free_pool:
-	tcp_sigpool_release(pool_id);
-	return ERR_PTR(err);
 }
 
 static int tcp_ao_add_cmd(struct sock *sk, unsigned short int family,
@@ -1754,7 +1727,6 @@ static int tcp_ao_add_cmd(struct sock *sk, unsigned short int family,
 
 err_free_sock:
 	atomic_sub(tcp_ao_sizeof_key(key), &sk->sk_omem_alloc);
-	tcp_sigpool_release(key->tcp_sigpool_id);
 	kfree_sensitive(key);
 err_free_ao:
 	if (first)
@@ -1776,6 +1748,10 @@ static int tcp_ao_delete_key(struct sock *sk, struct tcp_ao_info *ao_info,
 	 * them and we can just free all resources in RCU fashion.
 	 */
 	if (del_async) {
+		if (ao_info->current_key == key)
+			WRITE_ONCE(ao_info->current_key, NULL);
+		if (ao_info->rnext_key == key)
+			WRITE_ONCE(ao_info->rnext_key, NULL);
 		atomic_sub(tcp_ao_sizeof_key(key), &sk->sk_omem_alloc);
 		call_rcu(&key->rcu, tcp_ao_key_free_rcu);
 		return 0;
@@ -2285,7 +2261,11 @@ match:
 		opt_out.pkt_good = atomic64_read(&key->pkt_good);
 		opt_out.pkt_bad = atomic64_read(&key->pkt_bad);
 		memcpy(&opt_out.key, key->key, key->keylen);
-		tcp_sigpool_algo(key->tcp_sigpool_id, opt_out.alg_name, 64);
+		if (key->algo == TCP_AO_ALGO_AES_128_CMAC)
+			/* This is needed for backwards compatibility. */
+			strscpy(opt_out.alg_name, "cmac(aes)");
+		else
+			strscpy(opt_out.alg_name, tcp_ao_algos[key->algo].name);
 
 		/* Copy key to user */
 		if (copy_to_sockptr_offset(optval, out_offset,

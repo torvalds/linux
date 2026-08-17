@@ -219,7 +219,7 @@ static inline bool hv_reenlightenment_available(void)
 DEFINE_IDTENTRY_SYSVEC(sysvec_hyperv_reenlightenment)
 {
 	apic_eoi();
-	inc_irq_stat(irq_hv_reenlightenment_count);
+	inc_irq_stat(HYPERV_REENLIGHTENMENT);
 	schedule_delayed_work(&hv_reenlightenment_work, HZ/10);
 }
 

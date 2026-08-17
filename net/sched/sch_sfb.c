@@ -415,8 +415,8 @@ enqueue:
 	memcpy(&cb, sfb_skb_cb(skb), sizeof(cb));
 	ret = qdisc_enqueue(skb, child, to_free);
 	if (likely(ret == NET_XMIT_SUCCESS)) {
-		sch->qstats.backlog += len;
-		sch->q.qlen++;
+		qstats_backlog_add(sch, len);
+		qdisc_qlen_inc(sch);
 		increment_qlen(&cb, q);
 	} else if (net_xmit_drop_count(ret)) {
 		WRITE_ONCE(q->stats.childdrop,
@@ -446,7 +446,7 @@ static struct sk_buff *sfb_dequeue(struct Qdisc *sch)
 	if (skb) {
 		qdisc_bstats_update(sch, skb);
 		qdisc_qstats_backlog_dec(sch, skb);
-		sch->q.qlen--;
+		qdisc_qlen_dec(sch);
 		decrement_qlen(skb, q);
 	}
 
@@ -592,7 +592,7 @@ static int sfb_dump(struct Qdisc *sch, struct sk_buff *skb)
 		.penalty_burst = q->penalty_burst,
 	};
 
-	sch->qstats.backlog = q->qdisc->qstats.backlog;
+	WRITE_ONCE(sch->qstats.backlog, READ_ONCE(q->qdisc->qstats.backlog));
 	opts = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (opts == NULL)
 		goto nla_put_failure;

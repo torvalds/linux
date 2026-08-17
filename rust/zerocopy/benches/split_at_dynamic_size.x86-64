@@ -1,0 +1,12 @@
+bench_split_at_dynamic_size:
+	mov rax, rdi
+	cmp rcx, rdx
+	jbe .LBB5_2
+	xor esi, esi
+	mov qword ptr [rax], rsi
+	ret
+.LBB5_2:
+	mov qword ptr [rax + 8], rdx
+	mov qword ptr [rax + 16], rcx
+	mov qword ptr [rax], rsi
+	ret

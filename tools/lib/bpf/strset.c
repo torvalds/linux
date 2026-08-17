@@ -107,6 +107,41 @@ static void *strset_add_str_mem(struct strset *set, size_t add_sz)
 			      set->strs_data_len, set->strs_data_max_len, add_sz);
 }
 
+static long strset_str_append(struct strset *set, const char *s)
+{
+	uintptr_t old_data = (uintptr_t)set->strs_data;
+	size_t old_data_len = set->strs_data_len;
+	uintptr_t old_s = (uintptr_t)s;
+	long len = strlen(s) + 1;
+	void *p;
+
+	/*
+	 * Hashmap keys are always offsets within set->strs_data, so to even
+	 * look up some string from the "outside", we need to first append it
+	 * at the end, so that it can be addressed with an offset. Luckily,
+	 * until set->strs_data_len is incremented, that string is just a piece
+	 * of garbage for the rest of the code, so no harm, no foul. On the
+	 * other hand, if the string is unique, it's already appended and
+	 * ready to be used, only a simple set->strs_data_len increment away.
+	 */
+	p = strset_add_str_mem(set, len);
+	if (!p)
+		return -ENOMEM;
+
+	/*
+	 * The set->strs_data might have reallocated and if 's' pointed
+	 * to an internal string within the old buffer, then it became
+	 * dangling and needs to be reconstructed before the copy.
+	 */
+	if (old_data && old_data != (uintptr_t)set->strs_data &&
+	    old_s >= old_data && old_s < old_data + old_data_len)
+		s = set->strs_data + (old_s - old_data);
+
+	memcpy(p, s, len);
+
+	return len;
+}
+
 /* Find string offset that corresponds to a given string *s*.
  * Returns:
  *   - >0 offset into string data, if string is found;
@@ -116,16 +151,12 @@ static void *strset_add_str_mem(struct strset *set, size_t add_sz)
 int strset__find_str(struct strset *set, const char *s)
 {
 	long old_off, new_off, len;
-	void *p;
 
-	/* see strset__add_str() for why we do this */
-	len = strlen(s) + 1;
-	p = strset_add_str_mem(set, len);
-	if (!p)
-		return -ENOMEM;
+	len = strset_str_append(set, s);
+	if (len < 0)
+		return len;
 
 	new_off = set->strs_data_len;
-	memcpy(p, s, len);
 
 	if (hashmap__find(set->strs_hash, new_off, &old_off))
 		return old_off;
@@ -142,24 +173,13 @@ int strset__find_str(struct strset *set, const char *s)
 int strset__add_str(struct strset *set, const char *s)
 {
 	long old_off, new_off, len;
-	void *p;
 	int err;
 
-	/* Hashmap keys are always offsets within set->strs_data, so to even
-	 * look up some string from the "outside", we need to first append it
-	 * at the end, so that it can be addressed with an offset. Luckily,
-	 * until set->strs_data_len is incremented, that string is just a piece
-	 * of garbage for the rest of the code, so no harm, no foul. On the
-	 * other hand, if the string is unique, it's already appended and
-	 * ready to be used, only a simple set->strs_data_len increment away.
-	 */
-	len = strlen(s) + 1;
-	p = strset_add_str_mem(set, len);
-	if (!p)
-		return -ENOMEM;
+	len = strset_str_append(set, s);
+	if (len < 0)
+		return len;
 
 	new_off = set->strs_data_len;
-	memcpy(p, s, len);
 
 	/* Now attempt to add the string, but only if the string with the same
 	 * contents doesn't exist already (HASHMAP_ADD strategy). If such

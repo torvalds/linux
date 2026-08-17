@@ -231,6 +231,9 @@ static size_t calc_mem_regions_size(struct xe_device *xe)
 	u32 num_managers = 1;
 	int i;
 
+	if (xe_device_is_admin_only(xe))
+		return sizeof(struct drm_xe_query_mem_regions);
+
 	for (i = XE_PL_VRAM0; i <= XE_PL_VRAM1; ++i)
 		if (ttm_manager_type(&xe->ttm, i))
 			num_managers++;
@@ -258,6 +261,9 @@ static int query_mem_regions(struct xe_device *xe,
 	mem_regions = kzalloc(size, GFP_KERNEL);
 	if (XE_IOCTL_DBG(xe, !mem_regions))
 		return -ENOMEM;
+
+	if (xe_device_is_admin_only(xe))
+		goto user_copy;
 
 	man = ttm_manager_type(&xe->ttm, XE_PL_TT);
 	mem_regions->mem_regions[0].mem_class = DRM_XE_MEM_REGION_CLASS_SYSMEM;
@@ -297,6 +303,7 @@ static int query_mem_regions(struct xe_device *xe,
 		}
 	}
 
+user_copy:
 	if (!copy_to_user(query_ptr, mem_regions, size))
 		ret = 0;
 	else

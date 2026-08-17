@@ -7,7 +7,6 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/mfd/core.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/property.h>
 
@@ -28,7 +27,7 @@ struct ssp_instruction {
 	__le32 a;
 	__le32 b;
 	u8 c;
-} __attribute__((__packed__));
+} __packed__;
 
 static const u8 ssp_magnitude_table[] = {110, 85, 171, 71, 203, 195, 0, 67,
 	208, 56, 175, 244, 206, 213, 0, 92, 250, 0, 55, 48, 189, 252, 171,
@@ -590,6 +589,7 @@ static void ssp_remove(struct spi_device *spi)
 	ssp_clean_pending_list(data);
 
 	free_irq(data->spi->irq, data);
+	cancel_delayed_work_sync(&data->work_refresh);
 
 	timer_delete_sync(&data->wdt_timer);
 	cancel_work_sync(&data->work_wdt);

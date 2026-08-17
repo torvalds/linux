@@ -22,8 +22,8 @@ struct {
 int pid = 0;
 int update_err = 0;
 
-SEC("?fentry/bpf_obj_free_fields")
-int bpf_obj_free_fields(void *ctx)
+SEC("?fentry/bpf_obj_cancel_fields")
+int bpf_obj_cancel_fields(void *ctx)
 {
 	__u32 key = 0;
 	struct val value = { .payload = 1 };

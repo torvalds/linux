@@ -46,6 +46,7 @@ config ROCKCHIP_VOP2
 config ROCKCHIP_ANALOGIX_DP
 	bool "Rockchip specific extensions for Analogix DP driver"
 	depends on ROCKCHIP_VOP
+	select DRM_BRIDGE_CONNECTOR
 	select DRM_DISPLAY_HELPER
 	select DRM_DISPLAY_DP_HELPER
 	help

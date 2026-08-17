@@ -245,17 +245,11 @@ struct drm_gem_object_funcs {
  * for lockless &shrinker.count_objects, and provides
  * &drm_gem_lru_scan for driver's &shrinker.scan_objects
  * implementation.
+ *
+ * Any access to this kind of object must be done with
+ * drm_device::gem_lru_mutex held.
  */
 struct drm_gem_lru {
-	/**
-	 * @lock:
-	 *
-	 * Lock protecting movement of GEM objects between LRUs.  All
-	 * LRUs that the object can move between should be protected
-	 * by the same lock.
-	 */
-	struct mutex *lock;
-
 	/**
 	 * @count:
 	 *
@@ -453,6 +447,9 @@ struct drm_gem_object {
 	 * @lru:
 	 *
 	 * The current LRU list that the GEM object is on.
+	 *
+	 * Access to this field must be done with drm_device::gem_lru_mutex
+	 * held.
 	 */
 	struct drm_gem_lru *lru;
 };
@@ -610,12 +607,13 @@ void drm_gem_unlock_reservations(struct drm_gem_object **objs, int count,
 int drm_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
 			    u32 handle, u64 *offset);
 
-void drm_gem_lru_init(struct drm_gem_lru *lru, struct mutex *lock);
+void drm_gem_lru_init(struct drm_gem_lru *lru);
 void drm_gem_lru_remove(struct drm_gem_object *obj);
 void drm_gem_lru_move_tail_locked(struct drm_gem_lru *lru, struct drm_gem_object *obj);
 void drm_gem_lru_move_tail(struct drm_gem_lru *lru, struct drm_gem_object *obj);
 unsigned long
-drm_gem_lru_scan(struct drm_gem_lru *lru,
+drm_gem_lru_scan(struct drm_device *dev,
+		 struct drm_gem_lru *lru,
 		 unsigned int nr_to_scan,
 		 unsigned long *remaining,
 		 bool (*shrink)(struct drm_gem_object *obj, struct ww_acquire_ctx *ticket),

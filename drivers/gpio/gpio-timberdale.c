@@ -14,7 +14,6 @@
 #include <linux/platform_device.h>
 #include <linux/irq.h>
 #include <linux/io.h>
-#include <linux/timb_gpio.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 
@@ -225,27 +224,27 @@ static int timbgpio_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct gpio_chip *gc;
 	struct timbgpio *tgpio;
-	struct timbgpio_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	int irq = platform_get_irq(pdev, 0);
-
-	if (!pdata || pdata->nr_pins > 32) {
-		dev_err(dev, "Invalid platform data\n");
-		return -EINVAL;
-	}
 
 	tgpio = devm_kzalloc(dev, sizeof(*tgpio), GFP_KERNEL);
 	if (!tgpio)
-		return -EINVAL;
+		return -ENOMEM;
 
-	tgpio->irq_base = pdata->irq_base;
+	gc = &tgpio->gpio;
+
+	err = device_property_read_u32(dev, "irq-base", &tgpio->irq_base);
+	if (err)
+		return err;
+
+	err = device_property_read_u32(dev, "gpio-base", &gc->base);
+	if (err)
+		return err;
 
 	spin_lock_init(&tgpio->lock);
 
 	tgpio->membase = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(tgpio->membase))
 		return PTR_ERR(tgpio->membase);
-
-	gc = &tgpio->gpio;
 
 	gc->label = dev_name(&pdev->dev);
 	gc->owner = THIS_MODULE;
@@ -256,13 +255,14 @@ static int timbgpio_probe(struct platform_device *pdev)
 	gc->set = timbgpio_gpio_set;
 	gc->to_irq = (irq >= 0 && tgpio->irq_base > 0) ? timbgpio_to_irq : NULL;
 	gc->dbg_show = NULL;
-	gc->base = pdata->gpio_base;
-	gc->ngpio = pdata->nr_pins;
 	gc->can_sleep = false;
 
 	err = devm_gpiochip_add_data(&pdev->dev, gc, tgpio);
 	if (err)
 		return err;
+
+	if (gc->ngpio > 32)
+		return dev_err_probe(dev, -EINVAL, "Invalid number of pins\n");
 
 	/* make sure to disable interrupts */
 	iowrite32(0x0, tgpio->membase + TGPIO_IER);
@@ -270,7 +270,7 @@ static int timbgpio_probe(struct platform_device *pdev)
 	if (irq < 0 || tgpio->irq_base <= 0)
 		return 0;
 
-	for (i = 0; i < pdata->nr_pins; i++) {
+	for (i = 0; i < gc->ngpio; i++) {
 		irq_set_chip_and_handler(tgpio->irq_base + i,
 			&timbgpio_irqchip, handle_simple_irq);
 		irq_set_chip_data(tgpio->irq_base + i, tgpio);

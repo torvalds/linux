@@ -47,19 +47,19 @@ int gnet_stats_start_copy_compat(struct sk_buff *skb, int type,
 				 int padattr);
 
 int gnet_stats_copy_basic(struct gnet_dump *d,
-			  struct gnet_stats_basic_sync __percpu *cpu,
-			  struct gnet_stats_basic_sync *b, bool running);
+			  const struct gnet_stats_basic_sync __percpu *cpu,
+			  const struct gnet_stats_basic_sync *b, bool running);
 void gnet_stats_add_basic(struct gnet_stats_basic_sync *bstats,
-			  struct gnet_stats_basic_sync __percpu *cpu,
-			  struct gnet_stats_basic_sync *b, bool running);
+			  const struct gnet_stats_basic_sync __percpu *cpu,
+			  const struct gnet_stats_basic_sync *b, bool running);
 int gnet_stats_copy_basic_hw(struct gnet_dump *d,
-			     struct gnet_stats_basic_sync __percpu *cpu,
-			     struct gnet_stats_basic_sync *b, bool running);
+			     const struct gnet_stats_basic_sync __percpu *cpu,
+			     const struct gnet_stats_basic_sync *b, bool running);
 int gnet_stats_copy_rate_est(struct gnet_dump *d,
 			     struct net_rate_estimator __rcu **ptr);
 int gnet_stats_copy_queue(struct gnet_dump *d,
-			  struct gnet_stats_queue __percpu *cpu_q,
-			  struct gnet_stats_queue *q, __u32 qlen);
+			  const struct gnet_stats_queue __percpu *cpu_q,
+			  const struct gnet_stats_queue *q, __u32 qlen);
 void gnet_stats_add_queue(struct gnet_stats_queue *qstats,
 			  const struct gnet_stats_queue __percpu *cpu_q,
 			  const struct gnet_stats_queue *q);

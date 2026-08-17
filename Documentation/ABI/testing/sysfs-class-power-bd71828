@@ -1,0 +1,12 @@
+What: /sys/class/power_supply/bd71828_ac/auto_dcin_limit
+Description:
+	Enable/Disable automatic management of input current limit
+	(ILIM_DCIN_EN bit).
+
+	Possible values are:
+
+		============  ===========================================
+		1             automatic adjustment of input current limit
+		0             no adjustment of input current limit. This
+		              helps for more unusual power sources like
+			      solar modules.

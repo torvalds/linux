@@ -5,7 +5,6 @@
 #include <linux/types.h>
 
 int bitmap_parse_user(const char __user *ubuf, unsigned int ulen, unsigned long *dst, int nbits);
-int bitmap_print_to_pagebuf(bool list, char *buf, const unsigned long *maskp, int nmaskbits);
 int bitmap_print_bitmask_to_buf(char *buf, const unsigned long *maskp, int nmaskbits,
 				loff_t off, size_t count);
 int bitmap_print_list_to_buf(char *buf, const unsigned long *maskp, int nmaskbits,

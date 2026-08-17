@@ -6,6 +6,7 @@ busy_poller
 cmsg_sender
 epoll_busy_poll
 fin_ack_lat
+getsockopt_iter
 hwtstamp_config
 icmp_rfc4884
 io_uring_zerocopy_tx
@@ -40,7 +41,6 @@ skf_net_off
 socket
 so_incoming_cpu
 so_netns_cookie
-so_txtime
 so_rcv_listener
 stress_reuseport_listen
 tap

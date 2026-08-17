@@ -10,6 +10,7 @@
 #include <linux/of.h>
 #include <linux/kobject.h>
 #include <linux/slab.h>
+#include <linux/sysfs.h>
 
 #include <asm/opal.h>
 
@@ -50,16 +51,11 @@ static ssize_t psr_show(struct kobject *kobj, struct kobj_attribute *attr,
 			goto out;
 		}
 		ret = opal_error_code(opal_get_async_rc(msg));
-		if (!ret) {
-			ret = sprintf(buf, "%u\n", be32_to_cpu(psr));
-			if (ret < 0)
-				ret = -EIO;
-		}
+		if (!ret)
+			ret = sysfs_emit(buf, "%u\n", be32_to_cpu(psr));
 		break;
 	case OPAL_SUCCESS:
-		ret = sprintf(buf, "%u\n", be32_to_cpu(psr));
-		if (ret < 0)
-			ret = -EIO;
+		ret = sysfs_emit(buf, "%u\n", be32_to_cpu(psr));
 		break;
 	default:
 		ret = opal_error_code(ret);

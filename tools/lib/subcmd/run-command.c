@@ -169,8 +169,18 @@ int start_command(struct child_process *cmd)
 
 static int wait_or_whine(struct child_process *cmd, bool block)
 {
-	bool finished = cmd->finished;
-	int result = cmd->finish_result;
+	bool finished;
+	int result;
+
+	if (cmd->pid <= 0) {
+		cmd->finished = 1;
+		if (cmd->pid < 0 && cmd->finish_result == 0)
+			cmd->finish_result = -ERR_RUN_COMMAND_FORK;
+		return cmd->finish_result;
+	}
+
+	finished = cmd->finished;
+	result = cmd->finish_result;
 
 	while (!finished) {
 		int status, code;
@@ -233,7 +243,18 @@ int check_if_command_finished(struct child_process *cmd)
 	char filename[6 + MAX_STRLEN_TYPE(typeof(cmd->pid)) + 7 + 1];
 	char status_line[256];
 	FILE *status_file;
+#endif
 
+	if (cmd->finished)
+		return 1;
+	if (cmd->pid <= 0) {
+		cmd->finished = 1;
+		if (cmd->pid < 0 && cmd->finish_result == 0)
+			cmd->finish_result = -ERR_RUN_COMMAND_FORK;
+		return 1;
+	}
+
+#ifdef __linux__
 	/*
 	 * Check by reading /proc/<pid>/status as calling waitpid causes
 	 * stdout/stderr to be closed and data lost.
@@ -241,8 +262,48 @@ int check_if_command_finished(struct child_process *cmd)
 	sprintf(filename, "/proc/%u/status", cmd->pid);
 	status_file = fopen(filename, "r");
 	if (status_file == NULL) {
-		/* Open failed assume finish_command was called. */
-		return true;
+		int status;
+		pid_t waiting;
+
+		/*
+		 * fopen() can fail with ENOENT if the process has been reaped.
+		 * It can also fail with EMFILE/ENFILE if RLIMIT_NOFILE is reached.
+		 * In those cases, use waitpid(..., WNOHANG) to robustly check
+		 * and reap the process if it has exited.
+		 */
+		if (errno == ENOENT)
+			return 1;
+
+		waiting = waitpid(cmd->pid, &status, WNOHANG);
+		if (waiting == cmd->pid) {
+			int result;
+			int code;
+
+			cmd->finished = 1;
+			if (WIFSIGNALED(status)) {
+				result = -ERR_RUN_COMMAND_WAITPID_SIGNAL;
+			} else if (!WIFEXITED(status)) {
+				result = -ERR_RUN_COMMAND_WAITPID_NOEXIT;
+			} else {
+				code = WEXITSTATUS(status);
+				switch (code) {
+				case 127:
+					result = -ERR_RUN_COMMAND_EXEC;
+					break;
+				case 0:
+					result = 0;
+					break;
+				default:
+					result = -code;
+					break;
+				}
+			}
+			cmd->finish_result = result;
+			return 1;
+		}
+		if (waiting < 0 && (errno == ECHILD || errno == ESRCH))
+			return 1;
+		return 0;
 	}
 	while (fgets(status_line, sizeof(status_line), status_file) != NULL) {
 		char *p;

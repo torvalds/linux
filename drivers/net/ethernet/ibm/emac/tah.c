@@ -14,7 +14,6 @@
  *
  * Copyright (c) 2005 Eugene Surovegin <ebs@ebshome.net>
  */
-#include <linux/mod_devicetable.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <asm/io.h>

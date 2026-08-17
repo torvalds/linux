@@ -320,12 +320,12 @@ xchk_ino_set_corrupt(
 
 /* Record a corruption while cross-referencing with an inode. */
 void
-xchk_ino_xref_set_corrupt(
+xchk_ip_xref_set_corrupt(
 	struct xfs_scrub	*sc,
-	xfs_ino_t		ino)
+	struct xfs_inode	*ip)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_XCORRUPT;
-	trace_xchk_ino_error(sc, ino, __return_address);
+	trace_xchk_ino_error(sc, I_INO(ip), __return_address);
 }
 
 /* Record corruption in a block indexed by a file fork. */
@@ -1110,7 +1110,7 @@ xchk_install_live_inode(
 	struct xfs_inode	*ip)
 {
 	if (!igrab(VFS_I(ip))) {
-		xchk_ino_set_corrupt(sc, ip->i_ino);
+		xchk_ip_set_corrupt(sc, ip);
 		return -EFSCORRUPTED;
 	}
 
@@ -1141,7 +1141,7 @@ xchk_iget_for_scrubbing(
 	ASSERT(sc->tp == NULL);
 
 	/* We want to scan the inode we already had opened. */
-	if (sc->sm->sm_ino == 0 || sc->sm->sm_ino == ip_in->i_ino)
+	if (sc->sm->sm_ino == 0 || sc->sm->sm_ino == I_INO(ip_in))
 		return xchk_install_live_inode(sc, ip_in);
 
 	/*
@@ -1439,13 +1439,13 @@ xchk_metadata_inode_forks(
 
 	/* Metadata inodes don't live on the rt device. */
 	if (sc->ip->i_diflags & XFS_DIFLAG_REALTIME) {
-		xchk_ino_set_corrupt(sc, sc->ip->i_ino);
+		xchk_ip_set_corrupt(sc, sc->ip);
 		return 0;
 	}
 
 	/* They should never participate in reflink. */
 	if (xfs_is_reflink_inode(sc->ip)) {
-		xchk_ino_set_corrupt(sc, sc->ip->i_ino);
+		xchk_ip_set_corrupt(sc, sc->ip);
 		return 0;
 	}
 
@@ -1462,7 +1462,7 @@ xchk_metadata_inode_forks(
 				&error))
 			return error;
 		if (shared)
-			xchk_ino_set_corrupt(sc, sc->ip->i_ino);
+			xchk_ip_set_corrupt(sc, sc->ip);
 	}
 
 	/*
@@ -1471,7 +1471,7 @@ xchk_metadata_inode_forks(
 	 */
 	if (xfs_inode_hasattr(sc->ip)) {
 		if (!xfs_has_metadir(sc->mp)) {
-			xchk_ino_set_corrupt(sc, sc->ip->i_ino);
+			xchk_ip_set_corrupt(sc, sc->ip);
 			return 0;
 		}
 
@@ -1573,7 +1573,7 @@ xchk_inode_is_allocated(
 	 * This isn't the inode we want.
 	 */
 	spin_lock(&ip->i_flags_lock);
-	if (ip->i_ino != ino)
+	if (I_INO(ip) != ino)
 		goto out_skip;
 
 	trace_xchk_inode_is_allocated(ip);
@@ -1681,7 +1681,7 @@ bool
 xchk_inode_is_sb_rooted(const struct xfs_inode *ip)
 {
 	return xchk_inode_is_dirtree_root(ip) ||
-	       xfs_is_sb_inum(ip->i_mount, ip->i_ino);
+	       xfs_is_sb_inum(ip->i_mount, I_INO(ip));
 }
 
 /* What is the root directory inumber for this inode? */
@@ -1691,8 +1691,8 @@ xchk_inode_rootdir_inum(const struct xfs_inode *ip)
 	struct xfs_mount	*mp = ip->i_mount;
 
 	if (xfs_is_metadir_inode(ip))
-		return mp->m_metadirip->i_ino;
-	return mp->m_rootip->i_ino;
+		return I_INO(mp->m_metadirip);
+	return I_INO(mp->m_rootip);
 }
 
 static int

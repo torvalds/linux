@@ -189,7 +189,7 @@ Indexed IO
 
 Indexed IO with IO ports with a granularity of a single byte can be performed using the ``RIOP``
 (read) and ``WIOP`` (write) ACPI control methods. Those ACPI methods are unused because they
-provide no benifit when compared to the native IO port access functions provided by the kernel.
+provide no benefit when compared to the native IO port access functions provided by the kernel.
 
 Special thanks go to github user `pobrn` which developed the
 `qc71_laptop <https://github.com/pobrn/qc71_laptop>`_ driver on which this driver is partly based.

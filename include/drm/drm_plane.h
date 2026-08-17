@@ -259,8 +259,8 @@ struct drm_plane_state {
 	 */
 	struct drm_crtc_commit *commit;
 
-	/** @state: backpointer to global drm_atomic_state */
-	struct drm_atomic_state *state;
+	/** @state: backpointer to global drm_atomic_commit */
+	struct drm_atomic_commit *state;
 
 	/**
 	 * @color_mgmt_changed: Color management properties have changed. Used
@@ -739,7 +739,7 @@ struct drm_plane {
 	 *
 	 * This is protected by @mutex. Note that nonblocking atomic commits
 	 * access the current plane state without taking locks. Either by going
-	 * through the &struct drm_atomic_state pointers, see
+	 * through the &struct drm_atomic_commit pointers, see
 	 * for_each_oldnew_plane_in_state(), for_each_old_plane_in_state() and
 	 * for_each_new_plane_in_state(). Or through careful ordering of atomic
 	 * commit operations as implemented in the atomic helpers, see

@@ -446,7 +446,7 @@ static void omap_crtc_arm_event(struct drm_crtc *crtc)
 }
 
 static void omap_crtc_atomic_enable(struct drm_crtc *crtc,
-				    struct drm_atomic_state *state)
+				    struct drm_atomic_commit *state)
 {
 	struct omap_drm_private *priv = crtc->dev->dev_private;
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
@@ -472,7 +472,7 @@ static void omap_crtc_atomic_enable(struct drm_crtc *crtc,
 }
 
 static void omap_crtc_atomic_disable(struct drm_crtc *crtc,
-				     struct drm_atomic_state *state)
+				     struct drm_atomic_commit *state)
 {
 	struct omap_drm_private *priv = crtc->dev->dev_private;
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
@@ -577,7 +577,7 @@ static bool omap_crtc_is_manually_updated(struct drm_crtc *crtc)
 }
 
 static int omap_crtc_atomic_check(struct drm_crtc *crtc,
-				struct drm_atomic_state *state)
+				struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
 									  crtc);
@@ -609,12 +609,12 @@ static int omap_crtc_atomic_check(struct drm_crtc *crtc,
 }
 
 static void omap_crtc_atomic_begin(struct drm_crtc *crtc,
-				   struct drm_atomic_state *state)
+				   struct drm_atomic_commit *state)
 {
 }
 
 static void omap_crtc_atomic_flush(struct drm_crtc *crtc,
-				   struct drm_atomic_state *state)
+				   struct drm_atomic_commit *state)
 {
 	struct omap_drm_private *priv = crtc->dev->dev_private;
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);

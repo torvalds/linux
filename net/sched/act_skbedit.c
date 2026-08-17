@@ -86,7 +86,7 @@ TC_INDIRECT_SCOPE int tcf_skbedit_act(struct sk_buff *skb,
 	return params->action;
 
 err:
-	qstats_drop_inc(this_cpu_ptr(d->common.cpu_qstats));
+	qstats_cpu_drop_inc(d->common.cpu_qstats);
 	return TC_ACT_SHOT;
 }
 

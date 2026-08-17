@@ -783,7 +783,7 @@ static int bcm63xx_hsspi_probe(struct platform_device *pdev)
 					     "failed get pll clk rate\n");
 	}
 
-	host = spi_alloc_host(&pdev->dev, sizeof(*bs));
+	host = devm_spi_alloc_host(&pdev->dev, sizeof(*bs));
 	if (!host)
 		return dev_err_probe(dev, -ENOMEM, "alloc host no mem\n");
 
@@ -796,10 +796,8 @@ static int bcm63xx_hsspi_probe(struct platform_device *pdev)
 	bs->fifo = (u8 __iomem *)(bs->regs + HSSPI_FIFO_REG(0));
 	bs->wait_mode = HSSPI_WAIT_MODE_POLLING;
 	bs->prepend_buf = devm_kzalloc(dev, HSSPI_BUFFER_LEN, GFP_KERNEL);
-	if (!bs->prepend_buf) {
-		ret = -ENOMEM;
-		goto out_put_host;
-	}
+	if (!bs->prepend_buf)
+		return -ENOMEM;
 
 	mutex_init(&bs->bus_mutex);
 	mutex_init(&bs->msg_mutex);
@@ -845,7 +843,7 @@ static int bcm63xx_hsspi_probe(struct platform_device *pdev)
 				       pdev->name, bs);
 
 		if (ret)
-			goto out_put_host;
+			return ret;
 	}
 
 	pm_runtime_enable(&pdev->dev);
@@ -869,8 +867,7 @@ out_sysgroup_disable:
 	sysfs_remove_group(&pdev->dev.kobj, &bcm63xx_hsspi_group);
 out_pm_disable:
 	pm_runtime_disable(&pdev->dev);
-out_put_host:
-	spi_controller_put(host);
+
 	return ret;
 }
 
@@ -880,15 +877,11 @@ static void bcm63xx_hsspi_remove(struct platform_device *pdev)
 	struct spi_controller *host = platform_get_drvdata(pdev);
 	struct bcm63xx_hsspi *bs = spi_controller_get_devdata(host);
 
-	spi_controller_get(host);
-
 	spi_unregister_controller(host);
 
 	/* reset the hardware and block queue progress */
 	__raw_writel(0, bs->regs + HSSPI_INT_MASK_REG);
 	sysfs_remove_group(&pdev->dev.kobj, &bcm63xx_hsspi_group);
-
-	spi_controller_put(host);
 }
 
 #ifdef CONFIG_PM_SLEEP

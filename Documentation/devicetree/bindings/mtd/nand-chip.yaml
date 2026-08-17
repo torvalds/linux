@@ -23,6 +23,15 @@ properties:
     description:
       Contains the chip-select IDs.
 
+  nand-randomizer:
+    description: |
+      Control the data randomizer feature.
+      0: Disable randomizer.
+      1: Enable randomizer.
+      If absent, the current hardware state is left unchanged.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1]
+
 required:
   - reg
 

@@ -14,6 +14,7 @@
 #include <linux/sched/mm.h>
 #include <linux/statfs.h>
 #include <linux/stringhash.h>
+#include <linux/pidfs.h>
 
 #include "fanotify.h"
 
@@ -120,10 +121,7 @@ static bool fanotify_error_event_equal(struct fanotify_error_event *fee1,
 				       struct fanotify_error_event *fee2)
 {
 	/* Error events against the same file system are always merged. */
-	if (!fanotify_fsid_equal(&fee1->fsid, &fee2->fsid))
-		return false;
-
-	return true;
+	return fanotify_fsid_equal(&fee1->fsid, &fee2->fsid);
 }
 
 static bool fanotify_should_merge(struct fanotify_event *old,
@@ -842,6 +840,15 @@ static struct fanotify_event *fanotify_alloc_event(
 	/* Whoever is interested in the event, pays for the allocation. */
 	old_memcg = set_active_memcg(group->memcg);
 
+	if (FAN_GROUP_FLAG(group, FAN_REPORT_TID))
+		pid = task_pid(current);
+	else
+		pid = task_tgid(current);
+
+	if (FAN_GROUP_FLAG(group, FAN_REPORT_PIDFD) &&
+	    pidfs_register_pid_gfp(pid, gfp))
+		goto out;
+
 	if (fanotify_is_perm_event(mask)) {
 		event = fanotify_alloc_perm_event(data, data_type, gfp);
 	} else if (fanotify_is_error_event(mask)) {
@@ -863,15 +870,10 @@ static struct fanotify_event *fanotify_alloc_event(
 	if (!event)
 		goto out;
 
-	if (FAN_GROUP_FLAG(group, FAN_REPORT_TID))
-		pid = get_pid(task_pid(current));
-	else
-		pid = get_pid(task_tgid(current));
-
 	/* Mix event info, FAN_ONDIR flag and pid into event merge key */
 	hash ^= hash_long((unsigned long)pid | ondir, FANOTIFY_EVENT_HASH_BITS);
 	fanotify_init_event(event, hash, mask);
-	event->pid = pid;
+	event->pid = get_pid(pid);
 
 out:
 	set_active_memcg(old_memcg);

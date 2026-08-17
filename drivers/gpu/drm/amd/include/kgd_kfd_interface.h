@@ -33,6 +33,7 @@
 #include <linux/dma-fence.h>
 #include "amdgpu_irq.h"
 #include "amdgpu_gfx.h"
+#include "amdgpu_ptl.h"
 
 struct pci_dev;
 struct amdgpu_device;
@@ -333,6 +334,11 @@ struct kfd2kgd_calls {
 			      uint32_t inst, unsigned int utimeout);
 	uint32_t (*hqd_sdma_get_doorbell)(struct amdgpu_device *adev,
 					  int engine, int queue);
+	uint32_t (*ptl_ctrl)(struct amdgpu_device *adev,
+			     uint32_t cmd,
+			     uint32_t *ptl_state,
+			     enum amdgpu_ptl_fmt *fmt1,
+			     enum amdgpu_ptl_fmt *fmt2);
 };
 
 #endif	/* KGD_KFD_INTERFACE_H_INCLUDED */

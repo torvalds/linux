@@ -2,6 +2,7 @@
 
 #include <unistd.h>
 #include <pthread.h>
+#include <fcntl.h>
 #include <test_progs.h>
 #include "uprobe_multi.skel.h"
 #include "uprobe_multi_bench.skel.h"
@@ -536,7 +537,37 @@ static void test_attach_api_fails(void)
 	link_fd = bpf_link_create(prog_fd, 0, BPF_TRACE_UPROBE_MULTI, &opts);
 	if (!ASSERT_ERR(link_fd, "link_fd"))
 		goto cleanup;
-	ASSERT_EQ(link_fd, -EINVAL, "pid_is_wrong");
+	if (!ASSERT_EQ(link_fd, -EINVAL, "pid_is_wrong"))
+		goto cleanup;
+
+	/* wrong path_fd */
+	LIBBPF_OPTS_RESET(opts,
+		.uprobe_multi.path = NULL,
+		.uprobe_multi.path_fd = -1,
+		.uprobe_multi.flags = BPF_F_UPROBE_MULTI_PATH_FD,
+		.uprobe_multi.offsets = (unsigned long *)&offset,
+		.uprobe_multi.cnt = 1,
+	);
+
+	link_fd = bpf_link_create(prog_fd, 0, BPF_TRACE_UPROBE_MULTI, &opts);
+	if (!ASSERT_ERR(link_fd, "link_fd"))
+		goto cleanup;
+	if (!ASSERT_EQ(link_fd, -EBADF, "path_fd_is_wrong"))
+		goto cleanup;
+
+	/* path and path_fd both set with BPF_F_UPROBE_MULTI_PATH_FD flag */
+	LIBBPF_OPTS_RESET(opts,
+		.uprobe_multi.path = path,
+		.uprobe_multi.path_fd = 1,
+		.uprobe_multi.flags = BPF_F_UPROBE_MULTI_PATH_FD,
+		.uprobe_multi.offsets = (unsigned long *)&offset,
+		.uprobe_multi.cnt = 1,
+	);
+
+	link_fd = bpf_link_create(prog_fd, 0, BPF_TRACE_UPROBE_MULTI, &opts);
+	if (!ASSERT_ERR(link_fd, "link_fd"))
+		goto cleanup;
+	ASSERT_EQ(link_fd, -EINVAL, "path_and_path_fd_together");
 
 cleanup:
 	if (link_fd >= 0)
@@ -755,6 +786,65 @@ static void test_link_api(void)
 		return;
 
 	__test_link_api(&child);
+}
+
+static void test_link_api_path_fd(void)
+{
+	LIBBPF_OPTS(bpf_link_create_opts, opts);
+	const char *resolve_path = "/proc/self/exe";
+	int prog_fd, link_fd = -1, path_fd = -1;
+	struct uprobe_multi *skel = NULL;
+	unsigned long *offsets = NULL;
+	const char *syms[3] = {
+		"uprobe_multi_func_1",
+		"uprobe_multi_func_2",
+		"uprobe_multi_func_3",
+	};
+	int err;
+
+	err = elf_resolve_syms_offsets(resolve_path, ARRAY_SIZE(syms), syms,
+				       &offsets, STT_FUNC);
+	if (!ASSERT_OK(err, "elf_resolve_syms_offsets"))
+		return;
+
+	path_fd = open(resolve_path, O_RDONLY);
+	if (!ASSERT_GE(path_fd, 0, "path_fd"))
+		goto cleanup;
+
+	opts.uprobe_multi.path_fd = path_fd;
+	opts.uprobe_multi.offsets = offsets;
+	opts.uprobe_multi.cnt = ARRAY_SIZE(syms);
+	opts.uprobe_multi.flags = BPF_F_UPROBE_MULTI_PATH_FD;
+
+	skel = uprobe_multi__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "uprobe_multi__open_and_load"))
+		goto cleanup;
+
+	prog_fd = bpf_program__fd(skel->progs.uprobe);
+	link_fd = bpf_link_create(prog_fd, 0, BPF_TRACE_UPROBE_MULTI, &opts);
+	if (!ASSERT_GE(link_fd, 0, "bpf_link_create"))
+		goto cleanup;
+
+	skel->bss->uprobe_multi_func_1_addr = (__u64)uprobe_multi_func_1;
+	skel->bss->uprobe_multi_func_2_addr = (__u64)uprobe_multi_func_2;
+	skel->bss->uprobe_multi_func_3_addr = (__u64)uprobe_multi_func_3;
+	skel->bss->pid = getpid();
+
+	uprobe_multi_func_1();
+	uprobe_multi_func_2();
+	uprobe_multi_func_3();
+
+	ASSERT_EQ(skel->bss->uprobe_multi_func_1_result, 1, "uprobe_multi_func_1_result");
+	ASSERT_EQ(skel->bss->uprobe_multi_func_2_result, 1, "uprobe_multi_func_2_result");
+	ASSERT_EQ(skel->bss->uprobe_multi_func_3_result, 1, "uprobe_multi_func_3_result");
+
+cleanup:
+	if (link_fd >= 0)
+		close(link_fd);
+	if (path_fd >= 0)
+		close(path_fd);
+	uprobe_multi__destroy(skel);
+	free(offsets);
 }
 
 static struct bpf_program *
@@ -1354,6 +1444,8 @@ void test_uprobe_multi_test(void)
 		test_attach_api_syms();
 	if (test__start_subtest("link_api"))
 		test_link_api();
+	if (test__start_subtest("link_api_path_fd"))
+		test_link_api_path_fd();
 	if (test__start_subtest("bench_uprobe"))
 		test_bench_attach_uprobe();
 	if (test__start_subtest("bench_usdt"))

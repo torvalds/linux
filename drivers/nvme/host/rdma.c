@@ -292,7 +292,7 @@ static void nvme_rdma_exit_request(struct blk_mq_tag_set *set,
 
 static int nvme_rdma_init_request(struct blk_mq_tag_set *set,
 		struct request *rq, unsigned int hctx_idx,
-		unsigned int numa_node)
+		int numa_node)
 {
 	struct nvme_rdma_ctrl *ctrl = to_rdma_ctrl(set->driver_data);
 	struct nvme_rdma_request *req = blk_mq_rq_to_pdu(rq);
@@ -888,7 +888,7 @@ static int nvme_rdma_configure_io_queues(struct nvme_rdma_ctrl *ctrl, bool new)
 	if (!new) {
 		nvme_start_freeze(&ctrl->ctrl);
 		nvme_unquiesce_io_queues(&ctrl->ctrl);
-		if (!nvme_wait_freeze_timeout(&ctrl->ctrl, NVME_IO_TIMEOUT)) {
+		if (!nvme_wait_freeze_timeout(&ctrl->ctrl)) {
 			/*
 			 * If we timed out waiting for freeze we are likely to
 			 * be stuck.  Fail the controller initialization just
@@ -1110,6 +1110,8 @@ static void nvme_rdma_reconnect_ctrl_work(struct work_struct *work)
 	dev_info(ctrl->ctrl.device, "Successfully reconnected (%d attempts)\n",
 			ctrl->ctrl.nr_reconnects);
 
+	/* accumulate reconnect attempts before resetting it to zero */
+	atomic_long_add(ctrl->ctrl.nr_reconnects, &ctrl->ctrl.acc_reconnects);
 	ctrl->ctrl.nr_reconnects = 0;
 
 	return;

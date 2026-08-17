@@ -392,9 +392,8 @@ static int falcon_sflash_probe(struct platform_device *pdev)
 {
 	struct falcon_sflash *priv;
 	struct spi_controller *host;
-	int ret;
 
-	host = spi_alloc_host(&pdev->dev, sizeof(*priv));
+	host = devm_spi_alloc_host(&pdev->dev, sizeof(*priv));
 	if (!host)
 		return -ENOMEM;
 
@@ -406,10 +405,7 @@ static int falcon_sflash_probe(struct platform_device *pdev)
 	host->setup = falcon_sflash_setup;
 	host->transfer_one_message = falcon_sflash_xfer_one;
 
-	ret = devm_spi_register_controller(&pdev->dev, host);
-	if (ret)
-		spi_controller_put(host);
-	return ret;
+	return devm_spi_register_controller(&pdev->dev, host);
 }
 
 static const struct of_device_id falcon_sflash_match[] = {

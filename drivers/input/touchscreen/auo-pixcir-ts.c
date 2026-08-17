@@ -618,7 +618,7 @@ static int auo_pixcir_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id auo_pixcir_idtable[] = {
-	{ "auo_pixcir_ts" },
+	{ .name = "auo_pixcir_ts" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, auo_pixcir_idtable);

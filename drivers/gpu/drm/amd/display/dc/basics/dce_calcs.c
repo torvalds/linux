@@ -302,7 +302,7 @@ static void calculate_bandwidth(
 	fbc_enabled = false;
 	lpt_enabled = false;
 	for (i = 4; i <= maximum_number_of_surfaces - 3; i++) {
-		if (i < data->number_of_displays + 4) {
+		if (i < (int32_t)(data->number_of_displays + 4)) {
 			if (i == 4 && data->d0_underlay_mode == bw_def_underlay_only) {
 				data->enable[i] = 0;
 				data->use_alpha[i] = 0;
@@ -2767,7 +2767,7 @@ static bool is_display_configuration_supported(
 	const struct bw_calcs_vbios *vbios,
 	const struct dce_bw_output *calcs_output)
 {
-	uint32_t int_max_clk;
+	int32_t int_max_clk;
 
 	int_max_clk = bw_fixed_to_int(vbios->high_voltage_max_dispclk);
 	int_max_clk *= 1000; /* MHz to kHz */
@@ -3077,7 +3077,7 @@ bool bw_calcs(struct dc_context *ctx,
 		}
 		calculate_bandwidth(dceip, vbios, data);
 
-		yclk_lvl = data->y_clk_level;
+		yclk_lvl = (uint8_t)data->y_clk_level;
 
 		calcs_output->nbp_state_change_enable =
 			data->nbp_state_change_enable;

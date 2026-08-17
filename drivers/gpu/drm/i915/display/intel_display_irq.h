@@ -51,40 +51,29 @@ void bdw_disable_vblank(struct drm_crtc *crtc);
 
 void ilk_display_irq_master_disable(struct intel_display *display, u32 *de_ier, u32 *sde_ier);
 void ilk_display_irq_master_enable(struct intel_display *display, u32 de_ier, u32 sde_ier);
-bool ilk_display_irq_handler(struct intel_display *display);
-void gen8_de_irq_handler(struct intel_display *display, u32 master_ctl);
-void gen11_display_irq_handler(struct intel_display *display);
 
 u32 gen11_gu_misc_irq_ack(struct intel_display *display, const u32 master_ctl);
 void gen11_gu_misc_irq_handler(struct intel_display *display, const u32 iir);
 
-void i9xx_display_irq_reset(struct intel_display *display);
-void ilk_display_irq_reset(struct intel_display *display);
-void vlv_display_irq_reset(struct intel_display *display);
-void gen8_display_irq_reset(struct intel_display *display);
-void gen11_display_irq_reset(struct intel_display *display);
+struct intel_display_irq_state {
+	u32 master_ctl;
+	u32 iir;
+	u32 eir;
+	u32 hotplug_status;
+	u32 dpinvgtt;
+	u32 pipe_stats[I915_MAX_PIPES];
+};
+
+void intel_display_irq_reset(struct intel_display *display);
+void intel_display_irq_postinstall(struct intel_display *display);
+void intel_display_irq_ack(struct intel_display *display, struct intel_display_irq_state *state);
+bool intel_display_irq_handler(struct intel_display *display, const struct intel_display_irq_state *state);
 
 u32 i9xx_display_irq_enable_mask(struct intel_display *display);
-void i915_display_irq_postinstall(struct intel_display *display);
-void i965_display_irq_postinstall(struct intel_display *display);
-void vlv_display_irq_postinstall(struct intel_display *display);
-void ilk_de_irq_postinstall(struct intel_display *display);
-void gen8_de_irq_postinstall(struct intel_display *display);
-void gen11_de_irq_postinstall(struct intel_display *display);
-void dg1_de_irq_postinstall(struct intel_display *display);
 
 u32 i915_pipestat_enable_mask(struct intel_display *display, enum pipe pipe);
 void i915_enable_pipestat(struct intel_display *display, enum pipe pipe, u32 status_mask);
 void i915_disable_pipestat(struct intel_display *display, enum pipe pipe, u32 status_mask);
-
-void i9xx_pipestat_irq_ack(struct intel_display *display, u32 iir, u32 pipe_stats[I915_MAX_PIPES]);
-
-void i915_pipestat_irq_handler(struct intel_display *display, u32 iir, u32 pipe_stats[I915_MAX_PIPES]);
-void i965_pipestat_irq_handler(struct intel_display *display, u32 iir, u32 pipe_stats[I915_MAX_PIPES]);
-void valleyview_pipestat_irq_handler(struct intel_display *display, u32 pipe_stats[I915_MAX_PIPES]);
-
-void vlv_display_error_irq_ack(struct intel_display *display, u32 *eir, u32 *dpinvgtt);
-void vlv_display_error_irq_handler(struct intel_display *display, u32 eir, u32 dpinvgtt);
 
 void intel_display_irq_init(struct intel_display *display);
 

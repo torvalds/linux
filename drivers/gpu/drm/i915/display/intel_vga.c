@@ -35,7 +35,7 @@ static bool intel_vga_decode_is_enabled(struct intel_display *display)
 	return !(gmch_ctrl & INTEL_GMCH_VGA_DISABLE);
 }
 
-static i915_reg_t intel_vga_cntrl_reg(struct intel_display *display)
+static intel_reg_t intel_vga_cntrl_reg(struct intel_display *display)
 {
 	if (display->platform.valleyview || display->platform.cherryview)
 		return VLV_VGACNTRL;
@@ -179,7 +179,7 @@ static void intel_vga_write(struct intel_display *display, u16 reg, u8 val, bool
 void intel_vga_disable(struct intel_display *display)
 {
 	struct pci_dev *pdev = to_pci_dev(display->drm->dev);
-	i915_reg_t vga_reg = intel_vga_cntrl_reg(display);
+	intel_reg_t vga_reg = intel_vga_cntrl_reg(display);
 	bool mmio = has_vga_mmio_access(display);
 	bool io_decode;
 	u8 msr, sr1;

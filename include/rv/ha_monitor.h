@@ -28,6 +28,7 @@ static inline void ha_monitor_init_env(struct da_monitor *da_mon);
 static inline void ha_monitor_reset_env(struct da_monitor *da_mon);
 static inline void ha_setup_timer(struct ha_monitor *ha_mon);
 static inline bool ha_cancel_timer(struct ha_monitor *ha_mon);
+static inline void ha_cancel_timer_sync(struct ha_monitor *ha_mon);
 static bool ha_monitor_handle_constraint(struct da_monitor *da_mon,
 					 enum states curr_state,
 					 enum events event,
@@ -36,6 +37,27 @@ static bool ha_monitor_handle_constraint(struct da_monitor *da_mon,
 #define da_monitor_event_hook ha_monitor_handle_constraint
 #define da_monitor_init_hook ha_monitor_init_env
 #define da_monitor_reset_hook ha_monitor_reset_env
+#define da_monitor_sync_hook() synchronize_rcu()
+
+#if !defined(HA_SKIP_AUTO_CLEANUP) && RV_MON_TYPE == RV_MON_PER_TASK
+/*
+ * Automatic cleanup handlers for per-task HA monitors, only skip if you know
+ * what you are doing (e.g. you want to implement cleanup manually in another
+ * handler doing more things).
+ */
+static void ha_handle_sched_process_exit(void *data, struct task_struct *p,
+					 bool group_dead);
+
+#define ha_monitor_enable_hook()                                             \
+	rv_attach_trace_probe(__stringify(MONITOR_NAME), sched_process_exit, \
+			      ha_handle_sched_process_exit)
+#define ha_monitor_disable_hook()                                            \
+	rv_detach_trace_probe(__stringify(MONITOR_NAME), sched_process_exit, \
+			      ha_handle_sched_process_exit)
+#else
+#define ha_monitor_enable_hook() ((void)0)
+#define ha_monitor_disable_hook() ((void)0)
+#endif
 
 #include <rv/da_monitor.h>
 #include <linux/seq_buf.h>
@@ -115,6 +137,26 @@ static enum hrtimer_restart ha_monitor_timer_callback(struct hrtimer *hrtimer);
 #define ha_get_ns() 0
 #endif /* HA_CLK_NS */
 
+static bool ha_mon_destroying;
+
+static int ha_monitor_init(void)
+{
+	int ret;
+
+	WRITE_ONCE(ha_mon_destroying, false);
+	ret = da_monitor_init();
+	if (ret == 0)
+		ha_monitor_enable_hook();
+	return ret;
+}
+
+static void ha_monitor_destroy(void)
+{
+	WRITE_ONCE(ha_mon_destroying, true);
+	ha_monitor_disable_hook();
+	da_monitor_destroy();
+}
+
 /* Should be supplied by the monitor */
 static u64 ha_get_env(struct ha_monitor *ha_mon, enum envs env, u64 time_ns);
 static bool ha_verify_constraint(struct ha_monitor *ha_mon,
@@ -153,12 +195,12 @@ static inline void ha_monitor_init_env(struct da_monitor *da_mon)
  * Called from a hook in the DA reset functions, it supplies the da_mon
  * corresponding to the current ha_mon.
  * Not all hybrid automata require the timer, still clear it for simplicity.
+ * Monitors that never started have their timer uninitialized, do not stop those.
  */
 static inline void ha_monitor_reset_env(struct da_monitor *da_mon)
 {
 	struct ha_monitor *ha_mon = to_ha_monitor(da_mon);
 
-	/* Initialisation resets the monitor before initialising the timer */
 	if (likely(da_monitoring(da_mon)))
 		ha_cancel_timer(ha_mon);
 }
@@ -200,6 +242,20 @@ static inline void ha_trace_error_env(struct ha_monitor *ha_mon,
 {
 	CONCATENATE(trace_error_env_, MONITOR_NAME)(id, curr_state, event, env);
 }
+
+#if !defined(HA_SKIP_AUTO_CLEANUP) && RV_MON_TYPE == RV_MON_PER_TASK
+static void ha_handle_sched_process_exit(void *data, struct task_struct *p,
+					 bool group_dead)
+{
+	struct da_monitor *da_mon = da_get_monitor(p);
+
+	if (likely(da_monitoring(da_mon))) {
+		da_monitor_reset(da_mon);
+		ha_cancel_timer_sync(to_ha_monitor(da_mon));
+	}
+}
+#endif
+
 #endif /* RV_MON_TYPE */
 
 /*
@@ -237,12 +293,30 @@ static bool ha_monitor_handle_constraint(struct da_monitor *da_mon,
 	return false;
 }
 
+/*
+ * __ha_monitor_timer_callback - generic callback representation
+ *
+ * This callback runs in an RCU read-side critical section to allow the
+ * destruction sequence to easily synchronize_rcu() with all pending timers
+ * after asynchronously disabling them. The ha_mon_destroying check ensures
+ * any callback entering the RCU section after synchronize_rcu() completes
+ * will see the flag and bail out immediately.
+ */
 static inline void __ha_monitor_timer_callback(struct ha_monitor *ha_mon)
 {
-	enum states curr_state = READ_ONCE(ha_mon->da_mon.curr_state);
 	DECLARE_SEQ_BUF(env_string, ENV_BUFFER_SIZE);
-	u64 time_ns = ha_get_ns();
+	enum states curr_state;
+	u64 time_ns;
 
+	guard(rcu)();
+	if (unlikely(READ_ONCE(ha_mon_destroying)))
+		return;
+	/* Ensure consistent curr_state if we race with da_monitor_reset */
+	curr_state = smp_load_acquire(&ha_mon->da_mon.curr_state);
+	if (unlikely(!da_monitor_handling_event(&ha_mon->da_mon)))
+		return;
+
+	time_ns = ha_get_ns();
 	ha_get_env_string(&env_string, ha_mon, time_ns);
 	ha_react(curr_state, EVENT_NONE, env_string.buffer);
 	ha_trace_error_env(ha_mon, model_get_state_name(curr_state),
@@ -412,6 +486,10 @@ static inline bool ha_cancel_timer(struct ha_monitor *ha_mon)
 {
 	return timer_delete(&ha_mon->timer);
 }
+static inline void ha_cancel_timer_sync(struct ha_monitor *ha_mon)
+{
+	timer_delete_sync(&ha_mon->timer);
+}
 #elif HA_TIMER_TYPE == HA_TIMER_HRTIMER
 /*
  * Helper functions to handle the monitor timer.
@@ -463,6 +541,10 @@ static inline bool ha_cancel_timer(struct ha_monitor *ha_mon)
 {
 	return hrtimer_try_to_cancel(&ha_mon->hrtimer) == 1;
 }
+static inline void ha_cancel_timer_sync(struct ha_monitor *ha_mon)
+{
+	hrtimer_cancel(&ha_mon->hrtimer);
+}
 #else /* HA_TIMER_NONE */
 /*
  * Start function is intentionally not defined, monitors using timers must
@@ -473,6 +555,7 @@ static inline bool ha_cancel_timer(struct ha_monitor *ha_mon)
 {
 	return false;
 }
+static inline void ha_cancel_timer_sync(struct ha_monitor *ha_mon) { }
 #endif
 
 #endif

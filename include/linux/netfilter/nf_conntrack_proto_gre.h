@@ -18,9 +18,10 @@ struct nf_ct_gre_keymap {
 	struct rcu_head rcu;
 };
 
-/* add new tuple->key_reply pair to keymap */
-int nf_ct_gre_keymap_add(struct nf_conn *ct, enum ip_conntrack_dir dir,
-			 struct nf_conntrack_tuple *t);
+/* add tuple->key_reply pairs to keymap */
+bool nf_ct_gre_keymap_add(struct nf_conn *ct,
+			  const struct nf_conntrack_tuple *orig,
+			  const struct nf_conntrack_tuple *repl);
 
 /* delete keymap entries */
 void nf_ct_gre_keymap_destroy(struct nf_conn *ct);

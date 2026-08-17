@@ -170,6 +170,19 @@ struct amdgpu_mes {
 	uint64_t            shared_cmd_buf_gpu_addr[AMDGPU_MAX_MES_INST_PIPES];
 };
 
+struct amdgpu_mes_hung_queue_hqd_info {
+	union {
+		struct {
+			u32 queue_type: 3; // queue type
+			u32 pipe_index: 4; // pipe index
+			u32 queue_index: 8; // queue index
+			u32 reserved: 17;
+		};
+
+		u32 bit0_31;
+	};
+};
+
 struct amdgpu_mes_gang {
 	int 				gang_id;
 	int 				priority;
@@ -285,15 +298,18 @@ struct mes_unmap_legacy_queue_input {
 struct mes_suspend_gang_input {
 	uint32_t        xcc_id;
 	bool		suspend_all_gangs;
+	bool		suspend_all_sdma_gangs;
 	uint64_t	gang_context_addr;
 	uint64_t	suspend_fence_addr;
 	uint32_t	suspend_fence_value;
+	uint32_t	doorbell_offset;
 };
 
 struct mes_resume_gang_input {
 	uint32_t	xcc_id;
 	bool		resume_all_gangs;
 	uint64_t	gang_context_addr;
+	uint32_t	doorbell_offset;
 };
 
 struct mes_reset_queue_input {
@@ -312,8 +328,9 @@ struct mes_reset_queue_input {
 };
 
 struct mes_detect_and_reset_queue_input {
-	uint32_t                           queue_type;
-	bool                               detect_only;
+	u32	queue_type;
+	bool		detect_only;
+	u32	xcc_id;
 };
 
 struct mes_inv_tlbs_pasid_input {
@@ -426,11 +443,12 @@ struct amdgpu_mes_funcs {
 	(adev)->mes.kiq_hw_fini((adev), (xcc_id))
 
 int amdgpu_mes_init_microcode(struct amdgpu_device *adev, int pipe);
+void amdgpu_mes_validate_fw_version(struct amdgpu_device *adev);
 int amdgpu_mes_init(struct amdgpu_device *adev);
 void amdgpu_mes_fini(struct amdgpu_device *adev);
 
-int amdgpu_mes_suspend(struct amdgpu_device *adev);
-int amdgpu_mes_resume(struct amdgpu_device *adev);
+int amdgpu_mes_suspend(struct amdgpu_device *adev, u32 xcc_id);
+int amdgpu_mes_resume(struct amdgpu_device *adev, u32 xcc_id);
 
 int amdgpu_mes_map_legacy_queue(struct amdgpu_device *adev,
 				struct amdgpu_ring *ring, uint32_t xcc_id);
@@ -534,6 +552,7 @@ static inline void amdgpu_mes_unlock(struct amdgpu_mes *mes)
 }
 
 bool amdgpu_mes_suspend_resume_all_supported(struct amdgpu_device *adev);
+bool amdgpu_mes_queue_reset_by_mes_supported(struct amdgpu_device *adev);
 
 int amdgpu_mes_update_enforce_isolation(struct amdgpu_device *adev);
 

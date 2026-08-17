@@ -54,7 +54,7 @@
  *	&drm_crtc_state.degamma_lut.
  *
  * “DEGAMMA_LUT_SIZE”:
- *	Unsinged range property to give the size of the lookup table to be set
+ *	Unsigned range property to give the size of the lookup table to be set
  *	on the DEGAMMA_LUT property (the size depends on the underlying
  *	hardware). If drivers support multiple LUT sizes then they should
  *	publish the largest size, and sub-sample smaller sized LUTs (e.g. for
@@ -280,7 +280,7 @@ static int drm_crtc_legacy_gamma_set(struct drm_crtc *crtc,
 				     struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_crtc_state *crtc_state;
 	struct drm_property_blob *blob;
 	struct drm_color_lut *blob_data;
@@ -300,7 +300,7 @@ static int drm_crtc_legacy_gamma_set(struct drm_crtc *crtc,
 	else
 		return -ENODEV;
 
-	state = drm_atomic_state_alloc(crtc->dev);
+	state = drm_atomic_commit_alloc(crtc->dev);
 	if (!state)
 		return -ENOMEM;
 
@@ -339,7 +339,7 @@ static int drm_crtc_legacy_gamma_set(struct drm_crtc *crtc,
 	ret = drm_atomic_commit(state);
 
 fail:
-	drm_atomic_state_put(state);
+	drm_atomic_commit_put(state);
 	drm_property_blob_put(blob);
 	return ret;
 }

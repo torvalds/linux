@@ -83,6 +83,14 @@ struct vport *ovs_netdev_link(struct vport *vport, bool tunnel)
 	}
 
 	rtnl_lock();
+	/* Do not link devices that are not registered to avoid a potential
+	 * race with the NETDEV_UNREGISTER notification in dp_device_event().
+	 */
+	if (vport->dev->reg_state != NETREG_REGISTERED) {
+		err = -ENODEV;
+		goto error_put_unlock;
+	}
+
 	err = netdev_master_upper_dev_link(vport->dev,
 					   get_dpdev(vport->dp),
 					   NULL, NULL, NULL);

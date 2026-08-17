@@ -302,7 +302,7 @@ static u8 PS_RDY_CHECK(struct adapter *padapter)
 
 	curr_time = jiffies;
 
-	delta_time = curr_time - pwrpriv->DelayLPSLastTimeStamp;
+	delta_time = curr_time - pwrpriv->delay_lps_last_time_stamp;
 
 	if (delta_time < LPS_DELAY_TIME)
 		return false;
@@ -576,7 +576,7 @@ void LPS_Leave_check(struct adapter *padapter)
  *
  * This will be called when CPWM interrupt is up.
  *
- * using to update cpwn of drv; and drv willl make a decision to up or down pwr level
+ * using to update cpwn of drv; and drv will make a decision to up or down pwr level
  */
 void cpwm_int_hdl(struct adapter *padapter, struct reportpwrstate_parm *preportpwrstate)
 {

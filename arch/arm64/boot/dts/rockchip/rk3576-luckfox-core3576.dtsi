@@ -26,7 +26,6 @@
 
 	hdmi-con {
 		compatible = "hdmi-connector";
-		hdmi-pwr-supply = <&vcc_5v0_hdmi>;
 		type = "a";
 
 		port {
@@ -138,22 +137,6 @@
 		};
 	};
 
-	vcc_5v0_hdmi: regulator-vcc-5v0-hdmi {
-		compatible = "regulator-fixed";
-		enable-active-high;
-		gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&hdmi_con_en>;
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		regulator-name = "vcc_5v0_hdmi";
-		vin-supply = <&vcc_5v0_sys>;
-
-		regulator-state-mem {
-			regulator-off-in-suspend;
-		};
-	};
-
 	vcc_5v0_host: regulator-vcc-5v0-host {
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -231,6 +214,9 @@
 };
 
 &hdmi {
+	frl-enable-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_LOW>;
+	pinctrl-0 = <&hdmi_txm0_pins &hdmi_tx_scl &hdmi_tx_sda &hdmi_tx_on_h>;
+	pinctrl-names = "default";
 	status = "okay";
 };
 
@@ -655,7 +641,7 @@
 
 &pinctrl {
 	hdmi {
-		hdmi_con_en: hdmi-con-en {
+		hdmi_tx_on_h: hdmi-tx-on-h {
 			rockchip,pins = <4 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};

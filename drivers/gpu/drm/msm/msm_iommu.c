@@ -330,17 +330,20 @@ static int
 msm_iommu_pagetable_prealloc_allocate(struct msm_mmu *mmu, struct msm_mmu_prealloc *p)
 {
 	struct kmem_cache *pt_cache = get_pt_cache(mmu);
-	int ret;
+
+	if (!p->count) {
+		p->pages = NULL;
+		return 0;
+	}
 
 	p->pages = kvmalloc_objs(*p->pages, p->count);
 	if (!p->pages)
 		return -ENOMEM;
 
-	ret = kmem_cache_alloc_bulk(pt_cache, GFP_KERNEL, p->count, p->pages);
-	if (ret != p->count) {
-		kfree(p->pages);
+	if (!kmem_cache_alloc_bulk(pt_cache, GFP_KERNEL, p->count, p->pages)) {
+		kvfree(p->pages);
 		p->pages = NULL;
-		p->count = ret;
+		p->count = 0;
 		return -ENOMEM;
 	}
 
@@ -677,7 +680,7 @@ static int msm_iommu_map(struct msm_mmu *mmu, uint64_t iova,
 			 int prot)
 {
 	struct msm_iommu *iommu = to_msm_iommu(mmu);
-	size_t ret;
+	ssize_t ret;
 
 	WARN_ON(off != 0);
 
@@ -686,7 +689,8 @@ static int msm_iommu_map(struct msm_mmu *mmu, uint64_t iova,
 		iova |= GENMASK_ULL(63, 49);
 
 	ret = iommu_map_sgtable(iommu->domain, iova, sgt, prot);
-	WARN_ON(!ret);
+	if (ret < 0)
+		return ret;
 
 	return (ret == len) ? 0 : -EINVAL;
 }

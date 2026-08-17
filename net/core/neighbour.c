@@ -457,7 +457,6 @@ void neigh_changeaddr(struct neigh_table *tbl, struct net_device *dev)
 	neigh_flush_dev(tbl, dev, false);
 	spin_unlock_bh(&tbl->lock);
 }
-EXPORT_SYMBOL(neigh_changeaddr);
 
 static int __neigh_ifdown(struct neigh_table *tbl, struct net_device *dev,
 			  bool skip_perm)
@@ -484,14 +483,12 @@ int neigh_carrier_down(struct neigh_table *tbl, struct net_device *dev)
 	__neigh_ifdown(tbl, dev, true);
 	return 0;
 }
-EXPORT_SYMBOL(neigh_carrier_down);
 
 int neigh_ifdown(struct neigh_table *tbl, struct net_device *dev)
 {
 	__neigh_ifdown(tbl, dev, false);
 	return 0;
 }
-EXPORT_SYMBOL(neigh_ifdown);
 
 static struct neighbour *neigh_alloc(struct neigh_table *tbl,
 				     struct net_device *dev,
@@ -1652,13 +1649,11 @@ int neigh_connected_output(struct neighbour *neigh, struct sk_buff *skb)
 	}
 	return err;
 }
-EXPORT_SYMBOL(neigh_connected_output);
 
 int neigh_direct_output(struct neighbour *neigh, struct sk_buff *skb)
 {
 	return dev_queue_xmit(skb);
 }
-EXPORT_SYMBOL(neigh_direct_output);
 
 static void neigh_managed_work(struct work_struct *work)
 {
@@ -1880,7 +1875,6 @@ void neigh_table_init(int index, struct neigh_table *tbl)
 
 	rcu_assign_pointer(neigh_tables[index], tbl);
 }
-EXPORT_SYMBOL(neigh_table_init);
 
 /*
  * Only called from ndisc_cleanup(), which means this is dead code
@@ -1914,7 +1908,6 @@ int neigh_table_clear(int index, struct neigh_table *tbl)
 
 	return 0;
 }
-EXPORT_SYMBOL(neigh_table_clear);
 
 static struct neigh_table *neigh_find_table(int family)
 {

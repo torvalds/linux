@@ -235,7 +235,7 @@ do {									\
 /**
  * smp_cond_load_relaxed() - (Spin) wait for cond with no ordering guarantees
  * @ptr: pointer to the variable to wait on
- * @cond: boolean expression to wait for
+ * @cond_expr: boolean expression to wait for
  *
  * Equivalent to using READ_ONCE() on the condition variable.
  *
@@ -259,7 +259,7 @@ do {									\
 /**
  * smp_cond_load_acquire() - (Spin) wait for cond with ACQUIRE ordering
  * @ptr: pointer to the variable to wait on
- * @cond: boolean expression to wait for
+ * @cond_expr: boolean expression to wait for
  *
  * Equivalent to using smp_load_acquire() on the condition variable but employs
  * the control dependency of the wait to reduce the barrier on many platforms.

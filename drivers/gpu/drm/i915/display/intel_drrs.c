@@ -137,7 +137,7 @@ static unsigned int intel_drrs_frontbuffer_bits(const struct intel_crtc_state *c
 
 	frontbuffer_bits = INTEL_FRONTBUFFER_ALL_MASK(crtc->pipe);
 
-	for_each_intel_crtc_in_pipe_mask(display->drm, crtc,
+	for_each_intel_crtc_in_pipe_mask(display, crtc,
 					 crtc_state->joiner_pipes)
 		frontbuffer_bits |= INTEL_FRONTBUFFER_ALL_MASK(crtc->pipe);
 
@@ -227,7 +227,7 @@ static void intel_drrs_frontbuffer_update(struct intel_display *display,
 {
 	struct intel_crtc *crtc;
 
-	for_each_intel_crtc(display->drm, crtc) {
+	for_each_intel_crtc(display, crtc) {
 		unsigned int frontbuffer_bits;
 
 		mutex_lock(&crtc->drrs.mutex);

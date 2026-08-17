@@ -2,23 +2,23 @@
 #ifndef _PARISC_FCNTL_H
 #define _PARISC_FCNTL_H
 
-#define O_APPEND	000000010
-#define O_CREAT		000000400 /* not fcntl */
-#define O_EXCL		000002000 /* not fcntl */
-#define O_LARGEFILE	000004000
-#define __O_SYNC	000100000
+#define O_APPEND	(1 << 3)
+#define O_CREAT		(1 << 8)	/* not fcntl */
+#define O_EXCL		(1 << 10)	/* not fcntl */
+#define O_LARGEFILE	(1 << 11)
+#define __O_SYNC	(1 << 15)
 #define O_SYNC		(__O_SYNC|O_DSYNC)
-#define O_NONBLOCK	000200000
-#define O_NOCTTY	000400000 /* not fcntl */
-#define O_DSYNC		001000000
-#define O_NOATIME	004000000
-#define O_CLOEXEC	010000000 /* set close_on_exec */
+#define O_NONBLOCK	(1 << 16)
+#define O_NOCTTY	(1 << 17)	/* not fcntl */
+#define O_DSYNC		(1 << 18)
+#define O_NOATIME	(1 << 20)
+#define O_CLOEXEC	(1 << 21)	/* set close_on_exec */
 
-#define O_DIRECTORY	000010000 /* must be a directory */
-#define O_NOFOLLOW	000000200 /* don't follow links */
+#define O_DIRECTORY	(1 << 12)	/* must be a directory */
+#define O_NOFOLLOW	(1 << 7)	/* don't follow links */
 
-#define O_PATH		020000000
-#define __O_TMPFILE	040000000
+#define O_PATH		(1 << 22)
+#define __O_TMPFILE	(1 << 23)
 
 #define F_GETLK64	8
 #define F_SETLK64	9

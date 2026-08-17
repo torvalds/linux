@@ -11,6 +11,8 @@
 #ifndef _NET_OVPN_OVPNSTATS_H_
 #define _NET_OVPN_OVPNSTATS_H_
 
+#include <linux/netdevice.h>
+
 /* one stat */
 struct ovpn_peer_stat {
 	atomic64_t bytes;
@@ -42,6 +44,20 @@ static inline void ovpn_peer_stats_increment_tx(struct ovpn_peer_stats *stats,
 						const unsigned int n)
 {
 	ovpn_peer_stats_increment(&stats->tx, n);
+}
+
+static inline void ovpn_dev_dstats_tx_dropped(struct net_device *dev)
+{
+	local_bh_disable();
+	dev_dstats_tx_dropped(dev);
+	local_bh_enable();
+}
+
+static inline void ovpn_dev_dstats_rx_dropped(struct net_device *dev)
+{
+	local_bh_disable();
+	dev_dstats_rx_dropped(dev);
+	local_bh_enable();
 }
 
 #endif /* _NET_OVPN_OVPNSTATS_H_ */

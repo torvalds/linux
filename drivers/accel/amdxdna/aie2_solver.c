@@ -52,7 +52,7 @@ static u32 calculate_gops(struct aie_qos *rqos)
 	u32 service_rate = 0;
 
 	if (rqos->latency)
-		service_rate = (1000 / rqos->latency);
+		service_rate = max_t(u32, 1000 / rqos->latency, 1);
 
 	if (rqos->fps > service_rate)
 		return rqos->fps * rqos->gops;
@@ -348,6 +348,7 @@ int xrs_release_resource(void *hdl, u64 rid)
 {
 	struct solver_state *xrs = hdl;
 	struct solver_node *node;
+	u32 level = 0;
 
 	node = rg_search_node(&xrs->rgp, rid);
 	if (!node) {
@@ -357,6 +358,13 @@ int xrs_release_resource(void *hdl, u64 rid)
 
 	xrs->cfg.actions->unload(node->cb_arg);
 	remove_solver_node(&xrs->rgp, node);
+
+	/* set the dpm level which fits all the sessions */
+	list_for_each_entry(node, &xrs->rgp.node_list, list) {
+		if (node->dpm_level > level)
+			level = node->dpm_level;
+	}
+	xrs->cfg.actions->set_dft_dpm_level(xrs->cfg.ddev, level);
 
 	return 0;
 }

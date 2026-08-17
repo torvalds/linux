@@ -298,7 +298,7 @@ struct wcn36xx {
 	struct ieee80211_channel *channel;
 
 	spinlock_t survey_lock;		/* protects chan_survey */
-	struct wcn36xx_chan_survey	*chan_survey;
+	struct wcn36xx_chan_survey	chan_survey[];
 };
 
 static inline bool wcn36xx_is_fw_version(struct wcn36xx *wcn,

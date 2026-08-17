@@ -20,7 +20,6 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
@@ -482,7 +481,7 @@ static int adc5_gen3_get_fw_channel_data(struct adc5_chip *adc,
 	sid = FIELD_GET(ADC5_GEN3_VIRTUAL_SID_MASK, chan);
 	chan = FIELD_GET(ADC5_GEN3_CHANNEL_MASK, chan);
 
-	if (chan > ADC5_MAX_CHANNEL)
+	if (chan >= ADC5_MAX_CHANNEL)
 		return dev_err_probe(dev, -EINVAL,
 				     "%s invalid channel number %d\n",
 				     name, chan);

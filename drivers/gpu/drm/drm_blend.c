@@ -449,7 +449,7 @@ int drm_plane_create_zpos_immutable_property(struct drm_plane *plane,
 }
 EXPORT_SYMBOL(drm_plane_create_zpos_immutable_property);
 
-static int drm_atomic_state_zpos_cmp(const void *a, const void *b)
+static int drm_atomic_commit_zpos_cmp(const void *a, const void *b)
 {
 	const struct drm_plane_state *sa = *(struct drm_plane_state **)a;
 	const struct drm_plane_state *sb = *(struct drm_plane_state **)b;
@@ -463,7 +463,7 @@ static int drm_atomic_state_zpos_cmp(const void *a, const void *b)
 static int drm_atomic_helper_crtc_normalize_zpos(struct drm_crtc *crtc,
 					  struct drm_crtc_state *crtc_state)
 {
-	struct drm_atomic_state *state = crtc_state->state;
+	struct drm_atomic_commit *state = crtc_state->state;
 	struct drm_device *dev = crtc->dev;
 	int total_planes = dev->mode_config.num_total_plane;
 	struct drm_plane_state **states;
@@ -494,7 +494,7 @@ static int drm_atomic_helper_crtc_normalize_zpos(struct drm_crtc *crtc,
 			       plane->base.id, plane->name, plane_state->zpos);
 	}
 
-	sort(states, n, sizeof(*states), drm_atomic_state_zpos_cmp, NULL);
+	sort(states, n, sizeof(*states), drm_atomic_commit_zpos_cmp, NULL);
 
 	for (i = 0; i < n; i++) {
 		plane = states[i]->plane;
@@ -529,7 +529,7 @@ done:
  * Zero for success or -errno
  */
 int drm_atomic_normalize_zpos(struct drm_device *dev,
-			      struct drm_atomic_state *state)
+			      struct drm_atomic_commit *state)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;

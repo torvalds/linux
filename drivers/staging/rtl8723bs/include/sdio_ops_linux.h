@@ -25,6 +25,5 @@ void sd_write32(struct intf_hdl *pintfhdl, u32 addr, u32 v, s32 *err);
 s32 _sd_write(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, void *pdata);
 s32 sd_write(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, void *pdata);
 
-
 void rtw_sdio_set_irq_thd(struct dvobj_priv *dvobj, void *thd_hdl);
 #endif

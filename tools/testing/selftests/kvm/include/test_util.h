@@ -19,9 +19,9 @@
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <sys/mman.h>
 #include "kselftest.h"
 
+#include <linux/mman.h>
 #include <linux/types.h>
 
 #define msecs_to_usecs(msec)    ((msec) * 1000ULL)

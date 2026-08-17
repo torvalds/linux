@@ -722,8 +722,8 @@ static int capture_start_streaming(struct vb2_queue *vq, unsigned int count)
 		goto return_bufs;
 	}
 
-	ret = imx_media_pipeline_set_stream(priv->md, &priv->src_sd->entity,
-					    true);
+	ret = imx_media_pipeline_set_stream(priv->md, &priv->vdev,
+					    &priv->src_sd->entity, true);
 	if (ret) {
 		dev_err(priv->dev, "pipeline start failed with %d\n", ret);
 		goto return_bufs;
@@ -749,8 +749,8 @@ static void capture_stop_streaming(struct vb2_queue *vq)
 	unsigned long flags;
 	int ret;
 
-	ret = imx_media_pipeline_set_stream(priv->md, &priv->src_sd->entity,
-					    false);
+	ret = imx_media_pipeline_set_stream(priv->md, &priv->vdev,
+					    &priv->src_sd->entity, false);
 	if (ret)
 		dev_warn(priv->dev, "pipeline stop failed with %d\n", ret);
 

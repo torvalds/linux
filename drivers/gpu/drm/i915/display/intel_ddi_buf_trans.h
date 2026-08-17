@@ -77,5 +77,8 @@ struct intel_ddi_buf_trans {
 bool is_hobl_buf_trans(const struct intel_ddi_buf_trans *table);
 
 void intel_ddi_buf_trans_init(struct intel_encoder *encoder);
+const struct intel_ddi_buf_trans *
+intel_ddi_buf_trans_get(struct intel_encoder *encoder,
+			const struct intel_crtc_state *crtc_state, int *n_entries);
 
 #endif

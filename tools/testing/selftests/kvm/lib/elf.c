@@ -7,7 +7,7 @@
 
 #include "test_util.h"
 
-#include <bits/endian.h>
+#include <endian.h>
 #include <linux/elf.h>
 
 #include "kvm_util.h"

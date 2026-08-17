@@ -14,10 +14,13 @@ to take advantage of segmentation offload capabilities of various NICs.
 The following technologies are described:
  * TCP Segmentation Offload - TSO
  * UDP Fragmentation Offload - UFO
+ * UDP Segmentation Offload - USO
  * IPIP, SIT, GRE, and UDP Tunnel Offloads
  * Generic Segmentation Offload - GSO
  * Generic Receive Offload - GRO
  * Partial Generic Segmentation Offload - GSO_PARTIAL
+ * ESP Segmentation Offload
+ * Fraglist Generic Segmentation Offload - GSO_FRAGLIST
  * SCTP acceleration with GSO - GSO_BY_FRAGS
 
 
@@ -38,7 +41,8 @@ In order to support TCP segmentation offload it is necessary to populate
 the network and transport header offsets of the skbuff so that the device
 drivers will be able determine the offsets of the IP or IPv6 header and the
 TCP header.  In addition as CHECKSUM_PARTIAL is required csum_start should
-also point to the TCP header of the packet.
+also point to the TCP header of the packet, or to the inner transport header
+for encapsulated TSO.
 
 For IPv4 segmentation we support one of two types in terms of the IP ID.
 The default behavior is to increment the IP ID with every segment.  If the
@@ -57,6 +61,10 @@ DF bit is not set on the outer header, in which case the device driver must
 guarantee that the IP ID field is incremented in the outer header with every
 segment.
 
+SKB_GSO_TCP_ACCECN is a modifier used with TCP segmentation offload for
+AccECN packets where the CWR bit must not be cleared during segmentation.
+Devices advertise support for this using NETIF_F_GSO_ACCECN.
+
 
 UDP Fragmentation Offload
 =========================
@@ -69,6 +77,16 @@ fragments should not increment as a single IPv4 datagram is fragmented.
 UFO is deprecated: modern kernels will no longer generate UFO skbs, but can
 still receive them from tuntap and similar devices. Offload of UDP-based
 tunnel protocols is still supported.
+
+
+UDP Segmentation Offload
+========================
+
+UDP segmentation offload allows a device to segment a large UDP packet into
+multiple UDP datagrams.  Unlike UFO, these are not IP fragments.  The payload
+size of each datagram is specified in skb_shinfo()->gso_size and the GSO type
+is SKB_GSO_UDP_L4.  Devices advertise support for this using
+NETIF_F_GSO_UDP_L4.
 
 
 IPIP, SIT, GRE, UDP Tunnel, and Remote Checksum Offloads
@@ -152,6 +170,23 @@ values for if the header was simply duplicated.  The one exception to this
 is the outer IPv4 ID field.  It is up to the device drivers to guarantee
 that the IPv4 ID field is incremented in the case that a given header does
 not have the DF bit set.
+
+
+ESP Segmentation Offload
+========================
+
+ESP segmentation offload uses SKB_GSO_ESP to mark packets that require
+IPsec ESP segmentation.  This type is set by the XFRM output path for GSO
+packets handled by ESP hardware offload.
+
+
+Fraglist Generic Segmentation Offload
+=====================================
+
+Fraglist GSO uses SKB_GSO_FRAGLIST to mark packets whose segments are
+already arranged as a list of skbs.  The segmentation path splits the skb
+based on that list rather than by creating segments of skb_shinfo()->gso_size
+bytes from the linear and page-fragment data.
 
 
 SCTP acceleration with GSO

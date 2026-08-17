@@ -26,7 +26,7 @@
  * efficient lookup by ID. Nodes can be registered or unregistered
  * dynamically at runtime.
  *
- * A Generic Netlink family `drm_ras` exposes two main operations to
+ * A Generic Netlink family `drm_ras` exposes the below operations to
  * userspace:
  *
  * 1. LIST_NODES: Dump all currently registered RAS nodes.
@@ -36,6 +36,10 @@
  *    Userspace must provide Node ID, Error ID (Optional for specific counter).
  *    Returns all counters of a node if only Node ID is provided or specific
  *    error counters.
+ *
+ * 3. CLEAR_ERROR_COUNTER: Clear error counter of a given node.
+ *    Userspace must provide Node ID, Error ID.
+ *    Clears specific error counter of a node if supported.
  *
  * Node registration:
  *
@@ -66,6 +70,8 @@
  *   operation, fetching all counters from a specific node.
  * - drm_ras_nl_get_error_counter_doit(): Implements the GET_ERROR_COUNTER doit
  *   operation, fetching a counter value from a specific node.
+ * - drm_ras_nl_clear_error_counter_doit(): Implements the CLEAR_ERROR_COUNTER doit
+ *   operation, clearing a counter value from a specific node.
  */
 
 static DEFINE_XARRAY_ALLOC(drm_ras_xa);
@@ -312,6 +318,41 @@ int drm_ras_nl_get_error_counter_doit(struct sk_buff *skb,
 	error_id = nla_get_u32(info->attrs[DRM_RAS_A_ERROR_COUNTER_ATTRS_ERROR_ID]);
 
 	return doit_reply_value(info, node_id, error_id);
+}
+
+/**
+ * drm_ras_nl_clear_error_counter_doit() - Clear an error counter of a node
+ * @skb: Netlink message buffer
+ * @info: Generic Netlink info containing attributes of the request
+ *
+ * Extracts the node ID and error ID from the netlink attributes and
+ * clears the current value.
+ *
+ * Return: 0 on success, or negative errno on failure.
+ */
+int drm_ras_nl_clear_error_counter_doit(struct sk_buff *skb,
+					struct genl_info *info)
+{
+	struct drm_ras_node *node;
+	u32 node_id, error_id;
+
+	if (!info->attrs ||
+	    GENL_REQ_ATTR_CHECK(info, DRM_RAS_A_ERROR_COUNTER_ATTRS_NODE_ID) ||
+	    GENL_REQ_ATTR_CHECK(info, DRM_RAS_A_ERROR_COUNTER_ATTRS_ERROR_ID))
+		return -EINVAL;
+
+	node_id = nla_get_u32(info->attrs[DRM_RAS_A_ERROR_COUNTER_ATTRS_NODE_ID]);
+	error_id = nla_get_u32(info->attrs[DRM_RAS_A_ERROR_COUNTER_ATTRS_ERROR_ID]);
+
+	node = xa_load(&drm_ras_xa, node_id);
+	if (!node || !node->clear_error_counter)
+		return -ENOENT;
+
+	if (error_id < node->error_counter_range.first ||
+	    error_id > node->error_counter_range.last)
+		return -EINVAL;
+
+	return node->clear_error_counter(node, error_id);
 }
 
 /**

@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/hwmon/zyxel,nsa320-mcu.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ZyXEL NSA320 MCU
+
+maintainers:
+  - Adam Baker <linux@baker-net.org.uk>
+  - Guenter Roeck <linux@roeck-us.net>
+
+description:
+  The ZyXEL NSA320 uses a dedicated microcontroller to manage system-critical
+  functions like fan speed and power monitoring. It is connected to the SoC
+  via a GPIO-based serial protocol.
+
+properties:
+  compatible:
+    const: zyxel,nsa320-mcu
+
+  data-gpios:
+    maxItems: 1
+    description: GPIO pin connected to the data line on the MCU.
+
+  clk-gpios:
+    maxItems: 1
+    description: GPIO pin connected to the clock line on the MCU.
+
+  act-gpios:
+    maxItems: 1
+    description: GPIO pin connected to the active line on the MCU.
+
+required:
+  - compatible
+  - data-gpios
+  - clk-gpios
+  - act-gpios
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    hwmon {
+        compatible = "zyxel,nsa320-mcu";
+        pinctrl-0 = <&pmx_mcu_data &pmx_mcu_clk &pmx_mcu_act>;
+        pinctrl-names = "default";
+
+        data-gpios = <&gpio0 14 GPIO_ACTIVE_HIGH>;
+        clk-gpios = <&gpio0 16 GPIO_ACTIVE_HIGH>;
+        act-gpios = <&gpio0 17 GPIO_ACTIVE_LOW>;
+    };

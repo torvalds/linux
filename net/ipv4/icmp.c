@@ -961,6 +961,9 @@ void __icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info,
 	if (IS_ERR(rt))
 		goto out_unlock;
 
+	if (rt->rt_flags & (RTCF_BROADCAST | RTCF_MULTICAST))
+		goto ende;
+
 	/* peer icmp_ratelimit */
 	if (!icmpv4_xrlim_allow(net, rt, &fl4, type, code, apply_ratelimit))
 		goto ende;

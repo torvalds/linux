@@ -83,6 +83,22 @@ struct osnoise_instance {
 
 static struct list_head osnoise_instances;
 
+static void osnoise_print(const char *fmt, ...)
+{
+	struct osnoise_instance *inst;
+	struct trace_array *tr;
+	va_list ap;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(inst, &osnoise_instances, list) {
+		tr = inst->tr;
+		va_start(ap, fmt);
+		trace_array_vprintk(tr, _RET_IP_, fmt, ap);
+		va_end(ap);
+	}
+	rcu_read_unlock();
+}
+
 static bool osnoise_has_registered_instances(void)
 {
 	return !!list_first_or_null_rcu(&osnoise_instances,
@@ -123,6 +139,7 @@ static int osnoise_register_instance(struct trace_array *tr)
 	 * trace_types_lock.
 	 */
 	lockdep_assert_held(&trace_types_lock);
+	trace_array_init_printk(tr);
 
 	inst = kmalloc_obj(*inst);
 	if (!inst)
@@ -471,15 +488,7 @@ static void print_osnoise_headers(struct seq_file *s)
  * osnoise_taint - report an osnoise error.
  */
 #define osnoise_taint(msg) ({							\
-	struct osnoise_instance *inst;						\
-	struct trace_buffer *buffer;						\
-										\
-	rcu_read_lock();							\
-	list_for_each_entry_rcu(inst, &osnoise_instances, list) {		\
-		buffer = inst->tr->array_buffer.buffer;				\
-		trace_array_printk_buf(buffer, _THIS_IP_, msg);			\
-	}									\
-	rcu_read_unlock();							\
+	osnoise_print(msg);							\
 	osnoise_data.tainted = true;						\
 })
 
@@ -1189,10 +1198,10 @@ static __always_inline void osnoise_stop_exception(char *msg, int cpu)
 	rcu_read_lock();
 	list_for_each_entry_rcu(inst, &osnoise_instances, list) {
 		tr = inst->tr;
-		trace_array_printk_buf(tr->array_buffer.buffer, _THIS_IP_,
-				       "stop tracing hit on cpu %d due to exception: %s\n",
-				       smp_processor_id(),
-				       msg);
+		trace_array_printk(tr, _THIS_IP_,
+				   "stop tracing hit on cpu %d due to exception: %s\n",
+				   smp_processor_id(),
+				   msg);
 
 		if (test_bit(OSN_PANIC_ON_STOP, &osnoise_options))
 			panic("tracer hit on cpu %d due to exception: %s\n",
@@ -1362,8 +1371,8 @@ static __always_inline void osnoise_stop_tracing(void)
 	rcu_read_lock();
 	list_for_each_entry_rcu(inst, &osnoise_instances, list) {
 		tr = inst->tr;
-		trace_array_printk_buf(tr->array_buffer.buffer, _THIS_IP_,
-				"stop tracing hit on cpu %d\n", smp_processor_id());
+		trace_array_printk(tr, _THIS_IP_,
+				   "stop tracing hit on cpu %d\n", smp_processor_id());
 
 		if (test_bit(OSN_PANIC_ON_STOP, &osnoise_options))
 			panic("tracer hit stop condition on CPU %d\n", smp_processor_id());
@@ -2544,9 +2553,12 @@ timerlat_fd_read(struct file *file, char __user *ubuf, size_t count,
 		notify_new_max_latency(diff);
 
 		tlat->tracing_thread = false;
-		if (osnoise_data.stop_tracing_total)
-			if (time_to_us(diff) >= osnoise_data.stop_tracing_total)
+		if (osnoise_data.stop_tracing_total) {
+			if (time_to_us(diff) >= osnoise_data.stop_tracing_total) {
+				timerlat_dump_stack(time_to_us(diff));
 				osnoise_stop_tracing();
+			}
+		}
 	} else {
 		tlat->tracing_thread = false;
 		tlat->kthread = current;

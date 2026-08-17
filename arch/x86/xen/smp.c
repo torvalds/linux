@@ -23,7 +23,7 @@ static irqreturn_t xen_call_function_single_interrupt(int irq, void *dev_id);
  */
 static irqreturn_t xen_reschedule_interrupt(int irq, void *dev_id)
 {
-	inc_irq_stat(irq_resched_count);
+	inc_irq_stat(RESCHEDULE);
 	scheduler_ipi();
 
 	return IRQ_HANDLED;
@@ -254,7 +254,7 @@ void xen_send_IPI_allbutself(int vector)
 static irqreturn_t xen_call_function_interrupt(int irq, void *dev_id)
 {
 	generic_smp_call_function_interrupt();
-	inc_irq_stat(irq_call_count);
+	inc_irq_stat(CALL_FUNCTION);
 
 	return IRQ_HANDLED;
 }
@@ -262,7 +262,7 @@ static irqreturn_t xen_call_function_interrupt(int irq, void *dev_id)
 static irqreturn_t xen_call_function_single_interrupt(int irq, void *dev_id)
 {
 	generic_smp_call_function_single_interrupt();
-	inc_irq_stat(irq_call_count);
+	inc_irq_stat(CALL_FUNCTION);
 
 	return IRQ_HANDLED;
 }

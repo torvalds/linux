@@ -48,6 +48,7 @@
 #define SEC_OOO_SHUTDOWN_SEL		0x301014
 #define SEC_RAS_DISABLE		0x0
 #define SEC_AXI_ERROR_MASK		(BIT(0) | BIT(1))
+#define SEC_RAS_CLEAR_ALL		GENMASK(31, 0)
 
 #define SEC_MEM_START_INIT_REG	0x301100
 #define SEC_MEM_INIT_DONE_REG		0x301104
@@ -752,7 +753,7 @@ static void sec_hw_error_enable(struct hisi_qm *qm)
 	}
 
 	/* clear SEC hw error source if having */
-	writel(err_mask, qm->io_base + SEC_CORE_INT_SOURCE);
+	writel(SEC_RAS_CLEAR_ALL, qm->io_base + SEC_CORE_INT_SOURCE);
 
 	/* enable RAS int */
 	writel(dev_err->ce, qm->io_base + SEC_RAS_CE_REG);
@@ -1449,12 +1450,10 @@ static int sec_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_qm_del_list;
 	}
 
-	if (qm->uacce) {
-		ret = uacce_register(qm->uacce);
-		if (ret) {
-			pci_err(pdev, "failed to register uacce (%d)!\n", ret);
-			goto err_alg_unregister;
-		}
+	ret = hisi_qm_register_uacce(qm);
+	if (ret) {
+		pci_err(pdev, "failed to register uacce (%d)!\n", ret);
+		goto err_alg_unregister;
 	}
 
 	if (qm->fun_type == QM_HW_PF && vfs_num) {

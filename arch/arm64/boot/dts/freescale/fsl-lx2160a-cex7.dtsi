@@ -4,10 +4,6 @@
 //
 // Copyright 2019 SolidRun Ltd.
 
-/dts-v1/;
-
-#include "fsl-lx2160a.dtsi"
-
 / {
 	model = "SolidRun LX2160A COM Express Type 7 module";
 	compatible = "solidrun,lx2160a-cex7", "fsl,lx2160a";
@@ -15,6 +11,13 @@
 	aliases {
 		crypto = &crypto;
 		rtc0 = &com_rtc;
+	};
+
+	v_1_2: regulator-1-2 {
+		compatible = "regulator-fixed";
+		regulator-name = "1v2";
+		regulator-max-microvolt = <1200000>;
+		regulator-min-microvolt = <1200000>;
 	};
 
 	sb_3v3: regulator-sb3v3 {
@@ -62,7 +65,7 @@
 		#size-cells = <0>;
 		reg = <0x77>;
 
-		i2c@0 {
+		ddr_i2c: i2c@0 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0>;
@@ -88,7 +91,7 @@
 			};
 		};
 
-		i2c@1 {
+		fan_i2c: i2c@1 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <1>;
@@ -99,7 +102,7 @@
 			};
 		};
 
-		i2c@2 {
+		power_i2c: i2c@2 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <2>;
@@ -110,7 +113,7 @@
 			};
 		};
 
-		i2c@3 {
+		i2c_smb: i2c@3 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <3>;
@@ -185,10 +188,24 @@
 	pinctrl-0 = <&gpio0_14_12_pins>;
 };
 
-&usb0 {
-	status = "okay";
-};
-
 &usb1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
 	status = "okay";
+
+	usb_hub_2_0: hub@1 {
+		compatible = "usb4b4,6502", "usb4b4,6506";
+		reg = <1>;
+		peer-hub = <&usb_hub_3_0>;
+		vdd2-supply = <&sb_3v3>;
+		vdd-supply = <&v_1_2>;
+	};
+
+	usb_hub_3_0: hub@2 {
+		compatible = "usb4b4,6500", "usb4b4,6504";
+		reg = <2>;
+		peer-hub = <&usb_hub_2_0>;
+		vdd2-supply = <&sb_3v3>;
+		vdd-supply = <&v_1_2>;
+	};
 };

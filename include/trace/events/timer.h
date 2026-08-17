@@ -299,6 +299,19 @@ DECLARE_EVENT_CLASS(hrtimer_class,
 );
 
 /**
+ * hrtimer_start_expired - Invoked when a expired timer was started
+ * @hrtimer:	pointer to struct hrtimer
+ *
+ * Preceeded by a hrtimer_start tracepoint.
+ */
+DEFINE_EVENT(hrtimer_class, hrtimer_start_expired,
+
+	TP_PROTO(struct hrtimer *hrtimer),
+
+	TP_ARGS(hrtimer)
+);
+
+/**
  * hrtimer_expire_exit - called immediately after the hrtimer callback returns
  * @hrtimer:	pointer to struct hrtimer
  *

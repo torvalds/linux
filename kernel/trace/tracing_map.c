@@ -288,9 +288,6 @@ static void tracing_map_array_clear(struct tracing_map_array *a)
 {
 	unsigned int i;
 
-	if (!a->pages)
-		return;
-
 	for (i = 0; i < a->n_pages; i++)
 		memset(a->pages[i], 0, PAGE_SIZE);
 }
@@ -302,9 +299,6 @@ static void tracing_map_array_free(struct tracing_map_array *a)
 	if (!a)
 		return;
 
-	if (!a->pages)
-		goto free;
-
 	for (i = 0; i < a->n_pages; i++) {
 		if (!a->pages[i])
 			break;
@@ -312,9 +306,6 @@ static void tracing_map_array_free(struct tracing_map_array *a)
 		free_page((unsigned long)a->pages[i]);
 	}
 
-	kfree(a->pages);
-
- free:
 	kfree(a);
 }
 
@@ -322,23 +313,24 @@ static struct tracing_map_array *tracing_map_array_alloc(unsigned int n_elts,
 						  unsigned int entry_size)
 {
 	struct tracing_map_array *a;
+	unsigned int entry_size_shift;
+	unsigned int entries_per_page;
+	unsigned int n_pages;
 	unsigned int i;
 
-	a = kzalloc_obj(*a);
+	entry_size_shift = fls(roundup_pow_of_two(entry_size) - 1);
+	entries_per_page = PAGE_SIZE / (1 << entry_size_shift);
+	n_pages = max(1, n_elts / entries_per_page);
+
+	a = kzalloc_flex(*a, pages, n_pages);
 	if (!a)
 		return NULL;
 
-	a->entry_size_shift = fls(roundup_pow_of_two(entry_size) - 1);
-	a->entries_per_page = PAGE_SIZE / (1 << a->entry_size_shift);
-	a->n_pages = n_elts / a->entries_per_page;
-	if (!a->n_pages)
-		a->n_pages = 1;
+	a->entry_size_shift = entry_size_shift;
+	a->entries_per_page = entries_per_page;
+	a->n_pages = n_pages;
 	a->entry_shift = fls(a->entries_per_page) - 1;
 	a->entry_mask = (1 << a->entry_shift) - 1;
-
-	a->pages = kcalloc(a->n_pages, sizeof(void *), GFP_KERNEL);
-	if (!a->pages)
-		goto free;
 
 	for (i = 0; i < a->n_pages; i++) {
 		a->pages[i] = (void *)get_zeroed_page(GFP_KERNEL);
@@ -386,18 +378,27 @@ static void tracing_map_elt_init_fields(struct tracing_map_elt *elt)
 	}
 }
 
-static void tracing_map_elt_free(struct tracing_map_elt *elt)
+static void __tracing_map_elt_free(struct tracing_map_elt *elt)
 {
 	if (!elt)
 		return;
 
-	if (elt->map->ops && elt->map->ops->elt_free)
-		elt->map->ops->elt_free(elt);
 	kfree(elt->fields);
 	kfree(elt->vars);
 	kfree(elt->var_set);
 	kfree(elt->key);
 	kfree(elt);
+}
+
+static void tracing_map_elt_free(struct tracing_map_elt *elt)
+{
+	if (!elt)
+		return;
+
+	/* Only objects initialized with alloc_elt() should be passed to free_elt().*/
+	if (elt->map->ops && elt->map->ops->elt_free)
+		elt->map->ops->elt_free(elt);
+	__tracing_map_elt_free(elt);
 }
 
 static struct tracing_map_elt *tracing_map_elt_alloc(struct tracing_map *map)
@@ -444,7 +445,7 @@ static struct tracing_map_elt *tracing_map_elt_alloc(struct tracing_map *map)
 	}
 	return elt;
  free:
-	tracing_map_elt_free(elt);
+	__tracing_map_elt_free(elt);
 
 	return ERR_PTR(err);
 }

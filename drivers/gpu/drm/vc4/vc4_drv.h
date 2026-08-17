@@ -375,9 +375,9 @@ struct vc4_hvs_state {
 #define to_vc4_hvs_state(_state)				\
 	container_of_const(_state, struct vc4_hvs_state, base)
 
-struct vc4_hvs_state *vc4_hvs_get_global_state(struct drm_atomic_state *state);
-struct vc4_hvs_state *vc4_hvs_get_old_global_state(const struct drm_atomic_state *state);
-struct vc4_hvs_state *vc4_hvs_get_new_global_state(const struct drm_atomic_state *state);
+struct vc4_hvs_state *vc4_hvs_get_global_state(struct drm_atomic_commit *state);
+struct vc4_hvs_state *vc4_hvs_get_old_global_state(const struct drm_atomic_commit *state);
+struct vc4_hvs_state *vc4_hvs_get_new_global_state(const struct drm_atomic_commit *state);
 
 struct vc4_plane {
 	struct drm_plane base;
@@ -478,12 +478,12 @@ struct vc4_encoder {
 	enum vc4_encoder_type type;
 	u32 clock_select;
 
-	void (*pre_crtc_configure)(struct drm_encoder *encoder, struct drm_atomic_state *state);
-	void (*pre_crtc_enable)(struct drm_encoder *encoder, struct drm_atomic_state *state);
-	void (*post_crtc_enable)(struct drm_encoder *encoder, struct drm_atomic_state *state);
+	void (*pre_crtc_configure)(struct drm_encoder *encoder, struct drm_atomic_commit *state);
+	void (*pre_crtc_enable)(struct drm_encoder *encoder, struct drm_atomic_commit *state);
+	void (*post_crtc_enable)(struct drm_encoder *encoder, struct drm_atomic_commit *state);
 
-	void (*post_crtc_disable)(struct drm_encoder *encoder, struct drm_atomic_state *state);
-	void (*post_crtc_powerdown)(struct drm_encoder *encoder, struct drm_atomic_state *state);
+	void (*post_crtc_disable)(struct drm_encoder *encoder, struct drm_atomic_commit *state);
+	void (*post_crtc_powerdown)(struct drm_encoder *encoder, struct drm_atomic_commit *state);
 };
 
 #define to_vc4_encoder(_encoder)				\
@@ -945,7 +945,7 @@ int vc4_page_flip(struct drm_crtc *crtc,
 		  uint32_t flags,
 		  struct drm_modeset_acquire_ctx *ctx);
 int vc4_crtc_atomic_check(struct drm_crtc *crtc,
-			  struct drm_atomic_state *state);
+			  struct drm_atomic_commit *state);
 struct drm_crtc_state *vc4_crtc_duplicate_state(struct drm_crtc *crtc);
 void vc4_crtc_destroy_state(struct drm_crtc *crtc,
 			    struct drm_crtc_state *state);
@@ -1025,11 +1025,11 @@ struct vc4_hvs *__vc4_hvs_alloc(struct vc4_dev *vc4,
 void vc4_hvs_stop_channel(struct vc4_hvs *hvs, unsigned int output);
 int vc4_hvs_get_fifo_from_output(struct vc4_hvs *hvs, unsigned int output);
 u8 vc4_hvs_get_fifo_frame_count(struct vc4_hvs *hvs, unsigned int fifo);
-int vc4_hvs_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *state);
-void vc4_hvs_atomic_begin(struct drm_crtc *crtc, struct drm_atomic_state *state);
-void vc4_hvs_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_state *state);
-void vc4_hvs_atomic_disable(struct drm_crtc *crtc, struct drm_atomic_state *state);
-void vc4_hvs_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_state *state);
+int vc4_hvs_atomic_check(struct drm_crtc *crtc, struct drm_atomic_commit *state);
+void vc4_hvs_atomic_begin(struct drm_crtc *crtc, struct drm_atomic_commit *state);
+void vc4_hvs_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_commit *state);
+void vc4_hvs_atomic_disable(struct drm_crtc *crtc, struct drm_atomic_commit *state);
+void vc4_hvs_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_commit *state);
 void vc4_hvs_dump_state(struct vc4_hvs *hvs);
 void vc4_hvs_unmask_underrun(struct vc4_hvs *hvs, int channel);
 void vc4_hvs_mask_underrun(struct vc4_hvs *hvs, int channel);

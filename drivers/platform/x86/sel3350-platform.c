@@ -9,6 +9,8 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/array_size.h>
+#include <linux/err.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/machine.h>
 #include <linux/leds.h>
@@ -30,19 +32,82 @@
 #define SEL_PS_B_DETECT "sel_ps_b_detect"
 #define SEL_PS_B_GOOD   "sel_ps_b_good"
 
+#define AUX_LED_GRN1        "sel_aux_led_grn1"
+#define AUX_LED_GRN2        "sel_aux_led_grn2"
+#define AUX_LED_GRN3        "sel_aux_led_grn3"
+#define AUX_LED_GRN4        "sel_aux_led_grn4"
+#define ALARM_STATE_USER    "sel_alarm_state_user"
+#define ENABLE_STATE_USER   "sel_enable_state_user"
+#define AUX_LED_RED1        "sel_aux_led_red1"
+#define AUX_LED_RED2        "sel_aux_led_red2"
+#define AUX_LED_RED3        "sel_aux_led_red3"
+#define AUX_LED_RED4        "sel_aux_led_red4"
+
+static const char *const sel3350_leds_gpio_names[] = {
+	AUX_LED_GRN1,
+	AUX_LED_GRN2,
+	AUX_LED_GRN3,
+	AUX_LED_GRN4,
+	ALARM_STATE_USER,
+	ENABLE_STATE_USER,
+	AUX_LED_RED1,
+	AUX_LED_RED2,
+	AUX_LED_RED3,
+	AUX_LED_RED4,
+};
+
 /* LEDs */
-static const struct gpio_led sel3350_leds[] = {
-	{ .name = "sel:green:aux1" },
-	{ .name = "sel:green:aux2" },
-	{ .name = "sel:green:aux3" },
-	{ .name = "sel:green:aux4" },
-	{ .name = "sel:red:alarm" },
+static struct gpio_led sel3350_leds[] = {
+	{ .name = "sel:green:aux1",
+	  .default_state = LEDS_GPIO_DEFSTATE_KEEP,
+	  .retain_state_suspended = 1,
+	  .retain_state_shutdown = 1,
+	},
+	{ .name = "sel:green:aux2",
+	  .default_state = LEDS_GPIO_DEFSTATE_KEEP,
+	  .retain_state_suspended = 1,
+	  .retain_state_shutdown = 1,
+	},
+	{ .name = "sel:green:aux3",
+	  .default_state = LEDS_GPIO_DEFSTATE_KEEP,
+	  .retain_state_suspended = 1,
+	  .retain_state_shutdown = 1,
+	},
+	{ .name = "sel:green:aux4",
+	  .default_state = LEDS_GPIO_DEFSTATE_KEEP,
+	  .retain_state_suspended = 1,
+	  .retain_state_shutdown = 1,
+	},
+	{ .name = "sel:red:alarm",
+	  .default_state = LEDS_GPIO_DEFSTATE_KEEP,
+	  .retain_state_suspended = 1,
+	  .retain_state_shutdown = 1,
+	},
 	{ .name = "sel:green:enabled",
-	  .default_state = LEDS_GPIO_DEFSTATE_ON },
-	{ .name = "sel:red:aux1" },
-	{ .name = "sel:red:aux2" },
-	{ .name = "sel:red:aux3" },
-	{ .name = "sel:red:aux4" },
+	  .default_state = LEDS_GPIO_DEFSTATE_KEEP,
+	  .retain_state_suspended = 1,
+	  .retain_state_shutdown = 1,
+	},
+	{ .name = "sel:red:aux1",
+	  .default_state = LEDS_GPIO_DEFSTATE_KEEP,
+	  .retain_state_suspended = 1,
+	  .retain_state_shutdown = 1,
+	},
+	{ .name = "sel:red:aux2",
+	  .default_state = LEDS_GPIO_DEFSTATE_KEEP,
+	  .retain_state_suspended = 1,
+	  .retain_state_shutdown = 1,
+	},
+	{ .name = "sel:red:aux3",
+	  .default_state = LEDS_GPIO_DEFSTATE_KEEP,
+	  .retain_state_suspended = 1,
+	  .retain_state_shutdown = 1,
+	},
+	{ .name = "sel:red:aux4",
+	  .default_state = LEDS_GPIO_DEFSTATE_KEEP,
+	  .retain_state_suspended = 1,
+	  .retain_state_shutdown = 1,
+	},
 };
 
 static const struct gpio_led_platform_data sel3350_leds_pdata = {
@@ -50,25 +115,6 @@ static const struct gpio_led_platform_data sel3350_leds_pdata = {
 	.leds = sel3350_leds,
 };
 
-/* Map GPIOs to LEDs */
-static struct gpiod_lookup_table sel3350_leds_table = {
-	.dev_id = "leds-gpio",
-	.table = {
-		GPIO_LOOKUP_IDX(BXT_NW, 49, NULL, 0, GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP_IDX(BXT_NW, 50, NULL, 1, GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP_IDX(BXT_NW, 51, NULL, 2, GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP_IDX(BXT_NW, 52, NULL, 3, GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP_IDX(BXT_W,  20, NULL, 4, GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP_IDX(BXT_W,  21, NULL, 5, GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP_IDX(BXT_SW, 37, NULL, 6, GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP_IDX(BXT_SW, 38, NULL, 7, GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP_IDX(BXT_SW, 39, NULL, 8, GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP_IDX(BXT_SW, 40, NULL, 9, GPIO_ACTIVE_HIGH),
-		{},
-	}
-};
-
-/* Map GPIOs to power supplies */
 static struct gpiod_lookup_table sel3350_gpios_table = {
 	.dev_id = B2093_GPIO_ACPI_ID ":00",
 	.table = {
@@ -76,6 +122,16 @@ static struct gpiod_lookup_table sel3350_gpios_table = {
 		GPIO_LOOKUP(BXT_NW, 45, SEL_PS_A_GOOD,   GPIO_ACTIVE_LOW),
 		GPIO_LOOKUP(BXT_NW, 46, SEL_PS_B_DETECT, GPIO_ACTIVE_LOW),
 		GPIO_LOOKUP(BXT_NW, 47, SEL_PS_B_GOOD,   GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP(BXT_NW, 49, AUX_LED_GRN1, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP(BXT_NW, 50, AUX_LED_GRN2, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP(BXT_NW, 51, AUX_LED_GRN3, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP(BXT_NW, 52, AUX_LED_GRN4, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP(BXT_W,  20, ALARM_STATE_USER, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP(BXT_W,  21, ENABLE_STATE_USER, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP(BXT_SW, 37, AUX_LED_RED1, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP(BXT_SW, 38, AUX_LED_RED2, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP(BXT_SW, 39, AUX_LED_RED3, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP(BXT_SW, 40, AUX_LED_RED4, GPIO_ACTIVE_HIGH),
 		{},
 	}
 };
@@ -149,6 +205,7 @@ struct sel3350_data {
 static int sel3350_probe(struct platform_device *pdev)
 {
 	int rs;
+	int i;
 	struct sel3350_data *sel3350;
 	struct power_supply_config ps_cfg = {};
 
@@ -158,8 +215,18 @@ static int sel3350_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, sel3350);
 
-	gpiod_add_lookup_table(&sel3350_leds_table);
 	gpiod_add_lookup_table(&sel3350_gpios_table);
+
+	for (i = 0; i < ARRAY_SIZE(sel3350_leds); ++i) {
+		sel3350_leds[i].gpiod = devm_gpiod_get(&pdev->dev,
+						       sel3350_leds_gpio_names[i],
+						       GPIOD_ASIS);
+		if (IS_ERR_OR_NULL(sel3350_leds[i].gpiod)) {
+			rs = -EPROBE_DEFER;
+			goto err_gpio_loop;
+		}
+		gpiod_set_consumer_name(sel3350_leds[i].gpiod, sel3350_leds[i].name);
+	}
 
 	sel3350->leds_pdev = platform_device_register_data(
 			NULL,
@@ -209,11 +276,15 @@ static int sel3350_probe(struct platform_device *pdev)
 
 	return 0;
 
+err_gpio_loop:
+	while (i--)
+		devm_gpiod_put(&pdev->dev, sel3350_leds[i].gpiod);
+	goto err_platform;
+
 err_ps:
 	platform_device_unregister(sel3350->leds_pdev);
 err_platform:
 	gpiod_remove_lookup_table(&sel3350_gpios_table);
-	gpiod_remove_lookup_table(&sel3350_leds_table);
 
 	return rs;
 }
@@ -224,7 +295,6 @@ static void sel3350_remove(struct platform_device *pdev)
 
 	platform_device_unregister(sel3350->leds_pdev);
 	gpiod_remove_lookup_table(&sel3350_gpios_table);
-	gpiod_remove_lookup_table(&sel3350_leds_table);
 }
 
 static const struct acpi_device_id sel3350_device_ids[] = {

@@ -2654,7 +2654,6 @@ int ntfs_set_label(struct ntfs_sb_info *sbi, u8 *label, int len)
 	struct ATTRIB *attr;
 	u32 uni_bytes;
 	struct ntfs_inode *ni = sbi->volume.ni;
-	/* Allocate PATH_MAX bytes. */
 	struct cpu_str *uni = kmalloc(PATH_MAX, GFP_KERNEL);
 
 	if (!uni)

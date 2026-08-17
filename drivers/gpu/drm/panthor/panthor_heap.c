@@ -9,9 +9,9 @@
 
 #include "panthor_device.h"
 #include "panthor_gem.h"
+#include "panthor_gpu_regs.h"
 #include "panthor_heap.h"
 #include "panthor_mmu.h"
-#include "panthor_regs.h"
 
 /*
  * The GPU heap context is an opaque structure used by the GPU to track the

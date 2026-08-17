@@ -690,7 +690,7 @@ static int elan_i2c_finish_fw_update(struct i2c_client *client,
 	if (error) {
 		dev_err(dev, "device reset failed: %d\n", error);
 	} else if (!wait_for_completion_timeout(completion,
-						msecs_to_jiffies(300))) {
+						msecs_to_jiffies(700))) {
 		dev_err(dev, "timeout waiting for device reset\n");
 		error = -ETIMEDOUT;
 	}

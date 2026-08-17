@@ -87,7 +87,6 @@ static int msm_drm_uninit(struct device *dev, const struct component_ops *gpu_op
 
 	msm_gem_shrinker_cleanup(ddev);
 
-	msm_perf_debugfs_cleanup(priv);
 	msm_rd_debugfs_cleanup(priv);
 
 	if (priv->kms)
@@ -128,11 +127,10 @@ static int msm_drm_init(struct device *dev, const struct drm_driver *drv,
 	/*
 	 * Initialize the LRUs:
 	 */
-	mutex_init(&priv->lru.lock);
-	drm_gem_lru_init(&priv->lru.unbacked, &priv->lru.lock);
-	drm_gem_lru_init(&priv->lru.pinned,   &priv->lru.lock);
-	drm_gem_lru_init(&priv->lru.willneed, &priv->lru.lock);
-	drm_gem_lru_init(&priv->lru.dontneed, &priv->lru.lock);
+	drm_gem_lru_init(&priv->lru.unbacked);
+	drm_gem_lru_init(&priv->lru.pinned);
+	drm_gem_lru_init(&priv->lru.willneed);
+	drm_gem_lru_init(&priv->lru.dontneed);
 
 	/* Initialize stall-on-fault */
 	spin_lock_init(&priv->fault_stall_lock);
@@ -140,7 +138,7 @@ static int msm_drm_init(struct device *dev, const struct drm_driver *drv,
 
 	/* Teach lockdep about lock ordering wrt. shrinker: */
 	fs_reclaim_acquire(GFP_KERNEL);
-	might_lock(&priv->lru.lock);
+	might_lock(&ddev->gem_lru_mutex);
 	fs_reclaim_release(GFP_KERNEL);
 
 	if (priv->kms_init) {
@@ -802,6 +800,7 @@ static const struct drm_ioctl_desc msm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(MSM_SUBMITQUEUE_CLOSE, msm_ioctl_submitqueue_close, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(MSM_SUBMITQUEUE_QUERY, msm_ioctl_submitqueue_query, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(MSM_VM_BIND,      msm_ioctl_vm_bind,      DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(MSM_PERFCNTR_CONFIG,   msm_ioctl_perfcntr_config,    DRM_RENDER_ALLOW),
 };
 
 static void msm_show_fdinfo(struct drm_printer *p, struct drm_file *file)

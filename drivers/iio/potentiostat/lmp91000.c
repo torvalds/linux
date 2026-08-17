@@ -11,7 +11,6 @@
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
-#include <linux/mod_devicetable.h>
 #include <linux/regmap.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
@@ -403,8 +402,8 @@ static const struct of_device_id lmp91000_of_match[] = {
 MODULE_DEVICE_TABLE(of, lmp91000_of_match);
 
 static const struct i2c_device_id lmp91000_id[] = {
-	{ "lmp91000" },
-	{ "lmp91002" },
+	{ .name = "lmp91000" },
+	{ .name = "lmp91002" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lmp91000_id);

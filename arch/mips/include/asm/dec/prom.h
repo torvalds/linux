@@ -4,7 +4,7 @@
  *
  *	DECstation PROM interface.
  *
- *	Copyright (C) 2002  Maciej W. Rozycki
+ *	Copyright (C) 2002, 2026  Maciej W. Rozycki
  *
  *	Based on arch/mips/dec/prom/prom.h by the Anonymous.
  */
@@ -97,6 +97,17 @@ extern int (*__pmax_close)(int);
 
 #ifdef CONFIG_64BIT
 
+#define O32_STK_SIZE 512
+extern unsigned long o32_stk[];
+
+/* Switch the stack if outside the 32-bit address space.  */
+static inline unsigned long *o32_get_stk(void)
+{
+	long fp = (long)__builtin_frame_address(0);
+
+	return fp != (int)fp ? o32_stk + O32_STK_SIZE : NULL;
+}
+
 /*
  * On MIPS64 we have to call PROM functions via a helper
  * dispatcher to accommodate ABI incompatibilities.
@@ -128,7 +139,7 @@ int __DEC_PROM_O32(_prom_printf, (int (*)(char *, ...), void *, char *, ...));
 
 #define prom_getchar()		_prom_getchar(__prom_getchar, NULL)
 #define prom_getenv(x)		_prom_getenv(__prom_getenv, NULL, x)
-#define prom_printf(x...)	_prom_printf(__prom_printf, NULL, x)
+#define prom_printf(x...)	_prom_printf(__prom_printf, o32_get_stk(), x)
 
 #else /* !CONFIG_64BIT */
 

@@ -257,6 +257,7 @@ static const struct mssr_mod_clk r9a09g077_mod_clks[] __initconst = {
 	DEF_MOD("spi0", 104, CLK_SPI0ASYNC),
 	DEF_MOD("spi1", 105, CLK_SPI1ASYNC),
 	DEF_MOD("spi2", 106, CLK_SPI2ASYNC),
+	DEF_MOD("mtu3", 200, R9A09G077_CLK_PCLKH),
 	DEF_MOD("adc0", 206, R9A09G077_CLK_PCLKH),
 	DEF_MOD("adc1", 207, R9A09G077_CLK_PCLKH),
 	DEF_MOD("adc2", 225, R9A09G077_CLK_PCLKM),

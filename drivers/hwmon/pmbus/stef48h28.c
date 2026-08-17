@@ -5,7 +5,6 @@
 
 #include <linux/err.h>
 #include <linux/i2c.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 
 #include "pmbus.h"
@@ -48,8 +47,8 @@ static int stef48h28_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id stef48h28_id[] = {
-	{"stef48h28"},
-	{}
+	{ .name = "stef48h28" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, stef48h28_id);
 

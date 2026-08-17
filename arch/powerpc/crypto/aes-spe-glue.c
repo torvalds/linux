@@ -9,6 +9,7 @@
  */
 
 #include <crypto/aes.h>
+#include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
@@ -140,7 +141,7 @@ static int ppc_ecb_crypt(struct skcipher_request *req, bool enc)
 	err = skcipher_walk_virt(&walk, req, false);
 
 	while ((nbytes = walk.nbytes) != 0) {
-		nbytes = min_t(unsigned int, nbytes, MAX_BYTES);
+		nbytes = min(nbytes, MAX_BYTES);
 		nbytes = round_down(nbytes, AES_BLOCK_SIZE);
 
 		spe_begin();
@@ -179,7 +180,7 @@ static int ppc_cbc_crypt(struct skcipher_request *req, bool enc)
 	err = skcipher_walk_virt(&walk, req, false);
 
 	while ((nbytes = walk.nbytes) != 0) {
-		nbytes = min_t(unsigned int, nbytes, MAX_BYTES);
+		nbytes = min(nbytes, MAX_BYTES);
 		nbytes = round_down(nbytes, AES_BLOCK_SIZE);
 
 		spe_begin();
@@ -220,7 +221,7 @@ static int ppc_ctr_crypt(struct skcipher_request *req)
 	err = skcipher_walk_virt(&walk, req, false);
 
 	while ((nbytes = walk.nbytes) != 0) {
-		nbytes = min_t(unsigned int, nbytes, MAX_BYTES);
+		nbytes = min(nbytes, MAX_BYTES);
 		if (nbytes < walk.total)
 			nbytes = round_down(nbytes, AES_BLOCK_SIZE);
 
@@ -248,7 +249,7 @@ static int ppc_xts_crypt(struct skcipher_request *req, bool enc)
 	twk = ctx->key_twk;
 
 	while ((nbytes = walk.nbytes) != 0) {
-		nbytes = min_t(unsigned int, nbytes, MAX_BYTES);
+		nbytes = min(nbytes, MAX_BYTES);
 		nbytes = round_down(nbytes, AES_BLOCK_SIZE);
 
 		spe_begin();

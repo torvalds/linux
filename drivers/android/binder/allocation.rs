@@ -157,6 +157,14 @@ impl Allocation {
         self.get_or_init_info().target_node = Some(target_node);
     }
 
+    pub(crate) fn take_oneway_node(&mut self) -> Option<DArc<Node>> {
+        if let Some(info) = self.allocation_info.as_mut() {
+            info.oneway_node.take()
+        } else {
+            None
+        }
+    }
+
     /// Reserve enough space to push at least `num_fds` fds.
     pub(crate) fn info_add_fd_reserve(&mut self, num_fds: usize) -> Result {
         self.get_or_init_info()

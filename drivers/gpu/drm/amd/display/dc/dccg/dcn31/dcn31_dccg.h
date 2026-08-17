@@ -202,6 +202,19 @@ void dccg31_set_physymclk(
 void dccg31_set_audio_dtbclk_dto(
 		struct dccg *dccg,
 		const struct dtbclk_dto_params *params);
+void dccg31_enable_hdmicharclk(
+	struct dccg *dccg,
+	int hpo_inst,
+	int phypll_inst);
+
+void dccg31_disable_hdmicharclk(
+	struct dccg *dccg,
+	int hpo_inst);
+
+void dccg31_set_hdmistreamclk(
+	struct dccg *dccg,
+	enum streamclk_source src,
+	uint32_t otg_inst);
 
 void dccg31_update_dpp_dto(
 	struct dccg *dccg,

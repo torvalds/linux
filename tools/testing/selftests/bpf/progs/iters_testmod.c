@@ -29,7 +29,7 @@ out:
 }
 
 SEC("raw_tp/sys_enter")
-__failure __msg("Possibly NULL pointer passed to trusted arg0")
+__failure __msg("Possibly NULL pointer passed to trusted R1")
 int iter_next_trusted_or_null(const void *ctx)
 {
 	struct task_struct *cur_task = bpf_get_current_task_btf();
@@ -67,7 +67,7 @@ out:
 }
 
 SEC("raw_tp/sys_enter")
-__failure __msg("Possibly NULL pointer passed to trusted arg0")
+__failure __msg("Possibly NULL pointer passed to trusted R1")
 int iter_next_rcu_or_null(const void *ctx)
 {
 	struct task_struct *cur_task = bpf_get_current_task_btf();

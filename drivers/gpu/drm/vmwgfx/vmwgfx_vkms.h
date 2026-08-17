@@ -29,10 +29,9 @@
 #ifndef VMWGFX_VKMS_H_
 #define VMWGFX_VKMS_H_
 
-#include <linux/hrtimer_types.h>
 #include <linux/types.h>
 
-struct drm_atomic_state;
+struct drm_atomic_commit;
 struct drm_crtc;
 struct vmw_private;
 struct vmw_surface;
@@ -45,6 +44,7 @@ bool vmw_vkms_modeset_lock_relaxed(struct drm_crtc *crtc);
 bool vmw_vkms_vblank_trylock(struct drm_crtc *crtc);
 void vmw_vkms_unlock(struct drm_crtc *crtc);
 
+bool vmw_vkms_handle_vblank_timeout(struct drm_crtc *crtc);
 bool vmw_vkms_get_vblank_timestamp(struct drm_crtc *crtc,
 				   int *max_error,
 				   ktime_t *vblank_time,
@@ -55,12 +55,12 @@ void vmw_vkms_disable_vblank(struct drm_crtc *crtc);
 void vmw_vkms_crtc_init(struct drm_crtc *crtc);
 void vmw_vkms_crtc_cleanup(struct drm_crtc *crtc);
 void  vmw_vkms_crtc_atomic_begin(struct drm_crtc *crtc,
-				 struct drm_atomic_state *state);
-void vmw_vkms_crtc_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_state *state);
+				 struct drm_atomic_commit *state);
+void vmw_vkms_crtc_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_commit *state);
 void vmw_vkms_crtc_atomic_enable(struct drm_crtc *crtc,
-				 struct drm_atomic_state *state);
+				 struct drm_atomic_commit *state);
 void vmw_vkms_crtc_atomic_disable(struct drm_crtc *crtc,
-				  struct drm_atomic_state *state);
+				  struct drm_atomic_commit *state);
 
 const char *const *vmw_vkms_get_crc_sources(struct drm_crtc *crtc,
 					    size_t *count);

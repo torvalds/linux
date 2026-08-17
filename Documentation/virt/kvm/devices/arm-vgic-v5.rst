@@ -12,8 +12,8 @@ Only one VGIC instance may be instantiated through this API.  The created VGIC
 will act as the VM interrupt controller, requiring emulated user-space devices
 to inject interrupts to the VGIC instead of directly to CPUs.
 
-Creating a guest GICv5 device requires a host GICv5 host.  The current VGICv5
-device only supports PPI interrupts.  These can either be injected from emulated
+Creating a guest GICv5 device requires a GICv5 host.  The current VGICv5 device
+only supports PPI interrupts.  These can either be injected from emulated
 in-kernel devices (such as the Arch Timer, or PMU), or via the KVM_IRQ_LINE
 ioctl.
 
@@ -25,7 +25,7 @@ Groups:
       request the initialization of the VGIC, no additional parameter in
       kvm_device_attr.addr. Must be called after all VCPUs have been created.
 
-   KVM_DEV_ARM_VGIC_USERPSPACE_PPIs
+   KVM_DEV_ARM_VGIC_USERSPACE_PPIS
       request the mask of userspace-drivable PPIs. Only a subset of the PPIs can
       be directly driven from userspace with GICv5, and the returned mask
       informs userspace of which it is allowed to drive via KVM_IRQ_LINE.

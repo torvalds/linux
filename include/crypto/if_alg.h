@@ -41,7 +41,7 @@ struct af_alg_control {
 };
 
 struct af_alg_type {
-	void *(*bind)(const char *name, u32 type, u32 mask);
+	void *(*bind)(const char *name);
 	void (*release)(void *private);
 	int (*setkey)(void *private, const u8 *key, unsigned int keylen);
 	int (*setentropy)(void *private, sockptr_t entropy, unsigned int len);
@@ -80,7 +80,6 @@ struct af_alg_rsgl {
 
 /**
  * struct af_alg_async_req - definition of crypto request
- * @iocb:		IOCB for AIO operations
  * @sk:			Socket the request is associated with
  * @first_rsgl:		First RX SG
  * @last_rsgl:		Pointer to last RX SG
@@ -92,7 +91,6 @@ struct af_alg_rsgl {
  * @cra_u:		Cipher request
  */
 struct af_alg_async_req {
-	struct kiocb *iocb;
 	struct sock *sk;
 
 	struct af_alg_rsgl first_rsgl;
@@ -138,7 +136,7 @@ struct af_alg_async_req {
  * @write:		True if we are in the middle of a write.
  * @init:		True if metadata has been sent.
  * @len:		Length of memory allocated for this data structure.
- * @inflight:		Non-zero when AIO requests are in flight.
+ * @inflight:		Non-zero when requests are in flight, for debugging only.
  */
 struct af_alg_ctx {
 	struct list_head tsgl_list;
@@ -237,7 +235,6 @@ int af_alg_wait_for_data(struct sock *sk, unsigned flags, unsigned min);
 int af_alg_sendmsg(struct socket *sock, struct msghdr *msg, size_t size,
 		   unsigned int ivsize);
 void af_alg_free_resources(struct af_alg_async_req *areq);
-void af_alg_async_cb(void *data, int err);
 __poll_t af_alg_poll(struct file *file, struct socket *sock,
 			 poll_table *wait);
 struct af_alg_async_req *af_alg_alloc_areq(struct sock *sk,
@@ -245,5 +242,17 @@ struct af_alg_async_req *af_alg_alloc_areq(struct sock *sk,
 int af_alg_get_rsgl(struct sock *sk, struct msghdr *msg, int flags,
 		    struct af_alg_async_req *areq, size_t maxsize,
 		    size_t *outlen);
+
+/*
+ * Mask used to disable unsupported algorithm implementations.
+ *
+ * This is the same as FSCRYPT_CRYPTOAPI_MASK in fs/crypto/fscrypt_private.h.
+ * In additions to the motivations there, this API is exposed to userspace
+ * that might not be fully trusted.
+ */
+#define AF_ALG_CRYPTOAPI_MASK                             \
+	(CRYPTO_ALG_ASYNC | CRYPTO_ALG_ALLOCATES_MEMORY | \
+	 CRYPTO_ALG_KERN_DRIVER_ONLY)
+
 
 #endif	/* _CRYPTO_IF_ALG_H */

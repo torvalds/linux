@@ -15,7 +15,6 @@ struct task_struct;
  * __switch_to - switch execution of a task
  * @prev:	The task previously executed.
  * @next:	The task to begin executing.
- * @next_ti:	task_thread_info(next).
  * @sched_ra:	__schedule return address.
  * @sched_cfa:	__schedule call frame address.
  *
@@ -23,8 +22,7 @@ struct task_struct;
  * the context of next. Returns prev.
  */
 extern asmlinkage struct task_struct *__switch_to(struct task_struct *prev,
-			struct task_struct *next, struct thread_info *next_ti,
-			void *sched_ra, void *sched_cfa);
+			struct task_struct *next, void *sched_ra, void *sched_cfa);
 
 /*
  * For newly created kernel threads switch_to() will return to
@@ -37,7 +35,8 @@ do {										\
 	lose_fpu_inatomic(1, prev);						\
 	lose_lbt_inatomic(1, prev);						\
 	hw_breakpoint_thread_switch(next);					\
-	(last) = __switch_to(prev, next, task_thread_info(next),		\
+	set_current(next);							\
+	(last) = __switch_to(prev, next,					\
 		 __builtin_return_address(0), __builtin_frame_address(0));	\
 } while (0)
 

@@ -35,7 +35,7 @@ struct aplic {
 
 	u32 nr_irqs;
 	u32 nr_words;
-	struct aplic_irq *irqs;
+	struct aplic_irq irqs[] __counted_by(nr_irqs);
 };
 
 static u32 aplic_read_sourcecfg(struct aplic *aplic, u32 irq)
@@ -581,7 +581,7 @@ int kvm_riscv_aia_aplic_init(struct kvm *kvm)
 		return 0;
 
 	/* Allocate APLIC global state */
-	aplic = kzalloc_obj(*aplic);
+	aplic = kzalloc_flex(*aplic, irqs, kvm->arch.aia.nr_sources + 1);
 	if (!aplic)
 		return -ENOMEM;
 	kvm->arch.aia.aplic_state = aplic;
@@ -589,11 +589,6 @@ int kvm_riscv_aia_aplic_init(struct kvm *kvm)
 	/* Setup APLIC IRQs */
 	aplic->nr_irqs = kvm->arch.aia.nr_sources + 1;
 	aplic->nr_words = DIV_ROUND_UP(aplic->nr_irqs, 32);
-	aplic->irqs = kzalloc_objs(*aplic->irqs, aplic->nr_irqs);
-	if (!aplic->irqs) {
-		ret = -ENOMEM;
-		goto fail_free_aplic;
-	}
 	for (i = 0; i < aplic->nr_irqs; i++)
 		raw_spin_lock_init(&aplic->irqs[i].lock);
 
@@ -606,7 +601,7 @@ int kvm_riscv_aia_aplic_init(struct kvm *kvm)
 				      &aplic->iodev);
 	mutex_unlock(&kvm->slots_lock);
 	if (ret)
-		goto fail_free_aplic_irqs;
+		goto fail_free_aplic;
 
 	/* Setup default IRQ routing */
 	ret = kvm_riscv_setup_default_irq_routing(kvm, aplic->nr_irqs);
@@ -619,8 +614,6 @@ fail_unreg_iodev:
 	mutex_lock(&kvm->slots_lock);
 	kvm_io_bus_unregister_dev(kvm, KVM_MMIO_BUS, &aplic->iodev);
 	mutex_unlock(&kvm->slots_lock);
-fail_free_aplic_irqs:
-	kfree(aplic->irqs);
 fail_free_aplic:
 	kvm->arch.aia.aplic_state = NULL;
 	kfree(aplic);
@@ -637,8 +630,6 @@ void kvm_riscv_aia_aplic_cleanup(struct kvm *kvm)
 	mutex_lock(&kvm->slots_lock);
 	kvm_io_bus_unregister_dev(kvm, KVM_MMIO_BUS, &aplic->iodev);
 	mutex_unlock(&kvm->slots_lock);
-
-	kfree(aplic->irqs);
 
 	kvm->arch.aia.aplic_state = NULL;
 	kfree(aplic);

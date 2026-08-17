@@ -997,10 +997,10 @@ static void walk_file_range(const char *name, int fd,
 
 		/* turn off readahead */
 		if (madvise(ptr, len, MADV_RANDOM))
-			fatal("madvice failed: %s", name);
+			fatal("madvise failed: %s", name);
 
 		if (sigsetjmp(sigbus_jmp, 1)) {
-			end = off + sigbus_addr ? sigbus_addr - ptr : 0;
+			end = off + (sigbus_addr ? sigbus_addr - ptr : 0);
 			fprintf(stderr, "got sigbus at offset %lld: %s\n",
 					(long long)end, name);
 			goto got_sigbus;
@@ -1015,7 +1015,7 @@ got_sigbus:
 
 		/* turn off harvesting reference bits */
 		if (madvise(ptr, len, MADV_SEQUENTIAL))
-			fatal("madvice failed: %s", name);
+			fatal("madvise failed: %s", name);
 
 		if (pagemap_read(buf, (unsigned long)ptr / page_size,
 					nr_pages) != nr_pages)
@@ -1261,7 +1261,7 @@ static const struct option opts[] = {
 	{ "no-summary", 0, NULL, 'N' },
 	{ "hwpoison"  , 0, NULL, 'X' },
 	{ "unpoison"  , 0, NULL, 'x' },
-	{ "kpageflags", 0, NULL, 'F' },
+	{ "kpageflags", 1, NULL, 'F' },
 	{ "help"      , 0, NULL, 'h' },
 	{ NULL        , 0, NULL, 0 }
 };

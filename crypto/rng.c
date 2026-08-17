@@ -65,11 +65,9 @@ static unsigned int seedsize(struct crypto_alg *alg)
 static int __maybe_unused crypto_rng_report(
 	struct sk_buff *skb, struct crypto_alg *alg)
 {
-	struct crypto_report_rng rrng;
-
-	memset(&rrng, 0, sizeof(rrng));
-
-	strscpy(rrng.type, "rng", sizeof(rrng.type));
+	struct crypto_report_rng rrng = {
+		.type = "rng",
+	};
 
 	rrng.seedsize = seedsize(alg);
 
@@ -231,6 +229,17 @@ void crypto_unregister_rngs(struct rng_alg *algs, int count)
 		crypto_unregister_rng(algs + i);
 }
 EXPORT_SYMBOL_GPL(crypto_unregister_rngs);
+
+static void __exit rng_exit(void)
+{
+	int err;
+
+	err = crypto_del_default_rng();
+	if (err)
+		pr_err("Failed delete default RNG: %d\n", err);
+}
+
+module_exit(rng_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Random Number Generator");

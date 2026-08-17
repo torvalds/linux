@@ -113,6 +113,7 @@ config X86
 	select ARCH_HAS_ZONE_DMA_SET if EXPERT
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select ARCH_HAVE_EXTRA_ELF_NOTES
+	select ARCH_MEMORY_ORDER_TSO
 	select ARCH_MHP_MEMMAP_ON_MEMORY_ENABLE
 	select ARCH_MIGHT_HAVE_ACPI_PDC		if ACPI
 	select ARCH_MIGHT_HAVE_PC_PARPORT
@@ -130,10 +131,8 @@ config X86
 	select ARCH_SUPPORTS_LTO_CLANG
 	select ARCH_SUPPORTS_LTO_CLANG_THIN
 	select ARCH_SUPPORTS_RT
-	select ARCH_SUPPORTS_AUTOFDO_CLANG
-	select ARCH_SUPPORTS_PROPELLER_CLANG    if X86_64
 	select ARCH_USE_BUILTIN_BSWAP
-	select ARCH_USE_CMPXCHG_LOCKREF		if X86_CX8
+	select ARCH_USE_CMPXCHG_LOCKREF
 	select ARCH_USE_MEMTEST
 	select ARCH_USE_QUEUED_RWLOCKS
 	select ARCH_USE_QUEUED_SPINLOCKS
@@ -180,7 +179,6 @@ config X86
 	select GENERIC_IRQ_SHOW
 	select GENERIC_PENDING_IRQ		if SMP
 	select GENERIC_SMP_IDLE_THREAD
-	select GENERIC_TIME_VSYSCALL
 	select GENERIC_GETTIMEOFDAY
 	select GENERIC_VDSO_OVERFLOW_PROTECT
 	select GUP_GET_PXX_LOW_HIGH		if X86_PAE
@@ -238,6 +236,7 @@ config X86
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
 	select HAVE_EISA			if X86_32
 	select HAVE_EXIT_THREAD
+	select HAVE_FUTEX_ROBUST_UNLOCK
 	select HAVE_GENERIC_TIF_BITS
 	select HAVE_GUP_FAST
 	select HAVE_FENTRY			if X86_64 || DYNAMIC_FTRACE
@@ -683,7 +682,6 @@ config X86_INTEL_QUARK
 	depends on X86_32
 	depends on X86_EXTENDED_PLATFORM
 	depends on X86_PLATFORM_DEVICES
-	depends on X86_TSC
 	depends on PCI
 	depends on PCI_GOANY
 	depends on X86_IO_APIC
@@ -694,17 +692,6 @@ config X86_INTEL_QUARK
 	  Select to include support for Quark X1000 SoC.
 	  Say Y here if you have a Quark based system such as the Arduino
 	  compatible Intel Galileo.
-
-config X86_RDC321X
-	bool "RDC R-321x SoC"
-	depends on X86_32
-	depends on X86_EXTENDED_PLATFORM
-	select M486
-	select X86_REBOOTFIXUPS
-	help
-	  This option is needed for RDC R-321x system-on-chip, also known
-	  as R-8610-(G).
-	  If you don't have one of these chips, you should say N here.
 
 config X86_INTEL_LPSS
 	bool "Intel Low Power Subsystem Support"
@@ -1644,33 +1631,6 @@ config X86_BOOTPARAM_MEMORY_CORRUPTION_CHECK
 	  Set whether the default state of memory_corruption_check is
 	  on or off.
 
-config MATH_EMULATION
-	bool
-	depends on MODIFY_LDT_SYSCALL
-	prompt "Math emulation" if X86_32 && (M486SX || MELAN)
-	help
-	  Linux can emulate a math coprocessor (used for floating point
-	  operations) if you don't have one. 486DX and Pentium processors have
-	  a math coprocessor built in, 486SX and 386 do not, unless you added
-	  a 487DX or 387, respectively. (The messages during boot time can
-	  give you some hints here ["man dmesg"].) Everyone needs either a
-	  coprocessor or this emulation.
-
-	  If you don't have a math coprocessor, you need to say Y here; if you
-	  say Y here even though you have a coprocessor, the coprocessor will
-	  be used nevertheless. (This behavior can be changed with the kernel
-	  command line option "no387", which comes handy if your coprocessor
-	  is broken. Try "man bootparam" or see the documentation of your boot
-	  loader (lilo or loadlin) about how to pass options to the kernel at
-	  boot time.) This means that it is a good idea to say Y here if you
-	  intend to use this kernel on different machines.
-
-	  More information about the internals of the Linux math coprocessor
-	  emulation can be found in <file:arch/x86/math-emu/README>.
-
-	  If you are not sure, say Y; apart from resulting in a 66 KB bigger
-	  kernel, it won't hurt.
-
 config MTRR
 	def_bool y
 	prompt "MTRR (Memory Type Range Register) support" if EXPERT
@@ -2437,10 +2397,6 @@ config CALL_THUNKS
 	def_bool n
 	select CALL_PADDING
 
-config PREFIX_SYMBOLS
-	def_bool y
-	depends on CALL_PADDING && !CFI
-
 menuconfig CPU_MITIGATIONS
 	bool "Mitigations for CPU vulnerabilities"
 	default y
@@ -2780,18 +2736,16 @@ menuconfig APM
 	  1) make sure that you have enough swap space and that it is
 	  enabled.
 	  2) pass the "idle=poll" option to the kernel
-	  3) switch on floating point emulation in the kernel and pass
-	  the "no387" option to the kernel
-	  4) pass the "floppy=nodma" option to the kernel
-	  5) pass the "mem=4M" option to the kernel (thereby disabling
+	  3) pass the "floppy=nodma" option to the kernel
+	  4) pass the "mem=4M" option to the kernel (thereby disabling
 	  all but the first 4 MB of RAM)
-	  6) make sure that the CPU is not over clocked.
-	  7) read the sig11 FAQ at <http://www.bitwizard.nl/sig11/>
-	  8) disable the cache from your BIOS settings
-	  9) install a fan for the video card or exchange video RAM
-	  10) install a better fan for the CPU
-	  11) exchange RAM chips
-	  12) exchange the motherboard.
+	  5) make sure that the CPU is not over clocked.
+	  6) read the sig11 FAQ at <http://www.bitwizard.nl/sig11/>
+	  7) disable the cache from your BIOS settings
+	  8) install a fan for the video card or exchange video RAM
+	  9) install a better fan for the CPU
+	  10) exchange RAM chips
+	  11) exchange the motherboard.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called apm.
@@ -3072,7 +3026,7 @@ config GEODE_COMMON
 
 config ALIX
 	bool "PCEngines ALIX System Support (LED setup)"
-	select GPIOLIB
+	depends on GPIO_CS5535=y
 	select GEODE_COMMON
 	help
 	  This option enables system support for the PCEngines ALIX.
@@ -3080,21 +3034,21 @@ config ALIX
 	  ALIX2/3/6 boards.  However, other system specific setup should
 	  get added here.
 
-	  Note: You must still enable the drivers for GPIO and LED support
-	  (GPIO_CS5535 & LEDS_GPIO) to actually use the LEDs
+	  Note: You must still enable the drivers for LED support (LEDS_GPIO)
+	  to actually use the LEDs
 
 	  Note: You have to set alix.force=1 for boards with Award BIOS.
 
 config NET5501
 	bool "Soekris Engineering net5501 System Support (LEDS, GPIO, etc)"
-	select GPIOLIB
+	depends on GPIO_CS5535=y
 	select GEODE_COMMON
 	help
 	  This option enables system support for the Soekris Engineering net5501.
 
 config GEOS
 	bool "Traverse Technologies GEOS System Support (LEDS, GPIO, etc)"
-	select GPIOLIB
+	depends on GPIO_CS5535=y
 	select GEODE_COMMON
 	depends on DMI
 	help

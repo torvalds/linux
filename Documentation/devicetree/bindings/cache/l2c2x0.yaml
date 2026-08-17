@@ -66,6 +66,9 @@ properties:
   reg:
     maxItems: 1
 
+  power-domains:
+    maxItems: 1
+
   arm,data-latency:
     description: Cycles of latency for Data RAM accesses. Specifies 3 cells of
       read, write and setup latencies. Minimum valid values are 1. Controllers

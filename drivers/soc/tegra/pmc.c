@@ -390,8 +390,7 @@ struct tegra_pmc_soc {
 	const struct tegra_pmc_regs *regs;
 	void (*init)(struct tegra_pmc *pmc);
 	void (*setup_irq_polarity)(struct tegra_pmc *pmc,
-				   struct device_node *np,
-				   bool invert);
+				   struct device_node *np);
 	void (*set_wake_filters)(struct tegra_pmc *pmc);
 	int (*irq_set_wake)(struct irq_data *data, unsigned int on);
 	int (*irq_set_type)(struct irq_data *data, unsigned int type);
@@ -444,6 +443,7 @@ struct tegra_pmc_soc {
  * @cpu_pwr_good_en: CPU power good signal is enabled
  * @lp0_vec_phys: physical base address of the LP0 warm boot code
  * @lp0_vec_size: size of the LP0 warm boot code
+ * @invert_irq: polarity of the PMU IRQ is inverted
  * @powergates_available: Bitmap of available power gates
  * @powergates_lock: mutex for power gate register access
  * @pctl_dev: pin controller exposed by the PMC
@@ -486,6 +486,8 @@ struct tegra_pmc {
 	bool cpu_pwr_good_en;
 	u32 lp0_vec_phys;
 	u32 lp0_vec_size;
+	bool invert_irq;
+
 	DECLARE_BITMAP(powergates_available, TEGRA_POWERGATE_MAX);
 
 	struct mutex powergates_lock;
@@ -512,10 +514,12 @@ struct tegra_pmc {
 	u32 *wake_status;
 };
 
-static struct tegra_pmc *pmc = &(struct tegra_pmc) {
+#if defined(CONFIG_ARM)
+static struct tegra_pmc *early_pmc = &(struct tegra_pmc) {
 	.base = NULL,
 	.suspend_mode = TEGRA_SUSPEND_NOT_READY,
 };
+#endif
 
 static inline struct tegra_powergate *
 to_powergate(struct generic_pm_domain *domain)
@@ -1064,16 +1068,6 @@ int tegra_pmc_powergate_power_on(struct tegra_pmc *pmc, unsigned int id)
 EXPORT_SYMBOL(tegra_pmc_powergate_power_on);
 
 /**
- * tegra_powergate_power_on() - power on partition
- * @id: partition ID
- */
-int tegra_powergate_power_on(unsigned int id)
-{
-	return tegra_pmc_powergate_power_on(pmc, id);
-}
-EXPORT_SYMBOL(tegra_powergate_power_on);
-
-/**
  * tegra_pmc_powergate_power_off() - power off partition
  * @pmc: power management controller
  * @id: partition ID
@@ -1086,16 +1080,6 @@ int tegra_pmc_powergate_power_off(struct tegra_pmc *pmc, unsigned int id)
 	return tegra_powergate_set(pmc, id, false);
 }
 EXPORT_SYMBOL(tegra_pmc_powergate_power_off);
-
-/**
- * tegra_powergate_power_off() - power off partition
- * @id: partition ID
- */
-int tegra_powergate_power_off(unsigned int id)
-{
-	return tegra_pmc_powergate_power_off(pmc, id);
-}
-EXPORT_SYMBOL(tegra_powergate_power_off);
 
 /**
  * tegra_powergate_is_powered() - check if partition is powered
@@ -1123,16 +1107,6 @@ int tegra_pmc_powergate_remove_clamping(struct tegra_pmc *pmc, unsigned int id)
 	return __tegra_powergate_remove_clamping(pmc, id);
 }
 EXPORT_SYMBOL(tegra_pmc_powergate_remove_clamping);
-
-/**
- * tegra_powergate_remove_clamping() - remove power clamps for partition
- * @id: partition ID
- */
-int tegra_powergate_remove_clamping(unsigned int id)
-{
-	return tegra_pmc_powergate_remove_clamping(pmc, id);
-}
-EXPORT_SYMBOL(tegra_powergate_remove_clamping);
 
 /**
  * tegra_pmc_powergate_sequence_power_up() - power up partition
@@ -1180,83 +1154,6 @@ int tegra_pmc_powergate_sequence_power_up(struct tegra_pmc *pmc,
 	return err;
 }
 EXPORT_SYMBOL(tegra_pmc_powergate_sequence_power_up);
-
-/**
- * tegra_powergate_sequence_power_up() - power up partition
- * @id: partition ID
- * @clk: clock for partition
- * @rst: reset for partition
- *
- * Must be called with clk disabled, and returns with clk enabled.
- */
-int tegra_powergate_sequence_power_up(unsigned int id, struct clk *clk,
-				      struct reset_control *rst)
-{
-	return tegra_pmc_powergate_sequence_power_up(pmc, id, clk, rst);
-}
-EXPORT_SYMBOL(tegra_powergate_sequence_power_up);
-
-/**
- * tegra_get_cpu_powergate_id() - convert from CPU ID to partition ID
- * @pmc: power management controller
- * @cpuid: CPU partition ID
- *
- * Returns the partition ID corresponding to the CPU partition ID or a
- * negative error code on failure.
- */
-static int tegra_get_cpu_powergate_id(struct tegra_pmc *pmc,
-				      unsigned int cpuid)
-{
-	if (pmc->soc && cpuid < pmc->soc->num_cpu_powergates)
-		return pmc->soc->cpu_powergates[cpuid];
-
-	return -EINVAL;
-}
-
-/**
- * tegra_pmc_cpu_is_powered() - check if CPU partition is powered
- * @cpuid: CPU partition ID
- */
-bool tegra_pmc_cpu_is_powered(unsigned int cpuid)
-{
-	int id;
-
-	id = tegra_get_cpu_powergate_id(pmc, cpuid);
-	if (id < 0)
-		return false;
-
-	return tegra_powergate_is_powered(pmc, id);
-}
-
-/**
- * tegra_pmc_cpu_power_on() - power on CPU partition
- * @cpuid: CPU partition ID
- */
-int tegra_pmc_cpu_power_on(unsigned int cpuid)
-{
-	int id;
-
-	id = tegra_get_cpu_powergate_id(pmc, cpuid);
-	if (id < 0)
-		return id;
-
-	return tegra_powergate_set(pmc, id, true);
-}
-
-/**
- * tegra_pmc_cpu_remove_clamping() - remove power clamps for CPU partition
- * @cpuid: CPU partition ID
- */
-int tegra_pmc_cpu_remove_clamping(unsigned int cpuid)
-{
-	int id;
-
-	id = tegra_get_cpu_powergate_id(pmc, cpuid);
-	if (id < 0)
-		return id;
-
-	return tegra_powergate_remove_clamping(id);
-}
 
 static void tegra_pmc_program_reboot_reason(struct tegra_pmc *pmc,
 					    const char *cmd)
@@ -1310,7 +1207,7 @@ static int tegra_pmc_restart_handler(struct sys_off_data *data)
 	return NOTIFY_DONE;
 }
 
-static int tegra_pmc_power_off_handler(struct sys_off_data *data)
+static int tegra_pmc_grouper_power_off_handler(struct sys_off_data *data)
 {
 	struct tegra_pmc *pmc = data->cb_data;
 
@@ -1318,8 +1215,7 @@ static int tegra_pmc_power_off_handler(struct sys_off_data *data)
 	 * Reboot Nexus 7 into special bootloader mode if USB cable is
 	 * connected in order to display battery status and power off.
 	 */
-	if (of_machine_is_compatible("asus,grouper") &&
-	    power_supply_is_system_supplied()) {
+	if (power_supply_is_system_supplied()) {
 		const u32 go_to_charger_mode = 0xa5a55a5a;
 
 		tegra_pmc_writel(pmc, go_to_charger_mode, PMC_SCRATCH37);
@@ -1529,11 +1425,6 @@ free_mem:
 	kfree(pg);
 
 	return err;
-}
-
-bool tegra_pmc_core_domain_state_synced(void)
-{
-	return pmc->core_domain_state_synced;
 }
 
 static int
@@ -1824,18 +1715,6 @@ unlock:
 EXPORT_SYMBOL(tegra_pmc_io_pad_power_enable);
 
 /**
- * tegra_io_pad_power_enable() - enable power to I/O pad
- * @id: Tegra I/O pad ID for which to enable power
- *
- * Returns: 0 on success or a negative error code on failure.
- */
-int tegra_io_pad_power_enable(enum tegra_io_pad id)
-{
-	return tegra_pmc_io_pad_power_enable(pmc, id);
-}
-EXPORT_SYMBOL(tegra_io_pad_power_enable);
-
-/**
  * tegra_pmc_io_pad_power_disable() - disable power to I/O pad
  * @pmc: power management controller
  * @id: Tegra I/O pad ID for which to disable power
@@ -1878,18 +1757,6 @@ unlock:
 	return err;
 }
 EXPORT_SYMBOL(tegra_pmc_io_pad_power_disable);
-
-/**
- * tegra_io_pad_power_disable() - disable power to I/O pad
- * @id: Tegra I/O pad ID for which to disable power
- *
- * Returns: 0 on success or a negative error code on failure.
- */
-int tegra_io_pad_power_disable(enum tegra_io_pad id)
-{
-	return tegra_pmc_io_pad_power_disable(pmc, id);
-}
-EXPORT_SYMBOL(tegra_io_pad_power_disable);
 
 static int tegra_io_pad_is_powered(struct tegra_pmc *pmc, enum tegra_io_pad id)
 {
@@ -1973,57 +1840,6 @@ static int tegra_io_pad_get_voltage(struct tegra_pmc *pmc, enum tegra_io_pad id)
 	return TEGRA_IO_PAD_VOLTAGE_3V3;
 }
 
-#ifdef CONFIG_PM_SLEEP
-enum tegra_suspend_mode tegra_pmc_get_suspend_mode(void)
-{
-	return pmc->suspend_mode;
-}
-
-void tegra_pmc_set_suspend_mode(enum tegra_suspend_mode mode)
-{
-	if (mode < TEGRA_SUSPEND_NONE || mode >= TEGRA_MAX_SUSPEND_MODE)
-		return;
-
-	pmc->suspend_mode = mode;
-}
-
-void tegra_pmc_enter_suspend_mode(enum tegra_suspend_mode mode)
-{
-	unsigned long long rate = 0;
-	u64 ticks;
-	u32 value;
-
-	switch (mode) {
-	case TEGRA_SUSPEND_LP1:
-		rate = 32768;
-		break;
-
-	case TEGRA_SUSPEND_LP2:
-		rate = pmc->rate;
-		break;
-
-	default:
-		break;
-	}
-
-	if (WARN_ON_ONCE(rate == 0))
-		rate = 100000000;
-
-	ticks = pmc->cpu_good_time * rate + USEC_PER_SEC - 1;
-	do_div(ticks, USEC_PER_SEC);
-	tegra_pmc_writel(pmc, ticks, PMC_CPUPWRGOOD_TIMER);
-
-	ticks = pmc->cpu_off_time * rate + USEC_PER_SEC - 1;
-	do_div(ticks, USEC_PER_SEC);
-	tegra_pmc_writel(pmc, ticks, PMC_CPUPWROFF_TIMER);
-
-	value = tegra_pmc_readl(pmc, PMC_CNTRL);
-	value &= ~PMC_CNTRL_SIDE_EFFECT_LP0;
-	value |= PMC_CNTRL_CPU_PWRREQ_OE;
-	tegra_pmc_writel(pmc, value, PMC_CNTRL);
-}
-#endif
-
 static int tegra_pmc_parse_dt(struct tegra_pmc *pmc, struct device_node *np)
 {
 	u32 value, values[2];
@@ -2093,6 +1909,8 @@ static int tegra_pmc_parse_dt(struct tegra_pmc *pmc, struct device_node *np)
 
 	pmc->lp0_vec_phys = values[0];
 	pmc->lp0_vec_size = values[1];
+
+	pmc->invert_irq = of_property_read_bool(np, "nvidia,invert-interrupt");
 
 	return 0;
 }
@@ -3110,6 +2928,51 @@ static int tegra_pmc_regmap_init(struct tegra_pmc *pmc)
 	return 0;
 }
 
+static bool tegra_pmc_detect_tz_only(struct tegra_pmc *pmc)
+{
+	u32 value, saved;
+
+	saved = readl(pmc->base + pmc->soc->regs->scratch0);
+	value = saved ^ 0xffffffff;
+
+	if (value == 0xffffffff)
+		value = 0xdeadbeef;
+
+	/* write pattern and read it back */
+	writel(value, pmc->base + pmc->soc->regs->scratch0);
+	value = readl(pmc->base + pmc->soc->regs->scratch0);
+
+	/* if we read all-zeroes, access is restricted to TZ only */
+	if (value == 0) {
+		pr_info("access to PMC is restricted to TZ\n");
+		return true;
+	}
+
+	/* restore original value */
+	writel(saved, pmc->base + pmc->soc->regs->scratch0);
+
+	return false;
+}
+
+static void tegra_pmc_init_common(struct tegra_pmc *pmc, struct device_node *np)
+{
+	unsigned int i;
+
+	if (pmc->soc->maybe_tz_only)
+		pmc->tz_only = tegra_pmc_detect_tz_only(pmc);
+
+	/* Create a bitmap of the available and valid partitions */
+	for (i = 0; i < pmc->soc->num_powergates; i++)
+		if (pmc->soc->powergates[i])
+			set_bit(i, pmc->powergates_available);
+
+	/*
+	 * Invert the interrupt polarity if a PMC device tree node exists and
+	 * contains the nvidia,invert-interrupt property.
+	 */
+	pmc->soc->setup_irq_polarity(pmc, np);
+}
+
 static void tegra_pmc_reset_suspend_mode(void *data)
 {
 	struct tegra_pmc *pmc = data;
@@ -3119,21 +2982,31 @@ static void tegra_pmc_reset_suspend_mode(void *data)
 
 static int tegra_pmc_probe(struct platform_device *pdev)
 {
-	void __iomem *base;
+	struct tegra_pmc *pmc;
 	struct resource *res;
 	int err;
 
+#if defined(CONFIG_ARM)
 	/*
 	 * Early initialisation should have configured an initial
 	 * register mapping and setup the soc data pointer. If these
 	 * are not valid then something went badly wrong!
 	 */
-	if (WARN_ON(!pmc->base || !pmc->soc))
+	if (WARN_ON(!early_pmc->base || !early_pmc->soc))
 		return -ENODEV;
+#endif
+
+	pmc = devm_kzalloc(&pdev->dev, sizeof(*pmc), GFP_KERNEL);
+	if (!pmc)
+		return -ENOMEM;
+
+	pmc->soc = device_get_match_data(&pdev->dev);
+	mutex_init(&pmc->powergates_lock);
+	pmc->dev = &pdev->dev;
 
 	err = tegra_pmc_parse_dt(pmc, pdev->dev.of_node);
 	if (err < 0)
-		return err;
+		return dev_err_probe(&pdev->dev, err, "failed to parse DT\n");
 
 	err = devm_add_action_or_reset(&pdev->dev, tegra_pmc_reset_suspend_mode,
 				       pmc);
@@ -3141,14 +3014,14 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 		return err;
 
 	/* take over the memory region from the early initialization */
-	base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
+	pmc->base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(pmc->base))
+		return PTR_ERR(pmc->base);
 
 	if (pmc->soc->has_single_mmio_aperture) {
-		pmc->wake = base;
-		pmc->aotag = base;
-		pmc->scratch = base;
+		pmc->wake = pmc->base;
+		pmc->aotag = pmc->base;
+		pmc->scratch = pmc->base;
 	} else {
 		pmc->wake = devm_platform_ioremap_resource_byname(pdev, "wake");
 		if (IS_ERR(pmc->wake))
@@ -3167,7 +3040,7 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 
 		/* "scratch" is an optional aperture */
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						"scratch");
+						   "scratch");
 		if (res) {
 			pmc->scratch = devm_ioremap_resource(&pdev->dev, res);
 			if (IS_ERR(pmc->scratch))
@@ -3181,6 +3054,8 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 	if (IS_ERR(pmc->clk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(pmc->clk),
 				     "failed to get pclk\n");
+
+	tegra_pmc_init_common(pmc, pdev->dev.of_node);
 
 	/*
 	 * PMC should be last resort for restarting since it soft-resets
@@ -3211,18 +3086,20 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * PMC should be primary power-off method if it soft-resets CPU,
-	 * asking bootloader to shutdown hardware.
+	 * PMC should be primary power-off method on Grouper if it soft-resets
+	 * CPU, asking bootloader to shutdown hardware.
 	 */
-	err = devm_register_sys_off_handler(&pdev->dev,
-					    SYS_OFF_MODE_POWER_OFF,
-					    SYS_OFF_PRIO_FIRMWARE,
-					    tegra_pmc_power_off_handler,
-					    pmc);
-	if (err) {
-		dev_err(&pdev->dev, "failed to register sys-off handler: %d\n",
-			err);
-		return err;
+	if (of_machine_is_compatible("asus,grouper")) {
+		err = devm_register_sys_off_handler(&pdev->dev,
+						    SYS_OFF_MODE_POWER_OFF,
+						    SYS_OFF_PRIO_FIRMWARE,
+						    tegra_pmc_grouper_power_off_handler,
+						    pmc);
+		if (err) {
+			dev_err(&pdev->dev, "failed to register sys-off handler: %d\n",
+				err);
+			return err;
+		}
 	}
 
 	/*
@@ -3242,8 +3119,6 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 
 		pmc->rate = clk_get_rate(pmc->clk);
 	}
-
-	pmc->dev = &pdev->dev;
 
 	err = tegra_pmc_init(pmc);
 	if (err < 0) {
@@ -3271,10 +3146,12 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 	if (err < 0)
 		goto cleanup_powergates;
 
-	mutex_lock(&pmc->powergates_lock);
-	iounmap(pmc->base);
-	pmc->base = base;
-	mutex_unlock(&pmc->powergates_lock);
+#if defined(CONFIG_ARM)
+	mutex_lock(&early_pmc->powergates_lock);
+	iounmap(early_pmc->base);
+	early_pmc->base = pmc->base;
+	mutex_unlock(&early_pmc->powergates_lock);
+#endif
 
 	tegra_pmc_clock_register(pmc, pdev->dev.of_node);
 	platform_set_drvdata(pdev, pmc);
@@ -3284,7 +3161,8 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 	if (pmc->soc->set_wake_filters)
 		pmc->soc->set_wake_filters(pmc);
 
-	debugfs_create_file("powergate", 0444, NULL, pmc, &powergate_fops);
+	if (pmc->soc->num_powergates)
+		debugfs_create_file("powergate", 0444, NULL, pmc, &powergate_fops);
 
 	return 0;
 
@@ -3523,14 +3401,13 @@ static void tegra20_pmc_init(struct tegra_pmc *pmc)
 }
 
 static void tegra20_pmc_setup_irq_polarity(struct tegra_pmc *pmc,
-					   struct device_node *np,
-					   bool invert)
+					   struct device_node *np)
 {
 	u32 value;
 
 	value = tegra_pmc_readl(pmc, PMC_CNTRL);
 
-	if (invert)
+	if (pmc->invert_irq)
 		value |= PMC_CNTRL_INTR_POLARITY;
 	else
 		value &= ~PMC_CNTRL_INTR_POLARITY;
@@ -4136,8 +4013,7 @@ static void tegra186_pmc_init(struct tegra_pmc *pmc)
 }
 
 static void tegra186_pmc_setup_irq_polarity(struct tegra_pmc *pmc,
-					    struct device_node *np,
-					    bool invert)
+					    struct device_node *np)
 {
 	struct resource regs;
 	void __iomem *wake;
@@ -4160,7 +4036,7 @@ static void tegra186_pmc_setup_irq_polarity(struct tegra_pmc *pmc,
 
 	value = readl(wake + pmc->soc->regs->aowake_ctrl);
 
-	if (invert)
+	if (pmc->invert_irq)
 		value |= WAKE_AOWAKE_CTRL_INTR_POLARITY;
 	else
 		value &= ~WAKE_AOWAKE_CTRL_INTR_POLARITY;
@@ -4595,6 +4471,164 @@ static const struct tegra_pmc_soc tegra234_pmc_soc = {
 	.has_single_mmio_aperture = false,
 };
 
+static const struct tegra_io_pad_soc tegra238_io_pads[] = {
+	TEGRA_IO_PAD(TEGRA_IO_PAD_HDMI_DP0, 0, 0xe028, 0xe02c, "hdmi-dp0"),
+	TEGRA_IO_PAD(TEGRA_IO_PAD_UFS, 0, 0xe06c, 0xe070, "ufs"),
+	TEGRA_IO_PAD(TEGRA_IO_PAD_EDP, 2, 0xe040, 0xe044, "edp"),
+	TEGRA_IO_PAD(TEGRA_IO_PAD_SDMMC1_HV, 0, 0xe058, 0xe05c, "sdmmc1-hv"),
+	TEGRA_IO_PAD(TEGRA_IO_PAD_SDMMC3_HV, UINT_MAX, UINT_MAX, UINT_MAX, "sdmmc3-hv"),
+	TEGRA_IO_PAD(TEGRA_IO_PAD_AUDIO_HV, UINT_MAX, UINT_MAX, UINT_MAX, "audio-hv"),
+	TEGRA_IO_PAD(TEGRA_IO_PAD_AO_HV, UINT_MAX, UINT_MAX, UINT_MAX, "ao-hv"),
+};
+
+static const struct tegra_io_pad_vctrl tegra238_io_pad_vctrls[] = {
+	TEGRA_IO_PAD_VCTRL(TEGRA_IO_PAD_SDMMC1_HV, PMC_IMPL_E_33V_PWR, 4),
+	TEGRA_IO_PAD_VCTRL(TEGRA_IO_PAD_SDMMC3_HV, PMC_IMPL_E_33V_PWR, 6),
+	TEGRA_IO_PAD_VCTRL(TEGRA_IO_PAD_AUDIO_HV, PMC_IMPL_E_33V_PWR, 1),
+	TEGRA_IO_PAD_VCTRL(TEGRA_IO_PAD_AO_HV, PMC_IMPL_E_33V_PWR, 0),
+};
+
+static const struct pinctrl_pin_desc tegra238_pin_descs[] = {
+	TEGRA_IO_PIN_DESC(TEGRA_IO_PAD_HDMI_DP0, "hdmi-dp0"),
+	TEGRA_IO_PIN_DESC(TEGRA_IO_PAD_UFS, "ufs"),
+	TEGRA_IO_PIN_DESC(TEGRA_IO_PAD_EDP, "edp"),
+	TEGRA_IO_PIN_DESC(TEGRA_IO_PAD_SDMMC1_HV, "sdmmc1-hv"),
+	TEGRA_IO_PIN_DESC(TEGRA_IO_PAD_SDMMC3_HV, "sdmmc3-hv"),
+	TEGRA_IO_PIN_DESC(TEGRA_IO_PAD_AUDIO_HV, "audio-hv"),
+	TEGRA_IO_PIN_DESC(TEGRA_IO_PAD_AO_HV, "ao-hv"),
+};
+
+static const struct tegra_pmc_regs tegra238_pmc_regs = {
+	.scratch0 = 0x2000,
+	.rst_status = 0x70,
+	.rst_source_shift = 0x2,
+	.rst_source_mask = 0xfc,
+	.rst_level_shift = 0x0,
+	.rst_level_mask = 0x3,
+	.aowake_mask_w = 0x180,
+	.aowake_status_w = 0x30c,
+	.aowake_status_r = 0x48c,
+	.aowake_tier2_routing = 0x4cc,
+	.aowake_sw_status_w = 0x49c,
+	.aowake_sw_status = 0x4a0,
+	.aowake_latch_sw = 0x498,
+	.aowake_ctrl = 0x4f4,
+};
+
+static const char * const tegra238_reset_sources[] = {
+	"SYS_RESET_N",		/* 0 */
+	"AOWDT",
+	NULL,
+	"BPMPWDT",
+	NULL,
+	"SPEWDT",		/* 5 */
+	NULL,
+	NULL,
+	"SENSOR",
+	NULL,
+	NULL,			/* 10 */
+	"MAINSWRST",
+	"SC7",
+	NULL,
+	NULL,
+	NULL,			/* 15 */
+	NULL,
+	NULL,
+	"RTC_XTAL_CSDC",
+	"BPMPBOOT",
+	"FUSECRC",		/* 20 */
+	NULL,
+	"PSCWDT",
+	"PSC_SW",
+	"CSITE_SW",
+	NULL,			/* 25 */
+	NULL,
+	"VREFRO_POWERBAD",
+	NULL,
+	NULL,
+	NULL,			/* 30 */
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,			/* 35 */
+	NULL,
+	NULL,
+	"TOP0WDT",
+	"TOP1WDT",
+	"TOP2WDT",		/* 40 */
+	"APE_C0WDT",
+	"APE_C1WDT",
+	"APE_C2WDT",
+	"APE_C3WDT",
+	"SCPM_SOC_XTAL",	/* 45 */
+	"SCPM_RTC_XTAL",
+	"SCPM_BPMP_CORE_CLK",
+	"SCPM_PSC_SE_CLK",
+	"FMON_32K",
+	"FMON_OSC",		/* 50 */
+	"VMON_SOC",
+	"VMON_CPU0",
+	NULL,
+	"POD_CPU",
+	"POD_GPU",		/* 55 */
+	"POD_RTC",
+	NULL,
+	"POD_IO",
+	"POD_PLUS_SOC",
+	"POD_PLUS_IO_VMON",	/* 60 */
+	"POD_PLUS_IO_PSCPLL",
+	"VMON_PLUS_0",
+	"VMON_PLUS_1",		/* 63 */
+};
+
+static const struct tegra_wake_event tegra238_wake_events[] = {
+	TEGRA_WAKE_IRQ("rtc", 73, 10),
+	TEGRA_WAKE_IRQ("pmu", 24, 209),
+	TEGRA_WAKE_IRQ("usb3-port-0", 76, 167),
+	TEGRA_WAKE_IRQ("usb3-port-1", 77, 167),
+	TEGRA_WAKE_IRQ("usb3-port-2", 78, 167),
+	TEGRA_WAKE_IRQ("usb2-port-0", 79, 167),
+	TEGRA_WAKE_IRQ("usb2-port-1", 80, 167),
+	TEGRA_WAKE_IRQ("usb2-port-2", 81, 167),
+};
+
+static const struct tegra_pmc_soc tegra238_pmc_soc = {
+	.num_powergates = 0,
+	.powergates = NULL,
+	.num_cpu_powergates = 0,
+	.cpu_powergates = NULL,
+	.has_tsense_reset = false,
+	.has_gpu_clamps = false,
+	.needs_mbist_war = false,
+	.has_io_pad_wren = false,
+	.maybe_tz_only = false,
+	.num_io_pads = ARRAY_SIZE(tegra238_io_pads),
+	.io_pads = tegra238_io_pads,
+	.num_io_pad_vctrls = ARRAY_SIZE(tegra238_io_pad_vctrls),
+	.io_pad_vctrls = tegra238_io_pad_vctrls,
+	.num_pin_descs = ARRAY_SIZE(tegra238_pin_descs),
+	.pin_descs = tegra238_pin_descs,
+	.regs = &tegra238_pmc_regs,
+	.init = tegra186_pmc_init,
+	.setup_irq_polarity = tegra186_pmc_setup_irq_polarity,
+	.set_wake_filters = tegra186_pmc_set_wake_filters,
+	.irq_set_wake = tegra186_pmc_irq_set_wake,
+	.irq_set_type = tegra186_pmc_irq_set_type,
+	.reset_sources = tegra238_reset_sources,
+	.num_reset_sources = ARRAY_SIZE(tegra238_reset_sources),
+	.reset_levels = tegra186_reset_levels,
+	.num_reset_levels = ARRAY_SIZE(tegra186_reset_levels),
+	.num_wake_events = ARRAY_SIZE(tegra238_wake_events),
+	.wake_events = tegra238_wake_events,
+	.max_wake_events = 96,
+	.max_wake_vectors = 3,
+	.pmc_clks_data = NULL,
+	.num_pmc_clks = 0,
+	.has_blink_output = false,
+	.has_single_mmio_aperture = false,
+};
+
 #define TEGRA264_IO_PAD_VCTRL(_id, _offset, _ena_3v3, _ena_1v8)		\
 	((struct tegra_io_pad_vctrl) {					\
 		.id		= (_id),				\
@@ -4785,6 +4819,7 @@ static const struct tegra_pmc_soc tegra264_pmc_soc = {
 
 static const struct of_device_id tegra_pmc_match[] = {
 	{ .compatible = "nvidia,tegra264-pmc", .data = &tegra264_pmc_soc },
+	{ .compatible = "nvidia,tegra238-pmc", .data = &tegra238_pmc_soc },
 	{ .compatible = "nvidia,tegra234-pmc", .data = &tegra234_pmc_soc },
 	{ .compatible = "nvidia,tegra194-pmc", .data = &tegra194_pmc_soc },
 	{ .compatible = "nvidia,tegra186-pmc", .data = &tegra186_pmc_soc },
@@ -4799,6 +4834,7 @@ static const struct of_device_id tegra_pmc_match[] = {
 
 static void tegra_pmc_sync_state(struct device *dev)
 {
+	struct tegra_pmc *pmc = dev_get_drvdata(dev);
 	struct device_node *np, *child;
 	int err;
 
@@ -4856,31 +4892,124 @@ static struct platform_driver tegra_pmc_driver = {
 };
 builtin_platform_driver(tegra_pmc_driver);
 
-static bool __init tegra_pmc_detect_tz_only(struct tegra_pmc *pmc)
+#if defined(CONFIG_ARM)
+/**
+ * tegra_get_cpu_powergate_id() - convert from CPU ID to partition ID
+ * @pmc: power management controller
+ * @cpuid: CPU partition ID
+ *
+ * Returns the partition ID corresponding to the CPU partition ID or a
+ * negative error code on failure.
+ */
+static int tegra_get_cpu_powergate_id(struct tegra_pmc *pmc,
+				      unsigned int cpuid)
 {
-	u32 value, saved;
+	if (pmc->soc && cpuid < pmc->soc->num_cpu_powergates)
+		return pmc->soc->cpu_powergates[cpuid];
 
-	saved = readl(pmc->base + pmc->soc->regs->scratch0);
-	value = saved ^ 0xffffffff;
+	return -EINVAL;
+}
 
-	if (value == 0xffffffff)
-		value = 0xdeadbeef;
+/**
+ * tegra_pmc_cpu_is_powered() - check if CPU partition is powered
+ * @cpuid: CPU partition ID
+ */
+bool tegra_pmc_cpu_is_powered(unsigned int cpuid)
+{
+	int id;
 
-	/* write pattern and read it back */
-	writel(value, pmc->base + pmc->soc->regs->scratch0);
-	value = readl(pmc->base + pmc->soc->regs->scratch0);
+	id = tegra_get_cpu_powergate_id(early_pmc, cpuid);
+	if (id < 0)
+		return false;
 
-	/* if we read all-zeroes, access is restricted to TZ only */
-	if (value == 0) {
-		pr_info("access to PMC is restricted to TZ\n");
-		return true;
+	return tegra_powergate_is_powered(early_pmc, id);
+}
+
+/**
+ * tegra_pmc_cpu_power_on() - power on CPU partition
+ * @cpuid: CPU partition ID
+ */
+int tegra_pmc_cpu_power_on(unsigned int cpuid)
+{
+	int id;
+
+	id = tegra_get_cpu_powergate_id(early_pmc, cpuid);
+	if (id < 0)
+		return id;
+
+	return tegra_powergate_set(early_pmc, id, true);
+}
+
+/**
+ * tegra_pmc_cpu_remove_clamping() - remove power clamps for CPU partition
+ * @cpuid: CPU partition ID
+ */
+int tegra_pmc_cpu_remove_clamping(unsigned int cpuid)
+{
+	int id;
+
+	id = tegra_get_cpu_powergate_id(early_pmc, cpuid);
+	if (id < 0)
+		return id;
+
+	return tegra_pmc_powergate_remove_clamping(early_pmc, id);
+}
+
+bool tegra_pmc_core_domain_state_synced(void)
+{
+	return early_pmc->core_domain_state_synced;
+}
+
+#ifdef CONFIG_PM_SLEEP
+enum tegra_suspend_mode tegra_pmc_get_suspend_mode(void)
+{
+	return early_pmc->suspend_mode;
+}
+
+void tegra_pmc_set_suspend_mode(enum tegra_suspend_mode mode)
+{
+	if (mode < TEGRA_SUSPEND_NONE || mode >= TEGRA_MAX_SUSPEND_MODE)
+		return;
+
+	early_pmc->suspend_mode = mode;
+}
+
+void tegra_pmc_enter_suspend_mode(enum tegra_suspend_mode mode)
+{
+	unsigned long long rate = 0;
+	u64 ticks;
+	u32 value;
+
+	switch (mode) {
+	case TEGRA_SUSPEND_LP1:
+		rate = 32768;
+		break;
+
+	case TEGRA_SUSPEND_LP2:
+		rate = early_pmc->rate;
+		break;
+
+	default:
+		break;
 	}
 
-	/* restore original value */
-	writel(saved, pmc->base + pmc->soc->regs->scratch0);
+	if (WARN_ON_ONCE(rate == 0))
+		rate = 100000000;
 
-	return false;
+	ticks = early_pmc->cpu_good_time * rate + USEC_PER_SEC - 1;
+	do_div(ticks, USEC_PER_SEC);
+	tegra_pmc_writel(early_pmc, ticks, PMC_CPUPWRGOOD_TIMER);
+
+	ticks = early_pmc->cpu_off_time * rate + USEC_PER_SEC - 1;
+	do_div(ticks, USEC_PER_SEC);
+	tegra_pmc_writel(early_pmc, ticks, PMC_CPUPWROFF_TIMER);
+
+	value = tegra_pmc_readl(early_pmc, PMC_CNTRL);
+	value &= ~PMC_CNTRL_SIDE_EFFECT_LP0;
+	value |= PMC_CNTRL_CPU_PWRREQ_OE;
+	tegra_pmc_writel(early_pmc, value, PMC_CNTRL);
 }
+#endif /* CONFIG_PM_SLEEP */
 
 /*
  * Early initialization to allow access to registers in the very early boot
@@ -4891,10 +5020,9 @@ static int __init tegra_pmc_early_init(void)
 	const struct of_device_id *match;
 	struct device_node *np;
 	struct resource regs;
-	unsigned int i;
-	bool invert;
+	int err;
 
-	mutex_init(&pmc->powergates_lock);
+	mutex_init(&early_pmc->powergates_lock);
 
 	np = of_find_matching_node_and_match(NULL, tegra_pmc_match, &match);
 	if (!np) {
@@ -4935,31 +5063,24 @@ static int __init tegra_pmc_early_init(void)
 		}
 	}
 
-	pmc->base = ioremap(regs.start, resource_size(&regs));
-	if (!pmc->base) {
+	early_pmc->base = ioremap(regs.start, resource_size(&regs));
+	if (!early_pmc->base) {
 		pr_err("failed to map PMC registers\n");
 		of_node_put(np);
 		return -ENXIO;
 	}
 
 	if (of_device_is_available(np)) {
-		pmc->soc = match->data;
+		early_pmc->soc = match->data;
 
-		if (pmc->soc->maybe_tz_only)
-			pmc->tz_only = tegra_pmc_detect_tz_only(pmc);
+		err = tegra_pmc_parse_dt(early_pmc, np);
+		if (err < 0) {
+			pr_err("failed to parse DT: %d\n", err);
+			of_node_put(np);
+			return err;
+		}
 
-		/* Create a bitmap of the available and valid partitions */
-		for (i = 0; i < pmc->soc->num_powergates; i++)
-			if (pmc->soc->powergates[i])
-				set_bit(i, pmc->powergates_available);
-
-		/*
-		 * Invert the interrupt polarity if a PMC device tree node
-		 * exists and contains the nvidia,invert-interrupt property.
-		 */
-		invert = of_property_read_bool(np, "nvidia,invert-interrupt");
-
-		pmc->soc->setup_irq_polarity(pmc, np, invert);
+		tegra_pmc_init_common(early_pmc, np);
 
 		of_node_put(np);
 	}
@@ -4967,3 +5088,4 @@ static int __init tegra_pmc_early_init(void)
 	return 0;
 }
 early_initcall(tegra_pmc_early_init);
+#endif /* CONFIG_ARM */

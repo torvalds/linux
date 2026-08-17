@@ -120,16 +120,15 @@ static int dw_spi_pci_probe(struct pci_dev *pdev, const struct pci_device_id *en
 		if (desc->setup) {
 			ret = desc->setup(dws);
 			if (ret)
-				goto err_free_irq_vectors;
+				return ret;
 		}
 	} else {
-		ret = -ENODEV;
-		goto err_free_irq_vectors;
+		return -ENODEV;
 	}
 
 	ret = dw_spi_add_controller(&pdev->dev, dws);
 	if (ret)
-		goto err_free_irq_vectors;
+		return ret;
 
 	/* PCI hook and SPI hook use the same drv data */
 	pci_set_drvdata(pdev, dws);
@@ -143,10 +142,6 @@ static int dw_spi_pci_probe(struct pci_dev *pdev, const struct pci_device_id *en
 	pm_runtime_allow(&pdev->dev);
 
 	return 0;
-
-err_free_irq_vectors:
-	pci_free_irq_vectors(pdev);
-	return ret;
 }
 
 static void dw_spi_pci_remove(struct pci_dev *pdev)
@@ -157,7 +152,6 @@ static void dw_spi_pci_remove(struct pci_dev *pdev)
 	pm_runtime_get_noresume(&pdev->dev);
 
 	dw_spi_remove_controller(dws);
-	pci_free_irq_vectors(pdev);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -185,15 +179,15 @@ static const struct pci_device_id dw_spi_pci_ids[] = {
 	 * exclusively used by SCU to communicate with MSIC.
 	 */
 	/* Intel MID platform SPI controller 1 */
-	{ PCI_VDEVICE(INTEL, 0x0800), (kernel_ulong_t)&dw_spi_pci_mid_desc_1},
+	{ PCI_VDEVICE(INTEL, 0x0800), .driver_data = (kernel_ulong_t)&dw_spi_pci_mid_desc_1 },
 	/* Intel MID platform SPI controller 2 */
-	{ PCI_VDEVICE(INTEL, 0x0812), (kernel_ulong_t)&dw_spi_pci_mid_desc_2},
+	{ PCI_VDEVICE(INTEL, 0x0812), .driver_data = (kernel_ulong_t)&dw_spi_pci_mid_desc_2 },
 	/* Intel Elkhart Lake PSE SPI controllers */
-	{ PCI_VDEVICE(INTEL, 0x4b84), (kernel_ulong_t)&dw_spi_pci_ehl_desc},
-	{ PCI_VDEVICE(INTEL, 0x4b85), (kernel_ulong_t)&dw_spi_pci_ehl_desc},
-	{ PCI_VDEVICE(INTEL, 0x4b86), (kernel_ulong_t)&dw_spi_pci_ehl_desc},
-	{ PCI_VDEVICE(INTEL, 0x4b87), (kernel_ulong_t)&dw_spi_pci_ehl_desc},
-	{},
+	{ PCI_VDEVICE(INTEL, 0x4b84), .driver_data = (kernel_ulong_t)&dw_spi_pci_ehl_desc },
+	{ PCI_VDEVICE(INTEL, 0x4b85), .driver_data = (kernel_ulong_t)&dw_spi_pci_ehl_desc },
+	{ PCI_VDEVICE(INTEL, 0x4b86), .driver_data = (kernel_ulong_t)&dw_spi_pci_ehl_desc },
+	{ PCI_VDEVICE(INTEL, 0x4b87), .driver_data = (kernel_ulong_t)&dw_spi_pci_ehl_desc },
+	{ },
 };
 MODULE_DEVICE_TABLE(pci, dw_spi_pci_ids);
 

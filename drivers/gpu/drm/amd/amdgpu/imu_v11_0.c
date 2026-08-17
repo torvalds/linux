@@ -42,6 +42,9 @@ MODULE_FIRMWARE("amdgpu/gc_11_5_1_imu.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_5_2_imu.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_5_3_imu.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_5_4_imu.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_5_6_imu.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_7_0_imu.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_7_1_imu.bin");
 
 static int imu_v11_0_init_microcode(struct amdgpu_device *adev)
 {

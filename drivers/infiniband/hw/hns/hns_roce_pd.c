@@ -30,6 +30,7 @@
  * SOFTWARE.
  */
 
+#include <rdma/uverbs_ioctl.h>
 #include "hns_roce_device.h"
 
 void hns_roce_init_pd_table(struct hns_roce_dev *hr_dev)
@@ -61,12 +62,9 @@ int hns_roce_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 	if (udata) {
 		struct hns_roce_ib_alloc_pd_resp resp = {.pdn = pd->pdn};
 
-		ret = ib_copy_to_udata(udata, &resp,
-				       min(udata->outlen, sizeof(resp)));
-		if (ret) {
+		ret = ib_respond_udata(udata, resp);
+		if (ret)
 			ida_free(&pd_ida->ida, id);
-			ibdev_err(ib_dev, "failed to copy to udata, ret = %d\n", ret);
-		}
 	}
 
 	return ret;

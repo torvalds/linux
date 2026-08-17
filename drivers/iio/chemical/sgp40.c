@@ -355,7 +355,7 @@ static int sgp40_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id sgp40_id[] = {
-	{ "sgp40" },
+	{ .name = "sgp40" },
 	{ }
 };
 

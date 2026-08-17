@@ -3,8 +3,8 @@
  * Copyright © 2020 Intel Corporation
  */
 
-#ifndef _XE_MIGRATE_
-#define _XE_MIGRATE_
+#ifndef _XE_MIGRATE_H_
+#define _XE_MIGRATE_H_
 
 #include <linux/types.h>
 

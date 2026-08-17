@@ -45,3 +45,25 @@ void dcn42_decide_zstate_support(struct dc *dc, struct dc_state *context)
 	context->bw_ctx.bw.dcn.clk.zstate_support = support;
 
 }
+
+bool dcn42_decide_odm_override(struct dc *dc, struct dc_state *context)
+{
+	bool odm_override = false;
+
+	DC_LOGGER_INIT(dc->ctx->logger);
+	if (dc->ctx->dce_environment == DCE_ENV_DIAG)
+		return false;
+
+	if (context->stream_count == 1 && context->streams[0]->signal == SIGNAL_TYPE_EDP) {
+
+		if (dc->debug.force_odm2to1_for_edp_pixclk_mhz != 0 &&
+			context->streams[0]->timing.pix_clk_100hz > dc->debug.force_odm2to1_for_edp_pixclk_mhz * 10000) {
+			odm_override = true;
+			context->streams[0]->debug.force_odm_combine_segments = 2;
+		}
+		DC_LOG_SMU("odm_override: %d, eDP pixelclock: %d, force_odm2to1_for_edp_pixclk_mhz: %d\n",
+			odm_override, context->streams[0]->timing.pix_clk_100hz / 10000, dc->debug.force_odm2to1_for_edp_pixclk_mhz);
+	}
+	return odm_override;
+}
+

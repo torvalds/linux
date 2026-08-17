@@ -790,9 +790,9 @@ static SIMPLE_DEV_PM_OPS(adp8860_i2c_pm_ops, adp8860_i2c_suspend,
 			adp8860_i2c_resume);
 
 static const struct i2c_device_id adp8860_id[] = {
-	{ "adp8860", adp8860 },
-	{ "adp8861", adp8861 },
-	{ "adp8863", adp8863 },
+	{ .name = "adp8860", .driver_data = adp8860 },
+	{ .name = "adp8861", .driver_data = adp8861 },
+	{ .name = "adp8863", .driver_data = adp8863 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adp8860_id);

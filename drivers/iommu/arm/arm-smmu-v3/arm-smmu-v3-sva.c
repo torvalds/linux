@@ -92,6 +92,16 @@ void arm_smmu_make_sva_cd(struct arm_smmu_cd *target,
 
 		target->data[1] = cpu_to_le64(virt_to_phys(mm->pgd) &
 					      CTXDESC_CD_1_TTB0_MASK);
+
+		/*
+		 * Enable Hardware Access and Dirty updates (DBM) if supported.
+		 * This is safe to enable by default, as PTE_WRITE and PTE_DBM
+		 * share the same bit.
+		 */
+		if (master->smmu->features & ARM_SMMU_FEAT_HA)
+			target->data[0] |= cpu_to_le64(CTXDESC_CD_0_TCR_HA);
+		if (master->smmu->features & ARM_SMMU_FEAT_HD)
+			target->data[0] |= cpu_to_le64(CTXDESC_CD_0_TCR_HD);
 	} else {
 		target->data[0] |= cpu_to_le64(CTXDESC_CD_0_TCR_EPD0);
 

@@ -576,7 +576,7 @@ static int keyring_search_iterator(const void *object, void *iterator_data)
 	struct keyring_search_context *ctx = iterator_data;
 	const struct key *key = keyring_ptr_to_key(object);
 	unsigned long kflags = READ_ONCE(key->flags);
-	short state = READ_ONCE(key->state);
+	short state = key_read_state(key);
 
 	kenter("{%d}", key->serial);
 
@@ -1109,6 +1109,7 @@ key_ref_t find_key_to_update(key_ref_t keyring_ref,
 	kenter("{%d},{%s,%s}",
 	       keyring->serial, index_key->type->name, index_key->description);
 
+	guard(rcu)();
 	object = assoc_array_find(&keyring->keys, &keyring_assoc_array_ops,
 				  index_key);
 

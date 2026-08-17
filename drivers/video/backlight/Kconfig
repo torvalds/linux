@@ -260,7 +260,7 @@ config BACKLIGHT_PWM
 
 config BACKLIGHT_CGBC
 	tristate "Congatec Board Controller (CGBC) backlight support"
-	depends on MFD_CGBC && X86
+	depends on MFD_CGBC
 	help
 	  Say Y here to enable support for LCD backlight control on Congatec
 	  x86-based boards via the CGBC (Congatec Board Controller).
@@ -281,6 +281,13 @@ config BACKLIGHT_DA9052
 	depends on PMIC_DA9052
 	help
 	  Enable the Backlight Driver for DA9052-BC and DA9053-AA/Bx PMICs.
+
+config BACKLIGHT_MAX25014
+	tristate "Backlight driver for Maxim MAX25014"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you are using a MAX25014 chip as a backlight driver say Y to enable it.
 
 config BACKLIGHT_MAX8925
 	tristate "Backlight driver for MAX8925"

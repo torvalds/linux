@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef ERR_H
 #define ERR_H
+#include <linux/kernel.h>
 #define MAX_ERRNO	4095
 
 #define IS_ERR_VALUE(x) unlikely((x) >= (unsigned long)-MAX_ERRNO)

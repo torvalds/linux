@@ -206,10 +206,9 @@ static int amlogic_spifc_a1_read(struct amlogic_spifc_a1 *spifc, void *buf,
 	u32 val = readl(spifc->base + SPIFC_A1_USER_CTRL3_REG);
 	int ret;
 
-	val &= ~(SPIFC_A1_USER_DIN_MODE | SPIFC_A1_USER_DIN_BYTES);
 	val |= SPIFC_A1_USER_DIN_ENABLE;
-	val |= FIELD_PREP(SPIFC_A1_USER_DIN_MODE, mode);
-	val |= FIELD_PREP(SPIFC_A1_USER_DIN_BYTES, size);
+	FIELD_MODIFY(SPIFC_A1_USER_DIN_MODE, &val, mode);
+	FIELD_MODIFY(SPIFC_A1_USER_DIN_BYTES, &val, size);
 	writel(val, spifc->base + SPIFC_A1_USER_CTRL3_REG);
 
 	ret = amlogic_spifc_a1_request(spifc, true);

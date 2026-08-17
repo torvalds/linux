@@ -15,9 +15,12 @@
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/vmalloc.h>
+
+#include <asm/cpuid/api.h>
 #include <asm/msr.h>
 #include <asm/sgx.h>
 #include <asm/archrandom.h>
+
 #include "driver.h"
 #include "encl.h"
 #include "encls.h"

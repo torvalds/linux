@@ -22,7 +22,7 @@ static bool build_min_clk_table_coarse_grained(const struct dml2_soc_bb *soc_bb,
 			min_table->dram_bw_table.entries[i].pre_derate_dram_bw_kbps =
 					uclk_to_dram_bw_kbps(soc_bb->clk_table.uclk.clk_values_khz[i], &soc_bb->clk_table.dram_config, soc_bb->clk_table.wck_ratio.clk_values_khz[i]);
 			min_table->dram_bw_table.entries[i].min_uclk_khz = soc_bb->clk_table.uclk.clk_values_khz[i];
-		} else {
+		} else if (soc_bb->clk_table.uclk.num_clk_values > 0) {
 			min_table->dram_bw_table.entries[i].pre_derate_dram_bw_kbps = min_table->dram_bw_table.entries[soc_bb->clk_table.uclk.num_clk_values - 1].pre_derate_dram_bw_kbps;
 			min_table->dram_bw_table.entries[i].min_uclk_khz = soc_bb->clk_table.uclk.clk_values_khz[soc_bb->clk_table.uclk.num_clk_values - 1];
 		}

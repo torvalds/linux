@@ -77,27 +77,36 @@
 /* Max RRL register sets per {,sub-,pseudo-}channel. */
 #define NUM_RRL_SET		4
 /* Max RRL registers per set. */
-#define NUM_RRL_REG		6
+#define NUM_RRL_REG		7
 /* Max correctable error count registers. */
 #define NUM_CECNT_REG		8
 
-/* Modes of RRL register set. */
-enum rrl_mode {
+/* Error source from which the RRL registers log errors. */
+enum rrl_source_type {
 	/* Last read error from patrol scrub. */
-	LRE_SCRUB,
+	RRL_SRC_LRE_SCRUB,
 	/* Last read error from demand. */
-	LRE_DEMAND,
+	RRL_SRC_LRE_DEMAND,
 	/* First read error from patrol scrub. */
-	FRE_SCRUB,
+	RRL_SRC_FRE_SCRUB,
 	/* First read error from demand. */
-	FRE_DEMAND,
+	RRL_SRC_FRE_DEMAND,
+};
+
+enum rrl_ctrl_mode {
+	/* Linux does not control RRL or reports values. */
+	RRL_CTRL_NONE,
+	/* Firmware retains control. Linux only reports values. */
+	RRL_CTRL_BIOS,
+	/* Linux takes control, resets mode bits, and clears valid/UC bits; reports values. */
+	RRL_CTRL_LINUX,
 };
 
 /* RRL registers per {,sub-,pseudo-}channel. */
 struct reg_rrl {
 	/* RRL register parts. */
 	int set_num, reg_num;
-	enum rrl_mode modes[NUM_RRL_SET];
+	enum rrl_source_type sources[NUM_RRL_SET];
 	u32 offsets[NUM_RRL_SET][NUM_RRL_REG];
 	/* RRL register widths in byte per set. */
 	u8 widths[NUM_RRL_REG];
@@ -201,11 +210,13 @@ enum {
 	INDEX_CHANNEL,
 	INDEX_DIMM,
 	INDEX_CS,
+	INDEX_SUBCH,
 	INDEX_NM_FIRST,
 	INDEX_NM_MEMCTRL = INDEX_NM_FIRST,
 	INDEX_NM_CHANNEL,
 	INDEX_NM_DIMM,
 	INDEX_NM_CS,
+	INDEX_NM_SUBCH,
 	INDEX_MAX
 };
 
@@ -216,10 +227,12 @@ enum error_source {
 	ERR_SRC_NOT_MEMORY,
 };
 
+#define BIT_SUBCH	BIT_ULL(INDEX_SUBCH)
 #define BIT_NM_MEMCTRL	BIT_ULL(INDEX_NM_MEMCTRL)
 #define BIT_NM_CHANNEL	BIT_ULL(INDEX_NM_CHANNEL)
 #define BIT_NM_DIMM	BIT_ULL(INDEX_NM_DIMM)
 #define BIT_NM_CS	BIT_ULL(INDEX_NM_CS)
+#define BIT_NM_SUBCH	BIT_ULL(INDEX_NM_SUBCH)
 
 struct decoded_addr {
 	struct mce *mce;
@@ -233,6 +246,7 @@ struct decoded_addr {
 	int	chanways;
 	int	dimm;
 	int	cs;
+	int	subch;
 	int	rank;
 	int	channel_rank;
 	u64	rank_address;
@@ -269,9 +283,11 @@ struct res_config {
 	int hbm_chan_mmio_sz;
 	bool support_ddr5;
 	/* RRL register sets per DDR channel */
-	struct reg_rrl *reg_rrl_ddr;
+	struct reg_rrl *reg_rrl_ddr[2];
 	/* RRL register sets per HBM channel */
 	struct reg_rrl *reg_rrl_hbm[2];
+	/* RRL control mode */
+	enum rrl_ctrl_mode rrl_ctrl_mode;
 	union {
 		/* {skx,i10nm}_edac */
 		struct {
@@ -324,11 +340,17 @@ struct res_config {
 typedef int (*get_dimm_config_f)(struct mem_ctl_info *mci,
 				 struct res_config *cfg);
 typedef bool (*skx_decode_f)(struct decoded_addr *res);
-typedef void (*skx_show_retry_log_f)(struct decoded_addr *res, char *msg, int len, bool scrub_err);
+typedef void (*skx_show_rrl_f)(struct decoded_addr *res, char *msg, int len, bool scrub_err);
 
+u64 skx_readx(void __iomem *addr, u8 width);
+u64 skx_read_imc_reg(struct skx_imc *imc, int chan, u32 offset, u8 width);
+void skx_write_imc_reg(struct skx_imc *imc, int chan, u32 offset, u8 width, u64 val);
 int skx_adxl_get(void);
 void skx_adxl_put(void);
-void skx_set_decode(skx_decode_f decode, skx_show_retry_log_f show_retry_log);
+void skx_set_decode(skx_decode_f decode);
+void skx_set_show_rrl(skx_show_rrl_f rrl);
+void skx_show_rrl(struct decoded_addr *res, char *msg, int len, bool scrub_err);
+void skx_enable_rrl(bool enable);
 void skx_set_mem_cfg(bool mem_cfg_2lm);
 void skx_set_res_cfg(struct res_config *cfg);
 void skx_init_mc_mapping(struct skx_dev *d);

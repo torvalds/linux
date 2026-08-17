@@ -816,7 +816,7 @@ xrep_ino_dqattach(
 	case -ENOENT:
 		xfs_err_ratelimited(sc->mp,
 "inode %llu repair encountered quota error %d, quotacheck forced.",
-				(unsigned long long)sc->ip->i_ino, error);
+				(unsigned long long)I_INO(sc->ip), error);
 		if (XFS_IS_UQUOTA_ON(sc->mp) && !sc->ip->i_udquot)
 			xrep_force_quotacheck(sc, XFS_DQTYPE_USER);
 		if (XFS_IS_GQUOTA_ON(sc->mp) && !sc->ip->i_gdquot)

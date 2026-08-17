@@ -1286,11 +1286,8 @@ static int wm8900_i2c_probe(struct i2c_client *i2c)
 	return ret;
 }
 
-static void wm8900_i2c_remove(struct i2c_client *client)
-{}
-
 static const struct i2c_device_id wm8900_i2c_id[] = {
-	{ "wm8900" },
+	{ .name = "wm8900" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm8900_i2c_id);
@@ -1299,8 +1296,7 @@ static struct i2c_driver wm8900_i2c_driver = {
 	.driver = {
 		.name = "wm8900",
 	},
-	.probe =    wm8900_i2c_probe,
-	.remove =   wm8900_i2c_remove,
+	.probe = wm8900_i2c_probe,
 	.id_table = wm8900_i2c_id,
 };
 #endif

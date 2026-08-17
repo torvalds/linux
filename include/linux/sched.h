@@ -16,6 +16,7 @@
 #include <linux/cpumask_types.h>
 
 #include <linux/cache.h>
+#include <linux/futex_types.h>
 #include <linux/irqflags_types.h>
 #include <linux/smp_types.h>
 #include <linux/pid_types.h>
@@ -64,7 +65,6 @@ struct bpf_net_context;
 struct capture_control;
 struct cfs_rq;
 struct fs_struct;
-struct futex_pi_state;
 struct io_context;
 struct io_uring_task;
 struct mempolicy;
@@ -76,7 +76,6 @@ struct pid_namespace;
 struct pipe_inode_info;
 struct rcu_node;
 struct reclaim_state;
-struct robust_list_head;
 struct root_domain;
 struct rq;
 struct sched_attr;
@@ -85,6 +84,7 @@ struct seq_file;
 struct sighand_struct;
 struct signal_struct;
 struct task_delay_info;
+struct task_exec_state;
 struct task_group;
 struct task_struct;
 struct timespec64;
@@ -161,7 +161,7 @@ struct user_event_mm;
  */
 #define is_special_task_state(state)					\
 	((state) & (__TASK_STOPPED | __TASK_TRACED | TASK_PARKED |	\
-		    TASK_DEAD | TASK_FROZEN))
+		    TASK_DEAD | TASK_WAKING | TASK_FROZEN))
 
 #ifdef CONFIG_DEBUG_ATOMIC_SLEEP
 # define debug_normal_state_change(state_value)				\
@@ -702,6 +702,11 @@ struct sched_dl_entity {
 	 * running, skipping the defer phase.
 	 *
 	 * @dl_defer_idle tracks idle state
+	 *
+	 * @dl_bw_attached tells if this server's bandwidth currently
+	 * contributes to the root domain's total_bw. Only meaningful for server
+	 * entities (@dl_server == 1). Allows toggling the reservation on/off
+	 * without losing the configured @dl_runtime/@dl_period.
 	 */
 	unsigned int			dl_throttled      : 1;
 	unsigned int			dl_yielded        : 1;
@@ -713,6 +718,7 @@ struct sched_dl_entity {
 	unsigned int			dl_defer_armed	  : 1;
 	unsigned int			dl_defer_running  : 1;
 	unsigned int			dl_defer_idle     : 1;
+	unsigned int			dl_bw_attached    : 1;
 
 	/*
 	 * Bandwidth enforcement timer. Each -deadline task has its
@@ -846,7 +852,11 @@ struct task_struct {
 	struct alloc_tag		*alloc_tag;
 #endif
 
-	int				on_cpu;
+	u8				on_cpu;
+	u8				on_rq;
+	u8				is_blocked;
+	u8				__pad;
+
 	struct __call_single_node	wake_entry;
 	unsigned int			wakee_flips;
 	unsigned long			wakee_flip_decay_ts;
@@ -861,7 +871,6 @@ struct task_struct {
 	 */
 	int				recent_used_cpu;
 	int				wake_cpu;
-	int				on_rq;
 
 	int				prio;
 	int				static_prio;
@@ -962,6 +971,8 @@ struct task_struct {
 	struct mm_struct		*mm;
 	struct mm_struct		*active_mm;
 
+	struct task_exec_state __rcu	*exec_state;
+
 	int				exit_state;
 	int				exit_code;
 	int				exit_signal;
@@ -1001,9 +1012,6 @@ struct task_struct {
 #ifdef CONFIG_RT_MUTEXES
 	unsigned			sched_rt_mutex:1;
 #endif
-
-	/* Save user-dumpable when mm goes away */
-	unsigned			user_dumpable:1;
 
 	/* Bit to tell TOMOYO we're in execve(): */
 	unsigned			in_execve:1;
@@ -1244,6 +1252,13 @@ struct task_struct {
 	struct mutex			*blocked_on;	/* lock we're blocked on */
 	raw_spinlock_t			blocked_lock;
 
+	/*
+	 * The task that is boosting this task; a back link for the current
+	 * donor stack. Set in schedule() -> find_proxy_task() and only stable
+	 * under preempt_disable().
+	 */
+	struct task_struct		*blocked_donor;
+
 #ifdef CONFIG_DETECT_HUNG_TASK_BLOCKER
 	/*
 	 * Encoded lock address causing task block (lower 2 bits = type from
@@ -1334,16 +1349,9 @@ struct task_struct {
 	u32				closid;
 	u32				rmid;
 #endif
-#ifdef CONFIG_FUTEX
-	struct robust_list_head __user	*robust_list;
-#ifdef CONFIG_COMPAT
-	struct compat_robust_list_head __user *compat_robust_list;
-#endif
-	struct list_head		pi_state_list;
-	struct futex_pi_state		*pi_state_cache;
-	struct mutex			futex_exit_mutex;
-	unsigned int			futex_state;
-#endif
+
+	struct futex_sched_data		futex;
+
 #ifdef CONFIG_PERF_EVENTS
 	u8				perf_recursion[PERF_NR_CONTEXTS];
 	struct perf_event_context	*perf_event_ctxp;
@@ -1410,6 +1418,13 @@ struct task_struct {
 
 	unsigned long			numa_pages_migrated;
 #endif /* CONFIG_NUMA_BALANCING */
+
+#ifdef CONFIG_SCHED_CACHE
+	struct callback_head		cache_work;
+	int				preferred_llc;
+	/* 1: task was enqueued to its preferred LLC, 0 otherwise */
+	int				pref_llc_queued;
+#endif
 
 	struct rseq_data		rseq;
 	struct sched_mm_cid		mm_cid;
@@ -1516,6 +1531,9 @@ struct task_struct {
 
 	/* KCOV descriptor wired with this task or NULL: */
 	struct kcov			*kcov;
+
+	/* KCOV descriptor for remote coverage collection from other tasks: */
+	struct kcov			*kcov_remote;
 
 	/* KCOV common handle for remote coverage collection: */
 	u64				kcov_handle;
@@ -2185,19 +2203,10 @@ extern int __cond_resched_rwlock_write(rwlock_t *lock) __must_hold(lock);
 
 #ifndef CONFIG_PREEMPT_RT
 
-/*
- * With proxy exec, if a task has been proxy-migrated, it may be a donor
- * on a cpu that it can't actually run on. Thus we need a special state
- * to denote that the task is being woken, but that it needs to be
- * evaluated for return-migration before it is run. So if the task is
- * blocked_on PROXY_WAKING, return migrate it before running it.
- */
-#define PROXY_WAKING ((struct mutex *)(-1L))
-
 static inline struct mutex *__get_task_blocked_on(struct task_struct *p)
 {
 	lockdep_assert_held_once(&p->blocked_lock);
-	return p->blocked_on == PROXY_WAKING ? NULL : p->blocked_on;
+	return p->blocked_on;
 }
 
 static inline void __set_task_blocked_on(struct task_struct *p, struct mutex *m)
@@ -2225,7 +2234,7 @@ static inline void __clear_task_blocked_on(struct task_struct *p, struct mutex *
 	 * blocked_on relationships, but make sure we are not
 	 * clearing the relationship with a different lock.
 	 */
-	WARN_ON_ONCE(m && p->blocked_on && p->blocked_on != m && p->blocked_on != PROXY_WAKING);
+	WARN_ON_ONCE(m && p->blocked_on && p->blocked_on != m);
 	p->blocked_on = NULL;
 }
 
@@ -2234,49 +2243,12 @@ static inline void clear_task_blocked_on(struct task_struct *p, struct mutex *m)
 	guard(raw_spinlock_irqsave)(&p->blocked_lock);
 	__clear_task_blocked_on(p, m);
 }
-
-static inline void __set_task_blocked_on_waking(struct task_struct *p, struct mutex *m)
-{
-	/* Currently we serialize blocked_on under the task::blocked_lock */
-	lockdep_assert_held_once(&p->blocked_lock);
-
-	if (!sched_proxy_exec()) {
-		__clear_task_blocked_on(p, m);
-		return;
-	}
-
-	/* Don't set PROXY_WAKING if blocked_on was already cleared */
-	if (!p->blocked_on)
-		return;
-	/*
-	 * There may be cases where we set PROXY_WAKING on tasks that were
-	 * already set to waking, but make sure we are not changing
-	 * the relationship with a different lock.
-	 */
-	WARN_ON_ONCE(m && p->blocked_on != m && p->blocked_on != PROXY_WAKING);
-	p->blocked_on = PROXY_WAKING;
-}
-
-static inline void set_task_blocked_on_waking(struct task_struct *p, struct mutex *m)
-{
-	guard(raw_spinlock_irqsave)(&p->blocked_lock);
-	__set_task_blocked_on_waking(p, m);
-}
-
 #else
 static inline void __clear_task_blocked_on(struct task_struct *p, struct rt_mutex *m)
 {
 }
 
 static inline void clear_task_blocked_on(struct task_struct *p, struct rt_mutex *m)
-{
-}
-
-static inline void __set_task_blocked_on_waking(struct task_struct *p, struct rt_mutex *m)
-{
-}
-
-static inline void set_task_blocked_on_waking(struct task_struct *p, struct rt_mutex *m)
 {
 }
 #endif /* !CONFIG_PREEMPT_RT */
@@ -2409,6 +2381,29 @@ static __always_inline int task_mm_cid(struct task_struct *t)
 	 */
 	return task_cpu(t);
 }
+#endif
+
+#ifdef CONFIG_SCHED_CACHE
+
+struct sched_cache_time {
+	u64 runtime;
+	unsigned long epoch;
+};
+
+struct sched_cache_stat {
+	struct sched_cache_time __percpu *pcpu_sched;
+	raw_spinlock_t lock;
+	unsigned long epoch;
+	u64 nr_running_avg;
+	unsigned long next_scan;
+	unsigned long footprint;
+	int cpu;
+} ____cacheline_aligned_in_smp;
+
+#else
+
+struct sched_cache_stat { };
+
 #endif
 
 #ifndef MODULE

@@ -43,11 +43,7 @@ ssize_t sized_strscpy(char *dst, const char *src, size_t count)
 
 void *memset64(uint64_t *s, uint64_t v, size_t count)
 {
-	uint64_t *xs = s;
-
-	while (count--)
-		*xs++ = v;
-	return s;
+	return __memset64(s, v, count * sizeof(v));
 }
 
 char *skip_spaces(const char *str)

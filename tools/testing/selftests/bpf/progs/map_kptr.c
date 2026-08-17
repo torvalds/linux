@@ -489,8 +489,7 @@ int test_map_kptr_ref3(struct __sk_buff *ctx)
 
 int num_of_refs;
 
-SEC("syscall")
-int count_ref(void *ctx)
+static __always_inline int read_ref_count(void)
 {
 	struct prog_test_ref_kfunc *p;
 	unsigned long arg = 0;
@@ -500,10 +499,94 @@ int count_ref(void *ctx)
 		return 1;
 
 	num_of_refs = p->cnt.refs.counter;
-
 	bpf_kfunc_call_test_release(p);
 	return 0;
 }
+
+SEC("syscall")
+int count_ref(void *ctx)
+{
+	return read_ref_count();
+}
+
+static __always_inline int stash_ref_ptr(struct map_value *v)
+{
+	struct prog_test_ref_kfunc *p, *old;
+	unsigned long arg = 0;
+
+	p = bpf_kfunc_call_test_acquire(&arg);
+	if (!p)
+		return 1;
+
+	old = bpf_kptr_xchg(&v->ref_ptr, p);
+	if (old) {
+		bpf_kfunc_call_test_release(old);
+		old = bpf_kptr_xchg(&v->ref_ptr, NULL);
+		if (old)
+			bpf_kfunc_call_test_release(old);
+		return 2;
+	}
+	return 0;
+}
+
+static __always_inline int check_refs(int expected)
+{
+	int ret;
+
+	ret = read_ref_count();
+	if (ret)
+		return ret;
+	return num_of_refs == expected ? 0 : 3;
+}
+
+SEC("syscall")
+int test_array_map_update_kptr(void *ctx)
+{
+	struct map_value init = {}, *v;
+	int key = 0, ret;
+
+	v = bpf_map_lookup_elem(&array_map, &key);
+	if (!v)
+		return 1;
+	ret = stash_ref_ptr(v);
+	if (ret)
+		return ret;
+	ret = check_refs(3);
+	if (ret)
+		return ret;
+	ret = bpf_map_update_elem(&array_map, &key, &init, BPF_EXIST);
+	if (ret)
+		return 4;
+	return check_refs(3);
+}
+
+#define DEFINE_HASH_UPDATE_KPTR_TEST(name, map)			\
+SEC("syscall")							\
+int name(void *ctx)						\
+{								\
+	struct map_value init = {}, *v;				\
+	int key = 0, ret;					\
+								\
+	ret = bpf_map_update_elem(&map, &key, &init, BPF_NOEXIST); \
+	if (ret)						\
+		return 1;					\
+	v = bpf_map_lookup_elem(&map, &key);			\
+	if (!v)							\
+		return 2;					\
+	ret = stash_ref_ptr(v);					\
+	if (ret)						\
+		return ret;					\
+	ret = check_refs(3);					\
+	if (ret)						\
+		return ret;					\
+	ret = bpf_map_update_elem(&map, &key, &init, BPF_EXIST); \
+	if (ret)						\
+		return 4;					\
+	return check_refs(3);					\
+}
+
+DEFINE_HASH_UPDATE_KPTR_TEST(test_hash_map_update_kptr, hash_map)
+DEFINE_HASH_UPDATE_KPTR_TEST(test_hash_malloc_map_update_kptr, hash_malloc_map)
 
 SEC("syscall")
 int test_ls_map_kptr_ref1(void *ctx)

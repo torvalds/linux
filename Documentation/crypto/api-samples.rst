@@ -159,7 +159,7 @@ Code Example For Random Number Generator Usage
     static int get_random_numbers(u8 *buf, unsigned int len)
     {
         struct crypto_rng *rng = NULL;
-        char *drbg = "drbg_nopr_sha256"; /* Hash DRBG with SHA-256, no PR */
+        char *drbg = "stdrng";
         int ret;
 
         if (!buf || !len) {

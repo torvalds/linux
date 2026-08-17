@@ -106,8 +106,8 @@ static struct comedi_driver labpc_pci_comedi_driver = {
 };
 
 static const struct pci_device_id labpc_pci_table[] = {
-	{ PCI_VDEVICE(NI, 0x161), BOARD_NI_PCI1200 },
-	{ 0 }
+	{ PCI_VDEVICE(NI, 0x0161), .driver_data = BOARD_NI_PCI1200 },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, labpc_pci_table);
 

@@ -92,7 +92,6 @@ struct dra7xx_pcie {
 	struct phy		**phy;
 	struct irq_domain	*irq_domain;
 	struct clk              *clk;
-	enum dw_pcie_device_mode mode;
 };
 
 struct dra7xx_pcie_of_data {
@@ -328,7 +327,7 @@ static irqreturn_t dra7xx_pcie_irq_handler(int irq, void *arg)
 		dev_dbg(dev, "Link Request Reset\n");
 
 	if (reg & LINK_UP_EVT) {
-		if (dra7xx->mode == DW_PCIE_EP_TYPE)
+		if (dra7xx->pci->mode == DW_PCIE_EP_TYPE)
 			dw_pcie_ep_linkup(ep);
 		dev_dbg(dev, "Link-up state change\n");
 	}
@@ -828,7 +827,7 @@ static int dra7xx_pcie_probe(struct platform_device *pdev)
 	default:
 		dev_err(dev, "INVALID device type %d\n", mode);
 	}
-	dra7xx->mode = mode;
+	dra7xx->pci->mode = mode;
 
 	ret = devm_request_threaded_irq(dev, irq, NULL, dra7xx_pcie_irq_handler,
 					IRQF_SHARED | IRQF_ONESHOT,
@@ -841,7 +840,7 @@ static int dra7xx_pcie_probe(struct platform_device *pdev)
 	return 0;
 
 err_deinit:
-	if (dra7xx->mode == DW_PCIE_RC_TYPE)
+	if (dra7xx->pci->mode == DW_PCIE_RC_TYPE)
 		dw_pcie_host_deinit(&dra7xx->pci->pp);
 	else
 		dw_pcie_ep_deinit(&dra7xx->pci->ep);
@@ -865,7 +864,7 @@ static int dra7xx_pcie_suspend(struct device *dev)
 	struct dw_pcie *pci = dra7xx->pci;
 	u32 val;
 
-	if (dra7xx->mode != DW_PCIE_RC_TYPE)
+	if (pci->mode != DW_PCIE_RC_TYPE)
 		return 0;
 
 	/* clear MSE */
@@ -882,7 +881,7 @@ static int dra7xx_pcie_resume(struct device *dev)
 	struct dw_pcie *pci = dra7xx->pci;
 	u32 val;
 
-	if (dra7xx->mode != DW_PCIE_RC_TYPE)
+	if (pci->mode != DW_PCIE_RC_TYPE)
 		return 0;
 
 	/* set MSE */

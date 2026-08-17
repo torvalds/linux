@@ -24,6 +24,7 @@
 #include <linux/entry-common.h>
 #include <linux/kmsan.h>
 #include <linux/bug.h>
+#include <asm/entry-percpu.h>
 #include <asm/asm-extable.h>
 #include <asm/irqflags.h>
 #include <asm/ptrace.h>
@@ -329,6 +330,7 @@ static void (*pgm_check_table[128])(struct pt_regs *regs);
 void noinstr __do_pgm_check(struct pt_regs *regs)
 {
 	struct lowcore *lc = get_lowcore();
+	bool percpu_needs_fixup;
 	irqentry_state_t state;
 	unsigned int trapnr;
 	union teid teid;
@@ -349,6 +351,7 @@ void noinstr __do_pgm_check(struct pt_regs *regs)
 		current->thread.gmap_int_code = regs->int_code & 0xffff;
 		return;
 	}
+	percpu_entry(regs);
 	state = irqentry_enter(regs);
 	if (user_mode(regs)) {
 		update_timer_sys();
@@ -385,7 +388,9 @@ void noinstr __do_pgm_check(struct pt_regs *regs)
 		pgm_check_table[trapnr](regs);
 out:
 	local_irq_disable();
+	percpu_needs_fixup = percpu_code_check(regs);
 	irqentry_exit(regs, state);
+	percpu_exit(regs, percpu_needs_fixup);
 }
 
 /*

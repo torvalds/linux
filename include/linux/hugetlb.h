@@ -148,13 +148,11 @@ int hugetlb_mfill_atomic_pte(pte_t *dst_pte,
 			     struct folio **foliop);
 #endif /* CONFIG_USERFAULTFD */
 long hugetlb_reserve_pages(struct inode *inode, long from, long to,
-			   struct vm_area_desc *desc, vma_flags_t vma_flags);
+			   struct vm_area_struct *vma, vma_flags_t vma_flags);
 long hugetlb_unreserve_pages(struct inode *inode, long start, long end,
 						long freed);
 bool folio_isolate_hugetlb(struct folio *folio, struct list_head *list);
 int get_hwpoison_hugetlb_folio(struct folio *folio, bool *hugetlb, bool unpoison);
-int get_huge_page_for_hwpoison(unsigned long pfn, int flags,
-				bool *migratable_cleared);
 void folio_putback_hugetlb(struct folio *folio);
 void move_hugetlb_state(struct folio *old_folio, struct folio *new_folio, int reason);
 void hugetlb_fix_reserve_counts(struct inode *inode);
@@ -276,7 +274,6 @@ long hugetlb_change_protection(struct vm_area_struct *vma,
 void hugetlb_unshare_all_pmds(struct vm_area_struct *vma);
 void fixup_hugetlb_reservations(struct vm_area_struct *vma);
 void hugetlb_split(struct vm_area_struct *vma, unsigned long addr);
-int hugetlb_vma_lock_alloc(struct vm_area_struct *vma);
 
 unsigned int arch_hugetlb_cma_order(void);
 
@@ -422,12 +419,6 @@ static inline int get_hwpoison_hugetlb_folio(struct folio *folio, bool *hugetlb,
 	return 0;
 }
 
-static inline int get_huge_page_for_hwpoison(unsigned long pfn, int flags,
-					bool *migratable_cleared)
-{
-	return 0;
-}
-
 static inline void folio_putback_hugetlb(struct folio *folio)
 {
 }
@@ -468,11 +459,6 @@ static inline void fixup_hugetlb_reservations(struct vm_area_struct *vma)
 }
 
 static inline void hugetlb_split(struct vm_area_struct *vma, unsigned long addr) {}
-
-static inline int hugetlb_vma_lock_alloc(struct vm_area_struct *vma)
-{
-	return 0;
-}
 
 #endif /* !CONFIG_HUGETLB_PAGE */
 

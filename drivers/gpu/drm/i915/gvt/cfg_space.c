@@ -32,10 +32,10 @@
  */
 
 #include <drm/drm_print.h>
+#include <drm/intel/pci_config.h>
 
 #include "gvt.h"
 #include "i915_drv.h"
-#include "intel_pci_config.h"
 
 enum {
 	INTEL_GVT_PCI_BAR_GTTMMIO = 0,

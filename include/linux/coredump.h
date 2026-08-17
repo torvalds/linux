@@ -5,6 +5,7 @@
 #include <linux/types.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
+#include <linux/sched/coredump.h>
 #include <asm/siginfo.h>
 
 #ifdef CONFIG_COREDUMP
@@ -20,7 +21,10 @@ struct coredump_params {
 	const kernel_siginfo_t *siginfo;
 	struct file *file;
 	unsigned long limit;
+	/* MMF_DUMP_FILTER_* bits, snapshot of mm->flags at dump start. */
 	unsigned long mm_flags;
+	/* Snapshot of dumpable at dump start. */
+	enum task_dumpable dumpable;
 	int cpu;
 	loff_t written;
 	loff_t pos;

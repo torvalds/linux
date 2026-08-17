@@ -345,3 +345,18 @@
 	};
 };
 
+/*
+ * XSPI0 Pin Configuration:
+ * ------------------------
+ * Signal     | Pin     | SW5
+ * -----------|---------|---------------
+ * XSPI0_ECS  | P07_5   | 5: OFF, 6: ON
+ */
+&xspi0_pins {
+	ecs-pins {
+		pinmux = <RZT2H_PORT_PINMUX(7, 5, 0x1c)>; /* XSPI0_ECS0 */
+		drive-strength-microamp = <2500>;
+		input-schmitt-disable;
+		slew-rate = <0>;
+	};
+};

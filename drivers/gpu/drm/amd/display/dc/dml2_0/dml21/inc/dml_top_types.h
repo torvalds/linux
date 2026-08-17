@@ -19,7 +19,6 @@ enum dml2_project_id {
 	dml2_project_dcn4x_stage1,
 	dml2_project_dcn4x_stage2,
 	dml2_project_dcn4x_stage2_auto_drr_svp,
-	dml2_project_dcn40,
 	dml2_project_dcn42,
 };
 
@@ -72,6 +71,7 @@ struct dml2_pmo_options {
 	bool disable_dyn_odm;
 	bool disable_dyn_odm_for_multi_stream;
 	bool disable_dyn_odm_for_stream_with_svp;
+	bool force_mandatory_uclk_pstate_support;
 	struct dml2_pmo_pstate_strategy *override_strategy_lists[DML2_MAX_PLANES];
 	unsigned int num_override_strategies_per_list[DML2_MAX_PLANES];
 };

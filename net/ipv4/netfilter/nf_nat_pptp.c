@@ -53,11 +53,13 @@ static void pptp_nat_expected(struct nf_conn *ct,
 	struct nf_conn_nat *nat;
 
 	nat = nf_ct_nat_ext_add(ct);
-	if (WARN_ON_ONCE(!nat))
+	if (!nat)
 		return;
 
 	nat_pptp_info = &nat->help.nat_pptp_info;
 	ct_pptp_info = nfct_help_data(master);
+	if (!ct_pptp_info)
+		return;
 
 	/* And here goes the grand finale of corrosion... */
 	if (exp->dir == IP_CT_DIR_ORIGINAL) {
@@ -132,11 +134,13 @@ pptp_outbound_pkt(struct sk_buff *skb,
 	__be16 new_callid;
 	unsigned int cid_off;
 
-	if (WARN_ON_ONCE(!nat))
+	if (!nat)
 		return NF_DROP;
 
 	nat_pptp_info = &nat->help.nat_pptp_info;
 	ct_pptp_info = nfct_help_data(ct);
+	if (!ct_pptp_info)
+		return NF_DROP;
 
 	new_callid = ct_pptp_info->pns_call_id;
 
@@ -204,11 +208,13 @@ pptp_exp_gre(struct nf_conntrack_expect *expect_orig,
 	struct nf_ct_pptp_master *ct_pptp_info;
 	struct nf_nat_pptp *nat_pptp_info;
 
-	if (WARN_ON_ONCE(!nat))
+	if (!nat)
 		return;
 
 	nat_pptp_info = &nat->help.nat_pptp_info;
 	ct_pptp_info = nfct_help_data(ct);
+	if (!ct_pptp_info)
+		return;
 
 	/* save original PAC call ID in nat_info */
 	nat_pptp_info->pac_call_id = ct_pptp_info->pac_call_id;
@@ -241,7 +247,7 @@ pptp_inbound_pkt(struct sk_buff *skb,
 	__be16 new_pcid;
 	unsigned int pcid_off;
 
-	if (WARN_ON_ONCE(!nat))
+	if (!nat)
 		return NF_DROP;
 
 	nat_pptp_info = &nat->help.nat_pptp_info;

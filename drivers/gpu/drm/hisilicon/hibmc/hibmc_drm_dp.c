@@ -41,6 +41,8 @@ static bool hibmc_dp_get_dpcd(struct hibmc_dp_dev *dp_dev)
 	if (ret)
 		return false;
 
+	hibmc_dp_update_caps(dp_dev);
+
 	dp_dev->is_branch = drm_dp_is_branch(dp_dev->dpcd);
 
 	ret = drm_dp_read_desc(dp_dev->aux, &dp_dev->desc, dp_dev->is_branch);
@@ -59,27 +61,38 @@ static int hibmc_dp_detect(struct drm_connector *connector,
 {
 	struct hibmc_dp *dp = to_hibmc_dp(connector);
 	struct hibmc_dp_dev *dp_dev = dp->dp_dev;
-	int ret;
+	int ret = connector_status_disconnected;
 
 	if (dp->irq_status) {
-		if (dp_dev->hpd_status != HIBMC_HPD_IN)
-			return connector_status_disconnected;
+		if (dp_dev->hpd_status != HIBMC_HPD_IN) {
+			ret = connector_status_disconnected;
+			goto exit;
+		}
 	}
 
-	if (!hibmc_dp_get_dpcd(dp_dev))
-		return connector_status_disconnected;
+	if (!hibmc_dp_get_dpcd(dp_dev)) {
+		ret = connector_status_disconnected;
+		goto exit;
+	}
 
-	if (!dp_dev->is_branch)
-		return connector_status_connected;
+	if (!dp_dev->is_branch) {
+		ret = connector_status_connected;
+		goto exit;
+	}
 
 	if (drm_dp_read_sink_count_cap(connector, dp_dev->dpcd, &dp_dev->desc) &&
 	    dp_dev->downstream_ports[0] & DP_DS_PORT_HPD) {
 		ret = drm_dp_read_sink_count(dp_dev->aux);
-		if (ret > 0)
-			return connector_status_connected;
+		if (ret > 0) {
+			ret = connector_status_connected;
+			goto exit;
+		}
 	}
 
-	return connector_status_disconnected;
+exit:
+	dp->phys_status = ret;
+
+	return ret;
 }
 
 static int hibmc_dp_mode_valid(struct drm_connector *connector,
@@ -148,7 +161,7 @@ static inline int hibmc_dp_prepare(struct hibmc_dp *dp, struct drm_display_mode 
 }
 
 static void hibmc_dp_encoder_enable(struct drm_encoder *drm_encoder,
-				    struct drm_atomic_state *state)
+				    struct drm_atomic_commit *state)
 {
 	struct hibmc_dp *dp = container_of(drm_encoder, struct hibmc_dp, encoder);
 	struct drm_display_mode *mode = &drm_encoder->crtc->state->mode;
@@ -160,7 +173,7 @@ static void hibmc_dp_encoder_enable(struct drm_encoder *drm_encoder,
 }
 
 static void hibmc_dp_encoder_disable(struct drm_encoder *drm_encoder,
-				     struct drm_atomic_state *state)
+				     struct drm_atomic_commit *state)
 {
 	struct hibmc_dp *dp = container_of(drm_encoder, struct hibmc_dp, encoder);
 
@@ -240,6 +253,8 @@ int hibmc_dp_init(struct hibmc_drm_private *priv)
 	drm_connector_attach_encoder(connector, encoder);
 
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
+
+	dp->phys_status = connector_status_disconnected;
 
 	return 0;
 }

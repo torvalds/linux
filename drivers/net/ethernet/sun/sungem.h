@@ -352,7 +352,7 @@
 #define MAC_HASH14	0x60F8UL	/* Hash Table 14 Register	*/
 #define MAC_HASH15	0x60FCUL	/* Hash Table 15 Register	*/
 #define MAC_NCOLL	0x6100UL	/* Normal Collision Counter	*/
-#define MAC_FASUCC	0x6104UL	/* First Attmpt. Succ Coll Ctr.	*/
+#define MAC_FASUCC	0x6104UL	/* First Attempt. Succ Coll Ctr.*/
 #define MAC_ECOLL	0x6108UL	/* Excessive Collision Counter	*/
 #define MAC_LCOLL	0x610CUL	/* Late Collision Counter	*/
 #define MAC_DTIMER	0x6110UL	/* Defer Timer			*/
@@ -657,7 +657,7 @@
 
 /* MIF Frame/Output Register.  This 32-bit register allows the host to
  * communicate with a transceiver in frame mode (as opposed to big-bang
- * mode).  Writes by the host specify an instrution.  After being issued
+ * mode).  Writes by the host specify an instruction.  After being issued
  * the host must poll this register for completion.  Also, after
  * completion this register holds the data returned by the transceiver
  * if applicable.

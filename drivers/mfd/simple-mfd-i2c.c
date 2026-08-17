@@ -20,7 +20,6 @@
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/mfd/core.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
@@ -105,6 +104,7 @@ static const struct regmap_config spacemit_p1_regmap_config = {
 };
 
 static const struct mfd_cell spacemit_p1_cells[] = {
+	{ .name = "spacemit-p1-reboot", },
 	{ .name = "spacemit-p1-regulator", },
 	{ .name = "spacemit-p1-rtc", },
 };

@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * Apple M3 MacBook Pro and iMac (M3, 2023) I2C based USB PD controller nodes
+ *
+ * This file contains nodes for t8122 devices using I2C based cd321x USB Type-C
+ * port controllers. The are used in the M3 MacBook Pro and iMacs but not in the
+ * M3 Macbook Airs.
+ *
+ * target-type: J433, J434, J504
+ *
+ * Copyright The Asahi Linux Contributors
+ */
+
+&i2c0 {
+	status = "okay";
+
+	hpm0: usb-pd@38 {
+		compatible = "apple,cd321x";
+		reg = <0x38>;
+		interrupt-parent = <&pinctrl_ap>;
+		interrupts = <8 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-names = "irq";
+	};
+
+	hpm1: usb-pd@3f {
+		compatible = "apple,cd321x";
+		reg = <0x3f>;
+		interrupt-parent = <&pinctrl_ap>;
+		interrupts = <8 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-names = "irq";
+	};
+};

@@ -8,6 +8,8 @@ IP_A="1.1.1.1"
 IP_B="1.1.1.2"
 PORT=4791
 
+source "$(dirname "$0")/../kselftest/ktap_helpers.sh"
+
 exec > /dev/null
 
 # --- Cleanup Routine ---
@@ -25,6 +27,11 @@ trap cleanup EXIT
 if [[ $EUID -ne 0 ]]; then
    echo "This script must be run as root"
    exit 1
+fi
+
+if ! modinfo rdma_rxe >/dev/null 2>&1; then
+    echo "SKIP: Kernel module 'rdma_rxe' not found." >&2
+    exit $KSFT_SKIP
 fi
 
 modprobe rdma_rxe || { echo "Failed to load rdma_rxe"; exit 1; }

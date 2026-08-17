@@ -13,7 +13,6 @@
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/spi/spi.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/lcm.h>
 #include <linux/property.h>

@@ -6,6 +6,7 @@
  *
  */
 
+#include <linux/dmi.h>
 #include <linux/soundwire/sdw_intel.h>
 #include <sound/sdca.h>
 #include <sound/soc-acpi.h>
@@ -36,6 +37,21 @@ bool snd_soc_acpi_intel_sdca_is_device_rt712_vb(void *arg)
 	return false;
 }
 EXPORT_SYMBOL_NS(snd_soc_acpi_intel_sdca_is_device_rt712_vb, "SND_SOC_ACPI_INTEL_SDCA_QUIRKS");
+
+static const struct dmi_system_id function_topology_quirk_table[] = {
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Google"),
+		},
+	},
+	{}
+};
+
+bool snd_soc_acpi_intel_no_function_topology(void *arg)
+{
+	return !!dmi_check_system(function_topology_quirk_table);
+}
+EXPORT_SYMBOL_NS(snd_soc_acpi_intel_no_function_topology, "SND_SOC_ACPI_INTEL_SDCA_QUIRKS");
 
 MODULE_DESCRIPTION("ASoC ACPI Intel SDCA quirks");
 MODULE_LICENSE("GPL");

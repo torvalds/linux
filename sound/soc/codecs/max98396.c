@@ -1871,9 +1871,9 @@ static int max98396_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id max98396_i2c_id[] = {
-	{ "max98396", CODEC_TYPE_MAX98396},
-	{ "max98397", CODEC_TYPE_MAX98397},
-	{ },
+	{ .name = "max98396", .driver_data = CODEC_TYPE_MAX98396 },
+	{ .name = "max98397", .driver_data = CODEC_TYPE_MAX98397 },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, max98396_i2c_id);

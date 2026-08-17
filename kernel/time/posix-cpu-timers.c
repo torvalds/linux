@@ -19,7 +19,7 @@
 
 #include "posix-timers.h"
 
-static void posix_cpu_timer_rearm(struct k_itimer *timer);
+static bool posix_cpu_timer_rearm(struct k_itimer *timer);
 
 void posix_cputimers_group_init(struct posix_cputimers *pct, u64 cpu_limit)
 {
@@ -41,7 +41,7 @@ void posix_cputimers_group_init(struct posix_cputimers *pct, u64 cpu_limit)
  */
 int update_rlimit_cpu(struct task_struct *task, unsigned long rlim_new)
 {
-	u64 nsecs = rlim_new * NSEC_PER_SEC;
+	u64 nsecs = (u64)rlim_new * NSEC_PER_SEC;
 	unsigned long irq_fl;
 
 	if (!lock_task_sighand(task, &irq_fl))
@@ -1011,24 +1011,27 @@ static void check_process_timers(struct task_struct *tsk,
 /*
  * This is called from the signal code (via posixtimer_rearm)
  * when the last timer signal was delivered and we have to reload the timer.
+ *
+ * Return true unconditionally so the core code assumes the timer to be
+ * armed. Otherwise it would requeue the signal.
  */
-static void posix_cpu_timer_rearm(struct k_itimer *timer)
+static bool posix_cpu_timer_rearm(struct k_itimer *timer)
 {
 	clockid_t clkid = CPUCLOCK_WHICH(timer->it_clock);
-	struct task_struct *p;
 	struct sighand_struct *sighand;
+	struct task_struct *p;
 	unsigned long flags;
 	u64 now;
 
-	rcu_read_lock();
+	guard(rcu)();
 	p = cpu_timer_task_rcu(timer);
 	if (!p)
-		goto out;
+		return true;
 
 	/* Protect timer list r/w in arm_timer() */
 	sighand = lock_task_sighand(p, &flags);
 	if (unlikely(sighand == NULL))
-		goto out;
+		return true;
 
 	/*
 	 * Fetch the current sample and update the timer's expiry time.
@@ -1045,8 +1048,7 @@ static void posix_cpu_timer_rearm(struct k_itimer *timer)
 	 */
 	arm_timer(timer, p);
 	unlock_task_sighand(p, &flags);
-out:
-	rcu_read_unlock();
+	return true;
 }
 
 /**
@@ -1504,6 +1506,7 @@ static int do_cpu_nanosleep(const clockid_t which_clock, int flags,
 		spin_lock_irq(&timer.it_lock);
 		error = posix_cpu_timer_set(&timer, flags, &it, NULL);
 		if (error) {
+			posix_cpu_timer_del(&timer);
 			spin_unlock_irq(&timer.it_lock);
 			return error;
 		}

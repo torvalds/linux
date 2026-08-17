@@ -47,5 +47,5 @@ bool arch_jump_label_transform_queue(struct jump_entry *entry,
 
 void arch_jump_label_transform_apply(void)
 {
-	kick_all_cpus_sync();
+	icache_all_inv();
 }

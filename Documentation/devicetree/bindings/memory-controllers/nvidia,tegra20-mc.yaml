@@ -66,8 +66,8 @@ examples:
   - |
     memory-controller@7000f000 {
         compatible = "nvidia,tegra20-mc-gart";
-        reg = <0x7000f000 0x400>,	/* Controller registers */
-              <0x58000000 0x02000000>;	/* GART aperture */
+        reg = <0x7000f000 0x400>, /* Controller registers */
+              <0x58000000 0x02000000>; /* GART aperture */
         clocks = <&clock_controller 32>;
         clock-names = "mc";
 

@@ -488,11 +488,11 @@ void bxt_pps_reset_all(struct intel_display *display)
 }
 
 struct pps_registers {
-	i915_reg_t pp_ctrl;
-	i915_reg_t pp_stat;
-	i915_reg_t pp_on;
-	i915_reg_t pp_off;
-	i915_reg_t pp_div;
+	intel_reg_t pp_ctrl;
+	intel_reg_t pp_stat;
+	intel_reg_t pp_on;
+	intel_reg_t pp_off;
+	intel_reg_t pp_div;
 };
 
 static void intel_pps_get_registers(struct intel_dp *intel_dp,
@@ -523,7 +523,7 @@ static void intel_pps_get_registers(struct intel_dp *intel_dp,
 		regs->pp_div = PP_DIVISOR(display, pps_idx);
 }
 
-static i915_reg_t
+static intel_reg_t
 _pp_ctrl_reg(struct intel_dp *intel_dp)
 {
 	struct pps_registers regs;
@@ -533,7 +533,7 @@ _pp_ctrl_reg(struct intel_dp *intel_dp)
 	return regs.pp_ctrl;
 }
 
-static i915_reg_t
+static intel_reg_t
 _pp_stat_reg(struct intel_dp *intel_dp)
 {
 	struct pps_registers regs;
@@ -607,7 +607,7 @@ static void wait_panel_status(struct intel_dp *intel_dp,
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	i915_reg_t pp_stat_reg, pp_ctrl_reg;
+	intel_reg_t pp_stat_reg, pp_ctrl_reg;
 	int ret;
 	u32 val;
 
@@ -744,7 +744,7 @@ bool intel_pps_vdd_on_unlocked(struct intel_dp *intel_dp)
 	struct intel_display *display = to_intel_display(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	u32 pp;
-	i915_reg_t pp_stat_reg, pp_ctrl_reg;
+	intel_reg_t pp_stat_reg, pp_ctrl_reg;
 	bool need_to_disable = !intel_dp->pps.want_panel_vdd;
 
 	if (!intel_dp_is_edp(intel_dp))
@@ -826,7 +826,7 @@ static void intel_pps_vdd_off_sync_unlocked(struct intel_dp *intel_dp)
 	struct intel_display *display = to_intel_display(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	u32 pp;
-	i915_reg_t pp_stat_reg, pp_ctrl_reg;
+	intel_reg_t pp_stat_reg, pp_ctrl_reg;
 
 	lockdep_assert_held(&display->pps.mutex);
 
@@ -955,7 +955,7 @@ void intel_pps_on_unlocked(struct intel_dp *intel_dp)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	u32 pp;
-	i915_reg_t pp_ctrl_reg;
+	intel_reg_t pp_ctrl_reg;
 
 	lockdep_assert_held(&display->pps.mutex);
 
@@ -1028,7 +1028,7 @@ void intel_pps_off_unlocked(struct intel_dp *intel_dp)
 	struct intel_display *display = to_intel_display(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	u32 pp;
-	i915_reg_t pp_ctrl_reg;
+	intel_reg_t pp_ctrl_reg;
 
 	lockdep_assert_held(&display->pps.mutex);
 
@@ -1091,7 +1091,7 @@ void intel_pps_backlight_on(struct intel_dp *intel_dp)
 	wait_backlight_on(intel_dp);
 
 	with_intel_pps_lock(intel_dp) {
-		i915_reg_t pp_ctrl_reg = _pp_ctrl_reg(intel_dp);
+		intel_reg_t pp_ctrl_reg = _pp_ctrl_reg(intel_dp);
 		u32 pp;
 
 		pp = ilk_get_pp_control(intel_dp);
@@ -1111,7 +1111,7 @@ void intel_pps_backlight_off(struct intel_dp *intel_dp)
 		return;
 
 	with_intel_pps_lock(intel_dp) {
-		i915_reg_t pp_ctrl_reg = _pp_ctrl_reg(intel_dp);
+		intel_reg_t pp_ctrl_reg = _pp_ctrl_reg(intel_dp);
 		u32 pp;
 
 		pp = ilk_get_pp_control(intel_dp);
@@ -1155,7 +1155,7 @@ static void vlv_detach_power_sequencer(struct intel_dp *intel_dp)
 	struct intel_display *display = to_intel_display(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	enum pipe pipe = intel_dp->pps.vlv_pps_pipe;
-	i915_reg_t pp_on_reg = PP_ON_DELAYS(display, pipe);
+	intel_reg_t pp_on_reg = PP_ON_DELAYS(display, pipe);
 
 	drm_WARN_ON(display->drm, intel_dp->pps.vlv_active_pipe != INVALID_PIPE);
 
@@ -1388,7 +1388,7 @@ intel_pps_readout_hw_state(struct intel_dp *intel_dp, struct intel_pps_delays *s
 	seq->backlight_off = REG_FIELD_GET(PANEL_LIGHT_OFF_DELAY_MASK, pp_off);
 	seq->power_down = REG_FIELD_GET(PANEL_POWER_DOWN_DELAY_MASK, pp_off);
 
-	if (i915_mmio_reg_valid(regs.pp_div)) {
+	if (intel_reg_valid(regs.pp_div)) {
 		u32 pp_div;
 
 		pp_div = intel_de_read(display, regs.pp_div);
@@ -1647,7 +1647,7 @@ static void pps_init_registers(struct intel_dp *intel_dp, bool force_disable_vdd
 	/*
 	 * Compute the divisor for the pp clock, simply match the Bspec formula.
 	 */
-	if (i915_mmio_reg_valid(regs.pp_div))
+	if (intel_reg_valid(regs.pp_div))
 		intel_de_write(display, regs.pp_div,
 			       REG_FIELD_PREP(PP_REFERENCE_DIVIDER_MASK,
 					      (100 * div) / 2 - 1) |
@@ -1662,7 +1662,7 @@ static void pps_init_registers(struct intel_dp *intel_dp, bool force_disable_vdd
 		    "panel power sequencer register settings: PP_ON %#x, PP_OFF %#x, PP_DIV %#x\n",
 		    intel_de_read(display, regs.pp_on),
 		    intel_de_read(display, regs.pp_off),
-		    i915_mmio_reg_valid(regs.pp_div) ?
+		    intel_reg_valid(regs.pp_div) ?
 		    intel_de_read(display, regs.pp_div) :
 		    (intel_de_read(display, regs.pp_ctrl) & BXT_POWER_CYCLE_DELAY_MASK));
 }
@@ -1814,7 +1814,7 @@ void intel_pps_connector_debugfs_add(struct intel_connector *connector)
 
 void assert_pps_unlocked(struct intel_display *display, enum pipe pipe)
 {
-	i915_reg_t pp_reg;
+	intel_reg_t pp_reg;
 	u32 val;
 	enum pipe panel_pipe = INVALID_PIPE;
 	bool locked = true;

@@ -4,11 +4,10 @@
  *
  * Copyright (C) 2024, Red Hat, Inc.
  */
-#include <sys/mman.h>
-
 #include <linux/fs.h>
 
 #include "test_util.h"
+#include "kvm_syscalls.h"
 #include "kvm_util.h"
 #include "kselftest.h"
 #include "ucall_common.h"

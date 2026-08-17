@@ -235,4 +235,6 @@ int freeze_super(struct super_block *super, enum freeze_holder who,
 int thaw_super(struct super_block *super, enum freeze_holder who,
 	       const void *freeze_owner);
 
+int sb_init_dio_done_wq(struct super_block *sb);
+
 #endif /* _LINUX_FS_SUPER_H */

@@ -615,17 +615,17 @@ static int azx_position_ok(struct azx *chip, struct azx_dev *azx_dev);
 /* called from IRQ */
 static int azx_position_check(struct azx *chip, struct azx_dev *azx_dev)
 {
-	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
+	struct hda_intel_stream *istream = azx_dev_to_istream(azx_dev);
 	int ok;
 
 	ok = azx_position_ok(chip, azx_dev);
 	if (ok == 1) {
-		azx_dev->irq_pending = 0;
+		istream->irq_pending = false;
 		return ok;
 	} else if (ok == 0) {
 		/* bogus IRQ, process it later */
-		azx_dev->irq_pending = 1;
-		schedule_work(&hda->irq_pending_work);
+		istream->irq_pending = true;
+		schedule_work(&istream->irq_pending_work);
 	}
 	return 0;
 }
@@ -721,11 +721,13 @@ static int azx_position_ok(struct azx *chip, struct azx_dev *azx_dev)
  */
 static void azx_irq_pending_work(struct work_struct *work)
 {
-	struct hda_intel *hda = container_of(work, struct hda_intel, irq_pending_work);
+	struct hda_intel_stream *istream =
+		container_of(work, struct hda_intel_stream, irq_pending_work);
+	struct azx_dev *azx_dev = &istream->azx_dev;
+	struct hda_intel *hda = istream->hda;
 	struct azx *chip = &hda->chip;
 	struct hdac_bus *bus = azx_bus(chip);
-	struct hdac_stream *s;
-	int pending, ok;
+	int ok;
 
 	if (!hda->irq_pending_warned) {
 		dev_info(chip->card->dev,
@@ -735,42 +737,51 @@ static void azx_irq_pending_work(struct work_struct *work)
 	}
 
 	for (;;) {
-		pending = 0;
-		spin_lock_irq(&bus->reg_lock);
-		list_for_each_entry(s, &bus->stream_list, list) {
-			struct azx_dev *azx_dev = stream_to_azx_dev(s);
-			if (!azx_dev->irq_pending ||
-			    !s->substream ||
-			    !s->running)
-				continue;
+		scoped_guard(spinlock_irq, &bus->reg_lock) {
+			if (!istream->irq_pending ||
+			    !azx_dev->core.substream ||
+			    !azx_dev->core.running) {
+				return;
+			}
+
 			ok = azx_position_ok(chip, azx_dev);
-			if (ok > 0) {
-				azx_dev->irq_pending = 0;
-				spin_unlock(&bus->reg_lock);
-				snd_pcm_period_elapsed(s->substream);
-				spin_lock(&bus->reg_lock);
-			} else if (ok < 0) {
-				pending = 0;	/* too early */
-			} else
-				pending++;
+			if (ok < 0)
+				return; /* too early */
+			if (ok > 0)
+				istream->irq_pending = false;
 		}
-		spin_unlock_irq(&bus->reg_lock);
-		if (!pending)
+
+		if (ok) {
+			snd_pcm_period_elapsed(azx_dev->core.substream);
 			return;
+		}
+
 		msleep(1);
 	}
 }
 
 /* clear irq_pending flags and assure no on-going workq */
+static void hda_intel_stream_clear_irq_pending(struct azx_dev *azx_dev)
+{
+	struct hda_intel_stream *istream = azx_dev_to_istream(azx_dev);
+
+	istream->irq_pending = false;
+	cancel_work_sync(&istream->irq_pending_work);
+}
+
+/* called at PCM close */
+static void hda_intel_pcm_close(struct azx *chip, struct azx_dev *azx_dev)
+{
+	hda_intel_stream_clear_irq_pending(azx_dev);
+}
+
 static void azx_clear_irq_pending(struct azx *chip)
 {
 	struct hdac_bus *bus = azx_bus(chip);
 	struct hdac_stream *s;
 
-	guard(spinlock_irq)(&bus->reg_lock);
 	list_for_each_entry(s, &bus->stream_list, list) {
-		struct azx_dev *azx_dev = stream_to_azx_dev(s);
-		azx_dev->irq_pending = 0;
+		hda_intel_stream_clear_irq_pending(stream_to_azx_dev(s));
 	}
 }
 
@@ -1797,7 +1808,6 @@ static int azx_create(struct snd_card *card, struct pci_dev *pci,
 	if (jackpoll_ms[dev] >= 50 && jackpoll_ms[dev] <= 60000)
 		chip->jackpoll_interval = msecs_to_jiffies(jackpoll_ms[dev]);
 	INIT_LIST_HEAD(&chip->pcm_list);
-	INIT_WORK(&hda->irq_pending_work, azx_irq_pending_work);
 	INIT_LIST_HEAD(&hda->list);
 	init_vga_switcheroo(chip);
 	init_completion(&hda->probe_wait);
@@ -1842,6 +1852,39 @@ static int azx_create(struct snd_card *card, struct pci_dev *pci,
 	INIT_DELAYED_WORK(&hda->probe_work, azx_probe_work);
 
 	*rchip = chip;
+
+	return 0;
+}
+
+/* create and assign streams */
+static int hda_init_streams(struct azx *chip)
+{
+	int i;
+	int stream_tags[2] = { 0, 0 };
+
+	for (i = 0; i < chip->num_streams; i++) {
+		struct hda_intel_stream *s = kzalloc_obj(*s);
+		int tag, dir;
+
+		if (!s)
+			return -ENOMEM;
+
+		s->hda = container_of(chip, struct hda_intel, chip);
+		INIT_WORK(&s->irq_pending_work, azx_irq_pending_work);
+
+		/* stream tag must be unique throughout
+		 * the stream direction group,
+		 * valid values 1...15
+		 * use separate stream tag if the flag
+		 * AZX_DCAPS_SEPARATE_STREAM_TAG is used
+		 */
+		dir = azx_stream_direction(chip, i);
+		if (chip->driver_caps & AZX_DCAPS_SEPARATE_STREAM_TAG)
+			tag = ++stream_tags[dir];
+		else
+			tag = i + 1;
+		azx_add_stream(chip, &s->azx_dev, i, tag);
+	}
 
 	return 0;
 }
@@ -2000,7 +2043,7 @@ static int azx_first_init(struct azx *chip)
 	}
 
 	/* initialize streams */
-	err = azx_init_streams(chip);
+	err = hda_init_streams(chip);
 	if (err < 0)
 		return err;
 
@@ -2099,6 +2142,7 @@ static const struct dmi_system_id driver_denylist_dmi[] = {
 static const struct hda_controller_ops pci_hda_ops = {
 	.disable_msi_reset_irq = disable_msi_reset_irq,
 	.position_check = azx_position_check,
+	.pcm_close = hda_intel_pcm_close,
 };
 
 static DECLARE_BITMAP(probed_devs, SNDRV_CARDS);

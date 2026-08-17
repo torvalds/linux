@@ -230,6 +230,7 @@ struct test_params {
 	u64 phys_offset;
 	u64 test_mem_size;
 	enum vm_mem_backing_src_type src_type;
+	bool misalign_slot_gpa;
 };
 
 static struct kvm_vm *pre_init_before_test(enum vm_guest_mode mode, void *arg)
@@ -244,6 +245,7 @@ static struct kvm_vm *pre_init_before_test(enum vm_guest_mode mode, void *arg)
 	u64 guest_num_pages;
 	u64 alignment;
 	void *host_test_mem;
+	struct userspace_mem_region *region;
 	struct kvm_vm *vm;
 
 	/* Align up the test memory size */
@@ -276,12 +278,21 @@ static struct kvm_vm *pre_init_before_test(enum vm_guest_mode mode, void *arg)
 	/* Add an extra memory slot with specified backing src type */
 	vm_userspace_mem_region_add(vm, src_type, guest_test_phys_mem,
 				    TEST_MEM_SLOT_INDEX, guest_num_pages, 0);
+	region = memslot2region(vm, TEST_MEM_SLOT_INDEX);
+	host_test_mem = region->host_mem;
+
+	if (p->misalign_slot_gpa) {
+		TEST_ASSERT(is_backing_src_hugetlb(src_type),
+			    "Memslot GPA misalignment requires hugetlb backing");
+		TEST_ASSERT(guest_num_pages > 1,
+			    "Need at least two guest pages to misalign memslot GPA");
+
+		guest_test_phys_mem += guest_page_size;
+		vm_mem_region_move(vm, TEST_MEM_SLOT_INDEX, guest_test_phys_mem);
+	}
 
 	/* Do mapping(GVA->GPA) for the testing memory slot */
 	virt_map(vm, guest_test_virt_mem, guest_test_phys_mem, guest_num_pages);
-
-	/* Cache the HVA pointer of the region */
-	host_test_mem = addr_gpa2hva(vm, (gpa_t)guest_test_phys_mem);
 
 	/* Export shared structure test_args to guest */
 	sync_global_to_guest(vm, test_args);
@@ -417,8 +428,8 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 static void help(char *name)
 {
 	puts("");
-	printf("usage: %s [-h] [-p offset] [-m mode] "
-	       "[-b mem-size] [-v vcpus] [-s mem-type]\n", name);
+	printf("usage: %s [-h] [-p offset] [-m mode] [-b mem-size]\n", name);
+	printf("          [-v vcpus] [-s mem-type] [-u]\n");
 	puts("");
 	printf(" -p: specify guest physical test memory offset\n"
 	       "     Warning: a low offset can conflict with the loaded test code.\n");
@@ -428,6 +439,8 @@ static void help(char *name)
 	printf(" -v: specify the number of vCPUs to run\n"
 	       "     (default: 1)\n");
 	backing_src_help("-s");
+	printf(" -u: move the test memslot GPA by one guest page after creating\n"
+	       "     the memslot, forcing a hugetlb HVA/GPA offset mismatch\n");
 	puts("");
 }
 
@@ -442,7 +455,7 @@ int main(int argc, char *argv[])
 
 	guest_modes_append_default();
 
-	while ((opt = getopt(argc, argv, "hp:m:b:v:s:")) != -1) {
+	while ((opt = getopt(argc, argv, "hp:m:b:v:s:u")) != -1) {
 		switch (opt) {
 		case 'p':
 			p.phys_offset = strtoull(optarg, NULL, 0);
@@ -460,6 +473,9 @@ int main(int argc, char *argv[])
 			break;
 		case 's':
 			p.src_type = parse_backing_src_type(optarg);
+			break;
+		case 'u':
+			p.misalign_slot_gpa = true;
 			break;
 		case 'h':
 		default:

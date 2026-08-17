@@ -74,6 +74,7 @@ struct fsl_micfil {
 	int irq[MICFIL_IRQ_LINES];
 	enum quality quality;
 	int dc_remover;
+	int dc_out_remover;
 	int vad_init_mode;
 	int vad_enabled;
 	int vad_detected;
@@ -347,6 +348,11 @@ static const char * const micfil_dc_remover_texts[] = {
 	"Cut-off @152Hz", "Bypass",
 };
 
+static const char * const micfil_dc_out_remover_texts[] = {
+	"Cut-off @20Hz", "Cut-off @13.3Hz",
+	"Cut-off @40Hz", "Bypass",
+};
+
 static const struct soc_enum hwvad_enable_enum =
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(micfil_hwvad_enable),
 			    micfil_hwvad_enable);
@@ -360,6 +366,9 @@ static const struct soc_enum hwvad_hpf_enum =
 static const struct soc_enum fsl_micfil_dc_remover_enum =
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(micfil_dc_remover_texts),
 			    micfil_dc_remover_texts);
+static const struct soc_enum fsl_micfil_dc_out_remover_enum =
+	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(micfil_dc_out_remover_texts),
+			    micfil_dc_out_remover_texts);
 
 static int micfil_put_dc_remover_state(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_value *ucontrol)
@@ -401,6 +410,50 @@ static int micfil_get_dc_remover_state(struct snd_kcontrol *kcontrol,
 	struct fsl_micfil *micfil = snd_soc_component_get_drvdata(comp);
 
 	ucontrol->value.enumerated.item[0] = micfil->dc_remover;
+
+	return 0;
+}
+
+static int micfil_put_dc_out_remover_state(struct snd_kcontrol *kcontrol,
+					   struct snd_ctl_elem_value *ucontrol)
+{
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	struct snd_soc_component *comp = snd_kcontrol_chip(kcontrol);
+	struct fsl_micfil *micfil = snd_soc_component_get_drvdata(comp);
+	unsigned int *item = ucontrol->value.enumerated.item;
+	int val = snd_soc_enum_item_to_val(e, item[0]);
+	int i = 0, ret = 0;
+	u32 reg_val = 0;
+
+	if (val < 0 || val > 3)
+		return -EINVAL;
+
+	ret = pm_runtime_resume_and_get(comp->dev);
+	if (ret)
+		return ret;
+
+	micfil->dc_out_remover = val;
+
+	/* Calculate total value for all channels */
+	for (i = 0; i < MICFIL_OUTPUT_CHANNELS; i++)
+		reg_val |= val << MICFIL_DC_CHX_SHIFT(i);
+
+	/* Update DC Remover mode for all channels */
+	ret = snd_soc_component_update_bits(comp, REG_MICFIL_DC_OUT_CTRL,
+					    MICFIL_DC_CTRL_CONFIG, reg_val);
+
+	pm_runtime_put_autosuspend(comp->dev);
+
+	return ret;
+}
+
+static int micfil_get_dc_out_remover_state(struct snd_kcontrol *kcontrol,
+					   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *comp = snd_kcontrol_chip(kcontrol);
+	struct fsl_micfil *micfil = snd_soc_component_get_drvdata(comp);
+
+	ucontrol->value.enumerated.item[0] = micfil->dc_out_remover;
 
 	return 0;
 }
@@ -523,6 +576,11 @@ static const struct snd_kcontrol_new fsl_micfil_volume_sx_controls[] = {
 			  MICFIL_OUTGAIN_CHX_SHIFT(6), 0x8, 0xF, gain_tlv),
 	SOC_SINGLE_SX_TLV("CH7 Volume", REG_MICFIL_OUT_CTRL,
 			  MICFIL_OUTGAIN_CHX_SHIFT(7), 0x8, 0xF, gain_tlv),
+};
+
+static const struct snd_kcontrol_new fsl_micfil_dc_out_controls[] = {
+	SOC_ENUM_EXT("MICFIL DC Out Remover Control", fsl_micfil_dc_out_remover_enum,
+		     micfil_get_dc_out_remover_state, micfil_put_dc_out_remover_state),
 };
 
 static const struct snd_kcontrol_new fsl_micfil_snd_controls[] = {
@@ -1047,6 +1105,19 @@ static int fsl_micfil_dai_probe(struct snd_soc_dai *cpu_dai)
 	}
 	micfil->dc_remover = MICFIL_DC_BYPASS;
 
+	if (micfil->soc->use_verid) {
+		val = 0;
+		for (i = 0; i < MICFIL_OUTPUT_CHANNELS; i++)
+			val |= MICFIL_DC_BYPASS << MICFIL_DC_CHX_SHIFT(i);
+		ret = regmap_update_bits(micfil->regmap, REG_MICFIL_DC_OUT_CTRL,
+					 MICFIL_DC_CTRL_CONFIG, val);
+		if (ret) {
+			dev_err(dev, "failed to set DC OUT Remover mode bits\n");
+			return ret;
+		}
+		micfil->dc_out_remover = MICFIL_DC_BYPASS;
+	}
+
 	snd_soc_dai_init_dma_data(cpu_dai, NULL,
 				  &micfil->dma_params_rx);
 
@@ -1070,6 +1141,10 @@ static int fsl_micfil_component_probe(struct snd_soc_component *component)
 	else
 		snd_soc_add_component_controls(component, fsl_micfil_range_controls,
 					       ARRAY_SIZE(fsl_micfil_range_controls));
+
+	if (micfil->soc->use_verid)
+		snd_soc_add_component_controls(component, fsl_micfil_dc_out_controls,
+					       ARRAY_SIZE(fsl_micfil_dc_out_controls));
 
 	return 0;
 }
@@ -1117,6 +1192,7 @@ static const struct reg_default fsl_micfil_reg_defaults[] = {
 	{REG_MICFIL_DATACH6,		0x00000000},
 	{REG_MICFIL_DATACH7,		0x00000000},
 	{REG_MICFIL_DC_CTRL,		0x00000000},
+	{REG_MICFIL_DC_OUT_CTRL,	0x00000000},
 	{REG_MICFIL_OUT_CTRL,		0x00000000},
 	{REG_MICFIL_OUT_STAT,		0x00000000},
 	{REG_MICFIL_VAD0_CTRL1,		0x00000000},
@@ -1143,6 +1219,7 @@ static const struct reg_default fsl_micfil_reg_defaults_v2[] = {
 	{REG_MICFIL_DATACH6 - 0x4,	0x00000000},
 	{REG_MICFIL_DATACH7 - 0x4,	0x00000000},
 	{REG_MICFIL_DC_CTRL,		0x00000000},
+	{REG_MICFIL_DC_OUT_CTRL,	0x00000000},
 	{REG_MICFIL_OUT_CTRL,		0x00000000},
 	{REG_MICFIL_OUT_STAT,		0x00000000},
 	{REG_MICFIL_VAD0_CTRL1,		0x00000000},
@@ -1179,6 +1256,7 @@ static bool fsl_micfil_readable_reg(struct device *dev, unsigned int reg)
 	case REG_MICFIL_VAD0_NDATA:
 	case REG_MICFIL_VAD0_ZCD:
 		return true;
+	case REG_MICFIL_DC_OUT_CTRL:
 	case REG_MICFIL_FSYNC_CTRL:
 	case REG_MICFIL_VERID:
 	case REG_MICFIL_PARAM:
@@ -1210,6 +1288,7 @@ static bool fsl_micfil_writeable_reg(struct device *dev, unsigned int reg)
 	case REG_MICFIL_VAD0_NCONFIG:
 	case REG_MICFIL_VAD0_ZCD:
 		return true;
+	case REG_MICFIL_DC_OUT_CTRL:
 	case REG_MICFIL_FSYNC_CTRL:
 		if (micfil->soc->use_verid)
 			return true;

@@ -900,8 +900,8 @@ static const struct dev_pm_ops vt8623_pci_pm_ops = {
 /* List of boards that we are trying to support */
 
 static const struct pci_device_id vt8623_devices[] = {
-	{PCI_DEVICE(PCI_VENDOR_ID_VIA, 0x3122)},
-	{0, 0, 0, 0, 0, 0, 0}
+	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, 0x3122) },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, vt8623_devices);

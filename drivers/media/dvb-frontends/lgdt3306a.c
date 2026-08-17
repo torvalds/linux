@@ -2244,8 +2244,8 @@ static void lgdt3306a_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id lgdt3306a_id_table[] = {
-	{ "lgdt3306a" },
-	{}
+	{ .name = "lgdt3306a" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lgdt3306a_id_table);
 

@@ -183,7 +183,7 @@ static void ast_set_dp501_video_output(struct ast_device *ast, u8 mode)
 
 static u32 get_fw_base(struct ast_device *ast)
 {
-	return ast_mindwm(ast, 0x1e6e2104) & 0x7fffffff;
+	return ast_mindwm(ast, AST_REG_SCU104) & 0x7fffffff;
 }
 
 bool ast_backup_fw(struct ast_device *ast, u8 *addr, u32 size)
@@ -194,7 +194,7 @@ bool ast_backup_fw(struct ast_device *ast, u8 *addr, u32 size)
 	if (ast->config_mode != ast_use_p2a)
 		return false;
 
-	data = ast_mindwm(ast, 0x1e6e2100) & 0x01;
+	data = ast_mindwm(ast, AST_REG_SCU100) & 0x01;
 	if (data) {
 		boot_address = get_fw_base(ast);
 		for (i = 0; i < size; i += 4)
@@ -214,7 +214,7 @@ static bool ast_launch_m68k(struct ast_device *ast)
 	if (ast->config_mode != ast_use_p2a)
 		return false;
 
-	data = ast_mindwm(ast, 0x1e6e2100) & 0x01;
+	data = ast_mindwm(ast, AST_REG_SCU100) & 0x01;
 	if (!data) {
 
 		if (ast->dp501_fw_addr) {
@@ -229,8 +229,8 @@ static bool ast_launch_m68k(struct ast_device *ast)
 			len = ast->dp501_fw->size;
 		}
 		/* Get BootAddress */
-		ast_moutdwm(ast, 0x1e6e2000, 0x1688a8a8);
-		data = ast_mindwm(ast, 0x1e6e0004);
+		ast_moutdwm(ast, AST_REG_SCU000, AST_REG_SCU000_PROTECTION_KEY);
+		data = ast_mindwm(ast, AST_REG_MCR04);
 		switch (data & 0x03) {
 		case 0:
 			boot_address = 0x44000000;
@@ -255,16 +255,16 @@ static bool ast_launch_m68k(struct ast_device *ast)
 		}
 
 		/* Init SCU */
-		ast_moutdwm(ast, 0x1e6e2000, 0x1688a8a8);
+		ast_moutdwm(ast, AST_REG_SCU000, AST_REG_SCU000_PROTECTION_KEY);
 
 		/* Launch FW */
-		ast_moutdwm(ast, 0x1e6e2104, 0x80000000 + boot_address);
-		ast_moutdwm(ast, 0x1e6e2100, 1);
+		ast_moutdwm(ast, AST_REG_SCU104, 0x80000000 + boot_address);
+		ast_moutdwm(ast, AST_REG_SCU100, 1);
 
 		/* Update Scratch */
-		data = ast_mindwm(ast, 0x1e6e2040) & 0xfffff1ff;		/* D[11:9] = 100b: UEFI handling */
-		data |= 0x800;
-		ast_moutdwm(ast, 0x1e6e2040, data);
+		data = ast_mindwm(ast, AST_REG_SCU040) & 0xfffff1ff;
+		data |= 0x800; /* D[11:9] = 100b: UEFI handling */
+		ast_moutdwm(ast, AST_REG_SCU040, data);
 
 		jreg = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0x99, 0xfc); /* D[1:0]: Reserved Video Buffer */
 		jreg |= 0x02;
@@ -347,68 +347,65 @@ static int ast_dp512_read_edid_block(void *data, u8 *buf, unsigned int block, si
 static bool ast_init_dvo(struct ast_device *ast)
 {
 	u8 jreg;
-	u32 data;
-	ast_write32(ast, 0xf004, 0x1e6e0000);
-	ast_write32(ast, 0xf000, 0x1);
-	ast_write32(ast, 0x12000, 0x1688a8a8);
+	u32 scu02c;
+
+	ast_moutdwm(ast, AST_REG_SCU000, AST_REG_SCU000_PROTECTION_KEY);
 
 	jreg = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd0, 0xff);
 	if (!(jreg & 0x80)) {
+		u32 scu008;
+
 		/* Init SCU DVO Settings */
-		data = ast_read32(ast, 0x12008);
-		/* delay phase */
-		data &= 0xfffff8ff;
-		data |= 0x00000500;
-		ast_write32(ast, 0x12008, data);
+
+		scu008 = ast_mindwm(ast, AST_REG_SCU008);
+		scu008 &= 0xfffff8ff;
+		scu008 |= 0x00000500; /* delay phase */
+		ast_moutdwm(ast, AST_REG_SCU008, scu008);
 
 		if (IS_AST_GEN4(ast)) {
-			data = ast_read32(ast, 0x12084);
-			/* multi-pins for DVO single-edge */
-			data |= 0xfffe0000;
-			ast_write32(ast, 0x12084, data);
+			u32 scu084, scu088, scu090;
 
-			data = ast_read32(ast, 0x12088);
-			/* multi-pins for DVO single-edge */
-			data |= 0x000fffff;
-			ast_write32(ast, 0x12088, data);
+			scu084 = ast_mindwm(ast, AST_REG_SCU084);
+			scu084 |= 0xfffe0000; /* multi-pins for DVO single-edge */
+			ast_moutdwm(ast, AST_REG_SCU084, scu084);
 
-			data = ast_read32(ast, 0x12090);
-			/* multi-pins for DVO single-edge */
-			data &= 0xffffffcf;
-			data |= 0x00000020;
-			ast_write32(ast, 0x12090, data);
+			scu088 = ast_mindwm(ast, AST_REG_SCU088);
+			scu088 |= 0x000fffff; /* multi-pins for DVO single-edge */
+			ast_moutdwm(ast, AST_REG_SCU088, scu088);
+
+			scu090 = ast_mindwm(ast, AST_REG_SCU090);
+			scu090 &= 0xffffffcf;
+			scu090 |= 0x00000020; /* multi-pins for DVO single-edge */
+			ast_moutdwm(ast, AST_REG_SCU090, scu090);
 		} else { /* AST GEN5+ */
-			data = ast_read32(ast, 0x12088);
-			/* multi-pins for DVO single-edge */
-			data |= 0x30000000;
-			ast_write32(ast, 0x12088, data);
+			u32 scu088, scu08c, scu0a4, scu0a8, scu094;
 
-			data = ast_read32(ast, 0x1208c);
-			/* multi-pins for DVO single-edge */
-			data |= 0x000000cf;
-			ast_write32(ast, 0x1208c, data);
+			scu088 = ast_mindwm(ast, AST_REG_SCU088);
+			scu088 |= 0x30000000; /* multi-pins for DVO single-edge */
+			ast_moutdwm(ast, AST_REG_SCU088, scu088);
 
-			data = ast_read32(ast, 0x120a4);
-			/* multi-pins for DVO single-edge */
-			data |= 0xffff0000;
-			ast_write32(ast, 0x120a4, data);
+			scu08c = ast_mindwm(ast, AST_REG_SCU08C);
+			scu08c |= 0x000000cf; /* multi-pins for DVO single-edge */
+			ast_moutdwm(ast, AST_REG_SCU08C, scu08c);
 
-			data = ast_read32(ast, 0x120a8);
-			/* multi-pins for DVO single-edge */
-			data |= 0x0000000f;
-			ast_write32(ast, 0x120a8, data);
+			scu0a4 = ast_mindwm(ast, AST_REG_SCU0A4);
+			scu0a4 |= 0xffff0000; /* multi-pins for DVO single-edge */
+			ast_moutdwm(ast, AST_REG_SCU0A4, scu0a4);
 
-			data = ast_read32(ast, 0x12094);
-			/* multi-pins for DVO single-edge */
-			data |= 0x00000002;
-			ast_write32(ast, 0x12094, data);
+			scu0a8 = ast_mindwm(ast, AST_REG_SCU0A8);
+			scu0a8 |= 0x0000000f; /* multi-pins for DVO single-edge */
+			ast_moutdwm(ast, AST_REG_SCU0A8, scu0a8);
+
+			scu094 = ast_mindwm(ast, AST_REG_SCU094);
+			scu094 |= 0x00000002; /* multi-pins for DVO single-edge */
+			ast_moutdwm(ast, AST_REG_SCU094, scu094);
 		}
 	}
 
 	/* Force to DVO */
-	data = ast_read32(ast, 0x1202c);
-	data &= 0xfffbffff;
-	ast_write32(ast, 0x1202c, data);
+	scu02c = ast_mindwm(ast, AST_REG_SCU02C);
+	scu02c &= 0xfffbffff;
+	ast_moutdwm(ast, AST_REG_SCU02C, scu02c);
 
 	/* Init VGA DVO Settings */
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xa3, 0xcf, 0x80);
@@ -418,25 +415,20 @@ static bool ast_init_dvo(struct ast_device *ast)
 
 static void ast_init_analog(struct ast_device *ast)
 {
-	u32 data;
+	u32 scu02c;
 
 	/*
 	 * Set DAC source to VGA mode in SCU2C via the P2A
-	 * bridge. First configure the P2U to target the SCU
-	 * in case it isn't at this stage.
+	 * bridge.
 	 */
-	ast_write32(ast, 0xf004, 0x1e6e0000);
-	ast_write32(ast, 0xf000, 0x1);
 
-	/* Then unlock the SCU with the magic password */
-	ast_write32(ast, 0x12000, 0x1688a8a8);
-	ast_write32(ast, 0x12000, 0x1688a8a8);
-	ast_write32(ast, 0x12000, 0x1688a8a8);
+	/* Unlock the SCU with the magic password */
+	ast_moutdwm_poll(ast, AST_REG_SCU000, AST_REG_SCU000_PROTECTION_KEY, 0x01);
 
-	/* Finally, clear bits [17:16] of SCU2c */
-	data = ast_read32(ast, 0x1202c);
-	data &= 0xfffcffff;
-	ast_write32(ast, 0x1202c, data);
+	/* Clear bits [17:16] of SCU2C */
+	scu02c = ast_mindwm(ast, AST_REG_SCU02C);
+	scu02c &= 0xfffcffff;
+	ast_moutdwm(ast, AST_REG_SCU02C, scu02c);
 
 	/* Disable DVO */
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xa3, 0xcf, 0x00);
@@ -477,7 +469,7 @@ static const struct drm_encoder_funcs ast_dp501_encoder_funcs = {
 };
 
 static void ast_dp501_encoder_helper_atomic_enable(struct drm_encoder *encoder,
-						   struct drm_atomic_state *state)
+						   struct drm_atomic_commit *state)
 {
 	struct ast_device *ast = to_ast_device(encoder->dev);
 
@@ -485,7 +477,7 @@ static void ast_dp501_encoder_helper_atomic_enable(struct drm_encoder *encoder,
 }
 
 static void ast_dp501_encoder_helper_atomic_disable(struct drm_encoder *encoder,
-						    struct drm_atomic_state *state)
+						    struct drm_atomic_commit *state)
 {
 	struct ast_device *ast = to_ast_device(encoder->dev);
 

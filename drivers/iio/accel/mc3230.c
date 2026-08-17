@@ -230,8 +230,8 @@ static int mc3230_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(mc3230_pm_ops, mc3230_suspend, mc3230_resume);
 
 static const struct i2c_device_id mc3230_i2c_id[] = {
-	{ "mc3230", (kernel_ulong_t)&mc3230_chip_info },
-	{ "mc3510c", (kernel_ulong_t)&mc3510c_chip_info },
+	{ .name = "mc3230", .driver_data = (kernel_ulong_t)&mc3230_chip_info },
+	{ .name = "mc3510c", .driver_data = (kernel_ulong_t)&mc3510c_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mc3230_i2c_id);

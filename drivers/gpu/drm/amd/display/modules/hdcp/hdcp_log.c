@@ -33,22 +33,28 @@ void mod_hdcp_dump_binary_message(uint8_t *msg, uint32_t msg_size,
 			byte_size = 3,
 			newline_size = 1,
 			terminator_size = 1;
-	uint32_t line_count = msg_size / bytes_per_line,
-			trailing_bytes = msg_size % bytes_per_line;
-	uint32_t target_size = (byte_size * bytes_per_line + newline_size) * line_count +
-			byte_size * trailing_bytes + newline_size + terminator_size;
 	uint32_t buf_pos = 0;
 	uint32_t i = 0;
 
-	if (buf_size >= target_size) {
-		for (i = 0; i < msg_size; i++) {
-			if (i % bytes_per_line == 0)
-				buf[buf_pos++] = '\n';
-			sprintf(&buf[buf_pos], "%02X ", msg[i]);
-			buf_pos += byte_size;
-		}
-		buf[buf_pos++] = '\0';
+	/* Need room for at least the terminator. */
+	if (buf_size < terminator_size)
+		return;
+
+	for (i = 0; i < msg_size; i++) {
+		uint32_t needed = byte_size + terminator_size;
+
+		if (i % bytes_per_line == 0)
+			needed += newline_size;
+
+		if (buf_pos + needed > buf_size)
+			break;
+
+		if (i % bytes_per_line == 0)
+			buf[buf_pos++] = '\n';
+		sprintf((char *)&buf[buf_pos], "%02X ", msg[i]);
+		buf_pos += byte_size;
 	}
+	buf[buf_pos++] = '\0';
 }
 
 void mod_hdcp_log_ddc_trace(struct mod_hdcp *hdcp)

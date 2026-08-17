@@ -329,7 +329,7 @@ xrep_xattr_salvage_remote_attr(
 		.dp			= rx->sc->ip,
 		.index			= ent_idx,
 		.geo			= rx->sc->mp->m_attr_geo,
-		.owner			= rx->sc->ip->i_ino,
+		.owner			= I_INO(rx->sc->ip),
 		.attr_filter		= ent->flags & XFS_ATTR_NSP_ONDISK_MASK,
 		.namelen		= rentry->namelen,
 		.name			= rentry->name,
@@ -590,7 +590,7 @@ xrep_xattr_recover_block(
 	 * as much as we can from the block. */
 	if (info->magic == cpu_to_be16(XFS_ATTR3_LEAF_MAGIC) &&
 	    xrep_buf_verify_struct(bp, &xfs_attr3_leaf_buf_ops) &&
-	    xfs_attr3_leaf_header_check(bp, rx->sc->ip->i_ino) == NULL)
+	    xfs_attr3_leaf_header_check(bp, I_INO(rx->sc->ip)) == NULL)
 		error = xrep_xattr_recover_leaf(rx, bp);
 
 	/*
@@ -617,7 +617,7 @@ xrep_xattr_insert_rec(
 		.attr_filter		= key->flags,
 		.namelen		= key->namelen,
 		.valuelen		= key->valuelen,
-		.owner			= rx->sc->ip->i_ino,
+		.owner			= I_INO(rx->sc->ip),
 		.geo			= rx->sc->mp->m_attr_geo,
 		.whichfork		= XFS_ATTR_FORK,
 		.op_flags		= XFS_DA_OP_OKNOENT,
@@ -982,7 +982,7 @@ xrep_xattr_fork_remove(
 
 		xfs_emerg(sc->mp,
 	"inode 0x%llx attr fork still has %llu attr extents, format %d?!",
-				ip->i_ino, ifp->if_nextents, ifp->if_format);
+				I_INO(ip), ifp->if_nextents, ifp->if_format);
 		for_each_xfs_iext(ifp, &icur, &irec) {
 			xfs_err(sc->mp,
 	"[%u]: startoff %llu startblock %llu blockcount %llu state %u",
@@ -1116,7 +1116,7 @@ xrep_xattr_replay_pptr_update(
 		trace_xrep_xattr_replay_parentadd(sc->tempip, xname,
 				&pptr->pptr_rec);
 
-		error = xfs_parent_set(sc->tempip, sc->ip->i_ino, xname,
+		error = xfs_parent_set(sc->tempip, I_INO(sc->ip), xname,
 				&pptr->pptr_rec, &rx->pptr_args);
 		ASSERT(error != -EEXIST);
 		return error;
@@ -1125,7 +1125,7 @@ xrep_xattr_replay_pptr_update(
 		trace_xrep_xattr_replay_parentremove(sc->tempip, xname,
 				&pptr->pptr_rec);
 
-		error = xfs_parent_unset(sc->tempip, sc->ip->i_ino, xname,
+		error = xfs_parent_unset(sc->tempip, I_INO(sc->ip), xname,
 				&pptr->pptr_rec, &rx->pptr_args);
 		ASSERT(error != -ENOATTR);
 		return error;
@@ -1256,7 +1256,7 @@ xrep_xattr_live_dirent_update(
 	 * repairing, so stash the update for replay against the temporary
 	 * file.
 	 */
-	if (p->ip->i_ino != sc->ip->i_ino)
+	if (I_INO(p->ip) != I_INO(sc->ip))
 		return NOTIFY_DONE;
 
 	mutex_lock(&rx->lock);
@@ -1295,7 +1295,7 @@ xrep_xattr_swap_prep(
 			.whichfork	= XFS_ATTR_FORK,
 			.trans		= sc->tp,
 			.total		= 1,
-			.owner		= sc->ip->i_ino,
+			.owner		= I_INO(sc->ip),
 		};
 
 		error = xfs_attr_shortform_to_leaf(&args);

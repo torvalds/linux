@@ -218,7 +218,13 @@ int ath12k_peer_create(struct ath12k *ar, struct ath12k_link_vif *arvif,
 		ahsta = ath12k_sta_to_ahsta(sta);
 		arsta = wiphy_dereference(ath12k_ar_to_hw(ar)->wiphy,
 					  ahsta->link[link_id]);
-
+		/* TODO: Split DP related field usage to DP peer structure */
+		arsta->tcl_metadata = u16_encode_bits(0, HTT_TCL_META_DATA_TYPE) |
+				      u16_encode_bits(peer->peer_id,
+						      HTT_TCL_META_DATA_PEER_ID) |
+				      u16_encode_bits(0, HTT_TCL_META_DATA_VALID_HTT);
+		arsta->ast_hash = peer->ast_hash;
+		arsta->ast_idx = peer->hw_peer_id;
 		peer->link_id = arsta->link_id;
 
 		/* Fill ML info into created peer */
@@ -248,6 +254,9 @@ int ath12k_peer_create(struct ath12k *ar, struct ath12k_link_vif *arvif,
 						 (u8 *)arg->peer_addr, link_id,
 						 ar->hw_link_id);
 	}
+
+	if (vif->type == NL80211_IFTYPE_AP && peer->dp_peer)
+		peer->dp_peer->ucast_ra_only = true;
 
 	return ret;
 }

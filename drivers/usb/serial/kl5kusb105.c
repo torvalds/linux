@@ -35,10 +35,8 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
-#include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
 #include <linux/module.h>
-#include <linux/uaccess.h>
 #include <linux/unaligned.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
@@ -330,8 +328,8 @@ static int klsi_105_prepare_write_buffer(struct usb_serial_port *port,
 	unsigned char *buf = dest;
 	int count;
 
-	count = kfifo_out_locked(&port->write_fifo, buf + KLSI_HDR_LEN, size,
-								&port->lock);
+	count = kfifo_out_locked(&port->write_fifo, buf + KLSI_HDR_LEN,
+				 size - KLSI_HDR_LEN, &port->lock);
 	put_unaligned_le16(count, buf);
 
 	return count + KLSI_HDR_LEN;

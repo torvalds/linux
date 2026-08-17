@@ -15,13 +15,10 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
-#include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
 #include <linux/serial.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/spinlock.h>
-#include <linux/uaccess.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 #include <linux/unaligned.h>

@@ -352,7 +352,7 @@ static int submit_fence_sync(struct msm_gem_submit *submit)
 
 static int submit_pin_objects(struct msm_gem_submit *submit)
 {
-	struct msm_drm_private *priv = submit->dev->dev_private;
+	struct drm_device *dev = submit->dev;
 	int i, ret = 0;
 
 	for (i = 0; i < submit->nr_bos; i++) {
@@ -381,11 +381,11 @@ static int submit_pin_objects(struct msm_gem_submit *submit)
 	 * get_pages() which could trigger reclaim.. and if we held the LRU lock
 	 * could trigger deadlock with the shrinker).
 	 */
-	mutex_lock(&priv->lru.lock);
+	mutex_lock(&dev->gem_lru_mutex);
 	for (i = 0; i < submit->nr_bos; i++) {
 		msm_gem_pin_obj_locked(submit->bos[i].obj);
 	}
-	mutex_unlock(&priv->lru.lock);
+	mutex_unlock(&dev->gem_lru_mutex);
 
 	submit->bos_pinned = true;
 

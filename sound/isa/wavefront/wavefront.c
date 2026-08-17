@@ -71,8 +71,8 @@ module_param_array(use_cs4232_midi, bool, NULL, 0444);
 MODULE_PARM_DESC(use_cs4232_midi, "Use CS4232 MPU-401 interface (inaccessibly located inside your computer)");
 
 #ifdef CONFIG_PNP
-static int isa_registered;
-static int pnp_registered;
+static int isa_registered __ro_after_init;
+static int pnp_registered __ro_after_init;
 
 static const struct pnp_card_device_id snd_wavefront_pnpids[] = {
 	/* Tropez */
@@ -353,6 +353,7 @@ snd_wavefront_probe (struct snd_card *card, int dev)
 		dev_err(card->dev, "can't allocate WSS device\n");
 		return err;
 	}
+	acard->chip = chip;
 
 	err = snd_wss_pcm(chip, 0);
 	if (err < 0)
@@ -400,6 +401,7 @@ snd_wavefront_probe (struct snd_card *card, int dev)
 	acard->wavefront.irq = ics2115_irq[dev];
 	card->sync_irq = acard->wavefront.irq;
 	acard->wavefront.base = ics2115_port[dev];
+	snd_wavefront_cache_firmware(&acard->wavefront);
 
 	wavefront_synth = snd_wavefront_new_synth(card, hw_dev, acard);
 	if (wavefront_synth == NULL) {
@@ -553,12 +555,51 @@ static int snd_wavefront_isa_probe(struct device *pdev,
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int snd_wavefront_suspend(struct snd_card *card)
+{
+	snd_wavefront_card_t *acard = card->private_data;
+
+	snd_wavefront_midi_suspend(acard);
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+	acard->chip->suspend(acard->chip);
+	return 0;
+}
+
+static int snd_wavefront_resume(struct snd_card *card)
+{
+	snd_wavefront_card_t *acard = card->private_data;
+	int err;
+
+	acard->chip->resume(acard->chip);
+	err = snd_wavefront_resume_synth(acard);
+	if (err < 0)
+		return err;
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
+	return 0;
+}
+
+static int snd_wavefront_isa_suspend(struct device *dev, unsigned int id,
+				     pm_message_t state)
+{
+	return snd_wavefront_suspend(dev_get_drvdata(dev));
+}
+
+static int snd_wavefront_isa_resume(struct device *dev, unsigned int id)
+{
+	return snd_wavefront_resume(dev_get_drvdata(dev));
+}
+#endif
+
 #define DEV_NAME "wavefront"
 
 static struct isa_driver snd_wavefront_driver = {
 	.match		= snd_wavefront_isa_match,
 	.probe		= snd_wavefront_isa_probe,
-	/* FIXME: suspend, resume */
+#ifdef CONFIG_PM
+	.suspend	= snd_wavefront_isa_suspend,
+	.resume		= snd_wavefront_isa_resume,
+#endif
 	.driver		= {
 		.name	= DEV_NAME
 	},
@@ -600,12 +641,28 @@ static int snd_wavefront_pnp_detect(struct pnp_card_link *pcard,
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int snd_wavefront_pnpc_suspend(struct pnp_card_link *pcard,
+				      pm_message_t state)
+{
+	return snd_wavefront_suspend(pnp_get_card_drvdata(pcard));
+}
+
+static int snd_wavefront_pnpc_resume(struct pnp_card_link *pcard)
+{
+	return snd_wavefront_resume(pnp_get_card_drvdata(pcard));
+}
+#endif
+
 static struct pnp_card_driver wavefront_pnpc_driver = {
 	.flags		= PNP_DRIVER_RES_DISABLE,
 	.name		= "wavefront",
 	.id_table	= snd_wavefront_pnpids,
 	.probe		= snd_wavefront_pnp_detect,
-	/* FIXME: suspend,resume */
+#ifdef CONFIG_PM
+	.suspend	= snd_wavefront_pnpc_suspend,
+	.resume		= snd_wavefront_pnpc_resume,
+#endif
 };
 
 #endif /* CONFIG_PNP */

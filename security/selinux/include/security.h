@@ -236,6 +236,7 @@ int security_read_policy(void **data, size_t *len);
 int security_read_state_kernel(void **data, size_t *len);
 int security_policycap_supported(unsigned int req_cap);
 
+/* Maximum supported number of permissions per class */
 #define SEL_VEC_MAX 32
 struct av_decision {
 	u32 allowed;

@@ -532,7 +532,7 @@ static int aspire_ec_resume(struct device *dev)
 }
 
 static const struct i2c_device_id aspire_ec_id[] = {
-	{ "aspire1-ec", },
+	{ .name = "aspire1-ec" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, aspire_ec_id);

@@ -11,6 +11,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
+#include <sound/dmaengine_pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include "tegra_isomgr_bw.h"
@@ -912,34 +913,25 @@ MODULE_DEVICE_TABLE(of, tegra_admaif_of_match);
 
 static int tegra_admaif_probe(struct platform_device *pdev)
 {
+	const struct tegra_admaif_soc_data *soc_data;
 	struct tegra_admaif *admaif;
 	void __iomem *regs;
 	struct resource *res;
+	size_t alloc_size;
 	int err, i;
 
-	admaif = devm_kzalloc(&pdev->dev, sizeof(*admaif), GFP_KERNEL);
+	soc_data = of_device_get_match_data(&pdev->dev);
+
+	alloc_size = struct_size(admaif, capture_dma_data, soc_data->num_ch);
+	alloc_size += sizeof(*admaif->playback_dma_data) * soc_data->num_ch;
+	admaif = devm_kzalloc(&pdev->dev, alloc_size, GFP_KERNEL);
 	if (!admaif)
 		return -ENOMEM;
 
-	admaif->soc_data = of_device_get_match_data(&pdev->dev);
+	admaif->playback_dma_data = admaif->capture_dma_data + soc_data->num_ch;
+	admaif->soc_data = soc_data;
 
 	dev_set_drvdata(&pdev->dev, admaif);
-
-	admaif->capture_dma_data =
-		devm_kcalloc(&pdev->dev,
-			     admaif->soc_data->num_ch,
-			     sizeof(struct snd_dmaengine_dai_dma_data),
-			     GFP_KERNEL);
-	if (!admaif->capture_dma_data)
-		return -ENOMEM;
-
-	admaif->playback_dma_data =
-		devm_kcalloc(&pdev->dev,
-			     admaif->soc_data->num_ch,
-			     sizeof(struct snd_dmaengine_dai_dma_data),
-			     GFP_KERNEL);
-	if (!admaif->playback_dma_data)
-		return -ENOMEM;
 
 	for (i = 0; i < ADMAIF_PATHS; i++) {
 		admaif->mono_to_stereo[i] =

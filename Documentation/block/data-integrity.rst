@@ -154,7 +154,7 @@ bio_free() will automatically free the bip.
 ----------------
 
 Block devices can set up the integrity information in the integrity
-sub-struture of the queue_limits structure.
+sub-structure of the queue_limits structure.
 
 Layered block devices will need to pick a profile that's appropriate
 for all subdevices.  queue_limits_stack_integrity() can help with that.  DM

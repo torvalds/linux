@@ -252,28 +252,37 @@ static int
 mlx5e_pcie_cong_get_thresh_config(struct mlx5_core_dev *dev,
 				  struct mlx5e_pcie_cong_thresh *config)
 {
-	u32 ids[4] = {
-		MLX5_DEVLINK_PARAM_ID_PCIE_CONG_IN_LOW,
-		MLX5_DEVLINK_PARAM_ID_PCIE_CONG_IN_HIGH,
-		MLX5_DEVLINK_PARAM_ID_PCIE_CONG_OUT_LOW,
-		MLX5_DEVLINK_PARAM_ID_PCIE_CONG_OUT_HIGH,
-	};
 	struct devlink *devlink = priv_to_devlink(dev);
-	union devlink_param_value val[4];
+	union devlink_param_value val;
+	int err;
 
-	for (int i = 0; i < 4; i++) {
-		u32 id = ids[i];
-		int err;
+	err = devl_param_driverinit_value_get(devlink,
+					      MLX5_DEVLINK_PARAM_ID_PCIE_CONG_IN_LOW,
+					      &val);
+	if (err)
+		return err;
+	config->inbound_low = val.vu16;
 
-		err = devl_param_driverinit_value_get(devlink, id, &val[i]);
-		if (err)
-			return err;
-	}
+	err = devl_param_driverinit_value_get(devlink,
+					      MLX5_DEVLINK_PARAM_ID_PCIE_CONG_IN_HIGH,
+					      &val);
+	if (err)
+		return err;
+	config->inbound_high = val.vu16;
 
-	config->inbound_low = val[0].vu16;
-	config->inbound_high = val[1].vu16;
-	config->outbound_low = val[2].vu16;
-	config->outbound_high = val[3].vu16;
+	err = devl_param_driverinit_value_get(devlink,
+					      MLX5_DEVLINK_PARAM_ID_PCIE_CONG_OUT_LOW,
+					      &val);
+	if (err)
+		return err;
+	config->outbound_low = val.vu16;
+
+	err = devl_param_driverinit_value_get(devlink,
+					      MLX5_DEVLINK_PARAM_ID_PCIE_CONG_OUT_HIGH,
+					      &val);
+	if (err)
+		return err;
+	config->outbound_high = val.vu16;
 
 	return 0;
 }

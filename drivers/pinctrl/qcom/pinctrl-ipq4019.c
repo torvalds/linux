@@ -479,7 +479,7 @@ static const struct pinfunction ipq4019_functions[] = {
 	QCA_PIN_FUNCTION(blsp_uart0),
 	QCA_PIN_FUNCTION(blsp_uart1),
 	QCA_PIN_FUNCTION(chip_rst),
-	QCA_PIN_FUNCTION(gpio),
+	QCA_GPIO_PIN_FUNCTION(gpio),
 	QCA_PIN_FUNCTION(i2s_rx),
 	QCA_PIN_FUNCTION(i2s_spdif_in),
 	QCA_PIN_FUNCTION(i2s_spdif_out),
@@ -702,6 +702,7 @@ static const struct of_device_id ipq4019_pinctrl_of_match[] = {
 	{ .compatible = "qcom,ipq4019-pinctrl", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, ipq4019_pinctrl_of_match);
 
 static struct platform_driver ipq4019_pinctrl_driver = {
 	.driver = {
@@ -725,4 +726,3 @@ module_exit(ipq4019_pinctrl_exit);
 
 MODULE_DESCRIPTION("Qualcomm ipq4019 pinctrl driver");
 MODULE_LICENSE("GPL v2");
-MODULE_DEVICE_TABLE(of, ipq4019_pinctrl_of_match);

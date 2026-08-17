@@ -11,7 +11,6 @@
 #include <linux/platform_data/i2c-pxa.h>
 #include <linux/soc/pxa/cpu.h>
 
-#include "udc.h"
 #include <linux/platform_data/video-pxafb.h>
 #include <linux/platform_data/mmc-pxamci.h>
 #include "irqs.h"
@@ -83,10 +82,6 @@ void __init pxa_set_mci_info(const struct pxamci_platform_data *info,
 		pr_err("Unable to create mci device: %d\n", err);
 }
 
-static struct pxa2xx_udc_mach_info pxa_udc_info = {
-	.gpio_pullup = -1,
-};
-
 static struct resource pxa2xx_udc_resources[] = {
 	[0] = {
 		.start	= 0x40600000,
@@ -108,7 +103,6 @@ struct platform_device pxa25x_device_udc = {
 	.resource	= pxa2xx_udc_resources,
 	.num_resources	= ARRAY_SIZE(pxa2xx_udc_resources),
 	.dev		=  {
-		.platform_data	= &pxa_udc_info,
 		.dma_mask	= &udc_dma_mask,
 	}
 };
@@ -119,7 +113,6 @@ struct platform_device pxa27x_device_udc = {
 	.resource	= pxa2xx_udc_resources,
 	.num_resources	= ARRAY_SIZE(pxa2xx_udc_resources),
 	.dev		=  {
-		.platform_data	= &pxa_udc_info,
 		.dma_mask	= &udc_dma_mask,
 	}
 };

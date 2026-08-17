@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2021, 2023, 2025 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2021, 2023, 2025-2026 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -191,7 +191,6 @@ enum iwl_sta_sleep_flag {
 #define STA_KEY_IDX_INVALID (0xff)
 #define STA_KEY_MAX_DATA_KEY_NUM (4)
 #define IWL_MAX_GLOBAL_KEYS (4)
-#define IWL_MAX_NUM_IGTKS 2
 #define STA_KEY_LEN_WEP40 (5)
 #define STA_KEY_LEN_WEP104 (13)
 

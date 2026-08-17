@@ -1751,18 +1751,21 @@ static int fusb302_probe(struct i2c_client *client)
 
 	bridge_dev = devm_drm_dp_hpd_bridge_alloc(chip->dev, to_of_node(chip->tcpc_dev.fwnode));
 	if (IS_ERR(bridge_dev)) {
-		ret = PTR_ERR(bridge_dev);
-		dev_err_probe(chip->dev, ret, "failed to alloc bridge\n");
-		goto destroy_workqueue;
+		ret = dev_err_probe(chip->dev, PTR_ERR(bridge_dev),
+				    "failed to alloc bridge\n");
+		goto fwnode_put;
 	}
 
 	chip->tcpm_port = tcpm_register_port(&client->dev, &chip->tcpc_dev);
 	if (IS_ERR(chip->tcpm_port)) {
-		fwnode_handle_put(chip->tcpc_dev.fwnode);
 		ret = dev_err_probe(dev, PTR_ERR(chip->tcpm_port),
 				    "cannot register tcpm port\n");
-		goto destroy_workqueue;
+		goto fwnode_put;
 	}
+
+	ret = devm_drm_dp_hpd_bridge_add(chip->dev, bridge_dev);
+	if (ret)
+		goto tcpm_unregister_port;
 
 	ret = request_threaded_irq(chip->gpio_int_n_irq, NULL, fusb302_irq_intn,
 				   IRQF_ONESHOT | IRQF_TRIGGER_LOW,
@@ -1774,14 +1777,11 @@ static int fusb302_probe(struct i2c_client *client)
 	enable_irq_wake(chip->gpio_int_n_irq);
 	i2c_set_clientdata(client, chip);
 
-	ret = devm_drm_dp_hpd_bridge_add(chip->dev, bridge_dev);
-	if (ret)
-		return ret;
-
-	return ret;
+	return 0;
 
 tcpm_unregister_port:
 	tcpm_unregister_port(chip->tcpm_port);
+fwnode_put:
 	fwnode_handle_put(chip->tcpc_dev.fwnode);
 destroy_workqueue:
 	fusb302_debugfs_exit(chip);
@@ -1841,8 +1841,8 @@ static const struct of_device_id fusb302_dt_match[] __maybe_unused = {
 MODULE_DEVICE_TABLE(of, fusb302_dt_match);
 
 static const struct i2c_device_id fusb302_i2c_device_id[] = {
-	{ "typec_fusb302" },
-	{}
+	{ .name = "typec_fusb302" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, fusb302_i2c_device_id);
 

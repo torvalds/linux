@@ -103,7 +103,7 @@ static int ahe50dc_fan_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ahe50dc_fan_id[] = {
-	{ "ahe50dc_fan" },
+	{ .name = "ahe50dc_fan" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ahe50dc_fan_id);

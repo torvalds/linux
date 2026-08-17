@@ -114,11 +114,6 @@ struct spacemit_pinctrl_data {
 	const struct spacemit_pinctrl_dconf	*dconf;
 };
 
-struct spacemit_pin_mux_config {
-	const struct spacemit_pin	*pin;
-	u32				config;
-};
-
 /* map pin id to pinctrl register offset, refer MFPR definition */
 static unsigned int spacemit_k1_pin_to_offset(unsigned int pin)
 {
@@ -226,16 +221,6 @@ static inline void __iomem *spacemit_pin_to_reg(struct spacemit_pinctrl *pctrl,
 						unsigned int pin)
 {
 	return pctrl->regs + pctrl->data->pin_to_offset(pin);
-}
-
-static u16 spacemit_dt_get_pin(u32 value)
-{
-	return value >> 16;
-}
-
-static u16 spacemit_dt_get_pin_mux(u32 value)
-{
-	return value & GENMASK(15, 0);
 }
 
 static const struct spacemit_pin *spacemit_get_pin(struct spacemit_pinctrl *pctrl,
@@ -409,38 +394,6 @@ static inline u32 spacemit_get_drive_strength_mA(enum spacemit_pin_io_type type,
 	}
 }
 
-static int spacemit_pctrl_check_power(struct pinctrl_dev *pctldev,
-				      struct device_node *dn,
-				      struct spacemit_pin_mux_config *pinmuxs,
-				      int num_pins, const char *grpname)
-{
-	struct spacemit_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
-	struct device *dev = pctrl->dev;
-	enum spacemit_pin_io_type type;
-	u32 power = 0, i;
-
-	of_property_read_u32(dn, "power-source", &power);
-
-	for (i = 0; i < num_pins; i++) {
-		type = spacemit_to_pin_io_type(pinmuxs[i].pin);
-
-		if (type != IO_TYPE_EXTERNAL)
-			continue;
-
-		switch (power) {
-		case PIN_POWER_STATE_1V8:
-		case PIN_POWER_STATE_3V3:
-			break;
-		default:
-			dev_err(dev, "group %s has unsupported power\n",
-				grpname);
-			return -ENOTSUPP;
-		}
-	}
-
-	return 0;
-}
-
 static void spacemit_set_io_pwr_domain(struct spacemit_pinctrl *pctrl,
 				      const struct spacemit_pin *spin,
 				      const enum spacemit_pin_io_type type)
@@ -477,126 +430,12 @@ static void spacemit_set_io_pwr_domain(struct spacemit_pinctrl *pctrl,
 	writel_relaxed(val, pctrl->regs + IO_PWR_DOMAIN_OFFSET + offset);
 }
 
-static int spacemit_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
-					 struct device_node *np,
-					 struct pinctrl_map **maps,
-					 unsigned int *num_maps)
-{
-	struct spacemit_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
-	struct device *dev = pctrl->dev;
-	struct device_node *child;
-	struct pinctrl_map *map;
-	const char **grpnames;
-	const char *grpname;
-	int ngroups = 0;
-	int nmaps = 0;
-	int ret;
-
-	for_each_available_child_of_node(np, child)
-		ngroups += 1;
-
-	grpnames = devm_kcalloc(dev, ngroups, sizeof(*grpnames), GFP_KERNEL);
-	if (!grpnames)
-		return -ENOMEM;
-
-	map = kzalloc_objs(*map, ngroups * 2);
-	if (!map)
-		return -ENOMEM;
-
-	ngroups = 0;
-	guard(mutex)(&pctrl->mutex);
-	for_each_available_child_of_node_scoped(np, child) {
-		struct spacemit_pin_mux_config *pinmuxs;
-		unsigned int config, *pins;
-		int i, npins;
-
-		npins = of_property_count_u32_elems(child, "pinmux");
-
-		if (npins < 1) {
-			dev_err(dev, "invalid pinctrl group %pOFn.%pOFn\n",
-				np, child);
-			return -EINVAL;
-		}
-
-		grpname = devm_kasprintf(dev, GFP_KERNEL, "%pOFn.%pOFn",
-					 np, child);
-		if (!grpname)
-			return -ENOMEM;
-
-		grpnames[ngroups++] = grpname;
-
-		pins = devm_kcalloc(dev, npins, sizeof(*pins), GFP_KERNEL);
-		if (!pins)
-			return -ENOMEM;
-
-		pinmuxs = devm_kcalloc(dev, npins, sizeof(*pinmuxs), GFP_KERNEL);
-		if (!pinmuxs)
-			return -ENOMEM;
-
-		for (i = 0; i < npins; i++) {
-			ret = of_property_read_u32_index(child, "pinmux",
-							 i, &config);
-
-			if (ret)
-				return -EINVAL;
-
-			pins[i] = spacemit_dt_get_pin(config);
-			pinmuxs[i].config = config;
-			pinmuxs[i].pin = spacemit_get_pin(pctrl, pins[i]);
-
-			if (!pinmuxs[i].pin)
-				return dev_err_probe(dev, -ENODEV, "failed to get pin %d\n", pins[i]);
-		}
-
-		ret = spacemit_pctrl_check_power(pctldev, child, pinmuxs,
-						 npins, grpname);
-		if (ret < 0)
-			return ret;
-
-		map[nmaps].type = PIN_MAP_TYPE_MUX_GROUP;
-		map[nmaps].data.mux.function = np->name;
-		map[nmaps].data.mux.group = grpname;
-		nmaps += 1;
-
-		ret = pinctrl_generic_add_group(pctldev, grpname,
-						pins, npins, pinmuxs);
-		if (ret < 0)
-			return dev_err_probe(dev, ret, "failed to add group %s: %d\n", grpname, ret);
-
-		ret = pinconf_generic_parse_dt_config(child, pctldev,
-						      &map[nmaps].data.configs.configs,
-						      &map[nmaps].data.configs.num_configs);
-		if (ret)
-			return dev_err_probe(dev, ret, "failed to parse pin config of group %s\n",
-				grpname);
-
-		if (map[nmaps].data.configs.num_configs == 0)
-			continue;
-
-		map[nmaps].type = PIN_MAP_TYPE_CONFIGS_GROUP;
-		map[nmaps].data.configs.group_or_pin = grpname;
-		nmaps += 1;
-	}
-
-	ret = pinmux_generic_add_function(pctldev, np->name,
-					  grpnames, ngroups, NULL);
-	if (ret < 0) {
-		pinctrl_utils_free_map(pctldev, map, nmaps);
-		return dev_err_probe(dev, ret, "error adding function %s\n", np->name);
-	}
-
-	*maps = map;
-	*num_maps = nmaps;
-
-	return 0;
-}
-
 static const struct pinctrl_ops spacemit_pctrl_ops = {
 	.get_groups_count	= pinctrl_generic_get_group_count,
 	.get_group_name		= pinctrl_generic_get_group_name,
 	.get_group_pins		= pinctrl_generic_get_group_pins,
 	.pin_dbg_show		= spacemit_pctrl_dbg_show,
-	.dt_node_to_map		= spacemit_pctrl_dt_node_to_map,
+	.dt_node_to_map		= pinctrl_generic_pinmux_dt_node_to_map,
 	.dt_free_map		= pinctrl_utils_free_map,
 };
 
@@ -605,8 +444,8 @@ static int spacemit_pmx_set_mux(struct pinctrl_dev *pctldev,
 {
 	struct spacemit_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 	const struct group_desc *group;
-	const struct spacemit_pin_mux_config *configs;
 	unsigned int i, mux;
+	unsigned int *configs;
 	void __iomem *reg;
 
 	group = pinctrl_generic_get_group(pctldev, gsel);
@@ -616,11 +455,17 @@ static int spacemit_pmx_set_mux(struct pinctrl_dev *pctldev,
 	configs = group->data;
 
 	for (i = 0; i < group->grp.npins; i++) {
-		const struct spacemit_pin *spin = configs[i].pin;
-		u32 value = configs[i].config;
+		const struct spacemit_pin *spin;
+		u32 value = configs[i];
+
+		spin = spacemit_get_pin(pctrl, group->grp.pins[i]);
+		if (!spin) {
+			dev_err(pctrl->dev, "Invalid pin %u\n", group->grp.pins[i]);
+			return -EINVAL;
+		}
 
 		reg = spacemit_pin_to_reg(pctrl, spin->pin);
-		mux = spacemit_dt_get_pin_mux(value);
+		mux = value;
 
 		guard(raw_spinlock_irqsave)(&pctrl->lock);
 		value = readl_relaxed(reg) & ~PAD_MUX;
@@ -777,9 +622,8 @@ static int spacemit_pinconf_generate_config(struct spacemit_pinctrl *pctrl,
 				return -EINVAL;
 			}
 		} else {
-			v &= ~PAD_SLEW_RATE;
 			slew_rate = slew_rate > 1 ? (slew_rate - 2) : 0;
-			v |= FIELD_PREP(PAD_SLEW_RATE, slew_rate);
+			FIELD_MODIFY(PAD_SLEW_RATE, &v, slew_rate);
 		}
 	}
 
@@ -795,7 +639,7 @@ static int spacemit_pin_set_config(struct spacemit_pinctrl *pctrl,
 	void __iomem *reg;
 	unsigned int mux;
 
-	if (!pin)
+	if (!spin)
 		return -EINVAL;
 
 	reg = spacemit_pin_to_reg(pctrl, spin->pin);

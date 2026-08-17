@@ -19,7 +19,7 @@ struct tdp158 {
 };
 
 static void tdp158_enable(struct drm_bridge *bridge,
-			  struct drm_atomic_state *state)
+			  struct drm_atomic_commit *state)
 {
 	int err;
 	struct tdp158 *tdp158 = bridge->driver_private;
@@ -36,7 +36,7 @@ static void tdp158_enable(struct drm_bridge *bridge,
 }
 
 static void tdp158_disable(struct drm_bridge *bridge,
-			   struct drm_atomic_state *state)
+			   struct drm_atomic_commit *state)
 {
 	struct tdp158 *tdp158 = bridge->driver_private;
 

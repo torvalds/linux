@@ -5,7 +5,6 @@
  * Copyright (C) 2016 Cristina-Gabriela Moraru <cristina.moraru09@gmail.com>
  */
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/spi/spi.h>
 
 #include <linux/iio/sysfs.h>

@@ -7,7 +7,7 @@
 #define _DT_BINDINGS_POWER_QCOM_RPMHPD_H
 
 /* Generic RPMH Power Domain Indexes */
-#define RPMHPD_CX               0
+#define RPMHPD_CX		0
 #define RPMHPD_CX_AO		1
 #define RPMHPD_EBI		2
 #define RPMHPD_GFX		3
@@ -19,17 +19,19 @@
 #define RPMHPD_MX_AO		9
 #define RPMHPD_MXC		10
 #define RPMHPD_MXC_AO		11
-#define RPMHPD_MSS              12
+#define RPMHPD_MSS		12
 #define RPMHPD_NSP		13
-#define RPMHPD_NSP0             14
-#define RPMHPD_NSP1             15
-#define RPMHPD_QPHY             16
-#define RPMHPD_DDR              17
-#define RPMHPD_XO               18
-#define RPMHPD_NSP2             19
+#define RPMHPD_NSP0		14
+#define RPMHPD_NSP1		15
+#define RPMHPD_QPHY		16
+#define RPMHPD_DDR		17
+#define RPMHPD_XO		18
+#define RPMHPD_NSP2		19
 #define RPMHPD_GMXC		20
 #define RPMHPD_DCX		21
 #define RPMHPD_GBX		22
+#define RPMHPD_NSP3		23
+#define RPMHPD_GFX1		24
 
 /* RPMh Power Domain performance levels */
 #define RPMH_REGULATOR_LEVEL_RETENTION		16

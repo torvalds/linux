@@ -1762,6 +1762,8 @@ static int snd_es18xx_mixer(struct snd_card *card)
 	for (idx = 0; idx < ARRAY_SIZE(snd_es18xx_base_controls); idx++) {
 		struct snd_kcontrol *kctl;
 		kctl = snd_ctl_new1(&snd_es18xx_base_controls[idx], chip);
+		if (!kctl)
+			return -ENOMEM;
 		if (chip->caps & ES18XX_HWV) {
 			switch (idx) {
 			case 0:
@@ -1823,6 +1825,8 @@ static int snd_es18xx_mixer(struct snd_card *card)
 		for (idx = 0; idx < ARRAY_SIZE(snd_es18xx_hw_volume_controls); idx++) {
 			struct snd_kcontrol *kctl;
 			kctl = snd_ctl_new1(&snd_es18xx_hw_volume_controls[idx], chip);
+			if (!kctl)
+				return -ENOMEM;
 			if (idx == 0)
 				chip->hw_volume = kctl;
 			else
@@ -1924,14 +1928,14 @@ module_param_hw_array(dma2, int, dma, NULL, 0444);
 MODULE_PARM_DESC(dma2, "DMA 2 # for ES18xx driver.");
 
 #ifdef CONFIG_PNP
-static int isa_registered;
-static int pnp_registered;
-static int pnpc_registered;
+static int isa_registered __ro_after_init;
+static int pnp_registered __ro_after_init;
+static int pnpc_registered __ro_after_init;
 
 static const struct pnp_device_id snd_audiodrive_pnpbiosids[] = {
 	{ .id = "ESS1869" },
 	{ .id = "ESS1879" },
-	{ .id = "" }		/* end */
+	{ }			/* end */
 };
 
 MODULE_DEVICE_TABLE(pnp, snd_audiodrive_pnpbiosids);

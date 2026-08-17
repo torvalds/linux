@@ -15,11 +15,10 @@
 #include "mtk-soc-card.h"
 #include "mtk-soundcard-driver.h"
 
-static int set_card_codec_info(struct snd_soc_card *card,
+static int set_card_codec_info(struct device *dev,
 			       struct device_node *sub_node,
 			       struct snd_soc_dai_link *dai_link)
 {
-	struct device *dev = card->dev;
 	struct device_node *codec_node;
 	int ret;
 
@@ -45,8 +44,7 @@ static int set_card_codec_info(struct snd_soc_card *card,
 	return 0;
 }
 
-static int set_dailink_daifmt(struct snd_soc_card *card,
-			      struct device_node *sub_node,
+static int set_dailink_daifmt(struct device_node *sub_node,
 			      struct snd_soc_dai_link *dai_link)
 {
 	unsigned int daifmt;
@@ -107,11 +105,11 @@ int parse_dai_link_info(struct snd_soc_card *card)
 		if (i >= card->num_links)
 			return -EINVAL;
 
-		ret = set_card_codec_info(card, sub_node, dai_link);
+		ret = set_card_codec_info(dev, sub_node, dai_link);
 		if (ret < 0)
 			return ret;
 
-		ret = set_dailink_daifmt(card, sub_node, dai_link);
+		ret = set_dailink_daifmt(sub_node, dai_link);
 		if (ret < 0)
 			return ret;
 	}
@@ -275,9 +273,8 @@ int mtk_soundcard_common_probe(struct platform_device *pdev)
 
 	if (adsp_node) {
 		if (of_property_present(pdev->dev.of_node, "mediatek,dai-link")) {
-			ret = mtk_sof_dailink_parse_of(card, pdev->dev.of_node,
-						       "mediatek,dai-link",
-						       card->dai_link, card->num_links);
+			ret = mtk_sof_dailink_parse_of(&pdev->dev, card,
+						       "mediatek,dai-link");
 			if (ret) {
 				of_node_put(adsp_node);
 				of_node_put(platform_node);
@@ -289,11 +286,8 @@ int mtk_soundcard_common_probe(struct platform_device *pdev)
 		soc_card_data->sof_priv = pdata->sof_priv;
 		card->probe = mtk_sof_card_probe;
 		card->late_probe = mtk_sof_card_late_probe;
-		if (!card->topology_shortname_created) {
-			snprintf(card->topology_shortname, 32, "sof-%s", card->name);
-			card->topology_shortname_created = true;
-		}
-		card->name = card->topology_shortname;
+
+		snd_soc_card_set_topology_name(card, "sof");
 	}
 
 	/*

@@ -547,13 +547,10 @@ int gb_spilib_master_init(struct gb_connection *connection, struct device *dev,
 
 	return 0;
 
-exit_spi_put:
-	spi_controller_put(ctlr);
-
-	return ret;
-
 exit_spi_unregister:
 	spi_unregister_controller(ctlr);
+exit_spi_put:
+	spi_controller_put(ctlr);
 
 	return ret;
 }
@@ -564,6 +561,7 @@ void gb_spilib_master_exit(struct gb_connection *connection)
 	struct spi_controller *ctlr = gb_connection_get_data(connection);
 
 	spi_unregister_controller(ctlr);
+	spi_controller_put(ctlr);
 }
 EXPORT_SYMBOL_GPL(gb_spilib_master_exit);
 

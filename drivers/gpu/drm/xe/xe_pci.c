@@ -444,6 +444,7 @@ static const struct xe_device_desc nvls_desc = {
 	.has_display = true,
 	.has_flat_ccs = 1,
 	.has_pre_prod_wa = 1,
+	.has_sriov = true,
 	.max_gt_per_tile = 2,
 	MULTI_LRC_MASK,
 	.require_force_probe = true,
@@ -466,6 +467,7 @@ static const struct xe_device_desc cri_desc = {
 	.has_soc_remapper_sysctrl = true,
 	.has_soc_remapper_telem = true,
 	.has_sriov = true,
+	.has_sysctrl = true,
 	.max_gt_per_tile = 2,
 	MULTI_LRC_MASK,
 	.require_force_probe = true,
@@ -481,6 +483,7 @@ static const struct xe_device_desc nvlp_desc = {
 	.has_flat_ccs = 1,
 	.has_page_reclaim_hw_assist = true,
 	.has_pre_prod_wa = true,
+	.has_sriov = true,
 	.max_gt_per_tile = 2,
 	MULTI_LRC_MASK,
 	.require_force_probe = true,
@@ -572,14 +575,14 @@ static bool id_blocked(u16 device_id)
 }
 
 static const struct xe_subplatform_desc *
-find_subplatform(const struct xe_device *xe, const struct xe_device_desc *desc)
+find_subplatform(const struct xe_device_desc *desc, u16 devid)
 {
 	const struct xe_subplatform_desc *sp;
 	const u16 *id;
 
 	for (sp = desc->subplatforms; sp && sp->subplatform; sp++)
 		for (id = sp->pciidlist; *id; id++)
-			if (*id == xe->info.devid)
+			if (*id == devid)
 				return sp;
 
 	return NULL;
@@ -723,6 +726,16 @@ static int handle_gmdid(struct xe_device *xe,
 	return 0;
 }
 
+static void init_devid(struct xe_device *xe)
+{
+	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
+
+	KUNIT_STATIC_STUB_REDIRECT(init_devid, xe);
+
+	xe->info.devid = pdev->device;
+	xe->info.revid = pdev->revision;
+}
+
 /*
  * Initialize device info content that only depends on static driver_data
  * passed to the driver at probe time from PCI ID table.
@@ -737,6 +750,8 @@ static int xe_info_init_early(struct xe_device *xe,
 	xe->info.platform = desc->platform;
 	xe->info.subplatform = subplatform_desc ?
 		subplatform_desc->subplatform : XE_SUBPLATFORM_NONE;
+
+	init_devid(xe);
 
 	xe->info.dma_mask_size = desc->dma_mask_size;
 	xe->info.va_bits = desc->va_bits;
@@ -764,8 +779,8 @@ static int xe_info_init_early(struct xe_device *xe,
 	xe->info.has_soc_remapper_telem = desc->has_soc_remapper_telem;
 	xe->info.has_sriov = xe_configfs_primary_gt_allowed(to_pci_dev(xe->drm.dev)) &&
 		desc->has_sriov;
+	xe->info.has_sysctrl = desc->has_sysctrl;
 	xe->info.skip_guc_pc = desc->skip_guc_pc;
-	xe->info.skip_mtcfg = desc->skip_mtcfg;
 	xe->info.skip_pcode = desc->skip_pcode;
 	xe->info.needs_scratch = desc->needs_scratch;
 	xe->info.needs_shared_vf_gt_wq = desc->needs_shared_vf_gt_wq;
@@ -774,6 +789,7 @@ static int xe_info_init_early(struct xe_device *xe,
 	xe->info.probe_display = IS_ENABLED(CONFIG_DRM_XE_DISPLAY) &&
 				 xe_modparam.probe_display &&
 				 desc->has_display;
+	xe->info.force_execlist = xe_modparam.force_execlist;
 
 	xe_assert(xe, desc->max_gt_per_tile > 0);
 	xe_assert(xe, desc->max_gt_per_tile <= XE_MAX_GT_PER_TILE);
@@ -805,9 +821,6 @@ static void xe_info_probe_tile_count(struct xe_device *xe)
 	 * tiles.
 	 */
 	if (xe->info.tile_count == 1)
-		return;
-
-	if (xe->info.skip_mtcfg)
 		return;
 
 	mmio = xe_root_tile_mmio(xe);
@@ -969,6 +982,12 @@ static int xe_info_init(struct xe_device *xe,
 	xe->info.has_64bit_timestamp = graphics_desc->has_64bit_timestamp;
 	xe->info.has_mem_copy_instr = GRAPHICS_VER(xe) >= 20;
 
+	if (IS_SRIOV_VF(xe)) {
+		xe->info.has_sysctrl = 0;
+		xe->info.has_soc_remapper_sysctrl = 0;
+		xe->info.has_soc_remapper_telem = 0;
+	}
+
 	xe_info_probe_tile_count(xe);
 
 	for_each_remote_tile(tile, xe, id) {
@@ -1058,6 +1077,8 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct xe_device *xe;
 	int err;
 
+	subplatform_desc = find_subplatform(desc, pdev->device);
+
 	xe_configfs_check_device(pdev);
 
 	if (desc->require_force_probe && !id_forced(pdev->device)) {
@@ -1085,14 +1106,13 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		return err;
 
-	xe = xe_device_create(pdev, ent);
+	xe = xe_device_create(pdev);
 	if (IS_ERR(xe))
 		return PTR_ERR(xe);
 
 	pci_set_drvdata(pdev, &xe->drm);
 
 	xe_pm_assert_unbounded_bridge(xe);
-	subplatform_desc = find_subplatform(xe, desc);
 
 	pci_set_master(pdev);
 
@@ -1147,7 +1167,7 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		str_yes_no(xe_device_has_sriov(xe)),
 		xe_sriov_mode_to_string(xe_device_sriov_mode(xe)));
 
-	err = xe_pm_init_early(xe);
+	err = xe_pm_probe(xe);
 	if (err)
 		return err;
 
@@ -1158,9 +1178,6 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	err = xe_pm_init(xe);
 	if (err)
 		goto err_driver_cleanup;
-
-	drm_dbg(&xe->drm, "d3cold: capable=%s\n",
-		str_yes_no(xe->d3cold.capable));
 
 	return 0;
 

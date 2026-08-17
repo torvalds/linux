@@ -56,4 +56,16 @@ config DRM_AMD_SECURE_DISPLAY
 	  This option enables the calculation of crc of specific region via
 	  debugfs. Cooperate with specific DMCU FW.
 
+config DRM_AMD_DC_KUNIT_TEST
+	tristate "KUnit tests for the AMD DC display driver" if !KUNIT_ALL_TESTS
+	depends on DRM_AMD_DC && KUNIT && DEBUG_FS && DRM_KUNIT_TEST_HELPERS
+	default KUNIT_ALL_TESTS
+	help
+	  This option enables KUnit tests for the AMD Display Core driver.
+	  These tests validate core functionality like CRC source parsing,
+	  color management, and other utility functions.
+
+	  For more information on KUnit and unit tests in general, please
+	  refer to the KUnit documentation in Documentation/dev-tools/kunit/.
+
 endmenu

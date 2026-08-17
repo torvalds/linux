@@ -848,7 +848,7 @@ struct kvm_vcpu *vm_arch_vcpu_add(struct kvm_vm *vm, u32 vcpu_id)
 
 	/* Setup guest general purpose registers */
 	vcpu_regs_get(vcpu, &regs);
-	regs.rflags = regs.rflags | 0x2;
+	regs.rflags = regs.rflags | X86_EFLAGS_FIXED;
 	regs.rsp = stack_gva;
 	vcpu_regs_set(vcpu, &regs);
 

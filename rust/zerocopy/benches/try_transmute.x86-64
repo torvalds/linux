@@ -1,0 +1,9 @@
+bench_try_transmute:
+	movzx ecx, di
+	xor eax, eax
+	cmp ecx, 49344
+	sete al
+	and rdi, -65536
+	xor rax, 49345
+	or rax, rdi
+	ret

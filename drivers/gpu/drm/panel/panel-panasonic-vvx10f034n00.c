@@ -44,14 +44,23 @@ static inline struct wuxga_nt_panel *to_wuxga_nt_panel(struct drm_panel *panel)
 
 static int wuxga_nt_panel_on(struct wuxga_nt_panel *wuxga_nt)
 {
-	return mipi_dsi_turn_on_peripheral(wuxga_nt->dsi);
+	struct mipi_dsi_multi_context dsi_ctx = {
+		.dsi = wuxga_nt->dsi
+	};
+
+	mipi_dsi_turn_on_peripheral_multi(&dsi_ctx);
+	return dsi_ctx.accum_err;
 }
 
 static int wuxga_nt_panel_disable(struct drm_panel *panel)
 {
 	struct wuxga_nt_panel *wuxga_nt = to_wuxga_nt_panel(panel);
+	struct mipi_dsi_multi_context dsi_ctx = {
+		.dsi = wuxga_nt->dsi
+	};
 
-	return mipi_dsi_shutdown_peripheral(wuxga_nt->dsi);
+	mipi_dsi_shutdown_peripheral_multi(&dsi_ctx);
+	return dsi_ctx.accum_err;
 }
 
 static int wuxga_nt_panel_unprepare(struct drm_panel *panel)
@@ -94,15 +103,8 @@ static int wuxga_nt_panel_prepare(struct drm_panel *panel)
 	msleep(250);
 
 	ret = wuxga_nt_panel_on(wuxga_nt);
-	if (ret < 0) {
-		dev_err(panel->dev, "failed to set panel on: %d\n", ret);
-		goto poweroff;
-	}
-
-	return 0;
-
-poweroff:
-	regulator_disable(wuxga_nt->supply);
+	if (ret < 0)
+		regulator_disable(wuxga_nt->supply);
 
 	return ret;
 }

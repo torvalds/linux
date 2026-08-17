@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
    BlueZ - Bluetooth protocol stack for Linux
    Copyright (C) 2000-2001 Qualcomm Incorporated
    Copyright (C) 2011 ProFUSION Embedded Systems
 
    Written 2000,2001 by Maxim Krasnyansky <maxk@qualcomm.com>
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License version 2 as
-   published by the Free Software Foundation;
 
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -539,46 +536,9 @@ static int hci_dev_do_reset(struct hci_dev *hdev)
 
 	hci_req_sync_lock(hdev);
 
-	/* Drop queues */
-	skb_queue_purge(&hdev->rx_q);
-	skb_queue_purge(&hdev->cmd_q);
-
-	/* Cancel these to avoid queueing non-chained pending work */
-	hci_dev_set_flag(hdev, HCI_CMD_DRAIN_WORKQUEUE);
-	/* Wait for
-	 *
-	 *    if (!hci_dev_test_flag(hdev, HCI_CMD_DRAIN_WORKQUEUE))
-	 *        queue_delayed_work(&hdev->{cmd,ncmd}_timer)
-	 *
-	 * inside RCU section to see the flag or complete scheduling.
-	 */
-	synchronize_rcu();
-	/* Explicitly cancel works in case scheduled after setting the flag. */
-	cancel_delayed_work(&hdev->cmd_timer);
-	cancel_delayed_work(&hdev->ncmd_timer);
-
-	/* Avoid potential lockdep warnings from the *_flush() calls by
-	 * ensuring the workqueue is empty up front.
-	 */
-	drain_workqueue(hdev->workqueue);
-
-	hci_dev_lock(hdev);
-	hci_inquiry_cache_flush(hdev);
-	hci_conn_hash_flush(hdev);
-	hci_dev_unlock(hdev);
-
-	if (hdev->flush)
-		hdev->flush(hdev);
-
-	hci_dev_clear_flag(hdev, HCI_CMD_DRAIN_WORKQUEUE);
-
-	atomic_set(&hdev->cmd_cnt, 1);
-	hdev->acl_cnt = 0;
-	hdev->sco_cnt = 0;
-	hdev->le_cnt = 0;
-	hdev->iso_cnt = 0;
-
-	ret = hci_reset_sync(hdev);
+	ret = hci_dev_close_sync(hdev);
+	if (!ret)
+		ret = hci_dev_open_sync(hdev);
 
 	hci_req_sync_unlock(hdev);
 	return ret;
@@ -2708,6 +2668,8 @@ void hci_unregister_dev(struct hci_dev *hdev)
 	disable_work_sync(&hdev->tx_work);
 	disable_work_sync(&hdev->power_on);
 	disable_work_sync(&hdev->error_reset);
+	disable_delayed_work_sync(&hdev->cmd_timer);
+	disable_delayed_work_sync(&hdev->ncmd_timer);
 
 	hci_cmd_sync_clear(hdev);
 

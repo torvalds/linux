@@ -263,7 +263,7 @@ l0_%=:	r0 = 0;						\
 
 SEC("lsm.s/bpf")
 __description("reference tracking: release user key reference without check")
-__failure __msg("Possibly NULL pointer passed to trusted arg0")
+__failure __msg("Possibly NULL pointer passed to trusted R1")
 __naked void user_key_reference_without_check(void)
 {
 	asm volatile ("					\
@@ -282,7 +282,7 @@ __naked void user_key_reference_without_check(void)
 
 SEC("lsm.s/bpf")
 __description("reference tracking: release system key reference without check")
-__failure __msg("Possibly NULL pointer passed to trusted arg0")
+__failure __msg("Possibly NULL pointer passed to trusted R1")
 __naked void system_key_reference_without_check(void)
 {
 	asm volatile ("					\
@@ -300,7 +300,7 @@ __naked void system_key_reference_without_check(void)
 
 SEC("lsm.s/bpf")
 __description("reference tracking: release with NULL key pointer")
-__failure __msg("Possibly NULL pointer passed to trusted arg0")
+__failure __msg("Possibly NULL pointer passed to trusted R1")
 __naked void release_with_null_key_pointer(void)
 {
 	asm volatile ("					\
@@ -1288,7 +1288,7 @@ l1_%=:	r1 = r6;					\
 
 SEC("tc")
 __description("reference tracking: bpf_sk_release(listen_sk)")
-__failure __msg("R1 must be referenced when passed to release function")
+__failure __msg("release helper bpf_sk_release expects referenced PTR_TO_BTF_ID passed to R1")
 __naked void bpf_sk_release_listen_sk(void)
 {
 	asm volatile (

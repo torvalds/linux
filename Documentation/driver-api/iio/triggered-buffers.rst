@@ -29,21 +29,21 @@ A typical triggered buffer setup looks like this::
 
     irqreturn_t sensor_trigger_handler(int irq, void *p)
     {
-        u16 buf[8];
+        IIO_DECLARE_BUFFER_WITH_TS(u16, buf, 3) = { };
         int i = 0;
 
         /* read data for each active channel */
-        for_each_set_bit(bit, active_scan_mask, masklength)
-            buf[i++] = sensor_get_data(bit)
+        iio_for_each_active_channel(indio_dev, bit)
+            buf[i++] = sensor_get_data(bit);
 
-        iio_push_to_buffers_with_timestamp(indio_dev, buf, timestamp);
+        iio_push_to_buffers_with_ts(indio_dev, buf, sizeof(buf), timestamp);
 
         iio_trigger_notify_done(trigger);
         return IRQ_HANDLED;
     }
 
     /* setup triggered buffer, usually in probe function */
-    iio_triggered_buffer_setup(indio_dev, sensor_iio_polfunc,
+    iio_triggered_buffer_setup(indio_dev, sensor_iio_pollfunc,
                                sensor_trigger_handler,
                                sensor_buffer_setup_ops);
 

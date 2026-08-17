@@ -138,7 +138,7 @@ EXPORT_SYMBOL_GPL(xen_balloon_init);
 				   struct device_attribute *attr,	\
 				   char *buf)				\
 	{								\
-		return sprintf(buf, format, ##args);			\
+		return sysfs_emit(buf, format, ##args);			\
 	}								\
 	static DEVICE_ATTR_RO(name)
 
@@ -155,7 +155,7 @@ static DEVICE_BOOL_ATTR(scrub_pages, 0644, xen_scrub_pages);
 static ssize_t target_kb_show(struct device *dev, struct device_attribute *attr,
 			      char *buf)
 {
-	return sprintf(buf, "%lu\n", PAGES2KB(balloon_stats.target_pages));
+	return sysfs_emit(buf, "%lu\n", PAGES2KB(balloon_stats.target_pages));
 }
 
 static ssize_t target_kb_store(struct device *dev,
@@ -180,7 +180,7 @@ static DEVICE_ATTR_RW(target_kb);
 static ssize_t target_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
-	return sprintf(buf, "%llu\n",
+	return sysfs_emit(buf, "%llu\n",
 		       (unsigned long long)balloon_stats.target_pages
 		       << PAGE_SHIFT);
 }

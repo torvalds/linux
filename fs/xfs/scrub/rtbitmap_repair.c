@@ -382,7 +382,7 @@ xrep_rtbitmap_prep_buf(
 		struct xfs_rtbuf_blkinfo	*hdr = bp->b_addr;
 
 		hdr->rt_magic = cpu_to_be32(XFS_RTBITMAP_MAGIC);
-		hdr->rt_owner = cpu_to_be64(sc->ip->i_ino);
+		hdr->rt_owner = cpu_to_be64(I_INO(sc->ip));
 		hdr->rt_blkno = cpu_to_be64(xfs_buf_daddr(bp));
 		hdr->rt_lsn = 0;
 		uuid_copy(&hdr->rt_uuid, &sc->mp->m_sb.sb_meta_uuid);

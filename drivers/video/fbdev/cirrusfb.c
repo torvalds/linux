@@ -253,7 +253,7 @@ static const struct cirrusfb_board_info_rec {
 
 #ifdef CONFIG_PCI
 #define CHIP(id, btype) \
-	{ PCI_VENDOR_ID_CIRRUS, id, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (btype) }
+	{ PCI_VDEVICE(CIRRUS, id), .driver_data = (btype) }
 
 static struct pci_device_id cirrusfb_pci_table[] = {
 	CHIP(PCI_DEVICE_ID_CIRRUS_5436, BT_ALPINE),

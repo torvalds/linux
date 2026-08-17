@@ -3,8 +3,8 @@
  * Copyright(c) 2024, Intel Corporation. All rights reserved.
  */
 
-#ifndef __XE_PXP_H__
-#define __XE_PXP_H__
+#ifndef _XE_PXP_H_
+#define _XE_PXP_H_
 
 #include <linux/types.h>
 
@@ -32,4 +32,4 @@ int xe_pxp_key_assign(struct xe_pxp *pxp, struct xe_bo *bo);
 int xe_pxp_bo_key_check(struct xe_pxp *pxp, struct xe_bo *bo);
 int xe_pxp_obj_key_check(struct drm_gem_object *obj);
 
-#endif /* __XE_PXP_H__ */
+#endif /* _XE_PXP_H_ */

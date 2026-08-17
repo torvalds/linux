@@ -368,7 +368,6 @@ static int tls_strp_copyin(read_descriptor_t *desc, struct sk_buff *in_skb,
 		desc->count = 0;
 
 		WRITE_ONCE(strp->msg_ready, 1);
-		tls_rx_msg_ready(strp);
 	}
 
 	return ret;
@@ -492,6 +491,7 @@ bool tls_strp_msg_load(struct tls_strparser *strp, bool force_refresh)
 	if (!strp->copy_mode && force_refresh) {
 		if (unlikely(tcp_inq(strp->sk) < strp->stm.full_len)) {
 			WRITE_ONCE(strp->msg_ready, 0);
+			strp->msg_announced = 0;
 			memset(&strp->stm, 0, sizeof(strp->stm));
 			return false;
 		}
@@ -539,18 +539,24 @@ static int tls_strp_read_sock(struct tls_strparser *strp)
 		return tls_strp_read_copy(strp, false);
 
 	WRITE_ONCE(strp->msg_ready, 1);
-	tls_rx_msg_ready(strp);
 
 	return 0;
 }
 
-void tls_strp_check_rcv(struct tls_strparser *strp)
+/* Parse queued data. When @announce is true and parsing produces a
+ * newly-ready record, fire the consumer notification. Callers that
+ * need to notify a waiter about a record parsed by another path
+ * should invoke tls_rx_msg_maybe_announce() directly.
+ */
+void tls_strp_check_rcv(struct tls_strparser *strp, bool announce)
 {
 	if (unlikely(strp->stopped) || strp->msg_ready)
 		return;
 
 	if (tls_strp_read_sock(strp) == -ENOMEM)
 		queue_work(tls_strp_wq, &strp->work);
+	else if (announce && strp->msg_ready)
+		tls_rx_msg_maybe_announce(strp);
 }
 
 /* Lower sock lock held */
@@ -568,7 +574,7 @@ void tls_strp_data_ready(struct tls_strparser *strp)
 		return;
 	}
 
-	tls_strp_check_rcv(strp);
+	tls_strp_check_rcv(strp, true);
 }
 
 static void tls_strp_work(struct work_struct *w)
@@ -577,11 +583,16 @@ static void tls_strp_work(struct work_struct *w)
 		container_of(w, struct tls_strparser, work);
 
 	lock_sock(strp->sk);
-	tls_strp_check_rcv(strp);
+	tls_strp_check_rcv(strp, true);
 	release_sock(strp->sk);
 }
 
-void tls_strp_msg_done(struct tls_strparser *strp)
+/* Release the current record without triggering a check for the
+ * next record. Callers must invoke tls_strp_check_rcv() before
+ * releasing the socket lock, or queued data will stall until the
+ * next tls_strp_data_ready() event.
+ */
+void tls_strp_msg_consume(struct tls_strparser *strp)
 {
 	WARN_ON(!strp->stm.full_len);
 
@@ -591,9 +602,8 @@ void tls_strp_msg_done(struct tls_strparser *strp)
 		tls_strp_flush_anchor_copy(strp);
 
 	WRITE_ONCE(strp->msg_ready, 0);
+	strp->msg_announced = 0;
 	memset(&strp->stm, 0, sizeof(strp->stm));
-
-	tls_strp_check_rcv(strp);
 }
 
 void tls_strp_stop(struct tls_strparser *strp)

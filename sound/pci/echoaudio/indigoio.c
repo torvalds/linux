@@ -58,8 +58,8 @@ static const struct firmware card_fw[] = {
 };
 
 static const struct pci_device_id snd_echo_ids[] = {
-	{0x1057, 0x3410, 0xECC0, 0x00A0, 0, 0, 0},	/* Indigo IO*/
-	{0,}
+	{ PCI_DEVICE_SUB(0x1057, 0x3410, 0xECC0, 0x00A0) },	/* Indigo IO*/
+	{ }
 };
 
 static const struct snd_pcm_hardware pcm_hardware_skel = {

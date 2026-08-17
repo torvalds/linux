@@ -84,10 +84,10 @@ int nv50_crc_set_source(struct drm_crtc *, const char *);
 int nv50_crc_atomic_check_head(struct nv50_head *, struct nv50_head_atom *,
 			       struct nv50_head_atom *);
 void nv50_crc_atomic_check_outp(struct nv50_atom *atom);
-void nv50_crc_atomic_stop_reporting(struct drm_atomic_state *);
-void nv50_crc_atomic_init_notifier_contexts(struct drm_atomic_state *);
-void nv50_crc_atomic_release_notifier_contexts(struct drm_atomic_state *);
-void nv50_crc_atomic_start_reporting(struct drm_atomic_state *);
+void nv50_crc_atomic_stop_reporting(struct drm_atomic_commit *);
+void nv50_crc_atomic_init_notifier_contexts(struct drm_atomic_commit *);
+void nv50_crc_atomic_release_notifier_contexts(struct drm_atomic_commit *);
+void nv50_crc_atomic_start_reporting(struct drm_atomic_commit *);
 void nv50_crc_atomic_set(struct nv50_head *, struct nv50_head_atom *);
 void nv50_crc_atomic_clr(struct nv50_head *);
 
@@ -116,13 +116,13 @@ nv50_crc_atomic_check_head(struct nv50_head *head,
 			   struct nv50_head_atom *armh) { return 0; }
 static inline void nv50_crc_atomic_check_outp(struct nv50_atom *atom) {}
 static inline void
-nv50_crc_atomic_stop_reporting(struct drm_atomic_state *state) {}
+nv50_crc_atomic_stop_reporting(struct drm_atomic_commit *state) {}
 static inline void
-nv50_crc_atomic_init_notifier_contexts(struct drm_atomic_state *state) {}
+nv50_crc_atomic_init_notifier_contexts(struct drm_atomic_commit *state) {}
 static inline void
-nv50_crc_atomic_release_notifier_contexts(struct drm_atomic_state *state) {}
+nv50_crc_atomic_release_notifier_contexts(struct drm_atomic_commit *state) {}
 static inline void
-nv50_crc_atomic_start_reporting(struct drm_atomic_state *state) {}
+nv50_crc_atomic_start_reporting(struct drm_atomic_commit *state) {}
 static inline void
 nv50_crc_atomic_set(struct nv50_head *head, struct nv50_head_atom *state) {}
 static inline void

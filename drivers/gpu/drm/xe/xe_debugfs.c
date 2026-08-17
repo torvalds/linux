@@ -15,9 +15,11 @@
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_force_wake.h"
+#include "xe_gt.h"
 #include "xe_gt_debugfs.h"
 #include "xe_gt_printk.h"
 #include "xe_guc_ads.h"
+#include "xe_hw_engine.h"
 #include "xe_mmio.h"
 #include "xe_pm.h"
 #include "xe_psmi.h"
@@ -61,6 +63,37 @@ static struct xe_device *node_to_xe(struct drm_info_node *node)
 	return to_xe_device(node->minor->dev);
 }
 
+static void print_engine_class_mask(struct drm_printer *p, u16 mask)
+{
+	if (!mask) {
+		drm_printf(p, " none\n");
+		return;
+	}
+
+	for (enum xe_engine_class ec = 0; ec < XE_ENGINE_CLASS_MAX; ec++) {
+		if (mask & BIT(ec))
+			drm_printf(p, " %s", xe_hw_engine_class_to_str(ec));
+	}
+	drm_printf(p, "\n");
+}
+
+static void print_engine_mask(struct drm_printer *p, struct xe_gt *gt, u64 mask)
+{
+	struct xe_hw_engine *hwe;
+	enum xe_hw_engine_id id;
+
+	if (!mask) {
+		drm_printf(p, " none\n");
+		return;
+	}
+
+	for_each_hw_engine(hwe, gt, id) {
+		if (mask & BIT_ULL(id))
+			drm_printf(p, " %s", hwe->name);
+	}
+	drm_printf(p, "\n");
+}
+
 static int info(struct seq_file *m, void *data)
 {
 	struct xe_device *xe = node_to_xe(m->private);
@@ -88,13 +121,15 @@ static int info(struct seq_file *m, void *data)
 	drm_printf(&p, "has_flat_ccs %s\n", str_yes_no(xe->info.has_flat_ccs));
 	drm_printf(&p, "has_usm %s\n", str_yes_no(xe->info.has_usm));
 	drm_printf(&p, "skip_guc_pc %s\n", str_yes_no(xe->info.skip_guc_pc));
+	drm_printf(&p, "multi_lrc_engine_classes");
+	print_engine_class_mask(&p, xe->info.multi_lrc_mask);
 	for_each_gt(gt, xe, id) {
 		drm_printf(&p, "gt%d force wake %d\n", id,
 			   xe_force_wake_ref(gt_to_fw(gt), XE_FW_GT));
-		drm_printf(&p, "gt%d engine_mask 0x%llx\n", id,
-			   gt->info.engine_mask);
-		drm_printf(&p, "gt%d multi_queue_engine_class_mask 0x%x\n", id,
-			   gt->info.multi_queue_engine_class_mask);
+		drm_printf(&p, "gt%d engines", id);
+		print_engine_mask(&p, gt, gt->info.engine_mask);
+		drm_printf(&p, "gt%d multi_queue_engine_classes", id);
+		print_engine_class_mask(&p, gt->info.multi_queue_engine_class_mask);
 	}
 
 	return 0;

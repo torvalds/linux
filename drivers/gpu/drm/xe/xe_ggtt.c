@@ -24,6 +24,7 @@
 #include "xe_gt_types.h"
 #include "xe_map.h"
 #include "xe_mmio.h"
+#include "xe_pat.h"
 #include "xe_pm.h"
 #include "xe_res_cursor.h"
 #include "xe_sriov.h"
@@ -115,7 +116,6 @@ struct xe_ggtt {
 	/** @size: Total usable size of this GGTT */
 	u64 size;
 
-#define XE_GGTT_FLAGS_64K BIT(0)
 	/**
 	 * @flags: Flags for this GGTT
 	 * Acceptable flags:
@@ -259,7 +259,7 @@ static u64 xe_ggtt_get_pte(struct xe_ggtt *ggtt, u64 addr)
 
 static void xe_ggtt_clear(struct xe_ggtt *ggtt, u64 start, u64 size)
 {
-	u16 pat_index = tile_to_xe(ggtt->tile)->pat.idx[XE_CACHE_WB];
+	u16 pat_index = xe_cache_pat_idx(tile_to_xe(ggtt->tile), XE_CACHE_WB);
 	u64 end = start + size - 1;
 	u64 scratch_pte;
 
@@ -724,7 +724,7 @@ static void xe_ggtt_map_bo(struct xe_ggtt *ggtt, struct xe_ggtt_node *node,
 void xe_ggtt_map_bo_unlocked(struct xe_ggtt *ggtt, struct xe_bo *bo)
 {
 	u16 cache_mode = bo->flags & XE_BO_FLAG_NEEDS_UC ? XE_CACHE_NONE : XE_CACHE_WB;
-	u16 pat_index = tile_to_xe(ggtt->tile)->pat.idx[cache_mode];
+	u16 pat_index = xe_cache_pat_idx(tile_to_xe(ggtt->tile), cache_mode);
 	u64 pte;
 
 	mutex_lock(&ggtt->lock);
@@ -841,7 +841,7 @@ static int __xe_ggtt_insert_bo_at(struct xe_ggtt *ggtt, struct xe_bo *bo,
 		bo->ggtt_node[tile_id] = NULL;
 	} else {
 		u16 cache_mode = bo->flags & XE_BO_FLAG_NEEDS_UC ? XE_CACHE_NONE : XE_CACHE_WB;
-		u16 pat_index = tile_to_xe(ggtt->tile)->pat.idx[cache_mode];
+		u16 pat_index = xe_cache_pat_idx(tile_to_xe(ggtt->tile), cache_mode);
 		u64 pte = ggtt->pt_ops->pte_encode_flags(bo, pat_index);
 
 		xe_ggtt_map_bo(ggtt, bo->ggtt_node[tile_id], bo, pte);

@@ -618,11 +618,11 @@ void intel_pasid_setup_page_snoop_control(struct intel_iommu *iommu,
 	intel_pasid_flush_present(iommu, dev, pasid, did, pte);
 }
 
-static void pasid_pte_config_nestd(struct intel_iommu *iommu,
-				   struct pasid_entry *pte,
-				   struct iommu_hwpt_vtd_s1 *s1_cfg,
-				   struct dmar_domain *s2_domain,
-				   u16 did)
+static void pasid_pte_config_nested(struct intel_iommu *iommu,
+				    struct pasid_entry *pte,
+				    struct iommu_hwpt_vtd_s1 *s1_cfg,
+				    struct dmar_domain *s2_domain,
+				    u16 did)
 {
 	struct pt_iommu_vtdss_hw_info pt_info;
 
@@ -720,7 +720,7 @@ int intel_pasid_setup_nested(struct intel_iommu *iommu, struct device *dev,
 		return -EBUSY;
 	}
 
-	pasid_pte_config_nestd(iommu, pte, s1_cfg, s2_domain, did);
+	pasid_pte_config_nested(iommu, pte, s1_cfg, s2_domain, did);
 	spin_unlock(&iommu->lock);
 
 	pasid_flush_caches(iommu, pte, pasid, did);
@@ -748,10 +748,12 @@ static void device_pasid_table_teardown(struct device *dev, u8 bus, u8 devfn)
 	}
 
 	did = context_domain_id(context);
-	context_clear_entry(context);
+	context_clear_present(context);
 	__iommu_flush_cache(iommu, context, sizeof(*context));
 	spin_unlock(&iommu->lock);
 	intel_context_flush_no_pasid(info, context, did);
+	context_clear_entry(context);
+	__iommu_flush_cache(iommu, context, sizeof(*context));
 }
 
 static int pci_pasid_table_teardown(struct pci_dev *pdev, u16 alias, void *data)

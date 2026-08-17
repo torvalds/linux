@@ -462,7 +462,7 @@ static void dm_start_request(struct mapped_device *md, struct request *orig)
 }
 
 static int dm_mq_init_request(struct blk_mq_tag_set *set, struct request *rq,
-			      unsigned int hctx_idx, unsigned int numa_node)
+			      unsigned int hctx_idx, int numa_node)
 {
 	struct mapped_device *md = set->driver_data;
 	struct dm_rq_target_io *tio = blk_mq_rq_to_pdu(rq);

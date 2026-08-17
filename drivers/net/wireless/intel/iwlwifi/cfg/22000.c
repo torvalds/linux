@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2025 Intel Corporation
+ * Copyright (C) 2018-2026 Intel Corporation
  */
 #include <linux/module.h>
 #include <linux/stringify.h>
@@ -15,26 +15,26 @@
 /* Lowest firmware API version supported */
 #define IWL_22000_UCODE_API_MIN	77
 
-/* Memory offsets and lengths */
-#define IWL_22000_SMEM_OFFSET		0x400000
-#define IWL_22000_SMEM_LEN		0xD0000
-
 #define IWL_CC_A_FW_PRE			"iwlwifi-cc-a0"
+#define IWL_QU_B_HR_B_FW_PRE		"iwlwifi-Qu-b0-hr-b0"
+#define IWL_QU_C_HR_B_FW_PRE		"iwlwifi-Qu-c0-hr-b0"
+#define IWL_QUZ_A_HR_B_FW_PRE		"iwlwifi-QuZ-a0-hr-b0"
 
 #define IWL_CC_A_MODULE_FIRMWARE(api)			\
 	IWL_CC_A_FW_PRE "-" __stringify(api) ".ucode"
+#define IWL_QU_B_HR_B_MODULE_FIRMWARE(api)	\
+	IWL_QU_B_HR_B_FW_PRE "-" __stringify(api) ".ucode"
+#define IWL_QUZ_A_HR_B_MODULE_FIRMWARE(api)	\
+	IWL_QUZ_A_HR_B_FW_PRE "-" __stringify(api) ".ucode"
+#define IWL_QU_C_HR_B_MODULE_FIRMWARE(api)	\
+	IWL_QU_C_HR_B_FW_PRE "-" __stringify(api) ".ucode"
 
 static const struct iwl_family_base_params iwl_22000_base = {
 	.num_of_queues = 512,
 	.max_tfd_queue_size = 256,
-	.shadow_ram_support = true,
-	.led_compensation = 57,
 	.wd_timeout = IWL_LONG_WD_TIMEOUT,
-	.max_event_log_size = 512,
 	.shadow_reg_enable = true,
 	.pcie_l1_allowed = true,
-	.smem_offset = IWL_22000_SMEM_OFFSET,
-	.smem_len = IWL_22000_SMEM_LEN,
 	.features = IWL_TX_CSUM_NETIF_FLAGS | NETIF_F_RXCSUM,
 	.apmg_not_supported = true,
 	.mac_addr_from_csr = 0x380,
@@ -113,4 +113,7 @@ const char iwl_ax201_killer_1650s_name[] =
 const char iwl_ax201_killer_1650i_name[] =
 	"Killer(R) Wi-Fi 6 AX1650i 160MHz Wireless Network Adapter (201NGW)";
 
+MODULE_FIRMWARE(IWL_QU_B_HR_B_MODULE_FIRMWARE(IWL_22000_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL_QU_C_HR_B_MODULE_FIRMWARE(IWL_22000_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL_QUZ_A_HR_B_MODULE_FIRMWARE(IWL_22000_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL_CC_A_MODULE_FIRMWARE(IWL_22000_UCODE_API_MAX));

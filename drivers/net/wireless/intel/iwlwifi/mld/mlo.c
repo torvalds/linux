@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2024-2025 Intel Corporation
+ * Copyright (C) 2024-2026 Intel Corporation
  */
 #include "mlo.h"
 #include "phy.h"
@@ -1081,14 +1081,45 @@ static void iwl_mld_chan_load_update_iter(void *_data, u8 *mac,
 		container_of((const void *)phy, struct ieee80211_chanctx_conf,
 			     drv_priv);
 	struct iwl_mld *mld = iwl_mld_vif_from_mac80211(vif)->mld;
-	struct ieee80211_bss_conf *prim_link;
+	u32 new_chan_load = phy->avg_channel_load_not_by_us;
+	struct ieee80211_bss_conf *prim_link, *link_conf;
 	unsigned int prim_link_id;
+	int link_id;
+
+	if (!ieee80211_vif_is_mld(vif) || hweight16(vif->valid_links) <= 1)
+		return;
 
 	prim_link_id = iwl_mld_get_primary_link(vif);
 	prim_link = link_conf_dereference_protected(vif, prim_link_id);
 
 	if (WARN_ON(!prim_link))
 		return;
+
+	/* Evaluate MLO Internal Scan for high chan load beyond thresholds */
+	for_each_vif_active_link(vif, link_conf, link_id) {
+		if (rcu_access_pointer(link_conf->chanctx_conf) != chanctx)
+			continue;
+
+		/* No QBSS IE - links will be selected based on default channel
+		 * load values, so the same link will be selected again.
+		 * No point in scan.
+		 */
+		if (iwl_mld_get_chan_load_from_element(mld, link_conf) < 0)
+			continue;
+
+		if (iwl_mld_chan_load_requires_scan(mld,
+						    link_conf,
+						    new_chan_load)) {
+			/* When EMLSR is active, only trigger scan based on
+			 * primary link
+			 */
+			if (iwl_mld_emlsr_active(vif) && link_conf != prim_link)
+				continue;
+
+			iwl_mld_int_mlo_scan(mld, vif);
+			return;
+		}
+	}
 
 	if (chanctx != rcu_access_pointer(prim_link->chanctx_conf))
 		return;
@@ -1107,7 +1138,6 @@ static void iwl_mld_chan_load_update_iter(void *_data, u8 *mac,
 					   prim_link_id);
 	} else {
 		u32 old_chan_load = data->prev_chan_load_not_by_us;
-		u32 new_chan_load = phy->avg_channel_load_not_by_us;
 		u32 min_thresh = iwl_mld_get_min_chan_load_thresh(chanctx);
 
 #define THRESHOLD_CROSSED(threshold) \

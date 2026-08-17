@@ -1298,7 +1298,7 @@ static inline int agilent_82357a_device_match(struct usb_interface *interface,
 	if (gpib_match_device_path(&interface->dev, config->device_path) == 0)
 		return 0;
 	if (config->serial_number &&
-	    strcmp(usbdev->serial, config->serial_number) != 0)
+	    (!usbdev->serial || strcmp(usbdev->serial, config->serial_number) != 0))
 		return 0;
 
 	return 1;

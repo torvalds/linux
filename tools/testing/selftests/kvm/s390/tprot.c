@@ -4,8 +4,8 @@
  *
  * Copyright IBM Corp. 2021
  */
-#include <sys/mman.h>
 #include "test_util.h"
+#include "kvm_syscalls.h"
 #include "kvm_util.h"
 #include "kselftest.h"
 #include "ucall_common.h"

@@ -82,6 +82,9 @@ static struct sdca_dev *sdca_dev_register(struct device *parent,
 
 static void sdca_dev_unregister(struct sdca_dev *sdev)
 {
+	if (!sdev)
+		return;
+
 	auxiliary_device_delete(&sdev->auxdev);
 	auxiliary_device_uninit(&sdev->auxdev);
 }
@@ -90,14 +93,24 @@ int sdca_dev_register_functions(struct sdw_slave *slave)
 {
 	struct sdca_device_data *sdca_data = &slave->sdca_data;
 	int i;
+	int ret;
 
 	for (i = 0; i < sdca_data->num_functions; i++) {
 		struct sdca_dev *func_dev;
 
 		func_dev = sdca_dev_register(&slave->dev,
 					     &sdca_data->function[i]);
-		if (IS_ERR(func_dev))
-			return PTR_ERR(func_dev);
+		if (IS_ERR(func_dev)) {
+			ret = PTR_ERR(func_dev);
+			/*
+			 * Unregister functions that were successfully
+			 * registered before this failure. This also
+			 * sets func_dev to NULL so the caller will not
+			 * try to unregister them again.
+			 */
+			sdca_dev_unregister_functions(slave);
+			return ret;
+		}
 
 		sdca_data->function[i].func_dev = func_dev;
 	}
@@ -111,7 +124,12 @@ void sdca_dev_unregister_functions(struct sdw_slave *slave)
 	struct sdca_device_data *sdca_data = &slave->sdca_data;
 	int i;
 
-	for (i = 0; i < sdca_data->num_functions; i++)
+	for (i = 0; i < sdca_data->num_functions; i++) {
+		if (!sdca_data->function[i].func_dev)
+			continue;
+
 		sdca_dev_unregister(sdca_data->function[i].func_dev);
+		sdca_data->function[i].func_dev = NULL;
+	}
 }
 EXPORT_SYMBOL_NS(sdca_dev_unregister_functions, "SND_SOC_SDCA");

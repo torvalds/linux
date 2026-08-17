@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * Apple iMac (24-inch, 4x USB-C, M3, 2023)
+ *
+ * target-type: J434
+ *
+ * Copyright The Asahi Linux Contributors
+ */
+
+/dts-v1/;
+
+#include "t8122.dtsi"
+#include "t8122-usbpd-i2c.dtsi"
+#include "t8122-jxxx.dtsi"
+
+/ {
+	compatible = "apple,j434", "apple,t8122", "apple,arm-platform";
+	model = "Apple iMac (24-inch, 4x USB-C, M3, 2023)";
+};

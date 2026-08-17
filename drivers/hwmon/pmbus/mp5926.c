@@ -157,8 +157,8 @@ static int mp5926_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id mp5926_id[] = {
-	{ "mp5926", 0 },
-	{}
+	{ .name = "mp5926", .driver_data = 0 },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mp5926_id);
 

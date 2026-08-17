@@ -33,6 +33,7 @@
 
 
 /**
+ * struct tb10x_gpio - TB10x GPIO controller structure
  * @base: register base address
  * @domain: IRQ domain of GPIO generated interrupts managed by this controller
  * @irq: Interrupt line of parent interrupt controller

@@ -237,7 +237,7 @@ int malidp_mw_connector_init(struct drm_device *drm)
 }
 
 void malidp_mw_atomic_commit(struct drm_device *drm,
-			     struct drm_atomic_state *old_state)
+			     struct drm_atomic_commit *old_state)
 {
 	struct malidp_drm *malidp = drm_to_malidp(drm);
 	struct drm_writeback_connector *mw_conn = &malidp->mw_connector;

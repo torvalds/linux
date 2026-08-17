@@ -153,6 +153,7 @@ static const struct of_device_id of_nsa320_hwmon_match[] = {
 	{ .compatible = "zyxel,nsa320-mcu", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, of_nsa320_hwmon_match);
 
 static int nsa320_hwmon_probe(struct platform_device *pdev)
 {
@@ -197,7 +198,6 @@ static struct platform_driver nsa320_hwmon_driver = {
 
 module_platform_driver(nsa320_hwmon_driver);
 
-MODULE_DEVICE_TABLE(of, of_nsa320_hwmon_match);
 MODULE_AUTHOR("Peter Schildmann <linux@schildmann.info>");
 MODULE_AUTHOR("Adam Baker <linux@baker-net.org.uk>");
 MODULE_DESCRIPTION("NSA320 Hardware Monitoring");

@@ -12,7 +12,6 @@
 #include <linux/gfp_types.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/regmap.h>
 
 #include <linux/iio/common/st_sensors_i2c.h>
@@ -33,8 +32,8 @@ static const struct of_device_id st_lsm9ds0_of_match[] = {
 MODULE_DEVICE_TABLE(of, st_lsm9ds0_of_match);
 
 static const struct i2c_device_id st_lsm9ds0_id_table[] = {
-	{ LSM303D_IMU_DEV_NAME },
-	{ LSM9DS0_IMU_DEV_NAME },
+	{ .name = LSM303D_IMU_DEV_NAME },
+	{ .name = LSM9DS0_IMU_DEV_NAME },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, st_lsm9ds0_id_table);

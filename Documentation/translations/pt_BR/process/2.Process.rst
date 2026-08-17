@@ -1,0 +1,520 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+Como funciona o processo de desenvolvimento
+===========================================
+
+O desenvolvimento do kernel Linux no início dos anos 1990 era uma
+atividade bastante informal, envolvendo um número relativamente pequeno de
+usuários e desenvolvedores. Com uma base de usuários atualmente na casa
+dos milhões e com cerca de 2.000 desenvolvedores envolvidos ao longo de
+um ano, o kernel desde então teve que evoluir uma série de processos
+para manter o desenvolvimento acontecendo de forma fluida. Uma
+compreensão sólida de como o processo funciona é necessária para ser uma
+parte eficaz dele.
+
+A Visão Geral
+-------------
+
+O kernel Linux usa um modelo de desenvolvimento de lançamento contínuo
+(*rolling release*), vagamente baseado em tempo. Um novo lançamento de
+versão principal do kernel (que chamaremos, como exemplo, de 9.x) [1]_
+ocorre a cada dois ou três meses, trazendo novos recursos, alterações em
+APIs internas e muito mais. Um lançamento típico pode conter cerca de
+13.000 conjuntos de alterações (*changesets*) com modificações em várias
+centenas de milhares de linhas de código. Lançamentos recentes,
+juntamente com suas datas, podem ser encontrados na `Wikipedia
+<https://en.wikipedia.org/wiki/Linux_kernel_version_history>`_.
+
+.. [1] Rigorosamente falando, o kernel Linux não utiliza o esquema de
+       numeração de versionamento semântico, mas, em vez disso, o par
+       9.x identifica a versão de lançamento principal como um número
+       inteiro. Para cada lançamento, x é incrementado, mas o 9 é
+       incrementado apenas se x for considerado grande o suficiente
+       (por exemplo, o Linux 5.0 foi lançado após o Linux 4.20).
+
+O processo de integração (*merging*) de patches segue um fluxo simples a
+cada lançamento. No início de cada ciclo de desenvolvimento, abre-se a
+**"janela de integração" (*merge window*)**. Durante esse período, todo
+código considerado estável e aprovado pela comunidade é unificado ao
+kernel principal (*mainline*). A maior parte das novidades  e todas as
+grandes mudanças estruturais — entra obrigatoriamente nessa fase, em um
+ritmo frenético que chega a **1.000 patches (ou conjuntos de alterações)
+por dia**.
+
+(Como observação secundária, vale destacar que as mudanças integradas durante
+a janela de integração não surgem do nada; elas foram coletadas, testadas e
+organizadas com antecedência. Como esse processo funciona será descrito em
+detalhes mais adiante).
+
+A janela de integração dura aproximadamente duas semanas. Ao final desse
+período, Linus Torvalds declarará que a janela está fechada e lançará o
+primeiro dos kernels "rc". Para o kernel que está destinado a ser o 9.x,
+por exemplo, o lançamento que ocorre ao final da janela de integração será
+chamado de 9.x-rc1. O lançamento -rc1 é o sinal de que o prazo para integrar
+novos recursos terminou e que o período para estabilizar o próximo kernel
+começou.
+
+Ao longo das próximas seis a dez semanas, apenas patches que corrijam
+problemas devem ser submetidos ao kernel principal. Ocasionalmente, uma
+mudança mais significativa será permitida, mas esses casos são raros;
+desenvolvedores que tentam integrar novos recursos fora da janela de
+integração costumam receber uma recepção pouco amigável. Como regra geral,
+se você perder a janela de integração para um determinado recurso, o melhor
+a fazer é esperar pelo próximo ciclo de desenvolvimento. (Abre-se uma
+exceção ocasional para drivers de hardware que antes não eram suportados;
+se eles não modificarem nenhum código já existente na árvore, não podem
+causar regressões e deve ser seguro adicioná-los a qualquer momento).
+
+À medida que as correções são integradas ao kernel principal, o ritmo de
+envio de patches diminui com o tempo. Linus lança novos kernels -rc cerca
+de uma vez por semana; uma série normal chega a algo entre -rc6 e -rc9 antes
+que o kernel seja considerado suficientemente estável e o lançamento final
+seja realizado. Nesse ponto, todo o processo recomeça.
+
+Como exemplo, veja como ocorreu o ciclo de desenvolvimento da versão 5.4
+(todas as datas são de 2019):
+
+	==============  ===============================
+	Setembro 15	5.3 Lançamento estável do 5.3
+	Setembro 30	5.4-rc1, fechamento da janela de integração
+	Outubro 6	5.4-rc2
+	Outubro 13	5.4-rc3
+	Outubro 20	5.4-rc4
+	October 27	5.4-rc5
+	Novembro 3	5.4-rc6
+	Novembro 10	5.4-rc7
+	Novembro 17	5.4-rc8
+	Novembro 24	5.4 Lançamento estável do 5.4
+	==============  ===============================
+
+Como os desenvolvedores decidem quando encerrar o ciclo de desenvolvimento
+e criar o lançamento estável? A métrica mais significativa utilizada é a
+lista de regressões de lançamentos anteriores. Nenhum bug é bem-vindo, mas
+aqueles que quebram sistemas que funcionavam no passado são considerados
+especialmente graves. Por esta razão, patches que causam regressões são
+vistos de forma desfavorável e têm grande probabilidade de serem revertidos
+durante o período de estabilização.
+
+O objetivo dos desenvolvedores é corrigir todas as regressões conhecidas
+antes que o lançamento estável seja feito. No mundo real, esse tipo de
+perfeição é difícil de alcançar; há simplesmente variáveis demais em um
+projeto deste tamanho. Chega um ponto em que adiar o lançamento final apenas
+torna o problema pior; o volume de mudanças esperando pela próxima janela de
+integração crescerá ainda mais, criando ainda mais regressões no ciclo
+seguinte. Portanto, a maioria dos kernels é lançada com um pequeno número de
+regressões conhecidas, embora, felizmente, nenhuma delas seja grave.
+
+Assim que um lançamento estável é feito, sua manutenção contínua é passada
+para a "equipe estável" (*stable team*), atualmente composta por Greg
+Kroah-Hartman e Sasha Levin. A equipe estável lançará atualizações ocasionais
+para a versão estável utilizando o esquema de numeração 9.x.y.
+
+Para ser considerado para um lançamento de atualização, um patch deve (1)
+corrigir um bug significativo e (2) já estar integrado ao kernel principal
+(*mainline*) para o próximo kernel de desenvolvimento. Os kernels normalmente
+receberão atualizações estáveis por um pouco mais de um ciclo de
+desenvolvimento após o seu lançamento inicial. Assim, por exemplo, o histórico
+do kernel 5.2 ocorreu da seguinte forma (todas as datas são de 2019):
+
+  ==============  ===============================
+  7 de Julho      Lançamento estável do 5.2
+  14 de Julho     5.2.1
+  21 de Julho     5.2.2
+  26 de Julho     5.2.3
+  28 de Julho     5.2.4
+  31 de Julho     5.2.5
+  ...             ...
+  11 de Outubro   5.2.21
+  ==============  ===============================
+
+A versão 5.2.21 foi a última atualização estável do lançamento 5.2.
+
+Alguns kernels são designados como kernels de "longo prazo" (*long term*);
+eles receberão suporte por um período mais longo. Por favor, consulte o
+seguinte link para obter a lista de versões ativas do kernel de longo prazo
+e seus respectivos mantenedores:
+
+	https://www.kernel.org/category/releases.html
+
+A seleção de um kernel para suporte de longo prazo é puramente uma questão
+de um mantenedor ter a necessidade e o tempo para manter esse lançamento.
+Não há planos conhecidos para suporte de longo prazo para nenhum lançamento
+futuro específico.
+
+
+O Ciclo de Vida de um Patch
+---------------------------
+
+Os patches não vão diretamente do teclado do desenvolvedor para o kernel
+principal. Em vez disso, existe um processo um tanto complexo (embora um
+tanto informal) projetado para garantir que cada patch seja revisado quanto
+à sua qualidade e que cada patch implemente uma mudança que seja desejável
+ter no mainline. Esse processo pode acontecer rapidamente para correções
+menores ou, no caso de mudanças grandes e controversas, arrastar-se por
+anos. Grande parte da frustração dos desenvolvedores vem da falta de
+compreensão desse processo ou de tentativas de burlá-lo.
+
+Com a esperança de reduzir essa frustração, este documento descreverá como
+um patch entra no kernel. O que se segue abaixo é uma introdução que
+descreve o processo de uma forma um tanto idealizada. Um tratamento muito
+mais detalhado virá nas seções posteriores.
+
+As etapas pelas quais um patch passa são, geralmente:
+
+ - Design. É aqui que os requisitos reais para o patch e a forma
+   como esses requisitos serão atendidos são definidos. O trabalho de
+   design geralmente é feito sem envolver a comunidade, mas é melhor realizar
+   esse trabalho abertamente, se possível; isso pode economizar muito tempo
+   evitando ter que refazer o projeto mais tarde.
+
+ - Revisão inicial. Os patches são postados na lista de
+   discussão relevante, e os desenvolvedores dessa lista respondem com os
+   comentários que tiverem. Se tudo correr bem, esse processo deve apontar
+   qualquer problema grave no patch.
+
+ - Revisão ampla. Quando o patch estiver próximo de estar
+   pronto para inclusão no mainline, ele deve ser aceito por um mantenedor de
+   subsistema relevante — embora essa aceitação não seja uma garantia de que
+   o patch chegará até o kernel principal. O patch aparecerá na árvore de
+   subsistema do mantenedor e nas árvores -next. Quando o processo funciona,
+   esta etapa leva a uma revisão mais ampla do patch e à descoberta de
+   quaisquer problemas resultantes da integração deste patch com o trabalho
+   que está sendo feito por outros.
+
+ - Por favor, note que a maioria dos mantenedores também tem seus empregos
+   regulares, portanto, integrar o seu patch pode não ser a maior prioridade
+   deles. Se o seu patch estiver recebendo feedback sobre alterações que são
+   necessárias, você deve fazer essas alterações ou justificar por que elas
+   não devem ser feitas. Se o seu patch não tiver nenhuma objeção de revisão,
+   mas não estiver sendo integrado pelo mantenedor do subsistema ou driver
+   adequado, você deve ser persistente em atualizar o patch para o kernel
+   atual (garantindo que ele seja aplicado de forma limpa) e continuar
+   enviando-o para revisão e integração.
+
+ - Integração no mainline. Eventualmente, um
+   patch bem-sucedido será integrado ao repositório principal (*mainline*)
+   gerenciado por Linus Torvalds. Mais comentários e/ou problemas podem surgir
+   neste momento; é importante que o desenvolvedor seja responsivo a eles e
+   corrija quaisquer problemas que venham a aparecer.
+
+ - Lançamento estável. O número de usuários potencialmente
+   afetados pelo patch agora é grande, portanto, mais uma vez, novos
+   problemas podem surgir.
+
+ - Manutenção de longo prazo. Embora seja perfeitamente
+   possível para um desenvolvedor esquecer o código após integrá-lo, esse
+   tipo de comportamento tende a deixar uma má impressão na comunidade de
+   desenvolvimento. Integrar o código elimina parte do fardo de manutenção,
+   já que outros corrigirão problemas causados por mudanças de API. No entanto,
+   o desenvolvedor original deve continuar assumindo a responsabilidade pelo
+   código se ele quiser que este permaneça útil no longo prazo.
+
+Um dos maiores erros cometidos por desenvolvedores do kernel (ou por seus
+empregadores) é tentar reduzir todo o processo a uma única etapa de
+"integração no mainline". Essa abordagem invariavelmente leva à frustração
+de todos os envolvidos.
+
+Como os patches entram no Kernel
+--------------------------------
+
+Existe exatamente uma pessoa que pode integrar patches no repositório do
+kernel principal: Linus Torvalds. Mas, por exemplo, dos mais de 9.500 patches
+que entraram no kernel 2.6.38, apenas 112 (cerca de 1,3%) foram escolhidos
+diretamente pelo próprio Linus. O projeto do kernel há muito tempo cresceu
+para um tamanho onde nenhum desenvolvedor sozinho conseguiria inspecionar e
+selecionar cada patch sem ajuda. A maneira como os desenvolvedores do kernel
+lidaram com esse crescimento foi através do uso de um sistema de "tenentes"
+(*lieutenant system*) construído em torno de uma cadeia de confiança.
+
+A base de código do kernel é logicamente dividida em um conjunto de
+subsistemas: rede, suporte a arquiteturas específicas,
+gerenciamento de memória, dispositivos de vídeo, etc. A maioria dos
+subsistemas possui um mantenedor designado, um desenvolvedor que tem a
+responsabilidade geral pelo código dentro daquele subsistema. Esses
+mantenedores de subsistemas são os guardiões (de forma flexível)
+da parte do kernel que gerenciam; são eles que (geralmente) aceitarão um
+patch para inclusão no kernel principal.
+
+Cada um dos mantenedores de subsistemas gerencia sua própria versão da árvore
+de fontes do kernel, geralmente (mas certamente nem sempre) usando a
+ferramenta de gerenciamento de código-fonte Git. Ferramentas como o Git
+(e ferramentas relacionadas como o quilt ou mercurial) permitem que os
+mantenedores acompanhem uma lista de patches, incluindo informações de
+autoria e outros metadados. A qualquer momento, o mantenedor pode identificar
+quais patches em seu repositório não são encontrados no mainline.
+
+Quando a janela de integração se abre, os mantenedores de
+alto nível pedirão a Linus para realizar o pull de seus repositórios os patches
+que selecionaram para integração. Se Linus concordar, o fluxo de patches
+subirá para o seu repositório, tornando-se parte do kernel principal. A
+quantidade de atenção que Linus dedica a patches específicos
+recebidos em uma operação de pull varia. Está claro que, às vezes, ele os
+examina bem de perto. Mas, como regra geral, Linus confia que os mantenedores
+de subsistemas não enviarão patches ruins para o upstream.
+
+Os mantenedores de subsistemas, por sua vez, podem realizar o pull dos patches
+de outros mantenedores. Por exemplo, a árvore de rede é
+construída a partir de patches que se acumularam primeiro em árvores dedicadas
+a drivers de dispositivos de rede, rede sem fio, etc. Essa cadeia
+de repositórios pode ser arbitrariamente longa, embora raramente exceda dois
+ou três elos. Como cada mantenedor na cadeia confia naqueles que gerenciam as
+árvores de nível inferior, esse processo é conhecido como a "cadeia de
+confiança".
+
+Claramente, em um sistema como este, colocar patches no kernel depende de
+encontrar o mantenedor correto. Enviar patches diretamente para Linus
+normalmente não é o caminho certo a seguir.
+
+
+Árvore -next
+-------------
+
+A cadeia de árvores de subsistemas orienta o fluxo de patches para o kernel,
+mas também levanta uma questão interessante: e se alguém quiser dar uma
+olhada em todos os patches que estão sendo preparados para a próxima janela
+de integração? Os desenvolvedores estarão interessados em saber quais outras
+mudanças estão pendentes para ver se há conflitos com os quais se preocupar; um
+patch que altera o protótipo de uma função central do kernel, por exemplo,
+entrará em conflito com quaisquer outros patches que usem a forma mais antiga
+dessa função. Revisores e testadores querem ter acesso às mudanças em sua forma
+integrada antes que todas essas alterações cheguem ao kernel principal. Seria
+possível realizar o pull das mudanças de todas as árvores de subsistemas
+interessantes, mas isso seria um trabalho enorme e propenso a erros.
+
+A resposta vem na forma das árvores -next, onde as árvores de subsistemas
+são coletadas para testes e revisão. A mais antiga dessas árvores, mantida
+por Andrew Morton, é chamada de "-mm" (de *memory management*, gerenciamento
+de memória, que foi como ela começou). A árvore -mm integra patches de uma
+longa lista de árvores de subsistemas; ela também possui alguns patches
+destinados a ajudar na depuração (*debugging*).
+
+Além disso, a árvore -mm contém uma coleção significativa de patches que
+foram selecionados diretamente por Andrew. Esses patches podem ter sido
+postados em uma lista de discussão ou podem se aplicar a uma parte do kernel
+para a qual não existe uma árvore de subsistema designada. Como resultado, a
+-mm opera como uma espécie de árvore de subsistema de "último recurso"; se
+não houver outro caminho óbvio para um patch entrar no mainline, é provável
+que ele acabe na -mm. Patches diversos que se acumulam na
+-mm eventualmente serão encaminhados para uma árvore de subsistema adequada
+ou enviados diretamente para Linus. Em um ciclo de desenvolvimento típico,
+aproximadamente 5% a 10% do total de patches que entram no mainline chegam
+lá por meio da -mm.
+
+O patch -mm atual está disponível no diretório "mmotm" (*-mm of the moment*)
+em:
+
+	https://www.ozlabs.org/~akpm/mmotm/
+
+O uso da árvore MMOTM, no entanto, provavelmente será uma experiência
+frustrante; existe uma chance real de que ela sequer compile.
+
+A árvore primária para a integração de patches do próximo ciclo é a
+linux-next, mantida por Mark Brown. A árvore linux-next é, por design, um
+snapshot do que se espera que o mainline se pareça após o
+fechamento da próxima janela de integração. As árvores
+linux-next são anunciadas nas listas de discussão linux-kernel e linux-next
+quando são montadas; elas podem ser baixadas em:
+
+	https://www.kernel.org/pub/linux/kernel/next/
+
+A linux-next tornou-se uma parte integrante do processo de desenvolvimento
+do kernel; todos os patches integrados durante uma determinada janela de
+integração devem, idealmente, ter encontrado seu caminho para a linux-next algum
+tempo antes da abertura da janela de integração.
+
+
+Árvores de laboratório
+----------------------
+
+A árvore de fontes do kernel contém o diretório drivers/staging/, onde residem
+muitos subdiretórios para drivers ou sistemas de arquivos que estão a caminho
+de serem adicionados à árvore do kernel. Eles permanecem em drivers/staging/
+enquanto ainda precisam de mais trabalho; uma vez concluídos, podem ser movidos
+para o kernel proper Esta é uma maneira de acompanhar drivers que não estão à
+altura dos padrões de codificação ou de qualidade do kernel Linux, mas que as
+pessoas podem querer usar e acompanhar o desenvolvimento.
+
+Greg Kroah-Hartman atualmente mantém a árvore de staging. Os drivers que
+ainda precisam de trabalho são enviados a ele, com cada driver tendo seu
+próprio subdiretório em drivers/staging/. Junto com os arquivos de código-fonte
+do driver, um arquivo TODO também deve estar presente no diretório. O arquivo
+TODO lista o trabalho pendente que o driver precisa para ser aceito no kernel
+propriamente dito, bem como uma lista de pessoas que devem receber cópia
+(*Cc'd*) em quaisquer patches para o driver. As regras atuais exigem que os
+drivers contribuídos para o staging devem, no mínimo, compilar corretamente.
+
+O staging pode ser uma maneira relativamente fácil de colocar novos drivers
+no mainline onde, com sorte, eles chamarão a atenção de outros desenvolvedores
+e melhorarão rapidamente. No entanto, a entrada no staging não é o fim da
+história; o código no staging que não apresentar progresso regular será,
+eventualmente, removido. Os distribuidores também tendem a ser relativamente
+relutantes em habilitar drivers do staging. Portanto, o staging é, na melhor
+das hipóteses, uma parada no caminho para se tornar um driver mainline adequado.
+
+
+Ferramentas
+-----------
+
+Como pode ser visto no texto acima, o processo de desenvolvimento do kernel
+depende fortemente da capacidade de guiar coleções de patches em várias
+direções. Todo esse sistema não funcionaria nem de longe tão bem quanto
+funciona sem ferramentas adequadamente poderosas. Tutoriais sobre como usar
+essas ferramentas estão muito além do escopo deste documento, mas há espaço
+para algumas indicações.
+
+De longe, o sistema de gerenciamento de código-fonte dominante usado pela
+comunidade do kernel é o Git. O Git é um entre vários sistemas de controle
+de versão distribuídos desenvolvidos na comunidade de software livre. Ele é
+bem sintonizado para o desenvolvimento do kernel, uma vez que apresenta um
+excelente desempenho ao lidar com grandes repositórios e grandes volumes de
+patches. Ele também tem a reputação de ser difícil de aprender e usar, embora
+tenha melhorado ao longo do tempo. Algum tipo de familiaridade com o Git é
+quase um requisito para os desenvolvedores do kernel; mesmo que não o usem
+em seu próprio trabalho, eles precisarão do Git para acompanhar o que outros
+desenvolvedores (e o mainline) estão fazendo.
+
+O Git agora é empacotado por quase todas as distribuições Linux. Existe uma
+página inicial em:
+
+	https://git-scm.com/
+
+Essa página possui indicações para documentações e tutoriais.
+
+Entre os desenvolvedores do kernel que não usam o Git, a escolha mais popular
+é, quase certamente, o Mercurial:
+
+	https://www.selenic.com/mercurial/
+
+O Mercurial compartilha muitos recursos com o Git, mas oferece uma interface
+que muitos consideram mais fácil de usar.
+
+A outra ferramenta que vale a pena conhecer é o Quilt:
+
+	https://savannah.nongnu.org/projects/quilt/
+
+O Quilt é um sistema de gerenciamento de patches, em vez de um sistema de
+gerenciamento de código-fonte. Ele não rastreia o histórico ao longo do
+tempo; em vez disso, ele é orientado a rastrear um conjunto específico de
+alterações em relação a uma base de código em evolução. Alguns mantenedores
+de grandes subsistemas usam o Quilt para gerenciar patches destinados a ir
+para o upstream. Para o gerenciamento de certos tipos de árvores (-mm, por
+exemplo), o Quilt é a melhor ferramenta para o trabalho.
+
+
+Listas de discussão
+-------------------
+
+Uma grande parte do trabalho de desenvolvimento do kernel Linux é realizada por
+meio de listas de discussão. É difícil ser um membro plenamente ativo da
+comunidade sem se inscrever em pelo menos uma lista em algum lugar. No entanto,
+as listas de discussão do Linux também representam um risco potencial para os
+desenvolvedores, que correm o risco de serem soterrados por uma avalanche de
+e-mails, de violar as convenções utilizadas nas listas do Linux, ou ambos.
+
+A maioria das listas de discussão do kernel é hospedada no kernel.org; a
+lista mestre pode ser encontrada em:
+
+	https://subspace.kernel.org
+
+Existem listas hospedadas em outros locais; por favor, verifique o arquivo
+MAINTAINERS para encontrar a lista relevante para qualquer subsistema específico.
+
+A lista de discussão central para o desenvolvimento do kernel é, naturalmente,
+a linux-kernel. Esta lista é um lugar intimidador para se estar; o volume pode
+atingir 500 mensagens por dia, a quantidade de ruído é alta, a conversa pode
+ser severamente técnica e os participantes nem sempre estão preocupados em
+demonstrar um alto grau de polidez. No entanto, não há outro lugar onde a
+comunidade de desenvolvimento do kernel se reúna como um todo; desenvolvedores
+que evitam esta lista perderão informações importantes.
+
+Existem algumas dicas que podem ajudar na sobrevivência na lista linux-kernel:
+
+- Faça com que a lista seja entregue em uma pasta separada, em vez de na sua
+  caixa de entrada principal. É preciso ser capaz de ignorar o fluxo de e-mails
+  por períodos prolongados de tempo.
+
+- Não tente acompanhar cada conversa ninguém mais faz isso. É importante
+  filtrar tanto pelo tópico de interesse (embora note que conversas longas
+  podem se desviar do assunto original sem que a linha de assunto do e-mail
+  seja alterada) quanto pelas pessoas que estão participando.
+
+- Não alimente os trolls. Se alguém estiver tentando provocar uma resposta
+  irada, ignore-o.
+
+- Ao responder a um e-mail da lista linux-kernel (o mesmo valendo para outras
+  listas), preserve o cabeçalho Cc: para todos os envolvidos. Na ausência de um
+  motivo forte (como uma solicitação explícita), você nunca deve remover
+  destinatários. Sempre certifique-se de que a pessoa a quem você está
+  respondendo esteja na lista de Cc:. Essa convenção também torna desnecessário
+  solicitar explicitamente ser copiado em respostas às suas postagens.
+
+- Pesquise nos arquivos da lista (e na internet como um todo) antes de fazer
+  perguntas. Alguns desenvolvedores podem ficar impacientes com pessoas que
+  claramente não fizeram sua lição de casa.
+
+- Use respostas intercaladas, o que torna sua resposta mais fácil
+  de ler. (ou seja, evite o "top-posting" — a prática de colocar sua resposta
+  acima do texto citado ao qual você está respondendo). Para mais detalhes, veja
+  :ref:`Documentation/process/submitting-patches.rst <interleaved_replies>`.
+
+- Pergunte na lista de discussão correta. A lista linux-kernel pode até ser o
+  ponto de encontro geral, mas não é o melhor lugar para encontrar desenvolvedores
+  de todos os subsistemas.
+
+O último ponto, encontrar a lista de discussão correta  é um lugar comum
+onde os desenvolvedores iniciantes costumam errar. Alguém que faça uma pergunta
+relacionada a redes na lista linux-kernel quase certamente receberá uma
+sugestão educada para perguntar na lista netdev em seu lugar, já que essa é a
+lista frequentada pela maioria dos desenvolvedores de redes. Existem outras
+listas para os subsistemas SCSI, video4linux, IDE, filesystem (sistemas de
+arquivos), etc. O melhor lugar para procurar por listas de discussão é no
+arquivo MAINTAINERS empacotado junto com o código-fonte do kernel.
+
+
+Começando com o desenvolvimento do kernel
+-----------------------------------------
+
+Perguntas sobre como começar com o processo de desenvolvimento do kernel são
+comuns — tanto por parte de indivíduos quanto de empresas. Igualmente comuns
+são os passos em falso que tornam o início do relacionamento mais difícil do
+que precisa ser.
+
+As empresas frequentemente buscam contratar desenvolvedores bem conhecidos para
+dar o pontapé inicial em um grupo de desenvolvimento. Esta pode, de fato, ser
+uma técnica eficaz. No entanto, ela também tende a ser cara e não faz muito para
+expandir o grupo de desenvolvedores de kernel experientes. É possível capacitar
+desenvolvedores internos no desenvolvimento do kernel Linux, desde que haja o
+investimento de um pouco de tempo. Dedicar esse tempo pode dotar um empregador
+de um grupo de desenvolvedores que entendem tanto o kernel quanto a própria
+empresa, e que também podem ajudar a treinar outros. A médio prazo, esta é
+frequentemente a abordagem mais lucrativa.
+
+Desenvolvedores individuais frequentemente, e de forma compreensível, ficam sem
+saber por onde começar. Iniciar com um grande projeto pode ser intimidante;
+muitas vezes deseja-se testar o terreno com algo menor primeiro. Este é o ponto
+onde alguns desenvolvedores saltam para a criação de patches que corrigem erros
+de ortografia ou pequenos problemas de estilo de código. Infelizmente, tais
+patches criam um nível de ruído que distrai a comunidade de desenvolvimento
+como um todo, por isso, cada vez mais, eles são vistos com desdém. Novos
+desenvolvedores que desejam se apresentar à comunidade não receberão o tipo de
+recepção que desejam por esses meios.
+
+Andrew Morton dá este conselho para aspirantes a desenvolvedores do kernel:
+
+::
+
+  "O projeto número um para todos os iniciantes no kernel certamente deveria
+  ser 'certificar-se de que o kernel funcione perfeitamente o tempo todo em
+  todas as máquinas em que você conseguir colocar as mãos'. Normalmente, a
+  maneira de fazer isso é trabalhar com outros para resolver as coisas (isso
+  pode exigir persistência!), mas tudo bem — isso é parte do desenvolvimento
+  do kernel."
+
+(https://lwn.net/Articles/283982/).
+
+Na ausência de problemas óbvios para corrigir, os desenvolvedores são
+aconselhados a olhar para as listas atuais de regressões e bugs abertos em
+geral. Nunca há escassez de problemas que precisam de correção; ao abordar
+esses problemas, os desenvolvedores ganharão experiência com o processo
+enquanto, ao mesmo tempo, constroem respeito com o restante da comunidade de
+desenvolvimento.

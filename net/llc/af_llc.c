@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * af_llc.c - LLC User Interface SAPs
  * Description:
@@ -12,13 +13,6 @@
  *
  * Copyright (c) 2001 by Jay Schulist <jschlst@samba.org>
  *		 2002-2003 by Arnaldo Carvalho de Melo <acme@conectiva.com.br>
- *
- * This program can be redistributed or modified under the terms of the
- * GNU General Public License as published by the Free Software Foundation.
- * This program is distributed without any warranty or implied warranty
- * of merchantability or fitness for a particular purpose.
- *
- * See the GNU General Public License for more details.
  */
 #include <linux/compiler.h>
 #include <linux/kernel.h>
@@ -27,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/sched/signal.h>
+#include <linux/uio.h>
 
 #include <net/llc.h>
 #include <net/llc_sap.h>
@@ -1166,25 +1161,21 @@ out:
  *	@sock: Socket to get information from.
  *	@level: Socket level user is requesting operations on.
  *	@optname: Operation name.
- *	@optval: Variable to return operation data in.
- *	@optlen: Length of optval.
+ *	@opt: sockopt context with iterator and length for returning data.
  *
  *	Get connection specific socket information.
  */
 static int llc_ui_getsockopt(struct socket *sock, int level, int optname,
-			     char __user *optval, int __user *optlen)
+			     sockopt_t *opt)
 {
 	struct sock *sk = sock->sk;
 	struct llc_sock *llc = llc_sk(sk);
-	int val = 0, len = 0, rc = -EINVAL;
+	int val = 0, len, rc = -EINVAL;
 
 	lock_sock(sk);
 	if (unlikely(level != SOL_LLC))
 		goto out;
-	rc = get_user(len, optlen);
-	if (rc)
-		goto out;
-	rc = -EINVAL;
+	len = opt->optlen;
 	if (len != sizeof(int))
 		goto out;
 	switch (optname) {
@@ -1212,7 +1203,8 @@ static int llc_ui_getsockopt(struct socket *sock, int level, int optname,
 		goto out;
 	}
 	rc = 0;
-	if (put_user(len, optlen) || copy_to_user(optval, &val, len))
+	opt->optlen = len;
+	if (copy_to_iter(&val, len, &opt->iter_out) != len)
 		rc = -EFAULT;
 out:
 	release_sock(sk);
@@ -1239,7 +1231,7 @@ static const struct proto_ops llc_ui_ops = {
 	.listen      = llc_ui_listen,
 	.shutdown    = llc_ui_shutdown,
 	.setsockopt  = llc_ui_setsockopt,
-	.getsockopt  = llc_ui_getsockopt,
+	.getsockopt_iter = llc_ui_getsockopt,
 	.sendmsg     = llc_ui_sendmsg,
 	.recvmsg     = llc_ui_recvmsg,
 	.mmap	     = sock_no_mmap,

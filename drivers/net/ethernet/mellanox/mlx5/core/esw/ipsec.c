@@ -12,7 +12,7 @@ static int esw_ipsec_vf_query_generic(struct mlx5_core_dev *dev, u16 vport_num, 
 	void *hca_cap, *query_cap;
 	int err;
 
-	if (!MLX5_CAP_GEN(dev, vhca_resource_manager))
+	if (!MLX5_CAP_GEN(dev, vport_group_manager))
 		return -EOPNOTSUPP;
 
 	if (!mlx5_esw_ipsec_vf_offload_supported(dev)) {
@@ -81,38 +81,25 @@ free:
 static int esw_ipsec_vf_set_generic(struct mlx5_core_dev *dev, u16 vport_num, bool ipsec_ofld)
 {
 	int query_sz = MLX5_ST_SZ_BYTES(query_hca_cap_out);
-	int set_sz = MLX5_ST_SZ_BYTES(set_hca_cap_in);
-	void *hca_cap, *query_cap, *cap;
+	void *query_cap, *hca_caps;
 	int ret;
 
 	if (!MLX5_CAP_GEN(dev, vhca_resource_manager))
 		return -EOPNOTSUPP;
 
 	query_cap = kvzalloc(query_sz, GFP_KERNEL);
-	hca_cap = kvzalloc(set_sz, GFP_KERNEL);
-	if (!hca_cap || !query_cap) {
-		ret = -ENOMEM;
-		goto free;
-	}
+	if (!query_cap)
+		return -ENOMEM;
 
 	ret = mlx5_vport_get_other_func_general_cap(dev, vport_num, query_cap);
 	if (ret)
 		goto free;
 
-	cap = MLX5_ADDR_OF(set_hca_cap_in, hca_cap, capability);
-	memcpy(cap, MLX5_ADDR_OF(query_hca_cap_out, query_cap, capability),
-	       MLX5_UN_SZ_BYTES(hca_cap_union));
-	MLX5_SET(cmd_hca_cap, cap, ipsec_offload, ipsec_ofld);
+	hca_caps = MLX5_ADDR_OF(query_hca_cap_out, query_cap, capability);
+	MLX5_SET(cmd_hca_cap, hca_caps, ipsec_offload, ipsec_ofld);
 
-	MLX5_SET(set_hca_cap_in, hca_cap, opcode, MLX5_CMD_OP_SET_HCA_CAP);
-	MLX5_SET(set_hca_cap_in, hca_cap, other_function, 1);
-	MLX5_SET(set_hca_cap_in, hca_cap, function_id, vport_num);
-
-	MLX5_SET(set_hca_cap_in, hca_cap, op_mod,
-		 MLX5_SET_HCA_CAP_OP_MOD_GENERAL_DEVICE << 1);
-	ret = mlx5_cmd_exec_in(dev, set_hca_cap, hca_cap);
+	ret = mlx5_vport_set_other_func_general_cap(dev, hca_caps, vport_num);
 free:
-	kvfree(hca_cap);
 	kvfree(query_cap);
 	return ret;
 }
@@ -121,49 +108,37 @@ static int esw_ipsec_vf_set_bytype(struct mlx5_core_dev *dev, struct mlx5_vport 
 				   bool enable, enum esw_vport_ipsec_offload type)
 {
 	int query_sz = MLX5_ST_SZ_BYTES(query_hca_cap_out);
-	int set_sz = MLX5_ST_SZ_BYTES(set_hca_cap_in);
-	void *hca_cap, *query_cap, *cap;
+	void *query_cap, *hca_caps;
 	int ret;
 
 	if (!MLX5_CAP_GEN(dev, vhca_resource_manager))
 		return -EOPNOTSUPP;
 
 	query_cap = kvzalloc(query_sz, GFP_KERNEL);
-	hca_cap = kvzalloc(set_sz, GFP_KERNEL);
-	if (!hca_cap || !query_cap) {
-		ret = -ENOMEM;
-		goto free;
-	}
+	if (!query_cap)
+		return -ENOMEM;
 
 	ret = mlx5_vport_get_other_func_cap(dev, vport->vport, query_cap, MLX5_CAP_IPSEC);
 	if (ret)
 		goto free;
 
-	cap = MLX5_ADDR_OF(set_hca_cap_in, hca_cap, capability);
-	memcpy(cap, MLX5_ADDR_OF(query_hca_cap_out, query_cap, capability),
-	       MLX5_UN_SZ_BYTES(hca_cap_union));
+	hca_caps = MLX5_ADDR_OF(query_hca_cap_out, query_cap, capability);
 
 	switch (type) {
 	case MLX5_ESW_VPORT_IPSEC_CRYPTO_OFFLOAD:
-		MLX5_SET(ipsec_cap, cap, ipsec_crypto_offload, enable);
+		MLX5_SET(ipsec_cap, hca_caps, ipsec_crypto_offload, enable);
 		break;
 	case MLX5_ESW_VPORT_IPSEC_PACKET_OFFLOAD:
-		MLX5_SET(ipsec_cap, cap, ipsec_full_offload, enable);
+		MLX5_SET(ipsec_cap, hca_caps, ipsec_full_offload, enable);
 		break;
 	default:
 		ret = -EOPNOTSUPP;
 		goto free;
 	}
 
-	MLX5_SET(set_hca_cap_in, hca_cap, opcode, MLX5_CMD_OP_SET_HCA_CAP);
-	MLX5_SET(set_hca_cap_in, hca_cap, other_function, 1);
-	MLX5_SET(set_hca_cap_in, hca_cap, function_id, vport->vport);
-
-	MLX5_SET(set_hca_cap_in, hca_cap, op_mod,
-		 MLX5_SET_HCA_CAP_OP_MOD_IPSEC << 1);
-	ret = mlx5_cmd_exec_in(dev, set_hca_cap, hca_cap);
+	ret = mlx5_vport_set_other_func_cap(dev, hca_caps, vport->vport,
+					    MLX5_SET_HCA_CAP_OP_MOD_IPSEC);
 free:
-	kvfree(hca_cap);
 	kvfree(query_cap);
 	return ret;
 }
@@ -171,34 +146,24 @@ free:
 static int esw_ipsec_vf_crypto_aux_caps_set(struct mlx5_core_dev *dev, u16 vport_num, bool enable)
 {
 	int query_sz = MLX5_ST_SZ_BYTES(query_hca_cap_out);
-	int set_sz = MLX5_ST_SZ_BYTES(set_hca_cap_in);
-	struct mlx5_eswitch *esw = dev->priv.eswitch;
-	void *hca_cap, *query_cap, *cap;
+	void *query_cap, *hca_caps;
 	int ret;
 
 	query_cap = kvzalloc(query_sz, GFP_KERNEL);
-	hca_cap = kvzalloc(set_sz, GFP_KERNEL);
-	if (!hca_cap || !query_cap) {
-		ret = -ENOMEM;
-		goto free;
-	}
+	if (!query_cap)
+		return -ENOMEM;
 
 	ret = mlx5_vport_get_other_func_cap(dev, vport_num, query_cap, MLX5_CAP_ETHERNET_OFFLOADS);
 	if (ret)
 		goto free;
 
-	cap = MLX5_ADDR_OF(set_hca_cap_in, hca_cap, capability);
-	memcpy(cap, MLX5_ADDR_OF(query_hca_cap_out, query_cap, capability),
-	       MLX5_UN_SZ_BYTES(hca_cap_union));
-	MLX5_SET(per_protocol_networking_offload_caps, cap, insert_trailer, enable);
-	MLX5_SET(set_hca_cap_in, hca_cap, opcode, MLX5_CMD_OP_SET_HCA_CAP);
-	MLX5_SET(set_hca_cap_in, hca_cap, other_function, 1);
-	MLX5_SET(set_hca_cap_in, hca_cap, function_id, vport_num);
-	MLX5_SET(set_hca_cap_in, hca_cap, op_mod,
-		 MLX5_SET_HCA_CAP_OP_MOD_ETHERNET_OFFLOADS << 1);
-	ret = mlx5_cmd_exec_in(esw->dev, set_hca_cap, hca_cap);
+	hca_caps = MLX5_ADDR_OF(query_hca_cap_out, query_cap, capability);
+	MLX5_SET(per_protocol_networking_offload_caps, hca_caps,
+		 insert_trailer, enable);
+
+	ret = mlx5_vport_set_other_func_cap(dev, hca_caps, vport_num,
+					    MLX5_SET_HCA_CAP_OP_MOD_ETHERNET_OFFLOADS);
 free:
-	kvfree(hca_cap);
 	kvfree(query_cap);
 	return ret;
 }
@@ -209,7 +174,7 @@ static int esw_ipsec_vf_offload_set_bytype(struct mlx5_eswitch *esw, struct mlx5
 	struct mlx5_core_dev *dev = esw->dev;
 	int err;
 
-	if (vport->vport == MLX5_VPORT_PF)
+	if (!mlx5_eswitch_is_vf_vport(esw, vport->vport))
 		return -EOPNOTSUPP;
 
 	if (type == MLX5_ESW_VPORT_IPSEC_CRYPTO_OFFLOAD) {

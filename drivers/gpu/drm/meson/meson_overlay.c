@@ -167,7 +167,7 @@ struct meson_overlay {
 #define FRAC_16_16(mult, div)    (((mult) << 16) / (div))
 
 static int meson_overlay_atomic_check(struct drm_plane *plane,
-				      struct drm_atomic_state *state)
+				      struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
 										 plane);
@@ -470,7 +470,7 @@ static void meson_overlay_setup_scaler_params(struct meson_drm *priv,
 }
 
 static void meson_overlay_atomic_update(struct drm_plane *plane,
-					struct drm_atomic_state *state)
+					struct drm_atomic_commit *state)
 {
 	struct meson_overlay *meson_overlay = to_meson_overlay(plane);
 	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
@@ -724,7 +724,7 @@ static void meson_overlay_atomic_update(struct drm_plane *plane,
 }
 
 static void meson_overlay_atomic_disable(struct drm_plane *plane,
-				       struct drm_atomic_state *state)
+				       struct drm_atomic_commit *state)
 {
 	struct meson_overlay *meson_overlay = to_meson_overlay(plane);
 	struct meson_drm *priv = meson_overlay->priv;

@@ -786,12 +786,12 @@ static int xe_svm_populate_devmem_pfn(struct drm_pagemap_devmem *devmem_allocati
 	struct xe_bo *bo = to_xe_bo(devmem_allocation);
 	struct ttm_resource *res = bo->ttm.resource;
 	struct list_head *blocks = &to_xe_ttm_vram_mgr_resource(res)->blocks;
+	struct xe_vram_region *vr = xe_map_resource_to_region(res);
+	struct gpu_buddy *buddy = vram_to_buddy(vr);
 	struct gpu_buddy_block *block;
 	int j = 0;
 
 	list_for_each_entry(block, blocks, link) {
-		struct xe_vram_region *vr = block->private;
-		struct gpu_buddy *buddy = vram_to_buddy(vr);
 		u64 block_pfn = block_offset_to_pfn(devmem_allocation->dpagemap,
 						    gpu_buddy_block_offset(block));
 		int i;
@@ -1055,15 +1055,12 @@ static int xe_drm_pagemap_populate_mm(struct drm_pagemap *dpagemap,
 	struct xe_pagemap *xpagemap = container_of(dpagemap, typeof(*xpagemap), dpagemap);
 	struct drm_pagemap_migrate_details mdetails = {
 		.timeslice_ms = timeslice_ms,
-		.source_peer_migrates = 1,
 	};
 	struct xe_vram_region *vr = xe_pagemap_to_vr(xpagemap);
 	struct dma_fence *pre_migrate_fence = NULL;
 	struct xe_device *xe = vr->xe;
 	struct device *dev = xe->drm.dev;
-	struct gpu_buddy_block *block;
 	struct xe_validation_ctx vctx;
-	struct list_head *blocks;
 	struct drm_exec exec;
 	struct xe_bo *bo;
 	int err = 0, idx;
@@ -1099,10 +1096,6 @@ static int xe_drm_pagemap_populate_mm(struct drm_pagemap *dpagemap,
 		drm_pagemap_devmem_init(&bo->devmem_allocation, dev, mm,
 					&dpagemap_devmem_ops, dpagemap, end - start,
 					pre_migrate_fence);
-
-		blocks = &to_xe_ttm_vram_mgr_resource(bo->ttm.resource)->blocks;
-		list_for_each_entry(block, blocks, link)
-			block->private = vr;
 
 		xe_bo_get(bo);
 
@@ -1255,10 +1248,8 @@ retry:
 
 	xe_svm_range_fault_count_stats_incr(gt, range);
 
-	if (ctx.devmem_only && !range->base.pages.flags.migrate_devmem) {
-		err = -EACCES;
-		goto out;
-	}
+	if (ctx.devmem_only && !range->base.pages.flags.migrate_devmem)
+		return -EACCES;
 
 	if (xe_svm_range_is_valid(range, tile, ctx.devmem_only, dpagemap)) {
 		xe_svm_range_valid_fault_count_stats_incr(gt, range);

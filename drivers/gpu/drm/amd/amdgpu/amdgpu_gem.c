@@ -27,10 +27,12 @@
  */
 #include <linux/ktime.h>
 #include <linux/module.h>
+#include <linux/overflow.h>
 #include <linux/pagemap.h>
 #include <linux/pci.h>
 #include <linux/dma-buf.h>
 #include <linux/dma-fence-unwrap.h>
+#include <linux/uaccess.h>
 
 #include <drm/amdgpu_drm.h>
 #include <drm/drm_drv.h>
@@ -247,7 +249,7 @@ static int amdgpu_gem_object_open(struct drm_gem_object *obj,
 
 	drm_exec_init(&exec, DRM_EXEC_IGNORE_DUPLICATES, 0);
 	drm_exec_until_all_locked(&exec) {
-		r = drm_exec_prepare_obj(&exec, &abo->tbo.base, 1);
+		r = drm_exec_prepare_obj(&exec, &abo->tbo.base, TTM_NUM_MOVE_FENCES + 1);
 		drm_exec_retry_on_contention(&exec);
 		if (unlikely(r))
 			goto out_unlock;
@@ -508,6 +510,9 @@ int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
 	if (offset_in_page(args->addr | args->size))
 		return -EINVAL;
 
+	if (!access_ok((void __user *)(uintptr_t)args->addr, args->size))
+		return -EFAULT;
+
 	/* reject unknown flag values */
 	if (args->flags & ~(AMDGPU_GEM_USERPTR_READONLY |
 	    AMDGPU_GEM_USERPTR_ANONONLY | AMDGPU_GEM_USERPTR_VALIDATE |
@@ -530,6 +535,7 @@ int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
 	bo = gem_to_amdgpu_bo(gobj);
 	bo->preferred_domains = AMDGPU_GEM_DOMAIN_GTT;
 	bo->allowed_domains = AMDGPU_GEM_DOMAIN_GTT;
+	bo->parent = amdgpu_bo_ref(fpriv->vm.root.bo);
 	r = amdgpu_ttm_tt_set_userptr(&bo->tbo, args->addr, args->flags);
 	if (r)
 		goto release_object;
@@ -821,7 +827,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	struct drm_syncobj *timeline_syncobj = NULL;
 	struct dma_fence_chain *timeline_chain = NULL;
 	struct drm_exec exec;
-	uint64_t vm_size;
+	uint64_t vm_size, tmp;
 	int r = 0;
 
 	/* Validate virtual address range against reserved regions. */
@@ -845,7 +851,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 
 	vm_size = adev->vm_manager.max_pfn * AMDGPU_GPU_PAGE_SIZE;
 	vm_size -= AMDGPU_VA_RESERVED_TOP;
-	if (args->va_address + args->map_size > vm_size) {
+	if (check_add_overflow(args->va_address, args->map_size, &tmp) || tmp > vm_size) {
 		dev_dbg(dev->dev,
 			"va_address 0x%llx is in top reserved area 0x%llx\n",
 			args->va_address + args->map_size, vm_size);
@@ -1089,9 +1095,21 @@ int amdgpu_gem_op_ioctl(struct drm_device *dev, void *data,
 		 * If that number is larger than the size of the array, the ioctl must
 		 * be retried.
 		 */
+		if (!bo_va) {
+			r = -ENOENT;
+			goto out_exec;
+		}
+
+		if (args->num_entries > INT_MAX / sizeof(*vm_entries)) {
+			r = -EINVAL;
+			goto out_exec;
+		}
+
 		vm_entries = kvcalloc(args->num_entries, sizeof(*vm_entries), GFP_KERNEL);
-		if (!vm_entries)
-			return -ENOMEM;
+		if (!vm_entries) {
+			r = -ENOMEM;
+			goto out_exec;
+		}
 
 		amdgpu_vm_bo_va_for_each_valid_mapping(bo_va, mapping) {
 			if (num_mappings < args->num_entries) {
@@ -1217,13 +1235,14 @@ int amdgpu_gem_list_handles_ioctl(struct drm_device *dev, void *data,
 	return ret;
 }
 
-static int amdgpu_gem_align_pitch(struct amdgpu_device *adev,
-				  int width,
-				  int cpp,
-				  bool tiled)
+static unsigned int amdgpu_gem_align_pitch(struct amdgpu_device *adev,
+					   unsigned int width,
+					   unsigned int cpp,
+					   bool tiled)
 {
-	int aligned = width;
-	int pitch_mask = 0;
+	unsigned int aligned = width;
+	unsigned int pitch_mask = 0;
+	unsigned int pitch;
 
 	switch (cpp) {
 	case 1:
@@ -1238,9 +1257,12 @@ static int amdgpu_gem_align_pitch(struct amdgpu_device *adev,
 		break;
 	}
 
-	aligned += pitch_mask;
+	if (check_add_overflow(aligned, pitch_mask, &aligned))
+		return 0;
 	aligned &= ~pitch_mask;
-	return aligned * cpp;
+	if (check_mul_overflow(aligned, cpp, &pitch))
+		return 0;
+	return pitch;
 }
 
 int amdgpu_mode_dumb_create(struct drm_file *file_priv,
@@ -1267,8 +1289,12 @@ int amdgpu_mode_dumb_create(struct drm_file *file_priv,
 
 	args->pitch = amdgpu_gem_align_pitch(adev, args->width,
 					     DIV_ROUND_UP(args->bpp, 8), 0);
+	if (!args->pitch)
+		return -EINVAL;
 	args->size = (u64)args->pitch * args->height;
 	args->size = ALIGN(args->size, PAGE_SIZE);
+	if (!args->size)
+		return -EINVAL;
 	domain = amdgpu_bo_get_preferred_domain(adev,
 				amdgpu_display_supported_domains(adev, flags));
 	r = amdgpu_gem_object_create(adev, args->size, 0, domain, flags,

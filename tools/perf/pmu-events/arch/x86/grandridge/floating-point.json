@@ -91,6 +91,14 @@
         "UMask": "0x2"
     },
     {
+        "BriefDescription": "Counts the number of uops executed on floating point and vector integer store data port.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xb2",
+        "EventName": "FP_VINT_UOPS_EXECUTED.STD",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1"
+    },
+    {
         "BriefDescription": "Counts the number of floating point operations retired that required microcode assist.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc3",

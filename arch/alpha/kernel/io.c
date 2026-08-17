@@ -647,7 +647,7 @@ void _memset_c_io(volatile void __iomem *to, unsigned long c, long count)
 
 EXPORT_SYMBOL(_memset_c_io);
 
-#if IS_ENABLED(CONFIG_VGA_CONSOLE) || IS_ENABLED(CONFIG_MDA_CONSOLE)
+#if IS_ENABLED(CONFIG_VGA_CONSOLE)
 
 #include <asm/vga.h>
 

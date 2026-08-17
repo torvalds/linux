@@ -6,7 +6,6 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/mfd/syscon.h>
-#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
@@ -579,8 +578,8 @@ static const struct mtk_mux top_mtk_muxes[] = {
 			     dsp7_parents, 0x050, 0x054, 0x058, 0, 3, 7, 0x004, 16),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_MFG_REF_SEL, "mfg_ref_sel",
 			     mfg_ref_parents, 0x050, 0x054, 0x058, 16, 2, 23, 0x004, 18),
-	MUX_CLR_SET_UPD(CLK_TOP_MFG_PLL_SEL, "mfg_pll_sel",
-			mfg_pll_parents, 0x050, 0x054, 0x058, 18, 1, -1, -1),
+	MUX_CLR_SET(CLK_TOP_MFG_PLL_SEL, "mfg_pll_sel", mfg_pll_parents,
+		   0x050, 0x054, 0x058, 18, 1),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_CAMTG_SEL, "camtg_sel",
 			     camtg_parents, 0x050, 0x054, 0x058, 24, 3, 31, 0x004, 19),
 	/* CLK_CFG_5 */

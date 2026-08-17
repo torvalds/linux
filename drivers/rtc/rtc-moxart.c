@@ -17,7 +17,6 @@
 #include <linux/rtc.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/gpio/consumer.h>
 
 #define GPIO_RTC_RESERVED			0x0C

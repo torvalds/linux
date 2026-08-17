@@ -786,8 +786,8 @@ static int crb_map_pluton(struct device *dev, struct crb_priv *priv,
 static int crb_acpi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct acpi_device *device = ACPI_COMPANION(dev);
 	struct acpi_table_tpm2 *buf;
+	struct acpi_device *device;
 	struct crb_priv *priv;
 	struct tpm_chip *chip;
 	struct tpm2_crb_smc *crb_smc;
@@ -796,6 +796,10 @@ static int crb_acpi_probe(struct platform_device *pdev)
 	acpi_status status;
 	u32 sm;
 	int rc;
+
+	device = ACPI_COMPANION(dev);
+	if (!device)
+		return -ENODEV;
 
 	status = acpi_get_table(ACPI_SIG_TPM2, 1,
 				(struct acpi_table_header **) &buf);

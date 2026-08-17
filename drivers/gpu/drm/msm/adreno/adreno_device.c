@@ -17,7 +17,7 @@ MODULE_PARM_DESC(snapshot_debugbus, "Include debugbus sections in GPU devcoredum
 module_param_named(snapshot_debugbus, snapshot_debugbus, bool, 0600);
 
 int enable_preemption = -1;
-MODULE_PARM_DESC(enable_preemption, "Enable preemption (A7xx only) (1=on , 0=disable, -1=auto (default))");
+MODULE_PARM_DESC(enable_preemption, "Enable preemption (A7xx+ only) (1=on , 0=disable, -1=auto (default))");
 module_param(enable_preemption, int, 0600);
 
 bool disable_acd;
@@ -307,8 +307,10 @@ MODULE_DEVICE_TABLE(of, dt_match);
 static int adreno_runtime_resume(struct device *dev)
 {
 	struct msm_gpu *gpu = dev_to_gpu(dev);
-
-	return gpu->funcs->pm_resume(gpu);
+	int ret = gpu->funcs->pm_resume(gpu);
+	if (!ret)
+		ret = msm_perfcntr_resume(gpu);
+	return ret;
 }
 
 static int adreno_runtime_suspend(struct device *dev)
@@ -321,6 +323,8 @@ static int adreno_runtime_suspend(struct device *dev)
 	 * already waited for active jobs to complete.
 	 */
 	WARN_ON_ONCE(gpu->active_submits);
+
+	msm_perfcntr_suspend(gpu);
 
 	return gpu->funcs->pm_suspend(gpu);
 }

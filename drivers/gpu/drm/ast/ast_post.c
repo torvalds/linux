@@ -34,44 +34,6 @@
 #include "ast_drv.h"
 #include "ast_post.h"
 
-u32 __ast_mindwm(void __iomem *regs, u32 r)
-{
-	u32 data;
-
-	__ast_write32(regs, 0xf004, r & 0xffff0000);
-	__ast_write32(regs, 0xf000, 0x1);
-
-	do {
-		data = __ast_read32(regs, 0xf004) & 0xffff0000;
-	} while (data != (r & 0xffff0000));
-
-	return __ast_read32(regs, 0x10000 + (r & 0x0000ffff));
-}
-
-void __ast_moutdwm(void __iomem *regs, u32 r, u32 v)
-{
-	u32 data;
-
-	__ast_write32(regs, 0xf004, r & 0xffff0000);
-	__ast_write32(regs, 0xf000, 0x1);
-
-	do {
-		data = __ast_read32(regs, 0xf004) & 0xffff0000;
-	} while (data != (r & 0xffff0000));
-
-	__ast_write32(regs, 0x10000 + (r & 0x0000ffff), v);
-}
-
-u32 ast_mindwm(struct ast_device *ast, u32 r)
-{
-	return __ast_mindwm(ast->regs, r);
-}
-
-void ast_moutdwm(struct ast_device *ast, u32 r, u32 v)
-{
-	__ast_moutdwm(ast->regs, r, v);
-}
-
 int ast_post_gpu(struct ast_device *ast)
 {
 	int ret;
@@ -107,19 +69,19 @@ bool mmc_test(struct ast_device *ast, u32 datagen, u8 test_ctl)
 {
 	u32 data, timeout;
 
-	ast_moutdwm(ast, 0x1e6e0070, 0x00000000);
-	ast_moutdwm(ast, 0x1e6e0070, (datagen << 3) | test_ctl);
+	ast_moutdwm(ast, AST_REG_MCR70, 0x00000000);
+	ast_moutdwm(ast, AST_REG_MCR70, (datagen << 3) | test_ctl);
 	timeout = 0;
 	do {
-		data = ast_mindwm(ast, 0x1e6e0070) & 0x3000;
+		data = ast_mindwm(ast, AST_REG_MCR70) & 0x3000;
 		if (data & 0x2000)
 			return false;
 		if (++timeout > TIMEOUT) {
-			ast_moutdwm(ast, 0x1e6e0070, 0x00000000);
+			ast_moutdwm(ast, AST_REG_MCR70, 0x00000000);
 			return false;
 		}
 	} while (!data);
-	ast_moutdwm(ast, 0x1e6e0070, 0x0);
+	ast_moutdwm(ast, AST_REG_MCR70, 0x0);
 	return true;
 }
 

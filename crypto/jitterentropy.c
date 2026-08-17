@@ -7,7 +7,7 @@
  * Design
  * ======
  *
- * See https://www.chronox.de/jent.html
+ * See https://www.chronox.de/jent/
  *
  * License
  * =======
@@ -47,7 +47,7 @@
 
 /*
  * This Jitterentropy RNG is based on the jitterentropy library
- * version 3.4.0 provided at https://www.chronox.de/jent.html
+ * version 3.4.0 provided at https://www.chronox.de/jent/
  */
 
 #ifdef __OPTIMIZE__
@@ -775,7 +775,7 @@ int jent_entropy_init(unsigned int osr, unsigned int flags,
 		 * delta even when called shortly after each other -- this
 		 * implies that we also have a high resolution timer
 		 */
-		if (!delta || (end_time == start_time)) {
+		if (!delta) {
 			ret = JENT_ECOARSETIME;
 			goto out;
 		}

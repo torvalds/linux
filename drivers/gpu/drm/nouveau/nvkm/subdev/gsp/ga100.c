@@ -63,7 +63,6 @@ static struct nvkm_gsp_fwif
 ga100_gsps[] = {
 	{  1, tu102_gsp_load, &ga100_gsp, &r570_rm_tu102, "570.144" },
 	{  0, tu102_gsp_load, &ga100_gsp, &r535_rm_tu102, "535.113.01" },
-	{ -1, gv100_gsp_nofw, &gv100_gsp },
 	{}
 };
 

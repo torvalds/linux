@@ -147,7 +147,7 @@ unsigned int ratetbl2rateset(struct adapter *padapter, unsigned char *rateset)
 		default:
 			rate = ratetbl_val_2wifirate(rate);
 
-			if (is_basicrate(padapter, rate) == true)
+			if (is_basicrate(padapter, rate))
 				rate |= IEEE80211_BASIC_RATE_MASK;
 
 			rateset[len] = rate;
@@ -236,7 +236,7 @@ void Restore_DM_Func_Flag(struct adapter *padapter)
 
 void Switch_DM_Func(struct adapter *padapter, u32 mode, u8 enable)
 {
-	if (enable == true)
+	if (enable)
 		rtw_hal_set_hwreg(padapter, HW_VAR_DM_FUNC_SET, (u8 *)(&mode));
 	else
 		rtw_hal_set_hwreg(padapter, HW_VAR_DM_FUNC_CLR, (u8 *)(&mode));
@@ -254,36 +254,10 @@ inline u8 rtw_get_oper_ch(struct adapter *adapter)
 
 inline void rtw_set_oper_ch(struct adapter *adapter, u8 ch)
 {
-#ifdef DBG_CH_SWITCH
-	const int len = 128;
-	char msg[128] = {0};
-	int cnt = 0;
-	int i = 0;
-#endif  /* DBG_CH_SWITCH */
 	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
 
 	if (dvobj->oper_channel != ch) {
 		dvobj->on_oper_ch_time = jiffies;
-
-#ifdef DBG_CH_SWITCH
-		cnt += scnprintf(msg + cnt, len - cnt, "switch to ch %3u", ch);
-
-		for (i = 0; i < dvobj->iface_nums; i++) {
-			struct adapter *iface = dvobj->padapters[i];
-
-			cnt += scnprintf(msg + cnt, len - cnt, " [%s:", ADPT_ARG(iface));
-			if (iface->mlmeextpriv.cur_channel == ch)
-				cnt += scnprintf(msg + cnt, len - cnt, "C");
-			else
-				cnt += scnprintf(msg + cnt, len - cnt, "_");
-			if (iface->wdinfo.listen_channel == ch && !rtw_p2p_chk_state(&iface->wdinfo, P2P_STATE_NONE))
-				cnt += scnprintf(msg + cnt, len - cnt, "L");
-			else
-				cnt += scnprintf(msg + cnt, len - cnt, "_");
-			cnt += scnprintf(msg + cnt, len - cnt, "]");
-		}
-
-#endif /* DBG_CH_SWITCH */
 	}
 
 	dvobj->oper_channel = ch;
@@ -339,7 +313,6 @@ void set_channel_bwmode(struct adapter *padapter, unsigned char channel, unsigne
 	u8 center_ch, chnl_offset80 = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
 
 	center_ch = rtw_get_center_ch(channel, bwmode, channel_offset);
-
 
 	/* set Channel */
 	if (mutex_lock_interruptible(&(adapter_to_dvobj(padapter)->setch_mutex)))
@@ -521,7 +494,7 @@ static bool _rtw_camid_is_gk(struct adapter *adapter, u8 cam_id)
 	if (!(cam_ctl->bitmap & BIT(cam_id)))
 		goto exit;
 
-	ret = (dvobj->cam_cache[cam_id].ctrl & BIT6) ? true : false;
+	ret = (dvobj->cam_cache[cam_id].ctrl & BIT(6)) ? true : false;
 
 exit:
 	return ret;
@@ -577,7 +550,7 @@ s16 rtw_camid_alloc(struct adapter *adapter, struct sta_info *sta, u8 kid)
 			netdev_dbg(adapter->pnetdev,
 				   FUNC_ADPT_FMT " group key with invalid key id:%u\n",
 				   FUNC_ADPT_ARG(adapter), kid);
-			rtw_warn_on(1);
+			WARN_ON(1);
 			goto bitmap_handle;
 		}
 
@@ -623,7 +596,7 @@ s16 rtw_camid_alloc(struct adapter *adapter, struct sta_info *sta, u8 kid)
 				netdev_dbg(adapter->pnetdev,
 					   FUNC_ADPT_FMT " group key id:%u no room\n",
 					   FUNC_ADPT_ARG(adapter), kid);
-			rtw_warn_on(1);
+			WARN_ON(1);
 			goto bitmap_handle;
 		}
 
@@ -847,7 +820,7 @@ static void bwmode_update_check(struct adapter *padapter, struct ndis_80211_var_
 	if (!pIE)
 		return;
 
-	if (phtpriv->ht_option == false)
+	if (!phtpriv->ht_option)
 		return;
 
 	if (pIE->length > sizeof(struct HT_info_element))
@@ -931,7 +904,7 @@ void HT_caps_handler(struct adapter *padapter, struct ndis_80211_var_ie *pIE)
 	if (!pIE)
 		return;
 
-	if (phtpriv->ht_option == false)
+	if (!phtpriv->ht_option)
 		return;
 
 	pmlmeinfo->HT_caps_enable = 1;
@@ -994,7 +967,7 @@ void HT_info_handler(struct adapter *padapter, struct ndis_80211_var_ie *pIE)
 	if (!pIE)
 		return;
 
-	if (phtpriv->ht_option == false)
+	if (!phtpriv->ht_option)
 		return;
 
 	if (pIE->length > sizeof(struct HT_info_element))
@@ -1122,7 +1095,7 @@ int rtw_check_bcn_info(struct adapter *Adapter, u8 *pframe, u32 packet_len)
 	struct mlme_priv *pmlmepriv = &Adapter->mlmepriv;
 	int ssid_len;
 
-	if (is_client_associated_to_ap(Adapter) == false)
+	if (!is_client_associated_to_ap(Adapter))
 		return true;
 
 	len = packet_len - sizeof(struct ieee80211_hdr_3addr);
@@ -1204,8 +1177,8 @@ int rtw_check_bcn_info(struct adapter *Adapter, u8 *pframe, u32 packet_len)
 		ssid_len = *(p + 1);
 		if (ssid_len > NDIS_802_11_LENGTH_SSID)
 			ssid_len = 0;
+		memcpy(bssid->ssid.ssid, (p + 2), ssid_len);
 	}
-	memcpy(bssid->ssid.ssid, (p + 2), ssid_len);
 	bssid->ssid.ssid_length = ssid_len;
 
 	if (memcmp(bssid->ssid.ssid, cur_network->network.ssid.ssid, 32) ||
@@ -1477,13 +1450,13 @@ void update_IOT_info(struct adapter *padapter)
 		pmlmeinfo->turboMode_cts2self = 0;
 		pmlmeinfo->turboMode_rtsen = 1;
 		/* disable high power */
-		Switch_DM_Func(padapter, (~DYNAMIC_BB_DYNAMIC_TXPWR), false);
+		Switch_DM_Func(padapter, ((u32)(~DYNAMIC_BB_DYNAMIC_TXPWR)), false);
 		break;
 	case HT_IOT_PEER_REALTEK:
 		/* rtw_write16(padapter, 0x4cc, 0xffff); */
 		/* rtw_write16(padapter, 0x546, 0x01c0); */
 		/* disable high power */
-		Switch_DM_Func(padapter, (~DYNAMIC_BB_DYNAMIC_TXPWR), false);
+		Switch_DM_Func(padapter, ((u32)(~DYNAMIC_BB_DYNAMIC_TXPWR)), false);
 		break;
 	default:
 		pmlmeinfo->turboMode_cts2self = 0;
@@ -1689,7 +1662,7 @@ void adaptive_early_32k(struct mlme_ext_priv *pmlmeext, u8 *pframe, uint len)
 		pmlmeext->bcn_delay_cnt[delay_ms]++;
 		/* pmlmeext->bcn_delay_ratio[delay_ms] = (pmlmeext->bcn_delay_cnt[delay_ms] * 100) /pmlmeext->bcn_cnt; */
 	/* dump for  adaptive_early_32k */
-	if (pmlmeext->bcn_cnt > 100 && (pmlmeext->adaptive_tsf_done == true)) {
+	if (pmlmeext->bcn_cnt > 100 && pmlmeext->adaptive_tsf_done) {
 		u8 ratio_20_delay, ratio_80_delay;
 		u8 DrvBcnEarly, DrvBcnTimeOut;
 
@@ -1737,7 +1710,7 @@ void rtw_alloc_macid(struct adapter *padapter, struct sta_info *psta)
 
 	spin_lock_bh(&pdvobj->lock);
 	for (i = 0; i < NUM_STA; i++) {
-		if (pdvobj->macid[i] == false) {
+		if (!pdvobj->macid[i]) {
 			pdvobj->macid[i]  = true;
 			break;
 		}
@@ -1762,7 +1735,7 @@ void rtw_release_macid(struct adapter *padapter, struct sta_info *psta)
 
 	spin_lock_bh(&pdvobj->lock);
 	if (psta->mac_id < NUM_STA && psta->mac_id != 1) {
-		if (pdvobj->macid[psta->mac_id] == true) {
+		if (pdvobj->macid[psta->mac_id]) {
 			pdvobj->macid[psta->mac_id] = false;
 			psta->mac_id = NUM_STA;
 		}

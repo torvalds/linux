@@ -1359,4 +1359,22 @@ __naked void var_off_write_over_scalar_spill(void)
 	: __clobber_all);
 }
 
+SEC("socket")
+__description("partial fill from cleaned pointer spill")
+__failure
+__log_level(2)
+__msg("1: (05) goto pc+0")
+__msg("2: (61) r0 = *(u32 *)(r10 -4)")
+__msg("invalid size of register fill")
+__flag(BPF_F_TEST_STATE_FREQ)
+__naked void partial_fill_from_cleaned_pointer_spill(void)
+{
+	/* Spill R1(ctx), then force a checkpoint and half-slot cleanup. */
+	asm volatile ("*(u64 *)(r10 - 8) = r1;"
+		      "goto +0;"
+		      "r0 = *(u32 *)(r10 - 4);"
+		      "exit;"
+		      ::: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";

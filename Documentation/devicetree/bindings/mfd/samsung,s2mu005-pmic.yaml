@@ -1,0 +1,120 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/samsung,s2mu005-pmic.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung S2MU005 Power Management IC
+
+maintainers:
+  - Kaustabh Chakraborty <kauschluss@disroot.org>
+
+description: |
+  The S2MU005 is a companion power management IC which includes subdevices for
+  a charger controller, an MUIC (Micro USB Interface Controller), and flash and
+  RGB LED controllers.
+
+allOf:
+  - $ref: /schemas/power/supply/power-supply.yaml#
+
+properties:
+  compatible:
+    const: samsung,s2mu005-pmic
+
+  flash:
+    $ref: /schemas/leds/samsung,s2mu005-flash.yaml#
+    description:
+      Child node describing flash LEDs.
+
+  interrupts:
+    maxItems: 1
+
+  muic:
+    $ref: /schemas/extcon/samsung,s2mu005-muic.yaml#
+    description:
+      Child node describing MUIC device.
+
+  multi-led:
+    type: object
+
+    allOf:
+      - $ref: /schemas/leds/leds-class-multicolor.yaml#
+
+    properties:
+      compatible:
+        const: samsung,s2mu005-rgb
+
+    required:
+      - compatible
+
+    unevaluatedProperties: false
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/leds/common.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        pmic@3d {
+            compatible = "samsung,s2mu005-pmic";
+            reg = <0x3d>;
+            interrupt-parent = <&gpa2>;
+            interrupts = <7 IRQ_TYPE_LEVEL_LOW>;
+
+            monitored-battery = <&battery>;
+
+            flash {
+                compatible = "samsung,s2mu005-flash";
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                led@0 {
+                    reg = <0>;
+                    color = <LED_COLOR_ID_WHITE>;
+                    function = LED_FUNCTION_FLASH;
+                };
+
+                led@1 {
+                    reg = <1>;
+                    color = <LED_COLOR_ID_WHITE>;
+                    function = LED_FUNCTION_FLASH;
+                    function-enumerator = <1>;
+                };
+            };
+
+            muic {
+                compatible = "samsung,s2mu005-muic";
+
+                connector {
+                    compatible = "usb-b-connector";
+                    label = "micro-USB";
+                    type = "micro";
+                };
+
+                port {
+                    muic_to_usb: endpoint {
+                        remote-endpoint = <&usb_to_muic>;
+                    };
+                };
+            };
+
+            multi-led {
+                compatible = "samsung,s2mu005-rgb";
+                color = <LED_COLOR_ID_RGB>;
+                function = LED_FUNCTION_INDICATOR;
+                linux,default-trigger = "pattern";
+            };
+        };
+    };

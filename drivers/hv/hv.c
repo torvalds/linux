@@ -272,6 +272,9 @@ void hv_synic_free(void)
 /*
  * hv_hyp_synic_enable_regs - Initialize the Synthetic Interrupt Controller
  * with the hypervisor.
+ *
+ * Note: When MSHV is present, mshv_synic_cpu_init() intializes further
+ * registers later.
  */
 void hv_hyp_synic_enable_regs(unsigned int cpu)
 {

@@ -176,6 +176,7 @@ assgined||assigned
 assiged||assigned
 assigment||assignment
 assigments||assignments
+assinged||assigned
 assistent||assistant
 assocaited||associated
 assocated||associated

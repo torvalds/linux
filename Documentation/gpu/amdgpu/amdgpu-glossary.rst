@@ -233,8 +233,15 @@ we have a dedicated glossary for Display Core at
     TC
       Texture Cache
 
+    TCC
+      Texture Cache per Channel - L2 cache attached to the memory channels.
+      May be used when shader cores are accessing memory.
+      Despite "Texture" in the name, this is used by any kind of memory access.
+      TCCs may be mapped to TCPs, depending on the architecture.
+
     TCP (AMDGPU)
-      Texture Cache per Pipe. Even though the name "Texture" is part of this
+      Texture Cache per Pipe - L1 cache attached to each CU.
+      Even though the name "Texture" is part of this
       acronym, the TCP represents the path to memory shaders; i.e., it is not
       related to texture. The name is a leftover from older designs where shader
       stages had different cache designs; it refers to the L1 cache in older

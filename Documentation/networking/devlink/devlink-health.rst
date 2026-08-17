@@ -33,7 +33,9 @@ Device driver can provide specific callbacks for each "health reporter", e.g.:
   * Recovery procedures
   * Diagnostics procedures
   * Object dump procedures
-  * Out Of Box initial parameters
+
+Drivers also provide default values for generic reporter parameters when
+creating a health reporter.
 
 Different parts of the driver can register different types of health reporters
 with different handlers.
@@ -45,8 +47,9 @@ Once an error is reported, devlink health will perform the following actions:
 
   * A log is being send to the kernel trace events buffer
   * Health status and statistics are being updated for the reporter instance
-  * Object dump is being taken and saved at the reporter instance (as long as
-    auto-dump is set and there is no other dump which is already stored)
+  * Object dump is being taken and saved at the reporter instance. This is
+    best effort and skipped when recovery is aborted, auto-dump is disabled,
+    no dump callback is registered, or a dump is already stored.
   * Auto recovery attempt is being done. Depends on:
 
     - Auto-recovery configuration
@@ -75,7 +78,8 @@ User Interface
 ==============
 
 User can access/change each reporter's parameters and driver specific callbacks
-via ``devlink``, e.g per error type (per health reporter):
+via ``devlink``, e.g. per error type (per health reporter). Reporters may be
+registered for the whole devlink instance or for a specific devlink port.
 
   * Configure reporter's generic parameters (like: disable/enable auto recovery)
   * Invoke recovery procedure

@@ -50,7 +50,6 @@ struct amdgpu_ctx {
 	int32_t				init_priority;
 	int32_t				override_priority;
 	uint32_t			stable_pstate;
-	atomic_t			guilty;
 	bool				preamble_presented;
 	uint64_t			generation;
 	unsigned long			ras_counter_ce;

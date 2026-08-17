@@ -21,7 +21,6 @@
 #include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
@@ -447,8 +446,6 @@ static int imx_lcdc_probe(struct platform_device *pdev)
 	lcdc->connector = drm_bridge_connector_init(drm, &lcdc->pipe.encoder);
 	if (IS_ERR(lcdc->connector))
 		return dev_err_probe(drm->dev, PTR_ERR(lcdc->connector), "Cannot init bridge connector\n");
-
-	drm_connector_attach_encoder(lcdc->connector, &lcdc->pipe.encoder);
 
 	/*
 	 * The LCDC controller does not have an enable bit. The

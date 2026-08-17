@@ -7,7 +7,6 @@
 #include <linux/init.h>
 #include <linux/leds.h>
 #include <linux/log2.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/regmap.h>
@@ -503,8 +502,8 @@ static void lm3692x_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id lm3692x_id[] = {
-	{ "lm36922", LM36922_MODEL },
-	{ "lm36923", LM36923_MODEL },
+	{ .name = "lm36922", .driver_data = LM36922_MODEL },
+	{ .name = "lm36923", .driver_data = LM36923_MODEL },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm3692x_id);

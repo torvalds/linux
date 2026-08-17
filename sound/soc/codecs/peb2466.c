@@ -817,18 +817,17 @@ static int peb2466_dai_startup(struct snd_pcm_substream *substream,
 					  &peb2466_sample_bits_constr);
 }
 
-static const u64 peb2466_dai_formats[] = {
+static const u64 peb2466_dai_formats =
 	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
-	SND_SOC_POSSIBLE_DAIFMT_DSP_B,
-};
+	SND_SOC_POSSIBLE_DAIFMT_DSP_B;
 
 static const struct snd_soc_dai_ops peb2466_dai_ops = {
 	.startup = peb2466_dai_startup,
 	.hw_params = peb2466_dai_hw_params,
 	.set_tdm_slot = peb2466_dai_set_tdm_slot,
 	.set_fmt = peb2466_dai_set_fmt,
-	.auto_selectable_formats     = peb2466_dai_formats,
-	.num_auto_selectable_formats = ARRAY_SIZE(peb2466_dai_formats),
+	.auto_selectable_formats     = &peb2466_dai_formats,
+	.num_auto_selectable_formats = 1,
 };
 
 static struct snd_soc_dai_driver peb2466_dai_driver = {

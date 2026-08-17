@@ -19,8 +19,10 @@
 #include <linux/netdevice.h>
 #include <linux/module.h>
 #include <linux/ip.h>
+#include <linux/ipv6.h>
 #include <linux/udp.h>
 #include <net/pkt_cls.h>
+#include <linux/ptp_classify.h>
 #include <net/pkt_sched.h>
 #include <linux/filter.h>
 
@@ -68,14 +70,6 @@ int aq_ndev_open(struct net_device *ndev)
 	if (err < 0)
 		goto err_exit;
 
-	err = aq_reapply_rxnfc_all_rules(aq_nic);
-	if (err < 0)
-		goto err_exit;
-
-	err = aq_filters_vlans_update(aq_nic);
-	if (err < 0)
-		goto err_exit;
-
 	err = aq_nic_start(aq_nic);
 	if (err < 0) {
 		aq_nic_stop(aq_nic);
@@ -113,12 +107,20 @@ static netdev_tx_t aq_ndev_start_xmit(struct sk_buff *skb, struct net_device *nd
 		 * and hardware PTP design of the chip. Otherwise ptp stream
 		 * will fail to sync
 		 */
-		if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) ||
-		    unlikely((ip_hdr(skb)->version == 4) &&
-			     (ip_hdr(skb)->protocol == IPPROTO_UDP) &&
-			     ((udp_hdr(skb)->dest == htons(319)) ||
-			      (udp_hdr(skb)->dest == htons(320)))) ||
-		    unlikely(eth_hdr(skb)->h_proto == htons(ETH_P_1588)))
+		if (unlikely(skb->protocol == htons(ETH_P_IP) &&
+			     ip_hdr(skb)->protocol == IPPROTO_UDP &&
+			     (udp_hdr(skb)->dest == htons(PTP_EV_PORT) ||
+			      udp_hdr(skb)->dest == htons(PTP_GEN_PORT))))
+			return aq_ptp_xmit(aq_nic, skb);
+
+		/* PTP over IPv6 does not use extension headers */
+		if (unlikely(skb->protocol == htons(ETH_P_IPV6) &&
+			     ipv6_hdr(skb)->nexthdr == IPPROTO_UDP &&
+			     (udp_hdr(skb)->dest == htons(PTP_EV_PORT) ||
+			      udp_hdr(skb)->dest == htons(PTP_GEN_PORT))))
+			return aq_ptp_xmit(aq_nic, skb);
+
+		if (unlikely(eth_hdr(skb)->h_proto == htons(ETH_P_1588)))
 			return aq_ptp_xmit(aq_nic, skb);
 	}
 #endif

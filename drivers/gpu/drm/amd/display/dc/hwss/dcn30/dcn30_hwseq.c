@@ -79,7 +79,7 @@ void dcn30_log_color_state(struct dc *dc,
 	struct dc_context *dc_ctx = dc->ctx;
 	struct resource_pool *pool = dc->res_pool;
 	bool is_gamut_remap_available = false;
-	int i;
+	unsigned int i;
 
 	DTN_INFO("DPP:  DGAM ROM  DGAM ROM type  DGAM LUT  SHAPER mode"
 		 "  3DLUT mode  3DLUT bit depth  3DLUT size  RGAM mode"
@@ -262,7 +262,7 @@ static bool dcn30_set_mpc_shaper_3dlut(struct pipe_ctx *pipe_ctx,
 	struct dc *dc = pipe_ctx->stream->ctx->dc;
 	struct mpc *mpc = pipe_ctx->stream_res.opp->ctx->dc->res_pool->mpc;
 	bool result = false;
-	int acquired_rmu = 0;
+	uint32_t acquired_rmu = 0;
 	int mpcc_id_projected = 0;
 
 	const struct pwl_params *shaper_lut = NULL;
@@ -439,7 +439,7 @@ static void dcn30_set_writeback(
 	ASSERT(wb_info->dwb_pipe_inst < MAX_DWB_PIPES);
 	ASSERT(wb_info->wb_enabled);
 	ASSERT(wb_info->mpcc_inst >= 0);
-	ASSERT(wb_info->mpcc_inst < dc->res_pool->mpcc_count);
+	ASSERT(wb_info->mpcc_inst < (int)dc->res_pool->mpcc_count);
 	mcif_wb = dc->res_pool->mcif_wb[wb_info->dwb_pipe_inst];
 	mcif_buf_params = &wb_info->mcif_buf_params;
 
@@ -581,7 +581,7 @@ void dcn30_program_all_writeback_pipes_in_tree(
 	struct dc_writeback_info wb_info;
 	struct dwbc *dwb;
 	struct dc_stream_status *stream_status = NULL;
-	int i_wb, i_pipe, i_stream;
+	unsigned int i_wb, i_pipe, i_stream;
 	DC_LOG_DWB("%s", __func__);
 
 	ASSERT(stream);
@@ -593,7 +593,9 @@ void dcn30_program_all_writeback_pipes_in_tree(
 	}
 	ASSERT(stream_status);
 
-	ASSERT(stream->num_wb_info <= dc->res_pool->res_cap->num_dwb);
+	// Assert non-negative signed capacity first.
+	ASSERT(dc->res_pool->res_cap->num_dwb >= 0);
+	ASSERT(stream->num_wb_info <= (unsigned int)dc->res_pool->res_cap->num_dwb);
 	/* For each writeback pipe */
 	for (i_wb = 0; i_wb < stream->num_wb_info; i_wb++) {
 
@@ -645,7 +647,7 @@ void dcn30_init_hw(struct dc *dc)
 	struct dce_hwseq *hws = dc->hwseq;
 	struct dc_bios *dcb = dc->ctx->dc_bios;
 	struct resource_pool *res_pool = dc->res_pool;
-	int i;
+	unsigned int i;
 	unsigned int edp_num;
 	uint32_t backlight = MAX_BACKLIGHT_LEVEL;
 	uint32_t user_level = MAX_BACKLIGHT_LEVEL;
@@ -836,6 +838,10 @@ void dcn30_set_avmute(struct pipe_ctx *pipe_ctx, bool enable)
 	if (pipe_ctx == NULL)
 		return;
 
+	if (dc_is_hdmi_frl_signal(pipe_ctx->stream->signal) && pipe_ctx->stream_res.hpo_frl_stream_enc != NULL)
+		pipe_ctx->stream_res.hpo_frl_stream_enc->funcs->set_avmute(
+				pipe_ctx->stream_res.hpo_frl_stream_enc,
+				enable);
 	if (dc_is_hdmi_signal(pipe_ctx->stream->signal) && pipe_ctx->stream_res.stream_enc != NULL) {
 		pipe_ctx->stream_res.stream_enc->funcs->set_avmute(
 				pipe_ctx->stream_res.stream_enc,
@@ -856,21 +862,28 @@ void dcn30_update_info_frame(struct pipe_ctx *pipe_ctx)
 {
 	bool is_hdmi_tmds;
 	bool is_dp;
+	bool is_hdmi_frl;
 
 	ASSERT(pipe_ctx->stream);
 
-	if (pipe_ctx->stream_res.stream_enc == NULL)
+	if (pipe_ctx->stream_res.stream_enc == NULL &&
+			pipe_ctx->stream_res.hpo_frl_stream_enc == NULL)
 		return;  /* this is not root pipe */
 
 	is_hdmi_tmds = dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal);
 	is_dp = dc_is_dp_signal(pipe_ctx->stream->signal);
 
-	if (!is_hdmi_tmds && !is_dp)
+	is_hdmi_frl = dc_is_hdmi_frl_signal(pipe_ctx->stream->signal);
+	if (!is_hdmi_tmds && !is_dp && !is_hdmi_frl)
 		return;
 
 	if (is_hdmi_tmds)
 		pipe_ctx->stream_res.stream_enc->funcs->update_hdmi_info_packets(
 			pipe_ctx->stream_res.stream_enc,
+			&pipe_ctx->stream_res.encoder_info_frame);
+	else if (is_hdmi_frl)
+		pipe_ctx->stream_res.hpo_frl_stream_enc->funcs->update_hdmi_info_packets(
+			pipe_ctx->stream_res.hpo_frl_stream_enc,
 			&pipe_ctx->stream_res.encoder_info_frame);
 	else {
 		if (pipe_ctx->stream_res.stream_enc->funcs->update_dp_info_packets_sdp_line_num)
@@ -890,6 +903,7 @@ void dcn30_program_dmdata_engine(struct pipe_ctx *pipe_ctx)
 	struct hubp               *hubp       = pipe_ctx->plane_res.hubp;
 	bool                       enable     = false;
 	struct stream_encoder     *stream_enc = pipe_ctx->stream_res.stream_enc;
+	struct hpo_frl_stream_encoder *hpo_enc    = pipe_ctx->stream_res.hpo_frl_stream_enc;
 	enum dynamic_metadata_mode mode       = dc_is_dp_signal(stream->signal)
 							? dmdata_dp
 							: dmdata_hdmi;
@@ -903,11 +917,44 @@ void dcn30_program_dmdata_engine(struct pipe_ctx *pipe_ctx)
 	if (!hubp)
 		return;
 
+	if (dc_is_hdmi_frl_signal(stream->signal)) {
+		ASSERT(mode == dmdata_hdmi);
+
+		if (!hpo_enc || !hpo_enc->funcs->set_dynamic_metadata)
+			return;
+
+		hpo_enc->funcs->set_dynamic_metadata(hpo_enc, enable,
+						     hubp->inst, dmdata_hdmi);
+	} else {
 	if (!stream_enc || !stream_enc->funcs->set_dynamic_metadata)
 		return;
 
 	stream_enc->funcs->set_dynamic_metadata(stream_enc, enable,
 							hubp->inst, mode);
+	}
+}
+enum dc_status dcn30_setup_hdmi_frl_link(
+		struct dc_link *link,
+		int hpo_inst,
+		enum clock_source_id frl_phy_clock_source_id)
+{
+	(void)hpo_inst;
+	enum dc_status status = DC_OK;
+	struct dc *dc = link->ctx->dc;
+
+	if ((!link->link_enc) ||
+			(!link->hpo_frl_link_enc) ||
+			(!dc->res_pool->dccg->funcs->enable_hdmicharclk))
+		return DC_ERROR_UNEXPECTED;
+
+	//Enable phy output for FRL case
+	link->hpo_frl_link_enc->funcs->enable_frl_phy_output(
+		link->hpo_frl_link_enc,
+		link->link_enc,
+		frl_phy_clock_source_id,
+		link->frl_link_settings.frl_link_rate);
+	link->phy_state.symclk_state = SYMCLK_ON_TX_ON;
+	return status;
 }
 
 bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
@@ -978,7 +1025,7 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 							cursor_cache_enable ? &cursor_attr : NULL)) {
 				unsigned int v_total = stream->adjust.v_total_max ?
 						stream->adjust.v_total_max : stream->timing.v_total;
-				unsigned int refresh_hz = div_u64((unsigned long long) stream->timing.pix_clk_100hz *
+				unsigned int refresh_hz = (unsigned int)div_u64((unsigned long long)stream->timing.pix_clk_100hz *
 						100LL, (v_total * stream->timing.h_total));
 
 				/*
@@ -1006,9 +1053,9 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 				unsigned int denom = refresh_hz * 6528;
 				unsigned int stutter_period = dc->current_state->perf_params.stutter_period_us;
 
-				tmr_delay = div_u64(((1000000LL + 2 * stutter_period * refresh_hz) *
+				tmr_delay = (uint32_t)(div_u64(((1000000LL + 2 * stutter_period * refresh_hz) *
 						(100LL + dc->debug.mall_additional_timer_percent) + denom - 1),
-						denom) - 64LL;
+						denom) - 64LL);
 
 				/* In some cases the stutter period is really big (tiny modes) in these
 				 * cases MALL cant be enabled, So skip these cases to avoid a ASSERT()
@@ -1030,9 +1077,9 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 					}
 
 					denom *= 2;
-					tmr_delay = div_u64(((1000000LL + 2 * stutter_period * refresh_hz) *
+					tmr_delay = (uint32_t)(div_u64(((1000000LL + 2 * stutter_period * refresh_hz) *
 							(100LL + dc->debug.mall_additional_timer_percent) + denom - 1),
-							denom) - 64LL;
+							denom) - 64LL);
 				}
 
 				/* Copy HW cursor */
@@ -1062,9 +1109,9 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 					cmd.mall.cursor_copy_src.quad_part = cursor_attr.address.quad_part;
 					cmd.mall.cursor_copy_dst.quad_part =
 							(plane->address.grph.cursor_cache_addr.quad_part + 2047) & ~2047;
-					cmd.mall.cursor_width = cursor_attr.width;
-					cmd.mall.cursor_height = cursor_attr.height;
-					cmd.mall.cursor_pitch = cursor_attr.pitch;
+					cmd.mall.cursor_width = (uint16_t)cursor_attr.width;
+					cmd.mall.cursor_height = (uint16_t)cursor_attr.height;
+					cmd.mall.cursor_pitch = (uint16_t)cursor_attr.pitch;
 
 					dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 
@@ -1197,10 +1244,13 @@ void dcn30_prepare_bandwidth(struct dc *dc,
 		context->bw_ctx.bw.dcn.clk.p_state_change_support = false;
 	}
 
-	if (dc->clk_mgr->dc_mode_softmax_enabled)
-		if (dc->clk_mgr->clks.dramclk_khz <= dc->clk_mgr->bw_params->dc_mode_softmax_memclk * 1000 &&
-				context->bw_ctx.bw.dcn.clk.dramclk_khz > dc->clk_mgr->bw_params->dc_mode_softmax_memclk * 1000)
+	if (dc->clk_mgr->dc_mode_softmax_enabled) {
+		int softmax_memclk_khz = dc->clk_mgr->bw_params->dc_mode_softmax_memclk * 1000;
+
+		if (dc->clk_mgr->clks.dramclk_khz <= softmax_memclk_khz &&
+				context->bw_ctx.bw.dcn.clk.dramclk_khz > softmax_memclk_khz)
 			dc->clk_mgr->funcs->set_max_memclk(dc->clk_mgr, dc->clk_mgr->bw_params->clk_table.entries[dc->clk_mgr->bw_params->clk_table.num_entries - 1].memclk_mhz);
+	}
 
 	dcn20_prepare_bandwidth(dc, context);
 

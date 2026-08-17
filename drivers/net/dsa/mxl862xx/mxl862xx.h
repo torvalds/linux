@@ -3,6 +3,7 @@
 #ifndef __MXL862XX_H
 #define __MXL862XX_H
 
+#include <asm/byteorder.h>
 #include <linux/mdio.h>
 #include <linux/workqueue.h>
 #include <net/dsa.h>
@@ -10,6 +11,9 @@
 struct mxl862xx_priv;
 
 #define MXL862XX_MAX_PORTS		17
+#define MXL862XX_FIRST_SERDES_PORT	9
+#define MXL862XX_SERDES_SLOTS		4
+
 #define MXL862XX_DEFAULT_BRIDGE		0
 #define MXL862XX_MAX_BRIDGES		48
 #define MXL862XX_MAX_BRIDGE_PORTS	128
@@ -241,6 +245,45 @@ struct mxl862xx_port {
 	spinlock_t stats_lock; /* protects stats accumulators */
 };
 
+/**
+ * struct mxl862xx_pcs - link SerDes interfaces to bridge ports
+ * @pcs:       &struct phylink_pcs instance
+ * @priv:      pointer to &struct mxl862xx_priv
+ * @serdes_id: SerDes instance index (0 or 1)
+ * @slot:      slot within the SerDes (0-3 for QSGMII/QUSXGMII, 0 otherwise)
+ * @interface: cached PHY interface, last value passed to pcs_config().
+ *             %PHY_INTERFACE_MODE_NA before the first successful
+ *             pcs_config().  Used by pcs_an_restart() to populate the
+ *             firmware command and by pcs_disable() to skip the
+ *             firmware power-down for shared (QSGMII/QUSXGMII) modes.
+ */
+struct mxl862xx_pcs {
+	struct phylink_pcs pcs;
+	struct mxl862xx_priv *priv;
+	int serdes_id;
+	int slot;
+	phy_interface_t interface;
+};
+
+/**
+ * struct mxl862xx_fw_version - firmware version for comparison and display
+ * @major: firmware major version
+ * @minor: firmware minor version
+ * @revision: firmware revision number
+ */
+struct mxl862xx_fw_version {
+	u8 major;
+	u8 minor;
+	u16 revision;
+};
+
+#define MXL862XX_FW_VER(maj, min, rev) \
+	(((u32)(maj) << 24) | ((u32)(min) << 16) | (rev))
+#define MXL862XX_FW_VER_MIN(priv, maj, min, rev) \
+	(MXL862XX_FW_VER((priv)->fw_version.major, (priv)->fw_version.minor, \
+			 (priv)->fw_version.revision) >= \
+	 MXL862XX_FW_VER(maj, min, rev))
+
 /* Bit indices for struct mxl862xx_priv::flags */
 #define MXL862XX_FLAG_CRC_ERR		0
 #define MXL862XX_FLAG_WORK_STOPPED	1
@@ -258,6 +301,16 @@ struct mxl862xx_port {
  * @drop_meter:         index of the single shared zero-rate firmware meter
  *                      used to unconditionally drop traffic (used to block
  *                      flooding)
+ * @fw_version:         cached firmware version, populated at probe and
+ *                      compared with MXL862XX_FW_VER_MIN()
+ * @serdes_ports:       SerDes interfaces incl. sub-interfaces in case of
+ *                      10G_QXGMII or QSGMII
+ * @serdes_refcount:    per-XPCS count of sub-ports enabled by phylink;
+ *                      pcs_disable powers an XPCS down when the count
+ *                      reaches zero. Protected by @serdes_lock.
+ * @serdes_lock:        serializes the @serdes_refcount transitions with
+ *                      the XPCS power-down so a sibling sub-port enable
+ *                      cannot race a power-down to zero
  * @ports:              per-port state, indexed by switch port number
  * @bridges:            maps DSA bridge number to firmware bridge ID;
  *                      zero means no firmware bridge allocated for that
@@ -275,6 +328,10 @@ struct mxl862xx_priv {
 	struct work_struct crc_err_work;
 	unsigned long flags;
 	u16 drop_meter;
+	struct mxl862xx_fw_version fw_version;
+	struct mxl862xx_pcs serdes_ports[8];
+	int serdes_refcount[2];
+	struct mutex serdes_lock;
 	struct mxl862xx_port ports[MXL862XX_MAX_PORTS];
 	u16 bridges[MXL862XX_MAX_BRIDGES + 1];
 	u16 evlan_ingress_size;

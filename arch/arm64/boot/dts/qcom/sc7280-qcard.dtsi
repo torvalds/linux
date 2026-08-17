@@ -562,7 +562,7 @@ mos_bt_uart: &uart7 {
  *
  * This has entries that are defined by Qcard even if they go to the main
  * board. In cases where the pulls may be board dependent we defer those
- * settings to the board device tree. Drive strengths tend to be assinged here
+ * settings to the board device tree. Drive strengths tend to be assigned here
  * but could conceivably be overwridden by board device trees.
  */
 

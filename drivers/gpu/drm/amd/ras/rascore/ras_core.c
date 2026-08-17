@@ -196,9 +196,9 @@ uint64_t ras_core_gen_seqno(struct ras_core_context *ras_core,
 {
 	uint64_t seqno = 0;
 
-	if (ras_core->sys_fn &&
-		ras_core->sys_fn->gen_seqno)
-		ras_core->sys_fn->gen_seqno(ras_core, type, &seqno);
+	if (ras_core->sys_fn && ras_core->sys_fn->gen_seqno &&
+	    ras_core->sys_fn->gen_seqno(ras_core, type, &seqno))
+		return 0;
 
 	return seqno;
 }

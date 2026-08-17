@@ -172,8 +172,8 @@ static int cb_pcimdda_pci_probe(struct pci_dev *dev,
 }
 
 static const struct pci_device_id cb_pcimdda_pci_table[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, PCI_ID_PCIM_DDA06_16) },
-	{ 0 }
+	{ PCI_VDEVICE(CB, PCI_ID_PCIM_DDA06_16) },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, cb_pcimdda_pci_table);
 

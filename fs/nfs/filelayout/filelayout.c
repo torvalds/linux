@@ -95,7 +95,7 @@ static void filelayout_reset_write(struct nfs_pgio_header *hdr)
 			"(req %s/%llu, %u bytes @ offset %llu)\n", __func__,
 			hdr->task.tk_pid,
 			hdr->inode->i_sb->s_id,
-			(unsigned long long)NFS_FILEID(hdr->inode),
+			(unsigned long long)hdr->inode->i_ino,
 			hdr->args.count,
 			(unsigned long long)hdr->args.offset);
 
@@ -112,7 +112,7 @@ static void filelayout_reset_read(struct nfs_pgio_header *hdr)
 			"(req %s/%llu, %u bytes @ offset %llu)\n", __func__,
 			hdr->task.tk_pid,
 			hdr->inode->i_sb->s_id,
-			(unsigned long long)NFS_FILEID(hdr->inode),
+			(unsigned long long)hdr->inode->i_ino,
 			hdr->args.count,
 			(unsigned long long)hdr->args.offset);
 
@@ -778,6 +778,8 @@ filelayout_alloc_lseg(struct pnfs_layout_hdr *layoutid,
 static bool
 filelayout_lseg_is_striped(const struct nfs4_filelayout_segment *flseg)
 {
+	if (flseg->dsaddr)
+		return flseg->dsaddr->stripe_count > 1;
 	return flseg->num_fh > 1;
 }
 

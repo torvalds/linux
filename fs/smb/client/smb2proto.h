@@ -216,7 +216,8 @@ int SMB2_set_ea(const unsigned int xid, struct cifs_tcon *tcon,
 		u64 persistent_fid, u64 volatile_fid,
 		struct smb2_file_full_ea_info *buf, int len);
 int SMB2_set_compression(const unsigned int xid, struct cifs_tcon *tcon,
-			 u64 persistent_fid, u64 volatile_fid);
+			 u64 persistent_fid, u64 volatile_fid,
+			 __u16 compression_state);
 int SMB2_oplock_break(const unsigned int xid, struct cifs_tcon *tcon,
 		      const u64 persistent_fid, const u64 volatile_fid,
 		      __u8 oplock_level);

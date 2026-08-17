@@ -641,9 +641,6 @@ static int get_endpoint_address(struct hid_device *hdev)
 	struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
 	struct usb_host_endpoint *ep;
 
-	if (!intf)
-		return -ENODEV;
-
 	ep = intf->cur_altsetting->endpoint;
 	if (!ep)
 		return -ENODEV;
@@ -2408,6 +2405,15 @@ static int hid_go_cfg_probe(struct hid_device *hdev,
 
 static void hid_go_cfg_remove(struct hid_device *hdev)
 {
+	/*
+	 * cfg_setup is scheduled from hid_go_cfg_probe() with a 2 ms delay
+	 * and dereferences drvdata.hdev.  Drain it here before tearing
+	 * down so the workqueue cannot run after hid_destroy_device()'s
+	 * put_device() has released the underlying hdev and dereference
+	 * a stale drvdata.hdev pointer.
+	 */
+	cancel_delayed_work_sync(&drvdata.go_cfg_setup);
+
 	guard(mutex)(&drvdata.cfg_mutex);
 	sysfs_remove_groups(&hdev->dev.kobj, top_level_attr_groups);
 	hid_hw_close(hdev);
@@ -2418,6 +2424,9 @@ static void hid_go_cfg_remove(struct hid_device *hdev)
 static int hid_go_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	int ret, ep;
+
+	if (!hid_is_usb(hdev))
+		return -EINVAL;
 
 	hdev->quirks |= HID_QUIRK_INPUT_PER_APP | HID_QUIRK_MULTI_INPUT;
 

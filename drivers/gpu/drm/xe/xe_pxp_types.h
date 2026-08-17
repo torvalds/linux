@@ -3,8 +3,8 @@
  * Copyright(c) 2024, Intel Corporation. All rights reserved.
  */
 
-#ifndef __XE_PXP_TYPES_H__
-#define __XE_PXP_TYPES_H__
+#ifndef _XE_PXP_TYPES_H_
+#define _XE_PXP_TYPES_H_
 
 #include <linux/completion.h>
 #include <linux/iosys-map.h>
@@ -132,4 +132,4 @@ struct xe_pxp {
 	u32 last_suspend_key_instance;
 };
 
-#endif /* __XE_PXP_TYPES_H__ */
+#endif /* _XE_PXP_TYPES_H_ */

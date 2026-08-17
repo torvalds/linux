@@ -36,7 +36,7 @@ static int bme680_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id bme680_i2c_id[] = {
-	{ "bme680" },
+	{ .name = "bme680" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, bme680_i2c_id);

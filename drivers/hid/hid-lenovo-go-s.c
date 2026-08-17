@@ -382,11 +382,9 @@ static int get_endpoint_address(struct hid_device *hdev)
 	struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
 	struct usb_host_endpoint *ep;
 
-	if (intf) {
-		ep = intf->cur_altsetting->endpoint;
-		if (ep)
-			return ep->desc.bEndpointAddress;
-	}
+	ep = intf->cur_altsetting->endpoint;
+	if (ep)
+		return ep->desc.bEndpointAddress;
 
 	return -ENODEV;
 }
@@ -1460,6 +1458,9 @@ static int hid_gos_probe(struct hid_device *hdev,
 			 const struct hid_device_id *id)
 {
 	int ret, ep;
+
+	if (!hid_is_usb(hdev))
+		return -EINVAL;
 
 	ret = hid_parse(hdev);
 	if (ret) {

@@ -14,6 +14,9 @@
 #include <linux/fsnotify_backend.h>
 #include "fsnotify.h"
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/fsnotify.h>
+
 /*
  * Clear all of the marks on an inode when it is being evicted from core
  */
@@ -503,6 +506,8 @@ int fsnotify(__u32 mask, const void *data, int data_type, struct inode *dir,
 	int inode2_type;
 	int ret = 0;
 	__u32 test_mask, marks_mask = 0;
+
+	trace_fsnotify(mask, data, data_type, dir, file_name, inode, cookie);
 
 	if (path)
 		mnt = real_mount(path->mnt);

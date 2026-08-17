@@ -26,6 +26,7 @@ struct msr_data {
 	bool fault_expected;
 	bool write;
 	u64 write_val;
+	bool reset_expected;
 };
 
 struct hcall_data {
@@ -267,14 +268,9 @@ static void guest_test_msrs_access(void)
 		case 16:
 			msr->idx = HV_X64_MSR_RESET;
 			msr->write = true;
-			/*
-			 * TODO: the test only writes '0' to HV_X64_MSR_RESET
-			 * at the moment, writing some other value there will
-			 * trigger real vCPU reset and the code is not prepared
-			 * to handle it yet.
-			 */
-			msr->write_val = 0;
+			msr->write_val = 1;
 			msr->fault_expected = false;
+			msr->reset_expected = true;
 			break;
 
 		case 17:
@@ -457,7 +453,7 @@ static void guest_test_msrs_access(void)
 			msr->fault_expected = true;
 			break;
 		case 45:
-			/* MSR is vailable when CPUID feature bit is set */
+			/* MSR is available when CPUID feature bit is set */
 			if (!has_invtsc)
 				goto next_stage;
 			vcpu_set_cpuid_feature(vcpu, HV_ACCESS_TSC_INVARIANT);
@@ -497,6 +493,15 @@ static void guest_test_msrs_access(void)
 			 msr->idx, msr->write ? "write" : "read");
 
 		vcpu_run(vcpu);
+
+		if (msr->reset_expected) {
+			TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_SYSTEM_EVENT);
+			TEST_ASSERT(vcpu->run->system_event.type == KVM_SYSTEM_EVENT_RESET,
+				    "Expected reset system event, got type %u",
+				    vcpu->run->system_event.type);
+			goto next_stage;
+		}
+
 		TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_IO);
 
 		switch (get_ucall(vcpu, &uc)) {

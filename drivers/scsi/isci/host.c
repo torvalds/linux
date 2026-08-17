@@ -1252,6 +1252,9 @@ void isci_host_deinit(struct isci_host *ihost)
 
 	wait_for_stop(ihost);
 
+	/* No further IRQ-driven scheduling can happen past wait_for_stop(). */
+	tasklet_kill(&ihost->completion_tasklet);
+
 	/* phy stop is after controller stop to allow port and device to
 	 * go idle before shutting down the phys, but the expectation is
 	 * that i/o has been shut off well before we reach this
@@ -2485,7 +2488,7 @@ struct isci_request *sci_request_by_tag(struct isci_host *ihost, u16 io_tag)
  *    free remote node ids
  * @idev: This is the device object which is requesting the a remote node
  *    id
- * @node_id: This is the remote node id that is assinged to the device if one
+ * @node_id: This is the remote node id that is assigned to the device if one
  *    is available
  *
  * enum sci_status SCI_FAILURE_OUT_OF_RESOURCES if there are no available remote

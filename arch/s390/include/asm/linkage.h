@@ -7,4 +7,6 @@
 #define __ALIGN .balign CONFIG_FUNCTION_ALIGNMENT, 0x07
 #define __ALIGN_STR __stringify(__ALIGN)
 
+#define _THIS_IP_ ({ unsigned long __ip; asm volatile("larl %0, ." : "=d" (__ip)); __ip; })
+
 #endif

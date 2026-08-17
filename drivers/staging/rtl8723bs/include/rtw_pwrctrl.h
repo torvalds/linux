@@ -86,8 +86,8 @@ enum rt_rf_power_state {
 
 /*  ASPM OSC Control bit, added by Roger, 2013.03.29. */
 #define	RT_PCI_ASPM_OSC_IGNORE		0	 /*  PCI ASPM ignore OSC control in default */
-#define	RT_PCI_ASPM_OSC_ENABLE		BIT0 /*  PCI ASPM controlled by OS according to ACPI Spec 5.0 */
-#define	RT_PCI_ASPM_OSC_DISABLE		BIT1 /*  PCI ASPM controlled by driver or BIOS, i.e., force enable ASPM */
+#define	RT_PCI_ASPM_OSC_ENABLE		BIT(0) /*  PCI ASPM controlled by OS according to ACPI Spec 5.0 */
+#define	RT_PCI_ASPM_OSC_DISABLE		BIT(1) /*  PCI ASPM controlled by driver or BIOS, i.e., force enable ASPM */
 
 enum {
 	PSBBREG_RF0 = 0,
@@ -169,7 +169,7 @@ struct pwrctrl_priv {
 	u8 power_mgnt;
 	u8 org_power_mgnt;
 	bool fw_current_in_ps_mode;
-	unsigned long	DelayLPSLastTimeStamp;
+	unsigned long	delay_lps_last_time_stamp;
 	s32		pnp_current_pwr_state;
 	u8 pnp_bstop_trx;
 

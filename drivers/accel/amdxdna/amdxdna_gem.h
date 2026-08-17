@@ -46,14 +46,18 @@ struct amdxdna_gem_obj {
 	int				open_ref;
 
 	/* Below members are initialized when needed */
-	struct drm_mm			mm; /* For AMDXDNA_BO_DEV_HEAP */
 	struct drm_mm_node		mm_node; /* For AMDXDNA_BO_DEV */
+	u32				heap_start_id;
+	u32				heap_end_id;
+	u64				dev_addr; /* For heap bo */
 	u32				assigned_hwctx;
 	struct dma_buf			*dma_buf;
 	struct dma_buf_attachment	*attach;
 
 	/* True, if BO is managed by XRT, not application */
 	bool				internal;
+	/* True, if BO is not exportable */
+	bool				private_buffer;
 };
 
 #define to_gobj(obj)    (&(obj)->base.base)
@@ -71,13 +75,21 @@ static inline void amdxdna_gem_put_obj(struct amdxdna_gem_obj *abo)
 	drm_gem_object_put(to_gobj(abo));
 }
 
+/*
+ * Obtain the user virtual address for accessing the BO.
+ * It can be used for device to access the BO when PASID is enabled.
+ */
+static inline u64 amdxdna_gem_uva(struct amdxdna_gem_obj *abo)
+{
+	return abo->mem.uva;
+}
+
 void *amdxdna_gem_vmap(struct amdxdna_gem_obj *abo);
-u64 amdxdna_gem_uva(struct amdxdna_gem_obj *abo);
 u64 amdxdna_gem_dev_addr(struct amdxdna_gem_obj *abo);
 
 static inline u64 amdxdna_dev_bo_offset(struct amdxdna_gem_obj *abo)
 {
-	return amdxdna_gem_dev_addr(abo) - amdxdna_gem_dev_addr(abo->client->dev_heap);
+	return amdxdna_gem_dev_addr(abo) - abo->client->xdna->dev_info->dev_mem_base;
 }
 
 static inline u64 amdxdna_obj_dma_addr(struct amdxdna_gem_obj *abo)

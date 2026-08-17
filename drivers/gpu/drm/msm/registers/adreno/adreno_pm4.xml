@@ -152,6 +152,8 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<!-- TODO: deal with name conflicts with other gens -->
 	<value name="CACHE_FLUSH7" value="0x32" variants="A7XX-"/>
 	<value name="CACHE_INVALIDATE7" value="0x33" variants="A7XX-"/>
+	<value name="SUBPASS_FENCE" value="0x35" variants="A7XX-"/>
+	<value name="SUBPASS_SLICE_FENCE" value="0x36" variants="A8XX-"/>
 	<value name="DEPTH_BUFFER_FLIP" value="0x3d" variants="A8XX-"/>
 	<value name="CCH_FAST_CLEAR_CLEAN" value="0x1b" variants="A8XX-"/>
 </enum>
@@ -1095,7 +1097,7 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 			<bitfield name="DIRTY" pos="16" type="boolean"/>
 			<bitfield name="DISABLE" pos="17" type="boolean"/>
 			<bitfield name="DISABLE_ALL_GROUPS" pos="18" type="boolean"/>
-			<bitfield name="LOAD_IMMED" pos="19" type="boolean"/>
+			<bitfield name="LOAD_IMMED" pos="19" type="boolean" variants="A5XX"/>
 			<bitfield name="BINNING" pos="20" varset="chip" variants="A6XX-" type="boolean"/>
 			<bitfield name="GMEM" pos="21" varset="chip" variants="A6XX-" type="boolean"/>
 			<bitfield name="SYSMEM" pos="22" varset="chip" variants="A6XX-" type="boolean"/>
@@ -1275,8 +1277,15 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 <domain name="CP_REG_TO_MEM" width="32" prefix="chip">
 	<reg32 offset="0" name="0">
 		<bitfield name="REG" low="0" high="17" type="hex"/>
-		<!-- number of registers/dwords copied is max(CNT, 1). -->
+		<!--
+			Number of registers/dwords copied is max(CNT, 1).
+			With 64B it gets rounded to the next 64B boundary.
+		-->
 		<bitfield name="CNT" low="18" high="29" type="uint"/>
+		<!--
+			Treat things as 64B, allowing for a 64B atomic read of
+			registers.
+		-->
 		<bitfield name="64B" pos="30" type="boolean"/>
 		<bitfield name="ACCUMULATE" pos="31" type="boolean"/>
 	</reg32>
@@ -1469,6 +1478,7 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 	<value value="1" name="POLL_MEMORY"/>
 	<value value="2" name="POLL_SCRATCH"/>
 	<value value="3" name="POLL_ON_CHIP" varset="chip" variants="A7XX-"/>
+	<value value="4" name="POLL_SYSTEM_VARIABLE" varset="chip" variants="A8XX-"/>
 </enum>
 
 <domain name="CP_COND_WRITE5" width="32">
@@ -1476,7 +1486,7 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 		<bitfield name="FUNCTION" low="0" high="2" type="cp_cond_function"/>
 		<bitfield name="SIGNED_COMPARE" pos="3" type="boolean"/>
 		<!-- POLL_REGISTER polls a register at POLL_ADDR_LO. -->
-		<bitfield name="POLL" low="4" high="5" type="poll_memory_type"/>
+		<bitfield name="POLL" low="4" high="6" type="poll_memory_type"/>
 		<bitfield name="WRITE_MEMORY" pos="8" type="boolean"/>
 	</reg32>
 	<reg64 offset="1" name="POLL_ADDR" type="address"/>
@@ -2055,28 +2065,20 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 
 <domain name="CP_COND_EXEC" width="32">
 	<doc>
-                Executes the following DWORDs of commands if the dword at ADDR0
-                is not equal to 0 and the dword at ADDR1 is less than REF
-                (signed comparison).
+		Executes the following DWORDs of commands if the dword
+		at BOOL_ADDR is not equal to 0 and the the timestamp
+		value ACTIVE_TIMESTAMP is ahead of the value fetched
+		from TIMESTAMP_ADDR.
+
+		The timestamp comparision is an unsigned compare with
+		wraparound, ie:
+
+			(ACTIVE_TIMESTAMP - *TIMESTAMP_ADDR) &lt; 0x80000000
 	</doc>
-	<reg32 offset="0" name="0">
-		<bitfield name="ADDR0_LO" low="0" high="31"/>
-	</reg32>
-	<reg32 offset="1" name="1">
-		<bitfield name="ADDR0_HI" low="0" high="31"/>
-	</reg32>
-	<reg32 offset="2" name="2">
-		<bitfield name="ADDR1_LO" low="0" high="31"/>
-	</reg32>
-	<reg32 offset="3" name="3">
-		<bitfield name="ADDR1_HI" low="0" high="31"/>
-	</reg32>
-	<reg32 offset="4" name="4">
-		<bitfield name="REF" low="0" high="31"/>
-	</reg32>
-	<reg32 offset="5" name="5">
-		<bitfield name="DWORDS" low="0" high="31" type="uint"/>
-	</reg32>
+	<reg64 offset="0" name="BOOL_ADDR" type="address"/>
+	<reg64 offset="2" name="TIMESTAMP_ADDR" type="address"/>
+	<reg32 offset="4" name="ACTIVE_TIMESTAMP"/>
+	<reg32 offset="5" name="DWORDS"/>
 </domain>
 
 <domain name="CP_SET_AMBLE" width="32">

@@ -51,7 +51,7 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 {
 	struct rcar_du_encoder *renc;
 	struct drm_connector *connector;
-	struct drm_bridge *bridge;
+	struct drm_bridge *bridge __free(drm_bridge_put) = NULL;
 	int ret;
 
 	/*
@@ -70,19 +70,28 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 		bridge = devm_drm_panel_bridge_add_typed(rcdu->dev, panel,
 							 DRM_MODE_CONNECTOR_DPI);
 		if (IS_ERR(bridge))
-			return PTR_ERR(bridge);
+			return PTR_ERR(no_free_ptr(bridge));
+
+		/*
+		 * The reference taken by devm_drm_panel_bridge_add_typed() is
+		 * released automatically. Take a second one for the __free()
+		 * when this function will return.
+		 */
+		drm_bridge_get(bridge);
 	} else {
-		bridge = of_drm_find_bridge(enc_node);
+		bridge = of_drm_find_and_get_bridge(enc_node);
 		if (!bridge)
 			return -EPROBE_DEFER;
 
 		if (output == RCAR_DU_OUTPUT_LVDS0 ||
 		    output == RCAR_DU_OUTPUT_LVDS1)
-			rcdu->lvds[output - RCAR_DU_OUTPUT_LVDS0] = bridge;
+			rcdu->lvds[output - RCAR_DU_OUTPUT_LVDS0] =
+				drm_bridge_get(bridge);
 
 		if (output == RCAR_DU_OUTPUT_DSI0 ||
 		    output == RCAR_DU_OUTPUT_DSI1)
-			rcdu->dsi[output - RCAR_DU_OUTPUT_DSI0] = bridge;
+			rcdu->dsi[output - RCAR_DU_OUTPUT_DSI0] =
+				drm_bridge_get(bridge);
 	}
 
 	/*
@@ -133,5 +142,15 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 		return PTR_ERR(connector);
 	}
 
-	return drm_connector_attach_encoder(connector, &renc->base);
+	return 0;
+}
+
+void rcar_du_encoder_cleanup(struct rcar_du_device *rcdu)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(rcdu->lvds); i++)
+		drm_bridge_put(rcdu->lvds[i]);
+	for (i = 0; i < ARRAY_SIZE(rcdu->dsi); i++)
+		drm_bridge_put(rcdu->dsi[i]);
 }

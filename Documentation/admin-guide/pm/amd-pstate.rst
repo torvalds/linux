@@ -358,9 +358,9 @@ Dynamic energy performance profile
 The amd-pstate driver supports dynamically selecting the energy performance
 profile based on whether the machine is running on AC or DC power.
 
-Whether this behavior is enabled by default depends on the kernel
-config option `CONFIG_X86_AMD_PSTATE_DYNAMIC_EPP`. This behavior can also be overridden
-at runtime by the sysfs file ``/sys/devices/system/cpu/cpufreq/policyX/dynamic_epp``.
+Whether this behavior is enabled by default depends on the kernel command line option
+``amd_dynamic_epp`` is set. This behavior can also be overridden
+at runtime by the sysfs file ``/sys/devices/system/cpu/amd_pstate/dynamic_epp``.
 
 When set to enabled, the driver will select a different energy performance
 profile when the machine is running on battery or AC power. The driver will
@@ -485,9 +485,8 @@ kernel parameter ``amd_prefcore=disable``.
 ``amd_dynamic_epp``
 
 When AMD pstate is in auto mode, dynamic EPP will control whether the kernel
-autonomously changes the EPP mode. The default is configured by
-``CONFIG_X86_AMD_PSTATE_DYNAMIC_EPP`` but can be explicitly enabled with
-``amd_dynamic_epp=enable`` or disabled with ``amd_dynamic_epp=disable``.
+autonomously changes the EPP mode. The default is disabled. It can be enabled
+with the kernel parameter ``amd_dynamic_epp=enable``.
 
 User Space Interface in ``sysfs`` - General
 ===========================================

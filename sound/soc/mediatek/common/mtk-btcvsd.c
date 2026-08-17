@@ -319,7 +319,6 @@ static int btcvsd_tx_clean_buffer(struct mtk_btcvsd_snd *bt)
 {
 	unsigned int i;
 	unsigned int num_valid_addr;
-	unsigned long flags;
 	enum BT_SCO_BAND band = bt->band;
 
 	/* prepare encoded mute data */
@@ -330,7 +329,7 @@ static int btcvsd_tx_clean_buffer(struct mtk_btcvsd_snd *bt)
 		       table_msbc_silence, SCO_PACKET_180);
 
 	/* write mute data to bt tx sram buffer */
-	spin_lock_irqsave(&bt->tx_lock, flags);
+	guard(spinlock_irqsave)(&bt->tx_lock);
 	num_valid_addr = bt->tx->buffer_info.num_valid_addr;
 
 	dev_info(bt->dev, "%s(), band %d, num_valid_addr %u\n",
@@ -349,7 +348,6 @@ static int btcvsd_tx_clean_buffer(struct mtk_btcvsd_snd *bt)
 					     bt->tx->buffer_info.packet_length,
 					     bt->tx->buffer_info.packet_num);
 	}
-	spin_unlock_irqrestore(&bt->tx_lock, flags);
 
 	return 0;
 }
@@ -365,7 +363,6 @@ static int mtk_btcvsd_read_from_bt(struct mtk_btcvsd_snd *bt,
 	int pv;
 	u8 *src;
 	unsigned int packet_buf_ofs;
-	unsigned long flags;
 	unsigned long connsys_addr_rx, ap_addr_rx;
 
 	connsys_addr_rx = *bt->bt_reg_pkt_r;
@@ -385,7 +382,7 @@ static int mtk_btcvsd_read_from_bt(struct mtk_btcvsd_snd *bt,
 				     bt->rx->temp_packet_buf, packet_length,
 				     packet_num);
 
-	spin_lock_irqsave(&bt->rx_lock, flags);
+	guard(spinlock_irqsave)(&bt->rx_lock);
 	for (i = 0; i < blk_size; i++) {
 		packet_buf_ofs = (bt->rx->packet_w & SCO_RX_PACKET_MASK) *
 				 bt->rx->packet_size;
@@ -403,7 +400,7 @@ static int mtk_btcvsd_read_from_bt(struct mtk_btcvsd_snd *bt,
 		       SCO_CVSD_PACKET_VALID_SIZE);
 		bt->rx->packet_w++;
 	}
-	spin_unlock_irqrestore(&bt->rx_lock, flags);
+
 	return 0;
 }
 
@@ -414,7 +411,6 @@ static int mtk_btcvsd_write_to_bt(struct mtk_btcvsd_snd *bt,
 				  unsigned int blk_size)
 {
 	unsigned int i;
-	unsigned long flags;
 	u8 *dst;
 	unsigned long connsys_addr_tx, ap_addr_tx;
 	bool new_ap_addr_tx = true;
@@ -430,17 +426,17 @@ static int mtk_btcvsd_write_to_bt(struct mtk_btcvsd_snd *bt,
 		return -EIO;
 	}
 
-	spin_lock_irqsave(&bt->tx_lock, flags);
-	for (i = 0; i < blk_size; i++) {
-		memcpy(bt->tx->temp_packet_buf + (bt->tx->packet_size * i),
-		       (bt->tx_packet_buf +
-			(bt->tx->packet_r % SCO_TX_PACKER_BUF_NUM) *
-			bt->tx->packet_size),
-		       bt->tx->packet_size);
+	scoped_guard(spinlock_irqsave, &bt->tx_lock) {
+		for (i = 0; i < blk_size; i++) {
+			memcpy(bt->tx->temp_packet_buf + (bt->tx->packet_size * i),
+			       (bt->tx_packet_buf +
+				(bt->tx->packet_r % SCO_TX_PACKER_BUF_NUM) *
+				bt->tx->packet_size),
+			       bt->tx->packet_size);
 
-		bt->tx->packet_r++;
+			bt->tx->packet_r++;
+		}
 	}
-	spin_unlock_irqrestore(&bt->tx_lock, flags);
 
 	dst = (u8 *)ap_addr_tx;
 
@@ -462,11 +458,11 @@ static int mtk_btcvsd_write_to_bt(struct mtk_btcvsd_snd *bt,
 	if (new_ap_addr_tx) {
 		unsigned int next_idx;
 
-		spin_lock_irqsave(&bt->tx_lock, flags);
-		bt->tx->buffer_info.num_valid_addr++;
-		next_idx = bt->tx->buffer_info.num_valid_addr - 1;
-		bt->tx->buffer_info.bt_sram_addr[next_idx] = ap_addr_tx;
-		spin_unlock_irqrestore(&bt->tx_lock, flags);
+		scoped_guard(spinlock_irqsave, &bt->tx_lock) {
+			bt->tx->buffer_info.num_valid_addr++;
+			next_idx = bt->tx->buffer_info.num_valid_addr - 1;
+			bt->tx->buffer_info.bt_sram_addr[next_idx] = ap_addr_tx;
+		}
 		dev_info(bt->dev, "%s(), new ap_addr_tx = 0x%lx, num_valid_addr %d\n",
 			 __func__, ap_addr_tx,
 			 bt->tx->buffer_info.num_valid_addr);
@@ -701,17 +697,16 @@ static ssize_t mtk_btcvsd_snd_read(struct mtk_btcvsd_snd *bt,
 {
 	ssize_t read_size = 0, read_count = 0, cur_read_idx, cont;
 	unsigned long avail;
-	unsigned long flags;
 	unsigned int packet_size = bt->rx->packet_size;
 
 	while (count) {
-		spin_lock_irqsave(&bt->rx_lock, flags);
-		/* available data in RX packet buffer */
-		avail = (bt->rx->packet_w - bt->rx->packet_r) * packet_size;
+		scoped_guard(spinlock_irqsave, &bt->rx_lock) {
+			/* available data in RX packet buffer */
+			avail = (bt->rx->packet_w - bt->rx->packet_r) * packet_size;
 
-		cur_read_idx = (bt->rx->packet_r & SCO_RX_PACKET_MASK) *
-			       packet_size;
-		spin_unlock_irqrestore(&bt->rx_lock, flags);
+			cur_read_idx = (bt->rx->packet_r & SCO_RX_PACKET_MASK) *
+				       packet_size;
+		}
 
 		if (!avail) {
 			int ret = wait_for_bt_irq(bt, bt->rx);
@@ -749,9 +744,8 @@ static ssize_t mtk_btcvsd_snd_read(struct mtk_btcvsd_snd *bt,
 			return -EFAULT;
 		}
 
-		spin_lock_irqsave(&bt->rx_lock, flags);
-		bt->rx->packet_r += read_size / packet_size;
-		spin_unlock_irqrestore(&bt->rx_lock, flags);
+		scoped_guard(spinlock_irqsave, &bt->rx_lock)
+			bt->rx->packet_r += read_size / packet_size;
 
 		read_count += read_size;
 		count -= read_size;
@@ -778,7 +772,6 @@ static ssize_t mtk_btcvsd_snd_write(struct mtk_btcvsd_snd *bt,
 				    size_t count)
 {
 	int written_size = count, avail, cur_write_idx, write_size, cont;
-	unsigned long flags;
 	unsigned int packet_size = bt->tx->packet_size;
 
 	/*
@@ -794,14 +787,14 @@ static ssize_t mtk_btcvsd_snd_write(struct mtk_btcvsd_snd *bt,
 	bt->tx->buf_data_equivalent_time *= 1000;
 
 	while (count) {
-		spin_lock_irqsave(&bt->tx_lock, flags);
-		/* free space of TX packet buffer */
-		avail = bt->tx->buf_size -
-			(bt->tx->packet_w - bt->tx->packet_r) * packet_size;
+		scoped_guard(spinlock_irqsave, &bt->tx_lock) {
+			/* free space of TX packet buffer */
+			avail = bt->tx->buf_size -
+				(bt->tx->packet_w - bt->tx->packet_r) * packet_size;
 
-		cur_write_idx = (bt->tx->packet_w % SCO_TX_PACKER_BUF_NUM) *
-				packet_size;
-		spin_unlock_irqrestore(&bt->tx_lock, flags);
+			cur_write_idx = (bt->tx->packet_w % SCO_TX_PACKER_BUF_NUM) *
+					packet_size;
+		}
 
 		if (!avail) {
 			int ret = wait_for_bt_irq(bt, bt->tx);
@@ -838,9 +831,8 @@ static ssize_t mtk_btcvsd_snd_write(struct mtk_btcvsd_snd *bt,
 			return -EFAULT;
 		}
 
-		spin_lock_irqsave(&bt->tx_lock, flags);
-		bt->tx->packet_w += write_size / packet_size;
-		spin_unlock_irqrestore(&bt->tx_lock, flags);
+		scoped_guard(spinlock_irqsave, &bt->tx_lock)
+			bt->tx->packet_w += write_size / packet_size;
 		count -= write_size;
 	}
 
@@ -985,7 +977,6 @@ static snd_pcm_uframes_t mtk_pcm_btcvsd_pointer(
 	int hw_packet_ptr;
 	int packet_diff;
 	spinlock_t *lock;	/* spinlock for bt stream control */
-	unsigned long flags;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		lock = &bt->tx_lock;
@@ -995,7 +986,7 @@ static snd_pcm_uframes_t mtk_pcm_btcvsd_pointer(
 		bt_stream = bt->rx;
 	}
 
-	spin_lock_irqsave(lock, flags);
+	guard(spinlock_irqsave)(lock);
 	hw_packet_ptr = substream->stream == SNDRV_PCM_STREAM_PLAYBACK ?
 			bt->tx->packet_r : bt->rx->packet_w;
 
@@ -1017,8 +1008,6 @@ static snd_pcm_uframes_t mtk_pcm_btcvsd_pointer(
 	frame %= substream->runtime->buffer_size;
 
 	bt_stream->prev_frame = frame;
-
-	spin_unlock_irqrestore(lock, flags);
 
 	return frame;
 }

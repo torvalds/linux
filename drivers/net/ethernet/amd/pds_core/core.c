@@ -446,6 +446,8 @@ int pdsc_setup(struct pdsc *pdsc, bool init)
 {
 	int err;
 
+	pci_set_master(pdsc->pdev);
+
 	err = pdsc_dev_init(pdsc);
 	if (err)
 		return err;
@@ -479,6 +481,8 @@ void pdsc_teardown(struct pdsc *pdsc, bool removing)
 		pdsc_devcmd_reset(pdsc);
 	if (pdsc->adminqcq.work.func)
 		cancel_work_sync(&pdsc->adminqcq.work);
+
+	pci_clear_master(pdsc->pdev);
 
 	pdsc_core_uninit(pdsc);
 

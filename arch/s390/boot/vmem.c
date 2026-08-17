@@ -338,7 +338,7 @@ static void pgtable_pte_populate(pmd_t *pmd, unsigned long addr, unsigned long e
 
 	pte = pte_offset_kernel(pmd, addr);
 	for (; addr < end; addr += PAGE_SIZE, pte++) {
-		if (pte_none(*pte)) {
+		if (pte_none(ptep_get(pte))) {
 			if (kasan_pte_populate_zero_shadow(pte, mode))
 				continue;
 			entry = __pte(resolve_pa_may_alloc(addr, PAGE_SIZE, mode));
@@ -355,26 +355,27 @@ static void pgtable_pmd_populate(pud_t *pud, unsigned long addr, unsigned long e
 				 enum populate_mode mode)
 {
 	unsigned long pa, next, pages = 0;
-	pmd_t *pmd, entry;
+	pmd_t *pmd, entry, large_entry;
 	pte_t *pte;
 
 	pmd = pmd_offset(pud, addr);
 	for (; addr < end; addr = next, pmd++) {
 		next = pmd_addr_end(addr, end);
-		if (pmd_none(*pmd)) {
+		entry = pmdp_get(pmd);
+		if (pmd_none(entry)) {
 			if (kasan_pmd_populate_zero_shadow(pmd, addr, next, mode))
 				continue;
 			pa = try_get_large_pmd_pa(pmd, addr, next, mode);
 			if (pa != INVALID_PHYS_ADDR) {
-				entry = __pmd(pa);
-				entry = set_pmd_bit(entry, SEGMENT_KERNEL);
-				set_pmd(pmd, entry);
+				large_entry = __pmd(pa);
+				large_entry = set_pmd_bit(large_entry, SEGMENT_KERNEL);
+				set_pmd(pmd, large_entry);
 				pages++;
 				continue;
 			}
 			pte = boot_pte_alloc();
 			pmd_populate(&init_mm, pmd, pte);
-		} else if (pmd_leaf(*pmd)) {
+		} else if (pmd_leaf(entry)) {
 			continue;
 		}
 		pgtable_pte_populate(pmd, addr, next, mode);
@@ -387,26 +388,27 @@ static void pgtable_pud_populate(p4d_t *p4d, unsigned long addr, unsigned long e
 				 enum populate_mode mode)
 {
 	unsigned long pa, next, pages = 0;
-	pud_t *pud, entry;
+	pud_t *pud, entry, large_entry;
 	pmd_t *pmd;
 
 	pud = pud_offset(p4d, addr);
 	for (; addr < end; addr = next, pud++) {
 		next = pud_addr_end(addr, end);
-		if (pud_none(*pud)) {
+		entry = pudp_get(pud);
+		if (pud_none(entry)) {
 			if (kasan_pud_populate_zero_shadow(pud, addr, next, mode))
 				continue;
 			pa = try_get_large_pud_pa(pud, addr, next, mode);
 			if (pa != INVALID_PHYS_ADDR) {
-				entry = __pud(pa);
-				entry = set_pud_bit(entry, REGION3_KERNEL);
-				set_pud(pud, entry);
+				large_entry = __pud(pa);
+				large_entry = set_pud_bit(large_entry, REGION3_KERNEL);
+				set_pud(pud, large_entry);
 				pages++;
 				continue;
 			}
 			pmd = boot_crst_alloc(_SEGMENT_ENTRY_EMPTY);
 			pud_populate(&init_mm, pud, pmd);
-		} else if (pud_leaf(*pud)) {
+		} else if (pud_leaf(entry)) {
 			continue;
 		}
 		pgtable_pmd_populate(pud, addr, next, mode);
@@ -425,7 +427,7 @@ static void pgtable_p4d_populate(pgd_t *pgd, unsigned long addr, unsigned long e
 	p4d = p4d_offset(pgd, addr);
 	for (; addr < end; addr = next, p4d++) {
 		next = p4d_addr_end(addr, end);
-		if (p4d_none(*p4d)) {
+		if (p4d_none(p4dp_get(p4d))) {
 			if (kasan_p4d_populate_zero_shadow(p4d, addr, next, mode))
 				continue;
 			pud = boot_crst_alloc(_REGION3_ENTRY_EMPTY);
@@ -451,7 +453,7 @@ static void pgtable_populate(unsigned long addr, unsigned long end, enum populat
 	pgd = pgd_offset(&init_mm, addr);
 	for (; addr < end; addr = next, pgd++) {
 		next = pgd_addr_end(addr, end);
-		if (pgd_none(*pgd)) {
+		if (pgd_none(pgdp_get(pgd))) {
 			if (kasan_pgd_populate_zero_shadow(pgd, addr, next, mode))
 				continue;
 			p4d = boot_crst_alloc(_REGION2_ENTRY_EMPTY);

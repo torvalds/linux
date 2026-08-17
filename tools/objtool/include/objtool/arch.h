@@ -79,6 +79,9 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 			    unsigned long offset, unsigned int maxlen,
 			    struct instruction *insn);
 
+size_t arch_jump_opcode_bytes(struct objtool_file *file, struct instruction *insn,
+			      unsigned char *buf);
+
 bool arch_callee_saved_reg(unsigned char reg);
 
 unsigned long arch_jump_destination(struct instruction *insn);

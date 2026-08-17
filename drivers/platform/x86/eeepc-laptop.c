@@ -1363,9 +1363,13 @@ static bool eeepc_device_present;
 
 static int eeepc_acpi_probe(struct platform_device *pdev)
 {
-	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
+	struct acpi_device *device;
 	struct eeepc_laptop *eeepc;
 	int result;
+
+	device = ACPI_COMPANION(&pdev->dev);
+	if (!device)
+		return -ENODEV;
 
 	pr_notice(EEEPC_LAPTOP_NAME "\n");
 	eeepc = kzalloc_obj(struct eeepc_laptop);

@@ -446,7 +446,7 @@ EXPORT_SYMBOL(drm_crtc_helper_set_mode);
  * RETURNS:
  * Zero on success, or an errno code otherwise.
  */
-int drm_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *state)
+int drm_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *new_crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 

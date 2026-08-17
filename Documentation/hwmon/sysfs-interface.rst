@@ -106,6 +106,10 @@ Global attributes
 `update_interval`
 		The interval at which the chip will update readings.
 
+`update_interval_us`
+		The interval at which the chip will update readings,
+		expressed in microseconds for finer resolution.
+
 
 ********
 Voltages

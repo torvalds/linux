@@ -52,6 +52,7 @@
 			/* Conflict with TVC */
 			gpios = <&gpio1 28 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
+			linux,default-trigger = "disk-activity";
 		};
 		led-green-os {
 			label = "nas4220b:green:os";

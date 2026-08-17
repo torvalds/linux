@@ -33,6 +33,8 @@
 
 MODULE_FIRMWARE("amdgpu/psp_15_0_0_toc.bin");
 MODULE_FIRMWARE("amdgpu/psp_15_0_0_ta.bin");
+MODULE_FIRMWARE("amdgpu/psp_15_0_9_toc.bin");
+MODULE_FIRMWARE("amdgpu/psp_15_0_9_ta.bin");
 
 static int psp_v15_0_0_init_microcode(struct psp_context *psp)
 {

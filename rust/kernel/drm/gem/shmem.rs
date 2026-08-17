@@ -12,10 +12,12 @@
 use crate::{
     container_of,
     drm::{
-        device,
         driver,
         gem,
-        private::Sealed, //
+        private::Sealed,
+        Device,
+        DeviceContext,
+        Registered, //
     },
     error::to_result,
     prelude::*,
@@ -23,11 +25,12 @@ use crate::{
     types::Opaque, //
 };
 use core::{
+    marker::PhantomData,
     ops::{
         Deref,
         DerefMut, //
     },
-    ptr::NonNull,
+    ptr::NonNull, //
 };
 use gem::{
     BaseObjectPrivate,
@@ -40,42 +43,49 @@ use gem::{
 /// This is used with [`Object::new()`] to control various properties that can only be set when
 /// initially creating a shmem-backed GEM object.
 #[derive(Default)]
-pub struct ObjectConfig<'a, T: DriverObject> {
+pub struct ObjectConfig<'a, T: DriverObject, C: DeviceContext = Registered> {
     /// Whether to set the write-combine map flag.
     pub map_wc: bool,
 
     /// Reuse the DMA reservation from another GEM object.
     ///
     /// The newly created [`Object`] will hold an owned refcount to `parent_resv_obj` if specified.
-    pub parent_resv_obj: Option<&'a Object<T>>,
+    pub parent_resv_obj: Option<&'a Object<T, C>>,
 }
 
 /// A shmem-backed GEM object.
 ///
 /// # Invariants
 ///
-/// `obj` contains a valid initialized `struct drm_gem_shmem_object` for the lifetime of this
-/// object.
+/// - `obj` contains a valid initialized `struct drm_gem_shmem_object` for the lifetime of this
+///   object.
+/// - Any type invariants of `C` apply to the parent DRM device for this GEM object.
 #[repr(C)]
 #[pin_data]
-pub struct Object<T: DriverObject> {
+pub struct Object<T: DriverObject, C: DeviceContext = Registered> {
     #[pin]
     obj: Opaque<bindings::drm_gem_shmem_object>,
     /// Parent object that owns this object's DMA reservation object.
-    parent_resv_obj: Option<ARef<Object<T>>>,
+    parent_resv_obj: Option<ARef<Object<T, C>>>,
     #[pin]
     inner: T,
+    _ctx: PhantomData<C>,
 }
 
-super::impl_aref_for_gem_obj!(impl<T> for Object<T> where T: DriverObject);
+super::impl_aref_for_gem_obj! {
+    impl<T, C> for Object<T, C>
+    where
+        T: DriverObject,
+        C: DeviceContext
+}
 
 // SAFETY: All GEM objects are thread-safe.
-unsafe impl<T: DriverObject> Send for Object<T> {}
+unsafe impl<T: DriverObject, C: DeviceContext> Send for Object<T, C> {}
 
 // SAFETY: All GEM objects are thread-safe.
-unsafe impl<T: DriverObject> Sync for Object<T> {}
+unsafe impl<T: DriverObject, C: DeviceContext> Sync for Object<T, C> {}
 
-impl<T: DriverObject> Object<T> {
+impl<T: DriverObject, C: DeviceContext> Object<T, C> {
     /// `drm_gem_object_funcs` vtable suitable for GEM shmem objects.
     const VTABLE: bindings::drm_gem_object_funcs = bindings::drm_gem_object_funcs {
         free: Some(Self::free_callback),
@@ -106,9 +116,9 @@ impl<T: DriverObject> Object<T> {
     ///
     /// Additional config options can be specified using `config`.
     pub fn new(
-        dev: &device::Device<T::Driver>,
+        dev: &Device<T::Driver, C>,
         size: usize,
-        config: ObjectConfig<'_, T>,
+        config: ObjectConfig<'_, T, C>,
         args: T::Args,
     ) -> Result<ARef<Self>> {
         let new: Pin<KBox<Self>> = KBox::try_pin_init(
@@ -116,6 +126,7 @@ impl<T: DriverObject> Object<T> {
                 obj <- Opaque::init_zeroed(),
                 parent_resv_obj: config.parent_resv_obj.map(|p| p.into()),
                 inner <- T::new(dev, size, args),
+                _ctx: PhantomData::<C>,
             }),
             GFP_KERNEL,
         )?;
@@ -148,9 +159,9 @@ impl<T: DriverObject> Object<T> {
     }
 
     /// Returns the `Device` that owns this GEM object.
-    pub fn dev(&self) -> &device::Device<T::Driver> {
+    pub fn dev(&self) -> &Device<T::Driver, C> {
         // SAFETY: `dev` will have been initialized in `Self::new()` by `drm_gem_shmem_init()`.
-        unsafe { device::Device::from_raw((*self.as_raw()).dev) }
+        unsafe { Device::from_raw((*self.as_raw()).dev) }
     }
 
     extern "C" fn free_callback(obj: *mut bindings::drm_gem_object) {
@@ -168,7 +179,7 @@ impl<T: DriverObject> Object<T> {
         // SAFETY:
         // - We verified above that `obj` is valid, which makes `this` valid
         // - This function is set in AllocOps, so we know that `this` is contained within a
-        //   `Object<T>`
+        //   `Object<T, C>`
         let this = unsafe { container_of!(Opaque::cast_from(this), Self, obj) }.cast_mut();
 
         // SAFETY: We're recovering the Kbox<> we created in gem_create_object()
@@ -176,7 +187,7 @@ impl<T: DriverObject> Object<T> {
     }
 }
 
-impl<T: DriverObject> Deref for Object<T> {
+impl<T: DriverObject, C: DeviceContext> Deref for Object<T, C> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -184,15 +195,15 @@ impl<T: DriverObject> Deref for Object<T> {
     }
 }
 
-impl<T: DriverObject> DerefMut for Object<T> {
+impl<T: DriverObject, C: DeviceContext> DerefMut for Object<T, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
     }
 }
 
-impl<T: DriverObject> Sealed for Object<T> {}
+impl<T: DriverObject, C: DeviceContext> Sealed for Object<T, C> {}
 
-impl<T: DriverObject> gem::IntoGEMObject for Object<T> {
+impl<T: DriverObject, C: DeviceContext> gem::IntoGEMObject for Object<T, C> {
     fn as_raw(&self) -> *mut bindings::drm_gem_object {
         // SAFETY:
         // - Our immutable reference is proof that this is safe to dereference.
@@ -200,18 +211,18 @@ impl<T: DriverObject> gem::IntoGEMObject for Object<T> {
         unsafe { &raw mut (*self.obj.get()).base }
     }
 
-    unsafe fn from_raw<'a>(obj: *mut bindings::drm_gem_object) -> &'a Object<T> {
+    unsafe fn from_raw<'a>(obj: *mut bindings::drm_gem_object) -> &'a Self {
         // SAFETY: The safety contract of from_gem_obj() guarantees that `obj` is contained within
         // `Self`
         unsafe {
             let obj = Opaque::cast_from(container_of!(obj, bindings::drm_gem_shmem_object, base));
 
-            &*container_of!(obj, Object<T>, obj)
+            &*container_of!(obj, Self, obj)
         }
     }
 }
 
-impl<T: DriverObject> driver::AllocImpl for Object<T> {
+impl<T: DriverObject, C: DeviceContext> driver::AllocImpl for Object<T, C> {
     type Driver = T::Driver;
 
     const ALLOC_OPS: driver::AllocOps = driver::AllocOps {

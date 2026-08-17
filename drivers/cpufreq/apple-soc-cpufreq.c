@@ -187,10 +187,8 @@ static int apple_soc_cpufreq_set_target(struct cpufreq_policy *policy,
 
 	reg &= ~priv->info->ps1_mask;
 	reg |= pstate << priv->info->ps1_shift;
-	if (priv->info->has_ps2) {
-		reg &= ~APPLE_DVFS_CMD_PS2;
-		reg |= FIELD_PREP(APPLE_DVFS_CMD_PS2, pstate);
-	}
+	if (priv->info->has_ps2)
+		FIELD_MODIFY(APPLE_DVFS_CMD_PS2, &reg, pstate);
 	reg |= APPLE_DVFS_CMD_SET;
 
 	writeq_relaxed(reg, priv->reg_base + APPLE_DVFS_CMD);

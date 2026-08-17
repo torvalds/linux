@@ -195,10 +195,12 @@
 		compatible = "snps,dwmac-mdio";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		clock-frequency = <5000000>;
 
 		ethphy1: ethernet-phy@1 {
 			reg = <1>;
+			reset-gpios = <&pcal6524 15 GPIO_ACTIVE_LOW>;
+			reset-assert-us = <10000>;
+			reset-deassert-us = <80000>;
 			realtek,clkout-disable;
 		};
 	};
@@ -220,6 +222,9 @@
 
 		ethphy2: ethernet-phy@2 {
 			reg = <2>;
+			reset-gpios = <&pcal6524 16 GPIO_ACTIVE_LOW>;
+			reset-assert-us = <10000>;
+			reset-deassert-us = <80000>;
 			realtek,clkout-disable;
 		};
 	};
@@ -587,6 +592,8 @@
 };
 
 &wdog3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_wdog>;
 	fsl,ext-reset-output;
 	status = "okay";
 };
@@ -946,6 +953,12 @@
 			MX91_PAD_SD3_DATA1__GPIO3_IO23                           0x31e
 			MX91_PAD_SD3_DATA2__GPIO3_IO24                           0x31e
 			MX91_PAD_SD3_DATA3__GPIO3_IO25                           0x31e
+		>;
+	};
+
+	pinctrl_wdog: wdoggrp {
+		fsl,pins = <
+			MX91_PAD_WDOG_ANY__WDOG1_WDOG_ANY	0x31e
 		>;
 	};
 };

@@ -389,8 +389,7 @@ static struct dentry *lookup_file(struct eventfs_inode *parent_ei,
 	// Files have their parent's ei as their fsdata
 	dentry->d_fsdata = get_ei(parent_ei);
 
-	d_add(dentry, inode);
-	return NULL;
+	return d_splice_alias(inode, dentry);
 };
 
 /**
@@ -420,8 +419,7 @@ static struct dentry *lookup_dir_entry(struct dentry *dentry,
 
 	dentry->d_fsdata = get_ei(ei);
 
-	d_add(dentry, inode);
-	return NULL;
+	return d_splice_alias(inode, dentry);
 }
 
 static inline struct eventfs_inode *init_ei(struct eventfs_inode *ei, const char *name)

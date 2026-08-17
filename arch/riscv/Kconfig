@@ -24,6 +24,7 @@ config RISCV
 	select ARCH_ENABLE_SPLIT_PMD_PTLOCK if PGTABLE_LEVELS > 2
 	select ARCH_ENABLE_THP_MIGRATION if TRANSPARENT_HUGEPAGE
 	select ARCH_HAS_BINFMT_FLAT
+	select ARCH_HAS_CC_CAN_LINK
 	select ARCH_HAS_CURRENT_STACK_POINTER
 	select ARCH_HAS_DEBUG_VIRTUAL if MMU
 	select ARCH_HAS_DEBUG_VM_PGTABLE
@@ -55,14 +56,13 @@ config RISCV
 	select ARCH_HAS_UBSAN
 	select ARCH_HAS_VDSO_ARCH_DATA if HAVE_GENERIC_VDSO
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
-	select ARCH_KEEP_MEMBLOCK if ACPI
+	select ARCH_KEEP_MEMBLOCK if ACPI || KEXEC
 	select ARCH_MHP_MEMMAP_ON_MEMORY_ENABLE	if 64BIT && MMU
 	select ARCH_OPTIONAL_KERNEL_RWX if ARCH_HAS_STRICT_KERNEL_RWX
 	select ARCH_OPTIONAL_KERNEL_RWX_DEFAULT
 	select ARCH_STACKWALK
 	select ARCH_SUPPORTS_ATOMIC_RMW
-	# clang >= 17: https://github.com/llvm/llvm-project/commit/62fa708ceb027713b386c7e0efda994f8bdc27e2
-	select ARCH_SUPPORTS_CFI if (!CC_IS_CLANG || CLANG_VERSION >= 170000)
+	select ARCH_SUPPORTS_CFI
 	select ARCH_SUPPORTS_DEBUG_PAGEALLOC if MMU
 	select ARCH_SUPPORTS_HUGE_PFNMAP if TRANSPARENT_HUGEPAGE
 	select ARCH_SUPPORTS_HUGETLBFS if MMU
@@ -104,6 +104,7 @@ config RISCV
 	select FUNCTION_ALIGNMENT_8B if DYNAMIC_FTRACE_WITH_CALL_OPS
 	select GENERIC_ARCH_TOPOLOGY
 	select GENERIC_ATOMIC64 if !64BIT
+	select GENERIC_BITREVERSE if HAVE_ARCH_BITREVERSE
 	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
 	select GENERIC_CPU_DEVICES
 	select GENERIC_CPU_VULNERABILITIES
@@ -123,11 +124,11 @@ config RISCV
 	select GENERIC_PCI_IOMAP
 	select GENERIC_SCHED_CLOCK
 	select GENERIC_SMP_IDLE_THREAD
-	select GENERIC_TIME_VSYSCALL if GENERIC_GETTIMEOFDAY
 	select HARDIRQS_SW_RESEND
 	select HAS_IOPORT if MMU
 	select HAVE_ALIGNED_STRUCT_PAGE
 	select HAVE_ARCH_AUDITSYSCALL
+	select HAVE_ARCH_BITREVERSE if RISCV_ISA_ZBKB && BITREVERSE
 	select HAVE_ARCH_HUGE_VMALLOC if HAVE_ARCH_HUGE_VMAP
 	select HAVE_ARCH_HUGE_VMAP if MMU && 64BIT
 	select HAVE_ARCH_JUMP_LABEL
@@ -151,6 +152,7 @@ config RISCV
 	select HAVE_ARCH_USERFAULTFD_WP if 64BIT && MMU && USERFAULTFD && RISCV_ISA_SVRSW60T59B
 	select HAVE_ARCH_VMAP_STACK if MMU && 64BIT
 	select HAVE_ASM_MODVERSIONS
+	select HAVE_BUILDTIME_MCOUNT_SORT
 	select HAVE_CONTEXT_TRACKING_USER
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_CONTIGUOUS if MMU
@@ -404,9 +406,6 @@ config ARCH_RV32I
 	bool "RV32I"
 	depends on NONPORTABLE
 	select 32BIT
-	select GENERIC_LIB_ASHLDI3
-	select GENERIC_LIB_ASHRDI3
-	select GENERIC_LIB_LSHRDI3
 	select GENERIC_LIB_UCMPDI2
 
 config ARCH_RV64I
@@ -455,7 +454,8 @@ config NR_CPUS
 	range 2 32 if RISCV_SBI_V01 && 32BIT
 	range 2 64 if RISCV_SBI_V01 && 64BIT
 	default "32" if 32BIT
-	default "64" if 64BIT
+	default "64" if RISCV_SBI_V01 && 64BIT
+	default "256" if !RISCV_SBI_V01 && 64BIT
 
 config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs"
@@ -874,19 +874,18 @@ config TOOLCHAIN_NEEDS_EXPLICIT_ZICSR_ZIFENCEI
 	  and Zifencei are supported in binutils from version 2.36 onwards.
 	  To make life easier, and avoid forcing toolchains that default to a
 	  newer ISA spec to version 2.2, relax the check to binutils >= 2.36.
-	  For clang < 17 or GCC < 11.3.0, for which this is not possible or need
-	  special treatment, this is dealt with in TOOLCHAIN_NEEDS_OLD_ISA_SPEC.
+	  For GCC < 11.3.0, for which this is not possible or need special
+	  treatment, this is dealt with in TOOLCHAIN_NEEDS_OLD_ISA_SPEC.
 
 config TOOLCHAIN_NEEDS_OLD_ISA_SPEC
 	def_bool y
 	depends on TOOLCHAIN_NEEDS_EXPLICIT_ZICSR_ZIFENCEI
-	# https://github.com/llvm/llvm-project/commit/22e199e6afb1263c943c0c0d4498694e15bf8a16
 	# https://gcc.gnu.org/git/?p=gcc.git;a=commit;h=d29f5d6ab513c52fd872f532c492e35ae9fd6671
-	depends on (CC_IS_CLANG && CLANG_VERSION < 170000) || (CC_IS_GCC && GCC_VERSION < 110300)
+	depends on CC_IS_GCC && GCC_VERSION < 110300
 	help
-	  Certain versions of clang and GCC do not support zicsr and zifencei via
-	  -march. This option causes an older ISA spec compatible with these older
-	  versions of clang and GCC to be passed to GAS, which has the same result
+	  Certain versions of GCC do not support zicsr and zifencei via -march.
+	  This option causes an older ISA spec compatible with these older
+	  versions of GCC to be passed to GAS, which has the same result
 	  as passing zicsr and zifencei to -march.
 
 config FPU
@@ -1023,7 +1022,6 @@ choice
 config RISCV_PROBE_VECTOR_UNALIGNED_ACCESS
 	bool "Probe speed of vector unaligned accesses"
 	select RISCV_VECTOR_MISALIGNED
-	depends on RISCV_ISA_V
 	help
 	  During boot, the kernel will run a series of tests to determine the
 	  speed of vector unaligned accesses if they are supported. This probing
@@ -1163,7 +1161,7 @@ config RELOCATABLE
 
 config RANDOMIZE_BASE
         bool "Randomize the address of the kernel image"
-        select RELOCATABLE
+        depends on RELOCATABLE
         depends on MMU && 64BIT
         help
           Randomizes the virtual address at which the kernel image is
@@ -1352,6 +1350,20 @@ config PORTABLE
 
 config ARCH_PROC_KCORE_TEXT
 	def_bool y
+
+config ARCH_CC_CAN_LINK
+	bool
+	default $(cc_can_link_user,-march=rv64g -mabi=lp64d) if 64BIT && FPU
+	default $(cc_can_link_user,-march=rv64g -mabi=lp64) if 64BIT
+	default $(cc_can_link_user,-march=rv32g -mabi=ilp32d) if FPU
+	default $(cc_can_link_user,-march=rv32g -mabi=ilp32)
+
+config ARCH_USERFLAGS
+	string
+	default "-march=rv64g -mabi=lp64d" if 64BIT && FPU
+	default "-march=rv64g -mabi=lp64" if 64BIT
+	default "-march=rv32g -mabi=ilp32d" if FPU
+	default "-march=rv32g -mabi=ilp32"
 
 menu "Power management options"
 

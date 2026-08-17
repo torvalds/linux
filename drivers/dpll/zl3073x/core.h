@@ -57,6 +57,7 @@ struct zl3073x_chip_info {
  * @work: periodic work
  * @clock_id: clock id of the device
  * @phase_avg_factor: phase offset measurement averaging factor
+ * @freq_monitor: is frequency monitor enabled
  */
 struct zl3073x_dev {
 	struct device			*dev;
@@ -77,9 +78,10 @@ struct zl3073x_dev {
 	struct kthread_worker		*kworker;
 	struct kthread_delayed_work	work;
 
-	/* Devlink parameters */
+	/* Per-chip parameters */
 	u64			clock_id;
 	u8			phase_avg_factor;
+	bool			freq_monitor;
 };
 
 extern const struct regmap_config zl3073x_regmap_config;

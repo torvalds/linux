@@ -110,7 +110,7 @@ struct link_service {
 	struct dc_sink *(*add_remote_sink)(
 			struct dc_link *link,
 			const uint8_t *edid,
-			int len,
+			unsigned int len,
 			struct dc_sink_init_data *init_data);
 	void (*remove_remote_sink)(struct dc_link *link, struct dc_sink *sink);
 	bool (*get_hpd_state)(struct dc_link *link);
@@ -144,6 +144,10 @@ struct link_service {
 	enum dc_status (*validate_dp_tunnel_bandwidth)(
 		const struct dc *dc,
 		const struct dc_state *new_ctx);
+	uint32_t (*frl_link_bandwidth_kbps)(enum hdmi_frl_link_rate link_rate);
+	bool (*frl_margin_check_uncompressed_video)(
+		struct frl_cap_chk_params_fixed31_32 *params,
+		struct frl_cap_chk_intermediates_fixed31_32 *inter);
 
 	uint32_t (*dp_required_hblank_size_bytes)(
 		const struct dc_link *link,
@@ -164,6 +168,7 @@ struct link_service {
 	void (*set_dsc_on_stream)(struct pipe_ctx *pipe_ctx, bool enable);
 	bool (*set_dsc_enable)(struct pipe_ctx *pipe_ctx, bool enable);
 	bool (*update_dsc_config)(struct pipe_ctx *pipe_ctx);
+	void (*wait_for_unlocked)(struct dc_link *link);
 
 
 	/*************************** DDC **************************************/
@@ -309,6 +314,16 @@ struct link_service {
 	bool (*dp_pr_set_general_cmd)(struct dc_link *link, struct dmub_cmd_pr_general_cmd_data *general_cmd_data);
 	bool (*dp_pr_get_state)(const struct dc_link *link, uint64_t *state);
 	void (*edp_set_panel_power)(struct dc_link *link, bool powerOn);
+
+
+	/*************************** HDMI FRL *********************************/
+	bool (*hdmi_frl_poll_status_flag)(struct dc_link *link);
+	struct dc_hdmi_frl_link_settings *(*hdmi_frl_get_verified_link_cap)(
+			struct dc_link *link);
+	void (*hdmi_frl_set_preferred_link_settings)(struct dc *dc,
+			struct dc_hdmi_frl_link_settings *link_setting,
+			struct dc_hdmi_frl_link_training_overrides *lt_overrides,
+			struct dc_link *link);
 
 
 	/*************************** DP CTS ************************************/

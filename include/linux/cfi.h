@@ -9,6 +9,7 @@
 
 #include <linux/bug.h>
 #include <linux/module.h>
+#include <linux/uaccess.h>
 #include <asm/cfi.h>
 
 #ifdef CONFIG_CFI

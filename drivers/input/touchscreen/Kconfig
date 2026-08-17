@@ -610,6 +610,18 @@ config TOUCHSCREEN_WACOM_I2C
 	  To compile this driver as a module, choose M here: the module
 	  will be called wacom_i2c.
 
+config TOUCHSCREEN_WACOM_W9000
+	tristate "Wacom W9000-series penabled touchscreen (I2C)"
+	depends on I2C
+	help
+	  Say Y here if you have a Wacom W9000-series penabled I2C touchscreen.
+	  This driver supports models W9002 and W9007A.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called wacom_w9000.
+
 config TOUCHSCREEN_LPC32XX
 	tristate "LPC32XX touchscreen controller"
 	depends on ARCH_LPC32XX
@@ -1177,16 +1189,6 @@ config TOUCHSCREEN_TSC2007_IIO
 	  provides values for the AUX input (used for e.g. battery
 	  or ambient light monitoring), temperature and raw input
 	  values.
-
-config TOUCHSCREEN_PCAP
-	tristate "Motorola PCAP touchscreen"
-	depends on EZX_PCAP
-	help
-	  Say Y here if you have a Motorola EZX telephone and
-	  want to enable support for the built-in touchscreen.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called pcap_ts.
 
 config TOUCHSCREEN_RM_TS
 	tristate "Raydium I2C Touchscreen"

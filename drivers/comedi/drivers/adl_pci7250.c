@@ -194,16 +194,16 @@ static int adl_pci7250_pci_probe(struct pci_dev *dev,
 
 static const struct pci_device_id adl_pci7250_pci_table[] = {
 #ifdef CONFIG_HAS_IOPORT
-	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9050,
-			 0x9999, 0x7250) },
-	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ADLINK, 0x7250,
-			 0x9999, 0x7250) },
-	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ADLINK, 0x7250,
-			 PCI_VENDOR_ID_ADLINK, 0x7250) },
+	{ PCI_VDEVICE_SUB(PLX, PCI_DEVICE_ID_PLX_9050,
+			  0x9999, 0x7250) },
+	{ PCI_VDEVICE_SUB(ADLINK, 0x7250,
+			  0x9999, 0x7250) },
+	{ PCI_VDEVICE_SUB(ADLINK, 0x7250,
+			  PCI_VENDOR_ID_ADLINK, 0x7250) },
 #endif
-	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ADLINK, 0x7250,
-			 PCI_VENDOR_ID_ADLINK, 0x7000) }, /* newer LPCIe-7250 */
-	{ 0 }
+	{ PCI_VDEVICE_SUB(ADLINK, 0x7250,
+			  PCI_VENDOR_ID_ADLINK, 0x7000) }, /* newer LPCIe-7250 */
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, adl_pci7250_pci_table);
 

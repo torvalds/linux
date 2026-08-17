@@ -605,9 +605,9 @@ static void ktd202x_shutdown(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ktd202x_id[] = {
-	{"ktd2026", KTD2026_NUM_LEDS},
-	{"ktd2027", KTD2027_NUM_LEDS},
-	{}
+	{ .name = "ktd2026", .driver_data = KTD2026_NUM_LEDS },
+	{ .name = "ktd2027", .driver_data = KTD2027_NUM_LEDS },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ktd202x_id);
 

@@ -20,7 +20,7 @@
 #include "sec.h"
 #include "sec_crypto.h"
 
-#define SEC_PRIORITY		4001
+#define SEC_PRIORITY		80
 #define SEC_XTS_MIN_KEY_SIZE	(2 * AES_MIN_KEY_SIZE)
 #define SEC_XTS_MID_KEY_SIZE	(3 * AES_MIN_KEY_SIZE)
 #define SEC_XTS_MAX_KEY_SIZE	(2 * AES_MAX_KEY_SIZE)

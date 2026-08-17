@@ -61,7 +61,7 @@ static int _dpu_format_populate_plane_sizes_ubwc(
 	bool meta = MSM_FORMAT_IS_UBWC(fmt);
 
 	if (MSM_FORMAT_IS_YUV(fmt)) {
-		unsigned int stride, sclines;
+		unsigned int stride, y_sclines, uv_sclines;
 		unsigned int y_tile_width, y_tile_height;
 		unsigned int y_meta_stride, y_meta_scanlines;
 		unsigned int uv_meta_stride, uv_meta_scanlines;
@@ -77,23 +77,25 @@ static int _dpu_format_populate_plane_sizes_ubwc(
 				y_tile_width = 32;
 			}
 
-			sclines = round_up(fb->height, 16);
+			y_sclines = round_up(fb->height, 16);
+			uv_sclines = round_up((fb->height+1)>>1, 16);
 			y_tile_height = 4;
 		} else {
 			stride = round_up(fb->width, 128);
 			y_tile_width = 32;
 
-			sclines = round_up(fb->height, 32);
+			y_sclines = round_up(fb->height, 32);
+			uv_sclines = round_up((fb->height+1)>>1, 32);
 			y_tile_height = 8;
 		}
 
 		layout->plane_pitch[0] = stride;
 		layout->plane_size[0] = round_up(layout->plane_pitch[0] *
-			sclines, DPU_UBWC_PLANE_SIZE_ALIGNMENT);
+			y_sclines, DPU_UBWC_PLANE_SIZE_ALIGNMENT);
 
 		layout->plane_pitch[1] = stride;
 		layout->plane_size[1] = round_up(layout->plane_pitch[1] *
-			sclines, DPU_UBWC_PLANE_SIZE_ALIGNMENT);
+			uv_sclines, DPU_UBWC_PLANE_SIZE_ALIGNMENT);
 
 		if (!meta)
 			return 0;

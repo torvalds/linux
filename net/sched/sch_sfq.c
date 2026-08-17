@@ -302,7 +302,7 @@ drop:
 		len = qdisc_pkt_len(skb);
 		WRITE_ONCE(slot->backlog, slot->backlog - len);
 		sfq_dec(q, x);
-		sch->q.qlen--;
+		qdisc_qlen_dec(sch);
 		qdisc_qstats_backlog_dec(sch, skb);
 		qdisc_drop_reason(skb, sch, to_free, QDISC_DROP_OVERLIMIT);
 		return len;
@@ -427,7 +427,7 @@ congestion_drop:
 		/* We know we have at least one packet in queue */
 		head = slot_dequeue_head(slot);
 		delta = qdisc_pkt_len(head) - qdisc_pkt_len(skb);
-		sch->qstats.backlog -= delta;
+		qstats_backlog_sub(sch, delta);
 		WRITE_ONCE(slot->backlog, slot->backlog - delta);
 		qdisc_drop_reason(head, sch, to_free, QDISC_DROP_FLOW_LIMIT);
 
@@ -456,7 +456,8 @@ enqueue:
 		/* We could use a bigger initial quantum for new flows */
 		WRITE_ONCE(slot->allot, q->quantum);
 	}
-	if (++sch->q.qlen <= q->limit)
+	qdisc_qlen_inc(sch);
+	if (sch->q.qlen <= q->limit)
 		return NET_XMIT_SUCCESS;
 
 	qlen = slot->qlen;
@@ -497,7 +498,7 @@ next_slot:
 	skb = slot_dequeue_head(slot);
 	sfq_dec(q, a);
 	qdisc_bstats_update(sch, skb);
-	sch->q.qlen--;
+	qdisc_qlen_dec(sch);
 	qdisc_qstats_backlog_dec(sch, skb);
 	WRITE_ONCE(slot->backlog, slot->backlog - qdisc_pkt_len(skb));
 	/* Is the slot empty? */
@@ -596,7 +597,7 @@ drop:
 			WRITE_ONCE(slot->allot, q->quantum);
 		}
 	}
-	sch->q.qlen -= dropped;
+	WRITE_ONCE(sch->q.qlen, sch->q.qlen - dropped);
 	qdisc_tree_reduce_backlog(sch, dropped, drop_len);
 }
 

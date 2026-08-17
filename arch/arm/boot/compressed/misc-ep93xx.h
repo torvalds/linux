@@ -3,7 +3,22 @@
  * Copyright (C) 2006 Lennert Buytenhek <buytenh@wantstofly.org>
  */
 
-#include <asm/mach-types.h>
+/*
+ * These machine IDs are no longer used by the kernel since EP93xx was converted
+ * to DT booting, but they are still passed in by bootloaders, so we use our own
+ * local definitions of the relevant macros.
+ */
+#define machine_is_bk3()		(__machine_arch_type == 1880)
+#define machine_is_edb9301()		(__machine_arch_type == 462)
+#define machine_is_edb9302a()		(__machine_arch_type == 1127)
+#define machine_is_edb9302()		(__machine_arch_type == 538)
+#define machine_is_edb9307a()		(__machine_arch_type == 1128)
+#define machine_is_edb9307()		(__machine_arch_type == 607)
+#define machine_is_edb9312()		(__machine_arch_type == 451)
+#define machine_is_edb9315a()		(__machine_arch_type == 772)
+#define machine_is_edb9315()		(__machine_arch_type == 463)
+#define machine_is_ts72xx()		(__machine_arch_type == 673)
+#define machine_is_vision_ep9307()	(__machine_arch_type == 1578)
 
 static inline unsigned int __raw_readl(unsigned int ptr)
 {
@@ -60,13 +75,10 @@ static inline void ep93xx_decomp_setup(void)
 	if (machine_is_edb9301() ||
 	    machine_is_edb9302() ||
 	    machine_is_edb9302a() ||
-	    machine_is_edb9302a() ||
 	    machine_is_edb9307() ||
-	    machine_is_edb9307a() ||
 	    machine_is_edb9307a() ||
 	    machine_is_edb9312() ||
 	    machine_is_edb9315() ||
-	    machine_is_edb9315a() ||
 	    machine_is_edb9315a() ||
 	    machine_is_ts72xx() ||
 	    machine_is_bk3() ||
