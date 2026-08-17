@@ -107,6 +107,7 @@ static bool need_uplift_priority(struct f2fs_rwsem *sem, bool is_write)
 	case LOCK_NAME_GC_LOCK:
 	case LOCK_NAME_CP_GLOBAL:
 	case LOCK_NAME_IO_RWSEM:
+	case LOCK_NAME_NAT_TREE_LOCK:
 		return true;
 	default:
 		f2fs_bug_on(sem->sbi, 1);

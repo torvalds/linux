@@ -191,7 +191,8 @@ TRACE_DEFINE_ENUM(CP_PHASE_FINISH_CHECKPOINT);
 		{ LOCK_NAME_NODE_WRITE,		"node_write" },		\
 		{ LOCK_NAME_GC_LOCK,		"gc_lock" },		\
 		{ LOCK_NAME_CP_GLOBAL,		"cp_global" },		\
-		{ LOCK_NAME_IO_RWSEM,		"io_rwsem" })
+		{ LOCK_NAME_IO_RWSEM,		"io_rwsem" },		\
+		{ LOCK_NAME_NAT_TREE_LOCK,	"nat_tree_lock" })
 
 struct f2fs_sb_info;
 struct f2fs_io_info;

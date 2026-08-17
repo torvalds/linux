@@ -986,6 +986,7 @@ Description:	This sysfs entry can be used to enable/disable to adjust priority f
 		0x00000008     gc_lock
 		0x00000010     cp_global
 		0x00000020     io_rwsem
+		0x00000040     nat_tree_lock
 		==========     ==================
 
 What:		/sys/fs/f2fs/<disk>/lock_duration_priority
