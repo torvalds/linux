@@ -184,7 +184,7 @@ static int hfs_dir_release(struct inode *inode, struct file *file)
  * the directory and the name (and its length) of the new file.
  */
 static int hfs_create(struct mnt_idmap *idmap, struct inode *dir,
-		      struct dentry *dentry, umode_t mode, bool excl)
+		      struct dentry *dentry, umode_t mode)
 {
 	struct inode *inode;
 	int res;
