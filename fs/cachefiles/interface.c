@@ -32,11 +32,6 @@ struct cachefiles_object *cachefiles_alloc_object(struct fscache_cookie *cookie)
 	if (!object)
 		return NULL;
 
-	if (cachefiles_ondemand_init_obj_info(object, volume)) {
-		kmem_cache_free(cachefiles_object_jar, object);
-		return NULL;
-	}
-
 	refcount_set(&object->ref, 1);
 
 	spin_lock_init(&object->lock);
@@ -94,7 +89,6 @@ void cachefiles_put_object(struct cachefiles_object *object,
 		ASSERTCMP(object->file, ==, NULL);
 
 		kfree(object->d_name);
-		cachefiles_ondemand_deinit_obj_info(object);
 		cache = object->volume->cache->cache;
 		fscache_put_cookie(object->cookie, fscache_cookie_put_object);
 		object->cookie = NULL;
@@ -373,8 +367,6 @@ static void cachefiles_withdraw_cookie(struct fscache_cookie *cookie)
 		list_del_init(&object->cache_link);
 		spin_unlock(&cache->object_list_lock);
 	}
-
-	cachefiles_ondemand_clean_object(object);
 
 	if (object->file) {
 		cachefiles_begin_secure(cache, &saved_cred);

@@ -442,10 +442,6 @@ struct file *cachefiles_create_tmpfile(struct cachefiles_object *object)
 	if (!cachefiles_mark_inode_in_use(object, file_inode(file)))
 		WARN_ON(1);
 
-	ret = cachefiles_ondemand_init_object(object);
-	if (ret < 0)
-		goto err_unuse;
-
 	ni_size = object->cookie->object_size;
 	ni_size = round_up(ni_size, CACHEFILES_DIO_BLOCK_SIZE);
 
@@ -545,10 +541,6 @@ static bool cachefiles_open_file(struct cachefiles_object *object,
 		goto error_fput;
 	}
 	_debug("file -> %pd positive", dentry);
-
-	ret = cachefiles_ondemand_init_object(object);
-	if (ret < 0)
-		goto error_fput;
 
 	ret = cachefiles_check_auxdata(object, file);
 	if (ret < 0)

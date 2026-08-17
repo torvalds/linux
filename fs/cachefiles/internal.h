@@ -15,8 +15,6 @@
 #include <linux/fscache-cache.h>
 #include <linux/cred.h>
 #include <linux/security.h>
-#include <linux/xarray.h>
-#include <linux/cachefiles.h>
 
 #define CACHEFILES_DIO_BLOCK_SIZE 4096
 
@@ -44,21 +42,6 @@ struct cachefiles_volume {
 	struct dentry			*fanout[256];	/* Fanout subdirs */
 };
 
-enum cachefiles_object_state {
-	CACHEFILES_ONDEMAND_OBJSTATE_CLOSE, /* Anonymous fd closed by daemon or initial state */
-	CACHEFILES_ONDEMAND_OBJSTATE_OPEN, /* Anonymous fd associated with object is available */
-	CACHEFILES_ONDEMAND_OBJSTATE_REOPENING, /* Object that was closed and is being reopened. */
-	CACHEFILES_ONDEMAND_OBJSTATE_DROPPING, /* Object is being dropped. */
-};
-
-struct cachefiles_ondemand_info {
-	struct work_struct		ondemand_work;
-	int				ondemand_id;
-	enum cachefiles_object_state	state;
-	struct cachefiles_object	*object;
-	spinlock_t			lock;
-};
-
 /*
  * Backing file state.
  */
@@ -74,12 +57,7 @@ struct cachefiles_object {
 	enum cachefiles_content		content_info:8;	/* Info about content presence */
 	unsigned long			flags;
 #define CACHEFILES_OBJECT_USING_TMPFILE	0		/* Have an unlinked tmpfile */
-#ifdef CONFIG_CACHEFILES_ONDEMAND
-	struct cachefiles_ondemand_info	*ondemand;
-#endif
 };
-
-#define CACHEFILES_ONDEMAND_ID_CLOSED	-1
 
 /*
  * Cache files cache definition
@@ -119,34 +97,11 @@ struct cachefiles_cache {
 #define CACHEFILES_DEAD			1	/* T if cache dead */
 #define CACHEFILES_CULLING		2	/* T if cull engaged */
 #define CACHEFILES_STATE_CHANGED	3	/* T if state changed (poll trigger) */
-#define CACHEFILES_ONDEMAND_MODE	4	/* T if in on-demand read mode */
 	char				*rootdirname;	/* name of cache root directory */
 	char				*tag;		/* cache binding tag */
-	refcount_t			unbind_pincount;/* refcount to do daemon unbind */
-	struct xarray			reqs;		/* xarray of pending on-demand requests */
-	unsigned long			req_id_next;
-	struct xarray			ondemand_ids;	/* xarray for ondemand_id allocation */
-	u32				ondemand_id_next;
-	u32				msg_id_next;
 	u32				secid;		/* LSM security id */
 	bool				have_secid;	/* whether "secid" was set */
 };
-
-static inline bool cachefiles_in_ondemand_mode(struct cachefiles_cache *cache)
-{
-	return IS_ENABLED(CONFIG_CACHEFILES_ONDEMAND) &&
-		test_bit(CACHEFILES_ONDEMAND_MODE, &cache->flags);
-}
-
-struct cachefiles_req {
-	struct cachefiles_object *object;
-	struct completion done;
-	refcount_t ref;
-	int error;
-	struct cachefiles_msg msg;
-};
-
-#define CACHEFILES_REQ_NEW	XA_MARK_1
 
 #include <trace/events/cachefiles.h>
 
@@ -190,9 +145,6 @@ extern int cachefiles_has_space(struct cachefiles_cache *cache,
  * daemon.c
  */
 extern const struct file_operations cachefiles_daemon_fops;
-extern void cachefiles_flush_reqs(struct cachefiles_cache *cache);
-extern void cachefiles_get_unbind_pincount(struct cachefiles_cache *cache);
-extern void cachefiles_put_unbind_pincount(struct cachefiles_cache *cache);
 
 /*
  * error_inject.c
@@ -299,90 +251,6 @@ extern bool cachefiles_commit_tmpfile(struct cachefiles_cache *cache,
 				      struct cachefiles_object *object);
 
 /*
- * ondemand.c
- */
-#ifdef CONFIG_CACHEFILES_ONDEMAND
-extern ssize_t cachefiles_ondemand_daemon_read(struct cachefiles_cache *cache,
-					char __user *_buffer, size_t buflen);
-
-extern int cachefiles_ondemand_copen(struct cachefiles_cache *cache,
-				     char *args);
-
-extern int cachefiles_ondemand_restore(struct cachefiles_cache *cache,
-					char *args);
-
-extern int cachefiles_ondemand_init_object(struct cachefiles_object *object);
-extern void cachefiles_ondemand_clean_object(struct cachefiles_object *object);
-
-extern int cachefiles_ondemand_read(struct cachefiles_object *object,
-				    loff_t pos, size_t len);
-
-extern int cachefiles_ondemand_init_obj_info(struct cachefiles_object *obj,
-					struct cachefiles_volume *volume);
-extern void cachefiles_ondemand_deinit_obj_info(struct cachefiles_object *obj);
-
-#define CACHEFILES_OBJECT_STATE_FUNCS(_state, _STATE)	\
-static inline bool								\
-cachefiles_ondemand_object_is_##_state(const struct cachefiles_object *object) \
-{												\
-	return object->ondemand->state == CACHEFILES_ONDEMAND_OBJSTATE_##_STATE; \
-}												\
-												\
-static inline void								\
-cachefiles_ondemand_set_object_##_state(struct cachefiles_object *object) \
-{												\
-	object->ondemand->state = CACHEFILES_ONDEMAND_OBJSTATE_##_STATE; \
-}
-
-CACHEFILES_OBJECT_STATE_FUNCS(open, OPEN);
-CACHEFILES_OBJECT_STATE_FUNCS(close, CLOSE);
-CACHEFILES_OBJECT_STATE_FUNCS(reopening, REOPENING);
-CACHEFILES_OBJECT_STATE_FUNCS(dropping, DROPPING);
-
-static inline bool cachefiles_ondemand_is_reopening_read(struct cachefiles_req *req)
-{
-	return cachefiles_ondemand_object_is_reopening(req->object) &&
-			req->msg.opcode == CACHEFILES_OP_READ;
-}
-
-#else
-static inline ssize_t cachefiles_ondemand_daemon_read(struct cachefiles_cache *cache,
-					char __user *_buffer, size_t buflen)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int cachefiles_ondemand_init_object(struct cachefiles_object *object)
-{
-	return 0;
-}
-
-static inline void cachefiles_ondemand_clean_object(struct cachefiles_object *object)
-{
-}
-
-static inline int cachefiles_ondemand_read(struct cachefiles_object *object,
-					   loff_t pos, size_t len)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int cachefiles_ondemand_init_obj_info(struct cachefiles_object *obj,
-						struct cachefiles_volume *volume)
-{
-	return 0;
-}
-static inline void cachefiles_ondemand_deinit_obj_info(struct cachefiles_object *obj)
-{
-}
-
-static inline bool cachefiles_ondemand_is_reopening_read(struct cachefiles_req *req)
-{
-	return false;
-}
-#endif
-
-/*
  * security.c
  */
 extern int cachefiles_get_security_ID(struct cachefiles_cache *cache);
@@ -430,8 +298,6 @@ do {							\
 	pr_err("I/O Error: " FMT"\n", ##__VA_ARGS__);	\
 	fscache_io_error((___cache)->cache);		\
 	set_bit(CACHEFILES_DEAD, &(___cache)->flags);	\
-	if (cachefiles_in_ondemand_mode(___cache))	\
-		cachefiles_flush_reqs(___cache);	\
 } while (0)
 
 #define cachefiles_io_error_obj(object, FMT, ...)			\
