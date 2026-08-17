@@ -237,15 +237,26 @@ pte_t invalid_pte_table[PTRS_PER_PTE] __page_aligned_bss;
 EXPORT_SYMBOL(invalid_pte_table);
 
 #if defined(CONFIG_EXECMEM) && defined(MODULES_VADDR)
+#define MODULES_TEXT_START (MODULES_VADDR)
+#define MODULES_TEXT_END   (MODULES_VADDR + SZ_256M)
+#define MODULES_DATA_START (MODULES_VADDR + SZ_256M)
+#define MODULES_DATA_END   (MODULES_END)
+
 static struct execmem_info execmem_info __ro_after_init;
 
 struct execmem_info __init *execmem_arch_setup(void)
 {
 	execmem_info = (struct execmem_info){
 		.ranges = {
-			[EXECMEM_DEFAULT] = {
-				.start	= MODULES_VADDR,
-				.end	= MODULES_END,
+			[EXECMEM_MODULE_TEXT] = {
+				.start	= MODULES_TEXT_START,
+				.end	= MODULES_TEXT_END,
+				.pgprot	= PAGE_KERNEL,
+				.alignment = 1,
+			},
+			[EXECMEM_MODULE_DATA] = {
+				.start	= MODULES_DATA_START,
+				.end	= MODULES_DATA_END,
 				.pgprot	= PAGE_KERNEL,
 				.alignment = 1,
 			},
