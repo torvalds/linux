@@ -34,6 +34,8 @@ static void test_success(void)
 	bpf_program__set_autoload(skel->progs.rcu_read_lock_global_subprog, true);
 	bpf_program__set_autoload(skel->progs.rcu_read_lock_subprog_lock, true);
 	bpf_program__set_autoload(skel->progs.rcu_read_lock_subprog_unlock, true);
+	bpf_program__set_autoload(skel->progs.non_own_ref_untrusted_ld, true);
+	bpf_program__set_autoload(skel->progs.rcu_untrusted_union_ld, true);
 	err = rcu_read_lock__load(skel);
 	if (!ASSERT_OK(err, "skel_load"))
 		goto out;
