@@ -1116,7 +1116,7 @@ void __noreturn make_task_dead(int signr)
 
 SYSCALL_DEFINE1(exit, int, error_code)
 {
-	do_exit((error_code&0xff)<<8);
+	do_exit((error_code & 0xff) << 8);
 }
 
 /*
