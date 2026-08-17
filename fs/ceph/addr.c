@@ -255,9 +255,12 @@ static void finish_netfs_read(struct ceph_osd_request *req)
 	}
 
 	if (osd_data->type == CEPH_OSD_DATA_TYPE_PAGES) {
-		ceph_put_page_vector(osd_data->pages,
-				     calc_pages_for(osd_data->alignment,
-					osd_data->length), false);
+		int num_pages = calc_pages_for(osd_data->alignment,
+					       osd_data->length);
+
+		for (int i = 0; i < num_pages; i++)
+			put_page(osd_data->pages[i]);
+		kvfree(osd_data->pages);
 	}
 	if (err > 0) {
 		ceph_subvolume_metrics_record_io(fsc->mdsc, ceph_inode(inode),
