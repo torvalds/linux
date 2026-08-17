@@ -57,7 +57,7 @@
 
 	ethphy1: ethernet-phy@1 {
 		device_type = "ethernet-phy";
-                /* overwrite reg property in board file */
+		/* overwrite reg property in board file */
 	};
 };
 
