@@ -110,4 +110,26 @@ void c2c_function__reset(void);
 /* Valid only between a successful build and c2c_function__reset(). */
 struct hist_entry *c2c_function__find_cacheline(struct hist_entry *he);
 
+/* Inputs and TUI callback supplied by the c2c command. */
+struct c2c_function_view_args {
+	/* Source cacheline histograms used by the common model. */
+	struct c2c_hists	*cl_hists;
+	/* --coalesce field list, used to require iaddr. */
+	const char		*cl_sort;
+	/* Do not cap long symbol names. */
+	bool			 symbol_full;
+	/* Open the cacheline detail view for @he. */
+	int			(*browse_cacheline)(struct hist_entry *he);
+};
+
+#ifdef HAVE_SLANG_SUPPORT
+int perf_c2c__browse_function_view(struct c2c_function_view_args *args);
+#else
+static inline int
+perf_c2c__browse_function_view(struct c2c_function_view_args *args __maybe_unused)
+{
+	return 0;
+}
+#endif
+
 #endif /* __PERF_UTIL_C2C_H */

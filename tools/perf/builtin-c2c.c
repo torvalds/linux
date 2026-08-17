@@ -2745,11 +2745,18 @@ perf_c2c_browser__new(struct hists *hists)
 
 static int perf_c2c__hists_browse(struct hists *hists)
 {
+	struct c2c_function_view_args func_args = {
+		.cl_hists	  = &c2c.hists,
+		.cl_sort	  = c2c.cl_sort,
+		.symbol_full	  = c2c.symbol_full,
+		.browse_cacheline = perf_c2c__browse_cacheline,
+	};
 	struct hist_browser *browser;
 	int key = -1;
 	static const char help[] =
 	" d             Display cacheline details \n"
 	" ENTER         Toggle callchains (if present) \n"
+	" TAB           Switch to function view\n"
 	" q             Quit \n";
 
 	browser = perf_c2c_browser__new(hists);
@@ -2770,6 +2777,9 @@ static int perf_c2c__hists_browse(struct hists *hists)
 			goto out;
 		case 'd':
 			perf_c2c__browse_cacheline(browser->he_selection);
+			break;
+		case '\t':
+			perf_c2c__browse_function_view(&func_args);
 			break;
 		case '?':
 			ui_browser__help_window(&browser->b, help);
