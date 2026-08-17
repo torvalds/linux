@@ -22613,6 +22613,14 @@ F:	Documentation/networking/device_drivers/cellular/qualcomm/rmnet.rst
 F:	drivers/net/ethernet/qualcomm/rmnet/
 F:	include/linux/if_rmnet.h
 
+QUALCOMM SPMI CONTROLLER (PMIC ARBITER) DRIVER
+M:	Abel Vesa <abelvesa@kernel.org>
+M:	David Collins <david.collins@oss.qualcomm.com>
+L:	linux-arm-msm@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/spmi/qcom,*spmi-pmic-arb*.yaml
+F:	drivers/spmi/spmi-pmic-arb.c
+
 QUALCOMM TEE (QCOMTEE) DRIVER
 M:	Amirreza Zarrabi <amirreza.zarrabi@oss.qualcomm.com>
 L:	linux-arm-msm@vger.kernel.org
