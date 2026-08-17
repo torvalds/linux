@@ -121,13 +121,6 @@ static void esp_ssg_unref(struct xfrm_state *x, void *tmp, struct sk_buff *skb, 
 	struct aead_request *req;
 	struct scatterlist *sg;
 
-	/* Managed frags are owned by the zerocopy ubuf; the skb holds no
-	 * per-frag page reference, so we must not drop one here.  Mirrors
-	 * the SKBFL_MANAGED_FRAG_REFS handling in skb_release_data().
-	 */
-	if (skb_zcopy_managed(skb))
-		return;
-
 	if (x->props.flags & XFRM_STATE_ESN)
 		extralen += sizeof(struct esp_output_extra);
 
