@@ -964,7 +964,7 @@ static unsigned int phylink_inband_caps(struct phylink *pl,
 		return 0;
 
 	pcs = pl->mac_ops->mac_select_pcs(pl->config, interface);
-	if (!pcs)
+	if (IS_ERR_OR_NULL(pcs))
 		return 0;
 
 	return phylink_pcs_inband_caps(pcs, interface);
