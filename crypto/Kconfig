@@ -358,8 +358,19 @@ config CRYPTO_AES
 	tristate "AES (Advanced Encryption Standard)"
 	select CRYPTO_ALGAPI
 	select CRYPTO_LIB_AES
+	select CRYPTO_LIB_AES_CBC if CRYPTO_CBC != n || CRYPTO_CTS != n
 	select CRYPTO_LIB_AES_CBC_MACS if CRYPTO_CMAC != n || CRYPTO_XCBC != n || CRYPTO_CCM != n
+	select CRYPTO_LIB_AES_CCM if CRYPTO_CCM != n
+	select CRYPTO_LIB_AES_CTR if CRYPTO_CTR != n || CRYPTO_XCTR != n
+	select CRYPTO_LIB_AES_ECB if CRYPTO_ECB != n
+	select CRYPTO_LIB_AES_GCM if CRYPTO_GCM != n
+	select CRYPTO_LIB_AES_XTS if CRYPTO_XTS != n
+	select CRYPTO_AEAD if CRYPTO_GCM != n || CRYPTO_CCM != n
 	select CRYPTO_HASH if CRYPTO_CMAC != n || CRYPTO_XCBC != n || CRYPTO_CCM != n
+	# CRYPTO_SKCIPHER should be selected only if a mode that needs it is
+	# enabled, but that doesn't work due to a recursive dependency caused by
+	# CRYPTO_SKCIPHER selecting CRYPTO_ECB.  So just always select it.
+	select CRYPTO_SKCIPHER
 	help
 	  AES cipher algorithms (Rijndael)(FIPS-197, ISO/IEC 18033-3)
 

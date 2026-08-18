@@ -144,7 +144,13 @@ config CRYPTO_LIB_SM3_KUNIT_TEST
 config CRYPTO_LIB_ENABLE_ALL_FOR_KUNIT
 	tristate "Enable all crypto library code for KUnit tests"
 	depends on KUNIT
+	select CRYPTO_LIB_AES_CBC
 	select CRYPTO_LIB_AES_CBC_MACS
+	select CRYPTO_LIB_AES_CCM
+	select CRYPTO_LIB_AES_CTR
+	select CRYPTO_LIB_AES_ECB
+	select CRYPTO_LIB_AES_GCM
+	select CRYPTO_LIB_AES_XTS
 	select CRYPTO_LIB_BLAKE2B
 	select CRYPTO_LIB_CHACHA20POLY1305
 	select CRYPTO_LIB_CURVE25519

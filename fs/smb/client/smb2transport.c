@@ -464,8 +464,8 @@ smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	unsigned char smb3_signature[SMB2_CMACAES_SIZE];
 	struct kvec *iov = rqst->rq_iov;
 	struct smb2_hdr *shdr = (struct smb2_hdr *)iov[0].iov_base;
-	struct aes_cmac_key cmac_key;
-	struct aes_cmac_ctx cmac_ctx;
+	struct aes_cmac_key cmac_key __cleanup(aes_cmac_zeroize_key);
+	struct aes_cmac_ctx cmac_ctx __cleanup(aes_cmac_zeroize_ctx);
 	struct smb_rqst drqst;
 	u8 key[SMB3_SIGN_KEY_SIZE];
 
