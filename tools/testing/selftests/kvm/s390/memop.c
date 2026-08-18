@@ -678,7 +678,7 @@ static void test_cmpxchg_key_concurrent(void)
 	HOST_SYNC(t.vcpu, STAGE_SKEYS_SET);
 	prepare_mem12();
 	MOP(t.vcpu, LOGICAL, WRITE, mem1, max_block, GADDR_V(mem2));
-	pthread_create(&thread, NULL, run_guest, &t.vcpu);
+	kvm_pthread_create(&thread, NULL, run_guest, &t.vcpu);
 
 	for (int i = 0; i < cmpxchg_iter_outer; i++) {
 		do {
@@ -701,7 +701,7 @@ static void test_cmpxchg_key_concurrent(void)
 		}
 	}
 
-	pthread_join(thread, NULL);
+	kvm_pthread_join(thread, NULL);
 
 	MOP(t.vcpu, LOGICAL, READ, mem2, max_block, GADDR_V(mem2));
 	TEST_ASSERT(popcount_eq(*(__uint128_t *)mem1, *(__uint128_t *)mem2),
