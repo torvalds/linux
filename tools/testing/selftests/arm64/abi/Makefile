@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
 # Copyright (C) 2021 ARM Limited
 
-TEST_GEN_PROGS := hwcap ptrace syscall-abi tpidr2
+CFLAGS += $(KHDR_INCLUDES) -I$(top_srcdir)/tools/include
+
+TEST_GEN_PROGS := hwcap ptrace syscall-abi tpidr2 seccomp_ptrace_x0_bypass seccomp_ret_trace_x0_bypass
 
 include ../../lib.mk
 

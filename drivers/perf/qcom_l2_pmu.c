@@ -869,11 +869,8 @@ static int l2_cache_pmu_probe_cluster(struct device *dev, void *data)
 			       IRQF_NOBALANCING | IRQF_NO_THREAD |
 			       IRQF_NO_AUTOEN,
 			       "l2-cache-pmu", cluster);
-	if (err) {
-		dev_err(&pdev->dev,
-			"Unable to request IRQ%d for L2 PMU counters\n", irq);
+	if (err)
 		return err;
-	}
 
 	dev_info(&pdev->dev,
 		 "Registered L2 cache PMU cluster %lld\n", fw_cluster_id);

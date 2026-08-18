@@ -89,7 +89,7 @@ static void contpte_convert(struct mm_struct *mm, unsigned long addr,
 	}
 
 	/*
-	 * On eliding the __tlb_flush_range() under BBML2+noabort:
+	 * On eliding the __tlb_flush_range() under BBML3:
 	 *
 	 * NOTE: Instead of using N=16 as the contiguous block length, we use
 	 *       N=4 for clarity.
@@ -135,7 +135,7 @@ static void contpte_convert(struct mm_struct *mm, unsigned long addr,
 	 * contiguous TLB entry, which is a micro-optimisation opportunity,
 	 * but does not affect correctness.
 	 *
-	 * In the BBML2 case, the change is avoiding the intermediate tlbi+dsb.
+	 * In the BBML3 case, the change is avoiding the intermediate tlbi+dsb.
 	 * This means a few things, but notably other PEs will still "see" any
 	 * stale cached TLB entries. This could lead to a "contiguous bit
 	 * misprogramming" issue until the final tlbi+dsb of the changed page,
@@ -158,21 +158,16 @@ static void contpte_convert(struct mm_struct *mm, unsigned long addr,
 	 *  are present, and a write is made to this address, do we fault or
 	 *  is the write permitted (via amalgamation)?
 	 *
-	 * The relevant Arm ARM DDI 0487L.a requirements are RNGLXZ and RJQQTC,
-	 * and together state that when BBML1 or BBML2 are implemented, either
-	 * a TLB conflict abort is raised (which we expressly forbid), or will
-	 * "produce an OA, access permissions, and memory attributes that are
-	 * consistent with any of the programmed translation table values".
-	 *
-	 * That is to say, will either raise a TLB conflict, or produce one of
-	 * the cached TLB entries, but never amalgamate.
+	 * With BBML3 implemented, no TLB conflict abort is raised and the OA,
+	 * access permissions and memory attributes produced is one of the cached
+	 * TLB entries, but never amalgamate.
 	 *
 	 * Thus, as the page tables are only considered "consistent" after
 	 * the final tlbi+dsb (which evicts both the single stale (RW,n) TLB
 	 * entry as well as the new contiguous (RO,c) TLB entry), omitting the
 	 * initial tlbi+dsb is correct.
 	 *
-	 * It is also important to note that at the end of the BBML2 folding
+	 * It is also important to note that at the end of the BBML3 folding
 	 * case, we are still left with potentially all N TLB entries still
 	 * cached (the N-1 non-contiguous ptes, and the single contiguous
 	 * block). However, over time, natural TLB pressure will cause the
@@ -214,7 +209,7 @@ static void contpte_convert(struct mm_struct *mm, unsigned long addr,
 	 *
 	 *                  |____| <--- tlbi + dsb
 	 *
-	 * For BBML2, we again remove the intermediate tlbi+dsb. Here, there
+	 * For BBML3, we again remove the intermediate tlbi+dsb. Here, there
 	 * are no issues, as the final tlbi+dsb covering the changed page is
 	 * guaranteed to remove the original large contiguous (RW,c) TLB entry,
 	 * as well as the intermediate (RW,n) TLB entry; the next access will
@@ -224,7 +219,7 @@ static void contpte_convert(struct mm_struct *mm, unsigned long addr,
 	 * regardless.
 	 */
 
-	if (!system_supports_bbml2_noabort())
+	if (!system_supports_bbml3())
 		__flush_tlb_range(&vma, start_addr, addr, PAGE_SIZE, 3,
 				  TLBF_NOWALKCACHE);
 

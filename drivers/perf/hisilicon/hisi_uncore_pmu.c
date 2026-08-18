@@ -192,11 +192,8 @@ int hisi_uncore_pmu_init_irq(struct hisi_pmu *hisi_pmu,
 	ret = devm_request_irq(&pdev->dev, irq, hisi_uncore_pmu_isr,
 			       IRQF_NOBALANCING | IRQF_NO_THREAD,
 			       dev_name(&pdev->dev), hisi_pmu);
-	if (ret < 0) {
-		dev_err(&pdev->dev,
-			"Fail to request IRQ: %d ret: %d.\n", irq, ret);
+	if (ret < 0)
 		return ret;
-	}
 
 	hisi_pmu->irq = irq;
 

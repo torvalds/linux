@@ -1,4 +1,6 @@
 hwcap
 ptrace
+seccomp_ptrace_x0_bypass
+seccomp_ret_trace_x0_bypass
 syscall-abi
 tpidr2

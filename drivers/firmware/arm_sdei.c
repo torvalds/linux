@@ -339,6 +339,28 @@ static void _ipi_unmask_cpu(void *ignored)
 	sdei_unmask_local_cpu();
 }
 
+/*
+ * Signal the software-signalled event (event 0) to @mpidr. Does nothing
+ * but the SMC -- no locks, no event lookup -- so it is safe from NMI /
+ * crash context (e.g. the cross-CPU NMI service).
+ */
+int sdei_event_signal(u32 event_num, u64 mpidr)
+{
+	return invoke_sdei_fn(SDEI_1_0_FN_SDEI_EVENT_SIGNAL, event_num,
+			      mpidr, 0, 0, 0, NULL);
+}
+NOKPROBE_SYMBOL(sdei_event_signal);
+
+/*
+ * Was SDEI firmware probed and is it usable?  Lets optional consumers skip
+ * registering an event -- and the warning a failed registration emits -- on
+ * systems with no SDEI.
+ */
+bool sdei_is_present(void)
+{
+	return sdei_firmware_call;
+}
+
 static void _ipi_private_reset(void *ignored)
 {
 	int err;

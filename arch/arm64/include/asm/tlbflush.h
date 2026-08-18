@@ -236,7 +236,7 @@ static inline void __tlbi_level(tlbi_op op, u64 addr, u32 level)
 
 #define __repeat_tlbi_sync(op, arg...)						\
 do {										\
-	if (!alternative_has_cap_unlikely(ARM64_WORKAROUND_REPEAT_TLBI))	\
+	if (!alternative_has_cap_unlikely(ARM64_WORKAROUND_REPEAT_TLBI_SYNC))	\
 		break;								\
 	__tlbi(op, ##arg);							\
 	dsb(ish);								\

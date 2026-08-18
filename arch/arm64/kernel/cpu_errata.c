@@ -309,7 +309,7 @@ static void cpu_enable_impdef_pmuv3_traps(const struct arm64_cpu_capabilities *_
 	sysreg_clear_set_s(SYS_HACR_EL2, 0, BIT(56));
 }
 
-#ifdef CONFIG_ARM64_WORKAROUND_REPEAT_TLBI
+#ifdef CONFIG_ARM64_WORKAROUND_REPEAT_TLBI_SYNC
 static const struct arm64_cpu_capabilities arm64_repeat_tlbi_list[] = {
 #ifdef CONFIG_QCOM_FALKOR_ERRATUM_1009
 	{
@@ -733,10 +733,10 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 		.match_list = qcom_erratum_1003_list,
 	},
 #endif
-#ifdef CONFIG_ARM64_WORKAROUND_REPEAT_TLBI
+#ifdef CONFIG_ARM64_WORKAROUND_REPEAT_TLBI_SYNC
 	{
 		.desc = "Broken broadcast TLBI completion",
-		.capability = ARM64_WORKAROUND_REPEAT_TLBI,
+		.capability = ARM64_WORKAROUND_REPEAT_TLBI_SYNC,
 		.type = ARM64_CPUCAP_LOCAL_CPU_ERRATUM,
 		.matches = cpucap_multi_entry_cap_matches,
 		.match_list = arm64_repeat_tlbi_list,
@@ -848,6 +848,14 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 		.desc = "NVIDIA Carmel CNP erratum, or Hisilicon erratum 162100125",
 		.capability = ARM64_WORKAROUND_DISABLE_CNP,
 		ERRATA_MIDR_RANGE_LIST(cnp_erratum_cpus),
+	},
+#endif
+#ifdef CONFIG_NVIDIA_OLYMPUS_1027_ERRATUM
+	{
+		/* NVIDIA Olympus core */
+		.desc = "NVIDIA Olympus device store/load ordering erratum",
+		.capability = ARM64_WORKAROUND_NVIDIA_OLYMPUS_1027,
+		ERRATA_MIDR_ALL_VERSIONS(MIDR_NVIDIA_OLYMPUS),
 	},
 #endif
 #ifdef CONFIG_ARM64_WORKAROUND_TRBE_OVERWRITE_FILL_MODE

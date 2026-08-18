@@ -6,6 +6,7 @@
 #define __TOOLS_LINUX_FILTER_H
 
 #include <linux/bpf.h>
+#include <uapi/linux/filter.h>
 
 /* ArgX, context and stack frame pointer register positions. Note,
  * Arg1, Arg2, Arg3, etc are used as argument mappings of function

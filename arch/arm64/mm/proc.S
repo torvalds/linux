@@ -169,6 +169,13 @@ alternative_if ARM64_HAS_RAS_EXTN
 	msr_s	SYS_DISR_EL1, xzr
 alternative_else_nop_endif
 
+#ifdef CONFIG_ARM64_PSEUDO_NMI
+alternative_if ARM64_HAS_GIC_PRIO_MASKING
+	mov	x1, #GIC_PRIO_IRQON
+	msr_s	SYS_ICC_PMR_EL1, x1
+alternative_else_nop_endif
+#endif
+
 	ptrauth_keys_install_kernel_nosync x14, x1, x2, x3
 	isb
 	ret
@@ -287,7 +294,7 @@ SYM_TYPED_FUNC_START(idmap_kpti_install_ng_mappings)
 
 	mov	x5, x3				// preserve temp_pte arg
 	mrs	swapper_ttb, ttbr1_el1
-	adr_l	flag_ptr, idmap_kpti_bbml2_flag
+	adr_l	flag_ptr, idmap_kpti_bbml3_flag
 
 	cbnz	cpu, __idmap_kpti_secondary
 
@@ -445,7 +452,7 @@ SYM_TYPED_FUNC_START(wait_linear_map_split_to_ptes)
 	flag_ptr	.req	x4
 
 	mrs     swapper_ttb, ttbr1_el1
-	adr_l   flag_ptr, idmap_kpti_bbml2_flag
+	adr_l   flag_ptr, idmap_kpti_bbml3_flag
 	__idmap_cpu_set_reserved_ttbr1 x16, x17
 
 scondary_cpu_wait:

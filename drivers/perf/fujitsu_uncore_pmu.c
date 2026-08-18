@@ -526,7 +526,7 @@ static int fujitsu_uncore_pmu_probe(struct platform_device *pdev)
 			       IRQF_NOBALANCING | IRQF_NO_THREAD,
 			       name, uncorepmu);
 	if (ret)
-		return dev_err_probe(dev, ret, "Failed to request IRQ:%d\n", irq);
+		return ret;
 
 	ret = irq_set_affinity(irq, cpumask_of(uncorepmu->cpu));
 	if (ret)

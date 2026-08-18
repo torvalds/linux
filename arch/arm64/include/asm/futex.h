@@ -151,42 +151,31 @@ __lsui_cmpxchg64(u64 __user *uaddr, u64 *oldval, u64 newval)
 }
 
 static __always_inline int
-__lsui_cmpxchg32(u32 __user *uaddr, u32 oldval, u32 newval, u32 *oval)
+__lsui_cmpxchg32(u32 __user *uaddr, u32 *oldval, u32 newval)
 {
 	u64 __user *uaddr64;
 	bool futex_pos, other_pos;
-	u32 other, orig_other;
 	union {
 		u32 futex[2];
 		u64 raw;
-	} oval64, orig64, nval64;
+	} orig64, oval64, nval64;
 
 	uaddr64 = (u64 __user *)PTR_ALIGN_DOWN(uaddr, sizeof(u64));
 	futex_pos = !IS_ALIGNED((unsigned long)uaddr, sizeof(u64));
 	other_pos = !futex_pos;
 
-	oval64.futex[futex_pos] = oldval;
-	if (get_user(oval64.futex[other_pos], (u32 __user *)uaddr64 + other_pos))
+	orig64.futex[futex_pos] = *oldval;
+	if (get_user(orig64.futex[other_pos], (u32 __user *)uaddr64 + other_pos))
 		return -EFAULT;
 
-	orig64.raw = oval64.raw;
-
+	nval64 = oval64 = orig64;
 	nval64.futex[futex_pos] = newval;
-	nval64.futex[other_pos] = oval64.futex[other_pos];
 
 	if (__lsui_cmpxchg64(uaddr64, &oval64.raw, nval64.raw))
 		return -EFAULT;
 
-	oldval = oval64.futex[futex_pos];
-	other = oval64.futex[other_pos];
-	orig_other = orig64.futex[other_pos];
-
-	if (other != orig_other)
-		return -EAGAIN;
-
-	*oval = oldval;
-
-	return 0;
+	*oldval = oval64.futex[futex_pos];
+	return oval64.raw == orig64.raw ? 0 : -EAGAIN;
 }
 
 static __always_inline int
@@ -202,7 +191,7 @@ __lsui_futex_atomic_and(int oparg, u32 __user *uaddr, int *oval)
 static __always_inline int
 __lsui_futex_atomic_eor(int oparg, u32 __user *uaddr, int *oval)
 {
-	u32 oldval, newval, val;
+	u32 oldval, newval;
 	int ret, i;
 
 	if (get_user(oldval, uaddr))
@@ -214,33 +203,27 @@ __lsui_futex_atomic_eor(int oparg, u32 __user *uaddr, int *oval)
 	for (i = 0; i < FUTEX_MAX_LOOPS; i++) {
 		newval = oldval ^ oparg;
 
-		ret = __lsui_cmpxchg32(uaddr, oldval, newval, &val);
-		switch (ret) {
-		case -EFAULT:
-			return ret;
-		case -EAGAIN:
-			continue;
-		}
-
-		if (val == oldval) {
-			*oval = val;
-			return 0;
-		}
-
-		oldval = val;
+		ret = __lsui_cmpxchg32(uaddr, &oldval, newval);
+		if (ret != -EAGAIN)
+			break;
 	}
 
-	return -EAGAIN;
+	*oval = oldval;
+	return ret;
 }
 
 static __always_inline int
 __lsui_futex_cmpxchg(u32 __user *uaddr, u32 oldval, u32 newval, u32 *oval)
 {
-	/*
-	 * Callers of futex_atomic_cmpxchg_inatomic() already retry on
-	 * -EAGAIN, no need for another loop of max retries.
-	 */
-	return __lsui_cmpxchg32(uaddr, oldval, newval, oval);
+	u32 curval = oldval;
+	int ret;
+
+	ret = __lsui_cmpxchg32(uaddr, &curval, newval);
+	if (ret == -EAGAIN && curval != oldval)
+		ret = 0;
+
+	*oval = curval;
+	return ret;
 }
 #endif	/* CONFIG_ARM64_LSUI */
 

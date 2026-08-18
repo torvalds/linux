@@ -435,7 +435,7 @@ static int starlink_setup_irqs(struct starlink_pmu *starlink_pmu,
 	ret = devm_request_irq(&pdev->dev, irq, starlink_pmu_handle_irq,
 			       0, STARLINK_PMU_PDEV_NAME, starlink_pmu);
 	if (ret)
-		return dev_err_probe(&pdev->dev, ret, "Failed to request IRQ\n");
+		return ret;
 
 	starlink_pmu->irq = irq;
 
