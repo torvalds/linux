@@ -35,6 +35,7 @@ struct inetpeer_addr {
 
 struct inet_peer {
 	struct rb_node		rb_node;
+	u64			hash;
 	struct inetpeer_addr	daddr;
 
 	u32			metrics[RTAX_MAX];
@@ -124,6 +125,9 @@ static inline int inetpeer_addr_cmp(const struct inetpeer_addr *a,
 				    const struct inetpeer_addr *b)
 {
 	int i, n;
+
+	if (a->family != b->family)
+		return a->family < b->family ? -1 : 1;
 
 	if (a->family == AF_INET)
 		n = sizeof(a->a4) / sizeof(u32);
