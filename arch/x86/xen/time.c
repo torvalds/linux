@@ -586,7 +586,6 @@ void __init xen_init_time_ops(void)
 		x86_platform.set_wallclock = xen_set_wallclock;
 }
 
-#ifdef CONFIG_XEN_PVHVM
 static void xen_hvm_setup_cpu_clockevents(void)
 {
 	int cpu = smp_processor_id();
@@ -643,7 +642,6 @@ void __init xen_hvm_init_time_ops(void)
 
 	hvm_time_initialized = true;
 }
-#endif
 
 /* Kernel parameter to specify Xen timer slop */
 static int __init parse_xen_timer_slop(char *ptr)
