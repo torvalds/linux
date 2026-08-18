@@ -47,6 +47,7 @@
 	PCI	PCI bus support is enabled.
 	PCIE	PCI Express support is enabled.
 	PCMCIA	The PCMCIA subsystem is enabled.
+	PM	Power Management support is enabled.
 	PNP	Plug & Play support is enabled.
 	PPC	PowerPC architecture is enabled.
 	PPT	Parallel port support is enabled.
@@ -5353,6 +5354,12 @@ Kernel parameters
 
 	pm_debug_messages	[SUSPEND,KNL]
 			Enable suspend/resume debug messages during boot up.
+
+	pm.dpm_watchdog_enabled=
+			[PM] Enable or disable the DPM watchdog.  Requires
+			CONFIG_PM_SLEEP and CONFIG_DPM_WATCHDOG enabled.
+			Format: <bool>
+			Default value is set by CONFIG_DPM_WATCHDOG_ENABLED.
 
 	pnp.debug=1	[PNP]
 			Enable PNP debug messages (depends on the

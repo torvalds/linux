@@ -200,6 +200,7 @@ static const struct of_device_id blocklist[] __initconst = {
 	{ .compatible = "ti,am62l3", },
 	{ .compatible = "ti,am62p5", },
 
+	{ .compatible = "qcom,ipq5210", },
 	{ .compatible = "qcom,ipq5332", },
 	{ .compatible = "qcom,ipq5424", },
 	{ .compatible = "qcom,ipq6018", },

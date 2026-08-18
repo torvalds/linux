@@ -40,7 +40,9 @@ simple_lockdep()
 {
 	printf "** Test: Running ${FUNCNAME[0]} **\n"
 
+	save_all_governors
 	for_each_policy __simple_lockdep
+	restore_all_governors
 }
 
 # Test 2
@@ -56,7 +58,10 @@ concurrent_lockdep()
 {
 	printf "** Test: Running ${FUNCNAME[0]} **\n"
 
+	save_all_governors
 	for_each_policy_concurrent __concurrent_lockdep
+	wait
+	restore_all_governors
 }
 
 # Test 3
@@ -65,20 +70,26 @@ quick_shuffle()
 	# this is called concurrently from governor_race
 	for I in `seq 1000`
 	do
-		echo ondemand | sudo tee $CPUFREQROOT/policy*/scaling_governor &
-		echo userspace | sudo tee $CPUFREQROOT/policy*/scaling_governor &
+		echo ondemand | tee $CPUFREQROOT/policy*/scaling_governor &
+		echo userspace | tee $CPUFREQROOT/policy*/scaling_governor &
 	done
+	wait
 }
 
 governor_race()
 {
 	printf "** Test: Running ${FUNCNAME[0]} **\n"
 
+	save_all_governors
+
 	# run 8 concurrent instances
 	for I in `seq 8`
 	do
 		quick_shuffle &
 	done
+	wait
+
+	restore_all_governors
 }
 
 # Test 4
@@ -112,5 +123,8 @@ hotplug_with_updates_cpu()
 
 hotplug_with_updates()
 {
+	save_all_governors
 	for_each_non_boot_cpu hotplug_with_updates_cpu
+	wait
+	restore_all_governors
 }

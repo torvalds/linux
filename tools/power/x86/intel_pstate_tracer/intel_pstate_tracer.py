@@ -32,8 +32,6 @@ import re
 import signal
 import sys
 import getopt
-import Gnuplot
-from numpy import *
 from decimal import *
 
 __author__ = "Srinivas Pandruvada"
@@ -88,8 +86,8 @@ def print_help(driver_name):
     print('      kbytes: Kilo bytes of memory per CPU to allocate to the trace buffer. Default: 10240')
     print('  Output:')
     print('    If not already present, creates a "results/test_name" folder in the current working directory with:')
-    print('      cpu.csv - comma seperated values file with trace contents and some additional calculations.')
-    print('      cpu???.csv - comma seperated values file for CPU number ???.')
+    print('      cpu.csv - comma separated values file with trace contents and some additional calculations.')
+    print('      cpu???.csv - comma separated values file for CPU number ???.')
     print('      *.png - a variety of PNG format plot files created from the trace contents and the additional calculations.')
     print('  Notes:')
     print('    Avoid the use of _ (underscore) in test names, because in gnuplot it is a subscript directive.')
@@ -295,6 +293,8 @@ def common_all_gnuplot_settings(output_png):
 def common_gnuplot_settings():
     """ common gnuplot settings. """
 
+    import Gnuplot
+
     g_plot = Gnuplot.Gnuplot(persist=1)
 #   The following line is for rigor only. It seems to be assumed for .csv files
     g_plot('set datafile separator \",\"')
@@ -343,7 +343,7 @@ def store_csv(cpu_int, time_pre_dec, time_post_dec, core_busy, scaled, _from, _t
     graph_data_present = True;
 
 def split_csv(current_max_cpu, cpu_mask):
-    """ seperate the all csv file into per CPU csv files. """
+    """ separate the main csv file into per CPU csv files. """
 
     if os.path.exists('cpu.csv'):
         for index in range(0, current_max_cpu + 1):
@@ -482,7 +482,7 @@ def read_trace_data(filename, cpu_mask):
             if cpu_int > current_max_cpu:
                 current_max_cpu = cpu_int
 # End of for each trace line loop
-# Now seperate the main overall csv file into per CPU csv files.
+# Now separate the main overall csv file into per CPU csv files.
     split_csv(current_max_cpu, cpu_mask)
 
 def signal_handler(signal, frame):
@@ -507,8 +507,6 @@ if __name__ == "__main__":
 
     valid1 = False
     valid2 = False
-
-    cpu_mask = zeros((MAX_CPUS,), dtype=int)
 
     try:
         opts, args = getopt.getopt(sys.argv[1:],"ht:i:c:n:m:",["help","trace_file=","interval=","cpu=","name=","memory="])
@@ -537,6 +535,10 @@ if __name__ == "__main__":
     if not (valid1 and valid2):
         print_help('intel_pstate')
         sys.exit()
+
+    from numpy import zeros
+
+    cpu_mask = zeros((MAX_CPUS,), dtype=int)
 
     if cpu_list:
         for p in re.split("[,]", cpu_list):

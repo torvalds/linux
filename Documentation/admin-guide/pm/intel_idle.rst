@@ -87,17 +87,22 @@ tables with any processor model recognized by it; see
 `below <intel-idle-parameters_>`_.]
 
 If the ACPI tables are going to be used for building the list of available idle
-states, ``intel_idle`` first looks for a ``_CST`` object under one of the ACPI
-objects corresponding to the CPUs in the system (refer to the ACPI specification
-[2]_ for the description of ``_CST`` and its output package).  Because the
-``CPUIdle`` subsystem expects that the list of idle states supplied by the
-driver will be suitable for all of the CPUs handled by it and ``intel_idle`` is
-registered as the ``CPUIdle`` driver for all of the CPUs in the system, the
-driver looks for the first ``_CST`` object returning at least one valid idle
-state description and such that all of the idle states included in its return
-package are of the FFH (Functional Fixed Hardware) type, which means that the
-``MWAIT`` instruction is expected to be used to tell the processor that it can
-enter one of them.  The return package of that ``_CST`` is then assumed to be
+states, ``intel_idle`` will be looking for ``_LPI`` or ``_CST`` objects in them
+(refer to the ACPI specification [2]_ for the definitions of the ``_LPI`` and
+``_CST`` objects).  If ``_LPI`` is present under at least one of the ACPI
+objects representing the CPUs in the system and ``_LPI`` processing produces a
+non-empty list of valid idle states, it will be used.  Otherwise, ``_CST`` will
+be used so long as it is present under at least one of the ACPI objects
+representing the CPUs in the system and it returns a non-empty list of valid
+idle states.  In either case, since the ``CPUIdle`` subsystem expects that the
+list of idle states supplied by the driver will be suitable for all of the CPUs
+handled by it and ``intel_idle`` is registered as the ``CPUIdle`` driver for all
+of the CPUs in the system, ``intel_idle`` looks for the first CPU where the
+ACPI-supplied list of idle states (coming from either ``_LPI`` or ``_CST``)
+is not empty.  Moreover, all of the states in that list need to be of the FFH
+(Functional Fixed Hardware) type, which means that the ``MWAIT`` instruction is
+expected to be used to tell the processor that the given idle state may be
+entered.  If that expectation is met, the list of idle states is assumed to be
 applicable to all of the other CPUs in the system and the idle state
 descriptions extracted from it are stored in a preliminary list of idle states
 coming from the ACPI tables.  [This step is skipped if ``intel_idle`` is
@@ -129,18 +134,21 @@ If the given processor model is not recognized by ``intel_idle``, but it
 supports ``MWAIT``, the preliminary list of idle states coming from the ACPI
 tables is used for building the final list that will be supplied to the
 ``CPUIdle`` core during driver registration.  For each idle state in that list,
-the description, ``MWAIT`` hint and exit latency are copied to the corresponding
-entry in the final list of idle states.  The name of the idle state represented
-by it (to be returned by the ``name`` idle state attribute in ``sysfs``) is
-"CX_ACPI", where X is the index of that idle state in the final list (note that
-the minimum value of X is 1, because 0 is reserved for the "polling" state), and
-its target residency is based on the exit latency value.  Specifically, for
-C1-type idle states the exit latency value is also used as the target residency
-(for compatibility with the majority of the "internal" tables of idle states for
-various processor models recognized by ``intel_idle``) and for the other idle
-state types (C2 and C3) the target residency value is 3 times the exit latency
-(again, that is because it reflects the target residency to exit latency ratio
-in the majority of cases for the processor models recognized by ``intel_idle``).
+the description, ``MWAIT`` hint and exit (wake) latency are copied to the
+corresponding entry in the final list of idle states.  If the preliminary list
+of idle states has been obtained through ``_LPI`` processing, the minimum
+residency parameter of the given idle state is taken as its target residency.
+Otherwise, for C1-type idle states, the exit latency value is also used as the
+target residency (for compatibility with the majority of the "internal" tables
+of idle states for various processor models recognized by ``intel_idle``), and
+for the other idle state types (C2 and C3) the target residency value is 3 times
+the exit latency (again, that is because it reflects the target residency to
+exit latency ratio in the majority of cases for the processor models recognized
+by ``intel_idle``).  The name of the idle state (to be returned by the ``name``
+idle state attribute in ``sysfs``) is either "Cx_LPI" (if it comes from ``_LPI``
+processing) or "Cx_ACPI", where x is the index of that idle state in the final
+list (note that the minimum value of x is 1, because 0 is reserved for the
+"polling" state), and its target residency is based on the exit latency value.
 All of the idle states in the final list are enabled by default in this case.
 
 
