@@ -45,7 +45,7 @@
 									      \
 	__asm__ volatile (                                                    \
 		_NOLIBC_SYSCALL                                               \
-		: "+r"(_arg1)                                                 \
+		: "=r"(_arg1)                                                 \
 		: "r"(_num)                                                   \
 		: "memory", "cc"                                              \
 	);                                                                    \
