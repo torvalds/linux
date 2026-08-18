@@ -218,7 +218,7 @@ MODULE_PARM_DESC(macaddr, "FEC Ethernet MAC address");
  */
 #if defined(CONFIG_NETtel)
 #define	FEC_FLASHMAC	0xf0006006
-#elif defined(CONFIG_GILBARCONAP) || defined(CONFIG_SCALES)
+#elif defined(CONFIG_SCALES)
 #define	FEC_FLASHMAC	0xf0006000
 #elif defined(CONFIG_CANCam)
 #define	FEC_FLASHMAC	0xf0020000

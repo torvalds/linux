@@ -314,7 +314,7 @@ xchk_metapath(
 
 	/* Parent required to do anything else. */
 	if (mpath->dp == NULL) {
-		xchk_ino_set_corrupt(sc, sc->ip->i_ino);
+		xchk_ip_set_corrupt(sc, sc->ip);
 		return 0;
 	}
 
@@ -329,15 +329,15 @@ xchk_metapath(
 	trace_xchk_metapath_lookup(sc, mpath->path, mpath->dp, ino);
 	if (error == -ENOENT) {
 		/* No directory entry at all */
-		xchk_ino_set_corrupt(sc, sc->ip->i_ino);
+		xchk_ip_set_corrupt(sc, sc->ip);
 		error = 0;
 		goto out_ilock;
 	}
 	if (!xchk_fblock_xref_process_error(sc, XFS_DATA_FORK, 0, &error))
 		goto out_ilock;
-	if (ino != sc->ip->i_ino) {
+	if (ino != I_INO(sc->ip)) {
 		/* Pointing to wrong inode */
-		xchk_ino_set_corrupt(sc, sc->ip->i_ino);
+		xchk_ip_set_corrupt(sc, sc->ip);
 	}
 
 out_ilock:
@@ -364,7 +364,7 @@ xrep_metapath_link(
 	else
 		mpath->du.ppargs = NULL;
 
-	trace_xrep_metapath_link(sc, mpath->path, mpath->dp, sc->ip->i_ino);
+	trace_xrep_metapath_link(sc, mpath->path, mpath->dp, I_INO(sc->ip));
 
 	return xfs_dir_add_child(sc->tp, mpath->link_resblks, &mpath->du);
 }
@@ -462,7 +462,7 @@ xrep_metapath_try_link(
 	if (error)
 		goto out_cancel;
 
-	if (ino == sc->ip->i_ino) {
+	if (ino == I_INO(sc->ip)) {
 		/* The dirent already points to @sc->ip; we're done. */
 		error = 0;
 		goto out_cancel;
@@ -530,7 +530,7 @@ xrep_metapath_try_unlink(
 	xfs_ino_t		ino;
 	int			error;
 
-	ASSERT(*alleged_child != sc->ip->i_ino);
+	ASSERT(*alleged_child != I_INO(sc->ip));
 
 	trace_xrep_metapath_try_unlink(sc, mpath->path, mpath->dp,
 			*alleged_child);
@@ -575,7 +575,7 @@ xrep_metapath_try_unlink(
 	if (error)
 		goto out_cancel;
 
-	if (ino == sc->ip->i_ino) {
+	if (ino == I_INO(sc->ip)) {
 		/* The dirent already points to @sc->ip; we're done. */
 		error = -EEXIST;
 		goto out_cancel;

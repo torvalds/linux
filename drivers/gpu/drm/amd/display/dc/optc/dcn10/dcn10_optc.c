@@ -375,7 +375,7 @@ void optc1_set_vtg_params(struct timing_generator *optc,
 	if (REG(OTG_INTERLACE_CONTROL)) {
 		if (patched_crtc_timing.flags.INTERLACE == 1) {
 			v_init = v_init / 2;
-			if ((optc1->vstartup_start/2)*2 > asic_blank_end)
+			if ((uint32_t)((optc1->vstartup_start/2)*2) > asic_blank_end)
 				v_fp2 = v_fp2 / 2;
 		}
 	}

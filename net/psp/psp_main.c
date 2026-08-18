@@ -27,13 +27,22 @@ struct mutex psp_devs_lock;
  * psp_dev_check_access() - check if user in a given net ns can access PSP dev
  * @psd:	PSP device structure user is trying to access
  * @net:	net namespace user is in
+ * @admin:	If true, only allow access from @psd's main device's netns,
+ *		for admin operations like config changes and key rotation.
+ *		If false, also allow access from network namespaces that have
+ *		an associated device with @psd, for read-only and association
+ *		management operations.
  *
  * Return: 0 if PSP device should be visible in @net, errno otherwise.
  */
-int psp_dev_check_access(struct psp_dev *psd, struct net *net)
+int psp_dev_check_access(struct psp_dev *psd, struct net *net, bool admin)
 {
 	if (dev_net(psd->main_netdev) == net)
 		return 0;
+
+	if (!admin && psp_has_assoc_dev_in_ns(psd, net))
+		return 0;
+
 	return -ENOENT;
 }
 
@@ -69,6 +78,7 @@ psp_dev_create(struct net_device *netdev,
 		return ERR_PTR(-ENOMEM);
 
 	psd->main_netdev = netdev;
+	INIT_LIST_HEAD(&psd->assoc_dev_list);
 	psd->ops = psd_ops;
 	psd->caps = psd_caps;
 	psd->drv_priv = priv_ptr;
@@ -90,6 +100,10 @@ psp_dev_create(struct net_device *netdev,
 	mutex_lock(&psd->lock);
 	mutex_unlock(&psp_devs_lock);
 
+	/* notify before netdev assignment
+	 * There's no strong reason for it, but thinking is to avoid creating
+	 * implicit expectations about the PSP dev <> netdev relationship.
+	 */
 	psp_nl_notify_dev(psd, PSP_CMD_DEV_ADD_NTF);
 
 	rcu_assign_pointer(netdev->psp_dev, psd);
@@ -116,6 +130,7 @@ void psp_dev_free(struct psp_dev *psd)
  */
 void psp_dev_unregister(struct psp_dev *psd)
 {
+	struct psp_assoc_dev *entry, *entry_tmp;
 	struct psp_assoc *pas, *next;
 
 	mutex_lock(&psp_devs_lock);
@@ -134,6 +149,15 @@ void psp_dev_unregister(struct psp_dev *psd)
 	list_splice_init(&psd->prev_assocs, &psd->stale_assocs);
 	list_for_each_entry_safe(pas, next, &psd->stale_assocs, assocs_list)
 		psp_dev_tx_key_del(psd, pas);
+
+	list_for_each_entry_safe(entry, entry_tmp, &psd->assoc_dev_list,
+				 dev_list) {
+		list_del(&entry->dev_list);
+		rcu_assign_pointer(entry->assoc_dev->psp_dev, NULL);
+		netdev_put(entry->assoc_dev, &entry->dev_tracker);
+		kfree(entry);
+	}
+	psd->assoc_dev_cnt = 0;
 
 	rcu_assign_pointer(psd->main_netdev->psp_dev, NULL);
 
@@ -228,6 +252,10 @@ bool psp_dev_encapsulate(struct net *net, struct sk_buff *skb, __be32 spi,
 	u32 ethr_len = skb_mac_header_len(skb);
 	u32 bufflen = ethr_len + network_len;
 
+	if (skb->protocol != htons(ETH_P_IP) &&
+	    skb->protocol != htons(ETH_P_IPV6))
+		return false;
+
 	if (skb_cow_head(skb, PSP_ENCAP_HLEN))
 		return false;
 
@@ -243,11 +271,9 @@ bool psp_dev_encapsulate(struct net *net, struct sk_buff *skb, __be32 spi,
 		ip_hdr(skb)->check = 0;
 		ip_hdr(skb)->check =
 			ip_fast_csum((u8 *)ip_hdr(skb), ip_hdr(skb)->ihl);
-	} else if (skb->protocol == htons(ETH_P_IPV6)) {
+	} else {
 		ipv6_hdr(skb)->nexthdr = IPPROTO_UDP;
 		be16_add_cpu(&ipv6_hdr(skb)->payload_len, PSP_ENCAP_HLEN);
-	} else {
-		return false;
 	}
 
 	skb_set_inner_ipproto(skb, IPPROTO_TCP);
@@ -294,6 +320,9 @@ int psp_dev_rcv(struct sk_buff *skb, u16 dev_id, u8 generation, bool strip_icv)
 
 	if (proto == htons(ETH_P_IP)) {
 		struct iphdr *iph = (struct iphdr *)(skb->data + l2_hlen);
+
+		if (unlikely(iph->ihl < 5))
+			return -EINVAL;
 
 		is_udp = iph->protocol == IPPROTO_UDP;
 		l3_hlen = iph->ihl * 4;
@@ -348,12 +377,18 @@ int psp_dev_rcv(struct sk_buff *skb, u16 dev_id, u8 generation, bool strip_icv)
 	if (proto == htons(ETH_P_IP)) {
 		struct iphdr *iph = (struct iphdr *)(skb->data + l2_hlen);
 
+		if (unlikely(ntohs(iph->tot_len) < l3_hlen + encap))
+			return -EINVAL;
+
 		iph->protocol = psph->nexthdr;
 		iph->tot_len = htons(ntohs(iph->tot_len) - encap);
 		iph->check = 0;
 		iph->check = ip_fast_csum((u8 *)iph, iph->ihl);
 	} else {
 		struct ipv6hdr *ipv6h = (struct ipv6hdr *)(skb->data + l2_hlen);
+
+		if (unlikely(ntohs(ipv6h->payload_len) < encap))
+			return -EINVAL;
 
 		ipv6h->nexthdr = psph->nexthdr;
 		ipv6h->payload_len = htons(ntohs(ipv6h->payload_len) - encap);
@@ -369,6 +404,81 @@ int psp_dev_rcv(struct sk_buff *skb, u16 dev_id, u8 generation, bool strip_icv)
 	return 0;
 }
 EXPORT_SYMBOL(psp_dev_rcv);
+
+static void psp_dev_disassoc_one(struct psp_dev *psd, struct net_device *dev)
+{
+	struct psp_assoc_dev *entry;
+
+	list_for_each_entry(entry, &psd->assoc_dev_list, dev_list) {
+		if (entry->assoc_dev == dev) {
+			list_del(&entry->dev_list);
+			psd->assoc_dev_cnt--;
+			rcu_assign_pointer(entry->assoc_dev->psp_dev, NULL);
+			netdev_put(entry->assoc_dev, &entry->dev_tracker);
+			kfree(entry);
+			return;
+		}
+	}
+}
+
+static int psp_netdev_event(struct notifier_block *nb, unsigned long event,
+			    void *ptr)
+{
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct psp_dev *psd;
+
+	if (event != NETDEV_UNREGISTER)
+		return NOTIFY_DONE;
+
+	rcu_read_lock();
+	psd = rcu_dereference(dev->psp_dev);
+	if (psd && psp_dev_tryget(psd)) {
+		rcu_read_unlock();
+		mutex_lock(&psd->lock);
+		if (psp_dev_is_registered(psd))
+			psp_nl_notify_dev(psd, PSP_CMD_DEV_CHANGE_NTF);
+		psp_dev_disassoc_one(psd, dev);
+		mutex_unlock(&psd->lock);
+		psp_dev_put(psd);
+	} else {
+		rcu_read_unlock();
+	}
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block psp_netdev_notifier = {
+	.notifier_call = psp_netdev_event,
+};
+
+static DEFINE_MUTEX(psp_notifier_lock);
+static bool psp_notifier_registered;
+
+/* Register the netdevice notifier when the first device association
+ * is created. In many installations no associations will be created and
+ * the notifier won't be needed.
+ *
+ * Must be called without psd->lock held, due to lock ordering:
+ * rtnl_lock -> psd->lock (the notifier callback runs under rtnl_lock
+ * and takes psd->lock).
+ */
+int psp_attach_netdev_notifier(void)
+{
+	int err = 0;
+
+	if (READ_ONCE(psp_notifier_registered))
+		return 0;
+
+	mutex_lock(&psp_notifier_lock);
+	if (!psp_notifier_registered) {
+		err = register_netdevice_notifier(&psp_netdev_notifier);
+		if (!err)
+			WRITE_ONCE(psp_notifier_registered, true);
+	}
+	mutex_unlock(&psp_notifier_lock);
+
+	return err;
+}
 
 static int __init psp_init(void)
 {

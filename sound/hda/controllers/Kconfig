@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config SND_HDA_INTEL
 	tristate "HD Audio PCI"
-	depends on SND_PCI
+	depends on PCI
 	select SND_HDA
 	select SND_INTEL_DSP_CONFIG
 	help

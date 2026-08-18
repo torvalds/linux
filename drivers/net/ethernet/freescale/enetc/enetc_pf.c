@@ -480,121 +480,6 @@ static void enetc_configure_port(struct enetc_pf *pf)
 	enetc_port_wr(hw, ENETC_PMR, ENETC_PMR_EN);
 }
 
-/* Messaging */
-static u16 enetc_msg_pf_set_vf_primary_mac_addr(struct enetc_pf *pf,
-						int vf_id, void *msg)
-{
-	struct enetc_vf_state *vf_state = &pf->vf_state[vf_id];
-	struct enetc_msg_cmd_set_primary_mac *cmd = msg;
-	struct device *dev = &pf->si->pdev->dev;
-	u16 cmd_id = cmd->header.id;
-	char *addr;
-
-	if (cmd_id != ENETC_MSG_CMD_MNG_ADD)
-		return ENETC_MSG_CMD_STATUS_FAIL;
-
-	addr = cmd->mac.sa_data;
-	if (!is_valid_ether_addr(addr)) {
-		dev_err_ratelimited(dev, "VF%d attempted to set invalid MAC\n",
-				    vf_id);
-		return ENETC_MSG_CMD_STATUS_FAIL;
-	}
-
-	mutex_lock(&vf_state->lock);
-	if (vf_state->flags & ENETC_VF_FLAG_PF_SET_MAC) {
-		mutex_unlock(&vf_state->lock);
-		dev_err_ratelimited(dev,
-				    "VF%d attempted to override PF set MAC\n",
-				    vf_id);
-		return ENETC_MSG_CMD_STATUS_FAIL;
-	}
-
-	enetc_pf_set_primary_mac_addr(&pf->si->hw, vf_id + 1, addr);
-	mutex_unlock(&vf_state->lock);
-
-	return ENETC_MSG_CMD_STATUS_OK;
-}
-
-void enetc_msg_handle_rxmsg(struct enetc_pf *pf, int vf_id, u16 *status)
-{
-	struct enetc_msg_swbd *msg_swbd = &pf->rxmsg[vf_id];
-	struct device *dev = &pf->si->pdev->dev;
-	struct enetc_msg_cmd_header *cmd_hdr;
-	u16 cmd_type;
-	u8 *msg;
-
-	msg = kzalloc_objs(*msg, msg_swbd->size);
-	if (!msg) {
-		dev_err_ratelimited(dev,
-				    "Failed to allocate message buffer\n");
-		*status = ENETC_MSG_CMD_STATUS_FAIL;
-		return;
-	}
-
-	/* Currently, only ENETC_MSG_CMD_MNG_MAC command is supported, so
-	 * only sizeof(struct enetc_msg_cmd_set_primary_mac) bytes need to
-	 * be copied. This data already includes the cmd_type field, so it
-	 * can correctly return an error code.
-	 */
-	memcpy(msg, msg_swbd->vaddr,
-	       sizeof(struct enetc_msg_cmd_set_primary_mac));
-	cmd_hdr = (struct enetc_msg_cmd_header *)msg;
-	cmd_type = cmd_hdr->type;
-
-	switch (cmd_type) {
-	case ENETC_MSG_CMD_MNG_MAC:
-		*status = enetc_msg_pf_set_vf_primary_mac_addr(pf, vf_id, msg);
-		break;
-	default:
-		*status = ENETC_MSG_CMD_STATUS_FAIL;
-		dev_err_ratelimited(dev,
-				    "command not supported (cmd_type: 0x%x)\n",
-				    cmd_type);
-	}
-
-	kfree(msg);
-}
-
-#ifdef CONFIG_PCI_IOV
-static int enetc_sriov_configure(struct pci_dev *pdev, int num_vfs)
-{
-	struct enetc_si *si = pci_get_drvdata(pdev);
-	struct enetc_pf *pf = enetc_si_priv(si);
-	int err;
-
-	if (!num_vfs) {
-		pci_disable_sriov(pdev);
-		enetc_msg_psi_free(pf);
-		pf->num_vfs = 0;
-	} else {
-		pf->num_vfs = num_vfs;
-
-		err = enetc_msg_psi_init(pf);
-		if (err) {
-			dev_err(&pdev->dev, "enetc_msg_psi_init (%d)\n", err);
-			goto err_msg_psi;
-		}
-
-		err = pci_enable_sriov(pdev, num_vfs);
-		if (err) {
-			dev_err(&pdev->dev, "pci_enable_sriov err %d\n", err);
-			goto err_en_sriov;
-		}
-	}
-
-	return num_vfs;
-
-err_en_sriov:
-	enetc_msg_psi_free(pf);
-err_msg_psi:
-	pf->num_vfs = 0;
-
-	return err;
-}
-#else
-#define enetc_sriov_configure(pdev, num_vfs)	(void)0
-#endif
-
 static int enetc_pf_set_features(struct net_device *ndev,
 				 netdev_features_t features)
 {
@@ -917,8 +802,7 @@ static struct enetc_si *enetc_psi_create(struct pci_dev *pdev)
 		goto out_pci_remove;
 	}
 
-	err = enetc_setup_cbdr(&pdev->dev, &si->hw, ENETC_CBDR_DEFAULT_SIZE,
-			       &si->cbd_ring);
+	err = enetc_setup_cbdr(si);
 	if (err)
 		goto out_pci_remove;
 
@@ -937,7 +821,7 @@ static struct enetc_si *enetc_psi_create(struct pci_dev *pdev)
 	return si;
 
 out_teardown_cbdr:
-	enetc_teardown_cbdr(&si->cbd_ring);
+	enetc_teardown_cbdr(si);
 out_pci_remove:
 	enetc_pci_remove(pdev);
 out:
@@ -948,7 +832,7 @@ static void enetc_psi_destroy(struct pci_dev *pdev)
 {
 	struct enetc_si *si = pci_get_drvdata(pdev);
 
-	enetc_teardown_cbdr(&si->cbd_ring);
+	enetc_teardown_cbdr(si);
 	enetc_pci_remove(pdev);
 }
 
@@ -988,18 +872,9 @@ static int enetc_pf_probe(struct pci_dev *pdev,
 	pf->si = si;
 	pf->ops = &enetc_pf_ops;
 
-	pf->total_vfs = pci_sriov_get_totalvfs(pdev);
-	if (pf->total_vfs) {
-		pf->vf_state = kzalloc_objs(struct enetc_vf_state,
-					    pf->total_vfs);
-		if (!pf->vf_state) {
-			err = -ENOMEM;
-			goto err_alloc_vf_state;
-		}
-
-		for (int i = 0; i < pf->total_vfs; i++)
-			mutex_init(&pf->vf_state[i].lock);
-	}
+	err = enetc_init_sriov_resources(pf);
+	if (err)
+		goto err_init_sriov_resources;
 
 	err = enetc_setup_mac_addresses(node, pf);
 	if (err)
@@ -1077,8 +952,7 @@ err_alloc_si_res:
 	free_netdev(ndev);
 err_alloc_netdev:
 err_setup_mac_addresses:
-	kfree(pf->vf_state);
-err_alloc_vf_state:
+err_init_sriov_resources:
 	enetc_psi_destroy(pdev);
 err_psi_create:
 	return err;
@@ -1105,8 +979,6 @@ static void enetc_pf_remove(struct pci_dev *pdev)
 	enetc_free_si_resources(priv);
 
 	free_netdev(si->ndev);
-	kfree(pf->vf_state);
-
 	enetc_psi_destroy(pdev);
 }
 

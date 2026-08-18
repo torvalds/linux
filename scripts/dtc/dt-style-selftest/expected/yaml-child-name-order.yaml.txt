@@ -1,0 +1,2 @@
+# mode=strict
+bad/yaml-child-name-order.yaml:34: example 0 [child-name-order] child node 'bar' out of name order

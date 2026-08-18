@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menu "SpacemiT thermal drivers"
+depends on ARCH_SPACEMIT || COMPILE_TEST
+
+config SPACEMIT_K1_TSENSOR
+	tristate "SpacemiT K1 thermal sensor driver"
+	depends on THERMAL_OF
+	help
+	  This driver provides support for the thermal sensor
+	  integrated in the SpacemiT K1 SoC.
+
+	  The thermal sensor monitors temperatures for five thermal zones:
+	  soc, package, gpu, cluster0, and cluster1. It supports reporting
+	  temperature values and handling high/low threshold interrupts.
+
+	  Say Y here if you want to enable thermal monitoring on SpacemiT K1.
+	  If compiled as a module, it will be called k1_tsensor.
+
+endmenu

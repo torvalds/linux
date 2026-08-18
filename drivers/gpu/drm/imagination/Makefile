@@ -32,6 +32,9 @@ powervr-y := \
 powervr-$(CONFIG_DEBUG_FS) += \
 	pvr_debugfs.o
 
+powervr-$(CONFIG_TRACEPOINTS) += \
+	pvr_trace_points.o
+
 obj-$(CONFIG_DRM_POWERVR) += powervr.o
 
 obj-$(CONFIG_DRM_POWERVR_KUNIT_TEST) += pvr_test.o

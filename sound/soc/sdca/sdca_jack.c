@@ -145,6 +145,32 @@ int sdca_jack_alloc_state(struct sdca_interrupt *interrupt)
 }
 EXPORT_SYMBOL_NS_GPL(sdca_jack_alloc_state, "SND_SOC_SDCA");
 
+static int type_get_mask(enum sdca_terminal_type type)
+{
+	switch (type) {
+	case SDCA_TERM_TYPE_LINEIN_STEREO:
+	case SDCA_TERM_TYPE_LINEIN_FRONT_LR:
+	case SDCA_TERM_TYPE_LINEIN_CENTER_LFE:
+	case SDCA_TERM_TYPE_LINEIN_SURROUND_LR:
+	case SDCA_TERM_TYPE_LINEIN_REAR_LR:
+		return SND_JACK_LINEIN;
+	case SDCA_TERM_TYPE_LINEOUT_STEREO:
+	case SDCA_TERM_TYPE_LINEOUT_FRONT_LR:
+	case SDCA_TERM_TYPE_LINEOUT_CENTER_LFE:
+	case SDCA_TERM_TYPE_LINEOUT_SURROUND_LR:
+	case SDCA_TERM_TYPE_LINEOUT_REAR_LR:
+		return SND_JACK_LINEOUT;
+	case SDCA_TERM_TYPE_MIC_JACK:
+		return SND_JACK_MICROPHONE;
+	case SDCA_TERM_TYPE_HEADPHONE_JACK:
+		return SND_JACK_HEADPHONE;
+	case SDCA_TERM_TYPE_HEADSET_JACK:
+		return SND_JACK_HEADSET;
+	default:
+		return 0;
+	}
+}
+
 /**
  * sdca_jack_set_jack - attach an ASoC jack to SDCA
  * @info: SDCA interrupt information.
@@ -154,7 +180,8 @@ EXPORT_SYMBOL_NS_GPL(sdca_jack_alloc_state, "SND_SOC_SDCA");
  */
 int sdca_jack_set_jack(struct sdca_interrupt_info *info, struct snd_soc_jack *jack)
 {
-	int i, ret;
+	int i, j;
+	int ret;
 
 	guard(mutex)(&info->irq_lock);
 
@@ -162,6 +189,7 @@ int sdca_jack_set_jack(struct sdca_interrupt_info *info, struct snd_soc_jack *ja
 		struct sdca_interrupt *interrupt = &info->irqs[i];
 		struct sdca_control *control = interrupt->control;
 		struct sdca_entity *entity = interrupt->entity;
+		struct sdca_control_range *range;
 		struct jack_state *jack_state;
 
 		if (!interrupt->irq)
@@ -169,7 +197,22 @@ int sdca_jack_set_jack(struct sdca_interrupt_info *info, struct snd_soc_jack *ja
 
 		switch (SDCA_CTL_TYPE(entity->type, control->sel)) {
 		case SDCA_CTL_TYPE_S(GE, DETECTED_MODE):
+			range = sdca_selector_find_range(interrupt->dev, entity,
+							 SDCA_CTL_GE_SELECTED_MODE,
+							 SDCA_SELECTED_MODE_NCOLS, 0);
+			if (!range)
+				return -EINVAL;
+
 			jack_state = interrupt->priv;
+
+			for (j = 0; j < range->rows; j++) {
+				enum sdca_terminal_type type;
+
+				type = sdca_range(range, SDCA_SELECTED_MODE_TERM_TYPE, j);
+
+				jack_state->mask |= type_get_mask(type);
+			}
+
 			jack_state->jack = jack;
 
 			/* Report initial state in case IRQ was already handled */
@@ -191,7 +234,6 @@ int sdca_jack_report(struct sdca_interrupt *interrupt)
 	struct jack_state *jack_state = interrupt->priv;
 	struct sdca_control_range *range;
 	enum sdca_terminal_type type;
-	unsigned int report = 0;
 	unsigned int reg, val;
 	int ret;
 
@@ -213,35 +255,7 @@ int sdca_jack_report(struct sdca_interrupt *interrupt)
 	type = sdca_range_search(range, SDCA_SELECTED_MODE_INDEX,
 				 val, SDCA_SELECTED_MODE_TERM_TYPE);
 
-	switch (type) {
-	case SDCA_TERM_TYPE_LINEIN_STEREO:
-	case SDCA_TERM_TYPE_LINEIN_FRONT_LR:
-	case SDCA_TERM_TYPE_LINEIN_CENTER_LFE:
-	case SDCA_TERM_TYPE_LINEIN_SURROUND_LR:
-	case SDCA_TERM_TYPE_LINEIN_REAR_LR:
-		report = SND_JACK_LINEIN;
-		break;
-	case SDCA_TERM_TYPE_LINEOUT_STEREO:
-	case SDCA_TERM_TYPE_LINEOUT_FRONT_LR:
-	case SDCA_TERM_TYPE_LINEOUT_CENTER_LFE:
-	case SDCA_TERM_TYPE_LINEOUT_SURROUND_LR:
-	case SDCA_TERM_TYPE_LINEOUT_REAR_LR:
-		report = SND_JACK_LINEOUT;
-		break;
-	case SDCA_TERM_TYPE_MIC_JACK:
-		report = SND_JACK_MICROPHONE;
-		break;
-	case SDCA_TERM_TYPE_HEADPHONE_JACK:
-		report = SND_JACK_HEADPHONE;
-		break;
-	case SDCA_TERM_TYPE_HEADSET_JACK:
-		report = SND_JACK_HEADSET;
-		break;
-	default:
-		break;
-	}
-
-	snd_soc_jack_report(jack_state->jack, report, 0xFFFF);
+	snd_soc_jack_report(jack_state->jack, type_get_mask(type), jack_state->mask);
 
 	return 0;
 }

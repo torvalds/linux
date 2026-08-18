@@ -712,6 +712,7 @@ impl<T> InPlaceInit<T> for UniqueArc<T> {
 impl<T> InPlaceWrite<T> for UniqueArc<MaybeUninit<T>> {
     type Initialized = UniqueArc<T>;
 
+    #[inline]
     fn write_init<E>(mut self, init: impl Init<T, E>) -> Result<Self::Initialized, E> {
         let slot = self.as_mut_ptr();
         // SAFETY: When init errors/panics, slot will get deallocated but not dropped,
@@ -721,6 +722,7 @@ impl<T> InPlaceWrite<T> for UniqueArc<MaybeUninit<T>> {
         Ok(unsafe { self.assume_init() })
     }
 
+    #[inline]
     fn write_pin_init<E>(mut self, init: impl PinInit<T, E>) -> Result<Pin<Self::Initialized>, E> {
         let slot = self.as_mut_ptr();
         // SAFETY: When init errors/panics, slot will get deallocated but not dropped,
@@ -758,6 +760,14 @@ impl<T> UniqueArc<T> {
     }
 }
 
+impl<T: ?Sized> UniqueArc<T> {
+    /// Return a raw pointer to the data in this [`UniqueArc`].
+    #[inline]
+    pub fn as_ptr(this: &Self) -> *const T {
+        Arc::as_ptr(&this.inner)
+    }
+}
+
 impl<T> UniqueArc<MaybeUninit<T>> {
     /// Converts a `UniqueArc<MaybeUninit<T>>` into a `UniqueArc<T>` by writing a value into it.
     pub fn write(mut self, value: T) -> UniqueArc<T> {
@@ -782,6 +792,7 @@ impl<T> UniqueArc<MaybeUninit<T>> {
     }
 
     /// Initialize `self` using the given initializer.
+    #[inline]
     pub fn init_with<E>(mut self, init: impl Init<T, E>) -> core::result::Result<UniqueArc<T>, E> {
         // SAFETY: The supplied pointer is valid for initialization.
         match unsafe { init.__init(self.as_mut_ptr()) } {
@@ -792,6 +803,7 @@ impl<T> UniqueArc<MaybeUninit<T>> {
     }
 
     /// Pin-initialize `self` using the given pin-initializer.
+    #[inline]
     pub fn pin_init_with<E>(
         mut self,
         init: impl PinInit<T, E>,

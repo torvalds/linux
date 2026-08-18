@@ -146,7 +146,7 @@ int snd_pcm_plugin_build(struct snd_pcm_substream *plug,
 		return -ENXIO;
 	if (snd_BUG_ON(!src_format || !dst_format))
 		return -ENXIO;
-	plugin = kzalloc(sizeof(*plugin) + extra, GFP_KERNEL);
+	plugin = kzalloc_flex(*plugin, extra_data, extra);
 	if (plugin == NULL)
 		return -ENOMEM;
 	plugin->name = name;

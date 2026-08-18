@@ -153,7 +153,7 @@ __weak int subprog_trusted_destroy(struct task_struct *task __arg_trusted)
 
 SEC("?tp_btf/task_newtask")
 __failure __log_level(2)
-__msg("release kernel function bpf_task_release expects refcounted PTR_TO_BTF_ID")
+__msg("release kfunc bpf_task_release expects referenced PTR_TO_BTF_ID passed to R1")
 int BPF_PROG(trusted_destroy_fail, struct task_struct *task, u64 clone_flags)
 {
 	return subprog_trusted_destroy(task);
@@ -285,6 +285,25 @@ __msg(": R1=rdonly_untrusted_mem(sz=0)")
 int trusted_to_untrusted_mem(void *ctx)
 {
 	return subprog_void_untrusted(bpf_get_current_task_btf());
+}
+
+__weak int subprog_write_mem_arg(int *p)
+{
+	if (!p)
+		return 0;
+
+	*p = 42;
+	return 0;
+}
+
+SEC("?tp_btf/task_newtask")
+__failure
+__msg("only read is supported")
+int trusted_btf_field_to_writable_mem(void *ctx)
+{
+	struct task_struct *task = bpf_get_current_task_btf();
+
+	return subprog_write_mem_arg(&task->prio);
 }
 
 SEC("tp_btf/sys_enter")

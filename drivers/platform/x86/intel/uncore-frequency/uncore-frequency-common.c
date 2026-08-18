@@ -29,6 +29,13 @@ static ssize_t show_domain_id(struct kobject *kobj, struct kobj_attribute *attr,
 	return sysfs_emit(buf, "%u\n", data->domain_id);
 }
 
+static ssize_t show_instance_id(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	struct uncore_data *data = container_of(attr, struct uncore_data, instance_id_kobj_attr);
+
+	return sysfs_emit(buf, "%u\n", data->instance_id);
+}
+
 static ssize_t show_fabric_cluster_id(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
 	struct uncore_data *data = container_of(attr, struct uncore_data, fabric_cluster_id_kobj_attr);
@@ -200,6 +207,9 @@ static int create_attr_group(struct uncore_data *data, char *name)
 	if (data->domain_id != UNCORE_DOMAIN_ID_INVALID) {
 		init_attribute_root_ro(domain_id);
 		data->uncore_attrs[index++] = &data->domain_id_kobj_attr.attr;
+		init_attribute_root_ro(instance_id);
+		data->uncore_attrs[index++] = &data->instance_id_kobj_attr.attr;
+
 		init_attribute_root_ro(fabric_cluster_id);
 		data->uncore_attrs[index++] = &data->fabric_cluster_id_kobj_attr.attr;
 		init_attribute_root_ro(package_id);
@@ -268,22 +278,27 @@ int uncore_freq_add_entry(struct uncore_data *data, int cpu)
 		if (ret < 0)
 			goto uncore_unlock;
 
-		data->instance_id = ret;
+		data->seqnum_id = ret;
 		scnprintf(data->name, sizeof(data->name), "uncore%02d", ret);
 	} else {
 		scnprintf(data->name, sizeof(data->name), "package_%02d_die_%02d",
 			  data->package_id, data->die_id);
 	}
 
+	/*
+	 * Set the control CPU before any read path so entry recreation after CPU
+	 * hotplug can populate read-only attributes from the new online CPU.
+	 */
+	data->control_cpu = cpu;
 	uncore_read(data, &data->initial_min_freq_khz, UNCORE_INDEX_MIN_FREQ);
 	uncore_read(data, &data->initial_max_freq_khz, UNCORE_INDEX_MAX_FREQ);
 
 	ret = create_attr_group(data, data->name);
 	if (ret) {
+		data->control_cpu = -1;
 		if (data->domain_id != UNCORE_DOMAIN_ID_INVALID)
-			ida_free(&intel_uncore_ida, data->instance_id);
+			ida_free(&intel_uncore_ida, data->seqnum_id);
 	} else {
-		data->control_cpu = cpu;
 		data->valid = true;
 	}
 
@@ -301,7 +316,7 @@ void uncore_freq_remove_die_entry(struct uncore_data *data)
 	data->control_cpu = -1;
 	data->valid = false;
 	if (data->domain_id != UNCORE_DOMAIN_ID_INVALID)
-		ida_free(&intel_uncore_ida, data->instance_id);
+		ida_free(&intel_uncore_ida, data->seqnum_id);
 
 	mutex_unlock(&uncore_lock);
 }

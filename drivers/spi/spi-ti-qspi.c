@@ -765,7 +765,7 @@ static int ti_qspi_probe(struct platform_device *pdev)
 	int ret = 0, num_cs, irq;
 	dma_cap_mask_t mask;
 
-	host = spi_alloc_host(&pdev->dev, sizeof(*qspi));
+	host = devm_spi_alloc_host(&pdev->dev, sizeof(*qspi));
 	if (!host)
 		return -ENOMEM;
 
@@ -793,8 +793,7 @@ static int ti_qspi_probe(struct platform_device *pdev)
 		r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		if (r == NULL) {
 			dev_err(&pdev->dev, "missing platform data\n");
-			ret = -ENODEV;
-			goto free_host;
+			return -ENODEV;
 		}
 	}
 
@@ -812,28 +811,22 @@ static int ti_qspi_probe(struct platform_device *pdev)
 		qspi->mmap_size = resource_size(res_mmap);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		ret = irq;
-		goto free_host;
-	}
+	if (irq < 0)
+		return irq;
 
 	mutex_init(&qspi->list_lock);
 
 	qspi->base = devm_ioremap_resource(&pdev->dev, r);
-	if (IS_ERR(qspi->base)) {
-		ret = PTR_ERR(qspi->base);
-		goto free_host;
-	}
+	if (IS_ERR(qspi->base))
+		return PTR_ERR(qspi->base);
 
 
 	if (of_property_present(np, "syscon-chipselects")) {
 		qspi->ctrl_base =
 			syscon_regmap_lookup_by_phandle_args(np, "syscon-chipselects",
 							     1, &qspi->ctrl_reg);
-		if (IS_ERR(qspi->ctrl_base)) {
-			ret = PTR_ERR(qspi->ctrl_base);
-			goto free_host;
-		}
+		if (IS_ERR(qspi->ctrl_base))
+			return PTR_ERR(qspi->ctrl_base);
 	}
 
 	qspi->fclk = devm_clk_get(&pdev->dev, "fck");
@@ -890,14 +883,16 @@ no_dma:
 	qspi->current_cs = -1;
 
 	ret = spi_register_controller(host);
-	if (!ret)
-		return 0;
+	if (ret)
+		goto err_free_dma;
 
+	return 0;
+
+err_free_dma:
 	ti_qspi_dma_cleanup(qspi);
 
 	pm_runtime_disable(&pdev->dev);
-free_host:
-	spi_controller_put(host);
+
 	return ret;
 }
 
@@ -905,16 +900,12 @@ static void ti_qspi_remove(struct platform_device *pdev)
 {
 	struct ti_qspi *qspi = platform_get_drvdata(pdev);
 
-	spi_controller_get(qspi->host);
-
 	spi_unregister_controller(qspi->host);
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	ti_qspi_dma_cleanup(qspi);
-
-	spi_controller_put(qspi->host);
 }
 
 static const struct dev_pm_ops ti_qspi_pm_ops = {

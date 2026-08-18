@@ -54,4 +54,10 @@ int panthor_gpu_soft_reset(struct panthor_device *ptdev);
 void panthor_gpu_power_changed_off(struct panthor_device *ptdev);
 int panthor_gpu_power_changed_on(struct panthor_device *ptdev);
 
+u64 panthor_gpu_get_timestamp(struct panthor_device *ptdev);
+u64 panthor_gpu_get_timestamp_offset(struct panthor_device *ptdev);
+u64 panthor_gpu_get_cycle_count(struct panthor_device *ptdev);
+
+int panthor_gpu_coherency_init(struct panthor_device *ptdev);
+
 #endif

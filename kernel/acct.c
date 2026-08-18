@@ -249,7 +249,7 @@ static int acct_on(const char __user *name)
 		return -EINVAL;
 
 	/* Exclude procfs and sysfs. */
-	if (file_inode(file)->i_sb->s_iflags & SB_I_USERNS_VISIBLE)
+	if (file_inode(file)->i_sb->s_type->fs_flags & FS_USERNS_MOUNT_RESTRICTED)
 		return -EINVAL;
 
 	if (!(file->f_mode & FMODE_CAN_WRITE))

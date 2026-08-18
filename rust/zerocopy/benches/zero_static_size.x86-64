@@ -1,0 +1,4 @@
+bench_zero_static_size:
+	mov word ptr [rdi + 4], 0
+	mov dword ptr [rdi], 0
+	ret

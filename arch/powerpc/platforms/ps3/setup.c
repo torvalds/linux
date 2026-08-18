@@ -10,6 +10,7 @@
 #include <linux/delay.h>
 #include <linux/fs.h>
 #include <linux/root_dev.h>
+#include <linux/sysfs.h>
 #include <linux/console.h>
 #include <linux/export.h>
 #include <linux/memblock.h>
@@ -183,7 +184,7 @@ static int ps3_set_dabr(unsigned long dabr, unsigned long dabrx)
 static ssize_t ps3_fw_version_show(struct kobject *kobj,
 	struct kobj_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%s", ps3_firmware_version_str);
+	return sysfs_emit(buf, "%s\n", ps3_firmware_version_str);
 }
 
 static int __init ps3_setup_sysfs(void)

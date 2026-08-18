@@ -53,7 +53,7 @@ struct uncore_discovery_domain {
 	/* MSR address or PCI device used as the discovery base */
 	u32	discovery_base;
 	bool	base_is_pci;
-	int	(*global_init)(u64 ctl);
+	int	(*global_init)(int die, u64 ctl);
 
 	/* The units in the discovery table should be ignored. */
 	int	*units_ignore;
@@ -235,6 +235,7 @@ struct pci2phy_map *__find_pci2phy_map(int segment);
 int uncore_pcibus_to_dieid(struct pci_bus *bus);
 int uncore_die_to_segment(int die);
 int uncore_device_to_die(struct pci_dev *dev);
+int uncore_die_to_cpu(int die);
 
 ssize_t uncore_event_show(struct device *dev,
 			  struct device_attribute *attr, char *buf);

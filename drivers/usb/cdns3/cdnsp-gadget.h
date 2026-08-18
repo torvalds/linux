@@ -1474,6 +1474,7 @@ struct cdnsp_device {
 	unsigned int link_state;
 
 	struct cdnsp_port usb2_port;
+	struct cdnsp_port eusb_port;
 	struct cdnsp_port usb3_port;
 	struct cdnsp_port *active_port;
 	u16 test_mode;

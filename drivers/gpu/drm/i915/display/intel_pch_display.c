@@ -40,7 +40,7 @@ enum pipe intel_crtc_pch_transcoder(struct intel_crtc *crtc)
 
 static void assert_pch_dp_disabled(struct intel_display *display,
 				   enum pipe pipe, enum port port,
-				   i915_reg_t dp_reg)
+				   intel_reg_t dp_reg)
 {
 	enum pipe port_pipe;
 	bool state;
@@ -59,7 +59,7 @@ static void assert_pch_dp_disabled(struct intel_display *display,
 
 static void assert_pch_hdmi_disabled(struct intel_display *display,
 				     enum pipe pipe, enum port port,
-				     i915_reg_t hdmi_reg)
+				     intel_reg_t hdmi_reg)
 {
 	enum pipe port_pipe;
 	bool state;
@@ -115,7 +115,7 @@ static void assert_pch_transcoder_disabled(struct intel_display *display,
 }
 
 static void ibx_sanitize_pch_hdmi_port(struct intel_display *display,
-				       enum port port, i915_reg_t hdmi_reg)
+				       enum port port, intel_reg_t hdmi_reg)
 {
 	u32 val = intel_de_read(display, hdmi_reg);
 
@@ -134,7 +134,7 @@ static void ibx_sanitize_pch_hdmi_port(struct intel_display *display,
 }
 
 static void ibx_sanitize_pch_dp_port(struct intel_display *display,
-				     enum port port, i915_reg_t dp_reg)
+				     enum port port, intel_reg_t dp_reg)
 {
 	u32 val = intel_de_read(display, dp_reg);
 
@@ -247,7 +247,7 @@ static void ilk_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
 	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	enum pipe pipe = crtc->pipe;
-	i915_reg_t reg;
+	intel_reg_t reg;
 	u32 val, pipeconf_val;
 
 	/* Make sure PCH DPLL is enabled */
@@ -313,7 +313,7 @@ static void ilk_disable_pch_transcoder(struct intel_crtc *crtc)
 {
 	struct intel_display *display = to_intel_display(crtc);
 	enum pipe pipe = crtc->pipe;
-	i915_reg_t reg;
+	intel_reg_t reg;
 
 	/* FDI relies on the transcoder */
 	assert_fdi_tx_disabled(display, pipe);
@@ -417,7 +417,7 @@ void ilk_pch_enable(struct intel_atomic_state *state,
 			&crtc_state->hw.adjusted_mode;
 		u32 bpc = (intel_de_read(display, TRANSCONF(display, pipe))
 			   & TRANSCONF_BPC_MASK) >> 5;
-		i915_reg_t reg = TRANS_DP_CTL(pipe);
+		intel_reg_t reg = TRANS_DP_CTL(pipe);
 		enum port port;
 
 		temp = intel_de_read(display, reg);

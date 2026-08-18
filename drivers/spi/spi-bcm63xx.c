@@ -477,8 +477,7 @@ static const struct platform_device_id bcm63xx_spi_dev_match[] = {
 		.name = "bcm6358-spi",
 		.driver_data = (unsigned long)bcm6358_spi_reg_offsets,
 	},
-	{
-	},
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, bcm63xx_spi_dev_match);
 
@@ -541,11 +540,9 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 	if (IS_ERR(reset))
 		return PTR_ERR(reset);
 
-	host = spi_alloc_host(dev, sizeof(*bs));
-	if (!host) {
-		dev_err(dev, "out of memory\n");
+	host = devm_spi_alloc_host(dev, sizeof(*bs));
+	if (!host)
 		return -ENOMEM;
-	}
 
 	bs = spi_controller_get_devdata(host);
 	init_completion(&bs->done);
@@ -554,10 +551,8 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 	bs->pdev = pdev;
 
 	bs->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &r);
-	if (IS_ERR(bs->regs)) {
-		ret = PTR_ERR(bs->regs);
-		goto out_err;
-	}
+	if (IS_ERR(bs->regs))
+		return PTR_ERR(bs->regs);
 
 	bs->irq = irq;
 	bs->clk = clk;
@@ -568,7 +563,7 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 			       pdev->name, host);
 	if (ret) {
 		dev_err(dev, "unable to request irq\n");
-		goto out_err;
+		return ret;
 	}
 
 	host->bus_num = bus_num;
@@ -587,7 +582,7 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 	/* Initialize hardware */
 	ret = clk_prepare_enable(bs->clk);
 	if (ret)
-		goto out_err;
+		return ret;
 
 	ret = reset_control_reset(reset);
 	if (ret) {
@@ -615,8 +610,7 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 
 out_clk_disable:
 	clk_disable_unprepare(clk);
-out_err:
-	spi_controller_put(host);
+
 	return ret;
 }
 
@@ -625,8 +619,6 @@ static void bcm63xx_spi_remove(struct platform_device *pdev)
 	struct spi_controller *host = platform_get_drvdata(pdev);
 	struct bcm63xx_spi *bs = spi_controller_get_devdata(host);
 
-	spi_controller_get(host);
-
 	spi_unregister_controller(host);
 
 	/* reset spi block */
@@ -634,8 +626,6 @@ static void bcm63xx_spi_remove(struct platform_device *pdev)
 
 	/* HW shutdown */
 	clk_disable_unprepare(bs->clk);
-
-	spi_controller_put(host);
 }
 
 static int bcm63xx_spi_suspend(struct device *dev)

@@ -1,0 +1,230 @@
+// SPDX-License-Identifier: GPL-2.0-only OR MIT
+/*
+ * Device Tree Source for AST27xx SoC Family Main Domain peripherals
+ *
+ * Copyright (C) 2026 ASPEED Technology Inc.
+ */
+
+#include <dt-bindings/clock/aspeed,ast2700-scu.h>
+#include <dt-bindings/reset/aspeed,ast2700-scu.h>
+#include <dt-bindings/interrupt-controller/aspeed-scu-ic.h>
+
+&soc0 {
+	sram0: sram@10000000 {
+		compatible = "mmio-sram";
+		reg = <0x0 0x10000000 0x0 0x20000>;
+		ranges = <0x0 0x0 0x10000000 0x20000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		soc0-sram@0 {
+			reg = <0x0 0x20000>;
+			export;
+		};
+	};
+
+	vhuba1: usb-vhub@12011000 {
+		compatible = "aspeed,ast2700-usb-vhub";
+		reg = <0x0 0x12011000 0x0 0x820>;
+		interrupts-extended = <&intc0 32>;
+		clocks = <&syscon0 SCU0_CLK_GATE_PORTAUSB2CLK>;
+		resets = <&syscon0 SCU0_RESET_PORTA_VHUB>;
+		aspeed,vhub-downstream-ports = <7>;
+		aspeed,vhub-generic-endpoints = <21>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usb2axhpd1_default>;
+		status = "disabled";
+	};
+
+	vhubb1: usb-vhub@12021000 {
+		compatible = "aspeed,ast2700-usb-vhub";
+		reg = <0x0 0x12021000 0x0 0x820>;
+		interrupts-extended = <&intc0 36>;
+		clocks = <&syscon0 SCU0_CLK_GATE_PORTBUSB2CLK>;
+		resets = <&syscon0 SCU0_RESET_PORTB_VHUB>;
+		aspeed,vhub-downstream-ports = <7>;
+		aspeed,vhub-generic-endpoints = <21>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usb2bxhpd1_default>;
+		status = "disabled";
+	};
+
+	uhci0: usb@12040000 {
+		compatible = "aspeed,ast2700-uhci", "generic-uhci";
+		reg = <0x0 0x12040000 0x0 0x100>;
+		interrupts-extended = <&intc0 10>;
+		#ports = <2>;
+		clocks = <&syscon0 SCU0_CLK_GATE_UHCICLK>;
+		resets = <&syscon0 SCU0_RESET_UHCI>;
+		status = "disabled";
+	};
+
+	vhuba0: usb-vhub@12060000 {
+		compatible = "aspeed,ast2700-usb-vhub";
+		reg = <0x0 0x12060000 0x0 0x820>;
+		interrupts-extended = <&intc0 33>;
+		clocks = <&syscon0 SCU0_CLK_GATE_PORTAUSB2CLK>;
+		resets = <&syscon0 SCU0_RESET_PORTA_VHUB_EHCI>;
+		aspeed,vhub-downstream-ports = <7>;
+		aspeed,vhub-generic-endpoints = <21>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usb2ad0_default>;
+		status = "disabled";
+	};
+
+	ehci0: usb@12061000 {
+		compatible = "aspeed,ast2700-ehci", "generic-ehci";
+		reg = <0x0 0x12061000 0x0 0x100>;
+		interrupts-extended = <&intc0 33>;
+		clocks = <&syscon0 SCU0_CLK_GATE_PORTAUSB2CLK>;
+		resets = <&syscon0 SCU0_RESET_PORTA_VHUB_EHCI>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usb2ah_default>;
+		status = "disabled";
+	};
+
+	vhubb0: usb-vhub@12062000 {
+		compatible = "aspeed,ast2700-usb-vhub";
+		reg = <0x0 0x12062000 0x0 0x820>;
+		interrupts-extended = <&intc0 37>;
+		clocks = <&syscon0 SCU0_CLK_GATE_PORTBUSB2CLK>;
+		resets = <&syscon0 SCU0_RESET_PORTB_VHUB_EHCI>;
+		aspeed,vhub-downstream-ports = <7>;
+		aspeed,vhub-generic-endpoints = <21>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usb2bd0_default>;
+		status = "disabled";
+	};
+
+	ehci1: usb@12063000 {
+		compatible = "aspeed,ast2700-ehci", "generic-ehci";
+		reg = <0x0 0x12063000 0x0 0x100>;
+		interrupts-extended = <&intc0 37>;
+		clocks = <&syscon0 SCU0_CLK_GATE_PORTBUSB2CLK>;
+		resets = <&syscon0 SCU0_RESET_PORTB_VHUB_EHCI>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usb2bh_default>;
+		status = "disabled";
+	};
+
+	emmc_controller: sdc@12090000 {
+		compatible = "aspeed,ast2700-sd-controller", "aspeed,ast2600-sd-controller";
+		reg = <0 0x12090000 0 0x100>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x0 0x12090000 0x10000>;
+		clocks = <&syscon0 SCU0_CLK_GATE_EMMCCLK>;
+		resets = <&syscon0 SCU0_RESET_EMMC>;
+		status = "disabled";
+
+		emmc: sdhci@100 {
+			compatible = "aspeed,ast2700-sdhci", "aspeed,ast2600-sdhci";
+			reg = <0x100 0x100>;
+			sdhci,auto-cmd12;
+			interrupts-extended = <&intc0 15>;
+			clocks = <&syscon0 SCU0_CLK_GATE_EMMCCLK>;
+			status = "disabled";
+		};
+	};
+
+	intc0: interrupt-controller@12100000 {
+		compatible = "aspeed,ast2700-intc0";
+		reg = <0x0 0x12100000 0x0 0x3c00>;
+		interrupt-controller;
+		interrupt-parent = <&gic>;
+		#interrupt-cells = <1>;
+		aspeed,interrupt-ranges =
+			<0 128 &gic GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>, /* linear range 1 to 1*/
+			<144 8 &gic GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>, /* sw int SSP */
+			<152 8 &gic GIC_SPI 152 IRQ_TYPE_LEVEL_HIGH>, /* sw int TSP */
+			<192 10 &gic GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>, /* M0-M9 intm */
+			<208 10 &gic GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>, /* M30-M39 intm */
+			<224 10 &gic GIC_SPI 224 IRQ_TYPE_LEVEL_HIGH>, /* M40-M49 intm */
+			<256 128 &ssp_nvic 0 0 >, /* linear to SSP */
+			<384 10 &ssp_nvic 160 0 >, /* cascaded to SSP via M10-M19 */
+			<400 8 &ssp_nvic 144 0 >, /* sw int PSP */
+			<408 8 &ssp_nvic 152 0 >, /* sw int TSP */
+			<426 128 &tsp_nvic 0 0 >, /* linear to TSP */
+			<554 10 &tsp_nvic 160 0 >, /* cascaded to TSP via M20-M29 */
+			<570 8 &tsp_nvic 144 0 >, /* sw int PSP */
+			<578 8 &tsp_nvic 152 0 >; /* sw int TSP */
+	};
+
+	syscon0: syscon@12c02000 {
+		compatible = "aspeed,ast2700-scu0", "syscon", "simple-mfd";
+		reg = <0x0 0x12c02000 0x0 0x1000>;
+		ranges = <0x0 0x0 0x12c02000 0x1000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		#clock-cells = <1>;
+		#reset-cells = <1>;
+
+		silicon-id@0 {
+			compatible = "aspeed,ast2700-silicon-id", "aspeed,silicon-id";
+			reg = <0x0 0x4>;
+		};
+
+		scu_ic0: interrupt-controller@1d0 {
+			compatible = "aspeed,ast2700-scu-ic0";
+			reg = <0x1d0 0xc>;
+			interrupts-extended = <&intc0 97>;
+			#interrupt-cells = <1>;
+			interrupt-controller;
+		};
+
+		scu_ic1: interrupt-controller@1e0 {
+			compatible = "aspeed,ast2700-scu-ic1";
+			reg = <0x1e0 0xc>;
+			interrupts-extended = <&intc0 98>;
+			#interrupt-cells = <1>;
+			interrupt-controller;
+		};
+
+		pinctrl0: pinctrl@400 {
+			compatible = "aspeed,ast2700-soc0-pinctrl";
+			reg = <0x400 0x318>;
+		};
+	};
+
+	gpio0: gpio@12c11000 {
+		#gpio-cells = <2>;
+		gpio-controller;
+		compatible = "aspeed,ast2700-gpio";
+		reg = <0x0 0x12c11000 0x0 0x1000>;
+		interrupts-extended = <&intc0 11>;
+		gpio-ranges = <&pinctrl0 0 0 12>;
+		ngpios = <12>;
+		clocks = <&syscon0 SCU0_CLK_APB>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+	};
+
+	uart4: serial@12c1a000 {
+		compatible = "ns16550a";
+		reg = <0x0 0x12c1a000 0x0 0x1000>;
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		clocks = <&syscon0 SCU0_CLK_GATE_UART4CLK>;
+		interrupts-extended = <&intc0 8>;
+		no-loopback-test;
+		status = "disabled";
+	};
+
+	mbox0: mbox@12c1c200 {
+		compatible = "aspeed,ast2700-mailbox";
+		reg = <0x0 0x12c1c200 0x0 0x100>, <0x0 0x12c1c300 0x0 0x100>;
+		reg-names = "tx", "rx";
+		interrupts-extended = <&intc0 103>;
+		#mbox-cells = <1>;
+	};
+
+	mbox1: mbox@12c1c600 {
+		compatible = "aspeed,ast2700-mailbox";
+		reg = <0x0 0x12c1c600 0x0 0x100>, <0x0 0x12c1c700 0x0 0x100>;
+		reg-names = "tx", "rx";
+		interrupts-extended = <&intc0 107>;
+		#mbox-cells = <1>;
+	};
+};
+
+#include "aspeed-g7-soc0-pinctrl.dtsi"

@@ -38,9 +38,9 @@ struct uda1380_priv {
 	unsigned int dac_clk;
 	struct work_struct work;
 	struct i2c_client *i2c;
-	u16 *reg_cache;
 	struct gpio_desc *power;
 	struct gpio_desc *reset;
+	u16 reg_cache[];
 };
 
 /*
@@ -767,10 +767,14 @@ static int uda1380_i2c_probe(struct i2c_client *i2c)
 	struct uda1380_priv *uda1380;
 	int ret;
 
-	uda1380 = devm_kzalloc(&i2c->dev, sizeof(struct uda1380_priv),
+	uda1380 = devm_kzalloc(&i2c->dev,
+			       struct_size(uda1380, reg_cache, ARRAY_SIZE(uda1380_reg)),
 			       GFP_KERNEL);
 	if (uda1380 == NULL)
 		return -ENOMEM;
+
+	memcpy(uda1380->reg_cache, uda1380_reg,
+	       ARRAY_SIZE(uda1380_reg) * sizeof(*uda1380->reg_cache));
 
 	uda1380->reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(uda1380->reset))
@@ -789,11 +793,6 @@ static int uda1380_i2c_probe(struct i2c_client *i2c)
 	if (device_property_match_string(dev, "dac-clk", "wspll") >= 0)
 		uda1380->dac_clk = UDA1380_DAC_CLK_WSPLL;
 
-	uda1380->reg_cache = devm_kmemdup_array(&i2c->dev, uda1380_reg, ARRAY_SIZE(uda1380_reg),
-						sizeof(uda1380_reg[0]), GFP_KERNEL);
-	if (!uda1380->reg_cache)
-		return -ENOMEM;
-
 	i2c_set_clientdata(i2c, uda1380);
 	uda1380->i2c = i2c;
 
@@ -803,7 +802,7 @@ static int uda1380_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id uda1380_i2c_id[] = {
-	{ "uda1380" },
+	{ .name = "uda1380" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, uda1380_i2c_id);

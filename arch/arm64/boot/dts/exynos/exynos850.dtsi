@@ -215,6 +215,13 @@
 			compatible = "samsung,exynos850-pmu", "syscon";
 			reg = <0x11860000 0x10000>;
 
+			poweroff: syscon-poweroff {
+				compatible = "syscon-poweroff";
+				offset = <0x30c>; /* PS_HOLD_CONTROL */
+				mask = <0x00000100>;
+				value = <0x0>;
+			};
+
 			reboot: syscon-reboot {
 				compatible = "syscon-reboot";
 				regmap = <&pmu_system_controller>;

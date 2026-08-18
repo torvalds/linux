@@ -86,7 +86,7 @@ void ras_log_ring_add_log_event(struct ras_core_context *ras_core,
 		enum ras_log_event event, void *data, struct ras_log_batch_tag *tag);
 
 int ras_log_ring_get_batch_records(struct ras_core_context *ras_core, uint64_t batch_idx,
-		struct ras_log_info **log_arr, uint32_t arr_num);
+		struct ras_log_info *log_arr, uint32_t arr_num);
 
 int ras_log_ring_get_batch_overview(struct ras_core_context *ras_core,
 		struct ras_log_batch_overview *overview);

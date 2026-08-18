@@ -48,7 +48,7 @@ struct intel_gmbus {
 #define GMBUS_FORCE_BIT_RETRY (1U << 31)
 	u32 force_bit;
 	u32 reg0;
-	i915_reg_t gpio_reg;
+	intel_reg_t gpio_reg;
 	struct i2c_algo_bit_data bit_algo;
 	struct intel_display *display;
 };
@@ -368,7 +368,7 @@ intel_gpio_post_xfer(struct i2c_adapter *adapter)
 }
 
 static void
-intel_gpio_setup(struct intel_gmbus *bus, i915_reg_t gpio_reg)
+intel_gpio_setup(struct intel_gmbus *bus, intel_reg_t gpio_reg)
 {
 	struct i2c_algo_bit_data *algo;
 

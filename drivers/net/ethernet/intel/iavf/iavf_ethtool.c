@@ -1855,6 +1855,7 @@ static const struct ethtool_ops iavf_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_USE_ADAPTIVE,
 	.supported_input_xfrm	= RXH_XFRM_SYM_XOR,
+	.op_needs_rtnl		= ETHTOOL_OP_NEEDS_RTNL_GLINK,
 	.get_drvinfo		= iavf_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
 	.get_ringparam		= iavf_get_ringparam,

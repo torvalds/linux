@@ -157,7 +157,6 @@ struct inode *configfs_create(struct dentry *dentry, umode_t mode)
 {
 	struct inode *inode = NULL;
 	struct configfs_dirent *sd;
-	struct inode *p_inode;
 
 	if (!dentry)
 		return ERR_PTR(-ENOENT);
@@ -170,8 +169,6 @@ struct inode *configfs_create(struct dentry *dentry, umode_t mode)
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 
-	p_inode = d_inode(dentry->d_parent);
-	inode_set_mtime_to_ts(p_inode, inode_set_ctime_current(p_inode));
 	configfs_set_inode_lock_class(sd, inode);
 	return inode;
 }
@@ -194,26 +191,4 @@ const unsigned char * configfs_get_name(struct configfs_dirent *sd)
 		return attr->ca_name;
 	}
 	return NULL;
-}
-
-
-/*
- * Unhashes the dentry corresponding to given configfs_dirent
- * Called with parent inode's i_mutex held.
- */
-void configfs_drop_dentry(struct configfs_dirent * sd, struct dentry * parent)
-{
-	struct dentry * dentry = sd->s_dentry;
-
-	if (dentry) {
-		spin_lock(&dentry->d_lock);
-		if (simple_positive(dentry)) {
-			dget_dlock(dentry);
-			__d_drop(dentry);
-			spin_unlock(&dentry->d_lock);
-			__simple_unlink(d_inode(parent), dentry);
-			dput(dentry);
-		} else
-			spin_unlock(&dentry->d_lock);
-	}
 }

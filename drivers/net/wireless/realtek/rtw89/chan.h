@@ -116,6 +116,13 @@ struct rtw89_entity_weight {
 	unsigned int active_roles;
 };
 
+struct rtw89_entity_conf {
+	bool is_mld;
+	bool en_emlsr;
+	DECLARE_BITMAP(hw_bitmap, __RTW89_MLD_MAX_LINK_NUM);
+	const struct rtw89_chan *chans[__RTW89_MLD_MAX_LINK_NUM];
+};
+
 static inline bool rtw89_get_entity_state(struct rtw89_dev *rtwdev,
 					  enum rtw89_phy_idx phy_idx)
 {
@@ -168,6 +175,7 @@ void rtw89_entity_init(struct rtw89_dev *rtwdev);
 enum rtw89_entity_mode rtw89_entity_recalc(struct rtw89_dev *rtwdev);
 bool rtw89_entity_check_hw(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx);
 void rtw89_entity_force_hw(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx);
+void rtw89_entity_get_conf(struct rtw89_dev *rtwdev, struct rtw89_entity_conf *conf);
 void rtw89_chanctx_work(struct wiphy *wiphy, struct wiphy_work *work);
 void rtw89_queue_chanctx_work(struct rtw89_dev *rtwdev);
 void rtw89_queue_chanctx_change(struct rtw89_dev *rtwdev,
@@ -179,19 +187,6 @@ void rtw89_chanctx_pause(struct rtw89_dev *rtwdev,
 			 const struct rtw89_chanctx_pause_parm *parm);
 void rtw89_chanctx_proceed(struct rtw89_dev *rtwdev,
 			   const struct rtw89_chanctx_cb_parm *cb_parm);
-
-const struct rtw89_chan *__rtw89_mgnt_chan_get(struct rtw89_dev *rtwdev,
-					       const char *caller_message,
-					       u8 link_index, bool nullchk);
-
-#define rtw89_mgnt_chan_get(rtwdev, link_index) \
-	__rtw89_mgnt_chan_get(rtwdev, __func__, link_index, false)
-
-static inline const struct rtw89_chan *
-rtw89_mgnt_chan_get_or_null(struct rtw89_dev *rtwdev, u8 link_index)
-{
-	return __rtw89_mgnt_chan_get(rtwdev, NULL, link_index, true);
-}
 
 struct rtw89_mcc_links_info {
 	struct rtw89_vif_link *links[NUM_OF_RTW89_MCC_ROLES];

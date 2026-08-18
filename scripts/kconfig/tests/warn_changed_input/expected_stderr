@@ -1,0 +1,4 @@
+warning: user-provided values changed by Kconfig:
+  CONFIG_A: y -> n
+  CONFIG_NUM: 30 -> 20
+  CONFIG_DUP: y -> n

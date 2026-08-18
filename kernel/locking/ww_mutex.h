@@ -324,7 +324,7 @@ __ww_mutex_die(struct MUTEX *lock, struct MUTEX_WAITER *waiter,
 		 * blocked_on to PROXY_WAKING. Otherwise we can see
 		 * circular blocked_on relationships that can't resolve.
 		 */
-		set_task_blocked_on_waking(waiter->task, lock);
+		clear_task_blocked_on(waiter->task, lock);
 		wake_q_add(wake_q, waiter->task);
 	}
 
@@ -383,7 +383,7 @@ static bool __ww_mutex_wound(struct MUTEX *lock,
 			 * are waking the mutex owner, who may be currently
 			 * blocked on a different mutex.
 			 */
-			set_task_blocked_on_waking(owner, NULL);
+			clear_task_blocked_on(owner, NULL);
 			wake_q_add(wake_q, owner);
 		}
 		return true;

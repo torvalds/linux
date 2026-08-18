@@ -124,7 +124,9 @@ xfs_growfs_data_private(
 			mp->m_sb.sb_rextsize);
 	if (error)
 		return error;
-	xfs_growfs_compute_deltas(mp, nb, &delta, &nagcount);
+
+	nagcount = xfs_growfs_compute_agcount(mp, &nb);
+	delta = nb - mp->m_sb.sb_dblocks;
 
 	/*
 	 * Reject filesystems with a single AG because they are not

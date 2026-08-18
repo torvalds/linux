@@ -72,7 +72,7 @@ static void sun4i_backend_disable_color_correction(struct sunxi_engine *engine)
 
 static void sun4i_backend_commit(struct sunxi_engine *engine,
 				 struct drm_crtc *crtc,
-				 struct drm_atomic_state *state)
+				 struct drm_atomic_commit *state)
 {
 	DRM_DEBUG_DRIVER("Committing changes\n");
 
@@ -472,7 +472,7 @@ static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 {
 	struct drm_plane_state *plane_states[SUN4I_BACKEND_NUM_LAYERS] = { 0 };
 	struct sun4i_backend *backend = engine_to_sun4i_backend(engine);
-	struct drm_atomic_state *state = crtc_state->state;
+	struct drm_atomic_commit *state = crtc_state->state;
 	struct drm_device *drm = state->dev;
 	struct drm_plane *plane;
 	unsigned int num_planes = 0;

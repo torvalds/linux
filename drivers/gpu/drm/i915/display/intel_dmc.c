@@ -71,7 +71,7 @@ struct intel_dmc {
 	} dc6_allowed;
 	struct dmc_fw_info {
 		u32 mmio_count;
-		i915_reg_t mmioaddr[20];
+		intel_reg_t mmioaddr[20];
 		u32 mmiodata[20];
 		u32 dmc_offset;
 		u32 start_mmioaddr;
@@ -434,7 +434,7 @@ static void gen9_set_dc_state_debugmask(struct intel_display *display)
 }
 
 static void disable_event_handler(struct intel_display *display,
-				  i915_reg_t ctl_reg, i915_reg_t htp_reg)
+				  intel_reg_t ctl_reg, intel_reg_t htp_reg)
 {
 	intel_de_write(display, ctl_reg,
 		       REG_FIELD_PREP(DMC_EVT_CTL_TYPE_MASK,
@@ -506,6 +506,14 @@ static void pipedmc_clock_gating_wa(struct intel_display *display, bool enable)
 static u32 pipedmc_interrupt_mask(struct intel_display *display)
 {
 	/*
+	 * TODO: Check if PIPEDMC_ERROR bit enabling causes errors
+	 * on PTL, enable it if validation passes
+	 */
+	if (DISPLAY_VER(display) >= 35)
+		return PIPEDMC_FLIPQ_PROG_DONE |
+			PIPEDMC_ERROR;
+
+	/*
 	 * FIXME PIPEDMC_ERROR not enabled for now due to LNL pipe B
 	 * triggering it during the first DC state transition. Figure
 	 * out what is going on...
@@ -530,21 +538,21 @@ static u32 dmc_evt_ctl_disable(u32 dmc_evt_ctl)
 }
 
 static bool is_dmc_evt_ctl_reg(struct intel_display *display,
-			       enum intel_dmc_id dmc_id, i915_reg_t reg)
+			       enum intel_dmc_id dmc_id, intel_reg_t reg)
 {
-	u32 offset = i915_mmio_reg_offset(reg);
-	u32 start = i915_mmio_reg_offset(DMC_EVT_CTL(display, dmc_id, 0));
-	u32 end = i915_mmio_reg_offset(DMC_EVT_CTL(display, dmc_id, DMC_EVENT_HANDLER_COUNT_GEN12));
+	u32 offset = intel_reg_offset(reg);
+	u32 start = intel_reg_offset(DMC_EVT_CTL(display, dmc_id, 0));
+	u32 end = intel_reg_offset(DMC_EVT_CTL(display, dmc_id, DMC_EVENT_HANDLER_COUNT_GEN12));
 
 	return offset >= start && offset < end;
 }
 
 static bool is_dmc_evt_htp_reg(struct intel_display *display,
-			       enum intel_dmc_id dmc_id, i915_reg_t reg)
+			       enum intel_dmc_id dmc_id, intel_reg_t reg)
 {
-	u32 offset = i915_mmio_reg_offset(reg);
-	u32 start = i915_mmio_reg_offset(DMC_EVT_HTP(display, dmc_id, 0));
-	u32 end = i915_mmio_reg_offset(DMC_EVT_HTP(display, dmc_id, DMC_EVENT_HANDLER_COUNT_GEN12));
+	u32 offset = intel_reg_offset(reg);
+	u32 start = intel_reg_offset(DMC_EVT_HTP(display, dmc_id, 0));
+	u32 end = intel_reg_offset(DMC_EVT_HTP(display, dmc_id, DMC_EVENT_HANDLER_COUNT_GEN12));
 
 	return offset >= start && offset < end;
 }
@@ -552,7 +560,7 @@ static bool is_dmc_evt_htp_reg(struct intel_display *display,
 static bool is_event_handler(struct intel_display *display,
 			     enum intel_dmc_id dmc_id,
 			     unsigned int event_id,
-			     i915_reg_t reg, u32 data)
+			     intel_reg_t reg, u32 data)
 {
 	return is_dmc_evt_ctl_reg(display, dmc_id, reg) &&
 		REG_FIELD_GET(DMC_EVT_CTL_EVENT_ID_MASK, data) == event_id;
@@ -560,8 +568,8 @@ static bool is_event_handler(struct intel_display *display,
 
 static bool fixup_dmc_evt(struct intel_display *display,
 			  enum intel_dmc_id dmc_id,
-			  i915_reg_t reg_ctl, u32 *data_ctl,
-			  i915_reg_t reg_htp, u32 *data_htp)
+			  intel_reg_t reg_ctl, u32 *data_ctl,
+			  intel_reg_t reg_htp, u32 *data_htp)
 {
 	if (!is_dmc_evt_ctl_reg(display, dmc_id, reg_ctl))
 		return false;
@@ -570,8 +578,8 @@ static bool fixup_dmc_evt(struct intel_display *display,
 		return false;
 
 	/* make sure reg_ctl and reg_htp are for the same event */
-	if (i915_mmio_reg_offset(reg_ctl) - i915_mmio_reg_offset(DMC_EVT_CTL(display, dmc_id, 0)) !=
-	    i915_mmio_reg_offset(reg_htp) - i915_mmio_reg_offset(DMC_EVT_HTP(display, dmc_id, 0)))
+	if (intel_reg_offset(reg_ctl) - intel_reg_offset(DMC_EVT_CTL(display, dmc_id, 0)) !=
+	    intel_reg_offset(reg_htp) - intel_reg_offset(DMC_EVT_HTP(display, dmc_id, 0)))
 		return false;
 
 	/*
@@ -605,7 +613,7 @@ static bool fixup_dmc_evt(struct intel_display *display,
 
 static bool disable_dmc_evt(struct intel_display *display,
 			    enum intel_dmc_id dmc_id,
-			    i915_reg_t reg, u32 data)
+			    intel_reg_t reg, u32 data)
 {
 	if (!is_dmc_evt_ctl_reg(display, dmc_id, reg))
 		return false;
@@ -688,14 +696,14 @@ static void assert_dmc_loaded(struct intel_display *display,
 		 dmc_id, expected, found);
 
 	for (i = 0; i < dmc->dmc_info[dmc_id].mmio_count; i++) {
-		i915_reg_t reg = dmc->dmc_info[dmc_id].mmioaddr[i];
+		intel_reg_t reg = dmc->dmc_info[dmc_id].mmioaddr[i];
 
 		found = intel_de_read(display, reg);
 		expected = dmc_mmiodata(display, dmc, dmc_id, i);
 
 		drm_WARN(display->drm, found != expected,
 			 "DMC %d mmio[%d]/0x%x incorrect (expected 0x%x, current 0x%x)\n",
-			 dmc_id, i, i915_mmio_reg_offset(reg), expected, found);
+			 dmc_id, i, intel_reg_offset(reg), expected, found);
 	}
 }
 
@@ -839,7 +847,7 @@ static void dmc_configure_event(struct intel_display *display,
 	int i;
 
 	for (i = 0; i < dmc->dmc_info[dmc_id].mmio_count; i++) {
-		i915_reg_t reg = dmc->dmc_info[dmc_id].mmioaddr[i];
+		intel_reg_t reg = dmc->dmc_info[dmc_id].mmioaddr[i];
 		u32 data = dmc->dmc_info[dmc_id].mmiodata[i];
 
 		if (!is_event_handler(display, dmc_id, event_id, reg, data))
@@ -1138,17 +1146,17 @@ static u32 parse_dmc_fw_header(struct intel_dmc *dmc,
 
 		drm_dbg_kms(display->drm,
 			    " mmio[%d]: 0x%x = 0x%x->0x%x (EVT_CTL)\n",
-			    i, i915_mmio_reg_offset(dmc_info->mmioaddr[i]),
+			    i, intel_reg_offset(dmc_info->mmioaddr[i]),
 			    orig_mmiodata[0], dmc_info->mmiodata[i]);
 		drm_dbg_kms(display->drm,
 			    " mmio[%d]: 0x%x = 0x%x->0x%x (EVT_HTP)\n",
-			    i+1, i915_mmio_reg_offset(dmc_info->mmioaddr[i+1]),
+			    i+1, intel_reg_offset(dmc_info->mmioaddr[i+1]),
 			    orig_mmiodata[1], dmc_info->mmiodata[i+1]);
 	}
 
 	for (i = 0; i < mmio_count; i++) {
 		drm_dbg_kms(display->drm, " mmio[%d]: 0x%x = 0x%x%s%s\n",
-			    i, i915_mmio_reg_offset(dmc_info->mmioaddr[i]), dmc_info->mmiodata[i],
+			    i, intel_reg_offset(dmc_info->mmioaddr[i]), dmc_info->mmiodata[i],
 			    is_dmc_evt_ctl_reg(display, dmc_id, dmc_info->mmioaddr[i]) ? " (EVT_CTL)" :
 			    is_dmc_evt_htp_reg(display, dmc_id, dmc_info->mmioaddr[i]) ? " (EVT_HTP)" : "",
 			    disable_dmc_evt(display, dmc_id, dmc_info->mmioaddr[i],
@@ -1574,10 +1582,10 @@ void intel_dmc_update_dc6_allowed_count(struct intel_display *display,
 	struct intel_dmc *dmc = display_to_dmc(display);
 	u32 dc5_cur_count;
 
-	if (DISPLAY_VER(dmc->display) < 14)
+	if (DISPLAY_VER(display) < 14)
 		return;
 
-	dc5_cur_count = intel_de_read(dmc->display, DG1_DMC_DEBUG_DC5_COUNT);
+	dc5_cur_count = intel_de_read(display, DG1_DMC_DEBUG_DC5_COUNT);
 
 	if (!start_tracking)
 		dmc->dc6_allowed.count += dc5_cur_count - dmc->dc6_allowed.dc5_start;
@@ -1610,7 +1618,7 @@ static int intel_dmc_debugfs_status_show(struct seq_file *m, void *unused)
 	struct intel_display *display = m->private;
 	struct intel_dmc *dmc = display_to_dmc(display);
 	struct ref_tracker *wakeref;
-	i915_reg_t dc5_reg, dc6_reg = INVALID_MMIO_REG;
+	intel_reg_t dc5_reg, dc6_reg = INVALID_MMIO_REG;
 	u32 dc6_allowed_count;
 
 	if (!HAS_DMC(display))
@@ -1639,7 +1647,7 @@ static int intel_dmc_debugfs_status_show(struct seq_file *m, void *unused)
 		   DMC_VERSION_MINOR(dmc->version));
 
 	if (DISPLAY_VER(display) >= 12) {
-		i915_reg_t dc3co_reg;
+		intel_reg_t dc3co_reg;
 
 		if (display->platform.dgfx || DISPLAY_VER(display) >= 14) {
 			dc3co_reg = DG1_DMC_DEBUG3;
@@ -1664,7 +1672,7 @@ static int intel_dmc_debugfs_status_show(struct seq_file *m, void *unused)
 	if (intel_dmc_get_dc6_allowed_count(display, &dc6_allowed_count))
 		seq_printf(m, "DC5 -> DC6 allowed count: %d\n",
 			   dc6_allowed_count);
-	else if (i915_mmio_reg_valid(dc6_reg))
+	else if (intel_reg_valid(dc6_reg))
 		seq_printf(m, "DC5 -> DC6 count: %d\n",
 			   intel_de_read(display, dc6_reg));
 

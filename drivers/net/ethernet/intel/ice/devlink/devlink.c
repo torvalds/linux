@@ -671,10 +671,10 @@ static int ice_devlink_tx_sched_layers_set(struct devlink *devlink, u32 id,
  * error.
  */
 static int ice_devlink_tx_sched_layers_validate(struct devlink *devlink, u32 id,
-						union devlink_param_value val,
+						union devlink_param_value *val,
 						struct netlink_ext_ack *extack)
 {
-	if (val.vu8 != ICE_SCHED_5_LAYERS && val.vu8 != ICE_SCHED_9_LAYERS) {
+	if (val->vu8 != ICE_SCHED_5_LAYERS && val->vu8 != ICE_SCHED_9_LAYERS) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Wrong number of tx scheduler layers provided.");
 		return -EINVAL;
@@ -1398,7 +1398,7 @@ static int ice_devlink_enable_roce_set(struct devlink *devlink, u32 id,
 
 static int
 ice_devlink_enable_roce_validate(struct devlink *devlink, u32 id,
-				 union devlink_param_value val,
+				 union devlink_param_value *val,
 				 struct netlink_ext_ack *extack)
 {
 	struct ice_pf *pf = devlink_priv(devlink);
@@ -1465,7 +1465,7 @@ static int ice_devlink_enable_iw_set(struct devlink *devlink, u32 id,
 
 static int
 ice_devlink_enable_iw_validate(struct devlink *devlink, u32 id,
-			       union devlink_param_value val,
+			       union devlink_param_value *val,
 			       struct netlink_ext_ack *extack)
 {
 	struct ice_pf *pf = devlink_priv(devlink);
@@ -1591,10 +1591,10 @@ static int ice_devlink_local_fwd_set(struct devlink *devlink, u32 id,
  * error.
  */
 static int ice_devlink_local_fwd_validate(struct devlink *devlink, u32 id,
-					  union devlink_param_value val,
+					  union devlink_param_value *val,
 					  struct netlink_ext_ack *extack)
 {
-	if (ice_devlink_local_fwd_str_to_mode(val.vstr) < 0) {
+	if (ice_devlink_local_fwd_str_to_mode(val->vstr) < 0) {
 		NL_SET_ERR_MSG_MOD(extack, "Error: Requested value is not supported.");
 		return -EINVAL;
 	}
@@ -1604,12 +1604,12 @@ static int ice_devlink_local_fwd_validate(struct devlink *devlink, u32 id,
 
 static int
 ice_devlink_msix_max_pf_validate(struct devlink *devlink, u32 id,
-				 union devlink_param_value val,
+				 union devlink_param_value *val,
 				 struct netlink_ext_ack *extack)
 {
 	struct ice_pf *pf = devlink_priv(devlink);
 
-	if (val.vu32 > pf->hw.func_caps.common_cap.num_msix_vectors)
+	if (val->vu32 > pf->hw.func_caps.common_cap.num_msix_vectors)
 		return -EINVAL;
 
 	return 0;
@@ -1617,21 +1617,21 @@ ice_devlink_msix_max_pf_validate(struct devlink *devlink, u32 id,
 
 static int
 ice_devlink_msix_min_pf_validate(struct devlink *devlink, u32 id,
-				 union devlink_param_value val,
+				 union devlink_param_value *val,
 				 struct netlink_ext_ack *extack)
 {
-	if (val.vu32 < ICE_MIN_MSIX)
+	if (val->vu32 < ICE_MIN_MSIX)
 		return -EINVAL;
 
 	return 0;
 }
 
 static int ice_devlink_enable_rdma_validate(struct devlink *devlink, u32 id,
-					    union devlink_param_value val,
+					    union devlink_param_value *val,
 					    struct netlink_ext_ack *extack)
 {
 	struct ice_pf *pf = devlink_priv(devlink);
-	bool new_state = val.vbool;
+	bool new_state = val->vbool;
 
 	if (new_state && !test_bit(ICE_FLAG_RDMA_ENA, pf->flags))
 		return -EOPNOTSUPP;
@@ -1791,16 +1791,16 @@ int ice_devlink_register_params(struct ice_pf *pf)
 	value.vu32 = pf->msix.max;
 	devl_param_driverinit_value_set(devlink,
 					DEVLINK_PARAM_GENERIC_ID_MSIX_VEC_PER_PF_MAX,
-					value);
+					&value);
 	value.vu32 = pf->msix.min;
 	devl_param_driverinit_value_set(devlink,
 					DEVLINK_PARAM_GENERIC_ID_MSIX_VEC_PER_PF_MIN,
-					value);
+					&value);
 
 	value.vbool = test_bit(ICE_FLAG_RDMA_ENA, pf->flags);
 	devl_param_driverinit_value_set(devlink,
 					DEVLINK_PARAM_GENERIC_ID_ENABLE_RDMA,
-					value);
+					&value);
 
 	return 0;
 

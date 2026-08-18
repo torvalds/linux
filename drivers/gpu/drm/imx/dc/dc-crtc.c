@@ -148,7 +148,7 @@ dc_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
 }
 
 static int
-dc_crtc_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *state)
+dc_crtc_atomic_check(struct drm_crtc *crtc, struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *new_crtc_state =
 				drm_atomic_get_new_crtc_state(state, crtc);
@@ -164,7 +164,7 @@ dc_crtc_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *state)
 }
 
 static void
-dc_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_atomic_state *state)
+dc_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *new_crtc_state =
 				drm_atomic_get_new_crtc_state(state, crtc);
@@ -188,7 +188,7 @@ dc_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_atomic_state *state)
 }
 
 static void
-dc_crtc_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_state *state)
+dc_crtc_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *old_crtc_state =
 				drm_atomic_get_old_crtc_state(state, crtc);
@@ -222,7 +222,7 @@ out:
 }
 
 static void
-dc_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_state *state)
+dc_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *new_crtc_state =
 				drm_atomic_get_new_crtc_state(state, crtc);
@@ -294,7 +294,7 @@ out:
 }
 
 static void
-dc_crtc_atomic_disable(struct drm_crtc *crtc, struct drm_atomic_state *state)
+dc_crtc_atomic_disable(struct drm_crtc *crtc, struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *new_crtc_state =
 				drm_atomic_get_new_crtc_state(state, crtc);

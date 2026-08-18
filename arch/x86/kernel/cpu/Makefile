@@ -19,6 +19,7 @@ KCSAN_SANITIZE_common.o := n
 
 obj-y			:= cacheinfo.o scattered.o
 obj-y			+= topology_common.o topology_ext.o topology_amd.o
+obj-y			+= cpuid_parser.o
 obj-y			+= common.o
 obj-y			+= rdrand.o
 obj-y			+= match.o
@@ -45,7 +46,6 @@ obj-$(CONFIG_CPU_SUP_HYGON)		+= hygon.o
 obj-$(CONFIG_CPU_SUP_CYRIX_32)		+= cyrix.o
 obj-$(CONFIG_CPU_SUP_CENTAUR)		+= centaur.o
 obj-$(CONFIG_CPU_SUP_TRANSMETA_32)	+= transmeta.o
-obj-$(CONFIG_CPU_SUP_UMC_32)		+= umc.o
 obj-$(CONFIG_CPU_SUP_ZHAOXIN)		+= zhaoxin.o
 obj-$(CONFIG_CPU_SUP_VORTEX_32)		+= vortex.o
 

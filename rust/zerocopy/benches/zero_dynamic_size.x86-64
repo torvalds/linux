@@ -1,0 +1,5 @@
+bench_zero_dynamic_size:
+	lea rdx, [2*rsi + 5]
+	and rdx, -2
+	xor esi, esi
+	jmp qword ptr [rip + memset@GOTPCREL]

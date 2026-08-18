@@ -36,7 +36,7 @@ Important note on ARC processors configurability
 
 ARC processors are highly configurable and several configurable options
 are supported in Linux. Some options are transparent to software
-(i.e cache geometries, some can be detected at runtime and configured
+(e.g., cache geometries), some can be detected at runtime and configured
 and used accordingly, while some need to be explicitly selected or configured
 in the kernel's configuration utility (AKA "make menuconfig").
 

@@ -112,10 +112,10 @@ char cxgb4_driver_name[] = KBUILD_MODNAME;
 #define CH_PCI_DEVICE_ID_FUNCTION2 0x0
 
 #define CH_PCI_ID_TABLE_ENTRY(devid) \
-		{PCI_VDEVICE(CHELSIO, (devid)), CXGB4_UNIFIED_PF}
+		{ PCI_VDEVICE(CHELSIO, (devid)), .driver_data = CXGB4_UNIFIED_PF }
 
 #define CH_PCI_DEVICE_ID_TABLE_DEFINE_END \
-		{ 0, } \
+		{ } \
 	}
 
 #include "t4_pci_id_tbl.h"
@@ -6795,8 +6795,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 						   NETIF_F_TSO | NETIF_F_TSO6;
 
 			netdev->hw_features |= NETIF_F_GSO_UDP_TUNNEL |
-					       NETIF_F_GSO_UDP_TUNNEL_CSUM |
-					       NETIF_F_HW_TLS_RECORD;
+					       NETIF_F_GSO_UDP_TUNNEL_CSUM;
 
 			if (adapter->rawf_cnt)
 				netdev->udp_tunnel_nic_info = &cxgb_udp_tunnels;

@@ -32,6 +32,7 @@ properties:
           - nvidia,tegra186-mc
           - nvidia,tegra194-mc
           - nvidia,tegra234-mc
+          - nvidia,tegra238-mc
           - nvidia,tegra264-mc
 
   reg:
@@ -259,6 +260,36 @@ allOf:
             - const: ch13
             - const: ch14
             - const: ch15
+
+        interrupts:
+          items:
+            - description: MC general interrupt
+
+        interrupt-names: false
+
+  - if:
+      properties:
+        compatible:
+          const: nvidia,tegra238-mc
+    then:
+      properties:
+        reg:
+          minItems: 10
+          maxItems: 10
+          description: 9 memory controller channels and 1 for stream-id registers
+
+        reg-names:
+          items:
+            - const: sid
+            - const: broadcast
+            - const: ch0
+            - const: ch1
+            - const: ch2
+            - const: ch3
+            - const: ch4
+            - const: ch5
+            - const: ch6
+            - const: ch7
 
         interrupts:
           items:

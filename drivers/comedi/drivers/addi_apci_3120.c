@@ -1098,9 +1098,9 @@ static int apci3120_pci_probe(struct pci_dev *dev,
 }
 
 static const struct pci_device_id apci3120_pci_table[] = {
-	{ PCI_VDEVICE(AMCC, 0x818d), BOARD_APCI3120 },
-	{ PCI_VDEVICE(AMCC, 0x828d), BOARD_APCI3001 },
-	{ 0 }
+	{ PCI_VDEVICE(AMCC, 0x818d), .driver_data = BOARD_APCI3120 },
+	{ PCI_VDEVICE(AMCC, 0x828d), .driver_data = BOARD_APCI3001 },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, apci3120_pci_table);
 

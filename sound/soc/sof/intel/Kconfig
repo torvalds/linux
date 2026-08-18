@@ -266,10 +266,8 @@ config SND_SOC_SOF_METEORLAKE
 
 config SND_SOC_SOF_INTEL_LNL
 	tristate
-	select SOUNDWIRE_INTEL if SND_SOC_SOF_INTEL_SOUNDWIRE != n
 	select SND_SOC_SOF_HDA_GENERIC
 	select SND_SOC_SOF_INTEL_SOUNDWIRE_LINK_BASELINE
-	select SND_SOF_SOF_HDA_SDW_BPT if SND_SOC_SOF_INTEL_SOUNDWIRE != n
 	select SND_SOC_SOF_IPC4
 	select SND_SOC_SOF_INTEL_MTL
 
@@ -329,8 +327,10 @@ config SND_SOC_SOF_HDA_GENERIC
 	select SND_INTEL_DSP_CONFIG
 	select SND_SOC_SOF_HDA_LINK_BASELINE
 	select SND_SOC_SOF_HDA_PROBES
-	select SND_SOC_SDW_UTILS if SND_SOC_SOF_INTEL_SOUNDWIRE
+	select SND_SOC_SDW_UTILS if SND_SOC_SOF_INTEL_SOUNDWIRE !=n
 	select SND_SOC_SOF_HDA_MLINK if SND_SOC_SOF_HDA_LINK
+	select SND_SOF_SOF_HDA_SDW_BPT if SND_SOC_SOF_INTEL_LNL != n && \
+					  SND_SOC_SOF_INTEL_SOUNDWIRE !=n
 	help
 	  This option is not user-selectable but automagically handled by
 	  'select' statements at a higher level.

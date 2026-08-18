@@ -140,6 +140,7 @@ void ionic_lif_deferred_enqueue(struct ionic_lif *lif,
 
 static void ionic_link_status_check(struct ionic_lif *lif)
 {
+	struct ionic_dev *idev = &lif->ionic->idev;
 	struct net_device *netdev = lif->netdev;
 	u16 link_status;
 	bool link_up;
@@ -152,6 +153,8 @@ static void ionic_link_status_check(struct ionic_lif *lif)
 		clear_bit(IONIC_LIF_F_LINK_CHECK_REQUESTED, lif->state);
 		return;
 	}
+
+	ionic_reset_link_down_count(idev);
 
 	link_status = le16_to_cpu(lif->info->status.link_status);
 	link_up = link_status == IONIC_PORT_OPER_STATUS_UP;
@@ -179,7 +182,6 @@ static void ionic_link_status_check(struct ionic_lif *lif)
 		}
 	} else {
 		if (netif_carrier_ok(netdev)) {
-			lif->link_down_count++;
 			netdev_info(netdev, "Link down\n");
 			netif_carrier_off(netdev);
 		}

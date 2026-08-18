@@ -6,6 +6,7 @@
 #include "core_types.h"
 #include "dcn35/dcn35_dccg.h"
 #include "dcn42_dccg.h"
+#include "dcn20/dcn20_dccg.h"
 
 #define TO_DCN_DCCG(dccg)\
 	container_of(dccg, struct dcn_dccg, base)
@@ -180,6 +181,32 @@ void dccg42_set_physymclk(
 	}
 }
 
+static void dccg42_disable_hdmistreamclk(struct dccg *dccg)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	REG_UPDATE_2(HDMISTREAMCLK_CNTL,
+				HDMISTREAMCLK0_EN, 0,
+				HDMISTREAMCLK0_SRC_SEL, 0);
+
+	REG_UPDATE(DCCG_GATE_DISABLE_CNTL6,
+				HDMISTREAMCLK0_ROOT_GATE_DISABLE,
+				dccg->ctx->dc->debug.root_clock_optimization.bits.hdmistream ? 0 : 1);
+}
+
+static void dccg42_disable_hdmicharclk(struct dccg *dccg, int hpo_inst)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	ASSERT(hpo_inst >= 0);
+	REG_WRITE(HDMICHARCLK_CLOCK_CNTL[hpo_inst], 0);
+
+	REG_UPDATE(DCCG_GATE_DISABLE_CNTL2,
+			HDMICHARCLK0_GATE_DISABLE, 0);
+	REG_UPDATE(DCCG_GATE_DISABLE_CNTL4,
+			HDMICHARCLK0_ROOT_GATE_DISABLE, dccg->ctx->dc->debug.root_clock_optimization.bits.hdmichar ? 0 : 1);
+}
+
 void dccg42_set_pixel_rate_div(
 		struct dccg *dccg,
 		uint32_t otg_inst,
@@ -269,10 +296,17 @@ static void dccg42_init(struct dccg *dccg)
 			PHYDSYMCLK_ROOT_GATE_DISABLE, 1,
 			PHYESYMCLK_ROOT_GATE_DISABLE, 1);
 	}
+	dccg42_disable_hdmistreamclk(dccg);
+	if (dccg->ctx->dc->debug.root_clock_optimization.bits.hdmichar)
+		dccg42_disable_hdmicharclk(dccg, 0);
 }
 
 
 static const struct dccg_funcs dccg42_funcs = {
+	.enable_hdmicharclk = dccg401_enable_hdmicharclk,
+	.disable_hdmicharclk = dccg42_disable_hdmicharclk,
+	.set_hdmistreamclk = dccg401_set_hdmistreamclk,
+	.set_hdmistreamclk_root_clock_gating = dccg35_set_hdmistreamclk_root_clock_gating,
 	.update_dpp_dto = dccg35_update_dpp_dto,
 	.dpp_root_clock_control = dccg35_dpp_root_clock_control,
 	.get_dccg_ref_freq = dccg401_get_dccg_ref_freq,
@@ -306,6 +340,7 @@ static const struct dccg_funcs dccg42_funcs = {
 	.dccg_root_gate_disable_control = dccg35_root_gate_disable_control,
 	.dccg_read_reg_state = dccg31_read_reg_state,
 	.dccg_enable_global_fgcg = dccg42_enable_global_fgcg,
+	.allow_clock_gating = dccg2_allow_clock_gating
 };
 
 struct dccg *dccg42_create(

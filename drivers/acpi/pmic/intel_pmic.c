@@ -67,13 +67,11 @@ static acpi_status intel_pmic_power_handler(u32 function,
 	if (result == -ENOENT)
 		return AE_BAD_PARAMETER;
 
-	mutex_lock(&opregion->lock);
+	guard(mutex)(&opregion->lock);
 
 	result = function == ACPI_READ ?
 		d->get_power(regmap, reg, bit, value64) :
 		d->update_power(regmap, reg, bit, *value64 == 1);
-
-	mutex_unlock(&opregion->lock);
 
 	return result ? AE_ERROR : AE_OK;
 }
@@ -182,19 +180,16 @@ static acpi_status intel_pmic_thermal_handler(u32 function,
 	if (result == -ENOENT)
 		return AE_BAD_PARAMETER;
 
-	mutex_lock(&opregion->lock);
-
-	if (pmic_thermal_is_temp(address))
-		result = pmic_thermal_temp(opregion, reg, function, value64);
-	else if (pmic_thermal_is_aux(address))
-		result = pmic_thermal_aux(opregion, reg, function, value64);
-	else if (pmic_thermal_is_pen(address))
-		result = pmic_thermal_pen(opregion, reg, bit,
-						function, value64);
-	else
-		result = -EINVAL;
-
-	mutex_unlock(&opregion->lock);
+	scoped_guard(mutex, &opregion->lock) {
+		if (pmic_thermal_is_temp(address))
+			result = pmic_thermal_temp(opregion, reg, function, value64);
+		else if (pmic_thermal_is_aux(address))
+			result = pmic_thermal_aux(opregion, reg, function, value64);
+		else if (pmic_thermal_is_pen(address))
+			result = pmic_thermal_pen(opregion, reg, bit, function, value64);
+		else
+			result = -EINVAL;
+	}
 
 	if (result < 0) {
 		if (result == -EINVAL)
@@ -354,13 +349,15 @@ int intel_soc_pmic_exec_mipi_pmic_seq_element(u16 i2c_address, u32 reg_address,
 
 	d = intel_pmic_opregion->data;
 
-	mutex_lock(&intel_pmic_opregion->lock);
+	guard(mutex)(&intel_pmic_opregion->lock);
 
 	if (d->exec_mipi_pmic_seq_element) {
-		ret = d->exec_mipi_pmic_seq_element(intel_pmic_opregion->regmap,
+		return d->exec_mipi_pmic_seq_element(intel_pmic_opregion->regmap,
 						    i2c_address, reg_address,
 						    value, mask);
-	} else if (d->pmic_i2c_address) {
+	}
+
+	if (d->pmic_i2c_address) {
 		if (i2c_address == d->pmic_i2c_address) {
 			ret = regmap_update_bits(intel_pmic_opregion->regmap,
 						 reg_address, mask, value);
@@ -375,8 +372,6 @@ int intel_soc_pmic_exec_mipi_pmic_seq_element(u16 i2c_address, u32 reg_address,
 			__func__, i2c_address, reg_address, value, mask);
 		ret = -EOPNOTSUPP;
 	}
-
-	mutex_unlock(&intel_pmic_opregion->lock);
 
 	return ret;
 }

@@ -1297,18 +1297,19 @@ static int ipoib_hard_header(struct sk_buff *skb,
 	return IPOIB_HARD_LEN;
 }
 
-static void ipoib_set_rx_mode_async(struct net_device *dev,
-				    struct netdev_hw_addr_list *uc,
-				    struct netdev_hw_addr_list *mc)
+static int ipoib_set_rx_mode_async(struct net_device *dev,
+				   struct netdev_hw_addr_list *uc,
+				   struct netdev_hw_addr_list *mc)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
 	if (!test_bit(IPOIB_FLAG_OPER_UP, &priv->flags)) {
 		ipoib_dbg(priv, "IPOIB_FLAG_OPER_UP not set");
-		return;
+		return 0;
 	}
 
 	queue_work(priv->wq, &priv->restart_task);
+	return 0;
 }
 
 static int ipoib_get_iflink(const struct net_device *dev)

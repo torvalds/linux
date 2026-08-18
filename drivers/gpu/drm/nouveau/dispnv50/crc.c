@@ -16,7 +16,6 @@
 #include "nouveau_drv.h"
 #include "core.h"
 #include "head.h"
-#include "wndw.h"
 #include "handles.h"
 #include "crc.h"
 
@@ -237,7 +236,7 @@ static void nv50_crc_wait_ctx_finished(struct nv50_head *head,
 			  head->base.index, ret);
 }
 
-void nv50_crc_atomic_stop_reporting(struct drm_atomic_state *state)
+void nv50_crc_atomic_stop_reporting(struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *crtc_state;
 	struct drm_crtc *crtc;
@@ -269,7 +268,7 @@ void nv50_crc_atomic_stop_reporting(struct drm_atomic_state *state)
 	}
 }
 
-void nv50_crc_atomic_init_notifier_contexts(struct drm_atomic_state *state)
+void nv50_crc_atomic_init_notifier_contexts(struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *new_crtc_state;
 	struct drm_crtc *crtc;
@@ -291,7 +290,7 @@ void nv50_crc_atomic_init_notifier_contexts(struct drm_atomic_state *state)
 	}
 }
 
-void nv50_crc_atomic_release_notifier_contexts(struct drm_atomic_state *state)
+void nv50_crc_atomic_release_notifier_contexts(struct drm_atomic_commit *state)
 {
 	const struct nv50_crc_func *func =
 		nv50_disp(state->dev)->core->func->crc;
@@ -316,7 +315,7 @@ void nv50_crc_atomic_release_notifier_contexts(struct drm_atomic_state *state)
 	}
 }
 
-void nv50_crc_atomic_start_reporting(struct drm_atomic_state *state)
+void nv50_crc_atomic_start_reporting(struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *crtc_state;
 	struct drm_crtc *crtc;
@@ -544,7 +543,7 @@ nv50_crc_ctx_fini(struct nv50_crc_notifier_ctx *ctx)
 int nv50_crc_set_source(struct drm_crtc *crtc, const char *source_str)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_modeset_acquire_ctx ctx;
 	struct nv50_head *head = nv50_head(crtc);
 	struct nv50_crc *crc = &head->crc;
@@ -567,7 +566,7 @@ int nv50_crc_set_source(struct drm_crtc *crtc, const char *source_str)
 		ctx_flags |= DRM_MODESET_ACQUIRE_INTERRUPTIBLE;
 	drm_modeset_acquire_init(&ctx, ctx_flags);
 
-	state = drm_atomic_state_alloc(dev);
+	state = drm_atomic_commit_alloc(dev);
 	if (!state) {
 		ret = -ENOMEM;
 		goto out_acquire_fini;
@@ -617,13 +616,13 @@ out_ctx_fini:
 		for (i = 0; i < ARRAY_SIZE(crc->ctx); i++)
 			nv50_crc_ctx_fini(&crc->ctx[i]);
 	}
-	drm_atomic_state_put(state);
+	drm_atomic_commit_put(state);
 out_acquire_fini:
 	drm_modeset_acquire_fini(&ctx);
 	return ret;
 
 deadlock:
-	drm_atomic_state_clear(state);
+	drm_atomic_commit_clear(state);
 	drm_modeset_backoff(&ctx);
 	goto retry;
 }

@@ -104,33 +104,28 @@ struct zcrypt_card {
 	struct list_head list;		/* Device list. */
 	struct list_head zqueues;	/* List of zcrypt queues */
 	struct kref refcount;		/* device refcounting */
-	struct ap_card *card;		/* The "real" ap card device. */
 	int online;			/* User online/offline */
-
-	int user_space_type;		/* User space device id. */
+	struct ap_card *card;		/* The "real" ap card device. */
 	char *type_string;		/* User space device name. */
+	int user_space_type;		/* User space device id. */
 	int min_mod_size;		/* Min number of bits. */
 	int max_mod_size;		/* Max number of bits. */
 	int max_exp_bit_length;
 	const int *speed_rating;	/* Speed idx of crypto ops. */
 	atomic_t load;			/* Utilization of the crypto device */
-
 	int request_count;		/* # current requests. */
 };
 
 struct zcrypt_queue {
 	struct list_head list;		/* Device list. */
 	struct kref refcount;		/* device refcounting */
+	int online;			/* User online/offline */
 	struct zcrypt_card *zcard;
 	struct zcrypt_ops *ops;		/* Crypto operations. */
 	struct ap_queue *queue;		/* The "real" ap queue device. */
-	int online;			/* User online/offline */
-
-	atomic_t load;			/* Utilization of the crypto device */
-
-	int request_count;		/* # current requests. */
-
 	struct ap_message reply;	/* Per-device reply structure. */
+	atomic_t load;			/* Utilization of the crypto device */
+	int request_count;		/* # current requests. */
 };
 
 /* transport layer rescanning */

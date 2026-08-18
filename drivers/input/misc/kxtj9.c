@@ -525,7 +525,7 @@ static int kxtj9_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(kxtj9_pm_ops, kxtj9_suspend, kxtj9_resume);
 
 static const struct i2c_device_id kxtj9_id[] = {
-	{ NAME },
+	{ .name = NAME },
 	{ }
 };
 

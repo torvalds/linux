@@ -270,6 +270,31 @@ MERT can report various kinds of telemetry information like the following:
 * Deep Sleep counter
 * etc.
 
+.. _amdxdna-usage-stats:
+
+Amdxdna DRM client usage stats implementation
+=============================================
+
+The amdxdna driver implements the DRM client usage stats specification as
+documented in :ref:`drm-client-usage-stats`.
+
+Example of the output showing the implemented key value pairs:
+
+::
+
+        pos:	0
+        flags:	0100002
+        mnt_id:	29
+        ino:	939
+        drm-driver:	amdxdna_accel_driver
+        drm-client-id:	3219
+        drm-pdev:	0000:c5:00.1
+        amdxdna_accel_driver-heap-alloc:	60 KiB
+        amdxdna_accel_driver-internal-alloc:	67588 KiB
+        amdxdna_accel_driver-external-alloc:	0
+        drm-total-memory:	67632 KiB
+        drm-shared-memory:	0
+
 
 References
 ==========

@@ -48,7 +48,7 @@ xchk_btree_cur_fsbno(
 
 	if (level == cur->bc_nlevels - 1 &&
 	    cur->bc_ops->type == XFS_BTREE_TYPE_INODE)
-		return XFS_INO_TO_FSB(cur->bc_mp, cur->bc_ino.ip->i_ino);
+		return XFS_INODE_TO_FSB(cur->bc_ino.ip);
 
 	return NULLFSBLOCK;
 }

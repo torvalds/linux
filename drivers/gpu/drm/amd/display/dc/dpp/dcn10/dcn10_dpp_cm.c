@@ -307,7 +307,7 @@ void dpp1_cm_set_output_csc_default(
 {
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	const uint16_t *regval = NULL;
-	int arr_size;
+	uint32_t arr_size;
 
 	regval = find_color_matrix(colorspace, &arr_size);
 	if (regval == NULL) {
@@ -824,7 +824,7 @@ void dpp1_program_input_lut(
 		struct dpp *dpp_base,
 		const struct dc_gamma *gamma)
 {
-	int i;
+	unsigned int i;
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	bool rama_occupied = false;
 	uint32_t ram_num;

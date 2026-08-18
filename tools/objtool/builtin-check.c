@@ -73,8 +73,6 @@ static int parse_hacks(const struct option *opt, const char *str, int unset)
 
 static const struct option check_options[] = {
 	OPT_GROUP("Actions:"),
-	OPT_BOOLEAN(0,		 "checksum", &opts.checksum, "generate per-function checksums"),
-	OPT_BOOLEAN(0,		 "cfi", &opts.cfi, "annotate kernel control flow integrity (kCFI) function preambles"),
 	OPT_STRING_OPTARG('d',	 "disas", &opts.disas, "function-pattern", "disassemble functions", "*"),
 	OPT_CALLBACK_OPTARG('h', "hacks", NULL, NULL, "jump_label,noinstr,skylake", "patch toolchain bugs/limitations", parse_hacks),
 	OPT_BOOLEAN('i',	 "ibt", &opts.ibt, "validate and annotate IBT"),
@@ -85,7 +83,7 @@ static const struct option check_options[] = {
 	OPT_BOOLEAN('r',	 "retpoline", &opts.retpoline, "validate and annotate retpoline usage"),
 	OPT_BOOLEAN(0,		 "rethunk", &opts.rethunk, "validate and annotate rethunk usage"),
 	OPT_BOOLEAN(0,		 "unret", &opts.unret, "validate entry unret placement"),
-	OPT_INTEGER(0,		 "prefix", &opts.prefix, "generate prefix symbols"),
+	OPT_INTEGER(0,		 "prefix", &opts.prefix, "generate or grow prefix symbols for N-byte function padding"),
 	OPT_BOOLEAN('l',	 "sls", &opts.sls, "validate straight-line-speculation mitigations"),
 	OPT_BOOLEAN('s',	 "stackval", &opts.stackval, "validate frame pointer rules"),
 	OPT_BOOLEAN('t',	 "static-call", &opts.static_call, "annotate static calls"),
@@ -93,9 +91,10 @@ static const struct option check_options[] = {
 	OPT_CALLBACK_OPTARG(0,	 "dump", NULL, NULL, "orc", "dump metadata", parse_dump),
 
 	OPT_GROUP("Options:"),
+	OPT_BOOLEAN(0,		 "cfi", &opts.cfi, "grow kCFI preamble symbols (use with --prefix)"),
+	OPT_BOOLEAN(0,		 "fineibt", &opts.fineibt, "create .cfi_sites section for FineIBT"),
 	OPT_BOOLEAN(0,		 "backtrace", &opts.backtrace, "unwind on error"),
 	OPT_BOOLEAN(0,		 "backup", &opts.backup, "create backup (.orig) file on warning/error"),
-	OPT_STRING(0,		 "debug-checksum", &opts.debug_checksum,  "funcs", "enable checksum debug output"),
 	OPT_BOOLEAN(0,		 "dry-run", &opts.dryrun, "don't write modifications"),
 	OPT_BOOLEAN(0,		 "link", &opts.link, "object is a linked object"),
 	OPT_BOOLEAN(0,		 "module", &opts.module, "object is part of a kernel module"),
@@ -165,20 +164,17 @@ static bool opts_valid(void)
 		return false;
 	}
 
-#ifndef BUILD_KLP
-	if (opts.checksum) {
-		ERROR("--checksum not supported; install xxhash-devel/libxxhash-dev (version >= 0.8) and recompile");
-		return false;
-	}
-#endif
-
-	if (opts.debug_checksum && !opts.checksum) {
-		ERROR("--debug-checksum requires --checksum");
+	if (opts.cfi && !opts.prefix) {
+		ERROR("--cfi requires --prefix");
 		return false;
 	}
 
-	if (opts.checksum		||
-	    opts.disas			||
+	if (opts.fineibt && !opts.cfi) {
+		ERROR("--fineibt requires --cfi");
+		return false;
+	}
+
+	if (opts.disas			||
 	    opts.hack_jump_label	||
 	    opts.hack_noinstr		||
 	    opts.ibt			||

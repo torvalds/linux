@@ -355,13 +355,13 @@ drm_atomic_set_crtc_for_connector(struct drm_connector_state *conn_state,
 }
 EXPORT_SYMBOL(drm_atomic_set_crtc_for_connector);
 
-static void set_out_fence_for_crtc(struct drm_atomic_state *state,
+static void set_out_fence_for_crtc(struct drm_atomic_commit *state,
 				   struct drm_crtc *crtc, s32 __user *fence_ptr)
 {
 	state->crtcs[drm_crtc_index(crtc)].out_fence_ptr = fence_ptr;
 }
 
-static s32 __user *get_out_fence_for_crtc(struct drm_atomic_state *state,
+static s32 __user *get_out_fence_for_crtc(struct drm_atomic_commit *state,
 					  struct drm_crtc *crtc)
 {
 	s32 __user *fence_ptr;
@@ -372,7 +372,7 @@ static s32 __user *get_out_fence_for_crtc(struct drm_atomic_state *state,
 	return fence_ptr;
 }
 
-static int set_out_fence_for_connector(struct drm_atomic_state *state,
+static int set_out_fence_for_connector(struct drm_atomic_commit *state,
 					struct drm_connector *connector,
 					s32 __user *fence_ptr)
 {
@@ -389,7 +389,7 @@ static int set_out_fence_for_connector(struct drm_atomic_state *state,
 	return 0;
 }
 
-static s32 __user *get_out_fence_for_connector(struct drm_atomic_state *state,
+static s32 __user *get_out_fence_for_connector(struct drm_atomic_commit *state,
 					       struct drm_connector *connector)
 {
 	unsigned int index = drm_connector_index(connector);
@@ -1129,7 +1129,7 @@ static struct drm_pending_vblank_event *create_vblank_event(
 	return e;
 }
 
-int drm_atomic_connector_commit_dpms(struct drm_atomic_state *state,
+int drm_atomic_connector_commit_dpms(struct drm_atomic_commit *state,
 				     struct drm_connector *connector,
 				     int mode)
 {
@@ -1196,7 +1196,7 @@ static int drm_atomic_check_prop_changes(int ret, uint64_t old_val, uint64_t pro
 	return 0;
 }
 
-int drm_atomic_set_property(struct drm_atomic_state *state,
+int drm_atomic_set_property(struct drm_atomic_commit *state,
 			    struct drm_file *file_priv,
 			    struct drm_mode_object *obj,
 			    struct drm_property *prop,
@@ -1412,7 +1412,7 @@ static int setup_out_fence(struct drm_out_fence_state *fence_state,
 }
 
 static int prepare_signaling(struct drm_device *dev,
-				  struct drm_atomic_state *state,
+				  struct drm_atomic_commit *state,
 				  struct drm_mode_atomic *arg,
 				  struct drm_file *file_priv,
 				  struct drm_out_fence_state **fence_state,
@@ -1537,7 +1537,7 @@ static int prepare_signaling(struct drm_device *dev,
 }
 
 static void complete_signaling(struct drm_device *dev,
-			       struct drm_atomic_state *state,
+			       struct drm_atomic_commit *state,
 			       struct drm_out_fence_state *fence_state,
 			       unsigned int num_fences,
 			       bool install_fds)
@@ -1560,7 +1560,7 @@ static void complete_signaling(struct drm_device *dev,
 		/*
 		 * Free the allocated event. drm_atomic_helper_setup_commit
 		 * can allocate an event too, so only free it if it's ours
-		 * to prevent a double free in drm_atomic_state_clear.
+		 * to prevent a double free in drm_atomic_commit_clear.
 		 */
 		if (event && (event->base.fence || event->base.file_priv)) {
 			drm_event_cancel_free(dev, &event->base);
@@ -1587,7 +1587,7 @@ static void complete_signaling(struct drm_device *dev,
 }
 
 static void
-set_async_flip(struct drm_atomic_state *state)
+set_async_flip(struct drm_atomic_commit *state)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
@@ -1607,7 +1607,7 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
 	uint32_t __user *props_ptr = (uint32_t __user *)(unsigned long)(arg->props_ptr);
 	uint64_t __user *prop_values_ptr = (uint64_t __user *)(unsigned long)(arg->prop_values_ptr);
 	unsigned int copied_objs, copied_props;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_modeset_acquire_ctx ctx;
 	struct drm_out_fence_state *fence_state;
 	int ret = 0;
@@ -1656,7 +1656,7 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-	state = drm_atomic_state_alloc(dev);
+	state = drm_atomic_commit_alloc(dev);
 	if (!state)
 		return -ENOMEM;
 
@@ -1764,13 +1764,13 @@ out:
 	complete_signaling(dev, state, fence_state, num_fences, !ret);
 
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry;
 	}
 
-	drm_atomic_state_put(state);
+	drm_atomic_commit_put(state);
 
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);

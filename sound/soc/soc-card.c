@@ -246,3 +246,16 @@ void snd_soc_card_remove_dai_link(struct snd_soc_card *card,
 		card->remove_dai_link(card, dai_link);
 }
 EXPORT_SYMBOL_GPL(snd_soc_card_remove_dai_link);
+
+void snd_soc_card_set_topology_name(struct snd_soc_card *card, const char *prefix)
+{
+	if (!prefix || !card->name)
+		return;
+
+	if (!card->topology_shortname)
+		card->topology_shortname = devm_kasprintf(card->dev, GFP_KERNEL,
+							  "%s-%s", prefix, card->name);
+
+	card->name = card->topology_shortname;
+}
+EXPORT_SYMBOL_GPL(snd_soc_card_set_topology_name);

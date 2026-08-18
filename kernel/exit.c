@@ -212,7 +212,12 @@ static void __exit_signal(struct release_task_post *post, struct task_struct *ts
 	__unhash_process(post, tsk, group_dead);
 	write_sequnlock(&sig->stats_lock);
 
-	tsk->sighand = NULL;
+	/*
+	 * Ensure that all preceeding state is visible. Pairs with
+	 * the smp_acquire__after_ctrl_dep() in the sighand == NULL
+	 * path of lock_task_sighand().
+	 */
+	smp_store_release(&tsk->sighand, NULL);
 	spin_unlock(&sighand->siglock);
 
 	__cleanup_sighand(sighand);
@@ -543,6 +548,32 @@ void mm_update_next_owner(struct mm_struct *mm)
 }
 #endif /* CONFIG_MEMCG */
 
+#if defined(CONFIG_SCHED_CACHE) && defined(CONFIG_NUMA_BALANCING)
+/*
+ * Subtract the memory footprint of the current task from
+ * mm.
+ */
+static void exit_mm_sched_cache(struct mm_struct *mm)
+{
+	unsigned long fp, sub;
+
+	if (!current->total_numa_faults)
+		return;
+	/*
+	 * No lock protection due to performance considerations.
+	 * Make sure mm->sc_stat.footprint does not become
+	 * negative.
+	 */
+	fp = READ_ONCE(mm->sc_stat.footprint);
+	sub = min(fp, current->total_numa_faults);
+	WRITE_ONCE(mm->sc_stat.footprint, fp - sub);
+}
+#else
+static inline void exit_mm_sched_cache(struct mm_struct *mm)
+{
+}
+#endif /* CONFIG_SCHED_CACHE CONFIG_NUMA_BALANCING */
+
 /*
  * Turn us into a lazy TLB process if we
  * aren't already..
@@ -554,6 +585,9 @@ static void exit_mm(void)
 	exit_mm_release(current, mm);
 	if (!mm)
 		return;
+
+	exit_mm_sched_cache(mm);
+
 	mmap_read_lock(mm);
 	mmgrab_lazy_tlb(mm);
 	BUG_ON(mm != current->active_mm);
@@ -571,7 +605,6 @@ static void exit_mm(void)
 	 */
 	smp_mb__after_spinlock();
 	local_irq_disable();
-	current->user_dumpable = (get_dumpable(mm) == SUID_DUMP_USER);
 	current->mm = NULL;
 	membarrier_update_current_mm(NULL);
 	enter_lazy_tlb(mm, current);
@@ -989,8 +1022,8 @@ void __noreturn do_exit(long code)
 	proc_exit_connector(tsk);
 	mpol_put_task_policy(tsk);
 #ifdef CONFIG_FUTEX
-	if (unlikely(current->pi_state_cache))
-		kfree(current->pi_state_cache);
+	if (unlikely(current->futex.pi_state_cache))
+		kfree(current->futex.pi_state_cache);
 #endif
 	/*
 	 * Make sure we are holding no locks:

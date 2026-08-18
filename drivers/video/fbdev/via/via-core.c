@@ -234,6 +234,7 @@ int viafb_dma_copy_out_sg(unsigned int offset, struct scatterlist *sg, int nsg)
 	dma_addr_t descr_handle;
 	unsigned long flags;
 	int i;
+	int ret = 0;
 	struct scatterlist *sgentry;
 	dma_addr_t nextdesc;
 
@@ -290,8 +291,10 @@ int viafb_dma_copy_out_sg(unsigned int offset, struct scatterlist *sg, int nsg)
 	 */
 	wait_for_completion_timeout(&viafb_dma_completion, 1);
 	msleep(1);
-	if ((viafb_mmio_read(VDMA_CSR0)&VDMA_C_DONE) == 0)
+	if ((viafb_mmio_read(VDMA_CSR0) & VDMA_C_DONE) == 0) {
 		printk(KERN_ERR "VIA DMA timeout!\n");
+		ret = -ETIMEDOUT;
+	}
 	/*
 	 * Clean up and we're done.
 	 */
@@ -301,7 +304,7 @@ int viafb_dma_copy_out_sg(unsigned int offset, struct scatterlist *sg, int nsg)
 	dma_free_coherent(&global_dev.pdev->dev,
 			nsg*sizeof(struct viafb_vx855_dma_descr), descrpages,
 			descr_handle);
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(viafb_dma_copy_out_sg);
 #endif /* CONFIG_VIDEO_VIA_CAMERA */

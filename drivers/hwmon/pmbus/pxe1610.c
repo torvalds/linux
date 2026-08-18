@@ -130,10 +130,10 @@ static int pxe1610_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id pxe1610_id[] = {
-	{"pxe1610"},
-	{"pxe1110"},
-	{"pxm1310"},
-	{}
+	{ .name = "pxe1610" },
+	{ .name = "pxe1110" },
+	{ .name = "pxm1310" },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, pxe1610_id);

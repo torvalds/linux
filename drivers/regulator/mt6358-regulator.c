@@ -492,7 +492,7 @@ static const struct regulator_ops mt6358_volt_fixed_ops = {
 	.list_voltage = regulator_list_voltage_linear,
 	.map_voltage = regulator_map_voltage_linear,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
-	.get_voltage_sel = mt6358_get_buck_voltage_sel,
+	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.set_voltage_time_sel = regulator_set_voltage_time_sel,
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
@@ -724,8 +724,8 @@ static int mt6358_regulator_probe(struct platform_device *pdev)
 }
 
 static const struct platform_device_id mt6358_platform_ids[] = {
-	{"mt6358-regulator", 0},
-	{ /* sentinel */ },
+	{ .name = "mt6358-regulator" },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(platform, mt6358_platform_ids);
 

@@ -47,7 +47,7 @@ static inline struct ipu_crtc *to_ipu_crtc(struct drm_crtc *crtc)
 }
 
 static void ipu_crtc_atomic_enable(struct drm_crtc *crtc,
-				   struct drm_atomic_state *state)
+				   struct drm_atomic_commit *state)
 {
 	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
 	struct ipu_soc *ipu = dev_get_drvdata(ipu_crtc->dev->parent);
@@ -79,7 +79,7 @@ static void ipu_crtc_disable_planes(struct ipu_crtc *ipu_crtc,
 }
 
 static void ipu_crtc_atomic_disable(struct drm_crtc *crtc,
-				    struct drm_atomic_state *state)
+				    struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state,
 									      crtc);
@@ -226,7 +226,7 @@ static bool ipu_crtc_mode_fixup(struct drm_crtc *crtc,
 }
 
 static int ipu_crtc_atomic_check(struct drm_crtc *crtc,
-				 struct drm_atomic_state *state)
+				 struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
 									  crtc);
@@ -239,13 +239,13 @@ static int ipu_crtc_atomic_check(struct drm_crtc *crtc,
 }
 
 static void ipu_crtc_atomic_begin(struct drm_crtc *crtc,
-				  struct drm_atomic_state *state)
+				  struct drm_atomic_commit *state)
 {
 	drm_crtc_vblank_on(crtc);
 }
 
 static void ipu_crtc_atomic_flush(struct drm_crtc *crtc,
-				  struct drm_atomic_state *state)
+				  struct drm_atomic_commit *state)
 {
 	spin_lock_irq(&crtc->dev->event_lock);
 	if (crtc->state->event) {

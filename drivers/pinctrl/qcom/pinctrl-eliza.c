@@ -54,30 +54,6 @@
 		.intr_detection_width = 2,	\
 	}
 
-#define SDC_QDSD_PINGROUP(pg_name, ctl, pull, drv)	\
-	{					        \
-		.grp = PINCTRL_PINGROUP(#pg_name,	\
-			pg_name##_pins,			\
-			ARRAY_SIZE(pg_name##_pins)),	\
-		.ctl_reg = ctl,				\
-		.io_reg = 0,				\
-		.intr_cfg_reg = 0,			\
-		.intr_status_reg = 0,			\
-		.mux_bit = -1,				\
-		.pull_bit = pull,			\
-		.drv_bit = drv,				\
-		.oe_bit = -1,				\
-		.in_bit = -1,				\
-		.out_bit = -1,				\
-		.intr_enable_bit = -1,			\
-		.intr_status_bit = -1,			\
-		.intr_target_bit = -1,			\
-		.intr_raw_status_bit = -1,		\
-		.intr_polarity_bit = -1,		\
-		.intr_detection_bit = -1,		\
-		.intr_detection_width = -1,		\
-	}
-
 #define UFS_RESET(pg_name, ctl, io)			\
 	{					        \
 		.grp = PINCTRL_PINGROUP(#pg_name,	\
@@ -563,15 +539,32 @@ enum eliza_functions {
 	msm_mux_qup1_se0,
 	msm_mux_qup1_se1,
 	msm_mux_qup1_se2,
+	msm_mux_qup1_se2_l2_mira,
+	msm_mux_qup1_se2_l2_mirb,
+	msm_mux_qup1_se2_l3_mira,
+	msm_mux_qup1_se2_l3_mirb,
 	msm_mux_qup1_se3,
-	msm_mux_qup1_se4,
+	msm_mux_qup1_se4_01,
+	msm_mux_qup1_se4_23,
 	msm_mux_qup1_se5,
 	msm_mux_qup1_se6,
+	msm_mux_qup1_se6_l1_mira,
+	msm_mux_qup1_se6_l1_mirb,
+	msm_mux_qup1_se6_l3_mira,
+	msm_mux_qup1_se6_l3_mirb,
 	msm_mux_qup1_se7,
+	msm_mux_qup1_se7_l0_mira,
+	msm_mux_qup1_se7_l0_mirb,
+	msm_mux_qup1_se7_l1_mira,
+	msm_mux_qup1_se7_l1_mirb,
 	msm_mux_qup2_se0,
 	msm_mux_qup2_se1,
 	msm_mux_qup2_se2,
 	msm_mux_qup2_se3,
+	msm_mux_qup2_se3_l0_mira,
+	msm_mux_qup2_se3_l0_mirb,
+	msm_mux_qup2_se3_l1_mira,
+	msm_mux_qup2_se3_l1_mirb,
 	msm_mux_qup2_se4,
 	msm_mux_qup2_se5,
 	msm_mux_qup2_se6,
@@ -978,15 +971,35 @@ static const char *const qup1_se1_groups[] = {
 };
 
 static const char *const qup1_se2_groups[] = {
-	"gpio52", "gpio53", "gpio54", "gpio52", "gpio55", "gpio53", "gpio40", "gpio42", "gpio30",
+	"gpio52", "gpio53", "gpio40", "gpio42", "gpio30",
+};
+
+static const char *const qup1_se2_l2_mira_groups[] = {
+	"gpio54",
+};
+
+static const char *const qup1_se2_l2_mirb_groups[] = {
+	"gpio52",
+};
+
+static const char *const qup1_se2_l3_mira_groups[] = {
+	"gpio55",
+};
+
+static const char *const qup1_se2_l3_mirb_groups[] = {
+	"gpio53",
 };
 
 static const char *const qup1_se3_groups[] = {
 	"gpio44", "gpio45", "gpio46", "gpio47",
 };
 
-static const char *const qup1_se4_groups[] = {
-	"gpio36", "gpio37", "gpio37", "gpio36",
+static const char *const qup1_se4_01_groups[] = {
+	"gpio36", "gpio37",
+};
+
+static const char *const qup1_se4_23_groups[] = {
+	"gpio36", "gpio37",
 };
 
 static const char *const qup1_se5_groups[] = {
@@ -994,11 +1007,43 @@ static const char *const qup1_se5_groups[] = {
 };
 
 static const char *const qup1_se6_groups[] = {
-	"gpio40", "gpio42", "gpio54", "gpio42", "gpio40", "gpio55",
+	"gpio40", "gpio42",
+};
+
+static const char *const qup1_se6_l1_mira_groups[] = {
+	"gpio42",
+};
+
+static const char *const qup1_se6_l1_mirb_groups[] = {
+	"gpio54",
+};
+
+static const char *const qup1_se6_l3_mira_groups[] = {
+	"gpio40",
+};
+
+static const char *const qup1_se6_l3_mirb_groups[] = {
+	"gpio55",
 };
 
 static const char *const qup1_se7_groups[] = {
-	"gpio81", "gpio78", "gpio80", "gpio114", "gpio114", "gpio78",
+	"gpio78", "gpio114",
+};
+
+static const char *const qup1_se7_l0_mira_groups[] = {
+	"gpio81",
+};
+
+static const char *const qup1_se7_l0_mirb_groups[] = {
+	"gpio78",
+};
+
+static const char *const qup1_se7_l1_mira_groups[] = {
+	"gpio80",
+};
+
+static const char *const qup1_se7_l1_mirb_groups[] = {
+	"gpio114",
 };
 
 static const char *const qup2_se0_groups[] = {
@@ -1014,7 +1059,23 @@ static const char *const qup2_se2_groups[] = {
 };
 
 static const char *const qup2_se3_groups[] = {
-	"gpio79", "gpio116", "gpio97", "gpio100", "gpio100", "gpio116",
+	"gpio100", "gpio116",
+};
+
+static const char *const qup2_se3_l0_mira_groups[] = {
+	"gpio79",
+};
+
+static const char *const qup2_se3_l0_mirb_groups[] = {
+	"gpio116",
+};
+
+static const char *const qup2_se3_l1_mira_groups[] = {
+	"gpio97",
+};
+
+static const char *const qup2_se3_l1_mirb_groups[] = {
+	"gpio100",
 };
 
 static const char *const qup2_se4_groups[] = {
@@ -1236,15 +1297,32 @@ static const struct pinfunction eliza_functions[] = {
 	MSM_PIN_FUNCTION(qup1_se0),
 	MSM_PIN_FUNCTION(qup1_se1),
 	MSM_PIN_FUNCTION(qup1_se2),
+	MSM_PIN_FUNCTION(qup1_se2_l2_mira),
+	MSM_PIN_FUNCTION(qup1_se2_l2_mirb),
+	MSM_PIN_FUNCTION(qup1_se2_l3_mira),
+	MSM_PIN_FUNCTION(qup1_se2_l3_mirb),
 	MSM_PIN_FUNCTION(qup1_se3),
-	MSM_PIN_FUNCTION(qup1_se4),
+	MSM_PIN_FUNCTION(qup1_se4_01),
+	MSM_PIN_FUNCTION(qup1_se4_23),
 	MSM_PIN_FUNCTION(qup1_se5),
 	MSM_PIN_FUNCTION(qup1_se6),
+	MSM_PIN_FUNCTION(qup1_se6_l1_mira),
+	MSM_PIN_FUNCTION(qup1_se6_l1_mirb),
+	MSM_PIN_FUNCTION(qup1_se6_l3_mira),
+	MSM_PIN_FUNCTION(qup1_se6_l3_mirb),
 	MSM_PIN_FUNCTION(qup1_se7),
+	MSM_PIN_FUNCTION(qup1_se7_l0_mira),
+	MSM_PIN_FUNCTION(qup1_se7_l0_mirb),
+	MSM_PIN_FUNCTION(qup1_se7_l1_mira),
+	MSM_PIN_FUNCTION(qup1_se7_l1_mirb),
 	MSM_PIN_FUNCTION(qup2_se0),
 	MSM_PIN_FUNCTION(qup2_se1),
 	MSM_PIN_FUNCTION(qup2_se2),
 	MSM_PIN_FUNCTION(qup2_se3),
+	MSM_PIN_FUNCTION(qup2_se3_l0_mira),
+	MSM_PIN_FUNCTION(qup2_se3_l0_mirb),
+	MSM_PIN_FUNCTION(qup2_se3_l1_mira),
+	MSM_PIN_FUNCTION(qup2_se3_l1_mirb),
 	MSM_PIN_FUNCTION(qup2_se4),
 	MSM_PIN_FUNCTION(qup2_se5),
 	MSM_PIN_FUNCTION(qup2_se6),
@@ -1322,33 +1400,33 @@ static const struct msm_pingroup eliza_groups[] = {
 	[33] = PINGROUP(33, qup1_se1, ibi_i3c, host2wlan_sol, gcc_gp3, _, _, _, _, _, _, _),
 	[34] = PINGROUP(34, qup1_se1, qup1_se5, tb_trig_sdc1, ddr_bist_start, qdss_gpio_tracedata, _, _, _, _, _, _),
 	[35] = PINGROUP(35, qup1_se1, qup1_se5, tb_trig_sdc2, gcc_gp2, qdss_gpio_tracedata, _, _, _, _, _, _),
-	[36] = PINGROUP(36, qup1_se4, qup1_se4, ibi_i3c, _, _, _, _, _, _, _, _),
-	[37] = PINGROUP(37, qup1_se4, qup1_se4, ibi_i3c, _, _, _, _, _, _, _, _),
-	[38] = PINGROUP(38, _, _, _, _, _, _, _, _, _, _, _),
-	[39] = PINGROUP(39, _, _, _, _, _, _, _, _, _, _, _),
-	[40] = PINGROUP(40, qup1_se6, qup1_se2, qup1_se6, _, qdss_gpio_tracedata, gnss_adc1, ddr_pxi1, _, _, _, _),
+	[36] = PINGROUP(36, qup1_se4_01, qup1_se4_23, ibi_i3c, _, _, _, _, _, _, _, _),
+	[37] = PINGROUP(37, qup1_se4_01, qup1_se4_23, ibi_i3c, _, _, _, _, _, _, _, _),
+	[38] = PINGROUP(38, sdc2, _, _, _, _, _, _, _, _, _, _),
+	[39] = PINGROUP(39, sdc2, _, _, _, _, _, _, _, _, _, _),
+	[40] = PINGROUP(40, qup1_se6, qup1_se2, qup1_se6_l3_mira, _, qdss_gpio_tracedata, gnss_adc1, ddr_pxi1, _, _, _, _),
 	[41] = PINGROUP(41, _, _, _, _, _, _, _, _, _, _, _),
-	[42] = PINGROUP(42, qup1_se6, qup1_se2, qup1_se6, qdss_gpio_tracedata, gnss_adc0, ddr_pxi1, _, _, _, _, _),
+	[42] = PINGROUP(42, qup1_se6, qup1_se2, qup1_se6_l1_mira, qdss_gpio_tracedata, gnss_adc0, ddr_pxi1, _, _, _, _, _),
 	[43] = PINGROUP(43, _, _, _, _, _, _, _, _, _, _, _),
 	[44] = PINGROUP(44, qup1_se3, _, _, _, _, _, _, _, _, _, _),
 	[45] = PINGROUP(45, qup1_se3, _, _, _, _, _, _, _, _, _, _),
 	[46] = PINGROUP(46, qup1_se3, hdmi_tx_cec, _, _, _, _, _, _, _, _, _),
 	[47] = PINGROUP(47, qup1_se3, hdmi_hot_plug, _, _, _, _, _, _, _, _, _),
-	[48] = PINGROUP(48, _, _, _, _, _, _, _, _, _, _, _),
-	[49] = PINGROUP(49, _, _, _, _, _, _, _, _, _, _, _),
+	[48] = PINGROUP(48, sdc2, _, _, _, _, _, _, _, _, _, _),
+	[49] = PINGROUP(49, sdc2, _, _, _, _, _, _, _, _, _, _),
 	[50] = PINGROUP(50, sdc2_fb_clk, _, _, _, _, _, _, _, _, _, _),
-	[51] = PINGROUP(51, _, _, _, _, _, _, _, _, _, _, _),
-	[52] = PINGROUP(52, qup1_se2, pcie1_clk_req_n, qup1_se2, ddr_bist_complete, qdss_gpio_tracedata, _, vsense_trigger_mirnat, _, _, _, _),
-	[53] = PINGROUP(53, qup1_se2, qup1_se2, gcc_gp1, ddr_bist_stop, _, qdss_gpio_tracedata, _, _, _, _, _),
-	[54] = PINGROUP(54, qup1_se2, qup1_se6, qdss_gpio_traceclk, gnss_adc1, atest_usb, ddr_pxi0, _, _, _, _, _),
-	[55] = PINGROUP(55, qup1_se2, dp0_hot, qup1_se6, _, gnss_adc0, atest_usb, ddr_pxi0, _, _, _, _),
+	[51] = PINGROUP(51, sdc2, _, _, _, _, _, _, _, _, _, _),
+	[52] = PINGROUP(52, qup1_se2, pcie1_clk_req_n, qup1_se2_l2_mirb, ddr_bist_complete, qdss_gpio_tracedata, _, vsense_trigger_mirnat, _, _, _, _),
+	[53] = PINGROUP(53, qup1_se2, qup1_se2_l3_mirb, gcc_gp1, ddr_bist_stop, _, qdss_gpio_tracedata, _, _, _, _, _),
+	[54] = PINGROUP(54, qup1_se2_l2_mira, qup1_se6_l1_mirb, qdss_gpio_traceclk, gnss_adc1, atest_usb, ddr_pxi0, _, _, _, _, _),
+	[55] = PINGROUP(55, qup1_se2_l3_mira, dp0_hot, qup1_se6_l3_mirb, _, gnss_adc0, atest_usb, ddr_pxi0, _, _, _, _),
 	[56] = PINGROUP(56, usb0_hs, tsense_pwm1, tsense_pwm2, tsense_pwm3, tsense_pwm4, _, _, _, _, _, _),
 	[57] = PINGROUP(57, sd_write_protect, _, _, _, _, _, _, _, _, _, _),
 	[58] = PINGROUP(58, _, _, _, _, _, _, _, _, _, _, _),
 	[59] = PINGROUP(59, _, _, _, _, _, _, _, _, _, _, _),
 	[60] = PINGROUP(60, i2s0_sck, _, _, _, _, _, _, _, _, _, _),
 	[61] = PINGROUP(61, i2s0_ws, _, _, _, _, _, _, _, _, _, _),
-	[62] = PINGROUP(62, _, _, _, _, _, _, _, _, _, _, _),
+	[62] = PINGROUP(62, sdc2, _, _, _, _, _, _, _, _, _, _),
 	[63] = PINGROUP(63, resout_gpio, i2s0_data1, cci_timer, vfr_0, _, _, _, _, _, _, _),
 	[64] = PINGROUP(64, i2s0_data0, _, _, _, _, _, _, _, _, _, _),
 	[65] = PINGROUP(65, cam_mclk, _, qdss_gpio_tracedata, _, _, _, _, _, _, _, _),
@@ -1364,10 +1442,10 @@ static const struct msm_pingroup eliza_groups[] = {
 	[75] = PINGROUP(75, cci_i2c_scl, _, phase_flag, _, _, _, _, _, _, _, _),
 	[76] = PINGROUP(76, cci_i2c_sda, cci_timer, prng_rosc2, _, phase_flag, _, _, _, _, _, _),
 	[77] = PINGROUP(77, cci_i2c_scl, jitter_bist, _, _, _, _, _, _, _, _, _),
-	[78] = PINGROUP(78, qup1_se7, qup1_se7, _, phase_flag, _, _, _, _, _, _, _),
-	[79] = PINGROUP(79, qspi0, mdp_vsync, qup2_se3, _, _, _, _, _, _, _, _),
-	[80] = PINGROUP(80, pcie0_clk_req_n, qup1_se7, _, phase_flag, _, _, _, _, _, _, _),
-	[81] = PINGROUP(81, wcn_sw_ctrl, qup1_se7, dbg_out_clk, _, _, _, _, _, _, _, _),
+	[78] = PINGROUP(78, qup1_se7, qup1_se7_l0_mirb, _, phase_flag, _, _, _, _, _, _, _),
+	[79] = PINGROUP(79, qspi0, mdp_vsync, qup2_se3_l0_mira, _, _, _, _, _, _, _, _),
+	[80] = PINGROUP(80, pcie0_clk_req_n, qup1_se7_l1_mira, _, phase_flag, _, _, _, _, _, _, _),
+	[81] = PINGROUP(81, wcn_sw_ctrl, qup1_se7_l0_mira, dbg_out_clk, _, _, _, _, _, _, _, _),
 	[82] = PINGROUP(82, _, _, _, _, _, _, _, _, _, _, _),
 	[83] = PINGROUP(83, _, _, _, _, _, _, _, _, _, _, _),
 	[84] = PINGROUP(84, uim0_data, _, _, _, _, _, _, _, _, _, _),
@@ -1383,10 +1461,10 @@ static const struct msm_pingroup eliza_groups[] = {
 	[94] = PINGROUP(94, qlink_wmss, _, _, _, _, _, _, _, _, _, _),
 	[95] = PINGROUP(95, qlink_big_request, _, _, _, _, _, _, _, _, _, _),
 	[96] = PINGROUP(96, qlink_big_enable, _, _, _, _, _, _, _, _, _, _),
-	[97] = PINGROUP(97, uim1_data, qspi0, qup2_se3, _, _, _, _, _, _, _, _),
+	[97] = PINGROUP(97, uim1_data, qspi0, qup2_se3_l1_mira, _, _, _, _, _, _, _, _),
 	[98] = PINGROUP(98, uim1_clk, qspi0, _, _, _, _, _, _, _, _, _),
 	[99] = PINGROUP(99, uim1_reset, qspi0, _, _, _, _, _, _, _, _, _),
-	[100] = PINGROUP(100, uim1_present, qspi0, qup2_se3, coex_uart2_tx, qup2_se3, mdp_vsync, _, _, _, _, _),
+	[100] = PINGROUP(100, uim1_present, qspi0, qup2_se3, coex_uart2_tx, qup2_se3_l1_mirb, mdp_vsync, _, _, _, _, _),
 	[101] = PINGROUP(101, _, _, _, _, _, _, _, _, _, _, _),
 	[102] = PINGROUP(102, _, _, _, _, _, _, _, _, _, _, _),
 	[103] = PINGROUP(103, _, _, _, _, _, _, _, _, _, _, _),
@@ -1400,9 +1478,9 @@ static const struct msm_pingroup eliza_groups[] = {
 	[111] = PINGROUP(111, coex_uart1_tx, _, _, _, _, _, _, _, _, _, _),
 	[112] = PINGROUP(112, coex_uart1_rx, _, _, _, _, _, _, _, _, _, _),
 	[113] = PINGROUP(113, _, nav_gpio3, _, _, _, _, _, _, _, _, _),
-	[114] = PINGROUP(114, qup1_se7, qup1_se7, _, qdss_gpio_tracedata, _, _, _, _, _, _, _),
+	[114] = PINGROUP(114, qup1_se7, qup1_se7_l1_mirb, _, qdss_gpio_tracedata, _, _, _, _, _, _, _),
 	[115] = PINGROUP(115, _, qspi0, cci_async_in, _, _, _, _, _, _, _, _),
-	[116] = PINGROUP(116, qspi0, coex_uart2_rx, qup2_se3, qup2_se3, _, _, _, _, _, _, _),
+	[116] = PINGROUP(116, qspi0, coex_uart2_rx, qup2_se3, qup2_se3_l0_mirb, _, _, _, _, _, _, _),
 	[117] = PINGROUP(117, nav_gpio1, _, vfr_1, _, _, _, _, _, _, _, _),
 	[118] = PINGROUP(118, nav_gpio2, _, _, _, _, _, _, _, _, _, _),
 	[119] = PINGROUP(119, nav_gpio0, _, _, _, _, _, _, _, _, _, _),
@@ -1519,6 +1597,7 @@ static const struct of_device_id eliza_tlmm_of_match[] = {
 	{ .compatible = "qcom,eliza-tlmm", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, eliza_tlmm_of_match);
 
 static struct platform_driver eliza_tlmm_driver = {
 	.driver = {
@@ -1542,4 +1621,3 @@ module_exit(eliza_tlmm_exit);
 
 MODULE_DESCRIPTION("QTI Eliza TLMM driver");
 MODULE_LICENSE("GPL");
-MODULE_DEVICE_TABLE(of, eliza_tlmm_of_match);

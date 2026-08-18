@@ -1809,15 +1809,22 @@ static int adt7462_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id adt7462_id[] = {
-	{ "adt7462" },
+	{ .name = "adt7462" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adt7462_id);
+
+static const struct of_device_id adt7462_of_match[] = {
+	{ .compatible = "onnn,adt7462" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, adt7462_of_match);
 
 static struct i2c_driver adt7462_driver = {
 	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "adt7462",
+		.of_match_table = adt7462_of_match,
 	},
 	.probe		= adt7462_probe,
 	.id_table	= adt7462_id,

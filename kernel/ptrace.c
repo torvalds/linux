@@ -13,6 +13,7 @@
 #include <linux/sched.h>
 #include <linux/sched/mm.h>
 #include <linux/sched/coredump.h>
+#include <linux/sched/exec_state.h>
 #include <linux/sched/task.h>
 #include <linux/errno.h>
 #include <linux/mm.h>
@@ -36,6 +37,30 @@
 
 #include <asm/syscall.h>	/* for syscall_get_* */
 
+/**
+ * ptracer_access_allowed - may current peek/poke @tsk's address space?
+ * @tsk: tracee
+ *
+ * Per-access check used by ptrace_access_vm() and architecture-specific
+ * tag/register accessors.  Returns true iff current is the registered
+ * ptracer of @tsk and either @tsk is owner-dumpable or current holds
+ * CAP_SYS_PTRACE in @tsk's exec namespace.  Lighter than
+ * __ptrace_may_access(): it re-validates only dumpability and
+ * capability on every access, without re-running LSM hooks or
+ * cred_cap_issubset() checks performed at attach time.
+ */
+bool ptracer_access_allowed(struct task_struct *tsk)
+{
+	const struct task_exec_state *es;
+
+	guard(rcu)();
+	if (ptrace_parent(tsk) != current)
+		return false;
+	es = task_exec_state_rcu(tsk);
+	return READ_ONCE(es->dumpable) == TASK_DUMPABLE_OWNER ||
+	       ptracer_capable(tsk, es->user_ns);
+}
+
 /*
  * Access another process' address space via ptrace.
  * Source/target buffer must be kernel space,
@@ -45,21 +70,14 @@ int ptrace_access_vm(struct task_struct *tsk, unsigned long addr,
 		     void *buf, int len, unsigned int gup_flags)
 {
 	struct mm_struct *mm;
-	int ret;
+	int ret = 0;
 
 	mm = get_task_mm(tsk);
 	if (!mm)
 		return 0;
 
-	if (!tsk->ptrace ||
-	    (current != tsk->parent) ||
-	    ((get_dumpable(mm) != SUID_DUMP_USER) &&
-	     !ptracer_capable(tsk, mm->user_ns))) {
-		mmput(mm);
-		return 0;
-	}
-
-	ret = access_remote_vm(mm, addr, buf, len, gup_flags);
+	if (ptracer_access_allowed(tsk))
+		ret = access_remote_vm(mm, addr, buf, len, gup_flags);
 	mmput(mm);
 
 	return ret;
@@ -274,16 +292,13 @@ static bool ptrace_has_cap(struct user_namespace *ns, unsigned int mode)
 
 static bool task_still_dumpable(struct task_struct *task, unsigned int mode)
 {
-	struct mm_struct *mm = task->mm;
-	if (mm) {
-		if (get_dumpable(mm) == SUID_DUMP_USER)
-			return true;
-		return ptrace_has_cap(mm->user_ns, mode);
-	}
+	const struct task_exec_state *exec_state;
 
-	if (task->user_dumpable)
+	guard(rcu)();
+	exec_state = task_exec_state_rcu(task);
+	if (READ_ONCE(exec_state->dumpable) == TASK_DUMPABLE_OWNER)
 		return true;
-	return ptrace_has_cap(&init_user_ns, mode);
+	return ptrace_has_cap(exec_state->user_ns, mode);
 }
 
 /* Returns 0 on success, -errno on denial. */

@@ -8,4 +8,16 @@
 / {
 	model = "NVIDIA Jetson AGX Thor Developer Kit";
 	compatible = "nvidia,p4071-0000+p3834-0008", "nvidia,p3834-0008", "nvidia,tegra264";
+
+	bus@a800000000 {
+		/* PCIe C2 to enable Ethernet */
+		pci@8420000 {
+			status = "okay";
+		};
+
+		/* PCIe C5 to enable NVME */
+		pci@8480000 {
+			status = "okay";
+		};
+	};
 };

@@ -376,7 +376,7 @@ static int amd_ntb_link_disable(struct ntb_dev *ntb)
 
 	if (ndev->ntb.topo == NTB_TOPO_SEC)
 		return -EINVAL;
-	dev_dbg(&ntb->pdev->dev, "Enabling Link.\n");
+	dev_dbg(&ntb->pdev->dev, "Disabling Link.\n");
 
 	return 0;
 }
@@ -1328,15 +1328,15 @@ static const struct ntb_dev_data dev_data[] = {
 };
 
 static const struct pci_device_id amd_ntb_pci_tbl[] = {
-	{ PCI_VDEVICE(AMD, 0x145b), (kernel_ulong_t)&dev_data[0] },
-	{ PCI_VDEVICE(AMD, 0x148b), (kernel_ulong_t)&dev_data[1] },
-	{ PCI_VDEVICE(AMD, 0x14c0), (kernel_ulong_t)&dev_data[1] },
-	{ PCI_VDEVICE(AMD, 0x14c3), (kernel_ulong_t)&dev_data[1] },
-	{ PCI_VDEVICE(AMD, 0x155a), (kernel_ulong_t)&dev_data[1] },
-	{ PCI_VDEVICE(AMD, 0x17d4), (kernel_ulong_t)&dev_data[1] },
-	{ PCI_VDEVICE(AMD, 0x17d7), (kernel_ulong_t)&dev_data[2] },
-	{ PCI_VDEVICE(HYGON, 0x145b), (kernel_ulong_t)&dev_data[0] },
-	{ 0, }
+	{ PCI_VDEVICE(AMD, 0x145b), .driver_data = (kernel_ulong_t)&dev_data[0] },
+	{ PCI_VDEVICE(AMD, 0x148b), .driver_data = (kernel_ulong_t)&dev_data[1] },
+	{ PCI_VDEVICE(AMD, 0x14c0), .driver_data = (kernel_ulong_t)&dev_data[1] },
+	{ PCI_VDEVICE(AMD, 0x14c3), .driver_data = (kernel_ulong_t)&dev_data[1] },
+	{ PCI_VDEVICE(AMD, 0x155a), .driver_data = (kernel_ulong_t)&dev_data[1] },
+	{ PCI_VDEVICE(AMD, 0x17d4), .driver_data = (kernel_ulong_t)&dev_data[1] },
+	{ PCI_VDEVICE(AMD, 0x17d7), .driver_data = (kernel_ulong_t)&dev_data[2] },
+	{ PCI_VDEVICE(HYGON, 0x145b), .driver_data = (kernel_ulong_t)&dev_data[0] },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, amd_ntb_pci_tbl);
 

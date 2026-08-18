@@ -14,7 +14,6 @@
 #include <linux/acpi.h>
 #include <linux/device.h>
 #include <linux/init.h>
-#include <linux/mod_devicetable.h>
 #include <linux/notifier.h>
 #include <linux/printk.h>
 #include <linux/types.h>
@@ -48,6 +47,7 @@ int devm_uniwill_wmi_register_notifier(struct device *dev, struct notifier_block
 static void uniwill_wmi_notify(struct wmi_device *wdev, union acpi_object *obj)
 {
 	u32 value;
+	int ret;
 
 	if (obj->type != ACPI_TYPE_INTEGER)
 		return;
@@ -56,7 +56,9 @@ static void uniwill_wmi_notify(struct wmi_device *wdev, union acpi_object *obj)
 
 	dev_dbg(&wdev->dev, "Received WMI event %u\n", value);
 
-	blocking_notifier_call_chain(&uniwill_wmi_chain_head, value, NULL);
+	ret = blocking_notifier_call_chain(&uniwill_wmi_chain_head, value, NULL);
+	if (notifier_to_errno(ret) < 0)
+		dev_err(&wdev->dev, "Failed to handle event %u\n", value);
 }
 
 /*

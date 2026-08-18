@@ -103,12 +103,11 @@ int script_spec__for_each(int (*cb)(struct scripting_ops *ops, const char *spec)
 void scripting_context__update(struct scripting_context *c,
 			       union perf_event *event,
 			       struct perf_sample *sample,
-			       struct evsel *evsel,
 			       struct addr_location *al,
 			       struct addr_location *addr_al)
 {
 #ifdef HAVE_LIBTRACEEVENT
-	const struct tep_event *tp_format = evsel__tp_format(evsel);
+	const struct tep_event *tp_format = evsel__tp_format(sample->evsel);
 
 	c->pevent = tp_format ? tp_format->tep : NULL;
 #else
@@ -117,7 +116,6 @@ void scripting_context__update(struct scripting_context *c,
 	c->event_data = sample->raw_data;
 	c->event = event;
 	c->sample = sample;
-	c->evsel = evsel;
 	c->al = al;
 	c->addr_al = addr_al;
 }
@@ -134,7 +132,6 @@ static int stop_script_unsupported(void)
 
 static void process_event_unsupported(union perf_event *event __maybe_unused,
 				      struct perf_sample *sample __maybe_unused,
-				      struct evsel *evsel __maybe_unused,
 				      struct addr_location *al __maybe_unused,
 				      struct addr_location *addr_al __maybe_unused)
 {

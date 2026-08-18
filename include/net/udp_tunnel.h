@@ -94,7 +94,7 @@ struct udp_tunnel_sock_cfg {
 };
 
 /* Setup the given (UDP) sock to receive UDP encapsulated packets */
-void setup_udp_tunnel_sock(struct net *net, struct socket *sock,
+void setup_udp_tunnel_sock(struct net *net, struct sock *sk,
 			   struct udp_tunnel_sock_cfg *sock_cfg);
 
 /* -- List of parsable UDP tunnel types --
@@ -127,12 +127,12 @@ struct udp_tunnel_info {
 };
 
 /* Notify network devices of offloadable types */
-void udp_tunnel_push_rx_port(struct net_device *dev, struct socket *sock,
+void udp_tunnel_push_rx_port(struct net_device *dev, struct sock *sk,
 			     unsigned short type);
-void udp_tunnel_drop_rx_port(struct net_device *dev, struct socket *sock,
+void udp_tunnel_drop_rx_port(struct net_device *dev, struct sock *sk,
 			     unsigned short type);
-void udp_tunnel_notify_add_rx_port(struct socket *sock, unsigned short type);
-void udp_tunnel_notify_del_rx_port(struct socket *sock, unsigned short type);
+void udp_tunnel_notify_add_rx_port(struct sock *sk, unsigned short type);
+void udp_tunnel_notify_del_rx_port(struct sock *sk, unsigned short type);
 
 /* Transmit the skb using UDP encapsulation. */
 void udp_tunnel_xmit_skb(struct rtable *rt, struct sock *sk, struct sk_buff *skb,
@@ -176,7 +176,7 @@ static inline void udp_tunnel_set_inner_protocol(struct sk_buff *skb,
 		skb_set_inner_protocol(skb, inner_proto);
 }
 
-void udp_tunnel_sock_release(struct socket *sock);
+void udp_tunnel_sock_release(struct sock *sk);
 
 struct rtable *udp_tunnel_dst_lookup(struct sk_buff *skb,
 				     struct net_device *dev,
@@ -188,7 +188,7 @@ struct rtable *udp_tunnel_dst_lookup(struct sk_buff *skb,
 struct dst_entry *udp_tunnel6_dst_lookup(struct sk_buff *skb,
 					 struct net_device *dev,
 					 struct net *net,
-					 struct socket *sock, int oif,
+					 struct sock *sk, int oif,
 					 struct in6_addr *saddr,
 					 const struct ip_tunnel_key *key,
 					 __be16 sport, __be16 dport, u8 dsfield,

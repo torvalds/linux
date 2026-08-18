@@ -113,7 +113,6 @@
 #define GPIO_PIN_ASCB		8
 #define GPIO_PIN_INIC_RST	14
 #define GPIO_PIN_BT_RST		15
-#define GPIO_NR_PINS		16
 
 /* DMA Channels */
 #define DMA_UART_RX         0

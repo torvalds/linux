@@ -9,6 +9,7 @@
  ******************************************************************************/
 
 #include <crypto/hash.h>
+#include <crypto/utils.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/err.h>
@@ -408,7 +409,7 @@ static int chap_server_compute_hash(
 	pr_debug("[server] %s Server Digest: %s\n",
 		chap->digest_name, response);
 
-	if (memcmp(server_digest, client_digest, chap->digest_size) != 0) {
+	if (crypto_memneq(server_digest, client_digest, chap->digest_size)) {
 		pr_debug("[server] %s Digests do not match!\n\n",
 			chap->digest_name);
 		goto out;
@@ -438,9 +439,11 @@ static int chap_server_compute_hash(
 	}
 
 	if (type == HEX)
-		ret = kstrtoul(&identifier[2], 0, &id);
+		ret = kstrtoul(identifier, 16, &id);
+	else if (type == DECIMAL)
+		ret = kstrtoul(identifier, 10, &id);
 	else
-		ret = kstrtoul(identifier, 0, &id);
+		ret = -EINVAL;
 
 	if (ret < 0) {
 		pr_err("kstrtoul() failed for CHAP identifier: %d\n", ret);

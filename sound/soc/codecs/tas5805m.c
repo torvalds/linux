@@ -580,7 +580,7 @@ static void tas5805m_i2c_remove(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id tas5805m_i2c_id[] = {
-	{ "tas5805m", },
+	{ .name = "tas5805m" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tas5805m_i2c_id);

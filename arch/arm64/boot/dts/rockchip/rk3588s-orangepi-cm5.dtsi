@@ -64,6 +64,7 @@
 
 &i2c0 {
 	pinctrl-0 = <&i2c0m2_xfer>;
+	pinctrl-names = "default";
 	status = "okay";
 
 	vdd_cpu_big0_s0: regulator@42 {
@@ -142,6 +143,7 @@
 	assigned-clock-rates = <200000000>;
 	num-cs = <1>;
 	pinctrl-0 = <&spi2m2_cs0 &spi2m2_pins>;
+	pinctrl-names = "default";
 	status = "okay";
 
 	pmic@0 {
@@ -468,5 +470,6 @@
 	 * through the CRU.
 	 */
 	pinctrl-0 = <&tsadc_gpio_func>;
+	pinctrl-names = "default";
 	status = "okay";
 };

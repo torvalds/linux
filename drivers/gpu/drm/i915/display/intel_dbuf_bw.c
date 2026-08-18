@@ -184,13 +184,12 @@ int intel_dbuf_bw_calc_min_cdclk(struct intel_atomic_state *state,
 	const struct intel_crtc_state *old_crtc_state;
 	const struct intel_crtc_state *new_crtc_state;
 	struct intel_crtc *crtc;
-	int ret, i;
+	int ret;
 
 	if (DISPLAY_VER(display) < 9)
 		return 0;
 
-	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
-					    new_crtc_state, i) {
+	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state) {
 		struct intel_dbuf_bw old_dbuf_bw, new_dbuf_bw;
 
 		skl_crtc_calc_dbuf_bw(&old_dbuf_bw, old_crtc_state);
@@ -236,7 +235,7 @@ void intel_dbuf_bw_update_hw_state(struct intel_display *display)
 	if (DISPLAY_VER(display) < 9)
 		return;
 
-	for_each_intel_crtc(display->drm, crtc) {
+	for_each_intel_crtc(display, crtc) {
 		const struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
 

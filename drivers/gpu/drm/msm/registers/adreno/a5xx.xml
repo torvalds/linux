@@ -1418,8 +1418,7 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 		<bitfield name="HEIGHT" low="9" high="16" shr="5" type="uint"/>
 		<!-- b17 maybe BYPASS like RB_CNTL, but reg not written for bypass -->
 	</reg32>
-	<reg32 offset="0x0bc3" name="VSC_SIZE_ADDRESS_LO"/>
-	<reg32 offset="0x0bc4" name="VSC_SIZE_ADDRESS_HI"/>
+	<reg64 offset="0x0bc3" name="VSC_SIZE_ADDRESS" type="waddress"/>
 	<reg32 offset="0x0bc5" name="UNKNOWN_0BC5"/> <!-- always 00000000? -->
 	<reg32 offset="0x0bc6" name="UNKNOWN_0BC6"/> <!-- always 00000000? -->
 	<array offset="0x0bd0" name="VSC_PIPE_CONFIG" stride="1" length="16">
@@ -1498,12 +1497,10 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	</reg32>
 	<reg32 offset="0x0d01" name="PC_ADDR_MODE_CNTL" type="a5xx_address_mode"/>
 	<reg32 offset="0x0d02" name="PC_MODE_CNTL"/> <!-- always 0000001f? -->
-	<reg32 offset="0x0d04" name="PC_INDEX_BUF_LO"/>
-	<reg32 offset="0x0d05" name="PC_INDEX_BUF_HI"/>
+	<reg64 offset="0x0d04" name="PC_INDEX_BUF" type="waddress"/>
 	<reg32 offset="0x0d06" name="PC_START_INDEX"/>
 	<reg32 offset="0x0d07" name="PC_MAX_INDEX"/>
-	<reg32 offset="0x0d08" name="PC_TESSFACTOR_ADDR_LO"/>
-	<reg32 offset="0x0d09" name="PC_TESSFACTOR_ADDR_HI"/>
+	<reg64 offset="0x0d08" name="PC_TESSFACTOR_ADDR" type="waddress"/>
 	<reg32 offset="0x0d10" name="PC_PERFCTR_PC_SEL_0" type="a5xx_pc_perfcounter_select"/>
 	<reg32 offset="0x0d11" name="PC_PERFCTR_PC_SEL_1" type="a5xx_pc_perfcounter_select"/>
 	<reg32 offset="0x0d12" name="PC_PERFCTR_PC_SEL_2" type="a5xx_pc_perfcounter_select"/>
@@ -1555,20 +1552,14 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<reg32 offset="0x0e80" name="UCHE_ADDR_MODE_CNTL" type="a5xx_address_mode"/>
 	<reg32 offset="0x0e81" name="UCHE_MODE_CNTL"/>
 	<reg32 offset="0x0e82" name="UCHE_SVM_CNTL"/>
-	<reg32 offset="0x0e87" name="UCHE_WRITE_THRU_BASE_LO"/>
-	<reg32 offset="0x0e88" name="UCHE_WRITE_THRU_BASE_HI"/>
-	<reg32 offset="0x0e89" name="UCHE_TRAP_BASE_LO"/>
-	<reg32 offset="0x0e8a" name="UCHE_TRAP_BASE_HI"/>
-	<reg32 offset="0x0e8b" name="UCHE_GMEM_RANGE_MIN_LO"/>
-	<reg32 offset="0x0e8c" name="UCHE_GMEM_RANGE_MIN_HI"/>
-	<reg32 offset="0x0e8d" name="UCHE_GMEM_RANGE_MAX_LO"/>
-	<reg32 offset="0x0e8e" name="UCHE_GMEM_RANGE_MAX_HI"/>
+	<reg64 offset="0x0e87" name="UCHE_WRITE_THRU_BASE" type="waddress"/>
+	<reg64 offset="0x0e89" name="UCHE_TRAP_BASE" type="waddress"/>
+	<reg64 offset="0x0e8b" name="UCHE_GMEM_RANGE_MIN" type="waddress"/>
+	<reg64 offset="0x0e8d" name="UCHE_GMEM_RANGE_MAX" type="waddress"/>
 	<reg32 offset="0x0e8f" name="UCHE_DBG_ECO_CNTL_2"/>
 	<reg32 offset="0x0e90" name="UCHE_DBG_ECO_CNTL"/>
-	<reg32 offset="0x0e91" name="UCHE_CACHE_INVALIDATE_MIN_LO"/>
-	<reg32 offset="0x0e92" name="UCHE_CACHE_INVALIDATE_MIN_HI"/>
-	<reg32 offset="0x0e93" name="UCHE_CACHE_INVALIDATE_MAX_LO"/>
-	<reg32 offset="0x0e94" name="UCHE_CACHE_INVALIDATE_MAX_HI"/>
+	<reg64 offset="0x0e91" name="UCHE_CACHE_INVALIDATE_MIN" type="address"/>
+	<reg64 offset="0x0e93" name="UCHE_CACHE_INVALIDATE_MAX" type="address"/>
 	<reg32 offset="0x0e95" name="UCHE_CACHE_INVALIDATE"/>
 	<reg32 offset="0x0e96" name="UCHE_CACHE_WAYS"/>
 	<reg32 offset="0x0ea0" name="UCHE_PERFCTR_UCHE_SEL_0" type="a5xx_uche_perfcounter_select"/>
@@ -1583,8 +1574,7 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<reg32 offset="0x0ea9" name="UCHE_POWERCTR_UCHE_SEL_1"/>
 	<reg32 offset="0x0eaa" name="UCHE_POWERCTR_UCHE_SEL_2"/>
 	<reg32 offset="0x0eab" name="UCHE_POWERCTR_UCHE_SEL_3"/>
-	<reg32 offset="0x0eb1" name="UCHE_TRAP_LOG_LO"/>
-	<reg32 offset="0x0eb2" name="UCHE_TRAP_LOG_HI"/>
+	<reg64 offset="0x0eb1" name="UCHE_TRAP_LOG" type="waddress"/>
 
 	<reg32 offset="0x0ec0" name="SP_DBG_ECO_CNTL"/>
 	<reg32 offset="0x0ec1" name="SP_ADDR_MODE_CNTL" type="a5xx_address_mode"/>
@@ -1923,8 +1913,7 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 		invalidates the LRZ buffer?  (Or just the covered positions?
 		 -->
 	</reg32>
-	<reg32 offset="0xe101" name="GRAS_LRZ_BUFFER_BASE_LO"/>
-	<reg32 offset="0xe102" name="GRAS_LRZ_BUFFER_BASE_HI"/>
+	<reg64 offset="0xe101" name="GRAS_LRZ_BUFFER_BASE" type="waddress"/>
 	<!--
 	lzr pitch is depth pitch (in pixels) / 8 (aligned to 32)..
 	 -->
@@ -1933,8 +1922,7 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 		is also divided by 8 (ie. covers 8x8 pixels)
 	</doc>
 	<reg32 offset="0xe103" name="GRAS_LRZ_BUFFER_PITCH" shr="5" type="uint"/>
-	<reg32 offset="0xe104" name="GRAS_LRZ_FAST_CLEAR_BUFFER_BASE_LO"/>
-	<reg32 offset="0xe105" name="GRAS_LRZ_FAST_CLEAR_BUFFER_BASE_HI"/>
+	<reg64 offset="0xe104" name="GRAS_LRZ_FAST_CLEAR_BUFFER_BASE" type="waddress"/>
 
 	<reg32 offset="0xe140" name="RB_CNTL">
 		<bitfield name="WIDTH" low="0" high="7" shr="5" type="uint"/>
@@ -2035,8 +2023,7 @@ bit 7 for RECTLIST (clear) when z32s8 (used for clear of depth32?  not set
 		 -->
 		<reg32 offset="0x3" name="PITCH" shr="6" type="uint"/>
 		<reg32 offset="0x4" name="ARRAY_PITCH" shr="6" type="uint"/>
-		<reg32 offset="0x5" name="BASE_LO"/>
-		<reg32 offset="0x6" name="BASE_HI"/>
+		<reg64 offset="0x5" name="BASE" type="waddress"/>
 	</array>
 	<reg32 offset="0xe1a0" name="RB_BLEND_RED">
 		<bitfield name="UINT" low="0" high="7" type="hex"/>
@@ -2089,8 +2076,7 @@ bit 7 for RECTLIST (clear) when z32s8 (used for clear of depth32?  not set
 	<reg32 offset="0xe1b2" name="RB_DEPTH_BUFFER_INFO">
 		<bitfield name="DEPTH_FORMAT" low="0" high="2" type="a5xx_depth_format"/>
 	</reg32>
-	<reg32 offset="0xe1b3" name="RB_DEPTH_BUFFER_BASE_LO"/>
-	<reg32 offset="0xe1b4" name="RB_DEPTH_BUFFER_BASE_HI"/>
+	<reg64 offset="0xe1b3" name="RB_DEPTH_BUFFER_BASE" type="waddress"/>
 	<reg32 offset="0xe1b5" name="RB_DEPTH_BUFFER_PITCH" shr="6" type="uint">
 		<doc>stride of depth/stencil buffer</doc>
 	</reg32>
@@ -2119,8 +2105,7 @@ bit 7 for RECTLIST (clear) when z32s8 (used for clear of depth32?  not set
 	<reg32 offset="0xe1c1" name="RB_STENCIL_INFO">
 		<bitfield name="SEPARATE_STENCIL" pos="0" type="boolean"/>
 	</reg32>
-	<reg32 offset="0xe1c2" name="RB_STENCIL_BASE_LO"/>
-	<reg32 offset="0xe1c3" name="RB_STENCIL_BASE_HI"/>
+	<reg64 offset="0xe1c2" name="RB_STENCIL_BASE" type="waddress"/>
 	<reg32 offset="0xe1c4" name="RB_STENCIL_PITCH" shr="6" type="uint"/>
 	<reg32 offset="0xe1c5" name="RB_STENCIL_ARRAY_PITCH" shr="6" type="uint"/>
 	<reg32 offset="0xe1c6" name="RB_STENCILREFMASK" type="adreno_rb_stencilrefmask"/>
@@ -2163,8 +2148,7 @@ bit 7 for RECTLIST (clear) when z32s8 (used for clear of depth32?  not set
 		            also for gmem->mem preserving tiling
 	-->
 	</reg32>
-	<reg32 offset="0xe214" name="RB_BLIT_DST_LO"/>
-	<reg32 offset="0xe215" name="RB_BLIT_DST_HI"/>
+	<reg64 offset="0xe214" name="RB_BLIT_DST" type="waddress"/>
 	<reg32 offset="0xe216" name="RB_BLIT_DST_PITCH" shr="6" type="uint"/>
 	<!-- array-pitch is size of layer -->
 	<reg32 offset="0xe217" name="RB_BLIT_DST_ARRAY_PITCH" shr="6" type="uint"/>
@@ -2235,25 +2219,22 @@ bit 7 for RECTLIST (clear) when z32s8 (used for clear of depth32?  not set
 
 
 	</doc>
-	<reg32 offset="0xe240" name="RB_DEPTH_FLAG_BUFFER_BASE_LO"/>
-	<reg32 offset="0xe241" name="RB_DEPTH_FLAG_BUFFER_BASE_HI"/>
+	<reg64 offset="0xe240" name="RB_DEPTH_FLAG_BUFFER_BASE" type="waddress"/>
 	<reg32 offset="0xe242" name="RB_DEPTH_FLAG_BUFFER_PITCH">
 	</reg32>
 	<array offset="0xe243" name="RB_MRT_FLAG_BUFFER" stride="4" length="8">
-		<reg32 offset="0" name="ADDR_LO"/>
+		<reg64 offset="0" name="ADDR" type="waddress"/>
 		<reg32 offset="1" name="ADDR_HI"/>
 		<reg32 offset="2" name="PITCH" shr="6" type="uint"/>
 		<!-- array-pitch is size of layer -->
 		<reg32 offset="3" name="ARRAY_PITCH" shr="6" type="uint"/>
 	</array>
-	<reg32 offset="0xe263" name="RB_BLIT_FLAG_DST_LO"/>
-	<reg32 offset="0xe264" name="RB_BLIT_FLAG_DST_HI"/>
+	<reg64 offset="0xe263" name="RB_BLIT_FLAG_DST" type="waddress"/>
 	<reg32 offset="0xe265" name="RB_BLIT_FLAG_DST_PITCH" shr="6" type="uint"/>
 	<!-- array-pitch is size of layer -->
 	<reg32 offset="0xe266" name="RB_BLIT_FLAG_DST_ARRAY_PITCH" shr="6" type="uint"/>
 
-	<reg32 offset="0xe267" name="RB_SAMPLE_COUNT_ADDR_LO"/>
-	<reg32 offset="0xe268" name="RB_SAMPLE_COUNT_ADDR_HI"/>
+	<reg64 offset="0xe267" name="RB_SAMPLE_COUNT_ADDR" type="waddress"/>
 
 	<reg32 offset="0xe280" name="VPC_CNTL_0">
 		<doc>
@@ -2357,13 +2338,11 @@ bit 7 for RECTLIST (clear) when z32s8 (used for clear of depth32?  not set
 		<bitfield name="B_EN" pos="23" type="boolean"/>
 	</reg32>
 	<array offset="0xe2a7" name="VPC_SO" stride="7" length="4">
-		<reg32 offset="0" name="BUFFER_BASE_LO"/>
-		<reg32 offset="1" name="BUFFER_BASE_HI"/>
+		<reg64 offset="0" name="BUFFER_BASE" type="waddress"/>
 		<reg32 offset="2" name="BUFFER_SIZE"/>
 		<reg32 offset="3" name="NCOMP"/>  <!-- component count -->
 		<reg32 offset="4" name="BUFFER_OFFSET"/>
-		<reg32 offset="5" name="FLUSH_BASE_LO"/>
-		<reg32 offset="6" name="FLUSH_BASE_HI"/>
+		<reg64 offset="5" name="FLUSH_BASE" type="waddress"/>
 	</array>
 
 	<reg32 offset="0xe384" name="PC_PRIMITIVE_CNTL">
@@ -2423,8 +2402,7 @@ bit 7 for RECTLIST (clear) when z32s8 (used for clear of depth32?  not set
 	<reg32 offset="0xe408" name="VFD_INDEX_OFFSET"/>
 	<reg32 offset="0xe409" name="VFD_INSTANCE_START_OFFSET"/>
 	<array offset="0xe40a" name="VFD_FETCH" stride="4" length="32">
-		<reg32 offset="0x0" name="BASE_LO"/>
-		<reg32 offset="0x1" name="BASE_HI"/>
+		<reg64 offset="0x0" name="BASE" type="address"/>
 		<reg32 offset="0x2" name="SIZE" type="uint"/>
 		<reg32 offset="0x3" name="STRIDE" type="uint"/>
 	</array>
@@ -2475,7 +2453,7 @@ bit 7 for RECTLIST (clear) when z32s8 (used for clear of depth32?  not set
 		<bitfield name="VARYING" pos="16" type="boolean"/>
 		<bitfield name="PIXLODENABLE" pos="20" type="boolean"/>
 		<!-- seems to be nesting level for flow control:.. -->
-		<bitfield name="BRANCHSTACK" low="25" high="31" type="uint"/>
+		<bitfield name="BRANCHSTACK" low="24" high="31" type="uint"/>
 	</bitset>
 	<!-- assuming things appear in same relative order as a4xx: -->
 	<!-- duplicated exactly w/ corresponding HLSQ_ regs starting at 0xe78b.. -->
@@ -2516,8 +2494,7 @@ bit 7 for RECTLIST (clear) when z32s8 (used for clear of depth32?  not set
 		</reg32>
 	</array>
 	<reg32 offset="0xe5ab" name="UNKNOWN_E5AB"/>
-	<reg32 offset="0xe5ac" name="SP_VS_OBJ_START_LO"/>
-	<reg32 offset="0xe5ad" name="SP_VS_OBJ_START_HI"/>
+	<reg64 offset="0xe5ac" name="SP_VS_OBJ_START" type="address"/>
 
 	<bitset name="a5xx_sp_xs_pvt_mem_param" inline="yes">
 		<bitfield name="MEMSIZEPERITEM" low="0" high="7" shr="9">
@@ -2538,8 +2515,7 @@ bit 7 for RECTLIST (clear) when z32s8 (used for clear of depth32?  not set
 	<reg32 offset="0xe5b1" name="SP_VS_PVT_MEM_SIZE" type="a5xx_sp_xs_pvt_mem_size"/>
 	<reg32 offset="0xe5c0" name="SP_FS_CTRL_REG0" type="a5xx_sp_xs_ctrl_reg0"/>
 	<reg32 offset="0xe5c2" name="UNKNOWN_E5C2"/>
-	<reg32 offset="0xe5c3" name="SP_FS_OBJ_START_LO"/>
-	<reg32 offset="0xe5c4" name="SP_FS_OBJ_START_HI"/>
+	<reg64 offset="0xe5c3" name="SP_FS_OBJ_START" type="address"/>
 	<reg32 offset="0xe5c5" name="SP_FS_PVT_MEM_PARAM" type="a5xx_sp_xs_pvt_mem_param"/>
 	<reg64 offset="0xe5c6" name="SP_FS_PVT_MEM_ADDR" type="waddress" align="32"/>
 	<reg32 offset="0xe5c8" name="SP_FS_PVT_MEM_SIZE" type="a5xx_sp_xs_pvt_mem_size"/>
@@ -2577,8 +2553,7 @@ bit 7 for RECTLIST (clear) when z32s8 (used for clear of depth32?  not set
 	<reg32 offset="0xe5db" name="UNKNOWN_E5DB"/>
 	<reg32 offset="0xe5f0" name="SP_CS_CTRL_REG0" type="a5xx_sp_xs_ctrl_reg0"/>
 	<reg32 offset="0xe5f2" name="UNKNOWN_E5F2"/>
-	<reg32 offset="0xe5f3" name="SP_CS_OBJ_START_LO"/>
-	<reg32 offset="0xe5f4" name="SP_CS_OBJ_START_HI"/>
+	<reg64 offset="0xe5f3" name="SP_CS_OBJ_START" type="address"/>
 	<reg32 offset="0xe5f5" name="SP_CS_PVT_MEM_PARAM" type="a5xx_sp_xs_pvt_mem_param"/>
 	<reg64 offset="0xe5f6" name="SP_CS_PVT_MEM_ADDR" type="waddress" align="32"/>
 	<reg32 offset="0xe5f8" name="SP_CS_PVT_MEM_SIZE" type="a5xx_sp_xs_pvt_mem_size"/>
@@ -2587,22 +2562,19 @@ bit 7 for RECTLIST (clear) when z32s8 (used for clear of depth32?  not set
 
 	<reg32 offset="0xe600" name="SP_HS_CTRL_REG0" type="a5xx_sp_xs_ctrl_reg0"/>
 	<reg32 offset="0xe602" name="UNKNOWN_E602"/>
-	<reg32 offset="0xe603" name="SP_HS_OBJ_START_LO"/>
-	<reg32 offset="0xe604" name="SP_HS_OBJ_START_HI"/>
+	<reg64 offset="0xe603" name="SP_HS_OBJ_START" type="address"/>
 	<reg32 offset="0xe605" name="SP_HS_PVT_MEM_PARAM" type="a5xx_sp_xs_pvt_mem_param"/>
 	<reg64 offset="0xe606" name="SP_HS_PVT_MEM_ADDR" type="waddress" align="32"/>
 	<reg32 offset="0xe608" name="SP_HS_PVT_MEM_SIZE" type="a5xx_sp_xs_pvt_mem_size"/>
 	<reg32 offset="0xe610" name="SP_DS_CTRL_REG0" type="a5xx_sp_xs_ctrl_reg0"/>
 	<reg32 offset="0xe62b" name="UNKNOWN_E62B"/>
-	<reg32 offset="0xe62c" name="SP_DS_OBJ_START_LO"/>
-	<reg32 offset="0xe62d" name="SP_DS_OBJ_START_HI"/>
+	<reg64 offset="0xe62c" name="SP_DS_OBJ_START" type="address"/>
 	<reg32 offset="0xe62e" name="SP_DS_PVT_MEM_PARAM" type="a5xx_sp_xs_pvt_mem_param"/>
 	<reg64 offset="0xe62f" name="SP_DS_PVT_MEM_ADDR" type="waddress" align="32"/>
 	<reg32 offset="0xe631" name="SP_DS_PVT_MEM_SIZE" type="a5xx_sp_xs_pvt_mem_size"/>
 	<reg32 offset="0xe640" name="SP_GS_CTRL_REG0" type="a5xx_sp_xs_ctrl_reg0"/>
 	<reg32 offset="0xe65b" name="UNKNOWN_E65B"/>
-	<reg32 offset="0xe65c" name="SP_GS_OBJ_START_LO"/>
-	<reg32 offset="0xe65d" name="SP_GS_OBJ_START_HI"/>
+	<reg64 offset="0xe65c" name="SP_GS_OBJ_START" type="address"/>
 	<reg32 offset="0xe65e" name="SP_GS_PVT_MEM_PARAM" type="a5xx_sp_xs_pvt_mem_param"/>
 	<reg64 offset="0xe65f" name="SP_GS_PVT_MEM_ADDR" type="waddress" align="32"/>
 	<reg32 offset="0xe661" name="SP_GS_PVT_MEM_SIZE" type="a5xx_sp_xs_pvt_mem_size"/>
@@ -2615,8 +2587,7 @@ bit 7 for RECTLIST (clear) when z32s8 (used for clear of depth32?  not set
 		<bitfield name="MSAA_DISABLE" pos="2" type="boolean"/>
 	</reg32>
 	<!-- either blob is doing it wrong, or this is not per-stage anymore: -->
-	<reg32 offset="0xe706" name="TPL1_TP_BORDER_COLOR_BASE_ADDR_LO"/>
-	<reg32 offset="0xe707" name="TPL1_TP_BORDER_COLOR_BASE_ADDR_HI"/>
+	<reg64 offset="0xe706" name="TPL1_TP_BORDER_COLOR_BASE_ADDR" type="address"/>
 
 	<!--
 	so these have the same info that is normally in the CP_LOAD_STATE
@@ -2628,35 +2599,23 @@ bit 7 for RECTLIST (clear) when z32s8 (used for clear of depth32?  not set
 	<reg32 offset="0xe702" name="TPL1_DS_TEX_COUNT" type="uint"/>
 	<reg32 offset="0xe703" name="TPL1_GS_TEX_COUNT" type="uint"/>
 
-	<reg32 offset="0xe722" name="TPL1_VS_TEX_SAMP_LO"/>
-	<reg32 offset="0xe723" name="TPL1_VS_TEX_SAMP_HI"/>
-	<reg32 offset="0xe724" name="TPL1_HS_TEX_SAMP_LO"/>
-	<reg32 offset="0xe725" name="TPL1_HS_TEX_SAMP_HI"/>
-	<reg32 offset="0xe726" name="TPL1_DS_TEX_SAMP_LO"/>
-	<reg32 offset="0xe727" name="TPL1_DS_TEX_SAMP_HI"/>
-	<reg32 offset="0xe728" name="TPL1_GS_TEX_SAMP_LO"/>
-	<reg32 offset="0xe729" name="TPL1_GS_TEX_SAMP_HI"/>
+	<reg64 offset="0xe722" name="TPL1_VS_TEX_SAMP" type="address"/>
+	<reg64 offset="0xe724" name="TPL1_HS_TEX_SAMP" type="address"/>
+	<reg64 offset="0xe726" name="TPL1_DS_TEX_SAMP" type="address"/>
+	<reg64 offset="0xe728" name="TPL1_GS_TEX_SAMP" type="address"/>
 
-	<reg32 offset="0xe72a" name="TPL1_VS_TEX_CONST_LO"/>
-	<reg32 offset="0xe72b" name="TPL1_VS_TEX_CONST_HI"/>
-	<reg32 offset="0xe72c" name="TPL1_HS_TEX_CONST_LO"/>
-	<reg32 offset="0xe72d" name="TPL1_HS_TEX_CONST_HI"/>
-	<reg32 offset="0xe72e" name="TPL1_DS_TEX_CONST_LO"/>
-	<reg32 offset="0xe72f" name="TPL1_DS_TEX_CONST_HI"/>
-	<reg32 offset="0xe730" name="TPL1_GS_TEX_CONST_LO"/>
-	<reg32 offset="0xe731" name="TPL1_GS_TEX_CONST_HI"/>
+	<reg64 offset="0xe72a" name="TPL1_VS_TEX_CONST" type="address"/>
+	<reg64 offset="0xe72c" name="TPL1_HS_TEX_CONST" type="address"/>
+	<reg64 offset="0xe72e" name="TPL1_DS_TEX_CONST" type="address"/>
+	<reg64 offset="0xe730" name="TPL1_GS_TEX_CONST" type="address"/>
 
 	<reg32 offset="0xe750" name="TPL1_FS_TEX_COUNT" type="uint"/>
 	<reg32 offset="0xe751" name="TPL1_CS_TEX_COUNT" type="uint"/>
 
-	<reg32 offset="0xe75a" name="TPL1_FS_TEX_SAMP_LO"/>
-	<reg32 offset="0xe75b" name="TPL1_FS_TEX_SAMP_HI"/>
-	<reg32 offset="0xe75c" name="TPL1_CS_TEX_SAMP_LO"/>
-	<reg32 offset="0xe75d" name="TPL1_CS_TEX_SAMP_HI"/>
-	<reg32 offset="0xe75e" name="TPL1_FS_TEX_CONST_LO"/>
-	<reg32 offset="0xe75f" name="TPL1_FS_TEX_CONST_HI"/>
-	<reg32 offset="0xe760" name="TPL1_CS_TEX_CONST_LO"/>
-	<reg32 offset="0xe761" name="TPL1_CS_TEX_CONST_HI"/>
+	<reg64 offset="0xe75a" name="TPL1_FS_TEX_SAMP" type="address"/>
+	<reg64 offset="0xe75c" name="TPL1_CS_TEX_SAMP" type="address"/>
+	<reg64 offset="0xe75e" name="TPL1_FS_TEX_CONST" type="address"/>
+	<reg64 offset="0xe760" name="TPL1_CS_TEX_CONST" type="address"/>
 
 	<reg32 offset="0xe764" name="TPL1_TP_FS_ROTATION_CNTL"/>
 
@@ -2809,25 +2768,21 @@ bit 7 for RECTLIST (clear) when z32s8 (used for clear of depth32?  not set
 	</bitset>
 
 	<reg32 offset="0x2107" name="RB_2D_SRC_INFO" type="a5xx_2d_surf_info"/>
-	<reg32 offset="0x2108" name="RB_2D_SRC_LO"/>
-	<reg32 offset="0x2109" name="RB_2D_SRC_HI"/>
+	<reg64 offset="0x2108" name="RB_2D_SRC" type="address"/>
 	<reg32 offset="0x210a" name="RB_2D_SRC_SIZE">
 		<bitfield name="PITCH" low="0" high="15" shr="6" type="uint"/>
 		<bitfield name="ARRAY_PITCH" low="16" high="31" shr="6" type="uint"/>
 	</reg32>
 
 	<reg32 offset="0x2110" name="RB_2D_DST_INFO" type="a5xx_2d_surf_info"/>
-	<reg32 offset="0x2111" name="RB_2D_DST_LO"/>
-	<reg32 offset="0x2112" name="RB_2D_DST_HI"/>
+	<reg64 offset="0x2111" name="RB_2D_DST" type="address"/>
 	<reg32 offset="0x2113" name="RB_2D_DST_SIZE">
 		<bitfield name="PITCH" low="0" high="15" shr="6" type="uint"/>
 		<bitfield name="ARRAY_PITCH" low="16" high="31" shr="6" type="uint"/>
 	</reg32>
-	<reg32 offset="0x2140" name="RB_2D_SRC_FLAGS_LO"/>
-	<reg32 offset="0x2141" name="RB_2D_SRC_FLAGS_HI"/>
+	<reg64 offset="0x2140" name="RB_2D_SRC_FLAGS" type="address"/>
         <reg32 offset="0x2142" name="RB_2D_SRC_FLAGS_PITCH" shr="6" type="uint"/>
-	<reg32 offset="0x2143" name="RB_2D_DST_FLAGS_LO"/>
-	<reg32 offset="0x2144" name="RB_2D_DST_FLAGS_HI"/>
+	<reg64 offset="0x2143" name="RB_2D_DST_FLAGS" type="address"/>
         <reg32 offset="0x2145" name="RB_2D_DST_FLAGS_PITCH" shr="6" type="uint"/>
 	<reg32 offset="0x2180" name="GRAS_2D_BLIT_CNTL"/> <!-- same as 0x2100 -->
 	<!-- looks same as 0x2107: -->

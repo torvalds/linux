@@ -103,24 +103,22 @@ The user must bind a dmabuf to any number of RX queues on a given NIC using
 the netlink API::
 
 	/* Bind dmabuf to NIC RX queue 15 */
-	struct netdev_queue *queues;
-	queues = malloc(sizeof(*queues) * 1);
+	struct netdev_queue_id *queues;
 
-	queues[0]._present.type = 1;
-	queues[0]._present.idx = 1;
-	queues[0].type = NETDEV_RX_QUEUE_TYPE_RX;
-	queues[0].idx = 15;
+	queues = netdev_queue_id_alloc(1);
+	netdev_queue_id_set_type(&queues[0], NETDEV_QUEUE_TYPE_RX);
+	netdev_queue_id_set_id(&queues[0], 15);
 
 	*ys = ynl_sock_create(&ynl_netdev_family, &yerr);
 
 	req = netdev_bind_rx_req_alloc();
 	netdev_bind_rx_req_set_ifindex(req, 1 /* ifindex */);
-	netdev_bind_rx_req_set_dmabuf_fd(req, dmabuf_fd);
-	__netdev_bind_rx_req_set_queues(req, queues, n_queue_index);
+	netdev_bind_rx_req_set_fd(req, dmabuf_fd);
+	__netdev_bind_rx_req_set_queues(req, queues, 1);
 
 	rsp = netdev_bind_rx(*ys, req);
 
-	dmabuf_id = rsp->dmabuf_id;
+	dmabuf_id = rsp->id;
 
 
 The netlink API returns a dmabuf_id: a unique ID that refers to this dmabuf
@@ -302,13 +300,12 @@ The user should create a msghdr where,
 * iov_base is set to the offset into the dmabuf to start sending from
 * iov_len is set to the number of bytes to be sent from the dmabuf
 
-The user passes the dma-buf id to send from via the dmabuf_tx_cmsg.dmabuf_id.
+The user passes the dma-buf id to send from as a u32 cmsg payload.
 
 The example below sends 1024 bytes from offset 100 into the dmabuf, and 2048
 from offset 2000 into the dmabuf. The dmabuf to send from is tx_dmabuf_id::
 
-       char ctrl_data[CMSG_SPACE(sizeof(struct dmabuf_tx_cmsg))];
-       struct dmabuf_tx_cmsg ddmabuf;
+       char ctrl_data[CMSG_SPACE(sizeof(__u32))];
        struct msghdr msg = {};
        struct cmsghdr *cmsg;
        struct iovec iov[2];
@@ -327,11 +324,9 @@ from offset 2000 into the dmabuf. The dmabuf to send from is tx_dmabuf_id::
        cmsg = CMSG_FIRSTHDR(&msg);
        cmsg->cmsg_level = SOL_SOCKET;
        cmsg->cmsg_type = SCM_DEVMEM_DMABUF;
-       cmsg->cmsg_len = CMSG_LEN(sizeof(struct dmabuf_tx_cmsg));
+       cmsg->cmsg_len = CMSG_LEN(sizeof(__u32));
 
-       ddmabuf.dmabuf_id = tx_dmabuf_id;
-
-       *((struct dmabuf_tx_cmsg *)CMSG_DATA(cmsg)) = ddmabuf;
+       *((__u32 *)CMSG_DATA(cmsg)) = tx_dmabuf_id;
 
        sendmsg(socket_fd, &msg, MSG_ZEROCOPY);
 

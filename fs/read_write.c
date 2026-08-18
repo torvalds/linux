@@ -641,13 +641,12 @@ ssize_t __kernel_write(struct file *file, const void *buf, size_t count, loff_t 
 	return __kernel_write_iter(file, &iter, pos);
 }
 /*
- * This "EXPORT_SYMBOL_GPL()" is more of a "EXPORT_SYMBOL_DONTUSE()",
- * but autofs is one of the few internal kernel users that actually
+ * autofs is one of the few internal kernel users that actually
  * wants this _and_ can be built as a module. So we need to export
  * this symbol for autofs, even though it really isn't appropriate
  * for any other kernel modules.
  */
-EXPORT_SYMBOL_GPL(__kernel_write);
+EXPORT_SYMBOL_FOR_MODULES(__kernel_write, "autofs4");
 
 ssize_t kernel_write(struct file *file, const void *buf, size_t count,
 			    loff_t *pos)

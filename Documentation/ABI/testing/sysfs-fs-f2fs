@@ -270,7 +270,8 @@ Description:	Shows all enabled kernel features.
 		inode_checksum, flexible_inline_xattr, quota_ino,
 		inode_crtime, lost_found, verity, sb_checksum,
 		casefold, readonly, compression, test_dummy_encryption_v2,
-		atomic_write, pin_file, encrypted_casefold, linear_lookup.
+		atomic_write, pin_file, encrypted_casefold, linear_lookup,
+		fserror.
 
 What:		/sys/fs/f2fs/<disk>/inject_rate
 Date:		May 2016
@@ -1000,4 +1001,4 @@ Contact:	"Chao Yu" <chao@kernel.org>
 Description:	It can be used to tune priority of f2fs critical task, e.g. f2fs_ckpt, f2fs_gc
 		threads, limitation as below:
 		- it requires user has CAP_SYS_NICE capability.
-		- the range is [100, 139], by default the value is 100.
+		- the range is [100, 139], by default the value is 120.

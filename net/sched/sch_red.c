@@ -138,8 +138,8 @@ static int red_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	len = qdisc_pkt_len(skb);
 	ret = qdisc_enqueue(skb, child, to_free);
 	if (likely(ret == NET_XMIT_SUCCESS)) {
-		sch->qstats.backlog += len;
-		sch->q.qlen++;
+		qstats_backlog_add(sch, len);
+		qdisc_qlen_inc(sch);
 	} else if (net_xmit_drop_count(ret)) {
 		WRITE_ONCE(q->stats.pdrop,
 			   q->stats.pdrop + 1);
@@ -166,7 +166,7 @@ static struct sk_buff *red_dequeue(struct Qdisc *sch)
 	if (skb) {
 		qdisc_bstats_update(sch, skb);
 		qdisc_qstats_backlog_dec(sch, skb);
-		sch->q.qlen--;
+		qdisc_qlen_dec(sch);
 	} else {
 		if (!red_is_idling(&q->vars))
 			red_start_of_idle_period(&q->vars);

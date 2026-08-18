@@ -322,6 +322,7 @@ MAC/FDDI addresses
 	%pMF	00-01-02-03-04-05
 	%pm	000102030405
 	%pmR	050403020100
+	%p[mM][FR][U]
 
 For printing 6-byte MAC/FDDI addresses in hex notation. The ``M`` and ``m``
 specifiers result in a printed address with (M) or without (m) byte
@@ -334,6 +335,8 @@ separator.
 For Bluetooth addresses the ``R`` specifier shall be used after the ``M``
 specifier to use reversed byte order suitable for visual interpretation
 of Bluetooth addresses which are in the little endian order.
+
+When ``U`` is passed, the result is printed in the upper case.
 
 Passed by reference.
 

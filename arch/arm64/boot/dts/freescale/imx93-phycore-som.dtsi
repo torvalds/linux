@@ -9,6 +9,7 @@
  */
 
 #include <dt-bindings/leds/common.h>
+#include <dt-bindings/regulator/nxp,pca9450-regulator.h>
 
 #include "imx93.dtsi"
 
@@ -90,6 +91,28 @@
 	};
 };
 
+&gpio1 {
+	gpio-line-names = "", "USER_LED";
+};
+
+&gpio2 {
+	gpio-line-names = "", "", "", "", "",
+			  "", "", "", "", "",
+			  "", "", "", "", "",
+			  "", "", "", "", "",
+			  "", "", "", "", "",
+			  "", "", "", "I2C3_SDA", "I2C3_SCL";
+};
+
+&gpio4 {
+	gpio-line-names = "", "", "", "", "",
+			  "", "", "", "", "",
+			  "", "", "", "", "",
+			  "", "", "", "", "",
+			  "", "", "", "RESET_PHY", "",
+			  "", "", "PMIC_IRQ_B";
+};
+
 /* I2C3 */
 &lpi2c3 {
 	clock-frequency = <400000>;
@@ -140,6 +163,7 @@
 				regulator-max-microvolt = <1800000>;
 				regulator-boot-on;
 				regulator-always-on;
+				regulator-initial-mode = <PCA9450_BUCK_MODE_FORCE_PWM>;
 			};
 
 			buck6: BUCK6 {
@@ -194,6 +218,7 @@
 	bus-width = <8>;
 	non-removable;
 	no-1-8-v;
+	fsl,strobe-dll-delay-target = <1>;
 	status = "okay";
 };
 
@@ -220,7 +245,7 @@
 			MX93_PAD_ENET2_TD1__ENET1_RGMII_TD1		0x50e
 			MX93_PAD_ENET2_TX_CTL__ENET1_RGMII_TX_CTL	0x50e
 			MX93_PAD_ENET2_TD2__ENET1_TX_CLK		0x4000050e
-			MX93_PAD_ENET2_RXC__GPIO4_IO23			0x51e
+			MX93_PAD_ENET2_RXC__GPIO4_IO23			0x502
 		>;
 	};
 
@@ -253,7 +278,7 @@
 	/* need to config the SION for data and cmd pad, refer to ERR052021 */
 	pinctrl_usdhc1: usdhc1grp {
 		fsl,pins = <
-			MX93_PAD_SD1_CLK__USDHC1_CLK		0x179e
+			MX93_PAD_SD1_CLK__USDHC1_CLK		0x119e
 			MX93_PAD_SD1_CMD__USDHC1_CMD		0x40001386
 			MX93_PAD_SD1_DATA0__USDHC1_DATA0	0x4000138e
 			MX93_PAD_SD1_DATA1__USDHC1_DATA1	0x40001386
@@ -263,14 +288,14 @@
 			MX93_PAD_SD1_DATA5__USDHC1_DATA5	0x40001386
 			MX93_PAD_SD1_DATA6__USDHC1_DATA6	0x40001386
 			MX93_PAD_SD1_DATA7__USDHC1_DATA7	0x40001386
-			MX93_PAD_SD1_STROBE__USDHC1_STROBE	0x179e
+			MX93_PAD_SD1_STROBE__USDHC1_STROBE	0x159e
 		>;
 	};
 
 	/* need to config the SION for data and cmd pad, refer to ERR052021 */
 	pinctrl_usdhc1_100mhz: usdhc1-100mhzgrp {
 		fsl,pins = <
-			MX93_PAD_SD1_CLK__USDHC1_CLK		0x17be
+			MX93_PAD_SD1_CLK__USDHC1_CLK		0x11be
 			MX93_PAD_SD1_CMD__USDHC1_CMD		0x4000139e
 			MX93_PAD_SD1_DATA0__USDHC1_DATA0	0x4000138e
 			MX93_PAD_SD1_DATA1__USDHC1_DATA1	0x4000139e
@@ -280,14 +305,14 @@
 			MX93_PAD_SD1_DATA5__USDHC1_DATA5	0x4000139e
 			MX93_PAD_SD1_DATA6__USDHC1_DATA6	0x4000139e
 			MX93_PAD_SD1_DATA7__USDHC1_DATA7	0x4000139e
-			MX93_PAD_SD1_STROBE__USDHC1_STROBE	0x179e
+			MX93_PAD_SD1_STROBE__USDHC1_STROBE	0x159e
 		>;
 	};
 
 	/* need to config the SION for data and cmd pad, refer to ERR052021 */
 	pinctrl_usdhc1_200mhz: usdhc1-200mhzgrp {
 		fsl,pins = <
-			MX93_PAD_SD1_CLK__USDHC1_CLK		0x17be
+			MX93_PAD_SD1_CLK__USDHC1_CLK		0x11be
 			MX93_PAD_SD1_CMD__USDHC1_CMD		0x4000139e
 			MX93_PAD_SD1_DATA0__USDHC1_DATA0	0x4000139e
 			MX93_PAD_SD1_DATA1__USDHC1_DATA1	0x400013be
@@ -297,7 +322,7 @@
 			MX93_PAD_SD1_DATA5__USDHC1_DATA5	0x400013be
 			MX93_PAD_SD1_DATA6__USDHC1_DATA6	0x400013be
 			MX93_PAD_SD1_DATA7__USDHC1_DATA7	0x400013be
-			MX93_PAD_SD1_STROBE__USDHC1_STROBE	0x179e
+			MX93_PAD_SD1_STROBE__USDHC1_STROBE	0x159e
 		>;
 	};
 

@@ -28,7 +28,7 @@ Type 3:
   Same as Type 2 with extended maximum timeout period.
   Maximum timeout is 65535 sec.
 
-Type 1 HW watchdog implementation exist in old systems and
+Type 1 HW watchdog implementation exists in old systems and
 all new systems have type 2 HW watchdog.
 Two types of HW implementation have also different register map.
 
@@ -48,7 +48,7 @@ which is optional.
 Watchdog can be started during a probe, in this case it will be
 pinged by watchdog core before watchdog device will be opened by
 user space application.
-Watchdog can be initialised in nowayout way, i.e. oncse started
+Watchdog can be initialised in nowayout mode, i.e. once started
 it can't be stopped.
 
 This mlx-wdt driver supports both HW watchdog implementations.

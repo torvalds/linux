@@ -452,6 +452,7 @@ static int garp_pdu_parse_attr(struct garp_applicant *app, struct sk_buff *skb,
 
 	if (!pskb_may_pull(skb, ga->len))
 		return -1;
+	ga = (struct garp_attr_hdr *)skb->data;
 	skb_pull(skb, ga->len);
 	dlen = ga->len - sizeof(*ga);
 
@@ -492,6 +493,7 @@ static int garp_pdu_parse_attr(struct garp_applicant *app, struct sk_buff *skb,
 static int garp_pdu_parse_msg(struct garp_applicant *app, struct sk_buff *skb)
 {
 	const struct garp_msg_hdr *gm;
+	u8 attrtype;
 
 	if (!pskb_may_pull(skb, sizeof(*gm)))
 		return -1;
@@ -499,9 +501,10 @@ static int garp_pdu_parse_msg(struct garp_applicant *app, struct sk_buff *skb)
 	if (gm->attrtype == 0)
 		return -1;
 	skb_pull(skb, sizeof(*gm));
+	attrtype = gm->attrtype;
 
 	while (skb->len > 0) {
-		if (garp_pdu_parse_attr(app, skb, gm->attrtype) < 0)
+		if (garp_pdu_parse_attr(app, skb, attrtype) < 0)
 			return -1;
 		if (garp_pdu_parse_end_mark(skb) < 0)
 			break;

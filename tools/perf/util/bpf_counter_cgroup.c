@@ -104,6 +104,11 @@ static int bperf_load_program(struct evlist *evlist)
 
 	set_max_rlimit();
 
+	if (nr_cgroups == 0 || evlist->core.nr_entries % nr_cgroups != 0) {
+		pr_err("Invalid cgroup or event count\n");
+		return -EINVAL;
+	}
+
 	test_max_events_program_load();
 
 	skel = bperf_cgroup_bpf__open();
@@ -184,6 +189,21 @@ static int bperf_load_program(struct evlist *evlist)
 		}
 
 		i++;
+	}
+
+	/*
+	 * Propagate supported flag from leaders to followers. Follower events
+	 * are not opened, so their supported flag remains false.
+	 */
+	{
+		struct evsel *leader;
+		int num_events = evlist->core.nr_entries / nr_cgroups;
+
+		evlist__for_each_entry(evlist, evsel) {
+			leader = evlist__find_evsel(evlist, evsel->core.idx % num_events);
+			if (leader)
+				evsel->supported = leader->supported;
+		}
 	}
 
 	/*

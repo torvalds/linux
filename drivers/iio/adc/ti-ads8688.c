@@ -6,18 +6,15 @@
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/sysfs.h>
 #include <linux/spi/spi.h>
 #include <linux/regulator/consumer.h>
 #include <linux/err.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
-#include <linux/iio/sysfs.h>
 
 #define ADS8688_CMD_REG(x)		(x << 8)
 #define ADS8688_CMD_REG_NOOP		0x00
@@ -66,6 +63,7 @@ struct ads8688_state {
 	const struct ads8688_chip_info	*chip_info;
 	struct spi_device		*spi;
 	unsigned int			vref_mv;
+	int				scale_avail[3][2];
 	enum ads8688_range		range[8];
 	union {
 		__be32 d32;
@@ -114,37 +112,9 @@ static const struct ads8688_ranges ads8688_range_def[5] = {
 	}
 };
 
-static ssize_t ads8688_show_scales(struct device *dev,
-				   struct device_attribute *attr, char *buf)
-{
-	struct ads8688_state *st = iio_priv(dev_to_iio_dev(dev));
-
-	return sprintf(buf, "0.%09u 0.%09u 0.%09u\n",
-		       ads8688_range_def[0].scale * st->vref_mv,
-		       ads8688_range_def[1].scale * st->vref_mv,
-		       ads8688_range_def[2].scale * st->vref_mv);
-}
-
-static ssize_t ads8688_show_offsets(struct device *dev,
-				    struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%d %d\n", ads8688_range_def[0].offset,
-		       ads8688_range_def[3].offset);
-}
-
-static IIO_DEVICE_ATTR(in_voltage_scale_available, S_IRUGO,
-		       ads8688_show_scales, NULL, 0);
-static IIO_DEVICE_ATTR(in_voltage_offset_available, S_IRUGO,
-		       ads8688_show_offsets, NULL, 0);
-
-static struct attribute *ads8688_attributes[] = {
-	&iio_dev_attr_in_voltage_scale_available.dev_attr.attr,
-	&iio_dev_attr_in_voltage_offset_available.dev_attr.attr,
-	NULL,
-};
-
-static const struct attribute_group ads8688_attribute_group = {
-	.attrs = ads8688_attributes,
+static const int ads8688_offset_avail[] = {
+	-(1 << (ADS8688_REALBITS - 1)),
+	0
 };
 
 #define ADS8688_CHAN(index)					\
@@ -154,6 +124,9 @@ static const struct attribute_group ads8688_attribute_group = {
 	.channel = index,					\
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW)		\
 			      | BIT(IIO_CHAN_INFO_SCALE)	\
+			      | BIT(IIO_CHAN_INFO_OFFSET),	\
+	.info_mask_shared_by_type_available =			\
+			      BIT(IIO_CHAN_INFO_SCALE)		\
 			      | BIT(IIO_CHAN_INFO_OFFSET),	\
 	.scan_index = index,					\
 	.scan_type = {						\
@@ -369,11 +342,34 @@ static int ads8688_write_raw_get_fmt(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
+static int ads8688_read_avail(struct iio_dev *indio_dev,
+			      struct iio_chan_spec const *chan,
+			      const int **vals, int *type, int *length,
+			      long mask)
+{
+	struct ads8688_state *st = iio_priv(indio_dev);
+
+	switch (mask) {
+	case IIO_CHAN_INFO_SCALE:
+		*vals = (const int *)st->scale_avail;
+		*type = IIO_VAL_INT_PLUS_NANO;
+		*length = ARRAY_SIZE(st->scale_avail) * 2;
+		return IIO_AVAIL_LIST;
+	case IIO_CHAN_INFO_OFFSET:
+		*vals = ads8688_offset_avail;
+		*type = IIO_VAL_INT;
+		*length = ARRAY_SIZE(ads8688_offset_avail);
+		return IIO_AVAIL_LIST;
+	default:
+		return -EINVAL;
+	}
+}
+
 static const struct iio_info ads8688_info = {
 	.read_raw = &ads8688_read_raw,
+	.read_avail = &ads8688_read_avail,
 	.write_raw = &ads8688_write_raw,
 	.write_raw_get_fmt = &ads8688_write_raw_get_fmt,
-	.attrs = &ads8688_attribute_group,
 };
 
 static irqreturn_t ads8688_trigger_handler(int irq, void *p)
@@ -425,6 +421,11 @@ static int ads8688_probe(struct spi_device *spi)
 		return ret;
 
 	st->vref_mv = ret == -ENODEV ? ADS8688_VREF_MV : ret / 1000;
+
+	for (unsigned int i = 0; i < ARRAY_SIZE(st->scale_avail); i++) {
+		st->scale_avail[i][0] = 0;
+		st->scale_avail[i][1] = ads8688_range_def[i].scale * st->vref_mv;
+	}
 
 	st->chip_info =	&ads8688_chip_info_tbl[spi_get_device_id(spi)->driver_data];
 

@@ -291,15 +291,15 @@ static int tps53679_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tps53679_id[] = {
-	{"bmr474", tps53676},
-	{"tps53647", tps53647},
-	{"tps53667", tps53667},
-	{"tps53676", tps53676},
-	{"tps53679", tps53679},
-	{"tps53681", tps53681},
-	{"tps53685", tps53685},
-	{"tps53688", tps53688},
-	{}
+	{ .name = "bmr474", .driver_data = tps53676 },
+	{ .name = "tps53647", .driver_data = tps53647 },
+	{ .name = "tps53667", .driver_data = tps53667 },
+	{ .name = "tps53676", .driver_data = tps53676 },
+	{ .name = "tps53679", .driver_data = tps53679 },
+	{ .name = "tps53681", .driver_data = tps53681 },
+	{ .name = "tps53685", .driver_data = tps53685 },
+	{ .name = "tps53688", .driver_data = tps53688 },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, tps53679_id);

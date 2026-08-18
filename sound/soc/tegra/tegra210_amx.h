@@ -8,6 +8,8 @@
 #ifndef __TEGRA210_AMX_H__
 #define __TEGRA210_AMX_H__
 
+#include <linux/types.h>
+
 /* Register offsets from TEGRA210_AMX*_BASE */
 #define TEGRA210_AMX_RX_STATUS			0x0c
 #define TEGRA210_AMX_RX_INT_STATUS		0x10
@@ -73,6 +75,7 @@
 #define TEGRA210_AMX_SOFT_RESET_SOFT_RESET_MASK		TEGRA210_AMX_SOFT_RESET_SOFT_EN
 
 #define TEGRA210_AMX_AUDIOCIF_CH_STRIDE		4
+#define TEGRA_AMX_SLOTS_PER_WORD		4
 #define TEGRA210_AMX_RAM_DEPTH			16
 #define TEGRA210_AMX_MAP_STREAM_NUM_SHIFT	6
 #define TEGRA210_AMX_MAP_WORD_NUM_SHIFT		2
@@ -105,8 +108,8 @@ struct tegra210_amx_soc_data {
 
 struct tegra210_amx {
 	const struct tegra210_amx_soc_data *soc_data;
-	unsigned int *map;
 	unsigned int *byte_mask;
+	u16 *map;
 	struct regmap *regmap;
 };
 

@@ -95,3 +95,14 @@
         * **full**        Print the entire stack trace, including unknown addresses.
 
         For unknown addresses, the raw pointer is printed.
+
+**-A**, **--aligned** *us*
+
+        Align wake-up of timerlat threads to a set offset in microseconds.
+
+        The alignment will be applied when the threads wake up at the start of tracing while
+        the timer for the first cycle is armed. Each thread sets its timer to the wake-up time
+        of the previous thread plus the alignment.
+
+        This option may be used with any non-negative argument, including zero, which will
+        align threads so that they wake up all at the same time.

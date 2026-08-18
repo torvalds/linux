@@ -5,7 +5,6 @@
  */
 
 #include <linux/device.h>
-#include <linux/mod_devicetable.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/acpi.h>
@@ -245,16 +244,16 @@ static const struct acpi_device_id bmc150_accel_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, bmc150_accel_acpi_match);
 
 static const struct i2c_device_id bmc150_accel_id[] = {
-	{"bma222"},
-	{"bma222e"},
-	{"bma250e"},
-	{"bma253"},
-	{"bma254"},
-	{"bma255"},
-	{"bma280"},
-	{"bmc150_accel"},
-	{"bmc156_accel", BOSCH_BMC156},
-	{"bmi055_accel"},
+	{ .name = "bma222", .driver_data = BOSCH_UNKNOWN },
+	{ .name = "bma222e", .driver_data = BOSCH_UNKNOWN },
+	{ .name = "bma250e", .driver_data = BOSCH_UNKNOWN },
+	{ .name = "bma253", .driver_data = BOSCH_UNKNOWN },
+	{ .name = "bma254", .driver_data = BOSCH_UNKNOWN },
+	{ .name = "bma255", .driver_data = BOSCH_UNKNOWN },
+	{ .name = "bma280", .driver_data = BOSCH_UNKNOWN },
+	{ .name = "bmc150_accel", .driver_data = BOSCH_UNKNOWN },
+	{ .name = "bmc156_accel", .driver_data = BOSCH_BMC156 },
+	{ .name = "bmi055_accel", .driver_data = BOSCH_UNKNOWN },
 	{ }
 };
 

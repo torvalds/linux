@@ -328,24 +328,18 @@ static int gmc_v6_0_mc_init(struct amdgpu_device *adev)
 	adev->gmc.visible_vram_size = adev->gmc.aper_size;
 
 	/* set the gart size */
-	if (amdgpu_gart_size == -1) {
-		switch (adev->asic_type) {
-		case CHIP_HAINAN:    /* no MM engines */
-		default:
-			adev->gmc.gart_size = 256ULL << 20;
-			break;
-		case CHIP_VERDE:    /* UVD, VCE do not support GPUVM */
-		case CHIP_TAHITI:   /* UVD, VCE do not support GPUVM */
-		case CHIP_PITCAIRN: /* UVD, VCE do not support GPUVM */
-		case CHIP_OLAND:    /* UVD, VCE do not support GPUVM */
-			adev->gmc.gart_size = 1024ULL << 20;
-			break;
-		}
-	} else {
-		adev->gmc.gart_size = (u64)amdgpu_gart_size << 20;
+	switch (adev->asic_type) {
+	case CHIP_VERDE:    /* UVD, VCE do not support GPUVM */
+	case CHIP_TAHITI:   /* UVD, VCE do not support GPUVM */
+	case CHIP_PITCAIRN: /* UVD, VCE do not support GPUVM */
+	case CHIP_OLAND:    /* UVD, VCE do not support GPUVM */
+		amdgpu_gmc_set_gart_size(adev, SZ_1G);
+		break;
+	case CHIP_HAINAN:    /* no MM engines */
+	default:
+		amdgpu_gmc_set_gart_size(adev, SZ_256M);
+		break;
 	}
-
-	adev->gmc.gart_size += adev->pm.smu_prv_buffer_size;
 	gmc_v6_0_vram_gtt_location(adev, &adev->gmc);
 
 	return 0;

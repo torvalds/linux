@@ -62,6 +62,7 @@ obj-$(CONFIG_KPROBES)		+= mcount.o
 obj-$(CONFIG_RETHOOK)		+= rethook.o
 obj-$(CONFIG_FUNCTION_TRACER)	+= ftrace.o
 obj-$(CONFIG_FUNCTION_TRACER)	+= mcount.o
+obj-$(CONFIG_TRACING)		+= trace_clock.o
 obj-$(CONFIG_CRASH_DUMP)	+= crash_dump.o
 obj-$(CONFIG_KEXEC_CORE)	+= machine_kexec.o relocate_kernel.o
 obj-$(CONFIG_VMCORE_INFO)	+= vmcore_info.o

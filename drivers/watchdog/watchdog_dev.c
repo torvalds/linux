@@ -176,7 +176,7 @@ static int __watchdog_ping(struct watchdog_device *wdd)
 	return err;
 }
 
-/*
+/**
  * watchdog_ping - ping the watchdog
  * @wdd: The watchdog device to ping
  *
@@ -236,7 +236,7 @@ static enum hrtimer_restart watchdog_timer_expired(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
-/*
+/**
  * watchdog_start - wrapper to start the watchdog
  * @wdd: The watchdog device to start
  *
@@ -279,7 +279,7 @@ static int watchdog_start(struct watchdog_device *wdd)
 	return err;
 }
 
-/*
+/**
  * watchdog_stop - wrapper to stop the watchdog
  * @wdd: The watchdog device to stop
  *
@@ -319,7 +319,7 @@ static int watchdog_stop(struct watchdog_device *wdd)
 	return err;
 }
 
-/*
+/**
  * watchdog_get_status - wrapper to get the watchdog status
  * @wdd: The watchdog device to get the status from
  *
@@ -356,7 +356,7 @@ static unsigned int watchdog_get_status(struct watchdog_device *wdd)
 	return status;
 }
 
-/*
+/**
  * watchdog_set_timeout - set the watchdog timer timeout
  * @wdd:	The watchdog device to set the timeout for
  * @timeout:	Timeout to set in seconds
@@ -391,7 +391,7 @@ static int watchdog_set_timeout(struct watchdog_device *wdd,
 	return err;
 }
 
-/*
+/**
  * watchdog_set_pretimeout - set the watchdog timer pretimeout
  * @wdd:	The watchdog device to set the timeout for
  * @timeout:	pretimeout to set in seconds
@@ -417,7 +417,7 @@ static int watchdog_set_pretimeout(struct watchdog_device *wdd,
 	return err;
 }
 
-/*
+/**
  * watchdog_get_timeleft - wrapper to get the time left before a reboot
  * @wdd:	The watchdog device to get the remaining time from
  * @timeleft:	The time that's left
@@ -659,7 +659,7 @@ __ATTRIBUTE_GROUPS(wdt);
 #define wdt_groups	NULL
 #endif
 
-/*
+/**
  * watchdog_ioctl_op - call the watchdog drivers ioctl op if defined
  * @wdd: The watchdog device to do the ioctl on
  * @cmd: Watchdog command
@@ -678,7 +678,7 @@ static int watchdog_ioctl_op(struct watchdog_device *wdd, unsigned int cmd,
 	return wdd->ops->ioctl(wdd, cmd, arg);
 }
 
-/*
+/**
  * watchdog_write - writes to the watchdog
  * @file:	File from VFS
  * @data:	User address of data
@@ -732,7 +732,7 @@ static ssize_t watchdog_write(struct file *file, const char __user *data,
 	return len;
 }
 
-/*
+/**
  * watchdog_ioctl - handle the different ioctl's for the watchdog device
  * @file:	File handle to the device
  * @cmd:	Watchdog command
@@ -845,7 +845,7 @@ out_ioctl:
 	return err;
 }
 
-/*
+/**
  * watchdog_open - open the /dev/watchdog* devices
  * @inode:	Inode of device
  * @file:	File handle to device
@@ -923,7 +923,7 @@ static void watchdog_core_data_release(struct device *dev)
 	kfree(wd_data);
 }
 
-/*
+/**
  * watchdog_release - release the watchdog device
  * @inode:	Inode of device
  * @file:	File handle to device
@@ -932,7 +932,7 @@ static void watchdog_core_data_release(struct device *dev)
  * stop the watchdog when we have received the magic char (and nowayout
  * was not set), else the watchdog will keep running.
  *
- * Always returns 0.
+ * Returns: Always 0.
  */
 static int watchdog_release(struct inode *inode, struct file *file)
 {
@@ -1004,7 +1004,7 @@ static const struct class watchdog_class = {
 	.dev_groups =	wdt_groups,
 };
 
-/*
+/**
  * watchdog_cdev_register - register watchdog character device
  * @wdd: Watchdog device
  *
@@ -1105,7 +1105,7 @@ static int watchdog_cdev_register(struct watchdog_device *wdd)
 	return 0;
 }
 
-/*
+/**
  * watchdog_cdev_unregister - unregister watchdog character device
  * @wdd: Watchdog device
  *

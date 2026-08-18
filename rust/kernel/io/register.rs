@@ -108,9 +108,10 @@
 
 use core::marker::PhantomData;
 
-use crate::io::IoLoc;
-
-use kernel::build_assert;
+use crate::{
+    build_assert::build_assert,
+    io::IoLoc, //
+};
 
 /// Trait implemented by all registers.
 pub trait Register: Sized {
@@ -872,7 +873,7 @@ macro_rules! register {
         @reg $(#[$attr:meta])* $vis:vis $name:ident ($storage:ty)
             [ $size:expr, stride = $stride:expr ] @ $offset:literal { $($fields:tt)* }
     ) => {
-        ::kernel::static_assert!(::core::mem::size_of::<$storage>() <= $stride);
+        $crate::build_assert::static_assert!(::core::mem::size_of::<$storage>() <= $stride);
 
         $crate::register!(@bitfield $(#[$attr])* $vis struct $name($storage) { $($fields)* });
         $crate::register!(@io_base $name($storage) @ $offset);
@@ -895,7 +896,9 @@ macro_rules! register {
         @reg $(#[$attr:meta])* $vis:vis $name:ident ($storage:ty) => $alias:ident [ $idx:expr ]
             { $($fields:tt)* }
     ) => {
-        ::kernel::static_assert!($idx < <$alias as $crate::io::register::RegisterArray>::SIZE);
+        $crate::build_assert::static_assert!(
+            $idx < <$alias as $crate::io::register::RegisterArray>::SIZE
+        );
 
         $crate::register!(@bitfield $(#[$attr])* $vis struct $name($storage) { $($fields)* });
         $crate::register!(
@@ -912,7 +915,7 @@ macro_rules! register {
             [ $size:expr, stride = $stride:expr ]
             @ $base:ident + $offset:literal { $($fields:tt)* }
     ) => {
-        ::kernel::static_assert!(::core::mem::size_of::<$storage>() <= $stride);
+        $crate::build_assert::static_assert!(::core::mem::size_of::<$storage>() <= $stride);
 
         $crate::register!(@bitfield $(#[$attr])* $vis struct $name($storage) { $($fields)* });
         $crate::register!(@io_base $name($storage) @ $offset);
@@ -938,7 +941,9 @@ macro_rules! register {
         @reg $(#[$attr:meta])* $vis:vis $name:ident ($storage:ty)
             => $base:ident + $alias:ident [ $idx:expr ] { $($fields:tt)* }
     ) => {
-        ::kernel::static_assert!($idx < <$alias as $crate::io::register::RegisterArray>::SIZE);
+        $crate::build_assert::static_assert!(
+            $idx < <$alias as $crate::io::register::RegisterArray>::SIZE
+        );
 
         $crate::register!(@bitfield $(#[$attr])* $vis struct $name($storage) { $($fields)* });
         $crate::register!(
@@ -956,11 +961,10 @@ macro_rules! register {
     (
         @bitfield $(#[$attr:meta])* $vis:vis struct $name:ident($storage:ty) { $($fields:tt)* }
     ) => {
-        $crate::register!(@bitfield_core
+        $crate::bitfield!(
             #[allow(non_camel_case_types)]
-            $(#[$attr])* $vis $name $storage
+            $(#[$attr])* $vis struct $name($storage) { $($fields)* }
         );
-        $crate::register!(@bitfield_fields $vis $name $storage { $($fields)* });
     };
 
     // Implementations shared by all registers types.
@@ -1015,246 +1019,5 @@ macro_rules! register {
         }
 
         impl $crate::io::register::RelativeRegisterArray for $name {}
-    };
-
-    // Defines the wrapper `$name` type and its conversions from/to the storage type.
-    (@bitfield_core $(#[$attr:meta])* $vis:vis $name:ident $storage:ty) => {
-        $(#[$attr])*
-        #[repr(transparent)]
-        #[derive(Clone, Copy, PartialEq, Eq)]
-        $vis struct $name {
-            inner: $storage,
-        }
-
-        #[allow(dead_code)]
-        impl $name {
-            /// Creates a bitfield from a raw value.
-            #[inline(always)]
-            $vis const fn from_raw(value: $storage) -> Self {
-                Self{ inner: value }
-            }
-
-            /// Turns this bitfield into its raw value.
-            ///
-            /// This is similar to the [`From`] implementation, but is shorter to invoke in
-            /// most cases.
-            #[inline(always)]
-            $vis const fn into_raw(self) -> $storage {
-                self.inner
-            }
-        }
-
-        // SAFETY: `$storage` is `Zeroable` and `$name` is transparent.
-        unsafe impl ::pin_init::Zeroable for $name {}
-
-        impl ::core::convert::From<$name> for $storage {
-            #[inline(always)]
-            fn from(val: $name) -> $storage {
-                val.into_raw()
-            }
-        }
-
-        impl ::core::convert::From<$storage> for $name {
-            #[inline(always)]
-            fn from(val: $storage) -> $name {
-                Self::from_raw(val)
-            }
-        }
-    };
-
-    // Definitions requiring knowledge of individual fields: private and public field accessors,
-    // and `Debug` implementation.
-    (@bitfield_fields $vis:vis $name:ident $storage:ty {
-        $($(#[doc = $doc:expr])* $hi:literal:$lo:literal $field:ident
-            $(?=> $try_into_type:ty)?
-            $(=> $into_type:ty)?
-        ;
-        )*
-    }
-    ) => {
-        #[allow(dead_code)]
-        impl $name {
-        $(
-        $crate::register!(@private_field_accessors $vis $name $storage : $hi:$lo $field);
-        $crate::register!(
-            @public_field_accessors $(#[doc = $doc])* $vis $name $storage : $hi:$lo $field
-            $(?=> $try_into_type)?
-            $(=> $into_type)?
-        );
-        )*
-        }
-
-        $crate::register!(@debug $name { $($field;)* });
-    };
-
-    // Private field accessors working with the exact `Bounded` type for the field.
-    (
-        @private_field_accessors $vis:vis $name:ident $storage:ty : $hi:tt:$lo:tt $field:ident
-    ) => {
-        ::kernel::macros::paste!(
-        $vis const [<$field:upper _RANGE>]: ::core::ops::RangeInclusive<u8> = $lo..=$hi;
-        $vis const [<$field:upper _MASK>]: $storage =
-            ((((1 << $hi) - 1) << 1) + 1) - ((1 << $lo) - 1);
-        $vis const [<$field:upper _SHIFT>]: u32 = $lo;
-        );
-
-        ::kernel::macros::paste!(
-        fn [<__ $field>](self) ->
-            ::kernel::num::Bounded<$storage, { $hi + 1 - $lo }> {
-            // Left shift to align the field's MSB with the storage MSB.
-            const ALIGN_TOP: u32 = $storage::BITS - ($hi + 1);
-            // Right shift to move the top-aligned field to bit 0 of the storage.
-            const ALIGN_BOTTOM: u32 = ALIGN_TOP + $lo;
-
-            // Extract the field using two shifts. `Bounded::shr` produces the correctly-sized
-            // output type.
-            let val = ::kernel::num::Bounded::<$storage, { $storage::BITS }>::from(
-                self.inner << ALIGN_TOP
-            );
-            val.shr::<ALIGN_BOTTOM, { $hi + 1 - $lo } >()
-        }
-
-        const fn [<__with_ $field>](
-            mut self,
-            value: ::kernel::num::Bounded<$storage, { $hi + 1 - $lo }>,
-        ) -> Self
-        {
-            const MASK: $storage = <$name>::[<$field:upper _MASK>];
-            const SHIFT: u32 = <$name>::[<$field:upper _SHIFT>];
-
-            let value = value.get() << SHIFT;
-            self.inner = (self.inner & !MASK) | value;
-
-            self
-        }
-        );
-    };
-
-    // Public accessors for fields infallibly (`=>`) converted to a type.
-    (
-        @public_field_accessors $(#[doc = $doc:expr])* $vis:vis $name:ident $storage:ty :
-            $hi:literal:$lo:literal $field:ident => $into_type:ty
-    ) => {
-        ::kernel::macros::paste!(
-
-        $(#[doc = $doc])*
-        #[doc = "Returns the value of this field."]
-        #[inline(always)]
-        $vis fn $field(self) -> $into_type
-        {
-            self.[<__ $field>]().into()
-        }
-
-        $(#[doc = $doc])*
-        #[doc = "Sets this field to the given `value`."]
-        #[inline(always)]
-        $vis fn [<with_ $field>](self, value: $into_type) -> Self
-        {
-            self.[<__with_ $field>](value.into())
-        }
-
-        );
-    };
-
-    // Public accessors for fields fallibly (`?=>`) converted to a type.
-    (
-        @public_field_accessors $(#[doc = $doc:expr])* $vis:vis $name:ident $storage:ty :
-            $hi:tt:$lo:tt $field:ident ?=> $try_into_type:ty
-    ) => {
-        ::kernel::macros::paste!(
-
-        $(#[doc = $doc])*
-        #[doc = "Returns the value of this field."]
-        #[inline(always)]
-        $vis fn $field(self) ->
-            Result<
-                $try_into_type,
-                <$try_into_type as ::core::convert::TryFrom<
-                    ::kernel::num::Bounded<$storage, { $hi + 1 - $lo }>
-                >>::Error
-            >
-        {
-            self.[<__ $field>]().try_into()
-        }
-
-        $(#[doc = $doc])*
-        #[doc = "Sets this field to the given `value`."]
-        #[inline(always)]
-        $vis fn [<with_ $field>](self, value: $try_into_type) -> Self
-        {
-            self.[<__with_ $field>](value.into())
-        }
-
-        );
-    };
-
-    // Public accessors for fields not converted to a type.
-    (
-        @public_field_accessors $(#[doc = $doc:expr])* $vis:vis $name:ident $storage:ty :
-            $hi:tt:$lo:tt $field:ident
-    ) => {
-        ::kernel::macros::paste!(
-
-        $(#[doc = $doc])*
-        #[doc = "Returns the value of this field."]
-        #[inline(always)]
-        $vis fn $field(self) ->
-            ::kernel::num::Bounded<$storage, { $hi + 1 - $lo }>
-        {
-            self.[<__ $field>]()
-        }
-
-        $(#[doc = $doc])*
-        #[doc = "Sets this field to the compile-time constant `VALUE`."]
-        #[inline(always)]
-        $vis const fn [<with_const_ $field>]<const VALUE: $storage>(self) -> Self {
-            self.[<__with_ $field>](
-                ::kernel::num::Bounded::<$storage, { $hi + 1 - $lo }>::new::<VALUE>()
-            )
-        }
-
-        $(#[doc = $doc])*
-        #[doc = "Sets this field to the given `value`."]
-        #[inline(always)]
-        $vis fn [<with_ $field>]<T>(
-            self,
-            value: T,
-        ) -> Self
-            where T: Into<::kernel::num::Bounded<$storage, { $hi + 1 - $lo }>>,
-        {
-            self.[<__with_ $field>](value.into())
-        }
-
-        $(#[doc = $doc])*
-        #[doc = "Tries to set this field to `value`, returning an error if it is out of range."]
-        #[inline(always)]
-        $vis fn [<try_with_ $field>]<T>(
-            self,
-            value: T,
-        ) -> ::kernel::error::Result<Self>
-            where T: ::kernel::num::TryIntoBounded<$storage, { $hi + 1 - $lo }>,
-        {
-            Ok(
-                self.[<__with_ $field>](
-                    value.try_into_bounded().ok_or(::kernel::error::code::EOVERFLOW)?
-                )
-            )
-        }
-
-        );
-    };
-
-    // `Debug` implementation.
-    (@debug $name:ident { $($field:ident;)* }) => {
-        impl ::kernel::fmt::Debug for $name {
-            fn fmt(&self, f: &mut ::kernel::fmt::Formatter<'_>) -> ::kernel::fmt::Result {
-                f.debug_struct(stringify!($name))
-                    .field("<raw>", &::kernel::prelude::fmt!("{:#x}", self.inner))
-                $(
-                    .field(stringify!($field), &self.$field())
-                )*
-                    .finish()
-            }
-        }
     };
 }

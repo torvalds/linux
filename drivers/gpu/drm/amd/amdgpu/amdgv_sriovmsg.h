@@ -162,7 +162,9 @@ union amd_sriov_msg_feature_flags {
 		uint32_t ras_cper		: 1;
 		uint32_t xgmi_ta_ext_peer_link	: 1;
 		uint32_t xgmi_connected_to_cpu  : 1;
-		uint32_t reserved		: 18;
+		uint32_t ptl_support		: 1;
+		uint32_t unitid_support		: 1;
+		uint32_t reserved		: 16;
 	} flags;
 	uint32_t all;
 };
@@ -256,7 +258,7 @@ struct amd_sriov_msg_pf2vf_info_header {
 	uint32_t reserved[2];
 };
 
-#define AMD_SRIOV_MSG_PF2VF_INFO_FILLED_SIZE (55)
+#define AMD_SRIOV_MSG_PF2VF_INFO_FILLED_SIZE (59)
 struct amd_sriov_msg_pf2vf_info {
 	/* header contains size and version */
 	struct amd_sriov_msg_pf2vf_info_header header;
@@ -293,7 +295,7 @@ struct amd_sriov_msg_pf2vf_info {
 	uint32_t vf2pf_update_interval_ms;
 	/* identification in ROCm SMI */
 	uint64_t uuid;
-	uint32_t fcn_idx;
+	uint32_t pad;
 	/* flags to indicate which register access method VF should use */
 	union amd_sriov_reg_access_flags reg_access_flags;
 	/* MM BW management */
@@ -314,6 +316,13 @@ struct amd_sriov_msg_pf2vf_info {
 	uint32_t more_bp;	//Reserved for future use.
 	union amd_sriov_ras_caps ras_en_caps;
 	union amd_sriov_ras_caps ras_telemetry_en_caps;
+	/* PTL status response for guest */
+	uint32_t ptl_enabled;        // PTL enable status: 0=disabled, 1=enabled
+	uint32_t ptl_pref_format1;   // Current preferred format 1
+	uint32_t ptl_pref_format2;   // Current preferred format 2
+	/* unit ID assigned by host; vf_idx [0..254] maps to unitid [1..255] (0 = pf) */
+	uint8_t unitid;
+	uint8_t padding[3];  //use the 3 bytes to align
 
 	/* reserved */
 	uint32_t reserved[256 - AMD_SRIOV_MSG_PF2VF_INFO_FILLED_SIZE];

@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: LGPL-2.1
+#include "trace/beauty/beauty.h"
+
 #include <sched.h>
 
 /*
@@ -14,8 +16,8 @@
 #define SCHED_RESET_ON_FORK 0x40000000
 #endif
 
-static size_t syscall_arg__scnprintf_sched_policy(char *bf, size_t size,
-						  struct syscall_arg *arg)
+size_t syscall_arg__scnprintf_sched_policy(char *bf, size_t size,
+					   struct syscall_arg *arg)
 {
 	bool show_prefix = arg->show_string_prefix;
 	const char *prefix = "SCHED_";
@@ -46,5 +48,3 @@ static size_t syscall_arg__scnprintf_sched_policy(char *bf, size_t size,
 
 	return printed;
 }
-
-#define SCA_SCHED_POLICY syscall_arg__scnprintf_sched_policy

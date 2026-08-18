@@ -25,7 +25,6 @@ def LoadEvents(directory: str) -> None:
       "cycles",
       "duration_time",
       "instructions",
-      "l2_itlb_misses",
   }
   for file in os.listdir(os.fsencode(directory)):
     filename = os.fsdecode(file)
@@ -94,7 +93,7 @@ def CheckEveryEvent(*names: str) -> None:
       name = name[:name.find(':')]
     elif '/' in name:
       name = name[:name.find('/')]
-      if any([name.startswith(x) for x in ['amd', 'arm', 'cpu', 'msr', 'power']]):
+      if any([name.startswith(x) for x in ['amd', 'arm', 'cpu', 'msr', 'power', 'cha', 'uncore']]):
         continue
     if name not in all_events_all_models:
       raise Exception(f"Is {name} a named json event?")
@@ -577,6 +576,11 @@ def source_count(event: Event) -> Function:
   return Function('source_count', event)
 
 
+def aggr_nr(event: Event) -> Function:
+  # pylint: disable=invalid-name
+  return Function('aggr_nr', event)
+
+
 def has_event(event: Event) -> Function:
   # pylint: disable=redefined-builtin
   # pylint: disable=invalid-name
@@ -763,7 +767,7 @@ def ParsePerfJson(orig: str) -> Expression:
   # Convert accidentally converted scientific notation constants back
   py = re.sub(r'([0-9]+)Event\(r"(e[0-9]*)"\)', r'\1\2', py)
   # Convert all the known keywords back from events to just the keyword
-  keywords = ['if', 'else', 'min', 'max', 'd_ratio', 'source_count', 'has_event', 'strcmp_cpuid_str']
+  keywords = ['if', 'else', 'min', 'max', 'd_ratio', 'source_count', 'aggr_nr', 'has_event', 'strcmp_cpuid_str']
   for kw in keywords:
     py = re.sub(rf'Event\(r"{kw}"\)', kw, py)
   try:

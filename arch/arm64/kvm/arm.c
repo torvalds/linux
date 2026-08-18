@@ -2519,10 +2519,10 @@ static void __init teardown_hyp_mode(void)
 			continue;
 
 		if (free_sve) {
-			struct cpu_sve_state *sve_state;
+			struct arm64_sve_state *sve_regs;
 
-			sve_state = per_cpu_ptr_nvhe_sym(kvm_host_data, cpu)->sve_state;
-			free_pages((unsigned long) sve_state, pkvm_host_sve_state_order());
+			sve_regs = per_cpu_ptr_nvhe_sym(kvm_host_data, cpu)->sve_regs;
+			free_pages((unsigned long) sve_regs, pkvm_host_sve_state_order());
 		}
 
 		free_pages(kvm_nvhe_sym(kvm_arm_hyp_percpu_base)[cpu], nvhe_percpu_order());
@@ -2647,7 +2647,7 @@ static int init_pkvm_host_sve_state(void)
 		if (!page)
 			return -ENOMEM;
 
-		per_cpu_ptr_nvhe_sym(kvm_host_data, cpu)->sve_state = page_address(page);
+		per_cpu_ptr_nvhe_sym(kvm_host_data, cpu)->sve_regs = page_address(page);
 	}
 
 	/*
@@ -2684,11 +2684,11 @@ static void finalize_init_hyp_mode(void)
 
 	if (system_supports_sve() && is_protected_kvm_enabled()) {
 		for_each_possible_cpu(cpu) {
-			struct cpu_sve_state *sve_state;
+			struct arm64_sve_state *sve_regs;
 
-			sve_state = per_cpu_ptr_nvhe_sym(kvm_host_data, cpu)->sve_state;
-			per_cpu_ptr_nvhe_sym(kvm_host_data, cpu)->sve_state =
-				kern_hyp_va(sve_state);
+			sve_regs = per_cpu_ptr_nvhe_sym(kvm_host_data, cpu)->sve_regs;
+			per_cpu_ptr_nvhe_sym(kvm_host_data, cpu)->sve_regs =
+				kern_hyp_va(sve_regs);
 		}
 	}
 }

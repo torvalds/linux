@@ -24,8 +24,10 @@
 #include "xe_irq.h"
 #include "xe_late_bind_fw.h"
 #include "xe_pcode.h"
+#include "xe_printk.h"
 #include "xe_pxp.h"
 #include "xe_sriov_vf_ccs.h"
+#include "xe_sysctrl.h"
 #include "xe_trace.h"
 #include "xe_vm.h"
 #include "xe_wa.h"
@@ -259,6 +261,8 @@ int xe_pm_resume(struct xe_device *xe)
 
 	xe_i2c_pm_resume(xe, true);
 
+	xe_sysctrl_pm_resume(xe);
+
 	xe_irq_resume(xe);
 
 	for_each_gt(gt, xe, id) {
@@ -346,10 +350,22 @@ static void xe_pm_runtime_init(struct xe_device *xe)
 	pm_runtime_put(dev);
 }
 
+/**
+ * xe_pm_init_early() - Initialize Xe Power Management
+ * @xe: the &xe_device instance
+ *
+ * Initialize everything that is a "software-only" state that does not
+ * require access to any of the device's hardware data.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
 int xe_pm_init_early(struct xe_device *xe)
 {
 	int err;
 
+	init_completion(&xe->pm_block);
+	complete_all(&xe->pm_block);
+	INIT_LIST_HEAD(&xe->rebind_resume_list);
 	INIT_LIST_HEAD(&xe->mem_access.vram_userfault.list);
 
 	err = drmm_mutex_init(&xe->drm, &xe->mem_access.vram_userfault.lock);
@@ -360,10 +376,29 @@ int xe_pm_init_early(struct xe_device *xe)
 	if (err)
 		return err;
 
-	xe->d3cold.capable = xe_pm_pci_d3cold_capable(xe);
+	err = drmm_mutex_init(&xe->drm, &xe->rebind_resume_lock);
+	if (err)
+		return err;
+
 	return 0;
 }
 ALLOW_ERROR_INJECTION(xe_pm_init_early, ERRNO); /* See xe_pci_probe() */
+
+/**
+ * xe_pm_probe() - Initialize Xe Power Management
+ * @xe: the &xe_device instance
+ *
+ * Check d3cold capability.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_pm_probe(struct xe_device *xe)
+{
+	xe->d3cold.capable = xe_pm_pci_d3cold_capable(xe);
+	xe_dbg(xe, "d3cold: capable=%s\n", str_yes_no(xe->d3cold.capable));
+
+	return 0;
+}
 
 static u32 vram_threshold_value(struct xe_device *xe)
 {
@@ -455,14 +490,6 @@ int xe_pm_init(struct xe_device *xe)
 	err = register_pm_notifier(&xe->pm_notifier);
 	if (err)
 		return err;
-
-	err = drmm_mutex_init(&xe->drm, &xe->rebind_resume_lock);
-	if (err)
-		goto err_unregister;
-
-	init_completion(&xe->pm_block);
-	complete_all(&xe->pm_block);
-	INIT_LIST_HEAD(&xe->rebind_resume_list);
 
 	/* For now suspend/resume is only allowed with GuC */
 	if (!xe_device_uc_enabled(xe))
@@ -669,6 +696,9 @@ int xe_pm_runtime_resume(struct xe_device *xe)
 	}
 
 	xe_i2c_pm_resume(xe, xe->d3cold.allowed);
+
+	if (xe->d3cold.allowed)
+		xe_sysctrl_pm_resume(xe);
 
 	xe_irq_resume(xe);
 

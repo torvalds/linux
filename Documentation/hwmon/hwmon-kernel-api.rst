@@ -85,9 +85,10 @@ removal.
 When using ``[devm_]hwmon_device_register_with_info()`` to register the
 hardware monitoring device, accesses using the associated access functions
 are serialised by the hardware monitoring core. If a driver needs locking
-for other functions such as interrupt handlers or for attributes which are
-fully implemented in the driver, hwmon_lock() and hwmon_unlock() can be used
-to ensure that calls to those functions are serialized.
+for other functions such as interrupt handlers, attributes which are fully
+implemented in the driver, or debugfs functions, hwmon_lock() and hwmon_unlock()
+can be used to ensure that calls to those functions are serialized. Those
+functions also support guard() and scoped_guard() variants.
 
 Using devm_hwmon_device_register_with_info()
 --------------------------------------------

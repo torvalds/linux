@@ -18,7 +18,7 @@
  */
 
 static int mgag200_g200eh5_pixpllc_atomic_check(struct drm_crtc *crtc,
-						struct drm_atomic_state *new_state)
+						struct drm_atomic_commit *new_state)
 {
 	const unsigned long long VCO_MAX = 10 * GIGA; // Hz
 	const unsigned long long VCO_MIN = 2500 * MEGA; // Hz

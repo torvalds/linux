@@ -31,6 +31,19 @@ struct btrfs_space_info;
 struct btrfs_raid_bio;
 struct raid56_bio_trace_info;
 struct find_free_extent_ctl;
+struct btrfs_trans_handle;
+struct btrfs_transaction;
+struct btrfs_log_ctx;
+
+#define show_inode_type(mode)					\
+	__print_symbolic((mode) & S_IFMT,			\
+		 { S_IFDIR,  "DIR" },	          		\
+		 { S_IFREG,  "REG" },	          		\
+		 { S_IFLNK,  "LNK" },	          		\
+		 { S_IFIFO,  "FIFO" },	          		\
+		 { S_IFCHR,  "CHR" },		  		\
+		 { S_IFBLK,  "BLK" },	          		\
+		 { S_IFSOCK, "SOCK" })
 
 #define show_ref_type(type)						\
 	__print_symbolic(type,						\
@@ -101,8 +114,21 @@ struct find_free_extent_ctl;
 	EM( ALLOC_CHUNK_FORCE,		"ALLOC_CHUNK_FORCE")		\
 	EM( RUN_DELAYED_IPUTS,		"RUN_DELAYED_IPUTS")		\
 	EM( COMMIT_TRANS,		"COMMIT_TRANS")			\
+	EM( RECLAIM_ZONES,		"RECLAIM_ZONES")		\
 	EMe(RESET_ZONES,		"RESET_ZONES")
 
+#define TRANSACTION_STATES							\
+	EM( TRANS_STATE_RUNNING,		"TRANS_STATE_RUNNING")		\
+	EM( TRANS_STATE_COMMIT_PREP,		"TRANS_STATE_COMMIT_PREP")	\
+	EM( TRANS_STATE_COMMIT_START,		"TRANS_STATE_COMMIT_START")	\
+	EM( TRANS_STATE_COMMIT_DOING,		"TRANS_STATE_COMMIT_DOING")	\
+	EM( TRANS_STATE_UNBLOCKED,		"TRANS_STATE_UNBLOCKED")	\
+	EM( TRANS_STATE_SUPER_COMMITTED,	"TRANS_STATE_SUPER_COMMITTED")	\
+	EMe(TRANS_STATE_COMPLETED,		"TRANS_STATE_COMPLETED")
+
+#define LOG_MODES							\
+	EM( LOG_INODE_ALL,		"LOG_INODE_ALL")		\
+	EMe(LOG_INODE_EXISTS,		"LOG_INODE_EXISTS")
 /*
  * First define the enums in the above macros to be exported to userspace via
  * TRACE_DEFINE_ENUM().
@@ -118,6 +144,8 @@ FI_TYPES
 QGROUP_RSV_TYPES
 IO_TREE_OWNER
 FLUSH_STATES
+TRANSACTION_STATES
+LOG_MODES
 
 /*
  * Now redefine the EM and EMe macros to map the enums to the strings that will
@@ -180,25 +208,66 @@ FLUSH_STATES
 #define TP_printk_btrfs(fmt, args...) \
 	TP_printk("%pU: " fmt, __entry->fsid, args)
 
-TRACE_EVENT(btrfs_transaction_commit,
+TRACE_EVENT(btrfs_transaction_start,
 
-	TP_PROTO(const struct btrfs_fs_info *fs_info),
+	TP_PROTO(const struct btrfs_transaction *trans),
 
-	TP_ARGS(fs_info),
+	TP_ARGS(trans),
 
 	TP_STRUCT__entry_btrfs(
 		__field(	u64,  generation		)
-		__field(	u64,  root_objectid		)
 	),
 
-	TP_fast_assign_btrfs(fs_info,
-		__entry->generation	= fs_info->generation;
-		__entry->root_objectid	= BTRFS_ROOT_TREE_OBJECTID;
+	TP_fast_assign_btrfs(trans->fs_info,
+		__entry->generation	= trans->transid;
 	),
 
-	TP_printk_btrfs("root=%llu(%s) gen=%llu",
-		  show_root_type(__entry->root_objectid),
-		  __entry->generation)
+	TP_printk_btrfs("gen=%llu", __entry->generation)
+);
+
+TRACE_EVENT(btrfs_transaction_commit,
+
+	TP_PROTO(const struct btrfs_trans_handle *trans),
+
+	TP_ARGS(trans),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,  generation		)
+		__field(	bool, in_fsync			)
+		__field(	int,  state			)
+	),
+
+	TP_fast_assign_btrfs(trans->fs_info,
+		__entry->generation	= trans->transid;
+		__entry->in_fsync	= trans->in_fsync;
+		__entry->state		= trans->transaction->state;
+	),
+
+	TP_printk_btrfs("gen=%llu in_fsync=%d state=%d(%s)", __entry->generation,
+			__entry->in_fsync, __entry->state,
+			__print_symbolic(__entry->state, TRANSACTION_STATES))
+);
+
+TRACE_EVENT(btrfs_transaction_abort,
+
+	TP_PROTO(const struct btrfs_trans_handle *trans),
+
+	TP_ARGS(trans),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,  generation		)
+		__field(	bool, in_fsync			)
+		__field(	int,  error			)
+	),
+
+	TP_fast_assign_btrfs(trans->fs_info,
+		__entry->generation	= trans->transid;
+		__entry->in_fsync	= trans->in_fsync;
+		__entry->error	        = trans->aborted;
+	),
+
+	TP_printk_btrfs("gen=%llu in_fsync=%d error=%d", __entry->generation,
+			__entry->in_fsync, __entry->error)
 );
 
 DECLARE_EVENT_CLASS(btrfs__inode,
@@ -670,7 +739,7 @@ TRACE_EVENT(btrfs_finish_ordered_extent,
 	TP_printk_btrfs("root=%llu(%s) ino=%llu start=%llu len=%llu uptodate=%d",
 		  show_root_type(__entry->root_objectid),
 		  __entry->ino, __entry->start,
-		  __entry->len, !!__entry->uptodate)
+		  __entry->len, __entry->uptodate)
 );
 
 DECLARE_EVENT_CLASS(btrfs__writepage,
@@ -755,17 +824,18 @@ TRACE_EVENT(btrfs_writepage_end_io_hook,
 		  __entry->end, __entry->uptodate)
 );
 
-TRACE_EVENT(btrfs_sync_file,
+TRACE_EVENT(btrfs_sync_file_enter,
 
 	TP_PROTO(const struct file *file, int datasync),
 
 	TP_ARGS(file, datasync),
 
 	TP_STRUCT__entry_btrfs(
-		__field(	u64,	ino		)
-		__field(	u64,	parent		)
-		__field(	int,    datasync	)
-		__field(	u64,    root_objectid	)
+		__field(	u64,		ino		)
+		__field(        umode_t,        mode            )
+		__field(	u64,		parent		)
+		__field(	int,    	datasync	)
+		__field(	u64,    	root_objectid	)
 	),
 
 	TP_fast_assign(
@@ -778,13 +848,790 @@ TRACE_EVENT(btrfs_sync_file,
 		__entry->parent		= btrfs_ino(BTRFS_I(parent_inode));
 		__entry->datasync	= datasync;
 		__entry->root_objectid	= btrfs_root_id(BTRFS_I(inode)->root);
+		__entry->mode           = inode->i_mode;
 	),
 
-	TP_printk_btrfs("root=%llu(%s) ino=%llu parent=%llu datasync=%d",
-		  show_root_type(__entry->root_objectid),
-		  __entry->ino,
-		  __entry->parent,
-		  __entry->datasync)
+	TP_printk_btrfs("root=%llu(%s) ino=%llu type=%s parent=%llu datasync=%d",
+			show_root_type(__entry->root_objectid), __entry->ino,
+			show_inode_type(__entry->mode), __entry->parent,
+			__entry->datasync)
+);
+
+TRACE_EVENT(btrfs_sync_file_exit,
+
+	TP_PROTO(const struct file *file, int ret),
+
+	TP_ARGS(file, ret),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,	ino		)
+		__field(	int,    ret		)
+		__field(	u64,    root_objectid	)
+	),
+
+	TP_fast_assign(
+		struct btrfs_inode *inode = BTRFS_I(file_inode(file));
+
+		TP_fast_assign_fsid(inode->root->fs_info);
+		__entry->root_objectid	= btrfs_root_id(inode->root);
+		__entry->ino		= btrfs_ino(inode);
+		__entry->ret		= ret;
+	),
+
+	TP_printk_btrfs("root=%llu(%s) ino=%llu ret=%d",
+			show_root_type(__entry->root_objectid),
+			__entry->ino, __entry->ret)
+);
+
+TRACE_EVENT(btrfs_log_inode_parent_enter,
+
+	TP_PROTO(const struct btrfs_trans_handle *trans, struct btrfs_inode *inode),
+
+	TP_ARGS(trans, inode),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,     	root_objectid		)
+		__field(	u64,	 	ino			)
+		__field(	umode_t,	mode			)
+		__field(	u64,		transid			)
+		__field(	u64,		generation		)
+		__field(	u64,		logged_trans		)
+		__field(	u64,		last_unlink_trans	)
+		__field(	int,		last_sub_trans		)
+		__field(	int,		inode_last_log_commit	)
+		__field(	int,		root_last_log_commit	)
+	),
+
+	TP_fast_assign(
+		struct btrfs_root *root = inode->root;
+
+		TP_fast_assign_fsid(root->fs_info);
+		__entry->root_objectid		= btrfs_root_id(root);
+		__entry->ino			= btrfs_ino(inode);
+		__entry->mode			= inode->vfs_inode.i_mode;
+		__entry->transid		= trans->transid;
+		__entry->generation		= inode->generation;
+		spin_lock(&inode->lock);
+		__entry->logged_trans		= inode->logged_trans;
+		__entry->last_unlink_trans	= inode->last_unlink_trans;
+		__entry->last_sub_trans		= inode->last_sub_trans;
+		__entry->inode_last_log_commit	= inode->last_log_commit;
+		spin_unlock(&inode->lock);
+		__entry->root_last_log_commit	= btrfs_get_root_last_log_commit(root);
+	),
+
+	TP_printk_btrfs("root=%llu(%s) ino=%llu type=%s transid=%llu gen=%llu"
+			" logged_trans=%llu last_unlink_trans=%llu last_sub_trans=%d"
+			" inode_last_log_commit=%d root_last_log_commit=%d",
+			show_root_type(__entry->root_objectid), __entry->ino,
+			show_inode_type(__entry->mode), __entry->transid,
+			__entry->generation, __entry->logged_trans,
+			__entry->last_unlink_trans, __entry->last_sub_trans,
+			__entry->inode_last_log_commit, __entry->root_last_log_commit)
+);
+
+TRACE_EVENT(btrfs_log_inode_parent_exit,
+
+	TP_PROTO(const struct btrfs_trans_handle *trans,
+		 const struct btrfs_inode *inode,
+		 int ret),
+
+	TP_ARGS(trans, inode, ret),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,     	root_objectid	)
+		__field(	u64,	 	ino		)
+		__field(	u64,		transid		)
+		__field(	int,		ret		)
+	),
+
+	TP_fast_assign(
+		TP_fast_assign_fsid(inode->root->fs_info);
+		__entry->root_objectid		= btrfs_root_id(inode->root);
+		__entry->ino			= btrfs_ino(inode);
+		__entry->transid		= trans->transid;
+		__entry->ret			= ret;
+	),
+
+	TP_printk_btrfs("root=%llu(%s) ino=%llu transid=%llu ret=%d",
+			show_root_type(__entry->root_objectid), __entry->ino,
+			__entry->transid, __entry->ret)
+);
+
+TRACE_EVENT(btrfs_log_inode_enter,
+
+	TP_PROTO(const struct btrfs_trans_handle *trans, struct btrfs_inode *inode,
+		 const struct btrfs_log_ctx *ctx, int log_mode),
+
+	TP_ARGS(trans, inode, ctx, log_mode),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,     		root_objectid			)
+		__field(	u64,	 		ino				)
+		__field(	umode_t,		mode				)
+		__field(	u64,			transid				)
+		__field(	u64,			generation			)
+		__field(	u64,			logged_trans			)
+		__field(	u64,			last_unlink_trans		)
+		__field(	u64,			last_reflink_trans		)
+		__field(	int,			last_sub_trans			)
+		__field(	int,			last_log_commit			)
+		__field(	bool,			logging_new_name		)
+		__field(	bool,			logging_new_delayed_dentries	)
+		__field(        bool,			is_conflict_inode		)
+		__field(	bool,			full_sync			)
+		__field(	bool,			copy_everything			)
+		__field(	bool,			no_xattrs			)
+		__field(	int,   			log_mode			)
+	),
+
+	TP_fast_assign(
+		TP_fast_assign_fsid(inode->root->fs_info);
+		__entry->root_objectid			= btrfs_root_id(inode->root);
+		__entry->ino				= btrfs_ino(inode);
+		__entry->mode				= inode->vfs_inode.i_mode;
+		__entry->transid			= trans->transid;
+		__entry->generation			= inode->generation;
+		spin_lock(&inode->lock);
+		__entry->logged_trans			= inode->logged_trans;
+		__entry->last_unlink_trans		= inode->last_unlink_trans;
+		__entry->last_reflink_trans		= inode->last_reflink_trans;
+		__entry->last_sub_trans			= inode->last_sub_trans;
+		__entry->last_log_commit		= inode->last_log_commit;
+		spin_unlock(&inode->lock);
+		__entry->logging_new_name		= ctx->logging_new_name;
+		__entry->logging_new_delayed_dentries	= ctx->logging_new_delayed_dentries;
+		__entry->is_conflict_inode		= ctx->logging_conflict_inodes;
+		__entry->full_sync			=
+			test_bit(BTRFS_INODE_NEEDS_FULL_SYNC, &inode->runtime_flags);
+		__entry->copy_everything		=
+			test_bit(BTRFS_INODE_COPY_EVERYTHING, &inode->runtime_flags);
+		__entry->no_xattrs			=
+			test_bit(BTRFS_INODE_NO_XATTRS, &inode->runtime_flags);
+		__entry->log_mode			= log_mode;
+	),
+
+	TP_printk_btrfs("root=%llu(%s) ino=%llu type=%s transid=%llu gen=%llu"
+			" logged_trans=%llu last_unlink_trans=%llu"
+			" last_reflink_trans=%llu last_sub_trans=%d last_log_commit=%d"
+			" logging_new_name=%d logging_new_delayed_dentries=%d"
+			" is_conflict_inode=%d full_sync=%d copy_everything=%d"
+			" no_xattrs=%d log_mode=%d(%s)",
+			show_root_type(__entry->root_objectid), __entry->ino,
+			show_inode_type(__entry->mode), __entry->transid,
+			__entry->generation, __entry->logged_trans,
+			__entry->last_unlink_trans, __entry->last_reflink_trans,
+			__entry->last_sub_trans, __entry->last_log_commit,
+			__entry->logging_new_name, __entry->logging_new_delayed_dentries,
+			__entry->is_conflict_inode, __entry->log_mode,
+			__entry->full_sync, __entry->copy_everything, __entry->no_xattrs,
+			__print_symbolic(__entry->log_mode, LOG_MODES))
+);
+
+TRACE_EVENT(btrfs_log_inode_exit,
+
+	TP_PROTO(const struct btrfs_trans_handle *trans, struct btrfs_inode *inode,
+		 int ret),
+
+	TP_ARGS(trans, inode, ret),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,    	root_objectid		)
+		__field(	u64,		ino			)
+		__field(	u64,		transid			)
+		__field(	u64,		logged_trans		)
+		__field(	u64,		last_reflink_trans	)
+		__field(	int,		last_sub_trans		)
+		__field(	int,		last_log_commit		)
+		__field(	int,		ret			)
+	),
+
+	TP_fast_assign(
+		TP_fast_assign_fsid(inode->root->fs_info);
+		__entry->root_objectid			= btrfs_root_id(inode->root);
+		__entry->ino				= btrfs_ino(inode);
+		__entry->transid			= trans->transid;
+		spin_lock(&inode->lock);
+		__entry->logged_trans			= inode->logged_trans;
+		__entry->last_reflink_trans		= inode->last_reflink_trans;
+		__entry->last_sub_trans			= inode->last_sub_trans;
+		__entry->last_log_commit		= inode->last_log_commit;
+		spin_unlock(&inode->lock);
+		__entry->ret				= ret;
+	),
+
+	TP_printk_btrfs("root=%llu(%s) ino=%llu transid=%llu logged_trans=%llu"
+			" last_reflink_trans=%llu last_sub_trans=%d"
+			" last_log_commit=%d ret=%d",
+			show_root_type(__entry->root_objectid), __entry->ino,
+			__entry->transid, __entry->logged_trans,
+			__entry->last_reflink_trans, __entry->last_sub_trans,
+			__entry->last_log_commit, __entry->ret)
+);
+
+TRACE_EVENT(btrfs_log_all_parents_enter,
+
+	TP_PROTO(const struct btrfs_trans_handle *trans,
+		 const struct btrfs_inode *inode),
+
+	TP_ARGS(trans, inode),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,     	root_objectid		)
+		__field(	u64,	 	ino			)
+		__field(	u64,		transid			)
+	),
+
+	TP_fast_assign(
+		TP_fast_assign_fsid(inode->root->fs_info);
+		__entry->root_objectid		= btrfs_root_id(inode->root);
+		__entry->ino			= btrfs_ino(inode);
+		__entry->transid		= trans->transid;
+	),
+
+	TP_printk_btrfs("root=%llu(%s) ino=%llu transid=%llu",
+			show_root_type(__entry->root_objectid), __entry->ino,
+			__entry->transid)
+);
+
+TRACE_EVENT(btrfs_log_all_parents_exit,
+
+	TP_PROTO(const struct btrfs_trans_handle *trans,
+		 const struct btrfs_inode *inode,
+		 int ret),
+
+	TP_ARGS(trans, inode, ret),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,     	root_objectid		)
+		__field(	u64,	 	ino			)
+		__field(	u64,		transid			)
+		__field(	int,		ret			)
+	),
+
+	TP_fast_assign(
+		TP_fast_assign_fsid(inode->root->fs_info);
+		__entry->root_objectid		= btrfs_root_id(inode->root);
+		__entry->ino			= btrfs_ino(inode);
+		__entry->transid		= trans->transid;
+		__entry->ret			= ret;
+	),
+
+	TP_printk_btrfs("root=%llu(%s) ino=%llu transid=%llu ret=%d",
+			show_root_type(__entry->root_objectid), __entry->ino,
+			__entry->transid, __entry->ret)
+);
+
+TRACE_EVENT(btrfs_log_all_new_ancestors_enter,
+
+	TP_PROTO(const struct btrfs_trans_handle *trans,
+		 const struct btrfs_inode *inode),
+
+	TP_ARGS(trans, inode),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,     	root_objectid		)
+		__field(	u64,	 	ino			)
+		__field(	u64,		transid			)
+		__field(	unsigned int,	nlink			)
+	),
+
+	TP_fast_assign(
+		TP_fast_assign_fsid(inode->root->fs_info);
+		__entry->root_objectid		= btrfs_root_id(inode->root);
+		__entry->ino			= btrfs_ino(inode);
+		__entry->transid		= trans->transid;
+		__entry->nlink			= inode->vfs_inode.i_nlink;
+	),
+
+	TP_printk_btrfs("root=%llu(%s) ino=%llu transid=%llu nlink=%u",
+			show_root_type(__entry->root_objectid), __entry->ino,
+			__entry->transid, __entry->nlink)
+);
+
+TRACE_EVENT(btrfs_log_all_new_ancestors_exit,
+
+	TP_PROTO(const struct btrfs_trans_handle *trans,
+		 const struct btrfs_inode *inode,
+		 int ret),
+
+	TP_ARGS(trans, inode, ret),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,     	root_objectid		)
+		__field(	u64,	 	ino			)
+		__field(	u64,		transid			)
+		__field(	int,		ret			)
+	),
+
+	TP_fast_assign(
+		TP_fast_assign_fsid(inode->root->fs_info);
+		__entry->root_objectid		= btrfs_root_id(inode->root);
+		__entry->ino			= btrfs_ino(inode);
+		__entry->transid		= trans->transid;
+		__entry->ret		= ret;
+	),
+
+	TP_printk_btrfs("root=%llu(%s) ino=%llu transid=%llu ret=%d",
+			show_root_type(__entry->root_objectid), __entry->ino,
+			__entry->transid, __entry->ret)
+);
+
+TRACE_EVENT(btrfs_log_new_dir_dentries_enter,
+
+	TP_PROTO(const struct btrfs_trans_handle *trans,
+		 const struct btrfs_inode *inode),
+
+	TP_ARGS(trans, inode),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,     	root_objectid		)
+		__field(	u64,	 	ino			)
+		__field(	u64,		transid			)
+	),
+
+	TP_fast_assign(
+		TP_fast_assign_fsid(inode->root->fs_info);
+		__entry->root_objectid		= btrfs_root_id(inode->root);
+		__entry->ino			= btrfs_ino(inode);
+		__entry->transid		= trans->transid;
+	),
+
+	TP_printk_btrfs("root=%llu(%s) ino=%llu transid=%llu",
+			show_root_type(__entry->root_objectid), __entry->ino,
+			__entry->transid)
+);
+
+TRACE_EVENT(btrfs_log_new_dir_dentries_exit,
+
+	TP_PROTO(const struct btrfs_trans_handle *trans,
+		 const struct btrfs_inode *inode,
+		 int ret),
+
+	TP_ARGS(trans, inode, ret),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,     	root_objectid		)
+		__field(	u64,	 	ino			)
+		__field(	u64,		transid			)
+		__field(	int,	 	ret			)
+	),
+
+	TP_fast_assign(
+		TP_fast_assign_fsid(inode->root->fs_info);
+		__entry->root_objectid		= btrfs_root_id(inode->root);
+		__entry->ino			= btrfs_ino(inode);
+		__entry->transid		= trans->transid;
+		__entry->ret			= ret;
+	),
+
+	TP_printk_btrfs("root=%llu(%s) ino=%llu transid=%llu ret=%d",
+			show_root_type(__entry->root_objectid), __entry->ino,
+			__entry->transid, __entry->ret)
+);
+
+TRACE_EVENT(btrfs_add_conflicting_inode_enter,
+
+	TP_PROTO(const struct btrfs_trans_handle *trans,
+		 const struct btrfs_log_ctx *ctx,
+		 u64 ino, u64 parent),
+
+	TP_ARGS(trans, ctx, ino, parent),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,     	root_objectid		)
+		__field(	u64,		transid			)
+		__field(	u64,	 	ctx_ino			)
+		__field(	u64,	 	conflict_ino		)
+		__field(	u64,	 	conflict_ino_parent	)
+	),
+
+	TP_fast_assign(
+		TP_fast_assign_fsid(trans->fs_info);
+		__entry->root_objectid		= btrfs_root_id(ctx->inode->root);
+		__entry->transid		= trans->transid;
+		__entry->ctx_ino		= btrfs_ino(ctx->inode);
+		__entry->conflict_ino		= ino;
+		__entry->conflict_ino_parent	= parent;
+	),
+
+	TP_printk_btrfs("root=%llu(%s) transid=%llu ctx_ino=%llu conflict_ino=%llu"
+			" conflict_ino_parent=%llu",
+			show_root_type(__entry->root_objectid), __entry->transid,
+			__entry->ctx_ino, __entry->conflict_ino,
+			__entry->conflict_ino_parent)
+);
+
+TRACE_EVENT(btrfs_add_conflicting_inode_exit,
+
+	TP_PROTO(const struct btrfs_trans_handle *trans,
+		 const struct btrfs_log_ctx *ctx,
+		 u64 ino, u64 parent, int ret),
+
+	TP_ARGS(trans, ctx, ino, parent, ret),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,     	root_objectid		)
+		__field(	u64,		transid			)
+		__field(	u64,	 	ctx_ino			)
+		__field(	u64,	 	conflict_ino		)
+		__field(	u64,	 	conflict_ino_parent	)
+		__field(	int,	 	ret			)
+	),
+
+	TP_fast_assign(
+		TP_fast_assign_fsid(trans->fs_info);
+		__entry->root_objectid		= btrfs_root_id(ctx->inode->root);
+		__entry->transid		= trans->transid;
+		__entry->ctx_ino		= btrfs_ino(ctx->inode);
+		__entry->conflict_ino		= ino;
+		__entry->conflict_ino_parent	= parent;
+		__entry->ret			= ret;
+	),
+
+	TP_printk_btrfs("root=%llu(%s) transid=%llu ctx_ino=%llu conflict_ino=%llu"
+			" conflict_ino_parent=%llu ret=%d",
+			show_root_type(__entry->root_objectid), __entry->transid,
+			__entry->ctx_ino, __entry->conflict_ino,
+			__entry->conflict_ino_parent, __entry->ret)
+);
+
+TRACE_EVENT(btrfs_log_conflicting_inodes_enter,
+
+	TP_PROTO(const struct btrfs_trans_handle *trans,
+		 const struct btrfs_log_ctx *ctx),
+
+	TP_ARGS(trans, ctx),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,     	root_objectid		)
+		__field(	u64,		transid			)
+		__field(	u64,	 	ctx_ino			)
+	),
+
+	TP_fast_assign(
+		TP_fast_assign_fsid(trans->fs_info);
+		__entry->root_objectid		= btrfs_root_id(ctx->inode->root);
+		__entry->transid		= trans->transid;
+		__entry->ctx_ino		= btrfs_ino(ctx->inode);
+	),
+
+	TP_printk_btrfs("root=%llu(%s) transid=%llu ctx_ino=%llu",
+			show_root_type(__entry->root_objectid), __entry->transid,
+			__entry->ctx_ino)
+);
+
+TRACE_EVENT(btrfs_log_conflicting_inodes_exit,
+
+	TP_PROTO(const struct btrfs_trans_handle *trans,
+		 const struct btrfs_log_ctx *ctx,
+		 int ret),
+
+	TP_ARGS(trans, ctx, ret),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,     	root_objectid		)
+		__field(	u64,		transid			)
+		__field(	u64,	 	ctx_ino			)
+		__field(	int,		ret			)
+	),
+
+	TP_fast_assign(
+		TP_fast_assign_fsid(trans->fs_info);
+		__entry->root_objectid		= btrfs_root_id(ctx->inode->root);
+		__entry->transid		= trans->transid;
+		__entry->ctx_ino		= btrfs_ino(ctx->inode);
+		__entry->ret			= ret;
+	),
+
+	TP_printk_btrfs("root=%llu(%s) transid=%llu ctx_ino=%llu ret=%d",
+			show_root_type(__entry->root_objectid), __entry->transid,
+			__entry->ctx_ino, __entry->ret)
+);
+
+TRACE_EVENT(btrfs_log_new_delayed_dentries_enter,
+
+	TP_PROTO(const struct btrfs_trans_handle *trans,
+		 const struct btrfs_inode *inode),
+
+	TP_ARGS(trans, inode),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,     	root_objectid		)
+		__field(	u64,		transid			)
+		__field(	u64,	 	ino			)
+	),
+
+	TP_fast_assign(
+		TP_fast_assign_fsid(trans->fs_info);
+		__entry->root_objectid		= btrfs_root_id(inode->root);
+		__entry->transid		= trans->transid;
+		__entry->ino			= btrfs_ino(inode);
+	),
+
+	TP_printk_btrfs("root=%llu(%s) transid=%llu ino=%llu",
+			show_root_type(__entry->root_objectid), __entry->transid,
+			__entry->ino)
+);
+
+TRACE_EVENT(btrfs_log_new_delayed_dentries_exit,
+
+	TP_PROTO(const struct btrfs_trans_handle *trans,
+		 const struct btrfs_inode *inode,
+		 int ret),
+
+	TP_ARGS(trans, inode, ret),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,     	root_objectid		)
+		__field(	u64,		transid			)
+		__field(	u64,	 	ino			)
+		__field(	int,	 	ret			)
+	),
+
+	TP_fast_assign(
+		TP_fast_assign_fsid(trans->fs_info);
+		__entry->root_objectid		= btrfs_root_id(inode->root);
+		__entry->transid		= trans->transid;
+		__entry->ino			= btrfs_ino(inode);
+		__entry->ret			= ret;
+	),
+
+	TP_printk_btrfs("root=%llu(%s) transid=%llu ino=%llu ret=%d",
+			show_root_type(__entry->root_objectid), __entry->transid,
+			__entry->ino, __entry->ret)
+);
+
+TRACE_EVENT(btrfs_record_unlink_dir,
+
+	TP_PROTO(const struct btrfs_trans_handle *trans,
+		 const struct btrfs_inode *dir,
+		 const struct btrfs_inode *inode,
+		 bool for_rename),
+
+	TP_ARGS(trans, dir, inode, for_rename),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,     	root_objectid		)
+		__field(	u64,		transid			)
+		__field(	u64,	 	ino			)
+		__field(	u64,	 	dir			)
+		__field(	bool,	 	for_rename		)
+	),
+
+	TP_fast_assign(
+		TP_fast_assign_fsid(trans->fs_info);
+		__entry->root_objectid		= btrfs_root_id(inode->root);
+		__entry->transid		= trans->transid;
+		__entry->ino			= btrfs_ino(inode);
+		__entry->dir			= btrfs_ino(dir);
+		__entry->for_rename		= for_rename;
+	),
+
+	TP_printk_btrfs("root=%llu(%s) transid=%llu ino=%llu dir=%llu for_rename=%d",
+			show_root_type(__entry->root_objectid), __entry->transid,
+			__entry->ino, __entry->dir, __entry->for_rename)
+);
+
+TRACE_EVENT(btrfs_record_snapshot_destroy,
+
+	TP_PROTO(const struct btrfs_trans_handle *trans,
+		 const struct btrfs_inode *dir),
+
+	TP_ARGS(trans, dir),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,     	root_objectid		)
+		__field(	u64,		transid			)
+		__field(	u64,	 	dir			)
+	),
+
+	TP_fast_assign(
+		TP_fast_assign_fsid(trans->fs_info);
+		__entry->root_objectid		= btrfs_root_id(dir->root);
+		__entry->transid		= trans->transid;
+		__entry->dir			= btrfs_ino(dir);
+	),
+
+	TP_printk_btrfs("root=%llu(%s) transid=%llu dir=%llu",
+			show_root_type(__entry->root_objectid), __entry->transid,
+			__entry->dir)
+);
+
+TRACE_EVENT(btrfs_record_new_subvolume,
+
+	TP_PROTO(const struct btrfs_trans_handle *trans,
+		 const struct btrfs_inode *dir),
+
+	TP_ARGS(trans, dir),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,     	root_objectid		)
+		__field(	u64,		transid			)
+		__field(	u64,	 	dir			)
+	),
+
+	TP_fast_assign(
+		TP_fast_assign_fsid(trans->fs_info);
+		__entry->root_objectid		= btrfs_root_id(dir->root);
+		__entry->transid		= trans->transid;
+		__entry->dir			= btrfs_ino(dir);
+	),
+
+	TP_printk_btrfs("root=%llu(%s) transid=%llu dir=%llu",
+			show_root_type(__entry->root_objectid), __entry->transid,
+			__entry->dir)
+);
+
+TRACE_EVENT(btrfs_log_new_name_enter,
+
+	TP_PROTO(const struct btrfs_trans_handle *trans,
+		 const struct btrfs_inode *inode,
+		 const struct btrfs_inode *old_dir,
+		 u64 old_dir_index),
+
+	TP_ARGS(trans, inode, old_dir, old_dir_index),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,     	root_objectid		)
+		__field(	u64,		transid			)
+		__field(	u64,	 	ino			)
+		__field(	umode_t,	mode			)
+		__field(	u64,	 	old_dir_ino		)
+		__field(	u64,		old_dir_index		)
+	),
+
+	TP_fast_assign(
+		TP_fast_assign_fsid(trans->fs_info);
+		__entry->root_objectid		= btrfs_root_id(inode->root);
+		__entry->transid		= trans->transid;
+		__entry->ino			= btrfs_ino(inode);
+		__entry->mode			= inode->vfs_inode.i_mode;
+		__entry->old_dir_ino		= old_dir ? btrfs_ino(old_dir) : 0;
+		__entry->old_dir_index		= old_dir_index;
+	),
+
+	TP_printk_btrfs("root=%llu(%s) transid=%llu ino=%llu type=%s"
+			" old_dir=%llu old_dir_index=%llu",
+			show_root_type(__entry->root_objectid), __entry->transid,
+			__entry->ino, show_inode_type(__entry->mode),
+			__entry->old_dir_ino, __entry->old_dir_index)
+);
+
+TRACE_EVENT(btrfs_log_new_name_exit,
+
+	TP_PROTO(const struct btrfs_trans_handle *trans,
+		 const struct btrfs_inode *inode,
+		 const struct btrfs_inode *old_dir,
+		 int ret),
+
+	TP_ARGS(trans, inode, old_dir, ret),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,     	root_objectid		)
+		__field(	u64,		transid			)
+		__field(	u64,	 	ino			)
+		__field(	u64,	 	old_dir_ino		)
+		__field(	int,		ret			)
+	),
+
+	TP_fast_assign(
+		TP_fast_assign_fsid(trans->fs_info);
+		__entry->root_objectid		= btrfs_root_id(inode->root);
+		__entry->transid		= trans->transid;
+		__entry->ino			= btrfs_ino(inode);
+		__entry->old_dir_ino		= old_dir ? btrfs_ino(old_dir) : 0;
+		__entry->ret			= ret;
+	),
+
+	TP_printk_btrfs("root=%llu(%s) transid=%llu ino=%llu old_dir=%llu ret=%d",
+			show_root_type(__entry->root_objectid), __entry->transid,
+			__entry->ino, __entry->old_dir_ino, __entry->ret)
+);
+
+/* Ideally call this while under root->log_mutex (but not always possible). */
+TRACE_EVENT(btrfs_sync_log_enter,
+
+	TP_PROTO(const struct btrfs_trans_handle *trans,
+		 const struct btrfs_root *root,
+		 const struct btrfs_log_ctx *ctx),
+
+	TP_ARGS(trans, root, ctx),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,     	root_objectid		)
+		__field(	u64,		transid			)
+		__field(	int,	 	ctx_log_transid		)
+		__field(	int,		root_log_transid	)
+		__field(	int,	 	log_transid_committed	)
+		__field(	bool,	 	log_committing		)
+		__field(	bool,	 	log_committing_prev	)
+		__field(	int,		log_writers		)
+	),
+
+	TP_fast_assign(
+		TP_fast_assign_fsid(trans->fs_info);
+		__entry->root_objectid		= btrfs_root_id(root);
+		__entry->transid		= trans->transid;
+		__entry->ctx_log_transid	= ctx->log_transid;
+		__entry->root_log_transid	= btrfs_get_root_log_transid(root);
+		__entry->log_transid_committed	=
+			data_race(root->log_transid_committed);
+		__entry->log_committing		=
+			atomic_read(&root->log_commit[ctx->log_transid % 2]);
+		__entry->log_committing_prev	=
+			atomic_read(&root->log_commit[(ctx->log_transid + 1) % 2]);
+		__entry->log_writers		= atomic_read(&root->log_writers);
+	),
+
+	TP_printk_btrfs("root=%llu(%s) transid=%llu ctx_log_transid=%d"
+			" root_log_transid=%d log_transid_committed=%d"
+			" log_committing=%d log_committing_prev=%d log_writers=%d",
+			show_root_type(__entry->root_objectid), __entry->transid,
+			__entry->ctx_log_transid, __entry->root_log_transid,
+			__entry->log_transid_committed, __entry->log_committing,
+			__entry->log_committing_prev, __entry->log_writers)
+);
+
+/*
+ * Ideally call this while under root->log_mutex and in the same critical
+ * section that calls the btrfs_sync_log_enter() trace event (though it's not
+ * always possible).
+ */
+TRACE_EVENT(btrfs_sync_log_exit,
+
+	TP_PROTO(const struct btrfs_trans_handle *trans,
+		 const struct btrfs_root *root,
+		 const struct btrfs_log_ctx *ctx,
+		 int ret),
+
+	TP_ARGS(trans, root, ctx, ret),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,     	root_objectid		)
+		__field(	u64,		transid			)
+		__field(	int,	 	ctx_log_transid		)
+		__field(	int,		root_log_transid	)
+		__field(	int,	 	log_transid_committed	)
+		__field(	int,		ret			)
+	),
+
+	TP_fast_assign(
+		TP_fast_assign_fsid(trans->fs_info);
+		__entry->root_objectid		= btrfs_root_id(root);
+		__entry->transid		= trans->transid;
+		__entry->ctx_log_transid	= ctx->log_transid;
+		__entry->root_log_transid	= btrfs_get_root_log_transid(root);
+		__entry->log_transid_committed	=
+			data_race(root->log_transid_committed);
+		__entry->ret			= ret;
+	),
+
+	TP_printk_btrfs("root=%llu(%s) transid=%llu ctx_log_transid=%d"
+			" root_log_transid=%d log_transid_committed=%d ret=%d",
+			show_root_type(__entry->root_objectid), __entry->transid,
+			__entry->ctx_log_transid, __entry->root_log_transid,
+			__entry->log_transid_committed, __entry->ret)
 );
 
 TRACE_EVENT(btrfs_sync_fs,

@@ -75,12 +75,16 @@ struct vdso_sym {
 };
 
 struct vdso_sym required_syms[] = {
-	{"__kernel_vsyscall", true},
-	{"__kernel_sigreturn", true},
-	{"__kernel_rt_sigreturn", true},
-	{"int80_landing_pad", true},
-	{"vdso32_rt_sigreturn_landing_pad", true},
-	{"vdso32_sigreturn_landing_pad", true},
+	{"__kernel_vsyscall",				true},
+	{"__kernel_sigreturn",				true},
+	{"__kernel_rt_sigreturn",			true},
+	{"int80_landing_pad",				true},
+	{"vdso32_rt_sigreturn_landing_pad",		true},
+	{"vdso32_sigreturn_landing_pad",		true},
+	{"__futex_list64_try_unlock_cs_start",		true},
+	{"__futex_list64_try_unlock_cs_end",		true},
+	{"__futex_list32_try_unlock_cs_start",		true},
+	{"__futex_list32_try_unlock_cs_end",		true},
 };
 
 __attribute__((format(printf, 1, 2))) __attribute__((noreturn))

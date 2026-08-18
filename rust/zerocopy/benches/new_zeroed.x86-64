@@ -1,0 +1,3 @@
+bench_new_zeroed:
+	xor eax, eax
+	ret

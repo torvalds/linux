@@ -64,7 +64,7 @@
  *   Root KHO Node (/):
  *     - compatible: "kho-v3"
  *
- *       Indentifies the overall KHO ABI version.
+ *       Identifies the overall KHO ABI version.
  *
  *     - preserved-memory-map: u64
  *
@@ -90,7 +90,7 @@
  */
 
 /* The compatible string for the KHO FDT root node. */
-#define KHO_FDT_COMPATIBLE "kho-v3"
+#define KHO_FDT_COMPATIBLE "kho-v4"
 
 /* The FDT property for the preserved memory map. */
 #define KHO_FDT_MEMORY_MAP_PROP_NAME "preserved-memory-map"

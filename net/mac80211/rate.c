@@ -4,7 +4,7 @@
  * Copyright 2005-2006, Devicescape Software, Inc.
  * Copyright (c) 2006 Jiri Benc <jbenc@suse.cz>
  * Copyright 2017	Intel Deutschland GmbH
- * Copyright (C) 2019, 2022-2025 Intel Corporation
+ * Copyright (C) 2019, 2022-2026 Intel Corporation
  */
 
 #include <linux/kernel.h>
@@ -37,8 +37,6 @@ void rate_control_rate_init(struct link_sta_info *link_sta)
 	void *priv_sta = sta->rate_ctrl_priv;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_chanctx_conf *chanctx_conf;
-
-	ieee80211_sta_init_nss(link_sta);
 
 	if (!ref)
 		return;
@@ -603,14 +601,8 @@ static void rate_idx_match_mask(s8 *rate_idx, u16 *rate_flags,
 			return;
 
 		/* if HT BSS, and we handle a data frame, also try HT rates */
-		switch (chan_width) {
-		case NL80211_CHAN_WIDTH_20_NOHT:
-		case NL80211_CHAN_WIDTH_5:
-		case NL80211_CHAN_WIDTH_10:
+		if (chan_width == NL80211_CHAN_WIDTH_20_NOHT)
 			return;
-		default:
-			break;
-		}
 
 		*rate_idx = 0;
 		/* keep protection flags */

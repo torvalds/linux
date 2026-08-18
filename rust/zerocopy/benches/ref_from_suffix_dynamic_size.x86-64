@@ -1,0 +1,13 @@
+bench_ref_from_suffix_dynamic_size:
+	mov rdx, rsi
+	lea ecx, [rsi + rdi]
+	mov eax, edx
+	and eax, 1
+	add rax, rdi
+	xor esi, esi
+	sub rdx, 4
+	cmovb rax, rsi
+	shr rdx
+	test cl, 1
+	cmovne rax, rsi
+	ret

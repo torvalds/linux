@@ -102,7 +102,7 @@
  * active CPU/group information atomic_try_cmpxchg() is used instead and only
  * the per CPU tmigr_cpu->lock is held.
  *
- * During the setup of groups tmigr_level_list is required. It is protected by
+ * During the setup of groups, hier->level_list is required. It is protected by
  * @tmigr_mutex.
  *
  * When @timer_base->lock as well as tmigr related locks are required, the lock
@@ -416,12 +416,11 @@
  */
 
 static DEFINE_MUTEX(tmigr_mutex);
-static struct list_head *tmigr_level_list __read_mostly;
+
+static LIST_HEAD(tmigr_hierarchy_list);
 
 static unsigned int tmigr_hierarchy_levels __read_mostly;
 static unsigned int tmigr_crossnode_level __read_mostly;
-
-static struct tmigr_group *tmigr_root;
 
 static DEFINE_PER_CPU(struct tmigr_cpu, tmigr_cpu);
 
@@ -1469,6 +1468,34 @@ static long tmigr_trigger_active(void *unused)
 	return 0;
 }
 
+static unsigned int tmigr_get_capacity(int cpu)
+{
+	/*
+	 * nohz_full CPUs need to make sure there is always an available (online)
+	 * and never idle migrator to handle all their global timers. That duty
+	 * is served by the timekeeper which then never stops its tick. But the
+	 * timekeeper must then belong to the same hierarchy as all the nohz_full
+	 * CPUs. Simply turn off capacity awareness when nohz_full is running.
+	 */
+	if (tick_nohz_full_enabled() || !IS_ENABLED(CONFIG_BROKEN))
+		return SCHED_CAPACITY_SCALE;
+	else
+		return arch_scale_cpu_capacity(cpu);
+}
+
+static struct tmigr_hierarchy *__tmigr_get_hierarchy(int cpu)
+{
+	unsigned int capacity = tmigr_get_capacity(cpu);
+	struct tmigr_hierarchy *iter;
+
+	list_for_each_entry(iter, &tmigr_hierarchy_list, node) {
+		if (iter->capacity == capacity)
+			return iter;
+	}
+
+	return NULL;
+}
+
 static int tmigr_clear_cpu_available(unsigned int cpu)
 {
 	struct tmigr_cpu *tmc = this_cpu_ptr(&tmigr_cpu);
@@ -1493,8 +1520,21 @@ static int tmigr_clear_cpu_available(unsigned int cpu)
 	}
 
 	if (firstexp != KTIME_MAX) {
-		migrator = cpumask_any(tmigr_available_cpumask);
-		work_on_cpu(migrator, tmigr_trigger_active, NULL);
+		struct tmigr_hierarchy *hier = __tmigr_get_hierarchy(cpu);
+
+		if (WARN_ON_ONCE(!hier))
+			return -EINVAL;
+
+		migrator = cpumask_any_and(tmigr_available_cpumask, hier->cpumask);
+		if (migrator < nr_cpu_ids) {
+			work_on_cpu(migrator, tmigr_trigger_active, NULL);
+		} else {
+			/*
+			 * If deactivation returned an expiration, it belongs to an available
+			 * nohz CPU in the hierarchy.
+			 */
+			WARN_ONCE(1, "Expected available CPU in the hierarchy\n");
+		}
 	}
 
 	return 0;
@@ -1657,14 +1697,14 @@ static void tmigr_init_group(struct tmigr_group *group, unsigned int lvl,
 	group->groupevt.ignore = true;
 }
 
-static struct tmigr_group *tmigr_get_group(int node, unsigned int lvl)
+static struct tmigr_group *tmigr_get_group(struct tmigr_hierarchy *hier, int node, unsigned int lvl)
 {
 	struct tmigr_group *tmp, *group = NULL;
 
 	lockdep_assert_held(&tmigr_mutex);
 
 	/* Try to attach to an existing group first */
-	list_for_each_entry(tmp, &tmigr_level_list[lvl], list) {
+	list_for_each_entry(tmp, &hier->level_list[lvl], list) {
 		/*
 		 * If @lvl is below the cross NUMA node level, check whether
 		 * this group belongs to the same NUMA node.
@@ -1698,14 +1738,14 @@ static struct tmigr_group *tmigr_get_group(int node, unsigned int lvl)
 	tmigr_init_group(group, lvl, node);
 
 	/* Setup successful. Add it to the hierarchy */
-	list_add(&group->list, &tmigr_level_list[lvl]);
+	list_add(&group->list, &hier->level_list[lvl]);
 	trace_tmigr_group_set(group);
 	return group;
 }
 
-static bool tmigr_init_root(struct tmigr_group *group, bool activate)
+static bool tmigr_init_root(struct tmigr_hierarchy *hier, struct tmigr_group *group, bool activate)
 {
-	if (!group->parent && group != tmigr_root) {
+	if (!group->parent && group != hier->root) {
 		/*
 		 * This is the new top-level, prepare its groupmask in advance
 		 * to avoid accidents where yet another new top-level is
@@ -1721,11 +1761,10 @@ static bool tmigr_init_root(struct tmigr_group *group, bool activate)
 
 }
 
-static void tmigr_connect_child_parent(struct tmigr_group *child,
-				       struct tmigr_group *parent,
-				       bool activate)
+static void tmigr_connect_child_parent(struct tmigr_hierarchy *hier, struct tmigr_group *child,
+				       struct tmigr_group *parent, bool activate)
 {
-	if (tmigr_init_root(parent, activate)) {
+	if (tmigr_init_root(hier, parent, activate)) {
 		/*
 		 * The previous top level had prepared its groupmask already,
 		 * simply account it in advance as the first child. If some groups
@@ -1758,13 +1797,13 @@ static void tmigr_connect_child_parent(struct tmigr_group *child,
 	 */
 	smp_store_release(&child->parent, parent);
 
-	trace_tmigr_connect_child_parent(child);
+	trace_tmigr_connect_child_parent(hier, child);
 }
 
-static int tmigr_setup_groups(unsigned int cpu, unsigned int node,
-			      struct tmigr_group *start, bool activate)
+static int tmigr_setup_groups(struct tmigr_hierarchy *hier, unsigned int cpu,
+			      unsigned int node, struct tmigr_group *start, bool activate)
 {
-	struct tmigr_group *group, *child, **stack;
+	struct tmigr_group *root = hier->root, *group, *child, **stack;
 	int i, top = 0, err = 0, start_lvl = 0;
 	bool root_mismatch = false;
 
@@ -1777,11 +1816,11 @@ static int tmigr_setup_groups(unsigned int cpu, unsigned int node,
 		start_lvl = start->level + 1;
 	}
 
-	if (tmigr_root)
-		root_mismatch = tmigr_root->numa_node != node;
+	if (root)
+		root_mismatch = root->numa_node != node;
 
 	for (i = start_lvl; i < tmigr_hierarchy_levels; i++) {
-		group = tmigr_get_group(node, i);
+		group = tmigr_get_group(hier, node, i);
 		if (IS_ERR(group)) {
 			err = PTR_ERR(group);
 			i--;
@@ -1803,7 +1842,7 @@ static int tmigr_setup_groups(unsigned int cpu, unsigned int node,
 		if (group->parent)
 			break;
 		if ((!root_mismatch || i >= tmigr_crossnode_level) &&
-		    list_is_singular(&tmigr_level_list[i]))
+		    list_is_singular(&hier->level_list[i]))
 			break;
 	}
 
@@ -1831,15 +1870,15 @@ static int tmigr_setup_groups(unsigned int cpu, unsigned int node,
 			tmc->tmgroup = group;
 			tmc->groupmask = BIT(group->num_children++);
 
-			tmigr_init_root(group, activate);
+			tmigr_init_root(hier, group, activate);
 
-			trace_tmigr_connect_cpu_parent(tmc);
+			trace_tmigr_connect_cpu_parent(hier, tmc);
 
 			/* There are no children that need to be connected */
 			continue;
 		} else {
 			child = stack[i - 1];
-			tmigr_connect_child_parent(child, group, activate);
+			tmigr_connect_child_parent(hier, child, group, activate);
 		}
 	}
 
@@ -1895,18 +1934,23 @@ static int tmigr_setup_groups(unsigned int cpu, unsigned int node,
 			data.childmask = start->groupmask;
 			__walk_groups_from(tmigr_active_up, &data, start, start->parent);
 		}
+	} else if (start) {
+		union tmigr_state state;
+
+		/* Remote activation assumes the whole target's hierarchy is inactive */
+		state.state = atomic_read(&start->migr_state);
+		WARN_ON_ONCE(state.active);
 	}
 
 	/* Root update */
-	if (list_is_singular(&tmigr_level_list[top])) {
-		group = list_first_entry(&tmigr_level_list[top],
-					 typeof(*group), list);
+	if (list_is_singular(&hier->level_list[top])) {
+		group = list_first_entry(&hier->level_list[top], typeof(*group), list);
 		WARN_ON_ONCE(group->parent);
-		if (tmigr_root) {
+		if (root) {
 			/* Old root should be the same or below */
-			WARN_ON_ONCE(tmigr_root->level > top);
+			WARN_ON_ONCE(root->level > top);
 		}
-		tmigr_root = group;
+		hier->root = group;
 	}
 out:
 	kfree(stack);
@@ -1914,33 +1958,122 @@ out:
 	return err;
 }
 
+static struct tmigr_hierarchy *tmigr_get_hierarchy(int cpu)
+{
+	struct tmigr_hierarchy *hier;
+
+	hier = __tmigr_get_hierarchy(cpu);
+
+	if (hier)
+		return hier;
+
+	hier = kzalloc_flex(*hier, level_list, tmigr_hierarchy_levels);
+	if (!hier)
+		return ERR_PTR(-ENOMEM);
+
+	hier->cpumask = kzalloc(cpumask_size(), GFP_KERNEL);
+	if (!hier->cpumask) {
+		kfree(hier);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	for (int i = 0; i < tmigr_hierarchy_levels; i++)
+		INIT_LIST_HEAD(&hier->level_list[i]);
+
+	hier->capacity = tmigr_get_capacity(cpu);
+	list_add_tail(&hier->node, &tmigr_hierarchy_list);
+
+	return hier;
+}
+
+static int tmigr_connect_old_root(struct tmigr_hierarchy *hier, int cpu,
+				  struct tmigr_group *old_root,	bool activate)
+{
+	/*
+	 * The target CPU must never do the prepare work, except
+	 * on early boot when the boot CPU is the target. Otherwise
+	 * it may spuriously activate the old top level group inside
+	 * the new one (nevertheless whether old top level group is
+	 * active or not) and/or release an uninitialized childmask.
+	 */
+	WARN_ON_ONCE(cpu == smp_processor_id());
+	if (activate) {
+		/*
+		 * The current CPU is expected to be online in the hierarchy,
+		 * otherwise the old root may not be active as expected.
+		 */
+		WARN_ON_ONCE(!__this_cpu_read(tmigr_cpu.available));
+	}
+
+	return tmigr_setup_groups(hier, -1, old_root->numa_node, old_root, activate);
+}
+
+static long connect_old_root_work(void *arg)
+{
+	struct tmigr_group *old_root = arg;
+	struct tmigr_hierarchy *hier;
+	int cpu = smp_processor_id();
+
+	hier = __tmigr_get_hierarchy(cpu);
+	if (WARN_ON_ONCE(!hier))
+		return -EINVAL;
+
+	return tmigr_connect_old_root(hier, cpu, old_root, true);
+}
+
 static int tmigr_add_cpu(unsigned int cpu)
 {
-	struct tmigr_group *old_root = tmigr_root;
+	struct tmigr_hierarchy *hier;
+	struct tmigr_group *old_root;
 	int node = cpu_to_node(cpu);
 	int ret;
 
 	guard(mutex)(&tmigr_mutex);
 
-	ret = tmigr_setup_groups(cpu, node, NULL, false);
+	hier = tmigr_get_hierarchy(cpu);
+	if (IS_ERR(hier))
+		return PTR_ERR(hier);
+
+	old_root = hier->root;
+
+	ret = tmigr_setup_groups(hier, cpu, node, NULL, false);
+
+	if (ret < 0)
+		return ret;
 
 	/* Root has changed? Connect the old one to the new */
-	if (ret >= 0 && old_root && old_root != tmigr_root) {
-		/*
-		 * The target CPU must never do the prepare work, except
-		 * on early boot when the boot CPU is the target. Otherwise
-		 * it may spuriously activate the old top level group inside
-		 * the new one (nevertheless whether old top level group is
-		 * active or not) and/or release an uninitialized childmask.
-		 */
-		WARN_ON_ONCE(cpu == raw_smp_processor_id());
-		/*
-		 * The (likely) current CPU is expected to be online in the hierarchy,
-		 * otherwise the old root may not be active as expected.
-		 */
-		WARN_ON_ONCE(!per_cpu_ptr(&tmigr_cpu, raw_smp_processor_id())->available);
-		ret = tmigr_setup_groups(-1, old_root->numa_node, old_root, true);
+	if (old_root && old_root != hier->root) {
+		guard(migrate)();
+
+		if (cpumask_test_cpu(smp_processor_id(), hier->cpumask)) {
+			/*
+			 * If the target belong to the same hierarchy, the old root is expected
+			 * to be active. Link and propagate to the new root.
+			 */
+			ret = tmigr_connect_old_root(hier, cpu, old_root, true);
+		} else {
+			int target = cpumask_first_and(hier->cpumask, tmigr_available_cpumask);
+
+			if (target < nr_cpu_ids) {
+				/*
+				 * If the target doesn't belong to the same hierarchy as the current
+				 * CPU, activate from a relevant one to make sure the old root is
+				 * active.
+				 */
+				ret = work_on_cpu(target, connect_old_root_work, old_root);
+			} else {
+				/*
+				 * No other available CPUs in the remote hierarchy. Link the
+				 * old root remotely but don't propagate activation since the
+				 * old root is not expected to be active.
+				 */
+				ret = tmigr_connect_old_root(hier, cpu, old_root, false);
+			}
+		}
 	}
+
+	if (ret >= 0)
+		cpumask_set_cpu(cpu, hier->cpumask);
 
 	return ret;
 }
@@ -1974,7 +2107,7 @@ static int tmigr_cpu_prepare(unsigned int cpu)
 
 static int __init tmigr_init(void)
 {
-	unsigned int cpulvl, nodelvl, cpus_per_node, i;
+	unsigned int cpulvl, nodelvl, cpus_per_node;
 	unsigned int nnodes = num_possible_nodes();
 	unsigned int ncpus = num_possible_cpus();
 	int ret = -ENOMEM;
@@ -2020,14 +2153,6 @@ static int __init tmigr_init(void)
 	 * matching is no longer required.
 	 */
 	tmigr_crossnode_level = cpulvl;
-
-	tmigr_level_list = kzalloc_objs(struct list_head,
-					tmigr_hierarchy_levels);
-	if (!tmigr_level_list)
-		goto err;
-
-	for (i = 0; i < tmigr_hierarchy_levels; i++)
-		INIT_LIST_HEAD(&tmigr_level_list[i]);
 
 	pr_info("Timer migration: %d hierarchy levels; %d children per group;"
 		" %d crossnode level\n",

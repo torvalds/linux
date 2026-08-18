@@ -32,6 +32,8 @@
 #include "dcn30/dcn30_dio_stream_encoder.h"
 #include "dcn30/dcn30_dpp.h"
 #include "dcn30/dcn30_dwb.h"
+#include "dcn30/dcn30_hpo_frl_link_encoder.h"
+#include "dcn30/dcn30_hpo_frl_stream_encoder.h"
 #include "dcn30/dcn30_hubbub.h"
 #include "dcn30/dcn30_hubp.h"
 #include "dcn30/dcn30_mmhubbub.h"
@@ -126,6 +128,7 @@ static const struct resource_caps res_cap_dcn303 = {
 		.num_video_plane = 2,
 		.num_audio = 2,
 		.num_stream_encoder = 2,
+		.num_hpo_frl = 1,
 		.num_dwb = 1,
 		.num_ddc = 2,
 		.num_vmid = 16,
@@ -438,6 +441,91 @@ static struct stream_encoder *dcn303_stream_encoder_create(enum engine_id eng_id
 	return &enc1->base;
 }
 
+#define hpo_frl_stream_encoder_reg_list(id)\
+		[id] = { DCN3_0_HPO_FRL_STREAM_ENC_REG_LIST(id) }
+
+#define hpo_frl_stream_encoder_dme_reg_list(id)\
+		DCN3_0_HPO_STREAM_ENC_DME_REG_LIST(id, 2)
+
+static const struct dcn30_hpo_frl_stream_enc_registers hpo_frl_stream_enc_regs[] = {
+		hpo_frl_stream_encoder_reg_list(0),
+		hpo_frl_stream_encoder_dme_reg_list(2),
+};
+
+static const struct dcn30_hpo_frl_stream_encoder_shift hpo_se_shift = {
+		DCN3_0_HPO_STREAM_ENC_MASK_SH_LIST(__SHIFT)
+};
+
+static const struct dcn30_hpo_frl_stream_encoder_mask hpo_se_mask = {
+		DCN3_0_HPO_STREAM_ENC_MASK_SH_LIST(_MASK)
+};
+
+static struct hpo_frl_stream_encoder *dcn303_hpo_frl_stream_encoder_create(enum engine_id eng_id,
+		struct dc_context *ctx)
+{
+	struct dcn30_hpo_frl_stream_encoder *hpo_enc3;
+	struct vpg *vpg;
+	struct afmt *afmt;
+	int vpg_inst;
+	int afmt_inst;
+
+	/* Mapping of VPG, AFMT, DME register blocks to HPO block instance */
+	if (eng_id == ENGINE_ID_HPO_0) {
+		vpg_inst = 2;
+		afmt_inst = 2;
+	} else
+		return NULL;
+
+	/* allocate HPO stream encoder and create VPG sub-block */
+	hpo_enc3 = kzalloc(sizeof(struct dcn30_hpo_frl_stream_encoder), GFP_KERNEL);
+	vpg = dcn303_vpg_create(ctx, vpg_inst);
+	afmt = dcn303_afmt_create(ctx, afmt_inst);
+
+	if (!hpo_enc3 || !vpg || !afmt) {
+		kfree(hpo_enc3);
+		kfree(vpg);
+		kfree(afmt);
+		return NULL;
+	}
+
+	dcn30_hpo_frl_stream_encoder_construct(hpo_enc3, ctx, ctx->dc_bios, eng_id, vpg, afmt,
+			&hpo_frl_stream_enc_regs[eng_id-ENGINE_ID_HPO_0], &hpo_se_shift, &hpo_se_mask);
+
+	return &hpo_enc3->base;
+}
+
+#define hpo_frl_link_encoder_reg_list(id)\
+		[id] = { DCN3_0_HPO_FRL_LINK_ENC_REG_LIST(id) }
+
+static const struct dcn30_hpo_frl_link_encoder_registers hpo_frl_link_enc_regs[] = {
+		hpo_frl_link_encoder_reg_list(0),
+};
+
+static const struct dcn30_hpo_frl_link_encoder_shift hpo_le_shift = {
+		DCN3_0_HPO_FRL_LINK_ENC_MASK_SH_LIST(__SHIFT)
+};
+
+static const struct dcn30_hpo_frl_link_encoder_mask hpo_le_mask = {
+		DCN3_0_HPO_FRL_LINK_ENC_MASK_SH_LIST(_MASK)
+};
+
+static struct hpo_frl_link_encoder *dcn303_hpo_frl_link_encoder_create(enum engine_id eng_id, struct dc_context *ctx)
+{
+	struct dcn30_hpo_frl_link_encoder *hpo_enc3;
+
+	ASSERT((eng_id == ENGINE_ID_HPO_0) || (eng_id == ENGINE_ID_HPO_1));
+
+	/* allocate HPO link encoder */
+	hpo_enc3 = kzalloc(sizeof(struct dcn30_hpo_frl_link_encoder), GFP_KERNEL);
+	if (!hpo_enc3)
+		return NULL; /* out of memory */
+
+	hpo_frl_link_encoder3_construct(hpo_enc3, ctx, eng_id-ENGINE_ID_HPO_0,
+			&hpo_frl_link_enc_regs[eng_id-ENGINE_ID_HPO_0], &hpo_le_shift, &hpo_le_mask);
+
+	return &hpo_enc3->base;
+}
+
 #define clk_src_regs(index, pllid)\
 		[index] = { CS_COMMON_REG_LIST_DCN3_03(index, pllid) }
 
@@ -699,7 +787,7 @@ static const struct dcn30_dwbc_mask dwbc30_mask = {
 
 static bool dcn303_dwbc_create(struct dc_context *ctx, struct resource_pool *pool)
 {
-	int i;
+	unsigned int i;
 	uint32_t pipe_count = pool->res_cap->num_dwb;
 
 	for (i = 0; i < pipe_count; i++) {
@@ -734,7 +822,7 @@ static const struct dcn30_mmhubbub_mask mcif_wb30_mask = {
 
 static bool dcn303_mmhubbub_create(struct dc_context *ctx, struct resource_pool *pool)
 {
-	int i;
+	unsigned int i;
 	uint32_t pipe_count = pool->res_cap->num_dwb;
 
 	for (i = 0; i < pipe_count; i++) {
@@ -915,6 +1003,7 @@ static const struct resource_create_funcs res_create_funcs = {
 		.read_dce_straps = read_dce_straps,
 		.create_audio = dcn303_create_audio,
 		.create_stream_encoder = dcn303_stream_encoder_create,
+		.create_hpo_frl_stream_encoder = dcn303_hpo_frl_stream_encoder_create,
 		.create_hwseq = dcn303_hwseq_create,
 };
 
@@ -980,7 +1069,24 @@ static void dcn303_resource_destruct(struct resource_pool *pool)
 		}
 	}
 
-	for (i = 0; i < pool->res_cap->num_dsc; i++) {
+	for (i = 0; i < pool->hpo_frl_stream_enc_count; i++) {
+		if (pool->hpo_frl_stream_enc[i] != NULL) {
+			if (pool->hpo_frl_stream_enc[i]->vpg != NULL) {
+				kfree(DCN30_VPG_FROM_VPG(pool->hpo_frl_stream_enc[i]->vpg));
+				pool->hpo_frl_stream_enc[i]->vpg = NULL;
+			}
+
+			if (pool->hpo_frl_stream_enc[i]->afmt != NULL) {
+				kfree(DCN30_AFMT_FROM_AFMT(pool->hpo_frl_stream_enc[i]->afmt));
+				pool->hpo_frl_stream_enc[i]->afmt = NULL;
+			}
+
+			kfree(DCN30_HPO_FRL_STRENC_FROM_HPO_FRL_STRENC(pool->hpo_frl_stream_enc[i]));
+			pool->hpo_frl_stream_enc[i] = NULL;
+		}
+	}
+
+	for (i = 0; i < (unsigned int)pool->res_cap->num_dsc; i++) {
 		if (pool->dscs[i] != NULL)
 			dcn20_dsc_destroy(&pool->dscs[i]);
 	}
@@ -1015,7 +1121,7 @@ static void dcn303_resource_destruct(struct resource_pool *pool)
 			dal_irq_service_destroy(&pool->irqs);
 	}
 
-	for (i = 0; i < pool->res_cap->num_ddc; i++) {
+	for (i = 0; i < (unsigned int)pool->res_cap->num_ddc; i++) {
 		if (pool->engines[i] != NULL)
 			dce110_engine_destroy(&pool->engines[i]);
 		if (pool->hw_i2cs[i] != NULL) {
@@ -1028,19 +1134,19 @@ static void dcn303_resource_destruct(struct resource_pool *pool)
 		}
 	}
 
-	for (i = 0; i < pool->res_cap->num_opp; i++) {
+	for (i = 0; i < (unsigned int)pool->res_cap->num_opp; i++) {
 		if (pool->opps[i] != NULL)
 			pool->opps[i]->funcs->opp_destroy(&pool->opps[i]);
 	}
 
-	for (i = 0; i < pool->res_cap->num_timing_generator; i++) {
+	for (i = 0; i < (unsigned int)pool->res_cap->num_timing_generator; i++) {
 		if (pool->timing_generators[i] != NULL)	{
 			kfree(DCN10TG_FROM_TG(pool->timing_generators[i]));
 			pool->timing_generators[i] = NULL;
 		}
 	}
 
-	for (i = 0; i < pool->res_cap->num_dwb; i++) {
+	for (i = 0; i < (unsigned int)pool->res_cap->num_dwb; i++) {
 		if (pool->dwbc[i] != NULL) {
 			kfree(TO_DCN30_DWBC(pool->dwbc[i]));
 			pool->dwbc[i] = NULL;
@@ -1064,7 +1170,7 @@ static void dcn303_resource_destruct(struct resource_pool *pool)
 	if (pool->dp_clock_source != NULL)
 		dcn20_clock_source_destroy(&pool->dp_clock_source);
 
-	for (i = 0; i < pool->res_cap->num_mpc_3dlut; i++) {
+	for (i = 0; i < (unsigned int)pool->res_cap->num_mpc_3dlut; i++) {
 		if (pool->mpc_lut[i] != NULL) {
 			dc_3dlut_func_release(pool->mpc_lut[i]);
 			pool->mpc_lut[i] = NULL;
@@ -1116,6 +1222,7 @@ static struct resource_funcs dcn303_res_pool_funcs = {
 		.destroy = dcn303_destroy_resource_pool,
 		.link_enc_create = dcn303_link_encoder_create,
 		.panel_cntl_create = dcn303_panel_cntl_create,
+		.hpo_frl_link_enc_create = dcn303_hpo_frl_link_encoder_create,
 		.validate_bandwidth = dcn30_validate_bandwidth,
 		.calculate_wm_and_dlg = dcn30_calculate_wm_and_dlg,
 		.update_soc_for_wm_a = dcn30_update_soc_for_wm_a,
@@ -1214,6 +1321,8 @@ static bool dcn303_resource_construct(
 	dc->caps.max_slave_rgb_planes = 1;
 	dc->caps.post_blend_color_processing = true;
 	dc->caps.force_dp_tps4_for_cp2520 = true;
+	dc->caps.hdmi_hpo = true;
+	dc->config.skip_frl_pretraining = true;
 	dc->caps.extended_aux_timeout_support = true;
 	dc->caps.dmcub_support = true;
 	dc->caps.max_v_total = (1 << 15) - 1;
@@ -1244,7 +1353,7 @@ static bool dcn303_resource_construct(
 	dc->caps.color.dpp.ocsc = 0;
 
 	dc->caps.color.mpc.gamut_remap = 1;
-	dc->caps.color.mpc.num_3dluts = pool->res_cap->num_mpc_3dlut; //3
+	dc->caps.color.mpc.num_3dluts = (uint16_t)pool->res_cap->num_mpc_3dlut;
 	dc->caps.color.mpc.ogam_ram = 1;
 	dc->caps.color.mpc.ogam_rom_caps.srgb = 0;
 	dc->caps.color.mpc.ogam_rom_caps.bt2020 = 0;
@@ -1303,7 +1412,7 @@ static bool dcn303_resource_construct(
 					CLOCK_SOURCE_ID_DP_DTO,
 					&clk_src_regs[0], true);
 
-	for (i = 0; i < pool->clk_src_count; i++) {
+	for (i = 0; i < (int)pool->clk_src_count; i++) {
 		if (pool->clock_sources[i] == NULL) {
 			dm_error("DC: failed to create clock sources!\n");
 			BREAK_TO_DEBUGGER();
@@ -1348,7 +1457,7 @@ static bool dcn303_resource_construct(
 	}
 
 	/* HUBPs, DPPs, OPPs and TGs */
-	for (i = 0; i < pool->pipe_count; i++) {
+	for (i = 0; i < (int)pool->pipe_count; i++) {
 		pool->hubps[i] = dcn303_hubp_create(ctx, i);
 		if (pool->hubps[i] == NULL) {
 			BREAK_TO_DEBUGGER();
@@ -1458,7 +1567,7 @@ static bool dcn303_resource_construct(
 
 	dc->caps.max_planes =  pool->pipe_count;
 
-	for (i = 0; i < dc->caps.max_planes; ++i)
+	for (i = 0; i < (int)dc->caps.max_planes; ++i)
 		dc->caps.planes[i] = plane_cap;
 
 	dc->caps.max_odm_combine_factor = 4;
@@ -1492,7 +1601,7 @@ struct resource_pool *dcn303_create_resource_pool(const struct dc_init_data *ini
 	if (!pool)
 		return NULL;
 
-	if (dcn303_resource_construct(init_data->num_virtual_links, dc, pool))
+	if (dcn303_resource_construct((uint8_t)init_data->num_virtual_links, dc, pool))
 		return pool;
 
 	BREAK_TO_DEBUGGER();

@@ -72,8 +72,15 @@ static void aq_nic_cfg_update_num_vecs(struct aq_nic_s *self)
 
 	cfg->vecs = min(cfg->aq_hw_caps->vecs, AQ_CFG_VECS_DEF);
 	cfg->vecs = min(cfg->vecs, num_online_cpus());
-	if (self->irqvecs > AQ_HW_SERVICE_IRQS)
-		cfg->vecs = min(cfg->vecs, self->irqvecs - AQ_HW_SERVICE_IRQS);
+	if (self->irqvecs > AQ_HW_SERVICE_IRQS + AQ_HW_PTP_IRQS)
+		cfg->vecs = min(cfg->vecs,
+				self->irqvecs - AQ_HW_SERVICE_IRQS - AQ_HW_PTP_IRQS);
+	else if (self->irqvecs > AQ_HW_PTP_IRQS)
+		cfg->vecs = min(cfg->vecs,
+				self->irqvecs - AQ_HW_PTP_IRQS);
+	else
+		cfg->vecs = 1U;
+
 	/* cfg->vecs should be power of 2 for RSS */
 	cfg->vecs = rounddown_pow_of_two(cfg->vecs);
 
@@ -138,7 +145,8 @@ void aq_nic_cfg_start(struct aq_nic_s *self)
 	 * link status IRQ. If no - we'll know link state from
 	 * slower service task.
 	 */
-	if (AQ_HW_SERVICE_IRQS > 0 && cfg->vecs + 1 <= self->irqvecs)
+	if (AQ_HW_SERVICE_IRQS > 0 &&
+	    self->irqvecs > AQ_HW_PTP_IRQS + AQ_HW_SERVICE_IRQS)
 		cfg->link_irq_vec = cfg->vecs;
 	else
 		cfg->link_irq_vec = 0;
@@ -172,7 +180,14 @@ static int aq_nic_update_link_status(struct aq_nic_s *self)
 		aq_nic_update_interrupt_moderation_settings(self);
 
 		if (self->aq_ptp) {
-			aq_ptp_clock_init(self);
+			/* AQC113 TSG requires >= 100 Mbps full-duplex: below 100 Mbps
+			 * timestamp resolution is insufficient for IEEE 1588, and
+			 * half-duplex collision domains make TX/RX correlation unreliable.
+			 */
+			bool ptp_link_good = (self->aq_hw->aq_link_status.mbps >= 100 &&
+					      self->aq_hw->aq_link_status.full_duplex);
+
+			aq_ptp_clock_init(self, ptp_link_good ? AQ_PTP_LINK_UP : AQ_PTP_NO_LINK);
 			aq_ptp_tm_offset_set(self,
 					     self->aq_hw->aq_link_status.mbps);
 			aq_ptp_link_change(self);
@@ -279,6 +294,7 @@ static int aq_nic_hw_prepare(struct aq_nic_s *self)
 	int err = 0;
 
 	err = self->aq_hw_ops->hw_soft_reset(self->aq_hw);
+
 	if (err)
 		goto exit;
 
@@ -450,7 +466,14 @@ int aq_nic_init(struct aq_nic_s *self)
 	}
 
 	if (aq_nic_get_cfg(self)->is_ptp) {
-		err = aq_ptp_init(self, self->irqvecs - 1);
+		u32 ptp_isr_vec;
+
+		if (self->irqvecs > AQ_HW_PTP_IRQS)
+			ptp_isr_vec = self->irqvecs - AQ_HW_PTP_IRQS;
+		else
+			ptp_isr_vec = 0;
+
+		err = aq_ptp_init(self, ptp_isr_vec);
 		if (err < 0)
 			goto err_exit;
 
@@ -495,6 +518,14 @@ int aq_nic_start(struct aq_nic_s *self)
 		if (err < 0)
 			goto err_exit;
 	}
+
+	err = aq_reapply_rxnfc_all_rules(self);
+	if (err < 0)
+		goto err_exit;
+
+	err = aq_filters_vlans_update(self);
+	if (err < 0)
+		goto err_exit;
 
 	err = aq_ptp_ring_start(self);
 	if (err < 0)
@@ -683,6 +714,7 @@ unsigned int aq_nic_map_skb(struct aq_nic_s *self, struct sk_buff *skb,
 	unsigned int ret = 0U;
 	unsigned int dx;
 	u8 l4proto = 0;
+	s32 clk_sel;
 
 	if (ipver == 4)
 		l4proto = ip_hdr(skb)->protocol;
@@ -795,6 +827,17 @@ unsigned int aq_nic_map_skb(struct aq_nic_s *self, struct sk_buff *skb,
 	dx_buff->is_eop = 1U;
 	dx_buff->skb = skb;
 	dx_buff->xdpf = NULL;
+	if (skb_shinfo(skb)->tx_flags & SKBTX_IN_PROGRESS &&
+	    self->aq_hw_ops->enable_ptp &&
+	    self->aq_hw_ops->hw_get_clk_sel &&
+	    aq_ptp_ring(self, ring)) {
+		clk_sel = (s32)self->aq_hw_ops->hw_get_clk_sel(self->aq_hw);
+		if (clk_sel < 0)
+			goto exit;
+		dx_buff->request_ts = 1U;
+		dx_buff->clk_sel = (u32)clk_sel;
+		ring->ptp_ts_deadline = jiffies + HZ;
+	}
 	goto exit;
 
 mapping_error:

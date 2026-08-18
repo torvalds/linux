@@ -147,9 +147,9 @@ static struct pmbus_driver_info bpa_rs600_info = {
 };
 
 static const struct i2c_device_id bpa_rs600_id[] = {
-	{ "bpa-rs600", bpa_rs600 },
-	{ "bpd-rs600", bpd_rs600 },
-	{},
+	{ .name = "bpa-rs600", .driver_data = bpa_rs600 },
+	{ .name = "bpd-rs600", .driver_data = bpd_rs600 },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, bpa_rs600_id);
 

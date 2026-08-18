@@ -184,7 +184,7 @@ do
 		do_clocksourcewd=no
 		do_srcu_lockdep=no
 		;;
-	--do-normal|--do-no-normal|--no-normal)
+	--do-normal|--do-norm|--do-no-normal|--do-no-norm|--no-normal|--no-norm)
 		do_normal=`doyesno "$1" --do-normal`
 		explicit_normal=yes
 		;;

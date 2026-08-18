@@ -307,7 +307,7 @@ void mt76_put_vif_phy_link(struct mt76_phy *phy, struct ieee80211_vif *vif,
 
 	rcu_assign_pointer(mvif->offchannel_link, NULL);
 	dev->drv->vif_link_remove(phy, vif, &vif->bss_conf, mlink);
-	kfree(mlink);
+	kfree_rcu(mlink, rcu_head);
 }
 
 void mt76_roc_complete(struct mt76_phy *phy)

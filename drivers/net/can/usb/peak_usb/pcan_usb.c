@@ -4,7 +4,7 @@
  * Derived from the PCAN project file driver/src/pcan_usb.c
  *
  * Copyright (C) 2003-2025 PEAK System-Technik GmbH
- * Author: Stéphane Grosjean <stephane.grosjean@hms-networks.com>
+ * Author: Stéphane Grosjean <s.grosjean@peak-system.fr>
  *
  * Many thanks to Klaus Hitschler <klaus.hitschler@gmx.de>
  */

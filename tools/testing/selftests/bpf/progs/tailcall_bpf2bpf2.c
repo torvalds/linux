@@ -13,11 +13,14 @@ struct {
 static __noinline
 int subprog_tail(struct __sk_buff *skb)
 {
+	int ret = 1;
+
 	if (load_byte(skb, 0))
 		bpf_tail_call_static(skb, &jmp_table, 1);
 	else
 		bpf_tail_call_static(skb, &jmp_table, 0);
-	return 1;
+	barrier_var(ret);
+	return ret;
 }
 
 int count = 0;

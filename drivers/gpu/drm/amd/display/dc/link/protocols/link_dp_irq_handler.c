@@ -65,7 +65,7 @@ bool dp_parse_link_loss_status(
 	/*1. Check that Link Status changed, before re-training.*/
 
 	/*parse lane status*/
-	for (lane = 0; lane < link->cur_link_settings.lane_count; lane++) {
+	for (lane = 0; lane < (uint32_t)link->cur_link_settings.lane_count; lane++) {
 		/* check status of lanes 0,1
 		 * changed DpcdAddress_Lane01Status (0x202)
 		 */
@@ -223,7 +223,7 @@ static void handle_hpd_irq_vesa_replay_sink(struct dc_link *link)
 	}
 }
 
-static void handle_hpd_irq_replay_sink(struct dc_link *link, bool *need_re_enable)
+static void handle_hpd_irq_replay_sink(struct dc_link *link, bool *need_re_enable, bool *replay_esd_detection_needed)
 {
 	union dpcd_replay_configuration replay_configuration = {0};
 	union dpcd_replay_configuration replay_sink_status = {0};
@@ -309,6 +309,16 @@ static void handle_hpd_irq_replay_sink(struct dc_link *link, bool *need_re_enabl
 			allow_active = false;
 			edp_set_replay_allow_active(link, &allow_active, true, false, NULL);
 			*need_re_enable = true;
+		}
+	}
+
+	if (link->ctx->dc->debug.enable_replay_esd_recovery) {
+		if (!link->replay_settings.replay_allow_active &&
+		    replay_sink_status.bits.SINK_DEVICE_REPLAY_STATUS == 0x7) {
+		    /* If sink device replay status is 0x7 and replay is disabled,
+		     * it means sink is in a bad state and link retraining is needed to recover
+		     */
+		    *replay_esd_detection_needed = true;
 		}
 	}
 }
@@ -469,6 +479,7 @@ bool dp_handle_hpd_rx_irq(struct dc_link *link,
 	enum dc_status result;
 	bool status = false;
 	bool replay_re_enable_needed = false;
+	bool replay_esd_detection_needed = false;
 
 	if (out_link_loss)
 		*out_link_loss = false;
@@ -482,6 +493,7 @@ bool dp_handle_hpd_rx_irq(struct dc_link *link,
 	DC_LOG_HW_HPD_IRQ("%s: Got short pulse HPD on link %d\n",
 		__func__, link->link_index);
 
+	handle_hpd_irq_replay_sink(link, &replay_re_enable_needed, &replay_esd_detection_needed);
 
 	 /* All the "handle_hpd_irq_xxx()" methods
 		 * should be called only after
@@ -528,8 +540,6 @@ bool dp_handle_hpd_rx_irq(struct dc_link *link,
 		/* PSR-related error was detected and handled */
 		return true;
 
-	handle_hpd_irq_replay_sink(link, &replay_re_enable_needed);
-
 	/* If PSR-related error handled, Main link may be off,
 	 * so do not handle as a normal sink status change interrupt.
 	 */
@@ -552,27 +562,30 @@ bool dp_handle_hpd_rx_irq(struct dc_link *link,
 	 * Downstream port status changed,
 	 * then DM should call DC to do the detection.
 	 * NOTE: Now includes eDP link loss detection and retraining
+	 * Link will be retrained if panel is not EDP or
+	 * Replay ESD recovery is needed.
 	 */
+	if (link->connector_signal != SIGNAL_TYPE_EDP || replay_esd_detection_needed) {
+		if (dp_parse_link_loss_status(
+				link,
+				&hpd_irq_dpcd_data)) {
+			/* Connectivity log: link loss */
+			CONN_DATA_LINK_LOSS(link,
+						hpd_irq_dpcd_data.raw,
+						sizeof(hpd_irq_dpcd_data),
+						"Status: ");
 
-	if (dp_parse_link_loss_status(
-			link,
-			&hpd_irq_dpcd_data)) {
-		/* Connectivity log: link loss */
-		CONN_DATA_LINK_LOSS(link,
-					hpd_irq_dpcd_data.raw,
-					sizeof(hpd_irq_dpcd_data),
-					"Status: ");
+			if (defer_handling && has_left_work)
+				*has_left_work = true;
+			else
+				dp_handle_link_loss(link);
 
-		if (defer_handling && has_left_work)
-			*has_left_work = true;
-		else
-			dp_handle_link_loss(link);
+			status = false;
+			if (out_link_loss)
+				*out_link_loss = true;
 
-		status = false;
-		if (out_link_loss)
-			*out_link_loss = true;
-
-		dp_trace_link_loss_increment(link);
+			dp_trace_link_loss_increment(link);
+		}
 	}
 
 	if (link->dpcd_caps.usb4_dp_tun_info.dp_tun_cap.bits.dp_tunneling) {

@@ -3,7 +3,7 @@
  * HE handling
  *
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright(c) 2019-2025 Intel Corporation
+ * Copyright(c) 2019-2026 Intel Corporation
  */
 
 #include "ieee80211_i.h"
@@ -159,10 +159,6 @@ _ieee80211_he_cap_ie_to_sta_he_cap(struct ieee80211_sub_if_data *sdata,
 
 	he_cap->has_he = true;
 
-	link_sta->cur_max_bandwidth = ieee80211_sta_cap_rx_bw(link_sta);
-	if (sdata->vif.type != NL80211_IFTYPE_NAN)
-		link_sta->pub->bandwidth = ieee80211_sta_cur_vht_bw(link_sta);
-
 	if (he_6ghz_capa)
 		ieee80211_update_from_he_6ghz_capa(he_6ghz_capa, link_sta);
 
@@ -266,26 +262,6 @@ ieee80211_he_spr_ie_to_bss_conf(struct ieee80211_vif *vif,
 	}
 }
 
-static void ieee80211_link_sta_rc_update_omi(struct ieee80211_link_data *link,
-					     struct link_sta_info *link_sta)
-{
-	struct ieee80211_sub_if_data *sdata = link->sdata;
-	struct ieee80211_supported_band *sband;
-	enum ieee80211_sta_rx_bandwidth new_bw;
-	enum nl80211_band band;
-
-	band = link->conf->chanreq.oper.chan->band;
-	sband = sdata->local->hw.wiphy->bands[band];
-
-	new_bw = ieee80211_sta_cur_vht_bw(link_sta);
-	if (link_sta->pub->bandwidth == new_bw)
-		return;
-
-	link_sta->pub->bandwidth = new_bw;
-	rate_control_rate_update(sdata->local, sband, link_sta,
-				 IEEE80211_RC_BW_CHANGED);
-}
-
 bool ieee80211_prepare_rx_omi_bw(struct ieee80211_link_sta *pub_link_sta,
 				 enum ieee80211_sta_rx_bandwidth bw)
 {
@@ -326,7 +302,7 @@ bool ieee80211_prepare_rx_omi_bw(struct ieee80211_link_sta *pub_link_sta,
 
 	if (bw < link_sta->rx_omi_bw_staging) {
 		link_sta->rx_omi_bw_tx = bw;
-		ieee80211_link_sta_rc_update_omi(link, link_sta);
+		ieee80211_link_sta_update_rc_bw(link, link_sta);
 	} else {
 		link_sta->rx_omi_bw_rx = bw;
 		ieee80211_recalc_chanctx_min_def(local, chanctx);
@@ -368,7 +344,7 @@ void ieee80211_finalize_rx_omi_bw(struct ieee80211_link_sta *pub_link_sta)
 		/* rate control in finalize only when widening bandwidth */
 		WARN_ON(link_sta->rx_omi_bw_tx > link_sta->rx_omi_bw_staging);
 		link_sta->rx_omi_bw_tx = link_sta->rx_omi_bw_staging;
-		ieee80211_link_sta_rc_update_omi(link, link_sta);
+		ieee80211_link_sta_update_rc_bw(link, link_sta);
 	}
 
 	if (link_sta->rx_omi_bw_rx != link_sta->rx_omi_bw_staging) {

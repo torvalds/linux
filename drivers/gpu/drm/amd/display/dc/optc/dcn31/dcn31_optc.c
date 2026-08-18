@@ -320,6 +320,8 @@ void optc31_read_reg_state(struct timing_generator *optc, struct dcn_optc_reg_st
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
+	optc_reg_state->otg_drr_v_total_reach_range = REG_READ(OTG_DRR_V_TOTAL_REACH_RANGE);
+
 	optc_reg_state->optc_bytes_per_pixel = REG_READ(OPTC_BYTES_PER_PIXEL);
 	optc_reg_state->optc_data_format_control = REG_READ(OPTC_DATA_FORMAT_CONTROL);
 	optc_reg_state->optc_data_source_select = REG_READ(OPTC_DATA_SOURCE_SELECT);

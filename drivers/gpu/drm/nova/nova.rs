@@ -10,7 +10,7 @@ use crate::driver::NovaDriver;
 
 kernel::module_auxiliary_driver! {
     type: NovaDriver,
-    name: "Nova",
+    name: "nova-drm",
     authors: ["Danilo Krummrich"],
     description: "Nova GPU driver",
     license: "GPL v2",

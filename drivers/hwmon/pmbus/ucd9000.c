@@ -143,14 +143,14 @@ static int ucd9000_read_byte_data(struct i2c_client *client, int page, int reg)
 }
 
 static const struct i2c_device_id ucd9000_id[] = {
-	{"ucd9000", ucd9000},
-	{"ucd90120", ucd90120},
-	{"ucd90124", ucd90124},
-	{"ucd90160", ucd90160},
-	{"ucd90320", ucd90320},
-	{"ucd9090", ucd9090},
-	{"ucd90910", ucd90910},
-	{}
+	{ .name = "ucd9000", .driver_data = ucd9000 },
+	{ .name = "ucd90120", .driver_data = ucd90120 },
+	{ .name = "ucd90124", .driver_data = ucd90124 },
+	{ .name = "ucd90160", .driver_data = ucd90160 },
+	{ .name = "ucd90320", .driver_data = ucd90320 },
+	{ .name = "ucd9090", .driver_data = ucd9090 },
+	{ .name = "ucd90910", .driver_data = ucd90910 },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ucd9000_id);
 

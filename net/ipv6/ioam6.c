@@ -800,7 +800,7 @@ static void __ioam6_fill_trace_data(struct sk_buff *skb,
 	/* queue depth */
 	if (trace->type.bit6) {
 		struct netdev_queue *queue;
-		struct Qdisc *qdisc;
+		const struct Qdisc *qdisc;
 		__u32 qlen, backlog;
 
 		if (dev->flags & IFF_LOOPBACK ||
@@ -810,9 +810,7 @@ static void __ioam6_fill_trace_data(struct sk_buff *skb,
 			queue = skb_get_tx_queue(dev, skb);
 			qdisc = rcu_dereference(queue->qdisc);
 
-			spin_lock_bh(qdisc_lock(qdisc));
 			qdisc_qstats_qlen_backlog(qdisc, &qlen, &backlog);
-			spin_unlock_bh(qdisc_lock(qdisc));
 
 			*(__be32 *)data = cpu_to_be32(backlog);
 		}

@@ -165,12 +165,6 @@ uverbs_completion_event_file_destroy_uobj(struct ib_uobject *uobj,
 	ib_uverbs_free_event_queue(&file->ev_queue);
 }
 
-int uverbs_destroy_def_handler(struct uverbs_attr_bundle *attrs)
-{
-	return 0;
-}
-EXPORT_SYMBOL(uverbs_destroy_def_handler);
-
 DECLARE_UVERBS_NAMED_OBJECT(
 	UVERBS_OBJECT_COMP_CHANNEL,
 	UVERBS_TYPE_ALLOC_FD(sizeof(struct ib_uverbs_completion_event_file),

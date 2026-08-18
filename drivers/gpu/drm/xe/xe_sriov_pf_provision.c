@@ -41,6 +41,8 @@ static int pf_provision_vfs(struct xe_device *xe, unsigned int num_vfs)
 	int err;
 
 	for_each_gt(gt, xe, id) {
+		err = xe_gt_sriov_pf_config_set_fair_sched(gt, num_vfs);
+		result = result ?: err;
 		err = xe_gt_sriov_pf_config_set_fair(gt, VFID(1), num_vfs);
 		result = result ?: err;
 	}
@@ -101,6 +103,45 @@ int xe_sriov_pf_unprovision_vfs(struct xe_device *xe, unsigned int num_vfs)
 
 	pf_unprovision_vfs(xe, num_vfs);
 	return 0;
+}
+
+static int pf_reprovision_default(struct xe_device *xe)
+{
+	struct xe_gt *gt;
+	unsigned int id;
+	int result = 0;
+	int err;
+
+	guard(mutex)(xe_sriov_pf_master_mutex(xe));
+
+	for_each_gt(gt, xe, id) {
+		err = xe_gt_sriov_pf_policy_set_sched_if_idle_locked(gt, false);
+		result = result ?: err;
+		err = xe_gt_sriov_pf_config_set_exec_quantum_locked(gt, PFID, 0);
+		result = result ?: err;
+		err = xe_gt_sriov_pf_config_set_preempt_timeout_locked(gt, PFID, 0);
+		result = result ?: err;
+	}
+
+	return result;
+}
+
+/**
+ * xe_sriov_pf_reprovision_default() - Reprovision default PF in auto-mode.
+ * @xe: the PF &xe_device
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_pf_reprovision_default(struct xe_device *xe)
+{
+	xe_assert(xe, IS_SRIOV_PF(xe));
+
+	if (!pf_auto_provisioning_mode(xe))
+		return 0;
+
+	return pf_reprovision_default(xe);
 }
 
 /**

@@ -111,7 +111,8 @@ int sctp_transport_lookup_process(sctp_callback_t cb, struct net *net,
 				  const union sctp_addr *paddr, void *p, int dif);
 int sctp_transport_traverse_process(sctp_callback_t cb, sctp_callback_t cb_done,
 				    struct net *net, int *pos, void *p);
-int sctp_for_each_endpoint(int (*cb)(struct sctp_endpoint *, void *), void *p);
+int sctp_for_each_endpoint(int (*cb)(struct sctp_endpoint *, void *),
+			   struct net *net, int *pos, void *p);
 int sctp_get_sctp_info(struct sock *sk, struct sctp_association *asoc,
 		       struct sctp_info *info);
 
@@ -303,7 +304,7 @@ void sctp_dbg_objcnt_init(struct net *);
 
 static inline void sctp_dbg_objcnt_init(struct net *net) { return; }
 
-#endif /* CONFIG_SCTP_DBG_OBJCOUNT */
+#endif /* CONFIG_SCTP_DBG_OBJCNT */
 
 #if defined CONFIG_SYSCTL
 void sctp_sysctl_register(void);

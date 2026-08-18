@@ -68,6 +68,36 @@ cleanup:
 	task_kfunc_success__destroy(skel);
 }
 
+static void run_syscall_success_test(const char *prog_name)
+{
+	LIBBPF_OPTS(bpf_test_run_opts, opts);
+	struct task_kfunc_success *skel;
+	struct bpf_program *prog;
+	int err;
+
+	skel = open_load_task_kfunc_skel();
+	if (!ASSERT_OK_PTR(skel, "open_load_skel"))
+		return;
+
+	if (!ASSERT_OK(skel->bss->err, "pre_run_err"))
+		goto cleanup;
+
+	prog = bpf_object__find_program_by_name(skel->obj, prog_name);
+	if (!ASSERT_OK_PTR(prog, "bpf_object__find_program_by_name"))
+		goto cleanup;
+
+	err = bpf_prog_test_run_opts(bpf_program__fd(prog), &opts);
+	if (!ASSERT_OK(err, "bpf_prog_test_run_opts"))
+		goto cleanup;
+	if (!ASSERT_EQ(opts.retval, 0, "retval"))
+		goto cleanup;
+
+	ASSERT_OK(skel->bss->err, "post_run_err");
+
+cleanup:
+	task_kfunc_success__destroy(skel);
+}
+
 static int run_vpid_test(void *prog_name)
 {
 	struct task_kfunc_success *skel;
@@ -140,7 +170,6 @@ static const char * const success_tests[] = {
 	"test_task_acquire_release_argument",
 	"test_task_acquire_release_current",
 	"test_task_acquire_leave_in_map",
-	"test_task_xchg_release",
 	"test_task_map_acquire_release",
 	"test_task_current_acquire_release",
 	"test_task_from_pid_arg",
@@ -149,6 +178,10 @@ static const char * const success_tests[] = {
 	"task_kfunc_acquire_trusted_walked",
 	"test_task_kfunc_flavor_relo",
 	"test_task_kfunc_flavor_relo_not_found",
+};
+
+static const char * const syscall_success_tests[] = {
+	"test_task_xchg_release",
 };
 
 static const char * const vpid_success_tests[] = {
@@ -165,6 +198,13 @@ void test_task_kfunc(void)
 			continue;
 
 		run_success_test(success_tests[i]);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(syscall_success_tests); i++) {
+		if (!test__start_subtest(syscall_success_tests[i]))
+			continue;
+
+		run_syscall_success_test(syscall_success_tests[i]);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(vpid_success_tests); i++) {

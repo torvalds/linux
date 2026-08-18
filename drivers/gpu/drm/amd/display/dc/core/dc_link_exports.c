@@ -126,6 +126,19 @@ uint32_t dc_link_bandwidth_kbps(
 	return link->dc->link_srv->dp_link_bandwidth_kbps(link, link_settings);
 }
 
+uint32_t dc_link_frl_bandwidth_kbps(const struct dc_link *link, enum hdmi_frl_link_rate link_rate)
+{
+	return link->dc->link_srv->frl_link_bandwidth_kbps(link_rate);
+}
+
+bool dc_link_frl_margin_check_uncompressed_video(
+		const struct dc_link *link,
+		struct frl_cap_chk_params_fixed31_32 *params,
+		struct frl_cap_chk_intermediates_fixed31_32 *inter)
+{
+	return link->dc->link_srv->frl_margin_check_uncompressed_video(params, inter);
+}
+
 uint32_t dc_link_required_hblank_size_bytes(
 	const struct dc_link *link,
 	struct dp_audio_bandwidth_params *audio_params)
@@ -142,6 +155,11 @@ void dc_get_cur_link_res_map(const struct dc *dc, uint32_t *map)
 void dc_restore_link_res_map(const struct dc *dc, uint32_t *map)
 {
 	dc->link_srv->restore_res_map(dc, map);
+}
+
+void dc_link_wait_for_unlocked(struct dc_link *link)
+{
+	link->dc->link_srv->wait_for_unlocked(link);
 }
 
 bool dc_link_update_dsc_config(struct pipe_ctx *pipe_ctx)
@@ -282,7 +300,7 @@ unsigned int dc_dp_trace_get_link_loss_count(struct dc_link *link)
 struct dc_sink *dc_link_add_remote_sink(
 		struct dc_link *link,
 		const uint8_t *edid,
-		int len,
+		unsigned int len,
 		struct dc_sink_init_data *init_data)
 {
 	return link->dc->link_srv->add_remote_sink(link, edid, len, init_data);
@@ -345,6 +363,14 @@ enum dc_link_encoding_format dc_link_get_highest_encoding_format(const struct dc
 				DP_128b_132b_ENCODING)
 			return DC_LINK_ENCODING_DP_128b_132b;
 	} else if (dc_is_hdmi_signal(link->connector_signal)) {
+		const struct dc_hdmi_frl_link_settings *frl_link_settings =
+				&link->frl_verified_link_cap;
+
+		if (frl_link_settings->frl_link_rate == HDMI_FRL_LINK_RATE_DISABLE)
+			return DC_LINK_ENCODING_HDMI_TMDS;
+		else if (frl_link_settings->frl_link_rate >= HDMI_FRL_LINK_RATE_3GBPS &&
+				frl_link_settings->frl_link_rate <= HDMI_FRL_LINK_RATE_12GBPS)
+			return DC_LINK_ENCODING_HDMI_FRL;
 	}
 
 	return DC_LINK_ENCODING_UNSPECIFIED;
@@ -516,6 +542,25 @@ bool dc_link_get_pr_state(const struct dc_link *link, uint64_t *state)
 bool dc_link_wait_for_t12(struct dc_link *link)
 {
 	return link->dc->link_srv->edp_wait_for_t12(link);
+}
+
+bool dc_link_frl_poll_status_flag(struct dc_link *link)
+{
+	return link->dc->link_srv->hdmi_frl_poll_status_flag(link);
+}
+
+struct dc_hdmi_frl_link_settings *dc_link_get_frl_link_cap(
+		struct dc_link *link)
+{
+	return link->dc->link_srv->hdmi_frl_get_verified_link_cap(link);
+}
+
+void dc_link_set_preferred_frl_link_settings(struct dc *dc,
+		struct dc_hdmi_frl_link_settings *link_setting,
+		struct dc_hdmi_frl_link_training_overrides *lt_overrides,
+		struct dc_link *link)
+{
+	link->dc->link_srv->hdmi_frl_set_preferred_link_settings(dc, link_setting, lt_overrides, link);
 }
 
 bool dc_link_get_hpd_state(struct dc_link *link)

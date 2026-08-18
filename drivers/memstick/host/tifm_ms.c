@@ -647,7 +647,7 @@ static int tifm_ms_resume(struct tifm_dev *sock)
 
 #endif /* CONFIG_PM */
 
-static struct tifm_device_id tifm_ms_id_tbl[] = {
+static const struct tifm_device_id tifm_ms_id_tbl[] = {
 	{ TIFM_TYPE_MS }, { 0 }
 };
 

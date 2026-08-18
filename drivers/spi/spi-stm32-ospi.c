@@ -470,10 +470,9 @@ static int stm32_ospi_send(struct spi_device *spi, const struct spi_mem_op *op)
 	u8 cs = spi->chip_select[ffs(spi->cs_index_mask) - 1];
 
 	cr = readl_relaxed(ospi->regs_base + OSPI_CR);
-	cr &= ~CR_CSSEL;
-	cr |= FIELD_PREP(CR_CSSEL, cs);
-	cr &= ~CR_FMODE_MASK;
-	cr |= FIELD_PREP(CR_FMODE_MASK, ospi->fmode);
+	FIELD_MODIFY(CR_CSSEL, &cr, cs);
+
+	FIELD_MODIFY(CR_FMODE_MASK, &cr, ospi->fmode);
 	writel_relaxed(cr, regs_base + OSPI_CR);
 
 	if (op->data.nbytes)
@@ -602,11 +601,11 @@ static int stm32_ospi_dirmap_create(struct spi_mem_dirmap_desc *desc)
 {
 	struct stm32_ospi *ospi = spi_controller_get_devdata(desc->mem->spi->controller);
 
-	if (desc->info.op_tmpl.data.dir == SPI_MEM_DATA_OUT)
+	if (desc->info.op_tmpl->data.dir == SPI_MEM_DATA_OUT)
 		return -EOPNOTSUPP;
 
 	/* Should never happen, as mm_base == null is an error probe exit condition */
-	if (!ospi->mm_base && desc->info.op_tmpl.data.dir == SPI_MEM_DATA_IN)
+	if (!ospi->mm_base && desc->info.op_tmpl->data.dir == SPI_MEM_DATA_IN)
 		return -EOPNOTSUPP;
 
 	if (!ospi->mm_size)
@@ -633,7 +632,7 @@ static ssize_t stm32_ospi_dirmap_read(struct spi_mem_dirmap_desc *desc,
 	 * spi_mem_op template with offs, len and *buf in  order to get
 	 * all needed transfer information into struct spi_mem_op
 	 */
-	memcpy(&op, &desc->info.op_tmpl, sizeof(struct spi_mem_op));
+	memcpy(&op, desc->info.op_tmpl, sizeof(struct spi_mem_op));
 	dev_dbg(ospi->dev, "%s len = 0x%zx offs = 0x%llx buf = 0x%p\n", __func__, len, offs, buf);
 
 	op.data.nbytes = len;

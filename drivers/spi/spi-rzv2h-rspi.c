@@ -366,14 +366,14 @@ static int rzv2h_rspi_transfer_dma(struct rzv2h_rspi_priv *rspi,
 	rzv2h_rspi_clear_all_irqs(rspi);
 
 	ret = wait_event_interruptible_timeout(rspi->wait, rspi->dma_callbacked, HZ);
-	if (ret) {
+	if (ret > 0) {
 		dmaengine_synchronize(rspi->controller->dma_tx);
 		dmaengine_synchronize(rspi->controller->dma_rx);
 		ret = 0;
 	} else {
 		dmaengine_terminate_sync(rspi->controller->dma_tx);
 		dmaengine_terminate_sync(rspi->controller->dma_rx);
-		ret = -ETIMEDOUT;
+		ret = ret ?: -ETIMEDOUT;
 	}
 
 	enable_irq(rspi->irq_rx);
@@ -803,6 +803,23 @@ static int rzv2h_rspi_probe(struct platform_device *pdev)
 	return ret;
 }
 
+static int rzv2h_rspi_suspend(struct device *dev)
+{
+	struct rzv2h_rspi_priv *rspi = dev_get_drvdata(dev);
+
+	return spi_controller_suspend(rspi->controller);
+}
+
+static int rzv2h_rspi_resume(struct device *dev)
+{
+	struct rzv2h_rspi_priv *rspi = dev_get_drvdata(dev);
+
+	return spi_controller_resume(rspi->controller);
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(rzv2h_rspi_pm_ops, rzv2h_rspi_suspend,
+				rzv2h_rspi_resume);
+
 static const struct rzv2h_rspi_info rzv2h_info = {
 	.find_tclk_rate = rzv2h_rspi_find_rate_fixed,
 	.tclk_name = "tclk",
@@ -838,6 +855,7 @@ static struct platform_driver rzv2h_rspi_drv = {
 	.driver = {
 		.name = "rzv2h_rspi",
 		.of_match_table = rzv2h_rspi_match,
+		.pm = pm_sleep_ptr(&rzv2h_rspi_pm_ops),
 	},
 };
 module_platform_driver(rzv2h_rspi_drv);

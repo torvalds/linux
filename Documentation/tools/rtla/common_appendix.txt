@@ -26,9 +26,10 @@ EXIT STATUS
 
 ::
 
- 0  Passed: the test did not hit the stop tracing condition
- 1  Error: invalid argument
- 2  Failed: the test hit the stop tracing condition
+ 0    Passed: the test did not hit the stop tracing condition
+ 1    Error: invalid argument
+ 2    Failed: the test hit the stop tracing condition
+ 129  Help: either user requested help or incorrect option was specified
 
 REPORTING BUGS
 ==============

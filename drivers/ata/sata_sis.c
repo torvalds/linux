@@ -51,13 +51,31 @@ static int sis_scr_read(struct ata_link *link, unsigned int sc_reg, u32 *val);
 static int sis_scr_write(struct ata_link *link, unsigned int sc_reg, u32 val);
 
 static const struct pci_device_id sis_pci_tbl[] = {
-	{ PCI_VDEVICE(SI, 0x0180), sis_180 },	/* SiS 964/180 */
-	{ PCI_VDEVICE(SI, 0x0181), sis_180 },	/* SiS 964/180 */
-	{ PCI_VDEVICE(SI, 0x0182), sis_180 },	/* SiS 965/965L */
-	{ PCI_VDEVICE(SI, 0x0183), sis_180 },	/* SiS 965/965L */
-	{ PCI_VDEVICE(SI, 0x1182), sis_180 },	/* SiS 966/680 */
-	{ PCI_VDEVICE(SI, 0x1183), sis_180 },	/* SiS 966/966L/968/680 */
-
+	{
+		/* SiS 964/180 */
+		PCI_VDEVICE(SI, 0x0180),
+		.driver_data = sis_180,
+	}, {
+		/* SiS 964/180 */
+		PCI_VDEVICE(SI, 0x0181),
+		.driver_data = sis_180,
+	}, {
+		/* SiS 965/965L */
+		PCI_VDEVICE(SI, 0x0182),
+		.driver_data = sis_180,
+	}, {
+		/* SiS 965/965L */
+		PCI_VDEVICE(SI, 0x0183),
+		.driver_data = sis_180,
+	}, {
+		/* SiS 966/680 */
+		PCI_VDEVICE(SI, 0x1182),
+		.driver_data = sis_180,
+	}, {
+		/* SiS 966/966L/968/680 */
+		PCI_VDEVICE(SI, 0x1183),
+		.driver_data = sis_180,
+	},
 	{ }	/* terminate list */
 };
 

@@ -236,6 +236,21 @@ static u32 __get_vblank_counter(struct drm_device *dev, unsigned int pipe)
 	return drm_vblank_no_hw_counter(dev, pipe);
 }
 
+static bool get_vblank_counter_and_timestamp(struct drm_device *dev, unsigned int pipe,
+					     u32 *cur_vblank, ktime_t *t_vblank,
+					     bool in_vblank_irq)
+{
+	int count = DRM_TIMESTAMP_MAXRETRIES;
+	bool rc;
+
+	do {
+		*cur_vblank = __get_vblank_counter(dev, pipe);
+		rc = drm_get_last_vbltimestamp(dev, pipe, t_vblank, in_vblank_irq);
+	} while (*cur_vblank != __get_vblank_counter(dev, pipe) && --count > 0);
+
+	return rc;
+}
+
 /*
  * Reset the stored timestamp for the current vblank count to correspond
  * to the last vblank occurred.
@@ -250,7 +265,6 @@ static void drm_reset_vblank_timestamp(struct drm_device *dev, unsigned int pipe
 	u32 cur_vblank;
 	bool rc;
 	ktime_t t_vblank;
-	int count = DRM_TIMESTAMP_MAXRETRIES;
 
 	spin_lock(&dev->vblank_time_lock);
 
@@ -258,10 +272,8 @@ static void drm_reset_vblank_timestamp(struct drm_device *dev, unsigned int pipe
 	 * sample the current counter to avoid random jumps
 	 * when drm_vblank_enable() applies the diff
 	 */
-	do {
-		cur_vblank = __get_vblank_counter(dev, pipe);
-		rc = drm_get_last_vbltimestamp(dev, pipe, &t_vblank, false);
-	} while (cur_vblank != __get_vblank_counter(dev, pipe) && --count > 0);
+	rc = get_vblank_counter_and_timestamp(dev, pipe, &cur_vblank,
+					      &t_vblank, false);
 
 	/*
 	 * Only reinitialize corresponding vblank timestamp if high-precision query
@@ -299,7 +311,6 @@ static void drm_update_vblank_count(struct drm_device *dev, unsigned int pipe,
 	u32 cur_vblank, diff;
 	bool rc;
 	ktime_t t_vblank;
-	int count = DRM_TIMESTAMP_MAXRETRIES;
 	int framedur_ns = vblank->framedur_ns;
 	u32 max_vblank_count = drm_max_vblank_count(dev, pipe);
 
@@ -315,10 +326,8 @@ static void drm_update_vblank_count(struct drm_device *dev, unsigned int pipe,
 	 * updating its hardware counter while we are retrieving the
 	 * corresponding vblank timestamp.
 	 */
-	do {
-		cur_vblank = __get_vblank_counter(dev, pipe);
-		rc = drm_get_last_vbltimestamp(dev, pipe, &t_vblank, in_vblank_irq);
-	} while (cur_vblank != __get_vblank_counter(dev, pipe) && --count > 0);
+	rc = get_vblank_counter_and_timestamp(dev, pipe, &cur_vblank,
+					      &t_vblank, in_vblank_irq);
 
 	if (max_vblank_count) {
 		/* trust the hw counter when it's around */
@@ -1543,7 +1552,6 @@ static void drm_vblank_restore(struct drm_device *dev, unsigned int pipe)
 	int framedur_ns;
 	u64 diff_ns;
 	u32 cur_vblank, diff = 1;
-	int count = DRM_TIMESTAMP_MAXRETRIES;
 	u32 max_vblank_count = drm_max_vblank_count(dev, pipe);
 
 	if (drm_WARN_ON(dev, pipe >= dev->num_crtcs))
@@ -1558,10 +1566,8 @@ static void drm_vblank_restore(struct drm_device *dev, unsigned int pipe)
 		      "Cannot compute missed vblanks without frame duration\n");
 	framedur_ns = vblank->framedur_ns;
 
-	do {
-		cur_vblank = __get_vblank_counter(dev, pipe);
-		drm_get_last_vbltimestamp(dev, pipe, &t_vblank, false);
-	} while (cur_vblank != __get_vblank_counter(dev, pipe) && --count > 0);
+	get_vblank_counter_and_timestamp(dev, pipe, &cur_vblank,
+					 &t_vblank, false);
 
 	diff_ns = ktime_to_ns(ktime_sub(t_vblank, vblank->time));
 	if (framedur_ns)

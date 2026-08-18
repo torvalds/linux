@@ -29,7 +29,6 @@
 #define DMA_TX_FILT_EINFO	BIT(30)
 #define DMA_TX_PRIO_SHIFT	0
 #define DMA_RX_PRIO_SHIFT	16
-#define DMA_PRIO_MASK		GENMASK(3, 0)
 #define DMA_PRIO_DEFAULT	0
 #define DMA_RX_TIMEOUT_DEFAULT	17500 /* cycles */
 #define DMA_RX_TIMEOUT_MASK	GENMASK(16, 0)
@@ -388,11 +387,6 @@ static int of_channel_match_helper(struct device_node *np, const char *name,
 		return -ENODEV;
 	}
 
-	if (args.args[0] < 0) {
-		dev_err(kdev->dev, "Missing args for %s\n", name);
-		return -ENODEV;
-	}
-
 	return args.args[0];
 }
 
@@ -526,7 +520,7 @@ static void __iomem *pktdma_get_regs(struct knav_dma_device *dma,
 	if (ret) {
 		dev_err(dev, "Can't translate of node(%pOFn) address for index(%d)\n",
 			node, index);
-		return ERR_PTR(ret);
+		return IOMEM_ERR_PTR(ret);
 	}
 
 	regs = devm_ioremap_resource(kdev->dev, &res);

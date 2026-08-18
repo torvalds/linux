@@ -935,6 +935,8 @@ mt7996_mcu_bss_he_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
 	struct tlv *tlv;
 
 	cap = mt76_connac_get_he_phy_cap(phy->mt76, vif);
+	if (!cap)
+		return;
 
 	tlv = mt7996_mcu_add_uni_tlv(skb, UNI_BSS_INFO_HE_BASIC, sizeof(*he));
 
@@ -1136,7 +1138,7 @@ mt7996_mcu_bss_basic_tlv(struct sk_buff *skb,
 				struct mt7996_sta_link *msta_link;
 				int link_id = link_conf->link_id;
 
-				msta_link = rcu_dereference(msta->link[link_id]);
+				msta_link = mt7996_sta_link(msta, link_id);
 				if (msta_link)
 					sta_wlan_idx = msta_link->wcid.idx;
 			}
@@ -1280,6 +1282,10 @@ int mt7996_mcu_set_protection(struct mt7996_phy *phy, struct mt7996_vif_link *li
 		PROT_LEGACY_ERP	 = BIT(5),
 		PROT_NONGF_STA	 = BIT(7),
 	};
+
+	/* The current firmware causes TX failure. Need further investigation */
+	if (is_mt7996(&dev->mt76))
+		return 0;
 
 	skb = __mt7996_mcu_alloc_bss_req(&dev->mt76, &link->mt76,
 					 MT7996_BSS_UPDATE_MAX_SIZE);
@@ -1429,7 +1435,7 @@ int mt7996_mcu_add_tx_ba(struct mt7996_dev *dev,
 		struct mt7996_sta_link *msta_link;
 		struct mt7996_vif_link *link;
 
-		msta_link = mt76_dereference(msta->link[link_id], &dev->mt76);
+		msta_link = mt7996_sta_link_protected(dev, msta, link_id);
 		if (!msta_link)
 			continue;
 
@@ -1463,7 +1469,7 @@ int mt7996_mcu_add_rx_ba(struct mt7996_dev *dev,
 		struct mt7996_sta_link *msta_link;
 		struct mt7996_vif_link *link;
 
-		msta_link = mt76_dereference(msta->link[link_id], &dev->mt76);
+		msta_link = mt7996_sta_link_protected(dev, msta, link_id);
 		if (!msta_link)
 			continue;
 
@@ -1851,17 +1857,18 @@ mt7996_mcu_sta_bfer_he(struct ieee80211_link_sta *link_sta,
 {
 	struct ieee80211_sta_he_cap *pc = &link_sta->he_cap;
 	struct ieee80211_he_cap_elem *pe = &pc->he_cap_elem;
-	const struct ieee80211_sta_he_cap *vc =
-		mt76_connac_get_he_phy_cap(phy->mt76, vif);
-	const struct ieee80211_he_cap_elem *ve = &vc->he_cap_elem;
 	u16 mcs_map = le16_to_cpu(pc->he_mcs_nss_supp.rx_mcs_80);
 	u8 nss_mcs = mt7996_mcu_get_sta_nss(mcs_map);
+	const struct ieee80211_he_cap_elem *ve;
+	const struct ieee80211_sta_he_cap *vc;
 	u8 snd_dim, sts;
 
+	vc = mt76_connac_get_he_phy_cap(phy->mt76, vif);
 	if (!vc)
 		return;
 
 	bf->tx_mode = MT_PHY_TYPE_HE_SU;
+	ve = &vc->he_cap_elem;
 
 	mt7996_mcu_sta_sounding_rate(bf, phy);
 
@@ -1917,14 +1924,18 @@ mt7996_mcu_sta_bfer_eht(struct ieee80211_link_sta *link_sta,
 	struct ieee80211_sta_eht_cap *pc = &link_sta->eht_cap;
 	struct ieee80211_eht_cap_elem_fixed *pe = &pc->eht_cap_elem;
 	struct ieee80211_eht_mcs_nss_supp *eht_nss = &pc->eht_mcs_nss_supp;
-	const struct ieee80211_sta_eht_cap *vc =
-		mt76_connac_get_eht_phy_cap(phy->mt76, vif);
-	const struct ieee80211_eht_cap_elem_fixed *ve = &vc->eht_cap_elem;
 	u8 nss_mcs = u8_get_bits(eht_nss->bw._80.rx_tx_mcs9_max_nss,
 				 IEEE80211_EHT_MCS_NSS_RX) - 1;
+	const struct ieee80211_eht_cap_elem_fixed *ve;
+	const struct ieee80211_sta_eht_cap *vc;
 	u8 snd_dim, sts;
 
+	vc = mt76_connac_get_eht_phy_cap(phy->mt76, vif);
+	if (!vc)
+		return;
+
 	bf->tx_mode = MT_PHY_TYPE_EHT_MU;
+	ve = &vc->eht_cap_elem;
 
 	mt7996_mcu_sta_sounding_rate(bf, phy);
 
@@ -2139,6 +2150,11 @@ mt7996_mcu_sta_hdr_trans_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
 		hdr_trans->from_ds = true;
 		hdr_trans->mesh = true;
 	}
+
+	if (test_bit(MT_WCID_FLAG_TDLS_PEER, &wcid->flags)) {
+		hdr_trans->to_ds = false;
+		hdr_trans->from_ds = false;
+	}
 }
 
 static enum mcu_mmps_mode
@@ -2200,7 +2216,7 @@ int mt7996_mcu_set_fixed_field(struct mt7996_dev *dev, struct mt7996_sta *msta,
 	if (!mlink)
 		goto error_unlock;
 
-	msta_link = rcu_dereference(msta->link[link_id]);
+	msta_link = mt7996_sta_link(msta, link_id);
 	if (!msta_link)
 		goto error_unlock;
 
@@ -2290,7 +2306,7 @@ mt7996_mcu_add_rate_ctrl_fixed(struct mt7996_dev *dev, struct mt7996_sta *msta,
 	if (!link)
 		goto error_unlock;
 
-	msta_link = rcu_dereference(msta->link[link_id]);
+	msta_link = mt7996_sta_link(msta, link_id);
 	if (!msta_link)
 		goto error_unlock;
 
@@ -2508,7 +2524,7 @@ int mt7996_mcu_add_rate_ctrl(struct mt7996_dev *dev, struct mt7996_sta *msta,
 	if (!link)
 		goto error_unlock;
 
-	msta_link = rcu_dereference(msta->link[link_id]);
+	msta_link = mt7996_sta_link(msta, link_id);
 	if (!msta_link)
 		goto error_unlock;
 
@@ -2663,7 +2679,7 @@ mt7996_mcu_sta_mld_setup_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
 	unsigned int link_id;
 	struct tlv *tlv;
 
-	msta_link = mt76_dereference(msta->link[msta->deflink_id], &dev->mt76);
+	msta_link = mt7996_sta_link_protected(dev, msta, msta->deflink_id);
 	if (!msta_link)
 		return;
 
@@ -2677,8 +2693,8 @@ mt7996_mcu_sta_mld_setup_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
 	mld_setup->primary_id = cpu_to_le16(msta_link->wcid.idx);
 
 	if (nlinks > 1) {
-		msta_link = mt76_dereference(msta->link[msta->seclink_id],
-					     &dev->mt76);
+		msta_link = mt7996_sta_link_protected(dev, msta,
+						      msta->seclink_id);
 		if (!msta_link)
 			return;
 	}
@@ -2689,7 +2705,7 @@ mt7996_mcu_sta_mld_setup_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
 	for_each_sta_active_link(vif, sta, link_sta, link_id) {
 		struct mt7996_vif_link *link;
 
-		msta_link = mt76_dereference(msta->link[link_id], &dev->mt76);
+		msta_link = mt7996_sta_link_protected(dev, msta, link_id);
 		if (!msta_link)
 			continue;
 
@@ -2837,7 +2853,7 @@ void mt7996_mcu_update_sta_rec_bw(void *data, struct ieee80211_sta *sta)
 	if (!link_sta)
 		return;
 
-	msta_link = mt76_dereference(msta->link[link_id], &dev->mt76);
+	msta_link = mt7996_sta_link_protected(dev, msta, link_id);
 	if (!msta_link)
 		return;
 
@@ -3098,7 +3114,7 @@ mt7996_mcu_beacon_cont(struct mt7996_dev *dev,
 
 	buf = (u8 *)bcn + sizeof(*bcn);
 	mt7996_mac_write_txwi(dev, (__le32 *)buf, skb, wcid, NULL, 0, 0,
-			      BSS_CHANGED_BEACON);
+			      BSS_CHANGED_BEACON, link_conf->link_id);
 
 	memcpy(buf + MT_TXD_SIZE, skb->data, skb->len);
 }
@@ -3244,7 +3260,8 @@ int mt7996_mcu_beacon_inband_discov(struct mt7996_dev *dev,
 
 	buf = (u8 *)tlv + sizeof(*discov);
 
-	mt7996_mac_write_txwi(dev, (__le32 *)buf, skb, wcid, NULL, 0, 0, changed);
+	mt7996_mac_write_txwi(dev, (__le32 *)buf, skb, wcid, NULL, 0, 0,
+			      changed, link_conf->link_id);
 
 	memcpy(buf + MT_TXD_SIZE, skb->data, skb->len);
 

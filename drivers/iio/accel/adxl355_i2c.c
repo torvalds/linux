@@ -7,7 +7,6 @@
 
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/regmap.h>
 
 #include "adxl355.h"
@@ -23,6 +22,7 @@ static const struct regmap_config adxl355_i2c_regmap_config = {
 static int adxl355_i2c_probe(struct i2c_client *client)
 {
 	struct regmap *regmap;
+	struct device *dev = &client->dev;
 	const struct adxl355_chip_info *chip_data;
 
 	chip_data = i2c_get_match_data(client);
@@ -30,19 +30,15 @@ static int adxl355_i2c_probe(struct i2c_client *client)
 		return -ENODEV;
 
 	regmap = devm_regmap_init_i2c(client, &adxl355_i2c_regmap_config);
-	if (IS_ERR(regmap)) {
-		dev_err(&client->dev, "Error initializing i2c regmap: %ld\n",
-			PTR_ERR(regmap));
+	if (IS_ERR(regmap))
+		return dev_err_probe(dev, PTR_ERR(regmap), "Error initializing i2c regmap\n");
 
-		return PTR_ERR(regmap);
-	}
-
-	return adxl355_core_probe(&client->dev, regmap, chip_data);
+	return adxl355_core_probe(dev, regmap, chip_data);
 }
 
 static const struct i2c_device_id adxl355_i2c_id[] = {
-	{ "adxl355", (kernel_ulong_t)&adxl35x_chip_info[ADXL355] },
-	{ "adxl359", (kernel_ulong_t)&adxl35x_chip_info[ADXL359] },
+	{ .name = "adxl355", .driver_data = (kernel_ulong_t)&adxl35x_chip_info[ADXL355] },
+	{ .name = "adxl359", .driver_data = (kernel_ulong_t)&adxl35x_chip_info[ADXL359] },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adxl355_i2c_id);

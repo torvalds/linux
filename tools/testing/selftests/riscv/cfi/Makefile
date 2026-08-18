@@ -16,7 +16,7 @@ ifeq ($(shell $(CC) $(CFLAGS) -nostdlib -xc /dev/null -o /dev/null > /dev/null 2
 TEST_GEN_PROGS := cfitests
 
 $(OUTPUT)/cfitests: cfitests.c shadowstack.c
-	$(CC) -o$@ $(CFLAGS) $(LDFLAGS) $^
+	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $^
 else
 
 $(shell echo "Toolchain doesn't support CFI, skipping CFI kselftest." >&2)

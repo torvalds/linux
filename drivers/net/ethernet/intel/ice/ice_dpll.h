@@ -7,6 +7,9 @@
 #include "ice.h"
 
 #define ICE_DPLL_RCLK_NUM_MAX	4
+#define ICE_DPLL_TXCLK_NUM_MAX	2
+#define E825_EXT_EREF_PIN_IDX	0
+#define E825_EXT_SYNCE_PIN_IDX	1
 
 #define ICE_CGU_R10			0x28
 #define ICE_CGU_R10_SYNCE_CLKO_SEL	GENMASK(8, 5)
@@ -79,6 +82,7 @@ struct ice_dpll_pin {
 	u8 ref_sync;
 	bool active;
 	bool hidden;
+	enum ice_e825c_ref_clk tx_ref_src;
 };
 
 /** ice_dpll - store info required for DPLL control
@@ -124,12 +128,15 @@ struct ice_dpll {
 /** ice_dplls - store info required for CCU (clock controlling unit)
  * @kworker: periodic worker
  * @work: periodic work
- * @lock: locks access to configuration of a dpll
+ * @wq: workqueue used to schedule DPLL-related deferred work
+ * @lock: protects DPLL configuration (see Locking below)
  * @eec: pointer to EEC dpll dev
  * @pps: pointer to PPS dpll dev
+ * @txc: pointer to TXC dpll dev
  * @inputs: input pins pointer
  * @outputs: output pins pointer
  * @rclk: recovered pins pointer
+ * @txclks: TX clock reference pins pointer
  * @num_inputs: number of input pins available on dpll
  * @num_outputs: number of output pins available on dpll
  * @cgu_state_acq_err_num: number of errors returned during periodic work
@@ -138,6 +145,28 @@ struct ice_dpll {
  * @input_phase_adj_max: max phase adjust value for an input pins
  * @output_phase_adj_max: max phase adjust value for an output pins
  * @periodic_counter: counter of periodic work executions
+ * @generic: true when generic DPLL ops are used
+ * @txclk_work: deferred TX reference clock switch worker
+ * @txclk_switch_requested: a TX ref clock switch is queued in @txclk_work
+ * @txclk_notify_rwsem: drains in-flight TXCLK notifications on teardown
+ *
+ * Locking:
+ *   Acquisition order (top to bottom):
+ *
+ *     txclk_notify_rwsem (read)
+ *       -> pf->dplls.lock
+ *         -> ctrl_pf->dplls.lock
+ *
+ *   - @lock serializes all DPLL state mutations on this PF. When the
+ *     controlling PF's lock must also be taken (e.g. updating the shared
+ *     tx_refclks usage map), acquire pf->dplls.lock first, then
+ *     ctrl_pf->dplls.lock. Skip the second acquire when pf == ctrl_pf
+ *     to avoid recursive locking.
+ *   - @txclk_notify_rwsem is held for read across
+ *     ice_txclk_update_and_notify(), including the out-of-lock
+ *     dpll_*_change_ntf() calls. ice_dpll_deinit() takes the write side
+ *     standalone (not nested under any other lock) to drain in-flight
+ *     readers before pins and the TXC DPLL device are freed.
  */
 struct ice_dplls {
 	struct kthread_worker *kworker;
@@ -147,11 +176,13 @@ struct ice_dplls {
 	struct completion dpll_init;
 	struct ice_dpll eec;
 	struct ice_dpll pps;
+	struct ice_dpll txc;
 	struct ice_dpll_pin *inputs;
 	struct ice_dpll_pin *outputs;
 	struct ice_dpll_pin sma[ICE_DPLL_PIN_SW_NUM];
 	struct ice_dpll_pin ufl[ICE_DPLL_PIN_SW_NUM];
 	struct ice_dpll_pin rclk;
+	struct ice_dpll_pin txclks[ICE_DPLL_TXCLK_NUM_MAX];
 	u8 num_inputs;
 	u8 num_outputs;
 	u8 sma_data;
@@ -162,6 +193,9 @@ struct ice_dplls {
 	s32 output_phase_adj_max;
 	u32 periodic_counter;
 	bool generic;
+	struct work_struct txclk_work;
+	bool txclk_switch_requested;
+	struct rw_semaphore txclk_notify_rwsem;
 };
 
 #if IS_ENABLED(CONFIG_PTP_1588_CLOCK)

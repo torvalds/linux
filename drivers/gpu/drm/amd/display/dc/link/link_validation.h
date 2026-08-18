@@ -26,6 +26,8 @@
 #define __LINK_VALIDATION_H__
 #include "link_service.h"
 
+#define TOLERANCE_AUDIO_CLOCK 1000
+
 enum dc_status link_validate_mode_timing(
 		const struct dc_stream_state *stream,
 		struct dc_link *link,
@@ -33,9 +35,20 @@ enum dc_status link_validate_mode_timing(
 enum dc_status link_validate_dp_tunnel_bandwidth(
 		const struct dc *dc,
 		const struct dc_state *new_ctx);
+bool frl_validate_mode_timing(
+		struct dc_link *link,
+		const struct dc_crtc_timing *timing,
+		struct dc_hdmi_frl_link_settings *frl_link_settings);
 uint32_t dp_link_bandwidth_kbps(
 	const struct dc_link *link,
 	const struct dc_link_settings *link_settings);
+uint32_t frl_link_bandwidth_kbps(enum hdmi_frl_link_rate link_rate);
+uint32_t link_timing_bandwidth_kbps(const struct dc_crtc_timing *timing);
+bool frl_capacity_computations_common(struct frl_cap_chk_params_fixed31_32 *params,
+	struct frl_cap_chk_intermediates_fixed31_32 *inter);
+bool frl_capacity_computations_uncompressed_video(
+	struct frl_cap_chk_params_fixed31_32 *params,
+	struct frl_cap_chk_intermediates_fixed31_32 *inter);
 
 
 uint32_t dp_required_hblank_size_bytes(

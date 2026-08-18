@@ -4234,10 +4234,14 @@ void rtw8852bt_set_channel_rf(struct rtw89_dev *rtwdev,
 
 void rtw8852bt_mcc_get_ch_info(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
 {
-	const struct rtw89_chan *chan = rtw89_mgnt_chan_get(rtwdev, 0);
 	struct rtw89_rfk_mcc_info_data *rfk_mcc = rtwdev->rfk_mcc.data;
 	struct rtw89_rfk_chan_desc desc[__RTW89_RFK_CHS_NR_V0] = {};
+	struct rtw89_entity_conf conf;
+	const struct rtw89_chan *chan;
 	u8 idx;
+
+	rtw89_entity_get_conf(rtwdev, &conf);
+	chan = conf.chans[0];
 
 	for (idx = 0; idx < ARRAY_SIZE(desc); idx++) {
 		struct rtw89_rfk_chan_desc *p = &desc[idx];

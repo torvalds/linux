@@ -366,6 +366,8 @@ struct amdgpu_gmc {
 	bool flush_tlb_needs_extra_type_0;
 	bool flush_tlb_needs_extra_type_2;
 	bool flush_pasid_uses_kiq;
+
+	bool override_pte;
 };
 
 #define amdgpu_gmc_emit_flush_gpu_tlb(r, vmid, addr) (r)->adev->gmc.gmc_funcs->emit_flush_gpu_tlb((r), (vmid), (addr))
@@ -485,4 +487,6 @@ void amdgpu_gmc_init_sw_mem_ranges(struct amdgpu_device *adev,
 				   struct amdgpu_mem_partition_info *mem_ranges);
 int amdgpu_gmc_get_vram_info(struct amdgpu_device *adev,
 		int *vram_width, int *vram_type, int *vram_vendor);
+
+void amdgpu_gmc_set_gart_size(struct amdgpu_device *adev, u64 default_size);
 #endif

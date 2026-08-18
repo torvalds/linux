@@ -469,6 +469,7 @@ static void ata_eh_clear_action(struct ata_link *link, struct ata_device *dev,
  *	EH context.
  */
 void ata_eh_acquire(struct ata_port *ap)
+	__acquires(&ap->host->eh_mutex)
 {
 	mutex_lock(&ap->host->eh_mutex);
 	WARN_ON_ONCE(ap->host->eh_owner);
@@ -486,6 +487,7 @@ void ata_eh_acquire(struct ata_port *ap)
  *	EH context.
  */
 void ata_eh_release(struct ata_port *ap)
+	__releases(&ap->host->eh_mutex)
 {
 	WARN_ON_ONCE(ap->host->eh_owner != current);
 	ap->host->eh_owner = NULL;
@@ -819,7 +821,7 @@ void ata_scsi_port_error_handler(struct Scsi_Host *host, struct ata_port *ap)
 		ap->pflags &= ~ATA_PFLAG_LOADING;
 	else if ((ap->pflags & ATA_PFLAG_SCSI_HOTPLUG) &&
 		!(ap->flags & ATA_FLAG_SAS_HOST))
-		schedule_delayed_work(&ap->hotplug_task, 0);
+		queue_delayed_work(system_dfl_long_wq, &ap->hotplug_task, 0);
 
 	if (ap->pflags & ATA_PFLAG_RECOVERED)
 		ata_port_info(ap, "EH complete\n");
@@ -2831,10 +2833,10 @@ static bool ata_eh_followup_srst_needed(struct ata_link *link, int rc)
 	return false;
 }
 
-int ata_eh_reset(struct ata_link *link, int classify,
+int ata_eh_reset(struct ata_port *ap, struct ata_link *link, int classify,
 		 struct ata_reset_operations *reset_ops)
+	__must_hold(&ap->host->eh_mutex)
 {
-	struct ata_port *ap = link->ap;
 	struct ata_link *slave = ap->slave_link;
 	struct ata_eh_context *ehc = &link->eh_context;
 	struct ata_eh_context *sehc = slave ? &slave->eh_context : NULL;
@@ -3816,6 +3818,7 @@ static int ata_eh_handle_dev_fail(struct ata_device *dev, int err)
  */
 int ata_eh_recover(struct ata_port *ap, struct ata_reset_operations *reset_ops,
 		   struct ata_link **r_failed_link)
+	__must_hold(&ap->host->eh_mutex)
 {
 	struct ata_link *link;
 	struct ata_device *dev;
@@ -3882,7 +3885,8 @@ int ata_eh_recover(struct ata_port *ap, struct ata_reset_operations *reset_ops,
 		if (!(ehc->i.action & ATA_EH_RESET))
 			continue;
 
-		rc = ata_eh_reset(link, ata_link_nr_vacant(link), reset_ops);
+		rc = ata_eh_reset(ap, link, ata_link_nr_vacant(link),
+				  reset_ops);
 		if (rc) {
 			ata_link_err(link, "reset failed, giving up\n");
 			goto out;
@@ -4112,6 +4116,7 @@ void ata_eh_finish(struct ata_port *ap)
  *	Kernel thread context (may sleep).
  */
 void ata_std_error_handler(struct ata_port *ap)
+	__must_hold(&ap->host->eh_mutex)
 {
 	struct ata_reset_operations *reset_ops = &ap->ops->reset;
 	struct ata_link *link = &ap->link;

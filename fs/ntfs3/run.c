@@ -224,6 +224,66 @@ bool run_lookup_entry(const struct runs_tree *run, CLST vcn, CLST *lcn,
 }
 
 /*
+ * run_overlaps
+ *
+ * true if run overlaps with range [svcn, svcn + len)
+ */
+static bool run_overlaps(const struct runs_tree *run, CLST svcn, CLST len,
+			 CLST *vcn, CLST *clen)
+{
+	size_t i;
+	const struct ntfs_run *r = run->runs;
+	CLST end = svcn + len;
+
+	for (i = 0; i < run->count; i++, r++) {
+		/* Check if [r->vcn, r->vcn+r->len) overlaps [svcn, end). */
+		if (r->vcn < end && svcn < r->vcn + r->len) {
+			if (vcn)
+				*vcn = r->vcn;
+			if (clen)
+				*clen = r->len;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/*
+ * run_lookup_entry_da
+ *
+ * - lookup vcn in delalloc run
+ * - lookup vcn in real run
+ * - correct result if real run overlaps with delalloc
+ */
+bool run_lookup_entry_da(const struct runs_tree *run,
+			 const struct runs_tree *run_da, CLST vcn, CLST *lcn,
+			 CLST *len)
+{
+	CLST vcn1, len1;
+
+	if (run_da && run_lookup_entry(run_da, vcn, lcn, len, NULL)) {
+		*lcn = DELALLOC_LCN;
+		return true;
+	}
+
+	if (!run_lookup_entry(run, vcn, lcn, len, NULL))
+		return false;
+
+	if (run_da && run_overlaps(run_da, vcn, *len, &vcn1, &len1)) {
+		/* Correct return value. */
+		if (vcn1 > vcn) {
+			*len = vcn1 - vcn;
+		} else {
+			*lcn = DELALLOC_LCN;
+			*len = len1;
+		}
+	}
+
+	return true;
+}
+
+/*
  * run_truncate_head - Decommit the range before vcn.
  */
 void run_truncate_head(struct runs_tree *run, CLST vcn)
@@ -1205,16 +1265,21 @@ int run_unpack_ex(struct runs_tree *run, struct ntfs_sb_info *sbi, CLST ino,
  * Return the highest vcn from a mapping pairs array
  * it used while replaying log file.
  */
-int run_get_highest_vcn(CLST vcn, const u8 *run_buf, u64 *highest_vcn)
+int run_get_highest_vcn(CLST vcn, const u8 *run_buf, size_t run_buf_size, 
+		       u64 *highest_vcn)
 {
+	const u8 *run_last = run_buf + run_buf_size;
 	u64 vcn64 = vcn;
 	u8 size_size;
 
-	while ((size_size = *run_buf & 0xF)) {
+	while (run_buf < run_last && (size_size = *run_buf & 0xF)) {
 		u8 offset_size = *run_buf++ >> 4;
 		u64 len;
 
 		if (size_size > 8 || offset_size > 8)
+			return -EINVAL;
+
+		if (run_buf + size_size + offset_size > run_last) 
 			return -EINVAL;
 
 		len = run_unpack_s64(run_buf, size_size, 0);
@@ -1281,7 +1346,6 @@ bool run_remove_range(struct runs_tree *run, CLST vcn, CLST len, CLST *done)
 		return true;
 	}
 
-
 	e = run->runs + run->count;
 	r = run->runs + index;
 	end = vcn + len;
@@ -1292,9 +1356,12 @@ bool run_remove_range(struct runs_tree *run, CLST vcn, CLST len, CLST *done)
 
 		if (r_end > end) {
 			/* Remove a middle part, split. */
+			CLST tail_lcn = r->lcn == SPARSE_LCN ?
+					SPARSE_LCN : (r->lcn + (end - r->vcn));
+
 			*done += len;
 			r->len = d;
-			return run_add_entry(run, end, r->lcn, r_end - end,
+			return run_add_entry(run, end, tail_lcn, r_end - end,
 					     false);
 		}
 		/* Remove tail of run .*/

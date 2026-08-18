@@ -799,7 +799,7 @@ static inline void hrtimer_switch_to_hres(void) { }
  *
  * This is only invoked when:
  *	- CONFIG_HIGH_RES_TIMERS is enabled.
- *	- CONFIG_NOHZ_COMMON is enabled
+ *	- CONFIG_NO_HZ_COMMON is enabled
  *
  * For the other cases this function is empty and because the call sites
  * are optimized out it vanishes as well, i.e. no need for lots of
@@ -1352,8 +1352,14 @@ static inline bool hrtimer_keep_base(struct hrtimer *timer, bool is_local, bool 
 	return hrtimer_prefer_local(is_local, is_first, is_pinned);
 }
 
-static bool __hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim, u64 delta_ns,
-				     const enum hrtimer_mode mode, struct hrtimer_clock_base *base)
+enum {
+	HRTIMER_REPROGRAM_NONE,
+	HRTIMER_REPROGRAM,
+	HRTIMER_REPROGRAM_FORCE,
+};
+
+static int __hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim, u64 delta_ns,
+				    const enum hrtimer_mode mode, struct hrtimer_clock_base *base)
 {
 	struct hrtimer_cpu_base *this_cpu_base = this_cpu_ptr(&hrtimer_bases);
 	bool is_pinned, first, was_first, keep_base = false;
@@ -1410,7 +1416,7 @@ static bool __hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim, u64 del
 	/* If a deferred rearm is pending skip reprogramming the device */
 	if (cpu_base->deferred_rearm) {
 		cpu_base->deferred_needs_update = true;
-		return false;
+		return HRTIMER_REPROGRAM_NONE;
 	}
 
 	if (!was_first || cpu_base != this_cpu_base) {
@@ -1423,7 +1429,7 @@ static bool __hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim, u64 del
 		 * callbacks.
 		 */
 		if (likely(hrtimer_base_is_online(this_cpu_base)))
-			return first;
+			return first ? HRTIMER_REPROGRAM : HRTIMER_REPROGRAM_NONE;
 
 		/*
 		 * Timer was enqueued remote because the current base is
@@ -1432,7 +1438,7 @@ static bool __hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim, u64 del
 		 */
 		if (first)
 			smp_call_function_single_async(cpu_base->cpu, &cpu_base->csd);
-		return false;
+		return HRTIMER_REPROGRAM_NONE;
 	}
 
 	/*
@@ -1446,7 +1452,7 @@ static bool __hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim, u64 del
 	 */
 	if (timer->is_lazy) {
 		if (cpu_base->expires_next <= hrtimer_get_expires(timer))
-			return false;
+			return HRTIMER_REPROGRAM_NONE;
 	}
 
 	/*
@@ -1455,8 +1461,24 @@ static bool __hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim, u64 del
 	 * reprogram the hardware by evaluating the new first expiring
 	 * timer.
 	 */
-	hrtimer_force_reprogram(cpu_base, /* skip_equal */ true);
-	return false;
+	return HRTIMER_REPROGRAM_FORCE;
+}
+
+static int hrtimer_start_range_ns_common(struct hrtimer *timer, ktime_t tim,
+					 u64 delta_ns, const enum hrtimer_mode mode,
+					 struct hrtimer_clock_base *base)
+{
+	/*
+	 * Check whether the HRTIMER_MODE_SOFT bit and hrtimer.is_soft
+	 * match on CONFIG_PREEMPT_RT = n. With PREEMPT_RT check the hard
+	 * expiry mode because unmarked timers are moved to softirq expiry.
+	 */
+	if (!IS_ENABLED(CONFIG_PREEMPT_RT))
+		WARN_ON_ONCE(!(mode & HRTIMER_MODE_SOFT) ^ !timer->is_soft);
+	else
+		WARN_ON_ONCE(!(mode & HRTIMER_MODE_HARD) ^ !timer->is_hard);
+
+	return __hrtimer_start_range_ns(timer, tim, delta_ns, mode, base);
 }
 
 /**
@@ -1476,24 +1498,104 @@ void hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim, u64 delta_ns,
 
 	debug_hrtimer_assert_init(timer);
 
-	/*
-	 * Check whether the HRTIMER_MODE_SOFT bit and hrtimer.is_soft
-	 * match on CONFIG_PREEMPT_RT = n. With PREEMPT_RT check the hard
-	 * expiry mode because unmarked timers are moved to softirq expiry.
-	 */
-	if (!IS_ENABLED(CONFIG_PREEMPT_RT))
-		WARN_ON_ONCE(!(mode & HRTIMER_MODE_SOFT) ^ !timer->is_soft);
-	else
-		WARN_ON_ONCE(!(mode & HRTIMER_MODE_HARD) ^ !timer->is_hard);
-
 	base = lock_hrtimer_base(timer, &flags);
 
-	if (__hrtimer_start_range_ns(timer, tim, delta_ns, mode, base))
+	switch (hrtimer_start_range_ns_common(timer, tim, delta_ns, mode, base)) {
+	case HRTIMER_REPROGRAM:
 		hrtimer_reprogram(timer, true);
+		break;
+	case HRTIMER_REPROGRAM_FORCE:
+		hrtimer_force_reprogram(timer->base->cpu_base, 1);
+		break;
+	case HRTIMER_REPROGRAM_NONE:
+		break;
+	}
 
 	unlock_hrtimer_base(timer, &flags);
 }
 EXPORT_SYMBOL_GPL(hrtimer_start_range_ns);
+
+static inline bool hrtimer_check_user_timer(struct hrtimer *timer)
+{
+	struct hrtimer_cpu_base *cpu_base = timer->base->cpu_base;
+	ktime_t expires;
+
+	/*
+	 * This uses soft expires because that's the user provided
+	 * expiry time, while expires can be further in the past
+	 * due to a slack value added to the user expiry time.
+	 */
+	expires = hrtimer_get_softexpires(timer);
+
+	/* Convert to monotonic */
+	expires = ktime_sub(expires, timer->base->offset);
+
+	/*
+	 * Check whether this timer will end up as the first expiring timer in
+	 * the CPU base. If not, no further checks required as it's then
+	 * guaranteed to expire in the future.
+	 */
+	if (expires >= cpu_base->expires_next)
+		return true;
+
+	/* Validate that the expiry time is in the future. */
+	if (expires > ktime_get())
+		return true;
+
+	debug_hrtimer_deactivate(timer);
+	__remove_hrtimer(timer, timer->base, HRTIMER_STATE_INACTIVE, false);
+	trace_hrtimer_start_expired(timer);
+	return false;
+}
+
+/**
+ * hrtimer_start_range_ns_user - (re)start an user controlled hrtimer
+ * @timer:	the timer to be added
+ * @tim:	expiry time
+ * @delta_ns:	"slack" range for the timer
+ * @mode:	timer mode: absolute (HRTIMER_MODE_ABS) or
+ *		relative (HRTIMER_MODE_REL), and pinned (HRTIMER_MODE_PINNED);
+ *		softirq based mode is considered for debug purpose only!
+ *
+ * Returns: True when the timer was queued, false if it was already expired
+ *
+ * This function cannot invoke the timer callback for expired timers as it might
+ * be called under a lock which the timer callback needs to acquire. So the
+ * caller has to handle that case.
+ */
+bool hrtimer_start_range_ns_user(struct hrtimer *timer, ktime_t tim,
+				 u64 delta_ns, const enum hrtimer_mode mode)
+{
+	struct hrtimer_clock_base *base;
+	unsigned long flags;
+	bool ret = true;
+
+	debug_hrtimer_assert_init(timer);
+
+	base = lock_hrtimer_base(timer, &flags);
+
+	switch (hrtimer_start_range_ns_common(timer, tim, delta_ns, mode, base)) {
+	case HRTIMER_REPROGRAM:
+		ret = hrtimer_check_user_timer(timer);
+		if (ret)
+			hrtimer_reprogram(timer, true);
+		break;
+	case HRTIMER_REPROGRAM_FORCE:
+		ret = hrtimer_check_user_timer(timer);
+		/*
+		 * The base must always be reevaluated, independent of the
+		 * result above because the timer was the first pending timer.
+		 */
+		hrtimer_force_reprogram(timer->base->cpu_base, 1);
+		break;
+	case HRTIMER_REPROGRAM_NONE:
+		break;
+	}
+
+	unlock_hrtimer_base(timer, &flags);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(hrtimer_start_range_ns_user);
 
 /**
  * hrtimer_try_to_cancel - try to deactivate a timer
@@ -1681,10 +1783,10 @@ EXPORT_SYMBOL_GPL(__hrtimer_get_remaining);
  *
  * Returns the next expiry time or KTIME_MAX if no timer is pending.
  */
-u64 hrtimer_get_next_event(void)
+ktime_t hrtimer_get_next_event(void)
 {
 	struct hrtimer_cpu_base *cpu_base = this_cpu_ptr(&hrtimer_bases);
-	u64 expires = KTIME_MAX;
+	ktime_t expires = KTIME_MAX;
 
 	guard(raw_spinlock_irqsave)(&cpu_base->lock);
 	if (!hrtimer_hres_active(cpu_base))
@@ -1700,10 +1802,10 @@ u64 hrtimer_get_next_event(void)
  * Returns the next expiry time over all timers except for the @exclude one or
  * KTIME_MAX if none of them is pending.
  */
-u64 hrtimer_next_event_without(const struct hrtimer *exclude)
+ktime_t hrtimer_next_event_without(const struct hrtimer *exclude)
 {
 	struct hrtimer_cpu_base *cpu_base = this_cpu_ptr(&hrtimer_bases);
-	u64 expires = KTIME_MAX;
+	ktime_t expires = KTIME_MAX;
 	unsigned int active;
 
 	guard(raw_spinlock_irqsave)(&cpu_base->lock);
@@ -2213,7 +2315,11 @@ void hrtimer_sleeper_start_expires(struct hrtimer_sleeper *sl, enum hrtimer_mode
 	if (IS_ENABLED(CONFIG_PREEMPT_RT) && sl->timer.is_hard)
 		mode |= HRTIMER_MODE_HARD;
 
-	hrtimer_start_expires(&sl->timer, mode);
+	/* If already expired, clear the task pointer and set current state to running */
+	if (!hrtimer_start_expires_user(&sl->timer, mode)) {
+		sl->task = NULL;
+		__set_current_state(TASK_RUNNING);
+	}
 }
 EXPORT_SYMBOL_GPL(hrtimer_sleeper_start_expires);
 

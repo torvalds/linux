@@ -248,8 +248,8 @@ static int cmd640_reinit_one(struct pci_dev *pdev)
 #endif
 
 static const struct pci_device_id cmd640[] = {
-	{ PCI_VDEVICE(CMD, 0x640), 0 },
-	{ },
+	{ PCI_VDEVICE(CMD, 0x0640) },
+	{ }
 };
 
 static struct pci_driver cmd640_pci_driver = {

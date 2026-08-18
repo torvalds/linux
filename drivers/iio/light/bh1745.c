@@ -874,7 +874,7 @@ static int bh1745_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id bh1745_idtable[] = {
-	{ "bh1745" },
+	{ .name = "bh1745" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, bh1745_idtable);

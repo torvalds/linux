@@ -75,4 +75,4 @@ Each SoC DSP driver usually supplies the following features :-
 3. DMA IO to/from DSP buffers (if applicable)
 4. Definition of DSP front end (FE) PCM devices.
 
-Please see DPCM.txt for a description of item 4.
+Please see dpcm.rst for a description of item 4.

@@ -30,7 +30,7 @@
  *
  * Configure the functions of the pins of the radio chip.
  *
- * The function returns zero in case of succes or negative error code
+ * The function returns zero in case of success or negative error code
  * otherwise.
  */
 static int si476x_core_config_pinmux(struct si476x_core *core)
@@ -121,7 +121,7 @@ static inline void si476x_core_schedule_polling_work(struct si476x_core *core)
  *       4. Configures, pin multiplexor, disables digital audio and
  *          configures interrupt sources.
  *
- * The function returns zero in case of succes or negative error code
+ * The function returns zero in case of success or negative error code
  * otherwise.
  */
 int si476x_core_start(struct si476x_core *core, bool soft)
@@ -215,7 +215,7 @@ EXPORT_SYMBOL_GPL(si476x_core_start);
  * 2. Send the POWER_DOWN command if the power down is soft or bring
  *    reset line low if not.
  *
- * The function returns zero in case of succes or negative error code
+ * The function returns zero in case of success or negative error code
  * otherwise.
  */
 int si476x_core_stop(struct si476x_core *core, bool soft)
@@ -428,7 +428,7 @@ static void si476x_core_pronounce_dead(struct si476x_core *core)
  * of I/O errors. If the error counter rises above the threshold
  * pronounce device dead.
  *
- * The function returns zero on succes or negative error code on
+ * The function returns zero on success or negative error code on
  * failure.
  */
 int si476x_core_i2c_xfer(struct si476x_core *core,

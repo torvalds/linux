@@ -22,6 +22,7 @@ pub use core::{
     pin::Pin, //
 };
 
+#[doc(no_inline)]
 pub use ::ffi::{
     c_char,
     c_int,
@@ -47,6 +48,7 @@ pub use macros::{
     vtable, //
 };
 
+#[doc(no_inline)]
 pub use pin_init::{
     init,
     pin_data,
@@ -58,6 +60,19 @@ pub use pin_init::{
     Zeroable, //
 };
 
+#[doc(no_inline)]
+pub use zerocopy::{
+    FromBytes,
+    IntoBytes, //
+};
+
+#[doc(no_inline)]
+pub use zerocopy_derive::{
+    FromBytes,
+    IntoBytes, //
+};
+
+#[doc(no_inline)]
 pub use super::{
     alloc::{
         flags::*,
@@ -70,9 +85,12 @@ pub use super::{
         VVec,
         Vec, //
     },
-    build_assert,
-    build_error,
-    const_assert,
+    build_assert::{
+        build_assert,
+        build_error,
+        const_assert,
+        static_assert, //
+    },
     current,
     dev_alert,
     dev_crit,
@@ -96,7 +114,6 @@ pub use super::{
     pr_info,
     pr_notice,
     pr_warn,
-    static_assert,
     str::CStrExt as _,
     try_init,
     try_pin_init,

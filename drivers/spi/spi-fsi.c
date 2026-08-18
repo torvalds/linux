@@ -554,7 +554,7 @@ static int fsi_spi_probe(struct fsi_device *fsi)
 		if (of_property_read_u32(np, "reg", &base))
 			continue;
 
-		ctlr = spi_alloc_host(dev, sizeof(*ctx));
+		ctlr = devm_spi_alloc_host(dev, sizeof(*ctx));
 		if (!ctlr)
 			break;
 
@@ -571,9 +571,9 @@ static int fsi_spi_probe(struct fsi_device *fsi)
 
 		rc = devm_spi_register_controller(dev, ctlr);
 		if (rc)
-			spi_controller_put(ctlr);
-		else
-			num_controllers_registered++;
+			continue;
+
+		num_controllers_registered++;
 	}
 
 	if (!num_controllers_registered)

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2025 Intel Corporation
+ * Copyright (C) 2018-2026 Intel Corporation
  */
 #include <linux/module.h>
 #include <linux/stringify.h>
@@ -10,17 +10,10 @@
 #include "fw/api/txq.h"
 
 /* Highest firmware core release supported */
-#define IWL_SC_UCODE_CORE_MAX	102
+#define IWL_SC_UCODE_CORE_MAX	106
 
-/* Lowest firmware API version supported */
-#define IWL_SC_UCODE_API_MIN	100
-
-/* NVM versions */
-#define IWL_SC_NVM_VERSION		0x0a1d
-
-/* Memory offsets and lengths */
-#define IWL_SC_SMEM_OFFSET		0x400000
-#define IWL_SC_SMEM_LEN			0xD0000
+/* Lowest firmware core release supported */
+#define IWL_SC_UCODE_CORE_MIN	102
 
 #define IWL_SC_A_FM_B_FW_PRE		"iwlwifi-sc-a0-fm-b0"
 #define IWL_SC_A_FM_C_FW_PRE		"iwlwifi-sc-a0-fm-c0"
@@ -31,14 +24,9 @@
 static const struct iwl_family_base_params iwl_sc_base = {
 	.num_of_queues = 512,
 	.max_tfd_queue_size = 65536,
-	.shadow_ram_support = true,
-	.led_compensation = 57,
 	.wd_timeout = IWL_LONG_WD_TIMEOUT,
-	.max_event_log_size = 512,
 	.shadow_reg_enable = true,
 	.pcie_l1_allowed = true,
-	.smem_offset = IWL_SC_SMEM_OFFSET,
-	.smem_len = IWL_SC_SMEM_LEN,
 	.apmg_not_supported = true,
 	.mac_addr_from_csr = 0x30,
 	.d3_debug_data_base_addr = 0x401000,
@@ -78,7 +66,7 @@ static const struct iwl_family_base_params iwl_sc_base = {
 	},
 	.features = IWL_TX_CSUM_NETIF_FLAGS | NETIF_F_RXCSUM,
 	.ucode_api_max = ENCODE_CORE_AS_API(IWL_SC_UCODE_CORE_MAX),
-	.ucode_api_min = IWL_SC_UCODE_API_MIN,
+	.ucode_api_min = ENCODE_CORE_AS_API(IWL_SC_UCODE_CORE_MIN),
 };
 
 const struct iwl_mac_cfg iwl_sc_mac_cfg = {

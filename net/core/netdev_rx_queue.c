@@ -338,12 +338,12 @@ void __netif_mp_uninstall_rxq(struct netdev_rx_queue *rxq,
 void netif_rxq_cleanup_unlease(struct netdev_rx_queue *phys_rxq,
 			       struct netdev_rx_queue *virt_rxq)
 {
-	struct pp_memory_provider_params *p = &phys_rxq->mp_params;
 	unsigned int rxq_idx = get_netdev_rx_queue_index(phys_rxq);
+	struct pp_memory_provider_params p = phys_rxq->mp_params;
 
-	if (!p->mp_ops)
+	if (!p.mp_ops)
 		return;
 
-	__netif_mp_uninstall_rxq(virt_rxq, p);
-	__netif_mp_close_rxq(phys_rxq->dev, rxq_idx, p);
+	__netif_mp_close_rxq(phys_rxq->dev, rxq_idx, &p);
+	__netif_mp_uninstall_rxq(virt_rxq, &p);
 }

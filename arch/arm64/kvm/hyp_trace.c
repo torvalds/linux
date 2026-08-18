@@ -51,8 +51,8 @@ static void __hyp_clock_work(struct work_struct *work)
 
 	hyp_clock = container_of(dwork, struct hyp_trace_clock, work);
 
-	ktime_get_snapshot(&snap);
-	boot = ktime_to_ns(snap.boot);
+	ktime_get_snapshot_id(CLOCK_BOOTTIME, &snap);
+	boot = ktime_to_ns(snap.systime);
 
 	delta_boot = boot - hyp_clock->boot;
 	delta_cycles = snap.cycles - hyp_clock->cycles;
@@ -118,9 +118,9 @@ static void hyp_trace_clock_enable(struct hyp_trace_clock *hyp_clock, bool enabl
 		hyp_clock->running = false;
 	}
 
-	ktime_get_snapshot(&snap);
+	ktime_get_snapshot_id(CLOCK_BOOTTIME, &snap);
 
-	hyp_clock->boot = ktime_to_ns(snap.boot);
+	hyp_clock->boot = ktime_to_ns(snap.systime);
 	hyp_clock->cycles = snap.cycles;
 	hyp_clock->mult = 0;
 

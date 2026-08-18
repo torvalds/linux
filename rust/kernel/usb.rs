@@ -36,18 +36,18 @@ pub struct Adapter<T: Driver>(T);
 
 // SAFETY:
 // - `bindings::usb_driver` is a C type declared as `repr(C)`.
-// - `T` is the type of the driver's device private data.
+// - `T::Data` is the type of the driver's device private data.
 // - `struct usb_driver` embeds a `struct device_driver`.
 // - `DEVICE_DRIVER_OFFSET` is the correct byte offset to the embedded `struct device_driver`.
-unsafe impl<T: Driver + 'static> driver::DriverLayout for Adapter<T> {
+unsafe impl<T: Driver> driver::DriverLayout for Adapter<T> {
     type DriverType = bindings::usb_driver;
-    type DriverData = T;
+    type DriverData<'bound> = T::Data<'bound>;
     const DEVICE_DRIVER_OFFSET: usize = core::mem::offset_of!(Self::DriverType, driver);
 }
 
 // SAFETY: A call to `unregister` for a given instance of `DriverType` is guaranteed to be valid if
 // a preceding call to `register` has been successful.
-unsafe impl<T: Driver + 'static> driver::RegistrationOps for Adapter<T> {
+unsafe impl<T: Driver> driver::RegistrationOps for Adapter<T> {
     unsafe fn register(
         udrv: &Opaque<Self::DriverType>,
         name: &'static CStr,
@@ -73,7 +73,7 @@ unsafe impl<T: Driver + 'static> driver::RegistrationOps for Adapter<T> {
     }
 }
 
-impl<T: Driver + 'static> Adapter<T> {
+impl<T: Driver> Adapter<T> {
     extern "C" fn probe_callback(
         intf: *mut bindings::usb_interface,
         id: *const bindings::usb_device_id,
@@ -82,7 +82,7 @@ impl<T: Driver + 'static> Adapter<T> {
         // `struct usb_interface` and `struct usb_device_id`.
         //
         // INVARIANT: `intf` is valid for the duration of `probe_callback()`.
-        let intf = unsafe { &*intf.cast::<Interface<device::CoreInternal>>() };
+        let intf = unsafe { &*intf.cast::<Interface<device::CoreInternal<'_>>>() };
 
         from_result(|| {
             // SAFETY: `DeviceId` is a `#[repr(transparent)]` wrapper of `struct usb_device_id` and
@@ -92,7 +92,7 @@ impl<T: Driver + 'static> Adapter<T> {
             let info = T::ID_TABLE.info(id.index());
             let data = T::probe(intf, id, info);
 
-            let dev: &device::Device<device::CoreInternal> = intf.as_ref();
+            let dev: &device::Device<device::CoreInternal<'_>> = intf.as_ref();
             dev.set_drvdata(data)?;
             Ok(0)
         })
@@ -103,14 +103,14 @@ impl<T: Driver + 'static> Adapter<T> {
         // `struct usb_interface`.
         //
         // INVARIANT: `intf` is valid for the duration of `disconnect_callback()`.
-        let intf = unsafe { &*intf.cast::<Interface<device::CoreInternal>>() };
+        let intf = unsafe { &*intf.cast::<Interface<device::CoreInternal<'_>>>() };
 
-        let dev: &device::Device<device::CoreInternal> = intf.as_ref();
+        let dev: &device::Device<device::CoreInternal<'_>> = intf.as_ref();
 
         // SAFETY: `disconnect_callback` is only ever called after a successful call to
         // `probe_callback`, hence it's guaranteed that `Device::set_drvdata()` has been called
-        // and stored a `Pin<KBox<T>>`.
-        let data = unsafe { dev.drvdata_borrow::<T>() };
+        // and stored a `Pin<KBox<T::Data<'_>>>`.
+        let data = unsafe { dev.drvdata_borrow::<T::Data<'_>>() };
 
         T::disconnect(intf, data);
     }
@@ -287,22 +287,30 @@ macro_rules! usb_device_table {
 ///
 /// impl usb::Driver for MyDriver {
 ///     type IdInfo = ();
+///     type Data<'bound> = Self;
 ///     const ID_TABLE: usb::IdTable<Self::IdInfo> = &USB_TABLE;
 ///
-///     fn probe(
-///         _interface: &usb::Interface<Core>,
+///     fn probe<'bound>(
+///         _interface: &'bound usb::Interface<Core<'_>>,
 ///         _id: &usb::DeviceId,
-///         _info: &Self::IdInfo,
-///     ) -> impl PinInit<Self, Error> {
+///         _info: &'bound Self::IdInfo,
+///     ) -> impl PinInit<Self::Data<'bound>, Error> + 'bound {
 ///         Err(ENODEV)
 ///     }
 ///
-///     fn disconnect(_interface: &usb::Interface<Core>, _data: Pin<&Self>) {}
+///     fn disconnect<'bound>(
+///         _interface: &'bound usb::Interface<Core<'_>>,
+///         _data: Pin<&Self::Data<'bound>>,
+///     ) {
+///     }
 /// }
 ///```
 pub trait Driver {
     /// The type holding information about each one of the device ids supported by the driver.
     type IdInfo: 'static;
+
+    /// The type of the driver's bus device private data.
+    type Data<'bound>: Send + 'bound;
 
     /// The table of device ids supported by the driver.
     const ID_TABLE: IdTable<Self::IdInfo>;
@@ -311,16 +319,19 @@ pub trait Driver {
     ///
     /// Called when a new USB interface is bound to this driver.
     /// Implementers should attempt to initialize the interface here.
-    fn probe(
-        interface: &Interface<device::Core>,
+    fn probe<'bound>(
+        interface: &'bound Interface<device::Core<'_>>,
         id: &DeviceId,
-        id_info: &Self::IdInfo,
-    ) -> impl PinInit<Self, Error>;
+        id_info: &'bound Self::IdInfo,
+    ) -> impl PinInit<Self::Data<'bound>, Error> + 'bound;
 
     /// USB driver disconnect.
     ///
     /// Called when the USB interface is about to be unbound from this driver.
-    fn disconnect(interface: &Interface<device::Core>, data: Pin<&Self>);
+    fn disconnect<'bound>(
+        interface: &'bound Interface<device::Core<'_>>,
+        data: Pin<&Self::Data<'bound>>,
+    );
 }
 
 /// A USB interface.
@@ -463,6 +474,10 @@ unsafe impl Send for Device {}
 // SAFETY: It is safe to send a &Device to another thread because we do not
 // allow any mutation through a shared reference.
 unsafe impl Sync for Device {}
+
+// SAFETY: Same as `Device<Normal>` -- the underlying `struct usb_device` is the same;
+// `Bound` is a zero-sized type-state marker that does not affect thread safety.
+unsafe impl Sync for Device<device::Bound> {}
 
 /// Declares a kernel module that exposes a single USB driver.
 ///

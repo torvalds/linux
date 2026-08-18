@@ -371,12 +371,10 @@ static int pm8607_regulator_probe(struct platform_device *pdev)
 static const struct platform_device_id pm8607_regulator_driver_ids[] = {
 	{
 		.name	= "88pm860x-regulator",
-		.driver_data	= 0,
 	}, {
 		.name	= "88pm860x-preg",
-		.driver_data	= 0,
 	},
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, pm8607_regulator_driver_ids);
 

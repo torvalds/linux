@@ -15,7 +15,217 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/export.h>
+#include <asm/facility.h>
 #include <asm/asm.h>
+
+#define SYMBOL_FUNCTION_ALIAS(alias, name)		\
+asm(".globl " __stringify(alias) "\n\t"			\
+    ".set   " __stringify(alias) "," __stringify(name))
+
+#ifdef __HAVE_ARCH_MEMMOVE
+noinstr void *__memmove(void *dest, const void *src, size_t n)
+{
+	const char *s = src;
+	char *d = dest;
+
+	if (!n)
+		return dest;
+	if ((d <= s || d >= s + n)) {
+		/* Forward copy */
+		while (n >= 256) {
+			asm volatile(
+				"	mvc	0(256,%[d]),0(%[s])\n"
+				:
+				: [d] "a" (d), [s] "a" (s)
+				: "memory");
+			d += 256;
+			s += 256;
+			n -= 256;
+		}
+		if (n) {
+			asm volatile(
+				"	exrl	%[n],0f\n"
+				"	j	1f\n"
+				"0:	mvc	0(1,%[d]),0(%[s])\n"
+				"1:"
+				:
+				: [d] "a" (d), [s] "a" (s), [n] "a" (n - 1)
+				: "memory");
+		}
+		return dest;
+	}
+	/* Backward copy */
+	if (test_facility(61)) {
+		/* Use mvcrl instruction if available */
+		while (n >= 256) {
+			asm volatile(
+				"	lghi	%%r0,255\n"
+				"	.insn	sse,0xe50a00000000,%[d],%[s]\n"
+				: [d] "=Q" (*(d + n - 256))
+				: [s] "Q" (*(s + n - 256))
+				: "0", "memory");
+			n -= 256;
+		}
+		if (n) {
+			asm volatile(
+				"	lgr	%%r0,%[n]\n"
+				"	.insn	sse,0xe50a00000000,%[d],%[s]\n"
+				: [d] "=Q" (*d)
+				: [s] "Q" (*s), [n] "d" (n - 1)
+				: "0", "memory");
+		}
+	} else {
+		while (n--)
+			d[n] = s[n];
+	}
+	return dest;
+}
+SYMBOL_FUNCTION_ALIAS(memmove, __memmove);
+EXPORT_SYMBOL(__memmove);
+EXPORT_SYMBOL(memmove);
+#endif
+
+#ifdef __HAVE_ARCH_MEMSET
+noinstr void *__memset(void *s, int c, size_t n)
+{
+	char *xs = s;
+
+	if (!n)
+		return s;
+	if (!c) {
+		/* Clear memory */
+		while (n >= 256) {
+			asm volatile(
+				"	xc	 0(256,%[xs]),0(%[xs])"
+				:
+				: [xs] "a" (xs)
+				: "cc", "memory");
+			xs += 256;
+			n -= 256;
+		}
+		if (!n)
+			return s;
+		asm volatile(
+			"	exrl	%[n],0f\n"
+			"	j	1f\n"
+			"0:	xc	0(1,%[xs]),0(%[xs])\n"
+			"1:"
+			:
+			: [xs] "a" (xs), [n] "a" (n - 1)
+			: "cc", "memory");
+	} else {
+		/* Fill memory */
+		while (n >= 256) {
+			*xs = c;
+			asm volatile(
+				"	mvc	1(255,%[xs]),0(%[xs])"
+				:
+				: [xs] "a" (xs)
+				: "memory");
+			xs += 256;
+			n -= 256;
+		}
+		if (!n)
+			return s;
+		*xs = c;
+		if (n == 1)
+			return s;
+		asm volatile(
+			"	exrl	%[n],0f\n"
+			"	j	1f\n"
+			"0:	mvc	1(1,%[xs]),0(%[xs])\n"
+			"1:"
+			:
+			: [xs] "a" (xs), [n] "a" (n - 2)
+			: "memory");
+	}
+	return s;
+}
+SYMBOL_FUNCTION_ALIAS(memset, __memset);
+EXPORT_SYMBOL(__memset);
+EXPORT_SYMBOL(memset);
+#endif
+
+#ifdef __HAVE_ARCH_MEMCPY
+noinstr void *__memcpy(void *dest, const void *src, size_t n)
+{
+	void *d = dest;
+
+	if (!n)
+		return d;
+	while (n >= 256) {
+		asm volatile(
+			"	mvc	0(256,%[dest]),0(%[src])"
+			:
+			: [dest] "a" (dest), [src] "a" (src)
+			: "memory");
+		dest += 256;
+		src += 256;
+		n -= 256;
+	}
+	if (!n)
+		return d;
+	asm volatile(
+		"	exrl	%[n],1f\n"
+		"	j	2f\n"
+		"1:	mvc	0(1,%[dest]),0(%[src])\n"
+		"2:"
+		:
+		: [dest] "a" (dest), [src] "a" (src), [n] "a" (n - 1)
+		: "memory");
+	return d;
+}
+SYMBOL_FUNCTION_ALIAS(memcpy, __memcpy);
+EXPORT_SYMBOL(__memcpy);
+EXPORT_SYMBOL(memcpy);
+#endif
+
+#define DEFINE_MEMSET(_bits, _bytes, _type)					\
+void *__memset##_bits(_type *s, _type v, size_t n)				\
+{										\
+	_type *xs = s;								\
+										\
+	if (!n)									\
+		return s;							\
+	while (n >= 256) {							\
+		*xs = v;							\
+		asm volatile(							\
+			"	mvc	%[_b](256-%[_b],%[xs]),0(%[xs])\n"	\
+			:							\
+			: [xs] "a" (xs), [_b] "i" (_bytes)			\
+			: "memory");						\
+		xs = (_type *)((char *)xs + 256);				\
+		n -= 256;							\
+	}									\
+	if (!n)									\
+		return s;							\
+	*xs = v;								\
+	if (n == _bytes)							\
+		return s;							\
+	n -= _bytes + 1;							\
+	asm volatile(								\
+		"	exrl	 %[n],1f\n"					\
+		"	j	 2f\n"						\
+		"1:	mvc	 %[_b](1,%[xs]),0(%[xs])\n"			\
+		"2:"								\
+		:								\
+		: [n] "a" (n), [xs] "a" (xs), [_b] "i" (_bytes)			\
+		: "memory");							\
+	return s;								\
+}										\
+EXPORT_SYMBOL(__memset##_bits)
+
+#ifdef __HAVE_ARCH_MEMSET16
+DEFINE_MEMSET(16, 2, uint16_t);
+#endif
+
+#ifdef __HAVE_ARCH_MEMSET32
+DEFINE_MEMSET(32, 4, uint32_t);
+#endif
+
+#ifdef __HAVE_ARCH_MEMSET64
+DEFINE_MEMSET(64, 8, uint64_t);
+#endif
 
 /*
  * Helper functions to find the end of a string
@@ -102,32 +312,6 @@ char *strcat(char *dest, const char *src)
 	return ret;
 }
 EXPORT_SYMBOL(strcat);
-#endif
-
-/**
- * strlcat - Append a length-limited, %NUL-terminated string to another
- * @dest: The string to be appended to
- * @src: The string to append to it
- * @n: The size of the destination buffer.
- */
-#ifdef __HAVE_ARCH_STRLCAT
-size_t strlcat(char *dest, const char *src, size_t n)
-{
-	size_t dsize = __strend(dest) - dest;
-	size_t len = __strend(src) - src;
-	size_t res = dsize + len;
-
-	if (dsize < n) {
-		dest += dsize;
-		n -= dsize;
-		if (len >= n)
-			len = n - 1;
-		dest[len] = '\0';
-		memcpy(dest, src, len);
-	}
-	return res;
-}
-EXPORT_SYMBOL(strlcat);
 #endif
 
 /**

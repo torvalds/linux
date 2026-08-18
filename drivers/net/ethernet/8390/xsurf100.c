@@ -357,8 +357,8 @@ static void xsurf100_remove(struct zorro_dev *zdev)
 }
 
 static const struct zorro_device_id xsurf100_zorro_tbl[] = {
-	{ ZORRO_PROD_INDIVIDUAL_COMPUTERS_X_SURF100, },
-	{ 0 }
+	{ .id = ZORRO_PROD_INDIVIDUAL_COMPUTERS_X_SURF100 },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(zorro, xsurf100_zorro_tbl);

@@ -24,7 +24,6 @@
 #include <linux/math.h>
 #include <linux/minmax.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/reboot.h>
@@ -114,12 +113,6 @@ static int otto_wdt_tick_ms(struct otto_wdt_ctrl *ctrl, int prescale)
  * the value stored in those fields. This means each phase will run for at least
  * one tick, so small values need to be clamped to correctly reflect the timeout.
  */
-static inline unsigned int div_round_ticks(unsigned int val, unsigned int tick_duration,
-		unsigned int min_ticks)
-{
-	return max(min_ticks, DIV_ROUND_UP(val, tick_duration));
-}
-
 static int otto_wdt_determine_timeouts(struct watchdog_device *wdev, unsigned int timeout,
 		unsigned int pretimeout)
 {
@@ -140,9 +133,9 @@ static int otto_wdt_determine_timeouts(struct watchdog_device *wdev, unsigned in
 			return -EINVAL;
 
 		tick_ms = otto_wdt_tick_ms(ctrl, prescale);
-		total_ticks = div_round_ticks(timeout_ms, tick_ms, 2);
-		phase1_ticks = div_round_ticks(timeout_ms - pretimeout_ms, tick_ms, 1);
-		phase2_ticks = total_ticks - phase1_ticks;
+		total_ticks = max(2, DIV_ROUND_UP(timeout_ms, tick_ms));
+		phase2_ticks = max(1, pretimeout_ms / tick_ms);
+		phase1_ticks = total_ticks - phase2_ticks;
 
 		prescale_next++;
 	} while (phase1_ticks > OTTO_WDT_PHASE_TICKS_MAX
@@ -302,14 +295,14 @@ static int otto_wdt_probe(struct platform_device *pdev)
 	if (IS_ERR(ctrl->base))
 		return PTR_ERR(ctrl->base);
 
+	ret = otto_wdt_probe_clk(ctrl);
+	if (ret)
+		return ret;
+
 	/* Clear any old interrupts and reset initial state */
 	iowrite32(OTTO_WDT_INTR_PHASE_1 | OTTO_WDT_INTR_PHASE_2,
 			ctrl->base + OTTO_WDT_REG_INTR);
 	iowrite32(OTTO_WDT_CTRL_DEFAULT, ctrl->base + OTTO_WDT_REG_CTRL);
-
-	ret = otto_wdt_probe_clk(ctrl);
-	if (ret)
-		return ret;
 
 	ctrl->irq_phase1 = platform_get_irq_byname(pdev, "phase1");
 	if (ctrl->irq_phase1 < 0)

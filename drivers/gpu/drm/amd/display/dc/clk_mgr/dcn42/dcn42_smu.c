@@ -428,4 +428,3 @@ void dcn42_smu_set_dtbclk(struct clk_mgr_internal *clk_mgr, bool enable)
 			enable);
 	smu_print("%s: smu_set_dtbclk = %d\n", __func__, enable ? 1 : 0);
 }
-

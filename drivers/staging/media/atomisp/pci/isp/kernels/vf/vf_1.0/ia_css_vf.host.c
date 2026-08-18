@@ -45,11 +45,10 @@ int ia_css_vf_config(struct sh_css_isp_vf_isp_config      *to,
  * to the requested viewfinder resolution on the upper side. The output cannot
  * be smaller than the requested viewfinder resolution.
  */
-int
-sh_css_vf_downscale_log2(
-    const struct ia_css_frame_info *out_info,
-    const struct ia_css_frame_info *vf_info,
-    unsigned int *downscale_log2) {
+int sh_css_vf_downscale_log2(const struct ia_css_frame_info *out_info,
+			     const struct ia_css_frame_info *vf_info,
+			     unsigned int *downscale_log2)
+{
 	unsigned int ds_log2 = 0;
 	unsigned int out_width;
 
@@ -65,8 +64,7 @@ sh_css_vf_downscale_log2(
 	* test for the height since the vmem buffers only put restrictions on
 	* the width of a line, not on the number of lines in a frame.
 	*/
-	while (out_width >= vf_info->res.width)
-	{
+	while (out_width >= vf_info->res.width) {
 		ds_log2++;
 		out_width /= 2;
 	}
@@ -80,13 +78,12 @@ sh_css_vf_downscale_log2(
 	return 0;
 }
 
-static int
-configure_kernel(
-    const struct ia_css_binary_info *info,
-    const struct ia_css_frame_info *out_info,
-    const struct ia_css_frame_info *vf_info,
-    unsigned int *downscale_log2,
-    struct ia_css_vf_configuration *config) {
+static int configure_kernel(const struct ia_css_binary_info *info,
+			    const struct ia_css_frame_info *out_info,
+			    const struct ia_css_frame_info *vf_info,
+			    unsigned int *downscale_log2,
+			    struct ia_css_vf_configuration *config)
+{
 	int err;
 	unsigned int vf_log_ds = 0;
 

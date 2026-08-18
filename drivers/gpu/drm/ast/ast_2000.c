@@ -69,64 +69,59 @@ void ast_2000_set_def_ext_reg(struct ast_device *ast)
 }
 
 static const struct ast_dramstruct ast2000_dram_table_data[] = {
-	{ 0x0108, 0x00000000 },
-	{ 0x0120, 0x00004a21 },
+	AST_DRAMSTRUCT_REG(AST_REG_MCR108, 0x00000000),
+	AST_DRAMSTRUCT_REG(AST_REG_MCR120, 0x00004a21),
 	AST_DRAMSTRUCT_UDELAY(67u),
-	{ 0x0000, 0xFFFFFFFF },
-	AST_DRAMSTRUCT_INIT(DRAM_TYPE, 0x00000089),
-	{ 0x0008, 0x22331353 },
-	{ 0x000C, 0x0d07000b },
-	{ 0x0010, 0x11113333 },
-	{ 0x0020, 0x00110350 },
-	{ 0x0028, 0x1e0828f0 },
-	{ 0x0024, 0x00000001 },
-	{ 0x001C, 0x00000000 },
-	{ 0x0014, 0x00000003 },
+	AST_DRAMSTRUCT_REG(AST_REG_MCR00, 0xffffffff), /* FIXME: This locks the MCR registers. */
+	AST_DRAMSTRUCT_REG(AST_REG_MCR04, 0x00000089), /* DRAM type */
+	AST_DRAMSTRUCT_REG(AST_REG_MCR08, 0x22331353),
+	AST_DRAMSTRUCT_REG(AST_REG_MCR0C, 0x0d07000b),
+	AST_DRAMSTRUCT_REG(AST_REG_MCR10, 0x11113333),
+	AST_DRAMSTRUCT_REG(AST_REG_MCR20, 0x00110350),
+	AST_DRAMSTRUCT_REG(AST_REG_MCR28, 0x1e0828f0),
+	AST_DRAMSTRUCT_REG(AST_REG_MCR24, 0x00000001),
+	AST_DRAMSTRUCT_REG(AST_REG_MCR1C, 0x00000000),
+	AST_DRAMSTRUCT_REG(AST_REG_MCR14, 0x00000003),
 	AST_DRAMSTRUCT_UDELAY(67u),
-	{ 0x0018, 0x00000131 },
-	{ 0x0014, 0x00000001 },
+	AST_DRAMSTRUCT_REG(AST_REG_MCR18, 0x00000131),
+	AST_DRAMSTRUCT_REG(AST_REG_MCR14, 0x00000001),
 	AST_DRAMSTRUCT_UDELAY(67u),
-	{ 0x0018, 0x00000031 },
-	{ 0x0014, 0x00000001 },
+	AST_DRAMSTRUCT_REG(AST_REG_MCR18, 0x00000031),
+	AST_DRAMSTRUCT_REG(AST_REG_MCR14, 0x00000001),
 	AST_DRAMSTRUCT_UDELAY(67u),
-	{ 0x0028, 0x1e0828f1 },
-	{ 0x0024, 0x00000003 },
-	{ 0x002C, 0x1f0f28fb },
-	{ 0x0030, 0xFFFFFE01 },
+	AST_DRAMSTRUCT_REG(AST_REG_MCR28, 0x1e0828f1),
+	AST_DRAMSTRUCT_REG(AST_REG_MCR24, 0x00000003),
+	AST_DRAMSTRUCT_REG(AST_REG_MCR2C, 0x1f0f28fb),
+	AST_DRAMSTRUCT_REG(AST_REG_MCR30, 0xfffffe01),
 	AST_DRAMSTRUCT_INVALID,
 };
 
 static void ast_post_chip_2000(struct ast_device *ast)
 {
 	u8 j;
-	u32 temp, i;
-	const struct ast_dramstruct *dram_reg_info;
+	u32 i;
 
 	j = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd0, 0xff);
 
 	if ((j & 0x80) == 0) { /* VGA only */
-		dram_reg_info = ast2000_dram_table_data;
-		ast_write32(ast, 0xf004, 0x1e6e0000);
-		ast_write32(ast, 0xf000, 0x1);
-		ast_write32(ast, 0x10100, 0xa8);
+		const struct ast_dramstruct *dram_reg_info = ast2000_dram_table_data;
+		u32 mcr140;
 
-		do {
-			;
-		} while (ast_read32(ast, 0x10100) != 0xa8);
+		ast_moutdwm_poll(ast, AST_REG_MCR100, 0xa8, 0xa8);
 
 		while (!AST_DRAMSTRUCT_IS(dram_reg_info, INVALID)) {
 			if (AST_DRAMSTRUCT_IS(dram_reg_info, UDELAY)) {
 				for (i = 0; i < 15; i++)
 					udelay(dram_reg_info->data);
 			} else {
-				ast_write32(ast, 0x10000 + dram_reg_info->index,
-					    dram_reg_info->data);
+				ast_moutdwm(ast, dram_reg_info->index, dram_reg_info->data);
 			}
 			dram_reg_info++;
 		}
 
-		temp = ast_read32(ast, 0x10140);
-		ast_write32(ast, 0x10140, temp | 0x40);
+		mcr140 = ast_mindwm(ast, AST_REG_MCR140);
+		mcr140 |= 0x00000040;
+		ast_moutdwm(ast, AST_REG_MCR140, mcr140);
 	}
 
 	/* wait ready */

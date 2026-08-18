@@ -155,63 +155,63 @@
  * read given register and fill in field value in output parameter */
 #define REG_GET(reg_name, field, val)	\
 		generic_reg_get(CTX, REG(reg_name), \
-				FN(reg_name, field), val)
+				FN(reg_name, field), (uint32_t *)val)
 
 #define REG_GET_2(reg_name, f1, v1, f2, v2)	\
 		generic_reg_get2(CTX, REG(reg_name), \
-				FN(reg_name, f1), v1, \
-				FN(reg_name, f2), v2)
+				FN(reg_name, f1), (uint32_t *)v1, \
+				FN(reg_name, f2), (uint32_t *)v2)
 
 #define REG_GET_3(reg_name, f1, v1, f2, v2, f3, v3)	\
 		generic_reg_get3(CTX, REG(reg_name), \
-				FN(reg_name, f1), v1, \
-				FN(reg_name, f2), v2, \
-				FN(reg_name, f3), v3)
+				FN(reg_name, f1), (uint32_t *)v1, \
+				FN(reg_name, f2), (uint32_t *)v2, \
+				FN(reg_name, f3), (uint32_t *)v3)
 
 #define REG_GET_4(reg_name, f1, v1, f2, v2, f3, v3, f4, v4)	\
 		generic_reg_get4(CTX, REG(reg_name), \
-				FN(reg_name, f1), v1, \
-				FN(reg_name, f2), v2, \
-				FN(reg_name, f3), v3, \
-				FN(reg_name, f4), v4)
+				FN(reg_name, f1), (uint32_t *)v1, \
+				FN(reg_name, f2), (uint32_t *)v2, \
+				FN(reg_name, f3), (uint32_t *)v3, \
+				FN(reg_name, f4), (uint32_t *)v4)
 
 #define REG_GET_5(reg_name, f1, v1, f2, v2, f3, v3, f4, v4, f5, v5)	\
 		generic_reg_get5(CTX, REG(reg_name), \
-				FN(reg_name, f1), v1, \
-				FN(reg_name, f2), v2, \
-				FN(reg_name, f3), v3, \
-				FN(reg_name, f4), v4, \
-				FN(reg_name, f5), v5)
+				FN(reg_name, f1), (uint32_t *)v1, \
+				FN(reg_name, f2), (uint32_t *)v2, \
+				FN(reg_name, f3), (uint32_t *)v3, \
+				FN(reg_name, f4), (uint32_t *)v4, \
+				FN(reg_name, f5), (uint32_t *)v5)
 
 #define REG_GET_6(reg_name, f1, v1, f2, v2, f3, v3, f4, v4, f5, v5, f6, v6)	\
 		generic_reg_get6(CTX, REG(reg_name), \
-				FN(reg_name, f1), v1, \
-				FN(reg_name, f2), v2, \
-				FN(reg_name, f3), v3, \
-				FN(reg_name, f4), v4, \
-				FN(reg_name, f5), v5, \
-				FN(reg_name, f6), v6)
+				FN(reg_name, f1), (uint32_t *)v1, \
+				FN(reg_name, f2), (uint32_t *)v2, \
+				FN(reg_name, f3), (uint32_t *)v3, \
+				FN(reg_name, f4), (uint32_t *)v4, \
+				FN(reg_name, f5), (uint32_t *)v5, \
+				FN(reg_name, f6), (uint32_t *)v6)
 
 #define REG_GET_7(reg_name, f1, v1, f2, v2, f3, v3, f4, v4, f5, v5, f6, v6, f7, v7)	\
 		generic_reg_get7(CTX, REG(reg_name), \
-				FN(reg_name, f1), v1, \
-				FN(reg_name, f2), v2, \
-				FN(reg_name, f3), v3, \
-				FN(reg_name, f4), v4, \
-				FN(reg_name, f5), v5, \
-				FN(reg_name, f6), v6, \
-				FN(reg_name, f7), v7)
+				FN(reg_name, f1), (uint32_t *)v1, \
+				FN(reg_name, f2), (uint32_t *)v2, \
+				FN(reg_name, f3), (uint32_t *)v3, \
+				FN(reg_name, f4), (uint32_t *)v4, \
+				FN(reg_name, f5), (uint32_t *)v5, \
+				FN(reg_name, f6), (uint32_t *)v6, \
+				FN(reg_name, f7), (uint32_t *)v7)
 
 #define REG_GET_8(reg_name, f1, v1, f2, v2, f3, v3, f4, v4, f5, v5, f6, v6, f7, v7, f8, v8)	\
 		generic_reg_get8(CTX, REG(reg_name), \
-				FN(reg_name, f1), v1, \
-				FN(reg_name, f2), v2, \
-				FN(reg_name, f3), v3, \
-				FN(reg_name, f4), v4, \
-				FN(reg_name, f5), v5, \
-				FN(reg_name, f6), v6, \
-				FN(reg_name, f7), v7, \
-				FN(reg_name, f8), v8)
+				FN(reg_name, f1), (uint32_t *)v1, \
+				FN(reg_name, f2), (uint32_t *)v2, \
+				FN(reg_name, f3), (uint32_t *)v3, \
+				FN(reg_name, f4), (uint32_t *)v4, \
+				FN(reg_name, f5), (uint32_t *)v5, \
+				FN(reg_name, f6), (uint32_t *)v6, \
+				FN(reg_name, f7), (uint32_t *)v7, \
+				FN(reg_name, f8), (uint32_t *)v8)
 
 /* macro to poll and wait for a register field to read back given value */
 

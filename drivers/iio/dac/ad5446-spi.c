@@ -6,7 +6,6 @@
  */
 #include <linux/err.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/spi/spi.h>
 #include <linux/unaligned.h>
 

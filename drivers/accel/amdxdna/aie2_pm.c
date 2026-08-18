@@ -31,14 +31,14 @@ int aie2_pm_set_dpm(struct amdxdna_dev_hdl *ndev, u32 dpm_level)
 {
 	int ret;
 
-	ret = amdxdna_pm_resume_get_locked(ndev->xdna);
+	ret = amdxdna_pm_resume_get_locked(ndev->aie.xdna);
 	if (ret)
 		return ret;
 
-	ret = ndev->priv->hw_ops.set_dpm(ndev, dpm_level);
+	ret = ndev->priv->hw_ops->set_dpm(ndev, dpm_level);
 	if (!ret)
 		ndev->dpm_level = dpm_level;
-	amdxdna_pm_suspend_put(ndev->xdna);
+	amdxdna_pm_suspend_put(ndev->aie.xdna);
 
 	return ret;
 }
@@ -49,7 +49,7 @@ int aie2_pm_init(struct amdxdna_dev_hdl *ndev)
 
 	if (ndev->dev_status != AIE2_DEV_UNINIT) {
 		/* Resume device */
-		ret = ndev->priv->hw_ops.set_dpm(ndev, ndev->dpm_level);
+		ret = ndev->priv->hw_ops->set_dpm(ndev, ndev->dpm_level);
 		if (ret)
 			return ret;
 
@@ -64,7 +64,7 @@ int aie2_pm_init(struct amdxdna_dev_hdl *ndev)
 		ndev->max_dpm_level++;
 	ndev->max_dpm_level--;
 
-	ret = ndev->priv->hw_ops.set_dpm(ndev, ndev->max_dpm_level);
+	ret = ndev->priv->hw_ops->set_dpm(ndev, ndev->max_dpm_level);
 	if (ret)
 		return ret;
 	ndev->dpm_level = ndev->max_dpm_level;
@@ -74,14 +74,14 @@ int aie2_pm_init(struct amdxdna_dev_hdl *ndev)
 		return ret;
 
 	ndev->pw_mode = POWER_MODE_DEFAULT;
-	ndev->dft_dpm_level = ndev->max_dpm_level;
+	ndev->dft_dpm_level = 0;
 
 	return 0;
 }
 
 int aie2_pm_set_mode(struct amdxdna_dev_hdl *ndev, enum amdxdna_power_mode_type target)
 {
-	struct amdxdna_dev *xdna = ndev->xdna;
+	struct amdxdna_dev *xdna = ndev->aie.xdna;
 	u32 clk_gating, dpm_level;
 	int ret;
 
@@ -107,6 +107,14 @@ int aie2_pm_set_mode(struct amdxdna_dev_hdl *ndev, enum amdxdna_power_mode_type 
 	case POWER_MODE_DEFAULT:
 		clk_gating = AIE2_CLK_GATING_ENABLE;
 		dpm_level = ndev->dft_dpm_level;
+		break;
+	case POWER_MODE_LOW:
+		clk_gating = AIE2_CLK_GATING_ENABLE;
+		dpm_level = 0;
+		break;
+	case POWER_MODE_MEDIUM:
+		clk_gating = AIE2_CLK_GATING_ENABLE;
+		dpm_level = ndev->max_dpm_level / 2;
 		break;
 	default:
 		return -EOPNOTSUPP;

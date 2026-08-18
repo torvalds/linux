@@ -14,6 +14,27 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<value name="A8XX" value="8"/>
 </enum>
 
+<enum name="desctype" bare="yes">
+	<value name="DESC_NONE" value="0"/>
+	<doc>
+		TEX_MEMOBJ descriptor types.  These are used
+		to mark fields that only apply to certain
+		descriptor types, and potentially overlap
+		with fields in other types.
+	</doc>
+	<value name="DESC_SINGLE_PLANE" value="1"/>
+	<value name="DESC_MULTI_PLANE" value="2"/>
+	<value name="DESC_BUFFER" value="3"/>
+	<value name="DESC_WEIGHT" value="4"/>
+	<doc>
+		Additional descriptor types not part of
+		TEX_MEMOBJ.  These are described by their
+		own toplevel domain.
+	</doc>
+	<value name="DESC_SAMPLER" value="10"/> <!-- AxXX_UBO -->
+	<value name="DESC_UBO" value="11"/> <!-- A6XX_UBO, same on gen8 -->
+</enum>
+
 <enum name="adreno_pa_su_sc_draw">
 	<value name="PC_DRAW_POINTS" value="0"/>
 	<value name="PC_DRAW_LINES" value="1"/>
@@ -408,5 +429,26 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<value value="6" name="PIPE_DDE_BR"/>
 	<value value="7" name="PIPE_DDE_BV"/>
 </enum>
+
+<!--
+   A fake domain for giving lua scripts access to the shader_stats struct
+ -->
+<domain name="ir3_shader_stats" width="32">
+	<!-- indx 0 is bindful, indx N+1 is .baseN -->
+	<array offset="0" name="descriptor_stats" stride="8" length="9">
+		<reg64 offset="0" name="img"/>
+		<reg64 offset="2" name="tex"/>
+		<reg64 offset="4" name="samp"/>
+		<reg64 offset="6" name="ubo"/>
+	</array>
+	<reg32 offset="72" name="has_img"/>
+	<reg32 offset="73" name="has_tex"/>
+	<reg32 offset="74" name="has_samp"/>
+	<reg32 offset="74" name="has_ubo"/>
+	<!--
+		other following fields can be added as needed, but we
+		might need to take care of padding/alignment.
+	 -->
+</domain>
 
 </database>

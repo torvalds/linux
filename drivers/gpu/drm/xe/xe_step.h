@@ -18,8 +18,8 @@ void xe_step_pre_gmdid_get(struct xe_device *xe);
 void xe_step_gmdid_get(struct xe_device *xe,
 		       u32 graphics_gmdid_revid,
 		       u32 media_gmdid_revid);
-static inline u32 xe_step_to_gmdid(enum xe_step step) { return step - STEP_A0; }
+static inline u32 xe_step_to_gmdid(enum intel_step step) { return step - STEP_A0; }
 
-const char *xe_step_name(enum xe_step step);
+const char *xe_step_name(enum intel_step step);
 
 #endif

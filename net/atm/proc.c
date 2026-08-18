@@ -29,7 +29,6 @@
 #include <linux/atomic.h>
 #include "resources.h"
 #include "common.h" /* atm_proc_init prototype */
-#include "signaling.h" /* to get sigd - ugly too */
 
 static ssize_t proc_dev_atm_read(struct file *file, char __user *buf,
 				 size_t count, loff_t *pos);
@@ -156,13 +155,6 @@ static void pvc_info(struct seq_file *seq, struct atm_vcc *vcc)
 	seq_putc(seq, '\n');
 }
 
-static const char *vcc_state(struct atm_vcc *vcc)
-{
-	static const char *const map[] = { ATM_VS2TXT_MAP };
-
-	return map[ATM_VF2VS(vcc->flags)];
-}
-
 static void vcc_info(struct seq_file *seq, struct atm_vcc *vcc)
 {
 	struct sock *sk = sk_atm(vcc);
@@ -177,9 +169,6 @@ static void vcc_info(struct seq_file *seq, struct atm_vcc *vcc)
 	case AF_ATMPVC:
 		seq_printf(seq, "PVC");
 		break;
-	case AF_ATMSVC:
-		seq_printf(seq, "SVC");
-		break;
 	default:
 		seq_printf(seq, "%3d", sk->sk_family);
 	}
@@ -188,26 +177,6 @@ static void vcc_info(struct seq_file *seq, struct atm_vcc *vcc)
 		   sk_wmem_alloc_get(sk), sk->sk_sndbuf,
 		   sk_rmem_alloc_get(sk), sk->sk_rcvbuf,
 		   refcount_read(&sk->sk_refcnt));
-}
-
-static void svc_info(struct seq_file *seq, struct atm_vcc *vcc)
-{
-	if (!vcc->dev)
-		seq_printf(seq, sizeof(void *) == 4 ?
-			   "N/A@%pK%10s" : "N/A@%pK%2s", vcc, "");
-	else
-		seq_printf(seq, "%3d %3d %5d         ",
-			   vcc->dev->number, vcc->vpi, vcc->vci);
-	seq_printf(seq, "%-10s ", vcc_state(vcc));
-	seq_printf(seq, "%s%s", vcc->remote.sas_addr.pub,
-	    *vcc->remote.sas_addr.pub && *vcc->remote.sas_addr.prv ? "+" : "");
-	if (*vcc->remote.sas_addr.prv) {
-		int i;
-
-		for (i = 0; i < ATM_ESA_LEN; i++)
-			seq_printf(seq, "%02x", vcc->remote.sas_addr.prv[i]);
-	}
-	seq_putc(seq, '\n');
 }
 
 static int atm_dev_seq_show(struct seq_file *seq, void *v)
@@ -276,29 +245,6 @@ static const struct seq_operations vcc_seq_ops = {
 	.next	= vcc_seq_next,
 	.stop	= vcc_seq_stop,
 	.show	= vcc_seq_show,
-};
-
-static int svc_seq_show(struct seq_file *seq, void *v)
-{
-	static const char atm_svc_banner[] =
-		"Itf VPI VCI           State      Remote\n";
-
-	if (v == SEQ_START_TOKEN)
-		seq_puts(seq, atm_svc_banner);
-	else {
-		struct vcc_state *state = seq->private;
-		struct atm_vcc *vcc = atm_sk(state->sk);
-
-		svc_info(seq, vcc);
-	}
-	return 0;
-}
-
-static const struct seq_operations svc_seq_ops = {
-	.start	= vcc_seq_start,
-	.next	= vcc_seq_next,
-	.stop	= vcc_seq_stop,
-	.show	= svc_seq_show,
 };
 
 static ssize_t proc_dev_atm_read(struct file *file, char __user *buf,
@@ -376,8 +322,6 @@ int __init atm_proc_init(void)
 	proc_create_seq("devices", 0444, atm_proc_root, &atm_dev_seq_ops);
 	proc_create_seq_private("pvc", 0444, atm_proc_root, &pvc_seq_ops,
 			sizeof(struct vcc_state), (void *)(uintptr_t)PF_ATMPVC);
-	proc_create_seq_private("svc", 0444, atm_proc_root, &svc_seq_ops,
-			sizeof(struct vcc_state), (void *)(uintptr_t)PF_ATMSVC);
 	proc_create_seq_private("vc", 0444, atm_proc_root, &vcc_seq_ops,
 			sizeof(struct vcc_state), NULL);
 	return 0;

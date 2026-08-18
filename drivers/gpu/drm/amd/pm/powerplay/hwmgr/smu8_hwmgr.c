@@ -270,41 +270,6 @@ static int smu8_construct_max_power_limits_table(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static int smu8_init_dynamic_state_adjustment_rule_settings(
-			struct pp_hwmgr *hwmgr,
-			ATOM_CLK_VOLT_CAPABILITY *disp_voltage_table)
-{
-	struct phm_clock_voltage_dependency_table *table_clk_vlt;
-
-	table_clk_vlt = kzalloc_flex(*table_clk_vlt, entries, 8);
-
-	if (NULL == table_clk_vlt) {
-		pr_err("Can not allocate memory!\n");
-		return -ENOMEM;
-	}
-
-	table_clk_vlt->count = 8;
-	table_clk_vlt->entries[0].clk = PP_DAL_POWERLEVEL_0;
-	table_clk_vlt->entries[0].v = 0;
-	table_clk_vlt->entries[1].clk = PP_DAL_POWERLEVEL_1;
-	table_clk_vlt->entries[1].v = 1;
-	table_clk_vlt->entries[2].clk = PP_DAL_POWERLEVEL_2;
-	table_clk_vlt->entries[2].v = 2;
-	table_clk_vlt->entries[3].clk = PP_DAL_POWERLEVEL_3;
-	table_clk_vlt->entries[3].v = 3;
-	table_clk_vlt->entries[4].clk = PP_DAL_POWERLEVEL_4;
-	table_clk_vlt->entries[4].v = 4;
-	table_clk_vlt->entries[5].clk = PP_DAL_POWERLEVEL_5;
-	table_clk_vlt->entries[5].v = 5;
-	table_clk_vlt->entries[6].clk = PP_DAL_POWERLEVEL_6;
-	table_clk_vlt->entries[6].v = 6;
-	table_clk_vlt->entries[7].clk = PP_DAL_POWERLEVEL_7;
-	table_clk_vlt->entries[7].v = 7;
-	hwmgr->dyn_state.vddc_dep_on_dal_pwrl = table_clk_vlt;
-
-	return 0;
-}
-
 static int smu8_get_system_info_data(struct pp_hwmgr *hwmgr)
 {
 	struct smu8_hwmgr *data = hwmgr->backend;
@@ -402,9 +367,6 @@ static int smu8_get_system_info_data(struct pp_hwmgr *hwmgr)
 
 	smu8_construct_max_power_limits_table (hwmgr,
 				    &hwmgr->dyn_state.max_clock_voltage_on_ac);
-
-	smu8_init_dynamic_state_adjustment_rule_settings(hwmgr,
-				    &info->sDISPCLK_Voltage[0]);
 
 	return result;
 }
@@ -1149,9 +1111,6 @@ static int smu8_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 static int smu8_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
 {
 	if (hwmgr != NULL) {
-		kfree(hwmgr->dyn_state.vddc_dep_on_dal_pwrl);
-		hwmgr->dyn_state.vddc_dep_on_dal_pwrl = NULL;
-
 		kfree(hwmgr->backend);
 		hwmgr->backend = NULL;
 	}
@@ -1519,27 +1478,6 @@ static int smu8_store_cc6_data(struct pp_hwmgr *hwmgr, uint32_t separation_time,
 	}
 
 	return 0;
-}
-
-static int smu8_get_dal_power_level(struct pp_hwmgr *hwmgr,
-		struct amd_pp_simple_clock_info *info)
-{
-	uint32_t i;
-	const struct phm_clock_voltage_dependency_table *table =
-			hwmgr->dyn_state.vddc_dep_on_dal_pwrl;
-	const struct phm_clock_and_voltage_limits *limits =
-			&hwmgr->dyn_state.max_clock_voltage_on_ac;
-
-	info->engine_max_clock = limits->sclk;
-	info->memory_max_clock = limits->mclk;
-
-	for (i = table->count - 1; i > 0; i--) {
-		if (limits->vddc >= table->entries[i].v) {
-			info->level = table->entries[i].clk;
-			return 0;
-		}
-	}
-	return -EINVAL;
 }
 
 static int smu8_force_clock_level(struct pp_hwmgr *hwmgr,
@@ -2062,7 +2000,6 @@ static const struct pp_hwmgr_func smu8_hwmgr_funcs = {
 	.store_cc6_data = smu8_store_cc6_data,
 	.force_clock_level = smu8_force_clock_level,
 	.emit_clock_levels = smu8_emit_clock_levels,
-	.get_dal_power_level = smu8_get_dal_power_level,
 	.get_performance_level = smu8_get_performance_level,
 	.get_current_shallow_sleep_clocks = smu8_get_current_shallow_sleep_clocks,
 	.get_clock_by_type = smu8_get_clock_by_type,

@@ -1330,11 +1330,7 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	</reg32>
 	<reg32 offset="0x22c5" name="SP_VS_CTRL_REG1">
 		<bitfield name="CONSTLENGTH" low="0" high="9" type="uint"/>
-		<!--
-			not sure about full vs half const.. I can't get blob generate
-			something with a mediump/lowp uniform.
-		 -->
-		<bitfield name="CONSTFOOTPRINT" low="10" high="19" type="uint"/>
+		<bitfield name="CONSTMAXID" low="10" high="19" type="uint"/>
 		<bitfield name="INITIALOUTSTANDING" low="24" high="30" type="uint"/>
 	</reg32>
 	<reg32 offset="0x22c6" name="SP_VS_PARAM_REG">
@@ -1420,7 +1416,7 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	</reg32>
 	<reg32 offset="0x22e1" name="SP_FS_CTRL_REG1">
 		<bitfield name="CONSTLENGTH" low="0" high="9" type="uint"/>
-		<bitfield name="CONSTFOOTPRINT" low="10" high="19" type="uint"/>
+		<bitfield name="CONSTMAXID" low="10" high="19" type="uint"/>
 		<bitfield name="INITIALOUTSTANDING" low="20" high="23" type="uint"/>
 		<bitfield name="HALFPRECVAROFFSET" low="24" high="30" type="uint"/>
 	</reg32>

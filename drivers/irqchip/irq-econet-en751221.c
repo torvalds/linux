@@ -30,6 +30,8 @@
 #include <linux/irqchip.h>
 #include <linux/irqchip/chained_irq.h>
 
+#include <asm/setup.h>
+
 #define IRQ_COUNT		40
 
 #define NOT_PERCPU		0xff
@@ -41,15 +43,19 @@
 #define REG_PENDING1		0x54
 
 /**
- * @membase: Base address of the interrupt controller registers
- * @interrupt_shadows: Array of all interrupts, for each value,
- *	- NOT_PERCPU: This interrupt is not per-cpu, so it has no shadow
- *	- IS_SHADOW: This interrupt is a shadow of another per-cpu interrupt
- *	- else: This is a per-cpu interrupt whose shadow is the value
+ * @membase:		Base address of the interrupt controller registers
+ * @domain:		The irq_domain for direct dispatch
+ * @ipi_domain:		The irq_domain for inter-process dispatch
+ * @interrupt_shadows:	Array of all interrupts, for each value,
+ *	- NOT_PERCPU:	This interrupt is not per-cpu, so it has no shadow
+ *	- IS_SHADOW:	This interrupt is a shadow of another per-cpu interrupt
+ *	- else:		This is a per-cpu interrupt whose shadow is the value
  */
 static struct {
-	void __iomem	*membase;
-	u8		interrupt_shadows[IRQ_COUNT];
+	void __iomem		*membase;
+	struct irq_domain	*domain;
+	struct irq_domain	*ipi_domain;
+	u8			interrupt_shadows[IRQ_COUNT];
 } econet_intc __ro_after_init;
 
 static DEFINE_RAW_SPINLOCK(irq_lock);
@@ -150,6 +156,56 @@ static void econet_intc_from_parent(struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
+/*
+ * When in VEIC mode, the CPU jumps to a handler in the vector table.
+ * The only way to know which interrupt is being triggered is from the vector table offset that
+ * has been jumped to. Reading REG_PENDING(0|1) will tell you which interrupts are currently
+ * pending in the intc, but that will not tell you which one the intc wants you to process
+ * right now. And if you are not processing the exact interrupt that the intc wants you to be
+ * processing, you might be on the wrong VPE. You can't tell which VPE any given REG_PENDING
+ * interrupt is intended for (shadow IRQ numbers are for masking only, they never flag as
+ * pending).
+ *
+ * Consequently, this little ritual of generating n handler functions and registering one per
+ * interrupt is unavoidable.
+ */
+#define X(irq) \
+	static void econet_irq_dispatch ## irq (void) \
+	{ \
+		do_domain_IRQ(econet_intc.domain, irq); \
+	}
+
+ X(0)  X(1)  X(2)  X(3)  X(4)  X(5)  X(6)  X(7)  X(8)  X(9)
+X(10) X(11) X(12) X(13) X(14) X(15) X(16) X(17) X(18) X(19)
+X(20) X(21) X(22) X(23) X(24) X(25) X(26) X(27) X(28) X(29)
+X(30) X(31) X(32) X(33) X(34) X(35) X(36) X(37) X(38) X(39)
+
+#undef X
+#define X(irq) econet_irq_dispatch ## irq,
+
+static void (* const econet_irq_dispatchers[])(void) = {
+	X(0)  X(1)  X(2)  X(3)  X(4)  X(5)  X(6)  X(7)  X(8)  X(9)
+	X(10) X(11) X(12) X(13) X(14) X(15) X(16) X(17) X(18) X(19)
+	X(20) X(21) X(22) X(23) X(24) X(25) X(26) X(27) X(28) X(29)
+	X(30) X(31) X(32) X(33) X(34) X(35) X(36) X(37) X(38) X(39)
+};
+
+/* Likewise, we do the same for the 2 IPI IRQs so that we can route them back */
+static void econet_cpu_dispatch0(void)
+{
+	do_domain_IRQ(econet_intc.ipi_domain, 0);
+}
+
+static void econet_cpu_dispatch1(void)
+{
+	do_domain_IRQ(econet_intc.ipi_domain, 1);
+}
+
+static void (* const econet_cpu_dispatchers[])(void) = {
+	econet_cpu_dispatch0,
+	econet_cpu_dispatch1,
+};
+
 static const struct irq_chip econet_irq_chip;
 
 static int econet_intc_map(struct irq_domain *d, u32 irq, irq_hw_number_t hwirq)
@@ -174,6 +230,10 @@ static int econet_intc_map(struct irq_domain *d, u32 irq, irq_hw_number_t hwirq)
 	}
 
 	irq_set_chip_data(irq, NULL);
+
+	if (cpu_has_veic)
+		set_vi_handler(hwirq + 1, econet_irq_dispatchers[hwirq]);
+
 	return 0;
 }
 
@@ -249,6 +309,100 @@ static int __init get_shadow_interrupts(struct device_node *node)
 	return 0;
 }
 
+/**
+ * econet_cpu_init() - configure routing of CPU interrupts to the correct domain.
+ * @node: The devicetree node of this interrupt controller.
+ *
+ * Interrupts that originate from the CPU are unconditionally unmasked here and are re-routed back
+ * to the IPI irq_domain in the CPU intc. Masking still takes place but the CPU intc is in charge
+ * of it, using the mask bits of the c0_status register.
+ *
+ * Note that because IP2 ... IP7 are repurposed as Interrupt Priority Level, only the two IPI
+ * interrupts are actually supported.
+ */
+static int __init econet_cpu_init(struct device_node *node)
+{
+	const char *field = "econet,cpu-interrupt-map";
+	struct device_node *parent_intc;
+	int map_size;
+	u32 mask;
+
+	map_size = of_property_count_u32_elems(node, field);
+
+	if (map_size <= 0) {
+		return 0;
+	} else if (map_size % 2) {
+		pr_err("%pOF: %s count is odd, ignoring\n", node, field);
+		return 0;
+	}
+
+	u32 *maps __free(kfree) = kmalloc_array(map_size, sizeof(u32), GFP_KERNEL);
+	if (!maps)
+		return -ENOMEM;
+
+	if (of_property_read_u32_array(node, field, maps, map_size)) {
+		pr_err("%pOF: Failed to read %s\n", node, field);
+		return -EINVAL;
+	}
+
+	/* Validation */
+	for (int i = 0; i < map_size; i += 2) {
+		u32 receive = maps[i];
+		u32 dispatch = maps[i + 1];
+		u8 shadow;
+
+		if (receive >= IRQ_COUNT) {
+			pr_err("%pOF: Entry %d:%d in %s (%u) is out of bounds\n",
+			       node, i, 0, field, receive);
+			return -EINVAL;
+		}
+
+		shadow = econet_intc.interrupt_shadows[receive];
+		if (shadow != NOT_PERCPU && shadow >= IRQ_COUNT) {
+			pr_err("%pOF: Entry %d:%d in %s (%u) has invalid shadow (%d)\n",
+			       node, i, 0, field, receive, shadow);
+			return -EINVAL;
+		}
+
+		if (dispatch >= ARRAY_SIZE(econet_cpu_dispatchers)) {
+			pr_err("%pOF: Entry %d:%d in %s (%u) is out of bounds only IPI interrupts are supported\n",
+			       node, i, 1, field, dispatch);
+			return -EINVAL;
+		}
+	}
+
+	parent_intc = of_irq_find_parent(node);
+	if (!parent_intc) {
+		pr_err("%pOF: Failed to find parent %s\n", node, "IRQ device");
+		return -ENODEV;
+	}
+
+	econet_intc.ipi_domain = irq_find_matching_host(parent_intc, DOMAIN_BUS_IPI);
+	if (!econet_intc.ipi_domain) {
+		pr_err("%pOF: Failed to find parent %s\n", node, "IPI domain");
+		return -ENODEV;
+	}
+
+	mask = 0;
+	for (int i = 0; i < map_size; i += 2) {
+		u32 receive = maps[i];
+		u32 dispatch = maps[i + 1];
+		u8 shadow;
+
+		set_vi_handler(receive + 1, econet_cpu_dispatchers[dispatch]);
+
+		mask |= BIT(receive);
+
+		shadow = econet_intc.interrupt_shadows[receive];
+		if (shadow != NOT_PERCPU)
+			mask |= BIT(shadow);
+	}
+
+	econet_wreg(REG_MASK0, mask, mask);
+
+	return 0;
+}
+
 static int __init econet_intc_of_init(struct device_node *node, struct device_node *parent)
 {
 	struct irq_domain *domain;
@@ -294,7 +448,23 @@ static int __init econet_intc_of_init(struct device_node *node, struct device_no
 		goto err_unmap;
 	}
 
-	irq_set_chained_handler_and_data(irq, econet_intc_from_parent, domain);
+	/*
+	 * 34K Manual (MD00534) Section 6.3.1.3 rev 1.13 page 136:
+	 * In VEIC mode, IP2 ... IP7 are repurposed as Interrupt Priority Level. The controller
+	 * will filter incoming interrupts whose priority is lower than the IPL number. Therefore
+	 * we must not set any of these bits. We avoid setting IP2 by not actually chaining this
+	 * intc to the CPU intc.
+	 */
+	if (cpu_has_veic) {
+		ret = econet_cpu_init(node);
+
+		if (ret)
+			return ret;
+	} else {
+		irq_set_chained_handler_and_data(irq, econet_intc_from_parent, domain);
+	}
+
+	econet_intc.domain = domain;
 
 	return 0;
 

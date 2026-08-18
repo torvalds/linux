@@ -2956,7 +2956,7 @@
 
 			status = "disabled";
 
-			remoteproc_adsp_glink: glink-edge {
+			glink-edge {
 				interrupts-extended = <&ipcc IPCC_CLIENT_LPASS
 							     IPCC_MPROC_SIGNAL_GLINK_QMP
 							     IRQ_TYPE_EDGE_RISING>;
@@ -2965,6 +2965,33 @@
 
 				label = "lpass";
 				qcom,remote-pid = <2>;
+
+				fastrpc {
+					compatible = "qcom,fastrpc";
+					qcom,glink-channels = "fastrpcglink-apps-dsp";
+					label = "adsp";
+					qcom,non-secure-domain;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					compute-cb@3 {
+						compatible = "qcom,fastrpc-compute-cb";
+						reg = <3>;
+						iommus = <&apps_smmu 0x0c03 0x0>;
+					};
+
+					compute-cb@4 {
+						compatible = "qcom,fastrpc-compute-cb";
+						reg = <4>;
+						iommus = <&apps_smmu 0x0c04 0x0>;
+					};
+
+					compute-cb@5 {
+						compatible = "qcom,fastrpc-compute-cb";
+						reg = <5>;
+						iommus = <&apps_smmu 0x0c05 0x0>;
+					};
+				};
 
 				gpr {
 					compatible = "qcom,gpr";
@@ -6871,8 +6898,6 @@
 
 	thermal-zones {
 		cpu0-thermal {
-			polling-delay-passive = <250>;
-
 			thermal-sensors = <&tsens0 1>;
 
 			trips {
@@ -6885,8 +6910,6 @@
 		};
 
 		cpu1-thermal {
-			polling-delay-passive = <250>;
-
 			thermal-sensors = <&tsens0 2>;
 
 			trips {
@@ -6899,8 +6922,6 @@
 		};
 
 		cpu2-thermal {
-			polling-delay-passive = <250>;
-
 			thermal-sensors = <&tsens0 3>;
 
 			trips {
@@ -6913,8 +6934,6 @@
 		};
 
 		cpu3-thermal {
-			polling-delay-passive = <250>;
-
 			thermal-sensors = <&tsens0 4>;
 
 			trips {
@@ -6927,8 +6946,6 @@
 		};
 
 		cpu4-thermal {
-			polling-delay-passive = <250>;
-
 			thermal-sensors = <&tsens0 5>;
 
 			trips {
@@ -6941,8 +6958,6 @@
 		};
 
 		cpu5-thermal {
-			polling-delay-passive = <250>;
-
 			thermal-sensors = <&tsens0 6>;
 
 			trips {
@@ -6955,8 +6970,6 @@
 		};
 
 		cpu6-thermal {
-			polling-delay-passive = <250>;
-
 			thermal-sensors = <&tsens0 7>;
 
 			trips {
@@ -6969,8 +6982,6 @@
 		};
 
 		cpu7-thermal {
-			polling-delay-passive = <250>;
-
 			thermal-sensors = <&tsens0 8>;
 
 			trips {
@@ -6983,8 +6994,6 @@
 		};
 
 		cluster0-thermal {
-			polling-delay-passive = <250>;
-
 			thermal-sensors = <&tsens0 9>;
 
 			trips {
@@ -7024,8 +7033,6 @@
 		};
 
 		mem-thermal {
-			polling-delay-passive = <250>;
-
 			thermal-sensors = <&tsens1 15>;
 
 			trips {

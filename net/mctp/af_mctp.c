@@ -12,6 +12,7 @@
 #include <linux/mctp.h>
 #include <linux/module.h>
 #include <linux/socket.h>
+#include <linux/uio.h>
 
 #include <net/mctp.h>
 #include <net/mctpdevice.h>
@@ -405,7 +406,7 @@ static int mctp_setsockopt(struct socket *sock, int level, int optname,
 }
 
 static int mctp_getsockopt(struct socket *sock, int level, int optname,
-			   char __user *optval, int __user *optlen)
+			   sockopt_t *opt)
 {
 	struct mctp_sock *msk = container_of(sock->sk, struct mctp_sock, sk);
 	int len, val;
@@ -413,14 +414,13 @@ static int mctp_getsockopt(struct socket *sock, int level, int optname,
 	if (level != SOL_MCTP)
 		return -EINVAL;
 
-	if (get_user(len, optlen))
-		return -EFAULT;
+	len = opt->optlen;
 
 	if (optname == MCTP_OPT_ADDR_EXT) {
 		if (len != sizeof(int))
 			return -EINVAL;
 		val = !!msk->addr_ext;
-		if (copy_to_user(optval, &val, len))
+		if (copy_to_iter(&val, len, &opt->iter_out) != len)
 			return -EFAULT;
 		return 0;
 	}
@@ -639,7 +639,7 @@ static const struct proto_ops mctp_dgram_ops = {
 	.listen		= sock_no_listen,
 	.shutdown	= sock_no_shutdown,
 	.setsockopt	= mctp_setsockopt,
-	.getsockopt	= mctp_getsockopt,
+	.getsockopt_iter = mctp_getsockopt,
 	.sendmsg	= mctp_sendmsg,
 	.recvmsg	= mctp_recvmsg,
 	.mmap		= sock_no_mmap,

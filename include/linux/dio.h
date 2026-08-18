@@ -112,9 +112,7 @@ struct dio_driver {
 #define DIOII_END               0x20000000      /* end of DIO-II space */
 #define DIOII_DEVSIZE           0x00400000      /* size of a DIO-II device */
 
-/* Highest valid select code. If we add DIO-II support this should become
- * 256 for everything except HP320, which only has DIO.
- */
+/* highest valid select code */
 #define DIO_SCMAX (hp300_model == HP_320 ? 32 : 256)
 #define DIOII_SCBASE 132 /* lowest DIO-II select code */
 #define DIO_SCINHOLE(scode) (((scode) >= 32) && ((scode) < DIOII_SCBASE))

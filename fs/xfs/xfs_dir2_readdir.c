@@ -84,7 +84,7 @@ xfs_dir2_sf_getdents(
 	 */
 	if (ctx->pos <= dot_offset) {
 		ctx->pos = dot_offset & 0x7fffffff;
-		if (!dir_emit(ctx, ".", 1, dp->i_ino, DT_DIR))
+		if (!dir_emit(ctx, ".", 1, I_INO(dp), DT_DIR))
 			return 0;
 	}
 
@@ -532,7 +532,7 @@ xfs_readdir(
 	args.dp = dp;
 	args.geo = dp->i_mount->m_dir_geo;
 	args.trans = tp;
-	args.owner = dp->i_ino;
+	args.owner = I_INO(dp);
 
 	if (dp->i_df.if_format == XFS_DINODE_FMT_LOCAL)
 		return xfs_dir2_sf_getdents(&args, ctx);

@@ -1680,6 +1680,7 @@ static void nvmet_tcp_state_change(struct sock *sk)
 	switch (sk->sk_state) {
 	case TCP_FIN_WAIT2:
 	case TCP_LAST_ACK:
+	case TCP_CLOSING:
 		break;
 	case TCP_FIN_WAIT1:
 	case TCP_CLOSE_WAIT:
@@ -1844,10 +1845,11 @@ static void nvmet_tcp_tls_handshake_done(void *data, int status,
 	if (!status)
 		status = nvmet_tcp_tls_key_lookup(queue, peerid);
 
+	if (!status)
+		status = nvmet_tcp_set_queue_sock(queue);
+
 	if (status)
 		nvmet_tcp_schedule_release_queue(queue);
-	else
-		nvmet_tcp_set_queue_sock(queue);
 	kref_put(&queue->kref, nvmet_tcp_release_queue);
 }
 
@@ -1999,6 +2001,12 @@ out_free_connect:
 	nvmet_tcp_free_cmd(&queue->connect);
 out_ida_remove:
 	ida_free(&nvmet_tcp_queue_ida, queue->idx);
+	/*
+	 * Drain the page fragment cache if any allocations were done.
+	 * The first allocation using pf_cache is nvmet_tcp_alloc_cmd()
+	 * for queue->connect after ida_alloc().
+	 */
+	page_frag_cache_drain(&queue->pf_cache);
 out_sock:
 	fput(queue->sock->file);
 out_free_queue:

@@ -360,7 +360,7 @@ xrep_rtrefc_walk_rmap(
 		return error;
 
 	/* Skip extents which are not owned by this inode and fork. */
-	if (rec->rm_owner != rr->sc->ip->i_ino)
+	if (rec->rm_owner != I_INO(rr->sc->ip))
 		return 0;
 
 	error = xrep_check_ino_btree_mapping(rr->sc, rec);

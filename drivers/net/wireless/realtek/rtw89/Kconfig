@@ -157,6 +157,18 @@ config RTW89_8922AE
 
 	  The variant 8922AE-VS has the same features except 1024-QAM.
 
+config RTW89_8922AU
+	tristate "Realtek 8922AU USB wireless network (Wi-Fi 7) adapter"
+	depends on USB
+	select RTW89_CORE
+	select RTW89_USB
+	select RTW89_8922A
+	help
+	  Select this option will enable support for 8922AU chipset
+
+	  802.11be USB wireless network (Wi-Fi 7) adapter
+	  supporting 2x2 2GHz/5GHz/6GHz 4096-QAM 160MHz channels.
+
 config RTW89_DEBUG
 	bool
 

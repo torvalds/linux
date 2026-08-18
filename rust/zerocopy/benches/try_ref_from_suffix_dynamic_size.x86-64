@@ -1,0 +1,18 @@
+bench_try_ref_from_suffix_dynamic_size:
+	lea eax, [rsi + rdi]
+	cmp rsi, 4
+	setb cl
+	or cl, al
+	test cl, 1
+	je .LBB5_2
+	xor eax, eax
+	ret
+.LBB5_2:
+	lea rdx, [rsi - 4]
+	shr rdx
+	and esi, 1
+	lea rcx, [rdi + rsi]
+	xor eax, eax
+	cmp word ptr [rdi + rsi], -16192
+	cmove rax, rcx
+	ret

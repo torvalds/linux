@@ -18,7 +18,7 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_irq_work)
 {
 	apic_eoi();
 	trace_irq_work_entry(IRQ_WORK_VECTOR);
-	inc_irq_stat(apic_irq_work_irqs);
+	inc_irq_stat(IRQ_WORK);
 	irq_work_run();
 	trace_irq_work_exit(IRQ_WORK_VECTOR);
 }

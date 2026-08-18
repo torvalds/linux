@@ -381,6 +381,72 @@ static void dccg401_otg_drop_pixel(struct dccg *dccg,
 			OTG_DROP_PIXEL[otg_inst], 1);
 }
 
+void dccg401_set_hdmistreamclk(
+		struct dccg *dccg,
+		enum streamclk_source src,
+		uint32_t otg_inst)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	if (src == REFCLK) {
+		REG_UPDATE(HDMISTREAMCLK_CNTL,
+				HDMISTREAMCLK0_EN, 0);             /* SEL_REFCLK */
+	} else {
+		REG_UPDATE_2(HDMISTREAMCLK_CNTL,
+				HDMISTREAMCLK0_EN, 1,              /* selects one of the dtbclk_p as per HDMISTREAMCLK0_SRC_SEL */
+				HDMISTREAMCLK0_SRC_SEL, otg_inst); /* Selects dtbclk_p as source for hdmistreamclk */
+	}
+}
+
+void dccg401_enable_hdmicharclk(struct dccg *dccg, int hpo_inst, int phypll_inst)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	ASSERT(hpo_inst >= 0 && phypll_inst >= 0);
+	if (dccg->ctx->dc->debug.root_clock_optimization.bits.hdmichar) {
+		REG_UPDATE(DCCG_GATE_DISABLE_CNTL4,
+			HDMICHARCLK0_ROOT_GATE_DISABLE, 1);
+		REG_UPDATE(DCCG_GATE_DISABLE_CNTL2,
+			HDMICHARCLK0_GATE_DISABLE, 1);
+	}
+
+	REG_UPDATE_2(HDMICHARCLK_CLOCK_CNTL[hpo_inst],
+			HDMICHARCLK0_EN, 1,
+			HDMICHARCLK0_SRC_SEL, phypll_inst);
+
+	/* Enable FORCE_EN for SYMCLK */
+	dccg401_set_physymclk(dccg, phypll_inst, PHYSYMCLK_FORCE_SRC_PHYD18CLK, true);
+}
+
+void dccg401_disable_hdmicharclk(struct dccg *dccg, int hpo_inst)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+	//int phypll_inst = 0;
+
+	ASSERT(hpo_inst >= 0);
+	//REG_GET(dccg, HDMICHARCLK_CLOCK_CNTL[hpo_inst], HDMICHARCLK0_SRC_SEL, &phypll_inst);
+	REG_WRITE(HDMICHARCLK_CLOCK_CNTL[hpo_inst], 0);
+
+	/* TODO should we also disable physymclk? */
+	/* Disable FORCE_EN for SYMCLK */
+	//dccg401_set_physymclk(dccg, phypll_inst, PHYSYMCLK_FORCE_SRC_PHYD18CLK, true);
+
+	if (dccg->ctx->dc->debug.root_clock_optimization.bits.hdmichar) {
+		REG_UPDATE(DCCG_GATE_DISABLE_CNTL2,
+			HDMICHARCLK0_GATE_DISABLE, 0);
+		REG_UPDATE(DCCG_GATE_DISABLE_CNTL4,
+			HDMICHARCLK0_ROOT_GATE_DISABLE, 0);
+	}
+}
+
+static void dccg401_disable_hdmistreamclk(struct dccg *dccg)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	REG_UPDATE_2(HDMISTREAMCLK_CNTL,
+				HDMISTREAMCLK0_EN, 0,
+				HDMISTREAMCLK0_SRC_SEL, 0);
+}
 void dccg401_enable_symclk32_le(
 		struct dccg *dccg,
 		int hpo_le_inst,
@@ -610,11 +676,13 @@ void dccg401_set_dp_dto(
 		 * int = target_pix_rate / reference_clock
 		 * phase = target_pix_rate - int * reference_clock,
 		 * modulo = reference_clock */
-		dto_integer = div_u64(params->pixclk_hz, dto_modulo_hz);
+
+		/* dto_modulo_hz = refclk (~100 MHz), well within uint32_t range */
+		dto_integer = div_u64(params->pixclk_hz, (uint32_t)dto_modulo_hz);
 		dto_phase_hz = params->pixclk_hz - dto_integer * dto_modulo_hz;
 
-		if (dto_phase_hz <= 0 && dto_integer <= 0) {
-			/* negative pixel rate should never happen */
+		if (dto_phase_hz == 0 && dto_integer == 0) {
+			/* zero pixel rate should never happen */
 			BREAK_TO_DEBUGGER();
 			return;
 		}
@@ -656,25 +724,25 @@ void dccg401_set_dp_dto(
 
 		dccg401_set_dtbclk_p_src(dccg, params->clk_src, params->otg_inst);
 
-		REG_WRITE(DP_DTO_PHASE[params->otg_inst], dto_phase_hz);
-		REG_WRITE(DP_DTO_MODULO[params->otg_inst], dto_modulo_hz);
+		REG_WRITE(DP_DTO_PHASE[params->otg_inst], (uint32_t)dto_phase_hz);
+		REG_WRITE(DP_DTO_MODULO[params->otg_inst], (uint32_t)dto_modulo_hz);
 
 		switch (params->otg_inst) {
 		case 0:
 			REG_UPDATE(OTG_PIXEL_RATE_DIV,
-					DPDTO0_INT, dto_integer);
+					DPDTO0_INT, (uint32_t)dto_integer);
 			break;
 		case 1:
 			REG_UPDATE(OTG_PIXEL_RATE_DIV,
-					DPDTO1_INT, dto_integer);
+					DPDTO1_INT, (uint32_t)dto_integer);
 			break;
 		case 2:
 			REG_UPDATE(OTG_PIXEL_RATE_DIV,
-					DPDTO2_INT, dto_integer);
+					DPDTO2_INT, (uint32_t)dto_integer);
 			break;
 		case 3:
 			REG_UPDATE(OTG_PIXEL_RATE_DIV,
-					DPDTO3_INT, dto_integer);
+					DPDTO3_INT, (uint32_t)dto_integer);
 			break;
 		default:
 			BREAK_TO_DEBUGGER();
@@ -719,6 +787,10 @@ void dccg401_init(struct dccg *dccg)
 		dccg401_set_physymclk(dccg, 2, PHYSYMCLK_FORCE_SRC_SYMCLK, false);
 		dccg401_set_physymclk(dccg, 3, PHYSYMCLK_FORCE_SRC_SYMCLK, false);
 	}
+	dccg401_disable_hdmistreamclk(dccg);
+
+	if (dccg->ctx->dc->debug.root_clock_optimization.bits.hdmichar)
+		dccg401_disable_hdmicharclk(dccg, 0);
 }
 
 void dccg401_set_dto_dscclk(struct dccg *dccg, uint32_t inst, uint32_t num_slices_h)
@@ -879,6 +951,9 @@ void dccg401_disable_symclk_se(struct dccg *dccg, uint32_t stream_enc_inst, uint
 }
 
 static const struct dccg_funcs dccg401_funcs = {
+	.enable_hdmicharclk = dccg401_enable_hdmicharclk,
+	.disable_hdmicharclk = dccg401_disable_hdmicharclk,
+	.set_hdmistreamclk = dccg401_set_hdmistreamclk,
 	.update_dpp_dto = dccg401_update_dpp_dto,
 	.get_dccg_ref_freq = dccg401_get_dccg_ref_freq,
 	.dccg_init = dccg401_init,

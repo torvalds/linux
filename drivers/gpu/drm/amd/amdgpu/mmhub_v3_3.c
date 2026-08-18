@@ -451,7 +451,7 @@ static void mmhub_v3_3_setup_vmid_config(struct amdgpu_device *adev)
 		/* Send no-retry XNACK on fault to suppress VM fault storm. */
 		tmp = REG_SET_FIELD(tmp, MMVM_CONTEXT1_CNTL,
 				    RETRY_PERMISSION_OR_INVALID_PAGE_FAULT,
-				    !amdgpu_noretry);
+				    !adev->gmc.noretry);
 		WREG32_SOC15_OFFSET(MMHUB, 0, regMMVM_CONTEXT1_CNTL,
 				    i * hub->ctx_distance, tmp);
 		WREG32_SOC15_OFFSET(MMHUB, 0, regMMVM_CONTEXT1_PAGE_TABLE_START_ADDR_LO32,
@@ -636,6 +636,7 @@ static void mmhub_v3_3_init_client_info(struct amdgpu_device *adev)
 					     ARRAY_SIZE(mmhub_client_ids_v3_3_1));
 		break;
 	case IP_VERSION(3, 4, 0):
+	case IP_VERSION(3, 4, 2):
 		amdgpu_mmhub_init_client_info(&adev->mmhub,
 					     mmhub_client_ids_v3_4,
 					     ARRAY_SIZE(mmhub_client_ids_v3_4));

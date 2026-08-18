@@ -211,8 +211,6 @@ typedef enum {
 
 #define SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT           12
 #define SCU_CONTEXT_COMMAND_LOGICAL_PORT_MASK            0x00007000
-#define scu_get_command_reqeust_logical_port(x)	\
-	((x) & SCU_CONTEXT_COMMAND_LOGICAL_PORT_MASK)
 
 
 #define MAKE_SCU_CONTEXT_COMMAND_TYPE(type) \

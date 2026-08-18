@@ -11,12 +11,13 @@ maintainers:
 
 properties:
   $nodename:
-    pattern: "^rng@[0-9a-f]+$"
+    pattern: "^rng(@[0-9a-f]+)?$"
 
   compatible:
     oneOf:
       - enum:
           - mediatek,mt7623-rng
+          - mediatek,mt7981-rng
       - items:
           - enum:
               - mediatek,mt7622-rng
@@ -25,6 +26,11 @@ properties:
               - mediatek,mt8365-rng
               - mediatek,mt8516-rng
           - const: mediatek,mt7623-rng
+      - items:
+          - enum:
+              - mediatek,mt7987-rng
+              - mediatek,mt7988-rng
+          - const: mediatek,mt7981-rng
 
   reg:
     maxItems: 1
@@ -38,18 +44,37 @@ properties:
 
 required:
   - compatible
-  - reg
-  - clocks
-  - clock-names
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: mediatek,mt7981-rng
+    then:
+      properties:
+        reg: false
+        clocks: false
+        clock-names: false
+    else:
+      required:
+        - reg
+        - clocks
+        - clock-names
 
 additionalProperties: false
 
 examples:
   - |
     #include <dt-bindings/clock/mt2701-clk.h>
-    rng: rng@1020f000 {
-            compatible = "mediatek,mt7623-rng";
-            reg = <0x1020f000 0x1000>;
-            clocks = <&infracfg CLK_INFRA_TRNG>;
-            clock-names = "rng";
+
+    rng@1020f000 {
+        compatible = "mediatek,mt7623-rng";
+        reg = <0x1020f000 0x1000>;
+        clocks = <&infracfg CLK_INFRA_TRNG>;
+        clock-names = "rng";
+    };
+  - |
+    rng {
+        compatible = "mediatek,mt7981-rng";
     };

@@ -42,6 +42,17 @@ properties:
     unevaluatedProperties: false
     description: output port connected to a panel
 
+  port:
+    $ref: /schemas/graph.yaml#/properties/port
+    unevaluatedProperties: false
+    deprecated: true
+    description: input port connected to the IPU display interface, see port@0
+
+  display-timings:
+    $ref: /schemas/display/panel/display-timings.yaml#
+    unevaluatedProperties: false
+    deprecated: true
+
 required:
   - compatible
 

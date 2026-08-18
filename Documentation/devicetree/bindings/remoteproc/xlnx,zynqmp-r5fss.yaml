@@ -106,19 +106,12 @@ patternProperties:
           - const: rx
 
       sram:
-        $ref: /schemas/types.yaml#/definitions/phandle-array
         minItems: 1
         maxItems: 8
-        items:
-          maxItems: 1
-        description: |
+        description:
           phandles to one or more reserved on-chip SRAM regions. Other than TCM,
           the RPU can execute instructions and access data from the OCM memory,
           the main DDR memory, and other system memories.
-
-          The regions should be defined as child nodes of the respective SRAM
-          node, and should be defined as per the generic bindings in
-          Documentation/devicetree/bindings/sram/sram.yaml
 
       memory-region:
         description: |
@@ -134,6 +127,10 @@ patternProperties:
           - description: vring0
           - description: vring1
         additionalItems: true
+
+      firmware-name:
+        maxItems: 1
+        description: default firmware to load
 
     required:
       - compatible

@@ -9,7 +9,6 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/math64.h>
-#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/err.h>
@@ -52,18 +51,18 @@ enum {
 };
 
 static const struct platform_device_id ntc_thermistor_id[] = {
-	[NTC_B57330V2103]     = { "b57330v2103",     TYPE_B57330V2103 },
-	[NTC_B57891S0103]     = { "b57891s0103",     TYPE_B57891S0103 },
-	[NTC_NCP03WB473]      = { "ncp03wb473",      TYPE_NCPXXWB473 },
-	[NTC_NCP03WF104]      = { "ncp03wf104",      TYPE_NCPXXWF104 },
-	[NTC_NCP15WB473]      = { "ncp15wb473",      TYPE_NCPXXWB473 },
-	[NTC_NCP15WL333]      = { "ncp15wl333",      TYPE_NCPXXWL333 },
-	[NTC_NCP15XH103]      = { "ncp15xh103",      TYPE_NCPXXXH103 },
-	[NTC_NCP18WB473]      = { "ncp18wb473",      TYPE_NCPXXWB473 },
-	[NTC_NCP21WB473]      = { "ncp21wb473",      TYPE_NCPXXWB473 },
-	[NTC_SSG1404001221]   = { "ssg1404_001221",  TYPE_NCPXXWB473 },
-	[NTC_NCP18WM474]      = { "ncp18wm474",      TYPE_NCPXXWM474 },
-	[NTC_LAST]            = { },
+	[NTC_B57330V2103]     = { .name = "b57330v2103",    .driver_data = TYPE_B57330V2103 },
+	[NTC_B57891S0103]     = { .name = "b57891s0103",    .driver_data = TYPE_B57891S0103 },
+	[NTC_NCP03WB473]      = { .name = "ncp03wb473",     .driver_data = TYPE_NCPXXWB473 },
+	[NTC_NCP03WF104]      = { .name = "ncp03wf104",     .driver_data = TYPE_NCPXXWF104 },
+	[NTC_NCP15WB473]      = { .name = "ncp15wb473",     .driver_data = TYPE_NCPXXWB473 },
+	[NTC_NCP15WL333]      = { .name = "ncp15wl333",     .driver_data = TYPE_NCPXXWL333 },
+	[NTC_NCP15XH103]      = { .name = "ncp15xh103",     .driver_data = TYPE_NCPXXXH103 },
+	[NTC_NCP18WB473]      = { .name = "ncp18wb473",     .driver_data = TYPE_NCPXXWB473 },
+	[NTC_NCP21WB473]      = { .name = "ncp21wb473",     .driver_data = TYPE_NCPXXWB473 },
+	[NTC_SSG1404001221]   = { .name = "ssg1404_001221", .driver_data = TYPE_NCPXXWB473 },
+	[NTC_NCP18WM474]      = { .name = "ncp18wm474",     .driver_data = TYPE_NCPXXWM474 },
+	[NTC_LAST]            = { }
 };
 MODULE_DEVICE_TABLE(platform, ntc_thermistor_id);
 

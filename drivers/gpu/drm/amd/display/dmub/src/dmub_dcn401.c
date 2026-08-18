@@ -535,7 +535,7 @@ void dmub_dcn401_send_reg_inbox0_cmd_msg(struct dmub_srv *dmub,
 		union dmub_rb_cmd *cmd)
 {
 	uint32_t *dwords = (uint32_t *)cmd;
-	int32_t payload_size_bytes = cmd->cmd_common.header.payload_bytes;
+	uint32_t payload_size_bytes = cmd->cmd_common.header.payload_bytes;
 	uint32_t msg_index;
 	static_assert(sizeof(*cmd) == 64, "DMUB command size mismatch");
 

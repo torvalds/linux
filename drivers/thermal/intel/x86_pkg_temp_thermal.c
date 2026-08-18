@@ -20,6 +20,7 @@
 #include <linux/debugfs.h>
 
 #include <asm/cpu_device_id.h>
+#include <asm/cpuid/api.h>
 #include <asm/msr.h>
 
 #include "thermal_interrupt.h"
@@ -125,8 +126,9 @@ sys_set_trip_temp(struct thermal_zone_device *tzd,
 {
 	struct zone_device *zonedev = thermal_zone_device_priv(tzd);
 	unsigned int trip_index = THERMAL_TRIP_PRIV_TO_INT(trip->priv);
-	u32 l, h, mask, shift, intr;
+	u32 mask, shift, intr;
 	int tj_max, val, ret;
+	struct msr v;
 
 	if (temp == THERMAL_TEMP_INVALID)
 		temp = 0;
@@ -141,8 +143,7 @@ sys_set_trip_temp(struct thermal_zone_device *tzd,
 	if (trip_index >= MAX_NUMBER_OF_TRIPS || val < 0 || val > 0x7f)
 		return -EINVAL;
 
-	ret = rdmsr_on_cpu(zonedev->cpu, MSR_IA32_PACKAGE_THERM_INTERRUPT,
-			   &l, &h);
+	ret = rdmsrq_on_cpu(zonedev->cpu, MSR_IA32_PACKAGE_THERM_INTERRUPT, &v.q);
 	if (ret < 0)
 		return ret;
 
@@ -155,20 +156,19 @@ sys_set_trip_temp(struct thermal_zone_device *tzd,
 		shift = THERM_SHIFT_THRESHOLD0;
 		intr = THERM_INT_THRESHOLD0_ENABLE;
 	}
-	l &= ~mask;
+	v.l &= ~mask;
 	/*
 	* When users space sets a trip temperature == 0, which is indication
 	* that, it is no longer interested in receiving notifications.
 	*/
 	if (!temp) {
-		l &= ~intr;
+		v.l &= ~intr;
 	} else {
-		l |= val << shift;
-		l |= intr;
+		v.l |= val << shift;
+		v.l |= intr;
 	}
 
-	return wrmsr_on_cpu(zonedev->cpu, MSR_IA32_PACKAGE_THERM_INTERRUPT,
-			l, h);
+	return wrmsrq_on_cpu(zonedev->cpu, MSR_IA32_PACKAGE_THERM_INTERRUPT, v.q);
 }
 
 /* Thermal zone callback registry */
@@ -277,7 +277,8 @@ static int pkg_temp_thermal_trips_init(int cpu, int tj_max,
 				       struct thermal_trip *trips, int num_trips)
 {
 	unsigned long thres_reg_value;
-	u32 mask, shift, eax, edx;
+	u32 mask, shift;
+	struct msr val;
 	int ret, i;
 
 	for (i = 0; i < num_trips; i++) {
@@ -290,12 +291,11 @@ static int pkg_temp_thermal_trips_init(int cpu, int tj_max,
 			shift = THERM_SHIFT_THRESHOLD0;
 		}
 
-		ret = rdmsr_on_cpu(cpu, MSR_IA32_PACKAGE_THERM_INTERRUPT,
-				   &eax, &edx);
+		ret = rdmsrq_on_cpu(cpu, MSR_IA32_PACKAGE_THERM_INTERRUPT, &val.q);
 		if (ret < 0)
 			return ret;
 
-		thres_reg_value = (eax & mask) >> shift;
+		thres_reg_value = (val.l & mask) >> shift;
 
 		trips[i].temperature = thres_reg_value ?
 			tj_max - thres_reg_value * 1000 : THERMAL_TEMP_INVALID;

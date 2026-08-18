@@ -39,6 +39,32 @@ config LEDS_LP5812
 
 	  If unsure, say N.
 
+config LEDS_LP5860_CORE
+	tristate "Core Driver for TI LP5860"
+	depends on LEDS_CLASS
+	depends on OF
+	select REGMAP
+	help
+	  This option supports common operations for LP5860 devices.
+	  The LP5860 is a LED matrix driver with 18 constant current
+	  sinks and 11 scan switches for 198 LED dots. Each dot can be
+	  controlled individually and supports 8/16-bit PWM dimming.
+	  The chip supports individual LED open and short detection.
+
+	  The device can be used with SPI or I2C bus.
+
+config LEDS_LP5860_SPI
+	tristate "LED Support for TI LP5860 SPI LED driver chip"
+	depends on SPI
+	depends on OF
+	select LEDS_LP5860_CORE
+	help
+	  If you say yes here you get support for the Texas Instruments
+	  LP5860 LED driver for SPI bus connections.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called leds-lp5860-spi.
+
 config LEDS_NCP5623
 	tristate "LED support for NCP5623"
 	depends on I2C
@@ -74,6 +100,16 @@ config LEDS_QCOM_LPG
 	  a LED, grouped to represent a RGB LED or exposed as PWM channels.
 
 	  If compiled as a module, the module will be named leds-qcom-lpg.
+
+config LEDS_S2M_RGB
+	tristate "Samsung S2M series PMICs RGB LED support"
+	depends on LEDS_CLASS
+	depends on MFD_SEC_CORE
+	help
+	  This option enables support for the S2MU005 RGB LEDs. These devices
+	  have three LED channels, with 8-bit brightness control for each
+	  channel. The S2MU005 is usually found in mobile phones as status
+	  indicators.
 
 config LEDS_MT6370_RGB
 	tristate "LED Support for MediaTek MT6370 PMIC"

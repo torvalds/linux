@@ -384,8 +384,9 @@ int commit_creds(struct cred *new)
 	    !uid_eq(old->fsuid, new->fsuid) ||
 	    !gid_eq(old->fsgid, new->fsgid) ||
 	    !cred_cap_issubset(old, new)) {
+		/* mm-less tasks share init_task's exec_state */
 		if (task->mm)
-			set_dumpable(task->mm, suid_dumpable);
+			task_exec_state_set_dumpable(suid_dumpable);
 		task->pdeath_signal = 0;
 		/*
 		 * If a task drops privileges and becomes nondumpable,

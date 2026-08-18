@@ -73,6 +73,7 @@ static const struct rtw89_driver_info rtw89_8922de_vs_info = {
 	.chip = &rtw8922d_chip_info,
 	.variant = &rtw8922de_vs_variant,
 	.quirks = NULL,
+	.dev_id_quirks = 0,
 	.bus = {
 		.pci = &rtw8922d_pci_info,
 	},
@@ -82,6 +83,7 @@ static const struct rtw89_driver_info rtw89_8922de_info = {
 	.chip = &rtw8922d_chip_info,
 	.variant = NULL,
 	.quirks = NULL,
+	.dev_id_quirks = 0,
 	.bus = {
 		.pci = &rtw8922d_pci_info,
 	},

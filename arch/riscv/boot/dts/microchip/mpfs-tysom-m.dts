@@ -171,10 +171,6 @@
 	};
 };
 
-&syscontroller {
-	status = "okay";
-};
-
 &usb {
 	status = "okay";
 	dr_mode = "host";

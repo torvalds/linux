@@ -248,8 +248,8 @@ static struct {
 };
 
 static const struct pci_device_id natsemi_pci_tbl[] = {
-	{ PCI_VENDOR_ID_NS, 0x0020, 0x12d9,     0x000c,     0, 0, 0 },
-	{ PCI_VENDOR_ID_NS, 0x0020, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1 },
+	{ PCI_VDEVICE_SUB(NS, 0x0020, 0x12d9, 0x000c), .driver_data = 0 },
+	{ PCI_VDEVICE(NS, 0x0020), .driver_data = 1 },
 	{ }	/* terminate list */
 };
 MODULE_DEVICE_TABLE(pci, natsemi_pci_tbl);

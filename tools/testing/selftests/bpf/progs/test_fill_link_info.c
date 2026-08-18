@@ -12,7 +12,7 @@ extern bool CONFIG_PPC64 __kconfig __weak;
 
 /* This function is here to have CONFIG_X86_KERNEL_IBT,
  * CONFIG_PPC_FTRACE_OUT_OF_LINE, CONFIG_KPROBES_ON_FTRACE,
- * CONFIG_PPC6 used and added to object BTF.
+ * CONFIG_PPC64 used and added to object BTF.
  */
 int unused(void)
 {

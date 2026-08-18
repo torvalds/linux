@@ -21,7 +21,7 @@
 #include <linux/timer.h>
 #include <linux/completion.h>
 #include <linux/device.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/hv_vmbus.h>
 #include <linux/interrupt.h>
 #include <linux/reciprocal_div.h>
 #include <hyperv/hvhdk.h>
@@ -1272,11 +1272,6 @@ struct hv_device {
 	u16 device_id;
 
 	struct device device;
-	/*
-	 * Driver name to force a match.  Do not set directly, because core
-	 * frees it.  Use driver_set_override() to set or clear it.
-	 */
-	const char *driver_override;
 
 	struct vmbus_channel *channel;
 	struct kset	     *channels_kset;

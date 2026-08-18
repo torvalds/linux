@@ -1,0 +1,30 @@
+bench_try_ref_from_prefix_with_elems_dynamic_padding:
+	movabs rax, 3074457345618258598
+	cmp rdx, rax
+	ja .LBB5_1
+	xor ecx, ecx
+	mov eax, 0
+	test dil, 3
+	je .LBB5_3
+	mov rdx, rcx
+	ret
+.LBB5_3:
+	lea rax, [rdx + 2*rdx]
+	or rax, 3
+	add rax, 9
+	cmp rax, rsi
+	jbe .LBB5_4
+.LBB5_1:
+	xor eax, eax
+	mov edx, 1
+	ret
+.LBB5_4:
+	movzx esi, word ptr [rdi]
+	cmp si, -16192
+	mov ecx, 2
+	cmove rcx, rdx
+	xor eax, eax
+	cmp esi, 49344
+	cmove rax, rdi
+	mov rdx, rcx
+	ret

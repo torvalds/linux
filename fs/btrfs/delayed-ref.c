@@ -615,6 +615,9 @@ static bool insert_delayed_ref(struct btrfs_trans_handle *trans,
 	struct btrfs_delayed_ref_node *exist;
 	int mod;
 
+	ASSERT(ref->action == BTRFS_ADD_DELAYED_REF ||
+	       ref->action == BTRFS_DROP_DELAYED_REF);
+
 	spin_lock(&href->lock);
 	exist = tree_insert(&href->ref_tree, ref);
 	if (!exist) {
@@ -641,7 +644,7 @@ static bool insert_delayed_ref(struct btrfs_trans_handle *trans,
 				ASSERT(!list_empty(&exist->add_list));
 				list_del_init(&exist->add_list);
 			} else {
-				ASSERT(0);
+				DEBUG_WARN();
 			}
 		} else
 			mod = -ref->ref_mod;

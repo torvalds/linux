@@ -85,15 +85,35 @@ static void vt6421_set_dma_mode(struct ata_port *ap, struct ata_device *adev);
 static void vt6421_error_handler(struct ata_port *ap);
 
 static const struct pci_device_id svia_pci_tbl[] = {
-	{ PCI_VDEVICE(VIA, 0x5337), vt6420 },
-	{ PCI_VDEVICE(VIA, 0x0591), vt6420 }, /* 2 sata chnls (Master) */
-	{ PCI_VDEVICE(VIA, 0x3149), vt6420 }, /* 2 sata chnls (Master) */
-	{ PCI_VDEVICE(VIA, 0x3249), vt6421 }, /* 2 sata chnls, 1 pata chnl */
-	{ PCI_VDEVICE(VIA, 0x5372), vt6420 },
-	{ PCI_VDEVICE(VIA, 0x7372), vt6420 },
-	{ PCI_VDEVICE(VIA, 0x5287), vt8251 }, /* 2 sata chnls (Master/Slave) */
-	{ PCI_VDEVICE(VIA, 0x9000), vt8251 },
-
+	{
+		PCI_VDEVICE(VIA, 0x5337),
+		.driver_data = vt6420,
+	}, {
+		/* 2 sata chnls (Master) */
+		PCI_VDEVICE(VIA, 0x0591),
+		.driver_data = vt6420,
+	}, {
+		/* 2 sata chnls (Master) */
+		PCI_VDEVICE(VIA, 0x3149),
+		.driver_data = vt6420,
+	}, {
+		/* 2 sata chnls, 1 pata chnl */
+		PCI_VDEVICE(VIA, 0x3249),
+		.driver_data = vt6421,
+	}, {
+		PCI_VDEVICE(VIA, 0x5372),
+		.driver_data = vt6420,
+	}, {
+		PCI_VDEVICE(VIA, 0x7372),
+		.driver_data = vt6420,
+	}, {
+		/* 2 sata chnls (Master/Slave) */
+		PCI_VDEVICE(VIA, 0x5287),
+		.driver_data = vt8251,
+	}, {
+		PCI_VDEVICE(VIA, 0x9000),
+		.driver_data = vt8251,
+	},
 	{ }	/* terminate list */
 };
 
@@ -573,6 +593,7 @@ static irqreturn_t vt642x_interrupt(int irq, void *dev_instance)
 }
 
 static void vt6421_error_handler(struct ata_port *ap)
+	__must_hold(&ap->host->eh_mutex)
 {
 	struct svia_priv *hpriv = ap->host->private_data;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);

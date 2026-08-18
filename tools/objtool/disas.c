@@ -210,7 +210,7 @@ static bool disas_print_addr_alt(bfd_vma addr, struct disassemble_info *dinfo)
 	offset = addr - alt_group->first_insn->offset;
 
 	addr = orig_first_insn->offset + offset;
-	sym = orig_first_insn->sym;
+	sym = insn_sym(orig_first_insn);
 
 	disas_print_addr_sym(orig_first_insn->sec, sym, addr, dinfo);
 
@@ -222,15 +222,13 @@ static void disas_print_addr_noreloc(bfd_vma addr,
 {
 	struct disas_context *dctx = dinfo->application_data;
 	struct instruction *insn = dctx->insn;
-	struct symbol *sym = NULL;
+	struct symbol *sym = insn_sym(insn);
 
 	if (disas_print_addr_alt(addr, dinfo))
 		return;
 
-	if (insn->sym && addr >= insn->sym->offset &&
-	    addr < insn->sym->offset + insn->sym->len) {
-		sym = insn->sym;
-	}
+	if (sym && (addr < sym->offset || addr >= sym->offset + sym->len))
+		sym = NULL;
 
 	disas_print_addr_sym(insn->sec, sym, addr, dinfo);
 }
@@ -291,9 +289,9 @@ static void disas_print_address(bfd_vma addr, struct disassemble_info *dinfo)
 	 * up. So check it first.
 	 */
 	jump_dest = insn->jump_dest;
-	if (jump_dest && jump_dest->sym && jump_dest->offset == addr) {
+	if (jump_dest && insn_sym(jump_dest) && jump_dest->offset == addr) {
 		if (!disas_print_addr_alt(addr, dinfo))
-			disas_print_addr_sym(jump_dest->sec, jump_dest->sym,
+			disas_print_addr_sym(jump_dest->sec, insn_sym(jump_dest),
 					     addr, dinfo);
 		return;
 	}
@@ -768,8 +766,8 @@ static int disas_alt_jump(struct disas_alt *dalt)
 		if (orig_insn->len == 5)
 			suffix[0] = 'q';
 		str = strfmt("jmp%-3s %lx <%s+0x%lx>", suffix,
-			     dest_insn->offset, dest_insn->sym->name,
-			     dest_insn->offset - dest_insn->sym->offset);
+			     dest_insn->offset, insn_sym(dest_insn)->name,
+			     dest_insn->offset - insn_sym(dest_insn)->offset);
 		nops = 0;
 	} else {
 		str = strfmt("nop%d", orig_insn->len);
@@ -794,8 +792,8 @@ static int disas_alt_extable(struct disas_alt *dalt)
 
 	alt_insn = dalt->alt->insn;
 	str = strfmt("resume at 0x%lx <%s+0x%lx>",
-		     alt_insn->offset, alt_insn->sym->name,
-		     alt_insn->offset - alt_insn->sym->offset);
+		     alt_insn->offset, insn_sym(alt_insn)->name,
+		     alt_insn->offset - insn_sym(alt_insn)->offset);
 	if (!str)
 		return -1;
 

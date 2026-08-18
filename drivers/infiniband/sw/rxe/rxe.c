@@ -81,7 +81,7 @@ static void rxe_init_device_param(struct rxe_dev *rxe, struct net_device *ndev)
 	} else {
 		/*
 		 * This device does not have a HW address, but
-		 * connection mangagement requires a unique gid.
+		 * connection management requires a unique gid.
 		 */
 		eth_random_addr(rxe->raw_gid);
 	}

@@ -103,7 +103,6 @@ int raw_hash_sk(struct sock *sk)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(raw_hash_sk);
 
 void raw_unhash_sk(struct sock *sk)
 {
@@ -114,19 +113,26 @@ void raw_unhash_sk(struct sock *sk)
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 	spin_unlock(&h->lock);
 }
-EXPORT_SYMBOL_GPL(raw_unhash_sk);
 
 bool raw_v4_match(struct net *net, const struct sock *sk, unsigned short num,
 		  __be32 raddr, __be32 laddr, int dif, int sdif)
 {
 	const struct inet_sock *inet = inet_sk(sk);
+	__be32 daddr, rcv_saddr;
 
-	if (net_eq(sock_net(sk), net) && inet->inet_num == num	&&
-	    !(inet->inet_daddr && inet->inet_daddr != raddr) 	&&
-	    !(inet->inet_rcv_saddr && inet->inet_rcv_saddr != laddr) &&
-	    raw_sk_bound_dev_eq(net, sk->sk_bound_dev_if, dif, sdif))
-		return true;
-	return false;
+	if (!net_eq(sock_net(sk), net) || inet->inet_num != num)
+		return false;
+
+	daddr = READ_ONCE(inet->inet_daddr);
+	if (daddr && daddr != raddr)
+		return false;
+
+	rcv_saddr = READ_ONCE(inet->inet_rcv_saddr);
+	if (rcv_saddr && rcv_saddr != laddr)
+		return false;
+
+	return raw_sk_bound_dev_eq(net, READ_ONCE(sk->sk_bound_dev_if),
+				   dif, sdif);
 }
 EXPORT_SYMBOL_GPL(raw_v4_match);
 
@@ -724,7 +730,8 @@ static int raw_bind(struct sock *sk, struct sockaddr_unsized *uaddr,
 					 chk_addr_ret))
 		goto out;
 
-	inet->inet_rcv_saddr = inet->inet_saddr = addr->sin_addr.s_addr;
+	inet->inet_saddr = addr->sin_addr.s_addr;
+	WRITE_ONCE(inet->inet_rcv_saddr, addr->sin_addr.s_addr);
 	if (chk_addr_ret == RTN_MULTICAST || chk_addr_ret == RTN_BROADCAST)
 		inet->inet_saddr = 0;  /* Use device */
 	sk_dst_reset(sk);
@@ -928,7 +935,6 @@ int raw_abort(struct sock *sk, int err)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(raw_abort);
 
 struct proto raw_prot = {
 	.name		   = "RAW",
@@ -1009,7 +1015,6 @@ void *raw_seq_start(struct seq_file *seq, loff_t *pos)
 
 	return *pos ? raw_get_idx(seq, *pos - 1) : SEQ_START_TOKEN;
 }
-EXPORT_SYMBOL_GPL(raw_seq_start);
 
 void *raw_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
@@ -1022,7 +1027,6 @@ void *raw_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	++*pos;
 	return sk;
 }
-EXPORT_SYMBOL_GPL(raw_seq_next);
 
 void raw_seq_stop(struct seq_file *seq, void *v)
 	__releases(&h->lock)
@@ -1031,7 +1035,6 @@ void raw_seq_stop(struct seq_file *seq, void *v)
 
 	spin_unlock(&h->lock);
 }
-EXPORT_SYMBOL_GPL(raw_seq_stop);
 
 static void raw_sock_seq_show(struct seq_file *seq, struct sock *sp, int i)
 {

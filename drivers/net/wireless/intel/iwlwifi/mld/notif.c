@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2024-2025 Intel Corporation
+ * Copyright (C) 2024-2026 Intel Corporation
  */
 
 #include "mld.h"
@@ -307,11 +307,8 @@ CMD_VERSIONS(tx_resp_notif,
 	     CMD_VER_ENTRY(8, iwl_tx_resp)
 	     CMD_VER_ENTRY(9, iwl_tx_resp))
 CMD_VERSIONS(compressed_ba_notif,
-	     CMD_VER_ENTRY(5, iwl_compressed_ba_notif)
-	     CMD_VER_ENTRY(6, iwl_compressed_ba_notif)
 	     CMD_VER_ENTRY(7, iwl_compressed_ba_notif))
 CMD_VERSIONS(tlc_notif,
-	     CMD_VER_ENTRY(3, iwl_tlc_update_notif)
 	     CMD_VER_ENTRY(4, iwl_tlc_update_notif))
 CMD_VERSIONS(mu_mimo_grp_notif,
 	     CMD_VER_ENTRY(1, iwl_mu_group_mgmt_notif))
@@ -330,7 +327,8 @@ CMD_VERSIONS(probe_resp_data_notif,
 CMD_VERSIONS(datapath_monitor_notif,
 	     CMD_VER_ENTRY(1, iwl_datapath_monitor_notif))
 CMD_VERSIONS(stats_oper_notif,
-	     CMD_VER_ENTRY(3, iwl_system_statistics_notif_oper))
+	     CMD_VER_ENTRY(3, iwl_system_statistics_notif_oper_v3)
+	     CMD_VER_ENTRY(4, iwl_system_statistics_notif_oper))
 CMD_VERSIONS(stats_oper_part1_notif,
 	     CMD_VER_ENTRY(4, iwl_system_statistics_part1_notif_oper))
 CMD_VERSIONS(bt_coex_notif,
@@ -341,8 +339,6 @@ CMD_VERSIONS(emlsr_mode_notif,
 	     CMD_VER_ENTRY(2, iwl_esr_mode_notif))
 CMD_VERSIONS(emlsr_trans_fail_notif,
 	     CMD_VER_ENTRY(1, iwl_esr_trans_fail_notif))
-CMD_VERSIONS(uapsd_misbehaving_ap_notif,
-	     CMD_VER_ENTRY(1, iwl_uapsd_misbehaving_ap_notif))
 CMD_VERSIONS(time_msmt_notif,
 	     CMD_VER_ENTRY(1, iwl_time_msmt_notify))
 CMD_VERSIONS(time_sync_confirm_notif,
@@ -350,7 +346,10 @@ CMD_VERSIONS(time_sync_confirm_notif,
 CMD_VERSIONS(ftm_resp_notif, CMD_VER_ENTRY(10, iwl_tof_range_rsp_ntfy))
 CMD_VERSIONS(beacon_filter_notif, CMD_VER_ENTRY(2, iwl_beacon_filter_notif))
 CMD_VERSIONS(nan_cluster_notif, CMD_VER_ENTRY(1, iwl_nan_cluster_notif))
+CMD_VERSIONS(nan_ulw_attr_notif, CMD_VER_ENTRY(1, iwl_nan_ulw_attr_notif))
 CMD_VERSIONS(nan_dw_end_notif, CMD_VER_ENTRY(1, iwl_nan_dw_end_notif))
+CMD_VERSIONS(nan_sched_update_completed_notif,
+	     CMD_VER_ENTRY(1, iwl_nan_sched_update_completed_notif))
 
 DEFINE_SIMPLE_CANCELLATION(session_prot, iwl_session_prot_notif, mac_link_id)
 DEFINE_SIMPLE_CANCELLATION(tlc, iwl_tlc_update_notif, sta_id)
@@ -364,8 +363,6 @@ DEFINE_SIMPLE_CANCELLATION(roc, iwl_roc_notif, activity)
 DEFINE_SIMPLE_CANCELLATION(scan_complete, iwl_umac_scan_complete, uid)
 DEFINE_SIMPLE_CANCELLATION(scan_start, iwl_umac_scan_start, uid)
 DEFINE_SIMPLE_CANCELLATION(probe_resp_data, iwl_probe_resp_data_notif,
-			   mac_id)
-DEFINE_SIMPLE_CANCELLATION(uapsd_misbehaving_ap, iwl_uapsd_misbehaving_ap_notif,
 			   mac_id)
 DEFINE_SIMPLE_CANCELLATION(ftm_resp, iwl_tof_range_rsp_ntfy, request_id)
 DEFINE_SIMPLE_CANCELLATION(beacon_filter, iwl_beacon_filter_notif, link_id)
@@ -457,8 +454,6 @@ const struct iwl_rx_handler iwl_mld_rx_handlers[] = {
 			     emlsr_mode_notif, RX_HANDLER_ASYNC)
 	RX_HANDLER_NO_OBJECT(MAC_CONF_GROUP, EMLSR_TRANS_FAIL_NOTIF,
 			     emlsr_trans_fail_notif, RX_HANDLER_ASYNC)
-	RX_HANDLER_OF_VIF(LEGACY_GROUP, PSM_UAPSD_AP_MISBEHAVING_NOTIFICATION,
-			  uapsd_misbehaving_ap_notif)
 	RX_HANDLER_NO_OBJECT(LEGACY_GROUP,
 			     WNM_80211V_TIMING_MEASUREMENT_NOTIFICATION,
 			     time_msmt_notif, RX_HANDLER_SYNC)
@@ -471,8 +466,12 @@ const struct iwl_rx_handler iwl_mld_rx_handlers[] = {
 			      ftm_resp_notif)
 	RX_HANDLER_OF_NAN(MAC_CONF_GROUP, NAN_JOINED_CLUSTER_NOTIF,
 			  nan_cluster_notif)
+	RX_HANDLER_OF_NAN(MAC_CONF_GROUP, NAN_ULW_ATTR_NOTIF,
+			  nan_ulw_attr_notif)
 	RX_HANDLER_OF_NAN(MAC_CONF_GROUP, NAN_DW_END_NOTIF,
 			  nan_dw_end_notif)
+	RX_HANDLER_OF_NAN(MAC_CONF_GROUP, NAN_SCHED_UPDATE_COMPLETED_NOTIF,
+			  nan_sched_update_completed_notif)
 };
 EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_mld_rx_handlers);
 
@@ -607,6 +606,11 @@ void iwl_mld_rx(struct iwl_op_mode *op_mode, struct napi_struct *napi,
 	else if (unlikely(cmd_id == WIDE_ID(DATA_PATH_GROUP,
 					    RX_QUEUES_NOTIFICATION)))
 		iwl_mld_handle_rx_queues_sync_notif(mld, napi, pkt, 0);
+#ifdef CONFIG_PM_SLEEP
+	else if (unlikely(cmd_id == WIDE_ID(DATA_PATH_GROUP,
+					    RSC_NOTIF)))
+		iwl_mld_handle_rsc_notif(mld, pkt, 0);
+#endif
 	else if (cmd_id == WIDE_ID(DATA_PATH_GROUP, PHY_AIR_SNIFFER_NOTIF))
 		iwl_mld_handle_phy_air_sniffer_notif(mld, napi, pkt);
 	else
@@ -630,6 +634,11 @@ void iwl_mld_rx_rss(struct iwl_op_mode *op_mode, struct napi_struct *napi,
 		iwl_mld_handle_rx_queues_sync_notif(mld, napi, pkt, queue);
 	else if (unlikely(cmd_id == WIDE_ID(LEGACY_GROUP, FRAME_RELEASE)))
 		iwl_mld_handle_frame_release_notif(mld, napi, pkt, queue);
+#ifdef CONFIG_PM_SLEEP
+	else if (unlikely(cmd_id == WIDE_ID(DATA_PATH_GROUP,
+					    RSC_NOTIF)))
+		iwl_mld_handle_rsc_notif(mld, pkt, queue);
+#endif
 }
 
 void iwl_mld_delete_handlers(struct iwl_mld *mld, const u16 *cmds, int n_cmds)
@@ -684,10 +693,6 @@ void iwl_mld_async_handlers_wk(struct wiphy *wiphy, struct wiphy_work *wk)
 void iwl_mld_cancel_async_notifications(struct iwl_mld *mld)
 {
 	struct iwl_async_handler_entry *entry, *tmp;
-
-	lockdep_assert_wiphy(mld->wiphy);
-
-	wiphy_work_cancel(mld->wiphy, &mld->async_handlers_wk);
 
 	spin_lock_bh(&mld->async_handlers_lock);
 	list_for_each_entry_safe(entry, tmp, &mld->async_handlers_list, list) {

@@ -56,6 +56,7 @@ __jited("L1:	pushq	%rax")			/* rbp[-16] = rax         */
  * (cause original rax might be clobbered by this point)
  */
 __jited("	movq	-0x10(%rbp), %rax")
+__jited("...")
 __jited("	callq	0x{{.*}}")		/* call to sub()          */
 __jited("	xorl	%eax, %eax")
 __jited("	leave")

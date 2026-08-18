@@ -378,6 +378,7 @@ def run_one_test(pm, args, index, tidx):
     dev0 = NAMES['DEV0']
     dev1 = NAMES['DEV1']
     dummy = NAMES['DUMMY']
+    ifb = NAMES['IFB']
     result = True
     tresult = ""
     tap = ""
@@ -414,6 +415,7 @@ def run_one_test(pm, args, index, tidx):
     NAMES['DEV0'] = '{}id{}'.format(NAMES['DEV0'], tidx['id'])
     NAMES['DEV1'] = '{}id{}'.format(NAMES['DEV1'], tidx['id'])
     NAMES['DUMMY'] = '{}id{}'.format(NAMES['DUMMY'], tidx['id'])
+    NAMES['IFB'] = '{}id{}'.format(NAMES['IFB'], tidx['id'])
 
     pm.call_pre_case(tidx)
     prepare_env(tidx, args, pm, 'setup', "-----> prepare stage", tidx["setup"])
@@ -474,6 +476,7 @@ def run_one_test(pm, args, index, tidx):
     NAMES['DEV0'] = dev0
     NAMES['DEV1'] = dev1
     NAMES['DUMMY'] = dummy
+    NAMES['IFB'] = ifb
 
     return res
 

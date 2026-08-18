@@ -24,4 +24,14 @@ static inline bool io_has_loop_ops(struct io_ring_ctx *ctx)
 
 int io_run_loop(struct io_ring_ctx *ctx);
 
+static inline struct iou_ctx *io_loop_mangle_ctx(struct io_ring_ctx *ctx)
+{
+	return (struct iou_ctx *)ctx;
+}
+
+static inline struct io_ring_ctx *io_loop_demangle_ctx(struct iou_ctx *ctx)
+{
+	return (struct io_ring_ctx *)ctx;
+}
+
 #endif

@@ -55,9 +55,8 @@ void irq_clear_all(
 	assert(ID < N_IRQ_ID);
 	assert(IRQ_N_CHANNEL[ID] <= HRT_DATA_WIDTH);
 
-	if (IRQ_N_CHANNEL[ID] < HRT_DATA_WIDTH) {
+	if (IRQ_N_CHANNEL[ID] < HRT_DATA_WIDTH)
 		mask = ~((~(hrt_data)0) >> IRQ_N_CHANNEL[ID]);
-	}
 
 	irq_reg_store(ID,
 		      _HRT_IRQ_CONTROLLER_CLEAR_REG_IDX, mask);
@@ -115,9 +114,9 @@ void irq_enable_pulse(
 {
 	unsigned int edge_out = 0x0;
 
-	if (pulse) {
+	if (pulse)
 		edge_out = 0xffffffff;
-	}
+
 	/* output is given as edge, not pulse */
 	irq_reg_store(ID,
 		      _HRT_IRQ_CONTROLLER_EDGE_NOT_PULSE_REG_IDX, edge_out);
@@ -259,9 +258,9 @@ void virq_clear_all(void)
 {
 	irq_ID_t	irq_id;
 
-	for (irq_id = (irq_ID_t)0; irq_id < N_IRQ_ID; irq_id++) {
+	for (irq_id = (irq_ID_t)0; irq_id < N_IRQ_ID; irq_id++)
 		irq_clear_all(irq_id);
-	}
+
 	return;
 }
 
@@ -301,9 +300,9 @@ void virq_clear_info(struct virq_info *irq_info)
 
 	assert(irq_info);
 
-	for (ID = (irq_ID_t)0 ; ID < N_IRQ_ID; ID++) {
+	for (ID = (irq_ID_t)0 ; ID < N_IRQ_ID; ID++)
 		irq_info->irq_status_reg[ID] = 0;
-	}
+
 	return;
 }
 
@@ -324,20 +323,17 @@ enum hrt_isp_css_irq_status virq_get_channel_id(
 			break;
 	}
 
-	if (idx == IRQ_N_CHANNEL[IRQ0_ID]) {
+	if (idx == IRQ_N_CHANNEL[IRQ0_ID])
 		return hrt_isp_css_irq_status_error;
-	}
 
 	/* Check whether there are more bits set on device 0 */
-	if (irq_status != (1U << idx)) {
+	if (irq_status != (1U << idx))
 		status = hrt_isp_css_irq_status_more_irqs;
-	}
 
 	/* Check whether we have an IRQ on one of the nested devices */
 	for (ID = N_IRQ_ID - 1 ; ID > (irq_ID_t)0; ID--) {
-		if (IRQ_NESTING_ID[ID] == (enum virq_id)idx) {
+		if (IRQ_NESTING_ID[ID] == (enum virq_id)idx)
 			break;
-		}
 	}
 
 	/* If we have a nested IRQ, load that state, discard the device 0 state */
@@ -350,9 +346,8 @@ enum hrt_isp_css_irq_status virq_get_channel_id(
 				break;
 		}
 
-		if (idx == IRQ_N_CHANNEL[ID]) {
+		if (idx == IRQ_N_CHANNEL[ID])
 			return hrt_isp_css_irq_status_error;
-		}
 
 		/* Alternatively check whether there are more bits set on this device */
 		if (irq_status != (1U << idx)) {
@@ -408,9 +403,8 @@ static inline irq_ID_t virq_get_irq_id(
 	assert(channel_ID);
 
 	for (ID = (irq_ID_t)0 ; ID < N_IRQ_ID; ID++) {
-		if (irq_ID < IRQ_N_ID_OFFSET[ID + 1]) {
+		if (irq_ID < IRQ_N_ID_OFFSET[ID + 1])
 			break;
-		}
 	}
 
 	*channel_ID = (unsigned int)irq_ID - IRQ_N_ID_OFFSET[ID];

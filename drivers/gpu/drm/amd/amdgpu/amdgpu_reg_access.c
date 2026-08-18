@@ -406,7 +406,10 @@ uint8_t amdgpu_mm_rreg8(struct amdgpu_device *adev, uint32_t offset)
 
 	if (offset < adev->rmmio_size)
 		return (readb(adev->rmmio + offset));
-	BUG();
+
+	dev_err(adev->dev, "invalid MMIO read offset 0x%x (rmmio size 0x%x)\n",
+		offset, (unsigned int)adev->rmmio_size);
+	return 0;
 }
 
 /**
@@ -469,10 +472,13 @@ void amdgpu_mm_wreg8(struct amdgpu_device *adev, uint32_t offset, uint8_t value)
 	if (amdgpu_device_skip_hw_access(adev))
 		return;
 
-	if (offset < adev->rmmio_size)
+	if (offset < adev->rmmio_size) {
 		writeb(value, adev->rmmio + offset);
-	else
-		BUG();
+	} else {
+		dev_err(adev->dev, "invalid MMIO write offset 0x%x (rmmio size 0x%x)\n",
+			offset, (unsigned int)adev->rmmio_size);
+		return;
+	}
 }
 
 /**
@@ -955,4 +961,22 @@ uint32_t amdgpu_device_wait_on_rreg(struct amdgpu_device *adev, uint32_t inst,
 		}
 	}
 	return ret;
+}
+
+
+uint32_t amdgpu_read_indexed_register(struct amdgpu_device *adev,
+			       u32 se_num, u32 sh_num, u32 reg_offset)
+{
+	uint32_t val;
+
+	mutex_lock(&adev->grbm_idx_mutex);
+	if (se_num != 0xffffffff || sh_num != 0xffffffff)
+		amdgpu_gfx_select_se_sh(adev, se_num, sh_num, 0xffffffff, 0);
+
+	val = RREG32(reg_offset);
+
+	if (se_num != 0xffffffff || sh_num != 0xffffffff)
+		amdgpu_gfx_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff, 0);
+	mutex_unlock(&adev->grbm_idx_mutex);
+	return val;
 }

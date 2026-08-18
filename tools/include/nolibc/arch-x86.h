@@ -165,7 +165,7 @@
  * 2) The deepest stack frame should be set to zero
  *
  */
-void __attribute__((weak, noreturn)) __nolibc_entrypoint __no_stack_protector _start(void)
+void __attribute__((weak, noreturn)) __nolibc_entrypoint __nolibc_no_stack_protector _start(void)
 {
 	__asm__ volatile (
 		"xor  %ebp, %ebp\n"       /* zero the stack frame                                */
@@ -202,8 +202,8 @@ void __attribute__((weak, noreturn)) __nolibc_entrypoint __no_stack_protector _s
 
 #define __nolibc_syscall0(num)                                                \
 ({                                                                            \
-	long _ret;                                                            \
-	register long _num  __asm__ ("rax") = (num);                          \
+	long long _ret;                                                       \
+	register long long _num  __asm__ ("rax") = (num);                     \
 									      \
 	__asm__ volatile (                                                    \
 		"syscall\n"                                                   \
@@ -216,9 +216,9 @@ void __attribute__((weak, noreturn)) __nolibc_entrypoint __no_stack_protector _s
 
 #define __nolibc_syscall1(num, arg1)                                          \
 ({                                                                            \
-	long _ret;                                                            \
-	register long _num  __asm__ ("rax") = (num);                          \
-	register long _arg1 __asm__ ("rdi") = (long)(arg1);                   \
+	long long _ret;                                                       \
+	register long long _num  __asm__ ("rax") = (num);                     \
+	register long long _arg1 __asm__ ("rdi") = __nolibc_arg_to_reg(arg1); \
 									      \
 	__asm__ volatile (                                                    \
 		"syscall\n"                                                   \
@@ -232,10 +232,10 @@ void __attribute__((weak, noreturn)) __nolibc_entrypoint __no_stack_protector _s
 
 #define __nolibc_syscall2(num, arg1, arg2)                                    \
 ({                                                                            \
-	long _ret;                                                            \
-	register long _num  __asm__ ("rax") = (num);                          \
-	register long _arg1 __asm__ ("rdi") = (long)(arg1);                   \
-	register long _arg2 __asm__ ("rsi") = (long)(arg2);                   \
+	long long _ret;                                                       \
+	register long long _num  __asm__ ("rax") = (num);                     \
+	register long long _arg1 __asm__ ("rdi") = __nolibc_arg_to_reg(arg1); \
+	register long long _arg2 __asm__ ("rsi") = __nolibc_arg_to_reg(arg2); \
 									      \
 	__asm__ volatile (                                                    \
 		"syscall\n"                                                   \
@@ -249,11 +249,11 @@ void __attribute__((weak, noreturn)) __nolibc_entrypoint __no_stack_protector _s
 
 #define __nolibc_syscall3(num, arg1, arg2, arg3)                              \
 ({                                                                            \
-	long _ret;                                                            \
-	register long _num  __asm__ ("rax") = (num);                          \
-	register long _arg1 __asm__ ("rdi") = (long)(arg1);                   \
-	register long _arg2 __asm__ ("rsi") = (long)(arg2);                   \
-	register long _arg3 __asm__ ("rdx") = (long)(arg3);                   \
+	long long _ret;                                                       \
+	register long long _num  __asm__ ("rax") = (num);                     \
+	register long long _arg1 __asm__ ("rdi") = __nolibc_arg_to_reg(arg1); \
+	register long long _arg2 __asm__ ("rsi") = __nolibc_arg_to_reg(arg2); \
+	register long long _arg3 __asm__ ("rdx") = __nolibc_arg_to_reg(arg3); \
 									      \
 	__asm__ volatile (                                                    \
 		"syscall\n"                                                   \
@@ -267,12 +267,12 @@ void __attribute__((weak, noreturn)) __nolibc_entrypoint __no_stack_protector _s
 
 #define __nolibc_syscall4(num, arg1, arg2, arg3, arg4)                        \
 ({                                                                            \
-	long _ret;                                                            \
-	register long _num  __asm__ ("rax") = (num);                          \
-	register long _arg1 __asm__ ("rdi") = (long)(arg1);                   \
-	register long _arg2 __asm__ ("rsi") = (long)(arg2);                   \
-	register long _arg3 __asm__ ("rdx") = (long)(arg3);                   \
-	register long _arg4 __asm__ ("r10") = (long)(arg4);                   \
+	long long _ret;                                                       \
+	register long long _num  __asm__ ("rax") = (num);                     \
+	register long long _arg1 __asm__ ("rdi") = __nolibc_arg_to_reg(arg1); \
+	register long long _arg2 __asm__ ("rsi") = __nolibc_arg_to_reg(arg2); \
+	register long long _arg3 __asm__ ("rdx") = __nolibc_arg_to_reg(arg3); \
+	register long long _arg4 __asm__ ("r10") = __nolibc_arg_to_reg(arg4); \
 									      \
 	__asm__ volatile (                                                    \
 		"syscall\n"                                                   \
@@ -286,13 +286,13 @@ void __attribute__((weak, noreturn)) __nolibc_entrypoint __no_stack_protector _s
 
 #define __nolibc_syscall5(num, arg1, arg2, arg3, arg4, arg5)                  \
 ({                                                                            \
-	long _ret;                                                            \
-	register long _num  __asm__ ("rax") = (num);                          \
-	register long _arg1 __asm__ ("rdi") = (long)(arg1);                   \
-	register long _arg2 __asm__ ("rsi") = (long)(arg2);                   \
-	register long _arg3 __asm__ ("rdx") = (long)(arg3);                   \
-	register long _arg4 __asm__ ("r10") = (long)(arg4);                   \
-	register long _arg5 __asm__ ("r8")  = (long)(arg5);                   \
+	long long _ret;                                                       \
+	register long long _num  __asm__ ("rax") = (num);                     \
+	register long long _arg1 __asm__ ("rdi") = __nolibc_arg_to_reg(arg1); \
+	register long long _arg2 __asm__ ("rsi") = __nolibc_arg_to_reg(arg2); \
+	register long long _arg3 __asm__ ("rdx") = __nolibc_arg_to_reg(arg3); \
+	register long long _arg4 __asm__ ("r10") = __nolibc_arg_to_reg(arg4); \
+	register long long _arg5 __asm__ ("r8")  = __nolibc_arg_to_reg(arg5); \
 									      \
 	__asm__ volatile (                                                    \
 		"syscall\n"                                                   \
@@ -306,14 +306,14 @@ void __attribute__((weak, noreturn)) __nolibc_entrypoint __no_stack_protector _s
 
 #define __nolibc_syscall6(num, arg1, arg2, arg3, arg4, arg5, arg6)            \
 ({                                                                            \
-	long _ret;                                                            \
-	register long _num  __asm__ ("rax") = (num);                          \
-	register long _arg1 __asm__ ("rdi") = (long)(arg1);                   \
-	register long _arg2 __asm__ ("rsi") = (long)(arg2);                   \
-	register long _arg3 __asm__ ("rdx") = (long)(arg3);                   \
-	register long _arg4 __asm__ ("r10") = (long)(arg4);                   \
-	register long _arg5 __asm__ ("r8")  = (long)(arg5);                   \
-	register long _arg6 __asm__ ("r9")  = (long)(arg6);                   \
+	long long _ret;                                                       \
+	register long long _num  __asm__ ("rax") = (num);                     \
+	register long long _arg1 __asm__ ("rdi") = __nolibc_arg_to_reg(arg1); \
+	register long long _arg2 __asm__ ("rsi") = __nolibc_arg_to_reg(arg2); \
+	register long long _arg3 __asm__ ("rdx") = __nolibc_arg_to_reg(arg3); \
+	register long long _arg4 __asm__ ("r10") = __nolibc_arg_to_reg(arg4); \
+	register long long _arg5 __asm__ ("r8")  = __nolibc_arg_to_reg(arg5); \
+	register long long _arg6 __asm__ ("r9")  = __nolibc_arg_to_reg(arg6); \
 									      \
 	__asm__ volatile (                                                    \
 		"syscall\n"                                                   \
@@ -333,7 +333,7 @@ void __attribute__((weak, noreturn)) __nolibc_entrypoint __no_stack_protector _s
  * 2) The deepest stack frame should be zero (the %rbp).
  *
  */
-void __attribute__((weak, noreturn)) __nolibc_entrypoint __no_stack_protector _start(void)
+void __attribute__((weak, noreturn)) __nolibc_entrypoint __nolibc_no_stack_protector _start(void)
 {
 	__asm__ volatile (
 		"xor  %ebp, %ebp\n"       /* zero the stack frame                            */

@@ -167,7 +167,7 @@ struct tracing_map_array {
 	unsigned int entry_shift;
 	unsigned int entry_mask;
 	unsigned int n_pages;
-	void **pages;
+	void *pages[] __counted_by(n_pages);
 };
 
 #define TRACING_MAP_ARRAY_ELT(array, idx)				\

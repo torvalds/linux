@@ -44,6 +44,7 @@ struct per_xecore_buf {
 struct xe_eu_stall_data_stream {
 	bool pollin;
 	bool enabled;
+	bool reset_detected;
 	int wait_num_reports;
 	int sampling_rate_mult;
 	wait_queue_head_t poll_wq;
@@ -428,9 +429,20 @@ static bool eu_stall_data_buf_poll(struct xe_eu_stall_data_stream *stream)
 			set_bit(xecore, stream->data_drop.mask);
 		xecore_buf->write = write_ptr;
 	}
+	/* If a GT or engine reset happens during EU stall sampling,
+	 * all EU stall registers get reset to 0 and the cached values of
+	 * the EU stall data buffers' read pointers are out of sync with
+	 * the register values. This causes invalid data to be returned
+	 * from read(). To prevent this, check the value of a EU stall base
+	 * register. If it is zero, there has been a reset.
+	 */
+	if (unlikely(!xe_gt_mcr_unicast_read_any(gt, XEHPC_EUSTALL_BASE)))
+		stream->reset_detected = true;
+
+	stream->pollin = min_data_present || stream->reset_detected;
 	mutex_unlock(&stream->xecore_buf_lock);
 
-	return min_data_present;
+	return stream->pollin;
 }
 
 static void clear_dropped_eviction_line_bit(struct xe_gt *gt, u16 group, u16 instance)
@@ -544,6 +556,15 @@ static ssize_t xe_eu_stall_stream_read_locked(struct xe_eu_stall_data_stream *st
 	int ret = 0;
 
 	mutex_lock(&stream->xecore_buf_lock);
+	/* If EU stall registers got reset due to a GT/engine reset,
+	 * continuing with the read() will return invalid data to
+	 * the user space. Just return -ENODEV instead.
+	 */
+	if (unlikely(stream->reset_detected)) {
+		xe_gt_dbg(gt, "EU stall base register has been reset\n");
+		mutex_unlock(&stream->xecore_buf_lock);
+		return -ENODEV;
+	}
 	if (bitmap_weight(stream->data_drop.mask, XE_MAX_DSS_FUSE_BITS)) {
 		if (!stream->data_drop.reported_to_user) {
 			stream->data_drop.reported_to_user = true;
@@ -554,7 +575,6 @@ static ssize_t xe_eu_stall_stream_read_locked(struct xe_eu_stall_data_stream *st
 		}
 		stream->data_drop.reported_to_user = false;
 	}
-
 	for_each_dss_steering(xecore, gt, group, instance) {
 		ret = xe_eu_stall_data_buf_read(stream, buf, count, &total_size,
 						gt, group, instance, xecore);
@@ -609,7 +629,8 @@ static ssize_t xe_eu_stall_stream_read(struct file *file, char __user *buf,
 	 * We don't want to block the next read() when there is data in the buffer
 	 * now, but couldn't be accommodated in the small user buffer.
 	 */
-	stream->pollin = false;
+	if (!stream->reset_detected)
+		stream->pollin = false;
 
 	return ret;
 }
@@ -692,6 +713,7 @@ static int xe_eu_stall_stream_enable(struct xe_eu_stall_data_stream *stream)
 		xecore_buf->write = write_ptr;
 		xecore_buf->read = write_ptr;
 	}
+	stream->reset_detected = false;
 	stream->data_drop.reported_to_user = false;
 	bitmap_zero(stream->data_drop.mask, XE_MAX_DSS_FUSE_BITS);
 
@@ -717,13 +739,13 @@ static void eu_stall_data_buf_poll_work_fn(struct work_struct *work)
 		container_of(work, typeof(*stream), buf_poll_work.work);
 	struct xe_gt *gt = stream->gt;
 
-	if (eu_stall_data_buf_poll(stream)) {
-		stream->pollin = true;
+	if (eu_stall_data_buf_poll(stream))
 		wake_up(&stream->poll_wq);
-	}
-	queue_delayed_work(gt->eu_stall->buf_ptr_poll_wq,
-			   &stream->buf_poll_work,
-			   msecs_to_jiffies(POLL_PERIOD_MS));
+
+	if (!stream->reset_detected)
+		queue_delayed_work(gt->eu_stall->buf_ptr_poll_wq,
+				   &stream->buf_poll_work,
+				   msecs_to_jiffies(POLL_PERIOD_MS));
 }
 
 static int xe_eu_stall_stream_init(struct xe_eu_stall_data_stream *stream,

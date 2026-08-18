@@ -270,6 +270,7 @@ int ras_fw_eeprom_read_idx(struct ras_core_context *ras_core,
 	struct ras_fw_eeprom_control *control = &ras_core->ras_fw_eeprom;
 	int i, ret, end_idx;
 	u64 mca, ipid, ts;
+	u32 cu, mem_channel, mcumc_id;
 
 	if (!ras_core->ras_umc.ip_func ||
 	    !ras_core->ras_umc.ip_func->mca_ipid_parse)
@@ -299,9 +300,10 @@ int ras_fw_eeprom_read_idx(struct ras_core_context *ras_core,
 			record_umc[i - rec_idx].err_type = RAS_EEPROM_ERR_NON_RECOVERABLE;
 
 			ras_core->ras_umc.ip_func->mca_ipid_parse(ras_core, ipid,
-				(uint32_t *)&(record_umc[i - rec_idx].cu),
-				(uint32_t *)&(record_umc[i - rec_idx].mem_channel),
-				(uint32_t *)&(record_umc[i - rec_idx].mcumc_id), NULL);
+				&cu, &mem_channel, &mcumc_id, NULL);
+			record_umc[i - rec_idx].cu = (u8)cu;
+			record_umc[i - rec_idx].mem_channel = (u8)mem_channel;
+			record_umc[i - rec_idx].mcumc_id = (u8)mcumc_id;
 
 			/* update bad channel bitmap */
 			if ((record_umc[i - rec_idx].mem_channel < BITS_PER_TYPE(control->bad_channel_bitmap)) &&

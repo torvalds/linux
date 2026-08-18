@@ -55,9 +55,7 @@ static int cs35l56_i2c_probe(struct i2c_client *client)
 	if (ret != 0)
 		return ret;
 
-	ret = cs35l56_init(cs35l56);
-	if (ret == 0)
-		ret = cs35l56_irq_request(&cs35l56->base, client->irq);
+	ret = cs35l56_irq_request(&cs35l56->base, client->irq);
 	if (ret < 0)
 		cs35l56_remove(cs35l56);
 
@@ -72,9 +70,9 @@ static void cs35l56_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id cs35l56_id_i2c[] = {
-	{ "cs35l56", 0x3556 },
-	{ "cs35l63", 0x3563 },
-	{}
+	{ .name = "cs35l56", .driver_data = 0x3556 },
+	{ .name = "cs35l63", .driver_data = 0x3563 },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, cs35l56_id_i2c);
 

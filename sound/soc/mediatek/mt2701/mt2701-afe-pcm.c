@@ -13,6 +13,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/of.h>
 #include <linux/pm_runtime.h>
+#include <sound/pcm_params.h>
 
 #include "mt2701-afe-common.h"
 #include "mt2701-afe-clock-ctrl.h"
@@ -60,6 +61,7 @@ static const struct mt2701_afe_rate mt2701_afe_i2s_rates[] = {
 
 static const unsigned int mt2701_afe_backup_list[] = {
 	AUDIO_TOP_CON0,
+	AUDIO_TOP_CON3,
 	AUDIO_TOP_CON4,
 	AUDIO_TOP_CON5,
 	ASYS_TOP_CON,
@@ -77,6 +79,9 @@ static const unsigned int mt2701_afe_backup_list[] = {
 	AFE_CONN22,
 	AFE_DAC_CON0,
 	AFE_MEMIF_PBUF_SIZE,
+	AFE_HDMI_OUT_CON0,
+	AFE_HDMI_CONN0,
+	AFE_8CH_I2S_OUT_CON,
 };
 
 static int mt2701_dai_num_to_i2s(struct mtk_base_afe *afe, int num)
@@ -542,6 +547,220 @@ static const struct snd_soc_dai_ops mt2701_btmrg_ops = {
 	.hw_params = mt2701_btmrg_hw_params,
 };
 
+/*
+ * HDMI BE DAI -- drives the on-SoC 8-channel I2S engine whose output
+ * feeds the HDMI transmitter audio port.
+ *
+ * The HDMI audio hardware path is:
+ *   HDMI memif DMA (AFE_HDMI_OUT_*) -> interconnect mux (AFE_HDMI_CONN0)
+ *   -> 8-channel I2S engine (AFE_8CH_I2S_OUT_CON) -> HDMI TX audio port
+ *
+ * The I2S3 clock tree provides the bit/master clocks; we set its
+ * mclk_rate to 128*fs (matching HDMI_AUD_MCLK_128FS) and let
+ * mt2701_mclk_configuration program the PLL/divider path.
+ */
+#define MT2701_HDMI_I2S_PATH	3
+
+static int mt2701_afe_hdmi_startup(struct snd_pcm_substream *substream,
+				   struct snd_soc_dai *dai)
+{
+	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
+	struct mt2701_afe_private *afe_priv = afe->platform_priv;
+	int ret;
+
+	if (!afe_priv->hadds2pll_ck || !afe_priv->audio_hdmi_ck) {
+		dev_err(afe->dev, "HDMI audio clocks not available\n");
+		return -ENODEV;
+	}
+
+	ret = clk_prepare_enable(afe_priv->hadds2pll_ck);
+	if (ret)
+		return ret;
+
+	ret = clk_prepare_enable(afe_priv->audio_hdmi_ck);
+	if (ret)
+		goto err_hdmi;
+
+	if (afe_priv->audio_spdf_ck) {
+		ret = clk_prepare_enable(afe_priv->audio_spdf_ck);
+		if (ret)
+			goto err_spdf;
+	}
+
+	if (afe_priv->audio_apll_ck) {
+		ret = clk_prepare_enable(afe_priv->audio_apll_ck);
+		if (ret)
+			goto err_apll;
+	}
+
+	ret = mt2701_afe_enable_mclk(afe, MT2701_HDMI_I2S_PATH);
+	if (ret)
+		goto err_mclk;
+
+	return 0;
+
+err_mclk:
+	if (afe_priv->audio_apll_ck)
+		clk_disable_unprepare(afe_priv->audio_apll_ck);
+err_apll:
+	if (afe_priv->audio_spdf_ck)
+		clk_disable_unprepare(afe_priv->audio_spdf_ck);
+err_spdf:
+	clk_disable_unprepare(afe_priv->audio_hdmi_ck);
+err_hdmi:
+	clk_disable_unprepare(afe_priv->hadds2pll_ck);
+	return ret;
+}
+
+static void mt2701_afe_hdmi_shutdown(struct snd_pcm_substream *substream,
+				     struct snd_soc_dai *dai)
+{
+	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
+	struct mt2701_afe_private *afe_priv = afe->platform_priv;
+
+	mt2701_afe_disable_mclk(afe, MT2701_HDMI_I2S_PATH);
+	if (afe_priv->audio_apll_ck)
+		clk_disable_unprepare(afe_priv->audio_apll_ck);
+	if (afe_priv->audio_spdf_ck)
+		clk_disable_unprepare(afe_priv->audio_spdf_ck);
+	clk_disable_unprepare(afe_priv->audio_hdmi_ck);
+	clk_disable_unprepare(afe_priv->hadds2pll_ck);
+}
+
+static int mt2701_afe_hdmi_hw_params(struct snd_pcm_substream *substream,
+				     struct snd_pcm_hw_params *params,
+				     struct snd_soc_dai *dai)
+{
+	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
+	struct mt2701_afe_private *afe_priv = afe->platform_priv;
+	unsigned int channels = params_channels(params);
+	unsigned int rate = params_rate(params);
+	unsigned int divp1;
+	unsigned int val;
+	unsigned int i;
+	int ret;
+
+	/*
+	 * Compute AUDIO_TOP_CON3.HDMI_BCK_DIV up front. The divider
+	 * drives an internal reference for the HDMI transmitter's
+	 * audio packet engine; it must scale with the sample rate so
+	 * that the packet engine's timing matches the data flowing in
+	 * from the AFE memif/I2S3 side. Empirically, with audpll_sel
+	 * parented to hadds2pll_98m (98.304 MHz), the correct value at
+	 * 48 kHz is div = 44 (i.e. (div+1) = 45), giving 1.0923 MHz.
+	 * Scaling inversely with rate: (div + 1) = 45 * 48000 / rate.
+	 * Integer rounding introduces small (<1%) errors at 32 kHz;
+	 * 44.1 kHz is nearly exact via round-to-nearest. Reject rates
+	 * that fall outside the 6-bit divider range before touching
+	 * any hardware so no side effects are left behind on error.
+	 */
+	divp1 = (45U * 48000U + rate / 2) / rate;
+	if (divp1 == 0 || divp1 > 64)
+		return -EINVAL;
+
+	/*
+	 * Park the I2S3 clock tree at 128*fs -- this is the MCLK that
+	 * the ASYS I2S3 engine uses to derive its BCK/LRCK. The engine
+	 * outputs BCK = 64*fs (stereo, 32-bit word length).
+	 */
+	afe_priv->i2s_path[MT2701_HDMI_I2S_PATH].mclk_rate = rate * 128;
+	ret = mt2701_mclk_configuration(afe, MT2701_HDMI_I2S_PATH);
+	if (ret)
+		return ret;
+
+	/* Program and start the ASYS I2S3 engine (FS, I2S mode, enable). */
+	mt2701_i2s_path_enable(afe,
+			       &afe_priv->i2s_path[MT2701_HDMI_I2S_PATH],
+			       SNDRV_PCM_STREAM_PLAYBACK, rate);
+
+	regmap_update_bits(afe->regmap, AUDIO_TOP_CON3,
+			   AUDIO_TOP_CON3_HDMI_BCK_DIV_MASK,
+			   AUDIO_TOP_CON3_HDMI_BCK_DIV(divp1 - 1));
+
+	/*
+	 * HDMI output memif: set channel count and confirm 16-bit
+	 * sample width. Both fields must be written together so that
+	 * stale reset-default or prior-stream values in BIT_WIDTH
+	 * cannot persist.
+	 */
+	regmap_update_bits(afe->regmap, AFE_HDMI_OUT_CON0,
+			   AFE_HDMI_OUT_CON0_CH_NUM_MASK |
+			   AFE_HDMI_OUT_CON0_BIT_WIDTH_MASK,
+			   AFE_HDMI_OUT_CON0_CH_NUM(channels) |
+			   AFE_HDMI_OUT_CON0_BIT_WIDTH_16);
+
+	/*
+	 * Interconnect mux -- map DMA input slots to HDMI output slots.
+	 * Each output takes a 3-bit field at shift (i*3). Swap the first
+	 * two inputs so that the DMA's interleaved L/R pair lands on the
+	 * correct HDMI L/R output slots. Remaining slots are identity.
+	 */
+	val = (1 << 0) | (0 << 3);  /* O20 <- I21, O21 <- I20 */
+	for (i = 2; i < 8; i++)
+		val |= ((i & 0x7) << (i * 3));
+	regmap_write(afe->regmap, AFE_HDMI_CONN0, val);
+
+	/*
+	 * 8-channel I2S framing: standard I2S, 32-bit slots,
+	 * LRCK/BCK inverted. The wire protocol is fixed.
+	 */
+	regmap_update_bits(afe->regmap, AFE_8CH_I2S_OUT_CON,
+			   AFE_8CH_I2S_OUT_CON_WLEN_MASK |
+			   AFE_8CH_I2S_OUT_CON_I2S_DELAY |
+			   AFE_8CH_I2S_OUT_CON_LRCK_INV |
+			   AFE_8CH_I2S_OUT_CON_BCK_INV,
+			   AFE_8CH_I2S_OUT_CON_WLEN_32BIT |
+			   AFE_8CH_I2S_OUT_CON_I2S_DELAY |
+			   AFE_8CH_I2S_OUT_CON_LRCK_INV |
+			   AFE_8CH_I2S_OUT_CON_BCK_INV);
+	return 0;
+}
+
+static int mt2701_afe_hdmi_trigger(struct snd_pcm_substream *substream, int cmd,
+				   struct snd_soc_dai *dai)
+{
+	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
+
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
+		/* Enable HDMI output memif. */
+		regmap_update_bits(afe->regmap, AFE_HDMI_OUT_CON0, 0x1, 0x1);
+		/* Enable 8-channel I2S engine. */
+		regmap_update_bits(afe->regmap, AFE_8CH_I2S_OUT_CON,
+				   AFE_8CH_I2S_OUT_CON_EN,
+				   AFE_8CH_I2S_OUT_CON_EN);
+		return 0;
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+		regmap_update_bits(afe->regmap, AFE_8CH_I2S_OUT_CON,
+				   AFE_8CH_I2S_OUT_CON_EN, 0);
+		regmap_update_bits(afe->regmap, AFE_HDMI_OUT_CON0, 0x1, 0);
+		return 0;
+	}
+	return -EINVAL;
+}
+
+static int mt2701_afe_hdmi_hw_free(struct snd_pcm_substream *substream,
+				   struct snd_soc_dai *dai)
+{
+	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
+	struct mt2701_afe_private *afe_priv = afe->platform_priv;
+
+	mt2701_afe_i2s_path_disable(afe,
+				    &afe_priv->i2s_path[MT2701_HDMI_I2S_PATH],
+				    SNDRV_PCM_STREAM_PLAYBACK);
+	return 0;
+}
+
+static const struct snd_soc_dai_ops mt2701_afe_hdmi_ops = {
+	.startup	= mt2701_afe_hdmi_startup,
+	.shutdown	= mt2701_afe_hdmi_shutdown,
+	.hw_params	= mt2701_afe_hdmi_hw_params,
+	.hw_free	= mt2701_afe_hdmi_hw_free,
+	.trigger	= mt2701_afe_hdmi_trigger,
+};
+
 static struct snd_soc_dai_driver mt2701_afe_pcm_dais[] = {
 	/* FE DAIs: memory intefaces to CPU */
 	{
@@ -624,6 +843,19 @@ static struct snd_soc_dai_driver mt2701_afe_pcm_dais[] = {
 			.channels_max = 1,
 			.rates = (SNDRV_PCM_RATE_8000
 				| SNDRV_PCM_RATE_16000),
+			.formats = SNDRV_PCM_FMTBIT_S16_LE,
+		},
+		.ops = &mt2701_single_memif_dai_ops,
+	},
+	{
+		.name = "PCM_HDMI",
+		.id = MT2701_MEMIF_HDMI,
+		.playback = {
+			.stream_name = "HDMI Multich",
+			.channels_min = 2,
+			.channels_max = 8,
+			.rates = (SNDRV_PCM_RATE_44100 |
+				  SNDRV_PCM_RATE_48000),
 			.formats = SNDRV_PCM_FMTBIT_S16_LE,
 		},
 		.ops = &mt2701_single_memif_dai_ops,
@@ -748,7 +980,20 @@ static struct snd_soc_dai_driver mt2701_afe_pcm_dais[] = {
 		},
 		.ops = &mt2701_btmrg_ops,
 		.symmetric_rate = 1,
-	}
+	},
+	{
+		.name = "HDMI I2S",
+		.id = MT2701_IO_HDMI,
+		.playback = {
+			.stream_name = "HDMI 8CH I2S Playback",
+			.channels_min = 2,
+			.channels_max = 8,
+			.rates = (SNDRV_PCM_RATE_44100 |
+				  SNDRV_PCM_RATE_48000),
+			.formats = SNDRV_PCM_FMTBIT_S16_LE,
+		},
+		.ops = &mt2701_afe_hdmi_ops,
+	},
 };
 
 static const struct snd_kcontrol_new mt2701_afe_o00_mix[] = {
@@ -926,6 +1171,14 @@ static const struct snd_soc_dapm_route mt2701_afe_pcm_routes[] = {
 	{"I14I15", "Multich I2S1 Out Switch", "DLM"},
 	{"I16I17", "Multich I2S2 Out Switch", "DLM"},
 	{"I18I19", "Multich I2S3 Out Switch", "DLM"},
+
+	/*
+	 * HDMI FE -> BE direct route. The HDMI memif has its own DMA
+	 * path that feeds the 8-channel internal I2S straight into the
+	 * HDMI transmitter; no mixer/interconnect selection is exposed
+	 * to the user.
+	 */
+	{"HDMI 8CH I2S Playback", NULL, "HDMI Multich"},
 
 	{ "I12", NULL, "I12I13" },
 	{ "I13", NULL, "I12I13" },
@@ -1207,6 +1460,35 @@ static const struct mtk_base_memif_data memif_data_array[MT2701_MEMIF_NUM] = {
 		.agent_disable_shift = 16,
 		.msb_reg = -1,
 	},
+	{
+		/*
+		 * HDMI memif feeds the on-SoC 8-channel internal I2S that
+		 * drives the HDMI transmitter audio port. Unlike the
+		 * standard memifs, the enable bit, channel count and bit
+		 * width all live in AFE_HDMI_OUT_CON0, so mono/fs/hd/agent
+		 * fields are left at -1 and programmed from the BE DAI ops
+		 * instead.
+		 */
+		.name = "HDMI",
+		.id = MT2701_MEMIF_HDMI,
+		.reg_ofs_base = AFE_HDMI_OUT_BASE,
+		.reg_ofs_cur = AFE_HDMI_OUT_CUR,
+		.reg_ofs_end = AFE_HDMI_OUT_END,
+		.fs_reg = -1,
+		.fs_shift = -1,
+		.fs_maskbit = 0,
+		.mono_reg = -1,
+		.mono_shift = -1,
+		.enable_reg = AFE_HDMI_OUT_CON0,
+		.enable_shift = 0,
+		.hd_reg = -1,
+		.hd_shift = -1,
+		.hd_align_reg = -1,
+		.hd_align_mshift = 0,
+		.agent_disable_reg = -1,
+		.agent_disable_shift = 0,
+		.msb_reg = -1,
+	},
 };
 
 static const struct mtk_base_irq_data irq_data[MT2701_IRQ_ASYS_END] = {
@@ -1311,6 +1593,7 @@ static int mt2701_afe_runtime_resume(struct device *dev)
 
 static int mt2701_afe_pcm_dev_probe(struct platform_device *pdev)
 {
+	const struct mt2701_soc_variants *soc;
 	struct mtk_base_afe *afe;
 	struct mt2701_afe_private *afe_priv;
 	struct device *dev;
@@ -1320,22 +1603,18 @@ static int mt2701_afe_pcm_dev_probe(struct platform_device *pdev)
 	if (!afe)
 		return -ENOMEM;
 
-	afe->platform_priv = devm_kzalloc(&pdev->dev, sizeof(*afe_priv),
-					  GFP_KERNEL);
-	if (!afe->platform_priv)
+	soc = of_device_get_match_data(&pdev->dev);
+	afe_priv = devm_kzalloc(&pdev->dev,
+			struct_size(afe_priv, i2s_path, soc->i2s_num),
+			GFP_KERNEL);
+	if (!afe_priv)
 		return -ENOMEM;
 
-	afe_priv = afe->platform_priv;
-	afe_priv->soc = of_device_get_match_data(&pdev->dev);
+	afe_priv->soc = soc;
+
+	afe->platform_priv = afe_priv;
 	afe->dev = &pdev->dev;
 	dev = afe->dev;
-
-	afe_priv->i2s_path = devm_kcalloc(dev,
-					  afe_priv->soc->i2s_num,
-					  sizeof(struct mt2701_i2s_path),
-					  GFP_KERNEL);
-	if (!afe_priv->i2s_path)
-		return -ENOMEM;
 
 	irq_id = platform_get_irq_byname(pdev, "asys");
 	if (irq_id < 0)

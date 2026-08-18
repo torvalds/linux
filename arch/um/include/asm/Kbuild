@@ -16,6 +16,7 @@ generic-y += module.h
 generic-y += module.lds.h
 generic-y += parport.h
 generic-y += percpu.h
+generic-y += percpu_types.h
 generic-y += preempt.h
 generic-y += ring_buffer.h
 generic-y += runtime-const.h

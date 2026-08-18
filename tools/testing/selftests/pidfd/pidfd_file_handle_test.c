@@ -373,6 +373,7 @@ TEST_F(file_handle, open_by_handle_at_valid_flags)
 				  O_CLOEXEC |
 				  O_EXCL);
 	ASSERT_GE(pidfd, 0);
+	ASSERT_NE(fcntl(pidfd, F_GETFL) & PIDFD_THREAD, 0);
 
 	ASSERT_EQ(fstat(pidfd, &st2), 0);
 	ASSERT_TRUE(st1.st_dev == st2.st_dev && st1.st_ino == st2.st_ino);

@@ -622,7 +622,7 @@ static int pf1550_charger_probe(struct platform_device *pdev)
 }
 
 static const struct platform_device_id pf1550_charger_id[] = {
-	{ "pf1550-charger", },
+	{ .name = "pf1550-charger" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(platform, pf1550_charger_id);

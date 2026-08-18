@@ -953,39 +953,41 @@ int cscfg_config_sysfs_activate(struct cscfg_config_desc *config_desc, bool acti
 	unsigned long cfg_hash;
 	int err = 0;
 
-	mutex_lock(&cscfg_mutex);
+	guard(mutex)(&cscfg_mutex);
 
 	cfg_hash = (unsigned long)config_desc->event_ea->var;
 
 	if (activate) {
 		/* cannot be a current active value to activate this */
-		if (cscfg_mgr->sysfs_active_config) {
-			err = -EBUSY;
-			goto exit_unlock;
-		}
-		err = _cscfg_activate_config(cfg_hash);
-		if (!err)
+		if (cscfg_mgr->sysfs_active_config)
+			return -EBUSY;
+
+		scoped_guard(raw_spinlock_irqsave, &cscfg_mgr->sysfs_store_lock) {
+			err = _cscfg_activate_config(cfg_hash);
+			if (err)
+				return err;
+
 			cscfg_mgr->sysfs_active_config = cfg_hash;
+		}
 	} else {
-		/* disable if matching current value */
-		if (cscfg_mgr->sysfs_active_config == cfg_hash) {
+		if (cscfg_mgr->sysfs_active_config != cfg_hash)
+			return -EINVAL;
+
+		scoped_guard(raw_spinlock_irqsave, &cscfg_mgr->sysfs_store_lock) {
+			/* disable if matching current value */
 			_cscfg_deactivate_config(cfg_hash);
 			cscfg_mgr->sysfs_active_config = 0;
-		} else
-			err = -EINVAL;
+		}
 	}
 
-exit_unlock:
-	mutex_unlock(&cscfg_mutex);
-	return err;
+	return 0;
 }
 
 /* set the sysfs preset value */
 void cscfg_config_sysfs_set_preset(int preset)
 {
-	mutex_lock(&cscfg_mutex);
+	guard(raw_spinlock_irqsave)(&cscfg_mgr->sysfs_store_lock);
 	cscfg_mgr->sysfs_active_preset = preset;
-	mutex_unlock(&cscfg_mutex);
 }
 
 /*
@@ -994,10 +996,9 @@ void cscfg_config_sysfs_set_preset(int preset)
  */
 void cscfg_config_sysfs_get_active_cfg(unsigned long *cfg_hash, int *preset)
 {
-	mutex_lock(&cscfg_mutex);
+	guard(raw_spinlock_irqsave)(&cscfg_mgr->sysfs_store_lock);
 	*preset = cscfg_mgr->sysfs_active_preset;
 	*cfg_hash = cscfg_mgr->sysfs_active_config;
-	mutex_unlock(&cscfg_mutex);
 }
 EXPORT_SYMBOL_GPL(cscfg_config_sysfs_get_active_cfg);
 
@@ -1201,6 +1202,7 @@ static int cscfg_create_device(void)
 	INIT_LIST_HEAD(&cscfg_mgr->load_order_list);
 	atomic_set(&cscfg_mgr->sys_active_cnt, 0);
 	cscfg_mgr->load_state = CSCFG_NONE;
+	raw_spin_lock_init(&cscfg_mgr->sysfs_store_lock);
 
 	/* setup the device */
 	dev = cscfg_device();

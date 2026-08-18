@@ -211,6 +211,8 @@ struct nau8822_pll {
 	int freq_out;
 };
 
+#define NAU8822_NUM_SUPPLIES	4
+
 /* Codec Private Data */
 struct nau8822 {
 	struct device *dev;
@@ -219,6 +221,7 @@ struct nau8822 {
 	struct nau8822_pll pll;
 	int sysclk;
 	int div_id;
+	struct regulator_bulk_data supplies[NAU8822_NUM_SUPPLIES];
 };
 
 #endif	/* __NAU8822_H__ */

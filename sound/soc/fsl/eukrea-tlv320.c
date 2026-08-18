@@ -19,7 +19,6 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
-#include <asm/mach-types.h>
 
 #include "../codecs/tlv320aic23.h"
 #include "imx-ssi.h"
@@ -142,7 +141,7 @@ static int eukrea_tlv320_probe(struct platform_device *pdev)
 		eukrea_tlv320.name = "cpuimx-audio";
 	}
 
-	if (machine_is_eukrea_cpuimx27() ||
+	if (of_machine_is_compatible("eukrea,cpuimx27") ||
 	    (tmp_np = of_find_compatible_node(NULL, NULL, "fsl,imx21-audmux"))) {
 		imx_audmux_v1_configure_port(MX27_AUDMUX_HPCR1_SSI0,
 			IMX_AUDMUX_V1_PCR_SYN |
@@ -159,12 +158,12 @@ static int eukrea_tlv320_probe(struct platform_device *pdev)
 			IMX_AUDMUX_V1_PCR_RXDSEL(MX27_AUDMUX_HPCR1_SSI0)
 		);
 		of_node_put(tmp_np);
-	} else if (machine_is_eukrea_cpuimx25sd() ||
-		   machine_is_eukrea_cpuimx35sd() ||
-		   machine_is_eukrea_cpuimx51sd() ||
+	} else if (of_machine_is_compatible("eukrea,cpuimx25") ||
+		   of_machine_is_compatible("eukrea,cpuimx35") ||
+		   of_machine_is_compatible("eukrea,cpuimx51") ||
 		   (tmp_np = of_find_compatible_node(NULL, NULL, "fsl,imx31-audmux"))) {
 		if (!np)
-			ext_port = machine_is_eukrea_cpuimx25sd() ?
+			ext_port = of_machine_is_compatible("eukrea,cpuimx25") ?
 				4 : 3;
 
 		imx_audmux_v2_configure_port(int_port,

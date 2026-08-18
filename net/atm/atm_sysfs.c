@@ -27,29 +27,6 @@ static ssize_t address_show(struct device *cdev,
 	return scnprintf(buf, PAGE_SIZE, "%pM\n", adev->esi);
 }
 
-static ssize_t atmaddress_show(struct device *cdev,
-			       struct device_attribute *attr, char *buf)
-{
-	unsigned long flags;
-	struct atm_dev *adev = to_atm_dev(cdev);
-	struct atm_dev_addr *aaddr;
-	int count = 0;
-
-	spin_lock_irqsave(&adev->lock, flags);
-	list_for_each_entry(aaddr, &adev->local, entry) {
-		count += scnprintf(buf + count, PAGE_SIZE - count,
-				   "%1phN.%2phN.%10phN.%6phN.%1phN\n",
-				   &aaddr->addr.sas_addr.prv[0],
-				   &aaddr->addr.sas_addr.prv[1],
-				   &aaddr->addr.sas_addr.prv[3],
-				   &aaddr->addr.sas_addr.prv[13],
-				   &aaddr->addr.sas_addr.prv[19]);
-	}
-	spin_unlock_irqrestore(&adev->lock, flags);
-
-	return count;
-}
-
 static ssize_t atmindex_show(struct device *cdev,
 			     struct device_attribute *attr, char *buf)
 {
@@ -91,14 +68,12 @@ static ssize_t link_rate_show(struct device *cdev,
 }
 
 static DEVICE_ATTR_RO(address);
-static DEVICE_ATTR_RO(atmaddress);
 static DEVICE_ATTR_RO(atmindex);
 static DEVICE_ATTR_RO(carrier);
 static DEVICE_ATTR_RO(type);
 static DEVICE_ATTR_RO(link_rate);
 
 static struct device_attribute *atm_attrs[] = {
-	&dev_attr_atmaddress,
 	&dev_attr_address,
 	&dev_attr_atmindex,
 	&dev_attr_carrier,

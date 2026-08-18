@@ -3369,7 +3369,7 @@ static int sci_init_single(struct platform_device *dev,
 	}
 
 	port->type		= SCI_PUBLIC_PORT_ID(p->type);
-	port->flags		= UPF_FIXED_PORT | UPF_BOOT_AUTOCONF | p->flags;
+	port->flags		= UPF_FIXED_PORT | UPF_BOOT_AUTOCONF;
 	port->fifosize		= sci_port->params->fifosize;
 
 	if (p->type == PORT_SCI && !dev->dev.of_node) {

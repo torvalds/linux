@@ -42,4 +42,34 @@ For development, we suggest the following steps for compiling rtla:
   $ make
   $ sudo make install
 
+Running tests
+
+RTLA has two test suites: a runtime test suite and a unit test suite.
+
+The runtime test suite is available as "make check" (root required) and has
+the following dependencies, in addition to RTLA build dependencies:
+
+- Perl
+- Test::Harness (libtest-harness-perl on Debian/Ubuntu, perl-Test-Harness on Fedora/RHEL)
+- bash
+- coreutils
+- ldd
+- util-linux
+- procps(-ng)
+- bpftool (if rtla is built against libbpf)
+
+as well as the following required system configuration:
+
+- CONFIG_OSNOISE_TRACER=y
+- CONFIG_TIMERLAT_TRACER=y
+- tracefs mounted and readable at /sys/kernel/tracing
+
+The unit test suite is available as "make unit-tests" and has the following
+dependencies:
+
+- libcheck
+
+Unlike the runtime test suite, root is not required to run unit tests, nor is
+a tracefs/osnoise/timerlat-capable kernel required.
+
 For further information, please refer to the rtla man page.

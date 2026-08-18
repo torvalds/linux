@@ -331,9 +331,9 @@ static const struct {
 };
 
 static const struct pci_device_id sis190_pci_tbl[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_SI, 0x0190), 0, 0, 0 },
-	{ PCI_DEVICE(PCI_VENDOR_ID_SI, 0x0191), 0, 0, 1 },
-	{ 0, },
+	{ PCI_VDEVICE(SI, 0x0190), .driver_data = 0 },
+	{ PCI_VDEVICE(SI, 0x0191), .driver_data = 1 },
+	{ },
 };
 
 MODULE_DEVICE_TABLE(pci, sis190_pci_tbl);

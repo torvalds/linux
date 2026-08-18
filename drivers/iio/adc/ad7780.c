@@ -264,16 +264,12 @@ static const struct iio_info ad7780_info = {
 
 static int ad7780_init_gpios(struct device *dev, struct ad7780_state *st)
 {
-	int ret;
-
 	st->powerdown_gpio = devm_gpiod_get_optional(dev,
 						     "powerdown",
 						     GPIOD_OUT_LOW);
-	if (IS_ERR(st->powerdown_gpio)) {
-		ret = PTR_ERR(st->powerdown_gpio);
-		dev_err(dev, "Failed to request powerdown GPIO: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(st->powerdown_gpio))
+		return dev_err_probe(dev, PTR_ERR(st->powerdown_gpio),
+				     "Failed to request powerdown GPIO\n");
 
 	if (!st->chip_info->is_ad778x)
 		return 0;
@@ -282,20 +278,16 @@ static int ad7780_init_gpios(struct device *dev, struct ad7780_state *st)
 	st->gain_gpio = devm_gpiod_get_optional(dev,
 						"adi,gain",
 						GPIOD_OUT_HIGH);
-	if (IS_ERR(st->gain_gpio)) {
-		ret = PTR_ERR(st->gain_gpio);
-		dev_err(dev, "Failed to request gain GPIO: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(st->gain_gpio))
+		return dev_err_probe(dev, PTR_ERR(st->gain_gpio),
+				     "Failed to request gain GPIO\n");
 
 	st->filter_gpio = devm_gpiod_get_optional(dev,
 						  "adi,filter",
 						  GPIOD_OUT_HIGH);
-	if (IS_ERR(st->filter_gpio)) {
-		ret = PTR_ERR(st->filter_gpio);
-		dev_err(dev, "Failed to request filter GPIO: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(st->filter_gpio))
+		return dev_err_probe(dev, PTR_ERR(st->filter_gpio),
+				     "Failed to request filter GPIO\n");
 
 	return 0;
 }
@@ -307,11 +299,12 @@ static void ad7780_reg_disable(void *reg)
 
 static int ad7780_probe(struct spi_device *spi)
 {
+	struct device *dev = &spi->dev;
 	struct ad7780_state *st;
 	struct iio_dev *indio_dev;
 	int ret;
 
-	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!indio_dev)
 		return -ENOMEM;
 
@@ -329,29 +322,28 @@ static int ad7780_probe(struct spi_device *spi)
 	indio_dev->num_channels = 1;
 	indio_dev->info = &ad7780_info;
 
-	ret = ad7780_init_gpios(&spi->dev, st);
+	ret = ad7780_init_gpios(dev, st);
 	if (ret)
 		return ret;
 
-	st->reg = devm_regulator_get(&spi->dev, "avdd");
+	st->reg = devm_regulator_get(dev, "avdd");
 	if (IS_ERR(st->reg))
 		return PTR_ERR(st->reg);
 
 	ret = regulator_enable(st->reg);
-	if (ret) {
-		dev_err(&spi->dev, "Failed to enable specified AVdd supply\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "Failed to enable specified AVdd supply\n");
 
-	ret = devm_add_action_or_reset(&spi->dev, ad7780_reg_disable, st->reg);
+	ret = devm_add_action_or_reset(dev, ad7780_reg_disable, st->reg);
 	if (ret)
 		return ret;
 
-	ret = devm_ad_sd_setup_buffer_and_trigger(&spi->dev, indio_dev);
+	ret = devm_ad_sd_setup_buffer_and_trigger(dev, indio_dev);
 	if (ret)
 		return ret;
 
-	return devm_iio_device_register(&spi->dev, indio_dev);
+	return devm_iio_device_register(dev, indio_dev);
 }
 
 static const struct spi_device_id ad7780_id[] = {

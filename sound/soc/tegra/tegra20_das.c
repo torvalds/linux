@@ -188,6 +188,7 @@ static const struct of_device_id tegra20_das_of_match[] = {
 	{ .compatible = "nvidia,tegra20-das", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, tegra20_das_of_match);
 
 static struct platform_driver tegra20_das_driver = {
 	.probe = tegra20_das_probe,
@@ -202,4 +203,3 @@ MODULE_AUTHOR("Stephen Warren <swarren@nvidia.com>");
 MODULE_DESCRIPTION("Tegra20 DAS driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRV_NAME);
-MODULE_DEVICE_TABLE(of, tegra20_das_of_match);

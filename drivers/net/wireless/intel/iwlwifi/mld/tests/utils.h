@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2024-2025 Intel Corporation
+ * Copyright (C) 2024-2026 Intel Corporation
  */
 
 #ifndef __iwl_mld_kunit_utils_h__
@@ -77,6 +77,8 @@ CHANNEL(chan_6ghz_221, NL80211_BAND_6GHZ, 7055);
 		NL80211_CHAN_WIDTH_160)				\
 	CHANDEF(chandef_6ghz_320mhz, chan_6ghz, 6105,		\
 		NL80211_CHAN_WIDTH_320)				\
+	CHANDEF(chandef_6ghz_320mhz_pri0, chan_6ghz, 6265,	\
+		NL80211_CHAN_WIDTH_320)				\
 	CHANDEF(chandef_6ghz_221_160mhz, chan_6ghz_221, 6985,	\
 		NL80211_CHAN_WIDTH_160)				\
 	/* Feel free to add more */
@@ -120,6 +122,11 @@ iwlmld_kunit_assoc_emlsr(struct iwl_mld_kunit_link *link1,
 			 struct iwl_mld_kunit_link *link2);
 
 struct element *iwlmld_kunit_gen_element(u8 id, const void *data, size_t len);
+
+struct element *
+iwlmld_kunit_create_he_6ghz_oper(struct ieee80211_he_6ghz_oper he_6ghz);
+
+struct cfg80211_bss_ies *iwlmld_kunit_create_bss_ies(struct element *elem);
 
 /**
  * iwlmld_kunit_get_phy_of_link - Get the phy of a link

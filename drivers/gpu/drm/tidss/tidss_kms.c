@@ -19,7 +19,7 @@
 #include "tidss_kms.h"
 #include "tidss_plane.h"
 
-static void tidss_atomic_commit_tail(struct drm_atomic_state *old_state)
+static void tidss_atomic_commit_tail(struct drm_atomic_commit *old_state)
 {
 	struct drm_device *ddev = old_state->dev;
 	struct tidss_device *tidss = to_tidss(ddev);
@@ -67,7 +67,7 @@ static const struct drm_mode_config_helper_funcs mode_config_helper_funcs = {
 };
 
 static int tidss_atomic_check(struct drm_device *ddev,
-			      struct drm_atomic_state *state)
+			      struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *opstate;
 	struct drm_plane_state *npstate;
@@ -286,8 +286,6 @@ int tidss_modeset_init(struct tidss_device *tidss)
 	ret = drm_vblank_init(ddev, tidss->num_crtcs);
 	if (ret)
 		return ret;
-
-	drm_mode_config_reset(ddev);
 
 	dev_dbg(tidss->dev, "%s done\n", __func__);
 

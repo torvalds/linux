@@ -351,14 +351,13 @@ static int sil24_port_resume(struct ata_port *ap);
 #endif
 
 static const struct pci_device_id sil24_pci_tbl[] = {
-	{ PCI_VDEVICE(CMD, 0x3124), BID_SIL3124 },
-	{ PCI_VDEVICE(INTEL, 0x3124), BID_SIL3124 },
-	{ PCI_VDEVICE(CMD, 0x3132), BID_SIL3132 },
-	{ PCI_VDEVICE(CMD, 0x0242), BID_SIL3132 },
-	{ PCI_VDEVICE(CMD, 0x0244), BID_SIL3132 },
-	{ PCI_VDEVICE(CMD, 0x3131), BID_SIL3131 },
-	{ PCI_VDEVICE(CMD, 0x3531), BID_SIL3131 },
-
+	{ PCI_VDEVICE(CMD, 0x3124), .driver_data = BID_SIL3124 },
+	{ PCI_VDEVICE(INTEL, 0x3124), .driver_data = BID_SIL3124 },
+	{ PCI_VDEVICE(CMD, 0x3132), .driver_data = BID_SIL3132 },
+	{ PCI_VDEVICE(CMD, 0x0242), .driver_data = BID_SIL3132 },
+	{ PCI_VDEVICE(CMD, 0x0244), .driver_data = BID_SIL3132 },
+	{ PCI_VDEVICE(CMD, 0x3131), .driver_data = BID_SIL3131 },
+	{ PCI_VDEVICE(CMD, 0x3531), .driver_data = BID_SIL3131 },
 	{ } /* terminate list */
 };
 
@@ -1171,6 +1170,7 @@ static irqreturn_t sil24_interrupt(int irq, void *dev_instance)
 }
 
 static void sil24_error_handler(struct ata_port *ap)
+	__must_hold(&ap->host->eh_mutex)
 {
 	struct sil24_port_priv *pp = ap->private_data;
 

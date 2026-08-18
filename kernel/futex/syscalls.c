@@ -25,17 +25,13 @@
  * @head:	pointer to the list-head
  * @len:	length of the list-head, as userspace expects
  */
-SYSCALL_DEFINE2(set_robust_list, struct robust_list_head __user *, head,
-		size_t, len)
+SYSCALL_DEFINE2(set_robust_list, struct robust_list_head __user *, head, size_t, len)
 {
-	/*
-	 * The kernel knows only one size for now:
-	 */
+	/* The kernel knows only one size for now. */
 	if (unlikely(len != sizeof(*head)))
 		return -EINVAL;
 
-	current->robust_list = head;
-
+	current->futex.robust_list = head;
 	return 0;
 }
 
@@ -43,9 +39,9 @@ static inline void __user *futex_task_robust_list(struct task_struct *p, bool co
 {
 #ifdef CONFIG_COMPAT
 	if (compat)
-		return p->compat_robust_list;
+		return p->futex.compat_robust_list;
 #endif
-	return p->robust_list;
+	return p->futex.robust_list;
 }
 
 static void __user *futex_get_robust_list_common(int pid, bool compat)
@@ -122,6 +118,13 @@ long do_futex(u32 __user *uaddr, int op, u32 val, ktime_t *timeout,
 			return -ENOSYS;
 	}
 
+	if (flags & FLAGS_ROBUST_UNLOCK) {
+		if (cmd != FUTEX_WAKE &&
+		    cmd != FUTEX_WAKE_BITSET &&
+		    cmd != FUTEX_UNLOCK_PI)
+			return -ENOSYS;
+	}
+
 	switch (cmd) {
 	case FUTEX_WAIT:
 		val3 = FUTEX_BITSET_MATCH_ANY;
@@ -132,7 +135,7 @@ long do_futex(u32 __user *uaddr, int op, u32 val, ktime_t *timeout,
 		val3 = FUTEX_BITSET_MATCH_ANY;
 		fallthrough;
 	case FUTEX_WAKE_BITSET:
-		return futex_wake(uaddr, flags, val, val3);
+		return futex_wake(uaddr, flags, uaddr2, val, val3);
 	case FUTEX_REQUEUE:
 		return futex_requeue(uaddr, flags, uaddr2, flags, val, val2, NULL, 0);
 	case FUTEX_CMP_REQUEUE:
@@ -145,7 +148,7 @@ long do_futex(u32 __user *uaddr, int op, u32 val, ktime_t *timeout,
 	case FUTEX_LOCK_PI2:
 		return futex_lock_pi(uaddr, flags, timeout, 0);
 	case FUTEX_UNLOCK_PI:
-		return futex_unlock_pi(uaddr, flags);
+		return futex_unlock_pi(uaddr, flags, uaddr2);
 	case FUTEX_TRYLOCK_PI:
 		return futex_lock_pi(uaddr, flags, NULL, 1);
 	case FUTEX_WAIT_REQUEUE_PI:
@@ -379,7 +382,7 @@ SYSCALL_DEFINE4(futex_wake,
 	if (!futex_validate_input(flags, mask))
 		return -EINVAL;
 
-	return futex_wake(uaddr, FLAGS_STRICT | flags, nr, mask);
+	return futex_wake(uaddr, FLAGS_STRICT | flags, NULL, nr, mask);
 }
 
 /*
@@ -475,15 +478,13 @@ SYSCALL_DEFINE4(futex_requeue,
 }
 
 #ifdef CONFIG_COMPAT
-COMPAT_SYSCALL_DEFINE2(set_robust_list,
-		struct compat_robust_list_head __user *, head,
-		compat_size_t, len)
+COMPAT_SYSCALL_DEFINE2(set_robust_list, struct compat_robust_list_head __user *, head,
+		       compat_size_t, len)
 {
 	if (unlikely(len != sizeof(*head)))
 		return -EINVAL;
 
-	current->compat_robust_list = head;
-
+	current->futex.compat_robust_list = head;
 	return 0;
 }
 
@@ -523,4 +524,3 @@ SYSCALL_DEFINE6(futex_time32, u32 __user *, uaddr, int, op, u32, val,
 	return do_futex(uaddr, op, val, tp, uaddr2, (unsigned long)utime, val3);
 }
 #endif /* CONFIG_COMPAT_32BIT_TIME */
-

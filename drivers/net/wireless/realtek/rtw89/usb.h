@@ -18,6 +18,7 @@
 #define RTW89_USB_MOD512_PADDING	4
 
 #define RTW89_MAX_ENDPOINT_NUM		9
+#define RTW89_MAX_BULKIN_NUM		2
 #define RTW89_MAX_BULKOUT_NUM		7
 
 #define R_AX_RXAGG_0_V1			0x6000
@@ -27,6 +28,14 @@
 #define B_AX_RXAGG_0_BUF_SZ_1K		GENMASK(7, 0)
 
 #define R_AX_RXAGG_1_V1			0x6004
+
+#define R_BE_RXAGG_0_V1			0x6000
+#define B_BE_RXAGG_0_EN			BIT(31)
+#define B_BE_RXAGG_0_NUM_TH		GENMASK(23, 16)
+#define B_BE_RXAGG_0_TIME_32US_TH	GENMASK(15, 8)
+#define B_BE_RXAGG_0_BUF_SZ_1K		GENMASK(7, 0)
+
+#define R_BE_RXAGG_1_V1			0x6004
 
 #define R_AX_RXAGG_0			0x8900
 #define B_AX_RXAGG_0_BUF_SZ_4K		GENMASK(7, 0)
@@ -65,7 +74,7 @@ struct rtw89_usb {
 
 	atomic_t continual_io_error;
 
-	u8 in_pipe;
+	u8 in_pipe[RTW89_MAX_BULKIN_NUM];
 	u8 out_pipe[RTW89_MAX_BULKOUT_NUM];
 
 	struct workqueue_struct *rxwq;

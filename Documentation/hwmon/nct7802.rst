@@ -24,6 +24,22 @@ speed sensors.
 
 Smart Fan™ speed control is available via pwmX_auto_point attributes.
 
+Sysfs Attributes
+----------------
+
+Sysfs attributes unique to this chip are documented below. For common
+attributes, see Documentation/hwmon/sysfs-interface.rst.
+
+step_up_time
+			Time interval between successive duty cycle increases
+			when in Smart Fan mode. Specified in milliseconds and
+			rounded to intervals of 100 in the range 100-25500.
+
+step_down_time
+			Time interval between successive duty cycle decreases
+			when in Smart Fan mode. Specified in milliseconds and
+			rounded to intervals of 100 in the range 100-25500.
+
 Tested Boards and BIOS Versions
 -------------------------------
 

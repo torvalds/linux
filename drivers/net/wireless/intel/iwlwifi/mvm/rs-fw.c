@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2025 Intel Corporation
+ * Copyright (C) 2018-2026 Intel Corporation
  */
 #include "rs.h"
 #include "fw-api.h"
@@ -423,9 +423,14 @@ void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,
 	struct iwl_lq_sta_rs_fw *lq_sta;
 	u32 flags;
 
+	notif = (void *)pkt->data;
+	if (IWL_FW_CHECK(mvm, notif->sta_id >= mvm->fw->ucode_capa.num_stations,
+			 "Invalid sta id (%d) in TLC notification\n",
+			 notif->sta_id))
+		return;
+
 	rcu_read_lock();
 
-	notif = (void *)pkt->data;
 	link_sta = rcu_dereference(mvm->fw_id_to_link_sta[notif->sta_id]);
 	sta = rcu_dereference(mvm->fw_id_to_mac_id[notif->sta_id]);
 	if (IS_ERR_OR_NULL(sta) || !link_sta) {

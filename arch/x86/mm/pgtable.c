@@ -99,17 +99,6 @@ static void pgd_dtor(pgd_t *pgd)
 	spin_unlock(&pgd_lock);
 }
 
-/*
- * List of all pgd's needed for non-PAE so it can invalidate entries
- * in both cached and uncached pgd's; not needed for PAE since the
- * kernel pmd is shared. If PAE were not to share the pmd a similar
- * tactic would be needed. This is essentially codepath-based locking
- * against pageattr.c; it is the unique case in which a valid change
- * of kernel pagetables can't be lazily synchronized by vmalloc faults.
- * vmalloc faults work because attached pagetables are never freed.
- * -- nyc
- */
-
 #ifdef CONFIG_X86_PAE
 /*
  * In PAE mode, we need to do a cr3 reload (=tlb flush) when

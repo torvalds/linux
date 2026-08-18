@@ -14,7 +14,6 @@
 #include <linux/iopoll.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/kernel.h>
-#include <linux/mod_devicetable.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
@@ -58,7 +57,6 @@
 struct keembay_pcie {
 	struct dw_pcie		pci;
 	void __iomem		*apb_base;
-	enum dw_pcie_device_mode mode;
 
 	struct clk		*clk_master;
 	struct clk		*clk_aux;
@@ -117,7 +115,7 @@ static int keembay_pcie_start_link(struct dw_pcie *pci)
 	u32 val;
 	int ret;
 
-	if (pcie->mode == DW_PCIE_EP_TYPE)
+	if (pcie->pci.mode == DW_PCIE_EP_TYPE)
 		return 0;
 
 	keembay_pcie_ltssm_set(pcie, false);
@@ -409,7 +407,7 @@ static int keembay_pcie_probe(struct platform_device *pdev)
 	pci->dev = dev;
 	pci->ops = &keembay_pcie_ops;
 
-	pcie->mode = mode;
+	pcie->pci.mode = mode;
 
 	pcie->apb_base = devm_platform_ioremap_resource_byname(pdev, "apb");
 	if (IS_ERR(pcie->apb_base))
@@ -417,7 +415,7 @@ static int keembay_pcie_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, pcie);
 
-	switch (pcie->mode) {
+	switch (pcie->pci.mode) {
 	case DW_PCIE_RC_TYPE:
 		if (!IS_ENABLED(CONFIG_PCIE_KEEMBAY_HOST))
 			return -ENODEV;
@@ -443,7 +441,7 @@ static int keembay_pcie_probe(struct platform_device *pdev)
 
 		break;
 	default:
-		dev_err(dev, "Invalid device type %d\n", pcie->mode);
+		dev_err(dev, "Invalid device type %d\n", pcie->pci.mode);
 		return -ENODEV;
 	}
 

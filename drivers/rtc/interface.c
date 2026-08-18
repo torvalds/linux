@@ -384,6 +384,46 @@ done:
 	return err;
 }
 
+/**
+ * rtc_read_next_alarm - read the next expiring alarm
+ * @rtc: RTC device
+ * @alarm: storage for the alarm information
+ *
+ * Read the next expiring alarm from the RTC timerqueue. This returns
+ * the alarm that will actually fire next, which may be different from
+ * rtc_read_alarm() if multiple timers are queued (e.g., alarmtimer
+ * and wakealarm sysfs both active).
+ *
+ * Returns: 0 on success, -ENOENT if no alarm is pending, or other error.
+ */
+int rtc_read_next_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
+{
+	struct timerqueue_node *next;
+	int err;
+
+	if (!rtc || !alarm)
+		return -EINVAL;
+
+	err = mutex_lock_interruptible(&rtc->ops_lock);
+	if (err)
+		return err;
+
+	next = timerqueue_getnext(&rtc->timerqueue);
+	if (!next) {
+		err = -ENOENT;
+		goto unlock;
+	}
+
+	memset(alarm, 0, sizeof(struct rtc_wkalrm));
+	alarm->time = rtc_ktime_to_tm(next->expires);
+	alarm->enabled = 1;
+
+unlock:
+	mutex_unlock(&rtc->ops_lock);
+	return err;
+}
+EXPORT_SYMBOL_GPL(rtc_read_next_alarm);
+
 int rtc_read_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
 {
 	int err;
@@ -635,8 +675,8 @@ EXPORT_SYMBOL_GPL(rtc_update_irq_enable);
 /**
  * rtc_handle_legacy_irq - AIE, UIE and PIE event hook
  * @rtc: pointer to the rtc device
- * @num: number of occurence of the event
- * @mode: type of the event, RTC_AF, RTC_UF of RTC_PF
+ * @num: number of occurrence of the event
+ * @mode: type of the event, RTC_AF, RTC_UF or RTC_PF
  *
  * This function is called when an AIE, UIE or PIE mode interrupt
  * has occurred (or been emulated).

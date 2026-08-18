@@ -789,11 +789,9 @@ static void crypto_ahash_free_instance(struct crypto_instance *inst)
 static int __maybe_unused crypto_ahash_report(
 	struct sk_buff *skb, struct crypto_alg *alg)
 {
-	struct crypto_report_hash rhash;
-
-	memset(&rhash, 0, sizeof(rhash));
-
-	strscpy(rhash.type, "ahash", sizeof(rhash.type));
+	struct crypto_report_hash rhash = {
+		.type = "ahash",
+	};
 
 	rhash.blocksize = alg->cra_blocksize;
 	rhash.digestsize = __crypto_hash_alg_common(alg)->digestsize;
@@ -861,76 +859,6 @@ bool crypto_hash_alg_has_setkey(struct hash_alg_common *halg)
 	return __crypto_ahash_alg(alg)->setkey != ahash_nosetkey;
 }
 EXPORT_SYMBOL_GPL(crypto_hash_alg_has_setkey);
-
-struct crypto_ahash *crypto_clone_ahash(struct crypto_ahash *hash)
-{
-	struct hash_alg_common *halg = crypto_hash_alg_common(hash);
-	struct crypto_tfm *tfm = crypto_ahash_tfm(hash);
-	struct crypto_ahash *fb = NULL;
-	struct crypto_ahash *nhash;
-	struct ahash_alg *alg;
-	int err;
-
-	if (!crypto_hash_alg_has_setkey(halg)) {
-		tfm = crypto_tfm_get(tfm);
-		if (IS_ERR(tfm))
-			return ERR_CAST(tfm);
-
-		return hash;
-	}
-
-	nhash = crypto_clone_tfm(&crypto_ahash_type, tfm);
-
-	if (IS_ERR(nhash))
-		return nhash;
-
-	nhash->reqsize = hash->reqsize;
-	nhash->statesize = hash->statesize;
-
-	if (likely(hash->using_shash)) {
-		struct crypto_shash **nctx = crypto_ahash_ctx(nhash);
-		struct crypto_shash *shash;
-
-		shash = crypto_clone_shash(ahash_to_shash(hash));
-		if (IS_ERR(shash)) {
-			err = PTR_ERR(shash);
-			goto out_free_nhash;
-		}
-		crypto_ahash_tfm(nhash)->exit = crypto_exit_ahash_using_shash;
-		nhash->using_shash = true;
-		*nctx = shash;
-		return nhash;
-	}
-
-	if (crypto_ahash_need_fallback(hash)) {
-		fb = crypto_clone_ahash(crypto_ahash_fb(hash));
-		err = PTR_ERR(fb);
-		if (IS_ERR(fb))
-			goto out_free_nhash;
-
-		crypto_ahash_tfm(nhash)->fb = crypto_ahash_tfm(fb);
-	}
-
-	err = -ENOSYS;
-	alg = crypto_ahash_alg(hash);
-	if (!alg->clone_tfm)
-		goto out_free_fb;
-
-	err = alg->clone_tfm(nhash, hash);
-	if (err)
-		goto out_free_fb;
-
-	crypto_ahash_tfm(nhash)->exit = crypto_ahash_exit_tfm;
-
-	return nhash;
-
-out_free_fb:
-	crypto_free_ahash(fb);
-out_free_nhash:
-	crypto_free_ahash(nhash);
-	return ERR_PTR(err);
-}
-EXPORT_SYMBOL_GPL(crypto_clone_ahash);
 
 static int ahash_default_export_core(struct ahash_request *req, void *out)
 {

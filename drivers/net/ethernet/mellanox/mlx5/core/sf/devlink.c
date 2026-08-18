@@ -245,8 +245,10 @@ static int mlx5_sf_add(struct mlx5_core_dev *dev, struct mlx5_sf_table *table,
 	if (IS_ERR(sf))
 		return PTR_ERR(sf);
 
+	mlx5_esw_reps_block(esw);
 	err = mlx5_eswitch_load_sf_vport(esw, sf->hw_fn_id, MLX5_VPORT_UC_ADDR_CHANGE,
 					 &sf->dl_port, new_attr->controller, new_attr->sfnum);
+	mlx5_esw_reps_unblock(esw);
 	if (err)
 		goto esw_err;
 	*dl_port = &sf->dl_port.dl_port;
@@ -263,6 +265,8 @@ static int
 mlx5_sf_new_check_attr(struct mlx5_core_dev *dev, const struct devlink_port_new_attrs *new_attr,
 		       struct netlink_ext_ack *extack)
 {
+	u32 controller;
+
 	if (new_attr->flavour != DEVLINK_PORT_FLAVOUR_PCI_SF) {
 		NL_SET_ERR_MSG_MOD(extack, "Driver supports only SF port addition");
 		return -EOPNOTSUPP;
@@ -282,7 +286,9 @@ mlx5_sf_new_check_attr(struct mlx5_core_dev *dev, const struct devlink_port_new_
 		NL_SET_ERR_MSG_MOD(extack, "External controller is unsupported");
 		return -EOPNOTSUPP;
 	}
-	if (new_attr->pfnum != PCI_FUNC(dev->pdev->devfn)) {
+	controller = new_attr->controller_valid ? new_attr->controller : 0;
+	if (new_attr->pfnum !=
+	    mlx5_esw_sf_controller_to_pfnum(dev, controller)) {
 		NL_SET_ERR_MSG_MOD(extack, "Invalid pfnum supplied");
 		return -EOPNOTSUPP;
 	}
@@ -304,10 +310,6 @@ int mlx5_devlink_sf_port_new(struct devlink *devlink,
 	struct mlx5_sf_table *table = dev->priv.sf_table;
 	int err;
 
-	err = mlx5_sf_new_check_attr(dev, new_attr, extack);
-	if (err)
-		return err;
-
 	if (!mlx5_sf_table_supported(dev)) {
 		NL_SET_ERR_MSG_MOD(extack, "SF ports are not supported.");
 		return -EOPNOTSUPP;
@@ -318,6 +320,10 @@ int mlx5_devlink_sf_port_new(struct devlink *devlink,
 				   "SF ports are only supported in eswitch switchdev mode.");
 		return -EOPNOTSUPP;
 	}
+
+	err = mlx5_sf_new_check_attr(dev, new_attr, extack);
+	if (err)
+		return err;
 
 	return mlx5_sf_add(dev, table, new_attr, extack, dl_port);
 }
@@ -367,7 +373,10 @@ int mlx5_devlink_sf_port_del(struct devlink *devlink,
 	struct mlx5_sf_table *table = dev->priv.sf_table;
 	struct mlx5_sf *sf = mlx5_sf_by_dl_port(dl_port);
 
+	mlx5_esw_reps_block(dev->priv.eswitch);
 	mlx5_sf_del(table, sf);
+	mlx5_esw_reps_unblock(dev->priv.eswitch);
+
 	return 0;
 }
 

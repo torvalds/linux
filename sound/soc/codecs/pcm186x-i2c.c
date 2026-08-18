@@ -23,10 +23,10 @@ static const struct of_device_id pcm186x_of_match[] = {
 MODULE_DEVICE_TABLE(of, pcm186x_of_match);
 
 static const struct i2c_device_id pcm186x_i2c_id[] = {
-	{ "pcm1862", PCM1862 },
-	{ "pcm1863", PCM1863 },
-	{ "pcm1864", PCM1864 },
-	{ "pcm1865", PCM1865 },
+	{ .name = "pcm1862", .driver_data = PCM1862 },
+	{ .name = "pcm1863", .driver_data = PCM1863 },
+	{ .name = "pcm1864", .driver_data = PCM1864 },
+	{ .name = "pcm1865", .driver_data = PCM1865 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pcm186x_i2c_id);

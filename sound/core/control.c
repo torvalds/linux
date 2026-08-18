@@ -1550,7 +1550,6 @@ static int replace_user_tlv(struct snd_kcontrol *kctl, unsigned int __user *buf,
 			    unsigned int size)
 {
 	struct user_element *ue = snd_kcontrol_chip(kctl);
-	unsigned int *container;
 	unsigned int mask = 0;
 	int i;
 	int change;
@@ -1564,17 +1563,16 @@ static int replace_user_tlv(struct snd_kcontrol *kctl, unsigned int __user *buf,
 	if (check_user_elem_overflow(ue->card, (ssize_t)(size - ue->tlv_data_size)))
 		return -ENOMEM;
 
-	container = vmemdup_user(buf, size);
+	unsigned int *container __free(kvfree) = vmemdup_user(buf, size);
+
 	if (IS_ERR(container))
 		return PTR_ERR(container);
 
 	change = ue->tlv_data_size != size;
 	if (!change)
 		change = memcmp(ue->tlv_data, container, size) != 0;
-	if (!change) {
-		kvfree(container);
+	if (!change)
 		return 0;
-	}
 
 	if (ue->tlv_data == NULL) {
 		/* Now TLV data is available. */
@@ -1587,7 +1585,7 @@ static int replace_user_tlv(struct snd_kcontrol *kctl, unsigned int __user *buf,
 		kvfree(ue->tlv_data);
 	}
 
-	ue->tlv_data = container;
+	ue->tlv_data = no_free_ptr(container);
 	ue->tlv_data_size = size;
 	// decremented at private_free.
 	ue->card->user_ctl_alloc_size += size;
@@ -1628,7 +1626,6 @@ static int snd_ctl_elem_user_tlv(struct snd_kcontrol *kctl, int op_flag,
 /* called in controls_rwsem write lock */
 static int snd_ctl_elem_init_enum_names(struct user_element *ue)
 {
-	char *names, *p;
 	size_t buf_len, name_len;
 	unsigned int i;
 	const uintptr_t user_ptrval = ue->info.value.enumerated.names_ptr;
@@ -1641,27 +1638,28 @@ static int snd_ctl_elem_init_enum_names(struct user_element *ue)
 
 	if (check_user_elem_overflow(ue->card, buf_len))
 		return -ENOMEM;
-	names = vmemdup_user((const void __user *)user_ptrval, buf_len);
+	char *names __free(kvfree) = vmemdup_user((const void __user *)user_ptrval,
+						  buf_len);
+
 	if (IS_ERR(names))
 		return PTR_ERR(names);
 
 	/* check that there are enough valid names */
-	p = names;
+	char *p = names;
+
 	for (i = 0; i < ue->info.value.enumerated.items; ++i) {
-		if (buf_len == 0) {
-			kvfree(names);
+		if (buf_len == 0)
 			return -EINVAL;
-		}
+
 		name_len = strnlen(p, buf_len);
-		if (name_len == 0 || name_len >= 64 || name_len == buf_len) {
-			kvfree(names);
+		if (name_len == 0 || name_len >= 64 || name_len == buf_len)
 			return -EINVAL;
-		}
+
 		p += name_len + 1;
 		buf_len -= name_len + 1;
 	}
 
-	ue->priv_data = names;
+	ue->priv_data = no_free_ptr(names);
 	ue->info.value.enumerated.names_ptr = 0;
 	// increment the allocation size; decremented again at private_free.
 	ue->card->user_ctl_alloc_size += ue->info.value.enumerated.names_length;
@@ -2293,7 +2291,6 @@ EXPORT_SYMBOL_GPL(snd_ctl_request_layer);
  */
 void snd_ctl_register_layer(struct snd_ctl_layer_ops *lops)
 {
-	struct snd_card *card;
 	int card_number;
 
 	scoped_guard(rwsem_write, &snd_ctl_layer_rwsem) {
@@ -2301,11 +2298,12 @@ void snd_ctl_register_layer(struct snd_ctl_layer_ops *lops)
 		snd_ctl_layer = lops;
 	}
 	for (card_number = 0; card_number < SNDRV_CARDS; card_number++) {
-		card = snd_card_ref(card_number);
+		struct snd_card *card __free(snd_card_unref) =
+			snd_card_ref(card_number);
+
 		if (card) {
 			scoped_guard(rwsem_read, &card->controls_rwsem)
 				lops->lregister(card);
-			snd_card_unref(card);
 		}
 	}
 }

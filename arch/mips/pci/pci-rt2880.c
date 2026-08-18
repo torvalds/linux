@@ -13,7 +13,6 @@
 #include <linux/pci.h>
 #include <linux/io.h>
 #include <linux/init.h>
-#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 
 #include <asm/mach-ralink/rt288x.h>

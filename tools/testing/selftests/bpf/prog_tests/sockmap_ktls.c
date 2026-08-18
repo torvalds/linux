@@ -9,7 +9,6 @@
 #include "test_progs.h"
 #include "sockmap_helpers.h"
 #include "test_skmsg_load_helpers.skel.h"
-#include "test_sockmap_ktls.skel.h"
 
 #define MAX_TEST_NAME 80
 #define TCP_ULP 31
@@ -117,6 +116,68 @@ close:
 	close(s);
 }
 
+static void test_sockmap_ktls_enable_fails_when_in_sockmap(int family, int map)
+{
+	struct tls12_crypto_info_aes_gcm_128 crypto = {
+		.info = {
+			.version     = TLS_1_2_VERSION,
+			.cipher_type = TLS_CIPHER_AES_GCM_128,
+		},
+	};
+	struct sockaddr_storage addr = {};
+	socklen_t len = sizeof(addr);
+	struct sockaddr_in6 *v6;
+	struct sockaddr_in *v4;
+	int err, s, zero = 0;
+
+	switch (family) {
+	case AF_INET:
+		v4 = (struct sockaddr_in *)&addr;
+		v4->sin_family = AF_INET;
+		break;
+	case AF_INET6:
+		v6 = (struct sockaddr_in6 *)&addr;
+		v6->sin6_family = AF_INET6;
+		break;
+	default:
+		PRINT_FAIL("unsupported socket family %d", family);
+		return;
+	}
+
+	s = socket(family, SOCK_STREAM, 0);
+	if (!ASSERT_GE(s, 0, "socket"))
+		return;
+
+	err = bind(s, (struct sockaddr *)&addr, len);
+	if (!ASSERT_OK(err, "bind"))
+		goto close;
+
+	err = getsockname(s, (struct sockaddr *)&addr, &len);
+	if (!ASSERT_OK(err, "getsockname"))
+		goto close;
+
+	err = connect(s, (struct sockaddr *)&addr, len);
+	if (!ASSERT_OK(err, "connect"))
+		goto close;
+
+	/* Add the socket to the sockmap, attaching a psock. */
+	err = bpf_map_update_elem(map, &zero, &s, BPF_ANY);
+	if (!ASSERT_OK(err, "sockmap update elem"))
+		goto close;
+
+	/* Installing the TLS ULP is allowed, it does not touch the datapath. */
+	err = setsockopt(s, IPPROTO_TCP, TCP_ULP, "tls", strlen("tls"));
+	if (!ASSERT_OK(err, "setsockopt(TCP_ULP)"))
+		goto close;
+
+	/* Enabling the TLS crypto datapath must be rejected. */
+	err = setsockopt(s, SOL_TLS, TLS_TX, &crypto, sizeof(crypto));
+	ASSERT_ERR(err, "setsockopt(TLS_TX)");
+
+close:
+	close(s);
+}
+
 static const char *fmt_test_name(const char *subtest_name, int family,
 				 enum bpf_map_type map_type)
 {
@@ -160,249 +221,6 @@ out:
 		close(p);
 }
 
-static void test_sockmap_ktls_tx_cork(int family, int sotype, bool push)
-{
-	int err, off;
-	int i, j;
-	int start_push = 0, push_len = 0;
-	int c = 0, p = 0, one = 1, sent, recvd;
-	int prog_fd, map_fd;
-	char msg[12] = "hello world\0";
-	char rcv[20] = {0};
-	struct test_sockmap_ktls *skel;
-
-	skel = test_sockmap_ktls__open_and_load();
-	if (!ASSERT_TRUE(skel, "open ktls skel"))
-		return;
-
-	err = create_pair(family, sotype, &c, &p);
-	if (!ASSERT_OK(err, "create_pair()"))
-		goto out;
-
-	prog_fd = bpf_program__fd(skel->progs.prog_sk_policy);
-	map_fd = bpf_map__fd(skel->maps.sock_map);
-
-	err = bpf_prog_attach(prog_fd, map_fd, BPF_SK_MSG_VERDICT, 0);
-	if (!ASSERT_OK(err, "bpf_prog_attach sk msg"))
-		goto out;
-
-	err = bpf_map_update_elem(map_fd, &one, &c, BPF_NOEXIST);
-	if (!ASSERT_OK(err, "bpf_map_update_elem(c)"))
-		goto out;
-
-	err = init_ktls_pairs(c, p);
-	if (!ASSERT_OK(err, "init_ktls_pairs(c, p)"))
-		goto out;
-
-	skel->bss->cork_byte = sizeof(msg);
-	if (push) {
-		start_push = 1;
-		push_len = 2;
-	}
-	skel->bss->push_start = start_push;
-	skel->bss->push_end = push_len;
-
-	off = sizeof(msg) / 2;
-	sent = send(c, msg, off, 0);
-	if (!ASSERT_EQ(sent, off, "send(msg)"))
-		goto out;
-
-	recvd = recv_timeout(p, rcv, sizeof(rcv), MSG_DONTWAIT, 1);
-	if (!ASSERT_EQ(-1, recvd, "expected no data"))
-		goto out;
-
-	/* send remaining msg */
-	sent = send(c, msg + off, sizeof(msg) - off, 0);
-	if (!ASSERT_EQ(sent, sizeof(msg) - off, "send remaining data"))
-		goto out;
-
-	recvd = recv_timeout(p, rcv, sizeof(rcv), MSG_DONTWAIT, 1);
-	if (!ASSERT_OK(err, "recv(msg)") ||
-	    !ASSERT_EQ(recvd, sizeof(msg) + push_len, "check length mismatch"))
-		goto out;
-
-	for (i = 0, j = 0; i < recvd;) {
-		/* skip checking the data that has been pushed in */
-		if (i >= start_push && i <= start_push + push_len - 1) {
-			i++;
-			continue;
-		}
-		if (!ASSERT_EQ(rcv[i], msg[j], "data mismatch"))
-			goto out;
-		i++;
-		j++;
-	}
-out:
-	if (c)
-		close(c);
-	if (p)
-		close(p);
-	test_sockmap_ktls__destroy(skel);
-}
-
-static void test_sockmap_ktls_tx_no_buf(int family, int sotype, bool push)
-{
-	int c = -1, p = -1, one = 1, two = 2;
-	struct test_sockmap_ktls *skel;
-	unsigned char *data = NULL;
-	struct msghdr msg = {0};
-	struct iovec iov[2];
-	int prog_fd, map_fd;
-	int txrx_buf = 1024;
-	int iov_length = 8192;
-	int err;
-
-	skel = test_sockmap_ktls__open_and_load();
-	if (!ASSERT_TRUE(skel, "open ktls skel"))
-		return;
-
-	err = create_pair(family, sotype, &c, &p);
-	if (!ASSERT_OK(err, "create_pair()"))
-		goto out;
-
-	err = setsockopt(c, SOL_SOCKET, SO_RCVBUFFORCE, &txrx_buf, sizeof(int));
-	err |= setsockopt(p, SOL_SOCKET, SO_SNDBUFFORCE, &txrx_buf, sizeof(int));
-	if (!ASSERT_OK(err, "set buf limit"))
-		goto out;
-
-	prog_fd = bpf_program__fd(skel->progs.prog_sk_policy_redir);
-	map_fd = bpf_map__fd(skel->maps.sock_map);
-
-	err = bpf_prog_attach(prog_fd, map_fd, BPF_SK_MSG_VERDICT, 0);
-	if (!ASSERT_OK(err, "bpf_prog_attach sk msg"))
-		goto out;
-
-	err = bpf_map_update_elem(map_fd, &one, &c, BPF_NOEXIST);
-	if (!ASSERT_OK(err, "bpf_map_update_elem(c)"))
-		goto out;
-
-	err = bpf_map_update_elem(map_fd, &two, &p, BPF_NOEXIST);
-	if (!ASSERT_OK(err, "bpf_map_update_elem(p)"))
-		goto out;
-
-	skel->bss->apply_bytes = 1024;
-
-	err = init_ktls_pairs(c, p);
-	if (!ASSERT_OK(err, "init_ktls_pairs(c, p)"))
-		goto out;
-
-	data = calloc(iov_length, sizeof(char));
-	if (!data)
-		goto out;
-
-	iov[0].iov_base = data;
-	iov[0].iov_len = iov_length;
-	iov[1].iov_base = data;
-	iov[1].iov_len = iov_length;
-	msg.msg_iov = iov;
-	msg.msg_iovlen = 2;
-
-	for (;;) {
-		err = sendmsg(c, &msg, MSG_DONTWAIT);
-		if (err <= 0)
-			break;
-	}
-
-out:
-	if (data)
-		free(data);
-	if (c != -1)
-		close(c);
-	if (p != -1)
-		close(p);
-
-	test_sockmap_ktls__destroy(skel);
-}
-
-static void test_sockmap_ktls_tx_pop(int family, int sotype)
-{
-	char msg[37] = "0123456789abcdefghijklmnopqrstuvwxyz\0";
-	int c = 0, p = 0, one = 1, sent, recvd;
-	struct test_sockmap_ktls *skel;
-	int prog_fd, map_fd;
-	char rcv[50] = {0};
-	int err;
-	int i, m, r;
-
-	skel = test_sockmap_ktls__open_and_load();
-	if (!ASSERT_TRUE(skel, "open ktls skel"))
-		return;
-
-	err = create_pair(family, sotype, &c, &p);
-	if (!ASSERT_OK(err, "create_pair()"))
-		goto out;
-
-	prog_fd = bpf_program__fd(skel->progs.prog_sk_policy);
-	map_fd = bpf_map__fd(skel->maps.sock_map);
-
-	err = bpf_prog_attach(prog_fd, map_fd, BPF_SK_MSG_VERDICT, 0);
-	if (!ASSERT_OK(err, "bpf_prog_attach sk msg"))
-		goto out;
-
-	err = bpf_map_update_elem(map_fd, &one, &c, BPF_NOEXIST);
-	if (!ASSERT_OK(err, "bpf_map_update_elem(c)"))
-		goto out;
-
-	err = init_ktls_pairs(c, p);
-	if (!ASSERT_OK(err, "init_ktls_pairs(c, p)"))
-		goto out;
-
-	struct {
-		int	pop_start;
-		int	pop_len;
-	} pop_policy[] = {
-		/* trim the start */
-		{0, 2},
-		{0, 10},
-		{1, 2},
-		{1, 10},
-		/* trim the end */
-		{35, 2},
-		/* New entries should be added before this line */
-		{-1, -1},
-	};
-
-	i = 0;
-	while (pop_policy[i].pop_start >= 0) {
-		skel->bss->pop_start = pop_policy[i].pop_start;
-		skel->bss->pop_end =  pop_policy[i].pop_len;
-
-		sent = send(c, msg, sizeof(msg), 0);
-		if (!ASSERT_EQ(sent, sizeof(msg), "send(msg)"))
-			goto out;
-
-		recvd = recv_timeout(p, rcv, sizeof(rcv), MSG_DONTWAIT, 1);
-		if (!ASSERT_EQ(recvd, sizeof(msg) - pop_policy[i].pop_len, "pop len mismatch"))
-			goto out;
-
-		/* verify the data
-		 * msg: 0123456789a bcdefghij klmnopqrstuvwxyz
-		 *                  |       |
-		 *                  popped data
-		 */
-		for (m = 0, r = 0; m < sizeof(msg);) {
-			/* skip checking the data that has been popped */
-			if (m >= pop_policy[i].pop_start &&
-			    m <= pop_policy[i].pop_start + pop_policy[i].pop_len - 1) {
-				m++;
-				continue;
-			}
-
-			if (!ASSERT_EQ(msg[m], rcv[r], "data mismatch"))
-				goto out;
-			m++;
-			r++;
-		}
-		i++;
-	}
-out:
-	if (c)
-		close(c);
-	if (p)
-		close(p);
-	test_sockmap_ktls__destroy(skel);
-}
-
 static void run_tests(int family, enum bpf_map_type map_type)
 {
 	int map;
@@ -414,124 +232,16 @@ static void run_tests(int family, enum bpf_map_type map_type)
 	if (test__start_subtest(fmt_test_name("update_fails_when_sock_has_ulp", family, map_type)))
 		test_sockmap_ktls_update_fails_when_sock_has_ulp(family, map);
 
+	if (test__start_subtest(fmt_test_name("enable_fails_when_in_sockmap", family, map_type)))
+		test_sockmap_ktls_enable_fails_when_in_sockmap(family, map);
+
 	close(map);
-}
-
-/*
- * Regression test for the KTLS + sockmap (verdict) reverse-order UAF.
- *
- * Vulnerable sequence:
- *   1. Insert receiver socket into sockmap with BPF_SK_SKB_VERDICT program.
- *      sk->sk_data_ready becomes sk_psock_verdict_data_ready.
- *   2. Configure TLS RX: tls_sw_strparser_arm() saves
- *      sk_psock_verdict_data_ready as rx_ctx->saved_data_ready.
- *
- * When data arrives, tls_rx_msg_ready() calls saved_data_ready() =
- * sk_psock_verdict_data_ready(), which calls tcp_read_skb() and drains
- * sk_receive_queue via __skb_unlink() without advancing copied_seq.
- * tls_strp_msg_load() then finds the queue empty while tcp_inq() is still
- * non-zero, hits WARN_ON_ONCE(!first), and leaves a dangling frag_list
- * pointer that tls_decrypt_sg() walks — a use-after-free.
- *
- * The fix adds a tls_sw_has_ctx_rx() check to sk_psock_verdict_data_ready(),
- * mirroring what sk_psock_strp_data_ready() already does: when a TLS RX
- * context is present, defer to psock->saved_data_ready (sock_def_readable)
- * instead of calling tcp_read_skb(), so TLS retains sole ownership of the
- * receive queue.  Data is then decrypted and returned correctly by
- * tls_sw_recvmsg().
- */
-static void test_sockmap_ktls_verdict_with_tls_rx(int family, int sotype)
-{
-	struct tls12_crypto_info_aes_gcm_128 crypto_info = {};
-	char send_buf[] = "hello ktls sockmap reverse order";
-	char recv_buf[sizeof(send_buf)] = {};
-	struct test_sockmap_ktls *skel;
-	int c = -1, p = -1, zero = 0;
-	int prog_fd, map_fd;
-	ssize_t n;
-	int err;
-
-	skel = test_sockmap_ktls__open_and_load();
-	if (!ASSERT_TRUE(skel, "open_and_load"))
-		return;
-
-	err = create_pair(family, sotype, &c, &p);
-	if (!ASSERT_OK(err, "create_pair"))
-		goto out;
-
-	prog_fd = bpf_program__fd(skel->progs.prog_skb_verdict_pass);
-	map_fd = bpf_map__fd(skel->maps.sock_map_verdict);
-
-	err = bpf_prog_attach(prog_fd, map_fd, BPF_SK_SKB_VERDICT, 0);
-	if (!ASSERT_OK(err, "bpf_prog_attach sk_skb verdict"))
-		goto out;
-
-	/* Step 1: configure TLS TX on sender (no sockmap involvement) */
-	err = setsockopt(c, IPPROTO_TCP, TCP_ULP, "tls", strlen("tls"));
-	if (!ASSERT_OK(err, "setsockopt(TCP_ULP) client"))
-		goto out;
-
-	crypto_info.info.version = TLS_1_2_VERSION;
-	crypto_info.info.cipher_type = TLS_CIPHER_AES_GCM_128;
-	memset(crypto_info.key, 0x01, sizeof(crypto_info.key));
-	memset(crypto_info.salt, 0x02, sizeof(crypto_info.salt));
-
-	err = setsockopt(c, SOL_TLS, TLS_TX, &crypto_info, sizeof(crypto_info));
-	if (!ASSERT_OK(err, "setsockopt(TLS_TX)"))
-		goto out;
-
-	/* Step 2: insert receiver into sockmap BEFORE TLS RX */
-	err = bpf_map_update_elem(map_fd, &zero, &p, BPF_NOEXIST);
-	if (!ASSERT_OK(err, "bpf_map_update_elem"))
-		goto out;
-
-	/* Step 3: configure TLS RX AFTER sockmap insertion */
-	err = setsockopt(p, IPPROTO_TCP, TCP_ULP, "tls", strlen("tls"));
-	if (!ASSERT_OK(err, "setsockopt(TCP_ULP) server"))
-		goto out;
-
-	err = setsockopt(p, SOL_TLS, TLS_RX, &crypto_info, sizeof(crypto_info));
-	if (!ASSERT_OK(err, "setsockopt(TLS_RX)"))
-		goto out;
-
-	/*
-	 * A buggy kernel hits WARN_ON_ONCE in tls_strp_load_anchor_with_queue
-	 * and may UAF in tls_decrypt_sg here.  With the fix,
-	 * sk_psock_verdict_data_ready defers to sock_def_readable and TLS
-	 * decrypts the record normally.
-	 */
-	n = send(c, send_buf, sizeof(send_buf), 0);
-	if (!ASSERT_EQ(n, (ssize_t)sizeof(send_buf), "send"))
-		goto out;
-
-	n = recv_timeout(p, recv_buf, sizeof(recv_buf), 0, 5);
-	if (!ASSERT_EQ(n, (ssize_t)sizeof(send_buf), "recv"))
-		goto out;
-
-	ASSERT_OK(memcmp(send_buf, recv_buf, sizeof(send_buf)), "data integrity");
-
-out:
-	if (c != -1)
-		close(c);
-	if (p != -1)
-		close(p);
-	test_sockmap_ktls__destroy(skel);
 }
 
 static void run_ktls_test(int family, int sotype)
 {
 	if (test__start_subtest("tls simple offload"))
 		test_sockmap_ktls_offload(family, sotype);
-	if (test__start_subtest("tls tx cork"))
-		test_sockmap_ktls_tx_cork(family, sotype, false);
-	if (test__start_subtest("tls tx cork with push"))
-		test_sockmap_ktls_tx_cork(family, sotype, true);
-	if (test__start_subtest("tls tx egress with no buf"))
-		test_sockmap_ktls_tx_no_buf(family, sotype, true);
-	if (test__start_subtest("tls tx with pop"))
-		test_sockmap_ktls_tx_pop(family, sotype);
-	if (test__start_subtest("tls verdict with tls rx"))
-		test_sockmap_ktls_verdict_with_tls_rx(family, sotype);
 }
 
 void test_sockmap_ktls(void)

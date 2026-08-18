@@ -102,6 +102,20 @@ struct mana_ib_pd {
 	struct mutex vport_mutex;
 	int vport_use_count;
 
+	/* Port bound to this PD for raw QP usage. Only valid when
+	 * vport_use_count > 0. A PD can only be associated with a
+	 * single physical port because per-port EQs and vport
+	 * configuration are tied to the PD's refcount.
+	 */
+	u32 vport_port;
+
+	/* Only one RSS QP is allowed per vport because each RSS QP
+	 * overwrites the vport steering config (indirection table /
+	 * hash key) and mana_disable_vport_rx() on destroy would
+	 * blackhole traffic for any other RSS QP on the same vport.
+	 */
+	bool has_rss_qp;
+
 	bool tx_shortform_allowed;
 	u32 tx_vp_offset;
 };

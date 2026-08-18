@@ -249,12 +249,12 @@ TEST_F(scoped_domains, check_access_signal)
 		_metadata->exit_code = KSFT_FAIL;
 }
 
-enum thread_return {
-	THREAD_INVALID = 0,
-	THREAD_SUCCESS = 1,
-	THREAD_ERROR = 2,
-	THREAD_TEST_FAILED = 3,
-};
+/* clang-format off */
+#define THREAD_INVALID		((void *)0)
+#define THREAD_SUCCESS		((void *)1)
+#define THREAD_ERROR		((void *)2)
+#define THREAD_TEST_FAILED	((void *)3)
+/* clang-format on */
 
 static void *thread_sync(void *arg)
 {
@@ -262,15 +262,15 @@ static void *thread_sync(void *arg)
 	char buf;
 
 	if (read(pipe_read, &buf, 1) != 1)
-		return (void *)THREAD_ERROR;
+		return THREAD_ERROR;
 
-	return (void *)THREAD_SUCCESS;
+	return THREAD_SUCCESS;
 }
 
 TEST(signal_scoping_thread_before)
 {
 	pthread_t no_sandbox_thread;
-	enum thread_return ret = THREAD_INVALID;
+	void *ret = THREAD_INVALID;
 	int thread_pipe[2];
 
 	drop_caps(_metadata);
@@ -285,7 +285,7 @@ TEST(signal_scoping_thread_before)
 	EXPECT_EQ(0, pthread_kill(no_sandbox_thread, 0));
 	EXPECT_EQ(1, write(thread_pipe[1], ".", 1));
 
-	EXPECT_EQ(0, pthread_join(no_sandbox_thread, (void **)&ret));
+	EXPECT_EQ(0, pthread_join(no_sandbox_thread, &ret));
 	EXPECT_EQ(THREAD_SUCCESS, ret);
 
 	EXPECT_EQ(0, close(thread_pipe[0]));
@@ -295,7 +295,7 @@ TEST(signal_scoping_thread_before)
 TEST(signal_scoping_thread_after)
 {
 	pthread_t scoped_thread;
-	enum thread_return ret = THREAD_INVALID;
+	void *ret = THREAD_INVALID;
 	int thread_pipe[2];
 
 	drop_caps(_metadata);
@@ -310,7 +310,7 @@ TEST(signal_scoping_thread_after)
 	EXPECT_EQ(0, pthread_kill(scoped_thread, 0));
 	EXPECT_EQ(1, write(thread_pipe[1], ".", 1));
 
-	EXPECT_EQ(0, pthread_join(scoped_thread, (void **)&ret));
+	EXPECT_EQ(0, pthread_join(scoped_thread, &ret));
 	EXPECT_EQ(THREAD_SUCCESS, ret);
 
 	EXPECT_EQ(0, close(thread_pipe[0]));
@@ -327,20 +327,20 @@ void *thread_setuid(void *ptr)
 	char buf;
 
 	if (read(arg->pipe_read, &buf, 1) != 1)
-		return (void *)THREAD_ERROR;
+		return THREAD_ERROR;
 
 	/* libc's setuid() should update all thread's credentials. */
 	if (getuid() != arg->new_uid)
-		return (void *)THREAD_TEST_FAILED;
+		return THREAD_TEST_FAILED;
 
-	return (void *)THREAD_SUCCESS;
+	return THREAD_SUCCESS;
 }
 
 TEST(signal_scoping_thread_setuid)
 {
 	struct thread_setuid_args arg;
 	pthread_t no_sandbox_thread;
-	enum thread_return ret = THREAD_INVALID;
+	void *ret = THREAD_INVALID;
 	int pipe_parent[2];
 	int prev_uid;
 
@@ -367,7 +367,7 @@ TEST(signal_scoping_thread_setuid)
 	EXPECT_EQ(arg.new_uid, getuid());
 	EXPECT_EQ(1, write(pipe_parent[1], ".", 1));
 
-	EXPECT_EQ(0, pthread_join(no_sandbox_thread, (void **)&ret));
+	EXPECT_EQ(0, pthread_join(no_sandbox_thread, &ret));
 	EXPECT_EQ(THREAD_SUCCESS, ret);
 
 	clear_cap(_metadata, CAP_SETUID);
@@ -398,6 +398,24 @@ static int setup_signal_handler(int signal)
 
 	sa.sa_flags = SA_SIGINFO | SA_RESTART;
 	return sigaction(SIGURG, &sa, NULL);
+}
+
+/*
+ * MSG_OOB might be disabled in the kernel via the CONFIG_AF_UNIX_OOB
+ * switch, so this function can be used for probing for its availability.
+ */
+static bool has_af_unix_oob(void)
+{
+	bool available = false;
+	int sp[2];
+
+	if (socketpair(AF_UNIX, SOCK_STREAM, 0, sp) == 0) {
+		available = (send(sp[0], ".", 1, MSG_OOB) == 1);
+		close(sp[0]);
+		close(sp[1]);
+	}
+
+	return available;
 }
 
 /* clang-format off */
@@ -461,6 +479,9 @@ TEST_F(fown, sigurg_socket)
 	int status;
 	int pipe_parent[2], pipe_child[2];
 	pid_t child;
+
+	if (!has_af_unix_oob())
+		SKIP(return, "CONFIG_AF_UNIX_OOB / MSG_OOB not available");
 
 	memset(&server_address, 0, sizeof(server_address));
 	set_unix_address(&server_address, 0);
@@ -557,6 +578,188 @@ TEST_F(fown, sigurg_socket)
 	if (WIFSIGNALED(status) || !WIFEXITED(status) ||
 	    WEXITSTATUS(status) != EXIT_SUCCESS)
 		_metadata->exit_code = KSFT_FAIL;
+}
+
+/*
+ * Checks that LANDLOCK_SCOPE_SIGNAL is enforced on the asynchronous SIGIO
+ * delivery path (fcntl(F_SETOWN)) when the file owner is a process group.
+ *
+ * A sandboxed process sitting at the head of its process group's PID hlist (the
+ * default position right after fork()) used to escape the fcntl(F_SETOWN,
+ * -pgrp) domain recording: pid_task(pgrp, PIDTYPE_PGID) resolved to the process
+ * itself, so the same-thread-group exemption skipped recording its Landlock
+ * domain.  At SIGIO time that domain was then unset and the signal fanned out
+ * to every group member, including non-sandboxed processes outside the domain.
+ */
+TEST(sigio_to_pgid_members)
+{
+	int trigger[2], sync_child[2];
+	char buf;
+	pid_t child;
+	int status, i;
+
+	drop_caps(_metadata);
+
+	/*
+	 * Isolates the test in its own process group so the SIGIO fan-out stays
+	 * bounded to this parent and the child forked below.
+	 */
+	ASSERT_EQ(0, setpgid(0, 0));
+
+	/* The non-sandboxed parent is the protected (out-of-domain) target. */
+	ASSERT_EQ(0, setup_signal_handler(SIGURG));
+	signal_received = 0;
+
+	ASSERT_EQ(0, pipe2(trigger, O_CLOEXEC));
+	ASSERT_EQ(0, pipe2(sync_child, O_CLOEXEC));
+
+	child = fork();
+	ASSERT_LE(0, child);
+	if (child == 0) {
+		/*
+		 * The child inherits the parent's new process group and, just
+		 * attached with hlist_add_head_rcu(), is now the head of the
+		 * pgid hlist: this is the case that used to skip the recording.
+		 */
+		EXPECT_EQ(0, close(sync_child[0]));
+
+		/* In-domain positive control: the child must be signaled. */
+		ASSERT_EQ(0, setup_signal_handler(SIGURG));
+		signal_received = 0;
+
+		create_scoped_domain(_metadata, LANDLOCK_SCOPE_SIGNAL);
+
+		/* Owns the SIGIO source for the whole process group. */
+		ASSERT_EQ(0, fcntl(trigger[0], F_SETSIG, SIGURG));
+		ASSERT_EQ(0, fcntl(trigger[0], F_SETOWN, -getpgrp()));
+		ASSERT_EQ(0, fcntl(trigger[0], F_SETFL, O_ASYNC));
+
+		/* Fans SIGURG out to every member of the process group. */
+		ASSERT_EQ(1, write(trigger[1], ".", 1));
+
+		/*
+		 * The sandboxed child is in its own domain and must always be
+		 * signaled: this proves the SIGIO actually fired.
+		 */
+		for (i = 0; i < 1000 && !signal_received; i++)
+			usleep(1000);
+		EXPECT_EQ(1, signal_received);
+
+		ASSERT_EQ(1, write(sync_child[1], ".", 1));
+		EXPECT_EQ(0, close(sync_child[1]));
+
+		_exit(_metadata->exit_code);
+		return;
+	}
+	EXPECT_EQ(0, close(sync_child[1]));
+	EXPECT_EQ(0, close(trigger[0]));
+	EXPECT_EQ(0, close(trigger[1]));
+
+	/* Waits for the child to generate the SIGIO. */
+	ASSERT_EQ(1, read(sync_child[0], &buf, 1));
+	EXPECT_EQ(0, close(sync_child[0]));
+
+	/* Lets a delivered-but-pending signal run our handler, if any. */
+	for (i = 0; i < 100 && !signal_received; i++)
+		usleep(1000);
+
+	/*
+	 * SCOPE_SIGNAL must block the fan-out to this non-sandboxed parent,
+	 * which is outside the child's Landlock domain.  Before the fix the
+	 * parent was signaled here.
+	 */
+	EXPECT_EQ(0, signal_received);
+
+	ASSERT_EQ(child, waitpid(child, &status, 0));
+	if (WIFSIGNALED(status) || !WIFEXITED(status) ||
+	    WEXITSTATUS(status) != EXIT_SUCCESS)
+		_metadata->exit_code = KSFT_FAIL;
+}
+
+static void *thread_setown_scoped(void *arg)
+{
+	const int fd = *(int *)arg;
+	int ruleset_fd;
+	const struct landlock_ruleset_attr ruleset_attr = {
+		.scoped = LANDLOCK_SCOPE_SIGNAL,
+	};
+
+	/* Sandboxes only this non-leader thread (no thread syncing). */
+	ruleset_fd =
+		landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
+	if (ruleset_fd < 0)
+		return THREAD_ERROR;
+	if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) ||
+	    landlock_restrict_self(ruleset_fd, 0)) {
+		close(ruleset_fd);
+		return THREAD_ERROR;
+	}
+	close(ruleset_fd);
+
+	/* Makes this process group own the SIGIO source. */
+	if (fcntl(fd, F_SETSIG, SIGURG) || fcntl(fd, F_SETOWN, -getpgrp()) ||
+	    fcntl(fd, F_SETFL, O_ASYNC))
+		return THREAD_ERROR;
+
+	return THREAD_SUCCESS;
+}
+
+/*
+ * Checks that the SIGIO fan-out is still delivered to the file owner's own
+ * process when fcntl(F_SETOWN, -pgrp) was issued from a sandboxed non-leader
+ * thread.
+ *
+ * The Landlock domain is recorded for a process-group owner (so out-of-domain
+ * members stay blocked, see sigio_to_pgid_members), but the kernel signals a
+ * process group through its members' thread-group leaders.  Here the leader is
+ * not sandboxed and thus has a different domain than the registering thread, so
+ * the registration-time check cannot tell that it belongs to the owner's own
+ * process.  hook_file_send_sigiotask() must recognize it through the recorded
+ * thread group and allow the delivery, matching the same-process guarantee of
+ * commit 18eb75f3af40.  Without that exemption the leader is wrongly denied and
+ * never signaled.
+ */
+TEST(sigio_to_pgid_self)
+{
+	int trigger[2];
+	pthread_t thread;
+	void *ret = THREAD_INVALID;
+	int i;
+
+	drop_caps(_metadata);
+
+	/* Bounds the SIGIO fan-out to this process. */
+	ASSERT_EQ(0, setpgid(0, 0));
+
+	/* The non-sandboxed thread-group leader is the SIGIO target. */
+	ASSERT_EQ(0, setup_signal_handler(SIGURG));
+	signal_received = 0;
+
+	ASSERT_EQ(0, pipe2(trigger, O_CLOEXEC));
+
+	/*
+	 * Registers the process-group fowner from a sibling thread that
+	 * sandboxes only itself, so its domain differs from the leader's.
+	 */
+	ASSERT_EQ(0, pthread_create(&thread, NULL, thread_setown_scoped,
+				    &trigger[0]));
+	ASSERT_EQ(0, pthread_join(thread, &ret));
+	ASSERT_EQ(THREAD_SUCCESS, ret);
+
+	/* Fans SIGURG out to the process group. */
+	ASSERT_EQ(1, write(trigger[1], ".", 1));
+
+	for (i = 0; i < 1000 && !signal_received; i++)
+		usleep(1000);
+
+	/*
+	 * Same-process delivery must always be allowed, even though the owner
+	 * was registered from a sandboxed sibling thread.
+	 */
+	EXPECT_EQ(1, signal_received);
+
+	EXPECT_EQ(0, close(trigger[0]));
+	EXPECT_EQ(0, close(trigger[1]));
 }
 
 TEST_HARNESS_MAIN

@@ -60,7 +60,7 @@ static char __init *smccc_soc_name_init(void)
 	 * to the ARM_SMCCC_ARCH_SOC_ID function.  Fetch it if
 	 * available.
 	 */
-	args.a0 = ARM_SMCCC_ARCH_SOC_ID;
+	args.a0 = ARM_SMCCC_ARCH_SOC_ID64;
 	args.a1 = 2;    /* SOC_ID name */
 	arm_smccc_1_2_invoke(&args, &res);
 

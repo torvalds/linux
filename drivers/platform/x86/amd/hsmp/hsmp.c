@@ -202,6 +202,7 @@ static int validate_message(struct hsmp_message *msg)
 int hsmp_send_message(struct hsmp_message *msg)
 {
 	struct hsmp_socket *sock;
+	unsigned int sock_ind;
 	int ret;
 
 	if (!msg)
@@ -212,7 +213,15 @@ int hsmp_send_message(struct hsmp_message *msg)
 
 	if (!hsmp_pdev.sock || msg->sock_ind >= hsmp_pdev.num_sockets)
 		return -ENODEV;
-	sock = &hsmp_pdev.sock[msg->sock_ind];
+
+	/*
+	 * Sanitize sock_ind after the bounds check.  A mispredicted branch can
+	 * still let the CPU speculatively use msg->sock_ind as an index into
+	 * hsmp_pdev.sock[] (Spectre v1, CVE-2017-5753), including for callers
+	 * other than hsmp_ioctl_msg() that pass a user-derived socket index.
+	 */
+	sock_ind = array_index_nospec(msg->sock_ind, hsmp_pdev.num_sockets);
+	sock = &hsmp_pdev.sock[sock_ind];
 
 	ret = down_interruptible(&sock->hsmp_sem);
 	if (ret < 0)
@@ -307,6 +316,19 @@ long hsmp_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	 */
 	if (msg.msg_id < HSMP_TEST || msg.msg_id >= HSMP_MSG_ID_MAX)
 		return -ENOMSG;
+
+	/*
+	 * Sanitize the user-controlled msg_id against speculative
+	 * execution.  The bounds check above retires the out-of-range
+	 * case with -ENOMSG, but a mispredicted branch can still let the
+	 * CPU speculatively use msg_id as an index into
+	 * hsmp_msg_desc_table[] (here and in validate_message() /
+	 * is_get_msg() called downstream via hsmp_send_message()), and
+	 * pull arbitrary kernel memory into the cache (Spectre v1,
+	 * CVE-2017-5753).  Clamp once into msg.msg_id so every downstream
+	 * dereference sees the sanitized value.
+	 */
+	msg.msg_id = array_index_nospec(msg.msg_id, HSMP_MSG_ID_MAX);
 
 	switch (fp->f_mode & (FMODE_WRITE | FMODE_READ)) {
 	case FMODE_WRITE:

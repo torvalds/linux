@@ -898,7 +898,7 @@ static void wx_set_vf_link_state(struct wx *wx, int vf, int state)
 	wx->vfinfo[vf].link_state = state;
 	switch (state) {
 	case IFLA_VF_LINK_STATE_AUTO:
-		if (netif_running(wx->netdev))
+		if (!test_bit(WX_STATE_DOWN, wx->state))
 			wx->vfinfo[vf].link_enable = true;
 		else
 			wx->vfinfo[vf].link_enable = false;

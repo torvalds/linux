@@ -1180,10 +1180,6 @@ static const struct atmdev_ops fpga_ops = {
 	.close =	pclose,
 	.ioctl =	NULL,
 	.send =		psend,
-	.send_oam =	NULL,
-	.phy_put =	NULL,
-	.phy_get =	NULL,
-	.change_qos =	NULL,
 	.proc_read =	NULL,
 	.owner =	THIS_MODULE
 };
@@ -1464,8 +1460,8 @@ static void fpga_remove(struct pci_dev *dev)
 }
 
 static const struct pci_device_id fpga_pci_tbl[] = {
-	{ 0x10ee, 0x0300, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ 0, }
+	{ PCI_DEVICE(0x10ee, 0x0300) },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci,fpga_pci_tbl);

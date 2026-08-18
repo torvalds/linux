@@ -33,7 +33,7 @@ static bool is_dig_link_enc_stream(struct dc_stream_state *stream)
 {
 	bool is_dig_stream = false;
 	struct link_encoder *link_enc = NULL;
-	int i;
+	unsigned int i;
 
 	/* Loop over created link encoder objects. */
 	if (stream) {
@@ -45,6 +45,9 @@ static bool is_dig_link_enc_stream(struct dc_stream_state *stream)
 			 */
 			if (link_enc && ((uint32_t)stream->link->connector_signal & link_enc->output_signals)) {
 				is_dig_stream = true;
+				/* If stream is HDMI FRL, then it is not a DIG stream. */
+				if (dc_is_hdmi_frl_signal(stream->signal))
+					is_dig_stream = false;
 				break;
 			}
 		}
@@ -161,7 +164,7 @@ static enum engine_id find_first_avail_link_enc(
 		enum engine_id eng_id_requested)
 {
 	enum engine_id eng_id = ENGINE_ID_UNKNOWN;
-	int i;
+	unsigned int i;
 
 	if (eng_id_requested != ENGINE_ID_UNKNOWN) {
 
@@ -248,7 +251,7 @@ static struct link_encoder *get_link_enc_used_by_link(
 /* Clear all link encoder assignments. */
 static void clear_enc_assignments(const struct dc *dc, struct dc_state *state)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		state->res_ctx.link_enc_cfg_ctx.link_enc_assignments[i].valid = false;
@@ -523,7 +526,7 @@ struct link_encoder *link_enc_cfg_get_next_avail_link_enc(struct dc *dc)
 {
 	struct link_encoder *link_enc = NULL;
 	enum engine_id encs_assigned[MAX_LINK_ENCODERS];
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < MAX_LINK_ENCODERS; i++)
 		encs_assigned[i] = ENGINE_ID_UNKNOWN;
@@ -624,7 +627,8 @@ bool link_enc_cfg_validate(struct dc *dc, struct dc_state *state)
 	bool valid_uniqueness = true;
 	bool valid_avail = true;
 	bool valid_streams = true;
-	int i, j;
+	int i;
+	unsigned int j;
 	uint8_t valid_count = 0;
 	uint8_t dig_stream_count = 0;
 	int eng_ids_per_ep_id[MAX_PIPES] = {0};

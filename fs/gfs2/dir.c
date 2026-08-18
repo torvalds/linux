@@ -1505,15 +1505,13 @@ static void gfs2_dir_readahead(struct inode *inode, unsigned hsize, u32 index,
 		if (trylock_buffer(bh)) {
 			if (buffer_uptodate(bh)) {
 				unlock_buffer(bh);
-				brelse(bh);
-				continue;
+			} else {
+				bh_submit(bh, REQ_OP_READ | REQ_RAHEAD |
+						REQ_META | REQ_PRIO,
+						bh_end_read);
 			}
-			bh->b_end_io = end_buffer_read_sync;
-			submit_bh(REQ_OP_READ | REQ_RAHEAD | REQ_META |
-				  REQ_PRIO, bh);
-			continue;
 		}
-		brelse(bh);
+		put_bh(bh);
 	}
 }
 

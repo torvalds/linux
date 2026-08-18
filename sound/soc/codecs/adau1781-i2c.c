@@ -7,7 +7,6 @@
  */
 
 #include <linux/i2c.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
 #include <sound/soc.h>
@@ -33,8 +32,8 @@ static void adau1781_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id adau1781_i2c_ids[] = {
-	{ "adau1381", ADAU1381 },
-	{ "adau1781", ADAU1781 },
+	{ .name = "adau1381", .driver_data = ADAU1381 },
+	{ .name = "adau1781", .driver_data = ADAU1781 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adau1781_i2c_ids);

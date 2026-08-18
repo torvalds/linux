@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+/*
+ * Test fixture: a .dts using space indent (must use tabs).
+ */
+
+/dts-v1/;
+
+/ {
+    compatible = "example,test-board";
+    #address-cells = <1>;
+    #size-cells = <1>;
+};

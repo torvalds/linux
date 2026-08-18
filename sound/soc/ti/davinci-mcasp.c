@@ -21,6 +21,7 @@
 #include <linux/clk.h>
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
+#include <linux/of_graph.h>
 #include <linux/platform_data/davinci_asp.h>
 #include <linux/math64.h>
 #include <linux/bitmap.h>
@@ -74,6 +75,14 @@ struct davinci_mcasp_ruledata {
 	int stream;
 };
 
+enum mcasp_graph_mode {
+	MCASP_GRAPH_NONE,	/* 1:1, simple-audio-card, no of-graph endpoints */
+	MCASP_GRAPH_PORT,	/* 1:1, audio-graph-card: port { endpoint } */
+	MCASP_GRAPH_PORTS,	/* 1:N, audio-graph-card2 non-DPCM: ports { port@0; ... } */
+	MCASP_GRAPH_DPCM,	/* N:M, audio-graph-card2 DPCM: N FE DAIs, detected via */
+				/* remote "dpcm" node in the sound card DT */
+};
+
 struct davinci_mcasp {
 	struct snd_dmaengine_dai_dma_data dma_data[2];
 	struct davinci_mcasp_pdata *pdata;
@@ -123,6 +132,10 @@ struct davinci_mcasp {
 	u32	channels;
 	int	max_format_width;
 	u8	active_serializers[2];
+
+	/* Audio graph support */
+	enum mcasp_graph_mode graph_mode;
+	int	num_dais;
 
 #ifdef CONFIG_GPIOLIB
 	struct gpio_chip gpio_chip;
@@ -1486,7 +1499,18 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	ret = davinci_mcasp_set_dai_fmt(cpu_dai, mcasp->dai_fmt);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	unsigned int cpu_fmt;
+
+	if (mcasp->graph_mode != MCASP_GRAPH_NONE && rtd->dai_link->dai_fmt)
+		/* clock provider bits stored separately in ext_fmt */
+		cpu_fmt = snd_soc_daifmt_clock_provider_flipped(
+				rtd->dai_link->dai_fmt) |
+			  rtd->dai_link->cpus[0].ext_fmt;
+	else
+		cpu_fmt = mcasp->dai_fmt;
+
+	ret = davinci_mcasp_set_dai_fmt(cpu_dai, cpu_fmt);
 	if (ret)
 		return ret;
 
@@ -2029,8 +2053,31 @@ static struct snd_soc_dai_driver davinci_mcasp_dai[] = {
 
 };
 
+/* Translate of-graph endpoint to DAI ID (DPCM: port reg; else 0). */
+static int davinci_mcasp_of_xlate_dai_id(struct snd_soc_component *component,
+					 struct device_node *endpoint)
+{
+	struct davinci_mcasp *mcasp = snd_soc_component_get_drvdata(component);
+	struct device_node *port;
+	u32 port_reg = 0;
+
+	if (mcasp->graph_mode != MCASP_GRAPH_DPCM)
+		return 0;
+
+	/* endpoint is inside mcasp/ports/port@N — read port's reg */
+	port = of_get_parent(endpoint);
+	if (!port)
+		return -EINVAL;
+
+	of_property_read_u32(port, "reg", &port_reg);
+	of_node_put(port);
+
+	return port_reg;
+}
+
 static const struct snd_soc_component_driver davinci_mcasp_component = {
 	.name			= "davinci-mcasp",
+	.of_xlate_dai_id	= davinci_mcasp_of_xlate_dai_id,
 	.legacy_dai_naming	= 1,
 };
 
@@ -2136,6 +2183,88 @@ err1:
 static bool davinci_mcasp_have_gpiochip(struct davinci_mcasp *mcasp)
 {
 	return device_property_present(mcasp->dev, "gpio-controller");
+}
+
+/* Return true if the remote sound card uses a "dpcm" container. */
+static bool mcasp_detect_dpcm(struct device_node *np)
+{
+	struct device_node *ep, *remote_ep;
+	struct device_node *port, *container, *parent;
+	bool is_dpcm = false;
+
+	/* Grab the first endpoint under this McASP node */
+	ep = of_graph_get_next_endpoint(np, NULL);
+	if (!ep)
+		return false;
+
+	/* Follow remote-endpoint phandle into the card node */
+	remote_ep = of_graph_get_remote_endpoint(ep);
+	of_node_put(ep);
+	if (!remote_ep)
+		return false;
+
+	/* Traverse the remote: remote_ep -> port -> ports@N -> dpcm */
+	port = of_get_parent(remote_ep);
+	of_node_put(remote_ep);
+	if (!port)
+		return false;
+
+	container = of_get_parent(port);
+	of_node_put(port);
+	if (!container)
+		return false;
+
+	if (of_node_name_eq(container, "ports")) {
+		parent = of_get_parent(container);
+		of_node_put(container);
+		if (parent) {
+			is_dpcm = of_node_name_eq(parent, "dpcm");
+			of_node_put(parent);
+		}
+	} else {
+		of_node_put(container);
+	}
+
+	return is_dpcm;
+}
+
+/* Detect audio-graph topology and return the number of DAIs to register. */
+static int davinci_mcasp_parse_of_graph(struct davinci_mcasp *mcasp,
+					struct device_node *np)
+{
+	struct device_node *port, *ports;
+	int num_dais = 0;
+
+	mcasp->graph_mode = MCASP_GRAPH_NONE;
+
+	/* audio-graph-card2: ports { port@0 ... }; DPCM -> N DAIs, else 1 */
+	ports = of_get_child_by_name(np, "ports");
+	if (ports) {
+		int port_count = of_get_child_count(ports);
+
+		of_node_put(ports);
+
+		if (mcasp_detect_dpcm(np)) {
+			num_dais = port_count;
+			mcasp->graph_mode = MCASP_GRAPH_DPCM;
+		} else {
+			num_dais = 1;
+			mcasp->graph_mode = MCASP_GRAPH_PORTS;
+		}
+
+		return num_dais;
+	}
+
+	/* audio-graph-card: single port { endpoint } */
+	port = of_get_child_by_name(np, "port");
+	if (port) {
+		num_dais = of_graph_get_endpoint_count(port);
+		if (num_dais > 0)
+			mcasp->graph_mode = MCASP_GRAPH_PORT;
+		of_node_put(port);
+	}
+
+	return num_dais ? num_dais : 1;
 }
 
 static int davinci_mcasp_get_config(struct davinci_mcasp *mcasp,
@@ -2555,6 +2684,53 @@ static inline int davinci_mcasp_init_gpiochip(struct davinci_mcasp *mcasp)
 }
 #endif /* CONFIG_GPIOLIB */
 
+static int davinci_mcasp_register_component(struct davinci_mcasp *mcasp,
+					    struct platform_device *pdev)
+{
+	struct snd_soc_dai_driver *dais;
+	int i;
+
+	if (mcasp->graph_mode == MCASP_GRAPH_NONE || mcasp->num_dais <= 1)
+		return devm_snd_soc_register_component(&pdev->dev,
+						       &davinci_mcasp_component,
+						       &davinci_mcasp_dai[mcasp->op_mode], 1);
+
+	dais = devm_kcalloc(&pdev->dev, mcasp->num_dais, sizeof(*dais),
+			    GFP_KERNEL);
+	if (!dais)
+		return -ENOMEM;
+
+	for (i = 0; i < mcasp->num_dais; i++) {
+		memcpy(&dais[i], &davinci_mcasp_dai[mcasp->op_mode],
+		       sizeof(*dais));
+		dais[i].id = i;
+		dais[i].name = devm_kasprintf(&pdev->dev, GFP_KERNEL,
+					      "davinci-mcasp.%d", i);
+		if (!dais[i].name)
+			return -ENOMEM;
+
+		/* Unique stream names per DAI */
+		if (dais[i].playback.channels_min) {
+			dais[i].playback.stream_name =
+				devm_kasprintf(&pdev->dev, GFP_KERNEL,
+					       "Playback Port %d", i);
+			if (!dais[i].playback.stream_name)
+				return -ENOMEM;
+		}
+		if (dais[i].capture.channels_min) {
+			dais[i].capture.stream_name =
+				devm_kasprintf(&pdev->dev, GFP_KERNEL,
+					       "Capture Port %d", i);
+			if (!dais[i].capture.stream_name)
+				return -ENOMEM;
+		}
+	}
+
+	return devm_snd_soc_register_component(&pdev->dev,
+					       &davinci_mcasp_component,
+					       dais, mcasp->num_dais);
+}
+
 static int davinci_mcasp_probe(struct platform_device *pdev)
 {
 	struct snd_dmaengine_dai_dma_data *dma_data;
@@ -2760,9 +2936,10 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	ret = devm_snd_soc_register_component(&pdev->dev, &davinci_mcasp_component,
-					      &davinci_mcasp_dai[mcasp->op_mode], 1);
+	/* Parse audio-graph structure and register DAIs */
+	mcasp->num_dais = davinci_mcasp_parse_of_graph(mcasp, pdev->dev.of_node);
 
+	ret = davinci_mcasp_register_component(mcasp, pdev);
 	if (ret != 0)
 		goto err;
 

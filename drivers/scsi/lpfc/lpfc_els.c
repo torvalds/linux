@@ -4850,7 +4850,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	case IOSTAT_LS_RJT:
 		stat.un.ls_rjt_error_be = cpu_to_be32(ulp_word4);
-		/* Added for Vendor specifc support
+		/* Added for Vendor specific support
 		 * Just keep retrying for these Rsn / Exp codes
 		 */
 		if (test_bit(FC_PT2PT, &vport->fc_flag) &&

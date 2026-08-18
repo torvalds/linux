@@ -1757,11 +1757,6 @@ void r4k_cache_init(void)
 	build_clear_page();
 	build_copy_page();
 
-	/*
-	 * We want to run CMP kernels on core with and without coherent
-	 * caches. Therefore, do not use CONFIG_MIPS_CMP to decide whether
-	 * or not to flush caches.
-	 */
 	local_r4k___flush_cache_all(NULL);
 
 	coherency_setup();

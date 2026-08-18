@@ -321,7 +321,7 @@ void nldev_exit(void);
 
 struct ib_qp *ib_create_qp_user(struct ib_device *dev, struct ib_pd *pd,
 				struct ib_qp_init_attr *attr,
-				struct ib_udata *udata,
+				struct uverbs_attr_bundle *uattrs,
 				struct ib_uqp_object *uobj, const char *caller);
 
 void ib_qp_usecnt_inc(struct ib_qp *qp);

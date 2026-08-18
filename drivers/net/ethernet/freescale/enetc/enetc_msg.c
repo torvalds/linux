@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /* Copyright 2017-2019 NXP */
 
-#include "enetc_pf.h"
+#include "enetc_pf_common.h"
+
+#define ENETC_PF_MSG_SUCCESS	FIELD_PREP(ENETC_PF_MSG_CLASS_ID, \
+					   ENETC_MSG_CLASS_ID_CMD_SUCCESS)
+#define ENETC_PF_MSG_NOTSUPP	FIELD_PREP(ENETC_PF_MSG_CLASS_ID, \
+					   ENETC_MSG_CLASS_ID_CMD_NOT_SUPPORT)
 
 static void enetc_msg_disable_mr_int(struct enetc_pf *pf)
 {
@@ -33,6 +38,167 @@ static irqreturn_t enetc_msg_psi_msix(int irq, void *data)
 	schedule_work(&pf->msg_task);
 
 	return IRQ_HANDLED;
+}
+
+/* Messaging */
+static bool enetc_msg_check_crc16(void *msg_addr, u32 msg_size)
+{
+	u32 data_size = msg_size - 2;
+	u8 *data_buf = msg_addr + 2;
+	u16 verify_val;
+
+	verify_val = crc_itu_t(ENETC_CRC_INIT, data_buf, data_size);
+	verify_val = crc_itu_t(verify_val, msg_addr, 2);
+	if (verify_val)
+		return false;
+
+	return true;
+}
+
+static u16 enetc_msg_set_vf_primary_mac_addr(struct enetc_pf *pf, int vf_id,
+					     void *vf_msg)
+{
+	struct enetc_vf_state *vf_state = &pf->vf_state[vf_id];
+	struct enetc_msg_mac_exact_filter *msg = vf_msg;
+	struct device *dev = &pf->si->pdev->dev;
+	char *addr = msg->mac[0].addr;
+
+	if (!is_valid_ether_addr(addr)) {
+		dev_err_ratelimited(dev, "VF%d attempted to set invalid MAC\n",
+				    vf_id);
+		return (FIELD_PREP(ENETC_PF_MSG_CLASS_ID,
+				   ENETC_MSG_CLASS_ID_MAC_FILTER) |
+			FIELD_PREP(ENETC_PF_MSG_CLASS_CODE,
+				   ENETC_MF_CLASS_CODE_INVALID_MAC));
+	}
+
+	mutex_lock(&vf_state->lock);
+	if (vf_state->flags & ENETC_VF_FLAG_PF_SET_MAC) {
+		mutex_unlock(&vf_state->lock);
+		dev_err_ratelimited(dev,
+				    "VF%d attempted to override PF set MAC\n",
+				    vf_id);
+		return FIELD_PREP(ENETC_PF_MSG_CLASS_ID,
+				  ENETC_MSG_CLASS_ID_CMD_NOT_PERMITTED);
+	}
+
+	enetc_set_si_hw_addr(pf, vf_id + 1, addr);
+	mutex_unlock(&vf_state->lock);
+
+	return ENETC_PF_MSG_SUCCESS;
+}
+
+static u16 enetc_msg_handle_mac_filter(struct enetc_pf *pf, int vf_id,
+				       void *vf_msg)
+{
+	struct enetc_msg_header *msg_hdr = vf_msg;
+
+	switch (msg_hdr->cmd_id) {
+	case ENETC_MSG_SET_PRIMARY_MAC:
+		return enetc_msg_set_vf_primary_mac_addr(pf, vf_id, vf_msg);
+	default:
+		return ENETC_PF_MSG_NOTSUPP;
+	}
+}
+
+static u16 enetc_msg_handle_ip_revision(struct enetc_pf *pf, void *vf_msg)
+{
+	struct enetc_msg_header *msg_hdr = vf_msg;
+
+	switch (msg_hdr->cmd_id) {
+	case ENETC_MSG_GET_IP_MN:
+		return (FIELD_PREP(ENETC_PF_MSG_CLASS_ID,
+				   ENETC_MSG_CLASS_ID_IP_REVISION) |
+			FIELD_PREP(ENETC_PF_MSG_CLASS_CODE_U8,
+				   pf->si->revision));
+	default:
+		return ENETC_PF_MSG_NOTSUPP;
+	}
+}
+
+static void enetc_msg_handle_rxmsg(struct enetc_pf *pf, int vf_id,
+				   u16 *pf_msg)
+{
+	struct enetc_msg_swbd *msg_swbd = &pf->rxmsg[vf_id];
+	struct enetc_msg_header *msg_hdr = msg_swbd->vaddr;
+	u32 msg_size = ENETC_MSG_SIZE(msg_hdr->len);
+	struct device *dev = &pf->si->pdev->dev;
+	u8 *msg;
+
+	if (msg_size > ENETC_DEFAULT_MSG_SIZE) {
+		dev_err_ratelimited(dev,
+				    "Invalid message size: %u\n", msg_size);
+		*pf_msg = FIELD_PREP(ENETC_PF_MSG_CLASS_ID,
+				     ENETC_MSG_CLASS_ID_INVALID_MSG_LEN);
+		return;
+	}
+
+	/* To prevent malicious VF from tampering with the original data by
+	 * sending new messages after passing the check, the DMA buffer data
+	 * is copied to the msg buffer before validation.
+	 */
+	msg = kzalloc_objs(*msg, msg_size);
+	if (!msg) {
+		dev_err_ratelimited(dev,
+				    "Failed to allocate message buffer\n");
+		*pf_msg = FIELD_PREP(ENETC_PF_MSG_CLASS_ID,
+				     ENETC_MSG_CLASS_ID_CMD_FAIL);
+		return;
+	}
+
+	memcpy(msg, msg_swbd->vaddr, msg_size);
+	if (!enetc_msg_check_crc16(msg, msg_size)) {
+		dev_err_ratelimited(dev, "VSI to PSI Message CRC16 error\n");
+		*pf_msg = FIELD_PREP(ENETC_PF_MSG_CLASS_ID,
+				     ENETC_MSG_CLASS_ID_CRC_ERROR);
+
+		goto free_msg;
+	}
+
+	/* Default to not supported */
+	*pf_msg = ENETC_PF_MSG_NOTSUPP;
+	msg_hdr = (struct enetc_msg_header *)msg;
+
+	/* Currently, asynchronous actions are not supported */
+	if (FIELD_GET(ENETC_VF_MSG_COOKIE, msg_hdr->cookie)) {
+		dev_err_ratelimited(dev,
+				    "Cookie field is not supported yet\n");
+		goto free_msg;
+	}
+
+	/* Currently only support protocol version 0 */
+	if (msg_hdr->proto_ver) {
+		dev_err_ratelimited(dev, "Unsupported protocol version %u\n",
+				    msg_hdr->proto_ver);
+		goto free_msg;
+	}
+
+	/* The new messages are currently only supported on ENETC v4. If v1
+	 * requires them, the current restriction can be lifted.
+	 */
+	if (is_enetc_rev1(pf->si) &&
+	    !(msg_hdr->class_id == ENETC_MSG_CLASS_ID_MAC_FILTER &&
+	      msg_hdr->cmd_id == ENETC_MSG_SET_PRIMARY_MAC)) {
+		dev_err_ratelimited(dev, "Unsupported message for ENETC v1\n");
+
+		goto free_msg;
+	}
+
+	switch (msg_hdr->class_id) {
+	case ENETC_MSG_CLASS_ID_MAC_FILTER:
+		*pf_msg = enetc_msg_handle_mac_filter(pf, vf_id, msg);
+		break;
+	case ENETC_MSG_CLASS_ID_IP_REVISION:
+		*pf_msg = enetc_msg_handle_ip_revision(pf, msg);
+		break;
+	default:
+		dev_err_ratelimited(dev,
+				    "Unsupported message class ID: 0x%x\n",
+				    msg_hdr->class_id);
+	}
+
+free_msg:
+	kfree(msg);
 }
 
 static void enetc_msg_task(struct work_struct *work)
@@ -113,7 +279,7 @@ static void enetc_msg_free_mbx(struct enetc_si *si, int idx)
 	memset(msg, 0, sizeof(*msg));
 }
 
-int enetc_msg_psi_init(struct enetc_pf *pf)
+static int enetc_msg_psi_init(struct enetc_pf *pf)
 {
 	struct enetc_si *si = pf->si;
 	int vector, i, err;
@@ -153,7 +319,7 @@ free_mbx:
 	return err;
 }
 
-void enetc_msg_psi_free(struct enetc_pf *pf)
+static void enetc_msg_psi_free(struct enetc_pf *pf)
 {
 	struct enetc_si *si = pf->si;
 	int i;
@@ -172,3 +338,40 @@ void enetc_msg_psi_free(struct enetc_pf *pf)
 	for (i = 0; i < pf->num_vfs; i++)
 		enetc_msg_free_mbx(si, i);
 }
+
+int enetc_sriov_configure(struct pci_dev *pdev, int num_vfs)
+{
+	struct enetc_si *si = pci_get_drvdata(pdev);
+	struct enetc_pf *pf = enetc_si_priv(si);
+	int err;
+
+	if (!num_vfs) {
+		pci_disable_sriov(pdev);
+		enetc_msg_psi_free(pf);
+		pf->num_vfs = 0;
+	} else {
+		pf->num_vfs = num_vfs;
+
+		err = enetc_msg_psi_init(pf);
+		if (err) {
+			dev_err(&pdev->dev, "enetc_msg_psi_init (%d)\n", err);
+			goto err_msg_psi;
+		}
+
+		err = pci_enable_sriov(pdev, num_vfs);
+		if (err) {
+			dev_err(&pdev->dev, "pci_enable_sriov err %d\n", err);
+			goto err_en_sriov;
+		}
+	}
+
+	return num_vfs;
+
+err_en_sriov:
+	enetc_msg_psi_free(pf);
+err_msg_psi:
+	pf->num_vfs = 0;
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(enetc_sriov_configure);

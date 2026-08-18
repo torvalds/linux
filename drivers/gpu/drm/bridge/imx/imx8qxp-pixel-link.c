@@ -154,7 +154,7 @@ imx8qxp_pixel_link_bridge_mode_set(struct drm_bridge *bridge,
 }
 
 static void imx8qxp_pixel_link_bridge_atomic_enable(struct drm_bridge *bridge,
-						    struct drm_atomic_state *state)
+						    struct drm_atomic_commit *state)
 {
 	struct imx8qxp_pixel_link *pl = bridge->driver_private;
 
@@ -164,7 +164,7 @@ static void imx8qxp_pixel_link_bridge_atomic_enable(struct drm_bridge *bridge,
 }
 
 static void imx8qxp_pixel_link_bridge_atomic_disable(struct drm_bridge *bridge,
-						     struct drm_atomic_state *state)
+						     struct drm_atomic_commit *state)
 {
 	struct imx8qxp_pixel_link *pl = bridge->driver_private;
 

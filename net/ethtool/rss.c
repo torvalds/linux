@@ -2,6 +2,7 @@
 
 #include <net/netdev_lock.h>
 
+#include "../core/dev.h"
 #include "common.h"
 #include "netlink.h"
 
@@ -468,21 +469,16 @@ int ethnl_rss_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct rss_nl_dump_ctx *ctx = rss_dump_ctx(cb);
 	struct net *net = sock_net(skb->sk);
-	struct net_device *dev;
 	int ret = 0;
 
-	rtnl_lock();
-	for_each_netdev_dump(net, dev, ctx->ifindex) {
+	for_each_netdev_lock_ops_compat_scoped(net, dev, ctx->ifindex) {
 		if (ctx->match_ifindex && ctx->match_ifindex != ctx->ifindex)
 			break;
 
-		netdev_lock_ops(dev);
 		ret = rss_dump_one_dev(skb, cb, dev);
-		netdev_unlock_ops(dev);
 		if (ret)
 			break;
 	}
-	rtnl_unlock();
 
 	return ret;
 }
@@ -574,7 +570,7 @@ static const struct nla_policy ethnl_rss_flows_policy[] = {
 const struct nla_policy ethnl_rss_set_policy[ETHTOOL_A_RSS_FLOW_HASH + 1] = {
 	[ETHTOOL_A_RSS_HEADER] = NLA_POLICY_NESTED(ethnl_header_policy),
 	[ETHTOOL_A_RSS_CONTEXT] = { .type = NLA_U32, },
-	[ETHTOOL_A_RSS_HFUNC] = NLA_POLICY_MIN(NLA_U32, 1),
+	[ETHTOOL_A_RSS_HFUNC] = NLA_POLICY_RANGE(NLA_U32, 1, U8_MAX),
 	[ETHTOOL_A_RSS_INDIR] = { .type = NLA_BINARY, },
 	[ETHTOOL_A_RSS_HKEY] = NLA_POLICY_MIN(NLA_BINARY, 1),
 	[ETHTOOL_A_RSS_INPUT_XFRM] =
@@ -855,7 +851,7 @@ ethnl_rss_set(struct ethnl_req_info *req_info, struct genl_info *info)
 	indir_mod = !!tb[ETHTOOL_A_RSS_INDIR];
 
 	rxfh.hfunc = data.hfunc;
-	ethnl_update_u8(&rxfh.hfunc, tb[ETHTOOL_A_RSS_HFUNC], &mod);
+	ethnl_update_u8_u32(&rxfh.hfunc, tb[ETHTOOL_A_RSS_HFUNC], &mod);
 	if (rxfh.hfunc == data.hfunc)
 		rxfh.hfunc = ETH_RSS_HASH_NO_CHANGE;
 
@@ -864,7 +860,8 @@ ethnl_rss_set(struct ethnl_req_info *req_info, struct genl_info *info)
 		goto exit_free_indir;
 
 	rxfh.input_xfrm = data.input_xfrm;
-	ethnl_update_u8(&rxfh.input_xfrm, tb[ETHTOOL_A_RSS_INPUT_XFRM], &mod);
+	ethnl_update_u8_u32(&rxfh.input_xfrm, tb[ETHTOOL_A_RSS_INPUT_XFRM],
+			    &mod);
 	xfrm_sym = rxfh.input_xfrm || data.input_xfrm;
 	if (rxfh.input_xfrm == data.input_xfrm)
 		rxfh.input_xfrm = RXH_XFRM_NO_CHANGE;
@@ -938,7 +935,7 @@ const struct ethnl_request_ops ethnl_rss_request_ops = {
 const struct nla_policy ethnl_rss_create_policy[ETHTOOL_A_RSS_INPUT_XFRM + 1] = {
 	[ETHTOOL_A_RSS_HEADER]	= NLA_POLICY_NESTED(ethnl_header_policy),
 	[ETHTOOL_A_RSS_CONTEXT]	= NLA_POLICY_MIN(NLA_U32, 1),
-	[ETHTOOL_A_RSS_HFUNC]	= NLA_POLICY_MIN(NLA_U32, 1),
+	[ETHTOOL_A_RSS_HFUNC]	= NLA_POLICY_RANGE(NLA_U32, 1, U8_MAX),
 	[ETHTOOL_A_RSS_INDIR]	= NLA_POLICY_MIN(NLA_BINARY, 1),
 	[ETHTOOL_A_RSS_HKEY]	= NLA_POLICY_MIN(NLA_BINARY, 1),
 	[ETHTOOL_A_RSS_INPUT_XFRM] =
@@ -995,7 +992,6 @@ ethnl_rss_create_send_ntf(const struct sk_buff *rsp, struct net_device *dev)
 	nlh = nlmsg_hdr(ntf);
 	/* Convert the reply into a notification */
 	nlh->nlmsg_pid = 0;
-	nlh->nlmsg_seq = ethnl_bcast_seq_next();
 
 	genl_hdr = nlmsg_data(nlh);
 	genl_hdr->cmd =	ETHTOOL_MSG_RSS_CREATE_NTF;
@@ -1038,8 +1034,7 @@ int ethnl_rss_create_doit(struct sk_buff *skb, struct genl_info *info)
 	if (ret)
 		goto exit_free_dev;
 
-	rtnl_lock();
-	netdev_lock_ops(dev);
+	netdev_lock_ops_compat(dev);
 
 	ret = ethnl_ops_begin(dev);
 	if (ret < 0)
@@ -1054,14 +1049,15 @@ int ethnl_rss_create_doit(struct sk_buff *skb, struct genl_info *info)
 		goto exit_clean_data;
 	indir_user_size = ret;
 
-	ethnl_update_u8(&rxfh.hfunc, tb[ETHTOOL_A_RSS_HFUNC], &mod);
+	ethnl_update_u8_u32(&rxfh.hfunc, tb[ETHTOOL_A_RSS_HFUNC], &mod);
 
 	ret = rss_set_prep_hkey(dev, info, &data, &rxfh, &mod);
 	if (ret)
 		goto exit_free_indir;
 
 	rxfh.input_xfrm = RXH_XFRM_NO_CHANGE;
-	ethnl_update_u8(&rxfh.input_xfrm, tb[ETHTOOL_A_RSS_INPUT_XFRM], &mod);
+	ethnl_update_u8_u32(&rxfh.input_xfrm, tb[ETHTOOL_A_RSS_INPUT_XFRM],
+			    &mod);
 
 	ctx = ethtool_rxfh_ctx_alloc(ops, data.indir_size, data.hkey_size);
 	if (!ctx) {
@@ -1126,8 +1122,7 @@ exit_clean_data:
 exit_ops:
 	ethnl_ops_complete(dev);
 exit_dev_unlock:
-	netdev_unlock_ops(dev);
-	rtnl_unlock();
+	netdev_unlock_ops_compat(dev);
 exit_free_dev:
 	ethnl_parse_header_dev_put(&req.base);
 exit_free_rsp:
@@ -1180,8 +1175,7 @@ int ethnl_rss_delete_doit(struct sk_buff *skb, struct genl_info *info)
 		goto exit_free_dev;
 	}
 
-	rtnl_lock();
-	netdev_lock_ops(dev);
+	netdev_lock_ops_compat(dev);
 
 	ret = ethnl_ops_begin(dev);
 	if (ret < 0)
@@ -1211,8 +1205,7 @@ exit_unlock:
 	mutex_unlock(&dev->ethtool->rss_lock);
 	ethnl_ops_complete(dev);
 exit_dev_unlock:
-	netdev_unlock_ops(dev);
-	rtnl_unlock();
+	netdev_unlock_ops_compat(dev);
 exit_free_dev:
 	ethnl_parse_header_dev_put(&req);
 	return ret;

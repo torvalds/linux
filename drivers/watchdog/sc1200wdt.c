@@ -339,8 +339,8 @@ static int __init sc1200wdt_probe(void)
 
 static const struct pnp_device_id scl200wdt_pnp_devices[] = {
 	/* National Semiconductor PC87307/PC97307 watchdog component */
-	{.id = "NSC0800", .driver_data = 0},
-	{.id = ""},
+	{ .id = "NSC0800" },
+	{ }
 };
 
 static int scl200wdt_pnp_probe(struct pnp_dev *dev,

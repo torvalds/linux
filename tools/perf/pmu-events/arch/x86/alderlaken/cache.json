@@ -226,6 +226,16 @@
         "UMask": "0x1"
     },
     {
+        "BriefDescription": "Counts the number of memory uops retired.",
+        "Counter": "0,1,2,3,4,5",
+        "Data_LA": "1",
+        "EventCode": "0xd0",
+        "EventName": "MEM_UOPS_RETIRED.ALL",
+        "PublicDescription": "Counts the number of memory uops retired.  A single uop that performs both a load AND a store will be counted as 1, not 2 (e.g. ADD [mem], CONST)",
+        "SampleAfterValue": "200003",
+        "UMask": "0x83"
+    },
+    {
         "BriefDescription": "Counts the number of load uops retired.",
         "Counter": "0,1,2,3,4,5",
         "Data_LA": "1",
@@ -246,6 +256,17 @@
         "UMask": "0x82"
     },
     {
+        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 1024. Only counts with PEBS enabled.",
+        "Counter": "0,1",
+        "Data_LA": "1",
+        "EventCode": "0xd0",
+        "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_1024",
+        "MSRIndex": "0x3F6",
+        "MSRValue": "0x400",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x5"
+    },
+    {
         "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 128. Only counts with PEBS enabled.",
         "Counter": "0,1",
         "Data_LA": "1",
@@ -264,6 +285,17 @@
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_16",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x10",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x5"
+    },
+    {
+        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 2048. Only counts with PEBS enabled.",
+        "Counter": "0,1",
+        "Data_LA": "1",
+        "EventCode": "0xd0",
+        "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_2048",
+        "MSRIndex": "0x3F6",
+        "MSRValue": "0x800",
         "SampleAfterValue": "1000003",
         "UMask": "0x5"
     },
@@ -343,6 +375,15 @@
         "UMask": "0x21"
     },
     {
+        "BriefDescription": "Counts the number of memory uops retired that were splits.",
+        "Counter": "0,1,2,3,4,5",
+        "Data_LA": "1",
+        "EventCode": "0xd0",
+        "EventName": "MEM_UOPS_RETIRED.SPLIT",
+        "SampleAfterValue": "200003",
+        "UMask": "0x43"
+    },
+    {
         "BriefDescription": "Counts the number of retired split load uops.",
         "Counter": "0,1,2,3,4,5",
         "Data_LA": "1",
@@ -350,6 +391,15 @@
         "EventName": "MEM_UOPS_RETIRED.SPLIT_LOADS",
         "SampleAfterValue": "200003",
         "UMask": "0x41"
+    },
+    {
+        "BriefDescription": "Counts the number of retired split store uops.",
+        "Counter": "0,1,2,3,4,5",
+        "Data_LA": "1",
+        "EventCode": "0xd0",
+        "EventName": "MEM_UOPS_RETIRED.SPLIT_STORES",
+        "SampleAfterValue": "200003",
+        "UMask": "0x42"
     },
     {
         "BriefDescription": "Counts the total number of load and store uops retired that missed in the second level TLB.",

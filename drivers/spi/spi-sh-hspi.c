@@ -224,15 +224,14 @@ static int hspi_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	ctlr = spi_alloc_host(&pdev->dev, sizeof(*hspi));
+	ctlr = devm_spi_alloc_host(&pdev->dev, sizeof(*hspi));
 	if (!ctlr)
 		return -ENOMEM;
 
 	clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(clk)) {
 		dev_err(&pdev->dev, "couldn't get clock\n");
-		ret = -EINVAL;
-		goto error0;
+		return PTR_ERR(clk);
 	}
 
 	hspi = spi_controller_get_devdata(ctlr);
@@ -269,8 +268,6 @@ static int hspi_probe(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
  error1:
 	clk_put(clk);
- error0:
-	spi_controller_put(ctlr);
 
 	return ret;
 }
@@ -279,15 +276,11 @@ static void hspi_remove(struct platform_device *pdev)
 {
 	struct hspi_priv *hspi = platform_get_drvdata(pdev);
 
-	spi_controller_get(hspi->ctlr);
-
 	spi_unregister_controller(hspi->ctlr);
 
 	pm_runtime_disable(&pdev->dev);
 
 	clk_put(hspi->clk);
-
-	spi_controller_put(hspi->ctlr);
 }
 
 static const struct of_device_id hspi_of_match[] = {

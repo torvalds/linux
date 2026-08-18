@@ -21,21 +21,12 @@
 
 bool test_pass;
 
-static const __u8 smac_want[ETH_ALEN] = {
-	0x12, 0x34, 0xDE, 0xAD, 0xBE, 0xEF,
-};
-
 static const __u8 meta_want[META_SIZE] = {
 	0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
 	0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
 	0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28,
 	0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38,
 };
-
-static bool check_smac(const struct ethhdr *eth)
-{
-	return !__builtin_memcmp(eth->h_source, smac_want, ETH_ALEN);
-}
 
 static bool check_metadata(const char *file, int line, __u8 *meta_have)
 {
@@ -280,18 +271,47 @@ fail:
 	return TC_ACT_SHOT;
 }
 
+/* Test packets carry test metadata pattern as payload. */
+static bool is_test_packet_xdp(struct xdp_md *ctx)
+{
+	__u8 meta_have[META_SIZE];
+	__u32 len;
+
+	len = bpf_xdp_get_buff_len(ctx);
+	if (len < META_SIZE)
+		return false;
+	if (bpf_xdp_load_bytes(ctx, len - META_SIZE, meta_have, META_SIZE))
+		return false;
+	if (__builtin_memcmp(meta_have, meta_want, META_SIZE))
+		return false;
+
+	return true;
+}
+
+/* Test packets carry test metadata pattern as payload. */
+static bool is_test_packet_tc(struct __sk_buff *ctx)
+{
+	__u8 meta_have[META_SIZE];
+
+	if (ctx->len < META_SIZE)
+		return false;
+	if (bpf_skb_load_bytes(ctx, ctx->len - META_SIZE, meta_have, META_SIZE))
+		return false;
+	if (__builtin_memcmp(meta_have, meta_want, META_SIZE))
+		return false;
+
+	return true;
+}
+
 /* Reserve and clear space for metadata but don't populate it */
 SEC("xdp")
 int ing_xdp_zalloc_meta(struct xdp_md *ctx)
 {
-	struct ethhdr *eth = ctx_ptr(ctx, data);
 	__u8 *meta;
 	int ret;
 
 	/* Drop any non-test packets */
-	if (eth + 1 > ctx_ptr(ctx, data_end))
-		return XDP_DROP;
-	if (!check_smac(eth))
+	if (!is_test_packet_xdp(ctx))
 		return XDP_DROP;
 
 	ret = bpf_xdp_adjust_meta(ctx, -META_SIZE);
@@ -310,33 +330,24 @@ int ing_xdp_zalloc_meta(struct xdp_md *ctx)
 SEC("xdp")
 int ing_xdp(struct xdp_md *ctx)
 {
-	__u8 *data, *data_meta, *data_end, *payload;
-	struct ethhdr *eth;
+	__u8 *data, *data_meta;
 	int ret;
+
+	/* Drop any non-test packets */
+	if (!is_test_packet_xdp(ctx))
+		return XDP_DROP;
 
 	ret = bpf_xdp_adjust_meta(ctx, -META_SIZE);
 	if (ret < 0)
 		return XDP_DROP;
 
 	data_meta = ctx_ptr(ctx, data_meta);
-	data_end  = ctx_ptr(ctx, data_end);
 	data      = ctx_ptr(ctx, data);
 
-	eth = (struct ethhdr *)data;
-	payload = data + sizeof(struct ethhdr);
-
-	if (payload + META_SIZE > data_end ||
-	    data_meta + META_SIZE > data)
+	if (data_meta + META_SIZE > data)
 		return XDP_DROP;
 
-	/* The Linux networking stack may send other packets on the test
-	 * interface that interfere with the test. Just drop them.
-	 * The test packets can be recognized by their source MAC address.
-	 */
-	if (!check_smac(eth))
-		return XDP_DROP;
-
-	__builtin_memcpy(data_meta, payload, META_SIZE);
+	__builtin_memcpy(data_meta, meta_want, META_SIZE);
 	return XDP_PASS;
 }
 
@@ -353,7 +364,7 @@ int clone_data_meta_survives_data_write(struct __sk_buff *ctx)
 	if (eth + 1 > ctx_ptr(ctx, data_end))
 		goto out;
 	/* Ignore non-test packets */
-	if (!check_smac(eth))
+	if (!is_test_packet_tc(ctx))
 		goto out;
 
 	if (meta_have + META_SIZE > eth)
@@ -383,7 +394,7 @@ int clone_data_meta_survives_meta_write(struct __sk_buff *ctx)
 	if (eth + 1 > ctx_ptr(ctx, data_end))
 		goto out;
 	/* Ignore non-test packets */
-	if (!check_smac(eth))
+	if (!is_test_packet_tc(ctx))
 		goto out;
 
 	if (meta_have + META_SIZE > eth)
@@ -416,7 +427,7 @@ int clone_meta_dynptr_survives_data_slice_write(struct __sk_buff *ctx)
 	if (!eth)
 		goto out;
 	/* Ignore non-test packets */
-	if (!check_smac(eth))
+	if (!is_test_packet_tc(ctx))
 		goto out;
 
 	bpf_dynptr_from_skb_meta(ctx, 0, &meta);
@@ -436,16 +447,11 @@ out:
 SEC("tc")
 int clone_meta_dynptr_survives_meta_slice_write(struct __sk_buff *ctx)
 {
-	struct bpf_dynptr data, meta;
-	const struct ethhdr *eth;
+	struct bpf_dynptr meta;
 	__u8 *meta_have;
 
-	bpf_dynptr_from_skb(ctx, 0, &data);
-	eth = bpf_dynptr_slice(&data, 0, NULL, sizeof(*eth));
-	if (!eth)
-		goto out;
 	/* Ignore non-test packets */
-	if (!check_smac(eth))
+	if (!is_test_packet_tc(ctx))
 		goto out;
 
 	bpf_dynptr_from_skb_meta(ctx, 0, &meta);
@@ -471,15 +477,10 @@ int clone_meta_dynptr_rw_before_data_dynptr_write(struct __sk_buff *ctx)
 {
 	struct bpf_dynptr data, meta;
 	__u8 meta_have[META_SIZE];
-	const struct ethhdr *eth;
 	int err;
 
-	bpf_dynptr_from_skb(ctx, 0, &data);
-	eth = bpf_dynptr_slice(&data, 0, NULL, sizeof(*eth));
-	if (!eth)
-		goto out;
 	/* Ignore non-test packets */
-	if (!check_smac(eth))
+	if (!is_test_packet_tc(ctx))
 		goto out;
 
 	/* Expect read-write metadata before unclone */
@@ -492,6 +493,7 @@ int clone_meta_dynptr_rw_before_data_dynptr_write(struct __sk_buff *ctx)
 		goto out;
 
 	/* Helper write to payload will unclone the packet */
+	bpf_dynptr_from_skb(ctx, 0, &data);
 	bpf_dynptr_write(&data, offsetof(struct ethhdr, h_proto), "x", 1, 0);
 
 	err = bpf_dynptr_read(meta_have, META_SIZE, &meta, 0, 0);
@@ -511,17 +513,12 @@ out:
 SEC("tc")
 int clone_meta_dynptr_rw_before_meta_dynptr_write(struct __sk_buff *ctx)
 {
-	struct bpf_dynptr data, meta;
+	struct bpf_dynptr meta;
 	__u8 meta_have[META_SIZE];
-	const struct ethhdr *eth;
 	int err;
 
-	bpf_dynptr_from_skb(ctx, 0, &data);
-	eth = bpf_dynptr_slice(&data, 0, NULL, sizeof(*eth));
-	if (!eth)
-		goto out;
 	/* Ignore non-test packets */
-	if (!check_smac(eth))
+	if (!is_test_packet_tc(ctx))
 		goto out;
 
 	/* Expect read-write metadata before unclone */
@@ -543,6 +540,28 @@ int clone_meta_dynptr_rw_before_meta_dynptr_write(struct __sk_buff *ctx)
 	test_pass = true;
 out:
 	return TC_ACT_SHOT;
+}
+
+SEC("lwt_xmit")
+int dummy_lwt_xmit(struct __sk_buff *ctx)
+{
+	if (bpf_skb_change_head(ctx, sizeof(struct ipv6hdr), 0))
+		return BPF_DROP;
+
+	return BPF_OK;
+}
+
+SEC("tc")
+int tc_is_meta_empty(struct __sk_buff *ctx)
+{
+	if (!is_test_packet_tc(ctx))
+		return TC_ACT_OK;
+
+	if (ctx->data_meta != ctx->data)
+		return TC_ACT_OK;
+
+	test_pass = true;
+	return TC_ACT_OK;
 }
 
 SEC("tc")

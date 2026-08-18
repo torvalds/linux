@@ -41,7 +41,7 @@ properties:
       - const: sw3
 
   sram:
-    $ref: /schemas/types.yaml#/definitions/phandle
+    maxItems: 1
     description: phandle pointing to the mmio-sram device node
 
 required:

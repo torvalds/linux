@@ -178,7 +178,7 @@ static int __init dio_init(void)
 	if (!MACH_IS_HP300)
 		return 0;
 
-        printk(KERN_INFO "Scanning for DIO devices...\n");
+	pr_info("Scanning for DIO devices...\n");
 
 	/* Initialize the DIO bus */
 	INIT_LIST_HEAD(&dio_bus.devices);
@@ -247,18 +247,19 @@ static int __init dio_init(void)
 			dev->id = prid;
 
 		dev->ipl = DIO_IPL(va);
-		strcpy(dev->name, dio_getname(dev->id));
-                printk(KERN_INFO "select code %3d: ipl %d: ID %02X", dev->scode, dev->ipl, prid);
+		strscpy(dev->name, dio_getname(dev->id));
 		if (DIO_NEEDSSECID(prid))
-                        printk(":%02X", secid);
-                printk(": %s\n", dev->name);
+			pr_info("select code %3d: ipl %u: ID %02X:%02X: %s\n",
+				dev->scode, dev->ipl, prid, secid, dev->name);
+		else
+			pr_info("select code %3d: ipl %u: ID %02X: %s\n",
+				dev->scode, dev->ipl, prid, dev->name);
 
 		if (scode >= DIOII_SCBASE)
 			iounmap(va);
 		error = device_register(&dev->dev);
 		if (error) {
-			pr_err("DIO: Error registering device %s\n",
-			       dev->name);
+			pr_err("DIO: Error registering device %s\n", dev->name);
 			put_device(&dev->dev);
 			continue;
 		}

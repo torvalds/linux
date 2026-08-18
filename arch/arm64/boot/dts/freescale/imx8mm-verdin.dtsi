@@ -735,7 +735,7 @@
 /* Verdin UART_2 */
 &uart3 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart3>;
+	pinctrl-0 = <&pinctrl_uart3>, <&pinctrl_uart3_cts>, <&pinctrl_uart3_rts>;
 	uart-has-rtscts;
 };
 
@@ -1144,12 +1144,20 @@
 			<MX8MM_IOMUXC_SAI3_TXFS_UART2_DCE_RX		0x146>;	/* SODIMM 129 */
 	};
 
+	pinctrl_uart3_cts: uart3ctsgrp {
+		fsl,pins =
+			<MX8MM_IOMUXC_ECSPI1_SS0_UART3_DCE_RTS_B	0x146>;	/* SODIMM 143 */
+	};
+
+	pinctrl_uart3_rts: uart3rtsgrp {
+		fsl,pins =
+			<MX8MM_IOMUXC_ECSPI1_MISO_UART3_DCE_CTS_B	0x146>;	/* SODIMM 141 */
+	};
+
 	pinctrl_uart3: uart3grp {
 		fsl,pins =
-			<MX8MM_IOMUXC_ECSPI1_MISO_UART3_DCE_CTS_B	0x146>,	/* SODIMM 141 */
 			<MX8MM_IOMUXC_ECSPI1_MOSI_UART3_DCE_TX		0x146>,	/* SODIMM 139 */
-			<MX8MM_IOMUXC_ECSPI1_SCLK_UART3_DCE_RX		0x146>,	/* SODIMM 137 */
-			<MX8MM_IOMUXC_ECSPI1_SS0_UART3_DCE_RTS_B	0x146>;	/* SODIMM 143 */
+			<MX8MM_IOMUXC_ECSPI1_SCLK_UART3_DCE_RX		0x146>;	/* SODIMM 137 */
 	};
 
 	pinctrl_uart4: uart4grp {

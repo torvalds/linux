@@ -44,7 +44,7 @@ enum drm_connector_force;
 enum drm_mode_status;
 
 struct cea_sad;
-struct drm_atomic_state;
+struct drm_atomic_commit;
 struct drm_bridge;
 struct drm_connector;
 struct drm_crtc;
@@ -248,16 +248,16 @@ void drm_atomic_debugfs_init(struct drm_device *dev);
 int __drm_atomic_helper_disable_plane(struct drm_plane *plane,
 				      struct drm_plane_state *plane_state);
 int __drm_atomic_helper_set_config(struct drm_mode_set *set,
-				   struct drm_atomic_state *state);
+				   struct drm_atomic_commit *state);
 
-void drm_atomic_print_new_state(const struct drm_atomic_state *state,
+void drm_atomic_print_new_state(const struct drm_atomic_commit *state,
 		struct drm_printer *p);
 
 /* drm_atomic_uapi.c */
-int drm_atomic_connector_commit_dpms(struct drm_atomic_state *state,
+int drm_atomic_connector_commit_dpms(struct drm_atomic_commit *state,
 				     struct drm_connector *connector,
 				     int mode);
-int drm_atomic_set_property(struct drm_atomic_state *state,
+int drm_atomic_set_property(struct drm_atomic_commit *state,
 			    struct drm_file *file_priv,
 			    struct drm_mode_object *obj,
 			    struct drm_property *prop,

@@ -3,14 +3,18 @@
 # Enable available and selected Clang AutoFDO features.
 
 CFLAGS_AUTOFDO_CLANG := -fdebug-info-for-profiling -mllvm -enable-fs-discriminator=true -mllvm -improved-fs-discriminator=true
+RUSTFLAGS_AUTOFDO_CLANG := $(if $(call rustc-min-version,109800),-Zdebuginfo-for-profiling,-Zdebug-info-for-profiling) -Cllvm-args=-enable-fs-discriminator=true -Cllvm-args=-improved-fs-discriminator=true
 
 ifndef CONFIG_DEBUG_INFO
   CFLAGS_AUTOFDO_CLANG += -gmlt
+  RUSTFLAGS_AUTOFDO_CLANG += -Cdebuginfo=line-tables-only
 endif
 
 ifdef CLANG_AUTOFDO_PROFILE
   CFLAGS_AUTOFDO_CLANG += -fprofile-sample-use=$(CLANG_AUTOFDO_PROFILE) -ffunction-sections
   CFLAGS_AUTOFDO_CLANG += -fsplit-machine-functions
+  RUSTFLAGS_AUTOFDO_CLANG += -Zprofile-sample-use=$(CLANG_AUTOFDO_PROFILE) -Zfunction-sections=y
+  RUSTFLAGS_AUTOFDO_CLANG += -Cllvm-args=-split-machine-functions
 endif
 
 ifdef CONFIG_LTO_CLANG_THIN
@@ -21,4 +25,4 @@ ifdef CONFIG_LTO_CLANG_THIN
   KBUILD_LDFLAGS += -plugin-opt=-split-machine-functions
 endif
 
-export CFLAGS_AUTOFDO_CLANG
+export CFLAGS_AUTOFDO_CLANG RUSTFLAGS_AUTOFDO_CLANG

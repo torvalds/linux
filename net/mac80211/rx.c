@@ -1188,7 +1188,7 @@ static ieee80211_rx_result ieee80211_rx_mesh_check(struct ieee80211_rx_data *rx)
 static inline bool ieee80211_rx_reorder_ready(struct tid_ampdu_rx *tid_agg_rx,
 					      int index)
 {
-	struct sk_buff_head *frames = &tid_agg_rx->reorder_buf[index];
+	struct sk_buff_head *frames = &tid_agg_rx->reorder[index].buf;
 	struct sk_buff *tail = skb_peek_tail(frames);
 	struct ieee80211_rx_status *status;
 
@@ -1211,7 +1211,7 @@ static void ieee80211_release_reorder_frame(struct ieee80211_sub_if_data *sdata,
 					    int index,
 					    struct sk_buff_head *frames)
 {
-	struct sk_buff_head *skb_list = &tid_agg_rx->reorder_buf[index];
+	struct sk_buff_head *skb_list = &tid_agg_rx->reorder[index].buf;
 	struct sk_buff *skb;
 	struct ieee80211_rx_status *status;
 
@@ -1290,14 +1290,14 @@ static void ieee80211_sta_reorder_release(struct ieee80211_sub_if_data *sdata,
 				continue;
 			}
 			if (skipped &&
-			    !time_after(jiffies, tid_agg_rx->reorder_time[j] +
+			    !time_after(jiffies, tid_agg_rx->reorder[j].time +
 					HT_RX_REORDER_BUF_TIMEOUT))
 				goto set_release_timer;
 
 			/* don't leave incomplete A-MSDUs around */
 			for (i = (index + 1) % tid_agg_rx->buf_size; i != j;
 			     i = (i + 1) % tid_agg_rx->buf_size)
-				__skb_queue_purge(&tid_agg_rx->reorder_buf[i]);
+				__skb_queue_purge(&tid_agg_rx->reorder[i].buf);
 
 			ht_dbg_ratelimited(sdata,
 					   "release an RX reorder frame due to timeout on earlier frames\n");
@@ -1331,7 +1331,7 @@ static void ieee80211_sta_reorder_release(struct ieee80211_sub_if_data *sdata,
 
 		if (!tid_agg_rx->removed)
 			mod_timer(&tid_agg_rx->reorder_timer,
-				  tid_agg_rx->reorder_time[j] + 1 +
+				  tid_agg_rx->reorder[j].time + 1 +
 				  HT_RX_REORDER_BUF_TIMEOUT);
 	} else {
 		timer_delete(&tid_agg_rx->reorder_timer);
@@ -1426,9 +1426,9 @@ static bool ieee80211_sta_manage_reorder_buf(struct ieee80211_sub_if_data *sdata
 	}
 
 	/* put the frame in the reordering buffer */
-	__skb_queue_tail(&tid_agg_rx->reorder_buf[index], skb);
+	__skb_queue_tail(&tid_agg_rx->reorder[index].buf, skb);
 	if (!(status->flag & RX_FLAG_AMSDU_MORE)) {
-		tid_agg_rx->reorder_time[index] = jiffies;
+		tid_agg_rx->reorder[index].time = jiffies;
 		tid_agg_rx->stored_mpdu_num++;
 		ieee80211_sta_reorder_release(sdata, tid_agg_rx, frames);
 	}
@@ -1524,6 +1524,9 @@ ieee80211_rx_h_check_dup(struct ieee80211_rx_data *rx)
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(rx->skb);
 
 	if (status->flag & RX_FLAG_DUP_VALIDATED)
+		return RX_CONTINUE;
+
+	if (ieee80211_is_ext(hdr->frame_control))
 		return RX_CONTINUE;
 
 	/*
@@ -1714,6 +1717,8 @@ static void sta_ps_start(struct sta_info *sta)
 		else
 			clear_bit(tid, &sta->txq_buffered_tids);
 	}
+
+	sta_info_recalc_tim(sta);
 }
 
 static void sta_ps_end(struct sta_info *sta)
@@ -3947,6 +3952,29 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			break;
 		}
 		break;
+	case WLAN_CATEGORY_PROTECTED_UHR:
+		if (len < IEEE80211_MIN_ACTION_SIZE(action_code))
+			break;
+
+		switch (mgmt->u.action.action_code) {
+		case IEEE80211_PROTECTED_UHR_ACTION_LINK_RECONFIG_REQUEST:
+			if (sdata->vif.type != NL80211_IFTYPE_AP)
+				break;
+			if (len < IEEE80211_MIN_ACTION_SIZE(uhr_link_reconf_req))
+				goto invalid;
+			if (mgmt->u.action.uhr_link_reconf_req.type !=
+			    IEEE80211_UHR_LINK_RECONFIG_REQUEST_OMP_REQUEST)
+				break;
+			goto queue;
+		case IEEE80211_PROTECTED_UHR_ACTION_LINK_RECONFIG_NOTIFY:
+			if (sdata->vif.type != NL80211_IFTYPE_STATION)
+				break;
+
+			if (len < IEEE80211_MIN_ACTION_SIZE(uhr_link_reconf_notif))
+				goto invalid;
+			goto queue;
+		}
+		break;
 	}
 
 	return RX_CONTINUE;
@@ -4487,11 +4515,15 @@ static bool ieee80211_accept_frame(struct ieee80211_rx_data *rx)
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	u8 *bssid = ieee80211_get_bssid(hdr, skb->len, sdata->vif.type);
-	bool multicast = is_multicast_ether_addr(hdr->addr1) ||
-			 ieee80211_is_s1g_beacon(hdr->frame_control);
+	bool multicast;
 	static const u8 nan_network_id[ETH_ALEN] __aligned(2) = {
 		0x51, 0x6F, 0x9A, 0x01, 0x00, 0x00
 	};
+
+	if (ieee80211_is_s1g_beacon(hdr->frame_control))
+		return sdata->vif.type == NL80211_IFTYPE_STATION && bssid;
+
+	multicast = is_multicast_ether_addr(hdr->addr1);
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_STATION:
@@ -4624,16 +4656,24 @@ static bool ieee80211_accept_frame(struct ieee80211_rx_data *rx)
 		    ieee80211_has_fromds(hdr->frame_control))
 			return false;
 
-		/* Accept only frames that are addressed to the NAN cluster
+		/*
+		 * Accept only frames that are addressed to the NAN cluster
 		 * (based on the Cluster ID). From these frames, accept only
-		 * action frames or authentication frames that are addressed to
-		 * the local NAN interface.
+		 *  - public action frames,
+		 *  - authentication frames to the local address, and
+		 *  - robust management frames except disassoc.
 		 */
-		return memcmp(sdata->wdev.u.nan.cluster_id,
-			      hdr->addr3, ETH_ALEN) == 0 &&
-			(ieee80211_is_public_action(hdr, skb->len) ||
-			 (ieee80211_is_auth(hdr->frame_control) &&
-			  ether_addr_equal(sdata->vif.addr, hdr->addr1)));
+		if (!ether_addr_equal(sdata->u.nan.conf.cluster_id, hdr->addr3))
+			return false;
+		if (ieee80211_is_public_action(hdr, skb->len))
+			return true;
+		if (ieee80211_is_auth(hdr->frame_control) &&
+		    ether_addr_equal(sdata->vif.addr, hdr->addr1))
+			return true;
+		if (!ieee80211_is_disassoc(hdr->frame_control) &&
+		    ieee80211_is_robust_mgmt_frame(skb))
+			return true;
+		return false;
 	case NL80211_IFTYPE_NAN_DATA:
 		if (ieee80211_has_tods(hdr->frame_control) ||
 		    ieee80211_has_fromds(hdr->frame_control))
@@ -4646,7 +4686,7 @@ static bool ieee80211_accept_frame(struct ieee80211_rx_data *rx)
 			if (!nmi)
 				return false;
 
-			if (!ether_addr_equal(nmi->wdev.u.nan.cluster_id,
+			if (!ether_addr_equal(nmi->u.nan.conf.cluster_id,
 					      hdr->addr3))
 				return false;
 
@@ -4664,6 +4704,13 @@ static bool ieee80211_accept_frame(struct ieee80211_rx_data *rx)
 		/* Unicast secure management frames */
 		return ether_addr_equal(sdata->vif.addr, hdr->addr1) &&
 		       ieee80211_is_unicast_robust_mgmt_frame(skb);
+	case NL80211_IFTYPE_PD:
+		/*
+		 * Accept only authentication frames (PASN) addressed to
+		 * this interface.
+		 */
+		return ieee80211_is_auth(hdr->frame_control) &&
+		       ether_addr_equal(sdata->vif.addr, hdr->addr1);
 	default:
 		break;
 	}
@@ -5174,6 +5221,11 @@ static bool ieee80211_prepare_and_rx_handle(struct ieee80211_rx_data *rx,
 		hdr = (struct ieee80211_hdr *)rx->skb->data;
 	}
 
+	if (ieee80211_is_s1g_beacon(hdr->frame_control)) {
+		ieee80211_invoke_rx_handlers(rx);
+		return true;
+	}
+
 	/* Store a copy of the pre-translated link addresses for SW crypto */
 	if (unlikely(is_unicast_ether_addr(hdr->addr1) &&
 		     !ieee80211_is_data(hdr->frame_control)))
@@ -5263,6 +5315,13 @@ static bool ieee80211_rx_for_interface(struct ieee80211_rx_data *rx,
 	struct sta_info *sta;
 	int link_id = -1;
 
+	if (ieee80211_is_s1g_beacon(hdr->frame_control)) {
+		if (!ieee80211_rx_data_set_sta(rx, NULL, -1))
+			return false;
+
+		return ieee80211_prepare_and_rx_handle(rx, skb, consume);
+	}
+
 	/*
 	 * Look up link station first, in case there's a
 	 * chance that they might have a link address that
@@ -5338,6 +5397,17 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 			err = -ENOBUFS;
 		else
 			err = skb_linearize(skb);
+	} else if (ieee80211_is_s1g_beacon(fc)) {
+		size_t s1g_hdr_len = offsetof(struct ieee80211_ext,
+					      u.s1g_beacon.variable) +
+				     ieee80211_s1g_optional_len(fc);
+
+		if (skb->len < s1g_hdr_len)
+			err = -ENOBUFS;
+		else
+			err = skb_linearize(skb);
+	} else if (ieee80211_is_ext(fc)) {
+		err = -EINVAL;
 	} else {
 		err = !pskb_may_pull(skb, ieee80211_hdrlen(fc));
 	}
@@ -5603,6 +5673,14 @@ void ieee80211_rx_list(struct ieee80211_hw *hw, struct ieee80211_sta *pubsta,
 			if (WARN_ONCE(status->uhr.im &&
 				      (status->nss != 1 || status->rate_idx == 15),
 				      "bad UHR IM MCS MCS:%d, NSS:%d\n",
+				      status->rate_idx, status->nss))
+				goto drop;
+			break;
+		case RX_ENC_S1G:
+			if (WARN_ONCE(status->rate_idx > 12 ||
+				      !status->nss ||
+				      status->nss > 4,
+				      "Rate marked as an S1G rate but data is invalid: MCS: %d, NSS: %d\n",
 				      status->rate_idx, status->nss))
 				goto drop;
 			break;

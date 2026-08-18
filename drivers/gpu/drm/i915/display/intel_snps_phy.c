@@ -72,7 +72,7 @@ void intel_snps_phy_set_signal_levels(struct intel_encoder *encoder,
 	enum phy phy = intel_encoder_to_phy(encoder);
 	int n_entries, ln;
 
-	trans = encoder->get_buf_trans(encoder, crtc_state, &n_entries);
+	trans = intel_ddi_buf_trans_get(encoder, crtc_state, &n_entries);
 	if (drm_WARN_ON_ONCE(display->drm, !trans))
 		return;
 
@@ -1822,7 +1822,7 @@ void intel_mpllb_enable(struct intel_encoder *encoder,
 	struct intel_display *display = to_intel_display(encoder);
 	const struct intel_mpllb_state *pll_state = &crtc_state->dpll_hw_state.mpllb;
 	enum phy phy = intel_encoder_to_phy(encoder);
-	i915_reg_t enable_reg = (phy <= PHY_D ?
+	intel_reg_t enable_reg = (phy <= PHY_D ?
 				 DG2_PLL_ENABLE(phy) : MG_PLL_ENABLE(0));
 
 	/*
@@ -1879,7 +1879,7 @@ void intel_mpllb_disable(struct intel_encoder *encoder)
 {
 	struct intel_display *display = to_intel_display(encoder);
 	enum phy phy = intel_encoder_to_phy(encoder);
-	i915_reg_t enable_reg = (phy <= PHY_D ?
+	intel_reg_t enable_reg = (phy <= PHY_D ?
 				 DG2_PLL_ENABLE(phy) : MG_PLL_ENABLE(0));
 
 	/*

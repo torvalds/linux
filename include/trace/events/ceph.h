@@ -226,6 +226,73 @@ TRACE_EVENT(ceph_handle_caps,
 		  __entry->mseq)
 );
 
+/*
+ * Client reset tracepoints - identify the client by its monitor-
+ * assigned global_id so traces remain meaningful when kernel pointer
+ * hashing is enabled.
+ */
+TRACE_EVENT(ceph_client_reset_schedule,
+	TP_PROTO(const struct ceph_mds_client *mdsc, const char *reason),
+	TP_ARGS(mdsc, reason),
+	TP_STRUCT__entry(
+		__field(u64, client_id)
+		__string(reason, reason ? reason : "")
+	),
+	TP_fast_assign(
+		__entry->client_id = mdsc->fsc->client->monc.auth ?
+			mdsc->fsc->client->monc.auth->global_id : 0;
+		__assign_str(reason);
+	),
+	TP_printk("client_id=%llu reason=%s",
+		  __entry->client_id, __get_str(reason))
+);
+
+TRACE_EVENT(ceph_client_reset_complete,
+	TP_PROTO(const struct ceph_mds_client *mdsc, int ret),
+	TP_ARGS(mdsc, ret),
+	TP_STRUCT__entry(
+		__field(u64, client_id)
+		__field(int, ret)
+	),
+	TP_fast_assign(
+		__entry->client_id = mdsc->fsc->client->monc.auth ?
+			mdsc->fsc->client->monc.auth->global_id : 0;
+		__entry->ret = ret;
+	),
+	TP_printk("client_id=%llu ret=%d", __entry->client_id, __entry->ret)
+);
+
+TRACE_EVENT(ceph_client_reset_blocked,
+	TP_PROTO(const struct ceph_mds_client *mdsc, int blocked_count),
+	TP_ARGS(mdsc, blocked_count),
+	TP_STRUCT__entry(
+		__field(u64, client_id)
+		__field(int, blocked_count)
+	),
+	TP_fast_assign(
+		__entry->client_id = mdsc->fsc->client->monc.auth ?
+			mdsc->fsc->client->monc.auth->global_id : 0;
+		__entry->blocked_count = blocked_count;
+	),
+	TP_printk("client_id=%llu blocked_count=%d", __entry->client_id,
+		  __entry->blocked_count)
+);
+
+TRACE_EVENT(ceph_client_reset_unblocked,
+	TP_PROTO(const struct ceph_mds_client *mdsc, int ret),
+	TP_ARGS(mdsc, ret),
+	TP_STRUCT__entry(
+		__field(u64, client_id)
+		__field(int, ret)
+	),
+	TP_fast_assign(
+		__entry->client_id = mdsc->fsc->client->monc.auth ?
+			mdsc->fsc->client->monc.auth->global_id : 0;
+		__entry->ret = ret;
+	),
+	TP_printk("client_id=%llu ret=%d", __entry->client_id, __entry->ret)
+);
+
 #undef EM
 #undef E_
 #endif /* _TRACE_CEPH_H */

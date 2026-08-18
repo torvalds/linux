@@ -191,6 +191,8 @@ static int pf_disable_vfs(struct xe_device *xe)
 
 	pci_disable_sriov(pdev);
 
+	xe_sriov_pf_reprovision_default(xe);
+
 	pf_reset_vfs(xe, num_vfs);
 
 	xe_sriov_pf_unprovision_vfs(xe, num_vfs);

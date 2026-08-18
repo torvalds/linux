@@ -398,10 +398,8 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group *cache,
 	int ret;
 	u64 offset;
 	u64 max_extent_size;
-	const struct btrfs_free_space_op test_free_space_ops = {
-		.use_bitmap = test_use_bitmap,
-	};
-	const struct btrfs_free_space_op *orig_free_space_ops;
+	bool (*orig_use_bitmap)(struct btrfs_free_space_ctl *ctl,
+				struct btrfs_free_space *info);
 
 	test_msg("running space stealing from bitmap to extent tests");
 
@@ -423,8 +421,8 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group *cache,
 	 * that forces use of bitmaps as soon as we have at least 1
 	 * extent entry.
 	 */
-	orig_free_space_ops = cache->free_space_ctl->op;
-	cache->free_space_ctl->op = &test_free_space_ops;
+	orig_use_bitmap = cache->fs_info->use_bitmap;
+	cache->fs_info->use_bitmap = test_use_bitmap;
 
 	/*
 	 * Extent entry covering free space range [128Mb - 256Kb, 128Mb - 128Kb[
@@ -818,7 +816,7 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group *cache,
 	if (ret)
 		return ret;
 
-	cache->free_space_ctl->op = orig_free_space_ops;
+	cache->fs_info->use_bitmap = orig_use_bitmap;
 	btrfs_remove_free_space_cache(cache);
 
 	return 0;
@@ -832,10 +830,8 @@ static bool bytes_index_use_bitmap(struct btrfs_free_space_ctl *ctl,
 
 static int test_bytes_index(struct btrfs_block_group *cache, u32 sectorsize)
 {
-	const struct btrfs_free_space_op test_free_space_ops = {
-		.use_bitmap = bytes_index_use_bitmap,
-	};
-	const struct btrfs_free_space_op *orig_free_space_ops;
+	bool (*orig_use_bitmap)(struct btrfs_free_space_ctl *ctl,
+				struct btrfs_free_space *info);
 	struct btrfs_free_space_ctl *ctl = cache->free_space_ctl;
 	struct btrfs_free_space *entry;
 	struct rb_node *node;
@@ -892,8 +888,8 @@ static int test_bytes_index(struct btrfs_block_group *cache, u32 sectorsize)
 
 	/* Now validate bitmaps with different ->max_extent_size. */
 	btrfs_remove_free_space_cache(cache);
-	orig_free_space_ops = cache->free_space_ctl->op;
-	cache->free_space_ctl->op = &test_free_space_ops;
+	orig_use_bitmap = cache->fs_info->use_bitmap;
+	cache->fs_info->use_bitmap = bytes_index_use_bitmap;
 
 	ret = test_add_free_space_entry(cache, 0, sectorsize, 1);
 	if (ret) {
@@ -997,7 +993,7 @@ static int test_bytes_index(struct btrfs_block_group *cache, u32 sectorsize)
 		return -EINVAL;
 	}
 
-	cache->free_space_ctl->op = orig_free_space_ops;
+	cache->fs_info->use_bitmap = orig_use_bitmap;
 	btrfs_remove_free_space_cache(cache);
 	return 0;
 }

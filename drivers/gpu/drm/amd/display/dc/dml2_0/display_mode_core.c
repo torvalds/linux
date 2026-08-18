@@ -27,6 +27,8 @@
 #include "display_mode_core.h"
 #include "display_mode_util.h"
 #include "display_mode_lib_defines.h"
+#include "dml_frl_cap_chk.h"
+#include "lib_frl_cap_check.h"
 
 #include "dml_assert.h"
 
@@ -864,7 +866,7 @@ static dml_uint_t dscceComputeDelay(
 	// #all other modes operate at 1 pixel per clock
 	else if (pixelFormat == dml_444)
 		pixelsPerClock = 1;
-	else if (pixelFormat == dml_n422)
+	else if (pixelFormat == dml_n422 || Output == dml_hdmifrl)
 		pixelsPerClock = 2;
 	else
 		pixelsPerClock = 1;
@@ -884,7 +886,7 @@ static dml_uint_t dscceComputeDelay(
 	w = sliceWidth / pixelsPerClock;
 
 	//422 mode has an additional cycle of delay
-	if (pixelFormat == dml_420 || pixelFormat == dml_444 || pixelFormat == dml_n422)
+	if (pixelFormat == dml_420 || pixelFormat == dml_444 || pixelFormat == dml_n422 || Output == dml_hdmifrl)
 		s = 0;
 	else
 		s = 1;
@@ -947,7 +949,7 @@ static dml_uint_t dscComputeDelay(enum dml_output_format_class pixelFormat, enum
 		Delay = Delay + 1;
 		// sft
 		Delay = Delay + 1;
-	} else if (pixelFormat == dml_n422) {
+	} else if (pixelFormat == dml_n422 || (Output == dml_hdmifrl && pixelFormat != dml_444)) {
 	// sfr
 	Delay = Delay + 2;
 	// dsccif
@@ -1119,10 +1121,10 @@ static dml_bool_t CalculatePrefetchSchedule(struct display_mode_lib_scratch_st *
 	if (p->myPipe->Dppclk == 0.0 || p->myPipe->Dispclk == 0.0)
 		return true;
 
-	*p->DSTXAfterScaler = (dml_uint_t) dml_round(s->DPPCycles * p->myPipe->PixelClock / p->myPipe->Dppclk + s->DISPCLKCycles * p->myPipe->PixelClock / p->myPipe->Dispclk + p->DSCDelay, 1.0);
+	*p->DSTXAfterScaler = (dml_uint_t) dml_round(s->DPPCycles * p->myPipe->PixelClock / p->myPipe->Dppclk + s->DISPCLKCycles * p->myPipe->PixelClock / p->myPipe->Dispclk + p->DSCDelay, true);
 	*p->DSTXAfterScaler = (dml_uint_t) dml_round(*p->DSTXAfterScaler + (p->myPipe->ODMMode != dml_odm_mode_bypass ? 18 : 0) + (p->myPipe->DPPPerSurface - 1) * p->DPP_RECOUT_WIDTH +
 						((p->myPipe->ODMMode == dml_odm_mode_split_1to2 || p->myPipe->ODMMode == dml_odm_mode_mso_1to2) ? (dml_float_t)p->myPipe->HActive / 2.0 : 0) +
-						((p->myPipe->ODMMode == dml_odm_mode_mso_1to4) ? (dml_float_t)p->myPipe->HActive * 3.0 / 4.0 : 0), 1.0);
+						((p->myPipe->ODMMode == dml_odm_mode_mso_1to4) ? (dml_float_t)p->myPipe->HActive * 3.0 / 4.0 : 0), true);
 
 #ifdef __DML_VBA_DEBUG__
 	dml_print("DML::%s: DPPCycles = %u\n", __func__, s->DPPCycles);
@@ -2626,18 +2628,18 @@ static dml_uint_t CalculateVMAndRowBytes(
 	*PixelPTEBytesPerRow_one_row_per_frame = (dml_uint_t)((dml_float_t) *dpte_row_width_ub_one_row_per_frame / (dml_float_t) *PixelPTEReqWidth * *PTERequestSize);
 
 	if (SurfaceTiling == dml_sw_linear) {
-		*dpte_row_height = (dml_uint_t)(dml_min(128, 1 << (dml_uint_t) dml_floor(dml_log2(PTEBufferSizeInRequests * *PixelPTEReqWidth / Pitch), 1)));
+		*dpte_row_height = (dml_uint_t)(dml_min(128, (dml_uint_t)dml_pow(2.0, (int)dml_floor(dml_log2(PTEBufferSizeInRequests * *PixelPTEReqWidth / Pitch), 1))));
 		dml_print("DML::%s: dpte_row_height term 1 = %u\n", __func__, PTEBufferSizeInRequests * *PixelPTEReqWidth / Pitch);
 		dml_print("DML::%s: dpte_row_height term 2 = %f\n", __func__, dml_log2(PTEBufferSizeInRequests * *PixelPTEReqWidth / Pitch));
 		dml_print("DML::%s: dpte_row_height term 3 = %f\n", __func__, dml_floor(dml_log2(PTEBufferSizeInRequests * *PixelPTEReqWidth / Pitch), 1));
-		dml_print("DML::%s: dpte_row_height term 4 = %u\n", __func__, 1 << (dml_uint_t) dml_floor(dml_log2(PTEBufferSizeInRequests * *PixelPTEReqWidth / Pitch), 1));
+		dml_print("DML::%s: dpte_row_height term 4 = %u\n", __func__, (dml_uint_t)dml_pow(2.0, (int)dml_floor(dml_log2(PTEBufferSizeInRequests * *PixelPTEReqWidth / Pitch), 1)));
 		dml_print("DML::%s: dpte_row_height = %u\n", __func__, *dpte_row_height);
 
 		*dpte_row_width_ub = (dml_uint_t)(dml_ceil(((dml_float_t) Pitch * (dml_float_t) *dpte_row_height - 1), (dml_float_t) *PixelPTEReqWidth) + *PixelPTEReqWidth);
 		*PixelPTEBytesPerRow = (dml_uint_t)((dml_float_t) *dpte_row_width_ub / (dml_float_t) *PixelPTEReqWidth * *PTERequestSize);
 
 		// VBA_DELTA, VBA doesn't have programming value for pte row height linear.
-		*dpte_row_height_linear = 1 << (dml_uint_t) dml_floor(dml_log2(PTEBufferSizeInRequests * PixelPTEReqWidth_linear / Pitch), 1);
+		*dpte_row_height_linear = (dml_uint_t)dml_pow(2.0, (int)dml_floor(dml_log2(PTEBufferSizeInRequests * PixelPTEReqWidth_linear / Pitch), 1));
 		if (*dpte_row_height_linear > 128)
 			*dpte_row_height_linear = 128;
 
@@ -2741,20 +2743,44 @@ static dml_float_t TruncToValidBPP(
 	dml_uint_t NonDSCBPP1;
 	dml_uint_t NonDSCBPP2;
 
+	frl_cap_chk_result hdmifrlresult = FRL_CAP_CHK_OK;
+	frl_cap_chk_params hdmifrlparams = { 0 };
+	frl_cap_chk_intermediates hdmifrlinter = { 0 };
+
+	hdmifrlparams.lanes = Lanes;
+	hdmifrlparams.f_pixel_clock_nominal = PixelClock * 1000000;
+	hdmifrlparams.r_bit_nominal = LinkBitRate * 1000000;
+	hdmifrlparams.layout = AudioLayout;
+	hdmifrlparams.f_audio = AudioRate * 1000;
+	hdmifrlparams.h_active = HActive;
+	hdmifrlparams.h_blank = HTotal - HActive;
+	hdmifrlparams.bpc = (dml_uint_t)(DesiredBPP / 3);
+	hdmifrlparams.compressed = DSCEnable;
+	hdmifrlparams.slices = DSCSlices;
+	hdmifrlparams.slice_width = (dml_uint_t)(dml_ceil((dml_float_t) HActive / DSCSlices, 1.0));
+	hdmifrlparams.bpp_target = DesiredBPP;
+
 	if (Format == dml_420) {
 		NonDSCBPP0 = 12;
 		NonDSCBPP1 = 15;
 		NonDSCBPP2 = 18;
 		MinDSCBPP = 6;
 		MaxDSCBPP = 1.5 * DSCInputBitPerComponent - 1.0 / 16;
+		hdmifrlparams.pixel_encoding = PIXEL_ENCODING_420;
+		hdmifrlparams.bpc = (dml_uint_t) (DesiredBPP / 1.5);
 	} else if (Format == dml_444) {
 		NonDSCBPP0 = 24;
 		NonDSCBPP1 = 30;
 		NonDSCBPP2 = 36;
 		MinDSCBPP = 8;
 		MaxDSCBPP = 3 * DSCInputBitPerComponent - 1.0 / 16;
+		hdmifrlparams.pixel_encoding = PIXEL_ENCODING_444;
+		hdmifrlparams.bpc = (dml_uint_t) (DesiredBPP / 3.0);
 	} else {
-		if (Output == dml_hdmi) {
+		hdmifrlparams.pixel_encoding = PIXEL_ENCODING_422;
+		hdmifrlparams.bpc = (dml_uint_t) (DesiredBPP / 2.0);
+
+		if (Output == dml_hdmi || Output == dml_hdmifrl) {
 			NonDSCBPP0 = 24;
 			NonDSCBPP1 = 24;
 			NonDSCBPP2 = 24;
@@ -2763,7 +2789,7 @@ static dml_float_t TruncToValidBPP(
 			NonDSCBPP1 = 20;
 			NonDSCBPP2 = 24;
 	}
-	if (Format == dml_n422) {
+	if (Format == dml_n422 || Output == dml_hdmifrl) {
 		MinDSCBPP = 7;
 			MaxDSCBPP = 2 * DSCInputBitPerComponent - 1.0 / 16.0;
 		} else {
@@ -2772,7 +2798,11 @@ static dml_float_t TruncToValidBPP(
 		}
 	}
 
-	if (Output == dml_dp2p0) {
+	if (Output == dml_hdmifrl) {
+		hdmifrlresult = frl_cap_chk_inter(&hdmifrlparams, &hdmifrlinter);
+		MaxLinkBPP = (1 - hdmifrlinter.overhead_max) * dml_min(hdmifrlinter.r_frl_char_min * 16.0 * (dml_float_t) Lanes / hdmifrlinter.f_pixel_clock_max + 24.0 * (dml_float_t) TB_BORROWED_MAX / (dml_float_t) HActive,
+														(hdmifrlinter.r_frl_char_min * 16.0 * (dml_float_t)Lanes / hdmifrlinter.f_pixel_clock_max * (dml_float_t) HTotal - 16.0 * (dml_float_t) hdmifrlinter.blank_audio_min) / (dml_float_t) HActive);
+	} else if (Output == dml_dp2p0) {
 		MaxLinkBPP = LinkBitRate * Lanes / PixelClock * 128.0 / 132.0 * 383.0 / 384.0 * 65536.0 / 65540.0;
 	} else if (DSCEnable && Output == dml_dp) {
 		MaxLinkBPP = LinkBitRate / 10.0 * 8.0 * Lanes / PixelClock * (1 - 2.4 / 100);
@@ -2823,6 +2853,8 @@ static dml_float_t TruncToValidBPP(
 	} else {
 		if (!((DSCEnable == false && (DesiredBPP == NonDSCBPP2 || DesiredBPP == NonDSCBPP1 || DesiredBPP == NonDSCBPP0)) ||
 				(DSCEnable && DesiredBPP >= MinDSCBPP && DesiredBPP <= MaxDSCBPP))) {
+			return __DML_DPP_INVALID__;
+		} else if ((Output == dml_hdmifrl && hdmifrlresult != FRL_CAP_CHK_OK) || (Output != dml_hdmifrl && MaxLinkBPP < DesiredBPP)) {
 			return __DML_DPP_INVALID__;
 		} else {
 			return DesiredBPP;
@@ -4301,7 +4333,7 @@ static void CalculateSwathAndDETConfiguration(struct display_mode_lib_scratch_st
 
 	*p->compbuf_reserved_space_64b = 2 * p->PixelChunkSizeInKByte * 1024 / 64;
 	if (*p->UnboundedRequestEnabled) {
-		*p->compbuf_reserved_space_64b = dml_max(*p->compbuf_reserved_space_64b,
+		*p->compbuf_reserved_space_64b = (dml_uint_t)dml_max(*p->compbuf_reserved_space_64b,
 				(dml_float_t)(p->ROBBufferSizeInKByte * 1024/64)
 				- (dml_float_t)(RoundedUpSwathSizeBytesY[SurfaceDoingUnboundedRequest] * TTUFIFODEPTH / MAXIMUMCOMPRESSION/64));
 	}
@@ -5516,6 +5548,66 @@ static void CalculateOutputLink(
 					*OutputRate = dml_output_rate_dp_rate_hbr3;
 				}
 			}
+		} else if (Output == dml_hdmifrl) {
+			if (DSCEnable == dml_dsc_enable) {
+				*RequiresDSC = true;
+				LinkDSCEnable = true;
+				*RequiresFEC = true;
+			} else {
+				*RequiresDSC = false;
+				LinkDSCEnable = false;
+				*RequiresFEC = false;
+			}
+			*OutBpp = 0;
+			if (PHYCLKD18PerState >= 3000 / 18) {
+				*OutBpp = TruncToValidBPP(3000, 3, HTotal, HActive, PixelClockBackEnd, ForcedOutputLinkBPP, LinkDSCEnable, Output, OutputFormat, DSCInputBitPerComponent, NumberOfDSCSlices, (dml_uint_t)AudioSampleRate, AudioSampleLayout, ODMModeNoDSC, ODMModeDSC, &dummy);
+				//OutputTypeAndRate = Output & "3x3";
+				*OutputType = dml_output_type_hdmifrl;
+				*OutputRate = dml_output_rate_hdmi_rate_3x3;
+			}
+			if (*OutBpp == 0 && PHYCLKD18PerState >= 6000 / 18) {
+				*OutBpp = TruncToValidBPP(6000, 3, HTotal, HActive, PixelClockBackEnd, ForcedOutputLinkBPP, LinkDSCEnable, Output, OutputFormat, DSCInputBitPerComponent, NumberOfDSCSlices, (dml_uint_t)AudioSampleRate, AudioSampleLayout, ODMModeNoDSC, ODMModeDSC, &dummy);
+				//OutputTypeAndRate = Output & "6x3";
+				*OutputType = dml_output_type_hdmifrl;
+				*OutputRate = dml_output_rate_hdmi_rate_6x3;
+			}
+			if (*OutBpp == 0 && PHYCLKD18PerState >= 6000 / 18) {
+				*OutBpp = TruncToValidBPP(6000, 4, HTotal, HActive, PixelClockBackEnd, ForcedOutputLinkBPP, LinkDSCEnable, Output, OutputFormat, DSCInputBitPerComponent, NumberOfDSCSlices, (dml_uint_t)AudioSampleRate, AudioSampleLayout, ODMModeNoDSC, ODMModeDSC, &dummy);
+				//OutputTypeAndRate = Output & "6x4";
+				*OutputType = dml_output_type_hdmifrl;
+				*OutputRate = dml_output_rate_hdmi_rate_6x4;
+			}
+			if (*OutBpp == 0 && PHYCLKD18PerState >= 8000 / 18) {
+				*OutBpp = TruncToValidBPP(8000, 4, HTotal, HActive, PixelClockBackEnd, ForcedOutputLinkBPP, LinkDSCEnable, Output, OutputFormat, DSCInputBitPerComponent, NumberOfDSCSlices, (dml_uint_t)AudioSampleRate, AudioSampleLayout, ODMModeNoDSC, ODMModeDSC, &dummy);
+				//OutputTypeAndRate = Output & "8x4";
+				*OutputType = dml_output_type_hdmifrl;
+				*OutputRate = dml_output_rate_hdmi_rate_8x4;
+			}
+			if (*OutBpp == 0 && PHYCLKD18PerState >= 10000 / 18) {
+				*OutBpp = TruncToValidBPP(10000, 4, HTotal, HActive, PixelClockBackEnd, ForcedOutputLinkBPP, LinkDSCEnable, Output, OutputFormat, DSCInputBitPerComponent, NumberOfDSCSlices, (dml_uint_t)AudioSampleRate, AudioSampleLayout, ODMModeNoDSC, ODMModeDSC, &dummy);
+				if (*OutBpp == 0 && DSCEnable == dml_dsc_enable_if_necessary && ForcedOutputLinkBPP == 0 && PHYCLKD18PerState < 12000 / 18) {
+					*RequiresDSC = true;
+					LinkDSCEnable = true;
+					*RequiresFEC = true;
+					*OutBpp = TruncToValidBPP(10000, 4, HTotal, HActive, PixelClockBackEnd, ForcedOutputLinkBPP, LinkDSCEnable, Output, OutputFormat, DSCInputBitPerComponent, NumberOfDSCSlices, (dml_uint_t)AudioSampleRate, AudioSampleLayout, ODMModeNoDSC, ODMModeDSC, &dummy);
+				}
+				//OutputTypeAndRate = Output & "10x4";
+				*OutputType = dml_output_type_hdmifrl;
+				*OutputRate = dml_output_rate_hdmi_rate_10x4;
+			}
+
+			if (*OutBpp == 0 && PHYCLKD18PerState >= 12000 / 18) {
+				*OutBpp = TruncToValidBPP(12000, 4, HTotal, HActive, PixelClockBackEnd, ForcedOutputLinkBPP, LinkDSCEnable, Output, OutputFormat, DSCInputBitPerComponent, NumberOfDSCSlices, (dml_uint_t)AudioSampleRate, AudioSampleLayout, ODMModeNoDSC, ODMModeDSC, &dummy);
+				if (*OutBpp == 0 && DSCEnable == dml_dsc_enable_if_necessary && ForcedOutputLinkBPP == 0) {
+					*RequiresDSC = true;
+					LinkDSCEnable = true;
+					*RequiresFEC = true;
+					*OutBpp = TruncToValidBPP(12000, 4, HTotal, HActive, PixelClockBackEnd, ForcedOutputLinkBPP, LinkDSCEnable, Output, OutputFormat, DSCInputBitPerComponent, NumberOfDSCSlices, (dml_uint_t)AudioSampleRate, AudioSampleLayout, ODMModeNoDSC, ODMModeDSC, &dummy);
+				}
+				//OutputTypeAndRate = Output & "12x4";
+				*OutputType = dml_output_type_hdmifrl;
+				*OutputRate = dml_output_rate_hdmi_rate_12x4;
+			}
 		}
 	}
 }
@@ -6178,9 +6270,9 @@ static void CalculateImmediateFlipBandwithSupport(
 
 static dml_uint_t MicroSecToVertLines(dml_uint_t num_us, dml_uint_t h_total, dml_float_t pixel_clock)
 {
-	dml_uint_t lines_time_in_ns = 1000.0 * (h_total * 1000.0) / (pixel_clock * 1000.0);
+	dml_uint_t lines_time_in_ns = (dml_uint_t)(1000.0 * (h_total * 1000.0) / (pixel_clock * 1000.0));
 
-	return dml_ceil(1000.0 * num_us / lines_time_in_ns, 1.0);
+	return (dml_uint_t)dml_ceil(1000.0 * num_us / lines_time_in_ns, 1.0);
 }
 
 /// @brief Calculate the maximum vstartup for mode support and mode programming consideration
@@ -6207,9 +6299,9 @@ static dml_uint_t CalculateMaxVStartup(
 	// + 2 is because
 	// 1 -> VStartup_start should be 1 line before VSync
 	// 1 -> always reserve 1 line between start of VBlank to VStartup signal
-	dml_uint_t vblank_nom_vsync_capped = dml_max(vblank_nom_input,
+	dml_uint_t vblank_nom_vsync_capped = (dml_uint_t)dml_max(vblank_nom_input,
 			timing->VTotal[plane_idx] - timing->VActive[plane_idx] - timing->VFrontPorch[plane_idx] + 2);
-	dml_uint_t vblank_nom_max_allowed_capped = dml_min(vblank_nom_vsync_capped, max_allowed_vblank_nom);
+	dml_uint_t vblank_nom_max_allowed_capped = (dml_uint_t)dml_min(vblank_nom_vsync_capped, max_allowed_vblank_nom);
 	dml_uint_t vblank_avail = (vblank_nom_max_allowed_capped == 0) ?
 			vblank_nom_default_in_line : vblank_nom_max_allowed_capped;
 

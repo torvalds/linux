@@ -118,6 +118,28 @@ int smu_cmn_send_smc_msg_with_param(struct smu_context *smu,
 				    uint32_t param,
 				    uint32_t *read_arg);
 
+int smu_cmn_send_smc_msg_with_params_ext(struct smu_context *smu,
+					 enum smu_message_type msg,
+					 const uint32_t *params,
+					 size_t num_params,
+					 uint32_t *read_args,
+					 size_t num_read_args,
+					 uint32_t flags,
+					 uint32_t timeout);
+
+static inline int smu_cmn_send_smc_msg_with_params(struct smu_context *smu,
+						   enum smu_message_type msg,
+						   const uint32_t *params,
+						   size_t num_params,
+						   uint32_t *read_args,
+						   size_t num_read_args)
+{
+	return smu_cmn_send_smc_msg_with_params_ext(smu, msg,
+						    params, num_params,
+						    read_args, num_read_args,
+						    0, 0);
+}
+
 int smu_cmn_send_smc_msg(struct smu_context *smu,
 			 enum smu_message_type msg,
 			 uint32_t *read_arg);

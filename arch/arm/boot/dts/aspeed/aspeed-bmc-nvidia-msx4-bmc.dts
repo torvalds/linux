@@ -208,6 +208,21 @@
 	status = "okay";
 };
 
+&mac0 {
+	phy-mode = "rgmii-id";
+	phy-handle = <&ethphy3>;
+	status = "okay";
+};
+
+&mdio3 {
+	status = "okay";
+
+	ethphy3: ethernet-phy@2 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <2>;
+	};
+};
+
 &rtc {
 	status = "okay";
 };

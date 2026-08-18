@@ -58,7 +58,7 @@
 	regulator-always-on;
 };
 
-&mt6359_vcn33_2_bt_ldo_reg {
+&mt6359_vcn33_2_ldo_reg {
 	regulator-name = "vcn33_2_pmu";
 	regulator-always-on;
 };

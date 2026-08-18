@@ -20,7 +20,7 @@
 
 static void intc2_irq_gpio_mask(struct irq_data *d)
 {
-	u32 imr = readl(MCFSIM2_GPIOINTENABLE);
+	u32 imr = mcf_read32(MCFSIM2_GPIOINTENABLE);
 	u32 type = irqd_get_trigger_type(d);
 	int irq = d->irq - MCF_IRQ_GPIO0;
 
@@ -28,12 +28,12 @@ static void intc2_irq_gpio_mask(struct irq_data *d)
 		imr &= ~(0x001 << irq);
 	if (type & IRQ_TYPE_EDGE_FALLING)
 		imr &= ~(0x100 << irq);
-	writel(imr, MCFSIM2_GPIOINTENABLE);
+	mcf_write32(imr, MCFSIM2_GPIOINTENABLE);
 }
 
 static void intc2_irq_gpio_unmask(struct irq_data *d)
 {
-	u32 imr = readl(MCFSIM2_GPIOINTENABLE);
+	u32 imr = mcf_read32(MCFSIM2_GPIOINTENABLE);
 	u32 type = irqd_get_trigger_type(d);
 	int irq = d->irq - MCF_IRQ_GPIO0;
 
@@ -41,7 +41,7 @@ static void intc2_irq_gpio_unmask(struct irq_data *d)
 		imr |= (0x001 << irq);
 	if (type & IRQ_TYPE_EDGE_FALLING)
 		imr |= (0x100 << irq);
-	writel(imr, MCFSIM2_GPIOINTENABLE);
+	mcf_write32(imr, MCFSIM2_GPIOINTENABLE);
 }
 
 static void intc2_irq_gpio_ack(struct irq_data *d)
@@ -54,7 +54,7 @@ static void intc2_irq_gpio_ack(struct irq_data *d)
 		imr |= (0x001 << irq);
 	if (type & IRQ_TYPE_EDGE_FALLING)
 		imr |= (0x100 << irq);
-	writel(imr, MCFSIM2_GPIOINTCLEAR);
+	mcf_write32(imr, MCFSIM2_GPIOINTCLEAR);
 }
 
 static int intc2_irq_gpio_set_type(struct irq_data *d, unsigned int f)
@@ -77,7 +77,7 @@ static int __init mcf_intc2_init(void)
 	int irq;
 
 	/* set the interrupt base for the second interrupt controller */
-	writel(MCFINTC2_VECBASE, MCFINTC2_INTBASE);
+	mcf_write32(MCFINTC2_VECBASE, MCFINTC2_INTBASE);
 
 	/* GPIO interrupt sources */
 	for (irq = MCF_IRQ_GPIO0; (irq <= MCF_IRQ_GPIO6); irq++) {

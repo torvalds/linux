@@ -45,7 +45,7 @@ static int tee_params_to_amd_params(struct tee_param *tee, u32 count,
 
 		/* It is assumed that all values are within 2^32-1 */
 		if (type > TEE_OP_PARAM_TYPE_VALUE_INOUT) {
-			u32 buf_id = get_buffer_id(tee[i].u.memref.shm);
+			u32 buf_id = (u32)tee[i].u.memref.shm->sec_world_id;
 
 			amd->params[i].mref.buf_id = buf_id;
 			amd->params[i].mref.offset = tee[i].u.memref.shm_offs;

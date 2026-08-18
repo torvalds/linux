@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #pragma once
 
-#include <getopt.h>
 #include "actions.h"
 #include "timerlat_u.h"
 #include "trace.h"
@@ -52,18 +51,25 @@ struct osnoise_context {
 	/* -1 as init value because 0 is off */
 	int			orig_opt_workload;
 	int			opt_workload;
+
+	/* -1 as init value because 0 is off */
+	int			orig_opt_timerlat_align;
+	int			opt_timerlat_align;
+
+	/* 0 as init value */
+	unsigned long long	orig_timerlat_align_us;
+	unsigned long long	timerlat_align_us;
 };
 
-extern struct trace_instance *trace_inst;
 extern volatile int stop_tracing;
 
 struct hist_params {
-	char			no_irq;
-	char			no_thread;
-	char			no_header;
-	char			no_summary;
-	char			no_index;
-	char			with_zeros;
+	bool			no_irq;
+	bool			no_thread;
+	bool			no_header;
+	bool			no_summary;
+	bool			no_index;
+	bool			with_zeros;
 	int			bucket_size;
 	int			entries;
 };
@@ -96,12 +102,12 @@ struct common_params {
 	/* Other parameters */
 	struct hist_params	hist;
 	int			output_divisor;
-	int			pretty_output;
-	int			quiet;
-	int			user_workload;
-	int			kernel_workload;
-	int			user_data;
-	int			aa_only;
+	bool			pretty_output;
+	bool			quiet;
+	bool			user_workload;
+	bool			kernel_workload;
+	bool			user_data;
+	bool			aa_only;
 
 	struct actions		threshold_actions;
 	struct actions		end_actions;
@@ -176,18 +182,6 @@ bool osnoise_trace_is_off(struct osnoise_tool *tool, struct osnoise_tool *record
 int osnoise_set_stop_us(struct osnoise_context *context, long long stop_us);
 int osnoise_set_stop_total_us(struct osnoise_context *context,
 			      long long stop_total_us);
-
-int getopt_auto(int argc, char **argv, const struct option *long_opts);
-
-#define COMMON_OPTIONS \
-	{"cpus",                required_argument,      0, 'c'},\
-	{"cgroup",              optional_argument,      0, 'C'},\
-	{"debug",               no_argument,            0, 'D'},\
-	{"duration",            required_argument,      0, 'd'},\
-	{"event",               required_argument,      0, 'e'},\
-	{"house-keeping",       required_argument,      0, 'H'},\
-	{"priority",            required_argument,      0, 'P'}
-int set_common_option(int c, int argc, char **argv, struct common_params *common);
 
 int common_apply_config(struct osnoise_tool *tool, struct common_params *params);
 int top_main_loop(struct osnoise_tool *tool);

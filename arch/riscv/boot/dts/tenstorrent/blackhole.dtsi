@@ -77,6 +77,54 @@
 		};
 	};
 
+	pmu {
+		compatible = "riscv,pmu";
+		riscv,event-to-mhpmevent =
+			/* SBI_PMU_HW_CPU_CYCLES -> CPU cycles */
+			<0x00001 0x00000000 0x0001>,
+			/* SBI_PMU_HW_INSTRUCTIONS -> Instructions executed */
+			<0x00002 0x00000000 0x0004>,
+			/* SBI_PMU_HW_CACHE_REFERENCES -> I-cache/ITIM busy | D-cache/DTIM busy */
+			<0x00003 0x00000000 0x1801>,
+			/* SBI_PMU_HW_CACHE_MISSES -> I-cache miss | D-cache miss */
+			<0x00004 0x00000000 0x0302>,
+			/* SBI_PMU_HW_BRANCH_INSTRUCTIONS -> Conditional branch retired */
+			<0x00005 0x00000000 0x4000>,
+			/*
+			 * SBI_PMU_HW_BRANCH_MISSES ->
+			 * Branch direction misprediction | Branch/jump target misprediction
+			 */
+			<0x00006 0x00000000 0x6001>,
+			/* L1D_READ_MISS -> Data cache miss or MMIO access */
+			<0x10001 0x00000000 0x0202>,
+			/* L1D_WRITE_ACCESS -> Data cache write-back */
+			<0x10002 0x00000000 0x0402>,
+			/* L1I_READ_MISS -> Instruction cache miss */
+			<0x10009 0x00000000 0x0102>,
+			/* LL_READ_MISS -> UTLB miss */
+			<0x10011 0x00000000 0x2002>,
+			/* DTLB_READ_MISS -> Data TLB miss */
+			<0x10019 0x00000000 0x1002>,
+			/* ITLB_READ_MISS -> Instruction TLB miss */
+			<0x10021 0x00000000 0x0802>;
+		riscv,event-to-mhpmcounters =
+			<0x00001 0x00001 0x01>,
+			<0x00002 0x00002 0x04>,
+			<0x00003 0x00006 0x78>,
+			<0x10001 0x10002 0x78>,
+			<0x10009 0x10009 0x78>,
+			<0x10011 0x10011 0x78>,
+			<0x10019 0x10019 0x78>,
+			<0x10021 0x10021 0x78>;
+		riscv,raw-event-to-mhpmcounters =
+			/* Class 0: Instruction Commit Events, bits 8-25 variant */
+			<0x0 0x0 0xffffffff 0xfc0000ff 0x78>,
+			/* Class 1: Microarchitectural Events, bits 8-18 variant */
+			<0x0 0x1 0xffffffff 0xfff800ff 0x78>,
+			/* Class 2: Memory System Events, bits 8-13 variant */
+			<0x0 0x2 0xffffffff 0xffffc0ff 0x78>;
+	};
+
 	soc {
 		#address-cells = <2>;
 		#size-cells = <2>;

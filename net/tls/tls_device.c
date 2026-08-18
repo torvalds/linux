@@ -595,13 +595,15 @@ void tls_device_splice_eof(struct socket *sock)
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct iov_iter iter = {};
 
-	if (!tls_is_partially_sent_record(tls_ctx))
+	if (!tls_is_partially_sent_record(tls_ctx) &&
+	    !tls_is_pending_open_record(tls_ctx))
 		return;
 
 	mutex_lock(&tls_ctx->tx_lock);
 	lock_sock(sk);
 
-	if (tls_is_partially_sent_record(tls_ctx)) {
+	if (tls_is_partially_sent_record(tls_ctx) ||
+	    tls_is_pending_open_record(tls_ctx)) {
 		iov_iter_bvec(&iter, ITER_SOURCE, NULL, 0, 0);
 		tls_push_data(sk, &iter, 0, 0, TLS_RECORD_TYPE_DATA);
 	}
@@ -1387,16 +1389,15 @@ static int tls_dev_event(struct notifier_block *this, unsigned long event,
 	case NETDEV_FEAT_CHANGE:
 		if (netif_is_bond_master(dev))
 			return NOTIFY_DONE;
+		if  (!dev->tlsdev_ops ||
+		     !dev->tlsdev_ops->tls_dev_add ||
+		     !dev->tlsdev_ops->tls_dev_del)
+			return NOTIFY_BAD;
 		if ((dev->features & NETIF_F_HW_TLS_RX) &&
 		    !dev->tlsdev_ops->tls_dev_resync)
 			return NOTIFY_BAD;
 
-		if  (dev->tlsdev_ops &&
-		     dev->tlsdev_ops->tls_dev_add &&
-		     dev->tlsdev_ops->tls_dev_del)
-			return NOTIFY_DONE;
-		else
-			return NOTIFY_BAD;
+		return NOTIFY_DONE;
 	case NETDEV_DOWN:
 		return tls_device_down(dev);
 	}

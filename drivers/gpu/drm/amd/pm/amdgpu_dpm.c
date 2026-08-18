@@ -33,8 +33,8 @@
 #include <linux/power_supply.h>
 #include "amdgpu_smu.h"
 
-#define amdgpu_dpm_enable_bapm(adev, e) \
-		((adev)->powerplay.pp_funcs->enable_bapm((adev)->powerplay.pp_handle, (e)))
+#define amdgpu_dpm_notify_ac_dc(adev) \
+		((adev)->powerplay.pp_funcs->notify_ac_dc((adev)->powerplay.pp_handle))
 
 #define amdgpu_dpm_is_legacy_dpm(adev) ((adev)->powerplay.pp_handle == (adev))
 
@@ -504,8 +504,8 @@ void amdgpu_pm_acpi_event_handler(struct amdgpu_device *adev)
 			adev->pm.ac_power = false;
 
 		if (adev->powerplay.pp_funcs &&
-		    adev->powerplay.pp_funcs->enable_bapm)
-			amdgpu_dpm_enable_bapm(adev, adev->pm.ac_power);
+		    adev->powerplay.pp_funcs->notify_ac_dc)
+			amdgpu_dpm_notify_ac_dc(adev);
 
 		if (is_support_sw_smu(adev))
 			smu_set_ac_dc(adev->powerplay.pp_handle);

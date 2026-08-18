@@ -321,6 +321,7 @@ static struct mount *alloc_vfsmnt(const char *name)
 		INIT_HLIST_NODE(&mnt->mnt_slave);
 		INIT_HLIST_NODE(&mnt->mnt_mp_list);
 		INIT_HLIST_HEAD(&mnt->mnt_stuck_children);
+		INIT_HLIST_NODE(&mnt->mnt_ns_visible);
 		RB_CLEAR_NODE(&mnt->mnt_node);
 		mnt->mnt.mnt_idmap = &nop_mnt_idmap;
 	}
@@ -1097,6 +1098,10 @@ static void mnt_add_to_ns(struct mnt_namespace *ns, struct mount *mnt)
 		ns->mnt_first_node = &mnt->mnt_node;
 	rb_link_node(&mnt->mnt_node, parent, link);
 	rb_insert_color(&mnt->mnt_node, &ns->mounts);
+
+	if ((mnt->mnt.mnt_sb->s_type->fs_flags & FS_USERNS_MOUNT_RESTRICTED) &&
+	    mnt->mnt.mnt_root == mnt->mnt.mnt_sb->s_root)
+		hlist_add_head(&mnt->mnt_ns_visible, &ns->mnt_visible_mounts);
 
 	mnt_notify_add(mnt);
 }
@@ -3306,9 +3311,9 @@ static void mnt_warn_timestamp_expiry(const struct path *mountpoint,
 	   (ktime_get_real_seconds() + TIME_UPTIME_SEC_MAX > sb->s_time_max)) {
 		char *buf, *mntpath;
 
-		buf = (char *)__get_free_page(GFP_KERNEL);
+		buf = __getname();
 		if (buf)
-			mntpath = d_path(mountpoint, buf, PAGE_SIZE);
+			mntpath = d_path(mountpoint, buf, PATH_MAX);
 		else
 			mntpath = ERR_PTR(-ENOMEM);
 		if (IS_ERR(mntpath))
@@ -3321,8 +3326,7 @@ static void mnt_warn_timestamp_expiry(const struct path *mountpoint,
 			(unsigned long long)sb->s_time_max);
 
 		sb->s_iflags |= SB_I_TS_EXPIRY_WARNED;
-		if (buf)
-			free_page((unsigned long)buf);
+		__putname(buf);
 	}
 }
 
@@ -4502,6 +4506,10 @@ SYSCALL_DEFINE3(fsmount, int, fs_fd, unsigned int, flags,
 	new_mnt = vfs_create_mount(fc);
 	if (IS_ERR(new_mnt))
 		return PTR_ERR(new_mnt);
+	if (new_mnt->mnt_sb->s_flags & SB_NOUSER) {
+		mntput(new_mnt);
+		return -EINVAL;
+	}
 	new_mnt->mnt_flags = mnt_flags;
 
 	new_path.dentry = dget(fc->root);
@@ -6343,20 +6351,26 @@ static bool mnt_already_visible(struct mnt_namespace *ns,
 				int *new_mnt_flags)
 {
 	int new_flags = *new_mnt_flags;
-	struct mount *mnt, *n;
+	struct mount *mnt;
+
+	/* Don't acquire namespace semaphore without a good reason. */
+	if (hlist_empty(&ns->mnt_visible_mounts))
+		return false;
 
 	guard(namespace_shared)();
-	rbtree_postorder_for_each_entry_safe(mnt, n, &ns->mounts, mnt_node) {
+	hlist_for_each_entry(mnt, &ns->mnt_visible_mounts, mnt_ns_visible) {
+		const struct super_block *sb_visible = mnt->mnt.mnt_sb;
 		struct mount *child;
 		int mnt_flags;
 
-		if (mnt->mnt.mnt_sb->s_type != sb->s_type)
+		if (sb_visible->s_type != sb->s_type)
 			continue;
 
-		/* This mount is not fully visible if it's root directory
-		 * is not the root directory of the filesystem.
+		/*
+		 * Restricted variants are not compatible with anything, even
+		 * other restricted variants.
 		 */
-		if (mnt->mnt.mnt_root != mnt->mnt.mnt_sb->s_root)
+		if (sb_visible->s_iflags & SB_I_RESTRICTED_VARIANT)
 			continue;
 
 		/* A local view of the mount flags */
@@ -6408,15 +6422,22 @@ static bool mount_too_revealing(const struct super_block *sb, int *new_mnt_flags
 		return false;
 
 	/* Can this filesystem be too revealing? */
-	s_iflags = sb->s_iflags;
-	if (!(s_iflags & SB_I_USERNS_VISIBLE))
+	if (!(sb->s_type->fs_flags & FS_USERNS_MOUNT_RESTRICTED))
 		return false;
 
+	s_iflags = sb->s_iflags;
 	if ((s_iflags & required_iflags) != required_iflags) {
 		WARN_ONCE(1, "Expected s_iflags to contain 0x%lx\n",
 			  required_iflags);
 		return true;
 	}
+
+	/*
+	 * Restricted variants don't need an already visible mount because they
+	 * don't expose the full filesystem view.
+	 */
+	if (s_iflags & SB_I_RESTRICTED_VARIANT)
+		return false;
 
 	return !mnt_already_visible(ns, sb, new_mnt_flags);
 }

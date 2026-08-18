@@ -393,9 +393,8 @@ err_infra:
 	return ret;
 };
 
-static int scpsys_hwv_power_off(struct generic_pm_domain *genpd)
+static int scpsys_hwv_power_off_internal(struct scpsys_domain *pd)
 {
-	struct scpsys_domain *pd = container_of(genpd, struct scpsys_domain, genpd);
 	const struct scpsys_hwv_domain_data *hwv = pd->hwv_data;
 	struct scpsys *scpsys = pd->scpsys;
 	u32 val;
@@ -463,6 +462,13 @@ err_infra:
 		scpsys_sec_infra_power_on(false);
 	return ret;
 };
+
+static int scpsys_hwv_power_off(struct generic_pm_domain *genpd)
+{
+	struct scpsys_domain *pd = container_of(genpd, struct scpsys_domain, genpd);
+
+	return scpsys_hwv_power_off_internal(pd);
+}
 
 static int scpsys_ctl_pwrseq_on(struct scpsys_domain *pd)
 {
@@ -694,9 +700,8 @@ err_reg:
 	return ret;
 }
 
-static int scpsys_power_off(struct generic_pm_domain *genpd)
+static int scpsys_power_off_internal(struct scpsys_domain *pd)
 {
-	struct scpsys_domain *pd = container_of(genpd, struct scpsys_domain, genpd);
 	struct scpsys *scpsys = pd->scpsys;
 	bool tmp;
 	int ret;
@@ -735,6 +740,13 @@ static int scpsys_power_off(struct generic_pm_domain *genpd)
 	scpsys_regulator_disable(pd->supply);
 
 	return 0;
+}
+
+static int scpsys_power_off(struct generic_pm_domain *genpd)
+{
+	struct scpsys_domain *pd = container_of(genpd, struct scpsys_domain, genpd);
+
+	return scpsys_power_off_internal(pd);
 }
 
 static struct
@@ -884,7 +896,14 @@ generic_pm_domain *scpsys_add_one_domain(struct scpsys *scpsys, struct device_no
 	 * late_init time.
 	 */
 	if (MTK_SCPD_CAPS(pd, MTK_SCPD_KEEP_DEFAULT_OFF)) {
-		if (scpsys_domain_is_on(pd))
+		bool domain_is_on;
+
+		if (scpsys->soc_data->type == SCPSYS_MTCMOS_TYPE_HW_VOTER)
+			domain_is_on = scpsys_hwv_domain_is_enable_done(pd);
+		else
+			domain_is_on = scpsys_domain_is_on(pd);
+
+		if (domain_is_on)
 			dev_warn(scpsys->dev,
 				 "%pOF: A default off power domain has been ON\n", node);
 	} else {
@@ -973,6 +992,7 @@ err_put_node:
 
 static void scpsys_remove_one_domain(struct scpsys_domain *pd)
 {
+	struct scpsys *scpsys = pd->scpsys;
 	int ret;
 
 	/*
@@ -984,8 +1004,14 @@ static void scpsys_remove_one_domain(struct scpsys_domain *pd)
 		dev_err(pd->scpsys->dev,
 			"failed to remove domain '%s' : %d - state may be inconsistent\n",
 			pd->genpd.name, ret);
-	if (scpsys_domain_is_on(pd))
-		scpsys_power_off(&pd->genpd);
+
+	if (scpsys->soc_data->type == SCPSYS_MTCMOS_TYPE_HW_VOTER) {
+		if (scpsys_hwv_domain_is_enable_done(pd))
+			scpsys_hwv_power_off_internal(pd);
+	} else {
+		if (scpsys_domain_is_on(pd))
+			scpsys_power_off_internal(pd);
+	}
 
 	clk_bulk_put(pd->num_clks, pd->clks);
 	clk_bulk_put(pd->num_subsys_clks, pd->subsys_clks);

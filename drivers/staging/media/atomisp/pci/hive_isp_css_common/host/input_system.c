@@ -138,11 +138,10 @@ void receiver_port_enable(
 	hrt_data	reg = receiver_port_reg_load(ID, port_ID,
 			  _HRT_CSS_RECEIVER_DEVICE_READY_REG_IDX);
 
-	if (cnd) {
+	if (cnd)
 		reg |= 0x01;
-	} else {
+	else
 		reg &= ~0x01;
-	}
 
 	receiver_port_reg_store(ID, port_ID,
 				_HRT_CSS_RECEIVER_DEVICE_READY_REG_IDX, reg);
@@ -194,9 +193,8 @@ static void receiver_rst(
 	assert(ID < N_RX_ID);
 
 // Disable all ports.
-	for (port_id = MIPI_PORT0_ID; port_id < N_MIPI_PORT_ID; port_id++) {
+	for (port_id = MIPI_PORT0_ID; port_id < N_MIPI_PORT_ID; port_id++)
 		receiver_port_enable(ID, port_id, false);
-	}
 
 	// AM: Additional actions for stopping receiver?
 }
@@ -830,15 +828,13 @@ input_system_err_t input_system_configuration_commit(void)
 	// The last configuration step is to configure the input buffer.
 	input_system_err_t error = input_buffer_configuration();
 
-	if (error != INPUT_SYSTEM_ERR_NO_ERROR) {
+	if (error != INPUT_SYSTEM_ERR_NO_ERROR)
 		return error;
-	}
 
 	// Translate the whole configuration into registers.
 	error = configuration_to_registers();
-	if (error != INPUT_SYSTEM_ERR_NO_ERROR) {
+	if (error != INPUT_SYSTEM_ERR_NO_ERROR)
 		return error;
-	}
 
 	// Translate the whole configuration into ctrl commands etc.
 

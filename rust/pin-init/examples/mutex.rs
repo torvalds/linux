@@ -2,8 +2,6 @@
 
 #![allow(clippy::undocumented_unsafe_blocks)]
 #![cfg_attr(feature = "alloc", feature(allocator_api))]
-#![cfg_attr(USE_RUSTC_FEATURES, feature(lint_reasons))]
-#![cfg_attr(USE_RUSTC_FEATURES, feature(raw_ref_op))]
 #![allow(clippy::missing_safety_doc)]
 
 use core::{
@@ -220,7 +218,7 @@ fn main() {
         for h in handles {
             h.join().expect("thread panicked");
         }
-        println!("{:?}", &*mtx.lock());
+        println!("{:?}", *mtx.lock());
         assert_eq!(*mtx.lock(), workload * thread_count * 2);
     }
 }

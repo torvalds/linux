@@ -152,7 +152,7 @@ int change_status_after_alloc(struct __sk_buff *ctx)
 }
 
 SEC("?tc")
-__failure __msg("Possibly NULL pointer passed to trusted arg1")
+__failure __msg("Possibly NULL pointer passed to trusted R2")
 int lookup_null_bpf_tuple(struct __sk_buff *ctx)
 {
 	struct bpf_ct_opts___local opts = {};
@@ -165,7 +165,7 @@ int lookup_null_bpf_tuple(struct __sk_buff *ctx)
 }
 
 SEC("?tc")
-__failure __msg("Possibly NULL pointer passed to trusted arg3")
+__failure __msg("Possibly NULL pointer passed to trusted R4")
 int lookup_null_bpf_opts(struct __sk_buff *ctx)
 {
 	struct bpf_sock_tuple tup = {};
@@ -178,7 +178,7 @@ int lookup_null_bpf_opts(struct __sk_buff *ctx)
 }
 
 SEC("?xdp")
-__failure __msg("Possibly NULL pointer passed to trusted arg1")
+__failure __msg("Possibly NULL pointer passed to trusted R2")
 int xdp_lookup_null_bpf_tuple(struct xdp_md *ctx)
 {
 	struct bpf_ct_opts___local opts = {};
@@ -191,7 +191,7 @@ int xdp_lookup_null_bpf_tuple(struct xdp_md *ctx)
 }
 
 SEC("?xdp")
-__failure __msg("Possibly NULL pointer passed to trusted arg3")
+__failure __msg("Possibly NULL pointer passed to trusted R4")
 int xdp_lookup_null_bpf_opts(struct xdp_md *ctx)
 {
 	struct bpf_sock_tuple tup = {};

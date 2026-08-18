@@ -60,13 +60,16 @@ int kallsyms__parse(const char *filename, void *arg,
 			read_to_eol(&io);
 			continue;
 		}
-		for (i = 0; i < sizeof(symbol_name); i++) {
+		for (i = 0; i < KSYM_NAME_LEN; i++) {
 			ch = io__get_char(&io);
 			if (ch < 0 || ch == '\n')
 				break;
 			symbol_name[i]  = ch;
 		}
 		symbol_name[i]  = '\0';
+
+		if (i == KSYM_NAME_LEN)
+			read_to_eol(&io);
 
 		err = process_symbol(arg, symbol_name, symbol_type, start);
 		if (err)

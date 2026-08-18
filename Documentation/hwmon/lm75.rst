@@ -181,3 +181,19 @@ is supported by this driver, other specific enhancements are not.
 
 The LM77 is not supported, contrary to what we pretended for a long time.
 Both chips are simply not compatible, value encoding differs.
+
+sysfs-Interface
+---------------
+
+The following list includes the sysfs attributes that the driver provides, their
+permissions and a short description:
+
+=============================== ======= ===========================================
+Name                            Perm    Description
+=============================== ======= ===========================================
+temp1_input                     RO      Temperature input
+temp1_label                     RO      Descriptive name for the sensor
+temp1_max                       RW      Maximum temperature
+temp1_max_hyst                  RW      Maximum hysteresis temperature
+update_interval                 RW      Update conversions interval in milliseconds
+=============================== ======= ===========================================

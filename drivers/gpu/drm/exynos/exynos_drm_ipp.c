@@ -364,7 +364,7 @@ static int exynos_drm_ipp_task_setup_buffer(struct exynos_drm_ipp_buffer *buf,
 		}
 		buf->exynos_gem[i] = gem;
 
-		if (size + buf->buf.offset[i] > buf->exynos_gem[i]->size) {
+		if (size + buf->buf.offset[i] > buf->exynos_gem[i]->base.size) {
 			i++;
 			ret = -EINVAL;
 			goto gem_free;

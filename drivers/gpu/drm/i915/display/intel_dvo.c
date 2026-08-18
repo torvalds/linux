@@ -223,8 +223,6 @@ intel_dvo_mode_valid(struct drm_connector *_connector,
 	struct intel_display *display = to_intel_display(_connector->dev);
 	struct intel_connector *connector = to_intel_connector(_connector);
 	struct intel_dvo *intel_dvo = intel_attached_dvo(connector);
-	const struct drm_display_mode *fixed_mode =
-		intel_panel_fixed_mode(connector, mode);
 	int max_dotclk = display->cdclk.max_dotclk_freq;
 	int target_clock = mode->clock;
 	enum drm_mode_status status;
@@ -234,16 +232,9 @@ intel_dvo_mode_valid(struct drm_connector *_connector,
 		return status;
 
 	/* XXX: Validate clock range */
-
-	if (fixed_mode) {
-		enum drm_mode_status status;
-
-		status = intel_panel_mode_valid(connector, mode);
-		if (status != MODE_OK)
-			return status;
-
-		target_clock = fixed_mode->clock;
-	}
+	status = intel_panel_mode_valid(connector, mode, &target_clock);
+	if (status != MODE_OK)
+		return status;
 
 	if (target_clock > max_dotclk)
 		return MODE_CLOCK_HIGH;
@@ -255,11 +246,9 @@ static int intel_dvo_compute_config(struct intel_encoder *encoder,
 				    struct intel_crtc_state *pipe_config,
 				    struct drm_connector_state *conn_state)
 {
-	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
-	const struct drm_display_mode *fixed_mode =
-		intel_panel_fixed_mode(intel_dvo->attached_connector, adjusted_mode);
+	int ret;
 
 	/*
 	 * If we have timings from the BIOS for the panel, put them in
@@ -267,13 +256,9 @@ static int intel_dvo_compute_config(struct intel_encoder *encoder,
 	 * with the panel scaling set up to source from the H/VDisplay
 	 * of the original mode.
 	 */
-	if (fixed_mode) {
-		int ret;
-
-		ret = intel_panel_compute_config(connector, adjusted_mode);
-		if (ret)
-			return ret;
-	}
+	ret = intel_panel_compute_config(connector, adjusted_mode);
+	if (ret)
+		return ret;
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return -EINVAL;

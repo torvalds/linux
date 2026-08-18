@@ -248,6 +248,12 @@ static int aia_init(struct kvm *kvm)
 	if (aia->nr_sources && aia->aplic_addr == KVM_RISCV_AIA_UNDEF_ADDR)
 		return -EINVAL;
 
+	/* Group index bits must not overlap guest and HART index bits. */
+	if (aia->nr_group_bits &&
+	    aia->nr_group_shift < (IMSIC_MMIO_PAGE_SHIFT +
+	    			   aia->nr_guest_bits + aia->nr_hart_bits))
+		return -EINVAL;
+
 	/* Initialize APLIC */
 	ret = kvm_riscv_aia_aplic_init(kvm);
 	if (ret)

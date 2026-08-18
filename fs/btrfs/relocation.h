@@ -41,7 +41,7 @@ int btrfs_reloc_post_snapshot(struct btrfs_trans_handle *trans,
 int btrfs_should_cancel_balance(const struct btrfs_fs_info *fs_info);
 struct btrfs_root *find_reloc_root(struct btrfs_fs_info *fs_info, u64 bytenr);
 bool btrfs_should_ignore_reloc_root(const struct btrfs_root *root);
-u64 btrfs_get_reloc_bg_bytenr(const struct btrfs_fs_info *fs_info);
+u64 btrfs_get_reloc_bg_bytenr(struct btrfs_fs_info *fs_info);
 int btrfs_translate_remap(struct btrfs_fs_info *fs_info, u64 *logical, u64 *length);
 int btrfs_remove_extent_from_remap_tree(struct btrfs_trans_handle *trans,
 					struct btrfs_path *path,

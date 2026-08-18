@@ -25,6 +25,7 @@
 #include <linux/string_helpers.h>
 
 #include <drm/drm_print.h>
+#include <drm/intel/step.h>
 
 #include "bxt_dpio_phy_regs.h"
 #include "intel_cx0_phy.h"
@@ -41,7 +42,6 @@
 #include "intel_lt_phy.h"
 #include "intel_mg_phy_regs.h"
 #include "intel_pch_refclk.h"
-#include "intel_step.h"
 #include "intel_tc.h"
 
 /**
@@ -134,7 +134,7 @@ intel_atomic_duplicate_dpll_state(struct intel_display *display,
 }
 
 static struct intel_dpll_state *
-intel_atomic_get_dpll_state(struct drm_atomic_state *s)
+intel_atomic_get_dpll_state(struct drm_atomic_commit *s)
 {
 	struct intel_atomic_state *state = to_intel_atomic_state(s);
 	struct intel_display *display = to_intel_display(state);
@@ -220,7 +220,7 @@ enum intel_dpll_id mtl_port_to_pll_id(struct intel_display *display, enum port p
 	}
 }
 
-static i915_reg_t
+static intel_reg_t
 intel_combo_pll_enable_reg(struct intel_display *display,
 			   struct intel_dpll *pll)
 {
@@ -233,7 +233,7 @@ intel_combo_pll_enable_reg(struct intel_display *display,
 	return ICL_DPLL_ENABLE(pll->info->id);
 }
 
-static i915_reg_t
+static intel_reg_t
 intel_tc_pll_enable_reg(struct intel_display *display,
 			struct intel_dpll *pll)
 {
@@ -1350,7 +1350,7 @@ static const struct intel_dpll_mgr hsw_pll_mgr = {
 };
 
 struct skl_dpll_regs {
-	i915_reg_t ctl, cfgcr1, cfgcr2;
+	intel_reg_t ctl, cfgcr1, cfgcr2;
 };
 
 /* this array is indexed by the *shared* pll id */
@@ -3603,7 +3603,7 @@ static bool mg_pll_get_hw_state(struct intel_display *display,
 	bool ret = false;
 	u32 val;
 
-	i915_reg_t enable_reg = intel_tc_pll_enable_reg(display, pll);
+	intel_reg_t enable_reg = intel_tc_pll_enable_reg(display, pll);
 
 	wakeref = intel_display_power_get_if_enabled(display,
 						     POWER_DOMAIN_DISPLAY_CORE);
@@ -3734,7 +3734,7 @@ out:
 static bool icl_pll_get_hw_state(struct intel_display *display,
 				 struct intel_dpll *pll,
 				 struct intel_dpll_hw_state *dpll_hw_state,
-				 i915_reg_t enable_reg)
+				 intel_reg_t enable_reg)
 {
 	struct icl_dpll_hw_state *hw_state = &dpll_hw_state->icl;
 	const enum intel_dpll_id id = pll->info->id;
@@ -3796,7 +3796,7 @@ static bool combo_pll_get_hw_state(struct intel_display *display,
 				   struct intel_dpll *pll,
 				   struct intel_dpll_hw_state *dpll_hw_state)
 {
-	i915_reg_t enable_reg = intel_combo_pll_enable_reg(display, pll);
+	intel_reg_t enable_reg = intel_combo_pll_enable_reg(display, pll);
 
 	return icl_pll_get_hw_state(display, pll, dpll_hw_state, enable_reg);
 }
@@ -3813,7 +3813,7 @@ static void icl_dpll_write(struct intel_display *display,
 			   const struct icl_dpll_hw_state *hw_state)
 {
 	const enum intel_dpll_id id = pll->info->id;
-	i915_reg_t cfgcr0_reg, cfgcr1_reg, div0_reg = INVALID_MMIO_REG;
+	intel_reg_t cfgcr0_reg, cfgcr1_reg, div0_reg = INVALID_MMIO_REG;
 
 	if (display->platform.alderlake_s) {
 		cfgcr0_reg = ADLS_DPLL_CFGCR0(id);
@@ -3842,9 +3842,9 @@ static void icl_dpll_write(struct intel_display *display,
 	intel_de_write(display, cfgcr0_reg, hw_state->cfgcr0);
 	intel_de_write(display, cfgcr1_reg, hw_state->cfgcr1);
 	drm_WARN_ON_ONCE(display->drm, display->vbt.override_afc_startup &&
-			 !i915_mmio_reg_valid(div0_reg));
+			 !intel_reg_valid(div0_reg));
 	if (display->vbt.override_afc_startup &&
-	    i915_mmio_reg_valid(div0_reg))
+	    intel_reg_valid(div0_reg))
 		intel_de_rmw(display, div0_reg,
 			     TGL_DPLL0_DIV0_AFC_STARTUP_MASK, hw_state->div0);
 	intel_de_posting_read(display, cfgcr1_reg);
@@ -3960,7 +3960,7 @@ static void dkl_pll_write(struct intel_display *display,
 
 static void icl_pll_power_enable(struct intel_display *display,
 				 struct intel_dpll *pll,
-				 i915_reg_t enable_reg)
+				 intel_reg_t enable_reg)
 {
 	intel_de_rmw(display, enable_reg, 0, PLL_POWER_ENABLE);
 
@@ -3975,7 +3975,7 @@ static void icl_pll_power_enable(struct intel_display *display,
 
 static void icl_pll_enable(struct intel_display *display,
 			   struct intel_dpll *pll,
-			   i915_reg_t enable_reg)
+			   intel_reg_t enable_reg)
 {
 	intel_de_rmw(display, enable_reg, 0, PLL_ENABLE);
 
@@ -4013,7 +4013,7 @@ static void combo_pll_enable(struct intel_display *display,
 			     const struct intel_dpll_hw_state *dpll_hw_state)
 {
 	const struct icl_dpll_hw_state *hw_state = &dpll_hw_state->icl;
-	i915_reg_t enable_reg = intel_combo_pll_enable_reg(display, pll);
+	intel_reg_t enable_reg = intel_combo_pll_enable_reg(display, pll);
 
 	icl_pll_power_enable(display, pll, enable_reg);
 
@@ -4058,7 +4058,7 @@ static void mg_pll_enable(struct intel_display *display,
 			  const struct intel_dpll_hw_state *dpll_hw_state)
 {
 	const struct icl_dpll_hw_state *hw_state = &dpll_hw_state->icl;
-	i915_reg_t enable_reg = intel_tc_pll_enable_reg(display, pll);
+	intel_reg_t enable_reg = intel_tc_pll_enable_reg(display, pll);
 
 	icl_pll_power_enable(display, pll, enable_reg);
 
@@ -4080,7 +4080,7 @@ static void mg_pll_enable(struct intel_display *display,
 
 static void icl_pll_disable(struct intel_display *display,
 			    struct intel_dpll *pll,
-			    i915_reg_t enable_reg)
+			    intel_reg_t enable_reg)
 {
 	/* The first steps are done by intel_ddi_post_disable(). */
 
@@ -4112,7 +4112,7 @@ static void icl_pll_disable(struct intel_display *display,
 static void combo_pll_disable(struct intel_display *display,
 			      struct intel_dpll *pll)
 {
-	i915_reg_t enable_reg = intel_combo_pll_enable_reg(display, pll);
+	intel_reg_t enable_reg = intel_combo_pll_enable_reg(display, pll);
 
 	icl_pll_disable(display, pll, enable_reg);
 }
@@ -4126,7 +4126,7 @@ static void icl_tbt_pll_disable(struct intel_display *display,
 static void mg_pll_disable(struct intel_display *display,
 			   struct intel_dpll *pll)
 {
-	i915_reg_t enable_reg = intel_tc_pll_enable_reg(display, pll);
+	intel_reg_t enable_reg = intel_tc_pll_enable_reg(display, pll);
 
 	icl_pll_disable(display, pll, enable_reg);
 }
@@ -4965,7 +4965,7 @@ static void readout_dpll_hw_state(struct intel_display *display,
 		pll->wakeref = intel_display_power_get(display, pll->info->power_domain);
 
 	pll->state.pipe_mask = 0;
-	for_each_intel_crtc(display->drm, crtc) {
+	for_each_intel_crtc(display, crtc) {
 		struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
 

@@ -201,6 +201,8 @@ def main():
         # Modules are listed in modules.order.
         if os.path.isdir(path):
             cmdfiles = cmdfiles_in_dir(path)
+        elif os.path.basename(path) == 'libgcc.a':
+            cmdfiles = []
         elif path.endswith('.a'):
             cmdfiles = cmdfiles_for_a(path, ar)
         elif path.endswith('modules.order'):

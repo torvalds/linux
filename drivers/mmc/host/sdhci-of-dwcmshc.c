@@ -918,11 +918,9 @@ static int dwcmshc_rk35xx_init(struct device *dev, struct sdhci_host *host,
 		return -ENOMEM;
 
 	priv->reset = devm_reset_control_array_get_optional_exclusive(mmc_dev(host->mmc));
-	if (IS_ERR(priv->reset)) {
-		err = PTR_ERR(priv->reset);
-		dev_err(mmc_dev(host->mmc), "failed to get reset control %d\n", err);
-		return err;
-	}
+	if (IS_ERR(priv->reset))
+		return dev_err_probe(mmc_dev(host->mmc), PTR_ERR(priv->reset),
+				     "failed to get reset control\n");
 
 	err = dwcmshc_get_enable_other_clks(mmc_dev(host->mmc), dwc_priv,
 					    ARRAY_SIZE(clk_ids), clk_ids);
@@ -1779,10 +1777,8 @@ static int eic7700_init(struct device *dev, struct sdhci_host *host, struct dwcm
 	dwc_priv->priv = priv;
 
 	ret = sdhci_eic7700_reset_init(dev, dwc_priv->priv);
-	if (ret) {
-		dev_err(dev, "failed to reset\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to reset\n");
 
 	ret = dwcmshc_get_enable_other_clks(mmc_dev(host->mmc), dwc_priv,
 					    ARRAY_SIZE(clk_ids), clk_ids);
@@ -1790,16 +1786,14 @@ static int eic7700_init(struct device *dev, struct sdhci_host *host, struct dwcm
 		return ret;
 
 	ret = of_parse_phandle_with_fixed_args(dev->of_node, "eswin,hsp-sp-csr", 2, 0, &args);
-	if (ret) {
-		dev_err(dev, "Fail to parse 'eswin,hsp-sp-csr' phandle (%d)\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Fail to parse 'eswin,hsp-sp-csr' phandle\n");
 
 	hsp_regmap = syscon_node_to_regmap(args.np);
 	if (IS_ERR(hsp_regmap)) {
-		dev_err(dev, "Failed to get regmap for 'eswin,hsp-sp-csr'\n");
 		of_node_put(args.np);
-		return PTR_ERR(hsp_regmap);
+		return dev_err_probe(dev, PTR_ERR(hsp_regmap),
+				     "Failed to get regmap for 'eswin,hsp-sp-csr'\n");
 	}
 	hsp_int_status = args.args[0];
 	hsp_pwr_ctrl = args.args[1];
@@ -2408,10 +2402,8 @@ static int dwcmshc_probe(struct platform_device *pdev)
 	u32 extra, caps;
 
 	pltfm_data = device_get_match_data(&pdev->dev);
-	if (!pltfm_data) {
-		dev_err(&pdev->dev, "Error: No device match data found\n");
-		return -ENODEV;
-	}
+	if (!pltfm_data)
+		return dev_err_probe(&pdev->dev, -ENODEV, "No device match data found\n");
 
 	host = sdhci_pltfm_init(pdev, &pltfm_data->pdata,
 				sizeof(struct dwcmshc_priv));
@@ -2441,13 +2433,16 @@ static int dwcmshc_probe(struct platform_device *pdev)
 			return err;
 
 		priv->bus_clk = devm_clk_get(dev, "bus");
-		if (!IS_ERR(priv->bus_clk))
-			clk_prepare_enable(priv->bus_clk);
+		if (!IS_ERR(priv->bus_clk)) {
+			err = clk_prepare_enable(priv->bus_clk);
+			if (err)
+				goto err_clk;
+		}
 	}
 
 	err = mmc_of_parse(host->mmc);
 	if (err)
-		goto err_clk;
+		goto err_bus_clk;
 
 	sdhci_get_of_property(pdev);
 
@@ -2461,7 +2456,7 @@ static int dwcmshc_probe(struct platform_device *pdev)
 	if (pltfm_data->init) {
 		err = pltfm_data->init(&pdev->dev, host, priv);
 		if (err)
-			goto err_clk;
+			goto err_bus_clk;
 	}
 
 #ifdef CONFIG_ACPI
@@ -2507,9 +2502,10 @@ err_setup_host:
 err_rpm:
 	pm_runtime_disable(dev);
 	pm_runtime_put_noidle(dev);
+err_bus_clk:
+	clk_disable_unprepare(priv->bus_clk);
 err_clk:
 	clk_disable_unprepare(pltfm_host->clk);
-	clk_disable_unprepare(priv->bus_clk);
 	clk_bulk_disable_unprepare(priv->num_other_clks, priv->other_clks);
 	return err;
 }
@@ -2564,8 +2560,7 @@ static int dwcmshc_suspend(struct device *dev)
 		return ret;
 
 	clk_disable_unprepare(pltfm_host->clk);
-	if (!IS_ERR(priv->bus_clk))
-		clk_disable_unprepare(priv->bus_clk);
+	clk_disable_unprepare(priv->bus_clk);
 
 	clk_bulk_disable_unprepare(priv->num_other_clks, priv->other_clks);
 
@@ -2608,8 +2603,7 @@ static int dwcmshc_resume(struct device *dev)
 disable_other_clks:
 	clk_bulk_disable_unprepare(priv->num_other_clks, priv->other_clks);
 disable_bus_clk:
-	if (!IS_ERR(priv->bus_clk))
-		clk_disable_unprepare(priv->bus_clk);
+	clk_disable_unprepare(priv->bus_clk);
 disable_clk:
 	clk_disable_unprepare(pltfm_host->clk);
 	return ret;

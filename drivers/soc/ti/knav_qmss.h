@@ -123,7 +123,7 @@ struct knav_pdsp_info {
 	const char					*name;
 	struct knav_reg_pdsp_regs  __iomem		*regs;
 	union {
-		void __iomem				*command;
+		u32 __iomem				*command;
 		struct knav_reg_acc_command __iomem	*acc_command;
 		u32 __iomem				*qos_command;
 	};

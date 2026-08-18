@@ -570,8 +570,8 @@ static int pmc_setup_dev(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 /* Data for PCI driver interface used by pci_match_id() call below */
 static const struct pci_device_id pmc_pci_ids[] = {
-	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_VLV_PMC), (kernel_ulong_t)&byt_data },
-	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_CHT_PMC), (kernel_ulong_t)&cht_data },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_VLV_PMC), .driver_data = (kernel_ulong_t)&byt_data },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_CHT_PMC), .driver_data = (kernel_ulong_t)&cht_data },
 	{}
 };
 

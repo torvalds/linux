@@ -1605,7 +1605,7 @@ int iter_subprog_check_stacksafe(const void *ctx)
 struct bpf_iter_num global_it;
 
 SEC("raw_tp")
-__failure __msg("arg#0 expected pointer to an iterator on stack")
+__failure __msg("R1 expected pointer to an iterator on stack")
 int iter_new_bad_arg(const void *ctx)
 {
 	bpf_iter_num_new(&global_it, 0, 1);
@@ -1613,7 +1613,7 @@ int iter_new_bad_arg(const void *ctx)
 }
 
 SEC("raw_tp")
-__failure __msg("arg#0 expected pointer to an iterator on stack")
+__failure __msg("R1 expected pointer to an iterator on stack")
 int iter_next_bad_arg(const void *ctx)
 {
 	bpf_iter_num_next(&global_it);
@@ -1621,7 +1621,7 @@ int iter_next_bad_arg(const void *ctx)
 }
 
 SEC("raw_tp")
-__failure __msg("arg#0 expected pointer to an iterator on stack")
+__failure __msg("R1 expected pointer to an iterator on stack")
 int iter_destroy_bad_arg(const void *ctx)
 {
 	bpf_iter_num_destroy(&global_it);

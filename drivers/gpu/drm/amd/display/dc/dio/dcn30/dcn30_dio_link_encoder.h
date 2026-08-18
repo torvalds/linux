@@ -60,6 +60,8 @@
 
 #define DPCS_DCN3_MASK_SH_LIST(mask_sh)\
 	DPCS_DCN2_MASK_SH_LIST(mask_sh),\
+	LE_SF(DPCSTX0_DPCSTX_TX_CNTL, DPCS_TX_HDMI_FRL_MODE, mask_sh),\
+	LE_SF(DPCSTX0_DPCSTX_TX_CNTL, DPCS_TX_DATA_SWAP_10_BIT, mask_sh),\
 	LE_SF(DPCSTX0_DPCSTX_TX_CNTL, DPCS_TX_DATA_ORDER_INVERT_18_BIT, mask_sh),\
 	LE_SF(RDPCSTX0_RDPCSTX_PHY_CNTL0, RDPCS_PHY_TX_VBOOST_LVL, mask_sh),\
 	LE_SF(RDPCSTX0_RDPCSTX_CLOCK_CNTL, RDPCS_TX_CLK_EN, mask_sh),\
@@ -83,4 +85,19 @@ bool dcn30_link_encoder_validate_output_with_stream(
 	struct link_encoder *enc,
 	const struct dc_stream_state *stream);
 
+void dpcs30_program_eq_setting(
+		struct link_encoder *enc,
+		uint8_t FFE_Level,
+		bool de_emphasis_only,
+		bool pre_shoot_only,
+		bool no_ffe,
+		const struct dc_hdmi_frl_link_settings *link_settings);
+
+void dpcs30_get_txffe(
+		struct link_encoder *enc,
+		struct frl_txffe *lane_settings);
+
+void dpcs30_set_txffe(
+		struct link_encoder *enc,
+		struct frl_txffe *lane_settings);
 #endif /* __DC_LINK_ENCODER__DCN30_H__ */

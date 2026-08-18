@@ -35,6 +35,7 @@ struct amdgpu_acp {
 	struct mfd_cell *acp_cell;
 	struct resource *acp_res;
 	struct acp_pm_domain *acp_genpd;
+	struct i2s_platform_data *i2s_pdata;
 };
 
 extern const struct amdgpu_ip_block_version acp_ip_block;

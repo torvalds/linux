@@ -440,16 +440,6 @@ void tdx_disable_virtualization_cpu(void)
 		tdx_flush_vp(&arg);
 	}
 	local_irq_restore(flags);
-
-	/*
-	 * Flush cache now if kexec is possible: this is necessary to avoid
-	 * having dirty private memory cachelines when the new kernel boots,
-	 * but WBINVD is a relatively expensive operation and doing it during
-	 * kexec can exacerbate races in native_stop_other_cpus().  Do it
-	 * now, since this is a safe moment and there is going to be no more
-	 * TDX activity on this CPU from this point on.
-	 */
-	tdx_cpu_flush_cache_for_kexec();
 }
 
 #define TDX_SEAMCALL_RETRIES 10000
@@ -829,7 +819,7 @@ static void tdx_prepare_switch_to_host(struct kvm_vcpu *vcpu)
 		return;
 
 	++vcpu->stat.host_state_reload;
-	wrmsrl(MSR_KERNEL_GS_BASE, vt->msr_host_kernel_gs_base);
+	wrmsrq(MSR_KERNEL_GS_BASE, vt->msr_host_kernel_gs_base);
 
 	vt->guest_state_loaded = false;
 }
@@ -1054,10 +1044,10 @@ static void tdx_load_host_xsave_state(struct kvm_vcpu *vcpu)
 
 	/*
 	 * Likewise, even if a TDX hosts didn't support XSS both arms of
-	 * the comparison would be 0 and the wrmsrl would be skipped.
+	 * the comparison would be 0 and the wrmsrq would be skipped.
 	 */
 	if (kvm_host.xss != (kvm_tdx->xfam & kvm_caps.supported_xss))
-		wrmsrl(MSR_IA32_XSS, kvm_host.xss);
+		wrmsrq(MSR_IA32_XSS, kvm_host.xss);
 }
 
 #define TDX_DEBUGCTL_PRESERVED (DEBUGCTLMSR_BTF | \
@@ -2807,7 +2797,11 @@ static int tdx_td_init(struct kvm *kvm, struct kvm_tdx_cmd *cmd)
 		goto out;
 	}
 
-	if (init_vm->cpuid.padding) {
+	/*
+	 * Reject the request if userspace changes cpuid.nent between the
+	 * initial read and the subsequent copy.
+	 */
+	if (init_vm->cpuid.padding || init_vm->cpuid.nent != nr_user_entries) {
 		ret = -EINVAL;
 		goto out;
 	}

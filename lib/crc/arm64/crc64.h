@@ -8,7 +8,7 @@
 #include <linux/minmax.h>
 #include <linux/sizes.h>
 
-u64 crc64_nvme_arm64_c(u64 crc, const u8 *p, size_t len);
+u64 crc64_nvme_neon(u64 crc, const u8 *p, size_t len);
 
 #define crc64_be_arch crc64_be_generic
 
@@ -19,7 +19,7 @@ static inline u64 crc64_nvme_arch(u64 crc, const u8 *p, size_t len)
 		size_t chunk = len & ~15;
 
 		scoped_ksimd()
-			crc = crc64_nvme_arm64_c(crc, p, chunk);
+			crc = crc64_nvme_neon(crc, p, chunk);
 
 		p += chunk;
 		len &= 15;

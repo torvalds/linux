@@ -380,7 +380,7 @@ void pg_cntl35_plane_otg_pg_control(struct pg_cntl *pg_cntl, bool power_on)
 	uint32_t power_gate = power_on ? 0 : 1;
 	uint32_t pwr_status = power_on ? 0 : 2;
 	uint32_t org_ip_request_cntl;
-	int i;
+	unsigned int i;
 	bool block_enabled;
 	bool all_mpcc_disabled = true, all_opp_disabled = true;
 	bool all_optc_disabled = true, all_stream_disabled = true;
@@ -460,7 +460,7 @@ static bool pg_cntl35_mem_status(struct pg_cntl *pg_cntl)
 
 void pg_cntl35_init_pg_status(struct pg_cntl *pg_cntl)
 {
-	int i = 0;
+	unsigned int i = 0;
 	bool block_enabled;
 
 	pg_cntl->pg_res_enable[PG_HPO] = pg_cntl35_hpo_pg_status(pg_cntl);
@@ -494,7 +494,7 @@ void pg_cntl35_init_pg_status(struct pg_cntl *pg_cntl)
 
 static void pg_cntl35_print_pg_status(struct pg_cntl *pg_cntl, const char *debug_func, const char *debug_log)
 {
-	int i = 0;
+	unsigned int i = 0;
 	bool block_enabled = false;
 
 	DC_LOG_DEBUG("%s: %s", debug_func, debug_log);

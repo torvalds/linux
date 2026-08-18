@@ -1820,8 +1820,8 @@ static SIMPLE_DEV_PM_OPS(snd_ca0106_pm, snd_ca0106_suspend, snd_ca0106_resume);
 
 // PCI IDs
 static const struct pci_device_id snd_ca0106_ids[] = {
-	{ PCI_VDEVICE(CREATIVE, 0x0007), 0 },	/* Audigy LS or Live 24bit */
-	{ 0, }
+	{ PCI_VDEVICE(CREATIVE, 0x0007) },	/* Audigy LS or Live 24bit */
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, snd_ca0106_ids);
 

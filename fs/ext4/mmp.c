@@ -46,9 +46,8 @@ static int write_mmp_block_thawed(struct super_block *sb,
 
 	ext4_mmp_csum_set(sb, mmp);
 	lock_buffer(bh);
-	bh->b_end_io = end_buffer_write_sync;
-	get_bh(bh);
-	submit_bh(REQ_OP_WRITE | REQ_SYNC | REQ_META | REQ_PRIO, bh);
+	bh_submit(bh, REQ_OP_WRITE | REQ_SYNC | REQ_META | REQ_PRIO,
+			bh_end_write);
 	wait_on_buffer(bh);
 	if (unlikely(!buffer_uptodate(bh)))
 		return -EIO;

@@ -7,7 +7,7 @@
 #ifndef _FS_FUSE_DEV_URING_I_H
 #define _FS_FUSE_DEV_URING_I_H
 
-#include "fuse_i.h"
+#include "fuse_dev_i.h"
 
 #ifdef CONFIG_FUSE_IO_URING
 
@@ -101,13 +101,13 @@ struct fuse_ring_queue {
 	bool stopped;
 };
 
-/**
+/*
  * Describes if uring is for communication and holds alls the data needed
  * for uring communication
  */
 struct fuse_ring {
 	/* back pointer */
-	struct fuse_conn *fc;
+	struct fuse_chan *chan;
 
 	/* number of ring queues */
 	size_t nr_queues;
@@ -135,63 +135,54 @@ struct fuse_ring {
 	bool ready;
 };
 
-bool fuse_uring_enabled(void);
-void fuse_uring_destruct(struct fuse_conn *fc);
 void fuse_uring_stop_queues(struct fuse_ring *ring);
 void fuse_uring_abort_end_requests(struct fuse_ring *ring);
 int fuse_uring_cmd(struct io_uring_cmd *cmd, unsigned int issue_flags);
 void fuse_uring_queue_fuse_req(struct fuse_iqueue *fiq, struct fuse_req *req);
 bool fuse_uring_queue_bq_req(struct fuse_req *req);
 bool fuse_uring_remove_pending_req(struct fuse_req *req);
-bool fuse_uring_request_expired(struct fuse_conn *fc);
+bool fuse_uring_request_expired(struct fuse_chan *fch);
 
-static inline void fuse_uring_abort(struct fuse_conn *fc)
+static inline void fuse_uring_abort(struct fuse_chan *fch)
 {
-	struct fuse_ring *ring = fc->ring;
+	struct fuse_ring *ring = fch->ring;
 
 	if (ring == NULL)
 		return;
 
-	if (atomic_read(&ring->queue_refs) > 0) {
-		fuse_uring_abort_end_requests(ring);
+	fuse_uring_abort_end_requests(ring);
+
+	if (atomic_read(&ring->queue_refs) > 0)
 		fuse_uring_stop_queues(ring);
-	}
 }
 
-static inline void fuse_uring_wait_stopped_queues(struct fuse_conn *fc)
+static inline void fuse_uring_wait_stopped_queues(struct fuse_chan *fch)
 {
-	struct fuse_ring *ring = fc->ring;
+	struct fuse_ring *ring = fch->ring;
 
 	if (ring)
 		wait_event(ring->stop_waitq,
 			   atomic_read(&ring->queue_refs) == 0);
 }
 
-static inline bool fuse_uring_ready(struct fuse_conn *fc)
+static inline bool fuse_uring_ready(struct fuse_chan *fch)
 {
-	return fc->ring && fc->ring->ready;
+	struct fuse_ring *ring = READ_ONCE(fch->ring);
+
+	return ring && smp_load_acquire(&ring->ready);
 }
 
 #else /* CONFIG_FUSE_IO_URING */
 
-static inline void fuse_uring_destruct(struct fuse_conn *fc)
+static inline void fuse_uring_abort(struct fuse_chan *fch)
 {
 }
 
-static inline bool fuse_uring_enabled(void)
-{
-	return false;
-}
-
-static inline void fuse_uring_abort(struct fuse_conn *fc)
+static inline void fuse_uring_wait_stopped_queues(struct fuse_chan *fch)
 {
 }
 
-static inline void fuse_uring_wait_stopped_queues(struct fuse_conn *fc)
-{
-}
-
-static inline bool fuse_uring_ready(struct fuse_conn *fc)
+static inline bool fuse_uring_ready(struct fuse_chan *fch)
 {
 	return false;
 }
@@ -201,7 +192,7 @@ static inline bool fuse_uring_remove_pending_req(struct fuse_req *req)
 	return false;
 }
 
-static inline bool fuse_uring_request_expired(struct fuse_conn *fc)
+static inline bool fuse_uring_request_expired(struct fuse_chan *fch)
 {
 	return false;
 }

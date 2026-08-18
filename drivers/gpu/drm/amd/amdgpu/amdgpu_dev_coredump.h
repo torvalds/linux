@@ -63,6 +63,7 @@ struct amdgpu_coredump_info {
 	char				*formatted;
 
 	unsigned int			pasid;
+	unsigned int			vmid;
 	int				num_ibs;
 	struct amdgpu_coredump_ib_info	ibs[] __counted_by(num_ibs);
 };

@@ -316,7 +316,7 @@ static int btf_dump_mark_referenced(struct btf_dump *d)
 {
 	int i, j, n = btf__type_cnt(d->btf);
 	const struct btf_type *t;
-	__u16 vlen;
+	__u32 vlen;
 
 	for (i = d->last_id + 1; i < n; i++) {
 		t = btf__type_by_id(d->btf, i);
@@ -485,7 +485,7 @@ static int btf_dump_order_type(struct btf_dump *d, __u32 id, bool through_ptr)
 	 */
 	struct btf_dump_type_aux_state *tstate = &d->type_states[id];
 	const struct btf_type *t;
-	__u16 vlen;
+	__u32 vlen;
 	int err, i;
 
 	/* return true, letting typedefs know that it's ok to be emitted */
@@ -798,7 +798,7 @@ static void btf_dump_emit_type(struct btf_dump *d, __u32 id, __u32 cont_id)
 		 */
 		if (top_level_def || t->name_off == 0) {
 			const struct btf_member *m = btf_members(t);
-			__u16 vlen = btf_vlen(t);
+			__u32 vlen = btf_vlen(t);
 			int i, new_cont_id;
 
 			new_cont_id = t->name_off == 0 ? cont_id : id;
@@ -820,7 +820,7 @@ static void btf_dump_emit_type(struct btf_dump *d, __u32 id, __u32 cont_id)
 		break;
 	case BTF_KIND_FUNC_PROTO: {
 		const struct btf_param *p = btf_params(t);
-		__u16 n = btf_vlen(t);
+		__u32 n = btf_vlen(t);
 		int i;
 
 		btf_dump_emit_type(d, t->type, cont_id);
@@ -839,7 +839,7 @@ static bool btf_is_struct_packed(const struct btf *btf, __u32 id,
 {
 	const struct btf_member *m;
 	int max_align = 1, align, i, bit_sz;
-	__u16 vlen;
+	__u32 vlen;
 
 	m = btf_members(t);
 	vlen = btf_vlen(t);
@@ -973,7 +973,7 @@ static void btf_dump_emit_struct_def(struct btf_dump *d,
 	bool is_struct = btf_is_struct(t);
 	bool packed, prev_bitfield = false;
 	int align, i, off = 0;
-	__u16 vlen = btf_vlen(t);
+	__u32 vlen = btf_vlen(t);
 
 	align = btf__align_of(d->btf, id);
 	packed = is_struct ? btf_is_struct_packed(d->btf, id, t) : 0;
@@ -1064,7 +1064,7 @@ static void btf_dump_emit_enum_fwd(struct btf_dump *d, __u32 id,
 
 static void btf_dump_emit_enum32_val(struct btf_dump *d,
 				     const struct btf_type *t,
-				     int lvl, __u16 vlen)
+				     int lvl, __u32 vlen)
 {
 	const struct btf_enum *v = btf_enum(t);
 	bool is_signed = btf_kflag(t);
@@ -1089,7 +1089,7 @@ static void btf_dump_emit_enum32_val(struct btf_dump *d,
 
 static void btf_dump_emit_enum64_val(struct btf_dump *d,
 				     const struct btf_type *t,
-				     int lvl, __u16 vlen)
+				     int lvl, __u32 vlen)
 {
 	const struct btf_enum64 *v = btf_enum64(t);
 	bool is_signed = btf_kflag(t);
@@ -1122,7 +1122,7 @@ static void btf_dump_emit_enum_def(struct btf_dump *d, __u32 id,
 				   const struct btf_type *t,
 				   int lvl)
 {
-	__u16 vlen = btf_vlen(t);
+	__u32 vlen = btf_vlen(t);
 
 	btf_dump_printf(d, "enum%s%s",
 			t->name_off ? " " : "",
@@ -1542,7 +1542,7 @@ static void btf_dump_emit_type_chain(struct btf_dump *d,
 		}
 		case BTF_KIND_FUNC_PROTO: {
 			const struct btf_param *p = btf_params(t);
-			__u16 vlen = btf_vlen(t);
+			__u32 vlen = btf_vlen(t);
 			int i;
 
 			/*
@@ -2159,7 +2159,7 @@ static int btf_dump_struct_data(struct btf_dump *d,
 				const void *data)
 {
 	const struct btf_member *m = btf_members(t);
-	__u16 n = btf_vlen(t);
+	__u32 n = btf_vlen(t);
 	int i, err = 0;
 
 	/* note that we increment depth before calling btf_dump_print() below;
@@ -2449,7 +2449,7 @@ static int btf_dump_type_data_check_zero(struct btf_dump *d,
 	case BTF_KIND_STRUCT:
 	case BTF_KIND_UNION: {
 		const struct btf_member *m = btf_members(t);
-		__u16 n = btf_vlen(t);
+		__u32 n = btf_vlen(t);
 
 		/* if any struct/union member is non-zero, the struct/union
 		 * is considered non-zero and dumped.

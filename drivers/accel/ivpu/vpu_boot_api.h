@@ -41,7 +41,7 @@
 /**
  * API header changed (field names, documentation, formatting) but API itself has not been changed
  */
-#define VPU_BOOT_API_VER_PATCH 4
+#define VPU_BOOT_API_VER_PATCH 5
 
 /**
  * Index in the API version table
@@ -320,9 +320,11 @@ struct vpu_boot_params {
 	u64 dvfs_param;
 	/**
 	 * D0i3 delayed entry
-	 * Bit0: Disable CPU state save on D0i2 entry flow.
+	 * Bit 0: Disable CPU state save on D0i2 entry flow.
 	 *       0: Every D0i2 entry saves state. Save state IPC message ignored.
 	 *       1: IPC message required to save state on D0i3 entry flow.
+	 * NOTE: This parameter is deprecated starting NPU50xx+. Bit 0 is now hardcoded to 1,
+	 * meaning CPU state save always requires IPC message on D0i3 entry flow.
 	 */
 	u32 d0i3_delayed_entry;
 	/** Time spent by VPU in D0i3 state */

@@ -48,6 +48,8 @@ int amdgpu_discovery_get_nps_info(struct amdgpu_device *adev,
 				  uint32_t *nps_type,
 				  struct amdgpu_gmc_memrange *ranges,
 				  int *range_cnt, bool refresh);
+int amdgpu_discovery_get_gc_major_minor_version(struct amdgpu_device *adev,
+						uint16_t *major, uint16_t *minor);
 
 void amdgpu_discovery_dump(struct amdgpu_device *adev, struct drm_printer *p);
 

@@ -525,6 +525,7 @@
 				clocks = <&clk IMX93_CLK_WDOG3_GATE>;
 				timeout-sec = <40>;
 				status = "disabled";
+				bootph-all;
 			};
 
 			wdog4: watchdog@424a0000 {
@@ -534,6 +535,7 @@
 				clocks = <&clk IMX93_CLK_WDOG4_GATE>;
 				timeout-sec = <40>;
 				status = "disabled";
+				bootph-all;
 			};
 
 			wdog5: watchdog@424b0000 {
@@ -543,6 +545,7 @@
 				clocks = <&clk IMX93_CLK_WDOG5_GATE>;
 				timeout-sec = <40>;
 				status = "disabled";
+				bootph-all;
 			};
 
 			tpm3: pwm@424e0000 {

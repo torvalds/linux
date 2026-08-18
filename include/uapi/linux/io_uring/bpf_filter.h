@@ -27,6 +27,22 @@ struct io_uring_bpf_ctx {
 			__u64	mode;
 			__u64	resolve;
 		} open;
+		/*
+		 * For CONNECT: fields are populated only when addr_len covers
+		 * them; unpopulated fields are zero from the caller-side memset
+		 * in io_uring_populate_bpf_ctx(). port and v4_addr are network
+		 * byte order. Filters may only issue BPF_LD|BPF_W|BPF_ABS at
+		 * 4-byte aligned offsets; load + mask for sub-word fields.
+		 */
+		struct {
+			__u32	family;	/* sa_family_t zero-extended */
+			__be16	port;
+			__u8	pad[2];
+			union {
+				__be32	v4_addr;
+				__u8	v6_addr[16];
+			};
+		} connect;
 	};
 };
 

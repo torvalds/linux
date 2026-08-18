@@ -1,0 +1,66 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/hwmon/pmbus/adi,max20830.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices MAX20830 Step-Down Switching Regulator with PMBus
+
+maintainers:
+  - Alexis Czezar Torreno <alexisczezar.torreno@analog.com>
+
+description: |
+  The MAX20830 is a fully integrated step-down DC-DC switching regulator with
+  PMBus interface. It provides 2.7V to 16V input, 0.4V to 5.8V adjustable
+  output, and up to 30A output current. It allows monitoring of input/output
+  voltage, output current and temperature through the PMBus serial interface.
+  Datasheet:
+    https://www.analog.com/en/products/max20830.html
+
+allOf:
+  - $ref: /schemas/regulator/regulator.yaml#
+
+properties:
+  compatible:
+    const: adi,max20830
+
+  reg:
+    maxItems: 1
+
+  vddh-supply:
+    description:
+      Phandle to the regulator that provides the VDDH power supply.
+
+  avdd-supply:
+    description:
+      Phandle to the regulator that provides the AVDD power supply.
+
+  ldoin-supply:
+    description:
+      Optional 2.5V to 5.5V LDO input supply.
+
+  pwr-good-gpios:
+    description:
+      GPIO connected to the power-good status output pin.
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - vddh-supply
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        regulator@30 {
+            compatible = "adi,max20830";
+            reg = <0x30>;
+            vddh-supply = <&vddh>;
+        };
+    };
+...

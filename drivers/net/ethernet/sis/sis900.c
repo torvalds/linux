@@ -104,11 +104,11 @@ static const char * card_names[] = {
 };
 
 static const struct pci_device_id sis900_pci_tbl[] = {
-	{PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_900,
-	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, SIS_900},
-	{PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_7016,
-	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, SIS_7016},
-	{0,}
+	{ PCI_VDEVICE(SI, PCI_DEVICE_ID_SI_900),
+	  .driver_data = SIS_900 },
+	{ PCI_VDEVICE(SI, PCI_DEVICE_ID_SI_7016),
+	  .driver_data = SIS_7016 },
+	{ }
 };
 MODULE_DEVICE_TABLE (pci, sis900_pci_tbl);
 

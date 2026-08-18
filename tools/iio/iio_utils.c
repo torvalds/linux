@@ -70,7 +70,7 @@ int iioutils_break_up_name(const char *full_name, char **generic_name)
 
 /**
  * iioutils_get_type() - find and process _type attribute data
- * @is_signed: output whether channel is signed
+ * @format: output channel format
  * @bytes: output how many bytes the channel storage occupies
  * @bits_used: output number of valid bits of data
  * @shift: output amount of bits to shift right data before applying bit mask
@@ -83,7 +83,7 @@ int iioutils_break_up_name(const char *full_name, char **generic_name)
  *
  * Returns a value >= 0 on success, otherwise a negative error code.
  **/
-static int iioutils_get_type(unsigned int *is_signed, unsigned int *bytes,
+static int iioutils_get_type(char *format, unsigned int *bytes,
 			     unsigned int *bits_used, unsigned int *shift,
 			     uint64_t *mask, unsigned int *be,
 			     const char *device_dir, int buffer_idx,
@@ -93,7 +93,7 @@ static int iioutils_get_type(unsigned int *is_signed, unsigned int *bytes,
 	int ret;
 	DIR *dp;
 	char *scan_el_dir, *builtname, *builtname_generic, *filename = 0;
-	char signchar, endianchar;
+	char formatchar, endianchar;
 	unsigned padint;
 	const struct dirent *ent;
 
@@ -140,7 +140,7 @@ static int iioutils_get_type(unsigned int *is_signed, unsigned int *bytes,
 			ret = fscanf(sysfsfp,
 				     "%ce:%c%u/%u>>%u",
 				     &endianchar,
-				     &signchar,
+				     &formatchar,
 				     bits_used,
 				     &padint, shift);
 			if (ret < 0) {
@@ -162,7 +162,7 @@ static int iioutils_get_type(unsigned int *is_signed, unsigned int *bytes,
 			else
 				*mask = (1ULL << *bits_used) - 1ULL;
 
-			*is_signed = (signchar == 's');
+			*format = formatchar;
 			if (fclose(sysfsfp)) {
 				ret = -errno;
 				fprintf(stderr, "Failed to close %s\n",
@@ -487,7 +487,7 @@ int build_channel_array(const char *device_dir, int buffer_idx,
 			if ((ret < 0) && (ret != -ENOENT))
 				goto error_cleanup_array;
 
-			ret = iioutils_get_type(&current->is_signed,
+			ret = iioutils_get_type(&current->format,
 						&current->bytes,
 						&current->bits_used,
 						&current->shift,

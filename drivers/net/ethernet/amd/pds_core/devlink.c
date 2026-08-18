@@ -68,7 +68,7 @@ int pdsc_dl_enable_set(struct devlink *dl, u32 id,
 }
 
 int pdsc_dl_enable_validate(struct devlink *dl, u32 id,
-			    union devlink_param_value val,
+			    union devlink_param_value *val,
 			    struct netlink_ext_ack *extack)
 {
 	struct pdsc *pdsc = devlink_priv(dl);
@@ -89,6 +89,12 @@ int pdsc_dl_flash_update(struct devlink *dl,
 			 struct netlink_ext_ack *extack)
 {
 	struct pdsc *pdsc = devlink_priv(dl);
+
+	if (params->component) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Component update not supported by this device");
+		return -EOPNOTSUPP;
+	}
 
 	return pdsc_firmware_update(pdsc, params->fw, extack);
 }

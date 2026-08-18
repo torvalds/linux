@@ -147,7 +147,7 @@ static void update_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 
 // Given any pipe_ctx, return the total ODM combine factor, and optionally return
 // the OPPids which are used
-static unsigned int get_odm_config(struct pipe_ctx *pipe_ctx, unsigned int *opp_instances)
+static unsigned int get_odm_config(struct pipe_ctx *pipe_ctx, int *opp_instances)
 {
 	unsigned int opp_count = 1;
 	struct pipe_ctx *odm_pipe;
@@ -211,7 +211,7 @@ void dcn314_update_odm(struct dc *dc, struct dc_state *context, struct pipe_ctx 
 	if (pipe_ctx->stream_res.dsc) {
 		struct pipe_ctx *current_pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[pipe_ctx->pipe_idx];
 
-		update_dsc_on_stream(pipe_ctx, pipe_ctx->stream->timing.flags.DSC);
+		update_dsc_on_stream(pipe_ctx, pipe_ctx->stream->timing.flags.DSC != 0);
 
 		/* Check if no longer using pipe for ODM, then need to disconnect DSC for that pipe */
 		if (!pipe_ctx->next_odm_pipe && current_pipe_ctx->next_odm_pipe &&
@@ -232,59 +232,59 @@ void dcn314_dsc_pg_control(
 	uint32_t pwr_status = power_on ? 0 : 2;
 	uint32_t org_ip_request_cntl = 0;
 
-	if (hws->ctx->dc->debug.disable_dsc_power_gate)
-		return;
-
 	if (hws->ctx->dc->debug.root_clock_optimization.bits.dsc &&
 		hws->ctx->dc->res_pool->dccg->funcs->enable_dsc &&
 		power_on)
 		hws->ctx->dc->res_pool->dccg->funcs->enable_dsc(
 			hws->ctx->dc->res_pool->dccg, dsc_inst);
 
-	REG_GET(DC_IP_REQUEST_CNTL, IP_REQUEST_EN, &org_ip_request_cntl);
-	if (org_ip_request_cntl == 0)
-		REG_SET(DC_IP_REQUEST_CNTL, 0, IP_REQUEST_EN, 1);
+	if (!hws->ctx->dc->debug.disable_dsc_power_gate) {
 
-	switch (dsc_inst) {
-	case 0: /* DSC0 */
-		REG_UPDATE(DOMAIN16_PG_CONFIG,
-				DOMAIN_POWER_GATE, power_gate);
+		REG_GET(DC_IP_REQUEST_CNTL, IP_REQUEST_EN, &org_ip_request_cntl);
+		if (org_ip_request_cntl == 0)
+			REG_SET(DC_IP_REQUEST_CNTL, 0, IP_REQUEST_EN, 1);
 
-		REG_WAIT(DOMAIN16_PG_STATUS,
-				DOMAIN_PGFSM_PWR_STATUS, pwr_status,
-				1, 1000);
-		break;
-	case 1: /* DSC1 */
-		REG_UPDATE(DOMAIN17_PG_CONFIG,
-				DOMAIN_POWER_GATE, power_gate);
+		switch (dsc_inst) {
+		case 0: /* DSC0 */
+			REG_UPDATE(DOMAIN16_PG_CONFIG,
+					DOMAIN_POWER_GATE, power_gate);
 
-		REG_WAIT(DOMAIN17_PG_STATUS,
-				DOMAIN_PGFSM_PWR_STATUS, pwr_status,
-				1, 1000);
-		break;
-	case 2: /* DSC2 */
-		REG_UPDATE(DOMAIN18_PG_CONFIG,
-				DOMAIN_POWER_GATE, power_gate);
+			REG_WAIT(DOMAIN16_PG_STATUS,
+					DOMAIN_PGFSM_PWR_STATUS, pwr_status,
+					1, 1000);
+			break;
+		case 1: /* DSC1 */
+			REG_UPDATE(DOMAIN17_PG_CONFIG,
+					DOMAIN_POWER_GATE, power_gate);
 
-		REG_WAIT(DOMAIN18_PG_STATUS,
-				DOMAIN_PGFSM_PWR_STATUS, pwr_status,
-				1, 1000);
-		break;
-	case 3: /* DSC3 */
-		REG_UPDATE(DOMAIN19_PG_CONFIG,
-				DOMAIN_POWER_GATE, power_gate);
+			REG_WAIT(DOMAIN17_PG_STATUS,
+					DOMAIN_PGFSM_PWR_STATUS, pwr_status,
+					1, 1000);
+			break;
+		case 2: /* DSC2 */
+			REG_UPDATE(DOMAIN18_PG_CONFIG,
+					DOMAIN_POWER_GATE, power_gate);
 
-		REG_WAIT(DOMAIN19_PG_STATUS,
-				DOMAIN_PGFSM_PWR_STATUS, pwr_status,
-				1, 1000);
-		break;
-	default:
-		BREAK_TO_DEBUGGER();
-		break;
+			REG_WAIT(DOMAIN18_PG_STATUS,
+					DOMAIN_PGFSM_PWR_STATUS, pwr_status,
+					1, 1000);
+			break;
+		case 3: /* DSC3 */
+			REG_UPDATE(DOMAIN19_PG_CONFIG,
+					DOMAIN_POWER_GATE, power_gate);
+
+			REG_WAIT(DOMAIN19_PG_STATUS,
+					DOMAIN_PGFSM_PWR_STATUS, pwr_status,
+					1, 1000);
+			break;
+		default:
+			BREAK_TO_DEBUGGER();
+			break;
+		}
+
+		if (org_ip_request_cntl == 0)
+			REG_SET(DC_IP_REQUEST_CNTL, 0, IP_REQUEST_EN, 0);
 	}
-
-	if (org_ip_request_cntl == 0)
-		REG_SET(DC_IP_REQUEST_CNTL, 0, IP_REQUEST_EN, 0);
 
 	if (hws->ctx->dc->debug.root_clock_optimization.bits.dsc) {
 		if (hws->ctx->dc->res_pool->dccg->funcs->disable_dsc && !power_on)
@@ -335,7 +335,8 @@ unsigned int dcn314_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsig
 	two_pix_per_container = pipe_ctx->stream_res.tg->funcs->is_two_pixels_per_container(&stream->timing);
 	odm_combine_factor = get_odm_config(pipe_ctx, NULL);
 
-	if (stream->ctx->dc->link_srv->dp_is_128b_132b_signal(pipe_ctx)) {
+	if (dc_is_hdmi_frl_signal(pipe_ctx->stream->signal) ||
+			stream->ctx->dc->link_srv->dp_is_128b_132b_signal(pipe_ctx)) {
 		*k1_div = PIXEL_RATE_DIV_BY_1;
 		*k2_div = PIXEL_RATE_DIV_BY_1;
 	} else if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal) || dc_is_dvi_signal(pipe_ctx->stream->signal)) {
@@ -419,7 +420,7 @@ void dcn314_resync_fifo_dccg_dio(struct dce_hwseq *hws, struct dc *dc, struct dc
 			if (dcn314_is_pipe_dig_fifo_on(pipe))
 				continue;
 			pipe->stream_res.tg->funcs->disable_crtc(pipe->stream_res.tg);
-			reset_sync_context_for_pipe(dc, context, i);
+			reset_sync_context_for_pipe(dc, context, (uint8_t)i);
 			otg_disabled[i] = true;
 		}
 	}

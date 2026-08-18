@@ -342,23 +342,19 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
 {
 	struct iov_iter iter;
 	struct req_iterator rq_iter;
-	struct bio_vec *bvec;
 	struct request *rq = blk_mq_rq_from_pdu(cmd);
-	struct bio *bio = rq->bio;
 	struct file *file = lo->lo_backing_file;
-	struct bio_vec tmp;
-	unsigned int offset;
 	unsigned int nr_bvec;
 	int ret;
 
 	nr_bvec = blk_rq_nr_bvec(rq);
 
 	if (rq->bio != rq->biotail) {
+		struct bio_vec tmp, *bvec;
 
-		bvec = kmalloc_objs(struct bio_vec, nr_bvec, GFP_NOIO);
-		if (!bvec)
+		cmd->bvec = kmalloc_objs(*cmd->bvec, nr_bvec, GFP_NOIO);
+		if (!cmd->bvec)
 			return -EIO;
-		cmd->bvec = bvec;
 
 		/*
 		 * The bios of the request may be started from the middle of
@@ -366,25 +362,25 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
 		 * copy bio->bi_iov_vec to new bvec. The rq_for_each_bvec
 		 * API will take care of all details for us.
 		 */
+		bvec = cmd->bvec;
 		rq_for_each_bvec(tmp, rq, rq_iter) {
 			*bvec = tmp;
 			bvec++;
 		}
-		bvec = cmd->bvec;
-		offset = 0;
+		iov_iter_bvec(&iter, rw, cmd->bvec, nr_bvec, blk_rq_bytes(rq));
+		iter.iov_offset = 0;
 	} else {
 		/*
 		 * Same here, this bio may be started from the middle of the
 		 * 'bvec' because of bio splitting, so offset from the bvec
 		 * must be passed to iov iterator
 		 */
-		offset = bio->bi_iter.bi_bvec_done;
-		bvec = __bvec_iter_bvec(bio->bi_io_vec, bio->bi_iter);
+		iov_iter_bvec(&iter, rw,
+			__bvec_iter_bvec(rq->bio->bi_io_vec, rq->bio->bi_iter),
+			nr_bvec, blk_rq_bytes(rq));
+		iter.iov_offset = rq->bio->bi_iter.bi_bvec_done;
 	}
 	atomic_set(&cmd->ref, 2);
-
-	iov_iter_bvec(&iter, rw, bvec, nr_bvec, blk_rq_bytes(rq));
-	iter.iov_offset = offset;
 
 	cmd->iocb.ki_pos = pos;
 	cmd->iocb.ki_filp = file;
@@ -1117,6 +1113,7 @@ static void __loop_clr_fd(struct loop_device *lo)
 	struct queue_limits lim;
 	struct file *filp;
 	gfp_t gfp = lo->old_gfp_mask;
+	int err;
 
 	spin_lock_irq(&lo->lo_lock);
 	filp = lo->lo_backing_file;
@@ -1150,26 +1147,21 @@ static void __loop_clr_fd(struct loop_device *lo)
 
 	disk_force_media_change(lo->lo_disk);
 
-	if (lo->lo_flags & LO_FLAGS_PARTSCAN) {
-		int err;
-
-		/*
-		 * open_mutex has been held already in release path, so don't
-		 * acquire it if this function is called in such case.
-		 *
-		 * If the reread partition isn't from release path, lo_refcnt
-		 * must be at least one and it can only become zero when the
-		 * current holder is released.
-		 */
-		err = bdev_disk_changed(lo->lo_disk, false);
-		if (err)
-			pr_warn("%s: partition scan of loop%d failed (rc=%d)\n",
-				__func__, lo->lo_number, err);
-		/* Device is gone, no point in returning error */
-	}
+	/*
+	 * Remove all partitions, including partitions added manually with
+	 * BLKPG, which may exist even if LO_FLAGS_PARTSCAN is not set.
+	 *
+	 * open_mutex has been held already in release path, so don't acquire
+	 * it here.
+	 */
+	err = bdev_disk_changed(lo->lo_disk, false);
+	if (err)
+		pr_warn("%s: partition scan of loop%d failed (rc=%d)\n",
+			__func__, lo->lo_number, err);
+	/* Device is gone, no point in returning error */
 
 	/*
-	 * lo->lo_state is set to Lo_unbound here after above partscan has
+	 * lo->lo_state is set to Lo_unbound here after removing partitions has
 	 * finished. There cannot be anybody else entering __loop_clr_fd() as
 	 * Lo_rundown state protects us from all the other places trying to
 	 * change the 'lo' device.

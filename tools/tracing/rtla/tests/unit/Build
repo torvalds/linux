@@ -1,2 +1,8 @@
+unit_tests-y += utils.o
+unit_tests-y += actions.o
 unit_tests-y += unit_tests.o
-unit_tests-y +=../../src/utils.o
+unit_tests-y += osnoise_top_cli.o
+unit_tests-y += osnoise_hist_cli.o
+unit_tests-y += timerlat_top_cli.o
+unit_tests-y += timerlat_hist_cli.o
+unit_tests-y += cli_opt_callback.o

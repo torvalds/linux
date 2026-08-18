@@ -1189,7 +1189,10 @@ void mt76_dma_cleanup(struct mt76_dev *dev)
 	mt76_for_each_q_rx(dev, i) {
 		struct mt76_queue *q = &dev->q_rx[i];
 
-		netif_napi_del(&dev->napi[i]);
+		if (!mt76_queue_is_wed_rro(q)) {
+			napi_disable(&dev->napi[i]);
+			netif_napi_del(&dev->napi[i]);
+		}
 		mt76_dma_rx_cleanup(dev, q);
 
 		page_pool_destroy(q->page_pool);

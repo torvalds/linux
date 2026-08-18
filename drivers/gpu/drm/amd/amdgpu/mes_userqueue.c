@@ -251,7 +251,7 @@ static int mes_userq_detect_and_reset(struct amdgpu_device *adev,
 
 	if (found_hung_queue) {
 		/* Resume scheduling after hang recovery */
-		r = amdgpu_mes_resume(adev);
+		r = amdgpu_mes_resume(adev, input.xcc_id);
 	}
 
 	return r;

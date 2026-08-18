@@ -17,6 +17,7 @@ struct zl3073x_dev;
  * @ref_prio: reference priority registers (4 bits per ref, P/N packed)
  * @mon_status: monitor status register value
  * @refsel_status: reference selection status register value
+ * @df_offset: frequency offset vs tracked reference in 2^-48 steps
  */
 struct zl3073x_chan {
 	struct_group(cfg,
@@ -26,6 +27,7 @@ struct zl3073x_chan {
 	struct_group(stat,
 		u8	mon_status;
 		u8	refsel_status;
+		s64	df_offset;
 	);
 };
 
@@ -36,6 +38,18 @@ int zl3073x_chan_state_set(struct zl3073x_dev *zldev, u8 index,
 			   const struct zl3073x_chan *chan);
 
 int zl3073x_chan_state_update(struct zl3073x_dev *zldev, u8 index);
+
+/**
+ * zl3073x_chan_df_offset_get - get cached df_offset vs tracked reference
+ * @chan: pointer to channel state
+ *
+ * Return: frequency offset in 2^-48 steps
+ */
+static inline s64
+zl3073x_chan_df_offset_get(const struct zl3073x_chan *chan)
+{
+	return chan->df_offset;
+}
 
 /**
  * zl3073x_chan_mode_get - get DPLL channel operating mode

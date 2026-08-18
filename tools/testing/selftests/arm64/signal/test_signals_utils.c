@@ -31,6 +31,7 @@ static char const *const feats_names[FMAX_END] = {
 	" FA64 ",
 	" SME2 ",
 	" GCS ",
+	" POE ",
 };
 
 #define MAX_FEATS_SZ	128
@@ -341,6 +342,8 @@ int test_init(struct tdescr *td)
 			td->feats_supported |= FEAT_SME2;
 		if (getauxval(AT_HWCAP) & HWCAP_GCS)
 			td->feats_supported |= FEAT_GCS;
+		if (getauxval(AT_HWCAP2) & HWCAP2_POE)
+			td->feats_supported |= FEAT_POE;
 		if (feats_ok(td)) {
 			if (td->feats_required & td->feats_supported)
 				fprintf(stderr,

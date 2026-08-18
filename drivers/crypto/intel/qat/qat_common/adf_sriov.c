@@ -26,6 +26,9 @@ static void adf_iov_send_resp(struct work_struct *work)
 	u32 vf_nr = vf_info->vf_nr;
 	bool ret;
 
+	if (READ_ONCE(accel_dev->pf.vf2pf_disabled))
+		goto out;
+
 	mutex_lock(&vf_info->pfvf_mig_lock);
 	ret = adf_recv_and_handle_vf2pf_msg(accel_dev, vf_nr);
 	if (ret)
@@ -33,12 +36,17 @@ static void adf_iov_send_resp(struct work_struct *work)
 		adf_enable_vf2pf_interrupts(accel_dev, 1 << vf_nr);
 	mutex_unlock(&vf_info->pfvf_mig_lock);
 
+out:
 	kfree(pf2vf_resp);
 }
 
 void adf_schedule_vf2pf_handler(struct adf_accel_vf_info *vf_info)
 {
+	struct adf_accel_dev *accel_dev = vf_info->accel_dev;
 	struct adf_pf2vf_resp *pf2vf_resp;
+
+	if (READ_ONCE(accel_dev->pf.vf2pf_disabled))
+		return;
 
 	pf2vf_resp = kzalloc_obj(*pf2vf_resp, GFP_ATOMIC);
 	if (!pf2vf_resp)
@@ -47,6 +55,12 @@ void adf_schedule_vf2pf_handler(struct adf_accel_vf_info *vf_info)
 	pf2vf_resp->vf_info = vf_info;
 	INIT_WORK(&pf2vf_resp->pf2vf_resp_work, adf_iov_send_resp);
 	queue_work(pf2vf_resp_wq, &pf2vf_resp->pf2vf_resp_work);
+}
+
+static void adf_flush_pf2vf_resp_wq(void)
+{
+	if (pf2vf_resp_wq)
+		flush_workqueue(pf2vf_resp_wq);
 }
 
 static int adf_enable_sriov(struct adf_accel_dev *accel_dev)
@@ -75,7 +89,11 @@ static int adf_enable_sriov(struct adf_accel_dev *accel_dev)
 		hw_data->configure_iov_threads(accel_dev, true);
 
 	/* Enable VF to PF interrupts for all VFs */
-	adf_enable_vf2pf_interrupts(accel_dev, BIT_ULL(totalvfs) - 1);
+	adf_enable_all_vf2pf_interrupts(accel_dev, totalvfs);
+
+	/* Do not enable SR-IOV if already enabled */
+	if (pci_num_vf(pdev))
+		return 0;
 
 	/*
 	 * Due to the hardware design, when SR-IOV and the ring arbiter
@@ -222,7 +240,7 @@ void adf_reenable_sriov(struct adf_accel_dev *accel_dev)
 	if (adf_add_sriov_configuration(accel_dev))
 		return;
 
-	dev_dbg(&pdev->dev, "Re-enabling SRIOV\n");
+	pci_dbg(pdev, "Re-enabling SRIOV\n");
 	adf_enable_sriov(accel_dev);
 }
 
@@ -246,10 +264,18 @@ void adf_disable_sriov(struct adf_accel_dev *accel_dev)
 
 	adf_pf2vf_notify_restarting(accel_dev);
 	adf_pf2vf_wait_for_restarting_complete(accel_dev);
-	pci_disable_sriov(accel_to_pci_dev(accel_dev));
+	/*
+	 * When the device is restarting, preserve VF PCI devices across
+	 * the reset by skipping pci_disable_sriov(). VFs are notified to
+	 * quiesce regardless so the PF can safely shut down.
+	 */
+	if (!test_bit(ADF_STATUS_RESTARTING, &accel_dev->status))
+		pci_disable_sriov(accel_to_pci_dev(accel_dev));
 
-	/* Disable VF to PF interrupts */
+	/* Block VF2PF work and disable VF to PF interrupts */
 	adf_disable_all_vf2pf_interrupts(accel_dev);
+	adf_isr_sync_ae_cluster(accel_dev);
+	adf_flush_pf2vf_resp_wq();
 
 	/* Clear Valid bits in AE Thread to PCIe Function Mapping */
 	if (hw_data->configure_iov_threads)

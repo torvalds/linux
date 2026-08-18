@@ -457,7 +457,7 @@ bits set, and terminate at a CCB that has the Conditional bit set, but not the P
 Offset   Size   Field Description
                 Bits         Field Description
                 [15:14]      Secondary Input Element Size (see Section 36.2.1.1.4,
-                             “Secondary Input Element Size”
+                             “Secondary Input Element Size”)
                 [13:10]      Output Format (see Section 36.2.1.1.6, “Output Format”)
                 [9]          Padding Direction selector: A value of 1 causes padding bytes
                              to be added to the left side of output elements. A value of 0
@@ -656,7 +656,7 @@ Offset         Size            Field Description
                                [18:16]      Secondary Input Starting Offset (see Section 36.2.1.1.5, “Input
                                             Element Offsets”)
                                [15:14]      Secondary Input Element Size (see Section 36.2.1.1.4,
-                                            “Secondary Input Element Size”
+                                            “Secondary Input Element Size”)
                                [13:10]      Output Format (see Section 36.2.1.1.6, “Output Format”)
                                [9:5]        Operand size for first scan criteria value. In a scan value
                                             operation, this is one of two potential exact match values.
@@ -793,13 +793,13 @@ Offset   Size   Field Description
                 [18:16]      Secondary Input Starting Offset (see Section 36.2.1.1.5, “Input
                              Element Offsets”)
                 [15:14]      Secondary Input Element Size (see Section 36.2.1.1.4,
-                             “Secondary Input Element Size”
+                             “Secondary Input Element Size”)
                 [13:10]      Output Format (see Section 36.2.1.1.6, “Output Format”)
                 [9]          Reserved
                 [8:0]        Test value used for comparison against the most significant bits
                              in the input values, when using 2 or 3 byte input elements.
-8        8      Completion (same fields as Section 36.2.1.2, “Extract command”
-16       8      Primary Input (same fields as Section 36.2.1.2, “Extract command”
+8        8      Completion (same fields as Section 36.2.1.2, “Extract command”)
+16       8      Primary Input (same fields as Section 36.2.1.2, “Extract command”)
 24       8      Data Access Control (same fields as Section 36.2.1.2, “Extract command”,
                 except Primary Input Length Format may not use the 0x0 value)
 32       8      Secondary Input, if used by Primary Input Format. Same fields as Primary
@@ -880,7 +880,7 @@ Offset   Size   Field Description
                                        [18:16]     Secondary Input Starting Offset (see Section 36.2.1.1.5, “Input
                                                    Element Offsets”)
                                        [15:14]     Secondary Input Element Size (see Section 36.2.1.1.4,
-                                                   “Secondary Input Element Size”
+                                                   “Secondary Input Element Size”)
 
 
                                                       524
@@ -895,8 +895,8 @@ Offset   Size   Field Description
                                                     causes padding bytes to be added to the right side of output
                                                     elements.
                                        [8:0]        Reserved
-        8              8               Completion (same fields as Section 36.2.1.2, “Extract command”
-        16             8               Primary Input (same fields as Section 36.2.1.2, “Extract command”
+        8              8               Completion (same fields as Section 36.2.1.2, “Extract command”)
+        16             8               Primary Input (same fields as Section 36.2.1.2, “Extract command”)
         24             8               Data Access Control (same fields as Section 36.2.1.2, “Extract command”)
         32             8               Secondary Bit Vector Input. Same fields as Primary Input.
         40             8               Reserved
@@ -949,7 +949,7 @@ Offset   Size   Field Description
                                    [31]        If set, this CCB functions as a Sync command. If clear, this
                                                CCB functions as a No-op command.
                                    [30:0]      Reserved
-       8             8             Completion (same fields as Section 36.2.1.2, “Extract command”
+       8             8             Completion (same fields as Section 36.2.1.2, “Extract command”)
        16            46            Reserved
 
 36.2.2. CCB Completion Area

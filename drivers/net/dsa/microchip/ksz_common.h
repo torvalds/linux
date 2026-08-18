@@ -73,6 +73,7 @@ struct ksz_chip_data {
 	 */
 	bool phy_side_mdio_supported;
 	const struct ksz_dev_ops *ops;
+	const struct dsa_switch_ops *switch_ops;
 	const struct phylink_mac_ops *phylink_mac_ops;
 	bool phy_errata_9477;
 	bool ksz87xx_eee_link_erratum;
@@ -221,6 +222,10 @@ struct ksz_device {
 	 * the switch’s internal PHYs, bypassing the main SPI interface.
 	 */
 	struct mii_bus *parent_mdio_bus;
+
+	/* KSZ87xx low-loss tuning state */
+	u8 lpf_bw;		/* KSZ87XX_PHY_LPF_* */
+	u8 eq_init;		/* DSP EQ initial value */
 };
 
 /* List of supported models */
@@ -358,85 +363,14 @@ struct alu_struct {
 };
 
 struct ksz_dev_ops {
-	int (*setup)(struct dsa_switch *ds);
-	void (*teardown)(struct dsa_switch *ds);
 	u32 (*get_port_addr)(int port, int offset);
 	void (*cfg_port_member)(struct ksz_device *dev, int port, u8 member);
-	void (*flush_dyn_mac_table)(struct ksz_device *dev, int port);
-	void (*port_cleanup)(struct ksz_device *dev, int port);
-	void (*port_setup)(struct ksz_device *dev, int port, bool cpu_port);
-	int (*set_ageing_time)(struct ksz_device *dev, unsigned int msecs);
 
-	/**
-	 * @mdio_bus_preinit: Function pointer to pre-initialize the MDIO bus
-	 *                    for accessing PHYs.
-	 * @dev: Pointer to device structure.
-	 * @side_mdio: Boolean indicating if the PHYs are accessed over a side
-	 *             MDIO bus.
-	 *
-	 * This function pointer is used to configure the MDIO bus for PHY
-	 * access before initiating regular PHY operations. It enables either
-	 * SPI/I2C or side MDIO access modes by unlocking necessary registers
-	 * and setting up access permissions for the selected mode.
-	 *
-	 * Return:
-	 *  - 0 on success.
-	 *  - Negative error code on failure.
-	 */
-	int (*mdio_bus_preinit)(struct ksz_device *dev, bool side_mdio);
-
-	/**
-	 * @create_phy_addr_map: Function pointer to create a port-to-PHY
-	 *                       address map.
-	 * @dev: Pointer to device structure.
-	 * @side_mdio: Boolean indicating if the PHYs are accessed over a side
-	 *             MDIO bus.
-	 *
-	 * This function pointer is responsible for mapping switch ports to PHY
-	 * addresses according to the configured access mode (SPI or side MDIO)
-	 * and the device’s strap configuration. The mapping setup may vary
-	 * depending on the chip variant and configuration. Ensures the correct
-	 * address mapping for PHY communication.
-	 *
-	 * Return:
-	 *  - 0 on success.
-	 *  - Negative error code on failure (e.g., invalid configuration).
-	 */
-	int (*create_phy_addr_map)(struct ksz_device *dev, bool side_mdio);
-	int (*r_phy)(struct ksz_device *dev, u16 phy, u16 reg, u16 *val);
-	int (*w_phy)(struct ksz_device *dev, u16 phy, u16 reg, u16 val);
 	void (*r_mib_cnt)(struct ksz_device *dev, int port, u16 addr,
 			  u64 *cnt);
 	void (*r_mib_pkt)(struct ksz_device *dev, int port, u16 addr,
 			  u64 *dropped, u64 *cnt);
 	void (*r_mib_stat64)(struct ksz_device *dev, int port);
-	int  (*vlan_filtering)(struct ksz_device *dev, int port,
-			       bool flag, struct netlink_ext_ack *extack);
-	int  (*vlan_add)(struct ksz_device *dev, int port,
-			 const struct switchdev_obj_port_vlan *vlan,
-			 struct netlink_ext_ack *extack);
-	int  (*vlan_del)(struct ksz_device *dev, int port,
-			 const struct switchdev_obj_port_vlan *vlan);
-	int (*mirror_add)(struct ksz_device *dev, int port,
-			  struct dsa_mall_mirror_tc_entry *mirror,
-			  bool ingress, struct netlink_ext_ack *extack);
-	void (*mirror_del)(struct ksz_device *dev, int port,
-			   struct dsa_mall_mirror_tc_entry *mirror);
-	int (*fdb_add)(struct ksz_device *dev, int port,
-		       const unsigned char *addr, u16 vid, struct dsa_db db);
-	int (*fdb_del)(struct ksz_device *dev, int port,
-		       const unsigned char *addr, u16 vid, struct dsa_db db);
-	int (*fdb_dump)(struct ksz_device *dev, int port,
-			dsa_fdb_dump_cb_t *cb, void *data);
-	int (*mdb_add)(struct ksz_device *dev, int port,
-		       const struct switchdev_obj_port_mdb *mdb,
-		       struct dsa_db db);
-	int (*mdb_del)(struct ksz_device *dev, int port,
-		       const struct switchdev_obj_port_mdb *mdb,
-		       struct dsa_db db);
-	void (*get_caps)(struct ksz_device *dev, int port,
-			 struct phylink_config *config);
-	int (*change_mtu)(struct ksz_device *dev, int port, int mtu);
 	int (*pme_write8)(struct ksz_device *dev, u32 reg, u8 value);
 	int (*pme_pread8)(struct ksz_device *dev, int port, int offset,
 			  u8 *data);
@@ -444,27 +378,19 @@ struct ksz_dev_ops {
 			   u8 data);
 	void (*freeze_mib)(struct ksz_device *dev, int port, bool freeze);
 	void (*port_init_cnt)(struct ksz_device *dev, int port);
-	void (*phylink_mac_link_up)(struct ksz_device *dev, int port,
-				    unsigned int mode,
-				    phy_interface_t interface,
-				    struct phy_device *phydev, int speed,
-				    int duplex, bool tx_pause, bool rx_pause);
-	void (*setup_rgmii_delay)(struct ksz_device *dev, int port);
 	int (*tc_cbs_set_cinc)(struct ksz_device *dev, int port, u32 val);
-	void (*config_cpu_port)(struct dsa_switch *ds);
-	int (*enable_stp_addr)(struct ksz_device *dev);
-	int (*reset)(struct ksz_device *dev);
 	int (*init)(struct ksz_device *dev);
-	void (*exit)(struct ksz_device *dev);
-
-	int (*pcs_create)(struct ksz_device *dev);
 };
 
-struct ksz_device *ksz_switch_alloc(struct device *base, void *priv);
+struct ksz_device *ksz_switch_alloc(struct device *base,
+				    const struct ksz_chip_data *chip,
+				    void *priv);
 int ksz_switch_register(struct ksz_device *dev);
 void ksz_switch_remove(struct ksz_device *dev);
 int ksz_switch_suspend(struct device *dev);
 int ksz_switch_resume(struct device *dev);
+
+void ksz_teardown(struct dsa_switch *ds);
 
 void ksz_init_mib_timer(struct ksz_device *dev);
 bool ksz_is_port_mac_global_usable(struct dsa_switch *ds, int port);
@@ -479,6 +405,74 @@ int ksz_switch_macaddr_get(struct dsa_switch *ds, int port,
 void ksz_switch_macaddr_put(struct dsa_switch *ds);
 void ksz_switch_shutdown(struct ksz_device *dev);
 int ksz_handle_wake_reason(struct ksz_device *dev, int port);
+
+int ksz_sset_count(struct dsa_switch *ds, int port, int sset);
+void ksz_get_ethtool_stats(struct dsa_switch *ds, int port,
+			   uint64_t *buf);
+void ksz_get_stats64(struct dsa_switch *ds, int port,
+		     struct rtnl_link_stats64 *s);
+void ksz_get_pause_stats(struct dsa_switch *ds, int port,
+			 struct ethtool_pause_stats *pause_stats);
+void ksz_get_strings(struct dsa_switch *ds, int port,
+		     u32 stringset, uint8_t *buf);
+
+int ksz_port_bridge_join(struct dsa_switch *ds, int port,
+			 struct dsa_bridge bridge,
+			 bool *tx_fwd_offload,
+			 struct netlink_ext_ack *extack);
+void ksz_port_bridge_leave(struct dsa_switch *ds, int port,
+			   struct dsa_bridge bridge);
+int ksz_port_pre_bridge_flags(struct dsa_switch *ds, int port,
+			      struct switchdev_brport_flags flags,
+			      struct netlink_ext_ack *extack);
+int ksz_port_bridge_flags(struct dsa_switch *ds, int port,
+			  struct switchdev_brport_flags flags,
+			  struct netlink_ext_ack *extack);
+
+void ksz_phylink_get_caps(struct dsa_switch *ds, int port,
+			  struct phylink_config *config);
+void ksz_phylink_mac_disable_tx_lpi(struct phylink_config *config);
+int ksz_phylink_mac_enable_tx_lpi(struct phylink_config *config,
+				  u32 timer, bool tx_clock_stop);
+void ksz_set_xmii(struct ksz_device *dev, int port, phy_interface_t interface);
+bool ksz_phylink_need_config(struct phylink_config *config, unsigned int mode);
+void ksz_phylink_mac_config(struct phylink_config *config,
+			    unsigned int mode,
+			    const struct phylink_link_state *state);
+void ksz_phylink_mac_link_down(struct phylink_config *config,
+			       unsigned int mode,
+			       phy_interface_t interface);
+
+int ksz_max_mtu(struct dsa_switch *ds, int port);
+
+int ksz_set_mac_eee(struct dsa_switch *ds, int port,
+		    struct ethtool_keee *e);
+
+int ksz_setup_tc(struct dsa_switch *ds, int port,
+		 enum tc_setup_type type, void *type_data);
+
+void ksz_get_wol(struct dsa_switch *ds, int port,
+		 struct ethtool_wolinfo *wol);
+int ksz_set_wol(struct dsa_switch *ds, int port,
+		struct ethtool_wolinfo *wol);
+int ksz_port_set_mac_address(struct dsa_switch *ds, int port,
+			     const unsigned char *addr);
+
+int ksz_suspend(struct dsa_switch *ds);
+int ksz_resume(struct dsa_switch *ds);
+
+int ksz_parse_dt_phy_config(struct ksz_device *dev, struct mii_bus *bus,
+			    struct device_node *mdio_np);
+int ksz_sw_mdio_read(struct mii_bus *bus, int addr, int regnum);
+int ksz_sw_mdio_write(struct mii_bus *bus, int addr, int regnum, u16 val);
+int ksz_parent_mdio_read(struct mii_bus *bus, int addr, int regnum);
+int ksz_parent_mdio_write(struct mii_bus *bus, int addr, int regnum, u16 val);
+int ksz_mdio_register(struct ksz_device *dev);
+int ksz_pirq_setup(struct ksz_device *dev, u8 p);
+int ksz_girq_setup(struct ksz_device *dev);
+void ksz_irq_free(struct ksz_irq *kirq);
+int ksz_parse_drive_strength(struct ksz_device *dev);
+int ksz9477_set_default_prio_queue_mapping(struct ksz_device *dev, int port);
 
 /* Common register access functions */
 static inline struct regmap *ksz_regmap_8(struct ksz_device *dev)

@@ -20,7 +20,7 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS("snd-timer-" __stringify(SNDRV_TIMER_GLOBAL_HRTIMER));
 
 #define NANO_SEC	1000000000UL	/* 10^9 in sec */
-static unsigned int resolution;
+static unsigned int resolution __ro_after_init;
 
 struct snd_hrtimer {
 	struct snd_timer *timer;

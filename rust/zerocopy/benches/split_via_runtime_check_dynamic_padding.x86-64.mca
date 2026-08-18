@@ -1,0 +1,79 @@
+Iterations:        100
+Instructions:      2000
+Total Cycles:      708
+Total uOps:        2000
+
+Dispatch Width:    4
+uOps Per Cycle:    2.82
+IPC:               2.82
+Block RThroughput: 5.0
+
+
+Instruction Info:
+[1]: #uOps
+[2]: Latency
+[3]: RThroughput
+[4]: MayLoad
+[5]: MayStore
+[6]: HasSideEffects (U)
+
+[1]    [2]    [3]    [4]    [5]    [6]    Instructions:
+ 1      1     0.33                        mov	rax, rdi
+ 1      5     0.50    *                   mov	rdx, qword ptr [rsi + 16]
+ 1      1     0.33                        mov	ecx, edx
+ 1      1     0.33                        and	ecx, 3
+ 1      1     0.33                        cmp	ecx, 1
+ 1      1     1.00                        jne	.LBB5_1
+ 1      5     0.50    *                   mov	rcx, qword ptr [rsi]
+ 1      5     0.50    *                   mov	rsi, qword ptr [rsi + 8]
+ 1      1     0.50                        lea	rdi, [rdx + 2*rdx]
+ 1      1     0.33                        add	rdi, rcx
+ 1      1     0.33                        add	rdi, 9
+ 1      1     0.33                        sub	rsi, rdx
+ 1      1     1.00           *            mov	qword ptr [rax + 8], rdx
+ 1      1     1.00           *            mov	qword ptr [rax + 16], rdi
+ 1      1     1.00           *            mov	qword ptr [rax + 24], rsi
+ 1      1     1.00           *            mov	qword ptr [rax], rcx
+ 1      1     1.00                  U     ret
+ 1      0     0.25                        xor	ecx, ecx
+ 1      1     1.00           *            mov	qword ptr [rax], rcx
+ 1      1     1.00                  U     ret
+
+
+Resources:
+[0]   - SBDivider
+[1]   - SBFPDivider
+[2]   - SBPort0
+[3]   - SBPort1
+[4]   - SBPort4
+[5]   - SBPort5
+[6.0] - SBPort23
+[6.1] - SBPort23
+
+
+Resource pressure per iteration:
+[0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  
+ -      -     3.00   3.02   5.00   4.98   4.00   4.00   
+
+Resource pressure by instruction:
+[0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  Instructions:
+ -      -      -     0.99    -     0.01    -      -     mov	rax, rdi
+ -      -      -      -      -      -      -     1.00   mov	rdx, qword ptr [rsi + 16]
+ -      -     0.99   0.01    -      -      -      -     mov	ecx, edx
+ -      -     0.99   0.01    -      -      -      -     and	ecx, 3
+ -      -     0.97   0.03    -      -      -      -     cmp	ecx, 1
+ -      -      -      -      -     1.00    -      -     jne	.LBB5_1
+ -      -      -      -      -      -     1.00    -     mov	rcx, qword ptr [rsi]
+ -      -      -      -      -      -     0.99   0.01   mov	rsi, qword ptr [rsi + 8]
+ -      -     0.01   0.99    -      -      -      -     lea	rdi, [rdx + 2*rdx]
+ -      -      -     0.96    -     0.04    -      -     add	rdi, rcx
+ -      -     0.03    -      -     0.97    -      -     add	rdi, 9
+ -      -     0.01   0.03    -     0.96    -      -     sub	rsi, rdx
+ -      -      -      -     1.00    -     1.00    -     mov	qword ptr [rax + 8], rdx
+ -      -      -      -     1.00    -      -     1.00   mov	qword ptr [rax + 16], rdi
+ -      -      -      -     1.00    -     0.01   0.99   mov	qword ptr [rax + 24], rsi
+ -      -      -      -     1.00    -     0.99   0.01   mov	qword ptr [rax], rcx
+ -      -      -      -      -     1.00    -      -     ret
+ -      -      -      -      -      -      -      -     xor	ecx, ecx
+ -      -      -      -     1.00    -     0.01   0.99   mov	qword ptr [rax], rcx
+ -      -      -      -      -     1.00    -      -     ret

@@ -90,7 +90,7 @@ out-of-line true branch. Thus, changing branch direction is expensive but
 branch selection is basically 'free'. That is the basic tradeoff of this
 optimization.
 
-This lowlevel patching mechanism is called 'jump label patching', and it gives
+This low-level patching mechanism is called 'jump label patching', and it gives
 the basis for the static keys facility.
 
 Static key label API, usage and examples

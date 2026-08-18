@@ -324,7 +324,7 @@ static const u64 st7571_primary_plane_fmtmods[] = {
 };
 
 static int st7571_primary_plane_helper_atomic_check(struct drm_plane *plane,
-						    struct drm_atomic_state *state)
+						    struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state, plane);
 	struct drm_crtc *new_crtc = new_plane_state->crtc;
@@ -340,7 +340,7 @@ static int st7571_primary_plane_helper_atomic_check(struct drm_plane *plane,
 }
 
 static void st7571_primary_plane_helper_atomic_update(struct drm_plane *plane,
-						      struct drm_atomic_state *state)
+						      struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
 	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state, plane);
@@ -379,7 +379,7 @@ out_drm_gem_fb_end_cpu_access:
 }
 
 static void st7571_primary_plane_helper_atomic_disable(struct drm_plane *plane,
-						       struct drm_atomic_state *state)
+						       struct drm_atomic_commit *state)
 {
 	struct drm_device *drm = plane->dev;
 	struct st7571_device *st7571 = drm_to_st7571(plane->dev);
@@ -437,7 +437,7 @@ static const struct drm_crtc_funcs st7571_crtc_funcs = {
  */
 
 static void st7571_encoder_atomic_enable(struct drm_encoder *encoder,
-					 struct drm_atomic_state *state)
+					 struct drm_atomic_commit *state)
 {
 	struct drm_device *drm = encoder->dev;
 	struct st7571_device *st7571 = drm_to_st7571(drm);
@@ -452,7 +452,7 @@ static void st7571_encoder_atomic_enable(struct drm_encoder *encoder,
 }
 
 static void st7571_encoder_atomic_disable(struct drm_encoder *encoder,
-					  struct drm_atomic_state *state)
+					  struct drm_atomic_commit *state)
 {
 	struct drm_device *drm = encoder->dev;
 	struct st7571_device *st7571 = drm_to_st7571(drm);

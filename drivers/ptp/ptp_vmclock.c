@@ -101,7 +101,6 @@ static int vmclock_get_crosststamp(struct vmclock_state *st,
 				   struct timespec64 *tspec)
 {
 	ktime_t deadline = ktime_add(ktime_get(), VMCLOCK_MAX_WAIT);
-	struct system_time_snapshot systime_snapshot;
 	uint64_t cycle, delta, seq, frac_sec;
 
 #ifdef CONFIG_X86
@@ -132,17 +131,19 @@ static int vmclock_get_crosststamp(struct vmclock_state *st,
 		 * will be derived from the *same* counter value.
 		 *
 		 * If the system isn't using the same counter, then the value
-		 * from ktime_get_snapshot() will still be used as pre_ts, and
-		 * ptp_read_system_postts() is called to populate postts after
-		 * calling get_cycles().
-		 *
-		 * The conversion to timespec64 happens further down, outside
-		 * the seq_count loop.
+		 * from ptp_read_system_prets() will still be used as pre_ts,
+		 * and ptp_read_system_postts() is called to populate postts
+		 * after calling get_cycles().
 		 */
 		if (sts) {
-			ktime_get_snapshot(&systime_snapshot);
-			if (systime_snapshot.cs_id == st->cs_id) {
-				cycle = systime_snapshot.cycles;
+			ptp_read_system_prets(sts);
+			if (sts->pre_sts.cs_id == st->cs_id) {
+				cycle = sts->pre_sts.cycles;
+				sts->post_sts = sts->pre_sts;
+			} else if (sts->pre_sts.hw_csid == st->cs_id &&
+				   sts->pre_sts.hw_cycles) {
+				cycle = sts->pre_sts.hw_cycles;
+				sts->post_sts = sts->pre_sts;
 			} else {
 				cycle = get_cycles();
 				ptp_read_system_postts(sts);
@@ -178,12 +179,6 @@ static int vmclock_get_crosststamp(struct vmclock_state *st,
 	if (system_counter) {
 		system_counter->cycles = cycle;
 		system_counter->cs_id = st->cs_id;
-	}
-
-	if (sts) {
-		sts->pre_ts = ktime_to_timespec64(systime_snapshot.real);
-		if (systime_snapshot.cs_id == st->cs_id)
-			sts->post_ts = sts->pre_ts;
 	}
 
 	return 0;
@@ -272,7 +267,7 @@ static int ptp_vmclock_getcrosststamp(struct ptp_clock_info *ptp,
 	if (ret == -ENODEV) {
 		struct system_time_snapshot systime_snapshot;
 
-		ktime_get_snapshot(&systime_snapshot);
+		ktime_get_snapshot_id(CLOCK_REALTIME, &systime_snapshot);
 
 		if (systime_snapshot.cs_id == CSID_X86_TSC ||
 		    systime_snapshot.cs_id == CSID_X86_KVM_CLK) {

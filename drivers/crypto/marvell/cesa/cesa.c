@@ -18,6 +18,7 @@
 #include <linux/io.h>
 #include <linux/kthread.h>
 #include <linux/mbus.h>
+#include <linux/minmax.h>
 #include <linux/platform_device.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
@@ -416,7 +417,7 @@ static int mv_cesa_probe(struct platform_device *pdev)
 	const struct mbus_dram_target_info *dram;
 	struct device *dev = &pdev->dev;
 	struct mv_cesa_dev *cesa;
-	struct mv_cesa_engine *engines;
+	struct mv_cesa_engine *engine;
 	int irq, ret, i, cpu;
 	u32 sram_size;
 
@@ -431,7 +432,8 @@ static int mv_cesa_probe(struct platform_device *pdev)
 			return -ENOTSUPP;
 	}
 
-	cesa = devm_kzalloc(dev, sizeof(*cesa), GFP_KERNEL);
+	cesa = devm_kzalloc(dev, struct_size(cesa, engines, caps->nengines),
+			GFP_KERNEL);
 	if (!cesa)
 		return -ENOMEM;
 
@@ -441,14 +443,8 @@ static int mv_cesa_probe(struct platform_device *pdev)
 	sram_size = CESA_SA_DEFAULT_SRAM_SIZE;
 	of_property_read_u32(cesa->dev->of_node, "marvell,crypto-sram-size",
 			     &sram_size);
-	if (sram_size < CESA_SA_MIN_SRAM_SIZE)
-		sram_size = CESA_SA_MIN_SRAM_SIZE;
 
-	cesa->sram_size = sram_size;
-	cesa->engines = devm_kcalloc(dev, caps->nengines, sizeof(*engines),
-				     GFP_KERNEL);
-	if (!cesa->engines)
-		return -ENOMEM;
+	cesa->sram_size = max(sram_size, CESA_SA_MIN_SRAM_SIZE);
 
 	spin_lock_init(&cesa->lock);
 
@@ -465,7 +461,7 @@ static int mv_cesa_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, cesa);
 
 	for (i = 0; i < caps->nengines; i++) {
-		struct mv_cesa_engine *engine = &cesa->engines[i];
+		engine = &cesa->engines[i];
 		char res_name[16];
 
 		engine->id = i;

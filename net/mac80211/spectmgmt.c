@@ -329,16 +329,6 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 	case -1:
 		cfg80211_chandef_create(&csa_ie->chanreq.oper, new_chan,
 					NL80211_CHAN_NO_HT);
-		/* keep width for 5/10 MHz channels */
-		switch (sdata->vif.bss_conf.chanreq.oper.width) {
-		case NL80211_CHAN_WIDTH_5:
-		case NL80211_CHAN_WIDTH_10:
-			csa_ie->chanreq.oper.width =
-				sdata->vif.bss_conf.chanreq.oper.width;
-			break;
-		default:
-			break;
-		}
 		break;
 	}
 

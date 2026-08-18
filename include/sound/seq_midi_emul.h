@@ -55,13 +55,13 @@ struct snd_midi_channel_set {
 	int  client;			/* Client for this port */
 	int  port;			/* The port number */
 
-	int  max_channels;		/* Size of the channels array */
-	struct snd_midi_channel *channels;
-
 	unsigned char midi_mode;	/* MIDI operating mode */
 	unsigned char gs_master_volume;	/* SYSEX master volume: 0-127 */
 	unsigned char gs_chorus_mode;
 	unsigned char gs_reverb_mode;
+
+	int  max_channels;		/* Size of the channels array */
+	struct snd_midi_channel channels[] __counted_by(max_channels);
 
 };
 

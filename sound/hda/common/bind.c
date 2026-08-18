@@ -162,8 +162,7 @@ static int hda_codec_driver_remove(struct device *dev)
 
 	snd_hda_codec_disconnect_pcms(codec);
 	snd_hda_jack_tbl_disconnect(codec);
-	if (!refcount_dec_and_test(&codec->pcm_ref))
-		wait_event(codec->remove_sleep, !refcount_read(&codec->pcm_ref));
+	snd_refcount_sync(&codec->pcm_ref);
 	snd_power_sync_ref(codec->bus->card);
 
 	if (driver->ops->remove)

@@ -35,6 +35,7 @@
 #include <linux/slab.h>
 #include <linux/proc_fs.h>
 #include <linux/export.h>
+#include <linux/uio.h>
 
 #include "rds.h"
 
@@ -144,39 +145,41 @@ void rds_info_copy(struct rds_info_iterator *iter, void *data,
 EXPORT_SYMBOL_GPL(rds_info_copy);
 
 /*
- * @optval points to the userspace buffer that the information snapshot
- * will be copied into.
- *
- * @optlen on input is the size of the buffer in userspace.  @optlen
- * on output is the size of the requested snapshot in bytes.
+ * @opt->iter_out describes the buffer that the information snapshot will be
+ * copied into, and @opt->optlen is the size of that buffer on input.  On
+ * output @opt->optlen is set to the size of the requested snapshot in bytes.
  *
  * This function returns -errno if there is a failure, particularly -ENOSPC
- * if the given userspace buffer was not large enough to fit the snapshot.
- * On success it returns the positive number of bytes of each array element
- * in the snapshot.
+ * if the given buffer was not large enough to fit the snapshot.  On success
+ * it returns the positive number of bytes of each array element in the
+ * snapshot.
  */
-int rds_info_getsockopt(struct socket *sock, int optname, char __user *optval,
-			int __user *optlen)
+int rds_info_getsockopt(struct socket *sock, int optname, sockopt_t *opt)
 {
 	struct rds_info_iterator iter;
 	struct rds_info_lengths lens;
 	unsigned long nr_pages = 0;
-	unsigned long start;
 	rds_info_func func;
 	struct page **pages = NULL;
+	size_t offset0 = 0;
+	int npages = 0;
 	int ret;
 	int len;
 	int total;
 
-	if (get_user(len, optlen)) {
-		ret = -EFAULT;
+	len = opt->optlen;
+
+	/* check for all kinds of wrapping and the like */
+	if (len < 0 || len > INT_MAX - PAGE_SIZE + 1) {
+		ret = -EINVAL;
 		goto out;
 	}
 
-	/* check for all kinds of wrapping and the like */
-	start = (unsigned long)optval;
-	if (len < 0 || len > INT_MAX - PAGE_SIZE + 1 || start + len < start) {
-		ret = -EINVAL;
+	/* The info producers write into the pages with kmap_atomic() while
+	 * holding a spinlock, so they need a genuine page-backed user buffer.
+	 */
+	if (!user_backed_iter(&opt->iter_out)) {
+		ret = -EOPNOTSUPP;
 		goto out;
 	}
 
@@ -184,20 +187,26 @@ int rds_info_getsockopt(struct socket *sock, int optname, char __user *optval,
 	if (len == 0)
 		goto call_func;
 
-	nr_pages = (PAGE_ALIGN(start + len) - (start & PAGE_MASK))
-			>> PAGE_SHIFT;
-
-	pages = kmalloc_objs(struct page *, nr_pages);
+	/*
+	 * Preallocate the page array and pass it in so that
+	 * iov_iter_extract_pages() fills it in place rather than allocating
+	 * one for us.  Handing it a non-NULL array keeps ownership of the
+	 * array with us on every return path, instead of depending on the
+	 * iterator code to allocate and hand it back.
+	 */
+	npages = iov_iter_npages(&opt->iter_out, INT_MAX);
+	pages = kvmalloc_array(npages, sizeof(*pages), GFP_KERNEL);
 	if (!pages) {
 		ret = -ENOMEM;
 		goto out;
 	}
-	ret = pin_user_pages_fast(start, nr_pages, FOLL_WRITE, pages);
-	if (ret != nr_pages) {
-		if (ret > 0)
-			nr_pages = ret;
-		else
-			nr_pages = 0;
+
+	ret = iov_iter_extract_pages(&opt->iter_out, &pages, len, npages,
+				     0, &offset0);
+	if (ret < 0)
+		goto out;
+	nr_pages = DIV_ROUND_UP(offset0 + ret, PAGE_SIZE);
+	if (ret != len) {
 		ret = -EAGAIN; /* XXX ? */
 		goto out;
 	}
@@ -213,7 +222,7 @@ call_func:
 
 	iter.pages = pages;
 	iter.addr = NULL;
-	iter.offset = start & (PAGE_SIZE - 1);
+	iter.offset = offset0;
 
 	func(sock, len, &iter, &lens);
 	BUG_ON(lens.each == 0);
@@ -230,13 +239,16 @@ call_func:
 		ret = lens.each;
 	}
 
-	if (put_user(len, optlen))
-		ret = -EFAULT;
+	opt->optlen = len;
 
 out:
-	if (pages)
+	/*
+	 * iov_iter_extract_pages() pins only user-backed (ubuf) iters;
+	 * iov_iter_extract_will_pin() reports whether an unpin is owed here.
+	 */
+	if (pages && iov_iter_extract_will_pin(&opt->iter_out))
 		unpin_user_pages_dirty_lock(pages, nr_pages, true);
-	kfree(pages);
+	kvfree(pages);
 
 	return ret;
 }

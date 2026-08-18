@@ -18,7 +18,6 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/types.h>
 
@@ -149,15 +148,16 @@ static int ens210_read_raw(struct iio_dev *indio_dev,
 	int ret;
 
 	switch (mask) {
-	case IIO_CHAN_INFO_RAW:
-		scoped_guard(mutex, &data->lock) {
-			ret = ens210_get_measurement(
-				indio_dev, channel->type == IIO_TEMP, val);
-			if (ret)
-				return ret;
-			return IIO_VAL_INT;
-		}
-		return -EINVAL; /* compiler warning workaround */
+	case IIO_CHAN_INFO_RAW: {
+		guard(mutex)(&data->lock);
+
+		ret = ens210_get_measurement(indio_dev, channel->type == IIO_TEMP,
+					     val);
+		if (ret)
+			return ret;
+
+		return IIO_VAL_INT;
+	}
 	case IIO_CHAN_INFO_SCALE:
 		if (channel->type == IIO_TEMP) {
 			*val = 15;
@@ -314,12 +314,12 @@ static const struct of_device_id ens210_of_match[] = {
 MODULE_DEVICE_TABLE(of, ens210_of_match);
 
 static const struct i2c_device_id ens210_id_table[] = {
-	{ "ens210", (kernel_ulong_t)&ens210_chip_info_data },
-	{ "ens210a", (kernel_ulong_t)&ens210a_chip_info_data },
-	{ "ens211", (kernel_ulong_t)&ens211_chip_info_data },
-	{ "ens212", (kernel_ulong_t)&ens212_chip_info_data },
-	{ "ens213a", (kernel_ulong_t)&ens213a_chip_info_data },
-	{ "ens215", (kernel_ulong_t)&ens215_chip_info_data },
+	{ .name = "ens210", .driver_data = (kernel_ulong_t)&ens210_chip_info_data },
+	{ .name = "ens210a", .driver_data = (kernel_ulong_t)&ens210a_chip_info_data },
+	{ .name = "ens211", .driver_data = (kernel_ulong_t)&ens211_chip_info_data },
+	{ .name = "ens212", .driver_data = (kernel_ulong_t)&ens212_chip_info_data },
+	{ .name = "ens213a", .driver_data = (kernel_ulong_t)&ens213a_chip_info_data },
+	{ .name = "ens215", .driver_data = (kernel_ulong_t)&ens215_chip_info_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ens210_id_table);

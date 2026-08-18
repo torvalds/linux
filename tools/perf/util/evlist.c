@@ -529,7 +529,7 @@ static int evlist__is_enabled(struct evlist *evlist)
 
 static void __evlist__disable(struct evlist *evlist, char *evsel_name, bool excl_dummy)
 {
-	struct evsel *pos;
+	struct evsel *pos, *member;
 	struct evlist_cpu_iterator evlist_cpu_itr;
 	bool has_imm = false;
 
@@ -561,6 +561,9 @@ static void __evlist__disable(struct evlist *evlist, char *evsel_name, bool excl
 		if (excl_dummy && evsel__is_dummy_event(pos))
 			continue;
 		pos->disabled = true;
+
+		for_each_group_member(member, pos)
+			member->disabled = true;
 	}
 
 	/*
@@ -590,7 +593,7 @@ void evlist__disable_evsel(struct evlist *evlist, char *evsel_name)
 
 static void __evlist__enable(struct evlist *evlist, char *evsel_name, bool excl_dummy)
 {
-	struct evsel *pos;
+	struct evsel *pos, *member;
 	struct evlist_cpu_iterator evlist_cpu_itr;
 
 	evlist__for_each_cpu(evlist_cpu_itr, evlist) {
@@ -611,6 +614,9 @@ static void __evlist__enable(struct evlist *evlist, char *evsel_name, bool excl_
 		if (excl_dummy && evsel__is_dummy_event(pos))
 			continue;
 		pos->disabled = false;
+
+		for_each_group_member(member, pos)
+			member->disabled = false;
 	}
 
 	/*

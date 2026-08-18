@@ -16,8 +16,8 @@
 
 /* DXE - DMA transfer engine
  * we have 2 channels(High prio and Low prio) for TX and 2 channels for RX.
- * through low channels data packets are transfered
- * through high channels managment packets are transfered
+ * through low channels data packets are transferred
+ * through high channels management packets are transferred
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt

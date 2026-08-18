@@ -149,10 +149,6 @@
 	status = "okay";
 };
 
-&syscontroller {
-	status = "okay";
-};
-
 &usb {
 	status = "okay";
 	dr_mode = "otg";

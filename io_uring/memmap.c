@@ -53,7 +53,7 @@ struct page **io_pin_pages(unsigned long uaddr, unsigned long len, int *npages)
 	nr_pages = end - start;
 	if (WARN_ON_ONCE(!nr_pages))
 		return ERR_PTR(-EINVAL);
-	if (WARN_ON_ONCE(nr_pages > INT_MAX))
+	if (nr_pages > INT_MAX / sizeof(struct page *))
 		return ERR_PTR(-EOVERFLOW);
 
 	pages = kvmalloc_objs(struct page *, nr_pages, GFP_KERNEL_ACCOUNT);
@@ -337,7 +337,7 @@ unsigned long io_uring_get_unmapped_area(struct file *filp, unsigned long addr,
 
 	ptr = io_uring_validate_mmap_request(filp, pgoff);
 	if (IS_ERR(ptr))
-		return -ENOMEM;
+		return PTR_ERR(ptr);
 
 	/*
 	 * Some architectures have strong cache aliasing requirements.

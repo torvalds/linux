@@ -20,22 +20,22 @@
 static void intc2_irq_gpio_mask(struct irq_data *d)
 {
 	u32 imr;
-	imr = readl(MCFSIM2_GPIOINTENABLE);
+	imr = mcf_read32(MCFSIM2_GPIOINTENABLE);
 	imr &= ~(0x1 << (d->irq - MCF_IRQ_GPIO0));
-	writel(imr, MCFSIM2_GPIOINTENABLE);
+	mcf_write32(imr, MCFSIM2_GPIOINTENABLE);
 }
 
 static void intc2_irq_gpio_unmask(struct irq_data *d)
 {
 	u32 imr;
-	imr = readl(MCFSIM2_GPIOINTENABLE);
+	imr = mcf_read32(MCFSIM2_GPIOINTENABLE);
 	imr |= (0x1 << (d->irq - MCF_IRQ_GPIO0));
-	writel(imr, MCFSIM2_GPIOINTENABLE);
+	mcf_write32(imr, MCFSIM2_GPIOINTENABLE);
 }
 
 static void intc2_irq_gpio_ack(struct irq_data *d)
 {
-	writel(0x1 << (d->irq - MCF_IRQ_GPIO0), MCFSIM2_GPIOINTCLEAR);
+	mcf_write32(0x1 << (d->irq - MCF_IRQ_GPIO0), MCFSIM2_GPIOINTCLEAR);
 }
 
 static struct irq_chip intc2_irq_gpio_chip = {

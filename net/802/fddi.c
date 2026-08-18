@@ -103,6 +103,9 @@ __be16 fddi_type_trans(struct sk_buff *skb, struct net_device *dev)
 	skb->dev = dev;
 	skb_reset_mac_header(skb);	/* point to frame control (FC) */
 
+	if (skb->len < FDDI_K_8022_HLEN)
+		return htons(0);
+
 	if(fddi->hdr.llc_8022_1.dsap==0xe0)
 	{
 		skb_pull(skb, FDDI_K_8022_HLEN-3);
@@ -110,6 +113,8 @@ __be16 fddi_type_trans(struct sk_buff *skb, struct net_device *dev)
 	}
 	else
 	{
+		if (skb->len < FDDI_K_SNAP_HLEN)
+			return htons(0);
 		skb_pull(skb, FDDI_K_SNAP_HLEN);		/* adjust for 21 byte header */
 		type=fddi->hdr.llc_snap.ethertype;
 	}

@@ -14,6 +14,7 @@ static void dc_construct_soc_and_ip_translator(struct soc_and_ip_translator *soc
 		dcn401_construct_soc_and_ip_translator(soc_and_ip_translator);
 		break;
 	case DCN_VERSION_4_2:
+	case DCN_VERSION_4_2B:
 		dcn42_construct_soc_and_ip_translator(soc_and_ip_translator);
 		break;
 	default:

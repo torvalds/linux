@@ -2085,9 +2085,26 @@ nouveau_bios_init(struct drm_device *dev)
 	int ret;
 
 	/* only relevant for PCI devices */
-	if (!dev_is_pci(dev->dev) ||
-	    nvkm_gsp_rm(nvxx_device(drm)->gsp))
+	if (!dev_is_pci(dev->dev))
 		return 0;
+
+	if (nvkm_gsp_rm(nvxx_device(drm)->gsp)) {
+		struct nvkm_bios *nvkm_bios = nvxx_bios(drm);
+
+		/*
+		 * If this GPU has an nvkm_device_chip.bios entry, then the VBIOS
+		 * data was already read by the nvkm layer during nvkm_bios_new().
+		 * Point the legacy DRM-level VBIOS structure at the same buffer
+		 * so that any remaining legacy code can access it. This exposes
+		 * the VBIOS via the DRM debugfs entries.
+		 */
+		if (nvkm_bios) {
+			bios->data = nvkm_bios->data;
+			bios->length = nvkm_bios->size;
+		}
+
+		return 0;
+	}
 
 	if (!NVInitVBIOS(dev))
 		return -ENODEV;

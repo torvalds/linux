@@ -143,18 +143,18 @@ static struct {
 
 
 static const struct pci_device_id ne2k_pci_tbl[] = {
-	{ 0x10ec, 0x8029, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_RealTek_RTL_8029 },
-	{ 0x1050, 0x0940, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_Winbond_89C940 },
-	{ 0x11f6, 0x1401, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_Compex_RL2000 },
-	{ 0x8e2e, 0x3000, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_KTI_ET32P2 },
-	{ 0x4a14, 0x5000, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_NetVin_NV5000SC },
-	{ 0x1106, 0x0926, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_Via_86C926 },
-	{ 0x10bd, 0x0e34, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_SureCom_NE34 },
-	{ 0x1050, 0x5a5a, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_Winbond_W89C940F },
-	{ 0x12c3, 0x0058, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_Holtek_HT80232 },
-	{ 0x12c3, 0x5598, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_Holtek_HT80229 },
-	{ 0x8c4a, 0x1980, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_Winbond_89C940_8c4a },
-	{ 0, }
+	{ PCI_DEVICE(0x10ec, 0x8029), .driver_data = CH_RealTek_RTL_8029 },
+	{ PCI_DEVICE(0x1050, 0x0940), .driver_data = CH_Winbond_89C940 },
+	{ PCI_DEVICE(0x11f6, 0x1401), .driver_data = CH_Compex_RL2000 },
+	{ PCI_DEVICE(0x8e2e, 0x3000), .driver_data = CH_KTI_ET32P2 },
+	{ PCI_DEVICE(0x4a14, 0x5000), .driver_data = CH_NetVin_NV5000SC },
+	{ PCI_DEVICE(0x1106, 0x0926), .driver_data = CH_Via_86C926 },
+	{ PCI_DEVICE(0x10bd, 0x0e34), .driver_data = CH_SureCom_NE34 },
+	{ PCI_DEVICE(0x1050, 0x5a5a), .driver_data = CH_Winbond_W89C940F },
+	{ PCI_DEVICE(0x12c3, 0x0058), .driver_data = CH_Holtek_HT80232 },
+	{ PCI_DEVICE(0x12c3, 0x5598), .driver_data = CH_Holtek_HT80229 },
+	{ PCI_DEVICE(0x8c4a, 0x1980), .driver_data = CH_Winbond_89C940_8c4a },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, ne2k_pci_tbl);

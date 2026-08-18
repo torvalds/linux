@@ -222,9 +222,8 @@ static void f_ospi_config_clk(struct f_ospi *ospi, u32 device_hz)
 	 */
 	val = readl(ospi->base + OSPI_CLK_CTL);
 
-	val &= ~(OSPI_CLK_CTL_PHA | OSPI_CLK_CTL_DIV);
-	val |= FIELD_PREP(OSPI_CLK_CTL_PHA, OSPI_CLK_CTL_PHA_180)
-	     | FIELD_PREP(OSPI_CLK_CTL_DIV, div_reg);
+	FIELD_MODIFY(OSPI_CLK_CTL_PHA, &val, OSPI_CLK_CTL_PHA_180);
+	FIELD_MODIFY(OSPI_CLK_CTL_DIV, &val, div_reg);
 
 	writel(val, ospi->base + OSPI_CLK_CTL);
 }

@@ -8,6 +8,7 @@
 #include "abi/guc_actions_sriov_abi.h"
 
 #include "xe_gt.h"
+#include "xe_gt_sriov_pf_config.h"
 #include "xe_gt_sriov_pf_helpers.h"
 #include "xe_gt_sriov_pf_policy.h"
 #include "xe_gt_sriov_printk.h"
@@ -16,7 +17,6 @@
 #include "xe_guc_ct.h"
 #include "xe_guc_klv_helpers.h"
 #include "xe_guc_submit.h"
-#include "xe_pm.h"
 
 /*
  * Return: number of KLVs that were successfully parsed and saved,
@@ -65,6 +65,15 @@ static int pf_push_policy_buf_klvs(struct xe_gt *gt, u32 num_klvs,
 				   num_klvs, str_plural(num_klvs), ERR_PTR(err));
 		xe_guc_klv_print(klvs, num_dwords, &p);
 		return err;
+	}
+
+	if (IS_ENABLED(CONFIG_DRM_XE_DEBUG_SRIOV)) {
+		struct drm_printer p = xe_gt_dbg_printer(gt);
+		void *klvs = xe_guc_buf_cpu_ptr(buf);
+
+		xe_gt_sriov_dbg(gt, "pushed policy update with %u KLV%s:\n",
+				num_klvs, str_plural(num_klvs));
+		xe_guc_klv_print(klvs, num_dwords, &p);
 	}
 
 	return 0;
@@ -153,39 +162,23 @@ static int pf_update_policy_u32(struct xe_gt *gt, u16 key, u32 *policy, u32 valu
 	return 0;
 }
 
-static void pf_bulk_reset_sched_priority(struct xe_gt *gt, u32 priority)
-{
-	unsigned int total_vfs = 1 + xe_gt_sriov_pf_get_totalvfs(gt);
-	unsigned int n;
-
-	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
-	lockdep_assert_held(xe_gt_sriov_pf_master_mutex(gt));
-
-	for (n = 0; n < total_vfs; n++)
-		gt->sriov.pf.vfs[n].config.sched_priority = priority;
-}
-
 static int pf_provision_sched_if_idle(struct xe_gt *gt, bool enable)
 {
-	int err;
-
 	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
 	lockdep_assert_held(xe_gt_sriov_pf_master_mutex(gt));
 
-	err = pf_update_policy_bool(gt, GUC_KLV_VGT_POLICY_SCHED_IF_IDLE_KEY,
-				    &gt->sriov.pf.policy.guc.sched_if_idle,
-				    enable);
-
-	if (!err)
-		pf_bulk_reset_sched_priority(gt, enable ? GUC_SCHED_PRIORITY_NORMAL :
-					     GUC_SCHED_PRIORITY_LOW);
-	return err;
+	return pf_update_policy_bool(gt, GUC_KLV_VGT_POLICY_SCHED_IF_IDLE_KEY,
+				     &gt->sriov.pf.policy.guc.sched_if_idle,
+				     enable);
 }
 
 static int pf_reprovision_sched_if_idle(struct xe_gt *gt)
 {
 	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
 	lockdep_assert_held(xe_gt_sriov_pf_master_mutex(gt));
+
+	if (!gt->sriov.pf.policy.guc.sched_if_idle)
+		return 0;
 
 	return pf_provision_sched_if_idle(gt, gt->sriov.pf.policy.guc.sched_if_idle);
 }
@@ -199,7 +192,39 @@ static void pf_sanitize_sched_if_idle(struct xe_gt *gt)
 }
 
 /**
- * xe_gt_sriov_pf_policy_set_sched_if_idle - Control the 'sched_if_idle' policy.
+ * xe_gt_sriov_pf_policy_set_sched_if_idle_locked() - Control the 'sched_if_idle' policy.
+ * @gt: the &xe_gt where to apply the policy
+ * @enable: the value of the 'sched_if_idle' policy
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_gt_sriov_pf_policy_set_sched_if_idle_locked(struct xe_gt *gt, bool enable)
+{
+	u32 priority;
+	int err;
+
+	lockdep_assert_held(xe_gt_sriov_pf_master_mutex(gt));
+
+	err = pf_provision_sched_if_idle(gt, enable);
+	if (err)
+		return err;
+
+	/*
+	 * As of GuC 70.12 a change of this policy impacts individual configs
+	 * of all VFs. See `GUC_KLV_VGT_POLICY_SCHED_IF_IDLE`_ for details.
+	 */
+	xe_gt_assert(gt, GUC_FIRMWARE_VER_AT_LEAST(&gt->uc.guc, 70, 12));
+
+	priority = enable ? GUC_SCHED_PRIORITY_NORMAL : GUC_SCHED_PRIORITY_LOW;
+	xe_gt_sriov_pf_config_force_sched_priority_locked(gt, priority);
+
+	return 0;
+}
+
+/**
+ * xe_gt_sriov_pf_policy_set_sched_if_idle() - Control the 'sched_if_idle' policy.
  * @gt: the &xe_gt where to apply the policy
  * @enable: the value of the 'sched_if_idle' policy
  *
@@ -209,13 +234,26 @@ static void pf_sanitize_sched_if_idle(struct xe_gt *gt)
  */
 int xe_gt_sriov_pf_policy_set_sched_if_idle(struct xe_gt *gt, bool enable)
 {
-	int err;
+	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
+	guard(mutex)(xe_gt_sriov_pf_master_mutex(gt));
 
-	mutex_lock(xe_gt_sriov_pf_master_mutex(gt));
-	err = pf_provision_sched_if_idle(gt, enable);
-	mutex_unlock(xe_gt_sriov_pf_master_mutex(gt));
+	return xe_gt_sriov_pf_policy_set_sched_if_idle_locked(gt, enable);
+}
 
-	return err;
+/**
+ * xe_gt_sriov_pf_policy_get_sched_if_idle_locked() - Retrieve value of 'sched_if_idle' policy.
+ * @gt: the &xe_gt where to read the policy from
+ *
+ * This function can only be called on PF.
+ *
+ * Return: last value of 'sched_if_idle' policy applied.
+ */
+bool xe_gt_sriov_pf_policy_get_sched_if_idle_locked(struct xe_gt *gt)
+{
+	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
+	lockdep_assert_held(xe_gt_sriov_pf_master_mutex(gt));
+
+	return gt->sriov.pf.policy.guc.sched_if_idle;
 }
 
 /**
@@ -228,15 +266,10 @@ int xe_gt_sriov_pf_policy_set_sched_if_idle(struct xe_gt *gt, bool enable)
  */
 bool xe_gt_sriov_pf_policy_get_sched_if_idle(struct xe_gt *gt)
 {
-	bool enable;
-
 	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
+	guard(mutex)(xe_gt_sriov_pf_master_mutex(gt));
 
-	mutex_lock(xe_gt_sriov_pf_master_mutex(gt));
-	enable = gt->sriov.pf.policy.guc.sched_if_idle;
-	mutex_unlock(xe_gt_sriov_pf_master_mutex(gt));
-
-	return enable;
+	return xe_gt_sriov_pf_policy_get_sched_if_idle_locked(gt);
 }
 
 static int pf_provision_reset_engine(struct xe_gt *gt, bool enable)
@@ -252,6 +285,9 @@ static int pf_reprovision_reset_engine(struct xe_gt *gt)
 {
 	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
 	lockdep_assert_held(xe_gt_sriov_pf_master_mutex(gt));
+
+	if (!gt->sriov.pf.policy.guc.reset_engine)
+		return 0;
 
 	return pf_provision_reset_engine(gt, gt->sriov.pf.policy.guc.reset_engine);
 }
@@ -318,6 +354,9 @@ static int pf_reprovision_sample_period(struct xe_gt *gt)
 {
 	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
 	lockdep_assert_held(xe_gt_sriov_pf_master_mutex(gt));
+
+	if (!gt->sriov.pf.policy.guc.sample_period)
+		return 0;
 
 	return pf_provision_sample_period(gt, gt->sriov.pf.policy.guc.sample_period);
 }
@@ -689,30 +728,23 @@ void xe_gt_sriov_pf_policy_sanitize(struct xe_gt *gt)
 }
 
 /**
- * xe_gt_sriov_pf_policy_reprovision - Reprovision (and optionally reset) policy settings.
+ * xe_gt_sriov_pf_policy_restart() - Reprovision policy settings.
  * @gt: the &xe_gt
- * @reset: if true will reprovision using default values instead of latest
  *
  * This function can only be called on PF.
  *
  * Return: 0 on success or a negative error code on failure.
  */
-int xe_gt_sriov_pf_policy_reprovision(struct xe_gt *gt, bool reset)
+int xe_gt_sriov_pf_policy_restart(struct xe_gt *gt)
 {
 	int err = 0;
 
-	xe_pm_runtime_get_noresume(gt_to_xe(gt));
+	guard(mutex)(xe_gt_sriov_pf_master_mutex(gt));
 
-	mutex_lock(xe_gt_sriov_pf_master_mutex(gt));
-	if (reset)
-		pf_sanitize_guc_policies(gt);
 	err |= pf_reprovision_sched_if_idle(gt);
 	err |= pf_reprovision_reset_engine(gt);
 	err |= pf_reprovision_sample_period(gt);
 	err |= pf_reprovision_sched_groups(gt);
-	mutex_unlock(xe_gt_sriov_pf_master_mutex(gt));
-
-	xe_pm_runtime_put(gt_to_xe(gt));
 
 	return err ? -ENXIO : 0;
 }

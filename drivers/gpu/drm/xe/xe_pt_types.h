@@ -34,7 +34,7 @@ struct xe_pt {
 	bool rebind;
 	bool is_compact;
 #if IS_ENABLED(CONFIG_DRM_XE_DEBUG_VM)
-	/** addr: Virtual address start address of the PT. */
+	/** @addr: Virtual address start address of the PT. */
 	u64 addr;
 #endif
 };

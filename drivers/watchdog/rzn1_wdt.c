@@ -79,14 +79,6 @@ static int rzn1_wdt_start(struct watchdog_device *w)
 	return 0;
 }
 
-static irqreturn_t rzn1_wdt_irq(int irq, void *_wdt)
-{
-	pr_crit("RZN1 Watchdog. Initiating system reboot\n");
-	emergency_restart();
-
-	return IRQ_HANDLED;
-}
-
 static struct watchdog_info rzn1_wdt_info = {
 	.identity = "RZ/N1 Watchdog",
 	.options = WDIOF_MAGICCLOSE | WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING,
@@ -102,11 +94,9 @@ static int rzn1_wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rzn1_watchdog *wdt;
-	struct device_node *np = dev->of_node;
-	struct clk *clk;
 	unsigned long clk_rate;
+	struct clk *clk;
 	int ret;
-	int irq;
 
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
@@ -116,28 +106,13 @@ static int rzn1_wdt_probe(struct platform_device *pdev)
 	if (IS_ERR(wdt->base))
 		return PTR_ERR(wdt->base);
 
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
-		return irq;
-
-	ret = devm_request_irq(dev, irq, rzn1_wdt_irq, 0,
-			       np->name, wdt);
-	if (ret) {
-		dev_err(dev, "failed to request irq %d\n", irq);
-		return ret;
-	}
-
 	clk = devm_clk_get_enabled(dev, NULL);
-	if (IS_ERR(clk)) {
-		dev_err(dev, "failed to get the clock\n");
-		return PTR_ERR(clk);
-	}
+	if (IS_ERR(clk))
+		return dev_err_probe(dev, PTR_ERR(clk), "failed to get the clock\n");
 
 	clk_rate = clk_get_rate(clk);
-	if (!clk_rate) {
-		dev_err(dev, "failed to get the clock rate\n");
-		return -EINVAL;
-	}
+	if (!clk_rate)
+		return dev_err_probe(dev, -EINVAL, "failed to get the clock rate\n");
 
 	wdt->clk_rate_khz = clk_rate / 1000;
 	wdt->wdtdev.info = &rzn1_wdt_info;

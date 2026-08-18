@@ -350,57 +350,57 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 
+				compute-cb@3 {
+					compatible = "qcom,fastrpc-compute-cb";
+					reg = <3>;
+					iommus = <&cdsp_smmu 3>;
+				};
+
+				compute-cb@4 {
+					compatible = "qcom,fastrpc-compute-cb";
+					reg = <4>;
+					iommus = <&cdsp_smmu 4>;
+				};
+
 				compute-cb@5 {
 					compatible = "qcom,fastrpc-compute-cb";
 					reg = <5>;
-					iommus = <&cdsp_smmu 3>;
+					iommus = <&cdsp_smmu 5>;
 				};
 
 				compute-cb@6 {
 					compatible = "qcom,fastrpc-compute-cb";
 					reg = <6>;
-					iommus = <&cdsp_smmu 4>;
+					iommus = <&cdsp_smmu 6>;
 				};
 
 				compute-cb@7 {
 					compatible = "qcom,fastrpc-compute-cb";
 					reg = <7>;
-					iommus = <&cdsp_smmu 5>;
+					iommus = <&cdsp_smmu 7>;
 				};
 
 				compute-cb@8 {
 					compatible = "qcom,fastrpc-compute-cb";
 					reg = <8>;
-					iommus = <&cdsp_smmu 6>;
+					iommus = <&cdsp_smmu 8>;
 				};
 
 				compute-cb@9 {
 					compatible = "qcom,fastrpc-compute-cb";
 					reg = <9>;
-					iommus = <&cdsp_smmu 7>;
+					iommus = <&cdsp_smmu 9>;
 				};
 
 				compute-cb@10 {
 					compatible = "qcom,fastrpc-compute-cb";
 					reg = <10>;
-					iommus = <&cdsp_smmu 8>;
+					iommus = <&cdsp_smmu 10>;
 				};
 
 				compute-cb@11 {
 					compatible = "qcom,fastrpc-compute-cb";
 					reg = <11>;
-					iommus = <&cdsp_smmu 9>;
-				};
-
-				compute-cb@12 {
-					compatible = "qcom,fastrpc-compute-cb";
-					reg = <12>;
-					iommus = <&cdsp_smmu 10>;
-				};
-
-				compute-cb@13 {
-					compatible = "qcom,fastrpc-compute-cb";
-					reg = <13>;
 					iommus = <&cdsp_smmu 11>;
 				};
 			};

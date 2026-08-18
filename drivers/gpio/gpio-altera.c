@@ -9,7 +9,6 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/irq.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
@@ -17,6 +16,7 @@
 #include <linux/types.h>
 
 #include <linux/gpio/driver.h>
+#include <linux/gpio/generic.h>
 
 #define ALTERA_GPIO_MAX_NGPIO		32
 #define ALTERA_GPIO_DATA		0x0
@@ -26,7 +26,7 @@
 
 /**
 * struct altera_gpio_chip
-* @gc			: GPIO chip structure.
+* @chip			: Generic GPIO chip structure.
 * @regs			: memory mapped IO address for the controller registers.
 * @gpio_lock		: synchronization lock so that new irq/set/get requests
 *			  will be blocked until the current one completes.
@@ -34,7 +34,7 @@
 *			  (rising, falling, both, high)
 */
 struct altera_gpio_chip {
-	struct gpio_chip gc;
+	struct gpio_generic_chip chip;
 	void __iomem *regs;
 	raw_spinlock_t gpio_lock;
 	int interrupt_trigger;
@@ -106,72 +106,6 @@ static unsigned int altera_gpio_irq_startup(struct irq_data *d)
 	return 0;
 }
 
-static int altera_gpio_get(struct gpio_chip *gc, unsigned offset)
-{
-	struct altera_gpio_chip *altera_gc = gpiochip_get_data(gc);
-
-	return !!(readl(altera_gc->regs + ALTERA_GPIO_DATA) & BIT(offset));
-}
-
-static int altera_gpio_set(struct gpio_chip *gc, unsigned int offset, int value)
-{
-	struct altera_gpio_chip *altera_gc = gpiochip_get_data(gc);
-	unsigned long flags;
-	unsigned int data_reg;
-
-	raw_spin_lock_irqsave(&altera_gc->gpio_lock, flags);
-	data_reg = readl(altera_gc->regs + ALTERA_GPIO_DATA);
-	if (value)
-		data_reg |= BIT(offset);
-	else
-		data_reg &= ~BIT(offset);
-	writel(data_reg, altera_gc->regs + ALTERA_GPIO_DATA);
-	raw_spin_unlock_irqrestore(&altera_gc->gpio_lock, flags);
-
-	return 0;
-}
-
-static int altera_gpio_direction_input(struct gpio_chip *gc, unsigned offset)
-{
-	struct altera_gpio_chip *altera_gc = gpiochip_get_data(gc);
-	unsigned long flags;
-	unsigned int gpio_ddr;
-
-	raw_spin_lock_irqsave(&altera_gc->gpio_lock, flags);
-	/* Set pin as input, assumes software controlled IP */
-	gpio_ddr = readl(altera_gc->regs + ALTERA_GPIO_DIR);
-	gpio_ddr &= ~BIT(offset);
-	writel(gpio_ddr, altera_gc->regs + ALTERA_GPIO_DIR);
-	raw_spin_unlock_irqrestore(&altera_gc->gpio_lock, flags);
-
-	return 0;
-}
-
-static int altera_gpio_direction_output(struct gpio_chip *gc,
-		unsigned offset, int value)
-{
-	struct altera_gpio_chip *altera_gc = gpiochip_get_data(gc);
-	unsigned long flags;
-	unsigned int data_reg, gpio_ddr;
-
-	raw_spin_lock_irqsave(&altera_gc->gpio_lock, flags);
-	/* Sets the GPIO value */
-	data_reg = readl(altera_gc->regs + ALTERA_GPIO_DATA);
-	if (value)
-		data_reg |= BIT(offset);
-	else
-		data_reg &= ~BIT(offset);
-	writel(data_reg, altera_gc->regs + ALTERA_GPIO_DATA);
-
-	/* Set pin as output, assumes software controlled IP */
-	gpio_ddr = readl(altera_gc->regs + ALTERA_GPIO_DIR);
-	gpio_ddr |= BIT(offset);
-	writel(gpio_ddr, altera_gc->regs + ALTERA_GPIO_DIR);
-	raw_spin_unlock_irqrestore(&altera_gc->gpio_lock, flags);
-
-	return 0;
-}
-
 static void altera_gpio_irq_edge_handler(struct irq_desc *desc)
 {
 	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
@@ -231,9 +165,12 @@ static const struct irq_chip altera_gpio_irq_chip = {
 
 static int altera_gpio_probe(struct platform_device *pdev)
 {
+	struct gpio_generic_chip_config config;
 	struct device *dev = &pdev->dev;
 	int reg, ret;
 	struct altera_gpio_chip *altera_gc;
+	struct gpio_generic_chip *chip;
+	struct gpio_chip *gc;
 	struct gpio_irq_chip *girq;
 	int mapped_irq;
 
@@ -243,34 +180,44 @@ static int altera_gpio_probe(struct platform_device *pdev)
 
 	raw_spin_lock_init(&altera_gc->gpio_lock);
 
+	altera_gc->regs = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(altera_gc->regs))
+		return dev_err_probe(dev, PTR_ERR(altera_gc->regs),
+				     "failed to ioremap memory resource\n");
+
+	chip = &altera_gc->chip;
+
+	config = (struct gpio_generic_chip_config) {
+		.dev = dev,
+		.sz = 4,
+		.dat = altera_gc->regs + ALTERA_GPIO_DATA,
+		.set = altera_gc->regs + ALTERA_GPIO_DATA,
+		.dirout = altera_gc->regs + ALTERA_GPIO_DIR,
+	};
+
+	ret = gpio_generic_chip_init(chip, &config);
+	if (ret)
+		return dev_err_probe(dev, ret, "unable to init generic GPIO\n");
+
+	gc = &chip->gc;
+
 	if (device_property_read_u32(dev, "altr,ngpio", &reg))
 		/* By default assume maximum ngpio */
-		altera_gc->gc.ngpio = ALTERA_GPIO_MAX_NGPIO;
+		gc->ngpio = ALTERA_GPIO_MAX_NGPIO;
 	else
-		altera_gc->gc.ngpio = reg;
+		gc->ngpio = reg;
 
-	if (altera_gc->gc.ngpio > ALTERA_GPIO_MAX_NGPIO) {
+	if (gc->ngpio > ALTERA_GPIO_MAX_NGPIO) {
 		dev_warn(&pdev->dev,
 			"ngpio is greater than %d, defaulting to %d\n",
 			ALTERA_GPIO_MAX_NGPIO, ALTERA_GPIO_MAX_NGPIO);
-		altera_gc->gc.ngpio = ALTERA_GPIO_MAX_NGPIO;
+		gc->ngpio = ALTERA_GPIO_MAX_NGPIO;
 	}
 
-	altera_gc->gc.direction_input	= altera_gpio_direction_input;
-	altera_gc->gc.direction_output	= altera_gpio_direction_output;
-	altera_gc->gc.get		= altera_gpio_get;
-	altera_gc->gc.set		= altera_gpio_set;
-	altera_gc->gc.owner		= THIS_MODULE;
-	altera_gc->gc.parent		= &pdev->dev;
-	altera_gc->gc.base		= -1;
-
-	altera_gc->gc.label = devm_kasprintf(dev, GFP_KERNEL, "%pfw", dev_fwnode(dev));
-	if (!altera_gc->gc.label)
+	gc->base = -1;
+	gc->label = devm_kasprintf(dev, GFP_KERNEL, "%pfw", dev_fwnode(dev));
+	if (!gc->label)
 		return -ENOMEM;
-
-	altera_gc->regs = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(altera_gc->regs))
-		return dev_err_probe(dev, PTR_ERR(altera_gc->regs), "failed to ioremap memory resource\n");
 
 	mapped_irq = platform_get_irq_optional(pdev, 0);
 	if (mapped_irq < 0)
@@ -283,7 +230,7 @@ static int altera_gpio_probe(struct platform_device *pdev)
 	}
 	altera_gc->interrupt_trigger = reg;
 
-	girq = &altera_gc->gc.irq;
+	girq = &gc->irq;
 	gpio_irq_chip_set_chip(girq, &altera_gpio_irq_chip);
 
 	if (altera_gc->interrupt_trigger == IRQ_TYPE_LEVEL_HIGH)
@@ -300,7 +247,7 @@ static int altera_gpio_probe(struct platform_device *pdev)
 	girq->parents[0] = mapped_irq;
 
 skip_irq:
-	ret = devm_gpiochip_add_data(dev, &altera_gc->gc, altera_gc);
+	ret = devm_gpiochip_add_data(dev, gc, altera_gc);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed adding memory mapped gpiochip\n");
 		return ret;

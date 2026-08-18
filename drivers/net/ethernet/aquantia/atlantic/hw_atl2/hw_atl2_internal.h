@@ -27,8 +27,11 @@
 #define HW_ATL2_INT_MASK  (0xFFFFFFFFU)
 
 #define HW_ATL2_TXBUF_MAX              128U
-#define HW_ATL2_RXBUF_MAX              192U
+#define HW_ATL2_PTP_TXBUF_SIZE           8U
 
+/* hw_atl2 on-chip RX packet buffer available for data TCs */
+#define HW_ATL2_RXBUF_MAX              172U
+#define HW_ATL2_PTP_RXBUF_SIZE          16U
 #define HW_ATL2_RSS_REDIRECTION_MAX 64U
 
 #define HW_ATL2_TC_MAX 8U
@@ -84,6 +87,19 @@ enum HW_ATL2_RPF_ART_INDEX {
 					  HW_ATL_VLAN_MAX_FILTERS,
 };
 
+#define HW_ATL2_RPF_L3_CMD_EN       BIT(0)
+#define HW_ATL2_RPF_L3_CMD_SA_EN    BIT(1)
+#define HW_ATL2_RPF_L3_CMD_DA_EN    BIT(2)
+#define HW_ATL2_RPF_L3_CMD_PROTO_EN BIT(3)
+#define HW_ATL2_RPF_L3_V6_CMD_EN       BIT(0x10)
+#define HW_ATL2_RPF_L3_V6_CMD_SA_EN    BIT(0x11)
+#define HW_ATL2_RPF_L3_V6_CMD_DA_EN    BIT(0x12)
+#define HW_ATL2_RPF_L3_V6_CMD_PROTO_EN BIT(0x13)
+#define HW_ATL2_RPF_L4_CMD_EN       BIT(0)
+#define HW_ATL2_RPF_L4_CMD_DP_EN    BIT(1)
+#define HW_ATL2_RPF_L4_CMD_SP_EN    BIT(2)
+#define HW_ATL2_ART_TOTAL_ENTRIES   128
+
 #define HW_ATL2_ACTION(ACTION, RSS, INDEX, VALID) \
 	((((ACTION) & 0x3U) << 8) | \
 	(((RSS) & 0x1U) << 7) | \
@@ -94,6 +110,13 @@ enum HW_ATL2_RPF_ART_INDEX {
 #define HW_ATL2_ACTION_DISABLE HW_ATL2_ACTION(0, 0, 0, 0)
 #define HW_ATL2_ACTION_ASSIGN_QUEUE(QUEUE) HW_ATL2_ACTION(1, 0, (QUEUE), 1)
 #define HW_ATL2_ACTION_ASSIGN_TC(TC) HW_ATL2_ACTION(1, 1, (TC), 1)
+#define HW_ATL2_RPF_L3L4_FILTERS 8
+#define HW_ATL2_RPF_L3V4_FILTERS 8
+#define HW_ATL2_RPF_L3V6_FILTERS 6
+#define HW_ATL2_RPF_L4_FILTERS 8
+#define HW_ATL2_RPF_VLAN_FILTERS 16
+#define HW_ATL2_RPF_ETYPE_FILTERS 16
+#define HW_ATL2_RPF_ETYPE_TAGS 7
 
 enum HW_ATL2_RPF_RSS_HASH_TYPE {
 	HW_ATL2_RPF_RSS_HASH_TYPE_NONE = 0,
@@ -119,9 +142,54 @@ enum HW_ATL2_RPF_RSS_HASH_TYPE {
 
 #define HW_ATL_MCAST_FLT_ANY_TO_HOST 0x00010FFFU
 
+struct hw_atl2_l3_filter {
+	u8 proto;
+	u8 usage;
+	u32 cmd;
+	u32 srcip[4];
+	u32 dstip[4];
+};
+
+struct hw_atl2_l4_filter {
+	u8 usage;
+	u32 cmd;
+	u16 sport;
+	u16 dport;
+};
+
+struct hw_atl2_l3l4_filter {
+	s8 l3_index;
+	s8 l4_index;
+	u8 ipv6;
+};
+
+struct hw_atl2_tag_policy {
+	u16 action;
+	u16 usage;
+};
+
 struct hw_atl2_priv {
+	struct hw_atl2_l3_filter l3_v4_filters[HW_ATL2_RPF_L3L4_FILTERS];
+	struct hw_atl2_l3_filter l3_v6_filters[HW_ATL2_RPF_L3L4_FILTERS];
+	struct hw_atl2_l4_filter l4_filters[HW_ATL2_RPF_L3L4_FILTERS];
+	struct hw_atl2_l3l4_filter l3l4_filters[HW_ATL2_RPF_L3L4_FILTERS];
+	struct hw_atl2_tag_policy etype_policy[HW_ATL2_RPF_ETYPE_FILTERS];
 	struct statistics_s last_stats;
 	unsigned int art_base_index;
+	unsigned int art_count;
+	unsigned int l2_filters_base_index;
+	unsigned int l2_filter_count;
+	unsigned int etype_filter_base_index;
+	unsigned int etype_filter_count;
+	unsigned int etype_filter_tag_top;
+	unsigned int vlan_filter_base_index;
+	unsigned int vlan_filter_count;
+	unsigned int l3_v4_filter_base_index;
+	unsigned int l3_v4_filter_count;
+	unsigned int l3_v6_filter_base_index;
+	unsigned int l3_v6_filter_count;
+	unsigned int l4_filter_base_index;
+	unsigned int l4_filter_count;
 };
 
 #endif /* HW_ATL2_INTERNAL_H */

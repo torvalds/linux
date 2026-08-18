@@ -1000,7 +1000,7 @@ static int atomic_remove_fb(struct drm_framebuffer *fb)
 {
 	struct drm_modeset_acquire_ctx ctx;
 	struct drm_device *dev = fb->dev;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_plane *plane;
 	struct drm_connector *conn __maybe_unused;
 	struct drm_connector_state *conn_state;
@@ -1011,7 +1011,7 @@ static int atomic_remove_fb(struct drm_framebuffer *fb)
 retry_disable:
 	drm_modeset_acquire_init(&ctx, 0);
 
-	state = drm_atomic_state_alloc(dev);
+	state = drm_atomic_commit_alloc(dev);
 	if (!state) {
 		ret = -ENOMEM;
 		goto out;
@@ -1081,12 +1081,12 @@ retry:
 
 unlock:
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		drm_modeset_backoff(&ctx);
 		goto retry;
 	}
 
-	drm_atomic_state_put(state);
+	drm_atomic_commit_put(state);
 
 out:
 	drm_modeset_drop_locks(&ctx);

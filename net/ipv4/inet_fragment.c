@@ -24,8 +24,6 @@
 #include <net/ip.h>
 #include <net/ipv6.h>
 
-#include "../core/sock_destructor.h"
-
 /* Use skb->cb to track consecutive/adjacent fragments coming at
  * the end of the queue. Nodes in the rb-tree queue will
  * contain "runs" of one or more adjacent fragments.
@@ -524,7 +522,6 @@ void *inet_frag_reasm_prepare(struct inet_frag_queue *q, struct sk_buff *skb,
 			head = skb;
 			goto out_restore_sk;
 		}
-		FRAG_CB(fp)->next_frag = FRAG_CB(skb)->next_frag;
 		if (RB_EMPTY_NODE(&skb->rbnode))
 			FRAG_CB(parent)->next_frag = fp;
 		else
@@ -539,7 +536,6 @@ void *inet_frag_reasm_prepare(struct inet_frag_queue *q, struct sk_buff *skb,
 			skb->destructor = NULL;
 		}
 		skb_morph(skb, head);
-		FRAG_CB(skb)->next_frag = FRAG_CB(head)->next_frag;
 		rb_replace_node(&head->rbnode, &skb->rbnode,
 				&q->rb_fragments);
 		consume_skb(head);

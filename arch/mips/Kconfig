@@ -38,7 +38,6 @@ config MIPS
 	select GENERIC_BUILTIN_DTB if BUILTIN_DTB
 	select GENERIC_CMOS_UPDATE
 	select GENERIC_CPU_AUTOPROBE
-	select GENERIC_GETTIMEOFDAY
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
 	select GENERIC_ISA_DMA if EISA
@@ -51,7 +50,6 @@ config MIPS
 	select GENERIC_SCHED_CLOCK if !CAVIUM_OCTEON_SOC
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_IDLE_POLL_SETUP
-	select GENERIC_TIME_VSYSCALL
 	select GUP_GET_PXX_LOW_HIGH if CPU_MIPS32 && PHYS_ADDR_T_64BIT
 	select HAS_IOPORT if !NO_IOPORT_MAP || ISA
 	select HAVE_ARCH_COMPILER_H
@@ -76,7 +74,6 @@ config MIPS
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER
 	select HAVE_GCC_PLUGINS
-	select HAVE_GENERIC_VDSO
 	select HAVE_IOREMAP_PROT
 	select HAVE_IRQ_EXIT_ON_IRQ_STACK
 	select HAVE_IRQ_TIME_ACCOUNTING
@@ -206,6 +203,8 @@ config MIPS_ALCHEMY
 	select CSRC_R4K
 	select IRQ_MIPS_CPU
 	select DMA_NONCOHERENT		# Au1000,1500,1100 aren't, rest is
+	select GPIOLIB
+	select GPIOLIB_LEGACY
 	select MIPS_FIXUP_BIGPHYS_ADDR if PCI
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_32BIT_KERNEL
@@ -307,6 +306,7 @@ config BCM47XX
 	select SYS_HAS_EARLY_PRINTK
 	select USE_GENERIC_EARLY_PRINTK_8250
 	select GPIOLIB
+	select GPIOLIB_LEGACY
 	select LEDS_GPIO_REGISTER
 	select BCM47XX_NVRAM
 	select BCM47XX_SPROM
@@ -330,6 +330,7 @@ config BCM63XX
 	select SYS_HAS_CPU_BMIPS4380
 	select SWAP_IO_SPACE
 	select GPIOLIB
+	select GPIOLIB_LEGACY
 	select MIPS_L1_CACHE_SHIFT_4
 	select HAVE_LEGACY_CLK
 	help
@@ -999,6 +1000,7 @@ config MIKROTIK_RB532
 	select SWAP_IO_SPACE
 	select BOOT_RAW
 	select GPIOLIB
+	select GPIOLIB_LEGACY
 	select MIPS_L1_CACHE_SHIFT_4
 	help
 	  Support the Mikrotik(tm) RouterBoard 532 series,
@@ -1048,15 +1050,6 @@ config CAVIUM_OCTEON_SOC
 	  Say Y here for most Octeon reference boards.
 
 endchoice
-
-config FIT_IMAGE_FDT_EPM5
-	bool "Include FDT for Mobileye EyeQ5 development platforms"
-	depends on MACH_EYEQ5
-	default n
-	help
-	  Enable this to include the FDT for the EyeQ5 development platforms
-	  from Mobileye in the FIT kernel image.
-	  This requires u-boot on the platform.
 
 source "arch/mips/alchemy/Kconfig"
 source "arch/mips/ath25/Kconfig"
@@ -1135,9 +1128,6 @@ config CSRC_R4K
 
 config CSRC_SB1250
 	bool
-
-config MIPS_CLOCK_VSYSCALL
-	def_bool CSRC_R4K || CLKSRC_MIPS_GIC
 
 config GPIO_TXX9
 	select GPIOLIB
@@ -2026,7 +2016,7 @@ config CPU_MIPSR6
 	default y if CPU_MIPS32_R6 || CPU_MIPS64_R6
 	select CPU_HAS_RIXI
 	select CPU_HAS_DIEI if !CPU_DIEI_BROKEN
-	select HAVE_ARCH_BITREVERSE
+	select HAVE_ARCH_BITREVERSE if BITREVERSE
 	select MIPS_ASID_BITS_VARIABLE
 	select MIPS_SPRAM
 
@@ -3170,6 +3160,16 @@ endmenu
 config MIPS_EXTERNAL_TIMER
 	bool
 
+config MIPS_GENERIC_GETTIMEOFDAY
+	def_bool y
+	select GENERIC_GETTIMEOFDAY
+	select HAVE_GENERIC_VDSO
+	depends on CSRC_R4K || CLKSRC_MIPS_GIC
+	# GCC (at least up to version 9.2) appears to emit function calls that make use
+	# of the GOT when targeting microMIPS, which we can't use in the VDSO due to
+	# the lack of relocations. As such, we disable the VDSO for microMIPS builds.
+	depends on !(CPU_MICROMIPS && CC_IS_GCC && GCC_VERSION < 90300)
+
 menu "CPU Power Management"
 
 if CPU_SUPPORTS_CPUFREQ && MIPS_EXTERNAL_TIMER
@@ -3181,5 +3181,3 @@ source "drivers/cpuidle/Kconfig"
 endmenu
 
 source "arch/mips/kvm/Kconfig"
-
-source "arch/mips/vdso/Kconfig"

@@ -551,8 +551,7 @@ void show_ipi_list(struct seq_file *p, int prec)
 		if (!ipi_desc[i])
 			continue;
 
-		seq_printf(p, "%*s%u:%s", prec - 1, "IPI", i,
-			   prec >= 4 ? " " : "");
+		seq_printf(p, "%*s%u:", prec - 1, "IPI", i);
 
 		for_each_online_cpu(cpu)
 			seq_printf(p, "%10u ", irq_desc_kstat_cpu(ipi_desc[i], cpu));

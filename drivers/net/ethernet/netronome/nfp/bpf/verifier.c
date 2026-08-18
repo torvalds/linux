@@ -561,10 +561,10 @@ nfp_bpf_check_alu(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	const struct bpf_reg_state *dreg =
 		cur_regs(env) + meta->insn.dst_reg;
 
-	meta->umin_src = min(meta->umin_src, sreg->umin_value);
-	meta->umax_src = max(meta->umax_src, sreg->umax_value);
-	meta->umin_dst = min(meta->umin_dst, dreg->umin_value);
-	meta->umax_dst = max(meta->umax_dst, dreg->umax_value);
+	meta->umin_src = min(meta->umin_src, reg_umin(sreg));
+	meta->umax_src = max(meta->umax_src, reg_umax(sreg));
+	meta->umin_dst = min(meta->umin_dst, reg_umin(dreg));
+	meta->umax_dst = max(meta->umax_dst, reg_umax(dreg));
 
 	/* NFP supports u16 and u32 multiplication.
 	 *

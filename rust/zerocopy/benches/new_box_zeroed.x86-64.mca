@@ -1,0 +1,51 @@
+Iterations:        100
+Instructions:      600
+Total Cycles:      1197
+Total uOps:        1100
+
+Dispatch Width:    4
+uOps Per Cycle:    0.92
+IPC:               0.50
+Block RThroughput: 2.8
+
+
+Instruction Info:
+[1]: #uOps
+[2]: Latency
+[3]: RThroughput
+[4]: MayLoad
+[5]: MayStore
+[6]: HasSideEffects (U)
+
+[1]    [2]    [3]    [4]    [5]    [6]    Instructions:
+ 2      5     1.00           *            push	rax
+ 4      7     1.00    *                   call	qword ptr [rip + __rustc::__rust_no_alloc_shim_is_unstable_v2@GOTPCREL]
+ 1      1     0.33                        mov	edi, 6
+ 1      1     0.33                        mov	esi, 2
+ 1      6     0.50    *                   pop	rax
+ 2      6     1.00    *                   jmp	qword ptr [rip + __rustc::__rust_alloc_zeroed@GOTPCREL]
+
+
+Resources:
+[0]   - SBDivider
+[1]   - SBFPDivider
+[2]   - SBPort0
+[3]   - SBPort1
+[4]   - SBPort4
+[5]   - SBPort5
+[6.0] - SBPort23
+[6.1] - SBPort23
+
+
+Resource pressure per iteration:
+[0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  
+ -      -     0.99   1.00   2.00   2.01   2.07   2.93   
+
+Resource pressure by instruction:
+[0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  Instructions:
+ -      -      -      -     1.00    -     0.93   0.07   push	rax
+ -      -      -      -     1.00   1.00   0.12   1.88   call	qword ptr [rip + __rustc::__rust_no_alloc_shim_is_unstable_v2@GOTPCREL]
+ -      -     0.99    -      -     0.01    -      -     mov	edi, 6
+ -      -      -     1.00    -      -      -      -     mov	esi, 2
+ -      -      -      -      -      -     0.94   0.06   pop	rax
+ -      -      -      -      -     1.00   0.08   0.92   jmp	qword ptr [rip + __rustc::__rust_alloc_zeroed@GOTPCREL]

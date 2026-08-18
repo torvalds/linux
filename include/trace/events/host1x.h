@@ -21,9 +21,11 @@ struct host1x_bo;
 DECLARE_EVENT_CLASS(host1x,
 	TP_PROTO(const char *name),
 	TP_ARGS(name),
-	TP_STRUCT__entry(__field(const char *, name)),
-	TP_fast_assign(__entry->name = name;),
-	TP_printk("name=%s", __entry->name)
+	TP_STRUCT__entry(__string(name, name)),
+	TP_fast_assign(
+		__assign_str(name);
+	),
+	TP_printk("name=%s", __get_str(name))
 );
 
 DEFINE_EVENT(host1x, host1x_channel_open,
@@ -52,19 +54,19 @@ TRACE_EVENT(host1x_cdma_push,
 	TP_ARGS(name, op1, op2),
 
 	TP_STRUCT__entry(
-		__field(const char *, name)
+		__string(name, name)
 		__field(u32, op1)
 		__field(u32, op2)
 	),
 
 	TP_fast_assign(
-		__entry->name = name;
+		__assign_str(name);
 		__entry->op1 = op1;
 		__entry->op2 = op2;
 	),
 
 	TP_printk("name=%s, op1=%08x, op2=%08x",
-		__entry->name, __entry->op1, __entry->op2)
+		__get_str(name), __entry->op1, __entry->op2)
 );
 
 TRACE_EVENT(host1x_cdma_push_wide,
@@ -73,7 +75,7 @@ TRACE_EVENT(host1x_cdma_push_wide,
 	TP_ARGS(name, op1, op2, op3, op4),
 
 	TP_STRUCT__entry(
-		__field(const char *, name)
+		__string(name, name)
 		__field(u32, op1)
 		__field(u32, op2)
 		__field(u32, op3)
@@ -81,7 +83,7 @@ TRACE_EVENT(host1x_cdma_push_wide,
 	),
 
 	TP_fast_assign(
-		__entry->name = name;
+		__assign_str(name);
 		__entry->op1 = op1;
 		__entry->op2 = op2;
 		__entry->op3 = op3;
@@ -89,7 +91,7 @@ TRACE_EVENT(host1x_cdma_push_wide,
 	),
 
 	TP_printk("name=%s, op1=%08x, op2=%08x, op3=%08x op4=%08x",
-		__entry->name, __entry->op1, __entry->op2, __entry->op3,
+		__get_str(name), __entry->op1, __entry->op2, __entry->op3,
 		__entry->op4)
 );
 
@@ -100,7 +102,7 @@ TRACE_EVENT(host1x_cdma_push_gather,
 	TP_ARGS(name, bo, words, offset, cmdbuf),
 
 	TP_STRUCT__entry(
-		__field(const char *, name)
+		__string(name, name)
 		__field(struct host1x_bo *, bo)
 		__field(u32, words)
 		__field(u32, offset)
@@ -114,14 +116,14 @@ TRACE_EVENT(host1x_cdma_push_gather,
 					words * sizeof(u32));
 		}
 		__entry->cmdbuf = cmdbuf;
-		__entry->name = name;
+		__assign_str(name);
 		__entry->bo = bo;
 		__entry->words = words;
 		__entry->offset = offset;
 	),
 
 	TP_printk("name=%s, bo=%p, words=%u, offset=%d, contents=[%s]",
-	  __entry->name, __entry->bo,
+	  __get_str(name), __entry->bo,
 	  __entry->words, __entry->offset,
 	  __print_hex(__get_dynamic_array(cmdbuf),
 		  __entry->cmdbuf ? __entry->words * 4 : 0))
@@ -134,7 +136,7 @@ TRACE_EVENT(host1x_channel_submit,
 	TP_ARGS(name, cmdbufs, relocs, syncpt_id, syncpt_incrs),
 
 	TP_STRUCT__entry(
-		__field(const char *, name)
+		__string(name, name)
 		__field(u32, cmdbufs)
 		__field(u32, relocs)
 		__field(u32, syncpt_id)
@@ -142,7 +144,7 @@ TRACE_EVENT(host1x_channel_submit,
 	),
 
 	TP_fast_assign(
-		__entry->name = name;
+		__assign_str(name);
 		__entry->cmdbufs = cmdbufs;
 		__entry->relocs = relocs;
 		__entry->syncpt_id = syncpt_id;
@@ -151,7 +153,7 @@ TRACE_EVENT(host1x_channel_submit,
 
 	TP_printk("name=%s, cmdbufs=%u, relocs=%u, syncpt_id=%u, "
 		  "syncpt_incrs=%u",
-		  __entry->name, __entry->cmdbufs, __entry->relocs,
+		  __get_str(name), __entry->cmdbufs, __entry->relocs,
 		  __entry->syncpt_id, __entry->syncpt_incrs)
 );
 
@@ -161,19 +163,19 @@ TRACE_EVENT(host1x_channel_submitted,
 	TP_ARGS(name, syncpt_base, syncpt_max),
 
 	TP_STRUCT__entry(
-		__field(const char *, name)
+		__string(name, name)
 		__field(u32, syncpt_base)
 		__field(u32, syncpt_max)
 	),
 
 	TP_fast_assign(
-		__entry->name = name;
+		__assign_str(name);
 		__entry->syncpt_base = syncpt_base;
 		__entry->syncpt_max = syncpt_max;
 	),
 
 	TP_printk("name=%s, syncpt_base=%d, syncpt_max=%d",
-		__entry->name, __entry->syncpt_base, __entry->syncpt_max)
+		__get_str(name), __entry->syncpt_base, __entry->syncpt_max)
 );
 
 TRACE_EVENT(host1x_channel_submit_complete,
@@ -182,19 +184,19 @@ TRACE_EVENT(host1x_channel_submit_complete,
 	TP_ARGS(name, count, thresh),
 
 	TP_STRUCT__entry(
-		__field(const char *, name)
+		__string(name, name)
 		__field(int, count)
 		__field(u32, thresh)
 	),
 
 	TP_fast_assign(
-		__entry->name = name;
+		__assign_str(name);
 		__entry->count = count;
 		__entry->thresh = thresh;
 	),
 
 	TP_printk("name=%s, count=%d, thresh=%d",
-		__entry->name, __entry->count, __entry->thresh)
+		__get_str(name), __entry->count, __entry->thresh)
 );
 
 TRACE_EVENT(host1x_wait_cdma,
@@ -203,16 +205,16 @@ TRACE_EVENT(host1x_wait_cdma,
 	TP_ARGS(name, eventid),
 
 	TP_STRUCT__entry(
-		__field(const char *, name)
+		__string(name, name)
 		__field(u32, eventid)
 	),
 
 	TP_fast_assign(
-		__entry->name = name;
+		__assign_str(name);
 		__entry->eventid = eventid;
 	),
 
-	TP_printk("name=%s, event=%d", __entry->name, __entry->eventid)
+	TP_printk("name=%s, event=%d", __get_str(name), __entry->eventid)
 );
 
 TRACE_EVENT(host1x_syncpt_load_min,

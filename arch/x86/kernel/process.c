@@ -486,6 +486,7 @@ void native_tss_update_io_bitmap(void)
 		if (WARN_ON_ONCE(!iobm)) {
 			clear_thread_flag(TIF_IO_BITMAP);
 			native_tss_invalidate_io_bitmap();
+			return;
 		}
 
 		/*
@@ -969,7 +970,7 @@ void amd_e400_c1e_apic_setup(void)
 
 void __init arch_post_acpi_subsys_init(void)
 {
-	u32 lo, hi;
+	u64 val;
 
 	if (!boot_cpu_has_bug(X86_BUG_AMD_E400))
 		return;
@@ -979,8 +980,8 @@ void __init arch_post_acpi_subsys_init(void)
 	 * the machine is affected K8_INTP_C1E_ACTIVE_MASK bits are set in
 	 * MSR_K8_INT_PENDING_MSG.
 	 */
-	rdmsr(MSR_K8_INT_PENDING_MSG, lo, hi);
-	if (!(lo & K8_INTP_C1E_ACTIVE_MASK))
+	rdmsrq(MSR_K8_INT_PENDING_MSG, val);
+	if (!(val & K8_INTP_C1E_ACTIVE_MASK))
 		return;
 
 	boot_cpu_set_bug(X86_BUG_AMD_APIC_C1E);

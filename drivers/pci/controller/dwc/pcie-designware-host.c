@@ -16,9 +16,11 @@
 #include <linux/msi.h>
 #include <linux/of_address.h>
 #include <linux/of_pci.h>
+#include <linux/pci.h>
 #include <linux/pci_regs.h>
 #include <linux/platform_device.h>
 
+#include "../pci-host-common.h"
 #include "../../pci.h"
 #include "pcie-designware.h"
 
@@ -434,7 +436,7 @@ static int dw_pcie_config_ecam_iatu(struct dw_pcie_rp *pp)
 	 * remaining buses need type 1 iATU configuration.
 	 */
 	atu.index = 0;
-	atu.type = PCIE_ATU_TYPE_CFG0;
+	atu.type = PCIE_TLP_TYPE_CFG0_RDWR;
 	atu.parent_bus_addr = pp->cfg0_base + SZ_1M;
 	/* 1MiB is to cover 1 (bus) * 32 (devices) * 8 (functions) */
 	atu.size = SZ_1M;
@@ -450,7 +452,7 @@ static int dw_pcie_config_ecam_iatu(struct dw_pcie_rp *pp)
 
 	/* Configure remaining buses in type 1 iATU configuration */
 	atu.index = 1;
-	atu.type = PCIE_ATU_TYPE_CFG1;
+	atu.type = PCIE_TLP_TYPE_CFG1_RDWR;
 	atu.parent_bus_addr = pp->cfg0_base + SZ_2M;
 	atu.size = (SZ_1M * bus_range_max) - SZ_2M;
 	atu.ctrl2 = PCIE_ATU_CFG_SHIFT_MODE_ENABLE;
@@ -703,8 +705,10 @@ void dw_pcie_host_deinit(struct dw_pcie_rp *pp)
 
 	dwc_pcie_debugfs_deinit(pci);
 
+	pci_lock_rescan_remove();
 	pci_stop_root_bus(pp->bridge->bus);
 	pci_remove_root_bus(pp->bridge->bus);
+	pci_unlock_rescan_remove();
 
 	dw_pcie_stop_link(pci);
 
@@ -745,9 +749,9 @@ static void __iomem *dw_pcie_other_conf_map_bus(struct pci_bus *bus,
 		 PCIE_ATU_FUNC(PCI_FUNC(devfn));
 
 	if (pci_is_root_bus(bus->parent))
-		type = PCIE_ATU_TYPE_CFG0;
+		type = PCIE_TLP_TYPE_CFG0_RDWR;
 	else
-		type = PCIE_ATU_TYPE_CFG1;
+		type = PCIE_TLP_TYPE_CFG1_RDWR;
 
 	atu.type = type;
 	atu.parent_bus_addr = pp->cfg0_base - pci->parent_bus_offset;
@@ -774,7 +778,7 @@ static int dw_pcie_rd_other_conf(struct pci_bus *bus, unsigned int devfn,
 		return ret;
 
 	if (pp->cfg0_io_shared) {
-		atu.type = PCIE_ATU_TYPE_IO;
+		atu.type = PCIE_TLP_TYPE_IO_RDWR;
 		atu.parent_bus_addr = pp->io_base - pci->parent_bus_offset;
 		atu.pci_addr = pp->io_bus_addr;
 		atu.size = pp->io_size;
@@ -800,7 +804,7 @@ static int dw_pcie_wr_other_conf(struct pci_bus *bus, unsigned int devfn,
 		return ret;
 
 	if (pp->cfg0_io_shared) {
-		atu.type = PCIE_ATU_TYPE_IO;
+		atu.type = PCIE_TLP_TYPE_IO_RDWR;
 		atu.parent_bus_addr = pp->io_base - pci->parent_bus_offset;
 		atu.pci_addr = pp->io_bus_addr;
 		atu.size = pp->io_size;
@@ -908,7 +912,7 @@ static int dw_pcie_iatu_setup(struct dw_pcie_rp *pp)
 		if (resource_type(entry->res) != IORESOURCE_MEM)
 			continue;
 
-		atu.type = PCIE_ATU_TYPE_MEM;
+		atu.type = PCIE_TLP_TYPE_MEM_RDWR;
 		atu.parent_bus_addr = entry->res->start - pci->parent_bus_offset;
 		atu.pci_addr = entry->res->start - entry->offset;
 
@@ -951,7 +955,7 @@ static int dw_pcie_iatu_setup(struct dw_pcie_rp *pp)
 	if (pp->io_size) {
 		if (ob_iatu_index < pci->num_ob_windows) {
 			atu.index = ob_iatu_index;
-			atu.type = PCIE_ATU_TYPE_IO;
+			atu.type = PCIE_TLP_TYPE_IO_RDWR;
 			atu.parent_bus_addr = pp->io_base - pci->parent_bus_offset;
 			atu.pci_addr = pp->io_bus_addr;
 			atu.size = pp->io_size;
@@ -1013,7 +1017,7 @@ static int dw_pcie_iatu_setup(struct dw_pcie_rp *pp)
 
 			window_size = MIN(pci->region_limit + 1, res_size);
 			ret = dw_pcie_prog_inbound_atu(pci, ib_iatu_index,
-						       PCIE_ATU_TYPE_MEM, res_start,
+						       PCIE_TLP_TYPE_MEM_RDWR, res_start,
 						       res_start - entry->offset, window_size);
 			if (ret) {
 				dev_err(pci->dev, "Failed to set DMA range %pr\n",
@@ -1194,7 +1198,7 @@ static int dw_pcie_pme_turn_off(struct dw_pcie *pci)
 
 	atu.code = PCIE_MSG_CODE_PME_TURN_OFF;
 	atu.routing = PCIE_MSG_TYPE_R_BC;
-	atu.type = PCIE_ATU_TYPE_MSG;
+	atu.type = PCIE_TLP_TYPE_MSG;
 	atu.size = resource_size(pci->pp.msg_res);
 	atu.index = pci->pp.msg_atu_index;
 
@@ -1218,18 +1222,14 @@ static int dw_pcie_pme_turn_off(struct dw_pcie *pci)
 
 int dw_pcie_suspend_noirq(struct dw_pcie *pci)
 {
-	u8 offset = dw_pcie_find_capability(pci, PCI_CAP_ID_EXP);
+	bool pme_capable = false;
 	int ret = 0;
 	u32 val;
 
 	if (!dw_pcie_link_up(pci))
 		goto stop_link;
 
-	/*
-	 * If L1SS is supported, then do not put the link into L2 as some
-	 * devices such as NVMe expect low resume latency.
-	 */
-	if (dw_pcie_readw_dbi(pci, offset + PCI_EXP_LNKCTL) & PCI_EXP_LNKCTL_ASPM_L1)
+	if (!pci_host_common_d3cold_possible(pci->pp.bridge, &pme_capable))
 		return 0;
 
 	if (pci->pp.ops->pme_turn_off) {
@@ -1273,6 +1273,15 @@ int dw_pcie_suspend_noirq(struct dw_pcie *pci)
 	udelay(1);
 
 stop_link:
+	/*
+	 * TODO: "pme_capable" means some downstream device is wakeup-
+	 * enabled and is capable of generating PME from D3cold, which
+	 * requires auxiliary power.  Instead of always skipping power off
+	 * if PME is supported from D3cold, query the pwrctrl core and skip
+	 * power off only if device supports PME from D3cold and Vaux is
+	 * not supported.
+	 */
+	pci->pp.skip_pwrctrl_off = pme_capable;
 	dw_pcie_stop_link(pci);
 	if (pci->pp.ops->deinit)
 		pci->pp.ops->deinit(&pci->pp);
@@ -1289,8 +1298,6 @@ int dw_pcie_resume_noirq(struct dw_pcie *pci)
 
 	if (!pci->suspended)
 		return 0;
-
-	pci->suspended = false;
 
 	if (pci->pp.ops->init) {
 		ret = pci->pp.ops->init(&pci->pp);
@@ -1312,6 +1319,8 @@ int dw_pcie_resume_noirq(struct dw_pcie *pci)
 
 	if (pci->pp.ops->post_init)
 		pci->pp.ops->post_init(&pci->pp);
+
+	pci->suspended = false;
 
 	return 0;
 

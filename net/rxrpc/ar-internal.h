@@ -15,6 +15,12 @@
 #include <keys/rxrpc-type.h>
 #include "protocol.h"
 
+#define FCRYPT_ROUNDS 16
+
+struct fcrypt_key {
+	__be32 sched[FCRYPT_ROUNDS];
+};
+
 #define FCRYPT_BSIZE 8
 struct rxrpc_crypt {
 	union {
@@ -22,6 +28,19 @@ struct rxrpc_crypt {
 		__be32	n[2];
 	};
 } __attribute__((aligned(8)));
+
+void fcrypt_preparekey(struct fcrypt_key *key, const u8 raw_key[FCRYPT_BSIZE]);
+void fcrypt_pcbc_encrypt(const struct fcrypt_key *key,
+			 const u8 iv[FCRYPT_BSIZE], const void *src, void *dst,
+			 size_t nblocks);
+void fcrypt_pcbc_decrypt(const struct fcrypt_key *key,
+			 const u8 iv[FCRYPT_BSIZE], const void *src, void *dst,
+			 size_t nblocks);
+#if IS_ENABLED(CONFIG_KUNIT)
+struct des_ctx;
+void des_pcbc_decrypt_inplace(const struct des_ctx *key, __le64 iv, u8 *data,
+			      size_t len);
+#endif
 
 #define rxrpc_queue_work(WS)	queue_work(rxrpc_workqueue, (WS))
 #define rxrpc_queue_delayed_work(WS,D)	\
@@ -563,7 +582,7 @@ struct rxrpc_connection {
 	const struct rxrpc_security *security;	/* applied security module */
 	union {
 		struct {
-			struct crypto_sync_skcipher *cipher;	/* encryption handle */
+			struct fcrypt_key *cipher; /* encryption key */
 			struct rxrpc_crypt csum_iv;	/* packet checksum base */
 			u32	nonce;		/* response re-use preventer */
 		} rxkad;
@@ -650,7 +669,9 @@ enum rxrpc_call_event {
 enum rxrpc_call_state {
 	RXRPC_CALL_UNINITIALISED,
 	RXRPC_CALL_CLIENT_AWAIT_CONN,	/* - client waiting for connection to become available */
+	RXRPC_CALL_CLIENT_PRE_SEND,	/* - client is connected, but hasn't sent anything yet */
 	RXRPC_CALL_CLIENT_SEND_REQUEST,	/* - client sending request phase */
+	RXRPC_CALL_CLIENT_AWAIT_ACK,	/* - client awaiting ACKs of request */
 	RXRPC_CALL_CLIENT_AWAIT_REPLY,	/* - client awaiting reply */
 	RXRPC_CALL_CLIENT_RECV_REPLY,	/* - client receiving reply phase */
 	RXRPC_CALL_SERVER_PREALLOC,	/* - service preallocation */
@@ -1264,9 +1285,11 @@ int rxrpc_io_thread(void *data);
 void rxrpc_post_response(struct rxrpc_connection *conn, struct sk_buff *skb);
 static inline void rxrpc_wake_up_io_thread(struct rxrpc_local *local)
 {
-	if (!local->io_thread)
+	struct task_struct *io_thread = READ_ONCE(local->io_thread);
+
+	if (!io_thread)
 		return;
-	wake_up_process(READ_ONCE(local->io_thread));
+	wake_up_process(io_thread);
 }
 
 static inline bool rxrpc_protocol_error(struct sk_buff *skb, enum rxrpc_abort_reason why)
@@ -1355,9 +1378,9 @@ static inline struct rxrpc_net *rxrpc_net(struct net *net)
 }
 
 /*
- * out_of_band.c
+ * oob.c
  */
-void rxrpc_notify_socket_oob(struct rxrpc_call *call, struct sk_buff *skb);
+bool rxrpc_notify_socket_oob(struct rxrpc_call *call, struct sk_buff *skb);
 void rxrpc_add_pending_oob(struct rxrpc_sock *rx, struct sk_buff *skb);
 int rxrpc_sendmsg_oob(struct rxrpc_sock *rx, struct msghdr *msg, size_t len);
 

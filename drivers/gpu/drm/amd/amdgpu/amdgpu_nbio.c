@@ -84,3 +84,13 @@ late_fini:
 	amdgpu_ras_block_late_fini(adev, ras_block);
 	return r;
 }
+
+
+void amdgpu_nbio_program_aspm(struct amdgpu_device *adev)
+{
+	if (!amdgpu_device_should_use_aspm(adev))
+		return;
+
+	if (adev->nbio.funcs->program_aspm)
+		adev->nbio.funcs->program_aspm(adev);
+}

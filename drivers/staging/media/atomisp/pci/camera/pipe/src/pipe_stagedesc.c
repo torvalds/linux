@@ -32,9 +32,8 @@ void ia_css_pipe_get_generic_stage_desc(
 	stage_desc->max_input_width = 0;
 	stage_desc->mode = binary->info->sp.pipeline.mode;
 	stage_desc->in_frame = in_frame;
-	for (i = 0; i < IA_CSS_BINARY_MAX_OUTPUT_PORTS; i++) {
+	for (i = 0; i < IA_CSS_BINARY_MAX_OUTPUT_PORTS; i++)
 		stage_desc->out_frame[i] = out_frame[i];
-	}
 	stage_desc->vf_frame = vf_frame;
 ERR:
 	IA_CSS_LEAVE_PRIVATE("");
@@ -59,9 +58,8 @@ void ia_css_pipe_get_firmwares_stage_desc(
 	stage_desc->max_input_width = 0;
 	stage_desc->mode = mode;
 	stage_desc->in_frame = in_frame;
-	for (i = 0; i < IA_CSS_BINARY_MAX_OUTPUT_PORTS; i++) {
+	for (i = 0; i < IA_CSS_BINARY_MAX_OUTPUT_PORTS; i++)
 		stage_desc->out_frame[i] = out_frame[i];
-	}
 	stage_desc->vf_frame = vf_frame;
 }
 
@@ -82,8 +80,7 @@ void ia_css_pipe_get_sp_func_stage_desc(
 	stage_desc->mode = (unsigned int)-1;
 	stage_desc->in_frame = NULL;
 	stage_desc->out_frame[0] = out_frame;
-	for (i = 1; i < IA_CSS_BINARY_MAX_OUTPUT_PORTS; i++) {
+	for (i = 1; i < IA_CSS_BINARY_MAX_OUTPUT_PORTS; i++)
 		stage_desc->out_frame[i] = NULL;
-	}
 	stage_desc->vf_frame = NULL;
 }

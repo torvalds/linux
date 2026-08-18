@@ -5,7 +5,7 @@
 #define __PANTHOR_HW_H__
 
 #include "panthor_device.h"
-#include "panthor_regs.h"
+#include "panthor_gpu_regs.h"
 
 /**
  * struct panthor_hw_ops - HW operations that are specific to a GPU

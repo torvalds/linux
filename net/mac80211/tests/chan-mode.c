@@ -2,7 +2,7 @@
 /*
  * KUnit tests for channel mode functions
  *
- * Copyright (C) 2024-2025 Intel Corporation
+ * Copyright (C) 2024-2026 Intel Corporation
  */
 #include <net/cfg80211.h>
 #include <kunit/test.h>
@@ -243,7 +243,7 @@ static void test_determine_chan_mode(struct kunit *test)
 
 	rcu_read_lock();
 	elems = ieee80211_determine_chan_mode(t_sdata->sdata, &conn, &cbss,
-					      0, &chanreq, &ap_chandef,
+					      NULL, 0, &chanreq, &ap_chandef,
 					      userspace_selectors);
 	rcu_read_unlock();
 

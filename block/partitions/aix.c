@@ -208,7 +208,14 @@ int aix_partition(struct parsed_partitions *state)
 		if (n) {
 			int foundlvs = 0;
 
-			for (i = 0; foundlvs < numlvs && i < state->limit; i += 1) {
+			/*
+			 * The lvd array was read as a single sector; only the
+			 * struct lvd entries that fit in it are valid.  Bound the
+			 * scan so an on-disk numlvs larger than that cannot walk
+			 * the read buffer out of bounds.
+			 */
+			for (i = 0; foundlvs < numlvs && i < state->limit &&
+				    i < SECTOR_SIZE / (int)sizeof(struct lvd); i++) {
 				lvip[i].pps_per_lv = be16_to_cpu(p[i].num_lps);
 				if (lvip[i].pps_per_lv)
 					foundlvs += 1;
@@ -225,6 +232,15 @@ int aix_partition(struct parsed_partitions *state)
 		int cur_lv_ix = -1;
 		int next_lp_ix = 1;
 		int lp_ix;
+
+		/*
+		 * pvd was read into a fixed-size struct pvd whose ppe[] array
+		 * holds ARRAY_SIZE(pvd->ppe) entries.  pp_count is an
+		 * unvalidated on-disk __be16, so clamp the scan to the array
+		 * size to avoid walking past the allocation.
+		 */
+		if (numpps > ARRAY_SIZE(pvd->ppe))
+			numpps = ARRAY_SIZE(pvd->ppe);
 
 		for (i = 0; i < numpps; i += 1) {
 			struct ppe *p = pvd->ppe + i;

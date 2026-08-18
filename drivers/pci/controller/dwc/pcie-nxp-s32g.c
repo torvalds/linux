@@ -139,8 +139,7 @@ static int s32g_init_pcie_controller(struct dw_pcie_rp *pp)
 
 	/* Set RP mode */
 	val = s32g_pcie_readl_ctrl(s32g_pp, PCIE_S32G_PE0_GEN_CTRL_1);
-	val &= ~DEVICE_TYPE_MASK;
-	val |= FIELD_PREP(DEVICE_TYPE_MASK, PCI_EXP_TYPE_ROOT_PORT);
+	FIELD_MODIFY(DEVICE_TYPE_MASK, &val, PCI_EXP_TYPE_ROOT_PORT);
 
 	/* Use default CRNS */
 	val &= ~SRIS_MODE;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2024-2025 Intel Corporation
+ * Copyright (C) 2024-2026 Intel Corporation
  */
 #include <net/mac80211.h>
 
@@ -11,36 +11,11 @@
 #include "link.h"
 #include "constants.h"
 
-static void iwl_mld_vif_ps_iterator(void *data, u8 *mac,
-				    struct ieee80211_vif *vif)
-{
-	bool *ps_enable = (bool *)data;
-	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
-
-	if (vif->type != NL80211_IFTYPE_STATION)
-		return;
-
-	*ps_enable &= !mld_vif->ps_disabled;
-}
-
 int iwl_mld_update_device_power(struct iwl_mld *mld, bool d3)
 {
 	struct iwl_device_power_cmd cmd = {};
-	bool enable_ps = false;
 
-	if (iwlmld_mod_params.power_scheme != IWL_POWER_SCHEME_CAM) {
-		enable_ps = true;
-
-		/* Disable power save if any STA interface has
-		 * power save turned off
-		 */
-		ieee80211_iterate_active_interfaces_mtx(mld->hw,
-							IEEE80211_IFACE_ITER_NORMAL,
-							iwl_mld_vif_ps_iterator,
-							&enable_ps);
-	}
-
-	if (enable_ps)
+	if (iwlmld_mod_params.power_scheme != IWL_POWER_SCHEME_CAM)
 		cmd.flags |=
 			cpu_to_le16(DEVICE_POWER_FLAGS_POWER_SAVE_ENA_MSK);
 
@@ -113,10 +88,10 @@ static bool iwl_mld_power_is_radar(struct iwl_mld *mld,
 	return chanctx_conf->def.chan->flags & IEEE80211_CHAN_RADAR;
 }
 
-static void iwl_mld_power_configure_uapsd(struct iwl_mld *mld,
-					  struct iwl_mld_link *link,
-					  struct iwl_mac_power_cmd *cmd,
-					  bool ps_poll)
+static void iwl_mld_power_configure_uapsd_v2(struct iwl_mld *mld,
+					     struct iwl_mld_link *link,
+					     struct iwl_mac_power_cmd_v2 *cmd,
+					     bool ps_poll)
 {
 	bool tid_found = false;
 
@@ -175,10 +150,54 @@ static void iwl_mld_power_configure_uapsd(struct iwl_mld *mld,
 	cmd->uapsd_max_sp = mld->hw->uapsd_max_sp_len;
 }
 
+static void iwl_mld_power_configure_uapsd(struct iwl_mld *mld,
+					  struct iwl_mld_link *link,
+					  struct iwl_mac_power_cmd *cmd,
+					  bool ps_poll)
+{
+	bool tid_found = false;
+
+	/* set advanced pm flag with no uapsd ACs to enable ps-poll */
+	if (ps_poll) {
+		cmd->flags |= cpu_to_le16(POWER_FLAGS_ADVANCE_PM_ENA_MSK);
+		return;
+	}
+
+	for (enum ieee80211_ac_numbers ac = IEEE80211_AC_VO;
+	     ac <= IEEE80211_AC_BK;
+	     ac++) {
+		if (!link->queue_params[ac].uapsd)
+			continue;
+
+		cmd->flags |=
+			cpu_to_le16(POWER_FLAGS_ADVANCE_PM_ENA_MSK);
+		cmd->uapsd_ac_flags |= BIT(ac);
+
+		/* QNDP TID - the highest TID with no admission control */
+		if (!tid_found && !link->queue_params[ac].acm) {
+			tid_found = true;
+			switch (ac) {
+			case IEEE80211_AC_VO:
+				cmd->qndp_tid = 6;
+				break;
+			case IEEE80211_AC_VI:
+				cmd->qndp_tid = 5;
+				break;
+			case IEEE80211_AC_BE:
+				cmd->qndp_tid = 0;
+				break;
+			case IEEE80211_AC_BK:
+				cmd->qndp_tid = 1;
+				break;
+			}
+		}
+	}
+}
+
 static void
 iwl_mld_power_config_skip_dtim(struct iwl_mld *mld,
 			       const struct ieee80211_bss_conf *link_conf,
-			       struct iwl_mac_power_cmd *cmd)
+			       u8 *skip_dtim_periods, __le16 *flags)
 {
 	unsigned int dtimper_tu;
 	unsigned int dtimper;
@@ -196,15 +215,15 @@ iwl_mld_power_config_skip_dtim(struct iwl_mld *mld,
 	/* configure skip over dtim up to 900 TU DTIM interval */
 	skip = max_t(int, 1, 900 / dtimper_tu);
 
-	cmd->skip_dtim_periods = skip;
-	cmd->flags |= cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK);
+	*skip_dtim_periods = skip;
+	*flags |= cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK);
 }
 
 #define POWER_KEEP_ALIVE_PERIOD_SEC    25
-static void iwl_mld_power_build_cmd(struct iwl_mld *mld,
-				    struct ieee80211_vif *vif,
-				    struct iwl_mac_power_cmd *cmd,
-				    bool d3)
+static void iwl_mld_power_build_cmd_v2(struct iwl_mld *mld,
+				       struct ieee80211_vif *vif,
+				       struct iwl_mac_power_cmd_v2 *cmd,
+				       bool d3)
 {
 	int dtimper, bi;
 	int keep_alive;
@@ -252,9 +271,7 @@ static void iwl_mld_power_build_cmd(struct iwl_mld *mld,
 		return;
 
 	cmd->flags |= cpu_to_le16(POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK);
-
-	if (iwl_fw_lookup_cmd_ver(mld->fw, MAC_PM_POWER_TABLE, 0) >= 2)
-		cmd->flags |= cpu_to_le16(POWER_FLAGS_ENABLE_SMPS_MSK);
+	cmd->flags |= cpu_to_le16(POWER_FLAGS_ENABLE_SMPS_MSK);
 
 	/* firmware supports LPRX for beacons at rate 1 Mbps or 6 Mbps only */
 	if (link_conf->beacon_rate &&
@@ -265,7 +282,9 @@ static void iwl_mld_power_build_cmd(struct iwl_mld *mld,
 	}
 
 	if (d3) {
-		iwl_mld_power_config_skip_dtim(mld, link_conf, cmd);
+		iwl_mld_power_config_skip_dtim(mld, link_conf,
+					       &cmd->skip_dtim_periods,
+					       &cmd->flags);
 		cmd->rx_data_timeout =
 			cpu_to_le32(IWL_MLD_WOWLAN_PS_RX_DATA_TIMEOUT);
 		cmd->tx_data_timeout =
@@ -289,17 +308,118 @@ static void iwl_mld_power_build_cmd(struct iwl_mld *mld,
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	ps_poll = mld_vif->use_ps_poll;
 #endif
+	iwl_mld_power_configure_uapsd_v2(mld, link, cmd, ps_poll);
+}
+
+static void iwl_mld_power_build_cmd(struct iwl_mld *mld,
+				    struct ieee80211_vif *vif,
+				    struct iwl_mac_power_cmd *cmd,
+				    bool d3)
+{
+	int dtimper, bi;
+	int keep_alive;
+	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
+	struct ieee80211_bss_conf *link_conf = &vif->bss_conf;
+	struct iwl_mld_link *link = &mld_vif->deflink;
+	bool ps_poll = false;
+	__le32 fw_id = cpu_to_le32(mld_vif->fw_id);
+
+	if (ieee80211_vif_is_mld(vif)) {
+		int link_id;
+
+		if (WARN_ON(!vif->active_links))
+			return;
+
+		/* The firmware consumes one single configuration for the vif
+		 * and can't differentiate between links, just pick the lowest
+		 * link_id's configuration and use that.
+		 */
+		link_id = __ffs(vif->active_links);
+		link_conf = link_conf_dereference_check(vif, link_id);
+		link = iwl_mld_link_dereference_check(mld_vif, link_id);
+
+		if (WARN_ON(!link_conf || !link))
+			return;
+	}
+	dtimper = link_conf->dtim_period;
+	bi = link_conf->beacon_int;
+
+	/* Regardless of power management state the driver must set
+	 * keep alive period. FW will use it for sending keep alive NDPs
+	 * immediately after association. Check that keep alive period
+	 * is at least 3 * DTIM
+	 */
+	keep_alive = DIV_ROUND_UP(ieee80211_tu_to_usec(3 * dtimper * bi),
+				  USEC_PER_SEC);
+	keep_alive = max(keep_alive, POWER_KEEP_ALIVE_PERIOD_SEC);
+
+	cmd->id_and_color = fw_id;
+	cmd->keep_alive_seconds = cpu_to_le16(keep_alive);
+
+	if (iwlmld_mod_params.power_scheme != IWL_POWER_SCHEME_CAM)
+		cmd->flags |= cpu_to_le16(POWER_FLAGS_POWER_SAVE_ENA_MSK);
+
+	if (vif->cfg.ps && iwl_mld_tdls_sta_count(mld) == 0) {
+		cmd->flags |= cpu_to_le16(POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK);
+		cmd->flags |= cpu_to_le16(POWER_FLAGS_ENABLE_SMPS_MSK);
+
+		/* firmware supports LPRX for beacons at rate 1 Mbps or
+		 * 6 Mbps only
+		 */
+		if (link_conf->beacon_rate &&
+		    (link_conf->beacon_rate->bitrate == 10 ||
+		     link_conf->beacon_rate->bitrate == 60)) {
+			cmd->flags |= cpu_to_le16(POWER_FLAGS_LPRX_ENA_MSK);
+			cmd->lprx_rssi_threshold = POWER_LPRX_RSSI_THRESHOLD;
+		}
+	}
+
+	if (d3) {
+		iwl_mld_power_config_skip_dtim(mld, link_conf,
+					       &cmd->skip_dtim_periods,
+					       &cmd->flags);
+		cmd->rx_data_timeout =
+			cpu_to_le32(IWL_MLD_WOWLAN_PS_RX_DATA_TIMEOUT);
+		cmd->tx_data_timeout =
+			cpu_to_le32(IWL_MLD_WOWLAN_PS_TX_DATA_TIMEOUT);
+	} else if (iwl_mld_vif_low_latency(mld_vif) && vif->p2p) {
+		cmd->tx_data_timeout =
+			cpu_to_le32(IWL_MLD_SHORT_PS_TX_DATA_TIMEOUT);
+		cmd->rx_data_timeout =
+			cpu_to_le32(IWL_MLD_SHORT_PS_RX_DATA_TIMEOUT);
+	} else {
+		cmd->rx_data_timeout =
+			cpu_to_le32(IWL_MLD_DEFAULT_PS_RX_DATA_TIMEOUT);
+		cmd->tx_data_timeout =
+			cpu_to_le32(IWL_MLD_DEFAULT_PS_TX_DATA_TIMEOUT);
+	}
+
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	ps_poll = mld_vif->use_ps_poll;
+#endif
 	iwl_mld_power_configure_uapsd(mld, link, cmd, ps_poll);
 }
 
 int iwl_mld_update_mac_power(struct iwl_mld *mld, struct ieee80211_vif *vif,
 			     bool d3)
 {
-	struct iwl_mac_power_cmd cmd = {};
+	int cmd_ver = iwl_fw_lookup_cmd_ver(mld->fw, MAC_PM_POWER_TABLE, 0);
 
-	iwl_mld_power_build_cmd(mld, vif, &cmd, d3);
+	if (cmd_ver >= 3) {
+		struct iwl_mac_power_cmd cmd = {};
 
-	return iwl_mld_send_cmd_pdu(mld, MAC_PM_POWER_TABLE, &cmd);
+		iwl_mld_power_build_cmd(mld, vif, &cmd, d3);
+		return iwl_mld_send_cmd_with_flags_pdu(mld,
+						       MAC_PM_POWER_TABLE, 0,
+						       &cmd, sizeof(cmd));
+	} else {
+		struct iwl_mac_power_cmd_v2 cmd = {};
+
+		iwl_mld_power_build_cmd_v2(mld, vif, &cmd, d3);
+		return iwl_mld_send_cmd_with_flags_pdu(mld,
+						       MAC_PM_POWER_TABLE, 0,
+						       &cmd, sizeof(cmd));
+	}
 }
 
 static void

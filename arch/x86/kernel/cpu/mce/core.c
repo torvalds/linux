@@ -49,6 +49,7 @@
 
 #include <asm/fred.h>
 #include <asm/cpu_device_id.h>
+#include <asm/cpuid/api.h>
 #include <asm/processor.h>
 #include <asm/traps.h>
 #include <asm/tlbflush.h>
@@ -66,8 +67,6 @@ static DEFINE_MUTEX(mce_sysfs_mutex);
 #include <trace/events/mce.h>
 
 #define SPINUNIT		100	/* 100ns */
-
-DEFINE_PER_CPU(unsigned, mce_exception_count);
 
 DEFINE_PER_CPU_READ_MOSTLY(unsigned int, mce_num_banks);
 
@@ -693,8 +692,6 @@ static noinstr void mce_read_aux(struct mce_hw_err *err, int i)
 	}
 }
 
-DEFINE_PER_CPU(unsigned, mce_poll_count);
-
 /*
  * We have three scenarios for checking for Deferred errors:
  *
@@ -797,7 +794,7 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 	struct mce *m;
 	int i;
 
-	this_cpu_inc(mce_poll_count);
+	inc_irq_stat(MCE_POLL);
 
 	mce_gather_info(&err, NULL);
 	m = &err.m;
@@ -1572,7 +1569,7 @@ noinstr void do_machine_check(struct pt_regs *regs)
 	 */
 	lmce = 1;
 
-	this_cpu_inc(mce_exception_count);
+	inc_irq_stat(MCE_EXCEPTION);
 
 	mce_gather_info(&err, regs);
 	m = &err.m;

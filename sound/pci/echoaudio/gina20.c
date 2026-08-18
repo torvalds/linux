@@ -56,8 +56,8 @@ static const struct firmware card_fw[] = {
 };
 
 static const struct pci_device_id snd_echo_ids[] = {
-	{0x1057, 0x1801, 0xECC0, 0x0020, 0, 0, 0},	/* DSP 56301 Gina20 rev.0 */
-	{0,}
+	{ PCI_DEVICE_SUB(0x1057, 0x1801, 0xECC0, 0x0020) },	/* DSP 56301 Gina20 rev.0 */
+	{ }
 };
 
 static const struct snd_pcm_hardware pcm_hardware_skel = {

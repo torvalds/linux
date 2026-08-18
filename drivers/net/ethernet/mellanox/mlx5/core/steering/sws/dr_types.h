@@ -986,7 +986,6 @@ struct mlx5dr_matcher_rx_tx {
 					       [DR_RULE_MAX_STES];
 	u8 num_of_builders;
 	u8 num_of_builders_arr[DR_RULE_IPV_MAX][DR_RULE_IPV_MAX];
-	u64 default_icm_addr;
 	struct mlx5dr_table_rx_tx *nic_tbl;
 	u32 prio;
 	struct list_head list_node;

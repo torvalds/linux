@@ -213,10 +213,12 @@ static ssize_t bonding_show_xmit_hash(struct device *d,
 {
 	struct bonding *bond = to_bond(d);
 	const struct bond_opt_value *val;
+	int xmit_policy;
 
-	val = bond_opt_get_val(BOND_OPT_XMIT_HASH, bond->params.xmit_policy);
+	xmit_policy = READ_ONCE(bond->params.xmit_policy);
+	val = bond_opt_get_val(BOND_OPT_XMIT_HASH, xmit_policy);
 
-	return sysfs_emit(buf, "%s %d\n", val->string, bond->params.xmit_policy);
+	return sysfs_emit(buf, "%s %d\n", val->string, xmit_policy);
 }
 static DEVICE_ATTR(xmit_hash_policy, 0644,
 		   bonding_show_xmit_hash, bonding_sysfs_store_option);
@@ -228,11 +230,12 @@ static ssize_t bonding_show_arp_validate(struct device *d,
 {
 	struct bonding *bond = to_bond(d);
 	const struct bond_opt_value *val;
+	int arp_validate;
 
-	val = bond_opt_get_val(BOND_OPT_ARP_VALIDATE,
-			       bond->params.arp_validate);
+	arp_validate = READ_ONCE(bond->params.arp_validate);
+	val = bond_opt_get_val(BOND_OPT_ARP_VALIDATE, arp_validate);
 
-	return sysfs_emit(buf, "%s %d\n", val->string, bond->params.arp_validate);
+	return sysfs_emit(buf, "%s %d\n", val->string, arp_validate);
 }
 static DEVICE_ATTR(arp_validate, 0644, bonding_show_arp_validate,
 		   bonding_sysfs_store_option);
@@ -244,11 +247,11 @@ static ssize_t bonding_show_arp_all_targets(struct device *d,
 {
 	struct bonding *bond = to_bond(d);
 	const struct bond_opt_value *val;
+	int arp_all_targets;
 
-	val = bond_opt_get_val(BOND_OPT_ARP_ALL_TARGETS,
-			       bond->params.arp_all_targets);
-	return sysfs_emit(buf, "%s %d\n",
-		       val->string, bond->params.arp_all_targets);
+	arp_all_targets = READ_ONCE(bond->params.arp_all_targets);
+	val = bond_opt_get_val(BOND_OPT_ARP_ALL_TARGETS, arp_all_targets);
+	return sysfs_emit(buf, "%s %d\n", val->string, arp_all_targets);
 }
 static DEVICE_ATTR(arp_all_targets, 0644,
 		   bonding_show_arp_all_targets, bonding_sysfs_store_option);
@@ -260,11 +263,12 @@ static ssize_t bonding_show_fail_over_mac(struct device *d,
 {
 	struct bonding *bond = to_bond(d);
 	const struct bond_opt_value *val;
+	int fail_over_mac;
 
-	val = bond_opt_get_val(BOND_OPT_FAIL_OVER_MAC,
-			       bond->params.fail_over_mac);
+	fail_over_mac = READ_ONCE(bond->params.fail_over_mac);
+	val = bond_opt_get_val(BOND_OPT_FAIL_OVER_MAC, fail_over_mac);
 
-	return sysfs_emit(buf, "%s %d\n", val->string, bond->params.fail_over_mac);
+	return sysfs_emit(buf, "%s %d\n", val->string, fail_over_mac);
 }
 static DEVICE_ATTR(fail_over_mac, 0644,
 		   bonding_show_fail_over_mac, bonding_sysfs_store_option);
@@ -276,7 +280,7 @@ static ssize_t bonding_show_arp_interval(struct device *d,
 {
 	struct bonding *bond = to_bond(d);
 
-	return sysfs_emit(buf, "%d\n", bond->params.arp_interval);
+	return sysfs_emit(buf, "%d\n", READ_ONCE(bond->params.arp_interval));
 }
 static DEVICE_ATTR(arp_interval, 0644,
 		   bonding_show_arp_interval, bonding_sysfs_store_option);
@@ -290,9 +294,10 @@ static ssize_t bonding_show_arp_targets(struct device *d,
 	int i, res = 0;
 
 	for (i = 0; i < BOND_MAX_ARP_TARGETS; i++) {
-		if (bond->params.arp_targets[i])
-			res += sysfs_emit_at(buf, res, "%pI4 ",
-					     &bond->params.arp_targets[i]);
+		__be32 t = READ_ONCE(bond->params.arp_targets[i]);
+
+		if (t)
+			res += sysfs_emit_at(buf, res, "%pI4 ", &t);
 	}
 	if (res)
 		buf[res-1] = '\n'; /* eat the leftover space */
@@ -309,7 +314,7 @@ static ssize_t bonding_show_missed_max(struct device *d,
 {
 	struct bonding *bond = to_bond(d);
 
-	return sysfs_emit(buf, "%u\n", bond->params.missed_max);
+	return sysfs_emit(buf, "%u\n", READ_ONCE(bond->params.missed_max));
 }
 static DEVICE_ATTR(arp_missed_max, 0644,
 		   bonding_show_missed_max, bonding_sysfs_store_option);
@@ -321,7 +326,8 @@ static ssize_t bonding_show_downdelay(struct device *d,
 {
 	struct bonding *bond = to_bond(d);
 
-	return sysfs_emit(buf, "%d\n", bond->params.downdelay * bond->params.miimon);
+	return sysfs_emit(buf, "%d\n", READ_ONCE(bond->params.downdelay) *
+				       READ_ONCE(bond->params.miimon));
 }
 static DEVICE_ATTR(downdelay, 0644,
 		   bonding_show_downdelay, bonding_sysfs_store_option);
@@ -332,7 +338,8 @@ static ssize_t bonding_show_updelay(struct device *d,
 {
 	struct bonding *bond = to_bond(d);
 
-	return sysfs_emit(buf, "%d\n", bond->params.updelay * bond->params.miimon);
+	return sysfs_emit(buf, "%d\n", READ_ONCE(bond->params.updelay) *
+				       READ_ONCE(bond->params.miimon));
 
 }
 static DEVICE_ATTR(updelay, 0644,
@@ -345,7 +352,8 @@ static ssize_t bonding_show_peer_notif_delay(struct device *d,
 	struct bonding *bond = to_bond(d);
 
 	return sysfs_emit(buf, "%d\n",
-			  bond->params.peer_notif_delay * bond->params.miimon);
+			  READ_ONCE(bond->params.peer_notif_delay) *
+			  READ_ONCE(bond->params.miimon));
 }
 static DEVICE_ATTR(peer_notif_delay, 0644,
 		   bonding_show_peer_notif_delay, bonding_sysfs_store_option);
@@ -357,10 +365,12 @@ static ssize_t bonding_show_lacp_active(struct device *d,
 {
 	struct bonding *bond = to_bond(d);
 	const struct bond_opt_value *val;
+	int lacp_active;
 
-	val = bond_opt_get_val(BOND_OPT_LACP_ACTIVE, bond->params.lacp_active);
+	lacp_active = READ_ONCE(bond->params.lacp_active);
+	val = bond_opt_get_val(BOND_OPT_LACP_ACTIVE, lacp_active);
 
-	return sysfs_emit(buf, "%s %d\n", val->string, bond->params.lacp_active);
+	return sysfs_emit(buf, "%s %d\n", val->string, lacp_active);
 }
 static DEVICE_ATTR(lacp_active, 0644,
 		   bonding_show_lacp_active, bonding_sysfs_store_option);
@@ -371,10 +381,12 @@ static ssize_t bonding_show_lacp_rate(struct device *d,
 {
 	struct bonding *bond = to_bond(d);
 	const struct bond_opt_value *val;
+	int lacp_fast;
 
-	val = bond_opt_get_val(BOND_OPT_LACP_RATE, bond->params.lacp_fast);
+	lacp_fast = READ_ONCE(bond->params.lacp_fast);
+	val = bond_opt_get_val(BOND_OPT_LACP_RATE, lacp_fast);
 
-	return sysfs_emit(buf, "%s %d\n", val->string, bond->params.lacp_fast);
+	return sysfs_emit(buf, "%s %d\n", val->string, lacp_fast);
 }
 static DEVICE_ATTR(lacp_rate, 0644,
 		   bonding_show_lacp_rate, bonding_sysfs_store_option);
@@ -385,7 +397,7 @@ static ssize_t bonding_show_min_links(struct device *d,
 {
 	struct bonding *bond = to_bond(d);
 
-	return sysfs_emit(buf, "%u\n", bond->params.min_links);
+	return sysfs_emit(buf, "%u\n", READ_ONCE(bond->params.min_links));
 }
 static DEVICE_ATTR(min_links, 0644,
 		   bonding_show_min_links, bonding_sysfs_store_option);
@@ -396,10 +408,12 @@ static ssize_t bonding_show_ad_select(struct device *d,
 {
 	struct bonding *bond = to_bond(d);
 	const struct bond_opt_value *val;
+	int ad_select;
 
-	val = bond_opt_get_val(BOND_OPT_AD_SELECT, bond->params.ad_select);
+	ad_select = READ_ONCE(bond->params.ad_select);
+	val = bond_opt_get_val(BOND_OPT_AD_SELECT, ad_select);
 
-	return sysfs_emit(buf, "%s %d\n", val->string, bond->params.ad_select);
+	return sysfs_emit(buf, "%s %d\n", val->string, ad_select);
 }
 static DEVICE_ATTR(ad_select, 0644,
 		   bonding_show_ad_select, bonding_sysfs_store_option);
@@ -411,7 +425,7 @@ static ssize_t bonding_show_num_peer_notif(struct device *d,
 {
 	struct bonding *bond = to_bond(d);
 
-	return sysfs_emit(buf, "%d\n", bond->params.num_peer_notif);
+	return sysfs_emit(buf, "%d\n", READ_ONCE(bond->params.num_peer_notif));
 }
 static DEVICE_ATTR(num_grat_arp, 0644,
 		   bonding_show_num_peer_notif, bonding_sysfs_store_option);
@@ -425,7 +439,7 @@ static ssize_t bonding_show_miimon(struct device *d,
 {
 	struct bonding *bond = to_bond(d);
 
-	return sysfs_emit(buf, "%d\n", bond->params.miimon);
+	return sysfs_emit(buf, "%d\n", READ_ONCE(bond->params.miimon));
 }
 static DEVICE_ATTR(miimon, 0644,
 		   bonding_show_miimon, bonding_sysfs_store_option);
@@ -455,14 +469,15 @@ static ssize_t bonding_show_primary_reselect(struct device *d,
 					     struct device_attribute *attr,
 					     char *buf)
 {
-	struct bonding *bond = to_bond(d);
+	const struct bonding *bond = to_bond(d);
 	const struct bond_opt_value *val;
+	int primary_reselect;
 
-	val = bond_opt_get_val(BOND_OPT_PRIMARY_RESELECT,
-			       bond->params.primary_reselect);
+	primary_reselect = READ_ONCE(bond->params.primary_reselect);
 
-	return sysfs_emit(buf, "%s %d\n",
-			  val->string, bond->params.primary_reselect);
+	val = bond_opt_get_val(BOND_OPT_PRIMARY_RESELECT, primary_reselect);
+
+	return sysfs_emit(buf, "%s %d\n", val->string, primary_reselect);
 }
 static DEVICE_ATTR(primary_reselect, 0644,
 		   bonding_show_primary_reselect, bonding_sysfs_store_option);
@@ -655,7 +670,7 @@ static ssize_t bonding_show_slaves_active(struct device *d,
 {
 	struct bonding *bond = to_bond(d);
 
-	return sysfs_emit(buf, "%d\n", bond->params.all_slaves_active);
+	return sysfs_emit(buf, "%d\n", READ_ONCE(bond->params.all_slaves_active));
 }
 static DEVICE_ATTR(all_slaves_active, 0644,
 		   bonding_show_slaves_active, bonding_sysfs_store_option);
@@ -667,7 +682,7 @@ static ssize_t bonding_show_resend_igmp(struct device *d,
 {
 	struct bonding *bond = to_bond(d);
 
-	return sysfs_emit(buf, "%d\n", bond->params.resend_igmp);
+	return sysfs_emit(buf, "%d\n", READ_ONCE(bond->params.resend_igmp));
 }
 static DEVICE_ATTR(resend_igmp, 0644,
 		   bonding_show_resend_igmp, bonding_sysfs_store_option);
@@ -679,7 +694,7 @@ static ssize_t bonding_show_lp_interval(struct device *d,
 {
 	struct bonding *bond = to_bond(d);
 
-	return sysfs_emit(buf, "%d\n", bond->params.lp_interval);
+	return sysfs_emit(buf, "%d\n", READ_ONCE(bond->params.lp_interval));
 }
 static DEVICE_ATTR(lp_interval, 0644,
 		   bonding_show_lp_interval, bonding_sysfs_store_option);
@@ -690,7 +705,7 @@ static ssize_t bonding_show_tlb_dynamic_lb(struct device *d,
 {
 	struct bonding *bond = to_bond(d);
 
-	return sysfs_emit(buf, "%d\n", bond->params.tlb_dynamic_lb);
+	return sysfs_emit(buf, "%d\n", READ_ONCE(bond->params.tlb_dynamic_lb));
 }
 static DEVICE_ATTR(tlb_dynamic_lb, 0644,
 		   bonding_show_tlb_dynamic_lb, bonding_sysfs_store_option);
@@ -700,7 +715,7 @@ static ssize_t bonding_show_packets_per_slave(struct device *d,
 					      char *buf)
 {
 	struct bonding *bond = to_bond(d);
-	unsigned int packets_per_slave = bond->params.packets_per_slave;
+	unsigned int packets_per_slave = READ_ONCE(bond->params.packets_per_slave);
 
 	return sysfs_emit(buf, "%u\n", packets_per_slave);
 }
@@ -714,7 +729,7 @@ static ssize_t bonding_show_ad_actor_sys_prio(struct device *d,
 	struct bonding *bond = to_bond(d);
 
 	if (BOND_MODE(bond) == BOND_MODE_8023AD && capable(CAP_NET_ADMIN))
-		return sysfs_emit(buf, "%hu\n", bond->params.ad_actor_sys_prio);
+		return sysfs_emit(buf, "%hu\n", READ_ONCE(bond->params.ad_actor_sys_prio));
 
 	return 0;
 }
@@ -743,7 +758,8 @@ static ssize_t bonding_show_ad_user_port_key(struct device *d,
 	struct bonding *bond = to_bond(d);
 
 	if (BOND_MODE(bond) == BOND_MODE_8023AD && capable(CAP_NET_ADMIN))
-		return sysfs_emit(buf, "%hu\n", bond->params.ad_user_port_key);
+		return sysfs_emit(buf, "%hu\n",
+				  READ_ONCE(bond->params.ad_user_port_key));
 
 	return 0;
 }

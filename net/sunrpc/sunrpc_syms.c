@@ -23,9 +23,12 @@
 #include <linux/sunrpc/rpc_pipe_fs.h>
 #include <linux/sunrpc/xprtsock.h>
 
+#include <net/genetlink.h>
+
 #include "sunrpc.h"
 #include "sysfs.h"
 #include "netns.h"
+#include "netlink.h"
 
 unsigned int sunrpc_net_id;
 EXPORT_SYMBOL_GPL(sunrpc_net_id);
@@ -108,6 +111,10 @@ init_sunrpc(void)
 	if (err)
 		goto out5;
 
+	err = genl_register_family(&sunrpc_nl_family);
+	if (err)
+		goto out6;
+
 	sunrpc_debugfs_init();
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 	rpc_register_sysctl();
@@ -116,6 +123,8 @@ init_sunrpc(void)
 	init_socket_xprt();	/* clnt sock transport */
 	return 0;
 
+out6:
+	rpc_sysfs_exit();
 out5:
 	unregister_rpc_pipefs();
 out4:
@@ -131,6 +140,7 @@ out:
 static void __exit
 cleanup_sunrpc(void)
 {
+	genl_unregister_family(&sunrpc_nl_family);
 	rpc_sysfs_exit();
 	rpc_cleanup_clids();
 	xprt_cleanup_ids();

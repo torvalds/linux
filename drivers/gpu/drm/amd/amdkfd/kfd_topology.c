@@ -198,8 +198,7 @@ struct kfd_topology_device *kfd_create_topology_device(
 
 
 #define sysfs_show_gen_prop(buffer, offs, fmt, ...)		\
-		(offs += snprintf(buffer+offs, PAGE_SIZE-offs,	\
-				  fmt, __VA_ARGS__))
+		(offs += sysfs_emit_at(buffer, offs, fmt, __VA_ARGS__))
 #define sysfs_show_32bit_prop(buffer, offs, name, value) \
 		sysfs_show_gen_prop(buffer, offs, "%s %u\n", name, value)
 #define sysfs_show_64bit_prop(buffer, offs, name, value) \
@@ -514,7 +513,8 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 			dev->node_props.capability |=
 					HSA_CAP_AQL_QUEUE_DOUBLE_MAP;
 
-		if (KFD_GC_VERSION(dev->gpu) < IP_VERSION(10, 0, 0) &&
+		if ((KFD_GC_VERSION(dev->gpu) < IP_VERSION(10, 0, 0) ||
+			KFD_GC_VERSION(dev->gpu) == IP_VERSION(12, 1, 0)) &&
 			(dev->gpu->adev->sdma.supported_reset & AMDGPU_RESET_TYPE_PER_QUEUE))
 				dev->node_props.capability2 |= HSA_CAP2_PER_SDMA_QUEUE_RESET_SUPPORTED;
 
@@ -2027,6 +2027,7 @@ static void kfd_topology_set_capabilities(struct kfd_topology_device *dev)
 		if (KFD_GC_VERSION(dev->gpu) >= IP_VERSION(12, 1, 0)) {
 			dev->node_props.capability |=
 				HSA_CAP_TRAP_DEBUG_PRECISE_MEMORY_OPERATIONS_SUPPORTED;
+			dev->node_props.capability |= HSA_CAP_PER_QUEUE_RESET_SUPPORTED;
 			dev->node_props.capability2 |=
 				HSA_CAP2_TRAP_DEBUG_LDS_OUT_OF_ADDR_RANGE_SUPPORTED;
 		}
@@ -2348,7 +2349,7 @@ static int kfd_cpumask_to_apic_id(const struct cpumask *cpumask)
 	first_cpu_of_numa_node = cpumask_first(cpumask);
 	if (first_cpu_of_numa_node >= nr_cpu_ids)
 		return -1;
-#ifdef CONFIG_X86_64
+#if defined(CONFIG_X86_64) && !defined(CONFIG_UML)
 	return cpu_data(first_cpu_of_numa_node).topo.apicid;
 #else
 	return first_cpu_of_numa_node;

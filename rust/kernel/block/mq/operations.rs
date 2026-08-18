@@ -218,7 +218,7 @@ impl<T: Operations> OperationsVTable<T> {
         _set: *mut bindings::blk_mq_tag_set,
         rq: *mut bindings::request,
         _hctx_idx: crate::ffi::c_uint,
-        _numa_node: crate::ffi::c_uint,
+        _numa_node: crate::ffi::c_int,
     ) -> crate::ffi::c_int {
         from_result(|| {
             // SAFETY: By the safety requirements of this function, `rq` points

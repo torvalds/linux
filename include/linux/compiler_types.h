@@ -634,6 +634,9 @@ struct ftrace_likely_data {
 #else
 #define __unqual_scalar_typeof(x) __typeof_unqual__(x)
 #endif
+
+#include <asm/percpu_types.h>
+
 #endif /* !__ASSEMBLY__ */
 
 /*

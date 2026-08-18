@@ -116,6 +116,16 @@ static int ipsec_fs_create_aliased_ft(struct mlx5_core_dev *ibv_owner,
 	memcpy(alias_attr.access_key, alias_key, ACCESS_KEY_LEN);
 	alias_attr.obj_id = aliased_object_id;
 	alias_attr.obj_type = MLX5_GENERAL_OBJECT_TYPES_FLOW_TABLE_ALIAS;
+	if (MLX5_CAP_GEN_2(ibv_owner, sw_vhca_id_valid) &&
+	    MLX5_CAP_GEN(ibv_allowed, ft_alias_sw_vhca_id)) {
+		vhca_id_to_be_accessed = MLX5_CAP_GEN_2(ibv_owner, sw_vhca_id);
+		alias_attr.vhca_id_type = VHCA_ID_TYPE_SW;
+	} else {
+		vhca_id_to_be_accessed = MLX5_CAP_GEN(ibv_owner, vhca_id);
+		alias_attr.vhca_id_type = VHCA_ID_TYPE_HW;
+		if (MLX5_CAP_GEN_2(ibv_owner, sw_vhca_id_valid))
+			mlx5_core_warn(ibv_owner, "IPsec with migration isn't supported, if migration is required update FW.\n");
+	}
 	alias_attr.vhca_id = vhca_id_to_be_accessed;
 	ret = mlx5_cmd_alias_obj_create(ibv_allowed, &alias_attr, obj_id);
 	if (ret) {

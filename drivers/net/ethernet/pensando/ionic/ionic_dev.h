@@ -184,6 +184,10 @@ struct ionic_dev {
 	u32 port_info_sz;
 	struct ionic_port_info *port_info;
 	dma_addr_t port_info_pa;
+	struct ionic_port_extra_stats port_extra_stats_cache;
+	bool link_down_count_init;
+	u16 link_down_count_last;
+	u32 link_down_count_total;
 
 	struct ionic_devinfo dev_info;
 };
@@ -393,5 +397,7 @@ void ionic_queue_doorbell_check(struct ionic *ionic, int delay);
 bool ionic_adminq_poke_doorbell(struct ionic_queue *q);
 bool ionic_txq_poke_doorbell(struct ionic_queue *q);
 bool ionic_rxq_poke_doorbell(struct ionic_queue *q);
+
+void ionic_reset_link_down_count(struct ionic_dev *idev);
 
 #endif /* _IONIC_DEV_H_ */

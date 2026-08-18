@@ -369,7 +369,7 @@ static int exfat_read_root(struct inode *inode, struct exfat_chain *root_clu)
 	ei->hint_stat.clu = sbi->root_dir;
 	ei->hint_femp.eidx = EXFAT_HINT_NONE;
 
-	i_size_write(inode, EXFAT_CLU_TO_B(root_clu->size, sbi));
+	i_size_write(inode, exfat_cluster_to_bytes(sbi, root_clu->size));
 
 	num_subdirs = exfat_count_dir_entries(sb, root_clu);
 	if (num_subdirs < 0)
@@ -499,6 +499,7 @@ static int exfat_read_boot_sector(struct super_block *sb)
 	if (p_boot->num_fats == 2)
 		sbi->FAT2_start_sector += sbi->num_FAT_sectors;
 	sbi->data_start_sector = le32_to_cpu(p_boot->clu_offset);
+	sbi->data_start_bytes = sbi->data_start_sector << p_boot->sect_size_bits;
 	sbi->num_sectors = le64_to_cpu(p_boot->vol_length);
 	/* because the cluster index starts with 2 */
 	sbi->num_clusters = le32_to_cpu(p_boot->clu_count) +
@@ -538,7 +539,7 @@ static int exfat_read_boot_sector(struct super_block *sb)
 	 * machines.
 	 */
 	sb->s_maxbytes = min(MAX_LFS_FILESIZE,
-			     EXFAT_CLU_TO_B((loff_t)EXFAT_MAX_NUM_CLUSTER, sbi));
+			     exfat_cluster_to_bytes(sbi, (loff_t)EXFAT_MAX_NUM_CLUSTER));
 
 	/* check logical sector size */
 	if (exfat_calibrate_blocksize(sb, 1 << p_boot->sect_size_bits))

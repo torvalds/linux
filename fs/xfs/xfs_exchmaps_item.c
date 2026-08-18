@@ -227,9 +227,9 @@ xfs_exchmaps_create_intent(
 	xmi_lip = xfs_xmi_init(tp->t_mountp);
 	xlf = &xmi_lip->xmi_format;
 
-	xlf->xmi_inode1 = xmi->xmi_ip1->i_ino;
+	xlf->xmi_inode1 = I_INO(xmi->xmi_ip1);
 	xlf->xmi_igen1 = VFS_I(xmi->xmi_ip1)->i_generation;
-	xlf->xmi_inode2 = xmi->xmi_ip2->i_ino;
+	xlf->xmi_inode2 = I_INO(xmi->xmi_ip2);
 	xlf->xmi_igen2 = VFS_I(xmi->xmi_ip2)->i_generation;
 	xlf->xmi_startoff1 = xmi->xmi_startoff1;
 	xlf->xmi_startoff2 = xmi->xmi_startoff2;

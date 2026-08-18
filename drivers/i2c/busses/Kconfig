@@ -417,7 +417,7 @@ config I2C_ASPEED
 
 config I2C_AT91
 	tristate "Atmel AT91 I2C Two-Wire interface (TWI)"
-	depends on ARCH_MICROCHIP || COMPILE_TEST
+	depends on ARCH_MICROCHIP || MCHP_LAN966X_PCI || COMPILE_TEST
 	help
 	  This supports the use of the I2C interface on Atmel AT91
 	  processors.
@@ -794,6 +794,7 @@ config I2C_K1
 	tristate "SpacemiT K1 I2C adapter"
 	depends on ARCH_SPACEMIT || COMPILE_TEST
 	depends on OF
+	default ARCH_SPACEMIT
 	help
 	  This option enables support for the I2C interface on the SpacemiT K1
 	  platform.
@@ -849,6 +850,17 @@ config I2C_LS2X
 
 	  This driver can also be built as a module. If so, the module
 	  will be called i2c-ls2x.
+
+config I2C_LS2X_V2
+	tristate "Loongson-2 Fast Speed I2C adapter"
+	depends on LOONGARCH || COMPILE_TEST
+	select REGMAP_MMIO
+	help
+	  If you say yes to this option, support will be included for the
+	  I2C interface on the Loongson-2K0300 SoCs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called i2c-ls2x-v2.
 
 config I2C_MLXBF
         tristate "Mellanox BlueField I2C controller"
@@ -1046,7 +1058,7 @@ config I2C_QCOM_CCI
 	  will be called i2c-qcom-cci.
 
 config I2C_QCOM_GENI
-	tristate "Qualcomm Technologies Inc.'s GENI based I2C controller"
+	tristate "Qualcomm GENI based I2C controller"
 	depends on ARCH_QCOM || COMPILE_TEST
 	depends on QCOM_GENI_SE
 	help

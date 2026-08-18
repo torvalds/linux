@@ -732,20 +732,6 @@ struct kvm_cpu_context {
 	u64 *vncr_array;
 };
 
-struct cpu_sve_state {
-	__u64 zcr_el1;
-
-	/*
-	 * Ordering is important since __sve_save_state/__sve_restore_state
-	 * relies on it.
-	 */
-	__u32 fpsr;
-	__u32 fpcr;
-
-	/* Must be SVE_VQ_BYTES (128 bit) aligned. */
-	__u8 sve_regs[];
-};
-
 /*
  * This structure is instantiated on a per-CPU basis, and contains
  * data that is:
@@ -771,12 +757,9 @@ struct kvm_host_data {
 
 	/*
 	 * Hyp VA.
-	 * sve_state is only used in pKVM and if system_supports_sve().
+	 * sve_regs is only used in pKVM and if system_supports_sve().
 	 */
-	struct cpu_sve_state *sve_state;
-
-	/* Used by pKVM only. */
-	u64	fpmr;
+	struct arm64_sve_state *sve_regs;
 
 	/* Ownership of the FP regs */
 	enum {
@@ -870,7 +853,7 @@ struct kvm_vcpu_arch {
 	 * floating point code saves the register state of a task it
 	 * records which view it saved in fp_type.
 	 */
-	void *sve_state;
+	struct arm64_sve_state *sve_state;
 	enum fp_type fp_type;
 	unsigned int sve_max_vl;
 
@@ -1114,10 +1097,6 @@ struct kvm_vcpu_arch {
 #define NESTED_SERROR_PENDING	__vcpu_single_flag(sflags, BIT(8))
 /* KVM is currently emulating an L2 to L1 exception */
 #define IN_NESTED_EXCEPTION	__vcpu_single_flag(sflags, BIT(9))
-
-/* Pointer to the vcpu's SVE FFR for sve_{save,load}_state() */
-#define vcpu_sve_pffr(vcpu) (kern_hyp_va((vcpu)->arch.sve_state) +	\
-			     sve_ffr_offset((vcpu)->arch.sve_max_vl))
 
 #define vcpu_sve_max_vq(vcpu)	sve_vq_from_vl((vcpu)->arch.sve_max_vl)
 

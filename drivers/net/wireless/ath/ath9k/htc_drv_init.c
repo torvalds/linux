@@ -1021,21 +1021,3 @@ int ath9k_htc_resume(struct htc_target *htc_handle)
 	return ret;
 }
 #endif
-
-static int __init ath9k_htc_init(void)
-{
-	if (ath9k_hif_usb_init() < 0) {
-		pr_err("No USB devices found, driver not installed\n");
-		return -ENODEV;
-	}
-
-	return 0;
-}
-module_init(ath9k_htc_init);
-
-static void __exit ath9k_htc_exit(void)
-{
-	ath9k_hif_usb_exit();
-	pr_info("Driver unloaded\n");
-}
-module_exit(ath9k_htc_exit);

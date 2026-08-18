@@ -63,6 +63,8 @@
 #define RISCV_IOMMU_CAPABILITIES_PD8		BIT_ULL(38)
 #define RISCV_IOMMU_CAPABILITIES_PD17		BIT_ULL(39)
 #define RISCV_IOMMU_CAPABILITIES_PD20		BIT_ULL(40)
+#define RISCV_IOMMU_CAPABILITIES_NL		BIT_ULL(42)
+#define RISCV_IOMMU_CAPABILITIES_S		BIT_ULL(43)
 
 /**
  * enum riscv_iommu_igs_settings - Interrupt Generation Support Settings
@@ -460,31 +462,33 @@ struct riscv_iommu_command {
 };
 
 /* Fields on dword0, common for all commands */
-#define RISCV_IOMMU_CMD_OPCODE	GENMASK_ULL(6, 0)
-#define	RISCV_IOMMU_CMD_FUNC	GENMASK_ULL(9, 7)
+#define RISCV_IOMMU_CMD0_OPCODE	GENMASK_ULL(6, 0)
+#define RISCV_IOMMU_CMD0_FUNC	GENMASK_ULL(9, 7)
 
 /* 3.1.1 IOMMU Page-table cache invalidation */
 /* Fields on dword0 */
 #define RISCV_IOMMU_CMD_IOTINVAL_OPCODE		1
 #define RISCV_IOMMU_CMD_IOTINVAL_FUNC_VMA	0
 #define RISCV_IOMMU_CMD_IOTINVAL_FUNC_GVMA	1
-#define RISCV_IOMMU_CMD_IOTINVAL_AV		BIT_ULL(10)
-#define RISCV_IOMMU_CMD_IOTINVAL_PSCID		GENMASK_ULL(31, 12)
-#define RISCV_IOMMU_CMD_IOTINVAL_PSCV		BIT_ULL(32)
-#define RISCV_IOMMU_CMD_IOTINVAL_GV		BIT_ULL(33)
-#define RISCV_IOMMU_CMD_IOTINVAL_GSCID		GENMASK_ULL(59, 44)
+#define RISCV_IOMMU_CMD0_IOTINVAL_AV		BIT_ULL(10)
+#define RISCV_IOMMU_CMD0_IOTINVAL_PSCID		GENMASK_ULL(31, 12)
+#define RISCV_IOMMU_CMD0_IOTINVAL_PSCV		BIT_ULL(32)
+#define RISCV_IOMMU_CMD0_IOTINVAL_GV		BIT_ULL(33)
+#define RISCV_IOMMU_CMD0_IOTINVAL_GSCID		GENMASK_ULL(59, 44)
+#define RISCV_IOMMU_CMD0_IOTINVAL_NL		BIT_ULL(34)
+#define RISCV_IOMMU_CMD1_IOTINVAL_S		BIT_ULL(9)
 /* dword1[61:10] is the 4K-aligned page address */
-#define RISCV_IOMMU_CMD_IOTINVAL_ADDR		GENMASK_ULL(61, 10)
+#define RISCV_IOMMU_CMD1_IOTINVAL_ADDR		GENMASK_ULL(61, 10)
 
 /* 3.1.2 IOMMU Command Queue Fences */
 /* Fields on dword0 */
 #define RISCV_IOMMU_CMD_IOFENCE_OPCODE		2
 #define RISCV_IOMMU_CMD_IOFENCE_FUNC_C		0
-#define RISCV_IOMMU_CMD_IOFENCE_AV		BIT_ULL(10)
-#define RISCV_IOMMU_CMD_IOFENCE_WSI		BIT_ULL(11)
-#define RISCV_IOMMU_CMD_IOFENCE_PR		BIT_ULL(12)
-#define RISCV_IOMMU_CMD_IOFENCE_PW		BIT_ULL(13)
-#define RISCV_IOMMU_CMD_IOFENCE_DATA		GENMASK_ULL(63, 32)
+#define RISCV_IOMMU_CMD0_IOFENCE_AV		BIT_ULL(10)
+#define RISCV_IOMMU_CMD0_IOFENCE_WSI		BIT_ULL(11)
+#define RISCV_IOMMU_CMD0_IOFENCE_PR		BIT_ULL(12)
+#define RISCV_IOMMU_CMD0_IOFENCE_PW		BIT_ULL(13)
+#define RISCV_IOMMU_CMD0_IOFENCE_DATA		GENMASK_ULL(63, 32)
 /* dword1 is the address, word-size aligned and shifted to the right by two bits. */
 
 /* 3.1.3 IOMMU Directory cache invalidation */
@@ -492,9 +496,9 @@ struct riscv_iommu_command {
 #define RISCV_IOMMU_CMD_IODIR_OPCODE		3
 #define RISCV_IOMMU_CMD_IODIR_FUNC_INVAL_DDT	0
 #define RISCV_IOMMU_CMD_IODIR_FUNC_INVAL_PDT	1
-#define RISCV_IOMMU_CMD_IODIR_PID		GENMASK_ULL(31, 12)
-#define RISCV_IOMMU_CMD_IODIR_DV		BIT_ULL(33)
-#define RISCV_IOMMU_CMD_IODIR_DID		GENMASK_ULL(63, 40)
+#define RISCV_IOMMU_CMD0_IODIR_PID		GENMASK_ULL(31, 12)
+#define RISCV_IOMMU_CMD0_IODIR_DV		BIT_ULL(33)
+#define RISCV_IOMMU_CMD0_IODIR_DID		GENMASK_ULL(63, 40)
 /* dword1 is reserved for standard use */
 
 /* 3.1.4 IOMMU PCIe ATS */
@@ -502,25 +506,25 @@ struct riscv_iommu_command {
 #define RISCV_IOMMU_CMD_ATS_OPCODE		4
 #define RISCV_IOMMU_CMD_ATS_FUNC_INVAL		0
 #define RISCV_IOMMU_CMD_ATS_FUNC_PRGR		1
-#define RISCV_IOMMU_CMD_ATS_PID			GENMASK_ULL(31, 12)
-#define RISCV_IOMMU_CMD_ATS_PV			BIT_ULL(32)
-#define RISCV_IOMMU_CMD_ATS_DSV			BIT_ULL(33)
-#define RISCV_IOMMU_CMD_ATS_RID			GENMASK_ULL(55, 40)
-#define RISCV_IOMMU_CMD_ATS_DSEG		GENMASK_ULL(63, 56)
+#define RISCV_IOMMU_CMD0_ATS_PID		GENMASK_ULL(31, 12)
+#define RISCV_IOMMU_CMD0_ATS_PV			BIT_ULL(32)
+#define RISCV_IOMMU_CMD0_ATS_DSV		BIT_ULL(33)
+#define RISCV_IOMMU_CMD0_ATS_RID		GENMASK_ULL(55, 40)
+#define RISCV_IOMMU_CMD0_ATS_DSEG		GENMASK_ULL(63, 56)
 /* dword1 is the ATS payload, two different payload types for INVAL and PRGR */
 
 /* ATS.INVAL payload*/
-#define RISCV_IOMMU_CMD_ATS_INVAL_G		BIT_ULL(0)
+#define RISCV_IOMMU_CMD1_ATS_INVAL_G		BIT_ULL(0)
 /* Bits 1 - 10 are zeroed */
-#define RISCV_IOMMU_CMD_ATS_INVAL_S		BIT_ULL(11)
-#define RISCV_IOMMU_CMD_ATS_INVAL_UADDR		GENMASK_ULL(63, 12)
+#define RISCV_IOMMU_CMD1_ATS_INVAL_S		BIT_ULL(11)
+#define RISCV_IOMMU_CMD1_ATS_INVAL_UADDR	GENMASK_ULL(63, 12)
 
 /* ATS.PRGR payload */
 /* Bits 0 - 31 are zeroed */
-#define RISCV_IOMMU_CMD_ATS_PRGR_PRG_INDEX	GENMASK_ULL(40, 32)
+#define RISCV_IOMMU_CMD1_ATS_PRGR_PRG_INDEX	GENMASK_ULL(40, 32)
 /* Bits 41 - 43 are zeroed */
-#define RISCV_IOMMU_CMD_ATS_PRGR_RESP_CODE	GENMASK_ULL(47, 44)
-#define RISCV_IOMMU_CMD_ATS_PRGR_DST_ID		GENMASK_ULL(63, 48)
+#define RISCV_IOMMU_CMD1_ATS_PRGR_RESP_CODE	GENMASK_ULL(47, 44)
+#define RISCV_IOMMU_CMD1_ATS_PRGR_DST_ID	GENMASK_ULL(63, 48)
 
 /**
  * struct riscv_iommu_fq_record - Fault/Event Queue Record
@@ -711,8 +715,8 @@ struct riscv_iommu_msipte {
 
 static inline void riscv_iommu_cmd_inval_vma(struct riscv_iommu_command *cmd)
 {
-	cmd->dword0 = FIELD_PREP(RISCV_IOMMU_CMD_OPCODE, RISCV_IOMMU_CMD_IOTINVAL_OPCODE) |
-		      FIELD_PREP(RISCV_IOMMU_CMD_FUNC, RISCV_IOMMU_CMD_IOTINVAL_FUNC_VMA);
+	cmd->dword0 = FIELD_PREP(RISCV_IOMMU_CMD0_OPCODE, RISCV_IOMMU_CMD_IOTINVAL_OPCODE) |
+		      FIELD_PREP(RISCV_IOMMU_CMD0_FUNC, RISCV_IOMMU_CMD_IOTINVAL_FUNC_VMA);
 	cmd->dword1 = 0;
 }
 
@@ -720,67 +724,88 @@ static inline void riscv_iommu_cmd_inval_set_addr(struct riscv_iommu_command *cm
 						  u64 addr)
 {
 	cmd->dword1 =
-		FIELD_PREP(RISCV_IOMMU_CMD_IOTINVAL_ADDR, PHYS_PFN(addr));
-	cmd->dword0 |= RISCV_IOMMU_CMD_IOTINVAL_AV;
+		FIELD_PREP(RISCV_IOMMU_CMD1_IOTINVAL_ADDR, PHYS_PFN(addr));
+	cmd->dword0 |= RISCV_IOMMU_CMD0_IOTINVAL_AV;
+}
+
+static inline void riscv_iommu_cmd_inval_set_nl(struct riscv_iommu_command *cmd)
+{
+	cmd->dword0 |= RISCV_IOMMU_CMD0_IOTINVAL_NL;
+}
+
+/*
+ * Set NAPOT-encoded address for range invalidation (S=1).
+ * sz_lg2: log2 of total range in bytes, must be >= 13 (8KiB, 2 pages).
+ * addr must be naturally aligned to 2^sz_lg2.
+ */
+static inline void riscv_iommu_cmd_inval_set_napot(
+	struct riscv_iommu_command *cmd, u64 addr, unsigned int sz_lg2)
+{
+	u64 pfn = addr >> 12;
+
+	pfn |= BIT_U64(sz_lg2 - 13) - 1;
+	cmd->dword1 = FIELD_PREP(RISCV_IOMMU_CMD1_IOTINVAL_ADDR, pfn) |
+		      RISCV_IOMMU_CMD1_IOTINVAL_S;
+	cmd->dword0 |= RISCV_IOMMU_CMD0_IOTINVAL_AV;
 }
 
 static inline void riscv_iommu_cmd_inval_set_pscid(struct riscv_iommu_command *cmd,
 						   int pscid)
 {
-	cmd->dword0 |= FIELD_PREP(RISCV_IOMMU_CMD_IOTINVAL_PSCID, pscid) |
-		       RISCV_IOMMU_CMD_IOTINVAL_PSCV;
+	cmd->dword0 |= FIELD_PREP(RISCV_IOMMU_CMD0_IOTINVAL_PSCID, pscid) |
+		       RISCV_IOMMU_CMD0_IOTINVAL_PSCV;
 }
 
 static inline void riscv_iommu_cmd_inval_set_gscid(struct riscv_iommu_command *cmd,
 						   int gscid)
 {
-	cmd->dword0 |= FIELD_PREP(RISCV_IOMMU_CMD_IOTINVAL_GSCID, gscid) |
-		       RISCV_IOMMU_CMD_IOTINVAL_GV;
+	cmd->dword0 |= FIELD_PREP(RISCV_IOMMU_CMD0_IOTINVAL_GSCID, gscid) |
+		       RISCV_IOMMU_CMD0_IOTINVAL_GV;
 }
 
 static inline void riscv_iommu_cmd_iofence(struct riscv_iommu_command *cmd)
 {
-	cmd->dword0 = FIELD_PREP(RISCV_IOMMU_CMD_OPCODE, RISCV_IOMMU_CMD_IOFENCE_OPCODE) |
-		      FIELD_PREP(RISCV_IOMMU_CMD_FUNC, RISCV_IOMMU_CMD_IOFENCE_FUNC_C) |
-		      RISCV_IOMMU_CMD_IOFENCE_PR | RISCV_IOMMU_CMD_IOFENCE_PW;
+	cmd->dword0 = FIELD_PREP(RISCV_IOMMU_CMD0_OPCODE, RISCV_IOMMU_CMD_IOFENCE_OPCODE) |
+		      FIELD_PREP(RISCV_IOMMU_CMD0_FUNC, RISCV_IOMMU_CMD_IOFENCE_FUNC_C) |
+		      RISCV_IOMMU_CMD0_IOFENCE_PR | RISCV_IOMMU_CMD0_IOFENCE_PW;
 	cmd->dword1 = 0;
 }
 
 static inline void riscv_iommu_cmd_iofence_set_av(struct riscv_iommu_command *cmd,
 						  u64 addr, u32 data)
 {
-	cmd->dword0 = FIELD_PREP(RISCV_IOMMU_CMD_OPCODE, RISCV_IOMMU_CMD_IOFENCE_OPCODE) |
-		      FIELD_PREP(RISCV_IOMMU_CMD_FUNC, RISCV_IOMMU_CMD_IOFENCE_FUNC_C) |
-		      FIELD_PREP(RISCV_IOMMU_CMD_IOFENCE_DATA, data) |
-		      RISCV_IOMMU_CMD_IOFENCE_AV;
+	cmd->dword0 = FIELD_PREP(RISCV_IOMMU_CMD0_OPCODE, RISCV_IOMMU_CMD_IOFENCE_OPCODE) |
+		      FIELD_PREP(RISCV_IOMMU_CMD0_FUNC, RISCV_IOMMU_CMD_IOFENCE_FUNC_C) |
+		      FIELD_PREP(RISCV_IOMMU_CMD0_IOFENCE_DATA, data) |
+		      RISCV_IOMMU_CMD0_IOFENCE_AV;
 	cmd->dword1 = addr >> 2;
 }
 
 static inline void riscv_iommu_cmd_iodir_inval_ddt(struct riscv_iommu_command *cmd)
 {
-	cmd->dword0 = FIELD_PREP(RISCV_IOMMU_CMD_OPCODE, RISCV_IOMMU_CMD_IODIR_OPCODE) |
-		      FIELD_PREP(RISCV_IOMMU_CMD_FUNC, RISCV_IOMMU_CMD_IODIR_FUNC_INVAL_DDT);
+	cmd->dword0 = FIELD_PREP(RISCV_IOMMU_CMD0_OPCODE, RISCV_IOMMU_CMD_IODIR_OPCODE) |
+		      FIELD_PREP(RISCV_IOMMU_CMD0_FUNC, RISCV_IOMMU_CMD_IODIR_FUNC_INVAL_DDT);
 	cmd->dword1 = 0;
 }
 
 static inline void riscv_iommu_cmd_iodir_inval_pdt(struct riscv_iommu_command *cmd)
 {
-	cmd->dword0 = FIELD_PREP(RISCV_IOMMU_CMD_OPCODE, RISCV_IOMMU_CMD_IODIR_OPCODE) |
-		      FIELD_PREP(RISCV_IOMMU_CMD_FUNC, RISCV_IOMMU_CMD_IODIR_FUNC_INVAL_PDT);
+	cmd->dword0 = FIELD_PREP(RISCV_IOMMU_CMD0_OPCODE, RISCV_IOMMU_CMD_IODIR_OPCODE) |
+		      FIELD_PREP(RISCV_IOMMU_CMD0_FUNC, RISCV_IOMMU_CMD_IODIR_FUNC_INVAL_PDT);
 	cmd->dword1 = 0;
 }
 
 static inline void riscv_iommu_cmd_iodir_set_did(struct riscv_iommu_command *cmd,
 						 unsigned int devid)
 {
-	cmd->dword0 |= FIELD_PREP(RISCV_IOMMU_CMD_IODIR_DID, devid) |
-		       RISCV_IOMMU_CMD_IODIR_DV;
+	cmd->dword0 |= FIELD_PREP(RISCV_IOMMU_CMD0_IODIR_DID, devid) |
+		       RISCV_IOMMU_CMD0_IODIR_DV;
 }
 
 static inline void riscv_iommu_cmd_iodir_set_pid(struct riscv_iommu_command *cmd,
 						 unsigned int pasid)
 {
-	cmd->dword0 |= FIELD_PREP(RISCV_IOMMU_CMD_IODIR_PID, pasid);
+	cmd->dword0 |= FIELD_PREP(RISCV_IOMMU_CMD0_IODIR_PID, pasid);
 }
 
 #endif /* _RISCV_IOMMU_BITS_H_ */

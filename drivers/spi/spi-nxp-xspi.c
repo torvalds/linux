@@ -493,9 +493,8 @@ static void nxp_xspi_disable_ddr(struct nxp_xspi *xspi)
 	writel(reg, base + XSPI_MCR);
 
 	reg &= ~XSPI_MCR_DDR_EN;
-	reg &= ~XSPI_MCR_DQS_FA_SEL_MASK;
 	/* Use dummy pad loopback mode to sample data */
-	reg |= FIELD_PREP(XSPI_MCR_DQS_FA_SEL_MASK, 0x01);
+	FIELD_MODIFY(XSPI_MCR_DQS_FA_SEL_MASK, &reg, 0x01);
 	writel(reg, base + XSPI_MCR);
 	xspi->support_max_rate = 133000000;
 
@@ -524,15 +523,13 @@ static void nxp_xspi_enable_ddr(struct nxp_xspi *xspi)
 	writel(reg, base + XSPI_MCR);
 
 	reg |= XSPI_MCR_DDR_EN;
-	reg &= ~XSPI_MCR_DQS_FA_SEL_MASK;
 	/* Use external dqs to sample data */
-	reg |= FIELD_PREP(XSPI_MCR_DQS_FA_SEL_MASK, 0x03);
+	FIELD_MODIFY(XSPI_MCR_DQS_FA_SEL_MASK, &reg, 0x03);
 	writel(reg, base + XSPI_MCR);
 	xspi->support_max_rate = 200000000;
 
 	reg = readl(base + XSPI_FLSHCR);
-	reg &= ~XSPI_FLSHCR_TDH_MASK;
-	reg |= FIELD_PREP(XSPI_FLSHCR_TDH_MASK, 0x01);
+	FIELD_MODIFY(XSPI_FLSHCR_TDH_MASK, &reg, 0x01);
 	writel(reg, base + XSPI_FLSHCR);
 
 	reg = FIELD_PREP(XSPI_SMPR_DLLFSMPFA_MASK, 0x04);
@@ -1096,8 +1093,7 @@ static int nxp_xspi_default_setup(struct nxp_xspi *xspi)
 
 	/* Give read/write access right to EENV0 */
 	reg = readl(base + XSPI_FRAD0_WORD2);
-	reg &= ~XSPI_FRAD0_WORD2_MD0ACP_MASK;
-	reg |= FIELD_PREP(XSPI_FRAD0_WORD2_MD0ACP_MASK, 0x03);
+	FIELD_MODIFY(XSPI_FRAD0_WORD2_MD0ACP_MASK, &reg, 0x03);
 	writel(reg, base + XSPI_FRAD0_WORD2);
 
 	/* Enable the FRAD check for EENV0 */

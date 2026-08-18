@@ -202,7 +202,6 @@ static int ath_rx_edma_init(struct ath_softc *sc, int nbufs)
 	struct sk_buff *skb;
 	struct ath_rxbuf *bf;
 	int error = 0, i;
-	u32 size;
 
 	ath9k_hw_set_rx_bufsize(ah, common->rx_bufsize -
 				    ah->caps.rx_status_len);
@@ -212,8 +211,7 @@ static int ath_rx_edma_init(struct ath_softc *sc, int nbufs)
 	ath_rx_edma_init_queue(&sc->rx.rx_edma[ATH9K_RX_QUEUE_HP],
 			       ah->caps.rx_hp_qdepth);
 
-	size = sizeof(struct ath_rxbuf) * nbufs;
-	bf = devm_kzalloc(sc->dev, size, GFP_KERNEL);
+	bf = devm_kcalloc(sc->dev, sizeof(struct ath_rxbuf), nbufs, GFP_KERNEL);
 	if (!bf)
 		return -ENOMEM;
 

@@ -32,8 +32,13 @@
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/ip.h>
+#include <linux/ipv6.h>
+#include <linux/udp.h>
 #include <linux/netpoll.h>
 #include <linux/inet.h>
+#include <linux/unaligned.h>
+#include <net/ip6_checksum.h>
 #include <linux/configfs.h>
 #include <linux/etherdevice.h>
 #include <linux/hex.h>
@@ -45,6 +50,7 @@
 MODULE_AUTHOR("Matt Mackall <mpm@selenic.com>");
 MODULE_DESCRIPTION("Console driver for network interfaces");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS("NETDEV_INTERNAL");
 
 #define MAX_PARAM_LENGTH		256
 #define MAX_EXTRADATA_ENTRY_LEN		256
@@ -184,8 +190,10 @@ struct netconsole_target {
 	bool			extended;
 	bool			release;
 	struct netpoll		np;
-	/* protected by target_list_lock */
-	char			buf[MAX_PRINT_CHUNK];
+	/* protected by target_list_lock; +1 gives scnprintf() room for its
+	 * NUL terminator so a full MAX_PRINT_CHUNK payload is not truncated
+	 */
+	char			buf[MAX_PRINT_CHUNK + 1];
 	struct work_struct	resume_wq;
 };
 
@@ -277,6 +285,13 @@ static bool bound_by_mac(struct netconsole_target *nt)
 	return is_valid_ether_addr(nt->np.dev_mac);
 }
 
+static void netcons_release_dev(struct netconsole_target *nt)
+{
+	do_netpoll_cleanup(&nt->np);
+	if (bound_by_mac(nt))
+		memset(&nt->np.dev_name, 0, IFNAMSIZ);
+}
+
 /* Attempts to resume logging to a deactivated target. */
 static void resume_target(struct netconsole_target *nt)
 {
@@ -329,6 +344,24 @@ static void process_resume_target(struct work_struct *work)
 
 	resume_target(nt);
 
+	/* netpoll_setup() took a net_device reference and dropped the RTNL
+	 * before returning, all while this target was off target_list and
+	 * thus invisible to netconsole_netdev_event(). If the device was
+	 * unregistered in that window the NETDEV_UNREGISTER notifier could not
+	 * tear this target down, which would leak the reference and hang
+	 * unregister_netdevice(). Re-check under the RTNL before re-publishing:
+	 * taking it across the check and the list_add() serialises against the
+	 * notifier (which also runs under the RTNL), so the device is either
+	 * still registered (the notifier will find the re-added target) or
+	 * already unregistering (we drop the reference here).
+	 */
+	rtnl_lock();
+	if (nt->state == STATE_ENABLED && nt->np.dev &&
+	    nt->np.dev->reg_state != NETREG_REGISTERED) {
+		netcons_release_dev(nt);
+		nt->state = STATE_DISABLED;
+	}
+
 	/* At this point the target is either enabled or disabled and
 	 * was cleaned up before getting deactivated. Either way, add it
 	 * back to target list.
@@ -336,6 +369,7 @@ static void process_resume_target(struct work_struct *work)
 	spin_lock_irqsave(&target_list_lock, flags);
 	list_add(&nt->list, &target_list);
 	spin_unlock_irqrestore(&target_list_lock, flags);
+	rtnl_unlock();
 
 out_unlock:
 	dynamic_netconsole_mutex_unlock();
@@ -383,9 +417,7 @@ static void netconsole_process_cleanups_core(void)
 	list_for_each_entry_safe(nt, tmp, &target_cleanup_list, list) {
 		/* all entries in the cleanup_list needs to be disabled */
 		WARN_ON_ONCE(nt->state == STATE_ENABLED);
-		do_netpoll_cleanup(&nt->np);
-		if (bound_by_mac(nt))
-			memset(&nt->np.dev_name, 0, IFNAMSIZ);
+		netcons_release_dev(nt);
 		/* moved the cleaned target to target_list. Need to hold both
 		 * locks
 		 */
@@ -1258,7 +1290,7 @@ static void userdatum_release(struct config_item *item)
 	kfree(to_userdatum(item));
 }
 
-static struct configfs_item_operations userdatum_ops = {
+static const struct configfs_item_operations userdatum_ops = {
 	.release = userdatum_release,
 };
 
@@ -1313,7 +1345,7 @@ static struct configfs_attribute *userdata_attrs[] = {
 	NULL,
 };
 
-static struct configfs_group_operations userdata_ops = {
+static const struct configfs_group_operations userdata_ops = {
 	.make_item		= userdatum_make_item,
 	.drop_item		= userdatum_drop,
 };
@@ -1364,7 +1396,7 @@ static void netconsole_target_release(struct config_item *item)
 	kfree(nt);
 }
 
-static struct configfs_item_operations netconsole_target_item_ops = {
+static const struct configfs_item_operations netconsole_target_item_ops = {
 	.release		= netconsole_target_release,
 };
 
@@ -1443,10 +1475,21 @@ static void drop_netconsole_target(struct config_group *group,
 {
 	struct netconsole_target *nt = to_target(item);
 	unsigned long flags;
+	bool needs_cleanup;
 
 	dynamic_netconsole_mutex_lock();
 
+	mutex_lock(&target_cleanup_list_lock);
 	spin_lock_irqsave(&target_list_lock, flags);
+	/* A STATE_DEACTIVATED target may have been moved to
+	 * target_cleanup_list by netconsole_netdev_event() but not yet
+	 * processed by netconsole_process_cleanups_core(). Unlinking it below
+	 * hides it from the cleanup worker, so this path has to clean it up
+	 * itself. Record that the target still owns a netpoll before the
+	 * state is downgraded.
+	 */
+	needs_cleanup = nt->state == STATE_ENABLED ||
+			nt->state == STATE_DEACTIVATED;
 	/* Disable deactivated target to prevent races between resume attempt
 	 * and target removal.
 	 */
@@ -1454,6 +1497,7 @@ static void drop_netconsole_target(struct config_group *group,
 		nt->state = STATE_DISABLED;
 	list_del(&nt->list);
 	spin_unlock_irqrestore(&target_list_lock, flags);
+	mutex_unlock(&target_cleanup_list_lock);
 
 	dynamic_netconsole_mutex_unlock();
 
@@ -1467,14 +1511,16 @@ static void drop_netconsole_target(struct config_group *group,
 	/*
 	 * The target may have never been enabled, or was manually disabled
 	 * before being removed so netpoll may have already been cleaned up.
+	 * netpoll_cleanup() is idempotent (it skips when np->dev is NULL), so
+	 * it is safe even if the cleanup worker already tore the netpoll down.
 	 */
-	if (nt->state == STATE_ENABLED)
+	if (needs_cleanup)
 		netpoll_cleanup(&nt->np);
 
 	config_item_put(&nt->group.cg_item);
 }
 
-static struct configfs_group_operations netconsole_subsys_group_ops = {
+static const struct configfs_group_operations netconsole_subsys_group_ops = {
 	.make_group	= make_netconsole_target,
 	.drop_item	= drop_netconsole_target,
 };
@@ -1648,6 +1694,208 @@ static struct notifier_block netconsole_netdev_notifier = {
 	.notifier_call  = netconsole_netdev_event,
 };
 
+/* Pop a pre-allocated skb from the pool and request a refill.
+ *
+ * The pool is refilled with MAX_SKB_SIZE buffers, so a pooled skb cannot
+ * satisfy a larger request. Return NULL in that case rather than handing
+ * back a too-small skb that would later trip skb_over_panic() in skb_put();
+ * the caller still polls and retries, and alloc_skb() itself can satisfy the
+ * oversized request once memory frees up.
+ *
+ * The refill is requested via schedule_work(), which takes the workqueue
+ * pool locks and is therefore not NMI-safe. Skip the refill when called
+ * from NMI context; the next non-NMI caller will top the pool back up.
+ */
+static struct sk_buff *netcons_skb_pop(struct netpoll *np, int len)
+{
+	struct sk_buff *skb;
+
+	if (len > MAX_SKB_SIZE) {
+		/* net_warn_ratelimited() pulls in printk machinery that is not
+		 * NMI-safe and could recurse into the nbcon console we are
+		 * servicing, so only warn outside NMI.
+		 */
+		if (!in_nmi())
+			net_warn_ratelimited("netconsole: dropping message, requested skb len %d exceeds pool buffer size %zu on %s\n",
+					     len, (size_t)MAX_SKB_SIZE,
+					     np->dev->name);
+		return NULL;
+	}
+
+	skb = skb_dequeue(&np->skb_pool);
+	if (!in_nmi())
+		schedule_work(&np->refill_wq);
+
+	return skb;
+}
+
+static struct sk_buff *find_skb(struct netpoll *np, int len, int reserve)
+{
+	int count = 0;
+	struct sk_buff *skb;
+
+	netpoll_zap_completion_queue();
+repeat:
+
+	skb = alloc_skb(len, GFP_ATOMIC);
+	if (!skb)
+		skb = netcons_skb_pop(np, len);
+
+	if (!skb) {
+		if (++count < 10) {
+			netpoll_poll_dev(np->dev);
+			goto repeat;
+		}
+		return NULL;
+	}
+
+	refcount_set(&skb->users, 1);
+	skb_reserve(skb, reserve);
+	return skb;
+}
+
+static void netpoll_udp_checksum(struct netpoll *np, struct sk_buff *skb,
+				 int len)
+{
+	struct udphdr *udph;
+	int udp_len;
+
+	udp_len = len + sizeof(struct udphdr);
+	udph = udp_hdr(skb);
+
+	/* check needs to be set, since it will be consumed in csum_partial */
+	udph->check = 0;
+	if (np->ipv6)
+		udph->check = csum_ipv6_magic(&np->local_ip.in6,
+					      &np->remote_ip.in6,
+					      udp_len, IPPROTO_UDP,
+					      csum_partial(udph, udp_len, 0));
+	else
+		udph->check = csum_tcpudp_magic(np->local_ip.ip,
+						np->remote_ip.ip,
+						udp_len, IPPROTO_UDP,
+						csum_partial(udph, udp_len, 0));
+	if (udph->check == 0)
+		udph->check = CSUM_MANGLED_0;
+}
+
+static void push_udp(struct netpoll *np, struct sk_buff *skb, int len)
+{
+	struct udphdr *udph;
+	int udp_len;
+
+	udp_len = len + sizeof(struct udphdr);
+
+	skb_push(skb, sizeof(struct udphdr));
+	skb_reset_transport_header(skb);
+
+	udph = udp_hdr(skb);
+	udph->source = htons(np->local_port);
+	udph->dest = htons(np->remote_port);
+	udph->len = htons(udp_len);
+
+	netpoll_udp_checksum(np, skb, len);
+}
+
+static void push_eth(struct netpoll *np, struct sk_buff *skb)
+{
+	struct ethhdr *eth;
+
+	eth = skb_push(skb, ETH_HLEN);
+	skb_reset_mac_header(skb);
+	ether_addr_copy(eth->h_source, np->dev->dev_addr);
+	ether_addr_copy(eth->h_dest, np->remote_mac);
+	if (np->ipv6)
+		eth->h_proto = htons(ETH_P_IPV6);
+	else
+		eth->h_proto = htons(ETH_P_IP);
+}
+
+static void push_ipv4(struct netpoll *np, struct sk_buff *skb, int len)
+{
+	static atomic_t ip_ident;
+	struct iphdr *iph;
+	int ip_len;
+
+	ip_len = len + sizeof(struct udphdr) + sizeof(struct iphdr);
+
+	skb_push(skb, sizeof(struct iphdr));
+	skb_reset_network_header(skb);
+	iph = ip_hdr(skb);
+
+	/* iph->version = 4; iph->ihl = 5; */
+	*(unsigned char *)iph = 0x45;
+	iph->tos = 0;
+	put_unaligned(htons(ip_len), &iph->tot_len);
+	iph->id = htons(atomic_inc_return(&ip_ident));
+	iph->frag_off = 0;
+	iph->ttl = 64;
+	iph->protocol = IPPROTO_UDP;
+	iph->check = 0;
+	put_unaligned(np->local_ip.ip, &iph->saddr);
+	put_unaligned(np->remote_ip.ip, &iph->daddr);
+	iph->check = ip_fast_csum((unsigned char *)iph, iph->ihl);
+	skb->protocol = htons(ETH_P_IP);
+}
+
+static void push_ipv6(struct netpoll *np, struct sk_buff *skb, int len)
+{
+	struct ipv6hdr *ip6h;
+
+	skb_push(skb, sizeof(struct ipv6hdr));
+	skb_reset_network_header(skb);
+	ip6h = ipv6_hdr(skb);
+
+	/* ip6h->version = 6; ip6h->priority = 0; */
+	*(unsigned char *)ip6h = 0x60;
+	ip6h->flow_lbl[0] = 0;
+	ip6h->flow_lbl[1] = 0;
+	ip6h->flow_lbl[2] = 0;
+
+	ip6h->payload_len = htons(sizeof(struct udphdr) + len);
+	ip6h->nexthdr = IPPROTO_UDP;
+	ip6h->hop_limit = 32;
+	ip6h->saddr = np->local_ip.in6;
+	ip6h->daddr = np->remote_ip.in6;
+
+	skb->protocol = htons(ETH_P_IPV6);
+}
+
+static int netpoll_send_udp(struct netpoll *np, const char *msg, int len)
+{
+	int total_len, ip_len, udp_len;
+	struct sk_buff *skb;
+
+	if (!IS_ENABLED(CONFIG_PREEMPT_RT))
+		WARN_ON_ONCE(!irqs_disabled());
+
+	udp_len = len + sizeof(struct udphdr);
+	if (np->ipv6)
+		ip_len = udp_len + sizeof(struct ipv6hdr);
+	else
+		ip_len = udp_len + sizeof(struct iphdr);
+
+	total_len = ip_len + LL_RESERVED_SPACE(np->dev);
+
+	skb = find_skb(np, total_len + np->dev->needed_tailroom,
+		       total_len - len);
+	if (!skb)
+		return -ENOMEM;
+
+	skb_copy_to_linear_data(skb, msg, len);
+	skb_put(skb, len);
+
+	push_udp(np, skb, len);
+	if (np->ipv6)
+		push_ipv6(np, skb, len);
+	else
+		push_ipv4(np, skb, len);
+	push_eth(np, skb);
+	skb->dev = np->dev;
+
+	return (int)netpoll_send_skb(np, skb);
+}
+
 /**
  * send_udp - Wrapper for netpoll_send_udp that counts errors
  * @nt: target to send message to
@@ -1692,7 +1940,7 @@ static void send_msg_no_fragmentation(struct netconsole_target *nt,
 	if (release_len) {
 		release = init_utsname()->release;
 
-		scnprintf(nt->buf, MAX_PRINT_CHUNK, "%s,%.*s", release,
+		scnprintf(nt->buf, sizeof(nt->buf), "%s,%.*s", release,
 			  msg_len, msg);
 		msg_len += release_len;
 	} else {
@@ -1701,12 +1949,12 @@ static void send_msg_no_fragmentation(struct netconsole_target *nt,
 
 	if (userdata)
 		msg_len += scnprintf(&nt->buf[msg_len],
-				     MAX_PRINT_CHUNK - msg_len, "%s",
+				     sizeof(nt->buf) - msg_len, "%s",
 				     userdata);
 
 	if (sysdata)
 		msg_len += scnprintf(&nt->buf[msg_len],
-				     MAX_PRINT_CHUNK - msg_len, "%s",
+				     sizeof(nt->buf) - msg_len, "%s",
 				     sysdata);
 
 	send_udp(nt, nt->buf, msg_len);

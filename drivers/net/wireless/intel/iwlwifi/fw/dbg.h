@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018-2019, 2021-2025 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2019, 2021-2026 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -37,6 +37,11 @@ struct iwl_fw_dbg_params {
 	u32 in_sample;
 	u32 out_ctrl;
 };
+
+/* old-style dump entry point */
+void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt,
+		       struct iwl_fwrt_dump_data *dump_data);
+struct scatterlist *iwl_fw_dbg_alloc_sgtable(ssize_t size);
 
 extern const struct iwl_fw_dump_desc iwl_dump_desc_assert;
 

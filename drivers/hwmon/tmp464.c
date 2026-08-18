@@ -65,8 +65,8 @@ static const u8 TMP464_THERM2_LIMIT[MAX_CHANNELS] = {
 #define TMP468_DEVICE_ID			0x0468
 
 static const struct i2c_device_id tmp464_id[] = {
-	{ "tmp464", TMP464_NUM_CHANNELS },
-	{ "tmp468", TMP468_NUM_CHANNELS },
+	{ .name = "tmp464", .driver_data = TMP464_NUM_CHANNELS },
+	{ .name = "tmp468", .driver_data = TMP468_NUM_CHANNELS },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tmp464_id);

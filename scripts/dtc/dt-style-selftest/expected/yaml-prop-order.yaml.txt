@@ -1,0 +1,2 @@
+# mode=strict
+bad/yaml-prop-order.yaml:28: example 0 [property-order] property 'compatible' out of canonical order (should sort before 'reg')

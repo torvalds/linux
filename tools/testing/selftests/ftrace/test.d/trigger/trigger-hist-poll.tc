@@ -1,7 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: event trigger - test poll wait on histogram
-# requires: set_event events/sched/sched_process_free/trigger events/sched/sched_process_free/hist
+# requires: set_event events/sched/sched_process_exit/trigger events/sched/sched_process_exit/hist
 # flags: instance
 
 POLL=${FTRACETEST_ROOT}/poll
@@ -11,7 +11,7 @@ if [ ! -x ${POLL} ]; then
   exit_unresolved
 fi
 
-EVENT=events/sched/sched_process_free/
+EVENT=events/sched/sched_process_exit/
 
 # Check poll ops is supported. Before implementing poll on hist file, it
 # returns soon with POLLIN | POLLOUT, but not POLLPRI.

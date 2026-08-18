@@ -1739,7 +1739,7 @@ xfs_dir2_node_add_datablk(
 				   fbno)) {
 			xfs_alert(mp,
 "%s: dir ino %llu needed freesp block %lld for data block %lld, got %lld",
-				__func__, (unsigned long long)dp->i_ino,
+				__func__, (unsigned long long)I_INO(dp),
 				(long long)xfs_dir2_db_to_fdb(args->geo, *dbno),
 				(long long)*dbno, (long long)fbno);
 			if (fblk) {

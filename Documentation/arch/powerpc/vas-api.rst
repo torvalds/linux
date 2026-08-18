@@ -293,7 +293,7 @@ Simple example
 				//Format CRB request with compression or
 				//uncompression
 				// Refer tests for vas_copy/vas_paste
-				vas_copy((&crb, 0, 1);
+				vas_copy(&crb, 0, 1);
 				vas_paste(addr, 0, 1);
 				// Poll on csb.flags with timeout
 				// csb address is listed in CRB

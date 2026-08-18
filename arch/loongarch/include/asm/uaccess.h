@@ -292,8 +292,7 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 	return __copy_user((__force void *)to, from, n);
 }
 
-#define INLINE_COPY_FROM_USER
-#define INLINE_COPY_TO_USER
+#define INLINE_COPY_USER
 
 /*
  * __clear_user: - Zero a block of memory in user space, with less checking.

@@ -21,7 +21,7 @@ properties:
       - ti,am654-sr1-icssg-prueth  # for AM65x SoC family, SR1.0
 
   sram:
-    $ref: /schemas/types.yaml#/definitions/phandle
+    maxItems: 1
     description:
       phandle to MSMC SRAM node
 

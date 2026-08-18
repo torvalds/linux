@@ -25,6 +25,7 @@
 #include <scsi/scsicam.h>
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_fc.h>
+#include <net/netdev_lock.h>
 #include <net/rtnetlink.h>
 
 #include <scsi/fc/fc_encaps.h>
@@ -737,7 +738,9 @@ static int fcoe_netdev_config(struct fc_lport *lport, struct net_device *netdev)
 	port->fcoe_pending_queue_active = 0;
 	timer_setup(&port->timer, fcoe_queue_timer, 0);
 
+	netdev_lock_ops(netdev);
 	fcoe_link_speed_update(lport);
+	netdev_unlock_ops(netdev);
 
 	if (!lport->vport) {
 		if (fcoe_get_wwn(netdev, &wwnn, NETDEV_FCOE_WWNN))
@@ -1841,6 +1844,7 @@ static int fcoe_device_notification(struct notifier_block *notifier,
 		break;
 	case NETDEV_UP:
 	case NETDEV_CHANGE:
+		fcoe_link_speed_update(lport);
 		break;
 	case NETDEV_CHANGEMTU:
 		if (netdev->fcoe_mtu)
@@ -1870,8 +1874,6 @@ static int fcoe_device_notification(struct notifier_block *notifier,
 		FCOE_NETDEV_DBG(netdev, "Unknown event %ld "
 				"from netdev netlink\n", event);
 	}
-
-	fcoe_link_speed_update(lport);
 
 	cdev = fcoe_ctlr_to_ctlr_dev(ctlr);
 

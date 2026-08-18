@@ -19,6 +19,7 @@ enum tplg_device_id {
 	TPLG_DEVICE_SDCA_MIC,
 	TPLG_DEVICE_INTEL_PCH_DMIC,
 	TPLG_DEVICE_HDMI,
+	TPLG_DEVICE_LOOPBACK_VIRTUAL,
 	TPLG_DEVICE_MAX
 };
 
@@ -81,7 +82,15 @@ int sof_sdw_get_tplg_files(struct snd_soc_card *card, const struct snd_soc_acpi_
 		} else if (strstr(dai_link->name, "iDisp")) {
 			tplg_dev = TPLG_DEVICE_HDMI;
 			tplg_dev_name = "hdmi-pcm5";
-
+		} else if (strstr(dai_link->name, "Loopback_Virtual")) {
+			tplg_dev = TPLG_DEVICE_LOOPBACK_VIRTUAL;
+			/*
+			 * Mark the LOOPBACK_VIRTUAL device but no need to create the
+			 * LOOPBACK_VIRTUAL topology. Just to avoid the dai_link is not supported
+			 * error.
+			 */
+			tplg_mask |= BIT(tplg_dev);
+			continue;
 		} else {
 			/* The dai link is not supported by separated tplg yet */
 			dev_dbg(card->dev,

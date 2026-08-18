@@ -189,6 +189,10 @@ struct acpi_driver {
  * -----------
  */
 
+bool acpi_of_match_device(const struct acpi_device *adev,
+			  const struct of_device_id *of_match_table,
+			  const struct of_device_id **of_id);
+
 /* Status (_STA) */
 
 struct acpi_device_status {
@@ -629,6 +633,8 @@ int acpi_dev_install_notify_handler(struct acpi_device *adev,
 void acpi_dev_remove_notify_handler(struct acpi_device *adev,
 				    u32 handler_type,
 				    acpi_notify_handler handler);
+int devm_acpi_install_notify_handler(struct device *dev, u32 handler_type,
+				     acpi_notify_handler handler, void *context);
 extern int acpi_notifier_call_chain(const char *device_class,
 				    const char *bus_id, u32 type, u32 data);
 extern int register_acpi_notifier(struct notifier_block *);
@@ -993,6 +999,13 @@ int acpi_wait_for_acpi_ipmi(void);
 int acpi_scan_add_dep(acpi_handle handle, struct acpi_handle_list *dep_devices);
 u32 arch_acpi_add_auto_dep(acpi_handle handle);
 #else	/* CONFIG_ACPI */
+
+static inline bool acpi_of_match_device(const struct acpi_device *adev,
+					const struct of_device_id *of_match_table,
+					const struct of_device_id **of_id)
+{
+	return false;
+}
 
 static inline int register_acpi_bus_type(void *bus) { return 0; }
 static inline int unregister_acpi_bus_type(void *bus) { return 0; }

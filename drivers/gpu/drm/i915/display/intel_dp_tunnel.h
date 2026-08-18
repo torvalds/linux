@@ -32,6 +32,7 @@ void intel_dp_tunnel_resume(struct intel_dp *intel_dp,
 void intel_dp_tunnel_suspend(struct intel_dp *intel_dp);
 
 bool intel_dp_tunnel_bw_alloc_is_enabled(struct intel_dp *intel_dp);
+bool intel_dp_tunnel_pr_optimization_supported(struct intel_dp *intel_dp);
 
 void
 intel_dp_tunnel_atomic_cleanup_inherited_state(struct intel_atomic_state *state);
@@ -72,6 +73,11 @@ static inline void intel_dp_tunnel_resume(struct intel_dp *intel_dp,
 static inline void intel_dp_tunnel_suspend(struct intel_dp *intel_dp) {}
 
 static inline bool intel_dp_tunnel_bw_alloc_is_enabled(struct intel_dp *intel_dp)
+{
+	return false;
+}
+
+static inline bool intel_dp_tunnel_pr_optimization_supported(struct intel_dp *intel_dp)
 {
 	return false;
 }

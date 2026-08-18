@@ -8,6 +8,9 @@
 #include "tailcall_freplace.skel.h"
 #include "tc_bpf2bpf.skel.h"
 #include "tailcall_fail.skel.h"
+#include "tailcall_cgrp_storage_owner.skel.h"
+#include "tailcall_cgrp_storage_no_storage.skel.h"
+#include "tailcall_cgrp_storage.skel.h"
 #include "tailcall_sleepable.skel.h"
 
 /* test_tailcall_1 checks basic functionality by patching multiple locations
@@ -1654,6 +1657,179 @@ static void test_tailcall_failure()
 	RUN_TESTS(tailcall_fail);
 }
 
+static void test_tailcall_cgrp_storage(void)
+{
+	struct tailcall_cgrp_storage_owner *owner_skel = NULL;
+	struct tailcall_cgrp_storage *skel = NULL;
+	int err, key = 0, prog_array_fd, prog_fd, storage_map_fd;
+
+	owner_skel = tailcall_cgrp_storage_owner__open_and_load();
+	if (!ASSERT_OK_PTR(owner_skel, "owner_open_and_load"))
+		return;
+
+	prog_array_fd = bpf_map__fd(owner_skel->maps.prog_array);
+	storage_map_fd = bpf_map__fd(owner_skel->maps.storage_map);
+
+	skel = tailcall_cgrp_storage__open();
+	if (!ASSERT_OK_PTR(skel, "tailcall_cgrp_storage__open"))
+		goto out;
+
+	err = bpf_map__reuse_fd(skel->maps.prog_array, prog_array_fd);
+	if (!ASSERT_OK(err, "reuse_prog_array"))
+		goto out;
+
+	err = bpf_map__reuse_fd(skel->maps.storage_map, storage_map_fd);
+	if (!ASSERT_OK(err, "reuse_storage_map"))
+		goto out;
+
+	err = bpf_object__load(skel->obj);
+	if (!ASSERT_OK(err, "tailcall_cgrp_storage__load"))
+		goto out;
+
+	prog_fd = bpf_program__fd(skel->progs.callee_prog);
+	err = bpf_map_update_elem(prog_array_fd, &key, &prog_fd, BPF_ANY);
+	ASSERT_OK(err, "update_prog_array");
+out:
+	tailcall_cgrp_storage__destroy(skel);
+	tailcall_cgrp_storage_owner__destroy(owner_skel);
+}
+
+static void test_tailcall_cgrp_storage_diff_storage(void)
+{
+	struct tailcall_cgrp_storage_owner *owner_skel = NULL;
+	struct tailcall_cgrp_storage *skel = NULL;
+	int err, prog_array_fd;
+
+	owner_skel = tailcall_cgrp_storage_owner__open_and_load();
+	if (!ASSERT_OK_PTR(owner_skel, "owner_open_and_load"))
+		return;
+
+	prog_array_fd = bpf_map__fd(owner_skel->maps.prog_array);
+
+	skel = tailcall_cgrp_storage__open();
+	if (!ASSERT_OK_PTR(skel, "tailcall_cgrp_storage__open"))
+		goto out;
+
+	err = bpf_map__reuse_fd(skel->maps.prog_array, prog_array_fd);
+	if (!ASSERT_OK(err, "reuse_prog_array"))
+		goto out;
+
+	err = bpf_object__load(skel->obj);
+	ASSERT_ERR(err, "tailcall_cgrp_storage__load");
+out:
+	tailcall_cgrp_storage__destroy(skel);
+	tailcall_cgrp_storage_owner__destroy(owner_skel);
+}
+
+static void test_tailcall_cgrp_storage_no_storage(void)
+{
+	struct tailcall_cgrp_storage_owner *owner_skel = NULL;
+	struct tailcall_cgrp_storage_no_storage *skel = NULL;
+	int err, prog_array_fd;
+
+	owner_skel = tailcall_cgrp_storage_owner__open_and_load();
+	if (!ASSERT_OK_PTR(owner_skel, "owner_open_and_load"))
+		return;
+
+	prog_array_fd = bpf_map__fd(owner_skel->maps.prog_array);
+
+	skel = tailcall_cgrp_storage_no_storage__open();
+	if (!ASSERT_OK_PTR(skel, "tailcall_cgrp_storage_no_storage__open"))
+		goto out;
+
+	err = bpf_map__reuse_fd(skel->maps.prog_array, prog_array_fd);
+	if (!ASSERT_OK(err, "reuse_prog_array"))
+		goto out;
+
+	err = bpf_object__load(skel->obj);
+	ASSERT_ERR(err, "tailcall_cgrp_storage_no_storage__load");
+out:
+	tailcall_cgrp_storage_no_storage__destroy(skel);
+	tailcall_cgrp_storage_owner__destroy(owner_skel);
+}
+
+static void test_tailcall_cgrp_storage_no_storage_leaf(void)
+{
+	struct tailcall_cgrp_storage_owner *owner_skel = NULL;
+	struct tailcall_cgrp_storage_no_storage *skel = NULL;
+	int err, key = 0, prog_array_fd, prog_fd;
+
+	owner_skel = tailcall_cgrp_storage_owner__open_and_load();
+	if (!ASSERT_OK_PTR(owner_skel, "owner_open_and_load"))
+		return;
+
+	prog_array_fd = bpf_map__fd(owner_skel->maps.prog_array);
+
+	skel = tailcall_cgrp_storage_no_storage__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "tailcall_cgrp_storage_no_storage__open_and_load"))
+		goto out;
+
+	prog_fd = bpf_program__fd(skel->progs.leaf_prog);
+	err = bpf_map_update_elem(prog_array_fd, &key, &prog_fd, BPF_ANY);
+	if (!ASSERT_OK(err, "update_prog_array_leaf"))
+		goto out;
+
+	prog_fd = bpf_program__fd(skel->progs.caller_prog);
+	err = bpf_map_update_elem(prog_array_fd, &key, &prog_fd, BPF_ANY);
+	ASSERT_ERR(err, "update_prog_array_bridge");
+out:
+	tailcall_cgrp_storage_no_storage__destroy(skel);
+	tailcall_cgrp_storage_owner__destroy(owner_skel);
+}
+
+static void test_tailcall_cgrp_storage_no_storage_bridge(void)
+{
+	struct tailcall_cgrp_storage_owner *owner_skel = NULL;
+	struct tailcall_cgrp_storage_no_storage *bridge_skel = NULL;
+	struct tailcall_cgrp_storage *callee_skel = NULL;
+	int err, key = 0, prog_array_fd, prog_fd, storage_map_fd;
+
+	owner_skel = tailcall_cgrp_storage_owner__open_and_load();
+	if (!ASSERT_OK_PTR(owner_skel, "owner_open_and_load"))
+		return;
+
+	prog_array_fd = bpf_map__fd(owner_skel->maps.prog_array);
+	storage_map_fd = bpf_map__fd(owner_skel->maps.storage_map);
+
+	callee_skel = tailcall_cgrp_storage__open();
+	if (!ASSERT_OK_PTR(callee_skel, "tailcall_cgrp_storage__open"))
+		goto out;
+
+	bpf_program__set_autoload(callee_skel->progs.caller_prog, false);
+
+	err = bpf_map__reuse_fd(callee_skel->maps.prog_array, prog_array_fd);
+	if (!ASSERT_OK(err, "reuse_prog_array"))
+		goto out;
+
+	err = bpf_map__reuse_fd(callee_skel->maps.storage_map, storage_map_fd);
+	if (!ASSERT_OK(err, "reuse_storage_map"))
+		goto out;
+
+	err = bpf_object__load(callee_skel->obj);
+	if (!ASSERT_OK(err, "tailcall_cgrp_storage__load"))
+		goto out;
+
+	prog_fd = bpf_program__fd(callee_skel->progs.callee_prog);
+	err = bpf_map_update_elem(prog_array_fd, &key, &prog_fd, BPF_ANY);
+	if (!ASSERT_OK(err, "update_prog_array"))
+		goto out;
+
+	bridge_skel = tailcall_cgrp_storage_no_storage__open();
+	if (!ASSERT_OK_PTR(bridge_skel, "tailcall_cgrp_storage_no_storage__open"))
+		goto out;
+
+	err = bpf_map__reuse_fd(bridge_skel->maps.prog_array, prog_array_fd);
+	if (!ASSERT_OK(err, "reuse_prog_array"))
+		goto out;
+
+	err = bpf_object__load(bridge_skel->obj);
+	ASSERT_ERR(err, "tailcall_cgrp_storage_no_storage_bridge__load");
+out:
+	tailcall_cgrp_storage_no_storage__destroy(bridge_skel);
+	tailcall_cgrp_storage__destroy(callee_skel);
+	tailcall_cgrp_storage_owner__destroy(owner_skel);
+}
+
 noinline void uprobe_sleepable_trigger(void)
 {
 	asm volatile ("");
@@ -1781,4 +1957,14 @@ void test_tailcalls(void)
 		test_tailcall_failure();
 	if (test__start_subtest("tailcall_sleepable"))
 		test_tailcall_sleepable();
+	if (test__start_subtest("tailcall_cgrp_storage"))
+		test_tailcall_cgrp_storage();
+	if (test__start_subtest("tailcall_cgrp_storage_diff_storage"))
+		test_tailcall_cgrp_storage_diff_storage();
+	if (test__start_subtest("tailcall_cgrp_storage_no_storage"))
+		test_tailcall_cgrp_storage_no_storage();
+	if (test__start_subtest("tailcall_cgrp_storage_no_storage_leaf"))
+		test_tailcall_cgrp_storage_no_storage_leaf();
+	if (test__start_subtest("tailcall_cgrp_storage_no_storage_bridge"))
+		test_tailcall_cgrp_storage_no_storage_bridge();
 }

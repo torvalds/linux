@@ -66,7 +66,7 @@ static const struct of_device_id mp5920_of_match[] = {
 MODULE_DEVICE_TABLE(of, mp5920_of_match);
 
 static const struct i2c_device_id mp5920_id[] = {
-	{ "mp5920" },
+	{ .name = "mp5920" },
 	{ }
 };
 

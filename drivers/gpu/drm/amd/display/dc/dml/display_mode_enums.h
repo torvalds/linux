@@ -30,6 +30,7 @@ enum output_encoder_class {
 	dm_hdmi = 1,
 	dm_wb = 2,
 	dm_edp = 3,
+	dm_hdmifrl = 4,
 	dm_dp2p0 = 5,
 };
 enum output_format_class {

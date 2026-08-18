@@ -16,6 +16,7 @@
 #include "rkvdec-regs.h"
 #include "rkvdec-cabac.h"
 #include "rkvdec-h264-common.h"
+#include "rkvdec-bitwriter.h"
 
 /* Size with u32 units. */
 #define RKV_CABAC_INIT_BUFFER_SIZE	(3680 + 128)
@@ -25,56 +26,48 @@ struct rkvdec_sps_pps_packet {
 	u32 info[8];
 };
 
-struct rkvdec_ps_field {
-	u16 offset;
-	u8 len;
-};
-
-#define PS_FIELD(_offset, _len) \
-	((struct rkvdec_ps_field){ _offset, _len })
-
-#define SEQ_PARAMETER_SET_ID				PS_FIELD(0, 4)
-#define PROFILE_IDC					PS_FIELD(4, 8)
-#define CONSTRAINT_SET3_FLAG				PS_FIELD(12, 1)
-#define CHROMA_FORMAT_IDC				PS_FIELD(13, 2)
-#define BIT_DEPTH_LUMA					PS_FIELD(15, 3)
-#define BIT_DEPTH_CHROMA				PS_FIELD(18, 3)
-#define QPPRIME_Y_ZERO_TRANSFORM_BYPASS_FLAG		PS_FIELD(21, 1)
-#define LOG2_MAX_FRAME_NUM_MINUS4			PS_FIELD(22, 4)
-#define MAX_NUM_REF_FRAMES				PS_FIELD(26, 5)
-#define PIC_ORDER_CNT_TYPE				PS_FIELD(31, 2)
-#define LOG2_MAX_PIC_ORDER_CNT_LSB_MINUS4		PS_FIELD(33, 4)
-#define DELTA_PIC_ORDER_ALWAYS_ZERO_FLAG		PS_FIELD(37, 1)
-#define PIC_WIDTH_IN_MBS				PS_FIELD(38, 9)
-#define PIC_HEIGHT_IN_MBS				PS_FIELD(47, 9)
-#define FRAME_MBS_ONLY_FLAG				PS_FIELD(56, 1)
-#define MB_ADAPTIVE_FRAME_FIELD_FLAG			PS_FIELD(57, 1)
-#define DIRECT_8X8_INFERENCE_FLAG			PS_FIELD(58, 1)
-#define MVC_EXTENSION_ENABLE				PS_FIELD(59, 1)
-#define NUM_VIEWS					PS_FIELD(60, 2)
-#define VIEW_ID(i)					PS_FIELD(62 + ((i) * 10), 10)
-#define NUM_ANCHOR_REFS_L(i)				PS_FIELD(82 + ((i) * 11), 1)
-#define ANCHOR_REF_L(i)				PS_FIELD(83 + ((i) * 11), 10)
-#define NUM_NON_ANCHOR_REFS_L(i)			PS_FIELD(104 + ((i) * 11), 1)
-#define NON_ANCHOR_REFS_L(i)				PS_FIELD(105 + ((i) * 11), 10)
-#define PIC_PARAMETER_SET_ID				PS_FIELD(128, 8)
-#define PPS_SEQ_PARAMETER_SET_ID			PS_FIELD(136, 5)
-#define ENTROPY_CODING_MODE_FLAG			PS_FIELD(141, 1)
-#define BOTTOM_FIELD_PIC_ORDER_IN_FRAME_PRESENT_FLAG	PS_FIELD(142, 1)
-#define NUM_REF_IDX_L_DEFAULT_ACTIVE_MINUS1(i)		PS_FIELD(143 + ((i) * 5), 5)
-#define WEIGHTED_PRED_FLAG				PS_FIELD(153, 1)
-#define WEIGHTED_BIPRED_IDC				PS_FIELD(154, 2)
-#define PIC_INIT_QP_MINUS26				PS_FIELD(156, 7)
-#define PIC_INIT_QS_MINUS26				PS_FIELD(163, 6)
-#define CHROMA_QP_INDEX_OFFSET				PS_FIELD(169, 5)
-#define DEBLOCKING_FILTER_CONTROL_PRESENT_FLAG		PS_FIELD(174, 1)
-#define CONSTRAINED_INTRA_PRED_FLAG			PS_FIELD(175, 1)
-#define REDUNDANT_PIC_CNT_PRESENT			PS_FIELD(176, 1)
-#define TRANSFORM_8X8_MODE_FLAG			PS_FIELD(177, 1)
-#define SECOND_CHROMA_QP_INDEX_OFFSET			PS_FIELD(178, 5)
-#define SCALING_LIST_ENABLE_FLAG			PS_FIELD(183, 1)
-#define SCALING_LIST_ADDRESS				PS_FIELD(184, 32)
-#define IS_LONG_TERM(i)				PS_FIELD(216 + (i), 1)
+#define SEQ_PARAMETER_SET_ID				BW_FIELD(0, 4)
+#define PROFILE_IDC					BW_FIELD(4, 8)
+#define CONSTRAINT_SET3_FLAG				BW_FIELD(12, 1)
+#define CHROMA_FORMAT_IDC				BW_FIELD(13, 2)
+#define BIT_DEPTH_LUMA					BW_FIELD(15, 3)
+#define BIT_DEPTH_CHROMA				BW_FIELD(18, 3)
+#define QPPRIME_Y_ZERO_TRANSFORM_BYPASS_FLAG		BW_FIELD(21, 1)
+#define LOG2_MAX_FRAME_NUM_MINUS4			BW_FIELD(22, 4)
+#define MAX_NUM_REF_FRAMES				BW_FIELD(26, 5)
+#define PIC_ORDER_CNT_TYPE				BW_FIELD(31, 2)
+#define LOG2_MAX_PIC_ORDER_CNT_LSB_MINUS4		BW_FIELD(33, 4)
+#define DELTA_PIC_ORDER_ALWAYS_ZERO_FLAG		BW_FIELD(37, 1)
+#define PIC_WIDTH_IN_MBS				BW_FIELD(38, 9)
+#define PIC_HEIGHT_IN_MBS				BW_FIELD(47, 9)
+#define FRAME_MBS_ONLY_FLAG				BW_FIELD(56, 1)
+#define MB_ADAPTIVE_FRAME_FIELD_FLAG			BW_FIELD(57, 1)
+#define DIRECT_8X8_INFERENCE_FLAG			BW_FIELD(58, 1)
+#define MVC_EXTENSION_ENABLE				BW_FIELD(59, 1)
+#define NUM_VIEWS					BW_FIELD(60, 2)
+#define VIEW_ID(i)					BW_FIELD(62 + ((i) * 10), 10)
+#define NUM_ANCHOR_REFS_L(i)				BW_FIELD(82 + ((i) * 11), 1)
+#define ANCHOR_REF_L(i)				BW_FIELD(83 + ((i) * 11), 10)
+#define NUM_NON_ANCHOR_REFS_L(i)			BW_FIELD(104 + ((i) * 11), 1)
+#define NON_ANCHOR_REFS_L(i)				BW_FIELD(105 + ((i) * 11), 10)
+#define PIC_PARAMETER_SET_ID				BW_FIELD(128, 8)
+#define PPS_SEQ_PARAMETER_SET_ID			BW_FIELD(136, 5)
+#define ENTROPY_CODING_MODE_FLAG			BW_FIELD(141, 1)
+#define BOTTOM_FIELD_PIC_ORDER_IN_FRAME_PRESENT_FLAG	BW_FIELD(142, 1)
+#define NUM_REF_IDX_L_DEFAULT_ACTIVE_MINUS1(i)		BW_FIELD(143 + ((i) * 5), 5)
+#define WEIGHTED_PRED_FLAG				BW_FIELD(153, 1)
+#define WEIGHTED_BIPRED_IDC				BW_FIELD(154, 2)
+#define PIC_INIT_QP_MINUS26				BW_FIELD(156, 7)
+#define PIC_INIT_QS_MINUS26				BW_FIELD(163, 6)
+#define CHROMA_QP_INDEX_OFFSET				BW_FIELD(169, 5)
+#define DEBLOCKING_FILTER_CONTROL_PRESENT_FLAG		BW_FIELD(174, 1)
+#define CONSTRAINED_INTRA_PRED_FLAG			BW_FIELD(175, 1)
+#define REDUNDANT_PIC_CNT_PRESENT			BW_FIELD(176, 1)
+#define TRANSFORM_8X8_MODE_FLAG			BW_FIELD(177, 1)
+#define SECOND_CHROMA_QP_INDEX_OFFSET			BW_FIELD(178, 5)
+#define SCALING_LIST_ENABLE_FLAG			BW_FIELD(183, 1)
+#define SCALING_LIST_ADDRESS				BW_FIELD(184, 32)
+#define IS_LONG_TERM(i)				BW_FIELD(216 + (i), 1)
 
 /* Data structure describing auxiliary buffer format. */
 struct rkvdec_h264_priv_tbl {
@@ -90,20 +83,6 @@ struct rkvdec_h264_ctx {
 	struct rkvdec_h264_reflists reflists;
 	struct rkvdec_regs regs;
 };
-
-static void set_ps_field(u32 *buf, struct rkvdec_ps_field field, u32 value)
-{
-	u8 bit = field.offset % 32, word = field.offset / 32;
-	u64 mask = GENMASK_ULL(bit + field.len - 1, bit);
-	u64 val = ((u64)value << bit) & mask;
-
-	buf[word] &= ~mask;
-	buf[word] |= val;
-	if (bit + field.len > 32) {
-		buf[word + 1] &= ~(mask >> 32);
-		buf[word + 1] |= val >> 32;
-	}
-}
 
 static void assemble_hw_pps(struct rkvdec_ctx *ctx,
 			    struct rkvdec_h264_run *run)
@@ -128,7 +107,7 @@ static void assemble_hw_pps(struct rkvdec_ctx *ctx,
 	hw_ps = &priv_tbl->param_set[pps->pic_parameter_set_id];
 	memset(hw_ps, 0, sizeof(*hw_ps));
 
-#define WRITE_PPS(value, field) set_ps_field(hw_ps->info, field, value)
+#define WRITE_PPS(value, field) rkvdec_set_bw_field(hw_ps->info, field, value)
 	/* write sps */
 	WRITE_PPS(sps->seq_parameter_set_id, SEQ_PARAMETER_SET_ID);
 	WRITE_PPS(sps->profile_idc, PROFILE_IDC);

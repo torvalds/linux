@@ -241,6 +241,7 @@ static void cifs_issue_read(struct netfs_io_subrequest *subreq)
 	return;
 
 failed:
+	add_credits_and_wake_if(rdata->server, &rdata->credits, 0);
 	subreq->error = rc;
 	netfs_read_subreq_terminated(subreq);
 }
@@ -287,6 +288,7 @@ static int cifs_init_request(struct netfs_io_request *rreq, struct file *file)
 		return smb_EIO1(smb_eio_trace_not_netfs_writeback, rreq->origin);
 	}
 
+	atomic_inc(&cifs_sb->outstanding_rreq);
 	return 0;
 }
 
@@ -301,16 +303,20 @@ static void cifs_rreq_done(struct netfs_io_request *rreq)
 	/* we do not want atime to be less than mtime, it broke some apps */
 	atime = inode_set_atime_to_ts(inode, current_time(inode));
 	mtime = inode_get_mtime(inode);
-	if (timespec64_compare(&atime, &mtime))
+	if (timespec64_compare(&atime, &mtime) < 0)
 		inode_set_atime_to_ts(inode, inode_get_mtime(inode));
 }
 
 static void cifs_free_request(struct netfs_io_request *rreq)
 {
 	struct cifs_io_request *req = container_of(rreq, struct cifs_io_request, rreq);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(rreq->inode->i_sb);
 
 	if (req->cfile)
 		cifsFileInfo_put(req->cfile);
+
+	if (atomic_dec_and_test(&cifs_sb->outstanding_rreq))
+		wake_up_var(&cifs_sb->outstanding_rreq);
 }
 
 static void cifs_free_subrequest(struct netfs_io_subrequest *subreq)
@@ -1417,11 +1423,21 @@ void smb2_deferred_work_close(struct work_struct *work)
 {
 	struct cifsFileInfo *cfile = container_of(work,
 			struct cifsFileInfo, deferred.work);
+	struct cifsInodeInfo *cinode = CIFS_I(d_inode(cfile->dentry));
 
-	spin_lock(&CIFS_I(d_inode(cfile->dentry))->deferred_lock);
+	spin_lock(&cinode->deferred_lock);
 	cifs_del_deferred_close(cfile);
 	cfile->deferred_close_scheduled = false;
-	spin_unlock(&CIFS_I(d_inode(cfile->dentry))->deferred_lock);
+	spin_unlock(&cinode->deferred_lock);
+	/*
+	 * Refresh time_last_write immediately before the actual server close
+	 * so the protection window is anchored to the real close time, not
+	 * the earlier userspace close time stored by cifs_close().
+	 */
+	if (OPEN_FMODE(cfile->f_flags) & FMODE_WRITE) {
+		/* Pairs with smp_load_acquire() in is_size_safe_to_change(). */
+		smp_store_release(&cinode->time_last_write, jiffies);
+	}
 	_cifsFileInfo_put(cfile, true, false);
 }
 
@@ -1451,6 +1467,10 @@ int cifs_close(struct inode *inode, struct file *file)
 	if (file->private_data != NULL) {
 		cfile = file->private_data;
 		file->private_data = NULL;
+		if (file->f_mode & FMODE_WRITE) {
+			/* Pairs with smp_load_acquire() in is_size_safe_to_change(). */
+			smp_store_release(&cinode->time_last_write, jiffies);
+		}
 		dclose = kmalloc_obj(struct cifs_deferred_close);
 		if ((cfile->status_file_deleted == false) &&
 		    (smb2_can_defer_close(inode, dclose))) {
@@ -1563,6 +1583,8 @@ int cifs_closedir(struct inode *inode, struct file *file)
 		cfile->srch_inf.ntwrk_buf_start = NULL;
 		if (cfile->srch_inf.smallBuf)
 			cifs_small_buf_release(buf);
+		else if (cfile->srch_inf.is_dynamic_buf)
+			kfree(buf);
 		else
 			cifs_buf_release(buf);
 	}
@@ -2514,6 +2536,42 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *flock)
 	return rc;
 }
 
+static void cifs_update_i_blocks_for_write(struct inode *inode, loff_t start,
+					     loff_t end)
+{
+	struct cifsInodeInfo *cinode = CIFS_I(inode);
+	u64 allocated_end = CIFS_INO_BYTES(inode->i_blocks);
+	u64 blocks;
+
+	if (cinode->cifsAttrs & FILE_ATTRIBUTE_SPARSE_FILE)
+		return;
+
+	/*
+	 * Grow the local estimate only across the currently known allocated
+	 * prefix. A write beyond that may leave a hole.
+	 */
+	if ((u64)start > allocated_end)
+		return;
+
+	blocks = CIFS_INO_BLOCKS(end);
+	if ((u64)inode->i_blocks < blocks)
+		inode->i_blocks = blocks;
+}
+
+static void cifs_update_i_blocks_after_write(struct kiocb *iocb,
+						ssize_t written)
+{
+	struct inode *inode = file_inode(iocb->ki_filp);
+	loff_t end = iocb->ki_pos;
+
+	if (written <= 0)
+		return;
+
+	spin_lock(&inode->i_lock);
+	cifs_update_i_blocks_for_write(inode, end - written, end);
+	spin_unlock(&inode->i_lock);
+}
+
 void cifs_write_subrequest_terminated(struct cifs_io_subrequest *wdata, ssize_t result)
 {
 	struct netfs_io_request *wreq = wdata->rreq;
@@ -2532,6 +2590,8 @@ void cifs_write_subrequest_terminated(struct cifs_io_subrequest *wdata, ssize_t 
 			netfs_write_zero_point(inode, wrend);
 		if (wrend > ictx->_remote_i_size)
 			netfs_resize_file(ictx, wrend, true);
+		cifs_update_i_blocks_for_write(inode, wdata->subreq.start,
+						 wrend);
 
 		spin_unlock(&inode->i_lock);
 	}
@@ -2920,6 +2980,7 @@ cifs_writev(struct kiocb *iocb, struct iov_iter *from)
 	}
 
 	rc = netfs_buffered_write_iter_locked(iocb, from, NULL);
+	cifs_update_i_blocks_after_write(iocb, rc);
 
 out:
 	up_read(&cinode->lock_sem);
@@ -2949,6 +3010,7 @@ cifs_strict_writev(struct kiocb *iocb, struct iov_iter *from)
 		    (CIFS_UNIX_FCNTL_CAP & le64_to_cpu(tcon->fsUnixInfo.Capability)) &&
 		    ((cifs_sb_flags(cifs_sb) & CIFS_MOUNT_NOPOSIXBRL) == 0)) {
 			written = netfs_file_write_iter(iocb, from);
+			cifs_update_i_blocks_after_write(iocb, written);
 			goto out;
 		}
 		written = cifs_writev(iocb, from);
@@ -2961,6 +3023,7 @@ cifs_strict_writev(struct kiocb *iocb, struct iov_iter *from)
 	 * these pages but not on the region from pos to ppos+len-1.
 	 */
 	written = netfs_file_write_iter(iocb, from);
+	cifs_update_i_blocks_after_write(iocb, written);
 	if (CIFS_CACHE_READ(cinode)) {
 		/*
 		 * We have read level caching and we have just sent a write
@@ -2976,6 +3039,15 @@ cifs_strict_writev(struct kiocb *iocb, struct iov_iter *from)
 	}
 out:
 	cifs_put_writer(cinode);
+	return written;
+}
+
+ssize_t cifs_direct_write_iter(struct kiocb *iocb, struct iov_iter *from)
+{
+	ssize_t written;
+
+	written = netfs_file_write_iter(iocb, from);
+	cifs_update_i_blocks_after_write(iocb, written);
 	return written;
 }
 
@@ -3003,6 +3075,7 @@ ssize_t cifs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 
 	if (iocb->ki_filp->f_flags & O_DIRECT) {
 		written = netfs_unbuffered_write_iter(iocb, from);
+		cifs_update_i_blocks_after_write(iocb, written);
 		if (written > 0 && CIFS_CACHE_READ(cinode)) {
 			cifs_zap_mapping(inode);
 			cifs_dbg(FYI,
@@ -3018,6 +3091,7 @@ ssize_t cifs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		return written;
 
 	written = netfs_file_write_iter(iocb, from);
+	cifs_update_i_blocks_after_write(iocb, written);
 
 	if (!CIFS_CACHE_WRITE(CIFS_I(inode))) {
 		rc = filemap_fdatawrite(inode->i_mapping);
@@ -3165,13 +3239,26 @@ static int is_inode_writable(struct cifsInodeInfo *cifs_inode)
 bool is_size_safe_to_change(struct cifsInodeInfo *cifsInode, __u64 end_of_file,
 			    bool from_readdir)
 {
+	struct cifs_sb_info *cifs_sb;
+	unsigned long tlw;
+
 	if (!cifsInode)
 		return true;
+
+	cifs_sb = CIFS_SB(cifsInode);
 
 	if (is_inode_writable(cifsInode) ||
 		((cifsInode->oplock & CIFS_CACHE_RW_FLG) != 0 && from_readdir)) {
 		/* This inode is open for write at least once */
-		struct cifs_sb_info *cifs_sb = CIFS_SB(cifsInode);
+
+		/*
+		 * Readdir data is unreliable when we have writable handles or
+		 * an exclusive lease -- never allow it to change i_size, even
+		 * on direct-IO mounts where the server's directory metadata
+		 * can still lag behind the actual file state.
+		 */
+		if (from_readdir)
+			return false;
 
 		if (cifs_sb_flags(cifs_sb) & CIFS_MOUNT_DIRECT_IO) {
 			/* since no page cache to corrupt on directio
@@ -3183,8 +3270,40 @@ bool is_size_safe_to_change(struct cifsInodeInfo *cifsInode, __u64 end_of_file,
 			return true;
 
 		return false;
-	} else
-		return true;
+	}
+
+	/*
+	 * No writable handles open. Check whether we are within the attribute
+	 * cache validity window of a recent local modification.
+	 *
+	 * For the close() path: cifs_close() calls smp_store_release() on
+	 * time_last_write before _cifsFileInfo_put() removes the handle under
+	 * open_file_lock. That spin_unlock() is a store-release that pairs
+	 * with the spin_lock() (load-acquire) in is_inode_writable() above,
+	 * so if is_inode_writable() returned false the smp_load_acquire()
+	 * below is guaranteed to observe any time_last_write update from a
+	 * concurrent close().
+	 *
+	 * For the setattr/truncate paths: those callers use smp_store_release()
+	 * directly; the smp_load_acquire() below pairs with that store. There
+	 * is no shared lock between setattr and readdir, so this relies on
+	 * acquire-release semantics alone. The store propagation latency on
+	 * weakly-ordered architectures (nanoseconds) is negligible relative to
+	 * the acregmax window (seconds) and the readdir RPC round-trip
+	 * (milliseconds), making this a sound design choice in practice.
+	 *
+	 * time_last_write == 0 means the inode has never been written locally;
+	 * skip the window check to avoid false positives near boot time when
+	 * jiffies is still close to INITIAL_JIFFIES on 32-bit systems.
+	 */
+	if (from_readdir) {
+		/* Pairs with smp_store_release() at close and truncate sites. */
+		tlw = smp_load_acquire(&cifsInode->time_last_write);
+		if (tlw && time_before(jiffies, tlw + cifs_sb->ctx->acregmax))
+			return false;
+	}
+
+	return true;
 }
 
 void cifs_oplock_break(struct work_struct *work)

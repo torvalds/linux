@@ -1615,9 +1615,9 @@ static DEFINE_SIMPLE_DEV_PM_OPS(elants_i2c_pm_ops,
 				elants_i2c_suspend, elants_i2c_resume);
 
 static const struct i2c_device_id elants_i2c_id[] = {
-	{ DEVICE_NAME, EKTH3500 },
-	{ "ekth3500", EKTH3500 },
-	{ "ektf3624", EKTF3624 },
+	{ .name = DEVICE_NAME, .driver_data = EKTH3500 },
+	{ .name = "ekth3500", .driver_data = EKTH3500 },
+	{ .name = "ektf3624", .driver_data = EKTF3624 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, elants_i2c_id);

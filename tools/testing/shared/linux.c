@@ -154,7 +154,7 @@ void kmem_cache_shrink(struct kmem_cache *cachep)
 {
 }
 
-int kmem_cache_alloc_bulk(struct kmem_cache *cachep, gfp_t gfp, size_t size,
+bool kmem_cache_alloc_bulk(struct kmem_cache *cachep, gfp_t gfp, size_t size,
 			  void **p)
 {
 	size_t i;
@@ -213,7 +213,7 @@ int kmem_cache_alloc_bulk(struct kmem_cache *cachep, gfp_t gfp, size_t size,
 		pthread_mutex_unlock(&cachep->lock);
 		if (cachep->callback)
 			cachep->exec_callback = true;
-		return 0;
+		return false;
 	}
 
 	for (i = 0; i < size; i++) {
@@ -224,7 +224,7 @@ int kmem_cache_alloc_bulk(struct kmem_cache *cachep, gfp_t gfp, size_t size,
 			printf("Allocating %p from slab\n", p[i]);
 	}
 
-	return size;
+	return true;
 }
 
 struct kmem_cache *
@@ -271,8 +271,8 @@ kmem_cache_prefill_sheaf(struct kmem_cache *s, gfp_t gfp, unsigned int size)
 
 	sheaf->cache = s;
 	sheaf->capacity = capacity;
-	sheaf->size = kmem_cache_alloc_bulk(s, gfp, size, sheaf->objects);
-	if (!sheaf->size) {
+	sheaf->size = size;
+	if (!kmem_cache_alloc_bulk(s, gfp, size, sheaf->objects)) {
 		free(sheaf);
 		return NULL;
 	}
@@ -284,7 +284,6 @@ int kmem_cache_refill_sheaf(struct kmem_cache *s, gfp_t gfp,
 		 struct slab_sheaf **sheafp, unsigned int size)
 {
 	struct slab_sheaf *sheaf = *sheafp;
-	int refill;
 
 	if (sheaf->size >= size)
 		return 0;
@@ -299,12 +298,10 @@ int kmem_cache_refill_sheaf(struct kmem_cache *s, gfp_t gfp,
 		return 0;
 	}
 
-	refill = kmem_cache_alloc_bulk(s, gfp, size - sheaf->size,
-				       &sheaf->objects[sheaf->size]);
-	if (!refill)
+	if (!kmem_cache_alloc_bulk(s, gfp, size - sheaf->size,
+			&sheaf->objects[sheaf->size]))
 		return -ENOMEM;
-
-	sheaf->size += refill;
+	sheaf->size = size;
 	return 0;
 }
 

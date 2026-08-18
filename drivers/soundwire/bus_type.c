@@ -2,7 +2,6 @@
 // Copyright(c) 2015-17 Intel Corporation.
 
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/pm_domain.h>
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_type.h>

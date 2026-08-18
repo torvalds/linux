@@ -62,7 +62,7 @@ struct sunxi_engine_ops {
 	 */
 	void (*commit)(struct sunxi_engine *engine,
 		       struct drm_crtc *crtc,
-		       struct drm_atomic_state *state);
+		       struct drm_atomic_commit *state);
 
 	/**
 	 * @layers_init:
@@ -153,7 +153,7 @@ struct sunxi_engine {
 static inline void
 sunxi_engine_commit(struct sunxi_engine *engine,
 		    struct drm_crtc *crtc,
-		    struct drm_atomic_state *state)
+		    struct drm_atomic_commit *state)
 {
 	if (engine->ops && engine->ops->commit)
 		engine->ops->commit(engine, crtc, state);

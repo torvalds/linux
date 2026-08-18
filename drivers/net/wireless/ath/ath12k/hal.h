@@ -738,7 +738,9 @@ struct hal_rx_desc_data {
 	    addr2_present:1,
 	    is_mcbc:1,
 	    seq_ctl_valid:1,
-	    fc_valid:1;
+	    fc_valid:1,
+	    is_to_ds:1,
+	    is_from_ds:1;
 	u16 msdu_len;
 	u16 peer_id;
 	u16 seq_no;

@@ -1,7 +1,7 @@
 /*
- * amcore.c -- Support for Sysam AMCORE open board
+ * amcore.c -- Support for Kernelspace AMCORE open board
  *
- * (C) Copyright 2016, Angelo Dureghello <angelo@sysam.it>
+ * (C) Copyright 2026, Angelo Dureghello <angelo@kernel-space.org>
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file COPYING in the main directory of this archive

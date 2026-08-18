@@ -1491,11 +1491,8 @@ __ptp_ocp_gettime_locked(struct ptp_ocp *bp, struct timespec64 *ts,
 	}
 	ptp_read_system_postts(sts);
 
-	if (sts && bp->ts_window_adjust) {
-		s64 ns = timespec64_to_ns(&sts->post_ts);
-
-		sts->post_ts = ns_to_timespec64(ns - bp->ts_window_adjust);
-	}
+	if (sts && bp->ts_window_adjust)
+		sts->post_sts.systime -= bp->ts_window_adjust;
 
 	time_ns = ioread32(&bp->reg->time_ns);
 	time_sec = ioread32(&bp->reg->time_sec);
@@ -4600,8 +4597,8 @@ ptp_ocp_summary_show(struct seq_file *s, void *data)
 		struct timespec64 sys_ts;
 		s64 pre_ns, post_ns, ns;
 
-		pre_ns = timespec64_to_ns(&sts.pre_ts);
-		post_ns = timespec64_to_ns(&sts.post_ts);
+		pre_ns = ktime_to_ns(sts.pre_sts.systime);
+		post_ns = ktime_to_ns(sts.post_sts.systime);
 		ns = (pre_ns + post_ns) / 2;
 		ns += (s64)bp->utc_tai_offset * NSEC_PER_SEC;
 		sys_ts = ns_to_timespec64(ns);
@@ -5189,6 +5186,7 @@ static struct pci_driver ptp_ocp_driver = {
 	.id_table	= ptp_ocp_pcidev_id,
 	.probe		= ptp_ocp_probe,
 	.remove		= ptp_ocp_remove,
+	.shutdown	= ptp_ocp_remove,
 };
 
 static int

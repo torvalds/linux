@@ -31,8 +31,6 @@
 #include <crypto/internal/skcipher.h>
 #include <crypto/aes.h>
 #include <crypto/internal/des.h>
-#include <crypto/internal/rng.h>
-#include <crypto/rng.h>
 
 #define SS_CTL            0x00
 #define SS_KEY0           0x04
@@ -62,10 +60,6 @@
 
 /* SS_CTL configuration values */
 
-/* PRNG generator mode - bit 15 */
-#define SS_PRNG_ONESHOT		(0 << 15)
-#define SS_PRNG_CONTINUE	(1 << 15)
-
 /* IV mode for hash */
 #define SS_IV_ARBITRARY		(1 << 14)
 
@@ -94,13 +88,9 @@
 #define SS_OP_3DES		(2 << 4)
 #define SS_OP_SHA1		(3 << 4)
 #define SS_OP_MD5		(4 << 4)
-#define SS_OP_PRNG		(5 << 4)
 
 /* Data end bit - bit 2 */
 #define SS_DATA_END		(1 << 2)
-
-/* PRNG start bit - bit 1 */
-#define SS_PRNG_START		(1 << 1)
 
 /* SS Enable bit - bit 0 */
 #define SS_DISABLED		(0 << 0)
@@ -128,9 +118,6 @@
 #define SS_RXFIFO_EMP_INT_ENABLE	(1 << 2)
 #define SS_TXFIFO_AVA_INT_ENABLE	(1 << 0)
 
-#define SS_SEED_LEN 192
-#define SS_DATA_LEN 160
-
 /*
  * struct ss_variant - Describe SS hardware variant
  * @sha1_in_be:		The SHA1 digest is given by SS in BE, and so need to be inverted.
@@ -151,9 +138,6 @@ struct sun4i_ss_ctx {
 	char buf[4 * SS_RX_MAX];/* buffer for linearize SG src */
 	char bufo[4 * SS_TX_MAX]; /* buffer for linearize SG dst */
 	spinlock_t slock; /* control the use of the device */
-#ifdef CONFIG_CRYPTO_DEV_SUN4I_SS_PRNG
-	u32 seed[SS_SEED_LEN / BITS_PER_LONG];
-#endif
 	struct dentry *dbgfs_dir;
 	struct dentry *dbgfs_stats;
 };
@@ -164,7 +148,6 @@ struct sun4i_ss_alg_template {
 	union {
 		struct skcipher_alg crypto;
 		struct ahash_alg hash;
-		struct rng_alg rng;
 	} alg;
 	struct sun4i_ss_ctx *ss;
 	unsigned long stat_req;
@@ -231,6 +214,3 @@ int sun4i_ss_des_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			unsigned int keylen);
 int sun4i_ss_des3_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			 unsigned int keylen);
-int sun4i_ss_prng_generate(struct crypto_rng *tfm, const u8 *src,
-			   unsigned int slen, u8 *dst, unsigned int dlen);
-int sun4i_ss_prng_seed(struct crypto_rng *tfm, const u8 *seed, unsigned int slen);

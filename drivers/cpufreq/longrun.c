@@ -14,6 +14,7 @@
 #include <asm/msr.h>
 #include <asm/processor.h>
 #include <asm/cpu_device_id.h>
+#include <asm/cpuid/api.h>
 
 static struct cpufreq_driver	longrun_driver;
 

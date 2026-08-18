@@ -52,13 +52,12 @@ static int ctc2_slope(int y1, int y0, int x1, int x0)
 	/*the slope must lie within the range
 	  (-max_slope-1) >= (dydx) >= (max_slope)
 	*/
-	if (slope <= -max_slope - 1) {
+	if (slope <= -max_slope - 1)
 		dydx = -max_slope - 1;
-	} else if (slope >= max_slope) {
+	else if (slope >= max_slope)
 		dydx = max_slope;
-	} else {
+	else
 		dydx = slope;
-	}
 
 	return dydx;
 }

@@ -790,8 +790,8 @@ static void si2168_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id si2168_id_table[] = {
-	{ "si2168" },
-	{}
+	{ .name = "si2168" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, si2168_id_table);
 

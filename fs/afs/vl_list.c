@@ -92,7 +92,7 @@ static struct afs_addr_list *afs_extract_vl_addrs(struct afs_net *net,
 {
 	struct afs_addr_list *alist;
 	const u8 *b = *_b;
-	int ret = -EINVAL;
+	int ret;
 
 	alist = afs_alloc_addrlist(nr_addrs);
 	if (!alist)
@@ -110,6 +110,7 @@ static struct afs_addr_list *afs_extract_vl_addrs(struct afs_net *net,
 		case DNS_ADDRESS_IS_IPV4:
 			if (end - b < 4) {
 				_leave(" = -EINVAL [short inet]");
+				ret = -EINVAL;
 				goto error;
 			}
 			memcpy(x, b, 4);
@@ -122,6 +123,7 @@ static struct afs_addr_list *afs_extract_vl_addrs(struct afs_net *net,
 		case DNS_ADDRESS_IS_IPV6:
 			if (end - b < 16) {
 				_leave(" = -EINVAL [short inet6]");
+				ret = -EINVAL;
 				goto error;
 			}
 			memcpy(x, b, 16);
@@ -198,6 +200,8 @@ struct afs_vlserver_list *afs_extract_vlserver_list(struct afs_cell *cell,
 
 	b += sizeof(*hdr);
 	while (end - b >= sizeof(bs)) {
+		int nlen;
+
 		bs.name_len	= afs_extract_le16(&b);
 		bs.priority	= afs_extract_le16(&b);
 		bs.weight	= afs_extract_le16(&b);
@@ -207,10 +211,12 @@ struct afs_vlserver_list *afs_extract_vlserver_list(struct afs_cell *cell,
 		bs.protocol	= *b++;
 		bs.nr_addrs	= *b++;
 
+		nlen = min3(bs.name_len, end - b, 255);
+
 		_debug("extract %u %u %u %u %u %u %*.*s",
 		       bs.name_len, bs.priority, bs.weight,
 		       bs.port, bs.protocol, bs.nr_addrs,
-		       bs.name_len, bs.name_len, b);
+		       bs.name_len, nlen, b);
 
 		if (end - b < bs.name_len)
 			break;
@@ -287,8 +293,20 @@ struct afs_vlserver_list *afs_extract_vlserver_list(struct afs_cell *cell,
 			afs_put_addrlist(old, afs_alist_trace_put_vlserver_old);
 		}
 
+		/* Check for duplicates in the server list */
+		for (j = 0; j < vllist->nr_servers; j++) {
+			struct afs_vlserver *s = vllist->servers[j].server;
 
-		/* TODO: Might want to check for duplicates */
+			if (s->name_len == server->name_len &&
+			    s->port == server->port &&
+			    strncasecmp(s->name, server->name, server->name_len) == 0) {
+				afs_put_vlserver(cell->net, server);
+				server = NULL;
+				break;
+			}
+		}
+		if (!server)
+			continue;
 
 		/* Insertion-sort by priority and weight */
 		for (j = 0; j < vllist->nr_servers; j++) {

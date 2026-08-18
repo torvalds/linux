@@ -118,6 +118,8 @@ static const struct hwseq_private_funcs dcn10_private_funcs = {
 	.dsc_pg_control = NULL,
 	.set_hdr_multiplier = dcn10_set_hdr_multiplier,
 	.verify_allow_pstate_change_high = dcn10_verify_allow_pstate_change_high,
+	.wait_for_pipe_update_if_needed = dcn10_wait_for_pipe_update_if_needed,
+	.set_wait_for_update_needed_for_pipe = dcn10_set_wait_for_update_needed_for_pipe,
 };
 
 void dcn10_hw_sequencer_construct(struct dc *dc)

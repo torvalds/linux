@@ -5,7 +5,12 @@
 
 #define FONTDATAMAX 2048
 
+#ifdef BOOTLOADER
+/* The acorndata_8x8 symbol is needed by the ARM bootloader too. */
+const struct font_data acorndata_8x8 = {
+#else
 static const struct font_data acorndata_8x8 = {
+#endif
 { 0, 0, FONTDATAMAX, 0 }, {
 /* 00 */  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* ^@ */
 /* 01 */  0x7e, 0x81, 0xa5, 0x81, 0xbd, 0x99, 0x81, 0x7e, /* ^A */

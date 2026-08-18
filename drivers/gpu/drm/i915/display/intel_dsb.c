@@ -326,7 +326,7 @@ static void intel_dsb_emit(struct intel_dsb *dsb, u32 ldw, u32 udw)
 }
 
 static bool intel_dsb_prev_ins_is_write(struct intel_dsb *dsb,
-					u32 opcode, i915_reg_t reg)
+					u32 opcode, intel_reg_t reg)
 {
 	u32 prev_opcode, prev_reg;
 
@@ -341,10 +341,10 @@ static bool intel_dsb_prev_ins_is_write(struct intel_dsb *dsb,
 	prev_opcode = dsb->ins[1] & ~DSB_REG_VALUE_MASK;
 	prev_reg =  dsb->ins[1] & DSB_REG_VALUE_MASK;
 
-	return prev_opcode == opcode && prev_reg == i915_mmio_reg_offset(reg);
+	return prev_opcode == opcode && prev_reg == intel_reg_offset(reg);
 }
 
-static bool intel_dsb_prev_ins_is_indexed_write(struct intel_dsb *dsb, i915_reg_t reg)
+static bool intel_dsb_prev_ins_is_indexed_write(struct intel_dsb *dsb, intel_reg_t reg)
 {
 	return intel_dsb_prev_ins_is_write(dsb,
 					   DSB_OPCODE_INDEXED_WRITE << DSB_OPCODE_SHIFT,
@@ -365,7 +365,7 @@ static bool intel_dsb_prev_ins_is_indexed_write(struct intel_dsb *dsb, i915_reg_
  * register.
  */
 void intel_dsb_reg_write_indexed(struct intel_dsb *dsb,
-				 i915_reg_t reg, u32 val)
+				 intel_reg_t reg, u32 val)
 {
 	/*
 	 * For example the buffer will look like below for 3 dwords for auto
@@ -386,7 +386,7 @@ void intel_dsb_reg_write_indexed(struct intel_dsb *dsb,
 	if (!intel_dsb_prev_ins_is_indexed_write(dsb, reg))
 		intel_dsb_emit(dsb, 0, /* count */
 			       (DSB_OPCODE_INDEXED_WRITE << DSB_OPCODE_SHIFT) |
-			       i915_mmio_reg_offset(reg));
+			       intel_reg_offset(reg));
 
 	if (!assert_dsb_has_room(dsb))
 		return;
@@ -402,12 +402,12 @@ void intel_dsb_reg_write_indexed(struct intel_dsb *dsb,
 }
 
 void intel_dsb_reg_write(struct intel_dsb *dsb,
-			 i915_reg_t reg, u32 val)
+			 intel_reg_t reg, u32 val)
 {
 	intel_dsb_emit(dsb, val,
 		       (DSB_OPCODE_MMIO_WRITE << DSB_OPCODE_SHIFT) |
 		       (DSB_BYTE_EN << DSB_BYTE_EN_SHIFT) |
-		       i915_mmio_reg_offset(reg));
+		       intel_reg_offset(reg));
 }
 
 static u32 intel_dsb_mask_to_byte_en(u32 mask)
@@ -420,12 +420,12 @@ static u32 intel_dsb_mask_to_byte_en(u32 mask)
 
 /* Note: mask implemented via byte enables! */
 void intel_dsb_reg_write_masked(struct intel_dsb *dsb,
-				i915_reg_t reg, u32 mask, u32 val)
+				intel_reg_t reg, u32 mask, u32 val)
 {
 	intel_dsb_emit(dsb, val,
 		       (DSB_OPCODE_MMIO_WRITE << DSB_OPCODE_SHIFT) |
 		       (intel_dsb_mask_to_byte_en(mask) << DSB_BYTE_EN_SHIFT) |
-		       i915_mmio_reg_offset(reg));
+		       intel_reg_offset(reg));
 }
 
 void intel_dsb_noop(struct intel_dsb *dsb, int count)
@@ -550,7 +550,7 @@ void intel_dsb_wait_scanline_out(struct intel_atomic_state *state,
 }
 
 void intel_dsb_poll(struct intel_dsb *dsb,
-		    i915_reg_t reg, u32 mask, u32 val,
+		    intel_reg_t reg, u32 mask, u32 val,
 		    int wait_us, int count)
 {
 	struct intel_crtc *crtc = dsb->crtc;
@@ -565,7 +565,7 @@ void intel_dsb_poll(struct intel_dsb *dsb,
 
 	intel_dsb_emit(dsb, val,
 		       (DSB_OPCODE_POLL << DSB_OPCODE_SHIFT) |
-		       i915_mmio_reg_offset(reg));
+		       intel_reg_offset(reg));
 }
 
 static void intel_dsb_align_tail(struct intel_dsb *dsb)

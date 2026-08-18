@@ -231,8 +231,19 @@ Kernel-internal data structures
 -------------------------------
 
 The following structures are internal to the kernel, their members are
-translated to netlink attributes when dumped. Drivers must not overwrite
-the statistics they don't report with 0.
+translated to netlink attributes when dumped. Fields are pre-initialized
+to ``ETHTOOL_STAT_NOT_SET`` (by ``ethtool_stats_init()``); drivers must
+leave fields they do not report at that value rather than overwriting
+them with 0.
 
-- ethtool_pause_stats()
-- ethtool_fec_stats()
+- ``struct ethtool_eth_ctrl_stats``
+- ``struct ethtool_eth_mac_stats``
+- ``struct ethtool_eth_phy_stats``
+- ``struct ethtool_fec_hist``
+- ``struct ethtool_fec_stats``
+- ``struct ethtool_link_ext_stats``
+- ``struct ethtool_mm_stats``
+- ``struct ethtool_pause_stats``
+- ``struct ethtool_phy_stats``
+- ``struct ethtool_rmon_stats``
+- ``struct ethtool_ts_stats``

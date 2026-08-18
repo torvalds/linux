@@ -63,7 +63,7 @@ static inline void byte_copymap(u8 dmap[], unsigned long smap[],
 static void dlm_free_pagevec(void **vec, int pages)
 {
 	while (pages--)
-		free_page((unsigned long)vec[pages]);
+		kfree(vec[pages]);
 	kfree(vec);
 }
 
@@ -75,9 +75,11 @@ static void **dlm_alloc_pagevec(int pages)
 	if (!vec)
 		return NULL;
 
-	for (i = 0; i < pages; i++)
-		if (!(vec[i] = (void *)__get_free_page(GFP_KERNEL)))
+	for (i = 0; i < pages; i++) {
+		vec[i] = kmalloc(PAGE_SIZE, GFP_KERNEL);
+		if (!vec[i])
 			goto out_free;
+	}
 
 	mlog(0, "Allocated DLM hash pagevec; %d pages (%lu expected), %lu buckets per page\n",
 	     pages, (unsigned long)DLM_HASH_PAGES,

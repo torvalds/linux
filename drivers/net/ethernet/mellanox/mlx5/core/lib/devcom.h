@@ -46,6 +46,11 @@ mlx5_devcom_register_component(struct mlx5_devcom_dev *devc,
 			       void *data);
 void mlx5_devcom_unregister_component(struct mlx5_devcom_comp_dev *devcom);
 
+#define DEVCOM_CANT_FAIL (INT_MAX)
+
+int mlx5_devcom_locked_send_event(struct mlx5_devcom_comp_dev *devcom,
+				  int event, int rollback_event,
+				  void *event_data);
 int mlx5_devcom_send_event(struct mlx5_devcom_comp_dev *devcom,
 			   int event, int rollback_event,
 			   void *event_data);
@@ -75,5 +80,6 @@ void *mlx5_devcom_get_next_peer_data_rcu(struct mlx5_devcom_comp_dev *devcom,
 void mlx5_devcom_comp_lock(struct mlx5_devcom_comp_dev *devcom);
 void mlx5_devcom_comp_unlock(struct mlx5_devcom_comp_dev *devcom);
 int mlx5_devcom_comp_trylock(struct mlx5_devcom_comp_dev *devcom);
+void mlx5_devcom_comp_assert_locked(struct mlx5_devcom_comp_dev *devcom);
 
 #endif /* __LIB_MLX5_DEVCOM_H__ */

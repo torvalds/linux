@@ -303,13 +303,14 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 
 static int create_sdw_dailinks(struct snd_soc_card *card,
 			       struct snd_soc_dai_link **dai_links, int *be_id,
-			       struct asoc_sdw_dailink *soc_dais,
+			       struct asoc_sdw_dailink *soc_dais, int num_dais,
 			       struct snd_soc_codec_conf **codec_conf)
 {
 	struct device *dev = card->dev;
 	struct asoc_sdw_mc_private *ctx = snd_soc_card_get_drvdata(card);
 	struct amd_mc_ctx *amd_ctx = (struct amd_mc_ctx *)ctx->private;
 	struct snd_soc_dai_link_component *sdw_platform_component;
+	int i;
 	int ret;
 
 	sdw_platform_component = devm_kzalloc(dev, sizeof(struct snd_soc_dai_link_component),
@@ -329,7 +330,7 @@ static int create_sdw_dailinks(struct snd_soc_card *card,
 	}
 
 	/* generate DAI links by each sdw link */
-	while (soc_dais->initialised) {
+	for (i = 0; i < num_dais && soc_dais->initialised; i++) {
 		int current_be_id = 0;
 
 		ret = create_sdw_dailink(card, soc_dais, dai_links,
@@ -463,7 +464,7 @@ static int soc_card_dai_links_create(struct snd_soc_card *card)
 	/* SDW */
 	if (sdw_be_num) {
 		ret = create_sdw_dailinks(card, &dai_links, &be_id,
-					  soc_dais, &codec_conf);
+					  soc_dais, num_ends, &codec_conf);
 		if (ret)
 			return ret;
 	}

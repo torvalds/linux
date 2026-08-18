@@ -396,9 +396,15 @@ hv_uio_remove(struct hv_device *dev)
 	vmbus_free_ring(dev->channel);
 }
 
+static const struct hv_vmbus_device_id hv_uio_id_table[] = {
+	{ HV_FCOPY_GUID },
+	{}
+};
+MODULE_DEVICE_TABLE(vmbus, hv_uio_id_table);
+
 static struct hv_driver hv_uio_drv = {
 	.name = "uio_hv_generic",
-	.id_table = NULL, /* only dynamic id's */
+	.id_table = hv_uio_id_table,
 	.probe = hv_uio_probe,
 	.remove = hv_uio_remove,
 };

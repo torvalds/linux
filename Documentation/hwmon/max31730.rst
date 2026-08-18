@@ -1,4 +1,4 @@
-Kernel driver max31790
+Kernel driver max31730
 ======================
 
 Supported chips:

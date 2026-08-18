@@ -87,7 +87,6 @@ config ENCRYPTED_KEYS
 	select CRYPTO_AES
 	select CRYPTO_CBC
 	select CRYPTO_LIB_SHA256
-	select CRYPTO_RNG
 	help
 	  This option provides support for create/encrypting/decrypting keys
 	  in the kernel.  Encrypted keys are instantiated using kernel

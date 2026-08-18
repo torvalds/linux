@@ -296,7 +296,7 @@ static void CalculateWatermarksAndDRAMSpeedChangeSupport(
 		double UrgentOutOfOrderReturn,
 		double ReturnBW,
 		bool GPUVMEnable,
-		int dpte_group_bytes[],
+		unsigned int dpte_group_bytes[],
 		unsigned int MetaChunkSize,
 		double UrgentLatency,
 		double ExtraLatency,
@@ -307,7 +307,7 @@ static void CalculateWatermarksAndDRAMSpeedChangeSupport(
 		double SRExitTime,
 		double SREnterPlusExitTime,
 		double DCFCLKDeepSleep,
-		int DPPPerPlane[],
+		unsigned int DPPPerPlane[],
 		bool DCCEnable[],
 		double DPPCLK[],
 		double SwathWidthSingleDPPY[],
@@ -346,7 +346,7 @@ static void CalculateDCFCLKDeepSleep(
 		double BytePerPixelDETC[],
 		double VRatio[],
 		double SwathWidthY[],
-		int DPPPerPlane[],
+		unsigned int DPPPerPlane[],
 		double HRatio[],
 		double PixelClock[],
 		double PSCL_THROUGHPUT[],
@@ -390,7 +390,7 @@ static void CalculatePixelDeliveryTimes(
 		double                 VRatioPrefetchC[],
 		unsigned int           swath_width_luma_ub[],
 		unsigned int           swath_width_chroma_ub[],
-		int                    DPPPerPlane[],
+		unsigned int           DPPPerPlane[],
 		double                 HRatio[],
 		double                 PixelClock[],
 		double                 PSCL_THROUGHPUT[],
@@ -436,7 +436,7 @@ static void CalculateMetaAndPTETimes(
 		unsigned int           meta_row_height[],
 		unsigned int           meta_req_width[],
 		unsigned int           meta_req_height[],
-		int                   dpte_group_bytes[],
+		unsigned int           dpte_group_bytes[],
 		unsigned int           PTERequestSizeY[],
 		unsigned int           PTERequestSizeC[],
 		unsigned int           PixelPTEReqWidthY[],
@@ -477,8 +477,8 @@ static double CalculateExtraLatency(
 		bool GPUVMEnable,
 		bool HostVMEnable,
 		int NumberOfActivePlanes,
-		int NumberOfDPP[],
-		int dpte_group_bytes[],
+		unsigned int NumberOfDPP[],
+		unsigned int dpte_group_bytes[],
 		double PercentOfIdealDRAMFabricAndSDPPortBWReceivedAfterUrgLatencyPixelMixedWithVMData,
 		double PercentOfIdealDRAMFabricAndSDPPortBWReceivedAfterUrgLatencyVMDataOnly,
 		int HostVMMaxPageTableLevels,
@@ -521,7 +521,7 @@ static unsigned int dscceComputeDelay(
 		pixelsPerClock = 1;
 
 	//initial transmit delay as per PPS
-	initalXmitDelay = dml_round(rcModelSize / 2.0 / bpp / pixelsPerClock);
+	initalXmitDelay = (unsigned int)dml_round(rcModelSize / 2.0 / bpp / pixelsPerClock);
 
 	//compute ssm delay
 	if (bpc == 8)
@@ -729,22 +729,22 @@ static bool CalculatePrefetchSchedule(
 	}
 
 	if (myPipe->ScalerEnabled)
-		DPPCycles = DPPCLKDelaySubtotal + DPPCLKDelaySCL;
+		DPPCycles = (unsigned int)(DPPCLKDelaySubtotal + DPPCLKDelaySCL);
 	else
-		DPPCycles = DPPCLKDelaySubtotal + DPPCLKDelaySCLLBOnly;
+		DPPCycles = (unsigned int)(DPPCLKDelaySubtotal + DPPCLKDelaySCLLBOnly);
 
-	DPPCycles = DPPCycles + DPPCLKDelayCNVCFormater + myPipe->NumberOfCursors * DPPCLKDelayCNVCCursor;
+	DPPCycles = (unsigned int)(DPPCycles + DPPCLKDelayCNVCFormater + myPipe->NumberOfCursors * DPPCLKDelayCNVCCursor);
 
-	DISPCLKCycles = DISPCLKDelaySubtotal;
+	DISPCLKCycles = (unsigned int)(DISPCLKDelaySubtotal);
 
 	if (myPipe->DPPCLK == 0.0 || myPipe->DISPCLK == 0.0)
 		return true;
 
-	*DSTXAfterScaler = DPPCycles * myPipe->PixelClock / myPipe->DPPCLK
-			+ DISPCLKCycles * myPipe->PixelClock / myPipe->DISPCLK + DSCDelay;
+	*DSTXAfterScaler = (unsigned int)(DPPCycles * myPipe->PixelClock / myPipe->DPPCLK
+			  + DISPCLKCycles * myPipe->PixelClock / myPipe->DISPCLK + DSCDelay);
 
-	if (myPipe->DPPPerPlane > 1)
-		*DSTXAfterScaler = *DSTXAfterScaler + ScalerRecoutWidth;
+	       if (myPipe->DPPPerPlane > 1)
+		       *DSTXAfterScaler = (unsigned int)(*DSTXAfterScaler + ScalerRecoutWidth);
 
 	if (OutputFormat == dm_420 || (myPipe->InterlaceEnable && ProgressiveToInterlaceUnitInOPP))
 		*DSTYAfterScaler = 1;
@@ -755,7 +755,7 @@ static bool CalculatePrefetchSchedule(
 	*DSTYAfterScaler = dml_floor(DSTTotalPixelsAfterScaler / myPipe->HTotal, 1);
 	*DSTXAfterScaler = DSTTotalPixelsAfterScaler - ((double) (*DSTYAfterScaler * myPipe->HTotal));
 
-	*VUpdateOffsetPix = dml_ceil(myPipe->HTotal / 4.0, 1);
+	*VUpdateOffsetPix = (unsigned int)(dml_ceil(myPipe->HTotal / 4.0, 1));
 	TotalRepeaterDelayTime = MaxInterDCNTileRepeaters * (2.0 / myPipe->DPPCLK + 3.0 / myPipe->DISPCLK);
 	*VUpdateWidthPix = (14.0 / myPipe->DCFCLKDeepSleep + 12.0 / myPipe->DPPCLK + TotalRepeaterDelayTime)
 			* myPipe->PixelClock;
@@ -783,11 +783,11 @@ static bool CalculatePrefetchSchedule(
 			Tdmsks = Tdmsks / 2;
 		if (VStartup * LineTime
 				< Tsetup + TWait + UrgentExtraLatency + Tdmbf + Tdmec + Tdmsks) {
-			MyError = true;
-			*VStartupRequiredWhenNotEnoughTimeForDynamicMetadata = (Tsetup + TWait
-					+ UrgentExtraLatency + Tdmbf + Tdmec + Tdmsks) / LineTime;
+			MyError = (unsigned int)(true);
+			*VStartupRequiredWhenNotEnoughTimeForDynamicMetadata = (unsigned int)((Tsetup + TWait
+					  + UrgentExtraLatency + Tdmbf + Tdmec + Tdmsks) / LineTime);
 		} else
-			*VStartupRequiredWhenNotEnoughTimeForDynamicMetadata = 0.0;
+			*VStartupRequiredWhenNotEnoughTimeForDynamicMetadata = (unsigned int)(0U);
 	} else
 		Tdm = 0;
 
@@ -808,13 +808,13 @@ static bool CalculatePrefetchSchedule(
 	Tsw_oto = dml_max(PrefetchSourceLinesY, PrefetchSourceLinesC) * LineTime;
 
 	if (myPipe->SourceScan == dm_horz) {
-		*swath_width_luma_ub = dml_ceil(SwathWidthY - 1, myPipe->BlockWidth256BytesY) + myPipe->BlockWidth256BytesY;
+		*swath_width_luma_ub = (unsigned int)(dml_ceil(SwathWidthY - 1, myPipe->BlockWidth256BytesY) + myPipe->BlockWidth256BytesY);
 		if (myPipe->BlockWidth256BytesC > 0)
-			*swath_width_chroma_ub = dml_ceil(SwathWidthY / 2 - 1, myPipe->BlockWidth256BytesC) + myPipe->BlockWidth256BytesC;
+			*swath_width_chroma_ub = (unsigned int)(dml_ceil(SwathWidthY / 2 - 1, myPipe->BlockWidth256BytesC) + myPipe->BlockWidth256BytesC);
 	} else {
-		*swath_width_luma_ub = dml_ceil(SwathWidthY - 1, myPipe->BlockHeight256BytesY) + myPipe->BlockHeight256BytesY;
+		*swath_width_luma_ub = (unsigned int)(dml_ceil(SwathWidthY - 1, myPipe->BlockHeight256BytesY) + myPipe->BlockHeight256BytesY);
 		if (myPipe->BlockHeight256BytesC > 0)
-			*swath_width_chroma_ub = dml_ceil(SwathWidthY / 2 - 1, myPipe->BlockHeight256BytesC) + myPipe->BlockHeight256BytesC;
+			*swath_width_chroma_ub = (unsigned int)(dml_ceil(SwathWidthY / 2 - 1, myPipe->BlockHeight256BytesC) + myPipe->BlockHeight256BytesC);
 	}
 
 	prefetch_bw_oto = (PrefetchSourceLinesY * *swath_width_luma_ub * dml_ceil(BytePerPixelDETY, 1) + PrefetchSourceLinesC * *swath_width_chroma_ub * dml_ceil(BytePerPixelDETC, 2)) / Tsw_oto;
@@ -1228,14 +1228,14 @@ static double CalculatePrefetchSourceLines(
 
 	if (!mode_lib->vba.IgnoreViewportPositioning) {
 
-		*MaxNumSwath = dml_ceil((*VInitPreFill - 1.0) / SwathHeight, 1) + 1.0;
+		*MaxNumSwath = (unsigned int)(dml_ceil((*VInitPreFill - 1.0) / SwathHeight, 1) + 1.0);
 
 		if (*VInitPreFill > 1.0)
 			MaxPartialSwath = (unsigned int) (*VInitPreFill - 2) % SwathHeight;
 		else
 			MaxPartialSwath = (unsigned int) (*VInitPreFill + SwathHeight - 2)
 					% SwathHeight;
-		MaxPartialSwath = dml_max(1U, MaxPartialSwath);
+		MaxPartialSwath = (unsigned int)(dml_max(1U, MaxPartialSwath));
 
 	} else {
 
@@ -1243,7 +1243,7 @@ static double CalculatePrefetchSourceLines(
 			dml_print(
 					"WARNING DML: using viewport y position of 0 even though actual viewport y position is non-zero in prefetch source lines calculation\n");
 
-		*MaxNumSwath = dml_ceil(*VInitPreFill / SwathHeight, 1);
+		*MaxNumSwath = (unsigned int)(dml_ceil(*VInitPreFill / SwathHeight, 1));
 
 		if (*VInitPreFill > 1.0)
 			MaxPartialSwath = (unsigned int) (*VInitPreFill - 1) % SwathHeight;
@@ -1252,7 +1252,7 @@ static double CalculatePrefetchSourceLines(
 					% SwathHeight;
 	}
 
-	return *MaxNumSwath * SwathHeight + MaxPartialSwath;
+	return (unsigned int)(*MaxNumSwath * SwathHeight + MaxPartialSwath);
 }
 
 static unsigned int CalculateVMAndRowBytes(
@@ -1307,34 +1307,34 @@ static unsigned int CalculateVMAndRowBytes(
 		*MetaRequestHeight = 8 * BlockHeight256Bytes;
 		*MetaRequestWidth = 8 * BlockWidth256Bytes;
 		if (ScanDirection == dm_horz) {
-			*meta_row_height = *MetaRequestHeight;
-			*meta_row_width = dml_ceil((double) SwathWidth - 1, *MetaRequestWidth)
-					+ *MetaRequestWidth;
-			*MetaRowByte = *meta_row_width * *MetaRequestHeight * BytePerPixel / 256.0;
+			*meta_row_height = (unsigned int)(*MetaRequestHeight);
+			*meta_row_width = (unsigned int)(dml_ceil((double) SwathWidth - 1, *MetaRequestWidth)
+					+ *MetaRequestWidth);
+			*MetaRowByte = (unsigned int)(*meta_row_width * *MetaRequestHeight * BytePerPixel / 256.0);
 		} else {
-			*meta_row_height = *MetaRequestWidth;
-			*meta_row_width = dml_ceil((double) SwathWidth - 1, *MetaRequestHeight)
-					+ *MetaRequestHeight;
-			*MetaRowByte = *meta_row_width * *MetaRequestWidth * BytePerPixel / 256.0;
+			*meta_row_height = (unsigned int)(*MetaRequestWidth);
+			*meta_row_width = (unsigned int)(dml_ceil((double) SwathWidth - 1, *MetaRequestHeight)
+					+ *MetaRequestHeight);
+			*MetaRowByte = (unsigned int)(*meta_row_width * *MetaRequestWidth * BytePerPixel / 256.0);
 		}
 		if (ScanDirection == dm_horz) {
-			DCCMetaSurfaceBytes = DCCMetaPitch
+			DCCMetaSurfaceBytes = (unsigned int)(DCCMetaPitch
 					* (dml_ceil(ViewportHeight - 1, 64 * BlockHeight256Bytes)
 							+ 64 * BlockHeight256Bytes) * BytePerPixel
-					/ 256;
+					/ 256);
 		} else {
-			DCCMetaSurfaceBytes = DCCMetaPitch
+			DCCMetaSurfaceBytes = (unsigned int)(DCCMetaPitch
 					* (dml_ceil(
 							(double) ViewportHeight - 1,
 							64 * BlockHeight256Bytes)
 							+ 64 * BlockHeight256Bytes) * BytePerPixel
-					/ 256;
+					/ 256);
 		}
 		if (GPUVMEnable == true) {
-			*MetaPTEBytesFrame = (dml_ceil(
+			*MetaPTEBytesFrame = (unsigned int)((dml_ceil(
 					(double) (DCCMetaSurfaceBytes - VMMPageSize)
 							/ (8 * VMMPageSize),
-					1) + 1) * 64;
+					1) + 1) * 64);
 			MPDEBytesFrame = 128 * ((mode_lib->vba.GPUVMMaxPageTableLevels + 1) * (mode_lib->vba.HostVMMaxPageTableLevels + 1) - 2);
 		} else {
 			*MetaPTEBytesFrame = 0;
@@ -1367,9 +1367,9 @@ static unsigned int CalculateVMAndRowBytes(
 
 	if (GPUVMEnable == true && (mode_lib->vba.GPUVMMaxPageTableLevels + 1) * (mode_lib->vba.HostVMMaxPageTableLevels + 1) > 2) {
 		if (ScanDirection == dm_horz) {
-			*DPDE0BytesFrame = 64 * (dml_ceil(((Pitch * (dml_ceil(ViewportHeight - 1, MacroTileHeight) + MacroTileHeight) * BytePerPixel) - MacroTileSizeBytes) / (8 * 2097152), 1) + 1);
+			*DPDE0BytesFrame = (unsigned int)(64 * (dml_ceil(((Pitch * (dml_ceil(ViewportHeight - 1, MacroTileHeight) + MacroTileHeight) * BytePerPixel) - MacroTileSizeBytes) / (8 * 2097152), 1) + 1));
 		} else {
-			*DPDE0BytesFrame = 64 * (dml_ceil(((Pitch * (dml_ceil((double) SwathWidth - 1, MacroTileHeight) + MacroTileHeight) * BytePerPixel) - MacroTileSizeBytes) / (8 * 2097152), 1) + 1);
+			*DPDE0BytesFrame = (unsigned int)(64 * (dml_ceil(((Pitch * (dml_ceil((double) SwathWidth - 1, MacroTileHeight) + MacroTileHeight) * BytePerPixel) - MacroTileSizeBytes) / (8 * 2097152), 1) + 1));
 		}
 		ExtraDPDEBytesFrame = 128 * ((mode_lib->vba.GPUVMMaxPageTableLevels + 1) * (mode_lib->vba.HostVMMaxPageTableLevels + 1) - 3);
 	} else {
@@ -1390,7 +1390,7 @@ static unsigned int CalculateVMAndRowBytes(
 		if (SurfaceTiling == dm_sw_linear) {
 			PixelPTEReqHeightPTEs = 1;
 			*PixelPTEReqHeight = 1;
-			*PixelPTEReqWidth = 8.0 * VMMPageSize / BytePerPixel;
+			*PixelPTEReqWidth = (unsigned int)(8.0 * VMMPageSize / BytePerPixel);
 			*PTERequestSize = 64;
 			FractionOfPTEReturnDrop = 0;
 		} else if (MacroTileSizeBytes == 4096) {
@@ -1417,20 +1417,20 @@ static unsigned int CalculateVMAndRowBytes(
 		}
 
 		if (SurfaceTiling == dm_sw_linear) {
-			*dpte_row_height = dml_min(128,
+			*dpte_row_height = (unsigned int)dml_min(128,
 					1 << (unsigned int) dml_floor(
 						dml_log2(
 							(double) PTEBufferSizeInRequests * *PixelPTEReqWidth / Pitch),
 						1));
-			*dpte_row_width_ub = (dml_ceil((double) (Pitch * *dpte_row_height - 1) / *PixelPTEReqWidth, 1) + 1) * *PixelPTEReqWidth;
+			*dpte_row_width_ub = (unsigned int)((dml_ceil((double) (Pitch * *dpte_row_height - 1) / *PixelPTEReqWidth, 1) + 1) * *PixelPTEReqWidth);
 			*PixelPTEBytesPerRow = *dpte_row_width_ub / *PixelPTEReqWidth * *PTERequestSize;
 		} else if (ScanDirection == dm_horz) {
 			*dpte_row_height = *PixelPTEReqHeight;
-			*dpte_row_width_ub = (dml_ceil((double) (SwathWidth - 1) / *PixelPTEReqWidth, 1) + 1) * *PixelPTEReqWidth;
+			*dpte_row_width_ub = (unsigned int)((dml_ceil((double) (SwathWidth - 1) / *PixelPTEReqWidth, 1) + 1) * *PixelPTEReqWidth);
 			*PixelPTEBytesPerRow = *dpte_row_width_ub / *PixelPTEReqWidth * *PTERequestSize;
 		} else {
-			*dpte_row_height = dml_min(*PixelPTEReqWidth, *MacroTileWidth);
-			*dpte_row_width_ub = (dml_ceil((double) (SwathWidth - 1) / *PixelPTEReqHeight, 1) + 1) * *PixelPTEReqHeight;
+			*dpte_row_height = (unsigned int)(dml_min(*PixelPTEReqWidth, *MacroTileWidth));
+			*dpte_row_width_ub = (unsigned int)((dml_ceil((double) (SwathWidth - 1) / *PixelPTEReqHeight, 1) + 1) * *PixelPTEReqHeight);
 			*PixelPTEBytesPerRow = *dpte_row_width_ub / *PixelPTEReqHeight * *PTERequestSize;
 		}
 		if (*PixelPTEBytesPerRow * (1 - FractionOfPTEReturnDrop)
@@ -1805,7 +1805,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 						dscceComputeDelay(
 								mode_lib->vba.DSCInputBitPerComponent[k],
 								bpp,
-								dml_ceil(
+								(unsigned int)dml_ceil(
 										(double) mode_lib->vba.HActive[k]
 												/ mode_lib->vba.NumberOfDSCSlices[k],
 										1),
@@ -1819,18 +1819,18 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 								* (dscceComputeDelay(
 										mode_lib->vba.DSCInputBitPerComponent[k],
 										bpp,
-										dml_ceil(
+										(unsigned int)dml_ceil(
 												(double) mode_lib->vba.HActive[k]
 														/ mode_lib->vba.NumberOfDSCSlices[k],
 												1),
-										slices / 2.0,
+										(unsigned int)(slices / 2.0),
 										mode_lib->vba.OutputFormat[k])
 										+ dscComputeDelay(
 												mode_lib->vba.OutputFormat[k]));
 			}
-			locals->DSCDelay[k] = locals->DSCDelay[k]
+			locals->DSCDelay[k] = (unsigned int)(locals->DSCDelay[k]
 					* mode_lib->vba.PixelClock[k]
-					/ mode_lib->vba.PixelClockBackEnd[k];
+					/ mode_lib->vba.PixelClockBackEnd[k]);
 		} else {
 			locals->DSCDelay[k] = 0;
 		}
@@ -1856,8 +1856,8 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 		Calculate256BBlockSizes(
 				mode_lib->vba.SourcePixelFormat[k],
 				mode_lib->vba.SurfaceTiling[k],
-				dml_ceil(locals->BytePerPixelDETY[k], 1),
-				dml_ceil(locals->BytePerPixelDETC[k], 2),
+				(unsigned int)dml_ceil(locals->BytePerPixelDETY[k], 1),
+				(unsigned int)dml_ceil(locals->BytePerPixelDETC[k], 2),
 				&locals->BlockHeight256BytesY[k],
 				&locals->BlockHeight256BytesC[k],
 				&locals->BlockWidth256BytesY[k],
@@ -1886,13 +1886,13 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 							locals->BlockWidth256BytesC[k],
 							mode_lib->vba.SourcePixelFormat[k],
 							mode_lib->vba.SurfaceTiling[k],
-							dml_ceil(
+							(unsigned int)dml_ceil(
 									locals->BytePerPixelDETC[k],
 									2),
 							mode_lib->vba.SourceScan[k],
-							mode_lib->vba.ViewportWidth[k] / 2,
+							(unsigned int)(mode_lib->vba.ViewportWidth[k] / 2),
 							mode_lib->vba.ViewportHeight[k] / 2,
-							locals->SwathWidthY[k] / 2,
+							(unsigned int)(locals->SwathWidthY[k] / 2),
 							mode_lib->vba.GPUVMEnable,
 							mode_lib->vba.HostVMEnable,
 							mode_lib->vba.HostVMMaxPageTableLevels,
@@ -1945,11 +1945,11 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 				locals->BlockWidth256BytesY[k],
 				mode_lib->vba.SourcePixelFormat[k],
 				mode_lib->vba.SurfaceTiling[k],
-				dml_ceil(locals->BytePerPixelDETY[k], 1),
+				(unsigned int)dml_ceil(locals->BytePerPixelDETY[k], 1),
 				mode_lib->vba.SourceScan[k],
 				mode_lib->vba.ViewportWidth[k],
 				mode_lib->vba.ViewportHeight[k],
-				locals->SwathWidthY[k],
+				(unsigned int)locals->SwathWidthY[k],
 				mode_lib->vba.GPUVMEnable,
 				mode_lib->vba.HostVMEnable,
 				mode_lib->vba.HostVMMaxPageTableLevels,
@@ -2053,7 +2053,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 										mode_lib->vba.WritebackLumaVTaps[k],
 										mode_lib->vba.WritebackChromaHTaps[k],
 										mode_lib->vba.WritebackChromaVTaps[k],
-										mode_lib->vba.WritebackDestinationWidth[k])
+												(unsigned int)mode_lib->vba.WritebackDestinationWidth[k])
 										/ mode_lib->vba.DISPCLK;
 			} else
 				locals->WritebackDelay[mode_lib->vba.VoltageLevel][k] = 0;
@@ -2072,7 +2072,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 													mode_lib->vba.WritebackLumaVTaps[j],
 													mode_lib->vba.WritebackChromaHTaps[j],
 													mode_lib->vba.WritebackChromaVTaps[j],
-													mode_lib->vba.WritebackDestinationWidth[j])
+																(unsigned int)mode_lib->vba.WritebackDestinationWidth[j])
 													/ mode_lib->vba.DISPCLK);
 				}
 			}
@@ -2087,11 +2087,11 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 
 	mode_lib->vba.VStartupLines = 13;
 	for (k = 0; k < mode_lib->vba.NumberOfActivePlanes; ++k) {
-		locals->MaxVStartupLines[k] = mode_lib->vba.VTotal[k] - mode_lib->vba.VActive[k] - dml_max(1.0, dml_ceil(locals->WritebackDelay[mode_lib->vba.VoltageLevel][k] / (mode_lib->vba.HTotal[k] / mode_lib->vba.PixelClock[k]), 1));
+		locals->MaxVStartupLines[k] = (unsigned int)(mode_lib->vba.VTotal[k] - mode_lib->vba.VActive[k] - dml_max(1.0, dml_ceil(locals->WritebackDelay[mode_lib->vba.VoltageLevel][k] / (mode_lib->vba.HTotal[k] / mode_lib->vba.PixelClock[k]), 1)));
 	}
 
 	for (k = 0; k < mode_lib->vba.NumberOfActivePlanes; ++k)
-		locals->MaximumMaxVStartupLines = dml_max(locals->MaximumMaxVStartupLines, locals->MaxVStartupLines[k]);
+		locals->MaximumMaxVStartupLines = (unsigned int)(dml_max(locals->MaximumMaxVStartupLines, locals->MaxVStartupLines[k]));
 
 	// We don't really care to iterate between the various prefetch modes
 	//mode_lib->vba.PrefetchERROR = CalculateMinAndMaxPrefetchMode(mode_lib->vba.AllowDRAMSelfRefreshOrDRAMClockChangeInVblank, &mode_lib->vba.MinPrefetchMode, &mode_lib->vba.MaxPrefetchMode);
@@ -2177,7 +2177,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 									/ mode_lib->vba.HRatio[k]),
 							mode_lib->vba.OutputFormat[k],
 							mode_lib->vba.MaxInterDCNTileRepeaters,
-							dml_min(mode_lib->vba.VStartupLines, locals->MaxVStartupLines[k]),
+							(unsigned int)dml_min(mode_lib->vba.VStartupLines, locals->MaxVStartupLines[k]),
 							locals->MaxVStartupLines[k],
 							mode_lib->vba.GPUVMMaxPageTableLevels,
 							mode_lib->vba.GPUVMEnable,
@@ -2189,11 +2189,11 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 							mode_lib->vba.UrgentLatency,
 							mode_lib->vba.UrgentExtraLatency,
 							mode_lib->vba.TCalc,
-							locals->PDEAndMetaPTEBytesFrame[k],
-							locals->MetaRowByte[k],
-							locals->PixelPTEBytesPerRow[k],
+							(unsigned int)locals->PDEAndMetaPTEBytesFrame[k],
+							(unsigned int)locals->MetaRowByte[k],
+							(unsigned int)locals->PixelPTEBytesPerRow[k],
 							locals->PrefetchSourceLinesY[k],
-							locals->SwathWidthY[k],
+							(unsigned int)locals->SwathWidthY[k],
 							locals->BytePerPixelDETY[k],
 							locals->VInitPreFillY[k],
 							locals->MaxNumSwathY[k],
@@ -2226,7 +2226,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 							&mode_lib->vba.VUpdateWidthPix[k],
 							&mode_lib->vba.VReadyOffsetPix[k]);
 			if (mode_lib->vba.BlendingAndTiming[k] == k) {
-				locals->VStartup[k] = dml_min(
+				locals->VStartup[k] = (unsigned int)dml_min(
 						mode_lib->vba.VStartupLines,
 						locals->MaxVStartupLines[k]);
 				if (locals->VStartupRequiredWhenNotEnoughTimeForDynamicMetadata
@@ -2236,7 +2236,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 				}
 			} else {
 				locals->VStartup[k] =
-						dml_min(
+						(unsigned int)dml_min(
 								mode_lib->vba.VStartupLines,
 								locals->MaxVStartupLines[mode_lib->vba.BlendingAndTiming[k]]);
 			}
@@ -2256,13 +2256,13 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 					mode_lib->vba.DETBufferSizeInKByte[0],
 					mode_lib->vba.SwathHeightY[k],
 					mode_lib->vba.SwathHeightC[k],
-					locals->SwathWidthY[k],
+					(unsigned int)locals->SwathWidthY[k],
 					mode_lib->vba.HTotal[k] /
 					mode_lib->vba.PixelClock[k],
 					mode_lib->vba.UrgentLatency,
 					mode_lib->vba.CursorBufferSize,
 					mode_lib->vba.CursorWidth[k][0] + mode_lib->vba.CursorWidth[k][1],
-					dml_max(mode_lib->vba.CursorBPP[k][0], mode_lib->vba.CursorBPP[k][1]),
+					(unsigned int)dml_max(mode_lib->vba.CursorBPP[k][0], mode_lib->vba.CursorBPP[k][1]),
 					mode_lib->vba.VRatio[k],
 					locals->VRatioPrefetchY[k],
 					locals->VRatioPrefetchC[k],
@@ -2333,7 +2333,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 
 			mode_lib->vba.TotImmediateFlipBytes = 0;
 			for (k = 0; k < mode_lib->vba.NumberOfActivePlanes; ++k) {
-				mode_lib->vba.TotImmediateFlipBytes = mode_lib->vba.TotImmediateFlipBytes + locals->PDEAndMetaPTEBytesFrame[k] + locals->MetaRowByte[k] + locals->PixelPTEBytesPerRow[k];
+				mode_lib->vba.TotImmediateFlipBytes = (unsigned int)(mode_lib->vba.TotImmediateFlipBytes + locals->PDEAndMetaPTEBytesFrame[k] + locals->MetaRowByte[k] + locals->PixelPTEBytesPerRow[k]);
 			}
 			for (k = 0; k < mode_lib->vba.NumberOfActivePlanes; ++k) {
 				CalculateFlipSchedule(
@@ -2600,7 +2600,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 			locals->BlockHeight256BytesY[k],
 			mode_lib->vba.SwathHeightY[k],
 			mode_lib->vba.SurfaceTiling[k],
-			locals->BytePerPixelDETY[k],
+			(unsigned int)locals->BytePerPixelDETY[k],
 			mode_lib->vba.SourceScan[k],
 			&locals->DCCYMaxUncompressedBlock[k],
 			&locals->DCCYMaxCompressedBlock[k],
@@ -2722,7 +2722,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 			mode_lib->vba.FrameTimeForMinFullDETBufferingTime =
 				(double) mode_lib->vba.VTotal[k] * mode_lib->vba.HTotal[k]
 				/ mode_lib->vba.PixelClock[k];
-			locals->BytePerPixelYCriticalPlane = dml_ceil(locals->BytePerPixelDETY[k], 1);
+			locals->BytePerPixelYCriticalPlane = (unsigned int)(dml_ceil(locals->BytePerPixelDETY[k], 1));
 			locals->SwathWidthYCriticalPlane = locals->SwathWidthY[k];
 			locals->LinesToFinishSwathTransferStutterCriticalPlane =
 				mode_lib->vba.SwathHeightY[k] - (locals->LinesInDETY[k] - locals->LinesInDETYRoundedDownToSwath[k]);
@@ -2993,11 +2993,11 @@ static void DisplayPipeConfiguration(struct display_mode_lib *mode_lib)
 
 		if (RoundedUpMaxSwathSizeBytesY + RoundedUpMaxSwathSizeBytesC
 				<= mode_lib->vba.DETBufferSizeInKByte[0] * 1024.0 / 2.0) {
-			mode_lib->vba.SwathHeightY[k] = MaximumSwathHeightY;
-			mode_lib->vba.SwathHeightC[k] = MaximumSwathHeightC;
+			mode_lib->vba.SwathHeightY[k] = (unsigned int)(MaximumSwathHeightY);
+			mode_lib->vba.SwathHeightC[k] = (unsigned int)(MaximumSwathHeightC);
 		} else {
-			mode_lib->vba.SwathHeightY[k] = MinimumSwathHeightY;
-			mode_lib->vba.SwathHeightC[k] = MinimumSwathHeightC;
+			mode_lib->vba.SwathHeightY[k] = (unsigned int)(MinimumSwathHeightY);
+			mode_lib->vba.SwathHeightC[k] = (unsigned int)(MinimumSwathHeightC);
 		}
 
 		CalculateDETBufferSize(
@@ -3317,9 +3317,9 @@ static unsigned int TruncToValidBPP(
 					if (DecimalBPP < 6)
 						return BPP_INVALID;
 					else if (DecimalBPP >= 1.5 * DSCInputBitPerComponent - 1.0 / 16.0)
-						return 1.5 * DSCInputBitPerComponent - 1.0 / 16.0;
+						return (unsigned int)(1.5 * DSCInputBitPerComponent - 1.0 / 16.0);
 					else
-						return dml_floor(16 * DecimalBPP, 1) / 16.0;
+						return (unsigned int)(dml_floor(16 * DecimalBPP, 1) / 16.0);
 				} else {
 					if (DecimalBPP < 6
 							|| DesiredBPP < 6
@@ -3327,7 +3327,7 @@ static unsigned int TruncToValidBPP(
 							|| DecimalBPP < DesiredBPP) {
 						return BPP_INVALID;
 					} else {
-						return DesiredBPP;
+						return (unsigned int)(DesiredBPP);
 					}
 				}
 			} else if (Format == dm_n422) {
@@ -3335,9 +3335,9 @@ static unsigned int TruncToValidBPP(
 					if (DecimalBPP < 7)
 						return BPP_INVALID;
 					else if (DecimalBPP >= 2 * DSCInputBitPerComponent - 1.0 / 16.0)
-						return 2 * DSCInputBitPerComponent - 1.0 / 16.0;
+						return (unsigned int)(2 * DSCInputBitPerComponent - 1.0 / 16.0);
 					else
-						return dml_floor(16 * DecimalBPP, 1) / 16.0;
+						return (unsigned int)(dml_floor(16 * DecimalBPP, 1) / 16.0);
 				} else {
 					if (DecimalBPP < 7
 							|| DesiredBPP < 7
@@ -3345,7 +3345,7 @@ static unsigned int TruncToValidBPP(
 							|| DecimalBPP < DesiredBPP) {
 						return BPP_INVALID;
 					} else {
-						return DesiredBPP;
+						return (unsigned int)(DesiredBPP);
 					}
 				}
 			} else {
@@ -3353,9 +3353,9 @@ static unsigned int TruncToValidBPP(
 					if (DecimalBPP < 8)
 						return BPP_INVALID;
 					else if (DecimalBPP >= 3 * DSCInputBitPerComponent - 1.0 / 16.0)
-						return 3 * DSCInputBitPerComponent - 1.0 / 16.0;
+						return (unsigned int)(3 * DSCInputBitPerComponent - 1.0 / 16.0);
 					else
-						return dml_floor(16 * DecimalBPP, 1) / 16.0;
+						return (unsigned int)(dml_floor(16 * DecimalBPP, 1) / 16.0);
 				} else {
 					if (DecimalBPP < 8
 							|| DesiredBPP < 8
@@ -3363,7 +3363,7 @@ static unsigned int TruncToValidBPP(
 							|| DecimalBPP < DesiredBPP) {
 						return BPP_INVALID;
 					} else {
-						return DesiredBPP;
+						return (unsigned int)(DesiredBPP);
 					}
 				}
 			}
@@ -3462,18 +3462,18 @@ static noinline void CalculatePrefetchSchedulePerPlane(
 			mode_lib->vba.PercentOfIdealDRAMFabricAndSDPPortBWReceivedAfterUrgLatencyPixelMixedWithVMData,
 			mode_lib->vba.PercentOfIdealDRAMFabricAndSDPPortBWReceivedAfterUrgLatencyVMDataOnly,
 			&myPipe,
-			locals->DSCDelayPerState[i][k],
+			(unsigned int)locals->DSCDelayPerState[i][k],
 			mode_lib->vba.DPPCLKDelaySubtotal,
 			mode_lib->vba.DPPCLKDelaySCL,
 			mode_lib->vba.DPPCLKDelaySCLLBOnly,
 			mode_lib->vba.DPPCLKDelayCNVCFormater,
 			mode_lib->vba.DPPCLKDelayCNVCCursor,
 			mode_lib->vba.DISPCLKDelaySubtotal,
-			locals->SwathWidthYThisState[k] / mode_lib->vba.HRatio[k],
+			(unsigned int)(locals->SwathWidthYThisState[k] / mode_lib->vba.HRatio[k]),
 			mode_lib->vba.OutputFormat[k],
 			mode_lib->vba.MaxInterDCNTileRepeaters,
-			dml_min(mode_lib->vba.MaxVStartup, locals->MaximumVStartup[0][0][k]),
-			locals->MaximumVStartup[0][0][k],
+			(unsigned int)dml_min(mode_lib->vba.MaxVStartup, locals->MaximumVStartup[0][0][k]),
+			(unsigned int)locals->MaximumVStartup[0][0][k],
 			mode_lib->vba.GPUVMMaxPageTableLevels,
 			mode_lib->vba.GPUVMEnable,
 			&myHostVM,
@@ -3484,11 +3484,11 @@ static noinline void CalculatePrefetchSchedulePerPlane(
 			mode_lib->vba.UrgentLatency,
 			mode_lib->vba.ExtraLatency,
 			mode_lib->vba.TimeCalc,
-			locals->PDEAndMetaPTEBytesPerFrame[0][0][k],
-			locals->MetaRowBytes[0][0][k],
-			locals->DPTEBytesPerRow[0][0][k],
+			(unsigned int)locals->PDEAndMetaPTEBytesPerFrame[0][0][k],
+			(unsigned int)locals->MetaRowBytes[0][0][k],
+			(unsigned int)locals->DPTEBytesPerRow[0][0][k],
 			locals->PrefetchLinesY[0][0][k],
-			locals->SwathWidthYThisState[k],
+			(unsigned int)locals->SwathWidthYThisState[k],
 			locals->BytePerPixelInDETY[k],
 			locals->PrefillY[k],
 			locals->MaxNumSwY[k],
@@ -3525,8 +3525,8 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 {
 	struct vba_vars_st *locals = &mode_lib->vba;
 
-	int i;
-	unsigned int j, k, m;
+	int idx;
+	unsigned int i, j, k, m;
 
 	/*MODE SUPPORT, VOLTAGE STATE AND SOC CONFIGURATION*/
 
@@ -3951,8 +3951,8 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 		Calculate256BBlockSizes(
 				mode_lib->vba.SourcePixelFormat[k],
 				mode_lib->vba.SurfaceTiling[k],
-				dml_ceil(locals->BytePerPixelInDETY[k], 1.0),
-				dml_ceil(locals->BytePerPixelInDETC[k], 2.0),
+				(unsigned int)dml_ceil(locals->BytePerPixelInDETY[k], 1.0),
+				(unsigned int)dml_ceil(locals->BytePerPixelInDETC[k], 2.0),
 				&locals->Read256BlockHeightY[k],
 				&locals->Read256BlockHeightC[k],
 				&locals->Read256BlockWidthY[k],
@@ -4141,7 +4141,7 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 					locals->DISPCLK_DPPCLK_Support[i][j] = false;
 				}
 			}
-			locals->TotalNumberOfActiveDPP[i][j] = 0.0;
+			locals->TotalNumberOfActiveDPP[i][j] = (unsigned int)(0.0);
 			for (k = 0; k <= mode_lib->vba.NumberOfActivePlanes - 1; k++)
 				locals->TotalNumberOfActiveDPP[i][j] = locals->TotalNumberOfActiveDPP[i][j] + locals->NoOfDPP[i][j][k];
 			if (j == 1) {
@@ -4196,7 +4196,7 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 							|| mode_lib->vba.PlaneRequiredDISPCLK > mode_lib->vba.MaxDispclkRoundedDownToDFSGranularity)
 						locals->DISPCLK_DPPCLK_Support[i][j] = false;
 				}
-				locals->TotalNumberOfActiveDPP[i][j] = 0.0;
+				locals->TotalNumberOfActiveDPP[i][j] = (unsigned int)(0.0);
 				for (k = 0; k <= mode_lib->vba.NumberOfActivePlanes - 1; k++)
 					locals->TotalNumberOfActiveDPP[i][j] = locals->TotalNumberOfActiveDPP[i][j] + locals->NoOfDPP[i][j][k];
 			}
@@ -4455,19 +4455,19 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				mode_lib->vba.slices = 0;
 			} else if (locals->RequiresDSC[i][k] == 0
 					|| locals->RequiresDSC[i][k] == false) {
-				mode_lib->vba.slices = 0;
+				mode_lib->vba.slices = (unsigned int)(0);
 			} else if (mode_lib->vba.PixelClockBackEnd[k] > 3200.0) {
-				mode_lib->vba.slices = dml_ceil(
+				mode_lib->vba.slices = (unsigned int)dml_ceil(
 						mode_lib->vba.PixelClockBackEnd[k] / 400.0,
 						4.0);
 			} else if (mode_lib->vba.PixelClockBackEnd[k] > 1360.0) {
-				mode_lib->vba.slices = 8.0;
+				mode_lib->vba.slices = (unsigned int)(8.0);
 			} else if (mode_lib->vba.PixelClockBackEnd[k] > 680.0) {
-				mode_lib->vba.slices = 4.0;
+				mode_lib->vba.slices = (unsigned int)(4.0);
 			} else if (mode_lib->vba.PixelClockBackEnd[k] > 340.0) {
-				mode_lib->vba.slices = 2.0;
+				mode_lib->vba.slices = (unsigned int)(2.0);
 			} else {
-				mode_lib->vba.slices = 1.0;
+				mode_lib->vba.slices = (unsigned int)(1.0);
 			}
 			if (locals->OutputBppPerState[i][k] == BPP_BLENDED_PIPE
 					|| locals->OutputBppPerState[i][k] == BPP_INVALID) {
@@ -4481,7 +4481,7 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 							dscceComputeDelay(
 									mode_lib->vba.DSCInputBitPerComponent[k],
 									mode_lib->vba.bpp,
-									dml_ceil(
+									(unsigned int)dml_ceil(
 											mode_lib->vba.HActive[k]
 													/ mode_lib->vba.slices,
 											1.0),
@@ -4494,7 +4494,7 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 							2.0 * (dscceComputeDelay(
 											mode_lib->vba.DSCInputBitPerComponent[k],
 											mode_lib->vba.bpp,
-											dml_ceil(mode_lib->vba.HActive[k] / mode_lib->vba.slices, 1.0),
+									(unsigned int)dml_ceil(mode_lib->vba.HActive[k] / mode_lib->vba.slices, 1.0),
 											mode_lib->vba.slices / 2,
 											mode_lib->vba.OutputFormat[k])
 									+ dscComputeDelay(mode_lib->vba.OutputFormat[k]));
@@ -4569,13 +4569,13 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				}
 				if (mode_lib->vba.RoundedUpMaxSwathSizeBytesY + mode_lib->vba.RoundedUpMaxSwathSizeBytesC
 						<= mode_lib->vba.DETBufferSizeInKByte[0] * 1024.0 / 2.0) {
-					locals->SwathHeightYThisState[k] = locals->MaxSwathHeightY[k];
-					locals->SwathHeightCThisState[k] = locals->MaxSwathHeightC[k];
+					locals->SwathHeightYThisState[k] = (unsigned int)(locals->MaxSwathHeightY[k]);
+					locals->SwathHeightCThisState[k] = (unsigned int)(locals->MaxSwathHeightC[k]);
 				} else {
 					locals->SwathHeightYThisState[k] =
-							locals->MinSwathHeightY[k];
+							(unsigned int)locals->MinSwathHeightY[k];
 					locals->SwathHeightCThisState[k] =
-							locals->MinSwathHeightC[k];
+							(unsigned int)locals->MinSwathHeightC[k];
 				}
 			}
 
@@ -4607,11 +4607,11 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 							locals->Read256BlockWidthC[k],
 							mode_lib->vba.SourcePixelFormat[k],
 							mode_lib->vba.SurfaceTiling[k],
-							dml_ceil(locals->BytePerPixelInDETC[k], 2.0),
+							(unsigned int)dml_ceil(locals->BytePerPixelInDETC[k], 2.0),
 							mode_lib->vba.SourceScan[k],
-							mode_lib->vba.ViewportWidth[k] / 2.0,
-							mode_lib->vba.ViewportHeight[k] / 2.0,
-							locals->SwathWidthYThisState[k] / 2.0,
+							(unsigned int)(mode_lib->vba.ViewportWidth[k] / 2.0),
+							(unsigned int)(mode_lib->vba.ViewportHeight[k] / 2.0),
+							(unsigned int)(locals->SwathWidthYThisState[k] / 2.0),
 							mode_lib->vba.GPUVMEnable,
 							mode_lib->vba.HostVMEnable,
 							mode_lib->vba.HostVMMaxPageTableLevels,
@@ -4619,7 +4619,7 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 							mode_lib->vba.VMMPageSize,
 							mode_lib->vba.PTEBufferSizeInRequestsChroma,
 							mode_lib->vba.PitchC[k],
-							0.0,
+							0,
 							&locals->MacroTileWidthC[k],
 							&mode_lib->vba.MetaRowBytesC,
 							&mode_lib->vba.DPTEBytesPerRowC,
@@ -4650,8 +4650,8 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 					locals->PTEBufferSizeInRequestsForLuma = mode_lib->vba.PTEBufferSizeInRequestsLuma;
 				} else {
 					mode_lib->vba.PDEAndMetaPTEBytesPerFrameC = 0.0;
-					mode_lib->vba.MetaRowBytesC = 0.0;
-					mode_lib->vba.DPTEBytesPerRowC = 0.0;
+					mode_lib->vba.MetaRowBytesC = (unsigned int)(0.0);
+					mode_lib->vba.DPTEBytesPerRowC = (unsigned int)(0.0);
 					locals->PrefetchLinesC[0][0][k] = 0.0;
 					locals->PTEBufferSizeNotExceededC[i][j][k] = true;
 					locals->PTEBufferSizeInRequestsForLuma = mode_lib->vba.PTEBufferSizeInRequestsLuma + mode_lib->vba.PTEBufferSizeInRequestsChroma;
@@ -4663,11 +4663,11 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 						locals->Read256BlockWidthY[k],
 						mode_lib->vba.SourcePixelFormat[k],
 						mode_lib->vba.SurfaceTiling[k],
-						dml_ceil(locals->BytePerPixelInDETY[k], 1.0),
+						(unsigned int)dml_ceil(locals->BytePerPixelInDETY[k], 1.0),
 						mode_lib->vba.SourceScan[k],
 						mode_lib->vba.ViewportWidth[k],
 						mode_lib->vba.ViewportHeight[k],
-						locals->SwathWidthYThisState[k],
+						(unsigned int)locals->SwathWidthYThisState[k],
 						mode_lib->vba.GPUVMEnable,
 						mode_lib->vba.HostVMEnable,
 						mode_lib->vba.HostVMMaxPageTableLevels,
@@ -4756,7 +4756,7 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 										mode_lib->vba.WritebackLumaVTaps[k],
 										mode_lib->vba.WritebackChromaHTaps[k],
 										mode_lib->vba.WritebackChromaVTaps[k],
-										mode_lib->vba.WritebackDestinationWidth[k]) / locals->RequiredDISPCLK[i][j];
+												(unsigned int)mode_lib->vba.WritebackDestinationWidth[k]) / locals->RequiredDISPCLK[i][j];
 					} else {
 						locals->WritebackDelay[i][k] = 0.0;
 					}
@@ -4773,7 +4773,7 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 													mode_lib->vba.WritebackLumaVTaps[m],
 													mode_lib->vba.WritebackChromaHTaps[m],
 													mode_lib->vba.WritebackChromaVTaps[m],
-													mode_lib->vba.WritebackDestinationWidth[m]) / locals->RequiredDISPCLK[i][j]);
+																(unsigned int)mode_lib->vba.WritebackDestinationWidth[m]) / locals->RequiredDISPCLK[i][j]);
 						}
 					}
 				}
@@ -4809,14 +4809,14 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				mode_lib->vba.MaximumReadBandwidthWithoutPrefetch = 0.0;
 				mode_lib->vba.MaximumReadBandwidthWithPrefetch = 0.0;
 				for (k = 0; k <= mode_lib->vba.NumberOfActivePlanes - 1; k++) {
-					unsigned int m;
+					unsigned int cursor_idx;
 
 					locals->cursor_bw[k] = 0;
 					locals->cursor_bw_pre[k] = 0;
-					for (m = 0; m < mode_lib->vba.NumberOfCursors[k]; m++) {
-						locals->cursor_bw[k] = mode_lib->vba.CursorWidth[k][m] * mode_lib->vba.CursorBPP[k][m]
+					for (cursor_idx = 0; cursor_idx < mode_lib->vba.NumberOfCursors[k]; cursor_idx++) {
+						locals->cursor_bw[k] = mode_lib->vba.CursorWidth[k][cursor_idx] * mode_lib->vba.CursorBPP[k][cursor_idx]
 							/ 8.0 / (mode_lib->vba.HTotal[k] / mode_lib->vba.PixelClock[k]) * mode_lib->vba.VRatio[k];
-						locals->cursor_bw_pre[k] = mode_lib->vba.CursorWidth[k][m] * mode_lib->vba.CursorBPP[k][m]
+						locals->cursor_bw_pre[k] = mode_lib->vba.CursorWidth[k][cursor_idx] * mode_lib->vba.CursorBPP[k][cursor_idx]
 							/ 8.0 / (mode_lib->vba.HTotal[k] / mode_lib->vba.PixelClock[k]) * locals->VRatioPreY[i][j][k];
 					}
 
@@ -4824,12 +4824,12 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 							mode_lib->vba.DETBufferSizeInKByte[0],
 							locals->SwathHeightYThisState[k],
 							locals->SwathHeightCThisState[k],
-							locals->SwathWidthYThisState[k],
+							(unsigned int)locals->SwathWidthYThisState[k],
 							mode_lib->vba.HTotal[k] / mode_lib->vba.PixelClock[k],
 							mode_lib->vba.UrgentLatency,
 							mode_lib->vba.CursorBufferSize,
 							mode_lib->vba.CursorWidth[k][0] + mode_lib->vba.CursorWidth[k][1],
-							dml_max(mode_lib->vba.CursorBPP[k][0], mode_lib->vba.CursorBPP[k][1]),
+							(unsigned int)dml_max(mode_lib->vba.CursorBPP[k][0], mode_lib->vba.CursorBPP[k][1]),
 							mode_lib->vba.VRatio[k],
 							locals->VRatioPreY[i][j][k],
 							locals->VRatioPreC[i][j][k],
@@ -4922,10 +4922,10 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 							+ locals->RequiredPrefetchPixelDataBWChroma[i][j][k] * locals->UrgentBurstFactorChromaPre[k]
 							+ locals->cursor_bw_pre[k] * locals->UrgentBurstFactorCursorPre[k]);
 				}
-				mode_lib->vba.TotImmediateFlipBytes = 0.0;
+				mode_lib->vba.TotImmediateFlipBytes = (unsigned int)(0.0);
 				for (k = 0; k <= mode_lib->vba.NumberOfActivePlanes - 1; k++) {
-					mode_lib->vba.TotImmediateFlipBytes = mode_lib->vba.TotImmediateFlipBytes
-						+ locals->PDEAndMetaPTEBytesPerFrame[0][0][k] + locals->MetaRowBytes[0][0][k] + locals->DPTEBytesPerRow[0][0][k];
+					mode_lib->vba.TotImmediateFlipBytes = (unsigned int)(mode_lib->vba.TotImmediateFlipBytes
+							+ locals->PDEAndMetaPTEBytesPerFrame[0][0][k] + locals->MetaRowBytes[0][0][k] + locals->DPTEBytesPerRow[0][0][k]);
 				}
 
 				for (k = 0; k <= mode_lib->vba.NumberOfActivePlanes - 1; k++) {
@@ -5138,7 +5138,7 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 	}
 	/*Mode Support, Voltage State and SOC Configuration*/
 
-	for (i = mode_lib->vba.soc.num_states; i >= 0; i--) {
+	for (idx = mode_lib->vba.soc.num_states; idx >= 0; idx--) {
 		for (j = 0; j < 2; j++) {
 			enum dm_validation_status status = DML_VALIDATION_OK;
 
@@ -5146,19 +5146,19 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				status = DML_FAIL_SCALE_RATIO_TAP;
 			} else if (!mode_lib->vba.SourceFormatPixelAndScanSupport) {
 				status = DML_FAIL_SOURCE_PIXEL_FORMAT;
-			} else if (!locals->ViewportSizeSupport[i][0]) {
+			} else if (!locals->ViewportSizeSupport[idx][0]) {
 				status = DML_FAIL_VIEWPORT_SIZE;
-			} else if (!locals->DIOSupport[i]) {
+			} else if (!locals->DIOSupport[idx]) {
 				status = DML_FAIL_DIO_SUPPORT;
-			} else if (locals->NotEnoughDSCUnits[i]) {
+			} else if (locals->NotEnoughDSCUnits[idx]) {
 				status = DML_FAIL_NOT_ENOUGH_DSC;
-			} else if (locals->DSCCLKRequiredMoreThanSupported[i]) {
+			} else if (locals->DSCCLKRequiredMoreThanSupported[idx]) {
 				status = DML_FAIL_DSC_CLK_REQUIRED;
-			} else if (!locals->ROBSupport[i][0]) {
+			} else if (!locals->ROBSupport[idx][0]) {
 				status = DML_FAIL_REORDERING_BUFFER;
-			} else if (!locals->DISPCLK_DPPCLK_Support[i][j]) {
+			} else if (!locals->DISPCLK_DPPCLK_Support[idx][j]) {
 				status = DML_FAIL_DISPCLK_DPPCLK;
-			} else if (!locals->TotalAvailablePipesSupport[i][j]) {
+			} else if (!locals->TotalAvailablePipesSupport[idx][j]) {
 				status = DML_FAIL_TOTAL_AVAILABLE_PIPES;
 			} else if (!mode_lib->vba.NumberOfOTGSupport) {
 				status = DML_FAIL_NUM_OTG;
@@ -5172,27 +5172,27 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				status = DML_FAIL_CURSOR_SUPPORT;
 			} else if (!mode_lib->vba.PitchSupport) {
 				status = DML_FAIL_PITCH_SUPPORT;
-			} else if (!locals->TotalVerticalActiveBandwidthSupport[i][0]) {
+			} else if (!locals->TotalVerticalActiveBandwidthSupport[idx][0]) {
 				status = DML_FAIL_TOTAL_V_ACTIVE_BW;
-			} else if (!locals->PTEBufferSizeNotExceeded[i][j]) {
+			} else if (!locals->PTEBufferSizeNotExceeded[idx][j]) {
 				status = DML_FAIL_PTE_BUFFER_SIZE;
 			} else if (mode_lib->vba.NonsupportedDSCInputBPC) {
 				status = DML_FAIL_DSC_INPUT_BPC;
 			} else if ((mode_lib->vba.HostVMEnable
-					&& !locals->ImmediateFlipSupportedForState[i][j])) {
+					&& !locals->ImmediateFlipSupportedForState[idx][j])) {
 				status = DML_FAIL_HOST_VM_IMMEDIATE_FLIP;
-			} else if (!locals->PrefetchSupported[i][j]) {
+			} else if (!locals->PrefetchSupported[idx][j]) {
 				status = DML_FAIL_PREFETCH_SUPPORT;
-			} else if (!locals->VRatioInPrefetchSupported[i][j]) {
+			} else if (!locals->VRatioInPrefetchSupported[idx][j]) {
 				status = DML_FAIL_V_RATIO_PREFETCH;
 			}
 
 			if (status == DML_VALIDATION_OK) {
-				locals->ModeSupport[i][j] = true;
+				locals->ModeSupport[idx][j] = true;
 			} else {
-				locals->ModeSupport[i][j] = false;
+				locals->ModeSupport[idx][j] = false;
 			}
-			locals->ValidationStatus[i] = status;
+			locals->ValidationStatus[idx] = status;
 		}
 	}
 	{
@@ -5257,7 +5257,7 @@ static void CalculateWatermarksAndDRAMSpeedChangeSupport(
 		double UrgentOutOfOrderReturn,
 		double ReturnBW,
 		bool GPUVMEnable,
-		int dpte_group_bytes[],
+		unsigned int dpte_group_bytes[],
 		unsigned int MetaChunkSize,
 		double UrgentLatency,
 		double ExtraLatency,
@@ -5268,7 +5268,7 @@ static void CalculateWatermarksAndDRAMSpeedChangeSupport(
 		double SRExitTime,
 		double SREnterPlusExitTime,
 		double DCFCLKDeepSleep,
-		int DPPPerPlane[],
+		unsigned int DPPPerPlane[],
 		bool DCCEnable[],
 		double DPPCLK[],
 		double SwathWidthSingleDPPY[],
@@ -5373,13 +5373,13 @@ static void CalculateWatermarksAndDRAMSpeedChangeSupport(
 
 	for (k = 0; k < NumberOfActivePlanes; ++k) {
 
-		mode_lib->vba.LBLatencyHidingSourceLinesY = dml_min((double) MaxLineBufferLines,
+		mode_lib->vba.LBLatencyHidingSourceLinesY = (unsigned int)(dml_min((double) MaxLineBufferLines,
 			dml_floor(LineBufferSize / LBBitPerPixel[k] / (SwathWidthY[k] / dml_max(HRatio[k], 1.0)), 1))
-				- (vtaps[k] - 1);
+				- (vtaps[k] - 1));
 
-		mode_lib->vba.LBLatencyHidingSourceLinesC = dml_min((double) MaxLineBufferLines,
+		mode_lib->vba.LBLatencyHidingSourceLinesC = (unsigned int)(dml_min((double) MaxLineBufferLines,
 			dml_floor(LineBufferSize / LBBitPerPixel[k] / (SwathWidthY[k] / 2 / dml_max(HRatio[k] / 2, 1.0)), 1))
-				- (VTAPsChroma[k] - 1);
+				- (VTAPsChroma[k] - 1));
 
 		EffectiveLBLatencyHidingY = mode_lib->vba.LBLatencyHidingSourceLinesY / VRatio[k]
 				* (HTotal[k] / PixelClock[k]);
@@ -5412,12 +5412,12 @@ static void CalculateWatermarksAndDRAMSpeedChangeSupport(
 				&DETBufferSizeC);
 
 		LinesInDETY[k] = (double)DETBufferSizeY / BytePerPixelDETY[k] / SwathWidthY[k];
-		LinesInDETYRoundedDownToSwath[k] = dml_floor(LinesInDETY[k], SwathHeightY[k]);
+		LinesInDETYRoundedDownToSwath[k] = (unsigned int)(dml_floor(LinesInDETY[k], SwathHeightY[k]));
 		FullDETBufferingTimeY[k] = LinesInDETYRoundedDownToSwath[k]
 				* (HTotal[k] / PixelClock[k]) / VRatio[k];
 		if (BytePerPixelDETC[k] > 0) {
 			LinesInDETC = (double)DETBufferSizeC / BytePerPixelDETC[k] / (SwathWidthY[k] / 2.0);
-			LinesInDETCRoundedDownToSwath = dml_floor(LinesInDETC, SwathHeightC[k]);
+			LinesInDETCRoundedDownToSwath = (unsigned int)(dml_floor(LinesInDETC, SwathHeightC[k]));
 			FullDETBufferingTimeC = LinesInDETCRoundedDownToSwath
 					* (HTotal[k] / PixelClock[k]) / (VRatio[k] / 2);
 		} else {
@@ -5543,7 +5543,7 @@ static void CalculateDCFCLKDeepSleep(
 		double BytePerPixelDETC[],
 		double VRatio[],
 		double SwathWidthY[],
-		int DPPPerPlane[],
+		unsigned int DPPPerPlane[],
 		double HRatio[],
 		double PixelClock[],
 		double PSCL_THROUGHPUT[],
@@ -5749,7 +5749,7 @@ static void CalculatePixelDeliveryTimes(
 		double VRatioPrefetchC[],
 		unsigned int swath_width_luma_ub[],
 		unsigned int swath_width_chroma_ub[],
-		int DPPPerPlane[],
+		unsigned int DPPPerPlane[],
 		double HRatio[],
 		double PixelClock[],
 		double PSCL_THROUGHPUT[],
@@ -5870,7 +5870,7 @@ static void CalculateMetaAndPTETimes(
 		unsigned int meta_row_height[],
 		unsigned int meta_req_width[],
 		unsigned int meta_req_height[],
-		int dpte_group_bytes[],
+		unsigned int dpte_group_bytes[],
 		unsigned int PTERequestSizeY[],
 		unsigned int PTERequestSizeC[],
 		unsigned int PixelPTEReqWidthY[],
@@ -5939,10 +5939,10 @@ static void CalculateMetaAndPTETimes(
 
 	for (k = 0; k < NumberOfActivePlanes; ++k) {
 		if (DCCEnable[k] == true) {
-			meta_chunk_width = MetaChunkSize * 1024 * 256
-					/ dml_ceil(BytePerPixelDETY[k], 1) / meta_row_height[k];
-			min_meta_chunk_width = MinMetaChunkSizeBytes * 256
-					/ dml_ceil(BytePerPixelDETY[k], 1) / meta_row_height[k];
+			meta_chunk_width = (unsigned int)(MetaChunkSize * 1024 * 256
+					/ dml_ceil(BytePerPixelDETY[k], 1) / meta_row_height[k]);
+			min_meta_chunk_width = (unsigned int)(MinMetaChunkSizeBytes * 256
+					/ dml_ceil(BytePerPixelDETY[k], 1) / meta_row_height[k]);
 			meta_chunk_per_row_int = meta_row_width[k] / meta_chunk_width;
 			meta_row_remainder = meta_row_width[k] % meta_chunk_width;
 			if (SourceScan[k] == dm_horz) {
@@ -5978,7 +5978,7 @@ static void CalculateMetaAndPTETimes(
 				dpte_group_width_luma = dpte_group_bytes[k] / PTERequestSizeY[k]
 						* PixelPTEReqHeightY[k];
 			}
-			dpte_groups_per_row_luma_ub = dml_ceil(
+			dpte_groups_per_row_luma_ub = (unsigned int)dml_ceil(
 					(float) dpte_row_width_luma_ub[k] / dpte_group_width_luma,
 					1);
 			time_per_pte_group_nom_luma[k] = DST_Y_PER_PTE_ROW_NOM_L[k] * HTotal[k]
@@ -6002,7 +6002,7 @@ static void CalculateMetaAndPTETimes(
 							/ PTERequestSizeC[k]
 							* PixelPTEReqHeightC[k];
 				}
-				dpte_groups_per_row_chroma_ub = dml_ceil(
+				dpte_groups_per_row_chroma_ub = (unsigned int)dml_ceil(
 						(float) dpte_row_width_chroma_ub[k]
 								/ dpte_group_width_chroma,
 						1);
@@ -6032,34 +6032,32 @@ static void CalculateMetaAndPTETimes(
 		if (GPUVMEnable == true && (DCCEnable[k] == true || GPUVMMaxPageTableLevels > 1)) {
 			if (DCCEnable[k] == false) {
 				if (BytePerPixelDETC[k] > 0) {
-					num_group_per_lower_vm_stage =
+					num_group_per_lower_vm_stage = (unsigned int)(
 						dml_ceil((double) (dpde0_bytes_per_frame_ub_l[k]) / (double) (vm_group_bytes[k]), 1)
-						+ dml_ceil((double) (dpde0_bytes_per_frame_ub_c[k]) / (double) (vm_group_bytes[k]), 1);
+						+ dml_ceil((double) (dpde0_bytes_per_frame_ub_c[k]) / (double) (vm_group_bytes[k]), 1));
 				} else {
-					num_group_per_lower_vm_stage =
-							dml_ceil((double) (dpde0_bytes_per_frame_ub_l[k]) / (double) (vm_group_bytes[k]), 1);
+					num_group_per_lower_vm_stage = (unsigned int)dml_ceil((double) (dpde0_bytes_per_frame_ub_l[k]) / (double) (vm_group_bytes[k]), 1);
 				}
 			} else {
 				if (GPUVMMaxPageTableLevels == 1) {
 					if (BytePerPixelDETC[k] > 0) {
-						num_group_per_lower_vm_stage =
+						num_group_per_lower_vm_stage = (unsigned int)(
 							dml_ceil((double) (meta_pte_bytes_per_frame_ub_l[k]) / (double) (vm_group_bytes[k]), 1)
-							+ dml_ceil((double) (meta_pte_bytes_per_frame_ub_c[k]) / (double) (vm_group_bytes[k]), 1);
+							+ dml_ceil((double) (meta_pte_bytes_per_frame_ub_c[k]) / (double) (vm_group_bytes[k]), 1));
 					} else {
-						num_group_per_lower_vm_stage =
-							dml_ceil((double) (meta_pte_bytes_per_frame_ub_l[k]) / (double) (vm_group_bytes[k]), 1);
+						num_group_per_lower_vm_stage = (unsigned int)dml_ceil((double) (meta_pte_bytes_per_frame_ub_l[k]) / (double) (vm_group_bytes[k]), 1);
 					}
 				} else {
 					if (BytePerPixelDETC[k] > 0) {
-						num_group_per_lower_vm_stage =
+						num_group_per_lower_vm_stage = (unsigned int)(
 							dml_ceil((double) (dpde0_bytes_per_frame_ub_l[k]) / (double) (vm_group_bytes[k]), 1)
 							+ dml_ceil((double) (dpde0_bytes_per_frame_ub_c[k]) / (double) (vm_group_bytes[k]), 1)
 							+ dml_ceil((double) (meta_pte_bytes_per_frame_ub_l[k]) / (double) (vm_group_bytes[k]), 1)
-							+ dml_ceil((double) (meta_pte_bytes_per_frame_ub_c[k]) / (double) (vm_group_bytes[k]), 1);
+							+ dml_ceil((double) (meta_pte_bytes_per_frame_ub_c[k]) / (double) (vm_group_bytes[k]), 1));
 					} else {
-						num_group_per_lower_vm_stage =
+						num_group_per_lower_vm_stage = (unsigned int)(
 							dml_ceil((double) (dpde0_bytes_per_frame_ub_l[k]) / (double) (vm_group_bytes[k]), 1)
-							+ dml_ceil((double) (meta_pte_bytes_per_frame_ub_l[k]) / (double) (vm_group_bytes[k]), 1);
+							+ dml_ceil((double) (meta_pte_bytes_per_frame_ub_l[k]) / (double) (vm_group_bytes[k]), 1));
 					}
 				}
 			}
@@ -6128,8 +6126,8 @@ static double CalculateExtraLatency(
 		bool GPUVMEnable,
 		bool HostVMEnable,
 		int NumberOfActivePlanes,
-		int NumberOfDPP[],
-		int dpte_group_bytes[],
+		unsigned int NumberOfDPP[],
+		unsigned int dpte_group_bytes[],
 		double PercentOfIdealDRAMFabricAndSDPPortBWReceivedAfterUrgLatencyPixelMixedWithVMData,
 		double PercentOfIdealDRAMFabricAndSDPPortBWReceivedAfterUrgLatencyVMDataOnly,
 		int HostVMMaxPageTableLevels,

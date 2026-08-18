@@ -5,7 +5,7 @@
 #include <bpf/bpf_tracing.h>
 #include <stdbool.h>
 #include <stdatomic.h>
-#include "bpf_arena_common.h"
+#include <bpf_arena_common.h>
 #include "../../../include/linux/filter.h"
 #include "bpf_misc.h"
 

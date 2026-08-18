@@ -3,7 +3,6 @@
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
@@ -707,6 +706,7 @@ static int ath10k_htt_rx_pop_paddr32_list(struct ath10k_htt *htt,
 			if (!(__le32_to_cpu(rxd_attention->flags) &
 			      RX_ATTENTION_FLAGS_MSDU_DONE)) {
 				ath10k_warn(htt->ar, "tried to pop an incomplete frame, oops!\n");
+				__skb_queue_purge(list);
 				return -EIO;
 			}
 		}
@@ -771,6 +771,7 @@ static int ath10k_htt_rx_pop_paddr64_list(struct ath10k_htt *htt,
 			if (!(__le32_to_cpu(rxd_attention->flags) &
 			      RX_ATTENTION_FLAGS_MSDU_DONE)) {
 				ath10k_warn(htt->ar, "tried to pop an incomplete frame, oops!\n");
+				__skb_queue_purge(list);
 				return -EIO;
 			}
 		}

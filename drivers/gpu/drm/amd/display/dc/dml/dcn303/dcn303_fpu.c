@@ -118,6 +118,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_03_soc = {
 						.phyclk_mhz = 300.0,
 						.phyclk_d18_mhz = 667.0,
 						.dscclk_mhz = 405.6,
+						.dtbclk_mhz = 1217.0,
 				},
 		},
 
@@ -178,13 +179,13 @@ static void dcn303_get_optimal_dcfclk_fclk_for_uclk(unsigned int uclk_mts,
 	bw_from_dram = (bw_from_dram1 < bw_from_dram2) ? bw_from_dram1 : bw_from_dram2;
 
 	if (optimal_fclk)
-		*optimal_fclk = bw_from_dram /
+		*optimal_fclk = (unsigned int)(bw_from_dram /
 		(dcn3_03_soc.fabric_datapath_to_dcn_data_return_bytes *
-				(dcn3_03_soc.max_avg_sdp_bw_use_normal_percent / 100));
+				(dcn3_03_soc.max_avg_sdp_bw_use_normal_percent / 100)));
 
 	if (optimal_dcfclk)
-		*optimal_dcfclk =  bw_from_dram /
-		(dcn3_03_soc.return_bus_width_bytes * (dcn3_03_soc.max_avg_sdp_bw_use_normal_percent / 100));
+		*optimal_dcfclk = (unsigned int)(bw_from_dram /
+		(dcn3_03_soc.return_bus_width_bytes * (dcn3_03_soc.max_avg_sdp_bw_use_normal_percent / 100)));
 }
 
 
@@ -214,7 +215,7 @@ void dcn303_fpu_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_p
 	dc->dml.soc.dispclk_dppclk_vco_speed_mhz = dc->clk_mgr->dentist_vco_freq_khz / 1000.0;
 
 	if (bw_params->clk_table.entries[0].memclk_mhz) {
-		int max_dcfclk_mhz = 0, max_dispclk_mhz = 0, max_dppclk_mhz = 0, max_phyclk_mhz = 0;
+		unsigned int max_dcfclk_mhz = 0, max_dispclk_mhz = 0, max_dppclk_mhz = 0, max_phyclk_mhz = 0;
 
 		for (i = 0; i < MAX_NUM_DPM_LVL; i++) {
 			if (bw_params->clk_table.entries[i].dcfclk_mhz > max_dcfclk_mhz)
@@ -227,13 +228,13 @@ void dcn303_fpu_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_p
 				max_phyclk_mhz = bw_params->clk_table.entries[i].phyclk_mhz;
 		}
 		if (!max_dcfclk_mhz)
-			max_dcfclk_mhz = dcn3_03_soc.clock_limits[0].dcfclk_mhz;
+			max_dcfclk_mhz = (int)dcn3_03_soc.clock_limits[0].dcfclk_mhz;
 		if (!max_dispclk_mhz)
-			max_dispclk_mhz = dcn3_03_soc.clock_limits[0].dispclk_mhz;
+			max_dispclk_mhz = (int)dcn3_03_soc.clock_limits[0].dispclk_mhz;
 		if (!max_dppclk_mhz)
-			max_dppclk_mhz = dcn3_03_soc.clock_limits[0].dppclk_mhz;
+			max_dppclk_mhz = (int)dcn3_03_soc.clock_limits[0].dppclk_mhz;
 		if (!max_phyclk_mhz)
-			max_phyclk_mhz = dcn3_03_soc.clock_limits[0].phyclk_mhz;
+			max_phyclk_mhz = (int)dcn3_03_soc.clock_limits[0].phyclk_mhz;
 
 		if (max_dcfclk_mhz > dcfclk_sta_targets[num_dcfclk_sta_targets-1]) {
 			dcfclk_sta_targets[num_dcfclk_sta_targets] = max_dcfclk_mhz;

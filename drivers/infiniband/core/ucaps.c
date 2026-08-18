@@ -46,12 +46,7 @@ static const struct file_operations ucaps_cdev_fops = {
 	.open = simple_open,
 };
 
-/**
- * ib_cleanup_ucaps - cleanup all API resources and class.
- *
- * This is called once, when removing the ib_uverbs module.
- */
-void ib_cleanup_ucaps(void)
+static __exit void ib_cleanup_ucaps(void)
 {
 	mutex_lock(&ucaps_mutex);
 	if (!ucaps_class_is_registered) {
@@ -263,3 +258,6 @@ end:
 	mutex_unlock(&ucaps_mutex);
 	return ret;
 }
+EXPORT_SYMBOL_NS_GPL(ib_get_ucaps, "rdma_core");
+
+module_exit(ib_cleanup_ucaps);

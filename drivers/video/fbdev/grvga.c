@@ -33,7 +33,7 @@ struct grvga_regs {
 	u32 line_length;	/* 0x10 */
 	u32 fb_pos;		/* 0x14 */
 	u32 clk_vector[4];	/* 0x18 */
-	u32 clut;	        /* 0x20 */
+	u32 clut;	        /* 0x28 */
 };
 
 struct grvga_par {

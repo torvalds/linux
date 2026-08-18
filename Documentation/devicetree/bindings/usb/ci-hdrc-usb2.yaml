@@ -45,11 +45,11 @@ properties:
 
   clocks:
     minItems: 1
-    maxItems: 2
+    maxItems: 3
 
   clock-names:
     minItems: 1
-    maxItems: 2
+    maxItems: 3
 
   operating-points-v2:
     description: A phandle to the OPP table containing the performance states.
@@ -61,9 +61,10 @@ properties:
       offset, and phy index
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
-      - description: phandle to TCSR node
-      - description: register offset
-      - description: phy index
+      - items:
+          - description: phandle to TCSR node
+          - description: register offset
+          - description: phy index
 
   nvidia,phy:
     description: phandle of usb phy that connects to the port. Use "phys" instead.
@@ -91,6 +92,27 @@ allOf:
   - $ref: chipidea,usb2-common.yaml#
   - $ref: usb-hcd.yaml#
   - $ref: usb-drd.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: qcom,ci-hdrc
+    then:
+      properties:
+        clocks:
+          minItems: 2
+        clock-names:
+          minItems: 2
+          items:
+            - const: iface
+            - const: core
+            - const: fs
+    else:
+      properties:
+        clocks:
+          maxItems: 2
+        clock-names:
+          maxItems: 2
 
 unevaluatedProperties: false
 

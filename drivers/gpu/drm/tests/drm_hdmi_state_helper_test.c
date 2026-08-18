@@ -179,7 +179,7 @@ static const struct drm_connector_funcs dummy_connector_funcs = {
 };
 
 static void test_encoder_atomic_enable(struct drm_encoder *encoder,
-			      struct drm_atomic_state *state)
+			      struct drm_atomic_commit *state)
 {
 	struct drm_atomic_helper_connector_hdmi_priv *priv =
 		encoder_to_priv(encoder);
@@ -292,7 +292,7 @@ static void drm_test_check_broadcast_rgb_crtc_mode_changed(struct kunit *test)
 	struct drm_connector_state *old_conn_state;
 	struct drm_connector_state *new_conn_state;
 	struct drm_crtc_state *crtc_state;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_display_mode *preferred;
 	struct drm_connector *conn;
 	struct drm_device *drm;
@@ -367,7 +367,7 @@ static void drm_test_check_broadcast_rgb_crtc_mode_not_changed(struct kunit *tes
 	struct drm_connector_state *old_conn_state;
 	struct drm_connector_state *new_conn_state;
 	struct drm_crtc_state *crtc_state;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_display_mode *preferred;
 	struct drm_connector *conn;
 	struct drm_device *drm;
@@ -442,7 +442,7 @@ static void drm_test_check_broadcast_rgb_auto_cea_mode(struct kunit *test)
 	struct drm_atomic_helper_connector_hdmi_priv *priv;
 	struct drm_modeset_acquire_ctx ctx;
 	struct drm_connector_state *conn_state;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_display_mode *preferred;
 	struct drm_connector *conn;
 	struct drm_device *drm;
@@ -509,7 +509,7 @@ static void drm_test_check_broadcast_rgb_auto_cea_mode_vic_1(struct kunit *test)
 	struct drm_atomic_helper_connector_hdmi_priv *priv;
 	struct drm_modeset_acquire_ctx ctx;
 	struct drm_connector_state *conn_state;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_display_mode *mode;
 	struct drm_connector *conn;
 	struct drm_device *drm;
@@ -576,7 +576,7 @@ static void drm_test_check_broadcast_rgb_full_cea_mode(struct kunit *test)
 	struct drm_atomic_helper_connector_hdmi_priv *priv;
 	struct drm_modeset_acquire_ctx ctx;
 	struct drm_connector_state *conn_state;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_display_mode *preferred;
 	struct drm_connector *conn;
 	struct drm_device *drm;
@@ -645,7 +645,7 @@ static void drm_test_check_broadcast_rgb_full_cea_mode_vic_1(struct kunit *test)
 	struct drm_atomic_helper_connector_hdmi_priv *priv;
 	struct drm_modeset_acquire_ctx ctx;
 	struct drm_connector_state *conn_state;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_display_mode *mode;
 	struct drm_connector *conn;
 	struct drm_device *drm;
@@ -714,7 +714,7 @@ static void drm_test_check_broadcast_rgb_limited_cea_mode(struct kunit *test)
 	struct drm_atomic_helper_connector_hdmi_priv *priv;
 	struct drm_modeset_acquire_ctx ctx;
 	struct drm_connector_state *conn_state;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_display_mode *preferred;
 	struct drm_connector *conn;
 	struct drm_device *drm;
@@ -783,7 +783,7 @@ static void drm_test_check_broadcast_rgb_limited_cea_mode_vic_1(struct kunit *te
 	struct drm_atomic_helper_connector_hdmi_priv *priv;
 	struct drm_modeset_acquire_ctx ctx;
 	struct drm_connector_state *conn_state;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_display_mode *mode;
 	struct drm_connector *conn;
 	struct drm_device *drm;
@@ -853,7 +853,7 @@ static void drm_test_check_broadcast_rgb_cea_mode_yuv420(struct kunit *test)
 	enum drm_hdmi_broadcast_rgb broadcast_rgb;
 	struct drm_modeset_acquire_ctx ctx;
 	struct drm_connector_state *conn_state;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_display_mode *mode;
 	struct drm_connector *conn;
 	struct drm_device *drm;
@@ -896,7 +896,7 @@ retry_conn_enable:
 retry_conn_state:
 	conn_state = drm_atomic_get_connector_state(state, conn);
 	if (PTR_ERR(conn_state) == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_conn_state;
@@ -907,7 +907,7 @@ retry_conn_state:
 
 	ret = drm_atomic_check_only(state);
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_conn_state;
@@ -955,7 +955,7 @@ static void drm_test_check_output_bpc_crtc_mode_changed(struct kunit *test)
 	struct drm_connector_state *old_conn_state;
 	struct drm_connector_state *new_conn_state;
 	struct drm_crtc_state *crtc_state;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_display_mode *preferred;
 	struct drm_connector *conn;
 	struct drm_device *drm;
@@ -1037,7 +1037,7 @@ static void drm_test_check_output_bpc_crtc_mode_not_changed(struct kunit *test)
 	struct drm_connector_state *old_conn_state;
 	struct drm_connector_state *new_conn_state;
 	struct drm_crtc_state *crtc_state;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_display_mode *preferred;
 	struct drm_connector *conn;
 	struct drm_device *drm;
@@ -1339,7 +1339,7 @@ static void drm_test_check_hdmi_funcs_reject_rate(struct kunit *test)
 {
 	struct drm_atomic_helper_connector_hdmi_priv *priv;
 	struct drm_modeset_acquire_ctx ctx;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_display_mode *preferred;
 	struct drm_crtc_state *crtc_state;
 	struct drm_connector *conn;
@@ -1706,7 +1706,7 @@ static void drm_test_check_driver_unsupported_fallback_yuv420(struct kunit *test
 	struct drm_modeset_acquire_ctx ctx;
 	struct drm_connector_state *conn_state;
 	struct drm_crtc_state *crtc_state;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_display_info *info;
 	struct drm_display_mode *preferred, *yuv420_only_mode;
 	struct drm_connector *conn;
@@ -1758,7 +1758,7 @@ retry_conn_enable:
 retry_crtc_state:
 	crtc_state = drm_atomic_get_crtc_state(state, crtc);
 	if (PTR_ERR(crtc_state) == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_crtc_state;
@@ -1770,7 +1770,7 @@ retry_crtc_state:
 
 	ret = drm_atomic_check_only(state);
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_crtc_state;
@@ -2142,7 +2142,7 @@ static void drm_test_check_disable_connector(struct kunit *test)
 	struct drm_modeset_acquire_ctx ctx;
 	struct drm_connector_state *conn_state;
 	struct drm_crtc_state *crtc_state;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_display_mode *preferred;
 	struct drm_connector *conn;
 	struct drm_device *drm;
@@ -2531,7 +2531,7 @@ static void drm_test_check_infoframes(struct kunit *test)
 	struct drm_atomic_helper_connector_hdmi_priv *priv;
 	struct drm_modeset_acquire_ctx ctx;
 	struct drm_crtc_state *crtc_state;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_display_mode *preferred;
 	struct drm_connector *conn;
 	struct drm_device *drm;
@@ -2573,7 +2573,7 @@ retry_conn_enable:
 retry_crtc_state:
 	crtc_state = drm_atomic_get_crtc_state(state, crtc);
 	if (PTR_ERR(crtc_state) == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_crtc_state;
@@ -2586,7 +2586,7 @@ retry_crtc_state:
 
 	ret = drm_atomic_check_only(state);
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_crtc_state;
@@ -2595,7 +2595,7 @@ retry_crtc_state:
 
 	ret = drm_atomic_commit(state);
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_crtc_state;
@@ -2633,7 +2633,7 @@ static void drm_test_check_reject_avi_infoframe(struct kunit *test)
 {
 	struct drm_atomic_helper_connector_hdmi_priv *priv;
 	struct drm_modeset_acquire_ctx ctx;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_crtc_state *crtc_state;
 	struct drm_display_mode *preferred;
 	struct drm_connector *conn;
@@ -2678,7 +2678,7 @@ retry_conn_enable:
 retry_crtc_state:
 	crtc_state = drm_atomic_get_crtc_state(state, crtc);
 	if (PTR_ERR(crtc_state) == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_crtc_state;
@@ -2691,7 +2691,7 @@ retry_crtc_state:
 
 	ret = drm_atomic_check_only(state);
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_crtc_state;
@@ -2700,7 +2700,7 @@ retry_crtc_state:
 
 	ret = drm_atomic_commit(state);
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_crtc_state;
@@ -2736,7 +2736,7 @@ static void drm_test_check_reject_hdr_infoframe_bpc_8(struct kunit *test)
 {
 	struct drm_atomic_helper_connector_hdmi_priv *priv;
 	struct drm_modeset_acquire_ctx ctx;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_connector_state *new_conn_state;
 	struct drm_crtc_state *crtc_state;
 	struct drm_display_mode *preferred;
@@ -2782,7 +2782,7 @@ retry_conn_enable:
 retry_conn_state:
 	new_conn_state = drm_atomic_get_connector_state(state, conn);
 	if (PTR_ERR(new_conn_state) == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_conn_state;
@@ -2791,7 +2791,7 @@ retry_conn_state:
 
 	crtc_state = drm_atomic_get_crtc_state(state, crtc);
 	if (PTR_ERR(crtc_state) == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_conn_state;
@@ -2810,7 +2810,7 @@ retry_conn_state:
 
 	ret = drm_atomic_check_only(state);
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_conn_state;
@@ -2819,7 +2819,7 @@ retry_conn_state:
 
 	ret = drm_atomic_commit(state);
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_conn_state;
@@ -2847,7 +2847,7 @@ static void drm_test_check_reject_hdr_infoframe_bpc_10(struct kunit *test)
 {
 	struct drm_atomic_helper_connector_hdmi_priv *priv;
 	struct drm_modeset_acquire_ctx ctx;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_connector_state *new_conn_state;
 	struct drm_crtc_state *crtc_state;
 	struct drm_display_mode *preferred;
@@ -2896,7 +2896,7 @@ retry_conn_enable:
 retry_conn_state:
 	new_conn_state = drm_atomic_get_connector_state(state, conn);
 	if (PTR_ERR(new_conn_state) == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_conn_state;
@@ -2905,7 +2905,7 @@ retry_conn_state:
 
 	crtc_state = drm_atomic_get_crtc_state(state, crtc);
 	if (PTR_ERR(crtc_state) == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_conn_state;
@@ -2933,7 +2933,7 @@ retry_conn_state:
 
 	ret = drm_atomic_check_only(state);
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_conn_state;
@@ -2942,7 +2942,7 @@ retry_conn_state:
 
 	ret = drm_atomic_commit(state);
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_conn_state;
@@ -2985,7 +2985,7 @@ static void drm_test_check_reject_audio_infoframe(struct kunit *test)
 {
 	struct drm_atomic_helper_connector_hdmi_priv *priv;
 	struct drm_modeset_acquire_ctx ctx;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_crtc_state *crtc_state;
 	struct drm_display_mode *preferred;
 	struct drm_connector *conn;
@@ -3031,7 +3031,7 @@ retry_conn_enable:
 retry_crtc_state:
 	crtc_state = drm_atomic_get_crtc_state(state, crtc);
 	if (PTR_ERR(crtc_state) == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_crtc_state;
@@ -3044,7 +3044,7 @@ retry_crtc_state:
 
 	ret = drm_atomic_check_only(state);
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_crtc_state;
@@ -3053,7 +3053,7 @@ retry_crtc_state:
 
 	ret = drm_atomic_commit(state);
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_crtc_state;
@@ -3082,7 +3082,7 @@ retry_crtc_state:
 retry_crtc_state_2:
 	crtc_state = drm_atomic_get_crtc_state(state, crtc);
 	if (PTR_ERR(crtc_state) == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_crtc_state_2;
@@ -3095,7 +3095,7 @@ retry_crtc_state_2:
 
 	ret = drm_atomic_check_only(state);
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_crtc_state_2;
@@ -3104,7 +3104,7 @@ retry_crtc_state_2:
 
 	ret = drm_atomic_commit(state);
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_crtc_state_2;

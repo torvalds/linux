@@ -88,6 +88,25 @@ MODULE_PARM_DESC(isapnp, "Enable ISA PnP detection for specified soundcard.");
 
 #define OPTi9XX_MC_REG(n)	n
 
+enum {
+	MIRO_ACI_MASTER,
+	MIRO_ACI_MIC,
+	MIRO_ACI_LINE,
+	MIRO_ACI_CD,
+	MIRO_ACI_SYNTH,
+	MIRO_ACI_PCM,
+	MIRO_ACI_LINE1,
+	MIRO_ACI_LINE2,
+	MIRO_ACI_EQ1,
+	MIRO_ACI_EQ2,
+	MIRO_ACI_EQ3,
+	MIRO_ACI_EQ4,
+	MIRO_ACI_EQ5,
+	MIRO_ACI_EQ6,
+	MIRO_ACI_EQ7,
+	MIRO_ACI_COUNT,
+};
+
 struct snd_miro {
 	unsigned short hardware;
 	unsigned char password;
@@ -102,6 +121,7 @@ struct snd_miro {
 
 	spinlock_t lock;
 	struct snd_pcm *pcm;
+	struct snd_wss *codec;
 
 	long wss_base;
 	int irq;
@@ -113,6 +133,12 @@ struct snd_miro {
 
 	struct snd_card *card;
 	struct snd_miro_aci *aci;
+#ifdef CONFIG_PM
+	unsigned char aci_saved[MIRO_ACI_COUNT][2];
+	unsigned char aci_saved_amp;
+	unsigned char aci_saved_preamp;
+	unsigned char aci_saved_solomode;
+#endif
 };
 
 static struct snd_miro_aci aci_device;
@@ -664,6 +690,44 @@ static const unsigned char aci_init_values[][2] = {
 	{ ACI_SET_MASTER + 1, 0x20 },
 };
 
+#ifdef CONFIG_PM
+static const unsigned char snd_miro_saved_get_regs[MIRO_ACI_COUNT] = {
+	[MIRO_ACI_MASTER] = ACI_GET_MASTER,
+	[MIRO_ACI_MIC] = ACI_GET_MIC,
+	[MIRO_ACI_LINE] = ACI_GET_LINE,
+	[MIRO_ACI_CD] = ACI_GET_CD,
+	[MIRO_ACI_SYNTH] = ACI_GET_SYNTH,
+	[MIRO_ACI_PCM] = ACI_GET_PCM,
+	[MIRO_ACI_LINE1] = ACI_GET_LINE1,
+	[MIRO_ACI_LINE2] = ACI_GET_LINE2,
+	[MIRO_ACI_EQ1] = ACI_GET_EQ1,
+	[MIRO_ACI_EQ2] = ACI_GET_EQ2,
+	[MIRO_ACI_EQ3] = ACI_GET_EQ3,
+	[MIRO_ACI_EQ4] = ACI_GET_EQ4,
+	[MIRO_ACI_EQ5] = ACI_GET_EQ5,
+	[MIRO_ACI_EQ6] = ACI_GET_EQ6,
+	[MIRO_ACI_EQ7] = ACI_GET_EQ7,
+};
+
+static const unsigned char snd_miro_saved_set_regs[MIRO_ACI_COUNT] = {
+	[MIRO_ACI_MASTER] = ACI_SET_MASTER,
+	[MIRO_ACI_MIC] = ACI_SET_MIC,
+	[MIRO_ACI_LINE] = ACI_SET_LINE,
+	[MIRO_ACI_CD] = ACI_SET_CD,
+	[MIRO_ACI_SYNTH] = ACI_SET_SYNTH,
+	[MIRO_ACI_PCM] = ACI_SET_PCM,
+	[MIRO_ACI_LINE1] = ACI_SET_LINE1,
+	[MIRO_ACI_LINE2] = ACI_SET_LINE2,
+	[MIRO_ACI_EQ1] = ACI_SET_EQ1,
+	[MIRO_ACI_EQ2] = ACI_SET_EQ2,
+	[MIRO_ACI_EQ3] = ACI_SET_EQ3,
+	[MIRO_ACI_EQ4] = ACI_SET_EQ4,
+	[MIRO_ACI_EQ5] = ACI_SET_EQ5,
+	[MIRO_ACI_EQ6] = ACI_SET_EQ6,
+	[MIRO_ACI_EQ7] = ACI_SET_EQ7,
+};
+#endif
+
 static int snd_set_aci_init_values(struct snd_miro *miro)
 {
 	int idx, error;
@@ -702,10 +766,115 @@ static int snd_set_aci_init_values(struct snd_miro *miro)
 	}
 	aci->aci_amp = 0;
 	aci->aci_preamp = 0;
-	aci->aci_solomode = 1;
+	aci->aci_solomode = 0;
 
 	return 0;
 }
+
+static int snd_miro_aci_force_known_state(struct snd_miro_aci *aci)
+{
+	int i, err;
+
+	for (i = 0; i < 3; i++) {
+		err = snd_aci_cmd(aci, ACI_ERROR_OP, -1, -1);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+
+static int snd_miro_aci_initialize(struct snd_miro_aci *aci)
+{
+	int err;
+
+	err = snd_aci_cmd(aci, ACI_INIT, -1, -1);
+	if (err < 0)
+		return err;
+	err = snd_aci_cmd(aci, ACI_ERROR_OP, ACI_ERROR_OP, ACI_ERROR_OP);
+	if (err < 0)
+		return err;
+
+	return snd_aci_cmd(aci, ACI_ERROR_OP, ACI_ERROR_OP, ACI_ERROR_OP);
+}
+
+#ifdef CONFIG_PM
+static int snd_miro_save_aci_state(struct snd_miro *miro)
+{
+	struct snd_miro_aci *aci = miro->aci;
+	int i, limit, value;
+
+	limit = aci->aci_product == 'C' ? MIRO_ACI_COUNT : MIRO_ACI_LINE2 + 1;
+	for (i = 0; i < limit; i++) {
+		value = aci_getvalue(aci, snd_miro_saved_get_regs[i]);
+		if (value < 0)
+			return value;
+		miro->aci_saved[i][1] = value;
+
+		value = aci_getvalue(aci, snd_miro_saved_get_regs[i] + 1);
+		if (value < 0)
+			return value;
+		miro->aci_saved[i][0] = value;
+	}
+
+	miro->aci_saved_amp = aci->aci_amp;
+	if (aci->aci_version <= 176) {
+		miro->aci_saved_preamp = aci->aci_preamp;
+	} else {
+		value = aci_getvalue(aci, ACI_GET_PREAMP);
+		if (value < 0)
+			return value;
+		miro->aci_saved_preamp = value;
+	}
+
+	value = aci_getvalue(aci, ACI_S_GENERAL);
+	if (value < 0)
+		return value;
+	miro->aci_saved_solomode = !(value & 0x20);
+
+	return 0;
+}
+
+static int snd_miro_restore_aci_state(struct snd_miro *miro)
+{
+	struct snd_miro_aci *aci = miro->aci;
+	int i, limit, err, left_reg;
+
+	err = snd_set_aci_init_values(miro);
+	if (err < 0)
+		return err;
+
+	limit = aci->aci_product == 'C' ? MIRO_ACI_COUNT : MIRO_ACI_LINE2 + 1;
+	for (i = 0; i < limit; i++) {
+		left_reg = snd_miro_saved_set_regs[i] == ACI_SET_MASTER ?
+			snd_miro_saved_set_regs[i] + 1 :
+			snd_miro_saved_set_regs[i] + 8;
+		err = aci_setvalue(aci, left_reg, miro->aci_saved[i][0]);
+		if (err < 0)
+			return err;
+		err = aci_setvalue(aci, snd_miro_saved_set_regs[i],
+				   miro->aci_saved[i][1]);
+		if (err < 0)
+			return err;
+	}
+
+	err = aci_setvalue(aci, ACI_SET_POWERAMP, miro->aci_saved_amp);
+	if (err < 0)
+		return err;
+	err = aci_setvalue(aci, ACI_SET_PREAMP, miro->aci_saved_preamp);
+	if (err < 0)
+		return err;
+	err = aci_setvalue(aci, ACI_SET_SOLOMODE, miro->aci_saved_solomode);
+	if (err < 0)
+		return err;
+
+	aci->aci_amp = miro->aci_saved_amp;
+	aci->aci_preamp = miro->aci_saved_preamp;
+	aci->aci_solomode = miro->aci_saved_solomode;
+
+	return 0;
+}
+#endif
 
 static int snd_miro_mixer(struct snd_card *card,
 			  struct snd_miro *miro)
@@ -1203,7 +1372,7 @@ static int snd_card_miro_aci_detect(struct snd_card *card,
 				    struct snd_miro *miro)
 {
 	unsigned char regval;
-	int i;
+	int err;
 	struct snd_miro_aci *aci = &aci_device;
 
 	miro->aci = aci;
@@ -1224,12 +1393,12 @@ static int snd_card_miro_aci_detect(struct snd_card *card,
 		return -ENOMEM;
 	}
 
-        /* force ACI into a known state */
-	for (i = 0; i < 3; i++)
-		if (snd_aci_cmd(aci, ACI_ERROR_OP, -1, -1) < 0) {
-			dev_err(card->dev, "can't force aci into known state.\n");
-			return -ENXIO;
-		}
+	/* force ACI into a known state */
+	err = snd_miro_aci_force_known_state(aci);
+	if (err < 0) {
+		dev_err(card->dev, "can't force aci into known state.\n");
+		return -ENXIO;
+	}
 
 	aci->aci_vendor = snd_aci_cmd(aci, ACI_READ_IDCODE, -1, -1);
 	aci->aci_product = snd_aci_cmd(aci, ACI_READ_IDCODE, -1, -1);
@@ -1246,9 +1415,8 @@ static int snd_card_miro_aci_detect(struct snd_card *card,
 		return -ENXIO;
 	}
 
-	if (snd_aci_cmd(aci, ACI_INIT, -1, -1) < 0 ||
-	    snd_aci_cmd(aci, ACI_ERROR_OP, ACI_ERROR_OP, ACI_ERROR_OP) < 0 ||
-	    snd_aci_cmd(aci, ACI_ERROR_OP, ACI_ERROR_OP, ACI_ERROR_OP) < 0) {
+	err = snd_miro_aci_initialize(aci);
+	if (err < 0) {
 		dev_err(card->dev, "can't initialize aci.\n");
 		return -ENXIO;
 	}
@@ -1299,6 +1467,7 @@ static int snd_miro_probe(struct snd_card *card)
 			       WSS_HW_DETECT, 0, &codec);
 	if (error < 0)
 		return error;
+	miro->codec = codec;
 
 	error = snd_wss_pcm(codec, 0);
 	if (error < 0)
@@ -1408,6 +1577,7 @@ static int snd_miro_isa_probe(struct device *devptr, unsigned int n)
 		return error;
 
 	miro = card->private_data;
+	miro->card = card;
 
 	error = snd_card_miro_detect(card, miro);
 	if (error < 0) {
@@ -1470,12 +1640,69 @@ static int snd_miro_isa_probe(struct device *devptr, unsigned int n)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int snd_miro_suspend(struct snd_card *card)
+{
+	struct snd_miro *miro = card->private_data;
+	int error;
+
+	error = snd_miro_save_aci_state(miro);
+	if (error < 0)
+		return error;
+
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+	miro->codec->suspend(miro->codec);
+	return 0;
+}
+
+static int snd_miro_resume(struct snd_card *card)
+{
+	struct snd_miro *miro = card->private_data;
+	int error;
+
+	error = snd_miro_configure(miro);
+	if (error < 0)
+		return error;
+	error = snd_miro_aci_force_known_state(miro->aci);
+	if (error < 0) {
+		dev_err(card->dev, "can't force aci into known state\n");
+		return error;
+	}
+	error = snd_miro_aci_initialize(miro->aci);
+	if (error < 0) {
+		dev_err(card->dev, "can't initialize aci\n");
+		return error;
+	}
+	error = snd_miro_restore_aci_state(miro);
+	if (error < 0)
+		return error;
+
+	miro->codec->resume(miro->codec);
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
+	return 0;
+}
+
+static int snd_miro_isa_suspend(struct device *dev, unsigned int n,
+				pm_message_t state)
+{
+	return snd_miro_suspend(dev_get_drvdata(dev));
+}
+
+static int snd_miro_isa_resume(struct device *dev, unsigned int n)
+{
+	return snd_miro_resume(dev_get_drvdata(dev));
+}
+#endif
+
 #define DEV_NAME "miro"
 
 static struct isa_driver snd_miro_driver = {
 	.match		= snd_miro_isa_match,
 	.probe		= snd_miro_isa_probe,
-	/* FIXME: suspend/resume */
+#ifdef CONFIG_PM
+	.suspend	= snd_miro_isa_suspend,
+	.resume		= snd_miro_isa_resume,
+#endif
 	.driver		= {
 		.name	= DEV_NAME
 	},
@@ -1591,12 +1818,29 @@ static void snd_miro_pnp_remove(struct pnp_card_link *pcard)
 	snd_miro_pnp_is_probed = 0;
 }
 
+#ifdef CONFIG_PM
+static int snd_miro_pnp_suspend(struct pnp_card_link *pcard,
+				pm_message_t state)
+{
+	return snd_miro_suspend(pnp_get_card_drvdata(pcard));
+}
+
+static int snd_miro_pnp_resume(struct pnp_card_link *pcard)
+{
+	return snd_miro_resume(pnp_get_card_drvdata(pcard));
+}
+#endif
+
 static struct pnp_card_driver miro_pnpc_driver = {
 	.flags		= PNP_DRIVER_RES_DISABLE,
 	.name		= "miro",
 	.id_table	= snd_miro_pnpids,
 	.probe		= snd_miro_pnp_probe,
 	.remove		= snd_miro_pnp_remove,
+#ifdef CONFIG_PM
+	.suspend	= snd_miro_pnp_suspend,
+	.resume		= snd_miro_pnp_resume,
+#endif
 };
 #endif
 

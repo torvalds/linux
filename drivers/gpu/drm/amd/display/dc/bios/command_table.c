@@ -1521,8 +1521,8 @@ static enum bp_result adjust_display_pll_v2(
 
 		if (pixel_clock_10KHz_in != 0) {
 			bp_params->adjusted_pixel_clock =
-					div_u64(pixel_clk * pixel_clk_10_khz_out,
-							pixel_clock_10KHz_in);
+					(uint32_t)div_u64(pixel_clk * pixel_clk_10_khz_out,
+							  pixel_clock_10KHz_in);
 		} else {
 			bp_params->adjusted_pixel_clock = 0;
 			BREAK_TO_DEBUGGER();
@@ -1571,8 +1571,8 @@ static enum bp_result adjust_display_pll_v3(
 
 		if (pixel_clk_10_kHz_in != 0) {
 			bp_params->adjusted_pixel_clock =
-					div_u64(pixel_clk * pixel_clk_10_khz_out,
-							pixel_clk_10_kHz_in);
+					(uint32_t)div_u64(pixel_clk * pixel_clk_10_khz_out,
+							  pixel_clk_10_kHz_in);
 		} else {
 			bp_params->adjusted_pixel_clock = 0;
 			BREAK_TO_DEBUGGER();
@@ -2662,8 +2662,8 @@ static enum bp_result set_dce_clock_v2_1(
 			!cmd->dc_clock_type_to_atom(bp_params->clock_type, &atom_clock_type))
 		return BP_RESULT_BADINPUT;
 
-	params.asParam.ucDCEClkSrc  = atom_pll_id;
-	params.asParam.ucDCEClkType = atom_clock_type;
+	params.asParam.ucDCEClkSrc = (uint8_t)atom_pll_id;
+	params.asParam.ucDCEClkType = (uint8_t)atom_clock_type;
 
 	if (bp_params->clock_type == DCECLOCK_TYPE_DPREFCLK) {
 		if (bp_params->flags.USE_GENLOCK_AS_SOURCE_FOR_DPREFCLK)

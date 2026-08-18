@@ -350,7 +350,7 @@ static int mei_vsc_probe(struct platform_device *pdev)
 	mei_device_init(mei_dev, dev, false, &mei_vsc_hw_ops);
 
 	mei_dev->fw_f_fw_ver_supported = 0;
-	mei_dev->kind = "ivsc";
+	mei_dev->kind = MEI_DEV_KIND_IVSC;
 
 	hw = mei_dev_to_vsc_hw(mei_dev);
 	atomic_set(&hw->write_lock_cnt, 0);

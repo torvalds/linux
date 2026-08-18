@@ -72,7 +72,7 @@ struct snd_seq_dummy_port {
 	int connect;
 };
 
-static int my_client = -1;
+static int my_client __ro_after_init = -1;
 
 /*
  * event input callback - just redirect events to subscribers

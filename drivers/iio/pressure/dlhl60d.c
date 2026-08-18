@@ -340,8 +340,8 @@ static const struct of_device_id dlh_of_match[] = {
 MODULE_DEVICE_TABLE(of, dlh_of_match);
 
 static const struct i2c_device_id dlh_id[] = {
-	{ "dlhl60d", (kernel_ulong_t)&dlhl60d_info },
-	{ "dlhl60g", (kernel_ulong_t)&dlhl60g_info },
+	{ .name = "dlhl60d", .driver_data = (kernel_ulong_t)&dlhl60d_info },
+	{ .name = "dlhl60g", .driver_data = (kernel_ulong_t)&dlhl60g_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, dlh_id);

@@ -1,0 +1,360 @@
+// SPDX-License-Identifier: GPL-2.0-only OR MIT
+/*
+ * Copyright (C) 2021-2022 Texas Instruments Incorporated - https://www.ti.com/
+ * Copyright (c) 2023-2026 TQ-Systems GmbH <linux@ew.tq-group.com>, D-82229 Seefeld, Germany.
+ * Author: Nora Schiffer
+ */
+
+#include "k3-am625.dtsi"
+
+/ {
+	aliases {
+		i2c0 = &main_i2c0;
+		mmc0 = &sdhci0;
+		spi0 = &ospi0;
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		/* 1G RAM */
+		reg = <0x00000000 0x80000000 0x00000000 0x40000000>;
+		bootph-pre-ram;
+	};
+
+	reserved_memory: reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		ramoops@9c700000 {
+			compatible = "ramoops";
+			reg = <0x00 0x9c700000 0x00 0x00100000>;
+			record-size = <0x8000>;
+			console-size = <0x8000>;
+			ftrace-size = <0x00>;
+			pmsg-size = <0x8000>;
+		};
+
+		/* global cma region */
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x00 0x8000000>;
+			linux,cma-default;
+		};
+
+		rtos_ipc_memory_region: memory@9c800000 {
+			compatible = "shared-dma-pool";
+			reg = <0x00 0x9c800000 0x00 0x00300000>;
+			no-map;
+		};
+
+		wkup_r5fss0_core0_dma_memory_region: memory@9da00000 {
+			compatible = "shared-dma-pool";
+			reg = <0x00 0x9da00000 0x00 0x100000>;
+			no-map;
+		};
+
+		wkup_r5fss0_core0_memory_region: memory@9db00000 {
+			compatible = "shared-dma-pool";
+			reg = <0x00 0x9db00000 0x00 0xc00000>;
+			no-map;
+		};
+
+		secure_tfa_ddr: tfa@9e780000 {
+			reg = <0x00 0x9e780000 0x00 0x80000>;
+			alignment = <0x1000>;
+			no-map;
+		};
+
+		secure_ddr: optee@9e800000 {
+			reg = <0x00 0x9e800000 0x00 0x01800000>; /* for OP-TEE */
+			alignment = <0x1000>;
+			no-map;
+		};
+	};
+
+	reg_3v3: regulator-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "V_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	reg_sd: regulator-sd {
+		/* Output of TPS6521902RSM */
+		compatible = "regulator-gpio";
+		regulator-name = "V_VDDSHV5";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		vin-supply = <&reg_ldo1>;
+		states = <1800000 0x0>,
+			 <3300000 0x1>;
+		/* Controlling GPIO set by base board */
+		status = "disabled";
+	};
+};
+
+&main_i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_i2c0_pins>;
+	clock-frequency = <400000>;
+	bootph-pre-ram;
+	status = "okay";
+
+	tps65219: pmic@30 {
+		compatible = "ti,tps65219";
+		reg = <0x30>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pmic_irq_pins>;
+		interrupt-parent = <&gic500>;
+		interrupts = <GIC_SPI 224 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-controller;
+		#interrupt-cells = <1>;
+		buck1-supply = <&reg_3v3>;
+		buck2-supply = <&reg_3v3>;
+		buck3-supply = <&reg_3v3>;
+		ldo1-supply = <&reg_3v3>;
+		ldo2-supply = <&reg_buck2>;
+		ldo3-supply = <&reg_3v3>;
+		ldo4-supply = <&reg_3v3>;
+		system-power-controller;
+		ti,power-button;
+
+		regulators {
+			reg_buck1: buck1 {
+				regulator-name = "V_VDD_CORE";
+				regulator-min-microvolt = <750000>;
+				regulator-max-microvolt = <750000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			reg_buck2: buck2 {
+				regulator-name = "V_1V8";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			reg_buck3: buck3 {
+				regulator-name = "V_1V1";
+				regulator-min-microvolt = <1100000>;
+				regulator-max-microvolt = <1100000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			reg_ldo1: ldo1 {
+				/* Actual voltage of LDO1 is controlled by GPIO, see reg_sd */
+				regulator-name = "V_VDDSHV5_3V3";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-allow-bypass;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			reg_ldo2: ldo2 {
+				regulator-name = "V_0V85";
+				regulator-min-microvolt = <850000>;
+				regulator-max-microvolt = <850000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			reg_ldo3: ldo3 {
+				regulator-name = "V_1V8A";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			reg_ldo4: ldo4 {
+				/* Unused */
+				regulator-name = "V_VLDO4";
+				regulator-boot-on;
+			};
+		};
+	};
+
+	tmp1075: temperature-sensor@4a {
+		compatible = "ti,tmp1075";
+		reg = <0x4a>;
+		vs-supply = <&reg_buck2>;
+	};
+
+	eeprom0: eeprom@50 {
+		compatible = "st,24c02", "atmel,24c02";
+		reg = <0x50>;
+		vcc-supply = <&reg_buck2>;
+		pagesize = <16>;
+		read-only;
+		bootph-pre-ram;
+	};
+
+	pcf85063: rtc@51 {
+		compatible = "nxp,pcf85063a";
+		reg = <0x51>;
+		quartz-load-femtofarads = <12500>;
+	};
+
+	eeprom1: eeprom@54 {
+		compatible = "st,24c64", "atmel,24c64";
+		reg = <0x54>;
+		vcc-supply = <&reg_buck2>;
+		pagesize = <32>;
+	};
+};
+
+&a53_opp_table {
+	opp-1400000000 {
+		opp-hz = /bits/ 64 <1400000000>;
+		opp-supported-hw = <0x01 0x0004>;
+		opp-suspend;
+		clock-latency-ns = <6000000>;
+		/*
+		 * Enabled by bootloader if supported. The PMIC configuration
+		 * will be adjusted accordingly, as a higher core voltage is
+		 * required for 1400MHz operation.
+		 */
+		status = "disabled";
+	};
+};
+
+&ospi0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&ospi0_pins>;
+	bootph-all;
+	status = "okay";
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0x0>;
+		vcc-supply = <&reg_buck2>;
+		spi-tx-bus-width = <8>;
+		spi-rx-bus-width = <8>;
+		spi-max-frequency = <84000000>;
+		bootph-all;
+		cdns,tshsl-ns = <60>;
+		cdns,tsd2d-ns = <60>;
+		cdns,tchsh-ns = <60>;
+		cdns,tslch-ns = <60>;
+		cdns,read-delay = <2>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			/* Filled by bootloader */
+		};
+	};
+};
+
+&sdhci0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_mmc0_pins>;
+	non-removable;
+	disable-wp;
+	no-sd;
+	no-sdio;
+	bootph-all;
+	ti,driver-strength-ohm = <50>;
+	status = "okay";
+};
+
+&wkup_rtc0 {
+	/*
+	 * Erratum i2327: We can't guarantee that the TQMa62xx will boot fast
+	 * enough for U-Boot to apply the workaround within one second after
+	 * power-on. Keep the RTC disabled to avoid RTC interrupt issues.
+	 *
+	 * The external RTC of the TQMa62xx should be used instead.
+	 *
+	 * If needed, the RTC can be enabled in a baseboard DTS, as long as
+	 * boot is fast enough on all relevant boot media.
+	 */
+	status = "disabled";
+};
+
+&main_pmx0 {
+	main_i2c0_pins: main-i2c0-pins {
+		pinctrl-single,pins = <
+			/* (B16) I2C0_SCL */
+			AM62X_IOPAD(0x1e0, PIN_INPUT, 0)
+			/* (A16) I2C0_SDA */
+			AM62X_IOPAD(0x1e4, PIN_INPUT, 0)
+		>;
+		bootph-pre-ram;
+	};
+
+	main_mmc0_pins: main-mmc0-pins {
+		pinctrl-single,pins = <
+			/* (Y3) MMC0_CMD */
+			AM62X_IOPAD(0x220, PIN_INPUT, 0)
+			/* (AB1) MMC0_CLK */
+			AM62X_IOPAD(0x218, PIN_INPUT, 0)
+			/* (AA2) MMC0_DAT0 */
+			AM62X_IOPAD(0x214, PIN_INPUT, 0)
+			/* (AA1) MMC0_DAT1 */
+			AM62X_IOPAD(0x210, PIN_INPUT, 0)
+			/* (AA3) MMC0_DAT2 */
+			AM62X_IOPAD(0x20c, PIN_INPUT, 0)
+			/* (Y4) MMC0_DAT3 */
+			AM62X_IOPAD(0x208, PIN_INPUT, 0)
+			/* (AB2) MMC0_DAT4 */
+			AM62X_IOPAD(0x204, PIN_INPUT, 0)
+			/* (AC1) MMC0_DAT5 */
+			AM62X_IOPAD(0x200, PIN_INPUT, 0)
+			/* (AD2) MMC0_DAT6 */
+			AM62X_IOPAD(0x1fc, PIN_INPUT, 0)
+			/* (AC2) MMC0_DAT7 */
+			AM62X_IOPAD(0x1f8, PIN_INPUT, 0)
+		>;
+		bootph-all;
+	};
+
+	ospi0_pins: ospi0-pins {
+		pinctrl-single,pins = <
+			/* (H24) OSPI0_CLK */
+			AM62X_IOPAD(0x000, PIN_OUTPUT, 0)
+			/* (F23) OSPI0_CSn0 */
+			AM62X_IOPAD(0x02c, PIN_OUTPUT, 0)
+			/* (E25) OSPI0_D0 */
+			AM62X_IOPAD(0x00c, PIN_INPUT, 0)
+			/* (G24) OSPI0_D1 */
+			AM62X_IOPAD(0x010, PIN_INPUT, 0)
+			/* (F25) OSPI0_D2 */
+			AM62X_IOPAD(0x014, PIN_INPUT, 0)
+			/* (F24) OSPI0_D3 */
+			AM62X_IOPAD(0x018, PIN_INPUT, 0)
+			/* (J23) OSPI0_D4 */
+			AM62X_IOPAD(0x01c, PIN_INPUT, 0)
+			/* (J25) OSPI0_D5 */
+			AM62X_IOPAD(0x020, PIN_INPUT, 0)
+			/* (H25) OSPI0_D6 */
+			AM62X_IOPAD(0x024, PIN_INPUT, 0)
+			/* (J22) OSPI0_D7 */
+			AM62X_IOPAD(0x028, PIN_INPUT, 0)
+			/* (J24) OSPI0_DQS */
+			AM62X_IOPAD(0x008, PIN_INPUT, 0)
+			/* (G25) OSPI0_LBCLKO */
+			AM62X_IOPAD(0x004, PIN_INPUT, 0)
+		>;
+	};
+
+	pmic_irq_pins: pmic-irq-pins {
+		pinctrl-single,pins = <
+			/* (D16) EXTINTn */
+			AM62X_IOPAD(0x01f4, PIN_INPUT_PULLUP, 0)
+		>;
+	};
+};
+
+#include "k3-am62-ti-ipc-firmware.dtsi"

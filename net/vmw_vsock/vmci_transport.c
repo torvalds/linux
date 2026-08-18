@@ -980,10 +980,8 @@ static int vmci_transport_recv_listen(struct sock *sk,
 			err = -EINVAL;
 		}
 
-		if (err < 0) {
+		if (err < 0)
 			vsock_remove_pending(sk, pending);
-			sk_acceptq_removed(sk);
-		}
 
 		release_sock(pending);
 		vmci_transport_release_pending(pending);
@@ -1010,7 +1008,7 @@ static int vmci_transport_recv_listen(struct sock *sk,
 	 * reset.  Otherwise we create and initialize a child socket and reply
 	 * with a connection negotiation.
 	 */
-	if (sk->sk_ack_backlog >= sk->sk_max_ack_backlog) {
+	if (sk_acceptq_is_full(sk)) {
 		vmci_transport_reply_reset(pkt);
 		return -ECONNREFUSED;
 	}
@@ -1109,7 +1107,6 @@ static int vmci_transport_recv_listen(struct sock *sk,
 	}
 
 	vsock_add_pending(sk, pending);
-	sk_acceptq_added(sk);
 
 	pending->sk_state = TCP_SYN_SENT;
 	vmci_trans(vpending)->produce_size =
@@ -1258,8 +1255,7 @@ vmci_transport_recv_connecting_server(struct sock *listener,
 	 * listener's pending list to the accept queue so callers of accept()
 	 * can find it.
 	 */
-	vsock_remove_pending(listener, pending);
-	vsock_enqueue_accept(listener, pending);
+	vsock_pending_to_accept(listener, pending);
 
 	/* Callers of accept() will be waiting on the listening socket, not
 	 * the pending socket.

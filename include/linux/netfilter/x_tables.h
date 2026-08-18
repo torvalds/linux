@@ -18,7 +18,7 @@
  * @match:	the match extension
  * @target:	the target extension
  * @matchinfo:	per-match data
- * @targetinfo:	per-target data
+ * @targinfo:	per-target data
  * @state:	pointer to hook state this packet came from
  * @fragoff:	packet is a fragment, this is the data offset
  * @thoff:	position of transport header relative to skb->data
@@ -77,7 +77,9 @@ static inline u_int8_t xt_family(const struct xt_action_param *par)
  * @match:	struct xt_match through which this function was invoked
  * @matchinfo:	per-match data
  * @hook_mask:	via which hooks the new rule is reachable
- * Other fields as above.
+ * @family:	actual NFPROTO_* through which the function is invoked
+ *		(helpful when match->family == NFPROTO_UNSPEC)
+ * @nft_compat:	running from the nft compat layer if true
  */
 struct xt_mtchk_param {
 	struct net *net;
@@ -91,8 +93,13 @@ struct xt_mtchk_param {
 };
 
 /**
- * struct xt_mdtor_param - match destructor parameters
- * Fields as above.
+ * struct xt_mtdtor_param - match destructor parameters
+ *
+ * @net:	network namespace through which the check was invoked
+ * @match:	struct xt_match through which this function was invoked
+ * @matchinfo:	per-match data
+ * @family:	actual NFPROTO_* through which the function is invoked
+ *		(helpful when match->family == NFPROTO_UNSPEC)
  */
 struct xt_mtdtor_param {
 	struct net *net;
@@ -105,10 +112,16 @@ struct xt_mtdtor_param {
  * struct xt_tgchk_param - parameters for target extensions'
  * checkentry functions
  *
+ * @net:	network namespace through which the check was invoked
+ * @table:	table the rule is tried to be inserted into
  * @entryinfo:	the family-specific rule data
  * 		(struct ipt_entry, ip6t_entry, arpt_entry, ebt_entry)
- *
- * Other fields see above.
+ * @target:	the target extension
+ * @targinfo:	per-target data
+ * @hook_mask:	via which hooks the new rule is reachable
+ * @family:	actual NFPROTO_* through which the function is invoked
+ *		(helpful when match->family == NFPROTO_UNSPEC)
+ * @nft_compat:	running from the nft compat layer if true
  */
 struct xt_tgchk_param {
 	struct net *net;
@@ -336,9 +349,9 @@ struct xt_table_info *xt_alloc_table_info(unsigned int size);
 void xt_free_table_info(struct xt_table_info *info);
 
 /**
- * xt_recseq - recursive seqcount for netfilter use
+ * var xt_recseq - recursive seqcount for netfilter use
  *
- * Packet processing changes the seqcount only if no recursion happened
+ * Packet processing changes the seqcount only if no recursion happened.
  * get_counters() can use read_seqcount_begin()/read_seqcount_retry(),
  * because we use the normal seqcount convention :
  * Low order bit set to 1 if a writer is active.
@@ -534,4 +547,21 @@ int xt_compat_check_entry_offsets(const void *base, const char *elems,
 				  unsigned int next_offset);
 
 #endif /* CONFIG_NETFILTER_XTABLES_COMPAT */
+
+static inline bool xt_compat_check(void)
+{
+#ifdef CONFIG_NETFILTER_XTABLES_COMPAT
+	if (!in_compat_syscall())
+		return true;
+
+	pr_warn_once("%s %s\n",
+		     "xtables 32bit compat interface no longer supported",
+		     "in namespaces and will be removed soon.");
+
+	if (!capable(CAP_NET_ADMIN))
+		return false;
+#endif
+	return true;
+}
+
 #endif /* _X_TABLES_H */

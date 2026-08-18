@@ -191,8 +191,8 @@ static const struct of_device_id __maybe_unused dps920ab_of_match[] = {
 MODULE_DEVICE_TABLE(of, dps920ab_of_match);
 
 static const struct i2c_device_id dps920ab_device_id[] = {
-	{ "dps920ab" },
-	{}
+	{ .name = "dps920ab" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, dps920ab_device_id);
 

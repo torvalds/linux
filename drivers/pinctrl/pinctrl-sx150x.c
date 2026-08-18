@@ -839,16 +839,16 @@ static const struct pinconf_ops sx150x_pinconf_ops = {
 };
 
 static const struct i2c_device_id sx150x_id[] = {
-	{"sx1501q", (kernel_ulong_t) &sx1501q_device_data },
-	{"sx1502q", (kernel_ulong_t) &sx1502q_device_data },
-	{"sx1503q", (kernel_ulong_t) &sx1503q_device_data },
-	{"sx1504q", (kernel_ulong_t) &sx1504q_device_data },
-	{"sx1505q", (kernel_ulong_t) &sx1505q_device_data },
-	{"sx1506q", (kernel_ulong_t) &sx1506q_device_data },
-	{"sx1507q", (kernel_ulong_t) &sx1507q_device_data },
-	{"sx1508q", (kernel_ulong_t) &sx1508q_device_data },
-	{"sx1509q", (kernel_ulong_t) &sx1509q_device_data },
-	{}
+	{ .name = "sx1501q", .driver_data = (kernel_ulong_t)&sx1501q_device_data },
+	{ .name = "sx1502q", .driver_data = (kernel_ulong_t)&sx1502q_device_data },
+	{ .name = "sx1503q", .driver_data = (kernel_ulong_t)&sx1503q_device_data },
+	{ .name = "sx1504q", .driver_data = (kernel_ulong_t)&sx1504q_device_data },
+	{ .name = "sx1505q", .driver_data = (kernel_ulong_t)&sx1505q_device_data },
+	{ .name = "sx1506q", .driver_data = (kernel_ulong_t)&sx1506q_device_data },
+	{ .name = "sx1507q", .driver_data = (kernel_ulong_t)&sx1507q_device_data },
+	{ .name = "sx1508q", .driver_data = (kernel_ulong_t)&sx1508q_device_data },
+	{ .name = "sx1509q", .driver_data = (kernel_ulong_t)&sx1509q_device_data },
+	{ }
 };
 
 static const struct of_device_id sx150x_of_match[] = {

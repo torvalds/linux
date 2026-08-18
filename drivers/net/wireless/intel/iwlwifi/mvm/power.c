@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2019, 2021-2025 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2019, 2021-2026 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -83,7 +83,7 @@ void iwl_mvm_beacon_filter_set_cqm_params(struct iwl_mvm *mvm,
 }
 
 static void iwl_mvm_power_log(struct iwl_mvm *mvm,
-			      struct iwl_mac_power_cmd *cmd)
+			      struct iwl_mac_power_cmd_v2 *cmd)
 {
 	IWL_DEBUG_POWER(mvm,
 			"Sending power table command on mac id 0x%X for power level %d, flags = 0x%X\n",
@@ -121,7 +121,7 @@ static void iwl_mvm_power_log(struct iwl_mvm *mvm,
 
 static void iwl_mvm_power_configure_uapsd(struct iwl_mvm *mvm,
 					  struct ieee80211_vif *vif,
-					  struct iwl_mac_power_cmd *cmd)
+					  struct iwl_mac_power_cmd_v2 *cmd)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	enum ieee80211_ac_numbers ac;
@@ -296,7 +296,7 @@ static bool iwl_mvm_power_is_radar(struct ieee80211_bss_conf *link_conf)
 
 static void iwl_mvm_power_config_skip_dtim(struct iwl_mvm *mvm,
 					   struct ieee80211_vif *vif,
-					   struct iwl_mac_power_cmd *cmd)
+					   struct iwl_mac_power_cmd_v2 *cmd)
 {
 	struct ieee80211_bss_conf *link_conf;
 	unsigned int min_link_skip = ~0;
@@ -344,7 +344,7 @@ static void iwl_mvm_power_config_skip_dtim(struct iwl_mvm *mvm,
 
 static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif,
-				    struct iwl_mac_power_cmd *cmd)
+				    struct iwl_mac_power_cmd_v2 *cmd)
 {
 	int dtimper, bi;
 	int keep_alive;
@@ -466,7 +466,7 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 static int iwl_mvm_power_send_cmd(struct iwl_mvm *mvm,
 					 struct ieee80211_vif *vif)
 {
-	struct iwl_mac_power_cmd cmd = {};
+	struct iwl_mac_power_cmd_v2 cmd = {};
 
 	iwl_mvm_power_build_cmd(mvm, vif, &cmd);
 	iwl_mvm_power_log(mvm, &cmd);
@@ -717,7 +717,7 @@ int iwl_mvm_power_mac_dbgfs_read(struct iwl_mvm *mvm,
 				 int bufsz)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_mac_power_cmd cmd = {};
+	struct iwl_mac_power_cmd_v2 cmd = {};
 	int pos = 0;
 
 	mutex_lock(&mvm->mutex);

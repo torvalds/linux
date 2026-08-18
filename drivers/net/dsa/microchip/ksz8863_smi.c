@@ -5,7 +5,6 @@
  * Copyright (C) 2019 Pengutronix, Michael Grzeschik <kernel@pengutronix.de>
  */
 
-#include <linux/mod_devicetable.h>
 #include <linux/property.h>
 
 #include "ksz8.h"
@@ -140,13 +139,13 @@ static int ksz8863_smi_probe(struct mdio_device *mdiodev)
 	int ret;
 	int i;
 
-	dev = ksz_switch_alloc(&mdiodev->dev, mdiodev);
-	if (!dev)
-		return -ENOMEM;
-
 	chip = device_get_match_data(ddev);
 	if (!chip)
 		return -EINVAL;
+
+	dev = ksz_switch_alloc(&mdiodev->dev, chip, mdiodev);
+	if (!dev)
+		return -ENOMEM;
 
 	for (i = 0; i < __KSZ_NUM_REGMAPS; i++) {
 		rc = ksz8863_regmap_config[i];

@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/test-bad-required-blank.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Test fixture missing required blank lines
+
+maintainers:
+  - Test User <test@example.com>
+
+properties:
+  compatible:
+    const: example,test-required-blank
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    bus@10000 {
+        compatible = "simple-bus";
+        reg = <0x10000 0x1000>;
+        status = "okay";
+        child@100 {
+            reg = <0x100>;
+        };
+    };

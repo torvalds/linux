@@ -48,7 +48,7 @@ struct msm_disp_state {
 
 	struct list_head blocks;
 
-	struct drm_atomic_state *atomic_state;
+	struct drm_atomic_commit *atomic_state;
 
 	struct timespec64 time;
 };

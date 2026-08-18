@@ -234,7 +234,19 @@ void svc_xprt_received(struct svc_xprt *xprt)
 	svc_xprt_get(xprt);
 	smp_mb__before_atomic();
 	clear_bit(XPT_BUSY, &xprt->xpt_flags);
-	svc_xprt_enqueue(xprt);
+
+	/*
+	 * Skip the enqueue when no actionable flags are set.
+	 * Each producer both sets its flag (XPT_DATA, XPT_CLOSE,
+	 * etc.) and calls svc_xprt_enqueue(); if a set_bit races
+	 * with this check, the producer's own enqueue observes
+	 * !XPT_BUSY and dispatches the transport.
+	 */
+	if (READ_ONCE(xprt->xpt_flags) &
+	    (BIT(XPT_CONN) | BIT(XPT_CLOSE) | BIT(XPT_HANDSHAKE) |
+	     BIT(XPT_DATA) | BIT(XPT_DEFERRED)))
+		svc_xprt_enqueue(xprt);
+
 	svc_xprt_put(xprt);
 }
 EXPORT_SYMBOL_GPL(svc_xprt_received);
@@ -425,13 +437,35 @@ static bool svc_xprt_reserve_slot(struct svc_rqst *rqstp, struct svc_xprt *xprt)
 	return true;
 }
 
+/*
+ * After a caller releases write-space or a request slot,
+ * re-enqueue the transport only when there is pending
+ * work that a thread could act on.  The smp_mb() pairs
+ * with the smp_rmb() in svc_xprt_ready() and orders the
+ * preceding counter update before the flags read so a
+ * concurrent set_bit(XPT_DATA) is visible here.
+ *
+ * When the transport is BUSY, the thread holding it will
+ * call svc_xprt_received() upon completion, which checks
+ * for pending work and re-enqueues as needed.
+ */
+static void svc_xprt_resource_released(struct svc_xprt *xprt)
+{
+	unsigned long xpt_flags;
+
+	smp_mb();
+	xpt_flags = READ_ONCE(xprt->xpt_flags);
+	if (xpt_flags & (BIT(XPT_DATA) | BIT(XPT_DEFERRED)) &&
+	    !(xpt_flags & BIT(XPT_BUSY)))
+		svc_xprt_enqueue(xprt);
+}
+
 static void svc_xprt_release_slot(struct svc_rqst *rqstp)
 {
 	struct svc_xprt	*xprt = rqstp->rq_xprt;
 	if (test_and_clear_bit(RQ_DATA, &rqstp->rq_flags)) {
 		atomic_dec(&xprt->xpt_nr_rqsts);
-		smp_wmb(); /* See smp_rmb() in svc_xprt_ready() */
-		svc_xprt_enqueue(xprt);
+		svc_xprt_resource_released(xprt);
 	}
 }
 
@@ -525,10 +559,10 @@ void svc_reserve(struct svc_rqst *rqstp, int space)
 	space += rqstp->rq_res.head[0].iov_len;
 
 	if (xprt && space < rqstp->rq_reserved) {
-		atomic_sub((rqstp->rq_reserved - space), &xprt->xpt_reserved);
+		atomic_sub((rqstp->rq_reserved - space),
+			   &xprt->xpt_reserved);
 		rqstp->rq_reserved = space;
-		smp_wmb(); /* See smp_rmb() in svc_xprt_ready() */
-		svc_xprt_enqueue(xprt);
+		svc_xprt_resource_released(xprt);
 	}
 }
 EXPORT_SYMBOL_GPL(svc_reserve);

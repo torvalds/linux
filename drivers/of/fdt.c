@@ -145,7 +145,7 @@ static void populate_properties(const void *blob,
 		 * used in pSeries dynamic device tree
 		 * stuff
 		 */
-		if (!strcmp(pname, "ibm,phandle"))
+		if (IS_ENABLED(CONFIG_PPC_PSERIES) && !strcmp(pname, "ibm,phandle"))
 			np->phandle = be32_to_cpup(val);
 
 		pp->name   = (char *)pname;
@@ -390,8 +390,6 @@ void *__unflatten_device_tree(const void *blob,
 	mem = dt_alloc(size + 4, __alignof__(struct device_node));
 	if (!mem)
 		return NULL;
-
-	memset(mem, 0, size);
 
 	*(__be32 *)(mem + size) = cpu_to_be32(0xdeadbeef);
 

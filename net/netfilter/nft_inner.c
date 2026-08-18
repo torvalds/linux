@@ -308,7 +308,7 @@ static void nft_inner_eval(const struct nft_expr *expr, struct nft_regs *regs,
 		nft_meta_inner_eval((struct nft_expr *)&priv->expr, regs, pkt, &tun_ctx);
 		break;
 	default:
-		WARN_ON_ONCE(1);
+		DEBUG_NET_WARN_ON_ONCE(1);
 		goto err;
 	}
 	nft_inner_save_tun_ctx(pkt, &tun_ctx);

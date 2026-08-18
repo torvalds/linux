@@ -40,10 +40,8 @@ static const struct option data_options[] = {
 		OPT_INCR('v', "verbose", &verbose, "be more verbose"),
 		OPT_STRING('i', "input", &input_name, "file", "input file name"),
 		OPT_STRING(0, "to-json", &to_json, NULL, "Convert to JSON format"),
-#ifdef HAVE_LIBBABELTRACE_SUPPORT
 		OPT_STRING(0, "to-ctf", &to_ctf, NULL, "Convert to CTF format"),
 		OPT_BOOLEAN(0, "tod", &opts.tod, "Convert time to wall clock time"),
-#endif
 		OPT_BOOLEAN('f', "force", &opts.force, "don't complain, do it"),
 		OPT_BOOLEAN(0, "all", &opts.all, "Convert all events"),
 		OPT_STRING(0, "time", &opts.time_str, "str",
@@ -65,29 +63,21 @@ static int cmd_data_convert(int argc, const char **argv)
 		pr_err("You cannot specify both --to-ctf and --to-json.\n");
 		return -1;
 	}
-#ifdef HAVE_LIBBABELTRACE_SUPPORT
 	if (!to_json && !to_ctf) {
 		pr_err("You must specify one of --to-ctf or --to-json.\n");
 		return -1;
 	}
-#else
-	if (!to_json) {
-		pr_err("You must specify --to-json.\n");
-	return -1;
-}
-#endif
 
 	if (to_json)
 		return bt_convert__perf2json(input_name, to_json, &opts);
 
 	if (to_ctf) {
-#if defined(HAVE_LIBBABELTRACE_SUPPORT) && defined(HAVE_LIBTRACEEVENT)
+#if defined(HAVE_BABELTRACE2_CTF_WRITER_SUPPORT) && defined(HAVE_LIBTRACEEVENT)
 		return bt_convert__perf2ctf(input_name, to_ctf, &opts);
 #else
-		pr_err("The libbabeltrace support is not compiled in. perf should be "
-		       "compiled with environment variables LIBBABELTRACE=1 and "
-		       "LIBBABELTRACE_DIR=/path/to/libbabeltrace/.\n"
-		       "Check also if libbtraceevent devel files are available.\n");
+		pr_err("The babeltrace2 ctf support is not compiled in. Ensure you have both\n"
+			"libbabeltrace2-dev[el] and libtraceevent-dev[el] installed or set\n"
+			"PKG_CONFIG_PATH to find a local installation of those libraries.\n");
 		return -1;
 #endif
 	}

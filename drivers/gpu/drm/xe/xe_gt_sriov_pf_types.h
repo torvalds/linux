@@ -49,7 +49,6 @@ struct xe_gt_sriov_pf_workers {
  * @service: service data.
  * @control: control data.
  * @policy: policy data.
- * @migration: migration data.
  * @spare: PF-only provisioning configuration.
  * @vfs: metadata for all VFs.
  */

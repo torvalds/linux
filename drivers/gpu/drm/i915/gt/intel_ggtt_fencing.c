@@ -7,6 +7,7 @@
 
 #include <drm/drm_print.h>
 #include <drm/intel/intel_gmd_misc_regs.h>
+#include <drm/intel/mchbar_regs.h>
 
 #include "display/intel_display.h"
 #include "i915_drv.h"
@@ -15,7 +16,6 @@
 #include "i915_pvinfo.h"
 #include "i915_vgpu.h"
 #include "intel_gt_regs.h"
-#include "intel_mchbar_regs.h"
 
 /**
  * DOC: fence register handling

@@ -5,6 +5,7 @@
  * Copyright (C) 2025 Renesas Electronics Corp.
  */
 
+#include <dt-bindings/clock/renesas,r9a09g077-cpg-mssr.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/leds/common.h>
 #include <dt-bindings/net/mscc-phy-vsc8531.h>
@@ -20,6 +21,8 @@
 		mmc0 = &sdhi0;
 		mmc1 = &sdhi1;
 		serial0 = &sci0;
+		spi0 = &xspi0;
+		spi1 = &xspi1;
 	};
 
 	chosen {
@@ -275,12 +278,63 @@
 				 <RZT2H_PORT_PINMUX(12, 7, 0x29)>, /* SD0_DATA5 */
 				 <RZT2H_PORT_PINMUX(13, 0, 0x29)>, /* SD0_DATA6 */
 				 <RZT2H_PORT_PINMUX(13, 1, 0x29)>; /* SD0_DATA7 */
+			drive-strength-microamp = <5000>;
+			slew-rate = <1>;
+			input-schmitt-disable;
 		};
 
-		ctrl-pins {
-			pinmux = <RZT2H_PORT_PINMUX(12, 0, 0x29)>, /* SD0_CLK */
-				 <RZT2H_PORT_PINMUX(12, 1, 0x29)>, /* SD0_CMD */
-				 <RZT2H_PORT_PINMUX(13, 2, 0x29)>; /* SD0_RST# */
+		clk-pins {
+			pinmux = <RZT2H_PORT_PINMUX(12, 0, 0x29)>; /* SD0_CLK */
+			drive-strength-microamp = <9000>;
+			slew-rate = <1>;
+		};
+
+		cmd-pins {
+			pinmux = <RZT2H_PORT_PINMUX(12, 1, 0x29)>; /* SD0_CMD */
+			drive-strength-microamp = <5000>;
+			slew-rate = <1>;
+			input-schmitt-disable;
+		};
+
+		rst-pins {
+			pinmux = <RZT2H_PORT_PINMUX(13, 2, 0x29)>; /* SD0_RST# */
+			drive-strength-microamp = <5000>;
+			slew-rate = <1>;
+		};
+	};
+
+	sdhi0_emmc_uhs_pins: sd0-emmc-uhs-group {
+		data-pins {
+			pinmux = <RZT2H_PORT_PINMUX(12, 2, 0x29)>, /* SD0_DATA0 */
+				 <RZT2H_PORT_PINMUX(12, 3, 0x29)>, /* SD0_DATA1 */
+				 <RZT2H_PORT_PINMUX(12, 4, 0x29)>, /* SD0_DATA2 */
+				 <RZT2H_PORT_PINMUX(12, 5, 0x29)>, /* SD0_DATA3 */
+				 <RZT2H_PORT_PINMUX(12, 6, 0x29)>, /* SD0_DATA4 */
+				 <RZT2H_PORT_PINMUX(12, 7, 0x29)>, /* SD0_DATA5 */
+				 <RZT2H_PORT_PINMUX(13, 0, 0x29)>, /* SD0_DATA6 */
+				 <RZT2H_PORT_PINMUX(13, 1, 0x29)>; /* SD0_DATA7 */
+			drive-strength-microamp = <9000>;
+			slew-rate = <1>;
+			input-schmitt-disable;
+		};
+
+		clk-pins {
+			pinmux = <RZT2H_PORT_PINMUX(12, 0, 0x29)>; /* SD0_CLK */
+			drive-strength-microamp = <11800>;
+			slew-rate = <1>;
+		};
+
+		cmd-pins {
+			pinmux = <RZT2H_PORT_PINMUX(12, 1, 0x29)>; /* SD0_CMD */
+			drive-strength-microamp = <9000>;
+			slew-rate = <1>;
+			input-schmitt-disable;
+		};
+
+		rst-pins {
+			pinmux = <RZT2H_PORT_PINMUX(13, 2, 0x29)>; /* SD0_RST# */
+			drive-strength-microamp = <9000>;
+			slew-rate = <1>;
 		};
 	};
 
@@ -299,12 +353,49 @@
 				 <RZT2H_PORT_PINMUX(12, 3, 0x29)>, /* SD0_DATA1 */
 				 <RZT2H_PORT_PINMUX(12, 4, 0x29)>, /* SD0_DATA2 */
 				 <RZT2H_PORT_PINMUX(12, 5, 0x29)>; /* SD0_DATA3 */
+			drive-strength-microamp = <5000>;
+			slew-rate = <1>;
+			input-schmitt-disable;
+		};
+
+		clk-pins {
+			pinmux = <RZT2H_PORT_PINMUX(12, 0, 0x29)>; /* SD0_CLK */
+			drive-strength-microamp = <9000>;
+			slew-rate = <1>;
 		};
 
 		ctrl-pins {
-			pinmux = <RZT2H_PORT_PINMUX(12, 0, 0x29)>, /* SD0_CLK */
-				 <RZT2H_PORT_PINMUX(12, 1, 0x29)>, /* SD0_CMD */
+			pinmux = <RZT2H_PORT_PINMUX(12, 1, 0x29)>, /* SD0_CMD */
 				 <RZT2H_PORT_PINMUX(22, 5, 0x29)>; /* SD0_CD */
+			drive-strength-microamp = <5000>;
+			slew-rate = <1>;
+			input-schmitt-disable;
+		};
+	};
+
+	sdhi0_sd_uhs_pins: sd0-sd-uhs-group {
+		data-pins {
+			pinmux = <RZT2H_PORT_PINMUX(12, 2, 0x29)>, /* SD0_DATA0 */
+				 <RZT2H_PORT_PINMUX(12, 3, 0x29)>, /* SD0_DATA1 */
+				 <RZT2H_PORT_PINMUX(12, 4, 0x29)>, /* SD0_DATA2 */
+				 <RZT2H_PORT_PINMUX(12, 5, 0x29)>; /* SD0_DATA3 */
+			drive-strength-microamp = <9000>;
+			slew-rate = <1>;
+			input-schmitt-disable;
+		};
+
+		clk-pins {
+			pinmux = <RZT2H_PORT_PINMUX(12, 0, 0x29)>; /* SD0_CLK */
+			drive-strength-microamp = <11800>;
+			slew-rate = <1>;
+		};
+
+		ctrl-pins {
+			pinmux = <RZT2H_PORT_PINMUX(12, 1, 0x29)>, /* SD0_CMD */
+				 <RZT2H_PORT_PINMUX(22, 5, 0x29)>; /* SD0_CD */
+			drive-strength-microamp = <9000>;
+			slew-rate = <1>;
+			input-schmitt-disable;
 		};
 	};
 
@@ -323,13 +414,89 @@
 				 <RZT2H_PORT_PINMUX(17, 0, 0x29)>, /* SD1_DATA1 */
 				 <RZT2H_PORT_PINMUX(17, 1, 0x29)>, /* SD1_DATA2 */
 				 <RZT2H_PORT_PINMUX(17, 2, 0x29)>; /* SD1_DATA3 */
+			drive-strength-microamp = <5000>;
+			slew-rate = <1>;
+			input-schmitt-disable;
+		};
+
+		clk-pins {
+			pinmux = <RZT2H_PORT_PINMUX(16, 5, 0x29)>; /* SD1_CLK */
+			drive-strength-microamp = <9000>;
+			slew-rate = <1>;
 		};
 
 		ctrl-pins {
-			pinmux = <RZT2H_PORT_PINMUX(16, 5, 0x29)>, /* SD1_CLK */
-				 <RZT2H_PORT_PINMUX(16, 6, 0x29)>, /* SD1_CMD */
+			pinmux = <RZT2H_PORT_PINMUX(16, 6, 0x29)>, /* SD1_CMD */
 				 <RZT2H_PORT_PINMUX(17, 4, 0x29)>; /* SD1_CD */
+			drive-strength-microamp = <5000>;
+			slew-rate = <1>;
+			input-schmitt-disable;
 		};
+	};
+
+	sdhi1_uhs_pins: sd1-uhs-group {
+		data-pins {
+			pinmux = <RZT2H_PORT_PINMUX(16, 7, 0x29)>, /* SD1_DATA0 */
+				 <RZT2H_PORT_PINMUX(17, 0, 0x29)>, /* SD1_DATA1 */
+				 <RZT2H_PORT_PINMUX(17, 1, 0x29)>, /* SD1_DATA2 */
+				 <RZT2H_PORT_PINMUX(17, 2, 0x29)>; /* SD1_DATA3 */
+			drive-strength-microamp = <9000>;
+			slew-rate = <1>;
+			input-schmitt-disable;
+		};
+
+		clk-pins {
+			pinmux = <RZT2H_PORT_PINMUX(16, 5, 0x29)>; /* SD1_CLK */
+			drive-strength-microamp = <11800>;
+			slew-rate = <1>;
+		};
+
+		ctrl-pins {
+			pinmux = <RZT2H_PORT_PINMUX(16, 6, 0x29)>, /* SD1_CMD */
+				 <RZT2H_PORT_PINMUX(17, 4, 0x29)>; /* SD1_CD */
+			drive-strength-microamp = <9000>;
+			slew-rate = <1>;
+			input-schmitt-disable;
+		};
+	};
+
+	xspi0_pins: xspi0-group {
+		ctrl-data-pins {
+			pinmux = <RZT2H_PORT_PINMUX(5, 1, 0x1c)>, /* XSPI0_CKP */
+				 <RZT2H_PORT_PINMUX(5, 3, 0x1c)>, /* XSPI0_CS0 */
+				 <RZT2H_PORT_PINMUX(5, 5, 0x1c)>, /* XSPI0_DS */
+				 <RZT2H_PORT_PINMUX(5, 6, 0x1c)>, /* XSPI0_IO0 */
+				 <RZT2H_PORT_PINMUX(5, 7, 0x1c)>, /* XSPI0_IO1 */
+				 <RZT2H_PORT_PINMUX(6, 0, 0x1c)>, /* XSPI0_IO2 */
+				 <RZT2H_PORT_PINMUX(6, 1, 0x1c)>, /* XSPI0_IO3 */
+				 <RZT2H_PORT_PINMUX(6, 2, 0x1c)>, /* XSPI0_IO4 */
+				 <RZT2H_PORT_PINMUX(6, 3, 0x1c)>, /* XSPI0_IO5 */
+				 <RZT2H_PORT_PINMUX(6, 4, 0x1c)>, /* XSPI0_IO6 */
+				 <RZT2H_PORT_PINMUX(6, 5, 0x1c)>, /* XSPI0_IO7 */
+				 <RZT2H_PORT_PINMUX(6, 6, 0x1c)>; /* XSPI0_RESET0 */
+			drive-strength-microamp = <9000>;
+			input-schmitt-disable;
+			slew-rate = <1>;
+		};
+	};
+
+	/*
+	 * XSPI1 Pin Configuration:
+	 * ------------------------
+	 * Signal     | Pin      | RZ/T2H (SW1)  | RZ/N2H (DSW2)
+	 * -----------|----------|---------------|---------------
+	 * ALL        | Multiple | 6: ON         | 6: ON
+	 */
+	xspi1_pins: xspi1-pins {
+		pinmux = <RZT2H_PORT_PINMUX(1, 0, 0x1c)>, /* XSPI1_CKP */
+			 <RZT2H_PORT_PINMUX(1, 1, 0x1c)>, /* XSPI1_CS0 */
+			 <RZT2H_PORT_PINMUX(1, 4, 0x1c)>, /* XSPI1_IO0 */
+			 <RZT2H_PORT_PINMUX(1, 5, 0x1c)>, /* XSPI1_IO1 */
+			 <RZT2H_PORT_PINMUX(1, 6, 0x1c)>, /* XSPI1_IO2 */
+			 <RZT2H_PORT_PINMUX(1, 7, 0x1c)>; /* XSPI1_IO3 */
+		drive-strength-microamp = <9000>;
+		input-schmitt-enable;
+		slew-rate = <1>;
 	};
 };
 
@@ -342,7 +509,7 @@
 #if SD0_EMMC
 &sdhi0 {
 	pinctrl-0 = <&sdhi0_emmc_pins>;
-	pinctrl-1 = <&sdhi0_emmc_pins>;
+	pinctrl-1 = <&sdhi0_emmc_uhs_pins>;
 	pinctrl-names = "default", "state_uhs";
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&reg_1p8v>;
@@ -357,7 +524,7 @@
 #if SD0_SD
 &sdhi0 {
 	pinctrl-0 = <&sdhi0_sd_pins>;
-	pinctrl-1 = <&sdhi0_sd_pins>;
+	pinctrl-1 = <&sdhi0_sd_uhs_pins>;
 	pinctrl-names = "default", "state_uhs";
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&vqmmc_sdhi0>;
@@ -372,7 +539,7 @@
 #if SD1_MICRO_SD
 &sdhi1 {
 	pinctrl-0 = <&sdhi1_pins>;
-	pinctrl-1 = <&sdhi1_pins>;
+	pinctrl-1 = <&sdhi1_uhs_pins>;
 	pinctrl-names = "default", "state_uhs";
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&vccq_sdhi1>;
@@ -395,3 +562,88 @@
 	timeout-sec = <60>;
 };
 
+&xspi0 {
+	pinctrl-0 = <&xspi0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	assigned-clocks = <&cpg CPG_CORE R9A09G077_XSPI_CLK0>;
+	assigned-clock-rates = <50000000>;
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		vcc-supply = <&reg_3p3v>;
+		m25p,fast-read;
+		/*
+		 * Configure for 1-bit mode to prevent the BootROM from failing
+		 * to load the first-stage bootloader following a watchdog reset.
+		 */
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <1>;
+		spi-max-frequency = <50000000>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "bl2-0";
+				reg = <0x00000000 0x00060000>;
+				read-only;
+			};
+
+			partition@60000 {
+				label = "fip-0";
+				reg = <0x00060000 0x007a0000>;
+				read-only;
+			};
+
+			partition@800000 {
+				label = "user-0";
+				reg = <0x800000 0x003800000>;
+			};
+		};
+	};
+};
+
+&xspi1 {
+	pinctrl-0 = <&xspi1_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	assigned-clocks = <&cpg CPG_CORE R9A09G077_XSPI_CLK1>;
+	assigned-clock-rates = <50000000>;
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		vcc-supply = <&reg_3p3v>;
+		m25p,fast-read;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+		spi-max-frequency = <50000000>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "bl2-1";
+				reg = <0x00000000 0x00060000>;
+			};
+
+			partition@60000 {
+				label = "fip-1";
+				reg = <0x00060000 0x007a0000>;
+			};
+
+			partition@800000 {
+				label = "user-1";
+				reg = <0x800000 0x800000>;
+			};
+		};
+	};
+};

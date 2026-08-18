@@ -238,15 +238,13 @@ static int framer_dai_startup(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static const u64 framer_dai_formats[] = {
-	SND_SOC_POSSIBLE_DAIFMT_DSP_B,
-};
+static const u64 framer_dai_formats = SND_SOC_POSSIBLE_DAIFMT_DSP_B;
 
 static const struct snd_soc_dai_ops framer_dai_ops = {
 	.startup	= framer_dai_startup,
 	.set_tdm_slot	= framer_dai_set_tdm_slot,
-	.auto_selectable_formats     = framer_dai_formats,
-	.num_auto_selectable_formats = ARRAY_SIZE(framer_dai_formats),
+	.auto_selectable_formats     = &framer_dai_formats,
+	.num_auto_selectable_formats = 1,
 };
 
 static struct snd_soc_dai_driver framer_dai_driver = {

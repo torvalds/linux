@@ -135,8 +135,8 @@ static int adl_pci8164_pci_probe(struct pci_dev *dev,
 }
 
 static const struct pci_device_id adl_pci8164_pci_table[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, 0x8164) },
-	{ 0 }
+	{ PCI_VDEVICE(ADLINK, 0x8164) },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, adl_pci8164_pci_table);
 

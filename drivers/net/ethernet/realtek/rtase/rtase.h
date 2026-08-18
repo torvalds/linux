@@ -153,6 +153,10 @@ enum rtase_registers {
 #define RTASE_FORCE_TXFLOW_EN BIT(10)
 #define RTASE_RX_CHKSUM       BIT(5)
 
+	RTASE_GPHY_STD_00 = 0x6024,
+#define RTASE_RXFLOW_EN BIT(7)
+#define RTASE_TXFLOW_EN BIT(6)
+
 	RTASE_Q0_RX_DESC_ADDR0 = 0x00E4,
 	RTASE_Q0_RX_DESC_ADDR4 = 0x00E8,
 	RTASE_Q1_RX_DESC_ADDR0 = 0x4000,
@@ -186,6 +190,12 @@ enum rtase_desc_status_bit {
 enum rtase_sw_flag_content {
 	RTASE_SWF_MSI_ENABLED  = BIT(1),
 	RTASE_SWF_MSIX_ENABLED = BIT(2),
+};
+
+enum rtase_parse_result {
+	RTASE_PARSE_OK,
+	RTASE_PARSE_SKIP,
+	RTASE_PARSE_DROP,
 };
 
 #define RSVD_MASK 0x3FFFC000
@@ -358,5 +368,7 @@ struct rtase_private {
 #define RTASE_TCPHO_MASK GENMASK(24, 18)
 
 #define RTASE_MSS_MASK GENMASK(28, 18)
+
+#define RTASE_MIN_PAD_LEN 47
 
 #endif /* RTASE_H */

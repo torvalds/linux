@@ -2109,7 +2109,7 @@ static const struct snd_soc_component_driver soc_component_dev_max98095 = {
 };
 
 static const struct i2c_device_id max98095_i2c_id[] = {
-	{ "max98095", MAX98095 },
+	{ .name = "max98095", .driver_data = MAX98095 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max98095_i2c_id);

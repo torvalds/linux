@@ -2,7 +2,6 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
-#include <linux/mod_devicetable.h>
 #include <linux/errno.h>
 #include <linux/irq.h>
 #include <linux/of.h>

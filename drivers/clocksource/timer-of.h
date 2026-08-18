@@ -65,9 +65,8 @@ static inline unsigned long timer_of_period(struct timer_of *to)
 	return to->of_clk.period;
 }
 
-extern int __init timer_of_init(struct device_node *np,
-				struct timer_of *to);
+int timer_of_init(struct device_node *np, struct timer_of *to);
 
-extern void __init timer_of_cleanup(struct timer_of *to);
+void timer_of_cleanup(struct timer_of *to);
 
 #endif

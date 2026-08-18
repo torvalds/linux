@@ -1021,6 +1021,7 @@ mlxsw_sp_fid_port_vid_list_add(struct mlxsw_sp_fid *fid, u16 local_port,
 			       u16 vid)
 {
 	struct mlxsw_sp_fid_port_vid *port_vid, *tmp_port_vid;
+	struct list_head *insert_before = &fid->port_vid_list;
 
 	port_vid = kzalloc_obj(*port_vid);
 	if (!port_vid)
@@ -1030,11 +1031,13 @@ mlxsw_sp_fid_port_vid_list_add(struct mlxsw_sp_fid *fid, u16 local_port,
 	port_vid->vid = vid;
 
 	list_for_each_entry(tmp_port_vid, &fid->port_vid_list, list) {
-		if (tmp_port_vid->local_port > local_port)
+		if (tmp_port_vid->local_port > local_port) {
+			insert_before = &tmp_port_vid->list;
 			break;
+		}
 	}
 
-	list_add_tail(&port_vid->list, &tmp_port_vid->list);
+	list_add_tail(&port_vid->list, insert_before);
 	return 0;
 }
 

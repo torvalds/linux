@@ -8,7 +8,7 @@
 
 #include <linux/types.h>
 
-#include "i915_reg_defs.h"
+#include "intel_display_reg_defs.h"
 
 struct intel_atomic_state;
 struct intel_crtc;
@@ -37,11 +37,11 @@ void intel_dsb_gosub_finish(struct intel_dsb *dsb);
 void intel_dsb_cleanup(struct intel_dsb *dsb);
 int intel_dsb_exec_time_us(void);
 void intel_dsb_reg_write(struct intel_dsb *dsb,
-			 i915_reg_t reg, u32 val);
+			 intel_reg_t reg, u32 val);
 void intel_dsb_reg_write_indexed(struct intel_dsb *dsb,
-				 i915_reg_t reg, u32 val);
+				 intel_reg_t reg, u32 val);
 void intel_dsb_reg_write_masked(struct intel_dsb *dsb,
-				i915_reg_t reg, u32 mask, u32 val);
+				intel_reg_t reg, u32 mask, u32 val);
 void intel_dsb_noop(struct intel_dsb *dsb, int count);
 void intel_dsb_nonpost_start(struct intel_dsb *dsb);
 void intel_dsb_nonpost_end(struct intel_dsb *dsb);
@@ -59,7 +59,7 @@ void intel_dsb_wait_scanline_out(struct intel_atomic_state *state,
 void intel_dsb_vblank_evade(struct intel_atomic_state *state,
 			    struct intel_dsb *dsb);
 void intel_dsb_poll(struct intel_dsb *dsb,
-		    i915_reg_t reg, u32 mask, u32 val,
+		    intel_reg_t reg, u32 mask, u32 val,
 		    int wait_us, int count);
 void intel_dsb_gosub(struct intel_dsb *dsb,
 		     struct intel_dsb *sub_dsb);

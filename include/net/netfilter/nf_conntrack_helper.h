@@ -29,23 +29,28 @@ enum nf_ct_helper_flags {
 
 #define NF_CT_HELPER_NAME_LEN	16
 
+/* Must be kept in sync with the classes defined by helpers */
+#define NF_CT_MAX_EXPECT_CLASSES	4
+
 struct nf_conntrack_helper {
 	struct hlist_node hnode;	/* Internal use. */
 
+	struct rcu_head rcu;
+
 	char name[NF_CT_HELPER_NAME_LEN]; /* name of the module */
-	refcount_t refcnt;
 	struct module *me;		/* pointer to self */
-	const struct nf_conntrack_expect_policy *expect_policy;
+	struct nf_conntrack_expect_policy expect_policy[NF_CT_MAX_EXPECT_CLASSES];
+
+	refcount_t ct_refcnt;
 
 	/* Tuple of things we will help (compared against server response) */
 	struct nf_conntrack_tuple tuple;
 
 	/* Function to call when data passes; return verdict, or -1 to
            invalidate. */
-	int (*help)(struct sk_buff *skb,
-		    unsigned int protoff,
-		    struct nf_conn *ct,
-		    enum ip_conntrack_info conntrackinfo);
+	int __rcu (*help)(struct sk_buff *skb, unsigned int protoff,
+			  struct nf_conn *ct,
+			  enum ip_conntrack_info conntrackinfo);
 
 	void (*destroy)(struct nf_conn *ct);
 
@@ -62,9 +67,6 @@ struct nf_conntrack_helper {
 	/* name of NAT helper module */
 	char nat_mod_name[NF_CT_HELPER_NAME_LEN];
 };
-
-/* Must be kept in sync with the classes defined by helpers */
-#define NF_CT_MAX_EXPECT_CLASSES	4
 
 /* nf_conn feature for connections that have a helper */
 struct nf_conn_help {
@@ -103,12 +105,18 @@ void nf_ct_helper_init(struct nf_conntrack_helper *helper,
 					  struct nf_conn *ct),
 		       struct module *module);
 
-int nf_conntrack_helper_register(struct nf_conntrack_helper *);
+int nf_conntrack_helper_register(struct nf_conntrack_helper *, struct nf_conntrack_helper **);
+int __nf_conntrack_helper_register(struct nf_conntrack_helper *);
 void nf_conntrack_helper_unregister(struct nf_conntrack_helper *);
 
-int nf_conntrack_helpers_register(struct nf_conntrack_helper *, unsigned int);
-void nf_conntrack_helpers_unregister(struct nf_conntrack_helper *,
+int nf_conntrack_helpers_register(struct nf_conntrack_helper *, unsigned int,
+				  struct nf_conntrack_helper **);
+void nf_conntrack_helpers_unregister(struct nf_conntrack_helper **,
 				     unsigned int);
+
+#define nf_conntrack_helper_deprecated(name) \
+	pr_warn("The %s conntrack helper is scheduled for removal.\n"	\
+		"Please contact the netfilter-devel mailing list if you still need this.\n", name)
 
 struct nf_conn_help *nf_ct_helper_ext_add(struct nf_conn *ct, gfp_t gfp);
 
@@ -132,8 +140,24 @@ static inline void *nfct_help_data(const struct nf_conn *ct)
 	struct nf_conn_help *help;
 
 	help = nf_ct_ext_find(ct, NF_CT_EXT_HELPER);
+	if (!help)
+		return NULL;
 
 	return (void *)help->data;
+}
+
+static inline void nf_ct_help_put(const struct nf_conn *ct)
+{
+	struct nf_conntrack_helper *helper;
+	struct nf_conn_help *help;
+
+	help = nfct_help(ct);
+	if (!help)
+		return;
+
+	helper = rcu_dereference(help->helper);
+	if (helper && refcount_dec_and_test(&helper->ct_refcnt))
+		kfree_rcu(helper, rcu);
 }
 
 int nf_conntrack_helper_init(void);

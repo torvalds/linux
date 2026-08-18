@@ -82,7 +82,7 @@ static const struct drm_plane_funcs mi0283qt_plane_funcs = {
 };
 
 static void mi0283qt_crtc_helper_atomic_enable(struct drm_crtc *crtc,
-					       struct drm_atomic_state *state)
+					       struct drm_atomic_commit *state)
 {
 	struct drm_device *drm = crtc->dev;
 	struct mi0283qt_device *mi0283qt = to_mi0283qt_device(drm);

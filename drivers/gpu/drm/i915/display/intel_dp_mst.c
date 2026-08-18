@@ -32,6 +32,7 @@
 #include <drm/drm_fixed.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/intel/step.h>
 
 #include "intel_atomic.h"
 #include "intel_audio.h"
@@ -56,7 +57,6 @@
 #include "intel_link_bw.h"
 #include "intel_pfit.h"
 #include "intel_psr.h"
-#include "intel_step.h"
 #include "intel_vdsc.h"
 #include "intel_vrr.h"
 #include "skl_scaler.h"
@@ -251,7 +251,7 @@ int intel_dp_mtp_tu_compute_config(struct intel_dp *intel_dp,
 				   int min_bpp_x16, int max_bpp_x16, int bpp_step_x16, bool dsc)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
-	struct drm_atomic_state *state = crtc_state->uapi.state;
+	struct drm_atomic_commit *state = crtc_state->uapi.state;
 	struct drm_dp_mst_topology_state *mst_state = NULL;
 	struct intel_connector *connector =
 		to_intel_connector(conn_state->connector);
@@ -721,7 +721,14 @@ static int mst_stream_compute_config(struct intel_encoder *encoder,
 
 	pipe_config->sink_format = INTEL_OUTPUT_FORMAT_RGB;
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
-	pipe_config->has_pch_encoder = false;
+
+	ret = intel_pfit_compute_config(pipe_config, conn_state);
+	if (ret)
+		return ret;
+
+	ret = intel_pfit_compute_config(pipe_config, conn_state);
+	if (ret)
+		return ret;
 
 	for_each_joiner_candidate(connector, adjusted_mode, num_joined_pipes) {
 		if (num_joined_pipes > 1)
@@ -834,7 +841,7 @@ static int intel_dp_mst_check_dsc_change(struct intel_atomic_state *state,
 
 	mst_pipe_mask = get_pipes_downstream_of_mst_port(state, mst_mgr, NULL);
 
-	for_each_intel_crtc_in_pipe_mask(display->drm, crtc, mst_pipe_mask) {
+	for_each_intel_crtc_in_pipe_mask(display, crtc, mst_pipe_mask) {
 		struct intel_crtc_state *crtc_state =
 			intel_atomic_get_new_crtc_state(state, crtc);
 
@@ -996,7 +1003,7 @@ mst_connector_atomic_topology_check(struct intel_connector *connector,
 
 static int
 mst_connector_atomic_check(struct drm_connector *_connector,
-			   struct drm_atomic_state *_state)
+			   struct drm_atomic_commit *_state)
 {
 	struct intel_atomic_state *state = to_intel_atomic_state(_state);
 	struct intel_connector *connector = to_intel_connector(_connector);
@@ -1062,14 +1069,13 @@ static void mst_stream_post_disable(struct intel_atomic_state *state,
 		drm_atomic_get_mst_payload_state(new_mst_state, connector->mst.port);
 	struct intel_crtc *pipe_crtc;
 	bool last_mst_stream;
-	int i;
 
 	last_mst_stream = intel_dp_mst_dec_active_streams(intel_dp);
 
 	drm_WARN_ON(display->drm, DISPLAY_VER(display) >= 12 && last_mst_stream &&
 		    !intel_dp_mst_is_master_trans(old_crtc_state));
 
-	for_each_pipe_crtc_modeset_disable(display, pipe_crtc, old_crtc_state, i) {
+	for_each_pipe_crtc_modeset_disable(display, pipe_crtc, old_crtc_state) {
 		const struct intel_crtc_state *old_pipe_crtc_state =
 			intel_atomic_get_old_crtc_state(state, pipe_crtc);
 
@@ -1096,7 +1102,7 @@ static void mst_stream_post_disable(struct intel_atomic_state *state,
 
 	intel_ddi_disable_transcoder_func(old_crtc_state);
 
-	for_each_pipe_crtc_modeset_disable(display, pipe_crtc, old_crtc_state, i) {
+	for_each_pipe_crtc_modeset_disable(display, pipe_crtc, old_crtc_state) {
 		const struct intel_crtc_state *old_pipe_crtc_state =
 			intel_atomic_get_old_crtc_state(state, pipe_crtc);
 
@@ -1307,7 +1313,7 @@ static void mst_stream_enable(struct intel_atomic_state *state,
 	enum transcoder trans = pipe_config->cpu_transcoder;
 	bool first_mst_stream = intel_dp_mst_active_streams(intel_dp) == 1;
 	struct intel_crtc *pipe_crtc;
-	int ret, i;
+	int ret;
 
 	drm_WARN_ON(display->drm, pipe_config->has_pch_encoder);
 
@@ -1352,7 +1358,7 @@ static void mst_stream_enable(struct intel_atomic_state *state,
 
 	intel_enable_transcoder(pipe_config);
 
-	for_each_pipe_crtc_modeset_enable(display, pipe_crtc, pipe_config, i) {
+	for_each_pipe_crtc_modeset_enable(display, pipe_crtc, pipe_config) {
 		const struct intel_crtc_state *pipe_crtc_state =
 			intel_atomic_get_new_crtc_state(state, pipe_crtc);
 
@@ -1603,7 +1609,7 @@ mst_connector_mode_valid_ctx(struct drm_connector *_connector,
 
 static struct drm_encoder *
 mst_connector_atomic_best_encoder(struct drm_connector *_connector,
-				  struct drm_atomic_state *state)
+				  struct drm_atomic_commit *state)
 {
 	struct intel_connector *connector = to_intel_connector(_connector);
 	struct drm_connector_state *connector_state =
@@ -2142,9 +2148,9 @@ void intel_dp_mst_prepare_probe(struct intel_dp *intel_dp)
 
 	intel_dp_compute_rate(intel_dp, link_rate, &link_bw, &rate_select);
 
-	intel_dp_link_training_set_mode(intel_dp, link_rate, false);
+	intel_dp_link_training_set_mode(intel_dp, link_rate, false, false);
 	intel_dp_link_training_set_bw(intel_dp, link_bw, rate_select, lane_count,
-				      drm_dp_enhanced_frame_cap(intel_dp->dpcd));
+				      drm_dp_enhanced_frame_cap(intel_dp->dpcd), false);
 
 	intel_mst_set_probed_link_params(intel_dp, link_rate, lane_count);
 }

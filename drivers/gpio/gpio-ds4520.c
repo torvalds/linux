@@ -54,7 +54,7 @@ static const struct of_device_id ds4520_gpio_of_match_table[] = {
 MODULE_DEVICE_TABLE(of, ds4520_gpio_of_match_table);
 
 static const struct i2c_device_id ds4520_gpio_id_table[] = {
-	{ "ds4520-gpio" },
+	{ .name = "ds4520-gpio" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ds4520_gpio_id_table);

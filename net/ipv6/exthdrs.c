@@ -178,14 +178,10 @@ static bool ip6_parse_tlv(bool hopbyhop,
 				case IPV6_TLV_IOAM:
 					if (!ipv6_hop_ioam(skb, off))
 						return false;
-
-					nh = skb_network_header(skb);
 					break;
 				case IPV6_TLV_JUMBO:
 					if (!ipv6_hop_jumbo(skb, off))
 						return false;
-
-					nh = skb_network_header(skb);
 					break;
 				case IPV6_TLV_CALIPSO:
 					if (!ipv6_hop_calipso(skb, off))
@@ -203,8 +199,6 @@ static bool ip6_parse_tlv(bool hopbyhop,
 				case IPV6_TLV_HAO:
 					if (!ipv6_dest_hao(skb, off))
 						return false;
-
-					nh = skb_network_header(skb);
 					break;
 #endif
 				default:
@@ -215,6 +209,9 @@ static bool ip6_parse_tlv(bool hopbyhop,
 				}
 			}
 			padlen = 0;
+
+			/* recompute the network header pointer in case it has changed */
+			nh = skb_network_header(skb);
 		}
 		off += optlen;
 		len -= optlen;

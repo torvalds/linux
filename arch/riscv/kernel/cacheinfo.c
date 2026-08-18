@@ -133,7 +133,7 @@ int populate_cache_leaves(unsigned int cpu)
 			ci_leaf_init(this_leaf++, CACHE_TYPE_DATA, level);
 		levels = level;
 	}
-	of_node_put(np);
+	of_node_put(prev);
 
 	return 0;
 }

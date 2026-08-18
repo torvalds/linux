@@ -504,9 +504,9 @@ static void lm355x_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id lm355x_id[] = {
-	{LM3554_NAME, CHIP_LM3554},
-	{LM3556_NAME, CHIP_LM3556},
-	{}
+	{ .name = LM3554_NAME, .driver_data = CHIP_LM3554 },
+	{ .name = LM3556_NAME, .driver_data = CHIP_LM3556 },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, lm355x_id);

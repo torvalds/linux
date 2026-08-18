@@ -97,7 +97,7 @@ xfs_bulkstat_one_int(
 	}
 
 	ASSERT(ip != NULL);
-	ASSERT(ip->i_imap.im_blkno != 0);
+	ASSERT(ip->i_imap.im_agbno != 0);
 	inode = VFS_I(ip);
 	vfsuid = i_uid_into_vfsuid(idmap, inode);
 	vfsgid = i_gid_into_vfsgid(idmap, inode);

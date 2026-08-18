@@ -717,7 +717,7 @@ int btrfs_add_extent_mapping(struct btrfs_inode *inode,
 	 * file offset. Here just do a sanity check.
 	 */
 	if (em->disk_bytenr == EXTENT_MAP_INLINE)
-		ASSERT(em->start == 0);
+		ASSERT(em->start == 0, "em->start=%llu", em->start);
 
 	ret = add_extent_mapping(inode, em, false);
 	/* it is possible that someone inserted the extent into the tree
@@ -761,7 +761,7 @@ int btrfs_add_extent_mapping(struct btrfs_inode *inode,
 		}
 	}
 
-	ASSERT(ret == 0 || ret == -EEXIST);
+	ASSERT(ret == 0 || ret == -EEXIST, "ret=%d", ret);
 	return ret;
 }
 
@@ -866,13 +866,13 @@ void btrfs_drop_extent_map_range(struct btrfs_inode *inode, u64 start, u64 end,
 			goto next;
 		}
 
-		flags = em->flags;
 		/*
 		 * In case we split the extent map, we want to preserve the
 		 * EXTENT_FLAG_LOGGING flag on our extent map, but we don't want
 		 * it on the new extent maps.
 		 */
-		em->flags &= ~(EXTENT_FLAG_PINNED | EXTENT_FLAG_LOGGING);
+		flags = em->flags & ~EXTENT_FLAG_LOGGING;
+		em->flags &= ~EXTENT_FLAG_PINNED;
 		modified = !list_empty(&em->list);
 
 		/*
@@ -943,7 +943,7 @@ void btrfs_drop_extent_map_range(struct btrfs_inode *inode, u64 start, u64 end,
 
 				ret = add_extent_mapping(inode, split, modified);
 				/* Logic error, shouldn't happen. */
-				ASSERT(ret == 0);
+				ASSERT(ret == 0, "ret=%d", ret);
 				if (WARN_ON(ret != 0) && modified)
 					btrfs_set_inode_full_sync(inode);
 			}

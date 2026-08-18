@@ -39,8 +39,6 @@ EXPORT_PER_CPU_SYMBOL(__softirq_pending);
 
 DEFINE_PER_CPU_CACHE_HOT(struct irq_stack *, hardirq_stack_ptr);
 
-atomic_t irq_err_count;
-
 /*
  * 'what should we do if we get a hw irq event on an illegal vector'.
  * each architecture has to answer this themselves.
@@ -62,150 +60,131 @@ void ack_bad_irq(unsigned int irq)
 	apic_eoi();
 }
 
-#define irq_stats(x)		(&per_cpu(irq_stat, x))
+struct irq_stat_info {
+	unsigned int	skip_vector;
+	const char	*symbol;
+	const char	*text;
+};
+
+#define DEFAULT_SUPPRESSED_VECTOR	UINT_MAX
+
+#define ISS(idx, sym, txt) [IRQ_COUNT_##idx] = { .symbol = sym, .text = txt }
+
+#define ITS(idx, sym, txt) [IRQ_COUNT_##idx] =				\
+	{ .skip_vector = idx## _VECTOR, .symbol = sym, .text = txt }
+
+#define IDS(idx, sym, txt) [IRQ_COUNT_##idx] =				\
+	{ .skip_vector = DEFAULT_SUPPRESSED_VECTOR, .symbol = sym, .text = txt }
+
+static const struct irq_stat_info irq_stat_info[IRQ_COUNT_MAX] = {
+	ISS(NMI,			"NMI",	"  Non-maskable interrupts\n"),
+#ifdef CONFIG_X86_LOCAL_APIC
+	ISS(APIC_TIMER,			"LOC",	"  Local timer interrupts\n"),
+	IDS(SPURIOUS,			"SPU",	"  Spurious interrupts\n"),
+	ISS(APIC_PERF,			"PMI",	"  Performance monitoring interrupts\n"),
+	ISS(IRQ_WORK,			"IWI",	"  IRQ work interrupts\n"),
+	IDS(ICR_READ_RETRY,		"RTR",	"  APIC ICR read retries\n"),
+	ISS(X86_PLATFORM_IPI,		"PLT",	"  Platform interrupts\n"),
+#endif
+#ifdef CONFIG_SMP
+	ISS(RESCHEDULE,			"RES",	"  Rescheduling interrupts\n"),
+	ISS(CALL_FUNCTION,		"CAL",	"  Function call interrupts\n"),
+#endif
+	ISS(TLB,			"TLB",	"  TLB shootdowns\n"),
+#ifdef CONFIG_X86_THERMAL_VECTOR
+	ISS(THERMAL_APIC,		"TRM",	"  Thermal event interrupts\n"),
+#endif
+#ifdef CONFIG_X86_MCE_THRESHOLD
+	ISS(THRESHOLD_APIC,		"THR",	"  Threshold APIC interrupts\n"),
+#endif
+#ifdef CONFIG_X86_MCE_AMD
+	ISS(DEFERRED_ERROR,		"DFR",	"  Deferred Error APIC interrupts\n"),
+#endif
+#ifdef CONFIG_X86_MCE
+	ISS(MCE_EXCEPTION,		"MCE",	"  Machine check exceptions\n"),
+	ISS(MCE_POLL,			"MCP",	"  Machine check polls\n"),
+#endif
+#ifdef CONFIG_X86_HV_CALLBACK_VECTOR
+	ITS(HYPERVISOR_CALLBACK,	"HYP",	"  Hypervisor callback interrupts\n"),
+#endif
+#if IS_ENABLED(CONFIG_HYPERV)
+	ITS(HYPERV_REENLIGHTENMENT,	"HRE",	"  Hyper-V reenlightenment interrupts\n"),
+	ITS(HYPERV_STIMER0,		"HVS",	"  Hyper-V stimer0 interrupts\n"),
+#endif
+#if IS_ENABLED(CONFIG_KVM)
+	ITS(POSTED_INTR,		"PIN",	"  Posted-interrupt notification event\n"),
+	ITS(POSTED_INTR_NESTED,		"NPI",	"  Nested posted-interrupt event\n"),
+	ITS(POSTED_INTR_WAKEUP,		"PIW",	"  Posted-interrupt wakeup event\n"),
+#endif
+#ifdef CONFIG_GUEST_PERF_EVENTS
+	ISS(PERF_GUEST_MEDIATED_PMI,	"VPMI",	"  Perf Guest Mediated PMI\n"),
+#endif
+#ifdef CONFIG_X86_POSTED_MSI
+	ISS(POSTED_MSI_NOTIFICATION,	"PMN",	"  Posted MSI notification event\n"),
+#endif
+	IDS(PIC_APIC_ERROR,		"ERR",	"  PIC/APIC error interrupts\n"),
+#ifdef CONFIG_X86_IO_APIC
+	IDS(IOAPIC_MISROUTED,		"MIS",	"  Misrouted IO/APIC interrupts\n"),
+#endif
+};
+
+static DECLARE_BITMAP(irq_stat_count_show, IRQ_COUNT_MAX) __read_mostly;
+
+static int __init irq_init_stats(void)
+{
+	const struct irq_stat_info *info = irq_stat_info;
+
+	for (unsigned int i = 0; i < ARRAY_SIZE(irq_stat_info); i++, info++) {
+		if (!info->skip_vector || (info->skip_vector != DEFAULT_SUPPRESSED_VECTOR &&
+					   test_bit(info->skip_vector, system_vectors)))
+			set_bit(i, irq_stat_count_show);
+	}
+
+#ifdef CONFIG_X86_LOCAL_APIC
+	if (!x86_platform_ipi_callback)
+		clear_bit(IRQ_COUNT_X86_PLATFORM_IPI, irq_stat_count_show);
+#endif
+
+#ifdef CONFIG_X86_POSTED_MSI
+	if (!posted_msi_enabled())
+		clear_bit(IRQ_COUNT_POSTED_MSI_NOTIFICATION, irq_stat_count_show);
+#endif
+
+#ifdef CONFIG_X86_MCE_AMD
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD &&
+	    boot_cpu_data.x86_vendor != X86_VENDOR_HYGON)
+		clear_bit(IRQ_COUNT_DEFERRED_ERROR, irq_stat_count_show);
+#endif
+	return 0;
+}
+late_initcall(irq_init_stats);
+
+/*
+ * Used for default disabled counters to increment the stats and to enable the
+ * entry for /proc/interrupts output.
+ */
+void irq_stat_inc_and_enable(enum irq_stat_counts which)
+{
+	this_cpu_inc(irq_stat.counts[which]);
+	set_bit(which, irq_stat_count_show);
+}
+
+#ifdef CONFIG_PROC_FS
 /*
  * /proc/interrupts printing for arch specific interrupts
  */
 int arch_show_interrupts(struct seq_file *p, int prec)
 {
-	int j;
+	const struct irq_stat_info *info = irq_stat_info;
 
-	seq_printf(p, "%*s: ", prec, "NMI");
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", irq_stats(j)->__nmi_count);
-	seq_puts(p, "  Non-maskable interrupts\n");
-#ifdef CONFIG_X86_LOCAL_APIC
-	seq_printf(p, "%*s: ", prec, "LOC");
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", irq_stats(j)->apic_timer_irqs);
-	seq_puts(p, "  Local timer interrupts\n");
+	for (unsigned int i = 0; i < ARRAY_SIZE(irq_stat_info); i++, info++) {
+		if (!test_bit(i, irq_stat_count_show))
+			continue;
 
-	seq_printf(p, "%*s: ", prec, "SPU");
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", irq_stats(j)->irq_spurious_count);
-	seq_puts(p, "  Spurious interrupts\n");
-	seq_printf(p, "%*s: ", prec, "PMI");
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", irq_stats(j)->apic_perf_irqs);
-	seq_puts(p, "  Performance monitoring interrupts\n");
-	seq_printf(p, "%*s: ", prec, "IWI");
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", irq_stats(j)->apic_irq_work_irqs);
-	seq_puts(p, "  IRQ work interrupts\n");
-	seq_printf(p, "%*s: ", prec, "RTR");
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", irq_stats(j)->icr_read_retry_count);
-	seq_puts(p, "  APIC ICR read retries\n");
-	if (x86_platform_ipi_callback) {
-		seq_printf(p, "%*s: ", prec, "PLT");
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ", irq_stats(j)->x86_platform_ipis);
-		seq_puts(p, "  Platform interrupts\n");
+		seq_printf(p, "%*s:", prec, info->symbol);
+		irq_proc_emit_counts(p, &irq_stat.counts[i]);
+		seq_puts(p, info->text);
 	}
-#endif
-#ifdef CONFIG_SMP
-	seq_printf(p, "%*s: ", prec, "RES");
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", irq_stats(j)->irq_resched_count);
-	seq_puts(p, "  Rescheduling interrupts\n");
-	seq_printf(p, "%*s: ", prec, "CAL");
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", irq_stats(j)->irq_call_count);
-	seq_puts(p, "  Function call interrupts\n");
-	seq_printf(p, "%*s: ", prec, "TLB");
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", irq_stats(j)->irq_tlb_count);
-	seq_puts(p, "  TLB shootdowns\n");
-#endif
-#ifdef CONFIG_X86_THERMAL_VECTOR
-	seq_printf(p, "%*s: ", prec, "TRM");
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", irq_stats(j)->irq_thermal_count);
-	seq_puts(p, "  Thermal event interrupts\n");
-#endif
-#ifdef CONFIG_X86_MCE_THRESHOLD
-	seq_printf(p, "%*s: ", prec, "THR");
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", irq_stats(j)->irq_threshold_count);
-	seq_puts(p, "  Threshold APIC interrupts\n");
-#endif
-#ifdef CONFIG_X86_MCE_AMD
-	seq_printf(p, "%*s: ", prec, "DFR");
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", irq_stats(j)->irq_deferred_error_count);
-	seq_puts(p, "  Deferred Error APIC interrupts\n");
-#endif
-#ifdef CONFIG_X86_MCE
-	seq_printf(p, "%*s: ", prec, "MCE");
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", per_cpu(mce_exception_count, j));
-	seq_puts(p, "  Machine check exceptions\n");
-	seq_printf(p, "%*s: ", prec, "MCP");
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", per_cpu(mce_poll_count, j));
-	seq_puts(p, "  Machine check polls\n");
-#endif
-#ifdef CONFIG_X86_HV_CALLBACK_VECTOR
-	if (test_bit(HYPERVISOR_CALLBACK_VECTOR, system_vectors)) {
-		seq_printf(p, "%*s: ", prec, "HYP");
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ",
-				   irq_stats(j)->irq_hv_callback_count);
-		seq_puts(p, "  Hypervisor callback interrupts\n");
-	}
-#endif
-#if IS_ENABLED(CONFIG_HYPERV)
-	if (test_bit(HYPERV_REENLIGHTENMENT_VECTOR, system_vectors)) {
-		seq_printf(p, "%*s: ", prec, "HRE");
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ",
-				   irq_stats(j)->irq_hv_reenlightenment_count);
-		seq_puts(p, "  Hyper-V reenlightenment interrupts\n");
-	}
-	if (test_bit(HYPERV_STIMER0_VECTOR, system_vectors)) {
-		seq_printf(p, "%*s: ", prec, "HVS");
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ",
-				   irq_stats(j)->hyperv_stimer0_count);
-		seq_puts(p, "  Hyper-V stimer0 interrupts\n");
-	}
-#endif
-	seq_printf(p, "%*s: %10u\n", prec, "ERR", atomic_read(&irq_err_count));
-#if defined(CONFIG_X86_IO_APIC)
-	seq_printf(p, "%*s: %10u\n", prec, "MIS", atomic_read(&irq_mis_count));
-#endif
-#if IS_ENABLED(CONFIG_KVM)
-	seq_printf(p, "%*s: ", prec, "PIN");
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", irq_stats(j)->kvm_posted_intr_ipis);
-	seq_puts(p, "  Posted-interrupt notification event\n");
-
-	seq_printf(p, "%*s: ", prec, "NPI");
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ",
-			   irq_stats(j)->kvm_posted_intr_nested_ipis);
-	seq_puts(p, "  Nested posted-interrupt event\n");
-
-	seq_printf(p, "%*s: ", prec, "PIW");
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ",
-			   irq_stats(j)->kvm_posted_intr_wakeup_ipis);
-	seq_puts(p, "  Posted-interrupt wakeup event\n");
-#endif
-#ifdef CONFIG_GUEST_PERF_EVENTS
-	seq_printf(p, "%*s: ", prec, "VPMI");
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ",
-			   irq_stats(j)->perf_guest_mediated_pmis);
-	seq_puts(p, " Perf Guest Mediated PMI\n");
-#endif
-#ifdef CONFIG_X86_POSTED_MSI
-	seq_printf(p, "%*s: ", prec, "PMN");
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ",
-			   irq_stats(j)->posted_msi_notification_count);
-	seq_puts(p, "  Posted MSI notification event\n");
-#endif
 	return 0;
 }
 
@@ -214,46 +193,14 @@ int arch_show_interrupts(struct seq_file *p, int prec)
  */
 u64 arch_irq_stat_cpu(unsigned int cpu)
 {
-	u64 sum = irq_stats(cpu)->__nmi_count;
+	irq_cpustat_t *p = per_cpu_ptr(&irq_stat, cpu);
+	u64 sum = 0;
 
-#ifdef CONFIG_X86_LOCAL_APIC
-	sum += irq_stats(cpu)->apic_timer_irqs;
-	sum += irq_stats(cpu)->irq_spurious_count;
-	sum += irq_stats(cpu)->apic_perf_irqs;
-	sum += irq_stats(cpu)->apic_irq_work_irqs;
-	sum += irq_stats(cpu)->icr_read_retry_count;
-	if (x86_platform_ipi_callback)
-		sum += irq_stats(cpu)->x86_platform_ipis;
-#endif
-#ifdef CONFIG_SMP
-	sum += irq_stats(cpu)->irq_resched_count;
-	sum += irq_stats(cpu)->irq_call_count;
-#endif
-#ifdef CONFIG_X86_THERMAL_VECTOR
-	sum += irq_stats(cpu)->irq_thermal_count;
-#endif
-#ifdef CONFIG_X86_MCE_THRESHOLD
-	sum += irq_stats(cpu)->irq_threshold_count;
-#endif
-#ifdef CONFIG_X86_HV_CALLBACK_VECTOR
-	sum += irq_stats(cpu)->irq_hv_callback_count;
-#endif
-#if IS_ENABLED(CONFIG_HYPERV)
-	sum += irq_stats(cpu)->irq_hv_reenlightenment_count;
-	sum += irq_stats(cpu)->hyperv_stimer0_count;
-#endif
-#ifdef CONFIG_X86_MCE
-	sum += per_cpu(mce_exception_count, cpu);
-	sum += per_cpu(mce_poll_count, cpu);
-#endif
+	for (unsigned int i = 0; i < ARRAY_SIZE(irq_stat_info); i++)
+		sum += p->counts[i];
 	return sum;
 }
-
-u64 arch_irq_stat(void)
-{
-	u64 sum = atomic_read(&irq_err_count);
-	return sum;
-}
+#endif /* CONFIG_PROC_FS */
 
 static __always_inline void handle_irq(struct irq_desc *desc,
 				       struct pt_regs *regs)
@@ -338,7 +285,7 @@ DEFINE_IDTENTRY_IRQ(common_interrupt)
 
 #ifdef CONFIG_X86_LOCAL_APIC
 /* Function pointer for generic interrupt vector handling */
-void (*x86_platform_ipi_callback)(void) = NULL;
+void (*x86_platform_ipi_callback)(void) __ro_after_init = NULL;
 /*
  * Handler for X86_PLATFORM_IPI_VECTOR.
  */
@@ -348,7 +295,7 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_x86_platform_ipi)
 
 	apic_eoi();
 	trace_x86_platform_ipi_entry(X86_PLATFORM_IPI_VECTOR);
-	inc_irq_stat(x86_platform_ipis);
+	inc_irq_stat(X86_PLATFORM_IPI);
 	if (x86_platform_ipi_callback)
 		x86_platform_ipi_callback();
 	trace_x86_platform_ipi_exit(X86_PLATFORM_IPI_VECTOR);
@@ -363,7 +310,7 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_x86_platform_ipi)
 DEFINE_IDTENTRY_SYSVEC(sysvec_perf_guest_mediated_pmi_handler)
 {
 	 apic_eoi();
-	 inc_irq_stat(perf_guest_mediated_pmis);
+	 inc_irq_stat(PERF_GUEST_MEDIATED_PMI);
 	 perf_guest_handle_mediated_pmi();
 }
 #endif
@@ -389,7 +336,7 @@ EXPORT_SYMBOL_FOR_KVM(kvm_set_posted_intr_wakeup_handler);
 DEFINE_IDTENTRY_SYSVEC_SIMPLE(sysvec_kvm_posted_intr_ipi)
 {
 	apic_eoi();
-	inc_irq_stat(kvm_posted_intr_ipis);
+	inc_irq_stat(POSTED_INTR);
 }
 
 /*
@@ -398,7 +345,7 @@ DEFINE_IDTENTRY_SYSVEC_SIMPLE(sysvec_kvm_posted_intr_ipi)
 DEFINE_IDTENTRY_SYSVEC(sysvec_kvm_posted_intr_wakeup_ipi)
 {
 	apic_eoi();
-	inc_irq_stat(kvm_posted_intr_wakeup_ipis);
+	inc_irq_stat(POSTED_INTR_WAKEUP);
 	kvm_posted_intr_wakeup_handler();
 }
 
@@ -408,7 +355,7 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_kvm_posted_intr_wakeup_ipi)
 DEFINE_IDTENTRY_SYSVEC_SIMPLE(sysvec_kvm_posted_intr_nested_ipi)
 {
 	apic_eoi();
-	inc_irq_stat(kvm_posted_intr_nested_ipis);
+	inc_irq_stat(POSTED_INTR_NESTED);
 }
 #endif
 
@@ -482,7 +429,7 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_posted_msi_notification)
 
 	/* Mark the handler active for intel_ack_posted_msi_irq() */
 	__this_cpu_write(posted_msi_handler_active, true);
-	inc_irq_stat(posted_msi_notification_count);
+	inc_irq_stat(POSTED_MSI_NOTIFICATION);
 	irq_enter();
 
 	/*
@@ -577,7 +524,7 @@ static void smp_thermal_vector(void)
 DEFINE_IDTENTRY_SYSVEC(sysvec_thermal)
 {
 	trace_thermal_apic_entry(THERMAL_APIC_VECTOR);
-	inc_irq_stat(irq_thermal_count);
+	inc_irq_stat(THERMAL_APIC);
 	smp_thermal_vector();
 	trace_thermal_apic_exit(THERMAL_APIC_VECTOR);
 	apic_eoi();

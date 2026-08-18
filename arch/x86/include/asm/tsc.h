@@ -76,8 +76,7 @@ extern void disable_TSC(void);
 
 static inline cycles_t get_cycles(void)
 {
-	if (!IS_ENABLED(CONFIG_X86_TSC) &&
-	    !cpu_feature_enabled(X86_FEATURE_TSC))
+	if (!cpu_feature_enabled(X86_FEATURE_TSC))
 		return 0;
 	return rdtsc();
 }
@@ -94,25 +93,15 @@ extern unsigned long native_calibrate_tsc(void);
 extern unsigned long long native_sched_clock_from_tsc(u64 tsc);
 
 extern int tsc_clocksource_reliable;
-#ifdef CONFIG_X86_TSC
 extern bool tsc_async_resets;
-#else
-# define tsc_async_resets	false
-#endif
 
 /*
  * Boot-time check whether the TSCs are synchronized across
  * all CPUs/cores:
  */
-#ifdef CONFIG_X86_TSC
 extern bool tsc_store_and_check_tsc_adjust(bool bootcpu);
 extern void tsc_verify_tsc_adjust(bool resume);
 extern void check_tsc_sync_target(void);
-#else
-static inline bool tsc_store_and_check_tsc_adjust(bool bootcpu) { return false; }
-static inline void tsc_verify_tsc_adjust(bool resume) { }
-static inline void check_tsc_sync_target(void) { }
-#endif
 
 extern int notsc_setup(char *);
 extern void tsc_save_sched_clock_state(void);

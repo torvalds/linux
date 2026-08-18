@@ -10,7 +10,7 @@
 #define _MT8186_MT6366_COMMON_H_
 
 int mt8186_mt6366_init(struct snd_soc_pcm_runtime *rtd);
-int mt8186_mt6366_card_set_be_link(struct snd_soc_card *card,
+int mt8186_mt6366_card_set_be_link(struct device *dev,
 				   struct snd_soc_dai_link *link,
 				   struct device_node *node,
 				   char *link_name);

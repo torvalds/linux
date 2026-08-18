@@ -21,6 +21,7 @@
 		ethernet0 = &ethernet0;
 		i2c1 = &i2c1;
 		serial0 = &uart7;
+		serial1 = &uart10;
 	};
 
 	chosen {
@@ -452,6 +453,16 @@
 
 &uart7 {
 	status = "okay";
+};
+
+&uart10 {
+	status = "okay";
+
+	bluetooth: bluetooth {
+		compatible = "qcom,qca2066-bt";
+		enable-gpios = <&tlmm 55 GPIO_ACTIVE_HIGH>;
+		clocks = <&sleep_clk>;
+	};
 };
 
 &usb_1 {

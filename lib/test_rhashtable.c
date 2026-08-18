@@ -679,6 +679,78 @@ out:
 	return err;
 }
 
+static int __init test_rhashtable_next_key(void)
+{
+	struct rhashtable_params params = test_rht_params;
+	struct test_obj_val key_missing = { .id = 99999, .tid = 0 };
+	struct test_obj_val *prev_key = NULL;
+	struct rhashtable ht;
+	struct test_obj *objs, *cur;
+	int i, count = 0, err;
+	int visited_keys[8] = { 0 };
+	const int n = ARRAY_SIZE(visited_keys);
+
+	params.nelem_hint = n;
+
+	err = rhashtable_init(&ht, &params);
+	if (err)
+		return err;
+
+	objs = kcalloc(n, sizeof(*objs), GFP_KERNEL);
+	if (!objs) {
+		rhashtable_destroy(&ht);
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < n; i++) {
+		objs[i].value.id = i;
+		err = rhashtable_insert_fast(&ht, &objs[i].node, params);
+		if (err)
+			goto out;
+	}
+
+	rcu_read_lock();
+
+	/* NULL prev_key: walk from the beginning, expect all n elements. */
+	while ((cur = rhashtable_next_key(&ht, prev_key))) {
+		if (IS_ERR(cur)) {
+			err = -EINVAL;
+			goto unlock;
+		}
+		count++;
+		prev_key = &cur->value;
+		visited_keys[cur->value.id] = 1;
+		if (count > n)
+			break;
+	}
+
+	if (count != n) {
+		err = -EINVAL;
+		goto unlock;
+	}
+
+	for (i = 0; i < n; i++) {
+		if (!visited_keys[i]) {
+			err = -EINVAL;
+			goto unlock;
+		}
+	}
+
+	/* Non-existing prev_key: must return ERR_PTR(-ENOENT). */
+	cur = rhashtable_next_key(&ht, &key_missing);
+	if (!IS_ERR(cur) || PTR_ERR(cur) != -ENOENT)
+		err = -EINVAL;
+
+unlock:
+	rcu_read_unlock();
+out:
+	for (i = 0; i < n; i++)
+		rhashtable_remove_fast(&ht, &objs[i].node, params);
+	kfree(objs);
+	rhashtable_destroy(&ht);
+	return err;
+}
+
 static int __init test_rht_init(void)
 {
 	unsigned int entries;
@@ -737,6 +809,9 @@ static int __init test_rht_init(void)
 	pr_info("Average test time: %llu\n", total_time);
 
 	test_insert_duplicates_run();
+
+	pr_info("Testing rhashtable_next_key: %s\n",
+		test_rhashtable_next_key() == 0 ? "pass" : "FAIL");
 
 	if (!tcount)
 		return 0;

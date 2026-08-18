@@ -630,7 +630,7 @@ config DEBUG_FORCE_WEAK_PER_CPU
 
 config WARN_CONTEXT_ANALYSIS
 	bool "Compiler context-analysis warnings"
-	depends on CC_IS_CLANG && CLANG_VERSION >= 220100
+	depends on CC_IS_CLANG && CLANG_VERSION >= 230000
 	# Branch profiling re-defines "if", which messes with the compiler's
 	# ability to analyze __cond_acquires(..), resulting in false positives.
 	depends on !TRACE_BRANCH_PROFILING
@@ -641,7 +641,7 @@ config WARN_CONTEXT_ANALYSIS
 	  and releasing user-definable "context locks".
 
 	  Clang's name of the feature is "Thread Safety Analysis". Requires
-	  Clang 22.1.0 or later.
+	  Clang 23 or later.
 
 	  Produces warnings by default. Select CONFIG_WERROR if you wish to
 	  turn these warnings into errors.
@@ -2649,11 +2649,16 @@ config TEST_VMALLOC
 
 config TEST_WORKQUEUE
 	tristate "Test module for stress/performance analysis of workqueue"
+	depends on m
 	default n
 	help
 	  This builds the "test_workqueue" module for benchmarking
 	  workqueue throughput under contention. Useful for evaluating
 	  affinity scope changes (e.g., cache_shard vs cache).
+
+	  The test drives sysfs to switch affinity scopes, so it must be
+	  loaded after userspace has mounted sysfs; building it in (=y)
+	  would run module_init before /sys is available.
 
 	  If unsure, say N.
 
@@ -2971,6 +2976,16 @@ config BITS_TEST
 
 	  If unsure, say N.
 
+config SHDI3_KUNIT_TEST
+	tristate "KUnit test for __ashldi3(), __ashrdi3(), and __lshrdi3()"
+	depends on KUNIT
+	depends on ARM || XTENSA || MICROBLAZE || ((RISCV || SPARC) && !64BIT)
+	help
+	  This builds the unit test for __ashldi3(), __ashrdi3(), and
+	  __lshrdi3() helper functions used to implement 64-bit arithmetic
+	  shift left, arithmetic shift right and logical shift right,
+	  respectively, on a 32-bit CPUs.
+
 config SLUB_KUNIT_TEST
 	tristate "KUnit test for SLUB cache error detection" if !KUNIT_ALL_TESTS
 	depends on SLUB_DEBUG && KUNIT
@@ -3070,7 +3085,7 @@ config FORTIFY_KUNIT_TEST
 config LONGEST_SYM_KUNIT_TEST
 	tristate "Test the longest symbol possible" if !KUNIT_ALL_TESTS
 	depends on KUNIT && KPROBES
-	depends on !PREFIX_SYMBOLS && !CFI && !GCOV_KERNEL
+	depends on !CALL_PADDING && !CFI && !GCOV_KERNEL
 	default KUNIT_ALL_TESTS
 	help
 	  Tests the longest symbol possible

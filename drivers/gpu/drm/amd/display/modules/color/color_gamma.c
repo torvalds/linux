@@ -364,7 +364,7 @@ void precompute_pq(void)
 /* one-time pre-compute dePQ values - only for max pixel value 125 FP16 */
 void precompute_de_pq(void)
 {
-	int i;
+	uint32_t i;
 	struct fixed31_32  y;
 	uint32_t begin_index, end_index;
 
@@ -690,7 +690,7 @@ static bool find_software_points(
 static bool build_custom_gamma_mapping_coefficients_worker(
 	const struct dc_gamma *ramp,
 	struct pixel_gamma_point *coeff,
-	const struct hw_x_point *coordinates_x,
+	const struct hw_x_point *hw_coordinates_x,
 	const struct gamma_pixel *axis_x,
 	enum channel_name channel,
 	uint32_t number_of_points)
@@ -712,11 +712,11 @@ static bool build_custom_gamma_mapping_coefficients_worker(
 		struct fixed31_32 right_pos;
 
 		if (channel == CHANNEL_NAME_RED)
-			coord_x = coordinates_x[i].regamma_y_red;
+			coord_x = hw_coordinates_x[i].regamma_y_red;
 		else if (channel == CHANNEL_NAME_GREEN)
-			coord_x = coordinates_x[i].regamma_y_green;
+			coord_x = hw_coordinates_x[i].regamma_y_green;
 		else
-			coord_x = coordinates_x[i].regamma_y_blue;
+			coord_x = hw_coordinates_x[i].regamma_y_blue;
 
 		if (!find_software_points(
 			ramp, axis_x, coord_x, channel,
@@ -783,7 +783,7 @@ static struct fixed31_32 calculate_mapped_value(
 	struct pwl_float_data *rgb,
 	const struct pixel_gamma_point *coeff,
 	enum channel_name channel,
-	uint32_t max_index)
+	int32_t max_index)
 {
 	const struct gamma_point *point;
 
@@ -1425,7 +1425,7 @@ static void apply_lut_1d(
 		uint32_t num_hw_points,
 		struct dc_transfer_func_distributed_points *tf_pts)
 {
-	int i = 0;
+	uint32_t i = 0;
 	int color = 0;
 	struct fixed31_32 *regamma_y;
 	struct fixed31_32 norm_y;
@@ -1539,11 +1539,11 @@ static void build_evenly_distributed_points(
 }
 
 static inline void copy_rgb_regamma_to_coordinates_x(
-		struct hw_x_point *coordinates_x,
+		struct hw_x_point *hw_coordinates_x,
 		uint32_t hw_points_num,
 		const struct pwl_float_data_ex *rgb_ex)
 {
-	struct hw_x_point *coords = coordinates_x;
+	struct hw_x_point *coords = hw_coordinates_x;
 	uint32_t i = 0;
 	const struct pwl_float_data_ex *rgb_regamma = rgb_ex;
 
@@ -1562,26 +1562,26 @@ static bool calculate_interpolated_hardware_curve(
 	const struct dc_gamma *ramp,
 	struct pixel_gamma_point *coeff128,
 	struct pwl_float_data *rgb_user,
-	const struct hw_x_point *coordinates_x,
+	const struct hw_x_point *hw_coordinates_x,
 	const struct gamma_pixel *axis_x,
 	uint32_t number_of_points,
 	struct dc_transfer_func_distributed_points *tf_pts)
 {
 
 	const struct pixel_gamma_point *coeff = coeff128;
-	uint32_t max_entries = 3 - 1;
+	int32_t max_entries = 3 - 1;
 
 	uint32_t i = 0;
 
 	for (i = 0; i < 3; i++) {
 		if (!build_custom_gamma_mapping_coefficients_worker(
-				ramp, coeff128, coordinates_x, axis_x, i,
+				ramp, coeff128, hw_coordinates_x, axis_x, i,
 				number_of_points))
 			return false;
 	}
 
 	i = 0;
-	max_entries += ramp->num_entries;
+	max_entries += (int32_t)ramp->num_entries;
 
 	/* TODO: float point case */
 
@@ -1635,7 +1635,7 @@ static bool map_regamma_hw_to_x_user(
 {
 	/* setup to spare calculated ideal regamma values */
 
-	int i = 0;
+	uint32_t i = 0;
 	struct hw_x_point *coords = coords_x;
 	const struct pwl_float_data_ex *regamma = rgb_regamma;
 
@@ -1786,14 +1786,14 @@ bool mod_color_calculate_degamma_params(struct dc_color_caps *dc_caps,
 	if (input_tf->tf == TRANSFER_FUNCTION_PQ) {
 		/* just copy current rgb_regamma into  tf_pts */
 		struct pwl_float_data_ex *curvePt = curve;
-		int i = 0;
+		int j = 0;
 
-		while (i <= MAX_HW_POINTS) {
-			tf_pts->red[i]   = curvePt->r;
-			tf_pts->green[i] = curvePt->g;
-			tf_pts->blue[i]  = curvePt->b;
+		while (j <= MAX_HW_POINTS) {
+			tf_pts->red[j]   = curvePt->r;
+			tf_pts->green[j] = curvePt->g;
+			tf_pts->blue[j]  = curvePt->b;
 			++curvePt;
-			++i;
+			++j;
 		}
 	} else {
 		// clamps to 0-1

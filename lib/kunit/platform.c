@@ -6,6 +6,7 @@
 #include <linux/completion.h>
 #include <linux/device/bus.h>
 #include <linux/device/driver.h>
+#include <linux/err.h>
 #include <linux/platform_device.h>
 
 #include <kunit/platform_device.h>
@@ -129,6 +130,69 @@ int kunit_platform_device_add(struct kunit *test, struct platform_device *pdev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(kunit_platform_device_add);
+
+/**
+ * kunit_platform_device_register_full() - Register a KUnit test-managed platform
+ *                                         device described by platform device info
+ * @test: test context
+ * @pdevinfo: platform device information describing the new device
+ *
+ * Register a test-managed platform device. The device is unregistered when the
+ * test completes.
+ *
+ * Return: New platform device on success, IS_ERR() on error.
+ */
+struct platform_device *
+kunit_platform_device_register_full(struct kunit *test,
+				    const struct platform_device_info *pdevinfo)
+{
+	struct platform_device *pdev;
+	int ret;
+
+	pdev = platform_device_register_full(pdevinfo);
+	if (IS_ERR(pdev))
+		return pdev;
+
+	ret = kunit_add_action_or_reset(test, platform_device_unregister_wrapper, pdev);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return pdev;
+}
+EXPORT_SYMBOL_GPL(kunit_platform_device_register_full);
+
+static bool
+kunit_platform_device_add_match(struct kunit *test, struct kunit_resource *res,
+				void *match_data)
+{
+	struct platform_device *pdev = match_data;
+
+	return res->data == pdev && res->free == kunit_platform_device_add_exit;
+}
+
+/**
+ * kunit_platform_device_unregister() - Unregister a KUnit-managed platform device
+ * @test: test context
+ * @pdev: platform device to unregister
+ *
+ * Unregister a test-managed platform device and cancel its release action.
+ */
+void kunit_platform_device_unregister(struct kunit *test,
+				      struct platform_device *pdev)
+{
+	struct kunit_resource *res;
+
+	res = kunit_find_resource(test, kunit_platform_device_add_match, pdev);
+	if (res) {
+		res->free = NULL;
+		kunit_put_resource(res);
+	} else {
+		kunit_remove_action(test, platform_device_unregister_wrapper, pdev);
+	}
+
+	platform_device_unregister(pdev);
+}
+EXPORT_SYMBOL_GPL(kunit_platform_device_unregister);
 
 struct kunit_platform_device_probe_nb {
 	struct completion *x;

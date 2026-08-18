@@ -1327,12 +1327,12 @@ err_free_core:
 	return rc;
 }
 
-u16 bnge_cp_ring_for_rx(struct bnge_rx_ring_info *rxr)
+u32 bnge_cp_ring_for_rx(struct bnge_rx_ring_info *rxr)
 {
 	return rxr->rx_cpr->ring_struct.fw_ring_id;
 }
 
-u16 bnge_cp_ring_for_tx(struct bnge_tx_ring_info *txr)
+u32 bnge_cp_ring_for_tx(struct bnge_tx_ring_info *txr)
 {
 	return txr->tx_cpr->ring_struct.fw_ring_id;
 }
@@ -1375,12 +1375,12 @@ static void bnge_init_nq_tree(struct bnge_net *bn)
 		struct bnge_nq_ring_info *nqr = &bn->bnapi[i]->nq_ring;
 		struct bnge_ring_struct *ring = &nqr->ring_struct;
 
-		ring->fw_ring_id = INVALID_HW_RING_ID;
+		ring->fw_ring_id = INVALID_HW_RING_ID_32BIT;
 		for (j = 0; j < nqr->cp_ring_count; j++) {
 			struct bnge_cp_ring_info *cpr = &nqr->cp_ring_arr[j];
 
 			ring = &cpr->ring_struct;
-			ring->fw_ring_id = INVALID_HW_RING_ID;
+			ring->fw_ring_id = INVALID_HW_RING_ID_32BIT;
 		}
 	}
 }
@@ -1637,7 +1637,7 @@ static void bnge_init_one_rx_ring_rxbd(struct bnge_net *bn,
 
 	ring = &rxr->rx_ring_struct;
 	bnge_init_rxbd_pages(ring, type);
-	ring->fw_ring_id = INVALID_HW_RING_ID;
+	ring->fw_ring_id = INVALID_HW_RING_ID_32BIT;
 }
 
 static void bnge_init_one_agg_ring_rxbd(struct bnge_net *bn,
@@ -1647,7 +1647,7 @@ static void bnge_init_one_agg_ring_rxbd(struct bnge_net *bn,
 	u32 type;
 
 	ring = &rxr->rx_agg_ring_struct;
-	ring->fw_ring_id = INVALID_HW_RING_ID;
+	ring->fw_ring_id = INVALID_HW_RING_ID_32BIT;
 	if (bnge_is_agg_reqd(bn->bd)) {
 		type = ((u32)BNGE_RX_PAGE_SIZE << RX_BD_LEN_SHIFT) |
 			RX_BD_TYPE_RX_AGG_BD | RX_BD_FLAGS_SOP;
@@ -1708,7 +1708,7 @@ static void bnge_init_tx_rings(struct bnge_net *bn)
 		struct bnge_tx_ring_info *txr = &bn->tx_ring[i];
 		struct bnge_ring_struct *ring = &txr->tx_ring_struct;
 
-		ring->fw_ring_id = INVALID_HW_RING_ID;
+		ring->fw_ring_id = INVALID_HW_RING_ID_32BIT;
 
 		netif_queue_set_napi(bn->netdev, i, NETDEV_QUEUE_TYPE_TX,
 				     &txr->bnapi->napi);
@@ -1867,7 +1867,7 @@ static int bnge_hwrm_rx_agg_ring_alloc(struct bnge_net *bn,
 		    ring->fw_ring_id);
 	bnge_db_write(bn->bd, &rxr->rx_agg_db, rxr->rx_agg_prod);
 	bnge_db_write(bn->bd, &rxr->rx_db, rxr->rx_prod);
-	bn->grp_info[grp_idx].agg_fw_ring_id = ring->fw_ring_id;
+	bn->grp_info[grp_idx].agg_fw_ring_id = (u16)ring->fw_ring_id;
 
 	return 0;
 }
@@ -1886,7 +1886,7 @@ static int bnge_hwrm_rx_ring_alloc(struct bnge_net *bn,
 		return rc;
 
 	bnge_set_db(bn, &rxr->rx_db, type, map_idx, ring->fw_ring_id);
-	bn->grp_info[map_idx].rx_fw_ring_id = ring->fw_ring_id;
+	bn->grp_info[map_idx].rx_fw_ring_id = (u16)ring->fw_ring_id;
 
 	return 0;
 }
@@ -1916,7 +1916,7 @@ static int bnge_hwrm_ring_alloc(struct bnge_net *bn)
 		bnge_set_db(bn, &nqr->nq_db, type, map_idx, ring->fw_ring_id);
 		bnge_db_nq(bn, &nqr->nq_db, nqr->nq_raw_cons);
 		enable_irq(vector);
-		bn->grp_info[i].nq_fw_ring_id = ring->fw_ring_id;
+		bn->grp_info[i].nq_fw_ring_id = (u16)ring->fw_ring_id;
 
 		if (!i) {
 			rc = bnge_hwrm_set_async_event_cr(bd, ring->fw_ring_id);
@@ -1986,15 +1986,13 @@ void bnge_fill_hw_rss_tbl(struct bnge_net *bn, struct bnge_vnic_info *vnic)
 	tbl_size = bnge_get_rxfh_indir_size(bd);
 
 	for (i = 0; i < tbl_size; i++) {
-		u16 ring_id, j;
+		u32 j;
 
 		j = bd->rss_indir_tbl[i];
 		rxr = &bn->rx_ring[j];
 
-		ring_id = rxr->rx_ring_struct.fw_ring_id;
-		*ring_tbl++ = cpu_to_le16(ring_id);
-		ring_id = bnge_cp_ring_for_rx(rxr);
-		*ring_tbl++ = cpu_to_le16(ring_id);
+		*ring_tbl++ = cpu_to_le16(rxr->rx_ring_struct.fw_ring_id);
+		*ring_tbl++ = cpu_to_le16(bnge_cp_ring_for_rx(rxr));
 	}
 }
 
@@ -2285,7 +2283,7 @@ static void bnge_disable_int(struct bnge_net *bn)
 		nqr = &bnapi->nq_ring;
 		ring = &nqr->ring_struct;
 
-		if (ring->fw_ring_id != INVALID_HW_RING_ID)
+		if (ring->fw_ring_id != INVALID_HW_RING_ID_32BIT)
 			bnge_db_nq(bn, &nqr->nq_db, nqr->nq_raw_cons);
 	}
 }
@@ -2401,7 +2399,7 @@ static void bnge_hwrm_rx_ring_free(struct bnge_net *bn,
 	u32 grp_idx = rxr->bnapi->index;
 	u32 cmpl_ring_id;
 
-	if (ring->fw_ring_id == INVALID_HW_RING_ID)
+	if (ring->fw_ring_id == INVALID_HW_RING_ID_32BIT)
 		return;
 
 	cmpl_ring_id = bnge_cp_ring_for_rx(rxr);
@@ -2409,7 +2407,7 @@ static void bnge_hwrm_rx_ring_free(struct bnge_net *bn,
 				RING_FREE_REQ_RING_TYPE_RX,
 				close_path ? cmpl_ring_id :
 				INVALID_HW_RING_ID);
-	ring->fw_ring_id = INVALID_HW_RING_ID;
+	ring->fw_ring_id = INVALID_HW_RING_ID_32BIT;
 	bn->grp_info[grp_idx].rx_fw_ring_id = INVALID_HW_RING_ID;
 }
 
@@ -2421,14 +2419,14 @@ static void bnge_hwrm_rx_agg_ring_free(struct bnge_net *bn,
 	u32 grp_idx = rxr->bnapi->index;
 	u32 cmpl_ring_id;
 
-	if (ring->fw_ring_id == INVALID_HW_RING_ID)
+	if (ring->fw_ring_id == INVALID_HW_RING_ID_32BIT)
 		return;
 
 	cmpl_ring_id = bnge_cp_ring_for_rx(rxr);
 	hwrm_ring_free_send_msg(bn, ring, RING_FREE_REQ_RING_TYPE_RX_AGG,
 				close_path ? cmpl_ring_id :
 				INVALID_HW_RING_ID);
-	ring->fw_ring_id = INVALID_HW_RING_ID;
+	ring->fw_ring_id = INVALID_HW_RING_ID_32BIT;
 	bn->grp_info[grp_idx].agg_fw_ring_id = INVALID_HW_RING_ID;
 }
 
@@ -2439,14 +2437,14 @@ static void bnge_hwrm_tx_ring_free(struct bnge_net *bn,
 	struct bnge_ring_struct *ring = &txr->tx_ring_struct;
 	u32 cmpl_ring_id;
 
-	if (ring->fw_ring_id == INVALID_HW_RING_ID)
+	if (ring->fw_ring_id == INVALID_HW_RING_ID_32BIT)
 		return;
 
 	cmpl_ring_id = close_path ? bnge_cp_ring_for_tx(txr) :
 		       INVALID_HW_RING_ID;
 	hwrm_ring_free_send_msg(bn, ring, RING_FREE_REQ_RING_TYPE_TX,
 				cmpl_ring_id);
-	ring->fw_ring_id = INVALID_HW_RING_ID;
+	ring->fw_ring_id = INVALID_HW_RING_ID_32BIT;
 }
 
 static void bnge_hwrm_cp_ring_free(struct bnge_net *bn,
@@ -2455,12 +2453,12 @@ static void bnge_hwrm_cp_ring_free(struct bnge_net *bn,
 	struct bnge_ring_struct *ring;
 
 	ring = &cpr->ring_struct;
-	if (ring->fw_ring_id == INVALID_HW_RING_ID)
+	if (ring->fw_ring_id == INVALID_HW_RING_ID_32BIT)
 		return;
 
 	hwrm_ring_free_send_msg(bn, ring, RING_FREE_REQ_RING_TYPE_L2_CMPL,
 				INVALID_HW_RING_ID);
-	ring->fw_ring_id = INVALID_HW_RING_ID;
+	ring->fw_ring_id = INVALID_HW_RING_ID_32BIT;
 }
 
 static void bnge_hwrm_ring_free(struct bnge_net *bn, bool close_path)
@@ -2496,11 +2494,11 @@ static void bnge_hwrm_ring_free(struct bnge_net *bn, bool close_path)
 			bnge_hwrm_cp_ring_free(bn, &nqr->cp_ring_arr[j]);
 
 		ring = &nqr->ring_struct;
-		if (ring->fw_ring_id != INVALID_HW_RING_ID) {
+		if (ring->fw_ring_id != INVALID_HW_RING_ID_32BIT) {
 			hwrm_ring_free_send_msg(bn, ring,
 						RING_FREE_REQ_RING_TYPE_NQ,
 						INVALID_HW_RING_ID);
-			ring->fw_ring_id = INVALID_HW_RING_ID;
+			ring->fw_ring_id = INVALID_HW_RING_ID_32BIT;
 			bn->grp_info[i].nq_fw_ring_id = INVALID_HW_RING_ID;
 		}
 	}

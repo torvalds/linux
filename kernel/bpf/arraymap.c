@@ -175,14 +175,12 @@ static void *array_map_lookup_elem(struct bpf_map *map, void *key)
 	return array->value + (u64)array->elem_size * (index & array->index_mask);
 }
 
-static int array_map_get_hash(struct bpf_map *map, u32 hash_buf_size,
-			       void *hash_buf)
+static int array_map_get_hash(struct bpf_map *map)
 {
 	struct bpf_array *array = container_of(map, struct bpf_array, map);
 
 	sha256(array->value, (u64)array->elem_size * array->map.max_entries,
-	       hash_buf);
-	memcpy(array->map.sha, hash_buf, sizeof(array->map.sha));
+	       array->map.sha);
 	return 0;
 }
 
@@ -386,7 +384,7 @@ static long array_map_update_elem(struct bpf_map *map, void *key, void *value,
 	if (array->map.map_type == BPF_MAP_TYPE_PERCPU_ARRAY) {
 		val = this_cpu_ptr(array->pptrs[index & array->index_mask]);
 		copy_map_value(map, val, value);
-		bpf_obj_free_fields(array->map.record, val);
+		bpf_obj_cancel_fields(map, val);
 	} else {
 		val = array->value +
 			(u64)array->elem_size * (index & array->index_mask);
@@ -394,7 +392,7 @@ static long array_map_update_elem(struct bpf_map *map, void *key, void *value,
 			copy_map_value_locked(map, val, value, false);
 		else
 			copy_map_value(map, val, value);
-		bpf_obj_free_fields(array->map.record, val);
+		bpf_obj_cancel_fields(map, val);
 	}
 	return 0;
 }
@@ -434,14 +432,14 @@ int bpf_percpu_array_update(struct bpf_map *map, void *key, void *value,
 		cpu = map_flags >> 32;
 		ptr = per_cpu_ptr(pptr, cpu);
 		copy_map_value(map, ptr, value);
-		bpf_obj_free_fields(array->map.record, ptr);
+		bpf_obj_cancel_fields(map, ptr);
 		goto unlock;
 	}
 	for_each_possible_cpu(cpu) {
 		ptr = per_cpu_ptr(pptr, cpu);
 		val = (map_flags & BPF_F_ALL_CPUS) ? value : value + size * cpu;
 		copy_map_value(map, ptr, val);
-		bpf_obj_free_fields(array->map.record, ptr);
+		bpf_obj_cancel_fields(map, ptr);
 	}
 unlock:
 	rcu_read_unlock();

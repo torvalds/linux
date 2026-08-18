@@ -101,7 +101,15 @@ static inline void xe_res_first(struct ttm_resource *res,
 	cur->mem_type = res->mem_type;
 
 	switch (cur->mem_type) {
-	case XE_PL_STOLEN:
+	case XE_PL_STOLEN: {
+		/* res->start is in pages (ttm_range_manager). */
+		cur->start = (res->start << PAGE_SHIFT) + start;
+		cur->size = size;
+		cur->remaining = size;
+		cur->node = NULL;
+		cur->mm = NULL;
+		break;
+	}
 	case XE_PL_VRAM0:
 	case XE_PL_VRAM1: {
 		struct gpu_buddy_block *block;
@@ -289,6 +297,10 @@ static inline void xe_res_next(struct xe_res_cursor *cur, u64 size)
 
 	switch (cur->mem_type) {
 	case XE_PL_STOLEN:
+		/* Just advance within the contiguous region. */
+		cur->start += size;
+		cur->size = cur->remaining;
+		break;
 	case XE_PL_VRAM0:
 	case XE_PL_VRAM1:
 		start = size - cur->size;

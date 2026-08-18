@@ -318,7 +318,6 @@ static int aio_init_fs_context(struct fs_context *fc)
 	pfc = init_pseudo(fc, AIO_RING_MAGIC);
 	if (!pfc)
 		return -ENOMEM;
-	fc->s_iflags |= SB_I_NOEXEC;
 	pfc->ops = &aio_super_operations;
 	return 0;
 }

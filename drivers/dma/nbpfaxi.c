@@ -1486,20 +1486,6 @@ static void nbpf_remove(struct platform_device *pdev)
 	clk_disable_unprepare(nbpf->clk);
 }
 
-static const struct platform_device_id nbpf_ids[] = {
-	{"nbpfaxi64dmac1b4",	(kernel_ulong_t)&nbpf_cfg[NBPF1B4]},
-	{"nbpfaxi64dmac1b8",	(kernel_ulong_t)&nbpf_cfg[NBPF1B8]},
-	{"nbpfaxi64dmac1b16",	(kernel_ulong_t)&nbpf_cfg[NBPF1B16]},
-	{"nbpfaxi64dmac4b4",	(kernel_ulong_t)&nbpf_cfg[NBPF4B4]},
-	{"nbpfaxi64dmac4b8",	(kernel_ulong_t)&nbpf_cfg[NBPF4B8]},
-	{"nbpfaxi64dmac4b16",	(kernel_ulong_t)&nbpf_cfg[NBPF4B16]},
-	{"nbpfaxi64dmac8b4",	(kernel_ulong_t)&nbpf_cfg[NBPF8B4]},
-	{"nbpfaxi64dmac8b8",	(kernel_ulong_t)&nbpf_cfg[NBPF8B8]},
-	{"nbpfaxi64dmac8b16",	(kernel_ulong_t)&nbpf_cfg[NBPF8B16]},
-	{},
-};
-MODULE_DEVICE_TABLE(platform, nbpf_ids);
-
 static int nbpf_runtime_suspend(struct device *dev)
 {
 	struct nbpf_device *nbpf = dev_get_drvdata(dev);
@@ -1523,7 +1509,6 @@ static struct platform_driver nbpf_driver = {
 		.of_match_table = nbpf_match,
 		.pm = pm_ptr(&nbpf_pm_ops),
 	},
-	.id_table = nbpf_ids,
 	.probe = nbpf_probe,
 	.remove = nbpf_remove,
 };

@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Copyright (C) 2026 MediaTek Inc.
+ */
+
+#include "mt6359.dtsi"
+
+&pmic {
+	compatible = "mediatek,mt6365", "mediatek,mt6359";
+
+	mt6365regulators: regulators {
+		compatible = "mediatek,mt6365-regulator", "mediatek,mt6359-regulator";
+	};
+};
+
+&pmic_adc {
+	compatible = "mediatek,mt6365-auxadc", "mediatek,mt6359-auxadc";
+};
+
+mt6365codec: &mt6359codec {
+	compatible = "mediatek,mt6365-codec", "mediatek,mt6359-codec";
+};
+
+mt6365rtc: &mt6359rtc {
+	compatible = "mediatek,mt6365-rtc", "mediatek,mt6358-rtc";
+};

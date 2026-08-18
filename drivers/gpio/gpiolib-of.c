@@ -241,6 +241,14 @@ static void of_gpio_try_fixup_polarity(const struct device_node *np,
 		 */
 		{ "ti,tsc2005",		"reset-gpios",	false },
 #endif
+#if IS_ENABLED(CONFIG_SND_SOC_WSA881X)
+		/*
+		 * WSA881 powerdown is always active low, but some device trees
+		 * missed this when first contributed. It also has a very strange
+		 * compatible.
+		 */
+		{ "sdw10217201000",	"powerdown-gpios", false },
+#endif
 	};
 	unsigned int i;
 

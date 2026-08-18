@@ -3,6 +3,7 @@
 
 #include <linux/mlx5/vport.h>
 #include <linux/list.h>
+#include <linux/lockdep.h>
 #include "lib/devcom.h"
 #include "lib/mlx5.h"
 #include "mlx5_core.h"
@@ -286,9 +287,9 @@ int mlx5_devcom_comp_get_size(struct mlx5_devcom_comp_dev *devcom)
 	return kref_read(&comp->ref);
 }
 
-int mlx5_devcom_send_event(struct mlx5_devcom_comp_dev *devcom,
-			   int event, int rollback_event,
-			   void *event_data)
+int mlx5_devcom_locked_send_event(struct mlx5_devcom_comp_dev *devcom,
+				  int event, int rollback_event,
+				  void *event_data)
 {
 	struct mlx5_devcom_comp_dev *pos;
 	struct mlx5_devcom_comp *comp;
@@ -298,24 +299,28 @@ int mlx5_devcom_send_event(struct mlx5_devcom_comp_dev *devcom,
 	if (!devcom)
 		return -ENODEV;
 
+	lockdep_assert_held_write(&devcom->comp->sem);
 	comp = devcom->comp;
-	down_write(&comp->sem);
 	list_for_each_entry(pos, &comp->comp_dev_list_head, list) {
 		data = rcu_dereference_protected(pos->data, lockdep_is_held(&comp->sem));
 
 		if (pos != devcom && data) {
 			err = comp->handler(event, data, event_data);
-			if (err)
+			if (err && rollback_event != DEVCOM_CANT_FAIL) {
 				goto rollback;
+			} else if (err && rollback_event == DEVCOM_CANT_FAIL) {
+				WARN_ONCE(1, "devcom component %d event %d failed: %d\n",
+					  comp->id, event, err);
+				return err;
+			}
 		}
 	}
 
-	up_write(&comp->sem);
 	return 0;
 
 rollback:
 	if (list_entry_is_head(pos, &comp->comp_dev_list_head, list))
-		goto out;
+		return err;
 	pos = list_prev_entry(pos, list);
 	list_for_each_entry_from_reverse(pos, &comp->comp_dev_list_head, list) {
 		data = rcu_dereference_protected(pos->data, lockdep_is_held(&comp->sem));
@@ -323,7 +328,23 @@ rollback:
 		if (pos != devcom && data)
 			comp->handler(rollback_event, data, event_data);
 	}
-out:
+	return err;
+}
+
+int mlx5_devcom_send_event(struct mlx5_devcom_comp_dev *devcom,
+			   int event, int rollback_event,
+			   void *event_data)
+{
+	struct mlx5_devcom_comp *comp;
+	int err;
+
+	if (!devcom)
+		return -ENODEV;
+
+	comp = devcom->comp;
+	down_write(&comp->sem);
+	err = mlx5_devcom_locked_send_event(devcom, event, rollback_event,
+					    event_data);
 	up_write(&comp->sem);
 	return err;
 }
@@ -437,4 +458,11 @@ int mlx5_devcom_comp_trylock(struct mlx5_devcom_comp_dev *devcom)
 	if (!devcom)
 		return 0;
 	return down_write_trylock(&devcom->comp->sem);
+}
+
+void mlx5_devcom_comp_assert_locked(struct mlx5_devcom_comp_dev *devcom)
+{
+	if (!devcom)
+		return;
+	lockdep_assert_held_write(&devcom->comp->sem);
 }

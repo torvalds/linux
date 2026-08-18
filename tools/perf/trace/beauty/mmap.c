@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LGPL-2.1
 #include <linux/log2.h>
+#include "trace/beauty/beauty.h"
 
 #include "trace/beauty/generated/mmap_prot_array.c"
 static DEFINE_STRARRAY(mmap_prot, "PROT_");
@@ -8,8 +9,7 @@ static size_t mmap__scnprintf_prot(unsigned long prot, char *bf, size_t size, bo
 {
        return strarray__scnprintf_flags(&strarray__mmap_prot, bf, size, show_prefix, prot);
 }
-
-static size_t syscall_arg__scnprintf_mmap_prot(char *bf, size_t size, struct syscall_arg *arg)
+size_t syscall_arg__scnprintf_mmap_prot(char *bf, size_t size, struct syscall_arg *arg)
 {
 	unsigned long prot = arg->val;
 
@@ -19,18 +19,18 @@ static size_t syscall_arg__scnprintf_mmap_prot(char *bf, size_t size, struct sys
 	return mmap__scnprintf_prot(prot, bf, size, arg->show_string_prefix);
 }
 
-#define SCA_MMAP_PROT syscall_arg__scnprintf_mmap_prot
+
 
 #include "trace/beauty/generated/mmap_flags_array.c"
-static DEFINE_STRARRAY(mmap_flags, "MAP_");
+DEFINE_STRARRAY(mmap_flags, "MAP_");
 
 static size_t mmap__scnprintf_flags(unsigned long flags, char *bf, size_t size, bool show_prefix)
 {
        return strarray__scnprintf_flags(&strarray__mmap_flags, bf, size, show_prefix, flags);
 }
 
-static size_t syscall_arg__scnprintf_mmap_flags(char *bf, size_t size,
-						struct syscall_arg *arg)
+size_t syscall_arg__scnprintf_mmap_flags(char *bf, size_t size,
+					 struct syscall_arg *arg)
 {
 	unsigned long flags = arg->val;
 
@@ -40,7 +40,7 @@ static size_t syscall_arg__scnprintf_mmap_flags(char *bf, size_t size,
 	return mmap__scnprintf_flags(flags, bf, size, arg->show_string_prefix);
 }
 
-#define SCA_MMAP_FLAGS syscall_arg__scnprintf_mmap_flags
+
 
 #include "trace/beauty/generated/mremap_flags_array.c"
 static DEFINE_STRARRAY(mremap_flags, "MREMAP_");
@@ -50,7 +50,7 @@ static size_t mremap__scnprintf_flags(unsigned long flags, char *bf, size_t size
        return strarray__scnprintf_flags(&strarray__mremap_flags, bf, size, show_prefix, flags);
 }
 
-static size_t syscall_arg__scnprintf_mremap_flags(char *bf, size_t size, struct syscall_arg *arg)
+size_t syscall_arg__scnprintf_mremap_flags(char *bf, size_t size, struct syscall_arg *arg)
 {
 	unsigned long flags = arg->val;
 
@@ -60,7 +60,7 @@ static size_t syscall_arg__scnprintf_mremap_flags(char *bf, size_t size, struct 
 	return mremap__scnprintf_flags(flags, bf, size, arg->show_string_prefix);
 }
 
-#define SCA_MREMAP_FLAGS syscall_arg__scnprintf_mremap_flags
+
 
 static size_t madvise__scnprintf_behavior(int behavior, char *bf, size_t size)
 {
@@ -73,10 +73,8 @@ static size_t madvise__scnprintf_behavior(int behavior, char *bf, size_t size)
        return scnprintf(bf, size, "%#", behavior);
 }
 
-static size_t syscall_arg__scnprintf_madvise_behavior(char *bf, size_t size,
-						      struct syscall_arg *arg)
+size_t syscall_arg__scnprintf_madvise_behavior(char *bf, size_t size,
+					       struct syscall_arg *arg)
 {
 	return madvise__scnprintf_behavior(arg->val, bf, size);
 }
-
-#define SCA_MADV_BHV syscall_arg__scnprintf_madvise_behavior

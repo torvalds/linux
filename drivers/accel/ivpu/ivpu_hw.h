@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2020-2025 Intel Corporation
+ * Copyright (C) 2020-2026 Intel Corporation
  */
 
 #ifndef __IVPU_HW_H__
@@ -28,6 +28,7 @@ struct ivpu_hw_info {
 		struct ivpu_addr_range dma;
 	} ranges;
 	struct {
+		/* Hardware min and max pll ratio */
 		u8 min_ratio;
 		u8 max_ratio;
 		/*
@@ -35,6 +36,9 @@ struct ivpu_hw_info {
 		 * performance to power ratio at this frequency.
 		 */
 		u8 pn_ratio;
+		/* Pll ratios configured via sysfs interface */
+		u8 cfg_min_ratio;
+		u8 cfg_max_ratio;
 		u32 profiling_freq;
 	} pll;
 	struct {
@@ -78,16 +82,6 @@ static inline u32 ivpu_hw_ip_irq_handler(struct ivpu_device *vdev, int irq)
 static inline u64 ivpu_hw_range_size(const struct ivpu_addr_range *range)
 {
 	return range->end - range->start;
-}
-
-static inline u32 ivpu_hw_dpu_max_freq_get(struct ivpu_device *vdev)
-{
-	return ivpu_hw_btrs_dpu_max_freq_get(vdev);
-}
-
-static inline u32 ivpu_hw_dpu_freq_get(struct ivpu_device *vdev)
-{
-	return ivpu_hw_btrs_dpu_freq_get(vdev);
 }
 
 static inline void ivpu_hw_irq_clear(struct ivpu_device *vdev)

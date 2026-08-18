@@ -23,8 +23,8 @@ MODULE_LICENSE("GPL");
 #define DRV_NAME "ism"
 
 static const struct pci_device_id ism_device_table[] = {
-	{ PCI_VDEVICE(IBM, PCI_DEVICE_ID_IBM_ISM), 0 },
-	{ 0, }
+	{ PCI_VDEVICE(IBM, PCI_DEVICE_ID_IBM_ISM) },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, ism_device_table);
 

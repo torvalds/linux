@@ -218,11 +218,9 @@ static u16 link_modes[] = {
 };
 
 static const struct pci_device_id cas_pci_tbl[] = {
-	{ PCI_VENDOR_ID_SUN, PCI_DEVICE_ID_SUN_CASSINI,
-	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
-	{ PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_SATURN,
-	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
-	{ 0, }
+	{ PCI_VDEVICE(SUN, PCI_DEVICE_ID_SUN_CASSINI) },
+	{ PCI_VDEVICE(NS, PCI_DEVICE_ID_NS_SATURN) },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, cas_pci_tbl);
@@ -1029,7 +1027,7 @@ static int cas_pcs_link_check(struct cas *cp)
 			 * point a bit earlier in the sequence. If we had
 			 * generated a reset a short time ago, we'll wait for
 			 * the link timer to check the status until a
-			 * timer expires (link_transistion_jiffies_valid is
+			 * timer expires (link_transition_jiffies_valid is
 			 * true when the timer is running.)  Instead of using
 			 * a system timer, we just do a check whenever the
 			 * link timer is running - this clears the flag after
@@ -4547,7 +4545,7 @@ static int cas_get_link_ksettings(struct net_device *dev,
 	}
 	if (linkstate != link_up) {
 		/* Force these to "unknown" if the link is not up and
-		 * autonogotiation in enabled. We can set the link
+		 * autonegotiation is enabled. We can set the link
 		 * speed to 0, but not cmd->duplex,
 		 * because its legal values are 0 and 1.  Ethtool will
 		 * print the value reported in parentheses after the
@@ -4799,7 +4797,7 @@ static void cas_program_bridge(struct pci_dev *cas_pdev)
 	 */
 	pci_write_config_word(pdev, 0x50, (5 << 10) | 0x3ff);
 
-	/* The Read Prefecth Policy register is 16-bit and sits at
+	/* The Read Prefetch Policy register is 16-bit and sits at
 	 * offset 0x52.  It enables a "smart" pre-fetch policy.  We
 	 * enable it and max out all of the settings since only one
 	 * device is sitting underneath and thus bandwidth sharing is
@@ -4906,7 +4904,7 @@ static int cas_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/*
 	 * On some architectures, the default cache line size set
-	 * by pci_try_set_mwi reduces perforamnce.  We have to increase
+	 * by pci_try_set_mwi reduces performance.  We have to increase
 	 * it for this case.  To start, we'll print some configuration
 	 * data.
 	 */

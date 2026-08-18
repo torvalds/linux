@@ -1537,7 +1537,9 @@ static int anx7411_i2c_probe(struct i2c_client *client)
 	if (anx7411_typec_check_connection(plat))
 		dev_err(dev, "check status\n");
 
-	pm_runtime_enable(dev);
+	ret = devm_pm_runtime_enable(dev);
+	if (ret)
+		goto free_wq;
 
 	return 0;
 
@@ -1577,8 +1579,8 @@ static void anx7411_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id anx7411_id[] = {
-	{ "anx7411" },
-	{}
+	{ .name = "anx7411" },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, anx7411_id);

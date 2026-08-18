@@ -2536,6 +2536,25 @@ static const struct ethtool_ops axienet_ethtool_ops = {
 	.get_rmon_stats = axienet_ethtool_get_rmon_stats,
 };
 
+static const struct ethtool_ops axienet_ethtool_dmaengine_ops = {
+	.get_drvinfo    = axienet_ethtools_get_drvinfo,
+	.get_regs_len   = axienet_ethtools_get_regs_len,
+	.get_regs       = axienet_ethtools_get_regs,
+	.get_link       = ethtool_op_get_link,
+	.get_pauseparam = axienet_ethtools_get_pauseparam,
+	.set_pauseparam = axienet_ethtools_set_pauseparam,
+	.get_link_ksettings = axienet_ethtools_get_link_ksettings,
+	.set_link_ksettings = axienet_ethtools_set_link_ksettings,
+	.nway_reset	= axienet_ethtools_nway_reset,
+	.get_ethtool_stats = axienet_ethtools_get_ethtool_stats,
+	.get_strings    = axienet_ethtools_get_strings,
+	.get_sset_count = axienet_ethtools_get_sset_count,
+	.get_pause_stats = axienet_ethtools_get_pause_stats,
+	.get_eth_mac_stats = axienet_ethtool_get_eth_mac_stats,
+	.get_eth_ctrl_stats = axienet_ethtool_get_eth_ctrl_stats,
+	.get_rmon_stats = axienet_ethtool_get_rmon_stats,
+};
+
 static struct axienet_local *pcs_to_axienet_local(struct phylink_pcs *pcs)
 {
 	return container_of(pcs, struct axienet_local, pcs);
@@ -2792,7 +2811,6 @@ static int axienet_probe(struct platform_device *pdev)
 
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 	ndev->features = NETIF_F_SG;
-	ndev->ethtool_ops = &axienet_ethtool_ops;
 
 	/* MTU range: 64 - 9000 */
 	ndev->min_mtu = 64;
@@ -3021,10 +3039,13 @@ static int axienet_probe(struct platform_device *pdev)
 		lp->use_dmaengine = 1;
 	}
 
-	if (lp->use_dmaengine)
+	if (lp->use_dmaengine) {
 		ndev->netdev_ops = &axienet_netdev_dmaengine_ops;
-	else
+		ndev->ethtool_ops = &axienet_ethtool_dmaengine_ops;
+	} else {
 		ndev->netdev_ops = &axienet_netdev_ops;
+		ndev->ethtool_ops = &axienet_ethtool_ops;
+	}
 	/* Check for Ethernet core IRQ (optional) */
 	if (lp->eth_irq <= 0)
 		dev_info(&pdev->dev, "Ethernet core IRQ not defined\n");

@@ -150,7 +150,7 @@ static void virtfn_remove_bus(struct pci_bus *physbus, struct pci_bus *virtbus)
 		pci_remove_bus(virtbus);
 }
 
-resource_size_t pci_iov_resource_size(struct pci_dev *dev, int resno)
+resource_size_t pci_iov_resource_size(const struct pci_dev *dev, int resno)
 {
 	if (!dev->is_physfn)
 		return 0;
@@ -938,16 +938,21 @@ static void sriov_restore_vf_rebar_state(struct pci_dev *dev)
 		return;
 
 	pci_read_config_dword(dev, pos + PCI_VF_REBAR_CTRL, &ctrl);
+	if (PCI_POSSIBLE_ERROR(ctrl))
+		return;
+
 	nbars = FIELD_GET(PCI_VF_REBAR_CTRL_NBAR_MASK, ctrl);
 
 	for (i = 0; i < nbars; i++, pos += 8) {
 		int bar_idx, size;
 
 		pci_read_config_dword(dev, pos + PCI_VF_REBAR_CTRL, &ctrl);
+		if (PCI_POSSIBLE_ERROR(ctrl))
+			return;
+
 		bar_idx = FIELD_GET(PCI_VF_REBAR_CTRL_BAR_IDX, ctrl);
 		size = pci_rebar_bytes_to_size(dev->sriov->barsz[bar_idx]);
-		ctrl &= ~PCI_VF_REBAR_CTRL_BAR_SIZE;
-		ctrl |= FIELD_PREP(PCI_VF_REBAR_CTRL_BAR_SIZE, size);
+		FIELD_MODIFY(PCI_VF_REBAR_CTRL_BAR_SIZE, &ctrl, size);
 		pci_write_config_dword(dev, pos + PCI_VF_REBAR_CTRL, ctrl);
 	}
 }
@@ -1084,7 +1089,7 @@ void pci_iov_update_resource(struct pci_dev *dev, int resno)
 	}
 }
 
-resource_size_t __weak pcibios_iov_resource_alignment(struct pci_dev *dev,
+resource_size_t __weak pcibios_iov_resource_alignment(const struct pci_dev *dev,
 						      int resno)
 {
 	return pci_iov_resource_size(dev, resno);
@@ -1100,7 +1105,8 @@ resource_size_t __weak pcibios_iov_resource_alignment(struct pci_dev *dev,
  * the VF BAR size multiplied by the number of VFs.  The alignment
  * is just the VF BAR size.
  */
-resource_size_t pci_sriov_resource_alignment(struct pci_dev *dev, int resno)
+resource_size_t pci_sriov_resource_alignment(const struct pci_dev *dev,
+					     int resno)
 {
 	return pcibios_iov_resource_alignment(dev, resno);
 }

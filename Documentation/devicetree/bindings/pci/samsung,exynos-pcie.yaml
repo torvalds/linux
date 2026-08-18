@@ -109,7 +109,7 @@ examples:
         num-lanes = <1>;
         num-viewport = <3>;
         bus-range = <0x00 0xff>;
-        ranges = <0x81000000 0 0	  0x0c001000 0 0x00010000>,
+        ranges = <0x81000000 0 0   0x0c001000 0 0x00010000>,
                  <0x82000000 0 0x0c011000 0x0c011000 0 0x03feefff>;
         vdd10-supply = <&ldo6_reg>;
         vdd18-supply = <&ldo7_reg>;

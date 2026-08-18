@@ -46,12 +46,71 @@ region is only accessible to heavy-secure ucode.
    are of type 0xE0 and can be identified as such. This could be subject to change
    in future generations.
 
+IFR Header
+----------
+On Kepler and later GPUs, the ROM begins with an Init-from-ROM (IFR) header
+rather than a standard PCI ROM signature (0xAA55). The driver must parse the
+IFR header to find where the PCI ROM images actually start.
+
+Init-from-ROM (IFR) is a special GPU feature used for power management
+on some Nvidia GPUs.  It references data in the VBIOS for its operation,
+but for drivers the important piece is a header that precedes the
+VBIOS PCI Expansion ROM.
+
+Most such GPUs do not need to parse the IFR header in order to find the
+VBIOS, but the Nvidia GA100 is the exception.  GA100 lacks a display engine,
+so the PRAMIN method (which reads the VBIOS from VRAM via display hardware)
+is unavailable, forcing the driver to read the ROM directly via PROM.
+On other similar GPUs, either PRAMIN succeeds before PROM is tried, or the
+IFR hardware has already applied the ROM offset so that PROM reads
+transparently skip the IFR header.
+
+The driver should first check for the standard 0xAA55 signature at offset 0.
+If found, there is no IFR header and the PCI ROM images start at
+offset 0. If not found, check for the IFR signature and parse the header to
+determine the PCI ROM image offset.
+
+Fixed Header Format
+~~~~~~~~~~~~~~~~~~~
+
+The IFR header begins with four 32-bit words at fixed offsets::
+
+    Offset  Name     Fields
+    ------  -------  ------
+    0x00    FIXED0   bits 31:0  - Signature (must be 0x4947564E, ASCII "NVGI")
+    0x04    FIXED1   bit  31    - Reserved
+                     bits 30:16 - FIXED_DATA_SIZE Fixed data size (offset to extended section)
+                     bits 15:8  - VERSIONSW Software version
+                     bits 7:0   - Reserved
+    0x08    FIXED2   bit  31    - Reserved
+                     bits 30:20 - Reserved (zero)
+                     bits 19:0  - TOTAL_DATA_SIZE Total data size
+
+Finding the PCI ROM Image Offset
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The method to find this offset depends on `VERSIONSW`.
+
+- **Version 1 and 2**: Read `FIXED_DATA_SIZE` from `FIXED1` to get the extended
+  section offset. The PCI ROM image is the 32-bit value at `FIXED_DATA_SIZE + 4`.
+
+- **Version 3**: Read `TOTAL_DATA_SIZE` from `FIXED2`. The 32-bit value at that
+  offset is a flash status offset. Add 4096 to get the ROM directory offset,
+  `ROM_DIRECTORY_OFFSET`.  The ROM directory must have signature 0x44524652
+  (ASCII "RFRD"). The PCI ROM image offset is the 32-bit value at
+  `ROM_DIRECTORY_OFFSET + 8`.
+
+The PCI ROM image offset must be 4-byte aligned. All offsets are relative to the
+start of ROM (BAR0 + 0x300000).
+
 VBIOS ROM Layout
 ----------------
-The VBIOS layout is roughly a series of concatenated images laid out as follows::
+The VBIOS (PCI Expansion ROM) is a series of concatenated images laid out as
+follows. On GPUs with an IFR header, this layout begins at the image offset
+determined by parsing the IFR header. On older GPUs, it begins at offset 0::
 
     +----------------------------------------------------------------------------+
-    | VBIOS (Starting at ROM_OFFSET: 0x300000)                                   |
+    | VBIOS (Starting at ROM_OFFSET: 0x300000 + IFR image offset)                |
     +----------------------------------------------------------------------------+
     | +-----------------------------------------------+                          |
     | | PciAt Image (Type 0x00)                       |                          |
@@ -173,7 +232,7 @@ Falcon data in the VBIOS which contains the PMU lookup table. This lookup table 
 used to find the required Falcon ucode based on an application ID.
 
 The location of the PMU lookup table is found by scanning the BIT (`BIOS Information Table`_)
-tokens for a token with the id `BIT_TOKEN_ID_FALCON_DATA` (0x70) which indicates the
+tokens for a token with the Falcon data token id (0x70) which indicates the
 offset of the same from the start of the VBIOS image. Unfortunately, the offset
 does not account for the EFI image located between the PciAt and FwSec images.
 The `vbios.rs` code compensates for this with appropriate arithmetic.

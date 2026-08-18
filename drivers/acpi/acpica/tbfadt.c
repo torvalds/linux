@@ -3,7 +3,7 @@
  *
  * Module Name: tbfadt   - FADT table utilities
  *
- * Copyright (C) 2000 - 2025, Intel Corp.
+ * Copyright (C) 2000 - 2026, Intel Corp.
  *
  *****************************************************************************/
 
@@ -553,8 +553,11 @@ static void acpi_tb_convert_fadt(void)
 				 * Note: If the legacy length field is > 0xFF bits, ignore
 				 * this check. (GPE registers can be larger than the
 				 * 64-bit GAS structure can accommodate, 0xFF bits).
+				 * Also skip if bit_width is 0, indicating the 64-bit field
+				 * was not populated - legacy length will be used instead.
 				 */
 				if ((ACPI_MUL_8(length) <= ACPI_UINT8_MAX) &&
+				    (address64->bit_width != 0) &&
 				    (address64->bit_width !=
 				     ACPI_MUL_8(length))) {
 					ACPI_BIOS_WARNING((AE_INFO,

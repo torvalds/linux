@@ -13,8 +13,8 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/fs.h>
+#include <linux/kref.h>
 #include <linux/miscdevice.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
 #include <linux/platform_data/cros_ec_chardev.h>
@@ -22,6 +22,7 @@
 #include <linux/platform_data/cros_ec_proto.h>
 #include <linux/platform_device.h>
 #include <linux/poll.h>
+#include <linux/rwsem.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
@@ -31,14 +32,44 @@
 /* Arbitrary bounded size for the event queue */
 #define CROS_MAX_EVENT_LEN	PAGE_SIZE
 
-struct chardev_priv {
+/*
+ * Platform device driver data.
+ */
+struct chardev_pdata {
+	struct miscdevice misc;
+	struct kref kref;
+	struct rw_semaphore ec_dev_sem;
 	struct cros_ec_device *ec_dev;
+	u16 cmd_offset;
+	struct blocking_notifier_head subscribers;
+	struct notifier_block relay;
+};
+
+static void chardev_pdata_release(struct kref *kref)
+{
+	struct chardev_pdata *pdata = container_of(kref, typeof(*pdata), kref);
+
+	kfree(pdata);
+}
+
+static int cros_ec_chardev_relay_event(struct notifier_block *nb,
+				       unsigned long queued_during_suspend,
+				       void *_notify)
+{
+	struct chardev_pdata *pdata = container_of(nb, typeof(*pdata), relay);
+
+	blocking_notifier_call_chain(&pdata->subscribers, queued_during_suspend,
+				     _notify);
+	return NOTIFY_OK;
+}
+
+struct chardev_priv {
 	struct notifier_block notifier;
 	wait_queue_head_t wait_event;
 	unsigned long event_mask;
 	struct list_head events;
 	size_t event_len;
-	u16 cmd_offset;
+	struct chardev_pdata *pdata;
 };
 
 struct ec_event {
@@ -61,10 +92,10 @@ static int ec_get_version(struct chardev_priv *priv, char *str, int maxlen)
 	if (!msg)
 		return -ENOMEM;
 
-	msg->command = EC_CMD_GET_VERSION + priv->cmd_offset;
+	msg->command = EC_CMD_GET_VERSION + priv->pdata->cmd_offset;
 	msg->insize = sizeof(*resp);
 
-	ret = cros_ec_cmd_xfer_status(priv->ec_dev, msg);
+	ret = cros_ec_cmd_xfer_status(priv->pdata->ec_dev, msg);
 	if (ret < 0) {
 		snprintf(str, maxlen,
 			 "Unknown EC version, returned error: %d\n",
@@ -92,10 +123,18 @@ static int cros_ec_chardev_mkbp_event(struct notifier_block *nb,
 {
 	struct chardev_priv *priv = container_of(nb, struct chardev_priv,
 						 notifier);
-	struct cros_ec_device *ec_dev = priv->ec_dev;
+	struct cros_ec_device *ec_dev;
 	struct ec_event *event;
-	unsigned long event_bit = 1 << ec_dev->event_data.event_type;
-	int total_size = sizeof(*event) + ec_dev->event_size;
+	unsigned long event_bit;
+	int total_size;
+
+	guard(rwsem_read)(&priv->pdata->ec_dev_sem);
+	if (!priv->pdata->ec_dev)
+		return NOTIFY_DONE;
+	ec_dev = priv->pdata->ec_dev;
+
+	event_bit = 1 << ec_dev->event_data.event_type;
+	total_size = sizeof(*event) + ec_dev->event_size;
 
 	if (!(event_bit & priv->event_mask) ||
 	    (priv->event_len + total_size) > CROS_MAX_EVENT_LEN)
@@ -157,8 +196,7 @@ out:
 static int cros_ec_chardev_open(struct inode *inode, struct file *filp)
 {
 	struct miscdevice *mdev = filp->private_data;
-	struct cros_ec_dev *ec = dev_get_drvdata(mdev->parent);
-	struct cros_ec_device *ec_dev = ec->ec_dev;
+	struct chardev_pdata *pdata = container_of(mdev, typeof(*pdata), misc);
 	struct chardev_priv *priv;
 	int ret;
 
@@ -166,18 +204,20 @@ static int cros_ec_chardev_open(struct inode *inode, struct file *filp)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->ec_dev = ec_dev;
-	priv->cmd_offset = ec->cmd_offset;
+	priv->pdata = pdata;
+	kref_get(&pdata->kref);
 	filp->private_data = priv;
 	INIT_LIST_HEAD(&priv->events);
 	init_waitqueue_head(&priv->wait_event);
 	nonseekable_open(inode, filp);
 
 	priv->notifier.notifier_call = cros_ec_chardev_mkbp_event;
-	ret = blocking_notifier_chain_register(&ec_dev->event_notifier,
+	ret = blocking_notifier_chain_register(&pdata->subscribers,
 					       &priv->notifier);
 	if (ret) {
-		dev_err(ec_dev->dev, "failed to register event notifier\n");
+		dev_err(pdata->ec_dev->dev,
+			"failed to register event notifier\n");
+		kref_put(&priv->pdata->kref, chardev_pdata_release);
 		kfree(priv);
 	}
 
@@ -187,6 +227,10 @@ static int cros_ec_chardev_open(struct inode *inode, struct file *filp)
 static __poll_t cros_ec_chardev_poll(struct file *filp, poll_table *wait)
 {
 	struct chardev_priv *priv = filp->private_data;
+
+	guard(rwsem_read)(&priv->pdata->ec_dev_sem);
+	if (!priv->pdata->ec_dev)
+		return EPOLLHUP;
 
 	poll_wait(filp, &priv->wait_event, wait);
 
@@ -204,6 +248,10 @@ static ssize_t cros_ec_chardev_read(struct file *filp, char __user *buffer,
 	struct chardev_priv *priv = filp->private_data;
 	size_t count;
 	int ret;
+
+	guard(rwsem_read)(&priv->pdata->ec_dev_sem);
+	if (!priv->pdata->ec_dev)
+		return -ENODEV;
 
 	if (priv->event_mask) { /* queued MKBP event */
 		struct ec_event *event;
@@ -251,11 +299,11 @@ static ssize_t cros_ec_chardev_read(struct file *filp, char __user *buffer,
 static int cros_ec_chardev_release(struct inode *inode, struct file *filp)
 {
 	struct chardev_priv *priv = filp->private_data;
-	struct cros_ec_device *ec_dev = priv->ec_dev;
 	struct ec_event *event, *e;
 
-	blocking_notifier_chain_unregister(&ec_dev->event_notifier,
+	blocking_notifier_chain_unregister(&priv->pdata->subscribers,
 					   &priv->notifier);
+	kref_put(&priv->pdata->kref, chardev_pdata_release);
 
 	list_for_each_entry_safe(event, e, &priv->events, node) {
 		list_del(&event->node);
@@ -298,8 +346,8 @@ static long cros_ec_chardev_ioctl_xcmd(struct chardev_priv *priv, void __user *a
 		goto exit;
 	}
 
-	s_cmd->command += priv->cmd_offset;
-	ret = cros_ec_cmd_xfer(priv->ec_dev, s_cmd);
+	s_cmd->command += priv->pdata->cmd_offset;
+	ret = cros_ec_cmd_xfer(priv->pdata->ec_dev, s_cmd);
 	/* Only copy data to userland if data was received. */
 	if (ret < 0)
 		goto exit;
@@ -313,7 +361,7 @@ exit:
 
 static long cros_ec_chardev_ioctl_readmem(struct chardev_priv *priv, void __user *arg)
 {
-	struct cros_ec_device *ec_dev = priv->ec_dev;
+	struct cros_ec_device *ec_dev = priv->pdata->ec_dev;
 	struct cros_ec_readmem s_mem = { };
 	long num;
 
@@ -342,6 +390,10 @@ static long cros_ec_chardev_ioctl(struct file *filp, unsigned int cmd,
 				   unsigned long arg)
 {
 	struct chardev_priv *priv = filp->private_data;
+
+	guard(rwsem_read)(&priv->pdata->ec_dev_sem);
+	if (!priv->pdata->ec_dev)
+		return -ENODEV;
 
 	if (_IOC_TYPE(cmd) != CROS_EC_DEV_IOC)
 		return -ENOTTY;
@@ -374,28 +426,61 @@ static int cros_ec_chardev_probe(struct platform_device *pdev)
 {
 	struct cros_ec_dev *ec = dev_get_drvdata(pdev->dev.parent);
 	struct cros_ec_platform *ec_platform = dev_get_platdata(ec->dev);
-	struct miscdevice *misc;
+	struct chardev_pdata *pdata;
+	int ret;
 
-	/* Create a char device: we want to create it anew */
-	misc = devm_kzalloc(&pdev->dev, sizeof(*misc), GFP_KERNEL);
-	if (!misc)
+	pdata = kzalloc_obj(*pdata);
+	if (!pdata)
 		return -ENOMEM;
 
-	misc->minor = MISC_DYNAMIC_MINOR;
-	misc->fops = &chardev_fops;
-	misc->name = ec_platform->ec_name;
-	misc->parent = pdev->dev.parent;
+	platform_set_drvdata(pdev, pdata);
+	kref_init(&pdata->kref);
+	init_rwsem(&pdata->ec_dev_sem);
+	pdata->ec_dev = ec->ec_dev;
+	pdata->cmd_offset = ec->cmd_offset;
+	BLOCKING_INIT_NOTIFIER_HEAD(&pdata->subscribers);
+	pdata->relay.notifier_call = cros_ec_chardev_relay_event;
+	ret = blocking_notifier_chain_register(&pdata->ec_dev->event_notifier,
+					       &pdata->relay);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register event notifier\n");
+		goto err_put_pdata;
+	}
 
-	dev_set_drvdata(&pdev->dev, misc);
+	pdata->misc.minor = MISC_DYNAMIC_MINOR;
+	pdata->misc.fops = &chardev_fops;
+	pdata->misc.name = ec_platform->ec_name;
+	pdata->misc.parent = pdev->dev.parent;
 
-	return misc_register(misc);
+	ret = misc_register(&pdata->misc);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register misc device\n");
+		goto err_unregister_notifier;
+	}
+
+	return 0;
+err_unregister_notifier:
+	blocking_notifier_chain_unregister(&pdata->ec_dev->event_notifier,
+					   &pdata->relay);
+err_put_pdata:
+	kref_put(&pdata->kref, chardev_pdata_release);
+	return ret;
 }
 
 static void cros_ec_chardev_remove(struct platform_device *pdev)
 {
-	struct miscdevice *misc = dev_get_drvdata(&pdev->dev);
+	struct chardev_pdata *pdata = platform_get_drvdata(pdev);
+	struct cros_ec_device *ec_dev = pdata->ec_dev;
 
-	misc_deregister(misc);
+	/* stop new fops from being created */
+	misc_deregister(&pdata->misc);
+	/* stop existing fops from running */
+	scoped_guard(rwsem_write, &pdata->ec_dev_sem)
+		pdata->ec_dev = NULL;
+
+	blocking_notifier_chain_unregister(&ec_dev->event_notifier,
+					   &pdata->relay);
+	kref_put(&pdata->kref, chardev_pdata_release);
 }
 
 static const struct platform_device_id cros_ec_chardev_id[] = {

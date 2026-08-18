@@ -10,11 +10,20 @@
 #include "bpf_kfuncs.h"
 #include "crypto_common.h"
 
-unsigned char key[256] = {};
+/*
+ * key[] and algo[] are 8-byte aligned and 'params' is kept off the stack to
+ * work around an LLVM code generation bug. clang lowers the memcpy() of these
+ * byte-aligned globals into a per-byte load/store sequence staged on the stack,
+ * and additionally materializes the on-stack 'struct bpf_crypto_params' twice.
+ * Both blow the 512-byte BPF stack limit. Aligning the sources lets clang copy
+ * word-wise, and a global 'params' removes the large object from the stack.
+ */
+unsigned char key[256] __attribute__((aligned(8))) = {};
 u16 udp_test_port = 7777;
 u32 authsize, key_len;
-char algo[128] = {};
+char algo[128] __attribute__((aligned(8))) = {};
 char dst[16] = {}, dst_bad[8] = {};
+static struct bpf_crypto_params params;
 int status;
 
 static int skb_dynptr_validate(struct __sk_buff *skb, struct bpf_dynptr *psrc)
@@ -53,11 +62,6 @@ static int skb_dynptr_validate(struct __sk_buff *skb, struct bpf_dynptr *psrc)
 SEC("syscall")
 int skb_crypto_setup(void *ctx)
 {
-	struct bpf_crypto_params params = {
-		.type = "skcipher",
-		.key_len = key_len,
-		.authsize = authsize,
-	};
 	struct bpf_crypto_ctx *cctx;
 	int err;
 
@@ -67,6 +71,9 @@ int skb_crypto_setup(void *ctx)
 		return 0;
 	}
 
+	__builtin_memcpy(&params.type, "skcipher", sizeof("skcipher"));
+	params.key_len = key_len;
+	params.authsize = authsize;
 	__builtin_memcpy(&params.algo, algo, sizeof(algo));
 	__builtin_memcpy(&params.key, key, sizeof(key));
 

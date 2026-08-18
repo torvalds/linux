@@ -52,7 +52,7 @@ xfs_readlink(
 
 	if (pathlen < 0 || pathlen > XFS_SYMLINK_MAXLEN) {
 		xfs_alert(mp, "%s: inode (%llu) bad symlink length (%lld)",
-			 __func__, (unsigned long long) ip->i_ino,
+			 __func__, (unsigned long long)I_INO(ip),
 			 (long long) pathlen);
 		ASSERT(0);
 		goto out_corrupt;
@@ -186,7 +186,7 @@ xfs_symlink(
 	xfs_qm_vop_create_dqattach(tp, du.ip, udqp, gdqp, pdqp);
 
 	resblks -= XFS_IALLOC_SPACE_RES(mp);
-	error = xfs_symlink_write_target(tp, du.ip, du.ip->i_ino, target_path,
+	error = xfs_symlink_write_target(tp, du.ip, I_INO(du.ip), target_path,
 			pathlen, fs_blocks, resblks);
 	if (error)
 		goto out_trans_cancel;
@@ -339,7 +339,7 @@ xfs_inactive_symlink(
 
 	if (pathlen <= 0 || pathlen > XFS_SYMLINK_MAXLEN) {
 		xfs_alert(mp, "%s: inode (0x%llx) bad symlink length (%d)",
-			 __func__, (unsigned long long)ip->i_ino, pathlen);
+			 __func__, (unsigned long long)I_INO(ip), pathlen);
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 		ASSERT(0);
 		xfs_inode_mark_sick(ip, XFS_SICK_INO_SYMLINK);

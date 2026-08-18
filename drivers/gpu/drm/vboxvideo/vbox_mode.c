@@ -219,17 +219,17 @@ static void vbox_crtc_set_base_and_mode(struct drm_crtc *crtc,
 }
 
 static void vbox_crtc_atomic_enable(struct drm_crtc *crtc,
-				    struct drm_atomic_state *state)
+				    struct drm_atomic_commit *state)
 {
 }
 
 static void vbox_crtc_atomic_disable(struct drm_crtc *crtc,
-				     struct drm_atomic_state *state)
+				     struct drm_atomic_commit *state)
 {
 }
 
 static void vbox_crtc_atomic_flush(struct drm_crtc *crtc,
-				   struct drm_atomic_state *state)
+				   struct drm_atomic_commit *state)
 {
 }
 
@@ -256,7 +256,7 @@ static const struct drm_crtc_funcs vbox_crtc_funcs = {
 };
 
 static int vbox_primary_atomic_check(struct drm_plane *plane,
-				     struct drm_atomic_state *state)
+				     struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
 									   plane);
@@ -276,7 +276,7 @@ static int vbox_primary_atomic_check(struct drm_plane *plane,
 }
 
 static void vbox_primary_atomic_update(struct drm_plane *plane,
-				       struct drm_atomic_state *state)
+				       struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
 									   plane);
@@ -322,7 +322,7 @@ static void vbox_primary_atomic_update(struct drm_plane *plane,
 }
 
 static void vbox_primary_atomic_disable(struct drm_plane *plane,
-					struct drm_atomic_state *state)
+					struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
 									   plane);
@@ -335,7 +335,7 @@ static void vbox_primary_atomic_disable(struct drm_plane *plane,
 }
 
 static int vbox_cursor_atomic_check(struct drm_plane *plane,
-				    struct drm_atomic_state *state)
+				    struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
 									   plane);
@@ -387,7 +387,7 @@ static void copy_cursor_image(u8 *src, u8 *dst, u32 width, u32 height,
 }
 
 static void vbox_cursor_atomic_update(struct drm_plane *plane,
-				      struct drm_atomic_state *state)
+				      struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
 									   plane);
@@ -438,7 +438,7 @@ static void vbox_cursor_atomic_update(struct drm_plane *plane,
 }
 
 static void vbox_cursor_atomic_disable(struct drm_plane *plane,
-				       struct drm_atomic_state *state)
+				       struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
 									   plane);

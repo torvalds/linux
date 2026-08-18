@@ -538,9 +538,9 @@ int br_mrp_ring_port_open(struct net_device *dev, u8 loc)
 	}
 
 	if (loc)
-		p->flags |= BR_MRP_LOST_CONT;
+		set_bit(BR_MRP_LOST_CONT_BIT, &p->flags);
 	else
-		p->flags &= ~BR_MRP_LOST_CONT;
+		clear_bit(BR_MRP_LOST_CONT_BIT, &p->flags);
 
 	br_ifinfo_notify(RTM_NEWLINK, NULL, p);
 
@@ -560,9 +560,9 @@ int br_mrp_in_port_open(struct net_device *dev, u8 loc)
 	}
 
 	if (loc)
-		p->flags |= BR_MRP_LOST_IN_CONT;
+		set_bit(BR_MRP_LOST_IN_CONT_BIT, &p->flags);
 	else
-		p->flags &= ~BR_MRP_LOST_IN_CONT;
+		clear_bit(BR_MRP_LOST_IN_CONT_BIT, &p->flags);
 
 	br_ifinfo_notify(RTM_NEWLINK, NULL, p);
 

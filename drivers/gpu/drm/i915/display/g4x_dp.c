@@ -273,7 +273,7 @@ static bool cpt_dp_port_selected(struct intel_display *display,
 }
 
 bool g4x_dp_port_enabled(struct intel_display *display,
-			 i915_reg_t dp_reg, enum port port,
+			 intel_reg_t dp_reg, enum port port,
 			 enum pipe *pipe)
 {
 	bool ret;
@@ -1280,7 +1280,7 @@ static const struct drm_encoder_funcs intel_dp_enc_funcs = {
 };
 
 bool g4x_dp_init(struct intel_display *display,
-		 i915_reg_t output_reg, enum port port)
+		 intel_reg_t output_reg, enum port port)
 {
 	const struct intel_bios_encoder_data *devdata;
 	struct intel_digital_port *dig_port;

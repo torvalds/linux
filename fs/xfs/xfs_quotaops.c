@@ -34,7 +34,7 @@ xfs_qm_fill_state(
 
 	defq = xfs_get_defquota(mp->m_quotainfo, type);
 
-	tstate->ino = ip->i_ino;
+	tstate->ino = I_INO(ip);
 	tstate->flags |= QCI_SYSFILE;
 	tstate->blocks = ip->i_nblocks;
 	tstate->nextents = ip->i_df.if_nextents;

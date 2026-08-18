@@ -1236,12 +1236,9 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 
 	if (udata) {
 		resp.cap_flags = hr_qp->en_flags;
-		ret = ib_copy_to_udata(udata, &resp,
-				       min(udata->outlen, sizeof(resp)));
-		if (ret) {
-			ibdev_err(ibdev, "copy qp resp failed!\n");
+		ret = ib_respond_udata(udata, resp);
+		if (ret)
 			goto err_flow_ctrl;
-		}
 	}
 
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_QP_FLOW_CTRL) {
@@ -1494,11 +1491,7 @@ int hns_roce_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	if (udata && udata->outlen) {
 		resp.tc_mode = hr_qp->tc_mode;
 		resp.priority = hr_qp->sl;
-		ret = ib_copy_to_udata(udata, &resp,
-				       min(udata->outlen, sizeof(resp)));
-		if (ret)
-			ibdev_err_ratelimited(&hr_dev->ib_dev,
-					      "failed to copy modify qp resp.\n");
+		ret = ib_respond_udata(udata, resp);
 	}
 
 out:

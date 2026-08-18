@@ -17,6 +17,7 @@
 mod concat_idents;
 mod export;
 mod fmt;
+mod for_lt;
 mod helpers;
 mod kunit;
 mod module;
@@ -488,4 +489,16 @@ pub fn kunit_tests(attr: TokenStream, input: TokenStream) -> TokenStream {
     kunit::kunit_tests(parse_macro_input!(attr), parse_macro_input!(input))
         .unwrap_or_else(|e| e.into_compile_error())
         .into()
+}
+
+/// Obtain a type that implements [`ForLt`] for the given higher-ranked type.
+///
+/// Please refer to the documentation of the [`ForLt`] trait.
+///
+/// [`ForLt`]: trait.ForLt.html
+#[proc_macro]
+// The macro shares the name with the trait.
+#[allow(non_snake_case)]
+pub fn ForLt(input: TokenStream) -> TokenStream {
+    for_lt::for_lt(parse_macro_input!(input)).into()
 }

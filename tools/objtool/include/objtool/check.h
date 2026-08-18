@@ -68,6 +68,7 @@ struct instruction {
 	s8 instr;
 
 	u32 idx			: INSN_CHUNK_BITS,
+	    immediate_len	: 4,
 	    dead_end		: 1,
 	    ignore_alts		: 1,
 	    hint		: 1,
@@ -81,7 +82,7 @@ struct instruction {
 	    hole		: 1,
 	    fake		: 1,
 	    trace		: 1;
-		/* 9 bit hole */
+		/* 4 bit hole */
 
 	struct alt_group *alt_group;
 	struct instruction *jump_dest;
@@ -94,14 +95,30 @@ struct instruction {
 		};
 	};
 	struct alternative *alts;
-	struct symbol *sym;
+	struct symbol *_sym;
 	struct stack_op *stack_ops;
 	struct cfi_state *cfi;
 };
 
+/*
+ * Return the symbol associated with an instruction.  For alternative
+ * replacements, return the symbol of the original code being replaced rather
+ * than NULL.  insn->_sym reflects the actual location in the ELF file.
+ */
+static inline struct symbol *insn_sym(struct instruction *insn)
+{
+	struct symbol *sym = insn->_sym;
+
+	if ((!sym || !is_func_sym(sym)) &&
+	    insn->alt_group && insn->alt_group->orig_group)
+		sym = insn->alt_group->orig_group->first_insn->_sym;
+
+	return sym;
+}
+
 static inline struct symbol *insn_func(struct instruction *insn)
 {
-	struct symbol *sym = insn->sym;
+	struct symbol *sym = insn_sym(insn);
 
 	if (sym && sym->type != STT_FUNC)
 		sym = NULL;
@@ -144,6 +161,12 @@ struct instruction *find_insn(struct objtool_file *file,
 			      struct section *sec, unsigned long offset);
 
 struct instruction *next_insn_same_sec(struct objtool_file *file, struct instruction *insn);
+struct instruction *next_insn_same_func(struct objtool_file *file, struct instruction *insn);
+
+#define func_for_each_insn(file, func, insn)				\
+	for (insn = find_insn(file, func->sec, func->offset);		\
+	     insn;							\
+	     insn = next_insn_same_func(file, insn))
 
 #define sec_for_each_insn(file, _sec, insn)				\
 	for (insn = find_insn(file, _sec, 0);				\
@@ -154,6 +177,11 @@ struct instruction *next_insn_same_sec(struct objtool_file *file, struct instruc
 	for (insn = find_insn(file, sym->sec, sym->offset);		\
 	     insn && insn->offset < sym->offset + sym->len;		\
 	     insn = next_insn_same_sec(file, insn))
+
+struct reloc *insn_reloc(struct objtool_file *file, struct instruction *insn);
+
+int decode_file(struct objtool_file *file);
+void free_insns(struct objtool_file *file);
 
 const char *objtool_disas_insn(struct instruction *insn);
 

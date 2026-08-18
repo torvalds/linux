@@ -976,7 +976,7 @@ static int apple_dart_def_domain_type(struct device *dev)
 }
 
 #ifndef CONFIG_PCIE_APPLE_MSI_DOORBELL_ADDR
-/* Keep things compiling when CONFIG_PCI_APPLE isn't selected */
+/* Keep things compiling when CONFIG_PCIE_APPLE isn't selected */
 #define CONFIG_PCIE_APPLE_MSI_DOORBELL_ADDR	0
 #endif
 #define DOORBELL_ADDR	(CONFIG_PCIE_APPLE_MSI_DOORBELL_ADDR & PAGE_MASK)

@@ -18,6 +18,7 @@ properties:
               - renesas,r9a07g044-wdt    # RZ/G2{L,LC}
               - renesas,r9a07g054-wdt    # RZ/V2L
               - renesas,r9a08g045-wdt    # RZ/G3S
+              - renesas,r9a08g046-wdt    # RZ/G3L
           - const: renesas,rzg2l-wdt
 
       - items:

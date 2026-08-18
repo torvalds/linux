@@ -1036,11 +1036,11 @@ static void sht15_remove(struct platform_device *pdev)
 }
 
 static const struct platform_device_id sht15_device_ids[] = {
-	{ "sht10", sht10 },
-	{ "sht11", sht11 },
-	{ "sht15", sht15 },
-	{ "sht71", sht71 },
-	{ "sht75", sht75 },
+	{ .name = "sht10", .driver_data = sht10 },
+	{ .name = "sht11", .driver_data = sht11 },
+	{ .name = "sht15", .driver_data = sht15 },
+	{ .name = "sht71", .driver_data = sht71 },
+	{ .name = "sht75", .driver_data = sht75 },
 	{ }
 };
 MODULE_DEVICE_TABLE(platform, sht15_device_ids);

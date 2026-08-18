@@ -101,7 +101,7 @@ struct intel_sdvo {
 	struct intel_sdvo_ddc ddc[3];
 
 	/* Register for the SDVO device: SDVOB or SDVOC */
-	i915_reg_t sdvo_reg;
+	intel_reg_t sdvo_reg;
 
 	/*
 	 * Capabilities of the SDVO device returned by
@@ -1395,14 +1395,15 @@ static int intel_sdvo_compute_config(struct intel_encoder *encoder,
 							   adjusted_mode);
 		pipe_config->sdvo_tv_clock = true;
 	} else if (IS_LVDS(intel_sdvo_connector)) {
-		const struct drm_display_mode *fixed_mode =
-			intel_panel_fixed_mode(&intel_sdvo_connector->base, mode);
+		const struct drm_display_mode *fixed_mode;
 		int ret;
 
 		ret = intel_panel_compute_config(&intel_sdvo_connector->base,
 						 adjusted_mode);
 		if (ret)
 			return ret;
+
+		fixed_mode = &pipe_config->hw.adjusted_mode;
 
 		if (!intel_sdvo_set_output_timings_from_mode(intel_sdvo,
 							     intel_sdvo_connector,
@@ -1665,7 +1666,7 @@ static bool intel_sdvo_connector_get_hw_state(struct intel_connector *connector)
 }
 
 bool intel_sdvo_port_enabled(struct intel_display *display,
-			     i915_reg_t sdvo_reg, enum pipe *pipe)
+			     intel_reg_t sdvo_reg, enum pipe *pipe)
 {
 	u32 val;
 
@@ -1967,10 +1968,14 @@ intel_sdvo_mode_valid(struct drm_connector *connector,
 
 	if (IS_LVDS(intel_sdvo_connector)) {
 		enum drm_mode_status status;
+		int target_clock;
 
-		status = intel_panel_mode_valid(&intel_sdvo_connector->base, mode);
+		status = intel_panel_mode_valid(&intel_sdvo_connector->base, mode, &target_clock);
 		if (status != MODE_OK)
 			return status;
+
+		if (target_clock > max_dotclk)
+			return MODE_CLOCK_HIGH;
 	}
 
 	return MODE_OK;
@@ -2512,7 +2517,7 @@ static const struct drm_connector_funcs intel_sdvo_connector_funcs = {
 };
 
 static int intel_sdvo_atomic_check(struct drm_connector *conn,
-				   struct drm_atomic_state *state)
+				   struct drm_atomic_commit *state)
 {
 	struct drm_connector_state *new_conn_state =
 		drm_atomic_get_new_connector_state(state, conn);
@@ -3314,7 +3319,7 @@ static void proxy_lock_bus(struct i2c_adapter *adapter,
 	struct intel_sdvo_ddc *ddc = adapter->algo_data;
 	struct intel_sdvo *sdvo = ddc->sdvo;
 
-	sdvo->i2c->lock_ops->lock_bus(sdvo->i2c, flags);
+	i2c_lock_bus(sdvo->i2c, flags);
 }
 
 static int proxy_trylock_bus(struct i2c_adapter *adapter,
@@ -3323,7 +3328,7 @@ static int proxy_trylock_bus(struct i2c_adapter *adapter,
 	struct intel_sdvo_ddc *ddc = adapter->algo_data;
 	struct intel_sdvo *sdvo = ddc->sdvo;
 
-	return sdvo->i2c->lock_ops->trylock_bus(sdvo->i2c, flags);
+	return i2c_trylock_bus(sdvo->i2c, flags);
 }
 
 static void proxy_unlock_bus(struct i2c_adapter *adapter,
@@ -3332,7 +3337,7 @@ static void proxy_unlock_bus(struct i2c_adapter *adapter,
 	struct intel_sdvo_ddc *ddc = adapter->algo_data;
 	struct intel_sdvo *sdvo = ddc->sdvo;
 
-	sdvo->i2c->lock_ops->unlock_bus(sdvo->i2c, flags);
+	i2c_unlock_bus(sdvo->i2c, flags);
 }
 
 static const struct i2c_lock_operations proxy_lock_ops = {
@@ -3377,7 +3382,7 @@ static bool assert_sdvo_port_valid(struct intel_display *display, enum port port
 }
 
 bool intel_sdvo_init(struct intel_display *display,
-		     i915_reg_t sdvo_reg, enum port port)
+		     intel_reg_t sdvo_reg, enum port port)
 {
 	struct intel_encoder *intel_encoder;
 	struct intel_sdvo *intel_sdvo;

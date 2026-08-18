@@ -877,9 +877,9 @@ static int f75375_detect(struct i2c_client *client,
 }
 
 static const struct i2c_device_id f75375_id[] = {
-	{ "f75373", f75373 },
-	{ "f75375", f75375 },
-	{ "f75387", f75387 },
+	{ .name = "f75373", .driver_data = f75373 },
+	{ .name = "f75375", .driver_data = f75375 },
+	{ .name = "f75387", .driver_data = f75387 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, f75375_id);

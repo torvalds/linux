@@ -44,6 +44,7 @@ struct avtab_key {
 	 AVTAB_XPERMS_DONTAUDIT)
 #define AVTAB_ENABLED_OLD 0x80000000 /* reserved for used in cond_avtab */
 #define AVTAB_ENABLED	  0x8000 /* reserved for used in cond_avtab */
+#define AVTAB_SPECIFIER_MASK (AVTAB_AV | AVTAB_TYPE | AVTAB_XPERMS | AVTAB_ENABLED)
 	u16 specified; /* what field is specified */
 };
 
@@ -67,6 +68,18 @@ struct avtab_extended_perms {
 	/* 256 bits of permissions */
 	struct extended_perms_data perms;
 };
+
+static inline bool avtab_is_valid_xperm_specified(u8 specified)
+{
+	switch (specified) {
+	case AVTAB_XPERMS_IOCTLFUNCTION:
+	case AVTAB_XPERMS_IOCTLDRIVER:
+	case AVTAB_XPERMS_NLMSG:
+		return true;
+	default:
+		return false;
+	}
+}
 
 struct avtab_datum {
 	union {

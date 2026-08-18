@@ -371,7 +371,7 @@ drm_bridge_connector_mode_valid(struct drm_connector *connector,
 }
 
 static int drm_bridge_connector_atomic_check(struct drm_connector *connector,
-					     struct drm_atomic_state *state)
+					     struct drm_atomic_commit *state)
 {
 	struct drm_bridge_connector *bridge_connector =
 		to_drm_bridge_connector(connector);
@@ -773,8 +773,11 @@ static void drm_bridge_connector_put_bridges(struct drm_device *dev, void *data)
  * @drm: the DRM device
  * @encoder: the encoder where the bridge chain starts
  *
- * Allocate, initialise and register a &drm_bridge_connector with the @drm
- * device. The connector is associated with a chain of bridges that starts at
+ * Create a new &drm_bridge_connector for the @drm device. The connector is
+ * allocated, initialised, registered with the @drm device and attached to
+ * @encoder.
+ *
+ * The connector is associated with a chain of bridges that starts at
  * the @encoder. All bridges in the chain shall report bridge operation flags
  * (&drm_bridge->ops) and bridge output type (&drm_bridge->type), and none of
  * them may create a DRM connector directly.
@@ -1054,6 +1057,10 @@ struct drm_connector *drm_bridge_connector_init(struct drm_device *drm,
 	if (support_hdcp && IS_REACHABLE(CONFIG_DRM_DISPLAY_HELPER) &&
 	    IS_ENABLED(CONFIG_DRM_DISPLAY_HDCP_HELPER))
 		drm_connector_attach_content_protection_property(connector, true);
+
+	ret = drm_connector_attach_encoder(connector, encoder);
+	if (ret)
+		return ERR_PTR(ret);
 
 	return connector;
 }

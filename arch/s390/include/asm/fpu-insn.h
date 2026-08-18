@@ -15,6 +15,7 @@
 #include <linux/kmsan.h>
 #include <asm/asm-extable.h>
 
+asm(".include \"asm/insn-common-asm.h\"\n");
 asm(".include \"asm/fpu-insn-asm.h\"\n");
 
 /*

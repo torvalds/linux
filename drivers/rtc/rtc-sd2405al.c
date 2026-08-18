@@ -202,7 +202,7 @@ static int sd2405al_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id sd2405al_id[] = {
-	{ "sd2405al" },
+	{ .name = "sd2405al" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, sd2405al_id);

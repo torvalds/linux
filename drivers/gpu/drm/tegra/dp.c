@@ -4,6 +4,8 @@
  * Copyright (C) 2015 Rob Clark
  */
 
+#include <linux/string_choices.h>
+
 #include <drm/display/drm_dp_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_print.h>
@@ -668,7 +670,7 @@ static int drm_dp_link_train_full(struct drm_dp_link *link)
 
 retry:
 	DRM_DEBUG_KMS("full-training link: %u lane%s at %u MHz\n",
-		      link->lanes, (link->lanes > 1) ? "s" : "",
+		      link->lanes, str_plural(link->lanes),
 		      link->rate / 100);
 
 	err = drm_dp_link_configure(link->aux, link);
@@ -724,7 +726,7 @@ static int drm_dp_link_train_fast(struct drm_dp_link *link)
 	int err;
 
 	DRM_DEBUG_KMS("fast-training link: %u lane%s at %u MHz\n",
-		      link->lanes, (link->lanes > 1) ? "s" : "",
+		      link->lanes, str_plural(link->lanes),
 		      link->rate / 100);
 
 	err = drm_dp_link_configure(link->aux, link);

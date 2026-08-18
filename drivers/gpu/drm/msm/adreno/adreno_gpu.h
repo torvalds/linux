@@ -236,12 +236,7 @@ struct adreno_gpu {
 	/* firmware: */
 	const struct firmware *fw[ADRENO_FW_MAX];
 
-	/*
-	 * The migration to the central UBWC config db is still in flight - keep
-	 * a copy containing some local fixups until that's done.
-	 */
 	const struct qcom_ubwc_cfg_data *ubwc_config;
-	struct qcom_ubwc_cfg_data _ubwc_config;
 
 	/*
 	 * Register offsets are different between some GPUs.
@@ -590,6 +585,11 @@ static inline int adreno_is_a7xx(struct adreno_gpu *gpu)
 static inline int adreno_is_a8xx(struct adreno_gpu *gpu)
 {
 	return gpu->info->family >= ADRENO_8XX_GEN1;
+}
+
+static inline int adreno_is_a810(struct adreno_gpu *gpu)
+{
+	return gpu->info->chip_ids[0] == 0x44010000;
 }
 
 static inline int adreno_is_x285(struct adreno_gpu *gpu)

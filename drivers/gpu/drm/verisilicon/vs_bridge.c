@@ -174,7 +174,7 @@ static void vs_bridge_enable_common(struct vs_crtc *crtc,
 }
 
 static void vs_bridge_atomic_enable_dpi(struct drm_bridge *bridge,
-					struct drm_atomic_state *state)
+					struct drm_atomic_commit *state)
 {
 	struct vs_bridge *vbridge = drm_bridge_to_vs_bridge(bridge);
 	struct drm_bridge_state *br_state =
@@ -192,7 +192,7 @@ static void vs_bridge_atomic_enable_dpi(struct drm_bridge *bridge,
 }
 
 static void vs_bridge_atomic_enable_dp(struct drm_bridge *bridge,
-					struct drm_atomic_state *state)
+					struct drm_atomic_commit *state)
 {
 	struct vs_bridge *vbridge = drm_bridge_to_vs_bridge(bridge);
 	struct drm_bridge_state *br_state =
@@ -221,7 +221,7 @@ static void vs_bridge_atomic_enable_dp(struct drm_bridge *bridge,
 }
 
 static void vs_bridge_atomic_disable(struct drm_bridge *bridge,
-				     struct drm_atomic_state *state)
+				     struct drm_atomic_commit *state)
 {
 	struct vs_bridge *vbridge = drm_bridge_to_vs_bridge(bridge);
 	struct vs_crtc *crtc = vbridge->crtc;
@@ -365,7 +365,6 @@ struct vs_bridge *vs_bridge_init(struct drm_device *drm_dev,
 		ret = PTR_ERR(bridge->conn);
 		return ERR_PTR(ret);
 	}
-	drm_connector_attach_encoder(bridge->conn, bridge->enc);
 
 	return bridge;
 }

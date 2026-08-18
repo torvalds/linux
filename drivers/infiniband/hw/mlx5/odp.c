@@ -221,7 +221,8 @@ static void free_implicit_child_mr_work(struct work_struct *work)
 	mutex_lock(&odp_imr->umem_mutex);
 	mlx5r_umr_update_xlt(mr->parent,
 			     ib_umem_start(odp) >> mlx5_imr_mtt_shift, 1, 0,
-			     MLX5_IB_UPD_XLT_INDIRECT | MLX5_IB_UPD_XLT_ATOMIC);
+			     MLX5_IB_UPD_XLT_INDIRECT | MLX5_IB_UPD_XLT_ATOMIC,
+			     0);
 	mutex_unlock(&odp_imr->umem_mutex);
 	mlx5_ib_dereg_mr(&mr->ibmr, NULL);
 
@@ -318,10 +319,12 @@ static bool mlx5_ib_invalidate_range(struct mmu_interval_notifier *mni,
 			u64 umr_offset = idx & umr_block_mask;
 
 			if (in_block && umr_offset == 0) {
-				mlx5r_umr_update_xlt(mr, blk_start_idx,
-						     idx - blk_start_idx, 0,
-						     MLX5_IB_UPD_XLT_ZAP |
-						     MLX5_IB_UPD_XLT_ATOMIC);
+				mlx5r_umr_update_xlt(
+					mr, blk_start_idx, idx - blk_start_idx,
+					0,
+					MLX5_IB_UPD_XLT_ZAP |
+						MLX5_IB_UPD_XLT_ATOMIC,
+					0);
 				in_block = 0;
 				/* Count page invalidations */
 				invalidations += idx - blk_start_idx + 1;
@@ -329,10 +332,9 @@ static bool mlx5_ib_invalidate_range(struct mmu_interval_notifier *mni,
 		}
 	}
 	if (in_block) {
-		mlx5r_umr_update_xlt(mr, blk_start_idx,
-				     idx - blk_start_idx + 1, 0,
-				     MLX5_IB_UPD_XLT_ZAP |
-				     MLX5_IB_UPD_XLT_ATOMIC);
+		mlx5r_umr_update_xlt(
+			mr, blk_start_idx, idx - blk_start_idx + 1, 0,
+			MLX5_IB_UPD_XLT_ZAP | MLX5_IB_UPD_XLT_ATOMIC, 0);
 		/* Count page invalidations */
 		invalidations += idx - blk_start_idx + 1;
 	}
@@ -502,11 +504,9 @@ static struct mlx5_ib_mr *implicit_get_child_mr(struct mlx5_ib_mr *imr,
 	 */
 	refcount_set(&mr->mmkey.usecount, 2);
 
-	err = mlx5r_umr_update_xlt(mr, 0,
-				   mlx5_imr_mtt_entries,
-				   PAGE_SHIFT,
-				   MLX5_IB_UPD_XLT_ZAP |
-				   MLX5_IB_UPD_XLT_ENABLE);
+	err = mlx5r_umr_update_xlt(mr, 0, mlx5_imr_mtt_entries, PAGE_SHIFT,
+				   MLX5_IB_UPD_XLT_ZAP | MLX5_IB_UPD_XLT_ENABLE,
+				   to_mpd(mr->ibmr.pd)->pdn);
 	if (err) {
 		ret = ERR_PTR(err);
 		goto out_mr;
@@ -647,7 +647,8 @@ struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
 				   mlx5_imr_ksm_page_shift,
 				   MLX5_IB_UPD_XLT_INDIRECT |
 				   MLX5_IB_UPD_XLT_ZAP |
-				   MLX5_IB_UPD_XLT_ENABLE);
+				   MLX5_IB_UPD_XLT_ENABLE,
+				   pd->pdn);
 	if (err)
 		goto out_mr;
 
@@ -686,12 +687,16 @@ void mlx5_ib_free_odp_mr(struct mlx5_ib_mr *mr)
 	}
 }
 
+/*
+ * pdn must be valid only when xlt_flags updates the mkey PD. In this path that
+ * is only MLX5_PF_FLAGS_ENABLE. DOWNGRADE and SNAPSHOT leave the PD masked out.
+ */
 #define MLX5_PF_FLAGS_DOWNGRADE BIT(1)
 #define MLX5_PF_FLAGS_SNAPSHOT BIT(2)
 #define MLX5_PF_FLAGS_ENABLE BIT(3)
 static int pagefault_real_mr(struct mlx5_ib_mr *mr, struct ib_umem_odp *odp,
 			     u64 user_va, size_t bcnt, u32 *bytes_mapped,
-			     u32 flags)
+			     u32 flags, u32 pdn)
 {
 	int page_shift, ret, np;
 	bool downgrade = flags & MLX5_PF_FLAGS_DOWNGRADE;
@@ -720,7 +725,8 @@ static int pagefault_real_mr(struct mlx5_ib_mr *mr, struct ib_umem_odp *odp,
 	 * No need to check whether the MTTs really belong to this MR, since
 	 * ib_umem_odp_map_dma_and_lock already checks this.
 	 */
-	ret = mlx5r_umr_update_xlt(mr, start_idx, np, page_shift, xlt_flags);
+	ret = mlx5r_umr_update_xlt(mr, start_idx, np, page_shift, xlt_flags,
+				   pdn);
 	mutex_unlock(&odp->umem_mutex);
 
 	if (ret < 0) {
@@ -786,7 +792,7 @@ static int pagefault_implicit_mr(struct mlx5_ib_mr *imr,
 		      user_va;
 
 		ret = pagefault_real_mr(mtt, umem_odp, user_va, len,
-					bytes_mapped, flags);
+					bytes_mapped, flags, 0);
 
 		mlx5r_deref_odp_mkey(&mtt->mmkey);
 
@@ -818,9 +824,9 @@ out:
 	 * next pagefault handler will see the new information.
 	 */
 	mutex_lock(&odp_imr->umem_mutex);
-	err = mlx5r_umr_update_xlt(imr, upd_start_idx, upd_len, 0,
-				   MLX5_IB_UPD_XLT_INDIRECT |
-					  MLX5_IB_UPD_XLT_ATOMIC);
+	err = mlx5r_umr_update_xlt(
+		imr, upd_start_idx, upd_len, 0,
+		MLX5_IB_UPD_XLT_INDIRECT | MLX5_IB_UPD_XLT_ATOMIC, 0);
 	mutex_unlock(&odp_imr->umem_mutex);
 	if (err) {
 		mlx5_ib_err(mr_to_mdev(imr), "Failed to update PAS\n");
@@ -830,7 +836,7 @@ out:
 }
 
 static int pagefault_dmabuf_mr(struct mlx5_ib_mr *mr, size_t bcnt,
-			       u32 *bytes_mapped, u32 flags)
+			       u32 *bytes_mapped, u32 flags, u32 pdn)
 {
 	struct ib_umem_dmabuf *umem_dmabuf = to_ib_umem_dmabuf(mr->umem);
 	int access_mode = mr->data_direct ? MLX5_MKC_ACCESS_MODE_KSM :
@@ -858,7 +864,7 @@ static int pagefault_dmabuf_mr(struct mlx5_ib_mr *mr, size_t bcnt,
 	} else {
 		page_shift = order_base_2(page_size);
 		if (page_shift != mr->page_shift && mr->dmabuf_faulted) {
-			err = mlx5r_umr_dmabuf_update_pgsz(mr, xlt_flags,
+			err = mlx5r_umr_dmabuf_update_pgsz(mr, xlt_flags, pdn,
 							   page_shift);
 		} else {
 			mr->page_shift = page_shift;
@@ -866,8 +872,8 @@ static int pagefault_dmabuf_mr(struct mlx5_ib_mr *mr, size_t bcnt,
 				err = mlx5r_umr_update_data_direct_ksm_pas(
 					mr, xlt_flags);
 			else
-				err = mlx5r_umr_update_mr_pas(mr,
-							      xlt_flags);
+				err = mlx5r_umr_update_mr_pas(mr, xlt_flags,
+							      pdn);
 		}
 	}
 	dma_resv_unlock(umem_dmabuf->attach->dmabuf->resv);
@@ -903,7 +909,7 @@ static int pagefault_mr(struct mlx5_ib_mr *mr, u64 io_virt, size_t bcnt,
 		return -EFAULT;
 
 	if (mr->umem->is_dmabuf)
-		return pagefault_dmabuf_mr(mr, bcnt, bytes_mapped, flags);
+		return pagefault_dmabuf_mr(mr, bcnt, bytes_mapped, flags, 0);
 
 	if (!odp->is_implicit_odp) {
 		u64 offset = io_virt < mr->ibmr.iova ? 0 : io_virt - mr->ibmr.iova;
@@ -922,28 +928,36 @@ static int pagefault_mr(struct mlx5_ib_mr *mr, u64 io_virt, size_t bcnt,
 				    ib_umem_end(odp) - user_va < bcnt))
 			return -EFAULT;
 		return pagefault_real_mr(mr, odp, user_va, bcnt, bytes_mapped,
-					 flags);
+					 flags, 0);
 	}
 	return pagefault_implicit_mr(mr, odp, io_virt, bcnt, bytes_mapped,
 				     flags);
 }
 
-int mlx5_ib_init_odp_mr(struct mlx5_ib_mr *mr)
+int mlx5_ib_init_odp_mr(struct mlx5_ib_mr *mr, struct ib_pd *pd)
 {
 	int ret;
 
 	ret = pagefault_real_mr(mr, to_ib_umem_odp(mr->umem), mr->umem->address,
 				mr->umem->length, NULL,
-				MLX5_PF_FLAGS_SNAPSHOT | MLX5_PF_FLAGS_ENABLE);
+				MLX5_PF_FLAGS_SNAPSHOT | MLX5_PF_FLAGS_ENABLE,
+				to_mpd(pd)->pdn);
 	return ret >= 0 ? 0 : ret;
 }
 
-int mlx5_ib_init_dmabuf_mr(struct mlx5_ib_mr *mr)
+int mlx5_ib_init_dmabuf_mr(struct mlx5_ib_mr *mr, struct ib_pd *pd)
 {
+	struct mlx5_ib_dev *dev = mr_to_mdev(mr);
+	u32 pdn;
 	int ret;
 
+	if (mr->data_direct)
+		pdn = dev->ddr.pdn;
+	else
+		pdn = to_mpd(pd)->pdn;
+
 	ret = pagefault_dmabuf_mr(mr, mr->umem->length, NULL,
-				  MLX5_PF_FLAGS_ENABLE);
+				  MLX5_PF_FLAGS_ENABLE, pdn);
 
 	return ret >= 0 ? 0 : ret;
 }
@@ -1567,8 +1581,7 @@ static void mlx5_ib_mr_memory_pfault_handler(struct mlx5_ib_dev *dev,
 	ret = pagefault_mr(mr, prefetch_va, prefetch_size, NULL, 0, true);
 	if (ret < 0) {
 		ret = pagefault_mr(mr, pfault->memory.va,
-				   pfault->memory.fault_byte_count, NULL, 0,
-				   true);
+				   pfault->memory.fault_byte_count, NULL, 0, true);
 		if (ret < 0)
 			goto err;
 	}
@@ -1806,6 +1819,9 @@ int mlx5r_odp_create_eq(struct mlx5_ib_dev *dev, struct mlx5_ib_pf_eq *eq)
 {
 	struct mlx5_eq_param param = {};
 	int err = 0;
+
+	if (!(dev->odp_caps.general_caps & IB_ODP_SUPPORT))
+		return -EOPNOTSUPP;
 
 	mutex_lock(&dev->odp_eq_mutex);
 	if (eq->core)

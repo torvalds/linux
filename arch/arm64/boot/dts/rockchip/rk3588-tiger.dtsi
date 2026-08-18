@@ -148,13 +148,15 @@
 };
 
 &hdmi0 {
-	pinctrl-names = "default";
+	frl-enable-gpios = <&gpio0 RK_PD3 GPIO_ACTIVE_LOW>;
 	pinctrl-0 = <&hdmim1_tx0_cec &hdmim0_tx0_hpd &hdmim1_tx0_scl
-		     &hdmim1_tx0_sda>;
+		     &hdmim1_tx0_sda &hdmi0_tx_on_h>;
+	pinctrl-names = "default";
 };
 
 &i2c1 {
 	pinctrl-0 = <&i2c1m0_xfer>;
+	pinctrl-names = "default";
 };
 
 &i2c1m0_xfer {
@@ -167,6 +169,7 @@
 
 &i2c2 {
 	pinctrl-0 = <&i2c2m3_xfer>;
+	pinctrl-names = "default";
 };
 
 &i2c2m3_xfer {
@@ -179,10 +182,12 @@
 
 &i2c3 {
 	pinctrl-0 = <&i2c3m0_xfer>;
+	pinctrl-names = "default";
 };
 
 &i2c4 {
 	pinctrl-0 = <&i2c4m4_xfer>;
+	pinctrl-names = "default";
 	status = "okay";
 
 	vdd_npu_s0: regulator@42 {
@@ -204,6 +209,7 @@
 
 &i2c5 {
 	pinctrl-0 = <&i2c5m1_xfer>;
+	pinctrl-names = "default";
 };
 
 &i2c5m1_xfer {
@@ -301,6 +307,7 @@
 
 &i2c8 {
 	pinctrl-0 = <&i2c8m2_xfer>;
+	pinctrl-names = "default";
 };
 
 &mdio0 {
@@ -346,6 +353,12 @@
 	ethernet {
 		eth_reset: eth-reset {
 			rockchip,pins = <4 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	hdmi {
+		hdmi0_tx_on_h: hdmi0-tx-on-h {
+			rockchip,pins = <0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
@@ -434,6 +447,7 @@
 
 &spi0 {
 	pinctrl-0 = <&spi0m1_cs0 &spi0m1_cs1 &spi0m3_pins>;
+	pinctrl-names = "default";
 };
 
 &spi2 {
@@ -764,10 +778,12 @@
 /* Routed to UART0 on the Q7 connector */
 &uart2 {
 	pinctrl-0 = <&uart2m2_xfer>;
+	pinctrl-names = "default";
 };
 
 /* Mule-ATtiny UPDI */
 &uart4 {
 	pinctrl-0 = <&uart4m2_xfer>;
+	pinctrl-names = "default";
 	status = "okay";
 };

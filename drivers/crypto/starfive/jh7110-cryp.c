@@ -15,7 +15,6 @@
 #include <linux/interrupt.h>
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -36,19 +35,14 @@ static struct starfive_dev_list dev_list = {
 
 struct starfive_cryp_dev *starfive_cryp_find_dev(struct starfive_cryp_ctx *ctx)
 {
-	struct starfive_cryp_dev *cryp = NULL, *tmp;
+	struct starfive_cryp_dev *cryp;
 
 	spin_lock_bh(&dev_list.lock);
-	if (!ctx->cryp) {
-		list_for_each_entry(tmp, &dev_list.dev_list, list) {
-			cryp = tmp;
-			break;
-		}
-		ctx->cryp = cryp;
-	} else {
-		cryp = ctx->cryp;
-	}
-
+	if (!ctx->cryp)
+		ctx->cryp = list_first_entry_or_null(&dev_list.dev_list,
+						     struct starfive_cryp_dev,
+						     list);
+	cryp = ctx->cryp;
 	spin_unlock_bh(&dev_list.lock);
 
 	return cryp;

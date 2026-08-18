@@ -1613,10 +1613,10 @@ static const struct s3c64xx_spi_port_config gs101_spi_port_config = {
 
 static const struct platform_device_id s3c64xx_spi_driver_ids[] = {
 	{
-		.name		= "s3c6410-spi",
-		.driver_data	= (kernel_ulong_t)&s3c6410_spi_port_config,
+		.name = "s3c6410-spi",
+		.driver_data = (kernel_ulong_t)&s3c6410_spi_port_config,
 	},
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, s3c64xx_spi_driver_ids);
 

@@ -92,7 +92,7 @@ static void mpu3050_i2c_remove(struct i2c_client *client)
  * supported by this driver
  */
 static const struct i2c_device_id mpu3050_i2c_id[] = {
-	{ "mpu3050" },
+	{ .name = "mpu3050" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mpu3050_i2c_id);

@@ -19,8 +19,10 @@ static int queue_poll_stat_show(void *data, struct seq_file *m)
 	return 0;
 }
 
+#define TO_REQUEST_QUEUE(m) ((struct request_queue *)m->private)
+
 static void *queue_requeue_list_start(struct seq_file *m, loff_t *pos)
-	__acquires(&q->requeue_lock)
+	__acquires(&TO_REQUEST_QUEUE(m)->requeue_lock)
 {
 	struct request_queue *q = m->private;
 
@@ -36,12 +38,14 @@ static void *queue_requeue_list_next(struct seq_file *m, void *v, loff_t *pos)
 }
 
 static void queue_requeue_list_stop(struct seq_file *m, void *v)
-	__releases(&q->requeue_lock)
+	__releases(&TO_REQUEST_QUEUE(m)->requeue_lock)
 {
 	struct request_queue *q = m->private;
 
 	spin_unlock_irq(&q->requeue_lock);
 }
+
+#undef TO_REQUEST_QUEUE
 
 static const struct seq_operations queue_requeue_list_seq_ops = {
 	.start	= queue_requeue_list_start,
@@ -297,8 +301,10 @@ int blk_mq_debugfs_rq_show(struct seq_file *m, void *v)
 }
 EXPORT_SYMBOL_GPL(blk_mq_debugfs_rq_show);
 
+#define TO_HCTX(m) ((struct blk_mq_hw_ctx *)m->private)
+
 static void *hctx_dispatch_start(struct seq_file *m, loff_t *pos)
-	__acquires(&hctx->lock)
+	__acquires(&TO_HCTX(m)->lock)
 {
 	struct blk_mq_hw_ctx *hctx = m->private;
 
@@ -314,12 +320,14 @@ static void *hctx_dispatch_next(struct seq_file *m, void *v, loff_t *pos)
 }
 
 static void hctx_dispatch_stop(struct seq_file *m, void *v)
-	__releases(&hctx->lock)
+	__releases(&TO_HCTX(m)->lock)
 {
 	struct blk_mq_hw_ctx *hctx = m->private;
 
 	spin_unlock(&hctx->lock);
 }
+
+#undef TO_HCTX
 
 static const struct seq_operations hctx_dispatch_seq_ops = {
 	.start	= hctx_dispatch_start,
@@ -484,9 +492,11 @@ static int hctx_dispatch_busy_show(void *data, struct seq_file *m)
 	return 0;
 }
 
+#define TO_CTX(m) ((struct blk_mq_ctx *)m->private)
+
 #define CTX_RQ_SEQ_OPS(name, type)					\
 static void *ctx_##name##_rq_list_start(struct seq_file *m, loff_t *pos) \
-	__acquires(&ctx->lock)						\
+	__acquires(&TO_CTX(m)->lock)					\
 {									\
 	struct blk_mq_ctx *ctx = m->private;				\
 									\
@@ -503,7 +513,7 @@ static void *ctx_##name##_rq_list_next(struct seq_file *m, void *v,	\
 }									\
 									\
 static void ctx_##name##_rq_list_stop(struct seq_file *m, void *v)	\
-	__releases(&ctx->lock)						\
+	__releases(&TO_CTX(m)->lock)					\
 {									\
 	struct blk_mq_ctx *ctx = m->private;				\
 									\
@@ -520,6 +530,8 @@ static const struct seq_operations ctx_##name##_rq_list_seq_ops = {	\
 CTX_RQ_SEQ_OPS(default, HCTX_TYPE_DEFAULT);
 CTX_RQ_SEQ_OPS(read, HCTX_TYPE_READ);
 CTX_RQ_SEQ_OPS(poll, HCTX_TYPE_POLL);
+
+#undef TO_CTX
 
 static int blk_mq_debugfs_show(struct seq_file *m, void *v)
 {

@@ -1375,7 +1375,9 @@ static int team_port_add(struct team *team, struct net_device *port_dev,
 	list_add_tail_rcu(&port->list, &team->port_list);
 	team_port_enable(team, port);
 	netdev_compute_master_upper_features(dev, true);
+	netdev_lock_ops(port_dev);
 	__team_port_change_port_added(port, !!netif_oper_up(port_dev));
+	netdev_unlock_ops(port_dev);
 	__team_options_change_check(team);
 
 	netdev_info(dev, "Port device %s added\n", portname);
@@ -3090,7 +3092,7 @@ static void __team_port_change_send(struct team_port *port, bool linkup)
 	if (linkup) {
 		struct ethtool_link_ksettings ecmd;
 
-		err = __ethtool_get_link_ksettings(port->dev, &ecmd);
+		err = netif_get_link_ksettings(port->dev, &ecmd);
 		if (!err) {
 			port->state.speed = ecmd.base.speed;
 			port->state.duplex = ecmd.base.duplex;

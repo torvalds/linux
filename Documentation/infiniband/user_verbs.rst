@@ -2,7 +2,7 @@
 Userspace verbs access
 ======================
 
-  The ib_uverbs module, built by enabling CONFIG_INFINIBAND_USER_VERBS,
+  The ib_uverbs module, built by enabling CONFIG_INFINIBAND_USER_ACCESS,
   enables direct userspace access to IB hardware via "verbs," as
   described in chapter 11 of the InfiniBand Architecture Specification.
 

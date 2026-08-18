@@ -10,12 +10,9 @@ struct ast_device;
 
 /* DRAM timing tables */
 struct ast_dramstruct {
-	u16 index;
+	u32 index;
 	u32 data;
 };
-
-/* hardware fields */
-#define __AST_DRAMSTRUCT_DRAM_TYPE      0x0004
 
 /* control commands */
 #define __AST_DRAMSTRUCT_UDELAY         0xff00
@@ -24,19 +21,20 @@ struct ast_dramstruct {
 #define __AST_DRAMSTRUCT_INDEX(_name) \
 	(__AST_DRAMSTRUCT_ ## _name)
 
-#define AST_DRAMSTRUCT_INIT(_name, _value) \
-	{ __AST_DRAMSTRUCT_INDEX(_name), (_value) }
+#define __AST_DRAMSTRUCT_INIT(_index, _value) \
+	{ (_index), (_value) }
 
+#define AST_DRAMSTRUCT_REG(_reg, _value) \
+	__AST_DRAMSTRUCT_INIT(_reg, _value)
 #define AST_DRAMSTRUCT_UDELAY(_usecs) \
-	AST_DRAMSTRUCT_INIT(UDELAY, _usecs)
+	__AST_DRAMSTRUCT_INIT(__AST_DRAMSTRUCT_UDELAY, _usecs)
 #define AST_DRAMSTRUCT_INVALID \
-	AST_DRAMSTRUCT_INIT(INVALID, U32_MAX)
+	__AST_DRAMSTRUCT_INIT(__AST_DRAMSTRUCT_INVALID, U32_MAX)
 
+#define AST_DRAMSTRUCT_IS_REG(_entry, _reg) \
+	((_entry)->index == (_reg))
 #define AST_DRAMSTRUCT_IS(_entry, _name) \
 	((_entry)->index == __AST_DRAMSTRUCT_INDEX(_name))
-
-u32 __ast_mindwm(void __iomem *regs, u32 r);
-void __ast_moutdwm(void __iomem *regs, u32 r, u32 v);
 
 bool mmc_test(struct ast_device *ast, u32 datagen, u8 test_ctl);
 bool mmc_test_burst(struct ast_device *ast, u32 datagen);

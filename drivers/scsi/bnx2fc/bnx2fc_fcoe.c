@@ -17,6 +17,7 @@
 #include "bnx2fc.h"
 
 #include <linux/ethtool.h>
+#include <net/netdev_lock.h>
 
 static struct list_head adapter_list;
 static struct list_head if_list;
@@ -815,7 +816,9 @@ static int bnx2fc_net_config(struct fc_lport *lport, struct net_device *netdev)
 	port->fcoe_pending_queue_active = 0;
 	timer_setup(&port->timer, fcoe_queue_timer, 0);
 
+	netdev_lock_ops(netdev);
 	fcoe_link_speed_update(lport);
+	netdev_unlock_ops(netdev);
 
 	if (!lport->vport) {
 		if (fcoe_get_wwn(netdev, &wwnn, NETDEV_FCOE_WWNN))

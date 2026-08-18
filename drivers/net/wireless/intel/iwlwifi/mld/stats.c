@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2024-2025 Intel Corporation
+ * Copyright (C) 2024-2026 Intel Corporation
  */
 
 #include "mld.h"
@@ -40,12 +40,20 @@ iwl_mld_fill_stats_from_oper_notif(struct iwl_mld *mld,
 				   struct iwl_rx_packet *pkt,
 				   u8 fw_sta_id, struct station_info *sinfo)
 {
-	const struct iwl_system_statistics_notif_oper *notif =
-		(void *)&pkt->data;
-	const struct iwl_stats_ntfy_per_sta *per_sta =
-		&notif->per_sta[fw_sta_id];
+	const struct iwl_stats_ntfy_per_sta *per_sta;
 	struct ieee80211_link_sta *link_sta;
 	struct iwl_mld_link_sta *mld_link_sta;
+
+	if (iwl_fw_lookup_notif_ver(mld->fw, STATISTICS_GROUP,
+				    STATISTICS_OPER_NOTIF, 3) >= 4) {
+		const struct iwl_system_statistics_notif_oper *notif =
+			(void *)&pkt->data;
+		per_sta = &notif->per_sta[fw_sta_id];
+	} else {
+		const struct iwl_system_statistics_notif_oper_v3 *notif =
+			(void *)&pkt->data;
+		per_sta = &notif->per_sta[fw_sta_id];
+	}
 
 	/* 0 isn't a valid value, but FW might send 0.
 	 * In that case, set the latest non-zero value we stored
@@ -303,6 +311,40 @@ static void iwl_mld_sta_stats_fill_txrate(struct iwl_mld_sta *mld_sta,
 	}
 }
 
+static void iwl_mld_sta_stats_fill_beacon_signal_avg(struct ieee80211_vif *vif,
+						     struct station_info *sinfo)
+{
+	struct ieee80211_bss_conf *link_conf;
+	struct iwl_mld_link *link;
+	u8 link_id;
+
+	if (iwl_mld_emlsr_active(vif))
+		return;
+
+	/* TODO: support statistics for NAN */
+	if (vif->type == NL80211_IFTYPE_NAN ||
+	    vif->type == NL80211_IFTYPE_NAN_DATA)
+		return;
+
+	link_id = iwl_mld_get_primary_link(vif);
+	link_conf = link_conf_dereference_protected(vif, link_id);
+
+	if (WARN_ONCE(!link_conf,
+		      "link_conf is NULL for link_id=%u\n", link_id))
+		return;
+
+	link = iwl_mld_link_from_mac80211(link_conf);
+	if (WARN_ONCE(!link,
+		      "iwl_mld_link is NULL for link_id=%u\n", link_id))
+		return;
+
+	if (!link->avg_signal)
+		return;
+
+	sinfo->rx_beacon_signal_avg = link->avg_signal;
+	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_BEACON_SIGNAL_AVG);
+}
+
 void iwl_mld_mac80211_sta_statistics(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif,
 				     struct ieee80211_sta *sta,
@@ -321,9 +363,9 @@ void iwl_mld_mac80211_sta_statistics(struct ieee80211_hw *hw,
 
 	iwl_mld_sta_stats_fill_txrate(mld_sta, sinfo);
 
-	/* TODO: NL80211_STA_INFO_BEACON_RX */
+	iwl_mld_sta_stats_fill_beacon_signal_avg(vif, sinfo);
 
-	/* TODO: NL80211_STA_INFO_BEACON_SIGNAL_AVG */
+	/* TODO: NL80211_STA_INFO_BEACON_RX */
 }
 
 #define IWL_MLD_TRAFFIC_LOAD_MEDIUM_THRESH	10 /* percentage */
@@ -435,6 +477,8 @@ iwl_mld_process_per_link_stats(struct iwl_mld *mld,
 	     fw_id++) {
 		const struct iwl_stats_ntfy_per_link *link_stats;
 		struct ieee80211_bss_conf *bss_conf;
+		struct iwl_mld_link *link;
+		u32 avg_raw;
 		int sig;
 
 		bss_conf = iwl_mld_fw_id_to_link_conf(mld, fw_id);
@@ -447,6 +491,13 @@ iwl_mld_process_per_link_stats(struct iwl_mld *mld,
 
 		sig = -le32_to_cpu(link_stats->beacon_filter_average_energy);
 		iwl_mld_update_link_sig(bss_conf->vif, sig, bss_conf);
+
+		link = iwl_mld_link_from_mac80211(bss_conf);
+		if (WARN_ON_ONCE(!link))
+			continue;
+
+		avg_raw = le32_to_cpu(link_stats->beacon_average_energy);
+		link->avg_signal = clamp_t(int, -(int)avg_raw, S8_MIN, 0);
 
 		/* TODO: parse more fields here (task=statistics)*/
 	}
@@ -507,6 +558,10 @@ static void iwl_mld_fill_chanctx_stats(struct ieee80211_hw *hw,
 						  (old_load >> 1);
 	}
 
+	IWL_DEBUG_EHT(phy->mld,
+		      "PHY %d: load_by_us=%u%% load_not_by_us=%u%%\n",
+		      phy->fw_id, phy->channel_load_by_us, new_load);
+
 	iwl_mld_emlsr_check_chan_load(hw, phy, old_load);
 }
 
@@ -523,17 +578,42 @@ iwl_mld_process_per_phy_stats(struct iwl_mld *mld,
 void iwl_mld_handle_stats_oper_notif(struct iwl_mld *mld,
 				     struct iwl_rx_packet *pkt)
 {
-	const struct iwl_system_statistics_notif_oper *stats =
+	struct iwl_system_statistics_notif_oper *_notif __free(kfree) = NULL;
+	const struct iwl_system_statistics_notif_oper *notif =
 		(void *)&pkt->data;
-	u32 curr_ts_usec = le32_to_cpu(stats->time_stamp);
 
-	BUILD_BUG_ON(ARRAY_SIZE(stats->per_sta) != IWL_STATION_COUNT_MAX);
-	BUILD_BUG_ON(ARRAY_SIZE(stats->per_link) <
+	BUILD_BUG_ON(ARRAY_SIZE(notif->per_sta) != IWL_STATION_COUNT_MAX);
+	BUILD_BUG_ON(ARRAY_SIZE(notif->per_link) <
 		     ARRAY_SIZE(mld->fw_id_to_bss_conf));
 
-	iwl_mld_process_per_link_stats(mld, stats->per_link, curr_ts_usec);
-	iwl_mld_process_per_sta_stats(mld, stats->per_sta);
-	iwl_mld_process_per_phy_stats(mld, stats->per_phy);
+	if (iwl_fw_lookup_notif_ver(mld->fw, STATISTICS_GROUP,
+				    STATISTICS_OPER_NOTIF, 3) == 3) {
+		const struct iwl_system_statistics_notif_oper_v3 *stats =
+			(void *)&pkt->data;
+		_notif = kzalloc_obj(*_notif);
+
+		if (!_notif)
+			return;
+
+		_notif->time_stamp = stats->time_stamp;
+		for (int i = 0; i < ARRAY_SIZE(_notif->per_link); i++)
+			_notif->per_link[i] = stats->per_link[i];
+
+		BUILD_BUG_ON(sizeof(_notif->per_phy[0]) <
+			     sizeof(stats->per_phy[0]));
+		for (int i = 0; i < ARRAY_SIZE(_notif->per_phy); i++)
+			memcpy(&_notif->per_phy[i], &stats->per_phy[i],
+			       sizeof(stats->per_phy[i]));
+		for (int i = 0; i < ARRAY_SIZE(_notif->per_sta); i++)
+			_notif->per_sta[i] = stats->per_sta[i];
+
+		notif = _notif;
+	}
+
+	iwl_mld_process_per_link_stats(mld, notif->per_link,
+				       le32_to_cpu(notif->time_stamp));
+	iwl_mld_process_per_sta_stats(mld, notif->per_sta);
+	iwl_mld_process_per_phy_stats(mld, notif->per_phy);
 }
 
 void iwl_mld_handle_stats_oper_part1_notif(struct iwl_mld *mld,

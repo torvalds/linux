@@ -353,6 +353,13 @@ int devm_gpiochip_add_data_with_key(struct device *dev, struct gpio_chip *gc, vo
 {
 	int ret;
 
+	/*
+	 * We are passing the devres device here so if the user did not pass
+	 * another parent, it's this one.
+	 */
+	if (!gc->parent)
+		gc->parent = dev;
+
 	ret = gpiochip_add_data_with_key(gc, data, lock_key, request_key);
 	if (ret < 0)
 		return ret;

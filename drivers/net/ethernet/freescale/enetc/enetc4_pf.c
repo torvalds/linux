@@ -17,10 +17,6 @@
 #define ENETC_MAC_FILTER_TYPE_ALL	(ENETC_MAC_FILTER_TYPE_UC | \
 					 ENETC_MAC_FILTER_TYPE_MC)
 
-struct enetc_mac_addr {
-	u8 addr[ETH_ALEN];
-};
-
 static void enetc4_get_port_caps(struct enetc_pf *pf)
 {
 	struct enetc_hw *hw = &pf->si->hw;
@@ -325,6 +321,9 @@ static void enetc4_default_rings_allocation(struct enetc_pf *pf)
 
 	val = enetc4_psicfgr0_val_construct(false, num_tx_bdr, num_rx_bdr);
 	enetc_port_wr(hw, ENETC4_PSICFGR0(0), val);
+
+	if (!pf->caps.num_vsi)
+		return;
 
 	num_rx_bdr = pf->caps.num_rx_bdr - num_rx_bdr;
 	rx_rem = num_rx_bdr % pf->caps.num_vsi;

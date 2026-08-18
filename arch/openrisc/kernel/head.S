@@ -852,26 +852,19 @@ _ic_enable:
 	l.sll	r14,r30,r28
 
 	/* Establish number of cache sets
-	   r16 contains number of cache sets
 	   r28 contains log(# of cache sets)
 	*/
 	l.andi  r26,r24,SPR_ICCFGR_NCS
 	l.srli 	r28,r26,3
-	l.ori   r30,r0,1
-	l.sll   r16,r30,r28
 
 	/* Invalidate IC */
 	l.addi  r6,r0,0
 	l.sll   r5,r14,r28
-//        l.mul   r5,r14,r16
-//	l.trap  1
-//	l.addi  r5,r0,IC_SIZE
 1:
 	l.mtspr r0,r6,SPR_ICBIR
 	l.sfne  r6,r5
 	l.bf    1b
 	l.add   r6,r6,r14
- //       l.addi   r6,r6,IC_LINE
 
 	/* Enable IC */
 	l.mfspr r6,r0,SPR_SR
@@ -918,13 +911,10 @@ _dc_enable:
 	l.sll	r14,r30,r28
 
 	/* Establish number of cache sets
-	   r16 contains number of cache sets
 	   r28 contains log(# of cache sets)
 	*/
 	l.andi  r26,r24,SPR_DCCFGR_NCS
 	l.srli 	r28,r26,3
-	l.ori   r30,r0,1
-	l.sll   r16,r30,r28
 
 	/* Invalidate DC */
 	l.addi  r6,r0,0

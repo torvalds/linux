@@ -280,6 +280,14 @@ static void do_idle(void)
 	int cpu = smp_processor_id();
 	bool got_tick = false;
 
+	if (cpu_is_offline(cpu)) {
+		local_irq_disable();
+		/* All per-CPU kernel threads should be done by now. */
+		WARN_ON_ONCE(need_resched());
+		cpuhp_report_idle_dead();
+		arch_cpu_idle_dead();
+	}
+
 	/*
 	 * Check if we need to update blocked load
 	 */
@@ -330,11 +338,6 @@ static void do_idle(void)
 		 *   again to reprogram the tick.
 		 */
 		local_irq_disable();
-
-		if (cpu_is_offline(cpu)) {
-			cpuhp_report_idle_dead();
-			arch_cpu_idle_dead();
-		}
 
 		arch_cpu_idle_enter();
 		rcu_nocb_flush_deferred_wakeup();
@@ -462,7 +465,7 @@ select_task_rq_idle(struct task_struct *p, int cpu, int flags)
 }
 
 static int
-balance_idle(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+balance_idle(struct rq *rq, struct rq_flags *rf)
 {
 	return WARN_ON_ONCE(1);
 }

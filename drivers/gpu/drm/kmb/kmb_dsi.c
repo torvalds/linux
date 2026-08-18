@@ -251,7 +251,7 @@ int kmb_dsi_host_bridge_init(struct device *dev)
 		return -EINVAL;
 	}
 	/* Locate drm bridge from the hdmi encoder DT node */
-	adv_bridge = of_drm_find_bridge(encoder_node);
+	adv_bridge = of_drm_find_and_get_bridge(encoder_node);
 	of_node_put(dsi_out);
 	of_node_put(encoder_node);
 	if (!adv_bridge) {
@@ -1333,7 +1333,7 @@ static u32 mipi_tx_init_dphy(struct kmb_dsi *kmb_dsi,
 }
 
 static void connect_lcd_to_mipi(struct kmb_dsi *kmb_dsi,
-				struct drm_atomic_state *old_state)
+				struct drm_atomic_commit *old_state)
 {
 	struct regmap *msscam;
 
@@ -1353,7 +1353,7 @@ static void connect_lcd_to_mipi(struct kmb_dsi *kmb_dsi,
 }
 
 int kmb_dsi_mode_set(struct kmb_dsi *kmb_dsi, struct drm_display_mode *mode,
-		     int sys_clk_mhz, struct drm_atomic_state *old_state)
+		     int sys_clk_mhz, struct drm_atomic_commit *old_state)
 {
 	u64 data_rate;
 
@@ -1457,7 +1457,7 @@ int kmb_dsi_encoder_init(struct drm_device *dev, struct kmb_dsi *kmb_dsi)
 		drm_encoder_cleanup(encoder);
 		return PTR_ERR(connector);
 	}
-	drm_connector_attach_encoder(connector, encoder);
+
 	return 0;
 }
 

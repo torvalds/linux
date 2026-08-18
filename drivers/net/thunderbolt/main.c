@@ -34,11 +34,12 @@
 #define TBNET_RING_SIZE		256
 #define TBNET_LOGIN_RETRIES	60
 #define TBNET_LOGOUT_RETRIES	10
+#define TBNET_THROTTLING	128000
 #define TBNET_E2E		BIT(0)
 #define TBNET_MATCH_FRAGS_ID	BIT(1)
 #define TBNET_64K_FRAMES	BIT(2)
 #define TBNET_MAX_MTU		SZ_64K
-#define TBNET_FRAME_SIZE	SZ_4K
+#define TBNET_FRAME_SIZE	TB_MAX_FRAME_SIZE
 #define TBNET_MAX_PAYLOAD_SIZE	\
 	(TBNET_FRAME_SIZE - sizeof(struct thunderbolt_ip_frame_header))
 /* Rx packets need to hold space for skb_shared_info */
@@ -327,11 +328,6 @@ static void stop_login(struct tbnet *net)
 	netdev_dbg(net->dev, "login stopped\n");
 }
 
-static inline unsigned int tbnet_frame_size(const struct tbnet_frame *tf)
-{
-	return tf->frame.size ? : TBNET_FRAME_SIZE;
-}
-
 static void tbnet_free_buffers(struct tbnet_ring *ring)
 {
 	unsigned int i;
@@ -562,7 +558,7 @@ static struct tbnet_frame *tbnet_get_tx_buffer(struct tbnet *net)
 	tf->frame.size = 0;
 
 	dma_sync_single_for_cpu(dma_dev, tf->frame.buffer_phy,
-				tbnet_frame_size(tf), DMA_TO_DEVICE);
+				tb_ring_frame_size(&tf->frame), DMA_TO_DEVICE);
 
 	return tf;
 }
@@ -744,7 +740,7 @@ static bool tbnet_check_frame(struct tbnet *net, const struct tbnet_frame *tf,
 	}
 
 	/* Should be greater than just header i.e. contains data */
-	size = tbnet_frame_size(tf);
+	size = tb_ring_frame_size(&tf->frame);
 	if (size <= sizeof(*hdr)) {
 		net->stats.rx_length_errors++;
 		return false;
@@ -787,8 +783,12 @@ static bool tbnet_check_frame(struct tbnet *net, const struct tbnet_frame *tf,
 		return true;
 	}
 
-	/* Start of packet, validate the frame header */
-	if (frame_count == 0 || frame_count > TBNET_RING_SIZE / 4) {
+	/* Start of packet, validate the frame header. tbnet_poll() puts the
+	 * first frame in the skb linear area and every further frame in a page
+	 * fragment, so a packet may not span more than MAX_SKB_FRAGS + 1 frames
+	 * without overflowing skb_shinfo()->frags[].
+	 */
+	if (frame_count == 0 || frame_count > MAX_SKB_FRAGS + 1) {
 		net->stats.rx_length_errors++;
 		return false;
 	}
@@ -961,6 +961,9 @@ static int tbnet_open(struct net_device *dev)
 	}
 	net->rx_ring.ring = ring;
 
+	tb_ring_throttling(net->tx_ring.ring, TBNET_THROTTLING);
+	tb_ring_throttling(net->rx_ring.ring, TBNET_THROTTLING);
+
 	napi_enable(&net->napi);
 	start_login(net);
 
@@ -1011,7 +1014,8 @@ static bool tbnet_xmit_csum_and_map(struct tbnet *net, struct sk_buff *skb,
 						hdr->frame_index, hdr->frame_count);
 			dma_sync_single_for_device(dma_dev,
 				frames[i]->frame.buffer_phy,
-				tbnet_frame_size(frames[i]), DMA_TO_DEVICE);
+				tb_ring_frame_size(&frames[i]->frame),
+						   DMA_TO_DEVICE);
 		}
 
 		return true;
@@ -1085,7 +1089,7 @@ static bool tbnet_xmit_csum_and_map(struct tbnet *net, struct sk_buff *skb,
 	 */
 	for (i = 0; i < frame_count; i++) {
 		dma_sync_single_for_device(dma_dev, frames[i]->frame.buffer_phy,
-			tbnet_frame_size(frames[i]), DMA_TO_DEVICE);
+			tb_ring_frame_size(&frames[i]->frame), DMA_TO_DEVICE);
 	}
 
 	return true;

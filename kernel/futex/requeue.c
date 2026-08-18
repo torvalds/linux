@@ -241,8 +241,8 @@ void requeue_pi_wake_futex(struct futex_q *q, union futex_key *key,
 	 * Acquire a reference for the waiter to ensure valid
 	 * futex_q::lock_ptr.
 	 */
-	futex_hash_get(hb);
-	q->drop_hb_ref = true;
+	if (futex_key_is_private(key))
+		q->drop_fph = futex_private_hash(key->private.mm);
 	q->lock_ptr = &hb->lock;
 	task = READ_ONCE(q->task);
 
@@ -459,8 +459,10 @@ retry:
 
 retry_private:
 	if (1) {
-		CLASS(hb, hb1)(&key1);
-		CLASS(hb, hb2)(&key2);
+		CLASS(hbr, hbr1)(&key1);
+		CLASS(hbr, hbr2)(&key2);
+		auto hb1 = hbr1.hb;
+		auto hb2 = hbr2.hb;
 
 		futex_hb_waiters_inc(hb2);
 		double_lock_hb(hb1, hb2);
@@ -641,12 +643,6 @@ retry_private:
 				 */
 				put_pi_state(pi_state);
 				continue;
-			}
-
-			/* Self-deadlock: non-top waiter already owns the PI futex. */
-			if (rt_mutex_owner(&pi_state->pi_mutex) == this->task) {
-				ret = -EDEADLK;
-				break;
 			}
 
 			ret = rt_mutex_start_proxy_lock(&pi_state->pi_mutex,
@@ -838,7 +834,8 @@ int futex_wait_requeue_pi(u32 __user *uaddr, unsigned int flags,
 	switch (futex_requeue_pi_wakeup_sync(&q)) {
 	case Q_REQUEUE_PI_IGNORE:
 		{
-			CLASS(hb, hb)(&q.key);
+			CLASS(hbr, hbr)(&q.key);
+			auto hb = hbr.hb;
 			/* The waiter is still on uaddr1 */
 			spin_lock(&hb->lock);
 			ret = handle_early_requeue_pi_wakeup(hb, &q, to);
@@ -908,11 +905,8 @@ int futex_wait_requeue_pi(u32 __user *uaddr, unsigned int flags,
 	default:
 		BUG();
 	}
-	if (q.drop_hb_ref) {
-		CLASS(hb, hb)(&q.key);
-		/* Additional reference from requeue_pi_wake_futex() */
-		futex_hash_put(hb);
-	}
+	/* Additional reference from requeue_pi_wake_futex() */
+	futex_private_hash_put(q.drop_fph);
 
 out:
 	if (to) {

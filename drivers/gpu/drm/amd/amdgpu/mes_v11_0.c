@@ -58,6 +58,12 @@ MODULE_FIRMWARE("amdgpu/gc_11_5_3_mes_2.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_5_3_mes1.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_5_4_mes_2.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_5_4_mes1.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_5_6_mes_2.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_5_6_mes1.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_7_0_mes_2.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_7_0_mes1.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_7_1_mes_2.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_7_1_mes1.bin");
 
 static int mes_v11_0_hw_init(struct amdgpu_ip_block *ip_block);
 static int mes_v11_0_hw_fini(struct amdgpu_ip_block *ip_block);
@@ -557,6 +563,7 @@ static int mes_v11_0_suspend_gang(struct amdgpu_mes *mes,
 	mes_suspend_gang_pkt.gang_context_addr = input->gang_context_addr;
 	mes_suspend_gang_pkt.suspend_fence_addr = input->suspend_fence_addr;
 	mes_suspend_gang_pkt.suspend_fence_value = input->suspend_fence_value;
+	mes_suspend_gang_pkt.doorbell_offset = input->doorbell_offset;
 
 	return mes_v11_0_submit_pkt_and_poll_completion(mes,
 			&mes_suspend_gang_pkt, sizeof(mes_suspend_gang_pkt),
@@ -576,6 +583,7 @@ static int mes_v11_0_resume_gang(struct amdgpu_mes *mes,
 
 	mes_resume_gang_pkt.resume_all_gangs = input->resume_all_gangs;
 	mes_resume_gang_pkt.gang_context_addr = input->gang_context_addr;
+	mes_resume_gang_pkt.doorbell_offset = input->doorbell_offset;
 
 	return mes_v11_0_submit_pkt_and_poll_completion(mes,
 			&mes_resume_gang_pkt, sizeof(mes_resume_gang_pkt),
@@ -1686,6 +1694,7 @@ static int mes_v11_0_hw_init(struct amdgpu_ip_block *ip_block)
 	if (r)
 		goto failure;
 
+	amdgpu_mes_validate_fw_version(adev);
 out:
 	/*
 	 * Disable KIQ ring usage from the driver once MES is enabled.

@@ -78,8 +78,8 @@ struct  false_ALARM_STATISTICS {
 };
 
 enum ODM_Pause_DIG_TYPE {
-	ODM_PAUSE_DIG = BIT0,
-	ODM_RESUME_DIG = BIT1
+	ODM_PAUSE_DIG = BIT(0),
+	ODM_RESUME_DIG = BIT(1)
 };
 
 #define		DM_DIG_THRESH_HIGH			40

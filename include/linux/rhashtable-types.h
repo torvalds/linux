@@ -136,12 +136,26 @@ struct rhashtable_iter {
 	bool end_of_table;
 };
 
-int rhashtable_init_noprof(struct rhashtable *ht,
-		    const struct rhashtable_params *params);
+int __rhashtable_init_noprof(struct rhashtable *ht,
+		    const struct rhashtable_params *params,
+		    struct lock_class_key *key);
+#define rhashtable_init_noprof(ht, params)				\
+({									\
+	static struct lock_class_key __key;				\
+									\
+	__rhashtable_init_noprof(ht, params, &__key);			\
+})
 #define rhashtable_init(...)	alloc_hooks(rhashtable_init_noprof(__VA_ARGS__))
 
-int rhltable_init_noprof(struct rhltable *hlt,
-		  const struct rhashtable_params *params);
+int __rhltable_init_noprof(struct rhltable *hlt,
+		  const struct rhashtable_params *params,
+		  struct lock_class_key *key);
+#define rhltable_init_noprof(hlt, params)				\
+({									\
+	static struct lock_class_key __key;				\
+									\
+	__rhltable_init_noprof(hlt, params, &__key);			\
+})
 #define rhltable_init(...)	alloc_hooks(rhltable_init_noprof(__VA_ARGS__))
 
 #endif /* _LINUX_RHASHTABLE_TYPES_H */

@@ -81,4 +81,8 @@ int xfs_bmap_count_blocks(struct xfs_trans *tp, struct xfs_inode *ip,
 int	xfs_flush_unmap_range(struct xfs_inode *ip, xfs_off_t offset,
 			      xfs_off_t len);
 
+void xfs_bmap_replace_cow_mapping(struct xfs_inode *ip,
+		struct xfs_iext_cursor *icur, struct xfs_bmbt_irec *got,
+		struct xfs_bmbt_irec *rep);
+
 #endif	/* __XFS_BMAP_UTIL_H__ */

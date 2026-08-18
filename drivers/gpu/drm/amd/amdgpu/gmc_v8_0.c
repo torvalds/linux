@@ -585,27 +585,21 @@ static int gmc_v8_0_mc_init(struct amdgpu_device *adev)
 	adev->gmc.visible_vram_size = adev->gmc.aper_size;
 
 	/* set the gart size */
-	if (amdgpu_gart_size == -1) {
-		switch (adev->asic_type) {
-		case CHIP_POLARIS10: /* all engines support GPUVM */
-		case CHIP_POLARIS11: /* all engines support GPUVM */
-		case CHIP_POLARIS12: /* all engines support GPUVM */
-		case CHIP_VEGAM:     /* all engines support GPUVM */
-		default:
-			adev->gmc.gart_size = 256ULL << 20;
-			break;
-		case CHIP_TONGA:   /* UVD, VCE do not support GPUVM */
-		case CHIP_FIJI:    /* UVD, VCE do not support GPUVM */
-		case CHIP_CARRIZO: /* UVD, VCE do not support GPUVM, DCE SG support */
-		case CHIP_STONEY:  /* UVD does not support GPUVM, DCE SG support */
-			adev->gmc.gart_size = 1024ULL << 20;
-			break;
-		}
-	} else {
-		adev->gmc.gart_size = (u64)amdgpu_gart_size << 20;
+	switch (adev->asic_type) {
+	case CHIP_TONGA:   /* UVD, VCE do not support GPUVM */
+	case CHIP_FIJI:    /* UVD, VCE do not support GPUVM */
+	case CHIP_CARRIZO: /* UVD, VCE do not support GPUVM, DCE SG support */
+	case CHIP_STONEY:  /* UVD does not support GPUVM, DCE SG support */
+		amdgpu_gmc_set_gart_size(adev, SZ_1G);
+		break;
+	case CHIP_POLARIS10: /* all engines support GPUVM */
+	case CHIP_POLARIS11: /* all engines support GPUVM */
+	case CHIP_POLARIS12: /* all engines support GPUVM */
+	case CHIP_VEGAM:     /* all engines support GPUVM */
+	default:
+		amdgpu_gmc_set_gart_size(adev, SZ_256M);
+		break;
 	}
-
-	adev->gmc.gart_size += adev->pm.smu_prv_buffer_size;
 	gmc_v8_0_vram_gtt_location(adev, &adev->gmc);
 
 	return 0;

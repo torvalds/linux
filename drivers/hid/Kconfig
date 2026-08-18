@@ -766,6 +766,15 @@ config HID_MEGAWORLD_FF
 	Say Y here if you have a Mega World based game controller and want
 	to have force feedback support for it.
 
+config HID_RAKK
+	tristate "Rakk support"
+	help
+	  Support for Rakk gaming peripherals.
+
+	  Fixes the HID report descriptor of the Rakk Dasig X mouse,
+	  which declares USAGE_MAXIMUM=3 (buttons 1-3) while actually
+	  sending 5 button bits. This causes side buttons to be ignored.
+
 config HID_REDRAGON
 	tristate "Redragon keyboards"
 	help
@@ -895,6 +904,19 @@ config HID_ORTEK
 	   - Ortek PKB-1700
 	   - Ortek WKB-2000
 	   - Skycable wireless presenter
+
+config HID_OXP
+	tristate "OneXPlayer handheld controller configuration support"
+	depends on USB_HID
+	depends on LEDS_CLASS
+	depends on LEDS_CLASS_MULTICOLOR
+	depends on DMI
+	help
+	  Say Y here if you would like to enable support for OneXPlayer handheld
+	  devices that come with RGB LED rings around the joysticks and macro buttons.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called hid-oxp.
 
 config HID_PANTHERLORD
 	tristate "Pantherlord/GreenAsia game controller"

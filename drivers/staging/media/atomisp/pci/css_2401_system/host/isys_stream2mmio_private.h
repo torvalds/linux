@@ -41,9 +41,8 @@ STORAGE_CLASS_STREAM2MMIO_C void stream2mmio_get_state(
 	 * Get the values of the register-set per
 	 * stream2mmio-controller sids.
 	 */
-	for (i = STREAM2MMIO_SID0_ID; i < N_STREAM2MMIO_SID_PROCS[ID]; i++) {
+	for (i = STREAM2MMIO_SID0_ID; i < N_STREAM2MMIO_SID_PROCS[ID]; i++)
 		stream2mmio_get_sid_state(ID, i, &state->sid_state[i]);
-	}
 }
 
 /**

@@ -8,7 +8,6 @@
 #include <linux/device.h>
 #include <linux/gpio/consumer.h>
 #include <linux/jiffies.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>

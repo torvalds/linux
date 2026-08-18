@@ -8,7 +8,6 @@
 #include <linux/input/mt.h>
 #include <linux/input/touchscreen.h>
 #include <linux/interrupt.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
@@ -1049,10 +1048,10 @@ static int ili210x_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ili210x_i2c_id[] = {
-	{ "ili210x", (long)&ili210x_chip },
-	{ "ili2117", (long)&ili211x_chip },
-	{ "ili2120", (long)&ili212x_chip },
-	{ "ili251x", (long)&ili251x_chip },
+	{ .name = "ili210x", .driver_data = (long)&ili210x_chip },
+	{ .name = "ili2117", .driver_data = (long)&ili211x_chip },
+	{ .name = "ili2120", .driver_data = (long)&ili212x_chip },
+	{ .name = "ili251x", .driver_data = (long)&ili251x_chip },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ili210x_i2c_id);

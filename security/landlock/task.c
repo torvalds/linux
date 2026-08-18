@@ -95,8 +95,7 @@ static int hook_ptrace_access_check(struct task_struct *const child,
 	if (!parent_subject)
 		return 0;
 
-	scoped_guard(rcu)
-	{
+	scoped_guard(rcu) {
 		const struct landlock_ruleset *const child_dom =
 			landlock_get_task_domain(child);
 		err = domain_ptrace(parent_subject->domain, child_dom);
@@ -370,8 +369,7 @@ static int hook_task_kill(struct task_struct *const p,
 	if (!subject)
 		return 0;
 
-	scoped_guard(rcu)
-	{
+	scoped_guard(rcu) {
 		is_scoped = domain_is_scoped(subject->domain,
 					     landlock_get_task_domain(p),
 					     signal_scope.scope);
@@ -411,8 +409,18 @@ static int hook_file_send_sigiotask(struct task_struct *tsk,
 	if (!subject->domain)
 		return 0;
 
-	scoped_guard(rcu)
-	{
+	/*
+	 * Always allow delivery to the file owner's own process, including a
+	 * thread-group leader reached through a process-group owner.  This
+	 * mirrors hook_task_kill()'s same-process exemption and preserves the
+	 * guarantee of commit 18eb75f3af40 ("landlock: Always allow signals
+	 * between threads of the same process"), which the registration-time
+	 * check cannot honor for a process-group target.
+	 */
+	if (task_tgid(tsk) == landlock_file(fown->file)->fown_tg)
+		return 0;
+
+	scoped_guard(rcu) {
 		is_scoped = domain_is_scoped(subject->domain,
 					     landlock_get_task_domain(tsk),
 					     signal_scope.scope);

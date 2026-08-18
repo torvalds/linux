@@ -124,6 +124,8 @@ const struct mlx5_flow_cmds *mlx5_fs_cmd_get_fw_cmds(void);
 
 int mlx5_fs_cmd_set_l2table_entry_silent(struct mlx5_core_dev *dev, u8 silent_mode);
 int mlx5_fs_cmd_set_tx_flow_table_root(struct mlx5_core_dev *dev, u32 ft_id, bool disconnect);
+int mlx5_fs_cmd_query_l2table_silent(struct mlx5_core_dev *dev,
+				     u8 *silent_mode);
 
 static inline bool mlx5_fs_cmd_is_fw_term_table(struct mlx5_flow_table *ft)
 {

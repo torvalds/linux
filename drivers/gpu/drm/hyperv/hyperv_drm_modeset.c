@@ -102,7 +102,7 @@ static const uint64_t hyperv_modifiers[] = {
 };
 
 static void hyperv_crtc_helper_atomic_enable(struct drm_crtc *crtc,
-					     struct drm_atomic_state *state)
+					     struct drm_atomic_commit *state)
 {
 	struct hyperv_drm_device *hv = to_hv(crtc->dev);
 	struct drm_plane *plane = &hv->plane;
@@ -136,7 +136,7 @@ static const struct drm_crtc_funcs hyperv_crtc_funcs = {
 };
 
 static int hyperv_plane_atomic_check(struct drm_plane *plane,
-				     struct drm_atomic_state *state)
+				     struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state, plane);
 	struct hyperv_drm_device *hv = to_hv(plane->dev);
@@ -168,7 +168,7 @@ static int hyperv_plane_atomic_check(struct drm_plane *plane,
 }
 
 static void hyperv_plane_atomic_update(struct drm_plane *plane,
-				       struct drm_atomic_state *state)
+				       struct drm_atomic_commit *state)
 {
 	struct hyperv_drm_device *hv = to_hv(plane->dev);
 	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state, plane);

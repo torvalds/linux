@@ -315,7 +315,7 @@ examples:
         #address-cells = <1>;
         #size-cells = <0>;
 
-        simple-audio-card,dai-link@0 {		/* I2S - HDMI */
+        simple-audio-card,dai-link@0 {  /* I2S - HDMI */
             reg = <0>;
             format = "i2s";
             cpu {
@@ -326,7 +326,7 @@ examples:
             };
         };
 
-        simple-audio-card,dai-link@1 {		/* S/PDIF - HDMI */
+        simple-audio-card,dai-link@1 {  /* S/PDIF - HDMI */
             reg = <1>;
             cpu {
                 sound-dai = <&audio1>;
@@ -336,7 +336,7 @@ examples:
             };
         };
 
-        simple-audio-card,dai-link@2 {		/* S/PDIF - S/PDIF */
+        simple-audio-card,dai-link@2 {  /* S/PDIF - S/PDIF */
             reg = <2>;
             cpu {
                 sound-dai = <&audio2>;

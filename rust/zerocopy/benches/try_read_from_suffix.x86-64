@@ -1,0 +1,18 @@
+bench_try_read_from_suffix_static_size:
+	mov eax, 49345
+	cmp rsi, 6
+	jb .LBB5_2
+	mov eax, dword ptr [rdi + rsi - 6]
+	movzx ecx, word ptr [rdi + rsi - 2]
+	shl rcx, 32
+	or rcx, rax
+	movzx edx, cx
+	xor eax, eax
+	cmp edx, 49344
+	cmovne rcx, rsi
+	sete al
+	and rcx, -65536
+	xor rax, 49345
+	or rax, rcx
+.LBB5_2:
+	ret

@@ -67,8 +67,7 @@ properties:
       - const: ppe
 
   sram:
-    $ref: /schemas/types.yaml#/definitions/phandle
-    description: phandle to mmio SRAM
+    maxItems: 1
 
   mediatek,ethsys:
     $ref: /schemas/types.yaml#/definitions/phandle

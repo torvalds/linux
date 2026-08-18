@@ -1195,8 +1195,8 @@ static int wm8985_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id wm8985_i2c_id[] = {
-	{ "wm8985", WM8985 },
-	{ "wm8758", WM8758 },
+	{ .name = "wm8985", .driver_data = WM8985 },
+	{ .name = "wm8758", .driver_data = WM8758 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm8985_i2c_id);

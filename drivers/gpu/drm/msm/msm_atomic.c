@@ -136,7 +136,7 @@ void msm_atomic_destroy_pending_timer(struct msm_pending_timer *timer)
 		kthread_destroy_worker(timer->worker);
 }
 
-static bool can_do_async(struct drm_atomic_state *state,
+static bool can_do_async(struct drm_atomic_commit *state,
 		struct drm_crtc **async_crtc)
 {
 	struct drm_connector_state *connector_state;
@@ -169,7 +169,7 @@ static bool can_do_async(struct drm_atomic_state *state,
  * can be used with for_each_crtc_mask() iterator, to iterate
  * effected crtcs without needing to preserve the atomic state.
  */
-static unsigned get_crtc_mask(struct drm_atomic_state *state)
+static unsigned get_crtc_mask(struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *crtc_state;
 	struct drm_crtc *crtc;
@@ -181,7 +181,7 @@ static unsigned get_crtc_mask(struct drm_atomic_state *state)
 	return mask;
 }
 
-int msm_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
+int msm_atomic_check(struct drm_device *dev, struct drm_atomic_commit *state)
 {
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_kms *kms = priv->kms;
@@ -210,7 +210,7 @@ int msm_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
 	return drm_atomic_helper_check(dev, state);
 }
 
-void msm_atomic_commit_tail(struct drm_atomic_state *state)
+void msm_atomic_commit_tail(struct drm_atomic_commit *state)
 {
 	struct drm_device *dev = state->dev;
 	struct msm_drm_private *priv = dev->dev_private;

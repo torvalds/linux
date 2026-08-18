@@ -15,7 +15,7 @@
  * FP offset at each call site.  arg_track keys on (frame, off[]), so
  * r1=fp-8, r1=fp-16, ... r1=fp-400 produce 50 unique cache keys per level.
  *
- * This test chains 8 subprograms (the MAX_CALL_FRAMES limit).  Each
+ * This test chains 8 subprograms (within the MAX_CALL_FRAMES limit).  Each
  * intermediate function calls the next one 50 times, each time with a
  * different FP-relative offset in r1.
  *

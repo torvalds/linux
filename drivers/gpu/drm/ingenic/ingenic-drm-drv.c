@@ -140,7 +140,7 @@ to_ingenic_drm_priv_state(struct drm_private_state *state)
 }
 
 static struct ingenic_drm_private_state *
-ingenic_drm_get_priv_state(struct ingenic_drm *priv, struct drm_atomic_state *state)
+ingenic_drm_get_priv_state(struct ingenic_drm *priv, struct drm_atomic_commit *state)
 {
 	struct drm_private_state *priv_state;
 
@@ -152,7 +152,7 @@ ingenic_drm_get_priv_state(struct ingenic_drm *priv, struct drm_atomic_state *st
 }
 
 static struct ingenic_drm_private_state *
-ingenic_drm_get_new_priv_state(struct ingenic_drm *priv, struct drm_atomic_state *state)
+ingenic_drm_get_new_priv_state(struct ingenic_drm *priv, struct drm_atomic_commit *state)
 {
 	struct drm_private_state *priv_state;
 
@@ -229,7 +229,7 @@ static int ingenic_drm_update_pixclk(struct notifier_block *nb,
 }
 
 static void ingenic_drm_bridge_atomic_enable(struct drm_bridge *bridge,
-					     struct drm_atomic_state *state)
+					     struct drm_atomic_commit *state)
 {
 	struct ingenic_drm *priv = drm_device_get_priv(bridge->dev);
 
@@ -241,7 +241,7 @@ static void ingenic_drm_bridge_atomic_enable(struct drm_bridge *bridge,
 }
 
 static void ingenic_drm_crtc_atomic_enable(struct drm_crtc *crtc,
-					   struct drm_atomic_state *state)
+					   struct drm_atomic_commit *state)
 {
 	struct ingenic_drm *priv = drm_crtc_get_priv(crtc);
 	struct ingenic_drm_private_state *priv_state;
@@ -260,7 +260,7 @@ static void ingenic_drm_crtc_atomic_enable(struct drm_crtc *crtc,
 }
 
 static void ingenic_drm_bridge_atomic_disable(struct drm_bridge *bridge,
-					      struct drm_atomic_state *state)
+					      struct drm_atomic_commit *state)
 {
 	struct ingenic_drm *priv = drm_device_get_priv(bridge->dev);
 	unsigned int var;
@@ -274,7 +274,7 @@ static void ingenic_drm_bridge_atomic_disable(struct drm_bridge *bridge,
 }
 
 static void ingenic_drm_crtc_atomic_disable(struct drm_crtc *crtc,
-					    struct drm_atomic_state *state)
+					    struct drm_atomic_commit *state)
 {
 	drm_crtc_vblank_off(crtc);
 }
@@ -334,7 +334,7 @@ static void ingenic_drm_crtc_update_timings(struct ingenic_drm *priv,
 }
 
 static int ingenic_drm_crtc_atomic_check(struct drm_crtc *crtc,
-					 struct drm_atomic_state *state)
+					 struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
 									  crtc);
@@ -404,7 +404,7 @@ ingenic_drm_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode
 }
 
 static void ingenic_drm_crtc_atomic_begin(struct drm_crtc *crtc,
-					  struct drm_atomic_state *state)
+					  struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
 									  crtc);
@@ -426,7 +426,7 @@ static void ingenic_drm_crtc_atomic_begin(struct drm_crtc *crtc,
 }
 
 static void ingenic_drm_crtc_atomic_flush(struct drm_crtc *crtc,
-					  struct drm_atomic_state *state)
+					  struct drm_atomic_commit *state)
 {
 	struct ingenic_drm *priv = drm_crtc_get_priv(crtc);
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
@@ -459,7 +459,7 @@ static void ingenic_drm_crtc_atomic_flush(struct drm_crtc *crtc,
 }
 
 static int ingenic_drm_plane_atomic_check(struct drm_plane *plane,
-					  struct drm_atomic_state *state)
+					  struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state,
 										 plane);
@@ -556,7 +556,7 @@ void ingenic_drm_plane_disable(struct device *dev, struct drm_plane *plane)
 }
 
 static void ingenic_drm_plane_atomic_disable(struct drm_plane *plane,
-					     struct drm_atomic_state *state)
+					     struct drm_atomic_commit *state)
 {
 	struct ingenic_drm *priv = drm_device_get_priv(plane->dev);
 
@@ -660,7 +660,7 @@ static void ingenic_drm_update_palette(struct ingenic_drm *priv,
 }
 
 static void ingenic_drm_plane_atomic_update(struct drm_plane *plane,
-					    struct drm_atomic_state *state)
+					    struct drm_atomic_commit *state)
 {
 	struct ingenic_drm *priv = drm_device_get_priv(plane->dev);
 	struct drm_plane_state *newstate = drm_atomic_get_new_plane_state(state, plane);
@@ -1330,8 +1330,6 @@ static int ingenic_drm_bind(struct device *dev, bool has_components)
 			ret = PTR_ERR(connector);
 			goto err_drvdata;
 		}
-
-		drm_connector_attach_encoder(connector, encoder);
 	}
 
 	drm_for_each_encoder(encoder, drm) {

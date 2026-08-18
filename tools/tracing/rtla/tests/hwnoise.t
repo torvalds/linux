@@ -6,7 +6,7 @@ test_begin
 set_timeout 2m
 
 check "verify help page" \
-	"hwnoise --help" 0 "summary of hardware-related noise"
+	"hwnoise --help" 129 "Usage: rtla hwnoise"
 check "detect noise higher than one microsecond" \
 	"hwnoise -c 0 -T 1 -d 5s -q" 0
 check "set the automatic trace mode" \

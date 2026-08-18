@@ -17,6 +17,10 @@ properties:
   compatible:
     const: mediatek,mt6360-regulator
 
+  BUCK1_VIN-supply:
+    description: Input supply phandle(s) for BUCK1
+  BUCK2_VIN-supply:
+    description: Input supply phandle(s) for BUCK2
   LDO_VIN1-supply:
     description: Input supply phandle(s) for LDO1/2/3
   LDO_VIN2-supply:

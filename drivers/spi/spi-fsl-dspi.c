@@ -1715,6 +1715,8 @@ static void dspi_remove(struct platform_device *pdev)
 	dspi_release_dma(dspi);
 	if (dspi->irq)
 		free_irq(dspi->irq, dspi);
+
+	spi_controller_put(dspi->ctlr);
 }
 
 static void dspi_shutdown(struct platform_device *pdev)

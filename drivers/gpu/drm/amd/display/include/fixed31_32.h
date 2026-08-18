@@ -445,7 +445,7 @@ static inline struct fixed31_32 dc_fixpt_pow(struct fixed31_32 arg1, struct fixe
  */
 static inline int dc_fixpt_floor(struct fixed31_32 arg)
 {
-	unsigned long long arg_value = arg.value > 0 ? arg.value : -arg.value;
+	unsigned long long arg_value = (unsigned long long)(arg.value > 0 ? arg.value : -arg.value);
 
 	if (arg.value >= 0)
 		return (int)(arg_value >> FIXED31_32_BITS_PER_FRACTIONAL_PART);
@@ -459,7 +459,7 @@ static inline int dc_fixpt_floor(struct fixed31_32 arg)
  */
 static inline int dc_fixpt_round(struct fixed31_32 arg)
 {
-	unsigned long long arg_value = arg.value > 0 ? arg.value : -arg.value;
+	unsigned long long arg_value = (unsigned long long)(arg.value > 0 ? arg.value : -arg.value);
 
 	const long long summand = dc_fixpt_half.value;
 
@@ -479,7 +479,7 @@ static inline int dc_fixpt_round(struct fixed31_32 arg)
  */
 static inline int dc_fixpt_ceil(struct fixed31_32 arg)
 {
-	unsigned long long arg_value = arg.value > 0 ? arg.value : -arg.value;
+	unsigned long long arg_value = (unsigned long long)(arg.value > 0 ? arg.value : -arg.value);
 
 	const long long summand = dc_fixpt_one.value -
 		dc_fixpt_epsilon.value;

@@ -35,7 +35,7 @@ static __always_inline u64 __csg_asm(u64 ptr, u64 old, u64 new)
 	return old;
 }
 
-static inline u8 __arch_cmpxchg1(u64 ptr, u8 old, u8 new)
+static __no_sanitize_or_inline u8 __arch_cmpxchg1(u64 ptr, u8 old, u8 new)
 {
 	union {
 		u8 b[4];
@@ -58,7 +58,7 @@ static inline u8 __arch_cmpxchg1(u64 ptr, u8 old, u8 new)
 	return old;
 }
 
-static inline u16 __arch_cmpxchg2(u64 ptr, u16 old, u16 new)
+static __no_sanitize_or_inline u16 __arch_cmpxchg2(u64 ptr, u16 old, u16 new)
 {
 	union {
 		u16 b[2];
@@ -173,7 +173,7 @@ static __always_inline u64 __arch_cmpxchg(u64 ptr, u64 old, u64 new, int size)
 
 void __xchg_called_with_bad_pointer(void);
 
-static inline u8 __arch_xchg1(u64 ptr, u8 x)
+static __no_sanitize_or_inline u8 __arch_xchg1(u64 ptr, u8 x)
 {
 	int shift = (3 ^ (ptr & 3)) << 3;
 	u32 mask, old, new;
@@ -188,7 +188,7 @@ static inline u8 __arch_xchg1(u64 ptr, u8 x)
 	return old >> shift;
 }
 
-static inline u16 __arch_xchg2(u64 ptr, u16 x)
+static __no_sanitize_or_inline u16 __arch_xchg2(u64 ptr, u16 x)
 {
 	int shift = (2 ^ (ptr & 2)) << 3;
 	u32 mask, old, new;

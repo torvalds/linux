@@ -25,6 +25,11 @@ static int ionic_query_device(struct ib_device *ibdev,
 {
 	struct ionic_ibdev *dev = to_ionic_ibdev(ibdev);
 	struct net_device *ndev;
+	int err;
+
+	err = ib_is_udata_in_empty(udata);
+	if (err)
+		return err;
 
 	ndev = ib_device_get_netdev(ibdev, 1);
 	addrconf_ifid_eui48((u8 *)&attr->sys_image_guid, ndev);
@@ -69,7 +74,7 @@ static int ionic_query_device(struct ib_device *ibdev,
 	attr->max_fast_reg_page_list_len = dev->lif_cfg.npts_per_lif / 2;
 	attr->max_pkeys = IONIC_PKEY_TBL_LEN;
 
-	return 0;
+	return ib_respond_empty_udata(udata);
 }
 
 static int ionic_query_port(struct ib_device *ibdev, u32 port,

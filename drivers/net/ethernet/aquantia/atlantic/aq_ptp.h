@@ -14,6 +14,12 @@
 
 #include "aq_ring.h"
 
+enum aq_ptp_state {
+	AQ_PTP_NO_LINK = 0,
+	AQ_PTP_FIRST_INIT = 1,
+	AQ_PTP_LINK_UP = 2,
+};
+
 #define PTP_8TC_RING_IDX             8
 #define PTP_4TC_RING_IDX            16
 #define PTP_HWST_RING_IDX           31
@@ -32,7 +38,7 @@ static inline unsigned int aq_ptp_ring_idx(const enum aq_tc_mode tc_mode)
 #if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
 
 /* Common functions */
-int aq_ptp_init(struct aq_nic_s *aq_nic, unsigned int idx_vec);
+int aq_ptp_init(struct aq_nic_s *aq_nic, unsigned int idx_ptp_vec);
 
 void aq_ptp_unregister(struct aq_nic_s *aq_nic);
 void aq_ptp_free(struct aq_nic_s *aq_nic);
@@ -52,7 +58,8 @@ void aq_ptp_service_task(struct aq_nic_s *aq_nic);
 
 void aq_ptp_tm_offset_set(struct aq_nic_s *aq_nic, unsigned int mbps);
 
-void aq_ptp_clock_init(struct aq_nic_s *aq_nic);
+void aq_ptp_clock_init(struct aq_nic_s *aq_nic, enum aq_ptp_state state);
+void aq_ptp_tx_skb_drop_head(struct aq_nic_s *aq_nic);
 
 /* Traffic processing functions */
 int aq_ptp_xmit(struct aq_nic_s *aq_nic, struct sk_buff *skb);
@@ -80,7 +87,7 @@ u64 *aq_ptp_get_stats(struct aq_nic_s *aq_nic, u64 *data);
 
 #else
 
-static inline int aq_ptp_init(struct aq_nic_s *aq_nic, unsigned int idx_vec)
+static inline int aq_ptp_init(struct aq_nic_s *aq_nic, unsigned int idx_ptp_vec)
 {
 	return 0;
 }
@@ -122,7 +129,9 @@ static inline void aq_ptp_ring_deinit(struct aq_nic_s *aq_nic) {}
 static inline void aq_ptp_service_task(struct aq_nic_s *aq_nic) {}
 static inline void aq_ptp_tm_offset_set(struct aq_nic_s *aq_nic,
 					unsigned int mbps) {}
-static inline void aq_ptp_clock_init(struct aq_nic_s *aq_nic) {}
+static inline void aq_ptp_clock_init(struct aq_nic_s *aq_nic,
+				     enum aq_ptp_state state) {}
+static inline void aq_ptp_tx_skb_drop_head(struct aq_nic_s *aq_nic) {}
 static inline int aq_ptp_xmit(struct aq_nic_s *aq_nic, struct sk_buff *skb)
 {
 	return -EOPNOTSUPP;

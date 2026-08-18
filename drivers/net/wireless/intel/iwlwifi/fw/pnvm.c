@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright(c) 2020-2025 Intel Corporation
+ * Copyright(c) 2020-2026 Intel Corporation
  */
 
 #include "iwl-drv.h"
@@ -12,6 +12,7 @@
 #include "fw/api/alive.h"
 #include "fw/uefi.h"
 #include "fw/img.h"
+#include "fw/dbg.h"
 
 #define IWL_PNVM_REDUCED_CAP_BIT BIT(25)
 
@@ -25,6 +26,12 @@ static bool iwl_pnvm_complete_fn(struct iwl_notif_wait_data *notif_wait,
 {
 	struct iwl_trans *trans = (struct iwl_trans *)data;
 	struct iwl_pnvm_init_complete_ntfy *pnvm_ntf = (void *)pkt->data;
+
+	if (IWL_FW_CHECK(trans,
+			 iwl_rx_packet_payload_len(pkt) < sizeof(*pnvm_ntf),
+			 "Bad notif len: %d\n",
+			 iwl_rx_packet_payload_len(pkt)))
+		return true;
 
 	IWL_DEBUG_FW(trans,
 		     "PNVM complete notification received with status 0x%0x\n",

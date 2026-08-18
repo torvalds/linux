@@ -483,7 +483,7 @@ int intel_dsc_get_num_vdsc_instances(const struct intel_crtc_state *crtc_state)
 }
 
 static void intel_dsc_get_pps_reg(const struct intel_crtc_state *crtc_state, int pps,
-				  i915_reg_t *dsc_reg, int dsc_reg_num)
+				  intel_reg_t *dsc_reg, int dsc_reg_num)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
@@ -506,7 +506,7 @@ static void intel_dsc_pps_write(const struct intel_crtc_state *crtc_state,
 				int pps, u32 pps_val)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
-	i915_reg_t dsc_reg[3];
+	intel_reg_t dsc_reg[3];
 	int i, vdsc_per_pipe, dsc_reg_num;
 
 	vdsc_per_pipe = intel_dsc_get_vdsc_per_pipe(crtc_state);
@@ -843,13 +843,13 @@ void intel_dsc_su_et_parameters_configure(struct intel_dsb *dsb, struct intel_en
 		intel_de_write_dsb(display, dsb, LNL_DSC1_SU_PARAMETER_SET_0(pipe), val);
 }
 
-static i915_reg_t dss_ctl1_reg(struct intel_crtc *crtc, enum transcoder cpu_transcoder)
+static intel_reg_t dss_ctl1_reg(struct intel_crtc *crtc, enum transcoder cpu_transcoder)
 {
 	return is_pipe_dsc(crtc, cpu_transcoder) ?
 		ICL_PIPE_DSS_CTL1(crtc->pipe) : DSS_CTL1;
 }
 
-static i915_reg_t dss_ctl2_reg(struct intel_crtc *crtc, enum transcoder cpu_transcoder)
+static intel_reg_t dss_ctl2_reg(struct intel_crtc *crtc, enum transcoder cpu_transcoder)
 {
 	return is_pipe_dsc(crtc, cpu_transcoder) ?
 		ICL_PIPE_DSS_CTL2(crtc->pipe) : DSS_CTL2;
@@ -929,7 +929,7 @@ static u32 intel_dsc_pps_read(struct intel_crtc_state *crtc_state, int pps,
 			      bool *all_equal)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
-	i915_reg_t dsc_reg[3];
+	intel_reg_t dsc_reg[3];
 	int i, vdsc_per_pipe, dsc_reg_num;
 	u32 val;
 

@@ -331,10 +331,10 @@ nouveau_exec_ucopy(struct nouveau_exec_job_args *args,
 
 	return 0;
 
-err_free_pushs:
-	u_free(args->push.s);
 err_free_ins:
 	u_free(args->in_sync.s);
+err_free_pushs:
+	u_free(args->push.s);
 	return ret;
 }
 

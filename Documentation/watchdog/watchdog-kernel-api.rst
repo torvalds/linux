@@ -38,9 +38,17 @@ The watchdog_unregister_device routine deregisters a registered watchdog timer
 device. The parameter of this routine is the pointer to the registered
 watchdog_device structure.
 
-The watchdog subsystem includes an registration deferral mechanism,
-which allows you to register an watchdog as early as you wish during
+The watchdog subsystem includes a registration deferral mechanism,
+which allows you to register a watchdog as early as you wish during
 the boot process.
+
+There is also a resource-managed watchdog_register_device(),
+devm_watchdog_register_device(). If you use this to register a watchdog
+device, watchdog_unregister_device() is called automatically on driver
+detach::
+
+        int devm_watchdog_register_device(struct device *dev,
+				struct watchdog_device *wdd);
 
 The watchdog device structure looks like this::
 
@@ -60,13 +68,14 @@ The watchdog device structure looks like this::
 	unsigned int max_hw_heartbeat_ms;
 	struct notifier_block reboot_nb;
 	struct notifier_block restart_nb;
+	struct notifier_block pm_nb;
 	void *driver_data;
 	struct watchdog_core_data *wd_data;
 	unsigned long status;
 	struct list_head deferred;
   };
 
-It contains following fields:
+It contains the following fields:
 
 * id: set by watchdog_register_device, id 0 is special. It has both a
   /dev/watchdog0 cdev (dynamic major, minor 0) as well as the old
@@ -105,6 +114,8 @@ It contains following fields:
   internal use only. If a watchdog is capable of restarting the machine, it
   should define ops->restart. Priority can be changed through
   watchdog_set_restart_priority.
+* pm_nb: coordinates watchdog_dev_suspend/resume to cancel a ping worker
+  during suspend and restore it during resume.
 * bootstatus: status of the device after booting (reported with watchdog
   WDIOF_* status bits).
 * driver_data: a pointer to the drivers private data of a watchdog device.
@@ -204,7 +215,7 @@ they are supported. These optional routines/operations are:
   If the watchdog driver does not have to perform any action but setting the
   watchdog_device.timeout, this callback can be omitted.
 
-  If set_timeout is not provided but, WDIOF_SETTIMEOUT is set, the watchdog
+  If set_timeout is not provided but WDIOF_SETTIMEOUT is set, the watchdog
   infrastructure updates the timeout value of the watchdog_device internally
   to the requested value.
 
@@ -220,7 +231,7 @@ they are supported. These optional routines/operations are:
   the watchdog". A value of 0 disables pretimeout notification.
 
   (Note: the WDIOF_PRETIMEOUT needs to be set in the options field of the
-  watchdog's info structure).
+  watchdog's info structure.)
 
   If the watchdog driver does not have to perform any action but setting the
   watchdog_device.pretimeout, this callback can be omitted. That means if
@@ -239,7 +250,7 @@ they are supported. These optional routines/operations are:
 The status bits should (preferably) be set with the set_bit and clear_bit alike
 bit-operations. The status bits that are defined are:
 
-* WDOG_ACTIVE: this status bit indicates whether or not a watchdog timer device
+* WDOG_ACTIVE: this status bit indicates whether a watchdog timer device
   is active or not from user perspective. User space is expected to send
   heartbeat requests to the driver while this flag is set.
 * WDOG_NO_WAY_OUT: this bit stores the nowayout setting for the watchdog.
@@ -254,10 +265,13 @@ bit-operations. The status bits that are defined are:
   then opening /dev/watchdog will skip the start operation but send a keepalive
   request instead.
 
+Helper Functions
+~~~~~~~~~~~~~~~~
+
   To set the WDOG_NO_WAY_OUT status bit (before registering your watchdog
   timer device) you can either:
 
-  * set it statically in your watchdog_device struct with
+  * set it statically in your struct watchdog_device with
 
 	.status = WATCHDOG_NOWAYOUT_INIT_STATUS,
 
@@ -331,7 +345,7 @@ To raise a pretimeout notification, the following function should be used::
   void watchdog_notify_pretimeout(struct watchdog_device *wdd)
 
 The function can be called in the interrupt context. If watchdog pretimeout
-governor framework (kbuild CONFIG_WATCHDOG_PRETIMEOUT_GOV symbol) is enabled,
+governor framework (kconfig CONFIG_WATCHDOG_PRETIMEOUT_GOV symbol) is enabled,
 an action is taken by a preconfigured pretimeout governor preassigned to
 the watchdog device. If watchdog pretimeout governor framework is not
 enabled, watchdog_notify_pretimeout() prints a notification message to

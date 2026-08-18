@@ -310,6 +310,7 @@ irqreturn_t cs42l43_bias_detect_clamp(int irq, void *data)
 #define CS42L43_JACK_ABSENT 0x0
 
 #define CS42L43_JACK_OPTICAL (SND_JACK_MECHANICAL | SND_JACK_AVOUT)
+#define CS42L43_JACK_MICROPHONE (SND_JACK_MECHANICAL | SND_JACK_MICROPHONE)
 #define CS42L43_JACK_HEADPHONE (SND_JACK_MECHANICAL | SND_JACK_HEADPHONE)
 #define CS42L43_JACK_HEADSET (SND_JACK_MECHANICAL | SND_JACK_HEADSET)
 #define CS42L43_JACK_LINEOUT (SND_JACK_MECHANICAL | SND_JACK_LINEOUT)
@@ -805,7 +806,7 @@ irqreturn_t cs42l43_tip_sense(int irq, void *data)
 	if (priv->suspend_jack_debounce)
 		db_delay += priv->tip_fall_db_ms + priv->tip_rise_db_ms;
 
-	queue_delayed_work(system_long_wq, &priv->tip_sense_work,
+	queue_delayed_work(system_dfl_long_wq, &priv->tip_sense_work,
 			   msecs_to_jiffies(db_delay));
 
 	return IRQ_HANDLED;
@@ -871,7 +872,7 @@ static const struct cs42l43_jack_override_mode {
 		.hsdet_mode = CS42L43_JACK_3_POLE_SWITCHES,
 		.mic_ctrl = (0x3 << CS42L43_JACK_STEREO_CONFIG_SHIFT) |
 			    CS42L43_HS1_BIAS_EN_MASK | CS42L43_HS2_BIAS_EN_MASK,
-		.report = CS42L43_JACK_LINEIN,
+		.report = CS42L43_JACK_MICROPHONE,
 	},
 	[CS42L43_JACK_RAW_OPTICAL] = {
 		.hsdet_mode = CS42L43_JACK_3_POLE_SWITCHES,
@@ -932,7 +933,8 @@ int cs42l43_jack_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *u
 	snd_soc_jack_report(priv->jack_hp, 0, 0xFFFF);
 
 	if (!override) {
-		queue_delayed_work(system_long_wq, &priv->tip_sense_work, 0);
+		queue_delayed_work(system_dfl_long_wq, &priv->tip_sense_work,
+				   0);
 	} else {
 		override--;
 

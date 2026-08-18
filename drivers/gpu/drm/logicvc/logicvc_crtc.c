@@ -36,7 +36,7 @@ logicvc_crtc_mode_valid(struct drm_crtc *drm_crtc,
 }
 
 static void logicvc_crtc_atomic_begin(struct drm_crtc *drm_crtc,
-				      struct drm_atomic_state *state)
+				      struct drm_atomic_commit *state)
 {
 	struct logicvc_crtc *crtc = logicvc_crtc(drm_crtc);
 	struct drm_crtc_state *old_state =
@@ -60,7 +60,7 @@ static void logicvc_crtc_atomic_begin(struct drm_crtc *drm_crtc,
 }
 
 static void logicvc_crtc_atomic_enable(struct drm_crtc *drm_crtc,
-				       struct drm_atomic_state *state)
+				       struct drm_atomic_commit *state)
 {
 	struct logicvc_crtc *crtc = logicvc_crtc(drm_crtc);
 	struct logicvc_drm *logicvc = logicvc_drm(drm_crtc->dev);
@@ -150,7 +150,7 @@ static void logicvc_crtc_atomic_enable(struct drm_crtc *drm_crtc,
 }
 
 static void logicvc_crtc_atomic_disable(struct drm_crtc *drm_crtc,
-					struct drm_atomic_state *state)
+					struct drm_atomic_commit *state)
 {
 	struct logicvc_drm *logicvc = logicvc_drm(drm_crtc->dev);
 	struct drm_device *drm_dev = drm_crtc->dev;

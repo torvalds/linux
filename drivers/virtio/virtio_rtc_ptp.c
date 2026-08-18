@@ -139,7 +139,7 @@ static int viortc_ptp_getcrosststamp(struct ptp_clock_info *ptp,
 	if (ret)
 		return ret;
 
-	ktime_get_snapshot(&history_begin);
+	ktime_get_snapshot_id(xtstamp->clock_id, &history_begin);
 	if (history_begin.cs_id != cs_id)
 		return -EOPNOTSUPP;
 

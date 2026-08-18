@@ -5,6 +5,7 @@
 
 #include <kunit/test.h>
 #include <kunit/static_stub.h>
+#include <linux/fs_context.h>
 #include <linux/random.h>
 
 #include "ext4.h"
@@ -63,8 +64,14 @@ static void mbt_kill_sb(struct super_block *sb)
 	generic_shutdown_super(sb);
 }
 
+static int mbt_init_fs_context(struct fs_context *fc)
+{
+	return 0;
+}
+
 static struct file_system_type mbt_fs_type = {
 	.name			= "mballoc test",
+	.init_fs_context	= mbt_init_fs_context,
 	.kill_sb		= mbt_kill_sb,
 };
 
@@ -127,7 +134,7 @@ static void mbt_mb_release(struct super_block *sb)
 	kfree(sb->s_bdev);
 }
 
-static int mbt_set(struct super_block *sb, void *data)
+static int mbt_set(struct super_block *sb, struct fs_context *fc)
 {
 	return 0;
 }
@@ -136,13 +143,19 @@ static struct super_block *mbt_ext4_alloc_super_block(void)
 {
 	struct mbt_ext4_super_block *fsb;
 	struct super_block *sb;
+	struct fs_context *fc;
 	struct ext4_sb_info *sbi;
 
 	fsb = kzalloc_obj(*fsb);
 	if (fsb == NULL)
 		return NULL;
 
-	sb = sget(&mbt_fs_type, NULL, mbt_set, 0, NULL);
+	fc = fs_context_for_mount(&mbt_fs_type, 0);
+	if (IS_ERR(fc))
+		goto out;
+
+	sb = sget_fc(fc, NULL, mbt_set);
+	put_fs_context(fc);
 	if (IS_ERR(sb))
 		goto out;
 
@@ -714,8 +727,7 @@ do_test_generate_buddy(struct kunit *test, struct super_block *sb, void *bitmap,
 	ext4_mb_generate_buddy_test(sb, ext4_buddy, bitmap, TEST_GOAL_GROUP,
 			       ext4_grp);
 
-	KUNIT_ASSERT_EQ(test, memcmp(mbt_buddy, ext4_buddy, sb->s_blocksize),
-			0);
+	KUNIT_ASSERT_MEMEQ(test, mbt_buddy, ext4_buddy, sb->s_blocksize);
 	mbt_validate_group_info(test, mbt_grp, ext4_grp);
 }
 
@@ -776,8 +788,7 @@ test_mb_mark_used_range(struct kunit *test, struct ext4_buddy *e4b,
 		grp->bb_counters[i] = 0;
 	ext4_mb_generate_buddy_test(sb, buddy, bitmap, 0, grp);
 
-	KUNIT_ASSERT_EQ(test, memcmp(buddy, e4b->bd_buddy, sb->s_blocksize),
-			0);
+	KUNIT_ASSERT_MEMEQ(test, buddy, e4b->bd_buddy, sb->s_blocksize);
 	mbt_validate_group_info(test, grp, e4b->bd_info);
 }
 
@@ -841,8 +852,7 @@ test_mb_free_blocks_range(struct kunit *test, struct ext4_buddy *e4b,
 		grp->bb_counters[i] = 0;
 	ext4_mb_generate_buddy_test(sb, buddy, bitmap, 0, grp);
 
-	KUNIT_ASSERT_EQ(test, memcmp(buddy, e4b->bd_buddy, sb->s_blocksize),
-			0);
+	KUNIT_ASSERT_MEMEQ(test, buddy, e4b->bd_buddy, sb->s_blocksize);
 	mbt_validate_group_info(test, grp, e4b->bd_info);
 
 }

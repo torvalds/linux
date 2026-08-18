@@ -11,6 +11,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/phy/phy.h>
@@ -34,6 +35,8 @@
 
 #define DW_REG_EXIST		BIT(31)
 #define DW_REG(x)		(DW_REG_EXIST | (x))
+
+#define DPHY_STOPSTATE_CLK_LANE		BIT(16)
 
 #define DPHY_TEST_CTRL0_TEST_CLR	BIT(0)
 
@@ -65,6 +68,7 @@ enum dw_mipi_csi2rx_regs_index {
 	DW_MIPI_CSI2RX_PHY_TST_CTRL0,
 	DW_MIPI_CSI2RX_PHY_TST_CTRL1,
 	DW_MIPI_CSI2RX_PHY_SHUTDOWNZ,
+	DW_MIPI_CSI2RX_PHY_STOPSTATE,
 	DW_MIPI_CSI2RX_IPI_DATATYPE,
 	DW_MIPI_CSI2RX_IPI_MEM_FLUSH,
 	DW_MIPI_CSI2RX_IPI_MODE,
@@ -87,6 +91,7 @@ struct dw_mipi_csi2rx_drvdata {
 	void (*dphy_assert_reset)(struct dw_mipi_csi2rx_device *csi2);
 	void (*dphy_deassert_reset)(struct dw_mipi_csi2rx_device *csi2);
 	void (*ipi_enable)(struct dw_mipi_csi2rx_device *csi2);
+	int (*wait_for_phy_stopstate)(struct dw_mipi_csi2rx_device *csi2);
 };
 
 struct dw_mipi_csi2rx_format {
@@ -113,6 +118,7 @@ struct dw_mipi_csi2rx_device {
 
 	enum v4l2_mbus_type bus_type;
 	u32 lanes_num;
+	u64 enabled_streams;
 
 	const struct dw_mipi_csi2rx_drvdata *drvdata;
 };
@@ -138,6 +144,7 @@ static const u32 imx93_regs[DW_MIPI_CSI2RX_MAX] = {
 	[DW_MIPI_CSI2RX_PHY_SHUTDOWNZ] = DW_REG(0x40),
 	[DW_MIPI_CSI2RX_DPHY_RSTZ] = DW_REG(0x44),
 	[DW_MIPI_CSI2RX_PHY_STATE] = DW_REG(0x48),
+	[DW_MIPI_CSI2RX_PHY_STOPSTATE] = DW_REG(0x4c),
 	[DW_MIPI_CSI2RX_PHY_TST_CTRL0] = DW_REG(0x50),
 	[DW_MIPI_CSI2RX_PHY_TST_CTRL1] = DW_REG(0x54),
 	[DW_MIPI_CSI2RX_IPI_MODE] = DW_REG(0x80),
@@ -145,6 +152,17 @@ static const u32 imx93_regs[DW_MIPI_CSI2RX_MAX] = {
 	[DW_MIPI_CSI2RX_IPI_DATATYPE] = DW_REG(0x88),
 	[DW_MIPI_CSI2RX_IPI_MEM_FLUSH] = DW_REG(0x8c),
 	[DW_MIPI_CSI2RX_IPI_SOFTRSTN] = DW_REG(0xa0),
+};
+
+static const u32 imx95_regs[DW_MIPI_CSI2RX_MAX] = {
+	[DW_MIPI_CSI2RX_N_LANES] = DW_REG(0x4),
+	[DW_MIPI_CSI2RX_RESETN] = DW_REG(0x8),
+	[DW_MIPI_CSI2RX_PHY_SHUTDOWNZ] = DW_REG(0x40),
+	[DW_MIPI_CSI2RX_DPHY_RSTZ] = DW_REG(0x44),
+	[DW_MIPI_CSI2RX_PHY_STATE] = DW_REG(0x48),
+	[DW_MIPI_CSI2RX_PHY_STOPSTATE] = DW_REG(0x4c),
+	[DW_MIPI_CSI2RX_PHY_TST_CTRL0] = DW_REG(0x50),
+	[DW_MIPI_CSI2RX_PHY_TST_CTRL1] = DW_REG(0x54),
 };
 
 static const struct v4l2_mbus_framefmt default_format = {
@@ -252,6 +270,26 @@ static const struct dw_mipi_csi2rx_format formats[] = {
 		.depth = 12,
 		.csi_dt = MIPI_CSI2_DT_RAW12,
 	},
+	{
+		.code = MEDIA_BUS_FMT_SBGGR16_1X16,
+		.depth = 16,
+		.csi_dt = MIPI_CSI2_DT_RAW16,
+	},
+	{
+		.code = MEDIA_BUS_FMT_SGBRG16_1X16,
+		.depth = 16,
+		.csi_dt = MIPI_CSI2_DT_RAW16,
+	},
+	{
+		.code = MEDIA_BUS_FMT_SGRBG16_1X16,
+		.depth = 16,
+		.csi_dt = MIPI_CSI2_DT_RAW16,
+	},
+	{
+		.code = MEDIA_BUS_FMT_SRGGB16_1X16,
+		.depth = 16,
+		.csi_dt = MIPI_CSI2_DT_RAW16,
+	},
 };
 
 static inline struct dw_mipi_csi2rx_device *to_csi2(struct v4l2_subdev *sd)
@@ -311,7 +349,7 @@ dw_mipi_csi2rx_find_format(struct dw_mipi_csi2rx_device *csi2, u32 mbus_code)
 	WARN_ON(csi2->formats_num == 0);
 
 	for (unsigned int i = 0; i < csi2->formats_num; i++) {
-		const struct dw_mipi_csi2rx_format *format = &csi2->formats[i];
+		const struct dw_mipi_csi2rx_format *format = &formats[i];
 
 		if (format->code == mbus_code)
 			return format;
@@ -433,7 +471,7 @@ dw_mipi_csi2rx_enum_mbus_code(struct v4l2_subdev *sd,
 		if (code->index >= csi2->formats_num)
 			return -EINVAL;
 
-		code->code = csi2->formats[code->index].code;
+		code->code = formats[code->index].code;
 		return 0;
 	default:
 		return -EINVAL;
@@ -469,6 +507,17 @@ static int dw_mipi_csi2rx_set_fmt(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	*src = *sink;
+
+	/* Store the CSIS format descriptor for active formats. */
+	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
+		csi2->formats = fmt ? :
+			dw_mipi_csi2rx_find_format(csi2, default_format.code);
+
+		if (!csi2->formats) {
+			dev_err(csi2->dev, "Failed to find valid format\n");
+			return -EINVAL;
+		}
+	}
 
 	return 0;
 }
@@ -508,26 +557,42 @@ static int dw_mipi_csi2rx_enable_streams(struct v4l2_subdev *sd,
 					       DW_MIPI_CSI2RX_PAD_SRC,
 					       &streams_mask);
 
-	ret = pm_runtime_resume_and_get(dev);
-	if (ret)
-		goto err;
+	if (!csi2->enabled_streams) {
+		ret = pm_runtime_resume_and_get(dev);
+		if (ret)
+			goto err;
 
-	ret = dw_mipi_csi2rx_start(csi2);
-	if (ret) {
-		dev_err(dev, "failed to enable CSI hardware\n");
-		goto err_pm_runtime_put;
+		ret = dw_mipi_csi2rx_start(csi2);
+		if (ret) {
+			dev_err(dev, "failed to enable CSI hardware\n");
+			goto err_pm_runtime_put;
+		}
 	}
 
 	ret = v4l2_subdev_enable_streams(remote_sd, remote_pad->index, mask);
 	if (ret)
 		goto err_csi_stop;
 
+	if (!csi2->enabled_streams &&
+	    csi2->drvdata->wait_for_phy_stopstate) {
+		ret = csi2->drvdata->wait_for_phy_stopstate(csi2);
+		if (ret)
+			goto err_disable_streams;
+	}
+
+	csi2->enabled_streams |= streams_mask;
+
 	return 0;
 
+err_disable_streams:
+	v4l2_subdev_disable_streams(remote_sd, remote_pad->index, mask);
 err_csi_stop:
-	dw_mipi_csi2rx_stop(csi2);
+	/* Stop CSI hardware if no streams are enabled */
+	if (!csi2->enabled_streams)
+		dw_mipi_csi2rx_stop(csi2);
 err_pm_runtime_put:
-	pm_runtime_put(dev);
+	if (!csi2->enabled_streams)
+		pm_runtime_put(dev);
 err:
 	return ret;
 }
@@ -552,10 +617,15 @@ static int dw_mipi_csi2rx_disable_streams(struct v4l2_subdev *sd,
 					       &streams_mask);
 
 	ret = v4l2_subdev_disable_streams(remote_sd, remote_pad->index, mask);
+	if (ret)
+		dev_err(dev, "failed to disable streams on remote subdev: %d\n", ret);
 
-	dw_mipi_csi2rx_stop(csi2);
+	csi2->enabled_streams &= ~streams_mask;
 
-	pm_runtime_put(dev);
+	if (!csi2->enabled_streams) {
+		dw_mipi_csi2rx_stop(csi2);
+		pm_runtime_put(dev);
+	}
 
 	return ret;
 }
@@ -827,17 +897,49 @@ static void imx93_csi2rx_dphy_ipi_enable(struct dw_mipi_csi2rx_device *csi2)
 	dw_mipi_csi2rx_write(csi2, DW_MIPI_CSI2RX_IPI_MODE, val);
 }
 
+static int imx93_csi2rx_wait_for_phy_stopstate(struct dw_mipi_csi2rx_device *csi2)
+{
+	struct device *dev = csi2->dev;
+	u32 stopstate_mask;
+	u32 val;
+	int ret;
+
+	stopstate_mask = DPHY_STOPSTATE_CLK_LANE | GENMASK(csi2->lanes_num - 1, 0);
+
+	ret = read_poll_timeout(dw_mipi_csi2rx_read, val,
+				(val & stopstate_mask) == stopstate_mask,
+				 10, 1000, true,
+				 csi2, DW_MIPI_CSI2RX_PHY_STOPSTATE);
+	if (ret)
+		dev_err(dev, "lanes are not in stop state: %#x, expected %#x\n",
+			val, stopstate_mask);
+
+	return ret;
+}
+
 static const struct dw_mipi_csi2rx_drvdata imx93_drvdata = {
 	.regs = imx93_regs,
 	.dphy_assert_reset = imx93_csi2rx_dphy_assert_reset,
 	.dphy_deassert_reset = imx93_csi2rx_dphy_deassert_reset,
 	.ipi_enable = imx93_csi2rx_dphy_ipi_enable,
+	.wait_for_phy_stopstate = imx93_csi2rx_wait_for_phy_stopstate,
+};
+
+static const struct dw_mipi_csi2rx_drvdata imx95_drvdata = {
+	.regs = imx95_regs,
+	.dphy_assert_reset = imx93_csi2rx_dphy_assert_reset,
+	.dphy_deassert_reset = imx93_csi2rx_dphy_deassert_reset,
+	.wait_for_phy_stopstate = imx93_csi2rx_wait_for_phy_stopstate,
 };
 
 static const struct of_device_id dw_mipi_csi2rx_of_match[] = {
 	{
 		.compatible = "fsl,imx93-mipi-csi2",
 		.data = &imx93_drvdata,
+	},
+	{
+		.compatible = "fsl,imx95-mipi-csi2",
+		.data = &imx95_drvdata,
 	},
 	{
 		.compatible = "rockchip,rk3568-mipi-csi2",

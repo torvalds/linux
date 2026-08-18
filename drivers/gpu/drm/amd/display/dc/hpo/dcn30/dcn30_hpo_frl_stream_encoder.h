@@ -1,0 +1,436 @@
+/*
+ * Copyright 2019 Advanced Micro Devices, Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ *  and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * Authors: AMD
+ *
+ */
+
+#ifndef __DC_HPO_FRL_STREAM_ENCODER_DCN30_H__
+#define __DC_HPO_FRL_STREAM_ENCODER_DCN30_H__
+
+#include "dcn30/dcn30_vpg.h"
+#include "dcn30/dcn30_afmt.h"
+#include "stream_encoder.h"
+#include "dml/dml1_frl_cap_chk.h"
+
+#define DCN30_HPO_FRL_STRENC_FROM_HPO_FRL_STRENC(hpo_frl_stream_encoder)\
+	container_of(hpo_frl_stream_encoder, struct dcn30_hpo_frl_stream_encoder, base)
+
+#define SE_SF(reg_name, field_name, post_fix)\
+	.field_name = reg_name ## __ ## field_name ## post_fix
+
+#define DCN3_0_HDMI_STREAM_ENC_REG_LIST \
+	SR(HDMI_STREAM_ENC_CLOCK_CONTROL), \
+	SR(HDMI_STREAM_ENC_INPUT_MUX_CONTROL), \
+	SR(HDMI_STREAM_ENC_CLOCK_RAMP_ADJUSTER_FIFO_STATUS_CONTROL0), \
+	SR(HDMI_STREAM_ENC_CLOCK_RAMP_ADJUSTER_FIFO_STATUS_CONTROL2)
+
+#define DCN3_0_HDMI_TB_ENC_REG_LIST \
+	SR(HDMI_TB_ENC_CONTROL), \
+	SR(HDMI_TB_ENC_H_ACTIVE_BLANK), \
+	SR(HDMI_TB_ENC_HC_ACTIVE_BLANK), \
+	SR(HDMI_TB_ENC_MODE), \
+	SR(HDMI_TB_ENC_PACKET_CONTROL), \
+	SR(HDMI_TB_ENC_DB_CONTROL), \
+	SR(HDMI_TB_ENC_PIXEL_FORMAT), \
+	SR(HDMI_TB_ENC_VBI_PACKET_CONTROL1), \
+	SR(HDMI_TB_ENC_GC_CONTROL), \
+	SR(HDMI_TB_ENC_GENERIC_PACKET_CONTROL0), \
+	SR(HDMI_TB_ENC_GENERIC_PACKET_CONTROL1), \
+	SR(HDMI_TB_ENC_GENERIC_PACKET0_1_LINE), \
+	SR(HDMI_TB_ENC_GENERIC_PACKET2_3_LINE), \
+	SR(HDMI_TB_ENC_GENERIC_PACKET4_5_LINE), \
+	SR(HDMI_TB_ENC_GENERIC_PACKET6_7_LINE), \
+	SR(HDMI_TB_ENC_GENERIC_PACKET8_9_LINE), \
+	SR(HDMI_TB_ENC_GENERIC_PACKET10_11_LINE), \
+	SR(HDMI_TB_ENC_GENERIC_PACKET12_13_LINE), \
+	SR(HDMI_TB_ENC_GENERIC_PACKET14_LINE), \
+	SR(HDMI_TB_ENC_ACR_PACKET_CONTROL), \
+	SR(HDMI_TB_ENC_ACR_32_0), \
+	SR(HDMI_TB_ENC_ACR_32_1), \
+	SR(HDMI_TB_ENC_ACR_44_0), \
+	SR(HDMI_TB_ENC_ACR_44_1), \
+	SR(HDMI_TB_ENC_ACR_48_0), \
+	SR(HDMI_TB_ENC_ACR_48_1), \
+	SR(HDMI_TB_ENC_CRC_CNTL),\
+	SR(HDMI_TB_ENC_METADATA_PACKET_CONTROL)
+
+#define DCN3_0_HPO_FRL_STREAM_ENC_REG_LIST(id) \
+	DCN3_0_HDMI_STREAM_ENC_REG_LIST, \
+	DCN3_0_HDMI_TB_ENC_REG_LIST
+
+#define DCN3_0_HPO_STREAM_ENC_DME_REG_LIST(id, offset) \
+	[id - offset]SRI(DME_CONTROL, DME, id)
+
+
+struct dcn30_hpo_frl_stream_enc_registers {
+	uint32_t HDMI_STREAM_ENC_CLOCK_CONTROL;
+	uint32_t HDMI_STREAM_ENC_INPUT_MUX_CONTROL;
+	uint32_t HDMI_STREAM_ENC_CLOCK_RAMP_ADJUSTER_FIFO_STATUS_CONTROL0;
+	uint32_t HDMI_STREAM_ENC_CLOCK_RAMP_ADJUSTER_FIFO_STATUS_CONTROL2;
+	uint32_t HDMI_STREAM_ENC_AUDIO_CONTROL;
+	uint32_t HDMI_TB_ENC_CONTROL;
+	uint32_t HDMI_TB_ENC_MODE;
+	uint32_t HDMI_TB_ENC_H_ACTIVE_BLANK;
+	uint32_t HDMI_TB_ENC_HC_ACTIVE_BLANK;
+	uint32_t HDMI_TB_ENC_PACKET_CONTROL;
+	uint32_t HDMI_TB_ENC_DB_CONTROL;
+	uint32_t HDMI_TB_ENC_PIXEL_FORMAT;
+	uint32_t HDMI_TB_ENC_VBI_PACKET_CONTROL1;
+	uint32_t HDMI_TB_ENC_GC_CONTROL;
+	uint32_t HDMI_TB_ENC_GENERIC_PACKET_CONTROL0;
+	uint32_t HDMI_TB_ENC_GENERIC_PACKET_CONTROL1;
+	uint32_t HDMI_TB_ENC_GENERIC_PACKET0_1_LINE;
+	uint32_t HDMI_TB_ENC_GENERIC_PACKET2_3_LINE;
+	uint32_t HDMI_TB_ENC_GENERIC_PACKET4_5_LINE;
+	uint32_t HDMI_TB_ENC_GENERIC_PACKET6_7_LINE;
+	uint32_t HDMI_TB_ENC_GENERIC_PACKET8_9_LINE;
+	uint32_t HDMI_TB_ENC_GENERIC_PACKET10_11_LINE;
+	uint32_t HDMI_TB_ENC_GENERIC_PACKET12_13_LINE;
+	uint32_t HDMI_TB_ENC_GENERIC_PACKET14_LINE;
+	uint32_t HDMI_TB_ENC_ACR_PACKET_CONTROL;
+	uint32_t HDMI_TB_ENC_ACR_32_0;
+	uint32_t HDMI_TB_ENC_ACR_32_1;
+	uint32_t HDMI_TB_ENC_ACR_44_0;
+	uint32_t HDMI_TB_ENC_ACR_44_1;
+	uint32_t HDMI_TB_ENC_ACR_48_0;
+	uint32_t HDMI_TB_ENC_ACR_48_1;
+	uint32_t HDMI_TB_ENC_CRC_CNTL;
+	uint32_t DME_CONTROL;
+	uint32_t HDMI_TB_ENC_METADATA_PACKET_CONTROL;
+	uint32_t HDMI_TB_ENC_MEM_CTRL;
+	uint32_t HDMI_FRL_ENC_MEM_CTRL;
+};
+
+#define DCN3_0_HDMI_STREAM_ENC_MASK_SH_LIST(mask_sh)\
+	SE_SF(HDMI_STREAM_ENC_INPUT_MUX_CONTROL, HDMI_STREAM_ENC_INPUT_MUX_SOURCE_SEL, mask_sh),\
+	SE_SF(HDMI_STREAM_ENC_CLOCK_RAMP_ADJUSTER_FIFO_STATUS_CONTROL0, FIFO_ENABLE, mask_sh),\
+	SE_SF(HDMI_STREAM_ENC_CLOCK_RAMP_ADJUSTER_FIFO_STATUS_CONTROL0, FIFO_RESET, mask_sh),\
+	SE_SF(HDMI_STREAM_ENC_CLOCK_RAMP_ADJUSTER_FIFO_STATUS_CONTROL0, FIFO_RESET_DONE, mask_sh),\
+	SE_SF(HDMI_STREAM_ENC_CLOCK_RAMP_ADJUSTER_FIFO_STATUS_CONTROL0, FIFO_PIXEL_ENCODING, mask_sh),\
+	SE_SF(HDMI_STREAM_ENC_CLOCK_CONTROL, HDMI_STREAM_ENC_CLOCK_EN, mask_sh),\
+	SE_SF(HDMI_STREAM_ENC_CLOCK_RAMP_ADJUSTER_FIFO_STATUS_CONTROL0, FIFO_ODM_COMBINE_MODE, mask_sh),\
+	SE_SF(HDMI_STREAM_ENC_CLOCK_RAMP_ADJUSTER_FIFO_STATUS_CONTROL0, FIFO_DSC_MODE, mask_sh),\
+	SE_SF(HDMI_STREAM_ENC_CLOCK_RAMP_ADJUSTER_FIFO_STATUS_CONTROL2, FIFO_DB_DISABLE, mask_sh),\
+	SE_SF(HDMI_STREAM_ENC_CLOCK_RAMP_ADJUSTER_FIFO_STATUS_CONTROL2, FIFO_DB_DISABLE, mask_sh),\
+	SE_SF(DME0_DME_CONTROL, METADATA_HUBP_REQUESTOR_ID, mask_sh),\
+	SE_SF(DME0_DME_CONTROL, METADATA_ENGINE_EN, mask_sh),\
+	SE_SF(DME0_DME_CONTROL, METADATA_STREAM_TYPE, mask_sh),\
+	SE_SF(HDMI_TB_ENC_MEM_CTRL, BORROWBUFFER_MEM_PWR_DIS, mask_sh),\
+	SE_SF(HDMI_TB_ENC_MEM_CTRL, BORROWBUFFER_MEM_PWR_FORCE, mask_sh),\
+	SE_SF(HDMI_TB_ENC_MEM_CTRL, BORROWBUFFER_MEM_PWR_STATE, mask_sh),\
+	SE_SF(HDMI_TB_ENC_MEM_CTRL, BORROWBUFFER_MEM_DEFAULT_MEM_LOW_POWER_STATE, mask_sh),\
+	SE_SF(HDMI_TB_ENC_METADATA_PACKET_CONTROL, HDMI_METADATA_PACKET_ENABLE, mask_sh),\
+	SE_SF(HDMI_TB_ENC_METADATA_PACKET_CONTROL, HDMI_METADATA_PACKET_LINE_REFERENCE, mask_sh),\
+	SE_SF(HDMI_TB_ENC_METADATA_PACKET_CONTROL, HDMI_METADATA_PACKET_MISSED, mask_sh),\
+	SE_SF(HDMI_TB_ENC_METADATA_PACKET_CONTROL, HDMI_METADATA_PACKET_LINE, mask_sh)
+
+#define DCN3_0_HDMI_TB_ENC_MASK_SH_LIST(mask_sh)\
+	SE_SF(HDMI_TB_ENC_CONTROL, HDMI_TB_ENC_EN, mask_sh),\
+	SE_SF(HDMI_TB_ENC_CONTROL, HDMI_RESET, mask_sh),\
+	SE_SF(HDMI_TB_ENC_CONTROL, HDMI_RESET_DONE, mask_sh),\
+	SE_SF(HDMI_TB_ENC_MODE, HDMI_BORROW_MODE, mask_sh),\
+	SE_SF(HDMI_TB_ENC_H_ACTIVE_BLANK, HDMI_H_ACTIVE, mask_sh),\
+	SE_SF(HDMI_TB_ENC_H_ACTIVE_BLANK, HDMI_H_BLANK, mask_sh),\
+	SE_SF(HDMI_TB_ENC_HC_ACTIVE_BLANK, HDMI_HC_ACTIVE, mask_sh),\
+	SE_SF(HDMI_TB_ENC_HC_ACTIVE_BLANK, HDMI_HC_BLANK, mask_sh),\
+	SE_SF(HDMI_TB_ENC_PACKET_CONTROL, HDMI_MAX_PACKETS_PER_LINE, mask_sh),\
+	SE_SF(HDMI_TB_ENC_DB_CONTROL, HDMI_DB_DISABLE, mask_sh),\
+	SE_SF(HDMI_TB_ENC_PIXEL_FORMAT, HDMI_PIXEL_ENCODING, mask_sh),\
+	SE_SF(HDMI_TB_ENC_PIXEL_FORMAT, HDMI_DEEP_COLOR_DEPTH, mask_sh),\
+	SE_SF(HDMI_TB_ENC_PIXEL_FORMAT, HDMI_DEEP_COLOR_ENABLE, mask_sh),\
+	SE_SF(HDMI_TB_ENC_PIXEL_FORMAT, HDMI_DSC_MODE, mask_sh),\
+	SE_SF(HDMI_TB_ENC_VBI_PACKET_CONTROL1, HDMI_GC_CONT, mask_sh),\
+	SE_SF(HDMI_TB_ENC_VBI_PACKET_CONTROL1, HDMI_GC_SEND, mask_sh),\
+	SE_SF(HDMI_TB_ENC_VBI_PACKET_CONTROL1, HDMI_ACP_SEND, mask_sh),\
+	SE_SF(HDMI_TB_ENC_VBI_PACKET_CONTROL1, HDMI_AUDIO_INFO_SEND, mask_sh),\
+	SE_SF(HDMI_TB_ENC_VBI_PACKET_CONTROL1, HDMI_AUDIO_INFO_LINE, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GC_CONTROL, HDMI_GC_AVMUTE, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET_CONTROL0, HDMI_GENERIC0_CONT, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET_CONTROL0, HDMI_GENERIC1_CONT, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET_CONTROL0, HDMI_GENERIC2_CONT, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET_CONTROL0, HDMI_GENERIC3_CONT, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET_CONTROL0, HDMI_GENERIC4_CONT, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET_CONTROL0, HDMI_GENERIC5_CONT, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET_CONTROL0, HDMI_GENERIC6_CONT, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET_CONTROL0, HDMI_GENERIC7_CONT, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET_CONTROL1, HDMI_GENERIC8_CONT, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET_CONTROL1, HDMI_GENERIC9_CONT, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET_CONTROL1, HDMI_GENERIC10_CONT, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET_CONTROL1, HDMI_GENERIC11_CONT, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET_CONTROL1, HDMI_GENERIC12_CONT, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET_CONTROL1, HDMI_GENERIC13_CONT, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET_CONTROL1, HDMI_GENERIC14_CONT, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET_CONTROL0, HDMI_GENERIC0_SEND, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET_CONTROL0, HDMI_GENERIC1_SEND, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET_CONTROL0, HDMI_GENERIC2_SEND, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET_CONTROL0, HDMI_GENERIC3_SEND, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET_CONTROL0, HDMI_GENERIC4_SEND, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET_CONTROL0, HDMI_GENERIC5_SEND, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET_CONTROL0, HDMI_GENERIC6_SEND, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET_CONTROL0, HDMI_GENERIC7_SEND, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET_CONTROL1, HDMI_GENERIC8_SEND, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET_CONTROL1, HDMI_GENERIC9_SEND, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET_CONTROL1, HDMI_GENERIC10_SEND, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET_CONTROL1, HDMI_GENERIC11_SEND, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET_CONTROL1, HDMI_GENERIC12_SEND, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET_CONTROL1, HDMI_GENERIC13_SEND, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET_CONTROL1, HDMI_GENERIC14_SEND, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET0_1_LINE, HDMI_GENERIC0_LINE, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET0_1_LINE, HDMI_GENERIC1_LINE, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET2_3_LINE, HDMI_GENERIC2_LINE, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET2_3_LINE, HDMI_GENERIC3_LINE, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET4_5_LINE, HDMI_GENERIC4_LINE, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET4_5_LINE, HDMI_GENERIC5_LINE, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET6_7_LINE, HDMI_GENERIC6_LINE, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET6_7_LINE, HDMI_GENERIC7_LINE, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET8_9_LINE, HDMI_GENERIC8_LINE, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET8_9_LINE, HDMI_GENERIC9_LINE, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET10_11_LINE, HDMI_GENERIC10_LINE, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET10_11_LINE, HDMI_GENERIC11_LINE, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET12_13_LINE, HDMI_GENERIC12_LINE, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET12_13_LINE, HDMI_GENERIC13_LINE, mask_sh),\
+	SE_SF(HDMI_TB_ENC_GENERIC_PACKET14_LINE, HDMI_GENERIC14_LINE, mask_sh),\
+	SE_SF(HDMI_TB_ENC_ACR_PACKET_CONTROL, HDMI_ACR_AUTO_SEND, mask_sh),\
+	SE_SF(HDMI_TB_ENC_ACR_PACKET_CONTROL, HDMI_ACR_SOURCE, mask_sh),\
+	SE_SF(HDMI_TB_ENC_ACR_PACKET_CONTROL, HDMI_ACR_AUDIO_PRIORITY, mask_sh),\
+	SE_SF(HDMI_TB_ENC_ACR_32_0, HDMI_ACR_CTS_32, mask_sh),\
+	SE_SF(HDMI_TB_ENC_ACR_32_1, HDMI_ACR_N_32, mask_sh),\
+	SE_SF(HDMI_TB_ENC_ACR_44_0, HDMI_ACR_CTS_44, mask_sh),\
+	SE_SF(HDMI_TB_ENC_ACR_44_1, HDMI_ACR_N_44, mask_sh),\
+	SE_SF(HDMI_TB_ENC_ACR_48_0, HDMI_ACR_CTS_48, mask_sh),\
+	SE_SF(HDMI_TB_ENC_ACR_48_1, HDMI_ACR_N_48, mask_sh),\
+	SE_SF(HDMI_TB_ENC_CRC_CNTL, HDMI_CRC_EN, mask_sh),\
+	SE_SF(HDMI_TB_ENC_CRC_CNTL, HDMI_CRC_CONT_EN, mask_sh)
+
+#define DCN3_0_HPO_STREAM_ENC_MASK_SH_LIST(mask_sh)\
+	DCN3_0_HDMI_STREAM_ENC_MASK_SH_LIST(mask_sh),\
+	DCN3_0_HDMI_TB_ENC_MASK_SH_LIST(mask_sh)
+
+
+
+
+#define DCN3_HDMI_TB_ENC_REG_FIELD_LIST(type) \
+	type HDMI_TB_ENC_EN;\
+	type HDMI_RESET;\
+	type HDMI_RESET_DONE;\
+	type HDMI_STREAM_ENC_CLOCK_EN;\
+	type HDMI_STREAM_ENC_INPUT_MUX_SOURCE_SEL;\
+	type HDMI_MAX_PACKETS_PER_LINE;\
+	type FIFO_ENABLE;\
+	type FIFO_RESET;\
+	type FIFO_RESET_DONE;\
+	type FIFO_PIXEL_ENCODING;\
+	type FIFO_ODM_COMBINE_MODE;\
+	type FIFO_DSC_MODE;\
+	type FIFO_DB_DISABLE;\
+	type HDMI_BORROW_MODE;\
+	type HDMI_H_ACTIVE;\
+	type HDMI_H_BLANK;\
+	type HDMI_HC_ACTIVE;\
+	type HDMI_HC_BLANK;\
+	type HDMI_DB_DISABLE;\
+	type HDMI_PIXEL_ENCODING;\
+	type HDMI_DEEP_COLOR_DEPTH;\
+	type HDMI_DEEP_COLOR_ENABLE;\
+	type HDMI_ODM_COMBINE_MODE;\
+	type HDMI_DSC_MODE;\
+	type HDMI_GC_CONT;\
+	type HDMI_GC_SEND;\
+	type HDMI_ACP_SEND;\
+	type HDMI_AUDIO_INFO_SEND;\
+	type HDMI_AUDIO_INFO_LINE;\
+	type HDMI_GC_AVMUTE;\
+	type HDMI_GENERIC0_CONT;\
+	type HDMI_GENERIC0_SEND;\
+	type HDMI_GENERIC0_LINE;\
+	type HDMI_GENERIC1_CONT;\
+	type HDMI_GENERIC1_SEND;\
+	type HDMI_GENERIC1_LINE;\
+	type HDMI_GENERIC2_CONT;\
+	type HDMI_GENERIC2_SEND;\
+	type HDMI_GENERIC2_LINE;\
+	type HDMI_GENERIC3_CONT;\
+	type HDMI_GENERIC3_SEND;\
+	type HDMI_GENERIC3_LINE;\
+	type HDMI_GENERIC4_CONT;\
+	type HDMI_GENERIC4_SEND;\
+	type HDMI_GENERIC4_LINE;\
+	type HDMI_GENERIC5_CONT;\
+	type HDMI_GENERIC5_SEND;\
+	type HDMI_GENERIC5_LINE;\
+	type HDMI_GENERIC6_CONT;\
+	type HDMI_GENERIC6_SEND;\
+	type HDMI_GENERIC6_LINE;\
+	type HDMI_GENERIC7_CONT;\
+	type HDMI_GENERIC7_SEND;\
+	type HDMI_GENERIC7_LINE;\
+	type HDMI_GENERIC8_CONT;\
+	type HDMI_GENERIC8_SEND;\
+	type HDMI_GENERIC8_LINE;\
+	type HDMI_GENERIC9_CONT;\
+	type HDMI_GENERIC9_SEND;\
+	type HDMI_GENERIC9_LINE;\
+	type HDMI_GENERIC10_CONT;\
+	type HDMI_GENERIC10_SEND;\
+	type HDMI_GENERIC10_LINE;\
+	type HDMI_GENERIC11_CONT;\
+	type HDMI_GENERIC11_SEND;\
+	type HDMI_GENERIC11_LINE;\
+	type HDMI_GENERIC12_CONT;\
+	type HDMI_GENERIC12_SEND;\
+	type HDMI_GENERIC12_LINE;\
+	type HDMI_GENERIC13_CONT;\
+	type HDMI_GENERIC13_SEND;\
+	type HDMI_GENERIC13_LINE;\
+	type HDMI_GENERIC14_CONT;\
+	type HDMI_GENERIC14_SEND;\
+	type HDMI_GENERIC14_LINE;\
+	type HDMI_ACR_AUTO_SEND;\
+	type HDMI_ACR_SOURCE;\
+	type HDMI_ACR_AUDIO_PRIORITY;\
+	type HDMI_ACR_CTS_32;\
+	type HDMI_ACR_N_32;\
+	type HDMI_ACR_CTS_44;\
+	type HDMI_ACR_N_44;\
+	type HDMI_ACR_CTS_48;\
+	type HDMI_ACR_N_48;\
+	type HDMI_CRC_EN;\
+	type HDMI_CRC_CONT_EN;\
+	type METADATA_HUBP_REQUESTOR_ID;\
+	type METADATA_ENGINE_EN;\
+	type METADATA_STREAM_TYPE;\
+	type HDMI_METADATA_PACKET_ENABLE;\
+	type HDMI_METADATA_PACKET_LINE_REFERENCE;\
+	type HDMI_METADATA_PACKET_MISSED;\
+	type HDMI_METADATA_PACKET_LINE;\
+	type BORROWBUFFER_MEM_PWR_DIS;\
+	type BORROWBUFFER_MEM_PWR_FORCE;\
+	type BORROWBUFFER_MEM_PWR_STATE;\
+	type BORROWBUFFER_MEM_DEFAULT_MEM_LOW_POWER_STATE
+
+
+struct dcn30_hpo_frl_stream_encoder_shift {
+	DCN3_HDMI_TB_ENC_REG_FIELD_LIST(uint8_t);
+};
+
+struct dcn30_hpo_frl_stream_encoder_mask {
+	DCN3_HDMI_TB_ENC_REG_FIELD_LIST(uint32_t);
+};
+
+struct dcn30_hpo_frl_stream_encoder {
+	struct hpo_frl_stream_encoder base;
+	const struct dcn30_hpo_frl_stream_enc_registers *regs;
+	const struct dcn30_hpo_frl_stream_encoder_shift *hpo_se_shift;
+	const struct dcn30_hpo_frl_stream_encoder_mask *hpo_se_mask;
+};
+
+void hpo_enc3_enable(
+	struct hpo_frl_stream_encoder *enc,
+	int otg_inst);
+
+void hpo_enc3_unblank(
+	struct hpo_frl_stream_encoder *enc,
+	int otg_inst);
+
+void hpo_enc3_read_state(
+	struct hpo_frl_stream_encoder *enc,
+	struct hpo_frl_stream_encoder_state *state);
+
+bool hpo_enc3_fifo_odm_enabled(
+	struct hpo_frl_stream_encoder *enc);
+
+void hpo_enc3_blank(
+	struct hpo_frl_stream_encoder *enc);
+
+void hpo_enc3_set_hdmi_stream_attribute(
+	struct hpo_frl_stream_encoder *enc,
+	struct dc_crtc_timing *crtc_timing,
+	struct frl_borrow_params *borrow_params,
+	int odm_combine_num_segments);
+
+void hpo_enc3_update_hdmi_info_packet(
+	struct dcn30_hpo_frl_stream_encoder *enc3,
+	uint32_t packet_index,
+	const struct dc_info_packet *info_packet);
+
+void hpo_enc3_update_hdmi_info_packets(
+	struct hpo_frl_stream_encoder *enc,
+	const struct encoder_info_frame *info_frame);
+
+void hpo_enc3_hdmi_set_dsc_config(
+	struct hpo_frl_stream_encoder *enc,
+	struct dc_crtc_timing *timing,
+	uint8_t *dsc_packed_pps);
+
+void hpo_enc3_stop_hdmi_info_packets(
+	struct hpo_frl_stream_encoder *enc);
+
+void hpo_enc3_setup_hdmi_audio(
+	struct hpo_frl_stream_encoder *enc,
+	const struct audio_crtc_info *crtc_info);
+
+void hpo_enc3_hdmi_audio_setup(
+	struct hpo_frl_stream_encoder *enc,
+	unsigned int az_inst,
+	struct audio_info *info,
+	struct audio_crtc_info *audio_crtc_info);
+
+void hpo_enc3_hdmi_audio_disable(
+	struct hpo_frl_stream_encoder *enc);
+
+void hpo_enc3_audio_mute_control(
+	struct hpo_frl_stream_encoder *enc,
+	bool mute);
+
+void enc3_stream_encoder_set_avmute(
+	struct hpo_frl_stream_encoder *enc,
+	bool enable);
+
+bool hpo_enc3_validate_hdmi_frl_output(
+	struct hpo_frl_stream_encoder *enc,
+	const struct dc_crtc_timing *timing,
+	const struct audio_check *audio,
+	struct dc_hdmi_frl_link_settings *frl_link_settings,
+	unsigned int dsc_max_rate);
+
+void hpo_enc3_set_dynamic_metadata(
+	struct hpo_frl_stream_encoder *enc,
+	bool enable_dme,
+	uint32_t hubp_requestor_id,
+	enum dynamic_metadata_mode dmdata_mode);
+
+void dcn30_hpo_frl_stream_encoder_construct(
+	struct dcn30_hpo_frl_stream_encoder *enc3,
+	struct dc_context *ctx,
+	struct dc_bios *bp,
+	enum engine_id eng_id,
+	struct vpg *vpg,
+	struct afmt *afmt,
+	const struct dcn30_hpo_frl_stream_enc_registers *regs,
+	const struct dcn30_hpo_frl_stream_encoder_shift *hpo_se_shift,
+	const struct dcn30_hpo_frl_stream_encoder_mask *hpo_se_mask);
+
+void convert_dc_info_packet_to_128(
+	const struct dc_info_packet *info_packet,
+	struct dc_info_packet_128 *info_packet_128);
+
+#endif

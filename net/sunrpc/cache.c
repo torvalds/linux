@@ -33,9 +33,11 @@
 #include <linux/sunrpc/cache.h>
 #include <linux/sunrpc/stats.h>
 #include <linux/sunrpc/rpc_pipe_fs.h>
+#include <net/genetlink.h>
 #include <trace/events/sunrpc.h>
 
 #include "netns.h"
+#include "netlink.h"
 #include "fail.h"
 
 #define	 RPCDBG_FACILITY RPCDBG_CACHE
@@ -1195,12 +1197,12 @@ static bool cache_listeners_exist(struct cache_detail *detail)
 }
 
 /*
- * register an upcall request to user-space and queue it up for read() by the
- * upcall daemon.
+ * register an upcall request to user-space and queue it up to be fetched by
+ * the upcall daemon.
  *
  * Each request is at most one page long.
  */
-static int cache_pipe_upcall(struct cache_detail *detail, struct cache_head *h)
+static int cache_do_upcall(struct cache_detail *detail, struct cache_head *h)
 {
 	char *buf;
 	struct cache_request *crq;
@@ -1233,6 +1235,8 @@ static int cache_pipe_upcall(struct cache_detail *detail, struct cache_head *h)
 		/* Lost a race, no longer PENDING, so don't enqueue */
 		ret = -EAGAIN;
 	spin_unlock(&detail->queue_lock);
+	if (ret != -EAGAIN && detail->cache_notify)
+		detail->cache_notify(detail, h);
 	wake_up(&detail->queue_wait);
 	if (ret == -EAGAIN) {
 		kfree(buf);
@@ -1241,25 +1245,25 @@ static int cache_pipe_upcall(struct cache_detail *detail, struct cache_head *h)
 	return ret;
 }
 
-int sunrpc_cache_pipe_upcall(struct cache_detail *detail, struct cache_head *h)
+int sunrpc_cache_upcall(struct cache_detail *detail, struct cache_head *h)
 {
 	if (test_and_set_bit(CACHE_PENDING, &h->flags))
 		return 0;
-	return cache_pipe_upcall(detail, h);
+	return cache_do_upcall(detail, h);
 }
-EXPORT_SYMBOL_GPL(sunrpc_cache_pipe_upcall);
+EXPORT_SYMBOL_GPL(sunrpc_cache_upcall);
 
-int sunrpc_cache_pipe_upcall_timeout(struct cache_detail *detail,
-				     struct cache_head *h)
+int sunrpc_cache_upcall_warn(struct cache_detail *detail,
+			     struct cache_head *h)
 {
 	if (!cache_listeners_exist(detail)) {
 		warn_no_listener(detail);
 		trace_cache_entry_no_listener(detail, h);
 		return -EINVAL;
 	}
-	return sunrpc_cache_pipe_upcall(detail, h);
+	return sunrpc_cache_upcall(detail, h);
 }
-EXPORT_SYMBOL_GPL(sunrpc_cache_pipe_upcall_timeout);
+EXPORT_SYMBOL_GPL(sunrpc_cache_upcall_warn);
 
 /*
  * parse a message from user-space and pass it
@@ -1900,3 +1904,106 @@ void sunrpc_cache_unhash(struct cache_detail *cd, struct cache_head *h)
 		spin_unlock(&cd->hash_lock);
 }
 EXPORT_SYMBOL_GPL(sunrpc_cache_unhash);
+
+/**
+ * sunrpc_cache_requests_count - count pending upcall requests
+ * @cd: cache_detail to query
+ *
+ * Returns the number of requests on the cache's request list that
+ * still have CACHE_PENDING set.
+ */
+int sunrpc_cache_requests_count(struct cache_detail *cd)
+{
+	struct cache_request *crq;
+	int cnt = 0;
+
+	spin_lock(&cd->queue_lock);
+	list_for_each_entry(crq, &cd->requests, list) {
+		if (test_bit(CACHE_PENDING, &crq->item->flags))
+			cnt++;
+	}
+	spin_unlock(&cd->queue_lock);
+	return cnt;
+}
+EXPORT_SYMBOL_GPL(sunrpc_cache_requests_count);
+
+/**
+ * sunrpc_cache_requests_snapshot - snapshot pending upcall requests
+ * @cd: cache_detail to query
+ * @items: array to fill with cache_head pointers (caller-allocated)
+ * @seqnos: array to fill with sequence numbers (caller-allocated)
+ * @max: size of the arrays
+ * @min_seqno: only include entries with seqno > min_seqno (0 for all)
+ *
+ * Only entries with CACHE_PENDING set are included. Takes a reference
+ * on each cache_head via cache_get(). Caller must call cache_put()
+ * on each returned item when done.
+ *
+ * Returns the number of entries filled.
+ */
+int sunrpc_cache_requests_snapshot(struct cache_detail *cd,
+				   struct cache_head **items,
+				   u64 *seqnos, int max,
+				   u64 min_seqno)
+{
+	struct cache_request *crq;
+	int i = 0;
+
+	spin_lock(&cd->queue_lock);
+	list_for_each_entry(crq, &cd->requests, list) {
+		if (i >= max)
+			break;
+		if (!test_bit(CACHE_PENDING, &crq->item->flags))
+			continue;
+		if (crq->seqno <= min_seqno)
+			continue;
+		items[i] = cache_get(crq->item);
+		seqnos[i] = crq->seqno;
+		i++;
+	}
+	spin_unlock(&cd->queue_lock);
+	return i;
+}
+EXPORT_SYMBOL_GPL(sunrpc_cache_requests_snapshot);
+
+/**
+ * sunrpc_cache_notify - send a netlink notification for a cache event
+ * @cd: cache_detail for the cache
+ * @h: cache_head entry (unused, reserved for future use)
+ * @cache_type: cache type identifier (e.g. SUNRPC_CACHE_TYPE_UNIX_GID)
+ *
+ * Sends a SUNRPC_CMD_CACHE_NOTIFY multicast message on the "exportd"
+ * group if any listeners are present. Returns 0 on success or a
+ * negative errno.
+ */
+int sunrpc_cache_notify(struct cache_detail *cd, struct cache_head *h,
+			u32 cache_type)
+{
+	struct genlmsghdr *hdr;
+	struct sk_buff *msg;
+
+	if (!genl_has_listeners(&sunrpc_nl_family, cd->net,
+				SUNRPC_NLGRP_EXPORTD))
+		return -ENOLINK;
+
+	msg = genlmsg_new(nla_total_size(sizeof(u32)), GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	hdr = genlmsg_put(msg, 0, 0, &sunrpc_nl_family, 0,
+			  SUNRPC_CMD_CACHE_NOTIFY);
+	if (!hdr) {
+		nlmsg_free(msg);
+		return -ENOMEM;
+	}
+
+	if (nla_put_u32(msg, SUNRPC_A_CACHE_NOTIFY_CACHE_TYPE, cache_type)) {
+		nlmsg_free(msg);
+		return -ENOMEM;
+	}
+
+	genlmsg_end(msg, hdr);
+	return genlmsg_multicast_netns(&sunrpc_nl_family, cd->net, msg, 0,
+				       SUNRPC_NLGRP_EXPORTD, GFP_KERNEL);
+}
+EXPORT_SYMBOL_GPL(sunrpc_cache_notify);

@@ -507,8 +507,8 @@ static const struct adp5585_gpio_chip adp5589_gpio_chip_info = {
 };
 
 static const struct platform_device_id adp5585_gpio_id_table[] = {
-	{ "adp5585-gpio", (kernel_ulong_t)&adp5585_gpio_chip_info },
-	{ "adp5589-gpio", (kernel_ulong_t)&adp5589_gpio_chip_info },
+	{ .name = "adp5585-gpio", .driver_data = (kernel_ulong_t)&adp5585_gpio_chip_info },
+	{ .name = "adp5589-gpio", .driver_data = (kernel_ulong_t)&adp5589_gpio_chip_info },
 	{ /* Sentinel */ }
 };
 MODULE_DEVICE_TABLE(platform, adp5585_gpio_id_table);

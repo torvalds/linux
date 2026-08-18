@@ -254,6 +254,10 @@
 
 #define EC_ADDR_OEM_4			0x07A6
 #define OVERBOOST_DYN_TEMP_OFF		BIT(1)
+#define CHARGING_PROFILE_MASK		GENMASK(5, 4)
+#define CHARGING_PROFILE_HIGH_CAPACITY	0x00
+#define CHARGING_PROFILE_BALANCED	0x01
+#define CHARGING_PROFILE_STATIONARY	0x02
 #define TOUCHPAD_TOGGLE_OFF		BIT(6)
 
 #define EC_ADDR_CHARGE_CTRL		0x07B9
@@ -320,13 +324,15 @@
 #define UNIWILL_FEATURE_SUPER_KEY		BIT(1)
 #define UNIWILL_FEATURE_TOUCHPAD_TOGGLE		BIT(2)
 #define UNIWILL_FEATURE_LIGHTBAR		BIT(3)
-#define UNIWILL_FEATURE_BATTERY			BIT(4)
-#define UNIWILL_FEATURE_CPU_TEMP		BIT(5)
-#define UNIWILL_FEATURE_GPU_TEMP		BIT(6)
-#define UNIWILL_FEATURE_PRIMARY_FAN		BIT(7)
-#define UNIWILL_FEATURE_SECONDARY_FAN		BIT(8)
-#define UNIWILL_FEATURE_NVIDIA_CTGP_CONTROL	BIT(9)
-#define UNIWILL_FEATURE_USB_C_POWER_PRIORITY	BIT(10)
+#define UNIWILL_FEATURE_BATTERY_CHARGE_LIMIT	BIT(4)
+/* Mutually exclusive with the charge limit feature */
+#define UNIWILL_FEATURE_BATTERY_CHARGE_MODES	BIT(5)
+#define UNIWILL_FEATURE_CPU_TEMP		BIT(6)
+#define UNIWILL_FEATURE_GPU_TEMP		BIT(7)
+#define UNIWILL_FEATURE_PRIMARY_FAN		BIT(8)
+#define UNIWILL_FEATURE_SECONDARY_FAN		BIT(9)
+#define UNIWILL_FEATURE_NVIDIA_CTGP_CONTROL	BIT(10)
+#define UNIWILL_FEATURE_USB_C_POWER_PRIORITY	BIT(11)
 
 enum usb_c_power_priority_options {
 	USB_C_POWER_PRIORITY_CHARGING = 0,
@@ -339,10 +345,18 @@ struct uniwill_data {
 	struct regmap *regmap;
 	unsigned int features;
 	struct acpi_battery_hook hook;
-	unsigned int last_charge_ctrl;
 	struct mutex battery_lock;	/* Protects the list of currently registered batteries */
-	unsigned int last_status;
-	unsigned int last_switch_status;
+	union {
+		struct {
+			/* Protects writes to last_charge_type */
+			struct mutex charge_type_lock;
+			enum power_supply_charge_type last_charge_type;
+		};
+		unsigned int last_charge_ctrl;
+	};
+	bool last_fn_lock_state;
+	bool last_super_key_enable_state;
+	bool last_touchpad_toggle_enable_state;
 	struct mutex super_key_lock;	/* Protects the toggling of the super key lock state */
 	struct list_head batteries;
 	struct mutex led_lock;		/* Protects writes to the lightbar registers */
@@ -444,6 +458,12 @@ static inline bool uniwill_device_supports(const struct uniwill_data *data,
 					   unsigned int features)
 {
 	return (data->features & features) == features;
+}
+
+static inline bool uniwill_device_supports_any(const struct uniwill_data *data,
+					       unsigned int features)
+{
+	return data->features & features;
 }
 
 static int uniwill_ec_reg_write(void *context, unsigned int reg, unsigned int val)
@@ -598,6 +618,7 @@ static bool uniwill_volatile_reg(struct device *dev, unsigned int reg)
 	case EC_ADDR_PWM_2:
 	case EC_ADDR_TRIGGER:
 	case EC_ADDR_SWITCH_STATUS:
+	case EC_ADDR_OEM_4:
 	case EC_ADDR_CHARGE_CTRL:
 	case EC_ADDR_USB_C_POWER_PRIORITY:
 		return true;
@@ -619,11 +640,22 @@ static const struct regmap_config uniwill_ec_config = {
 	.use_single_write = true,
 };
 
+static int uniwill_write_fn_lock(struct uniwill_data *data, bool status)
+{
+	unsigned int value;
+
+	if (status)
+		value = FN_LOCK_STATUS;
+	else
+		value = 0;
+
+	return regmap_update_bits(data->regmap, EC_ADDR_BIOS_OEM, FN_LOCK_STATUS, value);
+}
+
 static ssize_t fn_lock_store(struct device *dev, struct device_attribute *attr, const char *buf,
 			     size_t count)
 {
 	struct uniwill_data *data = dev_get_drvdata(dev);
-	unsigned int value;
 	bool enable;
 	int ret;
 
@@ -631,21 +663,15 @@ static ssize_t fn_lock_store(struct device *dev, struct device_attribute *attr, 
 	if (ret < 0)
 		return ret;
 
-	if (enable)
-		value = FN_LOCK_STATUS;
-	else
-		value = 0;
-
-	ret = regmap_update_bits(data->regmap, EC_ADDR_BIOS_OEM, FN_LOCK_STATUS, value);
+	ret = uniwill_write_fn_lock(data, enable);
 	if (ret < 0)
 		return ret;
 
 	return count;
 }
 
-static ssize_t fn_lock_show(struct device *dev, struct device_attribute *attr, char *buf)
+static int uniwill_read_fn_lock(struct uniwill_data *data, bool *status)
 {
-	struct uniwill_data *data = dev_get_drvdata(dev);
 	unsigned int value;
 	int ret;
 
@@ -653,22 +679,30 @@ static ssize_t fn_lock_show(struct device *dev, struct device_attribute *attr, c
 	if (ret < 0)
 		return ret;
 
-	return sysfs_emit(buf, "%d\n", !!(value & FN_LOCK_STATUS));
+	*status = !!(value & FN_LOCK_STATUS);
+
+	return 0;
+}
+
+static ssize_t fn_lock_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct uniwill_data *data = dev_get_drvdata(dev);
+	bool status;
+	int ret;
+
+	ret = uniwill_read_fn_lock(data, &status);
+	if (ret < 0)
+		return ret;
+
+	return sysfs_emit(buf, "%d\n", status);
 }
 
 static DEVICE_ATTR_RW(fn_lock);
 
-static ssize_t super_key_enable_store(struct device *dev, struct device_attribute *attr,
-				      const char *buf, size_t count)
+static int uniwill_write_super_key_enable(struct uniwill_data *data, bool status)
 {
-	struct uniwill_data *data = dev_get_drvdata(dev);
 	unsigned int value;
-	bool enable;
 	int ret;
-
-	ret = kstrtobool(buf, &enable);
-	if (ret < 0)
-		return ret;
 
 	guard(mutex)(&data->super_key_lock);
 
@@ -680,37 +714,17 @@ static ssize_t super_key_enable_store(struct device *dev, struct device_attribut
 	 * We can only toggle the super key lock, so we return early if the setting
 	 * is already in the correct state.
 	 */
-	if (enable == !(value & SUPER_KEY_LOCK_STATUS))
-		return count;
+	if (status == !(value & SUPER_KEY_LOCK_STATUS))
+		return 0;
 
-	ret = regmap_write_bits(data->regmap, EC_ADDR_TRIGGER, TRIGGER_SUPER_KEY_LOCK,
-				TRIGGER_SUPER_KEY_LOCK);
-	if (ret < 0)
-		return ret;
-
-	return count;
+	return regmap_write_bits(data->regmap, EC_ADDR_TRIGGER, TRIGGER_SUPER_KEY_LOCK,
+				 TRIGGER_SUPER_KEY_LOCK);
 }
 
-static ssize_t super_key_enable_show(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t super_key_enable_store(struct device *dev, struct device_attribute *attr,
+				      const char *buf, size_t count)
 {
 	struct uniwill_data *data = dev_get_drvdata(dev);
-	unsigned int value;
-	int ret;
-
-	ret = regmap_read(data->regmap, EC_ADDR_SWITCH_STATUS, &value);
-	if (ret < 0)
-		return ret;
-
-	return sysfs_emit(buf, "%d\n", !(value & SUPER_KEY_LOCK_STATUS));
-}
-
-static DEVICE_ATTR_RW(super_key_enable);
-
-static ssize_t touchpad_toggle_enable_store(struct device *dev, struct device_attribute *attr,
-					    const char *buf, size_t count)
-{
-	struct uniwill_data *data = dev_get_drvdata(dev);
-	unsigned int value;
 	bool enable;
 	int ret;
 
@@ -718,22 +732,74 @@ static ssize_t touchpad_toggle_enable_store(struct device *dev, struct device_at
 	if (ret < 0)
 		return ret;
 
-	if (enable)
-		value = 0;
-	else
-		value = TOUCHPAD_TOGGLE_OFF;
-
-	ret = regmap_update_bits(data->regmap, EC_ADDR_OEM_4, TOUCHPAD_TOGGLE_OFF, value);
+	ret = uniwill_write_super_key_enable(data, enable);
 	if (ret < 0)
 		return ret;
 
 	return count;
 }
 
-static ssize_t touchpad_toggle_enable_show(struct device *dev, struct device_attribute *attr,
-					   char *buf)
+static int uniwill_read_super_key_enable(struct uniwill_data *data, bool *status)
+{
+	unsigned int value;
+	int ret;
+
+	ret = regmap_read(data->regmap, EC_ADDR_SWITCH_STATUS, &value);
+	if (ret < 0)
+		return ret;
+
+	*status = !(value & SUPER_KEY_LOCK_STATUS);
+
+	return 0;
+}
+
+static ssize_t super_key_enable_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct uniwill_data *data = dev_get_drvdata(dev);
+	bool status;
+	int ret;
+
+	ret = uniwill_read_super_key_enable(data, &status);
+	if (ret < 0)
+		return ret;
+
+	return sysfs_emit(buf, "%d\n", status);
+}
+
+static DEVICE_ATTR_RW(super_key_enable);
+
+static int uniwill_write_touchpad_toggle_enable(struct uniwill_data *data, bool status)
+{
+	unsigned int value;
+
+	if (status)
+		value = 0;
+	else
+		value = TOUCHPAD_TOGGLE_OFF;
+
+	return regmap_update_bits(data->regmap, EC_ADDR_OEM_4, TOUCHPAD_TOGGLE_OFF, value);
+}
+
+static ssize_t touchpad_toggle_enable_store(struct device *dev, struct device_attribute *attr,
+					    const char *buf, size_t count)
+{
+	struct uniwill_data *data = dev_get_drvdata(dev);
+	bool enable;
+	int ret;
+
+	ret = kstrtobool(buf, &enable);
+	if (ret < 0)
+		return ret;
+
+	ret = uniwill_write_touchpad_toggle_enable(data, enable);
+	if (ret < 0)
+		return ret;
+
+	return count;
+}
+
+static int uniwill_read_touchpad_toggle_enable(struct uniwill_data *data, bool *status)
+{
 	unsigned int value;
 	int ret;
 
@@ -741,7 +807,23 @@ static ssize_t touchpad_toggle_enable_show(struct device *dev, struct device_att
 	if (ret < 0)
 		return ret;
 
-	return sysfs_emit(buf, "%d\n", !(value & TOUCHPAD_TOGGLE_OFF));
+	*status = !(value & TOUCHPAD_TOGGLE_OFF);
+
+	return 0;
+}
+
+static ssize_t touchpad_toggle_enable_show(struct device *dev, struct device_attribute *attr,
+					   char *buf)
+{
+	struct uniwill_data *data = dev_get_drvdata(dev);
+	bool status;
+	int ret;
+
+	ret = uniwill_read_touchpad_toggle_enable(data, &status);
+	if (ret < 0)
+		return ret;
+
+	return sysfs_emit(buf, "%d\n", status);
 }
 
 static DEVICE_ATTR_RW(touchpad_toggle_enable);
@@ -1369,6 +1451,30 @@ static unsigned int uniwill_sanitize_battery_threshold(unsigned int value)
 	return min(value, 100);
 }
 
+static int uniwill_read_charge_type(struct uniwill_data *data, enum power_supply_charge_type *type)
+{
+	unsigned int value;
+	int ret;
+
+	ret = regmap_read(data->regmap, EC_ADDR_OEM_4, &value);
+	if (ret < 0)
+		return ret;
+
+	switch (FIELD_GET(CHARGING_PROFILE_MASK, value)) {
+	case CHARGING_PROFILE_HIGH_CAPACITY:
+		*type = POWER_SUPPLY_CHARGE_TYPE_STANDARD;
+		return 0;
+	case CHARGING_PROFILE_BALANCED:
+		*type = POWER_SUPPLY_CHARGE_TYPE_LONGLIFE;
+		return 0;
+	case CHARGING_PROFILE_STATIONARY:
+		*type = POWER_SUPPLY_CHARGE_TYPE_TRICKLE;
+		return 0;
+	default:
+		return -EPROTO;
+	}
+}
+
 static int uniwill_get_property(struct power_supply *psy, const struct power_supply_ext *ext,
 				void *drvdata, enum power_supply_property psp,
 				union power_supply_propval *val)
@@ -1379,6 +1485,16 @@ static int uniwill_get_property(struct power_supply *psy, const struct power_sup
 	int ret;
 
 	switch (psp) {
+	case POWER_SUPPLY_PROP_CHARGE_TYPES:
+		/*
+		 * We need to use the cached value here because the charging mode
+		 * reported by the EC might temporarily change when a external power
+		 * source has been connected.
+		 */
+		mutex_lock(&data->charge_type_lock);
+		val->intval = data->last_charge_type;
+		mutex_unlock(&data->charge_type_lock);
+		return 0;
 	case POWER_SUPPLY_PROP_HEALTH:
 		ret = power_supply_get_property_direct(psy, POWER_SUPPLY_PROP_PRESENT, &prop);
 		if (ret < 0)
@@ -1423,13 +1539,52 @@ static int uniwill_get_property(struct power_supply *psy, const struct power_sup
 	}
 }
 
+static int uniwill_write_charge_type(struct uniwill_data *data, enum power_supply_charge_type type)
+{
+	unsigned int value;
+
+	switch (type) {
+	case POWER_SUPPLY_CHARGE_TYPE_TRICKLE:
+		value = FIELD_PREP(CHARGING_PROFILE_MASK, CHARGING_PROFILE_STATIONARY);
+		break;
+	case POWER_SUPPLY_CHARGE_TYPE_STANDARD:
+		value = FIELD_PREP(CHARGING_PROFILE_MASK, CHARGING_PROFILE_HIGH_CAPACITY);
+		break;
+	case POWER_SUPPLY_CHARGE_TYPE_LONGLIFE:
+		value = FIELD_PREP(CHARGING_PROFILE_MASK, CHARGING_PROFILE_BALANCED);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return regmap_update_bits(data->regmap, EC_ADDR_OEM_4, CHARGING_PROFILE_MASK, value);
+}
+
+static int uniwill_restore_charge_type(struct uniwill_data *data)
+{
+	guard(mutex)(&data->charge_type_lock);
+
+	return uniwill_write_charge_type(data, data->last_charge_type);
+}
+
 static int uniwill_set_property(struct power_supply *psy, const struct power_supply_ext *ext,
 				void *drvdata, enum power_supply_property psp,
 				const union power_supply_propval *val)
 {
 	struct uniwill_data *data = drvdata;
+	int ret;
 
 	switch (psp) {
+	case POWER_SUPPLY_PROP_CHARGE_TYPES:
+		mutex_lock(&data->charge_type_lock);
+
+		ret = uniwill_write_charge_type(data, val->intval);
+		if (ret >= 0)
+			data->last_charge_type = val->intval;
+
+		mutex_unlock(&data->charge_type_lock);
+
+		return ret;
 	case POWER_SUPPLY_PROP_CHARGE_CONTROL_END_THRESHOLD:
 		if (val->intval < 0 || val->intval > 100)
 			return -EINVAL;
@@ -1445,21 +1600,41 @@ static int uniwill_property_is_writeable(struct power_supply *psy,
 					 const struct power_supply_ext *ext, void *drvdata,
 					 enum power_supply_property psp)
 {
-	if (psp == POWER_SUPPLY_PROP_CHARGE_CONTROL_END_THRESHOLD)
+	switch (psp) {
+	case POWER_SUPPLY_PROP_CHARGE_TYPES:
+	case POWER_SUPPLY_PROP_CHARGE_CONTROL_END_THRESHOLD:
 		return true;
-
-	return false;
+	default:
+		return false;
+	}
 }
 
-static const enum power_supply_property uniwill_properties[] = {
+static const enum power_supply_property uniwill_charge_limit_properties[] = {
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_CHARGE_CONTROL_END_THRESHOLD,
 };
 
-static const struct power_supply_ext uniwill_extension = {
+static const struct power_supply_ext uniwill_charge_limit_extension = {
 	.name = DRIVER_NAME,
-	.properties = uniwill_properties,
-	.num_properties = ARRAY_SIZE(uniwill_properties),
+	.properties = uniwill_charge_limit_properties,
+	.num_properties = ARRAY_SIZE(uniwill_charge_limit_properties),
+	.get_property = uniwill_get_property,
+	.set_property = uniwill_set_property,
+	.property_is_writeable = uniwill_property_is_writeable,
+};
+
+static const enum power_supply_property uniwill_charge_modes_properties[] = {
+	POWER_SUPPLY_PROP_CHARGE_TYPES,
+	POWER_SUPPLY_PROP_HEALTH,
+};
+
+static const struct power_supply_ext uniwill_charge_modes_extension = {
+	.name = DRIVER_NAME,
+	.charge_types = BIT(POWER_SUPPLY_CHARGE_TYPE_TRICKLE) |
+			BIT(POWER_SUPPLY_CHARGE_TYPE_STANDARD) |
+			BIT(POWER_SUPPLY_CHARGE_TYPE_LONGLIFE),
+	.properties = uniwill_charge_modes_properties,
+	.num_properties = ARRAY_SIZE(uniwill_charge_modes_properties),
 	.get_property = uniwill_get_property,
 	.set_property = uniwill_set_property,
 	.property_is_writeable = uniwill_property_is_writeable,
@@ -1475,7 +1650,13 @@ static int uniwill_add_battery(struct power_supply *battery, struct acpi_battery
 	if (!entry)
 		return -ENOMEM;
 
-	ret = power_supply_register_extension(battery, &uniwill_extension, data->dev, data);
+	if (uniwill_device_supports(data, UNIWILL_FEATURE_BATTERY_CHARGE_LIMIT))
+		ret = power_supply_register_extension(battery, &uniwill_charge_limit_extension,
+						      data->dev, data);
+	else
+		ret = power_supply_register_extension(battery, &uniwill_charge_modes_extension,
+						      data->dev, data);
+
 	if (ret < 0) {
 		kfree(entry);
 		return ret;
@@ -1504,7 +1685,10 @@ static int uniwill_remove_battery(struct power_supply *battery, struct acpi_batt
 		}
 	}
 
-	power_supply_unregister_extension(battery, &uniwill_extension);
+	if (uniwill_device_supports(data, UNIWILL_FEATURE_BATTERY_CHARGE_LIMIT))
+		power_supply_unregister_extension(battery, &uniwill_charge_limit_extension);
+	else
+		power_supply_unregister_extension(battery, &uniwill_charge_modes_extension);
 
 	return 0;
 }
@@ -1514,28 +1698,37 @@ static int uniwill_battery_init(struct uniwill_data *data)
 	unsigned int value, threshold, sanitized;
 	int ret;
 
-	if (!uniwill_device_supports(data, UNIWILL_FEATURE_BATTERY))
-		return 0;
-
-	ret = regmap_read(data->regmap, EC_ADDR_CHARGE_CTRL, &value);
-	if (ret < 0)
-		return ret;
-
-	/*
-	 * The charge control threshold might be initialized with 0 by
-	 * the EC to signal that said threshold is uninitialized. We thus
-	 * need to replace this placeholder value with a valid one (100)
-	 * to signal that we want to take control of battery charging.
-	 * For the sake of completeness we also apply this to other
-	 * invalid threshold values.
-	 */
-	threshold = FIELD_GET(CHARGE_CTRL_MASK, value);
-	sanitized = uniwill_sanitize_battery_threshold(threshold);
-	if (threshold != sanitized) {
-		FIELD_MODIFY(CHARGE_CTRL_MASK, &value, sanitized);
-		ret = regmap_write(data->regmap, EC_ADDR_CHARGE_CTRL, value);
+	if (uniwill_device_supports(data, UNIWILL_FEATURE_BATTERY_CHARGE_LIMIT)) {
+		ret = regmap_read(data->regmap, EC_ADDR_CHARGE_CTRL, &value);
 		if (ret < 0)
 			return ret;
+
+		/*
+		 * The charge control threshold might be initialized with 0 by
+		 * the EC to signal that said threshold is uninitialized. We thus
+		 * need to replace this placeholder value with a valid one (100)
+		 * to signal that we want to take control of battery charging.
+		 * For the sake of completeness we also apply this to other
+		 * invalid threshold values.
+		 */
+		threshold = FIELD_GET(CHARGE_CTRL_MASK, value);
+		sanitized = uniwill_sanitize_battery_threshold(threshold);
+		if (threshold != sanitized) {
+			FIELD_MODIFY(CHARGE_CTRL_MASK, &value, sanitized);
+			ret = regmap_write(data->regmap, EC_ADDR_CHARGE_CTRL, value);
+			if (ret < 0)
+				return ret;
+		}
+	} else if (uniwill_device_supports(data, UNIWILL_FEATURE_BATTERY_CHARGE_MODES)) {
+		ret = devm_mutex_init(data->dev, &data->charge_type_lock);
+		if (ret < 0)
+			return ret;
+
+		ret = uniwill_read_charge_type(data, &data->last_charge_type);
+		if (ret < 0)
+			return ret;
+	} else {
+		return 0;
 	}
 
 	ret = devm_mutex_init(data->dev, &data->battery_lock);
@@ -1554,10 +1747,13 @@ static int uniwill_notifier_call(struct notifier_block *nb, unsigned long action
 {
 	struct uniwill_data *data = container_of(nb, struct uniwill_data, nb);
 	struct uniwill_battery_entry *entry;
+	int ret;
 
 	switch (action) {
 	case UNIWILL_OSD_BATTERY_ALERT:
-		if (!uniwill_device_supports(data, UNIWILL_FEATURE_BATTERY))
+		if (!uniwill_device_supports_any(data,
+						 UNIWILL_FEATURE_BATTERY_CHARGE_LIMIT |
+						 UNIWILL_FEATURE_BATTERY_CHARGE_MODES))
 			return NOTIFY_DONE;
 
 		mutex_lock(&data->battery_lock);
@@ -1568,10 +1764,24 @@ static int uniwill_notifier_call(struct notifier_block *nb, unsigned long action
 
 		return NOTIFY_OK;
 	case UNIWILL_OSD_DC_ADAPTER_CHANGED:
-		if (!uniwill_device_supports(data, UNIWILL_FEATURE_USB_C_POWER_PRIORITY))
+		if (!uniwill_device_supports_any(data,
+						 UNIWILL_FEATURE_BATTERY_CHARGE_MODES |
+						 UNIWILL_FEATURE_USB_C_POWER_PRIORITY))
 			return NOTIFY_DONE;
 
-		return notifier_from_errno(usb_c_power_priority_restore(data));
+		if (uniwill_device_supports(data, UNIWILL_FEATURE_BATTERY_CHARGE_MODES)) {
+			ret = uniwill_restore_charge_type(data);
+			if (ret < 0)
+				return notifier_from_errno(ret);
+		}
+
+		if (uniwill_device_supports(data, UNIWILL_FEATURE_USB_C_POWER_PRIORITY)) {
+			ret = usb_c_power_priority_restore(data);
+			if (ret < 0)
+				return notifier_from_errno(ret);
+		}
+
+		return NOTIFY_OK;
 	case UNIWILL_OSD_FN_LOCK:
 		if (!uniwill_device_supports(data, UNIWILL_FEATURE_FN_LOCK))
 			return NOTIFY_DONE;
@@ -1723,10 +1933,10 @@ static int uniwill_suspend_fn_lock(struct uniwill_data *data)
 		return 0;
 
 	/*
-	 * The EC_ADDR_BIOS_OEM is marked as volatile, so we have to restore it
+	 * EC_ADDR_BIOS_OEM is marked as volatile, so we have to restore it
 	 * ourselves.
 	 */
-	return regmap_read(data->regmap, EC_ADDR_BIOS_OEM, &data->last_status);
+	return uniwill_read_fn_lock(data, &data->last_fn_lock_state);
 }
 
 static int uniwill_suspend_super_key(struct uniwill_data *data)
@@ -1735,15 +1945,27 @@ static int uniwill_suspend_super_key(struct uniwill_data *data)
 		return 0;
 
 	/*
-	 * The EC_ADDR_SWITCH_STATUS is marked as volatile, so we have to restore it
+	 * EC_ADDR_SWITCH_STATUS is marked as volatile, so we have to restore it
 	 * ourselves.
 	 */
-	return regmap_read(data->regmap, EC_ADDR_SWITCH_STATUS, &data->last_switch_status);
+	return uniwill_read_super_key_enable(data, &data->last_super_key_enable_state);
+}
+
+static int uniwill_suspend_touchpad_toggle(struct uniwill_data *data)
+{
+	if (!uniwill_device_supports(data, UNIWILL_FEATURE_TOUCHPAD_TOGGLE))
+		return 0;
+
+	/*
+	 * EC_ADDR_OEM_4 is marked as volatile, so we have to restore it
+	 * ourselves.
+	 */
+	return uniwill_read_touchpad_toggle_enable(data, &data->last_touchpad_toggle_enable_state);
 }
 
 static int uniwill_suspend_battery(struct uniwill_data *data)
 {
-	if (!uniwill_device_supports(data, UNIWILL_FEATURE_BATTERY))
+	if (!uniwill_device_supports(data, UNIWILL_FEATURE_BATTERY_CHARGE_LIMIT))
 		return 0;
 
 	/*
@@ -1776,6 +1998,10 @@ static int uniwill_suspend(struct device *dev)
 	if (ret < 0)
 		return ret;
 
+	ret = uniwill_suspend_touchpad_toggle(data);
+	if (ret < 0)
+		return ret;
+
 	ret = uniwill_suspend_battery(data);
 	if (ret < 0)
 		return ret;
@@ -1795,36 +2021,35 @@ static int uniwill_resume_fn_lock(struct uniwill_data *data)
 	if (!uniwill_device_supports(data, UNIWILL_FEATURE_FN_LOCK))
 		return 0;
 
-	return regmap_update_bits(data->regmap, EC_ADDR_BIOS_OEM, FN_LOCK_STATUS,
-				  data->last_status);
+	return uniwill_write_fn_lock(data, data->last_fn_lock_state);
 }
 
 static int uniwill_resume_super_key(struct uniwill_data *data)
 {
-	unsigned int value;
-	int ret;
-
 	if (!uniwill_device_supports(data, UNIWILL_FEATURE_SUPER_KEY))
 		return 0;
 
-	ret = regmap_read(data->regmap, EC_ADDR_SWITCH_STATUS, &value);
-	if (ret < 0)
-		return ret;
+	return uniwill_write_super_key_enable(data, data->last_super_key_enable_state);
+}
 
-	if ((data->last_switch_status & SUPER_KEY_LOCK_STATUS) == (value & SUPER_KEY_LOCK_STATUS))
+static int uniwill_resume_touchpad_toggle(struct uniwill_data *data)
+{
+	if (!uniwill_device_supports(data, UNIWILL_FEATURE_TOUCHPAD_TOGGLE))
 		return 0;
 
-	return regmap_write_bits(data->regmap, EC_ADDR_TRIGGER, TRIGGER_SUPER_KEY_LOCK,
-				 TRIGGER_SUPER_KEY_LOCK);
+	return uniwill_write_touchpad_toggle_enable(data, data->last_touchpad_toggle_enable_state);
 }
 
 static int uniwill_resume_battery(struct uniwill_data *data)
 {
-	if (!uniwill_device_supports(data, UNIWILL_FEATURE_BATTERY))
-		return 0;
+	if (uniwill_device_supports(data, UNIWILL_FEATURE_BATTERY_CHARGE_MODES))
+		return uniwill_restore_charge_type(data);
 
-	return regmap_update_bits(data->regmap, EC_ADDR_CHARGE_CTRL, CHARGE_CTRL_MASK,
-				  data->last_charge_ctrl);
+	if (uniwill_device_supports(data, UNIWILL_FEATURE_BATTERY_CHARGE_LIMIT))
+		return regmap_update_bits(data->regmap, EC_ADDR_CHARGE_CTRL, CHARGE_CTRL_MASK,
+					  data->last_charge_ctrl);
+
+	return 0;
 }
 
 static int uniwill_resume_nvidia_ctgp(struct uniwill_data *data)
@@ -1860,6 +2085,10 @@ static int uniwill_resume(struct device *dev)
 		return ret;
 
 	ret = uniwill_resume_super_key(data);
+	if (ret < 0)
+		return ret;
+
+	ret = uniwill_resume_touchpad_toggle(data);
 	if (ret < 0)
 		return ret;
 
@@ -1899,7 +2128,7 @@ static struct platform_driver uniwill_driver = {
 
 static struct uniwill_device_descriptor lapqc71a_lapqc71b_descriptor __initdata = {
 	.features = UNIWILL_FEATURE_SUPER_KEY |
-		    UNIWILL_FEATURE_BATTERY |
+		    UNIWILL_FEATURE_BATTERY_CHARGE_LIMIT |
 		    UNIWILL_FEATURE_CPU_TEMP |
 		    UNIWILL_FEATURE_GPU_TEMP |
 		    UNIWILL_FEATURE_PRIMARY_FAN |
@@ -1910,7 +2139,7 @@ static struct uniwill_device_descriptor lapac71h_descriptor __initdata = {
 	.features = UNIWILL_FEATURE_FN_LOCK |
 		    UNIWILL_FEATURE_SUPER_KEY |
 		    UNIWILL_FEATURE_TOUCHPAD_TOGGLE |
-		    UNIWILL_FEATURE_BATTERY |
+		    UNIWILL_FEATURE_BATTERY_CHARGE_LIMIT |
 		    UNIWILL_FEATURE_CPU_TEMP |
 		    UNIWILL_FEATURE_GPU_TEMP |
 		    UNIWILL_FEATURE_PRIMARY_FAN |
@@ -1922,7 +2151,7 @@ static struct uniwill_device_descriptor lapkc71f_descriptor __initdata = {
 		    UNIWILL_FEATURE_SUPER_KEY |
 		    UNIWILL_FEATURE_TOUCHPAD_TOGGLE |
 		    UNIWILL_FEATURE_LIGHTBAR |
-		    UNIWILL_FEATURE_BATTERY |
+		    UNIWILL_FEATURE_BATTERY_CHARGE_LIMIT |
 		    UNIWILL_FEATURE_CPU_TEMP |
 		    UNIWILL_FEATURE_GPU_TEMP |
 		    UNIWILL_FEATURE_PRIMARY_FAN |
@@ -1939,6 +2168,7 @@ static struct uniwill_device_descriptor lapkc71f_descriptor __initdata = {
 static struct uniwill_device_descriptor tux_featureset_1_descriptor __initdata = {
 	.features = UNIWILL_FEATURE_FN_LOCK |
 		    UNIWILL_FEATURE_SUPER_KEY |
+		    UNIWILL_FEATURE_BATTERY_CHARGE_MODES |
 		    UNIWILL_FEATURE_CPU_TEMP |
 		    UNIWILL_FEATURE_PRIMARY_FAN |
 		    UNIWILL_FEATURE_SECONDARY_FAN |
@@ -1948,6 +2178,7 @@ static struct uniwill_device_descriptor tux_featureset_1_descriptor __initdata =
 static struct uniwill_device_descriptor tux_featureset_1_nvidia_descriptor __initdata = {
 	.features = UNIWILL_FEATURE_FN_LOCK |
 		    UNIWILL_FEATURE_SUPER_KEY |
+		    UNIWILL_FEATURE_BATTERY_CHARGE_MODES |
 		    UNIWILL_FEATURE_CPU_TEMP |
 		    UNIWILL_FEATURE_GPU_TEMP |
 		    UNIWILL_FEATURE_PRIMARY_FAN |
@@ -1958,6 +2189,7 @@ static struct uniwill_device_descriptor tux_featureset_1_nvidia_descriptor __ini
 static struct uniwill_device_descriptor tux_featureset_2_nvidia_descriptor __initdata = {
 	.features = UNIWILL_FEATURE_FN_LOCK |
 		    UNIWILL_FEATURE_SUPER_KEY |
+		    UNIWILL_FEATURE_BATTERY_CHARGE_MODES |
 		    UNIWILL_FEATURE_CPU_TEMP |
 		    UNIWILL_FEATURE_GPU_TEMP |
 		    UNIWILL_FEATURE_PRIMARY_FAN |
@@ -1969,6 +2201,7 @@ static struct uniwill_device_descriptor tux_featureset_2_nvidia_descriptor __ini
 static struct uniwill_device_descriptor tux_featureset_3_descriptor __initdata = {
 	.features = UNIWILL_FEATURE_FN_LOCK |
 		    UNIWILL_FEATURE_SUPER_KEY |
+		    UNIWILL_FEATURE_BATTERY_CHARGE_MODES |
 		    UNIWILL_FEATURE_CPU_TEMP |
 		    UNIWILL_FEATURE_PRIMARY_FAN |
 		    UNIWILL_FEATURE_SECONDARY_FAN,
@@ -1977,6 +2210,7 @@ static struct uniwill_device_descriptor tux_featureset_3_descriptor __initdata =
 static struct uniwill_device_descriptor tux_featureset_3_nvidia_descriptor __initdata = {
 	.features = UNIWILL_FEATURE_FN_LOCK |
 		    UNIWILL_FEATURE_SUPER_KEY |
+		    UNIWILL_FEATURE_BATTERY_CHARGE_MODES |
 		    UNIWILL_FEATURE_CPU_TEMP |
 		    UNIWILL_FEATURE_GPU_TEMP |
 		    UNIWILL_FEATURE_PRIMARY_FAN |
@@ -2002,6 +2236,7 @@ static int phxtxx1_probe(struct uniwill_data *data)
 static struct uniwill_device_descriptor phxtxx1_descriptor __initdata = {
 	.features = UNIWILL_FEATURE_FN_LOCK |
 		    UNIWILL_FEATURE_SUPER_KEY |
+		    UNIWILL_FEATURE_BATTERY_CHARGE_MODES |
 		    UNIWILL_FEATURE_CPU_TEMP |
 		    UNIWILL_FEATURE_PRIMARY_FAN |
 		    UNIWILL_FEATURE_USB_C_POWER_PRIORITY,
@@ -2027,6 +2262,7 @@ static int phxarx1_phxaqf1_probe(struct uniwill_data *data)
 static struct uniwill_device_descriptor phxarx1_phxaqf1_descriptor __initdata = {
 	.features = UNIWILL_FEATURE_FN_LOCK |
 		    UNIWILL_FEATURE_SUPER_KEY |
+		    UNIWILL_FEATURE_BATTERY_CHARGE_MODES |
 		    UNIWILL_FEATURE_CPU_TEMP |
 		    UNIWILL_FEATURE_PRIMARY_FAN |
 		    UNIWILL_FEATURE_SECONDARY_FAN |
@@ -2508,7 +2744,7 @@ static int __init uniwill_init(void)
 
 	if (force) {
 		/* Assume that the device supports all features except the charge limit */
-		device_descriptor.features = UINT_MAX & ~UNIWILL_FEATURE_BATTERY;
+		device_descriptor.features = UINT_MAX & ~UNIWILL_FEATURE_BATTERY_CHARGE_LIMIT;
 		pr_warn("Enabling potentially unsupported features\n");
 	}
 

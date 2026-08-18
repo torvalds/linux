@@ -69,6 +69,11 @@ DECLARE_RC_STRUCT(thread) {
 	 * computed.
 	 */
 	uint16_t		e_machine;
+	/**
+	 * @e_is_big_endian: True if the ELF architecture of the thread is big endian.
+	 * Valid if e_machine != EM_NONE.
+	 */
+	bool			e_is_big_endian;
 	/* LBR call stack stitch */
 	bool			lbr_stitch_enable;
 	struct lbr_stitch	*lbr_stitch;
@@ -311,7 +316,13 @@ static inline void thread__set_filter_entry_depth(struct thread *thread, int dep
 	RC_CHK_ACCESS(thread)->filter_entry_depth = depth;
 }
 
-uint16_t thread__e_machine(struct thread *thread, struct machine *machine, uint32_t *e_flags);
+uint16_t thread__e_machine_endian(struct thread *thread, struct machine *machine, uint32_t *e_flags,
+				  bool *is_big_endian);
+static inline uint16_t thread__e_machine(struct thread *thread, struct machine *machine,
+					 uint32_t *e_flags)
+{
+	return thread__e_machine_endian(thread, machine, e_flags, NULL);
+}
 
 static inline void thread__set_e_machine(struct thread *thread, uint16_t e_machine)
 {
@@ -326,6 +337,16 @@ static inline uint32_t thread__e_flags(const struct thread *thread)
 static inline void thread__set_e_flags(struct thread *thread, uint32_t e_flags)
 {
 	RC_CHK_ACCESS(thread)->e_flags = e_flags;
+}
+
+static inline bool thread__e_is_big_endian(const struct thread *thread)
+{
+	return RC_CHK_ACCESS(thread)->e_is_big_endian;
+}
+
+static inline void thread__set_e_is_big_endian(struct thread *thread, bool is_big_endian)
+{
+	RC_CHK_ACCESS(thread)->e_is_big_endian = is_big_endian;
 }
 
 

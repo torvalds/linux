@@ -216,7 +216,7 @@ pvr_watchdog_worker(struct work_struct *work)
 	if (pm_runtime_get_if_in_use(from_pvr_device(pvr_dev)->dev) <= 0)
 		goto out_requeue;
 
-	if (!pvr_dev->fw_dev.booted)
+	if (!READ_ONCE(pvr_dev->fw_dev.initialised))
 		goto out_pm_runtime_put;
 
 	stalled = pvr_watchdog_kccb_stalled(pvr_dev);
@@ -378,7 +378,7 @@ pvr_power_device_suspend(struct device *dev)
 	if (!drm_dev_enter(drm_dev, &idx))
 		return -EIO;
 
-	if (pvr_dev->fw_dev.booted) {
+	if (READ_ONCE(pvr_dev->fw_dev.initialised)) {
 		err = pvr_power_fw_disable(pvr_dev, false, true);
 		if (err)
 			goto err_drm_dev_exit;
@@ -408,7 +408,7 @@ pvr_power_device_resume(struct device *dev)
 	if (err)
 		goto err_drm_dev_exit;
 
-	if (pvr_dev->fw_dev.booted) {
+	if (READ_ONCE(pvr_dev->fw_dev.initialised)) {
 		err = pvr_power_fw_enable(pvr_dev, true);
 		if (err)
 			goto err_power_off;
@@ -548,7 +548,7 @@ pvr_power_reset(struct pvr_device *pvr_dev, bool hard_reset)
 		err = pvr_power_fw_disable(pvr_dev, hard_reset, false);
 		if (!err) {
 			if (hard_reset) {
-				pvr_dev->fw_dev.booted = false;
+				WRITE_ONCE(pvr_dev->fw_dev.initialised, false);
 				WARN_ON(pvr_power_device_suspend(from_pvr_device(pvr_dev)->dev));
 
 				err = pvr_fw_hard_reset(pvr_dev);
@@ -556,7 +556,7 @@ pvr_power_reset(struct pvr_device *pvr_dev, bool hard_reset)
 					goto err_device_lost;
 
 				err = pvr_power_device_resume(from_pvr_device(pvr_dev)->dev);
-				pvr_dev->fw_dev.booted = true;
+				WRITE_ONCE(pvr_dev->fw_dev.initialised, true);
 				if (err)
 					goto err_device_lost;
 			} else {

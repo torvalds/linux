@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef ATH12K_HTC_H
@@ -301,7 +301,7 @@ struct ath12k_htc {
 	u8 wmi_ep_count;
 };
 
-int ath12k_htc_init(struct ath12k_base *ar);
+int ath12k_htc_init(struct ath12k_base *ab);
 int ath12k_htc_wait_target(struct ath12k_htc *htc);
 int ath12k_htc_start(struct ath12k_htc *htc);
 int ath12k_htc_connect_service(struct ath12k_htc *htc,
@@ -309,8 +309,8 @@ int ath12k_htc_connect_service(struct ath12k_htc *htc,
 			       struct ath12k_htc_svc_conn_resp *conn_resp);
 int ath12k_htc_send(struct ath12k_htc *htc, enum ath12k_htc_ep_id eid,
 		    struct sk_buff *packet);
-struct sk_buff *ath12k_htc_alloc_skb(struct ath12k_base *ar, int size);
-void ath12k_htc_rx_completion_handler(struct ath12k_base *ar,
+struct sk_buff *ath12k_htc_alloc_skb(struct ath12k_base *ab, int size);
+void ath12k_htc_rx_completion_handler(struct ath12k_base *ab,
 				      struct sk_buff *skb);
 
 #endif

@@ -38,6 +38,8 @@ properties:
               - amlogic,a4-gpio-intc
               - amlogic,a4-gpio-ao-intc
               - amlogic,a5-gpio-intc
+              - amlogic,a9-gpio-intc
+              - amlogic,a9-gpio-ao-intc
               - amlogic,c3-gpio-intc
               - amlogic,s6-gpio-intc
               - amlogic,s7-gpio-intc
@@ -56,7 +58,7 @@ properties:
   amlogic,channel-interrupts:
     description: Array with the upstream hwirq numbers
     minItems: 2
-    maxItems: 12
+    maxItems: 20
     $ref: /schemas/types.yaml#/definitions/uint32-array
 
 required:
@@ -76,9 +78,20 @@ then:
     amlogic,channel-interrupts:
       maxItems: 2
 else:
-  properties:
-    amlogic,channel-interrupts:
-      minItems: 8
+  if:
+    properties:
+      compatible:
+        contains:
+          const: amlogic,a9-gpio-ao-intc
+  then:
+    properties:
+      amlogic,channel-interrupts:
+        minItems: 20
+  else:
+    properties:
+      amlogic,channel-interrupts:
+        minItems: 8
+        maxItems: 12
 
 additionalProperties: false
 

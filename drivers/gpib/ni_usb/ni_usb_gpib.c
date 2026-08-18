@@ -720,7 +720,7 @@ static int ni_usb_read(struct gpib_board *board, u8 *buffer, size_t length,
 		break;
 	}
 	ni_usb_soft_update_status(board, status.ibsta, 0);
-	if (status.ibsta & END)
+	if ((status.ibsta & END) && (status.error_code == NIUSB_NO_ERROR))
 		*end = 1;
 	else
 		*end = 0;

@@ -209,7 +209,7 @@ static void sctp_endpoint_destroy(struct sctp_endpoint *ep)
 		return;
 	}
 
-	/* SCTP-AUTH: Free up AUTH releated data such as shared keys
+	/* SCTP-AUTH: Free up AUTH related data such as shared keys
 	 * chunks and hmacs arrays that were allocated
 	 */
 	sctp_auth_destroy_keys(&ep->endpoint_shared_keys);

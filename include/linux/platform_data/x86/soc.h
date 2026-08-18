@@ -12,7 +12,7 @@
 
 #if IS_ENABLED(CONFIG_X86)
 
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/x86_cpu.h>
 
 #include <asm/cpu_device_id.h>
 

@@ -12,6 +12,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/slab.h>
@@ -26,6 +27,9 @@
 #include <sound/soc-link.h>
 #include <sound/initval.h>
 
+
+DEFINE_GUARD(snd_soc_card_mutex, struct snd_soc_card *,
+	     snd_soc_card_mutex_lock(_T), snd_soc_card_mutex_unlock(_T))
 #define soc_pcm_ret(rtd, ret) _soc_pcm_ret(rtd, __func__, ret)
 static inline int _soc_pcm_ret(struct snd_soc_pcm_runtime *rtd,
 			       const char *func, int ret)
@@ -467,6 +471,114 @@ static int soc_pcm_apply_symmetry(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+/*
+ * Shared BCLK constraint: when multiple DAIs share the same physical BCLK,
+ * constrain hw_params so that the BCLK rate (rate * channels * sample_bits,
+ * or rate * slots * slot_width for TDM) remains consistent.
+ */
+
+static int soc_pcm_shared_bclk_rule_rate(struct snd_pcm_hw_params *params,
+					 struct snd_pcm_hw_rule *rule)
+{
+	struct snd_soc_dai *dai = rule->private;
+	struct snd_soc_card *card = dai->component->card;
+	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_dai *other_dai;
+	unsigned long active_bclk_rate = 0;
+	struct snd_interval *rate = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
+	struct snd_interval constraint = { .empty = 1 };
+	unsigned int target_rate;
+	int i;
+
+	/* Protect the rtd list traversal with the ASoC card mutex helper. */
+	guard(snd_soc_card_mutex)(card);
+
+	/* Scan all DAIs on the card for an active peer sharing the same BCLK */
+	for_each_card_rtds(card, rtd) {
+		for_each_rtd_cpu_dais(rtd, i, other_dai) {
+			if (other_dai == dai)
+				continue;
+			if (!other_dai->bclk)
+				continue;
+			if (!snd_soc_dai_active(other_dai))
+				continue;
+			/*
+			 * Skip peers whose hw_params hasn't run yet.
+			 * symmetric_rate is set by soc_pcm_set_dai_params()
+			 * after snd_soc_dai_hw_params(), so non-zero means
+			 * the DAI's clk_set_rate() has already executed.
+			 */
+			if (!other_dai->symmetric_rate)
+				continue;
+			if (!clk_is_match(dai->bclk, other_dai->bclk))
+				continue;
+
+			active_bclk_rate = clk_get_rate(other_dai->bclk);
+			if (active_bclk_rate)
+				goto found;
+		}
+	}
+
+	return 0;
+
+found:
+	if (dai->bclk_ratio) {
+		/*
+		 * Driver has set an explicit BCLK ratio (e.g. for TDM where
+		 * BCLK = rate * slots * slot_width). The only valid rate is
+		 * active_bclk_rate / bclk_ratio.
+		 */
+		target_rate = active_bclk_rate / dai->bclk_ratio;
+
+		constraint.min = target_rate;
+		constraint.max = target_rate;
+	} else {
+		struct snd_interval *channels = hw_param_interval(params,
+						SNDRV_PCM_HW_PARAM_CHANNELS);
+		struct snd_interval *sample_bits = hw_param_interval(params,
+						SNDRV_PCM_HW_PARAM_SAMPLE_BITS);
+
+		/*
+		 * Default: BCLK = rate * channels * sample_bits.
+		 * Calculate the range of valid rates given the current
+		 * channel and sample_bits intervals.
+		 */
+		if (!channels->min || !sample_bits->min)
+			return 0;
+
+		constraint.max = active_bclk_rate /
+				 ((unsigned long)channels->min * sample_bits->min);
+
+		if (channels->max && sample_bits->max)
+			constraint.min = active_bclk_rate /
+					 ((unsigned long)channels->max * sample_bits->max);
+		else
+			constraint.min = constraint.max;
+	}
+
+	constraint.integer = 1;
+	constraint.empty = 0;
+
+	return snd_interval_refine(rate, &constraint);
+}
+
+static int soc_pcm_apply_shared_bclk(struct snd_pcm_substream *substream,
+				     struct snd_soc_dai *dai)
+{
+	if (!dai->bclk)
+		return 0;
+
+	dev_dbg(dai->dev,
+		"ASoC: registering shared BCLK rate constraint\n");
+
+	return snd_pcm_hw_rule_add(substream->runtime, 0,
+		SNDRV_PCM_HW_PARAM_RATE,
+		soc_pcm_shared_bclk_rule_rate, dai,
+		SNDRV_PCM_HW_PARAM_CHANNELS,
+		SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
+		-1);
+}
+
 static int soc_pcm_params_symmetry(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params)
 {
@@ -900,6 +1012,13 @@ static int __soc_pcm_open(struct snd_soc_pcm_runtime *rtd,
 	/* Symmetry only applies if we've already got an active stream. */
 	for_each_rtd_dais(rtd, i, dai) {
 		ret = soc_pcm_apply_symmetry(substream, dai);
+		if (ret != 0)
+			goto err;
+	}
+
+	/* Shared BCLK constraint across DAIs on the same card */
+	for_each_rtd_cpu_dais(rtd, i, dai) {
+		ret = soc_pcm_apply_shared_bclk(substream, dai);
 		if (ret != 0)
 			goto err;
 	}

@@ -36,30 +36,7 @@ struct dm_pp_clock_range {
 	int max_khz;
 };
 
-enum dm_pp_clocks_state {
-	DM_PP_CLOCKS_STATE_INVALID,
-	DM_PP_CLOCKS_STATE_ULTRA_LOW,
-	DM_PP_CLOCKS_STATE_LOW,
-	DM_PP_CLOCKS_STATE_NOMINAL,
-	DM_PP_CLOCKS_STATE_PERFORMANCE,
-
-	/* Starting from DCE11, Max 8 levels of DPM state supported. */
-	DM_PP_CLOCKS_DPM_STATE_LEVEL_INVALID = DM_PP_CLOCKS_STATE_INVALID,
-	DM_PP_CLOCKS_DPM_STATE_LEVEL_0,
-	DM_PP_CLOCKS_DPM_STATE_LEVEL_1,
-	DM_PP_CLOCKS_DPM_STATE_LEVEL_2,
-	/* to be backward compatible */
-	DM_PP_CLOCKS_DPM_STATE_LEVEL_3,
-	DM_PP_CLOCKS_DPM_STATE_LEVEL_4,
-	DM_PP_CLOCKS_DPM_STATE_LEVEL_5,
-	DM_PP_CLOCKS_DPM_STATE_LEVEL_6,
-	DM_PP_CLOCKS_DPM_STATE_LEVEL_7,
-
-	DM_PP_CLOCKS_MAX_STATES
-};
-
 struct dm_pp_gpu_clock_range {
-	enum dm_pp_clocks_state clock_state;
 	struct dm_pp_clock_range sclk;
 	struct dm_pp_clock_range mclk;
 	struct dm_pp_clock_range eclk;
@@ -246,10 +223,6 @@ enum dm_acpi_display_type {
 	AcpiDisplayType_DFP6 = 12
 };
 
-struct dm_pp_power_level_change_request {
-	enum dm_pp_clocks_state power_level;
-};
-
 struct dm_pp_clock_for_voltage_req {
 	enum dm_pp_clock_type clk_type;
 	uint32_t clocks_in_khz;
@@ -258,9 +231,6 @@ struct dm_pp_clock_for_voltage_req {
 struct dm_pp_static_clock_info {
 	uint32_t max_sclk_khz;
 	uint32_t max_mclk_khz;
-
-	/* max possible display block clocks state */
-	enum dm_pp_clocks_state max_clocks_state;
 };
 
 struct dtn_min_clk_info {
@@ -292,6 +262,7 @@ struct dm_process_phy_transition_init_params {
 	enum dc_link_rate display_port_link_rate;
 	uint32_t transition_bitmask;
 	uint8_t hdmi_frl_num_lanes;
+	enum hdmi_frl_link_rate hdmi_frl_link_rate;
 };
 
 struct dm_process_phy_transition_input_params {

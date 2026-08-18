@@ -513,6 +513,7 @@ struct hfs_btree_header_rec {
 /* HFS+ BTree misc info */
 #define HFSPLUS_TREE_HEAD			0
 #define HFSPLUS_NODE_MXSZ			32768
+#define HFSPLUS_NODE_MINSZ			512
 #define HFSPLUS_ATTR_TREE_NODE_SIZE		8192
 #define HFSPLUS_BTREE_HDR_NODE_RECS_COUNT	3
 #define HFSPLUS_BTREE_HDR_MAP_REC_INDEX		2	/* Map (bitmap) record in Header node */

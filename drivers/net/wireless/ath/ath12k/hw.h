@@ -13,20 +13,38 @@
 #include "wmi.h"
 #include "hal.h"
 
+struct ath12k_dp_peer;
+struct ath12k_skb_rxcb;
+struct ieee80211_rx_status;
+
 /* Target configuration defines */
 
 /* Num VDEVS per radio */
 #define TARGET_NUM_VDEVS(ab)    ((ab)->profile_param->num_vdevs)
 
 /* Max num of stations for Single Radio mode */
-#define TARGET_NUM_STATIONS_SINGLE(ab) ((ab)->profile_param->max_client_single)
+#define TARGET_NUM_STATIONS_SINGLE(ab) \
+({ \
+	typeof(ab) _ab = (ab); \
+	min_not_zero(_ab->hw_params->client.max_client_single, \
+		     _ab->profile_param->max_client_single); \
+})
 
 /* Max num of stations for DBS */
-#define TARGET_NUM_STATIONS_DBS(ab)    ((ab)->profile_param->max_client_dbs)
+#define TARGET_NUM_STATIONS_DBS(ab) \
+({ \
+	typeof(ab) _ab = (ab); \
+	min_not_zero(_ab->hw_params->client.max_client_dbs, \
+		     _ab->profile_param->max_client_dbs); \
+})
 
 /* Max num of stations for DBS_SBS */
 #define TARGET_NUM_STATIONS_DBS_SBS(ab) \
-	((ab)->profile_param->max_client_dbs_sbs)
+({ \
+	typeof(ab) _ab = (ab); \
+	min_not_zero(_ab->hw_params->client.max_client_dbs_sbs, \
+		     _ab->profile_param->max_client_dbs_sbs); \
+})
 
 #define TARGET_NUM_STATIONS(ab, x)     TARGET_NUM_STATIONS_##x(ab)
 
@@ -213,6 +231,11 @@ struct ath12k_hw_params {
 
 	/* setup REO queue, frag etc only for primary link peer */
 	bool dp_primary_link_only:1;
+	struct {
+		u32 max_client_single;
+		u32 max_client_dbs;
+		u32 max_client_dbs_sbs;
+	} client;
 };
 
 struct ath12k_hw_ops {
@@ -224,6 +247,9 @@ struct ath12k_hw_ops {
 	bool (*dp_srng_is_tx_comp_ring)(int ring_num);
 	bool (*is_frame_link_agnostic)(struct ath12k_link_vif *arvif,
 				       struct ieee80211_mgmt *mgmt);
+	void (*set_rx_link_id)(struct ath12k_dp_peer *dp_peer,
+			       struct ath12k_skb_rxcb *rxcb,
+			       struct ieee80211_rx_status *status);
 };
 
 static inline
@@ -252,6 +278,15 @@ static inline int ath12k_hw_mac_id_to_srng_id(const struct ath12k_hw_params *hw,
 		return hw->hw_ops->mac_id_to_srng_id(hw, mac_id);
 
 	return 0;
+}
+
+static inline void ath12k_hw_set_rx_link_id(const struct ath12k_hw_params *hw,
+					    struct ath12k_dp_peer *dp_peer,
+					    struct ath12k_skb_rxcb *rxcb,
+					    struct ieee80211_rx_status *status)
+{
+	if (hw->hw_ops->set_rx_link_id)
+		hw->hw_ops->set_rx_link_id(dp_peer, rxcb, status);
 }
 
 struct ath12k_fw_ie {

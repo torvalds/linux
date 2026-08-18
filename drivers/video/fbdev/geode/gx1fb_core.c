@@ -423,10 +423,12 @@ static void __init gx1fb_setup(char *options)
 #endif
 
 static struct pci_device_id gx1fb_id_table[] = {
-	{ PCI_VENDOR_ID_CYRIX, PCI_DEVICE_ID_CYRIX_5530_VIDEO,
-	  PCI_ANY_ID, PCI_ANY_ID, PCI_BASE_CLASS_DISPLAY << 16,
-	  0xff0000, 0 },
-	{ 0, }
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_CYRIX, PCI_DEVICE_ID_CYRIX_5530_VIDEO),
+		.class = PCI_BASE_CLASS_DISPLAY << 16,
+		.class_mask = 0xff0000,
+	},
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, gx1fb_id_table);

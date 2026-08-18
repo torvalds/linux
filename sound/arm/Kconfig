@@ -19,10 +19,3 @@ config SND_ARMAACI
 	select SND_AC97_CODEC
 
 endif	# SND_ARM
-
-config SND_PXA2XX_LIB
-	tristate
-	select SND_DMAENGINE_PCM
-
-config SND_PXA2XX_LIB_AC97
-	bool

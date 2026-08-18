@@ -66,7 +66,30 @@
 	status = "disabled";
 };
 
+/* No USB type-C PD power manager */
+/delete-node/ &fusb0;
+
+&i2c1 {
+	status = "disabled";
+};
+
 &i2c4 {
+	status = "disabled";
+};
+
+&i2c7 {
+	status = "disabled";
+};
+
+&i2s2 {
+	status = "disabled";
+};
+
+&hdmi {
+	status = "disabled";
+};
+
+&hdmi_sound {
 	status = "disabled";
 };
 
@@ -76,6 +99,8 @@
 };
 
 &pinctrl {
+	/delete-node/ fusb30x;
+
 	gpio-leds {
 		/delete-node/ status-led-pin;
 
@@ -101,13 +126,20 @@
 	};
 };
 
+&pwm0 {
+	status = "disabled";
+};
+
 &sdhci {
 	status = "disabled";
 };
 
 &sdio0 {
+	/delete-property/ mmc-pwrseq;
 	status = "disabled";
 };
+
+/delete-node/ &sdio_pwrseq;
 
 &u2phy0_host {
 	phy-supply = <&vdd_5v>;
@@ -119,12 +151,48 @@
 
 &uart0 {
 	status = "disabled";
+
+	/delete-node/ bluetooth;
 };
 
+&u2phy1_host {
+	status = "disabled";
+};
+
+&usb_host1_ehci {
+	status = "disabled";
+};
+
+&usb_host1_ohci {
+	status = "disabled";
+};
 &usbdrd_dwc3_0 {
 	dr_mode = "host";
 };
 
+/delete-node/ &vbus_typec;
+
 &vcc3v3_sys {
 	vin-supply = <&vcc5v0_sys>;
 };
+
+&vopb {
+	status = "disabled";
+};
+
+&vopb_mmu {
+	status = "disabled";
+};
+
+&vopl {
+	status = "disabled";
+};
+
+&vopl_mmu {
+	status = "disabled";
+};
+
+/delete-node/ &bt_host_wake_l;
+/delete-node/ &bt_reg_on_h;
+/delete-node/ &bt_wake_l;
+/delete-node/ &wifi_reg_on_h;

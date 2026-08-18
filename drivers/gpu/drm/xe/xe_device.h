@@ -43,8 +43,8 @@ static inline struct xe_device *ttm_to_xe_device(struct ttm_device *ttm)
 	return container_of(ttm, struct xe_device, ttm);
 }
 
-struct xe_device *xe_device_create(struct pci_dev *pdev,
-				   const struct pci_device_id *ent);
+struct xe_device *xe_device_create(struct pci_dev *pdev);
+int xe_device_init_early(struct xe_device *xe);
 int xe_device_probe_early(struct xe_device *xe);
 int xe_device_probe(struct xe_device *xe);
 void xe_device_remove(struct xe_device *xe);
@@ -146,37 +146,37 @@ static inline struct xe_force_wake *gt_to_fw(struct xe_gt *gt)
 
 void xe_device_assert_mem_access(struct xe_device *xe);
 
-static inline bool xe_device_has_flat_ccs(struct xe_device *xe)
+static inline bool xe_device_has_flat_ccs(const struct xe_device *xe)
 {
 	return xe->info.has_flat_ccs;
 }
 
-static inline bool xe_device_has_sriov(struct xe_device *xe)
+static inline bool xe_device_has_sriov(const struct xe_device *xe)
 {
 	return xe->info.has_sriov;
 }
 
-static inline bool xe_device_has_msix(struct xe_device *xe)
+static inline bool xe_device_has_msix(const struct xe_device *xe)
 {
 	return xe->irq.msix.nvec > 0;
 }
 
-static inline bool xe_device_has_memirq(struct xe_device *xe)
+static inline bool xe_device_has_memirq(const struct xe_device *xe)
 {
 	return GRAPHICS_VERx100(xe) >= 1250;
 }
 
-static inline bool xe_device_uses_memirq(struct xe_device *xe)
+static inline bool xe_device_uses_memirq(const struct xe_device *xe)
 {
 	return xe_device_has_memirq(xe) && (IS_SRIOV_VF(xe) || xe_device_has_msix(xe));
 }
 
-static inline bool xe_device_has_lmtt(struct xe_device *xe)
+static inline bool xe_device_has_lmtt(const struct xe_device *xe)
 {
 	return IS_DGFX(xe);
 }
 
-static inline bool xe_device_has_mert(struct xe_device *xe)
+static inline bool xe_device_has_mert(const struct xe_device *xe)
 {
 	return xe->info.has_mert;
 }
@@ -210,6 +210,15 @@ int xe_is_injection_active(void);
 bool xe_is_xe_file(const struct file *file);
 
 struct xe_vm *xe_device_asid_to_vm(struct xe_device *xe, u32 asid);
+
+#ifdef CONFIG_PCI_IOV
+bool xe_device_is_admin_only(const struct xe_device *xe);
+#else
+static inline bool xe_device_is_admin_only(const struct xe_device *xe)
+{
+	return false;
+}
+#endif
 
 /*
  * Occasionally it is seen that the G2H worker starts running after a delay of more than

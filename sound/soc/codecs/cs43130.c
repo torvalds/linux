@@ -2753,11 +2753,11 @@ MODULE_DEVICE_TABLE(acpi, cs43130_acpi_match);
 
 
 static const struct i2c_device_id cs43130_i2c_id[] = {
-	{"cs43130"},
-	{"cs4399"},
-	{"cs43131"},
-	{"cs43198"},
-	{}
+	{ .name = "cs43130" },
+	{ .name = "cs4399" },
+	{ .name = "cs43131" },
+	{ .name = "cs43198" },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, cs43130_i2c_id);

@@ -293,7 +293,7 @@ void opp2_set_disp_pattern_generator(
 
 void opp2_program_dpg_dimensions(
 		struct output_pixel_processor *opp,
-		int width, int height)
+		uint32_t width, uint32_t height)
 {
 	struct dcn20_opp *oppn20 = TO_DCN20_OPP(opp);
 

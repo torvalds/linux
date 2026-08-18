@@ -16,6 +16,8 @@ output is split between common and driver specific parts. Having said that,
 wherever possible effort should still be made to standardise as much as
 possible.
 
+.. contents::
+
 File format specification
 =========================
 
@@ -215,3 +217,4 @@ Driver specific implementations
 * :ref:`panfrost-usage-stats`
 * :ref:`panthor-usage-stats`
 * :ref:`xe-usage-stats`
+* :ref:`amdxdna-usage-stats`

@@ -244,8 +244,8 @@ void pnv_pci_ioda_fixup_iov(struct pci_dev *pdev)
 	}
 }
 
-resource_size_t pnv_pci_iov_resource_alignment(struct pci_dev *pdev,
-						      int resno)
+resource_size_t pnv_pci_iov_resource_alignment(const struct pci_dev *pdev,
+					       int resno)
 {
 	resource_size_t align = pci_iov_resource_size(pdev, resno);
 	struct pnv_phb *phb = pci_bus_to_pnvhb(pdev->bus);

@@ -302,14 +302,14 @@ xrep_parent_replay_update(
 		trace_xrep_parent_replay_parentadd(sc->tempip, xname,
 				&pptr->pptr_rec);
 
-		return xfs_parent_set(sc->tempip, sc->ip->i_ino, xname,
+		return xfs_parent_set(sc->tempip, I_INO(sc->ip), xname,
 				&pptr->pptr_rec, &rp->pptr_args);
 	case XREP_PPTR_REMOVE:
 		/* Remove parent pointer. */
 		trace_xrep_parent_replay_parentremove(sc->tempip, xname,
 				&pptr->pptr_rec);
 
-		return xfs_parent_unset(sc->tempip, sc->ip->i_ino, xname,
+		return xfs_parent_unset(sc->tempip, I_INO(sc->ip), xname,
 				&pptr->pptr_rec, &rp->pptr_args);
 	}
 
@@ -434,7 +434,7 @@ xrep_parent_scan_dirent(
 	int			error;
 
 	/* Dirent doesn't point to this directory. */
-	if (ino != rp->sc->ip->i_ino)
+	if (ino != I_INO(rp->sc->ip))
 		return 0;
 
 	/* No weird looking names. */
@@ -645,8 +645,8 @@ xrep_parent_live_update(
 	 * repairing, so stash the update for replay against the temporary
 	 * file.
 	 */
-	if (p->ip->i_ino == sc->ip->i_ino &&
-	    xchk_iscan_want_live_update(&rp->pscan.iscan, p->dp->i_ino)) {
+	if (I_INO(p->ip) == I_INO(sc->ip) &&
+	    xchk_iscan_want_live_update(&rp->pscan.iscan, I_INO(p->dp))) {
 		mutex_lock(&rp->pscan.lock);
 		if (p->delta > 0)
 			error = xrep_parent_stash_parentadd(rp, p->name, p->dp);
@@ -906,7 +906,7 @@ xrep_parent_fetch_xattr_remote(
 		.namelen	= namelen,
 		.trans		= sc->tp,
 		.valuelen	= valuelen,
-		.owner		= ip->i_ino,
+		.owner		= I_INO(ip),
 	};
 	int			error;
 
@@ -984,7 +984,7 @@ xrep_parent_insert_xattr(
 		.attr_filter		= key->flags,
 		.namelen		= key->namelen,
 		.valuelen		= key->valuelen,
-		.owner			= rp->sc->ip->i_ino,
+		.owner			= I_INO(rp->sc->ip),
 		.geo			= rp->sc->mp->m_attr_geo,
 		.whichfork		= XFS_ATTR_FORK,
 		.op_flags		= XFS_DA_OP_OKNOENT,
@@ -1329,7 +1329,7 @@ xrep_parent_rebuild_pptrs(
 	 * For this purpose, root directories are their own parents.
 	 */
 	if (xchk_inode_is_dirtree_root(sc->ip)) {
-		xrep_findparent_scan_found(&rp->pscan, sc->ip->i_ino);
+		xrep_findparent_scan_found(&rp->pscan, I_INO(sc->ip));
 	} else {
 		error = xrep_parent_lookup_pptrs(sc, &parent_ino);
 		if (error)
@@ -1451,7 +1451,7 @@ xrep_parent_set_nondir_nlink(
 		 * The file is on the unlinked list but we found parents.
 		 * Remove the file from the unlinked list.
 		 */
-		pag = xfs_perag_get(sc->mp, XFS_INO_TO_AGNO(sc->mp, ip->i_ino));
+		pag = xfs_perag_get(sc->mp, XFS_INODE_TO_AGNO(ip));
 		if (!pag) {
 			ASSERT(0);
 			return -EFSCORRUPTED;

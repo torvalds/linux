@@ -128,6 +128,61 @@ int smu_cmn_wait_for_response(struct smu_context *smu)
 }
 
 /**
+ * smu_cmn_send_smc_msg_with_params_ext - send an SMU message with 0..N args
+ * @smu: pointer to an SMU context
+ * @msg: message to send
+ * @params: optional input argument array
+ * @num_params: number of input arguments in @params
+ * @read_args: optional output argument array
+ * @num_read_args: number of output arguments to read back
+ * @flags: message flags (SMU_MSG_FLAG_*)
+ * @timeout: per-message timeout in us (0 = use default)
+ *
+ * This helper keeps the raw protocol semantics of struct smu_msg_args while
+ * hiding the per-call boilerplate. It is intended for true multi-parameter
+ * messages. Legacy wrappers such as smu_cmn_send_smc_msg() retain their
+ * existing single-zero-parameter behavior for compatibility.
+ *
+ * Return: 0 on success, -errno on failure.
+ */
+int smu_cmn_send_smc_msg_with_params_ext(struct smu_context *smu,
+					 enum smu_message_type msg,
+					 const uint32_t *params,
+					 size_t num_params,
+					 uint32_t *read_args,
+					 size_t num_read_args,
+					 uint32_t flags,
+					 uint32_t timeout)
+{
+	struct smu_msg_ctl *ctl = &smu->msg_ctl;
+	struct smu_msg_args args = {
+		.msg = msg,
+		.num_args = num_params,
+		.num_out_args = num_read_args,
+		.flags = flags,
+		.timeout = timeout,
+	};
+	int ret;
+
+	if ((num_params && !params) || (num_read_args && !read_args))
+		return -EINVAL;
+
+	if (num_params > SMU_MSG_MAX_ARGS || num_read_args > SMU_MSG_MAX_ARGS)
+		return -EINVAL;
+
+	if (num_params)
+		memcpy(args.args, params, num_params * sizeof(*params));
+
+	ret = ctl->ops->send_msg(ctl, &args);
+
+	if (num_read_args)
+		memcpy(read_args, args.out_args,
+		       num_read_args * sizeof(*read_args));
+
+	return ret;
+}
+
+/**
  * smu_cmn_send_smc_msg_with_param -- send a message with parameter
  * @smu: pointer to an SMU context
  * @msg: message to send
@@ -164,23 +219,9 @@ int smu_cmn_send_smc_msg_with_param(struct smu_context *smu,
 				    uint32_t param,
 				    uint32_t *read_arg)
 {
-	struct smu_msg_ctl *ctl = &smu->msg_ctl;
-	struct smu_msg_args args = {
-		.msg = msg,
-		.args[0] = param,
-		.num_args = 1,
-		.num_out_args = read_arg ? 1 : 0,
-		.flags = 0,
-		.timeout = 0,
-	};
-	int ret;
-
-	ret = ctl->ops->send_msg(ctl, &args);
-
-	if (read_arg)
-		*read_arg = args.out_args[0];
-
-	return ret;
+	return smu_cmn_send_smc_msg_with_params(smu, msg,
+						&param, 1,
+						read_arg, read_arg ? 1 : 0);
 }
 
 int smu_cmn_send_smc_msg(struct smu_context *smu,
@@ -1075,13 +1116,12 @@ int smu_cmn_update_table_read_arg(struct smu_context *smu,
 	struct amdgpu_device *adev = smu->adev;
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct smu_table *table = &smu_table->driver_table;
-	struct smu_msg_ctl *ctl = &smu->msg_ctl;
-	struct smu_msg_args args;
 	int table_id = smu_cmn_to_asic_specific_index(smu,
 						      CMN2ASIC_MAPPING_TABLE,
 						      table_index);
 	uint32_t table_size;
 	int ret = 0;
+	uint32_t param;
 
 	if (!table_data || table_index >= SMU_TABLE_COUNT || table_id < 0)
 		return -EINVAL;
@@ -1097,18 +1137,14 @@ int smu_cmn_update_table_read_arg(struct smu_context *smu,
 		amdgpu_hdp_flush(adev, NULL);
 	}
 
-	args.msg = drv2smu ? SMU_MSG_TransferTableDram2Smu : SMU_MSG_TransferTableSmu2Dram;
-	args.args[0] = ((argument & 0xFFFF) << 16) | (table_id  & 0xffff);
-	args.num_args = 1;
-	args.out_args[0] = 0;
-	args.num_out_args = read_arg ? 1 : 0;
-	args.flags = read_arg ? SMU_MSG_FLAG_FORCE_READ_ARG : 0;
-	args.timeout = 0;
+	param = ((argument & 0xFFFF) << 16) | (table_id & 0xffff);
 
-	ret = ctl->ops->send_msg(ctl, &args);
-
-	if (read_arg)
-		*read_arg = args.out_args[0];
+	ret = smu_cmn_send_smc_msg_with_params_ext(
+		smu,
+		drv2smu ? SMU_MSG_TransferTableDram2Smu :
+			  SMU_MSG_TransferTableSmu2Dram,
+		&param, 1, read_arg, read_arg ? 1 : 0,
+		read_arg ? SMU_MSG_FLAG_FORCE_READ_ARG : 0, 0);
 
 	if (ret)
 		return ret;

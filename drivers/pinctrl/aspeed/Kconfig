@@ -31,3 +31,26 @@ config PINCTRL_ASPEED_G6
 	help
 	  Say Y here to enable pin controller support for Aspeed's 6th
 	  generation SoCs. GPIO is provided by a separate GPIO driver.
+
+config PINCTRL_ASPEED_G7_SOC0
+	bool "Aspeed G7 SoC pin control"
+	depends on (ARCH_ASPEED || COMPILE_TEST) && OF
+	select PINCTRL_ASPEED
+	help
+	  Say Y here to enable pin controller support for the SoC0 instance
+	  of Aspeed's 7th generation SoCs. GPIO is provided by a separate
+	  GPIO driver.
+
+config PINCTRL_ASPEED_G7_SOC1
+	bool "Aspeed G7 SoC1 pin control"
+	depends on (ARCH_ASPEED || COMPILE_TEST) && OF
+	select MFD_SYSCON
+	select PINMUX
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GENERIC_PINCONF
+	select REGMAP_MMIO
+	help
+	  Say Y here to enable pin controller support for the SoC1 instance
+	  of Aspeed's 7th generation SoCs. GPIO is provided by a separate
+	  GPIO driver.

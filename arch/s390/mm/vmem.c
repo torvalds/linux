@@ -4,7 +4,6 @@
  */
 
 #include <linux/memory_hotplug.h>
-#include <linux/bootmem_info.h>
 #include <linux/cpufeature.h>
 #include <linux/memblock.h>
 #include <linux/pfn.h>
@@ -51,7 +50,7 @@ static void vmem_free_pages(unsigned long addr, int order, struct vmem_altmap *a
 	if (PageReserved(page)) {
 		/* allocated from memblock */
 		while (nr_pages--)
-			free_bootmem_page(page++);
+			free_reserved_page(page++);
 	} else {
 		free_pages(addr, order);
 	}
@@ -171,18 +170,19 @@ static int __ref modify_pte_table(pmd_t *pmd, unsigned long addr,
 {
 	unsigned long prot, pages = 0;
 	int ret = -ENOMEM;
-	pte_t *pte;
+	pte_t *pte, entry;
 
 	prot = pgprot_val(PAGE_KERNEL);
 	pte = pte_offset_kernel(pmd, addr);
 	for (; addr < end; addr += PAGE_SIZE, pte++) {
+		entry = ptep_get(pte);
 		if (!add) {
-			if (pte_none(*pte))
+			if (pte_none(entry))
 				continue;
 			if (!direct)
-				vmem_free_pages((unsigned long)pfn_to_virt(pte_pfn(*pte)), get_order(PAGE_SIZE), altmap);
+				vmem_free_pages((unsigned long)pfn_to_virt(pte_pfn(entry)), get_order(PAGE_SIZE), altmap);
 			pte_clear(&init_mm, addr, pte);
-		} else if (pte_none(*pte)) {
+		} else if (pte_none(entry)) {
 			if (!direct) {
 				void *new_page = vmemmap_alloc_block_buf(PAGE_SIZE, NUMA_NO_NODE, altmap);
 
@@ -212,10 +212,10 @@ static void try_free_pte_table(pmd_t *pmd, unsigned long start)
 	/* We can safely assume this is fully in 1:1 mapping & vmemmap area */
 	pte = pte_offset_kernel(pmd, start);
 	for (i = 0; i < PTRS_PER_PTE; i++, pte++) {
-		if (!pte_none(*pte))
+		if (!pte_none(ptep_get(pte)))
 			return;
 	}
-	vmem_pte_free((unsigned long *) pmd_deref(*pmd));
+	vmem_pte_free((unsigned long *)pmd_deref(pmdp_get(pmd)));
 	pmd_clear(pmd);
 }
 
@@ -226,6 +226,7 @@ static int __ref modify_pmd_table(pud_t *pud, unsigned long addr,
 {
 	unsigned long next, prot, pages = 0;
 	int ret = -ENOMEM;
+	pmd_t entry;
 	pmd_t *pmd;
 	pte_t *pte;
 
@@ -233,23 +234,24 @@ static int __ref modify_pmd_table(pud_t *pud, unsigned long addr,
 	pmd = pmd_offset(pud, addr);
 	for (; addr < end; addr = next, pmd++) {
 		next = pmd_addr_end(addr, end);
+		entry = pmdp_get(pmd);
 		if (!add) {
-			if (pmd_none(*pmd))
+			if (pmd_none(entry))
 				continue;
-			if (pmd_leaf(*pmd)) {
+			if (pmd_leaf(entry)) {
 				if (IS_ALIGNED(addr, PMD_SIZE) &&
 				    IS_ALIGNED(next, PMD_SIZE)) {
 					if (!direct)
-						vmem_free_pages(pmd_deref(*pmd), get_order(PMD_SIZE), altmap);
+						vmem_free_pages(pmd_deref(entry), get_order(PMD_SIZE), altmap);
 					pmd_clear(pmd);
 					pages++;
 				} else if (!direct && vmemmap_unuse_sub_pmd(addr, next)) {
-					vmem_free_pages(pmd_deref(*pmd), get_order(PMD_SIZE), altmap);
+					vmem_free_pages(pmd_deref(entry), get_order(PMD_SIZE), altmap);
 					pmd_clear(pmd);
 				}
 				continue;
 			}
-		} else if (pmd_none(*pmd)) {
+		} else if (pmd_none(entry)) {
 			if (IS_ALIGNED(addr, PMD_SIZE) &&
 			    IS_ALIGNED(next, PMD_SIZE) &&
 			    cpu_has_edat1() && direct &&
@@ -281,7 +283,7 @@ static int __ref modify_pmd_table(pud_t *pud, unsigned long addr,
 			if (!pte)
 				goto out;
 			pmd_populate(&init_mm, pmd, pte);
-		} else if (pmd_leaf(*pmd)) {
+		} else if (pmd_leaf(entry)) {
 			if (!direct)
 				vmemmap_use_sub_pmd(addr, next);
 			continue;
@@ -306,9 +308,9 @@ static void try_free_pmd_table(pud_t *pud, unsigned long start)
 
 	pmd = pmd_offset(pud, start);
 	for (i = 0; i < PTRS_PER_PMD; i++, pmd++)
-		if (!pmd_none(*pmd))
+		if (!pmd_none(pmdp_get(pmd)))
 			return;
-	vmem_free_pages(pud_deref(*pud), CRST_ALLOC_ORDER, NULL);
+	vmem_free_pages(pud_deref(pudp_get(pud)), CRST_ALLOC_ORDER, NULL);
 	pud_clear(pud);
 }
 
@@ -317,21 +319,22 @@ static int modify_pud_table(p4d_t *p4d, unsigned long addr, unsigned long end,
 {
 	unsigned long next, prot, pages = 0;
 	int ret = -ENOMEM;
-	pud_t *pud;
+	pud_t *pud, entry;
 	pmd_t *pmd;
 
 	prot = pgprot_val(REGION3_KERNEL);
 	pud = pud_offset(p4d, addr);
 	for (; addr < end; addr = next, pud++) {
 		next = pud_addr_end(addr, end);
+		entry = pudp_get(pud);
 		if (!add) {
-			if (pud_none(*pud))
+			if (pud_none(entry))
 				continue;
-			if (pud_leaf(*pud)) {
+			if (pud_leaf(entry)) {
 				if (IS_ALIGNED(addr, PUD_SIZE) &&
 				    IS_ALIGNED(next, PUD_SIZE)) {
 					if (!direct)
-						vmem_free_pages(pud_deref(*pud), get_order(PUD_SIZE), altmap);
+						vmem_free_pages(pud_deref(entry), get_order(PUD_SIZE), altmap);
 					pud_clear(pud);
 					pages++;
 					continue;
@@ -339,7 +342,7 @@ static int modify_pud_table(p4d_t *p4d, unsigned long addr, unsigned long end,
 					split_pud_page(pud, addr & PUD_MASK);
 				}
 			}
-		} else if (pud_none(*pud)) {
+		} else if (pud_none(entry)) {
 			if (IS_ALIGNED(addr, PUD_SIZE) &&
 			    IS_ALIGNED(next, PUD_SIZE) &&
 			    cpu_has_edat2() && direct &&
@@ -352,7 +355,7 @@ static int modify_pud_table(p4d_t *p4d, unsigned long addr, unsigned long end,
 			if (!pmd)
 				goto out;
 			pud_populate(&init_mm, pud, pmd);
-		} else if (pud_leaf(*pud)) {
+		} else if (pud_leaf(entry)) {
 			continue;
 		}
 		ret = modify_pmd_table(pud, addr, next, add, direct, altmap);
@@ -375,10 +378,10 @@ static void try_free_pud_table(p4d_t *p4d, unsigned long start)
 
 	pud = pud_offset(p4d, start);
 	for (i = 0; i < PTRS_PER_PUD; i++, pud++) {
-		if (!pud_none(*pud))
+		if (!pud_none(pudp_get(pud)))
 			return;
 	}
-	vmem_free_pages(p4d_deref(*p4d), CRST_ALLOC_ORDER, NULL);
+	vmem_free_pages(p4d_deref(p4dp_get(p4d)), CRST_ALLOC_ORDER, NULL);
 	p4d_clear(p4d);
 }
 
@@ -387,16 +390,17 @@ static int modify_p4d_table(pgd_t *pgd, unsigned long addr, unsigned long end,
 {
 	unsigned long next;
 	int ret = -ENOMEM;
-	p4d_t *p4d;
+	p4d_t *p4d, entry;
 	pud_t *pud;
 
 	p4d = p4d_offset(pgd, addr);
 	for (; addr < end; addr = next, p4d++) {
 		next = p4d_addr_end(addr, end);
+		entry = p4dp_get(p4d);
 		if (!add) {
-			if (p4d_none(*p4d))
+			if (p4d_none(entry))
 				continue;
-		} else if (p4d_none(*p4d)) {
+		} else if (p4d_none(entry)) {
 			pud = vmem_crst_alloc(_REGION3_ENTRY_EMPTY);
 			if (!pud)
 				goto out;
@@ -420,10 +424,10 @@ static void try_free_p4d_table(pgd_t *pgd, unsigned long start)
 
 	p4d = p4d_offset(pgd, start);
 	for (i = 0; i < PTRS_PER_P4D; i++, p4d++) {
-		if (!p4d_none(*p4d))
+		if (!p4d_none(p4dp_get(p4d)))
 			return;
 	}
-	vmem_free_pages(pgd_deref(*pgd), CRST_ALLOC_ORDER, NULL);
+	vmem_free_pages(pgd_deref(pgdp_get(pgd)), CRST_ALLOC_ORDER, NULL);
 	pgd_clear(pgd);
 }
 
@@ -432,7 +436,7 @@ static int modify_pagetable(unsigned long start, unsigned long end, bool add,
 {
 	unsigned long addr, next;
 	int ret = -ENOMEM;
-	pgd_t *pgd;
+	pgd_t *pgd, entry;
 	p4d_t *p4d;
 
 	if (WARN_ON_ONCE(!PAGE_ALIGNED(start | end)))
@@ -449,11 +453,12 @@ static int modify_pagetable(unsigned long start, unsigned long end, bool add,
 	for (addr = start; addr < end; addr = next) {
 		next = pgd_addr_end(addr, end);
 		pgd = pgd_offset_k(addr);
+		entry = pgdp_get(pgd);
 
 		if (!add) {
-			if (pgd_none(*pgd))
+			if (pgd_none(entry))
 				continue;
-		} else if (pgd_none(*pgd)) {
+		} else if (pgd_none(entry)) {
 			p4d = vmem_crst_alloc(_REGION2_ENTRY_EMPTY);
 			if (!p4d)
 				goto out;
@@ -575,6 +580,8 @@ int vmem_add_mapping(unsigned long start, unsigned long size)
 pte_t *vmem_get_alloc_pte(unsigned long addr, bool alloc)
 {
 	pte_t *ptep = NULL;
+	pud_t pud_entry;
+	pmd_t pmd_entry;
 	pgd_t *pgd;
 	p4d_t *p4d;
 	pud_t *pud;
@@ -582,7 +589,7 @@ pte_t *vmem_get_alloc_pte(unsigned long addr, bool alloc)
 	pte_t *pte;
 
 	pgd = pgd_offset_k(addr);
-	if (pgd_none(*pgd)) {
+	if (pgd_none(pgdp_get(pgd))) {
 		if (!alloc)
 			goto out;
 		p4d = vmem_crst_alloc(_REGION2_ENTRY_EMPTY);
@@ -591,7 +598,7 @@ pte_t *vmem_get_alloc_pte(unsigned long addr, bool alloc)
 		pgd_populate(&init_mm, pgd, p4d);
 	}
 	p4d = p4d_offset(pgd, addr);
-	if (p4d_none(*p4d)) {
+	if (p4d_none(p4dp_get(p4d))) {
 		if (!alloc)
 			goto out;
 		pud = vmem_crst_alloc(_REGION3_ENTRY_EMPTY);
@@ -600,25 +607,27 @@ pte_t *vmem_get_alloc_pte(unsigned long addr, bool alloc)
 		p4d_populate(&init_mm, p4d, pud);
 	}
 	pud = pud_offset(p4d, addr);
-	if (pud_none(*pud)) {
+	pud_entry = pudp_get(pud);
+	if (pud_none(pud_entry)) {
 		if (!alloc)
 			goto out;
 		pmd = vmem_crst_alloc(_SEGMENT_ENTRY_EMPTY);
 		if (!pmd)
 			goto out;
 		pud_populate(&init_mm, pud, pmd);
-	} else if (WARN_ON_ONCE(pud_leaf(*pud))) {
+	} else if (WARN_ON_ONCE(pud_leaf(pud_entry))) {
 		goto out;
 	}
 	pmd = pmd_offset(pud, addr);
-	if (pmd_none(*pmd)) {
+	pmd_entry = pmdp_get(pmd);
+	if (pmd_none(pmd_entry)) {
 		if (!alloc)
 			goto out;
 		pte = vmem_pte_alloc();
 		if (!pte)
 			goto out;
 		pmd_populate(&init_mm, pmd, pte);
-	} else if (WARN_ON_ONCE(pmd_leaf(*pmd))) {
+	} else if (WARN_ON_ONCE(pmd_leaf(pmd_entry))) {
 		goto out;
 	}
 	ptep = pte_offset_kernel(pmd, addr);

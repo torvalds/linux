@@ -325,7 +325,9 @@ static int search_csum_tree(struct btrfs_fs_info *fs_info,
 
 	csum_start = key.offset;
 	csum_len = (itemsize / csum_size) * sectorsize;
-	ASSERT(in_range(disk_bytenr, csum_start, csum_len));
+	ASSERT(in_range(disk_bytenr, csum_start, csum_len),
+	       "disk_bytenr=%llu csum_start=%llu csum_len=%llu",
+	       disk_bytenr, csum_start, csum_len);
 
 found:
 	ret = (min(csum_start + csum_len, disk_bytenr + len) -
@@ -356,6 +358,7 @@ int btrfs_lookup_bio_sums(struct btrfs_bio *bbio)
 	const unsigned int nblocks = orig_len >> fs_info->sectorsize_bits;
 	int ret = 0;
 	u32 bio_offset = 0;
+	bool using_commit_root = false;
 
 	if ((inode->flags & BTRFS_INODE_NODATASUM) ||
 	    test_bit(BTRFS_FS_STATE_NO_DATA_CSUMS, &fs_info->fs_state))
@@ -429,6 +432,7 @@ int btrfs_lookup_bio_sums(struct btrfs_bio *bbio)
 	 * from across transactions.
 	 */
 	if (bbio->csum_search_commit_root) {
+		using_commit_root = true;
 		path->search_commit_root = true;
 		path->skip_locking = true;
 		down_read(&fs_info->commit_root_sem);
@@ -461,6 +465,28 @@ int btrfs_lookup_bio_sums(struct btrfs_bio *bbio)
 		 * assume this is the case.
 		 */
 		if (count == 0) {
+			/*
+			 * If an extent is relocated in the current transaction
+			 * then relocation writes a new csum without updating
+			 * the extent map generation. Until the next commit, we
+			 * will see a hole in that case, so we need to fallback
+			 * to searching the transaction csum root.
+			 *
+			 * Note that a commit root lookup of a referenced extent can
+			 * only miss, not return a stale csum. A freed extent's csum
+			 * is deleted in the same transaction and its bytenr is not
+			 * reusable until that transaction has committed and the
+			 * extent is unpinned.
+			 */
+			if (using_commit_root) {
+				up_read(&fs_info->commit_root_sem);
+				using_commit_root = false;
+				path->search_commit_root = false;
+				path->skip_locking = false;
+				btrfs_release_path(path);
+				continue;
+			}
+
 			memset(csum_dst, 0, csum_size);
 			count = 1;
 
@@ -479,7 +505,7 @@ int btrfs_lookup_bio_sums(struct btrfs_bio *bbio)
 		bio_offset += count * sectorsize;
 	}
 
-	if (bbio->csum_search_commit_root)
+	if (using_commit_root)
 		up_read(&fs_info->commit_root_sem);
 	return ret;
 }
@@ -1307,7 +1333,7 @@ found:
 
 	index += ins_size;
 	ins_size /= csum_size;
-	total_bytes += ins_size * fs_info->sectorsize;
+	total_bytes += (ins_size << fs_info->sectorsize_bits);
 
 	if (total_bytes < sums->len) {
 		btrfs_release_path(path);

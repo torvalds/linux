@@ -1,0 +1,131 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interconnect/qcom,nord-rpmh.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm RPMh Network-On-Chip Interconnect on Nord
+
+maintainers:
+  - Odelu Kukatla <odelu.kukatla@oss.qualcomm.com>
+
+description: |
+  RPMh interconnect providers support system bandwidth requirements through
+  RPMh hardware accelerators known as Bus Clock Manager (BCM). The provider is
+  able to communicate with the BCM through the Resource State Coordinator (RSC)
+  associated with each execution environment. Provider nodes must point to at
+  least one RPMh device child node pertaining to their RSC and each provider
+  can map to multiple RPMh resources.
+
+  See also: include/dt-bindings/interconnect/qcom,nord-rpmh.h
+
+properties:
+  compatible:
+    enum:
+      - qcom,nord-aggre1-noc
+      - qcom,nord-aggre1-noc-tile
+      - qcom,nord-aggre2-noc
+      - qcom,nord-aggre2-noc-tile
+      - qcom,nord-clk-virt
+      - qcom,nord-cnoc-cfg
+      - qcom,nord-cnoc-main
+      - qcom,nord-hpass-ag-noc
+      - qcom,nord-hscnoc
+      - qcom,nord-mc-virt
+      - qcom,nord-mmss-noc
+      - qcom,nord-nsp-data-noc-0
+      - qcom,nord-nsp-data-noc-1
+      - qcom,nord-nsp-data-noc-2
+      - qcom,nord-nsp-data-noc-3
+      - qcom,nord-pcie-cfg
+      - qcom,nord-pcie-data-inbound
+      - qcom,nord-pcie-data-outbound
+      - qcom,nord-system-noc
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    minItems: 1
+    maxItems: 4
+
+required:
+  - compatible
+
+allOf:
+  - $ref: qcom,rpmh-common.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,nord-clk-virt
+              - qcom,nord-mc-virt
+    then:
+      properties:
+        reg: false
+    else:
+      required:
+        - reg
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,nord-aggre1-noc-tile
+    then:
+      properties:
+        clocks:
+          items:
+            - description: aggre UFS PHY AXI clock
+            - description: aggre USB2 AXI clock
+            - description: aggre USB3 PRIM AXI clock
+            - description: aggre USB3 SEC AXI clock
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,nord-aggre2-noc
+    then:
+      properties:
+        clocks:
+          items:
+            - description: RPMH CC IPA clock
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,nord-aggre1-noc-tile
+              - qcom,nord-aggre2-noc
+    then:
+      required:
+        - clocks
+    else:
+      properties:
+        clocks: false
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    clk_virt: interconnect-clk-virt {
+      compatible = "qcom,nord-clk-virt";
+      #interconnect-cells = <2>;
+      qcom,bcm-voters = <&apps_bcm_voter>;
+    };
+
+    aggre1_noc_tile: interconnect@1720000 {
+      compatible = "qcom,nord-aggre1-noc-tile";
+      reg = <0x01720000 0x23400>;
+      #interconnect-cells = <2>;
+      qcom,bcm-voters = <&apps_bcm_voter>;
+      clocks = <&ne_gcc_aggre_noc_ufs_phy_axi_clk>,
+               <&ne_gcc_aggre_noc_usb2_axi_clk>,
+               <&ne_gcc_aggre_noc_usb3_prim_axi_clk>,
+               <&ne_gcc_aggre_noc_usb3_sec_axi_clk>;
+    };

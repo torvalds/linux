@@ -14,6 +14,7 @@
 #include "util/parse-events.h"
 #include "util/config.h"
 
+#include "util/arm64-frame-pointer-unwind-support.h"
 #include "util/callchain.h"
 #include "util/cgroup.h"
 #include "util/header.h"
@@ -865,6 +866,7 @@ static int record__auxtrace_init(struct record *rec)
 	}
 
 	if (!rec->itr) {
+		err = -EINVAL;
 		rec->itr = auxtrace_record__init(rec->evlist, &err);
 		if (err)
 			return err;
@@ -1489,7 +1491,6 @@ static void set_timestamp_boundary(struct record *rec, u64 sample_time)
 static int process_sample_event(const struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
-				struct evsel *evsel,
 				struct machine *machine)
 {
 	struct record *rec = container_of(tool, struct record, tool);
@@ -1500,7 +1501,7 @@ static int process_sample_event(const struct perf_tool *tool,
 		return 0;
 
 	rec->samples++;
-	return build_id__mark_dso_hit(tool, event, sample, evsel, machine);
+	return build_id__mark_dso_hit(tool, event, sample, machine);
 }
 
 static int process_buildids(struct record *rec)
@@ -2743,7 +2744,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 			trigger_error(&auxtrace_snapshot_trigger);
 			trigger_error(&switch_output_trigger);
 			err = -1;
-			goto out_child;
+			goto out_child_no_flush;
 		}
 
 		if (auxtrace_record__snapshot_started) {
@@ -2890,6 +2891,10 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 out_child:
 	record__stop_threads(rec);
 	record__mmap_read_all(rec, true);
+	goto out_free_threads;
+out_child_no_flush:
+	/* mmap read already failed — retrying would just fail again */
+	record__stop_threads(rec);
 out_free_threads:
 	record__free_thread_data(rec);
 	evlist__finalize_ctlfd(rec->evlist);
@@ -3079,6 +3084,7 @@ static int record__mmap_cpu_mask_alloc(struct mmap_cpu_mask *mask, int nr_bits)
 static void record__mmap_cpu_mask_free(struct mmap_cpu_mask *mask)
 {
 	bitmap_free(mask->bits);
+	mask->bits = NULL;
 	mask->nbits = 0;
 }
 
@@ -3228,10 +3234,6 @@ static int record__parse_off_cpu_thresh(const struct option *opt,
 		opts->off_cpu_thresh_ns = off_cpu_thresh_ms * NSEC_PER_MSEC;
 
 	return 0;
-}
-
-void __weak arch__add_leaf_frame_record_opts(struct record_opts *opts __maybe_unused)
-{
 }
 
 static int parse_control_option(const struct option *opt,
@@ -4319,8 +4321,10 @@ int cmd_record(int argc, const char **argv)
 
 	evlist__warn_user_requested_cpus(rec->evlist, rec->opts.target.cpu_list);
 
-	if (callchain_param.enabled && callchain_param.record_mode == CALLCHAIN_FP)
-		arch__add_leaf_frame_record_opts(&rec->opts);
+	if (callchain_param.enabled && callchain_param.record_mode == CALLCHAIN_FP) {
+		if (EM_HOST == EM_AARCH64)
+			add_leaf_frame_caller_opts_aarch64(&rec->opts);
+	}
 
 	err = -ENOMEM;
 	if (evlist__create_maps(rec->evlist, &rec->opts.target) < 0) {

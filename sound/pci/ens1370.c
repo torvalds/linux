@@ -426,14 +426,14 @@ static irqreturn_t snd_audiopci_interrupt(int irq, void *dev_id);
 
 static const struct pci_device_id snd_audiopci_ids[] = {
 #ifdef CHIP1370
-	{ PCI_VDEVICE(ENSONIQ, 0x5000), 0, },	/* ES1370 */
+	{ PCI_VDEVICE(ENSONIQ, 0x5000) },	/* ES1370 */
 #endif
 #ifdef CHIP1371
-	{ PCI_VDEVICE(ENSONIQ, 0x1371), 0, },	/* ES1371 */
-	{ PCI_VDEVICE(ENSONIQ, 0x5880), 0, },	/* ES1373 - CT5880 */
-	{ PCI_VDEVICE(ECTIVA, 0x8938), 0, },	/* Ectiva EV1938 */
+	{ PCI_VDEVICE(ENSONIQ, 0x1371) },	/* ES1371 */
+	{ PCI_VDEVICE(ENSONIQ, 0x5880) },	/* ES1373 - CT5880 */
+	{ PCI_VDEVICE(ECTIVA, 0x8938) },	/* Ectiva EV1938 */
 #endif
-	{ 0, }
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, snd_audiopci_ids);

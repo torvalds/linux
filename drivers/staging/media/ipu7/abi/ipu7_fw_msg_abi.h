@@ -69,11 +69,11 @@ struct ipu7_msg_cb_profile {
 
 #define IPU_MSG_NODE_MAX_PROFILES	(2U)
 #define IPU_MSG_NODE_DEF_PROFILE_IDX	(0U)
-#define IPU_MSG_NODE_RSRC_ID_EXT_IP	(0xffU)
+#define IPU_MSG_NODE_RSRC_ID_EXT_IP	(0xff)
 
-#define IPU_MSG_NODE_DONT_CARE_TEB_HI	(0xffffffffU)
-#define IPU_MSG_NODE_DONT_CARE_TEB_LO	(0xffffffffU)
-#define IPU_MSG_NODE_RSRC_ID_IS		(0xfeU)
+#define IPU_MSG_NODE_DONT_CARE_TEB_HI	(0xffffffff)
+#define IPU_MSG_NODE_DONT_CARE_TEB_LO	(0xffffffff)
+#define IPU_MSG_NODE_RSRC_ID_IS		(0xfe)
 
 struct ipu7_msg_node {
 	struct ia_gofo_tlv_header tlv_header;
@@ -160,7 +160,7 @@ struct ipu7_msg_link_ep_pair {
 #define IPU_MSG_LINK_FOREIGN_KEY_MAX		(64U)
 #define IPU_MSG_LINK_PBK_ID_DONT_CARE		(255U)
 #define IPU_MSG_LINK_PBK_SLOT_ID_DONT_CARE	(255U)
-#define IPU_MSG_LINK_TERM_ID_DONT_CARE		(0xffU)
+#define IPU_MSG_LINK_TERM_ID_DONT_CARE		(0xff)
 
 struct ipu7_msg_link {
 	struct ia_gofo_tlv_header tlv_header;
@@ -333,7 +333,7 @@ enum ipu7_msg_err_device {
 #pragma pack(pop)
 
 #pragma pack(push, 1)
-#define IPU_MSG_GRAPH_ID_UNKNOWN	(0xffU)
+#define IPU_MSG_GRAPH_ID_UNKNOWN	(0xff)
 #define IPU_MSG_GRAPH_SEND_MSG_ENABLED	1U
 #define IPU_MSG_GRAPH_SEND_MSG_DISABLED	0U
 

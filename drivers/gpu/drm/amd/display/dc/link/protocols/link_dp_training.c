@@ -310,7 +310,7 @@ static void maximize_lane_settings(const struct link_training_settings *lt_setti
 	max_requested.FFE_PRESET = lane_settings[0].FFE_PRESET;
 
 	/* Determine what the maximum of the requested settings are*/
-	for (lane = 1; lane < lt_settings->link_settings.lane_count; lane++) {
+	for (lane = 1; lane < (uint32_t)lt_settings->link_settings.lane_count; lane++) {
 		if (lane_settings[lane].VOLTAGE_SWING > max_requested.VOLTAGE_SWING)
 			max_requested.VOLTAGE_SWING = lane_settings[lane].VOLTAGE_SWING;
 
@@ -568,7 +568,7 @@ enum link_training_result dp_check_link_loss_status(
 			sizeof(dpcd_buf));
 
 	/*parse lane status*/
-	for (lane = 0; lane < link->cur_link_settings.lane_count; lane++) {
+	for (lane = 0; lane < (uint32_t)link->cur_link_settings.lane_count; lane++) {
 		/*
 		 * check lanes status
 		 */

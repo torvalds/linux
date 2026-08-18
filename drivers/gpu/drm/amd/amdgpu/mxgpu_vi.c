@@ -308,7 +308,7 @@ void xgpu_vi_init_golden_registers(struct amdgpu_device *adev)
 								xgpu_tonga_golden_common_all));
 		break;
 	default:
-		BUG_ON("Doesn't support chip type.\n");
+		dev_err(adev->dev, "Doesn't support chip type %d\n", adev->asic_type);
 		break;
 	}
 }

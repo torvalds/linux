@@ -90,6 +90,7 @@ static int amdgpu_reset_xgmi_reset_on_init_restore_hwctxt(
 			kgd2kfd_init_zone_device(tmp_adev);
 			amdgpu_amdkfd_device_init(tmp_adev);
 			amdgpu_amdkfd_drm_client_create(tmp_adev);
+			amdgpu_ptl_sysfs_init(tmp_adev);
 		}
 	}
 

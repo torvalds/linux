@@ -11,7 +11,7 @@ enum {
 };
 
 struct io_uring_bpf_ops {
-	int (*loop_step)(struct io_ring_ctx *ctx, struct iou_loop_params *lp);
+	int (*loop_step)(struct iou_ctx *, struct iou_loop_params *lp);
 
 	__u32 ring_fd;
 	void *priv;

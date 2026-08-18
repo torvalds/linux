@@ -24,9 +24,11 @@ void _rtw_open_pktfile(struct sk_buff *pktptr, struct pkt_file *pfile)
 int _rtw_pktfile_read(struct pkt_file *pfile, u8 *rmem, unsigned int rlen)
 {
 	int ret;
+	unsigned int remain = rtw_remainder_len(pfile);
 
-	if (rtw_remainder_len(pfile) < rlen)
-		return -EINVAL;
+	/* clamp to bytes remaining; the coalesce loop relies on short reads */
+	if (rlen > remain)
+		rlen = remain;
 
 	if (rmem) {
 		ret = skb_copy_bits(pfile->pkt, pfile->buf_len - pfile->pkt_len, rmem, rlen);
@@ -44,19 +46,6 @@ signed int rtw_endofpktfile(struct pkt_file *pfile)
 	if (pfile->pkt_len == 0)
 		return true;
 	return false;
-}
-
-int rtw_os_xmit_resource_alloc(struct adapter *padapter, struct xmit_buf *pxmitbuf, u32 alloc_sz, u8 flag)
-{
-	if (alloc_sz > 0) {
-		pxmitbuf->pallocated_buf = kzalloc(alloc_sz, GFP_KERNEL);
-		if (!pxmitbuf->pallocated_buf)
-			return _FAIL;
-
-		pxmitbuf->pbuf = (u8 *)N_BYTE_ALIGMENT((SIZE_PTR)(pxmitbuf->pallocated_buf), XMITBUF_ALIGN_SZ);
-	}
-
-	return _SUCCESS;
 }
 
 void rtw_os_xmit_resource_free(struct adapter *padapter, struct xmit_buf *pxmitbuf, u32 free_sz, u8 flag)
@@ -188,7 +177,7 @@ void _rtw_xmit_entry(struct sk_buff *pkt, struct net_device *pnetdev)
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	s32 res = 0;
 
-	if (rtw_if_up(padapter) == false)
+	if (!rtw_if_up(padapter))
 		goto drop_packet;
 
 	rtw_check_xmit_resource(padapter, pkt);

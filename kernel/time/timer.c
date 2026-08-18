@@ -1932,7 +1932,7 @@ static void timer_recalc_next_expiry(struct timer_base *base)
  */
 static u64 cmp_next_hrtimer_event(u64 basem, u64 expires)
 {
-	u64 nextevt = hrtimer_get_next_event();
+	u64 nextevt = ktime_to_ns(hrtimer_get_next_event());
 
 	/*
 	 * If high resolution timers are enabled

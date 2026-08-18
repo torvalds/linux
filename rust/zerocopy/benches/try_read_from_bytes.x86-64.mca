@@ -1,0 +1,79 @@
+Iterations:        100
+Instructions:      2000
+Total Cycles:      608
+Total uOps:        2000
+
+Dispatch Width:    4
+uOps Per Cycle:    3.29
+IPC:               3.29
+Block RThroughput: 5.0
+
+
+Instruction Info:
+[1]: #uOps
+[2]: Latency
+[3]: RThroughput
+[4]: MayLoad
+[5]: MayStore
+[6]: HasSideEffects (U)
+
+[1]    [2]    [3]    [4]    [5]    [6]    Instructions:
+ 1      1     0.33                        mov	ax, -16191
+ 1      1     0.33                        cmp	rsi, 6
+ 1      1     1.00                        jne	.LBB5_1
+ 1      5     0.50    *                   mov	ecx, dword ptr [rdi]
+ 1      1     0.33                        movzx	edx, cx
+ 1      1     0.33                        cmp	edx, 49344
+ 1      1     1.00                        jne	.LBB5_4
+ 1      5     0.50    *                   movzx	eax, word ptr [rdi + 4]
+ 1      1     0.50                        shl	rax, 32
+ 1      1     0.33                        or	rcx, rax
+ 1      1     0.50                        shr	rcx, 16
+ 1      1     0.33                        mov	ax, -16192
+ 1      1     0.50                        shl	rcx, 16
+ 1      1     0.33                        movzx	eax, ax
+ 1      1     0.33                        or	rax, rcx
+ 1      1     1.00                  U     ret
+ 1      1     0.50                        shl	rcx, 16
+ 1      1     0.33                        movzx	eax, ax
+ 1      1     0.33                        or	rax, rcx
+ 1      1     1.00                  U     ret
+
+
+Resources:
+[0]   - SBDivider
+[1]   - SBFPDivider
+[2]   - SBPort0
+[3]   - SBPort1
+[4]   - SBPort4
+[5]   - SBPort5
+[6.0] - SBPort23
+[6.1] - SBPort23
+
+
+Resource pressure per iteration:
+[0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  
+ -      -     5.99   5.99    -     6.02   1.00   1.00   
+
+Resource pressure by instruction:
+[0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  Instructions:
+ -      -      -     0.99    -     0.01    -      -     mov	ax, -16191
+ -      -      -     0.01    -     0.99    -      -     cmp	rsi, 6
+ -      -      -      -      -     1.00    -      -     jne	.LBB5_1
+ -      -      -      -      -      -      -     1.00   mov	ecx, dword ptr [rdi]
+ -      -     0.98    -      -     0.02    -      -     movzx	edx, cx
+ -      -     0.99   0.01    -      -      -      -     cmp	edx, 49344
+ -      -      -      -      -     1.00    -      -     jne	.LBB5_4
+ -      -      -      -      -      -     1.00    -     movzx	eax, word ptr [rdi + 4]
+ -      -     0.01    -      -     0.99    -      -     shl	rax, 32
+ -      -     0.02   0.98    -      -      -      -     or	rcx, rax
+ -      -     1.00    -      -      -      -      -     shr	rcx, 16
+ -      -     0.99   0.01    -      -      -      -     mov	ax, -16192
+ -      -     1.00    -      -      -      -      -     shl	rcx, 16
+ -      -      -     1.00    -      -      -      -     movzx	eax, ax
+ -      -      -     1.00    -      -      -      -     or	rax, rcx
+ -      -      -      -      -     1.00    -      -     ret
+ -      -     1.00    -      -      -      -      -     shl	rcx, 16
+ -      -      -     1.00    -      -      -      -     movzx	eax, ax
+ -      -      -     0.99    -     0.01    -      -     or	rax, rcx
+ -      -      -      -      -     1.00    -      -     ret

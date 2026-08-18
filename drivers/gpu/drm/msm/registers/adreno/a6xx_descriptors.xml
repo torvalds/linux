@@ -45,19 +45,21 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<reg32 offset="3" name="3"/>
 </domain>
 
-<domain name="A6XX_TEX_CONST" width="32" varset="chip">
+<domain name="A6XX_TEX_MEMOBJ" width="32" varset="desctype">
 	<doc>Texture constant dwords</doc>
 	<reg32 offset="0" name="0">
 		<bitfield name="TILE_MODE" low="0" high="1" type="a6xx_tile_mode"/>
 		<bitfield name="SRGB" pos="2" type="boolean"/>
-		<bitfield name="SWIZ_X" low="4" high="6" type="a6xx_tex_swiz"/>
-		<bitfield name="SWIZ_Y" low="7" high="9" type="a6xx_tex_swiz"/>
-		<bitfield name="SWIZ_Z" low="10" high="12" type="a6xx_tex_swiz"/>
-		<bitfield name="SWIZ_W" low="13" high="15" type="a6xx_tex_swiz"/>
-		<bitfield name="MIPLVLS" low="16" high="19" type="uint"/>
+		<bitfield name="SWIZ_X" low="4" high="6" type="a6xx_tex_swiz" variants="DESC_SINGLE_PLANE DESC_MULTI_PLANE DESC_BUFFER"/>
+		<bitfield name="SWIZ_Y" low="7" high="9" type="a6xx_tex_swiz" variants="DESC_SINGLE_PLANE DESC_MULTI_PLANE DESC_BUFFER"/>
+		<bitfield name="SWIZ_Z" low="10" high="12" type="a6xx_tex_swiz" variants="DESC_SINGLE_PLANE DESC_MULTI_PLANE DESC_BUFFER"/>
+		<bitfield name="SWIZ_W" low="13" high="15" type="a6xx_tex_swiz" variants="DESC_SINGLE_PLANE DESC_MULTI_PLANE DESC_BUFFER"/>
+		<bitfield name="MIPLVLS" low="16" high="19" type="uint" variants="DESC_SINGLE_PLANE DESC_BUFFER DESC_WEIGHT"/>
+
 		<!-- overlaps with MIPLVLS -->
-		<bitfield name="CHROMA_MIDPOINT_X" pos="16" type="boolean"/>
-		<bitfield name="CHROMA_MIDPOINT_Y" pos="18" type="boolean"/>
+		<bitfield name="CHROMA_MIDPOINT_X" pos="16" type="boolean" variants="DESC_MULTI_PLANE"/>
+		<bitfield name="CHROMA_MIDPOINT_Y" pos="18" type="boolean" variants="DESC_MULTI_PLANE"/>
+
 		<bitfield name="SAMPLES" low="20" high="21" type="a3xx_msaa_samples"/>
 		<bitfield name="FMT" low="22" high="29" type="a6xx_format"/>
 		<!--
@@ -68,9 +70,10 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 		<bitfield name="SWAP" low="30" high="31" type="a3xx_color_swap"/>
 	</reg32>
 	<reg32 offset="1" name="1">
-		<bitfield name="WIDTH" low="0" high="14" type="uint"/>
-		<bitfield name="HEIGHT" low="15" high="29" type="uint"/>
-		<bitfield name="MUTABLEEN" pos="31" type="boolean" variants="A7XX-"/>
+		<bitfield name="WIDTH" low="0" high="14" type="uint" variants="DESC_SINGLE_PLANE DESC_MULTI_PLANE DESC_WEIGHT"/>
+		<bitfield name="HEIGHT" low="15" high="29" type="uint" variants="DESC_SINGLE_PLANE DESC_MULTI_PLANE DESC_WEIGHT"/>
+		<bitfield name="NUM_ELEMENTS" low="0" high="29" type="uint" variants="DESC_BUFFER"/>
+		<bitfield name="MUTABLEEN" pos="31" type="boolean"/> <!-- a7xx+ -->
 	</reg32>
 	<reg32 offset="2" name="2">
 		<!--
@@ -78,13 +81,13 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 			PITCH/PITCHALIGN when TYPE is A6XX_TEX_BUFFER.
 		 -->
 		<doc> probably for D3D structured UAVs, normally set to 1 </doc>
-		<bitfield name="STRUCTSIZETEXELS" low="4" high="15" type="uint"/>
-		<bitfield name="STARTOFFSETTEXELS" low="16" high="21" type="uint"/>
+		<bitfield name="STRUCTSIZETEXELS" low="4" high="15" type="uint" variants="DESC_BUFFER"/>
+		<bitfield name="STARTOFFSETTEXELS" low="16" high="21" type="uint" variants="DESC_BUFFER"/>
 
 		<!-- minimum pitch (for mipmap levels): log2(pitchalign / 64) -->
-		<bitfield name="PITCHALIGN" low="0" high="3" type="uint"/>
+		<bitfield name="PITCHALIGN" low="0" high="3" type="uint" variants="DESC_SINGLE_PLANE DESC_MULTI_PLANE DESC_WEIGHT"/>
 		<doc>Pitch in bytes (so actually stride)</doc>
-		<bitfield name="PITCH" low="7" high="28" type="uint"/>
+		<bitfield name="PITCH" low="7" high="28" type="uint" variants="DESC_SINGLE_PLANE DESC_MULTI_PLANE DESC_WEIGHT"/>
 		<bitfield name="TYPE" low="29" high="31" type="a6xx_tex_type"/>
 	</reg32>
 	<reg32 offset="3" name="3">
@@ -94,15 +97,15 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 		layer size at the point that it stops being reduced moving to
 		higher (smaller) mipmap levels
 		 -->
-		<bitfield name="ARRAY_PITCH" low="0" high="22" shr="12" type="uint"/>
-		<bitfield name="MIN_LAYERSZ" low="23" high="26" shr="12"/>
+		<bitfield name="ARRAY_PITCH" low="0" high="22" shr="12" type="uint" variants="DESC_SINGLE_PLANE DESC_WEIGHT"/>
+		<bitfield name="MIN_LAYERSZ" low="23" high="26" shr="12" variants="DESC_SINGLE_PLANE"/>
 		<!--
 		by default levels with w < 16 are linear
 		TILE_ALL makes all levels have tiling
 		seems required when using UBWC, since all levels have UBWC (can possibly be disabled?)
 		 -->
-		<bitfield name="TILE_ALL" pos="27" type="boolean"/>
-		<bitfield name="FLAG" pos="28" type="boolean"/>
+		<bitfield name="TILE_ALL" pos="27" type="boolean" variants="DESC_SINGLE_PLANE DESC_MULTI_PLANE DESC_WEIGHT"/>
+		<bitfield name="FLAG" pos="28" type="boolean" variants="DESC_SINGLE_PLANE DESC_MULTI_PLANE DESC_WEIGHT"/>
 	</reg32>
 	<!-- for 2-3 plane format, BASE is flag buffer address (if enabled)
 	     the address of the non-flag base buffer is determined automatically,
@@ -113,30 +116,42 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	</reg32>
 	<reg32 offset="5" name="5">
 		<bitfield name="BASE_HI" low="0" high="16"/>
-		<bitfield name="DEPTH" low="17" high="29" type="uint"/>
+		<bitfield name="DEPTH" low="17" high="29" type="uint" variants="DESC_SINGLE_PLANE DESC_MULTI_PLANE DESC_WEIGHT"/>
 	</reg32>
 	<reg32 offset="6" name="6">
 		<!-- overlaps with PLANE_PITCH -->
-		<bitfield name="MIN_LOD_CLAMP" low="0" high="11" type="ufixed" radix="8"/>
+		<bitfield name="MIN_LOD_CLAMP" low="0" high="11" type="ufixed" radix="8" variants="DESC_SINGLE_PLANE DESC_MULTI_PLANE"/>
 		<!-- pitch for plane 2 / plane 3 -->
-		<bitfield name="PLANE_PITCH" low="8" high="31" type="uint"/>
+		<bitfield name="PLANE_PITCH" low="8" high="31" type="uint" variants="DESC_MULTI_PLANE"/>
+
+		<!-- QCOM_image_filtering sample weights descriptor fields, overlapping the others. -->
+		<bitfield name="LOG2_PHASES" low="0" high="2" type="uint" variants="DESC_WEIGHT"/>
+		<bitfield name="DILATION" low="8" high="11" type="uint" variants="DESC_WEIGHT"/>
 	</reg32>
 	<!-- 7/8 is plane 2 address for planar formats -->
 	<reg32 offset="7" name="7">
-		<bitfield name="FLAG_LO" low="5" high="31" shr="5"/>
+		<bitfield name="FLAG_LO" low="5" high="31" shr="5" variants="DESC_SINGLE_PLANE"/>
+		<bitfield name="BASE_U_LO" low="5" high="31" shr="5" variants="DESC_MULTI_PLANE"/>
 	</reg32>
 	<reg32 offset="8" name="8">
-		<bitfield name="FLAG_HI" low="0" high="16"/>
+		<bitfield name="FLAG_HI" low="0" high="16" variants="DESC_SINGLE_PLANE"/>
+		<bitfield name="BASE_U_HI" low="0" high="16" variants="DESC_MULTI_PLANE"/>
+		<bitfield name="FILTER_SIZE_X" low="17" high="23" variants="DESC_WEIGHT"/>
+		<bitfield name="FILTER_SIZE_Y" low="24" high="30" variants="DESC_WEIGHT"/>
 	</reg32>
 	<!-- 9/10 is plane 3 address for planar formats -->
 	<reg32 offset="9" name="9">
-		<bitfield name="FLAG_BUFFER_ARRAY_PITCH" low="0" high="16" shr="4" type="uint"/>
+		<bitfield name="FLAG_BUFFER_ARRAY_PITCH" low="0" high="16" shr="4" type="uint" variants="DESC_SINGLE_PLANE"/>
+		<bitfield name="BASE_V_LO" low="5" high="31" shr="5" variants="DESC_MULTI_PLANE"/>
 	</reg32>
 	<reg32 offset="10" name="10">
-		<bitfield name="FLAG_BUFFER_PITCH" low="0" high="6" shr="6" type="uint"/>
+		<bitfield name="FLAG_BUFFER_PITCH" low="0" high="6" shr="6" type="uint" variants="DESC_SINGLE_PLANE"/>
 		<!-- log2 size of the first level, required for mipmapping -->
-		<bitfield name="FLAG_BUFFER_LOGW" low="8" high="11" type="uint"/>
-		<bitfield name="FLAG_BUFFER_LOGH" low="12" high="15" type="uint"/>
+		<bitfield name="FLAG_BUFFER_LOGW" low="8" high="11" type="uint" variants="DESC_SINGLE_PLANE"/>
+		<bitfield name="FLAG_BUFFER_LOGH" low="12" high="15" type="uint" variants="DESC_SINGLE_PLANE"/>
+		<bitfield name="BASE_V_HI" low="0" high="16" variants="DESC_MULTI_PLANE"/>
+		<bitfield name="FILTER_OFFSET_X" low="17" high="22" variants="DESC_WEIGHT"/>
+		<bitfield name="FILTER_OFFSET_Y" low="23" high="28" variants="DESC_WEIGHT"/>
 	</reg32>
 	<reg32 offset="11" name="11"/>
 	<reg32 offset="12" name="12"/>

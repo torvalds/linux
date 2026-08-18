@@ -151,6 +151,166 @@ uint32_t dc_bandwidth_in_kbps_from_timing(
 	return kbps;
 }
 
+const struct dc_dsc_primary_bpp prim_bpp_444[] = {
+	/* VIC/BPP */
+	{64,  192}, /* 1920x1080 @ 100 */
+	{77,  192}, /* 1920x1080 @ 100 */
+	{63,  192}, /* 1920x1080 @ 120 */
+	{78,  192}, /* 1920x1080 @ 120 */
+	{93,  192}, /* 3840x2160 @ 24 */
+	{103, 192}, /* 3840x2160 @ 24 */
+	{94,  192}, /* 3840x2160 @ 25 */
+	{104, 192}, /* 3840x2160 @ 25 */
+	{95,  192}, /* 3840x2160 @ 30 */
+	{105, 192}, /* 3840x2160 @ 30 */
+	{114, 192}, /* 3840x2160 @ 48 */
+	{116, 192}, /* 3840x2160 @ 48 */
+	{96,  192}, /* 3840x2160 @ 50 */
+	{106, 192}, /* 3840x2160 @ 50 */
+	{97,  192}, /* 3840x2160 @ 60 */
+	{107, 192}, /* 3840x2160 @ 60 */
+	{117, 192}, /* 3840x2160 @ 100 */
+	{119, 192}, /* 3840x2160 @ 100 */
+	{118, 192}, /* 3840x2160 @ 120 */
+	{120, 192}, /* 3840x2160 @ 120 */
+	{98,  192}, /* 4096x2160 @ 24 */
+	{99,  192}, /* 4096x2160 @ 25 */
+	{100, 192}, /* 4096x2160 @ 30 */
+	{115, 192}, /* 4096x2160 @ 48 */
+	{101, 192}, /* 4096x2160 @ 50 */
+	{102, 192}, /* 4096x2160 @ 60 */
+	{218, 192}, /* 4096x2160 @ 100 */
+	{219, 192}, /* 4096x2160 @ 120 */
+	{121, 192}, /* 5120x2160 @ 24 */
+	{122, 192}, /* 5120x2160 @ 25 */
+	{123, 192}, /* 5120x2160 @ 30 */
+	{124, 192}, /* 5120x2160 @ 48 */
+	{125, 192}, /* 5120x2160 @ 50 */
+	{126, 173}, /* 5120x2160 @ 60 */
+	{127, 192}, /* 5120x2160 @ 100 */
+	{193, 175}, /* 5120x2160 @ 120 */
+	{194, 192}, /* 7680x2160 @ 24 */
+	{202, 192}, /* 7680x2160 @ 24 */
+	{195, 192}, /* 7680x2160 @ 25 */
+	{203, 192}, /* 7680x2160 @ 25 */
+	{196, 192}, /* 7680x2160 @ 30 */
+	{204, 192}, /* 7680x2160 @ 30 */
+	{197, 157}, /* 7680x2160 @ 48 */
+	{205, 157}, /* 7680x2160 @ 48 */
+	{198, 157}, /* 7680x2160 @ 50 */
+	{206, 157}, /* 7680x2160 @ 50 */
+	{199, 159}, /* 7680x2160 @ 60 */
+	{207, 159}, /* 7680x2160 @ 60 */
+	{200, 134}, /* 7680x2160 @ 100 */
+	{208, 134}, /* 7680x2160 @ 100 */
+	{201, 130}, /* 7680x2160 @ 120 */
+	{209, 130}, /* 7680x2160 @ 120 */
+	{210, 182}, /* 10240x4320 @ 24 */
+	{211, 181}, /* 10240x4320 @ 25 */
+	{212, 177}, /* 10240x4320 @ 30 */
+	{213, 163}, /* 10240x4320 @ 48 */
+	{214, 162}, /* 10240x4320 @ 50 */
+	{215, 157}, /* 10240x4320 @ 60 */
+};
+const struct dc_dsc_primary_bpp prim_bpp_422[] = {
+	/* VIC/BPP */
+	{114, 192}, /* 3840x2160 @ 48 */
+	{116, 192}, /* 3840x2160 @ 48 */
+	{96,  192}, /* 3840x2160 @ 50 */
+	{106, 192}, /* 3840x2160 @ 50 */
+	{97,  192}, /* 3840x2160 @ 60 */
+	{107, 192}, /* 3840x2160 @ 60 */
+	{117, 137}, /* 3840x2160 @ 100 */
+	{119, 137}, /* 3840x2160 @ 100 */
+	{118, 113}, /* 3840x2160 @ 120 */
+	{120, 113}, /* 3840x2160 @ 120 */
+	{115, 192}, /* 4096x2160 @ 48 */
+	{101, 192}, /* 4096x2160 @ 50 */
+	{102, 192}, /* 4096x2160 @ 60 */
+	{218, 192}, /* 4096x2160 @ 100 */
+	{219, 192}, /* 4096x2160 @ 120 */
+	{121, 192}, /* 5120x2160 @ 24 */
+	{122, 192}, /* 5120x2160 @ 25 */
+	{123, 192}, /* 5120x2160 @ 30 */
+	{124, 192}, /* 5120x2160 @ 48 */
+	{125, 192}, /* 5120x2160 @ 50 */
+	{126, 173}, /* 5120x2160 @ 60 */
+	{127, 192}, /* 5120x2160 @ 100 */
+	{193, 175}, /* 5120x2160 @ 120 */
+	{194, 123}, /* 7680x2160 @ 24 */
+	{202, 123}, /* 7680x2160 @ 24 */
+	{195, 123}, /* 7680x2160 @ 25 */
+	{203, 123}, /* 7680x2160 @ 25 */
+	{196, 118}, /* 7680x2160 @ 30 */
+	{204, 118}, /* 7680x2160 @ 30 */
+	{197, 123}, /* 7680x2160 @ 48 */
+	{205, 123}, /* 7680x2160 @ 48 */
+	{198, 123}, /* 7680x2160 @ 50 */
+	{206, 123}, /* 7680x2160 @ 50 */
+	{199, 119}, /* 7680x2160 @ 60 */
+	{207, 119}, /* 7680x2160 @ 60 */
+	{200, 134}, /* 7680x2160 @ 100 */
+	{208, 134}, /* 7680x2160 @ 100 */
+	{201, 130}, /* 7680x2160 @ 120 */
+	{209, 130}, /* 7680x2160 @ 120 */
+	{210, 182}, /* 10240x4320 @ 24 */
+	{211, 181}, /* 10240x4320 @ 25 */
+	{212, 177}, /* 10240x4320 @ 30 */
+	{213, 126}, /* 10240x4320 @ 48 */
+	{214, 125}, /* 10240x4320 @ 50 */
+	{215, 117}, /* 10240x4320 @ 60 */
+	{216, 125}, /* 10240x4320 @ 100 */
+	{217, 117}, /* 10240x4320 @ 120 */
+};
+
+const struct dc_dsc_primary_bpp prim_bpp_420[] = {
+	/* VIC/BPP */
+	{114, 192}, /* 3840x2160 @ 48 */
+	{116, 192}, /* 3840x2160 @ 48 */
+	{96,  192}, /* 3840x2160 @ 50 */
+	{106, 192}, /* 3840x2160 @ 50 */
+	{97,  192}, /* 3840x2160 @ 60 */
+	{107, 192}, /* 3840x2160 @ 60 */
+	{117, 137}, /* 3840x2160 @ 100 */
+	{119, 137}, /* 3840x2160 @ 100 */
+	{118, 113}, /* 3840x2160 @ 120 */
+	{120, 113}, /* 3840x2160 @ 120 */
+	{115, 192}, /* 4096x2160 @ 48 */
+	{101, 192}, /* 4096x2160 @ 50 */
+	{102, 192}, /* 4096x2160 @ 60 */
+	{218, 129}, /* 4096x2160 @ 100 */
+	{219, 106}, /* 4096x2160 @ 120 */
+	{124, 192}, /* 5120x2160 @ 48 */
+	{125, 192}, /* 5120x2160 @ 50 */
+	{126, 173}, /* 5120x2160 @ 60 */
+	{127, 192}, /* 5120x2160 @ 100 */
+	{193, 175}, /* 5120x2160 @ 120 */
+	{194, 123}, /* 7680x4320 @ 24 */
+	{202, 123}, /* 7680x4320 @ 24 */
+	{195, 123}, /* 7680x4320 @ 25 */
+	{203, 123}, /* 7680x4320 @ 25 */
+	{196, 118}, /* 7680x4320 @ 30 */
+	{204, 118}, /* 7680x4320 @ 30 */
+	{197, 123}, /* 7680x4320 @ 48 */
+	{205, 123}, /* 7680x4320 @ 48 */
+	{198, 123}, /* 7680x4320 @ 50 */
+	{206, 123}, /* 7680x4320 @ 50 */
+	{199, 119}, /* 7680x4320 @ 60 */
+	{207, 119}, /* 7680x4320 @ 60 */
+	{200, 112}, /* 7680x4320 @ 100 */
+	{208, 112}, /* 7680x4320 @ 100 */
+	{201, 103}, /* 7680x4320 @ 120 */
+	{209, 103}, /* 7680x4320 @ 120 */
+	{210,  98}, /* 10240x4320 @ 24 */
+	{211,  98}, /* 10240x4320 @ 25 */
+	{212, 177}, /* 10240x4320 @ 30 */
+	{213,  98}, /* 10240x4320 @ 48 */
+	{214, 125}, /* 10240x4320 @ 50 */
+	{215, 117}, /* 10240x4320 @ 60 */
+	{216, 107}, /* 10240x4320 @ 100 */
+	{217,  97}, /* 10240x4320 @ 120 */
+};
+
 /* Forward Declerations */
 static unsigned int get_min_dsc_slice_count_for_odm(
 		const struct display_stream_compressor *dsc,
@@ -194,6 +354,15 @@ static bool setup_dsc_config(
 		int min_slice_count,
 		struct dc_dsc_config *dsc_cfg);
 
+static bool convert_bandwidth_to_frl_params(
+	int bandwidth_kbps,
+	int *num_lanes,
+	int *frl_rate);
+
+static uint32_t compute_bpp_x16_from_frl_params(
+		const struct dc_crtc_timing *timing,
+		const uint32_t num_slices_h,
+		const struct dsc_enc_caps *dsc_caps);
 static bool dsc_buff_block_size_from_dpcd(int dpcd_buff_block_size, int *buff_block_size)
 {
 
@@ -328,6 +497,207 @@ static bool dsc_bpp_increment_div_from_dpcd(uint8_t bpp_increment_dpcd, uint32_t
 
 
 
+static bool get_vic_preset_bpp(
+		const struct dc_crtc_timing *timing,
+		int *preset_bpp)
+{
+	bool preset_found = false;
+	uint32_t table_size_444 = ARRAY_SIZE(prim_bpp_444);
+	uint32_t table_size_422 = ARRAY_SIZE(prim_bpp_422);
+	uint32_t table_size_420 = ARRAY_SIZE(prim_bpp_420);
+	uint32_t i;
+	uint32_t vid_id;
+
+	if (timing->vic == 0 && timing->hdmi_vic == 0)
+		return false;
+
+	vid_id = timing->vic;
+	switch (timing->hdmi_vic) {
+	case 1:
+		vid_id = 95;
+		break;
+	case 2:
+		vid_id = 94;
+		break;
+	case 3:
+		vid_id = 93;
+		break;
+	case 4:
+		vid_id = 98;
+		break;
+	default:
+		break;
+	}
+
+	if (timing->pixel_encoding == PIXEL_ENCODING_RGB ||
+			timing->pixel_encoding == PIXEL_ENCODING_YCBCR444) {
+		for (i = 0; i < table_size_444 ; i++) {
+			if (prim_bpp_444[i].vic == vid_id) {
+				preset_found = true;
+				*preset_bpp = prim_bpp_444[i].target_bpp;
+				break;
+			}
+		}
+	} else if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR422) {
+		for (i = 0; i < table_size_422 ; i++) {
+			if (prim_bpp_422[i].vic == vid_id) {
+				preset_found = true;
+				*preset_bpp = prim_bpp_422[i].target_bpp;
+				break;
+			}
+		}
+	} else if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR420) {
+		for (i = 0; i < table_size_420 ; i++) {
+			if (prim_bpp_420[i].vic == vid_id) {
+				preset_found = true;
+				*preset_bpp = prim_bpp_420[i].target_bpp;
+				break;
+			}
+		}
+	} else {
+		return false;
+	}
+
+	return preset_found;
+}
+
+static int hdmi_dsc_get_num_slices(const struct dc_crtc_timing *timing)
+{
+	int k_slice_adjust = 1;
+	int adj_pix_clk_mhz;
+	int min_slices;
+	int slice_target;
+	int slice_width = timing->h_addressable;
+	int h_ratio_adj_pix_clk_mhz;
+
+	if (timing->pixel_encoding == PIXEL_ENCODING_RGB ||
+			timing->pixel_encoding == PIXEL_ENCODING_YCBCR444)
+		k_slice_adjust = 2;
+
+	adj_pix_clk_mhz = k_slice_adjust * timing->pix_clk_100hz / 10000 / 2;
+	h_ratio_adj_pix_clk_mhz = adj_pix_clk_mhz * timing->h_addressable / timing->h_total;
+	if (adj_pix_clk_mhz <= 2720) {
+		min_slices = adj_pix_clk_mhz / 340;
+		if (adj_pix_clk_mhz % 340 != 0)
+			min_slices++;
+	} else if (adj_pix_clk_mhz <= 4800) {
+		min_slices = adj_pix_clk_mhz / 400;
+		if (adj_pix_clk_mhz % 400 != 0)
+			min_slices++;
+	} else if (h_ratio_adj_pix_clk_mhz <= 4800) {
+		min_slices = h_ratio_adj_pix_clk_mhz / 600;
+		if (h_ratio_adj_pix_clk_mhz % 600 != 0)
+			min_slices++;
+	} else {
+		min_slices = h_ratio_adj_pix_clk_mhz / 900;
+		if (h_ratio_adj_pix_clk_mhz % 900 != 0)
+			min_slices++;
+	}
+
+	do {
+		if (min_slices <= 1)
+			slice_target = 1;
+		else if (min_slices <= 2)
+			slice_target = 2;
+		else if (min_slices <= 4)
+			slice_target = 4;
+		else if (min_slices <= 8)
+			slice_target = 8;
+		else if (min_slices <= 12)
+			slice_target = 12;
+		else if (min_slices <= 16)
+			slice_target = 16;
+		else
+			return 0;
+
+		slice_width = timing->h_addressable / slice_target;
+		min_slices++;
+	} while (slice_width > 2720);
+
+	return slice_target;
+}
+
+static int hdmi_dsc_get_bpp(const struct dc_crtc_timing *timing,
+		const struct dsc_enc_caps *dsc_common_caps)
+{
+	int max_dsc_bpp, min_dsc_bpp;
+	int target_bytes;
+	bool bpp_found = false;
+	int bpp_decrement_x16;
+	int src_fractional_bpp = dsc_common_caps->bpp_increment_div;
+	int bpp_target;
+	int bpp_target_x16;
+	int bpc_factor = 8;
+	int slice_width;
+	int num_slices;
+	bool hdmi_all_bpp = dsc_common_caps->is_vic_all_bpp;
+	int hdmi_max_chunk_bytes = dsc_common_caps->total_chunk_kbytes;
+
+	int preset_bpp;
+	bool preset_found = false;
+
+	if (timing->display_color_depth == COLOR_DEPTH_101010)
+		bpc_factor = 10;
+	if (timing->display_color_depth == COLOR_DEPTH_121212)
+		bpc_factor = 12;
+
+	/* Assuming: bpc as 8*/
+	if (timing->pixel_encoding == PIXEL_ENCODING_RGB ||
+			timing->pixel_encoding == PIXEL_ENCODING_YCBCR444) {
+		min_dsc_bpp = 8;
+		max_dsc_bpp = 3 * bpc_factor;
+	} else if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR422) {
+		min_dsc_bpp = 7;
+		max_dsc_bpp = 2 * bpc_factor;
+	} else {
+		min_dsc_bpp = 6;
+		max_dsc_bpp = 3 * bpc_factor / 2;
+	}
+
+	if (!hdmi_all_bpp)
+		max_dsc_bpp = min(max_dsc_bpp, 12);
+
+
+	num_slices = hdmi_dsc_get_num_slices(timing);
+	if (num_slices == 0)
+		return 0;
+
+	slice_width = timing->h_addressable / num_slices;
+
+	bpp_target = max_dsc_bpp;
+	bpp_decrement_x16 = 16 / src_fractional_bpp;
+	bpp_target_x16 = (bpp_target * 16) - bpp_decrement_x16;
+	if (!hdmi_all_bpp)
+			bpp_target_x16 = (bpp_target * 16);
+
+	/* check if byte target is below allowed Kbytes */
+	while (bpp_target_x16 > (min_dsc_bpp * 16)) {
+		target_bytes = num_slices * slice_width * bpp_target_x16 / 16 / 8;
+		if (target_bytes <= hdmi_max_chunk_bytes) {
+			bpp_found = true;
+			break;
+		}
+		bpp_target_x16 -= bpp_decrement_x16;
+	}
+
+	if (bpp_found) {
+		if (!hdmi_all_bpp) {
+			/* Get preset bpp for CTA modes */
+			preset_found = get_vic_preset_bpp(timing, &preset_bpp);
+			if (preset_found) {
+				bpp_target_x16 = preset_bpp;
+				target_bytes =
+						num_slices * slice_width * bpp_target_x16 / 16 / 8;
+				if (target_bytes > hdmi_max_chunk_bytes)
+					return 0;
+			}
+		}
+		return bpp_target_x16;
+	}
+
+	return 0;
+}
+
 bool dc_dsc_parse_dsc_dpcd(const struct dc *dc,
 		const uint8_t *dpcd_dsc_basic_data,
 		const uint8_t *dpcd_dsc_branch_decoder_caps,
@@ -448,6 +818,104 @@ bool dc_dsc_parse_dsc_dpcd(const struct dc *dc,
 	ASSERT(dsc_sink_caps->branch_max_line_width == 0 || dsc_sink_caps->branch_max_line_width >= 5120);
 
 	dsc_sink_caps->is_dp = true;
+	return true;
+}
+bool dc_dsc_parse_dsc_edid(const struct dc *dc, const struct dc_edid_caps *edid_caps,
+		struct dsc_dec_dpcd_caps *dsc_sink_caps)
+{
+	(void)dc;
+	dsc_sink_caps->is_dsc_supported = edid_caps->frl_dsc_support;
+	if (!edid_caps->frl_dsc_support)
+		return false;
+
+	dsc_sink_caps->dsc_version = 0x21;
+	dsc_sink_caps->is_frl = true;
+	dsc_sink_caps->is_dp = false;
+
+	switch (edid_caps->frl_dsc_max_slices) {
+	case 0:
+		break;
+	case 1:
+		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_1 = 1;
+		dsc_sink_caps->throughput_mode_0_mps = 340;
+		dsc_sink_caps->throughput_mode_1_mps = 680;
+		break;
+	case 2:
+		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_1 = 1;
+		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_2 = 1;
+		dsc_sink_caps->throughput_mode_0_mps = 340;
+		dsc_sink_caps->throughput_mode_1_mps = 680;
+		break;
+	case 3:
+		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_1 = 1;
+		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_2 = 1;
+		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_4 = 1;
+		dsc_sink_caps->throughput_mode_0_mps = 340;
+		dsc_sink_caps->throughput_mode_1_mps = 680;
+		break;
+	case 4:
+		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_1 = 1;
+		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_2 = 1;
+		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_4 = 1;
+		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_8 = 1;
+		dsc_sink_caps->throughput_mode_0_mps = 340;
+		dsc_sink_caps->throughput_mode_1_mps = 680;
+		break;
+	case 5:
+		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_1 = 1;
+		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_2 = 1;
+		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_4 = 1;
+		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_8 = 1;
+		dsc_sink_caps->throughput_mode_0_mps = 400;
+		dsc_sink_caps->throughput_mode_1_mps = 800;
+		break;
+	case 6:
+		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_1 = 1;
+		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_2 = 1;
+		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_4 = 1;
+		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_8 = 1;
+		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_12 = 1;
+		dsc_sink_caps->throughput_mode_0_mps = 400;
+		dsc_sink_caps->throughput_mode_1_mps = 800;
+		break;
+	case 7:
+		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_1 = 1;
+		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_2 = 1;
+		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_4 = 1;
+		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_8 = 1;
+		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_12 = 1;
+		dsc_sink_caps->throughput_mode_0_mps = 600;
+		dsc_sink_caps->throughput_mode_1_mps = 1200;
+		break;
+	case 8:
+	default:
+		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_1 = 1;
+		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_2 = 1;
+		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_4 = 1;
+		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_8 = 1;
+		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_12 = 1;
+		dsc_sink_caps->throughput_mode_0_mps = 900;
+		dsc_sink_caps->throughput_mode_1_mps = 1800;
+		break;
+	}
+	dsc_sink_caps->lb_bit_depth = 13; //Table 7-25
+	dsc_sink_caps->is_block_pred_supported = true; //Table 7-25
+	dsc_sink_caps->color_formats.bits.RGB = 1;
+	dsc_sink_caps->color_formats.bits.YCBCR_444 = 1;
+	dsc_sink_caps->color_formats.bits.YCBCR_NATIVE_422 = 1;
+	dsc_sink_caps->color_formats.bits.YCBCR_NATIVE_420 =
+			(edid_caps->frl_dsc_native_420 == true) ? 1 : 0;
+	dsc_sink_caps->color_depth.bits.COLOR_DEPTH_8_BPC = 1;
+	dsc_sink_caps->color_depth.bits.COLOR_DEPTH_10_BPC =
+			(edid_caps->frl_dsc_10bpc == true) ? 1 : 0;
+	dsc_sink_caps->color_depth.bits.COLOR_DEPTH_12_BPC =
+			(edid_caps->frl_dsc_12bpc == true) ? 1 : 0;
+	dsc_sink_caps->max_slice_width = 2560;
+	dsc_sink_caps->bpp_increment_div = 16; /* bpp increment divisor, e.g. if 16, it's 1/16th of a bit */
+	dsc_sink_caps->is_vic_all_bpp = edid_caps->frl_dsc_all_bpp;
+	dsc_sink_caps->total_chunk_kbytes =
+			1024 * (1 + edid_caps->frl_dsc_total_chunk_kbytes);
+
 	return true;
 }
 
@@ -757,6 +1225,9 @@ static bool intersect_dsc_caps(
 	if (pixel_encoding == PIXEL_ENCODING_YCBCR422 || pixel_encoding == PIXEL_ENCODING_YCBCR420)
 		dsc_common_caps->bpp_increment_div = min(dsc_common_caps->bpp_increment_div, (uint32_t)8);
 
+	dsc_common_caps->is_frl = dsc_sink_caps->is_frl;
+	dsc_common_caps->is_vic_all_bpp = dsc_sink_caps->is_vic_all_bpp;
+	dsc_common_caps->total_chunk_kbytes = dsc_sink_caps->total_chunk_kbytes;
 	dsc_common_caps->edp_sink_max_bits_per_pixel = dsc_sink_caps->edp_max_bits_per_pixel;
 	dsc_common_caps->is_dp = dsc_sink_caps->is_dp;
 	return true;
@@ -786,6 +1257,191 @@ static uint32_t compute_bpp_x16_from_target_bandwidth(
 	return dc_fixpt_floor(bpp_x16);
 }
 
+static bool convert_bandwidth_to_frl_params(
+	int bandwidth_kbps,
+	int *num_lanes,
+	int *frl_rate)
+{
+	if (bandwidth_kbps == 0)
+		return false;
+
+	switch (bandwidth_kbps) {
+	case 9000000:
+		*num_lanes = 3;
+		*frl_rate = 3000;
+		break;
+	case 18000000:
+		*num_lanes = 3;
+		*frl_rate = 6000;
+		break;
+	case 24000000:
+		*num_lanes = 4;
+		*frl_rate = 6000;
+		break;
+	case 32000000:
+		*num_lanes = 4;
+		*frl_rate = 8000;
+		break;
+	case 40000000:
+		*num_lanes = 4;
+		*frl_rate = 10000;
+		break;
+	case 48000000:
+		*num_lanes = 4;
+		*frl_rate = 12000;
+		break;
+	default:
+		return false;
+	}
+	return true;
+}
+
+static uint32_t compute_bpp_x16_from_frl_params(
+		const struct dc_crtc_timing *timing,
+		const uint32_t num_slices_h,
+		const struct dsc_enc_caps *dsc_caps)
+{
+	struct fixed31_32 pixel_clock;
+	uint32_t num_lanes = dsc_caps->num_lanes;
+	uint32_t frl_rate = dsc_caps->frl_rate;
+	uint32_t h_active = timing->h_addressable;
+	uint32_t h_blank = timing->h_total - timing->h_addressable;
+	uint32_t bpp_target_x16;
+	struct fixed31_32 r_bit;
+	uint32_t f_audio = 48000;
+	struct fixed31_32 pixel_rate_tolerance;
+	uint32_t audio_tolerance = 1000;
+	uint32_t frl_bit_tolerance = 300;
+	uint32_t acr_rate_max = 1500;
+	uint32_t c_frl_cb = 510;
+	uint32_t c_frl_sb;
+	struct fixed31_32 overhead_sb;
+	struct fixed31_32 overhead_rs;
+	struct fixed31_32 overhead_map;
+	struct fixed31_32 overhead_min;
+	struct fixed31_32 overhead_m;
+	struct fixed31_32 overhead_max;
+	struct fixed31_32 pixel_clock_max;
+	struct fixed31_32 t_line;
+	struct fixed31_32 r_bit_min;
+	struct fixed31_32 r_frl_char_min;
+	struct fixed31_32 c_frl_line;
+	uint32_t c_frl_line_int;
+	struct fixed31_32 c_frl_available;
+	uint32_t c_frl_av_int;
+	struct fixed31_32 c_frl_active_av;
+	struct fixed31_32 c_frl_blank_av;
+	uint32_t acat_ap = 4;
+	struct fixed31_32 r_ap;
+	struct fixed31_32 max_audio_tol_rate;
+	struct fixed31_32 avg_audio_packets_line;
+	uint32_t avg_audio_packets_line_int;
+	int hc_blank_audio_min;
+	uint32_t bytes_target;
+	uint32_t hc_active_target;
+	uint32_t hc_blank_target_est1;
+	uint32_t hc_blank_target_est2;
+	struct fixed31_32 hc_blank_target_bandwidth;
+	int hc_blank_target;
+	uint32_t bpc_factor = 8;
+	uint32_t min_dsc_bpp_x16;
+	uint32_t max_dsc_bpp_x16;
+	bool hdmi_all_bpp = dsc_caps->is_vic_all_bpp;
+	uint32_t slice_width;
+
+	if (timing->display_color_depth == COLOR_DEPTH_101010)
+		bpc_factor = 10;
+	if (timing->display_color_depth == COLOR_DEPTH_121212)
+		bpc_factor = 12;
+
+	/* Assuming: bpc as 8*/
+	if (timing->pixel_encoding == PIXEL_ENCODING_RGB ||
+			timing->pixel_encoding == PIXEL_ENCODING_YCBCR444) {
+		min_dsc_bpp_x16 = 8 * 16;
+		max_dsc_bpp_x16 = 3 * 16 * bpc_factor;
+	} else if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR422) {
+		min_dsc_bpp_x16 = 7 * 16;
+		max_dsc_bpp_x16 = 2 * 16 * bpc_factor;
+	} else {
+		min_dsc_bpp_x16 = 6 * 16;
+		max_dsc_bpp_x16 = 3 * 16 * bpc_factor / 2;
+	}
+
+	max_dsc_bpp_x16 = MIN(max_dsc_bpp_x16, 256);
+	if (!hdmi_all_bpp)
+		max_dsc_bpp_x16 = MIN(max_dsc_bpp_x16, 192);
+
+	c_frl_sb = 4 * c_frl_cb + num_lanes;
+	pixel_clock = dc_fixpt_div_int(dc_fixpt_from_int(timing->pix_clk_100hz), 10000);
+	r_bit = dc_fixpt_from_int(frl_rate);
+	pixel_rate_tolerance = dc_fixpt_div_int(dc_fixpt_from_int(5), 1000);
+	overhead_sb = dc_fixpt_div_int(dc_fixpt_from_int(num_lanes), c_frl_sb);
+	overhead_rs = dc_fixpt_div_int(dc_fixpt_from_int(32), c_frl_sb);
+	overhead_map = dc_fixpt_div_int(dc_fixpt_from_int(25), (c_frl_sb * 10));
+	overhead_min = dc_fixpt_add(overhead_sb, overhead_rs);
+	overhead_min = dc_fixpt_add(overhead_min, overhead_map);
+	overhead_m = dc_fixpt_div_int(dc_fixpt_from_int(3), 1000);
+	overhead_max = dc_fixpt_add(overhead_min, overhead_m);
+	pixel_rate_tolerance = dc_fixpt_add_int(pixel_rate_tolerance, 1);
+	pixel_clock_max = dc_fixpt_mul(pixel_clock, pixel_rate_tolerance);
+	t_line = dc_fixpt_div(dc_fixpt_from_int(h_active + h_blank), pixel_clock_max);
+	r_bit_min = dc_fixpt_div_int(dc_fixpt_from_int(frl_bit_tolerance), 1000000);
+	r_bit_min = dc_fixpt_sub(dc_fixpt_from_int(1), r_bit_min);
+	r_bit_min = dc_fixpt_mul(r_bit, r_bit_min);
+	r_frl_char_min = dc_fixpt_div_int(r_bit_min, 18);
+	c_frl_line = dc_fixpt_mul(t_line, r_frl_char_min);
+	c_frl_line = dc_fixpt_mul_int(c_frl_line, num_lanes);
+	c_frl_line_int = dc_fixpt_floor(c_frl_line);
+	c_frl_available = dc_fixpt_sub(dc_fixpt_from_int(1), overhead_max);
+	c_frl_available = dc_fixpt_mul_int(c_frl_available, c_frl_line_int);
+	c_frl_av_int = dc_fixpt_floor(c_frl_available);
+	c_frl_active_av = dc_fixpt_mul_int(dc_fixpt_from_int(c_frl_av_int), h_active);
+	c_frl_active_av = dc_fixpt_div_int(c_frl_active_av, (h_active + h_blank));
+	c_frl_blank_av = dc_fixpt_mul_int(dc_fixpt_from_int(c_frl_av_int), h_blank);
+	c_frl_blank_av =  dc_fixpt_div_int(c_frl_blank_av, (h_active + h_blank));
+	r_ap = dc_fixpt_max(dc_fixpt_from_int(192000),
+			dc_fixpt_from_int(f_audio * acat_ap));
+	r_ap = dc_fixpt_add(r_ap, dc_fixpt_from_int(2 * acr_rate_max));
+	max_audio_tol_rate =  dc_fixpt_div_int(dc_fixpt_from_int(audio_tolerance), 1000000);
+	max_audio_tol_rate =  dc_fixpt_add(dc_fixpt_from_int(1), max_audio_tol_rate);
+	r_ap = dc_fixpt_mul(r_ap, max_audio_tol_rate);
+	avg_audio_packets_line = dc_fixpt_mul(r_ap, t_line);
+	avg_audio_packets_line = dc_fixpt_div_int(avg_audio_packets_line, 1000000);
+	avg_audio_packets_line_int = dc_fixpt_ceil(avg_audio_packets_line);
+	hc_blank_audio_min = 32 + 32 * avg_audio_packets_line_int;
+	slice_width = dc_fixpt_ceil(dc_fixpt_div_int(
+			dc_fixpt_from_int(h_active), num_slices_h));
+
+	/* Slice width for 420 must be even */
+	if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR420 && slice_width % 2 != 0) {
+		slice_width++;
+	}
+
+	for (uint32_t i = max_dsc_bpp_x16; i >= min_dsc_bpp_x16; i--) {
+		bpp_target_x16 = i;
+		bytes_target = num_slices_h * dc_fixpt_ceil(dc_fixpt_div_int(
+				dc_fixpt_from_int(bpp_target_x16 * slice_width), 8 * 16));
+		hc_active_target = dc_fixpt_ceil(dc_fixpt_div_int(
+				dc_fixpt_from_int(bytes_target), 3));
+		hc_blank_target_est1 = dc_fixpt_ceil(dc_fixpt_div_int(
+				dc_fixpt_from_int(hc_active_target * h_blank), h_active));
+		hc_blank_target_est2 = dc_fixpt_floor(dc_fixpt_max(
+				dc_fixpt_from_int(hc_blank_target_est1),
+				dc_fixpt_from_int(hc_blank_audio_min)));
+		hc_blank_target_bandwidth = dc_fixpt_div_int(dc_fixpt_from_int(3), 2);
+		hc_blank_target_bandwidth = dc_fixpt_mul(hc_blank_target_bandwidth,
+				dc_fixpt_from_int(hc_active_target));
+		hc_blank_target_bandwidth = dc_fixpt_sub(dc_fixpt_from_int(c_frl_av_int),
+				hc_blank_target_bandwidth);
+		hc_blank_target_bandwidth = dc_fixpt_min(hc_blank_target_bandwidth,
+				dc_fixpt_from_int(hc_blank_target_est2));
+		hc_blank_target_bandwidth = dc_fixpt_div_int(hc_blank_target_bandwidth, 4);
+		hc_blank_target = dc_fixpt_floor(hc_blank_target_bandwidth) * 4;
+		if (hc_blank_target >= hc_blank_audio_min)
+			return bpp_target_x16;
+	}
+	return 0;
+}
 /* Decide DSC bandwidth range based on signal, timing, specs specific and input min and max
  * requirements.
  * The range output includes decided min/max target bpp, the respective bandwidth requirements
@@ -810,6 +1466,30 @@ static bool decide_dsc_bandwidth_range(
 				preferred_bpp_x16 >= min_bpp_x16) {
 			range->max_target_bpp_x16 = preferred_bpp_x16;
 			range->min_target_bpp_x16 = preferred_bpp_x16;
+		}
+	}
+	else if (dsc_caps->is_frl) {
+		uint32_t specs_preferred_bpp_x16 = hdmi_dsc_get_bpp(timing, dsc_caps);
+		uint32_t specs_calculated_bpp_x16 = 0;
+
+		if (timing->vic) {
+			/* For CTA timing, we should strictly follow HDMI spec. */
+			range->max_target_bpp_x16 = specs_preferred_bpp_x16;
+			if (dsc_caps->is_vic_all_bpp || dsc_caps->is_dp)
+				range->min_target_bpp_x16 = min_bpp_x16;
+			else
+				range->min_target_bpp_x16 = specs_preferred_bpp_x16;
+		} else {
+			if (timing->vic == 0 && timing->hdmi_vic == 0)
+				specs_calculated_bpp_x16 = compute_bpp_x16_from_frl_params(
+						timing, num_slices_h, dsc_caps);
+
+			if (specs_calculated_bpp_x16 != 0)
+				specs_preferred_bpp_x16 = MIN(specs_calculated_bpp_x16,
+						specs_preferred_bpp_x16);
+
+			range->max_target_bpp_x16 = MIN(max_bpp_x16, specs_preferred_bpp_x16);
+			range->min_target_bpp_x16 = min_bpp_x16;
 		}
 	}
 	/* TODO - make this value generic to all signal types */
@@ -858,25 +1538,30 @@ static bool decide_dsc_target_bpp_x16(
 		int *target_bpp_x16)
 {
 	struct dc_dsc_bw_range range;
+	uint32_t target_bandwidth_kbps_u = (uint32_t)target_bandwidth_kbps;
 
 	*target_bpp_x16 = 0;
 
 	if (decide_dsc_bandwidth_range(policy->min_target_bpp * 16, policy->max_target_bpp * 16,
 			num_slices_h, dsc_common_caps, timing, link_encoding, &range)) {
-		if (target_bandwidth_kbps >= range.stream_kbps) {
+		if (target_bandwidth_kbps_u >= range.stream_kbps) {
 			if (policy->enable_dsc_when_not_needed || options->force_dsc_when_not_needed)
 				/* enable max bpp even dsc is not needed */
 				*target_bpp_x16 = range.max_target_bpp_x16;
-		} else if (target_bandwidth_kbps >= range.max_kbps) {
+		} else if (target_bandwidth_kbps_u >= range.max_kbps) {
 			/* use max target bpp allowed */
 			*target_bpp_x16 = range.max_target_bpp_x16;
-		} else if (target_bandwidth_kbps >= range.min_kbps) {
+		} else if (target_bandwidth_kbps_u >= range.min_kbps) {
 			/* use target bpp that can take entire target bandwidth */
 			*target_bpp_x16 = compute_bpp_x16_from_target_bandwidth(
 					target_bandwidth_kbps, timing, num_slices_h,
 					dsc_common_caps->bpp_increment_div,
 					dsc_common_caps->is_dp);
 		}
+		/* Assign minimum bpp and validate TB borrow scenario later */
+		if (target_bandwidth_kbps < range.min_kbps)
+			if (dsc_common_caps->is_frl)
+				*target_bpp_x16 = range.min_target_bpp_x16;
 	}
 
 	return *target_bpp_x16 != 0;
@@ -1053,31 +1738,40 @@ static bool setup_dsc_config(
 	int max_slices_h = 0;
 	int num_slices_h = 0;
 	int pic_width;
+	uint32_t pic_width_u;
 	int slice_width;
 	int target_bpp;
 	int sink_per_slice_throughput_mps;
-	int branch_max_throughput_mps = 0;
+	uint32_t branch_max_throughput_mps = 0;
 	bool is_dsc_possible = false;
 	int pic_height;
 	int slice_height;
 	struct dc_dsc_policy policy;
+	int num_lanes;
+	int frl_rate;
 
 	memset(dsc_cfg, 0, sizeof(struct dc_dsc_config));
 
 	dc_dsc_get_policy_for_timing(timing, options->max_target_bpp_limit_override_x16, &policy, link_encoding);
 	pic_width = timing->h_addressable + timing->h_border_left + timing->h_border_right;
+	pic_width_u = (uint32_t)pic_width;
 	pic_height = timing->v_addressable + timing->v_border_top + timing->v_border_bottom;
 
 	if (!dsc_sink_caps->is_dsc_supported)
 		goto done;
 
-	if (dsc_sink_caps->branch_max_line_width && dsc_sink_caps->branch_max_line_width < pic_width)
+	if (dsc_sink_caps->branch_max_line_width && dsc_sink_caps->branch_max_line_width < pic_width_u)
 		goto done;
 
 	// Intersect decoder with encoder DSC caps and validate DSC settings
 	is_dsc_possible = intersect_dsc_caps(dsc_sink_caps, dsc_enc_caps, timing->pixel_encoding, &dsc_common_caps);
 	if (!is_dsc_possible)
 		goto done;
+	if (convert_bandwidth_to_frl_params(
+					target_bandwidth_kbps, &num_lanes, &frl_rate)) {
+		dsc_common_caps.num_lanes = num_lanes;
+		dsc_common_caps.frl_rate = frl_rate;
+	}
 
 	sink_per_slice_throughput_mps = 0;
 
@@ -1201,6 +1895,8 @@ static bool setup_dsc_config(
 		else
 			is_dsc_possible = false;
 	}
+	if (dsc_sink_caps->is_frl)
+		num_slices_h = hdmi_dsc_get_num_slices(timing);
 	// When we force ODM, num dsc h slices must be divisible by num odm h slices
 	switch (options->dsc_force_odm_hslice_override) {
 	case 0:
@@ -1279,6 +1975,11 @@ static bool setup_dsc_config(
 	dsc_cfg->block_pred_enable = dsc_common_caps.is_block_pred_supported;
 	dsc_cfg->linebuf_depth = dsc_common_caps.lb_bit_depth;
 	dsc_cfg->version_minor = (dsc_common_caps.dsc_version & 0xf0) >> 4;
+	dsc_cfg->is_frl = dsc_sink_caps->is_frl;
+	if (dsc_cfg->is_frl)
+		dsc_cfg->num_slices_h = num_slices_h;
+	dsc_cfg->is_vic_all_bpp = dsc_sink_caps->is_vic_all_bpp;
+	dsc_cfg->total_chunk_kbytes = dsc_sink_caps->total_chunk_kbytes;
 	dsc_cfg->is_dp = dsc_sink_caps->is_dp;
 
 done:
@@ -1333,7 +2034,7 @@ uint32_t dc_dsc_stream_bandwidth_in_kbps(const struct dc_crtc_timing *timing,
 
 uint32_t dc_dsc_stream_bandwidth_overhead_in_kbps(
 		const struct dc_crtc_timing *timing,
-		const int num_slices_h,
+		const uint32_t num_slices_h,
 		const bool is_dp)
 {
 	struct fixed31_32 max_dsc_overhead;
@@ -1405,6 +2106,12 @@ void dc_dsc_get_policy_for_timing(const struct dc_crtc_timing *timing,
 		/* DP specs limits to 3 x bpc */
 		policy->max_target_bpp = 3 * bpc;
 		policy->ycbcr422_simple = true;
+		if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR422 && link_encoding == DC_LINK_ENCODING_HDMI_FRL) {
+			/* HDMI FRL YCbCr422 native support */
+			policy->min_target_bpp = 7;
+			policy->max_target_bpp = 2 * bpc;
+			policy->ycbcr422_simple = false;
+		}
 		break;
 	case PIXEL_ENCODING_YCBCR420:
 		/* DP specs limits to 6 */

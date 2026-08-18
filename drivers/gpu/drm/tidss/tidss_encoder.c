@@ -106,6 +106,8 @@ int tidss_encoder_create(struct tidss_device *tidss,
 	enc = &t_enc->encoder;
 	enc->possible_crtcs = possible_crtcs;
 
+	devm_drm_bridge_add(tidss->dev, &t_enc->bridge);
+
 	/* Attaching first bridge to the encoder */
 	ret = drm_bridge_attach(enc, &t_enc->bridge, NULL,
 				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
@@ -119,12 +121,6 @@ int tidss_encoder_create(struct tidss_device *tidss,
 	if (IS_ERR(connector)) {
 		dev_err(tidss->dev, "bridge_connector create failed\n");
 		return PTR_ERR(connector);
-	}
-
-	ret = drm_connector_attach_encoder(connector, enc);
-	if (ret) {
-		dev_err(tidss->dev, "attaching encoder to connector failed\n");
-		return ret;
 	}
 
 	t_enc->connector = connector;

@@ -26,7 +26,6 @@
 #include <linux/sock_diag.h>
 #include <linux/bpf.h>
 #include <linux/if_link.h>
-#include <linux/tls.h>
 #include <assert.h>
 #include <libgen.h>
 
@@ -40,13 +39,6 @@
 
 int running;
 static void running_handler(int a);
-
-#ifndef TCP_ULP
-# define TCP_ULP 31
-#endif
-#ifndef SOL_TLS
-# define SOL_TLS 282
-#endif
 
 /* randomly selected ports for testing on lo */
 #define S1_PORT 10000
@@ -63,10 +55,10 @@ int s1, s2, c1, c2, p1, p2;
 int test_cnt;
 int passed;
 int failed;
-int map_fd[9];
-struct bpf_map *maps[9];
-struct bpf_program *progs[9];
-struct bpf_link *links[9];
+int map_fd[8];
+struct bpf_map *maps[8];
+struct bpf_program *progs[8];
+struct bpf_link *links[8];
 
 int txmsg_pass;
 int txmsg_redir;
@@ -81,10 +73,6 @@ int txmsg_start_pop;
 int txmsg_pop;
 int txmsg_ingress;
 int txmsg_redir_skb;
-int txmsg_ktls_skb;
-int txmsg_ktls_skb_drop;
-int txmsg_ktls_skb_redir;
-int ktls;
 int peek_flag;
 int skb_use_parser;
 int txmsg_omit_skb_parser;
@@ -115,7 +103,6 @@ static const struct option long_options[] = {
 	{"txmsg_pop",	     required_argument,	NULL, 'x'},
 	{"txmsg_ingress", no_argument,		&txmsg_ingress, 1 },
 	{"txmsg_redir_skb", no_argument,	&txmsg_redir_skb, 1 },
-	{"ktls", no_argument,			&ktls, 1 },
 	{"peek", no_argument,			&peek_flag, 1 },
 	{"txmsg_omit_skb_parser", no_argument,      &txmsg_omit_skb_parser, 1},
 	{"whitelist", required_argument,	NULL, 'n' },
@@ -183,7 +170,6 @@ static void test_reset(void)
 	txmsg_pass = txmsg_drop = txmsg_redir = 0;
 	txmsg_apply = txmsg_cork = 0;
 	txmsg_ingress = txmsg_redir_skb = 0;
-	txmsg_ktls_skb = txmsg_ktls_skb_drop = txmsg_ktls_skb_redir = 0;
 	txmsg_omit_skb_parser = 0;
 	skb_use_parser = 0;
 }
@@ -238,71 +224,6 @@ static void usage(char *argv[])
 	printf("\n");
 }
 
-char *sock_to_string(int s)
-{
-	if (s == c1)
-		return "client1";
-	else if (s == c2)
-		return "client2";
-	else if (s == s1)
-		return "server1";
-	else if (s == s2)
-		return "server2";
-	else if (s == p1)
-		return "peer1";
-	else if (s == p2)
-		return "peer2";
-	else
-		return "unknown";
-}
-
-static int sockmap_init_ktls(int verbose, int s)
-{
-	struct tls12_crypto_info_aes_gcm_128 tls_tx = {
-		.info = {
-			.version     = TLS_1_2_VERSION,
-			.cipher_type = TLS_CIPHER_AES_GCM_128,
-		},
-	};
-	struct tls12_crypto_info_aes_gcm_128 tls_rx = {
-		.info = {
-			.version     = TLS_1_2_VERSION,
-			.cipher_type = TLS_CIPHER_AES_GCM_128,
-		},
-	};
-	int so_buf = 6553500;
-	int err;
-
-	err = setsockopt(s, 6, TCP_ULP, "tls", sizeof("tls"));
-	if (err) {
-		fprintf(stderr, "setsockopt: TCP_ULP(%s) failed with error %i\n", sock_to_string(s), err);
-		return -EINVAL;
-	}
-	err = setsockopt(s, SOL_TLS, TLS_TX, (void *)&tls_tx, sizeof(tls_tx));
-	if (err) {
-		fprintf(stderr, "setsockopt: TLS_TX(%s) failed with error %i\n", sock_to_string(s), err);
-		return -EINVAL;
-	}
-	err = setsockopt(s, SOL_TLS, TLS_RX, (void *)&tls_rx, sizeof(tls_rx));
-	if (err) {
-		fprintf(stderr, "setsockopt: TLS_RX(%s) failed with error %i\n", sock_to_string(s), err);
-		return -EINVAL;
-	}
-	err = setsockopt(s, SOL_SOCKET, SO_SNDBUF, &so_buf, sizeof(so_buf));
-	if (err) {
-		fprintf(stderr, "setsockopt: (%s) failed sndbuf with error %i\n", sock_to_string(s), err);
-		return -EINVAL;
-	}
-	err = setsockopt(s, SOL_SOCKET, SO_RCVBUF, &so_buf, sizeof(so_buf));
-	if (err) {
-		fprintf(stderr, "setsockopt: (%s) failed rcvbuf with error %i\n", sock_to_string(s), err);
-		return -EINVAL;
-	}
-
-	if (verbose)
-		fprintf(stdout, "socket(%s) kTLS enabled\n", sock_to_string(s));
-	return 0;
-}
 static int sockmap_init_sockets(int verbose)
 {
 	int i, err, one = 1;
@@ -556,19 +477,6 @@ static int msg_verify_data(struct msghdr *msg, int size, int chunk_sz,
 
 	for (i = 0, j = 0; i < msg->msg_iovlen && size; i++, j = 0) {
 		unsigned char *d = msg->msg_iov[i].iov_base;
-
-		/* Special case test for skb ingress + ktls */
-		if (i == 0 && txmsg_ktls_skb) {
-			if (msg->msg_iov[i].iov_len < 4)
-				return -EDATAINTEGRITY;
-			if (memcmp(d, "PASS", 4) != 0) {
-				fprintf(stderr,
-					"detected skb data error with skb ingress update @iov[%i]:%i \"%02x %02x %02x %02x\" != \"PASS\"\n",
-					i, 0, d[0], d[1], d[2], d[3]);
-				return -EDATAINTEGRITY;
-			}
-			j = 4; /* advance index past PASS header */
-		}
 
 		for (; j < msg->msg_iov[i].iov_len && size; j++) {
 			if (push > 0 &&
@@ -849,21 +757,6 @@ static int sendmsg_test(struct sockmap_options *opt)
 	else
 		rx_fd = p2;
 
-	if (ktls) {
-		/* Redirecting into non-TLS socket which sends into a TLS
-		 * socket is not a valid test. So in this case lets not
-		 * enable kTLS but still run the test.
-		 */
-		if (!txmsg_redir || txmsg_ingress) {
-			err = sockmap_init_ktls(opt->verbose, rx_fd);
-			if (err)
-				return err;
-		}
-		err = sockmap_init_ktls(opt->verbose, c1);
-		if (err)
-			return err;
-	}
-
 	if (opt->tx_wait_mem) {
 		struct timeval timeout;
 		int rxtx_buf_len = 1024;
@@ -882,7 +775,7 @@ static int sendmsg_test(struct sockmap_options *opt)
 
 	rxpid = fork();
 	if (rxpid == 0) {
-		if (opt->drop_expected || txmsg_ktls_skb_drop)
+		if (opt->drop_expected)
 			_exit(0);
 
 		if (!iov_buf) /* zero bytes sent case */
@@ -1073,28 +966,8 @@ static int run_options(struct sockmap_options *options, int cg_fd,  int test)
 		return -1;
 	}
 
-	/* Attach programs to TLS sockmap */
-	if (txmsg_ktls_skb) {
-		if (!txmsg_omit_skb_parser) {
-			links[2] = bpf_program__attach_sockmap(progs[0], map_fd[8]);
-			if (!links[2]) {
-				fprintf(stderr,
-					"ERROR: bpf_program__attach_sockmap (TLS sockmap %i->%i): (%s)\n",
-					bpf_program__fd(progs[0]), map_fd[8], strerror(errno));
-				return -1;
-			}
-		}
-
-		links[3] = bpf_program__attach_sockmap(progs[2], map_fd[8]);
-		if (!links[3]) {
-			fprintf(stderr, "ERROR: bpf_program__attach_sockmap (TLS sockmap): (%s)\n",
-				strerror(errno));
-			return -1;
-		}
-	}
-
 	/* Attach to cgroups */
-	err = bpf_prog_attach(bpf_program__fd(progs[3]), cg_fd, BPF_CGROUP_SOCK_OPS, 0);
+	err = bpf_prog_attach(bpf_program__fd(progs[2]), cg_fd, BPF_CGROUP_SOCK_OPS, 0);
 	if (err) {
 		fprintf(stderr, "ERROR: bpf_prog_attach (groups): %d (%s)\n",
 			err, strerror(errno));
@@ -1110,15 +983,15 @@ run:
 
 	/* Attach txmsg program to sockmap */
 	if (txmsg_pass)
-		tx_prog = progs[4];
+		tx_prog = progs[3];
 	else if (txmsg_redir)
-		tx_prog = progs[5];
+		tx_prog = progs[4];
 	else if (txmsg_apply)
-		tx_prog = progs[6];
+		tx_prog = progs[5];
 	else if (txmsg_cork)
-		tx_prog = progs[7];
+		tx_prog = progs[6];
 	else if (txmsg_drop)
-		tx_prog = progs[8];
+		tx_prog = progs[7];
 	else
 		tx_prog = NULL;
 
@@ -1291,34 +1164,6 @@ run:
 			}
 		}
 
-		if (txmsg_ktls_skb) {
-			int ingress = BPF_F_INGRESS;
-
-			i = 0;
-			err = bpf_map_update_elem(map_fd[8], &i, &p2, BPF_ANY);
-			if (err) {
-				fprintf(stderr,
-					"ERROR: bpf_map_update_elem (c1 sockmap): %d (%s)\n",
-					err, strerror(errno));
-			}
-
-			if (txmsg_ktls_skb_redir) {
-				i = 1;
-				err = bpf_map_update_elem(map_fd[7],
-							  &i, &ingress, BPF_ANY);
-				if (err) {
-					fprintf(stderr,
-						"ERROR: bpf_map_update_elem (txmsg_ingress): %d (%s)\n",
-						err, strerror(errno));
-				}
-			}
-
-			if (txmsg_ktls_skb_drop) {
-				i = 1;
-				err = bpf_map_update_elem(map_fd[7], &i, &i, BPF_ANY);
-			}
-		}
-
 		if (txmsg_redir_skb) {
 			int skb_fd = (test == SENDMSG || test == SENDPAGE) ?
 					p2 : p1;
@@ -1373,7 +1218,7 @@ run:
 		fprintf(stderr, "unknown test\n");
 out:
 	/* Detach and zero all the maps */
-	bpf_prog_detach2(bpf_program__fd(progs[3]), cg_fd, BPF_CGROUP_SOCK_OPS);
+	bpf_prog_detach2(bpf_program__fd(progs[2]), cg_fd, BPF_CGROUP_SOCK_OPS);
 
 	for (i = 0; i < ARRAY_SIZE(links); i++) {
 		if (links[i])
@@ -1457,10 +1302,6 @@ static void test_options(char *options)
 		append_str(options, "ingress,", OPTSTRING);
 	if (txmsg_redir_skb)
 		append_str(options, "redir_skb,", OPTSTRING);
-	if (txmsg_ktls_skb)
-		append_str(options, "ktls_skb,", OPTSTRING);
-	if (ktls)
-		append_str(options, "ktls,", OPTSTRING);
 	if (peek_flag)
 		append_str(options, "peek,", OPTSTRING);
 }
@@ -1600,57 +1441,6 @@ static void test_txmsg_ingress_redir(int cgrp, struct sockmap_options *opt)
 	txmsg_pass = txmsg_drop = 0;
 	txmsg_ingress = txmsg_redir = 1;
 	test_send(opt, cgrp);
-}
-
-static void test_txmsg_skb(int cgrp, struct sockmap_options *opt)
-{
-	bool data = opt->data_test;
-	int k = ktls;
-
-	opt->data_test = true;
-	ktls = 1;
-
-	txmsg_pass = txmsg_drop = 0;
-	txmsg_ingress = txmsg_redir = 0;
-	txmsg_ktls_skb = 1;
-	txmsg_pass = 1;
-
-	/* Using data verification so ensure iov layout is
-	 * expected from test receiver side. e.g. has enough
-	 * bytes to write test code.
-	 */
-	opt->iov_length = 100;
-	opt->iov_count = 1;
-	opt->rate = 1;
-	test_exec(cgrp, opt);
-
-	txmsg_ktls_skb_drop = 1;
-	test_exec(cgrp, opt);
-
-	txmsg_ktls_skb_drop = 0;
-	txmsg_ktls_skb_redir = 1;
-	test_exec(cgrp, opt);
-	txmsg_ktls_skb_redir = 0;
-
-	/* Tests that omit skb_parser */
-	txmsg_omit_skb_parser = 1;
-	ktls = 0;
-	txmsg_ktls_skb = 0;
-	test_exec(cgrp, opt);
-
-	txmsg_ktls_skb_drop = 1;
-	test_exec(cgrp, opt);
-	txmsg_ktls_skb_drop = 0;
-
-	txmsg_ktls_skb_redir = 1;
-	test_exec(cgrp, opt);
-
-	ktls = 1;
-	test_exec(cgrp, opt);
-	txmsg_omit_skb_parser = 0;
-
-	opt->data_test = data;
-	ktls = k;
 }
 
 /* Test cork with hung data. This tests poor usage patterns where
@@ -1908,8 +1698,6 @@ static void test_txmsg_ingress_parser(int cgrp, struct sockmap_options *opt)
 {
 	txmsg_pass = 1;
 	skb_use_parser = 512;
-	if (ktls == 1)
-		skb_use_parser = 570;
 	opt->iov_length = 256;
 	opt->iov_count = 1;
 	opt->rate = 2;
@@ -1918,8 +1706,6 @@ static void test_txmsg_ingress_parser(int cgrp, struct sockmap_options *opt)
 
 static void test_txmsg_ingress_parser2(int cgrp, struct sockmap_options *opt)
 {
-	if (ktls == 1)
-		return;
 	skb_use_parser = 10;
 	opt->iov_length = 20;
 	opt->iov_count = 1;
@@ -1938,7 +1724,6 @@ char *map_names[] = {
 	"sock_bytes",
 	"sock_redir_flags",
 	"sock_skb_opts",
-	"tls_sock_map",
 };
 
 static int populate_progs(char *bpf_file)
@@ -1988,7 +1773,6 @@ struct _test test[] = {
 	{"txmsg test redirect wait send mem", test_txmsg_redir_wait_sndmem},
 	{"txmsg test drop", test_txmsg_drop},
 	{"txmsg test ingress redirect", test_txmsg_ingress_redir},
-	{"txmsg test skb", test_txmsg_skb},
 	{"txmsg test apply", test_txmsg_apply},
 	{"txmsg test cork", test_txmsg_cork},
 	{"txmsg test hanging corks", test_txmsg_cork_hangs},
@@ -2085,20 +1869,10 @@ static void test_selftests_sockhash(int cg_fd, struct sockmap_options *opt)
 	__test_selftests(cg_fd, opt);
 }
 
-static void test_selftests_ktls(int cg_fd, struct sockmap_options *opt)
-{
-	opt->map = BPF_SOCKHASH_FILENAME;
-	opt->prepend = "ktls";
-	ktls = 1;
-	__test_selftests(cg_fd, opt);
-	ktls = 0;
-}
-
 static int test_selftest(int cg_fd, struct sockmap_options *opt)
 {
 	test_selftests_sockmap(cg_fd, opt);
 	test_selftests_sockhash(cg_fd, opt);
-	test_selftests_ktls(cg_fd, opt);
 	test_print_results();
 	return 0;
 }

@@ -2929,20 +2929,14 @@ static int rt5682_probe(struct snd_soc_component *component)
 {
 	struct rt5682_priv *rt5682 = snd_soc_component_get_drvdata(component);
 	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
-	struct sdw_slave *slave;
-	unsigned long time;
+	int ret;
 
 	rt5682->component = component;
 
 	if (rt5682->is_sdw) {
-		slave = rt5682->slave;
-		time = wait_for_completion_timeout(
-			&slave->initialization_complete,
-			msecs_to_jiffies(RT5682_PROBE_TIMEOUT));
-		if (!time) {
-			dev_err(&slave->dev, "Initialization not complete, timed out\n");
-			return -ETIMEDOUT;
-		}
+		ret = sdw_slave_wait_for_init(rt5682->slave, RT5682_PROBE_TIMEOUT);
+		if (ret)
+			return ret;
 	}
 
 	snd_soc_dapm_disable_pin(dapm, "MICBIAS");

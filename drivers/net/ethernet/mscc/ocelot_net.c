@@ -984,7 +984,7 @@ static bool ocelot_netdevice_dev_check(const struct net_device *dev)
 	return dev->netdev_ops == &ocelot_port_netdev_ops;
 }
 
-int ocelot_netdev_to_port(struct net_device *dev)
+int ocelot_netdev_to_port(struct ocelot *ocelot, struct net_device *dev)
 {
 	struct ocelot_port_private *priv;
 
@@ -992,6 +992,8 @@ int ocelot_netdev_to_port(struct net_device *dev)
 		return -EINVAL;
 
 	priv = netdev_priv(dev);
+	if (priv->port.ocelot != ocelot)
+		return -EINVAL;
 
 	return priv->port.index;
 }

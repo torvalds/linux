@@ -123,12 +123,12 @@ bool dcn30_smu_test_message(struct clk_mgr_internal *clk_mgr, uint32_t input)
 	return false;
 }
 
-bool dcn30_smu_get_smu_version(struct clk_mgr_internal *clk_mgr, unsigned int *version)
+bool dcn30_smu_get_smu_version(struct clk_mgr_internal *clk_mgr, int *version)
 {
 	smu_print("SMU Get SMU version\n");
 
 	if (dcn30_smu_send_msg_with_param(clk_mgr,
-			DALSMC_MSG_GetSmuVersion, 0, version)) {
+			DALSMC_MSG_GetSmuVersion, 0, (uint32_t *)version)) {
 
 		smu_print("SMU version: %d\n", *version);
 

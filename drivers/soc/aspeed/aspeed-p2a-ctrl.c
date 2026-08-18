@@ -416,6 +416,7 @@ static const struct of_device_id aspeed_p2a_ctrl_match[] = {
 	  .data = &ast2500_model_data },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, aspeed_p2a_ctrl_match);
 
 static struct platform_driver aspeed_p2a_ctrl_driver = {
 	.driver = {
@@ -428,7 +429,6 @@ static struct platform_driver aspeed_p2a_ctrl_driver = {
 
 module_platform_driver(aspeed_p2a_ctrl_driver);
 
-MODULE_DEVICE_TABLE(of, aspeed_p2a_ctrl_match);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Patrick Venture <venture@google.com>");
 MODULE_DESCRIPTION("Control for aspeed 2400/2500 P2A VGA HOST to BMC mappings");

@@ -37,7 +37,7 @@ void (*mce_threshold_vector)(void) = default_threshold_interrupt;
 DEFINE_IDTENTRY_SYSVEC(sysvec_threshold)
 {
 	trace_threshold_apic_entry(THRESHOLD_APIC_VECTOR);
-	inc_irq_stat(irq_threshold_count);
+	inc_irq_stat(THRESHOLD_APIC);
 	mce_threshold_vector();
 	trace_threshold_apic_exit(THRESHOLD_APIC_VECTOR);
 	apic_eoi();

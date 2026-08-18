@@ -321,7 +321,7 @@ config SERIAL_MAX3100
 
 config SERIAL_MAX310X
 	tristate "MAX310X support"
-	depends on SPI_MASTER
+	depends on (SPI_MASTER && !I2C) || I2C
 	select SERIAL_CORE
 	select REGMAP_SPI if SPI_MASTER
 	select REGMAP_I2C if I2C
@@ -913,13 +913,13 @@ config SERIAL_MSM_CONSOLE
 	select SERIAL_EARLYCON
 
 config SERIAL_QCOM_GENI
-	tristate "QCOM on-chip GENI based serial port support"
+	tristate "Qualcomm on-chip GENI based serial port support"
 	depends on ARCH_QCOM || COMPILE_TEST
 	depends on QCOM_GENI_SE
 	select SERIAL_CORE
 
 config SERIAL_QCOM_GENI_CONSOLE
-	bool "QCOM GENI Serial Console support"
+	bool "Qualcomm GENI Serial Console support"
 	depends on SERIAL_QCOM_GENI
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_EARLYCON

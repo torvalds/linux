@@ -94,7 +94,7 @@ void bio_integrity_prep(struct bio *bio, unsigned int action)
 	bio_integrity_init(bio, &bid->bip, &bid->bvec, 1);
 	bid->bio = bio;
 	bid->bip.bip_flags |= BIP_BLOCK_INTEGRITY;
-	bio_integrity_alloc_buf(bio, action & BI_ACT_ZERO);
+	bio_integrity_alloc_buf(bio, GFP_NOIO, action & BI_ACT_ZERO);
 	if (action & BI_ACT_CHECK)
 		bio_integrity_setup_default(bio);
 

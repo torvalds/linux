@@ -404,6 +404,7 @@ amdv1pt_iommu_fmt_hw_info(struct pt_iommu_amdv1 *table,
 static const struct pt_iommu_amdv1_cfg amdv1_kunit_fmt_cfgs[] = {
 	/* Matches what io_pgtable does */
 	[0] = { .starting_level = 2 },
+	[1] = { .starting_level = 2, .common.hw_max_vasz_lg2 = 32 },
 };
 #define kunit_fmt_cfgs amdv1_kunit_fmt_cfgs
 enum { KUNIT_FMT_FEATURES = 0 };

@@ -1,0 +1,4 @@
+bench_transmute_ref_dynamic_size:
+	mov rax, rdi
+	lea rdx, [rsi + 1]
+	ret

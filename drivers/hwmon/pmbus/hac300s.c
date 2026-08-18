@@ -112,8 +112,8 @@ static const struct of_device_id hac300s_of_match[] = {
 MODULE_DEVICE_TABLE(of, hac300s_of_match);
 
 static const struct i2c_device_id hac300s_id[] = {
-	{"hac300s", 0},
-	{}
+	{ .name = "hac300s" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, hac300s_id);
 

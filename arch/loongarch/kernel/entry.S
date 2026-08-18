@@ -67,8 +67,11 @@ SYM_CODE_START(handle_syscall)
 #endif
 
 	move		u0, t0
-	LONG_LI		tp, ~_THREAD_MASK
-	and		tp, tp, sp
+	la_abs		t1, cpu_tasks
+#ifdef CONFIG_SMP
+	LONG_ADD	t1, t1, u0
+#endif
+	LONG_L		tp, t1, 0
 
 	move		a0, sp
 	bl		do_syscall

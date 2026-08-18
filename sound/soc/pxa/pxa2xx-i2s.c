@@ -18,11 +18,11 @@
 #include <sound/pcm.h>
 #include <sound/initval.h>
 #include <sound/soc.h>
-#include <sound/pxa2xx-lib.h>
 #include <sound/dmaengine_pcm.h>
 
 #include <linux/platform_data/asoc-pxa.h>
 
+#include "pxa2xx-lib.h"
 #include "pxa2xx-i2s.h"
 
 /*

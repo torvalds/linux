@@ -750,8 +750,10 @@ static bool decide_dp_link_settings(struct dc_link *link, struct dc_link_setting
 	if (req_bw > dp_link_bandwidth_kbps(link, &link->verified_link_cap))
 		return false;
 
-	if (link->preferred_link_setting.link_rate != LINK_RATE_UNKNOWN)
-		initial_link_setting.link_rate = link->preferred_link_setting.link_rate;
+	if (link->wa_flags.dp_skip_rbr) {
+		initial_link_setting.link_rate = LINK_RATE_HIGH;
+		current_link_setting.link_rate = LINK_RATE_HIGH;
+	}
 
 	/* search for the minimum link setting that:
 	 * 1. is supported according to the link training result
@@ -1353,7 +1355,7 @@ bool dp_overwrite_extended_receiver_cap(struct dc_link *link)
 	union down_stream_port_count down_strm_port_count;
 	union edp_configuration_cap edp_config_cap;
 
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < read_dpcd_retry_cnt; i++) {
 		status = core_link_read_dpcd(
@@ -1713,7 +1715,7 @@ enum dc_status dp_retrieve_lttpr_cap(struct dc_link *link)
 		CONN_DATA_DETECT(link, lttpr_dpcd_data, sizeof(lttpr_dpcd_data), "LTTPR Caps: ");
 
 		// Identify closest LTTPR to determine if workarounds required for known embedded LTTPR
-		closest_lttpr_offset = dp_get_closest_lttpr_offset(lttpr_count);
+		closest_lttpr_offset = dp_get_closest_lttpr_offset((uint8_t)lttpr_count);
 
 		core_link_read_dpcd(link, (DP_LTTPR_IEEE_OUI + closest_lttpr_offset),
 				link->dpcd_caps.lttpr_caps.lttpr_ieee_oui, sizeof(link->dpcd_caps.lttpr_caps.lttpr_ieee_oui));
@@ -1752,7 +1754,7 @@ static bool retrieve_link_cap(struct dc_link *link)
 	union dp_downstream_port_present ds_port = { 0 };
 	enum dc_status status = DC_ERROR_UNEXPECTED;
 	uint32_t read_dpcd_retry_cnt = 20;
-	int i;
+	unsigned int i;
 	struct dp_sink_hw_fw_revision dp_hw_fw_revision;
 	const uint32_t post_oui_delay = 30; // 30ms
 	bool is_fec_supported = false;
@@ -2569,6 +2571,12 @@ bool dp_is_sink_present(struct dc_link *link)
 		((connector_id == CONNECTOR_ID_DISPLAY_PORT) ||
 		(connector_id == CONNECTOR_ID_EDP) ||
 		(connector_id == CONNECTOR_ID_USBC));
+
+	/* We can't perform the step below for ASICs with no Native
+	 * I2C signaling support on DP connectors, so skip it.
+	 */
+	if (link->ctx->dc->config.dp_connector_no_native_i2c && link->no_ddc_pin)
+		return present;
 
 	ddc = get_ddc_pin(link->ddc);
 

@@ -56,6 +56,12 @@ void mgag200_crtc_fill_gamma(struct mga_device *mdev,
 	struct drm_crtc *crtc = &mdev->crtc;
 
 	switch (format->format) {
+	case DRM_FORMAT_C8:
+		drm_crtc_fill_palette_8(crtc, mgag200_set_gamma_lut);
+		break;
+	case DRM_FORMAT_XRGB1555:
+		drm_crtc_fill_gamma_555(crtc, mgag200_set_gamma_lut);
+		break;
 	case DRM_FORMAT_RGB565:
 		drm_crtc_fill_gamma_565(crtc, mgag200_set_gamma_lut);
 		break;
@@ -77,6 +83,12 @@ void mgag200_crtc_load_gamma(struct mga_device *mdev,
 	struct drm_crtc *crtc = &mdev->crtc;
 
 	switch (format->format) {
+	case DRM_FORMAT_C8:
+		drm_crtc_load_palette_8(crtc, lut, mgag200_set_gamma_lut);
+		break;
+	case DRM_FORMAT_XRGB1555:
+		drm_crtc_load_gamma_555_from_888(crtc, lut, mgag200_set_gamma_lut);
+		break;
 	case DRM_FORMAT_RGB565:
 		drm_crtc_load_gamma_565_from_888(crtc, lut, mgag200_set_gamma_lut);
 		break;
@@ -174,6 +186,7 @@ static void mgag200_set_datasiz(struct mga_device *mdev, u32 format)
 
 	/* Big-endian byte-swapping */
 	switch (format) {
+	case DRM_FORMAT_XRGB1555:
 	case DRM_FORMAT_RGB565:
 		opmode |= 0x10100;
 		break;
@@ -298,37 +311,11 @@ void mgag200_set_mode_regs(struct mga_device *mdev, const struct drm_display_mod
 	WREG8(MGA_MISC_OUT, misc);
 }
 
-static u8 mgag200_get_bpp_shift(const struct drm_format_info *format)
-{
-	static const u8 bpp_shift[] = {0, 1, 0, 2};
-
-	return bpp_shift[format->cpp[0] - 1];
-}
-
-/*
- * Calculates the HW offset value from the framebuffer's pitch. The
- * offset is a multiple of the pixel size and depends on the display
- * format.
- */
-static u32 mgag200_calculate_offset(struct mga_device *mdev,
-				    const struct drm_framebuffer *fb)
-{
-	u32 offset = fb->pitches[0] / fb->format->cpp[0];
-	u8 bppshift = mgag200_get_bpp_shift(fb->format);
-
-	if (fb->format->cpp[0] * 8 == 24)
-		offset = (offset * 3) >> (4 - bppshift);
-	else
-		offset = offset >> (4 - bppshift);
-
-	return offset;
-}
-
 static void mgag200_set_offset(struct mga_device *mdev,
 			       const struct drm_framebuffer *fb)
 {
 	u8 crtc13, crtcext0;
-	u32 offset = mgag200_calculate_offset(mdev, fb);
+	u32 offset = fb->pitches[0] / 16;
 
 	RREG_ECRT(0, crtcext0);
 
@@ -343,48 +330,48 @@ static void mgag200_set_offset(struct mga_device *mdev,
 
 void mgag200_set_format_regs(struct mga_device *mdev, const struct drm_format_info *format)
 {
-	struct drm_device *dev = &mdev->base;
-	unsigned int bpp, bppshift, scale;
-	u8 crtcext3, xmulctrl;
-
-	bpp = format->cpp[0] * 8;
-
-	bppshift = mgag200_get_bpp_shift(format);
-	switch (bpp) {
-	case 24:
-		scale = ((1 << bppshift) * 3) - 1;
-		break;
-	default:
-		scale = (1 << bppshift) - 1;
-		break;
-	}
+	u8 xmulctrl = 0;
+	u8 crtcext3;
 
 	RREG_ECRT(3, crtcext3);
 
-	switch (bpp) {
-	case 8:
-		xmulctrl = MGA1064_MUL_CTL_8bits;
+	switch (format->format) {
+	case DRM_FORMAT_C8:
+		crtcext3 &= ~MGAREG_CRTCEXT3_SCALE_MASK;
+		crtcext3 |= 0x0;
 		break;
-	case 16:
-		if (format->depth == 15)
-			xmulctrl = MGA1064_MUL_CTL_15bits;
-		else
-			xmulctrl = MGA1064_MUL_CTL_16bits;
+	case DRM_FORMAT_XRGB1555:
+	case DRM_FORMAT_RGB565:
+		crtcext3 &= ~MGAREG_CRTCEXT3_SCALE_MASK;
+		crtcext3 |= 0x01;
 		break;
-	case 24:
-		xmulctrl = MGA1064_MUL_CTL_24bits;
+	case DRM_FORMAT_RGB888:
+		crtcext3 &= ~MGAREG_CRTCEXT3_SCALE_MASK;
+		crtcext3 |= 0x02;
 		break;
-	case 32:
-		xmulctrl = MGA1064_MUL_CTL_32_24bits;
+	case DRM_FORMAT_XRGB8888:
+		crtcext3 &= ~MGAREG_CRTCEXT3_SCALE_MASK;
+		crtcext3 |= 0x03;
 		break;
-	default:
-		/* BUG: We should have caught this problem already. */
-		drm_WARN_ON(dev, "invalid format depth\n");
-		return;
 	}
 
-	crtcext3 &= ~GENMASK(2, 0);
-	crtcext3 |= scale;
+	switch (format->format) {
+	case DRM_FORMAT_C8:
+		xmulctrl = MGA1064_MUL_CTL_8bits;
+		break;
+	case DRM_FORMAT_XRGB1555:
+		xmulctrl = MGA1064_MUL_CTL_15bits;
+		break;
+	case DRM_FORMAT_RGB565:
+		xmulctrl = MGA1064_MUL_CTL_16bits;
+		break;
+	case DRM_FORMAT_RGB888:
+		xmulctrl = MGA1064_MUL_CTL_24bits;
+		break;
+	case DRM_FORMAT_XRGB8888:
+		xmulctrl = MGA1064_MUL_CTL_32_24bits;
+		break;
+	}
 
 	WREG_DAC(MGA1064_MUL_CTL, xmulctrl);
 
@@ -463,7 +450,9 @@ static void mgag200_handle_damage(struct mga_device *mdev, const struct iosys_ma
 const uint32_t mgag200_primary_plane_formats[] = {
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_RGB565,
+	DRM_FORMAT_XRGB1555,
 	DRM_FORMAT_RGB888,
+	DRM_FORMAT_C8,
 };
 
 const size_t mgag200_primary_plane_formats_size = ARRAY_SIZE(mgag200_primary_plane_formats);
@@ -474,7 +463,7 @@ const uint64_t mgag200_primary_plane_fmtmods[] = {
 };
 
 int mgag200_primary_plane_helper_atomic_check(struct drm_plane *plane,
-					      struct drm_atomic_state *new_state)
+					      struct drm_atomic_commit *new_state)
 {
 	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(new_state, plane);
 	struct drm_framebuffer *new_fb = new_plane_state->fb;
@@ -509,7 +498,7 @@ int mgag200_primary_plane_helper_atomic_check(struct drm_plane *plane,
 }
 
 void mgag200_primary_plane_helper_atomic_update(struct drm_plane *plane,
-						struct drm_atomic_state *old_state)
+						struct drm_atomic_commit *old_state)
 {
 	struct drm_device *dev = plane->dev;
 	struct mga_device *mdev = to_mga_device(dev);
@@ -532,7 +521,7 @@ void mgag200_primary_plane_helper_atomic_update(struct drm_plane *plane,
 }
 
 void mgag200_primary_plane_helper_atomic_enable(struct drm_plane *plane,
-						struct drm_atomic_state *state)
+						struct drm_atomic_commit *state)
 {
 	struct drm_device *dev = plane->dev;
 	struct mga_device *mdev = to_mga_device(dev);
@@ -545,7 +534,7 @@ void mgag200_primary_plane_helper_atomic_enable(struct drm_plane *plane,
 }
 
 void mgag200_primary_plane_helper_atomic_disable(struct drm_plane *plane,
-						 struct drm_atomic_state *old_state)
+						 struct drm_atomic_commit *old_state)
 {
 	struct drm_device *dev = plane->dev;
 	struct mga_device *mdev = to_mga_device(dev);
@@ -608,7 +597,7 @@ enum drm_mode_status mgag200_crtc_helper_mode_valid(struct drm_crtc *crtc,
 	return MODE_OK;
 }
 
-int mgag200_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *new_state)
+int mgag200_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic_commit *new_state)
 {
 	struct drm_device *dev = crtc->dev;
 	struct mga_device *mdev = to_mga_device(dev);
@@ -642,7 +631,7 @@ int mgag200_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic_st
 	return 0;
 }
 
-void mgag200_crtc_helper_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_state *old_state)
+void mgag200_crtc_helper_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_commit *old_state)
 {
 	struct drm_crtc_state *crtc_state = crtc->state;
 	struct mgag200_crtc_state *mgag200_crtc_state = to_mgag200_crtc_state(crtc_state);
@@ -659,7 +648,7 @@ void mgag200_crtc_helper_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_s
 	}
 }
 
-void mgag200_crtc_helper_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_state *old_state)
+void mgag200_crtc_helper_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_commit *old_state)
 {
 	struct drm_device *dev = crtc->dev;
 	struct mga_device *mdev = to_mga_device(dev);
@@ -683,7 +672,7 @@ void mgag200_crtc_helper_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_
 	mgag200_enable_display(mdev);
 }
 
-void mgag200_crtc_helper_atomic_disable(struct drm_crtc *crtc, struct drm_atomic_state *old_state)
+void mgag200_crtc_helper_atomic_disable(struct drm_crtc *crtc, struct drm_atomic_commit *old_state)
 {
 	struct mga_device *mdev = to_mga_device(crtc->dev);
 
@@ -738,7 +727,7 @@ void mgag200_crtc_atomic_destroy_state(struct drm_crtc *crtc, struct drm_crtc_st
  * Mode config
  */
 
-static void mgag200_mode_config_helper_atomic_commit_tail(struct drm_atomic_state *state)
+static void mgag200_mode_config_helper_atomic_commit_tail(struct drm_atomic_commit *state)
 {
 	struct mga_device *mdev = to_mga_device(state->dev);
 

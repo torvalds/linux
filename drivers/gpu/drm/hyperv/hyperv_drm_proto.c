@@ -10,7 +10,7 @@
 
 #include "hyperv_drm.h"
 
-#define VMBUS_RING_BUFSIZE (256 * 1024)
+#define VMBUS_RING_BUFSIZE VMBUS_RING_SIZE(256 * 1024)
 #define VMBUS_VSP_TIMEOUT (10 * HZ)
 
 #define SYNTHVID_VERSION(major, minor) ((minor) << 16 | (major))

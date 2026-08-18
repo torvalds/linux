@@ -322,7 +322,7 @@ int fixup_exception(struct pt_regs *regs, int trapnr, unsigned long error_code,
 
 	type = FIELD_GET(EX_DATA_TYPE_MASK, e->data);
 	reg  = FIELD_GET(EX_DATA_REG_MASK,  e->data);
-	imm  = FIELD_GET(EX_DATA_IMM_MASK,  e->data);
+	imm  = FIELD_GET_SIGNED(EX_DATA_IMM_MASK, e->data);
 
 	switch (type) {
 	case EX_TYPE_DEFAULT:

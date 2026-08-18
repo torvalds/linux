@@ -112,10 +112,10 @@ struct xsphy_instance {
 struct mtk_xsphy {
 	struct device *dev;
 	void __iomem *glb_base;	/* only shared u3 sif */
-	struct xsphy_instance **phys;
-	int nphys;
 	int src_ref_clk; /* MHZ, reference clock for slew rate calibrate */
 	int src_coef;    /* coefficient for slew rate calibrate */
+	int nphys;
+	struct xsphy_instance *phys[] __counted_by(nphys);
 };
 
 static void u2_phy_slew_rate_calibrate(struct mtk_xsphy *xsphy,
@@ -515,18 +515,15 @@ static int mtk_xsphy_probe(struct platform_device *pdev)
 	struct resource *glb_res;
 	struct mtk_xsphy *xsphy;
 	struct resource res;
+	size_t nphys;
 	int port;
 
-	xsphy = devm_kzalloc(dev, sizeof(*xsphy), GFP_KERNEL);
+	nphys = of_get_child_count(np);
+	xsphy = devm_kzalloc(dev, struct_size(xsphy, phys, nphys), GFP_KERNEL);
 	if (!xsphy)
 		return -ENOMEM;
 
-	xsphy->nphys = of_get_child_count(np);
-	xsphy->phys = devm_kcalloc(dev, xsphy->nphys,
-				       sizeof(*xsphy->phys), GFP_KERNEL);
-	if (!xsphy->phys)
-		return -ENOMEM;
-
+	xsphy->nphys = nphys;
 	xsphy->dev = dev;
 	platform_set_drvdata(pdev, xsphy);
 

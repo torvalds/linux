@@ -1254,10 +1254,10 @@ static SIMPLE_DEV_PM_OPS(sbs_pm_ops, sbs_suspend, NULL);
 #endif
 
 static const struct i2c_device_id sbs_id[] = {
-	{ "bq20z65", SBS_FLAGS_TI_BQ20ZX5 },
-	{ "bq20z75", SBS_FLAGS_TI_BQ20ZX5 },
-	{ "sbs-battery", 0 },
-	{}
+	{ .name = "bq20z65", .driver_data = SBS_FLAGS_TI_BQ20ZX5 },
+	{ .name = "bq20z75", .driver_data = SBS_FLAGS_TI_BQ20ZX5 },
+	{ .name = "sbs-battery", .driver_data = 0 },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, sbs_id);
 

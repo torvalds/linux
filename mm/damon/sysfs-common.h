@@ -1,8 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Common Code for DAMON Sysfs Interface
- *
- * Author: SeongJae Park <sj@kernel.org>
  */
 
 #include <linux/damon.h>
@@ -59,3 +57,5 @@ int damos_sysfs_set_quota_scores(struct damon_sysfs_schemes *sysfs_schemes,
 void damos_sysfs_update_effective_quotas(
 		struct damon_sysfs_schemes *sysfs_schemes,
 		struct damon_ctx *ctx);
+
+int damon_sysfs_memcg_path_to_id(char *memcg_path, u64 *id);

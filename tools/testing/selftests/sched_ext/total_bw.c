@@ -100,6 +100,98 @@ static int read_total_bw_values(long *bw_values, int max_cpus)
 	return cpu_count;
 }
 
+/*
+ * Read a per-CPU dl_server param (runtime or period) from debugfs.
+ * Returns the value in nanoseconds, or -1 on failure.
+ */
+static long read_server_param(const char *server, const char *param, int cpu)
+{
+	char path[128];
+	long value = -1;
+	FILE *fp;
+
+	snprintf(path, sizeof(path),
+		 "/sys/kernel/debug/sched/%s_server/cpu%d/%s",
+		 server, cpu, param);
+	fp = fopen(path, "r");
+	if (!fp)
+		return -1;
+	if (fscanf(fp, "%ld", &value) != 1)
+		value = -1;
+	fclose(fp);
+
+	return value;
+}
+
+/*
+ * Write a per-CPU dl_server param to debugfs. Returns 0 on success.
+ */
+static int write_server_param(const char *server, const char *param,
+			      int cpu, long value)
+{
+	char path[128];
+	FILE *fp;
+	int ret = 0;
+
+	snprintf(path, sizeof(path),
+		 "/sys/kernel/debug/sched/%s_server/cpu%d/%s",
+		 server, cpu, param);
+	fp = fopen(path, "w");
+	if (!fp)
+		return -1;
+	if (fprintf(fp, "%ld", value) < 0)
+		ret = -1;
+	if (fclose(fp) != 0)
+		ret = -1;
+
+	return ret;
+}
+
+static int read_fair_runtime_all(int nr_cpus, long *runtimes)
+{
+	int i;
+
+	for (i = 0; i < nr_cpus; i++) {
+		runtimes[i] = read_server_param("fair", "runtime", i);
+		if (runtimes[i] <= 0)
+			return -1;
+	}
+
+	return 0;
+}
+
+static int write_fair_runtime_all(int nr_cpus, long value)
+{
+	int i;
+
+	for (i = 0; i < nr_cpus; i++) {
+		if (write_server_param("fair", "runtime", i, value) < 0) {
+			SCX_ERR("Failed to write fair_server runtime on CPU %d", i);
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+/*
+ * Restore per-CPU fair_server runtimes.
+ */
+static int restore_fair_runtime_all(int nr_cpus, const long *runtimes)
+{
+	int ret = 0;
+	int i;
+
+	for (i = 0; i < nr_cpus; i++) {
+		if (write_server_param("fair", "runtime", i, runtimes[i]) < 0) {
+			SCX_ERR("Failed to restore fair_server runtime on CPU %d", i);
+			ret = -1;
+		}
+	}
+
+	return ret;
+}
+
 static bool verify_total_bw_consistency(long *bw_values, int count)
 {
 	int i;
@@ -217,6 +309,9 @@ static enum scx_test_status run(void *ctx)
 	struct bpf_link *link;
 	long loaded_bw[MAX_CPUS];
 	long unloaded_bw[MAX_CPUS];
+	long doubled_bw[MAX_CPUS];
+	long original_runtime[MAX_CPUS], doubled_runtime;
+	enum scx_test_status ret;
 	int i;
 
 	/* Test scenario 2: BPF program loaded */
@@ -257,7 +352,111 @@ static enum scx_test_status run(void *ctx)
 	}
 
 	fprintf(stderr, "All total_bw values are consistent across all scenarios\n");
-	return SCX_TEST_PASS;
+
+	/*
+	 * Validate auto-register/unregister of dl_server bandwidth reservations.
+	 *
+	 * Doubling fair_server's runtime doubles its bw contribution. With a
+	 * full-mode BPF scheduler (minimal_ops), the kernel should detach
+	 * fair_server and attach ext_server, dropping total_bw back to its
+	 * pre-customization (default ext_server-only) value. On unload, the
+	 * fair_server reservation should come back with its customized runtime
+	 * preserved, so total_bw doubles again.
+	 */
+	if (read_fair_runtime_all(test_ctx->nr_cpus, original_runtime) < 0) {
+		fprintf(stderr, "Skipping attach/detach validation: debugfs not accessible\n");
+		return SCX_TEST_PASS;
+	}
+	doubled_runtime = original_runtime[0] * 2;
+
+	fprintf(stderr,
+		"Setting fair_server runtime to %ld ns on all CPUs (orig %ld)\n",
+		doubled_runtime, original_runtime[0]);
+
+	if (write_fair_runtime_all(test_ctx->nr_cpus, doubled_runtime) < 0) {
+		ret = SCX_TEST_FAIL;
+		goto restore;
+	}
+
+	if (fetch_verify_total_bw(doubled_bw, test_ctx->nr_cpus) < 0) {
+		SCX_ERR("Failed to get stable values after doubling fair runtime");
+		ret = SCX_TEST_FAIL;
+		goto restore;
+	}
+
+	/*
+	 * After doubling the runtime, fair_server's bw contribution must grow.
+	 * We don't assert exactly 2x, because the kernel's to_ratio() truncates
+	 * the value, so 2 * to_ratio(period, runtime) and
+	 * to_ratio(period, 2 * runtime) can differ.
+	 */
+	for (i = 0; i < test_ctx->nr_cpus; i++) {
+		if (doubled_bw[i] <= test_ctx->baseline_bw[i]) {
+			SCX_ERR("CPU%d: fair did not increase total_bw (baseline=%ld, doubled=%ld)",
+				i, test_ctx->baseline_bw[i], doubled_bw[i]);
+			ret = SCX_TEST_FAIL;
+			goto restore;
+		}
+	}
+
+	link = bpf_map__attach_struct_ops(test_ctx->skel->maps.minimal_ops);
+	if (!link) {
+		SCX_ERR("Failed to attach scheduler for detach test");
+		ret = SCX_TEST_FAIL;
+		goto restore;
+	}
+
+	if (fetch_verify_total_bw(loaded_bw, test_ctx->nr_cpus) < 0) {
+		SCX_ERR("Failed to get stable values with BPF loaded (detach test)");
+		bpf_link__destroy(link);
+		ret = SCX_TEST_FAIL;
+		goto restore;
+	}
+
+	/*
+	 * In full mode the customized fair_server is detached and ext_server is
+	 * attached at its default runtime, total_bw must match baseline.
+	 */
+	for (i = 0; i < test_ctx->nr_cpus; i++) {
+		if (loaded_bw[i] != test_ctx->baseline_bw[i]) {
+			SCX_ERR("CPU%d: expected bw %ld (fair detached, ext default), got %ld",
+				i, test_ctx->baseline_bw[i], loaded_bw[i]);
+			bpf_link__destroy(link);
+			ret = SCX_TEST_FAIL;
+			goto restore;
+		}
+	}
+
+	bpf_link__destroy(link);
+
+	if (fetch_verify_total_bw(unloaded_bw, test_ctx->nr_cpus) < 0) {
+		SCX_ERR("Failed to get stable values after BPF unload (detach test)");
+		ret = SCX_TEST_FAIL;
+		goto restore;
+	}
+
+	/*
+	 * After unload, fair_server is re-attached with its preserved 2x
+	 * runtime, so total_bw should return to the doubled value.
+	 */
+	for (i = 0; i < test_ctx->nr_cpus; i++) {
+		if (unloaded_bw[i] != doubled_bw[i]) {
+			SCX_ERR("CPU%d: BPF unloaded: expected %ld (fair restored at 2x), got %ld",
+				i, doubled_bw[i], unloaded_bw[i]);
+			ret = SCX_TEST_FAIL;
+			goto restore;
+		}
+	}
+
+	fprintf(stderr,
+		"dl_server attach/detach with customized fair runtime verified\n");
+	ret = SCX_TEST_PASS;
+
+restore:
+	if (restore_fair_runtime_all(test_ctx->nr_cpus, original_runtime) < 0)
+		SCX_ERR("Failed to fully restore per-CPU fair_server runtimes");
+
+	return ret;
 }
 
 static void cleanup(void *ctx)

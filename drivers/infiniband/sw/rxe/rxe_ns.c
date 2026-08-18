@@ -47,7 +47,7 @@ static void rxe_ns_exit(struct net *net)
 	rcu_read_unlock();
 	if (sk) {
 		rcu_assign_pointer(ns_sk->rxe_sk4, NULL);
-		udp_tunnel_sock_release(sk->sk_socket);
+		udp_tunnel_sock_release(sk);
 	}
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -56,7 +56,7 @@ static void rxe_ns_exit(struct net *net)
 	rcu_read_unlock();
 	if (sk) {
 		rcu_assign_pointer(ns_sk->rxe_sk6, NULL);
-		udp_tunnel_sock_release(sk->sk_socket);
+		udp_tunnel_sock_release(sk);
 	}
 #endif
 }

@@ -9,12 +9,7 @@
  * Copyright (C) 2026 Cheng-Yang Chou <yphbchou0911@gmail.com>
  */
 
-#include <vmlinux.h>
-#include <bpf/bpf_helpers.h>
-#include <bpf/bpf_tracing.h>
-
-/* SCX kfunc from scx_kfunc_ids_any set */
-void scx_bpf_kick_cpu(s32 cpu, u64 flags) __ksym;
+#include <scx/common.bpf.h>
 
 SEC("struct_ops/ssthresh")
 __u32 BPF_PROG(tcp_ca_ssthresh, struct sock *sk)

@@ -8,6 +8,7 @@
 
 #include <linux/module.h>
 #include <linux/perf_event.h>
+#include <linux/sysfs.h>
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s_64.h>
 
@@ -26,7 +27,7 @@ static ssize_t vpa_pmu_events_sysfs_show(struct device *dev,
 
 	pmu_attr = container_of(attr, struct perf_pmu_events_attr, attr);
 
-	return sprintf(page, "event=0x%02llx\n", pmu_attr->id);
+	return sysfs_emit(page, "event=0x%02llx\n", pmu_attr->id);
 }
 
 #define VPA_PMU_EVENT_ATTR(_name, _id)				\

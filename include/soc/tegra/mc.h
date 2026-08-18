@@ -164,7 +164,7 @@ struct tegra_mc_ops {
 	 */
 	int (*probe)(struct tegra_mc *mc);
 	void (*remove)(struct tegra_mc *mc);
-	int (*resume)(struct tegra_mc *mc);
+	void (*resume)(struct tegra_mc *mc);
 	int (*probe_device)(struct tegra_mc *mc, struct device *dev);
 };
 

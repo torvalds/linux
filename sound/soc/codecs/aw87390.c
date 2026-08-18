@@ -599,8 +599,8 @@ static const struct of_device_id aw87390_of_match[] = {
 MODULE_DEVICE_TABLE(of, aw87390_of_match);
 
 static const struct i2c_device_id aw87390_i2c_id[] = {
-	{ AW87390_I2C_NAME },
-	{ AW87391_I2C_NAME },
+	{ .name = AW87390_I2C_NAME },
+	{ .name = AW87391_I2C_NAME },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, aw87390_i2c_id);

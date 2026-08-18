@@ -23,7 +23,7 @@
 #include <linux/module.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/mdio.h>
 #include <linux/u64_stats_sync.h>
 #include <linux/irqreturn.h>
 #include <linux/iopoll.h>

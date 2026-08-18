@@ -9,17 +9,12 @@
 #include "display/intel_crtc.h"
 #include "display/intel_display_types.h"
 #include "display/intel_fb.h"
-#include "display/intel_fbdev_fb.h"
 #include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_region.h"
 
+#include "i915_bo.h"
 #include "i915_drv.h"
 #include "i915_initial_plane.h"
-
-static void i915_initial_plane_vblank_wait(struct drm_crtc *crtc)
-{
-	intel_crtc_wait_for_next_vblank(to_intel_crtc(crtc));
-}
 
 static enum intel_memory_type
 initial_plane_memory_type(struct drm_i915_private *i915)
@@ -34,14 +29,14 @@ initial_plane_memory_type(struct drm_i915_private *i915)
 
 static bool
 initial_plane_phys(struct drm_i915_private *i915,
-		   struct intel_initial_plane_config *plane_config)
+		   u32 base, resource_size_t *out_phys_base,
+		   struct intel_memory_region **out_mem)
 {
 	struct i915_ggtt *ggtt = to_gt(i915)->ggtt;
 	struct intel_memory_region *mem;
 	enum intel_memory_type mem_type;
 	bool is_present, is_local;
 	dma_addr_t dma_addr;
-	u32 base;
 
 	mem_type = initial_plane_memory_type(i915);
 	mem = intel_memory_region_by_type(i915, mem_type);
@@ -52,7 +47,7 @@ initial_plane_phys(struct drm_i915_private *i915,
 		return false;
 	}
 
-	base = round_down(plane_config->base, I915_GTT_MIN_ALIGNMENT);
+	base = round_down(base, I915_GTT_MIN_ALIGNMENT);
 
 	dma_addr = intel_ggtt_read_entry(&ggtt->vm, base, &is_present, &is_local);
 
@@ -77,8 +72,8 @@ initial_plane_phys(struct drm_i915_private *i915,
 	drm_dbg(&i915->drm, "Using dma_addr=%pa, based on initial plane programming\n",
 		&dma_addr);
 
-	plane_config->phys_base = dma_addr - mem->region.start;
-	plane_config->mem = mem;
+	*out_phys_base = dma_addr - mem->region.start;
+	*out_mem = mem;
 
 	return true;
 }
@@ -99,11 +94,8 @@ initial_plane_vma(struct drm_i915_private *i915,
 	if (plane_config->size == 0)
 		return NULL;
 
-	if (!initial_plane_phys(i915, plane_config))
+	if (!initial_plane_phys(i915, plane_config->base, &phys_base, &mem))
 		return NULL;
-
-	phys_base = plane_config->phys_base;
-	mem = plane_config->mem;
 
 	base = round_down(plane_config->base, I915_GTT_MIN_ALIGNMENT);
 	size = round_up(plane_config->base + plane_config->size,
@@ -118,7 +110,7 @@ initial_plane_vma(struct drm_i915_private *i915,
 	if (IS_ENABLED(CONFIG_DRM_FBDEV_EMULATION) &&
 	    IS_ENABLED(CONFIG_FRAMEBUFFER_CONSOLE) &&
 	    mem == i915->mm.stolen_region &&
-	    !intel_fbdev_fb_prefer_stolen(&i915->drm, size)) {
+	    !i915_bo_fbdev_prefer_stolen(i915, size)) {
 		drm_dbg_kms(&i915->drm, "Initial FB size exceeds half of stolen, discarding\n");
 		return NULL;
 	}
@@ -140,7 +132,7 @@ initial_plane_vma(struct drm_i915_private *i915,
 	i915_gem_object_set_cache_coherency(obj, HAS_WT(i915) ?
 					    I915_CACHE_WT : I915_CACHE_NONE);
 
-	tiling = intel_fb_modifier_to_tiling(plane_config->fb->base.modifier);
+	tiling = intel_fb_modifier_to_tiling(plane_config->fb->modifier);
 
 	switch (tiling) {
 	case I915_TILING_NONE:
@@ -148,7 +140,7 @@ initial_plane_vma(struct drm_i915_private *i915,
 	case I915_TILING_X:
 	case I915_TILING_Y:
 		obj->tiling_and_stride =
-			plane_config->fb->base.pitches[0] |
+			plane_config->fb->pitches[0] |
 			tiling;
 		break;
 	default:
@@ -226,7 +218,7 @@ i915_alloc_initial_plane_obj(struct drm_device *drm,
 {
 	struct drm_i915_private *i915 = to_i915(drm);
 	struct drm_mode_fb_cmd2 mode_cmd = {};
-	struct drm_framebuffer *fb = &plane_config->fb->base;
+	struct drm_framebuffer *fb = plane_config->fb;
 	struct i915_vma *vma;
 
 	vma = initial_plane_vma(i915, plane_config);
@@ -268,7 +260,7 @@ i915_initial_plane_setup(struct drm_plane_state *_plane_state,
 	plane_state->ggtt_vma = i915_vma_get(vma);
 	if (intel_plane_uses_fence(plane_state) &&
 	    i915_vma_pin_fence(vma) == 0 && vma->fence)
-		plane_state->flags |= PLANE_HAS_FENCE;
+		plane_state->fence_id = vma->fence->id;
 
 	plane_state->surf = i915_ggtt_offset(plane_state->ggtt_vma);
 
@@ -285,7 +277,6 @@ static void i915_plane_config_fini(struct intel_initial_plane_config *plane_conf
 }
 
 const struct intel_display_initial_plane_interface i915_display_initial_plane_interface = {
-	.vblank_wait = i915_initial_plane_vblank_wait,
 	.alloc_obj = i915_alloc_initial_plane_obj,
 	.setup = i915_initial_plane_setup,
 	.config_fini = i915_plane_config_fini,

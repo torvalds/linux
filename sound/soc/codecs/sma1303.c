@@ -7,7 +7,6 @@
 // Auther: Gyuhwa Park <gyuhwa.park@irondevice.com>
 //         Kiseok Jo <kiseok.jo@irondevice.com>
 
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -1782,8 +1781,8 @@ static void sma1303_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id sma1303_i2c_id[] = {
-	{"sma1303"},
-	{}
+	{ .name = "sma1303" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, sma1303_i2c_id);
 

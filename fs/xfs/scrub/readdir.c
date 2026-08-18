@@ -50,7 +50,7 @@ xchk_dir_walk_sf(
 	dapos = xfs_dir2_db_off_to_dataptr(geo, geo->datablk,
 			geo->data_entry_offset);
 
-	error = dirent_fn(sc, dp, dapos, &name, dp->i_ino, priv);
+	error = dirent_fn(sc, dp, dapos, &name, I_INO(dp), priv);
 	if (error)
 		return error;
 
@@ -100,7 +100,7 @@ xchk_dir_walk_block(
 	unsigned int		off, next_off, end;
 	int			error;
 
-	error = xfs_dir3_block_read(sc->tp, dp, dp->i_ino, &bp);
+	error = xfs_dir3_block_read(sc->tp, dp, I_INO(dp), &bp);
 	if (error)
 		return error;
 
@@ -176,7 +176,7 @@ xchk_read_leaf_dir_buf(
 	if (new_off > *curoff)
 		*curoff = new_off;
 
-	return xfs_dir3_data_read(tp, dp, dp->i_ino, map.br_startoff, 0, bpp);
+	return xfs_dir3_data_read(tp, dp, I_INO(dp), map.br_startoff, 0, bpp);
 }
 
 /* Call a function for every entry in a leaf directory. */
@@ -274,7 +274,7 @@ xchk_dir_walk(
 		.dp		= dp,
 		.geo		= dp->i_mount->m_dir_geo,
 		.trans		= sc->tp,
-		.owner		= dp->i_ino,
+		.owner		= I_INO(dp),
 	};
 	int			error;
 
@@ -320,7 +320,7 @@ xchk_dir_lookup(
 		.hashval	= xfs_dir2_hashname(dp->i_mount, name),
 		.whichfork	= XFS_DATA_FORK,
 		.op_flags	= XFS_DA_OP_OKNOENT,
-		.owner		= dp->i_ino,
+		.owner		= I_INO(dp),
 	};
 	int			error;
 
@@ -332,7 +332,7 @@ xchk_dir_lookup(
 	 * set to sc->ip, so we must switch the owner here for the lookup.
 	 */
 	if (dp == sc->tempip)
-		args.owner = sc->ip->i_ino;
+		args.owner = I_INO(sc->ip);
 
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
 	xfs_assert_ilocked(dp, XFS_ILOCK_SHARED | XFS_ILOCK_EXCL);

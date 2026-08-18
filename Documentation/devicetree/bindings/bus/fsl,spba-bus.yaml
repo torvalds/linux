@@ -26,8 +26,10 @@ select:
     compatible:
       contains:
         enum:
+          - fsl,aipi-bus
           - fsl,aips
           - fsl,emi
+          - fsl,emi-bus
           - fsl,spba-bus
   required:
     - compatible
@@ -39,8 +41,10 @@ properties:
   compatible:
     items:
       - enum:
+          - fsl,aipi-bus
           - fsl,aips
           - fsl,emi
+          - fsl,emi-bus
           - fsl,spba-bus
       - const: simple-bus
 

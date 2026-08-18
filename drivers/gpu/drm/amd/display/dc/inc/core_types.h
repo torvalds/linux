@@ -82,6 +82,9 @@ struct resource_funcs {
 	/* Create a minimal link encoder object with no dc_link object
 	 * associated with it. */
 	struct link_encoder *(*link_enc_create_minimal)(struct dc_context *ctx, enum engine_id eng_id);
+	struct hpo_frl_link_encoder *(*hpo_frl_link_enc_create)(
+			enum engine_id eng_id,
+			struct dc_context *ctx);
 	enum dc_status (*validate_bandwidth)(
 					struct dc *dc,
 					struct dc_state *context,
@@ -285,6 +288,10 @@ struct resource_pool {
 	/* Number of USB4 DPIA (DisplayPort Input Adapter) link objects created.*/
 	unsigned int usb4_dpia_count;
 
+	unsigned int hpo_frl_stream_enc_count;
+	struct hpo_frl_stream_encoder *hpo_frl_stream_enc[MAX_HDMI_FRL_ENCODERS];
+	unsigned int hpo_frl_link_enc_count;
+	struct hpo_frl_link_encoder *hpo_frl_link_enc[MAX_HDMI_FRL_ENCODERS];
 	unsigned int hpo_dp_stream_enc_count;
 	struct hpo_dp_stream_encoder *hpo_dp_stream_enc[MAX_HPO_DP2_ENCODERS];
 	unsigned int hpo_dp_link_enc_count;
@@ -351,6 +358,7 @@ struct stream_resource {
 	struct display_stream_compressor *dsc;
 	struct timing_generator *tg;
 	struct stream_encoder *stream_enc;
+	struct hpo_frl_stream_encoder *hpo_frl_stream_enc;
 	struct hpo_dp_stream_encoder *hpo_dp_stream_enc;
 	struct audio *audio;
 
@@ -394,6 +402,7 @@ struct plane_resource {
 struct link_resource {
 	struct link_encoder *dio_link_enc;
 	struct hpo_dp_link_encoder *hpo_dp_link_enc;
+	struct hpo_frl_link_encoder *hpo_frl_link_enc;
 };
 
 struct link_config {
@@ -531,6 +540,9 @@ struct resource_context {
 	struct link_enc_cfg_context link_enc_cfg_ctx;
 	unsigned int dio_link_enc_to_link_idx[MAX_LINK_ENCODERS];
 	int dio_link_enc_ref_cnts[MAX_LINK_ENCODERS];
+	bool is_hpo_frl_stream_enc_acquired[MAX_HDMI_FRL_ENCODERS];
+	unsigned int hpo_frl_link_enc_to_link_idx[MAX_HDMI_FRL_ENCODERS];
+	int hpo_frl_link_enc_ref_cnts[MAX_HDMI_FRL_ENCODERS];
 	bool is_hpo_dp_stream_enc_acquired[MAX_HPO_DP2_ENCODERS];
 	unsigned int hpo_dp_link_enc_to_link_idx[MAX_HPO_DP2_LINK_ENCODERS];
 	int hpo_dp_link_enc_ref_cnts[MAX_HPO_DP2_LINK_ENCODERS];
@@ -707,12 +719,20 @@ struct dc_bounding_box_max_clk {
 	int max_phyclk_mhz;
 };
 
-struct memory_qos {
+struct dc_measured_memory_qos {
 	uint32_t peak_bw_mbps;
 	uint32_t avg_bw_mbps;
 	uint32_t max_latency_ns;
 	uint32_t min_latency_ns;
 	uint32_t avg_latency_ns;
+};
+
+struct dc_requested_memory_qos {
+	uint32_t bandwidth_lb_in_mbps;
+	uint32_t calculated_avg_bw_in_mbps;
+	uint32_t max_latency_ub_in_ns;
+	uint32_t avg_latency_ub_in_ns;
+	uint32_t max_bw_budget_in_mbps;
 };
 
 #endif /* _CORE_TYPES_H_ */

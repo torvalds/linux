@@ -724,6 +724,52 @@ nfsd_file_close_inode_sync(struct inode *inode)
 	nfsd_file_dispose_list(&dispose);
 }
 
+/**
+ * nfsd_file_close_export - close cached file handles for an export
+ * @net: net namespace in which to operate
+ * @path: export path whose cached files should be closed
+ *
+ * Close out GC-managed nfsd_file entries whose underlying file is on
+ * the same filesystem as, and a descendant of, @path.  nfsd_file
+ * entries do not carry an export reference, so the check uses the
+ * file's dentry ancestry.  False positives (closing a cached handle
+ * that did not originate from the target export) are harmless -- the
+ * handle is simply reopened on the next access.
+ *
+ * Called from the NFSD_CMD_UNLOCK_EXPORT handler before revoking
+ * NFSv4 state, to ensure that cached file handles do not hold the
+ * filesystem busy.
+ */
+void nfsd_file_close_export(struct net *net, const struct path *path)
+{
+	struct rhashtable_iter iter;
+	struct nfsd_file *nf;
+	LIST_HEAD(dispose);
+
+	rhltable_walk_enter(&nfsd_file_rhltable, &iter);
+	do {
+		rhashtable_walk_start(&iter);
+
+		nf = rhashtable_walk_next(&iter);
+		while (!IS_ERR_OR_NULL(nf)) {
+			if (nf->nf_net == net &&
+			    test_bit(NFSD_FILE_GC, &nf->nf_flags) &&
+			    nf->nf_file &&
+			    file_inode(nf->nf_file)->i_sb ==
+					path->dentry->d_sb &&
+			    is_subdir(nf->nf_file->f_path.dentry,
+				      path->dentry))
+				nfsd_file_cond_queue(nf, &dispose);
+			nf = rhashtable_walk_next(&iter);
+		}
+
+		rhashtable_walk_stop(&iter);
+	} while (nf == ERR_PTR(-EAGAIN));
+	rhashtable_walk_exit(&iter);
+
+	nfsd_file_dispose_list(&dispose);
+}
+
 static int
 nfsd_file_lease_notifier_call(struct notifier_block *nb, unsigned long arg,
 			    void *data)

@@ -2,16 +2,14 @@
 /*
  * Copyright (C) 2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
- * Copyright (C) 2019-2021, 2023-2025 Intel Corporation
+ * Copyright (C) 2019-2021, 2023-2026 Intel Corporation
  */
 #include <linux/kernel.h>
 #include <linux/bsearch.h>
 #include <linux/list.h>
 
-#include "fw/api/tx.h"
 #include "iwl-trans.h"
 #include "iwl-drv.h"
-#include "iwl-fh.h"
 #include <linux/dmapool.h>
 #include "fw/api/commands.h"
 #include "pcie/gen1_2/internal.h"
@@ -461,6 +459,12 @@ int iwl_trans_read_mem(struct iwl_trans *trans, u32 addr,
 }
 IWL_EXPORT_SYMBOL(iwl_trans_read_mem);
 
+int iwl_trans_read_mem_no_grab(struct iwl_trans *trans, u32 addr,
+			       void *buf, u32 dwords)
+{
+	return iwl_trans_pcie_read_mem_no_grab(trans, addr, buf, dwords);
+}
+
 int iwl_trans_write_mem(struct iwl_trans *trans, u32 addr,
 			const void *buf, int dwords)
 {
@@ -553,6 +557,11 @@ bool iwl_trans_grab_nic_access(struct iwl_trans *trans)
 	return iwl_trans_pcie_grab_nic_access(trans);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_grab_nic_access);
+
+void iwl_trans_resched_with_nic_access(struct iwl_trans *trans)
+{
+	iwl_trans_pcie_resched_with_nic_access(trans);
+}
 
 void __releases(nic_access)
 iwl_trans_release_nic_access(struct iwl_trans *trans)
@@ -822,3 +831,10 @@ bool iwl_trans_is_ltr_enabled(struct iwl_trans *trans)
 	return iwl_pcie_gen1_2_is_ltr_enabled(trans);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_is_ltr_enabled);
+
+int iwl_trans_activate_nic(struct iwl_trans *trans)
+{
+	return iwl_pcie_gen1_2_activate_nic(trans);
+}
+IWL_EXPORT_SYMBOL(iwl_trans_activate_nic);
+

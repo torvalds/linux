@@ -805,6 +805,7 @@ enum {
 #define FBNIC_CSR_END_PCS		0x10668 /* CSR section delimiter */
 
 #define FBNIC_CSR_START_RSFEC		0x10800 /* CSR section delimiter */
+#define FBNIC_RSFEC_CONTROL(n)	(0x10800 + 8 * (n))	/* 0x42000 + 32*n */
 
 /* We have 4 RSFEC engines present in our part, however we are only using 1.
  * As such only CCW(0) and NCCW(0) will never be non-zero and the other

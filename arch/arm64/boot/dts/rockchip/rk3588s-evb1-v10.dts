@@ -457,6 +457,7 @@
 
 &pwm12 {
 	pinctrl-0 = <&pwm12m1_pins>;
+	pinctrl-names = "default";
 	status = "okay";
 };
 

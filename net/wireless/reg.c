@@ -2412,6 +2412,9 @@ static bool reg_wdev_chan_valid(struct wiphy *wiphy, struct wireless_dev *wdev)
 		case NL80211_IFTYPE_NAN_DATA:
 			/* NAN channels are checked in NL80211_IFTYPE_NAN interface */
 			break;
+		case NL80211_IFTYPE_PD:
+			/* we have no info, but PD is also pretty universal */
+			continue;
 		default:
 			/* others not implemented for now */
 			WARN_ON_ONCE(1);

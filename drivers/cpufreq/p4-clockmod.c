@@ -51,24 +51,24 @@ static unsigned int cpufreq_p4_get(unsigned int cpu);
 
 static int cpufreq_p4_setdc(unsigned int cpu, unsigned int newstate)
 {
-	u32 l, h;
+	struct msr val;
 
 	if ((newstate > DC_DISABLE) || (newstate == DC_RESV))
 		return -EINVAL;
 
-	rdmsr_on_cpu(cpu, MSR_IA32_THERM_STATUS, &l, &h);
+	rdmsrq_on_cpu(cpu, MSR_IA32_THERM_STATUS, &val.q);
 
-	if (l & 0x01)
+	if (val.l & 0x01)
 		pr_debug("CPU#%d currently thermal throttled\n", cpu);
 
 	if (has_N44_O17_errata[cpu] &&
 	    (newstate == DC_25PT || newstate == DC_DFLT))
 		newstate = DC_38PT;
 
-	rdmsr_on_cpu(cpu, MSR_IA32_THERM_CONTROL, &l, &h);
+	rdmsrq_on_cpu(cpu, MSR_IA32_THERM_CONTROL, &val.q);
 	if (newstate == DC_DISABLE) {
 		pr_debug("CPU#%d disabling modulation\n", cpu);
-		wrmsr_on_cpu(cpu, MSR_IA32_THERM_CONTROL, l & ~(1<<4), h);
+		wrmsrq_on_cpu(cpu, MSR_IA32_THERM_CONTROL, val.q & ~(1ULL << 4));
 	} else {
 		pr_debug("CPU#%d setting duty cycle to %d%%\n",
 			cpu, ((125 * newstate) / 10));
@@ -77,9 +77,9 @@ static int cpufreq_p4_setdc(unsigned int cpu, unsigned int newstate)
 		 * bits 3-1	: duty cycle
 		 * bit  0	: reserved
 		 */
-		l = (l & ~14);
-		l = l | (1<<4) | ((newstate & 0x7)<<1);
-		wrmsr_on_cpu(cpu, MSR_IA32_THERM_CONTROL, l, h);
+		val.l = (val.l & ~14);
+		val.l = val.l | (1<<4) | ((newstate & 0x7)<<1);
+		wrmsrq_on_cpu(cpu, MSR_IA32_THERM_CONTROL, val.q);
 	}
 
 	return 0;
@@ -205,18 +205,18 @@ static int cpufreq_p4_cpu_init(struct cpufreq_policy *policy)
 
 static unsigned int cpufreq_p4_get(unsigned int cpu)
 {
-	u32 l, h;
+	struct msr val;
 
-	rdmsr_on_cpu(cpu, MSR_IA32_THERM_CONTROL, &l, &h);
+	rdmsrq_on_cpu(cpu, MSR_IA32_THERM_CONTROL, &val.q);
 
-	if (l & 0x10) {
-		l = l >> 1;
-		l &= 0x7;
+	if (val.l & 0x10) {
+		val.l = val.l >> 1;
+		val.l &= 0x7;
 	} else
-		l = DC_DISABLE;
+		val.l = DC_DISABLE;
 
-	if (l != DC_DISABLE)
-		return stock_freq * l / 8;
+	if (val.l != DC_DISABLE)
+		return stock_freq * val.l / 8;
 
 	return stock_freq;
 }

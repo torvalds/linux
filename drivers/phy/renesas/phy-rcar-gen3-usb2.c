@@ -314,13 +314,11 @@ static void rcar_gen3_init_from_a_peri_to_a_host(struct rcar_gen3_chan *ch)
 static bool rcar_gen3_check_id(struct rcar_gen3_chan *ch)
 {
 	if (ch->phy_data->vblvl_ctrl) {
-		bool vbus_valid;
-		bool device;
+		u32 val = readl(ch->base + USB2_ADPCTRL);
+		bool vbus_valid = val & USB2_ADPCTRL_VBUSVALID;
+		bool device = val & USB2_ADPCTRL_IDDIG;
 
-		device = !!(readl(ch->base + USB2_ADPCTRL) & USB2_ADPCTRL_IDDIG);
-		vbus_valid = !!(readl(ch->base + USB2_ADPCTRL) & USB2_ADPCTRL_VBUSVALID);
-
-		return vbus_valid ? device : !device;
+		return device == vbus_valid;
 	}
 
 	if (!ch->uses_otg_pins)

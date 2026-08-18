@@ -49,11 +49,10 @@ int phm_copy_clock_limits_array(
 	const uint32_t *pptable_array,
 	uint32_t power_saving_clock_count)
 {
-	uint32_t array_size, i;
+	uint32_t i;
 	uint32_t *table;
 
-	array_size = sizeof(uint32_t) * power_saving_clock_count;
-	table = kzalloc(array_size, GFP_KERNEL);
+	table = kcalloc(power_saving_clock_count, sizeof(uint32_t), GFP_KERNEL);
 	if (NULL == table)
 		return -ENOMEM;
 
@@ -71,11 +70,10 @@ int phm_copy_overdrive_settings_limits_array(
 	const uint32_t *pptable_array,
 	uint32_t od_setting_count)
 {
-	uint32_t array_size, i;
+	uint32_t i;
 	uint32_t *table;
 
-	array_size = sizeof(uint32_t) * od_setting_count;
-	table = kzalloc(array_size, GFP_KERNEL);
+	table = kcalloc(od_setting_count, sizeof(uint32_t), GFP_KERNEL);
 	if (NULL == table)
 		return -ENOMEM;
 

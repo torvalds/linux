@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2026 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -85,12 +85,13 @@ struct iwl_ltr_config_cmd {
  *		'1' PM could sleep over DTIM till listen Interval.
  * @POWER_FLAGS_SNOOZE_ENA_MSK: Enable snoozing only if uAPSD is enabled and all
  *		access categories are both delivery and trigger enabled.
+ *		(Not supported since version 3)
  * @POWER_FLAGS_BT_SCO_ENA: Enable BT SCO coex only if uAPSD and
  *		PBW Snoozing enabled
  * @POWER_FLAGS_ADVANCE_PM_ENA_MSK: Advanced PM (uAPSD) enable mask
  * @POWER_FLAGS_LPRX_ENA_MSK: Low Power RX enable.
  * @POWER_FLAGS_UAPSD_MISBEHAVING_ENA_MSK: AP/GO's uAPSD misbehaving
- *		detection enablement
+ *		detection enablement (Not supported since version 3)
  * @POWER_FLAGS_ENABLE_SMPS_MSK: SMPS is allowed for this vif
 */
 enum iwl_power_flags {
@@ -175,9 +176,9 @@ struct iwl_device_power_cmd {
 } __packed;
 
 /**
- * struct iwl_mac_power_cmd - New power command containing uAPSD support
+ * struct iwl_mac_power_cmd_v2 - power command V2 containing uAPSD support
  * MAC_PM_POWER_TABLE = 0xA9 (command, has simple generic response)
- * @id_and_color:	MAC contex identifier, &enum iwl_ctxt_id_and_color
+ * @id_and_color:	MAC context identifier, &enum iwl_ctxt_id_and_color
  * @flags:		Power table command flags from POWER_FLAGS_*
  * @keep_alive_seconds:	Keep alive period in seconds. Default - 25 sec.
  *			Minimum allowed:- 3 * DTIM. Keep alive period must be
@@ -216,7 +217,7 @@ struct iwl_device_power_cmd {
  * @limited_ps_threshold: (unused)
  * @reserved: reserved (padding)
  */
-struct iwl_mac_power_cmd {
+struct iwl_mac_power_cmd_v2 {
 	/* CONTEXT_DESC_API_T_VER_1 */
 	__le32 id_and_color;
 
@@ -241,6 +242,43 @@ struct iwl_mac_power_cmd {
 	u8 limited_ps_threshold;
 	u8 reserved;
 } __packed; /* CLIENT_PM_POWER_TABLE_S_VER_1, VER_2 */
+
+/**
+ * struct iwl_mac_power_cmd - power command
+ * MAC_PM_POWER_TABLE = 0xA9 (command, has simple generic response)
+ * @id_and_color:	MAC context identifier, &enum iwl_ctxt_id_and_color
+ * @flags:		Power table command flags from POWER_FLAGS_*
+ * @keep_alive_seconds:	Keep alive period in seconds. Default - 25 sec.
+ *			Minimum allowed:- 3 * DTIM. Keep alive period must be
+ *			set regardless of power scheme or current power state.
+ *			FW use this value also when PM is disabled.
+ * @rx_data_timeout:    Minimum time (usec) from last Rx packet for AM to
+ *			PSM transition - legacy PM
+ * @tx_data_timeout:    Minimum time (usec) from last Tx packet for AM to
+ *			PSM transition - legacy PM
+ * @lprx_rssi_threshold: Signal strength up to which LP RX can be enabled.
+ *			Default: 80dbm
+ * @skip_dtim_periods:	Number of DTIM periods to skip if Skip over DTIM flag
+ *			is set. For example, if it is required to skip over
+ *			one DTIM, this value need to be set to 2 (DTIM periods).
+ * @qndp_tid:		TID client shall use for uAPSD QNDP triggers
+ * @uapsd_ac_flags:	Set trigger-enabled and delivery-enabled indication for
+ *			each corresponding AC.
+ *			Use IEEE80211_WMM_IE_STA_QOSINFO_AC* for correct values.
+ */
+struct iwl_mac_power_cmd {
+	/* CONTEXT_DESC_API_T_VER_1 */
+	__le32 id_and_color;
+
+	__le16 flags;
+	__le16 keep_alive_seconds;
+	__le32 rx_data_timeout;
+	__le32 tx_data_timeout;
+	u8 lprx_rssi_threshold;
+	u8 skip_dtim_periods;
+	u8 qndp_tid;
+	u8 uapsd_ac_flags;
+} __packed; /* CLIENT_PM_POWER_TABLE_S_VER_3 */
 
 /*
  * struct iwl_uapsd_misbehaving_ap_notif - FW sends this notification when

@@ -125,7 +125,6 @@ t_no:
 
 #define cpu_has_bug(c, bit)		cpu_has(c, (bit))
 #define set_cpu_bug(c, bit)		set_cpu_cap(c, (bit))
-#define clear_cpu_bug(c, bit)		clear_cpu_cap(c, (bit))
 
 #define static_cpu_has_bug(bit)		static_cpu_has((bit))
 #define boot_cpu_has_bug(bit)		cpu_has_bug(&boot_cpu_data, (bit))

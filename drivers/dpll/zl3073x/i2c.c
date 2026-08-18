@@ -26,11 +26,11 @@ static int zl3073x_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id zl3073x_i2c_id[] = {
-	{ "zl30731" },
-	{ "zl30732" },
-	{ "zl30733" },
-	{ "zl30734" },
-	{ "zl30735" },
+	{ .name = "zl30731" },
+	{ .name = "zl30732" },
+	{ .name = "zl30733" },
+	{ .name = "zl30734" },
+	{ .name = "zl30735" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, zl3073x_i2c_id);

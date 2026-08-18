@@ -1600,10 +1600,6 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		ret = min(ret, tcrypt_test("ecb(xeta)"));
 		break;
 
-	case 31:
-		ret = min(ret, tcrypt_test("pcbc(fcrypt)"));
-		break;
-
 	case 32:
 		ret = min(ret, tcrypt_test("ecb(camellia)"));
 		ret = min(ret, tcrypt_test("cbc(camellia)"));

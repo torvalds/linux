@@ -60,11 +60,10 @@ static void dp_pr_set_static_screen_param(struct dc_link *link)
 		if (dc->current_state->res_ctx.pipe_ctx[i].stream &&
 			dc->current_state->res_ctx.pipe_ctx[i].stream->link == link) {
 			struct dc_stream_state *stream = dc->current_state->res_ctx.pipe_ctx[i].stream;
-			unsigned int vsync_rate_hz = div64_u64(div64_u64(
-											(stream->timing.pix_clk_100hz * (u64)100),
-											stream->timing.v_total),
-											stream->timing.h_total);
-
+			unsigned int vsync_rate_hz = (unsigned int)div64_u64(div64_u64(
+														(stream->timing.pix_clk_100hz * (u64)100),
+														stream->timing.v_total),
+														stream->timing.h_total);
 			params.triggers.cursor_update = true;
 			params.triggers.overlay_update = true;
 			params.triggers.surface_update = true;
@@ -264,7 +263,7 @@ bool dp_pr_enable(struct dc_link *link, bool enable)
 	cmd.pr_enable.header.type = DMUB_CMD__PR;
 	cmd.pr_enable.header.sub_type = DMUB_CMD__PR_ENABLE;
 	cmd.pr_enable.header.payload_bytes = sizeof(struct dmub_cmd_pr_enable_data);
-	cmd.pr_enable.data.panel_inst = panel_inst;
+	cmd.pr_enable.data.panel_inst = (uint8_t)panel_inst;
 	cmd.pr_enable.data.enable = enable ? 1 : 0;
 	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 
@@ -301,17 +300,17 @@ bool dp_pr_copy_settings(struct dc_link *link, struct replay_context *replay_con
 	cmd.pr_copy_settings.header.type = DMUB_CMD__PR;
 	cmd.pr_copy_settings.header.sub_type = DMUB_CMD__PR_COPY_SETTINGS;
 	cmd.pr_copy_settings.header.payload_bytes = sizeof(struct dmub_cmd_pr_copy_settings_data);
-	cmd.pr_copy_settings.data.panel_inst = panel_inst;
+	cmd.pr_copy_settings.data.panel_inst = (uint8_t)panel_inst;
 	// HW inst
 	cmd.pr_copy_settings.data.aux_inst = replay_context->aux_inst;
 	cmd.pr_copy_settings.data.digbe_inst = replay_context->digbe_inst;
 	cmd.pr_copy_settings.data.digfe_inst = replay_context->digfe_inst;
 	if (pipe_ctx->plane_res.dpp)
-		cmd.pr_copy_settings.data.dpp_inst = pipe_ctx->plane_res.dpp->inst;
+		cmd.pr_copy_settings.data.dpp_inst = (uint8_t)pipe_ctx->plane_res.dpp->inst;
 	else
 		cmd.pr_copy_settings.data.dpp_inst = 0;
 	if (pipe_ctx->stream_res.tg)
-		cmd.pr_copy_settings.data.otg_inst = pipe_ctx->stream_res.tg->inst;
+		cmd.pr_copy_settings.data.otg_inst = (uint8_t)pipe_ctx->stream_res.tg->inst;
 	else
 		cmd.pr_copy_settings.data.otg_inst = 0;
 
@@ -322,6 +321,19 @@ bool dp_pr_copy_settings(struct dc_link *link, struct replay_context *replay_con
 	cmd.pr_copy_settings.data.flags.bitfields.dsc_enable_status = (pipe_ctx->stream->timing.flags.DSC == 1);
 	cmd.pr_copy_settings.data.debug.u32All = link->replay_settings.config.debug_flags;
 
+	// ALPM settings
+	cmd.pr_copy_settings.data.flags.bitfields.alpm_mode = (enum dmub_alpm_mode)link->replay_settings.config.alpm_mode;
+	if (link->replay_settings.config.alpm_mode == DC_ALPM_AUXLESS) {
+		cmd.pr_copy_settings.data.auxless_alpm_data.lfps_setup_ns = (uint16_t)dc->debug.auxless_alpm_lfps_setup_ns;
+		cmd.pr_copy_settings.data.auxless_alpm_data.lfps_period_ns = (uint16_t)dc->debug.auxless_alpm_lfps_period_ns;
+		cmd.pr_copy_settings.data.auxless_alpm_data.lfps_silence_ns = (uint16_t)dc->debug.auxless_alpm_lfps_silence_ns;
+		cmd.pr_copy_settings.data.auxless_alpm_data.lfps_t1_t2_override_us =
+			(uint16_t)dc->debug.auxless_alpm_lfps_t1t2_us;
+		cmd.pr_copy_settings.data.auxless_alpm_data.lfps_t1_t2_offset_us =
+			(uint16_t)dc->debug.auxless_alpm_lfps_t1t2_offset_us;
+		cmd.pr_copy_settings.data.auxless_alpm_data.lttpr_count = link->dc->link_srv->dp_get_lttpr_count(link);
+	}
+
 	cmd.pr_copy_settings.data.su_granularity_needed = link->dpcd_caps.vesa_replay_caps.bits.PR_SU_GRANULARITY_NEEDED;
 	cmd.pr_copy_settings.data.su_x_granularity = link->dpcd_caps.vesa_replay_su_info.pr_su_x_granularity;
 	cmd.pr_copy_settings.data.su_y_granularity = link->dpcd_caps.vesa_replay_su_info.pr_su_y_granularity;
@@ -329,9 +341,9 @@ bool dp_pr_copy_settings(struct dc_link *link, struct replay_context *replay_con
 		link->dpcd_caps.vesa_replay_su_info.pr_su_y_granularity_extended_caps;
 
 	if (pipe_ctx->stream->timing.dsc_cfg.num_slices_v > 0)
-		cmd.pr_copy_settings.data.dsc_slice_height = (pipe_ctx->stream->timing.v_addressable +
+		cmd.pr_copy_settings.data.dsc_slice_height = (uint16_t)((pipe_ctx->stream->timing.v_addressable +
 			pipe_ctx->stream->timing.v_border_top + pipe_ctx->stream->timing.v_border_bottom) /
-			pipe_ctx->stream->timing.dsc_cfg.num_slices_v;
+			pipe_ctx->stream->timing.dsc_cfg.num_slices_v);
 
 	if (dc_is_embedded_signal(link->connector_signal))
 		cmd.pr_copy_settings.data.main_link_activity_option = OPTION_1C;
@@ -358,7 +370,7 @@ bool dp_pr_update_state(struct dc_link *link, struct dmub_cmd_pr_update_state_da
 	cmd.pr_update_state.header.type = DMUB_CMD__PR;
 	cmd.pr_update_state.header.sub_type = DMUB_CMD__PR_UPDATE_STATE;
 	cmd.pr_update_state.header.payload_bytes = sizeof(struct dmub_cmd_pr_update_state_data);
-	cmd.pr_update_state.data.panel_inst = panel_inst;
+	cmd.pr_update_state.data.panel_inst = (uint8_t)panel_inst;
 
 	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 	return true;
@@ -379,7 +391,7 @@ bool dp_pr_set_general_cmd(struct dc_link *link, struct dmub_cmd_pr_general_cmd_
 	cmd.pr_general_cmd.header.type = DMUB_CMD__PR;
 	cmd.pr_general_cmd.header.sub_type = DMUB_CMD__PR_GENERAL_CMD;
 	cmd.pr_general_cmd.header.payload_bytes = sizeof(struct dmub_cmd_pr_general_cmd_data);
-	cmd.pr_general_cmd.data.panel_inst = panel_inst;
+	cmd.pr_general_cmd.data.panel_inst = (uint8_t)panel_inst;
 
 	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 	return true;
@@ -397,7 +409,7 @@ bool dp_pr_get_state(const struct dc_link *link, uint64_t *state)
 
 	do {
 		// Send gpint command and wait for ack
-		if (!dc_wake_and_execute_gpint(dc->ctx, DMUB_GPINT__GET_REPLAY_STATE, panel_inst,
+		if (!dc_wake_and_execute_gpint(dc->ctx, DMUB_GPINT__GET_REPLAY_STATE, (uint16_t)panel_inst,
 					       &replay_state, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY)) {
 			// Return invalid state when GPINT times out
 			replay_state = PR_STATE_INVALID;

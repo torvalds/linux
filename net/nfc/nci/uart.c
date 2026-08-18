@@ -421,7 +421,7 @@ void nci_uart_set_config(struct nci_uart *nu, int baudrate, int flow_ctrl)
 }
 EXPORT_SYMBOL_GPL(nci_uart_set_config);
 
-static struct tty_ldisc_ops nci_uart_ldisc = {
+static const struct tty_ldisc_ops nci_uart_ldisc = {
 	.owner		= THIS_MODULE,
 	.num		= N_NCI,
 	.name		= "n_nci",

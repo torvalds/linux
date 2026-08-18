@@ -87,22 +87,122 @@ void mt792x_rx_poll_complete(struct mt76_dev *mdev, enum mt76_rxq_id q)
 }
 EXPORT_SYMBOL_GPL(mt792x_rx_poll_complete);
 
+int mt792x_dma_alloc_queues(struct mt792x_dev *dev,
+			    const struct mt792x_dma_layout *layout)
+{
+	int ret;
+
+	mt76_dma_attach(&dev->mt76);
+
+	ret = mt792x_dma_disable(dev, true);
+	if (ret)
+		return ret;
+
+	/* init tx queue */
+	ret = mt76_connac_init_tx_queues(dev->phy.mt76, layout->tx_data0.qid,
+					 layout->tx_data0.n_desc,
+					 layout->tx_data0.ring_base,
+					 NULL, 0);
+	if (ret)
+		return ret;
+
+	mt76_wr(dev, MT_WFDMA0_TX_RING0_EXT_CTRL, 0x4);
+
+	/* command to WM */
+	ret = mt76_init_mcu_queue(&dev->mt76, MT_MCUQ_WM,
+				  layout->tx_mcu.qid,
+				  layout->tx_mcu.n_desc,
+				  layout->tx_mcu.ring_base);
+	if (ret)
+		return ret;
+
+	/* firmware download */
+	ret = mt76_init_mcu_queue(&dev->mt76, MT_MCUQ_FWDL,
+				  layout->tx_fwdl.qid,
+				  layout->tx_fwdl.n_desc,
+				  layout->tx_fwdl.ring_base);
+	if (ret)
+		return ret;
+
+	/* rx event */
+	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MCU],
+			       layout->rx_mcu.qid,
+			       layout->rx_mcu.n_desc,
+			       MT_RX_BUF_SIZE,
+			       layout->rx_mcu.ring_base);
+	if (ret)
+		return ret;
+
+	/* rx data */
+	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MAIN],
+			       layout->rx_data.qid,
+			       layout->rx_data.n_desc,
+			       MT_RX_BUF_SIZE,
+			       layout->rx_data.ring_base);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(mt792x_dma_alloc_queues);
+
 #define PREFETCH(base, depth)	((base) << 16 | (depth))
+
+static void mt7925_dma_prefetch_setup(struct mt792x_dev *dev)
+{
+	/* rx ring */
+	mt76_wr(dev, MT_WFDMA0_RX_RING0_EXT_CTRL, PREFETCH(0x0000, 0x4));
+	mt76_wr(dev, MT_WFDMA0_RX_RING1_EXT_CTRL, PREFETCH(0x0040, 0x4));
+	mt76_wr(dev, MT_WFDMA0_RX_RING2_EXT_CTRL, PREFETCH(0x0080, 0x4));
+	mt76_wr(dev, MT_WFDMA0_RX_RING3_EXT_CTRL, PREFETCH(0x00c0, 0x4));
+
+	/* tx ring */
+	mt76_wr(dev, MT_WFDMA0_TX_RING0_EXT_CTRL, PREFETCH(0x0100, 0x10));
+	mt76_wr(dev, MT_WFDMA0_TX_RING1_EXT_CTRL, PREFETCH(0x0200, 0x10));
+	mt76_wr(dev, MT_WFDMA0_TX_RING2_EXT_CTRL, PREFETCH(0x0300, 0x10));
+	mt76_wr(dev, MT_WFDMA0_TX_RING3_EXT_CTRL, PREFETCH(0x0400, 0x10));
+	mt76_wr(dev, MT_WFDMA0_TX_RING15_EXT_CTRL, PREFETCH(0x0500, 0x4));
+	mt76_wr(dev, MT_WFDMA0_TX_RING16_EXT_CTRL, PREFETCH(0x0540, 0x4));
+}
+
+static void mt7925_wfdma_setup(struct mt792x_dev *dev)
+{
+	mt76_rmw(dev, MT_UWFDMA0_GLO_CFG_EXT1, BIT(28), BIT(28));
+	mt76_set(dev, MT_WFDMA0_INT_RX_PRI, 0x0F00);
+	mt76_set(dev, MT_WFDMA0_INT_TX_PRI, 0x7F00);
+}
+
+static void mt7927_dma_prefetch_setup(struct mt792x_dev *dev)
+{
+	mt76_wr(dev, MT_WFDMA_PREFETCH_CTRL,
+		mt76_rr(dev, MT_WFDMA_PREFETCH_CTRL));
+	mt76_wr(dev, MT_WFDMA_PREFETCH_CFG0, 0x660077);
+	mt76_wr(dev, MT_WFDMA_PREFETCH_CFG1, 0x1100);
+	mt76_wr(dev, MT_WFDMA_PREFETCH_CFG2, 0x30004f);
+	mt76_wr(dev, MT_WFDMA_PREFETCH_CFG3, 0x542200);
+	mt76_wr(dev, MT_WFDMA0_RX_RING4_EXT_CTRL, PREFETCH(0x0000, 0x8));
+	mt76_wr(dev, MT_WFDMA0_RX_RING6_EXT_CTRL, PREFETCH(0x0080, 0x8));
+	mt76_wr(dev, MT_WFDMA0_RX_RING7_EXT_CTRL, PREFETCH(0x0100, 0x4));
+	mt76_wr(dev, MT_WFDMA0_TX_RING16_EXT_CTRL, PREFETCH(0x0140, 0x4));
+	mt76_wr(dev, MT_WFDMA0_TX_RING15_EXT_CTRL, PREFETCH(0x0180, 0x10));
+	mt76_wr(dev, MT_WFDMA0_TX_RING0_EXT_CTRL, PREFETCH(0x0280, 0x4));
+}
+
+static void mt7927_wfdma_setup(struct mt792x_dev *dev)
+{
+	mt76_set(dev, MT_WFDMA0_GLO_CFG,
+		 MT_WFDMA0_GLO_CFG_ADDR_EXT_EN |
+		 MT_WFDMA0_GLO_CFG_FW_DWLD_BYPASS_DMASHDL);
+	mt76_clear(dev, MT_WFDMA0_GLO_CFG,
+		   MT_WFDMA0_GLO_CFG_CSR_LBK_RX_Q_SEL_EN);
+	mt76_rmw(dev, MT_WFDMA0_GLO_CFG_EXT1, BIT(28), BIT(28));
+	mt76_set(dev, MT_WFDMA0_INT_RX_PRI, 0x0F00);
+	mt76_set(dev, MT_WFDMA0_INT_TX_PRI, 0x7F00);
+}
+
 static void mt792x_dma_prefetch(struct mt792x_dev *dev)
 {
-	if (is_mt7925(&dev->mt76)) {
-		/* rx ring */
-		mt76_wr(dev, MT_WFDMA0_RX_RING0_EXT_CTRL, PREFETCH(0x0000, 0x4));
-		mt76_wr(dev, MT_WFDMA0_RX_RING1_EXT_CTRL, PREFETCH(0x0040, 0x4));
-		mt76_wr(dev, MT_WFDMA0_RX_RING2_EXT_CTRL, PREFETCH(0x0080, 0x4));
-		mt76_wr(dev, MT_WFDMA0_RX_RING3_EXT_CTRL, PREFETCH(0x00c0, 0x4));
-		/* tx ring */
-		mt76_wr(dev, MT_WFDMA0_TX_RING0_EXT_CTRL, PREFETCH(0x0100, 0x10));
-		mt76_wr(dev, MT_WFDMA0_TX_RING1_EXT_CTRL, PREFETCH(0x0200, 0x10));
-		mt76_wr(dev, MT_WFDMA0_TX_RING2_EXT_CTRL, PREFETCH(0x0300, 0x10));
-		mt76_wr(dev, MT_WFDMA0_TX_RING3_EXT_CTRL, PREFETCH(0x0400, 0x10));
-		mt76_wr(dev, MT_WFDMA0_TX_RING15_EXT_CTRL, PREFETCH(0x0500, 0x4));
-		mt76_wr(dev, MT_WFDMA0_TX_RING16_EXT_CTRL, PREFETCH(0x0540, 0x4));
+	if (is_mt7927(&dev->mt76)) {
+		mt7927_dma_prefetch_setup(dev);
+	} else if (is_mt7925(&dev->mt76)) {
+		mt7925_dma_prefetch_setup(dev);
 	} else if (is_mt7902(&dev->mt76)) {
 		/* rx ring */
 		mt76_wr(dev, MT_WFDMA0_RX_RING0_EXT_CTRL, PREFETCH(0x0000, 0x4));
@@ -166,11 +266,11 @@ int mt792x_dma_enable(struct mt792x_dev *dev)
 	mt76_set(dev, MT_WFDMA0_GLO_CFG,
 		 MT_WFDMA0_GLO_CFG_TX_DMA_EN | MT_WFDMA0_GLO_CFG_RX_DMA_EN);
 
-	if (is_mt7925(&dev->mt76)) {
-		mt76_rmw(dev, MT_UWFDMA0_GLO_CFG_EXT1, BIT(28), BIT(28));
-		mt76_set(dev, MT_WFDMA0_INT_RX_PRI, 0x0F00);
-		mt76_set(dev, MT_WFDMA0_INT_TX_PRI, 0x7F00);
-	}
+	if (is_mt7927(&dev->mt76))
+		mt7927_wfdma_setup(dev);
+	else if (is_mt7925(&dev->mt76))
+		mt7925_wfdma_setup(dev);
+
 	mt76_set(dev, MT_WFDMA_DUMMY_CR, MT_WFDMA_NEED_REINIT);
 
 	/* enable interrupts for TX/RX rings */
@@ -281,6 +381,11 @@ int mt792x_dma_disable(struct mt792x_dev *dev, bool force)
 				 MT_WFDMA0_GLO_CFG_RX_DMA_BUSY, 0, 100, 1))
 		return -ETIMEDOUT;
 
+	if (is_mt7927(&dev->mt76)) {
+		mt76_wr(dev, MT_WFDMA0_RST_DTX_PTR, ~0);
+		mt76_wr(dev, MT_WFDMA0_RST_DRX_PTR, ~0);
+	}
+
 	/* disable dmashdl */
 	mt76_clear(dev, MT_WFDMA0_GLO_CFG_EXT0,
 		   MT_WFDMA0_CSR_TX_DMASHDL_ENABLE);
@@ -370,7 +475,54 @@ int mt792x_poll_rx(struct napi_struct *napi, int budget)
 }
 EXPORT_SYMBOL_GPL(mt792x_poll_rx);
 
-int mt792x_wfsys_reset(struct mt792x_dev *dev)
+static void mt7927_sema_status_read(struct mt792x_dev *dev, u32 addr)
+{
+	u32 remap;
+
+	remap = mt76_rr(dev, MT7927_PCIE2AP_REMAP_WF_0_54);
+	mt76_wr(dev, MT7927_PCIE2AP_REMAP_WF_0_54,
+		(remap & ~MT7927_PCIE2AP_REMAP_WF_0_54_MASK) |
+		MT7927_PCIE2AP_REMAP_WF_0_54_VAL);
+	usleep_range(10, 20);
+
+	mt76_rr(dev, addr);
+
+	mt76_wr(dev, MT7927_PCIE2AP_REMAP_WF_0_54, remap);
+	usleep_range(10, 20);
+}
+
+static int mt7927_wfsys_reset(struct mt792x_dev *dev)
+{
+	struct mt76_dev *mdev = &dev->mt76;
+	u32 val;
+
+	mt7927_sema_status_read(dev, MT7927_SEMA_OWN_STA);
+
+	mt76_set(dev, MT7927_CBINFRA_RGU_WF_RST,
+		 MT7927_CBINFRA_RGU_WF_RST_WF_SUBSYS);
+	usleep_range(1000, 2000);
+
+	mt76_clear(dev, MT7927_CBINFRA_RGU_WF_RST,
+		   MT7927_CBINFRA_RGU_WF_RST_WF_SUBSYS);
+	usleep_range(5000, 10000);
+
+	mt76_wr(dev, MT7927_CBINFRA_MCU_OWN_SET, BIT(0));
+
+	if (!__mt76_poll_msec(mdev, MT7927_ROMCODE_INDEX, 0xffff,
+			      MT7927_MCU_IDLE_VALUE, 200)) {
+		val = mt76_rr(dev, MT7927_ROMCODE_INDEX);
+		dev_err(mdev->dev,
+			"MT7927 WFSYS reset timeout (ROMCODE_INDEX=0x%04x)\n",
+			val & 0xffff);
+		return -ETIMEDOUT;
+	}
+
+	mt7927_sema_status_read(dev, MT7927_SEMA_OWN_STA_REP);
+
+	return 0;
+}
+
+static int mt792x_wfsys_reset_default(struct mt792x_dev *dev)
 {
 	u32 addr = is_connac2(&dev->mt76) ? 0x18000140 : 0x7c000140;
 
@@ -383,6 +535,14 @@ int mt792x_wfsys_reset(struct mt792x_dev *dev)
 		return -ETIMEDOUT;
 
 	return 0;
+}
+
+int mt792x_wfsys_reset(struct mt792x_dev *dev)
+{
+	if (is_mt7927(&dev->mt76))
+		return mt7927_wfsys_reset(dev);
+
+	return mt792x_wfsys_reset_default(dev);
 }
 EXPORT_SYMBOL_GPL(mt792x_wfsys_reset);
 

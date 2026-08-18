@@ -158,20 +158,6 @@ static int hmac_init_tfm(struct crypto_shash *parent)
 	return 0;
 }
 
-static int hmac_clone_tfm(struct crypto_shash *dst, struct crypto_shash *src)
-{
-	struct hmac_ctx *sctx = crypto_shash_ctx(src);
-	struct hmac_ctx *dctx = crypto_shash_ctx(dst);
-	struct crypto_shash *hash;
-
-	hash = crypto_clone_shash(sctx->hash);
-	if (IS_ERR(hash))
-		return PTR_ERR(hash);
-
-	dctx->hash = hash;
-	return 0;
-}
-
 static void hmac_exit_tfm(struct crypto_shash *parent)
 {
 	struct hmac_ctx *tctx = crypto_shash_ctx(parent);
@@ -235,7 +221,6 @@ static int __hmac_create_shash(struct crypto_template *tmpl,
 	inst->alg.import_core = hmac_import_core;
 	inst->alg.setkey = hmac_setkey;
 	inst->alg.init_tfm = hmac_init_tfm;
-	inst->alg.clone_tfm = hmac_clone_tfm;
 	inst->alg.exit_tfm = hmac_exit_tfm;
 
 	inst->free = shash_free_singlespawn_instance;
@@ -423,21 +408,6 @@ static int hmac_init_ahash_tfm(struct crypto_ahash *parent)
 	return 0;
 }
 
-static int hmac_clone_ahash_tfm(struct crypto_ahash *dst,
-				struct crypto_ahash *src)
-{
-	struct ahash_hmac_ctx *sctx = crypto_ahash_ctx(src);
-	struct ahash_hmac_ctx *dctx = crypto_ahash_ctx(dst);
-	struct crypto_ahash *hash;
-
-	hash = crypto_clone_ahash(sctx->hash);
-	if (IS_ERR(hash))
-		return PTR_ERR(hash);
-
-	dctx->hash = hash;
-	return 0;
-}
-
 static void hmac_exit_ahash_tfm(struct crypto_ahash *parent)
 {
 	struct ahash_hmac_ctx *tctx = crypto_ahash_ctx(parent);
@@ -503,7 +473,6 @@ static int hmac_create_ahash(struct crypto_template *tmpl, struct rtattr **tb,
 	inst->alg.import_core = hmac_import_core_ahash;
 	inst->alg.setkey = hmac_setkey_ahash;
 	inst->alg.init_tfm = hmac_init_ahash_tfm;
-	inst->alg.clone_tfm = hmac_clone_ahash_tfm;
 	inst->alg.exit_tfm = hmac_exit_ahash_tfm;
 
 	inst->free = ahash_free_singlespawn_instance;

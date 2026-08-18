@@ -10,7 +10,6 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 
 #include "pmbus.h"
@@ -1082,10 +1081,10 @@ static const struct of_device_id mp2975_of_match[] = {
 MODULE_DEVICE_TABLE(of, mp2975_of_match);
 
 static const struct i2c_device_id mp2975_id[] = {
-	{"mp2971", (kernel_ulong_t)&mp2975_ddinfo[mp2971]},
-	{"mp2973", (kernel_ulong_t)&mp2975_ddinfo[mp2973]},
-	{"mp2975", (kernel_ulong_t)&mp2975_ddinfo[mp2975]},
-	{}
+	{ .name = "mp2971", .driver_data = (kernel_ulong_t)&mp2975_ddinfo[mp2971] },
+	{ .name = "mp2973", .driver_data = (kernel_ulong_t)&mp2975_ddinfo[mp2973] },
+	{ .name = "mp2975", .driver_data = (kernel_ulong_t)&mp2975_ddinfo[mp2975] },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mp2975_id);
 

@@ -115,6 +115,9 @@ struct ksmbd_conn {
 
 	__le16				cipher_type;
 	__le16				compress_algorithm;
+	/* Negotiated SMB 3.1.1 compression capabilities. */
+	bool				compress_chained;
+	bool				compress_pattern;
 	bool				posix_ext_supported;
 	bool				signing_negotiated;
 	__le16				signing_algorithm;

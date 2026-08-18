@@ -1,0 +1,270 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/gpio-audio-amp.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Audio amplifier driven by GPIOs
+
+maintainers:
+  - Herve Codina <herve.codina@bootlin.com>
+
+description: |
+  Audio GPIO amplifiers are driven by GPIO in order to control the gain value
+  of the amplifier, its mute function and/or its bypass function.
+
+  Those amplifiers are based on discrete components (analog switches, op-amps
+  and more) where some of them, mostly analog switches, are controlled by GPIOs
+  to adjust the gain value of the whole amplifier and/or to control
+  the mute and/or bypass function.
+
+  For instance, the following piece of hardware is a GPIO amplifier
+
+                                         +5VA
+                                           ^
+                                        |\ |
+                                        | \
+        Vin >---------------------------|+ \
+                                        |   +-------+-----> Vout
+                .--\/\/\/--+------------|- /        |
+                |          |            | /         |
+                v          |            |/ |        |
+               GND         o               v        |
+                            \             GND       |
+       gpio >----------->    \                      |
+                         o    o                     |
+                         |    |                     |
+                         |    '--\/\/\/--.          |
+                         |               +--\/\/\/--'
+                         '---------------'
+
+properties:
+  compatible:
+    oneOf:
+      - const: gpio-audio-amp-mono
+        description:
+          A single channel amplifier. All features apply to this sole channel.
+
+      - const: gpio-audio-amp-stereo
+        description:
+          A dual channel amplifier (left and right). All features apply to both
+          channels producing the same effect on both channels at the same time.
+
+  vdd-supply:
+    description: Main power supply of the amplifier
+
+  vddio-supply:
+    description: Power supply related to the control path
+
+  vdda1-supply:
+    description: Analog power supply
+
+  vdda2-supply:
+    description: Additional analog power supply
+
+  mute-gpios:
+    description: GPIO to control the mute function
+    maxItems: 1
+
+  bypass-gpios:
+    description: GPIO to control the bypass function
+    maxItems: 1
+
+  gain-gpios:
+    description: |
+      GPIOs to control the amplifier gain
+
+      The gain value is computed from GPIOs value from 0 to 2^N-1 with N the
+      number of GPIO described. The first GPIO described is the lsb of the gain
+      value.
+
+      For instance assuming 2 gpios
+         gain-gpios = <&gpio1 GPIO_ACTIVE_HIGH> <&gpio2 GPIO_ACTIVE_HIGH>;
+      The gain value will be the following:
+
+          gpio1 | gpio2 | gain
+          ------+-------+-----
+            0   |    0  | 0b00 -> 0
+            1   |    0  | 0b01 -> 1
+            0   |    1  | 0b10 -> 2
+            1   |    1  | 0b11 -> 3
+          ------+-------+-----
+
+      Note: The gain value, bits set to 1 or 0, indicate the state active (bit
+            set) or the state inactive (bit unset) of the related GPIO. The
+            physical voltage corresponding to this active/inactive state is
+            given by the GPIO_ACTIVE_HIGH and GPIO_ACTIVE_LOW flags.
+
+    minItems: 1
+    maxItems: 16
+
+  gain-ranges:
+    $ref: /schemas/types.yaml#/definitions/int32-matrix
+    description: |
+      A list of one or more ranges of possible values. Each range is defined by
+      the first and last point in the range. Each point is defined by the pair
+      (GPIOs value, Gain in 0.01 dB unit).
+
+      Ranges can be contiguous or holes can be present between ranges if some
+      gpios value should not be used. Also in a range the first point and the
+      last point can be identical. In that case, the range contains only one
+      item, the given point.
+
+    items:
+      items:
+        - description: GPIOs value of the first point in the range
+        - description: Gain in 0.01 dB unit of the first point in the range
+        - description: GPIOs value of the last point in the range
+        - description: Gain in 0.01 dB unit of the last point in the range
+      description: |
+        A range defines a linear function (linear in dB) from the first point
+        to the last point, both included. The number of items in the range is
+          N = abs(first_point.gpio_value - last_point.gpio_value) + 1
+
+        It allows to define the gain range from the first_point.gain to
+        the last_point.gain, both points included.
+
+             Gain (0.01 dB unit)
+               ^
+               |                      last
+               +- - - - - - - - - - + point
+               |                 +  .
+               |              +     .
+               |           +        .
+               +- - - - +           .
+               |  first .           .
+               |  point .           .
+               |        .           .
+               +--------+-----------+---> gpios
+                                          value
+
+        Note: Even if first_point.gpio_value is lower than last_point.gpio_value
+              and first_point.gain is lower than last_point.gain in the above
+              graphic, all combination of values are supported leading to an
+              increasing or a decreasing linear segment.
+
+    minItems: 1
+    maxItems: 65536
+
+  gain-labels:
+    $ref: /schemas/types.yaml#/definitions/string-array
+    minItems: 2
+    maxItems: 65536
+    description: |
+      List of the gain labels attached to the combination of GPIOs controlling
+      the gain. The first label is related to the gain value 0, the second label
+      is related to the gain value 1 and so on.
+
+      With 2 GPIOs controlling the gain, GPIOs value can be 0, 1, 2 and 3.
+      Assuming that gain value set the hardware according to the following
+      table:
+
+         GPIOs | Hardware
+         value | amplification
+         ------+--------------
+           0   | Low
+           1   | Middle
+           2   | High
+           3   | Max
+         ------+--------------
+
+      The description using gain labels can be:
+        gain-labels = "Low", "Middle", "High", "Max";
+
+dependencies:
+  gain-ranges: [ gain-gpios ]
+  gain-labels: [ gain-gpios ]
+
+required:
+  - compatible
+  - vdd-supply
+
+anyOf:
+  - required:
+      - gain-gpios
+  - required:
+      - mute-gpios
+  - required:
+      - bypass-gpios
+
+allOf:
+  - $ref: component-common.yaml#
+  - if:
+      required:
+        - gain-ranges
+    then:
+      properties:
+        gain-labels: false
+  - if:
+      required:
+        - gain-labels
+    then:
+      properties:
+        gain-ranges: false
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    /* Gain controlled by gpios */
+    amplifier-0 {
+        compatible = "gpio-audio-amp-mono";
+        vdd-supply = <&regulator>;
+        gain-gpios = <&gpio 0 GPIO_ACTIVE_HIGH>, <&gpio 1 GPIO_ACTIVE_HIGH>;
+    };
+
+    /* Gain controlled by gpio using a simple range on a stereo amplifier */
+    amplifier-1 {
+        compatible = "gpio-audio-amp-stereo";
+        vdd-supply = <&regulator>;
+        gain-gpios = <&gpio 0 GPIO_ACTIVE_HIGH>, <&gpio 1 GPIO_ACTIVE_HIGH>;
+        gain-ranges = <0 (-300) 3 600>;
+    };
+
+    /* Gain controlled by gpio with labels */
+    amplifier-3 {
+        compatible = "gpio-audio-amp-mono";
+        vdd-supply = <&regulator>;
+        gain-gpios = <&gpio 0 GPIO_ACTIVE_HIGH>;
+        gain-labels = "Low", "High";
+    };
+
+    /* A mutable stereo amplifier without any gain control */
+    amplifier-4 {
+        compatible = "gpio-audio-amp-stereo";
+        vdd-supply = <&regulator>;
+        mute-gpios = <&gpio 0 GPIO_ACTIVE_HIGH>;
+    };
+
+    /*
+     * Several supplies, gain controlled using more complex ranges, mute and
+     * bypass.
+     *
+     * Assuming 3 gpios for controlling the gain with the following table
+     *   gpios value    Gain
+     *      0b000       Do not use (gpios value not allowed)
+     *      0b001       - 3dB
+     *      0b010       + 3dB
+     *      0b011       + 10dB
+     *      0b100       Do not use (gpios value not allowed)
+     *      0b101       + 6dB
+     *      0b110       + 7dB
+     *      0b111       + 8dB
+     */
+    amplifier-5 {
+        compatible = "gpio-audio-amp-mono";
+        vdd-supply = <&regulator>;
+        vddio-supply = <&regulator1>;
+        vdda1-supply = <&regulator2>;
+        gain-gpios = <&gpio 0 GPIO_ACTIVE_HIGH>,
+                     <&gpio 1 GPIO_ACTIVE_HIGH>,
+                     <&gpio 2 GPIO_ACTIVE_HIGH>;
+        gain-ranges = <1 (-300) 2 300>,
+                      <3 1000   3 1000>,
+                      <5 600    7 800>;
+        mute-gpios = <&gpio 3 GPIO_ACTIVE_HIGH>;
+        bypass-gpios = <&gpio 4 GPIO_ACTIVE_HIGH>;
+    };
+...

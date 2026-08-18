@@ -121,7 +121,7 @@ xrep_tempfile_create(
 		 * remote target block, so the owner is irrelevant.
 		 */
 		error = xfs_symlink_write_target(tp, sc->tempip,
-				sc->tempip->i_ino, ".", 1, 0, 0);
+				I_INO(sc->tempip), ".", 1, 0, 0);
 		if (error)
 			goto out_trans_cancel;
 	}

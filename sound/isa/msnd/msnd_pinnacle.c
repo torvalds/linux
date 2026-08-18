@@ -1199,8 +1199,8 @@ static int snd_msnd_pnp_resume(struct pnp_card_link *pcard)
 }
 #endif
 
-static int isa_registered;
-static int pnp_registered;
+static int isa_registered __ro_after_init;
+static int pnp_registered __ro_after_init;
 
 static const struct pnp_card_device_id msnd_pnpids[] = {
 	/* Pinnacle PnP */

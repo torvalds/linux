@@ -1,0 +1,3 @@
+# mode=strict
+bad/yaml-multi-close.yaml:35: example 0 [indent-consistent] indent mismatch (expected depth 0 * '    ')
+bad/yaml-multi-close.yaml:35: example 0 [node-close-alone] closing brace must be on its own line

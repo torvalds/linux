@@ -5,7 +5,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2008-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright 2021-2025  Intel Corporation
+ * Copyright 2021-2026  Intel Corporation
  */
 
 #include <linux/export.h>
@@ -295,9 +295,10 @@ ieee80211_add_tx_radiotap_header(struct ieee80211_local *local,
 						 RATE_INFO_FLAGS_VHT_MCS |
 						 RATE_INFO_FLAGS_HE_MCS)))
 			legacy_rate = status_rate->rate_idx.legacy;
-	} else if (info->status.rates[0].idx >= 0 &&
-		 !(info->status.rates[0].flags & (IEEE80211_TX_RC_MCS |
-						  IEEE80211_TX_RC_VHT_MCS))) {
+	} else if (info->band < NUM_NL80211_BANDS &&
+		   info->status.rates[0].idx >= 0 &&
+		   !(info->status.rates[0].flags & (IEEE80211_TX_RC_MCS |
+						    IEEE80211_TX_RC_VHT_MCS))) {
 		struct ieee80211_supported_band *sband;
 
 		sband = local->hw.wiphy->bands[info->band];
@@ -730,6 +731,28 @@ ieee80211_handle_teardown_ttlm_status(struct ieee80211_sub_if_data *sdata,
 			 &sdata->u.mgd.teardown_ttlm_work);
 }
 
+static void
+ieee80211_handle_uhr_omp_status(struct ieee80211_sub_if_data *sdata, bool acked)
+{
+	if (!sdata || !ieee80211_sdata_running(sdata))
+		return;
+
+	if (sdata->vif.type != NL80211_IFTYPE_STATION)
+		return;
+
+	sdata->u.mgd.uhr_omp.acked = acked;
+
+	if (!acked) {
+		wiphy_hrtimer_work_queue(sdata->local->hw.wiphy,
+					 &sdata->u.mgd.uhr_omp.status_work, 0);
+		return;
+	}
+
+	wiphy_hrtimer_work_queue(sdata->local->hw.wiphy,
+				 &sdata->u.mgd.uhr_omp.status_work,
+				 us_to_ktime(sdata->u.mgd.uhr_omp.timeout_us));
+}
+
 static void ieee80211_report_used_skb(struct ieee80211_local *local,
 				      struct sk_buff *skb, bool dropped,
 				      ktime_t ack_hwtstamp)
@@ -809,6 +832,9 @@ static void ieee80211_report_used_skb(struct ieee80211_local *local,
 			break;
 		case IEEE80211_STATUS_TYPE_NEG_TTLM:
 			ieee80211_handle_teardown_ttlm_status(sdata, acked);
+			break;
+		case IEEE80211_STATUS_TYPE_UHR_OMP:
+			ieee80211_handle_uhr_omp_status(sdata, acked);
 			break;
 		}
 		rcu_read_unlock();

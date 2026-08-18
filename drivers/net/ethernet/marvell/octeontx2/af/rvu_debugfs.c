@@ -482,10 +482,11 @@ static int rvu_dbg_mcs_rx_secy_stats_display(struct seq_file *filp, void *unused
 		seq_printf(filp, "secy%d: Tagged ctrl pkts: %lld\n", secy_id,
 			   stats.pkt_tagged_ctl_cnt);
 		seq_printf(filp, "secy%d: Untaged pkts: %lld\n", secy_id, stats.pkt_untaged_cnt);
-		seq_printf(filp, "secy%d: Ctrl pkts: %lld\n", secy_id, stats.pkt_ctl_cnt);
 		if (mcs->hw->mcs_blks > 1)
 			seq_printf(filp, "secy%d: pkts notag: %lld\n", secy_id,
 				   stats.pkt_notag_cnt);
+		else
+			seq_printf(filp, "secy%d: Ctrl pkts: %lld\n", secy_id, stats.pkt_ctl_cnt);
 	}
 	mutex_unlock(&mcs->stats_lock);
 	return 0;
@@ -2809,6 +2810,14 @@ static void rvu_dbg_npa_init(struct rvu *rvu)
 			    &rvu_dbg_npa_ndc_hits_miss_fops);
 }
 
+/* Per-lmac CGX debugfs files need both RVU and CGX handle; inode->i_private
+ * points here so seq_file ops avoid pci_get_device(PCI_DEVID_OCTEONTX2_RVU_AF).
+ */
+struct rvu_cgx_lmac_dbgfs_ctx {
+	struct rvu	*rvu;
+	void		*cgxd;
+};
+
 #define PRINT_CGX_CUML_NIXRX_STATUS(idx, name)				\
 	({								\
 		u64 cnt;						\
@@ -2831,18 +2840,14 @@ static void rvu_dbg_npa_init(struct rvu *rvu)
 
 static int cgx_print_stats(struct seq_file *s, int lmac_id)
 {
+	struct rvu_cgx_lmac_dbgfs_ctx *dctx = s->private;
 	struct cgx_link_user_info linfo;
+	struct rvu *rvu = dctx->rvu;
 	struct mac_ops *mac_ops;
-	void *cgxd = s->private;
+	void *cgxd = dctx->cgxd;
 	u64 ucast, mcast, bcast;
 	int stat = 0, err = 0;
 	u64 tx_stat, rx_stat;
-	struct rvu *rvu;
-
-	rvu = pci_get_drvdata(pci_get_device(PCI_VENDOR_ID_CAVIUM,
-					     PCI_DEVID_OCTEONTX2_RVU_AF, NULL));
-	if (!rvu)
-		return -ENODEV;
 
 	mac_ops = get_mac_ops(cgxd);
 	/* There can be no CGX devices at all */
@@ -2949,19 +2954,15 @@ RVU_DEBUG_SEQ_FOPS(cgx_stat, cgx_stat_display, NULL);
 
 static int cgx_print_dmac_flt(struct seq_file *s, int lmac_id)
 {
+	struct rvu_cgx_lmac_dbgfs_ctx *dctx = s->private;
+	struct rvu *rvu = dctx->rvu;
 	struct pci_dev *pdev = NULL;
-	void *cgxd = s->private;
+	void *cgxd = dctx->cgxd;
 	char *bcast, *mcast;
 	u16 index, domain;
 	u8 dmac[ETH_ALEN];
-	struct rvu *rvu;
 	u64 cfg, mac;
 	int pf;
-
-	rvu = pci_get_drvdata(pci_get_device(PCI_VENDOR_ID_CAVIUM,
-					     PCI_DEVID_OCTEONTX2_RVU_AF, NULL));
-	if (!rvu)
-		return -ENODEV;
 
 	pf = cgxlmac_to_pf(rvu, cgx_get_cgxid(cgxd), lmac_id);
 	domain = 2;
@@ -3009,16 +3010,12 @@ RVU_DEBUG_SEQ_FOPS(cgx_dmac_flt, cgx_dmac_flt_display, NULL);
 
 static int cgx_print_fwdata(struct seq_file *s, int lmac_id)
 {
+	struct rvu_cgx_lmac_dbgfs_ctx *dctx = s->private;
 	struct cgx_lmac_fwdata_s *fwdata;
-	void *cgxd = s->private;
+	struct rvu *rvu = dctx->rvu;
+	void *cgxd = dctx->cgxd;
 	struct phy_s *phy;
-	struct rvu *rvu;
 	int cgx_id, i;
-
-	rvu = pci_get_drvdata(pci_get_device(PCI_VENDOR_ID_CAVIUM,
-					     PCI_DEVID_OCTEONTX2_RVU_AF, NULL));
-	if (!rvu)
-		return -ENODEV;
 
 	if (!rvu->fwdata)
 		return -EAGAIN;
@@ -3100,6 +3097,7 @@ RVU_DEBUG_SEQ_FOPS(cgx_fwdata, cgx_fwdata_display, NULL);
 
 static void rvu_dbg_cgx_init(struct rvu *rvu)
 {
+	struct rvu_cgx_lmac_dbgfs_ctx *ctx;
 	struct mac_ops *mac_ops;
 	unsigned long lmac_bmap;
 	int i, lmac_id;
@@ -3126,6 +3124,13 @@ static void rvu_dbg_cgx_init(struct rvu *rvu)
 		rvu->rvu_dbg.cgx = debugfs_create_dir(dname,
 						      rvu->rvu_dbg.cgx_root);
 
+		ctx = devm_kzalloc(rvu->dev, sizeof(*ctx), GFP_KERNEL);
+		if (!ctx)
+			continue;
+
+		ctx->rvu = rvu;
+		ctx->cgxd = cgx;
+
 		for_each_set_bit(lmac_id, &lmac_bmap, rvu->hw->lmac_per_cgx) {
 			/* lmac debugfs dir */
 			sprintf(dname, "lmac%d", lmac_id);
@@ -3133,13 +3138,13 @@ static void rvu_dbg_cgx_init(struct rvu *rvu)
 				debugfs_create_dir(dname, rvu->rvu_dbg.cgx);
 
 			debugfs_create_file_aux_num("stats", 0600, rvu->rvu_dbg.lmac,
-					    cgx, lmac_id, &rvu_dbg_cgx_stat_fops);
+						    ctx, lmac_id, &rvu_dbg_cgx_stat_fops);
 			debugfs_create_file_aux_num("mac_filter", 0600,
-					    rvu->rvu_dbg.lmac, cgx, lmac_id,
+					    rvu->rvu_dbg.lmac, ctx, lmac_id,
 					    &rvu_dbg_cgx_dmac_flt_fops);
-			debugfs_create_file("fwdata", 0600,
-					    rvu->rvu_dbg.lmac, cgx,
-					    &rvu_dbg_cgx_fwdata_fops);
+			debugfs_create_file_aux_num("fwdata", 0600,
+						    rvu->rvu_dbg.lmac, ctx,
+						    lmac_id, &rvu_dbg_cgx_fwdata_fops);
 		}
 	}
 }

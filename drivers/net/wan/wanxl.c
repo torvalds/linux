@@ -514,7 +514,8 @@ static void wanxl_pci_remove_one(struct pci_dev *pdev)
 	if (card->irq)
 		free_irq(card->irq, card);
 
-	wanxl_reset(card);
+	if (card->plx)
+		wanxl_reset(card);
 
 	for (i = 0; i < RX_QUEUE_LENGTH; i++)
 		if (card->rx_skbs[i]) {
@@ -806,13 +807,10 @@ static int wanxl_pci_init_one(struct pci_dev *pdev,
 }
 
 static const struct pci_device_id wanxl_pci_tbl[] = {
-	{ PCI_VENDOR_ID_SBE, PCI_DEVICE_ID_SBE_WANXL100, PCI_ANY_ID,
-	  PCI_ANY_ID, 0, 0, 0 },
-	{ PCI_VENDOR_ID_SBE, PCI_DEVICE_ID_SBE_WANXL200, PCI_ANY_ID,
-	  PCI_ANY_ID, 0, 0, 0 },
-	{ PCI_VENDOR_ID_SBE, PCI_DEVICE_ID_SBE_WANXL400, PCI_ANY_ID,
-	  PCI_ANY_ID, 0, 0, 0 },
-	{ 0, }
+	{ PCI_VDEVICE(SBE, PCI_DEVICE_ID_SBE_WANXL100) },
+	{ PCI_VDEVICE(SBE, PCI_DEVICE_ID_SBE_WANXL200) },
+	{ PCI_VDEVICE(SBE, PCI_DEVICE_ID_SBE_WANXL400) },
+	{ }
 };
 
 static struct pci_driver wanxl_pci_driver = {

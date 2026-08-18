@@ -88,60 +88,60 @@ static const struct ixgbe_info *ixgbe_info_tbl[] = {
  *   Class, Class Mask, private data (not used) }
  */
 static const struct pci_device_id ixgbe_pci_tbl[] = {
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598), board_82598 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598AF_DUAL_PORT), board_82598 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598AF_SINGLE_PORT), board_82598 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598AT), board_82598 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598AT2), board_82598 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598EB_CX4), board_82598 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598_CX4_DUAL_PORT), board_82598 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598_DA_DUAL_PORT), board_82598 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598_SR_DUAL_PORT_EM), board_82598 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598EB_XF_LR), board_82598 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598EB_SFP_LOM), board_82598 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598_BX), board_82598 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_KX4), board_82599 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_XAUI_LOM), board_82599 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_KR), board_82599 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_SFP), board_82599 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_SFP_EM), board_82599 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_KX4_MEZZ), board_82599 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_CX4), board_82599 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_BACKPLANE_FCOE), board_82599 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_SFP_FCOE), board_82599 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_T3_LOM), board_82599 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_COMBO_BACKPLANE), board_82599 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X540T), board_X540 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_SFP_SF2), board_82599 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_LS), board_82599 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_QSFP_SF_QP), board_82599 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599EN_SFP), board_82599 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_SFP_SF_QP), board_82599 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X540T1), board_X540 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550T), board_X550},
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550T1), board_X550},
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_KX4), board_X550EM_x},
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_XFI), board_X550EM_x},
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_KR), board_X550EM_x},
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_10G_T), board_X550EM_x},
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_SFP), board_X550EM_x},
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_1G_T), board_x550em_x_fw},
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_KR), board_x550em_a },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_KR_L), board_x550em_a },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_SFP_N), board_x550em_a },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_SGMII), board_x550em_a },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_SGMII_L), board_x550em_a },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_10G_T), board_x550em_a},
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_SFP), board_x550em_a },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_1G_T), board_x550em_a_fw },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_1G_T_L), board_x550em_a_fw },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_E610_BACKPLANE), board_e610},
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_E610_SFP), board_e610},
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_E610_10G_T), board_e610},
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_E610_2_5G_T), board_e610},
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_E610_SGMII), board_e610},
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598), .driver_data = board_82598 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598AF_DUAL_PORT), .driver_data = board_82598 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598AF_SINGLE_PORT), .driver_data = board_82598 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598AT), .driver_data = board_82598 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598AT2), .driver_data = board_82598 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598EB_CX4), .driver_data = board_82598 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598_CX4_DUAL_PORT), .driver_data = board_82598 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598_DA_DUAL_PORT), .driver_data = board_82598 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598_SR_DUAL_PORT_EM), .driver_data = board_82598 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598EB_XF_LR), .driver_data = board_82598 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598EB_SFP_LOM), .driver_data = board_82598 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598_BX), .driver_data = board_82598 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_KX4), .driver_data = board_82599 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_XAUI_LOM), .driver_data = board_82599 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_KR), .driver_data = board_82599 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_SFP), .driver_data = board_82599 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_SFP_EM), .driver_data = board_82599 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_KX4_MEZZ), .driver_data = board_82599 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_CX4), .driver_data = board_82599 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_BACKPLANE_FCOE), .driver_data = board_82599 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_SFP_FCOE), .driver_data = board_82599 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_T3_LOM), .driver_data = board_82599 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_COMBO_BACKPLANE), .driver_data = board_82599 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X540T), .driver_data = board_X540 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_SFP_SF2), .driver_data = board_82599 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_LS), .driver_data = board_82599 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_QSFP_SF_QP), .driver_data = board_82599 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599EN_SFP), .driver_data = board_82599 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_SFP_SF_QP), .driver_data = board_82599 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X540T1), .driver_data = board_X540 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550T), .driver_data = board_X550 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550T1), .driver_data = board_X550 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_KX4), .driver_data = board_X550EM_x },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_XFI), .driver_data = board_X550EM_x },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_KR), .driver_data = board_X550EM_x },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_10G_T), .driver_data = board_X550EM_x },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_SFP), .driver_data = board_X550EM_x },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_1G_T), .driver_data = board_x550em_x_fw },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_KR), .driver_data = board_x550em_a },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_KR_L), .driver_data = board_x550em_a },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_SFP_N), .driver_data = board_x550em_a },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_SGMII), .driver_data = board_x550em_a },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_SGMII_L), .driver_data = board_x550em_a },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_10G_T), .driver_data = board_x550em_a },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_SFP), .driver_data = board_x550em_a },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_1G_T), .driver_data = board_x550em_a_fw },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_1G_T_L), .driver_data = board_x550em_a_fw },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_E610_BACKPLANE), .driver_data = board_e610 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_E610_SFP), .driver_data = board_e610 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_E610_10G_T), .driver_data = board_e610 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_E610_2_5G_T), .driver_data = board_e610 },
+	{ PCI_VDEVICE(INTEL, IXGBE_DEV_ID_E610_SGMII), .driver_data = board_e610 },
 	/* required last entry */
-	{0, }
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, ixgbe_pci_tbl);
 
@@ -3958,7 +3958,8 @@ void ixgbe_configure_tx_ring(struct ixgbe_adapter *adapter,
 	}
 
 	/* initialize XPS */
-	if (!test_and_set_bit(__IXGBE_TX_XPS_INIT_DONE, ring->state)) {
+	if (!ring_is_xdp(ring) &&
+	    !test_and_set_bit(__IXGBE_TX_XPS_INIT_DONE, ring->state)) {
 		struct ixgbe_q_vector *q_vector = ring->q_vector;
 
 		if (q_vector)
@@ -6758,6 +6759,7 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 
 /**
  * ixgbe_set_eee_capable - helper function to determine EEE support on X550
+ * and E610
  * @adapter: board private structure
  */
 static void ixgbe_set_eee_capable(struct ixgbe_adapter *adapter)
@@ -6774,6 +6776,20 @@ static void ixgbe_set_eee_capable(struct ixgbe_adapter *adapter)
 			break;
 		adapter->flags2 |= IXGBE_FLAG2_EEE_ENABLED;
 		break;
+	case IXGBE_DEV_ID_E610_BACKPLANE:
+	case IXGBE_DEV_ID_E610_SFP:
+	case IXGBE_DEV_ID_E610_10G_T:
+	case IXGBE_DEV_ID_E610_2_5G_T:
+		if (hw->dev_caps.common_cap.eee_support &&
+		    hw->phy.eee_speeds_supported) {
+			adapter->flags2 |= IXGBE_FLAG2_EEE_CAPABLE;
+			/* For E610 adapters EEE should be enabled by default
+			 * if the feature is supported by FW.
+			 */
+			adapter->flags2 |= IXGBE_FLAG2_EEE_ENABLED;
+			break;
+		}
+		fallthrough;
 	default:
 		adapter->flags2 &= ~IXGBE_FLAG2_EEE_CAPABLE;
 		adapter->flags2 &= ~IXGBE_FLAG2_EEE_ENABLED;
@@ -8082,6 +8098,7 @@ static void ixgbe_watchdog_link_is_up(struct ixgbe_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 link_speed = adapter->link_speed;
+	struct ethtool_keee keee = {};
 	const char *speed_str;
 	bool flow_rx, flow_tx;
 
@@ -8122,6 +8139,8 @@ static void ixgbe_watchdog_link_is_up(struct ixgbe_adapter *adapter)
 	if (test_bit(__IXGBE_PTP_RUNNING, &adapter->state))
 		ixgbe_ptp_start_cyclecounter(adapter);
 
+	netdev->ethtool_ops->get_eee(netdev, &keee);
+
 	switch (link_speed) {
 	case IXGBE_LINK_SPEED_10GB_FULL:
 		speed_str = "10 Gbps";
@@ -8145,10 +8164,11 @@ static void ixgbe_watchdog_link_is_up(struct ixgbe_adapter *adapter)
 		speed_str = "unknown speed";
 		break;
 	}
-	e_info(drv, "NIC Link is Up %s, Flow Control: %s\n", speed_str,
+	e_info(drv, "NIC Link is Up %s, Flow Control: %s, EEE: %s\n", speed_str,
 	       ((flow_rx && flow_tx) ? "RX/TX" :
 	       (flow_rx ? "RX" :
-	       (flow_tx ? "TX" : "None"))));
+	       (flow_tx ? "TX" : "None"))),
+	       str_on_off(keee.eee_enabled));
 
 	netif_carrier_on(netdev);
 	ixgbe_check_vf_rate_limit(adapter);
@@ -12002,6 +12022,13 @@ skip_sriov:
 	err = ixgbe_mii_bus_init(hw);
 	if (err)
 		goto err_netdev;
+
+	if (hw->mac.type == ixgbe_mac_e610 &&
+	    (adapter->flags2 & IXGBE_FLAG2_EEE_CAPABLE)) {
+		bool eee_enable = adapter->flags2 & IXGBE_FLAG2_EEE_ENABLED;
+
+		hw->mac.ops.setup_eee(hw, eee_enable);
+	}
 
 	ixgbe_devlink_init_regions(adapter);
 	devl_register(adapter->devlink);

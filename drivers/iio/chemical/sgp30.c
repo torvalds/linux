@@ -20,7 +20,6 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/mutex.h>
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
@@ -498,6 +497,7 @@ static const struct of_device_id sgp_dt_ids[] = {
 	{ .compatible = "sensirion,sgpc3", .data = &sgp_devices[SGPC3] },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, sgp_dt_ids);
 
 static int sgp_probe(struct i2c_client *client)
 {
@@ -562,13 +562,11 @@ static void sgp_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id sgp_id[] = {
-	{ "sgp30", (kernel_ulong_t)&sgp_devices[SGP30] },
-	{ "sgpc3", (kernel_ulong_t)&sgp_devices[SGPC3] },
+	{ .name = "sgp30", .driver_data = (kernel_ulong_t)&sgp_devices[SGP30] },
+	{ .name = "sgpc3", .driver_data = (kernel_ulong_t)&sgp_devices[SGPC3] },
 	{ }
 };
-
 MODULE_DEVICE_TABLE(i2c, sgp_id);
-MODULE_DEVICE_TABLE(of, sgp_dt_ids);
 
 static struct i2c_driver sgp_driver = {
 	.driver = {

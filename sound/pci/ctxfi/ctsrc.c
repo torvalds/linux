@@ -668,13 +668,6 @@ static int srcimp_rsc_init(struct srcimp *srcimp,
 	if (err)
 		return err;
 
-	/* Reserve memory for imapper nodes */
-	srcimp->imappers = kzalloc_objs(struct imapper, desc->msr);
-	if (!srcimp->imappers) {
-		err = -ENOMEM;
-		goto error1;
-	}
-
 	/* Set srcimp specific operations */
 	srcimp->rsc.ops = &srcimp_basic_rsc_ops;
 	srcimp->ops = &srcimp_ops;
@@ -683,16 +676,10 @@ static int srcimp_rsc_init(struct srcimp *srcimp,
 	srcimp->rsc.ops->master(&srcimp->rsc);
 
 	return 0;
-
-error1:
-	rsc_uninit(&srcimp->rsc);
-	return err;
 }
 
 static int srcimp_rsc_uninit(struct srcimp *srcimp)
 {
-	kfree(srcimp->imappers);
-	srcimp->imappers = NULL;
 	srcimp->ops = NULL;
 	srcimp->mgr = NULL;
 	rsc_uninit(&srcimp->rsc);
@@ -711,7 +698,7 @@ static int get_srcimp_rsc(struct srcimp_mgr *mgr,
 	*rsrcimp = NULL;
 
 	/* Allocate mem for SRCIMP resource */
-	srcimp = kzalloc(sizeof(*srcimp), GFP_KERNEL);
+	srcimp = kzalloc_flex(*srcimp, imappers, desc->msr);
 	if (!srcimp)
 		return -ENOMEM;
 

@@ -89,7 +89,7 @@ static int dc_plane_check_fb(struct drm_plane_state *state)
 }
 
 static int
-dc_plane_atomic_check(struct drm_plane *plane, struct drm_atomic_state *state)
+dc_plane_atomic_check(struct drm_plane *plane, struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *plane_state =
 				drm_atomic_get_new_plane_state(state, plane);
@@ -127,7 +127,7 @@ dc_plane_atomic_check(struct drm_plane *plane, struct drm_atomic_state *state)
 }
 
 static void
-dc_plane_atomic_update(struct drm_plane *plane, struct drm_atomic_state *state)
+dc_plane_atomic_update(struct drm_plane *plane, struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *new_state =
 				drm_atomic_get_new_plane_state(state, plane);
@@ -176,7 +176,7 @@ dc_plane_atomic_update(struct drm_plane *plane, struct drm_atomic_state *state)
 }
 
 static void dc_plane_atomic_disable(struct drm_plane *plane,
-				    struct drm_atomic_state *state)
+				    struct drm_atomic_commit *state)
 {
 	struct dc_plane *dplane = to_dc_plane(plane);
 	const struct dc_fu_ops *fu_ops;

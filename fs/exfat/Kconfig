@@ -4,7 +4,7 @@ config EXFAT_FS
 	tristate "exFAT filesystem support"
 	select BUFFER_HEAD
 	select NLS
-	select LEGACY_DIRECT_IO
+	select FS_IOMAP
 	help
 	  This allows you to mount devices formatted with the exFAT file system.
 	  exFAT is typically used on SD-Cards or USB sticks.

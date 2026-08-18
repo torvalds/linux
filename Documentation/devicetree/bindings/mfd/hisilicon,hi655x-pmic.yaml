@@ -1,0 +1,80 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/hisilicon,hi655x-pmic.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Hisilicon Hi655x Power Management Integrated Circuit
+
+maintainers:
+  - Chen Feng <puck.chen@hisilicon.com>
+  - Daniel Lezcano <daniel.lezcano@kernel.org>
+
+description:
+  The hardware layout for access PMIC Hi655x from AP SoC Hi6220.
+  Between PMIC Hi655x and Hi6220, the physical signal channel is SSI.
+  We can use memory-mapped I/O to communicate.
+
+properties:
+  compatible:
+    const: hisilicon,hi655x-pmic
+
+  reg:
+    maxItems: 1
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 2
+
+  pmic-gpios:
+    maxItems: 1
+    description: The GPIO used by PMIC IRQ
+
+  '#clock-cells':
+    const: 0
+
+  clock-output-names:
+    maxItems: 1
+
+  regulators:
+    type: object
+    additionalProperties: false
+
+    patternProperties:
+      '^LDO(2|7|10|13|14|15|17|19|21|22)$':
+        type: object
+        $ref: /schemas/regulator/regulator.yaml#
+        unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupt-controller
+  - '#interrupt-cells'
+  - pmic-gpios
+  - '#clock-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    pmic: pmic@f8000000 {
+        compatible = "hisilicon,hi655x-pmic";
+        reg = <0xf8000000 0x1000>;
+        #clock-cells = <0>;
+        interrupt-controller;
+        #interrupt-cells = <2>;
+        pmic-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+
+        regulators {
+            ldo2: LDO2 {
+                regulator-name = "LDO2_2V8";
+                regulator-min-microvolt = <2500000>;
+                regulator-max-microvolt = <3200000>;
+                regulator-enable-ramp-delay = <120>;
+            };
+        };
+    };

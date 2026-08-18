@@ -9,6 +9,7 @@
  */
 #include <linux/buffer_head.h>
 #include <linux/adfs_fs.h>
+#include <linux/minmax.h>
 
 #include "check.h"
 
@@ -80,7 +81,7 @@ static int riscix_partition(struct parsed_partitions *state,
 
 
 	if (rr->magic == RISCIX_MAGIC) {
-		unsigned long size = nr_sects > 2 ? 2 : nr_sects;
+		unsigned long size = min(nr_sects, 2);
 		int part;
 
 		seq_buf_puts(&state->pp_buf, " <");
@@ -124,7 +125,7 @@ static int linux_partition(struct parsed_partitions *state,
 {
 	Sector sect;
 	struct linux_part *linuxp;
-	unsigned long size = nr_sects > 2 ? 2 : nr_sects;
+	unsigned long size = min(nr_sects, 2);
 
 	seq_buf_puts(&state->pp_buf, " [Linux]");
 

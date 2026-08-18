@@ -40,11 +40,8 @@ config CAN_VXCAN
 	  When one end receives the packet it appears on its pair and vice
 	  versa. The vxcan can be used for cross namespace communication.
 
-	  In opposite to vcan loopback devices the vxcan only forwards CAN
-	  frames to its pair and does *not* provide a local echo of sent
-	  CAN frames. To disable a potential echo in af_can.c the vxcan driver
-	  announces IFF_ECHO in the interface flags. To have a clean start
-	  in each namespace the CAN GW hop counter is set to zero.
+	  To have a clean start in each namespace the CAN GW hop counter is
+	  set to zero.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called vxcan.
@@ -225,6 +222,18 @@ config CAN_TI_HECC
 	help
 	  Driver for TI HECC (High End CAN Controller) module found on many
 	  TI devices. The device specifications are available from www.ti.com
+
+config CAN_VIRTIO_CAN
+	depends on VIRTIO
+	tristate "Virtio CAN device support"
+	default n
+	help
+	  Say Y here if you want to support for Virtio CAN.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called virtio-can.
+
+	  If unsure, say N.
 
 config CAN_XILINXCAN
 	tristate "Xilinx CAN"

@@ -71,28 +71,44 @@ struct local_reg {
 		.width	= (cfg)->ip_name##_reg_##reg_name##_width,		\
 	}
 
-static u64 readx(void __iomem *addr, u8 width)
-{
-	switch (width) {
-	case 1:
-		return readb(addr);
-	case 2:
-		return readw(addr);
-	case 4:
-		return readl(addr);
-	case 8:
-		return readq(addr);
-	default:
-		imh_printk(KERN_ERR, "Invalid reg 0x%p width %d\n", addr, width);
-		return 0;
-	}
+static struct res_config *res_cfg;
+static int retry_rd_err_log;
+
+#define REG_RRL_DEFINE(a0, a1, a2, a3, a4, a5, a6, b0, b1, b2, b3)	\
+	{								\
+		.set_num = 4,						\
+		.reg_num = 7,						\
+		.sources = {RRL_SRC_FRE_SCRUB, RRL_SRC_FRE_DEMAND, RRL_SRC_LRE_SCRUB, RRL_SRC_LRE_DEMAND},	\
+		.offsets = {									\
+			{a0,      a1,      a2,      a3,      a4,      a5,      a6},		\
+			{a0 + 4,  a1 + 4,  a2 + 8,  a3 + 4,  a4 + 4,  a5 + 8,  a6 + 8},		\
+			{a0 + 8,  a1 + 8,  a2 + 16, a3 + 8,  a4 + 8,  a5 + 16, a6 + 16},	\
+			{a0 + 12, a1 + 12, a2 + 24, a3 + 12, a4 + 12, a5 + 24, a6 + 24},	\
+		},										\
+		.widths		= {4, 4, 8, 4, 4, 8, 8},		\
+		.v_mask		= BIT(0),				\
+		.uc_mask	= BIT(1),				\
+		.over_mask	= BIT(2),				\
+		.en_mask	= BIT(12),				\
+		.en_patspr_mask	= BIT(14),				\
+		.noover_mask	= BIT(15),				\
+		.cecnt_num	= 4,					\
+		.cecnt_offsets	= {b0, b1, b2, b3},			\
+		.cecnt_widths	= {8, 8, 8, 8},				\
 }
+
+static struct reg_rrl dmr_reg_rrl_ddr_subch0 = REG_RRL_DEFINE(
+	0x2dc0, 0x2dd0, 0x2de0, 0x2e00, 0x2e10, 0x2f70, 0x0200,
+	0x2c10, 0x2c18, 0x2c20, 0x2c28);
+static struct reg_rrl dmr_reg_rrl_ddr_subch1 = REG_RRL_DEFINE(
+	0x6dc0, 0x6dd0, 0x6de0, 0x6e00, 0x6e10, 0x6f70, 0x4200,
+	0x6c10, 0x6c18, 0x6c20, 0x6c28);
 
 static void __read_local_reg(void *reg)
 {
 	struct local_reg *r = (struct local_reg *)reg;
 
-	r->val = readx(r->vbase + r->offset, r->width);
+	r->val = skx_readx(r->vbase + r->offset, r->width);
 }
 
 /* Read a local-view register. */
@@ -378,22 +394,16 @@ static bool imh_2lm_enabled(struct res_config *cfg, struct list_head *head)
 	return false;
 }
 
-/* Helpers to read memory controller registers */
-static u64 read_imc_reg(struct skx_imc *imc, int chan, u32 offset, u8 width)
-{
-	return readx(imc->mbase + imc->chan_mmio_sz * chan + offset, width);
-}
-
 static u32 read_imc_mcmtr(struct res_config *cfg, struct skx_imc *imc, int chan)
 {
-	return (u32)read_imc_reg(imc, chan, cfg->ddr_reg_mcmtr_offset, cfg->ddr_reg_mcmtr_width);
+	return (u32)skx_read_imc_reg(imc, chan, cfg->ddr_reg_mcmtr_offset, cfg->ddr_reg_mcmtr_width);
 }
 
 static u32 read_imc_dimmmtr(struct res_config *cfg, struct skx_imc *imc, int chan, int dimm)
 {
-	return (u32)read_imc_reg(imc, chan, cfg->ddr_reg_dimmmtr_offset +
-				 cfg->ddr_reg_dimmmtr_width * dimm,
-				 cfg->ddr_reg_dimmmtr_width);
+	return (u32)skx_read_imc_reg(imc, chan, cfg->ddr_reg_dimmmtr_offset +
+				     cfg->ddr_reg_dimmmtr_width * dimm,
+				     cfg->ddr_reg_dimmmtr_width);
 }
 
 static bool ecc_enabled(u32 mcmtr)
@@ -503,6 +513,8 @@ static struct res_config dmr_cfg = {
 	.ha_size			= 0x1000,
 	.ha_reg_mode_offset		= 0x4a0,
 	.ha_reg_mode_width		= 4,
+	.reg_rrl_ddr[0]			= &dmr_reg_rrl_ddr_subch0,
+	.reg_rrl_ddr[1]			= &dmr_reg_rrl_ddr_subch1,
 };
 
 static const struct x86_cpu_id imh_cpuids[] = {
@@ -542,6 +554,7 @@ static int __init imh_init(void)
 		return -ENODEV;
 	cfg = (struct res_config *)id->driver_data;
 	skx_set_res_cfg(cfg);
+	res_cfg = cfg;
 
 	if (!imh_get_tolm_tohm(cfg, &tolm, &tohm))
 		return -ENODEV;
@@ -576,6 +589,13 @@ static int __init imh_init(void)
 	mce_register_decode_chain(&imh_mce_dec);
 	skx_setup_debug("imh_test");
 
+	cfg->rrl_ctrl_mode = retry_rd_err_log;
+	if (retry_rd_err_log && cfg->reg_rrl_ddr[0]) {
+		skx_set_show_rrl(skx_show_rrl);
+		if (retry_rd_err_log == RRL_CTRL_LINUX)
+			skx_enable_rrl(true);
+	}
+
 	imh_printk(KERN_INFO, "%s\n", IMH_REVISION);
 
 	return 0;
@@ -588,6 +608,12 @@ static void __exit imh_exit(void)
 {
 	edac_dbg(2, "\n");
 
+	if (retry_rd_err_log && res_cfg->reg_rrl_ddr[0]) {
+		if (retry_rd_err_log == RRL_CTRL_LINUX)
+			skx_enable_rrl(false);
+		skx_set_show_rrl(NULL);
+	}
+
 	skx_teardown_debug();
 	mce_unregister_decode_chain(&imh_mce_dec);
 	skx_adxl_put();
@@ -596,6 +622,9 @@ static void __exit imh_exit(void)
 
 module_init(imh_init);
 module_exit(imh_exit);
+
+module_param(retry_rd_err_log, int, 0444);
+MODULE_PARM_DESC(retry_rd_err_log, "retry_rd_err_log: 0=off(default), 1=bios(Linux doesn't reset any control bits, but just reports values.), 2=linux(Linux tries to take control and resets mode bits, clear valid/UC bits after reading.)");
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Qiuxu Zhuo");

@@ -398,7 +398,7 @@ EXPORT_SYMBOL(rdma_user_mmap_entry_insert);
  * The struct ib_device that is handling the uverbs call. Must not be called if
  * udata is NULL. The result can be NULL.
  */
-struct ib_device *rdma_udata_to_dev(struct ib_udata *udata)
+static struct ib_device *rdma_udata_to_dev(struct ib_udata *udata)
 {
 	struct uverbs_attr_bundle *bundle =
 		rdma_udata_to_uverbs_attr_bundle(udata);
@@ -415,10 +415,9 @@ struct ib_device *rdma_udata_to_dev(struct ib_udata *udata)
 	return srcu_dereference(bundle->ufile->device->ib_dev,
 				&bundle->ufile->device->disassociate_srcu);
 }
-EXPORT_SYMBOL(rdma_udata_to_dev);
 
-#if IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS)
-uverbs_api_ioctl_handler_fn uverbs_get_handler_fn(struct ib_udata *udata)
+typedef int (*uverbs_api_ioctl_handler_fn)(struct uverbs_attr_bundle *attrs);
+static uverbs_api_ioctl_handler_fn uverbs_get_handler_fn(struct ib_udata *udata)
 {
 	struct uverbs_attr_bundle *bundle =
 		rdma_udata_to_uverbs_attr_bundle(udata);
@@ -502,4 +501,258 @@ err_fault:
 	return -EFAULT;
 }
 EXPORT_SYMBOL(_ib_respond_udata);
-#endif
+
+/*
+ * Must be called with the ufile->device->disassociate_srcu held, and the lock
+ * must be held until use of the ucontext is finished.
+ */
+struct ib_ucontext *ib_uverbs_get_ucontext_file(struct ib_uverbs_file *ufile)
+{
+	/*
+	 * We do not hold the hw_destroy_rwsem lock for this flow, instead
+	 * srcu is used. It does not matter if someone races this with
+	 * get_context, we get NULL or valid ucontext.
+	 */
+	struct ib_ucontext *ucontext = smp_load_acquire(&ufile->ucontext);
+
+	if (!srcu_dereference(ufile->device->ib_dev,
+			      &ufile->device->disassociate_srcu))
+		return ERR_PTR(-EIO);
+
+	if (!ucontext)
+		return ERR_PTR(-EINVAL);
+
+	return ucontext;
+}
+EXPORT_SYMBOL(ib_uverbs_get_ucontext_file);
+
+int uverbs_destroy_def_handler(struct uverbs_attr_bundle *attrs)
+{
+	return 0;
+}
+EXPORT_SYMBOL(uverbs_destroy_def_handler);
+
+/*
+ * When calling a destroy function during an error unwind we need to pass in
+ * the udata that is sanitized of all user arguments. Ie from the driver
+ * perspective it looks like no udata was passed.
+ */
+struct ib_udata *uverbs_get_cleared_udata(struct uverbs_attr_bundle *attrs)
+{
+	attrs->driver_udata = (struct ib_udata){};
+	return &attrs->driver_udata;
+}
+EXPORT_SYMBOL_NS_GPL(uverbs_get_cleared_udata, "rdma_core");
+
+/**
+ * _uverbs_alloc() - Quickly allocate memory for use with a bundle
+ * @bundle: The bundle
+ * @size: Number of bytes to allocate
+ * @flags: Allocator flags
+ *
+ * The bundle allocator is intended for allocations that are connected with
+ * processing the system call related to the bundle. The allocated memory is
+ * always freed once the system call completes, and cannot be freed any other
+ * way.
+ *
+ * This tries to use a small pool of pre-allocated memory for performance.
+ */
+__malloc void *_uverbs_alloc(struct uverbs_attr_bundle *bundle, size_t size,
+			     gfp_t flags)
+{
+	struct bundle_priv *pbundle =
+		container_of(&bundle->hdr, struct bundle_priv, bundle);
+	size_t new_used;
+	void *res;
+
+	if (check_add_overflow(size, pbundle->internal_used, &new_used))
+		return ERR_PTR(-EOVERFLOW);
+
+	if (new_used > pbundle->internal_avail) {
+		struct bundle_alloc_head *buf;
+
+		buf = kvmalloc_flex(*buf, data, size, flags);
+		if (!buf)
+			return ERR_PTR(-ENOMEM);
+		buf->next = pbundle->allocated_mem;
+		pbundle->allocated_mem = buf;
+		return buf->data;
+	}
+
+	res = (void *)pbundle->internal_buffer + pbundle->internal_used;
+	pbundle->internal_used =
+		ALIGN(new_used, sizeof(*pbundle->internal_buffer));
+	if (want_init_on_alloc(flags))
+		memset(res, 0, size);
+	return res;
+}
+EXPORT_SYMBOL(_uverbs_alloc);
+
+int uverbs_copy_to(const struct uverbs_attr_bundle *bundle, size_t idx,
+		   const void *from, size_t size)
+{
+	const struct uverbs_attr *attr = uverbs_attr_get(bundle, idx);
+	size_t min_size;
+
+	if (IS_ERR(attr))
+		return PTR_ERR(attr);
+
+	min_size = min_t(size_t, attr->ptr_attr.len, size);
+	if (copy_to_user(u64_to_user_ptr(attr->ptr_attr.data), from, min_size))
+		return -EFAULT;
+
+	return uverbs_set_output(bundle, attr);
+}
+EXPORT_SYMBOL(uverbs_copy_to);
+
+int uverbs_copy_to_struct_or_zero(const struct uverbs_attr_bundle *bundle,
+				  size_t idx, const void *from, size_t size)
+{
+	const struct uverbs_attr *attr = uverbs_attr_get(bundle, idx);
+
+	if (IS_ERR(attr))
+		return PTR_ERR(attr);
+
+	if (size < attr->ptr_attr.len) {
+		if (clear_user(u64_to_user_ptr(attr->ptr_attr.data) + size,
+			       attr->ptr_attr.len - size))
+			return -EFAULT;
+	}
+	return uverbs_copy_to(bundle, idx, from, size);
+}
+EXPORT_SYMBOL(uverbs_copy_to_struct_or_zero);
+
+int _uverbs_get_const_unsigned(u64 *to,
+			       const struct uverbs_attr_bundle *attrs_bundle,
+			       size_t idx, u64 upper_bound, u64 *def_val)
+{
+	const struct uverbs_attr *attr;
+
+	attr = uverbs_attr_get(attrs_bundle, idx);
+	if (IS_ERR(attr)) {
+		if ((PTR_ERR(attr) != -ENOENT) || !def_val)
+			return PTR_ERR(attr);
+
+		*to = *def_val;
+	} else {
+		*to = attr->ptr_attr.data;
+	}
+
+	if (*to > upper_bound)
+		return -EINVAL;
+
+	return 0;
+}
+EXPORT_SYMBOL(_uverbs_get_const_unsigned);
+
+int _uverbs_get_const_signed(s64 *to,
+			     const struct uverbs_attr_bundle *attrs_bundle,
+			     size_t idx, s64 lower_bound, u64 upper_bound,
+			     s64  *def_val)
+{
+	const struct uverbs_attr *attr;
+
+	attr = uverbs_attr_get(attrs_bundle, idx);
+	if (IS_ERR(attr)) {
+		if ((PTR_ERR(attr) != -ENOENT) || !def_val)
+			return PTR_ERR(attr);
+
+		*to = *def_val;
+	} else {
+		*to = attr->ptr_attr.data;
+	}
+
+	if (*to < lower_bound || (*to > 0 && (u64)*to > upper_bound))
+		return -EINVAL;
+
+	return 0;
+}
+EXPORT_SYMBOL(_uverbs_get_const_signed);
+
+int uverbs_get_flags64(u64 *to, const struct uverbs_attr_bundle *attrs_bundle,
+		       size_t idx, u64 allowed_bits)
+{
+	const struct uverbs_attr *attr;
+	u64 flags;
+
+	attr = uverbs_attr_get(attrs_bundle, idx);
+	/* Missing attribute means 0 flags */
+	if (IS_ERR(attr)) {
+		*to = 0;
+		return 0;
+	}
+
+	/*
+	 * New userspace code should use 8 bytes to pass flags, but we
+	 * transparently support old userspaces that were using 4 bytes as
+	 * well.
+	 */
+	if (attr->ptr_attr.len == 8)
+		flags = attr->ptr_attr.data;
+	else if (attr->ptr_attr.len == 4)
+		flags = *(u32 *)&attr->ptr_attr.data;
+	else
+		return -EINVAL;
+
+	if (flags & ~allowed_bits)
+		return -EINVAL;
+
+	*to = flags;
+	return 0;
+}
+EXPORT_SYMBOL(uverbs_get_flags64);
+
+int uverbs_get_flags32(u32 *to, const struct uverbs_attr_bundle *attrs_bundle,
+		       size_t idx, u64 allowed_bits)
+{
+	u64 flags;
+	int ret;
+
+	ret = uverbs_get_flags64(&flags, attrs_bundle, idx, allowed_bits);
+	if (ret)
+		return ret;
+
+	if (flags > U32_MAX)
+		return -EINVAL;
+	*to = flags;
+
+	return 0;
+}
+EXPORT_SYMBOL(uverbs_get_flags32);
+
+/**
+ * uverbs_get_buffer_desc - Read a buffer descriptor from a uverbs attr.
+ * @attrs_bundle: uverbs attribute bundle.
+ * @attr_id:      id of an UVERBS_ATTR_UMEM-typed attribute.
+ * @desc:         descriptor to fill.
+ *
+ * Return: 0 on success, -ENOENT if @attr_id is not set, -EINVAL on a
+ * malformed descriptor, or any other negative errno propagated from
+ * uverbs_copy_from() (notably -EFAULT on copy_from_user() failure).
+ */
+int uverbs_get_buffer_desc(const struct uverbs_attr_bundle *attrs_bundle,
+			   u16 attr_id, struct ib_uverbs_buffer_desc *desc)
+{
+	int ret;
+
+	ret = uverbs_copy_from(desc, attrs_bundle, attr_id);
+	if (ret)
+		return ret;
+	if (desc->flags & ~IB_UVERBS_BUFFER_DESC_FLAGS_KNOWN_MASK)
+		return -EINVAL;
+	desc->optional_flags &= IB_UVERBS_BUFFER_DESC_OPTIONAL_FLAGS_KNOWN_MASK;
+	return 0;
+}
+EXPORT_SYMBOL(uverbs_get_buffer_desc);
+
+/* Once called an abort will call through to the type's destroy_hw() */
+void uverbs_finalize_uobj_create(const struct uverbs_attr_bundle *bundle,
+				 u16 idx)
+{
+	struct bundle_priv *pbundle =
+		container_of(&bundle->hdr, struct bundle_priv, bundle);
+
+	__set_bit(uapi_bkey_attr(uapi_key_attr(idx)),
+		  pbundle->uobj_hw_obj_valid);
+}
+EXPORT_SYMBOL(uverbs_finalize_uobj_create);

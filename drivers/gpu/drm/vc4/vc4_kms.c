@@ -44,7 +44,7 @@ struct vc4_load_tracker_state {
 #define to_vc4_load_tracker_state(_state)				\
 	container_of_const(_state, struct vc4_load_tracker_state, base)
 
-static struct vc4_ctm_state *vc4_get_ctm_state(struct drm_atomic_state *state,
+static struct vc4_ctm_state *vc4_get_ctm_state(struct drm_atomic_commit *state,
 					       struct drm_private_obj *manager)
 {
 	struct drm_device *dev = state->dev;
@@ -142,7 +142,7 @@ static u16 vc4_ctm_s31_32_to_s0_9(u64 in)
 }
 
 static void
-vc4_ctm_commit(struct vc4_dev *vc4, struct drm_atomic_state *state)
+vc4_ctm_commit(struct vc4_dev *vc4, struct drm_atomic_commit *state)
 {
 	struct vc4_hvs *hvs = vc4->hvs;
 	struct vc4_ctm_state *ctm_state = to_vc4_ctm_state(vc4->ctm_manager.state);
@@ -179,7 +179,7 @@ vc4_ctm_commit(struct vc4_dev *vc4, struct drm_atomic_state *state)
 }
 
 struct vc4_hvs_state *
-vc4_hvs_get_new_global_state(const struct drm_atomic_state *state)
+vc4_hvs_get_new_global_state(const struct drm_atomic_commit *state)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(state->dev);
 	struct drm_private_state *priv_state;
@@ -192,7 +192,7 @@ vc4_hvs_get_new_global_state(const struct drm_atomic_state *state)
 }
 
 struct vc4_hvs_state *
-vc4_hvs_get_old_global_state(const struct drm_atomic_state *state)
+vc4_hvs_get_old_global_state(const struct drm_atomic_commit *state)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(state->dev);
 	struct drm_private_state *priv_state;
@@ -205,7 +205,7 @@ vc4_hvs_get_old_global_state(const struct drm_atomic_state *state)
 }
 
 struct vc4_hvs_state *
-vc4_hvs_get_global_state(struct drm_atomic_state *state)
+vc4_hvs_get_global_state(struct drm_atomic_commit *state)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(state->dev);
 	struct drm_private_state *priv_state;
@@ -218,7 +218,7 @@ vc4_hvs_get_global_state(struct drm_atomic_state *state)
 }
 
 static void vc4_hvs_pv_muxing_commit(struct vc4_dev *vc4,
-				     struct drm_atomic_state *state)
+				     struct drm_atomic_commit *state)
 {
 	struct vc4_hvs *hvs = vc4->hvs;
 	struct drm_crtc_state *crtc_state;
@@ -261,7 +261,7 @@ static void vc4_hvs_pv_muxing_commit(struct vc4_dev *vc4,
 }
 
 static void vc5_hvs_pv_muxing_commit(struct vc4_dev *vc4,
-				     struct drm_atomic_state *state)
+				     struct drm_atomic_commit *state)
 {
 	struct vc4_hvs *hvs = vc4->hvs;
 	struct drm_crtc_state *crtc_state;
@@ -337,7 +337,7 @@ static void vc5_hvs_pv_muxing_commit(struct vc4_dev *vc4,
 }
 
 static void vc6_hvs_pv_muxing_commit(struct vc4_dev *vc4,
-				     struct drm_atomic_state *state)
+				     struct drm_atomic_commit *state)
 {
 	struct vc4_hvs *hvs = vc4->hvs;
 	struct drm_crtc_state *crtc_state;
@@ -384,7 +384,7 @@ static void vc6_hvs_pv_muxing_commit(struct vc4_dev *vc4,
 	}
 }
 
-static void vc4_atomic_commit_tail(struct drm_atomic_state *state)
+static void vc4_atomic_commit_tail(struct drm_atomic_commit *state)
 {
 	struct drm_device *dev = state->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
@@ -508,7 +508,7 @@ static void vc4_atomic_commit_tail(struct drm_atomic_state *state)
 	}
 }
 
-static int vc4_atomic_commit_setup(struct drm_atomic_state *state)
+static int vc4_atomic_commit_setup(struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *crtc_state;
 	struct vc4_hvs_state *hvs_state;
@@ -587,7 +587,7 @@ static struct drm_framebuffer *vc4_fb_create(struct drm_device *dev,
  * we don't allow userland to set a CTM that we have no hope of approximating.
  */
 static int
-vc4_ctm_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
+vc4_ctm_atomic_check(struct drm_device *dev, struct drm_atomic_commit *state)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_ctm_state *ctm_state = NULL;
@@ -653,7 +653,7 @@ vc4_ctm_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
 	return 0;
 }
 
-static int vc4_load_tracker_atomic_check(struct drm_atomic_state *state)
+static int vc4_load_tracker_atomic_check(struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *old_plane_state, *new_plane_state;
 	struct vc4_dev *vc4 = to_vc4_dev(state->dev);
@@ -898,7 +898,7 @@ static int cmp_vc4_crtc_hvs_output(const void *a, const void *b)
  *   single display, and changing the resolution down and then back up.
  */
 static int vc4_pv_muxing_atomic_check(struct drm_device *dev,
-				      struct drm_atomic_state *state)
+				      struct drm_atomic_commit *state)
 {
 	struct vc4_hvs_state *hvs_new_state;
 	struct drm_crtc **sorted_crtcs;
@@ -1019,7 +1019,7 @@ err_free_crtc_array:
 }
 
 static int
-vc4_core_clock_atomic_check(struct drm_atomic_state *state)
+vc4_core_clock_atomic_check(struct drm_atomic_commit *state)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(state->dev);
 	struct drm_private_state *priv_state;
@@ -1091,7 +1091,7 @@ vc4_core_clock_atomic_check(struct drm_atomic_state *state)
 
 
 static int
-vc4_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
+vc4_atomic_check(struct drm_device *dev, struct drm_atomic_commit *state)
 {
 	int ret;
 

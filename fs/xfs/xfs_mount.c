@@ -1080,7 +1080,7 @@ xfs_mountfs(
 
 	if (XFS_IS_CORRUPT(mp, !S_ISDIR(VFS_I(rip)->i_mode))) {
 		xfs_warn(mp, "corrupted root inode %llu: not a directory",
-			(unsigned long long)rip->i_ino);
+			(unsigned long long)I_INO(rip));
 		xfs_iunlock(rip, XFS_ILOCK_EXCL);
 		error = -EFSCORRUPTED;
 		goto out_rele_rip;
@@ -1246,11 +1246,19 @@ xfs_mountfs(
 		xfs_irele(mp->m_metadirip);
 
 	/*
-	 * Inactivate all inodes that might still be in memory after a log
-	 * intent recovery failure so that reclaim can free them.  Metadata
-	 * inodes and the root directory shouldn't need inactivation, but the
-	 * mount failed for some reason, so pull down all the state and flee.
+	 * The mount has failed.  Mark the filesystem shut down so that any
+	 * inodes still queued for background inactivation are dropped
+	 * straight to reclaim instead of being inactivated: a failed mount
+	 * must not write to the (possibly corrupt, only partially set up)
+	 * persistent metadata, and parts of the mount it would need - e.g.
+	 * the quota subsystem (mp->m_quotainfo) - may never have been
+	 * initialised.
+	 *
+	 * Flush the queue so that those inodes are pulled down and reclaim
+	 * can free them; with the fs shut down xfs_inodegc_inactivate()
+	 * turns each one reclaimable without touching the on-disk structures.
 	 */
+	xfs_force_shutdown(mp, SHUTDOWN_META_IO_ERROR);
 	xfs_inodegc_flush(mp);
 
 	/*

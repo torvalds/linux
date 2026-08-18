@@ -6,18 +6,11 @@
 #ifndef __I915_IRQ_H__
 #define __I915_IRQ_H__
 
-#include <linux/ktime.h>
 #include <linux/types.h>
 
 #include "i915_reg_defs.h"
 
-enum pipe;
-struct drm_crtc;
-struct drm_device;
-struct drm_display_mode;
 struct drm_i915_private;
-struct intel_crtc;
-struct intel_encoder;
 struct intel_uncore;
 
 void intel_irq_init(struct drm_i915_private *dev_priv);

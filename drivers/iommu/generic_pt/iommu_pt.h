@@ -40,15 +40,40 @@ static void flush_writes_item(const struct pt_state *pts)
 			PT_ITEM_WORD_SIZE);
 }
 
-static void gather_range_pages(struct iommu_iotlb_gather *iotlb_gather,
-			       struct pt_iommu *iommu_table, pt_vaddr_t iova,
-			       pt_vaddr_t len,
-			       struct iommu_pages_list *free_list)
+struct iommupt_pending_gather {
+	struct iommu_iotlb_gather *iotlb_gather;
+	struct iommu_pages_list free_list;
+	u8 leaf_levels_bitmap;
+	u8 table_levels_bitmap;
+};
+
+static void gather_add_table(struct iommupt_pending_gather *pending,
+			     const struct pt_state *pts,
+			     struct pt_table_p *table)
 {
+	iommu_pages_list_add(&pending->free_list, table);
+	if (pts_feature(pts, PT_FEAT_DETAILED_GATHER))
+		pending->table_levels_bitmap |= BIT(pts->level);
+}
+
+static void gather_add_leaf(struct iommupt_pending_gather *pending,
+			    const struct pt_state *pts)
+{
+	if (!pts_feature(pts, PT_FEAT_DETAILED_GATHER))
+		return;
+
+	pending->leaf_levels_bitmap |= BIT(pts->level);
+}
+
+static void gather_range_pending(struct iommupt_pending_gather *pending,
+				 struct pt_iommu *iommu_table, pt_vaddr_t iova,
+				 pt_vaddr_t len)
+{
+	struct iommu_iotlb_gather *iotlb_gather = pending->iotlb_gather;
 	struct pt_common *common = common_from_iommu(iommu_table);
 
 	if (pt_feature(common, PT_FEAT_DMA_INCOHERENT))
-		iommu_pages_stop_incoherent_list(free_list,
+		iommu_pages_stop_incoherent_list(&pending->free_list,
 						 iommu_table->iommu_device);
 
 	/*
@@ -72,7 +97,17 @@ static void gather_range_pages(struct iommu_iotlb_gather *iotlb_gather,
 		iommu_iotlb_gather_add_range(iotlb_gather, iova, len);
 	}
 
-	iommu_pages_list_splice(free_list, &iotlb_gather->freelist);
+	iommu_pages_list_splice(&pending->free_list, &iotlb_gather->freelist);
+	INIT_LIST_HEAD(&pending->free_list.pages);
+
+	if (pt_feature(common, PT_FEAT_DETAILED_GATHER)) {
+		iotlb_gather->pt.leaf_levels_bitmap |=
+			pending->leaf_levels_bitmap;
+		iotlb_gather->pt.table_levels_bitmap |=
+			pending->table_levels_bitmap;
+		pending->leaf_levels_bitmap = 0;
+		pending->table_levels_bitmap = 0;
+	}
 }
 
 #define DOMAIN_NS(op) CONCATENATE(CONCATENATE(pt_iommu_, PTPFX), op)
@@ -341,7 +376,7 @@ static int __maybe_unused NS(set_dirty)(struct pt_iommu *iommu_table,
 }
 
 struct pt_iommu_collect_args {
-	struct iommu_pages_list free_list;
+	struct iommupt_pending_gather pending;
 	/* Fail if any OAs are within the range */
 	u8 check_mapped : 1;
 };
@@ -358,7 +393,8 @@ static int __collect_tables(struct pt_range *range, void *arg,
 
 	for_each_pt_level_entry(&pts) {
 		if (pts.type == PT_ENTRY_TABLE) {
-			iommu_pages_list_add(&collect->free_list, pts.table_lower);
+			gather_add_table(&collect->pending, &pts,
+					 pts.table_lower);
 			ret = pt_descend(&pts, arg, __collect_tables);
 			if (ret)
 				return ret;
@@ -493,15 +529,18 @@ static int clear_contig(const struct pt_state *start_pts,
 	struct pt_range range = *start_pts->range;
 	struct pt_state pts =
 		pt_init(&range, start_pts->level, start_pts->table);
-	struct pt_iommu_collect_args collect = { .check_mapped = true };
+	struct pt_iommu_collect_args collect = {
+		.check_mapped = true,
+		.pending.iotlb_gather = iotlb_gather,
+		.pending.free_list = IOMMU_PAGES_LIST_INIT(
+			collect.pending.free_list),
+	};
 	int ret;
 
 	pts.index = start_pts->index;
 	pts.end_index = start_pts->index + step;
 	for (; _pt_iter_load(&pts); pt_next_entry(&pts)) {
 		if (pts.type == PT_ENTRY_TABLE) {
-			collect.free_list =
-				IOMMU_PAGES_LIST_INIT(collect.free_list);
 			ret = pt_walk_descend_all(&pts, __collect_tables,
 						  &collect);
 			if (ret)
@@ -514,12 +553,11 @@ static int clear_contig(const struct pt_state *start_pts,
 			pt_clear_entries(&pts, ilog2(1));
 			flush_writes_item(&pts);
 
-			iommu_pages_list_add(&collect.free_list,
-					     pt_table_ptr(&pts));
-			gather_range_pages(
-				iotlb_gather, iommu_table, range.va,
-				log2_to_int(pt_table_item_lg2sz(&pts)),
-				&collect.free_list);
+			gather_add_table(&collect.pending, &pts,
+					 pts.table_lower);
+			gather_range_pending(
+				&collect.pending, iommu_table, range.va,
+				log2_to_int(pt_table_item_lg2sz(&pts)));
 		} else if (pts.type != PT_ENTRY_EMPTY) {
 			return -EADDRINUSE;
 		}
@@ -968,7 +1006,7 @@ static int NS(map_range)(struct pt_iommu *iommu_table, dma_addr_t iova,
 }
 
 struct pt_unmap_args {
-	struct iommu_pages_list free_list;
+	struct iommupt_pending_gather pending;
 	pt_vaddr_t unmapped;
 };
 
@@ -1031,8 +1069,8 @@ static __maybe_unused int __unmap_range(struct pt_range *range, void *arg,
 			 * succeed in clearing the lower table levels.
 			 */
 			if (fully_covered) {
-				iommu_pages_list_add(&unmap->free_list,
-						     pts.table_lower);
+				gather_add_table(&unmap->pending, &pts,
+						 pts.table_lower);
 				pt_clear_entries(&pts, ilog2(1));
 				if (pts.index < flush_start_index)
 					flush_start_index = pts.index;
@@ -1049,6 +1087,7 @@ start_oa:
 			 */
 			num_contig_lg2 = pt_entry_num_contig_lg2(&pts);
 			pt_clear_entries(&pts, num_contig_lg2);
+			gather_add_leaf(&unmap->pending, &pts);
 			num_oas += log2_to_int(num_contig_lg2);
 			if (pts.index < flush_start_index)
 				flush_start_index = pts.index;
@@ -1071,8 +1110,11 @@ static size_t NS(unmap_range)(struct pt_iommu *iommu_table, dma_addr_t iova,
 			      dma_addr_t len,
 			      struct iommu_iotlb_gather *iotlb_gather)
 {
-	struct pt_unmap_args unmap = { .free_list = IOMMU_PAGES_LIST_INIT(
-					       unmap.free_list) };
+	struct pt_unmap_args unmap = {
+		.pending.iotlb_gather = iotlb_gather,
+		.pending.free_list = IOMMU_PAGES_LIST_INIT(
+			unmap.pending.free_list),
+	};
 	struct pt_range range;
 	int ret;
 
@@ -1082,8 +1124,7 @@ static size_t NS(unmap_range)(struct pt_iommu *iommu_table, dma_addr_t iova,
 
 	pt_walk_range(&range, __unmap_range, &unmap);
 
-	gather_range_pages(iotlb_gather, iommu_table, iova, unmap.unmapped,
-			   &unmap.free_list);
+	gather_range_pending(&unmap.pending, iommu_table, iova, unmap.unmapped);
 
 	return unmap.unmapped;
 }
@@ -1108,8 +1149,12 @@ static void NS(get_info)(struct pt_iommu *iommu_table,
 			pgsize_bitmap |= pt_possible_sizes(&pts);
 	}
 
-	/* Hide page sizes larger than the maximum OA */
-	info->pgsize_bitmap = oalog2_mod(pgsize_bitmap, common->max_oasz_lg2);
+	/*
+	 * Hide page sizes larger than the maximum. -1 because a whole table
+	 * pgsize is not allowed
+	 */
+	info->pgsize_bitmap = log2_mod(pgsize_bitmap, common->max_vasz_lg2 - 1);
+	info->pgsize_bitmap = oalog2_mod(info->pgsize_bitmap, common->max_oasz_lg2);
 }
 
 static void NS(deinit)(struct pt_iommu *iommu_table)
@@ -1117,10 +1162,11 @@ static void NS(deinit)(struct pt_iommu *iommu_table)
 	struct pt_common *common = common_from_iommu(iommu_table);
 	struct pt_range range = pt_all_range(common);
 	struct pt_iommu_collect_args collect = {
-		.free_list = IOMMU_PAGES_LIST_INIT(collect.free_list),
+		.pending.free_list = IOMMU_PAGES_LIST_INIT(
+			collect.pending.free_list),
 	};
 
-	iommu_pages_list_add(&collect.free_list, range.top_table);
+	iommu_pages_list_add(&collect.pending.free_list, range.top_table);
 	pt_walk_range(&range, __collect_tables, &collect);
 
 	/*
@@ -1128,9 +1174,9 @@ static void NS(deinit)(struct pt_iommu *iommu_table)
 	 * and invalidated any caching referring to this memory.
 	 */
 	if (pt_feature(common, PT_FEAT_DMA_INCOHERENT))
-		iommu_pages_stop_incoherent_list(&collect.free_list,
+		iommu_pages_stop_incoherent_list(&collect.pending.free_list,
 						 iommu_table->iommu_device);
-	iommu_put_pages_list(&collect.free_list);
+	iommu_put_pages_list(&collect.pending.free_list);
 }
 
 static const struct pt_iommu_ops NS(ops) = {
@@ -1150,10 +1196,6 @@ static int pt_init_common(struct pt_common *common)
 
 	if (PT_WARN_ON(top_range.top_level > PT_MAX_TOP_LEVEL))
 		return -EINVAL;
-
-	if (top_range.top_level == PT_MAX_TOP_LEVEL ||
-	    common->max_vasz_lg2 == top_range.max_vasz_lg2)
-		common->features &= ~BIT(PT_FEAT_DYNAMIC_TOP);
 
 	if (top_range.max_vasz_lg2 == PT_VADDR_MAX_LG2)
 		common->features |= BIT(PT_FEAT_FULL_VA);

@@ -78,8 +78,8 @@ struct dw_mci_dma_slave {
  * @sg_cpu: Virtual address of DMA buffer.
  * @dma_ops: Pointer to DMA callbacks.
  * @cmd_status: Snapshot of SR taken upon completion of the current
- * @ring_size: Buffer size for idma descriptors.
  *	command. Only valid when EVENT_CMD_COMPLETE is pending.
+ * @desc_num: Number of idmac descriptors available.
  * @dms: structure of slave-dma private data.
  * @phy_regs: physical address of controller's register map
  * @data_status: Snapshot of SR taken upon completion of the current
@@ -107,6 +107,7 @@ struct dw_mci_dma_slave {
  * @ciu_clk: Pointer to card interface unit clock instance.
  * @fifo_depth: depth of FIFO.
  * @data_addr_override: override fifo reg offset with this value.
+ * @dma_threshold: data threshold value in bytes to carry out a DMA transfer.
  * @wm_aligned: force fifo watermark equal with data length in PIO mode.
  *	Set as true if alignment is needed.
  * @data_shift: log2 of FIFO item size.
@@ -163,6 +164,7 @@ struct dw_mci {
 	void __iomem		*regs;
 	void __iomem		*fifo_reg;
 	u32			data_addr_override;
+	u32			dma_threshold;
 	bool			wm_aligned;
 
 	struct scatterlist	*sg;
@@ -184,7 +186,7 @@ struct dw_mci {
 	void			*sg_cpu;
 	const struct dw_mci_dma_ops	*dma_ops;
 	/* For idmac */
-	unsigned int		ring_size;
+	unsigned short		desc_num;
 
 	/* For edmac */
 	struct dw_mci_dma_slave *dms;

@@ -23,17 +23,15 @@ static int octeon_spi_probe(struct platform_device *pdev)
 	struct octeon_spi *p;
 	int err = -ENOENT;
 
-	host = spi_alloc_host(&pdev->dev, sizeof(struct octeon_spi));
+	host = devm_spi_alloc_host(&pdev->dev, sizeof(struct octeon_spi));
 	if (!host)
 		return -ENOMEM;
 	p = spi_controller_get_devdata(host);
 	platform_set_drvdata(pdev, host);
 
 	reg_base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(reg_base)) {
-		err = PTR_ERR(reg_base);
-		goto fail;
-	}
+	if (IS_ERR(reg_base))
+		return PTR_ERR(reg_base);
 
 	p->register_base = reg_base;
 	p->sys_freq = octeon_get_io_clock_rate();
@@ -57,15 +55,12 @@ static int octeon_spi_probe(struct platform_device *pdev)
 	err = spi_register_controller(host);
 	if (err) {
 		dev_err(&pdev->dev, "register host failed: %d\n", err);
-		goto fail;
+		return err;
 	}
 
 	dev_info(&pdev->dev, "OCTEON SPI bus driver\n");
 
 	return 0;
-fail:
-	spi_controller_put(host);
-	return err;
 }
 
 static void octeon_spi_remove(struct platform_device *pdev)
@@ -73,14 +68,10 @@ static void octeon_spi_remove(struct platform_device *pdev)
 	struct spi_controller *host = platform_get_drvdata(pdev);
 	struct octeon_spi *p = spi_controller_get_devdata(host);
 
-	spi_controller_get(host);
-
 	spi_unregister_controller(host);
 
 	/* Clear the CSENA* and put everything in a known state. */
 	writeq(0, p->register_base + OCTEON_SPI_CFG(p));
-
-	spi_controller_put(host);
 }
 
 static const struct of_device_id octeon_spi_match[] = {

@@ -23,7 +23,7 @@
 
 #undef FN
 #define FN(reg_name, field_name) \
-	enc1->se_shift->field_name, enc1->se_mask->field_name
+	(uint8_t)enc1->se_shift->field_name, enc1->se_mask->field_name
 
 #define VBI_LINE_0 0
 #define HDMI_CLOCK_CHANNEL_RATE_MORE_340M 340000
@@ -401,7 +401,7 @@ void enc42_se_enable_audio_clock(
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 
-	REG_UPDATE(DIG_FE_AUDIO_CNTL, APG_CLOCK_ENABLE, !!enable);
+	REG_UPDATE(DIG_FE_AUDIO_CNTL, APG_CLOCK_ENABLE, enable);
 }
 
 
@@ -447,6 +447,68 @@ void enc42_reset_hdmi_stream_attribute(
 		HDMI_CLOCK_CHANNEL_RATE, 0);
 }
 
+bool enc42_dio_get_uncompressed_dp_pixel_format(
+	struct stream_encoder *enc,
+	enum dc_pixel_encoding *encoding,
+	enum dc_color_depth *depth)
+{
+	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
+	uint32_t is_compressed_pixel_format, uncompressed_component_depth, uncompressed_pixel_format, compressed_pixel_format;
+
+	if (enc == NULL || encoding == NULL || depth == NULL)
+		return false;
+
+	REG_GET_4(DP_PIXEL_FORMAT,
+		PIXEL_ENCODING_TYPE, &is_compressed_pixel_format,
+		UNCOMPRESSED_COMPONENT_DEPTH, &uncompressed_component_depth,
+		UNCOMPRESSED_PIXEL_FORMAT, &uncompressed_pixel_format,
+		COMPRESSED_PIXEL_FORMAT, &compressed_pixel_format);
+
+	if (!is_compressed_pixel_format) {
+		switch (uncompressed_component_depth) {
+		case DP_COMPONENT_PIXEL_DEPTH_6BPC:
+			*depth = COLOR_DEPTH_666;
+			break;
+		case DP_COMPONENT_PIXEL_DEPTH_8BPC:
+			*depth = COLOR_DEPTH_888;
+			break;
+		case DP_COMPONENT_PIXEL_DEPTH_10BPC:
+			*depth = COLOR_DEPTH_101010;
+			break;
+		case DP_COMPONENT_PIXEL_DEPTH_12BPC:
+			*depth = COLOR_DEPTH_121212;
+			break;
+		case DP_COMPONENT_PIXEL_DEPTH_16BPC:
+			*depth = COLOR_DEPTH_161616;
+			break;
+		default:
+			*depth = COLOR_DEPTH_UNDEFINED;
+			break;
+		}
+
+		switch (uncompressed_pixel_format) {
+		case DP_PIXEL_ENCODING_TYPE_RGB444:
+			*encoding = PIXEL_ENCODING_RGB;
+			break;
+		case DP_PIXEL_ENCODING_TYPE_YCBCR422:
+			*encoding = PIXEL_ENCODING_YCBCR422;
+			break;
+		case DP_PIXEL_ENCODING_TYPE_YCBCR444:
+		case DP_PIXEL_ENCODING_TYPE_Y_ONLY:
+			*encoding = PIXEL_ENCODING_YCBCR444;
+			break;
+		case DP_PIXEL_ENCODING_TYPE_YCBCR420:
+			*encoding = PIXEL_ENCODING_YCBCR420;
+			break;
+		default:
+			*encoding = PIXEL_ENCODING_UNDEFINED;
+			break;
+		}
+	}
+
+	return true;
+}
+
 static const struct stream_encoder_funcs dcn42_str_enc_funcs = {
 	.dp_set_stream_attribute =
 		enc401_stream_encoder_dp_set_stream_attribute,
@@ -483,7 +545,7 @@ static const struct stream_encoder_funcs dcn42_str_enc_funcs = {
 	.dig_connect_to_otg = enc1_dig_connect_to_otg,
 	.dig_source_otg = enc1_dig_source_otg,
 
-	.dp_get_pixel_format  = enc1_stream_encoder_dp_get_pixel_format,
+	.dp_get_pixel_format  = enc42_dio_get_uncompressed_dp_pixel_format,
 
 	.enc_read_state = enc401_read_state,
 	.dp_set_dsc_config = NULL,

@@ -43,8 +43,8 @@ static const struct adxl345_chip_info adxl375_i2c_info = {
 };
 
 static const struct i2c_device_id adxl345_i2c_id[] = {
-	{ "adxl345", (kernel_ulong_t)&adxl345_i2c_info },
-	{ "adxl375", (kernel_ulong_t)&adxl375_i2c_info },
+	{ .name = "adxl345", .driver_data = (kernel_ulong_t)&adxl345_i2c_info },
+	{ .name = "adxl375", .driver_data = (kernel_ulong_t)&adxl375_i2c_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adxl345_i2c_id);

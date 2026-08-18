@@ -323,20 +323,27 @@ unsigned int dcn32_get_max_hw_cursor_size(const struct dc *dc,
 		SRI_ARR(DC_HPD_TOGGLE_FILT_CNTL, HPD, id))
 
 /* Link encoder */
-#define LE_DCN3_REG_LIST_RI(id)                                                \
-  SRI_ARR(DIG_BE_CNTL, DIG, id), SRI_ARR(DIG_BE_EN_CNTL, DIG, id),             \
-      SRI_ARR(TMDS_CTL_BITS, DIG, id),                                         \
-      SRI_ARR(TMDS_DCBALANCER_CONTROL, DIG, id), SRI_ARR(DP_CONFIG, DP, id),   \
-      SRI_ARR(DP_DPHY_CNTL, DP, id), SRI_ARR(DP_DPHY_PRBS_CNTL, DP, id),       \
-      SRI_ARR(DP_DPHY_SCRAM_CNTL, DP, id), SRI_ARR(DP_DPHY_SYM0, DP, id),      \
-      SRI_ARR(DP_DPHY_SYM1, DP, id), SRI_ARR(DP_DPHY_SYM2, DP, id),            \
-      SRI_ARR(DP_DPHY_TRAINING_PATTERN_SEL, DP, id),                           \
-      SRI_ARR(DP_LINK_CNTL, DP, id), SRI_ARR(DP_LINK_FRAMING_CNTL, DP, id),    \
-      SRI_ARR(DP_MSE_SAT0, DP, id), SRI_ARR(DP_MSE_SAT1, DP, id),              \
-      SRI_ARR(DP_MSE_SAT2, DP, id), SRI_ARR(DP_MSE_SAT_UPDATE, DP, id),        \
-      SRI_ARR(DP_SEC_CNTL, DP, id), SRI_ARR(DP_VID_STREAM_CNTL, DP, id),       \
-      SRI_ARR(DP_DPHY_FAST_TRAINING, DP, id), SRI_ARR(DP_SEC_CNTL1, DP, id),   \
-      SRI_ARR(DP_DPHY_BS_SR_SWAP_CNTL, DP, id),                                \
+#define LE_DCN3_REG_LIST_RI(id)                                      \
+      SRI_ARR(DIG_BE_CNTL, DIG, id),                                 \
+      SRI_ARR(DIG_BE_EN_CNTL, DIG, id),                              \
+      SRI_ARR(TMDS_CTL_BITS, DIG, id),                               \
+      SRI_ARR(TMDS_DCBALANCER_CONTROL, DIG, id),                     \
+      SRI_ARR(DP_CONFIG, DP, id), SRI_ARR(DP_DPHY_CNTL, DP, id),     \
+      SRI_ARR(DP_DPHY_PRBS_CNTL, DP, id),                            \
+      SRI_ARR(DP_DPHY_SCRAM_CNTL, DP, id),                           \
+      SRI_ARR(DP_DPHY_SYM0, DP, id), SRI_ARR(DP_DPHY_SYM1, DP, id),  \
+      SRI_ARR(DP_DPHY_SYM2, DP, id),                                 \
+      SRI_ARR(DP_DPHY_TRAINING_PATTERN_SEL, DP, id),                 \
+      SRI_ARR(DP_LINK_CNTL, DP, id),                                 \
+      SRI_ARR(DP_LINK_FRAMING_CNTL, DP, id),                         \
+      SRI_ARR(DP_MSE_SAT0, DP, id), SRI_ARR(DP_MSE_SAT1, DP, id),    \
+      SRI_ARR(DP_MSE_SAT2, DP, id),                                  \
+      SRI_ARR(DP_MSE_SAT_UPDATE, DP, id),                            \
+      SRI_ARR(DP_SEC_CNTL, DP, id),                                  \
+      SRI_ARR(DP_VID_STREAM_CNTL, DP, id),                           \
+      SRI_ARR(DP_DPHY_FAST_TRAINING, DP, id),                        \
+      SRI_ARR(DP_SEC_CNTL1, DP, id),                                 \
+      SRI_ARR(DP_DPHY_BS_SR_SWAP_CNTL, DP, id),                      \
       SRI_ARR(DP_DPHY_HBR2_PATTERN_CONTROL, DP, id)
 
 #define LE_DCN31_REG_LIST_RI(id)                                               \
@@ -1280,5 +1287,49 @@ unsigned int dcn32_get_max_hw_cursor_size(const struct dc *dc,
 #define I2C_HW_ENGINE_COMMON_REG_LIST_DCN30_RI(id)                             \
       I2C_HW_ENGINE_COMMON_REG_LIST_RI(id), SR_ARR_I2C(DIO_MEM_PWR_CTRL, id),  \
       SR_ARR_I2C(DIO_MEM_PWR_STATUS, id)
+
+#define DCN3_0_HDMI_STREAM_ENC_REG_LIST_RI(id)                                 \
+  SR_ARR(HDMI_STREAM_ENC_CLOCK_CONTROL, id),                                   \
+      SR_ARR(HDMI_STREAM_ENC_INPUT_MUX_CONTROL, id),                          \
+      SR_ARR(HDMI_STREAM_ENC_CLOCK_RAMP_ADJUSTER_FIFO_STATUS_CONTROL0, id),    \
+      SR_ARR(HDMI_STREAM_ENC_CLOCK_RAMP_ADJUSTER_FIFO_STATUS_CONTROL2, id)
+
+#define DCN3_0_HDMI_TB_ENC_REG_LIST_RI(id)                                     \
+  SR_ARR(HDMI_TB_ENC_CONTROL, id), SR_ARR(HDMI_TB_ENC_H_ACTIVE_BLANK, id),     \
+      SR_ARR(HDMI_TB_ENC_HC_ACTIVE_BLANK, id), SR_ARR(HDMI_TB_ENC_MODE, id),   \
+      SR_ARR(HDMI_TB_ENC_PACKET_CONTROL, id),                                  \
+      SR_ARR(HDMI_TB_ENC_DB_CONTROL, id),                                      \
+      SR_ARR(HDMI_TB_ENC_PIXEL_FORMAT, id),                                    \
+      SR_ARR(HDMI_TB_ENC_VBI_PACKET_CONTROL1, id),                             \
+      SR_ARR(HDMI_TB_ENC_GC_CONTROL, id),                                      \
+      SR_ARR(HDMI_TB_ENC_GENERIC_PACKET_CONTROL0, id),                         \
+      SR_ARR(HDMI_TB_ENC_GENERIC_PACKET_CONTROL1, id),                         \
+      SR_ARR(HDMI_TB_ENC_GENERIC_PACKET0_1_LINE, id),                          \
+      SR_ARR(HDMI_TB_ENC_GENERIC_PACKET2_3_LINE, id),                          \
+      SR_ARR(HDMI_TB_ENC_GENERIC_PACKET4_5_LINE, id),                          \
+      SR_ARR(HDMI_TB_ENC_GENERIC_PACKET6_7_LINE, id),                          \
+      SR_ARR(HDMI_TB_ENC_GENERIC_PACKET8_9_LINE, id),                          \
+      SR_ARR(HDMI_TB_ENC_GENERIC_PACKET10_11_LINE, id),                        \
+      SR_ARR(HDMI_TB_ENC_GENERIC_PACKET12_13_LINE, id),                        \
+      SR_ARR(HDMI_TB_ENC_GENERIC_PACKET14_LINE, id),                           \
+      SR_ARR(HDMI_TB_ENC_ACR_PACKET_CONTROL, id),                              \
+      SR_ARR(HDMI_TB_ENC_ACR_32_0, id), SR_ARR(HDMI_TB_ENC_ACR_32_1, id),      \
+      SR_ARR(HDMI_TB_ENC_ACR_44_0, id), SR_ARR(HDMI_TB_ENC_ACR_44_1, id),      \
+      SR_ARR(HDMI_TB_ENC_ACR_48_0, id), SR_ARR(HDMI_TB_ENC_ACR_48_1, id),      \
+      SR_ARR(HDMI_TB_ENC_CRC_CNTL, id),                                        \
+      SR_ARR(HDMI_TB_ENC_METADATA_PACKET_CONTROL, id)
+
+#define DCN3_0_HPO_STREAM_ENC_DME_REG_LIST_RI(id, offset) \
+	SRI_ARR_DME(DME_CONTROL, DME, id, offset)
+
+#define DCN3_0_HPO_FRL_STREAM_ENC_REG_LIST_RI(id)                              \
+  DCN3_0_HDMI_STREAM_ENC_REG_LIST_RI(id), DCN3_0_HDMI_TB_ENC_REG_LIST_RI(id)
+
+#define DCN3_0_HPO_FRL_LINK_ENC_REG_LIST_RI(id) \
+	SR_ARR(HDMI_LINK_ENC_CLK_CTRL, id), \
+	SR_ARR(HDMI_LINK_ENC_CONTROL, id), \
+	SR_ARR(HDMI_FRL_ENC_CONFIG, id), \
+	SR_ARR(HDMI_FRL_ENC_CONFIG2, id),\
+	SR_ARR(HDMI_FRL_ENC_MEM_CTRL, id)
 
 #endif /* _DCN32_RESOURCE_H_ */

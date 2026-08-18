@@ -498,6 +498,8 @@ void bnxt_re_debugfs_add_pdev(struct bnxt_re_dev *rdev)
 	bnxt_re_debugfs_add_info(rdev);
 
 	rdev->cc_config_params = kzalloc_obj(*cc_params);
+	if (!rdev->cc_config_params)
+		return;
 
 	for (i = 0; i < BNXT_RE_CC_PARAM_GEN0; i++) {
 		struct bnxt_re_cc_param *tmp_params = &rdev->cc_config_params->gen0_parms[i];

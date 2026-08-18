@@ -5854,6 +5854,24 @@ static int smu7_power_off_asic(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
+static void smu7_notify_ac_dc(struct pp_hwmgr *hwmgr)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)(hwmgr->adev);
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+
+	/*
+	 * Check if the platform already manages the AC/DC switch via dedicated GPIO.
+	 * Otherwise SMU automatically notices DC, but needs to be notified of AC.
+	 */
+	if (adev->pm.ac_power &&
+	    phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+			    PHM_PlatformCaps_AutomaticDCTransition))
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_RunningOnAC, NULL);
+
+	/* Recompute clocks with updated max_limits. */
+	pp_funcs->pm_compute_clocks(adev->powerplay.pp_handle);
+}
+
 static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.backend_init = &smu7_hwmgr_backend_init,
 	.backend_fini = &smu7_hwmgr_backend_fini,
@@ -5916,6 +5934,7 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.get_asic_baco_state = smu7_baco_get_state,
 	.set_asic_baco_state = smu7_baco_set_state,
 	.power_off_asic = smu7_power_off_asic,
+	.notify_ac_dc = smu7_notify_ac_dc,
 };
 
 uint8_t smu7_get_sleep_divider_id_from_clock(uint32_t clock,

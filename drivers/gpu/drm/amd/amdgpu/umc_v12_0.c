@@ -285,7 +285,8 @@ static int umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 					struct ta_ras_query_address_output *addr_out,
 					bool dump_addr)
 {
-	uint32_t col, col_lower, row, row_lower, row_high, bank;
+	uint32_t row = 0, row_lower = 0, row_high = 0;
+	uint32_t col = 0, col_lower = 0, bank = 0;
 	uint32_t channel_index = 0, umc_inst = 0;
 	uint32_t i, bit_num, retire_unit, *flip_bits;
 	uint64_t soc_pa, column, err_addr;

@@ -18,6 +18,7 @@
 #include <linux/uio.h>
 #include <linux/kernel.h>
 #include "../common/smb2pdu.h"
+#include "../common/compress/compress.h"
 #include "cifsglob.h"
 
 /* sizeof(smb2_compression_hdr) - sizeof(OriginalPayloadSize) */
@@ -34,29 +35,6 @@ int smb_compress(struct TCP_Server_Info *server, struct smb_rqst *rq,
 		 compress_send_fn send_fn);
 bool should_compress(const struct cifs_tcon *tcon, const struct smb_rqst *rq);
 
-/*
- * smb_compress_alg_valid() - Validate a compression algorithm.
- * @alg: Compression algorithm to check.
- * @valid_none: Conditional check whether NONE algorithm should be
- *		considered valid or not.
- *
- * If @alg is SMB3_COMPRESS_NONE, this function returns @valid_none.
- *
- * Note that 'NONE' (0) compressor type is considered invalid in protocol
- * negotiation, as it's never requested to/returned from the server.
- *
- * Return: true if @alg is valid/supported, false otherwise.
- */
-static __always_inline int smb_compress_alg_valid(__le16 alg, bool valid_none)
-{
-	if (alg == SMB3_COMPRESS_NONE)
-		return valid_none;
-
-	if (alg == SMB3_COMPRESS_LZ77 || alg == SMB3_COMPRESS_PATTERN)
-		return true;
-
-	return false;
-}
 #else /* !CONFIG_CIFS_COMPRESSION */
 static inline int smb_compress(void *unused1, void *unused2, void *unused3)
 {
@@ -68,9 +46,5 @@ static inline bool should_compress(void *unused1, void *unused2)
 	return false;
 }
 
-static inline int smb_compress_alg_valid(__le16 unused1, bool unused2)
-{
-	return -EOPNOTSUPP;
-}
 #endif /* !CONFIG_CIFS_COMPRESSION */
 #endif /* _SMB_COMPRESS_H */

@@ -3,8 +3,8 @@
  * Copyright © 2025 Intel Corporation
  */
 
-#ifndef __XE_EU_STALL_H__
-#define __XE_EU_STALL_H__
+#ifndef _XE_EU_STALL_H_
+#define _XE_EU_STALL_H_
 
 #include "xe_gt_types.h"
 #include "xe_sriov.h"

@@ -26,6 +26,6 @@ int imx_drm_encoder_parse_of(struct drm_device *drm,
 	struct drm_encoder *encoder, struct device_node *np);
 
 int ipu_planes_assign_pre(struct drm_device *dev,
-			  struct drm_atomic_state *state);
+			  struct drm_atomic_commit *state);
 
 #endif /* _IMX_DRM_H_ */

@@ -18,7 +18,6 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
-#include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
@@ -28,7 +27,6 @@
 #include <linux/kfifo.h>
 #include <linux/ioctl.h>
 #include <linux/firmware.h>
-#include <linux/uaccess.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 
@@ -1466,6 +1464,12 @@ static int do_boot_mode(struct edgeport_serial *serial,
 		/* Allocate a 15.5k buffer + 3 byte header */
 		buffer_size = (((1024 * 16) - 512) +
 					sizeof(struct ti_i2c_image_header));
+		if (fw->size - 4 > buffer_size) {
+			dev_err(dev, "%s - firmware image is too large\n",
+				__func__);
+			return -EINVAL;
+		}
+
 		buffer = kmalloc(buffer_size, GFP_KERNEL);
 		if (!buffer)
 			return -ENOMEM;

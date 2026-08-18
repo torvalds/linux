@@ -68,24 +68,24 @@ static int mcf_pci_readconfig(struct pci_bus *bus, unsigned int devfn,
 	}
 
 	addr = mcf_mk_pcicar(bus->number, devfn, where);
-	__raw_writel(PCICAR_E | addr, PCICAR);
-	__raw_readl(PCICAR);
+	mcf_write32(PCICAR_E | addr, PCICAR);
+	mcf_read32(PCICAR);
 	addr = iospace + (where & 0x3);
 
 	switch (size) {
 	case 1:
-		*value = __raw_readb(addr);
+		*value = mcf_read8(addr);
 		break;
 	case 2:
-		*value = le16_to_cpu(__raw_readw(addr));
+		*value = le16_to_cpu(mcf_read16(addr));
 		break;
 	default:
-		*value = le32_to_cpu(__raw_readl(addr));
+		*value = le32_to_cpu(mcf_read32(addr));
 		break;
 	}
 
-	__raw_writel(0, PCICAR);
-	__raw_readl(PCICAR);
+	mcf_write32(0, PCICAR);
+	mcf_read32(PCICAR);
 	return PCIBIOS_SUCCESSFUL;
 }
 
@@ -100,24 +100,24 @@ static int mcf_pci_writeconfig(struct pci_bus *bus, unsigned int devfn,
 	}
 
 	addr = mcf_mk_pcicar(bus->number, devfn, where);
-	__raw_writel(PCICAR_E | addr, PCICAR);
-	__raw_readl(PCICAR);
+	mcf_write32(PCICAR_E | addr, PCICAR);
+	mcf_read32(PCICAR);
 	addr = iospace + (where & 0x3);
 
 	switch (size) {
 	case 1:
-		 __raw_writeb(value, addr);
+		 mcf_write8(value, addr);
 		break;
 	case 2:
-		__raw_writew(cpu_to_le16(value), addr);
+		mcf_write16(cpu_to_le16(value), addr);
 		break;
 	default:
-		__raw_writel(cpu_to_le32(value), addr);
+		mcf_write32(cpu_to_le32(value), addr);
 		break;
 	}
 
-	__raw_writel(0, PCICAR);
-	__raw_readl(PCICAR);
+	mcf_write32(0, PCICAR);
+	mcf_read32(PCICAR);
 	return PCIBIOS_SUCCESSFUL;
 }
 
@@ -175,44 +175,44 @@ static int __init mcf_pci_init(void)
 	pr_info("ColdFire: PCI bus initialization...\n");
 
 	/* Reset the external PCI bus */
-	__raw_writel(PCIGSCR_RESET, PCIGSCR);
-	__raw_writel(0, PCITCR);
+	mcf_write32(PCIGSCR_RESET, PCIGSCR);
+	mcf_write32(0, PCITCR);
 
 	request_resource(&iomem_resource, &mcf_pci_mem);
 	request_resource(&iomem_resource, &mcf_pci_io);
 
 	/* Configure PCI arbiter */
-	__raw_writel(PACR_INTMPRI | PACR_INTMINTE | PACR_EXTMPRI(0x1f) |
+	mcf_write32(PACR_INTMPRI | PACR_INTMINTE | PACR_EXTMPRI(0x1f) |
 		PACR_EXTMINTE(0x1f), PACR);
 
 	/* Set required multi-function pins for PCI bus use */
-	__raw_writew(0x3ff, MCFGPIO_PAR_PCIBG);
-	__raw_writew(0x3ff, MCFGPIO_PAR_PCIBR);
+	mcf_write16(0x3ff, MCFGPIO_PAR_PCIBG);
+	mcf_write16(0x3ff, MCFGPIO_PAR_PCIBR);
 
 	/* Set up config space for local host bus controller */
-	__raw_writel(PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER |
+	mcf_write32(PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER |
 		PCI_COMMAND_INVALIDATE, PCISCR);
-	__raw_writel(PCICR1_LT(32) | PCICR1_CL(8), PCICR1);
-	__raw_writel(0, PCICR2);
+	mcf_write32(PCICR1_LT(32) | PCICR1_CL(8), PCICR1);
+	mcf_write32(0, PCICR2);
 
 	/*
 	 * Set up the initiator windows for memory and IO mapping.
 	 * These give the CPU bus access onto the PCI bus. One for each of
 	 * PCI memory and IO address spaces.
 	 */
-	__raw_writel(WXBTAR(PCI_MEM_PA, PCI_MEM_BA, PCI_MEM_SIZE),
+	mcf_write32(WXBTAR(PCI_MEM_PA, PCI_MEM_BA, PCI_MEM_SIZE),
 		PCIIW0BTAR);
-	__raw_writel(WXBTAR(PCI_IO_PA, PCI_IO_BA, PCI_IO_SIZE),
+	mcf_write32(WXBTAR(PCI_IO_PA, PCI_IO_BA, PCI_IO_SIZE),
 		PCIIW1BTAR);
-	__raw_writel(PCIIWCR_W0_MEM /*| PCIIWCR_W0_MRDL*/ | PCIIWCR_W0_E |
+	mcf_write32(PCIIWCR_W0_MEM /*| PCIIWCR_W0_MRDL*/ | PCIIWCR_W0_E |
 		PCIIWCR_W1_IO | PCIIWCR_W1_E, PCIIWCR);
 
 	/*
 	 * Set up the target windows for access from the PCI bus back to the
 	 * CPU bus. All we need is access to system RAM (for mastering).
 	 */
-	__raw_writel(CONFIG_RAMBASE, PCIBAR1);
-	__raw_writel(CONFIG_RAMBASE | PCITBATR1_E, PCITBATR1);
+	mcf_write32(CONFIG_RAMBASE, PCIBAR1);
+	mcf_write32(CONFIG_RAMBASE | PCITBATR1_E, PCITBATR1);
 
 	/* Keep a virtual mapping to IO/config space active */
 	iospace = (unsigned long) ioremap(PCI_IO_PA, PCI_IO_SIZE);
@@ -224,7 +224,7 @@ static int __init mcf_pci_init(void)
 		(u32) iospace);
 
 	/* Turn of PCI reset, and wait for devices to settle */
-	__raw_writel(0, PCIGSCR);
+	mcf_write32(0, PCIGSCR);
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	schedule_timeout(msecs_to_jiffies(200));
 

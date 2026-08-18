@@ -37,12 +37,6 @@ extern void gio_dev_put(struct gio_device *);
 
 extern int gio_device_register(struct gio_device *);
 extern void gio_device_unregister(struct gio_device *);
-extern void gio_release_dev(struct device *);
-
-static inline void gio_device_free(struct gio_device *dev)
-{
-	gio_release_dev(&dev->dev);
-}
 
 extern int gio_register_driver(struct gio_driver *);
 extern void gio_unregister_driver(struct gio_driver *);

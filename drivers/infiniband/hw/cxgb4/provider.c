@@ -52,6 +52,7 @@
 #include <rdma/ib_smi.h>
 #include <rdma/ib_umem.h>
 #include <rdma/ib_user_verbs.h>
+#include <rdma/uverbs_ioctl.h>
 
 #include "iw_cxgb4.h"
 
@@ -79,7 +80,7 @@ static int c4iw_alloc_ucontext(struct ib_ucontext *ucontext,
 	struct ib_device *ibdev = ucontext->device;
 	struct c4iw_ucontext *context = to_c4iw_ucontext(ucontext);
 	struct c4iw_dev *rhp = to_c4iw_dev(ibdev);
-	struct c4iw_alloc_ucontext_resp uresp;
+	struct c4iw_alloc_ucontext_resp uresp = {};
 	int ret = 0;
 	struct c4iw_mm_entry *mm = NULL;
 
@@ -105,8 +106,7 @@ static int c4iw_alloc_ucontext(struct ib_ucontext *ucontext,
 		context->key += PAGE_SIZE;
 		spin_unlock(&context->mmap_lock);
 
-		ret = ib_copy_to_udata(udata, &uresp,
-				       sizeof(uresp) - sizeof(uresp.reserved));
+		ret = ib_respond_udata(udata, uresp);
 		if (ret)
 			goto err_mm;
 
@@ -209,8 +209,9 @@ static int c4iw_allocate_pd(struct ib_pd *pd, struct ib_udata *udata)
 {
 	struct c4iw_pd *php = to_c4iw_pd(pd);
 	struct ib_device *ibdev = pd->device;
-	u32 pdid;
 	struct c4iw_dev *rhp;
+	u32 pdid;
+	int ret;
 
 	pr_debug("ibdev %p\n", ibdev);
 	rhp = (struct c4iw_dev *) ibdev;
@@ -223,9 +224,10 @@ static int c4iw_allocate_pd(struct ib_pd *pd, struct ib_udata *udata)
 	if (udata) {
 		struct c4iw_alloc_pd_resp uresp = {.pdid = php->pdid};
 
-		if (ib_copy_to_udata(udata, &uresp, sizeof(uresp))) {
+		ret = ib_respond_udata(udata, uresp);
+		if (ret) {
 			c4iw_deallocate_pd(&php->ibpd, udata);
-			return -EFAULT;
+			return ret;
 		}
 	}
 	mutex_lock(&rhp->rdev.stats.lock);
@@ -257,11 +259,13 @@ static int c4iw_query_device(struct ib_device *ibdev, struct ib_device_attr *pro
 {
 
 	struct c4iw_dev *dev;
+	int err;
 
 	pr_debug("ibdev %p\n", ibdev);
 
-	if (uhw->inlen || uhw->outlen)
-		return -EINVAL;
+	err = ib_is_udata_in_empty(uhw);
+	if (err)
+		return err;
 
 	dev = to_c4iw_dev(ibdev);
 	addrconf_addr_eui48((u8 *)&props->sys_image_guid,
@@ -296,7 +300,7 @@ static int c4iw_query_device(struct ib_device *ibdev, struct ib_device_attr *pro
 	props->max_fast_reg_page_list_len =
 		t4_max_fr_depth(dev->rdev.lldi.ulptx_memwrite_dsgl && use_dsgl);
 
-	return 0;
+	return ib_respond_empty_udata(uhw);
 }
 
 static int c4iw_query_port(struct ib_device *ibdev, u32 port,

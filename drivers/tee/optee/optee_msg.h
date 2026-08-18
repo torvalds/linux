@@ -103,9 +103,9 @@
 
 /**
  * struct optee_msg_param_tmem - temporary memory reference parameter
- * @buf_ptr:	Address of the buffer
- * @size:	Size of the buffer
- * @shm_ref:	Temporary shared memory reference, pointer to a struct tee_shm
+ * @buf_ptr:	address of the buffer
+ * @size:	size of the buffer
+ * @shm_ref:	temporary shared memory reference, pointer to a struct tee_shm
  *
  * Secure and normal world communicates pointers as physical address
  * instead of the virtual address. This is because secure and normal world
@@ -122,9 +122,9 @@ struct optee_msg_param_tmem {
 
 /**
  * struct optee_msg_param_rmem - registered memory reference parameter
- * @offs:	Offset into shared memory reference
- * @size:	Size of the buffer
- * @shm_ref:	Shared memory reference, pointer to a struct tee_shm
+ * @offs:	offset into shared memory reference
+ * @size:	size of the buffer
+ * @shm_ref:	shared memory reference, pointer to a struct tee_shm
  */
 struct optee_msg_param_rmem {
 	u64 offs;
@@ -134,12 +134,12 @@ struct optee_msg_param_rmem {
 
 /**
  * struct optee_msg_param_fmem - FF-A memory reference parameter
- * @offs_lower:	   Lower bits of offset into shared memory reference
- * @offs_upper:	   Upper bits of offset into shared memory reference
- * @internal_offs: Internal offset into the first page of shared memory
- *		   reference
- * @size:	   Size of the buffer
- * @global_id:	   Global identifier of the shared memory
+ * @offs_low:		lower bits of offset into shared memory reference
+ * @offs_high:		higher bits of offset into shared memory reference
+ * @internal_offs:	internal offset into the first page of shared memory
+ *			reference
+ * @size:		size of the buffer
+ * @global_id:		global identifier of the shared memory
  */
 struct optee_msg_param_fmem {
 	u32 offs_low;
@@ -151,6 +151,9 @@ struct optee_msg_param_fmem {
 
 /**
  * struct optee_msg_param_value - opaque value parameter
+ * @a: first opaque value
+ * @b: second opaque value
+ * @c: third opaque value
  *
  * Value parameters are passed unchecked between normal and secure world.
  */
@@ -168,6 +171,7 @@ struct optee_msg_param_value {
  * @fmem:	parameter by FF-A registered memory reference
  * @value:	parameter by opaque value
  * @octets:	parameter by octet string
+ * @u:		union holding OP-TEE msg parameter
  *
  * @attr & OPTEE_MSG_ATTR_TYPE_MASK indicates if tmem, rmem or value is used in
  * the union. OPTEE_MSG_ATTR_TYPE_VALUE_* indicates value or octets,
@@ -189,16 +193,18 @@ struct optee_msg_param {
 
 /**
  * struct optee_msg_arg - call argument
- * @cmd: Command, one of OPTEE_MSG_CMD_* or OPTEE_MSG_RPC_CMD_*
- * @func: Trusted Application function, specific to the Trusted Application,
- *	     used if cmd == OPTEE_MSG_CMD_INVOKE_COMMAND
- * @session: In parameter for all OPTEE_MSG_CMD_* except
- *	     OPTEE_MSG_CMD_OPEN_SESSION where it's an output parameter instead
- * @cancel_id: Cancellation id, a unique value to identify this request
- * @ret: return value
- * @ret_origin: origin of the return value
- * @num_params: number of parameters supplied to the OS Command
- * @params: the parameters supplied to the OS Command
+ * @cmd:	command, one of OPTEE_MSG_CMD_* or OPTEE_MSG_RPC_CMD_*
+ * @func:	Trusted Application function, specific to the Trusted
+ *		Application, used if cmd == OPTEE_MSG_CMD_INVOKE_COMMAND
+ * @session:	in parameter for all OPTEE_MSG_CMD_* except
+ *		OPTEE_MSG_CMD_OPEN_SESSION where it's an output parameter
+ *		instead
+ * @cancel_id:	cancellation id, a unique value to identify this request
+ * @pad:	padding for alignment
+ * @ret:	return value
+ * @ret_origin:	origin of the return value
+ * @num_params:	number of parameters supplied to the OS Command
+ * @params:	the parameters supplied to the OS Command
  *
  * All normal calls to Trusted OS uses this struct. If cmd requires further
  * information than what these fields hold it can be passed as a parameter

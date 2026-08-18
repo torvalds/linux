@@ -76,7 +76,7 @@ config LEDS_MT6370_FLASH
 	  will be called "leds-mt6370-flash".
 
 config LEDS_QCOM_FLASH
-	tristate "LED support for flash module inside Qualcomm Technologies, Inc. PMIC"
+	tristate "LED support for flash module inside Qualcomm PMIC"
 	depends on MFD_SPMI_PMIC || COMPILE_TEST
 	depends on LEDS_CLASS && OF
 	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
@@ -113,6 +113,17 @@ config LEDS_RT8515
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called leds-rt8515.
+
+config LEDS_S2M_FLASH
+	tristate "Samsung S2M series PMICs flash/torch LED support"
+	depends on LEDS_CLASS
+	depends on MFD_SEC_CORE
+	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
+	help
+	  This option enables support for the flash/torch LEDs found in certain
+	  Samsung S2M series PMICs, such as the S2MU005. It has a LED channel
+	  dedicated for every physical LED. The LEDs can be controlled in flash
+	  and torch modes.
 
 config LEDS_SGM3140
 	tristate "LED support for the SGM3140"

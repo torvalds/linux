@@ -36,6 +36,11 @@ struct phy_device_node {
 	struct phy_device *phy;
 };
 
+static inline bool phy_link_topo_empty(struct net_device *dev)
+{
+	return !dev->link_topo;
+}
+
 #if IS_ENABLED(CONFIG_PHYLIB)
 int phy_link_topo_add_phy(struct net_device *dev,
 			  struct phy_device *phy,

@@ -21,7 +21,6 @@
 #include <linux/input.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
-#include <linux/mod_devicetable.h>
 #include <linux/moduleparam.h>
 #include <linux/module.h>
 #include <linux/pm.h>

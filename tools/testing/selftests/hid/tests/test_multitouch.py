@@ -513,6 +513,79 @@ class SmartTechDigitizer(Digitizer):
         return absinfo is not None and absinfo.resolution == 3
 
 
+class MinWin8TSParallelBigContactMax(Digitizer):
+    """A parallel Win8 touchscreen that advertises a ContactCountMaximum much
+    larger than the number of contacts it actually reports.
+
+    Such firmware makes the driver allocate that many input slots (up to 255)
+    while the input report only carries a few contacts. This is what used to
+    drive the per-slot bit operations on mt_io_flags out of bounds. The number
+    of contacts a HID report can describe is limited by the descriptor size,
+    so a large ContactCountMaximum can only be expressed this way, decoupled
+    from the number of finger collections."""
+
+    def __init__(self, n_fingers=5, contact_max=250):
+        self.phys_max = 120, 90
+        rdesc_finger_str = f"""
+            Usage Page (Digitizers)
+            Usage (Finger)
+            Collection (Logical)
+             Report Size (1)
+             Report Count (1)
+             Logical Minimum (0)
+             Logical Maximum (1)
+             Usage (Tip Switch)
+             Input (Data,Var,Abs)
+             Report Size (7)
+             Logical Maximum (127)
+             Input (Cnst,Var,Abs)
+             Report Size (8)
+             Logical Maximum (255)
+             Usage (Contact Id)
+             Input (Data,Var,Abs)
+             Report Size (16)
+             Unit Exponent (-1)
+             Unit (SILinear: cm)
+             Logical Maximum (4095)
+             Physical Minimum (0)
+             Physical Maximum ({self.phys_max[0]})
+             Usage Page (Generic Desktop)
+             Usage (X)
+             Input (Data,Var,Abs)
+             Physical Maximum ({self.phys_max[1]})
+             Usage (Y)
+             Input (Data,Var,Abs)
+            End Collection
+"""
+        rdesc_str = f"""
+           Usage Page (Digitizers)
+           Usage (Touch Screen)
+           Collection (Application)
+            Report ID (1)
+            {rdesc_finger_str * n_fingers}
+            Unit Exponent (-4)
+            Unit (SILinear: s)
+            Logical Maximum (65535)
+            Physical Maximum (65535)
+            Usage Page (Digitizers)
+            Usage (Scan Time)
+            Input (Data,Var,Abs)
+            Report Size (8)
+            Logical Maximum (255)
+            Usage (Contact Count)
+            Input (Data,Var,Abs)
+            Report ID (2)
+            Logical Maximum ({contact_max})
+            Usage (Contact Max)
+            Feature (Data,Var,Abs)
+          End Collection
+          {Digitizer.msCertificationBlob(68)}
+"""
+        super().__init__(
+            f"uhid test parallel big contact max {contact_max}", rdesc_str
+        )
+
+
 class BaseTest:
     class TestMultitouch(base.BaseTestCase.TestUhid):
         kernel_modules = [KERNEL_MODULE]
@@ -1733,6 +1806,47 @@ class TestMinWin8TSParallelTriple(BaseTest.TestWin8Multitouch):
 class TestMinWin8TSParallel(BaseTest.TestWin8Multitouch):
     def create_device(self):
         return MinWin8TSParallel(10)
+
+
+class TestMinWin8TSParallelBigContactMax(base.BaseTestCase.TestUhid):
+    """Regression test for the out-of-bounds bit operations on
+    struct mt_device.mt_io_flags.
+
+    A Win8 touchscreen may advertise a ContactCountMaximum much larger than
+    the number of contacts it reports. The driver used to keep the per-slot
+    active state in the bits of a single unsigned long while indexing
+    set_bit()/clear_bit() by the slot number, so such a device drove those bit
+    operations out of bounds. The sticky-fingers release timer made it fatal:
+    mt_release_contacts() cleared one bit per slot, overwrote the adjacent
+    struct mt_device members and panicked the kernel.
+
+    Send a single contact, let the 100ms sticky-fingers timer release it, and
+    check that the kernel reports the release cleanly instead of crashing."""
+
+    kernel_modules = [KERNEL_MODULE]
+
+    def create_device(self):
+        return MinWin8TSParallelBigContactMax()
+
+    def test_sticky_fingers_release_big_contact_max(self):
+        uhdev = self.uhdev
+        evdev = uhdev.get_evdev()
+
+        assert evdev.num_slots == uhdev.max_contacts
+
+        t0 = Touch(1, 5, 10)
+        r = uhdev.event([t0])
+        events = uhdev.next_sync_events()
+        self.debug_reports(r, uhdev, events)
+        assert evdev.slots[0][libevdev.EV_ABS.ABS_MT_TRACKING_ID] == 0
+
+        # do not release the contact; the sticky-fingers timer must do it
+        # after 100ms, which is where the out-of-bounds release used to hit
+        time.sleep(0.2)
+        events = uhdev.next_sync_events()
+        self.debug_reports(r, uhdev, events)
+        assert libevdev.InputEvent(libevdev.EV_KEY.BTN_TOUCH, 0) in events
+        assert evdev.slots[0][libevdev.EV_ABS.ABS_MT_TRACKING_ID] == -1
 
 
 class TestMinWin8TSHybrid(BaseTest.TestWin8Multitouch):

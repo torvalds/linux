@@ -1064,7 +1064,7 @@ correct command type, and a pointer to an event-specific run_command()
 callback that will be called to actually execute the event-specific
 command function.
 
-Once that's done, the command string can by built up by successive
+Once that's done, the command string can be built up by successive
 calls to argument-adding functions.
 
 To add a single argument, define and initialize a struct dynevent_arg

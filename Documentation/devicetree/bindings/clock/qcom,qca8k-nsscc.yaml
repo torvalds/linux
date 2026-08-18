@@ -8,7 +8,7 @@ title: Qualcomm NSS Clock & Reset Controller on QCA8386/QCA8084
 
 maintainers:
   - Bjorn Andersson <andersson@kernel.org>
-  - Luo Jie <quic_luoj@quicinc.com>
+  - Luo Jie <jie.luo@oss.qualcomm.com>
 
 description: |
   Qualcomm NSS clock control module provides the clocks and resets

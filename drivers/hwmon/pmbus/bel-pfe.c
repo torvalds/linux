@@ -106,9 +106,9 @@ static int pfe_pmbus_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id pfe_device_id[] = {
-	{"pfe1100", pfe1100},
-	{"pfe3000", pfe3000},
-	{}
+	{ .name = "pfe1100", .driver_data = pfe1100 },
+	{ .name = "pfe3000", .driver_data = pfe3000 },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, pfe_device_id);

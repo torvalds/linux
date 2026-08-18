@@ -19,6 +19,7 @@
 struct statfs;
 struct smb_rqst;
 struct smb3_fs_context;
+struct fs_context;
 
 /*
  *****************************************************************
@@ -235,7 +236,7 @@ void cifs_mount_put_conns(struct cifs_mount_ctx *mnt_ctx);
 int cifs_mount_get_session(struct cifs_mount_ctx *mnt_ctx);
 int cifs_is_path_remote(struct cifs_mount_ctx *mnt_ctx);
 int cifs_mount_get_tcon(struct cifs_mount_ctx *mnt_ctx);
-int cifs_match_super(struct super_block *sb, void *data);
+int cifs_match_super(struct super_block *sb, struct fs_context *fc);
 int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb3_fs_context *ctx);
 void cifs_umount(struct cifs_sb_info *cifs_sb);
 void cifs_mark_open_files_invalid(struct cifs_tcon *tcon);
@@ -316,7 +317,7 @@ int generate_smb311signingkey(struct cifs_ses *ses,
 
 #ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
 #endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
-void cifs_autodisable_serverino(struct cifs_sb_info *cifs_sb);
+void cifs_autodisable_serverino(struct cifs_sb_info *cifs_sb, const char *reason, int rc);
 bool couldbe_mf_symlink(const struct cifs_fattr *fattr);
 int check_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 		     struct cifs_sb_info *cifs_sb, struct cifs_fattr *fattr,

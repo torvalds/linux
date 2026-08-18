@@ -13,6 +13,7 @@ ALL_TESTS="
 	vlan_range_mcast_max_groups
 	vlan_range_mcast_n_groups
 	vlan_range_mcast_enabled
+	vlan_range_pvid
 "
 
 setup_prepare()
@@ -189,6 +190,28 @@ vlan_range_mcast_enabled()
 	check_err $? "VLANs with same mcast_enabled not grouped"
 
 	log_test "VLAN range grouping with mcast_enabled"
+}
+
+vlan_range_pvid()
+{
+	RET=0
+
+	ip -n "$NS" link set dev br0 type bridge vlan_default_pvid 1
+	check_err $? "Failed to configure default PVID"
+	defer ip -n "$NS" link set dev br0 type bridge vlan_default_pvid 0
+
+	bridge -n "$NS" vlan add vid 2 dev dummy0 untagged
+	check_err $? "Failed to add VLAN 2"
+	defer bridge -n "$NS" vlan del vid 2 dev dummy0
+
+	bridge -n "$NS" -d vlan show dev dummy0 |
+		grep -Eq '(^|[[:space:]])2([[:space:]]|$)'
+	check_err $? "VLAN following PVID is missing from detailed dump"
+
+	bridge -n "$NS" -d vlan show dev dummy0 | grep -q "1-2"
+	check_fail $? "PVID was incorrectly included in a VLAN range"
+
+	log_test "PVID is isolated from VLAN dump ranges"
 }
 
 # Verify the newest tested option is supported

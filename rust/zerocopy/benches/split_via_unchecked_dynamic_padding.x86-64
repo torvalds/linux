@@ -1,0 +1,14 @@
+bench_split_via_unchecked_dynamic_padding:
+	mov rax, rdi
+	mov rcx, qword ptr [rsi]
+	mov rdx, qword ptr [rsi + 8]
+	mov rsi, qword ptr [rsi + 16]
+	lea rdi, [rsi + 2*rsi]
+	add rdi, rcx
+	add rdi, 9
+	sub rdx, rsi
+	mov qword ptr [rax], rcx
+	mov qword ptr [rax + 8], rsi
+	mov qword ptr [rax + 16], rdi
+	mov qword ptr [rax + 24], rdx
+	ret

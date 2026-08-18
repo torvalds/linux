@@ -250,6 +250,7 @@ static int aq_pci_probe(struct pci_dev *pdev,
 		goto err_ioremap;
 	}
 	self->aq_hw->aq_nic_cfg = aq_nic_get_cfg(self);
+	self->aq_hw->clk_select = -1;
 	if (self->aq_hw->aq_nic_cfg->aq_hw_caps->priv_data_len) {
 		int len = self->aq_hw->aq_nic_cfg->aq_hw_caps->priv_data_len;
 
@@ -293,8 +294,8 @@ static int aq_pci_probe(struct pci_dev *pdev,
 	numvecs = min((u8)AQ_CFG_VECS_DEF,
 		      aq_nic_get_cfg(self)->aq_hw_caps->msix_irqs);
 	numvecs = min(numvecs, num_online_cpus());
-	/* Request IRQ vector for PTP */
-	numvecs += 1;
+	/* Request IRQ lines for PTP */
+	numvecs += AQ_HW_PTP_IRQS;
 
 	numvecs += AQ_HW_SERVICE_IRQS;
 	/*enable interrupts */

@@ -52,6 +52,25 @@ properties:
         - description: primary per-CPU IRQ
         - description: shadow IRQ number
 
+  econet,cpu-interrupt-map:
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    description:
+      When running in VEIC mode, the hardware re-routes interrupts from the
+      CPU interrupt controller core to the "external" interrupt controller
+      (this device). It then prioritizes them and sends them back to the CPU
+      along with its own interrupts. The CPU hardware handles interrupts using
+      a special dispatch table (the normal interrupt handler is not invoked).
+      In this interrupt controller, the CPU interrupts are renumbered as they
+      are merged with this controller's own hardware interrupts.
+
+      This is the inverse of an interrupt-map, mapping which interrupts from
+      this controller must be routed back to the CPU interrupt domain for
+      correct handling there.
+    items:
+      items:
+        - description: The interrupt number as received in this controller
+        - description: The interrupt number to be dispatched on the CPU intc
+
 required:
   - compatible
   - reg
@@ -74,5 +93,6 @@ examples:
         interrupts = <2>;
 
         econet,shadow-interrupts = <7 2>, <8 3>, <13 12>, <30 29>;
+        econet,cpu-interrupt-map = <7 0>, <8 1>;
     };
 ...

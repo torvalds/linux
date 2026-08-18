@@ -21,7 +21,7 @@ struct page_change_data {
 	pgprot_t clear_mask;
 };
 
-static ptdesc_t set_pageattr_masks(ptdesc_t val, struct mm_walk *walk)
+static ptval_t set_pageattr_masks(ptval_t val, struct mm_walk *walk)
 {
 	struct page_change_data *masks = walk->private;
 

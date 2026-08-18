@@ -453,19 +453,6 @@ config FB_N411
 	  This enables support for the Apollo display controller in its
 	  Hecuba form using the n411 devkit.
 
-config FB_HGA
-	tristate "Hercules mono graphics support"
-	depends on FB && X86
-	select FB_IOMEM_FOPS
-	help
-	  Say Y here if you have a Hercules mono graphics card.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called hgafb.
-
-	  As this card technology is at least 25 years old,
-	  most people will answer N here.
-
 config FB_GBE
 	bool "SGI Graphics Backend frame buffer support"
 	depends on (FB = y) && HAS_IOMEM

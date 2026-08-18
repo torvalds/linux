@@ -12,7 +12,6 @@
  */
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/regmap.h>
 
 #include "fxos8700.h"
@@ -36,7 +35,7 @@ static int fxos8700_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id fxos8700_i2c_id[] = {
-	{ "fxos8700" },
+	{ .name = "fxos8700" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, fxos8700_i2c_id);

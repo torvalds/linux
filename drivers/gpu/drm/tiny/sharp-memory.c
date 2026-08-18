@@ -21,7 +21,6 @@
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/kthread.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/pwm.h>
@@ -223,7 +222,7 @@ static void sharp_memory_fb_dirty(struct drm_framebuffer *fb, const struct iosys
 }
 
 static int sharp_memory_plane_atomic_check(struct drm_plane *plane,
-					   struct drm_atomic_state *state)
+					   struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state, plane);
 	struct sharp_memory_device *smd;
@@ -239,7 +238,7 @@ static int sharp_memory_plane_atomic_check(struct drm_plane *plane,
 }
 
 static void sharp_memory_plane_atomic_update(struct drm_plane *plane,
-					     struct drm_atomic_state *state)
+					     struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state, plane);
 	struct drm_plane_state *plane_state = plane->state;
@@ -287,7 +286,7 @@ static enum drm_mode_status sharp_memory_crtc_mode_valid(struct drm_crtc *crtc,
 }
 
 static int sharp_memory_crtc_check(struct drm_crtc *crtc,
-				   struct drm_atomic_state *state)
+				   struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 	int ret;
@@ -317,7 +316,7 @@ static int sharp_memory_sw_vcom_signal_thread(void *data)
 }
 
 static void sharp_memory_crtc_enable(struct drm_crtc *crtc,
-				     struct drm_atomic_state *state)
+				     struct drm_atomic_commit *state)
 {
 	struct sharp_memory_device *smd = drm_to_sharp_memory_device(crtc->dev);
 
@@ -328,7 +327,7 @@ static void sharp_memory_crtc_enable(struct drm_crtc *crtc,
 }
 
 static void sharp_memory_crtc_disable(struct drm_crtc *crtc,
-				      struct drm_atomic_state *state)
+				      struct drm_atomic_commit *state)
 {
 	struct sharp_memory_device *smd = drm_to_sharp_memory_device(crtc->dev);
 

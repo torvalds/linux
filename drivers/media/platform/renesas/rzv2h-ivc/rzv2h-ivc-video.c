@@ -297,12 +297,33 @@ err_return_buffers:
 static void rzv2h_ivc_stop_streaming(struct vb2_queue *q)
 {
 	struct rzv2h_ivc *ivc = vb2_get_drv_priv(q);
-	u32 val = 0;
+	unsigned int loop = 5;
 
-	rzv2h_ivc_write(ivc, RZV2H_IVC_REG_FM_STOP, RZV2H_IVC_REG_FM_STOP_FSTOP);
-	readl_poll_timeout(ivc->base + RZV2H_IVC_REG_FM_STOP,
-			   val, !(val & RZV2H_IVC_REG_FM_STOP_FSTOP),
-			   10 * USEC_PER_MSEC, 250 * USEC_PER_MSEC);
+	/*
+	 * If no frame transfer is in progress, we're done, otherwise, wait for
+	 * the transfer to complete.
+	 *
+	 * Transferring a 1920x1080@10bit frame to the ISP takes less than 5
+	 * msec so sleep for 2.5 msec (+- 25%) and give up after 5 attempts.
+	 */
+	for (; loop > 0; loop--) {
+		unsigned int vvalid_ifp;
+
+		/*
+		 * Inspect the ivc->vvalid_ifp variable holding the spinlock not
+		 * to the race with the rzv2h_ivc_buffer_done() call in the irq
+		 * handler.
+		 */
+		scoped_guard(spinlock_irq, &ivc->spinlock) {
+			vvalid_ifp = ivc->vvalid_ifp;
+		}
+		if (vvalid_ifp < 2)
+			break;
+
+		fsleep(2500);
+	}
+	if (!loop)
+		dev_err(ivc->dev, "Failed to stop streaming\n");
 
 	rzv2h_ivc_return_buffers(ivc, VB2_BUF_STATE_ERROR);
 	video_device_pipeline_stop(&ivc->vdev.dev);

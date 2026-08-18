@@ -32,6 +32,7 @@
 #define EMC2305_REG_DRIVE_PWM_OUT	0x2b
 #define EMC2305_OPEN_DRAIN		0x0
 #define EMC2305_PUSH_PULL		0x1
+#define EMC2305_PWM_SHUTDOWN_UNSET      -1
 
 #define EMC2305_PWM_DUTY2STATE(duty, max_state, pwm_max) \
 	DIV_ROUND_CLOSEST((duty) * (max_state), (pwm_max))
@@ -59,10 +60,10 @@ enum emc230x_product_id {
 };
 
 static const struct i2c_device_id emc2305_ids[] = {
-	{ "emc2305" },
-	{ "emc2303" },
-	{ "emc2302" },
-	{ "emc2301" },
+	{ .name = "emc2305" },
+	{ .name = "emc2303" },
+	{ .name = "emc2302" },
+	{ .name = "emc2301" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, emc2305_ids);
@@ -104,6 +105,7 @@ struct emc2305_cdev_data {
  * @pwm_output_mask: PWM output mask
  * @pwm_polarity_mask: PWM polarity mask
  * @pwm_separate: separate PWM settings for every channel
+ * @pwm_shutdown: Set shutdown PWM.
  * @pwm_min: array of minimum PWM per channel
  * @pwm_freq: array of PWM frequency per channel
  * @cdev_data: array of cooling devices data
@@ -116,6 +118,7 @@ struct emc2305_data {
 	u8 pwm_output_mask;
 	u8 pwm_polarity_mask;
 	bool pwm_separate;
+	s16 pwm_shutdown[EMC2305_PWM_MAX];
 	u8 pwm_min[EMC2305_PWM_MAX];
 	u16 pwm_freq[EMC2305_PWM_MAX];
 	struct emc2305_cdev_data cdev_data[EMC2305_PWM_MAX];
@@ -309,9 +312,9 @@ static int emc2305_set_single_tz(struct device *dev, struct device_node *fan_nod
 	pwm = data->pwm_min[cdev_idx];
 
 	data->cdev_data[cdev_idx].cdev =
-		devm_thermal_of_cooling_device_register(dev, fan_node,
-							emc2305_fan_name[idx], data,
-							&emc2305_cooling_ops);
+		devm_thermal_of_child_cooling_device_register(dev, fan_node,
+							      emc2305_fan_name[idx], data,
+							      &emc2305_cooling_ops);
 
 	if (IS_ERR(data->cdev_data[cdev_idx].cdev)) {
 		dev_err(dev, "Failed to register cooling device %s\n", emc2305_fan_name[idx]);
@@ -539,6 +542,7 @@ static int emc2305_of_parse_pwm_child(struct device *dev,
 				      struct device_node *child,
 				      struct emc2305_data *data)
 {	u32 ch;
+	u32 pwm_shutdown_percent;
 	int ret;
 	struct of_phandle_args args;
 
@@ -546,6 +550,12 @@ static int emc2305_of_parse_pwm_child(struct device *dev,
 	if (ret) {
 		dev_err(dev, "missing reg property of %pOFn\n", child);
 		return ret;
+	}
+
+	if (ch >= data->pwm_num) {
+		dev_err(dev, "invalid reg %u for node %pOF (valid range 0-%u)\n", ch, child,
+			data->pwm_num - 1);
+		return -EINVAL;
 	}
 
 	ret = of_parse_phandle_with_args(child, "pwms", "#pwm-cells", 0, &args);
@@ -579,6 +589,16 @@ static int emc2305_of_parse_pwm_child(struct device *dev,
 	}
 
 	of_node_put(args.np);
+
+	ret = of_property_read_u32(child, "fan-shutdown-percent",
+				   &pwm_shutdown_percent);
+
+	if (!ret) {
+		pwm_shutdown_percent = clamp(pwm_shutdown_percent, 0, 100);
+		data->pwm_shutdown[ch] =
+			DIV_ROUND_CLOSEST(pwm_shutdown_percent * EMC2305_FAN_MAX, 100);
+	}
+
 	return 0;
 }
 
@@ -612,6 +632,7 @@ static int emc2305_probe(struct i2c_client *client)
 	int ret;
 	int i;
 	int pwm_childs;
+	u32 ch;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA))
 		return -ENODEV;
@@ -630,6 +651,9 @@ static int emc2305_probe(struct i2c_client *client)
 	ret = emc2305_identify(dev);
 	if (ret)
 		return ret;
+
+	for (i = 0; i < EMC2305_PWM_MAX; i++)
+		data->pwm_shutdown[i] = EMC2305_PWM_SHUTDOWN_UNSET;
 
 	pwm_childs = emc2305_probe_childs_from_dt(dev);
 
@@ -680,12 +704,18 @@ static int emc2305_probe(struct i2c_client *client)
 	if (IS_REACHABLE(CONFIG_THERMAL)) {
 		/* Parse and check for the available PWM child nodes */
 		if (pwm_childs > 0) {
-			i = 0;
 			for_each_child_of_node_scoped(dev->of_node, child) {
-				ret = emc2305_set_single_tz(dev, child, i);
+				ret = of_property_read_u32(child, "reg", &ch);
+				if (ret || ch >= data->pwm_num)
+					continue;
+
+				/*
+				 * emc2305_set_single_tz() uses 0 for the common cooling
+				 * device and 1..pwm_num for individual fan channels.
+				 */
+				ret = emc2305_set_single_tz(dev, child, ch + 1);
 				if (ret != 0)
 					return ret;
-				i++;
 			}
 		} else {
 			ret = emc2305_set_tz(dev);
@@ -714,6 +744,23 @@ static int emc2305_probe(struct i2c_client *client)
 	return 0;
 }
 
+static void emc2305_shutdown(struct i2c_client *client)
+{
+	int i;
+	int ret;
+	struct emc2305_data *data = i2c_get_clientdata(client);
+
+	for (i = 0; i < data->pwm_num; i++) {
+		if (data->pwm_shutdown[i] != EMC2305_PWM_SHUTDOWN_UNSET) {
+			ret = i2c_smbus_write_byte_data(client, EMC2305_REG_FAN_DRIVE(i),
+							data->pwm_shutdown[i]);
+			if (ret < 0)
+				dev_warn(&client->dev,
+					 "Failed to set shutdown PWM for ch %d\n", i);
+		}
+	}
+}
+
 static const struct of_device_id of_emc2305_match_table[] = {
 	{ .compatible = "microchip,emc2305", },
 	{},
@@ -726,6 +773,7 @@ static struct i2c_driver emc2305_driver = {
 		.of_match_table = of_emc2305_match_table,
 	},
 	.probe = emc2305_probe,
+	.shutdown = emc2305_shutdown,
 	.id_table = emc2305_ids,
 };
 

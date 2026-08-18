@@ -377,7 +377,7 @@ retry:
  * error occurred.
  */
 struct nsm_handle *nsm_reboot_lookup(const struct net *net,
-				const struct nlm_reboot *info)
+				const struct lockd_reboot *info)
 {
 	struct nsm_handle *cached;
 	struct lockd_net *ln = net_generic(net, lockd_net_id);

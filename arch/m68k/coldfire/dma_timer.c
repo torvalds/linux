@@ -37,7 +37,7 @@
 
 static u64 cf_dt_get_cycles(struct clocksource *cs)
 {
-	return __raw_readl(DTCN0);
+	return mcf_read32(DTCN0);
 }
 
 static struct clocksource clocksource_cf_dt = {
@@ -56,10 +56,10 @@ static int __init init_cf_dt_clocksource(void)
 	 * get a ~213 ns resolution and the 32bit register will overflow almost
 	 * every 15 minutes.
 	 */
-	__raw_writeb(0x00, DTXMR0);
-	__raw_writeb(0x00, DTER0);
-	__raw_writel(0x00000000, DTRR0);
-	__raw_writew(DMA_DTMR_CLK_DIV_16 | DMA_DTMR_ENABLE, DTMR0);
+	mcf_write8(0x00, DTXMR0);
+	mcf_write8(0x00, DTER0);
+	mcf_write32(0x00000000, DTRR0);
+	mcf_write16(DMA_DTMR_CLK_DIV_16 | DMA_DTMR_ENABLE, DTMR0);
 	return clocksource_register_hz(&clocksource_cf_dt, DMA_FREQ);
 }
 
@@ -76,7 +76,7 @@ static unsigned long long cycles2ns(unsigned long cycl)
 
 unsigned long long sched_clock(void)
 {
-	unsigned long cycl = __raw_readl(DTCN0);
+	unsigned long cycl = mcf_read32(DTCN0);
 
 	return cycles2ns(cycl);
 }

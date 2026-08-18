@@ -79,7 +79,7 @@ mdp5_get_existing_global_state(struct mdp5_kms *mdp5_kms)
  * This acquires the modeset lock set aside for global state, creates
  * a new duplicated private object state.
  */
-struct mdp5_global_state *mdp5_get_global_state(struct drm_atomic_state *s)
+struct mdp5_global_state *mdp5_get_global_state(struct drm_atomic_commit *s)
 {
 	struct msm_drm_private *priv = s->dev->dev_private;
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(priv->kms));
@@ -160,7 +160,7 @@ static void mdp5_disable_commit(struct msm_kms *kms)
 	pm_runtime_put_sync(&mdp5_kms->pdev->dev);
 }
 
-static void mdp5_prepare_commit(struct msm_kms *kms, struct drm_atomic_state *state)
+static void mdp5_prepare_commit(struct msm_kms *kms, struct drm_atomic_commit *state)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
 	struct mdp5_global_state *global_state;

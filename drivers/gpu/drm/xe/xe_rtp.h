@@ -3,8 +3,8 @@
  * Copyright © 2022 Intel Corporation
  */
 
-#ifndef _XE_RTP_
-#define _XE_RTP_
+#ifndef _XE_RTP_H_
+#define _XE_RTP_H_
 
 #include <linux/types.h>
 #include <linux/xarray.h>
@@ -394,16 +394,37 @@ struct xe_reg_sr;
  * XE_RTP_RULES - Helper to set multiple rules to a struct xe_rtp_entry_sr entry
  * @...: Rules
  *
- * At least one rule is needed and up to 12 are supported. Multiple rules are
- * AND'ed together, i.e. all the rules must evaluate to true for the entry to
- * be processed. See XE_RTP_MATCH_* for the possible match rules. Example:
+ * When an RTP table is being processed, the rules of each entry are evaluated
+ * to check if they match the target entity (platform, gt or hwe, depending on
+ * the specific RTP table).
+ *
+ * The sequence of arguments of this macro must follow the following eBNF
+ * grammar::
+ *
+ *            rules = disjunction;
+ *      disjunction = conjunction, { "OR", conjunction };
+ *      conjunction = single_rule, { single_rule };
+ *				   (* the AND operator is implicit *)
+ *      single_rule = ? GRAPHICS_VERSION(...), MEDIA_VERSION(...),
+ *                      FUNC(...), etc ?
+ *
+ * Examples:
  *
  * .. code-block:: c
  *
  *	const struct xe_rtp_entry_sr wa_entries[] = {
  *		...
- *		{ XE_RTP_NAME("test-entry"),
+ *		{ XE_RTP_NAME("entry-a"),
+ *		  // Match DG2-G10 with graphics steppings A0 up-to B0
+ *		  // (exclusive).
  *		  XE_RTP_RULES(SUBPLATFORM(DG2, G10), GRAPHICS_STEP(A0, B0)),
+ *		  ...
+ *		},
+ *		{ XE_RTP_NAME("entry-b"),
+ *		  // Match graphics version 20 (all steppings) or graphics
+ *		  // version 30 steppings A0 up-to B0 (exclusive).
+ *		  XE_RTP_RULES(GRAPHICS_VERSION(2000), OR,
+ *			       GRAPHICS_VERSION(3000), GRAPHICS_STEP(A0, B0))
  *		  ...
  *		},
  *		...
@@ -440,6 +461,24 @@ struct xe_reg_sr;
 		XE_RTP_PASTE_FOREACH(ACTION_, COMMA, (__VA_ARGS__))	\
 	}
 
+/*
+ * Note: ARRAY_SIZE() cannot be used here because it expands through
+ * __must_be_array() -> __BUILD_BUG_ON_ZERO_MSG() -> _Static_assert inside
+ * sizeof(struct{}), which clang < 21 rejects when the compound literal
+ * contains non-compile-time-constant initializers.
+ */
+#define XE_RTP_TABLE_SR(...) { \
+	.entries = (const struct xe_rtp_entry_sr[]){__VA_ARGS__}, \
+	.n_entries = sizeof((const struct xe_rtp_entry_sr[]){__VA_ARGS__}) / \
+		sizeof(struct xe_rtp_entry_sr), \
+}
+
+#define XE_RTP_TABLE(...) { \
+	.entries = (const struct xe_rtp_entry[]){__VA_ARGS__}, \
+	.n_entries = sizeof((const struct xe_rtp_entry[]){__VA_ARGS__}) / \
+		sizeof(struct xe_rtp_entry), \
+}
+
 #define XE_RTP_PROCESS_CTX_INITIALIZER(arg__) _Generic((arg__),							\
 	struct xe_hw_engine * :	(struct xe_rtp_process_ctx){ { (void *)(arg__) }, XE_RTP_PROCESS_TYPE_ENGINE },	\
 	struct xe_gt * :	(struct xe_rtp_process_ctx){ { (void *)(arg__) }, XE_RTP_PROCESS_TYPE_GT },	\
@@ -450,14 +489,26 @@ void xe_rtp_process_ctx_enable_active_tracking(struct xe_rtp_process_ctx *ctx,
 					       size_t n_entries);
 
 void xe_rtp_process_to_sr(struct xe_rtp_process_ctx *ctx,
-			  const struct xe_rtp_entry_sr *entries,
-			  size_t n_entries, struct xe_reg_sr *sr,
+			  const struct xe_rtp_table_sr *table,
+			  struct xe_reg_sr *sr,
 			  bool process_in_vf);
 
 void xe_rtp_process(struct xe_rtp_process_ctx *ctx,
-		    const struct xe_rtp_entry *entries);
+		    const struct xe_rtp_table *table);
 
 /* Match functions to be used with XE_RTP_MATCH_FUNC */
+
+/**
+ * xe_rtp_match_always - Match RTP entry unconditionally
+ * @xe: Device structure
+ * @gt: GT structure
+ * @hwe: Engine instance
+ *
+ * Returns: true, regardless of inputs
+ */
+bool xe_rtp_match_always(const struct xe_device *xe,
+			 const struct xe_gt *gt,
+			 const struct xe_hw_engine *hwe);
 
 /**
  * xe_rtp_match_even_instance - Match if engine instance is even
@@ -523,5 +574,17 @@ bool xe_rtp_match_gt_has_discontiguous_dss_groups(const struct xe_device *xe,
 bool xe_rtp_match_has_flat_ccs(const struct xe_device *xe,
 			       const struct xe_gt *gt,
 			       const struct xe_hw_engine *hwe);
+
+/**
+ * xe_rtp_match_has_msix - Match when platform has MSI-X
+ * @xe: Device structure
+ * @gt: GT structure
+ * @hwe: Engine instance
+ *
+ * Returns: true if platform has MSI-X interrupt support
+ */
+bool xe_rtp_match_has_msix(const struct xe_device *xe,
+			   const struct xe_gt *gt,
+			   const struct xe_hw_engine *hwe);
 
 #endif

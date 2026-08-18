@@ -132,7 +132,7 @@ static bool ntfs_check_restart_area(struct inode *vi, struct restart_page_header
 {
 	u64 file_size;
 	struct restart_area *ra;
-	u16 ra_ofs, ra_len, ca_ofs;
+	u32 ra_ofs, ra_len, ca_ofs;
 	u8 fs_bits;
 
 	ntfs_debug("Entering.");
@@ -622,8 +622,7 @@ is_empty:
 	ntfs_debug("Done.");
 	return true;
 err_out:
-	if (rstr1_ph)
-		kvfree(rstr1_ph);
+	kvfree(rstr1_ph);
 	return false;
 }
 

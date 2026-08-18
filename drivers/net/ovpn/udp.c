@@ -399,7 +399,7 @@ int ovpn_udp_socket_attach(struct ovpn_socket *ovpn_sock, struct socket *sock,
 	if (!old_data) {
 		/* socket is currently unused - we can take it */
 		rcu_read_unlock();
-		setup_udp_tunnel_sock(sock_net(ovpn_sock->sk), sock, &cfg);
+		setup_udp_tunnel_sock(sock_net(ovpn_sock->sk), sock->sk, &cfg);
 		return 0;
 	}
 

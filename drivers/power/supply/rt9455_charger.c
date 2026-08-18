@@ -1719,7 +1719,7 @@ static void rt9455_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id rt9455_i2c_id_table[] = {
-	{ RT9455_DRIVER_NAME },
+	{ .name = RT9455_DRIVER_NAME },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rt9455_i2c_id_table);

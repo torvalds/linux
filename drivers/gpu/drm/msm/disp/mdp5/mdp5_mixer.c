@@ -35,7 +35,7 @@ static int get_right_pair_idx(struct mdp5_kms *mdp5_kms, int lm)
 	return -1;
 }
 
-int mdp5_mixer_assign(struct drm_atomic_state *s, struct drm_crtc *crtc,
+int mdp5_mixer_assign(struct drm_atomic_commit *s, struct drm_crtc *crtc,
 		      uint32_t caps, struct mdp5_hw_mixer **mixer,
 		      struct mdp5_hw_mixer **r_mixer)
 {
@@ -116,7 +116,7 @@ int mdp5_mixer_assign(struct drm_atomic_state *s, struct drm_crtc *crtc,
 	return 0;
 }
 
-int mdp5_mixer_release(struct drm_atomic_state *s, struct mdp5_hw_mixer *mixer)
+int mdp5_mixer_release(struct drm_atomic_commit *s, struct mdp5_hw_mixer *mixer)
 {
 	struct mdp5_global_state *global_state = mdp5_get_global_state(s);
 	struct mdp5_hw_mixer_state *new_state;

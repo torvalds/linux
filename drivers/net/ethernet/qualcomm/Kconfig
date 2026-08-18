@@ -48,7 +48,7 @@ config QCA7000_UART
 	  will be called qcauart.
 
 config QCOM_EMAC
-	tristate "Qualcomm Technologies, Inc. EMAC Gigabit Ethernet support"
+	tristate "Qualcomm EMAC Gigabit Ethernet support"
 	depends on HAS_DMA && HAS_IOMEM
 	select CRC32
 	select PHYLIB
@@ -61,7 +61,7 @@ config QCOM_EMAC
 	  Precision Clock Synchronization Protocol.
 
 config QCOM_PPE
-	tristate "Qualcomm Technologies, Inc. PPE Ethernet support"
+	tristate "Qualcomm PPE Ethernet support"
 	depends on COMMON_CLK && HAS_IOMEM && OF
 	depends on ARCH_QCOM || COMPILE_TEST
 	select REGMAP_MMIO

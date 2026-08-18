@@ -286,6 +286,8 @@ struct snd_ctl_elem_value;
 #define CS35L56_MBOX_TIMEOUT_US				5000
 #define CS35L56_MBOX_POLL_US				250
 
+#define CS35L56_FW_REQ_ACTIVE_TIMEOUT_MS		250
+
 #define CS35L56_PS0_POLL_US				500
 #define CS35L56_PS0_TIMEOUT_US				50000
 #define CS35L56_PS3_POLL_US				500

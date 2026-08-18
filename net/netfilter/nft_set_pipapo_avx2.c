@@ -144,6 +144,7 @@ static void nft_pipapo_avx2_fill(unsigned long *data, int start, int len)
  * This is an alternative implementation of pipapo_refill() suitable for usage
  * with AVX2 lookup routines: we know there are four words to be scanned, at
  * a given offset inside the map, for each matching iteration.
+ * The caller must ensure at least one bit in the four words is set.
  *
  * This function doesn't actually use any AVX2 instruction.
  *
@@ -179,6 +180,7 @@ static int nft_pipapo_avx2_refill(int offset, unsigned long *map,
 	NFT_PIPAPO_AVX2_REFILL_ONE_WORD(3);
 #undef NFT_PIPAPO_AVX2_REFILL_ONE_WORD
 
+	DEBUG_NET_WARN_ON_ONCE(ret < 0);
 	return ret;
 }
 
@@ -243,8 +245,7 @@ static int nft_pipapo_avx2_lookup_4b_2(unsigned long *map, unsigned long *fill,
 		b = nft_pipapo_avx2_refill(i_ul, &map[i_ul], fill, f->mt, last);
 		if (last)
 			ret = b;
-
-		if (unlikely(ret == -1))
+		else if (unlikely(ret == -1))
 			ret = b / XSAVE_YMM_SIZE;
 
 		continue;
@@ -320,8 +321,7 @@ static int nft_pipapo_avx2_lookup_4b_4(unsigned long *map, unsigned long *fill,
 		b = nft_pipapo_avx2_refill(i_ul, &map[i_ul], fill, f->mt, last);
 		if (last)
 			ret = b;
-
-		if (unlikely(ret == -1))
+		else if (unlikely(ret == -1))
 			ret = b / XSAVE_YMM_SIZE;
 
 		continue;
@@ -415,8 +415,7 @@ static int nft_pipapo_avx2_lookup_4b_8(unsigned long *map, unsigned long *fill,
 		b = nft_pipapo_avx2_refill(i_ul, &map[i_ul], fill, f->mt, last);
 		if (last)
 			ret = b;
-
-		if (unlikely(ret == -1))
+		else if (unlikely(ret == -1))
 			ret = b / XSAVE_YMM_SIZE;
 
 		continue;
@@ -506,8 +505,7 @@ static int nft_pipapo_avx2_lookup_4b_12(unsigned long *map, unsigned long *fill,
 		b = nft_pipapo_avx2_refill(i_ul, &map[i_ul], fill, f->mt, last);
 		if (last)
 			ret = b;
-
-		if (unlikely(ret == -1))
+		else if (unlikely(ret == -1))
 			ret = b / XSAVE_YMM_SIZE;
 
 		continue;
@@ -642,8 +640,7 @@ static int nft_pipapo_avx2_lookup_4b_32(unsigned long *map, unsigned long *fill,
 		b = nft_pipapo_avx2_refill(i_ul, &map[i_ul], fill, f->mt, last);
 		if (last)
 			ret = b;
-
-		if (unlikely(ret == -1))
+		else if (unlikely(ret == -1))
 			ret = b / XSAVE_YMM_SIZE;
 
 		continue;
@@ -700,8 +697,7 @@ static int nft_pipapo_avx2_lookup_8b_1(unsigned long *map, unsigned long *fill,
 		b = nft_pipapo_avx2_refill(i_ul, &map[i_ul], fill, f->mt, last);
 		if (last)
 			ret = b;
-
-		if (unlikely(ret == -1))
+		else if (unlikely(ret == -1))
 			ret = b / XSAVE_YMM_SIZE;
 
 		continue;
@@ -765,8 +761,7 @@ static int nft_pipapo_avx2_lookup_8b_2(unsigned long *map, unsigned long *fill,
 		b = nft_pipapo_avx2_refill(i_ul, &map[i_ul], fill, f->mt, last);
 		if (last)
 			ret = b;
-
-		if (unlikely(ret == -1))
+		else if (unlikely(ret == -1))
 			ret = b / XSAVE_YMM_SIZE;
 
 		continue;
@@ -840,8 +835,7 @@ static int nft_pipapo_avx2_lookup_8b_4(unsigned long *map, unsigned long *fill,
 		b = nft_pipapo_avx2_refill(i_ul, &map[i_ul], fill, f->mt, last);
 		if (last)
 			ret = b;
-
-		if (unlikely(ret == -1))
+		else if (unlikely(ret == -1))
 			ret = b / XSAVE_YMM_SIZE;
 
 		continue;
@@ -926,8 +920,7 @@ static int nft_pipapo_avx2_lookup_8b_6(unsigned long *map, unsigned long *fill,
 		b = nft_pipapo_avx2_refill(i_ul, &map[i_ul], fill, f->mt, last);
 		if (last)
 			ret = b;
-
-		if (unlikely(ret == -1))
+		else if (unlikely(ret == -1))
 			ret = b / XSAVE_YMM_SIZE;
 
 		continue;
@@ -1020,8 +1013,7 @@ static int nft_pipapo_avx2_lookup_8b_16(unsigned long *map, unsigned long *fill,
 		b = nft_pipapo_avx2_refill(i_ul, &map[i_ul], fill, f->mt, last);
 		if (last)
 			ret = b;
-
-		if (unlikely(ret == -1))
+		else if (unlikely(ret == -1))
 			ret = b / XSAVE_YMM_SIZE;
 
 		continue;
@@ -1143,6 +1135,7 @@ struct nft_pipapo_elem *pipapo_get_avx2(const struct nft_pipapo_match *m,
 	const struct nft_pipapo_field *f;
 	unsigned long *res, *fill, *map;
 	bool map_index;
+	int ret = 0;
 	int i;
 
 	scratch = *raw_cpu_ptr(m->scratch);
@@ -1167,8 +1160,8 @@ struct nft_pipapo_elem *pipapo_get_avx2(const struct nft_pipapo_match *m,
 
 	nft_pipapo_for_each_field(f, i, m) {
 		bool last = i == m->field_count - 1, first = !i;
-		int ret = 0;
 
+		/* NB: previous round @ret is passed to avx2 lookup fn */
 #define NFT_SET_PIPAPO_AVX2_LOOKUP(b, n)				\
 		(ret = nft_pipapo_avx2_lookup_##b##b_##n(res, fill, f,	\
 							 ret, data,	\

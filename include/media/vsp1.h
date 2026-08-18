@@ -44,8 +44,9 @@ struct vsp1_du_lif_config {
 	void *callback_data;
 };
 
-int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
-		      const struct vsp1_du_lif_config *cfg);
+int vsp1_du_enable(struct device *dev, unsigned int pipe_index,
+		   const struct vsp1_du_lif_config *cfg);
+int vsp1_du_disable(struct device *dev, unsigned int pipe_index);
 
 /**
  * struct vsp1_du_atomic_config - VSP atomic configuration parameters

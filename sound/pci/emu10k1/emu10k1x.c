@@ -1518,8 +1518,8 @@ static int snd_emu10k1x_probe(struct pci_dev *pci,
 
 // PCI IDs
 static const struct pci_device_id snd_emu10k1x_ids[] = {
-	{ PCI_VDEVICE(CREATIVE, 0x0006), 0 },	/* Dell OEM version (EMU10K1) */
-	{ 0, }
+	{ PCI_VDEVICE(CREATIVE, 0x0006) },	/* Dell OEM version (EMU10K1) */
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, snd_emu10k1x_ids);
 

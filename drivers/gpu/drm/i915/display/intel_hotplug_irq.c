@@ -1420,7 +1420,7 @@ static void i915_hpd_irq_setup(struct intel_display *display)
 					     hotplug_en);
 }
 
-struct intel_hotplug_funcs {
+struct intel_hotplug_irq_funcs {
 	/* Enable HPD sense and interrupts for all present encoders */
 	void (*hpd_irq_setup)(struct intel_display *display);
 	/* Enable HPD sense for a single encoder */
@@ -1428,7 +1428,7 @@ struct intel_hotplug_funcs {
 };
 
 #define HPD_FUNCS(platform)					 \
-static const struct intel_hotplug_funcs platform##_hpd_funcs = { \
+static const struct intel_hotplug_irq_funcs platform##_hpd_funcs = { \
 	.hpd_irq_setup = platform##_hpd_irq_setup,		 \
 	.hpd_enable_detection = platform##_hpd_enable_detection, \
 }
@@ -1447,8 +1447,8 @@ void intel_hpd_enable_detection(struct intel_encoder *encoder)
 {
 	struct intel_display *display = to_intel_display(encoder);
 
-	if (display->funcs.hotplug)
-		display->funcs.hotplug->hpd_enable_detection(encoder);
+	if (display->hotplug.funcs)
+		display->hotplug.funcs->hpd_enable_detection(encoder);
 }
 
 void intel_hpd_irq_setup(struct intel_display *display)
@@ -1457,8 +1457,8 @@ void intel_hpd_irq_setup(struct intel_display *display)
 	    !display->irq.vlv_display_irqs_enabled)
 		return;
 
-	if (display->funcs.hotplug)
-		display->funcs.hotplug->hpd_irq_setup(display);
+	if (display->hotplug.funcs)
+		display->hotplug.funcs->hpd_irq_setup(display);
 }
 
 void intel_hotplug_irq_init(struct intel_display *display)
@@ -1469,23 +1469,23 @@ void intel_hotplug_irq_init(struct intel_display *display)
 
 	if (HAS_GMCH(display)) {
 		if (HAS_HOTPLUG(display))
-			display->funcs.hotplug = &i915_hpd_funcs;
+			display->hotplug.funcs = &i915_hpd_funcs;
 	} else {
 		if (HAS_PCH_DG2(display))
-			display->funcs.hotplug = &icp_hpd_funcs;
+			display->hotplug.funcs = &icp_hpd_funcs;
 		else if (HAS_PCH_DG1(display))
-			display->funcs.hotplug = &dg1_hpd_funcs;
+			display->hotplug.funcs = &dg1_hpd_funcs;
 		else if (DISPLAY_VER(display) >= 14)
-			display->funcs.hotplug = &xelpdp_hpd_funcs;
+			display->hotplug.funcs = &xelpdp_hpd_funcs;
 		else if (DISPLAY_VER(display) >= 11)
-			display->funcs.hotplug = &gen11_hpd_funcs;
+			display->hotplug.funcs = &gen11_hpd_funcs;
 		else if (display->platform.geminilake || display->platform.broxton)
-			display->funcs.hotplug = &bxt_hpd_funcs;
+			display->hotplug.funcs = &bxt_hpd_funcs;
 		else if (INTEL_PCH_TYPE(display) >= PCH_ICP)
-			display->funcs.hotplug = &icp_hpd_funcs;
+			display->hotplug.funcs = &icp_hpd_funcs;
 		else if (INTEL_PCH_TYPE(display) >= PCH_SPT)
-			display->funcs.hotplug = &spt_hpd_funcs;
+			display->hotplug.funcs = &spt_hpd_funcs;
 		else
-			display->funcs.hotplug = &ilk_hpd_funcs;
+			display->hotplug.funcs = &ilk_hpd_funcs;
 	}
 }

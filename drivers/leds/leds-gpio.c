@@ -12,7 +12,6 @@
 #include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/leds.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/overflow.h>
 #include <linux/pinctrl/consumer.h>

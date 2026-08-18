@@ -18,9 +18,9 @@
 #define STPDDC60_MFR_UV_LIMIT_OFFSET	0xe6
 
 static const struct i2c_device_id stpddc60_id[] = {
-	{"stpddc60"},
-	{"bmr481"},
-	{}
+	{ .name = "stpddc60" },
+	{ .name = "bmr481" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, stpddc60_id);
 

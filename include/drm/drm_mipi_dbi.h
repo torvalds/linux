@@ -220,9 +220,9 @@ int mipi_dbi_buf_copy(void *dst, struct iosys_map *src, struct drm_framebuffer *
 	.disable_plane = drm_atomic_helper_disable_plane
 
 int drm_mipi_dbi_plane_helper_atomic_check(struct drm_plane *plane,
-					   struct drm_atomic_state *state);
+					   struct drm_atomic_commit *state);
 void drm_mipi_dbi_plane_helper_atomic_update(struct drm_plane *plane,
-					     struct drm_atomic_state *state);
+					     struct drm_atomic_commit *state);
 
 #define DRM_MIPI_DBI_PLANE_HELPER_FUNCS \
 	DRM_GEM_SHADOW_PLANE_HELPER_FUNCS, \
@@ -243,9 +243,9 @@ void drm_mipi_dbi_plane_helper_atomic_update(struct drm_plane *plane,
 enum drm_mode_status drm_mipi_dbi_crtc_helper_mode_valid(struct drm_crtc *crtc,
 							 const struct drm_display_mode *mode);
 int drm_mipi_dbi_crtc_helper_atomic_check(struct drm_crtc *crtc,
-					  struct drm_atomic_state *state);
+					  struct drm_atomic_commit *state);
 void drm_mipi_dbi_crtc_helper_atomic_disable(struct drm_crtc *crtc,
-					     struct drm_atomic_state *state);
+					     struct drm_atomic_commit *state);
 
 #define DRM_MIPI_DBI_CRTC_HELPER_FUNCS \
 	.mode_valid = drm_mipi_dbi_crtc_helper_mode_valid, \

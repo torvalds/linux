@@ -1007,7 +1007,7 @@ static inline pud_t *p4d_pgtable(p4d_t p4d)
 
 static inline phys_addr_t pud_offset_phys(p4d_t *p4dp, unsigned long addr)
 {
-	BUG_ON(!pgtable_l4_enabled());
+	VM_WARN_ON_ONCE(!pgtable_l4_enabled());
 
 	return p4d_page_paddr(READ_ONCE(*p4dp)) + pud_index(addr) * sizeof(pud_t);
 }
@@ -1130,7 +1130,7 @@ static inline p4d_t *pgd_to_folded_p4d(pgd_t *pgdp, unsigned long addr)
 
 static inline phys_addr_t p4d_offset_phys(pgd_t *pgdp, unsigned long addr)
 {
-	BUG_ON(!pgtable_l5_enabled());
+	VM_WARN_ON_ONCE(!pgtable_l5_enabled());
 
 	return pgd_page_paddr(READ_ONCE(*pgdp)) + p4d_index(addr) * sizeof(p4d_t);
 }
@@ -1829,6 +1829,34 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
 	contpte_try_unfold(mm, addr, ptep, __ptep_get(ptep));
 	return __ptep_get_and_clear(mm, addr, ptep);
 }
+
+static inline bool ptep_try_set(pte_t *ptep, pte_t new_pte)
+{
+	pteval_t old = 0;
+
+	if (!try_cmpxchg(&pte_val(*ptep), &old, pte_val(new_pte)))
+		return false;
+
+	/*
+	 * The store must be complete by the time this returns, but the caller
+	 * may be in lazy MMU mode, where __set_pte_complete() would defer the
+	 * barriers. Issue them directly.
+	 */
+	emit_pte_barriers();
+	return true;
+}
+#define ptep_try_set ptep_try_set
+
+/*
+ * arm64 mandates break-before-make: a cleared kernel PTE must have its TLB
+ * invalidated before a different page is installed in its place. The broadcast
+ * TLBI is an instruction, not an IPI, so this is safe with interrupts disabled.
+ */
+static inline void flush_tlb_before_set(unsigned long addr)
+{
+	flush_tlb_kernel_range(addr, addr + PAGE_SIZE);
+}
+#define flush_tlb_before_set flush_tlb_before_set
 
 #define test_and_clear_young_ptes test_and_clear_young_ptes
 static inline bool test_and_clear_young_ptes(struct vm_area_struct *vma,

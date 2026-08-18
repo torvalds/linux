@@ -174,10 +174,9 @@ static int opti_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 }
 
 static const struct pci_device_id opti[] = {
-	{ PCI_VDEVICE(OPTI, PCI_DEVICE_ID_OPTI_82C621), 0 },
-	{ PCI_VDEVICE(OPTI, PCI_DEVICE_ID_OPTI_82C825), 1 },
-
-	{ },
+	{ PCI_VDEVICE(OPTI, PCI_DEVICE_ID_OPTI_82C621), .driver_data = 0 },
+	{ PCI_VDEVICE(OPTI, PCI_DEVICE_ID_OPTI_82C825), .driver_data = 1 },
+	{ }
 };
 
 static struct pci_driver opti_pci_driver = {

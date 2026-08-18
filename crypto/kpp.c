@@ -20,11 +20,9 @@
 static int __maybe_unused crypto_kpp_report(
 	struct sk_buff *skb, struct crypto_alg *alg)
 {
-	struct crypto_report_kpp rkpp;
-
-	memset(&rkpp, 0, sizeof(rkpp));
-
-	strscpy(rkpp.type, "kpp", sizeof(rkpp.type));
+	struct crypto_report_kpp rkpp = {
+		.type = "kpp",
+	};
 
 	return nla_put(skb, CRYPTOCFGA_REPORT_KPP, sizeof(rkpp), &rkpp);
 }

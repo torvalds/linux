@@ -45,6 +45,18 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: Number of daisy-chained shift registers
 
+  lines-initial-states:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Bitmask that specifies the initial state of each output line, written
+      by the driver before the gpiochip is registered. Bit N corresponds to
+      GPIO line N, following the convention already documented for
+      nxp,pcf8575. Because the 74HC595/74LVC594 family is push-pull output
+      only, a bit set to zero drives the line low and a bit set to one
+      drives it high. The bitmask covers up to 32 lines (four cascaded
+      registers); outputs beyond that come up zeroed. When the property is
+      absent all outputs come up low, preserving the previous behaviour.
+
   enable-gpios:
     description: GPIO connected to the OE (Output Enable) pin.
     maxItems: 1
@@ -79,6 +91,7 @@ examples:
             gpio-controller;
             #gpio-cells = <2>;
             registers-number = <4>;
+            lines-initial-states = <0xffff0000>;
             spi-max-frequency = <100000>;
         };
     };

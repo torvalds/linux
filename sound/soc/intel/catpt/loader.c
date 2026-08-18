@@ -7,6 +7,7 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/firmware.h>
+#include <linux/ioport.h>
 #include <linux/slab.h>
 #include "core.h"
 #include "registers.h"
@@ -49,12 +50,6 @@ struct catpt_fw_block_hdr {
 	u32 ram_offset;
 	u32 rsvd;
 } __packed;
-
-void catpt_sram_init(struct resource *sram, u32 start, u32 size)
-{
-	sram->start = start;
-	sram->end = start + size - 1;
-}
 
 void catpt_sram_free(struct resource *sram)
 {
@@ -624,6 +619,9 @@ int catpt_boot_firmware(struct catpt_dev *cdev, bool restore)
 	if (!ret) {
 		dev_err(cdev->dev, "firmware ready timeout\n");
 		return -ETIMEDOUT;
+	/* Wake up does not mean FW is ready, an exception could occur. */
+	} else if (!cdev->ipc.ready) {
+		return -EREMOTEIO;
 	}
 
 	/* update sram pg & clock once done booting */

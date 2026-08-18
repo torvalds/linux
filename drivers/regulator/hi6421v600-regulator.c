@@ -276,7 +276,7 @@ static int hi6421_spmi_regulator_probe(struct platform_device *pdev)
 
 static const struct platform_device_id hi6421_spmi_regulator_table[] = {
 	{ .name = "hi6421v600-regulator" },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, hi6421_spmi_regulator_table);
 

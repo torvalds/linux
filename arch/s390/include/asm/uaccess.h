@@ -30,8 +30,7 @@ void debug_user_asce(int exit);
 #define uaccess_kmsan_or_inline __always_inline
 #endif
 
-#define INLINE_COPY_FROM_USER
-#define INLINE_COPY_TO_USER
+#define INLINE_COPY_USER
 
 static uaccess_kmsan_or_inline __must_check unsigned long
 raw_copy_from_user(void *to, const void __user *from, unsigned long size)

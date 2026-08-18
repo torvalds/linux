@@ -71,7 +71,6 @@
 #include "i915_drv.h"
 #include "i915_pvinfo.h"
 #include "i915_reg.h"
-#include "intel_mchbar_regs.h"
 #include "sched_policy.h"
 
 /* XXX FIXME i915 has changed PP_XXX definition */

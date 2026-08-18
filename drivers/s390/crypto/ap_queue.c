@@ -478,6 +478,7 @@ static enum ap_sm_wait ap_sm_assoc_wait(struct ap_queue *aq)
 		pr_debug("queue 0x%02x.%04x associated with %u\n",
 			 AP_QID_CARD(aq->qid),
 			 AP_QID_QUEUE(aq->qid), aq->assoc_idx);
+		ap_send_se_assoc_uevent(&aq->ap_dev, aq->assoc_idx);
 		return AP_SM_WAIT_NONE;
 	case AP_BS_Q_USABLE_NO_SECURE_KEY:
 		/* association still pending */
@@ -960,9 +961,12 @@ static ssize_t se_bind_store(struct device *dev,
 		__ap_flush_queue(aq);
 		aq->rapq_fbit = 1;
 		_ap_queue_init_state(aq);
-		rc = count;
-		goto out;
+		spin_unlock_bh(&aq->lock);
+		return count;
 	}
+
+	/* lock this ap to have fetch and update in an atomic way */
+	spin_lock_bh(&aq->lock);
 
 	/* Bind. Check current SE bind state */
 	status = ap_test_queue(aq->qid, 1, &hwinfo);
@@ -970,24 +974,24 @@ static ssize_t se_bind_store(struct device *dev,
 		AP_DBF_WARN("%s RC 0x%02x on tapq(0x%02x.%04x)\n",
 			    __func__, status.response_code,
 			    AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
-		return -EIO;
+		rc = -EIO;
+		goto error;
 	}
 
 	/* Update BS state */
-	spin_lock_bh(&aq->lock);
 	aq->se_bstate = hwinfo.bs;
 	if (hwinfo.bs != AP_BS_Q_AVAIL_FOR_BINDING) {
 		AP_DBF_WARN("%s bind attempt with bs %d on queue 0x%02x.%04x\n",
 			    __func__, hwinfo.bs,
 			    AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
 		rc = -EINVAL;
-		goto out;
+		goto error;
 	}
 
 	/* Check SM state */
 	if (aq->sm_state < AP_SM_STATE_IDLE) {
 		rc = -EBUSY;
-		goto out;
+		goto error;
 	}
 
 	/* invoke BAPQ */
@@ -997,7 +1001,7 @@ static ssize_t se_bind_store(struct device *dev,
 			    __func__, status.response_code,
 			    AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
 		rc = -EIO;
-		goto out;
+		goto error;
 	}
 	aq->assoc_idx = ASSOC_IDX_INVALID;
 
@@ -1008,7 +1012,7 @@ static ssize_t se_bind_store(struct device *dev,
 			    __func__, status.response_code,
 			    AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
 		rc = -EIO;
-		goto out;
+		goto error;
 	}
 	aq->se_bstate = hwinfo.bs;
 	if (!(hwinfo.bs == AP_BS_Q_USABLE ||
@@ -1017,15 +1021,19 @@ static ssize_t se_bind_store(struct device *dev,
 			    __func__, hwinfo.bs,
 			    AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
 		rc = -EIO;
-		goto out;
+		goto error;
 	}
 
 	/* SE bind was successful */
+	spin_unlock_bh(&aq->lock);
+
 	AP_DBF_INFO("%s bapq(0x%02x.%04x) success\n", __func__,
 		    AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
-	rc = count;
+	ap_send_se_bind_uevent(&aq->ap_dev);
 
-out:
+	return count;
+
+error:
 	spin_unlock_bh(&aq->lock);
 	return rc;
 }
@@ -1091,15 +1099,18 @@ static ssize_t se_associate_store(struct device *dev,
 	if (value >= ASSOC_IDX_INVALID)
 		return -EINVAL;
 
+	/* lock this ap to have fetch and update in an atomic way */
+	spin_lock_bh(&aq->lock);
+
 	/* check current SE bind state */
 	status = ap_test_queue(aq->qid, 1, &hwinfo);
 	if (status.response_code) {
 		AP_DBF_WARN("%s RC 0x%02x on tapq(0x%02x.%04x)\n",
 			    __func__, status.response_code,
 			    AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
-		return -EIO;
+		rc = -EIO;
+		goto out;
 	}
-	spin_lock_bh(&aq->lock);
 	aq->se_bstate = hwinfo.bs;
 	if (hwinfo.bs != AP_BS_Q_USABLE_NO_SECURE_KEY) {
 		AP_DBF_WARN("%s association attempt with bs %d on queue 0x%02x.%04x\n",
@@ -1123,16 +1134,15 @@ static ssize_t se_associate_store(struct device *dev,
 		aq->sm_state = AP_SM_STATE_ASSOC_WAIT;
 		aq->assoc_idx = value;
 		ap_wait(ap_sm_event(aq, AP_SM_EVENT_POLL));
+		rc = count;
 		break;
 	default:
 		AP_DBF_WARN("%s RC 0x%02x on aapq(0x%02x.%04x)\n",
 			    __func__, status.response_code,
 			    AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
 		rc = -EIO;
-		goto out;
+		break;
 	}
-
-	rc = count;
 
 out:
 	spin_unlock_bh(&aq->lock);

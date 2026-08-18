@@ -26,14 +26,14 @@ impl From<OutOfBound> for Error {
 ///
 /// # Safety
 ///
-/// The implementation of `index` and `get` (if [`Some`] is returned) must ensure that, if provided
-/// input pointer `slice` and returned pointer `output`, then:
+/// For a given input pointer `slice` and return value `output`, the implementation of `index`,
+/// `build_index` and `get` (if [`Some`] is returned) must ensure that:
 /// - `output` has the same provenance as `slice`;
 /// - `output.byte_offset_from(slice)` is between 0 to
 ///   `KnownSize::size(slice) - KnownSize::size(output)`.
 ///
-/// This means that if the input pointer is valid, then pointer returned by `get` or `index` is
-/// also valid.
+/// This means that if the input pointer is valid, then the pointer returned by `get`, `index`
+/// or `build_index` is also valid.
 #[diagnostic::on_unimplemented(message = "`{Self}` cannot be used to index `{T}`")]
 #[doc(hidden)]
 pub unsafe trait ProjectIndex<T: ?Sized>: Sized {
@@ -42,10 +42,16 @@ pub unsafe trait ProjectIndex<T: ?Sized>: Sized {
     /// Returns an index-projected pointer, if in bounds.
     fn get(self, slice: *mut T) -> Option<*mut Self::Output>;
 
+    /// Returns an index-projected pointer; panic if out of bounds.
+    fn index(self, slice: *mut T) -> *mut Self::Output;
+
     /// Returns an index-projected pointer; fail the build if it cannot be proved to be in bounds.
     #[inline(always)]
-    fn index(self, slice: *mut T) -> *mut Self::Output {
-        Self::get(self, slice).unwrap_or_else(|| build_error!())
+    fn build_index(self, slice: *mut T) -> *mut Self::Output {
+        match Self::get(self, slice) {
+            Some(v) => v,
+            None => build_error!(),
+        }
     }
 }
 
@@ -67,6 +73,11 @@ where
     fn index(self, slice: *mut [T; N]) -> *mut Self::Output {
         <I as ProjectIndex<[T]>>::index(self, slice)
     }
+
+    #[inline(always)]
+    fn build_index(self, slice: *mut [T; N]) -> *mut Self::Output {
+        <I as ProjectIndex<[T]>>::build_index(self, slice)
+    }
 }
 
 // SAFETY: `get`-returned pointer has the same provenance as `slice` and the offset is checked to
@@ -81,6 +92,16 @@ unsafe impl<T> ProjectIndex<[T]> for usize {
         } else {
             Some(slice.cast::<T>().wrapping_add(self))
         }
+    }
+
+    #[inline(always)]
+    fn index(self, slice: *mut [T]) -> *mut T {
+        // Leverage Rust built-in operators for bounds checking.
+        // SAFETY: All non-null and aligned pointers are valid for ZST read.
+        let zst_slice =
+            unsafe { core::slice::from_raw_parts::<()>(core::ptr::dangling(), slice.len()) };
+        let () = zst_slice[self];
+        slice.cast::<T>().wrapping_add(self)
     }
 }
 
@@ -100,6 +121,18 @@ unsafe impl<T> ProjectIndex<[T]> for core::ops::Range<usize> {
             new_len,
         ))
     }
+
+    #[inline(always)]
+    fn index(self, slice: *mut [T]) -> *mut [T] {
+        // Leverage Rust built-in operators for bounds checking.
+        // SAFETY: All non-null and aligned pointers are valid for ZST read.
+        let zst_slice =
+            unsafe { core::slice::from_raw_parts::<()>(core::ptr::dangling(), slice.len()) };
+        _ = zst_slice[self.clone()];
+
+        // SAFETY: Bounds checked.
+        unsafe { self.get(slice).unwrap_unchecked() }
+    }
 }
 
 // SAFETY: Safety requirement guaranteed by the forwarded impl.
@@ -109,6 +142,11 @@ unsafe impl<T> ProjectIndex<[T]> for core::ops::RangeTo<usize> {
     #[inline(always)]
     fn get(self, slice: *mut [T]) -> Option<*mut [T]> {
         (0..self.end).get(slice)
+    }
+
+    #[inline(always)]
+    fn index(self, slice: *mut [T]) -> *mut [T] {
+        (0..self.end).index(slice)
     }
 }
 
@@ -120,6 +158,11 @@ unsafe impl<T> ProjectIndex<[T]> for core::ops::RangeFrom<usize> {
     fn get(self, slice: *mut [T]) -> Option<*mut [T]> {
         (self.start..slice.len()).get(slice)
     }
+
+    #[inline(always)]
+    fn index(self, slice: *mut [T]) -> *mut [T] {
+        (self.start..slice.len()).index(slice)
+    }
 }
 
 // SAFETY: `get` returned the pointer as is, so it always has the same provenance and offset of 0.
@@ -129,6 +172,11 @@ unsafe impl<T> ProjectIndex<[T]> for core::ops::RangeFull {
     #[inline(always)]
     fn get(self, slice: *mut [T]) -> Option<*mut [T]> {
         Some(slice)
+    }
+
+    #[inline(always)]
+    fn index(self, slice: *mut [T]) -> *mut [T] {
+        slice
     }
 }
 
@@ -207,10 +255,13 @@ unsafe impl<T: Deref> ProjectField<true> for T {
 /// If a mutable pointer is needed, the macro input can be prefixed with the `mut` keyword, i.e.
 /// `kernel::ptr::project!(mut ptr, projection)`. By default, a const pointer is created.
 ///
-/// `ptr::project!` macro can perform both fallible indexing and build-time checked indexing.
-/// `[index]` form performs build-time bounds checking; if compiler fails to prove `[index]` is in
-/// bounds, compilation will fail. `[index]?` can be used to perform runtime bounds checking;
-/// `OutOfBound` error is raised via `?` if the index is out of bounds.
+/// The `ptr::project!` macro can perform both fallible indexing and build-time checked indexing.
+/// The syntax is of the form `[<flavor>: index]` where `flavor` indicates the way of handling
+/// index out-of-bounds errors.
+/// - `try` will raise an [`OutOfBound`] error (which is convertible to [`ERANGE`]).
+/// - `build` will use the [`build_assert!`] mechanism to have the compiler validate the index is
+///   in bounds.
+/// - `panic` will cause a Rust [`panic!`] if the index goes out of bounds.
 ///
 /// # Examples
 ///
@@ -228,17 +279,21 @@ unsafe impl<T: Deref> ProjectField<true> for T {
 /// }
 /// ```
 ///
-/// Index projections are performed with `[index]`:
+/// Index projections are performed with `[<flavor>: index]`, where `flavor` is `try`, `build` or
+/// `panic`:
 ///
 /// ```
 /// fn proj(ptr: *const [u8; 32]) -> Result {
-///     let field_ptr: *const u8 = kernel::ptr::project!(ptr, [1]);
+///     let field_ptr: *const u8 = kernel::ptr::project!(ptr, [build: 1]);
 ///     // The following invocation, if uncommented, would fail the build.
 ///     //
-///     // kernel::ptr::project!(ptr, [128]);
+///     // kernel::ptr::project!(ptr, [build: 128]);
 ///
 ///     // This will raise an `OutOfBound` error (which is convertible to `ERANGE`).
-///     kernel::ptr::project!(ptr, [128]?);
+///     kernel::ptr::project!(ptr, [try: 128]);
+///
+///     // This will panic at runtime if executed.
+///     kernel::ptr::project!(ptr, [panic: 128]);
 ///     Ok(())
 /// }
 /// ```
@@ -248,7 +303,7 @@ unsafe impl<T: Deref> ProjectField<true> for T {
 /// ```
 /// let ptr: *const [u8; 32] = core::ptr::dangling();
 /// let field_ptr: Result<*const u8> = (|| -> Result<_> {
-///     Ok(kernel::ptr::project!(ptr, [128]?))
+///     Ok(kernel::ptr::project!(ptr, [try: 128]))
 /// })();
 /// assert!(field_ptr.is_err());
 /// ```
@@ -257,7 +312,7 @@ unsafe impl<T: Deref> ProjectField<true> for T {
 ///
 /// ```
 /// let ptr: *mut [(u8, u16); 32] = core::ptr::dangling_mut();
-/// let field_ptr: *mut u16 = kernel::ptr::project!(mut ptr, [1].1);
+/// let field_ptr: *mut u16 = kernel::ptr::project!(mut ptr, [build: 1].1);
 /// ```
 #[macro_export]
 macro_rules! project_pointer {
@@ -280,16 +335,22 @@ macro_rules! project_pointer {
         $crate::ptr::project!(@gen $ptr, $($rest)*)
     };
     // Fallible index projection.
-    (@gen $ptr:ident, [$index:expr]? $($rest:tt)*) => {
+    (@gen $ptr:ident, [try: $index:expr] $($rest:tt)*) => {
         let $ptr = $crate::ptr::projection::ProjectIndex::get($index, $ptr)
             .ok_or($crate::ptr::projection::OutOfBound)?;
         $crate::ptr::project!(@gen $ptr, $($rest)*)
     };
-    // Build-time checked index projection.
-    (@gen $ptr:ident, [$index:expr] $($rest:tt)*) => {
+    // Panicking index projection.
+    (@gen $ptr:ident, [panic: $index:expr] $($rest:tt)*) => {
         let $ptr = $crate::ptr::projection::ProjectIndex::index($index, $ptr);
         $crate::ptr::project!(@gen $ptr, $($rest)*)
     };
+    // Build-time checked index projection.
+    (@gen $ptr:ident, [build: $index:expr] $($rest:tt)*) => {
+        let $ptr = $crate::ptr::projection::ProjectIndex::build_index($index, $ptr);
+        $crate::ptr::project!(@gen $ptr, $($rest)*)
+    };
+
     (mut $ptr:expr, $($proj:tt)*) => {{
         let ptr: *mut _ = $ptr;
         $crate::ptr::project!(@gen ptr, $($proj)*);

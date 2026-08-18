@@ -190,26 +190,78 @@ struct intel8x0m {
 };
 
 static const struct pci_device_id snd_intel8x0m_ids[] = {
-	{ PCI_VDEVICE(INTEL, 0x2416), DEVICE_INTEL },	/* 82801AA */
-	{ PCI_VDEVICE(INTEL, 0x2426), DEVICE_INTEL },	/* 82901AB */
-	{ PCI_VDEVICE(INTEL, 0x2446), DEVICE_INTEL },	/* 82801BA */
-	{ PCI_VDEVICE(INTEL, 0x2486), DEVICE_INTEL },	/* ICH3 */
-	{ PCI_VDEVICE(INTEL, 0x24c6), DEVICE_INTEL }, /* ICH4 */
-	{ PCI_VDEVICE(INTEL, 0x24d6), DEVICE_INTEL }, /* ICH5 */
-	{ PCI_VDEVICE(INTEL, 0x266d), DEVICE_INTEL },	/* ICH6 */
-	{ PCI_VDEVICE(INTEL, 0x27dd), DEVICE_INTEL },	/* ICH7 */
-	{ PCI_VDEVICE(INTEL, 0x7196), DEVICE_INTEL },	/* 440MX */
-	{ PCI_VDEVICE(AMD, 0x7446), DEVICE_INTEL },	/* AMD768 */
-	{ PCI_VDEVICE(SI, 0x7013), DEVICE_SIS },	/* SI7013 */
-	{ PCI_VDEVICE(NVIDIA, 0x01c1), DEVICE_NFORCE }, /* NFORCE */
-	{ PCI_VDEVICE(NVIDIA, 0x0069), DEVICE_NFORCE }, /* NFORCE2 */
-	{ PCI_VDEVICE(NVIDIA, 0x0089), DEVICE_NFORCE }, /* NFORCE2s */
-	{ PCI_VDEVICE(NVIDIA, 0x00d9), DEVICE_NFORCE }, /* NFORCE3 */
-	{ PCI_VDEVICE(AMD, 0x746e), DEVICE_INTEL },	/* AMD8111 */
+	{
+		/* 82801AA */
+		PCI_VDEVICE(INTEL, 0x2416),
+		.driver_data = DEVICE_INTEL,
+	}, {
+		/* 82901AB */
+		PCI_VDEVICE(INTEL, 0x2426),
+		.driver_data = DEVICE_INTEL
+	}, {
+		/* 82801BA */
+		PCI_VDEVICE(INTEL, 0x2446),
+		.driver_data = DEVICE_INTEL
+	}, {
+		/* ICH3 */
+		PCI_VDEVICE(INTEL, 0x2486),
+		.driver_data = DEVICE_INTEL
+	}, {
+		/* ICH4 */
+		PCI_VDEVICE(INTEL, 0x24c6),
+		.driver_data = DEVICE_INTEL,
+	}, {
+		/* ICH5 */
+		PCI_VDEVICE(INTEL, 0x24d6),
+		.driver_data = DEVICE_INTEL,
+	}, {
+		/* ICH6 */
+		PCI_VDEVICE(INTEL, 0x266d),
+		.driver_data = DEVICE_INTEL,
+	}, {
+		/* ICH7 */
+		PCI_VDEVICE(INTEL, 0x27dd),
+		.driver_data = DEVICE_INTEL,
+	}, {
+		/* 440MX */
+		PCI_VDEVICE(INTEL, 0x7196),
+		.driver_data = DEVICE_INTEL,
+	}, {
+		/* AMD768 */
+		PCI_VDEVICE(AMD, 0x7446),
+		.driver_data = DEVICE_INTEL,
+	}, {
+		/* SI7013 */
+		PCI_VDEVICE(SI, 0x7013),
+		.driver_data = DEVICE_SIS,
+	}, {
+		/* NFORCE */
+		PCI_VDEVICE(NVIDIA, 0x01c1),
+		.driver_data = DEVICE_NFORCE,
+	}, {
+		/* NFORCE2 */
+		PCI_VDEVICE(NVIDIA, 0x0069),
+		.driver_data = DEVICE_NFORCE,
+	}, {
+		/* NFORCE2s */
+		PCI_VDEVICE(NVIDIA, 0x0089),
+		.driver_data = DEVICE_NFORCE,
+	}, {
+		/* NFORCE3 */
+		PCI_VDEVICE(NVIDIA, 0x00d9),
+		.driver_data = DEVICE_NFORCE,
+	}, {
+		/* AMD8111 */
+		PCI_VDEVICE(AMD, 0x746e),
+		.driver_data = DEVICE_INTEL
 #if 0
-	{ PCI_VDEVICE(AL, 0x5455), DEVICE_ALI },   /* Ali5455 */
+	}, {
+		/* Ali5455 */
+		PCI_VDEVICE(AL, 0x5455),
+		.driver_data = DEVICE_ALI,
 #endif
-	{ 0, }
+	},
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, snd_intel8x0m_ids);

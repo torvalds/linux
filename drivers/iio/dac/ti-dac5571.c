@@ -20,7 +20,6 @@
 #include <linux/iio/iio.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/property.h>
 #include <linux/regulator/consumer.h>
 
@@ -402,17 +401,17 @@ static const struct of_device_id dac5571_of_id[] = {
 MODULE_DEVICE_TABLE(of, dac5571_of_id);
 
 static const struct i2c_device_id dac5571_id[] = {
-	{"dac081c081", (kernel_ulong_t)&dac5571_spec[single_8bit] },
-	{"dac121c081", (kernel_ulong_t)&dac5571_spec[single_12bit] },
-	{"dac5571", (kernel_ulong_t)&dac5571_spec[single_8bit] },
-	{"dac6571", (kernel_ulong_t)&dac5571_spec[single_10bit] },
-	{"dac7571", (kernel_ulong_t)&dac5571_spec[single_12bit] },
-	{"dac5574", (kernel_ulong_t)&dac5571_spec[quad_8bit] },
-	{"dac6574", (kernel_ulong_t)&dac5571_spec[quad_10bit] },
-	{"dac7574", (kernel_ulong_t)&dac5571_spec[quad_12bit] },
-	{"dac5573", (kernel_ulong_t)&dac5571_spec[quad_8bit] },
-	{"dac6573", (kernel_ulong_t)&dac5571_spec[quad_10bit] },
-	{"dac7573", (kernel_ulong_t)&dac5571_spec[quad_12bit] },
+	{ .name = "dac081c081", .driver_data = (kernel_ulong_t)&dac5571_spec[single_8bit] },
+	{ .name = "dac121c081", .driver_data = (kernel_ulong_t)&dac5571_spec[single_12bit] },
+	{ .name = "dac5571", .driver_data = (kernel_ulong_t)&dac5571_spec[single_8bit] },
+	{ .name = "dac6571", .driver_data = (kernel_ulong_t)&dac5571_spec[single_10bit] },
+	{ .name = "dac7571", .driver_data = (kernel_ulong_t)&dac5571_spec[single_12bit] },
+	{ .name = "dac5574", .driver_data = (kernel_ulong_t)&dac5571_spec[quad_8bit] },
+	{ .name = "dac6574", .driver_data = (kernel_ulong_t)&dac5571_spec[quad_10bit] },
+	{ .name = "dac7574", .driver_data = (kernel_ulong_t)&dac5571_spec[quad_12bit] },
+	{ .name = "dac5573", .driver_data = (kernel_ulong_t)&dac5571_spec[quad_8bit] },
+	{ .name = "dac6573", .driver_data = (kernel_ulong_t)&dac5571_spec[quad_10bit] },
+	{ .name = "dac7573", .driver_data = (kernel_ulong_t)&dac5571_spec[quad_12bit] },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, dac5571_id);

@@ -219,11 +219,11 @@ void vlv_dsi_pll_enable(struct intel_encoder *encoder,
 
 	drm_dbg_kms(display->drm, "\n");
 
-	vlv_cck_get(display->drm);
+	vlv_cck_get(display);
 
-	vlv_cck_write(display->drm, CCK_REG_DSI_PLL_CONTROL, 0);
-	vlv_cck_write(display->drm, CCK_REG_DSI_PLL_DIVIDER, config->dsi_pll.div);
-	vlv_cck_write(display->drm, CCK_REG_DSI_PLL_CONTROL,
+	vlv_cck_write(display, CCK_REG_DSI_PLL_CONTROL, 0);
+	vlv_cck_write(display, CCK_REG_DSI_PLL_DIVIDER, config->dsi_pll.div);
+	vlv_cck_write(display, CCK_REG_DSI_PLL_CONTROL,
 		      config->dsi_pll.ctrl & ~DSI_PLL_VCO_EN);
 
 	/* wait at least 0.5 us after ungating before enabling VCO,
@@ -231,17 +231,17 @@ void vlv_dsi_pll_enable(struct intel_encoder *encoder,
 	 */
 	usleep_range(10, 50);
 
-	vlv_cck_write(display->drm, CCK_REG_DSI_PLL_CONTROL, config->dsi_pll.ctrl);
+	vlv_cck_write(display, CCK_REG_DSI_PLL_CONTROL, config->dsi_pll.ctrl);
 
-	ret = poll_timeout_us(val = vlv_cck_read(display->drm, CCK_REG_DSI_PLL_CONTROL),
+	ret = poll_timeout_us(val = vlv_cck_read(display, CCK_REG_DSI_PLL_CONTROL),
 			      val & DSI_PLL_LOCK,
 			      500, 20 * 1000, false);
 	if (ret) {
-		vlv_cck_put(display->drm);
+		vlv_cck_put(display);
 		drm_err(display->drm, "DSI PLL lock failed\n");
 		return;
 	}
-	vlv_cck_put(display->drm);
+	vlv_cck_put(display);
 
 	drm_dbg_kms(display->drm, "DSI PLL locked\n");
 }
@@ -253,14 +253,14 @@ void vlv_dsi_pll_disable(struct intel_encoder *encoder)
 
 	drm_dbg_kms(display->drm, "\n");
 
-	vlv_cck_get(display->drm);
+	vlv_cck_get(display);
 
-	tmp = vlv_cck_read(display->drm, CCK_REG_DSI_PLL_CONTROL);
+	tmp = vlv_cck_read(display, CCK_REG_DSI_PLL_CONTROL);
 	tmp &= ~DSI_PLL_VCO_EN;
 	tmp |= DSI_PLL_LDO_GATE;
-	vlv_cck_write(display->drm, CCK_REG_DSI_PLL_CONTROL, tmp);
+	vlv_cck_write(display, CCK_REG_DSI_PLL_CONTROL, tmp);
 
-	vlv_cck_put(display->drm);
+	vlv_cck_put(display);
 }
 
 static bool has_dsic_clock(struct intel_display *display)
@@ -333,10 +333,10 @@ u32 vlv_dsi_get_pclk(struct intel_encoder *encoder,
 
 	drm_dbg_kms(display->drm, "\n");
 
-	vlv_cck_get(display->drm);
-	pll_ctl = vlv_cck_read(display->drm, CCK_REG_DSI_PLL_CONTROL);
-	pll_div = vlv_cck_read(display->drm, CCK_REG_DSI_PLL_DIVIDER);
-	vlv_cck_put(display->drm);
+	vlv_cck_get(display);
+	pll_ctl = vlv_cck_read(display, CCK_REG_DSI_PLL_CONTROL);
+	pll_div = vlv_cck_read(display, CCK_REG_DSI_PLL_DIVIDER);
+	vlv_cck_put(display);
 
 	config->dsi_pll.ctrl = pll_ctl & ~DSI_PLL_LOCK;
 	config->dsi_pll.div = pll_div;
@@ -603,9 +603,9 @@ static void assert_dsi_pll(struct intel_display *display, bool state)
 {
 	bool cur_state;
 
-	vlv_cck_get(display->drm);
-	cur_state = vlv_cck_read(display->drm, CCK_REG_DSI_PLL_CONTROL) & DSI_PLL_VCO_EN;
-	vlv_cck_put(display->drm);
+	vlv_cck_get(display);
+	cur_state = vlv_cck_read(display, CCK_REG_DSI_PLL_CONTROL) & DSI_PLL_VCO_EN;
+	vlv_cck_put(display);
 
 	INTEL_DISPLAY_STATE_WARN(display, cur_state != state,
 				 "DSI PLL state assertion failure (expected %s, current %s)\n",

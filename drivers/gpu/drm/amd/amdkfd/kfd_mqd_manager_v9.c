@@ -27,6 +27,7 @@
 #include <linux/uaccess.h>
 #include "kfd_priv.h"
 #include "kfd_mqd_manager.h"
+#include "kfd_topology.h"
 #include "v9_structs.h"
 #include "gc/gc_9_0_offset.h"
 #include "gc/gc_9_0_sh_mask.h"
@@ -227,10 +228,9 @@ static void init_mqd(struct mqd_manager *mm, void **mqd,
 		m->cp_hqd_aql_control =
 			1 << CP_HQD_AQL_CONTROL__CONTROL0__SHIFT;
 
-	if (q->tba_addr) {
+	if (q->tba_addr)
 		m->compute_pgm_rsrc2 |=
 			(1 << COMPUTE_PGM_RSRC2__TRAP_PRESENT__SHIFT);
-	}
 
 	if (mm->dev->kfd->cwsr_enabled && q->ctx_save_restore_area_address) {
 		m->cp_hqd_persistent_state |=
@@ -244,6 +244,11 @@ static void init_mqd(struct mqd_manager *mm, void **mqd,
 		m->cp_hqd_cntl_stack_offset = q->ctl_stack_size;
 		m->cp_hqd_wg_state_offset = q->ctl_stack_size;
 	}
+
+	mutex_lock(&mm->dev->kfd->profiler_lock);
+	if (mm->dev->kfd->profiler_process != NULL)
+		m->compute_perfcount_enable = 1;
+	mutex_unlock(&mm->dev->kfd->profiler_lock);
 
 	*mqd = m;
 	if (gart_addr)
@@ -327,6 +332,13 @@ static void update_mqd(struct mqd_manager *mm, void *mqd,
 	if (mm->dev->kfd->cwsr_enabled && q->ctx_save_restore_area_address)
 		m->cp_hqd_ctx_save_control = 0;
 
+	if (minfo) {
+		if (minfo->update_flag == UPDATE_FLAG_PERFCOUNT_ENABLE)
+			m->compute_perfcount_enable = 1;
+		else if (minfo->update_flag == UPDATE_FLAG_PERFCOUNT_DISABLE)
+			m->compute_perfcount_enable = 0;
+	}
+
 	if (KFD_GC_VERSION(mm->dev) != IP_VERSION(9, 4, 3) &&
 	    KFD_GC_VERSION(mm->dev) != IP_VERSION(9, 4, 4) &&
 	    KFD_GC_VERSION(mm->dev) != IP_VERSION(9, 5, 0))
@@ -400,8 +412,11 @@ static int get_wave_state(struct mqd_manager *mm, void *mqd,
 static int get_checkpoint_info(struct mqd_manager *mm, void *mqd, u32 *ctl_stack_size)
 {
 	struct v9_mqd *m = get_mqd(mqd);
+	u32 per_xcc_size;
 
-	if (check_mul_overflow(m->cp_hqd_cntl_stack_size, NUM_XCC(mm->dev->xcc_mask), ctl_stack_size))
+	per_xcc_size = min_t(u32, m->cp_hqd_cntl_stack_size, mm->ctl_stack_size);
+
+	if (check_mul_overflow(per_xcc_size, NUM_XCC(mm->dev->xcc_mask), ctl_stack_size))
 		return -EINVAL;
 
 	return 0;
@@ -410,13 +425,15 @@ static int get_checkpoint_info(struct mqd_manager *mm, void *mqd, u32 *ctl_stack
 static void checkpoint_mqd(struct mqd_manager *mm, void *mqd, void *mqd_dst, void *ctl_stack_dst)
 {
 	struct v9_mqd *m;
+	u32 ctl_stack_copy_size;
 	/* Control stack is located one page after MQD. */
 	void *ctl_stack = (void *)((uintptr_t)mqd + AMDGPU_GPU_PAGE_SIZE);
 
 	m = get_mqd(mqd);
+	ctl_stack_copy_size = min_t(u32, m->cp_hqd_cntl_stack_size, mm->ctl_stack_size);
 
 	memcpy(mqd_dst, m, sizeof(struct v9_mqd));
-	memcpy(ctl_stack_dst, ctl_stack, m->cp_hqd_cntl_stack_size);
+	memcpy(ctl_stack_dst, ctl_stack, ctl_stack_copy_size);
 }
 
 static void checkpoint_mqd_v9_4_3(struct mqd_manager *mm,
@@ -425,15 +442,19 @@ static void checkpoint_mqd_v9_4_3(struct mqd_manager *mm,
 								  void *ctl_stack_dst)
 {
 	struct v9_mqd *m;
+	u32 ctl_stack_stride;
 	int xcc;
 	uint64_t size = get_mqd(mqd)->cp_mqd_stride_size;
+
+	ctl_stack_stride = min_t(u32, get_mqd(mqd)->cp_hqd_cntl_stack_size,
+				 mm->ctl_stack_size);
 
 	for (xcc = 0; xcc < NUM_XCC(mm->dev->xcc_mask); xcc++) {
 		m = get_mqd(mqd + size * xcc);
 
 		checkpoint_mqd(mm, m,
 				(uint8_t *)mqd_dst + sizeof(*m) * xcc,
-				(uint8_t *)ctl_stack_dst + m->cp_hqd_cntl_stack_size * xcc);
+				(uint8_t *)ctl_stack_dst + ctl_stack_stride * xcc);
 	}
 }
 
@@ -987,6 +1008,15 @@ struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
 		mqd->is_occupied = kfd_is_occupied_cp;
 		mqd->get_checkpoint_info = get_checkpoint_info;
 		mqd->mqd_size = sizeof(struct v9_mqd);
+		if (dev->kfd->cwsr_enabled) {
+			struct kfd_topology_device *topo_dev;
+
+			topo_dev = kfd_topology_device_by_id(dev->id);
+			if (topo_dev)
+				mqd->ctl_stack_size =
+					ALIGN(topo_dev->node_props.ctl_stack_size,
+					      AMDGPU_GPU_PAGE_SIZE);
+		}
 		mqd->mqd_stride = mqd_stride_v9;
 #if defined(CONFIG_DEBUG_FS)
 		mqd->debugfs_show_mqd = debugfs_show_mqd;

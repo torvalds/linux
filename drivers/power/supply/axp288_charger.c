@@ -955,7 +955,7 @@ static int axp288_charger_probe(struct platform_device *pdev)
 
 static const struct platform_device_id axp288_charger_id_table[] = {
 	{ .name = "axp288_charger" },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, axp288_charger_id_table);
 

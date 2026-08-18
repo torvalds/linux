@@ -54,9 +54,9 @@ static const int mp2856_max_phases[][MP2856_PAGE_NUM] = {
 };
 
 static const struct i2c_device_id mp2856_id[] = {
-	{"mp2856", mp2856},
-	{"mp2857", mp2857},
-	{}
+	{ .name = "mp2856", .driver_data = mp2856 },
+	{ .name = "mp2857", .driver_data = mp2857 },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, mp2856_id);

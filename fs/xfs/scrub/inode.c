@@ -102,7 +102,7 @@ xchk_setup_inode(
 		xchk_fsgates_enable(sc, XCHK_FSGATES_DRAIN);
 
 	/* We want to scan the opened inode, so lock it and exit. */
-	if (sc->sm->sm_ino == 0 || sc->sm->sm_ino == ip_in->i_ino) {
+	if (sc->sm->sm_ino == 0 || sc->sm->sm_ino == I_INO(ip_in)) {
 		error = xchk_install_live_inode(sc, ip_in);
 		if (error)
 			return error;
@@ -710,17 +710,17 @@ xchk_inode_xref_bmap(
 	if (!xchk_should_check_xref(sc, &error, NULL))
 		return;
 	if (nextents < xfs_dfork_data_extents(dip))
-		xchk_ino_xref_set_corrupt(sc, sc->ip->i_ino);
+		xchk_ip_xref_set_corrupt(sc, sc->ip);
 
 	error = xchk_inode_count_blocks(sc, XFS_ATTR_FORK, &nextents, &acount);
 	if (!xchk_should_check_xref(sc, &error, NULL))
 		return;
 	if (nextents != xfs_dfork_attr_extents(dip))
-		xchk_ino_xref_set_corrupt(sc, sc->ip->i_ino);
+		xchk_ip_xref_set_corrupt(sc, sc->ip);
 
 	/* Check nblocks against the inode. */
 	if (count + acount != be64_to_cpu(dip->di_nblocks))
-		xchk_ino_xref_set_corrupt(sc, sc->ip->i_ino);
+		xchk_ip_xref_set_corrupt(sc, sc->ip);
 }
 
 /* Cross-reference with the other btrees. */
@@ -794,10 +794,10 @@ xchk_inode_check_unlinked(
 {
 	if (VFS_I(sc->ip)->i_nlink == 0) {
 		if (!xfs_inode_on_unlinked_list(sc->ip))
-			xchk_ino_set_corrupt(sc, sc->ip->i_ino);
+			xchk_ino_set_corrupt(sc, I_INO(sc->ip));
 	} else {
 		if (xfs_inode_on_unlinked_list(sc->ip))
-			xchk_ino_set_corrupt(sc, sc->ip->i_ino);
+			xchk_ino_set_corrupt(sc, I_INO(sc->ip));
 	}
 }
 
@@ -821,7 +821,7 @@ xchk_inode(
 
 	/* Scrub the inode core. */
 	xfs_inode_to_disk(sc->ip, &di, 0);
-	xchk_dinode(sc, &di, sc->ip->i_ino);
+	xchk_dinode(sc, &di, I_INO(sc->ip));
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		goto out;
 
@@ -831,11 +831,11 @@ xchk_inode(
 	 * we scrubbed the dinode.
 	 */
 	if (S_ISREG(VFS_I(sc->ip)->i_mode))
-		xchk_inode_check_reflink_iflag(sc, sc->ip->i_ino);
+		xchk_inode_check_reflink_iflag(sc, I_INO(sc->ip));
 
 	xchk_inode_check_unlinked(sc);
 
-	xchk_inode_xref(sc, sc->ip->i_ino, &di);
+	xchk_inode_xref(sc, I_INO(sc->ip), &di);
 out:
 	return error;
 }

@@ -103,7 +103,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Enable PCI device */
 	ret = pcim_enable_device(pdev);
 	if (ret) {
-		dev_err(&pdev->dev, "Can't enable PCI device.\n");
+		pci_err(pdev, "Can't enable PCI device.\n");
 		goto out_err;
 	}
 
@@ -133,7 +133,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ret = pcim_request_all_regions(pdev, pci_name(pdev));
 	if (ret) {
-		dev_err(&pdev->dev, "Failed to request PCI regions.\n");
+		pci_err(pdev, "Failed to request PCI regions.\n");
 		goto out_err;
 	}
 
@@ -142,16 +142,14 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		bar = &accel_pci_dev->pci_bars[i++];
 		bar->virt_addr = pcim_iomap(pdev, bar_nr, 0);
 		if (!bar->virt_addr) {
-			dev_err(&pdev->dev, "Failed to ioremap PCI region.\n");
+			pci_err(pdev, "Failed to ioremap PCI region.\n");
 			ret = -ENOMEM;
 			goto out_err;
 		}
 	}
 
-	pci_set_master(pdev);
-
 	if (pci_save_state(pdev)) {
-		dev_err(&pdev->dev, "Failed to save pci state.\n");
+		pci_err(pdev, "Failed to save pci state.\n");
 		ret = -ENOMEM;
 		goto out_err;
 	}
@@ -214,6 +212,5 @@ MODULE_FIRMWARE(ADF_402XX_FW);
 MODULE_FIRMWARE(ADF_4XXX_MMP);
 MODULE_FIRMWARE(ADF_402XX_MMP);
 MODULE_DESCRIPTION("Intel(R) QuickAssist Technology");
-MODULE_VERSION(ADF_DRV_VERSION);
 MODULE_SOFTDEP("pre: crypto-intel_qat");
 MODULE_IMPORT_NS("CRYPTO_QAT");

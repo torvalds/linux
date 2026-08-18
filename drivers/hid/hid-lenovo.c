@@ -505,6 +505,7 @@ static int lenovo_input_mapping(struct hid_device *hdev,
 							       usage, bit, max);
 	case USB_DEVICE_ID_LENOVO_X12_TAB:
 	case USB_DEVICE_ID_LENOVO_X12_TAB2:
+	case USB_DEVICE_ID_LENOVO_X13_TAB:
 	case USB_DEVICE_ID_LENOVO_X1_TAB:
 	case USB_DEVICE_ID_LENOVO_X1_TAB2:
 	case USB_DEVICE_ID_LENOVO_X1_TAB3:
@@ -621,6 +622,7 @@ static ssize_t attr_fn_lock_store(struct device *dev,
 		break;
 	case USB_DEVICE_ID_LENOVO_X12_TAB:
 	case USB_DEVICE_ID_LENOVO_X12_TAB2:
+	case USB_DEVICE_ID_LENOVO_X13_TAB:
 	case USB_DEVICE_ID_LENOVO_TP10UBKBD:
 	case USB_DEVICE_ID_LENOVO_X1_TAB:
 	case USB_DEVICE_ID_LENOVO_X1_TAB2:
@@ -792,9 +794,10 @@ static int lenovo_raw_event(struct hid_device *hdev,
 	 * Lenovo TP X12 Tab KBD's Fn+XX is HID raw data defined. Report ID is 0x03
 	 * e.g.: Raw data received for MIC mute is 0x00020003.
 	 */
-	if (unlikely((hdev->product == USB_DEVICE_ID_LENOVO_X12_TAB
-			|| hdev->product == USB_DEVICE_ID_LENOVO_X12_TAB2)
-			&& size >= 4 && report->id == 0x03))
+	if (unlikely((hdev->product == USB_DEVICE_ID_LENOVO_X12_TAB ||
+		      hdev->product == USB_DEVICE_ID_LENOVO_X12_TAB2 ||
+		      hdev->product == USB_DEVICE_ID_LENOVO_X13_TAB) &&
+		      size >= 4 && report->id == 0x03))
 		return lenovo_raw_event_TP_X12_tab(hdev, get_unaligned_le32(data));
 
 	return 0;
@@ -878,6 +881,7 @@ static int lenovo_event(struct hid_device *hdev, struct hid_field *field,
 		return lenovo_event_cptkbd(hdev, field, usage, value);
 	case USB_DEVICE_ID_LENOVO_X12_TAB:
 	case USB_DEVICE_ID_LENOVO_X12_TAB2:
+	case USB_DEVICE_ID_LENOVO_X13_TAB:
 	case USB_DEVICE_ID_LENOVO_TP10UBKBD:
 	case USB_DEVICE_ID_LENOVO_X1_TAB:
 	case USB_DEVICE_ID_LENOVO_X1_TAB2:
@@ -1162,6 +1166,7 @@ static int lenovo_led_brightness_set(struct led_classdev *led_cdev,
 		break;
 	case USB_DEVICE_ID_LENOVO_X12_TAB:
 	case USB_DEVICE_ID_LENOVO_X12_TAB2:
+	case USB_DEVICE_ID_LENOVO_X13_TAB:
 	case USB_DEVICE_ID_LENOVO_TP10UBKBD:
 	case USB_DEVICE_ID_LENOVO_X1_TAB:
 	case USB_DEVICE_ID_LENOVO_X1_TAB2:
@@ -1356,7 +1361,8 @@ static int lenovo_probe_tp10ubkbd(struct hid_device *hdev)
 	 */
 
 	data->fn_lock = !(hdev->product == USB_DEVICE_ID_LENOVO_X12_TAB ||
-			hdev->product == USB_DEVICE_ID_LENOVO_X12_TAB2);
+			hdev->product == USB_DEVICE_ID_LENOVO_X12_TAB2 ||
+			hdev->product == USB_DEVICE_ID_LENOVO_X13_TAB);
 
 	lenovo_led_set_tp10ubkbd(hdev, TP10UBKBD_FN_LOCK_LED, data->fn_lock);
 
@@ -1403,6 +1409,7 @@ static int lenovo_probe(struct hid_device *hdev,
 		break;
 	case USB_DEVICE_ID_LENOVO_X12_TAB:
 	case USB_DEVICE_ID_LENOVO_X12_TAB2:
+	case USB_DEVICE_ID_LENOVO_X13_TAB:
 	case USB_DEVICE_ID_LENOVO_TP10UBKBD:
 	case USB_DEVICE_ID_LENOVO_X1_TAB:
 	case USB_DEVICE_ID_LENOVO_X1_TAB2:
@@ -1491,6 +1498,7 @@ static void lenovo_remove(struct hid_device *hdev)
 		break;
 	case USB_DEVICE_ID_LENOVO_X12_TAB:
 	case USB_DEVICE_ID_LENOVO_X12_TAB2:
+	case USB_DEVICE_ID_LENOVO_X13_TAB:
 	case USB_DEVICE_ID_LENOVO_TP10UBKBD:
 	case USB_DEVICE_ID_LENOVO_X1_TAB:
 	case USB_DEVICE_ID_LENOVO_X1_TAB2:
@@ -1517,6 +1525,10 @@ static int lenovo_input_configured(struct hid_device *hdev,
 				__set_bit(INPUT_PROP_POINTING_STICK,
 						hi->input->propbit);
 			}
+			break;
+		case USB_DEVICE_ID_LENOVO_X12_TAB2:
+		case USB_DEVICE_ID_LENOVO_X13_TAB:
+			input_set_capability(hi->input, EV_KEY, KEY_PERFORMANCE);
 			break;
 	}
 
@@ -1552,6 +1564,8 @@ static const struct hid_device_id lenovo_devices[] = {
 		     USB_VENDOR_ID_LENOVO, USB_DEVICE_ID_LENOVO_X12_TAB) },
 	{ HID_DEVICE(BUS_USB, HID_GROUP_GENERIC,
 		     USB_VENDOR_ID_LENOVO, USB_DEVICE_ID_LENOVO_X12_TAB2) },
+	{ HID_DEVICE(BUS_USB, HID_GROUP_GENERIC,
+		     USB_VENDOR_ID_LENOVO, USB_DEVICE_ID_LENOVO_X13_TAB) },
 	{ HID_DEVICE(BUS_I2C, HID_GROUP_GENERIC,
 		     USB_VENDOR_ID_ITE, I2C_DEVICE_ID_ITE_LENOVO_YOGA_SLIM_7X_KEYBOARD) },
 	{ }

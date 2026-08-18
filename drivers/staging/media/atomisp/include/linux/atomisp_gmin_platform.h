@@ -15,8 +15,7 @@ int atomisp_gmin_remove_subdev(struct v4l2_subdev *sd);
 int gmin_get_var_int(struct device *dev, bool is_gmin,
 		     const char *var, int def);
 struct camera_sensor_platform_data *
-gmin_camera_platform_data(
-    struct v4l2_subdev *subdev,
-    enum atomisp_input_format csi_format,
-    enum atomisp_bayer_order csi_bayer);
+	gmin_camera_platform_data(struct v4l2_subdev *subdev,
+				  enum atomisp_input_format csi_format,
+				  enum atomisp_bayer_order csi_bayer);
 #endif

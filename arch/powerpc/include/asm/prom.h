@@ -12,12 +12,14 @@
  * Updates for PPC64 by Peter Bergner & David Engebretsen, IBM Corp.
  */
 #include <linux/types.h>
+#include <linux/sizes.h>
 #include <asm/firmware.h>
 
 struct device_node;
 struct property;
 
-#define MIN_RMA			768		/* Minimum RMA (in MB) for CAS negotiation */
+/* Minimum RMA in bytes for CAS negotiation */
+#define MIN_RMA			(768ULL * SZ_1M)
 
 #define OF_DT_BEGIN_NODE	0x1		/* Start of node, full name */
 #define OF_DT_END_NODE		0x2		/* End node */

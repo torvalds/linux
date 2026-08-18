@@ -183,13 +183,6 @@ static const struct snd_soc_component_driver dummy_codec = {
 			SNDRV_PCM_FMTBIT_U32_LE | \
 			SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE)
 
-/*
- * Select these from Sound Card Manually
- *	SND_SOC_POSSIBLE_DAIFMT_CBP_CFP
- *	SND_SOC_POSSIBLE_DAIFMT_CBP_CFC
- *	SND_SOC_POSSIBLE_DAIFMT_CBC_CFP
- *	SND_SOC_POSSIBLE_DAIFMT_CBC_CFC
- */
 static const u64 dummy_dai_formats =
 	SND_SOC_POSSIBLE_DAIFMT_I2S	|
 	SND_SOC_POSSIBLE_DAIFMT_RIGHT_J	|

@@ -13,7 +13,6 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/timekeeping.h>
-#include <linux/mod_devicetable.h>
 
 #define PM8916_PERPH_TYPE 0x04
 #define PM8916_BMS_VM_TYPE 0x020D

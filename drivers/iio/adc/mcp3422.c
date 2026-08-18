@@ -13,10 +13,11 @@
  * voltage unit is nV.
  */
 
+#include <linux/bitfield.h>
+#include <linux/bits.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/delay.h>
 #include <linux/sysfs.h>
 #include <linux/unaligned.h>
@@ -24,10 +25,10 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 
-/* Masks */
-#define MCP3422_CHANNEL_MASK	0x60
-#define MCP3422_PGA_MASK	0x03
-#define MCP3422_SRATE_MASK	0x0C
+#define MCP3422_CHANNEL_MASK	GENMASK(6, 5)
+#define MCP3422_SRATE_MASK	GENMASK(3, 2)
+#define MCP3422_PGA_MASK	GENMASK(1, 0)
+
 #define MCP3422_SRATE_240	0x0
 #define MCP3422_SRATE_60	0x1
 #define MCP3422_SRATE_15	0x2
@@ -36,15 +37,7 @@
 #define MCP3422_PGA_2	1
 #define MCP3422_PGA_4	2
 #define MCP3422_PGA_8	3
-#define MCP3422_CONT_SAMPLING	0x10
-
-#define MCP3422_CHANNEL(config)	(((config) & MCP3422_CHANNEL_MASK) >> 5)
-#define MCP3422_PGA(config)	((config) & MCP3422_PGA_MASK)
-#define MCP3422_SAMPLE_RATE(config)	(((config) & MCP3422_SRATE_MASK) >> 2)
-
-#define MCP3422_CHANNEL_VALUE(value) (((value) << 5) & MCP3422_CHANNEL_MASK)
-#define MCP3422_PGA_VALUE(value) ((value) & MCP3422_PGA_MASK)
-#define MCP3422_SAMPLE_RATE_VALUE(value) ((value << 2) & MCP3422_SRATE_MASK)
+#define MCP3422_CONT_SAMPLING	BIT(4)
 
 #define MCP3422_CHAN(_index) \
 	{ \
@@ -108,7 +101,7 @@ static int mcp3422_update_config(struct mcp3422 *adc, u8 newconfig)
 static int mcp3422_read(struct mcp3422 *adc, int *value, u8 *config)
 {
 	int ret = 0;
-	u8 sample_rate = MCP3422_SAMPLE_RATE(adc->config);
+	u8 sample_rate = FIELD_GET(MCP3422_SRATE_MASK, adc->config);
 	u8 buf[4] = {0, 0, 0, 0};
 	u32 temp;
 
@@ -136,18 +129,18 @@ static int mcp3422_read_channel(struct mcp3422 *adc,
 
 	mutex_lock(&adc->lock);
 
-	if (req_channel != MCP3422_CHANNEL(adc->config)) {
+	if (req_channel != FIELD_GET(MCP3422_CHANNEL_MASK, adc->config)) {
 		config = adc->config;
-		config &= ~MCP3422_CHANNEL_MASK;
-		config |= MCP3422_CHANNEL_VALUE(req_channel);
-		config &= ~MCP3422_PGA_MASK;
-		config |= MCP3422_PGA_VALUE(adc->pga[req_channel]);
+
+		FIELD_MODIFY(MCP3422_CHANNEL_MASK, &config, req_channel);
+		FIELD_MODIFY(MCP3422_PGA_MASK, &config, adc->pga[req_channel]);
+
 		ret = mcp3422_update_config(adc, config);
 		if (ret < 0) {
 			mutex_unlock(&adc->lock);
 			return ret;
 		}
-		msleep(mcp3422_read_times[MCP3422_SAMPLE_RATE(adc->config)]);
+		msleep(mcp3422_read_times[FIELD_GET(MCP3422_SRATE_MASK, adc->config)]);
 	}
 
 	ret = mcp3422_read(adc, value, &config);
@@ -163,9 +156,8 @@ static int mcp3422_read_raw(struct iio_dev *iio,
 {
 	struct mcp3422 *adc = iio_priv(iio);
 	int err;
-
-	u8 sample_rate = MCP3422_SAMPLE_RATE(adc->config);
-	u8 pga		 = MCP3422_PGA(adc->config);
+	u8 sample_rate = FIELD_GET(MCP3422_SRATE_MASK, adc->config);
+	u8 pga = FIELD_GET(MCP3422_PGA_MASK, adc->config);
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
@@ -181,7 +173,7 @@ static int mcp3422_read_raw(struct iio_dev *iio,
 		return IIO_VAL_INT_PLUS_NANO;
 
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		*val1 = mcp3422_sample_rates[MCP3422_SAMPLE_RATE(adc->config)];
+		*val1 = mcp3422_sample_rates[FIELD_GET(MCP3422_SRATE_MASK, adc->config)];
 		return IIO_VAL_INT;
 
 	default:
@@ -199,7 +191,7 @@ static int mcp3422_write_raw(struct iio_dev *iio,
 	u8 temp;
 	u8 config = adc->config;
 	u8 req_channel = channel->channel;
-	u8 sample_rate = MCP3422_SAMPLE_RATE(config);
+	u8 sample_rate = FIELD_GET(MCP3422_SRATE_MASK, config);
 	u8 i;
 
 	switch (mask) {
@@ -211,10 +203,8 @@ static int mcp3422_write_raw(struct iio_dev *iio,
 			if (val2 == mcp3422_scales[sample_rate][i]) {
 				adc->pga[req_channel] = i;
 
-				config &= ~MCP3422_CHANNEL_MASK;
-				config |= MCP3422_CHANNEL_VALUE(req_channel);
-				config &= ~MCP3422_PGA_MASK;
-				config |= MCP3422_PGA_VALUE(adc->pga[req_channel]);
+				FIELD_MODIFY(MCP3422_CHANNEL_MASK, &config, req_channel);
+				FIELD_MODIFY(MCP3422_PGA_MASK, &config, adc->pga[req_channel]);
 
 				return mcp3422_update_config(adc, config);
 			}
@@ -241,10 +231,8 @@ static int mcp3422_write_raw(struct iio_dev *iio,
 			return -EINVAL;
 		}
 
-		config &= ~MCP3422_CHANNEL_MASK;
-		config |= MCP3422_CHANNEL_VALUE(req_channel);
-		config &= ~MCP3422_SRATE_MASK;
-		config |= MCP3422_SAMPLE_RATE_VALUE(temp);
+		FIELD_MODIFY(MCP3422_CHANNEL_MASK, &config, req_channel);
+		FIELD_MODIFY(MCP3422_SRATE_MASK, &config, temp);
 
 		return mcp3422_update_config(adc, config);
 
@@ -283,7 +271,7 @@ static ssize_t mcp3422_show_scales(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct mcp3422 *adc = iio_priv(dev_to_iio_dev(dev));
-	u8 sample_rate = MCP3422_SAMPLE_RATE(adc->config);
+	u8 sample_rate = FIELD_GET(MCP3422_SRATE_MASK, adc->config);
 
 	return sprintf(buf, "0.%09u 0.%09u 0.%09u 0.%09u\n",
 		mcp3422_scales[sample_rate][0],
@@ -376,10 +364,10 @@ static int mcp3422_probe(struct i2c_client *client)
 	}
 
 	/* meaningful default configuration */
-	config = (MCP3422_CONT_SAMPLING
-		| MCP3422_CHANNEL_VALUE(0)
-		| MCP3422_PGA_VALUE(MCP3422_PGA_1)
-		| MCP3422_SAMPLE_RATE_VALUE(MCP3422_SRATE_240));
+	config = MCP3422_CONT_SAMPLING |
+		 FIELD_PREP(MCP3422_CHANNEL_MASK, 0) |
+		 FIELD_PREP(MCP3422_PGA_MASK, MCP3422_PGA_1) |
+		 FIELD_PREP(MCP3422_SRATE_MASK, MCP3422_SRATE_240);
 	err = mcp3422_update_config(adc, config);
 	if (err < 0)
 		return err;
@@ -394,14 +382,14 @@ static int mcp3422_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id mcp3422_id[] = {
-	{ "mcp3421", 1 },
-	{ "mcp3422", 2 },
-	{ "mcp3423", 3 },
-	{ "mcp3424", 4 },
-	{ "mcp3425", 5 },
-	{ "mcp3426", 6 },
-	{ "mcp3427", 7 },
-	{ "mcp3428", 8 },
+	{ .name = "mcp3421", .driver_data = 1 },
+	{ .name = "mcp3422", .driver_data = 2 },
+	{ .name = "mcp3423", .driver_data = 3 },
+	{ .name = "mcp3424", .driver_data = 4 },
+	{ .name = "mcp3425", .driver_data = 5 },
+	{ .name = "mcp3426", .driver_data = 6 },
+	{ .name = "mcp3427", .driver_data = 7 },
+	{ .name = "mcp3428", .driver_data = 8 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mcp3422_id);

@@ -439,6 +439,11 @@ class SpecFamily(SpecElement):
     # To be loaded dynamically as needed
     jsonschema = None
 
+    try:
+        _yaml_loader = pyyaml.CSafeLoader
+    except AttributeError:
+        _yaml_loader = pyyaml.SafeLoader
+
     def __init__(self, spec_path, schema_path=None, exclude_ops=None):
         with open(spec_path, "r", encoding='utf-8') as stream:
             prefix = '# SPDX-License-Identifier: '
@@ -448,7 +453,7 @@ class SpecFamily(SpecElement):
             self.license = first[len(prefix):]
 
             stream.seek(0)
-            spec = pyyaml.safe_load(stream)
+            spec = pyyaml.load(stream, Loader=self._yaml_loader)
 
         self.fixed_header = None
         self._resolution_list = []
@@ -464,7 +469,7 @@ class SpecFamily(SpecElement):
             schema_path = os.path.dirname(os.path.dirname(spec_path)) + f'/{self.proto}.yaml'
         if schema_path:
             with open(schema_path, "r", encoding='utf-8') as stream:
-                schema = pyyaml.safe_load(stream)
+                schema = pyyaml.load(stream, Loader=self._yaml_loader)
 
             if SpecFamily.jsonschema is None:
                 SpecFamily.jsonschema = importlib.import_module("jsonschema")

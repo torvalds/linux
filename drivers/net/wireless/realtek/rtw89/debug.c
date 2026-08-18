@@ -85,11 +85,15 @@ struct rtw89_debugfs {
 	struct rtw89_debugfs_priv btc_manual;
 	struct rtw89_debugfs_priv fw_log_manual;
 	struct rtw89_debugfs_priv phy_info;
+	struct rtw89_debugfs_priv bb_info;
 	struct rtw89_debugfs_priv stations;
 	struct rtw89_debugfs_priv disable_dm;
+	struct rtw89_debugfs_priv static_pd_th;
 	struct rtw89_debugfs_priv mlo_mode;
 	struct rtw89_debugfs_priv beacon_info;
 	struct rtw89_debugfs_priv diag_mac;
+	struct rtw89_debugfs_priv diag_bb;
+	struct rtw89_debugfs_priv monitor_opts;
 };
 
 struct rtw89_debugfs_iter_data {
@@ -763,6 +767,45 @@ static const struct txpwr_map __txpwr_map_lmt_ru_be = {
 	.addr_to_1ss = 0, /* not support */
 };
 
+static const struct txpwr_ent __txpwr_ent_lmt_ru484_242_be[] = {
+	__GEN_TXPWR_ENT4("RU484_242 1TX     ", "IDX_0 ", "IDX_1 ", "IDX_2 ", "IDX_3 "),
+	__GEN_TXPWR_ENT4("RU484_242 2TX     ", "IDX_0 ", "IDX_1 ", "IDX_2 ", "IDX_3 "),
+};
+
+static const struct txpwr_map __txpwr_map_lmt_ru484_242_be = {
+	.ent = __txpwr_ent_lmt_ru484_242_be,
+	.size = ARRAY_SIZE(__txpwr_ent_lmt_ru484_242_be),
+	.addr_from = R_BE_TXAGC_MAX_1TX_RU484_242_0,
+	.addr_to = R_BE_TXAGC_MAX_1TX_RU484_242_0 + 4,
+	.addr_to_1ss = 0, /* not support */
+};
+
+static const struct txpwr_ent __txpwr_ent_lmt_ru996_484_be[] = {
+	__GEN_TXPWR_ENT2("RU996_484 1TX     ", "IDX_0 ", "IDX_1 "),
+	__GEN_TXPWR_ENT2("RU996_484 2TX     ", "IDX_0 ", "IDX_1 "),
+};
+
+static const struct txpwr_map __txpwr_map_lmt_ru996_484_be = {
+	.ent = __txpwr_ent_lmt_ru996_484_be,
+	.size = ARRAY_SIZE(__txpwr_ent_lmt_ru996_484_be),
+	.addr_from = R_BE_TXAGC_MAX_1TX_RU996_484_0,
+	.addr_to = R_BE_TXAGC_MAX_1TX_RU996_484_0,
+	.addr_to_1ss = 0, /* not support */
+};
+
+static const struct txpwr_ent __txpwr_ent_lmt_ru996_484_242_be[] = {
+	__GEN_TXPWR_ENT2("RU996_484_242 1TX ", "IDX_0 ", "IDX_1 "),
+	__GEN_TXPWR_ENT2("RU996_484_242 2TX ", "IDX_0 ", "IDX_1 "),
+};
+
+static const struct txpwr_map __txpwr_map_lmt_ru996_484_242_be = {
+	.ent = __txpwr_ent_lmt_ru996_484_242_be,
+	.size = ARRAY_SIZE(__txpwr_ent_lmt_ru996_484_242_be),
+	.addr_from = R_BE_TXAGC_MAX_1TX_RU996_484_242_0,
+	.addr_to = R_BE_TXAGC_MAX_1TX_RU996_484_242_0,
+	.addr_to_1ss = 0, /* not support */
+};
+
 static unsigned int
 __print_txpwr_ent(char *buf, size_t bufsz, const struct txpwr_ent *ent,
 		  const s8 *bufp, const unsigned int cur, unsigned int *ate)
@@ -878,6 +921,9 @@ struct dbgfs_txpwr_table {
 	const struct txpwr_map *byr;
 	const struct txpwr_map *lmt;
 	const struct txpwr_map *lmt_ru;
+	const struct txpwr_map *lmt_ru484_242;
+	const struct txpwr_map *lmt_ru996_484;
+	const struct txpwr_map *lmt_ru996_484_242;
 };
 
 static const struct dbgfs_txpwr_table dbgfs_txpwr_table_ax = {
@@ -890,6 +936,9 @@ static const struct dbgfs_txpwr_table dbgfs_txpwr_table_be = {
 	.byr = &__txpwr_map_byr_be,
 	.lmt = &__txpwr_map_lmt_be,
 	.lmt_ru = &__txpwr_map_lmt_ru_be,
+	.lmt_ru484_242 = &__txpwr_map_lmt_ru484_242_be,
+	.lmt_ru996_484 = &__txpwr_map_lmt_ru996_484_be,
+	.lmt_ru996_484_242 = &__txpwr_map_lmt_ru996_484_242_be,
 };
 
 static const struct dbgfs_txpwr_table *dbgfs_txpwr_tables[RTW89_CHIP_GEN_NUM] = {
@@ -930,6 +979,8 @@ ssize_t rtw89_debug_priv_txpwr_table_get(struct rtw89_dev *rtwdev,
 					 char *buf, size_t bufsz)
 {
 	enum rtw89_chip_gen chip_gen = rtwdev->chip->chip_gen;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	struct rtw89_hal *hal = &rtwdev->hal;
 	struct rtw89_sar_parm sar_parm = {};
 	const struct dbgfs_txpwr_table *tbl;
 	const struct rtw89_chan *chan;
@@ -975,6 +1026,35 @@ ssize_t rtw89_debug_priv_txpwr_table_get(struct rtw89_dev *rtwdev,
 		return n;
 	p += n;
 
+	switch (chip_gen) {
+	case RTW89_CHIP_AX:
+		goto out;
+	case RTW89_CHIP_BE:
+		if (!(chip->chip_id == RTL8922D && hal->cid == RTL8922D_CID7090))
+			goto out;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	p += scnprintf(p, end - p, "\n[TX power limit_large_mru]\n");
+
+	n = __print_txpwr_map(rtwdev, p, end - p, tbl->lmt_ru484_242);
+	if (n < 0)
+		return n;
+	p += n;
+
+	n = __print_txpwr_map(rtwdev, p, end - p, tbl->lmt_ru996_484);
+	if (n < 0)
+		return n;
+	p += n;
+
+	n = __print_txpwr_map(rtwdev, p, end - p, tbl->lmt_ru996_484_242);
+	if (n < 0)
+		return n;
+	p += n;
+
+out:
 	return p - buf;
 }
 
@@ -3539,52 +3619,12 @@ out:
 	return count;
 }
 
-static int rtw89_dbg_trigger_l1_error_by_halt_h2c_ax(struct rtw89_dev *rtwdev)
-{
-	if (!test_bit(RTW89_FLAG_FW_RDY, rtwdev->flags))
-		return -EBUSY;
-
-	return rtw89_mac_set_err_status(rtwdev, MAC_AX_ERR_L1_RESET_FORCE);
-}
-
-static int rtw89_dbg_trigger_l1_error_by_halt_h2c_be(struct rtw89_dev *rtwdev)
-{
-	if (!test_bit(RTW89_FLAG_FW_RDY, rtwdev->flags))
-		return -EBUSY;
-
-	rtw89_leave_ps_mode(rtwdev);
-
-	rtw89_write32_set(rtwdev, R_BE_FW_TRIGGER_IDCT_ISR,
-			  B_BE_DMAC_FW_TRIG_IDCT | B_BE_DMAC_FW_ERR_IDCT_IMR);
-
-	return 0;
-}
-
-static int rtw89_dbg_trigger_l1_error_by_halt_h2c(struct rtw89_dev *rtwdev)
-{
-	const struct rtw89_chip_info *chip = rtwdev->chip;
-
-	switch (chip->chip_gen) {
-	case RTW89_CHIP_AX:
-		return rtw89_dbg_trigger_l1_error_by_halt_h2c_ax(rtwdev);
-	case RTW89_CHIP_BE:
-		return rtw89_dbg_trigger_l1_error_by_halt_h2c_be(rtwdev);
-	default:
-		return -EOPNOTSUPP;
-	}
-}
-
-static int rtw89_dbg_trigger_l1_error(struct rtw89_dev *rtwdev)
+static int rtw89_dbg_trigger_l1_error_ax(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
-	struct rtw89_cpuio_ctrl ctrl_para = {0};
+	struct rtw89_cpuio_ctrl ctrl_para = {};
 	u16 pkt_id;
 	int ret;
-
-	if (RTW89_CHK_FW_FEATURE(SIM_SER_L0L1_BY_HALT_H2C, &rtwdev->fw))
-		return rtw89_dbg_trigger_l1_error_by_halt_h2c(rtwdev);
-
-	rtw89_leave_ps_mode(rtwdev);
 
 	ret = mac->dle_buf_req(rtwdev, 0x20, true, &pkt_id);
 	if (ret)
@@ -3602,6 +3642,52 @@ static int rtw89_dbg_trigger_l1_error(struct rtw89_dev *rtwdev)
 		return -EFAULT;
 
 	return 0;
+}
+
+static int rtw89_dbg_trigger_l1_error_be(struct rtw89_dev *rtwdev)
+{
+	int ret;
+
+	ret = rtw89_mac_check_mac_en(rtwdev, RTW89_MAC_0, RTW89_DMAC_SEL);
+	if (ret)
+		return ret;
+
+	rtw89_write32_set(rtwdev, R_BE_FW_TRIGGER_IDCT_ISR,
+			  B_BE_DMAC_FW_TRIG_IDCT | B_BE_DMAC_FW_ERR_IDCT_IMR);
+
+	return 0;
+}
+
+static int rtw89_dbg_trigger_l1_error_by_halt_h2c(struct rtw89_dev *rtwdev)
+{
+	if (!test_bit(RTW89_FLAG_FW_RDY, rtwdev->flags))
+		return -EBUSY;
+
+	return rtw89_mac_set_err_status(rtwdev, MAC_AX_ERR_L1_RESET_FORCE);
+}
+
+static int rtw89_dbg_trigger_l1_error(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	int (*sim_l1)(struct rtw89_dev *rtwdev);
+
+	switch (chip->chip_gen) {
+	case RTW89_CHIP_AX:
+		sim_l1 = rtw89_dbg_trigger_l1_error_ax;
+		break;
+	case RTW89_CHIP_BE:
+		sim_l1 = rtw89_dbg_trigger_l1_error_be;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	if (RTW89_CHK_FW_FEATURE(SIM_SER_L0L1_BY_HALT_H2C, &rtwdev->fw))
+		return rtw89_dbg_trigger_l1_error_by_halt_h2c(rtwdev);
+
+	rtw89_leave_ps_mode(rtwdev);
+
+	return sim_l1(rtwdev);
 }
 
 static int rtw89_dbg_trigger_l0_error_ax(struct rtw89_dev *rtwdev)
@@ -3628,35 +3714,11 @@ static int rtw89_dbg_trigger_l0_error_ax(struct rtw89_dev *rtwdev)
 
 static int rtw89_dbg_trigger_l0_error_be(struct rtw89_dev *rtwdev)
 {
-	u8 val8;
 	int ret;
 
 	ret = rtw89_mac_check_mac_en(rtwdev, RTW89_MAC_0, RTW89_CMAC_SEL);
 	if (ret)
 		return ret;
-
-	val8 = rtw89_read8(rtwdev, R_BE_CMAC_FUNC_EN);
-	rtw89_write8(rtwdev, R_BE_CMAC_FUNC_EN, val8 & ~B_BE_TMAC_EN);
-	mdelay(1);
-	rtw89_write8(rtwdev, R_BE_CMAC_FUNC_EN, val8);
-
-	return 0;
-}
-
-static int rtw89_dbg_trigger_l0_error_by_halt_h2c_ax(struct rtw89_dev *rtwdev)
-{
-	if (!test_bit(RTW89_FLAG_FW_RDY, rtwdev->flags))
-		return -EBUSY;
-
-	return rtw89_mac_set_err_status(rtwdev, MAC_AX_ERR_L0_RESET_FORCE);
-}
-
-static int rtw89_dbg_trigger_l0_error_by_halt_h2c_be(struct rtw89_dev *rtwdev)
-{
-	if (!test_bit(RTW89_FLAG_FW_RDY, rtwdev->flags))
-		return -EBUSY;
-
-	rtw89_leave_ps_mode(rtwdev);
 
 	rtw89_write32_set(rtwdev, R_BE_CMAC_FW_TRIGGER_IDCT_ISR,
 			  B_BE_CMAC_FW_TRIG_IDCT | B_BE_CMAC_FW_ERR_IDCT_IMR);
@@ -3664,19 +3726,24 @@ static int rtw89_dbg_trigger_l0_error_by_halt_h2c_be(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
+static int rtw89_dbg_trigger_l0_error_by_halt_h2c(struct rtw89_dev *rtwdev)
+{
+	if (!test_bit(RTW89_FLAG_FW_RDY, rtwdev->flags))
+		return -EBUSY;
+
+	return rtw89_mac_set_err_status(rtwdev, MAC_AX_ERR_L0_RESET_FORCE);
+}
+
 static int rtw89_dbg_trigger_l0_error(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
-	int (*sim_l0_by_halt_h2c)(struct rtw89_dev *rtwdev);
 	int (*sim_l0)(struct rtw89_dev *rtwdev);
 
 	switch (chip->chip_gen) {
 	case RTW89_CHIP_AX:
-		sim_l0_by_halt_h2c = rtw89_dbg_trigger_l0_error_by_halt_h2c_ax;
 		sim_l0 = rtw89_dbg_trigger_l0_error_ax;
 		break;
 	case RTW89_CHIP_BE:
-		sim_l0_by_halt_h2c = rtw89_dbg_trigger_l0_error_by_halt_h2c_be;
 		sim_l0 = rtw89_dbg_trigger_l0_error_be;
 		break;
 	default:
@@ -3684,7 +3751,7 @@ static int rtw89_dbg_trigger_l0_error(struct rtw89_dev *rtwdev)
 	}
 
 	if (RTW89_CHK_FW_FEATURE(SIM_SER_L0L1_BY_HALT_H2C, &rtwdev->fw))
-		return sim_l0_by_halt_h2c(rtwdev);
+		return rtw89_dbg_trigger_l0_error_by_halt_h2c(rtwdev);
 
 	rtw89_leave_ps_mode(rtwdev);
 
@@ -3756,6 +3823,7 @@ rtw89_debug_priv_fw_crash_set(struct rtw89_dev *rtwdev,
 }
 
 struct rtw89_dbg_ser_counters {
+	unsigned int l0_sim;
 	unsigned int l0;
 	unsigned int l1;
 	unsigned int l0_to_l1;
@@ -3776,6 +3844,7 @@ static void rtw89_dbg_get_ser_counters_be(struct rtw89_dev *rtwdev,
 {
 	const u32 val = rtw89_read32(rtwdev, R_BE_SER_DBG_INFO);
 
+	cnt->l0_sim = rtw89_read8(rtwdev, R_BE_SER_L0_DBG_CNT1 + 3);
 	cnt->l0 = u32_get_bits(val, B_BE_SER_L0_COUNTER_MASK);
 	cnt->l1 = u32_get_bits(val, B_BE_SER_L1_COUNTER_MASK);
 	cnt->l0_to_l1 = u32_get_bits(val, B_BE_SER_L0_PROMOTE_L1_EVENT_MASK);
@@ -3805,6 +3874,10 @@ static ssize_t rtw89_debug_priv_ser_counters_get(struct rtw89_dev *rtwdev,
 
 	p += scnprintf(p, end - p, "SER L1 SW Count: %u\n", sw_cnt->l1);
 	p += scnprintf(p, end - p, "SER L2 SW Count: %u\n", sw_cnt->l2);
+
+	/* Some chipsets don't have dedicated cnt for SER simulation. */
+	p += scnprintf(p, end - p, "---\n");
+	p += scnprintf(p, end - p, "SER L0 Simulation Count: %d\n", cnt.l0_sim);
 
 	/* Some chipsets won't record SER simulation in HW cnt. */
 	p += scnprintf(p, end - p, "---\n");
@@ -3924,6 +3997,7 @@ static int rtw89_sta_link_info_get_iter(struct rtw89_dev *rtwdev,
 		       rtw89_rate_info_bw_to_mhz(rate->bw));
 	p += scnprintf(p, end - p, " (hw_rate=0x%x)",
 		       rtwsta_link->ra_report.hw_rate);
+	p += scnprintf(p, end - p, " PER:%d", rtwsta_link->ra_report.retry_ratio);
 	p += scnprintf(p, end - p, " ==> agg_wait=%d (%d)\n",
 		       rtwsta_link->max_agg_wait,
 		       max_rc_amsdu_len);
@@ -4015,15 +4089,15 @@ static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
 }
 
 static int
-rtw89_debug_append_rx_rate(char *buf, size_t bufsz, struct rtw89_pkt_stat *pkt_stat,
-			   enum rtw89_hw_rate first_rate, int len)
+rtw89_debug_append_rate(char *buf, size_t bufsz, const u32 *rate_cnt,
+			int first_rate, int len)
 {
 	char *p = buf, *end = buf + bufsz;
 	int i;
 
 	for (i = 0; i < len; i++)
 		p += scnprintf(p, end - p, "%s%u", i == 0 ? "" : ", ",
-			       pkt_stat->rx_rate_cnt[first_rate + i]);
+			       rate_cnt[first_rate + i]);
 
 	return p - buf;
 }
@@ -4050,38 +4124,31 @@ static const struct rtw89_rx_rate_cnt_info {
 	{FIRST_RATE_GEV1(EHT_NSS2_MCS0), 14, 0, "EHT 2SS:"},
 };
 
-static ssize_t rtw89_debug_priv_phy_info_get(struct rtw89_dev *rtwdev,
-					     struct rtw89_debugfs_priv *debugfs_priv,
-					     char *buf, size_t bufsz)
+static const struct rtw89_tx_rate_cnt_info {
+	int first_rate;
+	int len;
+	const char *rate_mode;
+} rtw89_tx_rate_cnt_infos[] = {
+	{0, 4, "Legacy:"},
+	{4, 8, "OFDM:"},
+	{12, 14, "MCS 1SS:"},
+	{26, 14, "MCS 2SS:"},
+};
+
+static int rtw89_get_rx_pkt_stat(struct rtw89_dev *rtwdev, struct rtw89_bb_ctx *bb,
+				 char *buf, size_t bufsz)
 {
-	struct rtw89_traffic_stats *stats = &rtwdev->stats;
-	struct rtw89_pkt_stat *pkt_stat = &rtwdev->phystat.last_pkt_stat;
+	struct rtw89_pkt_stat *pkt_stat = &bb->last_pkt_stat;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
-	struct rtw89_debugfs_iter_data iter_data;
 	const struct rtw89_rx_rate_cnt_info *info;
-	struct rtw89_hal *hal = &rtwdev->hal;
+	u8 rssi = ewma_rssi_read(&bb->bcn_rssi);
 	char *p = buf, *end = buf + bufsz;
 	enum rtw89_hw_rate first_rate;
-	u8 rssi;
 	int i;
 
-	rssi = ewma_rssi_read(&rtwdev->phystat.bcn_rssi);
-
-	p += scnprintf(p, end - p, "TP TX: %u [%u] Mbps (lv: %d",
-		       stats->tx_throughput, stats->tx_throughput_raw,
-		       stats->tx_tfc_lv);
-	if (hal->thermal_prot_lv)
-		p += scnprintf(p, end - p, ", duty: %d%%",
-			       100 - hal->thermal_prot_lv * RTW89_THERMAL_PROT_STEP);
-	p += scnprintf(p, end - p, "), RX: %u [%u] Mbps (lv: %d)\n",
-		       stats->rx_throughput, stats->rx_throughput_raw,
-		       stats->rx_tfc_lv);
-	p += scnprintf(p, end - p, "Beacon: %u (%d dBm), TF: %u\n",
+	p += scnprintf(p, end - p, "Beacon: %u (%d dBm)\n",
 		       pkt_stat->beacon_nr,
-		       RTW89_RSSI_RAW_TO_DBM(rssi), stats->rx_tf_periodic);
-	p += scnprintf(p, end - p, "Avg packet length: TX=%u, RX=%u\n",
-		       stats->tx_avg_len,
-		       stats->rx_avg_len);
+		       RTW89_RSSI_RAW_TO_DBM(rssi));
 
 	p += scnprintf(p, end - p, "RX count:\n");
 
@@ -4092,21 +4159,382 @@ static ssize_t rtw89_debug_priv_phy_info_get(struct rtw89_dev *rtwdev,
 			continue;
 
 		p += scnprintf(p, end - p, "%10s [", info->rate_mode);
-		p += rtw89_debug_append_rx_rate(p, end - p, pkt_stat,
-						first_rate, info->len);
+		p += rtw89_debug_append_rate(p, end - p, pkt_stat->rx_rate_cnt,
+					     first_rate, info->len);
 		if (info->ext) {
 			p += scnprintf(p, end - p, "][");
-			p += rtw89_debug_append_rx_rate(p, end - p, pkt_stat,
-							first_rate + info->len, info->ext);
+			p += rtw89_debug_append_rate(p, end - p, pkt_stat->rx_rate_cnt,
+						     first_rate + info->len,
+						     info->ext);
 		}
 		p += scnprintf(p, end - p, "]\n");
 	}
+
+	return p - buf;
+}
+
+static ssize_t rtw89_debug_priv_phy_info_get(struct rtw89_dev *rtwdev,
+					     struct rtw89_debugfs_priv *debugfs_priv,
+					     char *buf, size_t bufsz)
+{
+	struct rtw89_traffic_stats *stats = &rtwdev->stats;
+	struct rtw89_debugfs_iter_data iter_data;
+	struct rtw89_hal *hal = &rtwdev->hal;
+	char *p = buf, *end = buf + bufsz;
+	struct rtw89_bb_ctx *bb;
+
+	p += scnprintf(p, end - p, "TP TX: %u [%u] Mbps (lv: %d",
+		       stats->tx_throughput, stats->tx_throughput_raw,
+		       stats->tx_tfc_lv);
+	if (hal->thermal_prot_lv)
+		p += scnprintf(p, end - p, ", duty: %d%%",
+			       100 - hal->thermal_prot_lv * RTW89_THERMAL_PROT_STEP);
+	p += scnprintf(p, end - p, "), RX: %u [%u] Mbps (lv: %d)\n",
+		       stats->rx_throughput, stats->rx_throughput_raw,
+		       stats->rx_tfc_lv);
+	p += scnprintf(p, end - p, "Avg packet length: TX=%u, RX=%u\n",
+		       stats->tx_avg_len,
+		       stats->rx_avg_len);
+	p += scnprintf(p, end - p, "TF: %u\n", stats->rx_tf_periodic);
+
+	rtw89_for_each_active_bb(rtwdev, bb) {
+		p += scnprintf(p, end - p, "\n[PHY %u]\n", bb->phy_idx);
+		p += rtw89_get_rx_pkt_stat(rtwdev, bb, p, end - p);
+	}
+	p += scnprintf(p, end - p, "\n");
 
 	rtw89_debugfs_iter_data_setup(&iter_data, p, end - p);
 	ieee80211_iterate_stations_atomic(rtwdev->hw, rtw89_sta_info_get_iter, &iter_data);
 	p += iter_data.written_sz;
 
 	return p - buf;
+}
+
+static const char *const lcck[] = {"L_CCK"};
+static const char *const scck[] = {"S_CCK"};
+static const char *const ht_gf[] = {"HT_GF"};
+static const char *const vht_mu[] = {"VHT_MU"};
+static const char *const he_er_su[] = {"HE_ER_SU"};
+static const char *const eht_tb[] = {"EHT_TB"};
+static const char *const legacy_ax[] = {"LEGACY"};
+static const char *const ht_ax[] = {"HT"};
+static const char *const vht_su_ax[] = {"VHT_SU"};
+static const char *const he_su_ax[] = {"HE_SU"};
+static const char *const he_mu_ax[] = {"HE_MU"};
+static const char *const he_tb_ax[] = {"HE_TB"};
+static const char *const legacy_be[] = {
+	"LEGACY", "LEGACY_DUP", "LEGACY_DUP_PUNC"
+};
+
+static const char *const ht_be[] = {
+	"HT_MF", "HT_SND_NDP"
+};
+
+static const char *const vht_su_be[] = {
+	"VHT_SU", "VHT_SND_NDP"
+};
+
+static const char *const he_su_be[] = {
+	"HE_SU", "HE_SND_NDP", "HE_SND_NDP_PUNC", "HE_RANG_NDP"
+};
+
+static const char *const he_mu_be[] = {
+	"HE_MU_RU", "HE_MU_MU", "HE_MU_RU_PUNC"
+};
+
+static const char *const he_tb_be[] = {
+	"HE_TB", "HE_TB_FB_NDP", "HE_MU_RANG_NDP"
+};
+
+static const char *const eht_mu[] = {
+	"EHT_MU_SU", "EHT_MU_ER", "EHT_MU_RU", "EHT_MU_MU",
+	"EHT_MU_SND_NDP", "EHT_MU_SU_PUNC", "EHT_MU_RU_PUNC",
+	"EHT_SND_NDP_PUNC", "EHT_MU_MU_PUNC"
+};
+
+#define PPDU_SAME(ppdu) \
+	{.str = {ppdu, ppdu}, \
+	 .cnt = {ARRAY_SIZE(ppdu), ARRAY_SIZE(ppdu)} }
+#define PPDU_VARIANT(ppdu) \
+	{.str = {ppdu##_ax, ppdu##_be}, \
+	 .cnt = {ARRAY_SIZE(ppdu##_ax), ARRAY_SIZE(ppdu##_be)} }
+#define PPDU_GEV1(ppdu) \
+	{.str = {NULL, ppdu}, \
+	 .cnt = {0, ARRAY_SIZE(ppdu)} }
+
+static const struct rtw89_ppdu_info {
+	const char *const *str[RTW89_CHIP_GEN_NUM];
+	u8 cnt[RTW89_CHIP_GEN_NUM];
+} rtw89_ppdu_infos[] = {
+	[0] = PPDU_SAME(lcck),
+	[1] = PPDU_SAME(scck),
+	[2] = PPDU_VARIANT(legacy),
+	[3] = PPDU_VARIANT(ht),
+	[4] = PPDU_SAME(ht_gf),
+	[5] = PPDU_VARIANT(vht_su),
+	[6] = PPDU_SAME(vht_mu),
+	[7] = PPDU_VARIANT(he_su),
+	[8] = PPDU_SAME(he_er_su),
+	[9] = PPDU_VARIANT(he_mu),
+	[10] = PPDU_VARIANT(he_tb),
+	[11] = PPDU_GEV1(eht_mu),
+	[12] = PPDU_GEV1(eht_tb),
+};
+
+#define TXCMD_SAME(txcmd) {txcmd, txcmd}
+#define TXCMD_DIFF(txcmd, txcmd_v1) {txcmd, txcmd_v1}
+#define TXCMD_GEV1(txcmd) {"RSVD", txcmd}
+
+static const struct rtw89_txcmd_info {
+	const char *str[RTW89_CHIP_GEN_NUM];
+} rtw89_txcmd_infos[] = {
+	[0] = {TXCMD_SAME("DATA")},
+	[1] = {TXCMD_SAME("BCN")},
+	[2] = {TXCMD_SAME("HT_NDPA")},
+	[3] = {TXCMD_SAME("VHT_NDPA")},
+	[4] = {TXCMD_SAME("HE_NDPA")},
+	[5] = {TXCMD_GEV1("EHT_NDPA")},
+	[6] = {TXCMD_GEV1("11MC_FTM")},
+	[7] = {TXCMD_GEV1("11MC_FTM_ACK")},
+	[8] = {TXCMD_SAME("RTS")},
+	[9] = {TXCMD_SAME("CTS2S")},
+	[10] = {TXCMD_SAME("CF_END")},
+	[11] = {TXCMD_SAME("CMP_BAR")},
+	[12] = {TXCMD_SAME("BFRP")},
+	[13] = {TXCMD_SAME("NDP")},
+	[14] = {TXCMD_SAME("QoS_NULL")},
+	[15] = {TXCMD_GEV1("CTS_2_MURTS")},
+	[16] = {TXCMD_SAME("ACK")},
+	[17] = {TXCMD_SAME("CTS")},
+	[18] = {TXCMD_SAME("CMP_BA")},
+	[19] = {TXCMD_SAME("MSTA_BA")},
+	[20] = {TXCMD_SAME("HT_CSI")},
+	[21] = {TXCMD_SAME("VHT_CSI")},
+	[22] = {TXCMD_SAME("HE_CSI")},
+	[23] = {TXCMD_GEV1("EHT_CSI")},
+	[24] = {TXCMD_GEV1("NTB_I2R_NDPA")},
+	[25] = {TXCMD_GEV1("NTB_I2R_NDP")},
+	[26] = {TXCMD_GEV1("NTB_I2R_LMR")},
+	[27] = {TXCMD_GEV1("NTB_I2R_NDP")},
+	[28] = {TXCMD_GEV1("NTB_I2R_LMR")},
+	[29] = {TXCMD_GEV1("NTB_R2I_RANG_NDPA")},
+	[30] = {TXCMD_GEV1("NTB_R2I_NDP")},
+	[31] = {TXCMD_DIFF("TB_PPDU", "NTB_R2I_LMR")},
+	[32] = {TXCMD_SAME("TRIG_BASIC")},
+	[33] = {TXCMD_SAME("TRIG_BFRP")},
+	[34] = {TXCMD_SAME("TRIG_MUBAR")},
+	[35] = {TXCMD_SAME("TRIG_MURTS")},
+	[36] = {TXCMD_SAME("TRIG_BSRP")},
+	[37] = {TXCMD_SAME("TRIG_BQRP")},
+	[38] = {TXCMD_SAME("TRIG_NFRP")},
+	[39] = {TXCMD_GEV1("TRIG_BASIC_DATA")},
+	[40] = {TXCMD_GEV1("TRIG_RANG_POLL")},
+	[41] = {TXCMD_GEV1("TRIG_RANG_SNR")},
+	[42] = {TXCMD_GEV1("TRIG_RANG_LMR")},
+	[48] = {TXCMD_DIFF("TRIG_BASIC_DATA", "TRIG_TB_CSI")},
+	[49] = {TXCMD_GEV1("TRIG_TB_CBA")},
+	[50] = {TXCMD_GEV1("TRIG_TB_MBA")},
+	[51] = {TXCMD_GEV1("TRIG_TB_BSR")},
+	[52] = {TXCMD_GEV1("TRIG_TB_BQR")},
+	[53] = {TXCMD_GEV1("TRIG_TB_ACK")},
+	[54] = {TXCMD_GEV1("TRIG_TB_PPDU")},
+	[55] = {TXCMD_GEV1("TRIG_TB_I2R_CTS2S")},
+	[56] = {TXCMD_GEV1("TRIG_TB_I2R_NDP")},
+	[57] = {TXCMD_GEV1("TRIG_TB_I2R_LMR")},
+};
+
+static const char *rtw89_ppdu_str(struct rtw89_dev *rtwdev, u8 type, u8 subtype)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	const struct rtw89_ppdu_info *ppdu_info;
+
+	if (type > ARRAY_SIZE(rtw89_ppdu_infos))
+		return "RSVD";
+
+	ppdu_info = &rtw89_ppdu_infos[type];
+
+	if (!ppdu_info->str[chip->chip_gen] ||
+	    subtype >= ppdu_info->cnt[chip->chip_gen])
+		return "RSVD";
+
+	return ppdu_info->str[chip->chip_gen][subtype];
+}
+
+static const char *rtw89_txcmd_str(struct rtw89_dev *rtwdev, u8 txcmd)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	if (txcmd < ARRAY_SIZE(rtw89_txcmd_infos))
+		return rtw89_txcmd_infos[txcmd].str[chip->chip_gen] ?: "RSVD";
+
+	return "RSVD";
+}
+
+static int rtw89_get_bb_stat(struct rtw89_dev *rtwdev, struct rtw89_bb_ctx *bb,
+			     char *buf, size_t bufsz)
+{
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+	struct rtw89_pkt_stat *pkt_stat = &bb->last_pkt_stat;
+	const struct rtw89_physts_regs *physts = phy->physts;
+	struct rtw89_pmac_stat_info *pmac = &bb->pmac_stat;
+	struct rtw89_tx_stat_info *tx_stat = &bb->tx_stat;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	char *p = buf, *end = buf + bufsz;
+	u8 factor = chip->txpwr_factor_rf;
+	u32 reg_nr;
+	s32 val;
+	int i;
+
+	p += scnprintf(p, end - p, "\n[PHY %u]\n", bb->phy_idx);
+
+	p += scnprintf(p, end - p, "== PMAC\n");
+	p += scnprintf(p, end - p,
+		       "TX [CCK_TXEN, CCK_TXON, OFDM_TXEN, OFDM_TXON]: [%d, %d, %d, %d]\n",
+		       pmac->cck_mac_txen, pmac->cck_phy_txon,
+		       pmac->ofdm_mac_txen, pmac->ofdm_phy_txon);
+	p += scnprintf(p, end - p, "CRC  [CCK, OFDM, HT, VHT, HE, EHT, ALL, MPDU]\n");
+	p += scnprintf(p, end - p, " ok: [%d, %d, %d, %d, %d, %d, %d, %d]\n",
+		       pmac->cnt_cck_crc32_ok, pmac->cnt_ofdm_crc32_ok,
+		       pmac->cnt_ht_crc32_ok, pmac->cnt_vht_crc32_ok,
+		       pmac->cnt_he_crc32_ok, pmac->cnt_eht_crc32_ok,
+		       pmac->cnt_crc32_ok_all, pmac->cnt_ampdu_crc_ok);
+	p += scnprintf(p, end - p, "err: [%d, %d, %d, %d, %d, %d, %d, %d]\n",
+		       pmac->cnt_cck_crc32_error, pmac->cnt_ofdm_crc32_error,
+		       pmac->cnt_ht_crc32_error, pmac->cnt_vht_crc32_error,
+		       pmac->cnt_he_crc32_error, pmac->cnt_eht_crc32_error,
+		       pmac->cnt_crc32_error_all, pmac->cnt_ampdu_crc_error);
+	p += scnprintf(p, end - p, "CCA [CCK, OFDM]: [%d, %d]\n",
+		       pmac->cnt_cck_cca, pmac->cnt_ofdm_cca);
+	p += scnprintf(p, end - p, "FA  [CCK, OFDM]: [%d, %d]\n",
+		       pmac->cnt_cck_fail, pmac->cnt_ofdm_fail);
+
+	p += scnprintf(p, end - p, "CCA spoofing [CCK, OFDM]: [%d, %d]\n",
+		       pmac->cnt_cck_spoofing, pmac->cnt_ofdm_spoofing);
+	p += scnprintf(p, end - p, "CCK SFD: %d, SIG_GG: %d\n",
+		       pmac->cnt_sfd_gg, pmac->cnt_sig_gg);
+	p += scnprintf(p, end - p,
+		       "OFDM Parity: %d, Rate: %d, LSIG_BRK_S: %d, LSIG_BRK_L: %d, SBD: %d\n",
+		       pmac->cnt_parity_fail, pmac->cnt_rate_illegal,
+		       pmac->cnt_lsig_brk_s_th, pmac->cnt_lsig_brk_l_th,
+		       pmac->cnt_sb_search_fail);
+	p += scnprintf(p, end - p, "AMPDU miss: %d\n\n", pmac->cnt_ampdu_miss);
+
+	p += scnprintf(p, end - p, "== TX General\n");
+	p += scnprintf(p, end - p, "%s %s\n",
+		       rtw89_ppdu_str(rtwdev, tx_stat->type, tx_stat->subtype),
+		       rtw89_txcmd_str(rtwdev, tx_stat->txcmd));
+
+	p += scnprintf(p, end - p, "BW: %d, TX_SC: %d, TX_PATH_EN: %d, PATH_MAP: 0x%x\n",
+		       20 << tx_stat->bw, tx_stat->txsc,
+		       tx_stat->tx_path_en, tx_stat->path_map);
+
+	val = sign_extend32(tx_stat->tmac_txpwr, 8);
+	p += scnprintf(p, end - p, "TXPWR TMAC: %d,", val >> factor);
+
+	reg_nr = min(chip->rf_path_num, ARRAY_SIZE(tx_stat->txpwr));
+	for (i = 0; i < reg_nr; i++) {
+		val = sign_extend32(tx_stat->txpwr[i], 8);
+		p += scnprintf(p, end - p, " P%d: %d%s",
+			       i, val >> factor, (i < reg_nr - 1) ? "," : "");
+	}
+	p += scnprintf(p, end - p, " dBm\n");
+
+	p += scnprintf(p, end - p, "MCS: %d, STBC: %d\n",
+		       tx_stat->max_mcs, tx_stat->stbc);
+
+	p += scnprintf(p, end - p, "Info: [");
+	reg_nr = min(physts->tx_info.reg_nr, ARRAY_SIZE(tx_stat->info));
+	for (i = 0; i < reg_nr; i++)
+		p += scnprintf(p, end - p, "0x%08x%s",
+			       tx_stat->info[i], (i < reg_nr - 1) ? ", " : "");
+	p += scnprintf(p, end - p, "]\n");
+
+	p += scnprintf(p, end - p, "Common ctrl: [");
+	reg_nr = min(physts->tx_common_ctrl.reg_nr, ARRAY_SIZE(tx_stat->common_ctrl));
+	for (i = 0; i < reg_nr; i++)
+		p += scnprintf(p, end - p, "0x%08x%s",
+			       tx_stat->common_ctrl[i], (i < reg_nr - 1) ? ", " : "");
+	p += scnprintf(p, end - p, "]\n\n");
+
+	p += scnprintf(p, end - p, "== RX General\n");
+	p += scnprintf(p, end - p,
+		       "LDPC: %d, BCC: %d, STBC: %d, SU_NON_BF: %d, SU_BF: %d, MU: %d\n\n",
+		       pkt_stat->rx.ldpc, pkt_stat->rx.bcc,
+		       pkt_stat->rx.stbc, pkt_stat->rx.su_non_bf,
+		       pkt_stat->rx.su_bf, pkt_stat->rx.mu);
+
+	p += scnprintf(p, end - p, "== RSSI/RX Rate\n");
+	p += rtw89_get_rx_pkt_stat(rtwdev, bb, p, end - p);
+
+	return p - buf;
+}
+
+static ssize_t
+rtw89_debug_priv_bb_info_get(struct rtw89_dev *rtwdev,
+			     struct rtw89_debugfs_priv *debugfs_priv,
+			     char *buf, size_t bufsz)
+{
+	struct rtw89_bb_stat_cfg *bb_stat = &rtwdev->phy_info.bb_stat_cfg;
+	struct rtw89_traffic_stats *stats = &rtwdev->stats;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	const struct rtw89_tx_rate_cnt_info *info;
+	struct rtw89_debugfs_iter_data iter_data;
+	char *p = buf, *end = buf + bufsz;
+	struct rtw89_bb_ctx *bb;
+	int i;
+
+	p += scnprintf(p, end - p, "TP TX: %u [%u] Mbps, RX: %u [%u] Mbps\n",
+		       stats->tx_throughput, stats->tx_throughput_raw,
+		       stats->rx_throughput, stats->rx_throughput_raw);
+	p += scnprintf(p, end - p, "Avg packet length: TX=%u, RX=%u\n",
+		       stats->tx_avg_len,
+		       stats->rx_avg_len);
+	p += scnprintf(p, end - p, "TF: %u\n", stats->rx_tf_periodic);
+
+	if (chip->chip_gen != RTW89_CHIP_AX) {
+		p += scnprintf(p, end - p,
+			       "TX count [0x%x]:\n", bb_stat->mac_id);
+
+		for (i = 0; i < ARRAY_SIZE(rtw89_tx_rate_cnt_infos); i++) {
+			info = &rtw89_tx_rate_cnt_infos[i];
+
+			p += scnprintf(p, end - p, "%10s [", info->rate_mode);
+			p += rtw89_debug_append_rate(p, end - p,
+						     rtwdev->phystat.tx_rate_cnt,
+						     info->first_rate, info->len);
+			p += scnprintf(p, end - p, "]\n");
+		}
+	}
+
+	rtw89_for_each_active_bb(rtwdev, bb)
+		p += rtw89_get_bb_stat(rtwdev, bb, p, end - p);
+	p += scnprintf(p, end - p, "\n");
+
+	rtw89_debugfs_iter_data_setup(&iter_data, p, end - p);
+	ieee80211_iterate_stations_atomic(rtwdev->hw, rtw89_sta_info_get_iter, &iter_data);
+	p += iter_data.written_sz;
+
+	return p - buf;
+}
+
+static ssize_t
+rtw89_debug_priv_bb_info_set(struct rtw89_dev *rtwdev,
+			     struct rtw89_debugfs_priv *debugfs_priv,
+			     const char *buf, size_t count)
+{
+	struct rtw89_bb_stat_cfg *bb_stat = &rtwdev->phy_info.bb_stat_cfg;
+	int val;
+
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
+
+	if (sscanf(buf, "enable %d", &val) == 1)
+		bb_stat->enable = !!val;
+	else if (sscanf(buf, "mac_id %x", &val) == 1)
+		rtw89_fw_h2c_tx_history(rtwdev, val);
+	else
+		return -EINVAL;
+
+	return count;
 }
 
 static int rtw89_dump_addr_cam(struct rtw89_dev *rtwdev,
@@ -4347,6 +4775,9 @@ static const struct rtw89_disabled_dm_info {
 	DM_INFO(THERMAL_PROTECT),
 	DM_INFO(TAS),
 	DM_INFO(MLO),
+	DM_INFO(HW_SCAN),
+	DM_INFO(INACTIVE_PS),
+	DM_INFO(DIG_PD),
 };
 
 static ssize_t
@@ -4388,6 +4819,96 @@ rtw89_debug_priv_disable_dm_set(struct rtw89_dev *rtwdev,
 		return -EINVAL;
 
 	rtw89_core_dm_disable_cfg(rtwdev, conf);
+
+	return count;
+}
+
+#define RTW89_DIG_PD_TH_MIN_DBM		-102
+#define RTW89_DIG_PD_TH_MAX_DBM		-40
+#define RTW89_DIG_PD_TH_STEP		2
+
+static s8 rtw89_dig_pd_th_to_dbm(u8 reg_val)
+{
+	return RTW89_DIG_PD_TH_MIN_DBM + RTW89_DIG_PD_TH_STEP * reg_val;
+}
+
+static u8 rtw89_dig_pd_th_dbm_to_reg(s8 dbm)
+{
+	return (dbm - RTW89_DIG_PD_TH_MIN_DBM) / RTW89_DIG_PD_TH_STEP;
+}
+
+static ssize_t
+rtw89_debug_priv_static_pd_th_get(struct rtw89_dev *rtwdev,
+				  struct rtw89_debugfs_priv *debugfs_priv,
+				  char *buf, size_t bufsz)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+	char *p = buf, *end = buf + bufsz;
+	bool disabled;
+	s8 pd_th_dbm;
+	s8 cck_pd_th;
+
+	disabled = hal->disabled_dm_bitmap & BIT(RTW89_DM_DIG_PD);
+
+	if (disabled) {
+		pd_th_dbm = rtw89_dig_pd_th_to_dbm(hal->fixed_dig_pd_th);
+		cck_pd_th = hal->fixed_dig_cck_pd_th;
+
+		p += scnprintf(p, end - p, "DIG: static\n");
+		p += scnprintf(p, end - p, "OFDM PD threshold: %d dBm\n", pd_th_dbm);
+		p += scnprintf(p, end - p, "CCK PD threshold: %d dBm\n", cck_pd_th);
+	} else {
+		p += scnprintf(p, end - p, "DIG: dynamic\n");
+	}
+
+	p += scnprintf(p, end - p, "\nUsage: echo <mode> [pd_th] > static_pd_th\n");
+	p += scnprintf(p, end - p, "  mode: 0 = dynamic, 1 = static\n");
+	p += scnprintf(p, end - p, "  pd_th: PD threshold in dBm (-102 ~ -40)\n");
+
+	return p - buf;
+}
+
+static ssize_t
+rtw89_debug_priv_static_pd_th_set(struct rtw89_dev *rtwdev,
+				  struct rtw89_debugfs_priv *debugfs_priv,
+				  const char *buf, size_t count)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+	int ret;
+	u32 mode;
+	s32 pd_th_dbm;
+
+	ret = sscanf(buf, "%u %d", &mode, &pd_th_dbm);
+	if (ret < 1)
+		return -EINVAL;
+
+	if (mode > 1)
+		return -EINVAL;
+
+	if (mode == 0) {
+		rtw89_core_dm_disable_clr(rtwdev, RTW89_DM_DIG_PD);
+		hal->fixed_dig_pd_th = 0;
+		hal->fixed_dig_cck_pd_th = 0;
+
+		rtw89_debug(rtwdev, RTW89_DBG_DIG,
+			    "DIG static mode disabled\n");
+	} else {
+		if (ret < 2 || pd_th_dbm < RTW89_DIG_PD_TH_MIN_DBM ||
+		    pd_th_dbm > RTW89_DIG_PD_TH_MAX_DBM)
+			return -EINVAL;
+
+		rtw89_core_dm_disable_set(rtwdev, RTW89_DM_DIG_PD);
+		hal->fixed_dig_pd_th = clamp(rtw89_dig_pd_th_dbm_to_reg(pd_th_dbm),
+					     0, 0x1f);
+		/* CCK uses dBm directly */
+		hal->fixed_dig_cck_pd_th = pd_th_dbm;
+
+		rtw89_debug(rtwdev, RTW89_DBG_DIG,
+			    "DIG static mode: PD=0x%02x (%d dBm), CCK=%d dBm\n",
+			    hal->fixed_dig_pd_th,
+			    rtw89_dig_pd_th_to_dbm(hal->fixed_dig_pd_th),
+			    hal->fixed_dig_cck_pd_th);
+	}
 
 	return count;
 }
@@ -4466,6 +4987,77 @@ rtw89_debug_priv_mlo_mode_set(struct rtw89_dev *rtwdev,
 	}
 
 	return count;
+}
+
+static int rtw89_get_beacon_info(struct rtw89_dev *rtwdev, struct rtw89_bb_ctx *bb,
+				 char *buf, size_t bufsz)
+{
+	struct rtw89_pkt_stat *pkt_stat = &bb->last_pkt_stat;
+	char *p = buf, *end = buf + bufsz;
+
+	p += scnprintf(p, end - p, "[PHY %u]\n", bb->phy_idx);
+	p += scnprintf(p, end - p, "Beacon: %u\n", pkt_stat->beacon_nr);
+	p += scnprintf(p, end - p, "raw rssi: %lu\n", ewma_rssi_read(&bb->bcn_rssi));
+	p += scnprintf(p, end - p, "hw rate: %u\n", pkt_stat->beacon_rate);
+	p += scnprintf(p, end - p, "length: %u\n\n", pkt_stat->beacon_len);
+
+	return p - buf;
+}
+
+static ssize_t
+rtw89_debug_priv_beacon_info_get(struct rtw89_dev *rtwdev,
+				 struct rtw89_debugfs_priv *debugfs_priv,
+				 char *buf, size_t bufsz)
+{
+	struct rtw89_beacon_track_info *bcn_track = &rtwdev->bcn_track;
+	struct rtw89_beacon_stat *bcn_stat = &rtwdev->phystat.bcn_stat;
+	struct rtw89_beacon_dist *bcn_dist = &bcn_stat->bcn_dist;
+	u16 upper, lower = bcn_stat->tbtt_tu_min;
+	char *p = buf, *end = buf + bufsz;
+	u16 *drift = bcn_stat->drift;
+	u8 bcn_num = bcn_stat->num;
+	struct rtw89_bb_ctx *bb;
+	u8 count;
+	u8 i;
+
+	rtw89_for_each_active_bb(rtwdev, bb)
+		p += rtw89_get_beacon_info(rtwdev, bb, p, end - p);
+
+	p += scnprintf(p, end - p, "[Beacon info]\n");
+	p += scnprintf(p, end - p, "interval: %u\n", bcn_track->beacon_int);
+	p += scnprintf(p, end - p, "dtim: %u\n", bcn_track->dtim);
+
+	p += scnprintf(p, end - p, "\n[Distribution]\n");
+	p += scnprintf(p, end - p, "tbtt\n");
+	for (i = 0; i < RTW89_BCN_TRACK_MAX_BIN_NUM; i++) {
+		upper = lower + RTW89_BCN_TRACK_BIN_WIDTH - 1;
+		if (i == RTW89_BCN_TRACK_MAX_BIN_NUM - 1)
+			upper = max(upper, bcn_stat->tbtt_tu_max);
+
+		p += scnprintf(p, end - p, "%02u - %02u: %u\n",
+			       lower, upper, bcn_dist->bins[i]);
+
+		lower = upper + 1;
+	}
+
+	p += scnprintf(p, end - p, "\ndrift\n");
+
+	for (i = 0; i < bcn_num; i += count) {
+		count = 1;
+		while (i + count < bcn_num && drift[i] == drift[i + count])
+			count++;
+
+		p += scnprintf(p, end - p, "%u: %u\n", drift[i], count);
+	}
+	p += scnprintf(p, end - p, "\nlower bound: %u\n", bcn_dist->lower_bound);
+	p += scnprintf(p, end - p, "upper bound: %u\n", bcn_dist->upper_bound);
+	p += scnprintf(p, end - p, "outlier count: %u\n", bcn_dist->outlier_count);
+
+	p += scnprintf(p, end - p, "\n[Tracking]\n");
+	p += scnprintf(p, end - p, "tbtt offset: %u\n", bcn_track->tbtt_offset);
+	p += scnprintf(p, end - p, "bcn timeout: %u\n", bcn_track->bcn_timeout);
+
+	return p - buf;
 }
 
 enum __diag_mac_cmd {
@@ -4764,62 +5356,92 @@ rtw89_debug_priv_diag_mac_get(struct rtw89_dev *rtwdev,
 	return rtw89_mac_diag_iter_all(rtwdev, buf, bufsz);
 }
 
-static ssize_t
-rtw89_debug_priv_beacon_info_get(struct rtw89_dev *rtwdev,
-				 struct rtw89_debugfs_priv *debugfs_priv,
-				 char *buf, size_t bufsz)
+static int rtw89_get_diag_bb(struct rtw89_dev *rtwdev,  struct rtw89_bb_ctx *bb,
+			     char *buf, size_t bufsz)
 {
-	struct rtw89_pkt_stat *pkt_stat = &rtwdev->phystat.last_pkt_stat;
-	struct rtw89_beacon_track_info *bcn_track = &rtwdev->bcn_track;
-	struct rtw89_beacon_stat *bcn_stat = &rtwdev->phystat.bcn_stat;
-	struct rtw89_beacon_dist *bcn_dist = &bcn_stat->bcn_dist;
-	u16 upper, lower = bcn_stat->tbtt_tu_min;
+	struct rtw89_diag_bb *diag = &bb->diag;
 	char *p = buf, *end = buf + bufsz;
-	u16 *drift = bcn_stat->drift;
-	u8 bcn_num = bcn_stat->num;
-	u8 count;
-	u8 i;
 
-	p += scnprintf(p, end - p, "[Beacon info]\n");
-	p += scnprintf(p, end - p, "count: %u\n", pkt_stat->beacon_nr);
-	p += scnprintf(p, end - p, "interval: %u\n", bcn_track->beacon_int);
-	p += scnprintf(p, end - p, "dtim: %u\n", bcn_track->dtim);
-	p += scnprintf(p, end - p, "raw rssi: %lu\n",
-		       ewma_rssi_read(&rtwdev->phystat.bcn_rssi));
-	p += scnprintf(p, end - p, "hw rate: %u\n", pkt_stat->beacon_rate);
-	p += scnprintf(p, end - p, "length: %u\n", pkt_stat->beacon_len);
-
-	p += scnprintf(p, end - p, "\n[Distribution]\n");
-	p += scnprintf(p, end - p, "tbtt\n");
-	for (i = 0; i < RTW89_BCN_TRACK_MAX_BIN_NUM; i++) {
-		upper = lower + RTW89_BCN_TRACK_BIN_WIDTH - 1;
-		if (i == RTW89_BCN_TRACK_MAX_BIN_NUM - 1)
-			upper = max(upper, bcn_stat->tbtt_tu_max);
-
-		p += scnprintf(p, end - p, "%02u - %02u: %u\n",
-			       lower, upper, bcn_dist->bins[i]);
-
-		lower = upper + 1;
-	}
-
-	p += scnprintf(p, end - p, "\ndrift\n");
-
-	for (i = 0; i < bcn_num; i += count) {
-		count = 1;
-		while (i + count < bcn_num && drift[i] == drift[i + count])
-			count++;
-
-		p += scnprintf(p, end - p, "%u: %u\n", drift[i], count);
-	}
-	p += scnprintf(p, end - p, "\nlower bound: %u\n", bcn_dist->lower_bound);
-	p += scnprintf(p, end - p, "upper bound: %u\n", bcn_dist->upper_bound);
-	p += scnprintf(p, end - p, "outlier count: %u\n", bcn_dist->outlier_count);
-
-	p += scnprintf(p, end - p, "\n[Tracking]\n");
-	p += scnprintf(p, end - p, "tbtt offset: %u\n", bcn_track->tbtt_offset);
-	p += scnprintf(p, end - p, "bcn timeout: %u\n", bcn_track->bcn_timeout);
+	p += scnprintf(p, end - p, "[PHY %u]\n", bb->phy_idx);
+	p += scnprintf(p, end - p, "Diag bitmap = 0x%x\n", diag->diag_bb_bitmap);
+	p += scnprintf(p, end - p,
+		       "Event{Hang, PD MAX, No RX, High FA, High EDCCA Ratio} = ");
+	p += scnprintf(p, end - p, "{%d, %d, %d, %d, %d}\n",
+		       diag->diag_bb_cnt[RTW89_DIAG_BB_HANG],
+		       diag->diag_bb_cnt[RTW89_DIAG_BB_PD],
+		       diag->diag_bb_cnt[RTW89_DIAG_BB_NO_RX],
+		       diag->diag_bb_cnt[RTW89_DIAG_BB_FA],
+		       diag->diag_bb_cnt[RTW89_DIAG_BB_EDCCA]);
+	p += scnprintf(p, end - p,
+		       "consecutive_no_tx_cnt=%d, consecutive_no_rx_cnt=%d\n\n",
+		       diag->consecutive_no_tx_cnt,
+		       diag->consecutive_no_rx_cnt);
 
 	return p - buf;
+}
+
+static ssize_t
+rtw89_debug_priv_diag_bb_get(struct rtw89_dev *rtwdev,
+			     struct rtw89_debugfs_priv *debugfs_priv,
+			     char *buf, size_t bufsz)
+{
+	char *p = buf, *end = buf + bufsz;
+	struct rtw89_bb_ctx *bb;
+
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
+
+	rtw89_for_each_active_bb(rtwdev, bb)
+		p += rtw89_get_diag_bb(rtwdev, bb, p, end - p);
+
+	return p - buf;
+}
+
+static ssize_t
+rtw89_debug_priv_monitor_opts_get(struct rtw89_dev *rtwdev,
+				  struct rtw89_debugfs_priv *debugfs_priv,
+				  char *buf, size_t bufsz)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	char *p = buf, *end = buf + bufsz;
+	u32 bss_color;
+	u32 aid;
+
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
+
+	rtw89_leave_ps_mode(rtwdev);
+
+	bss_color = rtw89_phy_read32_idx(rtwdev, chip->bss_clr_map_reg,
+					 B_BSS_CLR_MAP_TGT, RTW89_PHY_0);
+	aid = rtw89_phy_read32_idx(rtwdev, chip->bss_clr_map_reg,
+				   B_BSS_CLR_MAP_STAID, RTW89_PHY_0);
+
+	p += scnprintf(p, end - p, "bss_color=0x%x aid=0x%x\n", bss_color, aid);
+
+	return p - buf;
+}
+
+static ssize_t
+rtw89_debug_priv_monitor_opts_set(struct rtw89_dev *rtwdev,
+				  struct rtw89_debugfs_priv *debugfs_priv,
+				  const char *buf, size_t count)
+{
+	u32 bss_color;
+	u32 aid;
+	int num;
+
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
+
+	num = sscanf(buf, "%x %x", &bss_color, &aid);
+	if (num != 2) {
+		rtw89_info(rtwdev, "valid format: <bss color> <aid>\n");
+		return -EINVAL;
+	}
+
+	rtw89_leave_ps_mode(rtwdev);
+
+	__rtw89_phy_set_bss_color(rtwdev, bss_color, aid, RTW89_PHY_0);
+
+	return count;
 }
 
 #define rtw89_debug_priv_get(name, opts...)			\
@@ -4878,11 +5500,15 @@ static const struct rtw89_debugfs rtw89_debugfs_templ = {
 	.btc_manual = rtw89_debug_priv_set(btc_manual),
 	.fw_log_manual = rtw89_debug_priv_set(fw_log_manual, WLOCK),
 	.phy_info = rtw89_debug_priv_get(phy_info),
+	.bb_info = rtw89_debug_priv_set_and_get(bb_info, RWLOCK),
 	.stations = rtw89_debug_priv_get(stations, RLOCK),
 	.disable_dm = rtw89_debug_priv_set_and_get(disable_dm, RWLOCK),
+	.static_pd_th = rtw89_debug_priv_set_and_get(static_pd_th, RWLOCK),
 	.mlo_mode = rtw89_debug_priv_set_and_get(mlo_mode, RWLOCK),
 	.beacon_info = rtw89_debug_priv_get(beacon_info),
 	.diag_mac = rtw89_debug_priv_get(diag_mac, RSIZE_16K, RLOCK),
+	.diag_bb = rtw89_debug_priv_get(diag_bb, RSIZE_8K, RLOCK),
+	.monitor_opts = rtw89_debug_priv_set_and_get(monitor_opts, RWLOCK),
 };
 
 #define rtw89_debugfs_add(name, mode, fopname, parent)				\
@@ -4926,11 +5552,20 @@ void rtw89_debugfs_add_sec1(struct rtw89_dev *rtwdev, struct dentry *debugfs_top
 	rtw89_debugfs_add_w(btc_manual);
 	rtw89_debugfs_add_w(fw_log_manual);
 	rtw89_debugfs_add_r(phy_info);
+	rtw89_debugfs_add_rw(bb_info);
 	rtw89_debugfs_add_r(stations);
+}
+
+static
+void rtw89_debugfs_add_sec2(struct rtw89_dev *rtwdev, struct dentry *debugfs_topdir)
+{
 	rtw89_debugfs_add_rw(disable_dm);
+	rtw89_debugfs_add_rw(static_pd_th);
 	rtw89_debugfs_add_rw(mlo_mode);
 	rtw89_debugfs_add_r(beacon_info);
 	rtw89_debugfs_add_r(diag_mac);
+	rtw89_debugfs_add_r(diag_bb);
+	rtw89_debugfs_add_rw(monitor_opts);
 }
 
 void rtw89_debugfs_init(struct rtw89_dev *rtwdev)
@@ -4947,6 +5582,7 @@ void rtw89_debugfs_init(struct rtw89_dev *rtwdev)
 
 	rtw89_debugfs_add_sec0(rtwdev, debugfs_topdir);
 	rtw89_debugfs_add_sec1(rtwdev, debugfs_topdir);
+	rtw89_debugfs_add_sec2(rtwdev, debugfs_topdir);
 }
 
 void rtw89_debugfs_deinit(struct rtw89_dev *rtwdev)

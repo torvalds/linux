@@ -171,7 +171,7 @@ static const u64 st7586_plane_format_modifiers[] = {
 };
 
 static void st7586_plane_helper_atomic_update(struct drm_plane *plane,
-					      struct drm_atomic_state *state)
+					      struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *plane_state = plane->state;
 	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
@@ -205,7 +205,7 @@ static const struct drm_plane_funcs st7586_plane_funcs = {
 };
 
 static void st7586_crtc_helper_atomic_enable(struct drm_crtc *crtc,
-					     struct drm_atomic_state *state)
+					     struct drm_atomic_commit *state)
 {
 	struct drm_device *drm = crtc->dev;
 	struct st7586_device *st7586 = to_st7586_device(drm);
@@ -276,7 +276,7 @@ out_exit:
 }
 
 static void st7586_crtc_helper_atomic_disable(struct drm_crtc *crtc,
-					      struct drm_atomic_state *state)
+					      struct drm_atomic_commit *state)
 {
 	struct drm_device *drm = crtc->dev;
 	struct st7586_device *st7586 = to_st7586_device(drm);

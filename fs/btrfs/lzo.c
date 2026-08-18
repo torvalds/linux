@@ -491,6 +491,17 @@ int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 			return -EIO;
 		}
 
+		/* The segment must not extend beyond the compressed input. */
+		if (unlikely(cur_in + seg_len > compressed_len)) {
+			struct btrfs_inode *inode = cb->bbio.inode;
+
+			btrfs_err(fs_info,
+			"lzo segment overflows compressed input, root %llu inode %llu offset %llu cur_in %u len %u compressed len %u",
+				  btrfs_root_id(inode->root), btrfs_ino(inode),
+				  cb->start, cur_in, seg_len, compressed_len);
+			return -EUCLEAN;
+		}
+
 		/* Copy the compressed segment payload into workspace */
 		copy_compressed_segment(cb, &fi, &cur_folio_index, workspace->cbuf,
 					seg_len, &cur_in);
@@ -541,17 +552,26 @@ int lzo_decompress(struct list_head *ws, const u8 *data_in,
 	size_t max_segment_len = workspace_buf_length(fs_info);
 	int ret;
 
-	if (unlikely(srclen < LZO_LEN || srclen > max_segment_len + LZO_LEN * 2))
+	if (unlikely(srclen < LZO_LEN || srclen > max_segment_len + LZO_LEN * 2)) {
+		btrfs_err(fs_info, "invalid lzo header length, has %zu expect (%u, %zu)",
+			  srclen, LZO_LEN, max_segment_len + LZO_LEN * 2);
 		return -EUCLEAN;
+	}
 
 	in_len = get_unaligned_le32(data_in);
-	if (unlikely(in_len != srclen))
+	if (unlikely(in_len != srclen)) {
+		btrfs_err(fs_info, "invalid lzo header length, has %zu expect %zu",
+			  in_len, srclen);
 		return -EUCLEAN;
+	}
 	data_in += LZO_LEN;
 
 	in_len = get_unaligned_le32(data_in);
-	if (unlikely(in_len != srclen - LZO_LEN * 2))
+	if (unlikely(in_len != srclen - LZO_LEN * 2)) {
+		btrfs_err(fs_info, "invalid lzo segment length, has %zu expect %zu",
+			  in_len, srclen - LZO_LEN * 2);
 		return -EUCLEAN;
+	}
 	data_in += LZO_LEN;
 
 	out_len = sectorsize;

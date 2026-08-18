@@ -17,6 +17,8 @@
 #include <linux/module.h>
 #include <linux/exportfs.h>
 #include <linux/sunrpc/svc_xprt.h>
+#include <net/genetlink.h>
+#include <uapi/linux/nfsd_netlink.h>
 
 #include "nfsd.h"
 #include "nfsfh.h"
@@ -24,6 +26,7 @@
 #include "pnfs.h"
 #include "filecache.h"
 #include "trace.h"
+#include "netlink.h"
 
 #define NFSDDBG_FACILITY	NFSDDBG_EXPORT
 
@@ -36,35 +39,24 @@
  * second map contains a reference to the entry in the first map.
  */
 
-static struct workqueue_struct *nfsd_export_wq;
-
 #define	EXPKEY_HASHBITS		8
 #define	EXPKEY_HASHMAX		(1 << EXPKEY_HASHBITS)
 #define	EXPKEY_HASHMASK		(EXPKEY_HASHMAX -1)
-
-static void expkey_release(struct work_struct *work)
-{
-	struct svc_expkey *key = container_of(to_rcu_work(work),
-					      struct svc_expkey, ek_rwork);
-
-	if (test_bit(CACHE_VALID, &key->h.flags) &&
-	    !test_bit(CACHE_NEGATIVE, &key->h.flags))
-		path_put(&key->ek_path);
-	auth_domain_put(key->ek_client);
-	kfree(key);
-}
 
 static void expkey_put(struct kref *ref)
 {
 	struct svc_expkey *key = container_of(ref, struct svc_expkey, h.ref);
 
-	INIT_RCU_WORK(&key->ek_rwork, expkey_release);
-	queue_rcu_work(nfsd_export_wq, &key->ek_rwork);
+	if (test_bit(CACHE_VALID, &key->h.flags) &&
+	    !test_bit(CACHE_NEGATIVE, &key->h.flags))
+		path_put(&key->ek_path);
+	auth_domain_put(key->ek_client);
+	kfree_rcu(key, ek_rcu);
 }
 
 static int expkey_upcall(struct cache_detail *cd, struct cache_head *h)
 {
-	return sunrpc_cache_pipe_upcall(cd, h);
+	return sunrpc_cache_upcall(cd, h);
 }
 
 static void expkey_request(struct cache_detail *cd,
@@ -263,12 +255,18 @@ static void expkey_flush(void)
 	mutex_unlock(&nfsd_mutex);
 }
 
+static int expkey_notify(struct cache_detail *cd, struct cache_head *h)
+{
+	return nfsd_cache_notify(cd, h, NFSD_CACHE_TYPE_EXPKEY);
+}
+
 static const struct cache_detail svc_expkey_cache_template = {
 	.owner		= THIS_MODULE,
 	.hash_size	= EXPKEY_HASHMAX,
 	.name		= "nfsd.fh",
 	.cache_put	= expkey_put,
 	.cache_upcall	= expkey_upcall,
+	.cache_notify	= expkey_notify,
 	.cache_request	= expkey_request,
 	.cache_parse	= expkey_parse,
 	.cache_show	= expkey_show,
@@ -319,6 +317,266 @@ svc_expkey_update(struct cache_detail *cd, struct svc_expkey *new,
 		return NULL;
 }
 
+/**
+ * nfsd_nl_expkey_get_reqs_dumpit - dump pending expkey requests
+ * @skb: reply buffer
+ * @cb: netlink metadata and command arguments
+ *
+ * Walk the expkey cache's pending request list and create a netlink
+ * message with a nested entry for each cache_request, containing the
+ * seqno, client string, fsidtype and fsid.
+ *
+ * Uses cb->args[0] as a seqno cursor for dump continuation across
+ * multiple netlink messages.
+ *
+ * Returns the size of the reply or a negative errno.
+ */
+int nfsd_nl_expkey_get_reqs_dumpit(struct sk_buff *skb,
+				   struct netlink_callback *cb)
+{
+	struct nfsd_net *nn;
+	struct cache_detail *cd;
+	struct cache_head **items;
+	u64 *seqnos;
+	int cnt, i, emitted;
+	void *hdr;
+	int ret;
+
+	nn = net_generic(sock_net(skb->sk), nfsd_net_id);
+
+	mutex_lock(&nfsd_mutex);
+
+	cd = nn->svc_expkey_cache;
+	if (!cd) {
+		ret = -ENODEV;
+		goto out_unlock;
+	}
+
+	cnt = sunrpc_cache_requests_count(cd);
+	if (!cnt) {
+		ret = 0;
+		goto out_unlock;
+	}
+
+	items = kcalloc(cnt, sizeof(*items), GFP_KERNEL);
+	seqnos = kcalloc(cnt, sizeof(*seqnos), GFP_KERNEL);
+	if (!items || !seqnos) {
+		ret = -ENOMEM;
+		goto out_alloc;
+	}
+
+	cnt = sunrpc_cache_requests_snapshot(cd, items, seqnos, cnt,
+					     cb->args[0]);
+	if (!cnt) {
+		ret = 0;
+		goto out_alloc;
+	}
+
+	hdr = genlmsg_put(skb, NETLINK_CB(cb->skb).portid,
+			  cb->nlh->nlmsg_seq, &nfsd_nl_family,
+			  NLM_F_MULTI, NFSD_CMD_EXPKEY_GET_REQS);
+	if (!hdr) {
+		ret = -ENOBUFS;
+		goto out_put;
+	}
+
+	emitted = 0;
+	for (i = 0; i < cnt; i++) {
+		struct svc_expkey *ek;
+		struct nlattr *nest;
+
+		ek = container_of(items[i], struct svc_expkey, h);
+
+		nest = nla_nest_start(skb, NFSD_A_EXPKEY_REQS_REQUESTS);
+		if (!nest)
+			break;
+
+		if (nla_put_u64_64bit(skb, NFSD_A_EXPKEY_SEQNO,
+				      seqnos[i], 0) ||
+		    nla_put_string(skb, NFSD_A_EXPKEY_CLIENT,
+				   ek->ek_client->name) ||
+		    nla_put_u8(skb, NFSD_A_EXPKEY_FSIDTYPE,
+			       ek->ek_fsidtype) ||
+		    nla_put(skb, NFSD_A_EXPKEY_FSID,
+			    key_len(ek->ek_fsidtype), ek->ek_fsid)) {
+			nla_nest_cancel(skb, nest);
+			break;
+		}
+
+		nla_nest_end(skb, nest);
+		cb->args[0] = seqnos[i];
+		emitted++;
+	}
+
+	if (!emitted) {
+		genlmsg_cancel(skb, hdr);
+		ret = -EMSGSIZE;
+		goto out_put;
+	}
+
+	genlmsg_end(skb, hdr);
+	ret = skb->len;
+out_put:
+	for (i = 0; i < cnt; i++)
+		cache_put(items[i], cd);
+out_alloc:
+	kfree(seqnos);
+	kfree(items);
+out_unlock:
+	mutex_unlock(&nfsd_mutex);
+	return ret;
+}
+
+/**
+ * nfsd_nl_parse_one_expkey - parse one expkey entry from netlink
+ * @cd: cache_detail for the expkey cache
+ * @attr: nested attribute containing expkey fields
+ *
+ * Parses one expkey entry from a netlink message and updates the
+ * cache. Mirrors the logic in expkey_parse().
+ *
+ * Returns 0 on success or a negative errno.
+ */
+static int nfsd_nl_parse_one_expkey(struct cache_detail *cd,
+				    struct nlattr *attr)
+{
+	struct nlattr *tb[NFSD_A_EXPKEY_PATH + 1];
+	struct auth_domain *dom = NULL;
+	struct svc_expkey key;
+	struct svc_expkey *ek = NULL;
+	struct timespec64 boot;
+	int err;
+	u8 fsidtype;
+	int fsid_len;
+
+	err = nla_parse_nested(tb, NFSD_A_EXPKEY_PATH, attr,
+			       nfsd_expkey_nl_policy, NULL);
+	if (err)
+		return err;
+
+	/* client (required) */
+	if (!tb[NFSD_A_EXPKEY_CLIENT])
+		return -EINVAL;
+
+	dom = auth_domain_find(nla_data(tb[NFSD_A_EXPKEY_CLIENT]));
+	if (!dom)
+		return -ENOENT;
+
+	/* fsidtype (required) */
+	if (!tb[NFSD_A_EXPKEY_FSIDTYPE]) {
+		err = -EINVAL;
+		goto out_dom;
+	}
+	fsidtype = nla_get_u8(tb[NFSD_A_EXPKEY_FSIDTYPE]);
+	if (key_len(fsidtype) == 0) {
+		err = -EINVAL;
+		goto out_dom;
+	}
+
+	/* fsid (required) */
+	if (!tb[NFSD_A_EXPKEY_FSID]) {
+		err = -EINVAL;
+		goto out_dom;
+	}
+	fsid_len = nla_len(tb[NFSD_A_EXPKEY_FSID]);
+	if (fsid_len != key_len(fsidtype)) {
+		err = -EINVAL;
+		goto out_dom;
+	}
+
+	/* expiry (required, wallclock seconds) */
+	if (!tb[NFSD_A_EXPKEY_EXPIRY]) {
+		err = -EINVAL;
+		goto out_dom;
+	}
+
+	key.h.flags = 0;
+	getboottime64(&boot);
+	key.h.expiry_time = nla_get_u64(tb[NFSD_A_EXPKEY_EXPIRY]) -
+			    boot.tv_sec;
+	key.ek_client = dom;
+	key.ek_fsidtype = fsidtype;
+	memcpy(key.ek_fsid, nla_data(tb[NFSD_A_EXPKEY_FSID]), fsid_len);
+
+	ek = svc_expkey_lookup(cd, &key);
+	if (!ek) {
+		err = -ENOMEM;
+		goto out_dom;
+	}
+
+	if (tb[NFSD_A_EXPKEY_NEGATIVE]) {
+		set_bit(CACHE_NEGATIVE, &key.h.flags);
+		ek = svc_expkey_update(cd, &key, ek);
+		if (ek)
+			trace_nfsd_expkey_update(ek, NULL);
+		else
+			err = -ENOMEM;
+	} else if (tb[NFSD_A_EXPKEY_PATH]) {
+		err = kern_path(nla_data(tb[NFSD_A_EXPKEY_PATH]), 0,
+				&key.ek_path);
+		if (err)
+			goto out_ek;
+		ek = svc_expkey_update(cd, &key, ek);
+		if (ek)
+			trace_nfsd_expkey_update(ek,
+					nla_data(tb[NFSD_A_EXPKEY_PATH]));
+		else
+			err = -ENOMEM;
+		path_put(&key.ek_path);
+	} else {
+		err = -EINVAL;
+		goto out_ek;
+	}
+
+	cache_flush();
+
+out_ek:
+	if (ek)
+		cache_put(&ek->h, cd);
+out_dom:
+	auth_domain_put(dom);
+	return err;
+}
+
+/**
+ * nfsd_nl_expkey_set_reqs_doit - respond to expkey requests
+ * @skb: reply buffer
+ * @info: netlink metadata and command arguments
+ *
+ * Parse one or more expkey cache responses from userspace and
+ * update the expkey cache accordingly.
+ *
+ * Returns 0 on success or a negative errno.
+ */
+int nfsd_nl_expkey_set_reqs_doit(struct sk_buff *skb,
+				 struct genl_info *info)
+{
+	struct nfsd_net *nn;
+	struct cache_detail *cd;
+	const struct nlattr *attr;
+	int rem, ret = 0;
+
+	nn = net_generic(genl_info_net(info), nfsd_net_id);
+
+	mutex_lock(&nfsd_mutex);
+
+	cd = nn->svc_expkey_cache;
+	if (!cd) {
+		ret = -ENODEV;
+		goto out_unlock;
+	}
+
+	nlmsg_for_each_attr_type(attr, NFSD_A_EXPKEY_REQS_REQUESTS,
+				 info->nlhdr, GENL_HDRLEN, rem) {
+		ret = nfsd_nl_parse_one_expkey(cd, (struct nlattr *)attr);
+		if (ret)
+			break;
+	}
+
+out_unlock:
+	mutex_unlock(&nfsd_mutex);
+	return ret;
+}
 
 #define	EXPORT_HASHBITS		8
 #define	EXPORT_HASHMAX		(1<< EXPORT_HASHBITS)
@@ -364,13 +622,11 @@ static void export_stats_destroy(struct export_stats *stats)
 					    EXP_STATS_COUNTERS_NUM);
 }
 
-static void svc_export_release(struct work_struct *work)
+static void svc_export_release(struct rcu_head *rcu_head)
 {
-	struct svc_export *exp = container_of(to_rcu_work(work),
-					      struct svc_export, ex_rwork);
+	struct svc_export *exp = container_of(rcu_head, struct svc_export,
+			ex_rcu);
 
-	path_put(&exp->ex_path);
-	auth_domain_put(exp->ex_client);
 	nfsd4_fslocs_free(&exp->ex_fslocs);
 	export_stats_destroy(exp->ex_stats);
 	kfree(exp->ex_stats);
@@ -382,13 +638,450 @@ static void svc_export_put(struct kref *ref)
 {
 	struct svc_export *exp = container_of(ref, struct svc_export, h.ref);
 
-	INIT_RCU_WORK(&exp->ex_rwork, svc_export_release);
-	queue_rcu_work(nfsd_export_wq, &exp->ex_rwork);
+	path_put(&exp->ex_path);
+	auth_domain_put(exp->ex_client);
+	call_rcu(&exp->ex_rcu, svc_export_release);
+}
+
+/**
+ * nfsd_nl_svc_export_get_reqs_dumpit - dump pending svc_export requests
+ * @skb: reply buffer
+ * @cb: netlink metadata and command arguments
+ *
+ * Walk the svc_export cache's pending request list and create a netlink
+ * message with a nested entry for each cache_request, containing the
+ * seqno, client string, and path.
+ *
+ * Uses cb->args[0] as a seqno cursor for dump continuation across
+ * multiple netlink messages.
+ *
+ * Returns the size of the reply or a negative errno.
+ */
+int nfsd_nl_svc_export_get_reqs_dumpit(struct sk_buff *skb,
+				       struct netlink_callback *cb)
+{
+	struct nfsd_net *nn;
+	struct cache_detail *cd;
+	struct cache_head **items;
+	u64 *seqnos;
+	int cnt, i, emitted;
+	char *pathbuf;
+	void *hdr;
+	int ret;
+
+	nn = net_generic(sock_net(skb->sk), nfsd_net_id);
+
+	mutex_lock(&nfsd_mutex);
+
+	cd = nn->svc_export_cache;
+	if (!cd) {
+		ret = -ENODEV;
+		goto out_unlock;
+	}
+
+	cnt = sunrpc_cache_requests_count(cd);
+	if (!cnt) {
+		ret = 0;
+		goto out_unlock;
+	}
+
+	items = kcalloc(cnt, sizeof(*items), GFP_KERNEL);
+	seqnos = kcalloc(cnt, sizeof(*seqnos), GFP_KERNEL);
+	pathbuf = kmalloc(PATH_MAX, GFP_KERNEL);
+	if (!items || !seqnos || !pathbuf) {
+		ret = -ENOMEM;
+		goto out_alloc;
+	}
+
+	cnt = sunrpc_cache_requests_snapshot(cd, items, seqnos, cnt,
+					     cb->args[0]);
+	if (!cnt) {
+		ret = 0;
+		goto out_alloc;
+	}
+
+	hdr = genlmsg_put(skb, NETLINK_CB(cb->skb).portid,
+			  cb->nlh->nlmsg_seq, &nfsd_nl_family,
+			  NLM_F_MULTI, NFSD_CMD_SVC_EXPORT_GET_REQS);
+	if (!hdr) {
+		ret = -ENOBUFS;
+		goto out_put;
+	}
+
+	emitted = 0;
+	for (i = 0; i < cnt; i++) {
+		struct svc_export *exp;
+		struct nlattr *nest;
+		char *pth;
+
+		exp = container_of(items[i], struct svc_export, h);
+
+		pth = d_path(&exp->ex_path, pathbuf, PATH_MAX);
+		if (IS_ERR(pth))
+			continue;
+
+		nest = nla_nest_start(skb,
+				      NFSD_A_SVC_EXPORT_REQS_REQUESTS);
+		if (!nest)
+			break;
+
+		if (nla_put_u64_64bit(skb, NFSD_A_SVC_EXPORT_SEQNO,
+				      seqnos[i], 0) ||
+		    nla_put_string(skb, NFSD_A_SVC_EXPORT_CLIENT,
+				   exp->ex_client->name) ||
+		    nla_put_string(skb, NFSD_A_SVC_EXPORT_PATH, pth)) {
+			nla_nest_cancel(skb, nest);
+			break;
+		}
+
+		nla_nest_end(skb, nest);
+		cb->args[0] = seqnos[i];
+		emitted++;
+	}
+
+	if (!emitted) {
+		genlmsg_cancel(skb, hdr);
+		ret = -EMSGSIZE;
+		goto out_put;
+	}
+
+	genlmsg_end(skb, hdr);
+	ret = skb->len;
+out_put:
+	for (i = 0; i < cnt; i++)
+		cache_put(items[i], cd);
+out_alloc:
+	kfree(pathbuf);
+	kfree(seqnos);
+	kfree(items);
+out_unlock:
+	mutex_unlock(&nfsd_mutex);
+	return ret;
+}
+
+/**
+ * nfsd_nl_parse_fslocations - parse fslocations from netlink
+ * @attr: NFSD_A_SVC_EXPORT_FSLOCATIONS nested attribute
+ * @fsloc: fslocations struct to fill in
+ *
+ * Returns 0 on success or a negative errno.
+ */
+static int nfsd_nl_parse_fslocations(struct nlattr *attr,
+				     struct nfsd4_fs_locations *fsloc)
+{
+	struct nlattr *loc_attr;
+	int rem, count = 0;
+	int err;
+
+	if (fsloc->locations)
+		return -EINVAL;
+
+	/* Count locations first */
+	nla_for_each_nested_type(loc_attr, NFSD_A_FSLOCATIONS_LOCATION,
+				 attr, rem)
+		count++;
+
+	if (count > MAX_FS_LOCATIONS)
+		return -EINVAL;
+	if (!count)
+		return 0;
+
+	fsloc->locations = kcalloc(count, sizeof(struct nfsd4_fs_location),
+				   GFP_KERNEL);
+	if (!fsloc->locations)
+		return -ENOMEM;
+
+	nla_for_each_nested_type(loc_attr, NFSD_A_FSLOCATIONS_LOCATION,
+				 attr, rem) {
+		struct nlattr *tb[NFSD_A_FSLOCATION_PATH + 1];
+		struct nfsd4_fs_location *loc;
+
+		err = nla_parse_nested(tb, NFSD_A_FSLOCATION_PATH, loc_attr,
+				       nfsd_fslocation_nl_policy, NULL);
+		if (err)
+			goto out_free;
+
+		if (!tb[NFSD_A_FSLOCATION_HOST] ||
+		    !tb[NFSD_A_FSLOCATION_PATH]) {
+			err = -EINVAL;
+			goto out_free;
+		}
+
+		loc = &fsloc->locations[fsloc->locations_count++];
+		loc->hosts = kstrdup(nla_data(tb[NFSD_A_FSLOCATION_HOST]),
+				     GFP_KERNEL);
+		loc->path = kstrdup(nla_data(tb[NFSD_A_FSLOCATION_PATH]),
+				    GFP_KERNEL);
+		if (!loc->hosts || !loc->path) {
+			err = -ENOMEM;
+			goto out_free;
+		}
+	}
+
+	return 0;
+out_free:
+	nfsd4_fslocs_free(fsloc);
+	return err;
+}
+
+static struct svc_export *svc_export_update(struct svc_export *new,
+					    struct svc_export *old);
+static struct svc_export *svc_export_lookup(struct svc_export *);
+static int check_export(const struct path *path, int *flags,
+			unsigned char *uuid);
+
+/**
+ * nfsd_nl_parse_one_export - parse one svc_export entry from a netlink message
+ * @cd: cache_detail for the svc_export cache
+ * @attr: nested attribute containing svc-export fields
+ *
+ * Parses one svc-export entry from a netlink message and updates the
+ * cache. Mirrors the logic in svc_export_parse().
+ *
+ * Returns 0 on success or a negative errno.
+ */
+static int nfsd_nl_parse_one_export(struct cache_detail *cd,
+				    struct nlattr *attr)
+{
+	struct nlattr *tb[NFSD_A_SVC_EXPORT_FSID + 1];
+	struct auth_domain *dom = NULL;
+	struct svc_export exp = {}, *expp;
+	struct nlattr *secinfo_attr;
+	struct timespec64 boot;
+	int err, rem;
+
+	err = nla_parse_nested(tb, NFSD_A_SVC_EXPORT_FSID, attr,
+			       nfsd_svc_export_nl_policy, NULL);
+	if (err)
+		return err;
+
+	/* client (required) */
+	if (!tb[NFSD_A_SVC_EXPORT_CLIENT])
+		return -EINVAL;
+
+	dom = auth_domain_find(nla_data(tb[NFSD_A_SVC_EXPORT_CLIENT]));
+	if (!dom)
+		return -ENOENT;
+
+	/* path (required) */
+	if (!tb[NFSD_A_SVC_EXPORT_PATH]) {
+		err = -EINVAL;
+		goto out_dom;
+	}
+
+	err = kern_path(nla_data(tb[NFSD_A_SVC_EXPORT_PATH]), 0,
+			&exp.ex_path);
+	if (err)
+		goto out_dom;
+
+	exp.ex_client = dom;
+	exp.cd = cd;
+	exp.ex_devid_map = NULL;
+	exp.ex_xprtsec_modes = NFSEXP_XPRTSEC_ALL;
+
+	/* expiry (required, wallclock seconds) */
+	if (!tb[NFSD_A_SVC_EXPORT_EXPIRY]) {
+		err = -EINVAL;
+		goto out_path;
+	}
+	getboottime64(&boot);
+	exp.h.expiry_time = nla_get_u64(tb[NFSD_A_SVC_EXPORT_EXPIRY]) -
+			    boot.tv_sec;
+
+	if (tb[NFSD_A_SVC_EXPORT_NEGATIVE]) {
+		set_bit(CACHE_NEGATIVE, &exp.h.flags);
+	} else {
+		/* flags */
+		if (tb[NFSD_A_SVC_EXPORT_FLAGS])
+			exp.ex_flags = nla_get_u32(tb[NFSD_A_SVC_EXPORT_FLAGS]);
+
+		/* anon uid */
+		if (tb[NFSD_A_SVC_EXPORT_ANON_UID]) {
+			u32 uid = nla_get_u32(tb[NFSD_A_SVC_EXPORT_ANON_UID]);
+
+			exp.ex_anon_uid = make_kuid(current_user_ns(), uid);
+		}
+
+		/* anon gid */
+		if (tb[NFSD_A_SVC_EXPORT_ANON_GID]) {
+			u32 gid = nla_get_u32(tb[NFSD_A_SVC_EXPORT_ANON_GID]);
+
+			exp.ex_anon_gid = make_kgid(current_user_ns(), gid);
+		}
+
+		/* fsid */
+		if (tb[NFSD_A_SVC_EXPORT_FSID])
+			exp.ex_fsid = nla_get_s32(tb[NFSD_A_SVC_EXPORT_FSID]);
+
+		/* fslocations */
+		if (tb[NFSD_A_SVC_EXPORT_FSLOCATIONS]) {
+			struct nlattr *fsl = tb[NFSD_A_SVC_EXPORT_FSLOCATIONS];
+
+			err = nfsd_nl_parse_fslocations(fsl,
+							&exp.ex_fslocs);
+			if (err)
+				goto out_path;
+		}
+
+		/* uuid */
+		if (tb[NFSD_A_SVC_EXPORT_UUID]) {
+			if (nla_len(tb[NFSD_A_SVC_EXPORT_UUID]) !=
+			    EX_UUID_LEN) {
+				err = -EINVAL;
+				goto out_fslocs;
+			}
+			exp.ex_uuid = kmemdup(nla_data(tb[NFSD_A_SVC_EXPORT_UUID]),
+					      EX_UUID_LEN, GFP_KERNEL);
+			if (!exp.ex_uuid) {
+				err = -ENOMEM;
+				goto out_fslocs;
+			}
+		}
+
+		/* secinfo (multi-attr) */
+		nla_for_each_nested_type(secinfo_attr,
+					 NFSD_A_SVC_EXPORT_SECINFO,
+					 attr, rem) {
+			struct nlattr *ftb[NFSD_A_AUTH_FLAVOR_FLAGS + 1];
+			struct exp_flavor_info *f;
+
+			if (exp.ex_nflavors >= MAX_SECINFO_LIST) {
+				err = -EINVAL;
+				goto out_uuid;
+			}
+
+			err = nla_parse_nested(ftb,
+					       NFSD_A_AUTH_FLAVOR_FLAGS,
+					       secinfo_attr,
+					       nfsd_auth_flavor_nl_policy,
+					       NULL);
+			if (err)
+				goto out_uuid;
+
+			f = &exp.ex_flavors[exp.ex_nflavors++];
+
+			if (ftb[NFSD_A_AUTH_FLAVOR_PSEUDOFLAVOR])
+				f->pseudoflavor = nla_get_u32(ftb[NFSD_A_AUTH_FLAVOR_PSEUDOFLAVOR]);
+
+			if (ftb[NFSD_A_AUTH_FLAVOR_FLAGS])
+				f->flags = nla_get_u32(ftb[NFSD_A_AUTH_FLAVOR_FLAGS]);
+
+			/* Only some flags are allowed to differ between flavors: */
+			if (~NFSEXP_SECINFO_FLAGS & (f->flags ^ exp.ex_flags)) {
+				err = -EINVAL;
+				goto out_uuid;
+			}
+		}
+
+		/* xprtsec (multi-attr u32) */
+		if (tb[NFSD_A_SVC_EXPORT_XPRTSEC]) {
+			struct nlattr *xp_attr;
+
+			exp.ex_xprtsec_modes = 0;
+			nla_for_each_nested_type(xp_attr,
+						 NFSD_A_SVC_EXPORT_XPRTSEC,
+						 attr, rem) {
+				u32 mode = nla_get_u32(xp_attr);
+
+				if (mode > NFSEXP_XPRTSEC_MTLS) {
+					err = -EINVAL;
+					goto out_uuid;
+				}
+				exp.ex_xprtsec_modes |= mode;
+			}
+		}
+
+		err = check_export(&exp.ex_path, &exp.ex_flags,
+				   exp.ex_uuid);
+		if (err)
+			goto out_uuid;
+
+		if (exp.h.expiry_time < seconds_since_boot())
+			goto out_uuid;
+
+		err = -EINVAL;
+		if (!uid_valid(exp.ex_anon_uid))
+			goto out_uuid;
+		if (!gid_valid(exp.ex_anon_gid))
+			goto out_uuid;
+		err = 0;
+
+		nfsd4_setup_layout_type(&exp);
+	}
+
+	expp = svc_export_lookup(&exp);
+	if (!expp) {
+		err = -ENOMEM;
+		goto out_uuid;
+	}
+	expp = svc_export_update(&exp, expp);
+	if (expp) {
+		trace_nfsd_export_update(expp);
+		cache_flush();
+		exp_put(expp);
+	} else {
+		err = -ENOMEM;
+	}
+
+out_uuid:
+	kfree(exp.ex_uuid);
+out_fslocs:
+	nfsd4_fslocs_free(&exp.ex_fslocs);
+out_path:
+	path_put(&exp.ex_path);
+out_dom:
+	auth_domain_put(dom);
+	return err;
+}
+
+/**
+ * nfsd_nl_svc_export_set_reqs_doit - respond to svc_export requests
+ * @skb: reply buffer
+ * @info: netlink metadata and command arguments
+ *
+ * Parse one or more svc_export cache responses from userspace and
+ * update the export cache accordingly.
+ *
+ * Returns 0 on success or a negative errno.
+ */
+int nfsd_nl_svc_export_set_reqs_doit(struct sk_buff *skb,
+				     struct genl_info *info)
+{
+	struct nfsd_net *nn;
+	struct cache_detail *cd;
+	const struct nlattr *attr;
+	int rem, ret = 0;
+
+	nn = net_generic(genl_info_net(info), nfsd_net_id);
+
+	mutex_lock(&nfsd_mutex);
+
+	cd = nn->svc_export_cache;
+	if (!cd) {
+		ret = -ENODEV;
+		goto out_unlock;
+	}
+
+	nlmsg_for_each_attr_type(attr, NFSD_A_SVC_EXPORT_REQS_REQUESTS,
+				 info->nlhdr, GENL_HDRLEN, rem) {
+		ret = nfsd_nl_parse_one_export(cd, (struct nlattr *)attr);
+		if (ret)
+			break;
+	}
+
+out_unlock:
+	mutex_unlock(&nfsd_mutex);
+	return ret;
 }
 
 static int svc_export_upcall(struct cache_detail *cd, struct cache_head *h)
 {
-	return sunrpc_cache_pipe_upcall(cd, h);
+	return sunrpc_cache_upcall(cd, h);
+}
+
+static int svc_export_notify(struct cache_detail *cd, struct cache_head *h)
+{
+	return nfsd_cache_notify(cd, h, NFSD_CACHE_TYPE_SVC_EXPORT);
 }
 
 static void svc_export_request(struct cache_detail *cd,
@@ -409,10 +1102,6 @@ static void svc_export_request(struct cache_detail *cd,
 	qword_add(bpp, blen, pth);
 	(*bpp)[-1] = '\n';
 }
-
-static struct svc_export *svc_export_update(struct svc_export *new,
-					    struct svc_export *old);
-static struct svc_export *svc_export_lookup(struct svc_export *);
 
 static int check_export(const struct path *path, int *flags, unsigned char *uuid)
 {
@@ -735,7 +1424,8 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 			goto out4;
 		err = 0;
 
-		nfsd4_setup_layout_type(&exp);
+		if (exp.ex_flags & NFSEXP_PNFS)
+			nfsd4_setup_layout_type(&exp);
 	}
 
 	expp = svc_export_lookup(&exp);
@@ -907,6 +1597,7 @@ static const struct cache_detail svc_export_cache_template = {
 	.name		= "nfsd.export",
 	.cache_put	= svc_export_put,
 	.cache_upcall	= svc_export_upcall,
+	.cache_notify	= svc_export_notify,
 	.cache_request	= svc_export_request,
 	.cache_parse	= svc_export_parse,
 	.cache_show	= svc_export_show,
@@ -1492,36 +2183,6 @@ const struct seq_operations nfs_exports_op = {
 	.show	= e_show,
 };
 
-/**
- * nfsd_export_wq_init - allocate the export release workqueue
- *
- * Called once at module load. The workqueue runs deferred svc_export and
- * svc_expkey release work scheduled by queue_rcu_work() in the cache put
- * callbacks.
- *
- * Return values:
- *   %0: workqueue allocated
- *   %-ENOMEM: allocation failed
- */
-int nfsd_export_wq_init(void)
-{
-	nfsd_export_wq = alloc_workqueue("nfsd_export", WQ_UNBOUND, 0);
-	if (!nfsd_export_wq)
-		return -ENOMEM;
-	return 0;
-}
-
-/**
- * nfsd_export_wq_shutdown - drain and free the export release workqueue
- *
- * Called once at module unload. Per-namespace teardown in
- * nfsd_export_shutdown() has already drained all deferred work.
- */
-void nfsd_export_wq_shutdown(void)
-{
-	destroy_workqueue(nfsd_export_wq);
-}
-
 /*
  * Initialize the exports module.
  */
@@ -1583,9 +2244,6 @@ nfsd_export_shutdown(struct net *net)
 
 	cache_unregister_net(nn->svc_expkey_cache, net);
 	cache_unregister_net(nn->svc_export_cache, net);
-	/* Drain deferred export and expkey release work. */
-	rcu_barrier();
-	flush_workqueue(nfsd_export_wq);
 	cache_destroy_net(nn->svc_expkey_cache, net);
 	cache_destroy_net(nn->svc_export_cache, net);
 	svcauth_unix_purge(net);

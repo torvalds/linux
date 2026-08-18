@@ -14,9 +14,9 @@ General Design
 The headroom for the metadata is reserved via ``tx_metadata_len`` and
 ``XDP_UMEM_TX_METADATA_LEN`` flag in ``struct xdp_umem_reg``. The metadata
 length is therefore the same for every socket that shares the same umem.
-The metadata layout is a fixed UAPI, refer to ``union xsk_tx_metadata`` in
+The metadata layout is a fixed UAPI, refer to ``struct xsk_tx_metadata`` in
 ``include/uapi/linux/if_xdp.h``. Thus, generally, the ``tx_metadata_len``
-field above should contain ``sizeof(union xsk_tx_metadata)``.
+field above should contain ``sizeof(struct xsk_tx_metadata)``.
 
 Note that in the original implementation the ``XDP_UMEM_TX_METADATA_LEN``
 flag was not required. Applications might attempt to create a umem
@@ -45,15 +45,16 @@ the metadata area is ignored by the kernel as well.
 The flags field enables the particular offload:
 
 - ``XDP_TXMD_FLAGS_TIMESTAMP``: requests the device to put transmission
-  timestamp into ``tx_timestamp`` field of ``union xsk_tx_metadata``.
+  timestamp into ``completion.tx_timestamp`` field of
+  ``struct xsk_tx_metadata``.
 - ``XDP_TXMD_FLAGS_CHECKSUM``: requests the device to calculate L4
-  checksum. ``csum_start`` specifies byte offset of where the checksumming
-  should start and ``csum_offset`` specifies byte offset where the
-  device should store the computed checksum.
+  checksum. ``request.csum_start`` specifies byte offset of where the
+  checksumming should start and ``request.csum_offset`` specifies byte offset
+  where the device should store the computed checksum.
 - ``XDP_TXMD_FLAGS_LAUNCH_TIME``: requests the device to schedule the
   packet for transmission at a pre-determined time called launch time. The
-  value of launch time is indicated by ``launch_time`` field of
-  ``union xsk_tx_metadata``.
+  value of launch time is indicated by ``request.launch_time`` field of
+  ``struct xsk_tx_metadata``.
 
 Besides the flags above, in order to trigger the offloads, the first
 packet's ``struct xdp_desc`` descriptor should set ``XDP_TX_METADATA``
@@ -63,9 +64,9 @@ only the first chunk should carry the metadata.
 Software TX Checksum
 ====================
 
-For development and testing purposes its possible to pass
+For development and testing purposes it's possible to pass
 ``XDP_UMEM_TX_SW_CSUM`` flag to ``XDP_UMEM_REG`` UMEM registration call.
-In this case, when running in ``XDK_COPY`` mode, the TX checksum
+In this case, when running in ``XDP_COPY`` mode, the TX checksum
 is calculated on the CPU. Do not enable this option in production because
 it will negatively affect performance.
 
@@ -118,7 +119,7 @@ schedule with a 1-second cycle time, with all Tx Queues open at all times.
 
 The value of the launch time that is programmed in the Advanced Transmit
 Context Descriptor is a relative offset to the starting time of the Qbv
-transmission window of the queue. The Frst flag of the descriptor can be
+transmission window of the queue. The First flag of the descriptor can be
 set to schedule the packet for the next Qbv cycle. Therefore, the horizon
 of the launch time for i225 and i226 is the ending time of the next cycle
 of the Qbv transmission window of the queue. For example, when the Qbv
@@ -129,9 +130,10 @@ running.
 Querying Device Capabilities
 ============================
 
-Every devices exports its offloads capabilities via netlink netdev family.
-Refer to ``xsk-flags`` features bitmask in
-``Documentation/netlink/specs/netdev.yaml``.
+Every device exports its offload capabilities via the Netlink netdev family.
+Query the ``xsk-features`` attribute in
+``Documentation/netlink/specs/netdev.yaml``. Its bits are defined by the
+``xsk-flags`` enum.
 
 - ``tx-timestamp``: device supports ``XDP_TXMD_FLAGS_TIMESTAMP``
 - ``tx-checksum``: device supports ``XDP_TXMD_FLAGS_CHECKSUM``

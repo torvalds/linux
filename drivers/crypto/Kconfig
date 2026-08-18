@@ -301,7 +301,6 @@ config CRYPTO_DEV_PPC4XX
 	select CRYPTO_CCM
 	select CRYPTO_CTR
 	select CRYPTO_GCM
-	select CRYPTO_RNG
 	select CRYPTO_SKCIPHER
 	help
 	  This option allows you to have support for AMCC crypto acceleration.
@@ -316,7 +315,7 @@ config HW_RANDOM_PPC4XX
 
 config CRYPTO_DEV_OMAP
 	tristate "Support for OMAP crypto HW accelerators"
-	depends on ARCH_OMAP2PLUS
+	depends on ARCH_OMAP2PLUS || COMPILE_TEST
 	help
 	  OMAP processors have various crypto HW accelerators. Select this if
 	  you want to use the OMAP modules for any of the crypto algorithms.
@@ -352,7 +351,7 @@ config CRYPTO_DEV_OMAP_AES
 
 config CRYPTO_DEV_OMAP_DES
 	tristate "Support for OMAP DES/3DES hw engine"
-	depends on ARCH_OMAP2PLUS
+	depends on ARCH_OMAP2PLUS || COMPILE_TEST
 	select CRYPTO_LIB_DES
 	select CRYPTO_SKCIPHER
 	select CRYPTO_ENGINE
@@ -375,21 +374,6 @@ config CRYPTO_DEV_SAHARA
 	  This option enables support for the SAHARA HW crypto accelerator
 	  found in some Freescale i.MX chips.
 
-config CRYPTO_DEV_EXYNOS_RNG
-	tristate "Exynos HW pseudo random number generator support"
-	depends on ARCH_EXYNOS || COMPILE_TEST
-	depends on HAS_IOMEM
-	select CRYPTO_RNG
-	help
-	  This driver provides kernel-side support through the
-	  cryptographic API for the pseudo random number generator hardware
-	  found on Exynos SoCs.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called exynos-rng.
-
-	  If unsure, say Y.
-
 config CRYPTO_DEV_S5P
 	tristate "Support for Samsung S5PV210/Exynos crypto accelerator"
 	depends on ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
@@ -404,7 +388,6 @@ config CRYPTO_DEV_S5P
 config CRYPTO_DEV_EXYNOS_HASH
 	bool "Support for Samsung Exynos HASH accelerator"
 	depends on CRYPTO_DEV_S5P
-	depends on !CRYPTO_DEV_EXYNOS_RNG && CRYPTO_DEV_EXYNOS_RNG!=m
 	select CRYPTO_SHA1
 	select CRYPTO_MD5
 	select CRYPTO_SHA256
@@ -412,8 +395,6 @@ config CRYPTO_DEV_EXYNOS_HASH
 	  Select this to offload Exynos from HASH MD5/SHA1/SHA256.
 	  This will select software SHA1, MD5 and SHA256 as they are
 	  needed for small and zero-size messages.
-	  HASH algorithms will be disabled if EXYNOS_RNG
-	  is enabled due to hw conflict.
 
 config CRYPTO_DEV_NX
 	bool "Support for IBM PowerPC Nest (NX) cryptographic acceleration"
@@ -718,19 +699,6 @@ config CRYPTO_DEV_TEGRA
 	  Select this to enable Tegra Security Engine which accelerates various
 	  AES encryption/decryption and HASH algorithms.
 
-config CRYPTO_DEV_XILINX_TRNG
-	tristate "Support for Xilinx True Random Generator"
-	depends on ZYNQMP_FIRMWARE || COMPILE_TEST
-	select CRYPTO_DF80090A
-	select CRYPTO_RNG
-	select HW_RANDOM
-	help
-	  Xilinx Versal SoC driver provides kernel-side support for True Random Number
-	  Generator and Pseudo random Number in CTR_DRBG mode as defined in NIST SP800-90A.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called xilinx-trng.
-
 config CRYPTO_DEV_ZYNQMP_AES
 	tristate "Support for Xilinx ZynqMP AES hw accelerator"
 	depends on ZYNQMP_FIRMWARE || COMPILE_TEST
@@ -846,7 +814,6 @@ config CRYPTO_DEV_CCREE
 	  If unsure say Y.
 
 source "drivers/crypto/hisilicon/Kconfig"
-source "drivers/crypto/loongson/Kconfig"
 
 source "drivers/crypto/amlogic/Kconfig"
 

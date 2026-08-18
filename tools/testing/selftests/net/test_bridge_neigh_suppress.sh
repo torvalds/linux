@@ -56,6 +56,12 @@ TESTS="
 	neigh_suppress_uc_ns
 	neigh_vlan_suppress_arp
 	neigh_vlan_suppress_ns
+	neigh_suppress_arp_probe
+	neigh_suppress_dad_ns
+	neigh_forward_grat_arp
+	neigh_forward_grat_na
+	neigh_vlan_forward_grat_arp
+	neigh_vlan_forward_grat_na
 "
 VERBOSE=0
 PAUSE_ON_FAIL=no
@@ -74,7 +80,8 @@ log_test()
 		printf "TEST: %-60s  [ OK ]\n" "${msg}"
 		nsuccess=$((nsuccess+1))
 	else
-		ret=1
+		# shellcheck disable=SC2154
+		ret=$(ksft_exit_status_merge "$ret" "$ksft_fail")
 		nfail=$((nfail+1))
 		printf "TEST: %-60s  [FAIL]\n" "${msg}"
 		if [ "$VERBOSE" = "1" ]; then
@@ -97,6 +104,7 @@ log_test()
 	fi
 
 	[ "$VERBOSE" = "1" ] && echo
+	return 0
 }
 
 run_cmd()
@@ -132,6 +140,15 @@ tc_check_packets()
 		| jq ".[] | select(.options.handle == $handle) | \
 		.options.actions[0].stats.packets")
 	[[ $pkts == $count ]]
+}
+
+neigh_forward_grat_check()
+{
+	if ! bridge link help 2>&1 | grep -q "neigh_forward_grat"; then
+		echo "SKIP: iproute2 bridge too old, missing gratuitous ARP/unsolicited NA forwarding control support"
+		# shellcheck disable=SC2154
+		return "$ksft_skip"
+	fi
 }
 
 ################################################################################
@@ -561,6 +578,17 @@ icmpv6_header_get()
 	echo $p
 }
 
+icmpv6_na_header_get()
+{
+	local csum=$1; shift
+	local tip=$1; shift
+
+	# Type 136 (Neighbor Advertisement), hex format, Override flag set,
+	# Solicited flag clear (unsolicited NA).
+	# ICMPv6.type : ICMPv6.code : ICMPv6.checksum : Flags : Target Address
+	echo "88:00:$csum:20:00:00:00:$tip:"
+}
+
 neigh_suppress_uc_ns_common()
 {
 	local vid=$1; shift
@@ -875,6 +903,439 @@ neigh_vlan_suppress_ns()
 	log_test $? 0 "NS suppression (VLAN $vid2)"
 }
 
+neigh_suppress_arp_probe()
+{
+	local vid=10
+	local tip=192.0.2.2
+	local h2_mac
+
+	echo
+	echo "Per-port ARP probe suppression"
+	echo "------------------------------"
+
+	run_cmd "tc -n $sw1 qdisc replace dev vx0 clsact"
+	run_cmd "tc -n $sw1 filter replace dev vx0 egress pref 1 handle 101 proto 0x0806 flower indev swp1 arp_tip $tip arp_sip 0.0.0.0 arp_op request action pass"
+
+	# Initial state - check that ARP probes are not suppressed.
+	run_cmd "ip netns exec $h1 arping -D -q -c 1 -w 5 -I eth0.$vid $tip"
+	tc_check_packets "$sw1" "dev vx0 egress" 101 1
+	log_test $? 0 "ARP probe suppression"
+
+	# Enable neighbor suppression and check that nothing changes.
+	run_cmd "bridge -n $sw1 link set dev vx0 neigh_suppress on"
+	run_cmd "bridge -n $sw1 -d link show dev vx0 | grep \"neigh_suppress on\""
+	log_test $? 0 "\"neigh_suppress\" is on"
+
+	run_cmd "ip netns exec $h1 arping -D -q -c 1 -w 5 -I eth0.$vid $tip"
+	tc_check_packets "$sw1" "dev vx0 egress" 101 2
+	log_test $? 0 "ARP probe suppression"
+
+	# Install FDB and a neighbor and check that ARP probes are suppressed.
+	h2_mac=$(ip -n "$h2" -j -p link show eth0."$vid" | jq -r '.[]["address"]')
+	run_cmd "bridge -n $sw1 fdb replace $h2_mac dev vx0 master static vlan $vid"
+	run_cmd "ip -n $sw1 neigh replace $tip lladdr $h2_mac nud permanent dev br0.$vid"
+	log_test $? 0 "FDB and neighbor entry installation"
+
+	run_cmd "ip netns exec $h1 arping -D -q -c 1 -w 5 -I eth0.$vid $tip"
+	log_test $? 1 "arping"
+	tc_check_packets "$sw1" "dev vx0 egress" 101 2
+	log_test $? 0 "ARP probe suppression"
+
+	# Remove the neighbor entry and check that ARP probes are not suppressed.
+	run_cmd "ip -n $sw1 neigh del $tip dev br0.$vid"
+	log_test $? 0 "neighbor removal"
+
+	run_cmd "ip netns exec $h1 arping -D -q -c 1 -w 5 -I eth0.$vid $tip"
+	tc_check_packets "$sw1" "dev vx0 egress" 101 3
+	log_test $? 0 "ARP probe suppression"
+
+	# Disable neighbor suppression.
+	run_cmd "bridge -n $sw1 link set dev vx0 neigh_suppress off"
+	run_cmd "bridge -n $sw1 -d link show dev vx0 | grep \"neigh_suppress off\""
+	log_test $? 0 "\"neigh_suppress\" is off"
+
+	run_cmd "ip netns exec $h1 arping -D -q -c 1 -w 5 -I eth0.$vid $tip"
+	tc_check_packets "$sw1" "dev vx0 egress" 101 4
+	log_test $? 0 "ARP probe suppression"
+}
+
+neigh_suppress_dad_ns()
+{
+	local vid=10
+	local tip=2001:db8:1::99
+	local mcast=ff02::1:ff00:99
+	local dmac=33:33:ff:00:00:99
+	local full_tip=20:01:0d:b8:00:01:00:00:00:00:00:00:00:00:00:99
+	local csum="4b:bc"
+	local smac
+	local tmac
+
+	echo
+	echo "Per-port DAD NS suppression"
+	echo "---------------------------"
+
+	smac=$(ip -n "$h1" -j -p link show eth0."$vid" | jq -r '.[]["address"]')
+
+	run_cmd "tc -n $sw1 qdisc replace dev vx0 clsact"
+	run_cmd "tc -n $sw1 filter replace dev vx0 egress pref 1 handle 101 proto ipv6 flower indev swp1 ip_proto icmpv6 dst_ip $mcast src_ip :: type 135 code 0 action pass"
+
+	# Initial state - check that DAD NS are not suppressed.
+	run_cmd "ip netns exec $h1 mausezahn -6 eth0.$vid -c 1 -a $smac -b $dmac -A :: -B $mcast -t ip hop=255,next=58,payload=$(icmpv6_header_get "$csum" "$full_tip") -q"
+	tc_check_packets "$sw1" "dev vx0 egress" 101 1
+	log_test $? 0 "DAD NS suppression"
+
+	# Enable neighbor suppression and check that nothing changes.
+	run_cmd "bridge -n $sw1 link set dev vx0 neigh_suppress on"
+	run_cmd "bridge -n $sw1 -d link show dev vx0 | grep \"neigh_suppress on\""
+	log_test $? 0 "\"neigh_suppress\" is on"
+
+	run_cmd "ip netns exec $h1 mausezahn -6 eth0.$vid -c 1 -a $smac -b $dmac -A :: -B $mcast -t ip hop=255,next=58,payload=$(icmpv6_header_get "$csum" "$full_tip") -q"
+	tc_check_packets "$sw1" "dev vx0 egress" 101 2
+	log_test $? 0 "DAD NS suppression"
+
+	# Install FDB and a neighbor and check that DAD NS are suppressed
+	# and that a proxy NA is sent back to h1.
+	tmac=$(ip -n "$h2" -j -p link show eth0."$vid" | jq -r '.[]["address"]')
+	run_cmd "bridge -n $sw1 fdb replace $tmac dev vx0 master static vlan $vid"
+	run_cmd "ip -n $sw1 -6 neigh replace $tip lladdr $tmac nud permanent dev br0.$vid"
+	log_test $? 0 "FDB and neighbor entry installation"
+
+	run_cmd "tc -n $h1 qdisc replace dev eth0.$vid clsact"
+	run_cmd "tc -n $h1 filter replace dev eth0.$vid ingress pref 1 handle 101 proto ipv6 flower ip_proto icmpv6 dst_ip ff02::1 src_ip $tip type 136 code 0 action pass"
+
+	run_cmd "ip netns exec $h1 mausezahn -6 eth0.$vid -c 1 -a $smac -b $dmac -A :: -B $mcast -t ip hop=255,next=58,payload=$(icmpv6_header_get "$csum" "$full_tip") -q"
+	tc_check_packets "$sw1" "dev vx0 egress" 101 2
+	log_test $? 0 "DAD NS suppression"
+	tc_check_packets "$h1" "dev eth0.$vid ingress" 101 1
+	log_test $? 0 "DAD NS proxy NA reply"
+
+	# Remove the neighbor entry and check that DAD NS are not suppressed.
+	run_cmd "ip -n $sw1 -6 neigh del $tip dev br0.$vid"
+	log_test $? 0 "neighbor removal"
+
+	run_cmd "ip netns exec $h1 mausezahn -6 eth0.$vid -c 1 -a $smac -b $dmac -A :: -B $mcast -t ip hop=255,next=58,payload=$(icmpv6_header_get "$csum" "$full_tip") -q"
+	tc_check_packets "$sw1" "dev vx0 egress" 101 3
+	log_test $? 0 "DAD NS suppression"
+
+	# Disable neighbor suppression.
+	run_cmd "bridge -n $sw1 link set dev vx0 neigh_suppress off"
+	run_cmd "bridge -n $sw1 -d link show dev vx0 | grep \"neigh_suppress off\""
+	log_test $? 0 "\"neigh_suppress\" is off"
+
+	run_cmd "ip netns exec $h1 mausezahn -6 eth0.$vid -c 1 -a $smac -b $dmac -A :: -B $mcast -t ip hop=255,next=58,payload=$(icmpv6_header_get "$csum" "$full_tip") -q"
+	tc_check_packets "$sw1" "dev vx0 egress" 101 4
+	log_test $? 0 "DAD NS suppression"
+}
+
+neigh_forward_grat_arp()
+{
+	local vid=10
+	local sip=192.0.2.1
+	local tip=$sip
+	local h2_ip=192.0.2.2
+	local h2_mac
+
+	neigh_forward_grat_check || return $?
+
+	echo
+	echo "Gratuitous ARP forwarding"
+	echo "-------------------------"
+
+	run_cmd "tc -n $sw1 qdisc replace dev vx0 clsact"
+	run_cmd "tc -n $sw1 filter replace dev vx0 egress pref 1 handle 101 proto 0x0806 flower indev swp1 arp_tip $tip arp_sip $sip arp_op request action pass"
+	run_cmd "tc -n $sw1 filter replace dev vx0 egress pref 1 handle 102 proto 0x0806 flower indev swp1 arp_tip $h2_ip arp_sip $sip arp_op request action pass"
+
+	h2_mac=$(ip -n "$h2" -j -p link show eth0."$vid" | jq -r '.[]["address"]')
+	run_cmd "bridge -n $sw1 fdb replace $h2_mac dev vx0 master static vlan $vid"
+	run_cmd "ip -n $sw1 neigh replace $tip lladdr $h2_mac nud permanent dev br0.$vid"
+	run_cmd "ip -n $sw1 neigh replace $h2_ip lladdr $h2_mac nud permanent dev br0.$vid"
+
+	# Enable neighbor suppression. Gratuitous ARP should be suppressed by
+	# default (neigh_forward_grat defaults to off).
+	run_cmd "ip -n $sw1 link set dev vx0 type bridge_slave neigh_suppress on"
+	run_cmd "ip -n $sw1 -d link show dev vx0 | grep \"neigh_suppress on\""
+	log_test $? 0 "\"neigh_suppress\" is on"
+
+	# Send gratuitous ARP (sip == tip) and check it's suppressed.
+	run_cmd "ip netns exec $h1 arping -U -c 1 -w 5 -I eth0.$vid $tip"
+	tc_check_packets "$sw1" "dev vx0 egress" 101 0
+	log_test $? 0 "Gratuitous ARP suppression"
+
+	# Explicitly enable neigh_forward_grat and verify gratuitous ARP is
+	# now forwarded.
+	run_cmd "ip -n $sw1 link set dev vx0 type bridge_slave neigh_forward_grat on"
+	run_cmd "ip -n $sw1 -d link show dev vx0 | grep \"neigh_forward_grat on\""
+	log_test $? 0 "\"neigh_forward_grat\" is on"
+
+	run_cmd "ip netns exec $h1 arping -U -c 1 -w 5 -I eth0.$vid $tip"
+	tc_check_packets "$sw1" "dev vx0 egress" 101 1
+	log_test $? 0 "Gratuitous ARP forwarding"
+
+	# Verify that regular (non-gratuitous) ARP requests are still
+	# suppressed when neigh_forward_grat is enabled.
+	run_cmd "ip netns exec $h1 arping -c 1 -w 5 -I eth0.$vid $h2_ip"
+	tc_check_packets "$sw1" "dev vx0 egress" 102 0
+	log_test $? 0 "Regular ARP suppression with \"neigh_forward_grat\" on"
+
+	# Disable neigh_forward_grat and verify suppression resumes.
+	run_cmd "ip -n $sw1 link set dev vx0 type bridge_slave neigh_forward_grat off"
+	run_cmd "ip -n $sw1 -d link show dev vx0 | grep \"neigh_forward_grat off\""
+	log_test $? 0 "\"neigh_forward_grat\" is off"
+
+	run_cmd "ip netns exec $h1 arping -U -c 1 -w 5 -I eth0.$vid $tip"
+	tc_check_packets "$sw1" "dev vx0 egress" 101 1
+	log_test $? 0 "Gratuitous ARP suppression"
+}
+
+# neigh_forward_grat_arp() uses 'ip link' interface, and neigh_forward_grat_na()
+# uses 'bridge link' interface to exercise both paths.
+neigh_forward_grat_na()
+{
+	local vid=10
+	local saddr=2001:db8:1::1
+	local daddr=ff02::1
+	local h2_addr=2001:db8:1::2
+	local h2_maddr=ff02::1:ff00:2
+	local full_addr=20:01:0d:b8:00:01:00:00:00:00:00:00:00:00:00:01
+	local h2_full_addr=20:01:0d:b8:00:01:00:00:00:00:00:00:00:00:00:02
+	local csum="fd:32"
+	local csum_ns="1f:2f"
+	local dmac=33:33:00:00:00:01
+	local h2_dmac=33:33:ff:00:00:02
+	local h2_mac
+	local smac
+
+	neigh_forward_grat_check || return $?
+
+	echo
+	echo "Unsolicited NA forwarding"
+	echo "-------------------------"
+
+	smac=$(ip -n "$h1" -j -p link show eth0."$vid" | jq -r '.[]["address"]')
+
+	run_cmd "tc -n $sw1 qdisc replace dev vx0 clsact"
+	run_cmd "tc -n $sw1 filter replace dev vx0 egress pref 1 handle 101 proto ipv6 flower indev swp1 ip_proto icmpv6 dst_ip $daddr src_ip $saddr type 136 code 0 action pass"
+	run_cmd "tc -n $sw1 filter replace dev vx0 egress pref 1 handle 102 proto ipv6 flower indev swp1 ip_proto icmpv6 dst_ip $h2_maddr src_ip $saddr type 135 code 0 action pass"
+
+	h2_mac=$(ip -n "$h2" -j -p link show eth0."$vid" | jq -r '.[]["address"]')
+	run_cmd "bridge -n $sw1 fdb replace $h2_mac dev vx0 master static vlan $vid"
+	run_cmd "ip -n $sw1 neigh replace $saddr lladdr $h2_mac nud permanent dev br0.$vid"
+	run_cmd "ip -n $sw1 neigh replace $h2_addr lladdr $h2_mac nud permanent dev br0.$vid"
+
+	# Enable neighbor suppression. Unsolicited NA should be suppressed by
+	# default (neigh_forward_grat defaults to off).
+	run_cmd "bridge -n $sw1 link set dev vx0 neigh_suppress on"
+	run_cmd "bridge -n $sw1 -d link show dev vx0 | grep \"neigh_suppress on\""
+	log_test $? 0 "\"neigh_suppress\" is on"
+
+	# Send unsolicited NA and check it's suppressed.
+	run_cmd "ip netns exec $h1 mausezahn -6 eth0.$vid -c 1 -a $smac -b $dmac -A $saddr -B $daddr -t ip hop=255,next=58,payload=$(icmpv6_na_header_get "$csum" "$full_addr") -q"
+	tc_check_packets "$sw1" "dev vx0 egress" 101 0
+	log_test $? 0 "Unsolicited NA suppression"
+
+	# Explicitly enable neigh_forward_grat and verify unsolicited NA is
+	# now forwarded.
+	run_cmd "bridge -n $sw1 link set dev vx0 neigh_forward_grat on"
+	run_cmd "bridge -n $sw1 -d link show dev vx0 | grep \"neigh_forward_grat on\""
+	log_test $? 0 "\"neigh_forward_grat\" is on"
+
+	run_cmd "ip netns exec $h1 mausezahn -6 eth0.$vid -c 1 -a $smac -b $dmac -A $saddr -B $daddr -t ip hop=255,next=58,payload=$(icmpv6_na_header_get "$csum" "$full_addr") -q"
+	tc_check_packets "$sw1" "dev vx0 egress" 101 1
+	log_test $? 0 "Unsolicited NA forwarding"
+
+	# Verify that solicited NS messages are still suppressed when
+	# neigh_forward_grat is enabled.
+	run_cmd "ip netns exec $h1 mausezahn -6 eth0.$vid -c 1 -a $smac -b $h2_dmac -A $saddr -B $h2_maddr -t ip hop=255,next=58,payload=$(icmpv6_header_get "$csum_ns" "$h2_full_addr") -q"
+	tc_check_packets "$sw1" "dev vx0 egress" 102 0
+	log_test $? 0 "Solicited NS suppression with \"neigh_forward_grat\" on"
+
+	# Disable neigh_forward_grat and verify suppression resumes.
+	run_cmd "bridge -n $sw1 link set dev vx0 neigh_forward_grat off"
+	run_cmd "bridge -n $sw1 -d link show dev vx0 | grep \"neigh_forward_grat off\""
+	log_test $? 0 "\"neigh_forward_grat\" is off"
+
+	run_cmd "ip netns exec $h1 mausezahn -6 eth0.$vid -c 1 -a $smac -b $dmac -A $saddr -B $daddr -t ip hop=255,next=58,payload=$(icmpv6_na_header_get "$csum" "$full_addr") -q"
+	tc_check_packets "$sw1" "dev vx0 egress" 101 1
+	log_test $? 0 "Unsolicited NA suppression"
+}
+
+neigh_vlan_forward_grat_arp()
+{
+	local vid1=10
+	local vid2=20
+	local sip1=192.0.2.1
+	local sip2=192.0.2.17
+	local h2_ip1=192.0.2.2
+	local h2_mac1
+	local h2_mac2
+
+	neigh_forward_grat_check || return $?
+
+	echo
+	echo "Per-VLAN gratuitous ARP forwarding"
+	echo "----------------------------------"
+
+	run_cmd "tc -n $sw1 qdisc replace dev vx0 clsact"
+	run_cmd "tc -n $sw1 filter replace dev vx0 egress pref 1 handle 101 proto 0x0806 flower indev swp1 arp_tip $sip1 arp_sip $sip1 arp_op request action pass"
+	run_cmd "tc -n $sw1 filter replace dev vx0 egress pref 1 handle 102 proto 0x0806 flower indev swp1 arp_tip $sip2 arp_sip $sip2 arp_op request action pass"
+	run_cmd "tc -n $sw1 filter replace dev vx0 egress pref 1 handle 103 proto 0x0806 flower indev swp1 arp_tip $h2_ip1 arp_sip $sip1 arp_op request action pass"
+
+	h2_mac1=$(ip -n "$h2" -j -p link show eth0."$vid1" | jq -r '.[]["address"]')
+	h2_mac2=$(ip -n "$h2" -j -p link show eth0."$vid2" | jq -r '.[]["address"]')
+	run_cmd "bridge -n $sw1 fdb replace $h2_mac1 dev vx0 master static vlan $vid1"
+	run_cmd "bridge -n $sw1 fdb replace $h2_mac2 dev vx0 master static vlan $vid2"
+	run_cmd "ip -n $sw1 neigh replace $sip1 lladdr $h2_mac1 nud permanent dev br0.$vid1"
+	run_cmd "ip -n $sw1 neigh replace $sip2 lladdr $h2_mac2 nud permanent dev br0.$vid2"
+	run_cmd "ip -n $sw1 neigh replace $h2_ip1 lladdr $h2_mac1 nud permanent dev br0.$vid1"
+
+	# Enable per-{Port, VLAN} neighbor suppression.
+	run_cmd "bridge -n $sw1 link set dev vx0 neigh_vlan_suppress on"
+	run_cmd "bridge -n $sw1 -d link show dev vx0 | grep \"neigh_vlan_suppress on\""
+	log_test $? 0 "\"neigh_vlan_suppress\" is on"
+
+	# Enable neighbor suppression on VLAN 10. Gratuitous ARP should be
+	# suppressed by default on VLAN 10 (neigh_forward_grat defaults to off)
+	# but not on VLAN 20.
+	run_cmd "bridge -n $sw1 vlan set vid $vid1 dev vx0 neigh_suppress on"
+	run_cmd "bridge -n $sw1 -d vlan show dev vx0 vid $vid1 | grep \"neigh_suppress on\""
+	log_test $? 0 "\"neigh_suppress\" is on (VLAN $vid1)"
+
+	run_cmd "ip netns exec $h1 arping -U -c 1 -w 5 -I eth0.$vid1 $sip1"
+	tc_check_packets "$sw1" "dev vx0 egress" 101 0
+	log_test $? 0 "Gratuitous ARP suppression (VLAN $vid1)"
+
+	run_cmd "ip netns exec $h1 arping -U -c 1 -w 5 -I eth0.$vid2 $sip2"
+	tc_check_packets "$sw1" "dev vx0 egress" 102 1
+	log_test $? 0 "Gratuitous ARP forwarding (VLAN $vid2)"
+
+	# Enable neigh_forward_grat on VLAN 10 and verify gratuitous ARP is
+	# now forwarded.
+	run_cmd "bridge -n $sw1 vlan set vid $vid1 dev vx0 neigh_forward_grat on"
+	run_cmd "bridge -n $sw1 -d vlan show dev vx0 vid $vid1 | grep \"neigh_forward_grat on\""
+	log_test $? 0 "\"neigh_forward_grat\" is on (VLAN $vid1)"
+
+	run_cmd "ip netns exec $h1 arping -U -c 1 -w 5 -I eth0.$vid1 $sip1"
+	tc_check_packets "$sw1" "dev vx0 egress" 101 1
+	log_test $? 0 "Gratuitous ARP forwarding (VLAN $vid1)"
+
+	# Verify that regular (non-gratuitous) ARP requests on VLAN $vid1 are
+	# still suppressed when neigh_forward_grat is enabled.
+	run_cmd "ip netns exec $h1 arping -c 1 -w 5 -I eth0.$vid1 $h2_ip1"
+	tc_check_packets "$sw1" "dev vx0 egress" 103 0
+	log_test $? 0 "Regular ARP suppression with \"neigh_forward_grat\" on (VLAN $vid1)"
+
+	# Enable neighbor suppression on VLAN 20 (neigh_forward_grat defaults to
+	# off), and verify gratuitous ARP is suppressed on VLAN 20.
+	run_cmd "bridge -n $sw1 vlan set vid $vid2 dev vx0 neigh_suppress on"
+	run_cmd "bridge -n $sw1 -d vlan show dev vx0 vid $vid2 | grep \"neigh_suppress on\""
+	log_test $? 0 "\"neigh_suppress\" is on (VLAN $vid2)"
+
+	# VLAN 10 should still forward (neigh_forward_grat is on).
+	run_cmd "ip netns exec $h1 arping -U -c 1 -w 5 -I eth0.$vid1 $sip1"
+	tc_check_packets "$sw1" "dev vx0 egress" 101 2
+	log_test $? 0 "Gratuitous ARP forwarding (VLAN $vid1)"
+
+	# VLAN 20 should suppress (neigh_forward_grat defaults to off).
+	run_cmd "ip netns exec $h1 arping -U -c 1 -w 5 -I eth0.$vid2 $sip2"
+	tc_check_packets "$sw1" "dev vx0 egress" 102 1
+	log_test $? 0 "Gratuitous ARP suppression (VLAN $vid2)"
+}
+
+neigh_vlan_forward_grat_na()
+{
+	local vid1=10
+	local vid2=20
+	local saddr1=2001:db8:1::1
+	local daddr=ff02::1
+	local h2_addr1=2001:db8:1::2
+	local h2_maddr1=ff02::1:ff00:2
+	local full_addr1=20:01:0d:b8:00:01:00:00:00:00:00:00:00:00:00:01
+	local h2_full_addr1=20:01:0d:b8:00:01:00:00:00:00:00:00:00:00:00:02
+	local csum1="fd:32"
+	local csum_ns1="1f:2f"
+	local saddr2=2001:db8:2::1
+	local full_addr2=20:01:0d:b8:00:02:00:00:00:00:00:00:00:00:00:01
+	local csum2="fd:30"
+	local dmac=33:33:00:00:00:01
+	local h2_dmac1=33:33:ff:00:00:02
+	local h2_mac1
+	local h2_mac2
+	local smac
+
+	neigh_forward_grat_check || return $?
+
+	echo
+	echo "Per-VLAN unsolicited NA forwarding"
+	echo "----------------------------------"
+
+	smac=$(ip -n "$h1" -j -p link show eth0."$vid1" | jq -r '.[]["address"]')
+
+	run_cmd "tc -n $sw1 qdisc replace dev vx0 clsact"
+	run_cmd "tc -n $sw1 filter replace dev vx0 egress pref 1 handle 101 proto ipv6 flower indev swp1 ip_proto icmpv6 dst_ip $daddr src_ip $saddr1 type 136 code 0 action pass"
+	run_cmd "tc -n $sw1 filter replace dev vx0 egress pref 1 handle 102 proto ipv6 flower indev swp1 ip_proto icmpv6 dst_ip $daddr src_ip $saddr2 type 136 code 0 action pass"
+	run_cmd "tc -n $sw1 filter replace dev vx0 egress pref 1 handle 103 proto ipv6 flower indev swp1 ip_proto icmpv6 dst_ip $h2_maddr1 src_ip $saddr1 type 135 code 0 action pass"
+
+	h2_mac1=$(ip -n "$h2" -j -p link show eth0."$vid1" | jq -r '.[]["address"]')
+	h2_mac2=$(ip -n "$h2" -j -p link show eth0."$vid2" | jq -r '.[]["address"]')
+	run_cmd "bridge -n $sw1 fdb replace $h2_mac1 dev vx0 master static vlan $vid1"
+	run_cmd "bridge -n $sw1 fdb replace $h2_mac2 dev vx0 master static vlan $vid2"
+	run_cmd "ip -n $sw1 neigh replace $saddr1 lladdr $h2_mac1 nud permanent dev br0.$vid1"
+	run_cmd "ip -n $sw1 neigh replace $saddr2 lladdr $h2_mac2 nud permanent dev br0.$vid2"
+	run_cmd "ip -n $sw1 neigh replace $h2_addr1 lladdr $h2_mac1 nud permanent dev br0.$vid1"
+
+	# Enable per-{Port, VLAN} neighbor suppression.
+	run_cmd "bridge -n $sw1 link set dev vx0 neigh_vlan_suppress on"
+	run_cmd "bridge -n $sw1 -d link show dev vx0 | grep \"neigh_vlan_suppress on\""
+	log_test $? 0 "\"neigh_vlan_suppress\" is on"
+
+	# Enable neighbor suppression on VLAN 10. Unsolicited NA should be
+	# suppressed by default on VLAN 10 (neigh_forward_grat defaults to off)
+	# but not on VLAN 20.
+	run_cmd "bridge -n $sw1 vlan set vid $vid1 dev vx0 neigh_suppress on"
+	run_cmd "bridge -n $sw1 -d vlan show dev vx0 vid $vid1 | grep \"neigh_suppress on\""
+	log_test $? 0 "\"neigh_suppress\" is on (VLAN $vid1)"
+
+	run_cmd "ip netns exec $h1 mausezahn -6 eth0.$vid1 -c 1 -a $smac -b $dmac -A $saddr1 -B $daddr -t ip hop=255,next=58,payload=$(icmpv6_na_header_get "$csum1" "$full_addr1") -q"
+	tc_check_packets "$sw1" "dev vx0 egress" 101 0
+	log_test $? 0 "Unsolicited NA suppression (VLAN $vid1)"
+
+	run_cmd "ip netns exec $h1 mausezahn -6 eth0.$vid2 -c 1 -a $smac -b $dmac -A $saddr2 -B $daddr -t ip hop=255,next=58,payload=$(icmpv6_na_header_get "$csum2" "$full_addr2") -q"
+	tc_check_packets "$sw1" "dev vx0 egress" 102 1
+	log_test $? 0 "Unsolicited NA forwarding (VLAN $vid2)"
+
+	# Enable neigh_forward_grat on VLAN 10 and verify unsolicited NA is
+	# now forwarded.
+	run_cmd "bridge -n $sw1 vlan set vid $vid1 dev vx0 neigh_forward_grat on"
+	run_cmd "bridge -n $sw1 -d vlan show dev vx0 vid $vid1 | grep \"neigh_forward_grat on\""
+	log_test $? 0 "\"neigh_forward_grat\" is on (VLAN $vid1)"
+
+	run_cmd "ip netns exec $h1 mausezahn -6 eth0.$vid1 -c 1 -a $smac -b $dmac -A $saddr1 -B $daddr -t ip hop=255,next=58,payload=$(icmpv6_na_header_get "$csum1" "$full_addr1") -q"
+	tc_check_packets "$sw1" "dev vx0 egress" 101 1
+	log_test $? 0 "Unsolicited NA forwarding (VLAN $vid1)"
+
+	# Verify that solicited NS messages on VLAN $vid1 are still suppressed
+	# when neigh_forward_grat is enabled.
+	run_cmd "ip netns exec $h1 mausezahn -6 eth0.$vid1 -c 1 -a $smac -b $h2_dmac1 -A $saddr1 -B $h2_maddr1 -t ip hop=255,next=58,payload=$(icmpv6_header_get "$csum_ns1" "$h2_full_addr1") -q"
+	tc_check_packets "$sw1" "dev vx0 egress" 103 0
+	log_test $? 0 "Solicited NS suppression with \"neigh_forward_grat\" on (VLAN $vid1)"
+
+	# Enable neighbor suppression on VLAN 20 (neigh_forward_grat defaults to
+	# off), and verify unsolicited NA is suppressed on VLAN 20.
+	run_cmd "bridge -n $sw1 vlan set vid $vid2 dev vx0 neigh_suppress on"
+	run_cmd "bridge -n $sw1 -d vlan show dev vx0 vid $vid2 | grep \"neigh_suppress on\""
+	log_test $? 0 "\"neigh_suppress\" is on (VLAN $vid2)"
+
+	# VLAN 10 should still forward (neigh_forward_grat is on).
+	run_cmd "ip netns exec $h1 mausezahn -6 eth0.$vid1 -c 1 -a $smac -b $dmac -A $saddr1 -B $daddr -t ip hop=255,next=58,payload=$(icmpv6_na_header_get "$csum1" "$full_addr1") -q"
+	tc_check_packets "$sw1" "dev vx0 egress" 101 2
+	log_test $? 0 "Unsolicited NA forwarding (VLAN $vid1)"
+
+	# VLAN 20 should suppress (neigh_forward_grat defaults to off).
+	run_cmd "ip netns exec $h1 mausezahn -6 eth0.$vid2 -c 1 -a $smac -b $dmac -A $saddr2 -B $daddr -t ip hop=255,next=58,payload=$(icmpv6_na_header_get "$csum2" "$full_addr2") -q"
+	tc_check_packets "$sw1" "dev vx0 egress" 102 1
+	log_test $? 0 "Unsolicited NA suppression (VLAN $vid2)"
+}
+
 ################################################################################
 # Usage
 
@@ -961,7 +1422,10 @@ cleanup
 
 for t in $TESTS
 do
-	setup; $t; cleanup;
+	setup
+	$t
+	ret=$(ksft_exit_status_merge "$ret" $?)
+	cleanup
 done
 
 if [ "$TESTS" != "none" ]; then

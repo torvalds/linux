@@ -213,6 +213,17 @@ static struct xe_device *uc_fw_to_xe(struct xe_uc_fw *uc_fw)
 	return gt_to_xe(uc_fw_to_gt(uc_fw));
 }
 
+#if IS_ENABLED(CONFIG_DRM_XE_DEBUG_GUC)
+void xe_uc_fw_change_status(struct xe_uc_fw *uc_fw, enum xe_uc_fw_status status)
+{
+	xe_gt_dbg(uc_fw_to_gt(uc_fw), "%s %s->%s\n",
+		  xe_uc_fw_type_repr(uc_fw->type),
+		  xe_uc_fw_status_repr(uc_fw->status),
+		  xe_uc_fw_status_repr(status));
+	uc_fw->__status = status;
+}
+#endif
+
 static void
 uc_fw_auto_select(struct xe_device *xe, struct xe_uc_fw *uc_fw)
 {

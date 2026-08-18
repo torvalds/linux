@@ -259,7 +259,7 @@ static void process_keys(struct lm8323_chip *lm)
 	ret = lm8323_read(lm, LM8323_CMD_READ_FIFO, key_fifo, LM8323_FIFO_LEN);
 
 	if (ret < 0) {
-		dev_err(&lm->client->dev, "Failed reading fifo \n");
+		dev_err(&lm->client->dev, "Failed reading fifo\n");
 		return;
 	}
 	key_fifo[ret] = 0;
@@ -788,7 +788,7 @@ static int lm8323_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(lm8323_pm_ops, lm8323_suspend, lm8323_resume);
 
 static const struct i2c_device_id lm8323_id[] = {
-	{ "lm8323" },
+	{ .name = "lm8323" },
 	{ }
 };
 

@@ -282,7 +282,7 @@ static void create_unique_nonce_data(u8 *buffer)
 	u32 rand;
 	size_t offset = 0;
 
-	get_random_bytes(&rand, sizeof(u32));
+	rand = get_random_u32();
 	memcpy(buffer + offset, &now, sizeof(now));
 	offset += sizeof(now);
 	memcpy(buffer + offset, &rand, sizeof(rand));

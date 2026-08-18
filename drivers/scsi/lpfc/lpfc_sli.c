@@ -1155,9 +1155,9 @@ lpfc_test_rrq_active(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
  *
  * This function takes the hbalock.
  * The active bit is always set in the active rrq xri_bitmap even
- * if there is no slot avaiable for the other rrq information.
+ * if there is no slot available for the other rrq information.
  *
- * returns 0 rrq actived for this xri
+ * returns 0 rrq activated for this xri
  *         < 0 No memory or invalid ndlp.
  **/
 int
@@ -4827,11 +4827,11 @@ lpfc_sli_brdready_s4(struct lpfc_hba *phba, uint32_t mask)
 }
 
 /**
- * lpfc_sli_brdready - Wrapper func for checking the hba readyness
+ * lpfc_sli_brdready - Wrapper func for checking the hba readiness
  * @phba: Pointer to HBA context object.
  * @mask: Bit mask to be checked.
  *
- * This routine wraps the actual SLI3 or SLI4 hba readyness check routine
+ * This routine wraps the actual SLI3 or SLI4 hba readiness check routine
  * from the API jump table function pointer from the lpfc_hba struct.
  **/
 int
@@ -8512,7 +8512,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	if (unlikely(rc))
 		return -ENODEV;
 
-	/* Check the HBA Host Status Register for readyness */
+	/* Check the HBA Host Status Register for readiness */
 	rc = lpfc_sli4_post_status_check(phba);
 	if (unlikely(rc))
 		return -ENODEV;
@@ -9984,7 +9984,7 @@ lpfc_sli4_post_sync_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	phba->sli.mbox_active = mboxq;
 	spin_unlock_irqrestore(&phba->hbalock, iflag);
 
-	/* wait for bootstrap mbox register for readyness */
+	/* wait for bootstrap mbox register for readiness */
 	rc = lpfc_sli4_wait_bmbx_ready(phba, mboxq);
 	if (rc)
 		goto exit;
@@ -13955,7 +13955,7 @@ unplug_error:
  * device-level interrupt handler. When the PCI slot is in error recovery
  * or the HBA is undergoing initialization, the interrupt handler will not
  * process the interrupt. The SCSI FCP fast-path ring event are handled in
- * the intrrupt context. This function is called without any lock held.
+ * the interrupt context. This function is called without any lock held.
  * It gets the hbalock to access and update SLI data structures.
  *
  * This function returns IRQ_HANDLED when interrupt is handled else it
@@ -15561,7 +15561,7 @@ lpfc_sli4_dly_hba_process_cq(struct work_struct *work)
  * device-level interrupt handler. When the PCI slot is in error recovery
  * or the HBA is undergoing initialization, the interrupt handler will not
  * process the interrupt. The SCSI FCP fast-path ring event are handled in
- * the intrrupt context. This function is called without any lock held.
+ * the interrupt context. This function is called without any lock held.
  * It gets the hbalock to access and update SLI data structures. Note that,
  * the FCP EQ to FCP CQ are one-to-one map such that the FCP EQ index is
  * equal to that of FCP CQ index.
@@ -15875,7 +15875,7 @@ lpfc_sli4_queue_alloc(struct lpfc_hba *phba, uint32_t page_size,
 	if (pgcnt > phba->sli4_hba.pc_sli4_params.wqpcnt)
 		pgcnt = phba->sli4_hba.pc_sli4_params.wqpcnt;
 
-	queue = kzalloc_node(sizeof(*queue) + (sizeof(void *) * pgcnt),
+	queue = kzalloc_node(struct_size(queue, q_pgs, pgcnt),
 			     GFP_KERNEL, cpu_to_node(cpu));
 	if (!queue)
 		return NULL;
@@ -15892,7 +15892,6 @@ lpfc_sli4_queue_alloc(struct lpfc_hba *phba, uint32_t page_size,
 	 * resources, the free routine needs to know what was allocated.
 	 */
 	queue->page_count = pgcnt;
-	queue->q_pgs = (void **)&queue[1];
 	queue->entry_cnt_per_pg = hw_page_size / entry_size;
 	queue->entry_size = entry_size;
 	queue->entry_count = entry_count;
@@ -16004,7 +16003,7 @@ lpfc_dpp_wc_map(struct lpfc_hba *phba, uint8_t dpp_barset)
  * On success this function will return a zero. If unable to allocate
  * enough memory this function will return -ENOMEM. If a mailbox command
  * fails this function will return -ENXIO. Note: on ENXIO, some EQs may
- * have had their delay multipler changed.
+ * have had their delay multiplier changed.
  **/
 void
 lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq,
@@ -20453,7 +20452,7 @@ lpfc_sli4_fcf_rr_next_index_get(struct lpfc_hba *phba)
 		/*
 		 * If next fcf index is not found check if there are lower
 		 * Priority level fcf's in the fcf_priority list.
-		 * Set up the rr_bmask with all of the avaiable fcf bits
+		 * Set up the rr_bmask with all of the available fcf bits
 		 * at that level and continue the selection process.
 		 */
 	} while (lpfc_check_next_fcf_pri_level(phba));
@@ -21697,7 +21696,7 @@ void lpfc_adjust_high_watermark(struct lpfc_hba *phba, u32 hwqid)
  * @phba: pointer to lpfc hba data structure.
  * @hwqid: belong to which HWQ.
  *
- * This routine is called from hearbeat timer when pvt_pool is idle.
+ * This routine is called from heartbeat timer when pvt_pool is idle.
  * All free XRIs are moved from private to public pool on hwqid with 2 steps.
  * The first step moves (all - low_watermark) amount of XRIs.
  * The second step moves the rest of XRIs.

@@ -538,7 +538,7 @@ static int vc4_vec_connector_init(struct drm_device *dev, struct vc4_vec *vec)
 }
 
 static void vc4_vec_encoder_disable(struct drm_encoder *encoder,
-				    struct drm_atomic_state *state)
+				    struct drm_atomic_commit *state)
 {
 	struct drm_device *drm = encoder->dev;
 	struct vc4_vec *vec = encoder_to_vc4_vec(encoder);
@@ -562,7 +562,7 @@ static void vc4_vec_encoder_disable(struct drm_encoder *encoder,
 }
 
 static void vc4_vec_encoder_enable(struct drm_encoder *encoder,
-				   struct drm_atomic_state *state)
+				   struct drm_atomic_commit *state)
 {
 	struct drm_device *drm = encoder->dev;
 	struct vc4_vec *vec = encoder_to_vc4_vec(encoder);

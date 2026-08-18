@@ -172,23 +172,11 @@ static int __page_handle_poison(struct page *page)
 {
 	int ret;
 
-	/*
-	 * zone_pcp_disable() can't be used here. It will
-	 * hold pcp_batch_high_lock and dissolve_free_hugetlb_folio() might hold
-	 * cpu_hotplug_lock via static_key_slow_dec() when hugetlb vmemmap
-	 * optimization is enabled. This will break current lock dependency
-	 * chain and leads to deadlock.
-	 * Disabling pcp before dissolving the page was a deterministic
-	 * approach because we made sure that those pages cannot end up in any
-	 * PCP list. Draining PCP lists expels those pages to the buddy system,
-	 * but nothing guarantees that those pages do not get back to a PCP
-	 * queue if we need to refill those.
-	 */
+	zone_pcp_disable(page_zone(page));
 	ret = dissolve_free_hugetlb_folio(page_folio(page));
-	if (!ret) {
-		drain_all_pages(page_zone(page));
+	if (!ret)
 		ret = take_page_off_buddy(page);
-	}
+	zone_pcp_enable(page_zone(page));
 
 	return ret;
 }
@@ -459,7 +447,7 @@ void add_to_kill_ksm(struct task_struct *tsk, const struct page *p,
  * Only do anything when FORCEKILL is set, otherwise just free the
  * list (this is used for clean pages which do not need killing)
  */
-static void kill_procs(struct list_head *to_kill, int forcekill,
+static void kill_procs(struct list_head *to_kill, bool forcekill,
 		unsigned long pfn, int flags)
 {
 	struct to_kill *tk, *next;
@@ -1418,7 +1406,7 @@ try_again:
 			 * We raced with (possibly temporary) unhandlable
 			 * page, retry.
 			 */
-			if (pass++ < 3) {
+			if (pass++ < GET_PAGE_MAX_RETRY_NUM) {
 				shake_page(p);
 				goto try_again;
 			}
@@ -1582,7 +1570,7 @@ static bool hwpoison_user_mappings(struct folio *folio, struct page *p,
 {
 	LIST_HEAD(tokill);
 	bool unmap_success;
-	int forcekill;
+	bool forcekill;
 	bool mlocked = folio_test_mlocked(folio);
 
 	/*
@@ -1703,7 +1691,7 @@ static void unmap_and_kill(struct list_head *to_kill, unsigned long pfn,
 		unmap_mapping_range(mapping, start, size, 0);
 	}
 
-	kill_procs(to_kill, flags & MF_MUST_KILL, pfn, flags);
+	kill_procs(to_kill, !!(flags & MF_MUST_KILL), pfn, flags);
 }
 
 /*
@@ -2027,13 +2015,14 @@ out_unlock:
  * So some of prechecks for hwpoison (pinning, and testing/setting
  * PageHWPoison) should be done in single hugetlb_lock range.
  * Returns:
- *	0		- not hugetlb, or recovered
+ *	0		- recovered
+ *	-ENOENT		- no hugetlb page
  *	-EBUSY		- not recovered
  *	-EOPNOTSUPP	- hwpoison_filter'ed
  *	-EHWPOISON	- folio or exact page already poisoned
  *	-EFAULT		- kill_accessing_process finds current->mm null
  */
-static int try_memory_failure_hugetlb(unsigned long pfn, int flags, int *hugetlb)
+static int try_memory_failure_hugetlb(unsigned long pfn, int flags)
 {
 	int res, rv;
 	struct page *p = pfn_to_page(pfn);
@@ -2041,13 +2030,11 @@ static int try_memory_failure_hugetlb(unsigned long pfn, int flags, int *hugetlb
 	unsigned long page_flags;
 	bool migratable_cleared = false;
 
-	*hugetlb = 1;
 retry:
 	res = get_huge_page_for_hwpoison(pfn, flags, &migratable_cleared);
 	switch (res) {
 	case MF_HUGETLB_NON_HUGEPAGE:	/* fallback to normal page handling */
-		*hugetlb = 0;
-		return 0;
+		return -ENOENT;
 	case MF_HUGETLB_RETRY:
 		if (!(flags & MF_NO_RETRY)) {
 			flags |= MF_NO_RETRY;
@@ -2108,9 +2095,9 @@ retry:
 }
 
 #else
-static inline int try_memory_failure_hugetlb(unsigned long pfn, int flags, int *hugetlb)
+static inline int try_memory_failure_hugetlb(unsigned long pfn, int flags)
 {
-	return 0;
+	return -ENOENT;
 }
 
 static inline unsigned long folio_free_raw_hwp(struct folio *folio, bool flag)
@@ -2348,7 +2335,6 @@ int memory_failure(unsigned long pfn, int flags)
 	int res = 0;
 	unsigned long page_flags;
 	bool retry = true;
-	int hugetlb = 0;
 
 	if (!sysctl_memory_failure_recovery)
 		panic("Memory failure on page %lx", pfn);
@@ -2387,8 +2373,11 @@ int memory_failure(unsigned long pfn, int flags)
 	}
 
 try_again:
-	res = try_memory_failure_hugetlb(pfn, flags, &hugetlb);
-	if (hugetlb)
+	res = try_memory_failure_hugetlb(pfn, flags);
+	/*
+	 * -ENOENT means the page we found is not hugetlb, so proceed with normal page handling
+	 */
+	if (res != -ENOENT)
 		goto unlock_mutex;
 
 	if (TestSetPageHWPoison(p)) {

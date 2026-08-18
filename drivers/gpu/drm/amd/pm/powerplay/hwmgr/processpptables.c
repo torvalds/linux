@@ -1319,7 +1319,6 @@ static int init_clock_voltage_dependency(struct pp_hwmgr *hwmgr,
 	hwmgr->dyn_state.vddc_dependency_on_sclk = NULL;
 	hwmgr->dyn_state.vddci_dependency_on_mclk = NULL;
 	hwmgr->dyn_state.vddc_dependency_on_mclk = NULL;
-	hwmgr->dyn_state.vddc_dep_on_dal_pwrl = NULL;
 	hwmgr->dyn_state.mvdd_dependency_on_mclk = NULL;
 	hwmgr->dyn_state.vce_clock_voltage_dependency_table = NULL;
 	hwmgr->dyn_state.uvd_clock_voltage_dependency_table = NULL;

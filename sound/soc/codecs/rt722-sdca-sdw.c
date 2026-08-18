@@ -9,7 +9,6 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/pm_runtime.h>
 #include <linux/soundwire/sdw_registers.h>
 
@@ -19,7 +18,9 @@
 static int rt722_sdca_mbq_size(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
-	case 0x2f01 ... 0x2f0a:
+	case 0x22f0 ... 0x22f1:
+	case 0x2f01 ... 0x2f0c:
+	case 0x2f21 ... 0x2f24:
 	case 0x2f35 ... 0x2f36:
 	case 0x2f50 ... 0x2f52:
 	case 0x2f54:
@@ -84,6 +85,21 @@ static int rt722_sdca_mbq_size(struct device *dev, unsigned int reg)
 	case SDW_SDCA_CTL(FUNC_NUM_AMP, RT722_SDCA_ENT_CS31,
 			  RT722_SDCA_CTL_SAMPLE_FREQ_INDEX, 0):
 	case RT722_BUF_ADDR_HID1 ... RT722_BUF_ADDR_HID2:
+	case 0x44011000 ... 0x440115ff:
+	case 0x44012000:
+	case 0x44012021:
+	case 0x44012022:
+	case 0x44012025:
+	case 0x44021000 ... 0x440211ff:
+	case 0x44022000:
+	case 0x44022019:
+	case 0x4402201a:
+	case 0x4402201d:
+	case 0x44041000 ... 0x440415ff:
+	case 0x44042000:
+	case 0x44042019:
+	case 0x4404201a:
+	case 0x4404201d:
 		return 1;
 	case 0x2000000 ... 0x2000024:
 	case 0x2000029 ... 0x200004a:
@@ -95,8 +111,10 @@ static int rt722_sdca_mbq_size(struct device *dev, unsigned int reg)
 	case 0x200007f:
 	case 0x2000082 ... 0x200008e:
 	case 0x2000090 ... 0x2000094:
+	case 0x20000b1:
+	case 0x20000b4:
 	case 0x3110000:
-	case 0x5300000 ... 0x5300002:
+	case 0x5300000 ... 0x5300300:
 	case 0x5400002:
 	case 0x5600000 ... 0x5600007:
 	case 0x5700000 ... 0x5700004:
@@ -175,6 +193,7 @@ static bool rt722_sdca_volatile_register(struct device *dev, unsigned int reg)
 	case SDW_SDCA_CTL(FUNC_NUM_AMP, RT722_SDCA_ENT_PDE23, RT722_SDCA_CTL_ACTUAL_POWER_STATE, 0):
 	case RT722_BUF_ADDR_HID1 ... RT722_BUF_ADDR_HID2:
 	case 0x2000000:
+	case 0x2000007:
 	case 0x200000d:
 	case 0x2000019:
 	case 0x2000020:
@@ -186,6 +205,21 @@ static bool rt722_sdca_volatile_register(struct device *dev, unsigned int reg)
 	case 0x3110000:
 	case 0x5800003:
 	case 0x5810000:
+	case 0x44011000 ... 0x440115ff:
+	case 0x44012000:
+	case 0x44012021:
+	case 0x44012022:
+	case 0x44012025:
+	case 0x44021000 ... 0x440211ff:
+	case 0x44022000:
+	case 0x44022019:
+	case 0x4402201a:
+	case 0x4402201d:
+	case 0x44041000 ... 0x440415ff:
+	case 0x44042000:
+	case 0x44042019:
+	case 0x4404201a:
+	case 0x4404201d:
 		return true;
 	default:
 		return false;
@@ -501,7 +535,7 @@ static int rt722_sdca_dev_resume(struct device *dev)
 {
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
 	struct rt722_sdca_priv *rt722 = dev_get_drvdata(dev);
-	unsigned long time;
+	int ret;
 
 	if (!rt722->first_hw_init)
 		return 0;
@@ -514,20 +548,14 @@ static int rt722_sdca_dev_resume(struct device *dev)
 			rt722->disable_irq = false;
 		}
 		mutex_unlock(&rt722->disable_irq_lock);
-		goto regmap_sync;
 	}
 
-	time = wait_for_completion_timeout(&slave->initialization_complete,
-				msecs_to_jiffies(RT722_PROBE_TIMEOUT));
-	if (!time) {
-		dev_err(&slave->dev, "Initialization not complete, timed out\n");
+	ret = sdw_slave_wait_for_init(slave, RT722_PROBE_TIMEOUT);
+	if (ret) {
 		sdw_show_ping_status(slave->bus, true);
-
-		return -ETIMEDOUT;
+		return ret;
 	}
 
-regmap_sync:
-	slave->unattach_request = 0;
 	regcache_cache_only(rt722->regmap, false);
 	regcache_sync(rt722->regmap);
 	return 0;

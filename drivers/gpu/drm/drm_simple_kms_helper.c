@@ -53,7 +53,7 @@ drm_simple_kms_crtc_mode_valid(struct drm_crtc *crtc,
 }
 
 static int drm_simple_kms_crtc_check(struct drm_crtc *crtc,
-				     struct drm_atomic_state *state)
+				     struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 	int ret;
@@ -70,7 +70,7 @@ out:
 }
 
 static void drm_simple_kms_crtc_enable(struct drm_crtc *crtc,
-				       struct drm_atomic_state *state)
+				       struct drm_atomic_commit *state)
 {
 	struct drm_plane *plane;
 	struct drm_simple_display_pipe *pipe;
@@ -84,7 +84,7 @@ static void drm_simple_kms_crtc_enable(struct drm_crtc *crtc,
 }
 
 static void drm_simple_kms_crtc_disable(struct drm_crtc *crtc,
-					struct drm_atomic_state *state)
+					struct drm_atomic_commit *state)
 {
 	struct drm_simple_display_pipe *pipe;
 
@@ -169,7 +169,7 @@ static const struct drm_crtc_funcs drm_simple_kms_crtc_funcs = {
 };
 
 static int drm_simple_kms_plane_atomic_check(struct drm_plane *plane,
-					struct drm_atomic_state *state)
+					struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state,
 									     plane);
@@ -198,7 +198,7 @@ static int drm_simple_kms_plane_atomic_check(struct drm_plane *plane,
 }
 
 static void drm_simple_kms_plane_atomic_update(struct drm_plane *plane,
-					struct drm_atomic_state *state)
+					struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *old_pstate = drm_atomic_get_old_plane_state(state,
 									    plane);

@@ -526,4 +526,5 @@ static void __exit chipsfb_exit(void)
 	pci_unregister_driver(&chipsfb_driver);
 }
 
+MODULE_DESCRIPTION("Chips & Technologies 65550 frame buffer driver");
 MODULE_LICENSE("GPL");

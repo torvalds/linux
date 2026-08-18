@@ -2355,7 +2355,7 @@ void rtl8821ae_card_disable(struct ieee80211_hw *hw)
 			rtl8821ae_set_fw_disconnect_decision_ctrl_cmd(hw, true);
 		}
 
-		/* 3 <3> Hw Configutations */
+		/* 3 <3> Hw Configurations */
 
 		/* Wait until Rx DMA Finished before host sleep.
 		 * FW Pause Rx DMA may happen when received packet doing DMA.
@@ -3257,9 +3257,9 @@ static void rtl8821ae_update_hal_rate_table(struct ieee80211_hw *hw,
 	u32 ratr_value;
 	u8 ratr_index = 0;
 	u8 b_nmode = mac->ht_enable;
-	u8 mimo_ps = IEEE80211_SMPS_OFF;
 	u16 shortgi_rate;
 	u32 tmp_ratr_value;
+	u32 ratr_mask;
 	u8 curtxbw_40mhz = mac->bw_40;
 	u8 b_curshortgi_40mhz = (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SGI_40) ?
 				1 : 0;
@@ -3288,19 +3288,14 @@ static void rtl8821ae_update_hal_rate_table(struct ieee80211_hw *hw,
 	case WIRELESS_MODE_N_24G:
 	case WIRELESS_MODE_N_5G:
 		b_nmode = 1;
-		if (mimo_ps == IEEE80211_SMPS_STATIC) {
-			ratr_value &= 0x0007F005;
-		} else {
-			u32 ratr_mask;
 
-			if (get_rf_type(rtlphy) == RF_1T2R ||
-			    get_rf_type(rtlphy) == RF_1T1R)
-				ratr_mask = 0x000ff005;
-			else
-				ratr_mask = 0x0f0ff005;
+		if (get_rf_type(rtlphy) == RF_1T2R ||
+		    get_rf_type(rtlphy) == RF_1T1R)
+			ratr_mask = 0x000ff005;
+		else
+			ratr_mask = 0x0f0ff005;
 
-			ratr_value &= ratr_mask;
-		}
+		ratr_value &= ratr_mask;
 		break;
 	default:
 		if (rtlphy->rf_type == RF_1T2R)

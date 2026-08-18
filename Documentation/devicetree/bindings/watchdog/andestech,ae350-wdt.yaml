@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/watchdog/andestech,ae350-wdt.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Andes ATCWDT200 Watchdog Timer
+
+maintainers:
+  - CL Wang <cl634@andestech.com>
+
+allOf:
+  - $ref: watchdog.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - andestech,qilai-wdt
+          - const: andestech,ae350-wdt
+      - const: andestech,ae350-wdt
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  andestech,clock-source:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1]
+    description: |
+      Select the clock source for the watchdog timer.
+      0 - External clock
+      1 - P clock
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - andestech,clock-source
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    watchdog@f0500000 {
+        compatible = "andestech,ae350-wdt";
+        reg = <0xf0500000 0x20>;
+        clocks = <&clk_wdt>;
+        andestech,clock-source = <0>;
+    };

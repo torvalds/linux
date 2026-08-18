@@ -22,13 +22,13 @@ static int ksz9477_i2c_probe(struct i2c_client *i2c)
 	struct ksz_device *dev;
 	int i, ret;
 
-	dev = ksz_switch_alloc(&i2c->dev, i2c);
-	if (!dev)
-		return -ENOMEM;
-
 	chip = device_get_match_data(ddev);
 	if (!chip)
 		return -EINVAL;
+
+	dev = ksz_switch_alloc(&i2c->dev, chip, i2c);
+	if (!dev)
+		return -ENOMEM;
 
 	/* Save chip id to do special initialization when probing. */
 	dev->chip_id = chip->chip_id;
@@ -80,8 +80,8 @@ static void ksz9477_i2c_shutdown(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id ksz9477_i2c_id[] = {
-	{ "ksz9477-switch" },
-	{}
+	{ .name = "ksz9477-switch" },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, ksz9477_i2c_id);

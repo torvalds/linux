@@ -370,6 +370,7 @@ int mali_c55_register_tpg(struct mali_c55 *mali_c55)
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
 	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	sd->internal_ops = &mali_c55_tpg_internal_ops;
+	sd->dev = mali_c55->dev;
 	strscpy(sd->name, MALI_C55_DRIVER_NAME " tpg", sizeof(sd->name));
 
 	pad->flags = MEDIA_PAD_FL_SOURCE;

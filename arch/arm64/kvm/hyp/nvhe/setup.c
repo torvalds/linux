@@ -82,9 +82,9 @@ static int pkvm_create_host_sve_mappings(void)
 
 	for (i = 0; i < hyp_nr_cpus; i++) {
 		struct kvm_host_data *host_data = per_cpu_ptr(&kvm_host_data, i);
-		struct cpu_sve_state *sve_state = host_data->sve_state;
+		struct arm64_sve_state *sve_regs = host_data->sve_regs;
 
-		start = kern_hyp_va(sve_state);
+		start = kern_hyp_va(sve_regs);
 		end = start + PAGE_ALIGN(pkvm_host_sve_state_size());
 		ret = pkvm_create_mappings(start, end, PAGE_HYP);
 		if (ret)

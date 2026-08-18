@@ -1027,8 +1027,8 @@ static void test_btf_dump_datasec_data(char *str)
 	char license[4] = "GPL";
 	struct btf_dump *d;
 
-	btf = btf__parse("xdping_kern.bpf.o", NULL);
-	if (!ASSERT_OK_PTR(btf, "xdping_kern.bpf.o BTF not found"))
+	btf = btf__parse("xdp_dummy.bpf.o", NULL);
+	if (!ASSERT_OK_PTR(btf, "xdp_dummy.bpf.o BTF not found"))
 		return;
 
 	d = btf_dump__new(btf, btf_dump_snprintf, str, NULL);

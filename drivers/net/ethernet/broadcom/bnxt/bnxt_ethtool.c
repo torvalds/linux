@@ -606,6 +606,7 @@ static void bnxt_get_ethtool_stats(struct net_device *dev,
 		goto skip_ring_stats;
 	}
 
+	bnxt_sync_ring_stats(bp);
 	tpa_stats = bnxt_get_num_tpa_ring_stats(bp);
 	for (i = 0; i < bp->cp_nr_rings; i++) {
 		struct bnxt_napi *bnapi = bp->bnapi[i];
@@ -4594,7 +4595,7 @@ static int bnxt_set_tunable(struct net_device *dev,
 	switch (tuna->id) {
 	case ETHTOOL_RX_COPYBREAK:
 		rx_copybreak = *(u32 *)data;
-		if (rx_copybreak > BNXT_MAX_RX_COPYBREAK)
+		if (rx_copybreak > BNXT_MAX_RX_HDR_BUF)
 			return -ERANGE;
 		if (rx_copybreak != bp->rx_copybreak) {
 			if (netif_running(dev))
@@ -5172,7 +5173,7 @@ static int bnxt_run_loopback(struct bnxt *bp)
 	cpr = &rxr->bnapi->cp_ring;
 	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS)
 		cpr = rxr->rx_cpr;
-	pkt_size = min(bp->dev->mtu + ETH_HLEN, max(BNXT_DEFAULT_RX_COPYBREAK,
+	pkt_size = min(bp->dev->mtu + ETH_HLEN, max(BNXT_MIN_RX_HDR_BUF,
 						    bp->rx_copybreak));
 	skb = netdev_alloc_skb(bp->dev, pkt_size);
 	if (!skb)
@@ -5729,6 +5730,10 @@ const struct ethtool_ops bnxt_ethtool_ops = {
 	.rxfh_max_num_contexts		= BNXT_MAX_ETH_RSS_CTX + 1,
 	.rxfh_indir_space		= BNXT_MAX_RSS_TABLE_ENTRIES_P5,
 	.rxfh_priv_size			= sizeof(struct bnxt_rss_ctx),
+	.op_needs_rtnl			= ETHTOOL_OP_NEEDS_RTNL_SCHANNELS |
+					  ETHTOOL_OP_NEEDS_RTNL_SRINGPARAM |
+					  ETHTOOL_OP_NEEDS_RTNL_SCOALESCE |
+					  ETHTOOL_OP_NEEDS_RTNL_RSS,
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_MAX_FRAMES |
 				     ETHTOOL_COALESCE_USECS_IRQ |

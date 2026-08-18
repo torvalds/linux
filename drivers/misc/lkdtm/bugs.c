@@ -7,6 +7,7 @@
  */
 #include "lkdtm.h"
 #include <linux/cpu.h>
+#include <linux/efi.h>
 #include <linux/list.h>
 #include <linux/hrtimer.h>
 #include <linux/sched.h>
@@ -817,6 +818,29 @@ static noinline void lkdtm_CORRUPT_PAC(void)
 #endif
 }
 
+static void __maybe_unused lkdtm_EFI_RUNTIME_CRASH(void)
+{
+	static unsigned long size __ro_after_init = sizeof(efi_char16_t);
+	efi_status_t status;
+
+	if (!efi.get_next_variable ||
+	    !efi_enabled(EFI_RUNTIME_SERVICES) ||
+	    !efi_rt_services_supported(EFI_RT_SUPPORTED_GET_NEXT_VARIABLE_NAME)) {
+		pr_err("FAIL: EFI GetNextVariableName() is not available\n");
+		return;
+	}
+
+	/*
+	 * Provoke a fault by asking the firmware to write to a read-only
+	 * variable.
+	 */
+	status = efi.get_next_variable(&size, L"", &(efi_guid_t){});
+
+	if (status != EFI_ABORTED || efi_enabled(EFI_RUNTIME_SERVICES))
+		pr_err("FAIL: EFI GetNextVariable() did not abort (%#lx)\n",
+		       status);
+}
+
 static struct crashtype crashtypes[] = {
 	CRASHTYPE(PANIC),
 	CRASHTYPE(PANIC_STOP_IRQOFF),
@@ -850,6 +874,9 @@ static struct crashtype crashtypes[] = {
 	CRASHTYPE(UNSET_SMEP),
 	CRASHTYPE(DOUBLE_FAULT),
 	CRASHTYPE(CORRUPT_PAC),
+#ifdef CONFIG_EFI
+	CRASHTYPE(EFI_RUNTIME_CRASH),
+#endif
 };
 
 struct crashtype_category bugs_crashtypes = {

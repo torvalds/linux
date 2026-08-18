@@ -57,12 +57,50 @@
 #define regRCC_STRAP0_RCC_DEV0_EPF0_STRAP0_nbif_4_10                                                              0x0021
 #define regRCC_STRAP0_RCC_DEV0_EPF0_STRAP0_nbif_4_10_BASE_IDX                                                     2
 
+#define regBIF_BX_PF0_DOORBELL_SELFRING_GPA_APER_BASE_HIGH_nbio_7_11_5                                      0x8e13
+#define regBIF_BX_PF0_DOORBELL_SELFRING_GPA_APER_BASE_HIGH_nbio_7_11_5_BASE_IDX                             5
+#define regBIF_BX_PF0_DOORBELL_SELFRING_GPA_APER_BASE_LOW_nbio_7_11_5                                       0x8e14
+#define regBIF_BX_PF0_DOORBELL_SELFRING_GPA_APER_BASE_LOW_nbio_7_11_5_BASE_IDX                              5
+#define regBIF_BX_PF0_DOORBELL_SELFRING_GPA_APER_CNTL_nbio_7_11_5                                           0x8e15
+#define regBIF_BX_PF0_DOORBELL_SELFRING_GPA_APER_CNTL_nbio_7_11_5_BASE_IDX                                  5
+
+#define regBIF_BX0_REMAP_HDP_MEM_FLUSH_CNTL_nbio_7_11_5                                                     0x8e4d
+#define regBIF_BX0_REMAP_HDP_MEM_FLUSH_CNTL_nbio_7_11_5_BASE_IDX                                            5
+#define regBIF_BX0_REMAP_HDP_REG_FLUSH_CNTL_nbio_7_11_5                                                     0x8e4e
+#define regBIF_BX0_REMAP_HDP_REG_FLUSH_CNTL_nbio_7_11_5_BASE_IDX                                            5
+
+#define regRCC_STRAP0_RCC_DEV0_EPF0_STRAP0_nbio_7_11_5                                                      0xd000
+#define regRCC_STRAP0_RCC_DEV0_EPF0_STRAP0_nbio_7_11_5_BASE_IDX                                             5
+
+#define regBIF_BX0_BIF_FB_EN_nbio_7_11_5                                                                    0x8e20
+#define regBIF_BX0_BIF_FB_EN_nbio_7_11_5_BASE_IDX                                                           5
+
+#define regBIF_BX0_INTERRUPT_CNTL_nbio_7_11_5                                                               0x8e11
+#define regBIF_BX0_INTERRUPT_CNTL_nbio_7_11_5_BASE_IDX                                                      5
+#define regBIF_BX0_INTERRUPT_CNTL2_nbio_7_11_5                                                              0x8e12
+#define regBIF_BX0_INTERRUPT_CNTL2_nbio_7_11_5_BASE_IDX                                                     5
+
+#define regBIF_BX_PF0_GPU_HDP_FLUSH_REQ_nbio_7_11_5                                                         0x8e26
+#define regBIF_BX_PF0_GPU_HDP_FLUSH_REQ_nbio_7_11_5_BASE_IDX                                                5
+#define regBIF_BX_PF0_GPU_HDP_FLUSH_DONE_nbio_7_11_5                                                        0x8e27
+#define regBIF_BX_PF0_GPU_HDP_FLUSH_DONE_nbio_7_11_5_BASE_IDX                                               5
+
+#define regBIF_BX_PF0_HDP_MEM_COHERENCY_FLUSH_CNTL_nbio_7_11_5                                              0x8e17
+#define regBIF_BX_PF0_HDP_MEM_COHERENCY_FLUSH_CNTL_nbio_7_11_5_BASE_IDX                                     5
+
 static void nbif_v6_3_1_remap_hdp_registers(struct amdgpu_device *adev)
 {
-	WREG32_SOC15(NBIO, 0, regBIF_BX0_REMAP_HDP_MEM_FLUSH_CNTL,
-		adev->rmmio_remap.reg_offset + KFD_MMIO_REMAP_HDP_MEM_FLUSH_CNTL);
-	WREG32_SOC15(NBIO, 0, regBIF_BX0_REMAP_HDP_REG_FLUSH_CNTL,
-		adev->rmmio_remap.reg_offset + KFD_MMIO_REMAP_HDP_REG_FLUSH_CNTL);
+	if (amdgpu_ip_version(adev, NBIO_HWIP, 0) == IP_VERSION(7, 11, 5)) {
+		WREG32_SOC15(NBIO, 0, regBIF_BX0_REMAP_HDP_MEM_FLUSH_CNTL_nbio_7_11_5,
+			adev->rmmio_remap.reg_offset + KFD_MMIO_REMAP_HDP_MEM_FLUSH_CNTL);
+		WREG32_SOC15(NBIO, 0, regBIF_BX0_REMAP_HDP_REG_FLUSH_CNTL_nbio_7_11_5,
+			adev->rmmio_remap.reg_offset + KFD_MMIO_REMAP_HDP_REG_FLUSH_CNTL);
+	} else {
+		WREG32_SOC15(NBIO, 0, regBIF_BX0_REMAP_HDP_MEM_FLUSH_CNTL,
+			adev->rmmio_remap.reg_offset + KFD_MMIO_REMAP_HDP_MEM_FLUSH_CNTL);
+		WREG32_SOC15(NBIO, 0, regBIF_BX0_REMAP_HDP_REG_FLUSH_CNTL,
+			adev->rmmio_remap.reg_offset + KFD_MMIO_REMAP_HDP_REG_FLUSH_CNTL);
+	}
 }
 
 static u32 nbif_v6_3_1_get_rev_id(struct amdgpu_device *adev)
@@ -71,6 +109,8 @@ static u32 nbif_v6_3_1_get_rev_id(struct amdgpu_device *adev)
 
 	if (amdgpu_ip_version(adev, NBIO_HWIP, 0) == IP_VERSION(7, 11, 4))
 		tmp = RREG32_SOC15(NBIO, 0, regRCC_STRAP0_RCC_DEV0_EPF0_STRAP0_nbif_4_10);
+	else if (amdgpu_ip_version(adev, NBIO_HWIP, 0) == IP_VERSION(7, 11, 5))
+		tmp = RREG32_SOC15(NBIO, 0, regRCC_STRAP0_RCC_DEV0_EPF0_STRAP0_nbio_7_11_5);
 	else
 		tmp = RREG32_SOC15(NBIO, 0, regRCC_STRAP0_RCC_DEV0_EPF0_STRAP0);
 
@@ -82,12 +122,21 @@ static u32 nbif_v6_3_1_get_rev_id(struct amdgpu_device *adev)
 
 static void nbif_v6_3_1_mc_access_enable(struct amdgpu_device *adev, bool enable)
 {
-	if (enable)
-		WREG32_SOC15(NBIO, 0, regBIF_BX0_BIF_FB_EN,
-			     BIF_BX0_BIF_FB_EN__FB_READ_EN_MASK |
-			     BIF_BX0_BIF_FB_EN__FB_WRITE_EN_MASK);
-	else
-		WREG32_SOC15(NBIO, 0, regBIF_BX0_BIF_FB_EN, 0);
+	if (amdgpu_ip_version(adev, NBIO_HWIP, 0) == IP_VERSION(7, 11, 5)) {
+		if (enable)
+			WREG32_SOC15(NBIO, 0, regBIF_BX0_BIF_FB_EN_nbio_7_11_5,
+				     BIF_BX0_BIF_FB_EN__FB_READ_EN_MASK |
+				     BIF_BX0_BIF_FB_EN__FB_WRITE_EN_MASK);
+		else
+			WREG32_SOC15(NBIO, 0, regBIF_BX0_BIF_FB_EN_nbio_7_11_5, 0);
+	} else {
+		if (enable)
+			WREG32_SOC15(NBIO, 0, regBIF_BX0_BIF_FB_EN,
+				     BIF_BX0_BIF_FB_EN__FB_READ_EN_MASK |
+				     BIF_BX0_BIF_FB_EN__FB_WRITE_EN_MASK);
+		else
+			WREG32_SOC15(NBIO, 0, regBIF_BX0_BIF_FB_EN, 0);
+	}
 }
 
 static u32 nbif_v6_3_1_get_memsize(struct amdgpu_device *adev)
@@ -100,8 +149,14 @@ static void nbif_v6_3_1_sdma_doorbell_range(struct amdgpu_device *adev,
 					    int doorbell_index,
 					    int doorbell_size)
 {
+	u32 doorbell_range;
 	if (instance == 0) {
-		u32 doorbell_range = RREG32_SOC15(NBIO, 0, regGDC_S2A0_S2A_DOORBELL_ENTRY_2_CTRL);
+		if (amdgpu_ip_version(adev, NBIO_HWIP, 0) >= IP_VERSION(7, 11, 4))
+			doorbell_range = RREG32_SOC15(NBIO, 0,
+					regGDC_S2A0_S2A_DOORBELL_ENTRY_2_CTRL_nbif_4_10);
+		else
+			doorbell_range = RREG32_SOC15(NBIO, 0,
+					regGDC_S2A0_S2A_DOORBELL_ENTRY_2_CTRL);
 
 		if (use_doorbell) {
 			doorbell_range = REG_SET_FIELD(doorbell_range,
@@ -130,11 +185,10 @@ static void nbif_v6_3_1_sdma_doorbell_range(struct amdgpu_device *adev,
 						       S2A_DOORBELL_PORT2_RANGE_SIZE,
 						       0);
 
-		if (amdgpu_ip_version(adev, NBIO_HWIP, 0) == IP_VERSION(7, 11, 4)) {
+		if (amdgpu_ip_version(adev, NBIO_HWIP, 0) >= IP_VERSION(7, 11, 4))
 			WREG32_SOC15(NBIO, 0, regGDC_S2A0_S2A_DOORBELL_ENTRY_2_CTRL_nbif_4_10, doorbell_range);
-		} else {
+		else
 			WREG32_SOC15(NBIO, 0, regGDC_S2A0_S2A_DOORBELL_ENTRY_2_CTRL, doorbell_range);
-		}
 	}
 }
 
@@ -144,10 +198,13 @@ static void nbif_v6_3_1_vcn_doorbell_range(struct amdgpu_device *adev,
 {
 	u32 doorbell_range;
 
-	if (instance)
+	if (instance) {
+		if (amdgpu_ip_version(adev, NBIO_HWIP, 0) == IP_VERSION(7, 11, 4))
+			return;
 		doorbell_range = RREG32_SOC15(NBIO, 0, regGDC_S2A0_S2A_DOORBELL_ENTRY_5_CTRL);
-	else
+	} else {
 		doorbell_range = RREG32_SOC15(NBIO, 0, regGDC_S2A0_S2A_DOORBELL_ENTRY_4_CTRL);
+	}
 
 	if (use_doorbell) {
 		doorbell_range = REG_SET_FIELD(doorbell_range,
@@ -176,22 +233,67 @@ static void nbif_v6_3_1_vcn_doorbell_range(struct amdgpu_device *adev,
 					       S2A_DOORBELL_PORT4_RANGE_SIZE,
 					       0);
 
-	if (amdgpu_ip_version(adev, NBIO_HWIP, 0) == IP_VERSION(7, 11, 4)) {
-		if (instance)
-			WREG32_SOC15(NBIO, 0, regGDC_S2A0_S2A_DOORBELL_ENTRY_5_CTRL_nbif_4_10, doorbell_range);
-		else
-			WREG32_SOC15(NBIO, 0, regGDC_S2A0_S2A_DOORBELL_ENTRY_4_CTRL_nbif_4_10, doorbell_range);
-	} else {
+	if (amdgpu_ip_version(adev, NBIO_HWIP, 0) >= IP_VERSION(7, 11, 4))
+		WREG32_SOC15(NBIO, 0,
+				regGDC_S2A0_S2A_DOORBELL_ENTRY_4_CTRL_nbif_4_10,
+				doorbell_range);
+	else
 		if (instance)
 			WREG32_SOC15(NBIO, 0, regGDC_S2A0_S2A_DOORBELL_ENTRY_5_CTRL, doorbell_range);
 		else
 			WREG32_SOC15(NBIO, 0, regGDC_S2A0_S2A_DOORBELL_ENTRY_4_CTRL, doorbell_range);
+}
+
+static void nbif_v6_3_1_vpe_doorbell_range(struct amdgpu_device *adev,
+							int instance, bool use_doorbell,
+							int doorbell_index,
+							int doorbell_size)
+{
+	if (instance)
+		return;
+
+	u32 doorbell_range = RREG32_SOC15(NBIO, 0, regGDC_S2A0_S2A_DOORBELL_ENTRY_5_CTRL);
+
+	if (use_doorbell) {
+		doorbell_range = REG_SET_FIELD(doorbell_range,
+					       GDC_S2A0_S2A_DOORBELL_ENTRY_5_CTRL,
+					       S2A_DOORBELL_PORT5_ENABLE,
+					       0x1);
+		doorbell_range = REG_SET_FIELD(doorbell_range,
+					       GDC_S2A0_S2A_DOORBELL_ENTRY_5_CTRL,
+					       S2A_DOORBELL_PORT5_AWID,
+					       0xf);
+		doorbell_range = REG_SET_FIELD(doorbell_range,
+					       GDC_S2A0_S2A_DOORBELL_ENTRY_5_CTRL,
+					       S2A_DOORBELL_PORT5_RANGE_OFFSET,
+					       doorbell_index);
+		doorbell_range = REG_SET_FIELD(doorbell_range,
+					       GDC_S2A0_S2A_DOORBELL_ENTRY_5_CTRL,
+					       S2A_DOORBELL_PORT5_RANGE_SIZE,
+					       doorbell_size);
+		doorbell_range = REG_SET_FIELD(doorbell_range,
+					       GDC_S2A0_S2A_DOORBELL_ENTRY_5_CTRL,
+					       S2A_DOORBELL_PORT5_AWADDR_31_28_VALUE,
+					       0xf);
+	} else {
+		doorbell_range = REG_SET_FIELD(doorbell_range,
+					       GDC_S2A0_S2A_DOORBELL_ENTRY_5_CTRL,
+					       S2A_DOORBELL_PORT5_RANGE_SIZE,
+					       0);
 	}
+
+	if (amdgpu_ip_version(adev, NBIO_HWIP, 0) == IP_VERSION(7, 11, 4) ||
+		amdgpu_ip_version(adev, NBIO_HWIP, 0) == IP_VERSION(7, 11, 5)) {
+		WREG32_SOC15(NBIO, 0, regGDC_S2A0_S2A_DOORBELL_ENTRY_5_CTRL_nbif_4_10, doorbell_range);
+	} else {
+		WREG32_SOC15(NBIO, 0, regGDC_S2A0_S2A_DOORBELL_ENTRY_5_CTRL, doorbell_range);
+	}
+
 }
 
 static void nbif_v6_3_1_gc_doorbell_init(struct amdgpu_device *adev)
 {
-	if (amdgpu_ip_version(adev, NBIO_HWIP, 0) == IP_VERSION(7, 11, 4)) {
+	if (amdgpu_ip_version(adev, NBIO_HWIP, 0) >= IP_VERSION(7, 11, 4)) {
 		WREG32_SOC15(NBIO, 0, regGDC_S2A0_S2A_DOORBELL_ENTRY_0_CTRL_nbif_4_10, 0x30000007);
 		WREG32_SOC15(NBIO, 0, regGDC_S2A0_S2A_DOORBELL_ENTRY_3_CTRL_nbif_4_10, 0x3000000d);
 	} else {
@@ -233,7 +335,13 @@ nbif_v6_3_1_enable_doorbell_selfring_aperture(struct amdgpu_device *adev,
 static void nbif_v6_3_1_ih_doorbell_range(struct amdgpu_device *adev,
 					  bool use_doorbell, int doorbell_index)
 {
-	u32 ih_doorbell_range = RREG32_SOC15(NBIO, 0, regGDC_S2A0_S2A_DOORBELL_ENTRY_1_CTRL);
+	u32 ih_doorbell_range;
+
+	if (amdgpu_ip_version(adev, NBIO_HWIP, 0) >= IP_VERSION(7, 11, 4))
+		ih_doorbell_range = RREG32_SOC15(NBIO, 0,
+				regGDC_S2A0_S2A_DOORBELL_ENTRY_1_CTRL_nbif_4_10);
+	else
+		ih_doorbell_range = RREG32_SOC15(NBIO, 0, regGDC_S2A0_S2A_DOORBELL_ENTRY_1_CTRL);
 
 	if (use_doorbell) {
 		ih_doorbell_range = REG_SET_FIELD(ih_doorbell_range,
@@ -262,11 +370,11 @@ static void nbif_v6_3_1_ih_doorbell_range(struct amdgpu_device *adev,
 						  S2A_DOORBELL_PORT1_RANGE_SIZE,
 						  0);
 
-	if (amdgpu_ip_version(adev, NBIO_HWIP, 0) == IP_VERSION(7, 11, 4)) {
-		WREG32_SOC15(NBIO, 0, regGDC_S2A0_S2A_DOORBELL_ENTRY_1_CTRL_nbif_4_10, ih_doorbell_range);
-	} else {
+	if (amdgpu_ip_version(adev, NBIO_HWIP, 0) >= IP_VERSION(7, 11, 4))
+		WREG32_SOC15(NBIO, 0, regGDC_S2A0_S2A_DOORBELL_ENTRY_1_CTRL_nbif_4_10,
+				ih_doorbell_range);
+	else
 		WREG32_SOC15(NBIO, 0, regGDC_S2A0_S2A_DOORBELL_ENTRY_1_CTRL, ih_doorbell_range);
-	}
 }
 
 static void nbif_v6_3_1_ih_control(struct amdgpu_device *adev)
@@ -274,9 +382,13 @@ static void nbif_v6_3_1_ih_control(struct amdgpu_device *adev)
 	u32 interrupt_cntl;
 
 	/* setup interrupt control */
-	WREG32_SOC15(NBIO, 0, regBIF_BX0_INTERRUPT_CNTL2, adev->dummy_page_addr >> 8);
+	if (amdgpu_ip_version(adev, NBIO_HWIP, 0) == IP_VERSION(7, 11, 5))
+		WREG32_SOC15(NBIO, 0, regBIF_BX0_INTERRUPT_CNTL2_nbio_7_11_5,
+				adev->dummy_page_addr >> 8);
+	else
+		WREG32_SOC15(NBIO, 0, regBIF_BX0_INTERRUPT_CNTL2, adev->dummy_page_addr >> 8);
 
-	interrupt_cntl = RREG32_SOC15(NBIO, 0, regBIF_BX0_INTERRUPT_CNTL);
+	interrupt_cntl = RREG32_SOC15(NBIO, 0, regBIF_BX0_INTERRUPT_CNTL_nbio_7_11_5);
 	/*
 	 * BIF_BX0_INTERRUPT_CNTL__IH_DUMMY_RD_OVERRIDE_MASK=0 - dummy read disabled with msi, enabled without msi
 	 * BIF_BX0_INTERRUPT_CNTL__IH_DUMMY_RD_OVERRIDE_MASK=1 - dummy read controlled by IH_DUMMY_RD_EN
@@ -288,7 +400,10 @@ static void nbif_v6_3_1_ih_control(struct amdgpu_device *adev)
 	interrupt_cntl = REG_SET_FIELD(interrupt_cntl, BIF_BX0_INTERRUPT_CNTL,
 				       IH_REQ_NONSNOOP_EN, 0);
 
-	WREG32_SOC15(NBIO, 0, regBIF_BX0_INTERRUPT_CNTL, interrupt_cntl);
+	if (amdgpu_ip_version(adev, NBIO_HWIP, 0) == IP_VERSION(7, 11, 5))
+		WREG32_SOC15(NBIO, 0, regBIF_BX0_INTERRUPT_CNTL_nbio_7_11_5, interrupt_cntl);
+	else
+		WREG32_SOC15(NBIO, 0, regBIF_BX0_INTERRUPT_CNTL, interrupt_cntl);
 }
 
 static void
@@ -311,27 +426,31 @@ nbif_v6_3_1_get_clockgating_state(struct amdgpu_device *adev,
 
 static u32 nbif_v6_3_1_get_hdp_flush_req_offset(struct amdgpu_device *adev)
 {
-	return SOC15_REG_OFFSET(NBIO, 0, regBIF_BX_PF0_GPU_HDP_FLUSH_REQ);
+	if (amdgpu_ip_version(adev, NBIO_HWIP, 0) == IP_VERSION(7, 11, 5))
+		return SOC15_REG_OFFSET(NBIO, 0, regBIF_BX_PF0_GPU_HDP_FLUSH_REQ_nbio_7_11_5);
+	else
+		return SOC15_REG_OFFSET(NBIO, 0, regBIF_BX_PF0_GPU_HDP_FLUSH_REQ);
 }
 
 static u32 nbif_v6_3_1_get_hdp_flush_done_offset(struct amdgpu_device *adev)
 {
-	return SOC15_REG_OFFSET(NBIO, 0, regBIF_BX_PF0_GPU_HDP_FLUSH_DONE);
+	if (amdgpu_ip_version(adev, NBIO_HWIP, 0) == IP_VERSION(7, 11, 5))
+		return SOC15_REG_OFFSET(NBIO, 0, regBIF_BX_PF0_GPU_HDP_FLUSH_DONE_nbio_7_11_5);
+	else
+		return SOC15_REG_OFFSET(NBIO, 0, regBIF_BX_PF0_GPU_HDP_FLUSH_DONE);
 }
 
 static u32 nbif_v6_3_1_get_pcie_index_offset(struct amdgpu_device *adev)
 {
-	if (amdgpu_ip_version(adev, NBIO_HWIP, 0) == IP_VERSION(7, 11, 4)) {
+	if (amdgpu_ip_version(adev, NBIO_HWIP, 0) >= IP_VERSION(7, 11, 4))
 		return SOC15_REG_OFFSET(NBIO, 0, regBIF_BX0_PCIE_INDEX);
-	}
-	else {
+	else
 		return SOC15_REG_OFFSET(NBIO, 0, regBIF_BX_PF0_RSMU_INDEX);
-	}
 }
 
 static u32 nbif_v6_3_1_get_pcie_data_offset(struct amdgpu_device *adev)
 {
-	if (amdgpu_ip_version(adev, NBIO_HWIP, 0) == IP_VERSION(7, 11, 4))
+	if (amdgpu_ip_version(adev, NBIO_HWIP, 0) >= IP_VERSION(7, 11, 4))
 		return SOC15_REG_OFFSET(NBIO, 0, regBIF_BX0_PCIE_DATA);
 	else
 		return SOC15_REG_OFFSET(NBIO, 0, regBIF_BX_PF0_RSMU_DATA);
@@ -501,8 +620,12 @@ static void nbif_v6_3_1_set_reg_remap(struct amdgpu_device *adev)
 		adev->rmmio_remap.reg_offset = MMIO_REG_HOLE_OFFSET;
 		adev->rmmio_remap.bus_addr = adev->rmmio_base + MMIO_REG_HOLE_OFFSET;
 	} else {
-		adev->rmmio_remap.reg_offset = SOC15_REG_OFFSET(NBIO, 0,
-			regBIF_BX_PF0_HDP_MEM_COHERENCY_FLUSH_CNTL) << 2;
+		if (amdgpu_ip_version(adev, NBIO_HWIP, 0) == IP_VERSION(7, 11, 5))
+			adev->rmmio_remap.reg_offset = SOC15_REG_OFFSET(NBIO, 0,
+				regBIF_BX_PF0_HDP_MEM_COHERENCY_FLUSH_CNTL_nbio_7_11_5) << 2;
+		else
+			adev->rmmio_remap.reg_offset = SOC15_REG_OFFSET(NBIO, 0,
+				regBIF_BX_PF0_HDP_MEM_COHERENCY_FLUSH_CNTL) << 2;
 		adev->rmmio_remap.bus_addr = 0;
 	}
 }
@@ -517,6 +640,7 @@ const struct amdgpu_nbio_funcs nbif_v6_3_1_funcs = {
 	.get_memsize = nbif_v6_3_1_get_memsize,
 	.sdma_doorbell_range = nbif_v6_3_1_sdma_doorbell_range,
 	.vcn_doorbell_range = nbif_v6_3_1_vcn_doorbell_range,
+	.vpe_doorbell_range = nbif_v6_3_1_vpe_doorbell_range,
 	.gc_doorbell_init = nbif_v6_3_1_gc_doorbell_init,
 	.enable_doorbell_aperture = nbif_v6_3_1_enable_doorbell_aperture,
 	.enable_doorbell_selfring_aperture = nbif_v6_3_1_enable_doorbell_selfring_aperture,

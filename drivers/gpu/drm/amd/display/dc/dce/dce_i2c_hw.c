@@ -120,7 +120,7 @@ static void process_channel_reply(
 		uint32_t i2c_data;
 
 		REG_GET(DC_I2C_DATA, DC_I2C_DATA, &i2c_data);
-		*buffer++ = i2c_data;
+		*buffer++ = (uint8_t)i2c_data;
 
 		--length;
 	}

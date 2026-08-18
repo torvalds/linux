@@ -83,7 +83,7 @@ enum {
 #define EEPROM_MAGIC 0x38E2F10C
 
 #define CH_DEVICE(devid, idx) \
-	{ PCI_VENDOR_ID_CHELSIO, devid, PCI_ANY_ID, PCI_ANY_ID, 0, 0, idx }
+	{ PCI_VDEVICE(CHELSIO, devid), .driver_data = idx }
 
 static const struct pci_device_id cxgb3_pci_tbl[] = {
 	CH_DEVICE(0x20, 0),	/* PE9000 */
@@ -99,7 +99,7 @@ static const struct pci_device_id cxgb3_pci_tbl[] = {
 	CH_DEVICE(0x35, 6),	/* T3C20-derived T3C10 */
 	CH_DEVICE(0x36, 3),	/* S320E-CR */
 	CH_DEVICE(0x37, 7),	/* N320E-G2 */
-	{0,}
+	{ }
 };
 
 MODULE_DESCRIPTION(DRV_DESC);

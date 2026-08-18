@@ -58,7 +58,7 @@ properties:
       0 - floating (reset value)
       1 - pull down
       2 - pull up
-    $ref: /schemas/types.yaml#/definitions/uint32-array
+    $ref: /schemas/types.yaml#/definitions/uint8-array
     minItems: 6
     maxItems: 6
     items:
@@ -130,6 +130,6 @@ examples:
             realtek,pow-ldo2-gpio = <&gpio 3 GPIO_ACTIVE_HIGH>;
             realtek,reset-gpio = <&gpio 3 GPIO_ACTIVE_LOW>;
             realtek,in1-differential;
-            realtek,gpio-config = <0 0 0 0 0 2>;
+            realtek,gpio-config = /bits/ 8 <0 0 0 0 0 2>;
         };
     };

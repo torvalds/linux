@@ -2281,6 +2281,14 @@ static void __queue_work(int cpu, struct workqueue_struct *wq,
 	unsigned int req_cpu = cpu;
 
 	/*
+	 * NOTE: Check whether the used workqueue is deprecated and warn
+	 */
+	if (unlikely(wq->flags & __WQ_DEPRECATED))
+		pr_warn_once("workqueue: work func %ps enqueued on deprecated workqueue. "
+			"Use system_{percpu|dfl}_wq instead.\n",
+			work->func);
+
+	/*
 	 * While a work item is PENDING && off queue, a task trying to
 	 * steal the PENDING will busy-loop waiting for it to either get
 	 * queued or lose PENDING.  Grabbing PENDING and queueing should
@@ -5312,16 +5320,6 @@ static struct pool_workqueue *alloc_unbound_pwq(struct workqueue_struct *wq,
 	return pwq;
 }
 
-static void apply_wqattrs_lock(void)
-{
-	mutex_lock(&wq_pool_mutex);
-}
-
-static void apply_wqattrs_unlock(void)
-{
-	mutex_unlock(&wq_pool_mutex);
-}
-
 /**
  * wq_calc_pod_cpumask - calculate a wq_attrs' cpumask for a pod
  * @attrs: the wq_attrs of the default pwq of the target workqueue
@@ -5818,7 +5816,7 @@ static struct workqueue_struct *__alloc_workqueue(const char *fmt,
 
 	/* see the comment above the definition of WQ_POWER_EFFICIENT */
 	if ((flags & WQ_POWER_EFFICIENT) && wq_power_efficient)
-		flags |= WQ_UNBOUND;
+		flags = (flags & ~WQ_PERCPU) | WQ_UNBOUND;
 
 	/* allocate wq and format name */
 	if (flags & WQ_UNBOUND)
@@ -5841,6 +5839,23 @@ static struct workqueue_struct *__alloc_workqueue(const char *fmt,
 	if (name_len >= WQ_NAME_LEN)
 		pr_warn_once("workqueue: name exceeds WQ_NAME_LEN. Truncating to: %s\n",
 			     wq->name);
+
+	/*
+	 * One among WQ_PERCPU and WQ_UNBOUND must be set, but not both.
+	 * - If neither is set, default to WQ_PERCPU
+	 * - If both are set, default to WQ_UNBOUND
+	 *
+	 * This code can be removed after workqueue are unbound by default
+	 */
+	if (unlikely(!(flags & (WQ_UNBOUND | WQ_PERCPU)))) {
+		WARN_ONCE(1, "workqueue: %s is using neither WQ_PERCPU or WQ_UNBOUND. "
+			  "Setting WQ_PERCPU.\n", wq->name);
+		flags |= WQ_PERCPU;
+	} else if (unlikely((flags & WQ_PERCPU) && (flags & WQ_UNBOUND))) {
+		WARN_ONCE(1, "workqueue: %s uses both WQ_PERCPU and WQ_UNBOUND. "
+			  "Dropped WQ_PERCPU, keeping WQ_UNBOUND.\n", wq->name);
+		flags &= ~WQ_PERCPU;
+	}
 
 	if (flags & WQ_BH) {
 		/*
@@ -5877,7 +5892,7 @@ static struct workqueue_struct *__alloc_workqueue(const char *fmt,
 	 * wq_pool_mutex protects the workqueues list, allocations of PWQs,
 	 * and the global freeze state.
 	 */
-	apply_wqattrs_lock();
+	mutex_lock(&wq_pool_mutex);
 
 	if (alloc_and_link_pwqs(wq) < 0)
 		goto err_unlock_free_node_nr_active;
@@ -5891,7 +5906,7 @@ static struct workqueue_struct *__alloc_workqueue(const char *fmt,
 	if (wq_online && init_rescuer(wq) < 0)
 		goto err_unlock_destroy;
 
-	apply_wqattrs_unlock();
+	mutex_unlock(&wq_pool_mutex);
 
 	if ((wq->flags & WQ_SYSFS) && workqueue_sysfs_register(wq))
 		goto err_destroy;
@@ -5899,7 +5914,7 @@ static struct workqueue_struct *__alloc_workqueue(const char *fmt,
 	return wq;
 
 err_unlock_free_node_nr_active:
-	apply_wqattrs_unlock();
+	mutex_unlock(&wq_pool_mutex);
 	/*
 	 * Failed alloc_and_link_pwqs() may leave pending pwq->release_work,
 	 * flushing the pwq_release_worker ensures that the pwq_release_workfn()
@@ -5914,7 +5929,7 @@ err_free_wq:
 	kfree(wq);
 	return NULL;
 err_unlock_destroy:
-	apply_wqattrs_unlock();
+	mutex_unlock(&wq_pool_mutex);
 err_destroy:
 	destroy_workqueue(wq);
 	return NULL;
@@ -6310,7 +6325,7 @@ EXPORT_SYMBOL_GPL(set_worker_desc);
  */
 void print_worker_info(const char *log_lvl, struct task_struct *task)
 {
-	work_func_t *fn = NULL;
+	work_func_t fn = NULL;
 	char name[WQ_NAME_LEN] = { };
 	char desc[WORKER_DESC_LEN] = { };
 	struct pool_workqueue *pwq = NULL;
@@ -7315,7 +7330,7 @@ static ssize_t wq_nice_store(struct device *dev, struct device_attribute *attr,
 	struct workqueue_attrs *attrs;
 	int ret = -ENOMEM;
 
-	apply_wqattrs_lock();
+	mutex_lock(&wq_pool_mutex);
 
 	attrs = wq_sysfs_prep_attrs(wq);
 	if (!attrs)
@@ -7328,7 +7343,7 @@ static ssize_t wq_nice_store(struct device *dev, struct device_attribute *attr,
 		ret = -EINVAL;
 
 out_unlock:
-	apply_wqattrs_unlock();
+	mutex_unlock(&wq_pool_mutex);
 	free_workqueue_attrs(attrs);
 	return ret ?: count;
 }
@@ -7354,7 +7369,7 @@ static ssize_t wq_cpumask_store(struct device *dev,
 	struct workqueue_attrs *attrs;
 	int ret = -ENOMEM;
 
-	apply_wqattrs_lock();
+	mutex_lock(&wq_pool_mutex);
 
 	attrs = wq_sysfs_prep_attrs(wq);
 	if (!attrs)
@@ -7365,7 +7380,7 @@ static ssize_t wq_cpumask_store(struct device *dev,
 		ret = apply_workqueue_attrs_locked(wq, attrs);
 
 out_unlock:
-	apply_wqattrs_unlock();
+	mutex_unlock(&wq_pool_mutex);
 	free_workqueue_attrs(attrs);
 	return ret ?: count;
 }
@@ -7401,13 +7416,13 @@ static ssize_t wq_affn_scope_store(struct device *dev,
 	if (affn < 0)
 		return affn;
 
-	apply_wqattrs_lock();
+	mutex_lock(&wq_pool_mutex);
 	attrs = wq_sysfs_prep_attrs(wq);
 	if (attrs) {
 		attrs->affn_scope = affn;
 		ret = apply_workqueue_attrs_locked(wq, attrs);
 	}
-	apply_wqattrs_unlock();
+	mutex_unlock(&wq_pool_mutex);
 	free_workqueue_attrs(attrs);
 	return ret ?: count;
 }
@@ -7432,13 +7447,13 @@ static ssize_t wq_affinity_strict_store(struct device *dev,
 	if (sscanf(buf, "%d", &v) != 1)
 		return -EINVAL;
 
-	apply_wqattrs_lock();
+	mutex_lock(&wq_pool_mutex);
 	attrs = wq_sysfs_prep_attrs(wq);
 	if (attrs) {
 		attrs->affn_strict = (bool)v;
 		ret = apply_workqueue_attrs_locked(wq, attrs);
 	}
-	apply_wqattrs_unlock();
+	mutex_unlock(&wq_pool_mutex);
 	free_workqueue_attrs(attrs);
 	return ret ?: count;
 }
@@ -7479,12 +7494,12 @@ static int workqueue_set_unbound_cpumask(cpumask_var_t cpumask)
 	cpumask_and(cpumask, cpumask, cpu_possible_mask);
 	if (!cpumask_empty(cpumask)) {
 		ret = 0;
-		apply_wqattrs_lock();
+		mutex_lock(&wq_pool_mutex);
 		if (!cpumask_equal(cpumask, wq_unbound_cpumask))
 			ret = workqueue_apply_unbound_cpumask(cpumask);
 		if (!ret)
 			cpumask_copy(wq_requested_unbound_cpumask, cpumask);
-		apply_wqattrs_unlock();
+		mutex_unlock(&wq_pool_mutex);
 	}
 
 	return ret;
@@ -8037,12 +8052,12 @@ void __init workqueue_init_early(void)
 		ordered_wq_attrs[i] = attrs;
 	}
 
-	system_wq = alloc_workqueue("events", WQ_PERCPU, 0);
+	system_wq = alloc_workqueue("events", WQ_PERCPU | __WQ_DEPRECATED, 0);
 	system_percpu_wq = alloc_workqueue("events", WQ_PERCPU, 0);
 	system_highpri_wq = alloc_workqueue("events_highpri",
 					    WQ_HIGHPRI | WQ_PERCPU, 0);
 	system_long_wq = alloc_workqueue("events_long", WQ_PERCPU, 0);
-	system_unbound_wq = alloc_workqueue("events_unbound", WQ_UNBOUND, WQ_MAX_ACTIVE);
+	system_unbound_wq = alloc_workqueue("events_unbound", WQ_UNBOUND | __WQ_DEPRECATED, WQ_MAX_ACTIVE);
 	system_dfl_wq = alloc_workqueue("events_unbound", WQ_UNBOUND, WQ_MAX_ACTIVE);
 	system_freezable_wq = alloc_workqueue("events_freezable",
 					      WQ_FREEZABLE | WQ_PERCPU, 0);
@@ -8212,11 +8227,7 @@ static bool __init cpus_dont_share(int cpu0, int cpu1)
 
 static bool __init cpus_share_smt(int cpu0, int cpu1)
 {
-#ifdef CONFIG_SCHED_SMT
 	return cpumask_test_cpu(cpu0, cpu_smt_mask(cpu1));
-#else
-	return false;
-#endif
 }
 
 static bool __init cpus_share_numa(int cpu0, int cpu1)

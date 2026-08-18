@@ -140,17 +140,17 @@ int BPF_PROG(test_task_acquire_leave_in_map, struct task_struct *task, u64 clone
 	return 0;
 }
 
-SEC("tp_btf/task_newtask")
-int BPF_PROG(test_task_xchg_release, struct task_struct *task, u64 clone_flags)
+SEC("syscall")
+int test_task_xchg_release(const void *ctx)
 {
-	struct task_struct *kptr, *acquired;
+	struct task_struct *task, *kptr, *acquired;
 	struct __tasks_kfunc_map_value *v, *local;
 	int refcnt, refcnt_after_drop;
 	long status;
 
-	if (!is_test_kfunc_task())
-		return 0;
+	(void)ctx;
 
+	task = bpf_get_current_task_btf();
 	status = tasks_kfunc_map_insert(task);
 	if (status) {
 		err = 1;
@@ -191,7 +191,7 @@ int BPF_PROG(test_task_xchg_release, struct task_struct *task, u64 clone_flags)
 		return 0;
 	}
 
-	/* Stash a copy into local kptr and check if it is released recursively */
+	/* Stash a copy into local kptr and check if it is released recursively. */
 	acquired = bpf_task_acquire(kptr);
 	if (!acquired) {
 		err = 7;
@@ -220,7 +220,6 @@ int BPF_PROG(test_task_xchg_release, struct task_struct *task, u64 clone_flags)
 	}
 
 	bpf_task_release(kptr);
-
 	return 0;
 }
 

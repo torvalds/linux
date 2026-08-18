@@ -7,10 +7,10 @@
 
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
-#include <linux/gpio.h>
-#include <linux/gpio_keys.h>
+#include <linux/gpio/machine.h>
+#include <linux/gpio/property.h>
 #include <linux/init.h>
-#include <linux/input.h>	/* KEY_* codes */
+#include <linux/input-event-codes.h>
 #include <linux/i2c.h>
 #include <linux/io.h>
 #include <linux/leds.h>
@@ -20,6 +20,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/platnand.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/smsc911x.h>
 #include <linux/wm97xx.h>
 
@@ -32,6 +33,7 @@
 #include <asm/mach-db1x00/bcsr.h>
 #include <asm/mach-au1x00/prom.h>
 
+#include "db1xxx.h"
 #include "platform.h"
 
 /* FPGA (external mux) interrupt sources */
@@ -236,22 +238,37 @@ static struct resource db1300_eth_res[] = {
 	},
 };
 
-static struct smsc911x_platform_config db1300_eth_config = {
-	.phy_interface		= PHY_INTERFACE_MODE_MII,
-	.irq_polarity		= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
-	.irq_type		= SMSC911X_IRQ_TYPE_PUSH_PULL,
-	.flags			= SMSC911X_USE_32BIT,
+static u8 db1300_eth_macaddr[6];
+
+static const struct property_entry db1300_eth_props[] __initconst = {
+	PROPERTY_ENTRY_U32("reg-io-width", 4),
+	PROPERTY_ENTRY_U32("reg-shift", 0),
+	PROPERTY_ENTRY_BOOL("smsc,irq-push-pull"),
+	PROPERTY_ENTRY_STRING("phy-mode", "mii"),
+	PROPERTY_ENTRY_U8_ARRAY("local-mac-address", db1300_eth_macaddr),
+	{ }
 };
 
-static struct platform_device db1300_eth_dev = {
-	.name			= "smsc911x",
-	.id			= -1,
-	.num_resources		= ARRAY_SIZE(db1300_eth_res),
-	.resource		= db1300_eth_res,
-	.dev = {
-		.platform_data	= &db1300_eth_config,
-	},
+static const struct platform_device_info db1300_eth_info __initconst = {
+	.name		= "smsc911x",
+	.id		= PLATFORM_DEVID_NONE,
+	.res		= db1300_eth_res,
+	.num_res	= ARRAY_SIZE(db1300_eth_res),
+	.properties	= db1300_eth_props,
 };
+
+static void __init db1300_eth_init(void)
+{
+	struct platform_device *pd;
+	int err;
+
+	prom_get_ethernet_addr(db1300_eth_macaddr);
+
+	pd = platform_device_register_full(&db1300_eth_info);
+	err = PTR_ERR_OR_ZERO(pd);
+	if (err)
+		pr_err("failed to create eth device: %d\n", err);
+}
 
 /**********************************************************************/
 
@@ -351,66 +368,127 @@ static struct platform_device db1300_i2c_dev = {
 
 /**********************************************************************/
 
+static const struct property_entry db1300_5waysw_props[] = {
+	PROPERTY_ENTRY_BOOL("autorepeat"),
+	PROPERTY_ENTRY_STRING("label", "db1300-5wayswitch"),
+	{ }
+};
+
 /* proper key assignments when facing the LCD panel.  For key assignments
  * according to the schematics swap up with down and left with right.
  * I chose to use it to emulate the arrow keys of a keyboard.
  */
-static struct gpio_keys_button db1300_5waysw_arrowkeys[] = {
-	{
-		.code			= KEY_DOWN,
-		.gpio			= AU1300_PIN_LCDPWM0,
-		.type			= EV_KEY,
-		.debounce_interval	= 1,
-		.active_low		= 1,
-		.desc			= "5waysw-down",
-	},
-	{
-		.code			= KEY_UP,
-		.gpio			= AU1300_PIN_PSC2SYNC1,
-		.type			= EV_KEY,
-		.debounce_interval	= 1,
-		.active_low		= 1,
-		.desc			= "5waysw-up",
-	},
-	{
-		.code			= KEY_RIGHT,
-		.gpio			= AU1300_PIN_WAKE3,
-		.type			= EV_KEY,
-		.debounce_interval	= 1,
-		.active_low		= 1,
-		.desc			= "5waysw-right",
-	},
-	{
-		.code			= KEY_LEFT,
-		.gpio			= AU1300_PIN_WAKE2,
-		.type			= EV_KEY,
-		.debounce_interval	= 1,
-		.active_low		= 1,
-		.desc			= "5waysw-left",
-	},
-	{
-		.code			= KEY_ENTER,
-		.gpio			= AU1300_PIN_WAKE1,
-		.type			= EV_KEY,
-		.debounce_interval	= 1,
-		.active_low		= 1,
-		.desc			= "5waysw-push",
-	},
+static const struct software_node db1300_5waysw_node = {
+	.name = "db1300-5wayswitch",
+	.properties = db1300_5waysw_props,
 };
 
-static struct gpio_keys_platform_data db1300_5waysw_data = {
-	.buttons	= db1300_5waysw_arrowkeys,
-	.nbuttons	= ARRAY_SIZE(db1300_5waysw_arrowkeys),
-	.rep		= 1,
-	.name		= "db1300-5wayswitch",
+static const struct property_entry db1300_5waysw_down_props[] = {
+	PROPERTY_ENTRY_U32("linux,code", KEY_DOWN),
+	PROPERTY_ENTRY_GPIO("gpios", &alchemy_gpic_node,
+			    AU1300_PIN_LCDPWM0, GPIO_ACTIVE_LOW),
+	PROPERTY_ENTRY_U32("debounce-interval", 1),
+	PROPERTY_ENTRY_STRING("label", "5waysw-down"),
+	{ }
 };
 
-static struct platform_device db1300_5waysw_dev = {
-	.name		= "gpio-keys",
-	.dev	= {
-		.platform_data	= &db1300_5waysw_data,
-	},
+static const struct software_node db1300_5waysw_down_node = {
+	.name = "5waysw-down",
+	.parent = &db1300_5waysw_node,
+	.properties = db1300_5waysw_down_props,
 };
+
+static const struct property_entry db1300_5waysw_up_props[] = {
+	PROPERTY_ENTRY_U32("linux,code", KEY_UP),
+	PROPERTY_ENTRY_GPIO("gpios", &alchemy_gpic_node,
+			    AU1300_PIN_PSC2SYNC1, GPIO_ACTIVE_LOW),
+	PROPERTY_ENTRY_U32("debounce-interval", 1),
+	PROPERTY_ENTRY_STRING("label", "5waysw-up"),
+	{ }
+};
+
+static const struct software_node db1300_5waysw_up_node = {
+	.name = "5waysw-up",
+	.parent = &db1300_5waysw_node,
+	.properties = db1300_5waysw_up_props,
+};
+
+static const struct property_entry db1300_5waysw_right_props[] = {
+	PROPERTY_ENTRY_U32("linux,code", KEY_RIGHT),
+	PROPERTY_ENTRY_GPIO("gpios", &alchemy_gpic_node,
+			    AU1300_PIN_WAKE3, GPIO_ACTIVE_LOW),
+	PROPERTY_ENTRY_U32("debounce-interval", 1),
+	PROPERTY_ENTRY_STRING("label", "5waysw-right"),
+	{ }
+};
+
+static const struct software_node db1300_5waysw_right_node = {
+	.name = "5waysw-right",
+	.parent = &db1300_5waysw_node,
+	.properties = db1300_5waysw_right_props,
+};
+
+static const struct property_entry db1300_5waysw_left_props[] = {
+	PROPERTY_ENTRY_U32("linux,code", KEY_LEFT),
+	PROPERTY_ENTRY_GPIO("gpios", &alchemy_gpic_node,
+			    AU1300_PIN_WAKE2, GPIO_ACTIVE_LOW),
+	PROPERTY_ENTRY_U32("debounce-interval", 1),
+	PROPERTY_ENTRY_STRING("label", "5waysw-left"),
+	{ }
+};
+
+static const struct software_node db1300_5waysw_left_node = {
+	.name = "5waysw-left",
+	.parent = &db1300_5waysw_node,
+	.properties = db1300_5waysw_left_props,
+};
+
+static const struct property_entry db1300_5waysw_push_props[] = {
+	PROPERTY_ENTRY_U32("linux,code", KEY_ENTER),
+	PROPERTY_ENTRY_GPIO("gpios", &alchemy_gpic_node,
+			    AU1300_PIN_WAKE1, GPIO_ACTIVE_LOW),
+	PROPERTY_ENTRY_U32("debounce-interval", 1),
+	PROPERTY_ENTRY_STRING("label", "5waysw-push"),
+	{ }
+};
+
+static const struct software_node db1300_5waysw_push_node = {
+	.name = "5waysw-push",
+	.parent = &db1300_5waysw_node,
+	.properties = db1300_5waysw_push_props,
+};
+
+static const struct software_node * const db1300_5waysw_swnodes[] __initconst = {
+	&db1300_5waysw_node,
+	&db1300_5waysw_down_node,
+	&db1300_5waysw_up_node,
+	&db1300_5waysw_right_node,
+	&db1300_5waysw_left_node,
+	&db1300_5waysw_push_node,
+	NULL
+};
+
+static void __init db1300_5waysw_init(void)
+{
+	const struct platform_device_info pdevinfo = {
+		.name	= "gpio-keys",
+		.id	= PLATFORM_DEVID_NONE,
+		.swnode	= &db1300_5waysw_node,
+	};
+	struct platform_device *pd;
+	int err;
+
+	err = software_node_register_node_group(db1300_5waysw_swnodes);
+	if (err) {
+		pr_err("failed to register 5waysw software nodes: %d\n", err);
+		return;
+	}
+
+	pd = platform_device_register_full(&pdevinfo);
+	err = PTR_ERR_OR_ZERO(pd);
+	if (err)
+		pr_err("failed to create 5waysw device: %d\n", err);
+}
 
 /**********************************************************************/
 
@@ -764,9 +842,7 @@ static struct platform_driver db1300_wm97xx_driver = {
 /**********************************************************************/
 
 static struct platform_device *db1300_dev[] __initdata = {
-	&db1300_eth_dev,
 	&db1300_i2c_dev,
-	&db1300_5waysw_dev,
 	&db1300_nand_dev,
 	&db1300_ide_dev,
 #ifdef CONFIG_MMC_AU1X
@@ -804,8 +880,6 @@ int __init db1300_dev_setup(void)
 	/*
 	 * setup board
 	 */
-	prom_get_ethernet_addr(&db1300_eth_config.mac[0]);
-
 	i2c_register_board_info(0, db1300_i2c_devs,
 				ARRAY_SIZE(db1300_i2c_devs));
 
@@ -847,6 +921,9 @@ int __init db1300_dev_setup(void)
 
 	swapped = bcsr_read(BCSR_STATUS) & BCSR_STATUS_DB1200_SWAPBOOT;
 	db1x_register_norflash(64 << 20, 2, swapped);
+
+	db1300_eth_init();
+	db1300_5waysw_init();
 
 	return platform_add_devices(db1300_dev, ARRAY_SIZE(db1300_dev));
 }

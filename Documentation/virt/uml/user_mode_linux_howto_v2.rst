@@ -234,7 +234,7 @@ an ioctl to setup the tun interface and/or use raw sockets where needed.
 This can be achieved by granting the user a particular capability instead
 of running UML as root.  In case of vector transport, a user can add the
 capability ``CAP_NET_ADMIN`` or ``CAP_NET_RAW`` to the uml binary.
-Thenceforth, UML can be run with normal user privilges, along with
+Thenceforth, UML can be run with normal user privileges, along with
 full networking.
 
 For example::

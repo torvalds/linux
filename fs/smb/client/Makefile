@@ -42,7 +42,7 @@ cifs-$(CONFIG_CIFS_ALLOW_INSECURE_LEGACY) += \
 	smb1session.o \
 	smb1transport.o
 
-cifs-$(CONFIG_CIFS_COMPRESSION) += compress.o compress/lz77.o
+cifs-$(CONFIG_CIFS_COMPRESSION) += compress.o
 
 ifneq ($(CONFIG_CIFS_ALLOW_INSECURE_LEGACY),)
 #

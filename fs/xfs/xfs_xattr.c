@@ -104,7 +104,7 @@ xfs_attr_change(
 		args->op_flags |= XFS_DA_OP_LOGGED;
 	}
 
-	args->owner = args->dp->i_ino;
+	args->owner = I_INO(args->dp);
 	args->geo = mp->m_attr_geo;
 	args->whichfork = XFS_ATTR_FORK;
 	xfs_attr_sethash(args);

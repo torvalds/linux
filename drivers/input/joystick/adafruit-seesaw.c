@@ -304,7 +304,7 @@ static int seesaw_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id seesaw_id_table[] = {
-	{ SEESAW_DEVICE_NAME },
+	{ .name = SEESAW_DEVICE_NAME },
 	{ /* Sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, seesaw_id_table);

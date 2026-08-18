@@ -61,27 +61,28 @@ static void bond_info_show_master(struct seq_file *seq)
 	struct bonding *bond = pde_data(file_inode(seq->file));
 	const struct bond_opt_value *optval;
 	struct slave *curr, *primary;
-	int i;
+	int arp_interval, fail_over_mac, miimon, i;
 
 	curr = rcu_dereference(bond->curr_active_slave);
 
 	seq_printf(seq, "Bonding Mode: %s",
 		   bond_mode_name(BOND_MODE(bond)));
 
-	if (BOND_MODE(bond) == BOND_MODE_ACTIVEBACKUP &&
-	    bond->params.fail_over_mac) {
+	fail_over_mac = READ_ONCE(bond->params.fail_over_mac);
+	if (BOND_MODE(bond) == BOND_MODE_ACTIVEBACKUP && fail_over_mac) {
 		optval = bond_opt_get_val(BOND_OPT_FAIL_OVER_MAC,
-					  bond->params.fail_over_mac);
+					  fail_over_mac);
 		seq_printf(seq, " (fail_over_mac %s)", optval->string);
 	}
 
 	seq_printf(seq, "\n");
 
 	if (bond_mode_uses_xmit_hash(bond)) {
-		optval = bond_opt_get_val(BOND_OPT_XMIT_HASH,
-					  bond->params.xmit_policy);
+		int xmit_policy = READ_ONCE(bond->params.xmit_policy);
+
+		optval = bond_opt_get_val(BOND_OPT_XMIT_HASH, xmit_policy);
 		seq_printf(seq, "Transmit Hash Policy: %s (%d)\n",
-			   optval->string, bond->params.xmit_policy);
+			   optval->string, xmit_policy);
 	}
 
 	if (bond_uses_primary(bond)) {
@@ -90,7 +91,7 @@ static void bond_info_show_master(struct seq_file *seq)
 			   primary ? primary->dev->name : "None");
 		if (primary) {
 			optval = bond_opt_get_val(BOND_OPT_PRIMARY_RESELECT,
-						  bond->params.primary_reselect);
+					READ_ONCE(bond->params.primary_reselect));
 			seq_printf(seq, " (primary_reselect %s)",
 				   optval->string);
 		}
@@ -101,32 +102,36 @@ static void bond_info_show_master(struct seq_file *seq)
 
 	seq_printf(seq, "MII Status: %s\n", netif_carrier_ok(bond->dev) ?
 		   "up" : "down");
-	seq_printf(seq, "MII Polling Interval (ms): %d\n", bond->params.miimon);
+	miimon = READ_ONCE(bond->params.miimon);
+	seq_printf(seq, "MII Polling Interval (ms): %d\n", miimon);
 	seq_printf(seq, "Up Delay (ms): %d\n",
-		   bond->params.updelay * bond->params.miimon);
+		   READ_ONCE(bond->params.updelay) * miimon);
 	seq_printf(seq, "Down Delay (ms): %d\n",
-		   bond->params.downdelay * bond->params.miimon);
+		   READ_ONCE(bond->params.downdelay) * miimon);
 	seq_printf(seq, "Peer Notification Delay (ms): %d\n",
-		   bond->params.peer_notif_delay * bond->params.miimon);
+		   READ_ONCE(bond->params.peer_notif_delay) * miimon);
 
 
 	/* ARP information */
-	if (bond->params.arp_interval > 0) {
+	arp_interval = READ_ONCE(bond->params.arp_interval);
+	if (arp_interval > 0) {
 		int printed = 0;
 
 		seq_printf(seq, "ARP Polling Interval (ms): %d\n",
-				bond->params.arp_interval);
+				arp_interval);
 		seq_printf(seq, "ARP Missed Max: %u\n",
-				bond->params.missed_max);
+				READ_ONCE(bond->params.missed_max));
 
 		seq_printf(seq, "ARP IP target/s (n.n.n.n form):");
 
 		for (i = 0; (i < BOND_MAX_ARP_TARGETS); i++) {
-			if (!bond->params.arp_targets[i])
+			__be32 t = READ_ONCE(bond->params.arp_targets[i]);
+
+			if (!t)
 				break;
 			if (printed)
 				seq_printf(seq, ",");
-			seq_printf(seq, " %pI4", &bond->params.arp_targets[i]);
+			seq_printf(seq, " %pI4", &t);
 			printed = 1;
 		}
 		seq_printf(seq, "\n");
@@ -152,12 +157,13 @@ static void bond_info_show_master(struct seq_file *seq)
 
 		seq_puts(seq, "\n802.3ad info\n");
 		seq_printf(seq, "LACP active: %s\n",
-			   (bond->params.lacp_active) ? "on" : "off");
+			   READ_ONCE(bond->params.lacp_active) ? "on" : "off");
 		seq_printf(seq, "LACP rate: %s\n",
-			   (bond->params.lacp_fast) ? "fast" : "slow");
-		seq_printf(seq, "Min links: %d\n", bond->params.min_links);
+			   READ_ONCE(bond->params.lacp_fast) ? "fast" : "slow");
+		seq_printf(seq, "Min links: %d\n",
+			   READ_ONCE(bond->params.min_links));
 		optval = bond_opt_get_val(BOND_OPT_AD_SELECT,
-					  bond->params.ad_select);
+					  READ_ONCE(bond->params.ad_select));
 		seq_printf(seq, "Aggregator selection policy (ad_select): %s\n",
 			   optval->string);
 		if (capable(CAP_NET_ADMIN)) {

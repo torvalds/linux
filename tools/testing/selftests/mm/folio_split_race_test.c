@@ -25,7 +25,7 @@
 #include <unistd.h>
 #include "vm_util.h"
 #include "kselftest.h"
-#include "thp_settings.h"
+#include "hugepage_settings.h"
 
 uint64_t page_size;
 uint64_t pmd_pagesize;
@@ -226,23 +226,6 @@ static uint64_t run_iteration(void)
 	return reader_failures;
 }
 
-static void thp_cleanup_handler(int signum)
-{
-	thp_restore_settings();
-	/*
-	 * Restore default handler and re-raise the signal to exit.
-	 * This is to ensure the test process exits with the correct
-	 * status code corresponding to the signal.
-	 */
-	signal(signum, SIG_DFL);
-	raise(signum);
-}
-
-static void thp_settings_cleanup(void)
-{
-	thp_restore_settings();
-}
-
 int main(void)
 {
 	struct thp_settings current_settings;
@@ -261,12 +244,6 @@ int main(void)
 		ksft_exit_skip("Please run the test as root\n");
 
 	thp_save_settings();
-	/* make sure thp settings are restored */
-	if (atexit(thp_settings_cleanup) != 0)
-		ksft_exit_fail_msg("atexit failed\n");
-
-	signal(SIGINT, thp_cleanup_handler);
-	signal(SIGTERM, thp_cleanup_handler);
 
 	thp_read_settings(&current_settings);
 	current_settings.shmem_enabled = SHMEM_ADVISE;

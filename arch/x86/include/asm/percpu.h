@@ -40,12 +40,10 @@
 #endif
 
 #define __percpu_prefix
-#define __percpu_seg_override	CONCATENATE(__seg_, __percpu_seg)
 
 #else /* !CONFIG_CC_HAS_NAMED_AS: */
 
 #define __percpu_prefix		__force_percpu_prefix
-#define __percpu_seg_override
 
 #endif /* CONFIG_CC_HAS_NAMED_AS */
 
@@ -82,7 +80,6 @@
 
 #define __force_percpu_prefix
 #define __percpu_prefix
-#define __percpu_seg_override
 
 #define PER_CPU_VAR(var)	(var)__percpu_rel
 
@@ -92,8 +89,6 @@
 # define __my_cpu_type(var)	typeof(var)
 # define __my_cpu_ptr(ptr)	(ptr)
 # define __my_cpu_var(var)	(var)
-
-# define __percpu_qual		__percpu_seg_override
 #else
 # define __my_cpu_type(var)	typeof(var) __percpu_seg_override
 # define __my_cpu_ptr(ptr)	(__my_cpu_type(*(ptr))*)(__force uintptr_t)(ptr)

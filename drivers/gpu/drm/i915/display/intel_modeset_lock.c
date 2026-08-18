@@ -36,7 +36,7 @@ void _intel_modeset_lock_end(struct drm_modeset_acquire_ctx *ctx,
 {
 	if (*ret == -EDEADLK) {
 		if (state)
-			drm_atomic_state_clear(&state->base);
+			drm_atomic_commit_clear(&state->base);
 
 		*ret = drm_modeset_backoff(ctx);
 		if (*ret == 0) {

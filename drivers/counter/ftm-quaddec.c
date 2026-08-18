@@ -292,7 +292,9 @@ static int ftm_quaddec_probe(struct platform_device *pdev)
 	counter->signals = ftm_quaddec_signals;
 	counter->num_signals = ARRAY_SIZE(ftm_quaddec_signals);
 
-	mutex_init(&ftm->ftm_quaddec_mutex);
+	ret = devm_mutex_init(&pdev->dev, &ftm->ftm_quaddec_mutex);
+	if (ret)
+		return ret;
 
 	ftm_quaddec_init(ftm);
 

@@ -46,6 +46,10 @@ Synopsis of eprobe_events
 		  (x8/x16/x32/x64), VFS layer common type(%pd/%pD), "char",
                   "string", "ustring", "symbol", "symstr" and "bitfield" are
                   supported.
+  (STRUCT)FIELD->MEMBER[->MEMBER] : If BTF is supported, typecast FIELD to
+                  a pointer to STRUCT and then derference the pointer defined by
+                  ->MEMBER. Note that when this is used, the FIELD name does not
+                  need to be prefixed with a '$'.
 
 Types
 -----

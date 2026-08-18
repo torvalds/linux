@@ -2440,6 +2440,10 @@ static int __smc_buf_create(struct smc_sock *smc, bool is_smcd, bool is_rmb)
 		/* use socket send buffer size (w/o overhead) as start value */
 		bufsize = smc->sk.sk_sndbuf / 2;
 
+	/* limit bufsize for physically contiguous buffers */
+	if (!is_smcd && lgr->buf_type == SMCR_PHYS_CONT_BUFS)
+		bufsize = min_t(int, bufsize, PAGE_SIZE << MAX_PAGE_ORDER);
+
 	for (bufsize_comp = smc_compress_bufsize(bufsize, is_smcd, is_rmb);
 	     bufsize_comp >= 0; bufsize_comp--) {
 		if (is_rmb) {

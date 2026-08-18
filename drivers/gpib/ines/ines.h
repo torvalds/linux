@@ -21,6 +21,7 @@ enum ines_pci_chip {
 	PCI_CHIP_AMCC5920,
 	PCI_CHIP_QUANCOM,
 	PCI_CHIP_QUICKLOGIC5030,
+	PCI_CHIP_INES_72130,
 };
 
 struct ines_priv {
@@ -160,6 +161,21 @@ enum ines_auxd_bits {
 	INES_INITIAL_T1_700ns = 0x8,
 	INES_T6_2us = 0x0,
 	INES_T6_50us = 0x10,
+};
+
+enum ines72130_regs {
+	BUS_STATUS_REG = 0xc,
+};
+
+enum ines_72130_bus_status_bits  {
+	BSR_NRFD_BIT = 0x1,
+	BSR_NDAC_BIT = 0x2,
+	BSR_DAV_BIT = 0x4,
+	BSR_EOI_BIT = 0x8,
+	BSR_SRQ_BIT = 0x10,
+	BSR_ATN_BIT = 0x20,
+	BSR_REN_BIT = 0x40,
+	BSR_IFC_BIT = 0x80,
 };
 
 #endif	// _INES_GPIB_H

@@ -63,7 +63,7 @@ enum map_err_types {
  * @sg_mapped_ents: 'mapped_ents' from dma_map_sg
  * @paddr: physical start address of the mapping
  * @map_err_type: track whether dma_mapping_error() was checked
- * @is_cache_clean: driver promises not to write to buffer while mapped
+ * @attrs: dma attributes
  * @stack_len: number of backtrace entries in @stack_entries
  * @stack_entries: stack of backtrace history
  */
@@ -78,7 +78,7 @@ struct dma_debug_entry {
 	int		 sg_mapped_ents;
 	phys_addr_t	 paddr;
 	enum map_err_types map_err_type;
-	bool		 is_cache_clean;
+	unsigned long	 attrs;
 #ifdef CONFIG_STACKTRACE
 	unsigned int	stack_len;
 	unsigned long	stack_entries[DMA_DEBUG_STACKTRACE_ENTRIES];
@@ -478,6 +478,9 @@ static int active_cacheline_insert(struct dma_debug_entry *entry,
 				   bool *overlap_cache_clean)
 {
 	phys_addr_t cln = to_cacheline_number(entry);
+	bool is_cache_clean = entry->attrs &
+			      (DMA_ATTR_DEBUGGING_IGNORE_CACHELINES |
+			       DMA_ATTR_REQUIRE_COHERENT);
 	unsigned long flags;
 	int rc;
 
@@ -495,12 +498,15 @@ static int active_cacheline_insert(struct dma_debug_entry *entry,
 	if (rc == -EEXIST) {
 		struct dma_debug_entry *existing;
 
-		active_cacheline_inc_overlap(cln, entry->is_cache_clean);
+		active_cacheline_inc_overlap(cln, is_cache_clean);
 		existing = radix_tree_lookup(&dma_active_cacheline, cln);
 		/* A lookup failure here after we got -EEXIST is unexpected. */
 		WARN_ON(!existing);
 		if (existing)
-			*overlap_cache_clean = existing->is_cache_clean;
+			*overlap_cache_clean =
+				existing->attrs &
+				(DMA_ATTR_DEBUGGING_IGNORE_CACHELINES |
+				 DMA_ATTR_REQUIRE_COHERENT);
 	}
 	spin_unlock_irqrestore(&radix_lock, flags);
 
@@ -544,12 +550,13 @@ void debug_dma_dump_mappings(struct device *dev)
 			if (!dev || dev == entry->dev) {
 				cln = to_cacheline_number(entry);
 				dev_info(entry->dev,
-					 "%s idx %d P=%pa D=%llx L=%llx cln=%pa %s %s\n",
+					 "%s idx %d P=%pa D=%llx L=%llx cln=%pa %s %s attrs=0x%lx\n",
 					 type2name[entry->type], idx,
 					 &entry->paddr, entry->dev_addr,
 					 entry->size, &cln,
 					 dir2name[entry->direction],
-					 maperr2str[entry->map_err_type]);
+					 maperr2str[entry->map_err_type],
+					 entry->attrs);
 			}
 		}
 		spin_unlock_irqrestore(&bucket->lock, flags);
@@ -575,14 +582,15 @@ static int dump_show(struct seq_file *seq, void *v)
 		list_for_each_entry(entry, &bucket->list, list) {
 			cln = to_cacheline_number(entry);
 			seq_printf(seq,
-				   "%s %s %s idx %d P=%pa D=%llx L=%llx cln=%pa %s %s\n",
+				   "%s %s %s idx %d P=%pa D=%llx L=%llx cln=%pa %s %s attrs=0x%lx\n",
 				   dev_driver_string(entry->dev),
 				   dev_name(entry->dev),
 				   type2name[entry->type], idx,
 				   &entry->paddr, entry->dev_addr,
 				   entry->size, &cln,
 				   dir2name[entry->direction],
-				   maperr2str[entry->map_err_type]);
+				   maperr2str[entry->map_err_type],
+				   entry->attrs);
 		}
 		spin_unlock_irqrestore(&bucket->lock, flags);
 	}
@@ -594,15 +602,13 @@ DEFINE_SHOW_ATTRIBUTE(dump);
  * Wrapper function for adding an entry to the hash.
  * This function takes care of locking itself.
  */
-static void add_dma_entry(struct dma_debug_entry *entry, unsigned long attrs)
+static void add_dma_entry(struct dma_debug_entry *entry)
 {
+	unsigned long attrs = entry->attrs;
 	bool overlap_cache_clean;
 	struct hash_bucket *bucket;
 	unsigned long flags;
 	int rc;
-
-	entry->is_cache_clean = attrs & (DMA_ATTR_DEBUGGING_IGNORE_CACHELINES |
-					 DMA_ATTR_REQUIRE_COHERENT);
 
 	bucket = get_hash_bucket(entry, &flags);
 	hash_bucket_add(bucket, entry);
@@ -612,9 +618,10 @@ static void add_dma_entry(struct dma_debug_entry *entry, unsigned long attrs)
 	if (rc == -ENOMEM) {
 		pr_err_once("cacheline tracking ENOMEM, dma-debug disabled\n");
 		global_disable = true;
-	} else if (rc == -EEXIST &&
-		   !(attrs & DMA_ATTR_SKIP_CPU_SYNC) &&
-		   !(entry->is_cache_clean && overlap_cache_clean) &&
+	} else if (rc == -EEXIST && !(attrs & DMA_ATTR_SKIP_CPU_SYNC) &&
+		   !(attrs & (DMA_ATTR_DEBUGGING_IGNORE_CACHELINES |
+			      DMA_ATTR_REQUIRE_COHERENT) &&
+		     overlap_cache_clean) &&
 		   dma_get_cache_alignment() >= L1_CACHE_BYTES &&
 		   !(IS_ENABLED(CONFIG_DMA_BOUNCE_UNALIGNED_KMALLOC) &&
 		     is_swiotlb_active(entry->dev))) {
@@ -1067,6 +1074,29 @@ static void check_unmap(struct dma_debug_entry *ref)
 			   type2name[entry->type]);
 	}
 
+	/*
+	 * This may be no bug in reality - but DMA API still expects
+	 * that entry is unmapped with same attributes as it was mapped.
+	 *
+	 * DMA_ATTR_UNMAP_VALID lists the attributes that must be identical
+	 * between map and unmap. Any attribute outside this set (e.g.
+	 * DMA_ATTR_NO_WARN, DMA_ATTR_SKIP_CPU_SYNC) is allowed to differ.
+	 */
+#define DMA_ATTR_UNMAP_VALID                                               \
+	(DMA_ATTR_NO_KERNEL_MAPPING | DMA_ATTR_FORCE_CONTIGUOUS |          \
+	 DMA_ATTR_MMIO | DMA_ATTR_REQUIRE_COHERENT | DMA_ATTR_PRIVILEGED | \
+	 DMA_ATTR_CC_SHARED)
+	if ((ref->attrs & DMA_ATTR_UNMAP_VALID) !=
+	    (entry->attrs & DMA_ATTR_UNMAP_VALID)) {
+		err_printk(ref->dev, entry,
+			   "device driver frees "
+			   "DMA memory with different attributes "
+			   "[device address=0x%016llx] [size=%llu bytes] "
+			   "[mapped with 0x%lx] [unmapped with 0x%lx]\n",
+			   ref->dev_addr, ref->size, entry->attrs, ref->attrs);
+	}
+#undef DMA_ATTR_UNMAP_VALID
+
 	hash_bucket_del(entry);
 	put_hash_bucket(bucket, flags);
 
@@ -1250,6 +1280,7 @@ void debug_dma_map_phys(struct device *dev, phys_addr_t phys, size_t size,
 	entry->size      = size;
 	entry->direction = direction;
 	entry->map_err_type = MAP_ERR_NOT_CHECKED;
+	entry->attrs     = attrs;
 
 	if (attrs & DMA_ATTR_MMIO) {
 		unsigned long pfn = PHYS_PFN(phys);
@@ -1265,7 +1296,7 @@ void debug_dma_map_phys(struct device *dev, phys_addr_t phys, size_t size,
 			check_for_illegal_area(dev, phys_to_virt(phys), size);
 	}
 
-	add_dma_entry(entry, attrs);
+	add_dma_entry(entry);
 }
 
 void debug_dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
@@ -1306,8 +1337,8 @@ void debug_dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 }
 EXPORT_SYMBOL(debug_dma_mapping_error);
 
-void debug_dma_unmap_phys(struct device *dev, dma_addr_t dma_addr,
-			  size_t size, int direction)
+void debug_dma_unmap_phys(struct device *dev, dma_addr_t dma_addr, size_t size,
+			  int direction, unsigned long attrs)
 {
 	struct dma_debug_entry ref = {
 		.type           = dma_debug_phy,
@@ -1315,6 +1346,7 @@ void debug_dma_unmap_phys(struct device *dev, dma_addr_t dma_addr,
 		.dev_addr       = dma_addr,
 		.size           = size,
 		.direction      = direction,
+		.attrs          = attrs,
 	};
 
 	if (unlikely(dma_debug_disabled()))
@@ -1352,10 +1384,11 @@ void debug_dma_map_sg(struct device *dev, struct scatterlist *sg,
 		entry->direction      = direction;
 		entry->sg_call_ents   = nents;
 		entry->sg_mapped_ents = mapped_ents;
+		entry->attrs          = attrs;
 
 		check_sg_segment(dev, s);
 
-		add_dma_entry(entry, attrs);
+		add_dma_entry(entry);
 	}
 }
 
@@ -1379,7 +1412,7 @@ static int get_nr_mapped_entries(struct device *dev,
 }
 
 void debug_dma_unmap_sg(struct device *dev, struct scatterlist *sglist,
-			int nelems, int dir)
+			int nelems, int dir, unsigned long attrs)
 {
 	struct scatterlist *s;
 	int mapped_ents = 0, i;
@@ -1397,6 +1430,7 @@ void debug_dma_unmap_sg(struct device *dev, struct scatterlist *sglist,
 			.size           = sg_dma_len(s),
 			.direction      = dir,
 			.sg_call_ents   = nelems,
+			.attrs          = attrs,
 		};
 
 		if (mapped_ents && i >= mapped_ents)
@@ -1447,12 +1481,13 @@ void debug_dma_alloc_coherent(struct device *dev, size_t size,
 	entry->size      = size;
 	entry->dev_addr  = dma_addr;
 	entry->direction = DMA_BIDIRECTIONAL;
+	entry->attrs     = attrs;
 
-	add_dma_entry(entry, attrs);
+	add_dma_entry(entry);
 }
 
-void debug_dma_free_coherent(struct device *dev, size_t size,
-			 void *virt, dma_addr_t dma_addr)
+void debug_dma_free_coherent(struct device *dev, size_t size, void *virt,
+			     dma_addr_t dma_addr, unsigned long attrs)
 {
 	struct dma_debug_entry ref = {
 		.type           = dma_debug_coherent,
@@ -1460,6 +1495,7 @@ void debug_dma_free_coherent(struct device *dev, size_t size,
 		.dev_addr       = dma_addr,
 		.size           = size,
 		.direction      = DMA_BIDIRECTIONAL,
+		.attrs          = attrs,
 	};
 
 	/* handle vmalloc and linear addresses */
@@ -1574,8 +1610,7 @@ void debug_dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
 
 void debug_dma_alloc_pages(struct device *dev, struct page *page,
 			   size_t size, int direction,
-			   dma_addr_t dma_addr,
-			   unsigned long attrs)
+			   dma_addr_t dma_addr)
 {
 	struct dma_debug_entry *entry;
 
@@ -1593,7 +1628,7 @@ void debug_dma_alloc_pages(struct device *dev, struct page *page,
 	entry->dev_addr  = dma_addr;
 	entry->direction = direction;
 
-	add_dma_entry(entry, attrs);
+	add_dma_entry(entry);
 }
 
 void debug_dma_free_pages(struct device *dev, struct page *page,

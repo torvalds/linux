@@ -47,9 +47,9 @@
 #define DP_SINK_PR_ENABLE_AND_CONFIGURATION		0x37B
 
 /* Travis */
-static const uint8_t DP_VGA_LVDS_CONVERTER_ID_2[] = "sivarT";
+static const char DP_VGA_LVDS_CONVERTER_ID_2[] = "sivarT";
 /* Nutmeg */
-static const uint8_t DP_VGA_LVDS_CONVERTER_ID_3[] = "dnomlA";
+static const char DP_VGA_LVDS_CONVERTER_ID_3[] = "dnomlA";
 
 void dp_set_panel_mode(struct dc_link *link, enum dp_panel_mode panel_mode)
 {
@@ -462,7 +462,7 @@ bool edp_receiver_ready_T9(struct dc_link *link)
 		do {
 			sinkstatus = 1;
 			result = core_link_read_dpcd(link, DP_SINK_STATUS, &sinkstatus, sizeof(sinkstatus));
-			if (sinkstatus == 0)
+			if (!(sinkstatus & DP_RECEIVE_PORT_0_STATUS))
 				break;
 			if (result != DC_OK)
 				break;
@@ -492,7 +492,7 @@ bool edp_receiver_ready_T7(struct dc_link *link)
 		do {
 			sinkstatus = 0;
 			result = core_link_read_dpcd(link, DP_SINK_STATUS, &sinkstatus, sizeof(sinkstatus));
-			if (sinkstatus == 1)
+			if (sinkstatus & DP_RECEIVE_PORT_0_STATUS)
 				break;
 			if (result != DC_OK)
 				break;
@@ -601,12 +601,12 @@ bool edp_set_psr_allow_active(struct dc_link *link, const bool *allow_active,
 		link->psr_settings.psr_power_opt = *power_opts;
 
 		if (psr != NULL && link->psr_settings.psr_feature_enabled && psr->funcs->psr_set_power_opt)
-			psr->funcs->psr_set_power_opt(psr, link->psr_settings.psr_power_opt, panel_inst);
+			psr->funcs->psr_set_power_opt(psr, link->psr_settings.psr_power_opt, (uint8_t)panel_inst);
 	}
 
 	if (psr != NULL && link->psr_settings.psr_feature_enabled &&
 			force_static && psr->funcs->psr_force_static)
-		psr->funcs->psr_force_static(psr, panel_inst);
+		psr->funcs->psr_force_static(psr, (uint8_t)panel_inst);
 
 	/* Enable or Disable PSR */
 	if (allow_active && link->psr_settings.psr_allow_active != *allow_active) {
@@ -615,9 +615,9 @@ bool edp_set_psr_allow_active(struct dc_link *link, const bool *allow_active,
 		if (!link->psr_settings.psr_allow_active)
 			dc_z10_restore(dc);
 
-		if (psr != NULL && link->psr_settings.psr_feature_enabled) {
-			psr->funcs->psr_enable(psr, link->psr_settings.psr_allow_active, wait, panel_inst);
-		} else if ((dmcu != NULL && dmcu->funcs->is_dmcu_initialized(dmcu)) &&
+		if (psr != NULL && link->psr_settings.psr_feature_enabled)
+			psr->funcs->psr_enable(psr, link->psr_settings.psr_allow_active, wait, (uint8_t)panel_inst);
+		else if ((dmcu != NULL && dmcu->funcs->is_dmcu_initialized(dmcu)) &&
 			link->psr_settings.psr_feature_enabled)
 			dmcu->funcs->set_psr_enable(dmcu, link->psr_settings.psr_allow_active, wait);
 		else
@@ -637,7 +637,7 @@ bool edp_get_psr_state(const struct dc_link *link, enum dc_psr_state *state)
 		return false;
 
 	if (psr != NULL && link->psr_settings.psr_feature_enabled)
-		psr->funcs->psr_get_state(psr, state, panel_inst);
+		psr->funcs->psr_get_state(psr, state, (uint8_t)panel_inst);
 	else if (dmcu != NULL && link->psr_settings.psr_feature_enabled)
 		dmcu->funcs->get_psr_state(dmcu, state);
 
@@ -788,7 +788,10 @@ bool edp_setup_psr(struct dc_link *link,
 		}
 	}
 
-	psr_context->channel = link->ddc->ddc_pin->hw_info.ddc_channel;
+	if (dc->config.dp_connector_no_native_i2c && link->no_ddc_pin)
+		psr_context->channel = (enum channel_id)link->aux_hw_inst;
+	else
+		psr_context->channel = link->ddc->ddc_pin->hw_info.ddc_channel;
 	psr_context->transmitterId = link->link_enc->transmitter;
 	psr_context->engineId = link->link_enc->preferred_engine;
 
@@ -811,7 +814,7 @@ bool edp_setup_psr(struct dc_link *link,
 	psr_context->smuPhyId = transmitter_to_phy_id(link);
 
 	psr_context->crtcTimingVerticalTotal = stream->timing.v_total;
-	psr_context->vsync_rate_hz = div64_u64(div64_u64((stream->
+	psr_context->vsync_rate_hz = (unsigned int)div64_u64(div64_u64((stream->
 					timing.pix_clk_100hz * (u64)100),
 					stream->timing.v_total),
 					stream->timing.h_total);
@@ -885,7 +888,7 @@ bool edp_setup_psr(struct dc_link *link,
 
 	if (psr) {
 		link->psr_settings.psr_feature_enabled = psr->funcs->psr_copy_settings(psr,
-			link, psr_context, panel_inst);
+			link, psr_context, (uint8_t)panel_inst);
 		link->psr_settings.psr_power_opt = 0;
 		link->psr_settings.psr_allow_active = 0;
 	} else {
@@ -913,7 +916,7 @@ void edp_get_psr_residency(const struct dc_link *link, uint32_t *residency, enum
 
 	// PSR residency measurements only supported on DMCUB
 	if (psr != NULL && link->psr_settings.psr_feature_enabled)
-		psr->funcs->psr_get_residency(psr, residency, panel_inst, mode);
+		psr->funcs->psr_get_residency(psr, residency, (uint8_t)panel_inst, mode);
 	else
 		*residency = 0;
 }
@@ -947,7 +950,7 @@ bool edp_set_replay_allow_active(struct dc_link *link, const bool *allow_active,
 	if (power_opts && link->replay_settings.replay_power_opt_active != *power_opts) {
 		if (replay != NULL && link->replay_settings.replay_feature_enabled &&
 			replay->funcs->replay_set_power_opt) {
-			replay->funcs->replay_set_power_opt(replay, *power_opts, panel_inst);
+			replay->funcs->replay_set_power_opt(replay, *power_opts, (uint8_t)panel_inst);
 			link->replay_settings.replay_power_opt_active = *power_opts;
 		}
 	}
@@ -957,7 +960,7 @@ bool edp_set_replay_allow_active(struct dc_link *link, const bool *allow_active,
 		// TODO: Handle mux change case if force_static is set
 		// If force_static is set, just change the replay_allow_active state directly
 		if (replay != NULL && link->replay_settings.replay_feature_enabled)
-			replay->funcs->replay_enable(replay, *allow_active, wait, panel_inst);
+			replay->funcs->replay_enable(replay, *allow_active, wait, (uint8_t)panel_inst);
 		link->replay_settings.replay_allow_active = *allow_active;
 	}
 
@@ -975,7 +978,7 @@ bool edp_get_replay_state(const struct dc_link *link, uint64_t *state)
 		return false;
 
 	if (replay != NULL && link->replay_settings.replay_feature_enabled)
-		replay->funcs->replay_get_state(replay, &pr_state, panel_inst);
+		replay->funcs->replay_get_state(replay, &pr_state, (uint8_t)panel_inst);
 	*state = pr_state;
 
 	return true;
@@ -1046,13 +1049,14 @@ bool edp_setup_freesync_replay(struct dc_link *link, const struct dc_stream_stat
 	replay_context.os_request_force_ffu = link->replay_settings.config.os_request_force_ffu;
 
 	link->replay_settings.replay_feature_enabled =
-			replay->funcs->replay_copy_settings(replay, link, &replay_context, panel_inst);
+			replay->funcs->replay_copy_settings(replay, link, &replay_context, (uint8_t)panel_inst);
 	if (link->replay_settings.replay_feature_enabled) {
 
 		replay_config.bits.FREESYNC_PANEL_REPLAY_MODE = 1;
-		replay_config.bits.TIMING_DESYNC_ERROR_VERIFICATION =
-			link->replay_settings.config.replay_timing_sync_supported;
+		replay_config.bits.TIMING_DESYNC_ERROR_VERIFICATION = 0;
 		replay_config.bits.STATE_TRANSITION_ERROR_DETECTION = 1;
+		replay_config.bits.FRAME_SKIPPING_ERROR_DETECTION = 1;
+		replay_config.bits.FRAME_SKIPPING_ENABLE = 1;
 		dm_helpers_dp_write_dpcd(link->ctx, link,
 			DP_SINK_PR_ENABLE_AND_CONFIGURATION,
 			(uint8_t *)&(replay_config.raw), sizeof(uint8_t));
@@ -1096,7 +1100,7 @@ bool edp_send_replay_cmd(struct dc_link *link,
 		return false;
 
 	if (dp_pr_get_panel_inst(dc, link, &panel_inst))
-		cmd_data->panel_inst = panel_inst;
+		cmd_data->panel_inst = (uint8_t)panel_inst;
 	else {
 		DC_LOG_DC("%s(): get edp panel inst fail ", __func__);
 		return false;
@@ -1121,7 +1125,7 @@ bool edp_set_coasting_vtotal(struct dc_link *link, uint32_t coasting_vtotal, uin
 
 	if (coasting_vtotal && (link->replay_settings.coasting_vtotal != coasting_vtotal ||
 		link->replay_settings.frame_skip_number != frame_skip_number)) {
-		replay->funcs->replay_set_coasting_vtotal(replay, coasting_vtotal, panel_inst, frame_skip_number);
+		replay->funcs->replay_set_coasting_vtotal(replay, coasting_vtotal, (uint8_t)panel_inst, frame_skip_number);
 		link->replay_settings.coasting_vtotal = coasting_vtotal;
 		link->replay_settings.frame_skip_number = frame_skip_number;
 	}
@@ -1143,7 +1147,7 @@ bool edp_replay_residency(const struct dc_link *link,
 		return false;
 
 	if (replay != NULL && link->replay_settings.replay_feature_enabled)
-		replay->funcs->replay_residency(replay, panel_inst, residency, is_start, mode);
+		replay->funcs->replay_residency(replay, (uint8_t)panel_inst, residency, is_start, mode);
 	else
 		*residency = 0;
 
@@ -1168,7 +1172,7 @@ bool edp_set_replay_power_opt_and_coasting_vtotal(struct dc_link *link,
 		if (link->replay_settings.replay_feature_enabled &&
 			replay->funcs->replay_set_power_opt_and_coasting_vtotal) {
 			replay->funcs->replay_set_power_opt_and_coasting_vtotal(replay,
-				*power_opts, panel_inst, coasting_vtotal, frame_skip_number);
+				*power_opts, (uint8_t)panel_inst, coasting_vtotal, frame_skip_number);
 			link->replay_settings.replay_power_opt_active = *power_opts;
 			link->replay_settings.coasting_vtotal = coasting_vtotal;
 			link->replay_settings.frame_skip_number = frame_skip_number;
@@ -1211,9 +1215,9 @@ int edp_get_backlight_level(const struct dc_link *link)
 		fw_set_brightness = dmcu->funcs->is_dmcu_initialized(dmcu);
 
 	if (!fw_set_brightness && panel_cntl->funcs->get_current_backlight)
-		return panel_cntl->funcs->get_current_backlight(panel_cntl);
+		return (int)panel_cntl->funcs->get_current_backlight(panel_cntl);
 	else if (abm != NULL && abm->funcs->get_current_backlight != NULL)
-		return (int) abm->funcs->get_current_backlight(abm);
+		return (int)abm->funcs->get_current_backlight(abm);
 	else
 		return DC_ERROR_UNEXPECTED;
 }
@@ -1252,10 +1256,10 @@ static void edp_set_assr_enable(const struct dc *pDC, struct dc_link *link,
 
 	memset(&cmd, 0, sizeof(cmd));
 
-	link_enc_index = link->link_enc->transmitter - TRANSMITTER_UNIPHY_A;
+	link_enc_index = (uint8_t)(link->link_enc->transmitter - TRANSMITTER_UNIPHY_A);
 
 	if (link_res->hpo_dp_link_enc) {
-		link_enc_index = link_res->hpo_dp_link_enc->inst;
+		link_enc_index = (uint8_t)link_res->hpo_dp_link_enc->inst;
 		use_hpo_dp_link_enc = true;
 	}
 

@@ -8,6 +8,7 @@
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_print.h>
+#include <drm/intel/step.h>
 
 #include "intel_bo.h"
 #include "intel_color.h"
@@ -25,7 +26,6 @@
 #include "intel_plane.h"
 #include "intel_psr.h"
 #include "intel_psr_regs.h"
-#include "intel_step.h"
 #include "skl_scaler.h"
 #include "skl_universal_plane.h"
 #include "skl_universal_plane_regs.h"
@@ -1532,7 +1532,7 @@ static void icl_plane_update_sel_fetch_noarm(struct intel_dsb *dsb,
 	if (!color_plane)
 		y = plane_state->view.color_plane[color_plane].y + clip->y1;
 	else
-		y = plane_state->view.color_plane[color_plane].y + clip->y1 / 2;
+		y = plane_state->view.color_plane[color_plane].y + DIV_ROUND_UP(clip->y1, 2);
 
 	val = y << 16 | x;
 
@@ -2139,10 +2139,22 @@ static int skl_check_nv12_aux_surface(struct intel_plane_state *plane_state)
 	int min_height = intel_plane_min_height(plane, fb, uv_plane, rotation);
 	int max_width = intel_plane_max_width(plane, fb, uv_plane, rotation);
 	int max_height = intel_plane_max_height(plane, fb, uv_plane, rotation);
-	int x = plane_state->uapi.src.x1 >> 17;
-	int y = plane_state->uapi.src.y1 >> 17;
-	int w = drm_rect_width(&plane_state->uapi.src) >> 17;
-	int h = drm_rect_height(&plane_state->uapi.src) >> 17;
+
+	/*
+	 * UV (chroma) start/size = ceiling(half of the *integer* Y plane
+	 * start/size), i.e. the value the luma surface programs (src >> 16),
+	 * not the raw U16.16. A bigjoiner seam mapped through the scaler can
+	 * give a fractional luma src; ceiling that directly would round the
+	 * chroma one column too far and read past the chroma surface.
+	 */
+	int luma_x = plane_state->uapi.src.x1 >> 16;
+	int luma_y = plane_state->uapi.src.y1 >> 16;
+	int luma_w = drm_rect_width(&plane_state->uapi.src) >> 16;
+	int luma_h = drm_rect_height(&plane_state->uapi.src) >> 16;
+	int x = DIV_ROUND_UP(luma_x, 2);
+	int y = DIV_ROUND_UP(luma_y, 2);
+	int w = DIV_ROUND_UP(luma_x + luma_w, 2) - x;
+	int h = DIV_ROUND_UP(luma_y + luma_h, 2) - y;
 	u32 offset;
 
 	/* FIXME not quite sure how/if these apply to the chroma plane */
@@ -3148,12 +3160,6 @@ skl_get_initial_plane_config(struct intel_crtc *crtc,
 
 	fb->format = drm_get_format_info(display->drm, fourcc, fb->modifier);
 
-	if (!display->params.enable_dpt &&
-	    intel_fb_modifier_uses_dpt(display, fb->modifier)) {
-		drm_dbg_kms(display->drm, "DPT disabled, skipping initial FB\n");
-		goto error;
-	}
-
 	/*
 	 * DRM_MODE_ROTATE_ is counter clockwise to stay compatible with Xrandr
 	 * while i915 HW rotation is clockwise, that's why this swapping.
@@ -3206,7 +3212,7 @@ skl_get_initial_plane_config(struct intel_crtc *crtc,
 		    fb->width, fb->height, fb->format->cpp[0] * 8,
 		    base, fb->pitches[0], plane_config->size);
 
-	plane_config->fb = intel_fb;
+	plane_config->fb = &intel_fb->base;
 	return;
 
 error:

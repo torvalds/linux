@@ -542,6 +542,10 @@ static struct mlxsw_sp_port_hw_stats mlxsw_sp_port_hw_prio_stats[] = {
 		.str = "tx_pause_duration_prio",
 		.getter = mlxsw_reg_ppcnt_tx_pause_duration_get,
 	},
+	{
+		.str = "rx_discards_pg",
+		.getter = mlxsw_reg_ppcnt_rx_discards_get,
+	},
 };
 
 #define MLXSW_SP_PORT_HW_PRIO_STATS_LEN ARRAY_SIZE(mlxsw_sp_port_hw_prio_stats)

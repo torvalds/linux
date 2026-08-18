@@ -211,19 +211,6 @@
 		regulator-always-on;
 	};
 
-	sound_card: sound {
-		compatible = "audio-graph-card";
-
-		label = "rcar-sound";
-
-		dais = <&rsnd_port0	/* ak4613 */
-			&rsnd_port1	/* HDMI0  */
-#ifdef SOC_HAS_HDMI1
-			&rsnd_port2	/* HDMI1  */
-#endif
-			>;
-	};
-
 	vbus0_usb2: regulator-vbus0-usb2 {
 		compatible = "regulator-fixed";
 
@@ -279,6 +266,19 @@
 		gpios = <&gpio3 14 GPIO_ACTIVE_HIGH>;
 		gpios-states = <1>;
 		states = <3300000 1>, <1800000 0>;
+	};
+
+	sound_card: sound {
+		compatible = "audio-graph-card";
+
+		label = "rcar-sound";
+
+		dais = <&rsnd_port0	/* ak4613 */
+			&rsnd_port1	/* HDMI0  */
+#ifdef SOC_HAS_HDMI1
+			&rsnd_port2	/* HDMI1  */
+#endif
+			>;
 	};
 
 	vga {
@@ -361,6 +361,8 @@
 		reg = <0>;
 		interrupts-extended = <&gpio2 11 IRQ_TYPE_LEVEL_LOW>;
 		reset-gpios = <&gpio2 10 GPIO_ACTIVE_LOW>;
+		reset-assert-us = <10000>;
+		reset-deassert-us = <300>;
 	};
 };
 
@@ -507,7 +509,7 @@
 		};
 	};
 
-	cs2000: clk-multiplier@4f {
+	cs2000: clock-controller@4f {
 		#clock-cells = <0>;
 		compatible = "cirrus,cs2000-cp";
 		reg = <0x4f>;

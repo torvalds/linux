@@ -291,6 +291,7 @@ struct dpcssys_phy_seq_cfg {
 	bool use_calibration_setting;
 	struct mpll_cfg mpll_cfg;
 	bool load_sram_fw;
+	bool tx_hdmi_frl_mode;
 #if 0
 
 	bool hdmimode_enable;

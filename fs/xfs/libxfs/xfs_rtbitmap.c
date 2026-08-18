@@ -214,7 +214,7 @@ xfs_rtbuf_get(
 	if (xfs_has_rtgroups(mp)) {
 		struct xfs_rtbuf_blkinfo	*hdr = bp->b_addr;
 
-		if (hdr->rt_owner != cpu_to_be64(ip->i_ino)) {
+		if (hdr->rt_owner != cpu_to_be64(I_INO(ip))) {
 			xfs_buf_mark_corrupt(bp);
 			xfs_trans_brelse(args->tp, bp);
 			xfs_rtginode_mark_sick(args->rtg, type);
@@ -1409,7 +1409,7 @@ xfs_rtfile_initialize_block(
 			hdr->rt_magic = cpu_to_be32(XFS_RTBITMAP_MAGIC);
 		else
 			hdr->rt_magic = cpu_to_be32(XFS_RTSUMMARY_MAGIC);
-		hdr->rt_owner = cpu_to_be64(ip->i_ino);
+		hdr->rt_owner = cpu_to_be64(I_INO(ip));
 		hdr->rt_blkno = cpu_to_be64(XFS_FSB_TO_DADDR(mp, fsbno));
 		hdr->rt_lsn = 0;
 		uuid_copy(&hdr->rt_uuid, &mp->m_sb.sb_meta_uuid);

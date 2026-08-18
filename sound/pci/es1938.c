@@ -222,8 +222,8 @@ struct es1938 {
 static irqreturn_t snd_es1938_interrupt(int irq, void *dev_id);
 
 static const struct pci_device_id snd_es1938_ids[] = {
-	{ PCI_VDEVICE(ESS, 0x1969), 0, },   /* Solo-1 */
-	{ 0, }
+	{ PCI_VDEVICE(ESS, 0x1969) },   /* Solo-1 */
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, snd_es1938_ids);
@@ -1655,6 +1655,8 @@ static int snd_es1938_mixer(struct es1938 *chip)
 	for (idx = 0; idx < ARRAY_SIZE(snd_es1938_controls); idx++) {
 		struct snd_kcontrol *kctl;
 		kctl = snd_ctl_new1(&snd_es1938_controls[idx], chip);
+		if (!kctl)
+			return -ENOMEM;
 		switch (idx) {
 			case 0:
 				chip->master_volume = kctl;

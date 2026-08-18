@@ -11,11 +11,7 @@
 struct intel_crtc_state;
 
 int intel_casf_compute_config(struct intel_crtc_state *crtc_state);
-void intel_casf_update_strength(struct intel_crtc_state *new_crtc_state);
 void intel_casf_sharpness_get_config(struct intel_crtc_state *crtc_state);
-void intel_casf_enable(struct intel_crtc_state *crtc_state);
-void intel_casf_disable(const struct intel_crtc_state *crtc_state);
-void intel_casf_scaler_compute_config(struct intel_crtc_state *crtc_state);
-bool intel_casf_needs_scaler(const struct intel_crtc_state *crtc_state);
+void intel_casf_setup(const struct intel_crtc_state *crtc_state);
 
 #endif /* __INTEL_CASF_H__ */

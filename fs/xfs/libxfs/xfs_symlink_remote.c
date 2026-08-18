@@ -196,7 +196,7 @@ xfs_symlink_local_to_remote(
 	bp->b_ops = &xfs_symlink_buf_ops;
 
 	buf = bp->b_addr;
-	buf += xfs_symlink_hdr_set(mp, ip->i_ino, 0, ifp->if_bytes, bp);
+	buf += xfs_symlink_hdr_set(mp, I_INO(ip), 0, ifp->if_bytes, bp);
 	memcpy(buf, ifp->if_data, ifp->if_bytes);
 	xfs_trans_log_buf(tp, bp, 0, sizeof(struct xfs_dsymlink_hdr) +
 					ifp->if_bytes - 1);
@@ -277,13 +277,13 @@ xfs_symlink_remote_read(
 
 		cur_chunk = bp->b_addr;
 		if (xfs_has_crc(mp)) {
-			if (!xfs_symlink_hdr_ok(ip->i_ino, offset,
+			if (!xfs_symlink_hdr_ok(I_INO(ip), offset,
 							byte_cnt, bp)) {
 				xfs_inode_mark_sick(ip, XFS_SICK_INO_SYMLINK);
 				error = -EFSCORRUPTED;
 				xfs_alert(mp,
 "symlink header does not match required off/len/owner (0x%x/0x%x,0x%llx)",
-					offset, byte_cnt, ip->i_ino);
+					offset, byte_cnt, I_INO(ip));
 				xfs_buf_relse(bp);
 				goto out;
 

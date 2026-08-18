@@ -214,7 +214,7 @@ static void test_cache_destroy(void)
 static inline size_t kmalloc_cache_alignment(size_t size)
 {
 	/* just to get ->align so no need to pass in the real caller */
-	enum kmalloc_cache_type type = kmalloc_type(GFP_KERNEL, 0);
+	enum kmalloc_cache_type type = kmalloc_type(GFP_KERNEL, __kmalloc_token(0));
 	return kmalloc_caches[type][__kmalloc_index(size, false)]->align;
 }
 
@@ -263,7 +263,7 @@ static void *test_alloc(struct kunit *test, size_t size, gfp_t gfp, enum allocat
 		break;
 	}
 
-	kunit_info(test, "%s: size=%zu, gfp=%x, policy=%s, cache=%i\n", __func__, size, gfp,
+	kunit_info(test, "%s: size=%zu, gfp=%pGg, policy=%s, cache=%i\n", __func__, size, &gfp,
 		   policy_name, !!test_cache);
 
 	/*
@@ -285,7 +285,7 @@ static void *test_alloc(struct kunit *test, size_t size, gfp_t gfp, enum allocat
 
 		if (is_kfence_address(alloc)) {
 			struct slab *slab = virt_to_slab(alloc);
-			enum kmalloc_cache_type type = kmalloc_type(GFP_KERNEL, _RET_IP_);
+			enum kmalloc_cache_type type = kmalloc_type(GFP_KERNEL, __kmalloc_token(size));
 			struct kmem_cache *s = test_cache ?:
 					kmalloc_caches[type][__kmalloc_index(size, false)];
 
@@ -761,9 +761,10 @@ static void test_memcache_alloc_bulk(struct kunit *test)
 	timeout = jiffies + msecs_to_jiffies(100 * kfence_sample_interval);
 	do {
 		void *objects[100];
-		int i, num = kmem_cache_alloc_bulk(test_cache, GFP_ATOMIC, ARRAY_SIZE(objects),
-						   objects);
-		if (!num)
+		int i;
+
+		if (!kmem_cache_alloc_bulk(test_cache, GFP_ATOMIC,
+				ARRAY_SIZE(objects), objects))
 			continue;
 		for (i = 0; i < ARRAY_SIZE(objects); i++) {
 			if (is_kfence_address(objects[i])) {
@@ -771,7 +772,7 @@ static void test_memcache_alloc_bulk(struct kunit *test)
 				break;
 			}
 		}
-		kmem_cache_free_bulk(test_cache, num, objects);
+		kmem_cache_free_bulk(test_cache, ARRAY_SIZE(objects), objects);
 		/*
 		 * kmem_cache_alloc_bulk() disables interrupts, and calling it
 		 * in a tight loop may not give KFENCE a chance to switch the

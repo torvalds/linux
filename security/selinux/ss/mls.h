@@ -27,9 +27,9 @@
 int mls_compute_context_len(struct policydb *p, struct context *context);
 void mls_sid_to_context(struct policydb *p, struct context *context,
 			char **scontext);
-int mls_context_isvalid(struct policydb *p, struct context *c);
-int mls_range_isvalid(struct policydb *p, struct mls_range *r);
-int mls_level_isvalid(struct policydb *p, struct mls_level *l);
+bool mls_context_isvalid(const struct policydb *p, const struct context *c);
+bool mls_range_isvalid(const struct policydb *p, const struct mls_range *r);
+bool mls_level_isvalid(const struct policydb *p, const struct mls_level *l);
 
 int mls_context_to_sid(struct policydb *p, char oldc, char *scontext,
 		       struct context *context, struct sidtab *s, u32 def_sid);

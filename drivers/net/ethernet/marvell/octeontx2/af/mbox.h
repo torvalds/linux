@@ -283,31 +283,30 @@ M(NPC_GET_FIELD_HASH_INFO, 0x6013, npc_get_field_hash_info,                     
 M(NPC_GET_FIELD_STATUS, 0x6014, npc_get_field_status,                     \
 				   npc_get_field_status_req,              \
 				   npc_get_field_status_rsp)              \
-M(NPC_CN20K_MCAM_GET_FREE_COUNT, 0x6015, npc_cn20k_get_fcnt,		\
-				 msg_req, npc_cn20k_get_fcnt_rsp)	\
-M(NPC_CN20K_GET_KEX_CFG, 0x6016, npc_cn20k_get_kex_cfg,			\
+M(NPC_MCAM_DEFRAG,	 0x6016,	npc_defrag,			\
+					msg_req,			\
+					msg_rsp)		\
+M(NPC_CN20K_GET_KEX_CFG, 0x6017, npc_cn20k_get_kex_cfg,			\
 				   msg_req, npc_cn20k_get_kex_cfg_rsp)	\
-M(NPC_CN20K_MCAM_WRITE_ENTRY,	0x6017, npc_cn20k_mcam_write_entry,	\
-				 npc_cn20k_mcam_write_entry_req, msg_rsp)  \
-M(NPC_CN20K_MCAM_ALLOC_AND_WRITE_ENTRY, 0x6018,				   \
-npc_cn20k_mcam_alloc_and_write_entry,					   \
+M(NPC_CN20K_MCAM_GET_FREE_COUNT, 0x6018, npc_cn20k_get_fcnt,			\
+				 msg_req, npc_cn20k_get_fcnt_rsp)	\
+M(NPC_CN20K_MCAM_WRITE_ENTRY,	0x6019, npc_cn20k_mcam_write_entry,			\
+				 npc_cn20k_mcam_write_entry_req, msg_rsp)	\
+M(NPC_CN20K_MCAM_ALLOC_AND_WRITE_ENTRY, 0x601a, npc_cn20k_mcam_alloc_and_write_entry,	\
 				npc_cn20k_mcam_alloc_and_write_entry_req,  \
 				npc_mcam_alloc_and_write_entry_rsp)  \
-M(NPC_CN20K_MCAM_READ_ENTRY,	0x6019, npc_cn20k_mcam_read_entry,	\
+M(NPC_CN20K_MCAM_READ_ENTRY,	0x601b, npc_cn20k_mcam_read_entry,	\
 				  npc_mcam_read_entry_req,		\
 				  npc_cn20k_mcam_read_entry_rsp)	\
-M(NPC_CN20K_MCAM_READ_BASE_RULE, 0x601a, npc_cn20k_read_base_steer_rule,       \
-				   msg_req, npc_cn20k_mcam_read_base_rule_rsp) \
-M(NPC_MCAM_DEFRAG,	     0x601b,	npc_defrag,			\
-					msg_req,			\
-					msg_rsp)			\
-M(NPC_MCAM_GET_NUM_KWS, 0x601c, npc_get_num_kws,		\
+M(NPC_CN20K_MCAM_READ_BASE_RULE, 0x601c, npc_cn20k_read_base_steer_rule,            \
+				   msg_req, npc_cn20k_mcam_read_base_rule_rsp)  \
+M(NPC_MCAM_GET_NUM_KWS, 0x601d, npc_get_num_kws,		\
 				npc_get_num_kws_req,		\
 				npc_get_num_kws_rsp)		\
-M(NPC_MCAM_GET_DFT_RL_IDXS, 0x601d, npc_get_dft_rl_idxs,	\
+M(NPC_MCAM_GET_DFT_RL_IDXS, 0x601e, npc_get_dft_rl_idxs,	\
 					msg_req,		\
 					npc_get_dft_rl_idxs_rsp)\
-M(NPC_MCAM_GET_NPC_PFL_INFO, 0x601e, npc_get_pfl_info,		\
+M(NPC_MCAM_GET_NPC_PFL_INFO, 0x601f, npc_get_pfl_info,		\
 					msg_req,		\
 					npc_get_pfl_info_rsp)	\
 /* NIX mbox IDs (range 0x8000 - 0xFFFF) */				\
@@ -1009,6 +1008,7 @@ struct nix_lf_free_req {
 	struct mbox_msghdr hdr;
 #define NIX_LF_DISABLE_FLOWS		BIT_ULL(0)
 #define NIX_LF_DONT_FREE_TX_VTAG	BIT_ULL(1)
+#define NIX_LF_DONT_FREE_DFT_IDXS	BIT_ULL(2)
 	u64 flags;
 };
 

@@ -12,7 +12,6 @@
 #include <linux/init.h>
 #include <linux/iio/iio.h>
 #include <linux/delay.h>
-#include <linux/mod_devicetable.h>
 #include <linux/regmap.h>
 #include <linux/iio/sysfs.h>
 
@@ -171,8 +170,8 @@ static const struct acpi_device_id mxc6255_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, mxc6255_acpi_match);
 
 static const struct i2c_device_id mxc6255_id[] = {
-	{ "mxc6225" },
-	{ "mxc6255" },
+	{ .name = "mxc6225" },
+	{ .name = "mxc6255" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mxc6255_id);

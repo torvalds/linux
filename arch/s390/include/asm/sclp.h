@@ -20,6 +20,7 @@
 #define SCLP_ERRNOTIFY_AQ_REPAIR		1
 #define SCLP_ERRNOTIFY_AQ_INFO_LOG		2
 #define SCLP_ERRNOTIFY_AQ_OPTICS_DATA		3
+#define SCLP_ERRNOTIFY_AQ_NVME_SMART_LOG	4
 
 #ifndef __ASSEMBLER__
 #include <linux/uio.h>

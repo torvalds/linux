@@ -22,7 +22,6 @@ struct zl3073x_dev;
  * @freq_ratio_n: FEC mode divisor
  * @sync_ctrl: reference sync control
  * @config: reference config
- * @ffo: current fractional frequency offset
  * @meas_freq: measured input frequency in Hz
  * @mon_status: reference monitor status
  */
@@ -40,7 +39,6 @@ struct zl3073x_ref {
 		u8	config;
 	);
 	struct_group(stat, /* Status */
-		s64	ffo;
 		u32	meas_freq;
 		u8	mon_status;
 	);
@@ -57,18 +55,6 @@ int zl3073x_ref_state_set(struct zl3073x_dev *zldev, u8 index,
 int zl3073x_ref_state_update(struct zl3073x_dev *zldev, u8 index);
 
 int zl3073x_ref_freq_factorize(u32 freq, u16 *base, u16 *mult);
-
-/**
- * zl3073x_ref_ffo_get - get current fractional frequency offset
- * @ref: pointer to ref state
- *
- * Return: the latest measured fractional frequency offset
- */
-static inline s64
-zl3073x_ref_ffo_get(const struct zl3073x_ref *ref)
-{
-	return ref->ffo;
-}
 
 /**
  * zl3073x_ref_meas_freq_get - get measured input frequency

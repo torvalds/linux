@@ -1,0 +1,51 @@
+Iterations:        100
+Instructions:      600
+Total Cycles:      209
+Total uOps:        700
+
+Dispatch Width:    4
+uOps Per Cycle:    3.35
+IPC:               2.87
+Block RThroughput: 1.8
+
+
+Instruction Info:
+[1]: #uOps
+[2]: Latency
+[3]: RThroughput
+[4]: MayLoad
+[5]: MayStore
+[6]: HasSideEffects (U)
+
+[1]    [2]    [3]    [4]    [5]    [6]    Instructions:
+ 1      1     0.50                        lea	rax, [rsi + 2*rsi]
+ 1      1     0.33                        movabs	rdx, 9223372036854775804
+ 1      1     0.33                        and	rdx, rax
+ 1      1     0.33                        add	rdx, 12
+ 1      0     0.25                        xor	esi, esi
+ 2      6     1.00    *                   jmp	qword ptr [rip + memset@GOTPCREL]
+
+
+Resources:
+[0]   - SBDivider
+[1]   - SBFPDivider
+[2]   - SBPort0
+[3]   - SBPort1
+[4]   - SBPort4
+[5]   - SBPort5
+[6.0] - SBPort23
+[6.1] - SBPort23
+
+
+Resource pressure per iteration:
+[0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  
+ -      -     1.66   1.66    -     1.68   0.50   0.50   
+
+Resource pressure by instruction:
+[0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  Instructions:
+ -      -     0.33   0.67    -      -      -      -     lea	rax, [rsi + 2*rsi]
+ -      -     0.98    -      -     0.02    -      -     movabs	rdx, 9223372036854775804
+ -      -     0.01   0.66    -     0.33    -      -     and	rdx, rax
+ -      -     0.34   0.33    -     0.33    -      -     add	rdx, 12
+ -      -      -      -      -      -      -      -     xor	esi, esi
+ -      -      -      -      -     1.00   0.50   0.50   jmp	qword ptr [rip + memset@GOTPCREL]

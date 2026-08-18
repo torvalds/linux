@@ -550,8 +550,8 @@ static int si3474_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id si3474_id[] = {
-	{ "si3474" },
-	{}
+	{ .name = "si3474" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, si3474_id);
 

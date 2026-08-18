@@ -34,7 +34,9 @@ struct mlx5e_rss;
 int mlx5e_rss_params_indir_init(struct mlx5e_rss_params_indir *indir,
 				u32 actual_table_size, u32 max_table_size);
 void mlx5e_rss_params_indir_cleanup(struct mlx5e_rss_params_indir *indir);
-void mlx5e_rss_params_indir_modify_actual_size(struct mlx5e_rss *rss, u32 num_channels);
+void mlx5e_rss_ctx_resize(struct mlx5e_rss *rss, u32 new_size);
+void mlx5e_rss_indir_resize(struct mlx5e_rss *rss, struct net_device *netdev,
+			    u32 new_size);
 struct mlx5e_rss *
 mlx5e_rss_init(struct mlx5_core_dev *mdev,
 	       const struct mlx5e_rss_params *params,
@@ -46,6 +48,8 @@ void mlx5e_rss_refcnt_dec(struct mlx5e_rss *rss);
 unsigned int mlx5e_rss_refcnt_read(struct mlx5e_rss *rss);
 
 bool mlx5e_rss_get_inner_ft_support(struct mlx5e_rss *rss);
+u32 *mlx5e_rss_get_indir_table(struct mlx5e_rss *rss);
+void mlx5e_rss_set_indir_actual_size(struct mlx5e_rss *rss, u32 size);
 u32 mlx5e_rss_get_tirn(struct mlx5e_rss *rss, enum mlx5_traffic_types tt,
 		       bool inner);
 bool mlx5e_rss_valid_tir(struct mlx5e_rss *rss, enum mlx5_traffic_types tt, bool inner);

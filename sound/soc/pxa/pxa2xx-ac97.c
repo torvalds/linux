@@ -18,10 +18,11 @@
 #include <sound/core.h>
 #include <sound/ac97_codec.h>
 #include <sound/soc.h>
-#include <sound/pxa2xx-lib.h>
 #include <sound/dmaengine_pcm.h>
 
 #include <linux/platform_data/asoc-pxa.h>
+
+#include "pxa2xx-lib.h"
 
 #define PCDR	0x0040  /* PCM FIFO Data Register */
 #define MODR	0x0140  /* Modem FIFO Data Register */
@@ -246,8 +247,7 @@ static int pxa2xx_ac97_dev_probe(struct platform_device *pdev)
 	}
 
 	ctrl = snd_ac97_controller_register(&pxa2xx_ac97_ops, &pdev->dev,
-					    AC97_SLOTS_AVAILABLE_ALL,
-					    NULL);
+					    AC97_SLOTS_AVAILABLE_ALL);
 	if (IS_ERR(ctrl))
 		return PTR_ERR(ctrl);
 

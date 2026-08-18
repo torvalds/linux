@@ -13,8 +13,10 @@
 #include <linux/cpumask_types.h>
 #include <linux/gfp_types.h>
 #include <linux/numa.h>
+#include <linux/sprintf.h>
 #include <linux/threads.h>
 #include <linux/types.h>
+#include <vdso/page.h>
 
 #include <asm/bug.h>
 
@@ -1326,8 +1328,9 @@ static __always_inline bool cpu_dying(unsigned int cpu)
 static __always_inline ssize_t
 cpumap_print_to_pagebuf(bool list, char *buf, const struct cpumask *mask)
 {
-	return bitmap_print_to_pagebuf(list, buf, cpumask_bits(mask),
-				      nr_cpu_ids);
+	/* Opencode offset_in_page(buf) to not include linux/mm.h */
+	return scnprintf(buf, PAGE_SIZE - ((unsigned long)buf & ~PAGE_MASK),
+			 list ? "%*pbl\n" : "%*pb\n", cpumask_pr_args(mask));
 }
 
 /**

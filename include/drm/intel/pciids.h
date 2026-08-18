@@ -898,7 +898,11 @@
 
 /* CRI */
 #define INTEL_CRI_IDS(MACRO__, ...) \
-	MACRO__(0x674C, ## __VA_ARGS__)
+	MACRO__(0x674C, ## __VA_ARGS__), \
+	MACRO__(0x674D, ## __VA_ARGS__), \
+	MACRO__(0x674E, ## __VA_ARGS__), \
+	MACRO__(0x674F, ## __VA_ARGS__), \
+	MACRO__(0x6750, ## __VA_ARGS__)
 
 /* NVL-P */
 #define INTEL_NVLP_IDS(MACRO__, ...) \

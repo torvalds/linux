@@ -102,7 +102,7 @@ int siw_alloc_ucontext(struct ib_ucontext *base_ctx, struct ib_udata *udata)
 		rv = -EINVAL;
 		goto err_out;
 	}
-	rv = ib_copy_to_udata(udata, &uresp, sizeof(uresp));
+	rv = ib_respond_udata(udata, uresp);
 	if (rv)
 		goto err_out;
 
@@ -130,9 +130,11 @@ int siw_query_device(struct ib_device *base_dev, struct ib_device_attr *attr,
 		     struct ib_udata *udata)
 {
 	struct siw_device *sdev = to_siw_dev(base_dev);
+	int rv;
 
-	if (udata->inlen || udata->outlen)
-		return -EINVAL;
+	rv = ib_is_udata_in_empty(udata);
+	if (rv)
+		return rv;
 
 	memset(attr, 0, sizeof(*attr));
 
@@ -165,7 +167,7 @@ int siw_query_device(struct ib_device *base_dev, struct ib_device_attr *attr,
 	addrconf_addr_eui48((u8 *)&attr->sys_image_guid,
 			    sdev->raw_gid);
 
-	return 0;
+	return ib_respond_empty_udata(udata);
 }
 
 int siw_query_port(struct ib_device *base_dev, u32 port,
@@ -316,6 +318,7 @@ int siw_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attrs,
 	struct siw_ucontext *uctx =
 		rdma_udata_to_drv_context(udata, struct siw_ucontext,
 					  base_ucontext);
+	struct siw_uresp_create_qp uresp = {};
 	unsigned long flags;
 	int num_sqe, num_rqe, rv = 0;
 	size_t length;
@@ -369,11 +372,6 @@ int siw_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attrs,
 	spin_lock_init(&qp->rq_lock);
 	spin_lock_init(&qp->orq_lock);
 
-	rv = siw_qp_add(sdev, qp);
-	if (rv)
-		goto err_atomic;
-
-
 	/* All queue indices are derived from modulo operations
 	 * on a free running 'get' (consumer) and 'put' (producer)
 	 * unsigned counter. Having queue sizes at power of two
@@ -391,14 +389,14 @@ int siw_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attrs,
 
 	if (qp->sendq == NULL) {
 		rv = -ENOMEM;
-		goto err_out_xa;
+		goto err_out;
 	}
 	if (attrs->sq_sig_type != IB_SIGNAL_REQ_WR) {
 		if (attrs->sq_sig_type == IB_SIGNAL_ALL_WR)
 			qp->attrs.flags |= SIW_SIGNAL_ALL_WR;
 		else {
 			rv = -EINVAL;
-			goto err_out_xa;
+			goto err_out;
 		}
 	}
 	qp->pd = pd;
@@ -424,7 +422,7 @@ int siw_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attrs,
 
 		if (qp->recvq == NULL) {
 			rv = -ENOMEM;
-			goto err_out_xa;
+			goto err_out;
 		}
 		qp->attrs.rq_size = num_rqe;
 	}
@@ -439,11 +437,8 @@ int siw_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attrs,
 	qp->attrs.state = SIW_QP_STATE_IDLE;
 
 	if (udata) {
-		struct siw_uresp_create_qp uresp = {};
-
 		uresp.num_sqe = num_sqe;
 		uresp.num_rqe = num_rqe;
-		uresp.qp_id = qp_id(qp);
 
 		if (qp->sendq) {
 			length = num_sqe * sizeof(struct siw_sqe);
@@ -452,7 +447,7 @@ int siw_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attrs,
 						      length, &uresp.sq_key);
 			if (!qp->sq_entry) {
 				rv = -ENOMEM;
-				goto err_out_xa;
+				goto err_out;
 			}
 		}
 
@@ -464,34 +459,45 @@ int siw_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attrs,
 			if (!qp->rq_entry) {
 				uresp.sq_key = SIW_INVAL_UOBJ_KEY;
 				rv = -ENOMEM;
-				goto err_out_xa;
+				goto err_out;
 			}
 		}
+	}
+	qp->tx_cpu = siw_get_tx_cpu(sdev);
+	if (qp->tx_cpu < 0) {
+		rv = -EINVAL;
+		goto err_out;
+	}
+	init_completion(&qp->qp_free);
+
+	rv = siw_qp_add(sdev, qp);
+	if (rv)
+		goto err_out_tx;
+
+	if (udata) {
+		uresp.qp_id = qp_id(qp);
 
 		if (udata->outlen < sizeof(uresp)) {
 			rv = -EINVAL;
 			goto err_out_xa;
 		}
-		rv = ib_copy_to_udata(udata, &uresp, sizeof(uresp));
+		rv = ib_respond_udata(udata, uresp);
 		if (rv)
 			goto err_out_xa;
 	}
-	qp->tx_cpu = siw_get_tx_cpu(sdev);
-	if (qp->tx_cpu < 0) {
-		rv = -EINVAL;
-		goto err_out_xa;
-	}
+
 	INIT_LIST_HEAD(&qp->devq);
 	spin_lock_irqsave(&sdev->lock, flags);
 	list_add_tail(&qp->devq, &sdev->qp_list);
 	spin_unlock_irqrestore(&sdev->lock, flags);
 
-	init_completion(&qp->qp_free);
-
 	return 0;
 
 err_out_xa:
 	xa_erase(&sdev->qp_xa, qp_id(qp));
+err_out_tx:
+	siw_put_tx_cpu(qp->tx_cpu);
+err_out:
 	if (uctx) {
 		rdma_user_mmap_entry_remove(qp->sq_entry);
 		rdma_user_mmap_entry_remove(qp->rq_entry);
@@ -1205,7 +1211,7 @@ int siw_create_cq(struct ib_cq *base_cq, const struct ib_cq_init_attr *attr,
 			rv = -EINVAL;
 			goto err_out;
 		}
-		rv = ib_copy_to_udata(udata, &uresp, sizeof(uresp));
+		rv = ib_respond_udata(udata, uresp);
 		if (rv)
 			goto err_out;
 	}
@@ -1386,7 +1392,7 @@ struct ib_mr *siw_reg_user_mr(struct ib_pd *pd, u64 start, u64 len,
 			rv = -EINVAL;
 			goto err_out;
 		}
-		rv = ib_copy_to_udata(udata, &uresp, sizeof(uresp));
+		rv = ib_respond_udata(udata, uresp);
 		if (rv)
 			goto err_out;
 	}
@@ -1646,7 +1652,7 @@ int siw_create_srq(struct ib_srq *base_srq,
 			rv = -EINVAL;
 			goto err_out;
 		}
-		rv = ib_copy_to_udata(udata, &uresp, sizeof(uresp));
+		rv = ib_respond_udata(udata, uresp);
 		if (rv)
 			goto err_out;
 	}

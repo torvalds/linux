@@ -25,12 +25,12 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_debugfs.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_encoder.h>
 #include <drm/drm_eld.h>
 #include <drm/drm_file.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/drm_simple_kms_helper.h>
 
 #include "hda.h"
 #include "hdmi.h"
@@ -370,6 +370,10 @@ static const struct tmds_config tegra124_tmds_config[] = {
 			PEAK_CURRENT_LANE2(PEAK_CURRENT_3_000_mA) |
 			PEAK_CURRENT_LANE3(PEAK_CURRENT_0_800_mA),
 	},
+};
+
+static const struct drm_encoder_funcs tegra_hdmi_encoder_funcs = {
+	.destroy = drm_encoder_cleanup,
 };
 
 static void tegra_hdmi_audio_lock(struct tegra_hdmi *hdmi)
@@ -1555,8 +1559,8 @@ static int tegra_hdmi_init(struct host1x_client *client)
 
 	hdmi->output.dev = client->dev;
 
-	drm_simple_encoder_init(drm, &hdmi->output.encoder,
-				DRM_MODE_ENCODER_TMDS);
+	drm_encoder_init(drm, &hdmi->output.encoder, &tegra_hdmi_encoder_funcs,
+			 DRM_MODE_ENCODER_TMDS, NULL);
 	drm_encoder_helper_add(&hdmi->output.encoder,
 			       &tegra_hdmi_encoder_helper_funcs);
 
@@ -1576,8 +1580,6 @@ static int tegra_hdmi_init(struct host1x_client *client)
 				connector);
 			return PTR_ERR(connector);
 		}
-
-		drm_connector_attach_encoder(connector, &hdmi->output.encoder);
 	} else {
 		drm_connector_init_with_ddc(drm, &hdmi->output.connector,
 					    &tegra_hdmi_connector_funcs,

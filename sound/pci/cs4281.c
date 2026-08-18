@@ -476,8 +476,8 @@ struct cs4281 {
 static irqreturn_t snd_cs4281_interrupt(int irq, void *dev_id);
 
 static const struct pci_device_id snd_cs4281_ids[] = {
-	{ PCI_VDEVICE(CIRRUS, 0x6005), 0, },	/* CS4281 */
-	{ 0, }
+	{ PCI_VDEVICE(CIRRUS, 0x6005) },	/* CS4281 */
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, snd_cs4281_ids);

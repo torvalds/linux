@@ -1,0 +1,86 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig RUST_KUNIT_TESTS
+	bool "Rust KUnit tests"
+	depends on KUNIT && RUST
+	default KUNIT_ALL_TESTS
+	help
+	  This menu collects all options for Rust KUnit tests.
+	  See Documentation/rust/testing.rst for how to protect
+	  unit tests with these options.
+
+	  Say Y here to enable Rust KUnit tests.
+
+	  If unsure, say N.
+
+if RUST_KUNIT_TESTS
+config RUST_ALLOCATOR_KUNIT_TEST
+	bool "KUnit tests for Rust allocator API" if !KUNIT_ALL_TESTS
+	default KUNIT_ALL_TESTS
+	help
+	  This option enables KUnit tests for the Rust allocator API.
+	  These are only for development and testing, not for regular
+	  kernel use cases.
+
+	  If unsure, say N.
+
+config RUST_KVEC_KUNIT_TEST
+	bool "KUnit tests for Rust KVec API" if !KUNIT_ALL_TESTS
+	default KUNIT_ALL_TESTS
+	help
+	  This option enables KUnit tests for the Rust KVec API.
+	  These are only for development and testing, not for
+	  regular kernel use cases.
+
+	  If unsure, say N.
+
+config RUST_BITMAP_KUNIT_TEST
+	bool "KUnit tests for Rust bitmap API" if !KUNIT_ALL_TESTS
+	default KUNIT_ALL_TESTS
+	help
+	  This option enables KUnit tests for the Rust bitmap API.
+	  These are only for development and testing, not for regular
+	  kernel use cases.
+
+	  If unsure, say N.
+
+config RUST_KUNIT_SELFTEST
+	bool "KUnit selftests for Rust" if !KUNIT_ALL_TESTS
+	default KUNIT_ALL_TESTS
+	help
+	  This option enables KUnit selftests. These are only
+	  for development and testing, not for regular kernel
+	  use cases.
+
+	  If unsure, say N.
+
+config RUST_STR_KUNIT_TEST
+	bool "KUnit tests for Rust strings API" if !KUNIT_ALL_TESTS
+	default KUNIT_ALL_TESTS
+	help
+	  This option enables KUnit tests for the Rust strings API.
+	  These are only for development and testing, not for regular
+	  kernel use cases.
+
+	  If unsure, say N.
+
+config RUST_ATOMICS_KUNIT_TEST
+	bool "KUnit tests for Rust atomics API" if !KUNIT_ALL_TESTS
+	default KUNIT_ALL_TESTS
+	help
+	  This option enables KUnit tests for the Rust atomics API.
+	  These are only for development and testing, not for regular
+	  kernel use cases.
+
+	  If unsure, say N.
+
+config RUST_BITFIELD_KUNIT_TEST
+	bool "KUnit tests for the Rust `bitfield!` macro" if !KUNIT_ALL_TESTS
+	default KUNIT_ALL_TESTS
+	help
+	  This option enables KUnit tests for the Rust `bitfield!` macro.
+	  These are only for development and testing, not for regular
+	  kernel use cases.
+
+	  If unsure, say N.
+
+endif

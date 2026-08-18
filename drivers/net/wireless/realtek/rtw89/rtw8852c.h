@@ -13,7 +13,11 @@
 struct rtw8852c_u_efuse {
 	u8 rsvd[0x88];
 	u8 mac_addr[ETH_ALEN];
-};
+	u8 rsvd1[8];
+	u8 sn[RTW89_EFUSE_SN_LEN];
+	u8 rsvd2[29];
+	u8 uuid[RTW89_EFUSE_UUID_LEN];
+} __packed;
 
 struct rtw8852c_e_efuse {
 	u8 mac_addr[ETH_ALEN];

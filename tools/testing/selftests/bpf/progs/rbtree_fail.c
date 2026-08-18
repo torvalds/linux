@@ -134,7 +134,7 @@ unlock_err:
 }
 
 SEC("?tc")
-__failure __msg("arg#1 expected pointer to allocated object")
+__failure __msg("R2 expected pointer to allocated object")
 long rbtree_api_add_to_multiple_trees(void *ctx)
 {
 	struct node_data *n;
@@ -153,7 +153,7 @@ long rbtree_api_add_to_multiple_trees(void *ctx)
 }
 
 SEC("?tc")
-__failure __msg("Possibly NULL pointer passed to trusted arg1")
+__failure __msg("Possibly NULL pointer passed to trusted R2")
 long rbtree_api_use_unchecked_remove_retval(void *ctx)
 {
 	struct bpf_rb_node *res;
@@ -281,7 +281,7 @@ long add_with_cb(bool (cb)(struct bpf_rb_node *a, const struct bpf_rb_node *b))
 }
 
 SEC("?tc")
-__failure __msg("arg#1 expected pointer to allocated object")
+__failure __msg("R2 expected pointer to allocated object")
 long rbtree_api_add_bad_cb_bad_fn_call_add(void *ctx)
 {
 	return add_with_cb(less__bad_fn_call_add);

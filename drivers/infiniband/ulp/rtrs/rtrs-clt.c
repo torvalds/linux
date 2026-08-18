@@ -1536,7 +1536,7 @@ static struct rtrs_clt_path *alloc_path(struct rtrs_clt_sess *clt,
 	int cpu;
 	size_t total_con;
 
-	clt_path = kzalloc_obj(*clt_path);
+	clt_path = kzalloc_flex(*clt_path, stats, 1);
 	if (!clt_path)
 		goto err;
 
@@ -1551,10 +1551,6 @@ static struct rtrs_clt_path *alloc_path(struct rtrs_clt_sess *clt,
 
 	clt_path->s.con_num = total_con;
 	clt_path->s.irq_con_num = con_num + 1;
-
-	clt_path->stats = kzalloc_obj(*clt_path->stats);
-	if (!clt_path->stats)
-		goto err_free_con;
 
 	mutex_init(&clt_path->init_mutex);
 	uuid_gen(&clt_path->s.uuid);
@@ -1583,7 +1579,7 @@ static struct rtrs_clt_path *alloc_path(struct rtrs_clt_sess *clt,
 
 	clt_path->mp_skip_entry = alloc_percpu(typeof(*clt_path->mp_skip_entry));
 	if (!clt_path->mp_skip_entry)
-		goto err_free_stats;
+		goto err_free_con;
 
 	for_each_possible_cpu(cpu)
 		INIT_LIST_HEAD(per_cpu_ptr(clt_path->mp_skip_entry, cpu));
@@ -1596,8 +1592,6 @@ static struct rtrs_clt_path *alloc_path(struct rtrs_clt_sess *clt,
 
 err_free_percpu:
 	free_percpu(clt_path->mp_skip_entry);
-err_free_stats:
-	kfree(clt_path->stats);
 err_free_con:
 	kfree(clt_path->s.con);
 err_free_path:
@@ -2863,7 +2857,6 @@ struct rtrs_clt_sess *rtrs_clt_open(struct rtrs_clt_ops *ops,
 			list_del_rcu(&clt_path->s.entry);
 			rtrs_clt_close_conns(clt_path, true);
 			free_percpu(clt_path->stats->pcpu_stats);
-			kfree(clt_path->stats);
 			free_path(clt_path);
 			goto close_all_path;
 		}
@@ -2873,7 +2866,6 @@ struct rtrs_clt_sess *rtrs_clt_open(struct rtrs_clt_ops *ops,
 			list_del_rcu(&clt_path->s.entry);
 			rtrs_clt_close_conns(clt_path, true);
 			free_percpu(clt_path->stats->pcpu_stats);
-			kfree(clt_path->stats);
 			free_path(clt_path);
 			goto close_all_path;
 		}
@@ -3166,7 +3158,6 @@ close_path:
 	rtrs_clt_remove_path_from_arr(clt_path);
 	rtrs_clt_close_conns(clt_path, true);
 	free_percpu(clt_path->stats->pcpu_stats);
-	kfree(clt_path->stats);
 	free_path(clt_path);
 
 	return err;

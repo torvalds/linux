@@ -159,6 +159,10 @@ TEST_SPINLOCK_COMMON(read_lock,
 struct test_mutex_data {
 	struct mutex mtx;
 	int counter __guarded_by(&mtx);
+
+	struct mutex mtx2;
+	int anyread __guarded_by(&mtx, &mtx2);
+	int *anyptr __pt_guarded_by(&mtx, &mtx2);
 };
 
 static void __used test_mutex_init(struct test_mutex_data *d)
@@ -217,6 +221,26 @@ static void __used test_mutex_cond_guard(struct test_mutex_data *d)
 	scoped_cond_guard(mutex_intr, return, &d->mtx) {
 		d->counter++;
 	}
+}
+
+static void __used test_mutex_multiguard(struct test_mutex_data *d)
+{
+	mutex_lock(&d->mtx);
+	(void)d->anyread;
+	(void)*d->anyptr;
+	mutex_unlock(&d->mtx);
+
+	mutex_lock(&d->mtx2);
+	(void)d->anyread;
+	(void)*d->anyptr;
+	mutex_unlock(&d->mtx2);
+
+	mutex_lock(&d->mtx);
+	mutex_lock(&d->mtx2);
+	d->anyread++;
+	(*d->anyptr)++;
+	mutex_unlock(&d->mtx2);
+	mutex_unlock(&d->mtx);
 }
 
 struct test_seqlock_data {

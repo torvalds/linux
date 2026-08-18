@@ -6,6 +6,7 @@
 
 #include <asm/memtype.h>
 #include <asm/apic.h>
+#include <asm/cpuid/api.h>
 #include <asm/processor.h>
 
 #include "cpu.h"

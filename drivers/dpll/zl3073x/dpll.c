@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <linux/atomic.h>
 #include <linux/bits.h>
 #include <linux/bitfield.h>
 #include <linux/bug.h>
@@ -9,7 +10,6 @@
 #include <linux/err.h>
 #include <linux/kthread.h>
 #include <linux/math64.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/netlink.h>
 #include <linux/platform_device.h>
@@ -38,7 +38,7 @@
  * @prio: pin priority <0, 14>
  * @esync_control: embedded sync is controllable
  * @phase_gran: phase adjustment granularity
- * @pin_state: last saved pin state
+ * @operstate: last saved operational state
  * @phase_offset: last saved pin phase offset
  * @freq_offset: last saved fractional frequency offset
  * @measured_freq: last saved measured frequency
@@ -55,9 +55,9 @@ struct zl3073x_dpll_pin {
 	u8			prio;
 	bool			esync_control;
 	s32			phase_gran;
-	enum dpll_pin_state	pin_state;
+	enum dpll_pin_operstate	operstate;
 	s64			phase_offset;
-	s64			freq_offset;
+	atomic64_t		freq_offset;
 	u32			measured_freq;
 };
 
@@ -295,11 +295,15 @@ zl3073x_dpll_input_pin_ref_sync_set(const struct dpll_pin *dpll_pin,
 static int
 zl3073x_dpll_input_pin_ffo_get(const struct dpll_pin *dpll_pin, void *pin_priv,
 			       const struct dpll_device *dpll, void *dpll_priv,
-			       s64 *ffo, struct netlink_ext_ack *extack)
+			       struct dpll_ffo_param *ffo,
+			       struct netlink_ext_ack *extack)
 {
 	struct zl3073x_dpll_pin *pin = pin_priv;
 
-	*ffo = pin->freq_offset;
+	if (pin->operstate != DPLL_PIN_OPERSTATE_ACTIVE)
+		return -ENODATA;
+
+	ffo->ffo = atomic64_read(&pin->freq_offset);
 
 	return 0;
 }
@@ -500,46 +504,41 @@ zl3073x_dpll_input_pin_phase_adjust_set(const struct dpll_pin *dpll_pin,
 }
 
 /**
- * zl3073x_dpll_ref_state_get - get status for given input pin
+ * zl3073x_dpll_ref_operstate_get - get operational state for input pin
  * @pin: pointer to pin
- * @state: place to store status
+ * @operstate: place to store operational state
  *
- * Checks current status for the given input pin and stores the value
- * to @state.
+ * Returns the actual hardware state of the pin: whether it is actively
+ * used by the DPLL, has no signal, failed qualification, or is simply
+ * not in use.
  *
  * Return: 0 on success, <0 on error
  */
 static int
-zl3073x_dpll_ref_state_get(struct zl3073x_dpll_pin *pin,
-			   enum dpll_pin_state *state)
+zl3073x_dpll_ref_operstate_get(struct zl3073x_dpll_pin *pin,
+			       enum dpll_pin_operstate *operstate)
 {
 	struct zl3073x_dpll *zldpll = pin->dpll;
 	struct zl3073x_dev *zldev = zldpll->dev;
-	const struct zl3073x_chan *chan;
-	u8 ref;
+	const struct zl3073x_ref *ref;
+	u8 ref_id;
 
-	chan = zl3073x_chan_state_get(zldev, zldpll->id);
-	ref = zl3073x_input_pin_ref_get(pin->id);
+	ref_id = zl3073x_input_pin_ref_get(pin->id);
 
-	/* Check if the pin reference is connected */
-	if (ref == zl3073x_dpll_connected_ref_get(zldpll)) {
-		*state = DPLL_PIN_STATE_CONNECTED;
+	/* Check if this pin is the currently locked reference */
+	if (ref_id == zl3073x_dpll_connected_ref_get(zldpll)) {
+		*operstate = DPLL_PIN_OPERSTATE_ACTIVE;
 		return 0;
 	}
 
-	/* If the DPLL is running in automatic mode and the reference is
-	 * selectable and its monitor does not report any error then report
-	 * pin as selectable.
-	 */
-	if (zl3073x_chan_mode_get(chan) == ZL_DPLL_MODE_REFSEL_MODE_AUTO &&
-	    zl3073x_dev_ref_is_status_ok(zldev, ref) &&
-	    zl3073x_chan_ref_is_selectable(chan, ref)) {
-		*state = DPLL_PIN_STATE_SELECTABLE;
-		return 0;
-	}
-
-	/* Otherwise report the pin as disconnected */
-	*state = DPLL_PIN_STATE_DISCONNECTED;
+	/* Check reference monitor status */
+	ref = zl3073x_ref_state_get(zldev, ref_id);
+	if (ref->mon_status & ZL_REF_MON_STATUS_LOS)
+		*operstate = DPLL_PIN_OPERSTATE_NO_SIGNAL;
+	else if (!zl3073x_ref_is_status_ok(ref))
+		*operstate = DPLL_PIN_OPERSTATE_QUAL_FAILED;
+	else
+		*operstate = DPLL_PIN_OPERSTATE_STANDBY;
 
 	return 0;
 }
@@ -552,9 +551,47 @@ zl3073x_dpll_input_pin_state_on_dpll_get(const struct dpll_pin *dpll_pin,
 					 enum dpll_pin_state *state,
 					 struct netlink_ext_ack *extack)
 {
+	struct zl3073x_dpll *zldpll = dpll_priv;
+	struct zl3073x_dpll_pin *pin = pin_priv;
+	const struct zl3073x_chan *chan;
+	u8 mode, ref;
+
+	chan = zl3073x_chan_state_get(zldpll->dev, zldpll->id);
+	ref = zl3073x_input_pin_ref_get(pin->id);
+	mode = zl3073x_chan_mode_get(chan);
+
+	switch (mode) {
+	case ZL_DPLL_MODE_REFSEL_MODE_REFLOCK:
+		if (ref == zl3073x_chan_ref_get(chan))
+			*state = DPLL_PIN_STATE_CONNECTED;
+		else
+			*state = DPLL_PIN_STATE_DISCONNECTED;
+		break;
+	case ZL_DPLL_MODE_REFSEL_MODE_AUTO:
+		if (zl3073x_chan_ref_is_selectable(chan, ref))
+			*state = DPLL_PIN_STATE_SELECTABLE;
+		else
+			*state = DPLL_PIN_STATE_DISCONNECTED;
+		break;
+	default:
+		*state = DPLL_PIN_STATE_DISCONNECTED;
+		break;
+	}
+
+	return 0;
+}
+
+static int
+zl3073x_dpll_input_pin_operstate_on_dpll_get(const struct dpll_pin *dpll_pin,
+					     void *pin_priv,
+					     const struct dpll_device *dpll,
+					     void *dpll_priv,
+					     enum dpll_pin_operstate *operstate,
+					     struct netlink_ext_ack *extack)
+{
 	struct zl3073x_dpll_pin *pin = pin_priv;
 
-	return zl3073x_dpll_ref_state_get(pin, state);
+	return zl3073x_dpll_ref_operstate_get(pin, operstate);
 }
 
 static int
@@ -1244,6 +1281,7 @@ zl3073x_dpll_freq_monitor_set(const struct dpll_device *dpll,
 }
 
 static const struct dpll_pin_ops zl3073x_dpll_input_pin_ops = {
+	.supported_ffo = BIT(DPLL_FFO_PIN_DEVICE),
 	.direction_get = zl3073x_dpll_pin_direction_get,
 	.esync_get = zl3073x_dpll_input_pin_esync_get,
 	.esync_set = zl3073x_dpll_input_pin_esync_set,
@@ -1251,6 +1289,7 @@ static const struct dpll_pin_ops zl3073x_dpll_input_pin_ops = {
 	.frequency_get = zl3073x_dpll_input_pin_frequency_get,
 	.frequency_set = zl3073x_dpll_input_pin_frequency_set,
 	.measured_freq_get = zl3073x_dpll_input_pin_measured_freq_get,
+	.operstate_on_dpll_get = zl3073x_dpll_input_pin_operstate_on_dpll_get,
 	.phase_offset_get = zl3073x_dpll_input_pin_phase_offset_get,
 	.phase_adjust_get = zl3073x_dpll_input_pin_phase_adjust_get,
 	.phase_adjust_set = zl3073x_dpll_input_pin_phase_adjust_set,
@@ -1668,7 +1707,7 @@ zl3073x_dpll_pin_phase_offset_check(struct zl3073x_dpll_pin *pin)
 	 * 2) For other pins use appropriate ref_phase register if the phase
 	 *    monitor feature is enabled.
 	 */
-	if (pin->pin_state == DPLL_PIN_STATE_CONNECTED)
+	if (pin->operstate == DPLL_PIN_OPERSTATE_ACTIVE)
 		reg = ZL_REG_DPLL_PHASE_ERR_DATA(zldpll->id);
 	else if (zldpll->phase_monitor)
 		reg = ZL_REG_REF_PHASE(ref_id);
@@ -1700,37 +1739,29 @@ zl3073x_dpll_pin_phase_offset_check(struct zl3073x_dpll_pin *pin)
 }
 
 /**
- * zl3073x_dpll_pin_ffo_check - check for pin fractional frequency offset change
+ * zl3073x_dpll_pin_ffo_check - check for FFO change on active pin
  * @pin: pin to check
  *
- * Check for the given pin's fractional frequency change.
- *
- * Return: true on fractional frequency offset change, false otherwise
+ * Return: true on change, false otherwise
  */
 static bool
 zl3073x_dpll_pin_ffo_check(struct zl3073x_dpll_pin *pin)
 {
 	struct zl3073x_dpll *zldpll = pin->dpll;
 	struct zl3073x_dev *zldev = zldpll->dev;
-	const struct zl3073x_ref *ref;
-	u8 ref_id;
+	const struct zl3073x_chan *chan;
 	s64 ffo;
 
-	/* Get reference monitor status */
-	ref_id = zl3073x_input_pin_ref_get(pin->id);
-	ref = zl3073x_ref_state_get(zldev, ref_id);
-
-	/* Do not report ffo changes if the reference monitor report errors */
-	if (!zl3073x_ref_is_status_ok(ref))
+	if (pin->operstate != DPLL_PIN_OPERSTATE_ACTIVE)
 		return false;
 
-	/* Compare with previous value */
-	ffo = zl3073x_ref_ffo_get(ref);
-	if (pin->freq_offset != ffo) {
-		dev_dbg(zldev->dev, "%s freq offset changed: %lld -> %lld\n",
-			pin->label, pin->freq_offset, ffo);
-		pin->freq_offset = ffo;
+	chan = zl3073x_chan_state_get(zldpll->dev, zldpll->id);
+	ffo = mul_s64_u64_shr(zl3073x_chan_df_offset_get(chan),
+			      244140625, 36);
 
+	if (atomic64_xchg(&pin->freq_offset, ffo) != ffo) {
+		dev_dbg(zldev->dev, "%s freq offset changed to: %lld\n",
+			pin->label, ffo);
 		return true;
 	}
 
@@ -1822,7 +1853,7 @@ zl3073x_dpll_changes_check(struct zl3073x_dpll *zldpll)
 	}
 
 	list_for_each_entry(pin, &zldpll->pins, list) {
-		enum dpll_pin_state state;
+		enum dpll_pin_operstate operstate;
 		bool pin_changed = false;
 
 		/* Output pins change checks are not necessary because output
@@ -1831,18 +1862,18 @@ zl3073x_dpll_changes_check(struct zl3073x_dpll *zldpll)
 		if (!zl3073x_dpll_is_input_pin(pin))
 			continue;
 
-		rc = zl3073x_dpll_ref_state_get(pin, &state);
+		rc = zl3073x_dpll_ref_operstate_get(pin, &operstate);
 		if (rc) {
 			dev_err(dev,
-				"Failed to get %s on DPLL%u state: %pe\n",
+				"Failed to get %s on DPLL%u oper state: %pe\n",
 				pin->label, zldpll->id, ERR_PTR(rc));
 			return;
 		}
 
-		if (state != pin->pin_state) {
-			dev_dbg(dev, "%s state changed: %u->%u\n", pin->label,
-				pin->pin_state, state);
-			pin->pin_state = state;
+		if (operstate != pin->operstate) {
+			dev_dbg(dev, "%s oper state changed: %u->%u\n",
+				pin->label, pin->operstate, operstate);
+			pin->operstate = operstate;
 			pin_changed = true;
 		}
 

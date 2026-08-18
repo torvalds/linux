@@ -292,28 +292,24 @@ int mtk_dynamic_irq_acquire(struct mtk_base_afe *afe)
 {
 	int i;
 
-	mutex_lock(&afe->irq_alloc_lock);
+	guard(mutex)(&afe->irq_alloc_lock);
 	for (i = 0; i < afe->irqs_size; ++i) {
 		if (afe->irqs[i].irq_occupyed == 0) {
 			afe->irqs[i].irq_occupyed = 1;
-			mutex_unlock(&afe->irq_alloc_lock);
 			return i;
 		}
 	}
-	mutex_unlock(&afe->irq_alloc_lock);
 	return afe->irqs_size;
 }
 EXPORT_SYMBOL_GPL(mtk_dynamic_irq_acquire);
 
 int mtk_dynamic_irq_release(struct mtk_base_afe *afe, int irq_id)
 {
-	mutex_lock(&afe->irq_alloc_lock);
+	guard(mutex)(&afe->irq_alloc_lock);
 	if (irq_id >= 0 && irq_id < afe->irqs_size) {
 		afe->irqs[irq_id].irq_occupyed = 0;
-		mutex_unlock(&afe->irq_alloc_lock);
 		return 0;
 	}
-	mutex_unlock(&afe->irq_alloc_lock);
 	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(mtk_dynamic_irq_release);

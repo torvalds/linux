@@ -54,4 +54,10 @@ config SND_PXA910_SOC
 	  Say Y if you want to add support for SoC audio on the
 	  Marvell PXA910 reference platform.
 
+config SND_PXA2XX_LIB
+	tristate
+	select SND_DMAENGINE_PCM
+
+config SND_PXA2XX_LIB_AC97
+	bool
 endmenu

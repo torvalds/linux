@@ -145,12 +145,15 @@
 #define RAS_RI_TO_AI(_C, _I) (((_I) + (_C)->ras_fri) % \
 			      (_C)->ras_max_record_count)
 
-#define RAS_NUM_RECS(_tbl_hdr)  (((_tbl_hdr)->tbl_size - \
-				  RAS_TABLE_HEADER_SIZE) / RAS_TABLE_RECORD_SIZE)
+#define RAS_NUM_RECS(_tbl_hdr) \
+	(((_tbl_hdr)->tbl_size < RAS_TABLE_HEADER_SIZE) ? 0u : \
+	 (((_tbl_hdr)->tbl_size - RAS_TABLE_HEADER_SIZE) / RAS_TABLE_RECORD_SIZE))
 
-#define RAS_NUM_RECS_V2_1(_tbl_hdr)  (((_tbl_hdr)->tbl_size - \
-				       RAS_TABLE_HEADER_SIZE - \
-				       RAS_TABLE_V2_1_INFO_SIZE) / RAS_TABLE_RECORD_SIZE)
+#define RAS_NUM_RECS_V2_1(_tbl_hdr) \
+	(((_tbl_hdr)->tbl_size < RAS_TABLE_HEADER_SIZE + \
+	  RAS_TABLE_V2_1_INFO_SIZE) ? 0u : \
+	 (((_tbl_hdr)->tbl_size - RAS_TABLE_HEADER_SIZE - \
+	   RAS_TABLE_V2_1_INFO_SIZE) / RAS_TABLE_RECORD_SIZE))
 
 #define to_amdgpu_device(x) ((container_of(x, struct amdgpu_ras, eeprom_control))->adev)
 
@@ -1051,6 +1054,7 @@ int amdgpu_ras_eeprom_read_idx(struct amdgpu_ras_eeprom_control *control,
 	uint64_t ts, end_idx;
 	int i, ret;
 	u64 mca, ipid;
+	u32 cu, mem_channel, mcumc_id;
 
 	if (!amdgpu_ras_smu_eeprom_supported(adev))
 		return 0;
@@ -1079,9 +1083,10 @@ int amdgpu_ras_eeprom_read_idx(struct amdgpu_ras_eeprom_control *control,
 		record[i - rec_idx].err_type = AMDGPU_RAS_EEPROM_ERR_NON_RECOVERABLE;
 
 		adev->umc.ras->mca_ipid_parse(adev, ipid,
-			(uint32_t *)&(record[i - rec_idx].cu),
-			(uint32_t *)&(record[i - rec_idx].mem_channel),
-			(uint32_t *)&(record[i - rec_idx].mcumc_id), NULL);
+			&cu, &mem_channel, &mcumc_id, NULL);
+		record[i - rec_idx].cu = (u8)cu;
+		record[i - rec_idx].mem_channel = (u8)mem_channel;
+		record[i - rec_idx].mcumc_id = (u8)mcumc_id;
 	}
 
 	return 0;
@@ -1608,11 +1613,24 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control)
 	switch (hdr->version) {
 	case RAS_TABLE_VER_V2_1:
 	case RAS_TABLE_VER_V3:
+		if (hdr->tbl_size < RAS_TABLE_HEADER_SIZE + RAS_TABLE_V2_1_INFO_SIZE) {
+			dev_err(adev->dev,
+				"RAS header invalid, tbl_size %u smaller than minimum %u, resetting table\n",
+				hdr->tbl_size,
+				RAS_TABLE_HEADER_SIZE + RAS_TABLE_V2_1_INFO_SIZE);
+			return amdgpu_ras_eeprom_reset_table(control);
+		}
 		control->ras_num_recs = RAS_NUM_RECS_V2_1(hdr);
 		control->ras_record_offset = RAS_RECORD_START_V2_1;
 		control->ras_max_record_count = RAS_MAX_RECORD_COUNT_V2_1;
 		break;
 	case RAS_TABLE_VER_V1:
+		if (hdr->tbl_size < RAS_TABLE_HEADER_SIZE) {
+			dev_err(adev->dev,
+				"RAS header invalid, tbl_size %u smaller than minimum %u, resetting table\n",
+				hdr->tbl_size, RAS_TABLE_HEADER_SIZE);
+			return amdgpu_ras_eeprom_reset_table(control);
+		}
 		control->ras_num_recs = RAS_NUM_RECS(hdr);
 		control->ras_record_offset = RAS_RECORD_START;
 		control->ras_max_record_count = RAS_MAX_RECORD_COUNT;
@@ -1632,6 +1650,14 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control)
 	}
 
 	control->ras_fri = RAS_OFFSET_TO_INDEX(control, hdr->first_rec_offset);
+	if (hdr->first_rec_offset < control->ras_record_offset ||
+	    control->ras_fri >= control->ras_max_record_count) {
+		dev_err(adev->dev,
+			"RAS header invalid, ras_fri: %u, first_rec_offset:0x%x",
+			control->ras_fri, hdr->first_rec_offset);
+		return -EINVAL;
+	}
+
 	control->ras_num_mca_recs = 0;
 	control->ras_num_pa_recs = 0;
 	return 0;

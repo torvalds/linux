@@ -224,16 +224,8 @@ patternProperties:
           at 0x0) or 0 (BTCM at 0x0), default value is 1 if omitted.
 
       sram:
-        $ref: /schemas/types.yaml#/definitions/phandle-array
         minItems: 1
         maxItems: 4
-        items:
-          maxItems: 1
-        description: |
-          phandles to one or more reserved on-chip SRAM regions. The regions
-          should be defined as child nodes of the respective SRAM node, and
-          should be defined as per the generic bindings in,
-          Documentation/devicetree/bindings/sram/sram.yaml
 
     required:
       - compatible

@@ -4,6 +4,9 @@ test_begin() {
 	# Count tests to allow the test harness to double-check if all were
 	# included correctly.
 	ctr=0
+	# Set test directory to the directory of the script
+	scriptfile=$(realpath "$0")
+	testdir=$(dirname "$scriptfile")
 	[ -z "$RTLA" ] && RTLA="./rtla"
 	[ -n "$TEST_COUNT" ] && echo "1..$TEST_COUNT"
 }
@@ -51,6 +54,11 @@ check() {
 	then
 		# Reset osnoise options before running test.
 		[ "$NO_RESET_OSNOISE" == 1 ] || reset_osnoise
+
+		# Create a temporary directory to contain rtla output
+		tmpdir=$(mktemp -d)
+		pushd $tmpdir >/dev/null
+
 		# Run rtla; in case of failure, include its output as comment
 		# in the test results.
 		result=$(eval stdbuf -oL $TIMEOUT "$RTLA" $2 2>&1); exitcode=$?
@@ -82,6 +90,10 @@ check() {
 			echo "$result" | col -b | while read line; do echo "# $line"; done
 			printf "#\n# exit code %s\n" $exitcode
 		fi
+
+		# Remove temporary directory
+		popd >/dev/null
+		rm -r $tmpdir
 	fi
 }
 
@@ -110,6 +122,21 @@ check_with_osnoise_options() {
 	fi
 
 	NO_RESET_OSNOISE=1 check "$arg1" "$arg2" "$arg3"
+}
+
+check_top_hist() {
+	# Test one command with both "top" and "hist" tools, replacing "TOOL" in
+	# command with either "top" or "hist" respectively, and prefixing the test
+	# names with "top " and "hist ".
+	check "top $1" "$(echo "$2" | sed 's/TOOL/top/g')" "${@:3}"
+	check "hist $1" "$(echo "$2" | sed 's/TOOL/hist/g')" "${@:3}"
+}
+
+check_top_q_hist() {
+	# Same as above, but pass "-q" to top so that strings printed in main
+	# loop are on their own line for top too, not only for hist.
+	check "top $1" "$(echo "$2" | sed 's/TOOL/top -q/g')" "${@:3}"
+	check "hist $1" "$(echo "$2" | sed 's/TOOL/hist/g')" "${@:3}"
 }
 
 set_timeout() {

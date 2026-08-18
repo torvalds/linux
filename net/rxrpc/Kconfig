@@ -7,6 +7,7 @@ config AF_RXRPC
 	tristate "RxRPC session sockets"
 	depends on INET
 	select CRYPTO
+	select CRYPTO_LIB_DES if RXKAD
 	select KEYS
 	select NET_UDP_TUNNEL
 	help
@@ -56,11 +57,6 @@ config AF_RXRPC_DEBUG
 
 config RXKAD
 	bool "RxRPC Kerberos security"
-	select CRYPTO
-	select CRYPTO_MANAGER
-	select CRYPTO_SKCIPHER
-	select CRYPTO_PCBC
-	select CRYPTO_FCRYPT
 	help
 	  Provide kerberos 4 and AFS kaserver security handling for AF_RXRPC
 	  through the use of the key retention service.
@@ -96,5 +92,12 @@ config RXPERF
 	  Provide an rxperf service tester.  This listens on UDP port 7009 for
 	  incoming calls from the rxperf program (an example of which can be
 	  found in OpenAFS).
+
+config AF_RXRPC_KUNIT_TEST
+	tristate "RxRPC crypto KUnit test" if !KUNIT_ALL_TESTS
+	depends on KUNIT && RXKAD
+	default KUNIT_ALL_TESTS
+	help
+	  Enable the KUnit test suite for RxRPC's crypto routines.
 
 endif

@@ -402,6 +402,7 @@ static const struct of_device_id tegra30_i2s_of_match[] = {
 	{ .compatible = "nvidia,tegra30-i2s", .data = &tegra30_i2s_config },
 	{},
 };
+MODULE_DEVICE_TABLE(of, tegra30_i2s_of_match);
 
 static int tegra30_i2s_platform_probe(struct platform_device *pdev)
 {
@@ -567,4 +568,3 @@ MODULE_AUTHOR("Stephen Warren <swarren@nvidia.com>");
 MODULE_DESCRIPTION("Tegra30 I2S ASoC driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRV_NAME);
-MODULE_DEVICE_TABLE(of, tegra30_i2s_of_match);

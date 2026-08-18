@@ -80,6 +80,7 @@ bool program_hpd_filter(const struct dc_link *link)
 	case SIGNAL_TYPE_DVI_SINGLE_LINK:
 	case SIGNAL_TYPE_DVI_DUAL_LINK:
 	case SIGNAL_TYPE_HDMI_TYPE_A:
+	case SIGNAL_TYPE_HDMI_FRL:
 		/* Program hpd filter */
 		delay_on_connect_in_ms = 500;
 		delay_on_disconnect_in_ms = 100;

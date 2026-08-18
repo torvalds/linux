@@ -1368,6 +1368,8 @@ enum ib_uverbs_device_cap_flags {
 	IB_UVERBS_DEVICE_FLUSH_PERSISTENT = 1ULL << 39,
 	/* Atomic write attributes */
 	IB_UVERBS_DEVICE_ATOMIC_WRITE = 1ULL << 40,
+	/* CoCo guest with DMA bounce buffering required */
+	IB_UVERBS_DEVICE_CC_DMA_BOUNCE = 1ULL << 41,
 };
 
 enum ib_uverbs_raw_packet_caps {

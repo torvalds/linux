@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: CC0-1.0
-# Generator: x86-cpuid-db v3.0
+# Generator: x86-cpuid-db v3.1
 
 #
 # Auto-generated file.
@@ -177,7 +177,7 @@
        0x6,         0,  ebx,     3:0,    n_therm_thresholds     , Digital thermometer thresholds
        0x6,         0,  ecx,       0,    aperfmperf             , MPERF/APERF MSRs (effective frequency interface)
        0x6,         0,  ecx,       3,    epb                    , IA32_ENERGY_PERF_BIAS MSR
-       0x6,         0,  ecx,    15:8,    thrd_director_nclasses , Number of classes, Intel thread director
+       0x6,         0,  ecx,    15:8,    hw_feedback_nclasses   , Number of Intel Thread Director classes
        0x6,         0,  edx,       0,    perfcap_reporting      , Performance capability reporting
        0x6,         0,  edx,       1,    encap_reporting        , Energy efficiency capability reporting
        0x6,         0,  edx,    11:8,    feedback_sz            , Feedback interface structure size, in 4K pages
@@ -247,10 +247,10 @@
        0x7,         0,  edx,       1,    sgx_keys               , Intel SGX attestation services
        0x7,         0,  edx,       2,    avx512_4vnniw          , AVX-512 neural network instructions
        0x7,         0,  edx,       3,    avx512_4fmaps          , AVX-512 multiply accumulation single precision
-       0x7,         0,  edx,       4,    fsrm                   , Fast short REP MOV
+       0x7,         0,  edx,       4,    fsrm                   , Fast short REP MOVSB
        0x7,         0,  edx,       5,    uintr                  , User interrupts
        0x7,         0,  edx,       8,    avx512_vp2intersect    , VP2INTERSECT{D,Q} instructions
-       0x7,         0,  edx,       9,    srdbs_ctrl             , SRBDS mitigation MSR
+       0x7,         0,  edx,       9,    srbds_ctrl             , SRBDS mitigation MSR
        0x7,         0,  edx,      10,    md_clear               , VERW MD_CLEAR microcode
        0x7,         0,  edx,      11,    rtm_always_abort       , XBEGIN (RTM transaction) always aborts
        0x7,         0,  edx,      13,    tsx_force_abort        , MSR TSX_FORCE_ABORT, RTM_ABORT bit
@@ -296,8 +296,8 @@
        0x7,         2,  edx,       0,    intel_psfd             , Intel predictive store forward disable
        0x7,         2,  edx,       1,    ipred_ctrl             , MSR bits IA32_SPEC_CTRL.IPRED_DIS_{U,S}
        0x7,         2,  edx,       2,    rrsba_ctrl             , MSR bits IA32_SPEC_CTRL.RRSBA_DIS_{U,S}
-       0x7,         2,  edx,       3,    ddp_ctrl               , MSR bit  IA32_SPEC_CTRL.DDPD_U
-       0x7,         2,  edx,       4,    bhi_ctrl               , MSR bit  IA32_SPEC_CTRL.BHI_DIS_S
+       0x7,         2,  edx,       3,    ddp_ctrl               , MSR bit IA32_SPEC_CTRL.DDPD_U
+       0x7,         2,  edx,       4,    bhi_ctrl               , MSR bit IA32_SPEC_CTRL.BHI_DIS_S
        0x7,         2,  edx,       5,    mcdt_no                , MCDT mitigation not needed
        0x7,         2,  edx,       6,    uclock_disable         , UC-lock disable
 
@@ -368,7 +368,7 @@
        0xd,         1,  ecx,       8,    xss_pt                 , PT state
        0xd,         1,  ecx,      10,    xss_pasid              , PASID state
        0xd,         1,  ecx,      11,    xss_cet_u              , CET user state
-       0xd,         1,  ecx,      12,    xss_cet_p              , CET supervisor state
+       0xd,         1,  ecx,      12,    xss_cet_s              , CET supervisor state
        0xd,         1,  ecx,      13,    xss_hdc                , HDC state
        0xd,         1,  ecx,      14,    xss_uintr              , UINTR state
        0xd,         1,  ecx,      15,    xss_lbr                , LBR state
@@ -433,7 +433,7 @@
       0x12,         1,  eax,       7,    secs_attr_kss          , Key Separation and Sharing
       0x12,         1,  eax,      10,    secs_attr_aexnotify    , Enclave threads: AEX notifications
       0x12,         1,  ecx,       0,    xfrm_x87               , Enclave XFRM.X87
-      0x12,         1,  ecx,       1,    xfrm_sse               , Enclave XFRM.SEE
+      0x12,         1,  ecx,       1,    xfrm_sse               , Enclave XFRM.SSE
       0x12,         1,  ecx,       2,    xfrm_avx               , Enclave XFRM.AVX
       0x12,         1,  ecx,       3,    xfrm_mpx_bndregs       , Enclave XFRM.BNDREGS (MPX BND0-BND3 registers)
       0x12,         1,  ecx,       4,    xfrm_mpx_bndcsr        , Enclave XFRM.BNDCSR (MPX BNDCFGU/BNDSTATUS registers)
@@ -466,9 +466,9 @@
       0x14,         0,  ecx,       0,    topa_output            , ToPA output scheme
       0x14,         0,  ecx,       1,    topa_multiple_entries  , ToPA tables can hold multiple entries
       0x14,         0,  ecx,       2,    single_range_output    , Single-range output
-      0x14,         0,  ecx,       3,    trance_transport_output, Trace Transport subsystem output
+      0x14,         0,  ecx,       3,    trace_transport_output , Trace Transport subsystem output
       0x14,         0,  ecx,      31,    ip_payloads_lip        , IP payloads have LIP values (CS base included)
-      0x14,         1,  eax,     2:0,    num_address_ranges     , Number of configurable Address Ranges
+      0x14,         1,  eax,     2:0,    num_address_ranges     , Number of configurable address ranges
       0x14,         1,  eax,   31:16,    mtc_periods_bmp        , MTC period encodings bitmap
       0x14,         1,  ebx,    15:0,    cycle_thresholds_bmp   , Cycle Threshold encodings bitmap
       0x14,         1,  ebx,   31:16,    psb_periods_bmp        , Configurable PSB frequency encodings bitmap
@@ -494,7 +494,7 @@
       0x17,         0,  ebx,    15:0,    soc_vendor_id          , SoC vendor ID
       0x17,         0,  ebx,      16,    is_vendor_scheme       , Assigned by industry enumeration scheme (not Intel)
       0x17,         0,  ecx,    31:0,    soc_proj_id            , SoC project ID, assigned by vendor
-      0x17,         0,  edx,    31:0,    soc_stepping_id        , Soc project stepping ID, assigned by vendor
+      0x17,         0,  edx,    31:0,    soc_stepping_id        , SoC project stepping ID, assigned by vendor
       0x17,       3:1,  eax,    31:0,    vendor_brand_a         , Vendor Brand ID string, bytes subleaf_nr * (0 -> 3)
       0x17,       3:1,  ebx,    31:0,    vendor_brand_b         , Vendor Brand ID string, bytes subleaf_nr * (4 -> 7)
       0x17,       3:1,  ecx,    31:0,    vendor_brand_c         , Vendor Brand ID string, bytes subleaf_nr * (8 -> 11)
@@ -514,12 +514,12 @@
       0x18,      31:0,  edx,     4:0,    tlb_type               , Translation cache type (TLB type)
       0x18,      31:0,  edx,     7:5,    tlb_cache_level        , Translation cache level (1-based)
       0x18,      31:0,  edx,       8,    is_fully_associative   , Fully-associative
-      0x18,      31:0,  edx,   25:14,    tlb_max_addressible_ids, Max number of addressable IDs - 1
+      0x18,      31:0,  edx,   25:14,    tlb_max_addressable_ids, Max number of addressable IDs - 1
 
 # Leaf 19H
 # Intel key locker
 
-      0x19,         0,  eax,       0,    kl_cpl0_only           , CPL0-only key Locker restriction
+      0x19,         0,  eax,       0,    kl_cpl0_only           , CPL0-only key locker restriction
       0x19,         0,  eax,       1,    kl_no_encrypt          , No-encrypt key locker restriction
       0x19,         0,  eax,       2,    kl_no_decrypt          , No-decrypt key locker restriction
       0x19,         0,  ebx,       0,    aes_keylocker          , AES key locker instructions
@@ -546,7 +546,7 @@
 # Intel LBR (Last Branch Record)
 
       0x1c,         0,  eax,     7:0,    lbr_depth_mask         , Max LBR stack depth bitmask
-      0x1c,         0,  eax,      30,    lbr_deep_c_reset       , LBRs maybe cleared on MWAIT C-state > C1
+      0x1c,         0,  eax,      30,    lbr_deep_c_reset       , LBRs may be cleared on MWAIT C-state > C1
       0x1c,         0,  eax,      31,    lbr_ip_is_lip          , LBR IP contain Last IP (otherwise effective IP)
       0x1c,         0,  ebx,       0,    lbr_cpl                , CPL filtering
       0x1c,         0,  ebx,       1,    lbr_branch_filter      , Branch filtering
@@ -591,8 +591,8 @@
 # Intel TD (Trust Domain)
 
       0x21,         0,  ebx,    31:0,    tdx_vendorid_0         , TDX vendor ID string bytes 0 - 3
-      0x21,         0,  ecx,    31:0,    tdx_vendorid_2         , CPU vendor ID string bytes 8 - 11
-      0x21,         0,  edx,    31:0,    tdx_vendorid_1         , CPU vendor ID string bytes 4 - 7
+      0x21,         0,  ecx,    31:0,    tdx_vendorid_2         , TDX vendor ID string bytes 8 - 11
+      0x21,         0,  edx,    31:0,    tdx_vendorid_1         , TDX vendor ID string bytes 4 - 7
 
 # Leaf 23H
 # Intel Architectural Performance Monitoring Extended (ArchPerfmonExt)
@@ -857,7 +857,7 @@
 0x8000000a,         0,  edx,       1,    lbrv                   , LBR virtualization
 0x8000000a,         0,  edx,       2,    svm_lock               , SVM lock
 0x8000000a,         0,  edx,       3,    nrip_save              , NRIP save support on #VMEXIT
-0x8000000a,         0,  edx,       4,    tsc_scale              , MSR based TSC rate control
+0x8000000a,         0,  edx,       4,    tsc_scale              , MSR-based TSC rate control
 0x8000000a,         0,  edx,       5,    vmcb_clean             , VMCB clean bits support
 0x8000000a,         0,  edx,       6,    flushbyasid            , Flush by ASID + Extended VMCB TLB_Control
 0x8000000a,         0,  edx,       7,    decodeassists          , Decode Assists support
@@ -895,7 +895,7 @@
 
 0x8000001a,         0,  eax,       0,    fp_128                 , Internal FP/SIMD exec data path is 128-bits wide
 0x8000001a,         0,  eax,       1,    movu_preferred         , SSE: MOVU* better than MOVL*/MOVH*
-0x8000001a,         0,  eax,       2,    fp_256                 , internal FP/SSE exec data path is 256-bits wide
+0x8000001a,         0,  eax,       2,    fp_256                 , Internal FP/SSE exec data path is 256-bits wide
 
 # Leaf 8000001BH
 # AMD IBS (Instruction-Based Sampling)
@@ -917,7 +917,7 @@
 # AMD LWP (Lightweight Profiling)
 
 0x8000001c,         0,  eax,       0,    os_lwp_avail           , OS: LWP is available to application programs
-0x8000001c,         0,  eax,       1,    os_lpwval              , OS: LWPVAL instruction
+0x8000001c,         0,  eax,       1,    os_lwpval              , OS: LWPVAL instruction
 0x8000001c,         0,  eax,       2,    os_lwp_ire             , OS: Instructions Retired Event
 0x8000001c,         0,  eax,       3,    os_lwp_bre             , OS: Branch Retired Event
 0x8000001c,         0,  eax,       4,    os_lwp_dme             , OS: Dcache Miss Event
@@ -934,13 +934,13 @@
 0x8000001c,         0,  ecx,       5,    lwp_data_addr          , Cache miss events report data cache address
 0x8000001c,         0,  ecx,     8:6,    lwp_latency_rnd        , Cache latency rounding amount
 0x8000001c,         0,  ecx,    15:9,    lwp_version            , LWP version
-0x8000001c,         0,  ecx,   23:16,    lwp_buf_min_sz         , LWP event ring buffer min size, 32 event records units
+0x8000001c,         0,  ecx,   23:16,    lwp_buf_min_sz         , LWP event ring buffer min size, 32 event record units
 0x8000001c,         0,  ecx,      28,    lwp_branch_predict     , Branches Retired events can be filtered
 0x8000001c,         0,  ecx,      29,    lwp_ip_filtering       , IP filtering (IPI, IPF, BaseIP, and LimitIP @ LWPCP)
 0x8000001c,         0,  ecx,      30,    lwp_cache_levels       , Cache-related events: filter by cache level
 0x8000001c,         0,  ecx,      31,    lwp_cache_latency      , Cache-related events: filter by latency
 0x8000001c,         0,  edx,       0,    hw_lwp_avail           , HW: LWP available
-0x8000001c,         0,  edx,       1,    hw_lpwval              , HW: LWPVAL available
+0x8000001c,         0,  edx,       1,    hw_lwpval              , HW: LWPVAL available
 0x8000001c,         0,  edx,       2,    hw_lwp_ire             , HW: Instructions Retired Event
 0x8000001c,         0,  edx,       3,    hw_lwp_bre             , HW: Branch Retired Event
 0x8000001c,         0,  edx,       4,    hw_lwp_dme             , HW: Dcache Miss Event
@@ -1040,8 +1040,8 @@
 0x80000021,         0,  eax,       7,    upper_addr_ignore      , EFER MSR Upper Address Ignore
 0x80000021,         0,  eax,       8,    autoibrs               , EFER MSR Automatic IBRS
 0x80000021,         0,  eax,       9,    no_smm_ctl_msr         , SMM_CTL MSR not available
-0x80000021,         0,  eax,      10,    fsrs                   , Fast Short Rep STOSB
-0x80000021,         0,  eax,      11,    fsrc                   , Fast Short Rep CMPSB
+0x80000021,         0,  eax,      10,    fsrs                   , Fast Short REP STOSB
+0x80000021,         0,  eax,      11,    fsrc                   , Fast Short REP CMPSB
 0x80000021,         0,  eax,      13,    prefetch_ctl_msr       , Prefetch control MSR
 0x80000021,         0,  eax,      16,    opcode_reclaim         , Reserves opcode space
 0x80000021,         0,  eax,      17,    user_cpuid_disable     , #GP when executing CPUID at CPL > 0
@@ -1093,9 +1093,9 @@
 # Maximum Transmeta leaf + CPU vendor string
 
 0x80860000,         0,  eax,    31:0,    max_tra_leaf           , Maximum Transmeta leaf
-0x80860000,         0,  ebx,    31:0,    cpu_vendorid_0         , Transmeta Vendor ID string bytes 0 - 3
-0x80860000,         0,  ecx,    31:0,    cpu_vendorid_2         , Transmeta Vendor ID string bytes 8 - 11
-0x80860000,         0,  edx,    31:0,    cpu_vendorid_1         , Transmeta Vendor ID string bytes 4 - 7
+0x80860000,         0,  ebx,    31:0,    cpu_vendorid_0         , Transmeta vendor ID string bytes 0 - 3
+0x80860000,         0,  ecx,    31:0,    cpu_vendorid_2         , Transmeta vendor ID string bytes 8 - 11
+0x80860000,         0,  edx,    31:0,    cpu_vendorid_1         , Transmeta vendor ID string bytes 4 - 7
 
 # Leaf 80860001H
 # Transmeta extended CPU features

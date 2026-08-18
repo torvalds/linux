@@ -94,6 +94,10 @@ void write_scdc_data(
 void read_scdc_data(
 		struct ddc_service *ddc_service);
 
+void write_idcc_data(struct ddc_service *ddc_service, enum hdmi_idcc_scope idcc_scope,
+		uint8_t *write_buf, uint8_t offset, uint8_t write_len);
+int read_idcc_data(struct ddc_service *ddc_service, enum hdmi_idcc_scope idcc_scope,
+		uint8_t *read_buf, uint8_t offset, uint8_t read_len);
 void set_dongle_type(struct ddc_service *ddc,
 		enum display_dongle_type dongle_type);
 

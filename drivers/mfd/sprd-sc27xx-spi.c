@@ -14,6 +14,11 @@
 #include <linux/spi/spi.h>
 #include <uapi/linux/usb/charger.h>
 
+enum sprd_pmic_type {
+	PMIC_TYPE_SC2730 = 1,
+	PMIC_TYPE_SC2731,
+};
+
 #define SPRD_PMIC_INT_MASK_STATUS	0x0
 #define SPRD_PMIC_INT_RAW_STATUS	0x4
 #define SPRD_PMIC_INT_EN		0x8
@@ -48,6 +53,29 @@ struct sprd_pmic_data {
 	u32 irq_base;
 	u32 num_irqs;
 	u32 charger_det;
+};
+
+static const struct mfd_cell sc2730_devices[] = {
+	MFD_CELL_OF("sc2730-adc", NULL, NULL, 0, 0, "sprd,sc2730-adc"),
+	MFD_CELL_OF("sc2730-bltc", NULL, NULL, 0, 0, "sprd,sc2730-bltc"),
+	MFD_CELL_OF("sc2730-efuse", NULL, NULL, 0, 0, "sprd,sc2730-efuse"),
+	MFD_CELL_OF("sc2730-eic", NULL, NULL, 0, 0, "sprd,sc2730-eic"),
+	MFD_CELL_OF("sc2730-fgu", NULL, NULL, 0, 0, "sprd,sc2730-fgu"),
+	MFD_CELL_OF("sc2730-rtc", NULL, NULL, 0, 0, "sprd,sc2730-rtc"),
+	MFD_CELL_OF("sc2730-vibrator", NULL, NULL, 0, 0, "sprd,sc2730-vibrator"),
+};
+
+static const struct mfd_cell sc2731_devices[] = {
+	MFD_CELL_OF("sc2731-adc", NULL, NULL, 0, 0, "sprd,sc2731-adc"),
+	MFD_CELL_OF("sc2731-bltc", NULL, NULL, 0, 0, "sprd,sc2731-bltc"),
+	MFD_CELL_OF("sc2731-charger", NULL, NULL, 0, 0, "sprd,sc2731-charger"),
+	MFD_CELL_OF("sc2731-efuse", NULL, NULL, 0, 0, "sprd,sc2731-efuse"),
+	MFD_CELL_OF("sc2731-eic", NULL, NULL, 0, 0, "sprd,sc2731-eic"),
+	MFD_CELL_OF("sc2731-fgu", NULL, NULL, 0, 0, "sprd,sc2731-fgu"),
+	MFD_CELL_NAME("sc2731-poweroff"),
+	MFD_CELL_NAME("sc2731-regulator"),
+	MFD_CELL_OF("sc2731-rtc", NULL, NULL, 0, 0, "sprd,sc2731-rtc"),
+	MFD_CELL_OF("sc2731-vibrator", NULL, NULL, 0, 0, "sprd,sc2731-vibrator"),
 };
 
 /*
@@ -152,12 +180,26 @@ static const struct regmap_config sprd_pmic_config = {
 static int sprd_pmic_probe(struct spi_device *spi)
 {
 	struct sprd_pmic *ddata;
+	enum sprd_pmic_type pmic_type;
 	const struct sprd_pmic_data *pdata;
-	int ret, i;
+	const struct mfd_cell *cells;
+	int ret, i, num_cells;
 
-	pdata = of_device_get_match_data(&spi->dev);
-	if (!pdata) {
-		dev_err(&spi->dev, "No matching driver data found\n");
+	pmic_type = (uintptr_t)of_device_get_match_data(&spi->dev);
+
+	switch (pmic_type) {
+	case PMIC_TYPE_SC2730:
+		pdata = &sc2730_data;
+		cells = sc2730_devices;
+		num_cells = ARRAY_SIZE(sc2730_devices);
+		break;
+	case PMIC_TYPE_SC2731:
+		pdata = &sc2731_data;
+		cells = sc2731_devices;
+		num_cells = ARRAY_SIZE(sc2731_devices);
+		break;
+	default:
+		dev_err(&spi->dev, "Invalid device ID\n");
 		return -EINVAL;
 	}
 
@@ -204,7 +246,9 @@ static int sprd_pmic_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	ret = devm_of_platform_populate(&spi->dev);
+	ret = devm_mfd_add_devices(&spi->dev, PLATFORM_DEVID_AUTO,
+				   cells, num_cells, NULL, 0,
+				   regmap_irq_get_domain(ddata->irq_data));
 	if (ret) {
 		dev_err(&spi->dev, "Failed to populate sub-devices %d\n", ret);
 		return ret;
@@ -241,15 +285,15 @@ static DEFINE_SIMPLE_DEV_PM_OPS(sprd_pmic_pm_ops,
 				sprd_pmic_suspend, sprd_pmic_resume);
 
 static const struct of_device_id sprd_pmic_match[] = {
-	{ .compatible = "sprd,sc2730", .data = &sc2730_data },
-	{ .compatible = "sprd,sc2731", .data = &sc2731_data },
+	{ .compatible = "sprd,sc2730", .data = (void *)PMIC_TYPE_SC2730 },
+	{ .compatible = "sprd,sc2731", .data = (void *)PMIC_TYPE_SC2731 },
 	{},
 };
 MODULE_DEVICE_TABLE(of, sprd_pmic_match);
 
 static const struct spi_device_id sprd_pmic_spi_ids[] = {
-	{ .name = "sc2730", .driver_data = (unsigned long)&sc2730_data },
-	{ .name = "sc2731", .driver_data = (unsigned long)&sc2731_data },
+	{ .name = "sc2730", .driver_data = PMIC_TYPE_SC2730 },
+	{ .name = "sc2731", .driver_data = PMIC_TYPE_SC2731 },
 	{},
 };
 MODULE_DEVICE_TABLE(spi, sprd_pmic_spi_ids);

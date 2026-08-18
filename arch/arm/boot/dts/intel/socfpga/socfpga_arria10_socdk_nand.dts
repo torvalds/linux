@@ -18,9 +18,9 @@
 			label = "Boot and fpga data";
 			reg = <0x0 0x02500000>;
 		};
-		partition@1c00000 {
+		partition@2500000 {
 			label = "Root Filesystem - JFFS2";
-			reg = <0x02500000 0x05500000>;
+			reg = <0x02500000 0x3db00000>;
 		};
 	};
 };

@@ -1070,8 +1070,8 @@ static int r852_resume(struct device *device)
 
 static const struct pci_device_id r852_pci_id_tbl[] = {
 
-	{ PCI_VDEVICE(RICOH, 0x0852), },
-	{ },
+	{ PCI_VDEVICE(RICOH, 0x0852) },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, r852_pci_id_tbl);

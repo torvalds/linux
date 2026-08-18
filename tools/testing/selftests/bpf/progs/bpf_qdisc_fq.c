@@ -196,18 +196,13 @@ fq_flows_remove_front(struct bpf_list_head *head, struct bpf_spin_lock *lock,
 static bool
 fq_flows_is_empty(struct bpf_list_head *head, struct bpf_spin_lock *lock)
 {
-	struct bpf_list_node *node;
+	bool empty;
 
 	bpf_spin_lock(lock);
-	node = bpf_list_pop_front(head);
-	if (node) {
-		bpf_list_push_front(head, node);
-		bpf_spin_unlock(lock);
-		return false;
-	}
+	empty = bpf_list_empty(head);
 	bpf_spin_unlock(lock);
 
-	return true;
+	return empty;
 }
 
 /* flow->age is used to denote the state of the flow (not-detached, detached, throttled)

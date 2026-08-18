@@ -128,7 +128,7 @@ examples:
                       "mout_mx_mspll_ccore",
                       "mout_mclk_cdrex";
         operating-points-v2 = <&dmc_opp_table>;
-        devfreq-events = <&ppmu_event3_dmc0_0>,	<&ppmu_event3_dmc0_1>,
+        devfreq-events = <&ppmu_event3_dmc0_0>, <&ppmu_event3_dmc0_1>,
                          <&ppmu_event3_dmc1_0>, <&ppmu_event3_dmc1_1>;
         device-handle = <&samsung_K3QF2F20DB>;
         vdd-supply = <&buck1_reg>;

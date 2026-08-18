@@ -64,9 +64,10 @@ I. For patch submitters
 
   7) DTS is treated in general as driver-independent hardware description, thus
      any DTS patches, regardless whether using existing or new bindings, should
-     be placed at the end of patchset to indicate no dependency of drivers on
-     the DTS.  DTS will be anyway applied through separate tree or branch, so
-     different order would indicate the series is non-bisectable.
+     be a separate posting or, when combined with driver patches, placed at the
+     end of the patchset to indicate no dependency of drivers on the DTS.  DTS
+     will be anyway applied through separate tree or branch, so different order
+     would indicate the series is non-bisectable.
 
      If a driver subsystem maintainer prefers to apply entire set, instead of
      their relevant portion of patchset, please split the DTS patches into

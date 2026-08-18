@@ -9,7 +9,9 @@
 #define __RZG2L_CRU__
 
 #include <linux/irqreturn.h>
+#include <linux/mutex.h>
 #include <linux/reset.h>
+#include <linux/spinlock.h>
 
 #include <media/v4l2-async.h>
 #include <media/v4l2-dev.h>
@@ -35,20 +37,6 @@ enum rzg2l_csi2_pads {
 };
 
 struct rzg2l_cru_dev;
-
-/**
- * enum rzg2l_cru_dma_state - DMA states
- * @RZG2L_CRU_DMA_STOPPED:   No operation in progress
- * @RZG2L_CRU_DMA_STARTING:  Capture starting up
- * @RZG2L_CRU_DMA_RUNNING:   Operation in progress have buffers
- * @RZG2L_CRU_DMA_STOPPING:  Stopping operation
- */
-enum rzg2l_cru_dma_state {
-	RZG2L_CRU_DMA_STOPPED = 0,
-	RZG2L_CRU_DMA_STARTING,
-	RZG2L_CRU_DMA_RUNNING,
-	RZG2L_CRU_DMA_STOPPING,
-};
 
 struct rzg2l_cru_csi {
 	struct v4l2_async_connection *asd;
@@ -109,7 +97,6 @@ struct rzg2l_cru_info {
  * @v4l2_dev:		V4L2 device
  * @num_buf:		Holds the current number of buffers enabled
  * @svc_channel:	SVC0/1/2/3 to use for RZ/G3E
- * @buf_addr:		Memory addresses where current video data is written.
  * @notifier:		V4L2 asynchronous subdevs notifier
  *
  * @ip:			Image processing subdev info
@@ -117,6 +104,11 @@ struct rzg2l_cru_info {
  * @mdev:		media device
  * @mdev_lock:		protects the count, notifier and csi members
  * @pad:		media pad for the video device entity
+ *
+ * @hw_lock:		protects the @active_slot counter, hardware programming
+ *			of slot addresses and the @buf_addr[] list
+ * @buf_addr:		Memory addresses where current video data is written
+ * @active_slot:	The slot in use
  *
  * @lock:		protects @queue
  * @queue:		vb2 buffers queue
@@ -147,8 +139,6 @@ struct rzg2l_cru_dev {
 	u8 num_buf;
 
 	u8 svc_channel;
-	dma_addr_t buf_addr[RZG2L_CRU_HW_BUFFER_DEFAULT];
-
 	struct v4l2_async_notifier notifier;
 
 	struct rzg2l_cru_ip ip;
@@ -156,6 +146,10 @@ struct rzg2l_cru_dev {
 	struct media_device mdev;
 	struct mutex mdev_lock;
 	struct media_pad pad;
+
+	spinlock_t hw_lock;
+	dma_addr_t buf_addr[RZG2L_CRU_HW_BUFFER_DEFAULT];
+	unsigned int active_slot;
 
 	struct mutex lock;
 	struct vb2_queue queue;
@@ -166,7 +160,6 @@ struct rzg2l_cru_dev {
 	struct vb2_v4l2_buffer *queue_buf[RZG2L_CRU_HW_BUFFER_MAX];
 	struct list_head buf_list;
 	unsigned int sequence;
-	enum rzg2l_cru_dma_state state;
 
 	struct v4l2_pix_format format;
 };

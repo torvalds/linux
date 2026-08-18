@@ -5,7 +5,6 @@
  * Copyright 2020 Google LLC.
  */
 
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
 #include <linux/platform_data/cros_ec_commands.h>
@@ -369,8 +368,8 @@ static int __maybe_unused cros_pchg_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(cros_pchg_pm_ops, NULL, cros_pchg_resume);
 
 static const struct platform_device_id cros_pchg_id[] = {
-	{ DRV_NAME, 0 },
-	{}
+	{ .name = DRV_NAME },
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, cros_pchg_id);
 

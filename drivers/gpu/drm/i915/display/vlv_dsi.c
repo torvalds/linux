@@ -99,7 +99,7 @@ void vlv_dsi_wait_for_fifo_empty(struct intel_dsi *intel_dsi, enum port port)
 }
 
 static void write_data(struct intel_display *display,
-		       i915_reg_t reg,
+		       intel_reg_t reg,
 		       const u8 *data, u32 len)
 {
 	u32 i, j;
@@ -115,7 +115,7 @@ static void write_data(struct intel_display *display,
 }
 
 static void read_data(struct intel_display *display,
-		      i915_reg_t reg,
+		      intel_reg_t reg,
 		      u8 *data, u32 len)
 {
 	u32 i, j;
@@ -138,7 +138,7 @@ static ssize_t intel_dsi_host_transfer(struct mipi_dsi_host *host,
 	struct mipi_dsi_packet packet;
 	ssize_t ret;
 	const u8 *header;
-	i915_reg_t data_reg, ctrl_reg;
+	intel_reg_t data_reg, ctrl_reg;
 	u32 data_mask, ctrl_mask;
 
 	ret = mipi_dsi_create_packet(&packet, msg);
@@ -254,16 +254,16 @@ static int dpi_send_cmd(struct intel_dsi *intel_dsi, u32 cmd, bool hs,
 
 static void band_gap_reset(struct intel_display *display)
 {
-	vlv_flisdsi_get(display->drm);
+	vlv_flisdsi_get(display);
 
-	vlv_flisdsi_write(display->drm, 0x08, 0x0001);
-	vlv_flisdsi_write(display->drm, 0x0F, 0x0005);
-	vlv_flisdsi_write(display->drm, 0x0F, 0x0025);
+	vlv_flisdsi_write(display, 0x08, 0x0001);
+	vlv_flisdsi_write(display, 0x0F, 0x0005);
+	vlv_flisdsi_write(display, 0x0F, 0x0025);
 	udelay(150);
-	vlv_flisdsi_write(display->drm, 0x0F, 0x0000);
-	vlv_flisdsi_write(display->drm, 0x08, 0x0000);
+	vlv_flisdsi_write(display, 0x0F, 0x0000);
+	vlv_flisdsi_write(display, 0x08, 0x0000);
 
-	vlv_flisdsi_put(display->drm);
+	vlv_flisdsi_put(display);
 }
 
 static int intel_dsi_compute_config(struct intel_encoder *encoder,
@@ -461,11 +461,11 @@ static void vlv_dsi_device_ready(struct intel_encoder *encoder)
 
 	drm_dbg_kms(display->drm, "\n");
 
-	vlv_flisdsi_get(display->drm);
+	vlv_flisdsi_get(display);
 	/* program rcomp for compliance, reduce from 50 ohms to 45 ohms
 	 * needed everytime after power gate */
-	vlv_flisdsi_write(display->drm, 0x04, 0x0004);
-	vlv_flisdsi_put(display->drm);
+	vlv_flisdsi_write(display, 0x04, 0x0004);
+	vlv_flisdsi_put(display);
 
 	/* bandgap reset is needed after everytime we do power gate */
 	band_gap_reset(display);
@@ -559,7 +559,7 @@ static void glk_dsi_clear_device_ready(struct intel_encoder *encoder)
 	glk_dsi_disable_mipi_io(encoder);
 }
 
-static i915_reg_t port_ctrl_reg(struct intel_display *display, enum port port)
+static intel_reg_t port_ctrl_reg(struct intel_display *display, enum port port)
 {
 	return display->platform.geminilake || display->platform.broxton ?
 		BXT_MIPI_PORT_CTRL(port) : VLV_MIPI_PORT_CTRL(port);
@@ -574,7 +574,7 @@ static void vlv_dsi_clear_device_ready(struct intel_encoder *encoder)
 	drm_dbg_kms(display->drm, "\n");
 	for_each_dsi_port(port, intel_dsi->ports) {
 		/* Common bit for both MIPI Port A & MIPI Port C on VLV/CHV */
-		i915_reg_t port_ctrl = display->platform.broxton ?
+		intel_reg_t port_ctrl = display->platform.broxton ?
 			BXT_MIPI_PORT_CTRL(port) : VLV_MIPI_PORT_CTRL(PORT_A);
 
 		intel_de_write(display, MIPI_DEVICE_READY(display, port),
@@ -631,7 +631,7 @@ static void intel_dsi_port_enable(struct intel_encoder *encoder,
 	}
 
 	for_each_dsi_port(port, intel_dsi->ports) {
-		i915_reg_t port_ctrl = port_ctrl_reg(display, port);
+		intel_reg_t port_ctrl = port_ctrl_reg(display, port);
 		u32 temp;
 
 		temp = intel_de_read(display, port_ctrl);
@@ -666,7 +666,7 @@ static void intel_dsi_port_disable(struct intel_encoder *encoder)
 	enum port port;
 
 	for_each_dsi_port(port, intel_dsi->ports) {
-		i915_reg_t port_ctrl = port_ctrl_reg(display, port);
+		intel_reg_t port_ctrl = port_ctrl_reg(display, port);
 
 		/* de-assert ip_tg_enable signal */
 		intel_de_rmw(display, port_ctrl, DPI_ENABLE, 0);
@@ -957,7 +957,7 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 
 	/* XXX: this only works for one DSI output */
 	for_each_dsi_port(port, intel_dsi->ports) {
-		i915_reg_t port_ctrl = port_ctrl_reg(display, port);
+		intel_reg_t port_ctrl = port_ctrl_reg(display, port);
 		bool enabled = intel_de_read(display, port_ctrl) & DPI_ENABLE;
 
 		/*

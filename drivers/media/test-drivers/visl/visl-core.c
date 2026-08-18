@@ -339,6 +339,10 @@ static int visl_open(struct file *file)
 	}
 
 	ctx->tpg_str_buf = kzalloc(TPG_STR_BUF_SZ, GFP_KERNEL);
+	if (!ctx->tpg_str_buf) {
+		rc = -ENOMEM;
+		goto free_ctx;
+	}
 
 	v4l2_fh_init(&ctx->fh, video_devdata(file));
 	ctx->dev = dev;

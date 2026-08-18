@@ -2088,10 +2088,9 @@ int _opp_add(struct device *dev, struct dev_pm_opp *new_opp,
 			return ret;
 
 		list_add(&new_opp->node, head);
+		new_opp->opp_table = opp_table;
+		kref_init(&new_opp->kref);
 	}
-
-	new_opp->opp_table = opp_table;
-	kref_init(&new_opp->kref);
 
 	opp_debug_create_one(new_opp, opp_table);
 

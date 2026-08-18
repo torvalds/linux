@@ -81,6 +81,11 @@ static bool ibrs_off __read_mostly;
 /* Maximum allowed C-state target residency */
 #define MAX_CMDLINE_RESIDENCY_US (100 * USEC_PER_MSEC)
 
+/* The Package C-State Limit bits in MSR_PKG_CST_CONFIG_CONTROL */
+#define SKX_PKG_CST_LIMIT_MASK GENMASK(2, 0)
+/* PC6 is enabled when Package C-State Limit >= this value */
+#define SKX_PKG_CST_LIMIT_PC6 2
+
 static char cmdline_table_str[MAX_CMDLINE_TABLE_LEN] __read_mostly;
 
 static struct cpuidle_device __percpu *intel_idle_cpuidle_devices;
@@ -2074,12 +2079,13 @@ static void __init sklh_idle_state_table_update(void)
 }
 
 /**
- * skx_idle_state_table_update - Adjust the Sky Lake/Cascade Lake
- * idle states table.
+ * skx_is_pc6_disabled() - Check if PC6 is disabled in BIOS.
+ *
+ * Return: %true if PC6 is disabled, %false otherwise.
  */
-static void __init skx_idle_state_table_update(void)
+static bool __init skx_is_pc6_disabled(void)
 {
-	unsigned long long msr;
+	u64 msr;
 
 	rdmsrq(MSR_PKG_CST_CONFIG_CONTROL, msr);
 
@@ -2090,38 +2096,84 @@ static void __init skx_idle_state_table_update(void)
 	 * 011b: C6 (retention)
 	 * 111b: No Package C state limits.
 	 */
-	if ((msr & 0x7) < 2) {
-		/*
-		 * Uses the CC6 + PC0 latency and 3 times of
-		 * latency for target_residency if the PC6
-		 * is disabled in BIOS. This is consistent
-		 * with how intel_idle driver uses _CST
-		 * to set the target_residency.
-		 */
+	return (msr & SKX_PKG_CST_LIMIT_MASK) < SKX_PKG_CST_LIMIT_PC6;
+}
+
+/**
+ * skx_idle_state_table_update - Adjust the SKX/CLX idle states table.
+ *
+ * Adjust Sky Lake or Cascade Lake Xeon idle states if PC6 is disabled in BIOS.
+ * Use the CC6 + PC0 latency and 3 times of that latency for target_residency.
+ * This is consistent with how the intel_idle driver uses _CST to set the
+ * target_residency.
+ */
+static void __init skx_idle_state_table_update(void)
+{
+	if (skx_is_pc6_disabled()) {
 		skx_cstates[2].exit_latency = 92;
 		skx_cstates[2].target_residency = 276;
 	}
 }
 
 /**
- * spr_idle_state_table_update - Adjust Sapphire Rapids idle states table.
+ * spr_idle_state_table_update - Adjust Sapphire Rapids Xeon idle states table.
+ *
+ * By default, the C6 state assumes the worst-case scenario of package C6.
+ * However, if PC6 is disabled in BIOS, update the numbers to match core C6.
  */
 static void __init spr_idle_state_table_update(void)
 {
-	unsigned long long msr;
-
-	/*
-	 * By default, the C6 state assumes the worst-case scenario of package
-	 * C6. However, if PC6 is disabled, we update the numbers to match
-	 * core C6.
-	 */
-	rdmsrq(MSR_PKG_CST_CONFIG_CONTROL, msr);
-
-	/* Limit value 2 and above allow for PC6. */
-	if ((msr & 0x7) < 2) {
+	if (skx_is_pc6_disabled()) {
 		spr_cstates[2].exit_latency = 190;
 		spr_cstates[2].target_residency = 600;
 	}
+}
+
+/**
+ * drop_pc6_redundant_cstates() - Drop C-states redundant when PC6 is disabled.
+ * @states: Idle states table to modify.
+ *
+ * When PC6 is disabled in BIOS, C-states that exist solely to enable PC6
+ * entry (such as C6P or C6SP) become identical to shallower C-states like
+ * C6, and are therefore redundant. Should be called only on systems with
+ * multiple C6 flavors.
+ */
+static void __init drop_pc6_redundant_cstates(struct cpuidle_state *states)
+{
+	int count;
+
+	if (!skx_is_pc6_disabled())
+		/* PC6 is not disabled, nothing to do */
+		return;
+
+	for (count = 0; states[count].enter; count++)
+		continue;
+
+	if (count < 2) {
+		pr_debug("Too few idle states to drop PC6-redundant states\n");
+		return;
+	}
+
+	/*
+	 * Sanity check: At this point all platforms with multiple C6 flavors
+	 * use the CPUIDLE_FLAG_PARTIAL_HINT_MATCH flag. And the last state in
+	 * the table is the one that becomes redundant when PC6 is disabled.
+	 */
+	if (!(states[count - 1].flags & CPUIDLE_FLAG_PARTIAL_HINT_MATCH)) {
+		pr_debug("Can't drop PC6-redundant states: unexpected flags\n");
+		return;
+	}
+
+	/*
+	 * On all current platforms with multiple C6 flavors, there is only one
+	 * C-state that becomes redundant when PC6 is disabled. This state is
+	 * the last one in the table. Drop it by marking it with
+	 * CPUIDLE_FLAG_UNUSABLE so that cpuidle excludes it when registering
+	 * idle states.
+	 */
+	pr_info("Dropping idle state %s because PC6 is disabled\n",
+		states[count - 1].name);
+	states[count - 1].flags |= CPUIDLE_FLAG_UNUSABLE;
 }
 
 /**
@@ -2212,6 +2264,12 @@ static void __init intel_idle_init_cstates_icpu(struct cpuidle_driver *drv)
 	case INTEL_ATOM_SILVERMONT:
 	case INTEL_ATOM_AIRMONT:
 		byt_cht_auto_demotion_disable();
+		break;
+	case INTEL_GRANITERAPIDS_D:
+	case INTEL_GRANITERAPIDS_X:
+	case INTEL_ATOM_CRESTMONT_X:
+	case INTEL_ATOM_DARKMONT_X:
+		drop_pc6_redundant_cstates(cpuidle_state_table);
 		break;
 	}
 
@@ -2370,7 +2428,7 @@ static void intel_c1_demotion_toggle(void *enable)
 {
 	unsigned long long msr_val;
 
-	rdmsrl(MSR_PKG_CST_CONFIG_CONTROL, msr_val);
+	rdmsrq(MSR_PKG_CST_CONFIG_CONTROL, msr_val);
 	/*
 	 * Enable/disable C1 undemotion along with C1 demotion, as this is the
 	 * most sensible configuration in general.
@@ -2379,7 +2437,7 @@ static void intel_c1_demotion_toggle(void *enable)
 		msr_val |= NHM_C1_AUTO_DEMOTE | SNB_C1_AUTO_UNDEMOTE;
 	else
 		msr_val &= ~(NHM_C1_AUTO_DEMOTE | SNB_C1_AUTO_UNDEMOTE);
-	wrmsrl(MSR_PKG_CST_CONFIG_CONTROL, msr_val);
+	wrmsrq(MSR_PKG_CST_CONFIG_CONTROL, msr_val);
 }
 
 static ssize_t intel_c1_demotion_store(struct device *dev,
@@ -2410,7 +2468,7 @@ static ssize_t intel_c1_demotion_show(struct device *dev,
 	 * Read the MSR value for a CPU and assume it is the same for all CPUs. Any other
 	 * configuration would be a BIOS bug.
 	 */
-	rdmsrl(MSR_PKG_CST_CONFIG_CONTROL, msr_val);
+	rdmsrq(MSR_PKG_CST_CONFIG_CONTROL, msr_val);
 	return sysfs_emit(buf, "%d\n", !!(msr_val & NHM_C1_AUTO_DEMOTE));
 }
 static DEVICE_ATTR_RW(intel_c1_demotion);

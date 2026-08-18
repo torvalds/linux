@@ -6,7 +6,6 @@
 
 //! `pin-init` proc macros.
 
-#![cfg_attr(USE_RUSTC_FEATURES, feature(lint_reasons))]
 // Documentation is done in the pin-init crate instead.
 #![allow(missing_docs)]
 

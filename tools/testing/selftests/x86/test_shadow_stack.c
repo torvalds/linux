@@ -873,6 +873,86 @@ out:
 	return err;
 }
 
+/* Keep the CALL first so the function address is exactly the probed CALL. */
+extern void uprobe_call_trigger(void);
+asm (".pushsection .text\n"
+	".global uprobe_call_target\n"
+	".type uprobe_call_target, @function\n"
+	"uprobe_call_target:\n"
+	"	ret\n"
+	".size uprobe_call_target, .-uprobe_call_target\n"
+
+	".global uprobe_call_trigger\n"
+	".type uprobe_call_trigger, @function\n"
+	"uprobe_call_trigger:\n"
+	"	call uprobe_call_target\n"
+	"	ret\n"
+	".size uprobe_call_trigger, .-uprobe_call_trigger\n"
+	".popsection\n"
+);
+
+/* If CALL emulation misses the shadow stack update, this exits via SIGSEGV. */
+static int test_uprobe_call(void)
+{
+	const size_t attr_sz = sizeof(struct perf_event_attr);
+	const char *file = "/proc/self/exe";
+	int fd = -1, type, err = 1;
+	struct perf_event_attr attr;
+	struct sigaction sa = {};
+	ssize_t offset;
+
+	type = determine_uprobe_perf_type();
+	if (type < 0) {
+		if (type == -ENOENT)
+			printf("[SKIP]\tUprobe on CALL test, uprobes are not available\n");
+		return 0;
+	}
+
+	offset = get_uprobe_offset(uprobe_call_trigger);
+	if (offset < 0)
+		return 1;
+
+	sa.sa_sigaction = segv_gp_handler;
+	sa.sa_flags = SA_SIGINFO;
+	if (sigaction(SIGSEGV, &sa, NULL))
+		return 1;
+
+	/* Setup entry uprobe through perf event interface. */
+	memset(&attr, 0, attr_sz);
+	attr.size = attr_sz;
+	attr.type = type;
+	attr.config = 0;
+	attr.config1 = (__u64)(unsigned long)file;
+	attr.config2 = offset;
+
+	fd = syscall(__NR_perf_event_open, &attr, 0 /* pid */, -1 /* cpu */,
+		     -1 /* group_fd */, PERF_FLAG_FD_CLOEXEC);
+	if (fd < 0)
+		goto out;
+
+	if (sigsetjmp(jmp_buffer, 1))
+		goto out;
+
+	if (ARCH_PRCTL(ARCH_SHSTK_ENABLE, ARCH_SHSTK_SHSTK))
+		goto out;
+
+	/*
+	 * This either segfaults and goes through sigsetjmp above
+	 * or succeeds and we're good.
+	 */
+	uprobe_call_trigger();
+
+	printf("[OK]\tUprobe on CALL test\n");
+	err = 0;
+
+out:
+	ARCH_PRCTL(ARCH_SHSTK_DISABLE, ARCH_SHSTK_SHSTK);
+	signal(SIGSEGV, SIG_DFL);
+	if (fd >= 0)
+		close(fd);
+	return err;
+}
+
 void segv_handler_ptrace(int signum, siginfo_t *si, void *uc)
 {
 	/* The SSP adjustment caused a segfault. */
@@ -1068,6 +1148,12 @@ int main(int argc, char *argv[])
 	if (test_uretprobe()) {
 		ret = 1;
 		printf("[FAIL]\turetprobe test\n");
+		goto out;
+	}
+
+	if (test_uprobe_call()) {
+		ret = 1;
+		printf("[FAIL]\tuprobe on CALL test\n");
 		goto out;
 	}
 

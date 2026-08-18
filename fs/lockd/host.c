@@ -552,7 +552,7 @@ struct nlm_host * nlm_get_host(struct nlm_host *host)
 
 static struct nlm_host *next_host_state(struct hlist_head *cache,
 					struct nsm_handle *nsm,
-					const struct nlm_reboot *info)
+					const struct lockd_reboot *info)
 {
 	struct nlm_host *host;
 	struct hlist_head *chain;
@@ -582,7 +582,7 @@ static struct nlm_host *next_host_state(struct hlist_head *cache,
  * We were notified that the specified host has rebooted.  Release
  * all resources held by that peer.
  */
-void nlm_host_rebooted(const struct net *net, const struct nlm_reboot *info)
+void nlm_host_rebooted(const struct net *net, const struct lockd_reboot *info)
 {
 	struct nsm_handle *nsm;
 	struct nlm_host	*host;

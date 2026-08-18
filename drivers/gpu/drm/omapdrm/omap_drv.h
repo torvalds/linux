@@ -105,7 +105,7 @@ struct omap_drm_private {
 
 void omap_debugfs_init(struct drm_minor *minor);
 
-struct omap_global_state * __must_check omap_get_global_state(struct drm_atomic_state *s);
+struct omap_global_state * __must_check omap_get_global_state(struct drm_atomic_commit *s);
 
 struct omap_global_state *omap_get_existing_global_state(struct omap_drm_private *priv);
 

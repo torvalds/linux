@@ -119,7 +119,7 @@ the byte-at-a-time table method, popularized by Dilip V. Sarwate,
 v.31 no.8 (August 1988) p. 1008-1013.
 
 Here, rather than just shifting one bit of the remainder to decide
-in the correct multiple to subtract, we can shift a byte at a time.
+on the correct multiple to subtract, we can shift a byte at a time.
 This produces a 40-bit (rather than a 33-bit) intermediate remainder,
 and the correct multiple of the polynomial to subtract is found using
 a 256-entry lookup table indexed by the high 8 bits.

@@ -18,6 +18,8 @@ struct nvkm_device_tegra {
 
 	struct regulator *vdd;
 
+	struct tegra_pmc *pmc;
+
 	struct {
 		/*
 		 * Protects accesses to mm from subsystems

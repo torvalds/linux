@@ -325,7 +325,7 @@ static int rt5575_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id rt5575_i2c_id[] = {
-	{ "rt5575" },
+	{ .name = "rt5575" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rt5575_i2c_id);

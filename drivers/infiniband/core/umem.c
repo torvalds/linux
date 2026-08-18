@@ -84,14 +84,17 @@ static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int d
  */
 unsigned long ib_umem_find_best_pgsz(struct ib_umem *umem,
 				     unsigned long pgsz_bitmap,
-				     unsigned long virt)
+				     u64 virt)
 {
 	unsigned long curr_len = 0;
 	dma_addr_t curr_base = ~0;
-	unsigned long va, pgoff;
+	unsigned long pgoff;
 	struct scatterlist *sg;
-	dma_addr_t mask;
+	unsigned long mask = 0;
+	unsigned int bits;
 	dma_addr_t end;
+	u64 last_va;
+	u64 va;
 	int i;
 
 	umem->iova = va = virt;
@@ -109,9 +112,12 @@ unsigned long ib_umem_find_best_pgsz(struct ib_umem *umem,
 	 * number of required pages. Compute the largest page size that could
 	 * work based on VA address bits that don't change.
 	 */
-	mask = pgsz_bitmap &
-	       GENMASK(BITS_PER_LONG - 1,
-		       bits_per((umem->length - 1 + virt) ^ virt));
+	if (check_add_overflow(umem->length - 1, virt, &last_va))
+		return 0;
+	bits = bits_per(virt ^ last_va);
+	if (bits < BITS_PER_LONG)
+		mask = pgsz_bitmap & GENMASK(BITS_PER_LONG - 1, bits);
+
 	/* offset into first SGL */
 	pgoff = umem->address & ~PAGE_MASK;
 
@@ -153,16 +159,9 @@ unsigned long ib_umem_find_best_pgsz(struct ib_umem *umem,
 }
 EXPORT_SYMBOL(ib_umem_find_best_pgsz);
 
-/**
- * ib_umem_get - Pin and DMA map userspace memory.
- *
- * @device: IB device to connect UMEM
- * @addr: userspace virtual address to start at
- * @size: length of region to pin
- * @access: IB_ACCESS_xxx flags for memory being pinned
- */
-struct ib_umem *ib_umem_get(struct ib_device *device, unsigned long addr,
-			    size_t size, int access)
+static struct ib_umem *__ib_umem_get_va(struct ib_device *device,
+					unsigned long addr, size_t size,
+					int access)
 {
 	struct ib_umem *umem;
 	struct page **page_list;
@@ -173,6 +172,9 @@ struct ib_umem *ib_umem_get(struct ib_device *device, unsigned long addr,
 	unsigned long npages;
 	int pinned, ret;
 	unsigned int gup_flags = FOLL_LONGTERM;
+
+	if (device->cc_dma_bounce)
+		return ERR_PTR(-EOPNOTSUPP);
 
 	/*
 	 * If the combination of the addr and size requested for this memory
@@ -275,10 +277,342 @@ umem_kfree:
 	}
 	return ret ? ERR_PTR(ret) : umem;
 }
-EXPORT_SYMBOL(ib_umem_get);
 
 /**
- * ib_umem_release - release memory pinned with ib_umem_get
+ * ib_umem_get_desc - Pin a umem from a buffer descriptor.
+ * @device: IB device.
+ * @desc:   buffer descriptor (VA or DMABUF).
+ * @access: IB access flags.
+ *
+ * Return: caller-owned umem on success, ERR_PTR(...) on error.
+ */
+struct ib_umem *ib_umem_get_desc(struct ib_device *device,
+				 const struct ib_uverbs_buffer_desc *desc,
+				 int access)
+{
+	struct ib_umem_dmabuf *umem_dmabuf;
+
+	if (desc->flags & ~IB_UVERBS_BUFFER_DESC_FLAGS_KNOWN_MASK)
+		return ERR_PTR(-EINVAL);
+
+	if (overflows_type(desc->addr, unsigned long) ||
+	    overflows_type(desc->length, size_t))
+		return ERR_PTR(-EOVERFLOW);
+
+	switch (desc->type) {
+	case IB_UVERBS_BUFFER_TYPE_DMABUF:
+		umem_dmabuf = ib_umem_dmabuf_get_pinned(device, desc->addr,
+							desc->length, desc->fd,
+							access);
+		if (IS_ERR(umem_dmabuf))
+			return ERR_CAST(umem_dmabuf);
+		return &umem_dmabuf->umem;
+	case IB_UVERBS_BUFFER_TYPE_VA:
+		return __ib_umem_get_va(device, desc->addr, desc->length,
+					access);
+	default:
+		return ERR_PTR(-EINVAL);
+	}
+}
+EXPORT_SYMBOL(ib_umem_get_desc);
+
+/*
+ * Per-command legacy buffer-desc filler.
+ * Returns 0 on success (desc filled), -ENODATA if no legacy attrs apply,
+ * negative errno on validation failure.
+ */
+typedef int (*ib_umem_buf_desc_filler_t)(const struct uverbs_attr_bundle *attrs,
+					 struct ib_uverbs_buffer_desc *desc);
+
+/*
+ * ib_umem_resolve_desc - Resolve a buffer descriptor from a per-command UMEM
+ *                        attribute and/or a legacy attr filler.
+ *
+ * Return:
+ *    0       @desc filled.
+ *   -ENOENT  no source produced a buffer.
+ *   -EINVAL  both the UMEM attribute and the legacy filler produced a buffer.
+ *   -errno   propagated from attr read / filler validation.
+ */
+static int ib_umem_resolve_desc(const struct uverbs_attr_bundle *attrs,
+				u16 attr_id,
+				ib_umem_buf_desc_filler_t legacy_filler,
+				struct ib_uverbs_buffer_desc *desc)
+{
+	bool have_desc = false;
+	int ret;
+
+	if (!attrs)
+		return -ENOENT;
+
+	ret = uverbs_get_buffer_desc(attrs, attr_id, desc);
+	if (!ret)
+		have_desc = true;
+	else if (ret != -ENOENT)
+		return ret;
+
+	if (legacy_filler) {
+		struct ib_uverbs_buffer_desc legacy_desc = {};
+
+		ret = legacy_filler(attrs, &legacy_desc);
+		if (!ret) {
+			if (have_desc)
+				return -EINVAL;
+			*desc = legacy_desc;
+			have_desc = true;
+		} else if (ret != -ENODATA) {
+			return ret;
+		}
+	}
+
+	return have_desc ? 0 : -ENOENT;
+}
+
+/*
+ * ib_umem_get_desc_check - Pin a umem from @desc and verify it meets
+ *                          @min_size.
+ */
+static struct ib_umem *
+ib_umem_get_desc_check(struct ib_device *device,
+		       const struct ib_uverbs_buffer_desc *desc,
+		       size_t min_size, int access)
+{
+	struct ib_umem *umem;
+
+	umem = ib_umem_get_desc(device, desc, access);
+	if (IS_ERR(umem))
+		return umem;
+	if (umem->length < min_size) {
+		ib_umem_release(umem);
+		return ERR_PTR(-EINVAL);
+	}
+	return umem;
+}
+
+/*
+ * ib_umem_get_from_attrs - Pin a umem from a per-command UMEM attribute
+ *                          and/or a legacy attr filler.
+ *
+ * Return: caller-owned umem on success; NULL when no source supplied a
+ * buffer; ERR_PTR(...) on error.
+ */
+static struct ib_umem *
+ib_umem_get_from_attrs(struct ib_device *device,
+		       const struct uverbs_attr_bundle *attrs,
+		       u16 attr_id, ib_umem_buf_desc_filler_t legacy_filler,
+		       size_t size, int access)
+{
+	struct ib_uverbs_buffer_desc desc = {};
+	int ret;
+
+	ret = ib_umem_resolve_desc(attrs, attr_id, legacy_filler, &desc);
+	if (ret == -ENOENT)
+		return NULL;
+	if (ret)
+		return ERR_PTR(ret);
+	return ib_umem_get_desc_check(device, &desc, size, access);
+}
+
+/*
+ * ib_umem_get_from_attrs_or_va - Pin a umem from a per-command UMEM
+ *                                attribute and/or a legacy attr filler,
+ *                                falling back to a UHW VA when no source
+ *                                matched.
+ *
+ * @size is always consumed: it is the length to pin on the VA fallback
+ * path AND the post-pin minimum-length check on the attr / legacy paths.
+ * Callers must always pass a meaningful, validated value.
+ *
+ * Return: caller-owned umem on success, ERR_PTR(...) on error.
+ */
+static struct ib_umem *
+ib_umem_get_from_attrs_or_va(struct ib_device *device,
+			     const struct uverbs_attr_bundle *attrs,
+			     u16 attr_id,
+			     ib_umem_buf_desc_filler_t legacy_filler,
+			     u64 addr, size_t size, int access)
+{
+	struct ib_uverbs_buffer_desc desc = {};
+	int ret;
+
+	ret = ib_umem_resolve_desc(attrs, attr_id, legacy_filler, &desc);
+	if (ret == -ENOENT)
+		desc = (struct ib_uverbs_buffer_desc){
+			.type	= IB_UVERBS_BUFFER_TYPE_VA,
+			.addr	= addr,
+			.length	= size,
+		};
+	else if (ret)
+		return ERR_PTR(ret);
+	return ib_umem_get_desc_check(device, &desc, size, access);
+}
+
+/**
+ * ib_umem_get_attr - Pin a umem from a per-command UMEM attribute.
+ * @device:  IB device.
+ * @attrs:   uverbs attribute bundle (may be NULL).
+ * @attr_id: per-command UMEM attribute id.
+ * @size:    minimum required umem length.
+ * @access:  IB access flags.
+ *
+ * Return: caller-owned umem on success; NULL when no source supplied
+ * a buffer; ERR_PTR(...) on error.
+ */
+struct ib_umem *ib_umem_get_attr(struct ib_device *device,
+				 const struct uverbs_attr_bundle *attrs,
+				 u16 attr_id, size_t size, int access)
+{
+	return ib_umem_get_from_attrs(device, attrs, attr_id, NULL, size,
+				      access);
+}
+EXPORT_SYMBOL(ib_umem_get_attr);
+
+/**
+ * ib_umem_get_attr_or_va - Pin a umem from a per-command UMEM attribute,
+ *                          falling back to a UHW VA.
+ * @device:  IB device.
+ * @attrs:   uverbs attribute bundle (may be NULL).
+ * @attr_id: per-command UMEM attribute id.
+ * @addr:    UHW user VA used when no per-command attribute matched.
+ * @size:    on the attr / legacy paths, the minimum required umem length
+ *           validated post-pin; on the VA fallback path, the length to pin.
+ * @access:  IB access flags.
+ *
+ * Like ib_umem_get_attr(), but pins @addr/@size when no per-command
+ * UMEM attribute is supplied.
+ *
+ * IMPORTANT: @size is always consumed. On the attr / legacy paths it is
+ * used as the post-pin minimum-length check; on the VA fallback path it
+ * is the length to pin. Callers MUST pass a meaningful, validated value
+ * even when they expect an attribute-supplied buffer to be used.
+ *
+ * Every in-tree caller passes the same value for the two roles of @size
+ * because no driver today distinguishes a user-passed buffer length from
+ * a driver-computed minimum. Drivers that currently accept a user-supplied
+ * length without cross-checking it against a driver minimum (vmw_pvrdma
+ * CQ/QP/SRQ, qedr CQ/QP/SRQ, mana WQ/QP, ionic CQ/QP), once tightened to
+ * compute and check a real minimum, will want to introduce a separate
+ * helper that passes these as distinct values.
+ *
+ * Return: caller-owned umem on success, ERR_PTR(...) on error.
+ */
+struct ib_umem *ib_umem_get_attr_or_va(struct ib_device *device,
+				       const struct uverbs_attr_bundle *attrs,
+				       u16 attr_id, u64 addr, size_t size,
+				       int access)
+{
+	return ib_umem_get_from_attrs_or_va(device, attrs, attr_id, NULL, addr,
+					    size, access);
+}
+EXPORT_SYMBOL(ib_umem_get_attr_or_va);
+
+static int uverbs_create_cq_get_buffer_desc(const struct uverbs_attr_bundle *attrs,
+					    struct ib_uverbs_buffer_desc *desc)
+{
+	struct ib_device *ib_dev = attrs->context->device;
+	int ret;
+
+	if (uverbs_attr_is_valid(attrs, UVERBS_ATTR_CREATE_CQ_BUFFER_VA)) {
+		ret = uverbs_copy_from(&desc->addr, attrs,
+				       UVERBS_ATTR_CREATE_CQ_BUFFER_VA);
+		if (ret)
+			return ret;
+		ret = uverbs_copy_from(&desc->length, attrs,
+				       UVERBS_ATTR_CREATE_CQ_BUFFER_LENGTH);
+		if (ret)
+			return ret;
+		if (uverbs_attr_is_valid(attrs, UVERBS_ATTR_CREATE_CQ_BUFFER_FD) ||
+		    uverbs_attr_is_valid(attrs, UVERBS_ATTR_CREATE_CQ_BUFFER_OFFSET) ||
+		    !ib_dev->ops.create_user_cq)
+			return -EINVAL;
+		desc->type = IB_UVERBS_BUFFER_TYPE_VA;
+		return 0;
+	}
+
+	if (uverbs_attr_is_valid(attrs, UVERBS_ATTR_CREATE_CQ_BUFFER_FD)) {
+		ret = uverbs_get_raw_fd(&desc->fd, attrs,
+					UVERBS_ATTR_CREATE_CQ_BUFFER_FD);
+		if (ret)
+			return ret;
+
+		ret = uverbs_copy_from(&desc->addr, attrs,
+				       UVERBS_ATTR_CREATE_CQ_BUFFER_OFFSET);
+		if (ret)
+			return ret;
+		ret = uverbs_copy_from(&desc->length, attrs,
+				       UVERBS_ATTR_CREATE_CQ_BUFFER_LENGTH);
+		if (ret)
+			return ret;
+		if (uverbs_attr_is_valid(attrs, UVERBS_ATTR_CREATE_CQ_BUFFER_VA) ||
+		    !ib_dev->ops.create_user_cq)
+			return -EINVAL;
+		desc->type = IB_UVERBS_BUFFER_TYPE_DMABUF;
+		return 0;
+	}
+
+	if (uverbs_attr_is_valid(attrs, UVERBS_ATTR_CREATE_CQ_BUFFER_OFFSET) ||
+	    uverbs_attr_is_valid(attrs, UVERBS_ATTR_CREATE_CQ_BUFFER_LENGTH))
+		return -EINVAL;
+	return -ENODATA;
+}
+
+/**
+ * ib_umem_get_cq_buf - Pin a CQ buffer umem from per-command attributes.
+ * @device:  IB device.
+ * @attrs:   uverbs attribute bundle (may be NULL).
+ * @size:    minimum required CQ buffer length.
+ * @access:  IB access flags.
+ *
+ * Resolves the CQ buffer from the new UMEM attribute or the legacy
+ * CQ buffer attributes. There is no UHW VA fallback, so the caller
+ * must arrange its own backing (typically an in-kernel allocation)
+ * when no source is available.
+ *
+ * Return: caller-owned umem on success; NULL when no source supplied
+ * a buffer; ERR_PTR(...) on error.
+ */
+struct ib_umem *ib_umem_get_cq_buf(struct ib_device *device,
+				   const struct uverbs_attr_bundle *attrs,
+				   size_t size, int access)
+{
+	return ib_umem_get_from_attrs(device, attrs,
+				      UVERBS_ATTR_CREATE_CQ_BUF_UMEM,
+				      uverbs_create_cq_get_buffer_desc,
+				      size, access);
+}
+EXPORT_SYMBOL(ib_umem_get_cq_buf);
+
+/**
+ * ib_umem_get_cq_buf_or_va - Pin a CQ buffer umem with UHW VA fallback.
+ * @device:  IB device.
+ * @attrs:   uverbs attribute bundle (may be NULL).
+ * @addr:    UHW user VA used when no per-command attribute matched.
+ * @size:    on the attr / legacy paths, the minimum required umem length
+ *           validated post-pin; on the VA fallback path, the length to pin.
+ * @access:  IB access flags.
+ *
+ * Like ib_umem_get_cq_buf(), but pins @addr/@size when neither the
+ * UMEM attribute nor the legacy CQ buffer attributes are supplied.
+ *
+ * See ib_umem_get_attr_or_va() for the note on @size's dual role and
+ * the migration path for drivers that would distinguish a user-supplied
+ * length from a driver-computed minimum.
+ *
+ * Return: caller-owned umem on success, ERR_PTR(...) on error.
+ */
+struct ib_umem *ib_umem_get_cq_buf_or_va(struct ib_device *device,
+					 const struct uverbs_attr_bundle *attrs,
+					 u64 addr, size_t size, int access)
+{
+	return ib_umem_get_from_attrs_or_va(device, attrs,
+					    UVERBS_ATTR_CREATE_CQ_BUF_UMEM,
+					    uverbs_create_cq_get_buffer_desc,
+					    addr, size, access);
+}
+EXPORT_SYMBOL(ib_umem_get_cq_buf_or_va);
+
+/**
+ * ib_umem_release - release pinned memory
  * @umem: umem struct to release
  */
 void ib_umem_release(struct ib_umem *umem)

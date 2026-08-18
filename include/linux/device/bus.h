@@ -83,9 +83,9 @@ struct fwnode_handle;
 struct bus_type {
 	const char		*name;
 	const char		*dev_name;
-	const struct attribute_group **bus_groups;
-	const struct attribute_group **dev_groups;
-	const struct attribute_group **drv_groups;
+	const struct attribute_group *const *bus_groups;
+	const struct attribute_group *const *dev_groups;
+	const struct attribute_group *const *drv_groups;
 
 	int (*match)(struct device *dev, const struct device_driver *drv);
 	int (*uevent)(const struct device *dev, struct kobj_uevent_env *env);

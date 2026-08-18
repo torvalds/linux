@@ -1502,7 +1502,6 @@ int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 
 	host->ops = &iproc_pcie_ops;
 	host->sysdata = pcie;
-	host->map_irq = pcie->map_irq;
 
 	ret = pci_host_probe(host);
 	if (ret < 0) {
@@ -1529,8 +1528,10 @@ void iproc_pcie_remove(struct iproc_pcie *pcie)
 {
 	struct pci_host_bridge *host = pci_host_bridge_from_priv(pcie);
 
+	pci_lock_rescan_remove();
 	pci_stop_root_bus(host->bus);
 	pci_remove_root_bus(host->bus);
+	pci_unlock_rescan_remove();
 
 	iproc_pcie_msi_disable(pcie);
 

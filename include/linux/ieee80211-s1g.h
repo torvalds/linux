@@ -556,7 +556,7 @@ static inline bool ieee80211_s1g_check_tim(const struct ieee80211_tim_ie *tim,
 	 */
 	err = ieee80211_s1g_find_target_block(&enc_blk, &target_aid,
 					      tim->virtual_map,
-					      (const u8 *)tim + tim_len + 2);
+					      (const u8 *)tim + tim_len);
 	if (err)
 		return false;
 

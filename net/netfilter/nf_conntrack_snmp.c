@@ -47,25 +47,24 @@ static struct nf_conntrack_expect_policy exp_policy = {
 	.max_expected	= 1,
 };
 
-static struct nf_conntrack_helper helper __read_mostly = {
-	.name			= "snmp",
-	.tuple.src.l3num	= NFPROTO_IPV4,
-	.tuple.src.u.udp.port	= cpu_to_be16(SNMP_PORT),
-	.tuple.dst.protonum	= IPPROTO_UDP,
-	.me			= THIS_MODULE,
-	.help			= snmp_conntrack_help,
-	.expect_policy		= &exp_policy,
-};
+static struct nf_conntrack_helper helper __read_mostly;
+static struct nf_conntrack_helper *helper_ptr __read_mostly;
 
 static int __init nf_conntrack_snmp_init(void)
 {
 	exp_policy.timeout = timeout;
-	return nf_conntrack_helper_register(&helper);
+
+	nf_ct_helper_init(&helper, AF_INET, IPPROTO_UDP,
+			  "snmp", SNMP_PORT, SNMP_PORT, SNMP_PORT,
+			  &exp_policy, 0, snmp_conntrack_help, NULL,
+			  THIS_MODULE);
+
+	return nf_conntrack_helper_register(&helper, &helper_ptr);
 }
 
 static void __exit nf_conntrack_snmp_fini(void)
 {
-	nf_conntrack_helper_unregister(&helper);
+	nf_conntrack_helper_unregister(helper_ptr);
 }
 
 module_init(nf_conntrack_snmp_init);

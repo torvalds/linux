@@ -929,6 +929,7 @@ static const struct of_device_id sdx65_pinctrl_of_match[] = {
 	{ .compatible = "qcom,sdx65-tlmm", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, sdx65_pinctrl_of_match);
 
 static struct platform_driver sdx65_pinctrl_driver = {
 	.driver = {
@@ -952,4 +953,3 @@ module_exit(sdx65_pinctrl_exit);
 
 MODULE_DESCRIPTION("QTI sdx65 pinctrl driver");
 MODULE_LICENSE("GPL v2");
-MODULE_DEVICE_TABLE(of, sdx65_pinctrl_of_match);

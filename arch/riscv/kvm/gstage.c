@@ -5,11 +5,13 @@
  */
 
 #include <linux/bitops.h>
+#include <linux/cpufeature.h>
 #include <linux/errno.h>
 #include <linux/kvm_host.h>
 #include <linux/module.h>
 #include <linux/pgtable.h>
 #include <asm/kvm_gstage.h>
+#include <asm/hwcap.h>
 
 #ifdef CONFIG_64BIT
 unsigned long kvm_riscv_gstage_max_pgd_levels __ro_after_init = 3;
@@ -171,8 +173,10 @@ int kvm_riscv_gstage_set_pte(struct kvm_gstage *gstage,
 	}
 
 	if (pte_val(*ptep) != pte_val(map->pte)) {
+		bool was_invalid = !pte_val(*ptep);
 		set_pte(ptep, map->pte);
-		if (gstage_pte_leaf(ptep))
+		if (gstage_pte_leaf(ptep) &&
+		    !(was_invalid && riscv_has_extension_unlikely(RISCV_ISA_EXT_SVVPTC)))
 			gstage_tlb_flush(gstage, current_level, map->addr);
 	}
 
@@ -303,19 +307,20 @@ static inline unsigned long make_child_pte(unsigned long huge_pte, int index,
 	return child_pte;
 }
 
-int kvm_riscv_gstage_split_huge(struct kvm_gstage *gstage,
-				struct kvm_mmu_memory_cache *pcache,
-				gpa_t addr, u32 target_level, bool flush)
+bool kvm_riscv_gstage_split_huge(struct kvm_gstage *gstage,
+				 struct kvm_mmu_memory_cache *pcache,
+				 gpa_t addr, u32 target_level, bool flush)
 {
 	u32 current_level = gstage->pgd_levels - 1;
 	pte_t *next_ptep = (pte_t *)gstage->pgd;
 	unsigned long huge_pte, child_pte;
 	unsigned long child_page_size;
+	bool need_flush = false;
 	pte_t *ptep;
 	int i, ret;
 
 	if (!pcache)
-		return -ENOMEM;
+		return false;
 
 	while(current_level > target_level) {
 		ptep = (pte_t *)&next_ptep[gstage_pte_index(gstage, addr, current_level)];
@@ -333,27 +338,35 @@ int kvm_riscv_gstage_split_huge(struct kvm_gstage *gstage,
 
 		ret = gstage_level_to_page_size(gstage, current_level - 1, &child_page_size);
 		if (ret)
-			return ret;
+			return need_flush;
 
 		next_ptep = kvm_mmu_memory_cache_alloc(pcache);
 		if (!next_ptep)
-			return -ENOMEM;
+			return need_flush;
 
 		for (i = 0; i < PTRS_PER_PTE; i++) {
 			child_pte = make_child_pte(huge_pte, i, child_page_size);
 			set_pte((pte_t *)&next_ptep[i], __pte(child_pte));
 		}
 
+		/*
+		 * Ensure the writes to the child PTEs are visible before
+		 * linking the new page table to the parent PTE.
+		 */
+		smp_wmb();
+
 		set_pte(ptep, pfn_pte(PFN_DOWN(__pa(next_ptep)),
 				__pgprot(_PAGE_TABLE)));
 
 		if (flush)
 			gstage_tlb_flush(gstage, current_level, addr);
+		else
+			need_flush = true;
 
 		current_level--;
 	}
 
-	return 0;
+	return need_flush;
 }
 
 bool kvm_riscv_gstage_op_pte(struct kvm_gstage *gstage, gpa_t addr,
@@ -467,6 +480,65 @@ bool kvm_riscv_gstage_wp_range(struct kvm_gstage *gstage, gpa_t start, gpa_t end
 							 ptep_level, GSTAGE_OP_WP);
 			addr += page_size;
 		}
+	}
+
+	return flush;
+}
+
+static inline void clear_huge_mask(unsigned long *mask, unsigned long page_size,
+				   gfn_t base_gfn, gpa_t addr)
+{
+	unsigned long start_index = 0;
+	unsigned long end_index = BITS_PER_LONG - 1;
+	unsigned long end_gfn = base_gfn + end_index;
+	unsigned long aligned_start_gfn = addr >> PAGE_SHIFT;
+	unsigned long aligned_end_gfn = aligned_start_gfn + (page_size >> PAGE_SHIFT) - 1;
+	unsigned int nbits = 0;
+
+	if (aligned_start_gfn > base_gfn)
+		start_index = aligned_start_gfn - base_gfn;
+
+	if (aligned_end_gfn < end_gfn)
+		end_index = aligned_end_gfn - base_gfn;
+
+	nbits = end_index - start_index + 1;
+	bitmap_clear(mask, start_index, nbits);
+}
+
+bool kvm_riscv_gstage_wp_pt_masked(struct kvm_gstage *gstage, gfn_t base_gfn,
+				   unsigned long mask)
+{
+	unsigned long page_size;
+	bool flush = false;
+	bool found_leaf;
+	u32 ptep_level;
+	pte_t *ptep;
+	gpa_t addr = 0;
+	int ret;
+
+	while (mask) {
+		addr = (base_gfn + __ffs(mask)) << PAGE_SHIFT;
+
+		found_leaf = kvm_riscv_gstage_get_leaf(gstage, addr, &ptep, &ptep_level);
+		ret = gstage_level_to_page_size(gstage, ptep_level, &page_size);
+		if (ret)
+			break;
+
+		if (found_leaf) {
+			if (ptep_level) {
+				addr = ALIGN_DOWN(addr, page_size);
+				clear_huge_mask(&mask, page_size, base_gfn, addr);
+			}
+
+			flush |= kvm_riscv_gstage_op_pte(gstage, addr, ptep,
+							 ptep_level, GSTAGE_OP_WP);
+
+			if (ptep_level)
+				continue;
+		}
+
+		/* clear the first set bit*/
+		mask &= mask - 1;
 	}
 
 	return flush;

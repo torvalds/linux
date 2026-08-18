@@ -75,6 +75,27 @@ struct snd_device {
 
 #define snd_device(n) list_entry(n, struct snd_device, list)
 
+/*
+ * A simple reference counter with a wait queue;
+ * typically used for usage counts, and you can synchronize at finishing
+ * via snd_refcount_sync(), which is woken up when the refcount reaches to
+ * zero again.
+ */
+struct snd_refcount {
+	atomic_t count;
+	wait_queue_head_t waiter;
+};
+
+void snd_refcount_init(struct snd_refcount *ref);
+
+static inline void snd_refcount_get(struct snd_refcount *ref)
+{
+	atomic_inc(&ref->count);
+}
+
+void snd_refcount_put(struct snd_refcount *ref);
+void snd_refcount_sync(struct snd_refcount *ref);
+
 /* main structure for soundcard */
 
 struct snd_card {
@@ -139,15 +160,16 @@ struct snd_card {
 
 #ifdef CONFIG_PM
 	unsigned int power_state;	/* power state */
-	atomic_t power_ref;
 	wait_queue_head_t power_sleep;
-	wait_queue_head_t power_ref_sleep;
+	struct snd_refcount power_ref;
 #endif
 
 #if IS_ENABLED(CONFIG_SND_MIXER_OSS)
 	struct snd_mixer_oss *mixer_oss;
 	int mixer_oss_change_count;
 #endif
+
+	unsigned char private_data_area[] __aligned(__alignof__(unsigned long long));
 };
 
 #define dev_to_snd_card(p)	container_of(p, struct snd_card, card_dev)
@@ -174,7 +196,7 @@ static inline void snd_power_change_state(struct snd_card *card, unsigned int st
  */
 static inline void snd_power_ref(struct snd_card *card)
 {
-	atomic_inc(&card->power_ref);
+	snd_refcount_get(&card->power_ref);
 }
 
 /**
@@ -183,8 +205,7 @@ static inline void snd_power_ref(struct snd_card *card)
  */
 static inline void snd_power_unref(struct snd_card *card)
 {
-	if (atomic_dec_and_test(&card->power_ref))
-		wake_up(&card->power_ref_sleep);
+	snd_refcount_put(&card->power_ref);
 }
 
 /**
@@ -196,7 +217,7 @@ static inline void snd_power_unref(struct snd_card *card)
  */
 static inline void snd_power_sync_ref(struct snd_card *card)
 {
-	wait_event(card->power_ref_sleep, !atomic_read(&card->power_ref));
+	snd_refcount_sync(&card->power_ref);
 }
 
 /* init.c */
@@ -316,6 +337,8 @@ static inline void snd_card_unref(struct snd_card *card)
 {
 	put_device(&card->card_dev);
 }
+
+DEFINE_FREE(snd_card_unref, struct snd_card *, if (_T) snd_card_unref(_T))
 
 #define snd_card_set_dev(card, devptr) ((card)->dev = (devptr))
 

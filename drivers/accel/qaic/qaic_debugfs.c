@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 /* Copyright (c) 2020, The Linux Foundation. All rights reserved. */
-/* Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved. */
+/* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries. */
 
 #include <linux/debugfs.h>
 #include <linux/device.h>
@@ -27,6 +27,8 @@
 struct bootlog_msg {
 	/* Buffer for bootlog messages */
 	char str[BOOTLOG_MSG_SIZE];
+	/* Length of bootlog message */
+	size_t len;
 	/* Root struct of device, used to access device resources */
 	struct qaic_device *qdev;
 	/* Work struct to schedule work coming on QAIC_LOGGING channel */
@@ -46,18 +48,15 @@ static int bootlog_show(struct seq_file *s, void *unused)
 {
 	struct bootlog_page *page;
 	struct qaic_device *qdev;
-	void *page_end;
+	size_t len;
 	void *log;
 
 	qdev = s->private;
 	mutex_lock(&qdev->bootlog_mutex);
 	list_for_each_entry(page, &qdev->bootlog, node) {
 		log = page + 1;
-		page_end = (void *)page + page->offset;
-		while (log < page_end) {
-			seq_printf(s, "%s", (char *)log);
-			log += strlen(log) + 1;
-		}
+		len = page->offset - sizeof(*page);
+		seq_write(s, log, len);
 	}
 	mutex_unlock(&qdev->bootlog_mutex);
 
@@ -182,15 +181,14 @@ static void bootlog_commit(struct qaic_device *qdev, unsigned int size)
 static void bootlog_log(struct work_struct *work)
 {
 	struct bootlog_msg *msg = container_of(work, struct bootlog_msg, work);
-	unsigned int len = strlen(msg->str) + 1;
 	struct qaic_device *qdev = msg->qdev;
 	void *log;
 
 	mutex_lock(&qdev->bootlog_mutex);
-	log = bootlog_get_space(qdev, len);
+	log = bootlog_get_space(qdev, msg->len);
 	if (log) {
-		memcpy(log, msg, len);
-		bootlog_commit(qdev, len);
+		memcpy(log, msg, msg->len);
+		bootlog_commit(qdev, msg->len);
 	}
 	mutex_unlock(&qdev->bootlog_mutex);
 
@@ -265,14 +263,18 @@ static void qaic_bootlog_mhi_dl_xfer_cb(struct mhi_device *mhi_dev, struct mhi_r
 {
 	struct qaic_device *qdev = dev_get_drvdata(&mhi_dev->dev);
 	struct bootlog_msg *msg = mhi_result->buf_addr;
+	int status = mhi_result->transaction_status;
 
-	if (mhi_result->transaction_status) {
+	if (status && status != -EOVERFLOW) {
 		devm_kfree(&qdev->pdev->dev, msg);
 		return;
 	}
 
-	/* Force a null at the end of the transferred string */
-	msg->str[mhi_result->bytes_xferd - 1] = 0;
+	msg->len = mhi_result->bytes_xferd;
+
+	/* Exclude trailing null to normalize AIC100/AIC200 line endings */
+	if (msg->len && msg->str[msg->len - 1] == '\0')
+		msg->len--;
 
 	queue_work(qdev->bootlog_wq, &msg->work);
 }

@@ -316,6 +316,15 @@
         "Unit": "cpu_atom"
     },
     {
+        "BriefDescription": "Counts the number of relative JMP branch instructions retired.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc4",
+        "EventName": "BR_INST_RETIRED.REL_JMP",
+        "SampleAfterValue": "200003",
+        "UMask": "0xdf",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Counts the total number of mispredicted branch instructions retired for all branch types.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc5",

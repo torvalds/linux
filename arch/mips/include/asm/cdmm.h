@@ -9,7 +9,7 @@
 #define __ASM_CDMM_H
 
 #include <linux/device.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/mips_cdmm.h>
 
 /**
  * struct mips_cdmm_device - Represents a single device on a CDMM bus.

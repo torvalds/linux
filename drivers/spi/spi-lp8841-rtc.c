@@ -185,7 +185,7 @@ spi_lp8841_rtc_probe(struct platform_device *pdev)
 	struct spi_controller		*host;
 	struct spi_lp8841_rtc		*data;
 
-	host = spi_alloc_host(&pdev->dev, sizeof(*data));
+	host = devm_spi_alloc_host(&pdev->dev, sizeof(*data));
 	if (!host)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, host);
@@ -199,8 +199,6 @@ spi_lp8841_rtc_probe(struct platform_device *pdev)
 	host->set_cs = spi_lp8841_rtc_set_cs;
 	host->transfer_one = spi_lp8841_rtc_transfer_one;
 	host->bits_per_word_mask = SPI_BPW_MASK(8);
-#ifdef CONFIG_OF
-#endif
 
 	data = spi_controller_get_devdata(host);
 
@@ -208,23 +206,17 @@ spi_lp8841_rtc_probe(struct platform_device *pdev)
 	ret = PTR_ERR_OR_ZERO(data->iomem);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to get IO address\n");
-		goto err_put_host;
+		return ret;
 	}
 
 	/* register with the SPI framework */
 	ret = devm_spi_register_controller(&pdev->dev, host);
 	if (ret) {
 		dev_err(&pdev->dev, "cannot register spi host\n");
-		goto err_put_host;
+		return ret;
 	}
 
-	return ret;
-
-
-err_put_host:
-	spi_controller_put(host);
-
-	return ret;
+	return 0;
 }
 
 MODULE_ALIAS("platform:" DRIVER_NAME);

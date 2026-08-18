@@ -132,7 +132,7 @@ int snd_seq_prioq_cell_in(struct snd_seq_prioq * f,
 			  struct snd_seq_event_cell * cell)
 {
 	struct snd_seq_event_cell *cur, *prev;
-	int count;
+	int remaining;
 	int prior;
 
 	if (snd_BUG_ON(!f || !cell))
@@ -162,10 +162,16 @@ int snd_seq_prioq_cell_in(struct snd_seq_prioq * f,
 	prev = NULL;		/* previous cell */
 	cur = f->head;		/* cursor */
 
-	count = 10000; /* FIXME: enough big, isn't it? */
+	remaining = f->cells;
 	while (cur != NULL) {
 		/* compare timestamps */
 		int rel = compare_timestamp_rel(&cell->event, &cur->event);
+
+		if (remaining-- <= 0) {
+			pr_err("ALSA: seq: inconsistent prioq cell count\n");
+			return -EINVAL;
+		}
+
 		if (rel < 0)
 			/* new cell has earlier schedule time, */
 			break;
@@ -176,10 +182,6 @@ int snd_seq_prioq_cell_in(struct snd_seq_prioq * f,
 		/* move cursor to next cell */
 		prev = cur;
 		cur = cur->next;
-		if (! --count) {
-			pr_err("ALSA: seq: cannot find a pointer.. infinite loop?\n");
-			return -EINVAL;
-		}
 	}
 
 	/* insert it before cursor */

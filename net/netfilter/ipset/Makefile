@@ -29,3 +29,6 @@ obj-$(CONFIG_IP_SET_HASH_NETPORTNET) += ip_set_hash_netportnet.o
 
 # list types
 obj-$(CONFIG_IP_SET_LIST_SET) += ip_set_list_set.o
+ifdef CONFIG_GCOV_PROFILE_IPSET
+GCOV_PROFILE := y
+endif

@@ -86,7 +86,10 @@
 
 #include "thermal_testing.h"
 
-struct dentry *d_testing;
+struct workqueue_struct *tt_wq __ro_after_init;
+
+struct dentry *d_testing __ro_after_init;
+static struct dentry *d_command __ro_after_init;
 
 #define TT_COMMAND_SIZE		16
 
@@ -116,18 +119,30 @@ static int tt_command_exec(int index, const char *arg)
 		break;
 
 	case TT_CMD_DELTZ:
+		if (!arg || !*arg)
+			return -EINVAL;
+
 		ret = tt_del_tz(arg);
 		break;
 
 	case TT_CMD_TZADDTRIP:
+		if (!arg || !*arg)
+			return -EINVAL;
+
 		ret = tt_zone_add_trip(arg);
 		break;
 
 	case TT_CMD_TZREG:
+		if (!arg || !*arg)
+			return -EINVAL;
+
 		ret = tt_zone_reg(arg);
 		break;
 
 	case TT_CMD_TZUNREG:
+		if (!arg || !*arg)
+			return -EINVAL;
+
 		ret = tt_zone_unreg(arg);
 		break;
 
@@ -191,17 +206,42 @@ static const struct file_operations tt_command_fops = {
 
 static int __init thermal_testing_init(void)
 {
+	int error;
+
+	tt_wq = alloc_workqueue("thermal_testing", WQ_UNBOUND, 0);
+	if (!tt_wq)
+		return -ENOMEM;
+
 	d_testing = debugfs_create_dir("thermal-testing", NULL);
-	if (!IS_ERR(d_testing))
-		debugfs_create_file("command", 0200, d_testing, NULL,
-				    &tt_command_fops);
+	if (IS_ERR(d_testing)) {
+		error = PTR_ERR(d_testing);
+		goto destroy_wq;
+	}
+
+	d_command = debugfs_create_file("command", 0200, d_testing, NULL, &tt_command_fops);
+	if (IS_ERR(d_command)) {
+		error = PTR_ERR(d_command);
+		goto remove_d_testing;
+	}
 
 	return 0;
+
+remove_d_testing:
+	debugfs_remove(d_testing);
+destroy_wq:
+	destroy_workqueue(tt_wq);
+	return error;
 }
 module_init(thermal_testing_init);
 
 static void __exit thermal_testing_exit(void)
 {
+	/* First, prevent new commands from being entered. */
+	debugfs_remove(d_command);
+	/* Flush commands in progress (if any). */
+	flush_workqueue(tt_wq);
+	destroy_workqueue(tt_wq);
+	/* Remove the directory structure and clean up. */
 	debugfs_remove(d_testing);
 	tt_zone_cleanup();
 }

@@ -107,6 +107,7 @@ struct tegra_vde {
 	struct list_head map_list;
 	struct reset_control *rst;
 	struct reset_control *rst_mc;
+	struct tegra_pmc *pmc;
 	struct gen_pool *iram_pool;
 	struct completion decode_completion;
 	struct clk *clk;

@@ -23,7 +23,7 @@ int mlx5_esw_adj_vport_modify(struct mlx5_core_dev *dev, u16 vport,
 	return mlx5_cmd_exec_in(dev, modify_vport_state, in);
 }
 
-static void mlx5_esw_destroy_esw_vport(struct mlx5_core_dev *dev, u16 vport)
+void mlx5_esw_destroy_esw_vport(struct mlx5_core_dev *dev, u16 vport)
 {
 	u32 in[MLX5_ST_SZ_DW(destroy_esw_vport_in)] = {};
 
@@ -34,8 +34,8 @@ static void mlx5_esw_destroy_esw_vport(struct mlx5_core_dev *dev, u16 vport)
 	mlx5_cmd_exec_in(dev, destroy_esw_vport, in);
 }
 
-static int mlx5_esw_create_esw_vport(struct mlx5_core_dev *dev, u16 vhca_id,
-				     u16 *vport_num)
+int mlx5_esw_create_esw_vport(struct mlx5_core_dev *dev, u16 vhca_id,
+			      u16 *vport_num)
 {
 	u32 out[MLX5_ST_SZ_DW(create_esw_vport_out)] = {};
 	u32 in[MLX5_ST_SZ_DW(create_esw_vport_in)] = {};

@@ -1,0 +1,2 @@
+# mode=strict
+bad/yaml-unit-addr-prefix.yaml:26: example 0 [unit-address-format] unit address '0x1000' must not have a "0x" prefix

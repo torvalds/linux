@@ -276,7 +276,7 @@ xfs_attr_get(
 		return -EIO;
 
 	if (!args->owner)
-		args->owner = args->dp->i_ino;
+		args->owner = I_INO(args->dp);
 	args->geo = args->dp->i_mount->m_attr_geo;
 	args->whichfork = XFS_ATTR_FORK;
 	xfs_attr_sethash(args);

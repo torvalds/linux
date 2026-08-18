@@ -59,7 +59,7 @@ static u32
 intel_dp_aux_wait_done(struct intel_dp *intel_dp)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
-	i915_reg_t ch_ctl = intel_dp->aux_ch_ctl_reg(intel_dp);
+	intel_reg_t ch_ctl = intel_dp->aux_ch_ctl_reg(intel_dp);
 	const unsigned int timeout_ms = 10;
 	bool done = true;
 	u32 status;
@@ -256,7 +256,7 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 	struct intel_display *display = to_intel_display(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct intel_encoder *encoder = &dig_port->base;
-	i915_reg_t ch_ctl, ch_data[5];
+	intel_reg_t ch_ctl, ch_data[5];
 	u32 aux_clock_divider;
 	enum intel_display_power_domain aux_domain;
 	struct ref_tracker *aux_wakeref;
@@ -566,7 +566,7 @@ intel_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 	return ret;
 }
 
-static i915_reg_t vlv_aux_ctl_reg(struct intel_dp *intel_dp)
+static intel_reg_t vlv_aux_ctl_reg(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	enum aux_ch aux_ch = dig_port->aux_ch;
@@ -582,7 +582,7 @@ static i915_reg_t vlv_aux_ctl_reg(struct intel_dp *intel_dp)
 	}
 }
 
-static i915_reg_t vlv_aux_data_reg(struct intel_dp *intel_dp, int index)
+static intel_reg_t vlv_aux_data_reg(struct intel_dp *intel_dp, int index)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	enum aux_ch aux_ch = dig_port->aux_ch;
@@ -598,7 +598,7 @@ static i915_reg_t vlv_aux_data_reg(struct intel_dp *intel_dp, int index)
 	}
 }
 
-static i915_reg_t g4x_aux_ctl_reg(struct intel_dp *intel_dp)
+static intel_reg_t g4x_aux_ctl_reg(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	enum aux_ch aux_ch = dig_port->aux_ch;
@@ -614,7 +614,7 @@ static i915_reg_t g4x_aux_ctl_reg(struct intel_dp *intel_dp)
 	}
 }
 
-static i915_reg_t g4x_aux_data_reg(struct intel_dp *intel_dp, int index)
+static intel_reg_t g4x_aux_data_reg(struct intel_dp *intel_dp, int index)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	enum aux_ch aux_ch = dig_port->aux_ch;
@@ -630,7 +630,7 @@ static i915_reg_t g4x_aux_data_reg(struct intel_dp *intel_dp, int index)
 	}
 }
 
-static i915_reg_t ilk_aux_ctl_reg(struct intel_dp *intel_dp)
+static intel_reg_t ilk_aux_ctl_reg(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	enum aux_ch aux_ch = dig_port->aux_ch;
@@ -648,7 +648,7 @@ static i915_reg_t ilk_aux_ctl_reg(struct intel_dp *intel_dp)
 	}
 }
 
-static i915_reg_t ilk_aux_data_reg(struct intel_dp *intel_dp, int index)
+static intel_reg_t ilk_aux_data_reg(struct intel_dp *intel_dp, int index)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	enum aux_ch aux_ch = dig_port->aux_ch;
@@ -666,7 +666,7 @@ static i915_reg_t ilk_aux_data_reg(struct intel_dp *intel_dp, int index)
 	}
 }
 
-static i915_reg_t skl_aux_ctl_reg(struct intel_dp *intel_dp)
+static intel_reg_t skl_aux_ctl_reg(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	enum aux_ch aux_ch = dig_port->aux_ch;
@@ -685,7 +685,7 @@ static i915_reg_t skl_aux_ctl_reg(struct intel_dp *intel_dp)
 	}
 }
 
-static i915_reg_t skl_aux_data_reg(struct intel_dp *intel_dp, int index)
+static intel_reg_t skl_aux_data_reg(struct intel_dp *intel_dp, int index)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	enum aux_ch aux_ch = dig_port->aux_ch;
@@ -704,7 +704,7 @@ static i915_reg_t skl_aux_data_reg(struct intel_dp *intel_dp, int index)
 	}
 }
 
-static i915_reg_t tgl_aux_ctl_reg(struct intel_dp *intel_dp)
+static intel_reg_t tgl_aux_ctl_reg(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	enum aux_ch aux_ch = dig_port->aux_ch;
@@ -726,7 +726,7 @@ static i915_reg_t tgl_aux_ctl_reg(struct intel_dp *intel_dp)
 	}
 }
 
-static i915_reg_t tgl_aux_data_reg(struct intel_dp *intel_dp, int index)
+static intel_reg_t tgl_aux_data_reg(struct intel_dp *intel_dp, int index)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	enum aux_ch aux_ch = dig_port->aux_ch;
@@ -748,7 +748,7 @@ static i915_reg_t tgl_aux_data_reg(struct intel_dp *intel_dp, int index)
 	}
 }
 
-static i915_reg_t xelpdp_aux_ctl_reg(struct intel_dp *intel_dp)
+static intel_reg_t xelpdp_aux_ctl_reg(struct intel_dp *intel_dp)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
@@ -768,7 +768,7 @@ static i915_reg_t xelpdp_aux_ctl_reg(struct intel_dp *intel_dp)
 	}
 }
 
-static i915_reg_t xelpdp_aux_data_reg(struct intel_dp *intel_dp, int index)
+static intel_reg_t xelpdp_aux_data_reg(struct intel_dp *intel_dp, int index)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);

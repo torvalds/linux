@@ -466,14 +466,22 @@ ssize_t nfs_file_direct_read(struct kiocb *iocb, struct iov_iter *iter,
 		goto out_release;
 	}
 	dreq->l_ctx = l_ctx;
-	if (!is_sync_kiocb(iocb))
+	if (!is_sync_kiocb(iocb)) {
 		dreq->iocb = iocb;
+	} else if (iocb->ki_flags & IOCB_NOWAIT) {
+		result = -EAGAIN;
+		nfs_direct_req_release(dreq);
+		goto out_release;
+	}
 
 	if (user_backed_iter(iter))
 		dreq->flags = NFS_ODIRECT_SHOULD_DIRTY;
 
 	if (!swap) {
-		result = nfs_start_io_direct(inode);
+		if (iocb->ki_flags & IOCB_NOWAIT)
+			result = nfs_start_io_direct_nowait(inode);
+		else
+			result = nfs_start_io_direct(inode);
 		if (result) {
 			/* release the reference that would usually be
 			 * consumed by nfs_direct_read_schedule_iovec()

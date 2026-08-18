@@ -13,7 +13,6 @@
 #include <linux/leds.h>
 #include <linux/led-class-multicolor.h>
 #include <linux/linear_range.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>

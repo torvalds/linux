@@ -112,8 +112,9 @@ static void test_increase_level(struct kunit *test)
 	if (IS_32BIT)
 		kunit_skip(test, "Unable to test on 32bit");
 
-	KUNIT_ASSERT_GT(test, common->max_vasz_lg2,
-			pt_top_range(common).max_vasz_lg2);
+	if (common->max_vasz_lg2 <= pt_top_range(common).max_vasz_lg2)
+		kunit_skip(test,
+			   "max_vasz_lg2 fits in starting level, no growth possible");
 
 	/* Add every possible level to the max */
 	while (common->max_vasz_lg2 != pt_top_range(common).max_vasz_lg2) {

@@ -75,7 +75,7 @@ static const struct drm_display_mode default_mode = {
  * errors are fatal.
  */
 int vc4_mock_atomic_add_output(struct kunit *test,
-			       struct drm_atomic_state *state,
+			       struct drm_atomic_commit *state,
 			       enum vc4_encoder_type type)
 {
 	struct drm_device *drm = state->dev;
@@ -132,7 +132,7 @@ int vc4_mock_atomic_add_output(struct kunit *test,
  * errors are fatal.
  */
 int vc4_mock_atomic_del_output(struct kunit *test,
-			       struct drm_atomic_state *state,
+			       struct drm_atomic_commit *state,
 			       enum vc4_encoder_type type)
 {
 	struct drm_device *drm = state->dev;

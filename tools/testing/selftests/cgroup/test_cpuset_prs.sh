@@ -627,7 +627,7 @@ set_ctrl_state_noerr()
 
 online_cpus()
 {
-	[[ -n "OFFLINE_CPUS" ]] && {
+	[[ -n "$OFFLINE_CPUS" ]] && {
 		for C in $OFFLINE_CPUS
 		do
 			write_cpu_online ${C}=1

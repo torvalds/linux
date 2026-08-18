@@ -63,6 +63,22 @@ void local_icache_page_inv(struct page *page)
 }
 EXPORT_SYMBOL(local_icache_page_inv);
 
+void local_icache_all_inv(void)
+{
+	if (cpu_cache_is_present(SPR_UPR_ICP)) {
+		unsigned long iccfgr = mfspr(SPR_ICCFGR);
+		unsigned long sets = 1 << ((iccfgr & SPR_ICCFGR_NCS) >> 3);
+		unsigned long block_size = 16 << ((iccfgr & SPR_ICCFGR_CBS) >> 7);
+		unsigned long paddr = 0;
+		unsigned long end = sets * block_size;
+
+		while (paddr < end) {
+			mtspr(SPR_ICBIR, paddr);
+			paddr += block_size;
+		}
+	}
+}
+
 void local_dcache_range_flush(unsigned long start, unsigned long end)
 {
 	cache_loop(start, end, SPR_DCBFR, SPR_UPR_DCP);

@@ -463,9 +463,9 @@ static struct attribute *max31827_attrs[] = {
 ATTRIBUTE_GROUPS(max31827);
 
 static const struct i2c_device_id max31827_i2c_ids[] = {
-	{ "max31827", max31827 },
-	{ "max31828", max31828 },
-	{ "max31829", max31829 },
+	{ .name = "max31827", .driver_data = max31827 },
+	{ .name = "max31828", .driver_data = max31828 },
+	{ .name = "max31829", .driver_data = max31829 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max31827_i2c_ids);

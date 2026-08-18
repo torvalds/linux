@@ -143,16 +143,14 @@ static int __init do_mount_root(const char *name, const char *fs,
 				 const int flags, const void *data)
 {
 	struct super_block *s;
-	struct page *p = NULL;
 	char *data_page = NULL;
 	int ret;
 
 	if (data) {
 		/* init_mount() requires a full page as fifth argument */
-		p = alloc_page(GFP_KERNEL);
-		if (!p)
+		data_page = kmalloc(PAGE_SIZE, GFP_KERNEL);
+		if (!data_page)
 			return -ENOMEM;
-		data_page = page_address(p);
 		strscpy_pad(data_page, data, PAGE_SIZE);
 	}
 
@@ -170,18 +168,19 @@ static int __init do_mount_root(const char *name, const char *fs,
 	       MAJOR(ROOT_DEV), MINOR(ROOT_DEV));
 
 out:
-	if (p)
-		put_page(p);
+	kfree(data_page);
 	return ret;
 }
 
 void __init mount_root_generic(char *name, char *pretty_name, int flags)
 {
-	struct page *page = alloc_page(GFP_KERNEL);
-	char *fs_names = page_address(page);
+	char *fs_names = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	char *p;
 	char b[BDEVNAME_SIZE];
 	int num_fs, i;
+
+	if (!fs_names)
+		panic("VFS: Unable to mount root fs: not enough memory");
 
 	scnprintf(b, BDEVNAME_SIZE, "unknown-block(%u,%u)",
 		  MAJOR(ROOT_DEV), MINOR(ROOT_DEV));
@@ -242,7 +241,7 @@ retry:
 	printk("\n");
 	panic("VFS: Unable to mount root fs on \"%s\" or %s", pretty_name, b);
 out:
-	put_page(page);
+	kfree(fs_names);
 }
  
 #ifdef CONFIG_ROOT_NFS
@@ -343,7 +342,7 @@ static int __init mount_nodev_root(char *root_device_name)
 	int err = -EINVAL;
 	int num_fs, i;
 
-	fs_names = (void *)__get_free_page(GFP_KERNEL);
+	fs_names = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!fs_names)
 		return -EINVAL;
 	num_fs = split_fs_names(fs_names, PAGE_SIZE);
@@ -360,7 +359,7 @@ static int __init mount_nodev_root(char *root_device_name)
 			break;
 	}
 
-	free_page((unsigned long)fs_names);
+	kfree(fs_names);
 	return err;
 }
 

@@ -121,7 +121,7 @@ int mlx5_ib_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
 		resp.response_length = min_resp_len;
 
 		memcpy(resp.dmac, ah_attr->roce.dmac, ETH_ALEN);
-		err = ib_copy_to_udata(udata, &resp, resp.response_length);
+		err = ib_respond_udata(udata, resp);
 		if (err)
 			return err;
 	}

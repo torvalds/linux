@@ -1,0 +1,2 @@
+# mode=strict
+bad/yaml-cont-align.yaml:29: example 0 [continuation-alignment] continuation should align to column 11 (under "<" or \")

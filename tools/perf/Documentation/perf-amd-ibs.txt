@@ -69,6 +69,14 @@ Per-cpu profile (cpu10), cycles event, sampling period: 100000
 
 	# perf record -e ibs_op// -c 100000 -C 10
 
+Userspace only, per-cpu profile (cpu10), cycles event, sampling period: 100000
+
+	Zen6 onward (See NOTES):
+	# perf record -e ibs_op//u -c 100000 -C 10
+
+	Until Zen5:
+	# perf record -e ibs_op/swfilt=1/u -c 100000 -C 10
+
 Per-cpu profile (cpu10), cycles event, sampling freq: 1000
 
 	# perf record -e ibs_op// -F 1000 -C 10
@@ -93,6 +101,11 @@ onward)
 	Supported load latency threshold values are 128 to 2048 (both inclusive).
 	Latency value which is a multiple of 128 incurs a little less profiling
 	overhead compared to other values.
+
+System-wide profile, cycles event, sampling period: 100000, streaming store
+filter (Zen6 onward)
+
+	# perf record -e ibs_op/strmst=1/ -c 100000 -a
 
 Per process(upstream v6.2 onward), uOps event, sampling period: 100000
 
@@ -150,6 +163,14 @@ System-wide profile, fetch ops event, sampling period: 100000
 
 	# perf record -e ibs_fetch// -c 100000 -a
 
+Userspace only, system-wide profile, fetch ops event, sampling period: 100000
+
+	Zen6 onward (See NOTES):
+	# perf record -e ibs_fetch//u -c 100000 -a
+
+	Until Zen5:
+	# perf record -e ibs_fetch/swfilt=1/u -c 100000 -a
+
 System-wide profile, fetch ops event, sampling period: 100000, Random enable
 
 	# perf record -e ibs_fetch/rand_en=1/ -c 100000 -a
@@ -157,6 +178,15 @@ System-wide profile, fetch ops event, sampling period: 100000, Random enable
 	Random enable adds small degree of variability to sample period. This
 	helps in cases like long running loops where PMU is tagging the same
 	instruction over and over because of fixed sample period.
+
+System-wide profile, fetch ops event, sampling period: 10000, fetch latency
+filter (Zen6 onward)
+
+	# perf record -e ibs_fetch/fetchlat=128/ -c 10000 -a
+
+	Supported fetch latency threshold values are 128 to 1920 (both inclusive).
+	Latency value which is a multiple of 128 incurs a little less profiling
+	overhead compared to other values.
 
 etc.
 
@@ -215,6 +245,15 @@ sort keys.  For example:
 	     0.00%             2  Uncached hit                             N/A
 
 Please refer to their man page for more detail.
+
+NOTES
+-----
+Hardware privilege filtering uses bit 63 to distinguish between kernel
+and userspace addresses. Hardware privilege filtering is not supported
+on 32-bit systems. Also, the bit 63 convention is not universal and can
+fail in specific environments, such as, using 64-bit host IBS to profile
+a 32-bit guest, using 64-bit host IBS to profile non-Linux 64-bit guests
+that do not adhere to the bit 63 privilege standard etc.
 
 SEE ALSO
 --------

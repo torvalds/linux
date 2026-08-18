@@ -438,7 +438,7 @@ static const struct pnp_device_id el3_pnp_ids[] = {
 	{ .id = "TCM5098" }, /* 3Com Etherlink III (TPC) */
 	{ .id = "PNP80f7" }, /* 3Com Etherlink III compatible */
 	{ .id = "PNP80f8" }, /* 3Com Etherlink III compatible */
-	{ .id = "" }
+	{ }
 };
 MODULE_DEVICE_TABLE(pnp, el3_pnp_ids);
 

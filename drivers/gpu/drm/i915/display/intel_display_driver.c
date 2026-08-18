@@ -212,13 +212,13 @@ int intel_display_driver_probe_noirq(struct intel_display *display)
 	intel_psr_dc5_dc6_wa_init(display);
 
 	/* FIXME: completely on the wrong abstraction layer */
-	ret = intel_power_domains_init(display);
+	ret = intel_display_power_init(display);
 	if (ret < 0)
 		goto cleanup_bios;
 
 	intel_pmdemand_init_early(display);
 
-	intel_power_domains_init_hw(display, false);
+	intel_display_power_init_hw(display);
 
 	if (!HAS_DISPLAY(display))
 		return 0;
@@ -300,7 +300,7 @@ cleanup_wq_dp:
 	destroy_workqueue(display->hotplug.dp_wq);
 cleanup_pw_domain_dmc:
 	intel_dmc_fini(display);
-	intel_power_domains_driver_remove(display);
+	intel_display_power_driver_remove(display);
 cleanup_bios:
 	intel_bios_driver_remove(display);
 
@@ -641,7 +641,7 @@ void intel_display_driver_remove_nogem(struct intel_display *display)
 {
 	intel_dmc_fini(display);
 
-	intel_power_domains_driver_remove(display);
+	intel_display_power_driver_remove(display);
 
 	intel_bios_driver_remove(display);
 }
@@ -680,7 +680,7 @@ void intel_display_driver_unregister(struct intel_display *display)
  */
 int intel_display_driver_suspend(struct intel_display *display)
 {
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	int ret;
 
 	if (!HAS_DISPLAY(display))
@@ -704,7 +704,7 @@ int intel_display_driver_suspend(struct intel_display *display)
 
 int
 __intel_display_driver_resume(struct intel_display *display,
-			      struct drm_atomic_state *state,
+			      struct drm_atomic_commit *state,
 			      struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_crtc_state *crtc_state;
@@ -743,7 +743,7 @@ __intel_display_driver_resume(struct intel_display *display,
 
 void intel_display_driver_resume(struct intel_display *display)
 {
-	struct drm_atomic_state *state = display->restore.modeset_state;
+	struct drm_atomic_commit *state = display->restore.modeset_state;
 	struct drm_modeset_acquire_ctx ctx;
 	int ret;
 
@@ -778,5 +778,5 @@ void intel_display_driver_resume(struct intel_display *display)
 		drm_err(display->drm,
 			"Restoring old state failed with %i\n", ret);
 	if (state)
-		drm_atomic_state_put(state);
+		drm_atomic_commit_put(state);
 }

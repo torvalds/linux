@@ -64,6 +64,13 @@ struct landlock_file_security {
 	 */
 	deny_masks_t deny_masks;
 	/**
+	 * @quiet_optional_accesses: Stores which optional accesses are covered
+	 * by quiet rules within the layer referred to in deny_masks, one access
+	 * per bit.  Does not take into account whether the quiet access bits
+	 * are actually set in the layer's corresponding landlock_hierarchy.
+	 */
+	optional_access_t quiet_optional_accesses;
+	/**
 	 * @fown_layer: Layer level of @fown_subject->domain with
 	 * LANDLOCK_SCOPE_SIGNAL.
 	 */
@@ -78,6 +85,16 @@ struct landlock_file_security {
 	 * euid.
 	 */
 	struct landlock_cred_security fown_subject;
+	/**
+	 * @fown_tg: Thread group of the task that set the file owner, pinned
+	 * while @fown_subject holds a domain.  It lets
+	 * hook_file_send_sigiotask() always allow a SIGIO delivered to the
+	 * owner's own process -- e.g. the thread-group leader reached through a
+	 * process-group owner -- matching the same-process exemption of
+	 * hook_task_kill().  NULL when no domain is recorded.  Protected by
+	 * file->f_owner->lock, like @fown_subject.
+	 */
+	struct pid *fown_tg;
 };
 
 #ifdef CONFIG_AUDIT
@@ -86,7 +103,15 @@ struct landlock_file_security {
 /* clang-format off */
 static_assert((typeof_member(struct landlock_file_security, fown_layer))~0 >=
 	      LANDLOCK_MAX_NUM_LAYERS);
-/* clang-format off */
+/* clang-format on */
+
+/*
+ * Make sure quiet_optional_accesses has enough bits to cover all optional
+ * accesses.
+ */
+static_assert(BITS_PER_TYPE(typeof_member(struct landlock_file_security,
+					  quiet_optional_accesses)) >=
+	      HWEIGHT(_LANDLOCK_ACCESS_FS_OPTIONAL));
 
 #endif /* CONFIG_AUDIT */
 
@@ -126,6 +151,6 @@ __init void landlock_add_fs_hooks(void);
 
 int landlock_append_fs_rule(struct landlock_ruleset *const ruleset,
 			    const struct path *const path,
-			    access_mask_t access_hierarchy);
+			    access_mask_t access_hierarchy, const u32 flags);
 
 #endif /* _SECURITY_LANDLOCK_FS_H */

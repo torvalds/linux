@@ -1097,11 +1097,11 @@ static void si2157_remove(struct i2c_client *client)
  * all SiLabs TER tuners, as the driver should auto-detect it.
  */
 static const struct i2c_device_id si2157_id_table[] = {
-	{"si2157", SI2157},
-	{"si2146", SI2146},
-	{"si2141", SI2141},
-	{"si2177", SI2177},
-	{}
+	{ .name = "si2157", .driver_data = SI2157 },
+	{ .name = "si2146", .driver_data = SI2146 },
+	{ .name = "si2141", .driver_data = SI2141 },
+	{ .name = "si2177", .driver_data = SI2177 },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, si2157_id_table);
 

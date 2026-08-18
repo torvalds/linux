@@ -4,6 +4,7 @@
 //
 // Copyright (C) 2023 Loongson Technology Corporation Limited
 // Author: Yingkun Meng <mengyingkun@loongson.cn>
+//         Binbin ZHou <zhoubinbin@loongson.cn>
 //
 
 #include <linux/module.h>
@@ -16,7 +17,7 @@
 #include <sound/pcm_params.h>
 #include "loongson_i2s.h"
 
-/* DMA dma_order Register */
+/* Internal DMA dma_order Register */
 #define DMA_ORDER_STOP          BIT(4) /* DMA stop */
 #define DMA_ORDER_START         BIT(3) /* DMA start */
 #define DMA_ORDER_ASK_VALID     BIT(2) /* DMA ask valid flag */
@@ -27,9 +28,9 @@
 #define DMA_ORDER_CTRL_MASK     (0x0fUL)  /* Control mask  */
 
 /*
- * DMA registers descriptor.
+ * Internal DMA registers descriptor.
  */
-struct loongson_dma_desc {
+struct loongson_idma_desc {
 	u32 order;		/* Next descriptor address register */
 	u32 saddr;		/* Source address register */
 	u32 daddr;		/* Device address register */
@@ -44,17 +45,17 @@ struct loongson_dma_desc {
 } __packed;
 
 struct loongson_runtime_data {
-	struct loongson_dma_data *dma_data;
+	struct loongson_idma_data *dma_data;
 
-	struct loongson_dma_desc *dma_desc_arr;
+	struct loongson_idma_desc *dma_desc_arr;
 	dma_addr_t dma_desc_arr_phy;
 	int dma_desc_arr_size;
 
-	struct loongson_dma_desc *dma_pos_desc;
+	struct loongson_idma_desc *dma_pos_desc;
 	dma_addr_t dma_pos_desc_phy;
 };
 
-static const struct snd_pcm_hardware ls_pcm_hardware = {
+static const struct snd_pcm_hardware loongson_idma_hardware = {
 	.info = SNDRV_PCM_INFO_MMAP |
 		SNDRV_PCM_INFO_INTERLEAVED |
 		SNDRV_PCM_INFO_MMAP_VALID |
@@ -67,12 +68,11 @@ static const struct snd_pcm_hardware ls_pcm_hardware = {
 	.period_bytes_min = 128,
 	.period_bytes_max = 128 * 1024,
 	.periods_min = 1,
-	.periods_max = PAGE_SIZE / sizeof(struct loongson_dma_desc),
+	.periods_max = PAGE_SIZE / sizeof(struct loongson_idma_desc),
 	.buffer_bytes_max = 1024 * 1024,
 };
 
-static struct
-loongson_dma_desc *dma_desc_save(struct loongson_runtime_data *prtd)
+static struct loongson_idma_desc *dma_desc_save(struct loongson_runtime_data *prtd)
 {
 	void __iomem *order_reg = prtd->dma_data->order_addr;
 	u64 val;
@@ -88,8 +88,8 @@ loongson_dma_desc *dma_desc_save(struct loongson_runtime_data *prtd)
 	return prtd->dma_pos_desc;
 }
 
-static int loongson_pcm_trigger(struct snd_soc_component *component,
-				struct snd_pcm_substream *substream, int cmd)
+static int loongson_idma_pcm_trigger(struct snd_soc_component *component,
+				     struct snd_pcm_substream *substream, int cmd)
 {
 	struct loongson_runtime_data *prtd = substream->runtime->private_data;
 	struct device *dev = substream->pcm->card->dev;
@@ -131,9 +131,9 @@ static int loongson_pcm_trigger(struct snd_soc_component *component,
 	return 0;
 }
 
-static int loongson_pcm_hw_params(struct snd_soc_component *component,
-				  struct snd_pcm_substream *substream,
-				  struct snd_pcm_hw_params *params)
+static int loongson_idma_pcm_hw_params(struct snd_soc_component *component,
+				       struct snd_pcm_substream *substream,
+				       struct snd_pcm_hw_params *params)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct device *dev = substream->pcm->card->dev;
@@ -141,7 +141,7 @@ static int loongson_pcm_hw_params(struct snd_soc_component *component,
 	size_t buf_len = params_buffer_bytes(params);
 	size_t period_len = params_period_bytes(params);
 	dma_addr_t order_addr, mem_addr;
-	struct loongson_dma_desc *desc;
+	struct loongson_idma_desc *desc;
 	u32 num_periods;
 	int i;
 
@@ -195,13 +195,13 @@ static int loongson_pcm_hw_params(struct snd_soc_component *component,
 }
 
 static snd_pcm_uframes_t
-loongson_pcm_pointer(struct snd_soc_component *component,
-		     struct snd_pcm_substream *substream)
+loongson_idma_pcm_pointer(struct snd_soc_component *component,
+			  struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct device *dev = substream->pcm->card->dev;
 	struct loongson_runtime_data *prtd = runtime->private_data;
-	struct loongson_dma_desc *desc;
+	struct loongson_idma_desc *desc;
 	snd_pcm_uframes_t x;
 	u64 addr;
 
@@ -221,7 +221,7 @@ loongson_pcm_pointer(struct snd_soc_component *component,
 	return x;
 }
 
-static irqreturn_t loongson_pcm_dma_irq(int irq, void *devid)
+static irqreturn_t loongson_idma_pcm_dma_irq(int irq, void *devid)
 {
 	struct snd_pcm_substream *substream = devid;
 
@@ -229,14 +229,14 @@ static irqreturn_t loongson_pcm_dma_irq(int irq, void *devid)
 	return IRQ_HANDLED;
 }
 
-static int loongson_pcm_open(struct snd_soc_component *component,
-			     struct snd_pcm_substream *substream)
+static int loongson_idma_pcm_open(struct snd_soc_component *component,
+				  struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct snd_card *card = substream->pcm->card;
 	struct loongson_runtime_data *prtd;
-	struct loongson_dma_data *dma_data;
+	struct loongson_idma_data *dma_data;
 
 	/*
 	 * For mysterious reasons (and despite what the manual says)
@@ -249,7 +249,7 @@ static int loongson_pcm_open(struct snd_soc_component *component,
 				   SNDRV_PCM_HW_PARAM_BUFFER_BYTES, 128);
 	snd_pcm_hw_constraint_integer(substream->runtime,
 				      SNDRV_PCM_HW_PARAM_PERIODS);
-	snd_soc_set_runtime_hwparams(substream, &ls_pcm_hardware);
+	snd_soc_set_runtime_hwparams(substream, &loongson_idma_hardware);
 
 	prtd = kzalloc_obj(*prtd);
 	if (!prtd)
@@ -285,8 +285,8 @@ desc_err:
 	return -ENOMEM;
 }
 
-static int loongson_pcm_close(struct snd_soc_component *component,
-			      struct snd_pcm_substream *substream)
+static int loongson_idma_pcm_close(struct snd_soc_component *component,
+				   struct snd_pcm_substream *substream)
 {
 	struct snd_card *card = substream->pcm->card;
 	struct loongson_runtime_data *prtd = substream->runtime->private_data;
@@ -301,21 +301,21 @@ static int loongson_pcm_close(struct snd_soc_component *component,
 	return 0;
 }
 
-static int loongson_pcm_mmap(struct snd_soc_component *component,
-			     struct snd_pcm_substream *substream,
-			     struct vm_area_struct *vma)
+static int loongson_idma_pcm_mmap(struct snd_soc_component *component,
+				  struct snd_pcm_substream *substream,
+				  struct vm_area_struct *vma)
 {
 	return remap_pfn_range(vma, vma->vm_start,
-			substream->dma_buffer.addr >> PAGE_SHIFT,
-			vma->vm_end - vma->vm_start, vma->vm_page_prot);
+			       substream->dma_buffer.addr >> PAGE_SHIFT,
+			       vma->vm_end - vma->vm_start, vma->vm_page_prot);
 }
 
-static int loongson_pcm_new(struct snd_soc_component *component,
-			    struct snd_soc_pcm_runtime *rtd)
+static int loongson_idma_pcm_new(struct snd_soc_component *component,
+				 struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_card *card = rtd->card->snd_card;
 	struct snd_pcm_substream *substream;
-	struct loongson_dma_data *dma_data;
+	struct loongson_idma_data *dma_data;
 	unsigned int i;
 	int ret;
 
@@ -327,7 +327,7 @@ static int loongson_pcm_new(struct snd_soc_component *component,
 		dma_data = snd_soc_dai_get_dma_data(snd_soc_rtd_to_cpu(rtd, 0),
 						    substream);
 		ret = devm_request_irq(card->dev, dma_data->irq,
-				       loongson_pcm_dma_irq,
+				       loongson_idma_pcm_dma_irq,
 				       IRQF_TRIGGER_HIGH, LS_I2S_DRVNAME,
 				       substream);
 		if (ret < 0) {
@@ -338,16 +338,76 @@ static int loongson_pcm_new(struct snd_soc_component *component,
 
 	return snd_pcm_set_fixed_buffer_all(rtd->pcm, SNDRV_DMA_TYPE_DEV,
 					    card->dev,
-					    ls_pcm_hardware.buffer_bytes_max);
+					    loongson_idma_hardware.buffer_bytes_max);
 }
 
-const struct snd_soc_component_driver loongson_i2s_component = {
+/* Internal DMA component */
+const struct snd_soc_component_driver loongson_i2s_idma_component = {
 	.name		= LS_I2S_DRVNAME,
-	.open		= loongson_pcm_open,
-	.close		= loongson_pcm_close,
-	.hw_params	= loongson_pcm_hw_params,
-	.trigger	= loongson_pcm_trigger,
-	.pointer	= loongson_pcm_pointer,
-	.mmap		= loongson_pcm_mmap,
-	.pcm_new	= loongson_pcm_new,
+	.open		= loongson_idma_pcm_open,
+	.close		= loongson_idma_pcm_close,
+	.hw_params	= loongson_idma_pcm_hw_params,
+	.trigger	= loongson_idma_pcm_trigger,
+	.pointer	= loongson_idma_pcm_pointer,
+	.mmap		= loongson_idma_pcm_mmap,
+	.pcm_new	= loongson_idma_pcm_new,
 };
+EXPORT_SYMBOL_GPL(loongson_i2s_idma_component);
+
+static const struct snd_pcm_hardware loongson_edma_hardware = {
+	.info = SNDRV_PCM_INFO_MMAP |
+		SNDRV_PCM_INFO_INTERLEAVED |
+		SNDRV_PCM_INFO_MMAP_VALID |
+		SNDRV_PCM_INFO_RESUME |
+		SNDRV_PCM_INFO_PAUSE,
+	.formats = SNDRV_PCM_FMTBIT_S16_LE |
+		   SNDRV_PCM_FMTBIT_S20_3LE |
+		   SNDRV_PCM_FMTBIT_S24_LE,
+	.period_bytes_min = 128,
+	.period_bytes_max = 128 * 1024,
+	.periods_min = 1,
+	.periods_max = 64,
+	.buffer_bytes_max = 1024 * 1024,
+};
+
+const struct snd_dmaengine_pcm_config loongson_dmaengine_pcm_config = {
+	.pcm_hardware = &loongson_edma_hardware,
+	.prepare_slave_config = snd_dmaengine_pcm_prepare_slave_config,
+	.prealloc_buffer_size = 128 * 1024,
+};
+EXPORT_SYMBOL_GPL(loongson_dmaengine_pcm_config);
+
+/* External DMA component */
+static int loongson_edma_pcm_open(struct snd_soc_component *component,
+				  struct snd_pcm_substream *substream)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+
+	if (substream->pcm->device & 1) {
+		runtime->hw.info &= ~SNDRV_PCM_INFO_INTERLEAVED;
+		runtime->hw.info |= SNDRV_PCM_INFO_NONINTERLEAVED;
+	}
+
+	if (substream->pcm->device & 2)
+		runtime->hw.info &= ~(SNDRV_PCM_INFO_MMAP |
+				      SNDRV_PCM_INFO_MMAP_VALID);
+	/*
+	 * For mysterious reasons (and despite what the manual says)
+	 * playback samples are lost if the DMA count is not a multiple
+	 * of the DMA burst size.  Let's add a rule to enforce that.
+	 */
+	snd_pcm_hw_constraint_step(runtime, 0,
+				   SNDRV_PCM_HW_PARAM_PERIOD_BYTES, 128);
+	snd_pcm_hw_constraint_step(runtime, 0,
+				   SNDRV_PCM_HW_PARAM_BUFFER_BYTES, 128);
+	snd_pcm_hw_constraint_integer(substream->runtime,
+				      SNDRV_PCM_HW_PARAM_PERIODS);
+
+	return 0;
+}
+
+const struct snd_soc_component_driver loongson_i2s_edma_component = {
+	.name   = LS_I2S_DRVNAME,
+	.open	= loongson_edma_pcm_open,
+};
+EXPORT_SYMBOL_GPL(loongson_i2s_edma_component);

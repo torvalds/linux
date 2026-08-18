@@ -12,7 +12,8 @@
 #include <linux/of.h>
 #include <linux/slab.h>
 
-static int __must_check of_clk_bulk_get(struct device_node *np, int num_clks,
+static int __must_check of_clk_bulk_get(struct device *dev,
+					struct device_node *np, int num_clks,
 					struct clk_bulk_data *clks)
 {
 	int ret;
@@ -28,8 +29,8 @@ static int __must_check of_clk_bulk_get(struct device_node *np, int num_clks,
 		clks[i].clk = of_clk_get(np, i);
 		if (IS_ERR(clks[i].clk)) {
 			ret = PTR_ERR(clks[i].clk);
-			pr_err("%pOF: Failed to get clk index: %d ret: %d\n",
-			       np, i, ret);
+			dev_err_probe(dev, ret, "%pOF: Failed to get clk index: %d (%s)\n",
+				      np, i, clks[i].id);
 			clks[i].clk = NULL;
 			goto err;
 		}
@@ -43,7 +44,8 @@ err:
 	return ret;
 }
 
-static int __must_check of_clk_bulk_get_all(struct device_node *np,
+static int __must_check of_clk_bulk_get_all(struct device *dev,
+					    struct device_node *np,
 					    struct clk_bulk_data **clks)
 {
 	struct clk_bulk_data *clk_bulk;
@@ -58,7 +60,7 @@ static int __must_check of_clk_bulk_get_all(struct device_node *np,
 	if (!clk_bulk)
 		return -ENOMEM;
 
-	ret = of_clk_bulk_get(np, num_clks, clk_bulk);
+	ret = of_clk_bulk_get(dev, np, num_clks, clk_bulk);
 	if (ret) {
 		kfree(clk_bulk);
 		return ret;
@@ -144,7 +146,7 @@ int __must_check clk_bulk_get_all(struct device *dev,
 	if (!np)
 		return 0;
 
-	return of_clk_bulk_get_all(np, clks);
+	return of_clk_bulk_get_all(dev, np, clks);
 }
 EXPORT_SYMBOL(clk_bulk_get_all);
 

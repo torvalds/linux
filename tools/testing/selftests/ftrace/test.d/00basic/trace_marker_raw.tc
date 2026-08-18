@@ -36,15 +36,23 @@ make_str() {
 
 	data=`printf -- 'X%.0s' $(seq $cnt)`
 
-	printf "${val}${data}"
+	# Return escape-sequence text (e.g. "\003\000..."); the caller
+	# converts to binary. Shell command substitution strips NUL bytes,
+	# so the binary form cannot survive being captured into a variable.
+	printf '%s' "${val}${data}"
 }
 
 write_buffer() {
 	id=$1
 	size=$2
 
-	# write the string into the raw marker
-	make_str $id $size > trace_marker_raw
+	str=`make_str $id $size`
+	len=`printf "$str" | wc -c`
+	# Pipe through dd to ensure a single atomic write() syscall
+	# on architectures with 64K pages, where shell's printf builtin
+	# uses stdio buffering which may split the output into multiple
+	# writes.
+	printf "$str" | dd of=trace_marker_raw bs=$len iflag=fullblock
 }
 
 

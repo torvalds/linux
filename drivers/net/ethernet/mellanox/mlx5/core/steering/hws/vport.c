@@ -50,7 +50,7 @@ static int hws_vport_add_gvmi(struct mlx5hws_context *ctx, u16 vport)
 static bool hws_vport_is_esw_mgr_vport(struct mlx5hws_context *ctx, u16 vport)
 {
 	return ctx->caps->is_ecpf ? vport == MLX5_VPORT_ECPF :
-				    vport == MLX5_VPORT_PF;
+				    vport == MLX5_VPORT_HOST_PF;
 }
 
 int mlx5hws_vport_get_gvmi(struct mlx5hws_context *ctx, u16 vport, u16 *vport_gvmi)

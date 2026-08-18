@@ -135,10 +135,10 @@ void __check_limbo(struct rdt_l3_mon_domain *d, bool force_free)
 	struct rdt_resource *r = resctrl_arch_get_resource(RDT_RESOURCE_L3);
 	u32 idx_limit = resctrl_arch_system_num_rmid_idx();
 	struct rmid_entry *entry;
+	bool rmid_dirty = true;
 	u32 idx, cur_idx = 1;
 	void *arch_mon_ctx;
 	void *arch_priv;
-	bool rmid_dirty;
 	u64 val = 0;
 
 	arch_priv = mon_event_all[QOS_L3_OCCUP_EVENT_ID].arch_priv;
@@ -161,22 +161,27 @@ void __check_limbo(struct rdt_l3_mon_domain *d, bool force_free)
 			break;
 
 		entry = __rmid_entry(idx);
-		if (resctrl_arch_rmid_read(r, &d->hdr, entry->closid, entry->rmid,
-					   QOS_L3_OCCUP_EVENT_ID, arch_priv, &val,
-					   arch_mon_ctx)) {
-			rmid_dirty = true;
-		} else {
-			rmid_dirty = (val >= resctrl_rmid_realloc_threshold);
+		if (!force_free) {
+			if (resctrl_arch_rmid_read(r, &d->hdr, entry->closid,
+						   entry->rmid, QOS_L3_OCCUP_EVENT_ID,
+						   arch_priv, &val, arch_mon_ctx)) {
+				rmid_dirty = true;
+			} else {
+				rmid_dirty = (val >= resctrl_rmid_realloc_threshold);
 
-			/*
-			 * x86's CLOSID and RMID are independent numbers, so the entry's
-			 * CLOSID is an empty CLOSID (X86_RESCTRL_EMPTY_CLOSID). On Arm the
-			 * RMID (PMG) extends the CLOSID (PARTID) space with bits that aren't
-			 * used to select the configuration. It is thus necessary to track both
-			 * CLOSID and RMID because there may be dependencies between them
-			 * on some architectures.
-			 */
-			trace_mon_llc_occupancy_limbo(entry->closid, entry->rmid, d->hdr.id, val);
+				/*
+				 * x86's CLOSID and RMID are independent numbers,
+				 * so the entry's CLOSID is an empty CLOSID
+				 * (X86_RESCTRL_EMPTY_CLOSID). On Arm the RMID
+				 * (PMG) extends the CLOSID (PARTID) space with
+				 * bits that aren't used to select the configuration.
+				 * It is thus necessary to track both CLOSID and
+				 * RMID because there may be dependencies between
+				 * them on some architectures.
+				 */
+				trace_mon_llc_occupancy_limbo(entry->closid, entry->rmid,
+							      d->hdr.id, val);
+			}
 		}
 
 		if (force_free || !rmid_dirty) {
@@ -1211,9 +1216,10 @@ static int rdtgroup_alloc_assign_cntr(struct rdt_resource *r, struct rdt_l3_mon_
  * NULL; otherwise, assign the counter to the specified domain @d.
  *
  * If all counters in a domain are already in use, rdtgroup_alloc_assign_cntr()
- * will fail. The assignment process will abort at the first failure encountered
- * during domain traversal, which may result in the event being only partially
- * assigned.
+ * will fail. When attempting to assign counters to all domains, carry on trying
+ * to assign counters after a failure since only some domains may have counters
+ * and the goal is to assign counters where possible. If any counter assignment
+ * fails, return the error from the last failing assignment.
  *
  * Return:
  * 0 on success, < 0 on failure.
@@ -1226,9 +1232,11 @@ static int rdtgroup_assign_cntr_event(struct rdt_l3_mon_domain *d, struct rdtgro
 
 	if (!d) {
 		list_for_each_entry(d, &r->mon_domains, hdr.list) {
-			ret = rdtgroup_alloc_assign_cntr(r, d, rdtgrp, mevt);
-			if (ret)
-				return ret;
+			int err;
+
+			err = rdtgroup_alloc_assign_cntr(r, d, rdtgrp, mevt);
+			if (err)
+				ret = err;
 		}
 	} else {
 		ret = rdtgroup_alloc_assign_cntr(r, d, rdtgrp, mevt);
@@ -1422,6 +1430,11 @@ ssize_t event_filter_write(struct kernfs_open_file *of, char *buf, size_t nbytes
 		ret = -EINVAL;
 		goto out_unlock;
 	}
+	if (!r->mon.mbm_cntr_configurable) {
+		rdt_last_cmd_puts("event_filter is not configurable\n");
+		ret = -EPERM;
+		goto out_unlock;
+	}
 
 	ret = resctrl_parse_mem_transactions(buf, &evt_cfg);
 	if (!ret && mevt->evt_cfg != evt_cfg) {
@@ -1451,7 +1464,7 @@ int resctrl_mbm_assign_mode_show(struct kernfs_open_file *of,
 		else
 			seq_puts(s, "[default]\n");
 
-		if (!IS_ENABLED(CONFIG_RESCTRL_ASSIGN_FIXED)) {
+		if (!r->mon.mbm_cntr_assign_fixed) {
 			if (enabled)
 				seq_puts(s, "default\n");
 			else
@@ -1502,6 +1515,12 @@ ssize_t resctrl_mbm_assign_mode_write(struct kernfs_open_file *of, char *buf,
 	}
 
 	if (enable != resctrl_arch_mbm_cntr_assign_enabled(r)) {
+		if (r->mon.mbm_cntr_assign_fixed) {
+			ret = -EINVAL;
+			rdt_last_cmd_puts("Counter assignment mode is not configurable\n");
+			goto out_unlock;
+		}
+
 		ret = resctrl_arch_mbm_cntr_assign_set(r, enable);
 		if (ret)
 			goto out_unlock;
@@ -1886,6 +1905,8 @@ int resctrl_l3_mon_resource_init(void)
 		resctrl_file_fflags_init("available_mbm_cntrs",
 					 RFTYPE_MON_INFO | RFTYPE_RES_CACHE);
 		resctrl_file_fflags_init("event_filter", RFTYPE_ASSIGN_CONFIG);
+		if (r->mon.mbm_cntr_configurable)
+			resctrl_file_mode_init("event_filter", 0644);
 		resctrl_file_fflags_init("mbm_assign_on_mkdir", RFTYPE_MON_INFO |
 					 RFTYPE_RES_CACHE);
 		resctrl_file_fflags_init("mbm_L3_assignments", RFTYPE_MON_BASE);

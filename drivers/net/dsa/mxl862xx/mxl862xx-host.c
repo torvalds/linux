@@ -12,6 +12,7 @@
 #include <linux/crc16.h>
 #include <linux/iopoll.h>
 #include <linux/limits.h>
+#include <linux/unaligned.h>
 #include <net/dsa.h>
 #include "mxl862xx.h"
 #include "mxl862xx-host.h"
@@ -40,12 +41,13 @@ static void mxl862xx_crc_err_work_fn(struct work_struct *work)
 						  crc_err_work);
 	struct dsa_port *dp;
 
-	dev_warn(&priv->mdiodev->dev,
-		 "MDIO CRC error detected, shutting down all ports\n");
-
 	rtnl_lock();
-	dsa_switch_for_each_cpu_port(dp, priv->ds)
-		dev_close(dp->conduit);
+	if (!test_bit(MXL862XX_FLAG_WORK_STOPPED, &priv->flags)) {
+		dev_warn(&priv->mdiodev->dev,
+			 "MDIO CRC error detected, shutting down all ports\n");
+		dsa_switch_for_each_cpu_port(dp, priv->ds)
+			dev_close(dp->conduit);
+	}
 	rtnl_unlock();
 
 	clear_bit(MXL862XX_FLAG_CRC_ERR, &priv->flags);
@@ -349,7 +351,7 @@ int mxl862xx_api_wrap(struct mxl862xx_priv *priv, u16 cmd, void *_data,
 	 * zero words individually.
 	 */
 	for (i = 0, zeros = 0; i < size / 2 && zeros < RST_DATA_THRESHOLD; i++)
-		if (!data[i])
+		if (!get_unaligned_le16(&data[i]))
 			zeros++;
 
 	if (zeros < RST_DATA_THRESHOLD && (size & 1) && !*(u8 *)&data[i])
@@ -395,7 +397,7 @@ int mxl862xx_api_wrap(struct mxl862xx_priv *priv, u16 cmd, void *_data,
 			 */
 			val = *(u8 *)&data[i] | ((crc & 0xff) << 8);
 		} else {
-			val = le16_to_cpu(data[i]);
+			val = get_unaligned_le16(&data[i]);
 		}
 
 		/* After RST_DATA, skip zero data words as the registers
@@ -453,7 +455,7 @@ int mxl862xx_api_wrap(struct mxl862xx_priv *priv, u16 cmd, void *_data,
 			*(uint8_t *)&data[i] = ret & 0xff;
 			crc = (ret >> 8) & 0xff;
 		} else {
-			data[i] = cpu_to_le16((u16)ret);
+			put_unaligned_le16((u16)ret, &data[i]);
 		}
 	}
 

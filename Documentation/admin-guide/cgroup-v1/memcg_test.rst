@@ -321,7 +321,7 @@ Under below explanation, we assume CONFIG_SWAP=y.
 ----------------------
 
 	Memory controller implements memory thresholds using cgroups notification
-	API. You can use tools/cgroup/cgroup_event_listener.c to test it.
+	API. You can use samples/cgroup/cgroup_event_listener.c to test it.
 
 	(Shell-A) Create cgroup and run event listener::
 

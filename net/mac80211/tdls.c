@@ -311,17 +311,21 @@ ieee80211_tdls_chandef_vht_upgrade(struct ieee80211_sub_if_data *sdata,
 	/* IEEE802.11ac-2013 Table E-4 */
 	static const u16 centers_80mhz[] = { 5210, 5290, 5530, 5610, 5690, 5775 };
 	struct cfg80211_chan_def uc = sta->tdls_chandef;
-	enum nl80211_chan_width max_width =
-		ieee80211_sta_cap_chan_bw(&sta->deflink);
+	enum nl80211_chan_width max_width;
 	int i;
 
-	/* only support upgrading non-narrow channels up to 80Mhz */
-	if (max_width == NL80211_CHAN_WIDTH_5 ||
-	    max_width == NL80211_CHAN_WIDTH_10)
-		return;
-
-	if (max_width > NL80211_CHAN_WIDTH_80)
+	switch (ieee80211_sta_current_bw(&sta->deflink, &uc,
+					 IEEE80211_STA_BW_RX_FROM_STA)) {
+	case IEEE80211_STA_RX_BW_20:
+		max_width = NL80211_CHAN_WIDTH_20;
+		break;
+	case IEEE80211_STA_RX_BW_40:
+		max_width = NL80211_CHAN_WIDTH_40;
+		break;
+	default: /* 80 or higher, only support upgrade to 80 */
 		max_width = NL80211_CHAN_WIDTH_80;
+		break;
+	}
 
 	if (uc.width >= max_width)
 		return;
@@ -1334,7 +1338,9 @@ static void iee80211_tdls_recalc_chanctx(struct ieee80211_sub_if_data *sdata,
 			enum ieee80211_sta_rx_bandwidth bw;
 
 			bw = ieee80211_chan_width_to_rx_bw(conf->def.width);
-			bw = min(bw, ieee80211_sta_cap_rx_bw(&sta->deflink));
+			bw = min(bw, ieee80211_sta_current_bw(&sta->deflink,
+							      &conf->def,
+							      IEEE80211_STA_BW_RX_FROM_STA));
 			if (bw != sta->sta.deflink.bandwidth) {
 				sta->sta.deflink.bandwidth = bw;
 				rate_control_rate_update(local, sband,

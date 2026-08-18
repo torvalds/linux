@@ -1684,7 +1684,7 @@ int l2tp_tunnel_register(struct l2tp_tunnel *tunnel, struct net *net,
 			.encap_destroy = l2tp_udp_encap_destroy,
 		};
 
-		setup_udp_tunnel_sock(net, sock, &udp_cfg);
+		setup_udp_tunnel_sock(net, sock->sk, &udp_cfg);
 	}
 
 	sk->sk_allocation = GFP_ATOMIC;

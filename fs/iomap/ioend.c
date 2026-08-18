@@ -28,6 +28,7 @@ struct iomap_ioend *iomap_init_ioend(struct inode *inode,
 	ioend->io_offset = file_offset;
 	ioend->io_size = bio->bi_iter.bi_size;
 	ioend->io_sector = bio->bi_iter.bi_sector;
+	ioend->io_vi = NULL;
 	ioend->io_private = NULL;
 	return ioend;
 }
@@ -297,8 +298,12 @@ new_ioend:
 	 * appending writes.
 	 */
 	ioend->io_size += map_len;
-	if (ioend->io_offset + ioend->io_size > end_pos)
-		ioend->io_size = end_pos - ioend->io_offset;
+	if (ioend->io_offset + ioend->io_size > end_pos) {
+		if (ioend->io_offset >= end_pos)
+			ioend->io_size = 0;
+		else
+			ioend->io_size = end_pos - ioend->io_offset;
+	}
 
 	wbc_account_cgroup_owner(wpc->wbc, folio, map_len);
 	return map_len;
@@ -379,6 +384,8 @@ static bool iomap_ioend_can_merge(struct iomap_ioend *ioend,
 		return false;
 
 	if (ioend->io_bio.bi_status != next->io_bio.bi_status)
+		return false;
+	if (ioend->io_private != next->io_private)
 		return false;
 	if (next->io_flags & IOMAP_IOEND_BOUNDARY)
 		return false;

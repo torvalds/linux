@@ -64,20 +64,43 @@ static const struct ixgbevf_info *ixgbevf_info_tbl[] = {
  *   Class, Class Mask, private data (not used) }
  */
 static const struct pci_device_id ixgbevf_pci_tbl[] = {
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_VF), board_82599_vf },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_VF_HV), board_82599_vf_hv },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X540_VF), board_X540_vf },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X540_VF_HV), board_X540_vf_hv },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550_VF), board_X550_vf },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550_VF_HV), board_X550_vf_hv },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_VF), board_X550EM_x_vf },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_VF_HV), board_X550EM_x_vf_hv},
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_VF), board_x550em_a_vf },
-	{PCI_VDEVICE_SUB(INTEL, IXGBE_DEV_ID_E610_VF, PCI_ANY_ID,
-			 IXGBE_SUBDEV_ID_E610_VF_HV), board_e610_vf_hv},
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_E610_VF), board_e610_vf},
+	{
+		PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_VF),
+		.driver_data = board_82599_vf,
+	}, {
+		PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_VF_HV),
+		.driver_data = board_82599_vf_hv,
+	}, {
+		PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X540_VF),
+		.driver_data = board_X540_vf,
+	}, {
+		PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X540_VF_HV),
+		.driver_data = board_X540_vf_hv,
+	}, {
+		PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550_VF),
+		.driver_data = board_X550_vf,
+	}, {
+		PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550_VF_HV),
+		.driver_data = board_X550_vf_hv,
+	}, {
+		PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_VF),
+		.driver_data = board_X550EM_x_vf,
+	}, {
+		PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_VF_HV),
+		.driver_data = board_X550EM_x_vf_hv
+	}, {
+		PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_VF),
+		.driver_data = board_x550em_a_vf,
+	}, {
+		PCI_VDEVICE_SUB(INTEL, IXGBE_DEV_ID_E610_VF,
+				PCI_ANY_ID, IXGBE_SUBDEV_ID_E610_VF_HV),
+		.driver_data = board_e610_vf_hv,
+	}, {
+		PCI_VDEVICE(INTEL, IXGBE_DEV_ID_E610_VF),
+		.driver_data = board_e610_vf,
+	},
 	/* required last entry */
-	{0, }
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, ixgbevf_pci_tbl);
 

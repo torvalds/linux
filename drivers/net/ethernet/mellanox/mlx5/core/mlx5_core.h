@@ -110,6 +110,7 @@ struct mlx5_cmd_allow_other_vhca_access_attr {
 struct mlx5_cmd_alias_obj_create_attr {
 	u32 obj_id;
 	u16 vhca_id;
+	u8 vhca_id_type;
 	u16 obj_type;
 	u8 access_key[ACCESS_KEY_LEN];
 };
@@ -296,7 +297,6 @@ void mlx5_core_reps_aux_devs_remove(struct mlx5_core_dev *dev);
 void mlx5_fw_reporters_create(struct mlx5_core_dev *dev);
 int mlx5_query_mtpps(struct mlx5_core_dev *dev, u32 *mtpps, u32 mtpps_size);
 int mlx5_set_mtpps(struct mlx5_core_dev *mdev, u32 *mtpps, u32 mtpps_size);
-int mlx5_query_mtppse(struct mlx5_core_dev *mdev, u8 pin, u8 *arm, u8 *mode);
 int mlx5_set_mtppse(struct mlx5_core_dev *mdev, u8 pin, u8 arm, u8 mode);
 
 struct mlx5_dm *mlx5_dm_create(struct mlx5_core_dev *dev);
@@ -436,6 +436,8 @@ mlx5_sf_coredev_to_adev(struct mlx5_core_dev *mdev)
 
 int mlx5_mdev_init(struct mlx5_core_dev *dev, int profile_idx);
 void mlx5_mdev_uninit(struct mlx5_core_dev *dev);
+int mlx5_frag_buf_pools_init(struct mlx5_core_dev *dev);
+void mlx5_frag_buf_pools_cleanup(struct mlx5_core_dev *dev);
 int mlx5_init_one(struct mlx5_core_dev *dev);
 int mlx5_init_one_devl_locked(struct mlx5_core_dev *dev);
 void mlx5_uninit_one(struct mlx5_core_dev *dev);
@@ -449,10 +451,16 @@ void mlx5_unload_one_light(struct mlx5_core_dev *dev);
 
 void mlx5_query_nic_sw_system_image_guid(struct mlx5_core_dev *mdev, u8 *buf,
 					 u8 *len);
+bool mlx5_vport_use_vhca_id_as_func_id(struct mlx5_core_dev *dev,
+				       u16 vport_num, u16 *vhca_id);
 int mlx5_vport_set_other_func_cap(struct mlx5_core_dev *dev, const void *hca_cap, u16 vport,
 				  u16 opmod);
 #define mlx5_vport_get_other_func_general_cap(dev, vport, out)		\
 	mlx5_vport_get_other_func_cap(dev, vport, out, MLX5_CAP_GENERAL)
+
+#define mlx5_vport_set_other_func_general_cap(dev, hca_cap, vport)	\
+	mlx5_vport_set_other_func_cap(dev, hca_cap, vport,		\
+				      MLX5_SET_HCA_CAP_OP_MOD_GENERAL_DEVICE)
 
 static inline u32 mlx5_sriov_get_vf_total_msix(struct pci_dev *pdev)
 {

@@ -14,6 +14,30 @@
 #include "fw/api/rs.h"
 #include "fw/img.h"
 
+#define IWL_DECLARE_RATE_INFO(r) \
+	[IWL_RATE_##r##M_INDEX] = IWL_RATE_##r##M_PLCP
+
+/* Translate from fw_rate_index (IWL_RATE_XXM_INDEX) to PLCP */
+static const u8 fw_rate_idx_to_plcp[IWL_RATE_COUNT] = {
+	IWL_DECLARE_RATE_INFO(1),
+	IWL_DECLARE_RATE_INFO(2),
+	IWL_DECLARE_RATE_INFO(5),
+	IWL_DECLARE_RATE_INFO(11),
+	IWL_DECLARE_RATE_INFO(6),
+	IWL_DECLARE_RATE_INFO(9),
+	IWL_DECLARE_RATE_INFO(12),
+	IWL_DECLARE_RATE_INFO(18),
+	IWL_DECLARE_RATE_INFO(24),
+	IWL_DECLARE_RATE_INFO(36),
+	IWL_DECLARE_RATE_INFO(48),
+	IWL_DECLARE_RATE_INFO(54),
+};
+
+u8 iwl_mvm_rate_idx_to_plcp(int idx)
+{
+	return fw_rate_idx_to_plcp[idx];
+}
+
 /*
  * Will return 0 even if the cmd failed when RFKILL is asserted unless
  * CMD_WANT_SKB is set in cmd->flags.
@@ -151,13 +175,13 @@ int iwl_mvm_legacy_rate_to_mac80211_idx(u32 rate_n_flags,
 	if (band != NL80211_BAND_2GHZ)
 		band_offset = IWL_FIRST_OFDM_RATE;
 	for (idx = band_offset; idx < IWL_RATE_COUNT_LEGACY; idx++)
-		if (iwl_fw_rate_idx_to_plcp(idx) == rate)
+		if (iwl_mvm_rate_idx_to_plcp(idx) == rate)
 			return idx - band_offset;
 
 	return -1;
 }
 
-u8 iwl_mvm_mac80211_idx_to_hwrate(const struct iwl_fw *fw, int rate_idx)
+u8 iwl_mvm_rate_idx_to_fw_idx(const struct iwl_fw *fw, int rate_idx)
 {
 	return rate_idx >= IWL_FIRST_OFDM_RATE ?
 		rate_idx - IWL_FIRST_OFDM_RATE :
@@ -1243,7 +1267,7 @@ static u32 iwl_legacy_rate_to_fw_idx(u32 rate_n_flags)
 	int last = ofdm ? IWL_RATE_COUNT_LEGACY : IWL_FIRST_OFDM_RATE;
 
 	for (idx = offset; idx < last; idx++)
-		if (iwl_fw_rate_idx_to_plcp(idx) == rate)
+		if (iwl_mvm_rate_idx_to_plcp(idx) == rate)
 			return idx - offset;
 	return IWL_RATE_INVALID;
 }
@@ -1353,7 +1377,7 @@ __le32 iwl_mvm_v3_rate_to_fw(u32 rate, u8 rate_ver)
 		rate_idx = u32_get_bits(rate, RATE_LEGACY_RATE_MSK);
 		if (!(result & RATE_MCS_CCK_MSK_V1))
 			rate_idx += IWL_FIRST_OFDM_RATE;
-		result |= u32_encode_bits(iwl_fw_rate_idx_to_plcp(rate_idx),
+		result |= u32_encode_bits(iwl_mvm_rate_idx_to_plcp(rate_idx),
 					  RATE_LEGACY_RATE_MSK_V1);
 		break;
 	case RATE_MCS_MOD_TYPE_HT:

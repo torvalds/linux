@@ -1701,6 +1701,188 @@ static inline void cec_ops_request_current_latency(const struct cec_msg *msg,
 }
 
 
+/* Latency Indication Protocol Feature */
+/* Only for CEC 2.0 and up */
+static inline void cec_msg_request_lip_support(struct cec_msg *msg,
+					       int reply, __u16 phys_addr)
+{
+	msg->len = 4;
+	msg->msg[1] = CEC_MSG_REQUEST_LIP_SUPPORT;
+	msg->msg[2] = phys_addr >> 8;
+	msg->msg[3] = phys_addr & 0xff;
+	msg->reply = reply ? CEC_MSG_REPORT_LIP_SUPPORT : 0;
+}
+
+static inline void cec_ops_request_lip_support(const struct cec_msg *msg,
+					       __u16 *phys_addr)
+{
+	*phys_addr = (msg->msg[2] << 8) | msg->msg[3];
+}
+
+static inline void cec_msg_report_lip_support(struct cec_msg *msg, __u32 sqid)
+{
+	msg->len = 6;
+	msg->msg[1] = CEC_MSG_REPORT_LIP_SUPPORT;
+	msg->msg[2] = sqid >> 24;
+	msg->msg[3] = (sqid >> 16) & 0xff;
+	msg->msg[4] = (sqid >> 8) & 0xff;
+	msg->msg[5] = sqid & 0xff;
+}
+
+static inline void cec_ops_report_lip_support(const struct cec_msg *msg,
+					      __u32 *sqid)
+{
+	*sqid = (msg->msg[2] << 24) | (msg->msg[3] << 16) |
+		(msg->msg[4] << 8) | msg->msg[5];
+}
+
+static inline void cec_msg_request_audio_and_video_latency(struct cec_msg *msg,
+					       int reply, __u8 video_format,
+					       __u8 hdr_format, __u8 vrr_format,
+					       __u8 audio_format,
+					       __u8 audio_format_extension)
+{
+	msg->len = 6;
+	msg->msg[1] = CEC_MSG_REQUEST_AUDIO_AND_VIDEO_LATENCY;
+	msg->msg[2] = video_format;
+	msg->msg[3] = hdr_format;
+	msg->msg[4] = vrr_format;
+	msg->msg[5] = audio_format;
+	if (audio_format >= 1 && audio_format <= 31) {
+		msg->msg[6] = audio_format_extension;
+		msg->len++;
+	}
+	msg->reply = reply ? CEC_MSG_REPORT_AUDIO_AND_VIDEO_LATENCY : 0;
+}
+
+static inline void cec_ops_request_audio_and_video_latency(const struct cec_msg *msg,
+					       __u8 *video_format,
+					       __u8 *hdr_format,
+					       __u8 *vrr_format,
+					       __u8 *audio_format,
+					       __u8 *audio_format_extension)
+{
+	*video_format = msg->msg[2];
+	*hdr_format = msg->msg[3];
+	*vrr_format = msg->msg[4];
+	*audio_format = msg->msg[5];
+	*audio_format_extension = msg->len > 6 ? msg->msg[6] : 0;
+}
+
+static inline void cec_msg_report_audio_and_video_latency(struct cec_msg *msg,
+							  __u16 video_latency,
+							  __u16 audio_latency)
+{
+	msg->len = 6;
+	msg->msg[1] = CEC_MSG_REPORT_AUDIO_AND_VIDEO_LATENCY;
+	msg->msg[2] = video_latency >> 8;
+	msg->msg[3] = video_latency & 0xff;
+	msg->msg[4] = audio_latency >> 8;
+	msg->msg[5] = audio_latency & 0xff;
+}
+
+static inline void cec_ops_report_audio_and_video_latency(const struct cec_msg *msg,
+					      __u16 *video_latency,
+					      __u16 *audio_latency)
+{
+	*video_latency = (msg->msg[2] << 8) | msg->msg[3];
+	*audio_latency = (msg->msg[4] << 8) | msg->msg[5];
+}
+
+static inline void cec_msg_request_audio_latency(struct cec_msg *msg,
+						 int reply,
+						 __u8 audio_format,
+						 __u8 audio_format_extension)
+{
+	msg->len = 3;
+	msg->msg[1] = CEC_MSG_REQUEST_AUDIO_LATENCY;
+	msg->msg[2] = audio_format;
+	if (audio_format >= 1 && audio_format <= 31) {
+		msg->msg[3] = audio_format_extension;
+		msg->len++;
+	}
+	msg->reply = reply ? CEC_MSG_REPORT_AUDIO_LATENCY : 0;
+}
+
+static inline void cec_ops_request_audio_latency(const struct cec_msg *msg,
+						 __u8 *audio_format,
+						 __u8 *audio_format_extension)
+{
+	*audio_format = msg->msg[2];
+	*audio_format_extension = msg->len > 3 ? msg->msg[3] : 0;
+}
+
+static inline void cec_msg_report_audio_latency(struct cec_msg *msg,
+						__u16 audio_latency)
+{
+	msg->len = 4;
+	msg->msg[1] = CEC_MSG_REPORT_AUDIO_LATENCY;
+	msg->msg[2] = audio_latency >> 8;
+	msg->msg[3] = audio_latency & 0xff;
+}
+
+static inline void cec_ops_report_audio_latency(const struct cec_msg *msg,
+						__u16 *audio_latency)
+{
+	*audio_latency = (msg->msg[2] << 8) | msg->msg[3];
+}
+
+static inline void cec_msg_request_video_latency(struct cec_msg *msg,
+						 int reply, __u8 video_format,
+						 __u8 hdr_format,
+						 __u8 vrr_format)
+{
+	msg->len = 5;
+	msg->msg[1] = CEC_MSG_REQUEST_VIDEO_LATENCY;
+	msg->msg[2] = video_format;
+	msg->msg[3] = hdr_format;
+	msg->msg[4] = vrr_format;
+	msg->reply = reply ? CEC_MSG_REPORT_VIDEO_LATENCY : 0;
+}
+
+static inline void cec_ops_request_video_latency(const struct cec_msg *msg,
+						 __u8 *video_format,
+						 __u8 *hdr_format,
+						 __u8 *vrr_format)
+{
+	*video_format = msg->msg[2];
+	*hdr_format = msg->msg[3];
+	*vrr_format = msg->msg[4];
+}
+
+static inline void cec_msg_report_video_latency(struct cec_msg *msg,
+						__u16 video_latency)
+{
+	msg->len = 4;
+	msg->msg[1] = CEC_MSG_REPORT_VIDEO_LATENCY;
+	msg->msg[2] = video_latency >> 8;
+	msg->msg[3] = video_latency & 0xff;
+}
+
+static inline void cec_ops_report_video_latency(const struct cec_msg *msg,
+						__u16 *video_latency)
+{
+	*video_latency = (msg->msg[2] << 8) | msg->msg[3];
+}
+
+static inline void cec_msg_update_sqid(struct cec_msg *msg, __u32 sqid)
+{
+	msg->len = 6;
+	msg->msg[1] = CEC_MSG_UPDATE_SQID;
+	msg->msg[2] = sqid >> 24;
+	msg->msg[3] = (sqid >> 16) & 0xff;
+	msg->msg[4] = (sqid >> 8) & 0xff;
+	msg->msg[5] = sqid & 0xff;
+}
+
+static inline void cec_ops_update_sqid(const struct cec_msg *msg,
+				       __u32 *sqid)
+{
+	*sqid = (msg->msg[2] << 24) | (msg->msg[3] << 16) |
+		(msg->msg[4] << 8) | msg->msg[5];
+}
+
+
 /* Capability Discovery and Control Feature */
 static inline void cec_msg_cdc_hec_inquire_state(struct cec_msg *msg,
 						 __u16 phys_addr1,

@@ -45,9 +45,9 @@ struct rtw_rx_desc {
 
 void rtw_rx_stats(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
 		  struct sk_buff *skb);
-void rtw_rx_query_rx_desc(struct rtw_dev *rtwdev, void *rx_desc8,
-			  struct rtw_rx_pkt_stat *pkt_stat,
-			  struct ieee80211_rx_status *rx_status);
+int rtw_rx_query_rx_desc(struct rtw_dev *rtwdev, void *rx_desc8,
+			 struct rtw_rx_pkt_stat *pkt_stat,
+			 struct ieee80211_rx_status *rx_status);
 void rtw_update_rx_freq_from_ie(struct rtw_dev *rtwdev, struct sk_buff *skb,
 				struct ieee80211_rx_status *rx_status,
 				struct rtw_rx_pkt_stat *pkt_stat);

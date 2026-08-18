@@ -17,6 +17,15 @@
 /* SMU communication registers */
 #define AMD_PMC_REGISTER_RESPONSE	0x980
 #define AMD_PMC_REGISTER_ARGUMENT	0x9BC
+#define AMD_PMC_REGISTER_MESSAGE	0x538
+
+/* SMU communication registers for 1Ah 20h SoC */
+#define AMD_PMC_REGISTER_MSG_1AH_20H	0x938
+
+/* SMU communication registers for 1Ah 80h SoC */
+#define AMD_PMC_REGISTER_MSG_1AH_80H	0xA10
+#define AMD_PMC_REGISTER_ARG_1AH_80H	0xA18
+#define AMD_PMC_REGISTER_RSP_1AH_80H	0xA14
 
 /* PMC Scratch Registers */
 #define AMD_PMC_SCRATCH_REG_CZN		0x94
@@ -90,6 +99,22 @@ struct stb_arg {
 	u32 resp;
 };
 
+struct amd_pmc_bit_map {
+	const char *name;
+	u32 bit_mask;
+};
+
+/* SoC-specific information */
+struct amd_pmc_cpu_info {
+	u32 smu_msg;
+	u32 smu_arg;
+	u32 smu_rsp;
+	u32 num_ips;
+	u32 scratch_reg;
+	const struct amd_pmc_bit_map *ips_ptr;
+	u8 os_hint;
+};
+
 struct amd_pmc_dev {
 	void __iomem *regbase;
 	void __iomem *smu_virt_addr;
@@ -99,9 +124,6 @@ struct amd_pmc_dev {
 	u32 cpu_id;
 	u32 dram_size;
 	u32 active_ips;
-	const struct amd_pmc_bit_map *ips_ptr;
-	u32 num_ips;
-	u32 smu_msg;
 /* SMU version information */
 	u8 smu_program;
 	u8 major;
@@ -114,13 +136,10 @@ struct amd_pmc_dev {
 	struct dentry *dbgfs_dir;
 	struct quirk_entry *quirks;
 	bool disable_8042_wakeup;
+	bool is_first_check_after_suspend;
 	struct amd_mp2_dev *mp2;
 	struct stb_arg stb_arg;
-};
-
-struct amd_pmc_bit_map {
-	const char *name;
-	u32 bit_mask;
+	const struct amd_pmc_cpu_info *cpu_info;
 };
 
 struct smu_metrics {
@@ -147,24 +166,35 @@ enum amd_pmc_def {
 };
 
 void amd_pmc_process_restore_quirks(struct amd_pmc_dev *dev);
+bool amd_pmc_quirk_need_suspend_delay(struct amd_pmc_dev *dev);
 void amd_pmc_quirks_init(struct amd_pmc_dev *dev);
 void amd_mp2_stb_init(struct amd_pmc_dev *dev);
 void amd_mp2_stb_deinit(struct amd_pmc_dev *dev);
 
-/* List of supported CPU ids */
-#define AMD_CPU_ID_RV			0x15D0
-#define AMD_CPU_ID_RN			0x1630
-#define AMD_CPU_ID_PCO			AMD_CPU_ID_RV
-#define AMD_CPU_ID_CZN			AMD_CPU_ID_RN
-#define AMD_CPU_ID_VG			0x1645
-#define AMD_CPU_ID_YC			0x14B5
-#define AMD_CPU_ID_CB			0x14D8
-#define AMD_CPU_ID_PS			0x14E8
-#define AMD_CPU_ID_SP			0x14A4
-#define AMD_CPU_ID_SHP			0x153A
-#define PCI_DEVICE_ID_AMD_1AH_M20H_ROOT 0x1507
-#define PCI_DEVICE_ID_AMD_1AH_M60H_ROOT 0x1122
-#define PCI_DEVICE_ID_AMD_MP2_STB	0x172c
+/* List of supported CPU/device IDs */
+#define PCI_DEVICE_ID_AMD_CPU_ID_PCO	0x15D0
+#define PCI_DEVICE_ID_AMD_CPU_ID_CZN	0x1630
+#define PCI_DEVICE_ID_AMD_CPU_ID_VG	0x1645
+#define PCI_DEVICE_ID_AMD_CPU_ID_YC	0x14B5
+#define PCI_DEVICE_ID_AMD_CPU_ID_CB	0x14D8
+#define PCI_DEVICE_ID_AMD_CPU_ID_PS	0x14E8
+#define PCI_DEVICE_ID_AMD_CPU_ID_SP	0x14A4
+#define PCI_DEVICE_ID_AMD_CPU_ID_SHP	0x153A
+
+/* Backward compatibility aliases */
+#define AMD_CPU_ID_PCO		PCI_DEVICE_ID_AMD_CPU_ID_PCO
+#define AMD_CPU_ID_CZN		PCI_DEVICE_ID_AMD_CPU_ID_CZN
+#define AMD_CPU_ID_VG		PCI_DEVICE_ID_AMD_CPU_ID_VG
+#define AMD_CPU_ID_YC		PCI_DEVICE_ID_AMD_CPU_ID_YC
+#define AMD_CPU_ID_CB		PCI_DEVICE_ID_AMD_CPU_ID_CB
+#define AMD_CPU_ID_PS		PCI_DEVICE_ID_AMD_CPU_ID_PS
+#define AMD_CPU_ID_SP		PCI_DEVICE_ID_AMD_CPU_ID_SP
+#define AMD_CPU_ID_SHP		PCI_DEVICE_ID_AMD_CPU_ID_SHP
+
+#define PCI_DEVICE_ID_AMD_1AH_M20H_ROOT		0x1507
+#define PCI_DEVICE_ID_AMD_1AH_M60H_ROOT		0x1122
+#define PCI_DEVICE_ID_AMD_1AH_M80H_ROOT		0x115b
+#define PCI_DEVICE_ID_AMD_MP2_STB		0x172c
 
 int amd_stb_s2d_init(struct amd_pmc_dev *dev);
 int amd_stb_read(struct amd_pmc_dev *dev, u32 *buf);

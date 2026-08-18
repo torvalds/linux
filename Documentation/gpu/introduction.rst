@@ -16,6 +16,8 @@ found in current kernels.
 
 [Insert diagram of typical DRM stack here]
 
+.. contents::
+
 Style Guidelines
 ================
 

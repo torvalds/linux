@@ -472,6 +472,18 @@ static int cpm1_gpio16_dir_in(struct gpio_chip *gc, unsigned int gpio)
 	return 0;
 }
 
+static int cpm1_gpio16_get_direction(struct gpio_chip *gc, unsigned int gpio)
+{
+	struct cpm1_gpio16_chip *cpm1_gc = gpiochip_get_data(gc);
+	struct cpm_ioport16 __iomem *iop = cpm1_gc->regs;
+	u16 pin_mask = 1 << (15 - gpio);
+
+	if (in_be16(&iop->dir) & pin_mask)
+		return GPIO_LINE_DIRECTION_OUT;
+
+	return GPIO_LINE_DIRECTION_IN;
+}
+
 int cpm1_gpiochip_add16(struct device *dev)
 {
 	struct device_node *np = dev->of_node;
@@ -498,6 +510,7 @@ int cpm1_gpiochip_add16(struct device *dev)
 	gc->ngpio = 16;
 	gc->direction_input = cpm1_gpio16_dir_in;
 	gc->direction_output = cpm1_gpio16_dir_out;
+	gc->get_direction = cpm1_gpio16_get_direction;
 	gc->get = cpm1_gpio16_get;
 	gc->set = cpm1_gpio16_set;
 	gc->to_irq = cpm1_gpio16_to_irq;
@@ -604,6 +617,18 @@ static int cpm1_gpio32_dir_in(struct gpio_chip *gc, unsigned int gpio)
 	return 0;
 }
 
+static int cpm1_gpio32_get_direction(struct gpio_chip *gc, unsigned int gpio)
+{
+	struct cpm1_gpio32_chip *cpm1_gc = gpiochip_get_data(gc);
+	struct cpm_ioport32b __iomem *iop = cpm1_gc->regs;
+	u32 pin_mask = 1 << (31 - gpio);
+
+	if (in_be32(&iop->dir) & pin_mask)
+		return GPIO_LINE_DIRECTION_OUT;
+
+	return GPIO_LINE_DIRECTION_IN;
+}
+
 int cpm1_gpiochip_add32(struct device *dev)
 {
 	struct device_node *np = dev->of_node;
@@ -621,6 +646,7 @@ int cpm1_gpiochip_add32(struct device *dev)
 	gc->ngpio = 32;
 	gc->direction_input = cpm1_gpio32_dir_in;
 	gc->direction_output = cpm1_gpio32_dir_out;
+	gc->get_direction = cpm1_gpio32_get_direction;
 	gc->get = cpm1_gpio32_get;
 	gc->set = cpm1_gpio32_set;
 	gc->parent = dev;

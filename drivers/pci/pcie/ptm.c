@@ -152,8 +152,7 @@ static int __pci_enable_ptm(struct pci_dev *dev)
 	pci_read_config_dword(dev, ptm + PCI_PTM_CTRL, &ctrl);
 
 	ctrl |= PCI_PTM_CTRL_ENABLE;
-	ctrl &= ~PCI_PTM_GRANULARITY_MASK;
-	ctrl |= FIELD_PREP(PCI_PTM_GRANULARITY_MASK, dev->ptm_granularity);
+	FIELD_MODIFY(PCI_PTM_GRANULARITY_MASK, &ctrl, dev->ptm_granularity);
 	if (dev->ptm_root)
 		ctrl |= PCI_PTM_CTRL_ROOT;
 

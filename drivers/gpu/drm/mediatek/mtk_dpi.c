@@ -25,8 +25,8 @@
 #include <drm/drm_bridge_connector.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_encoder.h>
 #include <drm/drm_of.h>
-#include <drm/drm_simple_kms_helper.h>
 
 #include "mtk_ddp_comp.h"
 #include "mtk_disp_drv.h"
@@ -993,6 +993,10 @@ static const struct drm_bridge_funcs mtk_dpi_bridge_funcs = {
 	.debugfs_init = mtk_dpi_debugfs_init,
 };
 
+static const struct drm_encoder_funcs mtk_dpi_encoder_funcs = {
+	.destroy = drm_encoder_cleanup,
+};
+
 void mtk_dpi_start(struct device *dev)
 {
 	struct mtk_dpi *dpi = dev_get_drvdata(dev);
@@ -1026,8 +1030,8 @@ static int mtk_dpi_bind(struct device *dev, struct device *master, void *data)
 	int ret;
 
 	dpi->mmsys_dev = priv->mmsys_dev;
-	ret = drm_simple_encoder_init(drm_dev, &dpi->encoder,
-				      DRM_MODE_ENCODER_TMDS);
+	ret = drm_encoder_init(drm_dev, &dpi->encoder, &mtk_dpi_encoder_funcs,
+			       DRM_MODE_ENCODER_TMDS, NULL);
 	if (ret) {
 		dev_err(dev, "Failed to initialize decoder: %d\n", ret);
 		return ret;
@@ -1049,7 +1053,6 @@ static int mtk_dpi_bind(struct device *dev, struct device *master, void *data)
 		ret = PTR_ERR(dpi->connector);
 		goto err_cleanup;
 	}
-	drm_connector_attach_encoder(dpi->connector, &dpi->encoder);
 
 	return 0;
 

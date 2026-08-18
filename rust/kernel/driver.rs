@@ -13,9 +13,12 @@
 //! The main driver interface is defined by a bus specific driver trait. For instance:
 //!
 //! ```ignore
-//! pub trait Driver: Send {
+//! pub trait Driver {
 //!     /// The type holding information about each device ID supported by the driver.
 //!     type IdInfo: 'static;
+//!
+//!     /// The type of the driver's bus device private data.
+//!     type Data<'bound>: Send + 'bound;
 //!
 //!     /// The table of OF device ids supported by the driver.
 //!     const OF_ID_TABLE: Option<of::IdTable<Self::IdInfo>> = None;
@@ -24,10 +27,16 @@
 //!     const ACPI_ID_TABLE: Option<acpi::IdTable<Self::IdInfo>> = None;
 //!
 //!     /// Driver probe.
-//!     fn probe(dev: &Device<device::Core>, id_info: &Self::IdInfo) -> impl PinInit<Self, Error>;
+//!     fn probe<'bound>(
+//!         dev: &'bound Device<device::Core<'_>>,
+//!         id_info: &'bound Self::IdInfo,
+//!     ) -> impl PinInit<Self::Data<'bound>, Error> + 'bound;
 //!
 //!     /// Driver unbind (optional).
-//!     fn unbind(dev: &Device<device::Core>, this: Pin<&Self>) {
+//!     fn unbind<'bound>(
+//!         dev: &'bound Device<device::Core<'_>>,
+//!         this: Pin<&Self::Data<'bound>>,
+//!     ) {
 //!         let _ = (dev, this);
 //!     }
 //! }
@@ -42,8 +51,9 @@
 )]
 #![cfg_attr(CONFIG_PCI, doc = "* [`pci::Driver`](kernel::pci::Driver)")]
 //!
-//! The `probe()` callback should return a `impl PinInit<Self, Error>`, i.e. the driver's private
-//! data. The bus abstraction should store the pointer in the corresponding bus device. The generic
+//! The `probe()` callback should return a
+//! `impl PinInit<Self::Data<'bound>, Error>`, i.e. the driver's private data. The bus
+//! abstraction should store the pointer in the corresponding bus device. The generic
 //! [`Device`] infrastructure provides common helpers for this purpose on its
 //! [`Device<CoreInternal>`] implementation.
 //!
@@ -118,8 +128,8 @@ pub unsafe trait DriverLayout {
     /// The specific driver type embedding a `struct device_driver`.
     type DriverType: Default;
 
-    /// The type of the driver's device private data.
-    type DriverData;
+    /// The type of the driver's bus device private data.
+    type DriverData<'bound>;
 
     /// Byte offset of the embedded `struct device_driver` within `DriverType`.
     ///
@@ -181,20 +191,20 @@ unsafe impl<T: RegistrationOps> Sync for Registration<T> {}
 // any thread, so `Registration` is `Send`.
 unsafe impl<T: RegistrationOps> Send for Registration<T> {}
 
-impl<T: RegistrationOps + 'static> Registration<T> {
+impl<T: RegistrationOps> Registration<T> {
     extern "C" fn post_unbind_callback(dev: *mut bindings::device) {
         // SAFETY: The driver core only ever calls the post unbind callback with a valid pointer to
         // a `struct device`.
         //
         // INVARIANT: `dev` is valid for the duration of the `post_unbind_callback()`.
-        let dev = unsafe { &*dev.cast::<device::Device<device::CoreInternal>>() };
+        let dev = unsafe { &*dev.cast::<device::Device<device::CoreInternal<'_>>>() };
 
-        // `remove()` and all devres callbacks have been completed at this point, hence drop the
-        // driver's device private data.
+        // `remove()` has been completed at this point; devres resources are still valid and will
+        // be released after the driver's bus device private data is dropped.
         //
         // SAFETY: By the safety requirements of the `Driver` trait, `T::DriverData` is the
-        // driver's device private data type.
-        drop(unsafe { dev.drvdata_obtain::<T::DriverData>() });
+        // driver's bus device private data type.
+        drop(unsafe { dev.drvdata_obtain::<T::DriverData<'_>>() });
     }
 
     /// Attach generic `struct device_driver` callbacks.
@@ -215,7 +225,10 @@ impl<T: RegistrationOps + 'static> Registration<T> {
     }
 
     /// Creates a new instance of the registration object.
-    pub fn new(name: &'static CStr, module: &'static ThisModule) -> impl PinInit<Self, Error> {
+    pub fn new(name: &'static CStr, module: &'static ThisModule) -> impl PinInit<Self, Error>
+    where
+        T: 'static,
+    {
         try_pin_init!(Self {
             reg <- Opaque::try_ffi_init(|ptr: *mut T::DriverType| {
                 // SAFETY: `try_ffi_init` guarantees that `ptr` is valid for write.
@@ -278,6 +291,26 @@ macro_rules! module_driver {
     }
 }
 
+// Calling the FFI function directly from the `Adapter` impl may result in it being called
+// directly from driver modules. This happens since the Rust compiler will use monomorphisation, so
+// it might happen that functions are instantiated within the calling driver module. For now, work
+// around this with `#[inline(never)]` helpers.
+//
+// TODO: Remove once a more generic solution has been implemented. For instance, we may be able to
+// leverage `bindgen` to take care of this depending on whether a symbol is (already) exported.
+#[inline(never)]
+#[allow(clippy::missing_safety_doc)]
+#[allow(dead_code)]
+#[must_use]
+unsafe fn acpi_of_match_device(
+    adev: *const bindings::acpi_device,
+    of_match_table: *const bindings::of_device_id,
+    of_id: *mut *const bindings::of_device_id,
+) -> bool {
+    // SAFETY: Safety requirements are the same as `bindings::acpi_of_match_device`.
+    unsafe { bindings::acpi_of_match_device(adev, of_match_table, of_id) }
+}
+
 /// The bus independent adapter to match a drivers and a devices.
 ///
 /// This trait should be implemented by the bus specific adapter, which represents the connection
@@ -329,35 +362,63 @@ pub trait Adapter {
     ///
     /// If this returns `None`, it means there is no match with an entry in the [`of::IdTable`].
     fn of_id_info(dev: &device::Device) -> Option<&'static Self::IdInfo> {
-        #[cfg(not(CONFIG_OF))]
+        let table = Self::of_id_table()?;
+
+        #[cfg(not(any(CONFIG_OF, CONFIG_ACPI)))]
         {
-            let _ = dev;
-            None
+            let _ = (dev, table);
         }
 
         #[cfg(CONFIG_OF)]
         {
-            let table = Self::of_id_table()?;
-
             // SAFETY:
             // - `table` has static lifetime, hence it's valid for read,
             // - `dev` is guaranteed to be valid while it's alive, and so is `dev.as_raw()`.
             let raw_id = unsafe { bindings::of_match_device(table.as_ptr(), dev.as_raw()) };
 
-            if raw_id.is_null() {
-                None
-            } else {
+            if !raw_id.is_null() {
                 // SAFETY: `DeviceId` is a `#[repr(transparent)]` wrapper of `struct of_device_id`
                 // and does not add additional invariants, so it's safe to transmute.
                 let id = unsafe { &*raw_id.cast::<of::DeviceId>() };
 
-                Some(
-                    table.info(<of::DeviceId as crate::device_id::RawDeviceIdIndex>::index(
-                        id,
-                    )),
-                )
+                return Some(table.info(
+                    <of::DeviceId as crate::device_id::RawDeviceIdIndex>::index(id),
+                ));
             }
         }
+
+        #[cfg(CONFIG_ACPI)]
+        {
+            use core::ptr;
+            use device::property::FwNode;
+
+            let mut raw_id = ptr::null();
+
+            let fwnode = dev.fwnode().map_or(ptr::null_mut(), FwNode::as_raw);
+
+            // SAFETY: `fwnode` is a pointer to a valid `fwnode_handle`. A null pointer will be
+            // passed through the function.
+            let adev = unsafe { bindings::to_acpi_device_node(fwnode) };
+
+            // SAFETY:
+            // - `adev` is a valid pointer to `acpi_device` or is null. It is guaranteed to be
+            //   valid as long as `dev` is alive.
+            // - `table` has static lifetime, hence it's valid for read.
+            if unsafe { acpi_of_match_device(adev, table.as_ptr(), &raw mut raw_id) } {
+                // SAFETY:
+                // - the function returns true, therefore `raw_id` has been set to a pointer to a
+                //   valid `of_device_id`.
+                // - `DeviceId` is a `#[repr(transparent)]` wrapper of `struct of_device_id`
+                //   and does not add additional invariants, so it's safe to transmute.
+                let id = unsafe { &*raw_id.cast::<of::DeviceId>() };
+
+                return Some(table.info(
+                    <of::DeviceId as crate::device_id::RawDeviceIdIndex>::index(id),
+                ));
+            }
+        }
+
+        None
     }
 
     /// Returns the driver's private data from the matching entry of any of the ID tables, if any.

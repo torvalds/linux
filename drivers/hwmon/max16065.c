@@ -592,12 +592,12 @@ static int max16065_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id max16065_id[] = {
-	{ "max16065", max16065 },
-	{ "max16066", max16066 },
-	{ "max16067", max16067 },
-	{ "max16068", max16068 },
-	{ "max16070", max16070 },
-	{ "max16071", max16071 },
+	{ .name = "max16065", .driver_data = max16065 },
+	{ .name = "max16066", .driver_data = max16066 },
+	{ .name = "max16067", .driver_data = max16067 },
+	{ .name = "max16068", .driver_data = max16068 },
+	{ .name = "max16070", .driver_data = max16070 },
+	{ .name = "max16071", .driver_data = max16071 },
 	{ }
 };
 

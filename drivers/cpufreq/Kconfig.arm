@@ -153,7 +153,7 @@ config ARM_QCOM_CPUFREQ_NVMEM
 	  If in doubt, say N.
 
 config ARM_QCOM_CPUFREQ_HW
-	tristate "QCOM CPUFreq HW driver"
+	tristate "Qualcomm CPUFreq HW driver"
 	depends on ARCH_QCOM || COMPILE_TEST
 	depends on COMMON_CLK
 	help

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/anon_inodes.h>
+#include <linux/compat.h>
 #include <linux/exportfs.h>
 #include <linux/file.h>
 #include <linux/fs.h>
@@ -36,6 +37,8 @@
 static struct kmem_cache *pidfs_attr_cachep __ro_after_init;
 
 static struct path pidfs_root_path = {};
+
+static struct simple_xattr_cache pidfs_xa_cache;
 
 void pidfs_get_root(struct path *path)
 {
@@ -96,7 +99,7 @@ static const struct rhashtable_params pidfs_ino_ht_params = {
  * use file handles.
  */
 struct pidfs_attr {
-	struct simple_xattrs *xattrs;
+	struct list_head xattrs;
 	union {
 		struct pidfs_anon_attr;
 		struct llist_node pidfs_llist;
@@ -105,7 +108,7 @@ struct pidfs_attr {
 
 #if BITS_PER_LONG == 32
 
-DEFINE_SPINLOCK(pidfs_ino_lock);
+static DEFINE_SPINLOCK(pidfs_ino_lock);
 static u64 pidfs_ino_nr = 1;
 
 static inline unsigned long pidfs_ino(u64 ino)
@@ -196,12 +199,7 @@ static void pidfs_free_attr_work(struct work_struct *work)
 
 	head = llist_del_all(&pidfs_free_list);
 	llist_for_each_entry_safe(attr, next, head, pidfs_llist) {
-		struct simple_xattrs *xattrs = attr->xattrs;
-
-		if (xattrs) {
-			simple_xattrs_free(xattrs, NULL);
-			kfree(xattrs);
-		}
+		simple_xattrs_free(&pidfs_xa_cache, &attr->xattrs, NULL);
 		kfree(attr);
 	}
 }
@@ -229,7 +227,7 @@ void pidfs_free_pid(struct pid *pid)
 	if (IS_ERR(attr))
 		return;
 
-	if (likely(!attr->xattrs))
+	if (likely(list_empty(&attr->xattrs)))
 		kfree(attr);
 	else if (llist_add(&attr->pidfs_llist, &pidfs_free_list))
 		schedule_work(&pidfs_free_work);
@@ -338,14 +336,14 @@ static inline bool pid_in_current_pidns(const struct pid *pid)
 	return false;
 }
 
-static __u32 pidfs_coredump_mask(unsigned long mm_flags)
+static __u32 pidfs_coredump_mask(enum task_dumpable dumpable)
 {
-	switch (__get_dumpable(mm_flags)) {
-	case SUID_DUMP_USER:
+	switch (dumpable) {
+	case TASK_DUMPABLE_OWNER:
 		return PIDFD_COREDUMP_USER;
-	case SUID_DUMP_ROOT:
+	case TASK_DUMPABLE_ROOT:
 		return PIDFD_COREDUMP_ROOT;
-	case SUID_DUMP_DISABLE:
+	case TASK_DUMPABLE_OFF:
 		return PIDFD_COREDUMP_SKIP;
 	default:
 		WARN_ON_ONCE(true);
@@ -433,14 +431,9 @@ static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 		return -ESRCH;
 
 	if ((mask & PIDFD_INFO_COREDUMP) && !kinfo.coredump_mask) {
-		guard(task_lock)(task);
-		if (task->mm) {
-			unsigned long flags = __mm_flags_get_dumpable(task->mm);
-
-			kinfo.coredump_mask = pidfs_coredump_mask(flags);
-			kinfo.mask |= PIDFD_INFO_COREDUMP;
-			/* No coredump actually took place, so no coredump signal. */
-		}
+		kinfo.coredump_mask = pidfs_coredump_mask(task_exec_state_get_dumpable(task));
+		kinfo.mask |= PIDFD_INFO_COREDUMP;
+		/* No coredump actually took place, so no coredump signal. */
 	}
 
 	/* Unconditionally return identifiers and credentials, the rest only on request */
@@ -667,6 +660,17 @@ static long pidfd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return open_namespace(ns_common);
 }
 
+#ifdef CONFIG_COMPAT
+static long pidfd_compat_ioctl(struct file *file, unsigned int cmd,
+			       unsigned long arg)
+{
+	if (cmd == FS_IOC32_GETVERSION)
+		cmd = FS_IOC_GETVERSION;
+
+	return pidfd_ioctl(file, cmd, (unsigned long)compat_ptr(arg));
+}
+#endif
+
 static int pidfs_file_release(struct inode *inode, struct file *file)
 {
 	struct pid *pid = inode->i_private;
@@ -694,7 +698,9 @@ static const struct file_operations pidfs_file_operations = {
 	.show_fdinfo	= pidfd_show_fdinfo,
 #endif
 	.unlocked_ioctl	= pidfd_ioctl,
-	.compat_ioctl   = compat_ptr_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= pidfd_compat_ioctl,
+#endif
 };
 
 struct pid *pidfd_pid(const struct file *file)
@@ -779,7 +785,7 @@ void pidfs_coredump(const struct coredump_params *cprm)
 	VFS_WARN_ON_ONCE(attr == PIDFS_PID_DEAD);
 
 	/* Note how we were coredumped and that we coredumped. */
-	attr->coredump_mask = pidfs_coredump_mask(cprm->mm_flags) |
+	attr->coredump_mask = pidfs_coredump_mask(cprm->dumpable) |
 			      PIDFD_COREDUMPED;
 	/* If coredumping is set to skip we should never end up here. */
 	VFS_WARN_ON_ONCE(attr->coredump_mask & PIDFD_COREDUMP_SKIP);
@@ -815,14 +821,8 @@ static ssize_t pidfs_listxattr(struct dentry *dentry, char *buf, size_t size)
 {
 	struct inode *inode = d_inode(dentry);
 	struct pid *pid = inode->i_private;
-	struct pidfs_attr *attr = pid->attr;
-	struct simple_xattrs *xattrs;
 
-	xattrs = READ_ONCE(attr->xattrs);
-	if (!xattrs)
-		return 0;
-
-	return simple_xattr_list(inode, xattrs, buf, size);
+	return simple_xattr_list(inode, &pid->attr->xattrs, buf, size);
 }
 
 static const struct inode_operations pidfs_inode_operations = {
@@ -929,6 +929,20 @@ static struct dentry *pidfs_fh_to_dentry(struct super_block *sb,
 	return path.dentry;
 }
 
+static struct file *pidfs_dentry_open(const struct path *path,
+				      unsigned int flags,
+				      const struct cred *cred)
+{
+	struct file *file;
+
+	/* pidfds are always O_RDWR. */
+	file = dentry_open(path, flags | O_RDWR, cred);
+	/* do_dentry_open() strips O_EXCL and O_TRUNC. */
+	if (!IS_ERR(file))
+		file->f_flags |= flags & (PIDFD_THREAD | PIDFD_AUTOKILL);
+	return file;
+}
+
 /*
  * Make sure that we reject any nonsensical flags that users pass via
  * open_by_handle_at(). Note that PIDFD_THREAD is defined as O_EXCL, and
@@ -954,11 +968,13 @@ static int pidfs_export_permission(struct handle_to_path_ctx *ctx,
 static struct file *pidfs_export_open(const struct path *path, unsigned int oflags)
 {
 	/*
-	 * Clear O_LARGEFILE as open_by_handle_at() forces it and raise
-	 * O_RDWR as pidfds always are.
+	 * Opening via file handle may never raise PIDFD_AUTOKILL. That can
+	 * only be done at task creation!
 	 */
-	oflags &= ~O_LARGEFILE;
-	return dentry_open(path, oflags | O_RDWR, current_cred());
+	if (WARN_ON_ONCE(oflags & PIDFD_AUTOKILL))
+		return ERR_PTR(-EINVAL);
+	/* Clear O_LARGEFILE as open_by_handle_at() forces it. */
+	return pidfs_dentry_open(path, oflags & ~O_LARGEFILE, current_cred());
 }
 
 static const struct export_operations pidfs_export_operations = {
@@ -991,14 +1007,16 @@ static void pidfs_put_data(void *data)
 }
 
 /**
- * pidfs_register_pid - register a struct pid in pidfs
+ * pidfs_register_pid_gfp - register a struct pid in pidfs with custom GFP
+ * flags
  * @pid: pid to pin
+ * @gfp: GFP flags for memory allocation
  *
- * Register a struct pid in pidfs.
+ * Register a struct pid in pidfs with custom GFP flags.
  *
  * Return: On success zero, on error a negative error code is returned.
  */
-int pidfs_register_pid(struct pid *pid)
+int pidfs_register_pid_gfp(struct pid *pid, gfp_t gfp)
 {
 	struct pidfs_attr *new_attr __free(kfree) = NULL;
 	struct pidfs_attr *attr;
@@ -1014,9 +1032,11 @@ int pidfs_register_pid(struct pid *pid)
 	if (attr)
 		return 0;
 
-	new_attr = kmem_cache_zalloc(pidfs_attr_cachep, GFP_KERNEL);
+	new_attr = kmem_cache_zalloc(pidfs_attr_cachep, gfp);
 	if (!new_attr)
 		return -ENOMEM;
+
+	INIT_LIST_HEAD_RCU(&new_attr->xattrs);
 
 	/* Synchronize with pidfs_exit(). */
 	guard(spinlock_irq)(&pid->wait_pidfd.lock);
@@ -1057,16 +1077,9 @@ static int pidfs_xattr_get(const struct xattr_handler *handler,
 			   const char *suffix, void *value, size_t size)
 {
 	struct pid *pid = inode->i_private;
-	struct pidfs_attr *attr = pid->attr;
-	const char *name;
-	struct simple_xattrs *xattrs;
+	const char *name = xattr_full_name(handler, suffix);
 
-	xattrs = READ_ONCE(attr->xattrs);
-	if (!xattrs)
-		return -ENODATA;
-
-	name = xattr_full_name(handler, suffix);
-	return simple_xattr_get(xattrs, name, value, size);
+	return simple_xattr_get(&pidfs_xa_cache, &pid->attr->xattrs, name, value, size);
 }
 
 static int pidfs_xattr_set(const struct xattr_handler *handler,
@@ -1075,20 +1088,13 @@ static int pidfs_xattr_set(const struct xattr_handler *handler,
 			   const void *value, size_t size, int flags)
 {
 	struct pid *pid = inode->i_private;
-	struct pidfs_attr *attr = pid->attr;
-	const char *name;
-	struct simple_xattrs *xattrs;
+	const char *name = xattr_full_name(handler, suffix);
 	struct simple_xattr *old_xattr;
 
 	/* Ensure we're the only one to set @attr->xattrs. */
 	WARN_ON_ONCE(!inode_is_locked(inode));
 
-	xattrs = simple_xattrs_lazy_alloc(&attr->xattrs, value, flags);
-	if (IS_ERR_OR_NULL(xattrs))
-		return PTR_ERR(xattrs);
-
-	name = xattr_full_name(handler, suffix);
-	old_xattr = simple_xattr_set(xattrs, name, value, size, flags);
+	old_xattr = simple_xattr_set(&pidfs_xa_cache, &pid->attr->xattrs, name, value, size, flags);
 	if (IS_ERR(old_xattr))
 		return PTR_ERR(old_xattr);
 
@@ -1115,8 +1121,6 @@ static int pidfs_init_fs_context(struct fs_context *fc)
 	if (!ctx)
 		return -ENOMEM;
 
-	fc->s_iflags |= SB_I_NOEXEC;
-	fc->s_iflags |= SB_I_NODEV;
 	ctx->s_d_flags |= DCACHE_DONTCACHE;
 	ctx->ops = &pidfs_sops;
 	ctx->eops = &pidfs_export_operations;
@@ -1134,7 +1138,6 @@ static struct file_system_type pidfs_type = {
 
 struct file *pidfs_alloc_file(struct pid *pid, unsigned int flags)
 {
-	struct file *pidfd_file;
 	struct path path __free(path_put) = {};
 	int ret;
 
@@ -1152,16 +1155,7 @@ struct file *pidfs_alloc_file(struct pid *pid, unsigned int flags)
 	VFS_WARN_ON_ONCE(!pid->attr);
 
 	flags &= ~PIDFD_STALE;
-	flags |= O_RDWR;
-	pidfd_file = dentry_open(&path, flags, current_cred());
-	/*
-	 * Raise PIDFD_THREAD and PIDFD_AUTOKILL explicitly as
-	 * do_dentry_open() strips O_EXCL and O_TRUNC.
-	 */
-	if (!IS_ERR(pidfd_file))
-		pidfd_file->f_flags |= (flags & (PIDFD_THREAD | PIDFD_AUTOKILL));
-
-	return pidfd_file;
+	return pidfs_dentry_open(&path, flags, current_cred());
 }
 
 void __init pidfs_init(void)

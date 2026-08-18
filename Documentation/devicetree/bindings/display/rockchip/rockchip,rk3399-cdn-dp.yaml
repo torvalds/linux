@@ -41,7 +41,9 @@ properties:
     minItems: 1
     items:
       - description: Extcon device providing the cable state for DP PHY device 0
+        maxItems: 1
       - description: Extcon device providing the cable state for DP PHY device 1
+        maxItems: 1
     description:
       List of phandle to the extcon device providing the cable state for the DP PHY.
 

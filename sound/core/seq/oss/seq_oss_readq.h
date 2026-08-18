@@ -10,13 +10,13 @@
 #define __SEQ_OSS_READQ_H
 
 #include "seq_oss_device.h"
+#include "seq_oss_event.h"
 
 
 /*
  * definition of read queue
  */
 struct seq_oss_readq {
-	union evrec *q;
 	int qlen;
 	int maxlen;
 	int head, tail;
@@ -24,6 +24,7 @@ struct seq_oss_readq {
 	unsigned long input_time;
 	wait_queue_head_t midi_sleep;
 	spinlock_t lock;
+	union evrec q[] __counted_by(maxlen);
 };
 
 struct seq_oss_readq *snd_seq_oss_readq_new(struct seq_oss_devinfo *dp, int maxlen);

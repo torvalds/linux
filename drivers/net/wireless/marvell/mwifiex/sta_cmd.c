@@ -108,7 +108,7 @@ static int mwifiex_cmd_802_11_snmp_mib(struct mwifiex_private *priv,
 		    "cmd: SNMP_CMD: cmd_oid = 0x%x\n", cmd_oid);
 	cmd->command = cpu_to_le16(HostCmd_CMD_802_11_SNMP_MIB);
 	cmd->size = cpu_to_le16(sizeof(struct host_cmd_ds_802_11_snmp_mib)
-				- 1 + S_DS_GEN);
+				+ S_DS_GEN);
 
 	snmp_mib->oid = cpu_to_le16((u16)cmd_oid);
 	if (cmd_action == HostCmd_ACT_GEN_GET) {
@@ -1568,28 +1568,23 @@ int mwifiex_send_rgpower_table(struct mwifiex_private *priv, const u8 *data,
 			return -EINVAL;
 		}
 
-		if (start_raw) {
-			while ((*pos != '\r' && *pos != '\n') &&
-			       (token = strsep((char **)&pos, " "))) {
-				if (ptr - hostcmd->cmd >=
-				    MWIFIEX_SIZE_OF_CMD_BUFFER) {
-					mwifiex_dbg(
-						adapter, ERROR,
-						"%s: hostcmd is larger than %d, aborting\n",
-						__func__, MWIFIEX_SIZE_OF_CMD_BUFFER);
-					return -ENOMEM;
-				}
-
-				ret = kstrtou8(token, 16, ptr);
-				if (ret < 0) {
-					mwifiex_dbg(
-						adapter, ERROR,
-						"%s: failed to parse hostcmd %d token: %s\n",
-						__func__, ret, token);
-					return ret;
-				}
-				ptr++;
+		while ((*pos != '\r' && *pos != '\n') &&
+		       (token = strsep((char **)&pos, " "))) {
+			if (ptr - hostcmd->cmd >= MWIFIEX_SIZE_OF_CMD_BUFFER) {
+				mwifiex_dbg(adapter, ERROR,
+					"%s: hostcmd is larger than %d, aborting\n",
+					__func__, MWIFIEX_SIZE_OF_CMD_BUFFER);
+				return -ENOMEM;
 			}
+
+			ret = kstrtou8(token, 16, ptr);
+			if (ret < 0) {
+				mwifiex_dbg(adapter, ERROR,
+					"%s: failed to parse hostcmd %d token: %s\n",
+					__func__, ret, token);
+				return ret;
+			}
+			ptr++;
 		}
 	}
 

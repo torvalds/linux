@@ -16,9 +16,22 @@ Date:		March 2020
 KernelVersion:	5.9
 Contact:	Dan Murphy <dmurphy@ti.com>
 Description:	read/write
-		This file contains array of integers. Order of components is
-		described by the multi_index array. The maximum intensity should
-		not exceed /sys/class/leds/<led>/max_brightness.
+		This file contains an array of integers. The order of components
+		is described by the multi_index array. The maximum intensity value
+		supported by each color component is described by the multi_max_intensity
+		file. Writing intensity values larger than the maximum value of a
+		given color component will result in those values being clamped.
+
+		For additional details please refer to
+		Documentation/leds/leds-class-multicolor.rst.
+
+What:		/sys/class/leds/<led>/multi_max_intensity
+Date:		May 2026
+KernelVersion:	7.2
+Contact:	Armin Wolf <W_Armin@gmx.de>
+Description:	read
+		This file contains an array of integers describing the maximum
+		intensity value for each intensity component.
 
 		For additional details please refer to
 		Documentation/leds/leds-class-multicolor.rst.

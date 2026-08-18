@@ -42,7 +42,6 @@ config X86_REQUIRED_FEATURE_NOPL
 
 config X86_REQUIRED_FEATURE_CX8
 	def_bool y
-	depends on X86_CX8
 
 # this should be set for all -march=.. options where the compiler
 # generates cmov.
@@ -70,7 +69,6 @@ config X86_REQUIRED_FEATURE_UP
 
 config X86_REQUIRED_FEATURE_FPU
 	def_bool y
-	depends on !MATH_EMULATION
 
 config X86_REQUIRED_FEATURE_PAE
 	def_bool y

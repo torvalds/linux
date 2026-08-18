@@ -10,6 +10,7 @@
 
 const char *user_ptr = "hello world";
 char file_contents[256000];
+void *addr;
 
 void *get_executable_base_addr(void)
 {
@@ -26,8 +27,7 @@ void *get_executable_base_addr(void)
 static int initialize_file_contents(void)
 {
 	int fd, page_sz = sysconf(_SC_PAGESIZE);
-	ssize_t n = 0, cur, off;
-	void *addr;
+	ssize_t n = 0, cur;
 
 	fd = open("/proc/self/exe", O_RDONLY);
 	if (!ASSERT_OK_FD(fd, "Open /proc/self/exe\n"))
@@ -51,16 +51,6 @@ static int initialize_file_contents(void)
 
 	/* page-align base file address */
 	addr = (void *)((unsigned long)addr & ~(page_sz - 1));
-
-	/*
-	 * Page out range 0..512K, use 0..256K for positive tests and
-	 * 256K..512K for negative tests expecting page faults
-	 */
-	for (off = 0; off < sizeof(file_contents) * 2; off += page_sz) {
-		if (!ASSERT_OK(madvise(addr + off, page_sz, MADV_PAGEOUT),
-			       "madvise pageout"))
-			return errno;
-	}
 
 	return 0;
 }
@@ -88,6 +78,14 @@ static void run_test(const char *prog_name)
 
 	err = file_reader__load(skel);
 	if (!ASSERT_OK(err, "file_reader__load"))
+		goto cleanup;
+
+	/*
+	 * Page out range 0..512K, use 0..256K for positive tests and
+	 * 256K..512K for negative tests expecting page faults
+	 */
+	if (!ASSERT_OK(madvise(addr, sizeof(file_contents) * 2, MADV_PAGEOUT),
+		       "madvise pageout"))
 		goto cleanup;
 
 	err = file_reader__attach(skel);

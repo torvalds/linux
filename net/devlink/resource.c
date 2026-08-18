@@ -486,6 +486,8 @@ __devl_resource_register(struct devlink *devlink,
 	struct list_head *resource_list;
 	bool top_hierarchy;
 
+	WARN_ON(resource_id == DEVLINK_RESOURCE_ID_PARENT_TOP);
+
 	lockdep_assert_held(&devlink->lock);
 
 	top_hierarchy = parent_resource_id == DEVLINK_RESOURCE_ID_PARENT_TOP;

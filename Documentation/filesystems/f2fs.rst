@@ -137,6 +137,15 @@ noacl			 Disable POSIX Access Control List. Note: acl is enabled
 active_logs=%u		 Support configuring the number of active logs. In the
 			 current design, f2fs supports only 2, 4, and 6 logs.
 			 Default number is 6.
+			 When the underlying block device exposes write
+			 streams, the default active_logs=6 configuration
+			 maps hot, warm, and cold DATA writes to streams 1,
+			 2, and 3, respectively. If only one or two write
+			 streams are available, f2fs falls back to mapping
+			 all DATA writes to stream 1 or mapping hot/warm
+			 to stream 1 and cold to stream 2. If no write
+			 streams are exposed, f2fs leaves the stream
+			 unset.
 disable_ext_identify	 Disable the extension list configured by mkfs, so f2fs
 			 is not aware of cold files such as media files.
 inline_xattr		 Enable the inline xattrs feature.

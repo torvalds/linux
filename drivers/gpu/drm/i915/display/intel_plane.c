@@ -44,6 +44,7 @@
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_panic.h>
 #include <drm/drm_print.h>
+#include <drm/intel/display_parent_interface.h>
 
 #include "i9xx_plane_regs.h"
 #include "intel_cdclk.h"
@@ -53,7 +54,6 @@
 #include "intel_display_trace.h"
 #include "intel_display_types.h"
 #include "intel_fb.h"
-#include "intel_fb_pin.h"
 #include "intel_fbdev.h"
 #include "intel_parent.h"
 #include "intel_plane.h"
@@ -70,6 +70,7 @@ static void intel_plane_state_reset(struct intel_plane_state *plane_state,
 	__drm_atomic_helper_plane_state_reset(&plane_state->uapi, &plane->base);
 
 	plane_state->scaler_id = -1;
+	plane_state->fence_id = -1;
 }
 
 struct intel_plane *intel_plane_alloc(void)
@@ -137,7 +138,7 @@ intel_plane_duplicate_state(struct drm_plane *plane)
 
 	intel_state->ggtt_vma = NULL;
 	intel_state->dpt_vma = NULL;
-	intel_state->flags = 0;
+	intel_state->fence_id = -1;
 	intel_state->damage = DRM_RECT_INIT(0, 0, 0, 0);
 
 	/* add reference to fb */
@@ -189,12 +190,34 @@ intel_plane_destroy_state(struct drm_plane *plane,
 	kfree(plane_state);
 }
 
+bool intel_plane_needs_low_address(struct intel_display *display)
+{
+	/*
+	 * Valleyview is definitely limited to scanning out the first
+	 * 512MiB. Lets presume this behaviour was inherited from the
+	 * g4x display engine and that all earlier gen are similarly
+	 * limited. Testing suggests that it is a little more
+	 * complicated than this. For example, Cherryview appears quite
+	 * happy to scanout from anywhere within its global aperture.
+	 */
+	return HAS_GMCH(display);
+}
+
 bool intel_plane_needs_physical(struct intel_plane *plane)
 {
 	struct intel_display *display = to_intel_display(plane);
 
 	return plane->id == PLANE_CURSOR &&
 		DISPLAY_INFO(display)->cursor_needs_physical;
+}
+
+bool intel_plane_needs_fence(struct intel_display *display)
+{
+	/*
+	 * pre-i965 planes use the fence for tiled scanout.
+	 * i965+ planes have their own tiled scanout control bit.
+	 */
+	return DISPLAY_VER(display) < 4;
 }
 
 bool intel_plane_can_async_flip(struct intel_plane *plane,
@@ -391,7 +414,7 @@ intel_plane_color_copy_uapi_to_hw_state(struct intel_plane_state *plane_state,
 {
 	struct drm_colorop *iter_colorop, *colorop;
 	struct drm_colorop_state *new_colorop_state;
-	struct drm_atomic_state *state = plane_state->uapi.state;
+	struct drm_atomic_commit *state = plane_state->uapi.state;
 	struct intel_colorop *intel_colorop;
 	struct drm_property_blob *blob;
 	struct intel_atomic_state *intel_atomic_state = to_intel_atomic_state(state);
@@ -1195,6 +1218,122 @@ int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state)
 	return 0;
 }
 
+static unsigned int
+intel_plane_fb_min_alignment(const struct intel_plane_state *plane_state)
+{
+	const struct intel_framebuffer *fb = to_intel_framebuffer(plane_state->hw.fb);
+
+	return fb->min_alignment;
+}
+
+static unsigned int
+intel_plane_fb_min_phys_alignment(const struct intel_plane_state *plane_state)
+{
+	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
+	const struct drm_framebuffer *fb = plane_state->hw.fb;
+
+	if (!intel_plane_needs_physical(plane))
+		return 0;
+
+	return plane->min_alignment(plane, fb, 0);
+}
+
+static unsigned int
+intel_plane_fb_vtd_guard(const struct intel_plane_state *plane_state)
+{
+	return intel_fb_view_vtd_guard(plane_state->hw.fb,
+				       &plane_state->view,
+				       plane_state->hw.rotation);
+}
+
+int intel_plane_pin_fb(struct intel_plane_state *plane_state,
+		       const struct intel_plane_state *old_plane_state)
+{
+	struct intel_display *display = to_intel_display(plane_state);
+	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
+	const struct intel_framebuffer *fb =
+		to_intel_framebuffer(plane_state->hw.fb);
+	const struct intel_framebuffer *old_fb =
+		to_intel_framebuffer(old_plane_state->hw.fb);
+	struct i915_vma *ggtt_vma = NULL;
+	struct i915_vma *dpt_vma = NULL;
+	int fence_id = -1;
+	u32 offset = 0;
+	int ret;
+
+	/* hack for xe since it can't keep track of vmas properly */
+	ggtt_vma = intel_parent_fb_pin_reuse_vma(display,
+						 old_plane_state->ggtt_vma,
+						 intel_fb_bo(&old_fb->base),
+						 &old_plane_state->view.gtt,
+						 intel_fb_bo(&fb->base),
+						 &plane_state->view.gtt,
+						 &offset);
+	if (ggtt_vma)
+		goto got_vma;
+
+	if (!intel_fb_uses_dpt(&fb->base)) {
+		struct intel_fb_pin_params pin_params = {
+			.view = &plane_state->view.gtt,
+			.alignment = intel_plane_fb_min_alignment(plane_state),
+			.phys_alignment = intel_plane_fb_min_phys_alignment(plane_state),
+			.vtd_guard = intel_plane_fb_vtd_guard(plane_state),
+			.needs_cpu_lmem_access = intel_fb_needs_cpu_access(&fb->base),
+			.needs_low_address = intel_plane_needs_low_address(display),
+			.needs_physical = intel_plane_needs_physical(plane),
+			.needs_fence = intel_plane_needs_fence(display),
+		};
+
+		ret = intel_parent_fb_pin_ggtt_pin(display, intel_fb_bo(&fb->base),
+						   &pin_params, &ggtt_vma, &offset,
+						   intel_plane_uses_fence(plane_state) ? &fence_id : NULL);
+	} else {
+		struct intel_fb_pin_params pin_params = {
+			.view = &plane_state->view.gtt,
+			.alignment = intel_plane_fb_min_alignment(plane_state),
+			.needs_cpu_lmem_access = intel_fb_needs_cpu_access(&fb->base),
+		};
+
+		ret = intel_parent_fb_pin_dpt_pin(display, intel_fb_bo(&fb->base),
+						  fb->dpt, &pin_params,
+						  &dpt_vma, &ggtt_vma, &offset);
+	}
+	if (ret)
+		return ret;
+
+got_vma:
+	plane_state->dpt_vma = dpt_vma;
+	plane_state->ggtt_vma = ggtt_vma;
+	plane_state->fence_id = fence_id;
+
+	plane_state->surf = offset + plane->surf_offset(plane_state);
+
+	return 0;
+}
+
+void intel_plane_unpin_fb(struct intel_plane_state *old_plane_state)
+{
+	struct intel_display *display = to_intel_display(old_plane_state);
+	const struct intel_framebuffer *fb =
+		to_intel_framebuffer(old_plane_state->hw.fb);
+
+	if (!intel_fb_uses_dpt(&fb->base)) {
+		intel_parent_fb_pin_ggtt_unpin(display,
+					       old_plane_state->ggtt_vma,
+					       old_plane_state->fence_id);
+
+		old_plane_state->ggtt_vma = NULL;
+		old_plane_state->fence_id = -1;
+	} else {
+		intel_parent_fb_pin_dpt_unpin(display, fb->dpt,
+					      old_plane_state->dpt_vma,
+					      old_plane_state->ggtt_vma);
+
+		old_plane_state->dpt_vma = NULL;
+		old_plane_state->ggtt_vma = NULL;
+	}
+}
+
 static int add_dma_resv_fences(struct dma_resv *resv,
 			       struct drm_plane_state *new_plane_state)
 {
@@ -1408,7 +1547,7 @@ static void intel_panic_flush(struct drm_plane *_plane)
 	if (fb == intel_fbdev_framebuffer(display->fbdev.fbdev)) {
 		struct iosys_map map;
 
-		intel_fbdev_get_map(display->fbdev.fbdev, &map);
+		intel_fbdev_get_map(display, &map);
 		drm_clflush_virt_range(map.vaddr, fb->base.pitches[0] * fb->base.height);
 		return;
 	}
@@ -1466,7 +1605,7 @@ static int intel_get_scanout_buffer(struct drm_plane *plane,
 		return -ENODEV;
 
 	if (fb == intel_fbdev_framebuffer(display->fbdev.fbdev)) {
-		intel_fbdev_get_map(display->fbdev.fbdev, &sb->map[0]);
+		intel_fbdev_get_map(display, &sb->map[0]);
 	} else {
 		int ret;
 		/* Can't disable tiling if DPT is in use */
@@ -1682,6 +1821,7 @@ static u8 intel_joiner_affected_planes(struct intel_atomic_state *state,
 static int intel_joiner_add_affected_planes(struct intel_atomic_state *state,
 					    u8 joined_pipes)
 {
+	struct intel_display *display = to_intel_display(state);
 	u8 prev_affected_planes, affected_planes = 0;
 
 	/*
@@ -1699,7 +1839,7 @@ static int intel_joiner_add_affected_planes(struct intel_atomic_state *state,
 	do {
 		struct intel_crtc *crtc;
 
-		for_each_intel_crtc_in_pipe_mask(state->base.dev, crtc, joined_pipes) {
+		for_each_intel_crtc_in_pipe_mask(display, crtc, joined_pipes) {
 			int ret;
 
 			ret = intel_crtc_add_planes_to_state(state, crtc, affected_planes);
@@ -1718,9 +1858,8 @@ static int intel_add_affected_planes(struct intel_atomic_state *state)
 {
 	const struct intel_crtc_state *crtc_state;
 	struct intel_crtc *crtc;
-	int i;
 
-	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
+	for_each_new_intel_crtc_in_state(state, crtc, crtc_state) {
 		int ret;
 
 		ret = intel_joiner_add_affected_planes(state, intel_crtc_joined_pipe_mask(crtc_state));
@@ -1754,8 +1893,7 @@ int intel_plane_atomic_check(struct intel_atomic_state *state)
 		}
 	}
 
-	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
-					    new_crtc_state, i) {
+	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state) {
 		u8 old_active_planes, new_active_planes;
 
 		ret = icl_check_nv12_planes(state, crtc);

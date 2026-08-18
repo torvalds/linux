@@ -325,6 +325,8 @@ struct ethtool_link_ksettings {
 extern int
 __ethtool_get_link_ksettings(struct net_device *dev,
 			     struct ethtool_link_ksettings *link_ksettings);
+int netif_get_link_ksettings(struct net_device *dev,
+			     struct ethtool_link_ksettings *link_ksettings);
 
 struct ethtool_keee {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(supported);
@@ -928,6 +930,20 @@ struct kernel_ethtool_ts_info {
 	u32 rx_filters;
 };
 
+/* Bits for ethtool_ops::op_needs_rtnl
+ * LINKSETTINGS cover a number of commands, but in most cases we want to keep
+ * these bits separate, per GET and SET. GET is much easier to "unlock".
+ */
+#define ETHTOOL_OP_NEEDS_RTNL_LINKSETTINGS	BIT(0)
+#define ETHTOOL_OP_NEEDS_RTNL_SPFLAGS		BIT(1)
+#define ETHTOOL_OP_NEEDS_RTNL_SRINGPARAM	BIT(2)
+#define ETHTOOL_OP_NEEDS_RTNL_SCHANNELS		BIT(3)
+#define ETHTOOL_OP_NEEDS_RTNL_SCOALESCE		BIT(4)
+#define ETHTOOL_OP_NEEDS_RTNL_GPAUSEPARAM	BIT(5)
+#define ETHTOOL_OP_NEEDS_RTNL_SPAUSEPARAM	BIT(6)
+#define ETHTOOL_OP_NEEDS_RTNL_RSS		BIT(7)
+#define ETHTOOL_OP_NEEDS_RTNL_GLINK		BIT(8)
+
 /**
  * struct ethtool_ops - optional netdev operations
  * @supported_input_xfrm: supported types of input xfrm from %RXH_XFRM_*.
@@ -954,6 +970,17 @@ struct kernel_ethtool_ts_info {
  * @supported_coalesce_params: supported types of interrupt coalescing.
  * @supported_ring_params: supported ring params.
  * @supported_hwtstamp_qualifiers: bitfield of supported hwtstamp qualifier.
+ * @op_needs_rtnl: mask of %ETHTOOL_OP_NEEDS_RTNL_* bits.
+ *	For use with ops-locked drivers (ignored otherwise). Selects which
+ *	ethtool callbacks driver needs to still be executed under rtnl_lock
+ *	(in addition to the netdev instance lock).
+ *	The following commonly used core APIs currently require rtnl_lock
+ *	(this list may not be exhaustive):
+ *	 - phylink helpers (note that phydev is currently unsupported!)
+ *	 - netdev_update_features()
+ *	 - netif_set_real_num_tx_queues()
+ *	 - ethtool_op_get_link() (syncs link watch under rtnl_lock)
+ *
  * @get_drvinfo: Report driver/device information. Modern drivers no
  *	longer have to implement this callback. Most fields are
  *	correctly filled in by the core using system information, or
@@ -1152,8 +1179,14 @@ struct kernel_ethtool_ts_info {
  * @get_mm_stats: Query the 802.3 MAC Merge layer statistics.
  *
  * All operations are optional (i.e. the function pointer may be set
- * to %NULL) and callers must take this into account.  Callers must
- * hold the RTNL lock.
+ * to %NULL) and callers must take this into account.
+ *
+ * For traditional drivers callers hold ``rtnl_lock`` across the call.
+ * For "ops locked" drivers (see Documentation/networking/netdevices.rst)
+ * callers instead hold the netdev instance lock (``netdev_lock_ops``);
+ * ``rtnl_lock`` is additionally held only for callbacks for which
+ * the driver opts in via the matching ``ETHTOOL_OP_NEEDS_RTNL_*`` bit
+ * in @op_needs_rtnl.
  *
  * See the structures used by these operations for further documentation.
  * Note that for all operations using a structure ending with a zero-
@@ -1176,6 +1209,7 @@ struct ethtool_ops {
 	u32	supported_coalesce_params;
 	u32	supported_ring_params;
 	u32	supported_hwtstamp_qualifiers;
+	u32	op_needs_rtnl;
 	void	(*get_drvinfo)(struct net_device *, struct ethtool_drvinfo *);
 	int	(*get_regs_len)(struct net_device *);
 	void	(*get_regs)(struct net_device *, struct ethtool_regs *, void *);
@@ -1349,6 +1383,7 @@ int ethtool_virtdev_set_link_ksettings(struct net_device *dev,
  *			within RTNL.
  * @rss_indir_user_size: Number of user provided entries for the default
  *			 (context 0) indirection table.
+ * @phys_id_busy:	Loop blinking the device LED is running.
  * @wol_enabled:	Wake-on-LAN is enabled
  * @module_fw_flash_in_progress: Module firmware flashing is in progress.
  */
@@ -1356,6 +1391,7 @@ struct ethtool_netdev_state {
 	struct xarray		rss_ctx;
 	struct mutex		rss_lock;
 	u32			rss_indir_user_size;
+	unsigned		phys_id_busy:1;
 	unsigned		wol_enabled:1;
 	unsigned		module_fw_flash_in_progress:1;
 };

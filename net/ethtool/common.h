@@ -80,6 +80,93 @@ int ethtool_get_module_eeprom_call(struct net_device *dev,
 
 bool __ethtool_dev_mm_supported(struct net_device *dev);
 
+/**
+ * ethtool_nl_msg_needs_rtnl() - does this Netlink cmd need rtnl_lock?
+ * @dev: target device
+ * @cmd: ETHTOOL_MSG_* Netlink command value
+ *
+ * Return: true if @cmd is a command for which @dev has opted-in to
+ * keeping rtnl_lock held across the call (via op_needs_rtnl).
+ */
+static inline bool
+ethtool_nl_msg_needs_rtnl(const struct net_device *dev, u8 cmd)
+{
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+
+	switch (cmd) {
+	case ETHTOOL_MSG_LINKINFO_GET:
+	case ETHTOOL_MSG_LINKINFO_SET:
+	case ETHTOOL_MSG_LINKMODES_GET:
+	case ETHTOOL_MSG_LINKMODES_SET:
+		return ops->op_needs_rtnl & ETHTOOL_OP_NEEDS_RTNL_LINKSETTINGS;
+	case ETHTOOL_MSG_PRIVFLAGS_SET:
+		return ops->op_needs_rtnl & ETHTOOL_OP_NEEDS_RTNL_SPFLAGS;
+	case ETHTOOL_MSG_RINGS_SET:
+		return ops->op_needs_rtnl & ETHTOOL_OP_NEEDS_RTNL_SRINGPARAM;
+	case ETHTOOL_MSG_CHANNELS_SET:
+		return ops->op_needs_rtnl & ETHTOOL_OP_NEEDS_RTNL_SCHANNELS;
+	case ETHTOOL_MSG_COALESCE_SET:
+		return ops->op_needs_rtnl & ETHTOOL_OP_NEEDS_RTNL_SCOALESCE;
+	case ETHTOOL_MSG_PAUSE_GET:
+		return ops->op_needs_rtnl & ETHTOOL_OP_NEEDS_RTNL_GPAUSEPARAM;
+	case ETHTOOL_MSG_PAUSE_SET:
+		return ops->op_needs_rtnl & ETHTOOL_OP_NEEDS_RTNL_SPAUSEPARAM;
+	case ETHTOOL_MSG_RSS_SET:
+		return ops->op_needs_rtnl & ETHTOOL_OP_NEEDS_RTNL_RSS;
+	case ETHTOOL_MSG_LINKSTATE_GET:
+		return ops->op_needs_rtnl & ETHTOOL_OP_NEEDS_RTNL_GLINK;
+	case ETHTOOL_MSG_TSCONFIG_GET:
+	case ETHTOOL_MSG_TSCONFIG_SET:
+		/* tsconfig calls ndos (ndo_hwtstamp_set/get), not ethtool ops.
+		 * Also, there is no corresponding ethtool ioctl, therefore
+		 * these cases are Netlink-only.
+		 */
+		return true;
+	}
+	return false;
+}
+
+/**
+ * ethtool_ioctl_needs_rtnl() - does this legacy ioctl cmd need rtnl_lock?
+ * @dev: target device
+ * @ethcmd: ETHTOOL_* ioctl command value
+ *
+ * Return: true if @ethcmd is a command for which @dev has opted-in to
+ * keeping rtnl_lock held across the call (via op_needs_rtnl).
+ */
+static inline bool
+ethtool_ioctl_needs_rtnl(const struct net_device *dev, u32 ethcmd)
+{
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+
+	switch (ethcmd) {
+	case ETHTOOL_GLINKSETTINGS:
+	case ETHTOOL_GSET:
+	case ETHTOOL_SLINKSETTINGS:
+	case ETHTOOL_SSET:
+		return ops->op_needs_rtnl & ETHTOOL_OP_NEEDS_RTNL_LINKSETTINGS;
+	case ETHTOOL_SPFLAGS:
+		return ops->op_needs_rtnl & ETHTOOL_OP_NEEDS_RTNL_SPFLAGS;
+	case ETHTOOL_SRINGPARAM:
+		return ops->op_needs_rtnl & ETHTOOL_OP_NEEDS_RTNL_SRINGPARAM;
+	case ETHTOOL_SCHANNELS:
+		return ops->op_needs_rtnl & ETHTOOL_OP_NEEDS_RTNL_SCHANNELS;
+	case ETHTOOL_SCOALESCE:
+		return ops->op_needs_rtnl & ETHTOOL_OP_NEEDS_RTNL_SCOALESCE;
+	case ETHTOOL_GPAUSEPARAM:
+		return ops->op_needs_rtnl & ETHTOOL_OP_NEEDS_RTNL_GPAUSEPARAM;
+	case ETHTOOL_SPAUSEPARAM:
+		return ops->op_needs_rtnl & ETHTOOL_OP_NEEDS_RTNL_SPAUSEPARAM;
+	case ETHTOOL_SRSSH:
+	case ETHTOOL_SRXFH:
+	case ETHTOOL_SRXFHINDIR:
+		return ops->op_needs_rtnl & ETHTOOL_OP_NEEDS_RTNL_RSS;
+	case ETHTOOL_GLINK:
+		return ops->op_needs_rtnl & ETHTOOL_OP_NEEDS_RTNL_GLINK;
+	}
+	return false;
+}
+
 #if IS_ENABLED(CONFIG_ETHTOOL_NETLINK)
 void ethtool_rss_notify(struct net_device *dev, u32 type, u32 rss_context);
 #else

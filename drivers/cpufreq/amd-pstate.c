@@ -242,12 +242,10 @@ static int msr_update_perf(struct cpufreq_policy *policy, u8 min_perf,
 
 	value = prev = READ_ONCE(cpudata->cppc_req_cached);
 
-	value &= ~(AMD_CPPC_MAX_PERF_MASK | AMD_CPPC_MIN_PERF_MASK |
-		   AMD_CPPC_DES_PERF_MASK | AMD_CPPC_EPP_PERF_MASK);
-	value |= FIELD_PREP(AMD_CPPC_MAX_PERF_MASK, max_perf);
-	value |= FIELD_PREP(AMD_CPPC_DES_PERF_MASK, des_perf);
-	value |= FIELD_PREP(AMD_CPPC_MIN_PERF_MASK, min_perf);
-	value |= FIELD_PREP(AMD_CPPC_EPP_PERF_MASK, epp);
+	FIELD_MODIFY(AMD_CPPC_MAX_PERF_MASK, &value, max_perf);
+	FIELD_MODIFY(AMD_CPPC_DES_PERF_MASK, &value, des_perf);
+	FIELD_MODIFY(AMD_CPPC_MIN_PERF_MASK, &value, min_perf);
+	FIELD_MODIFY(AMD_CPPC_EPP_PERF_MASK, &value, epp);
 
 	if (trace_amd_pstate_epp_perf_enabled()) {
 		union perf_cached perf = READ_ONCE(cpudata->perf);
@@ -296,8 +294,7 @@ static int msr_set_epp(struct cpufreq_policy *policy, u8 epp)
 	int ret;
 
 	value = prev = READ_ONCE(cpudata->cppc_req_cached);
-	value &= ~AMD_CPPC_EPP_PERF_MASK;
-	value |= FIELD_PREP(AMD_CPPC_EPP_PERF_MASK, epp);
+	FIELD_MODIFY(AMD_CPPC_EPP_PERF_MASK, &value, epp);
 
 	if (trace_amd_pstate_epp_perf_enabled()) {
 		union perf_cached perf = cpudata->perf;
@@ -364,7 +361,8 @@ static int amd_pstate_set_floor_perf(struct cpufreq_policy *policy, u8 perf)
 
 out_trace:
 	if (trace_amd_pstate_cppc_req2_enabled())
-		trace_amd_pstate_cppc_req2(cpudata->cpu, perf, changed, ret);
+		trace_call__amd_pstate_cppc_req2(cpudata->cpu, perf, changed,
+						 ret);
 	return ret;
 }
 
@@ -437,8 +435,7 @@ static int shmem_set_epp(struct cpufreq_policy *policy, u8 epp)
 	}
 
 	value = READ_ONCE(cpudata->cppc_req_cached);
-	value &= ~AMD_CPPC_EPP_PERF_MASK;
-	value |= FIELD_PREP(AMD_CPPC_EPP_PERF_MASK, epp);
+	FIELD_MODIFY(AMD_CPPC_EPP_PERF_MASK, &value, epp);
 	WRITE_ONCE(cpudata->cppc_req_cached, value);
 
 	return ret;
@@ -476,7 +473,7 @@ static int msr_init_perf(struct amd_cpudata *cpudata)
 	if (ret)
 		return ret;
 
-	ret = rdmsrl_on_cpu(cpudata->cpu, MSR_AMD_CPPC_REQ, &cppc_req);
+	ret = rdmsrq_on_cpu(cpudata->cpu, MSR_AMD_CPPC_REQ, &cppc_req);
 	if (ret)
 		return ret;
 
@@ -571,12 +568,10 @@ static int shmem_update_perf(struct cpufreq_policy *policy, u8 min_perf,
 
 	value = prev = READ_ONCE(cpudata->cppc_req_cached);
 
-	value &= ~(AMD_CPPC_MAX_PERF_MASK | AMD_CPPC_MIN_PERF_MASK |
-		   AMD_CPPC_DES_PERF_MASK | AMD_CPPC_EPP_PERF_MASK);
-	value |= FIELD_PREP(AMD_CPPC_MAX_PERF_MASK, max_perf);
-	value |= FIELD_PREP(AMD_CPPC_DES_PERF_MASK, des_perf);
-	value |= FIELD_PREP(AMD_CPPC_MIN_PERF_MASK, min_perf);
-	value |= FIELD_PREP(AMD_CPPC_EPP_PERF_MASK, epp);
+	FIELD_MODIFY(AMD_CPPC_MAX_PERF_MASK, &value, max_perf);
+	FIELD_MODIFY(AMD_CPPC_DES_PERF_MASK, &value, des_perf);
+	FIELD_MODIFY(AMD_CPPC_MIN_PERF_MASK, &value, min_perf);
+	FIELD_MODIFY(AMD_CPPC_EPP_PERF_MASK, &value, epp);
 
 	if (trace_amd_pstate_epp_perf_enabled()) {
 		union perf_cached perf = READ_ONCE(cpudata->perf);
@@ -1086,10 +1081,9 @@ static int amd_pstate_cpu_init(struct cpufreq_policy *policy)
 
 	perf = READ_ONCE(cpudata->perf);
 
-	policy->cpuinfo.min_freq = policy->min = perf_to_freq(perf,
-							      cpudata->nominal_freq,
-							      perf.lowest_perf);
-	policy->cpuinfo.max_freq = policy->max = cpudata->max_freq;
+	policy->cpuinfo.min_freq = perf_to_freq(perf, cpudata->nominal_freq,
+						perf.lowest_perf);
+	policy->cpuinfo.max_freq = cpudata->max_freq;
 
 	policy->driver_data = cpudata;
 	ret = amd_pstate_cppc_enable(policy);
@@ -1915,10 +1909,9 @@ static int amd_pstate_epp_cpu_init(struct cpufreq_policy *policy)
 
 	perf = READ_ONCE(cpudata->perf);
 
-	policy->cpuinfo.min_freq = policy->min = perf_to_freq(perf,
-							      cpudata->nominal_freq,
-							      perf.lowest_perf);
-	policy->cpuinfo.max_freq = policy->max = cpudata->max_freq;
+	policy->cpuinfo.min_freq = perf_to_freq(perf, cpudata->nominal_freq,
+						perf.lowest_perf);
+	policy->cpuinfo.max_freq = cpudata->max_freq;
 	policy->driver_data = cpudata;
 
 	ret = amd_pstate_cppc_enable(policy);

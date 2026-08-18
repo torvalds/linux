@@ -3,7 +3,7 @@
 
 #include <drm/drm_drv.h>
 #include <drm/drm_exec.h>
-#include <drm/drm_gem_shmem_helper.h>
+#include <drm/drm_file.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_print.h>
 #include <drm/gpu_scheduler.h>
@@ -28,11 +28,12 @@
 #include "panthor_devfreq.h"
 #include "panthor_device.h"
 #include "panthor_fw.h"
+#include "panthor_fw_regs.h"
 #include "panthor_gem.h"
 #include "panthor_gpu.h"
+#include "panthor_gpu_regs.h"
 #include "panthor_heap.h"
 #include "panthor_mmu.h"
-#include "panthor_regs.h"
 #include "panthor_sched.h"
 
 /**
@@ -221,7 +222,7 @@ struct panthor_scheduler {
 	/** @groups: Various lists used to classify groups. */
 	struct {
 		/**
-		 * @runnable: Runnable group lists.
+		 * @groups.runnable: Runnable group lists.
 		 *
 		 * When a group has queues that want to execute something,
 		 * its panthor_group::run_node should be inserted here.
@@ -231,7 +232,7 @@ struct panthor_scheduler {
 		struct list_head runnable[PANTHOR_CSG_PRIORITY_COUNT];
 
 		/**
-		 * @idle: Idle group lists.
+		 * @groups.idle: Idle group lists.
 		 *
 		 * When all queues of a group are idle (either because they
 		 * have nothing to execute, or because they are blocked), the
@@ -242,7 +243,7 @@ struct panthor_scheduler {
 		struct list_head idle[PANTHOR_CSG_PRIORITY_COUNT];
 
 		/**
-		 * @waiting: List of groups whose queues are blocked on a
+		 * @groups.waiting: List of groups whose queues are blocked on a
 		 * synchronization object.
 		 *
 		 * Insert panthor_group::wait_node here when a group is waiting
@@ -283,17 +284,17 @@ struct panthor_scheduler {
 
 	/** @pm: Power management related fields. */
 	struct {
-		/** @has_ref: True if the scheduler owns a runtime PM reference. */
+		/** @pm.has_ref: True if the scheduler owns a runtime PM reference. */
 		bool has_ref;
 	} pm;
 
 	/** @reset: Reset related fields. */
 	struct {
-		/** @lock: Lock protecting the other reset fields. */
+		/** @reset.lock: Lock protecting the other reset fields. */
 		struct mutex lock;
 
 		/**
-		 * @in_progress: True if a reset is in progress.
+		 * @reset.in_progress: True if a reset is in progress.
 		 *
 		 * Set to true in panthor_sched_pre_reset() and back to false in
 		 * panthor_sched_post_reset().
@@ -301,7 +302,7 @@ struct panthor_scheduler {
 		atomic_t in_progress;
 
 		/**
-		 * @stopped_groups: List containing all groups that were stopped
+		 * @reset.stopped_groups: List containing all groups that were stopped
 		 * before a reset.
 		 *
 		 * Insert panthor_group::run_node in the pre_reset path.
@@ -395,19 +396,19 @@ struct panthor_queue {
 
 	/** @iface: Firmware interface. */
 	struct {
-		/** @mem: FW memory allocated for this interface. */
+		/** @iface.mem: FW memory allocated for this interface. */
 		struct panthor_kernel_bo *mem;
 
-		/** @input: Input interface. */
+		/** @iface.input: Input interface. */
 		struct panthor_fw_ringbuf_input_iface *input;
 
-		/** @output: Output interface. */
+		/** @iface.output: Output interface. */
 		const struct panthor_fw_ringbuf_output_iface *output;
 
-		/** @input_fw_va: FW virtual address of the input interface buffer. */
+		/** @iface.input_fw_va: FW virtual address of the input interface buffer. */
 		u32 input_fw_va;
 
-		/** @output_fw_va: FW virtual address of the output interface buffer. */
+		/** @iface.output_fw_va: FW virtual address of the output interface buffer. */
 		u32 output_fw_va;
 	} iface;
 
@@ -416,26 +417,26 @@ struct panthor_queue {
 	 * queue is waiting on.
 	 */
 	struct {
-		/** @gpu_va: GPU address of the synchronization object. */
+		/** @syncwait.gpu_va: GPU address of the synchronization object. */
 		u64 gpu_va;
 
-		/** @ref: Reference value to compare against. */
+		/** @syncwait.ref: Reference value to compare against. */
 		u64 ref;
 
-		/** @gt: True if this is a greater-than test. */
+		/** @syncwait.gt: True if this is a greater-than test. */
 		bool gt;
 
-		/** @sync64: True if this is a 64-bit sync object. */
+		/** @syncwait.sync64: True if this is a 64-bit sync object. */
 		bool sync64;
 
-		/** @bo: Buffer object holding the synchronization object. */
+		/** @syncwait.obj: Buffer object holding the synchronization object. */
 		struct drm_gem_object *obj;
 
-		/** @offset: Offset of the synchronization object inside @bo. */
+		/** @syncwait.offset: Offset of the synchronization object inside @bo. */
 		u64 offset;
 
 		/**
-		 * @kmap: Kernel mapping of the buffer object holding the
+		 * @syncwait.kmap: Kernel mapping of the buffer object holding the
 		 * synchronization object.
 		 */
 		void *kmap;
@@ -443,21 +444,21 @@ struct panthor_queue {
 
 	/** @fence_ctx: Fence context fields. */
 	struct {
-		/** @lock: Used to protect access to all fences allocated by this context. */
+		/** @fence_ctx.lock: Used to protect access to all fences allocated by this context. */
 		spinlock_t lock;
 
 		/**
-		 * @id: Fence context ID.
+		 * @fence_ctx.id: Fence context ID.
 		 *
 		 * Allocated with dma_fence_context_alloc().
 		 */
 		u64 id;
 
-		/** @seqno: Sequence number of the last initialized fence. */
+		/** @fence_ctx.seqno: Sequence number of the last initialized fence. */
 		atomic64_t seqno;
 
 		/**
-		 * @last_fence: Fence of the last submitted job.
+		 * @fence_ctx.last_fence: Fence of the last submitted job.
 		 *
 		 * We return this fence when we get an empty command stream.
 		 * This way, we are guaranteed that all earlier jobs have completed
@@ -467,7 +468,7 @@ struct panthor_queue {
 		struct dma_fence *last_fence;
 
 		/**
-		 * @in_flight_jobs: List containing all in-flight jobs.
+		 * @fence_ctx.in_flight_jobs: List containing all in-flight jobs.
 		 *
 		 * Used to keep track and signal panthor_job::done_fence when the
 		 * synchronization object attached to the queue is signaled.
@@ -477,13 +478,13 @@ struct panthor_queue {
 
 	/** @profiling: Job profiling data slots and access information. */
 	struct {
-		/** @slots: Kernel BO holding the slots. */
+		/** @profiling.slots: Kernel BO holding the slots. */
 		struct panthor_kernel_bo *slots;
 
-		/** @slot_count: Number of jobs ringbuffer can hold at once. */
+		/** @profiling.slot_count: Number of jobs ringbuffer can hold at once. */
 		u32 slot_count;
 
-		/** @seqno: Index of the next available profiling information slot. */
+		/** @profiling.seqno: Index of the next available profiling information slot. */
 		u32 seqno;
 	} profiling;
 };
@@ -627,7 +628,7 @@ struct panthor_group {
 
 	/** @fdinfo: Per-file info exposed through /proc/<process>/fdinfo */
 	struct {
-		/** @data: Total sampled values for jobs in queues from this group. */
+		/** @fdinfo.data: Total sampled values for jobs in queues from this group. */
 		struct panthor_gpu_usage data;
 
 		/**
@@ -805,15 +806,15 @@ struct panthor_job {
 
 	/** @call_info: Information about the userspace command stream call. */
 	struct {
-		/** @start: GPU address of the userspace command stream. */
+		/** @call_info.start: GPU address of the userspace command stream. */
 		u64 start;
 
-		/** @size: Size of the userspace command stream. */
+		/** @call_info.size: Size of the userspace command stream. */
 		u32 size;
 
 		/**
-		 * @latest_flush: Flush ID at the time the userspace command
-		 * stream was built.
+		 * @call_info.latest_flush: Flush ID at the time the userspace
+		 * command stream was built.
 		 *
 		 * Needed for the flush reduction mechanism.
 		 */
@@ -822,10 +823,10 @@ struct panthor_job {
 
 	/** @ringbuf: Position of this job is in the ring buffer. */
 	struct {
-		/** @start: Start offset. */
+		/** @ringbuf.start: Start offset. */
 		u64 start;
 
-		/** @end: End offset. */
+		/** @ringbuf.end: End offset. */
 		u64 end;
 	} ringbuf;
 
@@ -840,10 +841,10 @@ struct panthor_job {
 
 	/** @profiling: Job profiling information. */
 	struct {
-		/** @mask: Current device job profiling enablement bitmask. */
+		/** @profiling.mask: Current device job profiling enablement bitmask. */
 		u32 mask;
 
-		/** @slot: Job index in the profiling slots BO. */
+		/** @profiling.slot: Job index in the profiling slots BO. */
 		u32 slot;
 	} profiling;
 };
@@ -871,8 +872,7 @@ panthor_queue_get_syncwait_obj(struct panthor_group *group, struct panthor_queue
 	int ret;
 
 	if (queue->syncwait.kmap) {
-		bo = container_of(queue->syncwait.obj,
-				  struct panthor_gem_object, base.base);
+		bo = to_panthor_bo(queue->syncwait.obj);
 		goto out_sync;
 	}
 
@@ -882,7 +882,7 @@ panthor_queue_get_syncwait_obj(struct panthor_group *group, struct panthor_queue
 	if (drm_WARN_ON(&ptdev->base, IS_ERR_OR_NULL(bo)))
 		goto err_put_syncwait_obj;
 
-	queue->syncwait.obj = &bo->base.base;
+	queue->syncwait.obj = &bo->base;
 	ret = drm_gem_vmap(queue->syncwait.obj, &map);
 	if (drm_WARN_ON(&ptdev->base, ret))
 		goto err_put_syncwait_obj;
@@ -896,7 +896,7 @@ out_sync:
 	 * panthor_gem_sync() is a NOP if map_wc=true, so no need to check
 	 * it here.
 	 */
-	panthor_gem_sync(&bo->base.base,
+	panthor_gem_sync(&bo->base,
 			 DRM_PANTHOR_BO_SYNC_CPU_CACHE_FLUSH_AND_INVALIDATE,
 			 queue->syncwait.offset,
 			 queue->syncwait.sync64 ?
@@ -1057,7 +1057,8 @@ group_unbind_locked(struct panthor_group *group)
 
 	/* Tiler OOM events will be re-issued next time the group is scheduled. */
 	atomic_set(&group->tiler_oom, 0);
-	cancel_work(&group->tiler_oom_work);
+	if (cancel_work(&group->tiler_oom_work))
+		group_put(group);
 
 	for (u32 i = 0; i < group->queue_count; i++)
 		group->queues[i]->doorbell_id = -1;
@@ -1151,15 +1152,14 @@ queue_suspend_timeout_locked(struct panthor_queue *queue)
 static void
 queue_suspend_timeout(struct panthor_queue *queue)
 {
-	spin_lock(&queue->fence_ctx.lock);
+	guard(spinlock_irqsave)(&queue->fence_ctx.lock);
 	queue_suspend_timeout_locked(queue);
-	spin_unlock(&queue->fence_ctx.lock);
 }
 
 static void
 queue_resume_timeout(struct panthor_queue *queue)
 {
-	spin_lock(&queue->fence_ctx.lock);
+	guard(spinlock_irqsave)(&queue->fence_ctx.lock);
 
 	if (queue_timeout_is_suspended(queue)) {
 		mod_delayed_work(queue->scheduler.timeout_wq,
@@ -1168,8 +1168,6 @@ queue_resume_timeout(struct panthor_queue *queue)
 
 		queue->timeout.remaining = MAX_SCHEDULE_TIMEOUT;
 	}
-
-	spin_unlock(&queue->fence_ctx.lock);
 }
 
 /**
@@ -1542,7 +1540,7 @@ cs_slot_process_fault_event_locked(struct panthor_device *ptdev,
 		u64 cs_extract = queue->iface.output->extract;
 		struct panthor_job *job;
 
-		spin_lock(&queue->fence_ctx.lock);
+		guard(spinlock_irqsave)(&queue->fence_ctx.lock);
 		list_for_each_entry(job, &queue->fence_ctx.in_flight_jobs, node) {
 			if (cs_extract >= job->ringbuf.end)
 				continue;
@@ -1552,7 +1550,6 @@ cs_slot_process_fault_event_locked(struct panthor_device *ptdev,
 
 			dma_fence_set_error(job->done_fence, -EINVAL);
 		}
-		spin_unlock(&queue->fence_ctx.lock);
 	}
 
 	if (group) {
@@ -1604,7 +1601,10 @@ static int group_process_tiler_oom(struct panthor_group *group, u32 cs_id)
 	if (unlikely(csg_id < 0))
 		return 0;
 
-	if (IS_ERR(heaps) || frag_end > vt_end || vt_end >= vt_start) {
+	if (IS_ERR(heaps)) {
+		ret = -EINVAL;
+		heaps = NULL;
+	} else if (frag_end > vt_end || vt_end >= vt_start) {
 		ret = -EINVAL;
 	} else {
 		/* We do the allocation without holding the scheduler lock to avoid
@@ -1894,6 +1894,8 @@ static void process_fw_events_work(struct work_struct *work)
 
 /**
  * panthor_sched_report_fw_events() - Report FW events to the scheduler.
+ * @ptdev: Device.
+ * @events: Bitmask of pending FW events to report.
  */
 void panthor_sched_report_fw_events(struct panthor_device *ptdev, u32 events)
 {
@@ -2181,13 +2183,13 @@ group_term_post_processing(struct panthor_group *group)
 		if (!queue)
 			continue;
 
-		spin_lock(&queue->fence_ctx.lock);
-		list_for_each_entry_safe(job, tmp, &queue->fence_ctx.in_flight_jobs, node) {
-			list_move_tail(&job->node, &faulty_jobs);
-			dma_fence_set_error(job->done_fence, err);
-			dma_fence_signal_locked(job->done_fence);
+		scoped_guard(spinlock_irqsave, &queue->fence_ctx.lock) {
+			list_for_each_entry_safe(job, tmp, &queue->fence_ctx.in_flight_jobs, node) {
+				list_move_tail(&job->node, &faulty_jobs);
+				dma_fence_set_error(job->done_fence, err);
+				dma_fence_signal_locked(job->done_fence);
+			}
 		}
-		spin_unlock(&queue->fence_ctx.lock);
 
 		/* Manually update the syncobj seqno to unblock waiters. */
 		syncobj = group->syncobjs->kmap + (i * sizeof(*syncobj));
@@ -2366,7 +2368,13 @@ tick_ctx_apply(struct panthor_scheduler *sched, struct panthor_sched_tick_ctx *c
 
 			csg_iface = panthor_fw_get_csg_iface(ptdev, csg_id);
 			csg_slot = &sched->csg_slots[csg_id];
-			group_bind_locked(group, csg_id);
+			ret = group_bind_locked(group, csg_id);
+			if (ret) {
+				panthor_device_schedule_reset(ptdev);
+				ctx->csg_upd_failed_mask |= BIT(csg_id);
+				return;
+			}
+
 			csg_slot_prog_locked(ptdev, csg_id, new_csg_prio--);
 			csgs_upd_ctx_queue_reqs(ptdev, &upd_ctx, csg_id,
 						group->state == PANTHOR_CS_GROUP_SUSPENDED ?
@@ -2666,7 +2674,14 @@ static void sched_resume_tick(struct panthor_device *ptdev)
 	else
 		delay_jiffies = 0;
 
-	sched_queue_delayed_work(sched, tick, delay_jiffies);
+	/* We schedule immediate ticks when we need to process events on CSGs,
+	 * but those don't change the resched_target because we want the other
+	 * groups to stay scheduled for the remaining of the GPU timeslot they
+	 * were given. Make sure those immediate ticks don't get overruled by
+	 * a sched_queue_delayed_work() that would delay the tick execution.
+	 */
+	if (!delayed_work_pending(&sched->tick_work))
+		sched_queue_delayed_work(sched, tick, delay_jiffies);
 }
 
 static void group_schedule_locked(struct panthor_group *group, u32 queue_mask)
@@ -2779,6 +2794,7 @@ static void panthor_group_start(struct panthor_group *group)
 
 /**
  * panthor_sched_report_mmu_fault() - Report MMU faults to the scheduler.
+ * @ptdev: Device.
  */
 void panthor_sched_report_mmu_fault(struct panthor_device *ptdev)
 {
@@ -3046,39 +3062,39 @@ static bool queue_check_job_completion(struct panthor_queue *queue)
 	LIST_HEAD(done_jobs);
 
 	cookie = dma_fence_begin_signalling();
-	spin_lock(&queue->fence_ctx.lock);
-	list_for_each_entry_safe(job, job_tmp, &queue->fence_ctx.in_flight_jobs, node) {
-		if (!syncobj) {
-			struct panthor_group *group = job->group;
+	scoped_guard(spinlock_irqsave, &queue->fence_ctx.lock) {
+		list_for_each_entry_safe(job, job_tmp, &queue->fence_ctx.in_flight_jobs, node) {
+			if (!syncobj) {
+				struct panthor_group *group = job->group;
 
-			syncobj = group->syncobjs->kmap +
-				  (job->queue_idx * sizeof(*syncobj));
+				syncobj = group->syncobjs->kmap +
+					  (job->queue_idx * sizeof(*syncobj));
+			}
+
+			if (syncobj->seqno < job->done_fence->seqno)
+				break;
+
+			list_move_tail(&job->node, &done_jobs);
+			dma_fence_signal_locked(job->done_fence);
 		}
 
-		if (syncobj->seqno < job->done_fence->seqno)
-			break;
+		if (list_empty(&queue->fence_ctx.in_flight_jobs)) {
+			/* If we have no job left, we cancel the timer, and reset remaining
+			 * time to its default so it can be restarted next time
+			 * queue_resume_timeout() is called.
+			 */
+			queue_suspend_timeout_locked(queue);
 
-		list_move_tail(&job->node, &done_jobs);
-		dma_fence_signal_locked(job->done_fence);
+			/* If there's no job pending, we consider it progress to avoid a
+			 * spurious timeout if the timeout handler and the sync update
+			 * handler raced.
+			 */
+			progress = true;
+		} else if (!list_empty(&done_jobs)) {
+			queue_reset_timeout_locked(queue);
+			progress = true;
+		}
 	}
-
-	if (list_empty(&queue->fence_ctx.in_flight_jobs)) {
-		/* If we have no job left, we cancel the timer, and reset remaining
-		 * time to its default so it can be restarted next time
-		 * queue_resume_timeout() is called.
-		 */
-		queue_suspend_timeout_locked(queue);
-
-		/* If there's no job pending, we consider it progress to avoid a
-		 * spurious timeout if the timeout handler and the sync update
-		 * handler raced.
-		 */
-		progress = true;
-	} else if (!list_empty(&done_jobs)) {
-		queue_reset_timeout_locked(queue);
-		progress = true;
-	}
-	spin_unlock(&queue->fence_ctx.lock);
 	dma_fence_end_signalling(cookie);
 
 	list_for_each_entry_safe(job, job_tmp, &done_jobs, node) {
@@ -3343,9 +3359,8 @@ queue_run_job(struct drm_sched_job *sched_job)
 	job->ringbuf.end = job->ringbuf.start + (instrs.count * sizeof(u64));
 
 	panthor_job_get(&job->base);
-	spin_lock(&queue->fence_ctx.lock);
-	list_add_tail(&job->node, &queue->fence_ctx.in_flight_jobs);
-	spin_unlock(&queue->fence_ctx.lock);
+	scoped_guard(spinlock_irqsave, &queue->fence_ctx.lock)
+		list_add_tail(&job->node, &queue->fence_ctx.in_flight_jobs);
 
 	/* Make sure the ring buffer is updated before the INSERT
 	 * register.
@@ -3370,7 +3385,7 @@ queue_run_job(struct drm_sched_job *sched_job)
 		if (resume_tick)
 			sched_resume_tick(ptdev);
 
-		gpu_write(ptdev, CSF_DOORBELL(queue->doorbell_id), 1);
+		panthor_fw_ring_doorbell(ptdev, queue->doorbell_id);
 		if (!sched->pm.has_ref &&
 		    !(group->blocked_queues & BIT(job->queue_idx))) {
 			pm_runtime_get(ptdev->base.dev);
@@ -3487,7 +3502,6 @@ group_create_queue(struct panthor_group *group,
 	struct drm_sched_init_args sched_args = {
 		.ops = &panthor_queue_sched_ops,
 		.submit_wq = group->ptdev->scheduler->wq,
-		.num_rqs = 1,
 		/*
 		 * The credit limit argument tells us the total number of
 		 * instructions across all CS slots in the ringbuffer, with

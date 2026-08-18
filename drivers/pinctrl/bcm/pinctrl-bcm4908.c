@@ -3,7 +3,6 @@
 
 #include <linux/err.h>
 #include <linux/io.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -466,6 +465,7 @@ static const struct of_device_id bcm4908_pinctrl_of_match_table[] = {
 	{ .compatible = "brcm,bcm4908-pinctrl", },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, bcm4908_pinctrl_of_match_table);
 
 static int bcm4908_pinctrl_probe(struct platform_device *pdev)
 {
@@ -561,4 +561,3 @@ module_platform_driver(bcm4908_pinctrl_driver);
 MODULE_AUTHOR("Rafał Miłecki");
 MODULE_DESCRIPTION("Broadcom BCM4908 pinmux driver");
 MODULE_LICENSE("GPL v2");
-MODULE_DEVICE_TABLE(of, bcm4908_pinctrl_of_match_table);

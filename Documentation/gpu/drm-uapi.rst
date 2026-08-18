@@ -16,6 +16,8 @@ management, and output management.
 Cover generic ioctls and sysfs layout here. We only need high-level
 info, since man pages should cover the rest.
 
+.. contents::
+
 libdrm Device Lookup
 ====================
 
@@ -117,6 +119,10 @@ Linux kernel's guarantee to keep existing userspace running for 10+ years this
 is already rather painful for the DRM subsystem, with multiple different uAPIs
 for the same thing co-existing. If we add a few more complete mistakes into the
 mix every year it would be entirely unmanageable.
+
+The DRM subsystem has however no concern with independent closed-source
+userspace implementations. To officialize that position, the DRM uAPI headers
+are covered by the MIT license.
 
 .. _drm_render_node:
 
@@ -568,7 +574,7 @@ ENOSPC:
 EPERM/EACCES:
         Returned for an operation that is valid, but needs more privileges.
         E.g. root-only or much more common, DRM master-only operations return
-        this when called by unpriviledged clients. There's no clear
+        this when called by unprivileged clients. There's no clear
         difference between EACCES and EPERM.
 
 ENODEV:

@@ -286,6 +286,10 @@ enum DC_FEATURE_MASK {
 	 * @DC_REPLAY_MASK: (0x200) disabled by default for DCN < 3.1.4
 	 */
 	DC_REPLAY_MASK = (1 << 9),
+	/**
+	 * @DC_FRL_MASK: (0x400) disabled by default
+	 */
+	DC_FRL_MASK = (1 << 10),
 };
 
 /**

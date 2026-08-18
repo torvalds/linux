@@ -29,7 +29,13 @@ properties:
           - const: spacemit,k1
       - items:
           - enum:
+              - deepcomputing,fml13v05
               - spacemit,k3-pico-itx
+          - const: spacemit,k3
+      - items:
+          - enum:
+              - spacemit,k3-com260-ifx
+          - const: spacemit,k3-com260
           - const: spacemit,k3
 
 additionalProperties: true

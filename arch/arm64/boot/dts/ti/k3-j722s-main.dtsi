@@ -18,7 +18,7 @@
 
 &cbass_main {
 	serdes_wiz0: phy@f000000 {
-		compatible = "ti,am64-wiz-10g";
+		compatible = "ti,j722s-wiz-10g", "ti,am64-wiz-10g";
 		ranges = <0x0f000000 0x0 0x0f000000 0x00010000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -56,7 +56,7 @@
 	};
 
 	serdes_wiz1: phy@f010000 {
-		compatible = "ti,am64-wiz-10g";
+		compatible = "ti,j722s-wiz-10g", "ti,am64-wiz-10g";
 		ranges = <0x0f010000 0x0 0x0f010000 0x00010000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -430,19 +430,6 @@
 	ti,sci-rm-range-tchan = <0x22>;
 };
 
-/* MCU domain overrides */
-
-&mcu_r5fss0_core0 {
-	firmware-name = "j722s-mcu-r5f0_0-fw";
-};
-
-/* Wakeup domain overrides */
-
-&wkup_r5fss0_core0 {
-	firmware-name = "j722s-wkup-r5f0_0-fw";
-};
-
-/* MAIN domain overrides */
 &hsm {
 	firmware-name = "j722s-hsm-m4f-fw";
 };
@@ -457,11 +444,12 @@
 	};
 };
 
-&wkup_conf {
-	pcie0_ctrl: pcie0-ctrl@4070 {
-		compatible = "ti,j784s4-pcie-ctrl", "syscon";
-		reg = <0x4070 0x4>;
-	};
+&cpsw3g {
+	compatible = "ti,j722s-cpsw-nuss", "ti,am642-cpsw-nuss";
+};
+
+&phy_gmii_sel {
+	compatible = "ti,j722s-phy-gmii-sel", "ti,am654-phy-gmii-sel";
 };
 
 &oc_sram {
@@ -471,6 +459,10 @@
 
 &inta_main_dmss {
 	ti,interrupt-ranges = <7 71 21>;
+};
+
+&main_pmx0 {
+	compatible = "ti,j7200-padconf", "pinctrl-single";
 };
 
 &main_gpio0 {

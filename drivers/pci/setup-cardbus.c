@@ -22,7 +22,7 @@
 static unsigned long pci_cardbus_io_size = DEFAULT_CARDBUS_IO_SIZE;
 static unsigned long pci_cardbus_mem_size = DEFAULT_CARDBUS_MEM_SIZE;
 
-unsigned long pci_cardbus_resource_alignment(struct resource *res)
+unsigned long pci_cardbus_resource_alignment(const struct resource *res)
 {
 	if (res->flags & IORESOURCE_IO)
 		return pci_cardbus_io_size;
@@ -253,8 +253,7 @@ int pci_cardbus_scan_bridge_extend(struct pci_bus *bus, struct pci_dev *dev,
 	 * yenta.c forces a secondary latency timer of 176.
 	 * Copy that behaviour here.
 	 */
-	buses &= ~PCI_SEC_LATENCY_TIMER_MASK;
-	buses |= FIELD_PREP(PCI_SEC_LATENCY_TIMER_MASK, CARDBUS_LATENCY_TIMER);
+	FIELD_MODIFY(PCI_SEC_LATENCY_TIMER_MASK, &buses, CARDBUS_LATENCY_TIMER);
 
 	/* We need to blast all three values with a single write */
 	pci_write_config_dword(dev, PCI_PRIMARY_BUS, buses);

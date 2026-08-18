@@ -190,7 +190,7 @@ EXPORT_SYMBOL(drm_crtc_init);
  */
 int drm_mode_config_helper_suspend(struct drm_device *dev)
 {
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 
 	if (!dev)
 		return 0;

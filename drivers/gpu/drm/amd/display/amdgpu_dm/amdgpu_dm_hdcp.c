@@ -31,6 +31,7 @@
 #include "dm_helpers.h"
 #include <drm/display/drm_hdcp_helper.h>
 #include "hdcp_psp.h"
+#include "amdgpu_dm_kunit_helpers.h"
 
 /*
  * If the SRM version being loaded is less than or equal to the
@@ -158,7 +159,8 @@ static int psp_set_srm(struct psp_context *psp,
 	return 0;
 }
 
-static void process_output(struct hdcp_workqueue *hdcp_work)
+STATIC_IFN_KUNIT
+void process_output(struct hdcp_workqueue *hdcp_work)
 {
 	struct mod_hdcp_output output = hdcp_work->output;
 
@@ -178,6 +180,7 @@ static void process_output(struct hdcp_workqueue *hdcp_work)
 
 	schedule_delayed_work(&hdcp_work->property_validate_dwork, msecs_to_jiffies(0));
 }
+EXPORT_IF_KUNIT(process_output);
 
 static void link_lock(struct hdcp_workqueue *work, bool lock)
 {
@@ -578,6 +581,8 @@ static void update_config(void *handle, struct cp_psp_stream_config *config)
 	link->dp.mst_enabled = config->mst_enabled;
 	link->dp.dp2_enabled = config->dp2_enabled;
 	link->dp.usb4_enabled = config->usb4_enabled;
+	if (aconnector->dc_sink->sink_signal == SIGNAL_TYPE_HDMI_FRL)
+		link->hdmi.frl_enabled = config->frl_enabled;
 	display->adjust.disable = MOD_HDCP_DISPLAY_DISABLE_AUTHENTICATION;
 	link->adjust.auth_delay = 2;
 	link->adjust.retry_limit = MAX_NUM_OF_ATTEMPTS;

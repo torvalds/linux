@@ -28,7 +28,7 @@
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
-#include <drm/bridge/imx.h>
+#include <drm/bridge/of-display-mode-bridge.h>
 
 #include "imx-drm.h"
 
@@ -407,8 +407,6 @@ static int imx_ldb_register(struct drm_device *drm,
 	if (IS_ERR(connector))
 		return PTR_ERR(connector);
 
-	drm_connector_attach_encoder(connector, encoder);
-
 	return 0;
 }
 
@@ -605,8 +603,8 @@ static int imx_ldb_probe(struct platform_device *pdev)
 		 * checking the bus_format property.
 		 */
 		if (!channel->bridge) {
-			channel->bridge = devm_imx_drm_legacy_bridge(dev, child,
-								     DRM_MODE_CONNECTOR_LVDS);
+			channel->bridge = devm_drm_of_display_mode_bridge(dev, child,
+									  DRM_MODE_CONNECTOR_LVDS);
 			if (IS_ERR(channel->bridge)) {
 				ret = PTR_ERR(channel->bridge);
 				goto free_child;

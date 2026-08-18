@@ -7,7 +7,6 @@
 #include <linux/i2c.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/types.h>
 
 #include "core.h"
@@ -713,7 +712,7 @@ static struct mlxsw_driver mlxsw_m_driver = {
 };
 
 static const struct i2c_device_id mlxsw_m_i2c_id[] = {
-	{ "mlxsw_minimal" },
+	{ .name = "mlxsw_minimal" },
 	{ }
 };
 

@@ -1056,7 +1056,8 @@ static u64 __pkvm_memshare_page_req(struct kvm_vcpu *vcpu, u64 ipa)
 
 	/* Fake up a data abort (level 3 translation fault on write) */
 	vcpu->arch.fault.esr_el2 = (ESR_ELx_EC_DABT_LOW << ESR_ELx_EC_SHIFT) |
-				   ESR_ELx_WNR | ESR_ELx_FSC_FAULT |
+				   ESR_ELx_IL | ESR_ELx_WNR |
+				   ESR_ELx_FSC_FAULT |
 				   FIELD_PREP(ESR_ELx_FSC_LEVEL, 3);
 
 	/* Shuffle the IPA around into the HPFAR */

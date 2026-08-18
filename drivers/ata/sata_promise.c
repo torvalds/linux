@@ -281,25 +281,25 @@ static const struct ata_port_info pdc_port_info[] = {
 };
 
 static const struct pci_device_id pdc_ata_pci_tbl[] = {
-	{ PCI_VDEVICE(PROMISE, 0x3371), board_2037x },
-	{ PCI_VDEVICE(PROMISE, 0x3373), board_2037x },
-	{ PCI_VDEVICE(PROMISE, 0x3375), board_2037x },
-	{ PCI_VDEVICE(PROMISE, 0x3376), board_2037x },
-	{ PCI_VDEVICE(PROMISE, 0x3570), board_2057x },
-	{ PCI_VDEVICE(PROMISE, 0x3571), board_2057x },
-	{ PCI_VDEVICE(PROMISE, 0x3574), board_2057x },
-	{ PCI_VDEVICE(PROMISE, 0x3577), board_2057x },
-	{ PCI_VDEVICE(PROMISE, 0x3d73), board_2057x },
-	{ PCI_VDEVICE(PROMISE, 0x3d75), board_2057x },
+	{ PCI_VDEVICE(PROMISE, 0x3371), .driver_data = board_2037x },
+	{ PCI_VDEVICE(PROMISE, 0x3373), .driver_data = board_2037x },
+	{ PCI_VDEVICE(PROMISE, 0x3375), .driver_data = board_2037x },
+	{ PCI_VDEVICE(PROMISE, 0x3376), .driver_data = board_2037x },
+	{ PCI_VDEVICE(PROMISE, 0x3570), .driver_data = board_2057x },
+	{ PCI_VDEVICE(PROMISE, 0x3571), .driver_data = board_2057x },
+	{ PCI_VDEVICE(PROMISE, 0x3574), .driver_data = board_2057x },
+	{ PCI_VDEVICE(PROMISE, 0x3577), .driver_data = board_2057x },
+	{ PCI_VDEVICE(PROMISE, 0x3d73), .driver_data = board_2057x },
+	{ PCI_VDEVICE(PROMISE, 0x3d75), .driver_data = board_2057x },
 
-	{ PCI_VDEVICE(PROMISE, 0x3318), board_20319 },
-	{ PCI_VDEVICE(PROMISE, 0x3319), board_20319 },
-	{ PCI_VDEVICE(PROMISE, 0x3515), board_40518 },
-	{ PCI_VDEVICE(PROMISE, 0x3519), board_40518 },
-	{ PCI_VDEVICE(PROMISE, 0x3d17), board_40518 },
-	{ PCI_VDEVICE(PROMISE, 0x3d18), board_40518 },
+	{ PCI_VDEVICE(PROMISE, 0x3318), .driver_data = board_20319 },
+	{ PCI_VDEVICE(PROMISE, 0x3319), .driver_data = board_20319 },
+	{ PCI_VDEVICE(PROMISE, 0x3515), .driver_data = board_40518 },
+	{ PCI_VDEVICE(PROMISE, 0x3519), .driver_data = board_40518 },
+	{ PCI_VDEVICE(PROMISE, 0x3d17), .driver_data = board_40518 },
+	{ PCI_VDEVICE(PROMISE, 0x3d18), .driver_data = board_40518 },
 
-	{ PCI_VDEVICE(PROMISE, 0x6629), board_20619 },
+	{ PCI_VDEVICE(PROMISE, 0x6629), .driver_data = board_20619 },
 
 	{ }	/* terminate list */
 };
@@ -816,6 +816,7 @@ static int pdc_sata_hardreset(struct ata_link *link, unsigned int *class,
 }
 
 static void pdc_error_handler(struct ata_port *ap)
+	__must_hold(&ap->host->eh_mutex)
 {
 	if (!ata_port_is_frozen(ap))
 		pdc_reset_port(ap);

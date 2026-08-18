@@ -261,7 +261,7 @@ sun4i_tv_find_tv_by_mode(unsigned int mode)
 }
 
 static void sun4i_tv_disable(struct drm_encoder *encoder,
-			    struct drm_atomic_state *state)
+			    struct drm_atomic_commit *state)
 {
 	struct sun4i_tv *tv = drm_encoder_to_sun4i_tv(encoder);
 	struct sun4i_crtc *crtc = drm_crtc_to_sun4i_crtc(encoder->crtc);
@@ -276,7 +276,7 @@ static void sun4i_tv_disable(struct drm_encoder *encoder,
 }
 
 static void sun4i_tv_enable(struct drm_encoder *encoder,
-			    struct drm_atomic_state *state)
+			    struct drm_atomic_commit *state)
 {
 	struct sun4i_tv *tv = drm_encoder_to_sun4i_tv(encoder);
 	struct sun4i_crtc *crtc = drm_crtc_to_sun4i_crtc(encoder->crtc);

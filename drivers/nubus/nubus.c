@@ -41,9 +41,7 @@ module_param_named(populate_procfs, nubus_populate_procfs, bool, 0);
 
 LIST_HEAD(nubus_func_rsrcs);
 
-static struct device nubus_parent = {
-	.init_name	= "nubus",
-};
+static struct device *nubus_parent;
 
 /* Meaning of "bytelanes":
 
@@ -833,7 +831,7 @@ static void __init nubus_add_board(int slot, int bytelanes)
 		list_add_tail(&fres->list, &nubus_func_rsrcs);
 	}
 
-	if (nubus_device_register(&nubus_parent, board))
+	if (nubus_device_register(nubus_parent, board))
 		put_device(&board->dev);
 }
 
@@ -880,18 +878,17 @@ static void __init nubus_scan_bus(void)
 
 static int __init nubus_init(void)
 {
-	int err;
-
 	if (!MACH_IS_MAC)
 		return 0;
 
 	nubus_proc_init();
-	err = device_register(&nubus_parent);
-	if (err) {
-		put_device(&nubus_parent);
-		return err;
-	}
+
+	nubus_parent = root_device_register("nubus");
+	if (IS_ERR(nubus_parent))
+		return PTR_ERR(nubus_parent);
+
 	nubus_scan_bus();
+
 	return 0;
 }
 

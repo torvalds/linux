@@ -32,6 +32,13 @@ VERSION {
 #endif
 		getrandom;
 		__vdso_getrandom;
+
+#ifdef CONFIG_FUTEX_ROBUST_UNLOCK
+		__vdso_futex_robust_list64_try_unlock;
+#ifdef CONFIG_COMPAT
+		__vdso_futex_robust_list32_try_unlock;
+#endif
+#endif
 	local: *;
 	};
 }

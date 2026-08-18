@@ -24,7 +24,6 @@
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/math.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
@@ -730,7 +729,7 @@ static int vl53l1x_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id vl53l1x_id[] = {
-	{ "vl53l1x" },
+	{ .name = "vl53l1x" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, vl53l1x_id);

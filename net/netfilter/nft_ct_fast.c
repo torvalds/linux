@@ -53,7 +53,7 @@ void nft_ct_get_fast_eval(const struct nft_expr *expr,
 		return;
 #endif
 	default:
-		WARN_ON_ONCE(1);
+		DEBUG_NET_WARN_ON_ONCE(1);
 		regs->verdict.code = NFT_BREAK;
 		break;
 	}

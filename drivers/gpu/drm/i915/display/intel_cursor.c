@@ -21,7 +21,6 @@
 #include "intel_display_utils.h"
 #include "intel_display_wa.h"
 #include "intel_fb.h"
-#include "intel_fb_pin.h"
 #include "intel_frontbuffer.h"
 #include "intel_plane.h"
 #include "intel_psr.h"

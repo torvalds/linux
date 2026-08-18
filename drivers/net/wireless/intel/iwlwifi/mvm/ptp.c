@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2021 - 2023, 2025 Intel Corporation
+ * Copyright (C) 2021 - 2023, 2025-2026 Intel Corporation
  */
 
 #include "mvm.h"
@@ -121,6 +121,8 @@ iwl_mvm_get_crosstimestamp_fw(struct iwl_mvm *mvm, u32 *gp2, u64 *sys_time)
 	*sys_time = (u64)le32_to_cpu(resp->platform_timestamp_hi) << 32 |
 		le32_to_cpu(resp->platform_timestamp_lo);
 
+	iwl_free_resp(&cmd);
+
 	return ret;
 }
 
@@ -160,12 +162,13 @@ iwl_mvm_phc_get_crosstimestamp(struct ptp_clock_info *ptp,
 	/* System (wall) time */
 	ktime_t sys_time;
 
-	memset(xtstamp, 0, sizeof(struct system_device_crosststamp));
-
 	if (!mvm->ptp_data.ptp_clock) {
 		IWL_ERR(mvm, "No PHC clock registered\n");
 		return -ENODEV;
 	}
+
+	if (xtstamp->clock_id != CLOCK_REALTIME)
+		return -ENOTSUPP;
 
 	mutex_lock(&mvm->mutex);
 	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_SYNCED_TIME)) {
@@ -184,7 +187,7 @@ iwl_mvm_phc_get_crosstimestamp(struct ptp_clock_info *ptp,
 
 	/* System monotonic raw time is not used */
 	xtstamp->device = (ktime_t)gp2_ns;
-	xtstamp->sys_realtime = sys_time;
+	xtstamp->sys_systime = sys_time;
 
 out:
 	mutex_unlock(&mvm->mutex);
@@ -325,11 +328,11 @@ void iwl_mvm_ptp_remove(struct iwl_mvm *mvm)
 			       mvm->ptp_data.ptp_clock_info.name,
 			       ptp_clock_index(mvm->ptp_data.ptp_clock));
 
+		cancel_delayed_work_sync(&mvm->ptp_data.dwork);
 		ptp_clock_unregister(mvm->ptp_data.ptp_clock);
 		mvm->ptp_data.ptp_clock = NULL;
 		memset(&mvm->ptp_data.ptp_clock_info, 0,
 		       sizeof(mvm->ptp_data.ptp_clock_info));
 		mvm->ptp_data.last_gp2 = 0;
-		cancel_delayed_work_sync(&mvm->ptp_data.dwork);
 	}
 }

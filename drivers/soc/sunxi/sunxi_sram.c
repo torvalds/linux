@@ -12,6 +12,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/io.h>
+#include <linux/limits.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -29,16 +30,16 @@ struct sunxi_sram_func {
 };
 
 struct sunxi_sram_data {
-	char			*name;
-	u8			reg;
-	u8			offset;
-	u8			width;
-	struct sunxi_sram_func	*func;
+	char				*name;
+	u8				reg;
+	u8				offset;
+	u8				width;
+	const struct sunxi_sram_func	*func;
 };
 
 struct sunxi_sram_desc {
 	struct sunxi_sram_data	data;
-	bool			claimed;
+	u8			claim_cnt;
 };
 
 #define SUNXI_SRAM_MAP(_reg_val, _val, _func)			\
@@ -54,7 +55,7 @@ struct sunxi_sram_desc {
 		.reg = _reg,					\
 		.offset = _off,					\
 		.width = _width,				\
-		.func = (struct sunxi_sram_func[]){		\
+		.func = (const struct sunxi_sram_func[]){	\
 			__VA_ARGS__, { } },			\
 	}
 
@@ -82,6 +83,12 @@ static struct sunxi_sram_desc sun50i_a64_sram_c = {
 				  SUNXI_SRAM_MAP(0, 1, "de2")),
 };
 
+static struct sunxi_sram_desc sun50i_h616_ve_sram = {
+	.data	= SUNXI_SRAM_DATA("VE", 0x0, 0, 1,
+				  SUNXI_SRAM_MAP(1, 0, "cpu"),
+				  SUNXI_SRAM_MAP(0, 1, "ve")),
+};
+
 static const struct of_device_id sunxi_sram_dt_ids[] = {
 	{
 		.compatible	= "allwinner,sun4i-a10-sram-a3-a4",
@@ -99,6 +106,10 @@ static const struct of_device_id sunxi_sram_dt_ids[] = {
 		.compatible	= "allwinner,sun50i-a64-sram-c",
 		.data		= &sun50i_a64_sram_c.data,
 	},
+	{
+		.compatible	= "allwinner,sun50i-h616-ve-sram",
+		.data		= &sun50i_h616_ve_sram.data,
+	},
 	{}
 };
 
@@ -111,7 +122,7 @@ static int sunxi_sram_show(struct seq_file *s, void *data)
 	struct device_node *sram_node, *section_node;
 	const struct sunxi_sram_data *sram_data;
 	const struct of_device_id *match;
-	struct sunxi_sram_func *func;
+	const struct sunxi_sram_func *func;
 	const __be32 *sram_addr_p, *section_addr_p;
 	u32 val;
 
@@ -164,68 +175,96 @@ static inline struct sunxi_sram_desc *to_sram_desc(const struct sunxi_sram_data 
 	return container_of(data, struct sunxi_sram_desc, data);
 }
 
-static const struct sunxi_sram_data *sunxi_sram_of_parse(struct device_node *node,
-							 unsigned int *reg_value)
+static const struct sunxi_sram_data *sunxi_sram_get_match(struct device_node *np, u8 val,
+							  unsigned int *reg_value)
 {
 	const struct of_device_id *match;
 	const struct sunxi_sram_data *data;
-	struct sunxi_sram_func *func;
-	struct of_phandle_args args;
-	u8 val;
-	int ret;
+	const struct sunxi_sram_func *func;
 
-	ret = of_parse_phandle_with_fixed_args(node, "allwinner,sram", 1, 0,
-					       &args);
-	if (ret)
-		return ERR_PTR(ret);
+	if (!of_device_is_available(np))
+		return ERR_PTR(-ENODEV);
 
-	if (!of_device_is_available(args.np)) {
-		ret = -EBUSY;
-		goto err;
-	}
-
-	val = args.args[0];
-
-	match = of_match_node(sunxi_sram_dt_ids, args.np);
-	if (!match) {
-		ret = -EINVAL;
-		goto err;
-	}
+	match = of_match_node(sunxi_sram_dt_ids, np);
+	if (!match)
+		return ERR_PTR(-ENODEV);
 
 	data = match->data;
-	if (!data) {
-		ret = -EINVAL;
-		goto err;
-	}
+	if (!data)
+		return ERR_PTR(-EINVAL);
 
-	for (func = data->func; func->func; func++) {
-		if (val == func->val) {
-			if (reg_value)
-				*reg_value = func->reg_val;
-
+	for (func = data->func; func->func; func++)
+		if (val == func->val)
 			break;
-		}
-	}
 
-	if (!func->func) {
-		ret = -EINVAL;
-		goto err;
-	}
+	if (!func->func)
+		return ERR_PTR(-EINVAL);
 
-	of_node_put(args.np);
-	return match->data;
+	if (reg_value)
+		*reg_value = func->reg_val;
 
-err:
-	of_node_put(args.np);
-	return ERR_PTR(ret);
+	return data;
 }
 
-int sunxi_sram_claim(struct device *dev)
+#define SUNXI_SRAM_PROP "allwinner,sram"
+#define SUNXI_SRAM_CELLS 1
+
+static int sunxi_sram_claim_one(struct device_node *np, u8 arg)
 {
 	const struct sunxi_sram_data *sram_data;
 	struct sunxi_sram_desc *sram_desc;
 	unsigned int device;
 	u32 val, mask;
+
+	sram_data = sunxi_sram_get_match(np, arg, &device);
+	if (IS_ERR(sram_data))
+		return PTR_ERR(sram_data);
+
+	sram_desc = to_sram_desc(sram_data);
+
+	spin_lock(&sram_lock);
+
+	if (sram_desc->claim_cnt) {
+		if (!WARN_ON(sram_desc->claim_cnt == U8_MAX))
+			sram_desc->claim_cnt++;
+	} else {
+		mask = GENMASK(sram_data->offset + sram_data->width - 1,
+			       sram_data->offset);
+		val = readl(base + sram_data->reg);
+		val &= ~mask;
+		writel(val | ((device << sram_data->offset) & mask),
+		       base + sram_data->reg);
+
+		sram_desc->claim_cnt++;
+	}
+
+	spin_unlock(&sram_lock);
+
+	return 0;
+}
+
+static void sunxi_sram_release_one(struct device_node *np, u8 arg)
+{
+	const struct sunxi_sram_data *sram_data;
+	struct sunxi_sram_desc *sram_desc;
+
+	sram_data = sunxi_sram_get_match(np, arg, NULL);
+	if (IS_ERR(sram_data))
+		return;
+
+	sram_desc = to_sram_desc(sram_data);
+
+	spin_lock(&sram_lock);
+	if (!WARN_ON(sram_desc->claim_cnt == 0))
+		sram_desc->claim_cnt--;
+	spin_unlock(&sram_lock);
+}
+
+int sunxi_sram_claim(struct device *dev)
+{
+	struct of_phandle_iterator it;
+	int err;
+	int count = 0;
 
 	if (IS_ERR(base))
 		return PTR_ERR(base);
@@ -236,50 +275,53 @@ int sunxi_sram_claim(struct device *dev)
 	if (!dev || !dev->of_node)
 		return -EINVAL;
 
-	sram_data = sunxi_sram_of_parse(dev->of_node, &device);
-	if (IS_ERR(sram_data))
-		return PTR_ERR(sram_data);
+	of_for_each_phandle(&it, err, dev->of_node, SUNXI_SRAM_PROP,
+			    NULL, SUNXI_SRAM_CELLS) {
+		u32 args[SUNXI_SRAM_CELLS];
 
-	sram_desc = to_sram_desc(sram_data);
+		of_phandle_iterator_args(&it, args, SUNXI_SRAM_CELLS);
 
-	spin_lock(&sram_lock);
+		err = sunxi_sram_claim_one(it.node, args[0]);
+		if (err)
+			goto err;
 
-	if (sram_desc->claimed) {
-		spin_unlock(&sram_lock);
-		return -EBUSY;
+		count++;
 	}
 
-	mask = GENMASK(sram_data->offset + sram_data->width - 1,
-		       sram_data->offset);
-	val = readl(base + sram_data->reg);
-	val &= ~mask;
-	writel(val | ((device << sram_data->offset) & mask),
-	       base + sram_data->reg);
-
-	sram_desc->claimed = true;
-	spin_unlock(&sram_lock);
+	if (count == 0)
+		return -ENOENT;
 
 	return 0;
+
+err:
+	while (count--) {
+		struct of_phandle_args args;
+
+		of_parse_phandle_with_fixed_args(dev->of_node, SUNXI_SRAM_PROP,
+						 SUNXI_SRAM_CELLS, count, &args);
+		sunxi_sram_release_one(args.np, args.args[0]);
+	}
+
+	return err;
 }
 EXPORT_SYMBOL(sunxi_sram_claim);
 
 void sunxi_sram_release(struct device *dev)
 {
-	const struct sunxi_sram_data *sram_data;
-	struct sunxi_sram_desc *sram_desc;
+	struct of_phandle_iterator it;
+	int err;
 
 	if (!dev || !dev->of_node)
 		return;
 
-	sram_data = sunxi_sram_of_parse(dev->of_node, NULL);
-	if (IS_ERR(sram_data))
-		return;
+	of_for_each_phandle(&it, err, dev->of_node, SUNXI_SRAM_PROP,
+			    NULL, SUNXI_SRAM_CELLS) {
+		u32 args[SUNXI_SRAM_CELLS];
 
-	sram_desc = to_sram_desc(sram_data);
+		of_phandle_iterator_args(&it, args, SUNXI_SRAM_CELLS);
 
-	spin_lock(&sram_lock);
-	sram_desc->claimed = false;
-	spin_unlock(&sram_lock);
+		sunxi_sram_release_one(it.node, args[0]);
+	}
 }
 EXPORT_SYMBOL(sunxi_sram_release);
 

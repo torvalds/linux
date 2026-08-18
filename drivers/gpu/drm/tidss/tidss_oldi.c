@@ -221,7 +221,7 @@ static int tidss_oldi_config(struct tidss_oldi *oldi)
 }
 
 static void tidss_oldi_atomic_pre_enable(struct drm_bridge *bridge,
-					 struct drm_atomic_state *state)
+					 struct drm_atomic_commit *state)
 {
 	struct tidss_oldi *oldi = drm_bridge_to_tidss_oldi(bridge);
 	struct drm_connector *connector;
@@ -258,7 +258,7 @@ static void tidss_oldi_atomic_pre_enable(struct drm_bridge *bridge,
 }
 
 static void tidss_oldi_atomic_post_disable(struct drm_bridge *bridge,
-					   struct drm_atomic_state *state)
+					   struct drm_atomic_commit *state)
 {
 	struct tidss_oldi *oldi = drm_bridge_to_tidss_oldi(bridge);
 

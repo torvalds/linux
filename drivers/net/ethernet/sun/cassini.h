@@ -259,7 +259,7 @@
 
 /* output enables are provided for each device's chip select and for the rest
  * of the outputs from cassini to its local bus devices. two sw programmable
- * bits are connected to general purpus control/status bits.
+ * bits are connected to general purpose control/status bits.
  * DEFAULT: 0x7
  */
 #define  REG_BIM_LOCAL_DEV_EN          0x1020  /* BIM local device
@@ -404,7 +404,7 @@
 						    GMII on SERDES pins for
 						    monitoring. */
 #define   SATURN_PCFG_FSI             0x00000200 /* 1 = freeze serdes/gmii. all
-						    pins configed as outputs.
+						    pins configured as outputs.
 						    for power saving when using
 						    internal phy. */
 #define   SATURN_PCFG_LAD             0x00000800 /* 0 = mac core led ctrl
@@ -622,7 +622,7 @@
 						      enabled */
 #define    RX_CFG_SWIVEL_MASK           0x00001C00 /* byte offset of the 1st
 						      data byte of the packet
-						      w/in 8 byte boundares.
+						      w/in 8 byte boundaries.
 						      this swivels the data
 						      DMA'ed to header
 						      buffers, jumbo buffers
@@ -1248,7 +1248,7 @@
  */
 #define  REG_MAC_TX_STATUS                 0x6010  /* TX MAC status reg */
 #define    MAC_TX_FRAME_XMIT               0x0001  /* successful frame
-						      transmision */
+						      transmission */
 #define    MAC_TX_UNDERRUN                 0x0002  /* terminated frame
 						      transmission due to
 						      data starvation in the
@@ -1414,7 +1414,7 @@
  * when passed to the host. to ensure proper operation, need to wait 3.2ms
  * after clearing RX_CFG_EN before writing to any other RX MAC registers
  * or other MAC parameters. alternatively, poll RX_CFG_EN until it clears
- * to 0. similary, HASH_FILTER_EN and ADDR_FILTER_EN have the same
+ * to 0. Similarly, HASH_FILTER_EN and ADDR_FILTER_EN have the same
  * restrictions as CFG_EN.
  */
 #define  REG_MAC_RX_CFG                 0x6034  /* RX MAC config reg */
@@ -1670,7 +1670,7 @@
  * programmed in frame mode. load this register w/ a valid instruction
  * (as per IEEE 802.3u MII spec). poll this register to check for instruction
  * execution completion. during a read operation, this register will also
- * contain the 16-bit data returned by the tranceiver. unless specified
+ * contain the 16-bit data returned by the transceiver. unless specified
  * otherwise, fields are considered "don't care" when polling for
  * completion.
  */
@@ -1734,7 +1734,7 @@
 #define    MIF_CFG_POLL_REG_SHIFT       3
 #define    MIF_CFG_MDIO_0               0x0100 /* (ro) dual purpose.
 						  when MDIO_0 is idle,
-						  1 -> tranceiver is
+						  1 -> transceiver is
 						  connected to MDIO_0.
 						  when MIF is communicating
 						  w/ MDIO_0 in bit-bang
@@ -1750,7 +1750,7 @@
 						  mode, this bit indicates
 						  the incoming bit stream
 						  during a read op */
-#define    MIF_CFG_POLL_PHY_MASK        0x7C00 /* tranceiver address to
+#define    MIF_CFG_POLL_PHY_MASK        0x7C00 /* transceiver address to
 						  be polled */
 #define    MIF_CFG_POLL_PHY_SHIFT       10
 

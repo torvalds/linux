@@ -267,7 +267,7 @@ static struct dc_stream_state *dml21_add_phantom_stream(struct dml2_context *dml
 	phantom_stream->dst.height = stream_programming->phantom_stream.descriptor.timing.v_active;
 
 	phantom_stream->src.y = 0;
-	phantom_stream->src.height = (double)phantom_stream_descriptor->timing.v_active * (double)main_stream->src.height / (double)main_stream->dst.height;
+	phantom_stream->src.height = (int)((double)phantom_stream_descriptor->timing.v_active * (double)main_stream->src.height / (double)main_stream->dst.height);
 
 	phantom_stream->use_dynamic_meta = false;
 

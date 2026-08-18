@@ -354,7 +354,7 @@ struct atmel_hlcdc_dc {
 	struct atmel_hlcdc_layer *layers[ATMEL_HLCDC_MAX_LAYERS];
 	struct {
 		u32 imr;
-		struct drm_atomic_state *state;
+		struct drm_atomic_commit *state;
 	} suspend;
 };
 

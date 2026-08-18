@@ -31,12 +31,19 @@
 #include "hdcp.h"
 #include "dc.h"
 #include "dm_cp_psp.h"
-#include "amdgpu.h"
+
+/*
+ * Minimal declarations needed by this header.
+ * Full amdgpu/DM definitions come from amdgpu_dm.h included by each .c file.
+ */
+#define AMDGPU_DM_MAX_DISPLAY_INDEX 31
+struct amdgpu_dm_connector;
 
 struct mod_hdcp;
 struct mod_hdcp_link;
 struct mod_hdcp_display;
 struct cp_psp;
+struct amdgpu_device;
 
 struct hdcp_workqueue {
 	struct work_struct cpirq_work;
@@ -86,5 +93,9 @@ void hdcp_handle_cpirq(struct hdcp_workqueue *work, unsigned int link_index);
 void hdcp_destroy(struct kobject *kobj, struct hdcp_workqueue *work);
 
 struct hdcp_workqueue *hdcp_create_workqueue(struct amdgpu_device *adev, struct cp_psp *cp_psp, struct dc *dc);
+
+#if IS_ENABLED(CONFIG_DRM_AMD_DC_KUNIT_TEST)
+void process_output(struct hdcp_workqueue *hdcp_work);
+#endif
 
 #endif /* AMDGPU_DM_AMDGPU_DM_HDCP_H_ */

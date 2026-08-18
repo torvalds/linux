@@ -71,6 +71,16 @@ enum dynamic_metadata_mode {
 	dmdata_dolby_vision
 };
 
+struct frl_audio_clock_info {
+	uint32_t frl_character_clock_kHz;
+	uint32_t n_32khz;
+	uint32_t cts_32khz;
+	uint32_t n_44khz;
+	uint32_t cts_44khz;
+	uint32_t n_48khz;
+	uint32_t cts_48khz;
+};
+
 struct enc_sdp_line_num {
 	/* Adaptive Sync SDP */
 	bool adaptive_sync_line_num_valid;
@@ -93,6 +103,7 @@ struct encoder_info_frame {
 	/* Adaptive Sync SDP*/
 	struct dc_info_packet adaptive_sync;
 	struct enc_sdp_line_num sdp_line_num;
+	bool firmware_controlled_hdr_info_packet;
 };
 
 struct encoder_unblank_param {
@@ -275,6 +286,227 @@ struct stream_encoder_funcs {
 	bool (*is_fifo_enabled)(struct stream_encoder *enc);
 	void (*map_stream_to_link)(struct stream_encoder *enc, uint32_t stream_enc_inst, uint32_t link_enc_inst);
 	uint32_t (*get_pixels_per_cycle)(struct stream_encoder *enc);
+};
+
+/**
+ * @hpo_frl_stream_encoder_state - Stream encoder parameters
+ */
+struct hpo_frl_stream_encoder_state {
+	uint32_t stream_enc_enabled;
+	uint32_t otg_inst;
+	uint32_t color_depth;
+	uint32_t num_odm_segments;
+	uint32_t h_active;
+	uint32_t h_blank;
+	uint32_t borrow_mode;
+	enum dc_pixel_encoding pixel_format;
+};
+
+/**
+ * @hpo_frl_stream_encoder - Encoder stream instance
+ *
+ * This struct keeps the reference to the struct with the FRL stream encoder
+ * callbacks. Additionally, it has other references that simplify the stream
+ * configuration.
+ */
+struct hpo_frl_stream_encoder {
+	/**
+	 * @funcs: callback functions for using FRL stream encoder.
+	 */
+	const struct hpo_frl_stream_encoder_funcs *funcs;
+
+	/**
+	 * @stream_enc_inst: Instance ID reference.
+	 */
+	uint32_t stream_enc_inst;
+
+	/**
+	 * @ctx: DC context.
+	 */
+	struct dc_context *ctx;
+
+	/**
+	 * @bp: Bios parser reference.
+	 */
+	struct dc_bios *bp;
+
+	/**
+	 * @id: ID to the Engine object type.
+	 */
+	enum engine_id id;
+
+	/**
+	 * @afmt:
+	 *
+	 * Audio Formatter (AFMT) reference used for select the correct audio
+	 * reference.
+	 */
+	struct afmt *afmt;
+
+	/**
+	 * @vpg:
+	 *
+	 * The VBI Packet Generator (VPG) reference which is used for
+	 * generating the HDMI data island packet headers for ISRC1 and generic
+	 * packages.
+	 */
+	struct vpg *vpg;
+
+	/**
+	 * @afmt:
+	 *
+	 * Audio Pattern Generator (APG) reference used for select the correct audio
+	 * reference.
+	 */
+	struct apg *apg;
+};
+
+/**
+ * @hpo_frl_stream_encoder_funcs - FRL stream encoder functions callbacks
+ *
+ * DC must set up the FRL encoder and the stream encoder; however, each ASIC
+ * may have some quirks in setting FRL. Thus, this struct, adds all the encoder
+ * stream interfaces for setup the FRL stream encoder.
+ */
+struct hpo_frl_stream_encoder_funcs {
+	void (*hdmi_frl_set_dsc_config)(
+		struct hpo_frl_stream_encoder *enc,
+		struct dc_crtc_timing *timing,
+		uint8_t *dsc_packed_pps);
+	/**
+	 * @hdmi_frl_enable:
+	 *
+	 * This callback initializes a new FRL stream by enabling HDMI Dispclk,
+	 * SOCCLK, and HDMI stream clock. Additionally, this callback is also
+	 * used to initialize some debug options, such as the CRC validation.
+	 * Finally, it must setup the OTG instance.
+	 */
+	void (*hdmi_frl_enable)(struct hpo_frl_stream_encoder *enc,
+				int otg_inst);
+
+	/**
+	 * @hdmi_frl_unblank:
+	 *
+	 * Ensure that the FIFO video stream is active, reset the necessary
+	 * FIFO registers, enable HDMI tribyte encoder, and finally, adjust the
+	 * clock ramp registers for FIFO. Notice that all the configuration
+	 * made by this function it is at the register level.
+	 */
+	void (*hdmi_frl_unblank)(struct hpo_frl_stream_encoder *enc,
+				 int otg_inst);
+
+	/**
+	 * @hdmi_frl_blank:
+	 *
+	 * This callback is a register-level configuration that must disable
+	 * the clock ramp adjuster FIFO, disable the HDMI Tribyte encoder, and
+	 * disable the stream clocks (dispclk, socclk, and hdmistreamclk).
+	 */
+	void (*hdmi_frl_blank)(struct hpo_frl_stream_encoder *enc);
+
+	/**
+	 * @hdmi_frl_fifo_odm_enabled:
+	 *
+	 * This callback checks if the FIFO ODM Combine mode is enabled
+	 */
+	bool (*hdmi_frl_fifo_odm_enabled)(struct hpo_frl_stream_encoder *enc);
+
+	/**
+	 * @hdmi_frl_set_stream_attribute:
+	 *
+	 * This callback should be invoked only after the link is trained. The
+	 * implementation should configure the pixel encode, color depth, ODM
+	 * mode, configure horizontal blank/active size, configure borrow
+	 * parameters, enable general control packet, enable/setup audio, and
+	 * AVMute.
+	 */
+	void (*hdmi_frl_set_stream_attribute)(struct hpo_frl_stream_encoder *enc,
+					      struct dc_crtc_timing *crtc_timing,
+					      struct frl_borrow_params *borrow_params,
+					      int odm_combine_num_segments);
+
+	/**
+	 * @update_hdmi_info_packets:
+	 *
+	 * Update the HDMI packet control option.
+	 */
+	void (*update_hdmi_info_packets)(struct hpo_frl_stream_encoder *enc,
+					 const struct encoder_info_frame *info_frame);
+
+	/**
+	 * @stop_hdmi_info_packets:
+	 *
+	 * Update HDMI info packet (avi, vendoer, gamut, spd, hdrsmd, hfvsif,
+	 * vtem, etc).
+	 */
+	void (*stop_hdmi_info_packets)(struct hpo_frl_stream_encoder *enc);
+
+	/**
+	 * @audio_mute_control:
+	 *
+	 * Just mute the audio.
+	 */
+	void (*audio_mute_control)(struct hpo_frl_stream_encoder *enc,
+				   bool mute);
+
+	/**
+	 * @hdmi_audio_setup:
+	 *
+	 * Setup HDMI audio based on the Azila info.
+	 */
+	void (*hdmi_audio_setup)(struct hpo_frl_stream_encoder *enc,
+				 unsigned int az_inst,
+				 struct audio_info *info,
+				 struct audio_crtc_info *audio_crtc_info);
+
+	/**
+	 * @hdmi_audio_disable:
+	 *
+	 * Disable audio.
+	 */
+	void (*hdmi_audio_disable)(struct hpo_frl_stream_encoder *enc);
+
+	/**
+	 * @set_avmute:
+	 *
+	 * Disable AVmute at the register-level.
+	 */
+	void (*set_avmute)(struct hpo_frl_stream_encoder *enc, bool enable);
+
+	/**
+	 * @validate_hdmi_frl_output:
+	 *
+	 * Validate FRL inputs, DSC, audio parameters, FRL capacity, and borrow
+	 * parameters.
+	 */
+	bool (*validate_hdmi_frl_output)(struct hpo_frl_stream_encoder *enc,
+					 const struct dc_crtc_timing *timing,
+					 const struct audio_check *audio,
+					 struct dc_hdmi_frl_link_settings *frl_link_settings,
+					 unsigned int dsc_max_rate);
+
+	/**
+	 * @read_state:
+	 *
+	 * Fill out the hpo_frl_stream_encoder_state with the info retrieved
+	 * from ASIC registers.
+	 */
+	void (*read_state)(struct hpo_frl_stream_encoder *enc,
+			   struct hpo_frl_stream_encoder_state *state);
+
+	/**
+	 * @set_dynamic_metadata:
+	 *
+	 * Metadata configuration that sets:
+	 *  - Using Enfine or disable DME.
+	 *  - HUBP setup for the physical instance that has the DME enabled.
+	 *  - Metadata packet type.
+	 *  - Ensure OTG master update locks in the changing DME configuration.
+	 */
+	void (*set_dynamic_metadata)(struct hpo_frl_stream_encoder *enc,
+				     bool enable_dme,
+				     uint32_t hubp_requestor_id,
+				     enum dynamic_metadata_mode dmdata_mode);
 };
 
 struct hpo_dp_stream_encoder_state {

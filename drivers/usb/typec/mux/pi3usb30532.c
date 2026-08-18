@@ -169,7 +169,7 @@ static void pi3usb30532_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id pi3usb30532_table[] = {
-	{ "pi3usb30532" },
+	{ .name = "pi3usb30532" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pi3usb30532_table);

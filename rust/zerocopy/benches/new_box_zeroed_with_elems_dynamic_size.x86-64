@@ -1,0 +1,22 @@
+bench_new_box_zeroed_with_elems_dynamic_size:
+	push r14
+	push rbx
+	push rax
+	mov rbx, rdi
+	movabs rax, 4611686018427387901
+	cmp rdi, rax
+	ja .LBB5_1
+	lea r14, [2*rbx + 4]
+	call qword ptr [rip + __rustc::__rust_no_alloc_shim_is_unstable_v2@GOTPCREL]
+	mov esi, 2
+	mov rdi, r14
+	call qword ptr [rip + __rustc::__rust_alloc_zeroed@GOTPCREL]
+	jmp .LBB5_3
+.LBB5_1:
+	xor eax, eax
+.LBB5_3:
+	mov rdx, rbx
+	add rsp, 8
+	pop rbx
+	pop r14
+	ret

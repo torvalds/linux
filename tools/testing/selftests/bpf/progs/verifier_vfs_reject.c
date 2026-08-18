@@ -13,7 +13,7 @@
 static char buf[PATH_MAX];
 
 SEC("lsm.s/file_open")
-__failure __msg("Possibly NULL pointer passed to trusted arg0")
+__failure __msg("Possibly NULL pointer passed to trusted R1")
 int BPF_PROG(get_task_exe_file_kfunc_null)
 {
 	struct file *acquired;
@@ -28,7 +28,7 @@ int BPF_PROG(get_task_exe_file_kfunc_null)
 }
 
 SEC("lsm.s/inode_getxattr")
-__failure __msg("arg#0 pointer type STRUCT task_struct must point to scalar, or struct with scalar")
+__failure __msg("R1 pointer type STRUCT task_struct must point to scalar, or struct with scalar")
 int BPF_PROG(get_task_exe_file_kfunc_fp)
 {
 	u64 x;
@@ -80,7 +80,7 @@ int BPF_PROG(get_task_exe_file_kfunc_unreleased)
 }
 
 SEC("lsm.s/file_open")
-__failure __msg("release kernel function bpf_put_file expects")
+__failure __msg("release kfunc bpf_put_file expects referenced PTR_TO_BTF_ID passed to R1")
 int BPF_PROG(put_file_kfunc_unacquired, struct file *file)
 {
 	/* Can't release an unacquired pointer. */
@@ -89,7 +89,7 @@ int BPF_PROG(put_file_kfunc_unacquired, struct file *file)
 }
 
 SEC("lsm.s/file_open")
-__failure __msg("Possibly NULL pointer passed to trusted arg0")
+__failure __msg("Possibly NULL pointer passed to trusted R1")
 int BPF_PROG(path_d_path_kfunc_null)
 {
 	/* Can't pass NULL value to bpf_path_d_path() kfunc. */
@@ -128,7 +128,7 @@ int BPF_PROG(path_d_path_kfunc_untrusted_from_current)
 }
 
 SEC("lsm.s/file_open")
-__failure __msg("kernel function bpf_path_d_path args#0 expected pointer to STRUCT path but R1 has a pointer to STRUCT file")
+__failure __msg("kernel function bpf_path_d_path R1 expected pointer to STRUCT path but R1 has a pointer to STRUCT file")
 int BPF_PROG(path_d_path_kfunc_type_mismatch, struct file *file)
 {
 	bpf_path_d_path((struct path *)&file->f_task_work, buf, sizeof(buf));

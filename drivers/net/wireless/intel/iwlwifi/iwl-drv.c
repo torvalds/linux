@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2005-2014, 2018-2025 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2026 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -492,13 +492,16 @@ static void set_sec_offset(struct iwl_firmware_pieces *pieces,
  * Gets uCode section from tlv.
  */
 static int iwl_store_ucode_sec(struct fw_img_parsing *img,
-			       const void *data, int size)
+			       const void *data, size_t size)
 {
 	struct fw_sec *sec;
 	const struct fw_sec_parsing *sec_parse;
 	size_t alloc_size;
 
 	if (WARN_ON(!img || !data))
+		return -EINVAL;
+
+	if (size < sizeof(sec_parse->offset))
 		return -EINVAL;
 
 	sec_parse = (const struct fw_sec_parsing *)data;
@@ -804,6 +807,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 	u32 build, paging_mem_size;
 	int num_of_cpus;
 	bool usniffer_req = false;
+	size_t aligned_tlv_len;
 
 	if (len < sizeof(*ucode)) {
 		IWL_ERR(drv, "uCode has invalid length: %zd\n", len);
@@ -852,8 +856,16 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				len, tlv_len);
 			return -EINVAL;
 		}
-		len -= ALIGN(tlv_len, 4);
-		data += sizeof(*tlv) + ALIGN(tlv_len, 4);
+
+		aligned_tlv_len = ALIGN(tlv_len, 4);
+		if (len < aligned_tlv_len) {
+			IWL_ERR(drv, "invalid aligned TLV len: %zd/%zu\n",
+				len, aligned_tlv_len);
+			return -EINVAL;
+		}
+
+		len -= aligned_tlv_len;
+		data += sizeof(*tlv) + aligned_tlv_len;
 
 		switch (tlv_type) {
 		case IWL_UCODE_TLV_INST:
@@ -1294,8 +1306,9 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 
 			if (tlv_len != sizeof(*fseq_ver))
 				goto invalid_tlv_len;
-			IWL_DEBUG_INFO(drv, "TLV_FW_FSEQ_VERSION: %.32s\n",
-				       fseq_ver->version);
+			IWL_DEBUG_INFO(drv,
+				       "TLV_FW_FSEQ_VERSION: %.32s (sha1: %.20s)\n",
+				       fseq_ver->version, fseq_ver->sha1);
 			}
 			break;
 		case IWL_UCODE_TLV_FW_NUM_STATIONS:
@@ -1328,6 +1341,18 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			if (tlv_len != sizeof(u32))
 				goto invalid_tlv_len;
 			capa->num_beacons =
+				le32_to_cpup((const __le32 *)tlv_data);
+			break;
+		case IWL_UCODE_TLV_FW_NUM_MCAST_KEY_ENTRIES:
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			capa->num_mcast_key_entries =
+				le32_to_cpup((const __le32 *)tlv_data);
+			break;
+		case IWL_UCODE_TLV_FW_NAN_MAX_CHAN_SWITCH_TIME:
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			capa->nan_max_chan_switch_time =
 				le32_to_cpup((const __le32 *)tlv_data);
 			break;
 		case IWL_UCODE_TLV_UMAC_DEBUG_ADDRS: {
@@ -1640,6 +1665,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	fw->ucode_capa.n_scan_channels = IWL_DEFAULT_SCAN_CHANNELS;
 	fw->ucode_capa.num_stations = IWL_STATION_COUNT_MAX;
 	fw->ucode_capa.num_beacons = 1;
+	fw->ucode_capa.num_mcast_key_entries = 2;
 	/* dump all fw memory areas by default */
 	fw->dbg.dump_mask = 0xffffffff;
 

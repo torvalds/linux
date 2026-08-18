@@ -59,7 +59,7 @@ static const char *const dccprotos[] = {
 /* tries to get the ip_addr and port out of a dcc command
  * return value: -1 on failure, 0 on success
  *	data		pointer to first byte of DCC command data
- *	data_end	pointer to last byte of dcc command data
+ *	data_end	one past end of data
  *	ip		returns parsed ip of dcc command
  *	port		returns parsed port of dcc command
  *	ad_beg_p	returns pointer to first byte of addr data
@@ -77,10 +77,10 @@ static int parse_dcc(char *data, const char *data_end, __be32 *ip,
 
 	/* Make sure we have a newline character within the packet boundaries
 	 * because simple_strtoul parses until the first invalid character. */
-	for (tmp = data; tmp <= data_end; tmp++)
+	for (tmp = data; tmp < data_end; tmp++)
 		if (*tmp == '\n')
 			break;
-	if (tmp > data_end || *tmp != '\n')
+	if (tmp >= data_end || *tmp != '\n')
 		return -1;
 
 	*ad_beg_p = data;
@@ -255,11 +255,14 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 }
 
 static struct nf_conntrack_helper irc[MAX_PORTS] __read_mostly;
+static struct nf_conntrack_helper *irc_ptr[MAX_PORTS] __read_mostly;
 static struct nf_conntrack_expect_policy irc_exp_policy;
 
 static int __init nf_conntrack_irc_init(void)
 {
 	int i, ret;
+
+	nf_conntrack_helper_deprecated(HELPER_NAME);
 
 	if (max_dcc_channels < 1) {
 		pr_err("max_dcc_channels must not be zero\n");
@@ -289,7 +292,7 @@ static int __init nf_conntrack_irc_init(void)
 				  0, help, NULL, THIS_MODULE);
 	}
 
-	ret = nf_conntrack_helpers_register(&irc[0], ports_c);
+	ret = nf_conntrack_helpers_register(&irc[0], ports_c, irc_ptr);
 	if (ret) {
 		pr_err("failed to register helpers\n");
 		kfree(irc_buffer);
@@ -301,7 +304,7 @@ static int __init nf_conntrack_irc_init(void)
 
 static void __exit nf_conntrack_irc_fini(void)
 {
-	nf_conntrack_helpers_unregister(irc, ports_c);
+	nf_conntrack_helpers_unregister(irc_ptr, ports_c);
 	kfree(irc_buffer);
 }
 

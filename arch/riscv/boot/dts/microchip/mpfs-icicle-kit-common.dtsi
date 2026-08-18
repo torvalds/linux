@@ -238,10 +238,6 @@
 	status = "okay";
 };
 
-&syscontroller {
-	status = "okay";
-};
-
 &syscontroller_qspi {
 	/*
 	 * The flash *is* there, but Icicle kits that have engineering sample

@@ -229,16 +229,14 @@ static int __init do_kmem_cache_size(size_t size, bool want_ctor,
 	for (iter = 0; iter < 10; iter++) {
 		/* Do a test of bulk allocations */
 		if (!want_rcu && !want_ctor) {
-			int ret;
-
-			ret = kmem_cache_alloc_bulk(c, alloc_mask, BULK_SIZE, bulk_array);
-			if (!ret) {
+			if (!kmem_cache_alloc_bulk(c, alloc_mask, BULK_SIZE,
+					bulk_array)) {
 				fail = true;
 			} else {
 				int i;
-				for (i = 0; i < ret; i++)
+				for (i = 0; i < BULK_SIZE; i++)
 					fail |= check_buf(bulk_array[i], size, want_ctor, want_rcu, want_zero);
-				kmem_cache_free_bulk(c, ret, bulk_array);
+				kmem_cache_free_bulk(c, BULK_SIZE, bulk_array);
 			}
 		}
 
@@ -348,23 +346,24 @@ static int __init do_kmem_cache_size_bulk(int size, int *total_failures)
 {
 	struct kmem_cache *c;
 	int i, iter, maxiter = 1024;
-	int num, bytes;
+	int bytes;
 	bool fail = false;
 	void *objects[10];
 
 	c = kmem_cache_create("test_cache", size, size, 0, NULL);
 	for (iter = 0; (iter < maxiter) && !fail; iter++) {
-		num = kmem_cache_alloc_bulk(c, GFP_KERNEL, ARRAY_SIZE(objects),
-					    objects);
-		for (i = 0; i < num; i++) {
+		if (!kmem_cache_alloc_bulk(c, GFP_KERNEL, ARRAY_SIZE(objects),
+				objects))
+			continue;
+
+		for (i = 0; i < ARRAY_SIZE(objects); i++) {
 			bytes = count_nonzero_bytes(objects[i], size);
 			if (bytes)
 				fail = true;
 			fill_with_garbage(objects[i], size);
 		}
 
-		if (num)
-			kmem_cache_free_bulk(c, num, objects);
+		kmem_cache_free_bulk(c, ARRAY_SIZE(objects), objects);
 	}
 	kmem_cache_destroy(c);
 	*total_failures += fail;
@@ -387,7 +386,7 @@ static int __init test_kmemcache(int *total_failures)
 			ctor = flags & 1;
 			rcu = flags & 2;
 			zero = flags & 4;
-			if (ctor & zero)
+			if (ctor && zero)
 				continue;
 			num_tests += do_kmem_cache_size(size, ctor, rcu, zero,
 							&failures);

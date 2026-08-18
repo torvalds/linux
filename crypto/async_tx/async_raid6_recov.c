@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
 #include <linux/raid/pq.h>
+#include <linux/raid/pq_tables.h>
 #include <linux/async_tx.h>
 #include <linux/dmaengine.h>
 
@@ -414,11 +415,11 @@ async_raid6_2data_recov(int disks, size_t bytes, int faila, int failb,
 		async_tx_quiesce(&submit->depend_tx);
 		for (i = 0; i < disks; i++)
 			if (blocks[i] == NULL)
-				ptrs[i] = raid6_get_zero_page();
+				ptrs[i] = page_address(ZERO_PAGE(0));
 			else
 				ptrs[i] = page_address(blocks[i]) + offs[i];
 
-		raid6_2data_recov(disks, bytes, faila, failb, ptrs);
+		raid6_recov_2data(disks, bytes, faila, failb, ptrs);
 
 		async_tx_sync_epilog(submit);
 
@@ -497,11 +498,11 @@ async_raid6_datap_recov(int disks, size_t bytes, int faila,
 		async_tx_quiesce(&submit->depend_tx);
 		for (i = 0; i < disks; i++)
 			if (blocks[i] == NULL)
-				ptrs[i] = raid6_get_zero_page();
+				ptrs[i] = page_address(ZERO_PAGE(0));
 			else
 				ptrs[i] = page_address(blocks[i]) + offs[i];
 
-		raid6_datap_recov(disks, bytes, faila, ptrs);
+		raid6_recov_datap(disks, bytes, faila, ptrs);
 
 		async_tx_sync_epilog(submit);
 

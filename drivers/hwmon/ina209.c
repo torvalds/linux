@@ -569,7 +569,7 @@ static void ina209_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ina209_id[] = {
-	{ "ina209" },
+	{ .name = "ina209" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ina209_id);

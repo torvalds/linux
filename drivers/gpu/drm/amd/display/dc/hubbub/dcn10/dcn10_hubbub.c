@@ -638,27 +638,27 @@ void hubbub1_update_dchub(
 				SDPIF_FB_BASE, 0x0FFFF);
 
 		REG_UPDATE(DCHUBBUB_SDPIF_AGP_BASE,
-				SDPIF_AGP_BASE, dh_data->zfb_phys_addr_base >> 22);
+				SDPIF_AGP_BASE, (uint32_t)(dh_data->zfb_phys_addr_base >> 22));
 
 		REG_UPDATE(DCHUBBUB_SDPIF_AGP_BOT,
-				SDPIF_AGP_BOT, dh_data->zfb_mc_base_addr >> 22);
+				SDPIF_AGP_BOT, (uint32_t)(dh_data->zfb_mc_base_addr >> 22));
 
 		REG_UPDATE(DCHUBBUB_SDPIF_AGP_TOP,
-				SDPIF_AGP_TOP, (dh_data->zfb_mc_base_addr +
-						dh_data->zfb_size_in_byte - 1) >> 22);
+				SDPIF_AGP_TOP, (uint32_t)((dh_data->zfb_mc_base_addr +
+						dh_data->zfb_size_in_byte - 1) >> 22));
 		break;
 	case FRAME_BUFFER_MODE_MIXED_ZFB_AND_LOCAL:
 		/*Should not touch FB LOCATION (done by VBIOS on AsicInit table)*/
 
 		REG_UPDATE(DCHUBBUB_SDPIF_AGP_BASE,
-				SDPIF_AGP_BASE, dh_data->zfb_phys_addr_base >> 22);
+				SDPIF_AGP_BASE, (uint32_t)(dh_data->zfb_phys_addr_base >> 22));
 
 		REG_UPDATE(DCHUBBUB_SDPIF_AGP_BOT,
-				SDPIF_AGP_BOT, dh_data->zfb_mc_base_addr >> 22);
+				SDPIF_AGP_BOT, (uint32_t)(dh_data->zfb_mc_base_addr >> 22));
 
 		REG_UPDATE(DCHUBBUB_SDPIF_AGP_TOP,
-				SDPIF_AGP_TOP, (dh_data->zfb_mc_base_addr +
-						dh_data->zfb_size_in_byte - 1) >> 22);
+				SDPIF_AGP_TOP, (uint32_t)((dh_data->zfb_mc_base_addr +
+						dh_data->zfb_size_in_byte - 1) >> 22));
 		break;
 	case FRAME_BUFFER_MODE_LOCAL_ONLY:
 		/*Should not touch FB LOCATION (done by VBIOS on AsicInit table)*/

@@ -344,7 +344,7 @@ EXPORT_SYMBOL(drm_mipi_dbi_crtc_helper_mode_valid);
  * 0 on success, or a negative errno code otherwise.
  */
 int drm_mipi_dbi_plane_helper_atomic_check(struct drm_plane *plane,
-					   struct drm_atomic_state *state)
+					   struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state, plane);
 	struct drm_crtc_state *new_crtc_state = NULL;
@@ -375,7 +375,7 @@ EXPORT_SYMBOL(drm_mipi_dbi_plane_helper_atomic_check);
  * this as their struct &drm_plane_helper_funcs.atomic_update callback.
  */
 void drm_mipi_dbi_plane_helper_atomic_update(struct drm_plane *plane,
-					     struct drm_atomic_state *state)
+					     struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *plane_state = plane->state;
 	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
@@ -434,7 +434,7 @@ static void mipi_dbi_blank(struct mipi_dbi_dev *dbidev)
  * Returns:
  * 0 on success, or a negative errno code otherwise.
  */
-int drm_mipi_dbi_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *state)
+int drm_mipi_dbi_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 	int ret;
@@ -461,7 +461,7 @@ EXPORT_SYMBOL(drm_mipi_dbi_crtc_helper_atomic_check);
  * struct &drm_crtc_helper_funcs.atomic_disable callback.
  */
 void drm_mipi_dbi_crtc_helper_atomic_disable(struct drm_crtc *crtc,
-					     struct drm_atomic_state *state)
+					     struct drm_atomic_commit *state)
 {
 	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(crtc->dev);
 

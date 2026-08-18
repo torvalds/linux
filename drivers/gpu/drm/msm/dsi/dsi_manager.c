@@ -485,10 +485,6 @@ int msm_dsi_manager_connector_init(struct msm_dsi *msm_dsi,
 		return PTR_ERR(connector);
 	}
 
-	ret = drm_connector_attach_encoder(connector, encoder);
-	if (ret < 0)
-		return ret;
-
 	return 0;
 }
 

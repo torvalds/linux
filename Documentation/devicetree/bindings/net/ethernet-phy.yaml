@@ -106,10 +106,13 @@ properties:
       by software.
 
   clocks:
-    maxItems: 1
+    minItems: 1
+    maxItems: 2
     description:
-      External clock connected to the PHY. If not specified it is assumed
-      that the PHY uses a fixed crystal or an internal oscillator.
+      External clock connected to the PHY or RX and TX clocks that the PHY
+      requires to enable explicitly. If not specified it is assumed
+      that the PHY uses a fixed crystal or an internal oscillator or that the
+      RX/TX clocks are hardware enabled by default.
 
   enet-phy-lane-swap:
     $ref: /schemas/types.yaml#/definitions/flag

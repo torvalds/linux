@@ -145,7 +145,7 @@ int ecrdsa_param_curve(void *context, size_t hdrlen, unsigned char tag,
 	struct ecrdsa_ctx *ctx = context;
 
 	ctx->curve_oid = look_up_OID(value, vlen);
-	if (!ctx->curve_oid)
+	if (ctx->curve_oid == OID__NR)
 		return -EINVAL;
 	ctx->curve = get_curve_by_oid(ctx->curve_oid);
 	return 0;
@@ -259,16 +259,11 @@ static unsigned int ecrdsa_max_size(struct crypto_sig *tfm)
 	return 2 * ctx->pub_key.ndigits * sizeof(u64);
 }
 
-static void ecrdsa_exit_tfm(struct crypto_sig *tfm)
-{
-}
-
 static struct sig_alg ecrdsa_alg = {
 	.verify		= ecrdsa_verify,
 	.set_pub_key	= ecrdsa_set_pub_key,
 	.key_size	= ecrdsa_key_size,
 	.max_size	= ecrdsa_max_size,
-	.exit		= ecrdsa_exit_tfm,
 	.base = {
 		.cra_name	 = "ecrdsa",
 		.cra_driver_name = "ecrdsa-generic",

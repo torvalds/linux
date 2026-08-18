@@ -1,0 +1,5 @@
+bench_as_bytes_dynamic_size:
+	mov rax, rdi
+	lea rdx, [2*rsi + 5]
+	and rdx, -2
+	ret

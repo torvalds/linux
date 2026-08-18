@@ -825,18 +825,16 @@ static void fill_last_seq_nrs(struct hsr_node *node, u16 *if1_seq, u16 *if2_seq)
 	block_sz = hsr_seq_block_size(node);
 	block = node->block_buf + block_off * block_sz;
 
-	if (!bitmap_empty(block->seq_nrs[HSR_PT_SLAVE_B - 1],
-			  HSR_SEQ_BLOCK_SIZE)) {
-		seq_bit = find_last_bit(block->seq_nrs[HSR_PT_SLAVE_B - 1],
-					HSR_SEQ_BLOCK_SIZE);
+	seq_bit = find_last_bit(block->seq_nrs[HSR_PT_SLAVE_B - 1],
+				HSR_SEQ_BLOCK_SIZE);
+	if (seq_bit < HSR_SEQ_BLOCK_SIZE)
 		*if1_seq = (block->block_idx << HSR_SEQ_BLOCK_SHIFT) | seq_bit;
-	}
-	if (!bitmap_empty(block->seq_nrs[HSR_PT_SLAVE_A - 1],
-			  HSR_SEQ_BLOCK_SIZE)) {
-		seq_bit = find_last_bit(block->seq_nrs[HSR_PT_SLAVE_A - 1],
-					HSR_SEQ_BLOCK_SIZE);
+
+	seq_bit = find_last_bit(block->seq_nrs[HSR_PT_SLAVE_A - 1],
+				HSR_SEQ_BLOCK_SIZE);
+	if (seq_bit < HSR_SEQ_BLOCK_SIZE)
 		*if2_seq = (block->block_idx << HSR_SEQ_BLOCK_SHIFT) | seq_bit;
-	}
+
 	spin_unlock_bh(&node->seq_out_lock);
 }
 

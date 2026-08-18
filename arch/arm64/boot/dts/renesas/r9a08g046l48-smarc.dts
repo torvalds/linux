@@ -7,13 +7,24 @@
 
 /dts-v1/;
 
-/* Add place holder to avoid compilation error with renesas-smarc2.dtsi */
-#define KEY_1_GPIO		1
-#define KEY_2_GPIO		2
-#define KEY_3_GPIO		3
+/* Switch selection settings */
+#define RZ_BOOT_MODE3		1
+#define SW_SD2_EN		0
+#define SW_DPI_EN		0
+#define SW_GPIO4		1
+#define SW_I3C_EN		0
+
+#define PMOD_GPIO4		0
+#define PMOD_GPIO6		0
+#define PMOD_GPIO7		0
+
+#define KEY_1_GPIO		RZG3L_GPIO(J, 3)
+#define KEY_2_GPIO		RZG3L_GPIO(6, 4)
+#define KEY_3_GPIO		RZG3L_GPIO(6, 5)
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/pinctrl/renesas,r9a08g046-pinctrl.h>
 #include "r9a08g046l48.dtsi"
 #include "rzg3l-smarc-som.dtsi"
 #include "renesas-smarc2.dtsi"
@@ -24,14 +35,131 @@
 		     "renesas,r9a08g046l48", "renesas,r9a08g046";
 
 	aliases {
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
 		serial3 = &scif0;
+	};
+
+#if !SW_SD2_EN && !SW_I3C_EN
+	snd_rzg3l: sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "snd_rzg3l";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ssi_link_play: simple-audio-card,dai-link@0 {
+			reg = <0>;
+			format = "i2s";
+			bitclock-master = <&cpu_dai>;
+			frame-master = <&cpu_dai>;
+			mclk-fs = <256>;
+
+			cpu_dai: cpu {
+				sound-dai = <&ssi0>;
+			};
+
+			codec_dai: codec {
+				sound-dai = <&da7212>;
+				clocks = <&versa3 1>;
+			};
+		};
+	};
+#endif
+};
+
+&i2c2 {
+	pinctrl-0 = <&i2c2_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
+#if !SW_I3C_EN
+&i2c3 {
+	pinctrl-0 = <&i2c3_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+
+	da7212: codec@1a {
+		compatible = "dlg,da7212";
+		reg = <0x1a>;
+
+		clocks = <&versa3 1>;
+		clock-names = "mclk";
+
+		#sound-dai-cells = <0>;
+
+		dlg,micbias1-lvl = <2500>;
+		dlg,micbias2-lvl = <2500>;
+		dlg,dmic-data-sel = "lrise_rfall";
+		dlg,dmic-samplephase = "between_clkedge";
+		dlg,dmic-clkrate = <3000000>;
+
+		VDDA-supply = <&reg_1p8v>;
+		VDDSP-supply = <&reg_3p3v>;
+		VDDMIC-supply = <&reg_3p3v>;
+		VDDIO-supply = <&reg_1p8v>;
+	};
+};
+#endif
+
+&keys {
+#if !RZ_BOOT_MODE3 || !SW_GPIO4 || PMOD_GPIO4
+	/delete-node/ key-1;
+#endif
+
+#if SW_DPI_EN || PMOD_GPIO6
+	/delete-node/ key-2;
+#endif
+
+#if SW_DPI_EN || PMOD_GPIO7
+	/delete-node/ key-3;
+#endif
+};
+
+&pinctrl {
+	audio_clk_pins: audio-clock {
+		pinmux = <RZG3L_PORT_PINMUX(H, 4, 6)>, /* AUDIO_CLK_B */
+			 <RZG3L_PORT_PINMUX(H, 5, 6)>; /* AUDIO_CLK_C */
+	};
+
+	i2c2_pins: i2c2 {
+		pinmux = <RZG3L_PORT_PINMUX(A, 4, 4)>, /* RIIC2_SCL */
+			 <RZG3L_PORT_PINMUX(A, 5, 4)>; /* RIIC2_SDA */
+	};
+
+	i2c3_pins: i2c3 {
+		pinmux = <RZG3L_PORT_PINMUX(2, 0, 4)>, /* RIIC3_SCL */
+			 <RZG3L_PORT_PINMUX(2, 1, 4)>; /* RIIC3_SDA */
+	};
+
+	scif0_pins: scif0 {
+		pins = "SCIF0_TXD", "SCIF0_RXD";
+		power-source = <1800>;
+	};
+
+	ssi0_pins: ssi0 {
+		pinmux = <RZG3L_PORT_PINMUX(H, 0, 9)>, /* SSIF0_RXD */
+			 <RZG3L_PORT_PINMUX(H, 1, 9)>, /* SSIF0_BCK */
+			 <RZG3L_PORT_PINMUX(H, 2, 9)>, /* SSIF0_RCK */
+			 <RZG3L_PORT_PINMUX(H, 3, 9)>; /* SSIF0_TXD */
 	};
 };
 
-&keys {
-	status = "disabled";
-
-	/delete-node/ key-1;
-	/delete-node/ key-2;
-	/delete-node/ key-3;
+&scif0 {
+	pinctrl-0 = <&scif0_pins>;
+	pinctrl-names = "default";
 };
+
+#if !SW_SD2_EN
+&ssi0 {
+	clocks = <&cpg CPG_MOD R9A08G046_SSI0_PCLK2>,
+		 <&cpg CPG_MOD R9A08G046_SSI0_PCLK_SFR>,
+		 <&versa3 2>, <&versa3 3>;
+	pinctrl-0 = <&audio_clk_pins>, <&ssi0_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+#endif

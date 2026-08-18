@@ -1734,7 +1734,8 @@ r535_disp_new(const struct nvkm_disp_func *hw, struct nvkm_device *device,
 	struct nvkm_disp_func *rm;
 	int ret;
 
-	if (!(rm = kzalloc(sizeof(*rm) + 6 * sizeof(rm->user[0]), GFP_KERNEL)))
+	rm = kzalloc_flex(*rm, user, 6);
+	if (!rm)
 		return -ENOMEM;
 
 	rm->dtor = r535_disp_dtor;

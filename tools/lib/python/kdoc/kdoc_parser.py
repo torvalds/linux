@@ -380,9 +380,36 @@ class KernelDoc:
         #
         if dtype == '':
             if param.endswith("..."):
-                if len(param) > 3: # there is a name provided, use that
+                named_variadic = len(param) > 3
+                if named_variadic: # there is a name provided, use that
+                    #
+                    # If the user documented the parameter using the
+                    # ``@name...:`` form, the description is stored in
+                    # parameterdescs under the unstripped key.  Migrate
+                    # it to the stripped key so the user's text is not
+                    # silently dropped during output, and so the new
+                    # excess-parameter check in check_sections() does
+                    # not flag the unstripped key as orphaned.
+                    #
+                    orig = self.entry.parameterdescs.pop(param, None)
                     param = param[:-3]
+                    if orig is not None and \
+                       not self.entry.parameterdescs.get(param):
+                        self.entry.parameterdescs[param] = orig
                 if not self.entry.parameterdescs.get(param):
+                    #
+                    # For a named variadic (e.g. ``args...``), emit the
+                    # standard "not described" warning before auto-filling
+                    # so a missing or mistyped ``@<name>:`` doc tag does
+                    # not go undetected.  The bare ``...`` form has no
+                    # natural name for the user to document and so always
+                    # gets the auto-generated text.
+                    #
+                    if named_variadic and decl_type == 'function':
+                        self.emit_msg(ln,
+                                      f"function parameter '{param}' "
+                                      f"not described in "
+                                      f"'{declaration_name}'")
                     self.entry.parameterdescs[param] = "variable arguments"
 
             elif (not param) or param == "void":
@@ -545,6 +572,31 @@ class KernelDoc:
                     dname = f"{decl_type} member"
                 self.emit_msg(ln,
                               f"Excess {dname} '{section}' description in '{decl_name}'")
+
+        #
+        # Check that documented parameter names (from doc comments, including
+        # inline ``/** @member: */`` tags) actually match real members in
+        # the declaration.  This catches mismatched or stale kernel-doc
+        # member tags that don't correspond to any actual struct/union
+        # member or function parameter.
+        #
+        for param_name, desc in self.entry.parameterdescs.items():
+            # Skip auto-generated entries from push_parameter()
+            if desc == self.undescribed:
+                continue
+            if desc in ("no arguments", "anonymous\n", "variable arguments"):
+                continue
+            if param_name.startswith("{unnamed_"):
+                continue
+            if param_name in self.entry.parameterlist:
+                continue
+
+            if decl_type == 'function':
+                dname = f"{decl_type} parameter"
+            else:
+                dname = f"{decl_type} member"
+            self.emit_msg(ln,
+                          f"Excess {dname} '{param_name}' description in '{decl_name}'")
 
     def check_return_section(self, ln, declaration_name, return_type):
         """

@@ -1,0 +1,21 @@
+bench_write_to_dynamic_size:
+	push r14
+	push rbx
+	push rax
+	mov rbx, rcx
+	lea r14, [2*rsi + 5]
+	and r14, -2
+	cmp rcx, r14
+	jne .LBB5_2
+	mov rax, rdi
+	mov rdi, rdx
+	mov rsi, rax
+	mov rdx, rbx
+	call qword ptr [rip + memcpy@GOTPCREL]
+.LBB5_2:
+	cmp rbx, r14
+	sete al
+	add rsp, 8
+	pop rbx
+	pop r14
+	ret

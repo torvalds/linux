@@ -149,10 +149,24 @@ static inline long scx_hotplug_seq(void)
 }
 
 /*
- * struct sched_ext_ops can change over time. If compat.bpf.h::SCX_OPS_DEFINE()
- * is used to define ops and compat.h::SCX_OPS_LOAD/ATTACH() are used to load
- * and attach it, backward compatibility is automatically maintained where
- * reasonable.
+ * Open the sched_ext_ops skeleton.
+ *
+ * struct sched_ext_ops can change over time. Two complementary mechanisms
+ * keep BPF schedulers built against newer headers running on older kernels:
+ *
+ * 1. Load-time fix-up (this macro). For each optional ops callback or field
+ *    added to struct sched_ext_ops, an explicit stanza below probes the
+ *    running kernel's BTF via __COMPAT_struct_has_field() and, if the field
+ *    is missing, clears it in the in-memory struct_ops (with a warning to
+ *    stderr) before load. Handles additive changes - a new stanza must be
+ *    added here for each new optional field.
+ *
+ * 2. Multi-variant struct_ops via compat.bpf.h::SCX_OPS_DEFINE(). That
+ *    macro can be expanded to emit several variants of struct sched_ext_ops,
+ *    and SCX_OPS_LOAD()/ATTACH() can pick the right one based on what the
+ *    kernel supports. Needed when an existing operation has to change
+ *    incompatibly (e.g. a callback signature changes); the load-time
+ *    fix-up above only handles purely additive changes.
  *
  * ec7e3b0463e1 ("implement-ops") in https://github.com/sched-ext/sched_ext is
  * the current minimum required kernel version.
@@ -225,6 +239,7 @@ static inline void __scx_ops_assoc_prog(struct bpf_program *prog,
 }
 #endif
 
+/* See SCX_OPS_OPEN() above for backward-compatibility handling. */
 #define SCX_OPS_LOAD(__skel, __ops_name, __scx_name, __uei_name) ({		\
 	struct bpf_program *__prog;						\
 	UEI_SET_SIZE(__skel, __ops_name, __uei_name);				\

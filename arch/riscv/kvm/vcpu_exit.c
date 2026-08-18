@@ -11,18 +11,20 @@
 #include <asm/insn-def.h>
 #include <asm/kvm_mmu.h>
 #include <asm/kvm_nacl.h>
+#include "trace.h"
 
 static int gstage_page_fault(struct kvm_vcpu *vcpu, struct kvm_run *run,
 			     struct kvm_cpu_trap *trap)
 {
 	struct kvm_gstage_mapping host_map;
 	struct kvm_memory_slot *memslot;
-	unsigned long hva, fault_addr;
+	unsigned long hva;
+	gpa_t fault_addr;
 	bool writable;
 	gfn_t gfn;
 	int ret;
 
-	fault_addr = (trap->htval << 2) | (trap->stval & 0x3);
+	fault_addr = ((gpa_t)trap->htval << 2) | (trap->stval & 0x3);
 	gfn = fault_addr >> PAGE_SHIFT;
 	memslot = gfn_to_memslot(vcpu->kvm, gfn);
 	hva = gfn_to_hva_memslot_prot(memslot, gfn, &writable);
@@ -38,6 +40,25 @@ static int gstage_page_fault(struct kvm_vcpu *vcpu, struct kvm_run *run,
 			return kvm_riscv_vcpu_mmio_store(vcpu, run,
 							 fault_addr,
 							 trap->htinst);
+		case EXC_INST_GUEST_PAGE_FAULT: {
+			/*
+			 * No memslot backs this GPA and an instruction fetch
+			 * cannot be emulated as MMIO. On bare metal a fetch
+			 * from an unbacked physical address raises an
+			 * instruction access fault, so reflect that back to
+			 * the guest.
+			 */
+			struct kvm_cpu_trap inst_trap = {
+				.sepc	= trap->sepc,
+				.scause	= EXC_INST_ACCESS,
+				.stval	= trap->stval,
+				.htval	= 0,
+				.htinst	= 0,
+			};
+
+			kvm_riscv_vcpu_trap_redirect(vcpu, &inst_trap);
+			return 1;
+		}
 		default:
 			return -EOPNOTSUPP;
 		};
@@ -154,6 +175,13 @@ void kvm_riscv_vcpu_trap_redirect(struct kvm_vcpu *vcpu,
 	/* Clear Guest SSTATUS.SIE bit */
 	vsstatus &= ~SR_SIE;
 
+	/* Change Guest SSTATUS.SPELP bit */
+	if (vcpu->arch.cfg.henvcfg & ENVCFG_LPE) {
+		vsstatus &= ~SR_SPELP;
+		vsstatus |= vcpu->arch.guest_context.sstatus & SR_SPELP;
+		vcpu->arch.guest_context.sstatus &= ~SR_SPELP;
+	}
+
 	/* Update Guest SSTATUS */
 	ncsr_write(CSR_VSSTATUS, vsstatus);
 
@@ -192,6 +220,9 @@ int kvm_riscv_vcpu_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	/* If we got host interrupt then do nothing */
 	if (trap->scause & CAUSE_IRQ_FLAG)
 		return 1;
+
+	trace_kvm_vcpu_exit(vcpu->vcpu_id, trap->sepc, trap->scause,
+			    trap->stval, trap->htval, trap->htinst);
 
 	/* Handle guest traps */
 	ret = -EFAULT;
@@ -242,6 +273,10 @@ int kvm_riscv_vcpu_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	case EXC_BREAKPOINT:
 		run->exit_reason = KVM_EXIT_DEBUG;
 		ret = 0;
+		break;
+	case EXC_SOFTWARE_CHECK:
+		if (vcpu->arch.cfg.henvcfg & (ENVCFG_LPE | ENVCFG_SSE))
+			ret = vcpu_redirect(vcpu, trap);
 		break;
 	default:
 		break;

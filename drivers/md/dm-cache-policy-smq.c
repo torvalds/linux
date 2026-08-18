@@ -22,6 +22,16 @@
 /*----------------------------------------------------------------*/
 
 /*
+ * Maximum number of concurrent background work items (promotions,
+ * demotions, writebacks) that can be queued in the background tracker.
+ * Tuneable via the module parameter smq_max_background_work.
+ * Only affects newly created cache devices.
+ */
+static unsigned int smq_max_background_work = 4096;
+module_param(smq_max_background_work, uint, 0644);
+MODULE_PARM_DESC(smq_max_background_work, "Max concurrent background work items");
+
+/*
  * Safe division functions that return zero on divide by zero.
  */
 static unsigned int safe_div(unsigned int n, unsigned int d)
@@ -1820,7 +1830,7 @@ __smq_create(dm_cblock_t cache_size, sector_t origin_size, sector_t cache_block_
 	mq->next_hotspot_period = jiffies;
 	mq->next_cache_period = jiffies;
 
-	mq->bg_work = btracker_create(4096); /* FIXME: hard coded value */
+	mq->bg_work = btracker_create(max(1u, smq_max_background_work));
 	if (!mq->bg_work)
 		goto bad_btracker;
 

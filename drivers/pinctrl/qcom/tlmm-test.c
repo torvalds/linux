@@ -33,7 +33,7 @@
  * dynamically, rather then relying on e.g. Devicetree and phandles.
  */
 
-#define MSM_PULL_MASK		GENMASK(2, 0)
+#define MSM_PULL_MASK		GENMASK(1, 0)
 #define MSM_PULL_DOWN		1
 #define MSM_PULL_UP		3
 #define TLMM_REG_SIZE		0x1000
@@ -581,6 +581,9 @@ static int tlmm_reg_base(struct device_node *tlmm, struct resource *res)
 	int ret;
 	int i;
 
+	if (!strcmp(tlmm_reg_name, "default_region"))
+		return of_address_to_resource(tlmm, 0, res);
+
 	count = of_property_count_strings(tlmm, "reg-names");
 	if (count <= 0) {
 		pr_err("failed to find tlmm reg name\n");
@@ -597,18 +600,14 @@ static int tlmm_reg_base(struct device_node *tlmm, struct resource *res)
 		return -EINVAL;
 	}
 
-	if (!strcmp(tlmm_reg_name, "default_region")) {
-		ret = of_address_to_resource(tlmm, 0, res);
-	} else {
-		for (i = 0; i < count; i++) {
-			if (!strcmp(reg_names[i], tlmm_reg_name)) {
-				ret = of_address_to_resource(tlmm, i, res);
-				break;
-			}
+	for (i = 0; i < count; i++) {
+		if (!strcmp(reg_names[i], tlmm_reg_name)) {
+			ret = of_address_to_resource(tlmm, i, res);
+			break;
 		}
-		if (i == count)
-			ret = -EINVAL;
 	}
+	if (i == count)
+		ret = -EINVAL;
 
 	kfree(reg_names);
 

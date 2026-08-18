@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
  * Copyright (C) 2012-2014, 2018-2019, 2023-2024 Intel Corporation
+ * Copyright (C) 2026 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -98,15 +99,5 @@ struct iwl_phy_cfg_cmd_v3 {
 	struct iwl_calib_ctrl calib_control;
 	struct iwl_phy_specific_cfg phy_specific_cfg;
 } __packed; /* PHY_CONFIGURATION_CMD_API_S_VER_3 */
-
-/*
- * enum iwl_dc2dc_config_id - flag ids
- *
- * Ids of dc2dc configuration flags
- */
-enum iwl_dc2dc_config_id {
-	DCDC_LOW_POWER_MODE_MSK_SET  = 0x1, /* not used */
-	DCDC_FREQ_TUNE_SET = 0x2,
-}; /* MARKER_ID_API_E_VER_1 */
 
 #endif /* __iwl_fw_api_config_h__ */

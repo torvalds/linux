@@ -1894,8 +1894,10 @@ static void brcm_pcie_remove(struct platform_device *pdev)
 	struct brcm_pcie *pcie = platform_get_drvdata(pdev);
 	struct pci_host_bridge *bridge = pci_host_bridge_from_priv(pcie);
 
+	pci_lock_rescan_remove();
 	pci_stop_root_bus(bridge->bus);
 	pci_remove_root_bus(bridge->bus);
+	pci_unlock_rescan_remove();
 	if (pcie->cfg->has_err_report)
 		brcm_unregister_die_notifiers(pcie);
 

@@ -1,0 +1,79 @@
+Iterations:        100
+Instructions:      2000
+Total Cycles:      682
+Total uOps:        2100
+
+Dispatch Width:    4
+uOps Per Cycle:    3.08
+IPC:               2.93
+Block RThroughput: 5.3
+
+
+Instruction Info:
+[1]: #uOps
+[2]: Latency
+[3]: RThroughput
+[4]: MayLoad
+[5]: MayStore
+[6]: HasSideEffects (U)
+
+[1]    [2]    [3]    [4]    [5]    [6]    Instructions:
+ 1      1     0.50                        lea	eax, [rsi + rdi]
+ 1      1     0.33                        test	al, 3
+ 1      1     1.00                        jne	.LBB5_1
+ 1      1     0.33                        movabs	rax, 9223372036854775804
+ 1      1     0.33                        and	rax, rsi
+ 1      1     0.33                        cmp	rax, 9
+ 1      1     1.00                        jae	.LBB5_3
+ 1      0     0.25                        xor	eax, eax
+ 1      1     1.00                  U     ret
+ 1      1     0.33                        add	rax, -9
+ 1      1     0.33                        movabs	rcx, -6148914691236517205
+ 2      4     1.00                        mul	rcx
+ 1      1     0.50                        shr	rdx
+ 1      1     0.50                        lea	rax, [rdx + 2*rdx]
+ 1      1     0.33                        sub	rsi, rax
+ 1      1     0.33                        or	rax, -4
+ 1      1     0.33                        add	rsi, rdi
+ 1      1     0.33                        add	rax, rsi
+ 1      1     0.33                        add	rax, -8
+ 1      1     1.00                  U     ret
+
+
+Resources:
+[0]   - SBDivider
+[1]   - SBFPDivider
+[2]   - SBPort0
+[3]   - SBPort1
+[4]   - SBPort4
+[5]   - SBPort5
+[6.0] - SBPort23
+[6.1] - SBPort23
+
+
+Resource pressure per iteration:
+[0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  
+ -      -     6.65   6.67    -     6.68    -      -     
+
+Resource pressure by instruction:
+[0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  Instructions:
+ -      -     0.90   0.10    -      -      -      -     lea	eax, [rsi + rdi]
+ -      -     0.93    -      -     0.07    -      -     test	al, 3
+ -      -      -      -      -     1.00    -      -     jne	.LBB5_1
+ -      -     0.51   0.47    -     0.02    -      -     movabs	rax, 9223372036854775804
+ -      -      -      -      -     1.00    -      -     and	rax, rsi
+ -      -      -     0.09    -     0.91    -      -     cmp	rax, 9
+ -      -      -      -      -     1.00    -      -     jae	.LBB5_3
+ -      -      -      -      -      -      -      -     xor	eax, eax
+ -      -      -      -      -     1.00    -      -     ret
+ -      -     0.43   0.47    -     0.10    -      -     add	rax, -9
+ -      -     0.42   0.39    -     0.19    -      -     movabs	rcx, -6148914691236517205
+ -      -     1.00   1.00    -      -      -      -     mul	rcx
+ -      -     0.69    -      -     0.31    -      -     shr	rdx
+ -      -     0.54   0.46    -      -      -      -     lea	rax, [rdx + 2*rdx]
+ -      -     0.07   0.91    -     0.02    -      -     sub	rsi, rax
+ -      -     0.91   0.05    -     0.04    -      -     or	rax, -4
+ -      -     0.08   0.90    -     0.02    -      -     add	rsi, rdi
+ -      -     0.09   0.91    -      -      -      -     add	rax, rsi
+ -      -     0.08   0.92    -      -      -      -     add	rax, -8
+ -      -      -      -      -     1.00    -      -     ret

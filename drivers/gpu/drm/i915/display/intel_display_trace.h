@@ -84,7 +84,7 @@ TRACE_EVENT(intel_pipe_enable,
 				  sizeof(__entry->frame[0]) * I915_MAX_PIPES);
 			   memset(__entry->scanline, 0,
 				  sizeof(__entry->scanline[0]) * I915_MAX_PIPES);
-			   for_each_intel_crtc(display->drm, it__) {
+			   for_each_intel_crtc(display, it__) {
 				   __entry->frame[it__->pipe] = intel_crtc_get_vblank_counter(it__);
 				   __entry->scanline[it__->pipe] = intel_get_crtc_scanline(it__);
 			   }
@@ -114,7 +114,7 @@ TRACE_EVENT(intel_pipe_disable,
 				  sizeof(__entry->frame[0]) * I915_MAX_PIPES);
 			   memset(__entry->scanline, 0,
 				  sizeof(__entry->scanline[0]) * I915_MAX_PIPES);
-			   for_each_intel_crtc(display->drm, it__) {
+			   for_each_intel_crtc(display, it__) {
 				   __entry->frame[it__->pipe] = intel_crtc_get_vblank_counter(it__);
 				   __entry->scanline[it__->pipe] = intel_get_crtc_scanline(it__);
 			   }
@@ -244,7 +244,7 @@ TRACE_EVENT(intel_memory_cxsr,
 				  sizeof(__entry->frame[0]) * I915_MAX_PIPES);
 			   memset(__entry->scanline, 0,
 				  sizeof(__entry->scanline[0]) * I915_MAX_PIPES);
-			   for_each_intel_crtc(display->drm, crtc) {
+			   for_each_intel_crtc(display, crtc) {
 				   __entry->frame[crtc->pipe] = intel_crtc_get_vblank_counter(crtc);
 				   __entry->scanline[crtc->pipe] = intel_get_crtc_scanline(crtc);
 			   }

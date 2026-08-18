@@ -98,6 +98,10 @@ properties:
       - rpmsg-audio-channel
       - rpmsg-micfil-channel
 
+  hp-det-gpios:
+    maxItems: 1
+    description: The GPIO that detect headphones are plugged in
+
 required:
   - compatible
 

@@ -1639,8 +1639,8 @@ static const struct of_device_id cs35l35_of_match[] = {
 MODULE_DEVICE_TABLE(of, cs35l35_of_match);
 
 static const struct i2c_device_id cs35l35_id[] = {
-	{"cs35l35"},
-	{}
+	{ .name = "cs35l35" },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, cs35l35_id);

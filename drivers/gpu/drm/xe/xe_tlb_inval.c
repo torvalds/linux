@@ -529,7 +529,7 @@ int xe_tlb_inval_range_tilemask_submit(struct xe_device *xe, u32 asid,
 	struct xe_tile *tile;
 	u32 fence_id = 0;
 	u8 id;
-	int err;
+	int err = 0;
 
 	batch->num_fences = 0;
 	if (!tile_mask)

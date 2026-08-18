@@ -60,6 +60,8 @@ int ufshcd_query_attr_retry(struct ufs_hba *hba, enum query_opcode opcode,
 			    u32 *attr_val);
 int ufshcd_query_attr(struct ufs_hba *hba, enum query_opcode opcode,
 		      enum attr_idn idn, u8 index, u8 selector, u32 *attr_val);
+int ufshcd_query_attr_qword(struct ufs_hba *hba, enum query_opcode opcode,
+			    enum attr_idn idn, u8 index, u8 sel, u64 *attr_val);
 int ufshcd_query_flag(struct ufs_hba *hba, enum query_opcode opcode,
 	enum flag_idn idn, u8 index, bool *flag_res);
 void ufshcd_auto_hibern8_update(struct ufs_hba *hba, u32 ahit);
@@ -106,7 +108,6 @@ int ufshcd_exec_raw_upiu_cmd(struct ufs_hba *hba,
 			     enum query_opcode desc_op);
 
 int ufshcd_wb_toggle(struct ufs_hba *hba, bool enable);
-int ufshcd_read_device_lvl_exception_id(struct ufs_hba *hba, u64 *exception_id);
 
 int ufshcd_uic_tx_eqtr(struct ufs_hba *hba, int gear);
 void ufshcd_apply_valid_tx_eq_settings(struct ufs_hba *hba);
@@ -117,6 +118,8 @@ void ufshcd_print_tx_eq_params(struct ufs_hba *hba);
 bool ufshcd_is_txeq_presets_used(struct ufs_hba *hba);
 bool ufshcd_is_txeq_preset_selected(u8 preshoot, u8 deemphasis);
 int ufshcd_retrain_tx_eq(struct ufs_hba *hba, u32 gear);
+void ufshcd_retrieve_tx_eq_settings(struct ufs_hba *hba);
+void ufshcd_store_tx_eq_settings(struct ufs_hba *hba);
 
 /* Wrapper functions for safely calling variant operations */
 static inline const char *ufshcd_get_var_name(struct ufs_hba *hba)
@@ -129,7 +132,7 @@ static inline const char *ufshcd_get_var_name(struct ufs_hba *hba)
 static inline void ufshcd_vops_exit(struct ufs_hba *hba)
 {
 	if (hba->vops && hba->vops->exit)
-		return hba->vops->exit(hba);
+		hba->vops->exit(hba);
 }
 
 static inline u32 ufshcd_vops_get_ufs_hci_version(struct ufs_hba *hba)
@@ -208,7 +211,7 @@ static inline void ufshcd_vops_setup_task_mgmt(struct ufs_hba *hba,
 					int tag, u8 tm_function)
 {
 	if (hba->vops && hba->vops->setup_task_mgmt)
-		return hba->vops->setup_task_mgmt(hba, tag, tm_function);
+		hba->vops->setup_task_mgmt(hba, tag, tm_function);
 }
 
 static inline void ufshcd_vops_hibern8_notify(struct ufs_hba *hba,
@@ -216,7 +219,7 @@ static inline void ufshcd_vops_hibern8_notify(struct ufs_hba *hba,
 					enum ufs_notify_change_status status)
 {
 	if (hba->vops && hba->vops->hibern8_notify)
-		return hba->vops->hibern8_notify(hba, cmd, status);
+		hba->vops->hibern8_notify(hba, cmd, status);
 }
 
 static inline int ufshcd_vops_apply_dev_quirks(struct ufs_hba *hba)

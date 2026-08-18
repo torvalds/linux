@@ -58,7 +58,7 @@ static void dmub_abm_enable_fractional_pwm(struct dc_context *dc)
 	union dmub_rb_cmd cmd;
 	uint32_t fractional_pwm = (dc->dc->config.disable_fractional_pwm == false) ? 1 : 0;
 	uint32_t edp_id_count = dc->dc_edp_id_count;
-	int i;
+	unsigned int i;
 	uint8_t panel_mask = 0;
 
 	for (i = 0; i < edp_id_count; i++)
@@ -176,7 +176,7 @@ void dmub_abm_init_config(struct abm *abm,
 	cmd.abm_init_config.header.type = DMUB_CMD__ABM;
 	cmd.abm_init_config.header.sub_type = DMUB_CMD__ABM_INIT_CONFIG;
 	cmd.abm_init_config.abm_init_config_data.src.quad_part = dc->dmub_srv->dmub->scratch_mem_fb.gpu_addr;
-	cmd.abm_init_config.abm_init_config_data.bytes = bytes;
+	cmd.abm_init_config.abm_init_config_data.bytes = (uint16_t)bytes;
 	cmd.abm_init_config.abm_init_config_data.version = DMUB_CMD_ABM_CONTROL_VERSION_1;
 	cmd.abm_init_config.abm_init_config_data.panel_mask = panel_mask;
 
@@ -237,7 +237,7 @@ bool dmub_abm_save_restore(
 	cmd.abm_save_restore.header.sub_type = DMUB_CMD__ABM_SAVE_RESTORE;
 
 	cmd.abm_save_restore.abm_init_config_data.src.quad_part = dc->dmub_srv->dmub->scratch_mem_fb.gpu_addr;
-	cmd.abm_save_restore.abm_init_config_data.bytes = bytes;
+	cmd.abm_save_restore.abm_init_config_data.bytes = (uint16_t)bytes;
 	cmd.abm_save_restore.abm_init_config_data.version = DMUB_CMD_ABM_CONTROL_VERSION_1;
 	cmd.abm_save_restore.abm_init_config_data.panel_mask = panel_mask;
 
@@ -265,10 +265,10 @@ bool dmub_abm_set_pipe(struct abm *abm,
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.abm_set_pipe.header.type = DMUB_CMD__ABM;
 	cmd.abm_set_pipe.header.sub_type = DMUB_CMD__ABM_SET_PIPE;
-	cmd.abm_set_pipe.abm_set_pipe_data.otg_inst = otg_inst;
-	cmd.abm_set_pipe.abm_set_pipe_data.pwrseq_inst = pwrseq_inst;
-	cmd.abm_set_pipe.abm_set_pipe_data.set_pipe_option = option;
-	cmd.abm_set_pipe.abm_set_pipe_data.panel_inst = panel_inst;
+	cmd.abm_set_pipe.abm_set_pipe_data.otg_inst = (uint8_t)otg_inst;
+	cmd.abm_set_pipe.abm_set_pipe_data.pwrseq_inst = (uint8_t)pwrseq_inst;
+	cmd.abm_set_pipe.abm_set_pipe_data.set_pipe_option = (uint8_t)option;
+	cmd.abm_set_pipe.abm_set_pipe_data.panel_inst = (uint8_t)panel_inst;
 	cmd.abm_set_pipe.abm_set_pipe_data.ramping_boundary = ramping_boundary;
 	cmd.abm_set_pipe.header.payload_bytes = sizeof(struct dmub_cmd_abm_set_pipe_data);
 
@@ -308,7 +308,7 @@ bool dmub_abm_set_event(struct abm *abm, unsigned int scaling_enable, unsigned i
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.abm_set_event.header.type = DMUB_CMD__ABM;
 	cmd.abm_set_event.header.sub_type = DMUB_CMD__ABM_SET_EVENT;
-	cmd.abm_set_event.abm_set_event_data.vb_scaling_enable = scaling_enable;
+	cmd.abm_set_event.abm_set_event_data.vb_scaling_enable = (uint8_t)scaling_enable;
 	cmd.abm_set_event.abm_set_event_data.vb_scaling_strength_mapping = scaling_strength_map;
 	cmd.abm_set_event.abm_set_event_data.panel_mask = (1<<panel_inst);
 	cmd.abm_set_event.header.payload_bytes = sizeof(struct dmub_cmd_abm_set_event_data);

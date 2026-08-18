@@ -1607,7 +1607,6 @@ wlc_lcnphy_radio_2064_channel_tune_4313(struct brcms_phy *pi, u8 channel)
 {
 	uint i;
 	const struct chan_info_2064_lcnphy *ci;
-	u8 rfpll_doubler = 0;
 	u8 pll_pwrup, pll_pwrup_ovr;
 	s32 qFcal;
 	u8 d15, d16, f16, e44, e45;
@@ -1618,18 +1617,12 @@ wlc_lcnphy_radio_2064_channel_tune_4313(struct brcms_phy *pi, u8 channel)
 	u16 g30, d28;
 
 	ci = &chan_info_2064_lcnphy[0];
-	rfpll_doubler = 1;
 
 	mod_radio_reg(pi, RADIO_2064_REG09D, 0x4, 0x1 << 2);
 
 	write_radio_reg(pi, RADIO_2064_REG09E, 0xf);
-	if (!rfpll_doubler) {
-		loop_bw = PLL_2064_LOOP_BW;
-		d30 = PLL_2064_D30;
-	} else {
-		loop_bw = PLL_2064_LOOP_BW_DOUBLER;
-		d30 = PLL_2064_D30_DOUBLER;
-	}
+	loop_bw = PLL_2064_LOOP_BW_DOUBLER;
+	d30 = PLL_2064_D30_DOUBLER;
 
 	if (CHSPEC_IS2G(pi->radio_chanspec)) {
 		for (i = 0; i < ARRAY_SIZE(chan_info_2064_lcnphy); i++)
@@ -1669,7 +1662,7 @@ wlc_lcnphy_radio_2064_channel_tune_4313(struct brcms_phy *pi, u8 channel)
 	e44 = 0;
 	e45 = 0;
 
-	fpfd = rfpll_doubler ? (pi->xtalfreq << 1) : (pi->xtalfreq);
+	fpfd = pi->xtalfreq << 1;
 	if (pi->xtalfreq > 26000000)
 		e44 = 1;
 	if (pi->xtalfreq > 52000000)

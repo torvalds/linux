@@ -1,0 +1,5 @@
+bench_try_transmute_ref_static_size:
+	xor eax, eax
+	cmp word ptr [rdi], -16192
+	cmove rax, rdi
+	ret

@@ -752,7 +752,7 @@ static void ov9640_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ov9640_id[] = {
-	{ "ov9640" },
+	{ .name = "ov9640" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ov9640_id);

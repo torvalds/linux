@@ -605,7 +605,7 @@ static int synquacer_spi_probe(struct platform_device *pdev)
 	int ret;
 	int rx_irq, tx_irq;
 
-	host = spi_alloc_host(&pdev->dev, sizeof(*sspi));
+	host = devm_spi_alloc_host(&pdev->dev, sizeof(*sspi));
 	if (!host)
 		return -ENOMEM;
 
@@ -617,10 +617,8 @@ static int synquacer_spi_probe(struct platform_device *pdev)
 	init_completion(&sspi->transfer_done);
 
 	sspi->regs = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(sspi->regs)) {
-		ret = PTR_ERR(sspi->regs);
-		goto put_spi;
-	}
+	if (IS_ERR(sspi->regs))
+		return PTR_ERR(sspi->regs);
 
 	sspi->clk_src_type = SYNQUACER_HSSPI_CLOCK_SRC_IHCLK; /* Default */
 	device_property_read_u32(&pdev->dev, "socionext,ihclk-rate",
@@ -637,21 +635,19 @@ static int synquacer_spi_probe(struct platform_device *pdev)
 			sspi->clk = devm_clk_get(sspi->dev, "iPCLK");
 		} else {
 			dev_err(&pdev->dev, "specified wrong clock source\n");
-			ret = -EINVAL;
-			goto put_spi;
+			return -EINVAL;
 		}
 
 		if (IS_ERR(sspi->clk)) {
-			ret = dev_err_probe(&pdev->dev, PTR_ERR(sspi->clk),
-					    "clock not found\n");
-			goto put_spi;
+			return dev_err_probe(&pdev->dev, PTR_ERR(sspi->clk),
+					     "clock not found\n");
 		}
 
 		ret = clk_prepare_enable(sspi->clk);
 		if (ret) {
 			dev_err(&pdev->dev, "failed to enable clock (%d)\n",
 				ret);
-			goto put_spi;
+			return ret;
 		}
 
 		host->max_speed_hz = clk_get_rate(sspi->clk);
@@ -726,8 +722,6 @@ disable_pm:
 	pm_runtime_disable(sspi->dev);
 disable_clk:
 	clk_disable_unprepare(sspi->clk);
-put_spi:
-	spi_controller_put(host);
 
 	return ret;
 }
@@ -737,15 +731,11 @@ static void synquacer_spi_remove(struct platform_device *pdev)
 	struct spi_controller *host = platform_get_drvdata(pdev);
 	struct synquacer_spi *sspi = spi_controller_get_devdata(host);
 
-	spi_controller_get(host);
-
 	spi_unregister_controller(host);
 
 	pm_runtime_disable(sspi->dev);
 
 	clk_disable_unprepare(sspi->clk);
-
-	spi_controller_put(host);
 }
 
 static int __maybe_unused synquacer_spi_suspend(struct device *dev)

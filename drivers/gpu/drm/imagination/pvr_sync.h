@@ -70,7 +70,7 @@ int
 pvr_sync_signal_array_update_fences(struct xarray *array,
 				    u32 sync_op_count,
 				    const struct drm_pvr_sync_op *sync_ops,
-				    struct dma_fence *done_fence);
+				    struct dma_fence *finished_fence);
 
 void
 pvr_sync_signal_array_push_fences(struct xarray *array);

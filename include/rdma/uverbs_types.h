@@ -147,6 +147,7 @@ struct uverbs_obj_fd_type {
 	struct uverbs_obj_type  type;
 	void (*destroy_object)(struct ib_uobject *uobj,
 			       enum rdma_remove_reason why);
+	void (*release_cleanup)(struct ib_uobject *uobj);
 	const struct file_operations	*fops;
 	const char			*name;
 	int				flags;
@@ -190,7 +191,8 @@ int uverbs_uobject_release(struct ib_uobject *uobj);
 
 #define UVERBS_BUILD_BUG_ON(cond) (sizeof(char[1 - 2 * !!(cond)]) -	\
 				   sizeof(char))
-#define UVERBS_TYPE_ALLOC_FD(_obj_size, _destroy_object, _fops, _name, _flags) \
+#define UVERBS_TYPE_ALLOC_FD_RELEASE(_obj_size, _destroy_object,	\
+				     _release_cleanup, _fops, _name, _flags) \
 	((&((const struct uverbs_obj_fd_type)				\
 	 {.type = {							\
 		.type_class = &uverbs_fd_class,				\
@@ -199,9 +201,13 @@ int uverbs_uobject_release(struct ib_uobject *uobj);
 					    sizeof(struct ib_uobject)), \
 	 },								\
 	 .destroy_object = _destroy_object,				\
+	 .release_cleanup = _release_cleanup,				\
 	 .fops = _fops,							\
 	 .name = _name,							\
 	 .flags = _flags}))->type)
+#define UVERBS_TYPE_ALLOC_FD(_obj_size, _destroy_object, _fops, _name, _flags) \
+	UVERBS_TYPE_ALLOC_FD_RELEASE(_obj_size, _destroy_object, NULL,	\
+				     _fops, _name, _flags)
 #define UVERBS_TYPE_ALLOC_IDR_SZ(_size, _destroy_object)	\
 	((&((const struct uverbs_obj_idr_type)				\
 	 {.type = {							\

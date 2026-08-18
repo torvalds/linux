@@ -12,8 +12,11 @@
 
 #include <linux/kernel.h>
 #include <linux/mfd/core.h>
+#include <linux/mfd/cs5535.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/property.h>
+
 #include <asm/olpc.h>
 
 #define DRV_NAME "cs5535-mfd"
@@ -29,6 +32,11 @@ enum cs5535_mfd_bars {
 
 static struct resource cs5535_mfd_resources[NR_BARS];
 
+const struct software_node cs5535_gpio_swnode = {
+	.name = "cs5535-gpio",
+};
+EXPORT_SYMBOL_NS(cs5535_gpio_swnode, "CS5535");
+
 static struct mfd_cell cs5535_mfd_cells[] = {
 	{
 		.name = "cs5535-smb",
@@ -39,6 +47,7 @@ static struct mfd_cell cs5535_mfd_cells[] = {
 		.name = "cs5535-gpio",
 		.num_resources = 1,
 		.resources = &cs5535_mfd_resources[GPIO_BAR],
+		.swnode = &cs5535_gpio_swnode,
 	},
 	{
 		.name = "cs5535-mfgpt",

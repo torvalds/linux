@@ -95,6 +95,8 @@ properties:
               - facebook,greatlakes-bmc
               - facebook,harma-bmc
               - facebook,minerva-cmc
+              - facebook,rainiera6-bmc
+              - facebook,sanmiguel-bmc
               - facebook,santabarbara-bmc
               - facebook,yosemite4-bmc
               - facebook,yosemite5-bmc
@@ -116,5 +118,11 @@ properties:
               - quanta,s6q-bmc
               - ufispace,ncplite-bmc
           - const: aspeed,ast2600
+
+      - description: AST2700 based boards
+        items:
+          - enum:
+              - aspeed,ast2700-evb
+          - const: aspeed,ast2700
 
 additionalProperties: true

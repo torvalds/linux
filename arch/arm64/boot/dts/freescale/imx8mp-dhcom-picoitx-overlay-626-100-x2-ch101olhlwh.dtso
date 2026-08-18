@@ -1,0 +1,77 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (C) 2024-2026 Marek Vasut
+ */
+/dts-v1/;
+/plugin/;
+
+#include "imx8mp-dhcom-overlay-panel-dpi.dtsi"
+#include "imx8mp-dhcom-overlay-panel-ch101olhlwh.dtsi"
+#include "imx8mp-pinfunc.h"
+
+&{/} {
+	lvds-encoder {
+		compatible = "onnn,fin3385", "lvds-encoder";
+		pclk-sample = <1>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				lvds_bridge_in: endpoint {
+					remote-endpoint = <&tc_bridge_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				lvds_bridge_out: endpoint {
+					remote-endpoint = <&panel_in>;
+				};
+			};
+		};
+	};
+};
+
+&mipi_dsi {
+	/*
+	 * This is DSIM PLL frequency, DSI HS clock lane frequency
+	 * is half of the "samsung,burst-clock-frequency" value.
+	 */
+	samsung,burst-clock-frequency = <900000000>;
+};
+
+&panel_in {
+	remote-endpoint = <&lvds_bridge_out>;
+};
+
+&tc_bridge_out {
+	remote-endpoint = <&lvds_bridge_in>;
+};
+
+&touch_lvds {
+	pinctrl-0 = <&pinctrl_dhcom_b &pinctrl_dhcom_h>;
+	pinctrl-names = "default";
+	interrupt-parent = <&gpio1>;
+	interrupts = <11 IRQ_TYPE_EDGE_FALLING>;
+};
+
+&iomuxc {
+	/*
+	 * The following DHCOM GPIOs are used on this board.
+	 * Therefore, they have been removed from the list below.
+	 * B: Touch controller #RESET
+	 * H: Touch controller IRQ
+	 * I: Yellow led
+	 */
+	pinctrl-0 = <&pinctrl_dhcom_a &pinctrl_dhcom_c &pinctrl_dhcom_d
+		     &pinctrl_dhcom_e &pinctrl_dhcom_f &pinctrl_dhcom_g
+		     &pinctrl_dhcom_j &pinctrl_dhcom_k &pinctrl_dhcom_l
+		     &pinctrl_dhcom_m &pinctrl_dhcom_n &pinctrl_dhcom_o
+		     &pinctrl_dhcom_p &pinctrl_dhcom_q &pinctrl_dhcom_r
+		     &pinctrl_dhcom_s &pinctrl_dhcom_int>;
+};

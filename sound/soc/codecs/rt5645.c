@@ -83,6 +83,8 @@ static const struct reg_sequence rt5650_init_list[] = {
 	{RT5645_PWR_ANLG1, 0x02},
 	{RT5645_IL_CMD3, 0x6728},
 	{RT5645_PR_BASE + 0x3a,	0x0000},
+	{RT5645_CLSD_OUT_CTRL1, 0x4059},
+	{RT5645_GEN_CTRL3, 0x0200},
 };
 
 static const struct reg_default rt5645_reg[] = {
@@ -1855,13 +1857,9 @@ static int rt5645_spk_event(struct snd_soc_dapm_widget *w,
 			RT5645_PWR_CLS_D_L,
 			RT5645_PWR_CLS_D | RT5645_PWR_CLS_D_R |
 			RT5645_PWR_CLS_D_L);
-		snd_soc_component_update_bits(component, RT5645_GEN_CTRL3,
-			RT5645_DET_CLK_MASK, RT5645_DET_CLK_MODE1);
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
-		snd_soc_component_update_bits(component, RT5645_GEN_CTRL3,
-			RT5645_DET_CLK_MASK, RT5645_DET_CLK_DIS);
 		snd_soc_component_write(component, RT5645_EQ_CTRL2, 0);
 		snd_soc_component_update_bits(component, RT5645_PWR_DIG1,
 			RT5645_PWR_CLS_D | RT5645_PWR_CLS_D_R |
@@ -3646,8 +3644,8 @@ static const struct regmap_config temp_regmap = {
 };
 
 static const struct i2c_device_id rt5645_i2c_id[] = {
-	{ "rt5645" },
-	{ "rt5650" },
+	{ .name = "rt5645" },
+	{ .name = "rt5650" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rt5645_i2c_id);

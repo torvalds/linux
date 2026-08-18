@@ -94,7 +94,7 @@ time, the kernel checks this user-space list: are there any robust futex
 locks to be cleaned up?
 
 In the common case, at do_exit() time, there is no list registered, so
-the cost of robust futexes is just a simple current->robust_list != NULL
+the cost of robust futexes is just a current->futex.robust_list != NULL
 comparison. If the thread has registered a list, then normally the list
 is empty. If the thread/process crashed or terminated in some incorrect
 way then the list might be non-empty: in this case the kernel carefully
@@ -178,9 +178,9 @@ one to query the registered list pointer::
                      size_t __user *len_ptr);
 
 List registration is very fast: the pointer is simply stored in
-current->robust_list. [Note that in the future, if robust futexes become
-widespread, we could extend sys_clone() to register a robust-list head
-for new threads, without the need of another syscall.]
+current->futex.robust_list. [Note that in the future, if robust futexes
+become widespread, we could extend sys_clone() to register a robust-list
+head for new threads, without the need of another syscall.]
 
 So there is virtually zero overhead for tasks not using robust futexes,
 and even for robust futex users, there is only one extra syscall per

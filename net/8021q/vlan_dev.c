@@ -270,6 +270,9 @@ static int vlan_dev_open(struct net_device *dev)
 	    !(vlan->flags & VLAN_FLAG_LOOSE_BINDING))
 		return -ENETDOWN;
 
+	/* The explicit open supersedes any deferred link-state sync */
+	netdev_work_cancel(dev, VLAN_WORK_LINK_STATE);
+
 	if (!ether_addr_equal(dev->dev_addr, real_dev->dev_addr) &&
 	    !vlan_dev_inherit_address(dev, real_dev)) {
 		err = dev_uc_add(real_dev, dev->dev_addr);
@@ -299,6 +302,9 @@ static int vlan_dev_stop(struct net_device *dev)
 {
 	struct vlan_dev_priv *vlan = vlan_dev_priv(dev);
 	struct net_device *real_dev = vlan->real_dev;
+
+	/* The explicit close supersedes any deferred link-state sync */
+	netdev_work_cancel(dev, VLAN_WORK_LINK_STATE);
 
 	dev_mc_unsync(real_dev, dev);
 	dev_uc_unsync(real_dev, dev);
@@ -1016,6 +1022,59 @@ static const struct ethtool_ops vlan_ethtool_ops = {
 	.get_ts_info		= vlan_ethtool_get_ts_info,
 };
 
+static void vlan_transfer_features(struct net_device *dev,
+				   struct net_device *vlandev)
+{
+	struct vlan_dev_priv *vlan = vlan_dev_priv(vlandev);
+
+	netif_inherit_tso_max(vlandev, dev);
+
+	if (vlan_hw_offload_capable(dev->features, vlan->vlan_proto))
+		vlandev->hard_header_len = dev->hard_header_len;
+	else
+		vlandev->hard_header_len = dev->hard_header_len + VLAN_HLEN;
+
+#if IS_ENABLED(CONFIG_FCOE)
+	vlandev->fcoe_ddp_xid = dev->fcoe_ddp_xid;
+#endif
+
+	vlandev->priv_flags &= ~IFF_XMIT_DST_RELEASE;
+	vlandev->priv_flags |= (vlan->real_dev->priv_flags & IFF_XMIT_DST_RELEASE);
+	vlandev->hw_enc_features = vlan_tnl_features(vlan->real_dev);
+
+	netdev_update_features(vlandev);
+}
+
+static void vlan_dev_work(struct net_device *vlandev, unsigned long events)
+{
+	struct vlan_dev_priv *vlan = vlan_dev_priv(vlandev);
+	struct net_device *real_dev = vlan->real_dev;
+	bool loose = vlan->flags & VLAN_FLAG_LOOSE_BINDING;
+	unsigned int flgs;
+
+	if (events & VLAN_WORK_LINK_STATE) {
+		flgs = netif_get_flags(vlandev);
+		if (real_dev->flags & IFF_UP) {
+			if (!(flgs & IFF_UP)) {
+				if (!loose)
+					netif_change_flags(vlandev,
+							   flgs | IFF_UP, NULL);
+				vlan_stacked_transfer_operstate(real_dev,
+								vlandev, vlan);
+			}
+		} else if ((flgs & IFF_UP) && !loose) {
+			netif_change_flags(vlandev, flgs & ~IFF_UP, NULL);
+			vlan_stacked_transfer_operstate(real_dev, vlandev, vlan);
+		}
+	}
+
+	if ((events & VLAN_WORK_MTU) && vlandev->mtu > real_dev->mtu)
+		netif_set_mtu(vlandev, real_dev->mtu);
+
+	if (events & VLAN_WORK_FEATURES)
+		vlan_transfer_features(real_dev, vlandev);
+}
+
 static const struct net_device_ops vlan_netdev_ops = {
 	.ndo_change_mtu		= vlan_dev_change_mtu,
 	.ndo_init		= vlan_dev_init,
@@ -1027,6 +1086,7 @@ static const struct net_device_ops vlan_netdev_ops = {
 	.ndo_set_mac_address	= vlan_dev_set_mac_address,
 	.ndo_set_rx_mode	= vlan_dev_set_rx_mode,
 	.ndo_change_rx_flags	= vlan_dev_change_rx_flags,
+	.ndo_work		= vlan_dev_work,
 	.ndo_eth_ioctl		= vlan_dev_ioctl,
 	.ndo_neigh_setup	= vlan_dev_neigh_setup,
 	.ndo_get_stats64	= vlan_dev_get_stats64,

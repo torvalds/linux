@@ -259,24 +259,18 @@ static inline bool __ast_gen_is_eq(struct ast_device *ast, unsigned long gen)
 #define IS_AST_GEN6(__ast)	__ast_gen_is_eq(__ast, 6)
 #define IS_AST_GEN7(__ast)	__ast_gen_is_eq(__ast, 7)
 
+/*
+ * MMIO access
+ */
+
 static inline u8 __ast_read8(const void __iomem *addr, u32 reg)
 {
 	return ioread8(addr + reg);
 }
 
-static inline u32 __ast_read32(const void __iomem *addr, u32 reg)
-{
-	return ioread32(addr + reg);
-}
-
 static inline void __ast_write8(void __iomem *addr, u32 reg, u8 val)
 {
 	iowrite8(val, addr + reg);
-}
-
-static inline void __ast_write32(void __iomem *addr, u32 reg, u32 val)
-{
-	iowrite32(val, addr + reg);
 }
 
 static inline u8 __ast_read8_i(void __iomem *addr, u32 reg, u8 index)
@@ -305,16 +299,6 @@ static inline void __ast_write8_i_masked(void __iomem *addr, u32 reg, u8 index, 
 
 	val &= ~preserve_mask;
 	__ast_write8_i(addr, reg, index, tmp | val);
-}
-
-static inline u32 ast_read32(struct ast_device *ast, u32 reg)
-{
-	return __ast_read32(ast->regs, reg);
-}
-
-static inline void ast_write32(struct ast_device *ast, u32 reg, u32 val)
-{
-	__ast_write32(ast->regs, reg, val);
 }
 
 static inline u8 ast_io_read8(struct ast_device *ast, u32 reg)
@@ -348,6 +332,40 @@ static inline void ast_set_index_reg_mask(struct ast_device *ast, u32 base, u8 i
 {
 	__ast_write8_i_masked(ast->ioregs, base, index, preserve_mask, val);
 }
+
+/*
+ * Register access
+ */
+
+static inline u32 __ast_read32(const void __iomem *addr, u32 reg)
+{
+	return ioread32(addr + reg);
+}
+
+static inline void __ast_write32(void __iomem *addr, u32 reg, u32 val)
+{
+	iowrite32(val, addr + reg);
+}
+
+static inline u32 ast_read32(struct ast_device *ast, u32 reg)
+{
+	return __ast_read32(ast->regs, reg);
+}
+
+static inline void ast_write32(struct ast_device *ast, u32 reg, u32 val)
+{
+	__ast_write32(ast->regs, reg, val);
+}
+
+u32 __ast_mindwm(void __iomem *regs, u32 r);
+void __ast_moutdwm(void __iomem *regs, u32 r, u32 v);
+u32 ast_mindwm(struct ast_device *ast, u32 r);
+void ast_moutdwm(struct ast_device *ast, u32 r, u32 v);
+void ast_moutdwm_poll(struct ast_device *ast, u32 r, u32 v, u32 res);
+
+/*
+ * VBIOS
+ */
 
 struct ast_vbios_stdtable {
 	u8 misc;
@@ -517,8 +535,6 @@ struct drm_device *ast_2600_device_create(struct pci_dev *pdev,
 
 /* ast post */
 int ast_post_gpu(struct ast_device *ast);
-u32 ast_mindwm(struct ast_device *ast, u32 r);
-void ast_moutdwm(struct ast_device *ast, u32 r, u32 v);
 
 int ast_vga_output_init(struct ast_device *ast);
 int ast_sil164_output_init(struct ast_device *ast);

@@ -317,36 +317,37 @@ exit:
 	return ret;
 }
 
-static void __check_ras_ta_cmd_resp(struct ras_core_context *ras_core,
+static int __check_ras_ta_cmd_resp(struct ras_core_context *ras_core,
 			struct ras_ta_cmd *ras_cmd)
 {
-
 	if (ras_cmd->ras_out_message.flags.err_inject_switch_disable_flag) {
 		RAS_DEV_WARN(ras_core->dev, "ECC switch disabled\n");
 		ras_cmd->ras_status = RAS_TA_STATUS__ERROR_RAS_NOT_AVAILABLE;
-	} else if (ras_cmd->ras_out_message.flags.reg_access_failure_flag)
+	} else if (ras_cmd->ras_out_message.flags.reg_access_failure_flag) {
 		RAS_DEV_WARN(ras_core->dev, "RAS internal register access blocked\n");
+		ras_cmd->ras_status = RAS_TA_STATUS__TEE_ERROR_ACCESS_DENIED;
+	}
 
 	switch (ras_cmd->ras_status) {
+	case RAS_TA_STATUS__SUCCESS:
+		return 0;
 	case RAS_TA_STATUS__ERROR_UNSUPPORTED_IP:
 		RAS_DEV_WARN(ras_core->dev,
 			 "RAS WARNING: cmd failed due to unsupported ip\n");
-		break;
+		return -EINVAL;
 	case RAS_TA_STATUS__ERROR_UNSUPPORTED_ERROR_INJ:
 		RAS_DEV_WARN(ras_core->dev,
 			 "RAS WARNING: cmd failed due to unsupported error injection\n");
-		break;
-	case RAS_TA_STATUS__SUCCESS:
-		break;
+		return -EINVAL;
 	case RAS_TA_STATUS__TEE_ERROR_ACCESS_DENIED:
 		if (ras_cmd->cmd_id == RAS_TA_CMD_ID__TRIGGER_ERROR)
 			RAS_DEV_WARN(ras_core->dev,
 				 "RAS WARNING: Inject error to critical region is not allowed\n");
-		break;
+		return -EACCES;
 	default:
 		RAS_DEV_WARN(ras_core->dev,
 			 "RAS WARNING: ras status = 0x%X\n", ras_cmd->ras_status);
-		break;
+		return -EINVAL;
 	}
 }
 
@@ -417,7 +418,7 @@ static int send_ras_ta_runtime_cmd(struct ras_core_context *ras_core,
 	if (!ras_cmd->ras_status && out && out_size)
 		memcpy(out, &ras_cmd->ras_out_message, out_size);
 
-	__check_ras_ta_cmd_resp(ras_core, ras_cmd);
+	ret = __check_ras_ta_cmd_resp(ras_core, ras_cmd);
 
 unlock:
 	mutex_unlock(&ta_ctx->ta_mutex);

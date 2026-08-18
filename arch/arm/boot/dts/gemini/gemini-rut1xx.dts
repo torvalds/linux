@@ -14,13 +14,13 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
-	memory@0 { /* 128 MB */
+	memory@0 { /* 32 MB */
 		device_type = "memory";
-		reg = <0x00000000 0x8000000>;
+		reg = <0x00000000 0x2000000>;
 	};
 
 	chosen {
-		bootargs = "console=ttyS0,115200n8";
+		bootargs = "console=ttyS0,19200n8";
 		stdout-path = &uart0;
 	};
 
@@ -113,6 +113,10 @@
 			pinctrl-0 = <&gpio1_default_pins>;
 		};
 
+		pci@50000000 {
+			status = "okay";
+		};
+
 		ethernet@60000000 {
 			status = "okay";
 
@@ -123,14 +127,6 @@
 			ethernet-port@1 {
 				/* Not used in this platform */
 			};
-		};
-
-		usb@68000000 {
-			status = "okay";
-		};
-
-		usb@69000000 {
-			status = "okay";
 		};
 	};
 };

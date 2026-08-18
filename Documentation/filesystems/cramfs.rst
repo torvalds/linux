@@ -28,8 +28,10 @@ Only the low 8 bits of gid are stored.  The current version of
 mkcramfs simply truncates to 8 bits, which is a potential security
 issue.
 
-Hard links are supported, but hard linked files
-will still have a link count of 1 in the cramfs image.
+Hard links are not preserved.  mkcramfs deduplicates files with
+identical content, but two names for the same on-disk inode in the
+source tree become two separate (content-shared) entries in the
+image, and cramfs always reports a link count of 1.
 
 Cramfs directories have no ``.`` or ``..`` entries.  Directories (like
 every other file on cramfs) always have a link count of 1.  (There's
@@ -40,12 +42,16 @@ No timestamps are stored in a cramfs, so these default to the epoch
 the update lasts only as long as the inode is cached in memory, after
 which the timestamp reverts to 1970, i.e. moves backwards in time.
 
-Currently, cramfs must be written and read with architectures of the
-same endianness, and can be read only by kernels with PAGE_SIZE
-== 4096.  At least the latter of these is a bug, but it hasn't been
-decided what the best fix is.  For the moment if you have larger pages
-you can just change the #define in mkcramfs.c, so long as you don't
-mind the filesystem becoming unreadable to future kernels.
+The on-disk layout is host-endian: the kernel does not swab, and
+refuses to mount an image whose endianness does not match the CPU.
+For cross-builds, mkcramfs -B / -L forces the output endianness so
+that a host of one endianness can produce an image for a target of
+the other.
+
+The on-disk block size is fixed at 4096 bytes.  On systems with a
+larger PAGE_SIZE you can change the #define in mkcramfs.c, with the
+caveat that the resulting image will only be readable on kernels
+configured for the same PAGE_SIZE.
 
 
 Memory Mapped cramfs image

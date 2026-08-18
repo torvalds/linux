@@ -81,13 +81,7 @@ static int dc_kms_init_encoder_per_crtc(struct dc_drm_device *dc_drm,
 		return ret;
 	}
 
-	ret = drm_connector_attach_encoder(connector, encoder);
-	if (ret)
-		dev_err(dev,
-			"failed to attach encoder to connector for CRTC%u: %d\n",
-			crtc->index, ret);
-
-	return ret;
+	return 0;
 }
 
 int dc_kms_init(struct dc_drm_device *dc_drm)

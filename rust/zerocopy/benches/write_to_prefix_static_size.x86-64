@@ -1,0 +1,11 @@
+bench_write_to_prefix_static_size:
+	cmp rdx, 6
+	jb .LBB5_2
+	movzx eax, word ptr [rdi + 4]
+	mov word ptr [rsi + 4], ax
+	mov eax, dword ptr [rdi]
+	mov dword ptr [rsi], eax
+.LBB5_2:
+	cmp rdx, 6
+	setae al
+	ret

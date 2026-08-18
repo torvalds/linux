@@ -102,10 +102,10 @@ Features and limitations
 	if (I_won) {
 		/* we won the town election, let's go for the state */
 		my_state = states[(this_cpu >> 8) & 0xf];
-		I_won = vlock_lock(my_state, this_cpu & 0xf));
+		I_won = vlock_lock(my_state, this_cpu & 0xf);
 		if (I_won) {
 			/* and so on */
-			I_won = vlock_lock(the_whole_country, this_cpu & 0xf];
+			I_won = vlock_lock(the_whole_country, this_cpu & 0xf);
 			if (I_won) {
 				/* ... */
 			}

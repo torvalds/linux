@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menu "Airoha pinctrl drivers"
+	depends on ARCH_AIROHA || COMPILE_TEST
+
+config PINCTRL_AIROHA
+	tristate "Airoha EN7581 pin control"
+	depends on OF
+	depends on ARM64 || COMPILE_TEST
+	select PINMUX
+	select GENERIC_PINCONF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+	select REGMAP_MMIO
+	help
+	  Say yes here to support pin controller and gpio driver
+	  on Airoha EN7581 SoC.
+
+endmenu

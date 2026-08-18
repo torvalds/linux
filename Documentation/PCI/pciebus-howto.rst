@@ -97,7 +97,7 @@ register its service with the PCI Express Port Bus driver (see
 section 5.2.1 & 5.2.2). It is important that a service driver
 initializes the pcie_port_service_driver data structure, included in
 header file /include/linux/pcieport_if.h, before calling these APIs.
-Failure to do so will result an identity mismatch, which prevents
+Failure to do so will result in an identity mismatch, which prevents
 the PCI Express Port Bus driver from loading a service driver.
 
 pcie_port_service_register

@@ -54,14 +54,14 @@ static void __init m527x_qspi_init(void)
 	u16 par;
 
 	/* setup QSPS pins for QSPI with gpio CS control */
-	writeb(0x1f, MCFGPIO_PAR_QSPI);
+	mcf_write8(0x1f, MCFGPIO_PAR_QSPI);
 	/* and CS2 & CS3 as gpio */
-	par = readw(MCFGPIO_PAR_TIMER);
+	par = mcf_read16(MCFGPIO_PAR_TIMER);
 	par &= 0x3f3f;
-	writew(par, MCFGPIO_PAR_TIMER);
+	mcf_write16(par, MCFGPIO_PAR_TIMER);
 #elif defined(CONFIG_M5275)
 	/* setup QSPS pins for QSPI with gpio CS control */
-	writew(0x003e, MCFGPIO_PAR_QSPI);
+	mcf_write16(0x003e, MCFGPIO_PAR_QSPI);
 #endif
 #endif /* IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI) */
 }
@@ -76,17 +76,17 @@ static void __init m527x_i2c_init(void)
 
 	/* setup Port FECI2C Pin Assignment Register for I2C */
 	/*  set PAR_SCL to SCL and PAR_SDA to SDA */
-	par = readb(MCFGPIO_PAR_FECI2C);
+	par = mcf_read8(MCFGPIO_PAR_FECI2C);
 	par |= 0x0f;
-	writeb(par, MCFGPIO_PAR_FECI2C);
+	mcf_write8(par, MCFGPIO_PAR_FECI2C);
 #elif defined(CONFIG_M5275)
 	u16 par;
 
 	/* setup Port FECI2C Pin Assignment Register for I2C */
 	/*  set PAR_SCL to SCL and PAR_SDA to SDA */
-	par = readw(MCFGPIO_PAR_FECI2C);
+	par = mcf_read16(MCFGPIO_PAR_FECI2C);
 	par |= 0x0f;
-	writew(par, MCFGPIO_PAR_FECI2C);
+	mcf_write16(par, MCFGPIO_PAR_FECI2C);
 #endif
 #endif /* IS_ENABLED(CONFIG_I2C_IMX) */
 }
@@ -100,9 +100,9 @@ static void __init m527x_uarts_init(void)
 	/*
 	 * External Pin Mask Setting & Enable External Pin for Interface
 	 */
-	sepmask = readw(MCFGPIO_PAR_UART);
+	sepmask = mcf_read16(MCFGPIO_PAR_UART);
 	sepmask |= UART0_ENABLE_MASK | UART1_ENABLE_MASK | UART2_ENABLE_MASK;
-	writew(sepmask, MCFGPIO_PAR_UART);
+	mcf_write16(sepmask, MCFGPIO_PAR_UART);
 }
 
 /***************************************************************************/
@@ -113,21 +113,21 @@ static void __init m527x_fec_init(void)
 
 	/* Set multi-function pins to ethernet mode for fec0 */
 #if defined(CONFIG_M5271)
-	v = readb(MCFGPIO_PAR_FECI2C);
-	writeb(v | 0xf0, MCFGPIO_PAR_FECI2C);
+	v = mcf_read8(MCFGPIO_PAR_FECI2C);
+	mcf_write8(v | 0xf0, MCFGPIO_PAR_FECI2C);
 #else
 	u16 par;
 
-	par = readw(MCFGPIO_PAR_FECI2C);
-	writew(par | 0xf00, MCFGPIO_PAR_FECI2C);
-	v = readb(MCFGPIO_PAR_FEC0HL);
-	writeb(v | 0xc0, MCFGPIO_PAR_FEC0HL);
+	par = mcf_read16(MCFGPIO_PAR_FECI2C);
+	mcf_write16(par | 0xf00, MCFGPIO_PAR_FECI2C);
+	v = mcf_read8(MCFGPIO_PAR_FEC0HL);
+	mcf_write8(v | 0xc0, MCFGPIO_PAR_FEC0HL);
 
 	/* Set multi-function pins to ethernet mode for fec1 */
-	par = readw(MCFGPIO_PAR_FECI2C);
-	writew(par | 0xa0, MCFGPIO_PAR_FECI2C);
-	v = readb(MCFGPIO_PAR_FEC1HL);
-	writeb(v | 0xc0, MCFGPIO_PAR_FEC1HL);
+	par = mcf_read16(MCFGPIO_PAR_FECI2C);
+	mcf_write16(par | 0xa0, MCFGPIO_PAR_FECI2C);
+	v = mcf_read8(MCFGPIO_PAR_FEC1HL);
+	mcf_write8(v | 0xc0, MCFGPIO_PAR_FEC1HL);
 #endif
 }
 

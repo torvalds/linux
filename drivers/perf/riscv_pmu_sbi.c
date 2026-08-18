@@ -10,7 +10,6 @@
 
 #define pr_fmt(fmt) "riscv-pmu-sbi: " fmt
 
-#include <linux/mod_devicetable.h>
 #include <linux/perf/riscv_pmu.h>
 #include <linux/platform_device.h>
 #include <linux/irq.h>

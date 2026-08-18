@@ -75,7 +75,7 @@ xrep_nlinks_iunlink_remove(
 	struct xfs_perag	*pag;
 	int			error;
 
-	pag = xfs_perag_get(sc->mp, XFS_INO_TO_AGNO(sc->mp, sc->ip->i_ino));
+	pag = xfs_perag_get(sc->mp, XFS_INODE_TO_AGNO(sc->ip));
 	error = xfs_iunlink_remove(sc->tp, pag, sc->ip);
 	xfs_perag_put(pag);
 	return error;
@@ -152,7 +152,7 @@ xrep_nlinks_repair_inode(
 		goto out_scanlock;
 	}
 
-	error = xfarray_load_sparse(xnc->nlinks, ip->i_ino, &obs);
+	error = xfarray_load_sparse(xnc->nlinks, I_INO(ip), &obs);
 	if (error)
 		goto out_scanlock;
 
@@ -206,7 +206,7 @@ xrep_nlinks_repair_inode(
 		 * updated our scan info.
 		 */
 		mutex_lock(&xnc->lock);
-		error = xfarray_load_sparse(xnc->nlinks, ip->i_ino, &obs);
+		error = xfarray_load_sparse(xnc->nlinks, I_INO(ip), &obs);
 		mutex_unlock(&xnc->lock);
 		if (error)
 			goto out_trans;

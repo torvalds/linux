@@ -175,14 +175,14 @@ static int fill_section_runtime(struct ras_core_context *ras_core,
 }
 
 static int cper_generate_runtime_record(struct ras_core_context *ras_core,
-	struct cper_section_hdr *hdr, struct ras_log_info **trace_arr, uint32_t arr_num,
+	struct cper_section_hdr *hdr, struct ras_log_info *trace_arr, uint32_t arr_num,
 		enum ras_cper_severity sev)
 {
 	struct cper_section_descriptor *descriptor;
 	struct cper_section_runtime *runtime;
 	int i;
 
-	fill_section_hdr(ras_core, hdr, RAS_CPER_TYPE_RUNTIME, sev, trace_arr[0]);
+	fill_section_hdr(ras_core, hdr, RAS_CPER_TYPE_RUNTIME, sev, &trace_arr[0]);
 	hdr->record_length =  RAS_HDR_LEN + ((RAS_SEC_DESC_LEN + RAS_NONSTD_SEC_LEN) * arr_num);
 	hdr->sec_cnt = arr_num;
 	for (i = 0; i < arr_num; i++) {
@@ -194,21 +194,21 @@ static int cper_generate_runtime_record(struct ras_core_context *ras_core,
 		fill_section_descriptor(ras_core, descriptor, sev, RUNTIME,
 			RAS_NONSTD_SEC_OFFSET(hdr->sec_cnt, i),
 			sizeof(struct cper_section_runtime));
-		fill_section_runtime(ras_core, runtime, trace_arr[i], sev);
+		fill_section_runtime(ras_core, runtime, &trace_arr[i], sev);
 	}
 
 	return 0;
 }
 
 static int cper_generate_fatal_record(struct ras_core_context *ras_core,
-	uint8_t *buffer, struct ras_log_info **trace_arr, uint32_t arr_num)
+	uint8_t *buffer, struct ras_log_info *trace_arr, uint32_t arr_num)
 {
 	struct ras_cper_fatal_record record = {0};
 	int i = 0;
 
 	for (i = 0; i < arr_num; i++) {
 		fill_section_hdr(ras_core, &record.hdr, RAS_CPER_TYPE_FATAL,
-				 RAS_CPER_SEV_FATAL_UE, trace_arr[i]);
+				 RAS_CPER_SEV_FATAL_UE, &trace_arr[i]);
 		record.hdr.record_length =  RAS_HDR_LEN + RAS_SEC_DESC_LEN + RAS_FATAL_SEC_LEN;
 		record.hdr.sec_cnt = 1;
 
@@ -216,7 +216,7 @@ static int cper_generate_fatal_record(struct ras_core_context *ras_core,
 					CRASHDUMP, offsetof(struct ras_cper_fatal_record, fatal),
 					sizeof(struct cper_section_fatal));
 
-		fill_section_fatal(ras_core, &record.fatal, trace_arr[i]);
+		fill_section_fatal(ras_core, &record.fatal, &trace_arr[i]);
 
 		memcpy(buffer + (i * record.hdr.record_length),
 				&record, record.hdr.record_length);
@@ -271,7 +271,7 @@ static enum ras_cper_type cper_ras_log_event_to_cper_type(enum ras_log_event eve
 }
 
 int ras_cper_generate_cper(struct ras_core_context *ras_core,
-		struct ras_log_info **trace_list, uint32_t count,
+		struct ras_log_info *trace_list, uint32_t count,
 		uint8_t *buf, uint32_t buf_len, uint32_t *real_data_len)
 {
 	uint8_t *buffer = buf;
@@ -281,14 +281,14 @@ int ras_cper_generate_cper(struct ras_core_context *ras_core,
 
 	/* All the batch traces share the same event */
 	record_size = cper_get_record_size(
-			cper_ras_log_event_to_cper_type(trace_list[0]->event), count);
+			cper_ras_log_event_to_cper_type(trace_list[0].event), count);
 
 	if ((record_size + saved_size) > buf_size)
 		return -ENOMEM;
 
 	hdr = (struct cper_section_hdr *)(buffer + saved_size);
 
-	switch (trace_list[0]->event) {
+	switch (trace_list[0].event) {
 	case RAS_LOG_EVENT_RMA:
 		cper_generate_runtime_record(ras_core, hdr, trace_list, count, RAS_CPER_SEV_RMA);
 		break;
@@ -304,7 +304,7 @@ int ras_cper_generate_cper(struct ras_core_context *ras_core,
 		cper_generate_fatal_record(ras_core, buffer + saved_size, trace_list, count);
 		break;
 	default:
-		RAS_DEV_WARN(ras_core->dev, "Unprocessed trace event: %d\n", trace_list[0]->event);
+		RAS_DEV_WARN(ras_core->dev, "Unprocessed trace event: %d\n", trace_list[0].event);
 		break;
 	}
 

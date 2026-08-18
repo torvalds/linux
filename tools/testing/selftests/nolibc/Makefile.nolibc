@@ -64,6 +64,7 @@ ARCH_s390x       = s390
 ARCH_sparc32     = sparc
 ARCH_sparc64     = sparc
 ARCH_sh4         = sh
+ARCH_parisc32    = parisc
 ARCH            := $(or $(ARCH_$(XARCH)),$(XARCH))
 
 # kernel image names by architecture
@@ -74,33 +75,18 @@ IMAGE_x86        = arch/x86/boot/bzImage
 IMAGE_arm64      = arch/arm64/boot/Image
 IMAGE_arm        = arch/arm/boot/zImage
 IMAGE_armthumb   = arch/arm/boot/zImage
-IMAGE_mips32le   = vmlinuz
-IMAGE_mips32be   = vmlinuz
-IMAGE_mipsn32le  = vmlinuz
-IMAGE_mipsn32be  = vmlinuz
-IMAGE_mips64le   = vmlinuz
-IMAGE_mips64be   = vmlinuz
-IMAGE_ppc        = vmlinux
-IMAGE_ppc64      = vmlinux
 IMAGE_ppc64le    = arch/powerpc/boot/zImage
-IMAGE_riscv      = arch/riscv/boot/Image
 IMAGE_riscv32    = arch/riscv/boot/Image
 IMAGE_riscv64    = arch/riscv/boot/Image
 IMAGE_s390x      = arch/s390/boot/bzImage
 IMAGE_loongarch  = arch/loongarch/boot/vmlinuz.efi
 IMAGE_sparc32    = arch/sparc/boot/image
 IMAGE_sparc64    = arch/sparc/boot/image
-IMAGE_m68k       = vmlinux
 IMAGE_sh4        = arch/sh/boot/zImage
-IMAGE            = $(objtree)/$(IMAGE_$(XARCH))
+IMAGE            = $(objtree)/$(or $(IMAGE_$(XARCH)),vmlinux)
 IMAGE_NAME       = $(notdir $(IMAGE))
 
 # default kernel configurations that appear to be usable
-DEFCONFIG_i386       = defconfig
-DEFCONFIG_x86_64     = defconfig
-DEFCONFIG_x32        = defconfig
-DEFCONFIG_x86        = defconfig
-DEFCONFIG_arm64      = defconfig
 DEFCONFIG_arm        = multi_v7_defconfig
 DEFCONFIG_armthumb   = multi_v7_defconfig
 DEFCONFIG_mips32le   = malta_defconfig
@@ -112,20 +98,18 @@ DEFCONFIG_mips64be   = malta_defconfig generic/64r2.config generic/eb.config
 DEFCONFIG_ppc        = pmac32_defconfig
 DEFCONFIG_ppc64      = powernv_be_defconfig
 DEFCONFIG_ppc64le    = powernv_defconfig
-DEFCONFIG_riscv      = defconfig
 DEFCONFIG_riscv32    = rv32_defconfig
-DEFCONFIG_riscv64    = defconfig
-DEFCONFIG_s390x      = defconfig
-DEFCONFIG_loongarch  = defconfig
 DEFCONFIG_sparc32    = sparc32_defconfig
 DEFCONFIG_sparc64    = sparc64_defconfig
 DEFCONFIG_m68k       = virt_defconfig
 DEFCONFIG_sh4        = rts7751r2dplus_defconfig
-DEFCONFIG            = $(DEFCONFIG_$(XARCH))
+DEFCONFIG_openrisc   = virt_defconfig
+DEFCONFIG            = $(or $(DEFCONFIG_$(XARCH)),defconfig)
 
 EXTRACONFIG_x32       = -e CONFIG_X86_X32_ABI
 EXTRACONFIG_arm       = -e CONFIG_NAMESPACES
 EXTRACONFIG_armthumb  = -e CONFIG_NAMESPACES
+EXTRACONFIG_sparc32   = -e CONFIG_TMPFS
 EXTRACONFIG_m68k      = -e CONFIG_BLK_DEV_INITRD
 EXTRACONFIG_sh4       = -e CONFIG_BLK_DEV_INITRD -e CONFIG_CMDLINE_FROM_BOOTLOADER
 EXTRACONFIG           = $(EXTRACONFIG_$(XARCH))
@@ -134,37 +118,27 @@ EXTRACONFIG           = $(EXTRACONFIG_$(XARCH))
 TEST =
 
 # QEMU_ARCH: arch names used by qemu
-QEMU_ARCH_i386       = i386
-QEMU_ARCH_x86_64     = x86_64
 QEMU_ARCH_x32        = x86_64
 QEMU_ARCH_x86        = x86_64
 QEMU_ARCH_arm64      = aarch64
-QEMU_ARCH_arm        = arm
 QEMU_ARCH_armthumb   = arm
 QEMU_ARCH_mips32le   = mipsel  # works with malta_defconfig
-QEMU_ARCH_mips32be  = mips
+QEMU_ARCH_mips32be   = mips
 QEMU_ARCH_mipsn32le  = mips64el
 QEMU_ARCH_mipsn32be  = mips64
 QEMU_ARCH_mips64le   = mips64el
 QEMU_ARCH_mips64be   = mips64
-QEMU_ARCH_ppc        = ppc
-QEMU_ARCH_ppc64      = ppc64
 QEMU_ARCH_ppc64le    = ppc64
-QEMU_ARCH_riscv      = riscv64
-QEMU_ARCH_riscv32    = riscv32
-QEMU_ARCH_riscv64    = riscv64
-QEMU_ARCH_s390x      = s390x
 QEMU_ARCH_loongarch  = loongarch64
 QEMU_ARCH_sparc32    = sparc
-QEMU_ARCH_sparc64    = sparc64
-QEMU_ARCH_m68k       = m68k
-QEMU_ARCH_sh4        = sh4
-QEMU_ARCH            = $(QEMU_ARCH_$(XARCH))
+QEMU_ARCH_openrisc   = or1k
+QEMU_ARCH_parisc32   = hppa
+QEMU_ARCH            = $(or $(QEMU_ARCH_$(XARCH)),$(XARCH))
 
 QEMU_ARCH_USER_ppc64le = ppc64le
 QEMU_ARCH_USER_mipsn32le = mipsn32el
 QEMU_ARCH_USER_mipsn32be = mipsn32
-QEMU_ARCH_USER         = $(or $(QEMU_ARCH_USER_$(XARCH)),$(QEMU_ARCH_$(XARCH)))
+QEMU_ARCH_USER         = $(or $(QEMU_ARCH_USER_$(XARCH)),$(QEMU_ARCH))
 
 QEMU_BIOS_DIR = /usr/share/edk2/
 QEMU_BIOS_loongarch = $(QEMU_BIOS_DIR)/loongarch64/OVMF_CODE.fd
@@ -190,7 +164,6 @@ QEMU_ARGS_mips64be   = -M malta -cpu 5KEc -append "panic=-1 $(TEST:%=NOLIBC_TEST
 QEMU_ARGS_ppc        = -M g3beige -append "console=ttyS0 panic=-1 $(TEST:%=NOLIBC_TEST=%)"
 QEMU_ARGS_ppc64      = -M powernv -append "console=hvc0 panic=-1 $(TEST:%=NOLIBC_TEST=%)"
 QEMU_ARGS_ppc64le    = -M powernv -append "console=hvc0 panic=-1 $(TEST:%=NOLIBC_TEST=%)"
-QEMU_ARGS_riscv      = -M virt -append "console=ttyS0 panic=-1 $(TEST:%=NOLIBC_TEST=%)"
 QEMU_ARGS_riscv32    = -M virt -append "console=ttyS0 panic=-1 $(TEST:%=NOLIBC_TEST=%)"
 QEMU_ARGS_riscv64    = -M virt -append "console=ttyS0 panic=-1 $(TEST:%=NOLIBC_TEST=%)"
 QEMU_ARGS_s390x      = -M s390-ccw-virtio -append "console=ttyS0 panic=-1 $(TEST:%=NOLIBC_TEST=%)"
@@ -199,6 +172,8 @@ QEMU_ARGS_sparc32    = -M SS-5 -m 256M -append "console=ttyS0,115200 panic=-1 $(
 QEMU_ARGS_sparc64    = -M sun4u -append "console=ttyS0,115200 panic=-1 $(TEST:%=NOLIBC_TEST=%)"
 QEMU_ARGS_m68k       = -M virt -append "console=ttyGF0,115200 panic=-1 $(TEST:%=NOLIBC_TEST=%)"
 QEMU_ARGS_sh4        = -M r2d -serial file:/dev/stdout -append "console=ttySC1,115200 panic=-1 $(TEST:%=NOLIBC_TEST=%)"
+QEMU_ARGS_openrisc   = -M virt -m 512M -append "console=ttyS0 panic=-1 $(TEST:%=NOLIBC_TEST=%)"
+QEMU_ARGS_parisc32   = -M B160L -append "console=ttyS0 panic=-1 $(TEST:%=NOLIBC_TEST=%)"
 QEMU_ARGS            = -m 1G $(QEMU_ARGS_$(XARCH)) $(QEMU_ARGS_BIOS) $(QEMU_ARGS_EXTRA)
 
 # OUTPUT is only set when run from the main makefile, otherwise
@@ -215,6 +190,7 @@ CFLAGS_i386 = $(call cc-option,-m32)
 CFLAGS_x32 = -mx32
 CFLAGS_arm = -marm
 CFLAGS_armthumb = -mthumb -march=armv6t2
+CFLAGS_parisc32 = -mfast-indirect-calls
 CFLAGS_ppc = -m32 -mbig-endian -mno-vsx $(call cc-option,-mmultiple)
 CFLAGS_ppc64 = -m64 -mbig-endian -mno-vsx $(call cc-option,-mmultiple)
 CFLAGS_ppc64le = -m64 -mlittle-endian -mno-vsx $(call cc-option,-mabi=elfv2)
@@ -233,6 +209,7 @@ CFLAGS_XARCH = $(CFLAGS_$(XARCH))
 endif
 
 LDLIBS_ppc = $(if $(LLVM),,-lgcc)
+LDLIBS_openrisc = $(if $(LLVM),,-lgcc)
 LDLIBS = $(LDLIBS_$(XARCH))
 
 include Makefile.include

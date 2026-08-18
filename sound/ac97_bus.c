@@ -73,7 +73,6 @@ int snd_ac97_reset(struct snd_ac97 *ac97, bool try_warm, unsigned int id,
 
 	if (snd_ac97_check_id(ac97, id, id_mask))
 		return 0;
-
 	return -ENODEV;
 }
 EXPORT_SYMBOL_GPL(snd_ac97_reset);
@@ -81,6 +80,7 @@ EXPORT_SYMBOL_GPL(snd_ac97_reset);
 const struct bus_type ac97_bus_type = {
 	.name		= "ac97",
 };
+EXPORT_SYMBOL(ac97_bus_type);
 
 static int __init ac97_bus_init(void)
 {
@@ -95,8 +95,6 @@ static void __exit ac97_bus_exit(void)
 }
 
 module_exit(ac97_bus_exit);
-
-EXPORT_SYMBOL(ac97_bus_type);
 
 MODULE_DESCRIPTION("Legacy AC97 bus interface");
 MODULE_LICENSE("GPL");

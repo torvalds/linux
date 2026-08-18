@@ -10,6 +10,7 @@
 #define _KUNIT_TEST_BUG_H
 
 #include <linux/stddef.h> /* for NULL */
+#include <linux/types.h>  /* for bool */
 
 #if IS_ENABLED(CONFIG_KUNIT)
 
@@ -23,6 +24,7 @@ DECLARE_STATIC_KEY_FALSE(kunit_running);
 extern struct kunit_hooks_table {
 	__printf(3, 4) void (*fail_current_test)(const char*, int, const char*, ...);
 	void *(*get_static_stub_address)(struct kunit *test, void *real_fn_addr);
+	bool (*is_suppressed_warning)(bool count);
 } kunit_hooks;
 
 /**
@@ -60,9 +62,33 @@ static inline struct kunit *kunit_get_current_test(void)
 		}								\
 	} while (0)
 
+/**
+ * kunit_is_suppressed_warning() - Check if warnings are being suppressed
+ *                                 by the current KUnit test.
+ * @count: if true, increment the suppression counter on match.
+ *
+ * Returns true if the current task has active warning suppression.
+ * Uses the kunit_running static branch for zero overhead when no tests run.
+ *
+ * A single WARN*() may traverse multiple call sites in the warning path
+ * (e.g., __warn_printk() and __report_bug()). Pass @count = true at the
+ * primary suppression point to count each warning exactly once, and
+ * @count = false at secondary points to suppress output without
+ * inflating the count.
+ */
+static inline bool kunit_is_suppressed_warning(bool count)
+{
+	if (!static_branch_unlikely(&kunit_running))
+		return false;
+
+	return kunit_hooks.is_suppressed_warning &&
+	       kunit_hooks.is_suppressed_warning(count);
+}
+
 #else
 
 static inline struct kunit *kunit_get_current_test(void) { return NULL; }
+static inline bool kunit_is_suppressed_warning(bool count) { return false; }
 
 #define kunit_fail_current_test(fmt, ...) do {} while (0)
 

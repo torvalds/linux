@@ -37,7 +37,10 @@ struct xe_lrc_snapshot {
 	} tail;
 	u32 start_seqno;
 	u32 seqno;
-	u32 ctx_timestamp;
+	u64 ctx_timestamp;
+	u64 ctx_timestamp_ms;
+	u64 queue_timestamp;
+	u64 queue_timestamp_ms;
 	u32 ctx_job_timestamp;
 };
 
@@ -88,6 +91,11 @@ static inline void xe_lrc_put(struct xe_lrc *lrc)
 static inline size_t xe_lrc_ring_size(void)
 {
 	return SZ_16K;
+}
+
+static inline bool xe_lrc_is_multi_queue(struct xe_lrc *lrc)
+{
+	return lrc->multi_queue.primary_lrc;
 }
 
 size_t xe_gt_lrc_hang_replay_size(struct xe_gt *gt, enum xe_engine_class class);

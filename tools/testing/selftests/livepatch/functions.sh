@@ -4,6 +4,8 @@
 
 # Shell functions for the rest of the scripts.
 
+export LC_ALL=C
+
 MAX_RETRIES=600
 RETRY_INTERVAL=".1"	# seconds
 SYSFS_KERNEL_DIR="/sys/kernel"
@@ -337,6 +339,16 @@ function check_result {
 		echo -e "not ok\n\n$(diff -upr --label expected --label result <(echo "$expect") <(echo "$result"))\n"
 		die "livepatch kselftest(s) failed"
 	fi
+}
+
+# does_sysfs_exist(modname, attr) - check sysfs attribute existence
+#	modname - livepatch module creating the sysfs interface
+#	attr - attribute name to be checked
+function does_sysfs_exist() {
+	local mod="$1"; shift
+	local attr="$1"; shift
+
+	[[ -f "$SYSFS_KLP_DIR/$mod/$attr" ]]
 }
 
 # check_sysfs_rights(modname, rel_path, expected_rights) - check sysfs

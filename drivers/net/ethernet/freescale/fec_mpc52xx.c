@@ -692,6 +692,7 @@ static void mpc52xx_fec_start(struct net_device *dev)
 /**
  * mpc52xx_fec_stop
  * @dev: network device
+ * @may_sleep: whether the caller can sleep (e.g., to wait for tx drain)
  *
  * stop all activity on fec and empty dma buffers
  */

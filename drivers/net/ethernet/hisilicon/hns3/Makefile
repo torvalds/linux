@@ -24,5 +24,6 @@ hclgevf-objs = hns3vf/hclgevf_main.o hns3vf/hclgevf_mbx.o  hns3vf/hclgevf_devlin
 obj-$(CONFIG_HNS3_HCLGE) += hclge.o hclge-common.o
 hclge-objs = hns3pf/hclge_main.o hns3pf/hclge_mdio.o hns3pf/hclge_tm.o hns3pf/hclge_regs.o \
 		hns3pf/hclge_mbx.o hns3pf/hclge_err.o  hns3pf/hclge_debugfs.o hns3pf/hclge_ptp.o hns3pf/hclge_devlink.o \
+		hns3pf/hclge_fd.o
 
 hclge-$(CONFIG_HNS3_DCB) += hns3pf/hclge_dcb.o

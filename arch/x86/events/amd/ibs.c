@@ -15,6 +15,7 @@
 #include <linux/sched/clock.h>
 
 #include <asm/apic.h>
+#include <asm/cpuid/api.h>
 #include <asm/msr.h>
 
 #include "../perf_event.h"
@@ -1600,7 +1601,7 @@ perf_ibs_nmi_handler(unsigned int cmd, struct pt_regs *regs)
 	handled += perf_ibs_handle_irq(&perf_ibs_op, regs);
 
 	if (handled)
-		inc_irq_stat(apic_perf_irqs);
+		inc_perf_irq_stat();
 
 	perf_sample_event_took(sched_clock() - stamp);
 

@@ -940,14 +940,12 @@ p9_fd_create_unix(struct p9_client *client, struct fs_context *fc)
 	if (!addr || !strlen(addr))
 		return -EINVAL;
 
-	if (strlen(addr) >= UNIX_PATH_MAX) {
+	sun_server.sun_family = PF_UNIX;
+	if (strscpy(sun_server.sun_path, addr) < 0) {
 		pr_err("%s (%d): address too long: %s\n",
 		       __func__, task_pid_nr(current), addr);
 		return -ENAMETOOLONG;
 	}
-
-	sun_server.sun_family = PF_UNIX;
-	strcpy(sun_server.sun_path, addr);
 	err = __sock_create(current->nsproxy->net_ns, PF_UNIX,
 			    SOCK_STREAM, 0, &csocket, 1);
 	if (err < 0) {

@@ -1,0 +1,56 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * Copyright (C) 2023-2026 Marek Vasut
+ */
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/clock/imx8mp-clock.h>
+#include <dt-bindings/gpio/gpio.h>
+
+/* This DTO requires HI00106 SoM variant. */
+
+&{/} {
+	led {
+		led-0 {
+			/* LED0 GPIO conflicts with #SDIO_RST GPIO-D */
+			status = "disabled";
+		};
+	};
+};
+
+&uart3 {
+	assigned-clocks = <&clk IMX8MP_CLK_UART3>;
+	assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_80M>;
+	assigned-clock-rates = <80000000>;
+
+	bluetooth {
+		compatible = "cypress,cyw4373a0-bt";
+		max-speed = <4000000>;
+	};
+};
+
+/* SD slot */
+&usdhc2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc2>;
+	broken-cd;
+	cap-power-off-card;
+	keep-power-in-suspend;
+	non-removable;
+	vmmc-supply = <&buck4>;
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	wifi@1 {	/* muRata 2AE */
+		compatible = "cypress,cyw4373-fmac", "brcm,bcm4329-fmac";
+		reg = <1>;
+		/*
+		 * The "host-wake" interrupt output is by default not
+		 * connected to the SoC, but can be connected on to
+		 * SoC pin on the carrier board.
+		 */
+		reset-gpios = <&gpio4 27 GPIO_ACTIVE_LOW>; /* GPIO D */
+	};
+};

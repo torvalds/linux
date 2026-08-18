@@ -465,6 +465,15 @@ config ARCH_R9A07G043
 
 endif # RISCV
 
+config RCAR_MFIS
+	tristate "Renesas R-Car MFIS driver"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	depends on MAILBOX
+	help
+	  Select this option to enable the Renesas R-Car MFIS core driver for
+	  the MFIS device found on SoCs like R-Car. On families like Gen5, this
+	  is needed to communicate with the SCP.
+
 config PWC_RZV2M
 	bool "Renesas RZ/V2M PWC support" if COMPILE_TEST
 

@@ -38,7 +38,7 @@ config WWAN_HWSIM
 	  called wwan_hwsim.  If unsure, say N.
 
 config MHI_WWAN_CTRL
-	tristate "MHI WWAN control driver for QCOM-based PCIe modems"
+	tristate "MHI WWAN control driver for Qualcomm-based PCIe modems"
 	depends on MHI_BUS
 	help
 	  MHI WWAN CTRL allows QCOM-based PCIe modems to expose different modem
@@ -51,7 +51,7 @@ config MHI_WWAN_CTRL
 	  called mhi_wwan_ctrl.
 
 config MHI_WWAN_MBIM
-        tristate "MHI WWAN MBIM network driver for QCOM-based PCIe modems"
+        tristate "MHI WWAN MBIM network driver for Qualcomm-based PCIe modems"
         depends on MHI_BUS
         help
           MHI WWAN MBIM is a WWAN network driver for QCOM-based PCIe modems.

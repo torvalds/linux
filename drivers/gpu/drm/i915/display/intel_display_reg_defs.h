@@ -8,6 +8,41 @@
 
 #include "i915_reg_defs.h"
 
+typedef i915_reg_t intel_reg_t;
+
+static inline u32 intel_reg_offset(intel_reg_t r)
+{
+	return r.reg;
+}
+
+static inline bool intel_reg_equal(intel_reg_t a, intel_reg_t b)
+{
+	return intel_reg_offset(a) == intel_reg_offset(b);
+}
+
+static inline bool intel_reg_valid(intel_reg_t r)
+{
+	return !intel_reg_equal(r, INVALID_MMIO_REG);
+}
+
+/* A triplet for IMR/IER/IIR registers. */
+struct intel_irq_regs {
+	intel_reg_t imr;
+	intel_reg_t ier;
+	intel_reg_t iir;
+};
+
+#define INTEL_IRQ_REGS(_imr, _ier, _iir) \
+	((const struct intel_irq_regs){ .imr = (_imr), .ier = (_ier), .iir = (_iir) })
+
+struct intel_error_regs {
+	intel_reg_t emr;
+	intel_reg_t eir;
+};
+
+#define INTEL_ERROR_REGS(_emr, _eir) \
+	((const struct intel_error_regs){ .emr = (_emr), .eir = (_eir) })
+
 #define VLV_DISPLAY_BASE		0x180000
 
 /*

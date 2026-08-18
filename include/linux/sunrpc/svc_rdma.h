@@ -66,7 +66,6 @@ extern unsigned int svcrdma_ord;
 extern unsigned int svcrdma_max_requests;
 extern unsigned int svcrdma_max_bc_requests;
 extern unsigned int svcrdma_max_req_size;
-extern struct workqueue_struct *svcrdma_wq;
 
 extern struct percpu_counter svcrdma_stat_read;
 extern struct percpu_counter svcrdma_stat_recv;
@@ -116,6 +115,8 @@ struct svcxprt_rdma {
 	struct work_struct   sc_work;
 
 	struct llist_head    sc_recv_ctxts;
+
+	struct llist_head    sc_send_release_list;
 
 	atomic_t	     sc_completion_ids;
 };
@@ -230,13 +231,11 @@ struct svc_rdma_write_info {
 	unsigned int		wi_next_off;
 
 	struct svc_rdma_chunk_ctxt	wi_cc;
-	struct work_struct	wi_work;
 };
 
 struct svc_rdma_send_ctxt {
 	struct llist_node	sc_node;
 	struct rpc_rdma_cid	sc_cid;
-	struct work_struct	sc_work;
 
 	struct svcxprt_rdma	*sc_rdma;
 	struct ib_send_wr	sc_send_wr;
@@ -300,6 +299,7 @@ extern int svc_rdma_process_read_list(struct svcxprt_rdma *rdma,
 
 /* svc_rdma_sendto.c */
 extern void svc_rdma_send_ctxts_destroy(struct svcxprt_rdma *rdma);
+extern void svc_rdma_send_ctxts_drain(struct svcxprt_rdma *rdma);
 extern struct svc_rdma_send_ctxt *
 		svc_rdma_send_ctxt_get(struct svcxprt_rdma *rdma);
 extern void svc_rdma_send_ctxt_put(struct svcxprt_rdma *rdma,
@@ -328,6 +328,7 @@ extern int svc_rdma_result_payload(struct svc_rqst *rqstp, unsigned int offset,
 				   unsigned int length);
 
 /* svc_rdma_transport.c */
+extern void svc_rdma_xprt_deferred_close(struct svcxprt_rdma *rdma);
 extern struct svc_xprt_class svc_rdma_class;
 #ifdef CONFIG_SUNRPC_BACKCHANNEL
 extern struct svc_xprt_class svc_rdma_bc_class;

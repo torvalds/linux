@@ -227,22 +227,16 @@ static struct mtd_pci_info intel_dc21285_info = {
 
 static const struct pci_device_id mtd_pci_ids[] = {
 	{
-		.vendor =	PCI_VENDOR_ID_INTEL,
-		.device =	0x530d,
-		.subvendor =	PCI_ANY_ID,
-		.subdevice =	PCI_ANY_ID,
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x530d),
 		.class =	PCI_CLASS_MEMORY_OTHER << 8,
 		.class_mask =	0xffff00,
 		.driver_data =	(unsigned long)&intel_iq80310_info,
-	},
-	{
-		.vendor =	PCI_VENDOR_ID_DEC,
-		.device =	PCI_DEVICE_ID_DEC_21285,
-		.subvendor =	0,	/* DC21285 defaults to 0 on reset */
-		.subdevice =	0,	/* DC21285 defaults to 0 on reset */
+	}, {
+		/* DC21285 defaults to 0 for .subvendor and .subdevice on reset */
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_DEC, PCI_DEVICE_ID_DEC_21285, 0, 0),
 		.driver_data =	(unsigned long)&intel_dc21285_info,
 	},
-	{ 0, }
+	{ }
 };
 
 /*

@@ -45,7 +45,7 @@ xfs_alert_fsblock_zero(
 			"Access to block zero in inode %llu "
 			"start_block: %llx start_off: %llx "
 			"blkcnt: %llx extent-state: %x",
-		(unsigned long long)ip->i_ino,
+		(unsigned long long)I_INO(ip),
 		(unsigned long long)imap->br_startblock,
 		(unsigned long long)imap->br_startoff,
 		(unsigned long long)imap->br_blockcount,
@@ -113,6 +113,7 @@ xfs_bmbt_to_iomap(
 		return xfs_alert_fsblock_zero(ip, imap);
 	}
 
+	iomap->flags = iomap_flags;
 	if (imap->br_startblock == HOLESTARTBLOCK) {
 		iomap->addr = IOMAP_NULL_ADDR;
 		iomap->type = IOMAP_HOLE;
@@ -143,7 +144,6 @@ xfs_bmbt_to_iomap(
 	}
 	iomap->offset = XFS_FSB_TO_B(mp, imap->br_startoff);
 	iomap->length = XFS_FSB_TO_B(mp, imap->br_blockcount);
-	iomap->flags = iomap_flags;
 	if (mapping_flags & IOMAP_DAX) {
 		iomap->dax_dev = target->bt_daxdev;
 	} else {
@@ -1736,7 +1736,7 @@ restart:
 	if (count_fsb > ac->reserved_blocks) {
 		xfs_warn_ratelimited(mp,
 "Short write on ino 0x%llx comm %.20s due to three-way race with write fault and direct I/O",
-			ip->i_ino, current->comm);
+			I_INO(ip), current->comm);
 		count_fsb = ac->reserved_blocks;
 		if (!count_fsb) {
 			error = -EIO;

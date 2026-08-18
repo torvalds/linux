@@ -50,19 +50,25 @@ struct btrfs_subpage_info;
 struct btrfs_stripe_hash_table;
 struct btrfs_space_info;
 
-/*
- * Minimum data and metadata block size.
- *
- * Normally it's 4K, but for testing subpage block size on 4K page systems, we
- * allow DEBUG builds to accept 2K page size.
- */
-#ifdef CONFIG_BTRFS_DEBUG
-#define BTRFS_MIN_BLOCKSIZE	(SZ_2K)
-#else
+/* Minimum data and metadata block size. */
 #define BTRFS_MIN_BLOCKSIZE	(SZ_4K)
-#endif
-
 #define BTRFS_MAX_BLOCKSIZE	(SZ_64K)
+
+/* The maximum folio size btrfs supports. */
+#define BTRFS_MAX_FOLIO_SIZE	(SZ_2M)
+static_assert(BTRFS_MAX_FOLIO_SIZE > PAGE_SIZE);
+
+/*
+ * The maximum number of blocks a huge folio can support.
+ *
+ * Depending on the filesystem block size, the real maximum blocks per folio
+ * may also be limited by the above BTRFS_MAX_FOLIO_SIZE.
+ */
+#ifdef CONFIG_BTRFS_EXPERIMENTAL
+#define BTRFS_MAX_BLOCKS_PER_FOLIO		(512)
+#else
+#define BTRFS_MAX_BLOCKS_PER_FOLIO		(BITS_PER_LONG)
+#endif
 
 #define BTRFS_MAX_EXTENT_SIZE SZ_128M
 
@@ -88,6 +94,10 @@ static_assert(sizeof(struct btrfs_super_block) == BTRFS_SUPER_INFO_SIZE);
 
 #define BTRFS_KEY_FMT			"(%llu %u %llu)"
 #define BTRFS_KEY_FMT_VALUE(key)	(key)->objectid, (key)->type, (key)->offset
+
+#define BTRFS_QGROUP_FMT		"%hu/%llu"
+#define BTRFS_QGROUP_FMT_VALUE(qgroup)	btrfs_qgroup_level((qgroup)->qgroupid), \
+					btrfs_qgroup_subvolid((qgroup)->qgroupid)
 
 /*
  * Number of metadata items necessary for an unlink operation:
@@ -486,6 +496,9 @@ struct btrfs_delayed_root {
 	wait_queue_head_t wait;
 };
 
+struct btrfs_free_space_ctl;
+struct btrfs_free_space;
+
 struct btrfs_fs_info {
 	u8 chunk_tree_uuid[BTRFS_UUID_SIZE];
 	unsigned long flags;
@@ -644,6 +657,8 @@ struct btrfs_fs_info {
 	 * to protect us from the relocation code.
 	 */
 	struct mutex reloc_mutex;
+	/* Protects setting, clearing and getting fs_info->reloc_ctl. */
+	spinlock_t reloc_ctl_lock;
 
 	struct list_head trans_list;
 	struct list_head dead_roots;
@@ -698,13 +713,6 @@ struct btrfs_fs_info {
 	struct btrfs_workqueue *endio_write_workers;
 	struct btrfs_workqueue *endio_freespace_worker;
 	struct btrfs_workqueue *caching_workers;
-
-	/*
-	 * Fixup workers take dirty pages that didn't properly go through the
-	 * cow mechanism and make them safe to write.  It happens for the
-	 * sys_munmap function call path.
-	 */
-	struct btrfs_workqueue *fixup_workers;
 	struct btrfs_workqueue *delayed_workers;
 
 	struct task_struct *transaction_kthread;
@@ -881,6 +889,7 @@ struct btrfs_fs_info {
 	u32 block_min_order;
 	u32 block_max_order;
 	u32 stripesize;
+	u32 writeback_bio_size;
 	u32 csum_size;
 	u32 csums_per_leaf;
 	u32 csum_type;
@@ -958,6 +967,10 @@ struct btrfs_fs_info {
 	spinlock_t eb_leak_lock;
 	struct list_head allocated_ebs;
 #endif
+
+	/* Used by self tests only. */
+	bool (*use_bitmap)(struct btrfs_free_space_ctl *ctl,
+			   struct btrfs_free_space *info);
 };
 
 #define folio_to_inode(_folio)	(BTRFS_I(_Generic((_folio),			\
@@ -1206,14 +1219,6 @@ static inline void btrfs_force_shutdown(struct btrfs_fs_info *fs_info)
 		fserror_report_shutdown(fs_info->sb, GFP_KERNEL);
 	}
 }
-
-/*
- * We use folio flag owner_2 to indicate there is an ordered extent with
- * unfinished IO.
- */
-#define folio_test_ordered(folio)	folio_test_owner_2(folio)
-#define folio_set_ordered(folio)	folio_set_owner_2(folio)
-#define folio_clear_ordered(folio)	folio_clear_owner_2(folio)
 
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 

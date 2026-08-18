@@ -997,6 +997,8 @@ TEST_F(tls, splice_short)
 	char sendbuf[0x100];
 	char sendchar = 'S';
 	int pipefds[2];
+	int pipe_sz;
+	int ret;
 	int i;
 
 	sendchar_iov.iov_base = &sendchar;
@@ -1005,7 +1007,11 @@ TEST_F(tls, splice_short)
 	memset(sendbuf, 's', sizeof(sendbuf));
 
 	ASSERT_GE(pipe2(pipefds, O_NONBLOCK), 0);
-	ASSERT_GE(fcntl(pipefds[0], F_SETPIPE_SZ, (MAX_FRAGS + 1) * 0x1000), 0);
+	pipe_sz = (MAX_FRAGS + 1) * getpagesize();
+	ret = fcntl(pipefds[0], F_SETPIPE_SZ, pipe_sz);
+	if (ret < 0 && errno == EPERM)
+		SKIP(return, "insufficient pipe capacity");
+	ASSERT_GE(ret, pipe_sz);
 
 	for (i = 0; i < MAX_FRAGS; i++)
 		ASSERT_GE(vmsplice(pipefds[1], &sendchar_iov, 1, 0), 0);
@@ -1549,7 +1555,7 @@ test_mutliproc(struct __test_metadata *_metadata, struct _test_data_tls *self,
 			res = recv(self->cfd, rb,
 				   left > sizeof(rb) ? sizeof(rb) : left, 0);
 
-			EXPECT_GE(res, 0);
+			ASSERT_GE(res, 0);
 			left -= res;
 		}
 	} else {
@@ -1566,7 +1572,7 @@ test_mutliproc(struct __test_metadata *_metadata, struct _test_data_tls *self,
 				res = send(self->fd, buf,
 					   left > file_sz ? file_sz : left, 0);
 
-			EXPECT_GE(res, 0);
+			ASSERT_GE(res, 0);
 			left -= res;
 		}
 	}

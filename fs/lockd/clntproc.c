@@ -42,7 +42,7 @@ static const struct rpc_call_ops nlmclnt_cancel_ops;
  */
 static atomic_t	nlm_cookie = ATOMIC_INIT(0x1234);
 
-void nlmclnt_next_cookie(struct nlm_cookie *c)
+void nlmclnt_next_cookie(struct lockd_cookie *c)
 {
 	u32	cookie = atomic_inc_return(&nlm_cookie);
 
@@ -128,8 +128,8 @@ static struct nlm_lockowner *nlmclnt_find_lockowner(struct nlm_host *host, fl_ow
  */
 static void nlmclnt_setlockargs(struct nlm_rqst *req, struct file_lock *fl)
 {
-	struct nlm_args	*argp = &req->a_args;
-	struct nlm_lock	*lock = &argp->lock;
+	struct lockd_args *argp = &req->a_args;
+	struct lockd_lock *lock = &argp->lock;
 	char *nodename = req->a_host->h_rpcclnt->cl_nodename;
 
 	nlmclnt_next_cookie(&argp->cookie);
@@ -266,8 +266,8 @@ nlmclnt_call(const struct cred *cred, struct nlm_rqst *req, u32 proc)
 {
 	struct nlm_host	*host = req->a_host;
 	struct rpc_clnt	*clnt;
-	struct nlm_args	*argp = &req->a_args;
-	struct nlm_res	*resp = &req->a_res;
+	struct lockd_args *argp = &req->a_args;
+	struct lockd_res *resp = &req->a_res;
 	struct rpc_message msg = {
 		.rpc_argp	= argp,
 		.rpc_resp	= resp,
@@ -523,7 +523,7 @@ nlmclnt_lock(struct nlm_rqst *req, struct file_lock *fl)
 {
 	const struct cred *cred = nfs_file_cred(fl->c.flc_file);
 	struct nlm_host	*host = req->a_host;
-	struct nlm_res	*resp = &req->a_res;
+	struct lockd_res *resp = &req->a_res;
 	struct nlm_wait block;
 	unsigned char flags = fl->c.flc_flags;
 	unsigned char type;
@@ -686,7 +686,7 @@ static int
 nlmclnt_unlock(struct nlm_rqst *req, struct file_lock *fl)
 {
 	struct nlm_host	*host = req->a_host;
-	struct nlm_res	*resp = &req->a_res;
+	struct lockd_res *resp = &req->a_res;
 	int status;
 	unsigned char flags = fl->c.flc_flags;
 

@@ -36,6 +36,8 @@ static void dml21_populate_pmo_options(struct dml2_pmo_options *pmo_options,
 	pmo_options->disable_drr_var_when_var_active = in_dc->debug.disable_fams_gaming == INGAME_FAMS_DISABLE ||
 			in_dc->debug.disable_fams_gaming == INGAME_FAMS_MULTI_DISP_CLAMPED_ONLY;
 	pmo_options->disable_drr_clamped_when_var_active = in_dc->debug.disable_fams_gaming == INGAME_FAMS_DISABLE;
+
+	pmo_options->force_mandatory_uclk_pstate_support = config->pmo.force_mandatory_uclk_pstate_support;
 }
 
 static enum dml2_project_id dml21_dcn_revision_to_dml2_project_id(enum dce_version dcn_version)
@@ -46,6 +48,7 @@ static enum dml2_project_id dml21_dcn_revision_to_dml2_project_id(enum dce_versi
 		project_id = dml2_project_dcn4x_stage2_auto_drr_svp;
 		break;
 	case DCN_VERSION_4_2:
+	case DCN_VERSION_4_2B:
 		project_id = dml2_project_dcn42;
 		break;
 	default:
@@ -90,6 +93,8 @@ static void populate_dml21_timing_config_from_stream_state(struct dml2_timing_cf
 		struct pipe_ctx *pipe_ctx,
 		struct dml2_context *dml_ctx)
 {
+	const unsigned int min_v_front_porch = (stream->timing.flags.INTERLACE != 0) ? 2 : 1;
+
 	unsigned int hblank_start, vblank_start;
 	uint64_t min_hardware_refresh_in_uhz;
 	uint32_t pix_clk_100hz;
@@ -97,7 +102,8 @@ static void populate_dml21_timing_config_from_stream_state(struct dml2_timing_cf
 	timing->h_active = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right + pipe_ctx->dsc_padding_params.dsc_hactive_padding;
 	timing->v_active = stream->timing.v_addressable + stream->timing.v_border_bottom + stream->timing.v_border_top;
 	timing->h_front_porch = stream->timing.h_front_porch;
-	timing->v_front_porch = stream->timing.v_front_porch;
+	timing->v_front_porch = stream->timing.v_front_porch > min_v_front_porch ?
+			stream->timing.v_front_porch : min_v_front_porch;
 	timing->pixel_clock_khz = stream->timing.pix_clk_100hz / 10;
 	if (pipe_ctx->dsc_padding_params.dsc_hactive_padding != 0)
 		timing->pixel_clock_khz = pipe_ctx->dsc_padding_params.dsc_pix_clk_100hz / 10;
@@ -116,7 +122,7 @@ static void populate_dml21_timing_config_from_stream_state(struct dml2_timing_cf
 	if (hblank_start < stream->timing.h_addressable)
 		timing->h_blank_end = 0;
 
-	vblank_start = stream->timing.v_total - stream->timing.v_front_porch;
+	vblank_start = timing->v_total - timing->v_front_porch;
 
 	timing->v_blank_end = vblank_start - stream->timing.v_addressable
 		- stream->timing.v_border_top - stream->timing.v_border_bottom;
@@ -210,6 +216,9 @@ static void populate_dml21_output_config_from_stream_state(struct dml2_link_outp
 	case SIGNAL_TYPE_DVI_DUAL_LINK:
 		output->output_encoder = dml2_hdmi;
 		break;
+	case SIGNAL_TYPE_HDMI_FRL:
+		output->output_encoder = dml2_hdmifrl;
+		break;
 	default:
 			output->output_encoder = dml2_dp;
 	}
@@ -244,6 +253,7 @@ static void populate_dml21_output_config_from_stream_state(struct dml2_link_outp
 	case SIGNAL_TYPE_DISPLAY_PORT_MST:
 	case SIGNAL_TYPE_EDP:
 	case SIGNAL_TYPE_VIRTUAL:
+	case SIGNAL_TYPE_HDMI_FRL:
 	default:
 		output->output_dp_link_rate = dml2_dp_rate_na;
 		break;
@@ -610,6 +620,7 @@ static void populate_dml21_plane_config_from_plane_state(struct dml2_context *dm
 
 	plane->composition.viewport.stationary = false;
 
+#ifndef TRIM_CM2
 	if (plane_state->mcm_luts.lut3d_data.lut3d_src == DC_CM2_TRANSFER_FUNC_SOURCE_VIDMEM) {
 		plane->tdlut.setup_for_tdlut = true;
 
@@ -640,7 +651,39 @@ static void populate_dml21_plane_config_from_plane_state(struct dml2_context *dm
 			break;
 		}
 	}
+#else
+	if (plane_state->cm.flags.bits.lut3d_dma_enable) {
+		plane->tdlut.setup_for_tdlut = true;
 
+		switch (plane_state->cm.lut3d_dma.swizzle) {
+		case CM_LUT_3D_SWIZZLE_LINEAR_RGB:
+		case CM_LUT_3D_SWIZZLE_LINEAR_BGR:
+			plane->tdlut.tdlut_addressing_mode = dml2_tdlut_sw_linear;
+			break;
+		case CM_LUT_1D_PACKED_LINEAR:
+			plane->tdlut.tdlut_addressing_mode = dml2_tdlut_simple_linear;
+			break;
+		}
+
+		switch (plane_state->cm.lut3d_dma.size) {
+		case CM_LUT_SIZE_171717:
+			plane->tdlut.tdlut_width_mode = dml2_tdlut_width_17_cube;
+			break;
+		case CM_LUT_SIZE_333333:
+			plane->tdlut.tdlut_width_mode = dml2_tdlut_width_33_cube;
+			break;
+		// handling when use case and HW support available
+		case CM_LUT_SIZE_454545:
+		case CM_LUT_SIZE_656565:
+			break;
+		case CM_LUT_SIZE_NONE:
+		case CM_LUT_SIZE_999:
+		default:
+			//plane->tdlut.tdlut_width_mode = dml2_tdlut_width_flatten; // dml2_tdlut_width_flatten undefined
+			break;
+		}
+	}
+#endif // TRIM_CM2
 	plane->tdlut.setup_for_tdlut |= dml_ctx->config.force_tdlut_enable;
 
 	plane->dynamic_meta_data.enable = false;
@@ -654,7 +697,8 @@ static void populate_dml21_plane_config_from_plane_state(struct dml2_context *dm
 	plane->overrides.gpuvm_min_page_size_kbytes = soc_bb->gpuvm_min_page_size_kbytes;
 	plane->overrides.hostvm_min_page_size_kbytes = soc_bb->hostvm_min_page_size_kbytes;
 
-	plane->immediate_flip = plane_state->flip_immediate;
+	//Always true for DAL, we want to validate the worst case scenario as we have to switch b/w the two without possibility of failure.
+	plane->immediate_flip = true;
 
 	plane->composition.rect_out_height_spans_vactive =
 		plane_state->dst_rect.height >= stream->src.height &&
@@ -848,10 +892,10 @@ void dml21_copy_clocks_to_dc_state(struct dml2_context *in_ctx, struct dc_state 
 	context->bw_ctx.bw.dcn.clk.socclk_khz = in_ctx->v21.mode_programming.programming->min_clocks.dcn4x.socclk_khz;
 	context->bw_ctx.bw.dcn.clk.subvp_prefetch_dramclk_khz = in_ctx->v21.mode_programming.programming->min_clocks.dcn4x.svp_prefetch_no_throttle.uclk_khz;
 	context->bw_ctx.bw.dcn.clk.subvp_prefetch_fclk_khz = in_ctx->v21.mode_programming.programming->min_clocks.dcn4x.svp_prefetch_no_throttle.fclk_khz;
-	context->bw_ctx.bw.dcn.clk.stutter_efficiency.base_efficiency = in_ctx->v21.mode_programming.programming->stutter.base_percent_efficiency;
-	context->bw_ctx.bw.dcn.clk.stutter_efficiency.low_power_efficiency = in_ctx->v21.mode_programming.programming->stutter.low_power_percent_efficiency;
-	context->bw_ctx.bw.dcn.clk.stutter_efficiency.z8_stutter_efficiency = in_ctx->v21.mode_programming.programming->informative.power_management.z8.stutter_efficiency;
-	context->bw_ctx.bw.dcn.clk.stutter_efficiency.z8_stutter_period = in_ctx->v21.mode_programming.programming->informative.power_management.z8.stutter_period;
+	context->bw_ctx.bw.dcn.clk.stutter_efficiency.base_efficiency = (uint8_t)in_ctx->v21.mode_programming.programming->stutter.base_percent_efficiency;
+	context->bw_ctx.bw.dcn.clk.stutter_efficiency.low_power_efficiency = (uint8_t)in_ctx->v21.mode_programming.programming->stutter.low_power_percent_efficiency;
+	context->bw_ctx.bw.dcn.clk.stutter_efficiency.z8_stutter_efficiency = (uint8_t)in_ctx->v21.mode_programming.programming->informative.power_management.z8.stutter_efficiency;
+	context->bw_ctx.bw.dcn.clk.stutter_efficiency.z8_stutter_period = (int)in_ctx->v21.mode_programming.programming->informative.power_management.z8.stutter_period;
 	context->bw_ctx.bw.dcn.clk.zstate_support = in_ctx->v21.mode_programming.programming->z8_stutter.supported_in_blank; /*ignore meets_eco since it is not used*/
 }
 

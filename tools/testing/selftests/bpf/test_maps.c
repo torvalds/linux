@@ -260,6 +260,16 @@ static void test_hashmap_percpu(unsigned int task, void *data)
 	close(fd);
 }
 
+#define MAP_RETRIES 20
+
+static bool can_retry(int err)
+{
+	return (err == EAGAIN || err == EBUSY ||
+		((err == ENOMEM || err == E2BIG) &&
+		 map_opts.map_flags == BPF_F_NO_PREALLOC));
+}
+
+
 #define VALUE_SIZE 3
 static int helper_fill_hashmap(int max_entries)
 {
@@ -274,10 +284,11 @@ static int helper_fill_hashmap(int max_entries)
 
 	for (i = 0; i < max_entries; i++) {
 		key = i; value[0] = key;
-		ret = bpf_map_update_elem(fd, &key, value, BPF_NOEXIST);
+		ret = map_update_retriable(fd, &key, value, BPF_NOEXIST,
+					   MAP_RETRIES, can_retry);
 		CHECK(ret != 0,
 		      "can't update hashmap",
-		      "err: %s\n", strerror(ret));
+		      "err: %s\n", strerror(-ret));
 	}
 
 	return fd;
@@ -748,16 +759,15 @@ static void test_sockmap(unsigned int tasks, void *data)
 		goto out_sockmap;
 	}
 
-	/* Test update with unsupported UDP socket */
+	/* Test update with unsupported unbound UDP socket */
 	udp = socket(AF_INET, SOCK_DGRAM, 0);
-	i = 0;
-	err = bpf_map_update_elem(fd, &i, &udp, BPF_ANY);
-	if (err) {
-		printf("Failed socket update SOCK_DGRAM '%i:%i'\n",
-		       i, udp);
+	CHECK(udp < 0, "socket(AF_INET, SOCK_DGRAM)", "errno:%d\n", errno);
+	err = bpf_map_update_elem(fd, &(int){0}, &udp, BPF_ANY);
+	close(udp);
+	if (!err) {
+		printf("Unexpectedly succeeded unbound UDP update '0:%i'\n", udp);
 		goto out_sockmap;
 	}
-	close(udp);
 
 	/* Test update without programs */
 	for (i = 0; i < 6; i++) {
@@ -1392,16 +1402,8 @@ static void test_map_stress(void)
 #define DO_UPDATE 1
 #define DO_DELETE 0
 
-#define MAP_RETRIES 20
 #define MAX_DELAY_US 50000
 #define MIN_DELAY_RANGE_US 5000
-
-static bool can_retry(int err)
-{
-	return (err == EAGAIN || err == EBUSY ||
-		((err == ENOMEM || err == E2BIG) &&
-		 map_opts.map_flags == BPF_F_NO_PREALLOC));
-}
 
 int map_update_retriable(int map_fd, const void *key, const void *value, int flags, int attempts,
 			 retry_for_error_fn need_retry)

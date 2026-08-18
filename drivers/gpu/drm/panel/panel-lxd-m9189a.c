@@ -165,9 +165,12 @@ static int lxd_m9189_probe(struct mipi_dsi_device *dsi)
 	struct m9189_panel *m9189;
 	int ret;
 
-	m9189 = devm_kzalloc(dev, sizeof(*m9189), GFP_KERNEL);
-	if (!m9189)
-		return -ENOMEM;
+	m9189 = devm_drm_panel_alloc(dev, __typeof(*m9189), panel,
+				    &m9189_panel_funcs,
+				    DRM_MODE_CONNECTOR_DSI);
+
+	if (IS_ERR(m9189))
+		return PTR_ERR(m9189);
 
 	m9189->supply = devm_regulator_get(dev, "power");
 	if (IS_ERR(m9189->supply))
@@ -191,8 +194,6 @@ static int lxd_m9189_probe(struct mipi_dsi_device *dsi)
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST;
 
-	drm_panel_init(&m9189->panel, dev, &m9189_panel_funcs,
-		       DRM_MODE_CONNECTOR_DSI);
 	m9189->panel.prepare_prev_first = true;
 
 	ret = drm_panel_of_backlight(&m9189->panel);

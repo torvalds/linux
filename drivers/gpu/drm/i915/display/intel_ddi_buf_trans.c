@@ -1123,8 +1123,8 @@ static const union intel_ddi_buf_trans_entry _xe3plpd_lt_trans_dp14[] = {
 	{ .lt = { 1, 2, 0, 28, 7  } },
 	{ .lt = { 0, 3, 0, 35, 13 } },
 	{ .lt = { 1, 1, 0, 27, 0  } },
-	{ .lt = { 1, 2, 0, 31, 4  } },
-	{ .lt = { 0, 3, 0, 39, 9  } },
+	{ .lt = { 1, 2, 0, 31, 5  } },
+	{ .lt = { 0, 3, 0, 37, 11 } },
 	{ .lt = { 1, 2, 0, 35, 0  } },
 	{ .lt = { 0, 3, 0, 41, 7  } },
 	{ .lt = { 0, 3, 0, 48, 0  } },
@@ -1851,4 +1851,11 @@ void intel_ddi_buf_trans_init(struct intel_encoder *encoder)
 
 		MISSING_CASE(pdev->device);
 	}
+}
+
+const struct intel_ddi_buf_trans *intel_ddi_buf_trans_get(struct intel_encoder *encoder,
+							  const struct intel_crtc_state *crtc_state,
+							  int *n_entries)
+{
+	return encoder->get_buf_trans(encoder, crtc_state, n_entries);
 }

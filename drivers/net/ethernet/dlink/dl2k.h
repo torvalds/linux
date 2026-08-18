@@ -418,12 +418,12 @@ struct netdev_private {
 #define CHIP_IP1000A	1
 
 static const struct pci_device_id rio_pci_tbl[] = {
-	{0x1186, 0x4000, PCI_ANY_ID, PCI_ANY_ID, },
-	{0x13f0, 0x1021, PCI_ANY_ID, PCI_ANY_ID, },
-	{ PCI_VDEVICE(SUNDANCE,	0x1023), CHIP_IP1000A },
-	{ PCI_VDEVICE(SUNDANCE,	0x2021), CHIP_IP1000A },
-	{ PCI_VDEVICE(DLINK,	0x9021), CHIP_IP1000A },
-	{ PCI_VDEVICE(DLINK,	0x4020), CHIP_IP1000A },
+	{ PCI_DEVICE(0x1186, 0x4000) },
+	{ PCI_DEVICE(0x13f0, 0x1021) },
+	{ PCI_VDEVICE(SUNDANCE,	0x1023), .driver_data = CHIP_IP1000A },
+	{ PCI_VDEVICE(SUNDANCE,	0x2021), .driver_data = CHIP_IP1000A },
+	{ PCI_VDEVICE(DLINK,	0x9021), .driver_data = CHIP_IP1000A },
+	{ PCI_VDEVICE(DLINK,	0x4020), .driver_data = CHIP_IP1000A },
 	{ }
 };
 MODULE_DEVICE_TABLE (pci, rio_pci_tbl);

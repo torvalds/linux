@@ -1,0 +1,90 @@
+.. SPDX-License-Identifier: GPL-2.0-or-later
+
+Kernel driver lx1308
+====================
+
+Supported chips:
+
+  * Luxshare LX1308
+
+    Prefixes: 'lx1308'
+
+    Addresses scanned: -
+
+    Datasheet: Datasheet is not publicly available.
+
+Author: Brian Chiang <chiang.brian@inventec.com>
+
+
+Description
+-----------
+
+The LX1308 is a high-efficiency, non-isolated, regulated 12V, 860W,
+digital DC/DC power module. The module operates from a 40V to 60V DC
+primary bus and provides a 12V regulated output voltage. It can deliver
+up to 860W continuous and 1300W in transient.
+
+The module has slow OCP and fast OCP. If the module output current is higher
+than slow OCP set point and the lasting time is also longer than the delay,
+the module will shut down and retry 3 time, if the fault still exists then
+module enter latch mode.
+
+If the module output current is higher than fast OCP set point then it shut
+down and enter latch mode.
+
+The driver is a client driver to the core PMBus driver.
+Please see Documentation/hwmon/pmbus.rst for details on PMBus client drivers.
+
+
+Usage Notes
+-----------
+
+This driver does not auto-detect devices. You will have to instantiate the
+devices explicitly. Please see Documentation/i2c/instantiating-devices.rst for
+details.
+
+
+Sysfs entries
+-------------
+
+======================= ======================================================
+curr1_alarm             Input current alarm
+curr1_input             Input current (IIN)
+curr1_label             "iin"
+curr2_crit              Output over current fault threshold (slow OCP, 60ms delay)
+curr2_crit_alarm        Output over current fault alarm
+curr2_input             Output current (IOUT)
+curr2_label             "iout1"
+curr2_max               Output over current warning threshold (slow OCP, 60ms delay)
+curr2_max_alarm         Output over current warning alarm
+in1_crit                Input over voltage fault threshold
+in1_crit_alarm          Input over voltage fault alarm
+in1_input               Input voltage (VIN)
+in1_label               "vin"
+in1_lcrit               Input under voltage fault threshold
+in1_lcrit_alarm         Input under voltage fault alarm
+in1_max                 Input over voltage warning threshold
+in1_max_alarm           Input over voltage warning alarm
+in1_min                 Input under voltage warning threshold
+in1_min_alarm           Input under voltage warning alarm
+in2_crit                Output over voltage fault threshold
+in2_crit_alarm          Output over voltage fault alarm
+in2_input               Output voltage (VOUT)
+in2_label               "vout1"
+in2_lcrit               Output under voltage fault threshold
+in2_lcrit_alarm         Output under voltage fault alarm
+in2_max                 Output over voltage warning threshold
+in2_max_alarm           Output over voltage warning alarm
+in2_min                 Output under voltage warning threshold
+in2_min_alarm           Output under voltage warning alarm
+power1_alarm            Input power alarm
+power1_input            Input power (PIN)
+power1_label            "pin"
+power2_input            Output power (POUT)
+power2_label            "pout1"
+temp1_crit              Over temperature fault threshold
+temp1_crit_alarm        Over temperature fault alarm
+temp1_input             Module hot spot temperature
+temp1_max               Over temperature warning threshold
+temp1_max_alarm         Over temperature warning alarm
+======================= ======================================================

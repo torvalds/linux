@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
 /* Copyright (c) 2024 Meta Platforms, Inc. and affiliates. */
 #pragma once
-#include "bpf_arena_common.h"
+#include <bpf_arena_common.h>
 
 #ifndef __round_mask
 #define __round_mask(x, y) ((__typeof__(x))((y)-1))

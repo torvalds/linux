@@ -25,6 +25,7 @@ properties:
           - qcom,scm-apq8084
           - qcom,scm-eliza
           - qcom,scm-glymur
+          - qcom,scm-hawi
           - qcom,scm-ipq4019
           - qcom,scm-ipq5018
           - qcom,scm-ipq5210
@@ -49,6 +50,7 @@ properties:
           - qcom,scm-msm8994
           - qcom,scm-msm8996
           - qcom,scm-msm8998
+          - qcom,scm-nord
           - qcom,scm-qcm2290
           - qcom,scm-qcs615
           - qcom,scm-qcs8300
@@ -208,6 +210,7 @@ allOf:
             contains:
               enum:
                 - qcom,scm-eliza
+                - qcom,scm-hawi
                 - qcom,scm-kaanapali
                 - qcom,scm-milos
                 - qcom,scm-sm8450

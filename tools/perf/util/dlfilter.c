@@ -56,7 +56,7 @@ static void al_to_d_al(struct addr_location *al, struct perf_dlfilter_al *d_al)
 			d_al->symoff = al->addr - map__start(al->map) - sym->start;
 		else
 			d_al->symoff = 0;
-		d_al->sym_binding = sym->binding;
+		d_al->sym_binding = symbol__binding(sym);
 	} else {
 		d_al->sym = NULL;
 		d_al->sym_start = 0;

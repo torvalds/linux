@@ -391,7 +391,7 @@ static enum dml2_pstate_method convert_strategy_to_drr_variant(const enum dml2_p
 	return variant_strategy;
 }
 
-static struct dml2_pmo_pstate_strategy *get_expanded_strategy_list(struct dml2_pmo_init_data *init_data, int stream_count)
+struct dml2_pmo_pstate_strategy *dcn4_get_expanded_strategy_list(struct dml2_pmo_init_data *init_data, int stream_count)
 {
 	struct dml2_pmo_pstate_strategy *expanded_strategy_list = NULL;
 
@@ -415,14 +415,14 @@ static struct dml2_pmo_pstate_strategy *get_expanded_strategy_list(struct dml2_p
 	return expanded_strategy_list;
 }
 
-static unsigned int get_num_expanded_strategies(
+unsigned int dcn4_get_num_expanded_strategies(
 	struct dml2_pmo_init_data *init_data,
 	int stream_count)
 {
 	return init_data->pmo_dcn4.num_expanded_strategies_per_list[stream_count - 1];
 }
 
-static void insert_strategy_into_expanded_list(
+void dcn4_insert_strategy_into_expanded_list(
 	const struct dml2_pmo_pstate_strategy *per_stream_pstate_strategy,
 	const int stream_count,
 	struct dml2_pmo_pstate_strategy *expanded_strategy_list,
@@ -478,7 +478,7 @@ static void expand_base_strategy(
 
 			if (i >= stream_count - 1) {
 				/* insert into strategy list */
-				insert_strategy_into_expanded_list(&cur_strategy_list, stream_count, expanded_strategy_list, num_expanded_strategies);
+				dcn4_insert_strategy_into_expanded_list(&cur_strategy_list, stream_count, expanded_strategy_list, num_expanded_strategies);
 				expanded_strategy_added = true;
 			} else {
 				/* skip to next stream */
@@ -539,7 +539,7 @@ static bool is_variant_method_valid(const struct dml2_pmo_pstate_strategy *base_
 	return valid;
 }
 
-static void expand_variant_strategy(
+void dcn4_expand_variant_strategy(
 		const struct dml2_pmo_pstate_strategy *base_strategy,
 		const unsigned int stream_count,
 		const bool should_permute,
@@ -599,7 +599,7 @@ static void expand_variant_strategy(
 					expand_base_strategy(&variant_strategy, stream_count, expanded_strategy_list, num_expanded_strategies);
 				} else {
 					/* no permutations allowed, so add to list now */
-					insert_strategy_into_expanded_list(&variant_strategy, stream_count, expanded_strategy_list, num_expanded_strategies);
+					dcn4_insert_strategy_into_expanded_list(&variant_strategy, stream_count, expanded_strategy_list, num_expanded_strategies);
 				}
 			}
 
@@ -639,7 +639,7 @@ void pmo_dcn4_fams2_expand_base_pstate_strategies(
 	/* expand every explicit base strategy (except all DRR) */
 	for (i = 0; i < num_base_strategies; i++) {
 		expand_base_strategy(&base_strategies_list[i], stream_count, expanded_strategy_list, num_expanded_strategies);
-		expand_variant_strategy(&base_strategies_list[i], stream_count, true, expanded_strategy_list, num_expanded_strategies);
+		dcn4_expand_variant_strategy(&base_strategies_list[i], stream_count, true, expanded_strategy_list, num_expanded_strategies);
 	}
 }
 
@@ -1180,14 +1180,14 @@ static bool all_timings_support_svp(const struct dml2_pmo_instance *pmo,
 	return true;
 }
 
-static void insert_into_candidate_list(const struct dml2_pmo_pstate_strategy *pstate_strategy, int stream_count, struct dml2_pmo_scratch *scratch)
+void dcn4_insert_into_candidate_list(const struct dml2_pmo_pstate_strategy *pstate_strategy, int stream_count, struct dml2_pmo_scratch *scratch)
 {
 	(void)stream_count;
 	scratch->pmo_dcn4.pstate_strategy_candidates[scratch->pmo_dcn4.num_pstate_candidates] = *pstate_strategy;
 	scratch->pmo_dcn4.num_pstate_candidates++;
 }
 
-static enum dml2_pstate_method uclk_pstate_strategy_override_to_pstate_method(const enum dml2_uclk_pstate_change_strategy override_strategy)
+enum dml2_pstate_method dcn4_uclk_pstate_strategy_override_to_pstate_method(const enum dml2_uclk_pstate_change_strategy override_strategy)
 {
 	enum dml2_pstate_method method = dml2_pstate_method_na;
 
@@ -1902,7 +1902,7 @@ bool pmo_dcn4_fams2_init_for_pstate_support(struct dml2_pmo_init_for_pstate_supp
 
 		build_override_strategy &= plane_descriptor->overrides.uclk_pstate_change_strategy != dml2_uclk_pstate_change_strategy_auto;
 		override_base_strategy.per_stream_pstate_method[plane_descriptor->stream_index] =
-				uclk_pstate_strategy_override_to_pstate_method(plane_descriptor->overrides.uclk_pstate_change_strategy);
+				dcn4_uclk_pstate_strategy_override_to_pstate_method(plane_descriptor->overrides.uclk_pstate_change_strategy);
 	}
 
 	// Figure out which streams can do vactive, and also build up implicit SVP and FAMS2 meta
@@ -1924,11 +1924,11 @@ bool pmo_dcn4_fams2_init_for_pstate_support(struct dml2_pmo_init_for_pstate_supp
 		/* build expanded override strategy list (no permutations) */
 		override_base_strategy.allow_state_increase = true;
 		s->pmo_dcn4.num_expanded_override_strategies = 0;
-		insert_strategy_into_expanded_list(&override_base_strategy,
+		dcn4_insert_strategy_into_expanded_list(&override_base_strategy,
 				display_config->display_config.num_streams,
 				s->pmo_dcn4.expanded_override_strategy_list,
 				&s->pmo_dcn4.num_expanded_override_strategies);
-		expand_variant_strategy(&override_base_strategy,
+		dcn4_expand_variant_strategy(&override_base_strategy,
 				display_config->display_config.num_streams,
 				false,
 				s->pmo_dcn4.expanded_override_strategy_list,
@@ -1939,8 +1939,8 @@ bool pmo_dcn4_fams2_init_for_pstate_support(struct dml2_pmo_init_for_pstate_supp
 		strategy_list_size = s->pmo_dcn4.num_expanded_override_strategies;
 	} else {
 		/* use predefined strategy list */
-		strategy_list = get_expanded_strategy_list(&pmo->init_data, display_config->display_config.num_streams);
-		strategy_list_size = get_num_expanded_strategies(&pmo->init_data, display_config->display_config.num_streams);
+		strategy_list = dcn4_get_expanded_strategy_list(&pmo->init_data, display_config->display_config.num_streams);
+		strategy_list_size = dcn4_get_num_expanded_strategies(&pmo->init_data, display_config->display_config.num_streams);
 	}
 
 	if (!strategy_list || strategy_list_size == 0)
@@ -1950,7 +1950,7 @@ bool pmo_dcn4_fams2_init_for_pstate_support(struct dml2_pmo_init_for_pstate_supp
 
 	for (i = 0; i < strategy_list_size && s->pmo_dcn4.num_pstate_candidates < DML2_PMO_PSTATE_CANDIDATE_LIST_SIZE; i++) {
 		if (validate_pstate_support_strategy_cofunctionality(pmo, display_config, &strategy_list[i])) {
-			insert_into_candidate_list(&strategy_list[i], display_config->display_config.num_streams, s);
+			dcn4_insert_into_candidate_list(&strategy_list[i], display_config->display_config.num_streams, s);
 		}
 	}
 

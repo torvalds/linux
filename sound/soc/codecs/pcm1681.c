@@ -290,8 +290,8 @@ static const struct snd_soc_component_driver soc_component_dev_pcm1681 = {
 };
 
 static const struct i2c_device_id pcm1681_i2c_id[] = {
-	{"pcm1681"},
-	{}
+	{ .name = "pcm1681" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pcm1681_i2c_id);
 

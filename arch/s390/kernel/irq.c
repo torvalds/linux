@@ -33,6 +33,7 @@
 #include <asm/softirq_stack.h>
 #include <asm/vtime.h>
 #include <asm/asm.h>
+#include <asm/entry-percpu.h>
 #include "entry.h"
 
 DEFINE_PER_CPU_SHARED_ALIGNED(struct irq_stat, irq_stat);
@@ -103,9 +104,10 @@ static const struct irq_class irqclass_sub_desc[] = {
 
 static void do_IRQ(struct pt_regs *regs, int irq)
 {
-	if (tod_after_eq(get_lowcore()->int_clock,
-			 get_lowcore()->clock_comparator))
-		/* Serve timer interrupts first. */
+	struct lowcore *lc = get_lowcore();
+
+	/* Serve timer interrupts first */
+	if (tod_after_eq(lc->int_clock.tod, lc->clock_comparator))
 		clock_comparator_work();
 	generic_handle_irq(irq);
 }
@@ -142,10 +144,13 @@ static int irq_pending(struct pt_regs *regs)
 
 void noinstr do_io_irq(struct pt_regs *regs)
 {
-	irqentry_state_t state = irqentry_enter(regs);
-	struct pt_regs *old_regs = set_irq_regs(regs);
-	bool from_idle;
+	bool from_idle, percpu_needs_fixup;
+	struct pt_regs *old_regs;
+	irqentry_state_t state;
 
+	percpu_entry(regs);
+	state = irqentry_enter(regs);
+	old_regs = set_irq_regs(regs);
 	from_idle = test_and_clear_cpu_flag(CIF_ENABLED_WAIT);
 	if (from_idle)
 		update_timer_idle();
@@ -170,21 +175,25 @@ void noinstr do_io_irq(struct pt_regs *regs)
 			do_irq_async(regs, IO_INTERRUPT);
 	} while (machine_is_lpar() && irq_pending(regs));
 
+	percpu_needs_fixup = percpu_code_check(regs);
 	irq_exit_rcu();
-
 	set_irq_regs(old_regs);
 	irqentry_exit(regs, state);
 
 	if (from_idle)
 		regs->psw.mask &= ~(PSW_MASK_EXT | PSW_MASK_IO | PSW_MASK_WAIT);
+	percpu_exit(regs, percpu_needs_fixup);
 }
 
 void noinstr do_ext_irq(struct pt_regs *regs)
 {
-	irqentry_state_t state = irqentry_enter(regs);
-	struct pt_regs *old_regs = set_irq_regs(regs);
-	bool from_idle;
+	bool from_idle, percpu_needs_fixup;
+	struct pt_regs *old_regs;
+	irqentry_state_t state;
 
+	percpu_entry(regs);
+	state = irqentry_enter(regs);
+	old_regs = set_irq_regs(regs);
 	from_idle = test_and_clear_cpu_flag(CIF_ENABLED_WAIT);
 	if (from_idle)
 		update_timer_idle();
@@ -206,12 +215,14 @@ void noinstr do_ext_irq(struct pt_regs *regs)
 
 	do_irq_async(regs, EXT_INTERRUPT);
 
+	percpu_needs_fixup = percpu_code_check(regs);
 	irq_exit_rcu();
 	set_irq_regs(old_regs);
 	irqentry_exit(regs, state);
 
 	if (from_idle)
 		regs->psw.mask &= ~(PSW_MASK_EXT | PSW_MASK_IO | PSW_MASK_WAIT);
+	percpu_exit(regs, percpu_needs_fixup);
 }
 
 static void show_msi_interrupt(struct seq_file *p, int irq)

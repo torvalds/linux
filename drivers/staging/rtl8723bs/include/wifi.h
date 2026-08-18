@@ -275,10 +275,7 @@ static inline unsigned char *get_hdr_bssid(unsigned char *pframe)
 
 static inline int IsFrameTypeCtrl(unsigned char *pframe)
 {
-	if (WIFI_CTRL_TYPE == GetFrameType(pframe))
-		return true;
-	else
-		return false;
+	return GetFrameType(pframe) == WIFI_CTRL_TYPE;
 }
 /*-----------------------------------------------------------------------------
 			Below is for the security related definition
@@ -336,7 +333,7 @@ struct ieee80211_ht_addt_info {
 	__le16	operation_mode;
 	__le16	stbc_param;
 	unsigned char 	basic_set[16];
-} __attribute__ ((packed));
+} __packed;
 
 
 struct HT_caps_element {
@@ -351,32 +348,32 @@ struct HT_caps_element {
 		} HT_cap_element;
 		unsigned char HT_cap[26];
 	} u;
-} __attribute__ ((packed));
+} __packed;
 
 struct HT_info_element {
 	unsigned char primary_channel;
 	unsigned char infos[5];
 	unsigned char MCS_rate[16];
-}  __attribute__ ((packed));
+} __packed;
 
 struct AC_param {
 	unsigned char 	ACI_AIFSN;
 	unsigned char 	CW;
 	__le16	TXOP_limit;
-}  __attribute__ ((packed));
+} __packed;
 
 struct WMM_para_element {
 	unsigned char 	QoS_info;
 	unsigned char 	reserved;
 	struct AC_param	ac_param[4];
-}  __attribute__ ((packed));
+} __packed;
 
 struct ADDBA_request {
 	unsigned char 	dialog_token;
 	__le16	BA_para_set;
 	__le16	BA_timeout_value;
 	__le16	BA_starting_seqctrl;
-}  __attribute__ ((packed));
+} __packed;
 
 /* 802.11n HT capabilities masks */
 #define IEEE80211_HT_CAP_LDPC_CODING		0x0001
@@ -448,17 +445,6 @@ enum p2p_wpsinfo {
 struct regd_pair_mapping {
 	u16 reg_dmnenum;
 	u16 reg_2ghz_ctl;
-};
-
-struct rtw_regulatory {
-	char alpha2[2];
-	u16 country_code;
-	u16 max_power_level;
-	u32 tp_scale;
-	u16 current_rd;
-	u16 current_rd_ext;
-	int16_t power_limit;
-	struct regd_pair_mapping *regpair;
 };
 
 #endif /*  _WIFI_H_ */

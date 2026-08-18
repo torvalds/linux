@@ -1745,6 +1745,7 @@ struct rtl8xxxu_fileops rtl8188fu_fops = {
 	.init_reg_rxfltmap = 1,
 	.init_reg_pkt_life_time = 1,
 	.init_reg_hmtfr = 1,
+	.hw_feature_report = 1,
 	.ampdu_max_time = 0x70,
 	.ustime_tsf_edca = 0x28,
 	.max_aggr_num = 0x0c14,

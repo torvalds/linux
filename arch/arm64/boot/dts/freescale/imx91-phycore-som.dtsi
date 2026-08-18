@@ -8,6 +8,7 @@
  */
 
 #include <dt-bindings/leds/common.h>
+#include <dt-bindings/regulator/nxp,pca9450-regulator.h>
 
 #include "imx91.dtsi"
 
@@ -88,6 +89,28 @@
 	};
 };
 
+&gpio1 {
+	gpio-line-names = "", "USER_LED";
+};
+
+&gpio2 {
+	gpio-line-names = "", "", "", "", "",
+			  "", "", "", "", "",
+			  "", "", "", "", "",
+			  "", "", "", "", "",
+			  "", "", "", "", "",
+			  "", "", "", "I2C3_SDA", "I2C3_SCL";
+};
+
+&gpio4 {
+	gpio-line-names = "", "", "", "", "",
+			  "", "", "", "", "",
+			  "", "", "", "", "",
+			  "", "", "", "", "",
+			  "", "", "", "RESET_PHY", "",
+			  "", "", "PMIC_IRQ_B";
+};
+
 /* I2C3 */
 &lpi2c3 {
 	clock-frequency = <400000>;
@@ -138,6 +161,7 @@
 				regulator-min-microvolt = <1800000>;
 				regulator-boot-on;
 				regulator-always-on;
+				regulator-initial-mode = <PCA9450_BUCK_MODE_FORCE_PWM>;
 			};
 
 			buck6: BUCK6 {
@@ -192,6 +216,7 @@
 	bus-width = <8>;
 	non-removable;
 	no-1-8-v;
+	fsl,strobe-dll-delay-target = <1>;
 	status = "okay";
 };
 
@@ -218,7 +243,7 @@
 			MX91_PAD_ENET2_TD1__ENET2_RGMII_TD1		0x50e
 			MX91_PAD_ENET2_TX_CTL__ENET2_RGMII_TX_CTL	0x50e
 			MX91_PAD_ENET2_TD2__ENET2_TX_CLK2		0x4000050e
-			MX91_PAD_ENET2_RXC__GPIO4_IO23			0x51e
+			MX91_PAD_ENET2_RXC__GPIO4_IO23			0x502
 		>;
 	};
 
@@ -250,7 +275,7 @@
 
 	pinctrl_usdhc1: usdhc1grp {
 		fsl,pins = <
-			MX91_PAD_SD1_CLK__USDHC1_CLK		0x179e
+			MX91_PAD_SD1_CLK__USDHC1_CLK		0x119e
 			MX91_PAD_SD1_CMD__USDHC1_CMD		0x1386
 			MX91_PAD_SD1_DATA0__USDHC1_DATA0	0x138e
 			MX91_PAD_SD1_DATA1__USDHC1_DATA1	0x1386
@@ -260,13 +285,13 @@
 			MX91_PAD_SD1_DATA5__USDHC1_DATA5	0x1386
 			MX91_PAD_SD1_DATA6__USDHC1_DATA6	0x1386
 			MX91_PAD_SD1_DATA7__USDHC1_DATA7	0x1386
-			MX91_PAD_SD1_STROBE__USDHC1_STROBE	0x179e
+			MX91_PAD_SD1_STROBE__USDHC1_STROBE	0x159e
 		>;
 	};
 
 	pinctrl_usdhc1_100mhz: usdhc1-100mhzgrp {
 		fsl,pins = <
-			MX91_PAD_SD1_CLK__USDHC1_CLK		0x17be
+			MX91_PAD_SD1_CLK__USDHC1_CLK		0x11be
 			MX91_PAD_SD1_CMD__USDHC1_CMD		0x139e
 			MX91_PAD_SD1_DATA0__USDHC1_DATA0	0x138e
 			MX91_PAD_SD1_DATA1__USDHC1_DATA1	0x139e
@@ -276,13 +301,13 @@
 			MX91_PAD_SD1_DATA5__USDHC1_DATA5	0x139e
 			MX91_PAD_SD1_DATA6__USDHC1_DATA6	0x139e
 			MX91_PAD_SD1_DATA7__USDHC1_DATA7	0x139e
-			MX91_PAD_SD1_STROBE__USDHC1_STROBE	0x179e
+			MX91_PAD_SD1_STROBE__USDHC1_STROBE	0x159e
 		>;
 	};
 
 	pinctrl_usdhc1_200mhz: usdhc1-200mhzgrp {
 		fsl,pins = <
-			MX91_PAD_SD1_CLK__USDHC1_CLK		0x17be
+			MX91_PAD_SD1_CLK__USDHC1_CLK		0x11be
 			MX91_PAD_SD1_CMD__USDHC1_CMD		0x139e
 			MX91_PAD_SD1_DATA0__USDHC1_DATA0	0x139e
 			MX91_PAD_SD1_DATA1__USDHC1_DATA1	0x13be
@@ -292,7 +317,7 @@
 			MX91_PAD_SD1_DATA5__USDHC1_DATA5	0x13be
 			MX91_PAD_SD1_DATA6__USDHC1_DATA6	0x13be
 			MX91_PAD_SD1_DATA7__USDHC1_DATA7	0x13be
-			MX91_PAD_SD1_STROBE__USDHC1_STROBE	0x179e
+			MX91_PAD_SD1_STROBE__USDHC1_STROBE	0x159e
 		>;
 	};
 

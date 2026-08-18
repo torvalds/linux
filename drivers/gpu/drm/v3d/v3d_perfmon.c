@@ -232,6 +232,9 @@ void v3d_perfmon_start(struct v3d_dev *v3d, struct v3d_perfmon *perfmon)
 	if (WARN_ON_ONCE(!perfmon || v3d->active_perfmon))
 		return;
 
+	if (!pm_runtime_get_if_active(v3d->drm.dev))
+		return;
+
 	ncounters = perfmon->ncounters;
 	mask = GENMASK(ncounters - 1, 0);
 
@@ -257,6 +260,8 @@ void v3d_perfmon_start(struct v3d_dev *v3d, struct v3d_perfmon *perfmon)
 	V3D_CORE_WRITE(0, V3D_PCTR_0_OVERFLOW, mask);
 
 	v3d->active_perfmon = perfmon;
+
+	v3d_pm_runtime_put(v3d);
 }
 
 void v3d_perfmon_stop(struct v3d_dev *v3d, struct v3d_perfmon *perfmon,
@@ -268,10 +273,11 @@ void v3d_perfmon_stop(struct v3d_dev *v3d, struct v3d_perfmon *perfmon,
 		return;
 
 	mutex_lock(&perfmon->lock);
-	if (perfmon != v3d->active_perfmon) {
-		mutex_unlock(&perfmon->lock);
-		return;
-	}
+	if (perfmon != v3d->active_perfmon)
+		goto out;
+
+	if (!pm_runtime_get_if_active(v3d->drm.dev))
+		goto out_clear;
 
 	if (capture)
 		for (i = 0; i < perfmon->ncounters; i++)
@@ -279,7 +285,11 @@ void v3d_perfmon_stop(struct v3d_dev *v3d, struct v3d_perfmon *perfmon,
 
 	V3D_CORE_WRITE(0, V3D_V4_PCTR_0_EN, 0);
 
+	v3d_pm_runtime_put(v3d);
+
+out_clear:
 	v3d->active_perfmon = NULL;
+out:
 	mutex_unlock(&perfmon->lock);
 }
 

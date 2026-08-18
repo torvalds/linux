@@ -264,38 +264,22 @@ err:
 	return rc;
 }
 
-struct workqueue_struct *svcrdma_wq;
-
 void svc_rdma_cleanup(void)
 {
 	svc_unreg_xprt_class(&svc_rdma_class);
 	svc_rdma_proc_cleanup();
-	if (svcrdma_wq) {
-		struct workqueue_struct *wq = svcrdma_wq;
-
-		svcrdma_wq = NULL;
-		destroy_workqueue(wq);
-	}
 
 	dprintk("SVCRDMA Module Removed, deregister RPC RDMA transport\n");
 }
 
 int svc_rdma_init(void)
 {
-	struct workqueue_struct *wq;
 	int rc;
 
-	wq = alloc_workqueue("svcrdma", WQ_UNBOUND, 0);
-	if (!wq)
-		return -ENOMEM;
-
 	rc = svc_rdma_proc_init();
-	if (rc) {
-		destroy_workqueue(wq);
+	if (rc)
 		return rc;
-	}
 
-	svcrdma_wq = wq;
 	svc_reg_xprt_class(&svc_rdma_class);
 
 	dprintk("SVCRDMA Module Init, register RPC RDMA transport\n");

@@ -607,6 +607,7 @@ tag_power_down:
 
 	regcache_cache_bypass(fs210x->regmap, false);
 	if (!ret) {
+		regcache_cache_only(fs210x->regmap, false);
 		regcache_mark_dirty(fs210x->regmap);
 		regcache_sync(fs210x->regmap);
 		fs210x->is_inited = true;
@@ -1557,9 +1558,9 @@ static void fs210x_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id fs210x_i2c_id[] = {
-	{ "fs2104" },
-	{ "fs2105s" },
-	{}
+	{ .name = "fs2104" },
+	{ .name = "fs2105s" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, fs210x_i2c_id);
 

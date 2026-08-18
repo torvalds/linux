@@ -31,7 +31,7 @@ use crate::{
 
 use super::FalconHal;
 
-fn select_core_ga102<E: FalconEngine>(bar: &Bar0) -> Result {
+fn select_core_ga102<E: FalconEngine>(bar: Bar0<'_>) -> Result {
     let bcr_ctrl = bar.read(regs::NV_PRISCV_RISCV_BCR_CTRL::of::<E>());
     if bcr_ctrl.core_select() != PeregrineCoreSelect::Falcon {
         bar.write(
@@ -53,7 +53,7 @@ fn select_core_ga102<E: FalconEngine>(bar: &Bar0) -> Result {
 
 fn signature_reg_fuse_version_ga102(
     dev: &device::Device,
-    bar: &Bar0,
+    bar: Bar0<'_>,
     engine_id_mask: u16,
     ucode_id: u8,
 ) -> Result<u32> {
@@ -86,7 +86,7 @@ fn signature_reg_fuse_version_ga102(
     Ok(u16::BITS - reg_fuse_version.leading_zeros())
 }
 
-fn program_brom_ga102<E: FalconEngine>(bar: &Bar0, params: &FalconBromParams) -> Result {
+fn program_brom_ga102<E: FalconEngine>(bar: Bar0<'_>, params: &FalconBromParams) {
     bar.write(
         WithBase::of::<E>().at(0),
         regs::NV_PFALCON2_FALCON_BROM_PARAADDR::zeroed().with_value(params.pkc_data_offset),
@@ -104,8 +104,6 @@ fn program_brom_ga102<E: FalconEngine>(bar: &Bar0, params: &FalconBromParams) ->
         WithBase::of::<E>(),
         regs::NV_PFALCON2_FALCON_MOD_SEL::zeroed().with_algo(FalconModSelAlgo::Rsa3k),
     );
-
-    Ok(())
 }
 
 pub(super) struct Ga102<E: FalconEngine>(PhantomData<E>);
@@ -117,30 +115,30 @@ impl<E: FalconEngine> Ga102<E> {
 }
 
 impl<E: FalconEngine> FalconHal<E> for Ga102<E> {
-    fn select_core(&self, _falcon: &Falcon<E>, bar: &Bar0) -> Result {
+    fn select_core(&self, _falcon: &Falcon<E>, bar: Bar0<'_>) -> Result {
         select_core_ga102::<E>(bar)
     }
 
     fn signature_reg_fuse_version(
         &self,
         falcon: &Falcon<E>,
-        bar: &Bar0,
+        bar: Bar0<'_>,
         engine_id_mask: u16,
         ucode_id: u8,
     ) -> Result<u32> {
         signature_reg_fuse_version_ga102(&falcon.dev, bar, engine_id_mask, ucode_id)
     }
 
-    fn program_brom(&self, _falcon: &Falcon<E>, bar: &Bar0, params: &FalconBromParams) -> Result {
-        program_brom_ga102::<E>(bar, params)
+    fn program_brom(&self, _falcon: &Falcon<E>, bar: Bar0<'_>, params: &FalconBromParams) {
+        program_brom_ga102::<E>(bar, params);
     }
 
-    fn is_riscv_active(&self, bar: &Bar0) -> bool {
+    fn is_riscv_active(&self, bar: Bar0<'_>) -> bool {
         bar.read(regs::NV_PRISCV_RISCV_CPUCTL::of::<E>())
             .active_stat()
     }
 
-    fn reset_wait_mem_scrubbing(&self, bar: &Bar0) -> Result {
+    fn reset_wait_mem_scrubbing(&self, bar: Bar0<'_>) -> Result {
         // TIMEOUT: memory scrubbing should complete in less than 20ms.
         read_poll_timeout(
             || Ok(bar.read(regs::NV_PFALCON_FALCON_HWCFG2::of::<E>())),
@@ -151,7 +149,7 @@ impl<E: FalconEngine> FalconHal<E> for Ga102<E> {
         .map(|_| ())
     }
 
-    fn reset_eng(&self, bar: &Bar0) -> Result {
+    fn reset_eng(&self, bar: Bar0<'_>) -> Result {
         let _ = bar.read(regs::NV_PFALCON_FALCON_HWCFG2::of::<E>());
 
         // According to OpenRM's `kflcnPreResetWait_GA102` documentation, HW sometimes does not set

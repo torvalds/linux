@@ -15,7 +15,9 @@
 
 static const __u8 *ite_report_fixup(struct hid_device *hdev, __u8 *rdesc, unsigned int *rsize)
 {
-	unsigned long quirks = (unsigned long)hid_get_drvdata(hdev);
+
+	const struct hid_device_id *id = hid_get_drvdata(hdev);
+	unsigned long quirks = id->driver_data;
 
 	if (quirks & QUIRK_TOUCHPAD_ON_OFF_REPORT) {
 		/* For Acer Aspire Switch 10 SW5-012 keyboard-dock */
@@ -44,7 +46,8 @@ static int ite_input_mapping(struct hid_device *hdev,
 		int *max)
 {
 
-	unsigned long quirks = (unsigned long)hid_get_drvdata(hdev);
+	const struct hid_device_id *id = hid_get_drvdata(hdev);
+	unsigned long quirks = id->driver_data;
 
 	if ((quirks & QUIRK_TOUCHPAD_ON_OFF_REPORT) &&
 	    (usage->hid & HID_USAGE_PAGE) == 0x00880000) {
@@ -94,7 +97,7 @@ static int ite_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	int ret;
 
-	hid_set_drvdata(hdev, (void *)id->driver_data);
+	hid_set_drvdata(hdev, (void *)id);
 
 	ret = hid_open_report(hdev);
 	if (ret)

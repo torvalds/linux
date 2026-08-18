@@ -34,6 +34,7 @@
 
 #include <asm/apic.h>
 #include <asm/cpu_device_id.h>
+#include <asm/cpuid/api.h>
 #include <asm/perf_event.h>
 #include <asm/processor.h>
 #include <asm/cmdline.h>
@@ -121,7 +122,7 @@ bool __init microcode_loader_disabled(void)
 	 * 1) The CPU does not support CPUID, detected below in
 	 *    load_ucode_bsp().
 	 *
-	 * 2) Bit 31 in CPUID[1]:ECX is clear
+	 * 2) Bit 31 in CPUID[1]:ECX is set
 	 *    The bit is reserved for hypervisor use. This is still not
 	 *    completely accurate as XEN PV guests don't see that CPUID bit
 	 *    set, but that's good enough as they don't land on the BSP

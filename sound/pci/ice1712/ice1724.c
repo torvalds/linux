@@ -62,8 +62,8 @@ MODULE_PARM_DESC(model, "Use the given board model.");
 
 /* Both VT1720 and VT1724 have the same PCI IDs */
 static const struct pci_device_id snd_vt1724_ids[] = {
-	{ PCI_VDEVICE(ICE, PCI_DEVICE_ID_VT1724), 0 },
-	{ 0, }
+	{ PCI_VDEVICE(ICE, PCI_DEVICE_ID_VT1724) },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, snd_vt1724_ids);
@@ -730,13 +730,22 @@ static int snd_vt1724_pcm_hw_params(struct snd_pcm_substream *substream,
 static int snd_vt1724_pcm_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_ice1712 *ice = snd_pcm_substream_chip(substream);
+	bool released = false;
 	int i;
 
-	guard(mutex)(&ice->open_mutex);
-	/* unmark surround channels */
-	for (i = 0; i < 3; i++)
-		if (ice->pcm_reserved[i] == substream)
+	scoped_guard(mutex, &ice->open_mutex) {
+		/* unmark surround channels */
+		for (i = 0; i < 3; i++) {
+			if (ice->pcm_reserved[i] != substream)
+				continue;
 			ice->pcm_reserved[i] = NULL;
+			released = true;
+		}
+	}
+
+	if (released && ice->pcm_ds)
+		wake_up(&ice->pcm_ds->open_wait);
+
 	return 0;
 }
 
@@ -1364,7 +1373,7 @@ static int snd_vt1724_playback_indep_open(struct snd_pcm_substream *substream)
 	scoped_guard(mutex, &ice->open_mutex) {
 		/* already used by PDMA0? */
 		if (ice->pcm_reserved[substream->number])
-			return -EBUSY; /* FIXME: should handle blocking mode properly */
+			return -EAGAIN;
 	}
 	runtime->private_data = (void *)&vt1724_playback_dma_regs[substream->number];
 	ice->playback_con_substream_ds[substream->number] = substream;
@@ -2379,16 +2388,22 @@ static int snd_vt1724_spdif_build_controls(struct snd_ice1712 *ice)
 		return err;
 
 	kctl = snd_ctl_new1(&snd_vt1724_spdif_default, ice);
+	if (!kctl)
+		return -ENOMEM;
 	kctl->id.device = ice->pcm->device;
 	err = snd_ctl_add(ice->card, kctl);
 	if (err < 0)
 		return err;
 	kctl = snd_ctl_new1(&snd_vt1724_spdif_maskc, ice);
+	if (!kctl)
+		return -ENOMEM;
 	kctl->id.device = ice->pcm->device;
 	err = snd_ctl_add(ice->card, kctl);
 	if (err < 0)
 		return err;
 	kctl = snd_ctl_new1(&snd_vt1724_spdif_maskp, ice);
+	if (!kctl)
+		return -ENOMEM;
 	kctl->id.device = ice->pcm->device;
 	err = snd_ctl_add(ice->card, kctl);
 	if (err < 0)

@@ -6,17 +6,21 @@
 
 #include <linux/types.h>
 
+enum vlv_iosf_sb_unit;
 struct dma_fence;
 struct drm_file;
 struct drm_gem_object;
 struct drm_scanout_buffer;
+struct i915_gtt_view;
 struct i915_vma;
 struct intel_display;
 struct intel_dpt;
+struct intel_fb_pin_params;
 struct intel_frontbuffer;
 struct intel_hdcp_gsc_context;
 struct intel_panic;
 struct intel_stolen_node;
+struct iosys_map;
 
 /* dpt */
 struct intel_dpt *intel_parent_dpt_create(struct intel_display *display,
@@ -24,6 +28,37 @@ struct intel_dpt *intel_parent_dpt_create(struct intel_display *display,
 void intel_parent_dpt_destroy(struct intel_display *display, struct intel_dpt *dpt);
 void intel_parent_dpt_suspend(struct intel_display *display, struct intel_dpt *dpt);
 void intel_parent_dpt_resume(struct intel_display *display, struct intel_dpt *dpt);
+
+/* fb_pin */
+int intel_parent_fb_pin_ggtt_pin(struct intel_display *display,
+				 struct drm_gem_object *obj,
+				 const struct intel_fb_pin_params *pin_params,
+				 struct i915_vma **out_ggtt_vma,
+				 u32 *out_offset,
+				 int *out_fence_id);
+void intel_parent_fb_pin_ggtt_unpin(struct intel_display *display,
+				    struct i915_vma *ggtt_vma,
+				    int fence_id);
+int intel_parent_fb_pin_dpt_pin(struct intel_display *display,
+				struct drm_gem_object *obj,
+				struct intel_dpt *dpt,
+				const struct intel_fb_pin_params *pin_params,
+				struct i915_vma **out_dpt_vma,
+				struct i915_vma **out_ggtt_vma,
+				u32 *out_offset);
+void intel_parent_fb_pin_dpt_unpin(struct intel_display *display,
+				   struct intel_dpt *dpt,
+				   struct i915_vma *dpt_vma,
+				   struct i915_vma *ggtt_vma);
+struct i915_vma *intel_parent_fb_pin_reuse_vma(struct intel_display *display,
+					       struct i915_vma *old_ggtt_vma,
+					       struct drm_gem_object *old_obj,
+					       const struct i915_gtt_view *old_view,
+					       struct drm_gem_object *new_obj,
+					       const struct i915_gtt_view *new_view,
+					       u32 *out_offset);
+void intel_parent_fb_pin_get_map(struct intel_display *display,
+				 struct i915_vma *vma, struct iosys_map *map);
 
 /* frontbuffer */
 struct intel_frontbuffer *intel_parent_frontbuffer_get(struct intel_display *display, struct drm_gem_object *obj);
@@ -109,8 +144,11 @@ u64 intel_parent_stolen_node_size(struct intel_display *display, const struct in
 struct intel_stolen_node *intel_parent_stolen_node_alloc(struct intel_display *display);
 void intel_parent_stolen_node_free(struct intel_display *display, const struct intel_stolen_node *node);
 
-/* vma */
-int intel_parent_vma_fence_id(struct intel_display *display, const struct i915_vma *vma);
+/* vlv iosf */
+void intel_parent_vlv_iosf_get(struct intel_display *display, unsigned long unit_mask);
+void intel_parent_vlv_iosf_put(struct intel_display *display, unsigned long unit_mask);
+u32 intel_parent_vlv_iosf_read(struct intel_display *display, enum vlv_iosf_sb_unit unit, u32 addr);
+int intel_parent_vlv_iosf_write(struct intel_display *display, enum vlv_iosf_sb_unit unit, u32 addr, u32 val);
 
 /* generic */
 bool intel_parent_has_auxccs(struct intel_display *display);

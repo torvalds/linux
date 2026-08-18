@@ -1,0 +1,2 @@
+# mode=strict
+bad/yaml-trailing-comment.yaml:25: example 0 [property-order] property 'compatible' out of canonical order (should sort before 'reg')

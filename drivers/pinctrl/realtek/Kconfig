@@ -2,8 +2,8 @@
 
 config PINCTRL_RTD
 	tristate "Realtek DHC core pin controller driver"
-	depends on ARCH_REALTEK
-	default y
+	depends on ARCH_REALTEK || (COMPILE_TEST && OF)
+	default ARCH_REALTEK
 	select PINMUX
 	select GENERIC_PINCONF
 	select REGMAP_MMIO
@@ -11,22 +11,22 @@ config PINCTRL_RTD
 config PINCTRL_RTD1619B
 	tristate "Realtek DHC 1619B pin controller driver"
 	depends on PINCTRL_RTD
-	default y
+	default ARCH_REALTEK
 
 config PINCTRL_RTD1319D
 	tristate "Realtek DHC 1319D pin controller driver"
 	depends on PINCTRL_RTD
-	default y
+	default ARCH_REALTEK
 
 config PINCTRL_RTD1315E
 	tristate "Realtek DHC 1315E pin controller driver"
 	depends on PINCTRL_RTD
-	default y
+	default ARCH_REALTEK
 
 config PINCTRL_RTD1625
 	tristate "Realtek DHC 1625 pin controller driver"
 	depends on PINCTRL_RTD
-	default y
+	default ARCH_REALTEK
 	help
 	  This driver enables support for the pin controller on the Realtek
 	  RTD1625 SoCs.

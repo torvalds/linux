@@ -107,7 +107,6 @@ int inet6addr_notifier_call_chain(unsigned long val, void *v)
 {
 	return atomic_notifier_call_chain(&inet6addr_chain, val, v);
 }
-EXPORT_SYMBOL(inet6addr_notifier_call_chain);
 
 int register_inet6addr_validator_notifier(struct notifier_block *nb)
 {
@@ -126,7 +125,6 @@ int inet6addr_validator_notifier_call_chain(unsigned long val, void *v)
 {
 	return blocking_notifier_call_chain(&inet6addr_validator_chain, val, v);
 }
-EXPORT_SYMBOL(inet6addr_validator_notifier_call_chain);
 
 /* IPv6 Wildcard Address and Loopback Address defined by RFC2553 */
 const struct in6_addr in6addr_loopback __aligned(BITS_PER_LONG/8)
@@ -140,16 +138,12 @@ const struct in6_addr in6addr_linklocal_allnodes __aligned(BITS_PER_LONG/8)
 EXPORT_SYMBOL(in6addr_linklocal_allnodes);
 const struct in6_addr in6addr_linklocal_allrouters __aligned(BITS_PER_LONG/8)
 	= IN6ADDR_LINKLOCAL_ALLROUTERS_INIT;
-EXPORT_SYMBOL(in6addr_linklocal_allrouters);
 const struct in6_addr in6addr_interfacelocal_allnodes __aligned(BITS_PER_LONG/8)
 	= IN6ADDR_INTERFACELOCAL_ALLNODES_INIT;
-EXPORT_SYMBOL(in6addr_interfacelocal_allnodes);
 const struct in6_addr in6addr_interfacelocal_allrouters __aligned(BITS_PER_LONG/8)
 	= IN6ADDR_INTERFACELOCAL_ALLROUTERS_INIT;
-EXPORT_SYMBOL(in6addr_interfacelocal_allrouters);
 const struct in6_addr in6addr_sitelocal_allrouters __aligned(BITS_PER_LONG/8)
 	= IN6ADDR_SITELOCAL_ALLROUTERS_INIT;
-EXPORT_SYMBOL(in6addr_sitelocal_allrouters);
 
 static void snmp6_free_dev(struct inet6_dev *idev)
 {

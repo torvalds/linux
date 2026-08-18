@@ -360,20 +360,15 @@ struct brcmf_flowring *brcmf_flowring_attach(struct device *dev, u16 nrofrings)
 	struct brcmf_flowring *flow;
 	u32 i;
 
-	flow = kzalloc_obj(*flow);
+	flow = kzalloc_flex(*flow, rings, nrofrings);
 	if (flow) {
-		flow->dev = dev;
 		flow->nrofrings = nrofrings;
+		flow->dev = dev;
 		spin_lock_init(&flow->block_lock);
 		for (i = 0; i < ARRAY_SIZE(flow->addr_mode); i++)
 			flow->addr_mode[i] = ADDR_INDIRECT;
 		for (i = 0; i < ARRAY_SIZE(flow->hash); i++)
 			flow->hash[i].ifidx = BRCMF_FLOWRING_INVALID_IFIDX;
-		flow->rings = kzalloc_objs(*flow->rings, nrofrings);
-		if (!flow->rings) {
-			kfree(flow);
-			flow = NULL;
-		}
 	}
 
 	return flow;
@@ -399,7 +394,6 @@ void brcmf_flowring_detach(struct brcmf_flowring *flow)
 		search = search->next;
 		kfree(remove);
 	}
-	kfree(flow->rings);
 	kfree(flow);
 }
 

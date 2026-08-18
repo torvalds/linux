@@ -514,10 +514,10 @@ static void __drm_colorop_state_reset(struct drm_colorop_state *colorop_state,
 	colorop_state->bypass = true;
 
 	if (colorop->curve_1d_type_property) {
-		drm_object_property_get_default_value(&colorop->base,
-						      colorop->curve_1d_type_property,
-						      &val);
-		colorop_state->curve_1d_type = val;
+		if (!drm_object_property_get_default_value(&colorop->base,
+							   colorop->curve_1d_type_property,
+							   &val))
+			colorop_state->curve_1d_type = val;
 	}
 
 	if (colorop->lut1d_interpolation_property) {

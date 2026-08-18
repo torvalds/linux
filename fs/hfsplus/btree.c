@@ -365,6 +365,8 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id)
 	}
 
 	size = tree->node_size;
+	if (size < HFSPLUS_NODE_MINSZ || size > HFSPLUS_NODE_MXSZ)
+		goto fail_page;
 	if (!is_power_of_2(size))
 		goto fail_page;
 	if (!tree->node_count)

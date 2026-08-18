@@ -227,6 +227,9 @@ enum {
 #define XFRM_MSG_SETDEFAULT XFRM_MSG_SETDEFAULT
 	XFRM_MSG_GETDEFAULT,
 #define XFRM_MSG_GETDEFAULT XFRM_MSG_GETDEFAULT
+
+	XFRM_MSG_MIGRATE_STATE,
+#define XFRM_MSG_MIGRATE_STATE XFRM_MSG_MIGRATE_STATE
 	__XFRM_MSG_MAX
 };
 #define XFRM_MSG_MAX (__XFRM_MSG_MAX - 1)
@@ -506,6 +509,28 @@ struct xfrm_user_migrate {
 	__u16				old_family;
 	__u16				new_family;
 };
+
+struct xfrm_user_migrate_state {
+	struct xfrm_usersa_id id;
+	xfrm_address_t new_daddr;
+	xfrm_address_t new_saddr;
+	struct xfrm_mark old_mark;
+	struct xfrm_selector new_sel;
+	__u32 new_reqid;
+	__u32 flags;
+	__u16 new_family;
+	__u16 reserved;
+};
+
+/* Flags for xfrm_user_migrate_state.flags */
+enum xfrm_migrate_state_flags {
+	XFRM_MIGRATE_STATE_CLEAR_OFFLOAD = 1, /* do not inherit offload from existing SA */
+	XFRM_MIGRATE_STATE_UPDATE_H2H_SEL = 2, /* update H2H selector from new daddr/saddr */
+};
+
+/* All flags defined as of this header version; unknown bits are rejected. */
+#define XFRM_MIGRATE_STATE_KNOWN_FLAGS \
+	(XFRM_MIGRATE_STATE_CLEAR_OFFLOAD | XFRM_MIGRATE_STATE_UPDATE_H2H_SEL)
 
 struct xfrm_user_mapping {
 	struct xfrm_usersa_id		id;

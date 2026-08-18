@@ -105,6 +105,9 @@ static void liveupdate_test_init(void)
 			pr_err("liveupdate_flb_get_incoming for %s failed: %pe\n",
 			       flb->compatible, ERR_PTR(err));
 		}
+
+		if (!err)
+			liveupdate_flb_put_incoming(flb);
 	}
 	initialized = true;
 }

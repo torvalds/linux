@@ -3,7 +3,7 @@
  *
  * Name: actypes.h - Common data types for the entire ACPI subsystem
  *
- * Copyright (C) 2000 - 2025, Intel Corp.
+ * Copyright (C) 2000 - 2026, Intel Corp.
  *
  *****************************************************************************/
 
@@ -591,9 +591,9 @@ typedef u64 acpi_integer;
 #define ACPI_STATE_D1                   (u8) 1
 #define ACPI_STATE_D2                   (u8) 2
 #define ACPI_STATE_D3_HOT               (u8) 3
-#define ACPI_STATE_D3                   (u8) 4
-#define ACPI_STATE_D3_COLD              ACPI_STATE_D3
-#define ACPI_D_STATES_MAX               ACPI_STATE_D3
+#define ACPI_STATE_D3_COLD              (u8) 4
+#define ACPI_STATE_D3                   ACPI_STATE_D3_COLD
+#define ACPI_D_STATES_MAX               ACPI_STATE_D3_COLD
 #define ACPI_D_STATE_COUNT              5
 
 #define ACPI_STATE_C0                   (u8) 0

@@ -620,7 +620,7 @@ static int ipv6_flowlabel_get(struct sock *sk, struct in6_flowlabel_req *freq,
 	int err;
 
 	if (freq->flr_flags & IPV6_FL_F_REFLECT) {
-		if (net->ipv6.sysctl.flowlabel_consistency) {
+		if (READ_ONCE(net->ipv6.sysctl.flowlabel_consistency)) {
 			net_info_ratelimited("Can not set IPV6_FL_F_REFLECT if flowlabel_consistency sysctl is enable\n");
 			return -EPERM;
 		}
@@ -633,7 +633,7 @@ static int ipv6_flowlabel_get(struct sock *sk, struct in6_flowlabel_req *freq,
 
 	if (freq->flr_label & ~IPV6_FLOWLABEL_MASK)
 		return -EINVAL;
-	if (net->ipv6.sysctl.flowlabel_state_ranges &&
+	if (READ_ONCE(net->ipv6.sysctl.flowlabel_state_ranges) &&
 	    (freq->flr_label & IPV6_FLOWLABEL_STATELESS_FLAG))
 		return -ERANGE;
 

@@ -1746,6 +1746,7 @@ struct rtl8xxxu_fileops rtl8723bu_fops = {
 	.gen2_thermal_meter = 1,
 	.needs_full_init = 1,
 	.init_reg_hmtfr = 1,
+	.hw_feature_report = 0,
 	.ampdu_max_time = 0x5e,
 	.ustime_tsf_edca = 0x50,
 	.max_aggr_num = 0x0c14,

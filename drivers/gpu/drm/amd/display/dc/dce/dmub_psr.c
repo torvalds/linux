@@ -341,26 +341,26 @@ static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
 	copy_settings_data->mpcc_inst				= pipe_ctx->plane_res.mpcc_inst;
 
 	if (pipe_ctx->plane_res.dpp)
-		copy_settings_data->dpp_inst			= pipe_ctx->plane_res.dpp->inst;
+		copy_settings_data->dpp_inst			= (uint8_t)pipe_ctx->plane_res.dpp->inst;
 	else
 		copy_settings_data->dpp_inst			= 0;
 	if (pipe_ctx->stream_res.opp)
-		copy_settings_data->opp_inst			= pipe_ctx->stream_res.opp->inst;
+		copy_settings_data->opp_inst			= (uint8_t)pipe_ctx->stream_res.opp->inst;
 	else
 		copy_settings_data->opp_inst			= 0;
 	if (pipe_ctx->stream_res.tg)
-		copy_settings_data->otg_inst			= pipe_ctx->stream_res.tg->inst;
+		copy_settings_data->otg_inst			= (uint8_t)pipe_ctx->stream_res.tg->inst;
 	else
 		copy_settings_data->otg_inst			= 0;
 
 	// Misc
 	copy_settings_data->use_phy_fsm             = link->ctx->dc->debug.psr_power_use_phy_fsm;
-	copy_settings_data->psr_level				= psr_context->psr_level.u32all;
+	copy_settings_data->psr_level				= (uint16_t)psr_context->psr_level.u32all;
 	copy_settings_data->smu_optimizations_en		= psr_context->allow_smu_optimizations;
 	copy_settings_data->multi_disp_optimizations_en	= psr_context->allow_multi_disp_optimizations;
-	copy_settings_data->frame_delay				= psr_context->frame_delay;
+	copy_settings_data->frame_delay				= (uint8_t)psr_context->frame_delay;
 	copy_settings_data->frame_cap_ind			= psr_context->psrFrameCaptureIndicationReq;
-	copy_settings_data->init_sdp_deadline			= psr_context->sdpTransmitLineNumDeadline;
+	copy_settings_data->init_sdp_deadline			= (uint16_t)psr_context->sdpTransmitLineNumDeadline;
 	copy_settings_data->debug.u32All = 0;
 	copy_settings_data->debug.bitfields.visual_confirm	= dc->dc->debug.visual_confirm == VISUAL_CONFIRM_PSR;
 	copy_settings_data->debug.bitfields.use_hw_lock_mgr		= 1;

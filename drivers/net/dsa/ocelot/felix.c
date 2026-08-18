@@ -2001,7 +2001,8 @@ static int felix_cls_flower_stats(struct dsa_switch *ds, int port,
 }
 
 static int felix_port_policer_add(struct dsa_switch *ds, int port,
-				  const struct flow_action_police *policer)
+				  const struct flow_action_police *policer,
+				  struct netlink_ext_ack *extack)
 {
 	struct ocelot *ocelot = ds->priv;
 	struct ocelot_policer pol = {
@@ -2445,12 +2446,14 @@ struct net_device *felix_port_to_netdev(struct ocelot *ocelot, int port)
 }
 EXPORT_SYMBOL_GPL(felix_port_to_netdev);
 
-int felix_netdev_to_port(struct net_device *dev)
+int felix_netdev_to_port(struct ocelot *ocelot, struct net_device *dev)
 {
+	struct felix *felix = ocelot_to_felix(ocelot);
+	struct dsa_switch *ds = felix->ds;
 	struct dsa_port *dp;
 
 	dp = dsa_port_from_netdev(dev);
-	if (IS_ERR(dp))
+	if (IS_ERR(dp) || dp->ds != ds)
 		return -EINVAL;
 
 	return dp->index;

@@ -414,7 +414,7 @@ static void vmw_stdu_crtc_mode_set_nofb(struct drm_crtc *crtc)
 }
 
 static void vmw_stdu_crtc_atomic_disable(struct drm_crtc *crtc,
-					 struct drm_atomic_state *state)
+					 struct drm_atomic_commit *state)
 {
 	struct vmw_private *dev_priv;
 	struct vmw_screen_target_display_unit *stdu;
@@ -879,7 +879,7 @@ vmw_stdu_connector_mode_valid(struct drm_connector *connector,
  * the same mode but its relative X,Y position in the topology will change.
  */
 static int vmw_stdu_connector_atomic_check(struct drm_connector *conn,
-					   struct drm_atomic_state *state)
+					   struct drm_atomic_commit *state)
 {
 	struct drm_connector_state *conn_state;
 	struct vmw_screen_target_display_unit *du;
@@ -1399,7 +1399,7 @@ static int vmw_stdu_plane_update_surface(struct vmw_private *dev_priv,
  */
 static void
 vmw_stdu_primary_plane_atomic_update(struct drm_plane *plane,
-				     struct drm_atomic_state *state)
+				     struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state, plane);
 	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state, plane);
@@ -1460,7 +1460,7 @@ vmw_stdu_primary_plane_atomic_update(struct drm_plane *plane,
 
 static void
 vmw_stdu_crtc_atomic_flush(struct drm_crtc *crtc,
-			   struct drm_atomic_state *state)
+			   struct drm_atomic_commit *state)
 {
 	struct vmw_private *vmw = vmw_priv(crtc->dev);
 	struct vmw_screen_target_display_unit *stdu = vmw_crtc_to_stdu(crtc);
@@ -1515,6 +1515,7 @@ static const struct drm_crtc_helper_funcs vmw_stdu_crtc_helper_funcs = {
 	.atomic_flush = vmw_stdu_crtc_atomic_flush,
 	.atomic_enable = vmw_vkms_crtc_atomic_enable,
 	.atomic_disable = vmw_stdu_crtc_atomic_disable,
+	.handle_vblank_timeout  = vmw_vkms_handle_vblank_timeout,
 };
 
 

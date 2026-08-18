@@ -21,7 +21,6 @@
 #include <linux/of_irq.h>
 #include <linux/delay.h>
 #include "rsnd.h"
-#define RSND_SSI_NAME_SIZE 16
 
 /*
  * SSICR
@@ -1010,11 +1009,11 @@ static struct dma_chan *rsnd_ssi_dma_req(struct rsnd_dai_stream *io,
 	char *name;
 
 	/*
-	 * It should use "rcar_sound,ssiu" on DT.
-	 * But, we need to keep compatibility for old version.
+	 * It should use "rcar_sound,ssiu" (R-Car) or "ssiu" (RZ/G3E) on DT.
+	 * We need to keep compatibility for old version.
 	 *
-	 * If it has "rcar_sound.ssiu", it will be used.
-	 * If not, "rcar_sound.ssi" will be used.
+	 * If it has "rcar_sound.ssiu" or "ssiu", it will be used.
+	 * If not, "rcar_sound.ssi" or "ssi" will be used.
 	 * see
 	 *	rsnd_ssiu_dma_req()
 	 *	rsnd_dma_of_path()
@@ -1158,12 +1157,12 @@ int __rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod)
 
 int rsnd_ssi_probe(struct rsnd_priv *priv)
 {
+	struct reset_control *rstc;
 	struct device_node *node;
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_mod_ops *ops;
 	struct clk *clk;
 	struct rsnd_ssi *ssi;
-	char name[RSND_SSI_NAME_SIZE];
 	int i, nr, ret;
 
 	node = rsnd_ssi_of_node(priv);
@@ -1198,12 +1197,20 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 
 		ssi = rsnd_ssi_get(priv, i);
 
-		snprintf(name, RSND_SSI_NAME_SIZE, "%s.%d",
-			 SSI_NAME, i);
-
-		clk = devm_clk_get(dev, name);
+		clk = rsnd_devm_clk_get_indexed(dev, SSI_NAME, i);
 		if (IS_ERR(clk)) {
 			ret = PTR_ERR(clk);
+			goto rsnd_ssi_probe_done;
+		}
+
+		/*
+		 * RZ/G3E uses per-SSI reset controllers.
+		 * R-Car platforms typically don't have SSI reset controls.
+		 */
+		rstc = rsnd_devm_reset_control_get_optional_indexed(dev,
+								    SSI_NAME, i);
+		if (IS_ERR(rstc)) {
+			ret = PTR_ERR(rstc);
 			goto rsnd_ssi_probe_done;
 		}
 
@@ -1225,7 +1232,7 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 			ops = &rsnd_ssi_dma_ops;
 
 		ret = rsnd_mod_init(priv, rsnd_mod_get(ssi), ops, clk,
-				    RSND_MOD_SSI, i);
+				    rstc, RSND_MOD_SSI, i);
 		if (ret)
 			goto rsnd_ssi_probe_done;
 
@@ -1249,4 +1256,24 @@ void rsnd_ssi_remove(struct rsnd_priv *priv)
 	for_each_rsnd_ssi(ssi, priv, i) {
 		rsnd_mod_quit(rsnd_mod_get(ssi));
 	}
+}
+
+void rsnd_ssi_suspend(struct rsnd_priv *priv)
+{
+	struct rsnd_ssi *ssi;
+	int i;
+
+	for_each_rsnd_ssi(ssi, priv, i)
+		rsnd_suspend_clk_reset(rsnd_mod_get(ssi)->clk,
+				       rsnd_mod_get(ssi)->rstc);
+}
+
+void rsnd_ssi_resume(struct rsnd_priv *priv)
+{
+	struct rsnd_ssi *ssi;
+	int i;
+
+	for_each_rsnd_ssi(ssi, priv, i)
+		rsnd_resume_clk_reset(rsnd_mod_get(ssi)->clk,
+				      rsnd_mod_get(ssi)->rstc);
 }

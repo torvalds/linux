@@ -56,6 +56,7 @@ struct audio_crtc_info {
 	uint16_t refresh_rate;
 	uint8_t pixel_repetition;
 	bool interlaced;
+	uint32_t frl_character_clock_kHz; /* in KHz */
 };
 struct azalia_clock_info {
 	uint32_t pixel_clock_in_10khz;

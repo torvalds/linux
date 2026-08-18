@@ -3,17 +3,18 @@ Kernel driver pmbus
 
 Supported chips:
 
-  * Flex BMR310, BMR453, BMR454, BMR456, BMR457, BMR458, BMR480,
-    BMR490, BMR491, BMR492
+  * Flex BMR310, BMR316, BMR321, BMR350, BMR351, BMR453, BMR454,
+    BMR456, BMR457, BMR458, BMR480, BMR490, BMR491, BMR492
 
-    Prefixes: 'bmr310', 'bmr453', 'bmr454', 'bmr456', 'bmr457', 'bmr458', 'bmr480',
+    Prefixes: 'bmr310', 'bmr316', 'bmr321', 'bmr350', 'bmr351',
+    'bmr453', 'bmr454', 'bmr456', 'bmr457', 'bmr458', 'bmr480',
     'bmr490', 'bmr491', 'bmr492'
 
     Addresses scanned: -
 
     Datasheets:
 
-	https://flexpowermodules.com/products
+	https://flex.com/products/power-modules/product-selector
 
 
   * ON Semiconductor ADP4000, NCP4200, NCP4208

@@ -25,6 +25,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/prefetch.h>
 #include <linux/suspend.h>
+#include <linux/dmi.h>
 
 #include "e1000.h"
 #define CREATE_TRACE_POINTS
@@ -56,6 +57,17 @@ static const struct e1000_info *e1000_info_tbl[] = {
 	[board_pch_adp]		= &e1000_pch_adp_info,
 	[board_pch_mtp]		= &e1000_pch_mtp_info,
 	[board_pch_ptp]		= &e1000_pch_ptp_info,
+};
+
+static const struct dmi_system_id disable_k1_list[] = {
+	{
+		.ident = "Dell Pro 16 Plus PB16250",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Dell Pro 16 Plus PB16250"),
+		},
+	},
+	{}
 };
 
 struct e1000_reg_info {
@@ -1803,7 +1815,7 @@ static irqreturn_t e1000_intr_msi(int __always_unused irq, void *data)
 		adapter->total_tx_packets = 0;
 		adapter->total_rx_bytes = 0;
 		adapter->total_rx_packets = 0;
-		__napi_schedule(&adapter->napi);
+		__napi_schedule_irqoff(&adapter->napi);
 	}
 
 	return IRQ_HANDLED;
@@ -1882,7 +1894,7 @@ static irqreturn_t e1000_intr(int __always_unused irq, void *data)
 		adapter->total_tx_packets = 0;
 		adapter->total_rx_bytes = 0;
 		adapter->total_rx_packets = 0;
-		__napi_schedule(&adapter->napi);
+		__napi_schedule_irqoff(&adapter->napi);
 	}
 
 	return IRQ_HANDLED;
@@ -1951,7 +1963,7 @@ static irqreturn_t e1000_intr_msix_rx(int __always_unused irq, void *data)
 	if (napi_schedule_prep(&adapter->napi)) {
 		adapter->total_rx_bytes = 0;
 		adapter->total_rx_packets = 0;
-		__napi_schedule(&adapter->napi);
+		__napi_schedule_irqoff(&adapter->napi);
 	}
 	return IRQ_HANDLED;
 }
@@ -3943,7 +3955,7 @@ static void e1000e_systim_reset(struct e1000_adapter *adapter)
 	/* reset the systim ns time counter */
 	spin_lock_irqsave(&adapter->systim_lock, flags);
 	timecounter_init(&adapter->tc, &adapter->cc,
-			 ktime_to_ns(ktime_get_real()));
+			 ktime_get_real_ns());
 	spin_unlock_irqrestore(&adapter->systim_lock, flags);
 
 	/* restore the previous hwtstamp configuration settings */
@@ -7670,7 +7682,8 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* init PTP hardware clock */
 	e1000e_ptp_init(adapter);
 
-	if (hw->mac.type >= e1000_pch_mtp)
+	/* disable K1 by default on known problematic systems */
+	if (hw->mac.type >= e1000_pch_mtp && dmi_check_system(disable_k1_list))
 		adapter->flags2 |= FLAG2_DISABLE_K1;
 
 	/* reset the hardware with the new settings */
@@ -7799,137 +7812,370 @@ static const struct pci_error_handlers e1000_err_handler = {
 };
 
 static const struct pci_device_id e1000_pci_tbl[] = {
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82571EB_COPPER), board_82571 },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82571EB_FIBER), board_82571 },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82571EB_QUAD_COPPER), board_82571 },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82571EB_QUAD_COPPER_LP),
-	  board_82571 },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82571EB_QUAD_FIBER), board_82571 },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82571EB_SERDES), board_82571 },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82571EB_SERDES_DUAL), board_82571 },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82571EB_SERDES_QUAD), board_82571 },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82571PT_QUAD_COPPER), board_82571 },
+	{
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_82571EB_COPPER),
+		.driver_data = board_82571,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_82571EB_FIBER),
+		.driver_data = board_82571,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_82571EB_QUAD_COPPER),
+		.driver_data = board_82571,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_82571EB_QUAD_COPPER_LP),
+		.driver_data = board_82571,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_82571EB_QUAD_FIBER),
+		.driver_data = board_82571,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_82571EB_SERDES),
+		.driver_data = board_82571,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_82571EB_SERDES_DUAL),
+		.driver_data = board_82571,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_82571EB_SERDES_QUAD),
+		.driver_data = board_82571,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_82571PT_QUAD_COPPER),
+		.driver_data = board_82571,
+	},
 
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82572EI), board_82572 },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82572EI_COPPER), board_82572 },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82572EI_FIBER), board_82572 },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82572EI_SERDES), board_82572 },
+	{
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_82572EI),
+		.driver_data = board_82572,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_82572EI_COPPER),
+		.driver_data = board_82572,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_82572EI_FIBER),
+		.driver_data = board_82572,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_82572EI_SERDES),
+		.driver_data = board_82572,
+	},
 
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82573E), board_82573 },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82573E_IAMT), board_82573 },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82573L), board_82573 },
+	{
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_82573E),
+		.driver_data = board_82573,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_82573E_IAMT),
+		.driver_data = board_82573,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_82573L),
+		.driver_data = board_82573,
+	},
 
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82574L), board_82574 },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82574LA), board_82574 },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82583V), board_82583 },
+	{
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_82574L),
+		.driver_data = board_82574,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_82574LA),
+		.driver_data = board_82574,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_82583V),
+		.driver_data = board_82583,
+	},
 
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_80003ES2LAN_COPPER_DPT),
-	  board_80003es2lan },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_80003ES2LAN_COPPER_SPT),
-	  board_80003es2lan },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_80003ES2LAN_SERDES_DPT),
-	  board_80003es2lan },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_80003ES2LAN_SERDES_SPT),
-	  board_80003es2lan },
+	{
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_80003ES2LAN_COPPER_DPT),
+		.driver_data = board_80003es2lan,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_80003ES2LAN_COPPER_SPT),
+		.driver_data = board_80003es2lan,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_80003ES2LAN_SERDES_DPT),
+		.driver_data = board_80003es2lan,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_80003ES2LAN_SERDES_SPT),
+		.driver_data = board_80003es2lan,
+	},
 
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH8_IFE), board_ich8lan },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH8_IFE_G), board_ich8lan },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH8_IFE_GT), board_ich8lan },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH8_IGP_AMT), board_ich8lan },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH8_IGP_C), board_ich8lan },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH8_IGP_M), board_ich8lan },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH8_IGP_M_AMT), board_ich8lan },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH8_82567V_3), board_ich8lan },
+	{
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH8_IFE),
+		.driver_data = board_ich8lan,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH8_IFE_G),
+		.driver_data = board_ich8lan,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH8_IFE_GT),
+		.driver_data = board_ich8lan,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH8_IGP_AMT),
+		.driver_data = board_ich8lan,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH8_IGP_C),
+		.driver_data = board_ich8lan,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH8_IGP_M),
+		.driver_data = board_ich8lan,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH8_IGP_M_AMT),
+		.driver_data = board_ich8lan,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH8_82567V_3),
+		.driver_data = board_ich8lan,
+	},
 
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH9_IFE), board_ich9lan },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH9_IFE_G), board_ich9lan },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH9_IFE_GT), board_ich9lan },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH9_IGP_AMT), board_ich9lan },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH9_IGP_C), board_ich9lan },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH9_BM), board_ich9lan },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH9_IGP_M), board_ich9lan },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH9_IGP_M_AMT), board_ich9lan },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH9_IGP_M_V), board_ich9lan },
+	{
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH9_IFE),
+		.driver_data = board_ich9lan,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH9_IFE_G),
+		.driver_data = board_ich9lan,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH9_IFE_GT),
+		.driver_data = board_ich9lan,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH9_IGP_AMT),
+		.driver_data = board_ich9lan,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH9_IGP_C),
+		.driver_data = board_ich9lan,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH9_BM),
+		.driver_data = board_ich9lan,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH9_IGP_M),
+		.driver_data = board_ich9lan,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH9_IGP_M_AMT),
+		.driver_data = board_ich9lan,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH9_IGP_M_V),
+		.driver_data = board_ich9lan
+	},
 
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH10_R_BM_LM), board_ich9lan },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH10_R_BM_LF), board_ich9lan },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH10_R_BM_V), board_ich9lan },
+	{
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH10_R_BM_LM),
+		.driver_data = board_ich9lan,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH10_R_BM_LF),
+		.driver_data = board_ich9lan,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH10_R_BM_V),
+		.driver_data = board_ich9lan,
+	},
 
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH10_D_BM_LM), board_ich10lan },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH10_D_BM_LF), board_ich10lan },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH10_D_BM_V), board_ich10lan },
+	{
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH10_D_BM_LM),
+		.driver_data = board_ich10lan,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH10_D_BM_LF),
+		.driver_data = board_ich10lan,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_ICH10_D_BM_V),
+		.driver_data = board_ich10lan,
+	},
 
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_M_HV_LM), board_pchlan },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_M_HV_LC), board_pchlan },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_D_HV_DM), board_pchlan },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_D_HV_DC), board_pchlan },
+	{
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_M_HV_LM),
+		.driver_data = board_pchlan,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_M_HV_LC),
+		.driver_data = board_pchlan,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_D_HV_DM),
+		.driver_data = board_pchlan,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_D_HV_DC),
+		.driver_data = board_pchlan
+	},
 
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH2_LV_LM), board_pch2lan },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH2_LV_V), board_pch2lan },
+	{
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH2_LV_LM),
+		.driver_data = board_pch2lan,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH2_LV_V),
+		.driver_data = board_pch2lan
+	},
 
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LPT_I217_LM), board_pch_lpt },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LPT_I217_V), board_pch_lpt },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LPTLP_I218_LM), board_pch_lpt },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LPTLP_I218_V), board_pch_lpt },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_I218_LM2), board_pch_lpt },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_I218_V2), board_pch_lpt },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_I218_LM3), board_pch_lpt },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_I218_V3), board_pch_lpt },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_SPT_I219_LM), board_pch_spt },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_SPT_I219_V), board_pch_spt },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_SPT_I219_LM2), board_pch_spt },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_SPT_I219_V2), board_pch_spt },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LBG_I219_LM3), board_pch_spt },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_SPT_I219_LM4), board_pch_spt },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_SPT_I219_V4), board_pch_spt },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_SPT_I219_LM5), board_pch_spt },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_SPT_I219_V5), board_pch_spt },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_CNP_I219_LM6), board_pch_cnp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_CNP_I219_V6), board_pch_cnp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_CNP_I219_LM7), board_pch_cnp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_CNP_I219_V7), board_pch_cnp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_ICP_I219_LM8), board_pch_cnp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_ICP_I219_V8), board_pch_cnp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_ICP_I219_LM9), board_pch_cnp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_ICP_I219_V9), board_pch_cnp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_CMP_I219_LM10), board_pch_cnp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_CMP_I219_V10), board_pch_cnp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_CMP_I219_LM11), board_pch_cnp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_CMP_I219_V11), board_pch_cnp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_CMP_I219_LM12), board_pch_spt },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_CMP_I219_V12), board_pch_spt },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_TGP_I219_LM13), board_pch_tgp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_TGP_I219_V13), board_pch_tgp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_TGP_I219_LM14), board_pch_tgp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_TGP_I219_V14), board_pch_tgp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_TGP_I219_LM15), board_pch_tgp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_TGP_I219_V15), board_pch_tgp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_RPL_I219_LM23), board_pch_adp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_RPL_I219_V23), board_pch_adp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_ADP_I219_LM16), board_pch_adp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_ADP_I219_V16), board_pch_adp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_ADP_I219_LM17), board_pch_adp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_ADP_I219_V17), board_pch_adp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_RPL_I219_LM22), board_pch_adp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_RPL_I219_V22), board_pch_adp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_ADP_I219_LM19), board_pch_adp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_ADP_I219_V19), board_pch_adp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_MTP_I219_LM18), board_pch_mtp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_MTP_I219_V18), board_pch_mtp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LNP_I219_LM20), board_pch_mtp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LNP_I219_V20), board_pch_mtp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LNP_I219_LM21), board_pch_mtp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LNP_I219_V21), board_pch_mtp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_ARL_I219_LM24), board_pch_mtp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_ARL_I219_V24), board_pch_mtp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_PTP_I219_LM25), board_pch_ptp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_PTP_I219_V25), board_pch_ptp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_PTP_I219_LM27), board_pch_ptp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_PTP_I219_V27), board_pch_ptp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_NVL_I219_LM29), board_pch_ptp },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_NVL_I219_V29), board_pch_ptp },
+	{
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LPT_I217_LM),
+		.driver_data = board_pch_lpt,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LPT_I217_V),
+		.driver_data = board_pch_lpt,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LPTLP_I218_LM),
+		.driver_data = board_pch_lpt,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LPTLP_I218_V),
+		.driver_data = board_pch_lpt,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_I218_LM2),
+		.driver_data = board_pch_lpt,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_I218_V2),
+		.driver_data = board_pch_lpt,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_I218_LM3),
+		.driver_data = board_pch_lpt,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_I218_V3),
+		.driver_data = board_pch_lpt,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_SPT_I219_LM),
+		.driver_data = board_pch_spt,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_SPT_I219_V),
+		.driver_data = board_pch_spt,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_SPT_I219_LM2),
+		.driver_data = board_pch_spt,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_SPT_I219_V2),
+		.driver_data = board_pch_spt,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LBG_I219_LM3),
+		.driver_data = board_pch_spt,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_SPT_I219_LM4),
+		.driver_data = board_pch_spt,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_SPT_I219_V4),
+		.driver_data = board_pch_spt,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_SPT_I219_LM5),
+		.driver_data = board_pch_spt,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_SPT_I219_V5),
+		.driver_data = board_pch_spt,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_CNP_I219_LM6),
+		.driver_data = board_pch_cnp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_CNP_I219_V6),
+		.driver_data = board_pch_cnp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_CNP_I219_LM7),
+		.driver_data = board_pch_cnp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_CNP_I219_V7),
+		.driver_data = board_pch_cnp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_ICP_I219_LM8),
+		.driver_data = board_pch_cnp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_ICP_I219_V8),
+		.driver_data = board_pch_cnp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_ICP_I219_LM9),
+		.driver_data = board_pch_cnp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_ICP_I219_V9),
+		.driver_data = board_pch_cnp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_CMP_I219_LM10),
+		.driver_data = board_pch_cnp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_CMP_I219_V10),
+		.driver_data = board_pch_cnp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_CMP_I219_LM11),
+		.driver_data = board_pch_cnp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_CMP_I219_V11),
+		.driver_data = board_pch_cnp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_CMP_I219_LM12),
+		.driver_data = board_pch_spt,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_CMP_I219_V12),
+		.driver_data = board_pch_spt,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_TGP_I219_LM13),
+		.driver_data = board_pch_tgp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_TGP_I219_V13),
+		.driver_data = board_pch_tgp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_TGP_I219_LM14),
+		.driver_data = board_pch_tgp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_TGP_I219_V14),
+		.driver_data = board_pch_tgp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_TGP_I219_LM15),
+		.driver_data = board_pch_tgp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_TGP_I219_V15),
+		.driver_data = board_pch_tgp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_RPL_I219_LM23),
+		.driver_data = board_pch_adp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_RPL_I219_V23),
+		.driver_data = board_pch_adp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_ADP_I219_LM16),
+		.driver_data = board_pch_adp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_ADP_I219_V16),
+		.driver_data = board_pch_adp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_ADP_I219_LM17),
+		.driver_data = board_pch_adp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_ADP_I219_V17),
+		.driver_data = board_pch_adp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_RPL_I219_LM22),
+		.driver_data = board_pch_adp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_RPL_I219_V22),
+		.driver_data = board_pch_adp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_ADP_I219_LM19),
+		.driver_data = board_pch_adp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_ADP_I219_V19),
+		.driver_data = board_pch_adp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_MTP_I219_LM18),
+		.driver_data = board_pch_mtp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_MTP_I219_V18),
+		.driver_data = board_pch_mtp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LNP_I219_LM20),
+		.driver_data = board_pch_mtp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LNP_I219_V20),
+		.driver_data = board_pch_mtp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LNP_I219_LM21),
+		.driver_data = board_pch_mtp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LNP_I219_V21),
+		.driver_data = board_pch_mtp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_ARL_I219_LM24),
+		.driver_data = board_pch_mtp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_ARL_I219_V24),
+		.driver_data = board_pch_mtp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_PTP_I219_LM25),
+		.driver_data = board_pch_ptp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_PTP_I219_V25),
+		.driver_data = board_pch_ptp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_PTP_I219_LM27),
+		.driver_data = board_pch_ptp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_PTP_I219_V27),
+		.driver_data = board_pch_ptp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_NVL_I219_LM29),
+		.driver_data = board_pch_ptp,
+	}, {
+		PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_NVL_I219_V29),
+		.driver_data = board_pch_ptp
+	},
 
-	{ 0, 0, 0, 0, 0, 0, 0 }	/* terminate list */
+	{ }	/* terminate list */
 };
 MODULE_DEVICE_TABLE(pci, e1000_pci_tbl);
 

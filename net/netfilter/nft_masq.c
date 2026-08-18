@@ -123,7 +123,7 @@ static void nft_masq_eval(const struct nft_expr *expr,
 		break;
 #endif
 	default:
-		WARN_ON_ONCE(1);
+		DEBUG_NET_WARN_ON_ONCE(1);
 		break;
 	}
 }

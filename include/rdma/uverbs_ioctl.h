@@ -590,6 +590,28 @@ struct uapi_definition {
 			    UA_OPTIONAL,                                       \
 			    .is_udata = 1)
 
+/*
+ * Per-attribute UMEM descriptor. The payload is a single
+ * struct ib_uverbs_buffer_desc identifying a memory region backed by
+ * dma-buf or user virtual address. _access selects UA_OPTIONAL or
+ * UA_MANDATORY. Drivers obtain a umem from the attribute via the
+ * ib_umem_get_*() wrapper helpers.
+ */
+#define UVERBS_ATTR_UMEM(_attr_id, _access)                                    \
+	UVERBS_ATTR_PTR_IN(_attr_id,                                           \
+			   UVERBS_ATTR_TYPE(struct ib_uverbs_buffer_desc),     \
+			   _access)
+
+/*
+ * Bit masks of the @flags / @optional_flags fields of struct
+ * ib_uverbs_buffer_desc that the kernel understands. @flags is strict:
+ * any bit outside the known mask makes the call fail with -EINVAL.
+ * @optional_flags is advisory: bits outside the known mask are silently
+ * dropped. Both masks are extended as new bits are introduced.
+ */
+#define IB_UVERBS_BUFFER_DESC_FLAGS_KNOWN_MASK		0U
+#define IB_UVERBS_BUFFER_DESC_OPTIONAL_FLAGS_KNOWN_MASK	0U
+
 /* =================================================
  *              Parsing infrastructure
  * =================================================
@@ -667,8 +689,6 @@ rdma_udata_to_uverbs_attr_bundle(struct ib_udata *udata)
 #define rdma_udata_to_drv_context(udata, drv_dev_struct, member)                \
 	(udata ? container_of(rdma_udata_to_uverbs_attr_bundle(udata)->context, \
 			      drv_dev_struct, member) : (drv_dev_struct *)NULL)
-
-struct ib_device *rdma_udata_to_dev(struct ib_udata *udata);
 
 #define IS_UVERBS_COPY_ERR(_ret)		((_ret) && (_ret) != -ENOENT)
 
@@ -864,6 +884,8 @@ int uverbs_get_flags32(u32 *to, const struct uverbs_attr_bundle *attrs_bundle,
 		       size_t idx, u64 allowed_bits);
 int uverbs_copy_to(const struct uverbs_attr_bundle *attrs_bundle, size_t idx,
 		   const void *from, size_t size);
+int uverbs_get_buffer_desc(const struct uverbs_attr_bundle *attrs_bundle,
+			   u16 attr_id, struct ib_uverbs_buffer_desc *desc);
 __malloc void *_uverbs_alloc(struct uverbs_attr_bundle *bundle, size_t size,
 			     gfp_t flags);
 
@@ -902,6 +924,8 @@ int uverbs_copy_to_struct_or_zero(const struct uverbs_attr_bundle *bundle,
 int _ib_copy_validate_udata_in(struct ib_udata *udata, void *req,
 			       size_t kernel_size, size_t minimum_size);
 int _ib_respond_udata(struct ib_udata *udata, const void *src, size_t len);
+int _ib_copy_validate_udata_cm_fail(struct ib_udata *udata, u64 req_cm,
+				    u64 valid_cm);
 #else
 static inline int
 uverbs_get_flags64(u64 *to, const struct uverbs_attr_bundle *attrs_bundle,
@@ -917,6 +941,12 @@ uverbs_get_flags32(u32 *to, const struct uverbs_attr_bundle *attrs_bundle,
 }
 static inline int uverbs_copy_to(const struct uverbs_attr_bundle *attrs_bundle,
 				 size_t idx, const void *from, size_t size)
+{
+	return -EINVAL;
+}
+static inline int
+uverbs_get_buffer_desc(const struct uverbs_attr_bundle *attrs_bundle,
+		       u16 attr_id, struct ib_uverbs_buffer_desc *desc)
 {
 	return -EINVAL;
 }
@@ -968,6 +998,12 @@ static inline int _ib_copy_validate_udata_in(struct ib_udata *udata, void *req,
 
 static inline int _ib_respond_udata(struct ib_udata *udata, const void *src,
 				    size_t len)
+{
+	return -EINVAL;
+}
+
+static inline int _ib_copy_validate_udata_cm_fail(struct ib_udata *udata,
+						  u64 req_cm, u64 valid_cm)
 {
 	return -EINVAL;
 }
@@ -1050,9 +1086,6 @@ uverbs_get_raw_fd(int *to, const struct uverbs_attr_bundle *attrs_bundle,
 #define ib_copy_validate_udata_in(_udata, _req, _end_member)      \
 	_ib_copy_validate_udata_in(_udata, &(_req), sizeof(_req), \
 				   offsetofend(typeof(_req), _end_member))
-
-int _ib_copy_validate_udata_cm_fail(struct ib_udata *udata, u64 req_cm,
-				    u64 valid_cm);
 
 /**
  * ib_copy_validate_udata_in_cm - Copy the req structure and check the comp_mask

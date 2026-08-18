@@ -10,7 +10,6 @@
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/media-bus-format.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/pm_runtime.h>
@@ -212,7 +211,7 @@ static const struct dw_mipi_dsi2_phy_ops dw_mipi_dsi2_rockchip_phy_ops = {
 };
 
 static void dw_mipi_dsi2_encoder_atomic_enable(struct drm_encoder *encoder,
-					       struct drm_atomic_state *state)
+					       struct drm_atomic_commit *state)
 {
 	struct dw_mipi_dsi2_rockchip *dsi2 = to_dsi2(encoder);
 	u32 color_depth;

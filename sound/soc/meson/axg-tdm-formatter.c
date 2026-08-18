@@ -157,20 +157,19 @@ static int axg_tdm_formatter_attach(struct axg_tdm_formatter *formatter)
 	struct axg_tdm_stream *ts = formatter->stream;
 	int ret = 0;
 
-	mutex_lock(&ts->lock);
+	guard(mutex)(&ts->lock);
 
 	/* Catch up if the stream is already running when we attach */
 	if (ts->ready) {
 		ret = axg_tdm_formatter_enable(formatter);
 		if (ret) {
 			pr_err("failed to enable formatter\n");
-			goto out;
+			return ret;
 		}
 	}
 
 	list_add_tail(&formatter->list, &ts->formatter_list);
-out:
-	mutex_unlock(&ts->lock);
+
 	return ret;
 }
 
@@ -178,9 +177,8 @@ static void axg_tdm_formatter_dettach(struct axg_tdm_formatter *formatter)
 {
 	struct axg_tdm_stream *ts = formatter->stream;
 
-	mutex_lock(&ts->lock);
-	list_del(&formatter->list);
-	mutex_unlock(&ts->lock);
+	scoped_guard(mutex, &ts->lock)
+		list_del(&formatter->list);
 
 	axg_tdm_formatter_disable(formatter);
 }
@@ -330,7 +328,7 @@ int axg_tdm_stream_start(struct axg_tdm_stream *ts)
 	struct axg_tdm_formatter *formatter;
 	int ret = 0;
 
-	mutex_lock(&ts->lock);
+	guard(mutex)(&ts->lock);
 	ts->ready = true;
 
 	/* Start all the formatters attached to the stream */
@@ -338,12 +336,10 @@ int axg_tdm_stream_start(struct axg_tdm_stream *ts)
 		ret = axg_tdm_formatter_enable(formatter);
 		if (ret) {
 			pr_err("failed to start tdm stream\n");
-			goto out;
+			return ret;
 		}
 	}
 
-out:
-	mutex_unlock(&ts->lock);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(axg_tdm_stream_start);
@@ -352,15 +348,13 @@ void axg_tdm_stream_stop(struct axg_tdm_stream *ts)
 {
 	struct axg_tdm_formatter *formatter;
 
-	mutex_lock(&ts->lock);
+	guard(mutex)(&ts->lock);
 	ts->ready = false;
 
 	/* Stop all the formatters attached to the stream */
 	list_for_each_entry(formatter, &ts->formatter_list, list) {
 		axg_tdm_formatter_disable(formatter);
 	}
-
-	mutex_unlock(&ts->lock);
 }
 EXPORT_SYMBOL_GPL(axg_tdm_stream_stop);
 

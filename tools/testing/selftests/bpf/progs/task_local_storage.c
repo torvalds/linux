@@ -14,12 +14,15 @@ struct {
 	__type(value, long);
 } enter_id SEC(".maps");
 
+#include "err.h"
+
 #define MAGIC_VALUE 0xabcd1234
 
 pid_t target_pid = 0;
 int mismatch_cnt = 0;
 int enter_cnt = 0;
 int exit_cnt = 0;
+long update_err = 0;
 
 SEC("tp_btf/sys_enter")
 int BPF_PROG(on_enter, struct pt_regs *regs, long id)
@@ -60,5 +63,21 @@ int BPF_PROG(on_exit, struct pt_regs *regs, long id)
 	__sync_fetch_and_add(&exit_cnt, 1);
 	if (*ptr != MAGIC_VALUE + exit_cnt)
 		__sync_fetch_and_add(&mismatch_cnt, 1);
+	return 0;
+}
+
+SEC("fexit/bpf_local_storage_update")
+int BPF_PROG(fexit_update, void *owner, struct bpf_local_storage_map *smap,
+	     void *value, u64 map_flags, bool swap_uptrs,
+	     struct bpf_local_storage_data *ret)
+{
+	struct task_struct *task = bpf_get_current_task_btf();
+
+	if (task->pid != target_pid)
+		return 0;
+
+	if (IS_ERR_VALUE(ret))
+		update_err = PTR_ERR(ret);
+
 	return 0;
 }

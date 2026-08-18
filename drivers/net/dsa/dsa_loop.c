@@ -75,6 +75,7 @@ static struct phy_device *phydevs[PHY_MAX_ADDR];
 static struct mdio_device *switch_mdiodev;
 
 enum dsa_loop_devlink_resource_id {
+	DSA_LOOP_DEVLINK_PARAM_ID_NONE,  /* DEVLINK_RESOURCE_ID_PARENT_TOP */
 	DSA_LOOP_DEVLINK_PARAM_ID_VTU,
 };
 

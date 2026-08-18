@@ -29,7 +29,7 @@ Documentation and Driver by Ken Hollis <kenji@bitgate.com>
  to run the program with an "&" to run it in the background!)
 
  If you want to write a program to be compatible with the PC Watchdog
- driver, simply use of modify the watchdog test program:
+ driver, simply use or modify the watchdog test program:
  tools/testing/selftests/watchdog/watchdog-test.c
 
 
@@ -37,16 +37,23 @@ Documentation and Driver by Ken Hollis <kenji@bitgate.com>
 
 	WDIOC_GETSUPPORT
 		This returns the support of the card itself.  This
-		returns in structure "PCWDS" which returns:
+		returns in structure watchdog_info:
 
-			options = WDIOS_TEMPPANIC
-				  (This card supports temperature)
+                        identity = "PCWD"
+
+			options = list of supported options::
+                                  WDIOF_OVERHEAT
+                                  WDIOF_CARDRESET
+                                  WDIOF_KEEPALIVEPING
+                                  WDIOF_SETTIMEOUT
+                                  WDIOF_MAGICCLOSE
+
 			firmware_version = xxxx
 				  (Firmware version of the card)
 
 	WDIOC_GETSTATUS
 		This returns the status of the card, with the bits of
-		WDIOF_* bitwise-anded into the value.  (The comments
+		WDIOF_* bitwise-ored into the value.  (The comments
 		are in include/uapi/linux/watchdog.h)
 
 	WDIOC_GETBOOTSTATUS
@@ -55,7 +62,7 @@ Documentation and Driver by Ken Hollis <kenji@bitgate.com>
 
 	WDIOC_GETTEMP
 		This returns the temperature of the card.  (You can also
-		read /dev/watchdog, which gives a temperature update
+		read /dev/temperature, which gives a temperature update
 		every second.)
 
 	WDIOC_SETOPTIONS

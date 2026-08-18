@@ -177,16 +177,6 @@ static noinstr void fred_extint(struct pt_regs *regs)
 	}
 }
 
-#ifdef CONFIG_AMD_MEM_ENCRYPT
-noinstr void exc_vmm_communication(struct pt_regs *regs, unsigned long error_code)
-{
-	if (user_mode(regs))
-		return user_exc_vmm_communication(regs, error_code);
-	else
-		return kernel_exc_vmm_communication(regs, error_code);
-}
-#endif
-
 static noinstr void fred_hwexc(struct pt_regs *regs, unsigned long error_code)
 {
 	/* Optimize for #PF. That's the only exception which matters performance wise */

@@ -93,6 +93,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_CS4271_I2C
 	imply SND_SOC_CS4271_SPI
 	imply SND_SOC_CS42XX8_I2C
+	imply SND_SOC_CS42XX8_SPI
 	imply SND_SOC_CS43130
 	imply SND_SOC_CS4341
 	imply SND_SOC_CS4349
@@ -122,6 +123,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_ES8328_I2C
 	imply SND_SOC_ES8375
 	imply SND_SOC_ES8389
+	imply SND_SOC_ES9356
 	imply SND_SOC_ES7134
 	imply SND_SOC_ES7241
 	imply SND_SOC_FRAMER
@@ -264,6 +266,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_STA529
 	imply SND_SOC_STAC9766
 	imply SND_SOC_STI_SAS
+	imply SND_SOC_TAC5XX2_SDW
 	imply SND_SOC_TAS2552
 	imply SND_SOC_TAS2562
 	imply SND_SOC_TAS2764
@@ -275,6 +278,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_TAS571X
 	imply SND_SOC_TAS5720
 	imply SND_SOC_TAS6424
+	imply SND_SOC_TAS675X
 	imply SND_SOC_TDA7419
 	imply SND_SOC_TFA9879
 	imply SND_SOC_TFA989X
@@ -884,7 +888,7 @@ config SND_SOC_CS35L56_SPI
 config SND_SOC_CS35L56_SDW
 	tristate "Cirrus Logic CS35L56 CODEC (SDW)"
 	depends on SOUNDWIRE
-	select REGMAP
+	select REGMAP_SOUNDWIRE
 	select SND_SOC_CS35L56
 	select SND_SOC_CS35L56_SHARED
 	help
@@ -1073,6 +1077,12 @@ config SND_SOC_CS4271_SPI
 
 config SND_SOC_CS42XX8
 	tristate
+
+config SND_SOC_CS42XX8_SPI
+	tristate "Cirrus Logic CS42448/CS42888 CODEC (SPI)"
+	depends on SPI_MASTER
+	select SND_SOC_CS42XX8
+	select REGMAP_SPI
 
 config SND_SOC_CS42XX8_I2C
 	tristate "Cirrus Logic CS42448/CS42888 CODEC (I2C)"
@@ -1296,6 +1306,13 @@ config SND_SOC_ES8375
 config SND_SOC_ES8389
 	tristate "Everest Semi ES8389 CODEC"
 	depends on I2C
+
+config SND_SOC_ES9356
+	tristate "Everest Semi ES9356 CODEC SDW"
+	depends on SND_SOC_SDCA
+	depends on SOUNDWIRE
+	select REGMAP_SOUNDWIRE
+	select REGMAP_SOUNDWIRE_MBQ
 
 config SND_SOC_FRAMER
 	tristate "Framer codec"
@@ -2136,6 +2153,16 @@ config SND_SOC_STAC9766
 config SND_SOC_STI_SAS
 	tristate "codec Audio support for STI SAS codec"
 
+config SND_SOC_TAC5XX2_SDW
+	tristate "Texas Instruments TAC5XX2 SoundWire Smart Amplifier"
+	depends on SOUNDWIRE
+	depends on SND_SOC_SDCA
+	help
+	  This option enables support for Texas Instruments TAC5XX2 family
+	  of SoundWire Smart Amplifiers. This includes TAC5572, TAC5672,
+	  TAC5682 and TAS2883. To compile this driver as a module, choose
+	  M here: the module will be called snd-soc-tac5xx2.
+
 config SND_SOC_TAS2552
 	tristate "Texas Instruments TAS2552 Mono Audio amplifier"
 	depends on I2C
@@ -2233,6 +2260,17 @@ config SND_SOC_TAS6424
 	help
 	  Enable support for Texas Instruments TAS6424 high-efficiency
 	  digital input quad-channel Class-D audio power amplifiers.
+
+config SND_SOC_TAS675X
+	tristate "Texas Instruments TAS675x Quad-Channel Audio Amplifier"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Enable support for Texas Instruments TAS675x quad-channel Class-D
+	  audio power amplifiers (TAS6754, TAS67524). The devices support I2S
+	  and TDM interfaces with real-time voltage and current sense feedback
+	  via SDOUT, and provide DC/AC/real-time load diagnostics for speaker
+	  monitoring.
 
 config SND_SOC_TDA7419
 	tristate "ST TDA7419 audio processor"

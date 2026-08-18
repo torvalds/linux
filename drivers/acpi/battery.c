@@ -1182,6 +1182,26 @@ static const struct dmi_system_id bat_dmi_table[] __initconst = {
 	{},
 };
 
+static void acpi_battery_wakeup_cleanup(void *data)
+{
+	device_init_wakeup(data, false);
+}
+
+static int devm_acpi_battery_init_wakeup(struct device *dev)
+{
+	device_init_wakeup(dev, true);
+	return devm_add_action_or_reset(dev, acpi_battery_wakeup_cleanup, dev);
+}
+
+static void sysfs_battery_cleanup(void *data)
+{
+	struct acpi_battery *battery = data;
+
+	guard(mutex)(&battery->update_lock);
+
+	sysfs_remove_battery(battery);
+}
+
 /*
  * Some machines'(E,G Lenovo Z480) ECs are not stable
  * during boot up and this causes battery driver fails to be
@@ -1190,9 +1210,14 @@ static const struct dmi_system_id bat_dmi_table[] __initconst = {
  * may work. So add retry code here and 20ms sleep between
  * every retries.
  */
-static int acpi_battery_update_retry(struct acpi_battery *battery)
+static int devm_acpi_battery_update_retry(struct device *dev,
+					  struct acpi_battery *battery)
 {
 	int retry, ret;
+
+	ret = devm_add_action(dev, sysfs_battery_cleanup, battery);
+	if (ret)
+		return ret;
 
 	guard(mutex)(&battery->update_lock);
 
@@ -1206,27 +1231,21 @@ static int acpi_battery_update_retry(struct acpi_battery *battery)
 	return ret;
 }
 
-static void sysfs_battery_cleanup(struct acpi_battery *battery)
-{
-	guard(mutex)(&battery->update_lock);
-
-	sysfs_remove_battery(battery);
-}
-
 static int acpi_battery_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct acpi_battery *battery;
 	struct acpi_device *device;
 	int result;
 
-	device = ACPI_COMPANION(&pdev->dev);
+	device = ACPI_COMPANION(dev);
 	if (!device)
 		return -ENODEV;
 
 	if (device->dep_unmet)
 		return -EPROBE_DEFER;
 
-	battery = devm_kzalloc(&pdev->dev, sizeof(*battery), GFP_KERNEL);
+	battery = devm_kzalloc(dev, sizeof(*battery), GFP_KERNEL);
 	if (!battery)
 		return -ENOMEM;
 
@@ -1235,54 +1254,38 @@ static int acpi_battery_probe(struct platform_device *pdev)
 	battery->phys_dev = &pdev->dev;
 	battery->device = device;
 
-	result = devm_mutex_init(&pdev->dev, &battery->update_lock);
+	result = devm_mutex_init(dev, &battery->update_lock);
 	if (result)
 		return result;
 
 	if (acpi_has_method(battery->device->handle, "_BIX"))
 		set_bit(ACPI_BATTERY_XINFO_PRESENT, &battery->flags);
 
-	result = acpi_battery_update_retry(battery);
+	result = devm_acpi_battery_update_retry(dev, battery);
 	if (result)
-		goto fail;
+		return result;
 
 	pr_info("Slot [%s] (battery %s)\n", acpi_device_bid(device),
 		device->status.battery_present ? "present" : "absent");
 
+	result = devm_acpi_battery_init_wakeup(dev);
+	if (result)
+		return result;
+
+	result = devm_acpi_install_notify_handler(dev, ACPI_ALL_NOTIFY,
+						  acpi_battery_notify, battery);
+	if (result)
+		return result;
+
 	battery->pm_nb.notifier_call = battery_notify;
-	result = register_pm_notifier(&battery->pm_nb);
-	if (result)
-		goto fail;
-
-	device_init_wakeup(&pdev->dev, true);
-
-	result = acpi_dev_install_notify_handler(device, ACPI_ALL_NOTIFY,
-						 acpi_battery_notify, battery);
-	if (result)
-		goto fail_pm;
-
-	return 0;
-
-fail_pm:
-	device_init_wakeup(&pdev->dev, false);
-	unregister_pm_notifier(&battery->pm_nb);
-fail:
-	sysfs_battery_cleanup(battery);
-
-	return result;
+	return register_pm_notifier(&battery->pm_nb);
 }
 
 static void acpi_battery_remove(struct platform_device *pdev)
 {
 	struct acpi_battery *battery = platform_get_drvdata(pdev);
 
-	acpi_dev_remove_notify_handler(battery->device, ACPI_ALL_NOTIFY,
-				       acpi_battery_notify);
-
-	device_init_wakeup(&pdev->dev, false);
 	unregister_pm_notifier(&battery->pm_nb);
-
-	sysfs_battery_cleanup(battery);
 }
 
 /* this is needed to learn about changes made in suspended state */

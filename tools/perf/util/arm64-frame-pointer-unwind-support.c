@@ -2,6 +2,7 @@
 #include "arm64-frame-pointer-unwind-support.h"
 #include "callchain.h"
 #include "event.h"
+#include "record.h"
 #include "unwind.h"
 #include <string.h>
 
@@ -15,6 +16,11 @@ struct entries {
 };
 
 #define SMPL_REG_MASK(b) (1ULL << (b))
+
+void add_leaf_frame_caller_opts_aarch64(struct record_opts *opts)
+{
+	opts->sample_user_regs |= SMPL_REG_MASK(PERF_REG_ARM64_LR);
+}
 
 static bool get_leaf_frame_caller_enabled(struct perf_sample *sample)
 {

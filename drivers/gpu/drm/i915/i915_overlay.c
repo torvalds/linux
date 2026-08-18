@@ -7,6 +7,7 @@
 
 #include <drm/intel/display_parent_interface.h>
 #include <drm/intel/intel_gmd_interrupt_regs.h>
+#include <drm/intel/pci_config.h>
 
 #include "gem/i915_gem_internal.h"
 #include "gem/i915_gem_object_frontbuffer.h"
@@ -18,7 +19,6 @@
 #include "i915_drv.h"
 #include "i915_overlay.h"
 #include "i915_reg.h"
-#include "intel_pci_config.h"
 
 #include "display/intel_frontbuffer.h"
 
@@ -354,10 +354,13 @@ static struct i915_vma *i915_overlay_pin_fb(struct drm_device *drm,
 					    struct drm_gem_object *obj,
 					    u32 *offset)
 {
+	struct drm_i915_private *i915 = to_i915(drm);
 	struct drm_i915_gem_object *new_bo = to_intel_bo(obj);
 	struct i915_gem_ww_ctx ww;
 	struct i915_vma *vma;
 	int ret;
+
+	atomic_inc(&i915->pending_fb_pin);
 
 	i915_gem_ww_ctx_init(&ww, true);
 retry:
@@ -373,6 +376,9 @@ retry:
 			goto retry;
 	}
 	i915_gem_ww_ctx_fini(&ww);
+
+	atomic_dec(&i915->pending_fb_pin);
+
 	if (ret)
 		return ERR_PTR(ret);
 

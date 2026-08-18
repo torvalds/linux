@@ -16,12 +16,16 @@ properties:
   compatible:
     enum:
       - loongson,ls2k-i2c
+      - loongson,ls2k0300-i2c
       - loongson,ls7a-i2c
 
   reg:
     maxItems: 1
 
   interrupts:
+    maxItems: 1
+
+  clocks:
     maxItems: 1
 
 required:

@@ -327,9 +327,8 @@
 #define PPE_SRAM_TABLE_EN_MASK			BIT(0)
 
 #define REG_PPE_MTU_BASE(_n)			(((_n) ? PPE2_BASE : PPE1_BASE) + 0x304)
-#define REG_PPE_MTU(_m, _n)			(REG_PPE_MTU_BASE(_m) + ((_n) << 2))
-#define FP1_EGRESS_MTU_MASK			GENMASK(29, 16)
-#define FP0_EGRESS_MTU_MASK			GENMASK(13, 0)
+#define REG_PPE_MTU(_m, _n)			(REG_PPE_MTU_BASE(_m) + (((_n) / 2) << 2))
+#define FP_EGRESS_MTU_MASK(_n)			GENMASK(13 + (((_n) % 2) << 4), ((_n) % 2) << 4)
 
 #define REG_PPE_RAM_CTRL(_n)			(((_n) ? PPE2_BASE : PPE1_BASE) + 0x31c)
 #define PPE_SRAM_CTRL_ACK_MASK			BIT(31)
@@ -376,6 +375,10 @@
 
 #define REG_SRC_PORT_FC_MAP6		0x2298
 #define FC_ID_OF_SRC_PORT_MASK(_n)	GENMASK(4 + ((_n) << 3), ((_n) << 3))
+
+#define REG_WAN_MTU0			0x2300
+#define WAN_MTU1_MASK			GENMASK(29, 16)
+#define WAN_MTU0_MASK			GENMASK(13, 0)
 
 #define REG_CDM5_RX_OQ1_DROP_CNT	0x29d4
 

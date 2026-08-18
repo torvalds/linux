@@ -20,11 +20,11 @@
 #include "cs35l41.h"
 
 static const struct i2c_device_id cs35l41_id_i2c[] = {
-	{ "cs35l40" },
-	{ "cs35l41" },
-	{ "cs35l51" },
-	{ "cs35l53" },
-	{}
+	{ .name = "cs35l40" },
+	{ .name = "cs35l41" },
+	{ .name = "cs35l51" },
+	{ .name = "cs35l53" },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, cs35l41_id_i2c);

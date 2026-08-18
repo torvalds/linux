@@ -1366,4 +1366,219 @@ struct mxl862xx_rmon_port_cnt {
 	__le64 tx_good_bytes;
 } __packed;
 
+/* XPCS interface mode, MXL862XX_XPCS_*_INTERFACE field values */
+#define MXL862XX_XPCS_IF_SGMII		0
+#define MXL862XX_XPCS_IF_1000BASEX	1
+#define MXL862XX_XPCS_IF_2500BASEX	2
+#define MXL862XX_XPCS_IF_USXGMII	3	/* single or quad */
+#define MXL862XX_XPCS_IF_10GBASER	4
+#define MXL862XX_XPCS_IF_10GKR		5	/* 10GBASE-KR */
+#define MXL862XX_XPCS_IF_5GBASER	6
+#define MXL862XX_XPCS_IF_QSGMII		7
+
+/* PCS negotiation mode, MXL862XX_XPCS_CFG_NEG_MODE field values */
+#define MXL862XX_XPCS_NEG_NONE		0	/* no inband negotiation */
+#define MXL862XX_XPCS_NEG_INBAND_AN_OFF	1	/* inband, AN disabled */
+#define MXL862XX_XPCS_NEG_INBAND_AN_ON	2	/* inband, AN enabled */
+
+/*
+ * PCS protocol role, MXL862XX_XPCS_CFG_ROLE field value. Selects the role
+ * the XPCS plays in protocols with an asymmetric AN code word (Cisco SGMII
+ * / QSGMII / USXGMII), driving VR_MII_AN_CTRL.TX_CONFIG: MAC means the
+ * local end receives the partner's AN word, PHY means it sources one.
+ * Ignored for symmetric protocols (1000BASE-X, 2500BASE-X, 10GBASE-R/KR).
+ */
+#define MXL862XX_XPCS_ROLE_MAC		0	/* local end is MAC side */
+#define MXL862XX_XPCS_ROLE_PHY		1	/* local end is PHY side */
+
+/* USXGMII lane mode, MXL862XX_XPCS_*_USX_LANE_MODE field values */
+#define MXL862XX_XPCS_USX_SINGLE	0	/* single USXGMII lane */
+#define MXL862XX_XPCS_USX_QUAD		1	/* quad USXGMII, 4 ports/lane */
+
+/**
+ * union mxl862xx_xpcs_an_word - XPCS AN code word, tagged by interface mode
+ * @cl37: 16-bit base-page word exchanged over the CL37 hardware AN path
+ *        (SR_MII_AN_ADV on write, SR_MII_LP_BABL on read). Carries the
+ *        802.3 CL37 base page for 1000BASE-X/2500BASE-X and the Cisco
+ *        SGMII config word for SGMII/QSGMII.
+ * @usx: USXGMII 16-bit AN code word, MDIO_USXGMII_* layout
+ * @cl73: CL73 48-bit base page (10GBASE-KR), three 16-bit registers per
+ *        802.3 Annex 28C
+ * @cl73.adv1: CL73 SR_AN_ADV1 / SR_AN_LP_ABL1
+ * @cl73.adv2: CL73 SR_AN_ADV2 / SR_AN_LP_ABL2
+ * @cl73.adv3: CL73 SR_AN_ADV3 / SR_AN_LP_ABL3
+ *
+ * The host picks the right member based on the interface field of the
+ * surrounding struct (and, for the asymmetric protocols, on the role).
+ */
+union mxl862xx_xpcs_an_word {
+	__le16 cl37;
+	__le16 usx;
+	struct {
+		__le16 adv1;
+		__le16 adv2;
+		__le16 adv3;
+	} cl73;
+} __packed;
+
+/* PCS duplex mode, MXL862XX_XPCS_*_DUPLEX field values */
+#define MXL862XX_XPCS_DUPLEX_HALF	0
+#define MXL862XX_XPCS_DUPLEX_FULL	1
+
+/**
+ * enum mxl862xx_xpcs_loopback_mode - XPCS loopback mode
+ * @MXL862XX_XPCS_LB_DISABLE: disable all loopback
+ * @MXL862XX_XPCS_LB_PCS_SERIAL: PCS TX-to-RX serial loopback
+ * @MXL862XX_XPCS_LB_PCS_PARALLEL: PCS RX-to-TX parallel loopback
+ * @MXL862XX_XPCS_LB_PMA_SERIAL: PMA TX-to-RX serial loopback
+ * @MXL862XX_XPCS_LB_PMA_PARALLEL: PMA RX-to-TX parallel loopback
+ */
+enum mxl862xx_xpcs_loopback_mode {
+	MXL862XX_XPCS_LB_DISABLE = 0,
+	MXL862XX_XPCS_LB_PCS_SERIAL = 1,
+	MXL862XX_XPCS_LB_PCS_PARALLEL = 2,
+	MXL862XX_XPCS_LB_PMA_SERIAL = 3,
+	MXL862XX_XPCS_LB_PMA_PARALLEL = 4,
+};
+
+/* Fields of mxl862xx_xpcs_pcs_cfg.mode */
+#define MXL862XX_XPCS_CFG_PORT_ID	GENMASK(1, 0)
+#define MXL862XX_XPCS_CFG_INTERFACE	GENMASK(7, 2)
+#define MXL862XX_XPCS_CFG_NEG_MODE	GENMASK(9, 8)
+#define MXL862XX_XPCS_CFG_PERMIT_PAUSE	BIT(10)
+#define MXL862XX_XPCS_CFG_USX_LANE_MODE	GENMASK(12, 11)
+#define MXL862XX_XPCS_CFG_ROLE		BIT(13)
+#define MXL862XX_XPCS_CFG_USX_SUBPORT	GENMASK(15, 14)
+
+/**
+ * struct mxl862xx_xpcs_pcs_cfg - PCS configuration parameters
+ * @mode: Packed interface and negotiation parameters, see
+ *        MXL862XX_XPCS_CFG_*. port_id is the XPCS port index (0-3);
+ *        interface is the PCS interface mode (MXL862XX_XPCS_IF_*);
+ *        neg_mode is the negotiation mode (MXL862XX_XPCS_NEG_*);
+ *        permit_pause allows pause to MAC; usx_lane_mode is the USXGMII
+ *        lane mode (MXL862XX_XPCS_USX_*); role is the protocol role
+ *        (MXL862XX_XPCS_ROLE_*); usx_subport is the sub-port (0-3) within
+ *        the XPCS -- despite the name it also identifies the QSGMII
+ *        sub-port -- used by the firmware to set MAC pause per sub-port
+ *        and ignored for the XPCS-wide bringup, which is idempotent across
+ *        slots.
+ * @advertising: AN code word the local end transmits. The active union
+ *               member is selected by the interface field (and, for the
+ *               asymmetric protocols, by role). Ignored when the local end
+ *               does not transmit an AN word (role=MAC for SGMII/QSGMII/
+ *               USXGMII, 10GBASE-R, 5GBASE-R) or when neg_mode is not
+ *               INBAND_AN_ON. Pass all-zero to keep the firmware default
+ *               advertisement.
+ * @result: Firmware result. >0 means the host must follow with an AN
+ *          restart, 0 means no host follow-up is needed, <0 is an errno.
+ */
+struct mxl862xx_xpcs_pcs_cfg {
+	__le16 mode;
+	union mxl862xx_xpcs_an_word advertising;
+	__le16 result;
+} __packed;
+
+/* Fields of mxl862xx_xpcs_pcs_state.mode */
+#define MXL862XX_XPCS_ST_PORT_ID	GENMASK(1, 0)
+#define MXL862XX_XPCS_ST_INTERFACE	GENMASK(7, 2)
+#define MXL862XX_XPCS_ST_USX_LANE_MODE	GENMASK(9, 8)
+#define MXL862XX_XPCS_ST_USX_SUBPORT	GENMASK(11, 10)
+#define MXL862XX_XPCS_ST_LINK		BIT(12)
+#define MXL862XX_XPCS_ST_AN_COMPLETE	BIT(13)
+#define MXL862XX_XPCS_ST_DUPLEX		BIT(14)
+#define MXL862XX_XPCS_ST_PCS_FAULT	BIT(15)
+#define MXL862XX_XPCS_ST_PAUSE		GENMASK(17, 16)
+#define MXL862XX_XPCS_ST_LP_EEE_CAP	BIT(18)
+#define MXL862XX_XPCS_ST_LP_EEE_CS_CAP	BIT(19)
+
+/**
+ * struct mxl862xx_xpcs_pcs_state - PCS link state
+ * @mode: Packed input parameters and firmware status, see
+ *        MXL862XX_XPCS_ST_*. The host writes port_id (XPCS port index 0-3),
+ *        interface (MXL862XX_XPCS_IF_*), usx_lane_mode
+ *        (MXL862XX_XPCS_USX_*) and usx_subport (0-3); the firmware fills in
+ *        link, an_complete, duplex (MXL862XX_XPCS_DUPLEX_*), pcs_fault,
+ *        pause (bit 0 symmetric, bit 1 asymmetric), lp_eee_cap and
+ *        lp_eee_cs_cap.
+ * @speed: Resolved speed in Mbit/s (output)
+ * @lpa: Link partner ability word (output). Same union as
+ *       &union mxl862xx_xpcs_an_word; the host picks the member based on
+ *       the interface field.
+ */
+struct mxl862xx_xpcs_pcs_state {
+	__le32 mode;
+	__le16 speed; /* Mbit/s */
+	union mxl862xx_xpcs_an_word lpa;
+} __packed;
+
+/**
+ * struct mxl862xx_xpcs_pcs_disable - PCS disable parameters
+ * @port_id: XPCS port index
+ * @__pad: padding
+ * @result: Firmware result. 0 on success, <0 on error.
+ *
+ * Asserts IDDQ + PHY + XPCS resets to power down the SERDES when the
+ * port is admin-down or no module is plugged in. The next PCS config
+ * implicitly powers it back up and reprograms the desired interface.
+ */
+struct mxl862xx_xpcs_pcs_disable {
+	u8 port_id;
+	u8 __pad;
+	__le16 result;
+} __packed;
+
+/* Fields of mxl862xx_xpcs_an_restart.mode */
+#define MXL862XX_XPCS_ANR_PORT_ID	GENMASK(1, 0)
+#define MXL862XX_XPCS_ANR_INTERFACE	GENMASK(7, 2)
+#define MXL862XX_XPCS_ANR_USX_LANE_MODE	GENMASK(9, 8)
+#define MXL862XX_XPCS_ANR_USX_SUBPORT	GENMASK(11, 10)
+
+/**
+ * struct mxl862xx_xpcs_an_restart - AN restart parameters
+ * @mode: Packed input parameters, see MXL862XX_XPCS_ANR_*. port_id is the
+ *        XPCS port index (0-3); interface is the PCS interface mode
+ *        (MXL862XX_XPCS_IF_*); usx_lane_mode is the USX lane mode
+ *        (MXL862XX_XPCS_USX_*); usx_subport (0-3) selects the lane whose
+ *        AN is restarted for QSGMII and QUSXGMII and is ignored by
+ *        single-lane modes.
+ * @result: Firmware result. 0 on success, <0 on error.
+ *
+ * Restarts auto-negotiation on a single sub-port of the XPCS. The
+ * SERDES must already be configured.
+ */
+struct mxl862xx_xpcs_an_restart {
+	__le16 mode;
+	__le16 result;
+} __packed;
+
+/* Fields of mxl862xx_xpcs_pcs_link_up.mode */
+#define MXL862XX_XPCS_LU_PORT_ID	GENMASK(1, 0)
+#define MXL862XX_XPCS_LU_INTERFACE	GENMASK(7, 2)
+#define MXL862XX_XPCS_LU_DUPLEX		BIT(8)
+#define MXL862XX_XPCS_LU_USX_LANE_MODE	GENMASK(10, 9)
+#define MXL862XX_XPCS_LU_USX_SUBPORT	GENMASK(12, 11)
+
+/**
+ * struct mxl862xx_xpcs_pcs_link_up - PCS link-up parameters
+ * @mode: Packed input parameters, see MXL862XX_XPCS_LU_*. port_id is the
+ *        XPCS port index (0-3); interface is the PCS interface mode
+ *        (MXL862XX_XPCS_IF_*); duplex is the duplex mode
+ *        (MXL862XX_XPCS_DUPLEX_*); usx_lane_mode is the USX lane mode
+ *        (USXGMII only, ignored otherwise, MXL862XX_XPCS_USX_*);
+ *        usx_subport (0-3) selects the sub-port for QUSXGMII and QSGMII
+ *        (despite the name) and is ignored otherwise.
+ * @speed: Resolved speed in Mbit/s
+ * @result: Firmware result. 0 on success, <0 is errno.
+ *
+ * Called once per link-up event after the host has resolved the
+ * line-side speed/duplex (from the PHY's read_status, from a preceding
+ * PCS get-state, or from a fixed-link description).
+ */
+struct mxl862xx_xpcs_pcs_link_up {
+	__le16 mode;
+	__le16 speed; /* Mbit/s */
+	__le16 result;
+} __packed;
+
 #endif /* __MXL862XX_API_H */

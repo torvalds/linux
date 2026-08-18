@@ -33,15 +33,16 @@ TRACE_EVENT(tmigr_group_set,
 
 TRACE_EVENT(tmigr_connect_child_parent,
 
-	TP_PROTO(struct tmigr_group *child),
+	TP_PROTO(struct tmigr_hierarchy *hier, struct tmigr_group *child),
 
-	TP_ARGS(child),
+	TP_ARGS(hier, child),
 
 	TP_STRUCT__entry(
 		__field( void *,	child		)
 		__field( void *,	parent		)
 		__field( unsigned int,	lvl		)
 		__field( unsigned int,	numa_node	)
+		__field( unsigned int,	capacity	)
 		__field( unsigned int,	num_children	)
 		__field( u32,		groupmask	)
 	),
@@ -51,26 +52,28 @@ TRACE_EVENT(tmigr_connect_child_parent,
 		__entry->parent		= child->parent;
 		__entry->lvl		= child->parent->level;
 		__entry->numa_node	= child->parent->numa_node;
+		__entry->capacity	= hier->capacity;
 		__entry->num_children	= child->parent->num_children;
 		__entry->groupmask	= child->groupmask;
 	),
 
-	TP_printk("group=%p groupmask=%0x parent=%p lvl=%d numa=%d num_children=%d",
-		  __entry->child,  __entry->groupmask, __entry->parent,
-		  __entry->lvl, __entry->numa_node, __entry->num_children)
+	TP_printk("group=%p groupmask=%0x parent=%p lvl=%d numa=%d capacity=%d num_children=%d",
+		  __entry->child,  __entry->groupmask, __entry->parent, __entry->lvl,
+		  __entry->numa_node, __entry->capacity, __entry->num_children)
 );
 
 TRACE_EVENT(tmigr_connect_cpu_parent,
 
-	TP_PROTO(struct tmigr_cpu *tmc),
+	TP_PROTO(struct tmigr_hierarchy *hier, struct tmigr_cpu *tmc),
 
-	TP_ARGS(tmc),
+	TP_ARGS(hier, tmc),
 
 	TP_STRUCT__entry(
 		__field( void *,	parent		)
 		__field( unsigned int,	cpu		)
 		__field( unsigned int,	lvl		)
 		__field( unsigned int,	numa_node	)
+		__field( unsigned int,	capacity	)
 		__field( unsigned int,	num_children	)
 		__field( u32,		groupmask	)
 	),
@@ -80,13 +83,14 @@ TRACE_EVENT(tmigr_connect_cpu_parent,
 		__entry->cpu		= tmc->cpuevt.cpu;
 		__entry->lvl		= tmc->tmgroup->level;
 		__entry->numa_node	= tmc->tmgroup->numa_node;
+		__entry->capacity	= hier->capacity;
 		__entry->num_children	= tmc->tmgroup->num_children;
 		__entry->groupmask	= tmc->groupmask;
 	),
 
-	TP_printk("cpu=%d groupmask=%0x parent=%p lvl=%d numa=%d num_children=%d",
-		  __entry->cpu,	 __entry->groupmask, __entry->parent,
-		  __entry->lvl, __entry->numa_node, __entry->num_children)
+	TP_printk("cpu=%d groupmask=%0x parent=%p lvl=%d numa=%d capacity=%d num_children=%d",
+		  __entry->cpu,	 __entry->groupmask, __entry->parent, __entry->lvl,
+		  __entry->numa_node, __entry->capacity, __entry->num_children)
 );
 
 DECLARE_EVENT_CLASS(tmigr_group_and_cpu,

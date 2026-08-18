@@ -813,6 +813,21 @@ static void wbt_queue_depth_changed(struct rq_qos *rqos)
 	wbt_update_limits(RQWB(rqos));
 }
 
+static bool wbt_set_lat_changed(struct request_queue *q, u64 val)
+{
+	struct rq_qos *rqos = wbt_rq_qos(q);
+	struct rq_wb *rwb;
+
+	if (!rqos)
+		return true;
+
+	rwb = RQWB(rqos);
+	if (rwb->min_lat_nsec != val)
+		return true;
+
+	return rwb_enabled(rwb) != !!val;
+}
+
 static void wbt_exit(struct rq_qos *rqos)
 {
 	struct rq_wb *rwb = RQWB(rqos);
@@ -1005,8 +1020,12 @@ int wbt_set_lat(struct gendisk *disk, s64 val)
 	else if (val >= 0)
 		val *= 1000ULL;
 
-	if (wbt_get_min_lat(q) == val)
+	mutex_lock(&disk->rqos_state_mutex);
+	if (!wbt_set_lat_changed(q, val)) {
+		mutex_unlock(&disk->rqos_state_mutex);
 		goto out;
+	}
+	mutex_unlock(&disk->rqos_state_mutex);
 
 	blk_mq_quiesce_queue(q);
 

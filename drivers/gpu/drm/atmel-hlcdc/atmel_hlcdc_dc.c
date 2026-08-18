@@ -983,7 +983,7 @@ static int atmel_hlcdc_dc_drm_suspend(struct device *dev)
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
 	struct atmel_hlcdc_dc *dc = drm_dev->dev_private;
 	struct regmap *regmap = dc->hlcdc->regmap;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 
 	state = drm_atomic_helper_suspend(drm_dev);
 	if (IS_ERR(state))

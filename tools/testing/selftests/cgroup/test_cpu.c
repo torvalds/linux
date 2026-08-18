@@ -278,7 +278,7 @@ static int test_cpucg_nice(const char *root)
 		char buf[64];
 		snprintf(buf, sizeof(buf), "%d", getpid());
 		if (cg_write(cpucg, "cgroup.procs", buf))
-			goto cleanup;
+			exit(EXIT_FAILURE);
 
 		/* Try to keep niced CPU usage as constrained to hog_cpu as possible */
 		nice(1);

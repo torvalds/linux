@@ -45,9 +45,9 @@ static u32 pit_cnt;
 
 static int cf_pit_set_periodic(struct clock_event_device *evt)
 {
-	__raw_writew(MCFPIT_PCSR_DISABLE, TA(MCFPIT_PCSR));
-	__raw_writew(PIT_CYCLES_PER_JIFFY, TA(MCFPIT_PMR));
-	__raw_writew(MCFPIT_PCSR_EN | MCFPIT_PCSR_PIE |
+	mcf_write16(MCFPIT_PCSR_DISABLE, TA(MCFPIT_PCSR));
+	mcf_write16(PIT_CYCLES_PER_JIFFY, TA(MCFPIT_PMR));
+	mcf_write16(MCFPIT_PCSR_EN | MCFPIT_PCSR_PIE |
 		     MCFPIT_PCSR_OVW | MCFPIT_PCSR_RLD |
 		     MCFPIT_PCSR_CLK64, TA(MCFPIT_PCSR));
 	return 0;
@@ -55,15 +55,15 @@ static int cf_pit_set_periodic(struct clock_event_device *evt)
 
 static int cf_pit_set_oneshot(struct clock_event_device *evt)
 {
-	__raw_writew(MCFPIT_PCSR_DISABLE, TA(MCFPIT_PCSR));
-	__raw_writew(MCFPIT_PCSR_EN | MCFPIT_PCSR_PIE |
+	mcf_write16(MCFPIT_PCSR_DISABLE, TA(MCFPIT_PCSR));
+	mcf_write16(MCFPIT_PCSR_EN | MCFPIT_PCSR_PIE |
 		     MCFPIT_PCSR_OVW | MCFPIT_PCSR_CLK64, TA(MCFPIT_PCSR));
 	return 0;
 }
 
 static int cf_pit_shutdown(struct clock_event_device *evt)
 {
-	__raw_writew(MCFPIT_PCSR_DISABLE, TA(MCFPIT_PCSR));
+	mcf_write16(MCFPIT_PCSR_DISABLE, TA(MCFPIT_PCSR));
 	return 0;
 }
 
@@ -75,7 +75,7 @@ static int cf_pit_shutdown(struct clock_event_device *evt)
 static int cf_pit_next_event(unsigned long delta,
 		struct clock_event_device *evt)
 {
-	__raw_writew(delta, TA(MCFPIT_PMR));
+	mcf_write16(delta, TA(MCFPIT_PMR));
 	return 0;
 }
 
@@ -101,8 +101,8 @@ static irqreturn_t pit_tick(int irq, void *dummy)
 	u16 pcsr;
 
 	/* Reset the ColdFire timer */
-	pcsr = __raw_readw(TA(MCFPIT_PCSR));
-	__raw_writew(pcsr | MCFPIT_PCSR_PIF, TA(MCFPIT_PCSR));
+	pcsr = mcf_read16(TA(MCFPIT_PCSR));
+	mcf_write16(pcsr | MCFPIT_PCSR_PIF, TA(MCFPIT_PCSR));
 
 	pit_cnt += PIT_CYCLES_PER_JIFFY;
 	evt->event_handler(evt);
@@ -118,7 +118,7 @@ static u64 pit_read_clk(struct clocksource *cs)
 	u16 pcntr;
 
 	local_irq_save(flags);
-	pcntr = __raw_readw(TA(MCFPIT_PCNTR));
+	pcntr = mcf_read16(TA(MCFPIT_PCNTR));
 	cycles = pit_cnt;
 	local_irq_restore(flags);
 

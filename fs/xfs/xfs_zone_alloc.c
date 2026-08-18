@@ -21,6 +21,7 @@
 #include "xfs_rtbitmap.h"
 #include "xfs_rtrmap_btree.h"
 #include "xfs_zone_alloc.h"
+#include "xfs_sysfs.h"
 #include "xfs_zone_priv.h"
 #include "xfs_zones.h"
 #include "xfs_trace.h"
@@ -944,6 +945,14 @@ xfs_zone_rgbno_is_valid(
 			rtg_rgno(rtg), XFS_RTG_FREE);
 }
 
+void
+xfs_zone_mark_free(
+	struct xfs_rtgroup	*rtg)
+{
+	xfs_group_set_mark(rtg_group(rtg), XFS_RTG_FREE);
+	atomic_inc(&rtg_mount(rtg)->m_zone_info->zi_nr_free_zones);
+}
+
 static void
 xfs_free_open_zones(
 	struct xfs_zone_info	*zi)
@@ -1082,8 +1091,7 @@ xfs_init_zone(
 
 	if (write_pointer == 0) {
 		/* zone is empty */
-		atomic_inc(&zi->zi_nr_free_zones);
-		xfs_group_set_mark(rtg_group(rtg), XFS_RTG_FREE);
+		xfs_zone_mark_free(rtg);
 		iz->available += rtg_blocks(rtg);
 	} else if (write_pointer < rtg_blocks(rtg)) {
 		/* zone is open */
@@ -1413,11 +1421,17 @@ xfs_mount_zones(
 	if (error)
 		goto out_free_zone_info;
 
+	error = xfs_zoned_sysfs_init(mp);
+	if (error)
+		goto out_zone_gc_unmount;
+
 	xfs_info(mp, "%u zones of %u blocks (%u max open zones)",
 		 mp->m_sb.sb_rgcount, iz.zone_capacity, mp->m_max_open_zones);
 	trace_xfs_zones_mount(mp);
 	return 0;
 
+out_zone_gc_unmount:
+	xfs_zone_gc_unmount(mp);
 out_free_zone_info:
 	xfs_free_zone_info(mp->m_zone_info);
 	return error;
@@ -1427,6 +1441,7 @@ void
 xfs_unmount_zones(
 	struct xfs_mount	*mp)
 {
+	xfs_zoned_sysfs_del(mp);
 	xfs_zone_gc_unmount(mp);
 	xfs_free_zone_info(mp->m_zone_info);
 }
