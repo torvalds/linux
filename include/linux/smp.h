@@ -47,8 +47,7 @@ extern void __smp_call_single_queue(int cpu, struct llist_node *node);
 /* total number of cpus in this system (may exceed NR_CPUS) */
 extern unsigned int total_cpus;
 
-int smp_call_function_single(int cpuid, smp_call_func_t func, void *info,
-			     int wait);
+int smp_call_function_single(int cpuid, smp_call_func_t func, void *info, bool wait);
 
 void on_each_cpu_cond_mask(smp_cond_func_t cond_func, smp_call_func_t func,
 			   void *info, bool wait, const struct cpumask *mask);
@@ -238,6 +237,18 @@ static inline int get_boot_cpu_id(void)
 }
 
 #endif /* !SMP */
+
+#if defined(CONFIG_PREEMPTION) && defined(CONFIG_SMP)
+int smp_task_ipi_mask_alloc(struct task_struct *task);
+void smp_task_ipi_mask_free(struct task_struct *task);
+#else
+static inline int smp_task_ipi_mask_alloc(struct task_struct *task)
+{
+	return 0;
+}
+
+static inline void smp_task_ipi_mask_free(struct task_struct *task) { }
+#endif
 
 /*
  * raw_smp_processor_id() - get the current (unstable) CPU id

@@ -348,6 +348,8 @@ static void scftorture_invoke_one(struct scf_statistics *scfp, struct torture_ra
 	int ret = 0;
 	struct scf_check *scfcp = NULL;
 	struct scf_selector *scfsp = scf_sel_rand(trsp);
+	bool is_single = (scfsp->scfs_prim == SCF_PRIM_SINGLE ||
+			  scfsp->scfs_prim == SCF_PRIM_SINGLE_RPC);
 
 	if (scfsp->scfs_prim == SCF_PRIM_SINGLE || scfsp->scfs_wait) {
 		scfcp = kmalloc_obj(*scfcp, GFP_ATOMIC);
@@ -364,8 +366,6 @@ static void scftorture_invoke_one(struct scf_statistics *scfp, struct torture_ra
 	}
 	if (use_cpus_read_lock)
 		cpus_read_lock();
-	else
-		preempt_disable();
 	switch (scfsp->scfs_prim) {
 	case SCF_PRIM_RESCHED:
 		if (IS_BUILTIN(CONFIG_SCF_TORTURE_TEST)) {
@@ -411,13 +411,10 @@ static void scftorture_invoke_one(struct scf_statistics *scfp, struct torture_ra
 		if (!ret) {
 			if (use_cpus_read_lock)
 				cpus_read_unlock();
-			else
-				preempt_enable();
+
 			wait_for_completion(&scfcp->scfc_completion);
 			if (use_cpus_read_lock)
 				cpus_read_lock();
-			else
-				preempt_disable();
 		} else {
 			scfp->n_single_rpc_ofl++;
 			scf_add_to_free_list(scfcp);
@@ -452,7 +449,7 @@ static void scftorture_invoke_one(struct scf_statistics *scfp, struct torture_ra
 			scfcp->scfc_out = true;
 	}
 	if (scfcp && scfsp->scfs_wait) {
-		if (WARN_ON_ONCE((num_online_cpus() > 1 || scfsp->scfs_prim == SCF_PRIM_SINGLE) &&
+		if (WARN_ON_ONCE(((use_cpus_read_lock && num_online_cpus() > 1) || is_single) &&
 				 !scfcp->scfc_out)) {
 			pr_warn("%s: Memory-ordering failure, scfs_prim: %d.\n", __func__, scfsp->scfs_prim);
 			atomic_inc(&n_mb_out_errs); // Leak rather than trash!
@@ -463,8 +460,6 @@ static void scftorture_invoke_one(struct scf_statistics *scfp, struct torture_ra
 	}
 	if (use_cpus_read_lock)
 		cpus_read_unlock();
-	else
-		preempt_enable();
 	if (allocfail)
 		schedule_timeout_idle((1 + longwait) * HZ);  // Let no-wait handlers complete.
 	else if (!(torture_random(trsp) & 0xfff))
