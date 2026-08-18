@@ -13,7 +13,6 @@
 #include <linux/printk.h>
 #include <linux/smp.h>
 #include <linux/stddef.h>
-#include <linux/timex.h>
 
 unsigned long lpj_fine;
 unsigned long preset_lpj;
@@ -25,9 +24,9 @@ static int __init lpj_setup(char *str)
 
 __setup("lpj=", lpj_setup);
 
-#ifdef ARCH_HAS_READ_CURRENT_TIMER
+#ifdef CONFIG_ARCH_HAS_DELAY_TIMER
 
-/* This routine uses the read_current_timer() routine and gets the
+/* This routine uses the delay_read_timer() routine and gets the
  * loops per jiffy directly, instead of guessing it using delay().
  * Also, this code tries to handle non-maskable asynchronous events
  * (like SMIs)
@@ -48,13 +47,13 @@ static unsigned long calibrate_delay_direct(void)
 	int min = -1;
 	int i;
 
-	if (read_current_timer(&pre_start) < 0 )
+	if (!delay_read_timer(&pre_start))
 		return 0;
 
 	/*
 	 * A simple loop like
 	 *	while ( jiffies < start_jiffies+1)
-	 *		start = read_current_timer();
+	 *		start = delay_read_timer();
 	 * will not do. As we don't really know whether jiffy switch
 	 * happened first or timer_value was read first. And some asynchronous
 	 * event can happen between these two events introducing errors in lpj.
@@ -72,22 +71,22 @@ static unsigned long calibrate_delay_direct(void)
 
 	for (i = 0; i < MAX_DIRECT_CALIBRATION_RETRIES; i++) {
 		pre_start = 0;
-		read_current_timer(&start);
+		delay_read_timer(&start);
 		start_jiffies = jiffies;
 		while (time_before_eq(jiffies, start_jiffies + 1)) {
 			pre_start = start;
-			read_current_timer(&start);
+			delay_read_timer(&start);
 		}
-		read_current_timer(&post_start);
+		delay_read_timer(&post_start);
 
 		pre_end = 0;
 		end = post_start;
 		while (time_before_eq(jiffies, start_jiffies + 1 +
 					       DELAY_CALIBRATION_TICKS)) {
 			pre_end = end;
-			read_current_timer(&end);
+			delay_read_timer(&end);
 		}
-		read_current_timer(&post_end);
+		delay_read_timer(&post_end);
 
 		timer_rate_max = (post_end - pre_start) /
 					DELAY_CALIBRATION_TICKS;

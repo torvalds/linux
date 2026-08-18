@@ -156,8 +156,6 @@ extern int do_clock_adjtime(const clockid_t which_clock, struct __kernel_timex *
 
 extern void hardpps(const struct timespec64 *, const struct timespec64 *);
 
-int read_current_timer(unsigned long *timer_val);
-
 /* The clock frequency of the i8253/i8254 PIT */
 #define PIT_TICK_RATE 1193182ul
 
