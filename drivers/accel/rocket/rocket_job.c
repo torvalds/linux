@@ -562,6 +562,9 @@ int rocket_job_open(struct rocket_file_priv *rocket_priv)
 	unsigned int core;
 	int ret;
 
+	if (!scheds)
+		return -ENOMEM;
+
 	for (core = 0; core < rdev->num_cores; core++)
 		scheds[core] = &rdev->cores[core].sched;
 
@@ -570,9 +573,9 @@ int rocket_job_open(struct rocket_file_priv *rocket_priv)
 				    scheds,
 				    rdev->num_cores, NULL);
 	if (WARN_ON(ret))
-		return ret;
+		kfree(scheds);
 
-	return 0;
+	return ret;
 }
 
 void rocket_job_close(struct rocket_file_priv *rocket_priv)
