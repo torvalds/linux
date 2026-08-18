@@ -181,6 +181,25 @@ static int ufs_intel_lkf_pwr_change_notify(struct ufs_hba *hba,
 	return err;
 }
 
+static int ufs_intel_nvl_pwr_change_notify(struct ufs_hba *hba,
+					   enum ufs_notify_change_status stage,
+					   struct ufs_pa_layer_attr *dev_req_params)
+{
+	int adapt_val;
+
+	if (stage != PRE_CHANGE || hba->ufs_version < ufshci_version(4, 0))
+		return 0;
+
+	if (dev_req_params->pwr_tx == FAST_MODE || dev_req_params->pwr_tx == FASTAUTO_MODE)
+		adapt_val = PA_INITIAL_ADAPT;
+	else
+		adapt_val = PA_NO_ADAPT;
+
+	ufshcd_dme_configure_adapt(hba, dev_req_params->gear_tx, adapt_val);
+
+	return 0;
+}
+
 static int ufs_intel_lkf_apply_dev_quirks(struct ufs_hba *hba)
 {
 	u32 granularity, peer_granularity;
@@ -527,6 +546,7 @@ static struct ufs_hba_variant_ops ufs_intel_mtl_hba_vops = {
 	.exit			= ufs_intel_common_exit,
 	.hce_enable_notify	= ufs_intel_hce_enable_notify,
 	.link_startup_notify	= ufs_intel_link_startup_notify,
+	.pwr_change_notify	= ufs_intel_nvl_pwr_change_notify,
 	.resume			= ufs_intel_resume,
 	.device_reset		= ufs_intel_device_reset,
 };
