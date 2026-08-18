@@ -66,6 +66,22 @@ static bool dpll_pin_available(struct dpll_pin *pin)
 	return false;
 }
 
+static bool dpll_device_registered(struct dpll_device *dpll)
+{
+	return dpll_device_ops(dpll);
+}
+
+static struct dpll_pin_ref *dpll_pin_first_registered_ref(struct dpll_pin *pin)
+{
+	struct dpll_pin_ref *ref;
+	unsigned long i;
+
+	xa_for_each(&pin->dpll_refs, i, ref)
+		if (dpll_device_registered(ref->dpll))
+			return ref;
+	return NULL;
+}
+
 /**
  * dpll_msg_add_pin_handle - attach pin handle attribute to a given message
  * @msg: pointer to sk_buff message to attach a pin handle
@@ -656,6 +672,8 @@ dpll_msg_add_pin_dplls(struct sk_buff *msg, struct dpll_pin *pin,
 	int ret;
 
 	xa_for_each(&pin->dpll_refs, index, ref) {
+		if (!dpll_device_registered(ref->dpll))
+			continue;
 		attr = nla_nest_start(msg, DPLL_A_PIN_PARENT_DEVICE);
 		if (!attr)
 			return -EMSGSIZE;
@@ -700,9 +718,10 @@ dpll_cmd_pin_get_one(struct sk_buff *msg, struct dpll_pin *pin,
 	int ret;
 
 	ref = dpll_pin_own_dpll_ref_first(pin);
+	if (!ref || !dpll_device_registered(ref->dpll))
+		ref = dpll_pin_first_registered_ref(pin);
 	if (!ref)
-		ref = dpll_xa_ref_dpll_first(&pin->dpll_refs);
-	ASSERT_NOT_NULL(ref);
+		return -ENODEV;
 
 	ret = dpll_msg_add_pin_handle(msg, pin);
 	if (ret)
@@ -1090,7 +1109,7 @@ dpll_pin_freq_set(struct dpll_pin *pin, struct nlattr *a,
 	}
 
 	ref = dpll_pin_own_dpll_ref_first(pin);
-	if (!ref) {
+	if (!ref || !dpll_device_registered(ref->dpll)) {
 		NL_SET_ERR_MSG(extack, "pin owner dpll not found");
 		return -ENODEV;
 	}
@@ -1136,7 +1155,7 @@ dpll_pin_esync_set(struct dpll_pin *pin, struct nlattr *a,
 	int ret, i;
 
 	ref = dpll_pin_own_dpll_ref_first(pin);
-	if (!ref) {
+	if (!ref || !dpll_device_registered(ref->dpll)) {
 		NL_SET_ERR_MSG(extack, "pin owner dpll not found");
 		return -ENODEV;
 	}
@@ -1201,7 +1220,7 @@ dpll_pin_ref_sync_state_set(struct dpll_pin *pin,
 		return -EINVAL;
 	}
 	ref = dpll_pin_own_dpll_ref_first(pin);
-	if (!ref) {
+	if (!ref || !dpll_device_registered(ref->dpll)) {
 		NL_SET_ERR_MSG(extack, "pin owner dpll not found");
 		return -ENODEV;
 	}
@@ -1416,7 +1435,7 @@ dpll_pin_phase_adj_set(struct dpll_pin *pin, struct nlattr *phase_adj_attr,
 	}
 
 	ref = dpll_pin_own_dpll_ref_first(pin);
-	if (!ref) {
+	if (!ref || !dpll_device_registered(ref->dpll)) {
 		NL_SET_ERR_MSG(extack, "pin owner dpll not found");
 		return -ENODEV;
 	}
@@ -1468,7 +1487,7 @@ dpll_pin_parent_device_set(struct dpll_pin *pin, struct nlattr *parent_nest,
 		return -EINVAL;
 	}
 	pdpll_idx = nla_get_u32(tb[DPLL_A_PIN_PARENT_ID]);
-	dpll = xa_load(&dpll_device_xa, pdpll_idx);
+	dpll = dpll_device_get_by_id(pdpll_idx);
 	if (!dpll) {
 		NL_SET_ERR_MSG(extack, "parent device not found");
 		return -EINVAL;
@@ -1760,6 +1779,10 @@ int dpll_nl_pin_get_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 		ret = dpll_cmd_pin_get_one(skb, pin, cb->extack);
 		if (ret) {
 			genlmsg_cancel(skb, hdr);
+			if (ret == -ENODEV) {
+				ret = 0;
+				continue;
+			}
 			break;
 		}
 		genlmsg_end(skb, hdr);
