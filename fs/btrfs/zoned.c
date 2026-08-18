@@ -2710,6 +2710,7 @@ int btrfs_zone_finish_endio(struct btrfs_fs_info *fs_info, u64 logical, u64 leng
 {
 	struct btrfs_block_group *block_group;
 	u64 min_alloc_bytes;
+	int ret = 0;
 
 	if (!btrfs_is_zoned(fs_info))
 		return 0;
@@ -2729,11 +2730,11 @@ int btrfs_zone_finish_endio(struct btrfs_fs_info *fs_info, u64 logical, u64 leng
 	    block_group->start + block_group->zone_capacity)
 		goto out;
 
-	do_zone_finish(block_group, true);
+	ret = do_zone_finish(block_group, true);
 
 out:
 	btrfs_put_block_group(block_group);
-	return 0;
+	return ret;
 }
 
 static void btrfs_zone_finish_endio_workfn(struct work_struct *work)
