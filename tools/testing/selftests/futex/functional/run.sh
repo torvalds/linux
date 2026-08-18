@@ -51,3 +51,6 @@ echo
 
 echo
 ./futex_numa_mpol
+
+echo
+./futex_lock_pi_exiting

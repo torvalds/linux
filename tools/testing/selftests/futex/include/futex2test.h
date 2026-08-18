@@ -5,7 +5,9 @@
  * Copyright 2021 Collabora Ltd.
  */
 #include <linux/time_types.h>
+#include <errno.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 #define u64_to_ptr(x) ((void *)(uintptr_t)(x))
 
@@ -95,4 +97,12 @@ static inline int futex2_wait(void *uaddr, long val, unsigned int flags,
 static inline int futex2_wake(void *uaddr, int nr, unsigned int flags)
 {
 	return syscall(__NR_futex_wake, uaddr, ~0U, nr, flags);
+}
+
+static inline bool is_futex_waitv_supported(void)
+{
+	struct timespec ts = {0, 0};
+	int res = futex_waitv(NULL, 0, 0, &ts, CLOCK_MONOTONIC);
+
+	return !(res < 0 && errno == ENOSYS);
 }

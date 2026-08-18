@@ -26,6 +26,7 @@
 #include <pthread.h>
 #include <libgen.h>
 #include <signal.h>
+#include <string.h>
 
 #include "futextest.h"
 #include "kselftest_harness.h"
@@ -41,17 +42,22 @@ struct timespec wait_timeout = { .tv_sec = 5, .tv_nsec = 0};
 
 void *thr_futex_wait(void *arg)
 {
+	struct __test_metadata *_metadata = (struct __test_metadata *)arg;
 	int ret;
 
-	ksft_print_dbg_msg("futex wait\n");
+	TH_LOG("futex wait");
 	ret = futex_wait(&val, 1, &wait_timeout, 0);
-	if (ret && errno != EWOULDBLOCK && errno != ETIMEDOUT)
-		ksft_exit_fail_msg("futex error.\n");
+	if (ret && errno != EWOULDBLOCK && errno != ETIMEDOUT) {
+		ASSERT_TRUE(0)
+			TH_LOG("futex error: %s", strerror(errno));
+	}
 
-	if (ret && errno == ETIMEDOUT)
-		ksft_exit_fail_msg("waiter timedout\n");
+	if (ret && errno == ETIMEDOUT) {
+		ASSERT_TRUE(0)
+			TH_LOG("waiter timedout");
+	}
 
-	ksft_print_dbg_msg("futex_wait: ret = %d, errno = %d\n", ret, errno);
+	TH_LOG("futex_wait: ret = %d, errno = %d", ret, errno);
 
 	return NULL;
 }
@@ -61,22 +67,20 @@ TEST(wait_private_mapped_file)
 	pthread_t thr;
 	int res;
 
-	res = pthread_create(&thr, NULL, thr_futex_wait, NULL);
-	if (res < 0)
-		ksft_exit_fail_msg("pthread_create error\n");
+	res = pthread_create(&thr, NULL, thr_futex_wait, _metadata);
+	ASSERT_EQ(res, 0)
+		TH_LOG("pthread_create error");
 
-	ksft_print_dbg_msg("wait a while\n");
+	TH_LOG("wait a while");
 	usleep(WAKE_WAIT_US);
 	val = 2;
 	res = futex_wake(&val, 1, 0);
-	ksft_print_dbg_msg("futex_wake %d\n", res);
-	if (res != 1)
-		ksft_exit_fail_msg("FUTEX_WAKE didn't find the waiting thread.\n");
+	TH_LOG("futex_wake %d", res);
+	EXPECT_EQ(res, 1)
+		TH_LOG("FUTEX_WAKE didn't find the waiting thread");
 
-	ksft_print_dbg_msg("join\n");
+	TH_LOG("join");
 	pthread_join(thr, NULL);
-
-	ksft_test_result_pass("wait_private_mapped_file");
 }
 
 TEST_HARNESS_MAIN

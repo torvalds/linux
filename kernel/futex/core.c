@@ -1780,8 +1780,7 @@ void futex_hash_free(struct mm_struct *mm)
 	free_percpu(mm->futex.phash.ref);
 	kvfree(mm->futex.phash.hash_new);
 	fph = rcu_dereference_raw(mm->futex.phash.hash);
-	if (fph)
-		kvfree(fph);
+	kvfree(fph);
 }
 
 static bool futex_pivot_pending(struct mm_struct *mm)

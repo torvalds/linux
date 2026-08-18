@@ -35,10 +35,10 @@ futex_t f1 = FUTEX_INITIALIZER;
 futex_t f2 = FUTEX_INITIALIZER;
 atomic_t requeued = ATOMIC_INITIALIZER;
 
-int waiter_ret = 0;
+int waiter_ret;
 
-int create_rt_thread(pthread_t *pth, void*(*func)(void *), void *arg,
-		     int policy, int prio)
+int create_rt_thread(struct __test_metadata *_metadata, pthread_t *pth, void*(*func)(void *),
+		     void *arg, int policy, int prio)
 {
 	struct sched_param schedp;
 	pthread_attr_t attr;
@@ -48,52 +48,53 @@ int create_rt_thread(pthread_t *pth, void*(*func)(void *), void *arg,
 	memset(&schedp, 0, sizeof(schedp));
 
 	ret = pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
-	if (ret)
-		ksft_exit_fail_msg("pthread_attr_setinheritsched\n");
+	ASSERT_EQ(ret, 0)
+		TH_LOG("pthread_attr_setinheritsched failed");
 
 	ret = pthread_attr_setschedpolicy(&attr, policy);
-	if (ret)
-		ksft_exit_fail_msg("pthread_attr_setschedpolicy\n");
+	ASSERT_EQ(ret, 0)
+		TH_LOG("pthread_attr_setschedpolicy failed");
 
 	schedp.sched_priority = prio;
 	ret = pthread_attr_setschedparam(&attr, &schedp);
-	if (ret)
-		ksft_exit_fail_msg("pthread_attr_setschedparam\n");
+	ASSERT_EQ(ret, 0)
+		TH_LOG("pthread_attr_setschedparam failed");
 
 	ret = pthread_create(pth, &attr, func, arg);
-	if (ret)
-		ksft_exit_fail_msg("pthread_create\n");
+	ASSERT_EQ(ret, 0)
+		TH_LOG("pthread_create failed");
 
 	return 0;
 }
 
 void handle_signal(int signo)
 {
-	ksft_print_dbg_msg("signal received %s requeue\n",
-	     requeued.val ? "after" : "prior to");
+	printf("INFO: signal received %s requeue\n", requeued.val ? "after" : "prior to");
 }
 
 void *waiterfn(void *arg)
 {
+	struct __test_metadata *_metadata = (struct __test_metadata *)arg;
 	unsigned int old_val;
 	int res;
 
-	ksft_print_dbg_msg("Waiter running\n");
-	ksft_print_dbg_msg("Calling FUTEX_LOCK_PI on f2=%x @ %p\n", f2, &f2);
+	TH_LOG("Waiter running");
+	TH_LOG("Calling FUTEX_LOCK_PI on f2=%x @ %p", f2, &f2);
 	old_val = f1;
 	res = futex_wait_requeue_pi(&f1, old_val, &(f2), NULL,
 				    FUTEX_PRIVATE_FLAG);
 	if (!requeued.val || errno != EWOULDBLOCK) {
-		ksft_test_result_fail("unexpected return from futex_wait_requeue_pi: %d (%s)\n",
-		     res, strerror(errno));
-		ksft_print_dbg_msg("w2:futex: %x\n", f2);
+		EXPECT_TRUE(0) {
+			TH_LOG("unexpected return from futex_wait_requeue_pi: %d (%s)",
+			       res, strerror(errno));
+		}
+		TH_LOG("w2:futex: %x", f2);
 		if (!res)
 			futex_unlock_pi(&f2, FUTEX_PRIVATE_FLAG);
 	}
 
 	pthread_exit(NULL);
 }
-
 
 TEST(futex_requeue_pi_signal_restart)
 {
@@ -105,19 +106,17 @@ TEST(futex_requeue_pi_signal_restart)
 	sa.sa_handler = handle_signal;
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = 0;
-	if (sigaction(SIGUSR1, &sa, NULL))
-		ksft_exit_fail_msg("sigaction\n");
+	ASSERT_EQ(sigaction(SIGUSR1, &sa, NULL), 0)
+		TH_LOG("sigaction failed");
 
-	ksft_print_dbg_msg("m1:f2: %x\n", f2);
-	ksft_print_dbg_msg("Creating waiter\n");
-	res = create_rt_thread(&waiter, waiterfn, NULL, SCHED_FIFO, 1);
-	if (res)
-		ksft_exit_fail_msg("Creating waiting thread failed");
+	TH_LOG("m1:f2: %x", f2);
+	TH_LOG("Creating waiter");
+	create_rt_thread(_metadata, &waiter, waiterfn, _metadata, SCHED_FIFO, 1);
 
-	ksft_print_dbg_msg("Calling FUTEX_LOCK_PI on f2=%x @ %p\n", f2, &f2);
-	ksft_print_dbg_msg("m2:f2: %x\n", f2);
+	TH_LOG("Calling FUTEX_LOCK_PI on f2=%x @ %p", f2, &f2);
+	TH_LOG("m2:f2: %x", f2);
 	futex_lock_pi(&f2, 0, 0, FUTEX_PRIVATE_FLAG);
-	ksft_print_dbg_msg("m3:f2: %x\n", f2);
+	TH_LOG("m3:f2: %x", f2);
 
 	while (1) {
 		/*
@@ -125,11 +124,11 @@ TEST(futex_requeue_pi_signal_restart)
 		 * restart futex_wait_requeue_pi() in the kernel. Wait for the
 		 * waiter to block on f1 again.
 		 */
-		ksft_print_dbg_msg("Issuing SIGUSR1 to waiter\n");
+		TH_LOG("Issuing SIGUSR1 to waiter");
 		pthread_kill(waiter, SIGUSR1);
 		usleep(DELAY_US);
 
-		ksft_print_dbg_msg("Requeueing waiter via FUTEX_CMP_REQUEUE_PI\n");
+		TH_LOG("Requeueing waiter via FUTEX_CMP_REQUEUE_PI");
 		old_val = f1;
 		res = futex_cmp_requeue_pi(&f1, old_val, &(f2), 1, 0,
 					   FUTEX_PRIVATE_FLAG);
@@ -143,10 +142,11 @@ TEST(futex_requeue_pi_signal_restart)
 			atomic_set(&requeued, 1);
 			break;
 		} else if (res < 0) {
-			ksft_exit_fail_msg("FUTEX_CMP_REQUEUE_PI failed\n");
+			ASSERT_GE(res, 0)
+				TH_LOG("FUTEX_CMP_REQUEUE_PI failed: %s", strerror(errno));
 		}
 	}
-	ksft_print_dbg_msg("m4:f2: %x\n", f2);
+	TH_LOG("m4:f2: %x", f2);
 
 	/*
 	 * Signal the waiter after requeue, waiter should return from
@@ -154,14 +154,14 @@ TEST(futex_requeue_pi_signal_restart)
 	 * futex_unlock_pi() can't happen before the signal wakeup is detected
 	 * in the kernel.
 	 */
-	ksft_print_dbg_msg("Issuing SIGUSR1 to waiter\n");
+	TH_LOG("Issuing SIGUSR1 to waiter");
 	pthread_kill(waiter, SIGUSR1);
-	ksft_print_dbg_msg("Waiting for waiter to return\n");
+	TH_LOG("Waiting for waiter to return");
 	pthread_join(waiter, NULL);
 
-	ksft_print_dbg_msg("Calling FUTEX_UNLOCK_PI on mutex=%x @ %p\n", f2, &f2);
+	TH_LOG("Calling FUTEX_UNLOCK_PI on mutex=%x @ %p", f2, &f2);
 	futex_unlock_pi(&f2, FUTEX_PRIVATE_FLAG);
-	ksft_print_dbg_msg("m5:f2: %x\n", f2);
+	TH_LOG("m5:f2: %x", f2);
 }
 
 TEST_HARNESS_MAIN

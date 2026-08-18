@@ -28,20 +28,20 @@
 
 #define timeout_ns 100000
 
+
 TEST(futex_wait_wouldblock)
 {
 	struct timespec to = {.tv_sec = 0, .tv_nsec = timeout_ns};
 	futex_t f1 = FUTEX_INITIALIZER;
 	int res;
 
-	ksft_print_dbg_msg("Calling futex_wait on f1: %u @ %p with val=%u\n", f1, &f1, f1+1);
+	TH_LOG("Calling futex_wait on f1: %u @ %p with val=%u", f1, &f1, f1+1);
 	res = futex_wait(&f1, f1+1, &to, FUTEX_PRIVATE_FLAG);
-	if (!res || errno != EWOULDBLOCK) {
-		ksft_test_result_fail("futex_wait returned: %d %s\n",
-				      res ? errno : res,
-				      res ? strerror(errno) : "");
-	} else {
-		ksft_test_result_pass("futex_wait\n");
+	EXPECT_EQ(res, -1)
+		TH_LOG("futex_wait returned unexpected result: %d", res);
+	if (res == -1) {
+		EXPECT_EQ(errno, EWOULDBLOCK)
+			TH_LOG("futex_wait returned unexpected errno: %d", errno);
 	}
 }
 
@@ -57,8 +57,11 @@ TEST(futex_waitv_wouldblock)
 	};
 	int res;
 
-	if (clock_gettime(CLOCK_MONOTONIC, &to))
-		ksft_exit_fail_msg("clock_gettime failed %d\n", errno);
+	if (!is_futex_waitv_supported())
+		SKIP(return, "futex_waitv syscall not supported");
+
+	ASSERT_EQ(clock_gettime(CLOCK_MONOTONIC, &to), 0)
+		TH_LOG("clock_gettime failed");
 
 	to.tv_nsec += timeout_ns;
 
@@ -67,14 +70,13 @@ TEST(futex_waitv_wouldblock)
 		to.tv_nsec -= 1000000000;
 	}
 
-	ksft_print_dbg_msg("Calling futex_waitv on f1: %u @ %p with val=%u\n", f1, &f1, f1+1);
+	TH_LOG("Calling futex_waitv on f1: %u @ %p with val=%u", f1, &f1, f1+1);
 	res = futex_waitv(&waitv, 1, 0, &to, CLOCK_MONOTONIC);
-	if (!res || errno != EWOULDBLOCK) {
-		ksft_test_result_fail("futex_waitv returned: %d %s\n",
-				      res ? errno : res,
-				      res ? strerror(errno) : "");
-	} else {
-		ksft_test_result_pass("futex_waitv\n");
+	EXPECT_EQ(res, -1)
+		TH_LOG("futex_waitv returned unexpected result: %d", res);
+	if (res == -1) {
+		EXPECT_EQ(errno, EWOULDBLOCK)
+			TH_LOG("futex_waitv returned unexpected errno: %d", errno);
 	}
 }
 

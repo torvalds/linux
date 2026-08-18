@@ -9,6 +9,7 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #ifdef LIBNUMA_VER_SUFFICIENT
 #include <numa.h>
@@ -28,9 +29,9 @@ static pthread_barrier_t barrier_main;
 static pthread_t threads[MAX_THREADS];
 
 struct thread_args {
-	void *futex_ptr;
-	unsigned int flags;
-	int result;
+	void		*futex_ptr;
+	unsigned int	flags;
+	int		result;
 };
 
 static struct thread_args thread_args[MAX_THREADS];
@@ -54,7 +55,7 @@ static void *thread_lock_fn(void *arg)
 	return NULL;
 }
 
-static void create_max_threads(void *futex_ptr)
+static void create_max_threads(struct __test_metadata *_metadata, void *futex_ptr)
 {
 	int i, ret;
 
@@ -63,28 +64,29 @@ static void create_max_threads(void *futex_ptr)
 		thread_args[i].flags = FUTEX2_SIZE_U32 | FUTEX_PRIVATE_FLAG | FUTEX2_NUMA;
 		thread_args[i].result = 0;
 		ret = pthread_create(&threads[i], NULL, thread_lock_fn, &thread_args[i]);
-		if (ret)
-			ksft_exit_fail_msg("pthread_create failed\n");
+		ASSERT_EQ(ret, 0)
+			TH_LOG("pthread_create failed");
 	}
 }
 
-static void join_max_threads(void)
+static void join_max_threads(struct __test_metadata *_metadata)
 {
 	int i, ret;
 
 	for (i = 0; i < MAX_THREADS; i++) {
 		ret = pthread_join(threads[i], NULL);
-		if (ret)
-			ksft_exit_fail_msg("pthread_join failed for thread %d\n", i);
+		ASSERT_EQ(ret, 0)
+			TH_LOG("pthread_join failed for thread %d", i);
 	}
 }
 
-static void __test_futex(void *futex_ptr, int err_value, unsigned int futex_flags)
+static void __test_futex(struct __test_metadata *_metadata, void *futex_ptr, int err_value,
+			 unsigned int futex_flags)
 {
-	int to_wake, ret, i, need_exit = 0;
+	int to_wake, ret, i;
 
 	pthread_barrier_init(&barrier_main, NULL, MAX_THREADS + 1);
-	create_max_threads(futex_ptr);
+	create_max_threads(_metadata, futex_ptr);
 	pthread_barrier_wait(&barrier_main);
 	to_wake = MAX_THREADS;
 
@@ -92,45 +94,50 @@ static void __test_futex(void *futex_ptr, int err_value, unsigned int futex_flag
 		ret = futex2_wake(futex_ptr, to_wake, futex_flags);
 
 		if (err_value) {
-			if (ret >= 0)
-				ksft_exit_fail_msg("futex2_wake(%d, 0x%x) should fail, but didn't\n",
-						   to_wake, futex_flags);
+			EXPECT_LT(ret, 0) {
+				TH_LOG("futex2_wake(%d, 0x%x) should fail, but didn't",
+				       to_wake, futex_flags);
+			}
 
-			if (errno != err_value)
-				ksft_exit_fail_msg("futex2_wake(%d, 0x%x) expected error was %d, but returned %d (%s)\n",
-						   to_wake, futex_flags, err_value, errno, strerror(errno));
+			EXPECT_EQ(errno, err_value) {
+				TH_LOG("futex2_wake(%d, 0x%x) expected error was %d, but returned %d (%s)",
+				       to_wake, futex_flags, err_value, errno, strerror(errno));
+			}
 
 			break;
 		}
 		if (ret < 0) {
-			ksft_exit_fail_msg("Failed futex2_wake(%d, 0x%x): %m\n",
-					   to_wake, futex_flags);
+			if (errno == ENOSYS || (errno == EINVAL && (futex_flags & FUTEX2_NUMA)))
+				SKIP(return, "futex2 or FUTEX2_NUMA not supported by kernel");
+
+			ASSERT_GE(ret, 0) {
+				TH_LOG("Failed futex2_wake(%d, 0x%x): %s",
+				       to_wake, futex_flags, strerror(errno));
+			}
 		}
 		if (!ret)
 			usleep(50);
 		to_wake -= ret;
 
 	} while (to_wake);
-	join_max_threads();
+	join_max_threads(_metadata);
 
 	for (i = 0; i < MAX_THREADS; i++) {
-		if (err_value && thread_args[i].result != -1) {
-			ksft_print_msg("Thread %d should fail but succeeded (%d)\n",
+		if (err_value) {
+			EXPECT_EQ(thread_args[i].result, -1) {
+				TH_LOG("Thread %d should fail but succeeded (%d)",
 				       i, thread_args[i].result);
-			need_exit = 1;
-		}
-		if (!err_value && thread_args[i].result != 0) {
-			ksft_print_msg("Thread %d failed (%d)\n", i, thread_args[i].result);
-			need_exit = 1;
+			}
+		} else {
+			EXPECT_EQ(thread_args[i].result, 0)
+				TH_LOG("Thread %d failed (%d)", i, thread_args[i].result);
 		}
 	}
-	if (need_exit)
-		ksft_exit_fail_msg("Aborting due to earlier errors.\n");
 }
 
-static void test_futex(void *futex_ptr, int err_value)
+static void test_futex(struct __test_metadata *_metadata, void *futex_ptr, int err_value)
 {
-	__test_futex(futex_ptr, err_value, FUTEX2_SIZE_U32 | FUTEX_PRIVATE_FLAG | FUTEX2_NUMA);
+	__test_futex(_metadata, futex_ptr, err_value, FUTEX2_SIZE_U32 | FUTEX_PRIVATE_FLAG | FUTEX2_NUMA);
 }
 
 TEST(futex_numa_mpol)
@@ -141,43 +148,41 @@ TEST(futex_numa_mpol)
 
 	mem_size = sysconf(_SC_PAGE_SIZE);
 	futex_ptr = mmap(NULL, mem_size * 2, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
-	if (futex_ptr == MAP_FAILED)
-		ksft_exit_fail_msg("mmap() for %d bytes failed\n", mem_size);
+	ASSERT_NE(futex_ptr, MAP_FAILED)
+		TH_LOG("mmap() for %d bytes failed: %s", mem_size, strerror(errno));
 
 	/* Create an invalid memory region for the "Memory out of range" test */
 	mprotect(futex_ptr + mem_size, mem_size, PROT_NONE);
 
 	futex_numa = futex_ptr;
 
-	ksft_print_msg("Regular test\n");
+	TH_LOG("Regular test");
 	futex_numa->futex = 0;
 	futex_numa->numa = FUTEX_NO_NODE;
-	test_futex(futex_ptr, 0);
+	test_futex(_metadata, futex_ptr, 0);
 
-	if (futex_numa->numa == FUTEX_NO_NODE)
-		ksft_exit_fail_msg("NUMA node is left uninitialized\n");
+	EXPECT_NE(futex_numa->numa, FUTEX_NO_NODE)
+		TH_LOG("NUMA node is left uninitialized");
 
 	/* FUTEX2_NUMA futex must be 8-byte aligned */
-	ksft_print_msg("Mis-aligned futex\n");
-	test_futex(futex_ptr + mem_size - 4, EINVAL);
+	TH_LOG("Mis-aligned futex");
+	test_futex(_metadata, futex_ptr + mem_size - 4, EINVAL);
 
-	ksft_print_msg("Memory out of range\n");
-	test_futex(futex_ptr + mem_size, EFAULT);
+	TH_LOG("Memory out of range");
+	test_futex(_metadata, futex_ptr + mem_size, EFAULT);
 
 	futex_numa->numa = FUTEX_NO_NODE;
 	mprotect(futex_ptr, mem_size, PROT_READ);
-	ksft_print_msg("Memory, RO\n");
-	test_futex(futex_ptr, EFAULT);
+	TH_LOG("Memory, RO");
+	test_futex(_metadata, futex_ptr, EFAULT);
 
 	mprotect(futex_ptr, mem_size, PROT_NONE);
-	ksft_print_msg("Memory, no access\n");
-	test_futex(futex_ptr, EFAULT);
+	TH_LOG("Memory, no access");
+	test_futex(_metadata, futex_ptr, EFAULT);
 
 	mprotect(futex_ptr, mem_size, PROT_READ | PROT_WRITE);
-	ksft_print_msg("Memory back to RW\n");
-	test_futex(futex_ptr, 0);
-
-	ksft_test_result_pass("futex2 memory boundary tests passed\n");
+	TH_LOG("Memory back to RW");
+	test_futex(_metadata, futex_ptr, 0);
 
 	/* MPOL test. Does not work as expected */
 #ifdef LIBNUMA_VER_SUFFICIENT
@@ -190,25 +195,23 @@ TEST(futex_numa_mpol)
 			    sizeof(nodemask) * 8, 0);
 		if (ret == 0) {
 			ret = numa_set_mempolicy_home_node(futex_ptr, mem_size, i, 0);
-			if (ret != 0)
-				ksft_exit_fail_msg("Failed to set home node: %m, %d\n", errno);
+			ASSERT_EQ(ret, 0)
+				TH_LOG("Failed to set home node: %s, %d", strerror(errno), errno);
 
-			ksft_print_msg("Node %d test\n", i);
+			TH_LOG("Node %d test", i);
 			futex_numa->futex = 0;
 			futex_numa->numa = FUTEX_NO_NODE;
 
-			ret = futex2_wake(futex_ptr, 0, FUTEX2_SIZE_U32 | FUTEX_PRIVATE_FLAG | FUTEX2_NUMA | FUTEX2_MPOL);
-			if (ret < 0)
-				ksft_test_result_fail("Failed to wake 0 with MPOL: %m\n");
-			if (futex_numa->numa != i) {
-				ksft_exit_fail_msg("Returned NUMA node is %d expected %d\n",
-						   futex_numa->numa, i);
-			}
+			ret = futex2_wake(futex_ptr, 0, FUTEX2_SIZE_U32 | FUTEX_PRIVATE_FLAG |
+					  FUTEX2_NUMA | FUTEX2_MPOL);
+			EXPECT_GE(ret, 0)
+				TH_LOG("Failed to wake 0 with MPOL: %s", strerror(errno));
+			EXPECT_EQ(futex_numa->numa, i)
+				TH_LOG("Returned NUMA node is %d expected %d", futex_numa->numa, i);
 		}
 	}
-	ksft_test_result_pass("futex2 MPOL hints test passed\n");
 #else
-	ksft_test_result_skip("futex2 MPOL hints test requires libnuma 2.0.18+\n");
+	SKIP(return, "futex2 MPOL hints test requires libnuma 2.0.18+");
 #endif
 	munmap(futex_ptr, mem_size * 2);
 }
