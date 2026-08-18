@@ -150,7 +150,6 @@ int __init amd_numa_init(void)
 
 		prevbase = base;
 		numa_add_memblk(nodeid, base, limit);
-		node_set(nodeid, numa_nodes_parsed);
 	}
 
 	if (nodes_empty(numa_nodes_parsed))
