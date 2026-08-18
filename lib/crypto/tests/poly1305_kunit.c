@@ -46,12 +46,7 @@ static void poly1305_withtestkey(const u8 *data, size_t len,
 static int poly1305_suite_init(struct kunit_suite *suite)
 {
 	rand_bytes_seeded_from_len(test_key, POLY1305_KEY_SIZE);
-	return hash_suite_init(suite);
-}
-
-static void poly1305_suite_exit(struct kunit_suite *suite)
-{
-	hash_suite_exit(suite);
+	return 0;
 }
 
 /*
@@ -81,19 +76,20 @@ static void poly1305_suite_exit(struct kunit_suite *suite)
  */
 static void test_poly1305_allones_keys_and_message(struct kunit *test)
 {
+	const size_t max_len = 4096;
+	u8 *data = alloc_buf(test, max_len);
 	struct poly1305_desc_ctx mac_ctx, macofmacs_ctx;
 	u8 mac[POLY1305_DIGEST_SIZE];
 
-	static_assert(TEST_BUF_LEN >= 4096);
-	memset(test_buf, 0xff, 4096);
+	memset(data, 0xff, max_len);
 
-	poly1305_init(&mac_ctx, test_buf);
-	poly1305_init(&macofmacs_ctx, test_buf);
+	poly1305_init(&mac_ctx, data);
+	poly1305_init(&macofmacs_ctx, data);
 	for (int i = 0; i < 32; i++) {
-		for (size_t len = 0; len <= 4096; len += 16) {
+		for (size_t len = 0; len <= max_len; len += 16) {
 			struct poly1305_desc_ctx tmp_ctx;
 
-			poly1305_update(&mac_ctx, test_buf, len);
+			poly1305_update(&mac_ctx, data, len);
 			tmp_ctx = mac_ctx;
 			poly1305_final(&tmp_ctx, mac);
 			poly1305_update(&macofmacs_ctx, mac,
@@ -157,7 +153,6 @@ static struct kunit_suite poly1305_test_suite = {
 	.name = "poly1305",
 	.test_cases = poly1305_test_cases,
 	.suite_init = poly1305_suite_init,
-	.suite_exit = poly1305_suite_exit,
 };
 kunit_test_suite(poly1305_test_suite);
 

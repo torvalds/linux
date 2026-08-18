@@ -4,6 +4,7 @@
  */
 #include <crypto/sha2.h>
 #include "sha256-testvecs.h"
+#include "test-utils.h"
 
 /* Generate the HASH_KUNIT_CASES using hash-test-template.h. */
 #define HASH sha256
@@ -21,26 +22,6 @@
 #define HMAC hmac_sha256
 #define HMAC_USINGRAWKEY hmac_sha256_usingrawkey
 #include "hash-test-template.h"
-
-static void free_guarded_buf(void *buf)
-{
-	vfree(buf);
-}
-
-/*
- * Allocate a KUnit-managed buffer that has length @len bytes immediately
- * followed by an unmapped page, and assert that the allocation succeeds.
- */
-static void *alloc_guarded_buf(struct kunit *test, size_t len)
-{
-	size_t full_len = round_up(len, PAGE_SIZE);
-	void *buf = vmalloc(full_len);
-
-	KUNIT_ASSERT_NOT_NULL(test, buf);
-	KUNIT_ASSERT_EQ(test, 0,
-			kunit_add_action_or_reset(test, free_guarded_buf, buf));
-	return buf + full_len - len;
-}
 
 /*
  * Test for sha256_finup_2x().  Specifically, choose various data lengths and
@@ -105,19 +86,20 @@ static void test_sha256_finup_2x(struct kunit *test)
 static void test_sha256_finup_2x_defaultctx(struct kunit *test)
 {
 	const size_t data_len = 128;
+	u8 *data = alloc_buf(test, 2 * data_len);
 	struct sha256_ctx ctx;
 	u8 hash1_a[SHA256_DIGEST_SIZE];
 	u8 hash2_a[SHA256_DIGEST_SIZE];
 	u8 hash1_b[SHA256_DIGEST_SIZE];
 	u8 hash2_b[SHA256_DIGEST_SIZE];
 
-	rand_bytes(test_buf, 2 * data_len);
+	rand_bytes(data, 2 * data_len);
 
 	sha256_init(&ctx);
-	sha256_finup_2x(&ctx, test_buf, &test_buf[data_len], data_len, hash1_a,
+	sha256_finup_2x(&ctx, data, &data[data_len], data_len, hash1_a,
 			hash2_a);
 
-	sha256_finup_2x(NULL, test_buf, &test_buf[data_len], data_len, hash1_b,
+	sha256_finup_2x(NULL, data, &data[data_len], data_len, hash1_b,
 			hash2_b);
 
 	KUNIT_ASSERT_MEMEQ(test, hash1_a, hash1_b, SHA256_DIGEST_SIZE);
@@ -131,18 +113,19 @@ static void test_sha256_finup_2x_defaultctx(struct kunit *test)
 static void test_sha256_finup_2x_hugelen(struct kunit *test)
 {
 	const size_t data_len = 4 * SHA256_BLOCK_SIZE;
+	u8 *data = alloc_buf(test, data_len);
 	struct sha256_ctx ctx = {};
 	u8 expected_hash[SHA256_DIGEST_SIZE];
 	u8 hash[SHA256_DIGEST_SIZE];
 
-	rand_bytes(test_buf, data_len);
+	rand_bytes(data, data_len);
 	for (size_t align = 0; align < SHA256_BLOCK_SIZE; align++) {
 		sha256_init(&ctx);
 		ctx.ctx.bytecount = 0x123456789abcd00 + align;
 
-		sha256_finup_2x(&ctx, test_buf, test_buf, data_len, hash, hash);
+		sha256_finup_2x(&ctx, data, data, data_len, hash, hash);
 
-		sha256_update(&ctx, test_buf, data_len);
+		sha256_update(&ctx, data, data_len);
 		sha256_final(&ctx, expected_hash);
 
 		KUNIT_ASSERT_MEMEQ(test, hash, expected_hash,
@@ -161,6 +144,7 @@ static void benchmark_sha256_finup_2x(struct kunit *test)
 	static const size_t salt_lens_to_test[] = { 0, 32, 64 };
 	const size_t data_len = 4096;
 	const size_t num_iters = 4096;
+	u8 *data = alloc_buf(test, data_len * 2);
 	struct sha256_ctx ctx;
 	u8 hash1[SHA256_DIGEST_SIZE];
 	u8 hash2[SHA256_DIGEST_SIZE];
@@ -170,12 +154,12 @@ static void benchmark_sha256_finup_2x(struct kunit *test)
 	if (!sha256_finup_2x_is_optimized())
 		kunit_skip(test, "not relevant");
 
-	rand_bytes(test_buf, data_len * 2);
+	rand_bytes(data, data_len * 2);
 
 	/* Warm-up */
 	for (size_t i = 0; i < num_iters; i++)
-		sha256_finup_2x(NULL, &test_buf[0], &test_buf[data_len],
-				data_len, hash1, hash2);
+		sha256_finup_2x(NULL, &data[0], &data[data_len], data_len,
+				hash1, hash2);
 
 	for (size_t i = 0; i < ARRAY_SIZE(salt_lens_to_test); i++) {
 		size_t salt_len = salt_lens_to_test[i];
@@ -186,12 +170,12 @@ static void benchmark_sha256_finup_2x(struct kunit *test)
 		 * not measured; we're just interested in sha256_finup_2x().
 		 */
 		sha256_init(&ctx);
-		sha256_update(&ctx, test_buf, salt_len);
+		sha256_update(&ctx, data, salt_len);
 
 		preempt_disable();
 		t0 = ktime_get_ns();
 		for (size_t j = 0; j < num_iters; j++)
-			sha256_finup_2x(&ctx, &test_buf[0], &test_buf[data_len],
+			sha256_finup_2x(&ctx, &data[0], &data[data_len],
 					data_len, hash1, hash2);
 		t1 = ktime_get_ns();
 		preempt_enable();
@@ -215,8 +199,6 @@ static struct kunit_case hash_test_cases[] = {
 static struct kunit_suite hash_test_suite = {
 	.name = "sha256",
 	.test_cases = hash_test_cases,
-	.suite_init = hash_suite_init,
-	.suite_exit = hash_suite_exit,
 };
 kunit_test_suite(hash_test_suite);
 

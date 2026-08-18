@@ -9,6 +9,24 @@ config CRYPTO_LIB_AES_CBC_MACS_KUNIT_TEST
 	  KUnit tests for the AES-CMAC, AES-XCBC-MAC, and AES-CBC-MAC message
 	  authentication codes.
 
+config CRYPTO_LIB_AES_CCM_KUNIT_TEST
+	tristate "KUnit tests for AES-CCM" if !KUNIT_ALL_TESTS
+	depends on KUNIT && CRYPTO_LIB_AES_CCM
+	default KUNIT_ALL_TESTS
+	select CRYPTO_LIB_BENCHMARK_VISIBLE
+	# This test uses BLAKE2s, but that's always built-in.
+	help
+	  KUnit tests for the AES-CCM authenticated encryption algorithm.
+
+config CRYPTO_LIB_AES_GCM_KUNIT_TEST
+	tristate "KUnit tests for AES-GCM" if !KUNIT_ALL_TESTS
+	depends on KUNIT && CRYPTO_LIB_AES_GCM
+	default KUNIT_ALL_TESTS
+	select CRYPTO_LIB_BENCHMARK_VISIBLE
+	# This test uses BLAKE2s, but that's always built-in.
+	help
+	  KUnit tests for the AES-GCM authenticated encryption algorithm.
+
 config CRYPTO_LIB_BLAKE2B_KUNIT_TEST
 	tristate "KUnit tests for BLAKE2b" if !KUNIT_ALL_TESTS
 	depends on KUNIT && CRYPTO_LIB_BLAKE2B

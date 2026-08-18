@@ -19,7 +19,7 @@
 #include <linux/export.h>
 #include <linux/module.h>
 #include <linux/unaligned.h>
-#include "fips.h"
+#include "fips-aes.h"
 
 static const u8 ____cacheline_aligned aes_sbox[] = {
 	0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5,
@@ -522,6 +522,26 @@ void aes_decrypt(const struct aes_key *key, u8 out[AES_BLOCK_SIZE],
 }
 EXPORT_SYMBOL(aes_decrypt);
 
+/* FIPS cryptographic algorithm self-test for "bare" AES */
+static void __init aes_fips_test(void)
+{
+	struct aes_key key;
+	u8 data[AES_BLOCK_SIZE];
+
+	if (aes_preparekey(&key, fips_test_key, sizeof(fips_test_key)) != 0)
+		panic("aes: FIPS self-test failed (preparekey)\n");
+
+	aes_encrypt(&key, data, fips_test_data);
+	if (memcmp(fips_test_aes_ecb_ctext, data, sizeof(data)) != 0)
+		panic("aes: FIPS self-test failed (wrong ciphertext)\n");
+
+	aes_decrypt(&key, data, data);
+	if (memcmp(fips_test_data, data, sizeof(data)) != 0)
+		panic("aes: FIPS self-test failed (wrong plaintext)\n");
+
+	memzero_explicit(&key, sizeof(key));
+}
+
 #if IS_ENABLED(CONFIG_CRYPTO_LIB_AES_CBC_MACS)
 
 #ifndef aes_cbcmac_blocks_arch
@@ -717,17 +737,10 @@ void aes_cbcmac_final(struct aes_cbcmac_ctx *ctx, u8 out[AES_BLOCK_SIZE])
 }
 EXPORT_SYMBOL_NS_GPL(aes_cbcmac_final, "CRYPTO_INTERNAL");
 
-/*
- * FIPS cryptographic algorithm self-test for AES-CMAC.  As per the FIPS 140-3
- * Implementation Guidance, a cryptographic algorithm self-test for at least one
- * of AES-GCM, AES-CCM, AES-CMAC, or AES-GMAC is required if any of those modes
- * is implemented.  This fulfills that requirement via AES-CMAC.
- *
- * This is just for FIPS.  The full tests are in the KUnit test suite.
- */
+/* FIPS cryptographic algorithm self-test for AES-CMAC */
 static void __init aes_cmac_fips_test(void)
 {
-	struct aes_cmac_key key;
+	struct aes_cmac_key key __cleanup(aes_cmac_zeroize_key);
 	u8 mac[AES_BLOCK_SIZE];
 
 	if (aes_cmac_preparekey(&key, fips_test_key, sizeof(fips_test_key)) !=
@@ -736,7 +749,6 @@ static void __init aes_cmac_fips_test(void)
 	aes_cmac(&key, fips_test_data, sizeof(fips_test_data), mac);
 	if (memcmp(fips_test_aes_cmac_value, mac, sizeof(mac)) != 0)
 		panic("aes: CMAC FIPS self-test failed (wrong MAC)\n");
-	memzero_explicit(&key, sizeof(key));
 }
 #else /* CONFIG_CRYPTO_LIB_AES_CBC_MACS */
 static inline void aes_cmac_fips_test(void)
@@ -797,7 +809,31 @@ void aes_ecb_decrypt(u8 *dst, const u8 *src, size_t len,
 		aes_decrypt(key, &dst[i], &src[i]);
 }
 EXPORT_SYMBOL_GPL(aes_ecb_decrypt);
-#endif /* CONFIG_CRYPTO_LIB_AES_ECB */
+
+/* FIPS cryptographic algorithm self-test for AES-ECB */
+static void __init aes_ecb_fips_test(void)
+{
+	struct aes_key key;
+	u8 data[sizeof(fips_test_data)];
+
+	if (aes_preparekey(&key, fips_test_key, sizeof(fips_test_key)) != 0)
+		panic("aes: ECB FIPS self-test failed (preparekey)\n");
+
+	aes_ecb_encrypt(data, fips_test_data, sizeof(data), &key);
+	if (memcmp(fips_test_aes_ecb_ctext, data, sizeof(data)) != 0)
+		panic("aes: ECB FIPS self-test failed (wrong ciphertext)\n");
+
+	aes_ecb_decrypt(data, data, sizeof(data), &key);
+	if (memcmp(fips_test_data, data, sizeof(data)) != 0)
+		panic("aes: ECB FIPS self-test failed (wrong plaintext)\n");
+
+	memzero_explicit(&key, sizeof(key));
+}
+#else /* CONFIG_CRYPTO_LIB_AES_ECB */
+static inline void aes_ecb_fips_test(void)
+{
+}
+#endif /* !CONFIG_CRYPTO_LIB_AES_ECB */
 
 #if IS_ENABLED(CONFIG_CRYPTO_LIB_AES_CBC)
 /*
@@ -983,7 +1019,66 @@ void aes_cbc_cts_decrypt(u8 *dst, const u8 *src, size_t len,
 	crypto_xor(pad, iv, AES_BLOCK_SIZE); /* P[n - 1] */
 }
 EXPORT_SYMBOL_GPL(aes_cbc_cts_decrypt);
-#endif /* CONFIG_CRYPTO_LIB_AES_CBC */
+
+/* FIPS cryptographic algorithm self-test for AES-CBC */
+static void __init aes_cbc_fips_test(void)
+{
+	struct aes_key key;
+	u8 iv[AES_BLOCK_SIZE];
+	u8 data[sizeof(fips_test_data)];
+
+	if (aes_preparekey(&key, fips_test_key, sizeof(fips_test_key)) != 0)
+		panic("aes: CBC FIPS self-test failed (preparekey)\n");
+
+	memcpy(iv, fips_test_iv, sizeof(iv));
+	aes_cbc_encrypt(data, fips_test_data, sizeof(data), iv, &key);
+	if (memcmp(fips_test_aes_cbc_ctext, data, sizeof(data)) != 0)
+		panic("aes: CBC FIPS self-test failed (wrong ciphertext)\n");
+
+	memcpy(iv, fips_test_iv, sizeof(iv));
+	aes_cbc_decrypt(data, data, sizeof(data), iv, &key);
+	if (memcmp(fips_test_data, data, sizeof(data)) != 0)
+		panic("aes: CBC FIPS self-test failed (wrong plaintext)\n");
+
+	memzero_explicit(&key, sizeof(key));
+}
+
+/* FIPS cryptographic algorithm self-test for AES-CBC-CTS */
+static void __init aes_cbc_cts_fips_test(void)
+{
+	struct aes_key key;
+	u8 iv[AES_BLOCK_SIZE];
+	const size_t data_len = 2 * AES_BLOCK_SIZE;
+	u8 ptext[2 * AES_BLOCK_SIZE];
+	u8 data[2 * AES_BLOCK_SIZE];
+
+	/* ptext = fips_test_data || fips_test_data */
+	memcpy(ptext, fips_test_data, AES_BLOCK_SIZE);
+	memcpy(&ptext[AES_BLOCK_SIZE], ptext, AES_BLOCK_SIZE);
+
+	if (aes_preparekey(&key, fips_test_key, sizeof(fips_test_key)) != 0)
+		panic("aes: CBC-CTS FIPS self-test failed (preparekey)\n");
+
+	memcpy(iv, fips_test_iv, sizeof(iv));
+	aes_cbc_cts_encrypt(data, ptext, data_len, iv, &key);
+	if (memcmp(fips_test_aes_cbc_cts_ctext, data, data_len) != 0)
+		panic("aes: CBC-CTS FIPS self-test failed (wrong ciphertext)\n");
+
+	memcpy(iv, fips_test_iv, sizeof(iv));
+	aes_cbc_cts_decrypt(data, data, data_len, iv, &key);
+	if (memcmp(ptext, data, data_len) != 0)
+		panic("aes: CBC-CTS FIPS self-test failed (wrong plaintext)\n");
+
+	memzero_explicit(&key, sizeof(key));
+}
+#else /* CONFIG_CRYPTO_LIB_AES_CBC */
+static inline void aes_cbc_fips_test(void)
+{
+}
+static inline void aes_cbc_cts_fips_test(void)
+{
+}
+#endif /* !CONFIG_CRYPTO_LIB_AES_CBC */
 
 #if IS_ENABLED(CONFIG_CRYPTO_LIB_AES_CTR)
 /*
@@ -1078,7 +1173,34 @@ void aes_xctr(u8 *dst, const u8 *src, size_t len, u64 *ctr,
 	memzero_explicit(aes_input, sizeof(aes_input));
 }
 EXPORT_SYMBOL_GPL(aes_xctr);
-#endif /* CONFIG_CRYPTO_LIB_AES_CTR */
+
+/* FIPS cryptographic algorithm self-test for AES-CTR */
+static void __init aes_ctr_fips_test(void)
+{
+	struct aes_enckey key;
+	u8 ctr[AES_BLOCK_SIZE];
+	u8 data[sizeof(fips_test_data)];
+
+	if (aes_prepareenckey(&key, fips_test_key, sizeof(fips_test_key)) != 0)
+		panic("aes: CTR FIPS self-test failed (preparekey)\n");
+
+	memcpy(ctr, fips_test_iv, sizeof(ctr));
+	aes_ctr(data, fips_test_data, sizeof(data), ctr, &key);
+	if (memcmp(fips_test_aes_ctr_ctext, data, sizeof(data)) != 0)
+		panic("aes: CTR FIPS self-test failed (wrong ciphertext)\n");
+
+	memcpy(ctr, fips_test_iv, sizeof(ctr));
+	aes_ctr(data, data, sizeof(data), ctr, &key);
+	if (memcmp(fips_test_data, data, sizeof(data)) != 0)
+		panic("aes: CTR FIPS self-test failed (wrong plaintext)\n");
+
+	memzero_explicit(&key, sizeof(key));
+}
+#else /* CONFIG_CRYPTO_LIB_AES_CTR */
+static inline void aes_ctr_fips_test(void)
+{
+}
+#endif /* !CONFIG_CRYPTO_LIB_AES_CTR */
 
 #if IS_ENABLED(CONFIG_CRYPTO_LIB_AES_XTS)
 int aes_xts_preparekey(struct aes_xts_key *key, const u8 *in_key,
@@ -1307,7 +1429,36 @@ void aes_xts_decrypt(u8 *dst, const u8 *src, size_t len,
 	aes_xts_decrypt_nocts(dst, src, len, tweak, key, cont);
 }
 EXPORT_SYMBOL_GPL(aes_xts_decrypt);
-#endif /* CONFIG_CRYPTO_LIB_AES_XTS */
+
+/* FIPS cryptographic algorithm self-test for AES-XTS */
+static void __init aes_xts_fips_test(void)
+{
+	struct aes_xts_key *key __free(kfree_sensitive) = kmalloc_obj(*key);
+	u8 tweak[AES_BLOCK_SIZE];
+	u8 data[sizeof(fips_test_data)];
+
+	if (key == NULL)
+		panic("aes: XTS FIPS self-test failed (kmalloc)\n");
+
+	if (aes_xts_preparekey(key, fips_test_xts_key,
+			       sizeof(fips_test_xts_key), 0) != 0)
+		panic("aes: XTS FIPS self-test failed (preparekey)\n");
+
+	memcpy(tweak, fips_test_iv, sizeof(tweak));
+	aes_xts_encrypt(data, fips_test_data, sizeof(data), tweak, key, false);
+	if (memcmp(fips_test_aes_xts_ctext, data, sizeof(data)) != 0)
+		panic("aes: XTS FIPS self-test failed (wrong ciphertext)\n");
+
+	memcpy(tweak, fips_test_iv, sizeof(tweak));
+	aes_xts_decrypt(data, data, sizeof(data), tweak, key, false);
+	if (memcmp(fips_test_data, data, sizeof(data)) != 0)
+		panic("aes: XTS FIPS self-test failed (wrong plaintext)\n");
+}
+#else /* CONFIG_CRYPTO_LIB_AES_XTS */
+static inline void aes_xts_fips_test(void)
+{
+}
+#endif /* !CONFIG_CRYPTO_LIB_AES_XTS */
 
 #if IS_ENABLED(CONFIG_CRYPTO_LIB_AES_GCM)
 /*
@@ -1586,7 +1737,37 @@ int aes_gcm_decrypt(u8 *dst, const u8 *src, size_t data_len, const u8 *authtag,
 }
 EXPORT_SYMBOL_GPL(aes_gcm_decrypt);
 
-#endif /* CONFIG_CRYPTO_LIB_AES_GCM */
+/* FIPS cryptographic algorithm self-test for AES-GCM */
+static void __init aes_gcm_fips_test(void)
+{
+	const size_t data_len = sizeof(fips_test_data);
+	u8 buf[sizeof(fips_test_data) + AES_BLOCK_SIZE];
+	struct aes_gcm_key key;
+	int err;
+
+	if (aes_gcm_preparekey(&key, fips_test_key, sizeof(fips_test_key),
+			       AES_BLOCK_SIZE) != 0)
+		panic("aes: GCM FIPS self-test failed (preparekey)\n");
+
+	aes_gcm_encrypt(buf, fips_test_data, data_len, &buf[data_len],
+			fips_test_ad, sizeof(fips_test_ad), fips_test_iv, &key);
+	if (memcmp(fips_test_aes_gcm_ctext_and_tag, buf, sizeof(buf)) != 0)
+		panic("aes: GCM FIPS self-test failed (wrong ciphertext and/or tag)\n");
+
+	err = aes_gcm_decrypt(buf, buf, data_len, &buf[data_len], fips_test_ad,
+			      sizeof(fips_test_ad), fips_test_iv, &key);
+	if (err != 0)
+		panic("aes: GCM FIPS self-test failed (decryption failed)\n");
+	if (memcmp(fips_test_data, buf, data_len) != 0)
+		panic("aes: GCM FIPS self-test failed (wrong plaintext)\n");
+
+	memzero_explicit(&key, sizeof(key));
+}
+#else /* CONFIG_CRYPTO_LIB_AES_GCM */
+static inline void aes_gcm_fips_test(void)
+{
+}
+#endif /* !CONFIG_CRYPTO_LIB_AES_GCM */
 
 #if IS_ENABLED(CONFIG_CRYPTO_LIB_AES_CCM)
 int aes_ccm_preparekey(struct aes_ccm_key *key, const u8 *in_key,
@@ -1898,15 +2079,60 @@ int aes_ccm_decrypt(u8 *dst, const u8 *src, size_t data_len, const u8 *authtag,
 	return err;
 }
 EXPORT_SYMBOL_GPL(aes_ccm_decrypt);
-#endif /* CONFIG_CRYPTO_LIB_AES_CCM */
+
+/* FIPS cryptographic algorithm self-test for AES-CCM */
+static void __init aes_ccm_fips_test(void)
+{
+	const size_t data_len = sizeof(fips_test_data);
+	const size_t nonce_len = 13;
+	u8 buf[sizeof(fips_test_data) + AES_BLOCK_SIZE];
+	struct aes_ccm_key key;
+	int err;
+
+	if (aes_ccm_preparekey(&key, fips_test_key, sizeof(fips_test_key),
+			       AES_BLOCK_SIZE) != 0)
+		panic("aes: CCM FIPS self-test failed (preparekey)\n");
+
+	err = aes_ccm_encrypt(buf, fips_test_data, data_len, &buf[data_len],
+			      fips_test_ad, sizeof(fips_test_ad), fips_test_iv,
+			      nonce_len, &key);
+	if (err != 0)
+		panic("aes: CCM FIPS self-test failed (encryption failed)\n");
+	if (memcmp(fips_test_aes_ccm_ctext_and_tag, buf, sizeof(buf)) != 0)
+		panic("aes: CCM FIPS self-test failed (wrong ciphertext and/or tag)\n");
+
+	err = aes_ccm_decrypt(buf, buf, data_len, &buf[data_len], fips_test_ad,
+			      sizeof(fips_test_ad), fips_test_iv, nonce_len,
+			      &key);
+	if (err != 0)
+		panic("aes: CCM FIPS self-test failed (decryption failed)\n");
+	if (memcmp(fips_test_data, buf, data_len) != 0)
+		panic("aes: CCM FIPS self-test failed (wrong plaintext)\n");
+
+	memzero_explicit(&key, sizeof(key));
+}
+#else /* CONFIG_CRYPTO_LIB_AES_CCM */
+static inline void aes_ccm_fips_test(void)
+{
+}
+#endif /* !CONFIG_CRYPTO_LIB_AES_CCM */
 
 static int __init aes_mod_init(void)
 {
 #ifdef aes_mod_init_arch
 	aes_mod_init_arch();
 #endif
-	if (fips_enabled)
+	if (fips_enabled) {
+		aes_fips_test();
 		aes_cmac_fips_test();
+		aes_ecb_fips_test();
+		aes_cbc_fips_test();
+		aes_cbc_cts_fips_test();
+		aes_ctr_fips_test();
+		aes_xts_fips_test();
+		aes_gcm_fips_test();
+		aes_ccm_fips_test();
+	}
 	return 0;
 }
 subsys_initcall(aes_mod_init);
