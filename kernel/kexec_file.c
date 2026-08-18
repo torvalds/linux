@@ -27,6 +27,7 @@
 #include <linux/syscalls.h>
 #include <linux/vmalloc.h>
 #include <linux/dma-map-ops.h>
+#include <linux/kexec_handover.h>
 #include "kexec_internal.h"
 
 #ifdef CONFIG_KEXEC_SIG
@@ -798,6 +799,16 @@ int kexec_add_buffer(struct kexec_buf *kbuf)
 	return 0;
 }
 
+static bool kexec_only_cma_segments(struct kimage *image)
+{
+	for (int i = 0; i < image->nr_segments; i++) {
+		if (!image->segment_cma[i])
+			return false;
+	}
+
+	return true;
+}
+
 /* Calculate and store the digest of segments */
 static int kexec_calculate_store_digests(struct kimage *image)
 {
@@ -821,6 +832,21 @@ static int kexec_calculate_store_digests(struct kimage *image)
 		return -ENOMEM;
 
 	sha256_init(&sctx);
+
+	/*
+	 * If KHO is enabled, the destinations are located in KHO scratch.
+	 * KHO scratch can only contain early boot allocations and movable
+	 * allocations. That means there is no risk of memory corruption by
+	 * uncancelled DMA.
+	 *
+	 * If all segments were loaded into contiguous memory, there will be no
+	 * relocations at all, so also no risk of corruption.
+	 */
+	if (image->type != KEXEC_TYPE_CRASH &&
+	    (kho_is_enabled() || kexec_only_cma_segments(image))) {
+		pr_debug("disabling checksum verification in purgatory\n");
+		goto skip_checksum;
+	}
 
 	for (j = i = 0; i < image->nr_segments; i++) {
 		struct kexec_segment *ksegment;
@@ -867,6 +893,7 @@ static int kexec_calculate_store_digests(struct kimage *image)
 		j++;
 	}
 
+skip_checksum:
 	sha256_final(&sctx, digest);
 
 	ret = kexec_purgatory_get_set_symbol(image, "purgatory_sha_regions",
