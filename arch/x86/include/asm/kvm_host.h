@@ -122,6 +122,8 @@
 	KVM_ARCH_REQ_FLAGS(31, KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
 #define KVM_REQ_HV_TLB_FLUSH \
 	KVM_ARCH_REQ_FLAGS(32, KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
+#define KVM_REQ_VMSA_PAGE_RELOAD \
+	KVM_ARCH_REQ_FLAGS(33, KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
 #define KVM_REQ_UPDATE_PROTECTED_GUEST_STATE \
 	KVM_ARCH_REQ_FLAGS(34, KVM_REQUEST_WAIT)
 
@@ -1878,6 +1880,7 @@ struct kvm_x86_ops {
 	int (*vm_copy_enc_context_from)(struct kvm *kvm, unsigned int source_fd);
 	int (*vm_move_enc_context_from)(struct kvm *kvm, unsigned int source_fd);
 	void (*guest_memory_reclaimed)(struct kvm *kvm);
+	void (*reload_vmsa)(struct kvm_vcpu *vcpu);
 
 	int (*get_feature_msr)(u32 msr, u64 *data);
 
@@ -1900,8 +1903,16 @@ struct kvm_x86_ops {
 
 	gva_t (*get_untagged_addr)(struct kvm_vcpu *vcpu, gva_t gva, unsigned int flags);
 	void *(*alloc_apic_backing_page)(struct kvm_vcpu *vcpu);
-	int (*gmem_prepare)(struct kvm *kvm, kvm_pfn_t pfn, gfn_t gfn, int max_order);
-	void (*gmem_invalidate)(kvm_pfn_t start, kvm_pfn_t end);
+#ifdef CONFIG_HAVE_KVM_ARCH_GMEM_CONVERT
+	int (*gmem_make_private)(struct kvm *kvm, gfn_t gfn, kvm_pfn_t pfn,
+				 kvm_pfn_t nr_pages);
+#endif
+#ifdef CONFIG_HAVE_KVM_ARCH_GMEM_RECLAIM
+	void (*gmem_make_shared)(kvm_pfn_t pfn, kvm_pfn_t nr_pages);
+#endif
+#ifdef CONFIG_HAVE_KVM_ARCH_GMEM_INVALIDATE
+	void (*gmem_invalidate_range)(struct kvm *kvm, struct kvm_gfn_range *range);
+#endif
 	int (*gmem_max_mapping_level)(struct kvm *kvm, kvm_pfn_t pfn, bool is_private);
 };
 
