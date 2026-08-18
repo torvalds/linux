@@ -79,14 +79,6 @@ hbh_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 		return false;
 	}
 
-	pr_debug("IPv6 OPTS LEN %u %u ", hdrlen, oh->hdrlen);
-
-	pr_debug("len %02X %04X %02X ",
-		 optinfo->hdrlen, hdrlen,
-		 (!(optinfo->flags & IP6T_OPTS_LEN) ||
-		  ((optinfo->hdrlen == hdrlen) ^
-		   !!(optinfo->invflags & IP6T_OPTS_INV_LEN))));
-
 	ret = (!(optinfo->flags & IP6T_OPTS_LEN) ||
 	       ((optinfo->hdrlen == hdrlen) ^
 		!!(optinfo->invflags & IP6T_OPTS_INV_LEN)));
@@ -96,8 +88,6 @@ hbh_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 	if (!(optinfo->flags & IP6T_OPTS_OPTS)) {
 		return ret;
 	} else {
-		pr_debug("Strict ");
-		pr_debug("#%d ", optinfo->optsnr);
 		for (temp = 0; temp < optinfo->optsnr; temp++) {
 			/* type field exists ? */
 			if (hdrlen < 1)
@@ -108,13 +98,9 @@ hbh_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 				break;
 
 			/* Type check */
-			if (*tp != (optinfo->opts[temp] & 0xFF00) >> 8) {
-				pr_debug("Tbad %02X %02X\n", *tp,
-					 (optinfo->opts[temp] & 0xFF00) >> 8);
+			if (*tp != (optinfo->opts[temp] & 0xFF00) >> 8)
 				return false;
-			} else {
-				pr_debug("Tok ");
-			}
+
 			/* Length check */
 			if (*tp) {
 				u16 spec_len;
@@ -129,26 +115,18 @@ hbh_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 					break;
 				spec_len = optinfo->opts[temp] & 0x00FF;
 
-				if (spec_len != 0x00FF && spec_len != *lp) {
-					pr_debug("Lbad %02X %04X\n", *lp,
-						 spec_len);
+				if (spec_len != 0x00FF && spec_len != *lp)
 					return false;
-				}
-				pr_debug("Lok ");
+
 				optlen = *lp + 2;
 			} else {
-				pr_debug("Pad1\n");
 				optlen = 1;
 			}
 
-			/* Step to the next */
-			pr_debug("len%04X\n", optlen);
-
 			if ((ptr > skb->len - optlen || hdrlen < optlen) &&
-			    temp < optinfo->optsnr - 1) {
-				pr_debug("new pointer is too large!\n");
+			    temp < optinfo->optsnr - 1)
 				break;
-			}
+
 			ptr += optlen;
 			hdrlen -= optlen;
 		}
@@ -166,16 +144,16 @@ static int hbh_mt6_check(const struct xt_mtchk_param *par)
 	const struct ip6t_opts *optsinfo = par->matchinfo;
 
 	if (optsinfo->invflags & ~IP6T_OPTS_INV_MASK) {
-		pr_debug("unknown flags %X\n", optsinfo->invflags);
+		pr_info_ratelimited("unknown flags %X\n", optsinfo->invflags);
 		return -EINVAL;
 	}
 	if (optsinfo->optsnr > IP6T_OPTS_OPTSNR) {
-		pr_debug("too many supported opts specified\n");
+		pr_info_ratelimited("too many supported opts specified\n");
 		return -EINVAL;
 	}
 
 	if (optsinfo->flags & IP6T_OPTS_NSTRICT) {
-		pr_debug("Not strict - not implemented");
+		pr_info_ratelimited("Not strict - not implemented\n");
 		return -EINVAL;
 	}
 
