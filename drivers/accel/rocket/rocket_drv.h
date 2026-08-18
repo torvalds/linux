@@ -24,6 +24,7 @@ struct rocket_file_priv {
 
 	struct rocket_vm *vm;
 
+	struct drm_gpu_scheduler **scheds;
 	struct drm_sched_entity sched_entity;
 };
 
