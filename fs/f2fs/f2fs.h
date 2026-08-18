@@ -3878,7 +3878,8 @@ void f2fs_update_inode_page(struct inode *inode);
 int f2fs_write_inode(struct inode *inode, struct writeback_control *wbc);
 void f2fs_remove_donate_inode(struct inode *inode);
 void f2fs_evict_inode(struct inode *inode);
-void f2fs_handle_failed_inode(struct inode *inode, struct f2fs_lock_context *lc);
+void f2fs_handle_failed_inode(struct inode *inode,
+		struct f2fs_lock_context *lc, bool add_orphan);
 int f2fs_init_evict_inode_work(void);
 void f2fs_destroy_evict_inode_work(void);
 
