@@ -15,6 +15,7 @@
 #include <objtool/arch.h>
 #include <objtool/disas.h>
 #include <objtool/check.h>
+#include <objtool/klp.h>
 #include <objtool/special.h>
 #include <objtool/trace.h>
 #include <objtool/warn.h>
@@ -4920,6 +4921,12 @@ int check(struct objtool_file *file)
 
 	if (opts.ibt) {
 		ret = create_ibt_endbr_seal_sections(file);
+		if (ret)
+			goto out;
+	}
+
+	if (opts.klp_symids) {
+		ret = klp_create_symid_sections(file);
 		if (ret)
 			goto out;
 	}
