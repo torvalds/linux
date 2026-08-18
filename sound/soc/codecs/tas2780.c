@@ -527,13 +527,13 @@ static const struct reg_default tas2780_reg_defaults[] = {
 	{ TAS2780_PAGE, 0x00 },
 	{ TAS2780_SW_RST, 0x00 },
 	{ TAS2780_PWR_CTRL, 0x1a },
-	{ TAS2780_DVC, 0x00 },
 	{ TAS2780_CHNL_0, 0x00 },
 	{ TAS2780_TDM_CFG0, 0x09 },
 	{ TAS2780_TDM_CFG1, 0x02 },
 	{ TAS2780_TDM_CFG2, 0x0a },
 	{ TAS2780_TDM_CFG3, 0x10 },
 	{ TAS2780_TDM_CFG5, 0x42 },
+	{ TAS2780_DVC, 0x00 },
 };
 
 static const struct regmap_range_cfg tas2780_regmap_ranges[] = {

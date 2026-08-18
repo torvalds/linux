@@ -37,48 +37,49 @@
 #include "wm_adsp.h"
 #include "cs35l56.h"
 
-void cs35l56_mask_soundwire_interrupts(struct sdw_slave *peripheral)
+void cs35l56_mask_soundwire_interrupts(struct cs35l56_private *cs35l56)
 {
 	 /*
+	  * Mask unconditionally.
+	  *
 	  * The read of GEN_INT_STAT_1 is required as per the SoundWire spec
 	  * for interrupt status bits to clear.
 	  * GEN_INT_MASK_1 masks the _inputs_ to GEN_INT_STAT1.
 	  */
-	sdw_write_no_pm(peripheral, CS35L56_SDW_GEN_INT_MASK_1, 0);
-	sdw_read_no_pm(peripheral, CS35L56_SDW_GEN_INT_STAT_1);
-	sdw_write_no_pm(peripheral, CS35L56_SDW_GEN_INT_STAT_1, 0xFF);
+	sdw_write_no_pm(cs35l56->sdw_peripheral, CS35L56_SDW_GEN_INT_MASK_1, 0);
+	sdw_read_no_pm(cs35l56->sdw_peripheral, CS35L56_SDW_GEN_INT_STAT_1);
+	sdw_write_no_pm(cs35l56->sdw_peripheral, CS35L56_SDW_GEN_INT_STAT_1, 0xFF);
 }
 EXPORT_SYMBOL_NS_GPL(cs35l56_mask_soundwire_interrupts, "SND_SOC_CS35L56_CORE");
 
-void cs35l56_unmask_soundwire_interrupts(struct sdw_slave *peripheral)
+void cs35l56_unmask_soundwire_interrupts(struct cs35l56_private *cs35l56)
 {
-	sdw_write_no_pm(peripheral, CS35L56_SDW_GEN_INT_MASK_1, CS35L56_SDW_INT_MASK_CODEC_IRQ);
+	if (!cs35l56->base.irq)
+		return;
+
+	sdw_write_no_pm(cs35l56->sdw_peripheral, CS35L56_SDW_GEN_INT_MASK_1,
+			CS35L56_SDW_INT_MASK_CODEC_IRQ);
 }
 EXPORT_SYMBOL_NS_GPL(cs35l56_unmask_soundwire_interrupts, "SND_SOC_CS35L56_CORE");
 
-void cs35l56_disable_sdw_interrupts(struct cs35l56_private *cs35l56)
+static void cs35l56_disable_sdw_interrupts(struct cs35l56_private *cs35l56)
 {
 	if (!cs35l56->sdw_peripheral)
 		return;
 
-	cs35l56->sdw_irq_no_unmask = true;
-	flush_work(&cs35l56->sdw_irq_work);
-
-	/* Mask interrupts and flush in case sdw_irq_work was queued again */
-	cs35l56_mask_soundwire_interrupts(cs35l56->sdw_peripheral);
-	flush_work(&cs35l56->sdw_irq_work);
+	cs35l56_mask_soundwire_interrupts(cs35l56);
+	if (cs35l56->base.irq)
+		disable_irq(cs35l56->base.irq);
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_disable_sdw_interrupts, "SND_SOC_CS35L56_CORE");
 
-void cs35l56_enable_sdw_interrupts(struct cs35l56_private *cs35l56)
+static void cs35l56_enable_sdw_interrupts(struct cs35l56_private *cs35l56)
 {
-	if (!cs35l56->sdw_peripheral)
+	if (!cs35l56->sdw_peripheral || !cs35l56->base.irq)
 		return;
 
-	cs35l56->sdw_irq_no_unmask = false;
-	cs35l56_unmask_soundwire_interrupts(cs35l56->sdw_peripheral);
+	enable_irq(cs35l56->base.irq);
+	cs35l56_unmask_soundwire_interrupts(cs35l56);
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_enable_sdw_interrupts, "SND_SOC_CS35L56_CORE");
 
 static int cs35l56_dsp_event(struct snd_soc_dapm_widget *w,
 			     struct snd_kcontrol *kcontrol, int event);
@@ -828,11 +829,7 @@ static void cs35l56_patch(struct cs35l56_private *cs35l56, bool firmware_missing
 {
 	int ret;
 
-	/*
-	 * Disable SoundWire interrupts to prevent race with IRQ work.
-	 * Setting sdw_irq_no_unmask prevents the handler re-enabling
-	 * the SoundWire interrupt.
-	 */
+	/* Disable SoundWire interrupts to prevent race with IRQ handler thread */
 	cs35l56_disable_sdw_interrupts(cs35l56);
 
 	ret = cs35l56_firmware_shutdown(&cs35l56->base);
@@ -1402,6 +1399,7 @@ static int _cs35l56_component_probe(struct snd_soc_component *component)
 						     ARRAY_SIZE(cs35l56_controls));
 		break;
 	case 0x63:
+	case 0x62:
 		ret = snd_soc_add_component_controls(component, cs35l63_controls,
 						     ARRAY_SIZE(cs35l63_controls));
 		break;
@@ -1941,7 +1939,7 @@ static int cs35l56_try_get_broken_sdca_spkid_gpio(struct cs35l56_private *cs35l5
 	return ret;
 }
 
-int cs35l56_common_probe(struct cs35l56_private *cs35l56)
+int cs35l56_common_probe(struct cs35l56_private *cs35l56, int irq)
 {
 	int ret;
 
@@ -2018,15 +2016,23 @@ int cs35l56_common_probe(struct cs35l56_private *cs35l56)
 			goto err_remove_wm_adsp;
 	}
 
+	ret = cs35l56_irq_request(&cs35l56->base, irq);
+	if (ret)
+		goto err_remove_wm_adsp;
+
 	ret = snd_soc_register_component(cs35l56->base.dev,
 					 &soc_component_dev_cs35l56,
 					 cs35l56_dai, ARRAY_SIZE(cs35l56_dai));
 	if (ret < 0) {
 		dev_err_probe(cs35l56->base.dev, ret, "Register codec failed\n");
-		goto err_remove_wm_adsp;
+		goto err_free_irq;
 	}
 
 	return 0;
+
+err_free_irq:
+	if (cs35l56->base.irq)
+		devm_free_irq(cs35l56->base.dev, cs35l56->base.irq, &cs35l56->base);
 
 err_remove_wm_adsp:
 	wm_adsp2_remove(&cs35l56->dsp);

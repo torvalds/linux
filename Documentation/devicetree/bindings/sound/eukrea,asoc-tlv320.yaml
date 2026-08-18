@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/eukrea,asoc-tlv320.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Audio complex for Eukrea boards with tlv320aic23 codec.
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+properties:
+  compatible:
+    const: eukrea,asoc-tlv320
+
+  eukrea,model:
+    $ref: /schemas/types.yaml#/definitions/string
+    description:
+      The user-visible name of this sound complex.
+
+  ssi-controller:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      The phandle of the SSI controller.
+
+  fsl,mux-int-port:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      The internal port of the i.MX audio muxer (AUDMUX).
+      Note: The AUDMUX port numbering should start at 1, which is consistent with
+      hardware manual.
+    minimum: 1
+    maximum: 8
+
+  fsl,mux-ext-port:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      The external port of the i.MX audio muxer.
+      Note: The AUDMUX port numbering should start at 1, which is consistent with
+      hardware manual.
+    minimum: 1
+    maximum: 8
+
+required:
+  - compatible
+  - eukrea,model
+  - ssi-controller
+  - fsl,mux-int-port
+  - fsl,mux-ext-port
+
+additionalProperties: false
+
+examples:
+  - |
+    sound {
+        compatible = "eukrea,asoc-tlv320";
+        eukrea,model = "imx51-eukrea-tlv320aic23";
+        ssi-controller = <&ssi2>;
+        fsl,mux-int-port = <2>;
+        fsl,mux-ext-port = <3>;
+    };

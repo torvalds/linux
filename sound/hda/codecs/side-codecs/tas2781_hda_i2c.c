@@ -171,13 +171,13 @@ static void tas2781_hda_playback_hook(struct device *dev, int action)
 	case HDA_GEN_PCM_ACT_OPEN:
 		pm_runtime_get_sync(dev);
 		scoped_guard(mutex, &tas_hda->priv->codec_lock) {
-			tasdevice_tuning_switch(tas_hda->priv, 0);
+			tasdevice_tuning_switch(tas_hda->priv, 0, false);
 			tas_hda->priv->playback_started = true;
 		}
 		break;
 	case HDA_GEN_PCM_ACT_CLOSE:
 		scoped_guard(mutex, &tas_hda->priv->codec_lock) {
-			tasdevice_tuning_switch(tas_hda->priv, 1);
+			tasdevice_tuning_switch(tas_hda->priv, 1, false);
 			tas_hda->priv->playback_started = false;
 		}
 
@@ -720,7 +720,7 @@ static int tas2781_runtime_suspend(struct device *dev)
 	 * Stop the playback if it's unused.
 	 */
 	if (tas_hda->priv->playback_started) {
-		tasdevice_tuning_switch(tas_hda->priv, 1);
+		tasdevice_tuning_switch(tas_hda->priv, 1, false);
 		tas_hda->priv->playback_started = false;
 	}
 
@@ -750,7 +750,7 @@ static int tas2781_system_suspend(struct device *dev)
 
 	/* Shutdown chip before system suspend */
 	if (tas_hda->priv->playback_started)
-		tasdevice_tuning_switch(tas_hda->priv, 1);
+		tasdevice_tuning_switch(tas_hda->priv, 1, false);
 
 	/*
 	 * Reset GPIO may be shared, so cannot reset here.
@@ -783,7 +783,7 @@ static int tas2781_system_resume(struct device *dev)
 			TASDEVICE_BIN_BLK_PRE_POWER_UP);
 
 	if (tas_hda->priv->playback_started)
-		tasdevice_tuning_switch(tas_hda->priv, 0);
+		tasdevice_tuning_switch(tas_hda->priv, 0, false);
 
 	return 0;
 }

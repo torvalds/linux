@@ -285,6 +285,7 @@ snd-soc-rt715-y := rt715.o rt715-sdw.o
 snd-soc-rt715-sdca-y := rt715-sdca.o rt715-sdca-sdw.o
 snd-soc-rt721-sdca-y := rt721-sdca.o rt721-sdca-sdw.o
 snd-soc-rt722-sdca-y := rt722-sdca.o rt722-sdca-sdw.o
+snd-soc-rt766-sdca-y := rt766-sdca.o rt766-sdca-sdw.o
 snd-soc-rt9120-y := rt9120.o
 snd-soc-rt9123-y := rt9123.o
 snd-soc-rt9123p-y := rt9123p.o
@@ -427,6 +428,7 @@ snd-soc-wm-hubs-y := wm_hubs.o
 snd-soc-wsa881x-y := wsa881x.o
 snd-soc-wsa883x-y := wsa883x.o
 snd-soc-wsa884x-y := wsa884x.o
+snd-soc-wsa885x-y := wsa885x.o
 snd-soc-zl38060-y := zl38060.o
 # Amp
 snd-soc-max9877-y := max9877.o
@@ -726,6 +728,7 @@ obj-$(CONFIG_SND_SOC_RT715)     += snd-soc-rt715.o
 obj-$(CONFIG_SND_SOC_RT715_SDCA_SDW)     += snd-soc-rt715-sdca.o
 obj-$(CONFIG_SND_SOC_RT721_SDCA_SDW)     += snd-soc-rt721-sdca.o
 obj-$(CONFIG_SND_SOC_RT722_SDCA_SDW)     += snd-soc-rt722-sdca.o
+obj-$(CONFIG_SND_SOC_RT766_SDCA_SDW)     += snd-soc-rt766-sdca.o
 obj-$(CONFIG_SND_SOC_RT9120)	+= snd-soc-rt9120.o
 obj-$(CONFIG_SND_SOC_RT9123)	+= snd-soc-rt9123.o
 obj-$(CONFIG_SND_SOC_RT9123P)	+= snd-soc-rt9123p.o
@@ -878,6 +881,7 @@ obj-$(CONFIG_SND_SOC_WM_HUBS)	+= snd-soc-wm-hubs.o
 obj-$(CONFIG_SND_SOC_WSA881X)	+= snd-soc-wsa881x.o
 obj-$(CONFIG_SND_SOC_WSA883X)	+= snd-soc-wsa883x.o
 obj-$(CONFIG_SND_SOC_WSA884X)	+= snd-soc-wsa884x.o
+obj-$(CONFIG_SND_SOC_WSA885X)	+= snd-soc-wsa885x.o
 obj-$(CONFIG_SND_SOC_ZL38060)	+= snd-soc-zl38060.o
 
 # Amp

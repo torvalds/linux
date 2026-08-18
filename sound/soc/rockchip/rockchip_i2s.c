@@ -767,16 +767,14 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 
 	/* try to prepare related clocks */
 	i2s->hclk = devm_clk_get_enabled(&pdev->dev, "i2s_hclk");
-	if (IS_ERR(i2s->hclk)) {
-		dev_err(&pdev->dev, "Can't retrieve i2s bus clock\n");
-		return PTR_ERR(i2s->hclk);
-	}
+	if (IS_ERR(i2s->hclk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(i2s->hclk),
+				     "Can't retrieve i2s bus clock\n");
 
 	i2s->mclk = devm_clk_get(&pdev->dev, "i2s_clk");
-	if (IS_ERR(i2s->mclk)) {
-		dev_err(&pdev->dev, "Can't retrieve i2s master clock\n");
-		return PTR_ERR(i2s->mclk);
-	}
+	if (IS_ERR(i2s->mclk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(i2s->mclk),
+				     "Can't retrieve i2s master clock\n");
 
 	regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(regs))
@@ -792,7 +790,11 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 
 	i2s->bclk_ratio = 64;
 	i2s->pinctrl = devm_pinctrl_get(&pdev->dev);
-	if (!IS_ERR(i2s->pinctrl)) {
+	if (IS_ERR(i2s->pinctrl)) {
+		if (PTR_ERR(i2s->pinctrl) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+		dev_dbg(&pdev->dev, "failed to find i2s pinctrl\n");
+	} else {
 		i2s->bclk_on = pinctrl_lookup_state(i2s->pinctrl, "bclk_on");
 		if (!IS_ERR_OR_NULL(i2s->bclk_on)) {
 			i2s->bclk_off = pinctrl_lookup_state(i2s->pinctrl, "bclk_off");
@@ -801,8 +803,6 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 				return -EINVAL;
 			}
 		}
-	} else {
-		dev_dbg(&pdev->dev, "failed to find i2s pinctrl\n");
 	}
 
 	i2s_pinctrl_select_bclk_off(i2s);
@@ -831,16 +831,12 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 					      &rockchip_i2s_component,
 					      dai, 1);
 
-	if (ret) {
-		dev_err(&pdev->dev, "Could not register DAI\n");
+	if (ret)
 		return ret;
-	}
 
 	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
-	if (ret) {
-		dev_err(&pdev->dev, "Could not register PCM\n");
+	if (ret)
 		return ret;
-	}
 
 	return 0;
 }

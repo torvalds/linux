@@ -481,10 +481,20 @@ static int cs42l42_sdw_runtime_resume(struct device *dev)
 	regcache_cache_only(cs42l42->regmap, false);
 
 	/* Sync LATCH_TO_VP first so the VP domain registers sync correctly */
-	regcache_sync_region(cs42l42->regmap, CS42L42_MIC_DET_CTL1, CS42L42_MIC_DET_CTL1);
-	regcache_sync(cs42l42->regmap);
+	ret = regcache_sync_region(cs42l42->regmap, CS42L42_MIC_DET_CTL1, CS42L42_MIC_DET_CTL1);
+	if (ret)
+		goto err_sync;
+
+	ret = regcache_sync(cs42l42->regmap);
+	if (ret)
+		goto err_sync;
 
 	return 0;
+
+err_sync:
+	regcache_cache_only(cs42l42->regmap, true);
+	regcache_mark_dirty(cs42l42->regmap);
+	return ret;
 }
 
 static int cs42l42_sdw_resume(struct device *dev)

@@ -36,6 +36,8 @@ struct q6apm_graph;
 #define MODULE_ID_SPEAKER_PROTECTION	0x070010E2
 #define MODULE_ID_SPEAKER_PROTECTION_VI	0x070010E3
 #define MODULE_ID_OPUS_DEC		0x07001174
+#define MODULE_ID_AUDIO_IF_SINK		0x0700117C
+#define MODULE_ID_AUDIO_IF_SOURCE	0x0700117D
 
 #define APM_CMD_GET_SPF_STATE		0x01001021
 #define APM_CMD_RSP_GET_SPF_STATE	0x02001007
@@ -544,6 +546,74 @@ struct param_id_i2s_intf_cfg {
 #define PORT_ID_I2S_OUPUT		1
 #define I2S_STACK_SIZE			2048
 
+#define PARAM_ID_AUDIO_IF_INTF_CFG	0x08001B11
+
+/*
+ * struct param_id_audio_if_intf_cfg - Audio interface configuration
+ * @qaif_type: Audio interface type (e.g. QAIF, QAIF_VA)
+ * @intf_idx: Interface instance index
+ * @intf_mode: Interface operating mode (TDM/PCM/I2S)
+ * @ctrl_data_out_enable: Enable sharing of data-out signal with other masters
+ * @active_slot_mask: Bitmask indicating active slots
+ * @nslots_per_frame: Number of slots per audio frame
+ * @slot_width: Width of each slot in bits
+ * @active_lane_mask: Bitmask of active data lanes
+ * @frame_sync_rate: Frame sync rate in Hz
+ * @frame_sync_src: Frame sync source selection
+ * @frame_sync_mode: Frame sync mode configuration
+ * @invert_frame_sync_pulse: Invert frame sync polarity when set
+ * @frame_sync_data_delay: Data delay from frame sync in bit clocks
+ * @bit_clk_type: Bit clock type (internal / external)
+ * @inv_int_bit_clk: Invert internal bit clock when set
+ * @inv_ext_bit_clk: Invert external bit clock when set
+ *
+ * This structure defines configuration parameters for the Qualcomm
+ * Audio Interface (QAIF) block. It is used to program interface
+ * characteristics such as slot configuration, clocking and frame
+ * synchronization behaviour.
+ */
+struct param_id_audio_if_intf_cfg {
+	uint16_t qaif_type;
+	uint16_t intf_idx;
+	uint16_t intf_mode;
+	uint16_t ctrl_data_out_enable;
+	uint32_t active_slot_mask;
+	uint16_t nslots_per_frame;
+	uint16_t slot_width;
+	uint32_t active_lane_mask;
+	uint32_t frame_sync_rate;
+	uint16_t frame_sync_src;
+	uint16_t frame_sync_mode;
+	uint16_t invert_frame_sync_pulse;
+	uint16_t frame_sync_data_delay;
+	uint16_t bit_clk_type;
+	uint8_t inv_int_bit_clk;
+	uint8_t inv_ext_bit_clk;
+} __packed;
+
+#define PARAM_ID_HW_EP_FRAME_DURATION	0x08001B2F
+#define AUDIO_IF_FRAME_DURATION_US			1000
+#define AUDIO_IF_FRAME_DURATION_NORMALIZATION_ENABLE	1
+#define AUDIO_IF_FRAME_DURATION_MIN_US			1
+#define AUDIO_IF_FRAME_DURATION_MAX_US			100000
+
+/**
+ * struct param_id_hw_ep_frame_duration - Hardware endpoint frame duration
+ * @frame_duration_in_us: Frame duration in microseconds.
+ * @allow_frame_duration_normalization: Permit SPF to normalize frame duration.
+ * @min_normalized_frame_dur_us: Minimum normalized frame duration in microseconds.
+ * @max_normalized_frame_dur_us: Maximum normalized frame duration in microseconds.
+ *
+ * This structure configures the frame duration for the Audio IF hardware
+ * endpoint and, when enabled, the allowed normalization range.
+ */
+struct param_id_hw_ep_frame_duration {
+	uint32_t frame_duration_in_us;
+	uint32_t allow_frame_duration_normalization;
+	uint32_t min_normalized_frame_dur_us;
+	uint32_t max_normalized_frame_dur_us;
+} __packed;
+
 #define PARAM_ID_DISPLAY_PORT_INTF_CFG		0x08001154
 
 struct param_id_display_port_intf_cfg {
@@ -877,6 +947,23 @@ struct audioreach_module {
 	uint32_t data_format;
 	uint32_t hw_interface_type;
 
+	/* Audio IF module (TDM/PCM/I2S) */
+	u32 slot_mask;
+	u32 active_lane_mask;
+	u32 frame_sync_rate;
+	u16 qaif_type;
+	u16 sync_src;
+	u16 ctrl_data_out_enable;
+	u16 nslots_per_frame;
+	u16 slot_width;
+	u16 intf_mode;
+	u16 sync_mode;
+	u16 ctrl_invert_sync_pulse;
+	u16 ctrl_sync_data_delay;
+	u16 bit_clk_type;
+	u8 inv_int_bit_clk;
+	u8 inv_ext_bit_clk;
+
 	/* PCM module specific */
 	uint32_t interleave_type;
 
@@ -907,6 +994,9 @@ struct audioreach_module_config {
 	u32	channel_allocation;
 	u32	sd_line_mask;
 	int	fmt;
+	u32	slot_mask;
+	u16	nslots_per_frame;
+	u16	slot_width;
 	struct snd_codec codec;
 	u8 channel_map[AR_PCM_MAX_NUM_CHANNEL];
 };

@@ -36,7 +36,6 @@ struct sdm845_snd_data {
 	bool jack_setup;
 	bool slim_port_setup;
 	bool stream_prepared[AFE_PORT_MAX];
-	struct snd_soc_card *card;
 	uint32_t pri_mi2s_clk_count;
 	uint32_t sec_mi2s_clk_count;
 	uint32_t quat_tdm_clk_count;
@@ -564,7 +563,6 @@ static int sdm845_snd_platform_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	data->card = card;
 	snd_soc_card_set_drvdata(card, data);
 
 	sdm845_add_ops(card);

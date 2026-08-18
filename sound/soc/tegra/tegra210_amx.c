@@ -504,16 +504,12 @@ static struct snd_kcontrol_new tegra264_amx_controls[] = {
 static int tegra210_amx_component_probe(struct snd_soc_component *component)
 {
 	struct tegra210_amx *amx = snd_soc_component_get_drvdata(component);
-	int err = 0;
 
-	if (amx->soc_data->num_controls) {
-		err = snd_soc_add_component_controls(component, amx->soc_data->controls,
-						     amx->soc_data->num_controls);
-		if (err)
-			dev_err(component->dev, "can't add AMX controls, err: %d\n", err);
-	}
+	if (amx->soc_data->num_controls)
+		return snd_soc_add_component_controls(component, amx->soc_data->controls,
+						      amx->soc_data->num_controls);
 
-	return err;
+	return 0;
 }
 
 static const struct snd_soc_component_driver tegra210_amx_cmpnt = {

@@ -14,6 +14,7 @@
 // foundation of this driver
 //
 
+#include <linux/cleanup.h>
 #include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -273,7 +274,7 @@ static irqreturn_t avs_hda_interrupt(struct hdac_bus *bus)
 	if (snd_hdac_bus_handle_stream_irq(bus, status, hdac_update_stream))
 		ret = IRQ_HANDLED;
 
-	spin_lock_irq(&bus->reg_lock);
+	guard(spinlock_irq)(&bus->reg_lock);
 	/* Clear RIRB interrupt. */
 	status = snd_hdac_chip_readb(bus, RIRBSTS);
 	if (status & RIRB_INT_MASK) {
@@ -283,7 +284,6 @@ static irqreturn_t avs_hda_interrupt(struct hdac_bus *bus)
 		ret = IRQ_HANDLED;
 	}
 
-	spin_unlock_irq(&bus->reg_lock);
 	return ret;
 }
 

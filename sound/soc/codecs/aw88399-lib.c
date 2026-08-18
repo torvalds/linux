@@ -1282,7 +1282,7 @@ static int aw88399_dev_init(struct aw88399 *aw88399, struct aw_container *aw_cfg
 
 int aw88399_request_firmware_file(struct aw88399 *aw88399)
 {
-	const struct firmware *cont = NULL;
+	const struct firmware *cont __free(firmware) = NULL;
 	int ret;
 
 	aw88399->aw_pa->fw_status = AW88399_DEV_FW_FAILED;
@@ -1298,13 +1298,11 @@ int aw88399_request_firmware_file(struct aw88399 *aw88399)
 
 	aw88399->aw_cfg = devm_kzalloc(aw88399->aw_pa->dev,
 			struct_size(aw88399->aw_cfg, data, cont->size), GFP_KERNEL);
-	if (!aw88399->aw_cfg) {
-		release_firmware(cont);
+	if (!aw88399->aw_cfg)
 		return -ENOMEM;
-	}
+
 	aw88399->aw_cfg->len = (int)cont->size;
 	memcpy(aw88399->aw_cfg->data, cont->data, cont->size);
-	release_firmware(cont);
 
 	ret = aw88395_dev_load_acf_check(aw88399->aw_pa, aw88399->aw_cfg);
 	if (ret) {

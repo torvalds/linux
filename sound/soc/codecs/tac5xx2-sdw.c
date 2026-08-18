@@ -88,6 +88,9 @@
 #define TAC_FW_FILE_HDR	 20
 #define TAC_MAX_FW_CHUNKS 512
 
+#define TAC_UAJ_PREP_CONNECTED		0xff
+#define TAC_UAJ_PREP_DISCONNECTED	0xdf
+
 struct tac_fw_hdr {
 	u32 size;
 	u32 version_offset;
@@ -138,6 +141,7 @@ struct tac5xx2_prv {
 	bool hw_init;
 	bool first_hw_init_done;
 	u32 part_id;
+	u32 rev_id;
 	struct snd_soc_jack *hs_jack;
 	int jack_type;
 	 /* Custom fw binary. UMP File Download is not used. */
@@ -261,7 +265,6 @@ static const struct reg_default tac_reg_default[] = {
 	{TAC_REG_SDW(0, 0, 0x78), 0x0},
 	{TAC_REG_SDW(0, 0, 0x7b), 0x0},
 	{TAC_REG_SDW(0, 0, 0x7c), 0xd0},
-	{TAC_REG_SDW(0, 0, 0x7d), 0x0},
 	{TAC_REG_SDW(0, 0, 0x7e), 0x0},
 	{TAC_REG_SDW(0, 1, 0x1), 0x0},
 	{TAC_REG_SDW(0, 1, 0x2), 0x0},
@@ -506,18 +509,6 @@ static const struct regmap_config tac_regmap = {
 	.use_single_read = true,
 	.use_single_write = true,
 };
-
-/* Check if device has DSP algo that needs status monitoring */
-static bool tac_has_dsp_algo(struct tac5xx2_prv *tac_dev)
-{
-	switch (tac_dev->part_id) {
-	case 0x5682:
-	case 0x2883:
-		return true;
-	default:
-		return false;
-	}
-}
 
 /* Check if device has UAJ (Universal Audio Jack) support */
 static bool tac_has_uaj_support(struct tac5xx2_prv *tac_dev)
@@ -800,7 +791,7 @@ static int tac_sdw_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	ret = sdca_asoc_pde_poll_actual_ps(tac_dev->dev, tac_dev->regmap, function_id, pde_entity,
+	ret = sdca_asoc_pde_poll_actual_ps(tac_dev->regmap, function_id, pde_entity,
 					   SDCA_PDE_PS3, SDCA_PDE_PS0, NULL, 0);
 	if (ret)
 		dev_err(tac_dev->dev, "failed to transition func %d, pde %d from PS3 -> PS0, err=%d\n",
@@ -847,7 +838,7 @@ static int tac_sdw_pcm_hw_free(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	ret = sdca_asoc_pde_poll_actual_ps(tac_dev->dev, tac_dev->regmap, function_id,
+	ret = sdca_asoc_pde_poll_actual_ps(tac_dev->regmap, function_id,
 					   pde_entity, SDCA_PDE_PS0, SDCA_PDE_PS3,
 					   NULL, 0);
 	if (ret)
@@ -942,6 +933,7 @@ end_btn_det:
 static int tac5xx2_sdca_headset_detect(struct tac5xx2_prv *tac_dev)
 {
 	int val, ret;
+	u8 jack_prep;
 
 	ret = regmap_read(tac_dev->regmap,
 			  SDW_SDCA_CTL(TAC_FUNCTION_ID_UAJ, TAC_SDCA_ENT_GE35,
@@ -950,6 +942,8 @@ static int tac5xx2_sdca_headset_detect(struct tac5xx2_prv *tac_dev)
 		dev_err(tac_dev->dev, "Failed to read the detect mode");
 		return ret;
 	}
+
+	jack_prep = TAC_UAJ_PREP_CONNECTED;
 
 	switch (val) {
 	case 4:
@@ -964,6 +958,7 @@ static int tac5xx2_sdca_headset_detect(struct tac5xx2_prv *tac_dev)
 	case 0:
 	default:
 		tac_dev->jack_type = 0;
+		jack_prep = TAC_UAJ_PREP_DISCONNECTED;
 		break;
 	}
 
@@ -973,26 +968,44 @@ static int tac5xx2_sdca_headset_detect(struct tac5xx2_prv *tac_dev)
 	if (ret)
 		dev_err(tac_dev->dev, "Failed to update the jack type to device");
 
+	/*
+	 * When uaj is uplugged and booted, we end up with the channel prepare
+	 * timeout error for the uaj ports. This writes allows the channel prepare
+	 * to succeed when the uaj is not plugged in.
+	 */
+	if (tac_dev->rev_id >= 0x30) {
+		ret = regmap_write(tac_dev->regmap, TAC_REG_SDW(0, 3, 127), jack_prep);
+		if (ret)
+			dev_warn(tac_dev->dev, "Failed to write jack_prep register: %d\n", ret);
+	}
+
 	return 0;
 }
 
 static int tac5xx2_jack_init(struct tac5xx2_prv *tac_dev)
 {
+	u32 jd_int_mask, hid_int_mask;
 	int ret = 0;
+
+	if (tac_dev->rev_id >= 0x30) {
+		jd_int_mask = SDW_SCP_SDCA_INTMASK_SDCA_12;
+		hid_int_mask = SDW_SCP_SDCA_INTMASK_SDCA_17;
+	} else {
+		jd_int_mask = SDW_SCP_SDCA_INTMASK_SDCA_11;
+		hid_int_mask = SDW_SCP_SDCA_INTMASK_SDCA_16;
+	}
 
 	if (!tac_dev->hs_jack)
 		goto disable_interrupts;
 
-	ret = regmap_write(tac_dev->regmap, SDW_SCP_SDCA_INTMASK2,
-			   SDW_SCP_SDCA_INTMASK_SDCA_11);
+	ret = regmap_write(tac_dev->regmap, SDW_SCP_SDCA_INTMASK2, jd_int_mask);
 	if (ret) {
 		dev_err(tac_dev->dev,
 			"Failed to register jack detection interrupt: %d\n", ret);
 		goto disable_interrupts;
 	}
 
-	ret = regmap_write(tac_dev->regmap, SDW_SCP_SDCA_INTMASK3,
-			   SDW_SCP_SDCA_INTMASK_SDCA_16);
+	ret = regmap_write(tac_dev->regmap, SDW_SCP_SDCA_INTMASK3, hid_int_mask);
 	if (ret) {
 		dev_err(tac_dev->dev,
 			"Failed to register for button detect interrupt: %d\n", ret);
@@ -1051,6 +1064,7 @@ static int tac_interrupt_callback(struct sdw_slave *slave,
 	unsigned int sdca_int2, sdca_int3, jack_report_mask = 0;
 	struct tac5xx2_prv *tac_dev = dev_get_drvdata(&slave->dev);
 	struct device *dev = &slave->dev;
+	u32 headset_detect_chk, hid_detect_chk;
 	int btn_type = 0;
 	int ret = 0;
 
@@ -1081,14 +1095,22 @@ static int tac_interrupt_callback(struct sdw_slave *slave,
 	dev_dbg(dev, "SDCA_INT2: 0x%02x, SDCA_INT3: 0x%02x\n",
 		sdca_int2, sdca_int3);
 
-	if (sdca_int2 & SDW_SCP_SDCA_INT_SDCA_11) {
+	if (tac_dev->rev_id >= 0x30) {
+		headset_detect_chk = SDW_SCP_SDCA_INT_SDCA_12;
+		hid_detect_chk = SDW_SCP_SDCA_INT_SDCA_17;
+	} else {
+		headset_detect_chk = SDW_SCP_SDCA_INT_SDCA_11;
+		hid_detect_chk = SDW_SCP_SDCA_INT_SDCA_16;
+	}
+
+	if (sdca_int2 & headset_detect_chk) {
 		ret = tac5xx2_sdca_headset_detect(tac_dev);
 		if (ret < 0)
 			goto clear;
 		jack_report_mask |= SND_JACK_HEADSET;
 	}
 
-	if (sdca_int3 & SDW_SCP_SDCA_INT_SDCA_16) {
+	if (sdca_int3 & hid_detect_chk) {
 		btn_type = tac5xx2_sdca_button_detect(tac_dev);
 		if (btn_type < 0)
 			btn_type = 0;
@@ -1695,6 +1717,15 @@ static int tac_io_init(struct device *dev, struct sdw_slave *slave, bool first)
 		goto io_init_err;
 	}
 
+	if (!tac_dev->rev_id) {
+		ret = regmap_read(tac_dev->regmap, TAC_REV_ID, &tac_dev->rev_id);
+		if (ret) {
+			dev_err(tac_dev->dev, "failed to rev id, err=%d\n", ret);
+			goto io_init_err;
+		}
+		dev_dbg(tac_dev->dev, "detected rev_id 0x%x", tac_dev->rev_id);
+	}
+
 	if (tac_dev->fw_files && tac_dev->fw_file_cnt > 0) {
 		ret = tac_download_fw_to_hw(tac_dev);
 		if (ret) {
@@ -1940,7 +1971,7 @@ static s32 tac_sdw_probe(struct sdw_slave *peripheral,
 						     "failed to allocate %s function data",
 						     func_name);
 			function_data->desc = &peripheral->sdca_data.function[i];
-			ret = sdca_parse_function(dev, peripheral, function_data);
+			ret = sdca_parse_function(dev, function_data);
 			if (!ret)
 				*func_ptr = function_data;
 			else
@@ -1959,6 +1990,7 @@ static s32 tac_sdw_probe(struct sdw_slave *peripheral,
 	tac_dev->hw_init = false;
 	tac_dev->first_hw_init_done = false;
 	tac_dev->part_id = id->part_id;
+	tac_dev->rev_id = 0x0;
 	dev_set_drvdata(dev, tac_dev);
 
 	regmap = devm_regmap_init_sdw_mbq_cfg(&peripheral->dev, peripheral,
@@ -1972,17 +2004,13 @@ static s32 tac_sdw_probe(struct sdw_slave *peripheral,
 	tac_dev->jack_type = 0;
 	init_completion(&tac_dev->fw_caching_complete);
 
-	if (tac_has_dsp_algo(tac_dev)) {
-		tac_generate_fw_name(peripheral, tac_dev->fw_binaryname,
-				     sizeof(tac_dev->fw_binaryname));
+	tac_generate_fw_name(peripheral, tac_dev->fw_binaryname,
+			     sizeof(tac_dev->fw_binaryname));
 
-		ret = tac_load_and_cache_firmware_async(tac_dev);
-		if (ret) {
-			complete_all(&tac_dev->fw_caching_complete);
-			dev_dbg(dev, "failed to load fw: %d, use rom mode\n", ret);
-		}
-	} else {
+	ret = tac_load_and_cache_firmware_async(tac_dev);
+	if (ret) {
 		complete_all(&tac_dev->fw_caching_complete);
+		dev_dbg(dev, "failed to load fw: %d, use rom mode\n", ret);
 	}
 
 	ret = tac_init(tac_dev);

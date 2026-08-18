@@ -31,25 +31,25 @@
 
 static const struct reg_default tas2552_reg_defs[] = {
 	{TAS2552_CFG_1, 0x22},
+	{TAS2552_CFG_2, 0xef},
 	{TAS2552_CFG_3, 0x80},
 	{TAS2552_DOUT, 0x00},
-	{TAS2552_OUTPUT_DATA, 0xc0},
-	{TAS2552_PDM_CFG, 0x01},
-	{TAS2552_PGA_GAIN, 0x00},
-	{TAS2552_BOOST_APT_CTRL, 0x0f},
-	{TAS2552_RESERVED_0D, 0xbe},
-	{TAS2552_LIMIT_RATE_HYS, 0x08},
-	{TAS2552_CFG_2, 0xef},
 	{TAS2552_SER_CTRL_1, 0x00},
 	{TAS2552_SER_CTRL_2, 0x00},
+	{TAS2552_OUTPUT_DATA, 0xc0},
 	{TAS2552_PLL_CTRL_1, 0x10},
 	{TAS2552_PLL_CTRL_2, 0x00},
 	{TAS2552_PLL_CTRL_3, 0x00},
 	{TAS2552_BTIP, 0x8f},
 	{TAS2552_BTS_CTRL, 0x80},
+	{TAS2552_RESERVED_0D, 0xbe},
+	{TAS2552_LIMIT_RATE_HYS, 0x08},
 	{TAS2552_LIMIT_RELEASE, 0x04},
 	{TAS2552_LIMIT_INT_COUNT, 0x00},
+	{TAS2552_PDM_CFG, 0x01},
+	{TAS2552_PGA_GAIN, 0x00},
 	{TAS2552_EDGE_RATE_CTRL, 0x40},
+	{TAS2552_BOOST_APT_CTRL, 0x0f},
 	{TAS2552_VBAT_DATA, 0x00},
 };
 
@@ -495,13 +495,21 @@ static int tas2552_runtime_suspend(struct device *dev)
 static int tas2552_runtime_resume(struct device *dev)
 {
 	struct tas2552_data *tas2552 = dev_get_drvdata(dev);
+	int ret;
 
 	gpiod_set_value_cansleep(tas2552->enable_gpio, 1);
 
 	tas2552_sw_shutdown(tas2552, 0);
 
 	regcache_cache_only(tas2552->regmap, false);
-	regcache_sync(tas2552->regmap);
+	ret = regcache_sync(tas2552->regmap);
+	if (ret) {
+		regcache_cache_only(tas2552->regmap, true);
+		regcache_mark_dirty(tas2552->regmap);
+		tas2552_sw_shutdown(tas2552, 1);
+		gpiod_set_value_cansleep(tas2552->enable_gpio, 0);
+		return ret;
+	}
 
 	return 0;
 }

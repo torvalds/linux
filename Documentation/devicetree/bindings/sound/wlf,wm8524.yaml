@@ -24,6 +24,10 @@ properties:
     description:
       a GPIO spec for the MUTE pin.
 
+  port:
+    $ref: audio-graph-port.yaml#
+    unevaluatedProperties: false
+
 required:
   - compatible
   - wlf,mute-gpios

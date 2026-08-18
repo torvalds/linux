@@ -288,8 +288,8 @@ static int cs40l50_codec_driver_probe(struct platform_device *pdev)
 }
 
 static const struct platform_device_id cs40l50_id[] = {
-	{ "cs40l50-codec", },
-	{}
+	{ .name = "cs40l50-codec" },
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, cs40l50_id);
 

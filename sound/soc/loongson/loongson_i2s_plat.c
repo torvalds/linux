@@ -2,7 +2,7 @@
 //
 // Loongson I2S controller master mode dirver(platform device)
 //
-// Copyright (C) 2023-2024 Loongson Technology Corporation Limited
+// Copyright (C) 2023-2026 Loongson Technology Corporation Limited
 //
 // Author: Yingkun Meng <mengyingkun@loongson.cn>
 //         Binbin Zhou <zhoubinbin@loongson.cn>
@@ -21,6 +21,7 @@
 #include "loongson_i2s.h"
 #include "loongson_dma.h"
 
+/* Loongson-2K1000 APBDMA routing */
 #define LOONGSON_I2S_RX_DMA_OFFSET	21
 #define LOONGSON_I2S_TX_DMA_OFFSET	18
 
@@ -29,6 +30,11 @@
 #define LOONGSON_DMA2_CONF	0x2
 #define LOONGSON_DMA3_CONF	0x3
 #define LOONGSON_DMA4_CONF	0x4
+
+struct loongson_i2s_plat_config {
+	int rev_id;
+	int (*i2s_dma_config)(struct platform_device *pdev);
+};
 
 static int loongson_i2s_apbdma_config(struct platform_device *pdev)
 {
@@ -47,8 +53,18 @@ static int loongson_i2s_apbdma_config(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct loongson_i2s_plat_config ls2k0300_i2s_plat_config = {
+	.rev_id = 1,
+};
+
+static const struct loongson_i2s_plat_config ls2k1000_i2s_plat_config = {
+	.rev_id = 0,
+	.i2s_dma_config = loongson_i2s_apbdma_config,
+};
+
 static int loongson_i2s_plat_probe(struct platform_device *pdev)
 {
+	const struct loongson_i2s_plat_config *plat_config;
 	struct device *dev = &pdev->dev;
 	struct loongson_i2s *i2s;
 	struct resource *res;
@@ -59,12 +75,17 @@ static int loongson_i2s_plat_probe(struct platform_device *pdev)
 	if (!i2s)
 		return -ENOMEM;
 
-	ret = loongson_i2s_apbdma_config(pdev);
-	if (ret)
-		return ret;
+	plat_config = device_get_match_data(dev);
+	if (!plat_config)
+		return -EINVAL;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	i2s->reg_base = devm_ioremap_resource(&pdev->dev, res);
+	if (plat_config->i2s_dma_config) {
+		ret = plat_config->i2s_dma_config(pdev);
+		if (ret)
+			return ret;
+	}
+
+	i2s->reg_base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(i2s->reg_base))
 		return dev_err_probe(dev, PTR_ERR(i2s->reg_base),
 				     "devm_ioremap_resource failed\n");
@@ -87,10 +108,16 @@ static int loongson_i2s_plat_probe(struct platform_device *pdev)
 	if (IS_ERR(i2s_clk))
 		return dev_err_probe(dev, PTR_ERR(i2s_clk), "clock property invalid\n");
 	i2s->clk_rate = clk_get_rate(i2s_clk);
+	i2s->rev_id = plat_config->rev_id;
 
 	dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
 	dev_set_name(dev, LS_I2S_DRVNAME);
 	dev_set_drvdata(dev, i2s);
+
+	if (i2s->rev_id == 1) {
+		regmap_update_bits(i2s->regmap, LS_I2S_CTRL, I2S_CTRL_RESET, I2S_CTRL_RESET);
+		fsleep(200);
+	}
 
 	ret = devm_snd_soc_register_component(dev, &loongson_i2s_edma_component,
 					      &loongson_i2s_dai, 1);
@@ -102,7 +129,8 @@ static int loongson_i2s_plat_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id loongson_i2s_ids[] = {
-	{ .compatible = "loongson,ls2k1000-i2s" },
+	{ .compatible = "loongson,ls2k0300-i2s", .data = &ls2k0300_i2s_plat_config },
+	{ .compatible = "loongson,ls2k1000-i2s", .data = &ls2k1000_i2s_plat_config },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, loongson_i2s_ids);

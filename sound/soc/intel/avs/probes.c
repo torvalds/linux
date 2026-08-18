@@ -296,19 +296,19 @@ static const struct snd_soc_component_driver avs_probe_component_driver = {
 int avs_register_probe_component(struct avs_dev *adev, const char *name)
 {
 	struct snd_soc_component *component;
-	int ret;
+	const char *comp_name;
 
-	component = devm_kzalloc(adev->dev, sizeof(*component), GFP_KERNEL);
+	component = snd_soc_component_alloc(adev->dev);
 	if (!component)
 		return -ENOMEM;
 
-	component->name = devm_kstrdup(adev->dev, name, GFP_KERNEL);
-	if (!component->name)
+	comp_name = devm_kstrdup(adev->dev, name, GFP_KERNEL);
+	if (!comp_name)
 		return -ENOMEM;
 
-	ret = snd_soc_component_initialize(component, &avs_probe_component_driver, adev->dev);
-	if (ret)
-		return ret;
+	snd_soc_component_set_name(component, comp_name);
 
-	return snd_soc_add_component(component, probe_cpu_dais, ARRAY_SIZE(probe_cpu_dais));
+	return snd_soc_register_component(component,
+					  &avs_probe_component_driver,
+					  probe_cpu_dais, ARRAY_SIZE(probe_cpu_dais));
 }
