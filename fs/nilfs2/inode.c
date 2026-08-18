@@ -287,8 +287,7 @@ const struct address_space_operations nilfs_buffer_cache_aops = {
 };
 
 static int nilfs_insert_inode_locked(struct inode *inode,
-				     struct nilfs_root *root,
-				     unsigned long ino)
+				struct nilfs_root *root, u64 ino)
 {
 	struct nilfs_iget_args args = {
 		.ino = ino, .root = root, .cno = 0, .type = NILFS_I_TYPE_NORMAL
@@ -305,7 +304,7 @@ struct inode *nilfs_new_inode(struct inode *dir, umode_t mode)
 	struct nilfs_root *root;
 	struct buffer_head *bh;
 	int err = -ENOMEM;
-	ino_t ino;
+	u64 ino;
 
 	inode = new_inode(sb);
 	if (unlikely(!inode))
@@ -443,7 +442,7 @@ int nilfs_read_inode_common(struct inode *inode,
 }
 
 static int __nilfs_read_inode(struct super_block *sb,
-			      struct nilfs_root *root, unsigned long ino,
+			      struct nilfs_root *root, u64 ino,
 			      struct inode *inode)
 {
 	struct the_nilfs *nilfs = sb->s_fs_info;
@@ -482,8 +481,8 @@ static int __nilfs_read_inode(struct super_block *sb,
 			huge_decode_dev(le64_to_cpu(raw_inode->i_device_code)));
 	} else {
 		nilfs_error(sb,
-			    "invalid file type bits in mode 0%o for inode %lu",
-			    inode->i_mode, ino);
+			"invalid file type bits in mode 0%o for inode %llu",
+			inode->i_mode, ino);
 		err = -EIO;
 		goto failed_unmap;
 	}
@@ -533,7 +532,7 @@ static int nilfs_iget_set(struct inode *inode, void *opaque)
 }
 
 struct inode *nilfs_ilookup(struct super_block *sb, struct nilfs_root *root,
-			    unsigned long ino)
+			    u64 ino)
 {
 	struct nilfs_iget_args args = {
 		.ino = ino, .root = root, .cno = 0, .type = NILFS_I_TYPE_NORMAL
@@ -542,8 +541,8 @@ struct inode *nilfs_ilookup(struct super_block *sb, struct nilfs_root *root,
 	return ilookup5(sb, ino, nilfs_iget_test, &args);
 }
 
-struct inode *nilfs_iget_locked(struct super_block *sb, struct nilfs_root *root,
-				unsigned long ino)
+struct inode *nilfs_iget_locked(struct super_block *sb,
+				struct nilfs_root *root, u64 ino)
 {
 	struct nilfs_iget_args args = {
 		.ino = ino, .root = root, .cno = 0, .type = NILFS_I_TYPE_NORMAL
@@ -553,7 +552,7 @@ struct inode *nilfs_iget_locked(struct super_block *sb, struct nilfs_root *root,
 }
 
 struct inode *nilfs_iget(struct super_block *sb, struct nilfs_root *root,
-			 unsigned long ino)
+			 u64 ino)
 {
 	struct inode *inode;
 	int err;
@@ -579,8 +578,7 @@ struct inode *nilfs_iget(struct super_block *sb, struct nilfs_root *root,
 	return inode;
 }
 
-struct inode *nilfs_iget_for_gc(struct super_block *sb, unsigned long ino,
-				__u64 cno)
+struct inode *nilfs_iget_for_gc(struct super_block *sb, u64 ino, __u64 cno)
 {
 	struct nilfs_iget_args args = {
 		.ino = ino, .root = NULL, .cno = cno, .type = NILFS_I_TYPE_GC
@@ -740,7 +738,7 @@ void nilfs_write_inode_common(struct inode *inode,
 
 void nilfs_update_inode(struct inode *inode, struct buffer_head *ibh, int flags)
 {
-	ino_t ino = inode->i_ino;
+	u64 ino = inode->i_ino;
 	struct nilfs_inode_info *ii = NILFS_I(inode);
 	struct inode *ifile = ii->i_root->ifile;
 	struct nilfs_inode *raw_inode;
