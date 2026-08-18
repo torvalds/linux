@@ -22768,6 +22768,13 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/watchdog/realtek,otto-wdt.yaml
 F:	drivers/watchdog/realtek_otto_wdt.c
 
+REALTEK PSE MCU DRIVER
+M:	Jonas Jelonek <jelonek.jonas@gmail.com>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/net/pse-pd/realtek,pse-mcu-gen1.yaml
+F:	drivers/net/pse-pd/realtek-pse-mcu*
+
 REALTEK RTL83xx SMI DSA ROUTER CHIPS
 M:	Linus Walleij <linusw@kernel.org>
 M:	Luiz Angelo Daros de Luca <luizluca@gmail.com>
