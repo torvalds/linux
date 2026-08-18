@@ -1320,6 +1320,11 @@ D: Initial GPL'd Frame Relay driver
 D: Dynamic PPP devices
 D: Sundry modularizations (PPP, IPX, ...) and fixes
 
+N: Steve French
+E: sfrench@samba.org
+E: smfrench@gmail.com
+D: Author and maintainer of the cifs filesystem for many years.
+
 N: Bob Frey
 E: bobf@advansys.com
 D: AdvanSys SCSI driver

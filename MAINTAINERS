@@ -6458,9 +6458,8 @@ F:	rust/kernel/clk.rs
 X:	drivers/clk/clkdev.c
 
 COMMON INTERNET FILE SYSTEM CLIENT (CIFS and SMB3)
-M:	Steve French <sfrench@samba.org>
-M:	Steve French <smfrench@gmail.com>
-R:	Paulo Alcantara <pc@manguebit.org> (DFS, global name space)
+M:	Paulo Alcantara <pc@manguebit.org>
+M:	Namjae Jeon <linkinjeon@kernel.org>
 R:	Ronnie Sahlberg <ronniesahlberg@gmail.com> (directory leases, sparse files)
 R:	Shyam Prasad N <sprasad@microsoft.com> (multichannel)
 R:	Tom Talpey <tom@talpey.com> (RDMA, smbdirect)
@@ -6469,7 +6468,7 @@ L:	linux-cifs@vger.kernel.org
 L:	samba-technical@lists.samba.org (moderated for non-subscribers)
 S:	Supported
 W:	https://wiki.samba.org/index.php/LinuxCIFS
-T:	git https://git.samba.org/sfrench/cifs-2.6.git for-next
+T:	git https://git.manguebit.org/linux.git cifs-next
 F:	Documentation/admin-guide/cifs/
 F:	fs/smb/client/
 F:	fs/smb/common/
