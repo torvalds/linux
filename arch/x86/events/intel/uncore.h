@@ -129,7 +129,7 @@ struct intel_uncore_type {
 #define events_group attr_groups[2]
 
 struct intel_uncore_ops {
-	void (*init_box)(struct intel_uncore_box *);
+	int (*init_box)(struct intel_uncore_box *);
 	void (*exit_box)(struct intel_uncore_box *);
 	void (*disable_box)(struct intel_uncore_box *);
 	void (*enable_box)(struct intel_uncore_box *);
@@ -146,12 +146,23 @@ struct intel_uncore_pmu {
 	struct pmu			pmu;
 	char				name[UNCORE_PMU_NAME_LEN];
 	int				pmu_idx;
-	bool				registered;
+	unsigned long			flags;
 	atomic_t			activeboxes;
 	cpumask_t			cpu_mask;
 	struct intel_uncore_type	*type;
 	struct intel_uncore_box		**boxes;
 };
+
+#define PMU_REGISTERED_BIT	0
+#define PMU_BROKEN_BIT		1
+
+#define uncore_pmu_registered(pmu)	test_bit(PMU_REGISTERED_BIT, &(pmu)->flags)
+#define uncore_pmu_broken(pmu)		test_bit(PMU_BROKEN_BIT, &(pmu)->flags)
+#define uncore_pmu_available(pmu)	(uncore_pmu_registered(pmu) &&  \
+					 !uncore_pmu_broken(pmu))
+#define uncore_pmu_set_registered(pmu)	set_bit(PMU_REGISTERED_BIT, &(pmu)->flags)
+#define uncore_pmu_set_broken(pmu)	set_bit(PMU_BROKEN_BIT, &(pmu)->flags)
+#define uncore_pmu_clear_registered(pmu) clear_bit(PMU_REGISTERED_BIT, &(pmu)->flags)
 
 struct intel_uncore_extra_reg {
 	raw_spinlock_t lock;
@@ -185,7 +196,7 @@ struct intel_uncore_box {
 #define CFL_UNC_CBO_7_PERFEVTSEL0		0xf70
 #define CFL_UNC_CBO_7_PER_CTR0			0xf76
 
-#define UNCORE_BOX_FLAG_INITIATED		0
+#define UNCORE_BOX_FLAG_INITIALIZED		0
 /* event config registers are 8-byte apart */
 #define UNCORE_BOX_FLAG_CTL_OFFS8		1
 /* CFL 8th CBOX has different MSR space */
@@ -557,17 +568,29 @@ static inline u64 uncore_read_counter(struct intel_uncore_box *box,
 	return box->pmu->type->ops->read_counter(box, event);
 }
 
-static inline void uncore_box_init(struct intel_uncore_box *box)
+static inline bool uncore_box_active(struct intel_uncore_box *box)
 {
-	if (!test_and_set_bit(UNCORE_BOX_FLAG_INITIATED, &box->flags)) {
-		if (box->pmu->type->ops->init_box)
-			box->pmu->type->ops->init_box(box);
+	return (!box->pmu->type->ops->init_box ||
+		test_bit(UNCORE_BOX_FLAG_INITIALIZED, &box->flags));
+}
+
+static inline int uncore_box_init(struct intel_uncore_box *box)
+{
+	int ret = 0;
+
+	if (!test_bit(UNCORE_BOX_FLAG_INITIALIZED, &box->flags) &&
+	    box->pmu->type->ops->init_box) {
+		ret = box->pmu->type->ops->init_box(box);
+		if (!ret)
+			__set_bit(UNCORE_BOX_FLAG_INITIALIZED, &box->flags);
 	}
+
+	return ret;
 }
 
 static inline void uncore_box_exit(struct intel_uncore_box *box)
 {
-	if (test_and_clear_bit(UNCORE_BOX_FLAG_INITIATED, &box->flags)) {
+	if (test_and_clear_bit(UNCORE_BOX_FLAG_INITIALIZED, &box->flags)) {
 		if (box->pmu->type->ops->exit_box)
 			box->pmu->type->ops->exit_box(box);
 	}

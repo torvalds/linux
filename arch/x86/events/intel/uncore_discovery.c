@@ -489,14 +489,15 @@ static u64 intel_generic_uncore_box_ctl(struct intel_uncore_box *box)
 	return unit->addr;
 }
 
-void intel_generic_uncore_msr_init_box(struct intel_uncore_box *box)
+int intel_generic_uncore_msr_init_box(struct intel_uncore_box *box)
 {
 	u64 box_ctl = intel_generic_uncore_box_ctl(box);
 
 	if (!box_ctl)
-		return;
+		return -ENODEV;
 
 	wrmsrq(box_ctl, GENERIC_PMON_BOX_CTL_INT);
+	return 0;
 }
 
 void intel_generic_uncore_msr_disable_box(struct intel_uncore_box *box)
@@ -578,15 +579,16 @@ static inline int intel_pci_uncore_box_ctl(struct intel_uncore_box *box)
 	return UNCORE_DISCOVERY_PCI_BOX_CTRL(intel_generic_uncore_box_ctl(box));
 }
 
-void intel_generic_uncore_pci_init_box(struct intel_uncore_box *box)
+int intel_generic_uncore_pci_init_box(struct intel_uncore_box *box)
 {
 	int box_ctl = intel_pci_uncore_box_ctl(box);
 
 	if (!box_ctl)
-		return;
+		return -ENODEV;
 
 	__set_bit(UNCORE_BOX_FLAG_CTL_OFFS8, &box->flags);
-	pci_write_config_dword(box->pci_dev, box_ctl, GENERIC_PMON_BOX_CTL_INT);
+	return pci_write_config_dword(box->pci_dev, box_ctl,
+				      GENERIC_PMON_BOX_CTL_INT);
 }
 
 void intel_generic_uncore_pci_disable_box(struct intel_uncore_box *box)
@@ -648,7 +650,7 @@ static struct intel_uncore_ops generic_uncore_pci_ops = {
 
 #define UNCORE_GENERIC_MMIO_SIZE		0x4000
 
-void intel_generic_uncore_mmio_init_box(struct intel_uncore_box *box)
+int intel_generic_uncore_mmio_init_box(struct intel_uncore_box *box)
 {
 	static struct intel_uncore_discovery_unit *unit;
 	struct intel_uncore_type *type = box->pmu->type;
@@ -658,13 +660,13 @@ void intel_generic_uncore_mmio_init_box(struct intel_uncore_box *box)
 	if (!unit) {
 		pr_warn("Uncore type %d id %d: Cannot find box control address.\n",
 			type->type_id, box->pmu->pmu_idx);
-		return;
+		return -ENODEV;
 	}
 
 	if (!unit->addr) {
 		pr_warn("Uncore type %d box %d: Invalid box control address.\n",
 			type->type_id, unit->id);
-		return;
+		return -ENODEV;
 	}
 
 	addr = unit->addr;
@@ -672,10 +674,11 @@ void intel_generic_uncore_mmio_init_box(struct intel_uncore_box *box)
 	if (!box->io_addr) {
 		pr_warn("Uncore type %d box %d: ioremap error for 0x%llx.\n",
 			type->type_id, unit->id, (unsigned long long)addr);
-		return;
+		return -ENOMEM;
 	}
 
 	writel(GENERIC_PMON_BOX_CTL_INT, box->io_addr);
+	return 0;
 }
 
 void intel_generic_uncore_mmio_disable_box(struct intel_uncore_box *box)

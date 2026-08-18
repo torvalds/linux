@@ -149,5 +149,30 @@ int usdt_executed(struct pt_regs *ctx)
 		executed++;
 	return 0;
 }
+
+int arg_total;
+int arg_bad;
+long arg_last[3];
+long expected_arg[3];
+int expected_pid;
+
+SEC("usdt")
+int BPF_USDT(usdt_check_arg, long arg1, long arg2, long arg3)
+{
+	if (expected_pid != (bpf_get_current_pid_tgid() >> 32))
+		return 0;
+
+	__sync_fetch_and_add(&arg_total, 1);
+	arg_last[0] = arg1;
+	arg_last[1] = arg2;
+	arg_last[2] = arg3;
+
+	if (arg1 != expected_arg[0] ||
+	    arg2 != expected_arg[1] ||
+	    arg3 != expected_arg[2])
+		__sync_fetch_and_add(&arg_bad, 1);
+
+	return 0;
+}
 #endif
 char _license[] SEC("license") = "GPL";

@@ -199,9 +199,10 @@ DEFINE_UNCORE_FORMAT_ATTR(counter, counter, "config:6-7");
 DEFINE_UNCORE_FORMAT_ATTR(match, match, "config1:0-63");
 DEFINE_UNCORE_FORMAT_ATTR(mask, mask, "config2:0-63");
 
-static void nhmex_uncore_msr_init_box(struct intel_uncore_box *box)
+static int nhmex_uncore_msr_init_box(struct intel_uncore_box *box)
 {
 	wrmsrq(NHMEX_U_MSR_PMON_GLOBAL_CTL, NHMEX_U_PMON_GLOBAL_EN_ALL);
+	return 0;
 }
 
 static void nhmex_uncore_msr_exit_box(struct intel_uncore_box *box)

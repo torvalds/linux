@@ -276,15 +276,9 @@ static bool is_prefix_bad(struct insn *insn)
 	return false;
 }
 
-static int uprobe_init_insn(struct arch_uprobe *auprobe, struct insn *insn, bool x86_64)
+static int uprobe_init_insn(struct arch_uprobe *auprobe, struct insn *insn)
 {
-	enum insn_mode m = x86_64 ? INSN_MODE_64 : INSN_MODE_32;
 	u32 volatile *good_insns;
-	int ret;
-
-	ret = insn_decode(insn, auprobe->insn, sizeof(auprobe->insn), m);
-	if (ret < 0)
-		return -ENOEXEC;
 
 	if (is_prefix_bad(insn))
 		return -ENOTSUPP;
@@ -293,7 +287,7 @@ static int uprobe_init_insn(struct arch_uprobe *auprobe, struct insn *insn, bool
 	if (insn_masking_exception(insn))
 		return -ENOTSUPP;
 
-	if (x86_64)
+	if (insn->x86_64)
 		good_insns = good_insns_64;
 	else
 		good_insns = good_insns_32;
@@ -631,14 +625,29 @@ static struct vm_special_mapping tramp_mapping = {
 	.pages  = tramp_mapping_pages,
 };
 
-struct uprobe_trampoline {
-	struct hlist_node	node;
-	unsigned long		vaddr;
-};
+
+#define LEA_INSN_SIZE		5
+#define OPT_INSN_SIZE		(LEA_INSN_SIZE + CALL_INSN_SIZE)
+#define REDZONE_SIZE		0x80
+
+static const u8 lea_rsp[] = { 0x48, 0x8d, 0x64, 0x24, 0x80 };
+
+static bool is_opt_insns(const uprobe_opcode_t *insn)
+{
+	return !memcmp(insn, lea_rsp, LEA_INSN_SIZE) &&
+	       insn[LEA_INSN_SIZE] == CALL_INSN_OPCODE;
+}
+
+static bool is_swbp_opt_insns(uprobe_opcode_t *insn)
+{
+	return is_swbp_insn(&insn[0]) &&
+	       !memcmp(&insn[1], &lea_rsp[1], LEA_INSN_SIZE - 1) &&
+	       insn[LEA_INSN_SIZE] == CALL_INSN_OPCODE;
+}
 
 static bool is_reachable_by_call(unsigned long vtramp, unsigned long vaddr)
 {
-	long delta = (long)(vaddr + 5 - vtramp);
+	long delta = (long)(vaddr + OPT_INSN_SIZE - vtramp);
 
 	return delta >= INT_MIN && delta <= INT_MAX;
 }
@@ -651,7 +660,7 @@ static unsigned long find_nearest_trampoline(unsigned long vaddr)
 	};
 	unsigned long low_limit, high_limit;
 	unsigned long low_tramp, high_tramp;
-	unsigned long call_end = vaddr + 5;
+	unsigned long call_end = vaddr + OPT_INSN_SIZE;
 
 	if (check_add_overflow(call_end, INT_MIN, &low_limit))
 		low_limit = PAGE_SIZE;
@@ -682,83 +691,32 @@ static unsigned long find_nearest_trampoline(unsigned long vaddr)
 	return high_tramp;
 }
 
-static struct uprobe_trampoline *create_uprobe_trampoline(unsigned long vaddr)
+static struct vm_area_struct *get_uprobe_trampoline(struct mm_struct *mm, unsigned long vaddr,
+						    bool *new_mapping)
 {
-	struct pt_regs *regs = task_pt_regs(current);
-	struct mm_struct *mm = current->mm;
-	struct uprobe_trampoline *tramp;
+	VMA_ITERATOR(vmi, mm, 0);
 	struct vm_area_struct *vma;
 
-	if (!user_64bit_mode(regs))
-		return NULL;
+	*new_mapping = false;
+
+	if (vaddr > TASK_SIZE || vaddr < PAGE_SIZE)
+		return ERR_PTR(-EINVAL);
+
+	for_each_vma(vmi, vma) {
+		if (!vma_is_special_mapping(vma, &tramp_mapping))
+			continue;
+		if (is_reachable_by_call(vma->vm_start, vaddr))
+			return vma;
+	}
 
 	vaddr = find_nearest_trampoline(vaddr);
 	if (IS_ERR_VALUE(vaddr))
-		return NULL;
+		return ERR_PTR(vaddr);
 
-	tramp = kzalloc_obj(*tramp);
-	if (unlikely(!tramp))
-		return NULL;
-
-	tramp->vaddr = vaddr;
-	vma = _install_special_mapping(mm, tramp->vaddr, PAGE_SIZE,
-				VM_READ|VM_EXEC|VM_MAYEXEC|VM_MAYREAD|VM_DONTCOPY|VM_IO,
+	*new_mapping = true;
+	return _install_special_mapping(mm, vaddr, PAGE_SIZE,
+				VM_READ|VM_EXEC|VM_MAYEXEC|VM_MAYREAD|VM_IO,
 				&tramp_mapping);
-	if (IS_ERR(vma)) {
-		kfree(tramp);
-		return NULL;
-	}
-	return tramp;
-}
-
-static struct uprobe_trampoline *get_uprobe_trampoline(unsigned long vaddr, bool *new)
-{
-	struct uprobes_state *state = &current->mm->uprobes_state;
-	struct uprobe_trampoline *tramp = NULL;
-
-	if (vaddr > TASK_SIZE || vaddr < PAGE_SIZE)
-		return NULL;
-
-	hlist_for_each_entry(tramp, &state->head_tramps, node) {
-		if (is_reachable_by_call(tramp->vaddr, vaddr)) {
-			*new = false;
-			return tramp;
-		}
-	}
-
-	tramp = create_uprobe_trampoline(vaddr);
-	if (!tramp)
-		return NULL;
-
-	*new = true;
-	hlist_add_head(&tramp->node, &state->head_tramps);
-	return tramp;
-}
-
-static void destroy_uprobe_trampoline(struct uprobe_trampoline *tramp)
-{
-	/*
-	 * We do not unmap and release uprobe trampoline page itself,
-	 * because there's no easy way to make sure none of the threads
-	 * is still inside the trampoline.
-	 */
-	hlist_del(&tramp->node);
-	kfree(tramp);
-}
-
-void arch_uprobe_init_state(struct mm_struct *mm)
-{
-	INIT_HLIST_HEAD(&mm->uprobes_state.head_tramps);
-}
-
-void arch_uprobe_clear_state(struct mm_struct *mm)
-{
-	struct uprobes_state *state = &mm->uprobes_state;
-	struct uprobe_trampoline *tramp;
-	struct hlist_node *n;
-
-	hlist_for_each_entry_safe(tramp, n, &state->head_tramps, node)
-		destroy_uprobe_trampoline(tramp);
 }
 
 static bool __in_uprobe_trampoline(struct mm_struct *mm, unsigned long ip)
@@ -810,7 +768,7 @@ SYSCALL_DEFINE0(uprobe)
 
 	/* Allow execution only from uprobe trampolines. */
 	if (!in_uprobe_trampoline(regs->ip))
-		return -ENXIO;
+		return -EPROTO;
 
 	err = copy_from_user(&args, (void __user *)regs->sp, sizeof(args));
 	if (err)
@@ -826,8 +784,8 @@ SYSCALL_DEFINE0(uprobe)
 	regs->ax  = args.ax;
 	regs->r11 = args.r11;
 	regs->cx  = args.cx;
-	regs->ip  = args.retaddr - 5;
-	regs->sp += sizeof(args);
+	regs->ip  = args.retaddr - OPT_INSN_SIZE;
+	regs->sp += sizeof(args) + REDZONE_SIZE;
 	regs->orig_ax = -1;
 
 	sp = regs->sp;
@@ -844,12 +802,12 @@ SYSCALL_DEFINE0(uprobe)
 	 */
 	if (regs->sp != sp) {
 		/* skip the trampoline call */
-		if (args.retaddr - 5 == regs->ip)
-			regs->ip += 5;
+		if (args.retaddr - OPT_INSN_SIZE == regs->ip)
+			regs->ip += OPT_INSN_SIZE;
 		return regs->ax;
 	}
 
-	regs->sp -= sizeof(args);
+	regs->sp -= sizeof(args) + REDZONE_SIZE;
 
 	/* for the case uprobe_consumer has changed ax/r11/cx */
 	args.ax  = regs->ax;
@@ -857,7 +815,7 @@ SYSCALL_DEFINE0(uprobe)
 	args.cx  = regs->cx;
 
 	/* keep return address unless we are instructed otherwise */
-	if (args.retaddr - 5 != regs->ip)
+	if (args.retaddr - OPT_INSN_SIZE != regs->ip)
 		args.retaddr = regs->ip;
 
 	if (shstk_push(args.retaddr) == -EFAULT)
@@ -891,7 +849,7 @@ asm (
 	"pop %rax\n"
 	"pop %r11\n"
 	"pop %rcx\n"
-	"ret\n"
+	"ret $" __stringify(REDZONE_SIZE) "\n"
 	"int3\n"
 	".balign " __stringify(PAGE_SIZE) "\n"
 	".popsection\n"
@@ -909,7 +867,8 @@ late_initcall(arch_uprobes_init);
 
 enum {
 	EXPECT_SWBP,
-	EXPECT_CALL,
+	EXPECT_OPTIMIZED,
+	EXPECT_SWBP_OPTIMIZED,
 };
 
 struct write_opcode_ctx {
@@ -917,30 +876,29 @@ struct write_opcode_ctx {
 	int expect;
 };
 
-static int is_call_insn(uprobe_opcode_t *insn)
-{
-	return *insn == CALL_INSN_OPCODE;
-}
-
 /*
- * Verification callback used by int3_update uprobe_write calls to make sure
- * the underlying instruction is as expected - either int3 or call.
+ * Verification callback used by uprobe_write calls to make sure the underlying
+ * instruction is in the expected stage of the INT3 update sequence.
  */
 static int verify_insn(struct page *page, unsigned long vaddr, uprobe_opcode_t *new_opcode,
 		       int nbytes, void *data)
 {
 	struct write_opcode_ctx *ctx = data;
-	uprobe_opcode_t old_opcode[5];
+	uprobe_opcode_t old_opcode[OPT_INSN_SIZE];
 
-	uprobe_copy_from_page(page, ctx->base, (uprobe_opcode_t *) &old_opcode, 5);
+	uprobe_copy_from_page(page, ctx->base, old_opcode, OPT_INSN_SIZE);
 
 	switch (ctx->expect) {
 	case EXPECT_SWBP:
 		if (is_swbp_insn(&old_opcode[0]))
 			return 1;
 		break;
-	case EXPECT_CALL:
-		if (is_call_insn(&old_opcode[0]))
+	case EXPECT_OPTIMIZED:
+		if (is_opt_insns(&old_opcode[0]))
+			return 1;
+		break;
+	case EXPECT_SWBP_OPTIMIZED:
+		if (is_swbp_opt_insns(&old_opcode[0]))
 			return 1;
 		break;
 	}
@@ -949,48 +907,55 @@ static int verify_insn(struct page *page, unsigned long vaddr, uprobe_opcode_t *
 }
 
 /*
- * Modify multi-byte instructions by using INT3 breakpoints on SMP.
+ * Modify the optimized instruction by using INT3 breakpoints on SMP.
  * We completely avoid using stop_machine() here, and achieve the
  * synchronization using INT3 breakpoints and SMP cross-calls.
  * (borrowed comment from smp_text_poke_batch_finish)
  *
- * The way it is done:
- *   - Add an INT3 trap to the address that will be patched
- *   - SMP sync all CPUs
- *   - Update all but the first byte of the patched range
- *   - SMP sync all CPUs
- *   - Replace the first byte (INT3) by the first byte of the replacing opcode
- *   - SMP sync all CPUs
+ * For optimization (int3_update_optimize):
+ *   1) Start with the uprobe INT3 trap already installed
+ *   2) Update everything but the first byte
+ *   3) Replace the first INT3 by the first byte of the LEA instruction
+ *
+ * For unoptimization (int3_update_unoptimize):
+ *   1) Start with the optimized uprobe lea/call instructions
+ *   2) Add an INT3 trap to the address that will be patched
+ *   3) Restore the NOP bytes before the call opcode
+ *   4) Replace the first INT3 by the first byte of the NOP instruction
+ *
+ * Note that unoptimization deliberately keeps the call opcode and displacement
+ * in bytes 5..9. Those bytes become operands of the restored 10-byte NOP.
+ *
+ * Since there is only a single target uprobe-trampoline for the given nop10
+ * instruction address, the CALL instruction will not be changed across
+ * unoptimization/optimization cycles.
+ * Therefore, any task that is preempted at the CALL instruction is guaranteed
+ * to observe that CALL and not anything else.
  */
-static int int3_update(struct arch_uprobe *auprobe, struct vm_area_struct *vma,
-		       unsigned long vaddr, char *insn, bool optimize)
+static int int3_update_optimize(struct arch_uprobe *auprobe, struct vm_area_struct *vma,
+				unsigned long vaddr, uprobe_opcode_t *insn)
 {
-	uprobe_opcode_t int3 = UPROBE_SWBP_INSN;
 	struct write_opcode_ctx ctx = {
 		.base = vaddr,
 	};
 	int err;
 
 	/*
-	 * Write int3 trap.
+	 * 1) Initial state after set_swbp() installed the uprobe:
+	 *    cc 2e 0f 1f 84 00 00 00 00 00
 	 *
-	 * The swbp_optimize path comes with breakpoint already installed,
-	 * so we can skip this step for optimize == true.
+	 *    After a previous unoptimization bytes 5..9 may still contain the
+	 *    old call instruction, which remains valid for threads already there.
 	 */
-	if (!optimize) {
-		ctx.expect = EXPECT_CALL;
-		err = uprobe_write(auprobe, vma, vaddr, &int3, 1, verify_insn,
-				   true /* is_register */, false /* do_update_ref_ctr */,
-				   &ctx);
-		if (err)
-			return err;
-	}
-
 	smp_text_poke_sync_each_cpu();
 
-	/* Write all but the first byte of the patched range. */
+	/*
+	 * 2) Rewrite the LEA tail and call displacement:
+	 *    cc [8d 64 24 80 e8 d0 d1 d2 d3]
+	 */
 	ctx.expect = EXPECT_SWBP;
-	err = uprobe_write(auprobe, vma, vaddr + 1, insn + 1, 4, verify_insn,
+	err = uprobe_write(auprobe, vma, vaddr + 1, insn + 1,
+			   OPT_INSN_SIZE - 1, verify_insn,
 			   true /* is_register */, false /* do_update_ref_ctr */,
 			   &ctx);
 	if (err)
@@ -999,13 +964,98 @@ static int int3_update(struct arch_uprobe *auprobe, struct vm_area_struct *vma,
 	smp_text_poke_sync_each_cpu();
 
 	/*
-	 * Write first byte.
+	 * 3) Publish the first LEA byte:
+	 *    [48] 8d 64 24 80 e8 d0 d1 d2 d3
 	 *
-	 * The swbp_unoptimize needs to finish uprobe removal together
-	 * with ref_ctr update, using uprobe_write with proper flags.
+	 *    From offset 0 this is:
+	 *      lea -0x80(%rsp), %rsp
+	 *      call <uprobe-trampoline>
 	 */
+	ctx.expect = EXPECT_SWBP_OPTIMIZED;
 	err = uprobe_write(auprobe, vma, vaddr, insn, 1, verify_insn,
-			   optimize /* is_register */, !optimize /* do_update_ref_ctr */,
+			   true /* is_register */, false /* do_update_ref_ctr */,
+			   &ctx);
+	if (err)
+		goto error;
+
+	smp_text_poke_sync_each_cpu();
+	return 0;
+
+error:
+	/*
+	 * In all intermediate states byte 0 is INT3, so EXPECT_SWBP covers every
+	 * case. Restore NOP bytes 1..4, but keep the valid CALL at bytes 5..9
+	 * for a thread that had already executed the LEA before a previous
+	 * unoptimization.
+	 */
+	ctx.expect = EXPECT_SWBP;
+	uprobe_write(auprobe, vma, vaddr + 1, auprobe->insn + 1,
+		     LEA_INSN_SIZE - 1, verify_insn, true, false, &ctx);
+	smp_text_poke_sync_each_cpu();
+	return err;
+}
+
+static int int3_update_unoptimize(struct arch_uprobe *auprobe, struct vm_area_struct *vma,
+				  unsigned long vaddr, uprobe_opcode_t *insn)
+{
+	uprobe_opcode_t int3 = UPROBE_SWBP_INSN;
+	struct write_opcode_ctx ctx = {
+		.base = vaddr,
+		.expect = EXPECT_OPTIMIZED,
+	};
+	int err;
+
+	/*
+	 * Note the first two uprobe_write calls use is_register=true, because they
+	 * are intermediate patching states while the probe is still active, so
+	 * we force the exclusive anonymous page for the update.
+	 * Also we use do_update_ref_ctr=false because refctr was already updated by
+	 * the initial int3 install.
+	 *
+	 * The last uprobe_write to nop10 instruction is called with is_register=false
+	 * and do_update_ref_ctr=true to trigger the refctr update and to instruct
+	 * uprobe_write to zap the anonymous page if it now matches the file page.
+	 *
+	 * 1) Initial optimized state:
+	 *    48 8d 64 24 80 e8 d0 d1 d2 d3
+	 *
+	 * 2) Trap new entries before restoring the NOP bytes:
+	 *    [cc] 8d 64 24 80 e8 d0 d1 d2 d3
+	 */
+	err = uprobe_write(auprobe, vma, vaddr, &int3, 1, verify_insn,
+			   true /* is_register */, false /* do_update_ref_ctr */,
+			   &ctx);
+	if (err)
+		return err;
+
+	smp_text_poke_sync_each_cpu();
+
+	/*
+	 * 3) Restore bytes 1..4 of the original NOP while keeping byte 0 trapped
+	 *    and byte 5 as CALL:
+	 *    cc [2e 0f 1f 84] e8 d0 d1 d2 d3
+	 */
+	ctx.expect = EXPECT_SWBP_OPTIMIZED;
+	err = uprobe_write(auprobe, vma, vaddr + 1, insn + 1,
+			   LEA_INSN_SIZE - 1, verify_insn,
+			   true /* is_register */, false /* do_update_ref_ctr */,
+			   &ctx);
+	if (err)
+		return err;
+
+	smp_text_poke_sync_each_cpu();
+
+	/*
+	 * 4) Publish the first byte of the original NOP:
+	 *    [66] 2e 0f 1f 84 e8 d0 d1 d2 d3
+	 *
+	 * From offset 0 this is the restored 10-byte NOP; the CALL opcode and
+	 * displacement are now only NOP operands.  Offset 5 still decodes as
+	 * CALL for a thread that was already there.
+	 */
+	ctx.expect = EXPECT_SWBP;
+	err = uprobe_write(auprobe, vma, vaddr, insn, 1, verify_insn,
+			   false /* is_register */, true /* do_update_ref_ctr */,
 			   &ctx);
 	if (err)
 		return err;
@@ -1017,17 +1067,25 @@ static int int3_update(struct arch_uprobe *auprobe, struct vm_area_struct *vma,
 static int swbp_optimize(struct arch_uprobe *auprobe, struct vm_area_struct *vma,
 			 unsigned long vaddr, unsigned long tramp)
 {
-	u8 call[5];
+	u8 insn[OPT_INSN_SIZE], *call = &insn[LEA_INSN_SIZE];
 
-	__text_gen_insn(call, CALL_INSN_OPCODE, (const void *) vaddr,
+	/*
+	 * We have nop10 instruction (with first byte overwritten to int3),
+	 * changing it to:
+	 *   lea -0x80(%rsp), %rsp
+	 *   call tramp
+	 */
+	memcpy(insn, lea_rsp, LEA_INSN_SIZE);
+	__text_gen_insn(call, CALL_INSN_OPCODE,
+			(const void *) (vaddr + LEA_INSN_SIZE),
 			(const void *) tramp, CALL_INSN_SIZE);
-	return int3_update(auprobe, vma, vaddr, call, true /* optimize */);
+	return int3_update_optimize(auprobe, vma, vaddr, insn);
 }
 
 static int swbp_unoptimize(struct arch_uprobe *auprobe, struct vm_area_struct *vma,
 			   unsigned long vaddr)
 {
-	return int3_update(auprobe, vma, vaddr, auprobe->insn, false /* optimize */);
+	return int3_update_unoptimize(auprobe, vma, vaddr, auprobe->insn);
 }
 
 static int copy_from_vaddr(struct mm_struct *mm, unsigned long vaddr, void *dst, int len)
@@ -1049,19 +1107,19 @@ static bool __is_optimized(struct mm_struct *mm, uprobe_opcode_t *insn, unsigned
 	struct __packed __arch_relative_insn {
 		u8 op;
 		s32 raddr;
-	} *call = (struct __arch_relative_insn *) insn;
+	} *call = (struct __arch_relative_insn *)(insn + LEA_INSN_SIZE);
 
-	if (!is_call_insn(insn))
+	if (!is_opt_insns(insn))
 		return false;
-	return __in_uprobe_trampoline(mm, vaddr + 5 + call->raddr);
+	return __in_uprobe_trampoline(mm, vaddr + OPT_INSN_SIZE + call->raddr);
 }
 
 static int is_optimized(struct mm_struct *mm, unsigned long vaddr)
 {
-	uprobe_opcode_t insn[5];
+	uprobe_opcode_t insn[OPT_INSN_SIZE];
 	int err;
 
-	err = copy_from_vaddr(mm, vaddr, &insn, 5);
+	err = copy_from_vaddr(mm, vaddr, &insn, OPT_INSN_SIZE);
 	if (err)
 		return err;
 	return __is_optimized(mm, (uprobe_opcode_t *)&insn, vaddr);
@@ -1111,27 +1169,29 @@ int set_orig_insn(struct arch_uprobe *auprobe, struct vm_area_struct *vma,
 static int __arch_uprobe_optimize(struct arch_uprobe *auprobe, struct mm_struct *mm,
 				  unsigned long vaddr)
 {
-	struct uprobe_trampoline *tramp;
-	struct vm_area_struct *vma;
-	bool new = false;
-	int err = 0;
+	struct pt_regs *regs = task_pt_regs(current);
+	struct vm_area_struct *vma, *tramp;
+	bool new_mapping;
+	int ret;
 
+	if (!user_64bit_mode(regs))
+		return -EINVAL;
 	vma = find_vma(mm, vaddr);
 	if (!vma)
 		return -EINVAL;
-	tramp = get_uprobe_trampoline(vaddr, &new);
-	if (!tramp)
-		return -EINVAL;
-	err = swbp_optimize(auprobe, vma, vaddr, tramp->vaddr);
-	if (WARN_ON_ONCE(err) && new)
-		destroy_uprobe_trampoline(tramp);
-	return err;
+	tramp = get_uprobe_trampoline(mm, vaddr, &new_mapping);
+	if (IS_ERR(tramp))
+		return PTR_ERR(tramp);
+	ret = swbp_optimize(auprobe, vma, vaddr, tramp->vm_start);
+	if (WARN_ON_ONCE(ret) && new_mapping)
+		WARN_ON_ONCE(do_munmap(mm, tramp->vm_start, PAGE_SIZE, NULL));
+	return ret;
 }
 
 void arch_uprobe_optimize(struct arch_uprobe *auprobe, unsigned long vaddr)
 {
 	struct mm_struct *mm = current->mm;
-	uprobe_opcode_t insn[5];
+	uprobe_opcode_t insn[OPT_INSN_SIZE];
 
 	if (!should_optimize(auprobe))
 		return;
@@ -1142,7 +1202,7 @@ void arch_uprobe_optimize(struct arch_uprobe *auprobe, unsigned long vaddr)
 	 * Check if some other thread already optimized the uprobe for us,
 	 * if it's the case just go away silently.
 	 */
-	if (copy_from_vaddr(mm, vaddr, &insn, 5))
+	if (copy_from_vaddr(mm, vaddr, &insn, OPT_INSN_SIZE))
 		goto unlock;
 	if (!is_swbp_insn((uprobe_opcode_t*) &insn))
 		goto unlock;
@@ -1158,16 +1218,32 @@ unlock:
 	mmap_write_unlock(mm);
 }
 
+static bool is_optimizable_nop10(struct insn *insn)
+{
+	static const u8 nop10_prefix[] = {
+		0x66, 0x2e, 0x0f, 0x1f, 0x84
+	};
+
+	/*
+	 * Restrict this to the 10-byte NOP form whose last 5 bytes are
+	 * SIB/displacement operands. Unoptimization keeps the call opcode and
+	 * displacement in those bytes, so other NOP encodings are not safe.
+	 */
+	return insn->length == OPT_INSN_SIZE &&
+	       insn_is_nop(insn) &&
+	       !memcmp(insn->kaddr, nop10_prefix, ARRAY_SIZE(nop10_prefix));
+}
+
 static bool can_optimize(struct insn *insn, unsigned long vaddr)
 {
-	if (!insn->x86_64 || insn->length != 5)
+	if (!insn->x86_64)
 		return false;
 
-	if (!insn_is_nop(insn))
+	if (!is_optimizable_nop10(insn))
 		return false;
 
 	/* We can't do cross page atomic writes yet. */
-	return PAGE_SIZE - (vaddr & ~PAGE_MASK) >= 5;
+	return PAGE_SIZE - (vaddr & ~PAGE_MASK) >= OPT_INSN_SIZE;
 }
 #else /* 32-bit: */
 /*
@@ -1549,16 +1625,26 @@ static int push_setup_xol_ops(struct arch_uprobe *auprobe, struct insn *insn)
  */
 int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, unsigned long addr)
 {
+	enum insn_mode m = is_64bit_mm(mm) ? INSN_MODE_64 : INSN_MODE_32;
 	u8 fix_ip_or_call = UPROBE_FIX_IP;
 	struct insn insn;
 	int ret;
 
-	ret = uprobe_init_insn(auprobe, &insn, is_64bit_mm(mm));
-	if (ret)
-		return ret;
+	ret = insn_decode(&insn, auprobe->insn, sizeof(auprobe->insn), m);
+	if (ret < 0)
+		return -ENOEXEC;
 
-	if (can_optimize(&insn, addr))
+	/*
+	 * No need to check instruction in uprobe_init_insn in case we
+	 * are on top of optimizable nop10.
+	 */
+	if (can_optimize(&insn, addr)) {
 		set_bit(ARCH_UPROBE_FLAG_CAN_OPTIMIZE, &auprobe->flags);
+	} else {
+		ret = uprobe_init_insn(auprobe, &insn);
+		if (ret)
+			return ret;
+	}
 
 	ret = branch_setup_xol_ops(auprobe, &insn);
 	if (ret != -ENOSYS)

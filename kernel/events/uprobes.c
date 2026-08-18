@@ -54,7 +54,7 @@ static struct mutex uprobes_mmap_mutex[UPROBES_HASH_SZ];
 DEFINE_STATIC_PERCPU_RWSEM(dup_mmap_sem);
 
 /* Covers return_instance's uprobe lifetime. */
-DEFINE_STATIC_SRCU(uretprobes_srcu);
+DEFINE_STATIC_SRCU_FAST_UPDOWN(uretprobes_srcu);
 
 /* Have a copy of original instruction */
 #define UPROBE_COPY_INSN	0
@@ -707,12 +707,13 @@ static void put_uprobe(struct uprobe *uprobe)
 }
 
 /* Initialize hprobe as SRCU-protected "leased" uprobe */
-static void hprobe_init_leased(struct hprobe *hprobe, struct uprobe *uprobe, int srcu_idx)
+static void hprobe_init_leased(struct hprobe *hprobe, struct uprobe *uprobe,
+			       struct srcu_ctr __percpu *srcu_scp)
 {
 	WARN_ON(!uprobe);
 	hprobe->state = HPROBE_LEASED;
 	hprobe->uprobe = uprobe;
-	hprobe->srcu_idx = srcu_idx;
+	hprobe->srcu_scp = srcu_scp;
 }
 
 /* Initialize hprobe as refcounted ("stable") uprobe (uprobe can be NULL). */
@@ -720,7 +721,7 @@ static void hprobe_init_stable(struct hprobe *hprobe, struct uprobe *uprobe)
 {
 	hprobe->state = uprobe ? HPROBE_STABLE : HPROBE_GONE;
 	hprobe->uprobe = uprobe;
-	hprobe->srcu_idx = -1;
+	hprobe->srcu_scp = NULL;
 }
 
 /*
@@ -757,7 +758,7 @@ static void hprobe_finalize(struct hprobe *hprobe, enum hprobe_state hstate)
 {
 	switch (hstate) {
 	case HPROBE_LEASED:
-		__srcu_read_unlock(&uretprobes_srcu, hprobe->srcu_idx);
+		srcu_up_read_fast(&uretprobes_srcu, hprobe->srcu_scp);
 		break;
 	case HPROBE_STABLE:
 		put_uprobe(hprobe->uprobe);
@@ -829,7 +830,7 @@ static struct uprobe *hprobe_expire(struct hprobe *hprobe, bool get)
 		 */
 		if (try_cmpxchg(&hprobe->state, &hstate, uprobe ? HPROBE_STABLE : HPROBE_GONE)) {
 			/* We won the race, we are the ones to unlock SRCU */
-			__srcu_read_unlock(&uretprobes_srcu, hprobe->srcu_idx);
+			srcu_up_read_fast(&uretprobes_srcu, hprobe->srcu_scp);
 			return get && uprobe ? get_uprobe(uprobe) : uprobe;
 		}
 
@@ -1806,14 +1807,6 @@ static struct xol_area *get_xol_area(void)
 	return area;
 }
 
-void __weak arch_uprobe_clear_state(struct mm_struct *mm)
-{
-}
-
-void __weak arch_uprobe_init_state(struct mm_struct *mm)
-{
-}
-
 /*
  * uprobe_clear_state - Free the area allocated for slots.
  */
@@ -1824,8 +1817,6 @@ void uprobe_clear_state(struct mm_struct *mm)
 	mutex_lock(&delayed_uprobe_lock);
 	delayed_uprobe_remove(NULL, mm);
 	mutex_unlock(&delayed_uprobe_lock);
-
-	arch_uprobe_clear_state(mm);
 
 	if (!area)
 		return;
@@ -2045,7 +2036,7 @@ static void ri_timer(struct timer_list *timer)
 	struct return_instance *ri;
 
 	/* SRCU protects uprobe from reuse for the cmpxchg() inside hprobe_expire(). */
-	guard(srcu)(&uretprobes_srcu);
+	guard(srcu_fast_updown)(&uretprobes_srcu);
 	/* RCU protects return_instance from freeing. */
 	guard(rcu)();
 
@@ -2142,7 +2133,7 @@ static int dup_utask(struct task_struct *t, struct uprobe_task *o_utask)
 	t->utask = n_utask;
 
 	/* protect uprobes from freeing, we'll need try_get_uprobe() them */
-	guard(srcu)(&uretprobes_srcu);
+	guard(srcu_fast_updown)(&uretprobes_srcu);
 
 	p = &n_utask->return_instances;
 	for (o = o_utask->return_instances; o; o = o->next) {
@@ -2254,8 +2245,8 @@ static void prepare_uretprobe(struct uprobe *uprobe, struct pt_regs *regs,
 {
 	struct uprobe_task *utask = current->utask;
 	unsigned long orig_ret_vaddr, trampoline_vaddr;
+	struct srcu_ctr __percpu *srcu_scp;
 	bool chained;
-	int srcu_idx;
 
 	if (!get_xol_area())
 		goto free;
@@ -2293,8 +2284,12 @@ static void prepare_uretprobe(struct uprobe *uprobe, struct pt_regs *regs,
 		orig_ret_vaddr = utask->return_instances->orig_ret_vaddr;
 	}
 
-	/* __srcu_read_lock() because SRCU lock survives switch to user space */
-	srcu_idx = __srcu_read_lock(&uretprobes_srcu);
+	/*
+	 * Use srcu_down_read_fast() because the SRCU lock survives a switch to
+	 * user space and can be unlocked from a different context by ri_timer()
+	 * or dup_utask().
+	 */
+	srcu_scp = srcu_down_read_fast(&uretprobes_srcu);
 
 	ri->func = instruction_pointer(regs);
 	ri->stack = user_stack_pointer(regs);
@@ -2303,7 +2298,7 @@ static void prepare_uretprobe(struct uprobe *uprobe, struct pt_regs *regs,
 
 	utask->depth++;
 
-	hprobe_init_leased(&ri->hprobe, uprobe, srcu_idx);
+	hprobe_init_leased(&ri->hprobe, uprobe, srcu_scp);
 	ri->next = utask->return_instances;
 	rcu_assign_pointer(utask->return_instances, ri);
 
