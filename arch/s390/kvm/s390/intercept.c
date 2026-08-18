@@ -17,7 +17,7 @@
 #include <asm/sysinfo.h>
 #include <asm/uv.h>
 
-#include "kvm-s390.h"
+#include "s390.h"
 #include "gaccess.h"
 #include "trace.h"
 #include "trace-s390.h"

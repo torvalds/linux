@@ -21,13 +21,8 @@
 
 #include "dat.h"
 #include "gmap.h"
-#include "kvm-s390.h"
+#include "s390.h"
 #include "faultin.h"
-
-static inline bool kvm_s390_is_in_sie(struct kvm_vcpu *vcpu)
-{
-	return vcpu->arch.sie_block->prog0c & PROG_IN_SIE;
-}
 
 static int gmap_limit_to_type(gfn_t limit)
 {
@@ -256,6 +251,12 @@ int s390_replace_asce(struct gmap *gmap)
 	return 0;
 }
 
+#if KVM_S390_MANAGES_S390_GUEST
+static inline bool kvm_s390_is_in_sie(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.sie_block->prog0c & PROG_IN_SIE;
+}
+
 bool _gmap_unmap_prefix(struct gmap *gmap, gfn_t gfn, gfn_t end, bool hint)
 {
 	struct kvm *kvm = gmap->kvm;
@@ -278,6 +279,7 @@ bool _gmap_unmap_prefix(struct gmap *gmap, gfn_t gfn, gfn_t end, bool hint)
 	}
 	return true;
 }
+#endif /* KVM_S390_MANAGES_S390_GUEST */
 
 struct clear_young_pte_priv {
 	struct gmap *gmap;
@@ -945,6 +947,8 @@ void gmap_split_huge_pages(struct gmap *gmap)
 	} while (start);
 }
 
+#if KVM_S390_MANAGES_S390_GUEST
+
 static int _gmap_enable_skeys(struct gmap *gmap)
 {
 	gfn_t start = 0;
@@ -977,6 +981,7 @@ int gmap_enable_skeys(struct gmap *gmap)
 	mmap_write_unlock(gmap->kvm->mm);
 	return rc;
 }
+#endif /* KVM_S390_MANAGES_S390_GUEST */
 
 static long _destroy_pages_pte(union pte *ptep, gfn_t gfn, gfn_t next, struct dat_walk *walk)
 {
@@ -1098,6 +1103,7 @@ int gmap_protect_rmap(struct kvm_s390_mmu_cache *mc, struct gmap *sg, gfn_t p_gf
 	return 0;
 }
 
+#if KVM_S390_MANAGES_S390_GUEST
 static long __set_cmma_clean_pte(union pte *ptep, gfn_t gfn, gfn_t next, struct dat_walk *walk)
 {
 	union pgste pgste;
@@ -1141,6 +1147,7 @@ void _gmap_set_cmma_all(struct gmap *gmap, bool dirty)
 		cond_resched();
 	} while (gfn);
 }
+#endif /* KVM_S390_MANAGES_S390_GUEST */
 
 static void gmap_unshadow_level(struct gmap *sg, gfn_t r_gfn, int level)
 {

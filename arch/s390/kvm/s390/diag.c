@@ -12,7 +12,7 @@
 #include <linux/kvm_host.h>
 #include <asm/gmap_helpers.h>
 #include <asm/virtio-ccw.h>
-#include "kvm-s390.h"
+#include "s390.h"
 #include "trace.h"
 #include "trace-s390.h"
 #include "gaccess.h"
@@ -186,7 +186,8 @@ static int diag9c_forwarding_overrun(void)
 static int __diag_time_slice_end_directed(struct kvm_vcpu *vcpu)
 {
 	struct kvm_vcpu *tcpu;
-	int tcpu_cpu;
+	const char *result;
+	int tcpu_cpu = -1;
 	int tid;
 
 	tid = vcpu->run->s.regs.gprs[(vcpu->arch.sie_block->ipa & 0xf0) >> 4];
@@ -211,21 +212,23 @@ static int __diag_time_slice_end_directed(struct kvm_vcpu *vcpu)
 		if (!vcpu_is_preempted(tcpu_cpu))
 			goto no_yield;
 		smp_yield_cpu(tcpu_cpu);
-		VCPU_EVENT(vcpu, 5,
-			   "diag time slice end directed to %d: yield forwarded",
-			   tid);
 		vcpu->stat.diag_9c_forward++;
-		return 0;
+		result = "yield forwarded";
+		goto out;
 	}
 
 	if (kvm_vcpu_yield_to(tcpu) <= 0)
 		goto no_yield;
 
-	VCPU_EVENT(vcpu, 5, "diag time slice end directed to %d: done", tid);
-	return 0;
+	result = "done";
+	goto out;
 no_yield:
-	VCPU_EVENT(vcpu, 5, "diag time slice end directed to %d: ignored", tid);
 	vcpu->stat.diag_9c_ignored++;
+	result = "ignored";
+out:
+	VCPU_EVENT(vcpu, 5, "diag time slice end directed to %d: %s", tid,
+		   result);
+	trace_kvm_s390_diag_9c(vcpu, tid, tcpu_cpu, result);
 	return 0;
 }
 
