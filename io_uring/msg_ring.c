@@ -93,18 +93,37 @@ static void io_msg_remote_post(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	io_req_task_work_add_remote(req, IOU_F_TWQ_LAZY_WAKE);
 }
 
+static int io_msg_ring_cqe_flags(struct io_ring_ctx *target_ctx,
+				 const struct io_msg *msg, u32 *flags)
+{
+	*flags = 0;
+
+	if (!(msg->flags & IORING_MSG_RING_FLAGS_PASS))
+		return 0;
+
+	*flags = msg->cqe_flags;
+	if ((*flags & IORING_CQE_F_32) &&
+	    !(target_ctx->flags & (IORING_SETUP_CQE32 |
+				   IORING_SETUP_CQE_MIXED)))
+		return -EINVAL;
+
+	return 0;
+}
+
 static int io_msg_data_remote(struct io_ring_ctx *target_ctx,
 			      struct io_msg *msg)
 {
 	struct io_kiocb *target;
-	u32 flags = 0;
+	u32 flags;
+	int ret;
 
-	target = kmem_cache_alloc(req_cachep, GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO)  ;
+	ret = io_msg_ring_cqe_flags(target_ctx, msg, &flags);
+	if (ret)
+		return ret;
+
+	target = kmem_cache_alloc(req_cachep, GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO);
 	if (unlikely(!target))
 		return -ENOMEM;
-
-	if (msg->flags & IORING_MSG_RING_FLAGS_PASS)
-		flags = msg->cqe_flags;
 
 	io_msg_remote_post(target_ctx, target, msg->len, flags, msg->user_data);
 	return 0;
@@ -130,8 +149,9 @@ static int __io_msg_ring_data(struct io_ring_ctx *target_ctx,
 	if (io_msg_need_remote(target_ctx))
 		return io_msg_data_remote(target_ctx, msg);
 
-	if (msg->flags & IORING_MSG_RING_FLAGS_PASS)
-		flags = msg->cqe_flags;
+	ret = io_msg_ring_cqe_flags(target_ctx, msg, &flags);
+	if (ret)
+		return ret;
 
 	ret = -EOVERFLOW;
 	if (target_ctx->flags & IORING_SETUP_IOPOLL) {

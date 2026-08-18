@@ -1493,49 +1493,54 @@ void iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	unsigned int pkt_len = iwl_rx_packet_payload_len(pkt);
-	struct iwl_extended_beacon_notif *beacon = (void *)pkt->data;
-	struct iwl_extended_beacon_notif_v5 *beacon_v5 = (void *)pkt->data;
 	struct ieee80211_vif *csa_vif;
 	struct ieee80211_vif *tx_blocked_vif;
 	struct agg_tx_status *agg_status;
+	u32 beacon_gp2;
 	u16 status;
 
 	lockdep_assert_held(&mvm->mutex);
 
-	mvm->ap_last_beacon_gp2 = le32_to_cpu(beacon->gp2);
-
 	if (!iwl_mvm_is_short_beacon_notif_supported(mvm)) {
+		struct iwl_extended_beacon_notif_v5 *beacon = (void *)pkt->data;
 		struct iwl_tx_resp *beacon_notify_hdr =
-			&beacon_v5->beacon_notify_hdr;
+			&beacon->beacon_notify_hdr;
 
-		if (unlikely(pkt_len < sizeof(*beacon_v5)))
+		if (unlikely(pkt_len < sizeof(*beacon)))
 			return;
 
-		mvm->ibss_manager = beacon_v5->ibss_mgr_status != 0;
+		beacon_gp2 = le32_to_cpu(beacon->gp2);
+
+		mvm->ibss_manager = beacon->ibss_mgr_status != 0;
 		agg_status = iwl_mvm_get_agg_status(mvm, beacon_notify_hdr);
 		status = le16_to_cpu(agg_status->status) & TX_STATUS_MSK;
 		IWL_DEBUG_RX(mvm,
 			     "beacon status %#x retries:%d tsf:0x%016llX gp2:0x%X rate:%d\n",
 			     status, beacon_notify_hdr->failure_frame,
 			     le64_to_cpu(beacon->tsf),
-			     mvm->ap_last_beacon_gp2,
+			     beacon_gp2,
 			     le32_to_cpu(beacon_notify_hdr->initial_rate));
 	} else {
+		const struct iwl_extended_beacon_notif *beacon =
+			(void *)pkt->data;
+
 		if (unlikely(pkt_len < sizeof(*beacon)))
 			return;
+
+		beacon_gp2 = le32_to_cpu(beacon->gp2);
 
 		mvm->ibss_manager = beacon->ibss_mgr_status != 0;
 		status = le32_to_cpu(beacon->status) & TX_STATUS_MSK;
 		IWL_DEBUG_RX(mvm,
 			     "beacon status %#x tsf:0x%016llX gp2:0x%X\n",
 			     status, le64_to_cpu(beacon->tsf),
-			     mvm->ap_last_beacon_gp2);
+			     beacon_gp2);
 	}
 
 	csa_vif = rcu_dereference_protected(mvm->csa_vif,
 					    lockdep_is_held(&mvm->mutex));
 	if (unlikely(csa_vif && csa_vif->bss_conf.csa_active))
-		iwl_mvm_csa_count_down(mvm, csa_vif, mvm->ap_last_beacon_gp2,
+		iwl_mvm_csa_count_down(mvm, csa_vif, beacon_gp2,
 				       (status == TX_STATUS_SUCCESS));
 
 	tx_blocked_vif = rcu_dereference_protected(mvm->csa_tx_blocked_vif,

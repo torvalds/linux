@@ -561,3 +561,32 @@ bool mlx5_sf_table_empty(const struct mlx5_core_dev *dev)
 
 	return xa_empty(&table->function_ids);
 }
+
+void mlx5_sf_table_esw_changed_event_handler(struct mlx5_core_dev *dev)
+{
+	struct mlx5_sf_table *table = dev->priv.sf_table;
+	unsigned long index;
+	struct mlx5_sf *sf;
+
+	trace_mlx5_sf_host_pf_disabled(dev);
+
+	if (!table)
+		return;
+
+	mutex_lock(&table->sf_state_lock);
+	xa_for_each(&table->function_ids, index, sf) {
+		if (!sf->controller)
+			continue;
+
+		if (sf->hw_state == MLX5_VHCA_STATE_IN_USE)
+			sf->hw_state = MLX5_VHCA_STATE_ACTIVE;
+		else if (sf->hw_state == MLX5_VHCA_STATE_TEARDOWN_REQUEST)
+			sf->hw_state = MLX5_VHCA_STATE_ALLOCATED;
+		else
+			continue;
+		trace_mlx5_sf_update_state(table->dev, sf->port_index,
+					   sf->controller, sf->hw_fn_id,
+					   sf->hw_state);
+	}
+	mutex_unlock(&table->sf_state_lock);
+}

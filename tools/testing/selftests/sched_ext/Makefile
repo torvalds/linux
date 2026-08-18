@@ -176,6 +176,7 @@ auto-test-targets :=			\
 	maybe_null			\
 	minimal				\
 	non_scx_kfunc_deny		\
+	nohz_tick			\
 	numa				\
 	allowed_cpus			\
 	peek_dsq			\

@@ -144,6 +144,44 @@ typedef struct {
   uint32_t MaxGfxClk;
 } DpmClocks_t;
 
+//Freq in MHz
+//Voltage in milli volts with 2 fractional bits
+typedef struct {
+	uint32_t DcfClocks[NUM_DCFCLK_DPM_LEVELS];
+	uint32_t DispClocks[NUM_DISPCLK_DPM_LEVELS];
+	uint32_t DppClocks[NUM_DPPCLK_DPM_LEVELS];
+	uint32_t SocClocks[NUM_SOCCLK_DPM_LEVELS];
+
+	uint32_t VPEClocks[NUM_VPE_DPM_LEVELS];
+	uint32_t FclkClocks_Freq[NUM_FCLK_DPM_LEVELS];
+	uint32_t FclkClocks_Voltage[NUM_FCLK_DPM_LEVELS];
+	uint32_t SocVoltage[NUM_SOC_VOLTAGE_LEVELS];
+	MemPstateTable_t MemPstateTable[NUM_MEM_PSTATE_LEVELS];
+
+	uint8_t  NumDcfClkLevelsEnabled;
+	uint8_t  NumDispClkLevelsEnabled; //Applies to both Dispclk and Dppclk
+	uint8_t  NumSocClkLevelsEnabled;
+
+	uint8_t  VpeClkLevelsEnabled;
+
+	uint8_t  NumMemPstatesEnabled;
+	uint8_t  NumFclkLevelsEnabled;
+	uint8_t  Spare1;
+	uint8_t  Spare2;
+
+	uint8_t  Spare3;
+	uint8_t  Spare4;
+	uint8_t  Spare5[2];
+
+	uint32_t MinGfxClk;
+	uint32_t MaxGfxClk;
+
+	uint32_t Spare6[8];
+	uint32_t Spare7[8];
+	uint32_t Spare8[8];
+	uint32_t Spare9[8];
+} DpmClocks_t_v15_0_5;
+
 typedef struct {
   uint16_t CoreFrequency[16];          //Target core frequency [MHz]
   uint16_t CorePower[16];              //CAC calculated core power [mW]

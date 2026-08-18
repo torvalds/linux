@@ -648,15 +648,28 @@ static int jpeg_v5_0_0_ring_reset(struct amdgpu_ring *ring,
 				  unsigned int vmid,
 				  struct amdgpu_fence *timedout_fence)
 {
+	struct amdgpu_device *adev = ring->adev;
+	u32 pg_flags = adev->pg_flags;
 	int r;
 
 	amdgpu_ring_reset_helper_begin(ring, timedout_fence);
-	r = jpeg_v5_0_0_stop(ring->adev);
+
+	/*
+	 * The DPG stop path only clears the JPEG_PG_MODE bit and never resets a
+	 * hung JRBC, so the post-reset ring test times out and the driver falls
+	 * back to a full MODE1 reset. Temporarily force the static power-gating
+	 * path so the stop/start sequence actually power-cycles the JPEG block
+	 * (JMI soft reset + ONO1 power off/on), matching the working jpeg_v4_0
+	 * reset.
+	 */
+	adev->pg_flags &= ~AMD_PG_SUPPORT_JPEG_DPG;
+	r = jpeg_v5_0_0_stop(adev);
+	if (!r)
+		r = jpeg_v5_0_0_start(adev);
+	adev->pg_flags = pg_flags;
 	if (r)
 		return r;
-	r = jpeg_v5_0_0_start(ring->adev);
-	if (r)
-		return r;
+
 	return amdgpu_ring_reset_helper_end(ring, timedout_fence);
 }
 

@@ -311,6 +311,19 @@ static int amdgpu_discovery_get_tmr_info(struct amdgpu_device *adev,
 			goto out;
 		}
 	} else {
+		if (adev->discovery.offset) {
+			u32 signature;
+
+			/* If VRAM holds a valid discovery signature at the default
+			 * discovery offset, use it as-is.
+			 */
+			amdgpu_device_vram_access(adev, adev->discovery.offset,
+						  &signature, sizeof(signature),
+						  false);
+			if (le32_to_cpu(signature) == BINARY_SIGNATURE)
+				goto out;
+		}
+
 		tmr_size = RREG32(mmDRIVER_SCRATCH_2);
 		if (tmr_size) {
 			/* It's preferred to transition to PSP mailbox reg interface
@@ -2304,6 +2317,8 @@ static int amdgpu_discovery_set_psp_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &psp_v14_0_ip_block);
 		break;
 	case IP_VERSION(15, 0, 0):
+	case IP_VERSION(15, 0, 5):
+	case IP_VERSION(15, 0, 9):
 		amdgpu_device_ip_block_add(adev, &psp_v15_0_ip_block);
 		break;
 	case IP_VERSION(15, 0, 8):
@@ -2375,6 +2390,7 @@ static int amdgpu_discovery_set_smu_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(15, 0, 0):
 	case IP_VERSION(15, 0, 5):
 	case IP_VERSION(15, 0, 8):
+	case IP_VERSION(15, 0, 9):
 		amdgpu_device_ip_block_add(adev, &smu_v15_0_ip_block);
 		break;
 	default:
@@ -3135,9 +3151,11 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(11, 5, 3):
 	case IP_VERSION(11, 5, 4):
 	case IP_VERSION(11, 5, 6):
+		adev->family = AMDGPU_FAMILY_GC_11_5_0;
+		break;
 	case IP_VERSION(11, 7, 0):
 	case IP_VERSION(11, 7, 1):
-		adev->family = AMDGPU_FAMILY_GC_11_5_0;
+		adev->family = AMDGPU_FAMILY_GC_11_5_4;
 		break;
 	case IP_VERSION(12, 0, 0):
 	case IP_VERSION(12, 0, 1):

@@ -233,6 +233,7 @@ efault:
 static __always_inline bool rseq_grant_slice_extension(unsigned long ti_work, unsigned long mask)
 {
 	if (unlikely(__rseq_grant_slice_extension(ti_work & mask))) {
+		guard(irq)();
 		hrtimer_rearm_deferred_tif(ti_work);
 		return true;
 	}

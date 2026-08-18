@@ -34,6 +34,11 @@ enum {
 
 #define VHOST_VDPA_DEV_MAX (1U << MINORBITS)
 
+static int max_iotlb_entries = 2048;
+module_param(max_iotlb_entries, int, 0444);
+MODULE_PARM_DESC(max_iotlb_entries,
+		 "Maximum number of iotlb entries. (default: 2048)");
+
 #define VHOST_VDPA_IOTLB_BUCKETS 16
 
 struct vhost_vdpa_as {
@@ -109,12 +114,14 @@ static struct vhost_vdpa_as *vhost_vdpa_alloc_as(struct vhost_vdpa *v, u32 asid)
 
 	if (asid >= v->vdpa->nas)
 		return NULL;
+	if (max_iotlb_entries <= 0)
+		return NULL;
 
 	as = kmalloc_obj(*as);
 	if (!as)
 		return NULL;
 
-	vhost_iotlb_init(&as->iotlb, 0, 0);
+	vhost_iotlb_init(&as->iotlb, max_iotlb_entries, 0);
 	as->id = asid;
 	hlist_add_head(&as->hash_link, head);
 
@@ -1102,6 +1109,7 @@ static int vhost_vdpa_pa_map(struct vhost_vdpa *v,
 	unsigned int gup_flags = FOLL_LONGTERM;
 	unsigned long npages, cur_base, map_pfn, last_pfn = 0;
 	unsigned long lock_limit, sz2pin, nchunks, i;
+	unsigned long page_offset;
 	u64 start = iova;
 	long pinned;
 	int ret = 0;
@@ -1114,7 +1122,13 @@ static int vhost_vdpa_pa_map(struct vhost_vdpa *v,
 	if (perm & VHOST_ACCESS_WO)
 		gup_flags |= FOLL_WRITE;
 
-	npages = PFN_UP(size + (iova & ~PAGE_MASK));
+	page_offset = iova & ~PAGE_MASK;
+	if (size > ULONG_MAX - page_offset) {
+		ret = -EINVAL;
+		goto free;
+	}
+
+	npages = PFN_UP(size + page_offset);
 	if (!npages) {
 		ret = -EINVAL;
 		goto free;

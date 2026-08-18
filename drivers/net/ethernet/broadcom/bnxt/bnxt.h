@@ -1268,6 +1268,8 @@ struct bnxt_irq {
 	struct bnxt	*bp;
 	int		msix_nr;
 	int		ring_nr;
+	u16		tag;
+	u16		new_tag;
 	struct irq_affinity_notify affinity_notify;
 };
 
@@ -1334,6 +1336,7 @@ struct bnxt_vnic_info {
 #define BNXT_VNIC_RSSCTX_FLAG		0x40
 	struct ethtool_rxfh_context *rss_ctx;
 	u32		vnic_id;
+	u16		default_rx_ring;
 };
 
 struct bnxt_rss_ctx {
@@ -2641,6 +2644,7 @@ struct bnxt {
 #define BNXT_RING_COAL_NOW_SP_EVENT	17
 #define BNXT_FW_RESET_NOTIFY_SP_EVENT	18
 #define BNXT_FW_EXCEPTION_SP_EVENT	19
+#define BNXT_TPH_UPDATE_SP_EVENT	20
 #define BNXT_LINK_CFG_CHANGE_SP_EVENT	21
 #define BNXT_THERMAL_THRESHOLD_SP_EVENT	22
 #define BNXT_FW_ECHO_REQUEST_SP_EVENT	23

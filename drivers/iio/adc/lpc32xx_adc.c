@@ -178,6 +178,8 @@ static int lpc32xx_adc_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
+	init_completion(&st->completion);
+
 	retval = devm_request_irq(&pdev->dev, irq, lpc32xx_adc_isr, 0,
 				  LPC32XXAD_NAME, st);
 	if (retval < 0) {
@@ -195,8 +197,6 @@ static int lpc32xx_adc_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, iodev);
-
-	init_completion(&st->completion);
 
 	iodev->name = LPC32XXAD_NAME;
 	iodev->info = &lpc32xx_adc_iio_info;

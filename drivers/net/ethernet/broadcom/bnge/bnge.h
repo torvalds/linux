@@ -36,6 +36,7 @@ struct bnge_pf_info {
 };
 
 #define INVALID_HW_RING_ID      ((u16)-1)
+#define INVALID_HW_RING_ID_32BIT	(U32_MAX)
 
 enum {
 	BNGE_FW_CAP_SHORT_CMD				= BIT_ULL(0),

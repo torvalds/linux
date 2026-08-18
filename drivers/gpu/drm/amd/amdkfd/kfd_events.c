@@ -107,6 +107,9 @@ static int allocate_event_notification_slot(struct kfd_process *p,
 	}
 
 	if (restore_id) {
+		if (*restore_id >= KFD_SIGNAL_EVENT_LIMIT)
+			return -EINVAL;
+
 		id = idr_alloc(&p->event_idr, ev, *restore_id, *restore_id + 1,
 				GFP_KERNEL);
 	} else {
@@ -204,7 +207,7 @@ static int create_signal_event(struct file *devkfd, struct kfd_process *p,
 
 	ret = allocate_event_notification_slot(p, ev, restore_id);
 	if (ret) {
-		pr_warn("Signal event wasn't created because out of kernel memory\n");
+		pr_warn("Failed to create signal event notification slot\n");
 		return ret;
 	}
 
@@ -521,6 +524,9 @@ int kfd_criu_restore_event(struct file *devkfd,
 
 		ret = create_other_event(p, ev, &ev_priv->event_id);
 		break;
+	default:
+		ret = -EINVAL;
+		break;
 	}
 	mutex_unlock(&p->event_mutex);
 
@@ -542,15 +548,27 @@ int kfd_criu_checkpoint_events(struct kfd_process *p,
 	int ret =  0;
 	struct kfd_event *ev;
 	uint32_t ev_id;
+	uint32_t num_events;
 
-	uint32_t num_events = kfd_get_num_events(p);
+	/* Serialize the count and the walk below against concurrent event
+	 * create/destroy. Those paths take only p->event_mutex, not the
+	 * p->mutex held by the CRIU checkpoint caller, so without this the
+	 * event_idr can grow between kfd_get_num_events() and the loop and the
+	 * walk writes past the ev_privs allocation.
+	 */
+	mutex_lock(&p->event_mutex);
 
-	if (!num_events)
+	num_events = kfd_get_num_events(p);
+	if (!num_events) {
+		mutex_unlock(&p->event_mutex);
 		return 0;
+	}
 
 	ev_privs = kvzalloc(num_events * sizeof(*ev_privs), GFP_KERNEL);
-	if (!ev_privs)
+	if (!ev_privs) {
+		mutex_unlock(&p->event_mutex);
 		return -ENOMEM;
+	}
 
 
 	idr_for_each_entry(&p->event_idr, ev, ev_id) {
@@ -590,6 +608,8 @@ int kfd_criu_checkpoint_events(struct kfd_process *p,
 			  ev_priv->signaled);
 		i++;
 	}
+
+	mutex_unlock(&p->event_mutex);
 
 	ret = copy_to_user(user_priv_data + *priv_data_offset,
 			   ev_privs, num_events * sizeof(*ev_privs));

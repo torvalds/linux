@@ -355,7 +355,7 @@ struct xe_device {
 	/** @unordered_wq: used to serialize unordered work */
 	struct workqueue_struct *unordered_wq;
 
-	/** @destroy_wq: used to serialize user destroy work, like queue */
+	/** @destroy_wq: used to serialize SVM pagemap destroy work */
 	struct workqueue_struct *destroy_wq;
 
 	/** @tiles: device tiles */

@@ -1201,11 +1201,25 @@ enum dc_edid_status dm_helpers_read_local_edid(
 			continue;
 
 		edid = drm_edid_raw(drm_edid); // FIXME: Get rid of drm_edid_raw()
-		if (!edid ||
-		    edid->extensions >= sizeof(sink->dc_edid.raw_edid) / EDID_LENGTH)
+		/*
+		 * Use the length of the EDID property blob populated by
+		 * drm_edid_connector_update() above. It reflects the true number
+		 * of EDID blocks, including any HDMI Forum EDID Extension Override
+		 * Data Block (HF-EEODB) count, which the raw byte 0x7e extension
+		 * count can hide (e.g. HDMI 8K sinks).
+		 */
+		if (!edid || !connector->edid_blob_ptr ||
+		    connector->edid_blob_ptr->length > sizeof(sink->dc_edid.raw_edid))
 			return EDID_BAD_INPUT;
 
-		sink->dc_edid.length = EDID_LENGTH * (edid->extensions + 1);
+		/*
+		 * FIXME: amdgpu_dm today does not consider the HF-EEODB, which
+		 * may contain additional mode info for sinks. This is a
+		 * workaround until dc_edid is refactored out from DC into
+		 * amdgpu_dm's ownership, allowing amdgpu_dm to use drm_edid
+		 * directly
+		 */
+		sink->dc_edid.length = connector->edid_blob_ptr->length;
 		memmove(sink->dc_edid.raw_edid, (uint8_t *)edid, sink->dc_edid.length);
 
 		/* We don't need the original edid anymore */

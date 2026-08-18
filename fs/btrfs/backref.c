@@ -3054,7 +3054,10 @@ void btrfs_backref_free_node(struct btrfs_backref_cache *cache,
 	if (node) {
 		ASSERT(list_empty(&node->list));
 		ASSERT(list_empty(&node->lower));
-		ASSERT(node->eb == NULL, "node->eb->start=%llu", node->eb->start);
+		ASSERT(node->eb == NULL, "node->eb->start=%llu level=%d owner=%llu",
+		       node->eb ? node->eb->start : 0,
+		       node->eb ? btrfs_header_level(node->eb) : 0,
+		       node->eb ? btrfs_header_owner(node->eb) : 0);
 		cache->nr_nodes--;
 		btrfs_put_root(node->root);
 		kfree(node);

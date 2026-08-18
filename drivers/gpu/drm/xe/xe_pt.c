@@ -443,10 +443,6 @@ static bool xe_pt_hugepte_possible(u64 addr, u64 next, unsigned int level,
 	if (!xe_pt_covers(addr, next, level, &xe_walk->base))
 		return false;
 
-	/* Does the DMA segment cover the whole pte? */
-	if (next - xe_walk->va_curs_start > xe_walk->curs->size)
-		return false;
-
 	/* null VMA's and purged BO's do not have dma addresses */
 	if (xe_vma_is_null(xe_walk->vma) || (bo && xe_bo_is_purged(bo)))
 		return true;
@@ -454,6 +450,10 @@ static bool xe_pt_hugepte_possible(u64 addr, u64 next, unsigned int level,
 	/* if we are clearing page table, no dma addresses*/
 	if (xe_walk->clear_pt)
 		return true;
+
+	/* Does the DMA segment cover the whole pte? */
+	if (next - xe_walk->va_curs_start > xe_walk->curs->size)
+		return false;
 
 	/* Is the DMA address huge PTE size aligned? */
 	size = next - addr;
@@ -775,8 +775,11 @@ xe_pt_stage_bind(struct xe_tile *tile, struct xe_vma *vma,
 	}
 
 	xe_walk.needs_64K = (vm->flags & XE_VM_FLAG_64K);
-	if (clear_pt)
+	if (clear_pt) {
+		xe_assert(xe, !range);
+		curs.size = xe_vma_size(vma);
 		goto walk_pt;
+	}
 
 	if (vma->gpuva.flags & XE_VMA_ATOMIC_PTE_BIT) {
 		xe_walk.default_vram_pte = xe_atomic_for_vram(vm, vma) ? XE_USM_PPGTT_PTE_AE : 0;
@@ -1026,12 +1029,22 @@ xe_vm_populate_pgtable(struct xe_migrate_pt_update *pt_update, struct xe_tile *t
 	u64 *ptr = data;
 	u32 i;
 
+	/*
+	 * @qword_ofs is the absolute entry offset within the page table, while
+	 * @ptes is indexed relative to @update->ofs (its first entry). The GPU
+	 * path (write_pgtable) splits a single update into MAX_PTE_PER_SDI-sized
+	 * chunks, calling this with an advancing @qword_ofs but a fresh @data
+	 * pointer per chunk, so translate back into a @ptes index rather than
+	 * assuming the chunk starts at ptes[0].
+	 */
 	for (i = 0; i < num_qwords; i++) {
+		u32 idx = qword_ofs - update->ofs + i;
+
 		if (map)
 			xe_map_wr(tile_to_xe(tile), map, (qword_ofs + i) *
-				  sizeof(u64), u64, ptes[i].pte);
+				  sizeof(u64), u64, ptes[idx].pte);
 		else
-			ptr[i] = ptes[i].pte;
+			ptr[i] = ptes[idx].pte;
 	}
 }
 
@@ -1408,6 +1421,7 @@ static int xe_pt_pre_commit(struct xe_migrate_pt_update *pt_update)
 				     pt_update_ops, rftree);
 }
 
+#if IS_ENABLED(CONFIG_DRM_GPUSVM)
 /*
  * Acquire/release the svm notifier_lock around xe_pt_svm_userptr_pre_commit()
  * and the matching late release in xe_pt_update_ops_run(). Read mode by
@@ -1434,6 +1448,10 @@ static void xe_pt_svm_userptr_notifier_unlock(struct xe_vm *vm)
 	xe_svm_notifier_unlock(vm);
 #endif
 }
+#else
+static inline void xe_pt_svm_userptr_notifier_lock(struct xe_vm *vm) { }
+static inline void xe_pt_svm_userptr_notifier_unlock(struct xe_vm *vm) { }
+#endif
 
 #if IS_ENABLED(CONFIG_DRM_GPUSVM)
 #ifdef CONFIG_DRM_XE_USERPTR_INVAL_INJECT
@@ -2350,8 +2368,11 @@ static void
 xe_pt_update_ops_init(struct xe_vm_pgtable_update_ops *pt_update_ops)
 {
 	init_llist_head(&pt_update_ops->deferred);
+	pt_update_ops->current_op = 0;
 	pt_update_ops->start = ~0x0ull;
 	pt_update_ops->last = 0x0ull;
+	pt_update_ops->needs_svm_lock = false;
+	pt_update_ops->needs_invalidation = false;
 	xe_page_reclaim_list_init(&pt_update_ops->prl);
 }
 

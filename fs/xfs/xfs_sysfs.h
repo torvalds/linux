@@ -53,6 +53,8 @@ xfs_sysfs_del(
 }
 
 int	xfs_mount_sysfs_init(struct xfs_mount *mp);
+int	xfs_zoned_sysfs_init(struct xfs_mount *mp);
+void	xfs_zoned_sysfs_del(struct xfs_mount *mp);
 void	xfs_mount_sysfs_del(struct xfs_mount *mp);
 
 #endif	/* __XFS_SYSFS_H__ */

@@ -1658,7 +1658,20 @@ static void binder_txn_latency_free(struct binder_transaction *t)
 
 static void binder_free_transaction(struct binder_transaction *t)
 {
-	struct binder_proc *target_proc = t->to_proc;
+	struct binder_thread *target_thread;
+	struct binder_proc *target_proc;
+
+	spin_lock(&t->lock);
+	target_proc = t->to_proc;
+	target_thread = t->to_thread;
+	/*
+	 * Pin target_thread to keep target_proc alive. Undelivered
+	 * transactions with !target_thread are safe, as target_proc
+	 * can only be the current context there.
+	 */
+	if (target_thread)
+		atomic_inc(&target_thread->tmp_ref);
+	spin_unlock(&t->lock);
 
 	if (target_proc) {
 		binder_inner_proc_lock(target_proc);
@@ -1672,6 +1685,10 @@ static void binder_free_transaction(struct binder_transaction *t)
 			t->buffer->transaction = NULL;
 		binder_inner_proc_unlock(target_proc);
 	}
+
+	if (target_thread)
+		binder_thread_dec_tmpref(target_thread);
+
 	if (trace_binder_txn_latency_free_enabled())
 		binder_txn_latency_free(t);
 	/*
@@ -3080,6 +3097,7 @@ static void binder_transaction(struct binder_proc *proc,
 	int t_debug_id = atomic_inc_return(&binder_last_id);
 	ktime_t t_start_time = ktime_get();
 	struct lsm_context lsmctx = { };
+	size_t lsmctx_aligned_size = 0;
 	LIST_HEAD(sgc_head);
 	LIST_HEAD(pf_head);
 	const void __user *user_buffer = (const void __user *)
@@ -3346,7 +3364,6 @@ static void binder_transaction(struct binder_proc *proc,
 
 	if (target_node && target_node->txn_security_ctx) {
 		u32 secid;
-		size_t added_size;
 
 		security_cred_getsecid(proc->cred, &secid);
 		ret = security_secid_to_secctx(secid, &lsmctx);
@@ -3358,9 +3375,9 @@ static void binder_transaction(struct binder_proc *proc,
 			return_error_line = __LINE__;
 			goto err_get_secctx_failed;
 		}
-		added_size = ALIGN(lsmctx.len, sizeof(u64));
-		extra_buffers_size += added_size;
-		if (extra_buffers_size < added_size) {
+		lsmctx_aligned_size = ALIGN(lsmctx.len, sizeof(u64));
+		extra_buffers_size += lsmctx_aligned_size;
+		if (extra_buffers_size < lsmctx_aligned_size) {
 			binder_txn_error("%d:%d integer overflow of extra_buffers_size\n",
 				thread->pid, proc->pid);
 			return_error = BR_FAILED_REPLY;
@@ -3397,7 +3414,7 @@ static void binder_transaction(struct binder_proc *proc,
 		size_t buf_offset = ALIGN(tr->data_size, sizeof(void *)) +
 				    ALIGN(tr->offsets_size, sizeof(void *)) +
 				    ALIGN(extra_buffers_size, sizeof(void *)) -
-				    ALIGN(lsmctx.len, sizeof(u64));
+				    lsmctx_aligned_size;
 
 		t->security_ctx = t->buffer->user_data + buf_offset;
 		err = binder_alloc_copy_to_buffer(&target_proc->alloc,
@@ -3452,7 +3469,7 @@ static void binder_transaction(struct binder_proc *proc,
 	off_end_offset = off_start_offset + tr->offsets_size;
 	sg_buf_offset = ALIGN(off_end_offset, sizeof(void *));
 	sg_buf_end_offset = sg_buf_offset + extra_buffers_size -
-		ALIGN(lsmctx.len, sizeof(u64));
+		lsmctx_aligned_size;
 	off_min = 0;
 	for (buffer_offset = off_start_offset; buffer_offset < off_end_offset;
 	     buffer_offset += sizeof(binder_size_t)) {

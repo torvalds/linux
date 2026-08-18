@@ -283,6 +283,11 @@ struct smb2_file_eof_info { /* encoding of request for level 10 */
 	__le64 EndOfFile; /* new end of file value */
 } __packed; /* level 20 Set */
 
+/* See MS-FSCC 2.4.4 */
+struct smb2_file_alloc_info { /* encoding of request for level 19 */
+	__le64 AllocationSize;
+} __packed;
+
 /* See MS-FSCC 2.4.15 */
 typedef struct {
 	__le32 NextEntryOffset;

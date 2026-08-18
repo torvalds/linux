@@ -43,7 +43,7 @@ static struct io_wq *io_init_wq_offload(struct io_ring_ctx *ctx,
 	return io_wq_create(concurrency, &data);
 }
 
-void __io_uring_free(struct task_struct *tsk)
+void io_uring_free_tctx(struct task_struct *tsk)
 {
 	struct io_uring_task *tctx = tsk->io_uring;
 	struct io_tctx_node *node;
@@ -67,6 +67,11 @@ void __io_uring_free(struct task_struct *tsk)
 		kfree(tctx);
 		tsk->io_uring = NULL;
 	}
+}
+
+void __io_uring_free(struct task_struct *tsk)
+{
+	io_uring_free_tctx(tsk);
 	if (tsk->io_uring_restrict) {
 		io_put_bpf_filters(tsk->io_uring_restrict);
 		kfree(tsk->io_uring_restrict);

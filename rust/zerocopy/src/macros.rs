@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (BSD-2-Clause OR Apache-2.0) OR MIT
-
+//
 // Copyright 2024 The Fuchsia Authors
 //
 // Licensed under the 2-Clause BSD License <LICENSE-BSD or

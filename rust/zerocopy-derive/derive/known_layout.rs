@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (BSD-2-Clause OR Apache-2.0) OR MIT
-
+//
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{parse_quote, Data, Error, Type};
@@ -87,7 +87,6 @@ fn derive_known_layout_for_repr_c_struct<'a>(
     };
 
     let inner_extras = {
-        let leading_fields_tys = leading_fields_tys.clone();
         let methods = make_methods(*trailing_field_ty);
         let (_, ty_generics, _) = ctx.ast.generics.split_for_impl();
 

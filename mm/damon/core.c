@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Data Access Monitor
- *
- * Author: SeongJae Park <sj@kernel.org>
  */
 
 #define pr_fmt(fmt) "damon: " fmt
@@ -356,7 +354,20 @@ int damon_set_regions(struct damon_target *t, struct damon_addr_range *ranges,
 {
 	struct damon_region *r, *next;
 	unsigned int i;
+	unsigned long last_end;
 	int err;
+
+	for (i = 0; i < nr_ranges; i++) {
+		unsigned long start, end;
+
+		start = ALIGN_DOWN(ranges[i].start, min_region_sz);
+		end = ALIGN(ranges[i].end, min_region_sz);
+		if (start >= end)
+			return -EINVAL;
+		if (i > 0 && last_end > start)
+			return -EINVAL;
+		last_end = end;
+	}
 
 	/* Remove regions which are not in the new ranges */
 	damon_for_each_region_safe(r, next, t) {

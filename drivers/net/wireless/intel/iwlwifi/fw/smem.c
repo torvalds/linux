@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2021, 2025 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2021, 2025-2026 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -14,9 +14,17 @@ static void iwl_parse_shared_mem_22000(struct iwl_fw_runtime *fwrt,
 {
 	struct iwl_shared_mem_cfg *mem_cfg = (void *)pkt->data;
 	int i, lmac;
-	int lmac_num = le32_to_cpu(mem_cfg->lmac_num);
-	u8 api_ver = iwl_fw_lookup_notif_ver(fwrt->fw, SYSTEM_GROUP,
-					     SHARED_MEM_CFG_CMD, 0);
+	int lmac_num;
+	u8 api_ver;
+
+	if (IWL_FW_CHECK(fwrt, iwl_rx_packet_payload_len(pkt) <
+			 offsetofend(struct iwl_shared_mem_cfg, lmac_smem[1]),
+			 "bad shared mem notification size\n"))
+		return;
+
+	lmac_num = le32_to_cpu(mem_cfg->lmac_num);
+	api_ver = iwl_fw_lookup_notif_ver(fwrt->fw, SYSTEM_GROUP,
+					  SHARED_MEM_CFG_CMD, 0);
 
 	/* Note: notification has 3 entries, but we only expect 2 */
 	if (IWL_FW_CHECK(fwrt, lmac_num > ARRAY_SIZE(fwrt->smem_cfg.lmac),
@@ -30,7 +38,7 @@ static void iwl_parse_shared_mem_22000(struct iwl_fw_runtime *fwrt,
 
 	if (api_ver >= 4 &&
 	    !IWL_FW_CHECK(fwrt, iwl_rx_packet_payload_len(pkt) < sizeof(*mem_cfg),
-			  "bad shared mem notification size\n")) {
+			  "bad shared mem notification size (v4)\n")) {
 		fwrt->smem_cfg.rxfifo2_control_size =
 			le32_to_cpu(mem_cfg->rxfifo2_control_size);
 	}
@@ -53,6 +61,11 @@ static void iwl_parse_shared_mem(struct iwl_fw_runtime *fwrt,
 	struct iwl_shared_mem_cfg_v2 *mem_cfg = (void *)pkt->data;
 	int i;
 
+	if (IWL_FW_CHECK(fwrt, iwl_rx_packet_payload_len(pkt) <
+			 offsetof(struct iwl_shared_mem_cfg_v2, rxfifo_addr),
+			 "bad shared mem notification size\n"))
+		return;
+
 	fwrt->smem_cfg.num_lmacs = 1;
 
 	fwrt->smem_cfg.num_txfifo_entries = ARRAY_SIZE(mem_cfg->txfifo_size);
@@ -67,6 +80,11 @@ static void iwl_parse_shared_mem(struct iwl_fw_runtime *fwrt,
 	/* new API has more data, from rxfifo_addr field and on */
 	if (fw_has_capa(&fwrt->fw->ucode_capa,
 			IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG)) {
+		if (IWL_FW_CHECK(fwrt, iwl_rx_packet_payload_len(pkt) <
+				 sizeof(*mem_cfg),
+				 "bad shared mem notification size (extend)\n"))
+			return;
+
 		BUILD_BUG_ON(sizeof(fwrt->smem_cfg.internal_txfifo_size) !=
 			     sizeof(mem_cfg->internal_txfifo_size));
 

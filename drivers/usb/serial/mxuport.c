@@ -1080,6 +1080,13 @@ static int mxuport_probe(struct usb_serial *serial,
 		/* Use the firmware already in the device */
 		err = 0;
 	} else {
+		if (fw_p->size <= VER_ADDR_3) {
+			dev_err(&serial->interface->dev,
+				"Firmware %s is too short\n", buf);
+			err = -EINVAL;
+			goto out;
+		}
+
 		local_ver = ((fw_p->data[VER_ADDR_1] << 16) |
 			     (fw_p->data[VER_ADDR_2] << 8) |
 			     fw_p->data[VER_ADDR_3]);

@@ -231,29 +231,26 @@ nvkm_vmm_unref_sptes(struct nvkm_vmm_iter *it, struct nvkm_vmm_pt *pgt,
 		 * covered by a number of LPTEs, the LPTEs once again take
 		 * control over their address range.
 		 *
-		 * Determine how many LPTEs need to transition state.
+		 * Transition each LPTE individually as each may have a
+		 * different target state (sparse, invalid, or valid).
 		 */
-		pgt->pte[ptei].s.spte_valid = false;
-		for (ptes = 1, ptei++; ptei < lpti; ptes++, ptei++) {
+		for (ptei++; ptei < lpti; ptei++) {
 			if (pgt->pte[ptei].s.sptes)
 				break;
-			pgt->pte[ptei].s.spte_valid = false;
 		}
 
-		if (pgt->pte[pteb].s.sparse) {
-			TRA(it, "LPTE %05x: U -> S %d PTEs", pteb, ptes);
-			pair->func->sparse(vmm, pgt->pt[0], pteb, ptes);
-		} else if (!pgt->pte[pteb].s.lpte_valid) {
-			if (pair->func->invalid) {
-				/* If the MMU supports it, restore the LPTE to the
-				 * INVALID state to tell the MMU there is no point
-				 * trying to fetch the corresponding SPTEs.
-				 */
-				TRA(it, "LPTE %05x: U -> I %d PTEs", pteb, ptes);
-				pair->func->invalid(vmm, pgt->pt[0], pteb, ptes);
+		while (pteb < ptei) {
+			pgt->pte[pteb].s.spte_valid = false;
+			if (pgt->pte[pteb].s.sparse) {
+				TRA(it, "LPTE %05x: U -> S", pteb);
+				pair->func->sparse(vmm, pgt->pt[0], pteb, 1);
+			} else if (!pgt->pte[pteb].s.lpte_valid) {
+				if (pair->func->invalid) {
+					TRA(it, "LPTE %05x: U -> I", pteb);
+					pair->func->invalid(vmm, pgt->pt[0], pteb, 1);
+				}
 			}
-		} else {
-			TRA(it, "LPTE %05x: V %d PTEs", pteb, ptes);
+			pteb++;
 		}
 	}
 }

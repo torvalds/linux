@@ -168,6 +168,8 @@ static int io_install_bpf(struct io_ring_ctx *ctx, struct io_uring_bpf_ops *ops)
 
 	if (ctx->bpf_ops)
 		return -EBUSY;
+	if (ops->priv)
+		return -EBUSY;
 	if (WARN_ON_ONCE(!ops->loop_step))
 		return -EINVAL;
 

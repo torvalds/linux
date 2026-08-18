@@ -996,6 +996,7 @@ static int ath11k_ahb_fw_resources_init(struct ath11k_base *ab)
 	ret = ath11k_ahb_setup_msa_resources(ab);
 	if (ret) {
 		ath11k_err(ab, "failed to setup msa resources\n");
+		of_node_put(node);
 		return ret;
 	}
 

@@ -201,10 +201,12 @@ static void __init acpi_process_madt(void)
 }
 
 int pptt_enabled;
+static int acpi_nr_packages;
+static int acpi_package_ids[MAX_PACKAGES];
 
 int __init parse_acpi_topology(void)
 {
-	int cpu, topology_id;
+	int i, cpu, topology_id;
 
 	for_each_possible_cpu(cpu) {
 		topology_id = find_acpi_cpu_topology(cpu, 0);
@@ -222,6 +224,29 @@ int __init parse_acpi_topology(void)
 
 			cpu_data[cpu].core = topology_id;
 		}
+
+		topology_id = find_acpi_cpu_topology_package(cpu);
+		if (topology_id < 0) {
+			pr_warn("Invalid BIOS PPTT\n");
+			return -ENOENT;
+		}
+
+		for (i = 0; i < acpi_nr_packages; i++)
+			if (acpi_package_ids[i] == topology_id)
+				break;
+
+		if (i == acpi_nr_packages)
+			acpi_package_ids[acpi_nr_packages++] = topology_id;
+
+		cpu_data[cpu].package = topology_id;
+	}
+
+	for_each_possible_cpu(cpu) {
+		for (i = 0; i < acpi_nr_packages; i++)
+			if (cpu_data[cpu].package == acpi_package_ids[i]) {
+				cpu_data[cpu].package = i; /* Canonicalize */
+				break;
+			}
 	}
 
 	pptt_enabled = 1;

@@ -900,7 +900,11 @@ impl Process {
     pub(crate) fn get_transaction_node(&self, handle: u32) -> BinderResult<NodeRef> {
         // When handle is zero, try to get the context manager.
         if handle == 0 {
-            Ok(self.ctx.get_manager_node(true)?)
+            let node_ref = self.ctx.get_manager_node(true)?;
+            if core::ptr::eq(self, &*node_ref.node.owner) {
+                return Err(EINVAL.into());
+            }
+            Ok(node_ref)
         } else {
             Ok(self.get_node_from_handle(handle, true)?)
         }
@@ -942,6 +946,8 @@ impl Process {
 
         // To preserve original binder behaviour, we only fail requests where the manager tries to
         // increment references on itself.
+        let _to_free_freeze_listener;
+        let _to_free_freeze_listener_cleanup;
         let mut refs = self.node_refs.lock();
         if let Some(info) = refs.by_handle.get_mut(&handle) {
             if info.node_ref().update(inc, strong) {
@@ -957,6 +963,14 @@ impl Process {
                 unsafe { info.node_ref2().node.remove_node_info(info) };
 
                 let id = info.node_ref().node.global_id();
+
+                if let Some(freeze) = *info.freeze() {
+                    if let Some(fl) = refs.freeze_listeners.remove(&freeze) {
+                        _to_free_freeze_listener_cleanup = fl.on_process_cleanup(&self);
+                        _to_free_freeze_listener = fl;
+                    }
+                }
+
                 refs.by_handle.remove(&handle);
                 refs.by_node.remove(&id);
                 refs.handle_is_present.release_id(handle as usize);
@@ -1380,7 +1394,7 @@ impl Process {
         // Clean up freeze listeners.
         let freeze_listeners = take(&mut self.node_refs.lock().freeze_listeners);
         for listener in freeze_listeners.values() {
-            listener.on_process_exit(&self);
+            listener.on_process_cleanup(&self);
         }
         drop(freeze_listeners);
 
@@ -1572,6 +1586,10 @@ impl Process {
         cmd: u32,
         reader: &mut UserSliceReader,
     ) -> Result {
+        if cmd == uapi::BINDER_FREEZE {
+            return ioctl_freeze(reader);
+        }
+
         let thread = this.get_current_thread()?;
         match cmd {
             uapi::BINDER_SET_MAX_THREADS => this.set_max_threads(reader.read()?),
@@ -1583,7 +1601,6 @@ impl Process {
             uapi::BINDER_ENABLE_ONEWAY_SPAM_DETECTION => {
                 this.set_oneway_spam_detection_enabled(reader.read()?)
             }
-            uapi::BINDER_FREEZE => ioctl_freeze(reader)?,
             _ => return Err(EINVAL),
         }
         Ok(())
@@ -1598,15 +1615,16 @@ impl Process {
         cmd: u32,
         data: UserSlice,
     ) -> Result {
-        let thread = this.get_current_thread()?;
         let blocking = (file.flags() & file::flags::O_NONBLOCK) == 0;
         match cmd {
-            uapi::BINDER_WRITE_READ => thread.write_read(data, blocking)?,
+            uapi::BINDER_WRITE_READ => this.get_current_thread()?.write_read(data, blocking)?,
             uapi::BINDER_GET_NODE_DEBUG_INFO => this.get_node_debug_info(data)?,
             uapi::BINDER_GET_NODE_INFO_FOR_REF => this.get_node_info_from_ref(data)?,
             uapi::BINDER_VERSION => this.version(data)?,
             uapi::BINDER_GET_FROZEN_INFO => get_frozen_status(data)?,
-            uapi::BINDER_GET_EXTENDED_ERROR => thread.get_extended_error(data)?,
+            uapi::BINDER_GET_EXTENDED_ERROR => {
+                this.get_current_thread()?.get_extended_error(data)?
+            }
             _ => return Err(EINVAL),
         }
         Ok(())

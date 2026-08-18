@@ -29,7 +29,7 @@ static int tpmrm_open(struct inode *inode, struct file *file)
 
 	tpm_common_open(file, chip, &priv->priv, &priv->space);
 
-	return 0;
+	return nonseekable_open(inode, file);
 }
 
 static int tpmrm_release(struct inode *inode, struct file *file)

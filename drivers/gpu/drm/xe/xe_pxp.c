@@ -8,6 +8,8 @@
 #include <drm/drm_managed.h>
 #include <uapi/drm/xe_drm.h>
 
+#include <linux/device.h>
+
 #include "xe_bo.h"
 #include "xe_bo_types.h"
 #include "xe_device_types.h"
@@ -164,16 +166,9 @@ static void mark_termination_in_progress(struct xe_pxp *pxp)
 	pxp->status = XE_PXP_TERMINATION_IN_PROGRESS;
 }
 
-static void pxp_terminate(struct xe_pxp *pxp)
+static bool pxp_prep_for_termination(struct xe_pxp *pxp)
 {
-	int ret = 0;
-	struct xe_device *xe = pxp->xe;
-
-	if (!wait_for_completion_timeout(&pxp->activation,
-					 msecs_to_jiffies(PXP_ACTIVATION_TIMEOUT_MS)))
-		drm_err(&xe->drm, "failed to wait for PXP start before termination\n");
-
-	mutex_lock(&pxp->mutex);
+	lockdep_assert_held(&pxp->mutex);
 
 	if (pxp->status == XE_PXP_ACTIVE)
 		pxp->key_instance++;
@@ -182,10 +177,8 @@ static void pxp_terminate(struct xe_pxp *pxp)
 	 * we'll mark the status as needing termination on resume, so no need to
 	 * emit a termination now.
 	 */
-	if (pxp->status == XE_PXP_SUSPENDED) {
-		mutex_unlock(&pxp->mutex);
-		return;
-	}
+	if (pxp->status == XE_PXP_SUSPENDED)
+		return false;
 
 	/*
 	 * If we have a termination already in progress, we need to wait for
@@ -195,15 +188,44 @@ static void pxp_terminate(struct xe_pxp *pxp)
 	 */
 	if (pxp->status == XE_PXP_TERMINATION_IN_PROGRESS) {
 		pxp->status = XE_PXP_NEEDS_ADDITIONAL_TERMINATION;
-		mutex_unlock(&pxp->mutex);
-		return;
+		return false;
 	}
 
 	mark_termination_in_progress(pxp);
 
-	mutex_unlock(&pxp->mutex);
+	return true;
+}
 
-	pxp_invalidate_queues(pxp);
+static void pxp_terminate(struct xe_pxp *pxp, bool hw_only)
+{
+	struct xe_device *xe = pxp->xe;
+	int ret = 0;
+
+	if (!wait_for_completion_timeout(&pxp->activation,
+					 msecs_to_jiffies(PXP_ACTIVATION_TIMEOUT_MS)))
+		drm_err(&xe->drm, "failed to wait for PXP start before termination\n");
+
+	if (!hw_only) {
+		bool prep_ok;
+
+		mutex_lock(&pxp->mutex);
+
+		prep_ok = pxp_prep_for_termination(pxp);
+
+		mutex_unlock(&pxp->mutex);
+
+		if (!prep_ok)
+			return;
+
+		pxp_invalidate_queues(pxp);
+	} else {
+		/*
+		 * The caller of the HW-only termination should have already
+		 * called pxp_prep_for_termination and marked the termination as
+		 * in progress.
+		 */
+		xe_assert(xe, !completion_done(&pxp->termination));
+	}
 
 	ret = pxp_terminate_hw(pxp);
 	if (ret) {
@@ -249,33 +271,46 @@ static void pxp_terminate_complete(struct xe_pxp *pxp)
 	mutex_unlock(&pxp->mutex);
 }
 
-static void pxp_irq_work(struct work_struct *work)
+static void pxp_events_work(struct work_struct *work)
 {
-	struct xe_pxp *pxp = container_of(work, typeof(*pxp), irq.work);
+	struct xe_pxp *pxp = container_of(work, typeof(*pxp), events.work);
 	struct xe_device *xe = pxp->xe;
+	bool hw_only = false;
 	u32 events = 0;
 
-	spin_lock_irq(&xe->irq.lock);
-	events = pxp->irq.events;
-	pxp->irq.events = 0;
-	spin_unlock_irq(&xe->irq.lock);
+	events = atomic_xchg(&pxp->events.pending, 0);
 
 	if (!events)
 		return;
 
 	/*
-	 * If we're processing a termination irq while suspending then don't
-	 * bother, we're going to re-init everything on resume anyway.
+	 * If the termination request comes from an irq while we're suspending,
+	 * then we can defer it to the resume path instead of waking the device
+	 * up.
+	 * In the case of the termination on resume the pm reference is taken
+	 * in xe_pxp_pm_resume() and released here.
+	 * Note that we do not expect both events to be set at the same time,
+	 * but if it does happen due to a spurious interrupt we want to behave
+	 * as if the only request we got was the one from the resume path; this
+	 * is because the termination prep has already been done in
+	 * xe_pxp_pm_resume() and it is impossible for any PXP operations to
+	 * occur between the prep and the termination completion, so there is no
+	 * need for a new SW prep.
 	 */
-	if ((events & PXP_TERMINATION_REQUEST) && !xe_pm_runtime_get_if_active(xe))
+	if (events & PXP_TERMINATION_REQUEST_ON_RESUME) {
+		events &= ~PXP_TERMINATION_REQUEST_IRQ;
+		hw_only = true;
+	}
+
+	if ((events & PXP_TERMINATION_REQUEST_IRQ) && !xe_pm_runtime_get_if_active(xe))
 		return;
 
 	if (events & PXP_TERMINATION_REQUEST) {
-		events &= ~PXP_TERMINATION_COMPLETE;
-		pxp_terminate(pxp);
+		events &= ~PXP_TERMINATION_COMPLETE_IRQ;
+		pxp_terminate(pxp, hw_only);
 	}
 
-	if (events & PXP_TERMINATION_COMPLETE)
+	if (events & PXP_TERMINATION_COMPLETE_IRQ)
 		pxp_terminate_complete(pxp);
 
 	if (events & PXP_TERMINATION_REQUEST)
@@ -296,20 +331,18 @@ void xe_pxp_irq_handler(struct xe_device *xe, u16 iir)
 		return;
 	}
 
-	lockdep_assert_held(&xe->irq.lock);
-
 	if (unlikely(!iir))
 		return;
 
 	if (iir & (KCR_PXP_STATE_TERMINATED_INTERRUPT |
 		   KCR_APP_TERMINATED_PER_FW_REQ_INTERRUPT))
-		pxp->irq.events |= PXP_TERMINATION_REQUEST;
+		atomic_or(PXP_TERMINATION_REQUEST_IRQ, &pxp->events.pending);
 
 	if (iir & KCR_PXP_STATE_RESET_COMPLETE_INTERRUPT)
-		pxp->irq.events |= PXP_TERMINATION_COMPLETE;
+		atomic_or(PXP_TERMINATION_COMPLETE_IRQ, &pxp->events.pending);
 
-	if (pxp->irq.events)
-		queue_work(pxp->irq.wq, &pxp->irq.work);
+	if (atomic_read(&pxp->events.pending))
+		queue_work(pxp->events.wq, &pxp->events.work);
 }
 
 static int kcr_pxp_set_status(const struct xe_pxp *pxp, bool enable)
@@ -340,7 +373,7 @@ static void pxp_fini(void *arg)
 {
 	struct xe_pxp *pxp = arg;
 
-	destroy_workqueue(pxp->irq.wq);
+	destroy_workqueue(pxp->events.wq);
 	xe_pxp_destroy_execution_resources(pxp);
 
 	/* no need to explicitly disable KCR since we're going to do an FLR */
@@ -402,7 +435,7 @@ int xe_pxp_init(struct xe_device *xe)
 
 	INIT_LIST_HEAD(&pxp->queues.list);
 	spin_lock_init(&pxp->queues.lock);
-	INIT_WORK(&pxp->irq.work, pxp_irq_work);
+	INIT_WORK(&pxp->events.work, pxp_events_work);
 	pxp->xe = xe;
 	pxp->gt = gt;
 
@@ -421,8 +454,8 @@ int xe_pxp_init(struct xe_device *xe)
 
 	mutex_init(&pxp->mutex);
 
-	pxp->irq.wq = alloc_ordered_workqueue("pxp-wq", 0);
-	if (!pxp->irq.wq) {
+	pxp->events.wq = alloc_ordered_workqueue("pxp-wq", 0);
+	if (!pxp->events.wq) {
 		err = -ENOMEM;
 		goto out_free;
 	}
@@ -442,7 +475,7 @@ int xe_pxp_init(struct xe_device *xe)
 out_kcr_disable:
 	kcr_pxp_disable(pxp);
 out_wq:
-	destroy_workqueue(pxp->irq.wq);
+	destroy_workqueue(pxp->events.wq);
 out_free:
 	drmm_kfree(&xe->drm, pxp);
 out:
@@ -889,6 +922,7 @@ wait_for_activation:
 		fallthrough;
 	case XE_PXP_ACTIVE:
 		pxp->key_instance++;
+		pxp->needs_termination_on_resume = true;
 		needs_queue_inval = true;
 		break;
 	}
@@ -924,6 +958,7 @@ wait_for_activation:
  */
 void xe_pxp_pm_resume(struct xe_pxp *pxp)
 {
+	bool has_pm = false;
 	int err;
 
 	if (!xe_pxp_is_enabled(pxp))
@@ -931,14 +966,57 @@ void xe_pxp_pm_resume(struct xe_pxp *pxp)
 
 	err = kcr_pxp_enable(pxp);
 
+	/*
+	 * We want to avoid the device runtime suspending before we're done with
+	 * the termination queued below, so we need a runtime PM reference; we
+	 * can't call the rpm functions from within the PXP lock, so we take the
+	 * ref here. Note that we don't want the rpm resume code to actually run
+	 * here as that would call back into this function, but as long as we
+	 * don't enable DPM_FLAG_SMART_SUSPEND (which we currently do not) we're
+	 * guaranteed to not be runtime suspended at this point, so we can
+	 * safely use the get_noresume variant.
+	 */
+	if (pxp->needs_termination_on_resume) {
+		has_pm = true;
+
+		xe_assert(pxp->xe, !dev_pm_smart_suspend(pxp->xe->drm.dev));
+		xe_pm_runtime_get_noresume(pxp->xe);
+	}
+
 	mutex_lock(&pxp->mutex);
 
 	xe_assert(pxp->xe, pxp->status == XE_PXP_SUSPENDED);
 
-	if (err)
+	if (err) {
 		pxp->status = XE_PXP_ERROR;
-	else
+	} else {
 		pxp->status = XE_PXP_NEEDS_TERMINATION;
 
+		if (pxp->needs_termination_on_resume) {
+			pxp->needs_termination_on_resume = false;
+
+			/*
+			 * We can't call pxp_terminate_hw directly from here
+			 * because we're not allowed to do allocations within
+			 * the rpm resume call, so we defer the termination to
+			 * the worker that we use for the termination irqs.
+			 * However, we do not want any PXP ops to go through
+			 * between the suspend completing and the worker
+			 * starting, so we need to do the termination prep
+			 * immediately, which will mark the termination as in
+			 * progress and stall PXP ops.
+			 */
+			if (pxp_prep_for_termination(pxp)) {
+				has_pm = false; /* move PM ref ownership to worker */
+
+				atomic_or(PXP_TERMINATION_REQUEST_ON_RESUME, &pxp->events.pending);
+				queue_work(pxp->events.wq, &pxp->events.work);
+			}
+		}
+	}
+
 	mutex_unlock(&pxp->mutex);
+
+	if (has_pm)
+		xe_pm_runtime_put(pxp->xe);
 }

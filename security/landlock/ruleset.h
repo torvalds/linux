@@ -35,8 +35,8 @@ struct landlock_layer {
 	 */
 	struct {
 		/**
-		 * @quiet: Suppresses denial logs for the object covered by this
-		 * rule in this domain.  For filesystem rules, this inherits
+		 * @flags.quiet: Suppresses denial logs for the object covered by
+		 * this rule in this domain.  For filesystem rules, this inherits
 		 * down the file hierarchy.
 		 */
 		u8 quiet : 1;

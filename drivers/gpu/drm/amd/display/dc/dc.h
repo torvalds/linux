@@ -1815,6 +1815,8 @@ struct dc_scratch_space {
 		bool dp_skip_DID2;
 		bool dp_skip_reset_segment;
 		bool dp_skip_fs_144hz;
+		/* Some DP bridges don't work with RBR and must use HBR. */
+		bool dp_skip_rbr;
 		bool dp_mot_reset_segment;
 		/* Some USB4 docks do not handle turning off MST DSC once it has been enabled. */
 		bool dpia_mst_dsc_always_on;
@@ -2881,6 +2883,7 @@ enum dc_irq_source dc_interrupt_to_irq_source(
 		uint32_t ext_id);
 bool dc_interrupt_set(struct dc *dc, enum dc_irq_source src, bool enable);
 void dc_interrupt_ack(struct dc *dc, enum dc_irq_source src);
+bool dc_get_flip_pending_on_otg(struct dc *dc, int otg_inst);
 enum dc_irq_source dc_get_hpd_irq_source_at_index(
 		struct dc *dc, uint32_t link_index);
 

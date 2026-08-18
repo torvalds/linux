@@ -637,7 +637,7 @@
 		compatible = "huawei,gaokun3-ec";
 		reg = <0x38>;
 
-		interrupts-extended = <&tlmm 107 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&tlmm 103 IRQ_TYPE_LEVEL_LOW>;
 
 		#address-cells = <1>;
 		#size-cells = <0>;

@@ -1522,9 +1522,6 @@ int _intel_psr_min_set_context_latency(const struct intel_crtc_state *crtc_state
 	    needs_panel_replay)
 		return 0;
 
-	if (intel_vrr_always_use_vrr_tg(display))
-		return 0;
-
 	return 1;
 }
 

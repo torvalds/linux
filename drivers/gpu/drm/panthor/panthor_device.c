@@ -182,7 +182,10 @@ int panthor_device_init(struct panthor_device *ptdev)
 		return ret;
 
 #ifdef CONFIG_DEBUG_FS
-	drmm_mutex_init(&ptdev->base, &ptdev->gems.lock);
+	ret = drmm_mutex_init(&ptdev->base, &ptdev->gems.lock);
+	if (ret)
+		return ret;
+
 	INIT_LIST_HEAD(&ptdev->gems.node);
 #endif
 

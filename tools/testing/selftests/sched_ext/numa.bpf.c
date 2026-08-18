@@ -34,7 +34,8 @@ static bool is_cpu_idle(s32 cpu, int node)
 s32 BPF_STRUCT_OPS(numa_select_cpu,
 		   struct task_struct *p, s32 prev_cpu, u64 wake_flags)
 {
-	int node = __COMPAT_scx_bpf_cpu_node(scx_bpf_task_cpu(p));
+	s32 task_cpu = scx_bpf_task_cpu(p);
+	int node = __COMPAT_scx_bpf_cpu_node(task_cpu);
 	s32 cpu;
 
 	/*
@@ -47,6 +48,16 @@ s32 BPF_STRUCT_OPS(numa_select_cpu,
 	if (cpu < 0)
 		cpu = __COMPAT_scx_bpf_pick_any_cpu_node(p->cpus_ptr, node,
 						__COMPAT_SCX_PICK_IDLE_IN_NODE);
+
+	/*
+	 * @task_cpu may be outside of p->cpus_ptr if @p's affinity
+	 * changed while it was sleeping. This means it's possible for
+	 * p->cpus_ptr to not include any CPUs from @node.
+	 * If we failed to find a cpu in @node, check if @task_cpu
+	 * is outside of p->cpus_ptr and just return @prev_cpu if it is.
+	 */
+	if (cpu < 0 && !bpf_cpumask_test_cpu(task_cpu, p->cpus_ptr))
+		return prev_cpu;
 
 	if (is_cpu_idle(cpu, node))
 		scx_bpf_error("CPU %d should be marked as busy", cpu);

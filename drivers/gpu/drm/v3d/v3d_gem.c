@@ -36,9 +36,21 @@ v3d_init_core(struct v3d_dev *v3d, int core)
 	V3D_CORE_WRITE(core, V3D_CTL_L2TFLEND, ~0);
 }
 
-static void
+void
 v3d_idle_axi(struct v3d_dev *v3d, int core)
 {
+	if (v3d->ver >= V3D_GEN_71) {
+		V3D_WRITE(V3D_GMP_CFG(v3d->ver), V3D_GMP_CFG_STOP_REQ);
+
+		if (wait_for((V3D_READ(V3D_GMP_STATUS(v3d->ver)) &
+			      (V3D_GMP_STATUS_RD_COUNT_MASK |
+			       V3D_GMP_STATUS_WR_COUNT_MASK |
+			       V3D_GMP_STATUS_CFG_BUSY)) == 0, 100)) {
+			drm_err(&v3d->drm, "Failed to wait for safe GMP shutdown\n");
+		}
+		return;
+	}
+
 	V3D_CORE_WRITE(core, V3D_GMP_CFG(v3d->ver), V3D_GMP_CFG_STOP_REQ);
 
 	if (wait_for((V3D_CORE_READ(core, V3D_GMP_STATUS(v3d->ver)) &
@@ -49,7 +61,7 @@ v3d_idle_axi(struct v3d_dev *v3d, int core)
 	}
 }
 
-static void
+void
 v3d_idle_gca(struct v3d_dev *v3d)
 {
 	if (v3d->ver >= V3D_GEN_41)

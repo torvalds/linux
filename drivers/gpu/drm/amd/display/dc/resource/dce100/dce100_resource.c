@@ -992,6 +992,11 @@ struct stream_encoder *dce100_find_first_free_match_stream_enc_for_link(
 	for (i = 0; i < pool->stream_enc_count; i++) {
 		if (!res_ctx->is_stream_enc_acquired[i] &&
 				pool->stream_enc[i]) {
+			/* DP/MST needs a digital encoder; skip analog/no-DP encoders */
+			if (dc_is_dp_signal(stream->signal) &&
+			    (!pool->stream_enc[i]->funcs ||
+			     !pool->stream_enc[i]->funcs->dp_set_stream_attribute))
+				continue;
 			/* Store first available for MST second display
 			 * in daisy chain use case
 			 */
@@ -1014,7 +1019,7 @@ struct stream_encoder *dce100_find_first_free_match_stream_enc_for_link(
 	 * required for non DP connectors.
 	 */
 
-	if (j >= 0 && link->connector_signal == SIGNAL_TYPE_DISPLAY_PORT)
+	if (j >= 0 && dc_is_dp_signal(stream->signal))
 		return pool->stream_enc[j];
 
 	return NULL;

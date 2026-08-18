@@ -740,6 +740,8 @@ static void connector_unbind(struct device *dev, struct device *connector, void 
 
 	sysfs_remove_link(&connector->kobj, dev_name(dev));
 	sysfs_remove_link(&dev->kobj, "connector");
+	if (port_dev->child)
+		typec_deattach(port_dev->connector, &port_dev->child->dev);
 	port_dev->connector = NULL;
 }
 

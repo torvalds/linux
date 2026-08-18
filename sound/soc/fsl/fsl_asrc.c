@@ -1419,7 +1419,7 @@ static int fsl_asrc_probe(struct platform_device *pdev)
 	ret = fsl_asrc_m2m_init(asrc);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to init m2m device %d\n", ret);
-		return ret;
+		goto err_pm_get_sync;
 	}
 
 	return 0;

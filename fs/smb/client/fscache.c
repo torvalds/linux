@@ -38,7 +38,6 @@ int cifs_fscache_get_super_cookie(struct cifs_tcon *tcon)
 	struct TCP_Server_Info *server = tcon->ses->server;
 	struct fscache_volume *vcookie;
 	const struct sockaddr *sa = (struct sockaddr *)&server->dstaddr;
-	size_t slen, i;
 	char *sharename;
 	char *key;
 	int ret = -ENOMEM;
@@ -73,10 +72,7 @@ int cifs_fscache_get_super_cookie(struct cifs_tcon *tcon)
 		return PTR_ERR(sharename);
 	}
 
-	slen = strlen(sharename);
-	for (i = 0; i < slen; i++)
-		if (sharename[i] == '/')
-			sharename[i] = ';';
+	strreplace(sharename, '/', ';');
 
 	key = kasprintf(GFP_KERNEL, "cifs,%pISpc,%s", sa, sharename);
 	if (!key)

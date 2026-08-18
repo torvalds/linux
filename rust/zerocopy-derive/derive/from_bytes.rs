@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (BSD-2-Clause OR Apache-2.0) OR MIT
-
+//
 use proc_macro2::{Span, TokenStream};
 use syn::{
     parse_quote, Data, DataEnum, DataStruct, DataUnion, Error, Expr, ExprLit, ExprUnary, Lit, UnOp,

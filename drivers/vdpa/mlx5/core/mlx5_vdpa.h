@@ -11,6 +11,8 @@
 
 #define MLX5V_ETH_HARD_MTU (ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN)
 
+extern int mlx5_vdpa_max_iotlb_entries;
+
 struct mlx5_vdpa_direct_mr {
 	u64 start;
 	u64 end;

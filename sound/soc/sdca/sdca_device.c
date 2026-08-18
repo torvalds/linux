@@ -43,7 +43,7 @@ void sdca_lookup_swft(struct sdw_slave *slave)
 		dev_info(&slave->dev, "SWFT not available\n");
 	else
 		devm_add_action_or_reset(&slave->dev, devm_acpi_table_put,
-					 &slave->sdca_data.swft);
+					 slave->sdca_data.swft);
 }
 EXPORT_SYMBOL_NS(sdca_lookup_swft, "SND_SOC_SDCA");
 

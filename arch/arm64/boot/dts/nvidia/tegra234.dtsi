@@ -5355,7 +5355,7 @@
 		#size-cells = <0>;
 
 		cpu0_0: cpu@0 {
-			compatible = "arm,cortex-a78";
+			compatible = "arm,cortex-a78ae";
 			device_type = "cpu";
 			reg = <0x00000>;
 
@@ -5374,7 +5374,7 @@
 		};
 
 		cpu0_1: cpu@100 {
-			compatible = "arm,cortex-a78";
+			compatible = "arm,cortex-a78ae";
 			device_type = "cpu";
 			reg = <0x00100>;
 
@@ -5393,7 +5393,7 @@
 		};
 
 		cpu0_2: cpu@200 {
-			compatible = "arm,cortex-a78";
+			compatible = "arm,cortex-a78ae";
 			device_type = "cpu";
 			reg = <0x00200>;
 
@@ -5412,7 +5412,7 @@
 		};
 
 		cpu0_3: cpu@300 {
-			compatible = "arm,cortex-a78";
+			compatible = "arm,cortex-a78ae";
 			device_type = "cpu";
 			reg = <0x00300>;
 
@@ -5431,7 +5431,7 @@
 		};
 
 		cpu1_0: cpu@10000 {
-			compatible = "arm,cortex-a78";
+			compatible = "arm,cortex-a78ae";
 			device_type = "cpu";
 			reg = <0x10000>;
 
@@ -5450,7 +5450,7 @@
 		};
 
 		cpu1_1: cpu@10100 {
-			compatible = "arm,cortex-a78";
+			compatible = "arm,cortex-a78ae";
 			device_type = "cpu";
 			reg = <0x10100>;
 
@@ -5469,7 +5469,7 @@
 		};
 
 		cpu1_2: cpu@10200 {
-			compatible = "arm,cortex-a78";
+			compatible = "arm,cortex-a78ae";
 			device_type = "cpu";
 			reg = <0x10200>;
 
@@ -5488,7 +5488,7 @@
 		};
 
 		cpu1_3: cpu@10300 {
-			compatible = "arm,cortex-a78";
+			compatible = "arm,cortex-a78ae";
 			device_type = "cpu";
 			reg = <0x10300>;
 
@@ -5507,7 +5507,7 @@
 		};
 
 		cpu2_0: cpu@20000 {
-			compatible = "arm,cortex-a78";
+			compatible = "arm,cortex-a78ae";
 			device_type = "cpu";
 			reg = <0x20000>;
 
@@ -5526,7 +5526,7 @@
 		};
 
 		cpu2_1: cpu@20100 {
-			compatible = "arm,cortex-a78";
+			compatible = "arm,cortex-a78ae";
 			device_type = "cpu";
 			reg = <0x20100>;
 
@@ -5545,7 +5545,7 @@
 		};
 
 		cpu2_2: cpu@20200 {
-			compatible = "arm,cortex-a78";
+			compatible = "arm,cortex-a78ae";
 			device_type = "cpu";
 			reg = <0x20200>;
 
@@ -5564,7 +5564,7 @@
 		};
 
 		cpu2_3: cpu@20300 {
-			compatible = "arm,cortex-a78";
+			compatible = "arm,cortex-a78ae";
 			device_type = "cpu";
 			reg = <0x20300>;
 

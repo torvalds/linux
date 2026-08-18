@@ -562,6 +562,7 @@ struct ethtool_fec_hist {
 		u64 per_lane[ETHTOOL_MAX_LANES];
 	} values[ETHTOOL_FEC_HIST_MAX];
 	const struct ethtool_fec_hist_range *ranges;
+	struct ethtool_fec_hist_range ranges_buf[ETHTOOL_FEC_HIST_MAX];
 };
 /**
  * struct ethtool_fec_stats - statistics for IEEE 802.3 FEC

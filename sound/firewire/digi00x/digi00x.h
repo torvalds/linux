@@ -12,7 +12,6 @@
 #include <linux/device.h>
 #include <linux/firewire.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/sched/signal.h>

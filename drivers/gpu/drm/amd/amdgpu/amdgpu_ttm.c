@@ -2120,23 +2120,17 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	/* Change the size here instead of the init above so only lpfn is affected */
 	amdgpu_ttm_disable_buffer_funcs(adev);
 #ifdef CONFIG_64BIT
-	if (adev->gmc.xgmi.connected_to_cpu) {
-		void *kaddr = devm_memremap(adev->dev, adev->gmc.aper_base,
-					    adev->gmc.visible_vram_size,
-					    MEMREMAP_WB);
-		if (IS_ERR(kaddr))
-			return PTR_ERR(kaddr);
-		adev->mman.aper_base_kaddr = (__force void __iomem *)kaddr;
-	} else if (adev->gmc.is_app_apu) {
+#ifdef CONFIG_X86
+	if (adev->gmc.xgmi.connected_to_cpu)
+		adev->mman.aper_base_kaddr = ioremap_cache(adev->gmc.aper_base,
+				adev->gmc.visible_vram_size);
+	else if (adev->gmc.is_app_apu)
 		DRM_DEBUG_DRIVER(
 			"No need to ioremap when real vram size is 0\n");
-	} else {
-		adev->mman.aper_base_kaddr = devm_ioremap_wc(adev->dev,
-							     adev->gmc.aper_base,
-							     adev->gmc.visible_vram_size);
-		if (!adev->mman.aper_base_kaddr)
-			return -ENOMEM;
-	}
+	else
+#endif
+		adev->mman.aper_base_kaddr = ioremap_wc(adev->gmc.aper_base,
+				adev->gmc.visible_vram_size);
 #endif
 
 	amdgpu_ttm_init_vram_resv_regions(adev);
@@ -2171,6 +2165,18 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 				configured_size, gtt_size);
 
 		gtt_size = configured_size;
+	}
+
+	/* Cap GTT so that it does not exceed total physical RAM. */
+	if (adev->flags & AMD_IS_APU) {
+		u64 phys_ram = (u64)totalram_pages() << PAGE_SHIFT;
+
+		if (gtt_size > phys_ram) {
+			gtt_size = phys_ram;
+			dev_info(adev->dev,
+				 "Capping GTT to %uM to not exceed available system memory\n",
+				 (unsigned int)(gtt_size / (1024 * 1024)));
+		}
 	}
 
 	/* Initialize GTT memory pool */
@@ -2275,7 +2281,10 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev)
 	amdgpu_ttm_unmark_vram_reserved(adev, AMDGPU_RESV_FW_VRAM_USAGE);
 	amdgpu_ttm_unmark_vram_reserved(adev, AMDGPU_RESV_DRV_VRAM_USAGE);
 
-	adev->mman.aper_base_kaddr = NULL;
+	if (adev->mman.aper_base_kaddr) {
+		iounmap(adev->mman.aper_base_kaddr);
+		adev->mman.aper_base_kaddr = NULL;
+	}
 
 	if (!adev->gmc.is_app_apu)
 		amdgpu_vram_mgr_fini(adev);
@@ -2684,12 +2693,22 @@ void amdgpu_sdma_set_buffer_funcs_scheds(struct amdgpu_device *adev,
 		return;
 	}
 
-	/* Navi1x's workaround requires us to limit to a single SDMA sched
-	 * for ttm.
-	 */
 	hub = &adev->vmhub[AMDGPU_GFXHUB(0)];
-	adev->mman.num_buffer_funcs_scheds = hub->sdma_invalidation_workaround ?
-		1 : n;
+
+	/*
+	 * Allow using multiple SDMA schedulers only on GPUs where
+	 * we are allowed to do concurrent VM flushes.
+	 * This consideration is necessary because all GART windows
+	 * are mapped in VMID 0 (the kernel VMID) so each buffer
+	 * entity would flush VMID 0 concurrently.
+	 *
+	 * Also consider the SDMA invalidation workaround on
+	 * Navi 1x GPUs, which also prevents us from using
+	 * multiple SDMA engines on VMID 0 at the same time.
+	 */
+	adev->mman.num_buffer_funcs_scheds =
+		(adev->vm_manager.concurrent_flush &&
+		 !hub->sdma_invalidation_workaround) ? n : 1;
 }
 
 #if defined(CONFIG_DEBUG_FS)

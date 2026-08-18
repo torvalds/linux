@@ -1107,6 +1107,13 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 		goto erridr;
 	}
 
+	if (s->offshift >= 16) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "offshift must be less than 16");
+		err = -EINVAL;
+		goto erridr;
+	}
+
 	n = kzalloc_flex(*n, sel.keys, s->nkeys);
 	if (n == NULL) {
 		err = -ENOBUFS;
@@ -1338,6 +1345,9 @@ static void u32_bind_class(void *fh, u32 classid, unsigned long cl, void *q,
 			   unsigned long base)
 {
 	struct tc_u_knode *n = fh;
+
+	if (TC_U32_KEY(n->handle) == 0)
+		return;
 
 	tc_cls_bind_class(classid, cl, q, &n->res, base);
 }

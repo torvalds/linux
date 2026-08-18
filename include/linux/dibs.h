@@ -439,7 +439,7 @@ static inline void *dibs_get_priv(struct dibs_dev *dev,
 /**
  * dibs_dev_alloc() - allocate and reference device structure
  *
- * The following fields will be valid upon successful return: dev
+ * The following fields will be valid upon successful return: dev, lock
  * NOTE: Use put_device(dibs_get_dev(@dibs)) to give up your reference instead
  * of freeing @dibs @dev directly once you have successfully called this
  * function.

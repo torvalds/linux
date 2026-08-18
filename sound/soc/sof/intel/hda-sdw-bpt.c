@@ -322,7 +322,8 @@ int hda_sdw_bpt_open(struct device *dev, int link_id, struct hdac_ext_stream **b
 		__func__, ret);
 
 close:
-	ret1 = hda_sdw_bpt_close(dev, *bpt_tx_stream, dmab_tx_bdl, *bpt_rx_stream, dmab_rx_bdl);
+	ret1 = hda_sdw_bpt_close(dev, link_id, *bpt_tx_stream, dmab_tx_bdl,
+				 *bpt_rx_stream, dmab_rx_bdl);
 	if (ret1 < 0)
 		dev_err(dev, "%s: hda_sdw_bpt_close failed: %d\n",
 			__func__, ret1);
@@ -447,14 +448,38 @@ dma_disable:
 }
 EXPORT_SYMBOL_NS(hda_sdw_bpt_wait, "SND_SOC_SOF_INTEL_HDA_SDW_BPT");
 
-int hda_sdw_bpt_close(struct device *dev, struct hdac_ext_stream *bpt_tx_stream,
+int hda_sdw_bpt_close(struct device *dev, int link_id, struct hdac_ext_stream *bpt_tx_stream,
 		      struct snd_dma_buffer *dmab_tx_bdl, struct hdac_ext_stream *bpt_rx_stream,
 		      struct snd_dma_buffer *dmab_rx_bdl)
 {
+	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
 	int ret;
 	int ret1;
 
-	ret = hda_sdw_bpt_dma_deprepare(dev, bpt_rx_stream, dmab_rx_bdl);
+	/*
+	 * In the case of SoundWire we need to reset the PCMSyCM registers.
+	 * Need to continue depreparing the DMA buffers even if this fails.
+	 */
+	ret = hdac_bus_eml_sdw_map_stream_ch(sof_to_bus(sdev), link_id,
+					     0, /* PDI0 */
+					     0, 0, SNDRV_PCM_STREAM_PLAYBACK);
+	if (ret < 0)
+		dev_err(dev, "%s: hdac_bus_eml_sdw_map_stream_ch failed %d for PDI0\n",
+			__func__, ret);
+
+	ret1 = hdac_bus_eml_sdw_map_stream_ch(sof_to_bus(sdev), link_id,
+					      1, /* PDI1 */
+					      0, 0, SNDRV_PCM_STREAM_CAPTURE);
+	if (ret1 < 0) {
+		dev_err(dev, "%s: hdac_bus_eml_sdw_map_stream_ch failed %d for PDI1\n",
+			__func__, ret1);
+		if (!ret)
+			ret = ret1;
+	}
+
+	ret1 = hda_sdw_bpt_dma_deprepare(dev, bpt_rx_stream, dmab_rx_bdl);
+	if (!ret)
+		ret = ret1;
 
 	ret1 = hda_sdw_bpt_dma_deprepare(dev, bpt_tx_stream, dmab_tx_bdl);
 	if (!ret)

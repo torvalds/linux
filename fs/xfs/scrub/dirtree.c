@@ -383,6 +383,14 @@ xchk_dirpath_step_up(
 		goto out_scanlock;
 	}
 
+	/* The handle encoded in the parent pointer must match. */
+	if (VFS_I(dp)->i_generation != be32_to_cpu(dl->pptr_rec.p_gen)) {
+		trace_xchk_dirpath_badgen(dl->sc, dp, path->path_nr,
+				path->nr_steps, &dl->xname, &dl->pptr_rec);
+		error = -EFSCORRUPTED;
+		goto out_scanlock;
+	}
+
 	/* We've reached the root directory; the path is ok. */
 	if (parent_ino == dl->root_ino) {
 		xchk_dirpath_set_outcome(dl, path, XCHK_DIRPATH_OK);
@@ -408,14 +416,6 @@ xchk_dirpath_step_up(
 	if (xino_bitmap_test(&path->seen_inodes, parent_ino)) {
 		xchk_dirpath_set_outcome(dl, path, XCHK_DIRPATH_LOOP);
 		error = 0;
-		goto out_scanlock;
-	}
-
-	/* The handle encoded in the parent pointer must match. */
-	if (VFS_I(dp)->i_generation != be32_to_cpu(dl->pptr_rec.p_gen)) {
-		trace_xchk_dirpath_badgen(dl->sc, dp, path->path_nr,
-				path->nr_steps, &dl->xname, &dl->pptr_rec);
-		error = -EFSCORRUPTED;
 		goto out_scanlock;
 	}
 

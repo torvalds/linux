@@ -749,6 +749,9 @@ struct smu_context {
 	bool pm_enabled;
 	bool is_apu;
 
+	/* Power dependency link from an integrated xHCI controller to the GPU */
+	struct device_link		*usb_power_link;
+
 	uint32_t smc_driver_if_version;
 	uint32_t smc_fw_if_version;
 	uint32_t smc_fw_version;
@@ -1345,7 +1348,7 @@ struct pptable_funcs {
 	u32 (*set_gfx_off_residency)(struct smu_context *smu, bool start);
 
 	/**
-	 * @get_gfx_off_residency: Average GFXOFF residency % during the logging interval
+	 * @get_gfx_off_residency: Live GFXOFF residency percentage
 	 */
 	u32 (*get_gfx_off_residency)(struct smu_context *smu, uint32_t *residency);
 
@@ -1648,12 +1651,19 @@ struct pptable_funcs {
 	int (*ras_send_msg)(struct smu_context *smu,
 			    enum smu_message_type msg, uint32_t param, uint32_t *read_arg);
 
-
 	/**
 	 * @get_ras_smu_drv: Get RAS smu driver interface
 	 * Return: ras_smu_drv *
 	 */
 	int (*get_ras_smu_drv)(struct smu_context *smu, const struct ras_smu_drv **ras_smu_drv);
+
+	/**
+	 * @set_power_dep: Create or destroy a power dependency link
+	 * from an integrated xHCI controller to the GPU so that the GPU is
+	 * resumed before the USB controller during PM resume. @enable is true
+	 * to create the link and false to tear it down.
+	 */
+	int (*set_power_dep)(struct smu_context *smu, bool enable);
 };
 
 typedef enum {

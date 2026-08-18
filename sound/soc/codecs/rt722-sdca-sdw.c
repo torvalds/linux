@@ -113,6 +113,7 @@ static int rt722_sdca_mbq_size(struct device *dev, unsigned int reg)
 	case 0x2000090 ... 0x2000094:
 	case 0x20000b1:
 	case 0x20000b4:
+	case 0x3010000:
 	case 0x3110000:
 	case 0x5300000 ... 0x5300300:
 	case 0x5400002:
@@ -196,15 +197,18 @@ static bool rt722_sdca_volatile_register(struct device *dev, unsigned int reg)
 	case 0x2000007:
 	case 0x200000d:
 	case 0x2000019:
+	case 0x200001a:
 	case 0x2000020:
 	case 0x2000030:
 	case 0x2000046:
 	case 0x2000067:
 	case 0x2000084:
 	case 0x2000086:
+	case 0x3010000:
 	case 0x3110000:
 	case 0x5800003:
 	case 0x5810000:
+	case 0x6100008:
 	case 0x44011000 ... 0x440115ff:
 	case 0x44012000:
 	case 0x44012021:

@@ -20,6 +20,15 @@ struct drm_get_panel_backlight_quirk {
 };
 
 static const struct drm_get_panel_backlight_quirk drm_panel_min_backlight_quirks[] = {
+	/* Lenovo Legion 5 15ARH05, AUX backlight non-functional, force PWM */
+	{
+		.dmi_match.field = DMI_SYS_VENDOR,
+		.dmi_match.value = "LENOVO",
+		.dmi_match_other.field = DMI_PRODUCT_VERSION,
+		.dmi_match_other.value = "Lenovo Legion 5 15ARH05",
+		.ident.panel_id = drm_edid_encode_panel_id('B', 'O', 'E', 0x08df),
+		.quirk = { .force_pwm = true, },
+	},
 	/* 13 inch matte panel */
 	{
 		.dmi_match.field = DMI_BOARD_VENDOR,

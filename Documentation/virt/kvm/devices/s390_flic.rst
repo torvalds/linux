@@ -112,9 +112,20 @@ Groups:
       mask or unmask the adapter, as specified in mask
 
     KVM_S390_IO_ADAPTER_MAP
-      This is now a no-op. The mapping is purely done by the irq route.
+      Map an adapter indicator or summary page for long-term pinning so that
+      interrupt injection can be performed in atomic context. If long-term
+      pinning is not possible (e.g. file-backed memory), the page is verified
+      via a short-term pin and the ioctl returns success; interrupt injection
+      will use the non-atomic irqfd path with short-term pinning on each
+      interrupt. In Secure Execution mode this is a no-op and the ioctl
+      returns success.
+
     KVM_S390_IO_ADAPTER_UNMAP
-      This is now a no-op. The mapping is purely done by the irq route.
+      Unmap a previously mapped adapter indicator or summary page and release
+      the long-term pin. If the page was not long-term pinned (e.g. file-backed
+      memory), the map entry is removed and success is returned; if no prior
+      map entry exists, -ENOENT is returned. In Secure Execution mode this is
+      a no-op and the ioctl returns success.
 
   KVM_DEV_FLIC_AISM
     modify the adapter-interruption-suppression mode for a given isc if the

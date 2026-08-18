@@ -30,70 +30,76 @@
 #include "ivsrcid/nbio/irqsrcs_nbif_7_4.h"
 #include <uapi/linux/kfd_ioctl.h>
 
-#define regGDC_S2A0_S2A_DOORBELL_ENTRY_0_CTRL_nbif_4_10                                                           0x4f0aeb
-#define regGDC_S2A0_S2A_DOORBELL_ENTRY_0_CTRL_nbif_4_10_BASE_IDX                                                  3
-#define regGDC_S2A0_S2A_DOORBELL_ENTRY_0_CTRL1_nbif_4_10                                                          0x4f0aec
-#define regGDC_S2A0_S2A_DOORBELL_ENTRY_0_CTRL1_nbif_4_10_BASE_IDX                                                 3
-#define regGDC_S2A0_S2A_DOORBELL_ENTRY_1_CTRL_nbif_4_10                                                           0x4f0aed
-#define regGDC_S2A0_S2A_DOORBELL_ENTRY_1_CTRL_nbif_4_10_BASE_IDX                                                  3
-#define regGDC_S2A0_S2A_DOORBELL_ENTRY_1_CTRL1_nbif_4_10                                                          0x4f0aee
-#define regGDC_S2A0_S2A_DOORBELL_ENTRY_1_CTRL1_nbif_4_10_BASE_IDX                                                 3
-#define regGDC_S2A0_S2A_DOORBELL_ENTRY_2_CTRL_nbif_4_10                                                           0x4f0aef
-#define regGDC_S2A0_S2A_DOORBELL_ENTRY_2_CTRL_nbif_4_10_BASE_IDX                                                  3
-#define regGDC_S2A0_S2A_DOORBELL_ENTRY_2_CTRL1_nbif_4_10                                                          0x4f0af0
-#define regGDC_S2A0_S2A_DOORBELL_ENTRY_2_CTRL1_nbif_4_10_BASE_IDX                                                 3
-#define regGDC_S2A0_S2A_DOORBELL_ENTRY_3_CTRL_nbif_4_10                                                           0x4f0af1
-#define regGDC_S2A0_S2A_DOORBELL_ENTRY_3_CTRL_nbif_4_10_BASE_IDX                                                  3
-#define regGDC_S2A0_S2A_DOORBELL_ENTRY_3_CTRL1_nbif_4_10                                                          0x4f0af2
-#define regGDC_S2A0_S2A_DOORBELL_ENTRY_3_CTRL1_nbif_4_10_BASE_IDX                                                 3
-#define regGDC_S2A0_S2A_DOORBELL_ENTRY_4_CTRL_nbif_4_10                                                           0x4f0af3
-#define regGDC_S2A0_S2A_DOORBELL_ENTRY_4_CTRL_nbif_4_10_BASE_IDX                                                  3
-#define regGDC_S2A0_S2A_DOORBELL_ENTRY_4_CTRL1_nbif_4_10                                                          0x4f0af4
-#define regGDC_S2A0_S2A_DOORBELL_ENTRY_4_CTRL1_nbif_4_10_BASE_IDX                                                 3
-#define regGDC_S2A0_S2A_DOORBELL_ENTRY_5_CTRL_nbif_4_10                                                           0x4f0af5
-#define regGDC_S2A0_S2A_DOORBELL_ENTRY_5_CTRL_nbif_4_10_BASE_IDX                                                  3
-#define regGDC_S2A0_S2A_DOORBELL_ENTRY_5_CTRL1_nbif_4_10                                                          0x4f0af6
-#define regGDC_S2A0_S2A_DOORBELL_ENTRY_5_CTRL1_nbif_4_10_BASE_IDX                                                 3
-#define regRCC_STRAP0_RCC_DEV0_EPF0_STRAP0_nbif_4_10                                                              0x0021
-#define regRCC_STRAP0_RCC_DEV0_EPF0_STRAP0_nbif_4_10_BASE_IDX                                                     2
+#define regGDC_S2A0_S2A_DOORBELL_ENTRY_0_CTRL_nbif_4_10                                 0x4f0aeb
+#define regGDC_S2A0_S2A_DOORBELL_ENTRY_0_CTRL_nbif_4_10_BASE_IDX                        3
+#define regGDC_S2A0_S2A_DOORBELL_ENTRY_0_CTRL1_nbif_4_10                                0x4f0aec
+#define regGDC_S2A0_S2A_DOORBELL_ENTRY_0_CTRL1_nbif_4_10_BASE_IDX                       3
+#define regGDC_S2A0_S2A_DOORBELL_ENTRY_1_CTRL_nbif_4_10                                 0x4f0aed
+#define regGDC_S2A0_S2A_DOORBELL_ENTRY_1_CTRL_nbif_4_10_BASE_IDX                        3
+#define regGDC_S2A0_S2A_DOORBELL_ENTRY_1_CTRL1_nbif_4_10                                0x4f0aee
+#define regGDC_S2A0_S2A_DOORBELL_ENTRY_1_CTRL1_nbif_4_10_BASE_IDX                       3
+#define regGDC_S2A0_S2A_DOORBELL_ENTRY_2_CTRL_nbif_4_10                                 0x4f0aef
+#define regGDC_S2A0_S2A_DOORBELL_ENTRY_2_CTRL_nbif_4_10_BASE_IDX                        3
+#define regGDC_S2A0_S2A_DOORBELL_ENTRY_2_CTRL1_nbif_4_10                                0x4f0af0
+#define regGDC_S2A0_S2A_DOORBELL_ENTRY_2_CTRL1_nbif_4_10_BASE_IDX                       3
+#define regGDC_S2A0_S2A_DOORBELL_ENTRY_3_CTRL_nbif_4_10                                 0x4f0af1
+#define regGDC_S2A0_S2A_DOORBELL_ENTRY_3_CTRL_nbif_4_10_BASE_IDX                        3
+#define regGDC_S2A0_S2A_DOORBELL_ENTRY_3_CTRL1_nbif_4_10                                0x4f0af2
+#define regGDC_S2A0_S2A_DOORBELL_ENTRY_3_CTRL1_nbif_4_10_BASE_IDX                       3
+#define regGDC_S2A0_S2A_DOORBELL_ENTRY_4_CTRL_nbif_4_10                                 0x4f0af3
+#define regGDC_S2A0_S2A_DOORBELL_ENTRY_4_CTRL_nbif_4_10_BASE_IDX                        3
+#define regGDC_S2A0_S2A_DOORBELL_ENTRY_4_CTRL1_nbif_4_10                                0x4f0af4
+#define regGDC_S2A0_S2A_DOORBELL_ENTRY_4_CTRL1_nbif_4_10_BASE_IDX                       3
+#define regGDC_S2A0_S2A_DOORBELL_ENTRY_5_CTRL_nbif_4_10                                 0x4f0af5
+#define regGDC_S2A0_S2A_DOORBELL_ENTRY_5_CTRL_nbif_4_10_BASE_IDX                        3
+#define regGDC_S2A0_S2A_DOORBELL_ENTRY_5_CTRL1_nbif_4_10                                0x4f0af6
+#define regGDC_S2A0_S2A_DOORBELL_ENTRY_5_CTRL1_nbif_4_10_BASE_IDX                       3
+#define regRCC_STRAP0_RCC_DEV0_EPF0_STRAP0_nbif_4_10                                    0x0021
+#define regRCC_STRAP0_RCC_DEV0_EPF0_STRAP0_nbif_4_10_BASE_IDX                           2
 
-#define regBIF_BX_PF0_DOORBELL_SELFRING_GPA_APER_BASE_HIGH_nbio_7_11_5                                      0x8e13
-#define regBIF_BX_PF0_DOORBELL_SELFRING_GPA_APER_BASE_HIGH_nbio_7_11_5_BASE_IDX                             5
-#define regBIF_BX_PF0_DOORBELL_SELFRING_GPA_APER_BASE_LOW_nbio_7_11_5                                       0x8e14
-#define regBIF_BX_PF0_DOORBELL_SELFRING_GPA_APER_BASE_LOW_nbio_7_11_5_BASE_IDX                              5
-#define regBIF_BX_PF0_DOORBELL_SELFRING_GPA_APER_CNTL_nbio_7_11_5                                           0x8e15
-#define regBIF_BX_PF0_DOORBELL_SELFRING_GPA_APER_CNTL_nbio_7_11_5_BASE_IDX                                  5
+#define regBIF_BX_PF0_DOORBELL_SELFRING_GPA_APER_BASE_HIGH_nbio_7_11_5                  0x8e13
+#define regBIF_BX_PF0_DOORBELL_SELFRING_GPA_APER_BASE_HIGH_nbio_7_11_5_BASE_IDX         5
+#define regBIF_BX_PF0_DOORBELL_SELFRING_GPA_APER_BASE_LOW_nbio_7_11_5                   0x8e14
+#define regBIF_BX_PF0_DOORBELL_SELFRING_GPA_APER_BASE_LOW_nbio_7_11_5_BASE_IDX          5
+#define regBIF_BX_PF0_DOORBELL_SELFRING_GPA_APER_CNTL_nbio_7_11_5                       0x8e15
+#define regBIF_BX_PF0_DOORBELL_SELFRING_GPA_APER_CNTL_nbio_7_11_5_BASE_IDX              5
 
-#define regBIF_BX0_REMAP_HDP_MEM_FLUSH_CNTL_nbio_7_11_5                                                     0x8e4d
-#define regBIF_BX0_REMAP_HDP_MEM_FLUSH_CNTL_nbio_7_11_5_BASE_IDX                                            5
-#define regBIF_BX0_REMAP_HDP_REG_FLUSH_CNTL_nbio_7_11_5                                                     0x8e4e
-#define regBIF_BX0_REMAP_HDP_REG_FLUSH_CNTL_nbio_7_11_5_BASE_IDX                                            5
+#define regBIF_BX1_REMAP_HDP_MEM_FLUSH_CNTL_nbio_7_11_5                                 0x012d
+#define regBIF_BX1_REMAP_HDP_MEM_FLUSH_CNTL_nbio_7_11_5_BASE_IDX                        2
+#define regBIF_BX1_REMAP_HDP_REG_FLUSH_CNTL_nbio_7_11_5                                 0x012e
+#define regBIF_BX1_REMAP_HDP_REG_FLUSH_CNTL_nbio_7_11_5_BASE_IDX                        2
 
-#define regRCC_STRAP0_RCC_DEV0_EPF0_STRAP0_nbio_7_11_5                                                      0xd000
-#define regRCC_STRAP0_RCC_DEV0_EPF0_STRAP0_nbio_7_11_5_BASE_IDX                                             5
+#define regRCC_STRAP1_RCC_DEV0_EPF0_STRAP0_nbio_7_11_5                                  0x0021
+#define regRCC_STRAP1_RCC_DEV0_EPF0_STRAP0_nbio_7_11_5_BASE_IDX                         2
 
-#define regBIF_BX0_BIF_FB_EN_nbio_7_11_5                                                                    0x8e20
-#define regBIF_BX0_BIF_FB_EN_nbio_7_11_5_BASE_IDX                                                           5
+#define regBIF_BX1_BIF_FB_EN_nbio_7_11_5                                                0x0100
+#define regBIF_BX1_BIF_FB_EN_nbio_7_11_5_BASE_IDX                                       2
 
-#define regBIF_BX0_INTERRUPT_CNTL_nbio_7_11_5                                                               0x8e11
-#define regBIF_BX0_INTERRUPT_CNTL_nbio_7_11_5_BASE_IDX                                                      5
-#define regBIF_BX0_INTERRUPT_CNTL2_nbio_7_11_5                                                              0x8e12
-#define regBIF_BX0_INTERRUPT_CNTL2_nbio_7_11_5_BASE_IDX                                                     5
+#define regBIF_BX1_INTERRUPT_CNTL_nbio_7_11_5                                           0x00f1
+#define regBIF_BX1_INTERRUPT_CNTL_nbio_7_11_5_BASE_IDX                                  2
+#define regBIF_BX1_INTERRUPT_CNTL2_nbio_7_11_5                                          0x00f2
+#define regBIF_BX1_INTERRUPT_CNTL2_nbio_7_11_5_BASE_IDX                                 2
 
-#define regBIF_BX_PF0_GPU_HDP_FLUSH_REQ_nbio_7_11_5                                                         0x8e26
-#define regBIF_BX_PF0_GPU_HDP_FLUSH_REQ_nbio_7_11_5_BASE_IDX                                                5
-#define regBIF_BX_PF0_GPU_HDP_FLUSH_DONE_nbio_7_11_5                                                        0x8e27
-#define regBIF_BX_PF0_GPU_HDP_FLUSH_DONE_nbio_7_11_5_BASE_IDX                                               5
+#define regBIF_BX_PF1_GPU_HDP_FLUSH_REQ_nbio_7_11_5                                     0x0106
+#define regBIF_BX_PF1_GPU_HDP_FLUSH_REQ_nbio_7_11_5_BASE_IDX                            2
+#define regBIF_BX_PF1_GPU_HDP_FLUSH_DONE_nbio_7_11_5                                    0x0107
+#define regBIF_BX_PF1_GPU_HDP_FLUSH_DONE_nbio_7_11_5_BASE_IDX                           2
 
-#define regBIF_BX_PF0_HDP_MEM_COHERENCY_FLUSH_CNTL_nbio_7_11_5                                              0x8e17
-#define regBIF_BX_PF0_HDP_MEM_COHERENCY_FLUSH_CNTL_nbio_7_11_5_BASE_IDX                                     5
+#define regBIF_BX_PF1_HDP_MEM_COHERENCY_FLUSH_CNTL_nbio_7_11_5                          0x00f7
+#define regBIF_BX_PF1_HDP_MEM_COHERENCY_FLUSH_CNTL_nbio_7_11_5_BASE_IDX                 2
+
+//BIF_BX1_BIF_FB_EN
+#define BIF_BX1_BIF_FB_EN__FB_READ_EN__SHIFT_nbio_7_11_5                                0x0
+#define BIF_BX1_BIF_FB_EN__FB_WRITE_EN__SHIFT_nbio_7_11_5                               0x1
+#define BIF_BX1_BIF_FB_EN__FB_READ_EN_MASK_nbio_7_11_5                                  0x00000001L
+#define BIF_BX1_BIF_FB_EN__FB_WRITE_EN_MASK_nbio_7_11_5                                 0x00000002L
 
 static void nbif_v6_3_1_remap_hdp_registers(struct amdgpu_device *adev)
 {
 	if (amdgpu_ip_version(adev, NBIO_HWIP, 0) == IP_VERSION(7, 11, 5)) {
-		WREG32_SOC15(NBIO, 0, regBIF_BX0_REMAP_HDP_MEM_FLUSH_CNTL_nbio_7_11_5,
+		WREG32_SOC15(NBIO, 0, regBIF_BX1_REMAP_HDP_MEM_FLUSH_CNTL_nbio_7_11_5,
 			adev->rmmio_remap.reg_offset + KFD_MMIO_REMAP_HDP_MEM_FLUSH_CNTL);
-		WREG32_SOC15(NBIO, 0, regBIF_BX0_REMAP_HDP_REG_FLUSH_CNTL_nbio_7_11_5,
+		WREG32_SOC15(NBIO, 0, regBIF_BX1_REMAP_HDP_REG_FLUSH_CNTL_nbio_7_11_5,
 			adev->rmmio_remap.reg_offset + KFD_MMIO_REMAP_HDP_REG_FLUSH_CNTL);
 	} else {
 		WREG32_SOC15(NBIO, 0, regBIF_BX0_REMAP_HDP_MEM_FLUSH_CNTL,
@@ -110,7 +116,7 @@ static u32 nbif_v6_3_1_get_rev_id(struct amdgpu_device *adev)
 	if (amdgpu_ip_version(adev, NBIO_HWIP, 0) == IP_VERSION(7, 11, 4))
 		tmp = RREG32_SOC15(NBIO, 0, regRCC_STRAP0_RCC_DEV0_EPF0_STRAP0_nbif_4_10);
 	else if (amdgpu_ip_version(adev, NBIO_HWIP, 0) == IP_VERSION(7, 11, 5))
-		tmp = RREG32_SOC15(NBIO, 0, regRCC_STRAP0_RCC_DEV0_EPF0_STRAP0_nbio_7_11_5);
+		tmp = RREG32_SOC15(NBIO, 0, regRCC_STRAP1_RCC_DEV0_EPF0_STRAP0_nbio_7_11_5);
 	else
 		tmp = RREG32_SOC15(NBIO, 0, regRCC_STRAP0_RCC_DEV0_EPF0_STRAP0);
 
@@ -124,11 +130,11 @@ static void nbif_v6_3_1_mc_access_enable(struct amdgpu_device *adev, bool enable
 {
 	if (amdgpu_ip_version(adev, NBIO_HWIP, 0) == IP_VERSION(7, 11, 5)) {
 		if (enable)
-			WREG32_SOC15(NBIO, 0, regBIF_BX0_BIF_FB_EN_nbio_7_11_5,
-				     BIF_BX0_BIF_FB_EN__FB_READ_EN_MASK |
-				     BIF_BX0_BIF_FB_EN__FB_WRITE_EN_MASK);
+			WREG32_SOC15(NBIO, 0, regBIF_BX1_BIF_FB_EN_nbio_7_11_5,
+				     BIF_BX1_BIF_FB_EN__FB_READ_EN_MASK_nbio_7_11_5 |
+				     BIF_BX1_BIF_FB_EN__FB_WRITE_EN_MASK_nbio_7_11_5);
 		else
-			WREG32_SOC15(NBIO, 0, regBIF_BX0_BIF_FB_EN_nbio_7_11_5, 0);
+			WREG32_SOC15(NBIO, 0, regBIF_BX1_BIF_FB_EN_nbio_7_11_5, 0);
 	} else {
 		if (enable)
 			WREG32_SOC15(NBIO, 0, regBIF_BX0_BIF_FB_EN,
@@ -383,12 +389,12 @@ static void nbif_v6_3_1_ih_control(struct amdgpu_device *adev)
 
 	/* setup interrupt control */
 	if (amdgpu_ip_version(adev, NBIO_HWIP, 0) == IP_VERSION(7, 11, 5))
-		WREG32_SOC15(NBIO, 0, regBIF_BX0_INTERRUPT_CNTL2_nbio_7_11_5,
+		WREG32_SOC15(NBIO, 0, regBIF_BX1_INTERRUPT_CNTL2_nbio_7_11_5,
 				adev->dummy_page_addr >> 8);
 	else
 		WREG32_SOC15(NBIO, 0, regBIF_BX0_INTERRUPT_CNTL2, adev->dummy_page_addr >> 8);
 
-	interrupt_cntl = RREG32_SOC15(NBIO, 0, regBIF_BX0_INTERRUPT_CNTL_nbio_7_11_5);
+	interrupt_cntl = RREG32_SOC15(NBIO, 0, regBIF_BX1_INTERRUPT_CNTL_nbio_7_11_5);
 	/*
 	 * BIF_BX0_INTERRUPT_CNTL__IH_DUMMY_RD_OVERRIDE_MASK=0 - dummy read disabled with msi, enabled without msi
 	 * BIF_BX0_INTERRUPT_CNTL__IH_DUMMY_RD_OVERRIDE_MASK=1 - dummy read controlled by IH_DUMMY_RD_EN
@@ -401,7 +407,7 @@ static void nbif_v6_3_1_ih_control(struct amdgpu_device *adev)
 				       IH_REQ_NONSNOOP_EN, 0);
 
 	if (amdgpu_ip_version(adev, NBIO_HWIP, 0) == IP_VERSION(7, 11, 5))
-		WREG32_SOC15(NBIO, 0, regBIF_BX0_INTERRUPT_CNTL_nbio_7_11_5, interrupt_cntl);
+		WREG32_SOC15(NBIO, 0, regBIF_BX1_INTERRUPT_CNTL_nbio_7_11_5, interrupt_cntl);
 	else
 		WREG32_SOC15(NBIO, 0, regBIF_BX0_INTERRUPT_CNTL, interrupt_cntl);
 }
@@ -427,7 +433,7 @@ nbif_v6_3_1_get_clockgating_state(struct amdgpu_device *adev,
 static u32 nbif_v6_3_1_get_hdp_flush_req_offset(struct amdgpu_device *adev)
 {
 	if (amdgpu_ip_version(adev, NBIO_HWIP, 0) == IP_VERSION(7, 11, 5))
-		return SOC15_REG_OFFSET(NBIO, 0, regBIF_BX_PF0_GPU_HDP_FLUSH_REQ_nbio_7_11_5);
+		return SOC15_REG_OFFSET(NBIO, 0, regBIF_BX_PF1_GPU_HDP_FLUSH_REQ_nbio_7_11_5);
 	else
 		return SOC15_REG_OFFSET(NBIO, 0, regBIF_BX_PF0_GPU_HDP_FLUSH_REQ);
 }
@@ -435,7 +441,7 @@ static u32 nbif_v6_3_1_get_hdp_flush_req_offset(struct amdgpu_device *adev)
 static u32 nbif_v6_3_1_get_hdp_flush_done_offset(struct amdgpu_device *adev)
 {
 	if (amdgpu_ip_version(adev, NBIO_HWIP, 0) == IP_VERSION(7, 11, 5))
-		return SOC15_REG_OFFSET(NBIO, 0, regBIF_BX_PF0_GPU_HDP_FLUSH_DONE_nbio_7_11_5);
+		return SOC15_REG_OFFSET(NBIO, 0, regBIF_BX_PF1_GPU_HDP_FLUSH_DONE_nbio_7_11_5);
 	else
 		return SOC15_REG_OFFSET(NBIO, 0, regBIF_BX_PF0_GPU_HDP_FLUSH_DONE);
 }
@@ -494,7 +500,6 @@ static u32 nbif_v6_3_1_get_rom_offset(struct amdgpu_device *adev)
 static void nbif_v6_3_1_program_ltr(struct amdgpu_device *adev)
 {
 	uint32_t def, data;
-	u16 devctl2;
 
 	def = RREG32_SOC15(NBIO, 0, regRCC_EP_DEV0_0_EP_PCIE_TX_LTR_CNTL);
 	data = 0x35EB;
@@ -508,15 +513,8 @@ static void nbif_v6_3_1_program_ltr(struct amdgpu_device *adev)
 	if (def != data)
 		WREG32_SOC15(NBIO, 0, regRCC_STRAP0_RCC_BIF_STRAP2, data);
 
-	pcie_capability_read_word(adev->pdev, PCI_EXP_DEVCTL2, &devctl2);
-
-	if (adev->pdev->ltr_path == (devctl2 & PCI_EXP_DEVCTL2_LTR_EN))
-		return;
-
-	if (adev->pdev->ltr_path)
-		pcie_capability_set_word(adev->pdev, PCI_EXP_DEVCTL2, PCI_EXP_DEVCTL2_LTR_EN);
-	else
-		pcie_capability_clear_word(adev->pdev, PCI_EXP_DEVCTL2, PCI_EXP_DEVCTL2_LTR_EN);
+	pcie_capability_set_word(adev->pdev, PCI_EXP_DEVCTL2,
+				 PCI_EXP_DEVCTL2_LTR_EN);
 }
 #endif
 
@@ -524,7 +522,7 @@ static void nbif_v6_3_1_program_aspm(struct amdgpu_device *adev)
 {
 #ifdef CONFIG_PCIEASPM
 	uint32_t def, data;
-	u16 devctl2, ltr;
+	u16 ltr;
 
 	def = data = RREG32_SOC15(PCIE, 0, regPCIE_LC_CNTL);
 	data &= ~PCIE_LC_CNTL__LC_L1_INACTIVITY_MASK;
@@ -554,11 +552,8 @@ static void nbif_v6_3_1_program_aspm(struct amdgpu_device *adev)
 	if (def != data)
 		WREG32_SOC15(NBIO, 0, regRCC_STRAP0_RCC_BIF_STRAP5, data);
 
-	pcie_capability_read_word(adev->pdev, PCI_EXP_DEVCTL2, &devctl2);
-	data = def = devctl2;
-	data &= ~PCI_EXP_DEVCTL2_LTR_EN;
-	if (def != data)
-		pcie_capability_set_word(adev->pdev, PCI_EXP_DEVCTL2, (u16)data);
+	pcie_capability_clear_word(adev->pdev, PCI_EXP_DEVCTL2,
+				   PCI_EXP_DEVCTL2_LTR_EN);
 
 	ltr = pci_find_ext_capability(adev->pdev, PCI_EXT_CAP_ID_LTR);
 
@@ -566,15 +561,13 @@ static void nbif_v6_3_1_program_aspm(struct amdgpu_device *adev)
 		pci_write_config_dword(adev->pdev, ltr + PCI_LTR_MAX_SNOOP_LAT, 0x10011001);
 	}
 
-#if 0
-	/* regPSWUSP0_PCIE_LC_CNTL2 should be replace by PCIE_LC_CNTL2 or someone else ? */
-	def = data = RREG32_SOC15(NBIO, 0, regPSWUSP0_PCIE_LC_CNTL2);
-	data |= PSWUSP0_PCIE_LC_CNTL2__LC_ALLOW_PDWN_IN_L1_MASK |
-		PSWUSP0_PCIE_LC_CNTL2__LC_ALLOW_PDWN_IN_L23_MASK;
-	data &= ~PSWUSP0_PCIE_LC_CNTL2__LC_RCV_L0_TO_RCV_L0S_DIS_MASK;
+	def = data = RREG32_SOC15(PCIE, 0, regPCIE_LC_CNTL2);
+	data |= PCIE_LC_CNTL2__LC_ALLOW_PDWN_IN_L1_MASK |
+		PCIE_LC_CNTL2__LC_ALLOW_PDWN_IN_L23_MASK;
+	data &= ~PCIE_LC_CNTL2__LC_RCV_L0_TO_RCV_L0S_DIS_MASK;
 	if (def != data)
-		WREG32_SOC15(NBIO, 0, regPSWUSP0_PCIE_LC_CNTL2, data);
-#endif
+		WREG32_SOC15(PCIE, 0, regPCIE_LC_CNTL2, data);
+
 	def = data = RREG32_SOC15(PCIE, 0, regPCIE_LC_CNTL4);
 	data |= PCIE_LC_CNTL4__LC_L1_POWERDOWN_MASK;
 	if (def != data)
@@ -585,7 +578,12 @@ static void nbif_v6_3_1_program_aspm(struct amdgpu_device *adev)
 	if (def != data)
 		WREG32_SOC15(PCIE, 0, regPCIE_LC_RXRECOVER_RXSTANDBY_CNTL, data);
 
-	nbif_v6_3_1_program_ltr(adev);
+	/*
+	 * Do not enable endpoint LTR unless the Root Complex and every
+	 * upstream switch support it.
+	 */
+	if (adev->pdev->ltr_path)
+		nbif_v6_3_1_program_ltr(adev);
 
 	def = data = RREG32_SOC15(NBIO, 0, regRCC_STRAP0_RCC_BIF_STRAP3);
 	data |= 0x5DE0 << RCC_STRAP0_RCC_BIF_STRAP3__STRAP_VLINK_ASPM_IDLE_TIMER__SHIFT;
@@ -622,7 +620,7 @@ static void nbif_v6_3_1_set_reg_remap(struct amdgpu_device *adev)
 	} else {
 		if (amdgpu_ip_version(adev, NBIO_HWIP, 0) == IP_VERSION(7, 11, 5))
 			adev->rmmio_remap.reg_offset = SOC15_REG_OFFSET(NBIO, 0,
-				regBIF_BX_PF0_HDP_MEM_COHERENCY_FLUSH_CNTL_nbio_7_11_5) << 2;
+				regBIF_BX_PF1_HDP_MEM_COHERENCY_FLUSH_CNTL_nbio_7_11_5) << 2;
 		else
 			adev->rmmio_remap.reg_offset = SOC15_REG_OFFSET(NBIO, 0,
 				regBIF_BX_PF0_HDP_MEM_COHERENCY_FLUSH_CNTL) << 2;

@@ -961,10 +961,8 @@ int register_fprobe(struct fprobe *fp, const char *filter, const char *notfilter
 		return -ENOMEM;
 
 	ret = get_ips_from_filter(filter, notfilter, addrs, mods, num);
-	if (ret < 0)
-		return ret;
-
-	ret = register_fprobe_ips(fp, addrs, ret);
+	if (ret >= 0)
+		ret = register_fprobe_ips(fp, addrs, ret);
 
 	for (int i = 0; i < num; i++) {
 		if (mods[i])

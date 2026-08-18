@@ -12,6 +12,7 @@
 #include <linux/stop_machine.h>
 #include <asm/cacheflush.h>
 #include <asm/text-patching.h>
+#include <asm/insn.h>
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 void ftrace_arch_code_modify_prepare(void)
@@ -63,7 +64,9 @@ static int __ftrace_modify_call(unsigned long source, unsigned long target, bool
 		if (copy_from_kernel_nofault(replaced, (void *)source, 2 * MCOUNT_INSN_SIZE))
 			return -EFAULT;
 
-		if (replaced[0] != call[0]) {
+		/* Bypass the check if the auipc insn is a kprobe breakpoint */
+		if (replaced[0] != call[0] &&
+		    !(riscv_insn_is_ebreak(replaced[0]) || riscv_insn_is_c_ebreak(replaced[0]))) {
 			pr_err("%p: expected (%08x) but got (%08x)\n",
 			       (void *)source, call[0], replaced[0]);
 			return -EINVAL;

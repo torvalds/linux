@@ -700,7 +700,7 @@ int iwl_uefi_get_ppag_table(struct iwl_fw_runtime *fwrt)
 	return -EINVAL;
 
 parse_table:
-	if (!(BIT(data->revision) & valid_rev)) {
+	if (data->revision >= 32 || !(BIT(data->revision) & valid_rev)) {
 		ret = -EINVAL;
 		IWL_DEBUG_RADIO(fwrt,
 				"Unsupported UEFI PPAG revision:%d\n",

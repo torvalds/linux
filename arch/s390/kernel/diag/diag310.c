@@ -190,17 +190,18 @@ static int memtop_get_stride_len(unsigned long *res)
 static int memtop_get_page_count(unsigned long *res, unsigned long level)
 {
 	static unsigned long memtop_pages[DIAG310_LEVELMAX];
-	unsigned long pages;
+	unsigned long pages, idx;
 	int rc;
 
 	if (level > DIAG310_LEVELMAX || level < DIAG310_LEVELMIN)
 		return -EINVAL;
-	pages = READ_ONCE(memtop_pages[level - 1]);
+	idx = array_index_nospec(level - 1, ARRAY_SIZE(memtop_pages));
+	pages = READ_ONCE(memtop_pages[idx]);
 	if (!pages) {
 		rc = diag310_get_memtop_size(&pages, level);
 		if (rc)
 			return rc;
-		WRITE_ONCE(memtop_pages[level - 1], pages);
+		WRITE_ONCE(memtop_pages[idx], pages);
 	}
 	*res = pages;
 	return 0;

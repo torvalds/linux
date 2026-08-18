@@ -90,7 +90,7 @@ static void io_uring_cmd_del_cancelable(struct io_uring_cmd *cmd,
 }
 
 /*
- * Mark this command as concelable, then io_uring_try_cancel_uring_cmd()
+ * Mark this command as cancelable, then io_uring_try_cancel_uring_cmd()
  * will try to cancel this issued command by sending ->uring_cmd() with
  * issue_flags of IO_URING_F_CANCEL.
  *
@@ -168,7 +168,7 @@ void __io_uring_cmd_done(struct io_uring_cmd *ioucmd, s32 ret, u64 res2,
 	}
 	io_req_uring_cleanup(req, issue_flags);
 	if (req->flags & REQ_F_IOPOLL) {
-		/* order with io_iopoll_req_issued() checking ->iopoll_complete */
+		/* order with io_do_iopoll() checking ->iopoll_completed */
 		smp_store_release(&req->iopoll_completed, 1);
 	} else if (issue_flags & IO_URING_F_COMPLETE_DEFER) {
 		if (WARN_ON_ONCE(issue_flags & IO_URING_F_UNLOCKED))
