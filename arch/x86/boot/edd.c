@@ -15,7 +15,7 @@
 #include <linux/edd.h>
 #include "string.h"
 
-#if defined(CONFIG_EDD) || defined(CONFIG_EDD_MODULE)
+#if IS_ENABLED(CONFIG_EDD)
 
 /*
  * Read the MBR (first sector) from a specific device.
@@ -120,26 +120,22 @@ static int get_edd_info(u8 devno, struct edd_info *ei)
 void query_edd(void)
 {
 	char eddarg[8];
-	int do_mbr = 1;
-#ifdef CONFIG_EDD_OFF
-	int do_edd = 0;
-#else
-	int do_edd = 1;
-#endif
-	int be_quiet;
+	bool do_mbr = true;
+	bool do_edd = !IS_ENABLED(CONFIG_EDD_OFF);
+	bool be_quiet;
 	int devno;
 	struct edd_info ei, *edp;
 	u32 *mbrptr;
 
 	if (cmdline_find_option("edd", eddarg, sizeof(eddarg)) > 0) {
 		if (!strcmp(eddarg, "skipmbr") || !strcmp(eddarg, "skip")) {
-			do_edd = 1;
-			do_mbr = 0;
+			do_edd = true;
+			do_mbr = false;
 		}
 		else if (!strcmp(eddarg, "off"))
-			do_edd = 0;
+			do_edd = false;
 		else if (!strcmp(eddarg, "on"))
-			do_edd = 1;
+			do_edd = true;
 	}
 
 	be_quiet = cmdline_find_option_bool("quiet");
