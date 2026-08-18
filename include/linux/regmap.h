@@ -1770,6 +1770,8 @@ struct regmap_irq_chip {
 			       void *irq_drv_data);
 	unsigned int (*get_irq_reg)(struct regmap_irq_chip_data *data,
 				    unsigned int base, int index);
+	int (*irq_reqres)(void *irq_drv_data, irq_hw_number_t hwirq);
+	void (*irq_relres)(void *irq_drv_data, irq_hw_number_t hwirq);
 	void *irq_drv_data;
 };
 
