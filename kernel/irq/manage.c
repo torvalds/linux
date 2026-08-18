@@ -2703,11 +2703,7 @@ static int __irq_get_irqchip_state(struct irq_data *data, enum irqchip_irq_state
 			return -ENODEV;
 		if (chip->irq_get_irqchip_state)
 			break;
-#ifdef CONFIG_IRQ_DOMAIN_HIERARCHY
-		data = data->parent_data;
-#else
-		data = NULL;
-#endif
+		data = irqd_get_parent_data(data);
 	} while (data);
 
 	if (data)

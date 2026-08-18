@@ -343,7 +343,7 @@ static int smp_boot_one_cpu(int cpuid, struct task_struct *idle)
 	for (i = 0; i < NR_IRQS; i++) {
 		struct irq_desc *desc = irq_to_desc(i);
 
-		if (desc && desc->kstat_irqs)
+		if (desc)
 			*per_cpu_ptr(desc->kstat_irqs, cpuid) = (struct irqstat) { };
 	}
 #endif

@@ -1004,7 +1004,7 @@ unsigned int kstat_irqs_cpu(unsigned int irq, int cpu)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 
-	return desc && desc->kstat_irqs ? per_cpu(desc->kstat_irqs->cnt, cpu) : 0;
+	return desc ? irq_desc_kstat_cpu(desc, cpu) : 0;
 }
 
 static unsigned int kstat_irqs_desc(struct irq_desc *desc, const struct cpumask *cpumask)
@@ -1026,7 +1026,7 @@ static unsigned int kstat_irqs(unsigned int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 
-	if (!desc || !desc->kstat_irqs)
+	if (!desc)
 		return 0;
 	return kstat_irqs_desc(desc, cpu_possible_mask);
 }
@@ -1038,18 +1038,15 @@ void kstat_snapshot_irqs(void)
 	struct irq_desc *desc;
 	unsigned int irq;
 
-	for_each_irq_desc(irq, desc) {
-		if (!desc->kstat_irqs)
-			continue;
+	for_each_irq_desc(irq, desc)
 		this_cpu_write(desc->kstat_irqs->ref, this_cpu_read(desc->kstat_irqs->cnt));
-	}
 }
 
 unsigned int kstat_get_irq_since_snapshot(unsigned int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 
-	if (!desc || !desc->kstat_irqs)
+	if (!desc)
 		return 0;
 	return this_cpu_read(desc->kstat_irqs->cnt) - this_cpu_read(desc->kstat_irqs->ref);
 }

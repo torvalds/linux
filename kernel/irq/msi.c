@@ -1683,7 +1683,6 @@ void msi_domain_free_irqs_range(struct device *dev, unsigned int domid,
 	guard(msi_descs_lock)(dev);
 	msi_domain_free_irqs_range_locked(dev, domid, first, last);
 }
-EXPORT_SYMBOL_GPL(msi_domain_free_irqs_all);
 
 /**
  * msi_domain_free_irqs_all_locked - Free all interrupts from a MSI interrupt domain
@@ -1714,6 +1713,7 @@ void msi_domain_free_irqs_all(struct device *dev, unsigned int domid)
 	guard(msi_descs_lock)(dev);
 	msi_domain_free_irqs_all_locked(dev, domid);
 }
+EXPORT_SYMBOL_GPL(msi_domain_free_irqs_all);
 
 /**
  * msi_device_domain_free_wired - Free a wired interrupt in @domain
