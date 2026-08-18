@@ -12,10 +12,16 @@
 #include <linux/file.h>
 #include <linux/anon_inodes.h>
 #include <linux/highmem.h>
+#include <linux/moduleparam.h>
 #include <linux/vmalloc.h>
 #include <linux/vdpa.h>
 
 #include "iova_domain.h"
+
+static int max_iotlb_entries = 2048;
+module_param(max_iotlb_entries, int, 0444);
+MODULE_PARM_DESC(max_iotlb_entries,
+		 "Maximum number of iotlb entries. (default: 2048)");
 
 static int vduse_iotlb_add_range(struct vduse_iova_domain *domain,
 				 u64 start, u64 last,
@@ -622,11 +628,14 @@ vduse_domain_create(unsigned long iova_limit, size_t bounce_size)
 	if (iova_limit <= bounce_size)
 		return NULL;
 
+	if (max_iotlb_entries <= 0)
+		return NULL;
+
 	domain = kzalloc_obj(*domain);
 	if (!domain)
 		return NULL;
 
-	domain->iotlb = vhost_iotlb_alloc(0, 0);
+	domain->iotlb = vhost_iotlb_alloc(max_iotlb_entries, 0);
 	if (!domain->iotlb)
 		goto err_iotlb;
 

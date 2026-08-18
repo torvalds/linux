@@ -3986,7 +3986,7 @@ static void esw_offloads_steering_cleanup(struct mlx5_eswitch *esw)
 	mutex_destroy(&esw->fdb_table.offloads.vports.lock);
 }
 
-static void esw_vfs_changed_event_handler(struct mlx5_eswitch *esw)
+static void esw_changed_event_handler(struct mlx5_eswitch *esw)
 {
 	struct mlx5_esw_pf_info host_pf_info;
 	u16 new_num_vfs;
@@ -3998,6 +3998,11 @@ static void esw_vfs_changed_event_handler(struct mlx5_eswitch *esw)
 
 	host_pf_info = mlx5_esw_get_host_pf_info(esw->dev, out);
 	new_num_vfs = host_pf_info.num_of_vfs;
+
+	if (host_pf_info.pf_disabled) {
+		mlx5_sf_table_esw_changed_event_handler(esw->dev);
+		mlx5_sf_hw_table_esw_changed_event_handler(esw->dev);
+	}
 
 	if (new_num_vfs == esw->esw_funcs.num_vfs || host_pf_info.pf_disabled)
 		goto free;
@@ -4091,8 +4096,7 @@ int mlx5_esw_funcs_changed_handler(struct notifier_block *nb,
 	esw_funcs = mlx5_nb_cof(nb, struct mlx5_esw_functions, nb);
 	esw = container_of(esw_funcs, struct mlx5_eswitch, esw_funcs);
 
-	ret = mlx5_esw_add_work(esw, esw_vfs_changed_event_handler,
-				GFP_ATOMIC);
+	ret = mlx5_esw_add_work(esw, esw_changed_event_handler, GFP_ATOMIC);
 	if (ret)
 		return NOTIFY_DONE;
 

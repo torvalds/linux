@@ -855,9 +855,10 @@ static int sienna_cichlid_get_smu_metrics_data(struct smu_context *smu,
 			metrics->AverageUclkActivity;
 		break;
 	case METRICS_AVERAGE_SOCKETPOWER:
-		*value = use_metrics_v3 ? metrics_v3->AverageSocketPower << 8 :
-			use_metrics_v2 ? metrics_v2->AverageSocketPower << 8 :
-			metrics->AverageSocketPower << 8;
+		*value = use_metrics_v3 ? metrics_v3->AverageSocketPower :
+			use_metrics_v2 ? metrics_v2->AverageSocketPower :
+			metrics->AverageSocketPower;
+		*value *= MILLIWATT_PER_WATT;
 		break;
 	case METRICS_TEMPERATURE_EDGE:
 		*value = (use_metrics_v3 ? metrics_v3->TemperatureEdge :

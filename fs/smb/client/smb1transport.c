@@ -260,9 +260,23 @@ SendReceive(const unsigned int xid, struct cifs_ses *ses,
 		goto out;
 
 	if (out_buf) {
-		*pbytes_returned = resp_iov.iov_len;
-		if (resp_iov.iov_len)
-			memcpy(out_buf, resp_iov.iov_base, resp_iov.iov_len);
+		/* Use smbCalcSize() for both single- and multi-part T2 responses,
+		 * both here and in coalesce_t2().
+		 */
+		unsigned int copy_len;
+		if (WARN_ON_ONCE(!resp_iov.iov_base)) {
+			rc = -EIO;
+			goto out;
+		}
+		copy_len = smbCalcSize(resp_iov.iov_base);
+		if (copy_len > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE) {
+			cifs_dbg(VFS, "response size %u exceeds buffer\n",
+				 copy_len);
+			rc = -ENOBUFS;
+			goto out;
+		}
+		*pbytes_returned = copy_len;
+		memcpy(out_buf, resp_iov.iov_base, copy_len);
 	}
 
 out:
@@ -386,11 +400,13 @@ coalesce_t2(char *second_buf, struct smb_hdr *target_hdr, unsigned int *pdu_len)
 	}
 	put_bcc(byte_count, target_hdr);
 
-	byte_count = *pdu_len;
-	byte_count += total_in_src;
+	/* use smbCalcSize() rather than *pdu_len: the demux loop resets
+	 * *pdu_len to each secondary's pdu_length, making it unreliable.
+	 */
+	byte_count = smbCalcSize(target_hdr);
 	/* don't allow buffer to overflow */
 	if (byte_count > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE) {
-		cifs_dbg(FYI, "coalesced BCC exceeds buffer size (%u)\n",
+		cifs_dbg(FYI, "coalesced size exceeds buffer size (%u)\n",
 			 byte_count);
 		return -ENOBUFS;
 	}

@@ -552,9 +552,10 @@ int lzo_decompress(struct list_head *ws, const u8 *data_in,
 	size_t max_segment_len = workspace_buf_length(fs_info);
 	int ret;
 
-	if (unlikely(srclen < LZO_LEN || srclen > max_segment_len + LZO_LEN * 2)) {
+	if (unlikely(srclen <= LZO_LEN * 2 ||
+		     srclen > max_segment_len + LZO_LEN * 2)) {
 		btrfs_err(fs_info, "invalid lzo header length, has %zu expect (%u, %zu)",
-			  srclen, LZO_LEN, max_segment_len + LZO_LEN * 2);
+			  srclen, LZO_LEN * 2, max_segment_len + LZO_LEN * 2);
 		return -EUCLEAN;
 	}
 

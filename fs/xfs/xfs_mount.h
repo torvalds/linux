@@ -349,6 +349,13 @@ typedef struct xfs_mount {
 
 	/* Index of uuid record in the uuid xarray. */
 	unsigned int		m_uuid_table_index;
+
+	/*
+	 * Old io_pages/ra_pages valued in the main bdev BDI, and our initial
+	 * calculated values.
+	 */
+	unsigned long		m_old_io_pages, m_initial_io_pages;
+	unsigned long		m_old_ra_pages, m_initial_ra_pages;
 } xfs_mount_t;
 
 #define M_IGEO(mp)		(&(mp)->m_ino_geo)

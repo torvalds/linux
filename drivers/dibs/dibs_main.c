@@ -138,6 +138,7 @@ struct dibs_dev *dibs_dev_alloc(void)
 	dibs = kzalloc_obj(*dibs);
 	if (!dibs)
 		return dibs;
+	spin_lock_init(&dibs->lock);
 	dibs->dev.release = dibs_dev_release;
 	dibs->dev.class = &dibs_class;
 	device_initialize(&dibs->dev);
@@ -186,7 +187,6 @@ int dibs_dev_add(struct dibs_dev *dibs)
 	int i, ret;
 
 	max_dmbs = dibs->ops->max_dmbs();
-	spin_lock_init(&dibs->lock);
 	dibs->dmb_clientid_arr = kzalloc(max_dmbs, GFP_KERNEL);
 	if (!dibs->dmb_clientid_arr)
 		return -ENOMEM;

@@ -290,6 +290,13 @@ static int mtk_hdmi_get_cec_dev(struct mtk_hdmi *hdmi, struct device *dev, struc
 	return 0;
 }
 
+static void mtk_hdmi_put_adapter(void *_adap)
+{
+	struct i2c_adapter *adap = _adap;
+
+	i2c_put_adapter(adap);
+}
+
 static int mtk_hdmi_dt_parse_pdata(struct mtk_hdmi *hdmi, struct platform_device *pdev,
 				   const char * const *clk_names, size_t num_clocks)
 {
@@ -328,12 +335,12 @@ static int mtk_hdmi_dt_parse_pdata(struct mtk_hdmi *hdmi, struct platform_device
 	if (!i2c_np)
 		return dev_err_probe(dev, -EINVAL, "No ddc-i2c-bus in connector\n");
 
-	hdmi->ddc_adpt = of_find_i2c_adapter_by_node(i2c_np);
+	hdmi->ddc_adpt = of_get_i2c_adapter_by_node(i2c_np);
 	of_node_put(i2c_np);
 	if (!hdmi->ddc_adpt)
 		return dev_err_probe(dev, -EPROBE_DEFER, "Failed to get ddc i2c adapter by node\n");
 
-	ret = devm_add_action_or_reset(dev, mtk_hdmi_put_device, &hdmi->ddc_adpt->dev);
+	ret = devm_add_action_or_reset(dev, mtk_hdmi_put_adapter, hdmi->ddc_adpt);
 	if (ret)
 		return ret;
 

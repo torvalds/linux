@@ -143,7 +143,7 @@ void iommufd_vdevice_destroy(struct iommufd_object *obj)
 int iommufd_vdevice_alloc_ioctl(struct iommufd_ucmd *ucmd)
 {
 	struct iommu_vdevice_alloc *cmd = ucmd->cmd;
-	struct iommufd_vdevice *vdev, *curr;
+	struct iommufd_vdevice *vdev;
 	size_t vdev_size = sizeof(*vdev);
 	struct iommufd_viommu *viommu;
 	struct iommufd_device *idev;
@@ -189,7 +189,7 @@ int iommufd_vdevice_alloc_ioctl(struct iommufd_ucmd *ucmd)
 		if (WARN_ON_ONCE(viommu->ops->vdevice_size < vdev_size ||
 				 !viommu->ops->vdevice_init)) {
 			rc = -EOPNOTSUPP;
-			goto out_put_idev;
+			goto out_unlock_igroup;
 		}
 		vdev_size = viommu->ops->vdevice_size;
 	}
@@ -218,17 +218,27 @@ int iommufd_vdevice_alloc_ioctl(struct iommufd_ucmd *ucmd)
 	 */
 	idev->vdev = vdev;
 
-	curr = xa_cmpxchg(&viommu->vdevs, virt_id, NULL, vdev, GFP_KERNEL);
-	if (curr) {
-		rc = xa_err(curr) ?: -EEXIST;
+	/*
+	 * Reserve the slot with a zero entry (reads back as NULL) until the
+	 * vdevice_init() op accepts the vDEVICE. Only the xa_* helpers hide a
+	 * reserved entry, so never use a raw xas_* iterator on this xarray.
+	 */
+	rc = xa_insert(&viommu->vdevs, virt_id, NULL, GFP_KERNEL);
+	if (rc) {
+		if (rc == -EBUSY)
+			rc = -EEXIST;
 		goto out_abort;
 	}
 
 	if (viommu->ops && viommu->ops->vdevice_init) {
 		rc = viommu->ops->vdevice_init(vdev);
-		if (rc)
+		if (rc) {
+			xa_release(&viommu->vdevs, virt_id);
 			goto out_abort;
+		}
 	}
+
+	xa_store(&viommu->vdevs, virt_id, vdev, GFP_KERNEL);
 
 	cmd->out_vdevice_id = vdev->obj.id;
 	rc = iommufd_ucmd_respond(ucmd, sizeof(*cmd));

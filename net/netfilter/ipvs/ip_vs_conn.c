@@ -70,25 +70,45 @@ static struct kmem_cache *ip_vs_conn_cachep __read_mostly;
  * bucket or hash table
  * - hash table resize works like rehash but always rehashes into new table
  * - bit lock on bucket serializes all operations that modify the chain
+ * - on resize, bucket from the old table is locked before bucket from the
+ * new table
  * - cp->lock protects conn fields like cp->flags, cp->dest
  */
 
-/* Lock conn_tab bucket for conn hash/unhash, not for rehash */
+/**
+ * conn_tab_lock - Lock conn_tab buckets for conn hash/unhash, not for rehash
+ * @t:		hash table for hn0, new_tbl when new_hash=true
+ * @t2:		hash table for hn1, new_tbl when new_hash2=true
+ * @cp:		connection
+ * @hash_key:	hash key for hn0
+ * @hash_key2:	hash key for hn1
+ * @use2:	using hn1 (double hashing) based on the forwarding method
+ * @new_hash:	mode for hn0, hash node (true) or seek node (false)
+ * @new_hash2:	mode for hn1, hash node (true) or seek node (false)
+ * @head_ret:	returned head for hn0
+ * @head2_ret:	returned head for hn1
+ *
+ * We support 3 modes:
+ * - seek mode for both nodes, used for unhashing
+ * - hash mode for both nodes, used for hashing
+ * - seek hn0 and hash hn1, used when forwarding method is changed
+ */
 static __always_inline void
-conn_tab_lock(struct ip_vs_rht *t, struct ip_vs_conn *cp, u32 hash_key,
-	      u32 hash_key2, bool use2, bool new_hash,
-	      struct hlist_bl_head **head_ret, struct hlist_bl_head **head2_ret)
+conn_tab_lock(struct ip_vs_rht *t, struct ip_vs_rht *t2, struct ip_vs_conn *cp,
+	      u32 hash_key, u32 hash_key2, bool use2, bool new_hash,
+	      bool new_hash2, struct hlist_bl_head **head_ret,
+	      struct hlist_bl_head **head2_ret)
 {
 	struct hlist_bl_head *head, *head2;
 	u32 hash_key_new, hash_key_new2;
-	struct ip_vs_rht *t2 = t;
-	u32 idx, idx2;
+	int idx = 0, idx2 = 0;
 
-	idx = hash_key & t->mask;
-	if (use2)
-		idx2 = hash_key2 & t->mask;
-	else
-		idx2 = idx;
+	/* Advance idx2 when new_hash is not set but hash_key2
+	 * is for new table
+	 */
+	if (new_hash2 && use2 && t != t2)
+		idx2++;
+
 	if (!new_hash) {
 		/* We need to lock the bucket in the right table */
 
@@ -100,46 +120,45 @@ retry:
 			 * both nodes in different tables, use idx/idx2
 			 * for proper lock ordering for heads.
 			 */
-			idx = hash_key & t->mask;
-			idx |= IP_VS_RHT_TABLE_ID_MASK;
-		}
-		if (use2) {
-			if (!ip_vs_rht_same_table(t2, hash_key2)) {
-				/* It is already moved to new table */
-				t2 = rcu_dereference(t2->new_tbl);
-				idx2 = hash_key2 & t2->mask;
-				idx2 |= IP_VS_RHT_TABLE_ID_MASK;
-			}
-		} else {
-			idx2 = idx;
+			idx++;
 		}
 	}
+	if (use2 && !new_hash2 && !ip_vs_rht_same_table(t2, hash_key2)) {
+		/* It is already moved to new table */
+		t2 = rcu_dereference(t2->new_tbl);
+		idx2++;
+	}
 
+	if (!use2)
+		idx2 = idx;
 	head = t->buckets + (hash_key & t->mask);
 	head2 = use2 ? t2->buckets + (hash_key2 & t2->mask) : head;
 
-	local_bh_disable();
-	/* Do not touch seqcount, this is a safe operation */
-
-	if (idx <= idx2) {
+	if (idx > idx2 || (head > head2 && idx == idx2)) {
+		hlist_bl_lock(head2);
+		hlist_bl_lock(head);
+	} else {
 		hlist_bl_lock(head);
 		if (head != head2)
 			hlist_bl_lock(head2);
-	} else {
-		hlist_bl_lock(head2);
-		hlist_bl_lock(head);
 	}
 	if (!new_hash) {
+		bool changed;
+
 		/* Ensure hash_key is read under lock */
 		hash_key_new = READ_ONCE(cp->hn0.hash_key);
-		hash_key_new2 = READ_ONCE(cp->hn1.hash_key);
+		changed = hash_key != hash_key_new;
+		if (use2 && !new_hash2) {
+			hash_key_new2 = READ_ONCE(cp->hn1.hash_key);
+			changed |= hash_key2 != hash_key_new2;
+		} else {
+			hash_key_new2 = hash_key2;
+		}
 		/* Hash changed ? */
-		if (hash_key != hash_key_new ||
-		    (hash_key2 != hash_key_new2 && use2)) {
+		if (changed) {
 			if (head != head2)
 				hlist_bl_unlock(head2);
 			hlist_bl_unlock(head);
-			local_bh_enable();
 			hash_key = hash_key_new;
 			hash_key2 = hash_key_new2;
 			goto retry;
@@ -155,7 +174,6 @@ static inline void conn_tab_unlock(struct hlist_bl_head *head,
 	if (head != head2)
 		hlist_bl_unlock(head2);
 	hlist_bl_unlock(head);
-	local_bh_enable();
 }
 
 static void ip_vs_conn_expire(struct timer_list *t);
@@ -268,8 +286,9 @@ static inline int ip_vs_conn_hash(struct ip_vs_conn *cp)
 		use2 = false;
 	}
 
-	conn_tab_lock(t, cp, hash_key, hash_key2, use2, true /* new_hash */,
-		      &head, &head2);
+	local_bh_disable();
+	conn_tab_lock(t, t, cp, hash_key, hash_key2, use2, true /* new_hash */,
+		      true /* new_hash2 */, &head, &head2);
 
 	cp->flags |= IP_VS_CONN_F_HASHED;
 	WRITE_ONCE(cp->hn0.hash_key, hash_key);
@@ -280,6 +299,7 @@ static inline int ip_vs_conn_hash(struct ip_vs_conn *cp)
 		hlist_bl_add_head_rcu(&cp->hn1.node, head2);
 
 	conn_tab_unlock(head, head2);
+	local_bh_enable();
 	ret = 1;
 
 	/* Schedule resizing if load increases */
@@ -306,18 +326,20 @@ static inline bool ip_vs_conn_unlink(struct ip_vs_conn *cp)
 		return refcount_dec_if_one(&cp->refcnt);
 
 	rcu_read_lock();
+	local_bh_disable();
 
 	t = rcu_dereference(ipvs->conn_tab);
 	hash_key = READ_ONCE(cp->hn0.hash_key);
 	hash_key2 = READ_ONCE(cp->hn1.hash_key);
 	use2 = ip_vs_conn_use_hash2(cp);
 
-	conn_tab_lock(t, cp, hash_key, hash_key2, use2, false /* new_hash */,
-		      &head, &head2);
+	conn_tab_lock(t, t, cp, hash_key, hash_key2, use2, false /* new_hash */,
+		      false /* new_hash2 */, &head, &head2);
 
 	if (cp->flags & IP_VS_CONN_F_HASHED) {
 		/* Decrease refcnt and unlink conn only if we are last user */
-		if (refcount_dec_if_one(&cp->refcnt)) {
+		if (use2 == ip_vs_conn_use_hash2(cp) &&
+		    refcount_dec_if_one(&cp->refcnt)) {
 			hlist_bl_del_rcu(&cp->hn0.node);
 			if (use2)
 				hlist_bl_del_rcu(&cp->hn1.node);
@@ -328,6 +350,7 @@ static inline bool ip_vs_conn_unlink(struct ip_vs_conn *cp)
 
 	conn_tab_unlock(head, head2);
 
+	local_bh_enable();
 	rcu_read_unlock();
 
 	return ret;
@@ -632,6 +655,7 @@ void ip_vs_conn_fill_cport(struct ip_vs_conn *cp, __be16 cport)
 	int ntbl;
 	int dir;
 
+restart:
 	/* No packets from inside, so we can do it in 2 steps. */
 	dir = use2 ? 1 : 0;
 
@@ -685,6 +709,23 @@ retry:
 
 	/* Protect the cp->flags modification */
 	spin_lock_bh(&cp->lock);
+
+	/* Recheck the forwarding method under lock */
+	if (use2 != ip_vs_conn_use_hash2(cp)) {
+		use2 = !use2;
+		if (use2) {
+			spin_unlock_bh(&cp->lock);
+			/* Restart with new use2 value */
+			goto restart;
+		}
+		if (dir) {
+			/* Not started yet, so just skip dir 1 */
+			spin_unlock_bh(&cp->lock);
+			dir--;
+			goto next_dir;
+		}
+		/* Just finish dir 0 */
+	}
 
 	/* Lock seqcount only for the old bucket, even if we are on new table
 	 * because it affects the del operation, not the adding.
@@ -750,6 +791,61 @@ retry:
 	spin_unlock_bh(&cp->lock);
 	if (dir-- && by_me)
 		goto next_dir;
+}
+
+/* Change forwarding method for hashed conn */
+static void ip_vs_conn_change_fwd_mask(struct ip_vs_conn *cp, u32 new_flags)
+{
+	struct netns_ipvs *ipvs = cp->ipvs;
+	struct hlist_bl_head *head, *head2;
+	u32 hash2, hash_key, hash_key2;
+	struct ip_vs_rht *t, *t2;
+
+	/* See ip_vs_conn_use_hash2() for reference */
+	if ((cp->flags & IP_VS_CONN_F_TEMPLATE) ||
+	    /* No change in double hashing ? */
+	    (IP_VS_FWD_METHOD(cp) == IP_VS_CONN_F_MASQ) ==
+	    ((new_flags & IP_VS_CONN_F_FWD_MASK) == IP_VS_CONN_F_MASQ)) {
+		cp->flags = new_flags;
+		return;
+	}
+	t = rcu_dereference(ipvs->conn_tab);
+	if (ip_vs_conn_use_hash2(cp)) {
+		/* Stop double hashing */
+		hash_key = READ_ONCE(cp->hn0.hash_key);
+		hash_key2 = READ_ONCE(cp->hn1.hash_key);
+
+		conn_tab_lock(t, t, cp, hash_key, hash_key2, true /* use2 */,
+			      false /* new_hash */, false /* new_hash2 */,
+			      &head, &head2);
+
+		/* Keep both hash keys in same table */
+		hash_key = READ_ONCE(cp->hn0.hash_key);
+		WRITE_ONCE(cp->hn1.hash_key, hash_key);
+		hlist_bl_del_rcu(&cp->hn1.node);
+		cp->flags = new_flags;
+
+		conn_tab_unlock(head, head2);
+	} else {
+		/* Start double hashing */
+
+		hash_key = READ_ONCE(cp->hn0.hash_key);
+
+		t2 = rcu_dereference(t->new_tbl);
+		hash2 = ip_vs_conn_hashkey_conn(t2, cp, true);
+		hash_key2 = ip_vs_rht_build_hash_key(t2, hash2);
+
+		/* Change the forwarding method under locked hn0 */
+		conn_tab_lock(t, t2, cp, hash_key, hash_key2, true /* use2 */,
+			      false /* new_hash */, true /* new_hash2 */,
+			      &head, &head2);
+
+		WRITE_ONCE(cp->hn1.hash_key, hash_key2);
+		cp->flags = new_flags;
+		hlist_bl_add_head_rcu(&cp->hn1.node, head2);
+
+		conn_tab_unlock(head, head2);
+	}
 }
 
 /* Get default load factor to map conn_count/u_thresh to t->size */
@@ -1014,6 +1110,9 @@ ip_vs_bind_dest(struct ip_vs_conn *cp, struct ip_vs_dest *dest)
 	flags = cp->flags;
 	/* Bind with the destination and its corresponding transmitter */
 	if (flags & IP_VS_CONN_F_SYNC) {
+		/* Synced conns are hashed, so they can not get this flag */
+		conn_flags &= ~IP_VS_CONN_F_ONE_PACKET;
+
 		/* if the connection is not template and is created
 		 * by sync, preserve the activity flag.
 		 */
@@ -1021,9 +1120,18 @@ ip_vs_bind_dest(struct ip_vs_conn *cp, struct ip_vs_dest *dest)
 			conn_flags &= ~IP_VS_CONN_F_INACTIVE;
 		/* connections inherit forwarding method from dest */
 		flags &= ~(IP_VS_CONN_F_FWD_MASK | IP_VS_CONN_F_NOOUTPUT);
+		flags |= conn_flags;
+		/* Changing forwarding method for hashed conn can
+		 * happen only under locks
+		 */
+		if (cp->flags & IP_VS_CONN_F_HASHED)
+			ip_vs_conn_change_fwd_mask(cp, flags);
+		else
+			cp->flags = flags;
+	} else {
+		flags |= conn_flags;
+		cp->flags = flags;
 	}
-	flags |= conn_flags;
-	cp->flags = flags;
 	cp->dest = dest;
 
 	IP_VS_DBG_BUF(7, "Bind-dest %s c:%s:%d v:%s:%d "

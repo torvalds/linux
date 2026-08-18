@@ -406,6 +406,7 @@ soc21_asic_reset_method(struct amdgpu_device *adev)
 	case IP_VERSION(14, 0, 4):
 	case IP_VERSION(14, 0, 5):
 	case IP_VERSION(15, 0, 0):
+	case IP_VERSION(15, 0, 5):
 	case IP_VERSION(15, 0, 9):
 		return AMD_RESET_METHOD_MODE2;
 	default:

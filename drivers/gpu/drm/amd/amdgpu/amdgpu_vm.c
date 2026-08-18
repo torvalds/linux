@@ -1553,6 +1553,8 @@ int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
 	struct amdgpu_sync sync;
 	int r;
 
+	if (list_empty(&vm->freed))
+		return 0;
 
 	/*
 	 * Implicitly sync to command submissions in the same VM before

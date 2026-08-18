@@ -92,7 +92,7 @@ struct amdgpu_amdkfd_fence *to_amdgpu_amdkfd_fence(struct dma_fence *f)
 		return NULL;
 
 	fence = container_of(f, struct amdgpu_amdkfd_fence, base);
-	if (f->ops == &amdkfd_fence_ops)
+	if (rcu_access_pointer(f->ops) == &amdkfd_fence_ops)
 		return fence;
 
 	return NULL;

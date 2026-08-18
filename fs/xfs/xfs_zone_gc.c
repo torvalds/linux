@@ -103,6 +103,7 @@ struct xfs_gc_bio {
 	/* Open Zone being written to */
 	struct xfs_open_zone		*oz;
 
+	/* Realtime group currently being reclaimed */
 	struct xfs_rtgroup		*victim_rtg;
 
 	/* Bio used for reads and writes, including the bvec used by it */
@@ -129,6 +130,9 @@ struct xfs_zone_gc_data {
 
 	/* bioset used to allocate the gc_bios */
 	struct bio_set			bio_set;
+
+	/* bioset used when writes need to be split to hardware limits */
+	struct bio_set			split_bio_set;
 
 	/*
 	 * Scratchpad to buffer GC data, organized as a ring buffer over
@@ -221,6 +225,9 @@ xfs_zone_gc_data_alloc(
 	if (bioset_init(&data->bio_set, 16, offsetof(struct xfs_gc_bio, bio),
 			BIOSET_NEED_BVECS))
 		goto out_free_recs;
+	if (bioset_init(&data->split_bio_set, 16,
+			offsetof(struct xfs_gc_bio, bio), 0))
+		goto out_exit_bio_set;
 	for (i = 0; i < XFS_GC_NR_BUFS; i++) {
 		data->scratch_folios[i] =
 			folio_alloc(GFP_KERNEL, get_order(XFS_GC_BUF_SIZE));
@@ -238,6 +245,8 @@ xfs_zone_gc_data_alloc(
 out_free_scratch:
 	while (--i >= 0)
 		folio_put(data->scratch_folios[i]);
+	bioset_exit(&data->split_bio_set);
+out_exit_bio_set:
 	bioset_exit(&data->bio_set);
 out_free_recs:
 	kfree(data->iter.recs);
@@ -254,6 +263,7 @@ xfs_zone_gc_data_free(
 
 	for (i = 0; i < XFS_GC_NR_BUFS; i++)
 		folio_put(data->scratch_folios[i]);
+	bioset_exit(&data->split_bio_set);
 	bioset_exit(&data->bio_set);
 	kfree(data->iter.recs);
 	kfree(data);
@@ -810,7 +820,8 @@ xfs_zone_gc_split_write(
 			data->mp->m_sb.sb_blocksize) >> SECTOR_SHIFT;
 	split_len = split_sectors << SECTOR_SHIFT;
 
-	split = bio_split(&chunk->bio, split_sectors, GFP_NOFS, &data->bio_set);
+	split = bio_split(&chunk->bio, split_sectors, GFP_NOFS,
+			&data->split_bio_set);
 	split_chunk = container_of(split, struct xfs_gc_bio, bio);
 	split_chunk->data = data;
 	ihold(VFS_I(chunk->ip));

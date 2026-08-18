@@ -176,21 +176,13 @@ static void *vhost_net_buf_consume(struct vhost_net_buf *rxq)
 	return ret;
 }
 
-static int vhost_net_buf_produce(struct sock *sk,
-				 struct vhost_net_virtqueue *nvq)
+static int vhost_net_buf_produce(struct vhost_net_virtqueue *nvq)
 {
-	struct file *file = sk->sk_socket->file;
 	struct vhost_net_buf *rxq = &nvq->rxq;
 
 	rxq->head = 0;
-	spin_lock(&nvq->rx_ring->consumer_lock);
-	rxq->tail = __ptr_ring_consume_batched(nvq->rx_ring, rxq->queue,
-					       VHOST_NET_BATCH);
-
-	if (rxq->tail)
-		tun_wake_queue(file, rxq->tail);
-
-	spin_unlock(&nvq->rx_ring->consumer_lock);
+	rxq->tail = ptr_ring_consume_batched(nvq->rx_ring, rxq->queue,
+					      VHOST_NET_BATCH);
 	return rxq->tail;
 }
 
@@ -217,15 +209,14 @@ static int vhost_net_buf_peek_len(void *ptr)
 	return __skb_array_len_with_tag(ptr);
 }
 
-static int vhost_net_buf_peek(struct sock *sk,
-			      struct vhost_net_virtqueue *nvq)
+static int vhost_net_buf_peek(struct vhost_net_virtqueue *nvq)
 {
 	struct vhost_net_buf *rxq = &nvq->rxq;
 
 	if (!vhost_net_buf_is_empty(rxq))
 		goto out;
 
-	if (!vhost_net_buf_produce(sk, nvq))
+	if (!vhost_net_buf_produce(nvq))
 		return 0;
 
 out:
@@ -1013,7 +1004,7 @@ static int peek_head_len(struct vhost_net_virtqueue *rvq, struct sock *sk)
 	unsigned long flags;
 
 	if (rvq->rx_ring)
-		return vhost_net_buf_peek(sk, rvq);
+		return vhost_net_buf_peek(rvq);
 
 	spin_lock_irqsave(&sk->sk_receive_queue.lock, flags);
 	head = skb_peek(&sk->sk_receive_queue);

@@ -28,6 +28,9 @@ struct jack_state {
 };
 
 int sdca_jack_alloc_state(struct sdca_interrupt *interrupt);
+int sdca_jack_init_state(struct sdca_interrupt *interrupt);
+void sdca_jack_free_state(struct sdca_interrupt *interrupt);
+
 int sdca_jack_process(struct sdca_interrupt *interrupt);
 int sdca_jack_set_jack(struct sdca_interrupt_info *info, struct snd_soc_jack *jack);
 int sdca_jack_report(struct sdca_interrupt *interrupt);

@@ -470,7 +470,6 @@ static int peak_usb_start(struct peak_usb_device *dev)
 				netif_device_detach(dev->netdev);
 
 			usb_unanchor_urb(urb);
-			kfree(buf);
 			usb_free_urb(urb);
 			break;
 		}

@@ -5205,7 +5205,7 @@ static int btrfs_ioctl_get_csums(struct file *file, void __user *argp)
 	struct btrfs_inode *inode = BTRFS_I(vfs_inode);
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct btrfs_root *root = inode->root;
-	struct btrfs_ioctl_get_csums_args args;
+	struct btrfs_ioctl_get_csums_args args = { 0 };
 	BTRFS_PATH_AUTO_FREE(path);
 	const u64 ino = btrfs_ino(inode);
 	const u32 csum_size = fs_info->csum_size;

@@ -62,9 +62,6 @@ int io_epoll_ctl(struct io_kiocb *req, unsigned int issue_flags)
 	CLASS(fd, tf)(ie->fd);
 	if (fd_empty(tf))
 		return -EBADF;
-	/* disallow adding an epoll context to another epoll context */
-	if (ie->op == EPOLL_CTL_ADD && is_file_epoll(fd_file(tf)))
-		return -EINVAL;
 
 	key.file = fd_file(tf);
 	key.fd = ie->fd;

@@ -290,19 +290,32 @@ static inline void cppc_freq_invariance_exit(void)
 }
 #endif /* CONFIG_ACPI_CPPC_CPUFREQ_FIE */
 
+static void cppc_cpufreq_get_perf_limits(struct cppc_cpudata *cpu_data,
+					 struct cpufreq_policy *policy,
+					 u32 *min_perf, u32 *max_perf)
+{
+	struct cppc_perf_caps *caps = &cpu_data->perf_caps;
+	unsigned int min_freq, max_freq;
+	u32 min, max;
+
+	min_freq = READ_ONCE(policy->min);
+	max_freq = READ_ONCE(policy->max);
+	if (unlikely(min_freq > max_freq))
+		min_freq = max_freq;
+
+	min = cppc_khz_to_perf(caps, min_freq);
+	max = cppc_khz_to_perf(caps, max_freq);
+
+	*min_perf = clamp_t(u32, min, caps->lowest_perf, caps->highest_perf);
+	*max_perf = clamp_t(u32, max, caps->lowest_perf, caps->highest_perf);
+}
+
 static void cppc_cpufreq_update_perf_limits(struct cppc_cpudata *cpu_data,
 					    struct cpufreq_policy *policy)
 {
-	struct cppc_perf_caps *caps = &cpu_data->perf_caps;
-	u32 min_perf, max_perf;
-
-	min_perf = cppc_khz_to_perf(caps, policy->min);
-	max_perf = cppc_khz_to_perf(caps, policy->max);
-
-	cpu_data->perf_ctrls.min_perf =
-		clamp_t(u32, min_perf, caps->lowest_perf, caps->highest_perf);
-	cpu_data->perf_ctrls.max_perf =
-		clamp_t(u32, max_perf, caps->lowest_perf, caps->highest_perf);
+	cppc_cpufreq_get_perf_limits(cpu_data, policy,
+				     &cpu_data->perf_ctrls.min_perf,
+				     &cpu_data->perf_ctrls.max_perf);
 }
 
 static int cppc_cpufreq_set_target(struct cpufreq_policy *policy,
@@ -693,7 +706,7 @@ static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		goto out;
 	}
 
-	policy->fast_switch_possible = cppc_allow_fast_switch();
+	policy->fast_switch_possible = cppc_allow_fast_switch(policy->cpus);
 	policy->dvfs_possible_from_any_cpu = true;
 
 	/*

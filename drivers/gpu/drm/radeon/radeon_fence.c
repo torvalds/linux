@@ -360,6 +360,13 @@ static bool radeon_fence_is_signaled(struct dma_fence *f)
 	if (atomic64_read(&rdev->fence_drv[ring].last_seq) >= seq)
 		return true;
 
+	if (down_read_trylock(&rdev->exclusive_lock)) {
+		radeon_fence_activity(rdev, ring);
+		up_read(&rdev->exclusive_lock);
+
+		if (atomic64_read(&rdev->fence_drv[ring].last_seq) >= seq)
+			return true;
+	}
 	return false;
 }
 

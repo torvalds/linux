@@ -99,7 +99,9 @@ struct device_type {
  * struct device_attribute - Interface for exporting device attributes.
  * @attr: sysfs attribute definition.
  * @show: Show handler.
+ * @show_const: Show handler (read-only).
  * @store: Store handler.
+ * @store_const: Store handler (read-only).
  */
 struct device_attribute {
 	struct attribute	attr;

@@ -40,7 +40,7 @@ static const s32 sin_table[] = {
 };
 
 /**
- * __fixp_sin32() returns the sin of an angle in degrees
+ * __fixp_sin32() - returns the sin of an angle in degrees
  *
  * @degrees: angle, in degrees, from 0 to 360.
  *
@@ -64,7 +64,7 @@ static inline s32 __fixp_sin32(int degrees)
 }
 
 /**
- * fixp_sin32() returns the sin of an angle in degrees
+ * fixp_sin32() - returns the sin of an angle in degrees
  *
  * @degrees: angle, in degrees. The angle can be positive or negative
  *

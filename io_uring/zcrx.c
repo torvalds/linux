@@ -808,7 +808,8 @@ err_xa_erase:
 	scoped_guard(mutex, &ctx->mmap_lock)
 		xa_erase(&ctx->zcrx_ctxs, id);
 err:
-	zcrx_unregister(ifq, ctx);
+	/* the import path never set the ->master_ctx ref, don't drop it */
+	zcrx_unregister(ifq, NULL);
 	return ret;
 }
 
