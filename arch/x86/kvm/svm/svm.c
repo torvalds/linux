@@ -1179,6 +1179,7 @@ static void init_vmcb(struct kvm_vcpu *vcpu, bool init_event)
 	svm_set_intercept(svm, INTERCEPT_SKINIT);
 	svm_set_intercept(svm, INTERCEPT_WBINVD);
 	svm_set_intercept(svm, INTERCEPT_XSETBV);
+	svm_set_intercept(svm, INTERCEPT_ICEBP);
 	svm_set_intercept(svm, INTERCEPT_RDPRU);
 	svm_set_intercept(svm, INTERCEPT_RSM);
 
@@ -1309,11 +1310,6 @@ void svm_switch_vmcb(struct vcpu_svm *svm, struct kvm_vmcb_info *target_vmcb)
 {
 	svm->current_vmcb = target_vmcb;
 	svm->vmcb = target_vmcb->ptr;
-}
-
-static int svm_vcpu_precreate(struct kvm *kvm)
-{
-	return avic_alloc_physical_id_table(kvm);
 }
 
 static int svm_vcpu_create(struct kvm_vcpu *vcpu)
@@ -2079,6 +2075,22 @@ static int bp_interception(struct kvm_vcpu *vcpu)
 	kvm_run->debug.arch.pc = svm->vmcb->save.cs.base + svm->vmcb->save.rip;
 	kvm_run->debug.arch.exception = BP_VECTOR;
 	return 0;
+}
+
+static int icebp_interception(struct kvm_vcpu *vcpu)
+{
+	/*
+	 * Intercept and emulate ICEBP (INT1, opcode 0xF1) instead of allowing
+	 * the guest to natively take the #DB trap, so that RIP is advanced
+	 * past the instruction *before* #DB is injected.  This is necessary
+	 * because SVM reports the wrong RIP for ICEBP-induced #DB when #DBs
+	 * are delivered via a task gate: RIP points at the ICEBP instruction
+	 * instead of after it (and SVM doesn't provide enough information for
+	 * KVM to detect and manually advance the pre-#DB RIP).
+	 */
+	svm_skip_emulated_instruction(vcpu);
+	kvm_queue_exception(vcpu, DB_VECTOR);
+	return 1;
 }
 
 static int ud_interception(struct kvm_vcpu *vcpu)
@@ -3395,6 +3407,7 @@ static int (*const svm_exit_handlers[])(struct kvm_vcpu *vcpu) = {
 	[SVM_EXIT_MONITOR]			= kvm_emulate_monitor,
 	[SVM_EXIT_MWAIT]			= kvm_emulate_mwait,
 	[SVM_EXIT_XSETBV]			= kvm_emulate_xsetbv,
+	[SVM_EXIT_ICEBP]			= icebp_interception,
 	[SVM_EXIT_RDPRU]			= kvm_handle_invalid_op,
 	[SVM_EXIT_EFER_WRITE_TRAP]		= efer_trap,
 	[SVM_EXIT_CR0_WRITE_TRAP]		= cr_trap,
@@ -5320,12 +5333,6 @@ static int svm_vm_init(struct kvm *kvm)
 	if (!pause_filter_count || !pause_filter_thresh)
 		kvm_disable_exits(kvm, KVM_X86_DISABLE_EXITS_PAUSE);
 
-	if (enable_apicv) {
-		int ret = avic_vm_init(kvm);
-		if (ret)
-			return ret;
-	}
-
 	svm_srso_vm_init();
 	return 0;
 }
@@ -5351,13 +5358,14 @@ struct kvm_x86_ops svm_x86_ops __initdata = {
 	.emergency_disable_virtualization_cpu = svm_emergency_disable_virtualization_cpu,
 	.has_emulated_msr = svm_has_emulated_msr,
 
-	.vcpu_precreate = svm_vcpu_precreate,
+	.vcpu_precreate = avic_vcpu_precreate,
 	.vcpu_create = svm_vcpu_create,
 	.vcpu_free = svm_vcpu_free,
 	.vcpu_reset = svm_vcpu_reset,
 
 	.vm_size = sizeof(struct kvm_svm),
 	.vm_init = svm_vm_init,
+	.vm_pre_destroy = avic_vm_pre_destroy,
 	.vm_destroy = svm_vm_destroy,
 
 	.prepare_switch_to_guest = svm_prepare_switch_to_guest,
@@ -5732,6 +5740,8 @@ static __init int svm_hardware_setup(void)
 	enable_apicv = avic_hardware_setup();
 	if (!enable_apicv) {
 		enable_ipiv = false;
+		svm_x86_ops.vcpu_precreate = NULL;
+		svm_x86_ops.vm_pre_destroy = NULL;
 		svm_x86_ops.vcpu_blocking = NULL;
 		svm_x86_ops.vcpu_unblocking = NULL;
 		svm_x86_ops.vcpu_get_apicv_inhibit_reasons = NULL;

@@ -947,9 +947,9 @@ extern struct kvm_x86_nested_ops svm_nested_ops;
 
 bool __init avic_hardware_setup(void);
 void avic_hardware_unsetup(void);
-int avic_alloc_physical_id_table(struct kvm *kvm);
+int avic_vcpu_precreate(struct kvm *kvm);
+void avic_vm_pre_destroy(struct kvm *kvm);
 void avic_vm_destroy(struct kvm *kvm);
-int avic_vm_init(struct kvm *kvm);
 void avic_init_vmcb(struct vcpu_svm *svm, struct vmcb *vmcb);
 int avic_incomplete_ipi_interception(struct kvm_vcpu *vcpu);
 int avic_unaccelerated_access_interception(struct kvm_vcpu *vcpu);

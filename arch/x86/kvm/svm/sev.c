@@ -1283,7 +1283,26 @@ static void *sev_dbg_crypt_slow_alloc(struct page *page, unsigned long __va,
 	if (WARN_ON_ONCE((*pa & PAGE_MASK) != ((*pa + *nr_bytes - 1) & PAGE_MASK)))
 		return NULL;
 
+	/*
+	 * If SNP is enabled, i.e. the RMP is active, allocate a full page to
+	 * prevent concurrent accesses to the page.  As required by firmware,
+	 * the PSP driver updates the RMP to temporarily transfer ownership of
+	 * the page to Firmware while the {DE,EN}CRYPT operation is in-progress,
+	 * and so concurrent software accesses to the page will encounter
+	 * seemingly spurious RMP #PF violations
+	 */
+	if (cc_platform_has(CC_ATTR_HOST_SEV_SNP))
+		return (void *)__get_free_page(GFP_KERNEL);
+
 	return kmalloc(*nr_bytes, GFP_KERNEL);
+}
+
+static void sev_dbg_crypt_slow_free(void *buf)
+{
+	if (cc_platform_has(CC_ATTR_HOST_SEV_SNP))
+		free_page((unsigned long)buf);
+	else
+		kfree(buf);
 }
 
 static int sev_dbg_decrypt_slow(struct kvm *kvm, unsigned long src,
@@ -1307,7 +1326,7 @@ static int sev_dbg_decrypt_slow(struct kvm *kvm, unsigned long src,
 	if (copy_to_user((void __user *)dst, buf + (src & 15), len))
 		r = -EFAULT;
 out:
-	kfree(buf);
+	sev_dbg_crypt_slow_free(buf);
 	return r;
 }
 
@@ -1340,7 +1359,7 @@ static int sev_dbg_encrypt_slow(struct kvm *kvm, unsigned long src,
 		r = sev_issue_dbg_cmd(kvm, __sme_set(__pa(buf)), dst_pa,
 				      nr_bytes, KVM_SEV_DBG_ENCRYPT, err);
 out:
-	kfree(buf);
+	sev_dbg_crypt_slow_free(buf);
 	return r;
 }
 
@@ -2757,8 +2776,12 @@ int sev_mem_enc_register_region(struct kvm *kvm,
 	if (!region)
 		return -ENOMEM;
 
+	/*
+	 * Do NOT specify FOLL_WRITE, as KVM isn't using the pinned pages to
+	 * write memory, and FOLL_LONGTERM itself triggers CoW unshare.
+	 */
 	region->pages = sev_pin_memory(kvm, range->addr, range->size, &region->npages,
-				       FOLL_WRITE | FOLL_LONGTERM);
+				       FOLL_LONGTERM);
 	if (IS_ERR(region->pages)) {
 		ret = PTR_ERR(region->pages);
 		goto e_free;
