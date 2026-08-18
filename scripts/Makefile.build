@@ -28,6 +28,7 @@ ldflags-y  :=
 
 subdir-asflags-y :=
 subdir-ccflags-y :=
+subdir-rustflags-y :=
 
 # Read auto.conf if it exists, otherwise ignore
 -include $(objtree)/include/config/auto.conf
@@ -159,10 +160,10 @@ targets += $(targets-for-builtin) $(targets-for-modules)
 
 # Linus' kernel sanity checking tool
 ifeq ($(KBUILD_CHECKSRC),1)
-  quiet_cmd_checksrc       = CHECK   $<
+  quiet_cmd_checksrc       = CHECK   $(patsubst $(srctree)/%,%,$<)
         cmd_checksrc       = $(CHECK) $(CHECKFLAGS) $(c_flags) $<
 else ifeq ($(KBUILD_CHECKSRC),2)
-  quiet_cmd_force_checksrc = CHECK   $<
+  quiet_cmd_force_checksrc = CHECK   $(patsubst $(srctree)/%,%,$<)
         cmd_force_checksrc = $(CHECK) $(CHECKFLAGS) $(c_flags) $<
 endif
 

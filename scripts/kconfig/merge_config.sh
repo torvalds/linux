@@ -122,7 +122,7 @@ fi
 
 MERGE_LIST=$*
 
-TMP_FILE=$(mktemp ./.tmp.config.XXXXXXXXXX)
+TMP_FILE=$(mktemp --tmpdir="$OUTPUT" .tmp.config.XXXXXXXXXX)
 
 echo "Using $INITFILE as base"
 
