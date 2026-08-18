@@ -63,6 +63,11 @@
 #define COMMON_USER_POWER11	COMMON_USER_POWER10
 #define COMMON_USER2_POWER11	COMMON_USER2_POWER10
 
+#define COMMON_USER_POWER12	COMMON_USER_POWER10
+#define COMMON_USER2_POWER12	(COMMON_USER2_POWER10 | \
+				 PPC_FEATURE2_ARCH_3_2)
+
+
 static struct cpu_spec cpu_specs[] __initdata = {
 	{	/* PPC970 */
 		.pvr_mask		= 0xffff0000,
@@ -298,6 +303,20 @@ static struct cpu_spec cpu_specs[] __initdata = {
 		.cpu_restore		= __restore_cpu_power10,
 		.platform		= "power11",
 	},
+	{	/* 3.2-compliant processor, i.e. Power12 "architected" mode */
+		.pvr_mask		= 0xffffffff,
+		.pvr_value		= 0x0f000008,
+		.cpu_name		= "Power12 (architected)",
+		.cpu_features		= CPU_FTRS_POWER12,
+		.cpu_user_features	= COMMON_USER_POWER12,
+		.cpu_user_features2	= COMMON_USER2_POWER12,
+		.mmu_features		= MMU_FTRS_POWER12,
+		.icache_bsize		= 128,
+		.dcache_bsize		= 128,
+		.cpu_setup		= __setup_cpu_power12,
+		.cpu_restore		= __restore_cpu_power12,
+		.platform		= "power12",
+	},
 	{	/* Power7 */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x003f0000,
@@ -484,6 +503,23 @@ static struct cpu_spec cpu_specs[] __initdata = {
 		.cpu_restore		= __restore_cpu_power10,
 		.machine_check_early	= __machine_check_early_realmode_p10,
 		.platform		= "power11",
+	},
+	{	/* Power12 */
+		.pvr_mask		= 0xffff0000,
+		.pvr_value		= 0x00830000,
+		.cpu_name		= "Power12 (raw)",
+		.cpu_features		= CPU_FTRS_POWER12,
+		.cpu_user_features	= COMMON_USER_POWER12,
+		.cpu_user_features2	= COMMON_USER2_POWER12,
+		.mmu_features		= MMU_FTRS_POWER12,
+		.icache_bsize		= 128,
+		.dcache_bsize		= 128,
+		.num_pmcs		= 6,
+		.pmc_type		= PPC_PMC_IBM,
+		.cpu_setup		= __setup_cpu_power12,
+		.cpu_restore		= __restore_cpu_power12,
+		.machine_check_early	= __machine_check_early_realmode_p10,
+		.platform		= "power12",
 	},
 	{	/* Cell Broadband Engine */
 		.pvr_mask		= 0xffff0000,

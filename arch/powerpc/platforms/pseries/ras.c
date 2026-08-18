@@ -7,6 +7,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/of.h>
+#include <linux/overflow.h>
 #include <linux/fs.h>
 #include <linux/reboot.h>
 #include <linux/irq_work.h>
@@ -440,6 +441,8 @@ static __be64 *fwnmi_get_savep(struct pt_regs *regs)
 static struct rtas_error_log *fwnmi_get_errinfo(struct pt_regs *regs)
 {
 	struct rtas_error_log *h;
+	u32 extended_log_length;
+	size_t len;
 	__be64 *savep;
 
 	savep = fwnmi_get_savep(regs);
@@ -449,17 +452,12 @@ static struct rtas_error_log *fwnmi_get_errinfo(struct pt_regs *regs)
 	regs->gpr[3] = be64_to_cpu(savep[0]); /* restore original r3 */
 
 	h = (struct rtas_error_log *)&savep[1];
+	extended_log_length = rtas_error_extended(h) ? rtas_error_extended_log_length(h) : 0;
+	len = struct_size(h, buffer, extended_log_length);
+	len = min(len, RTAS_ERROR_LOG_MAX);
 	/* Use the per cpu buffer from paca to store rtas error log */
 	memset(local_paca->mce_data_buf, 0, RTAS_ERROR_LOG_MAX);
-	if (!rtas_error_extended(h)) {
-		memcpy(local_paca->mce_data_buf, h, sizeof(__u64));
-	} else {
-		int len, error_log_length;
-
-		error_log_length = 8 + rtas_error_extended_log_length(h);
-		len = min_t(int, error_log_length, RTAS_ERROR_LOG_MAX);
-		memcpy(local_paca->mce_data_buf, h, len);
-	}
+	memcpy(local_paca->mce_data_buf, h, len);
 
 	return (struct rtas_error_log *)local_paca->mce_data_buf;
 }

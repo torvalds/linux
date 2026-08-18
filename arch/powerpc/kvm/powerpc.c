@@ -81,21 +81,39 @@ int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
 	int r;
 
 	WARN_ON(irqs_disabled());
+	/*
+	 * local_irq_disable() first: on 32-bit, hard_irq_disable() alone is a
+	 * raw MSR[EE] clear that bypasses the lockdep/irq-tracing state, and
+	 * the xfer_to_guest_mode helpers assert IRQs are seen as disabled.
+	 */
+	local_irq_disable();
 	hard_irq_disable();
 
 	while (true) {
-		if (need_resched()) {
-			local_irq_enable();
-			cond_resched();
-			hard_irq_disable();
-			continue;
-		}
+		xfer_to_guest_mode_prepare();
 
-		if (signal_pending(current)) {
-			kvmppc_account_exit(vcpu, SIGNAL_EXITS);
-			vcpu->run->exit_reason = KVM_EXIT_INTR;
-			r = -EINTR;
-			break;
+		if (xfer_to_guest_mode_work_pending()) {
+			/*
+			 * The helper must run with IRQs enabled and may
+			 * schedule(). On a pending signal it returns -EINTR
+			 * with run->exit_reason and vcpu->stat.signal_exits
+			 * already set, so just return to userspace.
+			 */
+			local_irq_enable();
+			r = kvm_xfer_to_guest_mode_handle_work(vcpu);
+			local_irq_disable();
+			hard_irq_disable();
+			if (r) {
+				/*
+				 * The generic helper does not set the exit
+				 * type; record it for the E500
+				 * CONFIG_KVM_EXIT_TIMING histogram (a no-op
+				 * otherwise).
+				 */
+				kvmppc_set_exit_type(vcpu, SIGNAL_EXITS);
+				break;
+			}
+			continue;
 		}
 
 		vcpu->mode = IN_GUEST_MODE;
@@ -116,6 +134,7 @@ int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
 			local_irq_enable();
 			trace_kvm_check_requests(vcpu);
 			r = kvmppc_core_check_requests(vcpu);
+			local_irq_disable();
 			hard_irq_disable();
 			if (r > 0)
 				continue;
@@ -257,6 +276,12 @@ int kvmppc_sanity_check(struct kvm_vcpu *vcpu)
 	/* We have to know what CPU to virtualize */
 	if (!vcpu->arch.pvr)
 		goto out;
+
+#if defined(CONFIG_KVM_BOOK3S_HV_POSSIBLE)
+	if (vcpu->arch.vcore &&
+	    vcpu->arch.vcore->arch_compat == PVR_ARCH_INVALID)
+		goto out;
+#endif
 
 	/* PAPR only works with book3s_64 */
 	if ((vcpu->arch.cpu_type != KVM_CPU_3S_64) && vcpu->arch.papr_enabled)
@@ -635,9 +660,9 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		 * implementations just count online CPUs.
 		 */
 		if (hv_enabled)
-			r = min_t(unsigned int, num_present_cpus(), KVM_MAX_VCPUS);
+			r = min(num_present_cpus(), KVM_MAX_VCPUS);
 		else
-			r = min_t(unsigned int, num_online_cpus(), KVM_MAX_VCPUS);
+			r = min(num_online_cpus(), KVM_MAX_VCPUS);
 		break;
 	case KVM_CAP_MAX_VCPUS:
 		r = KVM_MAX_VCPUS;
@@ -697,6 +722,13 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 			}
 		}
 		break;
+#if defined(CONFIG_KVM_BOOK3S_HV_POSSIBLE)
+	case KVM_CAP_PPC_COMPAT_CAPS:
+		r = 0;
+		if (hv_enabled && kvmhv_on_pseries())
+			r = 1;
+		break;
+#endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 	default:
 		r = 0;
 		break;
@@ -2461,6 +2493,77 @@ int kvm_arch_vm_ioctl(struct file *filp, unsigned int ioctl, unsigned long arg)
 			goto out;
 
 		r = kvm->arch.kvm_ops->svm_off(kvm);
+		break;
+	}
+	case KVM_PPC_GET_COMPAT_CAPS: {
+		struct kvm_ppc_compat_caps host_caps = {};
+		u64 usize;
+
+		/*
+		 * Read the size field first to drive copy_struct_from_user.
+		 * size must be the first field of the struct.
+		 */
+		r = -EFAULT;
+		if (get_user(usize, (__u64 __user *)argp))
+			goto out;
+
+		r = -E2BIG;
+		if (unlikely(usize > PAGE_SIZE))
+			goto out;
+
+		/*
+		 * Enforce a minimum: reject buffers smaller than the initial
+		 * struct version (VER0). This allows old userspace compiled
+		 * against the original struct to still work on a newer kernel
+		 * that has grown the struct with appended fields.
+		 */
+		r = -EINVAL;
+		if (usize < KVM_PPC_COMPAT_CAPS_SIZE_VER0)
+			goto out;
+
+		/*
+		 * copy_struct_from_user() handles forward/backward compat:
+		 *   usize == ksize: verbatim copy
+		 *   usize <  ksize: zero-pad trailing (old userspace, new kernel)
+		 *   usize >  ksize: succeed iff trailing bytes are zero, else -E2BIG
+		 */
+		r = copy_struct_from_user(&host_caps, sizeof(host_caps),
+					  argp, usize);
+		if (r) {
+			/*
+			 * New userspace with a larger struct called an older
+			 * kernel. Write back ksize in host_caps.size so
+			 * userspace knows which older struct to retry with,
+			 * then fail with -E2BIG.
+			 */
+			if (r == -E2BIG)
+				if (put_user((__u64)sizeof(host_caps),
+					     (__u64 __user *)argp))
+					r = -EFAULT;
+			goto out;
+		}
+
+		/* Reserved fields must be zero */
+		r = -EINVAL;
+		if (host_caps.flags)
+			goto out;
+
+		r = -ENOTTY;
+		if (!kvm->arch.kvm_ops->get_compat_caps)
+			goto out;
+
+		r = kvm->arch.kvm_ops->get_compat_caps(&host_caps);
+		if (r)
+			goto out;
+
+		/*
+		 * Report the number of bytes actually populated by the kernel,
+		 * not usize: if new userspace passed a larger struct with zero
+		 * trailing bytes, we only filled sizeof(host_caps) bytes.
+		 */
+		host_caps.size = min_t(u64, usize, sizeof(host_caps));
+		r = copy_struct_to_user(argp, usize, &host_caps,
+					sizeof(host_caps), NULL);
 		break;
 	}
 	default: {

@@ -284,9 +284,7 @@ static void __init bootx_scan_dt_build_struct(unsigned long base,
 	dt_push_token(OF_DT_BEGIN_NODE, mem_end);
 
 	/* get the node's full name */
-	namep = np->full_name ? (char *)(base + np->full_name) : NULL;
-	if (namep == NULL)
-		namep = "";
+	namep = np->full_name ? (char *)(base + np->full_name) : "";
 	l = strlen(namep);
 
 	DBG("* struct: %s\n", namep);
