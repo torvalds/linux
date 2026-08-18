@@ -7,4 +7,3 @@ ACPI Support
 
    linuxized-acpica
    scan_handlers
-   acpi-drivers

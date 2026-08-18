@@ -489,26 +489,6 @@ static void acpi_fan_notify_handler(acpi_handle handle, u32 event, void *context
 	}
 }
 
-static void acpi_fan_notify_remove(void *data)
-{
-	struct acpi_fan *fan = data;
-
-	acpi_remove_notify_handler(fan->handle, ACPI_DEVICE_NOTIFY, acpi_fan_notify_handler);
-}
-
-static int devm_acpi_fan_notify_init(struct device *dev)
-{
-	struct acpi_fan *fan = dev_get_drvdata(dev);
-	acpi_status status;
-
-	status = acpi_install_notify_handler(fan->handle, ACPI_DEVICE_NOTIFY,
-					     acpi_fan_notify_handler, dev);
-	if (ACPI_FAILURE(status))
-		return -EIO;
-
-	return devm_add_action_or_reset(dev, acpi_fan_notify_remove, fan);
-}
-
 static int acpi_fan_probe(struct platform_device *pdev)
 {
 	int result = 0;
@@ -556,7 +536,10 @@ static int acpi_fan_probe(struct platform_device *pdev)
 		if (result)
 			return result;
 
-		result = devm_acpi_fan_notify_init(&pdev->dev);
+		result = devm_acpi_install_notify_handler(&pdev->dev,
+							  ACPI_DEVICE_NOTIFY,
+							  acpi_fan_notify_handler,
+							  &pdev->dev);
 		if (result)
 			return result;
 
