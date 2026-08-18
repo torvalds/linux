@@ -740,8 +740,10 @@ static int pn533_target_found_type_a(struct nfc_target *nfc_tgt, u8 *tgt_data,
 
 struct pn533_target_felica {
 	u8 pol_res;
-	u8 opcode;
-	u8 nfcid2[NFC_NFCID2_MAXSIZE];
+	struct_group(sensf_res,
+		u8 opcode;
+		u8 nfcid2[NFC_NFCID2_MAXSIZE];
+	);
 	u8 pad[8];
 	/* optional */
 	u8 syst_code[];
@@ -778,8 +780,8 @@ static int pn533_target_found_felica(struct nfc_target *nfc_tgt, u8 *tgt_data,
 	else
 		nfc_tgt->supported_protocols = NFC_PROTO_FELICA_MASK;
 
-	memcpy(nfc_tgt->sensf_res, &tgt_felica->opcode, 9);
-	nfc_tgt->sensf_res_len = 9;
+	memcpy(nfc_tgt->sensf_res, &tgt_felica->sensf_res, sizeof(tgt_felica->sensf_res));
+	nfc_tgt->sensf_res_len = sizeof(tgt_felica->sensf_res);
 
 	memcpy(nfc_tgt->nfcid2, tgt_felica->nfcid2, NFC_NFCID2_MAXSIZE);
 	nfc_tgt->nfcid2_len = NFC_NFCID2_MAXSIZE;

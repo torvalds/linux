@@ -17,7 +17,6 @@ static struct usb_device_id nfcmrvl_table[] = {
 					USB_CLASS_VENDOR_SPEC, 4, 1) },
 	{ }	/* Terminating entry */
 };
-
 MODULE_DEVICE_TABLE(usb, nfcmrvl_table);
 
 #define NFCMRVL_USB_BULK_RUNNING	1

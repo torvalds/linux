@@ -48,10 +48,12 @@ static void microread_mei_remove(struct mei_cl_device *cldev)
 }
 
 static struct mei_cl_device_id microread_mei_tbl[] = {
-	{ MICROREAD_DRIVER_NAME, MEI_NFC_UUID, MEI_CL_VERSION_ANY},
-
-	/* required last entry */
-	{ }
+	{
+		.name = MICROREAD_DRIVER_NAME,
+		.uuid = MEI_NFC_UUID,
+		.version = MEI_CL_VERSION_ANY,
+	},
+	{ /* required last entry */ }
 };
 MODULE_DEVICE_TABLE(mei, microread_mei_tbl);
 
