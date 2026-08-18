@@ -752,17 +752,17 @@ EXPORT_SYMBOL_NS_GPL(rapl_default_check_unit, "INTEL_RAPL");
 
 static void power_limit_irq_save_cpu(void *info)
 {
-	u32 l, h = 0;
+	struct msr val;
 	struct rapl_package *rp = (struct rapl_package *)info;
 
 	/* save the state of PLN irq mask bit before disabling it */
-	rdmsr_safe(MSR_IA32_PACKAGE_THERM_INTERRUPT, &l, &h);
+	rdmsrq_safe(MSR_IA32_PACKAGE_THERM_INTERRUPT, &val.q);
 	if (!(rp->power_limit_irq & PACKAGE_PLN_INT_SAVED)) {
-		rp->power_limit_irq = l & PACKAGE_THERM_INT_PLN_ENABLE;
+		rp->power_limit_irq = val.l & PACKAGE_THERM_INT_PLN_ENABLE;
 		rp->power_limit_irq |= PACKAGE_PLN_INT_SAVED;
 	}
-	l &= ~PACKAGE_THERM_INT_PLN_ENABLE;
-	wrmsr_safe(MSR_IA32_PACKAGE_THERM_INTERRUPT, l, h);
+	val.l &= ~PACKAGE_THERM_INT_PLN_ENABLE;
+	wrmsrq_safe(MSR_IA32_PACKAGE_THERM_INTERRUPT, val.q);
 }
 
 /* REVISIT:
@@ -792,7 +792,7 @@ static void package_power_limit_irq_save(struct rapl_package *rp)
  */
 static void package_power_limit_irq_restore(struct rapl_package *rp)
 {
-	u32 l, h;
+	struct msr val;
 
 	if (rp->lead_cpu < 0)
 		return;
@@ -804,14 +804,14 @@ static void package_power_limit_irq_restore(struct rapl_package *rp)
 	if (!(rp->power_limit_irq & PACKAGE_PLN_INT_SAVED))
 		return;
 
-	rdmsr_safe(MSR_IA32_PACKAGE_THERM_INTERRUPT, &l, &h);
+	rdmsrq_safe(MSR_IA32_PACKAGE_THERM_INTERRUPT, &val.q);
 
 	if (rp->power_limit_irq & PACKAGE_THERM_INT_PLN_ENABLE)
-		l |= PACKAGE_THERM_INT_PLN_ENABLE;
+		val.l |= PACKAGE_THERM_INT_PLN_ENABLE;
 	else
-		l &= ~PACKAGE_THERM_INT_PLN_ENABLE;
+		val.l &= ~PACKAGE_THERM_INT_PLN_ENABLE;
 
-	wrmsr_safe(MSR_IA32_PACKAGE_THERM_INTERRUPT, l, h);
+	wrmsrq_safe(MSR_IA32_PACKAGE_THERM_INTERRUPT, val.q);
 }
 
 void rapl_default_set_floor_freq(struct rapl_domain *rd, bool mode)

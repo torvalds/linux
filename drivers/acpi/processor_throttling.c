@@ -698,20 +698,13 @@ static int acpi_processor_get_throttling_fadt(struct acpi_processor *pr)
 #ifdef CONFIG_X86
 static int acpi_throttling_rdmsr(u64 *value)
 {
-	u64 msr_high, msr_low;
-	u64 msr = 0;
 	int ret = -1;
 
 	if ((this_cpu_read(cpu_info.x86_vendor) != X86_VENDOR_INTEL) ||
 		!this_cpu_has(X86_FEATURE_ACPI)) {
 		pr_err("HARDWARE addr space,NOT supported yet\n");
 	} else {
-		msr_low = 0;
-		msr_high = 0;
-		rdmsr_safe(MSR_IA32_THERM_CONTROL,
-			(u32 *)&msr_low, (u32 *) &msr_high);
-		msr = (msr_high << 32) | msr_low;
-		*value = (u64) msr;
+		rdmsrq_safe(MSR_IA32_THERM_CONTROL, value);
 		ret = 0;
 	}
 	return ret;
@@ -720,15 +713,12 @@ static int acpi_throttling_rdmsr(u64 *value)
 static int acpi_throttling_wrmsr(u64 value)
 {
 	int ret = -1;
-	u64 msr;
 
 	if ((this_cpu_read(cpu_info.x86_vendor) != X86_VENDOR_INTEL) ||
 		!this_cpu_has(X86_FEATURE_ACPI)) {
 		pr_err("HARDWARE addr space,NOT supported yet\n");
 	} else {
-		msr = value;
-		wrmsr_safe(MSR_IA32_THERM_CONTROL,
-			msr & 0xffffffff, msr >> 32);
+		wrmsrq_safe(MSR_IA32_THERM_CONTROL, value);
 		ret = 0;
 	}
 	return ret;

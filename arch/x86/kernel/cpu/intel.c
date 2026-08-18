@@ -542,12 +542,12 @@ static void init_intel(struct cpuinfo_x86 *c)
 		set_cpu_cap(c, X86_FEATURE_LFENCE_RDTSC);
 
 	if (boot_cpu_has(X86_FEATURE_DS)) {
-		unsigned int l1, l2;
+		u64 l;
 
-		rdmsr(MSR_IA32_MISC_ENABLE, l1, l2);
-		if (!(l1 & MSR_IA32_MISC_ENABLE_BTS_UNAVAIL))
+		rdmsrq(MSR_IA32_MISC_ENABLE, l);
+		if (!(l & MSR_IA32_MISC_ENABLE_BTS_UNAVAIL))
 			set_cpu_cap(c, X86_FEATURE_BTS);
-		if (!(l1 & MSR_IA32_MISC_ENABLE_PEBS_UNAVAIL))
+		if (!(l & MSR_IA32_MISC_ENABLE_PEBS_UNAVAIL))
 			set_cpu_cap(c, X86_FEATURE_PEBS);
 	}
 

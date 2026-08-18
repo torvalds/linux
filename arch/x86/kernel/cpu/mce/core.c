@@ -1866,7 +1866,7 @@ static void __mcheck_cpu_init_generic(void)
 
 	rdmsrq(MSR_IA32_MCG_CAP, cap);
 	if (cap & MCG_CTL_P)
-		wrmsr(MSR_IA32_MCG_CTL, 0xffffffff, 0xffffffff);
+		wrmsrq(MSR_IA32_MCG_CTL, ~0ULL);
 }
 
 static void __mcheck_cpu_init_prepare_banks(void)

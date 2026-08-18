@@ -7633,9 +7633,9 @@ static void kvm_probe_feature_msr(u32 msr_index)
 
 static void kvm_probe_msr_to_save(u32 msr_index)
 {
-	u32 dummy[2];
+	u64 dummy;
 
-	if (rdmsr_safe(msr_index, &dummy[0], &dummy[1]))
+	if (rdmsrq_safe(msr_index, &dummy))
 		return;
 
 	/*

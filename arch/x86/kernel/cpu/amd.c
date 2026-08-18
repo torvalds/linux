@@ -113,7 +113,7 @@ static void init_amd_k5(struct cpuinfo_x86 *c)
 static void init_amd_k6(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_X86_32
-	u32 l, h;
+	struct msr val;
 	int mbytes = get_num_physpages() >> (20-PAGE_SHIFT);
 
 	if (c->x86_model < 6) {
@@ -160,13 +160,13 @@ static void init_amd_k6(struct cpuinfo_x86 *c)
 		if (mbytes > 508)
 			mbytes = 508;
 
-		rdmsr(MSR_K6_WHCR, l, h);
-		if ((l&0x0000FFFF) == 0) {
+		rdmsrq(MSR_K6_WHCR, val.q);
+		if ((val.l & 0x0000FFFF) == 0) {
 			unsigned long flags;
-			l = (1<<0)|((mbytes/4)<<1);
+			val.l = (1 << 0) | ((mbytes / 4) << 1);
 			local_irq_save(flags);
 			wbinvd();
-			wrmsr(MSR_K6_WHCR, l, h);
+			wrmsrq(MSR_K6_WHCR, val.q);
 			local_irq_restore(flags);
 			pr_info("Enabling old style K6 write allocation for %d Mb\n",
 				mbytes);
@@ -181,13 +181,13 @@ static void init_amd_k6(struct cpuinfo_x86 *c)
 		if (mbytes > 4092)
 			mbytes = 4092;
 
-		rdmsr(MSR_K6_WHCR, l, h);
-		if ((l&0xFFFF0000) == 0) {
+		rdmsrq(MSR_K6_WHCR, val.q);
+		if ((val.l & 0xFFFF0000) == 0) {
 			unsigned long flags;
-			l = ((mbytes>>2)<<22)|(1<<16);
+			val.l = ((mbytes >> 2) << 22) | (1 << 16);
 			local_irq_save(flags);
 			wbinvd();
-			wrmsr(MSR_K6_WHCR, l, h);
+			wrmsrq(MSR_K6_WHCR, val.q);
 			local_irq_restore(flags);
 			pr_info("Enabling new style K6 write allocation for %d Mb\n",
 				mbytes);
@@ -207,7 +207,7 @@ static void init_amd_k6(struct cpuinfo_x86 *c)
 static void init_amd_k7(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_X86_32
-	u32 l, h;
+	struct msr val;
 
 	/*
 	 * Bit 15 of Athlon specific MSR 15, needs to be 0
@@ -228,11 +228,12 @@ static void init_amd_k7(struct cpuinfo_x86 *c)
 	 * As per AMD technical note 27212 0.2
 	 */
 	if ((c->x86_model == 8 && c->x86_stepping >= 1) || (c->x86_model > 8)) {
-		rdmsr(MSR_K7_CLK_CTL, l, h);
-		if ((l & 0xfff00000) != 0x20000000) {
+		rdmsrq(MSR_K7_CLK_CTL, val.q);
+		if ((val.l & 0xfff00000) != 0x20000000) {
 			pr_info("CPU: CLK_CTL MSR was %x. Reprogramming to %x\n",
-				l, ((l & 0x000fffff)|0x20000000));
-			wrmsr(MSR_K7_CLK_CTL, (l & 0x000fffff)|0x20000000, h);
+				val.l, ((val.l & 0x000fffff) | 0x20000000));
+			val.l = (val.l & 0x000fffff) | 0x20000000;
+			wrmsrq(MSR_K7_CLK_CTL, val.q);
 		}
 	}
 
@@ -616,12 +617,13 @@ clear_sev:
 
 static void early_init_amd(struct cpuinfo_x86 *c)
 {
-	u32 dummy;
+	u64 val;
 
 	if (c->x86 >= 0xf)
 		set_cpu_cap(c, X86_FEATURE_K8);
 
-	rdmsr_safe(MSR_AMD64_PATCH_LEVEL, &c->microcode, &dummy);
+	rdmsrq_safe(MSR_AMD64_PATCH_LEVEL, &val);
+	c->microcode = (u32)val;
 
 	/*
 	 * c->x86_power is 8000_0007 edx. Bit 8 is TSC runs at constant rate

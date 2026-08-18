@@ -25,7 +25,8 @@ enum vmx_feature_leafs {
 
 static void init_vmx_capabilities(struct cpuinfo_x86 *c)
 {
-	u32 supported, funcs, ept, vpid, ign, low, high;
+	struct msr val;
+	u32 supported, funcs, ept, vpid;
 
 	BUILD_BUG_ON(NVMXINTS != NR_VMX_FEATURE_WORDS);
 
@@ -39,25 +40,31 @@ static void init_vmx_capabilities(struct cpuinfo_x86 *c)
 	 * as they exist on any CPU that supports VMX, i.e. we want the WARN if
 	 * the RDMSR faults.
 	 */
-	rdmsr(MSR_IA32_VMX_PROCBASED_CTLS, ign, supported);
+	rdmsrq(MSR_IA32_VMX_PROCBASED_CTLS, val.q);
+	supported = val.h;
 	c->vmx_capability[PRIMARY_CTLS] = supported;
 
-	rdmsr_safe(MSR_IA32_VMX_PROCBASED_CTLS2, &ign, &supported);
+	rdmsrq_safe(MSR_IA32_VMX_PROCBASED_CTLS2, &val.q);
+	supported = val.h;
 	c->vmx_capability[SECONDARY_CTLS] = supported;
 
 	/* All 64 bits of tertiary controls MSR are allowed-1 settings. */
-	rdmsr_safe(MSR_IA32_VMX_PROCBASED_CTLS3, &low, &high);
-	c->vmx_capability[TERTIARY_CTLS_LOW] = low;
-	c->vmx_capability[TERTIARY_CTLS_HIGH] = high;
+	rdmsrq_safe(MSR_IA32_VMX_PROCBASED_CTLS3, &val.q);
+	c->vmx_capability[TERTIARY_CTLS_LOW] = val.l;
+	c->vmx_capability[TERTIARY_CTLS_HIGH] = val.h;
 
-	rdmsr(MSR_IA32_VMX_PINBASED_CTLS, ign, supported);
-	rdmsr_safe(MSR_IA32_VMX_VMFUNC, &ign, &funcs);
+	rdmsrq(MSR_IA32_VMX_PINBASED_CTLS, val.q);
+	supported = val.h;
+	rdmsrq_safe(MSR_IA32_VMX_VMFUNC, &val.q);
+	funcs = val.h;
 
 	/*
 	 * Except for EPT+VPID, which enumerates support for both in a single
 	 * MSR, low for EPT, high for VPID.
 	 */
-	rdmsr_safe(MSR_IA32_VMX_EPT_VPID_CAP, &ept, &vpid);
+	rdmsrq_safe(MSR_IA32_VMX_EPT_VPID_CAP, &val.q);
+	ept = val.l;
+	vpid = val.h;
 
 	/* Pin, EPT, VPID and VM-Func are merged into a single word. */
 	WARN_ON_ONCE(supported >> 16);

@@ -136,7 +136,7 @@ static int logical_rmid_to_physical_rmid(int cpu, int lrmid)
 
 static int __rmid_read_phys(u32 prmid, enum resctrl_event_id eventid, u64 *val)
 {
-	u64 msr_val;
+	struct msr msr_val = { .l = eventid, .h = prmid };
 
 	/*
 	 * As per the SDM, when IA32_QM_EVTSEL.EvtID (bits 7:0) is configured
@@ -146,15 +146,15 @@ static int __rmid_read_phys(u32 prmid, enum resctrl_event_id eventid, u64 *val)
 	 * IA32_QM_CTR.Error (bit 63) and IA32_QM_CTR.Unavailable (bit 62)
 	 * are error bits.
 	 */
-	wrmsr(MSR_IA32_QM_EVTSEL, eventid, prmid);
-	rdmsrq(MSR_IA32_QM_CTR, msr_val);
+	wrmsrq(MSR_IA32_QM_EVTSEL, msr_val.q);
+	rdmsrq(MSR_IA32_QM_CTR, msr_val.q);
 
-	if (msr_val & RMID_VAL_ERROR)
+	if (msr_val.q & RMID_VAL_ERROR)
 		return -EIO;
-	if (msr_val & RMID_VAL_UNAVAIL)
+	if (msr_val.q & RMID_VAL_UNAVAIL)
 		return -EINVAL;
 
-	*val = msr_val;
+	*val = msr_val.q;
 	return 0;
 }
 
@@ -283,7 +283,10 @@ int resctrl_arch_rmid_read(struct rdt_resource *r, struct rdt_domain_hdr *hdr,
 
 static int __cntr_id_read(u32 cntr_id, u64 *val)
 {
-	u64 msr_val;
+	struct msr msr_val = {
+		.l = ABMC_EXTENDED_EVT_ID | ABMC_EVT_ID,
+		.h = cntr_id
+	};
 
 	/*
 	 * QM_EVTSEL Register definition:
@@ -306,15 +309,15 @@ static int __cntr_id_read(u32 cntr_id, u64 *val)
 	 * ID is set in the QM_EVTSEL.RMID field.  The RMID_VAL_UNAVAIL bit
 	 * is set if the counter data is unavailable.
 	 */
-	wrmsr(MSR_IA32_QM_EVTSEL, ABMC_EXTENDED_EVT_ID | ABMC_EVT_ID, cntr_id);
-	rdmsrq(MSR_IA32_QM_CTR, msr_val);
+	wrmsrq(MSR_IA32_QM_EVTSEL, msr_val.q);
+	rdmsrq(MSR_IA32_QM_CTR, msr_val.q);
 
-	if (msr_val & RMID_VAL_ERROR)
+	if (msr_val.q & RMID_VAL_ERROR)
 		return -EIO;
-	if (msr_val & RMID_VAL_UNAVAIL)
+	if (msr_val.q & RMID_VAL_UNAVAIL)
 		return -EINVAL;
 
-	*val = msr_val;
+	*val = msr_val.q;
 	return 0;
 }
 

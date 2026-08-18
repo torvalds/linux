@@ -2675,13 +2675,13 @@ static bool cpu_has_sgx(void)
 
 static int adjust_vmx_controls(u32 ctl_min, u32 ctl_opt, u32 msr, u32 *result)
 {
-	u32 vmx_msr_low, vmx_msr_high;
+	struct msr vmx_msr;
 	u32 ctl = ctl_min | ctl_opt;
 
-	rdmsr(msr, vmx_msr_low, vmx_msr_high);
+	rdmsrq(msr, vmx_msr.q);
 
-	ctl &= vmx_msr_high; /* bit == 0 in high word ==> must be zero */
-	ctl |= vmx_msr_low;  /* bit == 1 in low word  ==> must be one  */
+	ctl &= vmx_msr.h;  /* bit == 0 in high word ==> must be zero */
+	ctl |= vmx_msr.l;  /* bit == 1 in low word  ==> must be one  */
 
 	/* Ensure minimum (required) set of control bits are supported. */
 	if (ctl_min & ~ctl)
@@ -2737,6 +2737,7 @@ static int setup_vmcs_config(struct vmcs_config *vmcs_conf,
 	u64 _cpu_based_3rd_exec_control = 0;
 	u32 _vmexit_control = 0;
 	u32 _vmentry_control = 0;
+	struct msr val;
 	u64 basic_msr;
 	u64 misc_msr;
 
@@ -2786,8 +2787,9 @@ static int setup_vmcs_config(struct vmcs_config *vmcs_conf,
 				SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE |
 				SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY);
 
-	rdmsr_safe(MSR_IA32_VMX_EPT_VPID_CAP,
-		&vmx_cap->ept, &vmx_cap->vpid);
+	rdmsrq_safe(MSR_IA32_VMX_EPT_VPID_CAP, &val.q);
+	vmx_cap->ept = val.l;
+	vmx_cap->vpid = val.h;
 
 	if (!(_cpu_based_2nd_exec_control & SECONDARY_EXEC_ENABLE_EPT) &&
 	    vmx_cap->ept) {
@@ -4434,7 +4436,7 @@ void vmx_deliver_interrupt(struct kvm_lapic *apic, int delivery_mode,
  */
 void vmx_set_constant_host_state(struct vcpu_vmx *vmx)
 {
-	u32 low32, high32;
+	struct msr val;
 	unsigned long tmpl;
 	unsigned long cr0, cr3, cr4;
 
@@ -4475,8 +4477,8 @@ void vmx_set_constant_host_state(struct vcpu_vmx *vmx)
 
 	vmcs_writel(HOST_RIP, (unsigned long)vmx_vmexit); /* 22.2.5 */
 
-	rdmsr(MSR_IA32_SYSENTER_CS, low32, high32);
-	vmcs_write32(HOST_IA32_SYSENTER_CS, low32);
+	rdmsrq(MSR_IA32_SYSENTER_CS, val.q);
+	vmcs_write32(HOST_IA32_SYSENTER_CS, val.l);
 
 	/*
 	 * SYSENTER is used for 32-bit system calls on either 32-bit or
@@ -4491,8 +4493,8 @@ void vmx_set_constant_host_state(struct vcpu_vmx *vmx)
 	vmcs_writel(HOST_IA32_SYSENTER_EIP, tmpl);   /* 22.2.3 */
 
 	if (vmcs_config.vmexit_ctrl & VM_EXIT_LOAD_IA32_PAT) {
-		rdmsr(MSR_IA32_CR_PAT, low32, high32);
-		vmcs_write64(HOST_IA32_PAT, low32 | ((u64) high32 << 32));
+		rdmsrq(MSR_IA32_CR_PAT, val.q);
+		vmcs_write64(HOST_IA32_PAT, val.q);
 	}
 
 	if (cpu_has_load_ia32_efer())

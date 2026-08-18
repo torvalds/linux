@@ -261,11 +261,11 @@ static void ie31200_clear_error_info(struct mem_ctl_info *mci)
 	 * the ECC error log registers in all memory controllers.
 	 */
 	if (cfg->msr_clear_eccerrlog_offset) {
-		if (wrmsr_safe(cfg->msr_clear_eccerrlog_offset,
-			       cfg->reg_eccerrlog_ce_mask |
-			       cfg->reg_eccerrlog_ce_ovfl_mask |
-			       cfg->reg_eccerrlog_ue_mask |
-			       cfg->reg_eccerrlog_ue_ovfl_mask, 0) < 0)
+		if (wrmsrq_safe(cfg->msr_clear_eccerrlog_offset,
+			        cfg->reg_eccerrlog_ce_mask |
+			        cfg->reg_eccerrlog_ce_ovfl_mask |
+			        cfg->reg_eccerrlog_ue_mask |
+			        cfg->reg_eccerrlog_ue_ovfl_mask) < 0)
 			ie31200_printk(KERN_ERR, "Failed to wrmsr.\n");
 
 		return;

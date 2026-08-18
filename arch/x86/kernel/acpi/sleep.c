@@ -61,6 +61,7 @@ int x86_acpi_suspend_lowlevel(void)
 {
 	struct wakeup_header *header =
 		(struct wakeup_header *) __va(real_mode_header->wakeup_header);
+	struct msr val;
 
 	if (header->signature != WAKEUP_HEADER_SIGNATURE) {
 		printk(KERN_ERR "wakeup header does not match\n");
@@ -82,13 +83,10 @@ int x86_acpi_suspend_lowlevel(void)
 	 * with 2-MB L2 Cache and Intel® Processor A100 and A110 on 90
 	 * nm process with 512-KB L2 Cache Specification Update".
 	 */
-	if (!rdmsr_safe(MSR_EFER,
-			&header->pmode_efer_low,
-			&header->pmode_efer_high) &&
-	    !wrmsr_safe(MSR_EFER,
-			header->pmode_efer_low,
-			header->pmode_efer_high))
+	if (!rdmsrq_safe(MSR_EFER, &val.q) && !wrmsrq_safe(MSR_EFER, val.q))
 		header->pmode_behavior |= (1 << WAKEUP_BEHAVIOR_RESTORE_EFER);
+	header->pmode_efer_low = val.l;
+	header->pmode_efer_high = val.h;
 #endif /* !CONFIG_64BIT */
 
 	header->pmode_cr0 = read_cr0();
@@ -96,14 +94,12 @@ int x86_acpi_suspend_lowlevel(void)
 		header->pmode_cr4 = __read_cr4();
 		header->pmode_behavior |= (1 << WAKEUP_BEHAVIOR_RESTORE_CR4);
 	}
-	if (!rdmsr_safe(MSR_IA32_MISC_ENABLE,
-			&header->pmode_misc_en_low,
-			&header->pmode_misc_en_high) &&
-	    !wrmsr_safe(MSR_IA32_MISC_ENABLE,
-			header->pmode_misc_en_low,
-			header->pmode_misc_en_high))
+	if (!rdmsrq_safe(MSR_IA32_MISC_ENABLE, &val.q) &&
+	    !wrmsrq_safe(MSR_IA32_MISC_ENABLE, val.q))
 		header->pmode_behavior |=
 			(1 << WAKEUP_BEHAVIOR_RESTORE_MISC_ENABLE);
+	header->pmode_misc_en_low = val.l;
+	header->pmode_misc_en_high = val.h;
 	header->realmode_flags = acpi_realmode_flags;
 	header->real_magic = 0x12345678;
 

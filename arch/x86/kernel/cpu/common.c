@@ -339,16 +339,16 @@ bool cpuid_feature(void)
 
 static void squash_the_stupid_serial_number(struct cpuinfo_x86 *c)
 {
-	unsigned long lo, hi;
+	struct msr val;
 
 	if (!cpu_has(c, X86_FEATURE_PN) || !disable_x86_serial_nr)
 		return;
 
 	/* Disable processor serial number: */
 
-	rdmsr(MSR_IA32_BBL_CR_CTL, lo, hi);
-	lo |= 0x200000;
-	wrmsr(MSR_IA32_BBL_CR_CTL, lo, hi);
+	rdmsrq(MSR_IA32_BBL_CR_CTL, val.q);
+	val.l |= 0x200000;
+	wrmsrq(MSR_IA32_BBL_CR_CTL, val.q);
 
 	pr_notice("CPU serial number disabled.\n");
 	clear_cpu_cap(c, X86_FEATURE_PN);
@@ -2299,8 +2299,10 @@ static inline void idt_syscall_init(void)
 /* May not be marked __init: used by software suspend */
 void syscall_init(void)
 {
+	struct msr val = { .h = (__USER32_CS << 16) | __KERNEL_CS };
+
 	/* The default user and kernel segments */
-	wrmsr(MSR_STAR, 0, (__USER32_CS << 16) | __KERNEL_CS);
+	wrmsrq(MSR_STAR, val.q);
 
 	/*
 	 * Except the IA32_STAR MSR, there is NO need to setup SYSCALL and
