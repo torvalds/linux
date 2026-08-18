@@ -1918,49 +1918,93 @@ static int __inject_io(struct kvm *kvm, struct kvm_s390_interrupt_info *inti)
 	return 0;
 }
 
+static u64 inti_to_irq_pend_mask(u64 type, int isc)
+{
+	switch (type) {
+	case KVM_S390_MCHK:
+		/* Only repressible machine checks are floating */
+		return BIT(IRQ_PEND_MCHK_REP);
+	case KVM_S390_INT_VIRTIO:
+		return BIT(IRQ_PEND_VIRTIO);
+	case KVM_S390_INT_SERVICE:
+		return BIT(IRQ_PEND_EXT_SERVICE) |
+		       BIT(IRQ_PEND_EXT_SERVICE_EV);
+	case KVM_S390_INT_PFAULT_DONE:
+		return BIT(IRQ_PEND_PFAULT_DONE);
+	case KVM_S390_INT_IO_MIN...KVM_S390_INT_IO_MAX:
+		return BIT(isc_to_irq_type(isc));
+	default:
+		return 0;
+	}
+}
+
+/*
+ * Setup intervention masks to catch running vcpus that hopefully open
+ * their masks soonish and kick sleeping vcpus to motivate them to
+ * take IRQs.
+ */
+static void vcpu_intervention_kick(struct kvm_vcpu *vcpu, u64 type)
+{
+	/* make the VCPU drop out of the SIE, or wake it up if sleeping */
+	switch (type) {
+	case KVM_S390_MCHK:
+		kvm_s390_set_cpuflags(vcpu, CPUSTAT_STOP_INT);
+		break;
+	case KVM_S390_INT_IO_MIN...KVM_S390_INT_IO_MAX:
+		if (!(type & KVM_S390_INT_IO_AI_MASK &&
+		      vcpu->kvm->arch.gisa_int.origin) ||
+		      kvm_s390_pv_cpu_get_handle(vcpu))
+			kvm_s390_set_cpuflags(vcpu, CPUSTAT_IO_INT);
+		break;
+	default:
+		kvm_s390_set_cpuflags(vcpu, CPUSTAT_EXT_INT);
+		break;
+	}
+	kvm_s390_vcpu_wakeup(vcpu);
+}
+
 /*
  * Find a destination VCPU for a floating irq and kick it.
  */
-static void __floating_irq_kick(struct kvm *kvm, u64 type)
+static void __floating_irq_kick(struct kvm *kvm, u64 type, int isc)
 {
 	struct kvm_vcpu *dst_vcpu;
 	int sigcpu, online_vcpus, nr_tries = 0;
+	u64 irq_pend_mask;
+	unsigned long i;
 
 	online_vcpus = atomic_read(&kvm->online_vcpus);
 	if (!online_vcpus)
 		return;
 
+	irq_pend_mask = inti_to_irq_pend_mask(type, isc);
 	for (sigcpu = kvm->arch.float_int.last_sleep_cpu; ; sigcpu++) {
 		sigcpu %= online_vcpus;
 		dst_vcpu = kvm_get_vcpu(kvm, sigcpu);
-		if (!is_vcpu_stopped(dst_vcpu))
+		if (!is_vcpu_stopped(dst_vcpu) &&
+		    deliverable_irqs(dst_vcpu) & irq_pend_mask)
 			break;
 		/* avoid endless loops if all vcpus are stopped */
-		if (nr_tries++ >= online_vcpus)
-			return;
+		if (nr_tries++ >= online_vcpus) {
+			dst_vcpu = NULL;
+			break;
+		}
 	}
 
-	/* make the VCPU drop out of the SIE, or wake it up if sleeping */
-	switch (type) {
-	case KVM_S390_MCHK:
-		kvm_s390_set_cpuflags(dst_vcpu, CPUSTAT_STOP_INT);
-		break;
-	case KVM_S390_INT_IO_MIN...KVM_S390_INT_IO_MAX:
-		if (!(type & KVM_S390_INT_IO_AI_MASK &&
-		      kvm->arch.gisa_int.origin) ||
-		      kvm_s390_pv_cpu_get_handle(dst_vcpu))
-			kvm_s390_set_cpuflags(dst_vcpu, CPUSTAT_IO_INT);
-		break;
-	default:
-		kvm_s390_set_cpuflags(dst_vcpu, CPUSTAT_EXT_INT);
-		break;
+	/* Nobody was enabled, time to wake all of them */
+	if (!dst_vcpu) {
+		kvm_for_each_vcpu(i, dst_vcpu, kvm)
+			vcpu_intervention_kick(dst_vcpu, type);
+		return;
 	}
-	kvm_s390_vcpu_wakeup(dst_vcpu);
+
+	vcpu_intervention_kick(dst_vcpu, type);
 }
 
 static int __inject_vm(struct kvm *kvm, struct kvm_s390_interrupt_info *inti)
 {
 	u64 type = READ_ONCE(inti->type);
+	int isc = -1;
 	int rc;
 
 	switch (type) {
@@ -1977,6 +2021,8 @@ static int __inject_vm(struct kvm *kvm, struct kvm_s390_interrupt_info *inti)
 		rc = __inject_pfault_done(kvm, inti);
 		break;
 	case KVM_S390_INT_IO_MIN...KVM_S390_INT_IO_MAX:
+		/* Grab isc here since __inject_io() might free inti */
+		isc = int_word_to_isc(inti->io.io_int_word);
 		rc = __inject_io(kvm, inti);
 		break;
 	default:
@@ -1985,7 +2031,7 @@ static int __inject_vm(struct kvm *kvm, struct kvm_s390_interrupt_info *inti)
 	if (rc)
 		return rc;
 
-	__floating_irq_kick(kvm, type);
+	__floating_irq_kick(kvm, type, isc);
 	return 0;
 }
 
