@@ -243,6 +243,26 @@ config QUEUED_SPINLOCKS
 	def_bool y if ARCH_USE_QUEUED_SPINLOCKS
 	depends on SMP
 
+config QUEUED_SPINLOCKS_TRACE_CONTENDED_RELEASE
+	bool "Trace contended_release on queued spinlocks"
+	depends on QUEUED_SPINLOCKS && TRACEPOINTS
+	help
+	  Fire the lock:contended_release tracepoint when a contended queued
+	  spinlock is released, so it is possible to attribute a contended
+	  spinlock to its holder.
+
+	  Architectures that can patch the unlock site do this at no cost and
+	  do not need this option.
+
+	  Everywhere else the check is compiled into queued_spin_unlock() and
+	  a small cost is paid on every unlock even when the tracepoint is
+	  disabled: a static-branch NOP and possibly a few more instructions
+	  to manage a stack frame.
+
+	  Sleeping locks fire lock:contended_release regardless of this option.
+
+	  If unsure, say N.
+
 config BPF_ARCH_SPINLOCK
 	bool
 

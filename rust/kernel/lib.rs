@@ -82,6 +82,7 @@ pub mod id_pool;
 pub mod impl_flags;
 pub mod init;
 pub mod interop;
+pub mod interrupt;
 pub mod io;
 pub mod ioctl;
 pub mod iommu;

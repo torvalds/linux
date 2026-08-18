@@ -787,17 +787,33 @@ static void lockdep_print_held_locks(struct task_struct *p)
 {
 	int i, depth = READ_ONCE(p->lockdep_depth);
 
-	if (!depth)
-		printk("no locks held by %s/%d.\n", p->comm, task_pid_nr(p));
-	else
-		printk("%d lock%s held by %s/%d:\n", depth,
-		       str_plural(depth), p->comm, task_pid_nr(p));
 	/*
-	 * It's not reliable to print a task's held locks if it's not sleeping
-	 * and it's not the current task.
+	 * Note that it's always somewhat unreliable to print held locks
+	 * of a task that is running on another CPU, but we cannot guarantee
+	 * the stability of ->held_locks without actually stopping all active
+	 * remote CPUs, which we absolutely do not want to do because it's
+	 * very intrusive and thus slow.
+	 *
+	 * So we do the next best thing here: we print out the held lock
+	 * array on a best-effort basis, without crashing even if the
+	 * fields are being modified on another CPU. Note the careful
+	 * construction of print_lock() so that it never crashes.
+	 *
+	 * We also print out the CPU the task is or was last running on, with
+	 * the message saying 'on CPU...' if the task is running, and
+	 * 'last CPU' if it's not.
+	 *
+	 * Also note that the task_is_running(p) information is fundamentally
+	 * racy: even if the message says the task is 'on CPU', the task may
+	 * have scheduled out already, or if it says 'last CPU', it may just
+	 * have scheduled in on another CPU. But even with these limitations
+	 * it's still useful debuggining information.
 	 */
-	if (p != current && task_is_running(p))
-		return;
+	printk("locks held by %s/%d: %d, %s CPU#%d%s\n",
+		p->comm, task_pid_nr(p), depth,
+		task_is_running(p) ? "last" : "on", task_cpu(p),
+		depth > 0 ? ":" : "");
+
 	for (i = 0; i < depth; i++) {
 		printk(" #%d: ", i);
 		print_lock(p->held_locks + i);
@@ -5437,6 +5453,8 @@ __lock_set_class(struct lockdep_map *lock, const char *name,
 			      lock->wait_type_outer,
 			      lock->lock_type);
 	class = register_lock_class(lock, subclass, 0);
+	if (!class)
+		return 0;
 	hlock->class_idx = class - lock_classes;
 
 	curr->lockdep_depth = i;

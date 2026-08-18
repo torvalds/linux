@@ -34,6 +34,7 @@
 #define SZREG		__REG_SEL(8, 4)
 #define LGREG		__REG_SEL(3, 2)
 #define SRLI		__REG_SEL(srliw, srli)
+#define SLLI		__REG_SEL(slliw, slli)
 
 #if __SIZEOF_POINTER__ == 8
 #ifdef __ASSEMBLER__

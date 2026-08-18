@@ -8,7 +8,11 @@ use crate::{
     bindings,
     fs::File,
     prelude::*,
-    sync::{CondVar, LockClassKey},
+    sync::{
+        rcu::synchronize_rcu,
+        CondVar,
+        LockClassKey, //
+    }, //
 };
 use core::{marker::PhantomData, ops::Deref};
 
@@ -99,8 +103,6 @@ impl PinnedDrop for PollCondVar {
         unsafe { bindings::__wake_up_pollfree(self.inner.wait_queue_head.get()) };
 
         // Wait for epoll items to be properly removed.
-        //
-        // SAFETY: Just an FFI call.
-        unsafe { bindings::synchronize_rcu() };
+        synchronize_rcu();
     }
 }

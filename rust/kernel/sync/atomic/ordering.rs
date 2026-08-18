@@ -15,7 +15,7 @@
 //!   - It provides ordering between the annotated operation and all the following memory accesses.
 //!   - It provides ordering between all the preceding memory accesses and all the following memory
 //!     accesses.
-//!   - All the orderings are the same strength as a full memory barrier (i.e. `smp_mb()`).
+//!   - All the orderings are the same strength as a full memory barrier (i.e. `smp_mb(Full)`).
 //! - [`Relaxed`] provides no ordering except the dependency orderings. Dependency orderings are
 //!   described in "DEPENDENCY RELATIONS" in [`LKMM`]'s [`explanation`].
 //!
