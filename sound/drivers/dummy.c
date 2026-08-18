@@ -13,6 +13,7 @@
 #include <linux/time.h>
 #include <linux/wait.h>
 #include <linux/hrtimer.h>
+#include <linux/hrtimer_bases.h>
 #include <linux/math64.h>
 #include <linux/module.h>
 #include <sound/core.h>

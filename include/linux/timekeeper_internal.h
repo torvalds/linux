@@ -84,8 +84,6 @@ struct tk_read_base {
  * @cycle_interval:		Number of clock cycles in one NTP interval
  * @xtime_interval:		Number of clock shifted nano seconds in one NTP
  *				interval.
- * @xtime_remainder:		Shifted nano seconds left over when rounding
- *				@cycle_interval
  * @raw_interval:		Shifted raw nano seconds accumulated per NTP interval.
  * @next_leap_ktime:		CLOCK_MONOTONIC time value of a pending leap-second
  * @ntp_tick:			The ntp_tick_length() value currently being
@@ -99,6 +97,10 @@ struct tk_read_base {
  * @ntp_error_shift:		Shift conversion between clock shifted nano seconds and
  *				ntp shifted nano seconds.
  * @ntp_err_mult:		Multiplication factor for scaled math conversion
+ * @cs_tick_adj:		Per-second adjustment handed to NTP via ntp_clear()
+ *				accounting for the difference between the nominal
+ *				NTP interval and the real time taken by the
+ *				clocksource's integer @cycle_interval (upscaled).
  * @skip_second_overflow:	Flag used to avoid updating NTP twice with same second
  * @tai_offset:			The current UTC to TAI offset in seconds
  *
@@ -167,7 +169,7 @@ struct timekeeper {
 	u32			cs_ns_to_cyc_mult;
 	u32			cs_ns_to_cyc_shift;
 	u64			cs_ns_to_cyc_maxns;
-	unsigned int		clock_was_set_seq;
+	u32			clock_was_set_seq;
 	u8			cs_was_changed_seq;
 	u8			clock_valid;
 
@@ -178,7 +180,6 @@ struct timekeeper {
 
 	u64			cycle_interval;
 	u64			xtime_interval;
-	s64			xtime_remainder;
 	u64			raw_interval;
 
 	ktime_t			next_leap_ktime;
@@ -186,29 +187,10 @@ struct timekeeper {
 	s64			ntp_error;
 	u32			ntp_error_shift;
 	u32			ntp_err_mult;
+	s64			cs_tick_adj;
 	u32			skip_second_overflow;
+	s64			skew_delta;
 	s32			tai_offset;
 };
-
-#ifdef CONFIG_GENERIC_GETTIMEOFDAY
-
-extern void update_vsyscall(struct timekeeper *tk);
-extern void update_vsyscall_tz(void);
-
-#else
-
-static inline void update_vsyscall(struct timekeeper *tk)
-{
-}
-static inline void update_vsyscall_tz(void)
-{
-}
-#endif
-
-#if defined(CONFIG_GENERIC_GETTIMEOFDAY) && defined(CONFIG_POSIX_AUX_CLOCKS)
-extern void vdso_time_update_aux(struct timekeeper *tk);
-#else
-static inline void vdso_time_update_aux(struct timekeeper *tk) { }
-#endif
 
 #endif /* _LINUX_TIMEKEEPER_INTERNAL_H */

@@ -26,6 +26,8 @@
 #include <linux/jiffies.h>
 #include <linux/mm_api.h>
 #include <linux/highmem.h>
+#include <linux/hrtimer.h>
+#include <linux/hrtimer_bases.h>
 #include <linux/spinlock_api.h>
 #include <linux/cpumask_api.h>
 #include <linux/lockdep_api.h>

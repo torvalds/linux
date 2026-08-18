@@ -34,7 +34,7 @@
 #ifdef CONFIG_POSIX_TIMERS
 
 /**
- * posix_cputimer_base - Container per posix CPU clock
+ * struct posix_cputimer_base - Container per posix CPU clock
  * @nextevt:		Earliest-expiration cache
  * @tqhead:		timerqueue head for cpu_timers
  */
@@ -44,7 +44,7 @@ struct posix_cputimer_base {
 };
 
 /**
- * posix_cputimers - Container for posix CPU timer related data
+ * struct posix_cputimers - Container for posix CPU timer related data
  * @bases:		Base container for posix CPU clocks
  * @timers_active:	Timers are queued.
  * @expiry_active:	Timer expiry is active. Used for
@@ -60,7 +60,7 @@ struct posix_cputimers {
 };
 
 /**
- * posix_cputimers_work - Container for task work based posix CPU timer expiry
+ * struct posix_cputimers_work - Container for task work based posix CPU timer expiry
  * @work:	The task work to be scheduled
  * @mutex:	Mutex held around expiry in context of this task work
  * @scheduled:  @work has been scheduled already, no further processing

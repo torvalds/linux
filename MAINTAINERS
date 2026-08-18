@@ -27203,6 +27203,7 @@ TIMEKEEPING, CLOCKSOURCE CORE, NTP, ALARMTIMER
 M:	John Stultz <jstultz@google.com>
 M:	Thomas Gleixner <tglx@kernel.org>
 R:	Stephen Boyd <sboyd@kernel.org>
+R:	Miroslav Lichvar <mlichvar@redhat.com>
 L:	linux-kernel@vger.kernel.org
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git timers/core

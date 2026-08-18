@@ -28,8 +28,8 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <pthread.h>
-#include <include/vdso/time64.h>
 #include <errno.h>
+#include "clock-helpers.h"
 #include "kselftest.h"
 
 #define UNREASONABLE_LAT (NSEC_PER_SEC * 5) /* hopefully we resume in 5 secs */
@@ -38,37 +38,6 @@
 int alarmcount;
 int alarm_clock_id;
 struct timespec start_time;
-
-
-char *clockstring(int clockid)
-{
-	switch (clockid) {
-	case CLOCK_REALTIME:
-		return "CLOCK_REALTIME";
-	case CLOCK_MONOTONIC:
-		return "CLOCK_MONOTONIC";
-	case CLOCK_PROCESS_CPUTIME_ID:
-		return "CLOCK_PROCESS_CPUTIME_ID";
-	case CLOCK_THREAD_CPUTIME_ID:
-		return "CLOCK_THREAD_CPUTIME_ID";
-	case CLOCK_MONOTONIC_RAW:
-		return "CLOCK_MONOTONIC_RAW";
-	case CLOCK_REALTIME_COARSE:
-		return "CLOCK_REALTIME_COARSE";
-	case CLOCK_MONOTONIC_COARSE:
-		return "CLOCK_MONOTONIC_COARSE";
-	case CLOCK_BOOTTIME:
-		return "CLOCK_BOOTTIME";
-	case CLOCK_REALTIME_ALARM:
-		return "CLOCK_REALTIME_ALARM";
-	case CLOCK_BOOTTIME_ALARM:
-		return "CLOCK_BOOTTIME_ALARM";
-	case CLOCK_TAI:
-		return "CLOCK_TAI";
-	}
-	return "UNKNOWN_CLOCKID";
-}
-
 
 long long timespec_sub(struct timespec a, struct timespec b)
 {
@@ -129,12 +98,12 @@ int main(void)
 		alarmcount = 0;
 		if (timer_create(alarm_clock_id, &se, &tm1) == -1) {
 			printf("timer_create failed, %s unsupported?: %s\n",
-					clockstring(alarm_clock_id), strerror(errno));
+					clock_name(alarm_clock_id), strerror(errno));
 			break;
 		}
 
 		clock_gettime(alarm_clock_id, &start_time);
-		printf("Start time (%s): %ld:%ld\n", clockstring(alarm_clock_id),
+		printf("Start time (%s): %ld:%ld\n", clock_name(alarm_clock_id),
 				start_time.tv_sec, start_time.tv_nsec);
 		printf("Setting alarm for every %i seconds\n", SUSPEND_SECS);
 		its1.it_value = start_time;

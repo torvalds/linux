@@ -3,9 +3,11 @@
 #define _LINUX_NTP_INTERNAL_H
 
 extern void ntp_init(void);
-extern void ntp_clear(unsigned int tkid);
+extern void ntp_clear(unsigned int tkid, s64 cs_tick_adj);
 /* Returns how long ticks are at present, in ns / 2^NTP_SCALE_SHIFT. */
 extern u64 ntp_tick_length(unsigned int tkid);
+extern s64 ntp_get_skew_delta(unsigned int tkid);
+extern s64 ntp_drain_skew(unsigned int tkid, s64 amount, unsigned int shift);
 extern ktime_t ntp_get_next_leap(unsigned int tkid);
 extern int second_overflow(unsigned int tkid, time64_t secs);
 extern int ntp_adjtimex(unsigned int tkid, struct __kernel_timex *txc, const struct timespec64 *ts,

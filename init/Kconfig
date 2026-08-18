@@ -565,6 +565,7 @@ config VIRT_CPU_ACCOUNTING
 
 choice
 	prompt "Cputime accounting"
+	default VIRT_CPU_ACCOUNTING_GEN if NO_HZ_FULL
 	default TICK_CPU_ACCOUNTING
 
 # Kind of a stub config for the pure tick based cputime accounting

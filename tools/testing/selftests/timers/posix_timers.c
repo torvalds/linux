@@ -16,10 +16,10 @@
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
-#include <include/vdso/time64.h>
 #include <pthread.h>
 #include <stdbool.h>
 
+#include "clock-helpers.h"
 #include "kselftest.h"
 
 #define DELAY 2
@@ -141,8 +141,9 @@ static void check_itimer(int which, const char *name)
 	ksft_test_result(check_diff(start, end) == 0, "%s\n", name);
 }
 
-static void check_timer_create(int which, const char *name)
+static void check_timer_create(int which)
 {
+	const char *name = clock_name(which);
 	struct timespec start, end;
 	struct itimerspec val = {
 		.it_value.tv_sec = DELAY,
@@ -455,8 +456,9 @@ static void check_delete(void)
 	ksft_test_result(!tsig.signals, "check_delete\n");
 }
 
-static void check_sigev_none(int which, const char *name)
+static void check_sigev_none(int which)
 {
+	const char *name = clock_name(which);
 	struct timespec start, now;
 	struct itimerspec its;
 	struct sigevent sev;
@@ -493,8 +495,9 @@ static void check_sigev_none(int which, const char *name)
 			 "check_sigev_none %s\n", name);
 }
 
-static void check_gettime(int which, const char *name)
+static void check_gettime(int which)
 {
+	const char *name = clock_name(which);
 	struct itimerspec its, prev;
 	struct timespec start, now;
 	struct sigevent sev;
@@ -546,8 +549,9 @@ static void check_gettime(int which, const char *name)
 	ksft_test_result(wraps > 1, "check_gettime %s\n", name);
 }
 
-static void check_overrun(int which, const char *name)
+static void check_overrun(int which)
 {
+	const char *name = clock_name(which);
 	struct timespec start, now;
 	struct tmrsig tsig = { };
 	struct itimerspec its;
@@ -689,7 +693,7 @@ int main(int argc, char **argv)
 	check_itimer(ITIMER_VIRTUAL, "ITIMER_VIRTUAL");
 	check_itimer(ITIMER_PROF, "ITIMER_PROF");
 	check_itimer(ITIMER_REAL, "ITIMER_REAL");
-	check_timer_create(CLOCK_THREAD_CPUTIME_ID, "CLOCK_THREAD_CPUTIME_ID");
+	check_timer_create(CLOCK_THREAD_CPUTIME_ID);
 
 	/*
 	 * It's unfortunately hard to reliably test a timer expiration
@@ -700,7 +704,7 @@ int main(int argc, char **argv)
 	 * to ensure true parallelism. So test only one thread until we
 	 * find a better solution.
 	 */
-	check_timer_create(CLOCK_PROCESS_CPUTIME_ID, "CLOCK_PROCESS_CPUTIME_ID");
+	check_timer_create(CLOCK_PROCESS_CPUTIME_ID);
 	check_timer_distribution();
 
 	if (run_sig_ign_tests) {
@@ -708,18 +712,18 @@ int main(int argc, char **argv)
 		check_sig_ign(1);
 		check_rearm();
 		check_delete();
-		check_sigev_none(CLOCK_MONOTONIC, "CLOCK_MONOTONIC");
-		check_sigev_none(CLOCK_PROCESS_CPUTIME_ID, "CLOCK_PROCESS_CPUTIME_ID");
-		check_gettime(CLOCK_MONOTONIC, "CLOCK_MONOTONIC");
-		check_gettime(CLOCK_PROCESS_CPUTIME_ID, "CLOCK_PROCESS_CPUTIME_ID");
-		check_gettime(CLOCK_THREAD_CPUTIME_ID, "CLOCK_THREAD_CPUTIME_ID");
+		check_sigev_none(CLOCK_MONOTONIC);
+		check_sigev_none(CLOCK_PROCESS_CPUTIME_ID);
+		check_gettime(CLOCK_MONOTONIC);
+		check_gettime(CLOCK_PROCESS_CPUTIME_ID);
+		check_gettime(CLOCK_THREAD_CPUTIME_ID);
 	} else {
 		ksft_print_msg("Skipping SIG_IGN tests on kernel < 6.13\n");
 	}
 
-	check_overrun(CLOCK_MONOTONIC, "CLOCK_MONOTONIC");
-	check_overrun(CLOCK_PROCESS_CPUTIME_ID, "CLOCK_PROCESS_CPUTIME_ID");
-	check_overrun(CLOCK_THREAD_CPUTIME_ID, "CLOCK_THREAD_CPUTIME_ID");
+	check_overrun(CLOCK_MONOTONIC);
+	check_overrun(CLOCK_PROCESS_CPUTIME_ID);
+	check_overrun(CLOCK_THREAD_CPUTIME_ID);
 
 	ksft_finished();
 }

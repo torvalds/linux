@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _LINUX_HRTIMER_DEFS_H
-#define _LINUX_HRTIMER_DEFS_H
+#ifndef _LINUX_HRTIMER_BASES_H
+#define _LINUX_HRTIMER_BASES_H
 
+#include <linux/hrtimer.h>
 #include <linux/ktime.h>
 #include <linux/timerqueue.h>
 #include <linux/seqlock.h>
@@ -83,7 +84,7 @@ struct hrtimer_cpu_base {
 	raw_spinlock_t			lock;
 	unsigned int			cpu;
 	unsigned int			active_bases;
-	unsigned int			clock_was_set_seq;
+	u32				clock_was_set_seq;
 	bool				hres_active;
 	bool				deferred_rearm;
 	bool				deferred_needs_update;
@@ -109,5 +110,14 @@ struct hrtimer_cpu_base {
 	call_single_data_t		csd;
 } ____cacheline_aligned;
 
+
+/*
+ * Helper function to check, whether the timer is running the callback
+ * function
+ */
+static inline int hrtimer_callback_running(struct hrtimer *timer)
+{
+	return timer->base->running == timer;
+}
 
 #endif
