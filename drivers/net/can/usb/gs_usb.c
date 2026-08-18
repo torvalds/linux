@@ -1565,7 +1565,7 @@ static int gs_usb_probe(struct usb_interface *intf,
 
 	if (icount > type_max(parent->channel_cnt)) {
 		dev_err(&intf->dev,
-			"Driver cannot handle more that %u CAN interfaces\n",
+			"Driver cannot handle more than %u CAN interfaces\n",
 			type_max(parent->channel_cnt));
 		return -EINVAL;
 	}

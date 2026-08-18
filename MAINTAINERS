@@ -29576,7 +29576,7 @@ F:	Documentation/devicetree/bindings/net/xlnx,axi-ethernet.yaml
 F:	drivers/net/ethernet/xilinx/xilinx_axienet*
 
 XILINX CAN DRIVER
-M:	Appana Durga Kedareswara rao <appana.durga.rao@xilinx.com>
+M:	Harini T <harini.t@amd.com>
 L:	linux-can@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/can/xilinx,can.yaml
