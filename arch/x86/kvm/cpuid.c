@@ -370,7 +370,7 @@ static u32 cpuid_get_reg_unsafe(struct kvm_cpuid_entry2 *entry, u32 reg)
 	}
 }
 
-static int cpuid_func_emulated(struct kvm_cpuid_entry2 *entry, u32 func,
+static int cpuid_func_emulated(struct kvm_cpuid_entry2 *entry, u32 func, u32 index,
 			       bool include_partially_emulated);
 
 void kvm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
@@ -400,7 +400,7 @@ void kvm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 		if (!entry)
 			continue;
 
-		cpuid_func_emulated(&emulated, cpuid.function, true);
+		cpuid_func_emulated(&emulated, cpuid.function, cpuid.index, true);
 
 		/*
 		 * A vCPU has a feature if it's supported by KVM and is enabled
@@ -1273,8 +1273,12 @@ void kvm_initialize_cpu_caps(void)
 		kvm_cpu_cap_set(X86_FEATURE_NULL_SEL_CLR_BASE);
 
 	kvm_cpu_cap_init(CPUID_C000_0001_EDX,
+		F(SM2),
+		F(SM2_EN),
 		F(XSTORE),
 		F(XSTORE_EN),
+		F(CCS),
+		F(CCS_EN),
 		F(XCRYPT),
 		F(XCRYPT_EN),
 		F(ACE2),
@@ -1283,6 +1287,12 @@ void kvm_initialize_cpu_caps(void)
 		F(PHE_EN),
 		F(PMM),
 		F(PMM_EN),
+		F(RNG2),
+		F(RNG2_EN),
+		F(PHE2),
+		F(PHE2_EN),
+		F(RSA),
+		F(RSA_EN),
 	);
 
 	/*
@@ -1369,10 +1379,14 @@ static struct kvm_cpuid_entry2 *do_host_cpuid(struct kvm_cpuid_array *array,
 	return entry;
 }
 
-static int cpuid_func_emulated(struct kvm_cpuid_entry2 *entry, u32 func,
+static int cpuid_func_emulated(struct kvm_cpuid_entry2 *entry, u32 func, u32 index,
 			       bool include_partially_emulated)
 {
 	memset(entry, 0, sizeof(*entry));
+
+	/* KVM doesn't currently emulate any non-zero indices. */
+	if (cpuid_function_is_indexed(func) && index)
+		return 0;
 
 	entry->function = func;
 	entry->index = 0;
@@ -1411,7 +1425,7 @@ static int __do_cpuid_func_emulated(struct kvm_cpuid_array *array, u32 func)
 	if (array->nent >= array->maxnent)
 		return -E2BIG;
 
-	array->nent += cpuid_func_emulated(&array->entries[array->nent], func, false);
+	array->nent += cpuid_func_emulated(&array->entries[array->nent], func, 0, false);
 	return 0;
 }
 

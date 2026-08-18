@@ -2,6 +2,10 @@
 #ifndef __TSS_SEGMENT_H
 #define __TSS_SEGMENT_H
 
+#include <linux/build_bug.h>
+#include <linux/stddef.h>
+#include <linux/types.h>
+
 struct tss_segment_32 {
 	u32 prev_task_link;
 	u32 esp0;
@@ -63,5 +67,8 @@ struct tss_segment_16 {
 #define TSS_REDIRECTION_SIZE (256 / 8)
 #define RMODE_TSS_SIZE							\
 	(TSS_BASE_SIZE + TSS_REDIRECTION_SIZE + TSS_IOPB_SIZE + 1)
+
+static_assert(offsetof(struct tss_segment_32, io_map) == TSS_IOPB_BASE_OFFSET);
+static_assert(sizeof(struct tss_segment_32) == TSS_BASE_SIZE);
 
 #endif

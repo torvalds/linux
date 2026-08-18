@@ -127,24 +127,6 @@
 #define KVM_REQ_UPDATE_PROTECTED_GUEST_STATE \
 	KVM_ARCH_REQ_FLAGS(34, KVM_REQUEST_WAIT)
 
-#define CR0_RESERVED_BITS                                               \
-	(~(unsigned long)(X86_CR0_PE | X86_CR0_MP | X86_CR0_EM | X86_CR0_TS \
-			  | X86_CR0_ET | X86_CR0_NE | X86_CR0_WP | X86_CR0_AM \
-			  | X86_CR0_NW | X86_CR0_CD | X86_CR0_PG))
-
-#define CR4_RESERVED_BITS                                               \
-	(~(unsigned long)(X86_CR4_VME | X86_CR4_PVI | X86_CR4_TSD | X86_CR4_DE\
-			  | X86_CR4_PSE | X86_CR4_PAE | X86_CR4_MCE     \
-			  | X86_CR4_PGE | X86_CR4_PCE | X86_CR4_OSFXSR | X86_CR4_PCIDE \
-			  | X86_CR4_OSXSAVE | X86_CR4_SMEP | X86_CR4_FSGSBASE \
-			  | X86_CR4_OSXMMEXCPT | X86_CR4_LA57 | X86_CR4_VMXE \
-			  | X86_CR4_SMAP | X86_CR4_PKE | X86_CR4_UMIP \
-			  | X86_CR4_LAM_SUP | X86_CR4_CET))
-
-#define CR8_RESERVED_BITS (~(unsigned long)X86_CR8_TPR)
-
-
-
 #define INVALID_PAGE (~(hpa_t)0)
 #define VALID_PAGE(x) ((x) != INVALID_PAGE)
 
@@ -232,37 +214,6 @@ enum x86_intercept_stage;
 
 #define KVM_NR_DB_REGS	4
 
-#define DR6_BUS_LOCK   (1 << 11)
-#define DR6_BD		(1 << 13)
-#define DR6_BS		(1 << 14)
-#define DR6_BT		(1 << 15)
-#define DR6_RTM		(1 << 16)
-/*
- * DR6_ACTIVE_LOW combines fixed-1 and active-low bits.
- * We can regard all the bits in DR6_FIXED_1 as active_low bits;
- * they will never be 0 for now, but when they are defined
- * in the future it will require no code change.
- *
- * DR6_ACTIVE_LOW is also used as the init/reset value for DR6.
- */
-#define DR6_ACTIVE_LOW	0xffff0ff0
-#define DR6_VOLATILE	0x0001e80f
-#define DR6_FIXED_1	(DR6_ACTIVE_LOW & ~DR6_VOLATILE)
-
-#define DR7_BP_EN_MASK	0x000000ff
-#define DR7_GE		(1 << 9)
-#define DR7_GD		(1 << 13)
-#define DR7_VOLATILE	0xffff2bff
-
-#define KVM_GUESTDBG_VALID_MASK \
-	(KVM_GUESTDBG_ENABLE | \
-	KVM_GUESTDBG_SINGLESTEP | \
-	KVM_GUESTDBG_USE_HW_BP | \
-	KVM_GUESTDBG_USE_SW_BP | \
-	KVM_GUESTDBG_INJECT_BP | \
-	KVM_GUESTDBG_INJECT_DB | \
-	KVM_GUESTDBG_BLOCKIRQ)
-
 #define PFERR_PRESENT_MASK	BIT(0)
 #define PFERR_WRITE_MASK	BIT(1)
 #define PFERR_USER_MASK		BIT(2)
@@ -292,18 +243,10 @@ enum x86_intercept_stage;
 #define PFERR_PRIVATE_ACCESS   BIT_ULL(49)
 #define PFERR_SYNTHETIC_MASK   (PFERR_IMPLICIT_ACCESS | PFERR_PRIVATE_ACCESS)
 
-/* apic attention bits */
-#define KVM_APIC_CHECK_VAPIC	0
-/*
- * The following bit is set with PV-EOI, unset on EOI.
- * We detect PV-EOI changes by guest by comparing
- * this bit with PV-EOI in guest memory.
- * See the implementation in apic_update_pv_eoi.
- */
-#define KVM_APIC_PV_EOI_PENDING	1
-
 struct kvm_kernel_irqfd;
 struct kvm_kernel_irq_routing_entry;
+
+struct kvm_apic_map;
 
 struct kvm_x86_msr_filter;
 struct kvm_x86_pmu_event_filter;
@@ -330,6 +273,8 @@ struct kvm_caps {
 	u64 supported_xcr0;
 	u64 supported_xss;
 	u64 supported_perf_cap;
+
+	u64 supported_efer_bits;
 
 	u64 supported_quirks;
 	u64 inapplicable_quirks;
@@ -707,95 +652,6 @@ struct kvm_mtrr {
 	u64 deftype;
 };
 
-/* Hyper-V SynIC timer */
-struct kvm_vcpu_hv_stimer {
-	struct hrtimer timer;
-	int index;
-	union hv_stimer_config config;
-	u64 count;
-	u64 exp_time;
-	struct hv_message msg;
-	bool msg_pending;
-};
-
-/* Hyper-V synthetic interrupt controller (SynIC)*/
-struct kvm_vcpu_hv_synic {
-	u64 version;
-	u64 control;
-	u64 msg_page;
-	u64 evt_page;
-	atomic64_t sint[HV_SYNIC_SINT_COUNT];
-	atomic_t sint_to_gsi[HV_SYNIC_SINT_COUNT];
-	DECLARE_BITMAP(auto_eoi_bitmap, 256);
-	DECLARE_BITMAP(vec_bitmap, 256);
-	bool active;
-	bool dont_zero_synic_pages;
-};
-
-/* The maximum number of entries on the TLB flush fifo. */
-#define KVM_HV_TLB_FLUSH_FIFO_SIZE (16)
-/*
- * Note: the following 'magic' entry is made up by KVM to avoid putting
- * anything besides GVA on the TLB flush fifo. It is theoretically possible
- * to observe a request to flush 4095 PFNs starting from 0xfffffffffffff000
- * which will look identical. KVM's action to 'flush everything' instead of
- * flushing these particular addresses is, however, fully legitimate as
- * flushing more than requested is always OK.
- */
-#define KVM_HV_TLB_FLUSHALL_ENTRY  ((u64)-1)
-
-enum hv_tlb_flush_fifos {
-	HV_L1_TLB_FLUSH_FIFO,
-	HV_L2_TLB_FLUSH_FIFO,
-	HV_NR_TLB_FLUSH_FIFOS,
-};
-
-struct kvm_vcpu_hv_tlb_flush_fifo {
-	spinlock_t write_lock;
-	DECLARE_KFIFO(entries, u64, KVM_HV_TLB_FLUSH_FIFO_SIZE);
-};
-
-/* Hyper-V per vcpu emulation context */
-struct kvm_vcpu_hv {
-	struct kvm_vcpu *vcpu;
-	u32 vp_index;
-	u64 hv_vapic;
-	s64 runtime_offset;
-	struct kvm_vcpu_hv_synic synic;
-	struct kvm_hyperv_exit exit;
-	struct kvm_vcpu_hv_stimer stimer[HV_SYNIC_STIMER_COUNT];
-	DECLARE_BITMAP(stimer_pending_bitmap, HV_SYNIC_STIMER_COUNT);
-	bool enforce_cpuid;
-	struct {
-		u32 features_eax; /* HYPERV_CPUID_FEATURES.EAX */
-		u32 features_ebx; /* HYPERV_CPUID_FEATURES.EBX */
-		u32 features_edx; /* HYPERV_CPUID_FEATURES.EDX */
-		u32 enlightenments_eax; /* HYPERV_CPUID_ENLIGHTMENT_INFO.EAX */
-		u32 enlightenments_ebx; /* HYPERV_CPUID_ENLIGHTMENT_INFO.EBX */
-		u32 syndbg_cap_eax; /* HYPERV_CPUID_SYNDBG_PLATFORM_CAPABILITIES.EAX */
-		u32 nested_eax; /* HYPERV_CPUID_NESTED_FEATURES.EAX */
-		u32 nested_ebx; /* HYPERV_CPUID_NESTED_FEATURES.EBX */
-	} cpuid_cache;
-
-	struct kvm_vcpu_hv_tlb_flush_fifo tlb_flush_fifo[HV_NR_TLB_FLUSH_FIFOS];
-
-	/*
-	 * Preallocated buffers for handling hypercalls that pass sparse vCPU
-	 * sets (for high vCPU counts, they're too large to comfortably fit on
-	 * the stack).
-	 */
-	u64 sparse_banks[HV_MAX_SPARSE_VCPU_BANKS];
-	DECLARE_BITMAP(vcpu_mask, KVM_MAX_VCPUS);
-
-	struct hv_vp_assist_page vp_assist_page;
-
-	struct {
-		u64 pa_page_gpa;
-		u64 vm_id;
-		u32 vp_id;
-	} nested;
-};
-
 struct kvm_hypervisor_cpuid {
 	u32 base;
 	u32 limit;
@@ -825,6 +681,8 @@ struct kvm_vcpu_xen {
 	struct kvm_hypervisor_cpuid cpuid;
 };
 #endif
+
+struct kvm_vcpu_hv;
 
 struct kvm_queued_exception {
 	bool pending;
@@ -1181,39 +1039,6 @@ struct kvm_arch_memory_slot {
 	struct kvm_rmap_head *rmap[KVM_NR_PAGE_SIZES];
 	struct kvm_lpage_info *lpage_info[KVM_NR_PAGE_SIZES - 1];
 	unsigned short *gfn_write_track;
-};
-
-/*
- * Track the mode of the optimized logical map, as the rules for decoding the
- * destination vary per mode.  Enabling the optimized logical map requires all
- * software-enabled local APIs to be in the same mode, each addressable APIC to
- * be mapped to only one MDA, and each MDA to map to at most one APIC.
- */
-enum kvm_apic_logical_mode {
-	/* All local APICs are software disabled. */
-	KVM_APIC_MODE_SW_DISABLED,
-	/* All software enabled local APICs in xAPIC cluster addressing mode. */
-	KVM_APIC_MODE_XAPIC_CLUSTER,
-	/* All software enabled local APICs in xAPIC flat addressing mode. */
-	KVM_APIC_MODE_XAPIC_FLAT,
-	/* All software enabled local APICs in x2APIC mode. */
-	KVM_APIC_MODE_X2APIC,
-	/*
-	 * Optimized map disabled, e.g. not all local APICs in the same logical
-	 * mode, same logical ID assigned to multiple APICs, etc.
-	 */
-	KVM_APIC_MODE_MAP_DISABLED,
-};
-
-struct kvm_apic_map {
-	struct rcu_head rcu;
-	enum kvm_apic_logical_mode logical_mode;
-	u32 max_apic_id;
-	union {
-		struct kvm_lapic *xapic_flat_map[8];
-		struct kvm_lapic *xapic_cluster_map[16][4];
-	};
-	struct kvm_lapic *phys_map[];
 };
 
 /* Hyper-V synthetic debugger (SynDbg)*/
@@ -1761,13 +1586,15 @@ struct kvm_x86_ops {
 	 */
 	void (*flush_tlb_guest)(struct kvm_vcpu *vcpu);
 
-	int (*vcpu_pre_run)(struct kvm_vcpu *vcpu);
+	bool (*vcpu_needs_initialization)(struct kvm_vcpu *vcpu);
 	enum exit_fastpath_completion (*vcpu_run)(struct kvm_vcpu *vcpu,
 						  u64 run_flags);
 	int (*handle_exit)(struct kvm_vcpu *vcpu,
 		enum exit_fastpath_completion exit_fastpath);
 	int (*skip_emulated_instruction)(struct kvm_vcpu *vcpu);
 	void (*update_emulated_instruction)(struct kvm_vcpu *vcpu);
+	bool (*unhandleable_emulation_required)(struct kvm_vcpu *vcpu);
+
 	void (*set_interrupt_shadow)(struct kvm_vcpu *vcpu, int mask);
 	u32 (*get_interrupt_shadow)(struct kvm_vcpu *vcpu);
 	void (*patch_hypercall)(struct kvm_vcpu *vcpu,
@@ -1844,8 +1671,6 @@ struct kvm_x86_ops {
 
 	void (*update_cpu_dirty_logging)(struct kvm_vcpu *vcpu);
 
-	const struct kvm_x86_nested_ops *nested_ops;
-
 	void (*vcpu_blocking)(struct kvm_vcpu *vcpu);
 	void (*vcpu_unblocking)(struct kvm_vcpu *vcpu);
 
@@ -1917,6 +1742,8 @@ struct kvm_x86_ops {
 };
 
 struct kvm_x86_nested_ops {
+	bool enabled;
+
 	void (*leave_nested)(struct kvm_vcpu *vcpu);
 	bool (*is_exception_vmexit)(struct kvm_vcpu *vcpu, u8 vector,
 				    u32 error_code);
@@ -1948,6 +1775,7 @@ struct kvm_x86_init_ops {
 
 	struct kvm_x86_ops *runtime_ops;
 	struct kvm_pmu_ops *pmu_ops;
+	struct kvm_x86_nested_ops *nested_ops;
 };
 
 struct kvm_arch_async_pf {
@@ -1963,6 +1791,7 @@ extern bool __read_mostly enable_apicv;
 extern bool __read_mostly enable_ipiv;
 extern bool __read_mostly enable_device_posted_irqs;
 extern struct kvm_x86_ops kvm_x86_ops;
+extern struct kvm_x86_nested_ops kvm_nested_ops __read_mostly;
 
 #define kvm_x86_call(func) static_call(kvm_x86_##func)
 
@@ -1971,6 +1800,14 @@ extern struct kvm_x86_ops kvm_x86_ops;
 #define KVM_X86_OP_OPTIONAL KVM_X86_OP
 #define KVM_X86_OP_OPTIONAL_RET0 KVM_X86_OP
 #include <asm/kvm-x86-ops.h>
+
+#define kvm_nested_call(func) static_call(kvm_x86_nested_##func)
+
+#define KVM_X86_NESTED_OP(func) \
+	DECLARE_STATIC_CALL(kvm_x86_nested_##func, *(((struct kvm_x86_nested_ops *)0)->func));
+#define KVM_X86_NESTED_OP_OPTIONAL KVM_X86_NESTED_OP
+#define KVM_X86_NESTED_OP_OPTIONAL_RET0 KVM_X86_NESTED_OP
+#include <asm/kvm-x86-nested-ops.h>
 
 #define __KVM_HAVE_ARCH_VM_ALLOC
 static inline struct kvm *kvm_arch_alloc_vm(void)
@@ -2029,13 +1866,6 @@ static inline unsigned long read_msr(unsigned long msr)
 	return value;
 }
 #endif
-
-enum {
-	TASK_SWITCH_CALL = 0,
-	TASK_SWITCH_IRET = 1,
-	TASK_SWITCH_JMP = 2,
-	TASK_SWITCH_GATE = 3,
-};
 
 #define HF_GUEST_MASK		(1 << 0) /* VCPU is in guest-mode */
 

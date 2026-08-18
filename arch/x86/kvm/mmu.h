@@ -6,14 +6,14 @@
 #include "regs.h"
 #include "cpuid.h"
 
-extern bool tdp_enabled;
+extern bool __read_mostly tdp_enabled;
 #ifdef CONFIG_X86_64
-extern bool tdp_mmu_enabled;
+extern bool __read_mostly tdp_mmu_enabled;
 #else
 #define tdp_mmu_enabled false
 #endif
 extern bool __read_mostly enable_mmio_caching;
-extern bool eager_page_split;
+extern bool __read_mostly eager_page_split;
 
 #define KVM_MEMSLOT_PAGES_TO_MMU_PAGES_RATIO 50
 #define KVM_MIN_ALLOC_MMU_PAGES 64UL
@@ -385,9 +385,8 @@ static inline gpa_t kvm_translate_gpa(struct kvm_vcpu *vcpu,
 {
 	if (!mmu_is_nested(vcpu) || w == &vcpu->arch.ngpa_walk)
 		return gpa;
-	return kvm_x86_ops.nested_ops->translate_nested_gpa(vcpu, gpa, access,
-							    exception,
-							    pte_access);
+	return kvm_nested_call(translate_nested_gpa)(vcpu, gpa, access,
+						     exception, pte_access);
 }
 
 static inline bool kvm_has_mirrored_tdp(const struct kvm *kvm)

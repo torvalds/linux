@@ -3298,8 +3298,12 @@ static int em_dr_write(struct x86_emulate_ctxt *ctxt)
 	else
 		val = ctxt->src.val & ~0U;
 
-	/* #UD condition is already handled. */
-	if (ctxt->ops->set_dr(ctxt, ctxt->modrm_reg, val) < 0)
+	/*
+	 * A #GP due to an illegal value should be impossible at this point, as
+	 * such #GPs have priority over MOV DR intercepts on SVM, i.e. KVM must
+	 * manually check the value *before* emulating the write.
+	 */
+	if (WARN_ON_ONCE(ctxt->ops->set_dr(ctxt, ctxt->modrm_reg, val)))
 		return emulate_gp(ctxt, 0);
 
 	/* Disable writeback. */
@@ -3834,18 +3838,24 @@ static int check_cr_access(struct x86_emulate_ctxt *ctxt)
 
 static int check_dr_read(struct x86_emulate_ctxt *ctxt)
 {
+	bool is_intel = ctxt->ops->guest_cpuid_is_intel_compatible(ctxt);
 	int dr = ctxt->modrm_reg;
-	u64 cr4;
 
 	if (dr > 7)
 		return emulate_ud(ctxt);
 
-	cr4 = ctxt->ops->get_cr(ctxt, 4);
-	if ((cr4 & X86_CR4_DE) && (dr == 4 || dr == 5))
+	if ((dr == 4 || dr == 5) && (ctxt->ops->get_cr(ctxt, 4) & X86_CR4_DE))
 		return emulate_ud(ctxt);
+
+	/* Intel CPUs prioritize the DR7.GD=1 #DB over the CPL>0 #GP. */
+	if (!is_intel && ctxt->ops->cpl(ctxt))
+		return emulate_gp(ctxt, 0);
 
 	if (ctxt->ops->get_effective_dr7(ctxt) & DR7_GD)
 		return emulate_db(ctxt, DR6_BD);
+
+	if (is_intel && ctxt->ops->cpl(ctxt))
+		return emulate_gp(ctxt, 0);
 
 	return X86EMUL_CONTINUE;
 }
@@ -3853,12 +3863,28 @@ static int check_dr_read(struct x86_emulate_ctxt *ctxt)
 static int check_dr_write(struct x86_emulate_ctxt *ctxt)
 {
 	u64 new_val = ctxt->src.val64;
-	int dr = ctxt->modrm_reg;
+	int rc;
 
-	if ((dr == 6 || dr == 7) && (new_val & 0xffffffff00000000ULL))
-		return emulate_gp(ctxt, 0);
+	rc = check_dr_read(ctxt);
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
 
-	return check_dr_read(ctxt);
+	switch (ctxt->modrm_reg) {
+	case 4:
+	case 6:
+		if (!kvm_dr6_valid(new_val))
+			return emulate_gp(ctxt, 0);
+		break;
+	case 5:
+	case 7:
+		if (!kvm_dr7_valid(new_val))
+			return emulate_gp(ctxt, 0);
+		break;
+	default:
+		break;
+	}
+
+	return X86EMUL_CONTINUE;
 }
 
 static int check_svme(struct x86_emulate_ctxt *ctxt)
@@ -4367,11 +4393,10 @@ static const struct opcode twobyte_table[256] = {
 	D(ImplicitOps | ModRM | SrcMem | NoAccess), /* NOP + 7 * reserved NOP */
 	/* 0x20 - 0x2F */
 	DIP(ModRM | DstMem | Priv | Op3264 | NoMod, cr_read, check_cr_access),
-	DIP(ModRM | DstMem | Priv | Op3264 | NoMod, dr_read, check_dr_read),
+	DIP(ModRM | DstMem | Op3264 | NoMod, dr_read, check_dr_read),
 	IIP(ModRM | SrcMem | Priv | Op3264 | NoMod, em_cr_write, cr_write,
 						check_cr_access),
-	IIP(ModRM | SrcMem | Priv | Op3264 | NoMod, em_dr_write, dr_write,
-						check_dr_write),
+	IIP(ModRM | SrcMem | Op3264 | NoMod, em_dr_write, dr_write, check_dr_write),
 	N, N, N, N,
 	GP(ModRM | DstReg | SrcMem | Mov | Sse | Avx, &pfx_0f_28_0f_29),
 	GP(ModRM | DstMem | SrcReg | Mov | Sse | Avx, &pfx_0f_28_0f_29),

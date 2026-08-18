@@ -990,6 +990,13 @@ static inline struct kvm_io_bus *kvm_get_bus(struct kvm *kvm, enum kvm_bus idx)
 					 lockdep_is_held(&kvm->slots_lock));
 }
 
+static inline void kvm_lockdep_assert_vcpu_is_locked_or_unreachable(struct kvm_vcpu *vcpu)
+{
+	lockdep_assert_once(lockdep_is_held(&vcpu->mutex) ||
+			    vcpu->vcpu_idx < 0 ||
+			    !refcount_read(&vcpu->kvm->users_count));
+}
+
 static inline struct kvm_vcpu *kvm_get_vcpu(struct kvm *kvm, int i)
 {
 	int num_vcpus = atomic_read(&kvm->online_vcpus);
@@ -1413,6 +1420,25 @@ static inline void kvm_vcpu_map_mark_dirty(struct kvm_vcpu *vcpu,
 	if (kvm_vcpu_mapped(map))
 		kvm_vcpu_mark_page_dirty(vcpu, map->gfn);
 }
+
+typedef struct {
+	struct kvm_vcpu *vcpu;
+	struct kvm_host_map map;
+	int ret;
+} kvm_vcpu_local_map_t;
+
+#define DEFINE_VCPU_MAP_CLASS(ro)					\
+DEFINE_CLASS(kvm_vcpu_map_local##ro, kvm_vcpu_local_map_t,		\
+	     if (!_T.ret) kvm_vcpu_unmap(_T.vcpu, &_T.map),		\
+	     ({								\
+		kvm_vcpu_local_map_t m = { .vcpu = vcpu };		\
+									\
+		m.ret = kvm_vcpu_map##ro(vcpu, gfn, &m.map);		\
+									\
+		m;							\
+	     }), struct kvm_vcpu *vcpu, gfn_t gfn);
+DEFINE_VCPU_MAP_CLASS();
+DEFINE_VCPU_MAP_CLASS(_readonly);
 
 unsigned long kvm_vcpu_gfn_to_hva(struct kvm_vcpu *vcpu, gfn_t gfn);
 unsigned long kvm_vcpu_gfn_to_hva_prot(struct kvm_vcpu *vcpu, gfn_t gfn, bool *writable);

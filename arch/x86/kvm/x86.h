@@ -93,7 +93,7 @@ int kvm_check_nested_events(struct kvm_vcpu *vcpu);
 /* Forcibly leave the nested mode in cases like a vCPU reset */
 static inline void kvm_leave_nested(struct kvm_vcpu *vcpu)
 {
-	kvm_x86_ops.nested_ops->leave_nested(vcpu);
+	kvm_nested_call(leave_nested)(vcpu);
 }
 
 /*
@@ -482,6 +482,12 @@ int kvm_emulate_wbinvd(struct kvm_vcpu *vcpu);
 
 void kvm_vcpu_deliver_sipi_vector(struct kvm_vcpu *vcpu, u8 vector);
 
+enum kvm_task_switch_reason {
+	TASK_SWITCH_CALL = 0,
+	TASK_SWITCH_IRET = 1,
+	TASK_SWITCH_JMP = 2,
+	TASK_SWITCH_GATE = 3,
+};
 int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int idt_index,
 		    int reason, bool has_error_code, u32 error_code);
 

@@ -159,9 +159,9 @@ static u8 guest_get_pmu_version(void)
 
 /*
  * If an architectural event is supported and guaranteed to generate at least
- * one "hit, assert that its count is non-zero.  If an event isn't supported or
- * the test can't guarantee the associated action will occur, then all bets are
- * off regarding the count, i.e. no checks can be done.
+ * one "hit", assert that its count is non-zero.  If an event isn't supported
+ * or the test can't guarantee the associated action will occur, then all bets
+ * are off regarding the count, i.e. no checks can be done.
  *
  * Sanity check that in all cases, the event doesn't count when it's disabled,
  * and that KVM correctly emulates the write of an arbitrary value.
