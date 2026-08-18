@@ -28,6 +28,9 @@ bool host_cpu_is_hygon;
 bool host_cpu_is_amd_compatible;
 bool is_forced_emulation_enabled;
 u64 guest_tsc_khz;
+struct kvm_mmu guest_mmu;
+
+struct guest_regs guest_regs;
 
 const char *ex_str(int vector)
 {
@@ -829,6 +832,17 @@ void kvm_arch_vm_post_create(struct kvm_vm *vm, unsigned int nr_vcpus)
 	TEST_ASSERT(r > 0, "KVM_GET_TSC_KHZ did not provide a valid TSC frequency.");
 	guest_tsc_khz = r;
 	sync_global_to_guest(vm, guest_tsc_khz);
+
+	/*
+	 * The guest MMU is just a placeholder to provide access to PTE masks
+	 * (for now). The guest does not have mappings for its own page tables
+	 * by default, so any meaningful use of guest page tables requires
+	 * explicit setup by the test. Zero the PGD to make it obvious the guest
+	 * page tables are not immediately usable by guest code.
+	 */
+	guest_mmu = vm->mmu;
+	guest_mmu.pgd = 0;
+	sync_global_to_guest(vm, guest_mmu);
 }
 
 void vcpu_arch_set_entry_point(struct kvm_vcpu *vcpu, void *guest_code)

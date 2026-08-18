@@ -78,7 +78,7 @@ test_assert(bool exp, const char *exp_str,
 	if (!(exp)) {
 		va_start(ap, fmt);
 
-		fprintf(stderr, "==== Test Assertion Failure ====\n"
+		fprintf(stderr, "\n==== Test Assertion Failure ====\n"
 			"  %s:%u: %s\n"
 			"  pid=%d tid=%d errno=%d - %s\n",
 			file, line, exp_str, getpid(), _gettid(),

@@ -22,9 +22,6 @@
 #define SMRAM_GPA 0x1000000
 #define SMRAM_STAGE 0xfe
 
-#define STR(x) #x
-#define XSTR(s) STR(s)
-
 #define SYNC_PORT 0xe
 #define DONE 0xff
 
@@ -42,7 +39,7 @@ u8 smi_handler[] = {
 
 static inline void sync_with_host(u64 phase)
 {
-	asm volatile("in $" XSTR(SYNC_PORT)", %%al \n"
+	asm volatile("in $" __stringify(SYNC_PORT)", %%al \n"
 		     : "+a" (phase));
 }
 

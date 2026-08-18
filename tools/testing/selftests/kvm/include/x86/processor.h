@@ -24,6 +24,7 @@ extern bool host_cpu_is_amd;
 extern bool host_cpu_is_hygon;
 extern bool host_cpu_is_amd_compatible;
 extern u64 guest_tsc_khz;
+extern struct kvm_mmu guest_mmu;
 
 #ifndef MAX_NR_CPUID_ENTRIES
 #define MAX_NR_CPUID_ENTRIES 100
@@ -396,8 +397,7 @@ static inline unsigned int x86_model(unsigned int eax)
 #define PTE_GET_PA(pte)		((pte) & PHYSICAL_PAGE_MASK)
 #define PTE_GET_PFN(pte)        (PTE_GET_PA(pte) >> PAGE_SHIFT)
 
-/* General Registers in 64-Bit Mode */
-struct gpr64_regs {
+struct guest_regs {
 	u64 rax;
 	u64 rcx;
 	u64 rdx;
@@ -414,7 +414,37 @@ struct gpr64_regs {
 	u64 r13;
 	u64 r14;
 	u64 r15;
+	u64 rflags;
 };
+
+extern struct guest_regs guest_regs;
+
+#define GUEST_REG_OFFSET(name) \
+	[off_##name] "i" (offsetof(struct guest_regs, name))
+
+#define GUEST_REGS_OFFSETS	\
+	GUEST_REG_OFFSET(rax),	\
+	GUEST_REG_OFFSET(rcx),	\
+	GUEST_REG_OFFSET(rdx),	\
+	GUEST_REG_OFFSET(rbx),	\
+	GUEST_REG_OFFSET(rsp),	\
+	GUEST_REG_OFFSET(rbp),	\
+	GUEST_REG_OFFSET(rsi),	\
+	GUEST_REG_OFFSET(rdi),	\
+	GUEST_REG_OFFSET(r8),	\
+	GUEST_REG_OFFSET(r9),	\
+	GUEST_REG_OFFSET(r10),	\
+	GUEST_REG_OFFSET(r11),	\
+	GUEST_REG_OFFSET(r12),	\
+	GUEST_REG_OFFSET(r13),	\
+	GUEST_REG_OFFSET(r14),	\
+	GUEST_REG_OFFSET(r15),	\
+	GUEST_REG_OFFSET(rflags)
+
+#define GUEST_REG(name) "guest_regs + %c[off_" #name "]"
+
+#define GUEST_SWITCH_GPR_ASM(name) \
+	"xchg %%" #name ", " GUEST_REG(name) "\n\t"
 
 struct desc64 {
 	u16 limit0;
@@ -580,6 +610,14 @@ static inline u64 get_cr0(void)
 static inline void set_cr0(u64 val)
 {
 	__asm__ __volatile__("mov %0, %%cr0" : : "r" (val) : "memory");
+}
+
+static inline u64 get_cr2(void)
+{
+	u64 cr2;
+
+	__asm__ __volatile__("mov %%cr2, %[cr2]" : [cr2]"=r"(cr2));
+	return cr2;
 }
 
 static inline u64 get_cr3(void)
@@ -877,6 +915,11 @@ static inline void write_sse_reg(int reg, const sse128_t *data)
 	}
 }
 
+static inline void invlpg(u64 addr)
+{
+	__asm__ __volatile__("invlpg (%0)" : : "r"(addr) : "memory");
+}
+
 static inline void cpu_relax(void)
 {
 	asm volatile("rep; nop" ::: "memory");
@@ -912,6 +955,11 @@ static inline void udelay(unsigned long usec)
 struct kvm_x86_state *vcpu_save_state(struct kvm_vcpu *vcpu);
 void vcpu_load_state(struct kvm_vcpu *vcpu, struct kvm_x86_state *state);
 void kvm_x86_state_cleanup(struct kvm_x86_state *state);
+
+static inline bool kvm_x86_state_is_guest_mode(struct kvm_x86_state *state)
+{
+	return state->nested.size && (state->nested.flags & KVM_STATE_NESTED_GUEST_MODE);
+}
 
 const struct kvm_msr_list *kvm_get_msr_index_list(void);
 const struct kvm_msr_list *kvm_get_feature_msr_index_list(void);

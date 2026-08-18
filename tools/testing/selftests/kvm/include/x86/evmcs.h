@@ -1207,30 +1207,23 @@ static inline int evmcs_vmlaunch(void)
 
 	current_evmcs->hv_clean_fields = 0;
 
-	__asm__ __volatile__("push %%rbp;"
-			     "push %%rcx;"
-			     "push %%rdx;"
-			     "push %%rsi;"
-			     "push %%rdi;"
-			     "push $0;"
+	__asm__ __volatile__("push $0;"
 			     "mov %%rsp, (%[host_rsp]);"
 			     "lea 1f(%%rip), %%rax;"
 			     "mov %%rax, (%[host_rip]);"
+			     VMX_SWITCH_GPRS_ASM
 			     "vmlaunch;"
 			     "incq (%%rsp);"
-			     "1: pop %%rax;"
-			     "pop %%rdi;"
-			     "pop %%rsi;"
-			     "pop %%rdx;"
-			     "pop %%rcx;"
-			     "pop %%rbp;"
+			     "1: ;"
+			     VMX_SWITCH_GPRS_ASM
+			     "pop %%rax;"
 			     : [ret]"=&a"(ret)
 			     : [host_rsp]"r"
 			       ((u64)&current_evmcs->host_rsp),
 			       [host_rip]"r"
-			       ((u64)&current_evmcs->host_rip)
-			     : "memory", "cc", "rbx", "r8", "r9", "r10",
-			       "r11", "r12", "r13", "r14", "r15");
+			       ((u64)&current_evmcs->host_rip),
+			       GUEST_REGS_OFFSETS
+			     : "memory", "cc");
 	return ret;
 }
 
@@ -1246,30 +1239,23 @@ static inline int evmcs_vmresume(void)
 	/* HOST_RSP */
 	current_evmcs->hv_clean_fields &= ~HV_VMX_ENLIGHTENED_CLEAN_FIELD_HOST_POINTER;
 
-	__asm__ __volatile__("push %%rbp;"
-			     "push %%rcx;"
-			     "push %%rdx;"
-			     "push %%rsi;"
-			     "push %%rdi;"
-			     "push $0;"
+	__asm__ __volatile__("push $0;"
 			     "mov %%rsp, (%[host_rsp]);"
 			     "lea 1f(%%rip), %%rax;"
 			     "mov %%rax, (%[host_rip]);"
+			     VMX_SWITCH_GPRS_ASM
 			     "vmresume;"
 			     "incq (%%rsp);"
-			     "1: pop %%rax;"
-			     "pop %%rdi;"
-			     "pop %%rsi;"
-			     "pop %%rdx;"
-			     "pop %%rcx;"
-			     "pop %%rbp;"
+			     "1: ;"
+			     VMX_SWITCH_GPRS_ASM
+			     "pop %%rax;"
 			     : [ret]"=&a"(ret)
 			     : [host_rsp]"r"
 			       ((u64)&current_evmcs->host_rsp),
 			       [host_rip]"r"
-			       ((u64)&current_evmcs->host_rip)
-			     : "memory", "cc", "rbx", "r8", "r9", "r10",
-			       "r11", "r12", "r13", "r14", "r15");
+			       ((u64)&current_evmcs->host_rip),
+			       GUEST_REGS_OFFSETS
+			     : "memory", "cc");
 	return ret;
 }
 

@@ -232,7 +232,7 @@ static inline void init_vmcs_control_fields(struct vmx_pages *vmx)
 
 	vmwrite(EXCEPTION_BITMAP, 0);
 	vmwrite(PAGE_FAULT_ERROR_CODE_MASK, 0);
-	vmwrite(PAGE_FAULT_ERROR_CODE_MATCH, -1); /* Never match */
+	vmwrite(PAGE_FAULT_ERROR_CODE_MATCH, 0);
 	vmwrite(CR3_TARGET_COUNT, 0);
 	vmwrite(VM_EXIT_CONTROLS, rdmsr(MSR_IA32_VMX_EXIT_CTLS) |
 		VM_EXIT_HOST_ADDR_SPACE_SIZE);	  /* 64-bit host */
