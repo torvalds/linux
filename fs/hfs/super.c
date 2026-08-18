@@ -34,9 +34,14 @@ MODULE_LICENSE("GPL");
 
 static int hfs_sync_fs(struct super_block *sb, int wait)
 {
+	int ret;
+
+	mutex_lock(&HFS_SB(sb)->mdb_lock);
 	is_hfs_cnid_counts_valid(sb);
-	hfs_mdb_commit(sb);
-	return 0;
+	ret = hfs_mdb_commit(sb);
+	mutex_unlock(&HFS_SB(sb)->mdb_lock);
+
+	return ret;
 }
 
 /*
@@ -66,9 +71,10 @@ static void flush_mdb(struct work_struct *work)
 	sbi->work_queued = 0;
 	spin_unlock(&sbi->work_lock);
 
+	mutex_lock(&sbi->mdb_lock);
 	is_hfs_cnid_counts_valid(sb);
-
 	hfs_mdb_commit(sb);
+	mutex_unlock(&sbi->mdb_lock);
 }
 
 void hfs_mark_mdb_dirty(struct super_block *sb)
@@ -339,9 +345,12 @@ static int hfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_op = &hfs_super_operations;
 	sb->s_xattr = hfs_xattr_handlers;
 	sb->s_flags |= SB_NOATIME | SB_NODIRATIME;
+	mutex_init(&sbi->mdb_lock);
 	mutex_init(&sbi->bitmap_lock);
 
+	mutex_lock(&sbi->mdb_lock);
 	res = hfs_mdb_get(sb);
+	mutex_unlock(&sbi->mdb_lock);
 	if (res) {
 		if (!silent)
 			pr_warn("can't find a HFS filesystem on dev %s\n",
@@ -371,6 +380,11 @@ static int hfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	hfs_find_exit(&fd);
 	if (!root_inode)
 		goto bail_no_root;
+
+	if (is_bad_inode(root_inode)) {
+		iput(root_inode);
+		goto bail_no_root;
+	}
 
 	set_default_d_op(sb, &hfs_dentry_operations);
 	res = -ENOMEM;
