@@ -460,6 +460,43 @@ static int ufs_intel_mtl_init(struct ufs_hba *hba)
 	return ufs_intel_common_init(hba);
 }
 
+static int ufs_intel_mcq_config_resource(struct ufs_hba *hba)
+{
+	hba->mcq_base = hba->mmio_base + ufshcd_mcq_queue_cfg_addr(hba);
+
+	return 0;
+}
+
+/*
+ * This Intel UFS4.0 controller maps MCQ doorbell and interrupt-status
+ * registers into the same PCI BAR as the legacy HCI space, at this
+ * fixed offset/stride.
+ */
+#define UFS_INTEL_SQDAO0	0x2800
+#define UFS_INTEL_SQISAO0	0x2814
+#define UFS_INTEL_CQDAO0	0x281C
+#define UFS_INTEL_CQISAO0	0x2824
+#define UFS_INTEL_MCQ_STRIDE	0x30
+
+static int ufs_intel_op_runtime_config(struct ufs_hba *hba)
+{
+	struct ufshcd_mcq_opr_info_t *opr;
+	int i;
+
+	hba->mcq_opr[OPR_SQD].offset  = UFS_INTEL_SQDAO0;
+	hba->mcq_opr[OPR_SQIS].offset = UFS_INTEL_SQISAO0;
+	hba->mcq_opr[OPR_CQD].offset  = UFS_INTEL_CQDAO0;
+	hba->mcq_opr[OPR_CQIS].offset = UFS_INTEL_CQISAO0;
+
+	for (i = 0; i < OPR_MAX; i++) {
+		opr = &hba->mcq_opr[i];
+		opr->stride = UFS_INTEL_MCQ_STRIDE;
+		opr->base = hba->mmio_base + opr->offset;
+	}
+
+	return 0;
+}
+
 static int ufs_qemu_get_hba_mac(struct ufs_hba *hba)
 {
 	return MAX_SUPP_MAC;
@@ -547,6 +584,8 @@ static struct ufs_hba_variant_ops ufs_intel_mtl_hba_vops = {
 	.hce_enable_notify	= ufs_intel_hce_enable_notify,
 	.link_startup_notify	= ufs_intel_link_startup_notify,
 	.pwr_change_notify	= ufs_intel_nvl_pwr_change_notify,
+	.mcq_config_resource	= ufs_intel_mcq_config_resource,
+	.op_runtime_config	= ufs_intel_op_runtime_config,
 	.resume			= ufs_intel_resume,
 	.device_reset		= ufs_intel_device_reset,
 };
