@@ -571,6 +571,7 @@ struct nvme_ns_head {
 
 	u16			nr_plids;
 	u16			*plids;
+	u32			write_stream_granularity;
 #ifdef CONFIG_NVME_MULTIPATH
 	struct bio_list		requeue_list
 		__guarded_by(&requeue_lock);

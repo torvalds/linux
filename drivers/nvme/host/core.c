@@ -2341,14 +2341,6 @@ static int nvme_query_fdp_info(struct nvme_ns *ns, struct nvme_ns_info *info)
 	size_t size;
 	int i, ret;
 
-	/*
-	 * The FDP configuration is static for the lifetime of the namespace,
-	 * so return immediately if we've already registered this namespace's
-	 * streams.
-	 */
-	if (head->nr_plids)
-		return 0;
-
 	ret = nvme_get_features(ctrl, NVME_FEAT_FDP, info->endgid, NULL, 0,
 				&fdp);
 	if (ret) {
@@ -2395,6 +2387,7 @@ static int nvme_query_fdp_info(struct nvme_ns *ns, struct nvme_ns_info *info)
 
 	for (i = 0; i < head->nr_plids; i++)
 		head->plids[i] = le16_to_cpu(ruhs->ruhsd[i].pid);
+	head->write_stream_granularity = min(info->runs, U32_MAX);
 free:
 	kfree(ruhs);
 	return ret;
@@ -2438,12 +2431,6 @@ static int nvme_update_ns_info_block(struct nvme_ns *ns,
 	if (IS_ENABLED(CONFIG_BLK_DEV_ZONED) &&
 	    ns->head->ids.csi == NVME_CSI_ZNS) {
 		ret = nvme_query_zone_info(ns, lbaf, &zi);
-		if (ret < 0)
-			goto out;
-	}
-
-	if (ns->ctrl->ctratt & NVME_CTRL_ATTR_FDPS) {
-		ret = nvme_query_fdp_info(ns, info);
 		if (ret < 0)
 			goto out;
 	}
@@ -2507,10 +2494,7 @@ static int nvme_update_ns_info_block(struct nvme_ns *ns,
 		capacity = 0;
 
 	lim.max_write_streams = ns->head->nr_plids;
-	if (lim.max_write_streams)
-		lim.write_stream_granularity = min(info->runs, U32_MAX);
-	else
-		lim.write_stream_granularity = 0;
+	lim.write_stream_granularity = ns->head->write_stream_granularity;
 
 	/*
 	 * Only set the DEAC bit if the device guarantees that reads from
@@ -4059,15 +4043,23 @@ static struct nvme_ns_head *nvme_alloc_ns_head(struct nvme_ns *ns,
 	} else
 		head->effects = ctrl->effects;
 
+	if (ctrl->ctratt & NVME_CTRL_ATTR_FDPS) {
+		ret = nvme_query_fdp_info(ns, info);
+		if (ret < 0)
+			goto out_cleanup_srcu;
+	}
+
 	ret = nvme_mpath_alloc_disk(ctrl, head);
 	if (ret)
-		goto out_cleanup_srcu;
+		goto out_cleanup_fdp;
 
 	list_add_tail(&head->entry, &ctrl->subsys->nsheads);
 
 	kref_get(&ctrl->subsys->ref);
 
 	return head;
+out_cleanup_fdp:
+	kfree(head->plids);
 out_cleanup_srcu:
 	cleanup_srcu_struct(&head->srcu);
 out_ida_remove:
