@@ -3163,7 +3163,6 @@ config MIPS_EXTERNAL_TIMER
 config MIPS_GENERIC_GETTIMEOFDAY
 	def_bool y
 	select GENERIC_GETTIMEOFDAY
-	select HAVE_GENERIC_VDSO
 	depends on CSRC_R4K || CLKSRC_MIPS_GIC
 	# GCC (at least up to version 9.2) appears to emit function calls that make use
 	# of the GOT when targeting microMIPS, which we can't use in the VDSO due to
