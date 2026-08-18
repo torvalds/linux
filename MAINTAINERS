@@ -4434,6 +4434,7 @@ M:	Prasad Bolisetty <pbolisetty@axiado.com>
 M:	Swark Yang <syang@axiado.com>
 S:	Supported
 F:	Documentation/devicetree/bindings/mailbox/axiado,ax3005-mailbox.yaml
+F:	drivers/mailbox/axiado-mailbox.c
 
 AXI SPI ENGINE
 M:	Michael Hennerich <michael.hennerich@analog.com>
