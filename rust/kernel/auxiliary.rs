@@ -69,7 +69,7 @@ unsafe impl<T: Driver> driver::RegistrationOps for Adapter<T> {
 
         // SAFETY: `adrv` is guaranteed to be a valid `DriverType`.
         to_result(unsafe {
-            bindings::__auxiliary_driver_register(adrv.get(), module.0, name.as_char_ptr())
+            bindings::__auxiliary_driver_register(adrv.get(), module.as_ptr(), name.as_char_ptr())
         })
     }
 

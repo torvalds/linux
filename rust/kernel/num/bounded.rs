@@ -485,11 +485,43 @@ where
     /// assert_eq!(v_shifted.get(), 0xff);
     /// ```
     pub fn shr<const SHIFT: u32, const RES: u32>(self) -> Bounded<T, RES> {
-        const { assert!(RES + SHIFT >= N) }
+        const_assert!(SHIFT < T::BITS);
+        const_assert!(RES + SHIFT >= N);
 
         // SAFETY: We shift the value right by `SHIFT`, reducing the number of bits needed to
         // represent the shifted value by as much, and just asserted that `RES >= N - SHIFT`.
         unsafe { Bounded::__new(self.0 >> SHIFT) }
+    }
+
+    /// Right-shifts `self` by `SHIFT` if that loses no set bits, and returns the result as a
+    /// `Bounded<_, RES>`, where `RES >= N - SHIFT`.
+    ///
+    /// Returns [`None`] if any of the `SHIFT` least significant bits of `self` is set.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kernel::num::Bounded;
+    ///
+    /// let v = Bounded::<u32, 16>::new::<0xff00>();
+    /// let v_shifted: Option<Bounded<u32, 8>> = v.shr_exact::<8, _>();
+    ///
+    /// assert_eq!(v_shifted.map(|v| v.get()), Some(0xff));
+    ///
+    /// // A set bit would be shifted out.
+    /// let v = Bounded::<u32, 16>::new::<0xff01>();
+    /// let v_shifted: Option<Bounded<u32, 8>> = v.shr_exact::<8, _>();
+    ///
+    /// assert!(v_shifted.is_none());
+    /// ```
+    #[inline]
+    pub fn shr_exact<const SHIFT: u32, const RES: u32>(self) -> Option<Bounded<T, RES>> {
+        let shifted = self.shr::<SHIFT, RES>();
+        if shifted.get() << SHIFT == self.0 {
+            Some(shifted)
+        } else {
+            None
+        }
     }
 
     /// Left-shifts `self` by `SHIFT` and returns the result as a `Bounded<_, RES>`, where `RES >=
@@ -506,7 +538,7 @@ where
     /// assert_eq!(v_shifted.get(), 0xff00);
     /// ```
     pub fn shl<const SHIFT: u32, const RES: u32>(self) -> Bounded<T, RES> {
-        const { assert!(RES >= N + SHIFT) }
+        const_assert!(RES >= N + SHIFT);
 
         // SAFETY: We shift the value left by `SHIFT`, augmenting the number of bits needed to
         // represent the shifted value by as much, and just asserted that `RES >= N + SHIFT`.

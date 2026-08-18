@@ -83,7 +83,7 @@ unsafe impl<T: Driver> driver::RegistrationOps for Adapter<T> {
 
         // SAFETY: `pdrv` is guaranteed to be a valid `DriverType`.
         to_result(unsafe {
-            bindings::__platform_driver_register(pdrv.get(), module.0, name.as_char_ptr())
+            bindings::__platform_driver_register(pdrv.get(), module.as_ptr(), name.as_char_ptr())
         })
     }
 

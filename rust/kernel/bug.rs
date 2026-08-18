@@ -8,6 +8,7 @@
 
 #[macro_export]
 #[doc(hidden)]
+#[cfg(not(testlib))]
 #[cfg(all(CONFIG_BUG, not(CONFIG_UML), not(CONFIG_LOONGARCH), not(CONFIG_ARM)))]
 #[cfg(CONFIG_DEBUG_BUGVERBOSE)]
 macro_rules! warn_flags {
@@ -47,11 +48,16 @@ macro_rules! warn_flags {
 
 #[macro_export]
 #[doc(hidden)]
+#[cfg(not(testlib))]
 #[cfg(all(CONFIG_BUG, not(CONFIG_UML), not(CONFIG_LOONGARCH), not(CONFIG_ARM)))]
 #[cfg(not(CONFIG_DEBUG_BUGVERBOSE))]
 macro_rules! warn_flags {
     ($file:expr, $flags:expr) => {
         const FLAGS: u32 = $crate::bindings::BUGFLAG_WARNING | $flags;
+
+        if false {
+            _ = $file;
+        }
 
         // SAFETY:
         // - `flags` and `size` are all compile-time constants, preventing
@@ -73,14 +79,19 @@ macro_rules! warn_flags {
 
 #[macro_export]
 #[doc(hidden)]
+#[cfg(not(testlib))]
 #[cfg(all(CONFIG_BUG, CONFIG_UML))]
 macro_rules! warn_flags {
     ($file:expr, $flags:expr) => {
+        if false {
+            _ = $file;
+        }
+
         // SAFETY: It is always safe to call `warn_slowpath_fmt()`
         // with a valid null-terminated string.
         unsafe {
             $crate::bindings::warn_slowpath_fmt(
-                $crate::c_str!(::core::file!()).as_char_ptr(),
+                $crate::str::CStrExt::as_char_ptr($crate::c_str!(::core::file!())),
                 line!() as $crate::ffi::c_int,
                 $flags as $crate::ffi::c_uint,
                 ::core::ptr::null(),
@@ -91,9 +102,15 @@ macro_rules! warn_flags {
 
 #[macro_export]
 #[doc(hidden)]
+#[cfg(not(testlib))]
 #[cfg(all(CONFIG_BUG, any(CONFIG_LOONGARCH, CONFIG_ARM)))]
 macro_rules! warn_flags {
     ($file:expr, $flags:expr) => {
+        if false {
+            _ = $file;
+            _ = $flags;
+        }
+
         // SAFETY: It is always safe to call `WARN_ON()`.
         unsafe { $crate::bindings::WARN_ON(true) }
     };
@@ -101,9 +118,14 @@ macro_rules! warn_flags {
 
 #[macro_export]
 #[doc(hidden)]
-#[cfg(not(CONFIG_BUG))]
+#[cfg(any(testlib, not(CONFIG_BUG)))]
 macro_rules! warn_flags {
-    ($file:expr, $flags:expr) => {};
+    ($file:expr, $flags:expr) => {
+        if false {
+            _ = $file;
+            _ = $flags;
+        }
+    };
 }
 
 #[doc(hidden)]
@@ -118,14 +140,14 @@ macro_rules! warn_on {
         let cond = $cond;
 
         #[cfg(CONFIG_DEBUG_BUGVERBOSE_DETAILED)]
-        const _COND_STR: &str = concat!("[", stringify!($cond), "] ", file!());
+        const COND_STR: &str = concat!("[", stringify!($cond), "] ", file!());
         #[cfg(not(CONFIG_DEBUG_BUGVERBOSE_DETAILED))]
-        const _COND_STR: &str = file!();
+        const COND_STR: &str = file!();
 
         if cond {
             const WARN_ON_FLAGS: u32 = $crate::bug::bugflag_taint($crate::bindings::TAINT_WARN);
 
-            $crate::warn_flags!(_COND_STR, WARN_ON_FLAGS);
+            $crate::warn_flags!(COND_STR, WARN_ON_FLAGS);
         }
         cond
     }};

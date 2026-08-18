@@ -203,7 +203,8 @@ impl<T: drm::Driver> UnregisteredDevice<T> {
         fops: &Self::GEM_FOPS,
     };
 
-    const GEM_FOPS: bindings::file_operations = drm::gem::create_fops();
+    const GEM_FOPS: bindings::file_operations =
+        drm::gem::create_fops(crate::module::this_module::<T::OwnerModule>().as_ptr());
 
     /// Create a new `UnregisteredDevice` for a `drm::Driver`.
     ///
@@ -244,7 +245,7 @@ impl<T: drm::Driver> UnregisteredDevice<T> {
         // SAFETY:
         // - `raw_data` is a valid pointer to uninitialized memory.
         // - `raw_data` will not move until it is dropped.
-        unsafe { data.__pinned_init(raw_data) }.inspect_err(|_| {
+        unsafe { pin_init::raw_try_init(raw_data, data) }.inspect_err(|_| {
             // SAFETY: `__drm_dev_alloc()` was successful, hence `drm_dev` must be valid and the
             // refcount must be non-zero.
             unsafe { bindings::drm_dev_put(drm_dev) };

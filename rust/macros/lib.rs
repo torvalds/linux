@@ -177,12 +177,29 @@ pub fn module(input: TokenStream) -> TokenStream {
 ///
 /// This macro should not be used when all functions are required.
 ///
+/// Additionally, this macro automatically handles the `OwnerModule`
+/// associated type: on the trait side, `type OwnerModule: ModuleMetadata;`
+/// is added as a required associated type if not already defined; on the
+/// impl side, `type OwnerModule = LocalModule;` is automatically inserted
+/// if not explicitly defined.
+///
 /// # Examples
 ///
 /// ```
 /// use kernel::error::VTABLE_DEFAULT_ERROR;
 /// use kernel::prelude::*;
 ///
+/// # struct LocalModule;
+/// # impl kernel::ModuleMetadata for LocalModule {
+/// #     const NAME: &'static kernel::str::CStr = c"vtable_doctest";
+/// #
+/// #     // SAFETY: This doctest runs on the host: there is no `THIS_MODULE`.
+/// #     const THIS_MODULE: kernel::ThisModule = unsafe {
+/// #         kernel::ThisModule::from_ptr(core::ptr::null_mut())
+/// #     };
+/// # }
+/// #
+/// # fn main() {
 /// // Declares a `#[vtable]` trait
 /// #[vtable]
 /// pub trait Operations: Send + Sync + Sized {
@@ -208,6 +225,7 @@ pub fn module(input: TokenStream) -> TokenStream {
 ///
 /// assert_eq!(<Foo as Operations>::HAS_FOO, true);
 /// assert_eq!(<Foo as Operations>::HAS_BAR, false);
+/// # }
 /// ```
 ///
 /// [`kernel::error::VTABLE_DEFAULT_ERROR`]: ../kernel/error/constant.VTABLE_DEFAULT_ERROR.html

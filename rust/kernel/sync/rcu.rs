@@ -50,3 +50,23 @@ impl Drop for Guard {
 pub fn read_lock() -> Guard {
     Guard::new()
 }
+
+/// Wait until all in-flight `call_rcu()` callbacks complete.
+///
+/// Note that this primitive does not necessarily wait for an RCU grace period
+/// to complete. For example, if there are no RCU callbacks queued anywhere
+/// in the system, then [`rcu_barrier()`] is within its rights to return
+/// immediately, without waiting for anything, much less an RCU grace period.
+/// In fact, [`rcu_barrier()`] will normally not result in any RCU grace periods
+/// beyond those that were already destined to be executed.
+///
+/// In kernels built with `CONFIG_RCU_LAZY=y`, this function also hurries all
+/// pending lazy RCU callbacks.
+///
+/// Note that this is one of the RCU primitives which must not be called in
+/// atomic context.
+#[inline]
+pub fn rcu_barrier() {
+    // SAFETY: `rcu_barrier()` is always safe to be called. It just might wait for a grace period.
+    unsafe { bindings::rcu_barrier() };
+}

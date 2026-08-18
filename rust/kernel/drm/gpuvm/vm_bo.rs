@@ -181,7 +181,7 @@ impl<T: DriverGpuVm> GpuVmBoAlloc<T> {
         };
         let ptr = NonNull::new(raw_ptr).ok_or(AllocError)?;
         // SAFETY: `ptr->data` is a valid pinned location.
-        let Ok(()) = unsafe { value.__pinned_init(&raw mut (*raw_ptr).data) };
+        unsafe { pin_init::raw_init(&raw mut (*raw_ptr).data, value) };
         // INVARIANTS: We just created the vm_bo so it's absent from lists, and the data is valid
         // as we just initialized it.
         Ok(GpuVmBoAlloc(ptr))
