@@ -881,8 +881,10 @@ set_fattr:
 	mutex_unlock(&ni->mrec_lock);
 
 out:
-	inode_set_ctime_current(inode);
-	mark_inode_dirty(inode);
+	if (!err) {
+		inode_set_ctime_current(inode);
+		mark_inode_dirty(inode);
+	}
 	return err;
 }
 
