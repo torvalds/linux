@@ -1629,7 +1629,8 @@ static void wakeup_preempt_rt(struct rq *rq, struct task_struct *p, int flags)
 	/*
 	 * XXX If we're preempted by DL, queue a push?
 	 */
-	if (p->sched_class != &rt_sched_class)
+	if (p->sched_class != &rt_sched_class ||
+	    donor->sched_class != &rt_sched_class)
 		return;
 
 	if (p->prio < donor->prio) {
