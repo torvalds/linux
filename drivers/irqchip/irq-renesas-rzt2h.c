@@ -398,7 +398,7 @@ static int rzt2h_icu_request_irqs(struct platform_device *pdev, struct irq_domai
 		ret = devm_request_irq(dev, virq, handler, 0, dev_name(dev),
 				       data ?: (void *)(uintptr_t)offset);
 		if (ret)
-			return dev_err_probe(dev, ret, "Failed to request IRQ %u\n", offset);
+			return ret;
 	}
 
 	return 0;

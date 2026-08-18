@@ -18,7 +18,8 @@
 
 #define ITS_MSI_FLAGS_SUPPORTED (MSI_GENERIC_FLAGS_MASK |	\
 				 MSI_FLAG_PCI_MSIX      |	\
-				 MSI_FLAG_MULTI_PCI_MSI)
+				 MSI_FLAG_MULTI_PCI_MSI |	\
+				 MSI_FLAG_PCI_MSIX_ALLOC_DYN)
 
 static int its_translate_frame_address(struct fwnode_handle *msi_node, phys_addr_t *pa)
 {

@@ -212,11 +212,6 @@ config HISILICON_IRQ_MBIGEN
 	select ARM_GIC_V3
 	select ARM_GIC_V3_ITS
 
-config IMGPDC_IRQ
-	bool
-	select GENERIC_IRQ_CHIP
-	select IRQ_DOMAIN
-
 config IXP4XX_IRQ
 	bool
 	select IRQ_DOMAIN

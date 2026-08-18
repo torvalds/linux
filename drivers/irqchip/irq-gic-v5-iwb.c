@@ -143,7 +143,7 @@ static int gicv5_iwb_irq_domain_translate(struct irq_domain *d, struct irq_fwspe
 			return -EINVAL;
 
 		/*
-		 * param[0] is be the wire
+		 * param[0] is the wire interrupt number
 		 * param[1] is the interrupt type
 		 */
 		*hwirq = fwspec->param[0];
