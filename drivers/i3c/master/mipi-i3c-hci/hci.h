@@ -30,6 +30,11 @@
 #define reg_set(r, v)		reg_write(r, reg_read(r) | (v))
 #define reg_clear(r, v)		reg_write(r, reg_read(r) & ~(v))
 
+/* helper macro for HCI version check */
+#define hci_version_at_least(hci, maj, min) \
+	((hci)->version_major > (maj) || \
+	((hci)->version_major == (maj) && (hci)->version_minor >= (min)))
+
 struct hci_cmd_ops;
 
 struct dat_words {
