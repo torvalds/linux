@@ -8079,6 +8079,7 @@ static int bpf_scx_check_member(const struct btf_type *t,
 	case offsetof(struct sched_ext_ops, cgroup_init):
 	case offsetof(struct sched_ext_ops, cgroup_exit):
 	case offsetof(struct sched_ext_ops, cgroup_prep_move):
+	case offsetof(struct sched_ext_ops, cgroup_set_bandwidth):
 #endif
 	case offsetof(struct sched_ext_ops, cpu_online):
 	case offsetof(struct sched_ext_ops, cpu_offline):
@@ -11041,3 +11042,16 @@ static int __init scx_init(void)
 	return 0;
 }
 __initcall(scx_init);
+
+/*
+ * Compatibility markers for userspace. Existence of a marker function
+ * represents that the kernel supports that sched-ext feature.
+ */
+
+/*
+ * scx_compat_marker_cgroup_set_bandwidth_may_sleep: advertises that
+ * ops.cgroup_set_bandwidth() may be implemented as a sleepable callback.
+ */
+#ifdef CONFIG_EXT_GROUP_SCHED
+DEFINE_SCX_COMPAT_MARKER(cgroup_set_bandwidth_may_sleep);
+#endif	/* CONFIG_EXT_GROUP_SCHED */

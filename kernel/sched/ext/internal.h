@@ -753,7 +753,7 @@ struct sched_ext_ops {
 	 * @burst_us: bandwidth control burst
 	 *
 	 * Update @cgrp's bandwidth control parameters. This is from the cpu.max
-	 * cgroup interface.
+	 * cgroup interface. This operation may block.
 	 *
 	 * @quota_us / @period_us determines the CPU bandwidth @cgrp is entitled
 	 * to. For example, if @period_us is 1_000_000 and @quota_us is
@@ -2000,6 +2000,27 @@ struct scx_bstr_buf {
 	u64			data[MAX_BPRINTF_VARARGS];
 	char			line[SCX_EXIT_MSG_LEN];
 };
+
+/* Internal helper for DEFINE_SCX_COMPAT_MARKER(). */
+#define DECLARE_SCX_COMPAT_MARKER(func)						\
+	extern void scx_compat_marker_##func(void)
+
+/**
+ * DEFINE_SCX_COMPAT_MARKER() - define a userspace capability marker
+ * @func: marker suffix; the defined symbol is scx_compat_marker_@func
+ *
+ * Emit an empty, callerless function that is retained in the kernel's BTF.
+ * Its presence is part of the kernel<->userspace contract: userspace probes
+ * scx_compat_marker_@func (e.g. via BTF) to detect that this kernel supports
+ * the corresponding feature.
+ *
+ * The leading declaration suppresses the missing-prototype warning; the
+ * trailing declaration consumes the semicolon at the use site.
+ */
+#define DEFINE_SCX_COMPAT_MARKER(func)						\
+	DECLARE_SCX_COMPAT_MARKER(func);					\
+	__used __retain void scx_compat_marker_##func(void) {}			\
+	DECLARE_SCX_COMPAT_MARKER(func)
 
 extern struct scx_sched __rcu *scx_root;
 DECLARE_PER_CPU(struct rq *, scx_locked_rq_state);
