@@ -58,8 +58,8 @@ void syscall_set_nr(struct task_struct *task, struct pt_regs *regs, int nr);
  *
  * It's only valid to call this when @task is stopped for system
  * call exit tracing (due to %SYSCALL_WORK_SYSCALL_TRACE or
- * %SYSCALL_WORK_SYSCALL_AUDIT), after ptrace_report_syscall_entry()
- * returned nonzero to prevent the system call from taking place.
+ * %SYSCALL_WORK_SYSCALL_AUDIT), after ptrace_report_syscall_permit_entry()
+ * returned False to prevent the system call from taking place.
  *
  * This rolls back the register state in @regs so it's as if the
  * system call instruction was a no-op.  The registers containing

@@ -114,6 +114,20 @@ config GENERIC_ENTRY
 	select GENERIC_IRQ_ENTRY
 	select GENERIC_SYSCALL
 
+config ARCH_SUPPORTS_SYSCALL_USER_DISPATCH
+	bool
+
+config SYSCALL_USER_DISPATCH
+	bool "Syscall User Dispatch"
+	depends on ARCH_SUPPORTS_SYSCALL_USER_DISPATCH
+	depends on GENERIC_ENTRY
+	default y
+	help
+	  Syscall User Dispatch lets a thread have its own system calls
+	  intercepted and redirected to a userspace signal handler based
+	  on a prctl() configured instruction pointer range.
+	  If unsure, say Y.
+
 config KPROBES
 	bool "Kprobes"
 	depends on HAVE_KPROBES
@@ -637,7 +651,7 @@ config HAVE_ARCH_SECCOMP_FILTER
 	  - syscall_set_return_value()
 	  - SIGSYS siginfo_t support
 	  - secure_computing is called from a ptrace_event()-safe context
-	  - secure_computing return value is checked and a return value of -1
+	  - secure_computing return value is checked and if false it
 	    results in the system call being skipped immediately.
 	  - seccomp syscall wired up
 	  - if !HAVE_SPARSE_SYSCALL_NR, have SECCOMP_ARCH_NATIVE,

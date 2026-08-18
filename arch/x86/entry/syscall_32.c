@@ -41,7 +41,9 @@ const sys_call_ptr_t sys_call_table[] = {
 #endif
 
 #define __SYSCALL(nr, sym) case nr: return __ia32_##sym(regs);
-long ia32_sys_call(const struct pt_regs *regs, unsigned int nr)
+
+/* The unsigned int @nr argument is intentional as it creates denser code in a 64-bit build */
+static noinline long ia32_sys_call(const struct pt_regs *regs, unsigned int nr)
 {
 	switch (nr) {
 	#include <asm/syscalls_32.h>
@@ -49,7 +51,7 @@ long ia32_sys_call(const struct pt_regs *regs, unsigned int nr)
 	}
 }
 
-static __always_inline int syscall_32_enter(struct pt_regs *regs)
+static __always_inline long syscall_32_enter(struct pt_regs *regs)
 {
 	if (IS_ENABLED(CONFIG_IA32_EMULATION))
 		current_thread_info()->status |= TS_COMPAT;
@@ -70,19 +72,11 @@ early_param("ia32_emulation", ia32_emulation_override_cmdline);
 /*
  * Invoke a 32-bit syscall.  Called with IRQs on in CT_STATE_KERNEL.
  */
-static __always_inline void do_syscall_32_irqs_on(struct pt_regs *regs, int nr)
+static __always_inline void do_syscall_32_irqs_on(struct pt_regs *regs, unsigned long nr)
 {
-	/*
-	 * Convert negative numbers to very high and thus out of range
-	 * numbers for comparisons.
-	 */
-	unsigned int unr = nr;
-
-	if (likely(unr < IA32_NR_syscalls)) {
-		unr = array_index_nospec(unr, IA32_NR_syscalls);
-		regs->ax = ia32_sys_call(regs, unr);
-	} else if (nr != -1) {
-		regs->ax = __ia32_sys_ni_syscall(regs);
+	if (likely(nr < IA32_NR_syscalls)) {
+		nr = array_index_nospec(nr, IA32_NR_syscalls);
+		regs->ax = ia32_sys_call(regs, (unsigned int)nr);
 	}
 }
 
@@ -128,7 +122,7 @@ static __always_inline bool int80_is_external(void)
  */
 __visible noinstr void do_int80_emulation(struct pt_regs *regs)
 {
-	int nr;
+	long nr;
 
 	/* Kernel does not use INT $0x80! */
 	if (unlikely(!user_mode(regs))) {
@@ -142,10 +136,9 @@ __visible noinstr void do_int80_emulation(struct pt_regs *regs)
 	 * int80_is_external() below which calls into the APIC driver.
 	 * Identical for soft and external interrupts.
 	 */
-	enter_from_user_mode(regs);
+	enter_from_user_mode_randomize_stack(regs);
 
 	instrumentation_begin();
-	add_random_kstack_offset();
 
 	/* Validate that this is a soft interrupt to the extent possible */
 	if (unlikely(int80_is_external()))
@@ -168,8 +161,9 @@ __visible noinstr void do_int80_emulation(struct pt_regs *regs)
 	nr = syscall_32_enter(regs);
 
 	local_irq_enable();
-	nr = syscall_enter_from_user_mode_work(regs, nr);
-	do_syscall_32_irqs_on(regs, nr);
+
+	if (likely(syscall_enter_from_user_mode_work(regs, &nr)))
+		do_syscall_32_irqs_on(regs, nr);
 
 	instrumentation_end();
 	syscall_exit_to_user_mode(regs);
@@ -208,13 +202,11 @@ __visible noinstr void do_int80_emulation(struct pt_regs *regs)
  */
 DEFINE_FREDENTRY_RAW(int80_emulation)
 {
-	int nr;
+	long nr;
 
-	enter_from_user_mode(regs);
+	enter_from_user_mode_randomize_stack(regs);
 
 	instrumentation_begin();
-	add_random_kstack_offset();
-
 	/*
 	 * FRED pushed 0 into regs::orig_ax and regs::ax contains the
 	 * syscall number.
@@ -232,8 +224,8 @@ DEFINE_FREDENTRY_RAW(int80_emulation)
 	nr = syscall_32_enter(regs);
 
 	local_irq_enable();
-	nr = syscall_enter_from_user_mode_work(regs, nr);
-	do_syscall_32_irqs_on(regs, nr);
+	if (likely(syscall_enter_from_user_mode_work(regs, &nr)))
+		do_syscall_32_irqs_on(regs, nr);
 
 	instrumentation_end();
 	syscall_exit_to_user_mode(regs);
@@ -245,38 +237,32 @@ DEFINE_FREDENTRY_RAW(int80_emulation)
 /* Handles int $0x80 on a 32bit kernel */
 __visible noinstr void do_int80_syscall_32(struct pt_regs *regs)
 {
-	int nr = syscall_32_enter(regs);
+	long nr = syscall_32_enter(regs);
 
 	/*
 	 * Subtlety here: if ptrace pokes something larger than 2^31-1 into
 	 * orig_ax, the int return value truncates it. This matches
 	 * the semantics of syscall_get_nr().
 	 */
-	nr = syscall_enter_from_user_mode(regs, nr);
-	instrumentation_begin();
+	if (likely(syscall_enter_from_user_mode_randomize_stack(regs, &nr))) {
+		instrumentation_begin();
 
-	add_random_kstack_offset();
-	do_syscall_32_irqs_on(regs, nr);
+		do_syscall_32_irqs_on(regs, nr);
 
-	instrumentation_end();
+		instrumentation_end();
+	}
 	syscall_exit_to_user_mode(regs);
 }
 #endif /* !CONFIG_IA32_EMULATION */
 
 static noinstr bool __do_fast_syscall_32(struct pt_regs *regs)
 {
-	int nr = syscall_32_enter(regs);
+	long nr = syscall_32_enter(regs);
 	int res;
 
-	/*
-	 * This cannot use syscall_enter_from_user_mode() as it has to
-	 * fetch EBP before invoking any of the syscall entry work
-	 * functions.
-	 */
-	enter_from_user_mode(regs);
+	enter_from_user_mode_randomize_stack(regs);
 
 	instrumentation_begin();
-	add_random_kstack_offset();
 	local_irq_enable();
 	/* Fetch EBP from where the vDSO stashed it. */
 	if (IS_ENABLED(CONFIG_X86_64)) {
@@ -301,10 +287,8 @@ static noinstr bool __do_fast_syscall_32(struct pt_regs *regs)
 		return false;
 	}
 
-	nr = syscall_enter_from_user_mode_work(regs, nr);
-
-	/* Now this is just like a normal syscall. */
-	do_syscall_32_irqs_on(regs, nr);
+	if (likely(syscall_enter_from_user_mode_work(regs, &nr)))
+		do_syscall_32_irqs_on(regs, nr);
 
 	instrumentation_end();
 	syscall_exit_to_user_mode(regs);

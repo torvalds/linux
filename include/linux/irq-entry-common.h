@@ -49,9 +49,9 @@
  * Defaults to an empty implementation. Can be replaced by architecture
  * specific code.
  *
- * Invoked from syscall_enter_from_user_mode() in the non-instrumentable
- * section. Use __always_inline so the compiler cannot push it out of line
- * and make it instrumentable.
+ * Invoked from enter_from_user_mode() in the non-instrumentable section. Use
+ * __always_inline so the compiler cannot push it out of line and make it
+ * instrumentable.
  */
 static __always_inline void arch_enter_from_user_mode(struct pt_regs *regs);
 

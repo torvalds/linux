@@ -279,9 +279,9 @@ asmlinkage int syscall_trace_enter(void)
 	int ret = 0;
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
-		ret = ptrace_report_syscall_entry(task_pt_regs(current));
+		ret = !ptrace_report_syscall_permit_entry(task_pt_regs(current));
 
-	if (secure_computing() == -1)
+	if (!seccomp_permit_syscall())
 		return -1;
 
 	return ret;

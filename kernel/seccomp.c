@@ -1100,12 +1100,13 @@ void secure_computing_strict(int this_syscall)
 	else
 		BUG();
 }
-int __secure_computing(void)
+
+bool __seccomp_permit_syscall(void)
 {
 	int this_syscall = syscall_get_nr(current, current_pt_regs());
 
 	secure_computing_strict(this_syscall);
-	return 0;
+	return true;
 }
 #else
 
@@ -1256,7 +1257,7 @@ out:
 	return -1;
 }
 
-static int __seccomp_filter(int this_syscall, const bool recheck_after_trace)
+static bool __seccomp_filter(int this_syscall, const bool recheck_after_trace)
 {
 	u32 filter_ret, action;
 	struct seccomp_data sd;
@@ -1294,7 +1295,7 @@ static int __seccomp_filter(int this_syscall, const bool recheck_after_trace)
 	case SECCOMP_RET_TRACE:
 		/* We've been put in this state by the ptracer already. */
 		if (recheck_after_trace)
-			return 0;
+			return true;
 
 		/* ENOSYS these calls if there is no tracer attached. */
 		if (!ptrace_event_enabled(current, PTRACE_EVENT_SECCOMP)) {
@@ -1329,20 +1330,17 @@ static int __seccomp_filter(int this_syscall, const bool recheck_after_trace)
 		 * a reload of all registers. This does not goto skip since
 		 * a skip would have already been reported.
 		 */
-		if (__seccomp_filter(this_syscall, true))
-			return -1;
-
-		return 0;
+		return __seccomp_filter(this_syscall, true);
 
 	case SECCOMP_RET_USER_NOTIF:
 		if (seccomp_do_user_notification(this_syscall, match, &sd))
 			goto skip;
 
-		return 0;
+		return true;
 
 	case SECCOMP_RET_LOG:
 		seccomp_log(this_syscall, 0, action, true);
-		return 0;
+		return true;
 
 	case SECCOMP_RET_ALLOW:
 		/*
@@ -1350,7 +1348,7 @@ static int __seccomp_filter(int this_syscall, const bool recheck_after_trace)
 		 * this action since SECCOMP_RET_ALLOW is the starting
 		 * state in seccomp_run_filters().
 		 */
-		return 0;
+		return true;
 
 	case SECCOMP_RET_KILL_THREAD:
 	case SECCOMP_RET_KILL_PROCESS:
@@ -1367,46 +1365,46 @@ static int __seccomp_filter(int this_syscall, const bool recheck_after_trace)
 		} else {
 			do_exit(SIGSYS);
 		}
-		return -1; /* skip the syscall go directly to signal handling */
+		return false; /* skip the syscall go directly to signal handling */
 	}
 
 	unreachable();
 
 skip:
 	seccomp_log(this_syscall, 0, action, match ? match->log : false);
-	return -1;
+	return false;
 }
 #else
-static int __seccomp_filter(int this_syscall, const bool recheck_after_trace)
+static bool __seccomp_filter(int this_syscall, const bool recheck_after_trace)
 {
 	BUG();
 
-	return -1;
+	return false;
 }
 #endif
 
-int __secure_computing(void)
+bool __seccomp_permit_syscall(void)
 {
 	int mode = current->seccomp.mode;
 	int this_syscall;
 
 	if (IS_ENABLED(CONFIG_CHECKPOINT_RESTORE) &&
 	    unlikely(current->ptrace & PT_SUSPEND_SECCOMP))
-		return 0;
+		return true;
 
 	this_syscall = syscall_get_nr(current, current_pt_regs());
 
 	switch (mode) {
 	case SECCOMP_MODE_STRICT:
 		__secure_computing_strict(this_syscall);  /* may call do_exit */
-		return 0;
+		return true;
 	case SECCOMP_MODE_FILTER:
 		return __seccomp_filter(this_syscall, false);
 	/* Surviving SECCOMP_RET_KILL_* must be proactively impossible. */
 	case SECCOMP_MODE_DEAD:
 		WARN_ON_ONCE(1);
 		do_exit(SIGKILL);
-		return -1;
+		return false;
 	default:
 		BUG();
 	}

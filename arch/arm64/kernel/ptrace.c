@@ -2429,7 +2429,7 @@ static int report_syscall_entry(struct pt_regs *regs)
 	int regno, ret;
 
 	saved_reg = ptrace_save_reg(regs, PTRACE_SYSCALL_ENTER, &regno);
-	ret = ptrace_report_syscall_entry(regs);
+	ret = !ptrace_report_syscall_permit_entry(regs);
 	if (ret)
 		forget_syscall(regs);
 	regs->regs[regno] = saved_reg;
@@ -2470,7 +2470,7 @@ int syscall_trace_enter(struct pt_regs *regs)
 	}
 
 	/* Do the secure computing after ptrace; failures should be fast. */
-	if (secure_computing() == -1)
+	if (!seccomp_permit_syscall())
 		return NO_SYSCALL;
 
 	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))

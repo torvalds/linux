@@ -375,7 +375,7 @@ asmlinkage unsigned long syscall_trace_enter(void)
 	struct pt_regs *regs = current_pt_regs();
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
-		ptrace_report_syscall_entry(regs)) {
+		!ptrace_report_syscall_permit_entry(regs)) {
 		syscall_set_nr(current, regs, -1);
 		if (regs->r19 == 0 && regs->r0 == (unsigned long)-1)
 			syscall_set_return_value(current, regs, -ENOSYS, 0);
@@ -387,7 +387,7 @@ asmlinkage unsigned long syscall_trace_enter(void)
 	 * If this fails, seccomp may already have set up the return value
 	 * (e.g. SECCOMP_RET_ERRNO / TRACE).
 	 */
-	if (secure_computing() == -1) {
+	if (!seccomp_permit_syscall()) {
 		if (regs->r19 == 0 && regs->r0 == (unsigned long)-1)
 			syscall_set_return_value(current, regs, -ENOSYS, 0);
 		syscall_set_nr(current, regs, -1);

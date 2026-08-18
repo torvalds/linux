@@ -135,7 +135,7 @@ int syscall_trace_enter(struct pt_regs *regs)
 	if (!test_thread_flag(TIF_SYSCALL_TRACE))
 		return 0;
 
-	return ptrace_report_syscall_entry(regs);
+	return !ptrace_report_syscall_permit_entry(regs);
 }
 
 void syscall_trace_leave(struct pt_regs *regs)

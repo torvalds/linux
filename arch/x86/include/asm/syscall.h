@@ -21,14 +21,6 @@ typedef long (*sys_call_ptr_t)(const struct pt_regs *);
 extern const sys_call_ptr_t sys_call_table[];
 
 /*
- * These may not exist, but still put the prototypes in so we
- * can use IS_ENABLED().
- */
-extern long ia32_sys_call(const struct pt_regs *, unsigned int nr);
-extern long x32_sys_call(const struct pt_regs *, unsigned int nr);
-extern long x64_sys_call(const struct pt_regs *, unsigned int nr);
-
-/*
  * Only the low 32 bits of orig_ax are meaningful, so we return int.
  * This importantly ignores the high bits on 64-bit, so comparisons
  * sign-extend the low 32 bits.
@@ -172,7 +164,7 @@ static inline int syscall_get_arch(struct task_struct *task)
 		? AUDIT_ARCH_I386 : AUDIT_ARCH_X86_64;
 }
 
-bool do_syscall_64(struct pt_regs *regs, int nr);
+bool do_syscall_64(struct pt_regs *regs, long nr);
 void do_int80_emulation(struct pt_regs *regs);
 
 #endif	/* CONFIG_X86_32 */

@@ -441,7 +441,7 @@ asmlinkage int syscall_trace(struct pt_regs *regs, int syscall_exit_p)
 		if (syscall_exit_p)
 			ptrace_report_syscall_exit(regs, 0);
 		else
-			ret = ptrace_report_syscall_entry(regs);
+			ret = !ptrace_report_syscall_permit_entry(regs);
 	}
 
 	return ret;

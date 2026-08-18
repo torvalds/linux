@@ -1093,7 +1093,7 @@ asmlinkage int syscall_trace_enter(struct pt_regs *regs)
 		user_exit();
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
-		ret = ptrace_report_syscall_entry(regs);
+		ret = !ptrace_report_syscall_permit_entry(regs);
 
 	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
 		trace_sys_enter(regs, regs->u_regs[UREG_G1]);

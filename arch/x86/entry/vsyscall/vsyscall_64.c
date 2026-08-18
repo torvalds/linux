@@ -118,10 +118,10 @@ static bool write_ok_or_segv(unsigned long ptr, size_t size)
 
 static bool __emulate_vsyscall(struct pt_regs *regs, unsigned long address)
 {
-	unsigned long caller;
-	int vsyscall_nr, syscall_nr, tmp;
+	unsigned long caller, orig_dx;
+	int vsyscall_nr, syscall_nr;
+	bool skip;
 	long ret;
-	unsigned long orig_dx;
 
 	/* Confirm that the fault happened in 64-bit user mode */
 	if (!user_64bit_mode(regs))
@@ -197,16 +197,16 @@ static bool __emulate_vsyscall(struct pt_regs *regs, unsigned long address)
 	 */
 	regs->orig_ax = syscall_nr;
 	regs->ax = -ENOSYS;
-	tmp = secure_computing();
-	if ((!tmp && regs->orig_ax != syscall_nr) || regs->ip != address) {
+	skip = !seccomp_permit_syscall();
+	if ((!skip && regs->orig_ax != syscall_nr) || regs->ip != address) {
 		warn_bad_vsyscall(KERN_DEBUG, regs,
 				  "seccomp tried to change syscall nr or ip");
 		force_exit_sig(SIGSYS);
 		return true;
 	}
 	regs->orig_ax = -1;
-	if (tmp)
-		goto do_ret;  /* skip requested */
+	if (skip)
+		goto do_ret;
 
 	/*
 	 * With a real vsyscall, page faults cause SIGSEGV.
