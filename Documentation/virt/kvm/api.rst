@@ -856,11 +856,20 @@ Writes the floating point state to the vcpu.
 Creates an interrupt controller model in the kernel.
 On x86, creates a virtual ioapic, a virtual PIC (two PICs, nested), and sets up
 future vcpus to have a local APIC.  IRQ routing for GSIs 0-15 is set to both
-PIC and IOAPIC; GSI 16-23 only go to the IOAPIC.
+PIC and IOAPIC; GSI 16-23 only go to the IOAPIC.  This ioctl can only be
+called before creating any vcpus.
 On arm64, a GICv2 is created. Any other GIC versions require the usage of
 KVM_CREATE_DEVICE, which also supports creating a GICv2.  Using
 KVM_CREATE_DEVICE is preferred over KVM_CREATE_IRQCHIP for GICv2.
 On s390, a dummy irq routing table is created.
+
+On x86, subsequent vcpu creation may install a private 4 KiB memory slot at the
+default APIC base address (0xfee00000).  User memory regions must not overlap
+this address; doing so will cause vcpu creation to fail with ``EEXIST``, or the
+memory region to be rejected if created after the vcpu.  This occurs when
+APIC access acceleration is enabled (APICv on Intel, AVIC on AMD), which is
+the default on supported hardware.  The same constraint applies when using
+``KVM_CAP_SPLIT_IRQCHIP``.
 
 Note that on s390 the KVM_CAP_S390_IRQCHIP vm capability needs to be enabled
 before KVM_CREATE_IRQCHIP can be used.
@@ -7932,6 +7941,10 @@ when KVM_CAP_SPLIT_IRQCHIP only routes of KVM_IRQ_ROUTING_MSI type are
 used in the IRQ routing table.  The first args[0] MSI routes are reserved
 for the IOAPIC pins.  Whenever the LAPIC receives an EOI for these routes,
 a KVM_EXIT_IOAPIC_EOI vmexit will be reported to userspace.
+
+As with ``KVM_CREATE_IRQCHIP``, subsequent vcpu creation may install a private
+memory slot at the APIC base address (0xfee00000) that must not overlap user
+memory regions.  See ``KVM_CREATE_IRQCHIP`` for details.
 
 Fails if VCPU has already been created, or if the irqchip is already in the
 kernel (i.e. KVM_CREATE_IRQCHIP has already been called).
