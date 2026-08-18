@@ -1356,6 +1356,20 @@ early_param("cfi", cfi_parse_cmdline);
  *  "Make conditional jumps most often not taken: The efficiency and throughput
  *   for not-taken branches is better than for taken branches on most
  *   processors. Therefore, it is good to place the most frequent branch first"
+ *
+ * NOTE: Update the kCFI caller sequence to make use of this observation:
+ *
+ * kCFI						kCFI-OPT
+ *
+ * caller:					caller:
+ *	movl	$(-0x12345678),%r10d	 // 6	     movl	$(-0x12345678),%r10d	 // 6
+ *	addl	$-15(%r11),%r10d	 // 4	     addl	$-15(%r11),%r10d	 // 4
+ *	je	1f			 // 2	     jne	. + 3                    // 2
+ *	ud2				 // 2        test	$0xd6, %al		 // 2
+ * 1:	cs call	__x86_indirect_thunk_r11 // 6	1:   cs call	__x86_indirect_thunk_r11 // 6
+ *
+ * This new test clobbers eflags, but those are clobbered by the hash test
+ * anyway.
  */
 
 /*
@@ -1518,8 +1532,9 @@ static int cfi_disable_callers(s32 *start, s32 *end)
 static int cfi_enable_callers(s32 *start, s32 *end)
 {
 	/*
-	 * Re-enable kCFI, undo what cfi_disable_callers() did.
+	 * Re-enable (and update) kCFI, undo what cfi_disable_callers() did.
 	 */
+	const u8 udne[] = { 0x75, 0x01, 0xa8, 0xd6 };
 	const u8 mov[] = { 0x41, 0xba };
 	s32 *s;
 
@@ -1532,6 +1547,10 @@ static int cfi_enable_callers(s32 *start, s32 *end)
 		if (!hash) /* nocfi callers */
 			continue;
 
+		/*
+		 * See the kCFI/FineIBT comment above -- update note.
+		 */
+		text_poke_early(addr + 10, udne, 4);
 		text_poke_early(addr, mov, 2);
 	}
 
