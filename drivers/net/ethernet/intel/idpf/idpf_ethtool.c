@@ -225,7 +225,7 @@ static int idpf_add_flow_steer(struct net_device *netdev,
 	spin_unlock_bh(&vport_config->flow_steer_list_lock);
 
 	if (err)
-		goto out;
+		goto out_free_fltr;
 
 	rule->vport_id = cpu_to_le32(vport->vport_id);
 	rule->count = cpu_to_le32(1);
@@ -252,17 +252,15 @@ static int idpf_add_flow_steer(struct net_device *netdev,
 		break;
 	default:
 		err = -EINVAL;
-		goto out;
+		goto out_free_fltr;
 	}
 
 	err = idpf_add_del_fsteer_filters(vport->adapter, rule,
 					  VIRTCHNL2_OP_ADD_FLOW_RULE);
-	if (err)
-		goto out;
-
-	if (info->status != cpu_to_le32(VIRTCHNL2_FLOW_RULE_SUCCESS)) {
-		err = -EIO;
-		goto out;
+	if (err) {
+		/* virtchnl2 rule is already consumed */
+		kfree(fltr);
+		return err;
 	}
 
 	/* Save a copy of the user's flow spec so ethtool can later retrieve it */
@@ -274,9 +272,10 @@ static int idpf_add_flow_steer(struct net_device *netdev,
 
 	user_config->num_fsteer_fltrs++;
 	spin_unlock_bh(&vport_config->flow_steer_list_lock);
-	goto out_free_rule;
 
-out:
+	return 0;
+
+out_free_fltr:
 	kfree(fltr);
 out_free_rule:
 	kfree(rule);
@@ -319,12 +318,7 @@ static int idpf_del_flow_steer(struct net_device *netdev,
 	err = idpf_add_del_fsteer_filters(vport->adapter, rule,
 					  VIRTCHNL2_OP_DEL_FLOW_RULE);
 	if (err)
-		goto out;
-
-	if (info->status != cpu_to_le32(VIRTCHNL2_FLOW_RULE_SUCCESS)) {
-		err = -EIO;
-		goto out;
-	}
+		return err;
 
 	spin_lock_bh(&vport_config->flow_steer_list_lock);
 	list_for_each_entry_safe(f, iter,
@@ -340,8 +334,6 @@ static int idpf_del_flow_steer(struct net_device *netdev,
 
 out_unlock:
 	spin_unlock_bh(&vport_config->flow_steer_list_lock);
-out:
-	kfree(rule);
 	return err;
 }
 
