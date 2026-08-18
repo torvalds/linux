@@ -50,7 +50,7 @@ void __init imr_self_test_result(int res, const char *fmt, ...)
 #undef SELFTEST
 
 /**
- * imr_self_test
+ * imr_self_test - perform the IMR self-test
  *
  * Verify IMR self_test with some simple tests to verify overlap,
  * zero sized allocations and 1 KiB sized areas.
@@ -121,9 +121,4 @@ static int __init imr_self_test_init(void)
 	return 0;
 }
 
-/**
- * imr_self_test_exit - exit point for IMR code.
- *
- * return:
- */
 device_initcall(imr_self_test_init);
