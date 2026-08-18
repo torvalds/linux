@@ -251,7 +251,7 @@ static int setup_v1_file_key_derived(struct fscrypt_inode_info *ci,
 
 	err = fscrypt_set_per_file_enc_key(ci, derived_key);
 
-	memzero_explicit(derived_key, derived_keysize);
+	memzero_explicit(derived_key, sizeof(derived_key));
 	/* No need to zeroize 'aes', as its key is not secret. */
 	return err;
 }

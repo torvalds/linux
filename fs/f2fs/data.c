@@ -65,9 +65,6 @@ bool f2fs_is_cp_guaranteed(const struct folio *folio)
 	struct inode *inode;
 	struct f2fs_sb_info *sbi;
 
-	if (fscrypt_is_bounce_folio(folio))
-		return folio_test_f2fs_gcing(fscrypt_pagecache_folio(folio));
-
 	inode = mapping->host;
 	sbi = F2FS_I_SB(inode);
 
@@ -101,11 +98,6 @@ static enum count_type __read_io_type(struct folio *folio)
 
 /* postprocessing steps for read bios */
 enum bio_post_read_step {
-#ifdef CONFIG_FS_ENCRYPTION
-	STEP_DECRYPT	= BIT(0),
-#else
-	STEP_DECRYPT	= 0,	/* compile out the decryption-related code */
-#endif
 #ifdef CONFIG_F2FS_FS_COMPRESSION
 	STEP_DECOMPRESS	= BIT(1),
 #else
@@ -301,11 +293,6 @@ static void f2fs_post_read_work(struct work_struct *work)
 		container_of(work, struct bio_post_read_ctx, work);
 	struct bio *bio = ctx->bio;
 
-	if ((ctx->enabled_steps & STEP_DECRYPT) && !fscrypt_decrypt_bio(bio)) {
-		f2fs_finish_read_bio(bio, true);
-		return;
-	}
-
 	if (ctx->enabled_steps & STEP_DECOMPRESS)
 		f2fs_handle_step_decompress(ctx, true);
 
@@ -329,18 +316,11 @@ static void f2fs_read_end_io(struct bio *bio)
 		return;
 	}
 
-	if (ctx) {
-		unsigned int enabled_steps = ctx->enabled_steps &
-					(STEP_DECRYPT | STEP_DECOMPRESS);
-
-		/*
-		 * If we have only decompression step between decompression and
-		 * decrypt, we don't need post processing for this.
-		 */
-		if (enabled_steps == STEP_DECOMPRESS &&
-				!f2fs_low_mem_mode(sbi)) {
+	if (ctx && (ctx->enabled_steps & STEP_DECOMPRESS)) {
+		if (!f2fs_low_mem_mode(sbi)) {
+			/* Decompress inline. */
 			f2fs_handle_step_decompress(ctx, intask);
-		} else if (enabled_steps) {
+		} else {
 			INIT_WORK(&ctx->work, f2fs_post_read_work);
 			queue_work(ctx->sbi->wq, &ctx->work);
 			return;
@@ -361,13 +341,6 @@ static void f2fs_write_end_bio(struct bio *bio)
 	bio_for_each_folio_all(fi, bio) {
 		struct folio *folio = fi.folio;
 		enum count_type type;
-
-		if (fscrypt_is_bounce_folio(folio)) {
-			struct folio *io_folio = folio;
-
-			folio = fscrypt_pagecache_folio(io_folio);
-			fscrypt_free_bounce_page(&io_folio->page);
-		}
 
 #ifdef CONFIG_F2FS_FS_COMPRESSION
 		if (f2fs_is_compressed_page(folio)) {
@@ -614,11 +587,6 @@ static bool __has_merged_page(struct bio *bio, struct inode *inode,
 	bio_for_each_folio_all(fi, bio) {
 		struct folio *target = fi.folio;
 
-		if (fscrypt_is_bounce_folio(target)) {
-			target = fscrypt_pagecache_folio(target);
-			if (IS_ERR(target))
-				continue;
-		}
 		if (f2fs_is_compressed_page(target)) {
 			target = f2fs_compress_control_folio(target);
 			if (IS_ERR(target))
@@ -1160,9 +1128,6 @@ static struct bio *f2fs_grab_read_bio(struct inode *inode,
 	bio->bi_iter.bi_sector = sector;
 	f2fs_set_bio_crypt_ctx(bio, inode, first_idx, NULL, GFP_NOFS);
 	bio->bi_end_io = f2fs_read_end_io;
-
-	if (fscrypt_inode_uses_fs_layer_crypto(inode))
-		post_read_steps |= STEP_DECRYPT;
 
 	if (vi)
 		post_read_steps |= STEP_VERITY;
@@ -2852,35 +2817,6 @@ static void f2fs_readahead(struct readahead_control *rac)
 	f2fs_mpage_readpages(inode, vi, rac, NULL);
 }
 
-int f2fs_encrypt_one_page(struct f2fs_io_info *fio)
-{
-	struct inode *inode = fio_inode(fio);
-	struct folio *mfolio;
-	struct page *page;
-
-	if (!f2fs_encrypted_file(inode))
-		return 0;
-
-	page = fio->compressed_page ? fio->compressed_page : fio->page;
-
-	if (fscrypt_inode_uses_inline_crypto(inode))
-		return 0;
-
-	fio->encrypted_page = fscrypt_encrypt_pagecache_blocks(page_folio(page),
-					PAGE_SIZE, 0, GFP_NOFS);
-	if (IS_ERR(fio->encrypted_page))
-		return PTR_ERR(fio->encrypted_page);
-
-	mfolio = filemap_lock_folio(META_MAPPING(fio->sbi), fio->old_blkaddr);
-	if (!IS_ERR(mfolio)) {
-		if (folio_test_uptodate(mfolio))
-			memcpy(folio_address(mfolio),
-				page_address(fio->encrypted_page), PAGE_SIZE);
-		f2fs_folio_put(mfolio, true);
-	}
-	return 0;
-}
-
 static inline bool check_inplace_update_policy(struct inode *inode,
 				struct f2fs_io_info *fio)
 {
@@ -3053,22 +2989,15 @@ got_it:
 	if (ipu_force ||
 		(__is_valid_data_blkaddr(fio->old_blkaddr) &&
 					need_inplace_update(fio))) {
-		err = f2fs_encrypt_one_page(fio);
-		if (err)
-			goto out_writepage;
-
 		folio_start_writeback(folio);
 		f2fs_put_dnode(&dn);
 		if (fio->need_lock == LOCK_REQ)
 			f2fs_unlock_op(fio->sbi, &lc);
 		err = f2fs_inplace_write_data(fio);
-		if (err) {
-			if (fscrypt_inode_uses_fs_layer_crypto(inode))
-				fscrypt_finalize_bounce_page(&fio->encrypted_page);
+		if (err)
 			folio_end_writeback(folio);
-		} else {
+		else
 			set_inode_flag(inode, FI_UPDATE_WRITE);
-		}
 		trace_f2fs_do_write_data_page(folio, IPU);
 		return err;
 	}
@@ -3086,10 +3015,6 @@ got_it:
 		goto out_writepage;
 
 	fio->version = ni.version;
-
-	err = f2fs_encrypt_one_page(fio);
-	if (err)
-		goto out_writepage;
 
 	folio_start_writeback(folio);
 
@@ -4031,7 +3956,7 @@ repeat:
 		/*
 		 * Although the block may be stored in the COW inode, the folio
 		 * belongs to @inode and its data was encrypted (or not) using
-		 * @inode's context (see f2fs_encrypt_one_page()).  Read with
+		 * @inode's context (see f2fs_set_bio_crypt_ctx()).  Read with
 		 * @inode so the post-read decryption decision matches the
 		 * folio's owner; otherwise an unencrypted @inode whose COW inode
 		 * is encrypted hits a NULL ->i_crypt_info on decryption.
@@ -4602,9 +4527,9 @@ static int f2fs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 	iomap->offset = F2FS_BLK_TO_BYTES(map.m_lblk);
 
 	/*
-	 * When inline encryption is enabled, sometimes I/O to an encrypted file
-	 * has to be broken up to guarantee DUN contiguity.  Handle this by
-	 * limiting the length of the mapping returned.
+	 * Sometimes I/O to an encrypted file has to be broken up to guarantee
+	 * DUN contiguity.  Handle this by limiting the length of the mapping
+	 * returned.
 	 */
 	map.m_len = fscrypt_limit_io_blocks(inode, map.m_lblk, map.m_len);
 
