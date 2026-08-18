@@ -344,6 +344,36 @@ hws_send_engine_update_rule_resize(struct mlx5hws_send_engine *queue,
 	}
 }
 
+static const char *hws_rule_status_to_string(enum mlx5hws_rule_status status)
+{
+	switch (status) {
+	case MLX5HWS_RULE_STATUS_CREATING: return "CREATING";
+	case MLX5HWS_RULE_STATUS_UPDATING: return "UPDATING";
+	case MLX5HWS_RULE_STATUS_DELETING: return "DELETING";
+	case MLX5HWS_RULE_STATUS_FAILING: return "FAILING";
+	default: return "NA";
+	}
+}
+
+static const char *hws_rule_resize_state_to_string(u8 state)
+{
+	switch (state) {
+	case MLX5HWS_RULE_RESIZE_STATE_IDLE: return "IDLE";
+	case MLX5HWS_RULE_RESIZE_STATE_WRITING: return "WRITING";
+	case MLX5HWS_RULE_RESIZE_STATE_DELETING: return "DELETING";
+	default: return "UNKNOWN";
+	}
+}
+
+static const char *hws_gta_syndrome_to_string(u8 syndrome)
+{
+	switch (syndrome) {
+	case 1: return "SET_FLOW_FAIL";
+	case 2: return "DISABLE_FLOW_FAIL";
+	default: return "UNKNOWN";
+	}
+}
+
 static void hws_send_engine_dump_error_cqe(struct mlx5hws_send_engine *queue,
 					   struct mlx5hws_send_ring_priv *priv,
 					   struct mlx5_cqe64 *cqe)
@@ -352,6 +382,7 @@ static void hws_send_engine_dump_error_cqe(struct mlx5hws_send_engine *queue,
 	struct mlx5hws_context *ctx = priv->rule->matcher->tbl->ctx;
 	u32 opcode = cqe ? get_cqe_opcode(cqe) : 0;
 	struct mlx5hws_rule *rule = priv->rule;
+	u8 syndrome;
 
 	/* If something bad happens and lots of rules are failing, we don't
 	 * want to pollute dmesg. Print only the first bad cqe per engine,
@@ -364,26 +395,17 @@ static void hws_send_engine_dump_error_cqe(struct mlx5hws_send_engine *queue,
 
 	if (mlx5hws_rule_move_in_progress(rule))
 		mlx5hws_err(ctx,
-			    "--- rule 0x%08llx: error completion moving rule: phase %s, wqes left %d\n",
+			    "--- rule 0x%08llx: error completion moving rule: phase %s (%d), wqes left %d\n",
 			    HWS_PTR_TO_ID(rule),
-			    rule->resize_info->state ==
-			    MLX5HWS_RULE_RESIZE_STATE_WRITING ? "WRITING" :
-			    rule->resize_info->state ==
-			    MLX5HWS_RULE_RESIZE_STATE_DELETING ? "DELETING" :
-			    "UNKNOWN",
+			    hws_rule_resize_state_to_string
+				(rule->resize_info->state),
+			    rule->resize_info->state,
 			    rule->pending_wqes);
 	else
 		mlx5hws_err(ctx,
 			    "--- rule 0x%08llx: error completion %s (%d), wqes left %d\n",
 			    HWS_PTR_TO_ID(rule),
-			    rule->status ==
-			    MLX5HWS_RULE_STATUS_CREATING ? "CREATING" :
-			    rule->status ==
-			    MLX5HWS_RULE_STATUS_DELETING ? "DELETING" :
-			    rule->status ==
-			    MLX5HWS_RULE_STATUS_FAILING ? "FAILING" :
-			    rule->status ==
-			    MLX5HWS_RULE_STATUS_UPDATING ? "UPDATING" : "NA",
+			    hws_rule_status_to_string(rule->status),
 			    rule->status,
 			    rule->pending_wqes);
 
@@ -423,6 +445,10 @@ static void hws_send_engine_dump_error_cqe(struct mlx5hws_send_engine *queue,
 			    "    rule 0x%08llx:  |--- syndrome = 0x%x\n",
 			    HWS_PTR_TO_ID(rule),
 			    err_cqe->syndrome);
+		mlx5hws_err(ctx,
+			    "    rule 0x%08llx:  |--- WQE_CNT = 0x%04x\n",
+			    HWS_PTR_TO_ID(rule),
+			    (u32)be16_to_cpu(err_cqe->wqe_counter));
 	}
 
 	mlx5hws_err(ctx,
@@ -433,13 +459,12 @@ static void hws_send_engine_dump_error_cqe(struct mlx5hws_send_engine *queue,
 		    HWS_PTR_TO_ID(rule),
 		    (be32_to_cpu(cqe->byte_cnt) & 0x80000000) ?
 		    "FAILURE" : "SUCCESS");
+	/* syndrome is in the lower 2 bits of byte_cnt */
+	syndrome = be32_to_cpu(cqe->byte_cnt) & 3;
 	mlx5hws_err(ctx,
-		    "    rule 0x%08llx:  |------- SYNDROME = %s\n",
+		    "    rule 0x%08llx:  |------- SYNDROME = %s (%u)\n",
 		    HWS_PTR_TO_ID(rule),
-		    ((be32_to_cpu(cqe->byte_cnt) & 0x00000003) == 1) ?
-		    "SET_FLOW_FAIL" :
-		    ((be32_to_cpu(cqe->byte_cnt) & 0x00000003) == 2) ?
-		    "DISABLE_FLOW_FAIL" : "UNKNOWN");
+		    hws_gta_syndrome_to_string(syndrome), syndrome);
 	mlx5hws_err(ctx,
 		    "    rule 0x%08llx: cqe->sop_drop_qpn  = 0x%08x\n",
 		    HWS_PTR_TO_ID(rule), be32_to_cpu(cqe->sop_drop_qpn));
@@ -1091,8 +1116,6 @@ static int hws_bwc_send_queues_init(struct mlx5hws_context *ctx)
 	if (!mlx5hws_context_bwc_supported(ctx))
 		return 0;
 
-	ctx->queues += bwc_queues;
-
 	ctx->bwc_send_queue_locks = kzalloc_objs(*ctx->bwc_send_queue_locks,
 						 bwc_queues);
 
@@ -1103,6 +1126,8 @@ static int hws_bwc_send_queues_init(struct mlx5hws_context *ctx)
 						bwc_queues);
 	if (!ctx->bwc_lock_class_keys)
 		goto err_lock_class_keys;
+
+	ctx->queues += bwc_queues;
 
 	for (i = 0; i < bwc_queues; i++) {
 		mutex_init(&ctx->bwc_send_queue_locks[i]);
