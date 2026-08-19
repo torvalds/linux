@@ -194,7 +194,7 @@ static bool ex_handler_msr(const struct exception_table_entry *fixup,
 static bool ex_handler_clear_fs(const struct exception_table_entry *fixup,
 				struct pt_regs *regs)
 {
-	if (static_cpu_has(X86_BUG_NULL_SEG))
+	if (cpu_feature_enabled(X86_BUG_NULL_SEG))
 		asm volatile ("mov %0, %%fs" : : "rm" (__USER_DS));
 	asm volatile ("mov %0, %%fs" : : "rm" (0));
 	return ex_handler_default(fixup, regs);

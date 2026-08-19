@@ -49,7 +49,7 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
  * is not relevant.
  */
 #define cpu_feature_enabled(bit)	\
-	(__builtin_constant_p(bit) && DISABLED_MASK_BIT_SET(bit) ? 0 : static_cpu_has(bit))
+	(__builtin_constant_p(bit) && DISABLED_MASK_BIT_SET(bit) ? 0 : _static_cpu_has(bit))
 
 #define boot_cpu_has(bit)	cpu_has(&boot_cpu_data, bit)
 
@@ -64,15 +64,7 @@ extern void setup_clear_cpu_cap(unsigned int bit);
 
 #define setup_force_cpu_bug(bit) setup_force_cpu_cap(bit)
 
-/*
- * Static testing of CPU features. Used the same as boot_cpu_has(). It
- * statically patches the target code for additional performance. Use
- * static_cpu_has() only in fast paths, where every cycle counts. Which
- * means that the boot_cpu_has() variant is already fast enough for the
- * majority of cases and you should stick to using it as it is generally
- * only two instructions: a RIP-relative MOV and a TEST.
- */
-static __always_inline bool _static_cpu_has(u16 bit)
+static __always_inline bool __static_cpu_has(u16 bit)
 {
 	asm goto("1: jmp 6f\n"
 		 "2:\n"
@@ -116,7 +108,7 @@ t_no:
 	return false;
 }
 
-#define static_cpu_has(bit)					\
+#define _static_cpu_has(bit)					\
 (								\
 	__builtin_constant_p(boot_cpu_has(bit)) ?		\
 		boot_cpu_has(bit) :				\
@@ -126,7 +118,7 @@ t_no:
 #define cpu_has_bug(c, bit)		cpu_has(c, (bit))
 #define set_cpu_bug(c, bit)		set_cpu_cap(c, (bit))
 
-#define static_cpu_has_bug(bit)		static_cpu_has((bit))
+#define static_cpu_has_bug(bit)		_static_cpu_has((bit))
 #define boot_cpu_has_bug(bit)		cpu_has_bug(&boot_cpu_data, (bit))
 #define boot_cpu_set_bug(bit)		set_cpu_cap(&boot_cpu_data, (bit))
 

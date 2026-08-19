@@ -88,7 +88,7 @@ drm_clflush_pages(struct page *pages[], unsigned long num_pages)
 {
 
 #if defined(CONFIG_X86)
-	if (static_cpu_has(X86_FEATURE_CLFLUSH)) {
+	if (cpu_feature_enabled(X86_FEATURE_CLFLUSH)) {
 		drm_cache_flush_clflush(pages, num_pages);
 		return;
 	}
@@ -127,7 +127,7 @@ void
 drm_clflush_sg(struct sg_table *st)
 {
 #if defined(CONFIG_X86)
-	if (static_cpu_has(X86_FEATURE_CLFLUSH)) {
+	if (cpu_feature_enabled(X86_FEATURE_CLFLUSH)) {
 		struct sg_page_iter sg_iter;
 
 		mb(); /*CLFLUSH is ordered only by using memory barriers*/
@@ -157,7 +157,7 @@ void
 drm_clflush_virt_range(void *addr, unsigned long length)
 {
 #if defined(CONFIG_X86)
-	if (static_cpu_has(X86_FEATURE_CLFLUSH)) {
+	if (cpu_feature_enabled(X86_FEATURE_CLFLUSH)) {
 		const int size = boot_cpu_data.x86_clflush_size;
 		void *end = addr + length;
 
@@ -332,7 +332,7 @@ void drm_memcpy_init_early(void)
 	 * Some hypervisors (e.g. KVM) don't support VEX-prefix instructions
 	 * emulation. So don't enable movntdqa in hypervisor guest.
 	 */
-	if (static_cpu_has(X86_FEATURE_XMM4_1) &&
+	if (cpu_feature_enabled(X86_FEATURE_XMM4_1) &&
 	    !boot_cpu_has(X86_FEATURE_HYPERVISOR))
 		static_branch_enable(&has_movntdqa);
 }

@@ -654,7 +654,7 @@ static DEFINE_RAW_SPINLOCK(cache_disable_lock);
  */
 static void maybe_flush_caches(void)
 {
-	if (!static_cpu_has(X86_FEATURE_SELFSNOOP))
+	if (!cpu_feature_enabled(X86_FEATURE_SELFSNOOP))
 		wbinvd();
 }
 

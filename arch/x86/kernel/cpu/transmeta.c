@@ -89,6 +89,7 @@ static void init_transmeta(struct cpuinfo_x86 *c)
 	/* Unhide possibly hidden capability flags */
 	rdmsrq(0x80860004, msr);
 	wrmsrq(0x80860004, msr | ~0U);
+	cpuid_refresh_leaf(c, 0x1);
 	c->x86_capability[CPUID_1_EDX] = cpuid_edx(0x00000001);
 	wrmsrq(0x80860004, msr);
 

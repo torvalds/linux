@@ -1227,7 +1227,7 @@ static void memcpy_flushcache_optimized(void *dest, void *source, size_t size)
 	 * advantage seen with cache-allocating-writes plus flushing.
 	 */
 #ifdef CONFIG_X86
-	if (static_cpu_has(X86_FEATURE_CLFLUSHOPT) &&
+	if (cpu_feature_enabled(X86_FEATURE_CLFLUSHOPT) &&
 	    likely(boot_cpu_data.x86_clflush_size == 64) &&
 	    likely(size >= 768)) {
 		do {

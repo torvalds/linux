@@ -61,7 +61,7 @@ void load_mm_ldt(struct mm_struct *mm)
 	 */
 
 	if (unlikely(ldt)) {
-		if (static_cpu_has(X86_FEATURE_PTI)) {
+		if (cpu_feature_enabled(X86_FEATURE_PTI)) {
 			if (WARN_ON_ONCE((unsigned long)ldt->slot > 1)) {
 				/*
 				 * Whoops -- either the new LDT isn't mapped

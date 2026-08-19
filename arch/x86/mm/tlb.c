@@ -162,7 +162,7 @@ static inline unsigned long build_cr3(pgd_t *pgd, u16 asid, unsigned long lam)
 {
 	unsigned long cr3 = __sme_pa(pgd) | lam;
 
-	if (static_cpu_has(X86_FEATURE_PCID)) {
+	if (cpu_feature_enabled(X86_FEATURE_PCID)) {
 		cr3 |= kern_pcid(asid);
 	} else {
 		VM_WARN_ON_ONCE(asid != 0);
@@ -197,7 +197,7 @@ static void clear_asid_other(void)
 	 * This is only expected to be set if we have disabled
 	 * kernel _PAGE_GLOBAL pages.
 	 */
-	if (!static_cpu_has(X86_FEATURE_PTI)) {
+	if (!cpu_feature_enabled(X86_FEATURE_PTI)) {
 		WARN_ON_ONCE(1);
 		return;
 	}
@@ -227,7 +227,7 @@ static struct new_asid choose_new_asid(struct mm_struct *next, u64 next_tlb_gen)
 	struct new_asid ns;
 	u16 asid;
 
-	if (!static_cpu_has(X86_FEATURE_PCID)) {
+	if (!cpu_feature_enabled(X86_FEATURE_PCID)) {
 		ns.asid = 0;
 		ns.need_flush = 1;
 		return ns;
@@ -555,7 +555,7 @@ static inline void invalidate_user_asid(u16 asid)
 	if (!cpu_feature_enabled(X86_FEATURE_PCID))
 		return;
 
-	if (!static_cpu_has(X86_FEATURE_PTI))
+	if (!cpu_feature_enabled(X86_FEATURE_PTI))
 		return;
 
 	__set_bit(kern_pcid(asid),
@@ -1558,7 +1558,7 @@ void flush_tlb_one_kernel(unsigned long addr)
 	 */
 	flush_tlb_one_user(addr);
 
-	if (!static_cpu_has(X86_FEATURE_PTI))
+	if (!cpu_feature_enabled(X86_FEATURE_PTI))
 		return;
 
 	/*
@@ -1582,7 +1582,7 @@ STATIC_NOPV void native_flush_tlb_one_user(unsigned long addr)
 	invlpg(addr);
 
 	/* If PTI is off there is no user PCID and nothing to flush. */
-	if (!static_cpu_has(X86_FEATURE_PTI))
+	if (!cpu_feature_enabled(X86_FEATURE_PTI))
 		return;
 
 	loaded_mm_asid = this_cpu_read(cpu_tlbstate.loaded_mm_asid);
@@ -1611,7 +1611,7 @@ STATIC_NOPV void native_flush_tlb_global(void)
 {
 	unsigned long flags;
 
-	if (static_cpu_has(X86_FEATURE_INVPCID)) {
+	if (cpu_feature_enabled(X86_FEATURE_INVPCID)) {
 		/*
 		 * Using INVPCID is considerably faster than a pair of writes
 		 * to CR4 sandwiched inside an IRQ flag save/restore.

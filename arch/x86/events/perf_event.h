@@ -1176,7 +1176,7 @@ DECLARE_STATIC_CALL(x86_pmu_pebs_disable_all, *x86_pmu.pebs_disable_all);
 
 static __always_inline struct x86_perf_task_context_opt *task_context_opt(void *ctx)
 {
-	if (static_cpu_has(X86_FEATURE_ARCH_LBR))
+	if (cpu_feature_enabled(X86_FEATURE_ARCH_LBR))
 		return &((struct x86_perf_task_context_arch_lbr *)ctx)->opt;
 
 	return &((struct x86_perf_task_context *)ctx)->opt;

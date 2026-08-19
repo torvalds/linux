@@ -928,7 +928,7 @@ void intel_thermal_interrupt(void)
 {
 	__u64 msr_val;
 
-	if (static_cpu_has(X86_FEATURE_HWP))
+	if (cpu_feature_enabled(X86_FEATURE_HWP))
 		notify_hwp_interrupt();
 
 	rdmsrq(MSR_IA32_THERM_STATUS, msr_val);

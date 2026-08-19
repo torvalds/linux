@@ -911,7 +911,7 @@ pgd_t __pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd);
  */
 static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
 {
-	if (!static_cpu_has(X86_FEATURE_PTI))
+	if (!cpu_feature_enabled(X86_FEATURE_PTI))
 		return pgd;
 	return __pti_set_user_pgtbl(pgdp, pgd);
 }
@@ -1471,7 +1471,7 @@ static inline void clone_pgd_range(pgd_t *dst, pgd_t *src, int count)
 {
 	memcpy(dst, src, count * sizeof(pgd_t));
 #ifdef CONFIG_MITIGATION_PAGE_TABLE_ISOLATION
-	if (!static_cpu_has(X86_FEATURE_PTI))
+	if (!cpu_feature_enabled(X86_FEATURE_PTI))
 		return;
 	/* Clone the user space pgd as well */
 	memcpy(kernel_to_user_pgdp(dst), kernel_to_user_pgdp(src),

@@ -1392,7 +1392,7 @@ static struct attribute *amd_brs_events_attrs[] = {
 static umode_t
 amd_brs_is_visible(struct kobject *kobj, struct attribute *attr, int i)
 {
-	return static_cpu_has(X86_FEATURE_BRS) && x86_pmu.lbr_nr ?
+	return cpu_feature_enabled(X86_FEATURE_BRS) && x86_pmu.lbr_nr ?
 	       attr->mode : 0;
 }
 

@@ -77,7 +77,7 @@ found:
 static void synthesize_clac(kprobe_opcode_t *addr)
 {
 	/*
-	 * Can't be static_cpu_has() due to how objtool treats this feature bit.
+	 * Can't be cpu_feature_enabled() due to how objtool treats this feature bit.
 	 * This isn't a fast path anyway.
 	 */
 	if (!boot_cpu_has(X86_FEATURE_SMAP))

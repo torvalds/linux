@@ -307,7 +307,7 @@ static bool detect_vt630x_with_asm1083_on_amd_ryzen_machine(const struct pci_dev
 	const struct pci_dev *pcie_to_pci_bridge;
 
 	// Detect any type of AMD Ryzen machine.
-	if (!static_cpu_has(X86_FEATURE_ZEN))
+	if (!cpu_feature_enabled(X86_FEATURE_ZEN))
 		return false;
 
 	// Detect VIA VT6306/6307/6308.

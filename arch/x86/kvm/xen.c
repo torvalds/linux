@@ -212,7 +212,7 @@ static void kvm_xen_start_timer(struct kvm_vcpu *vcpu, u64 guest_abs,
 		struct pvclock_vcpu_time_info hv_clock;
 		uint64_t host_tsc, guest_tsc;
 
-		if (!static_cpu_has(X86_FEATURE_CONSTANT_TSC) ||
+		if (!cpu_feature_enabled(X86_FEATURE_CONSTANT_TSC) ||
 		    !vcpu->kvm->arch.use_master_clock)
 			break;
 

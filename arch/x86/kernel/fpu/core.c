@@ -874,7 +874,7 @@ void fpu_flush_thread(void)
  */
 void switch_fpu_return(void)
 {
-	if (!static_cpu_has(X86_FEATURE_FPU))
+	if (!cpu_feature_enabled(X86_FEATURE_FPU))
 		return;
 
 	fpregs_restore_userregs();

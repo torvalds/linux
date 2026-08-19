@@ -328,7 +328,7 @@ unsigned long copy_from_user_inatomic_nontemporal(void *to, const void __user *f
 	if (!user_access_begin(from, n))
 		return n;
 #ifdef CONFIG_X86_INTEL_USERCOPY
-	if (n > 64 && static_cpu_has(X86_FEATURE_XMM2))
+	if (n > 64 && cpu_feature_enabled(X86_FEATURE_XMM2))
 		n = __copy_user_intel_nocache(to, from, n);
 	else
 		__copy_user(to, from, n);

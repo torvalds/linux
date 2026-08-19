@@ -419,7 +419,7 @@ static noinstr void vmx_l1d_flush(struct kvm_vcpu *vcpu)
 
 	vcpu->stat.l1d_flush++;
 
-	if (static_cpu_has(X86_FEATURE_FLUSH_L1D)) {
+	if (cpu_feature_enabled(X86_FEATURE_FLUSH_L1D)) {
 		native_wrmsrq(MSR_IA32_FLUSH_CMD, L1D_FLUSH);
 		return;
 	}
@@ -1802,7 +1802,7 @@ static int skip_emulated_instruction(struct kvm_vcpu *vcpu)
 	 * (namely Hyper-V) don't set it due to it being undefined behavior,
 	 * i.e. we end up advancing IP with some random value.
 	 */
-	if (!static_cpu_has(X86_FEATURE_HYPERVISOR) ||
+	if (!cpu_feature_enabled(X86_FEATURE_HYPERVISOR) ||
 	    exit_reason.basic != EXIT_REASON_EPT_MISCONFIG) {
 		instr_len = vmcs_read32(VM_EXIT_INSTRUCTION_LEN);
 
@@ -8793,7 +8793,7 @@ __init int vmx_hardware_setup(void)
 	 * caches properly.  This also requires honoring guest PAT, and is forced
 	 * independent of the quirk in vmx_ignore_guest_pat().
 	 */
-	if (!static_cpu_has(X86_FEATURE_SELFSNOOP))
+	if (!cpu_feature_enabled(X86_FEATURE_SELFSNOOP))
 		kvm_caps.supported_quirks &= ~KVM_X86_QUIRK_IGNORE_GUEST_PAT;
 
 	kvm_caps.inapplicable_quirks &= ~KVM_X86_QUIRK_IGNORE_GUEST_PAT;

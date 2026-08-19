@@ -1507,7 +1507,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		union cpuid10_eax eax = { };
 		union cpuid10_edx edx = { };
 
-		if (!enable_pmu || !static_cpu_has(X86_FEATURE_ARCH_PERFMON)) {
+		if (!enable_pmu || !cpu_feature_enabled(X86_FEATURE_ARCH_PERFMON)) {
 			entry->eax = entry->ebx = entry->ecx = entry->edx = 0;
 			break;
 		}
@@ -1748,7 +1748,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		 * loop if said highest leaf has no subleaves indexed by ECX.
 		 */
 		if (entry->eax >= 0x8000001d &&
-		    (static_cpu_has(X86_FEATURE_LFENCE_RDTSC)
+		    (cpu_feature_enabled(X86_FEATURE_LFENCE_RDTSC)
 		     || !static_cpu_has_bug(X86_BUG_NULL_SEG)))
 			entry->eax = max(entry->eax, 0x80000021);
 		break;
