@@ -710,9 +710,9 @@ static const struct scsi_host_template ahci_platform_sht = {
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id xgene_ahci_acpi_match[] = {
-	{ "APMC0D0D", XGENE_AHCI_V1},
-	{ "APMC0D32", XGENE_AHCI_V2},
-	{},
+	{ .id = "APMC0D0D", .driver_data = XGENE_AHCI_V1 },
+	{ .id = "APMC0D32", .driver_data = XGENE_AHCI_V2 },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, xgene_ahci_acpi_match);
 #endif
