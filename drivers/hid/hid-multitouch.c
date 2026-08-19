@@ -2189,16 +2189,8 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	mt_set_modes(hdev, HID_LATENCY_NORMAL, TOUCHPAD_REPORT_ALL);
 
-	if (td->is_haptic_touchpad) {
-		if (hid_haptic_init(hdev, &td->haptic)) {
-			dev_warn(&hdev->dev, "Cannot allocate haptic for %s\n",
-				 hdev->name);
-			td->is_haptic_touchpad = false;
-			devm_kfree(&hdev->dev, td->haptic);
-		}
-	} else {
+	if (!td->is_haptic_touchpad)
 		devm_kfree(&hdev->dev, td->haptic);
-	}
 
 	return 0;
 }

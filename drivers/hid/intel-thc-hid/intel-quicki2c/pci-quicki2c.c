@@ -698,11 +698,8 @@ static int quicki2c_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 					quicki2c_irq_thread_handler,
 					IRQF_ONESHOT, KBUILD_MODNAME,
 					qcdev);
-	if (ret) {
-		dev_err_once(&pdev->dev,
-			     "Failed to request threaded IRQ, irq = %d.\n", pdev->irq);
+	if (ret)
 		goto dev_deinit;
-	}
 
 	ret = quicki2c_get_device_descriptor(qcdev);
 	if (ret) {

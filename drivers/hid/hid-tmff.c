@@ -116,22 +116,25 @@ static int tmff_play(struct input_dev *dev, void *data,
 	return 0;
 }
 
-static int tmff_init(struct hid_device *hid, const signed short *ff_bits)
+static int tm_input_configured(struct hid_device *hid, struct hid_input *hidinput)
 {
 	struct tmff_device *tmff;
 	struct hid_report *report;
 	struct list_head *report_list;
-	struct hid_input *hidinput;
-	struct input_dev *input_dev;
+	struct input_dev *input_dev = hidinput->input;
+	const struct hid_device_id *id;
+	const signed short *ff_bits;
 	int error;
 	int i;
 
-	if (list_empty(&hid->inputs)) {
-		hid_err(hid, "no inputs found\n");
+	if (!list_is_first(&hidinput->list, &hid->inputs))
+		return 0;
+
+	id = hid_match_device(hid, hid->driver);
+	if (!id)
 		return -ENODEV;
-	}
-	hidinput = list_entry(hid->inputs.next, struct hid_input, list);
-	input_dev = hidinput->input;
+
+	ff_bits = (void *)id->driver_data;
 
 	tmff = kzalloc_obj(struct tmff_device);
 	if (!tmff)
@@ -205,34 +208,12 @@ fail:
 	return error;
 }
 #else
-static inline int tmff_init(struct hid_device *hid, const signed short *ff_bits)
+static inline int tm_input_configured(struct hid_device *hid,
+				      struct hid_input *hidinput)
 {
 	return 0;
 }
 #endif
-
-static int tm_probe(struct hid_device *hdev, const struct hid_device_id *id)
-{
-	int ret;
-
-	ret = hid_parse(hdev);
-	if (ret) {
-		hid_err(hdev, "parse failed\n");
-		goto err;
-	}
-
-	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT & ~HID_CONNECT_FF);
-	if (ret) {
-		hid_err(hdev, "hw start failed\n");
-		goto err;
-	}
-
-	tmff_init(hdev, (void *)id->driver_data);
-
-	return 0;
-err:
-	return ret;
-}
 
 static const struct hid_device_id tm_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_THRUSTMASTER, 0xb300),
@@ -262,7 +243,7 @@ MODULE_DEVICE_TABLE(hid, tm_devices);
 static struct hid_driver tm_driver = {
 	.name = "thrustmaster",
 	.id_table = tm_devices,
-	.probe = tm_probe,
+	.input_configured = tm_input_configured,
 };
 module_hid_driver(tm_driver);
 

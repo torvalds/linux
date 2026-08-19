@@ -124,19 +124,10 @@ static irqreturn_t amd_sfh_irq_handler(int irq, void *data)
 
 int amd_sfh_irq_init_v2(struct amd_mp2_dev *privdata)
 {
-	int rc;
-
 	pcim_intx(privdata->pdev, true);
 
-	rc = devm_request_irq(&privdata->pdev->dev, privdata->pdev->irq,
-			      amd_sfh_irq_handler, 0, DRIVER_NAME, privdata);
-	if (rc) {
-		dev_err(&privdata->pdev->dev, "failed to request irq %d err=%d\n",
-			privdata->pdev->irq, rc);
-		return rc;
-	}
-
-	return 0;
+	return devm_request_irq(&privdata->pdev->dev, privdata->pdev->irq,
+				amd_sfh_irq_handler, 0, DRIVER_NAME, privdata);
 }
 
 static int amd_sfh_dis_sts_v2(struct amd_mp2_dev *privdata)

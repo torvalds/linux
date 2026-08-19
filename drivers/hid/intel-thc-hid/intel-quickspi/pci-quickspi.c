@@ -647,11 +647,8 @@ static int quickspi_probe(struct pci_dev *pdev,
 					quickspi_irq_thread_handler,
 					IRQF_ONESHOT, KBUILD_MODNAME,
 					qsdev);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"Failed to request threaded IRQ, irq = %d.\n", pdev->irq);
+	if (ret)
 		goto dev_deinit;
-	}
 
 	ret = reset_tic(qsdev);
 	if (ret) {

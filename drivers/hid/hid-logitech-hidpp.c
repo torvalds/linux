@@ -4084,14 +4084,31 @@ static void hidpp_populate_input(struct hidpp_device *hidpp,
 		hidpp20_reprog_controls_populate_input(hidpp, input);
 }
 
-static int hidpp_input_configured(struct hid_device *hdev,
-				struct hid_input *hidinput)
+static int hidpp_input_configured(struct hid_device *hdev, struct hid_input *hidinput)
 {
 	struct hidpp_device *hidpp = hid_get_drvdata(hdev);
 	struct input_dev *input = hidinput->input;
+	int ret;
 
 	if (!hidpp)
 		return 0;
+
+	if (hidpp->quirks & HIDPP_QUIRK_CLASS_G920) {
+		struct hidpp_ff_private_data data;
+
+		if (!list_is_first(&hidinput->list, &hdev->inputs))
+			return 0;
+
+		ret = g920_get_config(hidpp, &data);
+		if (!ret)
+			ret = hidpp_ff_init(hidpp, &data);
+
+		if (ret) {
+			hid_warn(hidpp->hid_dev,
+				 "Unable to initialize force feedback support, errno %d\n",
+				 ret);
+		}
+	}
 
 	hidpp_populate_input(hidpp, input);
 
@@ -4802,21 +4819,6 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	hid_device_io_start(hdev);
 	schedule_work(&hidpp->work);
 	flush_work(&hidpp->work);
-
-	if (hidpp->quirks & HIDPP_QUIRK_CLASS_G920) {
-		struct hidpp_ff_private_data data;
-
-		ret = g920_get_config(hidpp, &data);
-		if (!ret)
-			ret = hidpp_ff_init(hidpp, &data);
-
-		if (ret) {
-			hid_warn(hidpp->hid_dev,
-		     "Unable to initialize force feedback support, errno %d\n",
-				 ret);
-			ret = 0;
-		}
-	}
 
 	/*
 	 * This relies on logi_dj_ll_close() being a no-op so that DJ connection
