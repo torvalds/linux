@@ -180,29 +180,13 @@ static void btrfs_end_repair_bio(struct btrfs_bio *repair_bbio,
 	struct btrfs_failed_bio *fbio = repair_bbio->private;
 	struct btrfs_inode *inode = repair_bbio->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	/*
-	 * We can not move forward the saved_iter, as it will be later
-	 * utilized by repair_bbio again.
-	 */
-	struct bvec_iter saved_iter = repair_bbio->saved_iter;
-	const u32 step = min(fs_info->sectorsize, PAGE_SIZE);
-	const u32 nr_steps = repair_bbio->saved_iter.bi_size / step;
 	int mirror = repair_bbio->mirror_num;
-	phys_addr_t paddrs[BTRFS_MAX_BLOCKSIZE / PAGE_SIZE];
-	phys_addr_t paddr;
-	unsigned int slot = 0;
 
-	/* Repair bbio should be eaxctly one block sized. */
+	/* Repair bbio should be exactly one block sized. */
 	ASSERT(repair_bbio->saved_iter.bi_size == fs_info->sectorsize);
 
-	btrfs_bio_for_each_block(paddr, &repair_bbio->bio, &saved_iter, step) {
-		ASSERT(slot < nr_steps);
-		paddrs[slot] = paddr;
-		slot++;
-	}
-
 	if (repair_bbio->bio.bi_status ||
-	    !btrfs_data_csum_ok(repair_bbio, dev, 0, paddrs)) {
+	    !btrfs_bio_data_csum_ok(repair_bbio, &repair_bbio->saved_iter, dev)) {
 		bio_reset(&repair_bbio->bio, NULL, REQ_OP_READ);
 		repair_bbio->bio.bi_iter = repair_bbio->saved_iter;
 
@@ -236,25 +220,21 @@ done:
  * read succeeded to restore the redundancy.
  */
 static struct btrfs_failed_bio *repair_one_sector(struct btrfs_bio *failed_bbio,
-						  u32 bio_offset,
-						  phys_addr_t paddrs[],
+						  const struct bvec_iter *orig_iter,
 						  struct btrfs_failed_bio *fbio)
 {
 	struct btrfs_inode *inode = failed_bbio->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	const u32 sectorsize = fs_info->sectorsize;
-	const u32 step = min(fs_info->sectorsize, PAGE_SIZE);
-	const u32 nr_steps = sectorsize / step;
-	/*
-	 * For bs > ps cases, the saved_iter can be partially moved forward.
-	 * In that case we should round it down to the block boundary.
-	 */
-	const u64 logical = round_down(failed_bbio->saved_iter.bi_sector << SECTOR_SHIFT,
-				       sectorsize);
 	struct btrfs_bio *repair_bbio;
 	struct bio *repair_bio;
+	struct bvec_iter iter = *orig_iter;
+	const u32 sectorsize = fs_info->sectorsize;
+	const u32 bio_offset = ((iter.bi_sector - failed_bbio->saved_iter.bi_sector) <<
+				SECTOR_SHIFT);
+	const u64 logical = (iter.bi_sector << SECTOR_SHIFT);
 	int num_copies;
 	int mirror;
+	u32 cur = 0;
 
 	btrfs_debug(fs_info, "repair read error: read error at %llu",
 		    failed_bbio->file_offset + bio_offset);
@@ -275,17 +255,21 @@ static struct btrfs_failed_bio *repair_one_sector(struct btrfs_bio *failed_bbio,
 
 	atomic_inc(&fbio->repair_count);
 
-	repair_bio = bio_alloc_bioset(NULL, nr_steps, REQ_OP_READ, GFP_NOFS,
-				      &btrfs_repair_bioset);
+	repair_bio = bio_alloc_bioset(NULL, max(1, sectorsize >> PAGE_SHIFT),
+				      REQ_OP_READ, GFP_NOFS, &btrfs_repair_bioset);
 	repair_bio->bi_iter.bi_sector = logical >> SECTOR_SHIFT;
-	for (int i = 0; i < nr_steps; i++) {
+	while (cur < sectorsize) {
+		struct page *page = bio_iter_page(&failed_bbio->bio, iter);
+		const u32 pg_off = bio_iter_offset(&failed_bbio->bio, iter);
+		const u32 cur_len = min(bio_iter_len(&failed_bbio->bio, iter),
+					sectorsize - cur);
 		int ret;
 
-		ASSERT(offset_in_page(paddrs[i]) + step <= PAGE_SIZE);
+		ret = bio_add_page(repair_bio, page, cur_len, pg_off);
+		ASSERT(ret == cur_len);
 
-		ret = bio_add_page(repair_bio, phys_to_page(paddrs[i]), step,
-				   offset_in_page(paddrs[i]));
-		ASSERT(ret == step);
+		bio_advance_iter_single(&failed_bbio->bio, &iter, cur_len);
+		cur += cur_len;
 	}
 
 	repair_bbio = btrfs_bio(repair_bio);
@@ -303,17 +287,15 @@ static void btrfs_check_read_bio(struct btrfs_bio *bbio, struct btrfs_device *de
 	struct btrfs_inode *inode = bbio->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	const u32 sectorsize = fs_info->sectorsize;
-	const u32 step = min(sectorsize, PAGE_SIZE);
-	const u32 nr_steps = sectorsize / step;
-	struct bvec_iter *iter = &bbio->saved_iter;
+	struct bvec_iter iter;
 	blk_status_t status = bbio->bio.bi_status;
 	struct btrfs_failed_bio *fbio = NULL;
-	phys_addr_t paddrs[BTRFS_MAX_BLOCKSIZE / PAGE_SIZE];
-	phys_addr_t paddr;
-	u32 offset = 0;
 
 	/* Read-repair requires the inode field to be set by the submitter. */
 	ASSERT(inode);
+
+	/* The original bbio should be sectorsize aligned. */
+	ASSERT(IS_ALIGNED(bbio->saved_iter.bi_size, sectorsize));
 
 	/*
 	 * Hand off repair bios to the repair code as there is no upper level
@@ -327,16 +309,10 @@ static void btrfs_check_read_bio(struct btrfs_bio *bbio, struct btrfs_device *de
 	/* Clear the I/O error. A failed repair will reset it. */
 	bbio->bio.bi_status = BLK_STS_OK;
 
-	btrfs_bio_for_each_block(paddr, &bbio->bio, iter, step) {
-		paddrs[(offset / step) % nr_steps] = paddr;
-		offset += step;
-
-		if (IS_ALIGNED(offset, sectorsize)) {
-			if (status ||
-			    !btrfs_data_csum_ok(bbio, dev, offset - sectorsize, paddrs))
-				fbio = repair_one_sector(bbio, offset - sectorsize,
-							 paddrs, fbio);
-		}
+	for (iter = bbio->saved_iter; iter.bi_size;
+	     bio_advance_iter(&bbio->bio, &iter, sectorsize)) {
+		if (status || !btrfs_bio_data_csum_ok(bbio, &iter, dev))
+			fbio = repair_one_sector(bbio, &iter, fbio);
 	}
 	if (bbio->csum != bbio->csum_inline)
 		kvfree(bbio->csum);
@@ -924,7 +900,7 @@ void btrfs_submit_bbio(struct btrfs_bio *bbio, int mirror_num)
  * freeing the bio.
  *
  * @bbio:	Original bbio where the repair is needed
- * @orig_iter:	Points to where the repair start is
+ * @orig_iter:	Points to where the repair starts
  * @length:	Length of the repair write
  * @mirror_num: Mirror number to write to. Must not be zero
  */
