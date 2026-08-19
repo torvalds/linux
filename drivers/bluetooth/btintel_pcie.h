@@ -18,6 +18,7 @@
 #define BTINTEL_PCIE_CSR_CI_ADDR_LSB_REG	(BTINTEL_PCIE_CSR_BASE + 0x118)
 #define BTINTEL_PCIE_CSR_CI_ADDR_MSB_REG	(BTINTEL_PCIE_CSR_BASE + 0x11C)
 #define BTINTEL_PCIE_CSR_IMG_RESPONSE_REG	(BTINTEL_PCIE_CSR_BASE + 0x12C)
+#define BTINTEL_PCIE_CSR_IPC_DOORBELL_VEC_REG	(BTINTEL_PCIE_CSR_BASE + 0x130)
 #define BTINTEL_PCIE_CSR_MBOX_1_REG		(BTINTEL_PCIE_CSR_BASE + 0x170)
 #define BTINTEL_PCIE_CSR_MBOX_2_REG		(BTINTEL_PCIE_CSR_BASE + 0x174)
 #define BTINTEL_PCIE_CSR_MBOX_3_REG		(BTINTEL_PCIE_CSR_BASE + 0x178)
@@ -51,6 +52,8 @@
 #define BTINTEL_PCIE_CSR_BOOT_STAGE_MAC_ACCESS_ON	(BIT(16))
 #define BTINTEL_PCIE_CSR_BOOT_STAGE_ALIVE		(BIT(23))
 #define BTINTEL_PCIE_CSR_BOOT_STAGE_D3_STATE_READY	(BIT(24))
+
+#define BTINTEL_PCIE_CSR_DOORBELL_MBOX_READ_CONFIRM	(BIT(4))
 
 /* Registers for MSI-X */
 #define BTINTEL_PCIE_CSR_MSIX_BASE		(0x2000)
@@ -121,7 +124,8 @@ enum {
 	BTINTEL_PCIE_COREDUMP_INPROGRESS,
 	BTINTEL_PCIE_FWTRIGGER_DUMP_INPROGRESS,
 	BTINTEL_PCIE_RECOVERY_IN_PROGRESS,
-	BTINTEL_PCIE_SETUP_DONE
+	BTINTEL_PCIE_SETUP_DONE,
+	BTINTEL_PCIE_MAIL_BOX_INTR
 };
 
 enum btintel_pcie_tlv_type {
@@ -151,6 +155,14 @@ enum msix_mbox_int_causes {
 enum btintel_pcie_reset_type {
 	BTINTEL_PCIE_IOSF_PRR_FLR = 0,
 	BTINTEL_PCIE_IOSF_PRR_PLDR = 1,
+};
+
+enum btintel_pcie_mbox_msg {
+	BTINTEL_PCIE_NO_USE = 0,
+	BTINTEL_PCIE_TOP_SILENT_RESET,
+	BTINTEL_PCIE_SB_AUDIO_DEVICE_REPORT,
+	BTINTEL_PCIE_BUILD_SPECIFIC_RESOURCES_MAPPING,
+	BTINTEL_PCIE_LAST_MESSAGE = 4095
 };
 
 #define BTINTEL_PCIE_MSIX_NON_AUTO_CLEAR_CAUSE	BIT(7)
@@ -197,6 +209,12 @@ enum {
 
 /* RBD buffer size mapping */
 #define BTINTEL_PCIE_RBD_SIZE_4K	0x04
+
+#define BTINTEL_PCIE_TLV_TYPE_EXCEPTION_DUMP_ADDRESS  0x04
+#define BTINTEL_PCIE_TLV_TYPE_DCCM_MEM_ADDRESS        0x05
+#define BTINTEL_PCIE_TLV_TYPE_SDS_MEM_ADDRESS         0x06
+#define BTINTEL_PCIE_TLV_TYPE_ECL_MEM_ADDRESS         0x07
+#define BTINTEL_PCIE_TLV_TYPE_SMEM_ADDRESS           0x08
 
 /*
  * Struct for Context Information (v2)
@@ -424,6 +442,32 @@ struct btintel_pcie_dbgc {
 	struct data_buf *bufs;
 };
 
+struct btintel_pcie_dump_mem_info {
+	u32	exception_dump_addr;
+	u32	exception_dump_len;
+	u32	dccm_addr_start;
+	u32	dccm_addr_end;
+	u32	sds_fixed_rom_addr_start;
+	u32	sds_fixed_rom_addr_end;
+	u32	sds_start_addr_start;
+	u32	sds_start_addr_end;
+	u32	sds_iosf_data_addr_start;
+	u32	sds_iosf_data_addr_end;
+	u32	ecl_addr_start;
+	u32	ecl_addr_end;
+	u32	smem_addr_start;
+	u32	smem_addr_end;
+};
+
+struct btintel_pcie_mbox {
+	u32 mbox_flags;
+	u32 mbox_status;
+	u32 mbox1;
+	u32 mbox2;
+	u32 mbox3;
+	u32 mbox4;
+};
+
 struct btintel_pcie_dump_header {
 	const char	*driver_name;
 	u32		cnvi_top;
@@ -431,7 +475,7 @@ struct btintel_pcie_dump_header {
 	u16		fw_timestamp;
 	u8		fw_build_type;
 	u32		fw_build_num;
-	u32		fw_git_sha1;
+	u32		fw_sha;
 	u32		cnvi_bt;
 	u32		write_ptr;
 	u32		wrap_ctr;
@@ -522,6 +566,7 @@ struct btintel_pcie_data {
 	struct work_struct	coredump_work;
 	struct work_struct	hwexp_work;
 	struct work_struct	fwtrigger_work;
+	struct work_struct	mbox_work;
 
 	struct dma_pool	*dma_pool;
 	dma_addr_t	dma_p_addr;
@@ -539,6 +584,10 @@ struct btintel_pcie_data {
 	u8	pm_sx_event;
 	u32	debug_evt_addr;
 	u32	debug_evt_size;
+	dma_addr_t	debug_table_addr;
+	u32	debug_table_size;
+	struct btintel_pcie_dump_mem_info	dump_info;
+	struct btintel_pcie_mbox	mbox;
 };
 
 static inline u32 btintel_pcie_rd_reg32(struct btintel_pcie_data *data,
