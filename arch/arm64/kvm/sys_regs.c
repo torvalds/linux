@@ -1367,6 +1367,64 @@ static bool access_pminten(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 	return true;
 }
 
+static bool access_pmmir(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
+			 const struct sys_reg_desc *r)
+{
+	if (p->is_write)
+		return write_to_read_only(vcpu, p, r);
+
+	/*
+	 * If KVM_ARM_VCPU_PMU_V3_STRICT is set and PMU was explicitly
+	 * selected, the underlying hardware SLOTS value was read into this
+	 * field. Otherwise, it stays 0. All other PMMIR_EL1 fields are RAZ.
+	 */
+	p->regval = FIELD_PREP(ARMV8_PMU_SLOTS, vcpu->kvm->arch.pmmir_slots);
+	return true;
+}
+
+static int get_pmmir(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
+		     u64 *val)
+{
+	*val = FIELD_PREP(ARMV8_PMU_SLOTS, vcpu->kvm->arch.pmmir_slots);
+	return 0;
+}
+
+static int set_pmmir(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
+		     u64 val)
+{
+	struct kvm *kvm = vcpu->kvm;
+	u8 slots = FIELD_GET(ARMV8_PMU_SLOTS, val);
+
+	/*
+	 * Only the SLOTS field is exposed (get_pmmir returns just that field),
+	 * so reject a write that sets any other bit rather than silently
+	 * masking it.
+	 */
+	if (val & ~(u64)ARMV8_PMU_SLOTS)
+		return -EINVAL;
+
+	guard(mutex)(&kvm->arch.config_lock);
+
+	/*
+	 * Once the VM has started PMMIR_EL1 is immutable. Reject any write
+	 * that does not match the current value.
+	 */
+	if (kvm_vm_has_ran_once(kvm))
+		return slots == kvm->arch.pmmir_slots ? 0 : -EBUSY;
+
+	/*
+	 * Only SLOTS = 0 is honored for backwards compatibility with the
+	 * old RAZ behavior. Reject any non-zero write that does not match
+	 * the current value.
+	 */
+	if (!slots)
+		kvm->arch.pmmir_slots = 0;
+	else if (slots != kvm->arch.pmmir_slots)
+		return -EINVAL;
+
+	return 0;
+}
+
 static bool access_pmovs(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 			 const struct sys_reg_desc *r)
 {
@@ -1444,6 +1502,7 @@ static int set_pmcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
 	 */
 	if (!kvm_vm_has_ran_once(kvm) &&
 	    !vcpu_has_nv(vcpu)	      &&
+	    !kvm_vcpu_has_pmuv3_strict(vcpu) &&
 	    new_n <= kvm_arm_pmu_get_max_counters(kvm))
 		kvm->arch.nr_pmu_counters = new_n;
 
@@ -3448,7 +3507,8 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ PMU_SYS_REG(PMINTENCLR_EL1),
 	  .access = access_pminten, .reg = PMINTENSET_EL1,
 	  .get_user = get_pmreg, .set_user = set_pmreg },
-	{ SYS_DESC(SYS_PMMIR_EL1), trap_raz_wi },
+	{ PMU_SYS_REG(PMMIR_EL1), .access = access_pmmir, .reset = NULL,
+	  .get_user = get_pmmir, .set_user = set_pmmir },
 
 	{ SYS_DESC(SYS_MAIR_EL1), access_vm_reg, reset_unknown, MAIR_EL1 },
 	{ SYS_DESC(SYS_PIRE0_EL1), NULL, reset_unknown, PIRE0_EL1,
@@ -4593,7 +4653,7 @@ static const struct sys_reg_desc cp15_regs[] = {
 	{ CP15_PMU_SYS_REG(HI,     0, 9, 14, 4), .access = access_pmceid },
 	{ CP15_PMU_SYS_REG(HI,     0, 9, 14, 5), .access = access_pmceid },
 	/* PMMIR */
-	{ CP15_PMU_SYS_REG(DIRECT, 0, 9, 14, 6), .access = trap_raz_wi },
+	{ CP15_PMU_SYS_REG(DIRECT, 0, 9, 14, 6), .access = access_pmmir },
 
 	/* PRRR/MAIR0 */
 	{ AA32(LO), Op1( 0), CRn(10), CRm( 2), Op2( 0), access_vm_reg, NULL, MAIR_EL1 },

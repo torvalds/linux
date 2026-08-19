@@ -532,6 +532,7 @@ static __u64 base_regs[] = {
 static __u64 pmu_regs[] = {
 	ARM64_SYS_REG(3, 0, 9, 14, 1),	/* PMINTENSET_EL1 */
 	ARM64_SYS_REG(3, 0, 9, 14, 2),	/* PMINTENCLR_EL1 */
+	ARM64_SYS_REG(3, 0, 9, 14, 6),	/* PMMIR_EL1 */
 	ARM64_SYS_REG(3, 3, 9, 12, 0),	/* PMCR_EL0 */
 	ARM64_SYS_REG(3, 3, 9, 12, 1),	/* PMCNTENSET_EL0 */
 	ARM64_SYS_REG(3, 3, 9, 12, 2),	/* PMCNTENCLR_EL0 */
