@@ -76,7 +76,7 @@ int attr_lsm_count(void)
 		return 0;
 
 	if (read_sysfs_lsms(names, sysconf(_SC_PAGESIZE)))
-		return 0;
+		goto out;
 
 	if (strstr(names, "selinux"))
 		count++;
@@ -85,5 +85,7 @@ int attr_lsm_count(void)
 	if (strstr(names, "apparmor"))
 		count++;
 
+out:
+	free(names);
 	return count;
 }
