@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+config RV_MON_DA_PEROBJ_PARENT
+	depends on RV
+	# XXX: add dependencies if there
+	depends on RV_MON_PARENT_MON
+	default y
+	select DA_MON_EVENTS_ID
+	bool "da_perobj_parent monitor"
+	help
+	  auto-generated

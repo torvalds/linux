@@ -76,6 +76,7 @@ source "kernel/trace/rv/monitors/opid/Kconfig"
 source "kernel/trace/rv/monitors/rtapp/Kconfig"
 source "kernel/trace/rv/monitors/pagefault/Kconfig"
 source "kernel/trace/rv/monitors/sleep/Kconfig"
+source "kernel/trace/rv/monitors/wakeup/Kconfig"
 # Add new rtapp monitors here
 
 source "kernel/trace/rv/monitors/stall/Kconfig"
@@ -111,3 +112,17 @@ config RV_REACT_PANIC
 	help
 	  Enables the panic reactor. The panic reactor emits a printk()
 	  message if an exception is found and panic()s the system.
+
+config RV_MONITORS_KUNIT_TEST
+	tristate "KUnit tests for RV monitors" if !KUNIT_ALL_TESTS
+	depends on KUNIT && RV && RV_REACTORS
+	default KUNIT_ALL_TESTS
+	help
+	  Enable KUnit tests for the RV (Runtime Verification) monitors.
+	  These tests verify that monitors correctly detect violations by
+	  triggering fake events and validating the expected reactions.
+
+	  Enabling this may slightly increase overhead of some monitors if any
+	  unrelated KUnit test is running.
+
+	  If unsure, say N.

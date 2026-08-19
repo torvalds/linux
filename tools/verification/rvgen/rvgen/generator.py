@@ -6,7 +6,7 @@
 # Abstract class for generating kernel runtime verification monitors from specification file
 
 import platform
-import os
+from pathlib import Path
 
 
 class RVGenerator:
@@ -16,36 +16,38 @@ class RVGenerator:
         self.name = extra_params.get("model_name")
         self.parent = extra_params.get("parent")
         self.abs_template_dir = \
-            os.path.join(os.path.dirname(__file__), "templates", self.template_dir)
+            Path(__file__).resolve().parent / "templates" / self.template_dir
         self.main_c = self._read_template_file("main.c")
         self.kconfig = self._read_template_file("Kconfig")
         self.description = extra_params.get("description", self.name) or "auto-generated"
         self.auto_patch = extra_params.get("auto_patch")
         if self.auto_patch:
-            self.__fill_rv_kernel_dir()
+            self._fill_rv_kernel_dir()
 
-    def __fill_rv_kernel_dir(self):
+    def _fill_rv_kernel_dir(self):
+        # find the kernel tree root relative to this file's location
+        resolved_path = Path(__file__).resolve()
+        if len(resolved_path.parents) > 4:
+            kernel_root = resolved_path.parents[4]
+            kernel_path = kernel_root / self.rv_dir
 
-        # first try if we are running in the kernel tree root
-        if os.path.exists(self.rv_dir):
-            return
+            if kernel_path.exists():
+                self.rv_dir = str(kernel_path)
+                return
 
-        # offset if we are running inside the kernel tree from verification/dot2
-        kernel_path = os.path.join("../..", self.rv_dir)
-
-        if os.path.exists(kernel_path):
-            self.rv_dir = kernel_path
+        # best effort if rvgen is installed and we are at the root of a kernel tree
+        if Path(self.rv_dir).exists():
             return
 
         if platform.system() != "Linux":
             raise OSError("I can only run on Linux.")
 
-        kernel_path = os.path.join(f"/lib/modules/{platform.release()}/build", self.rv_dir)
+        kernel_path = Path(f"/lib/modules/{platform.release()}/build") / self.rv_dir
 
         # if the current kernel is from a distro this may not be a full kernel tree
         # verify that one of the files we are going to modify is available
-        if os.path.exists(os.path.join(kernel_path, "rv_trace.h")):
-            self.rv_dir = kernel_path
+        if (kernel_path / "rv_trace.h").exists():
+            self.rv_dir = str(kernel_path)
             return
 
         raise FileNotFoundError("Could not find the rv directory, do you have the kernel source installed?")
@@ -57,12 +59,12 @@ class RVGenerator:
 
     def _read_template_file(self, file):
         try:
-            path = os.path.join(self.abs_template_dir, file)
+            path = self.abs_template_dir / file
             return self._read_file(path)
         except OSError:
             # Specific template file not found. Try the generic template file in the template/
             # directory, which is one level up
-            path = os.path.join(self.abs_template_dir, "..", file)
+            path = self.abs_template_dir.parent / file
             return self._read_file(path)
 
     def fill_parent(self):
@@ -133,7 +135,7 @@ class RVGenerator:
 
     def _patch_file(self, file, marker, line):
         assert self.auto_patch
-        file_to_patch = os.path.join(self.rv_dir, file)
+        file_to_patch = Path(self.rv_dir) / file
         content = self._read_file(file_to_patch)
         content = content.replace(marker, line + "\n" + marker)
         self.__write_file(file_to_patch, content)
@@ -187,22 +189,19 @@ obj-$(CONFIG_RV_MON_{name_up}) += monitors/{name}/{name}.o
         return f"  - Move {self.name}/ to the kernel's monitor directory ({self.rv_dir}/monitors)"
 
     def __create_directory(self):
-        path = self.name
+        path = Path(self.name)
         if self.auto_patch:
-            path = os.path.join(self.rv_dir, "monitors", path)
-        try:
-            os.mkdir(path)
-        except FileExistsError:
-            return
+            path = Path(self.rv_dir) / "monitors" / path
+        path.mkdir(exist_ok=True)
 
     def __write_file(self, file_name, content):
         with open(file_name, 'w') as file:
             file.write(content)
 
     def _create_file(self, file_name, content):
-        path = f"{self.name}/{file_name}"
+        path = Path(self.name) / file_name
         if self.auto_patch:
-            path = os.path.join(self.rv_dir, "monitors", path)
+            path = Path(self.rv_dir) / "monitors" / self.name / file_name
         self.__write_file(path, content)
 
     def print_files(self):

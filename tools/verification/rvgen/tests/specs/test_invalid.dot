@@ -1,0 +1,8 @@
+digraph invalid {
+	{node [shape = circle] "init"};
+	{node [shape = circle] "state1"};
+	"init" [label = "init"];
+	"init" -> "state1" [ label = "event_a" ];
+	"state1" [label = "state1"];
+	"state1" -> "init" [ label = "event_b" ];
+}

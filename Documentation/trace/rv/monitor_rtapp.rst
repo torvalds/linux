@@ -51,12 +51,13 @@ The `sleep` monitor reports real-time threads sleeping in a manner that may
 cause undesirable latency. Real-time applications should only put a real-time
 thread to sleep for one of the following reasons:
 
-  - Cyclic work: real-time thread sleeps waiting for the next cycle. For this
-    case, only the `clock_nanosleep` syscall should be used with `TIMER_ABSTIME`
-    (to avoid time drift) and `CLOCK_MONOTONIC` (to avoid the clock being
-    changed). No other method is safe for real-time. For example, threads
-    waiting for timerfd can be woken by softirq which provides no real-time
-    guarantee.
+  - Cyclic work: real-time thread sleeps waiting for the next
+    cycle. For this case, only the `clock_nanosleep` syscall should be
+    used with `TIMER_ABSTIME` (to avoid time drift). Additionally,
+    `CLOCK_REALTIME` should not be used (to avoid the clock being
+    changed). No other method is safe for real-time. For example,
+    threads waiting for timerfd can be woken by softirq which provides
+    no real-time guarantee.
   - Real-time thread waiting for something to happen (e.g. another thread
     releasing shared resources, or a completion signal from another thread). In
     this case, only futexes (FUTEX_LOCK_PI, FUTEX_LOCK_PI2 or one of
@@ -66,6 +67,8 @@ thread to sleep for one of the following reasons:
     variables as safe for real-time. As an alternative, the librtpi library
     exists to provide a conditional variable implementation that is correct for
     real-time applications in Linux.
+  - Real-time thread waiting for events using `epoll_wait`, which is a
+    real-time-safe syscall for sleeping as it uses PI-aware locking.
 
 Beside the reason for sleeping, the eventual waker should also be
 real-time-safe. Namely, one of:
@@ -92,38 +95,34 @@ assessment.
 
 The monitor's specification is::
 
-  RULE = always ((RT and SLEEP) imply (RT_FRIENDLY_SLEEP or ALLOWLIST))
+  RULE = always ((RT and SLEEP and USER_THREAD) imply (RT_FRIENDLY_SLEEP or ALLOWLIST))
 
-  RT_FRIENDLY_SLEEP = (RT_VALID_SLEEP_REASON or KERNEL_THREAD)
-                  and ((not WAKE) until RT_FRIENDLY_WAKE)
+  RT_FRIENDLY_SLEEP = RT_VALID_SLEEP_REASON
+                  and ((not SCHEDULE_IN) until RT_FRIENDLY_WAKE)
 
   RT_VALID_SLEEP_REASON = FUTEX_WAIT
                        or RT_FRIENDLY_NANOSLEEP
+                       or EPOLL_WAIT
 
   RT_FRIENDLY_NANOSLEEP = CLOCK_NANOSLEEP
                       and NANOSLEEP_TIMER_ABSTIME
-                      and NANOSLEEP_CLOCK_MONOTONIC
+                      and not NANOSLEEP_CLOCK_REALTIME
 
   RT_FRIENDLY_WAKE = WOKEN_BY_EQUAL_OR_HIGHER_PRIO
                   or WOKEN_BY_HARDIRQ
                   or WOKEN_BY_NMI
-                  or KTHREAD_SHOULD_STOP
+                  or ABORT_SLEEP
 
   ALLOWLIST = BLOCK_ON_RT_MUTEX
            or FUTEX_LOCK_PI
-           or TASK_IS_RCU
-           or TASK_IS_MIGRATION
 
-Beside the scenarios described above, this specification also handle some
-special cases:
+`ABORT_SLEEP` represents a task restoring its state to `TASK_RUNNING` before
+entering the scheduler. In this case, the task does not actually block, so the
+task is back to runnable without any wakeup sequence unsafe for real-time.
 
-  - `KERNEL_THREAD`: kernel tasks do not have any pattern that can be recognized
-    as valid real-time sleeping reasons. Therefore sleeping reason is not
-    checked for kernel tasks.
-  - `KTHREAD_SHOULD_STOP`: a non-real-time thread may stop a real-time kernel
-    thread by waking it and waiting for it to exit (`kthread_stop()`). This
-    wakeup is safe for real-time.
-  - `ALLOWLIST`: to handle known false positives with the kernel.
+Beside the scenarios described above, this specification also defines an allow list
+to handle some special cases:
+
   - `BLOCK_ON_RT_MUTEX` is included in the allowlist due to its implementation.
     In the release path of rt_mutex, a boosted task is de-boosted before waking
     the rt_mutex's waiter. Consequently, the monitor may see a real-time-unsafe
@@ -131,3 +130,23 @@ special cases:
     real-time-safe because preemption is disabled for the duration.
   - `FUTEX_LOCK_PI` is included in the allowlist for the same reason as
     `BLOCK_ON_RT_MUTEX`.
+
+Monitor wakeup
+++++++++++++++
+
+The `wakeup` monitor reports real-time threads being woken by lower-priority threads,
+which is a hint of priority inversion. Its specification is::
+
+  RULE = always (((RT and USER_THREAD) imply
+                (not (WOKEN_BY_LOWER_PRIO or WOKEN_BY_SOFTIRQ)) or ALLOWLIST))
+
+  ALLOWLIST = BLOCK_ON_RT_MUTEX
+           or FUTEX_LOCK_PI
+
+The `sleep` monitor already reports this type of problem. The difference is the
+context in which the problem is reported. While the `sleep` monitor reports the problem
+in the context of the wakee, this `wakeup` monitor reports the problem in the context of
+the waker. This monitor complement the `sleep` monitor, giving user better
+understanding of the issue. For instance, to debug a lower-priority task waking a
+higher-priority task scenario, user can enable both `wakeup` monitor and `sleep`
+monitor to get the stack traces of both tasks.
