@@ -12,29 +12,32 @@ setup_config
 # - turn ftrace_enabled OFF and verify livepatches can't load
 # - turn ftrace_enabled ON and verify livepatch can load
 # - verify that ftrace_enabled can't be turned OFF while a livepatch is loaded
+# (skipped on kernels where the sysctl is deprecated and always refuses 0)
 
 start_test "livepatch interaction with ftrace_enabled sysctl"
 
-set_ftrace_enabled 0
-load_failing_mod $MOD_LIVEPATCH
+if ftrace_disable_supported; then
 
-set_ftrace_enabled 1
-load_lp $MOD_LIVEPATCH
-if [[ "$(cat /proc/cmdline)" != "$MOD_LIVEPATCH: this has been live patched" ]] ; then
-	echo -e "FAIL\n\n"
-	die "livepatch kselftest(s) failed"
-fi
+	set_ftrace_enabled 0
+	load_failing_mod $MOD_LIVEPATCH
 
-# Check that ftrace could not get disabled when a livepatch is enabled
-set_ftrace_enabled --fail 0
-if [[ "$(cat /proc/cmdline)" != "$MOD_LIVEPATCH: this has been live patched" ]] ; then
-	echo -e "FAIL\n\n"
-	die "livepatch kselftest(s) failed"
-fi
-disable_lp $MOD_LIVEPATCH
-unload_lp $MOD_LIVEPATCH
+	set_ftrace_enabled 1
+	load_lp $MOD_LIVEPATCH
+	if [[ "$(cat /proc/cmdline)" != "$MOD_LIVEPATCH: this has been live patched" ]] ; then
+		echo -e "FAIL\n\n"
+		die "livepatch kselftest(s) failed"
+	fi
 
-check_result "livepatch: kernel.ftrace_enabled = 0
+	# Check that ftrace could not get disabled when a livepatch is enabled
+	set_ftrace_enabled --fail 0
+	if [[ "$(cat /proc/cmdline)" != "$MOD_LIVEPATCH: this has been live patched" ]] ; then
+		echo -e "FAIL\n\n"
+		die "livepatch kselftest(s) failed"
+	fi
+	disable_lp $MOD_LIVEPATCH
+	unload_lp $MOD_LIVEPATCH
+
+	check_result "livepatch: kernel.ftrace_enabled = 0
 % insmod test_modules/$MOD_LIVEPATCH.ko
 livepatch: enabling patch '$MOD_LIVEPATCH'
 livepatch: '$MOD_LIVEPATCH': initializing patching transition
@@ -59,6 +62,14 @@ livepatch: '$MOD_LIVEPATCH': starting unpatching transition
 livepatch: '$MOD_LIVEPATCH': completing unpatching transition
 livepatch: '$MOD_LIVEPATCH': unpatching complete
 % rmmod $MOD_LIVEPATCH"
+
+else
+
+	set_ftrace_enabled --fail 0
+	check_result "livepatch: sysctl: setting key \"kernel.ftrace_enabled\": \
+Operation not supported"
+
+fi
 
 
 # - verify livepatch can load
