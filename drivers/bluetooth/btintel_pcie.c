@@ -180,6 +180,15 @@ static inline char *btintel_pcie_alivectxt_state2str(u32 alive_intr_ctxt)
 	}
 }
 
+/* Returns true when firmware traces are routed to the WiFi DBGC. In that
+ * mode the host must not allocate DBGC buffers and must not publish their
+ * addresses in the context info.
+ */
+static inline bool btintel_pcie_dbg_to_wifi(struct btintel_pcie_data *data)
+{
+	return data->dbg_path_cache != BTINTEL_PCIE_DRAM;
+}
+
 /* This function initializes the memory for DBGC buffers and formats the
  * DBGC fragment which consists header info and DBGC buffer's LSB, MSB and
  * size as the payload
@@ -1864,6 +1873,15 @@ static void btintel_pcie_coredump_worker(struct work_struct *work)
 	if (!data->hdev)
 		goto out;
 
+	/* When firmware routes debug traces to the WiFi DBGC, no host
+	 * DBGC buffers were allocated, so there is nothing to dump here.
+	 */
+	if (btintel_pcie_dbg_to_wifi(data)) {
+		bt_dev_info(data->hdev,
+			    "Skipping coredump: debug traces routed to WiFi DBGC");
+		goto out;
+	}
+
 	btintel_pcie_dump_traces(data->hdev);
 out:
 	/* Release guard last so a new trigger can run only after this
@@ -2261,9 +2279,18 @@ static void btintel_pcie_init_ci(struct btintel_pcie_data *data,
 	ci->num_urbdq1 = data->rxq.count;
 	ci->urbdq_db_vec = BTINTEL_PCIE_RXQ_NUM;
 
-	ci->dbg_output_mode = 0x01;
-	ci->dbgc_addr = data->dbgc.frag_p_addr;
-	ci->dbgc_size = data->dbgc.frag_size;
+	ci->dbg_output_mode = btintel_pcie_dbg_to_wifi(data) ?
+			      BTINTEL_PCIE_WIFI_DBGC : BTINTEL_PCIE_DRAM;
+	if (btintel_pcie_dbg_to_wifi(data)) {
+		/* Firmware forwards debug traces to the WiFi DBGC, so no
+		 * host DBGC buffer is needed; leave dbgc_addr/size as 0.
+		 */
+		ci->dbgc_addr = 0;
+		ci->dbgc_size = 0;
+	} else {
+		ci->dbgc_addr = data->dbgc.frag_p_addr;
+		ci->dbgc_size = data->dbgc.frag_size;
+	}
 	ci->dbg_preset = 0x00;
 }
 
@@ -2491,7 +2518,14 @@ static int btintel_pcie_alloc(struct btintel_pcie_data *data)
 	v_addr += ci_size;
 
 	/* Setup data buffers for dbgc */
-	err = btintel_pcie_setup_dbgc(data);
+	if (btintel_pcie_dbg_to_wifi(data)) {
+		/* Firmware routes traces to the WiFi DBGC; skip host DBGC
+		 * buffer allocation entirely.
+		 */
+		err = 0;
+	} else {
+		err = btintel_pcie_setup_dbgc(data);
+	}
 	if (err)
 		goto exit_error_txq;
 
@@ -3405,6 +3439,7 @@ static int btintel_pcie_probe(struct pci_dev *pdev,
 
 	data->boot_stage_cache = 0x00;
 	data->img_resp_cache = 0x00;
+	data->dbg_path_cache = BTINTEL_PCIE_WIFI_DBGC;
 	/* FLR can be invoked by echoing to debugfs path, so explicitly
 	 * initialized
 	 */

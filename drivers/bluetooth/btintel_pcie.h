@@ -94,6 +94,20 @@
 /* Num of alloc Dbg buff (4) + (LSB(4), MSB(4), Size(4)) for each buffer */
 #define BTINTEL_PCIE_DBGC_FRAG_PAYLOAD_SIZE	196
 
+/* dbg_output_mode values for the context info.
+ *   BTINTEL_PCIE_DRAM: firmware writes traces to host DRAM DBGC buffers.
+ *   BTINTEL_PCIE_WIFI_DBGC: firmware forwards traces to the WiFi DBGC; the
+ *   host does NOT need to allocate DBGC fragment/data buffers and must
+ *   publish dbgc_addr/size as 0 in the context info.
+ *
+ * Encoding of BTINTEL_PCIE_WIFI_DBGC (0x06):
+ *   Bit[0] DBGC O/P  : 0 = SRAM (don't care, DBGI selected)
+ *   Bit[1] DBGC I/P  : 1 = DBGI
+ *   Bits[2:3] DBGI O/P : 01 = WiFi DBGC
+ */
+#define BTINTEL_PCIE_DRAM	0x01
+#define BTINTEL_PCIE_WIFI_DBGC	0x06
+
 /* Causes for the FH register interrupts */
 enum msix_fh_int_causes {
 	BTINTEL_PCIE_MSIX_FH_INT_CAUSES_0	= BIT(0),	/* cause 0 */
@@ -503,6 +517,7 @@ struct btintel_pcie_dump_header {
  * @hw_init_mask: initial unmaksed hw causes
  * @boot_stage_cache: cached value of boot stage register
  * @img_resp_cache: cached value of image response register
+ * @dbg_path_cache: cached debug output routing mode (BT DRAM or WiFi DBGC)
  * @cnvi: CNVi register value
  * @cnvr: CNVr register value
  * @gp0_received: condition for gp0 interrupt
@@ -550,6 +565,7 @@ struct btintel_pcie_data {
 
 	u32	boot_stage_cache;
 	u32	img_resp_cache;
+	u32	dbg_path_cache;
 
 	u32	cnvi;
 	u32	cnvr;
