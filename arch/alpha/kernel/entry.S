@@ -93,6 +93,19 @@
 4:
 .endm
 
+.macro LOCKDEP_HARDIRQS_ON_RESTORE
+#ifdef CONFIG_PROVE_LOCKING
+	/* a0 = saved PS */
+	ldq	$16, SP_OFF($sp)
+
+	/* a1 = callsite IP for lockdep */
+	lda	$17, 1f
+
+	jsr	$26, lockdep_on_restore
+	ldgp	$gp, 0($26)
+1:
+#endif
+.endm
 
 /*
  * This defines the normal kernel pt-regs layout.
@@ -427,6 +440,7 @@ CFI_START_OSF_FRAME entUna
 	.cfi_restore	$28
 	.cfi_restore	$29
 	.cfi_adjust_cfa_offset	-256
+	LOCKDEP_HARDIRQS_ON_RESTORE
 	call_pal PAL_rti
 
 	.align	4
@@ -520,6 +534,12 @@ entSys:
         ldq     $1, 0($sp)          /* syscall nr from saved r0 */
         stq     $1, 8($sp)          /* regs->r1 = shadow syscall nr */
         stq     $1, 16($sp)         /* regs->r2 = restart syscall nr */
+	/* Syscalls always enter from user mode: snapshot USP into pt_regs->usp */
+	mov	$0, $8
+	call_pal PAL_rdusp
+	stq      $0, PT_REGS_USP($sp)
+	mov	$8, $0
+
 
 	lda	$8, 0x3fff
 	bic	$sp, $8, $8
@@ -535,15 +555,10 @@ entSys:
 	.cfi_rel_offset	$16, SP_OFF+24
 	.cfi_rel_offset	$17, SP_OFF+32
 	.cfi_rel_offset	$18, SP_OFF+40
-#ifdef CONFIG_AUDITSYSCALL
-	lda     $6, _TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT | _TIF_SECCOMP
+	lda     $6, _TIF_SYSCALL_WORK
 	and     $3, $6, $3
 	bne     $3, strace
-#else
-	lda     $6, _TIF_SYSCALL_TRACE | _TIF_SECCOMP
-	and     $3, $6, $3
-	bne     $3, strace
-#endif
+
 	beq	$4, 1f
 	ldq	$27, 0($5)
 1:	ldq	$0, 8($sp)		/* syscall nr shadow (regs->r1) */
@@ -576,6 +591,7 @@ restore_all:
 	bne	$3, restore_fpu
 restore_other:
 	.cfi_remember_state
+	LOCKDEP_HARDIRQS_ON_RESTORE
 	RESTORE_ALL
 	call_pal PAL_rti
 
@@ -621,7 +637,7 @@ $work_resched:
 	 * or got through work_notifysig already.  Either case means no syscall
 	 * restarts for us, so let $18 and $19 burn.
 	 */
-	jsr	$26, schedule
+	jsr	$26, alpha_schedule_user_work
 	mov	0, $18
 	br	ret_to_user
 

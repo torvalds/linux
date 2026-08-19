@@ -19,6 +19,13 @@ static inline long syscall_get_return_value(struct task_struct *task,
 	return regs->r19 ? -(long)regs->r0 : (long)regs->r0;
 }
 
+static inline long syscall_get_error(struct task_struct *task,
+				     struct pt_regs *regs)
+{
+	return regs->r19 ? -(long)regs->r0 : 0;
+}
+
+
 /*
  * Alpha syscall ABI / kernel conventions:
  *  - PAL provides syscall number in r0 on entry.

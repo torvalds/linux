@@ -53,6 +53,7 @@
 
 #define EF_ALPHA_32BIT		1	/* All addresses are below 2GB */
 
+#define CORE_DUMP_USE_REGSET	1
 /*
  * ELF register definitions..
  */

@@ -41,7 +41,7 @@ static unsigned long cached_irq_mask;
 /* dp264 boards handle at max four CPUs */
 static unsigned long cpu_irq_affinity[4] = { 0UL, 0UL, 0UL, 0UL };
 
-DEFINE_SPINLOCK(dp264_irq_lock);
+static DEFINE_RAW_SPINLOCK(dp264_irq_lock);
 
 static void
 tsunami_update_irq_hw(unsigned long mask)
@@ -99,37 +99,45 @@ tsunami_update_irq_hw(unsigned long mask)
 static void
 dp264_enable_irq(struct irq_data *d)
 {
-	spin_lock(&dp264_irq_lock);
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&dp264_irq_lock, flags);
 	cached_irq_mask |= 1UL << d->irq;
 	tsunami_update_irq_hw(cached_irq_mask);
-	spin_unlock(&dp264_irq_lock);
+	raw_spin_unlock_irqrestore(&dp264_irq_lock, flags);
 }
 
 static void
 dp264_disable_irq(struct irq_data *d)
 {
-	spin_lock(&dp264_irq_lock);
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&dp264_irq_lock, flags);
 	cached_irq_mask &= ~(1UL << d->irq);
 	tsunami_update_irq_hw(cached_irq_mask);
-	spin_unlock(&dp264_irq_lock);
+	raw_spin_unlock_irqrestore(&dp264_irq_lock, flags);
 }
 
 static void
 clipper_enable_irq(struct irq_data *d)
 {
-	spin_lock(&dp264_irq_lock);
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&dp264_irq_lock, flags);
 	cached_irq_mask |= 1UL << (d->irq - 16);
 	tsunami_update_irq_hw(cached_irq_mask);
-	spin_unlock(&dp264_irq_lock);
+	raw_spin_unlock_irqrestore(&dp264_irq_lock, flags);
 }
 
 static void
 clipper_disable_irq(struct irq_data *d)
 {
-	spin_lock(&dp264_irq_lock);
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&dp264_irq_lock, flags);
 	cached_irq_mask &= ~(1UL << (d->irq - 16));
 	tsunami_update_irq_hw(cached_irq_mask);
-	spin_unlock(&dp264_irq_lock);
+	raw_spin_unlock_irqrestore(&dp264_irq_lock, flags);
 }
 
 static void
@@ -151,10 +159,12 @@ static int
 dp264_set_affinity(struct irq_data *d, const struct cpumask *affinity,
 		   bool force)
 {
-	spin_lock(&dp264_irq_lock);
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&dp264_irq_lock, flags);
 	cpu_set_irq_affinity(d->irq, *affinity);
 	tsunami_update_irq_hw(cached_irq_mask);
-	spin_unlock(&dp264_irq_lock);
+	raw_spin_unlock_irqrestore(&dp264_irq_lock, flags);
 
 	return 0;
 }
@@ -163,10 +173,12 @@ static int
 clipper_set_affinity(struct irq_data *d, const struct cpumask *affinity,
 		     bool force)
 {
-	spin_lock(&dp264_irq_lock);
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&dp264_irq_lock, flags);
 	cpu_set_irq_affinity(d->irq - 16, *affinity);
 	tsunami_update_irq_hw(cached_irq_mask);
-	spin_unlock(&dp264_irq_lock);
+	raw_spin_unlock_irqrestore(&dp264_irq_lock, flags);
 
 	return 0;
 }
