@@ -13,6 +13,9 @@
  * and then read/write in chunks of 8 bytes.  A larger size means multiple
  * reads or writes of the same register.
  *
+ * Writing the same register multiple times can be useful for MSRs with
+ * I/O-like semantics, e.g. a virtual MSR that accepts logging information.
+ *
  * This driver uses /dev/cpu/%d/msr where %d is the minor number, and on
  * an SMP box will direct the access to CPU %d.
  */

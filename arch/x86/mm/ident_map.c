@@ -111,7 +111,7 @@ static int ident_pud_init(struct x86_mapping_info *info, pud_t *pud_page,
 		use_gbpage = info->direct_gbpages;
 
 		/* Don't use gbpage if it maps more than the requested region. */
-		/* at the begining: */
+		/* at the beginning: */
 		use_gbpage &= ((addr & ~PUD_MASK) == 0);
 		/* ... or at the end: */
 		use_gbpage &= ((next & ~PUD_MASK) == 0);

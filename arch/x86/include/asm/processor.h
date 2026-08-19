@@ -238,6 +238,7 @@ extern void early_cpu_init(void);
 extern void identify_secondary_cpu(unsigned int cpu);
 extern void print_cpu_info(struct cpuinfo_x86 *);
 void print_cpu_msr(struct cpuinfo_x86 *);
+extern u32 intel_get_platform_id(void);
 
 /*
  * Friendlier CR3 helpers.

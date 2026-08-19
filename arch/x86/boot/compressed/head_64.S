@@ -172,19 +172,23 @@ SYM_FUNC_START(startup_32)
  /*
   * Build early 4G boot pagetable
   */
-	/*
-	 * If SEV is active then set the encryption mask in the page tables.
-	 * This will ensure that when the kernel is copied and decompressed
-	 * it will be done so encrypted.
-	 */
 	xorl	%edx, %edx
 #ifdef	CONFIG_AMD_MEM_ENCRYPT
 	call	get_sev_encryption_bit
 	xorl	%edx, %edx
 	testl	%eax, %eax
 	jz	1f
-	subl	$32, %eax	/* Encryption bit is always above bit 31 */
-	bts	%eax, %edx	/* Set encryption mask for page tables */
+
+	/* Encryption bit is always above bit 31 */
+	subl	$32, %eax
+
+	/*
+	 * If SEV is active then set the encryption mask in the page tables.
+	 * This will ensure that when the kernel is copied and decompressed it
+	 * will be done so encrypted.
+	 */
+	bts	%eax, %edx
+
 	/*
 	 * Set MSR_AMD64_SEV_ENABLED_BIT in sev_status so that
 	 * startup32_check_sev_cbit() will do a check. sev_enable() will

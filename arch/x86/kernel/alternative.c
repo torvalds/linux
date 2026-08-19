@@ -1785,8 +1785,8 @@ static int cfi_rewrite_callers(s32 *start, s32 *end)
 #define FINEIBT_WARN(_f, _v) \
 	WARN_ONCE((_f) != (_v), "FineIBT: " #_f " %ld != %d\n", _f, _v)
 
-static void __apply_fineibt(s32 *start_retpoline, s32 *end_retpoline,
-			    s32 *start_cfi, s32 *end_cfi, bool builtin)
+static void __init_or_module __apply_fineibt(s32 *start_retpoline, s32 *end_retpoline,
+					     s32 *start_cfi, s32 *end_cfi, bool builtin)
 {
 	int ret;
 
@@ -2098,8 +2098,8 @@ bool decode_fineibt_insn(struct pt_regs *regs, unsigned long *target, u32 *type)
 
 #else /* !CONFIG_FINEIBT: */
 
-static void __apply_fineibt(s32 *start_retpoline, s32 *end_retpoline,
-			    s32 *start_cfi, s32 *end_cfi, bool builtin)
+static void __init_or_module __apply_fineibt(s32 *start_retpoline, s32 *end_retpoline,
+					     s32 *start_cfi, s32 *end_cfi, bool builtin)
 {
 	if (IS_ENABLED(CONFIG_CFI) && builtin)
 		pr_info("CFI: Using standard kCFI\n");
@@ -2111,8 +2111,8 @@ static void poison_cfi(void *addr) { }
 
 #endif /* !CONFIG_FINEIBT */
 
-void apply_fineibt(s32 *start_retpoline, s32 *end_retpoline,
-		   s32 *start_cfi, s32 *end_cfi)
+void __init_or_module apply_fineibt(s32 *start_retpoline, s32 *end_retpoline,
+				    s32 *start_cfi, s32 *end_cfi)
 {
 	return __apply_fineibt(start_retpoline, end_retpoline,
 			       start_cfi, end_cfi,
