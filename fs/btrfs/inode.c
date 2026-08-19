@@ -3546,6 +3546,32 @@ int btrfs_check_block_csum(struct btrfs_fs_info *fs_info, phys_addr_t paddr, u8 
 	return 0;
 }
 
+/* Generate data checksum for a single fs block, pointed to by @orig_iter. */
+void btrfs_csum_one_bio_block(struct btrfs_fs_info *fs_info, struct bio *bio,
+			      const struct bvec_iter *orig_iter, u8 *csum)
+{
+	struct btrfs_csum_ctx cctx;
+	struct bvec_iter iter = *orig_iter;
+	const u32 blocksize = fs_info->sectorsize;
+	u32 cur = 0;
+
+	btrfs_csum_init(&cctx, fs_info->csum_type);
+	while (cur < blocksize) {
+		struct page *page = bio_iter_page(bio, iter);
+		const u32 pg_off = bio_iter_offset(bio, iter);
+		const u32 cur_len = min(bio_iter_len(bio, iter), blocksize - cur);
+		void *kaddr;
+
+		kaddr = kmap_local_page(page) + pg_off;
+		btrfs_csum_update(&cctx, kaddr, cur_len);
+		kunmap_local(kaddr);
+
+		bio_advance_iter_single(bio, &iter, cur_len);
+		cur += cur_len;
+	}
+	btrfs_csum_final(&cctx, csum);
+}
+
 /*
  * Verify the checksum of a single data sector, which can be scattered at
  * different noncontiguous pages.
@@ -3566,7 +3592,6 @@ bool btrfs_bio_data_csum_ok(struct btrfs_bio *bbio,
 	struct btrfs_inode *inode = bbio->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct bvec_iter iter = *orig_iter;
-	struct btrfs_csum_ctx cctx;
 	const u32 blocksize = fs_info->sectorsize;
 	const u32 bio_offset = (iter.bi_sector - bbio->saved_iter.bi_sector) << SECTOR_SHIFT;
 	u64 file_offset = bbio->file_offset + bio_offset;
@@ -3591,22 +3616,7 @@ bool btrfs_bio_data_csum_ok(struct btrfs_bio *bbio,
 
 	csum_expected = bbio->csum + (bio_offset >> fs_info->sectorsize_bits) *
 				fs_info->csum_size;
-	btrfs_csum_init(&cctx, fs_info->csum_type);
-	while (cur < blocksize) {
-		struct page *page = bio_iter_page(&bbio->bio, iter);
-		const u32 pg_off = bio_iter_offset(&bbio->bio, iter);
-		const u32 cur_len = min(bio_iter_len(&bbio->bio, iter), blocksize - cur);
-		void *kaddr;
-
-		kaddr = kmap_local_page(page) + pg_off;
-		btrfs_csum_update(&cctx, kaddr, cur_len);
-		kunmap_local(kaddr);
-
-		bio_advance_iter_single(&bbio->bio, &iter, cur_len);
-		cur += cur_len;
-	}
-	btrfs_csum_final(&cctx, csum);
-
+	btrfs_csum_one_bio_block(fs_info, &bbio->bio, orig_iter, csum);
 	if (unlikely(memcmp(csum, csum_expected, fs_info->csum_size) != 0))
 		goto zeroit;
 	return true;
@@ -3616,8 +3626,6 @@ zeroit:
 				    bbio->mirror_num);
 	if (dev)
 		btrfs_dev_stat_inc_and_print(dev, BTRFS_DEV_STAT_CORRUPTION_ERRS);
-	cur = 0;
-	iter = *orig_iter;
 	while (cur < blocksize) {
 		struct page *page = bio_iter_page(&bbio->bio, iter);
 		const u32 pg_off = bio_iter_offset(&bbio->bio, iter);

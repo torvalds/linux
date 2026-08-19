@@ -801,25 +801,16 @@ static void csum_one_bio(struct btrfs_bio *bbio, struct bvec_iter *src)
 {
 	struct btrfs_inode *inode = bbio->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	struct bio *bio = &bbio->bio;
 	struct btrfs_ordered_sum *sums = bbio->sums;
-	struct bvec_iter iter = *src;
-	phys_addr_t paddr;
+	struct bvec_iter iter;
 	const u32 blocksize = fs_info->sectorsize;
-	const u32 step = min(blocksize, PAGE_SIZE);
-	const u32 nr_steps = blocksize / step;
-	phys_addr_t paddrs[BTRFS_MAX_BLOCKSIZE / PAGE_SIZE];
-	u32 offset = 0;
 	int index = 0;
 
-	btrfs_bio_for_each_block(paddr, bio, &iter, step) {
-		paddrs[(offset / step) % nr_steps] = paddr;
-		offset += step;
+	for (iter = *src; iter.bi_size; bio_advance_iter(&bbio->bio, &iter, blocksize)) {
+		btrfs_csum_one_bio_block(fs_info, &bbio->bio, &iter,
+					 sums->sums + index);
 
-		if (IS_ALIGNED(offset, blocksize)) {
-			btrfs_calculate_block_csum_pages(fs_info, paddrs, sums->sums + index);
-			index += fs_info->csum_size;
-		}
+		index += fs_info->csum_size;
 	}
 }
 
