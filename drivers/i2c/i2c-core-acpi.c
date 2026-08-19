@@ -163,9 +163,12 @@ static int i2c_acpi_do_lookup(struct acpi_device *adev,
 	INIT_LIST_HEAD(&resource_list);
 	ret = acpi_dev_get_resources(adev, &resource_list,
 				     i2c_acpi_fill_info, lookup);
+	if (ret < 0)
+		return ret;
+
 	acpi_dev_free_resource_list(&resource_list);
 
-	if (ret < 0 || !info->addr)
+	if (!info->addr)
 		return -EINVAL;
 
 	return 0;
@@ -371,6 +374,7 @@ static const struct acpi_device_id i2c_acpi_force_100khz_device_ids[] = {
 	{ "DLL0945", 0 },
 	{ "ELAN0678", 0 },
 	{ "ELAN06FA", 0 },
+	{ "ELAN1300", 0 },
 	{}
 };
 

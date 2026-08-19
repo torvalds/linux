@@ -793,7 +793,7 @@ config I2C_JZ4780
 config I2C_K1
 	tristate "SpacemiT K1 I2C adapter"
 	depends on ARCH_SPACEMIT || COMPILE_TEST
-	depends on OF
+	depends on OF && COMMON_CLK
 	default ARCH_SPACEMIT
 	help
 	  This option enables support for the I2C interface on the SpacemiT K1

@@ -235,7 +235,7 @@ static inline void octeon_i2c_write_int(struct octeon_i2c *i2c, u64 data)
 	octeon_i2c_writeq_flush(data, i2c->twsi_base + OCTEON_REG_TWSI_INT(i2c));
 }
 
-#define IS_LS_FREQ(twsi_freq)	((twsi_freq) <= 400000)
+#define IS_LS_FREQ(twsi_freq)	((twsi_freq) <= I2C_MAX_FAST_MODE_FREQ)
 #define PCI_SUBSYS_DEVID_9XXX	0xB
 #define PCI_SUBSYS_MASK		GENMASK(15, 12)
 /**

@@ -4,7 +4,9 @@
  */
 
 #include <linux/bitfield.h>
+#include <linux/bits.h>
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/i2c.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
@@ -17,6 +19,8 @@
 #define SPACEMIT_ISR		 0x4		/* Status register */
 #define SPACEMIT_IDBR		 0xc		/* Data buffer register */
 #define SPACEMIT_IRCR		 0x18		/* Reset cycle counter */
+#define SPACEMIT_ILCR		 0x10		/* Load Count Register */
+#define SPACEMIT_IWCR		 0x14		/* Wait Count Register */
 #define SPACEMIT_IBMR		 0x1c		/* Bus monitor register */
 
 /* SPACEMIT_ICR register fields */
@@ -88,11 +92,21 @@
 #define SPACEMIT_BMR_SDA         BIT(0)		/* SDA line level */
 #define SPACEMIT_BMR_SCL         BIT(1)		/* SCL line level */
 
+#define SPACEMIT_LCR_LV_STANDARD_MASK		GENMASK(8, 0)
+#define SPACEMIT_LCR_LV_FAST_MASK		GENMASK(17, 9)
+
+/* SPACEMIT_IWCR register fields */
+#define SPACEMIT_WCR_COUNT			GENMASK(4, 0)
+#define SPACEMIT_WCR_HS_COUNT1			GENMASK(9, 5)
+#define SPACEMIT_WCR_HS_COUNT2			GENMASK(14, 10)
+
+/* Required by I2C IP for correct SCL timing */
+#define SPACEMIT_IWCR_INIT_VALUE		(FIELD_PREP(SPACEMIT_WCR_COUNT, 10) | \
+						 FIELD_PREP(SPACEMIT_WCR_HS_COUNT1, 1) | \
+						 FIELD_PREP(SPACEMIT_WCR_HS_COUNT2, 5))
+
 /* i2c bus recover timeout: us */
 #define SPACEMIT_I2C_BUS_BUSY_TIMEOUT		100000
-
-#define SPACEMIT_I2C_MAX_STANDARD_MODE_FREQ	100000	/* Hz */
-#define SPACEMIT_I2C_MAX_FAST_MODE_FREQ		400000	/* Hz */
 
 #define SPACEMIT_SR_ERR	(SPACEMIT_SR_BED | SPACEMIT_SR_RXOV | SPACEMIT_SR_ALD)
 
@@ -109,10 +123,19 @@ enum spacemit_i2c_state {
 	SPACEMIT_STATE_WRITE,
 };
 
+enum spacemit_i2c_mode {
+	SPACEMIT_MODE_STANDARD,
+	SPACEMIT_MODE_FAST
+};
+
 /* i2c-spacemit driver's main struct */
 struct spacemit_i2c_dev {
 	struct device *dev;
 	struct i2c_adapter adapt;
+
+	struct clk_hw scl_clk_hw;
+	struct clk *scl_clk;
+	enum spacemit_i2c_mode mode;
 
 	/* hardware resources */
 	void __iomem *base;
@@ -135,6 +158,85 @@ struct spacemit_i2c_dev {
 	u32 status;
 };
 
+static void spacemit_i2c_scl_clk_disable_unprepare(void *data)
+{
+	clk_disable_unprepare(data);
+}
+
+/*
+ * Calculate the ILCR divider value (lv) from the target SCL rate.
+ *
+ * Hardware timing formulas:
+ * - standard mode: SCL = FCLK / (2 * SLV + 8)
+ * - fast mode:     SCL = FCLK / (2 * FLV + 10)
+ */
+static u32 spacemit_i2c_calc_lv(struct spacemit_i2c_dev *i2c,
+				unsigned long parent_rate,
+				unsigned long target_rate)
+{
+	u32 offset, denom;
+
+	offset = (i2c->mode == SPACEMIT_MODE_STANDARD) ? 8 : 10;
+	denom = DIV_ROUND_CLOSEST(parent_rate, target_rate);
+
+	return (denom <= offset) ? 0 : DIV_ROUND_CLOSEST(denom - offset, 2);
+}
+
+static int spacemit_i2c_clk_set_rate(struct clk_hw *hw, unsigned long rate,
+				     unsigned long parent_rate)
+{
+	struct spacemit_i2c_dev *i2c = container_of(hw, struct spacemit_i2c_dev, scl_clk_hw);
+	u32 lv, lcr, mask;
+
+	lv = spacemit_i2c_calc_lv(i2c, parent_rate, rate);
+
+	mask = (i2c->mode == SPACEMIT_MODE_STANDARD) ?
+		SPACEMIT_LCR_LV_STANDARD_MASK : SPACEMIT_LCR_LV_FAST_MASK;
+
+	lcr = readl(i2c->base + SPACEMIT_ILCR);
+	lcr &= ~mask;
+	lcr |= field_prep(mask, lv);
+	writel(lcr, i2c->base + SPACEMIT_ILCR);
+
+	return 0;
+}
+
+static int spacemit_i2c_clk_determine_rate(struct clk_hw *hw,
+					   struct clk_rate_request *req)
+{
+	struct spacemit_i2c_dev *i2c = container_of(hw, struct spacemit_i2c_dev, scl_clk_hw);
+	u32 lv, offset;
+
+	lv = spacemit_i2c_calc_lv(i2c, req->best_parent_rate, req->rate);
+	offset = (i2c->mode == SPACEMIT_MODE_STANDARD) ? 8 : 10;
+	req->rate = DIV_ROUND_CLOSEST(req->best_parent_rate, lv * 2 + offset);
+
+	return 0;
+}
+
+static unsigned long spacemit_i2c_clk_recalc_rate(struct clk_hw *hw,
+						  unsigned long parent_rate)
+{
+	struct spacemit_i2c_dev *i2c = container_of(hw, struct spacemit_i2c_dev, scl_clk_hw);
+	u32 lcr, lv = 0;
+
+	lcr = readl(i2c->base + SPACEMIT_ILCR);
+
+	if (i2c->mode == SPACEMIT_MODE_STANDARD) {
+		lv = FIELD_GET(SPACEMIT_LCR_LV_STANDARD_MASK, lcr);
+		return DIV_ROUND_CLOSEST(parent_rate, lv * 2 + 8);
+	}
+
+	lv = FIELD_GET(SPACEMIT_LCR_LV_FAST_MASK, lcr);
+	return DIV_ROUND_CLOSEST(parent_rate, lv * 2 + 10);
+}
+
+static const struct clk_ops spacemit_i2c_clk_ops = {
+	.set_rate = spacemit_i2c_clk_set_rate,
+	.determine_rate = spacemit_i2c_clk_determine_rate,
+	.recalc_rate = spacemit_i2c_clk_recalc_rate,
+};
+
 static void spacemit_i2c_enable(struct spacemit_i2c_dev *i2c)
 {
 	u32 val;
@@ -151,6 +253,28 @@ static void spacemit_i2c_disable(struct spacemit_i2c_dev *i2c)
 	val = readl(i2c->base + SPACEMIT_ICR);
 	val &= ~SPACEMIT_CR_IUE;
 	writel(val, i2c->base + SPACEMIT_ICR);
+}
+
+static int spacemit_i2c_register_scl_clk(struct spacemit_i2c_dev *i2c)
+{
+	struct clk_init_data init = {};
+	char name[64];
+	int ret;
+
+	ret = snprintf(name, sizeof(name), "%s_scl_clk", dev_name(i2c->dev));
+	if (ret >= ARRAY_SIZE(name))
+		dev_warn(i2c->dev, "scl clock name truncated");
+
+	init.name = name;
+	init.ops = &spacemit_i2c_clk_ops;
+	init.parent_data = (struct clk_parent_data[]) {
+		{ .fw_name = "func" },
+	};
+	init.num_parents = 1;
+
+	i2c->scl_clk_hw.init = &init;
+
+	return devm_clk_hw_register(i2c->dev, &i2c->scl_clk_hw);
 }
 
 static void spacemit_i2c_reset(struct spacemit_i2c_dev *i2c)
@@ -286,7 +410,7 @@ static void spacemit_i2c_init(struct spacemit_i2c_dev *i2c)
 		val |= SPACEMIT_CR_MSDIE;
 	}
 
-	if (i2c->clock_freq == SPACEMIT_I2C_MAX_FAST_MODE_FREQ)
+	if (i2c->mode == SPACEMIT_MODE_FAST)
 		val |= SPACEMIT_CR_MODE_FAST;
 
 	/* disable response to general call */
@@ -309,6 +433,14 @@ static void spacemit_i2c_init(struct spacemit_i2c_dev *i2c)
 	writel(val, i2c->base + SPACEMIT_IRCR);
 
 	spacemit_i2c_clear_int_status(i2c, SPACEMIT_I2C_INT_STATUS_MASK);
+
+	/*
+	 * Initialize IWCR to the value specified by the I2C IP designer.
+	 * The SCL frequency formulas (SCL = FCLK / (2*SLV+8) for standard
+	 * mode, SCL = FCLK / (2*FLV+10) for fast mode) are only valid when
+	 * IWCR contains this specific value.
+	 */
+	writel(SPACEMIT_IWCR_INIT_VALUE, i2c->base + SPACEMIT_IWCR);
 }
 
 static void spacemit_i2c_start(struct spacemit_i2c_dev *i2c)
@@ -698,19 +830,18 @@ static int spacemit_i2c_probe(struct platform_device *pdev)
 	if (!i2c)
 		return -ENOMEM;
 
-	ret = of_property_read_u32(of_node, "clock-frequency", &i2c->clock_freq);
-	if (ret && ret != -EINVAL)
-		dev_warn(dev, "failed to read clock-frequency property: %d\n", ret);
+	of_property_read_u32(of_node, "clock-frequency", &i2c->clock_freq);
 
 	/* For now, this driver doesn't support high-speed. */
-	if (!i2c->clock_freq || i2c->clock_freq > SPACEMIT_I2C_MAX_FAST_MODE_FREQ) {
-		dev_warn(dev, "unsupported clock frequency %u; using %u\n",
-			 i2c->clock_freq, SPACEMIT_I2C_MAX_FAST_MODE_FREQ);
-		i2c->clock_freq = SPACEMIT_I2C_MAX_FAST_MODE_FREQ;
-	} else if (i2c->clock_freq < SPACEMIT_I2C_MAX_STANDARD_MODE_FREQ) {
-		dev_warn(dev, "unsupported clock frequency %u; using %u\n",
-			 i2c->clock_freq,  SPACEMIT_I2C_MAX_STANDARD_MODE_FREQ);
-		i2c->clock_freq = SPACEMIT_I2C_MAX_STANDARD_MODE_FREQ;
+	if (i2c->clock_freq > I2C_MAX_STANDARD_MODE_FREQ &&
+	    i2c->clock_freq <= I2C_MAX_FAST_MODE_FREQ) {
+		i2c->mode = SPACEMIT_MODE_FAST;
+	} else if (i2c->clock_freq && i2c->clock_freq <= I2C_MAX_STANDARD_MODE_FREQ) {
+		i2c->mode = SPACEMIT_MODE_STANDARD;
+	} else {
+		dev_info(dev, "clock-frequency not set or out of range, using fast mode\n");
+		i2c->mode = SPACEMIT_MODE_FAST;
+		i2c->clock_freq = I2C_MAX_FAST_MODE_FREQ;
 	}
 
 	i2c->dev = &pdev->dev;
@@ -727,6 +858,15 @@ static int spacemit_i2c_probe(struct platform_device *pdev)
 	if (IS_ERR(clk))
 		return dev_err_probe(dev, PTR_ERR(clk), "failed to enable func clock");
 
+	ret = spacemit_i2c_register_scl_clk(i2c);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to register scl clock\n");
+
+	i2c->scl_clk = devm_clk_hw_get_clk(dev, &i2c->scl_clk_hw, "scl");
+	if (IS_ERR(i2c->scl_clk))
+		return dev_err_probe(dev, PTR_ERR(i2c->scl_clk),
+				     "failed to get scl clock\n");
+
 	clk = devm_clk_get_enabled(dev, "bus");
 	if (IS_ERR(clk))
 		return dev_err_probe(dev, PTR_ERR(clk), "failed to enable bus clock");
@@ -735,6 +875,19 @@ static int spacemit_i2c_probe(struct platform_device *pdev)
 	if (IS_ERR(rst))
 		return dev_err_probe(dev, PTR_ERR(rst),
 				     "failed to acquire deasserted reset\n");
+
+	ret = clk_set_rate(i2c->scl_clk, i2c->clock_freq);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to set rate for SCL clock");
+
+	ret = clk_prepare_enable(i2c->scl_clk);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to prepare and enable clock");
+
+	ret = devm_add_action_or_reset(dev, spacemit_i2c_scl_clk_disable_unprepare,
+				       i2c->scl_clk);
+	if (ret)
+		return ret;
 
 	spacemit_i2c_reset(i2c);
 

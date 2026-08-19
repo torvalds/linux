@@ -565,10 +565,10 @@ static int mchp_corei2c_probe(struct platform_device *pdev)
 				       &idev->bus_clk_rate);
 	if (ret || !idev->bus_clk_rate) {
 		dev_info(&pdev->dev, "default to 100kHz\n");
-		idev->bus_clk_rate = 100000;
+		idev->bus_clk_rate = I2C_MAX_STANDARD_MODE_FREQ;
 	}
 
-	if (idev->bus_clk_rate > 400000)
+	if (idev->bus_clk_rate > I2C_MAX_FAST_MODE_FREQ)
 		return dev_err_probe(&pdev->dev, -EINVAL,
 				     "clock-frequency too high: %d\n",
 				     idev->bus_clk_rate);
