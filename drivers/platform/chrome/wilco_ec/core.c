@@ -151,8 +151,8 @@ static const struct acpi_device_id wilco_ec_acpi_device_ids[] = {
 MODULE_DEVICE_TABLE(acpi, wilco_ec_acpi_device_ids);
 
 static const struct platform_device_id wilco_ec_id[] = {
-	{ DRV_NAME, 0 },
-	{}
+	{ .name = DRV_NAME },
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, wilco_ec_id);
 

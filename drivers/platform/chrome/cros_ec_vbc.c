@@ -134,8 +134,8 @@ static void cros_ec_vbc_remove(struct platform_device *pd)
 }
 
 static const struct platform_device_id cros_ec_vbc_id[] = {
-	{ DRV_NAME, 0 },
-	{}
+	{ .name = DRV_NAME },
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, cros_ec_vbc_id);
 

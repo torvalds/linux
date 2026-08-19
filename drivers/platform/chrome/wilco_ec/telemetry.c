@@ -409,8 +409,8 @@ static void telem_device_remove(struct platform_device *pdev)
 }
 
 static const struct platform_device_id telem_id[] = {
-	{ DRV_NAME, 0 },
-	{}
+	{ .name = DRV_NAME },
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, telem_id);
 

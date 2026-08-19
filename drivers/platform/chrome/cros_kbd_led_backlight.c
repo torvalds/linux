@@ -220,8 +220,8 @@ MODULE_DEVICE_TABLE(acpi, keyboard_led_acpi_match);
 #endif
 
 static const struct platform_device_id keyboard_led_id[] = {
-	{ "cros-keyboard-leds", 0 },
-	{}
+	{ .name = "cros-keyboard-leds" },
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, keyboard_led_id);
 

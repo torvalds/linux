@@ -504,9 +504,14 @@ static ssize_t program_store(struct device *dev, struct device_attribute *attr,
 			return -EINVAL;
 		}
 	} else {
+		/*
+		 * Bound the payload strictly by the maximum value the structural
+		 * size field can natively support.
+		 */
 		extra_bytes = offsetof(typeof(*param), set_program_ex) +
 			sizeof(param->set_program_ex);
-		max_size = ec->ec_dev->max_request - extra_bytes;
+		max_size = min_t(size_t, ec->ec_dev->max_request - extra_bytes,
+				 type_max(typeof(param->set_program_ex.size)));
 	}
 
 	msg = alloc_lightbar_cmd_msg(ec);
@@ -683,8 +688,8 @@ static SIMPLE_DEV_PM_OPS(cros_ec_lightbar_pm_ops,
 			 cros_ec_lightbar_suspend, cros_ec_lightbar_resume);
 
 static const struct platform_device_id cros_ec_lightbar_id[] = {
-	{ DRV_NAME, 0 },
-	{}
+	{ .name = DRV_NAME },
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, cros_ec_lightbar_id);
 

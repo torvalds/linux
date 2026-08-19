@@ -484,8 +484,8 @@ static void cros_ec_chardev_remove(struct platform_device *pdev)
 }
 
 static const struct platform_device_id cros_ec_chardev_id[] = {
-	{ DRV_NAME, 0 },
-	{}
+	{ .name = DRV_NAME },
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, cros_ec_chardev_id);
 

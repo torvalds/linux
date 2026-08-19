@@ -70,10 +70,8 @@ static const struct chromeos_i2c_probe_data chromeos_i2c_probe_hana_trackpad = {
 		/*
 		 * ELAN trackpad needs 2 ms for H/W init and 100 ms for F/W init.
 		 * Synaptics trackpad needs 100 ms.
-		 * However, the regulator is set to "always-on", presumably to
-		 * avoid this delay. The ELAN driver is also missing delays.
 		 */
-		.post_power_on_delay_ms = 0,
+		.post_power_on_delay_ms = 110,
 	},
 };
 
@@ -100,7 +98,7 @@ static const struct hw_prober_entry hw_prober_platforms[] = {
 	}, {
 		.compatible = "google,spherion",
 		.prober = chromeos_i2c_component_prober,
-		.data = &chromeos_i2c_probe_hana_trackpad,
+		.data = &chromeos_i2c_probe_dumb_trackpad,
 	}, {
 		.compatible = "google,squirtle",
 		.prober = chromeos_i2c_component_prober,
