@@ -244,6 +244,7 @@ static int gpio_la_poll_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	/* Initially allocate a buffer. It currently is NULL */
 	fops_buf_size_set(priv, GPIO_LA_DEFAULT_BUF_SIZE);
 	ret = devm_add_action_or_reset(dev, fops_buf_release, priv);
 	if (ret)

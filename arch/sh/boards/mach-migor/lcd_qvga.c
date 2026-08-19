@@ -14,7 +14,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/gpio.h>
+#include <linux/gpio/legacy.h>
 #include <video/sh_mobile_lcdc.h>
 #include <cpu/sh7722.h>
 #include <mach/migor.h>

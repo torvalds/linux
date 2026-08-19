@@ -54,7 +54,7 @@ static struct gpiod_lookup_table _name = {				\
 	.dev_id = _dev_id,						\
 	.table = {							\
 		GPIO_LOOKUP(_key, _chip_hwnum, _con_id, _flags),	\
-		{},							\
+		{ }							\
 	},								\
 }
 

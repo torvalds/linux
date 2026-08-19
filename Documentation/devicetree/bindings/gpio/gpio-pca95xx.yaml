@@ -23,6 +23,9 @@ properties:
           - const: diodes,pi4ioe5v6534q
           - const: nxp,pcal6534
       - items:
+          - const: kinetic,kts1622
+          - const: ti,tcal6416
+      - items:
           - enum:
               - exar,xra1202
               - maxim,max7310

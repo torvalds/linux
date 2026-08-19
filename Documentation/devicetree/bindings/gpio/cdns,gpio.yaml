@@ -14,8 +14,11 @@ properties:
     oneOf:
       - const: cdns,gpio-r1p02
       - items:
-          - enum:
-              - axiado,ax3000-gpio
+          - const: axiado,ax3000-gpio
+          - const: cdns,gpio-r1p02
+      - items:
+          - const: axiado,ax3005-gpio
+          - const: axiado,ax3000-gpio
           - const: cdns,gpio-r1p02
 
   reg:

@@ -36,9 +36,10 @@ MODULE_PARM_DESC(irq, "ACCES 104-IDI-48 interrupt line numbers");
 #define IDI48_IRQ_STATUS 0x7
 #define IDI48_IRQ_ENABLE IDI48_IRQ_STATUS
 
-static int idi_48_reg_mask_xlate(struct gpio_regmap *gpio, unsigned int base,
-				 unsigned int offset, unsigned int *reg,
-				 unsigned int *mask)
+static int idi_48_reg_mask_xlate(struct gpio_regmap *gpio,
+				 enum gpio_regmap_operation op,
+				 unsigned int base, unsigned int offset,
+				 unsigned int *reg, unsigned int *mask)
 {
 	const unsigned int line = offset % 8;
 	const unsigned int stride = offset / 8;

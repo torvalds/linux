@@ -14,7 +14,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/gpio.h>
+#include <linux/gpio/legacy.h>
 #include <video/sh_mobile_lcdc.h>
 #include <mach/kfr2r09.h>
 #include <cpu/sh7724.h>

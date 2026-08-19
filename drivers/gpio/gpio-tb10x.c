@@ -51,7 +51,7 @@ static inline u32 tb10x_reg_read(struct tb10x_gpio *gpio, unsigned int offs)
 	return ioread32(gpio->base + offs);
 }
 
-static int tb10x_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
+static int tb10x_gpio_to_irq(struct gpio_chip *chip, unsigned int offset)
 {
 	struct tb10x_gpio *tb10x_gpio = gpiochip_get_data(chip);
 
@@ -167,9 +167,8 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 		tb10x_gpio->domain = irq_domain_create_linear(dev_fwnode(dev),
 							      tb10x_gpio->chip.gc.ngpio,
 							      &irq_generic_chip_ops, NULL);
-		if (!tb10x_gpio->domain) {
+		if (!tb10x_gpio->domain)
 			return -ENOMEM;
-		}
 
 		ret = irq_alloc_domain_generic_chips(tb10x_gpio->domain,
 				tb10x_gpio->chip.gc.ngpio, 1, tb10x_gpio->chip.gc.label,

@@ -18,6 +18,8 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
+#include <asm/byteorder.h>
+
 static const struct i2c_device_id pcf857x_id[] = {
 	{ .name = "pcf8574", .driver_data = 8 },
 	{ .name = "pcf8574a", .driver_data = 8 },
@@ -96,22 +98,23 @@ static int i2c_read_le8(struct i2c_client *client)
 
 static int i2c_write_le16(struct i2c_client *client, unsigned int word)
 {
-	u8 buf[2] = { word & 0xff, word >> 8, };
+	__le16 buf = cpu_to_le16(word);
 	int status;
 
-	status = i2c_master_send(client, buf, 2);
+	status = i2c_master_send(client, (char *)&buf, sizeof(buf));
 	return (status < 0) ? status : 0;
 }
 
 static int i2c_read_le16(struct i2c_client *client)
 {
-	u8 buf[2];
+	__le16 buf;
 	int status;
 
-	status = i2c_master_recv(client, buf, 2);
+	status = i2c_master_recv(client, (char *)&buf, sizeof(buf));
 	if (status < 0)
 		return status;
-	return (buf[1] << 8) | buf[0];
+
+	return le16_to_cpu(buf);
 }
 
 /*-------------------------------------------------------------------------*/
