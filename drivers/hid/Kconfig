@@ -433,6 +433,19 @@ config HOLTEK_FF
 	  Say Y here if you have a Holtek On Line Grip based game controller
 	  and want to have force feedback support for it.
 
+config HID_HYPERX
+	tristate "HyperX microphones"
+	depends on USB_HID
+	help
+	  Support for the mute button of HyperX microphones.
+
+	  The button is handled in the device firmware and only reports the
+	  resulting mute state through a vendor-defined collection, so without
+	  this driver userspace never learns that the microphone was muted.
+
+	  Supported devices:
+	  - HyperX QuadCast 2
+
 config HID_VIVALDI_COMMON
 	tristate
 	help
@@ -484,6 +497,19 @@ config HID_GT683R
 
 	Currently the following devices are know to be supported:
 	  - MSI GT683R
+
+config HID_MSI
+	tristate "MSI Claw Gamepad Support"
+	depends on USB_HID
+	select NEW_LEDS
+	select LEDS_CLASS
+	select LEDS_CLASS_MULTICOLOR
+	help
+	Support for the MSI Claw RGB and controller configuration
+
+	Say Y here to include configuration interface support for the MSI Claw Line
+	of Handheld Console Controllers. Say M here to compile this driver as a
+	module. The module will be called hid-msi.
 
 config HID_KEYTOUCH
 	tristate "Keytouch HID devices"
@@ -1048,6 +1074,7 @@ config HID_PXRC
 
 config HID_RAPOO
 	tristate "Rapoo non-fully HID-compliant devices"
+	depends on USB_HID
 	help
 	Support for Rapoo devices that are not fully compliant with the
 	HID standard.
@@ -1078,6 +1105,15 @@ config HID_ROCCAT
 	Support for Roccat devices.
 	Say Y here if you have a Roccat mouse or keyboard and want
 	support for its special functionalities.
+
+config HID_ROCCAT_KONE_KUNIT_TEST
+	bool "KUnit tests for the Roccat Kone driver" if !KUNIT_ALL_TESTS
+	depends on HID_ROCCAT=y && KUNIT=y
+	default KUNIT_ALL_TESTS
+	help
+	  Enable the KUnit regression tests for the Roccat Kone driver,
+	  covering bounds checking of device-supplied profile indices.
+	  If unsure, say N.
 
 config HID_SAITEK
 	tristate "Saitek (Mad Catz) non-fully HID-compliant devices"
@@ -1214,6 +1250,16 @@ config HID_HYPERV_MOUSE
 	depends on HYPERV_VMBUS
 	help
 	Select this option to enable the Hyper-V mouse driver.
+
+config HID_HYPERV_MOUSE_KUNIT_TEST
+	bool "KUnit tests for Hyper-V mouse driver" if !KUNIT_ALL_TESTS
+	depends on KUNIT && HID_HYPERV_MOUSE
+	default KUNIT_ALL_TESTS
+	help
+	  Builds unit tests for the Hyper-V synthetic HID driver.
+	  These tests exercise the initial device-info parser with
+	  malformed host-provided HID descriptors and are only useful
+	  for kernel developers running KUnit.
 
 config HID_SMARTJOYPLUS
 	tristate "SmartJoy PLUS PS2/USB adapter support"

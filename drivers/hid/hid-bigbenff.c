@@ -366,58 +366,29 @@ static void bigben_remove(struct hid_device *hid)
 	hid_hw_stop(hid);
 }
 
-static int bigben_probe(struct hid_device *hid,
-	const struct hid_device_id *id)
+static int bigben_input_configured(struct hid_device *hid, struct hid_input *hidinput)
 {
-	struct bigben_device *bigben;
-	struct hid_input *hidinput;
+	struct bigben_device *bigben = hid_get_drvdata(hid);
+	struct input_dev *input_dev = hidinput->input;
 	struct led_classdev *led;
 	char *name;
 	size_t name_sz;
 	int n, error;
 
-	bigben = devm_kzalloc(&hid->dev, sizeof(*bigben), GFP_KERNEL);
-	if (!bigben)
-		return -ENOMEM;
-	hid_set_drvdata(hid, bigben);
-	bigben->hid = hid;
-	bigben->removed = false;
-
-	error = hid_parse(hid);
-	if (error) {
-		hid_err(hid, "parse failed\n");
-		return error;
-	}
-
-	error = hid_hw_start(hid, HID_CONNECT_DEFAULT & ~HID_CONNECT_FF);
-	if (error) {
-		hid_err(hid, "hw start failed\n");
-		return error;
-	}
+	if (!list_is_first(&hidinput->list, &hid->inputs))
+		return 0;
 
 	bigben->report = hid_validate_values(hid, HID_OUTPUT_REPORT, 0, 0, 8);
 	if (!bigben->report) {
 		hid_err(hid, "no output report found\n");
-		error = -ENODEV;
-		goto error_hw_stop;
+		return -ENODEV;
 	}
 
-	if (list_empty(&hid->inputs)) {
-		hid_err(hid, "no inputs found\n");
-		error = -ENODEV;
-		goto error_hw_stop;
-	}
+	set_bit(FF_RUMBLE, input_dev->ffbit);
 
-	hidinput = list_first_entry(&hid->inputs, struct hid_input, list);
-	set_bit(FF_RUMBLE, hidinput->input->ffbit);
-
-	INIT_WORK(&bigben->worker, bigben_worker);
-	spin_lock_init(&bigben->lock);
-
-	error = input_ff_create_memless(hidinput->input, NULL,
-		hid_bigben_play_effect);
+	error = input_ff_create_memless(input_dev, NULL, hid_bigben_play_effect);
 	if (error)
-		goto error_hw_stop;
+		return error;
 
 	name_sz = strlen(dev_name(&hid->dev)) + strlen(":red:bigben#") + 1;
 
@@ -427,10 +398,9 @@ static int bigben_probe(struct hid_device *hid,
 			sizeof(struct led_classdev) + name_sz,
 			GFP_KERNEL
 		);
-		if (!led) {
-			error = -ENOMEM;
-			goto error_hw_stop;
-		}
+		if (!led)
+			return -ENOMEM;
+
 		name = (void *)(&led[1]);
 		snprintf(name, name_sz,
 			"%s:red:bigben%d",
@@ -444,7 +414,7 @@ static int bigben_probe(struct hid_device *hid,
 		bigben->leds[n] = led;
 		error = devm_led_classdev_register(&hid->dev, led);
 		if (error)
-			goto error_hw_stop;
+			return error;
 	}
 
 	/* initial state: LED1 is on, no rumble effect */
@@ -458,10 +428,36 @@ static int bigben_probe(struct hid_device *hid,
 	hid_info(hid, "LED and force feedback support for BigBen gamepad\n");
 
 	return 0;
+}
 
-error_hw_stop:
-	hid_hw_stop(hid);
-	return error;
+static int bigben_probe(struct hid_device *hid, const struct hid_device_id *id)
+{
+	struct bigben_device *bigben;
+	int error;
+
+	bigben = devm_kzalloc(&hid->dev, sizeof(*bigben), GFP_KERNEL);
+	if (!bigben)
+		return -ENOMEM;
+
+	hid_set_drvdata(hid, bigben);
+	bigben->hid = hid;
+	bigben->removed = false;
+	INIT_WORK(&bigben->worker, bigben_worker);
+	spin_lock_init(&bigben->lock);
+
+	error = hid_parse(hid);
+	if (error) {
+		hid_err(hid, "parse failed\n");
+		return error;
+	}
+
+	error = hid_hw_start(hid, HID_CONNECT_DEFAULT);
+	if (error) {
+		hid_err(hid, "hw start failed\n");
+		return error;
+	}
+
+	return 0;
 }
 
 static const __u8 *bigben_report_fixup(struct hid_device *hid, __u8 *rdesc,
@@ -487,6 +483,7 @@ static struct hid_driver bigben_driver = {
 	.probe = bigben_probe,
 	.report_fixup = bigben_report_fixup,
 	.remove = bigben_remove,
+	.input_configured = bigben_input_configured,
 };
 module_hid_driver(bigben_driver);
 

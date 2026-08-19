@@ -52,31 +52,24 @@ static int hid_betopff_play(struct input_dev *dev, void *data,
 	return 0;
 }
 
-static int betopff_init(struct hid_device *hid)
+static int betop_input_configured(struct hid_device *hid, struct hid_input *hidinput)
 {
 	struct betopff_device *betopff;
 	struct hid_report *report;
-	struct hid_input *hidinput;
 	struct list_head *report_list =
 			&hid->report_enum[HID_OUTPUT_REPORT].report_list;
-	struct input_dev *dev;
+	struct input_dev *dev = hidinput->input;
 	int error;
 	int i, j;
 
-	if (list_empty(&hid->inputs)) {
-		hid_err(hid, "no inputs found\n");
-		return -ENODEV;
-	}
+	if (!list_is_first(&hidinput->list, &hid->inputs))
+		return 0;
 
-	hidinput = list_first_entry(&hid->inputs, struct hid_input, list);
-	dev = hidinput->input;
-
-	if (list_empty(report_list)) {
+	report = list_first_entry_or_null(report_list, struct hid_report, list);
+	if (!report) {
 		hid_err(hid, "no output reports found\n");
 		return -ENODEV;
 	}
-
-	report = list_first_entry(report_list, struct hid_report, list);
 	/*
 	 * Actually there are 4 fields for 4 Bytes as below:
 	 * -----------------------------------------
@@ -104,6 +97,7 @@ static int betopff_init(struct hid_device *hid)
 	if (!betopff)
 		return -ENOMEM;
 
+	betopff->report = report;
 	set_bit(FF_RUMBLE, dev->ffbit);
 
 	error = input_ff_create_memless(dev, betopff, hid_betopff_play);
@@ -112,7 +106,6 @@ static int betopff_init(struct hid_device *hid)
 		return error;
 	}
 
-	betopff->report = report;
 	hid_hw_request(hid, betopff->report, HID_REQ_SET_REPORT);
 
 	hid_info(hid, "Force feedback for betop devices by huangbo <huangbobupt@163.com>\n");
@@ -130,20 +123,15 @@ static int betop_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	ret = hid_parse(hdev);
 	if (ret) {
 		hid_err(hdev, "parse failed\n");
-		goto err;
+		return ret;
 	}
 
-	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT & ~HID_CONNECT_FF);
+	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 	if (ret) {
 		hid_err(hdev, "hw start failed\n");
-		goto err;
+		return ret;
 	}
-
-	betopff_init(hdev);
-
 	return 0;
-err:
-	return ret;
 }
 
 static const struct hid_device_id betop_devices[] = {
@@ -159,6 +147,7 @@ static struct hid_driver betop_driver = {
 	.name = "betop",
 	.id_table = betop_devices,
 	.probe = betop_probe,
+	.input_configured = betop_input_configured,
 };
 module_hid_driver(betop_driver);
 

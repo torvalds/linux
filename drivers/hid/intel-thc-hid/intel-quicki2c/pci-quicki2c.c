@@ -175,7 +175,9 @@ static int quicki2c_get_acpi_resources(struct quicki2c_device *qcdev)
 	if (i2c_param.addressing_mode != HIDI2C_ADDRESSING_MODE_7BIT)
 		return -EOPNOTSUPP;
 
-	qcdev->i2c_slave_addr = i2c_param.device_address;
+	qcdev->i2c_config.addr_mode = HIDI2C_ADDRESSING_MODE_7BIT;
+
+	qcdev->i2c_config.target_addr = i2c_param.device_address;
 
 	ret = quicki2c_acpi_get_dsd_property(adev, QUICKI2C_ACPI_METHOD_NAME_ISUB,
 					     ACPI_TYPE_BUFFER, &i2c_config);
@@ -184,24 +186,32 @@ static int quicki2c_get_acpi_resources(struct quicki2c_device *qcdev)
 
 	if (i2c_param.connection_speed > 0 &&
 	    i2c_param.connection_speed <= QUICKI2C_SUBIP_STANDARD_MODE_MAX_SPEED) {
-		qcdev->i2c_speed_mode = THC_I2C_STANDARD;
-		qcdev->i2c_clock_hcnt = i2c_config.SMHX;
-		qcdev->i2c_clock_lcnt = i2c_config.SMLX;
+		qcdev->i2c_config.speed = THC_I2C_STANDARD;
+		qcdev->i2c_config.scl_hcnt = (u32)i2c_config.SMHX;
+		qcdev->i2c_config.scl_lcnt = (u32)i2c_config.SMLX;
+		qcdev->i2c_config.sda_tx_hold = (u32)i2c_config.SMTD;
+		qcdev->i2c_config.sda_rx_hold = (u32)i2c_config.SMRD;
 	} else if (i2c_param.connection_speed > QUICKI2C_SUBIP_STANDARD_MODE_MAX_SPEED &&
 		   i2c_param.connection_speed <= QUICKI2C_SUBIP_FAST_MODE_MAX_SPEED) {
-		qcdev->i2c_speed_mode = THC_I2C_FAST_AND_PLUS;
-		qcdev->i2c_clock_hcnt = i2c_config.FMHX;
-		qcdev->i2c_clock_lcnt = i2c_config.FMLX;
+		qcdev->i2c_config.speed = THC_I2C_FAST_AND_PLUS;
+		qcdev->i2c_config.scl_hcnt = (u32)i2c_config.FMHX;
+		qcdev->i2c_config.scl_lcnt = (u32)i2c_config.FMLX;
+		qcdev->i2c_config.sda_tx_hold = (u32)i2c_config.FMTD;
+		qcdev->i2c_config.sda_rx_hold = (u32)i2c_config.FMRD;
 	} else if (i2c_param.connection_speed > QUICKI2C_SUBIP_FAST_MODE_MAX_SPEED &&
 		   i2c_param.connection_speed <= QUICKI2C_SUBIP_FASTPLUS_MODE_MAX_SPEED) {
-		qcdev->i2c_speed_mode = THC_I2C_FAST_AND_PLUS;
-		qcdev->i2c_clock_hcnt = i2c_config.FPHX;
-		qcdev->i2c_clock_lcnt = i2c_config.FPLX;
+		qcdev->i2c_config.speed = THC_I2C_FAST_AND_PLUS;
+		qcdev->i2c_config.scl_hcnt = (u32)i2c_config.FPHX;
+		qcdev->i2c_config.scl_lcnt = (u32)i2c_config.FPLX;
+		qcdev->i2c_config.sda_tx_hold = (u32)i2c_config.FPTD;
+		qcdev->i2c_config.sda_rx_hold = (u32)i2c_config.FPRD;
 	} else if (i2c_param.connection_speed > QUICKI2C_SUBIP_FASTPLUS_MODE_MAX_SPEED &&
 		   i2c_param.connection_speed <= QUICKI2C_SUBIP_HIGH_SPEED_MODE_MAX_SPEED) {
-		qcdev->i2c_speed_mode = THC_I2C_HIGH_SPEED;
-		qcdev->i2c_clock_hcnt = i2c_config.HMHX;
-		qcdev->i2c_clock_lcnt = i2c_config.HMLX;
+		qcdev->i2c_config.speed = THC_I2C_HIGH_SPEED;
+		qcdev->i2c_config.scl_hcnt = (u32)i2c_config.HMHX;
+		qcdev->i2c_config.scl_lcnt = (u32)i2c_config.HMLX;
+		qcdev->i2c_config.sda_tx_hold = (u32)i2c_config.HMTD;
+		qcdev->i2c_config.sda_rx_hold = (u32)i2c_config.HMRD;
 	} else {
 		return -EOPNOTSUPP;
 	}
@@ -245,28 +255,33 @@ static irqreturn_t quicki2c_irq_quick_handler(int irq, void *dev_id)
 }
 
 /**
- * try_recover - Try to recovery THC and Device
- * @qcdev: Pointer to quicki2c_device structure
+ * try_recover - Recover callback to recover THC
+ * @work: pointer to work_struct
  *
  * This function is an error handler, called when fatal error happens.
- * It try to reset touch device and re-configure THC to recovery
- * communication between touch device and THC.
- *
- * Return: 0 if successful or error code on failure
+ * It try to reset Touch Device and re-configure THC to recover
+ * transferring between Device and THC.
  */
-static int try_recover(struct quicki2c_device *qcdev)
+static void try_recover(struct work_struct *work)
 {
-	int ret;
+	struct quicki2c_device *qcdev = container_of(work, struct quicki2c_device, recover_work);
 
-	thc_dma_unconfigure(qcdev->thc_hw);
+	if (READ_ONCE(qcdev->recovery_disabled))
+		return;
 
-	ret = thc_dma_configure(qcdev->thc_hw);
-	if (ret) {
-		dev_err(qcdev->dev, "Reconfig DMA failed\n");
-		return ret;
+	if (pm_runtime_resume_and_get(qcdev->dev))
+		return;
+
+	thc_interrupt_enable(qcdev->thc_hw, false);
+
+	if (thc_rxdma_reset(qcdev->thc_hw)) {
+		qcdev->state = QUICKI2C_DISABLED;
+		dev_err(qcdev->dev, "RxDMA reset failed during recover, disable QuickI2C\n");
+	} else {
+		thc_interrupt_enable(qcdev->thc_hw, true);
 	}
 
-	return 0;
+	pm_runtime_put_autosuspend(qcdev->dev);
 }
 
 static int handle_input_report(struct quicki2c_device *qcdev)
@@ -343,11 +358,10 @@ static irqreturn_t quicki2c_irq_thread_handler(int irq, void *dev_id)
 	}
 
 exit:
-	thc_interrupt_enable(qcdev->thc_hw, true);
-
 	if (err_recover)
-		if (try_recover(qcdev))
-			qcdev->state = QUICKI2C_DISABLED;
+		schedule_work(&qcdev->recover_work);
+	else
+		thc_interrupt_enable(qcdev->thc_hw, true);
 
 	pm_runtime_put_autosuspend(qcdev->dev);
 
@@ -386,6 +400,8 @@ static struct quicki2c_device *quicki2c_dev_init(struct pci_dev *pdev, void __io
 	qcdev->ddata = ddata;
 
 	init_waitqueue_head(&qcdev->reset_ack_wq);
+	WRITE_ONCE(qcdev->recovery_disabled, false);
+	INIT_WORK(&qcdev->recover_work, try_recover);
 
 	/* THC hardware init */
 	qcdev->thc_hw = thc_dev_init(qcdev->dev, qcdev->mem_addr);
@@ -411,10 +427,7 @@ static struct quicki2c_device *quicki2c_dev_init(struct pci_dev *pdev, void __io
 		return ERR_PTR(ret);
 	}
 
-	ret = thc_i2c_subip_init(qcdev->thc_hw, qcdev->i2c_slave_addr,
-				 qcdev->i2c_speed_mode,
-				 qcdev->i2c_clock_hcnt,
-				 qcdev->i2c_clock_lcnt);
+	ret = thc_i2c_subip_init(qcdev->thc_hw, &qcdev->i2c_config);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -439,6 +452,9 @@ static struct quicki2c_device *quicki2c_dev_init(struct pci_dev *pdev, void __io
  */
 static void quicki2c_dev_deinit(struct quicki2c_device *qcdev)
 {
+	WRITE_ONCE(qcdev->recovery_disabled, true);
+	cancel_work_sync(&qcdev->recover_work);
+
 	thc_interrupt_quiesce(qcdev->thc_hw, true);
 	thc_interrupt_enable(qcdev->thc_hw, false);
 	thc_ltr_unconfig(qcdev->thc_hw);
@@ -682,11 +698,8 @@ static int quicki2c_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 					quicki2c_irq_thread_handler,
 					IRQF_ONESHOT, KBUILD_MODNAME,
 					qcdev);
-	if (ret) {
-		dev_err_once(&pdev->dev,
-			     "Failed to request threaded IRQ, irq = %d.\n", pdev->irq);
+	if (ret)
 		goto dev_deinit;
-	}
 
 	ret = quicki2c_get_device_descriptor(qcdev);
 	if (ret) {
@@ -772,11 +785,13 @@ static void quicki2c_remove(struct pci_dev *pdev)
 		return;
 
 	quicki2c_hid_remove(qcdev);
-	quicki2c_dma_deinit(qcdev);
-
-	pm_runtime_get_noresume(qcdev->dev);
 
 	quicki2c_dev_deinit(qcdev);
+
+	quicki2c_dma_deinit(qcdev);
+
+	pm_runtime_dont_use_autosuspend(qcdev->dev);
+	pm_runtime_get_noresume(qcdev->dev);
 
 	pci_clear_master(pdev);
 }
@@ -796,10 +811,10 @@ static void quicki2c_shutdown(struct pci_dev *pdev)
 	if (!qcdev)
 		return;
 
+	quicki2c_dev_deinit(qcdev);
+
 	/* Must stop DMA before reboot to avoid DMA entering into unknown state */
 	quicki2c_dma_deinit(qcdev);
-
-	quicki2c_dev_deinit(qcdev);
 }
 
 static int quicki2c_suspend(struct device *device)
@@ -825,6 +840,9 @@ static int quicki2c_suspend(struct device *device)
 	ret = thc_i2c_subip_regs_save(qcdev->thc_hw);
 	if (ret)
 		return ret;
+
+	WRITE_ONCE(qcdev->recovery_disabled, true);
+	cancel_work_sync(&qcdev->recover_work);
 
 	ret = thc_interrupt_quiesce(qcdev->thc_hw, true);
 	if (ret)
@@ -867,6 +885,8 @@ static int quicki2c_resume(struct device *device)
 	if (ret)
 		return ret;
 
+	WRITE_ONCE(qcdev->recovery_disabled, false);
+
 	if (!device_may_wakeup(qcdev->dev))
 		return quicki2c_set_power(qcdev, HIDI2C_ON);
 
@@ -882,6 +902,9 @@ static int quicki2c_freeze(struct device *device)
 	qcdev = pci_get_drvdata(pdev);
 	if (!qcdev)
 		return -ENODEV;
+
+	WRITE_ONCE(qcdev->recovery_disabled, true);
+	cancel_work_sync(&qcdev->recover_work);
 
 	ret = thc_interrupt_quiesce(qcdev->thc_hw, true);
 	if (ret)
@@ -914,6 +937,8 @@ static int quicki2c_thaw(struct device *device)
 	if (ret)
 		return ret;
 
+	WRITE_ONCE(qcdev->recovery_disabled, false);
+
 	return 0;
 }
 
@@ -938,6 +963,8 @@ static int quicki2c_poweroff(struct device *device)
 
 	thc_ltr_unconfig(qcdev->thc_hw);
 
+	quicki2c_dev_deinit(qcdev);
+
 	quicki2c_dma_deinit(qcdev);
 
 	return 0;
@@ -958,10 +985,7 @@ static int quicki2c_restore(struct device *device)
 	if (ret)
 		return ret;
 
-	ret = thc_i2c_subip_init(qcdev->thc_hw, qcdev->i2c_slave_addr,
-				 qcdev->i2c_speed_mode,
-				 qcdev->i2c_clock_hcnt,
-				 qcdev->i2c_clock_lcnt);
+	ret = thc_i2c_subip_init(qcdev->thc_hw, &qcdev->i2c_config);
 	if (ret)
 		return ret;
 

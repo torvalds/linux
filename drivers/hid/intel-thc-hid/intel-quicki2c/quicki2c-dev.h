@@ -7,6 +7,8 @@
 #include <linux/hid-over-i2c.h>
 #include <linux/workqueue.h>
 
+#include "intel-thc-dev.h"
+
 #define PCI_DEVICE_ID_INTEL_THC_LNL_DEVICE_ID_I2C_PORT1		0xA848
 #define PCI_DEVICE_ID_INTEL_THC_LNL_DEVICE_ID_I2C_PORT2		0xA84A
 #define PCI_DEVICE_ID_INTEL_THC_PTL_H_DEVICE_ID_I2C_PORT1	0xE348
@@ -159,7 +161,6 @@ struct quicki2c_ddata {
 
 struct device;
 struct pci_dev;
-struct thc_device;
 struct hid_device;
 struct acpi_device;
 
@@ -174,13 +175,10 @@ struct acpi_device;
  * @state: THC I2C device state
  * @mem_addr: MMIO memory address
  * @dev_desc: Device descriptor for HIDI2C protocol
- * @i2c_slave_addr: HIDI2C device slave address
+ * @i2c_config: I2C bus configuration
  * @hid_desc_addr: Register address for retrieve HID device descriptor
  * @active_ltr_val: THC active LTR value
  * @low_power_ltr_val: THC low power LTR value
- * @i2c_speed_mode: 0 - standard mode, 1 - fast mode, 2 - fast mode plus
- * @i2c_clock_hcnt: I2C CLK high period time (unit in cycle count)
- * @i2c_clock_lcnt: I2C CLK low period time (unit in cycle count)
  * @report_descriptor: Store a copy of device report descriptor
  * @input_buf: Store a copy of latest input report data
  * @report_buf: Store a copy of latest input/output report packet from set/get feature
@@ -191,6 +189,8 @@ struct acpi_device;
  * @i2c_max_frame_size: Max RX frame size (unit in Bytes)
  * @i2c_int_delay_enable: Indicate interrupt delay feature enabled or not
  * @i2c_int_delay: Interrupt detection delay value (unit in 10 us)
+ * @recover_work: Work structure for recovery
+ * @recovery_disabled: Whether recovery work is blocked during teardown
  */
 struct quicki2c_device {
 	struct device *dev;
@@ -204,15 +204,11 @@ struct quicki2c_device {
 	void __iomem *mem_addr;
 
 	struct hidi2c_dev_descriptor dev_desc;
-	u8 i2c_slave_addr;
+	struct thc_i2c_config i2c_config;
 	u16 hid_desc_addr;
 
 	u32 active_ltr_val;
 	u32 low_power_ltr_val;
-
-	u32 i2c_speed_mode;
-	u32 i2c_clock_hcnt;
-	u32 i2c_clock_lcnt;
 
 	u8 *report_descriptor;
 	u8 *input_buf;
@@ -226,6 +222,9 @@ struct quicki2c_device {
 	u32 i2c_max_frame_size;
 	u32 i2c_int_delay_enable;
 	u32 i2c_int_delay;
+
+	struct work_struct recover_work;
+	bool recovery_disabled;
 };
 
 #endif /* _QUICKI2C_DEV_H_ */

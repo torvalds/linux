@@ -121,6 +121,7 @@ enum recvr_type {
 	recvr_type_27mhz,
 	recvr_type_bluetooth,
 	recvr_type_dinovo,
+	recvr_type_bolt,
 };
 
 struct dj_report {
@@ -1156,6 +1157,10 @@ static void logi_hidpp_recv_queue_notif(struct hid_device *hdev,
 		logi_hidpp_dev_conn_notif_equad(hdev, hidpp_report, &workitem);
 		workitem.reports_supported |= STD_KEYBOARD;
 		break;
+	case 0x10:
+		device_type = "Bolt";
+		logi_hidpp_dev_conn_notif_equad(hdev, hidpp_report, &workitem);
+		break;
 	}
 
 	/* custom receiver device (eg. powerplay) */
@@ -1746,6 +1751,24 @@ static int logi_dj_hidpp_event(struct hid_device *hdev,
 	dj_dev = djrcv_dev->paired_dj_devices[device_index];
 
 	/*
+	 * Bolt receivers send explicit unpair notifications as HID++ events;
+	 * queue device removal when we receive one.
+	 */
+	if (djrcv_dev->type == recvr_type_bolt &&
+	    hidpp_report->report_id == REPORT_ID_HIDPP_SHORT &&
+	    hidpp_report->sub_id == REPORT_TYPE_NOTIF_DEVICE_UNPAIRED) {
+		struct dj_workitem workitem = {
+			.device_index = device_index,
+			.type = WORKITEM_TYPE_UNPAIRED,
+		};
+
+		kfifo_in(&djrcv_dev->notif_fifo, &workitem, sizeof(workitem));
+		schedule_work(&djrcv_dev->work);
+		spin_unlock_irqrestore(&djrcv_dev->lock, flags);
+		return false;
+	}
+
+	/*
 	 * With 27 MHz receivers, we do not get an explicit unpair event,
 	 * remove the old device if the user has paired a *different* device.
 	 */
@@ -1884,6 +1907,9 @@ static int logi_dj_probe(struct hid_device *hdev,
 	 * treat these as logitech-dj interfaces then this causes input events
 	 * reported through this extra interface to not be reported correctly.
 	 * To avoid this, we treat these as generic-hid devices.
+	 *
+	 * Bolt receivers only use LOGITECH_DJ_INTERFACE_NUMBER for receiver
+	 * reporting. Treat all other Bolt interfaces as generic-hid devices.
 	 */
 	switch (id->driver_data) {
 	case recvr_type_dj:		no_dj_interfaces = 3; break;
@@ -1897,10 +1923,20 @@ static int logi_dj_probe(struct hid_device *hdev,
 	}
 	if (hid_is_usb(hdev)) {
 		intf = to_usb_interface(hdev->dev.parent);
-		if (intf && intf->altsetting->desc.bInterfaceNumber >=
-							no_dj_interfaces) {
-			hdev->quirks |= HID_QUIRK_INPUT_PER_APP;
-			return hid_hw_start(hdev, HID_CONNECT_DEFAULT);
+		if (intf) {
+			bool generic_hid_interface;
+
+			if (id->driver_data == recvr_type_bolt)
+				generic_hid_interface =
+					intf->altsetting->desc.bInterfaceNumber !=
+					LOGITECH_DJ_INTERFACE_NUMBER;
+			else
+				generic_hid_interface =
+					intf->altsetting->desc.bInterfaceNumber >= no_dj_interfaces;
+			if (generic_hid_interface) {
+				hdev->quirks |= HID_QUIRK_INPUT_PER_APP;
+				return hid_hw_start(hdev, HID_CONNECT_DEFAULT);
+			}
 		}
 	}
 
@@ -2103,10 +2139,18 @@ static const struct hid_device_id logi_dj_receivers[] = {
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 		USB_DEVICE_ID_LOGITECH_NANO_RECEIVER_LIGHTSPEED_1_3),
 	 .driver_data = recvr_type_gaming_hidpp_ls_1_3},
+	{ /* Logitech Bolt receiver (0xc548) */
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
+			 USB_DEVICE_ID_LOGITECH_BOLT_RECEIVER),
+	 .driver_data = recvr_type_bolt},
 	{ /* Logitech lightspeed receiver (0xc54d) */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 		USB_DEVICE_ID_LOGITECH_NANO_RECEIVER_LIGHTSPEED_1_4),
 	 .driver_data = recvr_type_gaming_hidpp_ls_1_3},
+	{ /* Logitech lightspeed receiver (0xc545) */
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
+		USB_DEVICE_ID_LOGITECH_NANO_RECEIVER_LIGHTSPEED_1_5),
+	.driver_data = recvr_type_gaming_hidpp_ls_1_3},
 
 	{ /* Logitech 27 MHz HID++ 1.0 receiver (0xc513) */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_MX3000_RECEIVER),

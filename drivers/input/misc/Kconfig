@@ -914,6 +914,21 @@ config INPUT_SOC_BUTTON_ARRAY
 	  To compile this driver as a module, choose M here: the
 	  module will be called soc_button_array.
 
+config INPUT_AMD_SFH_TABLETMODE
+	tristate "AMD SFH tablet-mode switch"
+	depends on AMD_SFH_HID
+	select AUXILIARY_BUS
+	help
+	  Expose SW_TABLET_MODE for AMD convertible laptops whose
+	  operation-mode sensor is provided by the AMD Sensor Fusion Hub.
+
+	  Userspace components such as systemd-logind and modern desktop
+	  environments react to SW_TABLET_MODE when the device is folded
+	  into tablet posture.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called amd_sfh_tabletmode.
+
 config INPUT_DRV260X_HAPTICS
 	tristate "TI DRV260X haptics support"
 	depends on INPUT && I2C

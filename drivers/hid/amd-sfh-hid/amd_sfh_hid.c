@@ -87,16 +87,17 @@ static int amdtp_wait_for_response(struct hid_device *hid)
 			break;
 	}
 
-	if (!cli_data->request_done[i])
+	if (!cli_data->request_done[i]) {
 		ret = wait_event_interruptible_timeout(hid_data->hid_wait,
 						       cli_data->request_done[i],
 						       msecs_to_jiffies(AMD_SFH_RESPONSE_TIMEOUT));
-	if (ret == -ERESTARTSYS)
-		return -ERESTARTSYS;
-	else if (ret < 0)
-		return -ETIMEDOUT;
-	else
-		return 0;
+		if (ret == -ERESTARTSYS)
+			return -ERESTARTSYS;
+		if (ret <= 0)
+			return -ETIMEDOUT;
+	}
+
+	return 0;
 }
 
 void amdtp_hid_wakeup(struct hid_device *hid)
@@ -162,6 +163,7 @@ int amdtp_hid_probe(u32 cur_hid_dev, struct amdtp_cl_data *cli_data)
 	return 0;
 
 err_hid_device:
+	cli_data->hid_sensor_hubs[cur_hid_dev] = NULL;
 	kfree(hid_data);
 err_hid_data:
 	hid_destroy_device(hid);

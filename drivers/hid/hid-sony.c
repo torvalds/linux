@@ -29,6 +29,7 @@
  * There will be no PIN request from the device.
  */
 
+#include <linux/cleanup.h>
 #include <linux/device.h>
 #include <linux/hid.h>
 #include <linux/module.h>
@@ -81,6 +82,7 @@
 #define SONY_FF_SUPPORT (SIXAXIS_CONTROLLER | MOTION_CONTROLLER)
 #define SONY_BT_DEVICE (SIXAXIS_CONTROLLER_BT | MOTION_CONTROLLER_BT | NAVIGATION_CONTROLLER_BT)
 #define NSG_MRXU_REMOTE (NSG_MR5U_REMOTE_BT | NSG_MR7U_REMOTE_BT)
+#define RB4_GUITAR_PS4 (RB4_GUITAR_PS4_USB | RB4_GUITAR_PS4_BT)
 
 #define MAX_LEDS 4
 #define NSG_MRXU_MAX_X 1667
@@ -503,7 +505,7 @@ struct motion_output_report_02 {
 	u8 r, g, b;
 	u8 zero2;
 	u8 rumble;
-};
+} __packed;
 static_assert(sizeof(struct motion_output_report_02) == 7);
 
 #define SIXAXIS_REPORT_0xF2_SIZE 17
@@ -521,10 +523,6 @@ static DEFINE_SPINLOCK(sony_dev_list_lock);
 static LIST_HEAD(sony_device_list);
 static DEFINE_IDA(sony_device_id_allocator);
 
-enum sony_worker {
-	SONY_WORKER_STATE
-};
-
 struct sony_sc {
 	spinlock_t lock;
 	struct list_head list_node;
@@ -534,6 +532,7 @@ struct sony_sc {
 	struct input_dev *sensor_dev;
 	struct led_classdev *leds[MAX_LEDS];
 	unsigned long quirks;
+	int (*raw_event)(struct sony_sc *sc, u8 *rd, int size);
 	struct work_struct state_worker;
 	void (*send_output_report)(struct sony_sc *sc);
 	struct power_supply *battery;
@@ -566,19 +565,11 @@ struct sony_sc {
 
 static void sony_set_leds(struct sony_sc *sc);
 
-static inline void sony_schedule_work(struct sony_sc *sc,
-				      enum sony_worker which)
+static inline void sony_schedule_work(struct sony_sc *sc)
 {
-	unsigned long flags;
-
-	switch (which) {
-	case SONY_WORKER_STATE:
-		spin_lock_irqsave(&sc->lock, flags);
-		if (!sc->defer_initialization && sc->state_worker_initialized)
-			schedule_work(&sc->state_worker);
-		spin_unlock_irqrestore(&sc->lock, flags);
-		break;
-	}
+	guard(spinlock_irqsave)(&sc->lock);
+	if (!sc->defer_initialization && sc->state_worker_initialized)
+		schedule_work(&sc->state_worker);
 }
 
 static void ghl_magic_poke_cb(struct urb *urb)
@@ -946,14 +937,38 @@ static const u8 *sony_report_fixup(struct hid_device *hdev, u8 *rdesc,
 	return rdesc;
 }
 
-static void sixaxis_parse_report(struct sony_sc *sc, u8 *rd, int size)
+static int sixaxis_raw_event(struct sony_sc *sc, u8 *rd, int size)
 {
 	static const u8 sixaxis_battery_capacity[] = { 0, 1, 25, 50, 75, 100 };
-	unsigned long flags;
 	int offset;
 	u8 index;
 	u8 battery_capacity;
 	int battery_status;
+
+	if (unlikely(size != 49 || rd[0] != 0x01))
+		return 0;
+
+	if (sc->quirks & SIXAXIS_CONTROLLER) {
+		/*
+		 * When connected via Bluetooth the Sixaxis occasionally sends
+		 * a report with the second byte 0xff and the rest zeroed.
+		 *
+		 * This report does not reflect the actual state of the
+		 * controller must be ignored to avoid generating false input
+		 * events.
+		 */
+		if (rd[1] == 0xff)
+			return -EINVAL;
+
+		/*
+		 * Sixaxis HID report has acclerometers/gyro with MSByte first, this
+		 * has to be BYTE_SWAPPED before passing up to joystick interface
+		 */
+		swap(rd[41], rd[42]);
+		swap(rd[43], rd[44]);
+		swap(rd[45], rd[46]);
+		swap(rd[47], rd[48]);
+	}
 
 	/*
 	 * The sixaxis is charging if the battery value is 0xee
@@ -972,10 +987,10 @@ static void sixaxis_parse_report(struct sony_sc *sc, u8 *rd, int size)
 		battery_status = POWER_SUPPLY_STATUS_DISCHARGING;
 	}
 
-	spin_lock_irqsave(&sc->lock, flags);
-	sc->battery_capacity = battery_capacity;
-	sc->battery_status = battery_status;
-	spin_unlock_irqrestore(&sc->lock, flags);
+	scoped_guard(spinlock_irqsave, &sc->lock) {
+		sc->battery_capacity = battery_capacity;
+		sc->battery_status = battery_status;
+	}
 
 	if (sc->quirks & SIXAXIS_CONTROLLER) {
 		int val;
@@ -993,12 +1008,17 @@ static void sixaxis_parse_report(struct sony_sc *sc, u8 *rd, int size)
 
 		input_sync(sc->sensor_dev);
 	}
+
+	return 0;
 }
 
-static void nsg_mrxu_parse_report(struct sony_sc *sc, u8 *rd, int size)
+static int nsg_mrxu_raw_event(struct sony_sc *sc, u8 *rd, int size)
 {
 	int n, offset, relx, rely;
 	u8 active;
+
+	if (unlikely(size < 12 || rd[0] != 0x02))
+		return 0;
 
 	/*
 	 * The NSG-MRxU multi-touch trackpad data starts at offset 1 and
@@ -1067,10 +1087,33 @@ static void nsg_mrxu_parse_report(struct sony_sc *sc, u8 *rd, int size)
 	input_mt_sync_frame(sc->touchpad);
 
 	input_sync(sc->touchpad);
+	return 0;
 }
 
-static void rb4_ps4_guitar_parse_report(struct sony_sc *sc, u8 *rd, int size)
+static int rb3_pro_instrument_raw_event(struct sony_sc *sc, u8 *rd, int size)
 {
+	/* Rock Band 3 PS3 Pro instruments set rd[24] to 0xE0 when they're
+	 * sending full reports, and 0x02 when only sending navigation.
+	 */
+	if (size < 25 || rd[24] != 0x02)
+		return 0;
+
+	/* Only attempt to enable full report every 8 seconds */
+	if (time_after(jiffies, sc->rb3_pro_poke_jiffies)) {
+		sc->rb3_pro_poke_jiffies = jiffies + secs_to_jiffies(8);
+		rb3_pro_instrument_enable_full_report(sc);
+	}
+
+	return 0;
+}
+
+static int rb4_ps4_guitar_raw_event(struct sony_sc *sc, u8 *rd, int size)
+{
+	const int expected_size = (sc->quirks & RB4_GUITAR_PS4_BT) ? 78 : 64;
+
+	if (unlikely(size != expected_size || rd[0] != 0x01))
+		return 0;
+
 	/*
 	 * Rock Band 4 PS4 guitars have whammy and
 	 * tilt functionality, they're located at
@@ -1084,15 +1127,18 @@ static void rb4_ps4_guitar_parse_report(struct sony_sc *sc, u8 *rd, int size)
 	input_report_abs(sc->input_dev, ABS_RZ, rd[45]);
 
 	input_sync(sc->input_dev);
+	return 0;
 }
 
-static void rb4_ps5_guitar_parse_report(struct sony_sc *sc, u8 *rd, int size)
+static int rb4_ps5_guitar_raw_event(struct sony_sc *sc, u8 *rd, int size)
 {
 	u8 charging_status;
 	u8 battery_data;
 	u8 battery_capacity;
 	u8 battery_status;
-	unsigned long flags;
+
+	if (unlikely(size != 64 || rd[0] != 0x01))
+		return 0;
 
 	/*
 	 * Rock Band 4 PS5 guitars have whammy and
@@ -1132,73 +1178,30 @@ static void rb4_ps5_guitar_parse_report(struct sony_sc *sc, u8 *rd, int size)
 		break;
 	}
 
-	spin_lock_irqsave(&sc->lock, flags);
-	sc->battery_capacity = battery_capacity;
-	sc->battery_status = battery_status;
-	spin_unlock_irqrestore(&sc->lock, flags);
+	scoped_guard(spinlock_irqsave, &sc->lock) {
+		sc->battery_capacity = battery_capacity;
+		sc->battery_status = battery_status;
+	}
 
 	input_sync(sc->input_dev);
+	return 0;
 }
 
 static int sony_raw_event(struct hid_device *hdev, struct hid_report *report,
 		u8 *rd, int size)
 {
 	struct sony_sc *sc = hid_get_drvdata(hdev);
+	int ret;
 
-	/*
-	 * Sixaxis HID report has acclerometers/gyro with MSByte first, this
-	 * has to be BYTE_SWAPPED before passing up to joystick interface
-	 */
-	if ((sc->quirks & SIXAXIS_CONTROLLER) && rd[0] == 0x01 && size == 49) {
-		/*
-		 * When connected via Bluetooth the Sixaxis occasionally sends
-		 * a report with the second byte 0xff and the rest zeroed.
-		 *
-		 * This report does not reflect the actual state of the
-		 * controller must be ignored to avoid generating false input
-		 * events.
-		 */
-		if (rd[1] == 0xff)
-			return -EINVAL;
-
-		swap(rd[41], rd[42]);
-		swap(rd[43], rd[44]);
-		swap(rd[45], rd[46]);
-		swap(rd[47], rd[48]);
-
-		sixaxis_parse_report(sc, rd, size);
-	} else if ((sc->quirks & MOTION_CONTROLLER_BT) && rd[0] == 0x01 && size == 49) {
-		sixaxis_parse_report(sc, rd, size);
-	} else if ((sc->quirks & NAVIGATION_CONTROLLER) && rd[0] == 0x01 && size == 49) {
-		sixaxis_parse_report(sc, rd, size);
-	} else if ((sc->quirks & NSG_MRXU_REMOTE) && rd[0] == 0x02 && size >= 12) {
-		nsg_mrxu_parse_report(sc, rd, size);
-		return 1;
-	} else if ((sc->quirks & RB4_GUITAR_PS4_USB) && rd[0] == 0x01 && size == 64) {
-		rb4_ps4_guitar_parse_report(sc, rd, size);
-		return 1;
-	} else if ((sc->quirks & RB4_GUITAR_PS4_BT) && rd[0] == 0x01 && size == 78) {
-		rb4_ps4_guitar_parse_report(sc, rd, size);
-		return 1;
-	} else if ((sc->quirks & RB4_GUITAR_PS5) && rd[0] == 0x01 && size == 64) {
-		rb4_ps5_guitar_parse_report(sc, rd, size);
-		return 1;
+	if (sc->raw_event) {
+		ret = sc->raw_event(sc, rd, size);
+		if (unlikely(ret < 0))
+			return ret;
 	}
 
-	/* Rock Band 3 PS3 Pro instruments set rd[24] to 0xE0 when they're
-	 * sending full reports, and 0x02 when only sending navigation.
-	 */
-	if ((sc->quirks & RB3_PRO_INSTRUMENT) && size >= 25 && rd[24] == 0x02) {
-		/* Only attempt to enable full report every 8 seconds */
-		if (time_after(jiffies, sc->rb3_pro_poke_jiffies)) {
-			sc->rb3_pro_poke_jiffies = jiffies + secs_to_jiffies(8);
-			rb3_pro_instrument_enable_full_report(sc);
-		}
-	}
-
-	if (sc->defer_initialization) {
+	if (unlikely(sc->defer_initialization)) {
 		sc->defer_initialization = 0;
-		sony_schedule_work(sc, SONY_WORKER_STATE);
+		sony_schedule_work(sc);
 	}
 
 	return 0;
@@ -1256,7 +1259,7 @@ static int sony_mapping(struct hid_device *hdev, struct hid_input *hi,
 	if (sc->quirks & DJH_TURNTABLE)
 		return djh_turntable_mapping(hdev, hi, field, usage, bit, max);
 
-	if (sc->quirks & (RB4_GUITAR_PS4_USB | RB4_GUITAR_PS4_BT))
+	if (sc->quirks & RB4_GUITAR_PS4)
 		return rb4_guitar_mapping(hdev, hi, field, usage, bit, max);
 
 	if (sc->quirks & RB4_GUITAR_PS5)
@@ -1269,8 +1272,6 @@ static int sony_mapping(struct hid_device *hdev, struct hid_input *hi,
 static int sony_register_touchpad(struct sony_sc *sc, int touch_count,
 		int w, int h, int touch_major, int touch_minor, int orientation)
 {
-	size_t name_sz;
-	char *name;
 	int ret;
 
 	sc->touchpad = devm_input_allocate_device(&sc->hdev->dev);
@@ -1292,12 +1293,10 @@ static int sony_register_touchpad(struct sony_sc *sc, int touch_count,
 	 * a suffix. Other devices which were added later like Sony TV remotes
 	 * inhirited this suffix.
 	 */
-	name_sz = strlen(sc->hdev->name) + sizeof(TOUCHPAD_SUFFIX);
-	name = devm_kzalloc(&sc->hdev->dev, name_sz, GFP_KERNEL);
-	if (!name)
+	sc->touchpad->name = devm_kasprintf(&sc->hdev->dev, GFP_KERNEL, "%s" TOUCHPAD_SUFFIX,
+										sc->hdev->name);
+	if (!sc->touchpad->name)
 		return -ENOMEM;
-	snprintf(name, name_sz, "%s" TOUCHPAD_SUFFIX, sc->hdev->name);
-	sc->touchpad->name = name;
 
 	/* We map the button underneath the touchpad to BTN_LEFT. */
 	__set_bit(EV_KEY, sc->touchpad->evbit);
@@ -1334,8 +1333,6 @@ static int sony_register_touchpad(struct sony_sc *sc, int touch_count,
 
 static int sony_register_sensors(struct sony_sc *sc)
 {
-	size_t name_sz;
-	char *name;
 	int ret;
 
 	sc->sensor_dev = devm_input_allocate_device(&sc->hdev->dev);
@@ -1354,12 +1351,10 @@ static int sony_register_sensors(struct sony_sc *sc)
 	/* Append a suffix to the controller name as there are various
 	 * DS4 compatible non-Sony devices with different names.
 	 */
-	name_sz = strlen(sc->hdev->name) + sizeof(SENSOR_SUFFIX);
-	name = devm_kzalloc(&sc->hdev->dev, name_sz, GFP_KERNEL);
-	if (!name)
+	sc->sensor_dev->name = devm_kasprintf(&sc->hdev->dev, GFP_KERNEL, "%s" SENSOR_SUFFIX,
+										sc->hdev->name);
+	if (!sc->sensor_dev->name)
 		return -ENOMEM;
-	snprintf(name, name_sz, "%s" SENSOR_SUFFIX, sc->hdev->name);
-	sc->sensor_dev->name = name;
 
 	if (sc->quirks & SIXAXIS_CONTROLLER) {
 		/* For the DS3 we only support the accelerometer, which works
@@ -1507,7 +1502,7 @@ static void buzz_set_leds(struct sony_sc *sc)
 static void sony_set_leds(struct sony_sc *sc)
 {
 	if (!(sc->quirks & BUZZ_CONTROLLER))
-		sony_schedule_work(sc, SONY_WORKER_STATE);
+		sony_schedule_work(sc);
 	else
 		buzz_set_leds(sc);
 }
@@ -1618,7 +1613,7 @@ static int sony_led_blink_set(struct led_classdev *led, unsigned long *delay_on,
 		new_off != drv_data->led_delay_off[n]) {
 		drv_data->led_delay_on[n] = new_on;
 		drv_data->led_delay_off[n] = new_off;
-		sony_schedule_work(drv_data, SONY_WORKER_STATE);
+		sony_schedule_work(drv_data);
 	}
 
 	return 0;
@@ -1846,7 +1841,7 @@ static int sony_play_effect(struct input_dev *dev, void *data,
 	sc->left = effect->u.rumble.strong_magnitude / 256;
 	sc->right = effect->u.rumble.weak_magnitude / 256;
 
-	sony_schedule_work(sc, SONY_WORKER_STATE);
+	sony_schedule_work(sc);
 	return 0;
 }
 
@@ -1869,15 +1864,14 @@ static int sony_battery_get_property(struct power_supply *psy,
 				     union power_supply_propval *val)
 {
 	struct sony_sc *sc = power_supply_get_drvdata(psy);
-	unsigned long flags;
 	int ret = 0;
 	u8 battery_capacity;
 	int battery_status;
 
-	spin_lock_irqsave(&sc->lock, flags);
-	battery_capacity = sc->battery_capacity;
-	battery_status = sc->battery_status;
-	spin_unlock_irqrestore(&sc->lock, flags);
+	scoped_guard(spinlock_irqsave, &sc->lock) {
+		battery_capacity = sc->battery_capacity;
+		battery_status = sc->battery_status;
+	}
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_PRESENT:
@@ -1959,10 +1953,9 @@ static inline int sony_compare_connection_type(struct sony_sc *sc0,
 static int sony_check_add_dev_list(struct sony_sc *sc)
 {
 	struct sony_sc *entry;
-	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&sony_dev_list_lock, flags);
+	guard(spinlock_irqsave)(&sony_dev_list_lock);
 
 	list_for_each_entry(entry, &sony_device_list, list_node) {
 		ret = memcmp(sc->mac_address, entry->mac_address,
@@ -1976,27 +1969,23 @@ static int sony_check_add_dev_list(struct sony_sc *sc)
 				"controller with MAC address %pMR already connected\n",
 				sc->mac_address);
 			}
-			goto unlock;
+			goto out;
 		}
 	}
 
 	ret = 0;
 	list_add(&(sc->list_node), &sony_device_list);
 
-unlock:
-	spin_unlock_irqrestore(&sony_dev_list_lock, flags);
+out:
 	return ret;
 }
 
 static void sony_remove_dev_list(struct sony_sc *sc)
 {
-	unsigned long flags;
+	guard(spinlock_irqsave)(&sony_dev_list_lock);
 
-	if (sc->list_node.next) {
-		spin_lock_irqsave(&sony_dev_list_lock, flags);
-		list_del(&(sc->list_node));
-		spin_unlock_irqrestore(&sony_dev_list_lock, flags);
-	}
+	if (!list_empty(&sc->list_node))
+		list_del_init(&sc->list_node);
 }
 
 static int sony_get_bt_devaddr(struct sony_sc *sc)
@@ -2110,6 +2099,12 @@ static void sony_release_device_id(struct sony_sc *sc)
 	}
 }
 
+static inline void sony_init_raw_event_handler(struct sony_sc *sc,
+				int (*raw_event)(struct sony_sc *, u8 *, int))
+{
+	sc->raw_event = raw_event;
+}
+
 static inline void sony_init_output_report(struct sony_sc *sc,
 				void (*send_output_report)(struct sony_sc *))
 {
@@ -2123,14 +2118,19 @@ static inline void sony_init_output_report(struct sony_sc *sc,
 
 static inline void sony_cancel_work_sync(struct sony_sc *sc)
 {
-	unsigned long flags;
-
 	if (sc->state_worker_initialized) {
-		spin_lock_irqsave(&sc->lock, flags);
-		sc->state_worker_initialized = 0;
-		spin_unlock_irqrestore(&sc->lock, flags);
+		scoped_guard(spinlock_irqsave, &sc->lock) {
+			sc->state_worker_initialized = 0;
+		}
 		cancel_work_sync(&sc->state_worker);
 	}
+}
+
+static void sony_cleanup(struct sony_sc *sc)
+{
+	sony_cancel_work_sync(sc);
+	sony_remove_dev_list(sc);
+	sony_release_device_id(sc);
 }
 
 static int sony_input_configured(struct hid_device *hdev,
@@ -2185,6 +2185,7 @@ static int sony_input_configured(struct hid_device *hdev,
 			goto err_stop;
 		}
 
+		sony_init_raw_event_handler(sc, sixaxis_raw_event);
 		sony_init_output_report(sc, sixaxis_send_output_report);
 	} else if (sc->quirks & NAVIGATION_CONTROLLER_BT) {
 		/*
@@ -2199,6 +2200,7 @@ static int sony_input_configured(struct hid_device *hdev,
 			goto err_stop;
 		}
 
+		sony_init_raw_event_handler(sc, sixaxis_raw_event);
 		sony_init_output_report(sc, sixaxis_send_output_report);
 	} else if (sc->quirks & RB3_PRO_INSTRUMENT) {
 		/*
@@ -2213,6 +2215,8 @@ static int sony_input_configured(struct hid_device *hdev,
 		 */
 		hdev->quirks |= HID_QUIRK_NO_OUTPUT_REPORTS_ON_INTR_EP;
 		hdev->quirks |= HID_QUIRK_SKIP_OUTPUT_REPORT_ID;
+
+		sony_init_raw_event_handler(sc, rb3_pro_instrument_raw_event);
 	} else if (sc->quirks & SIXAXIS_CONTROLLER_USB) {
 		/*
 		 * The Sony Sixaxis does not handle HID Output Reports on the
@@ -2237,6 +2241,7 @@ static int sony_input_configured(struct hid_device *hdev,
 			goto err_stop;
 		}
 
+		sony_init_raw_event_handler(sc, sixaxis_raw_event);
 		sony_init_output_report(sc, sixaxis_send_output_report);
 	} else if (sc->quirks & SIXAXIS_CONTROLLER_BT) {
 		/*
@@ -2258,6 +2263,7 @@ static int sony_input_configured(struct hid_device *hdev,
 			goto err_stop;
 		}
 
+		sony_init_raw_event_handler(sc, sixaxis_raw_event);
 		sony_init_output_report(sc, sixaxis_send_output_report);
 	} else if (sc->quirks & NSG_MRXU_REMOTE) {
 		/*
@@ -2273,8 +2279,15 @@ static int sony_input_configured(struct hid_device *hdev,
 			goto err_stop;
 		}
 
+		sony_init_raw_event_handler(sc, nsg_mrxu_raw_event);
 	} else if (sc->quirks & MOTION_CONTROLLER) {
+		if (sc->quirks & MOTION_CONTROLLER_BT)
+			sony_init_raw_event_handler(sc, sixaxis_raw_event);
 		sony_init_output_report(sc, motion_send_output_report);
+	} else if (sc->quirks & RB4_GUITAR_PS4) {
+		sony_init_raw_event_handler(sc, rb4_ps4_guitar_raw_event);
+	} else if (sc->quirks & RB4_GUITAR_PS5) {
+		sony_init_raw_event_handler(sc, rb4_ps5_guitar_raw_event);
 	}
 
 	if (sc->quirks & SONY_LED_SUPPORT) {
@@ -2306,9 +2319,7 @@ static int sony_input_configured(struct hid_device *hdev,
 err_close:
 	hid_hw_close(hdev);
 err_stop:
-	sony_cancel_work_sync(sc);
-	sony_remove_dev_list(sc);
-	sony_release_device_id(sc);
+	sony_cleanup(sc);
 	return ret;
 }
 
@@ -2332,6 +2343,8 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		return -ENOMEM;
 
 	spin_lock_init(&sc->lock);
+	INIT_LIST_HEAD(&sc->list_node);
+	sc->device_id = -1;
 
 	sc->quirks = quirks;
 	hid_set_drvdata(hdev, sc);
@@ -2360,6 +2373,7 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	ret = hid_hw_start(hdev, connect_mask);
 	if (ret) {
 		hid_err(hdev, "hw start failed\n");
+		sony_cleanup(sc);
 		return ret;
 	}
 
@@ -2414,7 +2428,7 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 err:
 	usb_free_urb(sc->ghl_urb);
-
+	sony_cleanup(sc);
 	hid_hw_stop(hdev);
 	return ret;
 }
@@ -2424,18 +2438,14 @@ static void sony_remove(struct hid_device *hdev)
 	struct sony_sc *sc = hid_get_drvdata(hdev);
 
 	if (sc->quirks & (GHL_GUITAR_PS3WIIU | GHL_GUITAR_PS4)) {
-		timer_delete_sync(&sc->ghl_poke_timer);
+		/* poison, not kill: a pending timer must not re-submit during teardown */
+		usb_poison_urb(sc->ghl_urb);
+		timer_shutdown_sync(&sc->ghl_poke_timer);
 		usb_free_urb(sc->ghl_urb);
 	}
 
 	hid_hw_close(hdev);
-
-	sony_cancel_work_sync(sc);
-
-	sony_remove_dev_list(sc);
-
-	sony_release_device_id(sc);
-
+	sony_cleanup(sc);
 	hid_hw_stop(hdev);
 }
 

@@ -522,3 +522,53 @@ This should really be your last resort.
             vendor: 0x093a
             product: 0x2510
     ...
+
+Input Device Registration and Lifecycle
+========================================
+
+HID drivers that rely on the HID core to register input devices (by using the
+``HID_CONNECT_HIDINPUT`` flag, which is part of ``HID_CONNECT_DEFAULT``)
+must be aware of the registration timing.
+
+When ``hid_hw_start(hdev, flags)`` is called with ``HID_CONNECT_HIDINPUT``,
+the HID core immediately parses the report descriptor, allocates ``input_dev``
+structures, and calls ``input_register_device()`` for each of them.
+
+This means the input device becomes **live and visible to userspace** before
+``hid_hw_start()`` returns.
+
+If a driver needs to perform additional configuration on the input device (such
+as adding force-feedback support, setting extra bits in ``evbit``, or
+assigning custom event handlers), doing so in the ``probe`` function after
+``hid_hw_start()`` is **incorrect and racy**. Userspace may trigger
+callbacks (like ``play_effect``) via ioctls immediately after registration,
+leading to potential NULL pointer dereferences if the driver hasn't finished
+initializing its private data.
+
+The correct way to augment an input device before it is registered is to use the
+``.input_configured`` callback in ``struct hid_driver``. This hook is
+called by the HID core after the ``input_dev`` is fully formed but **before**
+``input_register_device()`` is invoked.
+
+Example:
+
+.. code-block:: c
+
+    static int my_input_configured(struct hid_device *hdev, struct hid_input *hidinput)
+    {
+        struct input_dev *input = hidinput->input;
+
+        /* Initialize private data and capabilities here */
+        set_bit(EV_FF, input->evbit);
+        return input_ff_create_memless(input, NULL, my_play_effect);
+    }
+
+    static struct hid_driver my_driver = {
+        .name = "my_driver",
+        .probe = my_probe,
+        .input_configured = my_input_configured,
+    };
+
+Drivers that require even more control over the lifecycle should mask out
+``HID_CONNECT_HIDINPUT`` and call ``input_register_device()`` manually
+when they are ready.

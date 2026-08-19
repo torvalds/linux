@@ -240,6 +240,8 @@ struct ft260_device {
 	struct mutex lock;
 	u8 write_buf[FT260_REPORT_MAX_LENGTH];
 	unsigned long need_wakeup_at;
+	/* Protects read_buf, read_idx and read_len against ft260_raw_event() */
+	spinlock_t read_lock;
 	u8 *read_buf;
 	u16 read_idx;
 	u16 read_len;
@@ -501,16 +503,25 @@ static int ft260_i2c_read(struct ft260_device *dev, u8 addr, u8 *data,
 	int timeout, ret = 0;
 	struct ft260_i2c_read_request_report rep;
 	struct hid_device *hdev = dev->hdev;
+	unsigned long irqflags;
 	u8 bus_busy = 0;
+	/*
+	 * STOP terminates the last chunk; clear means hold the bus so a
+	 * follow-up call continues the same I2C transaction.
+	 */
+	bool want_stop = !!(flag & FT260_FLAG_STOP);
 
 	if ((flag & FT260_FLAG_START_REPEATED) == FT260_FLAG_START_REPEATED)
 		flag = FT260_FLAG_START_REPEATED;
-	else
+	else if (flag & FT260_FLAG_START)
 		flag = FT260_FLAG_START;
+	else
+		flag = 0;	/* no fresh START - continue current transaction */
 	do {
 		if (len <= rd_data_max) {
 			rd_len = len;
-			flag |= FT260_FLAG_STOP;
+			if (want_stop)
+				flag |= FT260_FLAG_STOP;
 		} else {
 			rd_len = rd_data_max;
 		}
@@ -526,9 +537,11 @@ static int ft260_i2c_read(struct ft260_device *dev, u8 addr, u8 *data,
 
 		reinit_completion(&dev->wait);
 
+		spin_lock_irqsave(&dev->read_lock, irqflags);
 		dev->read_idx = 0;
 		dev->read_buf = data;
 		dev->read_len = rd_len;
+		spin_unlock_irqrestore(&dev->read_lock, irqflags);
 
 		ret = ft260_hid_output_report(hdev, (u8 *)&rep, sizeof(rep));
 		if (ret < 0) {
@@ -543,7 +556,9 @@ static int ft260_i2c_read(struct ft260_device *dev, u8 addr, u8 *data,
 			goto ft260_i2c_read_exit;
 		}
 
+		spin_lock_irqsave(&dev->read_lock, irqflags);
 		dev->read_buf = NULL;
+		spin_unlock_irqrestore(&dev->read_lock, irqflags);
 
 		if (flag & FT260_FLAG_STOP)
 			bus_busy = FT260_I2C_STATUS_BUS_BUSY;
@@ -562,7 +577,9 @@ static int ft260_i2c_read(struct ft260_device *dev, u8 addr, u8 *data,
 	} while (len > 0);
 
 ft260_i2c_read_exit:
+	spin_lock_irqsave(&dev->read_lock, irqflags);
 	dev->read_buf = NULL;
+	spin_unlock_irqrestore(&dev->read_lock, irqflags);
 	return ret;
 }
 
@@ -708,14 +725,41 @@ static int ft260_smbus_xfer(struct i2c_adapter *adapter, u16 addr, u16 flags,
 		break;
 	case I2C_SMBUS_BLOCK_DATA:
 		if (read_write == I2C_SMBUS_READ) {
+			u8 count = 0;
+
+			/*
+			 * SMBus 2.0 section 6.5.7 block read in one I2C
+			 * transaction:
+			 *
+			 *   S Addr+Wr A Reg A Sr Addr+Rd A Count A Data... P
+			 *
+			 * The count is read separately and validated
+			 * before sizing the data read so a misbehaving
+			 * slave cannot drive a write past data->block[].
+			 */
 			ret = ft260_smbus_write(dev, addr, cmd, NULL, 0,
 						FT260_FLAG_START);
 			if (ret)
 				goto smbus_exit;
 
-			ret = ft260_i2c_read(dev, addr, data->block,
-					     data->block[0] + 1,
-					     FT260_FLAG_START_STOP_REPEATED);
+			ret = ft260_i2c_read(dev, addr, &count, 1,
+					     FT260_FLAG_START_REPEATED);
+			if (ret)
+				goto smbus_exit;
+
+			if (count == 0 || count > I2C_SMBUS_BLOCK_MAX) {
+				hid_warn(hdev,
+					 "smbus block read: invalid count %u from slave 0x%02x\n",
+					 count, addr);
+				ft260_i2c_reset(hdev);
+				ret = -EPROTO;
+				goto smbus_exit;
+			}
+
+			data->block[0] = count;
+
+			ret = ft260_i2c_read(dev, addr, data->block + 1,
+					     count, FT260_FLAG_STOP);
 		} else {
 			ret = ft260_smbus_write(dev, addr, cmd, data->block,
 						data->block[0] + 1,
@@ -1018,6 +1062,7 @@ static int ft260_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		 "FT260 usb-i2c bridge");
 
 	mutex_init(&dev->lock);
+	spin_lock_init(&dev->read_lock);
 	init_completion(&dev->wait);
 
 	ret = ft260_xfer_status(dev, FT260_I2C_STATUS_BUS_BUSY);
@@ -1067,6 +1112,7 @@ static int ft260_raw_event(struct hid_device *hdev, struct hid_report *report,
 {
 	struct ft260_device *dev = hid_get_drvdata(hdev);
 	struct ft260_i2c_input_report *xfer = (void *)data;
+	unsigned long irqflags;
 
 	if (size < offsetof(struct ft260_i2c_input_report, data)) {
 		hid_err(hdev, "short report %d\n", size);
@@ -1075,6 +1121,8 @@ static int ft260_raw_event(struct hid_device *hdev, struct hid_report *report,
 
 	if (xfer->report >= FT260_I2C_REPORT_MIN &&
 	    xfer->report <= FT260_I2C_REPORT_MAX) {
+		bool complete_read;
+
 		ft260_dbg("i2c resp: rep %#02x len %d size %d\n",
 			  xfer->report, xfer->length, size);
 
@@ -1085,8 +1133,15 @@ static int ft260_raw_event(struct hid_device *hdev, struct hid_report *report,
 			return -1;
 		}
 
+		/*
+		 * Hold read_lock so a timed-out ft260_i2c_read() cannot
+		 * clear read_buf between the NULL check and the memcpy.
+		 */
+		spin_lock_irqsave(&dev->read_lock, irqflags);
+
 		if ((dev->read_buf == NULL) ||
 		    (xfer->length > dev->read_len - dev->read_idx)) {
+			spin_unlock_irqrestore(&dev->read_lock, irqflags);
 			hid_err(hdev, "unexpected report %#02x, length %d\n",
 				xfer->report, xfer->length);
 			return -1;
@@ -1095,8 +1150,11 @@ static int ft260_raw_event(struct hid_device *hdev, struct hid_report *report,
 		memcpy(&dev->read_buf[dev->read_idx], &xfer->data,
 		       xfer->length);
 		dev->read_idx += xfer->length;
+		complete_read = dev->read_idx == dev->read_len;
 
-		if (dev->read_idx == dev->read_len)
+		spin_unlock_irqrestore(&dev->read_lock, irqflags);
+
+		if (complete_read)
 			complete(&dev->wait);
 
 	} else {

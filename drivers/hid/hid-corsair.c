@@ -524,8 +524,8 @@ static void k90_cleanup_backlight(struct hid_device *dev)
 
 	if (drvdata->backlight) {
 		drvdata->backlight->removed = true;
-		led_classdev_unregister(&drvdata->backlight->cdev);
 		cancel_work_sync(&drvdata->backlight->work);
+		led_classdev_unregister(&drvdata->backlight->cdev);
 		kfree(drvdata->backlight->cdev.name);
 		kfree(drvdata->backlight);
 	}
@@ -540,11 +540,12 @@ static void k90_cleanup_macro_functions(struct hid_device *dev)
 		sysfs_remove_group(&dev->dev.kobj, &k90_attr_group);
 
 		k90->record_led.removed = true;
-		led_classdev_unregister(&k90->record_led.cdev);
 		cancel_work_sync(&k90->record_led.work);
+		led_classdev_unregister(&k90->record_led.cdev);
 		kfree(k90->record_led.cdev.name);
 
 		kfree(k90);
+		drvdata->k90 = NULL;
 	}
 }
 
@@ -596,10 +597,10 @@ static int corsair_probe(struct hid_device *dev, const struct hid_device_id *id)
 
 static void corsair_remove(struct hid_device *dev)
 {
+	hid_hw_stop(dev);
+
 	k90_cleanup_macro_functions(dev);
 	k90_cleanup_backlight(dev);
-
-	hid_hw_stop(dev);
 }
 
 static int corsair_event(struct hid_device *dev, struct hid_field *field,

@@ -99,6 +99,7 @@ MODULE_DESCRIPTION("Asus HID Keyboard and TouchPad");
 #define QUIRK_ROG_CLAYMORE_II_KEYBOARD	BIT(12)
 #define QUIRK_ROG_ALLY_XPAD		BIT(13)
 #define QUIRK_HID_FN_LOCK		BIT(14)
+#define QUIRK_FILTER_CAMERA_COMPANION	BIT(15)
 
 #define I2C_KEYBOARD_QUIRKS			(QUIRK_FIX_NOTEBOOK_REPORT | \
 						 QUIRK_NO_INIT_REPORTS | \
@@ -109,11 +110,36 @@ MODULE_DESCRIPTION("Asus HID Keyboard and TouchPad");
 
 #define TRKID_SGN       ((TRKID_MAX + 1) >> 1)
 
-struct asus_kbd_leds {
-	struct asus_hid_listener listener;
+enum asus_work_action_type {
+	FN_LOCK_SYNC,
+	BRIGHTNESS_SET,
+	WMI_FAN,
+};
+
+struct hid_raw_event_data {
+	u8 report_data[FEATURE_KBD_REPORT_SIZE];
+	size_t report_size;
+};
+
+struct asus_work_action {
+	struct list_head node;
+	enum asus_work_action_type type;
+	union {
+		/* Data for BRIGHTNESS_SET */
+		unsigned int brightness;
+
+		/* Data for FN_LOCK_SYNC */
+		bool fn_lock;
+
+		/* Data for WMI_FAN */
+		struct hid_raw_event_data fan_hid_data;
+	} data;
+};
+
+struct asus_worker {
 	struct hid_device *hdev;
 	struct work_struct work;
-	unsigned int brightness;
+	struct list_head actions;
 	spinlock_t lock;
 	bool removed;
 };
@@ -133,7 +159,8 @@ struct asus_drvdata {
 	struct hid_device *hdev;
 	struct input_dev *input;
 	struct input_dev *tp_kbd_input;
-	struct asus_kbd_leds *kbd_backlight;
+	struct asus_worker *worker;
+	unsigned int kbd_backlight_brightness;
 	const struct asus_touchpad_info *tp;
 	struct power_supply *battery;
 	struct power_supply_desc battery_desc;
@@ -141,7 +168,7 @@ struct asus_drvdata {
 	int battery_stat;
 	bool battery_in_query;
 	unsigned long battery_next_query;
-	struct work_struct fn_lock_sync_work;
+	struct asus_hid_listener listener;
 	bool fn_lock;
 };
 
@@ -210,6 +237,29 @@ static const u8 asus_report_id_init[] = {
 	FEATURE_KBD_LED_REPORT_ID1,
 	FEATURE_KBD_LED_REPORT_ID2
 };
+
+/*
+ * Send events to asus-wmi driver for handling special keys
+ */
+static int asus_wmi_send_event(struct asus_drvdata *drvdata, u8 code)
+{
+	int err;
+	u32 retval;
+
+	err = asus_wmi_evaluate_method(ASUS_WMI_METHODID_DEVS,
+				       ASUS_WMI_METHODID_NOTIF, code, &retval);
+	if (err) {
+		pr_warn("Failed to notify asus-wmi: %d\n", err);
+		return err;
+	}
+
+	if (retval != 0) {
+		pr_warn("Failed to notify asus-wmi (retval): 0x%x\n", retval);
+		return -EIO;
+	}
+
+	return 0;
+}
 
 static void asus_report_contact_down(struct asus_drvdata *drvdat,
 		int toolType, u8 *data)
@@ -331,24 +381,70 @@ static int asus_e1239t_event(struct asus_drvdata *drvdat, u8 *data, int size)
 }
 
 /*
- * Send events to asus-wmi driver for handling special keys
+ * Used in atomic contexts to schedule work involving sleeps operations or
+ * asus-wmi interactions.
+ *
+ * Caller is responsible to store relevant data in the structure to carry out
+ * the required action.
+ *
+ * This function must be called while the spin lock protecting the workqueue
+ * is already being held.
  */
-static int asus_wmi_send_event(struct asus_drvdata *drvdata, u8 code)
+static void asus_worker_schedule(struct asus_worker *worker, struct asus_work_action *action)
 {
-	int err;
-	u32 retval;
-
-	err = asus_wmi_evaluate_method(ASUS_WMI_METHODID_DEVS,
-				       ASUS_WMI_METHODID_NOTIF, code, &retval);
-	if (err) {
-		pr_warn("Failed to notify asus-wmi: %d\n", err);
-		return err;
+	if (worker->removed) {
+		kfree(action);
+		return;
 	}
 
-	if (retval != 0) {
-		pr_warn("Failed to notify asus-wmi (retval): 0x%x\n", retval);
-		return -EIO;
+	list_add_tail(&action->node, &worker->actions);
+	schedule_work(&worker->work);
+}
+
+static int asus_kbd_fn_lock_set(struct asus_drvdata *drvdata, bool enabled)
+{
+	struct asus_work_action *action;
+	unsigned long flags;
+
+	action = kzalloc(sizeof(struct asus_work_action), GFP_ATOMIC);
+	if (!action)
+		return -ENOMEM;
+
+	drvdata->fn_lock = enabled;
+	action->type = FN_LOCK_SYNC;
+	action->data.fn_lock = drvdata->fn_lock;
+	INIT_LIST_HEAD(&action->node);
+
+	spin_lock_irqsave(&drvdata->worker->lock, flags);
+	asus_worker_schedule(drvdata->worker, action);
+	spin_unlock_irqrestore(&drvdata->worker->lock, flags);
+
+	return 0;
+}
+
+static int asus_kbd_wmi_fan_send(struct asus_drvdata *drvdata, u8 *report_data,
+				 size_t report_size)
+{
+	struct asus_work_action *action;
+	unsigned long flags;
+
+	if (report_size > FEATURE_KBD_REPORT_SIZE) {
+		hid_err(drvdata->hdev, "Invalid report size for fan event: %zu\n", report_size);
+		return -EINVAL;
 	}
+
+	action = kzalloc(sizeof(struct asus_work_action), GFP_NOWAIT);
+	if (!action)
+		return -ENOMEM;
+
+	action->type = WMI_FAN;
+	action->data.fan_hid_data.report_size = report_size;
+	memcpy(action->data.fan_hid_data.report_data, report_data, report_size);
+	INIT_LIST_HEAD(&action->node);
+
+	spin_lock_irqsave(&drvdata->worker->lock, flags);
+	asus_worker_schedule(drvdata->worker, action);
+	spin_unlock_irqrestore(&drvdata->worker->lock, flags);
 
 	return 0;
 }
@@ -357,6 +453,7 @@ static int asus_event(struct hid_device *hdev, struct hid_field *field,
 		      struct hid_usage *usage, __s32 value)
 {
 	struct asus_drvdata *drvdata = hid_get_drvdata(hdev);
+	int ret;
 
 	if ((usage->hid & HID_USAGE_PAGE) == HID_UP_ASUSVENDOR &&
 	    (usage->hid & HID_USAGE) != 0x00 &&
@@ -375,8 +472,11 @@ static int asus_event(struct hid_device *hdev, struct hid_field *field,
 			return !asus_hid_event(ASUS_EV_BRTTOGGLE);
 		case KEY_FN_ESC:
 			if (drvdata->quirks & QUIRK_HID_FN_LOCK) {
-				drvdata->fn_lock = !drvdata->fn_lock;
-				schedule_work(&drvdata->fn_lock_sync_work);
+				ret = asus_kbd_fn_lock_set(drvdata, !drvdata->fn_lock);
+				if (ret) {
+					hid_err(hdev, "Error while toggling FN lock: %d\n", ret);
+					return ret;
+				}
 			}
 			break;
 		}
@@ -389,6 +489,12 @@ static int asus_raw_event(struct hid_device *hdev,
 		struct hid_report *report, u8 *data, int size)
 {
 	struct asus_drvdata *drvdata = hid_get_drvdata(hdev);
+	int ret;
+
+	if (size < 2) {
+		hid_dbg(hdev, "Unexpected keyboard report size %d\n", size);
+		return 0;
+	}
 
 	if (drvdata->battery && data[0] == BATTERY_REPORT_ID)
 		return asus_report_battery(drvdata, data, size);
@@ -414,19 +520,13 @@ static int asus_raw_event(struct hid_device *hdev,
 			 * pass to userspace so it can implement its own fan control.
 			 */
 			if (data[1] == ASUS_FAN_CTRL_KEY_CODE) {
-				int ret = asus_wmi_send_event(drvdata, ASUS_FAN_CTRL_KEY_CODE);
+				ret = asus_kbd_wmi_fan_send(drvdata, data, size);
 
-				if (ret == 0) {
-					/* Successfully handled by asus-wmi, block event */
+				/* if execution deferred successfully block event */
+				if (ret == 0)
 					return -1;
-				}
 
-				/*
-				 * Warn if asus-wmi failed (but not if it's unavailable).
-				 * Let the event reach userspace in all failure cases.
-				 */
-				if (ret != -ENODEV)
-					hid_warn(hdev, "Failed to notify asus-wmi: %d\n", ret);
+				return ret;
 			}
 
 			/*
@@ -459,6 +559,17 @@ static int asus_raw_event(struct hid_device *hdev,
 		if (size == 2 && data[0] == 0x02 && data[1] == 0x00)
 			return -1;
 	}
+
+	/*
+	 * The camera-toggle key reports its vendor usage (0x85) together with a
+	 * companion state byte in the same array report, e.g. "5a 85 01" and
+	 * "5a 85 10" for the two toggle positions. The 0x10 companion aliases the
+	 * brightness-down vendor usage and would spuriously dim the panel, so drop
+	 * the companion slots and leave only the camera usage for input mapping.
+	 */
+	if (drvdata->quirks & QUIRK_FILTER_CAMERA_COMPANION &&
+	    report->id == FEATURE_KBD_REPORT_ID && size >= 3 && data[1] == 0x85)
+		memset(&data[2], 0, size - 2);
 
 	return 0;
 }
@@ -569,59 +680,157 @@ static int asus_kbd_disable_oobe(struct hid_device *hdev)
 	return 0;
 }
 
-static int asus_kbd_set_fn_lock(struct hid_device *hdev, bool enabled)
+static void asus_kbd_set_fn_lock(struct hid_device *hdev, bool enabled)
 {
-	u8 buf[] = { FEATURE_KBD_REPORT_ID, 0xd0, 0x4e, !!enabled };
-
-	return asus_kbd_set_report(hdev, buf, sizeof(buf));
-}
-
-static void asus_sync_fn_lock(struct work_struct *work)
-{
-	struct asus_drvdata *drvdata =
-	container_of(work, struct asus_drvdata, fn_lock_sync_work);
-
-	asus_kbd_set_fn_lock(drvdata->hdev, drvdata->fn_lock);
-}
-
-static void asus_schedule_work(struct asus_kbd_leds *led)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&led->lock, flags);
-	if (!led->removed)
-		schedule_work(&led->work);
-	spin_unlock_irqrestore(&led->lock, flags);
-}
-
-static void asus_kbd_backlight_set(struct asus_hid_listener *listener,
-				   int brightness)
-{
-	struct asus_kbd_leds *led = container_of(listener, struct asus_kbd_leds,
-						 listener);
-	unsigned long flags;
-
-	spin_lock_irqsave(&led->lock, flags);
-	led->brightness = brightness;
-	spin_unlock_irqrestore(&led->lock, flags);
-
-	asus_schedule_work(led);
-}
-
-static void asus_kbd_backlight_work(struct work_struct *work)
-{
-	struct asus_kbd_leds *led = container_of(work, struct asus_kbd_leds, work);
-	u8 buf[] = { FEATURE_KBD_REPORT_ID, 0xba, 0xc5, 0xc4, 0x00 };
+	const u8 buf[FEATURE_KBD_REPORT_SIZE] = { FEATURE_KBD_REPORT_ID, 0xd0, 0x4e, !!enabled };
 	int ret;
+
+	ret = asus_kbd_set_report(hdev, buf, sizeof(buf));
+	if (ret < 0)
+		hid_err(hdev, "Asus failed to set fn lock: %d\n", ret);
+}
+
+static void asus_kbd_set_brightness(struct hid_device *hdev, u8 brightness)
+{
+	const u8 buf[FEATURE_KBD_REPORT_SIZE] = {
+		FEATURE_KBD_REPORT_ID, 0xba, 0xc5, 0xc4, brightness
+	};
+	int ret;
+
+	ret = asus_kbd_set_report(hdev, buf, sizeof(buf));
+	if (ret < 0)
+		hid_err(hdev, "Asus failed to set keyboard backlight: %d\n", ret);
+}
+
+static void asus_kbd_wmi_fan(struct hid_device *hdev, struct hid_raw_event_data *data)
+{
+	struct asus_drvdata *drvdata = hid_get_drvdata(hdev);
+	int ret;
+
+	ret = asus_wmi_send_event(drvdata, ASUS_FAN_CTRL_KEY_CODE);
+
+	/*
+	 * Warn if asus-wmi failed (but not if it's unavailable).
+	 * Let the event reach userspace in all failure cases.
+	 */
+	switch (ret) {
+	case -ENODEV:
+		break;
+	case 0:
+		return;
+	default:
+		hid_warn(hdev, "Failed to notify asus-wmi: %d\n", ret);
+		break;
+	}
+
+	/*
+	 * Fallback: pass the raw event to the HID core; to avoid
+	 * racing against the hid_report_raw_event() that generated
+	 * this event use the same locking mechanism and wait for
+	 * that function to terminate and signal the deferred execution
+	 * before raising the stored event.
+	 */
+	down(&hdev->driver_input_lock);
+	hid_report_raw_event(hdev, HID_INPUT_REPORT,
+			     data->report_data, data->report_size,
+			     data->report_size, 1);
+	up(&hdev->driver_input_lock);
+}
+
+static void asus_kbd_backlight_set(struct asus_hid_listener *listener, int brightness)
+{
+	struct asus_drvdata *drvdata = container_of(listener, struct asus_drvdata, listener);
+	struct asus_worker *worker = drvdata->worker;
+	struct asus_work_action *action;
 	unsigned long flags;
 
-	spin_lock_irqsave(&led->lock, flags);
-	buf[4] = led->brightness;
-	spin_unlock_irqrestore(&led->lock, flags);
+	drvdata->kbd_backlight_brightness = brightness;
 
-	ret = asus_kbd_set_report(led->hdev, buf, sizeof(buf));
-	if (ret < 0)
-		hid_err(led->hdev, "Asus failed to set keyboard backlight: %d\n", ret);
+	action = kzalloc(sizeof(struct asus_work_action), GFP_NOWAIT);
+	if (!action)
+		return;
+
+	action->type = BRIGHTNESS_SET;
+	action->data.brightness = brightness;
+	INIT_LIST_HEAD(&action->node);
+
+	spin_lock_irqsave(&worker->lock, flags);
+	asus_worker_schedule(worker, action);
+	spin_unlock_irqrestore(&worker->lock, flags);
+}
+
+static void asus_work(struct work_struct *work)
+{
+	struct asus_worker *worker = container_of(work, struct asus_worker, work);
+	struct asus_work_action *action = NULL;
+	unsigned long flags;
+
+	/* Save the action to be performed and clear the flag */
+	spin_lock_irqsave(&worker->lock, flags);
+	if (!list_empty(&worker->actions)) {
+		action = list_first_entry(&worker->actions,
+					  struct asus_work_action, node);
+		list_del(&action->node);
+	}
+	spin_unlock_irqrestore(&worker->lock, flags);
+
+	if (!action)
+		return;
+
+	switch (action->type) {
+	case BRIGHTNESS_SET:
+		asus_kbd_set_brightness(worker->hdev, action->data.brightness);
+		break;
+	case FN_LOCK_SYNC:
+		asus_kbd_set_fn_lock(worker->hdev, action->data.fn_lock);
+		break;
+	case WMI_FAN:
+		asus_kbd_wmi_fan(worker->hdev, &action->data.fan_hid_data);
+		break;
+	default:
+		hid_err(worker->hdev, "Invalid action type: %d\n", action->type);
+		break;
+	}
+
+	kfree(action);
+
+	/* Re-schedule if there are more pending actions */
+	spin_lock_irqsave(&worker->lock, flags);
+	if (!list_empty(&worker->actions))
+		schedule_work(&worker->work);
+	spin_unlock_irqrestore(&worker->lock, flags);
+}
+
+static int asus_worker_create(struct hid_device *hdev, struct asus_drvdata *drvdata)
+{
+	drvdata->worker = devm_kzalloc(&hdev->dev, sizeof(struct asus_worker), GFP_KERNEL);
+	if (!drvdata->worker)
+		return -ENOMEM;
+
+	drvdata->worker->removed = false;
+	drvdata->worker->hdev = hdev;
+	INIT_LIST_HEAD(&drvdata->worker->actions);
+
+	INIT_WORK(&drvdata->worker->work, asus_work);
+	spin_lock_init(&drvdata->worker->lock);
+
+	return 0;
+}
+
+static void asus_worker_stop(struct asus_worker *worker)
+{
+	struct asus_work_action *action, *tmp;
+	unsigned long flags;
+
+	spin_lock_irqsave(&worker->lock, flags);
+	worker->removed = true;
+	list_for_each_entry_safe(action, tmp, &worker->actions, node) {
+		list_del(&action->node);
+		kfree(action);
+	}
+	spin_unlock_irqrestore(&worker->lock, flags);
+
+	cancel_work_sync(&worker->work);
 }
 
 /*
@@ -644,7 +853,7 @@ static int mcu_parse_version_string(const u8 *response, size_t response_size)
 			dots++;
 	}
 
-	if (dots != 2 || p >= end || (p + 3) >= end)
+	if (dots != 2 || end - p < 3)
 		return -EINVAL;
 
 	memcpy(buf, p, 3);
@@ -753,30 +962,18 @@ static int asus_kbd_register_leds(struct hid_device *hdev)
 			return ret;
 	}
 
-	if (drvdata->quirks & QUIRK_ROG_ALLY_XPAD) {
+	if ((drvdata->quirks & QUIRK_ROG_ALLY_XPAD) && hid_is_usb(hdev)) {
 		intf = to_usb_interface(hdev->dev.parent);
 		udev = interface_to_usbdev(intf);
 		validate_mcu_fw_version(hdev,
 			le16_to_cpu(udev->descriptor.idProduct));
 	}
 
-	drvdata->kbd_backlight = devm_kzalloc(&hdev->dev,
-					      sizeof(struct asus_kbd_leds),
-					      GFP_KERNEL);
-	if (!drvdata->kbd_backlight)
-		return -ENOMEM;
-
-	drvdata->kbd_backlight->removed = false;
-	drvdata->kbd_backlight->brightness = 0;
-	drvdata->kbd_backlight->hdev = hdev;
-	drvdata->kbd_backlight->listener.brightness_set = asus_kbd_backlight_set;
-	INIT_WORK(&drvdata->kbd_backlight->work, asus_kbd_backlight_work);
-	spin_lock_init(&drvdata->kbd_backlight->lock);
-
-	ret = asus_hid_register_listener(&drvdata->kbd_backlight->listener);
+	drvdata->listener.brightness_set = asus_kbd_backlight_set;
+	ret = asus_hid_register_listener(&drvdata->listener);
 	if (ret < 0) {
-		/* No need to have this still around */
-		devm_kfree(&hdev->dev, drvdata->kbd_backlight);
+		hid_err(hdev, "Unable to register kbd brightness listener: %d\n", ret);
+		drvdata->listener.brightness_set = NULL;
 	}
 
 	return ret;
@@ -998,11 +1195,9 @@ static int asus_input_configured(struct hid_device *hdev, struct hid_input *hi)
 
 	drvdata->input = input;
 
-	if (drvdata->quirks & QUIRK_HID_FN_LOCK) {
-		drvdata->fn_lock = true;
-		INIT_WORK(&drvdata->fn_lock_sync_work, asus_sync_fn_lock);
-		asus_kbd_set_fn_lock(hdev, true);
-	}
+	if ((drvdata->quirks & QUIRK_HID_FN_LOCK) &&
+	    (asus_kbd_fn_lock_set(drvdata, true)))
+		hid_warn(hdev, "Error while setting FN lock to ON\n");
 
 	return 0;
 }
@@ -1045,6 +1240,8 @@ static int asus_input_mapping(struct hid_device *hdev,
 		case 0x6c: asus_map_key_clear(KEY_SLEEP);		break;
 		case 0x7c: asus_map_key_clear(KEY_MICMUTE);		break;
 		case 0x82: asus_map_key_clear(KEY_CAMERA);		break;
+		case 0x85: asus_map_key_clear(KEY_CAMERA);		break;
+		case 0x86: asus_map_key_clear(KEY_PROG1);	break; /* MyASUS key */
 		case 0x88: asus_map_key_clear(KEY_RFKILL);			break;
 		case 0xb5: asus_map_key_clear(KEY_CALC);			break;
 		case 0xc4: asus_map_key_clear(KEY_KBDILLUMUP);		break;
@@ -1054,6 +1251,7 @@ static int asus_input_mapping(struct hid_device *hdev,
 		case 0x7e: asus_map_key_clear(KEY_EMOJI_PICKER);	break;
 
 		case 0x8b: asus_map_key_clear(KEY_PROG1);	break; /* ProArt Creator Hub key */
+		case 0x5f: asus_map_key_clear(KEY_PROG2);	break; /* S-shaped programmable key */
 		case 0x6b: asus_map_key_clear(KEY_F21);		break; /* ASUS touchpad toggle */
 		case 0x38: asus_map_key_clear(KEY_PROG1);	break; /* ROG key */
 		case 0xba: asus_map_key_clear(KEY_PROG2);	break; /* Fn+C ASUS Splendid */
@@ -1165,20 +1363,16 @@ static int asus_start_multitouch(struct hid_device *hdev)
 static int __maybe_unused asus_resume(struct hid_device *hdev)
 {
 	struct asus_drvdata *drvdata = hid_get_drvdata(hdev);
-	int ret = 0;
 
-	if (drvdata->kbd_backlight) {
-		const u8 buf[] = { FEATURE_KBD_REPORT_ID, 0xba, 0xc5, 0xc4,
-				drvdata->kbd_backlight->brightness };
-		ret = asus_kbd_set_report(hdev, buf, sizeof(buf));
-		if (ret < 0) {
-			hid_err(hdev, "Asus failed to set keyboard backlight: %d\n", ret);
-			goto asus_resume_err;
-		}
-	}
+	/*
+	 * If we have a backlight listener registered, restore the previous state,
+	 * in case of error do not fail: most models restore the backlight
+	 * automatically, and the error is non-fatal.
+	 */
+	if (drvdata->listener.brightness_set)
+		asus_kbd_backlight_set(&drvdata->listener, drvdata->kbd_backlight_brightness);
 
-asus_resume_err:
-	return ret;
+	return 0;
 }
 
 static int __maybe_unused asus_reset_resume(struct hid_device *hdev)
@@ -1200,10 +1394,8 @@ static int asus_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	int ret;
 
 	drvdata = devm_kzalloc(&hdev->dev, sizeof(*drvdata), GFP_KERNEL);
-	if (drvdata == NULL) {
-		hid_err(hdev, "Can't alloc Asus descriptor\n");
+	if (drvdata == NULL)
 		return -ENOMEM;
-	}
 
 	hid_set_drvdata(hdev, drvdata);
 
@@ -1288,8 +1480,15 @@ static int asus_probe(struct hid_device *hdev, const struct hid_device_id *id)
 			is_vendor = true;
 	}
 
+	ret = asus_worker_create(hdev, drvdata);
+	if (ret) {
+		hid_warn(hdev, "Failed to initialize worker: %d\n", ret);
+		return ret;
+	}
+
 	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 	if (ret) {
+		asus_worker_stop(drvdata->worker);
 		hid_err(hdev, "Asus hw start failed: %d\n", ret);
 		return ret;
 	}
@@ -1337,6 +1536,10 @@ static int asus_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	return 0;
 err_stop_hw:
+	if (drvdata->listener.brightness_set)
+		asus_hid_unregister_listener(&drvdata->listener);
+
+	asus_worker_stop(drvdata->worker);
 	hid_hw_stop(hdev);
 	return ret;
 }
@@ -1344,21 +1547,11 @@ err_stop_hw:
 static void asus_remove(struct hid_device *hdev)
 {
 	struct asus_drvdata *drvdata = hid_get_drvdata(hdev);
-	unsigned long flags;
 
-	if (drvdata->kbd_backlight) {
-		asus_hid_unregister_listener(&drvdata->kbd_backlight->listener);
+	if (drvdata->listener.brightness_set)
+		asus_hid_unregister_listener(&drvdata->listener);
 
-		spin_lock_irqsave(&drvdata->kbd_backlight->lock, flags);
-		drvdata->kbd_backlight->removed = true;
-		spin_unlock_irqrestore(&drvdata->kbd_backlight->lock, flags);
-
-		cancel_work_sync(&drvdata->kbd_backlight->work);
-	}
-
-	if (drvdata->quirks & QUIRK_HID_FN_LOCK)
-		cancel_work_sync(&drvdata->fn_lock_sync_work);
-
+	asus_worker_stop(drvdata->worker);
 	hid_hw_stop(hdev);
 }
 
@@ -1478,6 +1671,9 @@ static const struct hid_device_id asus_devices[] = {
 	{ HID_I2C_DEVICE(USB_VENDOR_ID_ASUSTEK,
 		USB_DEVICE_ID_ASUSTEK_I2C_KEYBOARD), I2C_KEYBOARD_QUIRKS},
 	{ HID_I2C_DEVICE(USB_VENDOR_ID_ASUSTEK,
+		USB_DEVICE_ID_ASUSTEK_I2C_ZENBOOK_KEYBOARD),
+	  I2C_KEYBOARD_QUIRKS | QUIRK_FILTER_CAMERA_COMPANION },
+	{ HID_I2C_DEVICE(USB_VENDOR_ID_ASUSTEK,
 		USB_DEVICE_ID_ASUSTEK_I2C_TOUCHPAD), I2C_TOUCHPAD_QUIRKS },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUSTEK,
 		USB_DEVICE_ID_ASUSTEK_ROG_KEYBOARD1), QUIRK_USE_KBD_BACKLIGHT },
@@ -1492,6 +1688,9 @@ static const struct hid_device_id asus_devices[] = {
 	    USB_DEVICE_ID_ASUSTEK_ROG_NKEY_KEYBOARD),
 	  QUIRK_USE_KBD_BACKLIGHT | QUIRK_ROG_NKEY_KEYBOARD },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUSTEK,
+	    USB_DEVICE_ID_ASUSTEK_ROG_NKEY_KEYBOARD2),
+	  QUIRK_USE_KBD_BACKLIGHT | QUIRK_ROG_NKEY_KEYBOARD | QUIRK_HID_FN_LOCK },
+	{ HID_I2C_DEVICE(USB_VENDOR_ID_ASUSTEK,
 	    USB_DEVICE_ID_ASUSTEK_ROG_NKEY_KEYBOARD2),
 	  QUIRK_USE_KBD_BACKLIGHT | QUIRK_ROG_NKEY_KEYBOARD | QUIRK_HID_FN_LOCK },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUSTEK,
