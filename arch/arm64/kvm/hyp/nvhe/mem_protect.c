@@ -261,11 +261,18 @@ static void __apply_guest_page(void *va, size_t size,
 
 static void clean_dcache_guest_page(void *va, size_t size)
 {
+	/* See comment in __clean_dcache_guest_page() */
+	if (cpus_have_final_cap(ARM64_HAS_STAGE2_FWB))
+		return;
+
 	__apply_guest_page(va, size, __clean_dcache_guest_page);
 }
 
 static void invalidate_icache_guest_page(void *va, size_t size)
 {
+	if (alternative_has_cap_unlikely(ARM64_HAS_CACHE_DIC))
+		return;
+
 	__apply_guest_page(va, size, __invalidate_icache_guest_page);
 }
 

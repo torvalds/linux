@@ -486,9 +486,32 @@ int handle_exit(struct kvm_vcpu *vcpu, int exception_index)
 	}
 }
 
+static void handle_exit_pkvm_state(struct kvm_vcpu *vcpu, int exception_index)
+{
+	int exception_code = ARM_EXCEPTION_CODE(exception_index);
+
+	if (!is_protected_kvm_enabled() || kvm_vm_is_protected(vcpu->kvm))
+		return;
+
+	/*
+	 * Sync the context back when the host will read (trap) or write
+	 * (SError) it. Preempt-off here, so the loaded hyp vCPU is stable.
+	 */
+	if (exception_code == ARM_EXCEPTION_TRAP ||
+	    exception_code == ARM_EXCEPTION_EL1_SERROR ||
+	    ARM_SERROR_PENDING(exception_index)) {
+		kvm_call_hyp_nvhe(__pkvm_vcpu_sync_state);
+		vcpu_set_flag(vcpu, PKVM_HOST_STATE_DIRTY);
+	} else {
+		vcpu_clear_flag(vcpu, PKVM_HOST_STATE_DIRTY);
+	}
+}
+
 /* For exit types that need handling before we can be preempted */
 void handle_exit_early(struct kvm_vcpu *vcpu, int exception_index)
 {
+	handle_exit_pkvm_state(vcpu, exception_index);
+
 	if (ARM_SERROR_PENDING(exception_index)) {
 		if (this_cpu_has_cap(ARM64_HAS_RAS_EXTN)) {
 			u64 disr = kvm_vcpu_get_disr(vcpu);
