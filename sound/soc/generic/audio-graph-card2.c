@@ -778,18 +778,6 @@ static void graph_link_init(struct simple_util_priv *priv,
 	graph_parse_daifmt(ports_cpu,	&daifmt);
 	graph_parse_daifmt(ports_codec,	&daifmt);
 	graph_parse_daifmt(lnk,		&daifmt);
-	if (daifmt) {
-		struct device *dev = simple_priv_to_dev(priv);
-
-		/*
-		 * Recommend to use Auto Select by using .auto_selectable_formats.
-		 * linux/sound/soc/renesas/rcar/core.c can be good sample for it.
-		 *
-		 * One note is that Audio Graph Card2 still keeps compatible to set
-		 * DAI format via DT.
-		 */
-		dev_warn_once(dev, "use .auto_selectable_formats on each corresponding CPU/Codec driver");
-	}
 
 	graph_util_parse_link_direction(lnk,		&playback_only, &capture_only);
 	graph_util_parse_link_direction(ports_cpu,	&playback_only, &capture_only);

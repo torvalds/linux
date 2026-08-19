@@ -4,7 +4,6 @@
  *
  */
 
-#include <dt-bindings/power/xlnx-zynqmp-power.h>
 #include <linux/dma-mapping.h>
 #include <linux/firmware/xlnx-zynqmp.h>
 #include <linux/kernel.h>
@@ -18,6 +17,11 @@
 #include <linux/remoteproc.h>
 
 #include "remoteproc_internal.h"
+
+#define		PD_R5_0_ATCM	15
+#define		PD_R5_0_BTCM	16
+#define		PD_R5_1_ATCM	17
+#define		PD_R5_1_BTCM	18
 
 /* IPI buffer MAX length */
 #define IPI_BUF_LEN_MAX	32U
@@ -899,17 +903,18 @@ static const struct rproc_ops zynqmp_r5_rproc_ops = {
 };
 
 /**
- * zynqmp_r5_add_rproc_core() - Add core data to framework.
- * Allocate and add struct rproc object for each r5f core
+ * zynqmp_r5_alloc_rproc_core() - alloc rproc core data structure
+ * Allocate struct rproc object for each r5f core
  * This is called for each individual r5f core
  *
  * @cdev: Device node of each r5 core
  *
  * Return: zynqmp_r5_core object for success else error code pointer
  */
-static struct zynqmp_r5_core *zynqmp_r5_add_rproc_core(struct device *cdev)
+static struct zynqmp_r5_core *zynqmp_r5_alloc_rproc_core(struct device *cdev)
 {
 	struct zynqmp_r5_core *r5_core;
+	const char *fw_name = NULL;
 	struct rproc *r5_rproc;
 	int ret;
 
@@ -918,10 +923,15 @@ static struct zynqmp_r5_core *zynqmp_r5_add_rproc_core(struct device *cdev)
 	if (ret)
 		return ERR_PTR(ret);
 
+	ret = rproc_of_parse_firmware(cdev, 0, &fw_name);
+	if (ret < 0 && ret != -EINVAL)
+		return ERR_PTR(dev_err_probe(cdev, ret,
+					     "failed to parse firmware-name\n"));
+
 	/* Allocate remoteproc instance */
 	r5_rproc = rproc_alloc(cdev, dev_name(cdev),
 			       &zynqmp_r5_rproc_ops,
-			       NULL, sizeof(struct zynqmp_r5_core));
+			       fw_name, sizeof(struct zynqmp_r5_core));
 	if (!r5_rproc) {
 		dev_err(cdev, "failed to allocate memory for rproc instance\n");
 		return ERR_PTR(-ENOMEM);
@@ -932,6 +942,11 @@ static struct zynqmp_r5_core *zynqmp_r5_add_rproc_core(struct device *cdev)
 	r5_rproc->recovery_disabled = true;
 	r5_rproc->has_iommu = false;
 	r5_rproc->auto_boot = false;
+
+	/* attempt to boot automatically if the firmware-name is provided */
+	if (fw_name)
+		r5_rproc->auto_boot = true;
+
 	r5_core = r5_rproc->priv;
 	r5_core->dev = cdev;
 	r5_core->np = dev_of_node(cdev);
@@ -940,23 +955,6 @@ static struct zynqmp_r5_core *zynqmp_r5_add_rproc_core(struct device *cdev)
 		ret = -EINVAL;
 		goto free_rproc;
 	}
-
-	/* Add R5 remoteproc core */
-	ret = rproc_add(r5_rproc);
-	if (ret) {
-		dev_err(cdev, "failed to add r5 remoteproc\n");
-		goto free_rproc;
-	}
-
-	/*
-	 * If firmware is already available in the memory then move rproc state
-	 * to DETACHED. Firmware can be preloaded via debugger or by any other
-	 * agent (processors) in the system.
-	 * If firmware isn't available in the memory and resource table isn't
-	 * found, then rproc state remains OFFLINE.
-	 */
-	if (!zynqmp_r5_get_rsc_table_va(r5_core))
-		r5_rproc->state = RPROC_DETACHED;
 
 	r5_core->rproc = r5_rproc;
 	return r5_core;
@@ -1210,6 +1208,7 @@ static int zynqmp_r5_core_init(struct zynqmp_r5_cluster *cluster,
 {
 	struct device *dev = cluster->dev;
 	struct zynqmp_r5_core *r5_core;
+	u32 req, usage, status;
 	int ret = -EINVAL, i;
 
 	r5_core = cluster->r5_cores[0];
@@ -1255,6 +1254,42 @@ static int zynqmp_r5_core_init(struct zynqmp_r5_cluster *cluster,
 		ret = zynqmp_r5_get_sram_banks(r5_core);
 		if (ret)
 			return ret;
+
+		/*
+		 * It is possible that firmware is loaded into the memory, but
+		 * RPU (remote) is not running. In such case, RPU state will be
+		 * moved to RPROC_DETACHED wrongfully. To avoid it first make
+		 * sure RPU is power-on and out of reset before parsing for the
+		 * resource table.
+		 */
+		ret = zynqmp_pm_get_rpu_node_status(r5_core->pm_domain_id,
+						    &status, &req, &usage);
+		if (ret) {
+			dev_warn(r5_core->dev,
+				 "failed to get rpu node status, err %d\n", ret);
+			continue;
+		}
+
+		/*
+		 * If RPU state is power on and out of reset i.e. running, then
+		 * assign RPROC_DETACHED state. If the RPU is not out of reset
+		 * then do not attempt to attach to the remote processor.
+		 */
+		if (status == PM_NODE_RUNNING) {
+			/*
+			 * Not all the firmware that is running on the remote
+			 * core is expected to have the resource table. The
+			 * firmware might not use RPMsg at all, and in that case
+			 * resource table becomes irrelevant. However, we still
+			 * need to make sure that running core is not reported
+			 * as offline. so do not decide remote core state based
+			 * on the resource table availability
+			 */
+			if (zynqmp_r5_get_rsc_table_va(r5_core))
+				dev_dbg(r5_core->dev, "rsc tbl not found\n");
+			r5_core->rproc->state = RPROC_DETACHED;
+			r5_core->rproc->auto_boot = true;
+		}
 	}
 
 	return 0;
@@ -1278,7 +1313,7 @@ static int zynqmp_r5_cluster_init(struct zynqmp_r5_cluster *cluster)
 	enum rpu_oper_mode fw_reg_val;
 	struct device **child_devs;
 	enum rpu_tcm_comb tcm_mode;
-	int core_count, ret, i;
+	int core_count, ret, i, j;
 	struct mbox_info *ipi;
 
 	ret = of_property_read_u32(dev_node, "xlnx,cluster-mode", &cluster_mode);
@@ -1364,7 +1399,7 @@ static int zynqmp_r5_cluster_init(struct zynqmp_r5_cluster *cluster)
 		child_devs[i] = &child_pdev->dev;
 
 		/* create and add remoteproc instance of type struct rproc */
-		r5_cores[i] = zynqmp_r5_add_rproc_core(&child_pdev->dev);
+		r5_cores[i] = zynqmp_r5_alloc_rproc_core(&child_pdev->dev);
 		if (IS_ERR(r5_cores[i])) {
 			ret = PTR_ERR(r5_cores[i]);
 			r5_cores[i] = NULL;
@@ -1409,8 +1444,24 @@ static int zynqmp_r5_cluster_init(struct zynqmp_r5_cluster *cluster)
 		goto release_r5_cores;
 	}
 
+	for (j = 0; j < cluster->core_count; j++) {
+		/* Add R5 remoteproc core */
+		ret = rproc_add(r5_cores[j]->rproc);
+		if (ret) {
+			dev_err_probe(r5_cores[j]->dev, ret,
+				      "failed to add remoteproc\n");
+			goto delete_r5_cores;
+		}
+	}
+
 	kfree(child_devs);
 	return 0;
+
+delete_r5_cores:
+	i = core_count - 1;
+	/* delete previous added rproc */
+	while (--j >= 0)
+		rproc_del(r5_cores[j]->rproc);
 
 release_r5_cores:
 	while (i >= 0) {
@@ -1418,7 +1469,6 @@ release_r5_cores:
 		if (r5_cores[i]) {
 			zynqmp_r5_free_mbox(r5_cores[i]->ipi);
 			of_reserved_mem_device_release(r5_cores[i]->dev);
-			rproc_del(r5_cores[i]->rproc);
 			rproc_free(r5_cores[i]->rproc);
 		}
 		i--;

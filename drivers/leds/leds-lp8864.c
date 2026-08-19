@@ -270,8 +270,8 @@ static int lp8864_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id lp8864_id[] = {
-	{ "lp8864" },
-	{}
+	{ .name = "lp8864" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lp8864_id);
 

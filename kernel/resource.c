@@ -1238,7 +1238,7 @@ reserve_region_with_split(struct resource *root, resource_size_t start,
  *
  * Returns alignment on success, 0 (invalid alignment) on failure.
  */
-resource_size_t resource_alignment(struct resource *res)
+resource_size_t resource_alignment(const struct resource *res)
 {
 	switch (res->flags & (IORESOURCE_SIZEALIGN | IORESOURCE_STARTALIGN)) {
 	case IORESOURCE_SIZEALIGN:

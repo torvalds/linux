@@ -1,2 +1,23 @@
 perf-y += x86_irq_vectors.o
 perf-y += x86_msr.o
+
+beauty_outdir := $(OUTPUT)trace/beauty/generated
+beauty_arch_asm_dir := $(srctree)/tools/perf/trace/beauty/arch/x86/include/asm/
+x86_arch_asm_dir := $(srctree)/tools/arch/x86/include/asm/
+
+x86_arch_irq_vectors_array := $(beauty_outdir)/x86_arch_irq_vectors_array.c
+x86_arch_irq_vectors_tbl := $(srctree)/tools/perf/trace/beauty/tracepoints/x86_irq_vectors.sh
+
+$(x86_arch_irq_vectors_array): $(beauty_arch_asm_dir)/irq_vectors.h $(x86_arch_irq_vectors_tbl)
+	$(call rule_mkdir)
+	$(Q)$(call echo-cmd,gen)$(SHELL) '$(x86_arch_irq_vectors_tbl)' $(beauty_arch_asm_dir) > $@
+
+x86_arch_MSRs_array := $(beauty_outdir)/x86_arch_MSRs_array.c
+x86_arch_MSRs_tbl := $(srctree)/tools/perf/trace/beauty/tracepoints/x86_msr.sh
+
+$(x86_arch_MSRs_array): $(x86_arch_asm_dir)/msr-index.h $(x86_arch_MSRs_tbl)
+	$(call rule_mkdir)
+	$(Q)$(call echo-cmd,gen)$(SHELL) '$(x86_arch_MSRs_tbl)' $(x86_arch_asm_dir) > $@
+
+$(OUTPUT)trace/beauty/tracepoints/x86_irq_vectors.o: $(x86_arch_irq_vectors_array)
+$(OUTPUT)trace/beauty/tracepoints/x86_msr.o: $(x86_arch_MSRs_array)

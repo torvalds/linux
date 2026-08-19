@@ -256,7 +256,7 @@ these logs can be cleared by writing in the proper reset_history attribute.
 ``/sys/kernel/debug/i2c/i2c-[X]/[X]-addr/``
 contains the following attributes:
 
-=======================		==========================================
+==============================  ==========================================================
 power1_failed_fault_log		Set to 1 by a power1 fault occurring.
 power1_good_input_fault_log	Set to 1 by a power1 good input fault occurring at PGIO3.
 in11_fet_short_fault_log	Set to 1 when a FET-short fault occurs.
@@ -264,4 +264,4 @@ in11_fet_bad_fault_log		Set to 1 when a FET-BAD fault occurs.
 in0_lcrit_fault_log		Set to 1 by a VIN undervoltage fault occurring.
 in0_crit_fault_log		Set to 1 by a VIN overvoltage fault occurring.
 curr1_crit_fault_log		Set to 1 by an overcurrent fault occurring.
-======================= 	==========================================
+==============================  ==========================================================

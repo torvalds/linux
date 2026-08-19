@@ -22,9 +22,13 @@ enum x86_intercept_stage;
 struct x86_exception {
 	u8 vector;
 	bool error_code_valid;
-	u16 error_code;
+	u64 error_code;
 	bool nested_page_fault;
-	u64 address; /* cr2 or nested page fault gpa */
+	union {
+		u64 address; /* cr2 or nested page fault gpa */
+		unsigned long dr6;
+		u64 payload;
+	};
 	u8 async_page_fault;
 	unsigned long exit_qualification;
 };
@@ -211,6 +215,7 @@ struct x86_emulate_ops {
 	ulong (*get_cr)(struct x86_emulate_ctxt *ctxt, int cr);
 	int (*set_cr)(struct x86_emulate_ctxt *ctxt, int cr, ulong val);
 	int (*cpl)(struct x86_emulate_ctxt *ctxt);
+	ulong (*get_effective_dr7)(struct x86_emulate_ctxt *ctxt);
 	ulong (*get_dr)(struct x86_emulate_ctxt *ctxt, int dr);
 	int (*set_dr)(struct x86_emulate_ctxt *ctxt, int dr, ulong value);
 	int (*set_msr_with_filter)(struct x86_emulate_ctxt *ctxt, u32 msr_index, u64 data);
@@ -225,6 +230,7 @@ struct x86_emulate_ops {
 			 struct x86_instruction_info *info,
 			 enum x86_intercept_stage stage);
 
+	bool (*is_cpuid_allowed)(struct x86_emulate_ctxt *ctxt);
 	bool (*get_cpuid)(struct x86_emulate_ctxt *ctxt, u32 *eax, u32 *ebx,
 			  u32 *ecx, u32 *edx, bool exact_only);
 	bool (*guest_has_movbe)(struct x86_emulate_ctxt *ctxt);
@@ -519,13 +525,6 @@ enum x86_intercept {
 
 	nr_x86_intercepts
 };
-
-/* Host execution mode. */
-#if defined(CONFIG_X86_32)
-#define X86EMUL_MODE_HOST X86EMUL_MODE_PROT32
-#elif defined(CONFIG_X86_64)
-#define X86EMUL_MODE_HOST X86EMUL_MODE_PROT64
-#endif
 
 int x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len, int emulation_type);
 bool x86_page_table_writing_insn(struct x86_emulate_ctxt *ctxt);

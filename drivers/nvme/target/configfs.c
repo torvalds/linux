@@ -2007,7 +2007,6 @@ static void nvmet_port_release(struct config_item *item)
 	list_del(&port->global_entry);
 
 	key_put(port->keyring);
-	kfree(port->ana_state);
 	kfree(port);
 }
 
@@ -2047,15 +2046,9 @@ static struct config_group *nvmet_ports_make(struct config_group *group,
 	if (kstrtou16(name, 0, &portid))
 		return ERR_PTR(-EINVAL);
 
-	port = kzalloc_obj(*port);
+	port = kzalloc_flex(*port, ana_state, NVMET_MAX_ANAGRPS + 1);
 	if (!port)
 		return ERR_PTR(-ENOMEM);
-
-	port->ana_state = kzalloc_objs(*port->ana_state, NVMET_MAX_ANAGRPS + 1);
-	if (!port->ana_state) {
-		kfree(port);
-		return ERR_PTR(-ENOMEM);
-	}
 
 	if (IS_ENABLED(CONFIG_NVME_TARGET_TCP_TLS) && nvme_keyring_id()) {
 		port->keyring = key_lookup(nvme_keyring_id());

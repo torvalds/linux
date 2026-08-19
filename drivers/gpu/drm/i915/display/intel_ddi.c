@@ -2652,9 +2652,6 @@ static void mtl_ddi_pre_enable_dp(struct intel_atomic_state *state,
 	/* 3. Select Thunderbolt */
 	mtl_port_buf_ctl_io_selection(encoder);
 
-	/* 4. Enable Panel Power if PPS is required */
-	intel_pps_on(intel_dp);
-
 	/* 5. Enable the port PLL */
 	intel_ddi_enable_clock(encoder, crtc_state);
 
@@ -3708,6 +3705,14 @@ intel_ddi_pre_pll_enable(struct intel_atomic_state *state,
 	else if (display->platform.geminilake || display->platform.broxton)
 		bxt_dpio_phy_set_lane_optim_mask(encoder,
 						 crtc_state->lane_lat_optim_mask);
+
+	/*
+	 * There is no direct connection between the PLL and PPS, however
+	 * enabling PPS before PLL is required to avoid PLL/DDI BUF timeouts
+	 * during system resume. Do that matching the Bspec order as well.
+	 */
+	if (DISPLAY_VER(display) >= 14)
+		intel_pps_on(&dig_port->dp);
 }
 
 static void adlp_tbt_to_dp_alt_switch_wa(struct intel_encoder *encoder)

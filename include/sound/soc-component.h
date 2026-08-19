@@ -10,6 +10,8 @@
 
 #include <sound/soc.h>
 
+struct device_link;
+
 /*
  * Component probe and remove ordering levels for components with runtime
  * dependencies.
@@ -215,6 +217,8 @@ struct snd_soc_component {
 	struct list_head list;
 	struct list_head card_aux_list; /* for auxiliary bound components */
 	struct list_head card_list;
+
+	struct device_link *card_device_link;
 
 	const struct snd_soc_component_driver *driver;
 

@@ -12,7 +12,6 @@
 #include <linux/device.h>
 #include <linux/hrtimer.h>
 #include <linux/io-64-nonatomic-hi-lo.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pps_gen_kernel.h>

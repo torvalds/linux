@@ -62,9 +62,8 @@ void input_formatter_rst(
 	 * WICH USES THE STREAM2MEMRY BLOCK.
 	 * MUST BE FIXED PROPERLY
 	 */
-	if (!HIVE_IF_BIN_COPY[ID]) {
+	if (!HIVE_IF_BIN_COPY[ID])
 		input_formatter_reg_store(ID, addr, rst);
-	}
 
 	return;
 }

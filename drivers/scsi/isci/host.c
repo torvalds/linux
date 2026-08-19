@@ -2488,7 +2488,7 @@ struct isci_request *sci_request_by_tag(struct isci_host *ihost, u16 io_tag)
  *    free remote node ids
  * @idev: This is the device object which is requesting the a remote node
  *    id
- * @node_id: This is the remote node id that is assinged to the device if one
+ * @node_id: This is the remote node id that is assigned to the device if one
  *    is available
  *
  * enum sci_status SCI_FAILURE_OUT_OF_RESOURCES if there are no available remote

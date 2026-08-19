@@ -9,7 +9,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
 
@@ -61,14 +60,14 @@ static const struct acpi_device_id st_press_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, st_press_acpi_match);
 
 static const struct i2c_device_id st_press_id_table[] = {
-	{ LPS001WP_PRESS_DEV_NAME, LPS001WP },
-	{ LPS25H_PRESS_DEV_NAME,  LPS25H },
-	{ LPS331AP_PRESS_DEV_NAME, LPS331AP },
-	{ LPS22HB_PRESS_DEV_NAME, LPS22HB },
-	{ LPS33HW_PRESS_DEV_NAME, LPS33HW },
-	{ LPS35HW_PRESS_DEV_NAME, LPS35HW },
-	{ LPS22HH_PRESS_DEV_NAME, LPS22HH },
-	{ LPS22DF_PRESS_DEV_NAME, LPS22DF },
+	{ .name = LPS001WP_PRESS_DEV_NAME, .driver_data = LPS001WP },
+	{ .name = LPS25H_PRESS_DEV_NAME, .driver_data = LPS25H },
+	{ .name = LPS331AP_PRESS_DEV_NAME, .driver_data = LPS331AP },
+	{ .name = LPS22HB_PRESS_DEV_NAME, .driver_data = LPS22HB },
+	{ .name = LPS33HW_PRESS_DEV_NAME, .driver_data = LPS33HW },
+	{ .name = LPS35HW_PRESS_DEV_NAME, .driver_data = LPS35HW },
+	{ .name = LPS22HH_PRESS_DEV_NAME, .driver_data = LPS22HH },
+	{ .name = LPS22DF_PRESS_DEV_NAME, .driver_data = LPS22DF },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, st_press_id_table);

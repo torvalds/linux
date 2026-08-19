@@ -61,10 +61,16 @@ pub use pin_init::{
 };
 
 #[doc(no_inline)]
-pub use zerocopy::FromBytes;
+pub use zerocopy::{
+    FromBytes,
+    IntoBytes, //
+};
 
 #[doc(no_inline)]
-pub use zerocopy_derive::FromBytes;
+pub use zerocopy_derive::{
+    FromBytes,
+    IntoBytes, //
+};
 
 #[doc(no_inline)]
 pub use super::{

@@ -304,7 +304,7 @@ static irqreturn_t loongson2_i2c_isr_event(int irq, void *data)
 	regmap_read(priv->regmap, LOONGSON2_I2C_SR1, &status);
 	if (status & LOONGSON2_I2C_SR1_ITERREN_MASK) {
 		loongson2_i2c_isr_error(status, data);
-		return IRQ_NONE;
+		return IRQ_HANDLED;
 	}
 
 	regmap_read(priv->regmap, LOONGSON2_I2C_CR2, &cr2);

@@ -570,18 +570,6 @@ error_release_group_hold:
 	return ret;
 }
 
-/**
- * imx412_set_ctrl() - Set subdevice control
- * @ctrl: pointer to v4l2_ctrl structure
- *
- * Supported controls:
- * - V4L2_CID_VBLANK
- * - cluster controls:
- *   - V4L2_CID_ANALOGUE_GAIN
- *   - V4L2_CID_EXPOSURE
- *
- * Return: 0 if successful, error code otherwise.
- */
 static int imx412_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct imx412 *imx412 =
@@ -634,14 +622,6 @@ static const struct v4l2_ctrl_ops imx412_ctrl_ops = {
 	.s_ctrl = imx412_set_ctrl,
 };
 
-/**
- * imx412_enum_mbus_code() - Enumerate V4L2 sub-device mbus codes
- * @sd: pointer to imx412 V4L2 sub-device structure
- * @sd_state: V4L2 sub-device configuration
- * @code: V4L2 sub-device code enumeration need to be filled
- *
- * Return: 0 if successful, error code otherwise.
- */
 static int imx412_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
@@ -654,14 +634,6 @@ static int imx412_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
-/**
- * imx412_enum_frame_size() - Enumerate V4L2 sub-device frame sizes
- * @sd: pointer to imx412 V4L2 sub-device structure
- * @sd_state: V4L2 sub-device configuration
- * @fsize: V4L2 sub-device size enumeration need to be filled
- *
- * Return: 0 if successful, error code otherwise.
- */
 static int imx412_enum_frame_size(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fsize)
@@ -701,14 +673,6 @@ static void imx412_fill_pad_format(struct imx412 *imx412,
 	fmt->format.xfer_func = V4L2_XFER_FUNC_NONE;
 }
 
-/**
- * imx412_get_pad_format() - Get subdevice pad format
- * @sd: pointer to imx412 V4L2 sub-device structure
- * @sd_state: V4L2 sub-device configuration
- * @fmt: V4L2 sub-device format need to be set
- *
- * Return: 0 if successful, error code otherwise.
- */
 static int imx412_get_pad_format(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_format *fmt)
@@ -731,14 +695,6 @@ static int imx412_get_pad_format(struct v4l2_subdev *sd,
 	return 0;
 }
 
-/**
- * imx412_set_pad_format() - Set subdevice pad format
- * @sd: pointer to imx412 V4L2 sub-device structure
- * @sd_state: V4L2 sub-device configuration
- * @fmt: V4L2 sub-device format need to be set
- *
- * Return: 0 if successful, error code otherwise.
- */
 static int imx412_set_pad_format(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_format *fmt)
@@ -768,13 +724,6 @@ static int imx412_set_pad_format(struct v4l2_subdev *sd,
 	return ret;
 }
 
-/**
- * imx412_init_state() - Initialize sub-device state
- * @sd: pointer to imx412 V4L2 sub-device structure
- * @sd_state: V4L2 sub-device configuration
- *
- * Return: 0 if successful, error code otherwise.
- */
 static int imx412_init_state(struct v4l2_subdev *sd,
 			     struct v4l2_subdev_state *sd_state)
 {
@@ -840,13 +789,6 @@ static int imx412_stop_streaming(struct imx412 *imx412)
 				1, IMX412_MODE_STANDBY);
 }
 
-/**
- * imx412_set_stream() - Enable sensor streaming
- * @sd: pointer to imx412 subdevice
- * @enable: set to enable sensor streaming
- *
- * Return: 0 if successful, error code otherwise.
- */
 static int imx412_set_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct imx412 *imx412 = to_imx412(sd);
@@ -1010,12 +952,6 @@ static const struct v4l2_subdev_internal_ops imx412_internal_ops = {
 	.init_state = imx412_init_state,
 };
 
-/**
- * imx412_power_on() - Sensor power on sequence
- * @dev: pointer to i2c device
- *
- * Return: 0 if successful, error code otherwise.
- */
 static int imx412_power_on(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
@@ -1053,12 +989,6 @@ error_reset:
 	return ret;
 }
 
-/**
- * imx412_power_off() - Sensor power off sequence
- * @dev: pointer to i2c device
- *
- * Return: 0 if successful, error code otherwise.
- */
 static int imx412_power_off(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
@@ -1159,12 +1089,6 @@ static int imx412_init_controls(struct imx412 *imx412)
 	return 0;
 }
 
-/**
- * imx412_probe() - I2C client device binding
- * @client: pointer to i2c client device
- *
- * Return: 0 if successful, error code otherwise.
- */
 static int imx412_probe(struct i2c_client *client)
 {
 	struct imx412 *imx412;
@@ -1254,12 +1178,6 @@ error_mutex_destroy:
 	return ret;
 }
 
-/**
- * imx412_remove() - I2C client device unbinding
- * @client: pointer to I2C client device
- *
- * Return: 0 if successful, error code otherwise.
- */
 static void imx412_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);

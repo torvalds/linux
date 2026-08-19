@@ -199,6 +199,9 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 --show-on-off-events::
 	Show the --switch-on/off events too.
 
+--show-cpu::
+	Show cpu id.
+
 --max-stack::
         Set the stack depth limit when parsing the callchain, anything
         beyond the specified depth will be ignored. Note that at this point

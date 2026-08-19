@@ -102,7 +102,7 @@ enum kcs_states {
 /* Timeouts in microseconds. */
 #define IBF_RETRY_TIMEOUT (5*USEC_PER_SEC)
 #define OBF_RETRY_TIMEOUT (5*USEC_PER_SEC)
-#define MAX_ERROR_RETRIES 10
+#define MAX_ERROR_RETRIES 2
 #define ERROR0_OBF_WAIT_JIFFIES (2*HZ)
 
 struct si_sm_data {

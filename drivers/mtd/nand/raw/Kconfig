@@ -71,7 +71,7 @@ config MTD_NAND_AU1550
 
 config MTD_NAND_NDFC
 	tristate "IBM/MCC 4xx NAND controller"
-	depends on 4xx
+	depends on 44x || COMPILE_TEST
 	select MTD_NAND_ECC_SW_HAMMING
 	select MTD_NAND_ECC_SW_HAMMING_SMC
 	help
@@ -304,7 +304,7 @@ config MTD_NAND_HISI504
 	  Enables support for NAND controller on Hisilicon SoC Hip04.
 
 config MTD_NAND_QCOM
-	tristate "QCOM NAND controller"
+	tristate "Qualcomm NAND controller"
 	depends on ARCH_QCOM || COMPILE_TEST
 	depends on HAS_IOMEM
 	help

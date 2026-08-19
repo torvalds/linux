@@ -84,7 +84,7 @@ const char *const trunk_errmsg[] = {	/* map errcode */
 };
 
 /**
- * lpfc_jedec_to_ascii - Hex to ascii convertor according to JEDEC rules
+ * lpfc_jedec_to_ascii - Hex to ascii converter according to JEDEC rules
  * @incr: integer to convert.
  * @hdw: ascii string holding converted integer plus a string terminator.
  *
@@ -1748,12 +1748,12 @@ lpfc_issue_reset(struct device *dev, struct device_attribute *attr,
 }
 
 /**
- * lpfc_sli4_pdev_status_reg_wait - Wait for pdev status register for readyness
+ * lpfc_sli4_pdev_status_reg_wait - Wait for pdev status register for readiness
  * @phba: lpfc_hba pointer.
  *
  * Description:
  * SLI4 interface type-2 device to wait on the sliport status register for
- * the readyness after performing a firmware reset.
+ * the readiness after performing a firmware reset.
  *
  * Returns:
  * zero for success, -EPERM when port does not have privilege to perform the
@@ -5403,7 +5403,7 @@ lpfc_vport_param_store(max_scsicmpl_time);
 static DEVICE_ATTR_RW(lpfc_max_scsicmpl_time);
 
 /*
-# lpfc_ack0: Use ACK0, instead of ACK1 for class 2 acknowledgement. Value
+# lpfc_ack0: Use ACK0, instead of ACK1 for class 2 acknowledgment. Value
 # range is [0,1]. Default value is 0.
 */
 LPFC_ATTR_R(ack0, 0, 0, 1, "Enable ACK0 support");
@@ -5482,7 +5482,7 @@ LPFC_ATTR_R(multi_ring_support, 1, 1, 2, "Determines number of primary "
 /*
 # lpfc_multi_ring_rctl:  If lpfc_multi_ring_support is enabled, this
 # identifies what rctl value to configure the additional ring for.
-# Value range is [1,0xff]. Default value is 4 (Unsolicated Data).
+# Value range is [1,0xff]. Default value is 4 (Unsolicited Data).
 */
 LPFC_ATTR_R(multi_ring_rctl, FC_RCTL_DD_UNSOL_DATA, 1,
 	     255, "Identifies RCTL for additional ring configuration");

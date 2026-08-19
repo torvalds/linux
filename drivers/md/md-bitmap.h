@@ -98,7 +98,7 @@ struct bitmap_operations {
 
 	void (*start_behind_write)(struct mddev *mddev);
 	void (*end_behind_write)(struct mddev *mddev);
-	void (*wait_behind_writes)(struct mddev *mddev);
+	bool (*wait_behind_writes)(struct mddev *mddev, bool nowait);
 
 	md_bitmap_fn *start_write;
 	md_bitmap_fn *end_write;

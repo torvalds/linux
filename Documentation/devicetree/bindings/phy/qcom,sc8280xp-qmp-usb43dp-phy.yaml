@@ -18,6 +18,10 @@ properties:
     oneOf:
       - items:
           - enum:
+              - qcom,eliza-qmp-usb3-dp-phy
+          - const: qcom,sm8650-qmp-usb3-dp-phy
+      - items:
+          - enum:
               - qcom,kaanapali-qmp-usb3-dp-phy
           - const: qcom,sm8750-qmp-usb3-dp-phy
       - enum:

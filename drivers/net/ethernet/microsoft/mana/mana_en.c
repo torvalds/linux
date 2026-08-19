@@ -1233,12 +1233,24 @@ int mana_gd_query_device_cfg(struct gdma_context *gc, u32 proto_major_ver,
 	*max_num_vports = resp.max_num_vports;
 
 	if (resp.hdr.response.msg_version >= GDMA_MESSAGE_V2) {
-		if (resp.adapter_mtu < ETH_MIN_MTU + ETH_HLEN) {
+		if (resp.adapter_mtu == 0) {
+			/*
+			 * Some older PF firmware versions report an
+			 * adapter_mtu of 0. MANA hardware always supports the
+			 * standard Ethernet MTU, so fall back to ETH_FRAME_LEN.
+			 * Jumbo frames will not be available in this case.
+			 */
+			dev_info(dev,
+				 "PF reported adapter_mtu of 0, falling back to %u (jumbo frames disabled)\n",
+				 ETH_FRAME_LEN);
+			gc->adapter_mtu = ETH_FRAME_LEN;
+		} else if (resp.adapter_mtu < ETH_MIN_MTU + ETH_HLEN) {
 			dev_err(dev, "Adapter MTU too small: %u\n",
 				resp.adapter_mtu);
 			return -EPROTO;
+		} else {
+			gc->adapter_mtu = resp.adapter_mtu;
 		}
-		gc->adapter_mtu = resp.adapter_mtu;
 	} else {
 		gc->adapter_mtu = ETH_FRAME_LEN;
 	}

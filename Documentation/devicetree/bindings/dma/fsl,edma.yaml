@@ -12,6 +12,9 @@ description: |
   DMAMUX0 and DMAMUX1, specific DMA request source can only be multiplexed
   by any channel of certain group, DMAMUX0 or DMAMUX1, but not both.
 
+  This binding has an inverted dma-channel-mask definition compared to
+  the common DMA binding for historical reasons.
+
 maintainers:
   - Peng Fan <peng.fan@nxp.com>
 
@@ -94,6 +97,12 @@ properties:
       If present registers and hardware scatter/gather descriptors of the
       eDMA are implemented in big endian mode, otherwise in little mode.
     type: boolean
+
+  dma-channel-mask:
+    description: |
+      Bitmask of available DMA channels (inverted definition).
+      Bit semantics: 0 means channel available, 1 means channel unavailable
+    default: 0
 
 required:
   - "#dma-cells"

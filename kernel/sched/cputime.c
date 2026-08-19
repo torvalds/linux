@@ -421,7 +421,7 @@ static inline void irqtime_account_process_tick(struct task_struct *p, int user_
 						int nr_ticks) { }
 #endif /* !CONFIG_IRQ_TIME_ACCOUNTING */
 
-#ifdef CONFIG_NO_HZ_COMMON
+#if defined(CONFIG_NO_HZ_COMMON) && !defined(CONFIG_HAVE_VIRT_CPU_ACCOUNTING_IDLE)
 static void kcpustat_idle_stop(struct kernel_cpustat *kc, u64 now)
 {
 	u64 *cpustat = kc->cpustat;
@@ -560,7 +560,7 @@ static u64 kcpustat_field_dyntick(int cpu, enum cpu_usage_stat idx,
 {
 	return kcpustat_cpu(cpu).cpustat[idx];
 }
-#endif /* CONFIG_NO_HZ_COMMON */
+#endif /* CONFIG_NO_HZ_COMMON && !CONFIG_HAVE_VIRT_CPU_ACCOUNTING_IDLE */
 
 static u64 get_cpu_sleep_time_us(int cpu, enum cpu_usage_stat idx,
 				 bool compute_delta, u64 *last_update_time)

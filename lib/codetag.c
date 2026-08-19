@@ -35,17 +35,19 @@ struct codetag_module {
 static DEFINE_MUTEX(codetag_lock);
 static LIST_HEAD(codetag_types);
 
-void codetag_lock_module_list(struct codetag_type *cttype, bool lock)
+void codetag_lock_module_list(struct codetag_type *cttype)
 {
-	if (lock)
-		down_read(&cttype->mod_lock);
-	else
-		up_read(&cttype->mod_lock);
+	down_read(&cttype->mod_lock);
 }
 
 bool codetag_trylock_module_list(struct codetag_type *cttype)
 {
 	return down_read_trylock(&cttype->mod_lock) != 0;
+}
+
+void codetag_unlock_module_list(struct codetag_type *cttype)
+{
+	up_read(&cttype->mod_lock);
 }
 
 struct codetag_iterator codetag_get_ct_iter(struct codetag_type *cttype)

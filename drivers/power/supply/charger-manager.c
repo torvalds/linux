@@ -303,8 +303,10 @@ static bool is_full_charged(struct charger_manager *cm)
 			if (cm->battery_status == POWER_SUPPLY_STATUS_FULL
 					&& desc->fullbatt_vchkdrop_uV)
 				uV += desc->fullbatt_vchkdrop_uV;
-			if (uV >= desc->fullbatt_uV)
-				return true;
+			if (uV >= desc->fullbatt_uV) {
+				is_full = true;
+				goto out;
+			}
 		}
 	}
 
@@ -1649,8 +1651,8 @@ static void charger_manager_remove(struct platform_device *pdev)
 }
 
 static const struct platform_device_id charger_manager_id[] = {
-	{ "charger-manager", 0 },
-	{ },
+	{ .name = "charger-manager" },
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, charger_manager_id);
 

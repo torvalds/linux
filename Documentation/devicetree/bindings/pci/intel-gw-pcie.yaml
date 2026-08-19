@@ -27,16 +27,20 @@ properties:
       - const: snps,dw-pcie
 
   reg:
+    minItems: 3
     items:
       - description: Controller control and status registers.
       - description: PCIe configuration registers.
       - description: Controller application registers.
+      - description: Internal Address Translation Unit (iATU) registers.
 
   reg-names:
+    minItems: 3
     items:
       - const: dbi
       - const: config
       - const: app
+      - const: atu
 
   ranges:
     maxItems: 1
@@ -95,8 +99,9 @@ examples:
       #size-cells = <2>;
       reg = <0xd0e00000 0x1000>,
             <0xd2000000 0x800000>,
-            <0xd0a41000 0x1000>;
-      reg-names = "dbi", "config", "app";
+            <0xd0a41000 0x1000>,
+            <0xd0ec0000 0x1000>;
+      reg-names = "dbi", "config", "app", "atu";
       linux,pci-domain = <0>;
       max-link-speed = <4>;
       bus-range = <0x00 0x08>;

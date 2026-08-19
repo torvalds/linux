@@ -125,8 +125,8 @@ static int apci2200_pci_probe(struct pci_dev *dev,
 }
 
 static const struct pci_device_id apci2200_pci_table[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x1005) },
-	{ 0 }
+	{ PCI_VDEVICE(ADDIDATA, 0x1005) },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, apci2200_pci_table);
 

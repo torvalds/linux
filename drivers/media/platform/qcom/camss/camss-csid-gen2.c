@@ -203,10 +203,10 @@ static void __csid_ctrl_rdi(struct csid_device *csid, int enable, u8 rdi)
 	writel_relaxed(val, csid->base + CSID_RDI_CTRL(rdi));
 }
 
-static void __csid_configure_testgen(struct csid_device *csid, u8 enable, u8 vc)
+static void __csid_configure_testgen(struct csid_device *csid, u8 enable, u8 port, u8 vc)
 {
 	struct csid_testgen_config *tg = &csid->testgen;
-	struct v4l2_mbus_framefmt *input_format = &csid->fmt[MSM_CSID_PAD_FIRST_SRC + vc];
+	struct v4l2_mbus_framefmt *input_format = &csid->fmt[MSM_CSID_PAD_FIRST_SRC + port];
 	const struct csid_format_info *format = csid_get_fmt_entry(csid->res->formats->formats,
 								   csid->res->formats->nformats,
 								   input_format->code);
@@ -253,10 +253,10 @@ static void __csid_configure_testgen(struct csid_device *csid, u8 enable, u8 vc)
 	writel_relaxed(val, csid->base + CSID_TPG_CTRL);
 }
 
-static void __csid_configure_rdi_stream(struct csid_device *csid, u8 enable, u8 vc)
+static void __csid_configure_rdi_stream(struct csid_device *csid, u8 enable, u8 port, u8 vc)
 {
 	/* Source pads matching RDI channels on hardware. Pad 1 -> RDI0, Pad 2 -> RDI1, etc. */
-	struct v4l2_mbus_framefmt *input_format = &csid->fmt[MSM_CSID_PAD_FIRST_SRC + vc];
+	struct v4l2_mbus_framefmt *input_format = &csid->fmt[MSM_CSID_PAD_FIRST_SRC + port];
 	const struct csid_format_info *format = csid_get_fmt_entry(csid->res->formats->formats,
 								   csid->res->formats->nformats,
 								   input_format->code);
@@ -267,14 +267,14 @@ static void __csid_configure_rdi_stream(struct csid_device *csid, u8 enable, u8 
 	 * the four least significant bits of the five bit VC
 	 * bitfield to generate an internal CID value.
 	 *
-	 * CSID_RDI_CFG0(vc)
+	 * CSID_RDI_CFG0(port)
 	 * DT_ID : 28:27
 	 * VC    : 26:22
 	 * DT    : 21:16
 	 *
 	 * CID   : VC 3:0 << 2 | DT_ID 1:0
 	 */
-	u8 dt_id = vc & 0x03;
+	u8 dt_id = port & 0x03;
 
 	val = 1 << RDI_CFG0_BYTE_CNTR_EN;
 	val |= 1 << RDI_CFG0_FORMAT_MEASURE_EN;
@@ -284,56 +284,57 @@ static void __csid_configure_rdi_stream(struct csid_device *csid, u8 enable, u8 
 	val |= format->data_type << RDI_CFG0_DATA_TYPE;
 	val |= vc << RDI_CFG0_VIRTUAL_CHANNEL;
 	val |= dt_id << RDI_CFG0_DT_ID;
-	writel_relaxed(val, csid->base + CSID_RDI_CFG0(vc));
+	writel_relaxed(val, csid->base + CSID_RDI_CFG0(port));
 
 	/* CSID_TIMESTAMP_STB_POST_IRQ */
 	val = 2 << RDI_CFG1_TIMESTAMP_STB_SEL;
-	writel_relaxed(val, csid->base + CSID_RDI_CFG1(vc));
+	writel_relaxed(val, csid->base + CSID_RDI_CFG1(port));
 
 	val = 1;
-	writel_relaxed(val, csid->base + CSID_RDI_FRM_DROP_PERIOD(vc));
+	writel_relaxed(val, csid->base + CSID_RDI_FRM_DROP_PERIOD(port));
 
 	val = 0;
-	writel_relaxed(val, csid->base + CSID_RDI_FRM_DROP_PATTERN(vc));
+	writel_relaxed(val, csid->base + CSID_RDI_FRM_DROP_PATTERN(port));
 
 	val = 1;
-	writel_relaxed(val, csid->base + CSID_RDI_IRQ_SUBSAMPLE_PERIOD(vc));
+	writel_relaxed(val, csid->base + CSID_RDI_IRQ_SUBSAMPLE_PERIOD(port));
 
 	val = 0;
-	writel_relaxed(val, csid->base + CSID_RDI_IRQ_SUBSAMPLE_PATTERN(vc));
+	writel_relaxed(val, csid->base + CSID_RDI_IRQ_SUBSAMPLE_PATTERN(port));
 
 	val = 1;
-	writel_relaxed(val, csid->base + CSID_RDI_RPP_PIX_DROP_PERIOD(vc));
+	writel_relaxed(val, csid->base + CSID_RDI_RPP_PIX_DROP_PERIOD(port));
 
 	val = 0;
-	writel_relaxed(val, csid->base + CSID_RDI_RPP_PIX_DROP_PATTERN(vc));
+	writel_relaxed(val, csid->base + CSID_RDI_RPP_PIX_DROP_PATTERN(port));
 
 	val = 1;
-	writel_relaxed(val, csid->base + CSID_RDI_RPP_LINE_DROP_PERIOD(vc));
+	writel_relaxed(val, csid->base + CSID_RDI_RPP_LINE_DROP_PERIOD(port));
 
 	val = 0;
-	writel_relaxed(val, csid->base + CSID_RDI_RPP_LINE_DROP_PATTERN(vc));
+	writel_relaxed(val, csid->base + CSID_RDI_RPP_LINE_DROP_PATTERN(port));
 
 	val = 0;
-	writel_relaxed(val, csid->base + CSID_RDI_CTRL(vc));
+	writel_relaxed(val, csid->base + CSID_RDI_CTRL(port));
 
-	val = readl_relaxed(csid->base + CSID_RDI_CFG0(vc));
+	val = readl_relaxed(csid->base + CSID_RDI_CFG0(port));
 	val |=  enable << RDI_CFG0_ENABLE;
-	writel_relaxed(val, csid->base + CSID_RDI_CFG0(vc));
+	writel_relaxed(val, csid->base + CSID_RDI_CFG0(port));
 }
 
 static void csid_configure_stream(struct csid_device *csid, u8 enable)
 {
 	struct csid_testgen_config *tg = &csid->testgen;
 	u8 i;
-	/* Loop through all enabled VCs and configure stream for each */
+
+	/* Loop through all enabled ports and configure a stream for each */
 	for (i = 0; i < MSM_CSID_MAX_SRC_STREAMS; i++)
 		if (csid->phy.en_vc & BIT(i)) {
 			if (tg->enabled)
-				__csid_configure_testgen(csid, enable, i);
+				__csid_configure_testgen(csid, enable, i, 0);
 
-			__csid_configure_rdi_stream(csid, enable, i);
-			__csid_configure_rx(csid, &csid->phy, i);
+			__csid_configure_rdi_stream(csid, enable, i, 0);
+			__csid_configure_rx(csid, &csid->phy, 0);
 			__csid_ctrl_rdi(csid, enable, i);
 		}
 }

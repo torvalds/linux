@@ -174,7 +174,7 @@ static int rt5033_battery_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id rt5033_battery_id[] = {
-	{ "rt5033-battery", },
+	{ .name = "rt5033-battery" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rt5033_battery_id);

@@ -11,6 +11,7 @@
 #include <linux/filelock.h>
 #include <linux/sched/signal.h>
 #include <linux/unicode.h>
+#include <linux/fserror.h>
 #include "f2fs.h"
 #include "node.h"
 #include "acl.h"
@@ -248,6 +249,11 @@ struct f2fs_dir_entry *f2fs_find_target_dentry(const struct f2fs_dentry_ptr *d,
 			bit_pos++;
 			continue;
 		}
+
+		if (unlikely(le16_to_cpu(de->name_len) > F2FS_NAME_LEN ||
+			     bit_pos + GET_DENTRY_SLOTS(le16_to_cpu(de->name_len)) >
+			     d->max))
+			return ERR_PTR(-EFSCORRUPTED);
 
 		if (!use_hash || de->hash_code == fname->hash) {
 			res = f2fs_match_name(d->inode, fname,
@@ -1020,6 +1026,7 @@ int f2fs_fill_dentries(struct dir_context *ctx, struct f2fs_dentry_ptr *d,
 			set_sbi_flag(sbi, SBI_NEED_FSCK);
 			err = -EFSCORRUPTED;
 			f2fs_handle_error(sbi, ERROR_CORRUPTED_DIRENT);
+			fserror_report_file_metadata(d->inode, err, GFP_NOFS);
 			goto out;
 		}
 

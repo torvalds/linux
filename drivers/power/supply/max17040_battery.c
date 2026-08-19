@@ -598,15 +598,15 @@ static SIMPLE_DEV_PM_OPS(max17040_pm_ops, max17040_suspend, max17040_resume);
 #endif /* CONFIG_PM_SLEEP */
 
 static const struct i2c_device_id max17040_id[] = {
-	{ "max17040", ID_MAX17040 },
-	{ "max17041", ID_MAX17041 },
-	{ "max17043", ID_MAX17043 },
-	{ "max77836-battery", ID_MAX17043 },
-	{ "max17044", ID_MAX17044 },
-	{ "max17048", ID_MAX17048 },
-	{ "max17049", ID_MAX17049 },
-	{ "max17058", ID_MAX17058 },
-	{ "max17059", ID_MAX17059 },
+	{ .name = "max17040", .driver_data = ID_MAX17040 },
+	{ .name = "max17041", .driver_data = ID_MAX17041 },
+	{ .name = "max17043", .driver_data = ID_MAX17043 },
+	{ .name = "max77836-battery", .driver_data = ID_MAX17043 },
+	{ .name = "max17044", .driver_data = ID_MAX17044 },
+	{ .name = "max17048", .driver_data = ID_MAX17048 },
+	{ .name = "max17049", .driver_data = ID_MAX17049 },
+	{ .name = "max17058", .driver_data = ID_MAX17058 },
+	{ .name = "max17059", .driver_data = ID_MAX17059 },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, max17040_id);

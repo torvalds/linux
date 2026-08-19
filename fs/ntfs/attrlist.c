@@ -118,6 +118,7 @@ int ntfs_attrlist_entry_add(struct ntfs_inode *ni, struct attr_record *attr)
 	int entry_len, entry_offset, err;
 	struct mft_record *ni_mrec;
 	u8 *old_al;
+	__le64 lowest_vcn;
 
 	if (!ni || !attr) {
 		ntfs_debug("Invalid arguments.\n");
@@ -158,17 +159,21 @@ int ntfs_attrlist_entry_add(struct ntfs_inode *ni, struct attr_record *attr)
 		ntfs_error(ni->vol->sb, "Failed to get search context");
 		goto err_out;
 	}
+	if (attr->non_resident)
+		lowest_vcn = attr->data.non_resident.lowest_vcn;
+	else
+		lowest_vcn = 0;
 
 	err = ntfs_attr_lookup(attr->type, (attr->name_length) ? (__le16 *)
 			((u8 *)attr + le16_to_cpu(attr->name_offset)) :
 			AT_UNNAMED, attr->name_length, CASE_SENSITIVE,
-			(attr->non_resident) ? le64_to_cpu(attr->data.non_resident.lowest_vcn) :
-			0, (attr->non_resident) ? NULL : ((u8 *)attr +
+			le64_to_cpu(lowest_vcn),
+			(attr->non_resident) ? NULL : ((u8 *)attr +
 			le16_to_cpu(attr->data.resident.value_offset)), (attr->non_resident) ?
 			0 : le32_to_cpu(attr->data.resident.value_length), ctx);
 	if (!err) {
 		/* Found some extent, check it to be before new extent. */
-		if (ctx->al_entry->lowest_vcn == attr->data.non_resident.lowest_vcn) {
+		if (ctx->al_entry->lowest_vcn == lowest_vcn) {
 			err = -EEXIST;
 			ntfs_debug("Such attribute already present in the attribute list.\n");
 			ntfs_attr_put_search_ctx(ctx);

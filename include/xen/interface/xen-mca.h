@@ -50,7 +50,7 @@
 /* OUT: There was no machine check data to fetch. */
 #define XEN_MC_NODATA		0x2
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 /* vIRQ injected to Dom0 */
 #define VIRQ_MCA VIRQ_ARCH_0
 
@@ -388,5 +388,5 @@ struct xen_mce_log {
 #define MCE_GET_LOG_LEN      _IOR('M', 2, int)
 #define MCE_GETCLEAR_FLAGS   _IOR('M', 3, int)
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* __XEN_PUBLIC_ARCH_X86_MCA_H__ */

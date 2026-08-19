@@ -1073,6 +1073,7 @@ static const struct of_device_id qcs615_tlmm_of_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, qcs615_tlmm_of_match);
 
 static int qcs615_tlmm_probe(struct platform_device *pdev)
 {
@@ -1101,4 +1102,3 @@ module_exit(qcs615_tlmm_exit);
 
 MODULE_DESCRIPTION("QTI QCS615 TLMM driver");
 MODULE_LICENSE("GPL");
-MODULE_DEVICE_TABLE(of, qcs615_tlmm_of_match);

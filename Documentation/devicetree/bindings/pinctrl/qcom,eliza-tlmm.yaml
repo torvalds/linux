@@ -86,16 +86,22 @@ $defs:
                 qdss_gpio_tracectl, qdss_gpio_tracedata, qlink_big_enable,
                 qlink_big_request, qlink_little_enable,
                 qlink_little_request, qlink_wmss, qspi0, qspi_clk,
-                qspi_cs, qup1_se0, qup1_se1, qup1_se2, qup1_se3, qup1_se4,
-                qup1_se5, qup1_se6, qup1_se7, qup2_se0, qup2_se1,
-                qup2_se2, qup2_se3, qup2_se4, qup2_se5, qup2_se6,
-                qup2_se7, resout_gpio, sd_write_protect, sdc1, sdc2,
-                sdc2_fb_clk, tb_trig_sdc1, tb_trig_sdc2, tmess_prng0,
-                tmess_prng1, tmess_prng2, tmess_prng3, tsense_pwm1,
-                tsense_pwm2, tsense_pwm3, tsense_pwm4, uim0_clk,
-                uim0_data, uim0_present, uim0_reset, uim1_clk, uim1_data,
-                uim1_present, uim1_reset, usb0_hs, usb_phy, vfr_0, vfr_1,
-                vsense_trigger_mirnat, wcn_sw_ctrl ]
+                qspi_cs, qup1_se0, qup1_se1, qup1_se2, qup1_se2_l2_mira,
+                qup1_se2_l2_mirb, qup1_se2_l3_mira, qup1_se2_l3_mirb,
+                qup1_se3, qup1_se4_01, qup1_se4_23,
+                qup1_se5, qup1_se6, qup1_se6_l1_mira,
+                qup1_se6_l1_mirb, qup1_se6_l3_mira, qup1_se6_l3_mirb,
+                qup1_se7, qup1_se7_l0_mira, qup1_se7_l0_mirb,
+                qup1_se7_l1_mira, qup1_se7_l1_mirb, qup2_se0, qup2_se1,
+                qup2_se2, qup2_se3, qup2_se3_l0_mira, qup2_se3_l0_mirb,
+                qup2_se3_l1_mira, qup2_se3_l1_mirb, qup2_se4, qup2_se5,
+                qup2_se6, qup2_se7, resout_gpio, sd_write_protect, sdc1,
+                sdc2, sdc2_fb_clk, tb_trig_sdc1, tb_trig_sdc2,
+                tmess_prng0, tmess_prng1, tmess_prng2, tmess_prng3,
+                tsense_pwm1, tsense_pwm2, tsense_pwm3, tsense_pwm4,
+                uim0_clk, uim0_data, uim0_present, uim0_reset, uim1_clk,
+                uim1_data, uim1_present, uim1_reset, usb0_hs, usb_phy,
+                vfr_0, vfr_1, vsense_trigger_mirnat, wcn_sw_ctrl ]
     required:
       - pins
 

@@ -1572,7 +1572,7 @@ static const struct of_device_id apds9160_of_match[] = {
 MODULE_DEVICE_TABLE(of, apds9160_of_match);
 
 static const struct i2c_device_id apds9160_id[] = {
-	{ "apds9160", 0 },
+	{ .name = "apds9160" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, apds9160_id);

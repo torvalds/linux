@@ -1165,6 +1165,16 @@ void mei_set_devstate(struct mei_device *dev, enum mei_dev_state state)
 	}
 }
 
+static const char * const mei_kind_names[] = {
+	"mei",
+	"itouch",
+	"gsc",
+	"gscfi",
+	"ivsc",
+	"ioe",
+};
+static_assert(ARRAY_SIZE(mei_kind_names) == MEI_DEV_KIND_MAX);
+
 /**
  * kind_show - display device kind
  *
@@ -1178,14 +1188,11 @@ static ssize_t kind_show(struct device *device,
 			 struct device_attribute *attr, char *buf)
 {
 	struct mei_device *dev = dev_get_drvdata(device);
-	ssize_t ret;
 
-	if (dev->kind)
-		ret = sprintf(buf, "%s\n", dev->kind);
-	else
-		ret = sprintf(buf, "%s\n", "mei");
+	if (dev->kind < MEI_DEV_KIND_MEI || dev->kind >= MEI_DEV_KIND_MAX)
+		return -EINVAL;
 
-	return ret;
+	return sysfs_emit(buf, "%s\n", mei_kind_names[dev->kind]);
 }
 static DEVICE_ATTR_RO(kind);
 

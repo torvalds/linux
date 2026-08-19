@@ -790,7 +790,7 @@ static void ih_v6_1_set_interrupt_funcs(struct amdgpu_device *adev)
 const struct amdgpu_ip_block_version ih_v6_1_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_IH,
 	.major = 6,
-	.minor = 0,
+	.minor = 1,
 	.rev = 0,
 	.funcs = &ih_v6_1_ip_funcs,
 };

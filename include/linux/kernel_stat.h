@@ -107,6 +107,30 @@ static inline unsigned long kstat_cpu_irqs_sum(unsigned int cpu)
 }
 
 #ifdef CONFIG_NO_HZ_COMMON
+
+#ifdef CONFIG_HAVE_VIRT_CPU_ACCOUNTING_IDLE
+
+static inline void kcpustat_dyntick_start(u64 now) { }
+static inline void kcpustat_dyntick_stop(u64 now) { }
+static inline void kcpustat_irq_enter(u64 now) { }
+static inline void kcpustat_irq_exit(u64 now) { }
+static inline bool kcpustat_idle_dyntick(void) { return false; }
+
+extern u64 arch_kcpustat_field_idle(int cpu);
+extern u64 arch_kcpustat_field_iowait(int cpu);
+
+static inline u64 kcpustat_field_idle(int cpu)
+{
+	return arch_kcpustat_field_idle(cpu);
+}
+
+static inline u64 kcpustat_field_iowait(int cpu)
+{
+	return arch_kcpustat_field_iowait(cpu);
+}
+
+#else /* !CONFIG_HAVE_VIRT_CPU_ACCOUNTING_IDLE */
+
 extern void kcpustat_dyntick_start(u64 now);
 extern void kcpustat_dyntick_stop(u64 now);
 extern void kcpustat_irq_enter(u64 now);
@@ -118,6 +142,9 @@ static inline bool kcpustat_idle_dyntick(void)
 {
 	return __this_cpu_read(kernel_cpustat.idle_dyntick);
 }
+
+#endif /* !CONFIG_HAVE_VIRT_CPU_ACCOUNTING_IDLE */
+
 #else
 static inline u64 kcpustat_field_idle(int cpu)
 {

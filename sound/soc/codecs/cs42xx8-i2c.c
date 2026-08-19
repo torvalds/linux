@@ -9,7 +9,6 @@
 
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/pm_runtime.h>
 #include <sound/soc.h>
 

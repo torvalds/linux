@@ -516,7 +516,7 @@ static int zopt2201_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id zopt2201_id[] = {
-	{ "zopt2201" },
+	{ .name = "zopt2201" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, zopt2201_id);

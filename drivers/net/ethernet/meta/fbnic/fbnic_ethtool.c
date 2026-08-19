@@ -2024,7 +2024,8 @@ static const struct ethtool_ops fbnic_ethtool_ops = {
 					  ETHTOOL_OP_NEEDS_RTNL_GPAUSEPARAM |
 					  ETHTOOL_OP_NEEDS_RTNL_SPAUSEPARAM |
 					  ETHTOOL_OP_NEEDS_RTNL_SCHANNELS |
-					  ETHTOOL_OP_NEEDS_RTNL_SRINGPARAM,
+					  ETHTOOL_OP_NEEDS_RTNL_SRINGPARAM |
+					  ETHTOOL_OP_NEEDS_RTNL_GLINK,
 	.get_drvinfo			= fbnic_get_drvinfo,
 	.get_regs_len			= fbnic_get_regs_len,
 	.get_regs			= fbnic_get_regs,

@@ -244,27 +244,26 @@ static void rsu_async_get_spt_table_callback(struct device *dev,
 }
 
 /**
- * rsu_send_msg() - send a message to Intel service layer
+ * __rsu_send_msg_locked() - send a message to Intel service layer
  * @priv: pointer to rsu private data
  * @command: RSU status or update command
  * @arg: the request argument, the bitstream address or notify status
  * @callback: function pointer for the callback (status or update)
  *
- * Start an Intel service layer transaction to perform the SMC call that
- * is necessary to get RSU boot log or set the address of bitstream to
- * boot after reboot.
+ * Perform the actual SMC transaction. The caller must hold @priv->lock.
  *
- * Returns 0 on success or -ETIMEDOUT on error.
+ * Returns 0 on success or a negative errno on failure.
  */
-static int rsu_send_msg(struct stratix10_rsu_priv *priv,
-			enum stratix10_svc_command_code command,
-			unsigned long arg,
-			rsu_callback callback)
+static int __rsu_send_msg_locked(struct stratix10_rsu_priv *priv,
+				 enum stratix10_svc_command_code command,
+				 unsigned long arg,
+				 rsu_callback callback)
 {
 	struct stratix10_svc_client_msg msg;
 	int ret;
 
-	mutex_lock(&priv->lock);
+	lockdep_assert_held(&priv->lock);
+
 	reinit_completion(&priv->completion);
 	priv->client.receive_cb = callback;
 
@@ -293,6 +292,59 @@ static int rsu_send_msg(struct stratix10_rsu_priv *priv,
 
 status_done:
 	stratix10_svc_done(priv->chan);
+	return ret;
+}
+
+/**
+ * rsu_send_msg() - send a message to Intel service layer
+ * @priv: pointer to rsu private data
+ * @command: RSU status or update command
+ * @arg: the request argument, the bitstream address or notify status
+ * @callback: function pointer for the callback (status or update)
+ *
+ * Start an Intel service layer transaction to perform the SMC call that
+ * is necessary to get RSU boot log or set the address of bitstream to
+ * boot after reboot. This call will block until the RSU lock can be
+ * acquired.
+ *
+ * Returns 0 on success or a negative errno on failure.
+ */
+static int rsu_send_msg(struct stratix10_rsu_priv *priv,
+			enum stratix10_svc_command_code command,
+			unsigned long arg,
+			rsu_callback callback)
+{
+	int ret;
+
+	mutex_lock(&priv->lock);
+	ret = __rsu_send_msg_locked(priv, command, arg, callback);
+	mutex_unlock(&priv->lock);
+	return ret;
+}
+
+/**
+ * rsu_try_send_msg() - non-blocking variant of rsu_send_msg()
+ * @priv: pointer to rsu private data
+ * @command: RSU status or update command
+ * @arg: the request argument, the bitstream address or notify status
+ * @callback: function pointer for the callback (status or update)
+ *
+ * Same as rsu_send_msg() but returns -EBUSY immediately when another
+ * RSU operation is already in flight, instead of waiting for the lock.
+ *
+ * Returns 0 on success, -EBUSY if the RSU is busy, or another negative
+ * errno on failure.
+ */
+static int rsu_try_send_msg(struct stratix10_rsu_priv *priv,
+			    enum stratix10_svc_command_code command,
+			    unsigned long arg,
+			    rsu_callback callback)
+{
+	int ret;
+
+	if (!mutex_trylock(&priv->lock))
+		return -EBUSY;
+	ret = __rsu_send_msg_locked(priv, command, arg, callback);
 	mutex_unlock(&priv->lock);
 	return ret;
 }
@@ -595,8 +647,17 @@ static ssize_t reboot_image_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	ret = rsu_send_msg(priv, COMMAND_RSU_UPDATE,
-			   address, rsu_command_callback);
+	/*
+	 * Use the non-blocking variant so a write to this sysfs attribute
+	 * does not stall the caller while another RSU operation is in
+	 * flight. Userspace can retry on -EBUSY.
+	 */
+	ret = rsu_try_send_msg(priv, COMMAND_RSU_UPDATE,
+			       address, rsu_command_callback);
+	if (ret == -EBUSY) {
+		dev_dbg(dev, "RSU busy, reboot_image write rejected\n");
+		return ret;
+	}
 	if (ret) {
 		dev_err(dev, "Error, RSU update returned %i\n", ret);
 		return ret;

@@ -190,8 +190,7 @@ static inline unsigned long raw_copy_from_user(void *to, const void __user *from
 	return __copy_user((__force void __user *) to, from, n);
 }
 
-#define INLINE_COPY_FROM_USER
-#define INLINE_COPY_TO_USER
+#define INLINE_COPY_USER
 
 static inline unsigned long __clear_user(void __user *addr, unsigned long size)
 {

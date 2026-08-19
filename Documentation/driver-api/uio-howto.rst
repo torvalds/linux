@@ -246,10 +246,10 @@ the members are required, others are optional.
    hardware interrupt number. The flags given here will be used in the
    call to :c:func:`request_irq()`.
 
--  ``int (*mmap)(struct uio_info *info, struct vm_area_struct *vma)``:
+-  ``int (*mmap_prepare)(struct uio_info *info, struct vm_area_desc *desc)``:
    Optional. If you need a special :c:func:`mmap()`
    function, you can set it here. If this pointer is not NULL, your
-   :c:func:`mmap()` will be called instead of the built-in one.
+   ``mmap_prepare`` will be called instead of the built-in one.
 
 -  ``int (*open)(struct uio_info *info, struct inode *inode)``:
    Optional. You might want to have your own :c:func:`open()`,

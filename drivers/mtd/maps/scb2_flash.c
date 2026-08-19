@@ -215,13 +215,8 @@ static void scb2_flash_remove(struct pci_dev *dev)
 }
 
 static struct pci_device_id scb2_flash_pci_ids[] = {
-	{
-	  .vendor = PCI_VENDOR_ID_SERVERWORKS,
-	  .device = PCI_DEVICE_ID_SERVERWORKS_CSB5,
-	  .subvendor = PCI_ANY_ID,
-	  .subdevice = PCI_ANY_ID
-	},
-	{ 0, }
+	{ PCI_DEVICE(PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_CSB5) },
+	{ }
 };
 
 static struct pci_driver scb2_flash_driver = {

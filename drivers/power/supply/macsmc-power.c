@@ -834,7 +834,7 @@ static void macsmc_power_remove(struct platform_device *pdev)
 }
 
 static const struct platform_device_id macsmc_power_id[] = {
-	{ "macsmc-power" },
+	{ .name = "macsmc-power" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(platform, macsmc_power_id);

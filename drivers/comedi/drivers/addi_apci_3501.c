@@ -399,8 +399,8 @@ static int apci3501_pci_probe(struct pci_dev *dev,
 }
 
 static const struct pci_device_id apci3501_pci_table[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x3001) },
-	{ 0 }
+	{ PCI_VDEVICE(ADDIDATA, 0x3001) },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, apci3501_pci_table);
 

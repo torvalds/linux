@@ -16,15 +16,8 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-#define EXYNOS_MBOX_MCUCTRL		0x0	/* Mailbox Control Register */
-#define EXYNOS_MBOX_INTCR0		0x24	/* Interrupt Clear Register 0 */
 #define EXYNOS_MBOX_INTMR0		0x28	/* Interrupt Mask Register 0 */
-#define EXYNOS_MBOX_INTSR0		0x2c	/* Interrupt Status Register 0 */
-#define EXYNOS_MBOX_INTMSR0		0x30	/* Interrupt Mask Status Register 0 */
 #define EXYNOS_MBOX_INTGR1		0x40	/* Interrupt Generation Register 1 */
-#define EXYNOS_MBOX_INTMR1		0x48	/* Interrupt Mask Register 1 */
-#define EXYNOS_MBOX_INTSR1		0x4c	/* Interrupt Status Register 1 */
-#define EXYNOS_MBOX_INTMSR1		0x50	/* Interrupt Mask Status Register 1 */
 
 #define EXYNOS_MBOX_INTMR0_MASK		GENMASK(15, 0)
 #define EXYNOS_MBOX_INTGR1_MASK		GENMASK(15, 0)

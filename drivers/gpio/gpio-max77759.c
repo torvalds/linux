@@ -14,7 +14,6 @@
 #include <linux/irqreturn.h>
 #include <linux/lockdep.h>
 #include <linux/mfd/max77759.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/overflow.h>
 #include <linux/platform_device.h>

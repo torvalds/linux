@@ -4,8 +4,6 @@
  * Written by Paul Fulghum paulkf@microgate.com
  * for Microgate Corporation
  *
- * Microgate and SyncLink are registered trademarks of Microgate Corporation
- *
  * Adapted from ppp.c, written by Michael Callahan <callahan@maths.ox.ac.uk>,
  *	Al Longyear <longyear@netcom.com>,
  *	Paul Mackerras <Paul.Mackerras@cs.anu.edu.au>
@@ -53,11 +51,6 @@
  * to be used for synchronous HDLC applications when used with
  * this line discipline (or another line discipline that is frame
  * oriented such as N_PPP).
- *
- * The SyncLink driver (synclink.c) implements both asynchronous
- * (using standard line discipline N_TTY) and synchronous HDLC
- * (using N_HDLC) communications, with the latter using the above
- * conventions.
  *
  * This implementation is very basic and does not maintain
  * any statistics. The main point is to enforce the raw data

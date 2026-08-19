@@ -589,10 +589,8 @@ int imx_media_alloc_dma_buf(struct device *dev,
 	buf->len = PAGE_ALIGN(size);
 	buf->virt = dma_alloc_coherent(dev, buf->len, &buf->phys,
 				       GFP_DMA | GFP_KERNEL);
-	if (!buf->virt) {
-		dev_err(dev, "%s: failed\n", __func__);
+	if (!buf->virt)
 		return -ENOMEM;
-	}
 
 	return 0;
 }
@@ -749,10 +747,12 @@ EXPORT_SYMBOL_GPL(imx_media_pipeline_subdev);
  * Turn current pipeline streaming on/off starting from entity.
  */
 int imx_media_pipeline_set_stream(struct imx_media_dev *imxmd,
+				  struct imx_media_video_dev *vdev,
 				  struct media_entity *entity,
 				  bool on)
 {
 	struct v4l2_subdev *sd;
+	struct media_pad *pad;
 	int ret = 0;
 
 	if (!is_media_entity_v4l2_subdev(entity))
@@ -761,17 +761,19 @@ int imx_media_pipeline_set_stream(struct imx_media_dev *imxmd,
 
 	mutex_lock(&imxmd->md.graph_mutex);
 
+	pad = &entity->pads[0];
+
 	if (on) {
-		ret = __media_pipeline_start(entity->pads, &imxmd->pipe);
+		ret = __media_pipeline_start(pad, &vdev->pipe);
 		if (ret)
 			goto out;
 		ret = v4l2_subdev_call(sd, video, s_stream, 1);
 		if (ret)
-			__media_pipeline_stop(entity->pads);
+			__media_pipeline_stop(pad);
 	} else {
 		v4l2_subdev_call(sd, video, s_stream, 0);
-		if (media_pad_pipeline(entity->pads))
-			__media_pipeline_stop(entity->pads);
+		if (media_pad_is_streaming(pad))
+			__media_pipeline_stop(pad);
 	}
 
 out:

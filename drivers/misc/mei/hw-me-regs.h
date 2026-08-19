@@ -6,6 +6,8 @@
 #ifndef _MEI_HW_MEI_REGS_H_
 #define _MEI_HW_MEI_REGS_H_
 
+#include <linux/bits.h>
+
 /*
  * MEI device IDs
  */
@@ -142,6 +144,8 @@
 #  define PCI_CFG_HFS_2_PM_CM_RESET_ERROR     0x5000000 /* CME reset due to exception */
 #  define PCI_CFG_HFS_2_PM_EVENT_MASK         0xf000000
 #define PCI_CFG_HFS_3         0x60
+#  define PCI_CFG_HFS_3_EXT_SKU_MSK  GENMASK(3, 0) /* IOE detection bits */
+#  define PCI_CFG_HFS_3_EXT_SKU_IOE  0x00000001
 #  define PCI_CFG_HFS_3_FW_SKU_MSK   0x00000070
 #  define PCI_CFG_HFS_3_FW_SKU_IGN   0x00000000
 #  define PCI_CFG_HFS_3_FW_SKU_SPS   0x00000060

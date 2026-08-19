@@ -232,8 +232,8 @@ static inline bool kvm_hv_is_tlb_flush_hcall(struct kvm_vcpu *vcpu)
 	if (!hv_vcpu)
 		return false;
 
-	code = is_64_bit_hypercall(vcpu) ? kvm_rcx_read(vcpu) :
-					   kvm_rax_read(vcpu);
+	code = is_64_bit_hypercall(vcpu) ? kvm_rcx_read_raw(vcpu) :
+					   kvm_eax_read(vcpu);
 
 	return (code == HVCALL_FLUSH_VIRTUAL_ADDRESS_SPACE ||
 		code == HVCALL_FLUSH_VIRTUAL_ADDRESS_LIST ||

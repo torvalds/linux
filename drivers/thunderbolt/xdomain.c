@@ -139,6 +139,7 @@ static int __tb_xdomain_response(struct tb_ctl *ctl, const void *response,
 				 size_t size, enum tb_cfg_pkg_type type)
 {
 	struct tb_cfg_request *req;
+	int ret;
 
 	req = tb_cfg_request_alloc();
 	if (!req)
@@ -150,7 +151,11 @@ static int __tb_xdomain_response(struct tb_ctl *ctl, const void *response,
 	req->request_size = size;
 	req->request_type = type;
 
-	return tb_cfg_request(ctl, req, response_ready, req);
+	ret = tb_cfg_request(ctl, req, response_ready, req);
+	if (ret)
+		tb_cfg_request_put(req);
+
+	return ret;
 }
 
 /**
@@ -540,29 +545,19 @@ static int tb_xdp_link_state_status_request(struct tb_ctl *ctl, u64 route,
 }
 
 static int tb_xdp_link_state_status_response(struct tb *tb, struct tb_ctl *ctl,
-					     struct tb_xdomain *xd, u8 sequence)
+					     struct tb_xdomain *xd, u8 sequence,
+					     u8 slw, u8 sls, u8 tls, u8 tlw)
 {
 	struct tb_xdp_link_state_status_response res;
-	struct tb_port *port = tb_xdomain_downstream_port(xd);
-	u32 val[2];
-	int ret;
 
 	memset(&res, 0, sizeof(res));
 	tb_xdp_fill_header(&res.hdr, xd->route, sequence,
 			   LINK_STATE_STATUS_RESPONSE, sizeof(res));
 
-	ret = tb_port_read(port, val, TB_CFG_PORT,
-			   port->cap_phy + LANE_ADP_CS_0, ARRAY_SIZE(val));
-	if (ret)
-		return ret;
-
-	res.slw = (val[0] & LANE_ADP_CS_0_SUPPORTED_WIDTH_MASK) >>
-			LANE_ADP_CS_0_SUPPORTED_WIDTH_SHIFT;
-	res.sls = (val[0] & LANE_ADP_CS_0_SUPPORTED_SPEED_MASK) >>
-			LANE_ADP_CS_0_SUPPORTED_SPEED_SHIFT;
-	res.tls = val[1] & LANE_ADP_CS_1_TARGET_SPEED_MASK;
-	res.tlw = (val[1] & LANE_ADP_CS_1_TARGET_WIDTH_MASK) >>
-			LANE_ADP_CS_1_TARGET_WIDTH_SHIFT;
+	res.slw = slw;
+	res.sls = sls;
+	res.tls = tls;
+	res.tlw = tlw;
 
 	return __tb_xdomain_response(ctl, &res, sizeof(res),
 				     TB_CFG_PKG_XDOMAIN_RESP);
@@ -650,6 +645,32 @@ void tb_unregister_protocol_handler(struct tb_protocol_handler *handler)
 }
 EXPORT_SYMBOL_GPL(tb_unregister_protocol_handler);
 
+static int update_service_properties(struct device *dev, void *data)
+{
+	struct tb_property_dir *root = data;
+	struct tb_service *svc;
+	struct tb_property *p;
+
+	svc = tb_to_service(dev);
+	if (!svc)
+		return 0;
+
+	guard(mutex)(&svc->lock);
+
+	/*
+	 * Replace the static service properties with the dynamic one.
+	 * Typically this is the same but service drivers can add their
+	 * own dynamic properties here too.
+	 */
+	p = tb_property_find(root, svc->key, TB_PROPERTY_TYPE_DIRECTORY);
+	if (!p)
+		return 0;
+	if (svc->local_properties)
+		return tb_property_merge_dir(p->value.dir,
+					     svc->local_properties, false);
+	return 0;
+}
+
 static void update_property_block(struct tb_xdomain *xd)
 {
 	mutex_lock(&xdomain_lock);
@@ -673,6 +694,9 @@ static void update_property_block(struct tb_xdomain *xd)
 		/* Fill in non-static properties now */
 		tb_property_add_text(dir, "deviceid", utsname()->nodename);
 		tb_property_add_immediate(dir, "maxhopid", xd->local_max_hopid);
+
+		/* Add service specific dynamic properties */
+		device_for_each_child(&xd->dev, dir, update_service_properties);
 
 		ret = tb_property_format_dir(dir, NULL, 0);
 		if (ret < 0) {
@@ -751,7 +775,7 @@ static void tb_xdp_handle_request(struct work_struct *work)
 
 	mutex_lock(&tb->lock);
 	if (tb->root_switch)
-		uuid = tb->root_switch->uuid;
+		uuid = kmemdup(tb->root_switch->uuid, sizeof(*uuid), GFP_KERNEL);
 	else
 		uuid = NULL;
 	mutex_unlock(&tb->lock);
@@ -785,9 +809,13 @@ static void tb_xdp_handle_request(struct work_struct *work)
 		 * the xdomain related to this connection as well in
 		 * case there is a change in services it offers.
 		 */
-		if (xd && device_is_registered(&xd->dev))
-			queue_delayed_work(tb->wq, &xd->state_work,
-					   msecs_to_jiffies(XDOMAIN_SHORT_TIMEOUT));
+		if (xd) {
+			mutex_lock(&xd->lock);
+			if (!xd->removing && device_is_registered(&xd->dev))
+				queue_delayed_work(tb->wq, &xd->state_work,
+						   msecs_to_jiffies(XDOMAIN_SHORT_TIMEOUT));
+			mutex_unlock(&xd->lock);
+		}
 		break;
 
 	case UUID_REQUEST_OLD:
@@ -800,8 +828,12 @@ static void tb_xdp_handle_request(struct work_struct *work)
 		 * received UUID request from the remote host.
 		 */
 		if (!ret && xd && xd->state == XDOMAIN_STATE_ERROR) {
-			dev_dbg(&xd->dev, "restarting handshake\n");
-			start_handshake(xd);
+			mutex_lock(&xd->lock);
+			if (!xd->removing) {
+				dev_dbg(&xd->dev, "restarting handshake\n");
+				start_handshake(xd);
+			}
+			mutex_unlock(&xd->lock);
 		}
 		break;
 
@@ -810,8 +842,47 @@ static void tb_xdp_handle_request(struct work_struct *work)
 		       route);
 
 		if (xd) {
-			ret = tb_xdp_link_state_status_response(tb, ctl, xd,
-								sequence);
+			struct tb_port *port = tb_xdomain_downstream_port(xd);
+			u8 slw, sls, tls, tlw;
+			u32 val[2];
+
+			/*
+			 * Read the adapter supported and target widths
+			 * and speeds.
+			 */
+			ret = tb_port_read(port, val, TB_CFG_PORT,
+					   port->cap_phy + LANE_ADP_CS_0,
+					   ARRAY_SIZE(val));
+			if (ret)
+				break;
+
+			slw = (val[0] & LANE_ADP_CS_0_SUPPORTED_WIDTH_MASK) >>
+				LANE_ADP_CS_0_SUPPORTED_WIDTH_SHIFT;
+			sls = (val[0] & LANE_ADP_CS_0_SUPPORTED_SPEED_MASK) >>
+				LANE_ADP_CS_0_SUPPORTED_SPEED_SHIFT;
+			tls = val[1] & LANE_ADP_CS_1_TARGET_SPEED_MASK;
+			tlw = (val[1] & LANE_ADP_CS_1_TARGET_WIDTH_MASK) >>
+				LANE_ADP_CS_1_TARGET_WIDTH_SHIFT;
+
+			/*
+			 * When we have higher UUID, we are supposed to
+			 * return ERROR_NOT_READY if the tlw is not yet
+			 * set according to the Inter-Domain spec for
+			 * USB4 v2.
+			 */
+			if (xd->state == XDOMAIN_STATE_BONDING_UUID_HIGH &&
+			    xd->target_link_width &&
+			    xd->target_link_width != tlw) {
+				tb_dbg(tb, "%llx: target link width not yet set %#x != %#x\n",
+				       route, tlw, xd->target_link_width);
+				tb_xdp_error_response(ctl, route, sequence,
+						      ERROR_NOT_READY);
+			} else {
+				tb_dbg(tb, "%llx: replying with target link width set to %#x\n",
+				       route, tlw);
+				ret = tb_xdp_link_state_status_response(tb, ctl,
+					xd, sequence, slw, sls, tls, tlw);
+			}
 		} else {
 			tb_xdp_error_response(ctl, route, sequence,
 					      ERROR_NOT_READY);
@@ -829,9 +900,13 @@ static void tb_xdp_handle_request(struct work_struct *work)
 
 			ret = tb_xdp_link_state_change_response(ctl, route,
 								sequence, 0);
-			xd->target_link_width = lsc->tlw;
-			queue_delayed_work(tb->wq, &xd->state_work,
-					   msecs_to_jiffies(XDOMAIN_SHORT_TIMEOUT));
+			mutex_lock(&xd->lock);
+			if (!xd->removing) {
+				xd->target_link_width = lsc->tlw;
+				queue_delayed_work(tb->wq, &xd->state_work,
+						   msecs_to_jiffies(XDOMAIN_SHORT_TIMEOUT));
+			}
+			mutex_unlock(&xd->lock);
 		} else {
 			tb_xdp_error_response(ctl, route, sequence,
 					      ERROR_NOT_READY);
@@ -853,6 +928,7 @@ static void tb_xdp_handle_request(struct work_struct *work)
 	}
 
 out:
+	kfree(uuid);
 	kfree(xw->pkg);
 	kfree(xw);
 
@@ -908,6 +984,44 @@ void tb_unregister_service_driver(struct tb_service_driver *drv)
 	driver_unregister(&drv->driver);
 }
 EXPORT_SYMBOL_GPL(tb_unregister_service_driver);
+
+static int update_xdomain(struct device *dev, void *data)
+{
+	struct tb_xdomain *xd;
+
+	xd = tb_to_xdomain(dev);
+	if (xd) {
+		mutex_lock(&xd->lock);
+		if (!xd->removing)
+			queue_delayed_work(xd->tb->wq,
+					   &xd->properties_changed_work,
+					   msecs_to_jiffies(50));
+		mutex_unlock(&xd->lock);
+	}
+
+	return 0;
+}
+
+/**
+ * tb_service_properties_changed() - Notify the other host about changes
+ * @svc: Service whose properties changed
+ *
+ * Notifies the other host that service properties may have been
+ * changed. This should be called whenever @svc->local_properties is
+ * updated.
+ */
+void tb_service_properties_changed(struct tb_service *svc)
+{
+	struct tb_xdomain *xd = tb_service_parent(svc);
+
+	if (xd->is_unplugged)
+		return;
+
+	scoped_guard(mutex, &xdomain_lock)
+		xdomain_property_block_gen++;
+	update_xdomain(&xd->dev, NULL);
+}
+EXPORT_SYMBOL_GPL(tb_service_properties_changed);
 
 static ssize_t key_show(struct device *dev, struct device_attribute *attr,
 			char *buf)
@@ -1008,10 +1122,11 @@ static void tb_service_release(struct device *dev)
 	struct tb_service *svc = container_of(dev, struct tb_service, dev);
 	struct tb_xdomain *xd = tb_service_parent(svc);
 
-	tb_service_debugfs_remove(svc);
+	tb_property_free_dir(svc->remote_properties);
 	ida_free(&xd->service_ids, svc->id);
 	kfree(svc->key);
 	kfree(svc);
+	tb_xdomain_put(xd);
 }
 
 const struct device_type tb_service_type = {
@@ -1021,6 +1136,24 @@ const struct device_type tb_service_type = {
 	.release = tb_service_release,
 };
 EXPORT_SYMBOL_GPL(tb_service_type);
+
+static void update_service(struct tb_service *svc, struct tb_property *property)
+{
+	struct tb_property_dir *dir = property->value.dir;
+
+	guard(mutex)(&svc->lock);
+	tb_property_free_dir(svc->remote_properties);
+	svc->remote_properties = tb_property_copy_dir(dir);
+	kobject_uevent(&svc->dev.kobj, KOBJ_CHANGE);
+}
+
+static void __unregister_service(struct device *dev)
+{
+	struct tb_service *svc = tb_to_service(dev);
+
+	tb_service_debugfs_remove(svc);
+	device_unregister(&svc->dev);
+}
 
 static int remove_missing_service(struct device *dev, void *data)
 {
@@ -1033,7 +1166,7 @@ static int remove_missing_service(struct device *dev, void *data)
 
 	if (!tb_property_find(xd->remote_properties, svc->key,
 			      TB_PROPERTY_TYPE_DIRECTORY))
-		device_unregister(dev);
+		__unregister_service(dev);
 
 	return 0;
 }
@@ -1074,6 +1207,12 @@ static int populate_service(struct tb_service *svc,
 	if (!svc->key)
 		return -ENOMEM;
 
+	svc->remote_properties = tb_property_copy_dir(dir);
+	if (!svc->remote_properties) {
+		kfree(svc->key);
+		return -ENOMEM;
+	}
+
 	return 0;
 }
 
@@ -1098,6 +1237,7 @@ static void enumerate_services(struct tb_xdomain *xd)
 		/* If the service exists already we are fine */
 		dev = device_find_child(&xd->dev, p, find_service);
 		if (dev) {
+			update_service(tb_to_service(dev), p);
 			put_device(dev);
 			continue;
 		}
@@ -1120,12 +1260,14 @@ static void enumerate_services(struct tb_xdomain *xd)
 		svc->id = id;
 		svc->dev.bus = &tb_bus_type;
 		svc->dev.type = &tb_service_type;
-		svc->dev.parent = &xd->dev;
+		svc->dev.parent = get_device(&xd->dev);
+		mutex_init(&svc->lock);
 		dev_set_name(&svc->dev, "%s.%d", dev_name(&xd->dev), svc->id);
 
 		tb_service_debugfs_init(svc);
 
 		if (device_register(&svc->dev)) {
+			tb_service_debugfs_remove(svc);
 			put_device(&svc->dev);
 			break;
 		}
@@ -1939,7 +2081,13 @@ static void tb_xdomain_link_exit(struct tb_xdomain *xd)
 	if (tb_port_get_link_generation(down) >= 4) {
 		down->bonded = false;
 		down->dual_link_port->bonded = false;
-	} else if (xd->link_width > TB_LINK_WIDTH_SINGLE) {
+		return;
+	}
+
+	if (!xd->bonding_possible)
+		return;
+
+	if (xd->link_width > TB_LINK_WIDTH_SINGLE) {
 		/*
 		 * Just return port structures back to way they were and
 		 * update credits. No need to update userspace because
@@ -1996,6 +2144,7 @@ struct tb_xdomain *tb_xdomain_alloc(struct tb *tb, struct device *parent,
 	INIT_DELAYED_WORK(&xd->state_work, tb_xdomain_state_work);
 	INIT_DELAYED_WORK(&xd->properties_changed_work,
 			  tb_xdomain_properties_changed);
+	atomic_set(&xd->ntunnels, 0);
 
 	xd->local_uuid = kmemdup(local_uuid, sizeof(uuid_t), GFP_KERNEL);
 	if (!xd->local_uuid)
@@ -2058,43 +2207,61 @@ void tb_xdomain_add(struct tb_xdomain *xd)
 
 static int unregister_service(struct device *dev, void *data)
 {
-	device_unregister(dev);
+	__unregister_service(dev);
 	return 0;
 }
 
 /**
- * tb_xdomain_remove() - Remove XDomain from the bus
+ * tb_xdomain_remove() - Remove XDomain
  * @xd: XDomain to remove
  *
- * This will stop all ongoing configuration work and remove the XDomain
- * along with any services from the bus. When the last reference to @xd
- * is released the object will be released as well.
+ * This will stop all ongoing configuration work. XDomain is not removed
+ * from the bus if it was added. That needs to be done separately by
+ * calling tb_xdomain_unregister().
+ *
+ * Called with @tb->lock held.
  */
 void tb_xdomain_remove(struct tb_xdomain *xd)
 {
 	tb_xdomain_debugfs_remove(xd);
 
+	mutex_lock(&xd->lock);
+	xd->removing = true;
+	mutex_unlock(&xd->lock);
+
 	stop_handshake(xd);
+	tb_xdomain_link_exit(xd);
+
+	if (!device_is_registered(&xd->dev)) {
+		/*
+		 * Undo runtime PM here explicitly because it is
+		 * possible that the XDomain was never added to the bus
+		 * and thus device_del() is not called for it
+		 * (device_del() would handle this otherwise).
+		 */
+		pm_runtime_disable(&xd->dev);
+		pm_runtime_put_noidle(&xd->dev);
+		pm_runtime_set_suspended(&xd->dev);
+		put_device(&xd->dev);
+	}
+}
+
+/**
+ * tb_xdomain_unregister() - Unregister XDomain
+ * @xd: XDomain to unregister
+ *
+ * This will unregister the XDomain along with any services from the
+ * bus. When the last reference to @xd is released the object will be
+ * released as well.
+ */
+void tb_xdomain_unregister(struct tb_xdomain *xd)
+{
+	lockdep_assert_not_held(&xd->tb->lock);
 
 	device_for_each_child_reverse(&xd->dev, xd, unregister_service);
 
-	tb_xdomain_link_exit(xd);
-
-	/*
-	 * Undo runtime PM here explicitly because it is possible that
-	 * the XDomain was never added to the bus and thus device_del()
-	 * is not called for it (device_del() would handle this otherwise).
-	 */
-	pm_runtime_disable(&xd->dev);
-	pm_runtime_put_noidle(&xd->dev);
-	pm_runtime_set_suspended(&xd->dev);
-
-	if (!device_is_registered(&xd->dev)) {
-		put_device(&xd->dev);
-	} else {
-		dev_info(&xd->dev, "host disconnected\n");
-		device_unregister(&xd->dev);
-	}
+	dev_info(&xd->dev, "host disconnected\n");
+	device_unregister(&xd->dev);
 }
 
 /**
@@ -2273,9 +2440,15 @@ int tb_xdomain_enable_paths(struct tb_xdomain *xd, int transmit_path,
 			    int transmit_ring, int receive_path,
 			    int receive_ring)
 {
-	return tb_domain_approve_xdomain_paths(xd->tb, xd, transmit_path,
-					       transmit_ring, receive_path,
-					       receive_ring);
+	int ret;
+
+	ret = tb_domain_approve_xdomain_paths(xd->tb, xd, transmit_path,
+					      transmit_ring, receive_path,
+					      receive_ring);
+	if (ret)
+		return ret;
+	atomic_inc(&xd->ntunnels);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(tb_xdomain_enable_paths);
 
@@ -2298,9 +2471,15 @@ int tb_xdomain_disable_paths(struct tb_xdomain *xd, int transmit_path,
 			     int transmit_ring, int receive_path,
 			     int receive_ring)
 {
-	return tb_domain_disconnect_xdomain_paths(xd->tb, xd, transmit_path,
-						  transmit_ring, receive_path,
-						  receive_ring);
+	int ret;
+
+	ret = tb_domain_disconnect_xdomain_paths(xd->tb, xd, transmit_path,
+						 transmit_ring, receive_path,
+						 receive_ring);
+	if (ret)
+		return ret;
+	atomic_dec(&xd->ntunnels);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(tb_xdomain_disable_paths);
 
@@ -2315,6 +2494,9 @@ static struct tb_xdomain *switch_find_xdomain(struct tb_switch *sw,
 	const struct tb_xdomain_lookup *lookup)
 {
 	struct tb_port *port;
+
+	if (!sw)
+		return NULL;
 
 	tb_switch_for_each_port(sw, port) {
 		struct tb_xdomain *xd;
@@ -2476,19 +2658,6 @@ bool tb_xdomain_handle_request(struct tb *tb, enum tb_cfg_pkg_type type,
 	mutex_unlock(&xdomain_lock);
 
 	return ret > 0;
-}
-
-static int update_xdomain(struct device *dev, void *data)
-{
-	struct tb_xdomain *xd;
-
-	xd = tb_to_xdomain(dev);
-	if (xd) {
-		queue_delayed_work(xd->tb->wq, &xd->properties_changed_work,
-				   msecs_to_jiffies(50));
-	}
-
-	return 0;
 }
 
 static void update_all_xdomains(void)

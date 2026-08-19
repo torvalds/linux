@@ -56,6 +56,7 @@ SECTIONS
 	.dynamic	: { *(.dynamic) }		:text :dynamic
 
 	.rodata		: { *(.rodata*) }		:text
+	.got		: { *(.got) }
 
 	_end = .;
 	PROVIDE(end = .);

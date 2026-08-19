@@ -20,44 +20,44 @@
 
 	.section .irqentry.text, "ax"
 
-.macro new_vmalloc_check
+.macro new_valid_map_cpus_check
 	REG_S 	a0, TASK_TI_A0(tp)
 	csrr 	a0, CSR_CAUSE
 	/* Exclude IRQs */
-	blt  	a0, zero, .Lnew_vmalloc_restore_context_a0
+	blt  	a0, zero, .Lnew_valid_map_cpus_restore_context_a0
 
 	REG_S 	a1, TASK_TI_A1(tp)
-	/* Only check new_vmalloc if we are in page/protection fault */
+	/* Only check new_valid_map_cpus if we are in page/protection fault */
 	li   	a1, EXC_LOAD_PAGE_FAULT
-	beq  	a0, a1, .Lnew_vmalloc_kernel_address
+	beq  	a0, a1, .Lnew_valid_map_cpus_kernel_address
 	li   	a1, EXC_STORE_PAGE_FAULT
-	beq  	a0, a1, .Lnew_vmalloc_kernel_address
+	beq  	a0, a1, .Lnew_valid_map_cpus_kernel_address
 	li   	a1, EXC_INST_PAGE_FAULT
-	bne  	a0, a1, .Lnew_vmalloc_restore_context_a1
+	bne  	a0, a1, .Lnew_valid_map_cpus_restore_context_a1
 
-.Lnew_vmalloc_kernel_address:
+.Lnew_valid_map_cpus_kernel_address:
 	/* Is it a kernel address? */
 	csrr 	a0, CSR_TVAL
-	bge 	a0, zero, .Lnew_vmalloc_restore_context_a1
+	bge 	a0, zero, .Lnew_valid_map_cpus_restore_context_a1
 
 	/* Check if a new vmalloc mapping appeared that could explain the trap */
 	REG_S	a2, TASK_TI_A2(tp)
 	/*
 	 * Computes:
-	 * a0 = &new_vmalloc[BIT_WORD(cpu)]
+	 * a0 = &new_valid_map_cpus[BIT_WORD(cpu)]
 	 * a1 = BIT_MASK(cpu)
 	 */
 	lw	a2, TASK_TI_CPU(tp)
 	/*
-	 * Compute the new_vmalloc element position:
+	 * Compute the new_valid_map_cpus element position:
 	 * (cpu / 64) * 8 = (cpu >> 6) << 3
 	 */
 	srli	a1, a2, 6
 	slli	a1, a1, 3
-	la	a0, new_vmalloc
+	la	a0, new_valid_map_cpus
 	add	a0, a0, a1
 	/*
-	 * Compute the bit position in the new_vmalloc element:
+	 * Compute the bit position in the new_valid_map_cpus element:
 	 * bit_pos = cpu % 64 = cpu - (cpu / 64) * 64 = cpu - (cpu >> 6) << 6
 	 * 	   = cpu - ((cpu >> 6) << 3) << 3
 	 */
@@ -67,16 +67,19 @@
 	li	a2, 1
 	sll	a1, a2, a1
 
-	/* Check the value of new_vmalloc for this cpu */
+	/* Check the value of new_valid_map_cpus for this cpu */
 	REG_L	a2, 0(a0)
 	and	a2, a2, a1
-	beq	a2, zero, .Lnew_vmalloc_restore_context
+	beq	a2, zero, .Lnew_valid_map_cpus_restore_context
 
-	/* Atomically reset the current cpu bit in new_vmalloc */
+	/* Atomically reset the current cpu bit in new_valid_map_cpus */
 	amoxor.d	a0, a1, (a0)
 
-	/* Only emit a sfence.vma if the uarch caches invalid entries */
-	ALTERNATIVE("sfence.vma", "nop", 0, RISCV_ISA_EXT_SVVPTC, 1)
+	/*
+	 * A sfence.vma is required here. Even if we had Svvptc, there's no
+	 * guarantee that after returning we wouldn't just fault again.
+	 */
+	sfence.vma
 
 	REG_L	a0, TASK_TI_A0(tp)
 	REG_L	a1, TASK_TI_A1(tp)
@@ -84,11 +87,11 @@
 	csrw	CSR_SCRATCH, x0
 	sret
 
-.Lnew_vmalloc_restore_context:
+.Lnew_valid_map_cpus_restore_context:
 	REG_L 	a2, TASK_TI_A2(tp)
-.Lnew_vmalloc_restore_context_a1:
+.Lnew_valid_map_cpus_restore_context_a1:
 	REG_L 	a1, TASK_TI_A1(tp)
-.Lnew_vmalloc_restore_context_a0:
+.Lnew_valid_map_cpus_restore_context_a0:
 	REG_L	a0, TASK_TI_A0(tp)
 .endm
 
@@ -136,15 +139,17 @@ SYM_CODE_START(handle_exception)
 
 #ifdef CONFIG_64BIT
 	/*
-	 * The RISC-V kernel does not eagerly emit a sfence.vma after each
-	 * new vmalloc mapping, which may result in exceptions:
+	 * The RISC-V kernel does not flush TLBs on all CPUS after each new
+	 * vmalloc mapping or kfence_unprotect(), which may result in
+	 * exceptions:
+	 *
 	 * - if the uarch caches invalid entries, the new mapping would not be
 	 *   observed by the page table walker and an invalidation is needed.
 	 * - if the uarch does not cache invalid entries, a reordered access
 	 *   could "miss" the new mapping and traps: in that case, we only need
 	 *   to retry the access, no sfence.vma is required.
 	 */
-	new_vmalloc_check
+	new_valid_map_cpus_check
 #endif
 
 	REG_S sp, TASK_TI_KERNEL_SP(tp)
@@ -381,8 +386,8 @@ SYM_CODE_END(ret_from_fork_user_asm)
 SYM_FUNC_START(call_on_irq_stack)
 	/* Create a frame record to save ra and s0 (fp) */
 	addi	sp, sp, -STACKFRAME_SIZE_ON_STACK
-	REG_S	ra, STACKFRAME_RA(sp)
-	REG_S	s0, STACKFRAME_FP(sp)
+	REG_S	ra, (STACKFRAME_SIZE_ON_STACK + STACKFRAME_RA)(sp)
+	REG_S	s0, (STACKFRAME_SIZE_ON_STACK + STACKFRAME_FP)(sp)
 	addi	s0, sp, STACKFRAME_SIZE_ON_STACK
 
 	/* Switch to the per-CPU shadow call stack */
@@ -400,8 +405,8 @@ SYM_FUNC_START(call_on_irq_stack)
 
 	/* Switch back to the thread stack and restore ra and s0 */
 	addi	sp, s0, -STACKFRAME_SIZE_ON_STACK
-	REG_L	ra, STACKFRAME_RA(sp)
-	REG_L	s0, STACKFRAME_FP(sp)
+	REG_L	ra, (STACKFRAME_SIZE_ON_STACK + STACKFRAME_RA)(sp)
+	REG_L	s0, (STACKFRAME_SIZE_ON_STACK + STACKFRAME_FP)(sp)
 	addi	sp, sp, STACKFRAME_SIZE_ON_STACK
 
 	ret

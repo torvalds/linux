@@ -14,6 +14,7 @@
 #include <linux/timer.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
+#include <linux/device-id/ieee1394.h>
 
 #include <linux/atomic.h>
 #include <asm/byteorder.h>
@@ -270,8 +271,6 @@ static inline void fw_unit_put(struct fw_unit *unit)
 }
 
 #define fw_parent_device(unit)	fw_device(unit->device.parent)
-
-struct ieee1394_device_id;
 
 struct fw_driver {
 	struct device_driver driver;

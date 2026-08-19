@@ -1475,7 +1475,7 @@ static int ad7606_probe_channels(struct iio_dev *indio_dev)
 	}
 
 	if (slow_bus)
-		channels[i] = (struct iio_chan_spec)IIO_CHAN_SOFT_TIMESTAMP(i);
+		channels[i] = IIO_CHAN_SOFT_TIMESTAMP(i);
 
 	indio_dev->channels = channels;
 

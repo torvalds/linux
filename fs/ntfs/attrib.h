@@ -71,6 +71,10 @@ int ntfs_attr_lookup(const __le32 type, const __le16 *name,
 		const u32 name_len, const u32 ic,
 		const s64 lowest_vcn, const u8 *val, const u32 val_len,
 		struct ntfs_attr_search_ctx *ctx);
+bool ntfs_attr_list_entry_is_valid(const struct attr_list_entry *ale,
+				   const u8 *al_end);
+bool ntfs_attr_list_is_valid(const u8 *al_start, s64 size);
+
 int load_attribute_list(struct ntfs_inode *base_ni,
 			       u8 *al_start, const s64 size);
 

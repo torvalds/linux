@@ -120,13 +120,13 @@ static void error_inject_removeall(struct gendisk *disk)
 	struct blk_error_inject *inj;
 
 	mutex_lock(&disk->error_injection_lock);
-	clear_bit(GD_ERROR_INJECT, &disk->state);
+	if (test_and_clear_bit(GD_ERROR_INJECT, &disk->state))
+		static_branch_dec(&blk_error_injection_enabled);
 	while ((inj = list_first_entry_or_null(&disk->error_injection_list,
 			struct blk_error_inject, entry))) {
 		list_del_rcu(&inj->entry);
 		kfree_rcu_mightsleep(inj);
 	}
-	static_branch_dec(&blk_error_injection_enabled);
 	mutex_unlock(&disk->error_injection_lock);
 }
 

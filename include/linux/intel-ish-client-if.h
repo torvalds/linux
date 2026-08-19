@@ -9,7 +9,7 @@
 #define _INTEL_ISH_CLIENT_IF_H_
 
 #include <linux/device.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/ishtp.h>
 
 struct ishtp_cl_device;
 struct ishtp_device;

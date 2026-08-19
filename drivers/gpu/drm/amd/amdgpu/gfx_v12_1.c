@@ -248,7 +248,7 @@ static void gfx_v12_1_wait_reg_mem(struct amdgpu_ring *ring, int eng_sel,
 			   PACKET3_WAIT_REG_MEM__FUNCTION(3)));  /* equal */
 
 	if (mem_space)
-		BUG_ON(addr0 & 0x3); /* Dword align */
+		WARN_ON(addr0 & 0x3); /* Dword align */
 	amdgpu_ring_write(ring, addr0);
 	amdgpu_ring_write(ring, addr1);
 	amdgpu_ring_write(ring, ref);
@@ -2547,10 +2547,19 @@ static int gfx_v12_1_xcc_cp_resume(struct amdgpu_device *adev, uint16_t xcc_mask
 
 		gfx_v12_1_xcc_cp_compute_enable(adev, true, xcc_id);
 
-		if (adev->enable_mes_kiq && adev->mes.kiq_hw_init)
+		if (adev->enable_mes_kiq && adev->mes.kiq_hw_init) {
 			r = amdgpu_mes_kiq_hw_init(adev, xcc_id);
-		else
+			/*
+			 * With MES, GFX KIQ ring is owned by the MES and is never
+			 * initialized/used directly by the driver, so it must
+			 * not be left flagged as ready. mes_v12_0_hw_init() clears
+			 * but clear here if MES init fails
+			 */
+			if (r)
+				adev->gfx.kiq[xcc_id].ring.sched.ready = false;
+		} else {
 			r = gfx_v12_1_xcc_kiq_resume(adev, xcc_id);
+		}
 		if (r)
 			return r;
 
@@ -3433,7 +3442,7 @@ static void gfx_v12_1_ring_emit_ib_compute(struct amdgpu_ring *ring,
 	}
 
 	amdgpu_ring_write(ring, PACKET3(PACKET3_INDIRECT_BUFFER, 2));
-	BUG_ON(ib->gpu_addr & 0x3); /* Dword align */
+	WARN_ON(ib->gpu_addr & 0x3); /* Dword align */
 	amdgpu_ring_write(ring,
 #ifdef __BIG_ENDIAN
 				(2 << 0) |
@@ -3466,9 +3475,9 @@ static void gfx_v12_1_ring_emit_fence(struct amdgpu_ring *ring, u64 addr,
 	 * aligned if only send 32bit data low (discard data high)
 	 */
 	if (write64bit)
-		BUG_ON(addr & 0x7);
+		WARN_ON(addr & 0x7);
 	else
-		BUG_ON(addr & 0x3);
+		WARN_ON(addr & 0x3);
 	amdgpu_ring_write(ring, lower_32_bits(addr));
 	amdgpu_ring_write(ring, upper_32_bits(addr));
 	amdgpu_ring_write(ring, lower_32_bits(seq));
@@ -3514,9 +3523,6 @@ static void gfx_v12_1_ring_emit_fence_kiq(struct amdgpu_ring *ring, u64 addr,
 					  u64 seq, unsigned int flags)
 {
 	struct amdgpu_device *adev = ring->adev;
-
-	/* we only allocate 32bit for each seq wb address */
-	BUG_ON(flags & AMDGPU_FENCE_FLAG_64BIT);
 
 	/* write fence seq to the "addr" */
 	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));

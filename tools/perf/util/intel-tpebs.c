@@ -37,6 +37,7 @@ static pthread_t tpebs_reader_thread;
 static struct child_process tpebs_cmd;
 static int control_fd[2], ack_fd[2];
 static struct mutex tpebs_mtx;
+static bool tpebs_stopping;
 
 struct tpebs_retire_lat {
 	struct list_head nd;
@@ -52,16 +53,18 @@ struct tpebs_retire_lat {
 	bool started;
 };
 
-static void tpebs_mtx_init(void)
+static void tpebs_init(void)
 {
 	mutex_init(&tpebs_mtx);
+	control_fd[0] = control_fd[1] = -1;
+	ack_fd[0] = ack_fd[1] = -1;
 }
 
 static struct mutex *tpebs_mtx_get(void)
 {
-	static pthread_once_t tpebs_mtx_once = PTHREAD_ONCE_INIT;
+	static pthread_once_t tpebs_once = PTHREAD_ONCE_INIT;
 
-	pthread_once(&tpebs_mtx_once, tpebs_mtx_init);
+	pthread_once(&tpebs_once, tpebs_init);
 	return &tpebs_mtx;
 }
 
@@ -111,6 +114,7 @@ static int evsel__tpebs_start_perf_record(struct evsel *evsel)
 	/* Note, no workload given so system wide is implied. */
 
 	assert(tpebs_cmd.pid == 0);
+	memset(&tpebs_cmd, 0, sizeof(tpebs_cmd));
 	tpebs_cmd.argv = record_argv;
 	tpebs_cmd.out = -1;
 	ret = start_command(&tpebs_cmd);
@@ -185,7 +189,6 @@ static bool should_ignore_sample(const struct perf_sample *sample, const struct 
 static int process_sample_event(const struct perf_tool *tool __maybe_unused,
 				union perf_event *event __maybe_unused,
 				struct perf_sample *sample,
-				struct evsel *evsel,
 				struct machine *machine __maybe_unused)
 {
 	struct tpebs_retire_lat *t;
@@ -196,7 +199,7 @@ static int process_sample_event(const struct perf_tool *tool __maybe_unused,
 		mutex_unlock(tpebs_mtx_get());
 		return 0;
 	}
-	t = tpebs_retire_lat__find(evsel);
+	t = tpebs_retire_lat__find(sample->evsel);
 	if (!t) {
 		mutex_unlock(tpebs_mtx_get());
 		return -EINVAL;
@@ -321,20 +324,43 @@ static int tpebs_stop(void) EXCLUSIVE_LOCKS_REQUIRED(tpebs_mtx_get())
 {
 	int ret = 0;
 
+	if (tpebs_stopping)
+		return 0;
+
 	/* Like tpebs_start, we should only run tpebs_end once. */
 	if (tpebs_cmd.pid != 0) {
+		pid_t actual_pid = tpebs_cmd.pid;
+
+		tpebs_stopping = true;
 		tpebs_send_record_cmd(EVLIST_CTL_CMD_STOP_TAG);
 		tpebs_cmd.pid = 0;
 		mutex_unlock(tpebs_mtx_get());
 		pthread_join(tpebs_reader_thread, NULL);
 		mutex_lock(tpebs_mtx_get());
-		close(control_fd[0]);
-		close(control_fd[1]);
-		close(ack_fd[0]);
-		close(ack_fd[1]);
-		close(tpebs_cmd.out);
+		if (control_fd[0] >= 0) {
+			close(control_fd[0]);
+			control_fd[0] = -1;
+		}
+		if (control_fd[1] >= 0) {
+			close(control_fd[1]);
+			control_fd[1] = -1;
+		}
+		if (ack_fd[0] >= 0) {
+			close(ack_fd[0]);
+			ack_fd[0] = -1;
+		}
+		if (ack_fd[1] >= 0) {
+			close(ack_fd[1]);
+			ack_fd[1] = -1;
+		}
+		if (tpebs_cmd.out >= 0) {
+			close(tpebs_cmd.out);
+			tpebs_cmd.out = -1;
+		}
+		tpebs_cmd.pid = actual_pid;
 		ret = finish_command(&tpebs_cmd);
 		tpebs_cmd.pid = 0;
+		tpebs_stopping = false;
 		if (ret == -ERR_RUN_COMMAND_WAITPID_SIGNAL)
 			ret = 0;
 	}
@@ -487,30 +513,42 @@ int evsel__tpebs_open(struct evsel *evsel)
 {
 	int ret;
 	bool tpebs_empty;
+	bool started_process = false;
 
 	/* We should only run tpebs_start when tpebs_recording is enabled. */
 	if (!tpebs_recording)
 		return 0;
+
+	mutex_lock(tpebs_mtx_get());
+	if (tpebs_stopping) {
+		mutex_unlock(tpebs_mtx_get());
+		return -EBUSY;
+	}
 	/* Only start the events once. */
 	if (tpebs_cmd.pid != 0) {
 		struct tpebs_retire_lat *t;
 		bool valid;
 
-		mutex_lock(tpebs_mtx_get());
 		t = tpebs_retire_lat__find(evsel);
 		valid = t && t->started;
 		mutex_unlock(tpebs_mtx_get());
 		/* May fail as the event wasn't started. */
 		return valid ? 0 : -EBUSY;
 	}
+	mutex_unlock(tpebs_mtx_get());
 
 	ret = evsel__tpebs_prepare(evsel);
 	if (ret)
 		return ret;
 
 	mutex_lock(tpebs_mtx_get());
+	if (tpebs_stopping || tpebs_cmd.pid != 0) {
+		ret = -EBUSY;
+		goto out;
+	}
 	tpebs_empty = list_empty(&tpebs_results);
 	if (!tpebs_empty) {
+		started_process = true;
 		/*Create control and ack fd for --control*/
 		if (pipe(control_fd) < 0) {
 			pr_err("tpebs: Failed to create control fifo");
@@ -530,7 +568,6 @@ int evsel__tpebs_open(struct evsel *evsel)
 		if (pthread_create(&tpebs_reader_thread, /*attr=*/NULL, __sample_reader,
 				   /*arg=*/NULL)) {
 			kill(tpebs_cmd.pid, SIGTERM);
-			close(tpebs_cmd.out);
 			pr_err("Could not create thread to process sample data.\n");
 			ret = -1;
 			goto out;
@@ -541,8 +578,38 @@ out:
 	if (ret) {
 		struct tpebs_retire_lat *t = tpebs_retire_lat__find(evsel);
 
-		list_del_init(&t->nd);
-		tpebs_retire_lat__delete(t);
+		if (t) {
+			list_del_init(&t->nd);
+			tpebs_retire_lat__delete(t);
+		}
+
+		if (started_process) {
+			if (tpebs_cmd.pid > 0) {
+				kill(tpebs_cmd.pid, SIGTERM);
+				finish_command(&tpebs_cmd);
+				tpebs_cmd.pid = 0;
+			}
+			if (tpebs_cmd.out >= 0) {
+				close(tpebs_cmd.out);
+				tpebs_cmd.out = -1;
+			}
+			if (control_fd[0] >= 0) {
+				close(control_fd[0]);
+				control_fd[0] = -1;
+			}
+			if (control_fd[1] >= 0) {
+				close(control_fd[1]);
+				control_fd[1] = -1;
+			}
+			if (ack_fd[0] >= 0) {
+				close(ack_fd[0]);
+				ack_fd[0] = -1;
+			}
+			if (ack_fd[1] >= 0) {
+				close(ack_fd[1]);
+				ack_fd[1] = -1;
+			}
+		}
 	}
 	mutex_unlock(tpebs_mtx_get());
 	return ret;

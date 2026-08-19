@@ -102,17 +102,10 @@ int xhci_handshake(void __iomem *ptr, u32 mask, u32 done, u64 timeout_us)
  */
 void xhci_quiesce(struct xhci_hcd *xhci)
 {
-	u32 halted;
 	u32 cmd;
-	u32 mask;
-
-	mask = ~(XHCI_IRQS);
-	halted = readl(&xhci->op_regs->status) & STS_HALT;
-	if (!halted)
-		mask &= ~CMD_RUN;
 
 	cmd = readl(&xhci->op_regs->command);
-	cmd &= mask;
+	cmd &= ~(CMD_RUN | XHCI_IRQS);
 	writel(cmd, &xhci->op_regs->command);
 }
 
@@ -558,7 +551,7 @@ static void xhci_init(struct usb_hcd *hcd)
 	xhci_set_cmd_ring_deq(xhci);
 
 	/* Set Device Context Base Address Array pointer */
-	xhci_write_64(xhci, xhci->dcbaa->dma, &xhci->op_regs->dcbaa_ptr);
+	xhci_write_64(xhci, xhci->dcbaa.dma, &xhci->op_regs->dcbaa_ptr);
 
 	/* Set Doorbell array pointer */
 	xhci_set_doorbell_ptr(xhci);
@@ -998,6 +991,10 @@ int xhci_suspend(struct xhci_hcd *xhci, bool do_wakeup)
 		clear_bit(HCD_FLAG_HW_ACCESSIBLE, &xhci->shared_hcd->flags);
 	/* step 1: stop endpoint */
 	/* skipped assuming that port suspend has done */
+
+	/* Check if command ring is empty */
+	if (!list_empty(&xhci->cmd_list))
+		xhci_warn(xhci, "Suspending and stopping xHC with pending command!\n");
 
 	/* step 2: clear Run/Stop bit */
 	command = readl(&xhci->op_regs->command);
@@ -4460,9 +4457,9 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 	xhci_dbg_trace(xhci, trace_xhci_dbg_address,
 		"Slot ID %d dcbaa entry @%p = %#016llx",
 		udev->slot_id,
-		&xhci->dcbaa->dev_context_ptrs[udev->slot_id],
+		&xhci->dcbaa.ctx_array[udev->slot_id],
 		(unsigned long long)
-		le64_to_cpu(xhci->dcbaa->dev_context_ptrs[udev->slot_id]));
+		le64_to_cpu(xhci->dcbaa.ctx_array[udev->slot_id]));
 	xhci_dbg_trace(xhci, trace_xhci_dbg_address,
 			"Output Context DMA address = %#08llx",
 			(unsigned long long)virt_dev->out_ctx->dma);
@@ -5460,7 +5457,7 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 	if (xhci->hci_version > 0x100)
 		xhci->hcc_params2 = readl(&xhci->cap_regs->hcc_params2);
 
-	xhci->max_slots = HCS_MAX_SLOTS(hcs_params1);
+	xhci->max_slots = min(HCS_MAX_SLOTS(hcs_params1), MAX_HC_SLOTS);
 	xhci->max_ports = min(HCS_MAX_PORTS(hcs_params1), MAX_HC_PORTS);
 	/* xhci-plat or xhci-pci might have set max_interrupters already */
 	if (!xhci->max_interrupters)
@@ -5532,8 +5529,6 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 	INIT_DELAYED_WORK(&xhci->cmd_timer, xhci_handle_command_timeout);
 	init_completion(&xhci->cmd_ring_stop_completion);
 	xhci_hcd_page_size(xhci);
-
-	memset(xhci->devs, 0, MAX_HC_SLOTS * sizeof(*xhci->devs));
 
 	/* Allocate xHCI data structures */
 	retval = xhci_mem_init(xhci, GFP_KERNEL);

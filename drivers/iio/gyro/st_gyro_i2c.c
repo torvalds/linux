@@ -9,7 +9,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
 
@@ -93,15 +92,15 @@ static int st_gyro_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id st_gyro_id_table[] = {
-	{ L3G4200D_GYRO_DEV_NAME },
-	{ LSM330D_GYRO_DEV_NAME },
-	{ LSM330DL_GYRO_DEV_NAME },
-	{ LSM330DLC_GYRO_DEV_NAME },
-	{ L3GD20_GYRO_DEV_NAME },
-	{ L3GD20H_GYRO_DEV_NAME },
-	{ L3G4IS_GYRO_DEV_NAME },
-	{ LSM330_GYRO_DEV_NAME },
-	{ LSM9DS0_GYRO_DEV_NAME },
+	{ .name = L3G4200D_GYRO_DEV_NAME },
+	{ .name = LSM330D_GYRO_DEV_NAME },
+	{ .name = LSM330DL_GYRO_DEV_NAME },
+	{ .name = LSM330DLC_GYRO_DEV_NAME },
+	{ .name = L3GD20_GYRO_DEV_NAME },
+	{ .name = L3GD20H_GYRO_DEV_NAME },
+	{ .name = L3G4IS_GYRO_DEV_NAME },
+	{ .name = LSM330_GYRO_DEV_NAME },
+	{ .name = LSM9DS0_GYRO_DEV_NAME },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, st_gyro_id_table);

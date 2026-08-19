@@ -11,6 +11,7 @@
 #ifndef SELFTEST_KVM_FACILITY_H
 #define SELFTEST_KVM_FACILITY_H
 
+#include <linux/atomic.h>
 #include <linux/bitops.h>
 
 /* alt_stfle_fac_list[16] + stfle_fac_list[16] */
@@ -18,6 +19,11 @@
 
 extern u64 stfl_doublewords[NB_STFL_DOUBLEWORDS];
 extern bool stfle_flag;
+
+static inline bool clear_bit_inv(unsigned long nr, unsigned long *ptr)
+{
+	return clear_bit(nr ^ (BITS_PER_LONG - 1), ptr);
+}
 
 static inline bool test_bit_inv(unsigned long nr, const unsigned long *ptr)
 {

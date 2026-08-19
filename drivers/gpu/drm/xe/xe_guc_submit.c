@@ -1163,7 +1163,7 @@ static void submit_exec_queue(struct xe_exec_queue *q, struct xe_sched_job *job)
 	if (exec_queue_suspended(q))
 		return;
 
-	if (!exec_queue_enabled(q) && !exec_queue_suspended(q)) {
+	if (!exec_queue_enabled(q)) {
 		action[len++] = XE_GUC_ACTION_SCHED_CONTEXT_MODE_SET;
 		action[len++] = q->guc->id;
 		action[len++] = GUC_CONTEXT_ENABLE;
@@ -1493,7 +1493,7 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 	struct xe_device *xe = guc_to_xe(guc);
 	int err = -ETIME;
 	pid_t pid = -1;
-	bool wedged = false, skip_timeout_check;
+	bool wedged = false, wedge_device = false, skip_timeout_check;
 
 	xe_gt_assert(guc_to_gt(guc), !exec_queue_destroyed(q));
 
@@ -1638,7 +1638,7 @@ trigger_reset:
 			}
 			if (q->flags & EXEC_QUEUE_FLAG_KERNEL) {
 				xe_gt_WARN(q->gt, true, "Kernel-submitted job timed out\n");
-				xe_device_declare_wedged(gt_to_xe(q->gt));
+				wedge_device = true;
 			}
 		} else if (q->flags & EXEC_QUEUE_FLAG_VM && !exec_queue_killed(q)) {
 			xe_gt_WARN(q->gt, true, "VM job timed out on non-killed execqueue\n");
@@ -1657,6 +1657,9 @@ trigger_reset:
 		xe_sched_submission_start(sched);
 		xe_guc_exec_queue_trigger_cleanup(q);
 	}
+
+	if (wedge_device)
+		xe_device_declare_wedged(gt_to_xe(q->gt));
 
 	/*
 	 * We want the job added back to the pending list so it gets freed; this

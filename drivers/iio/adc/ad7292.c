@@ -8,7 +8,6 @@
 #include <linux/bitfield.h>
 #include <linux/device.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
@@ -253,12 +252,13 @@ static const struct iio_info ad7292_info = {
 
 static int ad7292_probe(struct spi_device *spi)
 {
+	struct device *dev = &spi->dev;
 	struct ad7292_state *st;
 	struct iio_dev *indio_dev;
 	bool diff_channels = false;
 	int ret;
 
-	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!indio_dev)
 		return -ENOMEM;
 
@@ -266,12 +266,11 @@ static int ad7292_probe(struct spi_device *spi)
 	st->spi = spi;
 
 	ret = ad7292_spi_reg_read(st, AD7292_REG_VENDOR_ID);
-	if (ret != ADI_VENDOR_ID) {
-		dev_err(&spi->dev, "Wrong vendor id 0x%x\n", ret);
-		return -EINVAL;
-	}
+	if (ret != ADI_VENDOR_ID)
+		return dev_err_probe(dev, -EINVAL,
+				     "Wrong vendor id 0x%x\n", ret);
 
-	ret = devm_regulator_get_enable_read_voltage(&spi->dev, "vref");
+	ret = devm_regulator_get_enable_read_voltage(dev, "vref");
 	if (ret < 0 && ret != -ENODEV)
 		return ret;
 
@@ -281,7 +280,7 @@ static int ad7292_probe(struct spi_device *spi)
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &ad7292_info;
 
-	device_for_each_child_node_scoped(&spi->dev, child) {
+	device_for_each_child_node_scoped(dev, child) {
 		diff_channels = fwnode_property_read_bool(child,
 							  "diff-channels");
 		if (diff_channels)
@@ -296,7 +295,7 @@ static int ad7292_probe(struct spi_device *spi)
 		indio_dev->channels = ad7292_channels;
 	}
 
-	return devm_iio_device_register(&spi->dev, indio_dev);
+	return devm_iio_device_register(dev, indio_dev);
 }
 
 static const struct spi_device_id ad7292_id_table[] = {

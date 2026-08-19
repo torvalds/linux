@@ -891,7 +891,7 @@ static void arena_free_pages(struct bpf_arena *arena, long uaddr, long page_cnt,
 
 	llist_for_each_safe(pos, t, __llist_del_all(&free_pages)) {
 		page = llist_entry(pos, struct page, pcp_llist);
-		if (page_cnt == 1 && page_mapped(page)) /* mapped by some user process */
+		if (page_cnt == 1 && page_ref_count(page) > 1) /* maybe mapped by user space */
 			/* Optimization for the common case of page_cnt==1:
 			 * If page wasn't mapped into some user vma there
 			 * is no need to call zap_pages which is slow. When

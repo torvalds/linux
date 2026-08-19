@@ -1321,6 +1321,7 @@ static int bio_iov_iter_bounce_write(struct bio *bio, struct iov_iter *iter,
 
 	do {
 		size_t this_len = min(total_len, SZ_1M);
+		size_t copied;
 		struct folio *folio;
 
 		if (this_len > minsize * 2)
@@ -1334,12 +1335,26 @@ static int bio_iov_iter_bounce_write(struct bio *bio, struct iov_iter *iter,
 			break;
 		bio_add_folio_nofail(bio, folio, this_len, 0);
 
-		if (copy_from_iter(folio_address(folio), this_len, iter) !=
-				this_len) {
+		if (iter->nofault)
+			copied = copy_folio_from_iter_atomic(folio, 0, this_len,
+							     iter);
+		else
+			copied = copy_folio_from_iter(folio, 0, this_len, iter);
+		if (copied < this_len) {
+			/*
+			 * Need to revert the iov iter for all bytes we have
+			 * copied.
+			 *
+			 * However the bio size differs from the real copied
+			 * bytes as @this_len is queued but only advanced
+			 * less than that.
+			 * Need to compensate that for the revert.
+			 */
+			iov_iter_revert(iter, bio->bi_iter.bi_size - this_len +
+					copied);
 			bio_free_folios(bio);
 			return -EFAULT;
 		}
-
 		total_len -= this_len;
 	} while (total_len && bio->bi_vcnt < bio->bi_max_vecs);
 

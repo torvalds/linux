@@ -338,7 +338,7 @@ the PCI_IRQ_MSI and PCI_IRQ_MSIX flags will fail, so try to always
 specify PCI_IRQ_INTX as well.
 
 Drivers that have different interrupt handlers for MSI/MSI-X and
-legacy INTx should chose the right one based on the msi_enabled
+legacy INTx should choose the right one based on the msi_enabled
 and msix_enabled flags in the pci_dev structure after calling
 pci_alloc_irq_vectors.
 

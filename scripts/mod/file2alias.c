@@ -1280,6 +1280,8 @@ static void do_tee_entry(struct module *mod, void *symval)
 static void do_wmi_entry(struct module *mod, void *symval)
 {
 	DEF_FIELD_ADDR(symval, wmi_device_id, guid_string);
+	char result[sizeof(*guid_string)];
+	int i;
 
 	if (strlen(*guid_string) != UUID_STRING_LEN) {
 		warn("Invalid WMI device id 'wmi:%s' in '%s'\n",
@@ -1287,7 +1289,31 @@ static void do_wmi_entry(struct module *mod, void *symval)
 		return;
 	}
 
-	module_alias_printf(mod, false, WMI_MODULE_PREFIX "%s", *guid_string);
+	for (i = 0; i < UUID_STRING_LEN; i++) {
+		char value = (*guid_string)[i];
+		bool valid = false;
+
+		if (i == 8 || i == 13 || i == 18 || i == 23) {
+			if (value == '-')
+				valid = true;
+		} else {
+			if (isxdigit(value))
+				valid = true;
+		}
+
+		if (!valid) {
+			warn("Invalid character %c inside WMI GUID string '%s' in '%s'\n",
+			     value, *guid_string, mod->name);
+			return;
+		}
+
+		/* Some GUIDs from BMOF definitions contain lowercase characters */
+		result[i] = toupper(value);
+	}
+
+	result[i] = '\0';
+
+	module_alias_printf(mod, false, WMI_MODULE_PREFIX "%s", result);
 }
 
 /* Looks like: mhi:S */

@@ -535,6 +535,7 @@ macro_rules! bitfield {
     // `Debug` implementation.
     (@debug $name:ident { $($field:ident;)* }) => {
         impl ::kernel::fmt::Debug for $name {
+            #[inline]
             fn fmt(&self, f: &mut ::kernel::fmt::Formatter<'_>) -> ::kernel::fmt::Result {
                 f.debug_struct(stringify!($name))
                     .field("<raw>", &::kernel::prelude::fmt!("{:#x}", self.inner))

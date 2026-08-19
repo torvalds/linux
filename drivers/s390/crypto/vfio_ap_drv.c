@@ -9,7 +9,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/ap.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <asm/facility.h>

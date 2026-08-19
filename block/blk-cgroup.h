@@ -140,6 +140,8 @@ struct blkg_policy_data {
 	struct blkcg_gq			*blkg;
 	int				plid;
 	bool				online;
+
+	struct rcu_head			rcu_head;
 };
 
 /*
@@ -282,9 +284,9 @@ static inline struct blkcg_gq *blkg_lookup(struct blkcg *blkcg,
  * Return pointer to private data associated with the @blkg-@pol pair.
  */
 static inline struct blkg_policy_data *blkg_to_pd(struct blkcg_gq *blkg,
-						  struct blkcg_policy *pol)
+						  const struct blkcg_policy *pol)
 {
-	return blkg ? blkg->pd[pol->plid] : NULL;
+	return blkg ? READ_ONCE(blkg->pd[pol->plid]) : NULL;
 }
 
 static inline struct blkcg_policy_data *blkcg_to_cpd(struct blkcg *blkcg,
@@ -491,7 +493,7 @@ static inline void blkcg_deactivate_policy(struct gendisk *disk,
 					   const struct blkcg_policy *pol) { }
 
 static inline struct blkg_policy_data *blkg_to_pd(struct blkcg_gq *blkg,
-						  struct blkcg_policy *pol) { return NULL; }
+						  const struct blkcg_policy *pol) { return NULL; }
 static inline struct blkcg_gq *pd_to_blkg(struct blkg_policy_data *pd) { return NULL; }
 static inline void blkg_get(struct blkcg_gq *blkg) { }
 static inline void blkg_put(struct blkcg_gq *blkg) { }

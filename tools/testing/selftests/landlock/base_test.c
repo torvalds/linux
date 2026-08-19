@@ -76,8 +76,8 @@ TEST(abi_version)
 	const struct landlock_ruleset_attr ruleset_attr = {
 		.handled_access_fs = LANDLOCK_ACCESS_FS_READ_FILE,
 	};
-	ASSERT_EQ(9, landlock_create_ruleset(NULL, 0,
-					     LANDLOCK_CREATE_RULESET_VERSION));
+	ASSERT_EQ(10, landlock_create_ruleset(NULL, 0,
+					      LANDLOCK_CREATE_RULESET_VERSION));
 
 	ASSERT_EQ(-1, landlock_create_ruleset(&ruleset_attr, 0,
 					      LANDLOCK_CREATE_RULESET_VERSION));
@@ -201,7 +201,7 @@ TEST(add_rule_checks_ordering)
 	ASSERT_LE(0, ruleset_fd);
 
 	/* Checks invalid flags. */
-	ASSERT_EQ(-1, landlock_add_rule(-1, 0, NULL, 1));
+	ASSERT_EQ(-1, landlock_add_rule(-1, 0, NULL, 100));
 	ASSERT_EQ(EINVAL, errno);
 
 	/* Checks invalid ruleset FD. */
@@ -524,6 +524,122 @@ TEST(cred_transfer)
 	/* Re-checks ruleset enforcement. */
 	EXPECT_EQ(-1, open("/", O_RDONLY | O_DIRECTORY | O_CLOEXEC));
 	EXPECT_EQ(EACCES, errno);
+}
+
+TEST(useless_quiet_rule_fs)
+{
+	struct landlock_ruleset_attr ruleset_attr = {
+		.handled_access_fs = LANDLOCK_ACCESS_FS_READ_DIR,
+		.quiet_access_fs = 0,
+	};
+	struct landlock_path_beneath_attr path_beneath_attr = {
+		.allowed_access = LANDLOCK_ACCESS_FS_READ_DIR,
+	};
+	int ruleset_fd, root_fd;
+
+	drop_caps(_metadata);
+	ruleset_fd =
+		landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
+	ASSERT_LE(0, ruleset_fd);
+
+	root_fd = open("/", O_PATH | O_CLOEXEC);
+	ASSERT_LE(0, root_fd);
+	path_beneath_attr.parent_fd = root_fd;
+	ASSERT_EQ(-1, landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH,
+					&path_beneath_attr,
+					LANDLOCK_ADD_RULE_QUIET));
+	ASSERT_EQ(EINVAL, errno);
+
+	/* Check that the rule had not been added. */
+	ASSERT_EQ(0, close(root_fd));
+	enforce_ruleset(_metadata, ruleset_fd);
+	ASSERT_EQ(0, close(ruleset_fd));
+
+	ASSERT_EQ(-1, open("/", O_RDONLY | O_DIRECTORY | O_CLOEXEC));
+	ASSERT_EQ(EACCES, errno);
+}
+
+TEST(useless_quiet_rule_net)
+{
+	struct landlock_ruleset_attr ruleset_attr = {
+		.handled_access_net = LANDLOCK_ACCESS_NET_BIND_TCP,
+		.quiet_access_net = 0,
+	};
+	struct landlock_net_port_attr net_port_attr = {
+		.allowed_access = LANDLOCK_ACCESS_NET_BIND_TCP,
+		.port = 1024,
+	};
+	int ruleset_fd;
+
+	drop_caps(_metadata);
+	ruleset_fd =
+		landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
+	ASSERT_LE(0, ruleset_fd);
+
+	ASSERT_EQ(-1,
+		  landlock_add_rule(ruleset_fd, LANDLOCK_RULE_NET_PORT,
+				    &net_port_attr, LANDLOCK_ADD_RULE_QUIET));
+	ASSERT_EQ(EINVAL, errno);
+
+	ASSERT_EQ(0, close(ruleset_fd));
+}
+
+TEST(invalid_quiet_bits_1)
+{
+	const struct landlock_ruleset_attr ruleset_attr_fs = {
+		.handled_access_fs = LANDLOCK_ACCESS_FS_READ_DIR,
+		.quiet_access_fs = LANDLOCK_ACCESS_FS_WRITE_FILE,
+	};
+	const struct landlock_ruleset_attr ruleset_attr_net = {
+		.handled_access_net = LANDLOCK_ACCESS_NET_BIND_TCP,
+		.quiet_access_net = LANDLOCK_ACCESS_NET_CONNECT_TCP,
+	};
+	const struct landlock_ruleset_attr ruleset_attr_scoped = {
+		.scoped = LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET,
+		.quiet_scoped = LANDLOCK_SCOPE_SIGNAL,
+	};
+
+	/* Quiet bit set but not part of the handled mask. */
+	ASSERT_EQ(-1, landlock_create_ruleset(&ruleset_attr_fs,
+					      sizeof(ruleset_attr_fs), 0));
+	ASSERT_EQ(EINVAL, errno);
+
+	ASSERT_EQ(-1, landlock_create_ruleset(&ruleset_attr_net,
+					      sizeof(ruleset_attr_net), 0));
+	ASSERT_EQ(EINVAL, errno);
+
+	ASSERT_EQ(-1, landlock_create_ruleset(&ruleset_attr_scoped,
+					      sizeof(ruleset_attr_scoped), 0));
+	ASSERT_EQ(EINVAL, errno);
+}
+
+TEST(invalid_quiet_bits_2)
+{
+	const struct landlock_ruleset_attr ruleset_attr_fs = {
+		.handled_access_fs = LANDLOCK_ACCESS_FS_READ_DIR,
+		.quiet_access_fs = 1ULL << 63,
+	};
+	const struct landlock_ruleset_attr ruleset_attr_net = {
+		.handled_access_net = LANDLOCK_ACCESS_NET_BIND_TCP,
+		.quiet_access_net = 1ULL << 63,
+	};
+	const struct landlock_ruleset_attr ruleset_attr_scoped = {
+		.scoped = LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET,
+		.quiet_scoped = 1ULL << 63,
+	};
+
+	/* Quiet bit outside of the valid access range. */
+	ASSERT_EQ(-1, landlock_create_ruleset(&ruleset_attr_fs,
+					      sizeof(ruleset_attr_fs), 0));
+	ASSERT_EQ(EINVAL, errno);
+
+	ASSERT_EQ(-1, landlock_create_ruleset(&ruleset_attr_net,
+					      sizeof(ruleset_attr_net), 0));
+	ASSERT_EQ(EINVAL, errno);
+
+	ASSERT_EQ(-1, landlock_create_ruleset(&ruleset_attr_scoped,
+					      sizeof(ruleset_attr_scoped), 0));
+	ASSERT_EQ(EINVAL, errno);
 }
 
 TEST_HARNESS_MAIN

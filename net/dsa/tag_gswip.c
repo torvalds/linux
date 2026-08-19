@@ -80,16 +80,20 @@ static struct sk_buff *gswip_tag_rcv(struct sk_buff *skb,
 	int port;
 	u8 *gswip_tag;
 
-	if (unlikely(!pskb_may_pull(skb, GSWIP_RX_HEADER_LEN)))
+	if (unlikely(!pskb_may_pull(skb, GSWIP_RX_HEADER_LEN))) {
+		kfree_skb(skb);
 		return NULL;
+	}
 
 	gswip_tag = skb->data - ETH_HLEN;
 
 	/* Get source port information */
 	port = (gswip_tag[7] & GSWIP_RX_SPPID_MASK) >> GSWIP_RX_SPPID_SHIFT;
 	skb->dev = dsa_conduit_find_user(dev, 0, port);
-	if (!skb->dev)
+	if (!skb->dev) {
+		kfree_skb(skb);
 		return NULL;
+	}
 
 	/* remove GSWIP tag */
 	skb_pull_rcsum(skb, GSWIP_RX_HEADER_LEN);

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * BPF-side helpers for cids and cmasks. See kernel/sched/ext_cid.h for the
+ * BPF-side helpers for cids and cmasks. See kernel/sched/ext/cid.h for the
  * authoritative layout and semantics. The BPF-side helpers use the cmask_*
  * naming (no scx_ prefix); cmask is the SCX bitmap type so the prefix is
  * redundant in BPF code. Atomics use __sync_val_compare_and_swap and every
@@ -33,7 +33,7 @@
 #endif
 
 /*
- * Mirrors SCX_CMASK_NR_WORDS in kernel/sched/ext_types.h. The u64 cast keeps
+ * Mirrors SCX_CMASK_NR_WORDS in kernel/sched/ext/types.h. The u64 cast keeps
  * the +63 from wrapping when @nr_cids is near U32_MAX, so cmask_reframe()
  * bounds-checking the result against alloc_words catches the overflow instead
  * of seeing a small value.
@@ -281,7 +281,7 @@ static __always_inline void cmask_zero(struct scx_cmask __arena *m)
 
 /*
  * BPF_-prefixed to avoid colliding with the kernel's anonymous CMASK_OP_*
- * enum in ext_cid.c, which is exported via BTF and reachable through
+ * enum in ext/cid.c, which is exported via BTF and reachable through
  * vmlinux.h.
  */
 enum {

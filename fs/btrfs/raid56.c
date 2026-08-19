@@ -1410,7 +1410,7 @@ static void generate_pq_vertical_step(struct btrfs_raid_bio *rbio, unsigned int 
 				rbio_qstripe_paddr(rbio, sector_nr, step_nr));
 
 		assert_rbio(rbio);
-		raid6_call.gen_syndrome(rbio->real_stripes, step, pointers);
+		raid6_gen_syndrome(rbio->real_stripes, step, pointers);
 	} else {
 		/* raid5 */
 		memcpy(pointers[rbio->nr_data], pointers[0], step);
@@ -1987,10 +1987,10 @@ static void recover_vertical_step(struct btrfs_raid_bio *rbio,
 		}
 
 		if (failb == rbio->real_stripes - 2) {
-			raid6_datap_recov(rbio->real_stripes, step,
+			raid6_recov_datap(rbio->real_stripes, step,
 					  faila, pointers);
 		} else {
-			raid6_2data_recov(rbio->real_stripes, step,
+			raid6_recov_2data(rbio->real_stripes, step,
 					  faila, failb, pointers);
 		}
 	} else {
@@ -2644,7 +2644,7 @@ static bool verify_one_parity_step(struct btrfs_raid_bio *rbio,
 	if (has_qstripe) {
 		assert_rbio(rbio);
 		/* RAID6, call the library function to fill in our P/Q. */
-		raid6_call.gen_syndrome(rbio->real_stripes, step, pointers);
+		raid6_gen_syndrome(rbio->real_stripes, step, pointers);
 	} else {
 		/* RAID5. */
 		memcpy(pointers[nr_data], pointers[0], step);

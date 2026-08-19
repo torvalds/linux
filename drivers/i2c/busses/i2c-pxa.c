@@ -214,11 +214,11 @@ static const struct of_device_id i2c_pxa_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, i2c_pxa_dt_ids);
 
 static const struct platform_device_id i2c_pxa_id_table[] = {
-	{ "pxa2xx-i2c",		REGS_PXA2XX },
-	{ "pxa3xx-pwri2c",	REGS_PXA3XX },
-	{ "ce4100-i2c",		REGS_CE4100 },
-	{ "pxa910-i2c",		REGS_PXA910 },
-	{ "armada-3700-i2c",	REGS_A3700  },
+	{ .name = "pxa2xx-i2c",		.driver_data = REGS_PXA2XX },
+	{ .name = "pxa3xx-pwri2c",	.driver_data = REGS_PXA3XX },
+	{ .name = "ce4100-i2c",		.driver_data = REGS_CE4100 },
+	{ .name = "pxa910-i2c",		.driver_data = REGS_PXA910 },
+	{ .name = "armada-3700-i2c",	.driver_data = REGS_A3700 },
 	{ }
 };
 MODULE_DEVICE_TABLE(platform, i2c_pxa_id_table);

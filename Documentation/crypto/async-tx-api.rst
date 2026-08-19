@@ -82,9 +82,9 @@ xor_val   xor a series of source buffers and set a flag if the
 pq	  generate the p+q (raid6 syndrome) from a series of source buffers
 pq_val    validate that a p and or q buffer are in sync with a given series of
 	  sources
-datap	  (raid6_datap_recov) recover a raid6 data block and the p block
+datap	  (raid6_recov_datap) recover a raid6 data block and the p block
 	  from the given sources
-2data	  (raid6_2data_recov) recover 2 raid6 data blocks from the given
+2data	  (raid6_recov_2data) recover 2 raid6 data blocks from the given
 	  sources
 ========  ====================================================================
 

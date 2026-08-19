@@ -20,8 +20,6 @@ struct vm_gic {
 	u32 gic_dev_type;
 };
 
-static u64 max_phys_size;
-
 #define GUEST_CMD_IRQ_CDIA	10
 #define GUEST_CMD_IRQ_DIEOI	11
 #define GUEST_CMD_IS_AWAKE	12
@@ -131,6 +129,8 @@ static void test_vgic_v5_ppis(u32 gic_dev_type)
 
 	while (1) {
 		ret = run_vcpu(vcpus[0]);
+		if (ret)
+			break;
 
 		switch (get_ucall(vcpus[0], &uc)) {
 		case UCALL_SYNC:
@@ -146,7 +146,7 @@ static void test_vgic_v5_ppis(u32 gic_dev_type)
 				irq = FIELD_PREP(KVM_ARM_IRQ_NUM_MASK, 3);
 				irq |= KVM_ARM_IRQ_TYPE_PPI << KVM_ARM_IRQ_TYPE_SHIFT;
 
-				_kvm_irq_line(v.vm, irq, level);
+				kvm_irq_line(v.vm, irq, level);
 			} else if (uc.args[1] == GUEST_CMD_IS_AWAKE) {
 				pr_info("Guest skipping WFI due to pending IRQ\n");
 			} else if (uc.args[1] == GUEST_CMD_IRQ_CDIA) {
@@ -208,12 +208,8 @@ void run_tests(u32 gic_dev_type)
 int main(int ac, char **av)
 {
 	int ret;
-	int pa_bits;
 
 	test_disable_default_vgic();
-
-	pa_bits = vm_guest_mode_params[VM_MODE_DEFAULT].pa_bits;
-	max_phys_size = 1ULL << pa_bits;
 
 	ret = test_kvm_device(KVM_DEV_TYPE_ARM_VGIC_V5);
 	if (ret) {

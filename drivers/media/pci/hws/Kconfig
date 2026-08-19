@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config VIDEO_HWS
+	tristate "AVMatrix HWS PCIe capture devices"
+	depends on PCI && VIDEO_DEV
+	select VIDEOBUF2_DMA_CONTIG
+	help
+	  Enable support for AVMatrix HWS series multi-channel PCIe capture
+	  devices that provide HDMI video capture.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be named hws.

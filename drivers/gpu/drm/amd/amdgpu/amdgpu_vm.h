@@ -212,7 +212,8 @@ struct amdgpu_vm_bo_base {
 	 * protected by vm BO being reserved */
 	bool				shared;
 
-	/* protected by the BO being reserved */
+	/* if the BO was moved and all mappings are invalid
+	 * protected by the BO being reserved */
 	bool				moved;
 };
 
@@ -220,14 +221,14 @@ struct amdgpu_vm_bo_base {
  * The following status lists contain amdgpu_vm_bo_base objects for
  * either PD/PTs, per VM BOs or BOs with individual resv object.
  *
- * The state transits are: evicted -> moved -> idle
+ * The state transits are: evicted -> needs_update -> idle
  */
 struct amdgpu_vm_bo_status {
 	/* BOs evicted which need to move into place again */
 	struct list_head		evicted;
 
-	/* BOs which moved but new location hasn't been updated in the PDs/PTs */
-	struct list_head		moved;
+	/* BOs whose mappings changed but PDs/PTs haven't been updated */
+	struct list_head		needs_update;
 
 	/* BOs done with the state machine and need no further action */
 	struct list_head		idle;
@@ -592,7 +593,7 @@ bool amdgpu_vm_handle_fault(struct amdgpu_device *adev, u32 pasid,
 			    bool write_fault);
 
 struct amdgpu_vm *amdgpu_vm_lock_by_pasid(struct amdgpu_device *adev,
-					  struct amdgpu_bo **root, u32 pasid);
+					  u32 pasid, struct drm_exec *exec);
 
 void amdgpu_vm_set_task_info(struct amdgpu_vm *vm);
 

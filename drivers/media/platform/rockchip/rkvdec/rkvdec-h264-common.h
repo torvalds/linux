@@ -16,6 +16,7 @@
 #include <media/v4l2-mem2mem.h>
 
 #include "rkvdec.h"
+#include "rkvdec-bitwriter.h"
 
 struct rkvdec_h264_scaling_list {
 	u8 scaling_list_4x4[6][16];
@@ -38,39 +39,16 @@ struct rkvdec_h264_run {
 	struct vb2_buffer *ref_buf[V4L2_H264_NUM_DPB_ENTRIES];
 };
 
-struct rkvdec_rps_entry {
-	u32 dpb_info0:          5;
-	u32 bottom_flag0:       1;
-	u32 view_index_off0:    1;
-	u32 dpb_info1:          5;
-	u32 bottom_flag1:       1;
-	u32 view_index_off1:    1;
-	u32 dpb_info2:          5;
-	u32 bottom_flag2:       1;
-	u32 view_index_off2:    1;
-	u32 dpb_info3:          5;
-	u32 bottom_flag3:       1;
-	u32 view_index_off3:    1;
-	u32 dpb_info4:          5;
-	u32 bottom_flag4:       1;
-	u32 view_index_off4:    1;
-	u32 dpb_info5:          5;
-	u32 bottom_flag5:       1;
-	u32 view_index_off5:    1;
-	u32 dpb_info6:          5;
-	u32 bottom_flag6:       1;
-	u32 view_index_off6:    1;
-	u32 dpb_info7:          5;
-	u32 bottom_flag7:       1;
-	u32 view_index_off7:    1;
-} __packed;
+#define RPS_FRAME_NUM(i)		BW_FIELD((i) * 16, 16)
+#define RPS_ENTRY_DPB_INFO(l, e)	BW_FIELD(288 + (l) * 7 * 32 + (e) * 7, 5) //l: 0-2, e: 0-31
+#define RPS_ENTRY_BOTTOM_FLAG(l, e)	BW_FIELD(293 + (l) * 7 * 32 + (e) * 7, 1) //l: 0-2, e: 0-31
+#define RPS_ENTRY_VIEW_INDEX_OFF(l, e)	BW_FIELD(294 + (l) * 7 * 32 + (e) * 7, 1) //l: 0-2, e: 0-31
+
+#define RKVDEC_H264_RPS_SIZE		ALIGN(288 + 3 * 7 * 32, 128)
 
 struct rkvdec_rps {
-	u16 frame_num[16];
-	u32 reserved0;
-	struct rkvdec_rps_entry entries[12];
-	u32 reserved1[66];
-} __packed;
+	u32 info[RKVDEC_H264_RPS_SIZE / 8 / 4];
+};
 
 void lookup_ref_buf_idx(struct rkvdec_ctx *ctx, struct rkvdec_h264_run *run);
 void assemble_hw_rps(struct v4l2_h264_reflist_builder *builder,

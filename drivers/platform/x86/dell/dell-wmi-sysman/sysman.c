@@ -36,7 +36,7 @@ static int reset_option = -1;
  * @buffer_len: length of the destination buffer
  * @str: the string to insert into buffer
  */
-ssize_t populate_string_buffer(char *buffer, size_t buffer_len, const char *str)
+ssize_t populate_string_buffer(u8 *buffer, size_t buffer_len, const char *str)
 {
 	u16 *length = (u16 *)buffer;
 	u16 *target = length + 1;
@@ -87,10 +87,10 @@ size_t calculate_security_buffer(const char *authentication)
  *
  * Currently only supported type is PLAIN TEXT
  */
-void populate_security_buffer(char *buffer, const char *authentication)
+void populate_security_buffer(u8 *buffer, const char *authentication)
 {
 	size_t seclen = strlen(authentication);
-	char *auth = buffer + sizeof(u32) * 2;
+	u8 *auth = buffer + sizeof(u32) * 2;
 	u32 *sectype = (u32 *) buffer;
 	u32 *seclenp = sectype + 1;
 

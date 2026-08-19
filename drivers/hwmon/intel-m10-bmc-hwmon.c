@@ -9,7 +9,6 @@
 #include <linux/hwmon.h>
 #include <linux/mfd/intel-m10-bmc.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 
 struct m10bmc_sdata {

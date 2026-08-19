@@ -37,7 +37,7 @@
 
 static int	cfg_clockid	= CLOCK_TAI;
 static uint16_t	cfg_port	= 8000;
-static int	cfg_variance_us	= 4000;
+static int	cfg_variance_us	= 8000;
 static bool	cfg_machine_slow;
 static uint64_t	cfg_start_time_ns;
 static int	cfg_mark;

@@ -1349,11 +1349,10 @@ static int ad9467_probe(struct spi_device *spi)
 		return ret;
 
 	id = ad9467_spi_read(st, AN877_ADC_REG_CHIP_ID);
-	if (id != st->info->id) {
-		dev_err(dev, "Mismatch CHIP_ID, got 0x%X, expected 0x%X\n",
-			id, st->info->id);
-		return -ENODEV;
-	}
+	if (id != st->info->id)
+		return dev_err_probe(dev, -ENODEV,
+				     "Mismatch CHIP_ID, got 0x%X, expected 0x%X\n",
+				     id, st->info->id);
 
 	if (st->info->num_scales > 1)
 		indio_dev->info = &ad9467_info;

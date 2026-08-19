@@ -1244,6 +1244,30 @@ struct create_mxac_req {
 } __packed;
 
 /*
+ * AAPL flags. See Samba libcli/smb/smb2_create_ctx.h
+ */
+
+/* "AAPL" Context Command Codes */
+#define SMB2_CRTCTX_AAPL_SERVER_QUERY 1
+#define SMB2_CRTCTX_AAPL_RESOLVE_ID   2
+
+/* "AAPL" Server Query request/response bitmap */
+#define SMB2_CRTCTX_AAPL_SERVER_CAPS 1
+#define SMB2_CRTCTX_AAPL_VOLUME_CAPS 2
+#define SMB2_CRTCTX_AAPL_MODEL_INFO  4
+
+/* "AAPL" Client/Server Capabilities bitmap */
+#define SMB2_CRTCTX_AAPL_SUPPORTS_READ_DIR_ATTR 1
+#define SMB2_CRTCTX_AAPL_SUPPORTS_OSX_COPYFILE  2
+#define SMB2_CRTCTX_AAPL_UNIX_BASED             4
+#define SMB2_CRTCTX_AAPL_SUPPORTS_NFS_ACE       8
+
+/* "AAPL" Volume Capabilities bitmap */
+#define SMB2_CRTCTX_AAPL_SUPPORT_RESOLVE_ID 1
+#define SMB2_CRTCTX_AAPL_CASE_SENSITIVE     2
+#define SMB2_CRTCTX_AAPL_FULL_SYNC          4
+
+/*
  * Flags
  * See MS-SMB2 2.2.13.2.11
  *     MS-SMB2 2.2.13.2.12

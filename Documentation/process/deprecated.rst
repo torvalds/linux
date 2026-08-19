@@ -131,27 +131,32 @@ value of strcpy() was used, since strscpy() does not return a pointer to
 the destination, but rather a count of non-NUL bytes copied (or negative
 errno when it truncates).
 
-strncpy() on NUL-terminated strings
------------------------------------
-Use of strncpy() does not guarantee that the destination buffer will
-be NUL terminated. This can lead to various linear read overflows and
-other misbehavior due to the missing termination. It also NUL-pads
-the destination buffer if the source contents are shorter than the
-destination buffer size, which may be a needless performance penalty
-for callers using only NUL-terminated strings.
+strncpy()
+---------
+strncpy() has been removed from the kernel. All former callers have
+been migrated to safer alternatives.
 
-When the destination is required to be NUL-terminated, the replacement is
-strscpy(), though care must be given to any cases where the return value
-of strncpy() was used, since strscpy() does not return a pointer to the
-destination, but rather a count of non-NUL bytes copied (or negative
-errno when it truncates). Any cases still needing NUL-padding should
-instead use strscpy_pad().
+strncpy() did not guarantee NUL-termination of the destination buffer,
+leading to linear read overflows and other misbehavior. It also
+unconditionally NUL-padded the destination, which was a needless
+performance penalty for callers using only NUL-terminated strings. Due
+to its various behaviors, it was an ambiguous API for determining what
+an author's true intent was for the copy.
 
-If a caller is using non-NUL-terminated strings, strtomem() should be
-used, and the destinations should be marked with the `__nonstring
-<https://gcc.gnu.org/onlinedocs/gcc/Common-Variable-Attributes.html>`_
-attribute to avoid future compiler warnings. For cases still needing
-NUL-padding, strtomem_pad() can be used.
+The replacements for strncpy() are:
+
+- strscpy() when the destination must be NUL-terminated.
+- strscpy_pad() when the destination must be NUL-terminated and
+  zero-padded (e.g., structs crossing privilege boundaries).
+- memtostr() for NUL-terminated destinations from non-NUL-terminated
+  fixed-width sources (with the `__nonstring` attribute on the source).
+- memtostr_pad() for the same, but with zero-padding.
+- strtomem() for non-NUL-terminated fixed-width destinations, with
+  the `__nonstring` attribute on the destination.
+- strtomem_pad() for non-NUL-terminated destinations that also need
+  zero-padding.
+- memcpy_and_pad() for bounded copies from potentially unterminated
+  sources where the destination size is a runtime value.
 
 strlcpy()
 ---------

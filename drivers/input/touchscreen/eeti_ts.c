@@ -266,7 +266,7 @@ static int eeti_ts_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(eeti_ts_pm, eeti_ts_suspend, eeti_ts_resume);
 
 static const struct i2c_device_id eeti_ts_id[] = {
-	{ "eeti_ts" },
+	{ .name = "eeti_ts" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, eeti_ts_id);

@@ -419,7 +419,8 @@ static const struct ethtool_ops mlx5e_rep_ethtool_ops = {
 				     ETHTOOL_COALESCE_MAX_FRAMES |
 				     ETHTOOL_COALESCE_USE_ADAPTIVE,
 	.op_needs_rtnl	   = ETHTOOL_OP_NEEDS_RTNL_SCHANNELS |
-			     ETHTOOL_OP_NEEDS_RTNL_SRINGPARAM,
+			     ETHTOOL_OP_NEEDS_RTNL_SRINGPARAM |
+			     ETHTOOL_OP_NEEDS_RTNL_GLINK,
 	.get_drvinfo	   = mlx5e_rep_get_drvinfo,
 	.get_link	   = ethtool_op_get_link,
 	.get_strings       = mlx5e_rep_get_strings,

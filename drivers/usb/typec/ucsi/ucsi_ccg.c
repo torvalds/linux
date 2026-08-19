@@ -608,7 +608,8 @@ static int ucsi_ccg_async_control(struct ucsi *ucsi, u64 command)
 }
 
 static int ucsi_ccg_sync_control(struct ucsi *ucsi, u64 command, u32 *cci,
-				 void *data, size_t size)
+				 void *data, size_t size, void *msg_out,
+				 size_t msg_out_size)
 {
 	struct ucsi_ccg *uc = ucsi_get_drvdata(ucsi);
 	struct ucsi_connector *con;
@@ -630,7 +631,8 @@ static int ucsi_ccg_sync_control(struct ucsi *ucsi, u64 command, u32 *cci,
 		ucsi_ccg_update_set_new_cam_cmd(uc, con, &command);
 	}
 
-	ret = ucsi_sync_control_common(ucsi, command, cci, data, size);
+	ret = ucsi_sync_control_common(ucsi, command, cci, data, size,
+				       msg_out, msg_out_size);
 
 	switch (UCSI_COMMAND(command)) {
 	case UCSI_GET_CURRENT_CAM:
@@ -1530,8 +1532,8 @@ static const struct of_device_id ucsi_ccg_of_match_table[] = {
 MODULE_DEVICE_TABLE(of, ucsi_ccg_of_match_table);
 
 static const struct i2c_device_id ucsi_ccg_device_id[] = {
-	{ "ccgx-ucsi" },
-	{}
+	{ .name = "ccgx-ucsi" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ucsi_ccg_device_id);
 

@@ -1,0 +1,73 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/input/touchscreen/wacom,w9007a-lt03.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Wacom W9000-series penabled I2C touchscreen
+
+maintainers:
+  - Hendrik Noack <hendrik-noack@gmx.de>
+
+description: |
+  The W9000-series are penabled touchscreen controllers by Wacom.
+
+  The firmware of controllers in different devices may differ. This can also
+  affect the controller's behavior.
+
+allOf:
+  - $ref: touchscreen.yaml#
+
+properties:
+  compatible:
+    enum:
+      - wacom,w9002
+      - wacom,w9007a-lt03
+      - wacom,w9007a-v1
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  vdd-supply: true
+
+  flash-mode-gpios:
+    maxItems: 1
+
+  reset-gpios:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        digitizer@56 {
+            compatible = "wacom,w9007a-lt03";
+            reg = <0x56>;
+            interrupt-parent = <&gpd1>;
+            interrupts = <1 IRQ_TYPE_EDGE_RISING>;
+
+            vdd-supply = <&stylus_reg>;
+
+            flash-mode-gpios = <&gpd1 3 GPIO_ACTIVE_HIGH>;
+            reset-gpios = <&gpx0 1 GPIO_ACTIVE_LOW>;
+
+            touchscreen-x-mm = <216>;
+            touchscreen-y-mm = <135>;
+            touchscreen-inverted-x;
+        };
+    };

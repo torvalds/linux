@@ -467,28 +467,10 @@ static int rpcrdma_encode_reply_chunk(struct rpcrdma_xprt *r_xprt,
 	return 0;
 }
 
-static void rpcrdma_sendctx_done(struct kref *kref)
-{
-	struct rpcrdma_req *req =
-		container_of(kref, struct rpcrdma_req, rl_kref);
-	struct rpcrdma_rep *rep = req->rl_reply;
-
-	rpcrdma_complete_rqst(rep);
-	rep->rr_rxprt->rx_stats.reply_waits_for_send++;
-}
-
-/**
- * rpcrdma_sendctx_unmap - DMA-unmap Send buffer
- * @sc: sendctx containing SGEs to unmap
- *
- */
-void rpcrdma_sendctx_unmap(struct rpcrdma_sendctx *sc)
+static void rpcrdma_sendctx_dma_unmap(struct rpcrdma_sendctx *sc)
 {
 	struct rpcrdma_regbuf *rb = sc->sc_req->rl_sendbuf;
 	struct ib_sge *sge;
-
-	if (!sc->sc_unmap_count)
-		return;
 
 	/* The first two SGEs contain the transport header and
 	 * the inline buffer. These are always left mapped so
@@ -498,8 +480,33 @@ void rpcrdma_sendctx_unmap(struct rpcrdma_sendctx *sc)
 	     ++sge, --sc->sc_unmap_count)
 		ib_dma_unmap_page(rdmab_device(rb), sge->addr, sge->length,
 				  DMA_TO_DEVICE);
+}
 
-	kref_put(&sc->sc_req->rl_kref, rpcrdma_sendctx_done);
+/**
+ * rpcrdma_sendctx_unmap - DMA-unmap Send buffer and release Send owner
+ * @sc: sendctx containing SGEs to unmap
+ *
+ */
+void rpcrdma_sendctx_unmap(struct rpcrdma_sendctx *sc)
+{
+	struct rpcrdma_req *req = sc->sc_req;
+
+	rpcrdma_sendctx_dma_unmap(sc);
+	sc->sc_req = NULL;
+	req->rl_sendctx = NULL;
+	rpcrdma_req_put(req);
+}
+
+/* No Send was posted. Release DMA mappings prepared for this
+ * sendctx, but leave the request reference count alone.
+ */
+static void rpcrdma_sendctx_cancel(struct rpcrdma_sendctx *sc)
+{
+	struct rpcrdma_req *req = sc->sc_req;
+
+	rpcrdma_sendctx_dma_unmap(sc);
+	sc->sc_req = NULL;
+	req->rl_sendctx = NULL;
 }
 
 /* Prepare an SGE for the RPC-over-RDMA transport header.
@@ -691,8 +698,6 @@ static bool rpcrdma_prepare_noch_mapped(struct rpcrdma_xprt *r_xprt,
 					      tail->iov_len))
 			return false;
 
-	if (req->rl_sendctx->sc_unmap_count)
-		kref_get(&req->rl_kref);
 	return true;
 }
 
@@ -722,7 +727,6 @@ static bool rpcrdma_prepare_readch(struct rpcrdma_xprt *r_xprt,
 		len -= len & 3;
 		if (!rpcrdma_prepare_tail_iov(req, xdr, page_base, len))
 			return false;
-		kref_get(&req->rl_kref);
 	}
 
 	return true;
@@ -743,6 +747,7 @@ inline int rpcrdma_prepare_send_sges(struct rpcrdma_xprt *r_xprt,
 				     struct xdr_buf *xdr,
 				     enum rpcrdma_chunktype rtype)
 {
+	struct rpcrdma_sendctx *sc;
 	int ret;
 
 	ret = -EAGAIN;
@@ -751,7 +756,6 @@ inline int rpcrdma_prepare_send_sges(struct rpcrdma_xprt *r_xprt,
 		goto out_nosc;
 	req->rl_sendctx->sc_unmap_count = 0;
 	req->rl_sendctx->sc_req = req;
-	kref_init(&req->rl_kref);
 	req->rl_wr.wr_cqe = &req->rl_sendctx->sc_cqe;
 	req->rl_wr.sg_list = req->rl_sendctx->sc_sges;
 	req->rl_wr.num_sge = 0;
@@ -779,10 +783,16 @@ inline int rpcrdma_prepare_send_sges(struct rpcrdma_xprt *r_xprt,
 		goto out_unmap;
 	}
 
+	/* The Send-side owner releases this reference when the
+	 * Send has completed.
+	 */
+	kref_get(&req->rl_kref);
 	return 0;
 
 out_unmap:
-	rpcrdma_sendctx_unmap(req->rl_sendctx);
+	sc = req->rl_sendctx;
+	rpcrdma_sendctx_cancel(sc);
+	rpcrdma_sendctx_unget_locked(r_xprt, sc);
 out_nosc:
 	trace_xprtrdma_prepsend_failed(&req->rl_slot, ret);
 	return ret;
@@ -1081,6 +1091,8 @@ rpcrdma_is_bcall(struct rpcrdma_xprt *r_xprt, struct rpcrdma_rep *rep)
 
 	/* Peek at stream contents without advancing. */
 	p = xdr_inline_decode(xdr, 0);
+	if ((char *)xdr->end - (char *)p < 5 * XDR_UNIT)
+		return false;
 
 	/* Chunk lists */
 	if (xdr_item_is_present(p++))
@@ -1105,7 +1117,7 @@ rpcrdma_is_bcall(struct rpcrdma_xprt *r_xprt, struct rpcrdma_rep *rep)
 	 */
 	p = xdr_inline_decode(xdr, 3 * sizeof(*p));
 	if (unlikely(!p))
-		return true;
+		return false;
 
 	rpcrdma_bc_receive_call(r_xprt, rep);
 	return true;
@@ -1329,6 +1341,11 @@ void rpcrdma_complete_rqst(struct rpcrdma_rep *rep)
 	struct rpc_rqst *rqst = rep->rr_rqst;
 	int status;
 
+	/* I3: rl_registered has been drained by frwr_unmap before
+	 * complete_rqst runs.
+	 */
+	WARN_ON_ONCE(!list_empty(&rpcr_to_rdmar(rqst)->rl_registered));
+
 	switch (rep->rr_proc) {
 	case rdma_msg:
 		status = rpcrdma_decode_msg(r_xprt, rep, rqst);
@@ -1360,13 +1377,69 @@ out_badheader:
 	goto out;
 }
 
-static void rpcrdma_reply_done(struct kref *kref)
-{
-	struct rpcrdma_req *req =
-		container_of(kref, struct rpcrdma_req, rl_kref);
-
-	rpcrdma_complete_rqst(req->rl_reply);
-}
+/* Reply-side ownership invariants
+ *
+ * I1 (Receive WR ownership).  A struct rpcrdma_rep is owned by the
+ *    HCA between ib_post_recv() and the matching Receive completion.
+ *    After ib_dma_sync_single_for_cpu() in rpcrdma_wc_receive() it is
+ *    owned by the CPU until rpcrdma_rep_put() returns it to
+ *    rb_free_reps; a rep on rb_free_reps is not re-posted until
+ *    rpcrdma_post_recvs() pulls it off.  Asserted: rpcrdma_post_recvs()
+ *    WARNs that a pulled rep has rr_rqst == NULL.
+ *
+ * I2 (rep attachment).  While req->rl_reply == rep, the rep cannot be
+ *    re-posted.  rpcrdma_reply_put() NULLs req->rl_reply before handing
+ *    the rep to rpcrdma_rep_put().  Asserted: rpcrdma_reply_put() WARNs
+ *    that rl_reply is NULL after the put.
+ *
+ * I3 (Registered-MR fence).  On entry to rpcrdma_complete_rqst() every
+ *    MR that was on req->rl_registered has had its rkey invalidated
+ *    (remotely via IB_WC_WITH_INVALIDATE or locally via IB_WR_LOCAL_INV)
+ *    and its pages ib_dma_unmap_sg()'d.  The LocalInv chain is posted
+ *    on a single QP; strong send-queue ordering makes the last
+ *    completion (frwr_wc_localinv_done) observe the
+ *    ib_dma_unmap_sg() that ran from each earlier completion's
+ *    frwr_mr_put() before complete_rqst is called.  The inline
+ *    frwr_reminv() path unmaps its one MR synchronously before
+ *    rpcrdma_reply_handler() reaches complete_rqst.  Asserted:
+ *    rpcrdma_complete_rqst() WARNs that rl_registered is empty.
+ *
+ * I4 (Send-buffer release).  req->rl_kref carries two unconditional
+ *    owners while a Send is outstanding: the RPC-layer reference (set
+ *    at xprt_rdma_alloc_slot / xprt_rdma_bc_rqst_get / rpcrdma_req_release
+ *    pool-entry) and the Send-side reference (kref_get() in
+ *    rpcrdma_prepare_send_sges()).  rpcrdma_req_release() runs only
+ *    after both have dropped, so the req does not return to its free
+ *    pool until rpcrdma_sendctx_unmap() has fired -- the HCA has
+ *    released the send buffer before the req can be reused.  Asserted:
+ *    rpcrdma_req_release() WARNs that rl_sendctx is NULL.
+ *
+ * I5 (req lifecycle).  A req is owned by the RPC layer between slot
+ *    acquisition and the matching xprt_rdma_free_slot() (or, for the
+ *    backchannel, xprt_rdma_bc_free_rqst()).  While owned, rl_kref >= 1.
+ *    The pools (rb_send_bufs, bc_pa_list, backlog wake target) never
+ *    contain a req with outstanding Send-side or Reply-side work.
+ *
+ * Non-hazards.  The following claims have been raised by adversarial
+ * review and are each closed by the invariants above:
+ *
+ *   * "Reply completes the RPC while the HCA still holds the send
+ *     buffer" -- excluded by I4.  The Send-side kref reference is held
+ *     until rpcrdma_sendctx_unmap() runs from Send completion.
+ *
+ *   * "Signal-driven release races the in-flight Send" -- same
+ *     resolution.  xprt_rdma_free() does not touch rl_kref; the
+ *     Send-side reference keeps the req out of its pool until Send
+ *     completion fires.
+ *
+ *   * "Receive completion races rep reuse" -- excluded by I1.  A rep
+ *     is on rb_free_reps only after rpcrdma_rep_put() has been called
+ *     and rpcrdma_post_recvs() owns the next transition back to the HCA.
+ *
+ *   * "Pages still DMA-mapped when call_decode reads them" -- excluded
+ *     by I3.  The matching ib_dma_unmap_sg() for every MR has run on
+ *     the same CPU thread that calls rpcrdma_complete_rqst().
+ */
 
 /**
  * rpcrdma_reply_handler - Process received RPC/RDMA messages
@@ -1402,6 +1475,14 @@ void rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 	credits = be32_to_cpu(*p++);
 	rep->rr_proc = *p++;
 
+	/* The credit grant from the wire is not trustworthy;
+	 * sanitize it before any code path consumes it.
+	 */
+	if (credits == 0)
+		credits = 1;	/* don't deadlock */
+	else if (credits > r_xprt->rx_ep->re_max_requests)
+		credits = r_xprt->rx_ep->re_max_requests;
+
 	if (rep->rr_vers != rpcrdma_version)
 		goto out_badversion;
 
@@ -1418,10 +1499,6 @@ void rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 	xprt_pin_rqst(rqst);
 	spin_unlock(&xprt->queue_lock);
 
-	if (credits == 0)
-		credits = 1;	/* don't deadlock */
-	else if (credits > r_xprt->rx_ep->re_max_requests)
-		credits = r_xprt->rx_ep->re_max_requests;
 	if (buf->rb_credits != credits)
 		rpcrdma_update_cwnd(r_xprt, credits);
 
@@ -1439,7 +1516,7 @@ void rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 		frwr_unmap_async(r_xprt, req);
 		/* LocalInv completion will complete the RPC */
 	else
-		kref_put(&req->rl_kref, rpcrdma_reply_done);
+		rpcrdma_complete_rqst(rep);
 
 out_post:
 	rpcrdma_post_recvs(r_xprt,
@@ -1454,11 +1531,13 @@ out_norqst:
 
 out_badversion:
 	trace_xprtrdma_reply_vers_err(rep);
-	goto out;
+	rpcrdma_rep_put(buf, rep);
+	credits = buf->rb_credits;
+	goto out_post;
 
 out_shortreply:
 	trace_xprtrdma_reply_short_err(rep);
-
-out:
 	rpcrdma_rep_put(buf, rep);
+	credits = buf->rb_credits;
+	goto out_post;
 }

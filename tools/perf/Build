@@ -34,6 +34,8 @@ ifeq ($(CONFIG_LIBTRACEEVENT),y)
   perf-$(CONFIG_TRACE) += trace/beauty/
 endif
 
+perf-util-y += trace/beauty/
+
 perf-$(CONFIG_LIBELF) += builtin-probe.o
 
 perf-bench-y += bench/

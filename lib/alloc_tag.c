@@ -45,6 +45,7 @@ int alloc_tag_ref_offs;
 
 struct allocinfo_private {
 	struct codetag_iterator iter;
+	struct codetag_iterator reported_iter;
 	bool print_header;
 };
 
@@ -54,20 +55,24 @@ static void *allocinfo_start(struct seq_file *m, loff_t *pos)
 	loff_t node = *pos;
 
 	priv = (struct allocinfo_private *)m->private;
-	codetag_lock_module_list(alloc_tag_cttype, true);
+	codetag_lock_module_list(alloc_tag_cttype);
 	if (node == 0) {
 		priv->print_header = true;
 		priv->iter = codetag_get_ct_iter(alloc_tag_cttype);
-		codetag_next_ct(&priv->iter);
+	} else {
+		priv->iter = priv->reported_iter;
 	}
+	codetag_next_ct(&priv->iter);
 	return priv->iter.ct ? priv : NULL;
 }
 
 static void *allocinfo_next(struct seq_file *m, void *arg, loff_t *pos)
 {
 	struct allocinfo_private *priv = (struct allocinfo_private *)arg;
-	struct codetag *ct = codetag_next_ct(&priv->iter);
+	struct codetag *ct;
 
+	priv->reported_iter = priv->iter;
+	ct = codetag_next_ct(&priv->iter);
 	(*pos)++;
 	if (!ct)
 		return NULL;
@@ -77,7 +82,7 @@ static void *allocinfo_next(struct seq_file *m, void *arg, loff_t *pos)
 
 static void allocinfo_stop(struct seq_file *m, void *arg)
 {
-	codetag_lock_module_list(alloc_tag_cttype, false);
+	codetag_unlock_module_list(alloc_tag_cttype);
 }
 
 static void print_allocinfo_header(struct seq_buf *buf)
@@ -136,7 +141,7 @@ size_t alloc_tag_top_users(struct codetag_bytes *tags, size_t count, bool can_sl
 		return 0;
 
 	if (can_sleep)
-		codetag_lock_module_list(alloc_tag_cttype, true);
+		codetag_lock_module_list(alloc_tag_cttype);
 	else if (!codetag_trylock_module_list(alloc_tag_cttype))
 		return 0;
 
@@ -161,7 +166,7 @@ size_t alloc_tag_top_users(struct codetag_bytes *tags, size_t count, bool can_sl
 		}
 	}
 
-	codetag_lock_module_list(alloc_tag_cttype, false);
+	codetag_unlock_module_list(alloc_tag_cttype);
 
 	return nr;
 }
@@ -767,48 +772,80 @@ static __init bool need_page_alloc_tagging(void)
  * their codetag uninitialized. Track these early PFNs so we can clear
  * their codetag refs later to avoid warnings when they are freed.
  *
- * Early allocations include:
- *   - Base allocations independent of CPU count
- *   - Per-CPU allocations (e.g., CPU hotplug callbacks during smp_init,
- *     such as trace ring buffers, scheduler per-cpu data)
- *
- * For simplicity, we fix the size to 8192.
- * If insufficient, a warning will be triggered to alert the user.
- *
- * TODO: Replace fixed-size array with dynamic allocation using
- * a GFP flag similar to ___GFP_NO_OBJ_EXT to avoid recursion.
+ * Each page is cast to a pfn_pool: the first few bytes hold metadata
+ * (next pointer and slot count), the remainder stores PFNs.
  */
-#define EARLY_ALLOC_PFN_MAX		8192
+struct pfn_pool {
+	struct pfn_pool *next;
+	atomic_t count;
+	unsigned long pfns[];
+};
 
-static unsigned long early_pfns[EARLY_ALLOC_PFN_MAX] __initdata;
-static atomic_t early_pfn_count __initdata = ATOMIC_INIT(0);
+#define PFN_POOL_SIZE			((PAGE_SIZE - offsetof(struct pfn_pool, pfns)) / \
+					 sizeof(unsigned long))
+
+/*
+ * Skip early PFN recording for a page allocation.  Reuses the
+ * %__GFP_NO_OBJ_EXT bit.  Used by __alloc_tag_add_early_pfn() to avoid
+ * recursion when allocating pages for the early PFN tracking list
+ * itself.
+ *
+ * Codetags of the pages allocated with __GFP_NO_CODETAG should be
+ * cleared (via clear_page_tag_ref()) before freeing the pages to prevent
+ * alloc_tag_sub_check() from triggering a warning.
+ */
+#define __GFP_NO_CODETAG		__GFP_NO_OBJ_EXT
+
+static struct pfn_pool *current_pfn_pool __initdata;
 
 static void __init __alloc_tag_add_early_pfn(unsigned long pfn)
 {
-	int old_idx, new_idx;
+	struct pfn_pool *pool;
+	int idx;
 
 	do {
-		old_idx = atomic_read(&early_pfn_count);
-		if (old_idx >= EARLY_ALLOC_PFN_MAX) {
-			pr_warn_once("Early page allocations before page_ext init exceeded EARLY_ALLOC_PFN_MAX (%d)\n",
-				      EARLY_ALLOC_PFN_MAX);
-			return;
-		}
-		new_idx = old_idx + 1;
-	} while (!atomic_try_cmpxchg(&early_pfn_count, &old_idx, new_idx));
+		pool = READ_ONCE(current_pfn_pool);
+		if (!pool || atomic_read(&pool->count) >= PFN_POOL_SIZE) {
+			struct page *new_page = alloc_page(__GFP_HIGH | __GFP_NO_CODETAG);
+			struct pfn_pool *new;
 
-	early_pfns[old_idx] = pfn;
+			if (!new_page) {
+				pr_warn_once("early PFN tracking page allocation failed\n");
+				return;
+			}
+			new = page_address(new_page);
+			new->next = pool;
+			atomic_set(&new->count, 0);
+			if (cmpxchg(&current_pfn_pool, pool, new) != pool) {
+				clear_page_tag_ref(new_page);
+				__free_page(new_page);
+				continue;
+			}
+			pool = new;
+		}
+		idx = atomic_read(&pool->count);
+		if (idx >= PFN_POOL_SIZE)
+			continue;
+		if (atomic_cmpxchg(&pool->count, idx, idx + 1) == idx)
+			break;
+	} while (1);
+
+	pool->pfns[idx] = pfn;
 }
 
 typedef void alloc_tag_add_func(unsigned long pfn);
 static alloc_tag_add_func __rcu *alloc_tag_add_early_pfn_ptr __refdata =
 	RCU_INITIALIZER(__alloc_tag_add_early_pfn);
 
-void alloc_tag_add_early_pfn(unsigned long pfn)
+void alloc_tag_add_early_pfn(unsigned long pfn, gfp_t gfp_flags)
 {
 	alloc_tag_add_func *alloc_tag_add;
 
 	if (static_key_enabled(&mem_profiling_compressed))
+		return;
+
+	/* Skip allocations for the tracking list itself to avoid recursion. */
+	if (gfp_flags & __GFP_NO_CODETAG)
 		return;
 
 	rcu_read_lock();
@@ -820,7 +857,9 @@ void alloc_tag_add_early_pfn(unsigned long pfn)
 
 static void __init clear_early_alloc_pfn_tag_refs(void)
 {
-	unsigned int i;
+	struct pfn_pool *pool, *next;
+	struct page *page;
+	int i;
 
 	if (static_key_enabled(&mem_profiling_compressed))
 		return;
@@ -829,37 +868,45 @@ static void __init clear_early_alloc_pfn_tag_refs(void)
 	/* Make sure we are not racing with __alloc_tag_add_early_pfn() */
 	synchronize_rcu();
 
-	for (i = 0; i < atomic_read(&early_pfn_count); i++) {
-		unsigned long pfn = early_pfns[i];
+	for (pool = current_pfn_pool; pool; pool = next) {
+		int nr_pfns = atomic_read(&pool->count);
 
-		if (pfn_valid(pfn)) {
-			struct page *page = pfn_to_page(pfn);
-			union pgtag_ref_handle handle;
-			union codetag_ref ref;
+		for (i = 0; i < nr_pfns; i++) {
+			unsigned long pfn = pool->pfns[i];
 
-			if (get_page_tag_ref(page, &ref, &handle)) {
-				/*
-				 * An early-allocated page could be freed and reallocated
-				 * after its page_ext is initialized but before we clear it.
-				 * In that case, it already has a valid tag set.
-				 * We should not overwrite that valid tag with CODETAG_EMPTY.
-				 *
-				 * Note: there is still a small race window between checking
-				 * ref.ct and calling set_codetag_empty(). We accept this
-				 * race as it's unlikely and the extra complexity of atomic
-				 * cmpxchg is not worth it for this debug-only code path.
-				 */
-				if (ref.ct) {
+			if (pfn_valid(pfn)) {
+				union pgtag_ref_handle handle;
+				union codetag_ref ref;
+
+				if (get_page_tag_ref(pfn_to_page(pfn), &ref, &handle)) {
+					/*
+					 * An early-allocated page could be freed and reallocated
+					 * after its page_ext is initialized but before we clear it.
+					 * In that case, it already has a valid tag set.
+					 * We should not overwrite that valid tag
+					 * with CODETAG_EMPTY.
+					 *
+					 * Note: there is still a small race window between checking
+					 * ref.ct and calling set_codetag_empty(). We accept this
+					 * race as it's unlikely and the extra complexity of atomic
+					 * cmpxchg is not worth it for this debug-only code path.
+					 */
+					if (ref.ct) {
+						put_page_tag_ref(handle);
+						continue;
+					}
+
+					set_codetag_empty(&ref);
+					update_page_tag_ref(handle, &ref);
 					put_page_tag_ref(handle);
-					continue;
 				}
-
-				set_codetag_empty(&ref);
-				update_page_tag_ref(handle, &ref);
-				put_page_tag_ref(handle);
 			}
 		}
 
+		next = pool->next;
+		page = virt_to_page(pool);
+		clear_page_tag_ref(page);
+		__free_page(page);
 	}
 }
 #else /* !CONFIG_MEM_ALLOC_PROFILING_DEBUG */

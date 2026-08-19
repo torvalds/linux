@@ -15,7 +15,6 @@
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 
 #define  AD5272_RDAC_WR  1
 #define  AD5272_RDAC_RD  2
@@ -204,11 +203,11 @@ static const struct of_device_id ad5272_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, ad5272_dt_ids);
 
 static const struct i2c_device_id ad5272_id[] = {
-	{ "ad5272-020", AD5272_020 },
-	{ "ad5272-050", AD5272_050 },
-	{ "ad5272-100", AD5272_100 },
-	{ "ad5274-020", AD5274_020 },
-	{ "ad5274-100", AD5274_100 },
+	{ .name = "ad5272-020", .driver_data = AD5272_020 },
+	{ .name = "ad5272-050", .driver_data = AD5272_050 },
+	{ .name = "ad5272-100", .driver_data = AD5272_100 },
+	{ .name = "ad5274-020", .driver_data = AD5274_020 },
+	{ .name = "ad5274-100", .driver_data = AD5274_100 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ad5272_id);

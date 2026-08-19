@@ -4211,6 +4211,6 @@ DEFINE_CLASS(sched_change, struct sched_change_ctx *,
 
 DEFINE_CLASS_IS_UNCONDITIONAL(sched_change)
 
-#include "ext.h"
+#include "ext/ext.h"
 
 #endif /* _KERNEL_SCHED_SCHED_H */

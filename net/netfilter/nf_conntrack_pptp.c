@@ -545,6 +545,8 @@ static int __init nf_conntrack_pptp_init(void)
 
 	pptp.destroy = gre_pptp_destroy_siblings;
 
+	nf_conntrack_helper_deprecated(pptp.name);
+
 	return nf_conntrack_helper_register(&pptp, &pptp_ptr);
 }
 

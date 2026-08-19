@@ -30,6 +30,7 @@
 
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/property.h>
 #include <linux/types.h>
 #include <linux/gpio/driver.h>
 #include <asm/mach-au1x00/gpio-au1000.h>
@@ -95,7 +96,26 @@ static int gpio1_to_irq(struct gpio_chip *chip, unsigned offset)
 	return alchemy_gpio1_to_irq(offset + ALCHEMY_GPIO1_BASE);
 }
 
-struct gpio_chip alchemy_gpio_chip[] = {
+const struct software_node alchemy_gpio1_node = {
+	.name = "alchemy-gpio1",
+};
+
+const struct software_node alchemy_gpio2_node = {
+	.name = "alchemy-gpio2",
+};
+
+const struct software_node alchemy_gpic_node = {
+	.name = "alchemy-gpic",
+};
+
+static const struct software_node *alchemy_gpio_node_group[] = {
+	&alchemy_gpio1_node,
+	&alchemy_gpio2_node,
+	&alchemy_gpic_node,
+	NULL
+};
+
+static struct gpio_chip alchemy_gpio_chip[] = {
 	[0] = {
 		.label			= "alchemy-gpio1",
 		.direction_input	= gpio1_direction_input,
@@ -156,6 +176,29 @@ static struct gpio_chip au1300_gpiochip = {
 	.base			= AU1300_GPIO_BASE,
 	.ngpio			= AU1300_GPIO_NUM,
 };
+
+/*
+ * Software nodes must be registered before board-specific code (that runs
+ * at arch_initcall level) attempts to use them as GPIO targets or as fwnodes
+ * for registered devices. We can not do registration in alchemy_gpiochip_init
+ * because it also runs as arch_initcall and runs after board-specific code
+ * because of the link order, and so we do it at postcore_initcall level.
+ */
+static int __init alchemy_gpio_nodes_init(void)
+{
+	int ret;
+
+	ret = software_node_register_node_group(alchemy_gpio_node_group);
+	if (ret)
+		return ret;
+
+	alchemy_gpio_chip[0].fwnode = software_node_fwnode(&alchemy_gpio1_node);
+	alchemy_gpio_chip[1].fwnode = software_node_fwnode(&alchemy_gpio2_node);
+	au1300_gpiochip.fwnode = software_node_fwnode(&alchemy_gpic_node);
+
+	return 0;
+}
+postcore_initcall(alchemy_gpio_nodes_init);
 
 static int __init alchemy_gpiochip_init(void)
 {

@@ -369,7 +369,7 @@ static ssize_t iomap_dio_bio_iter_one(struct iomap_iter *iter,
 	 */
 	if ((op & REQ_ATOMIC) && WARN_ON_ONCE(ret != iomap_length(iter))) {
 		ret = -EINVAL;
-		goto out_put_bio;
+		goto out_bio_release_pages;
 	}
 
 	if (iter->iomap.flags & IOMAP_F_INTEGRITY) {
@@ -393,6 +393,11 @@ static ssize_t iomap_dio_bio_iter_one(struct iomap_iter *iter,
 	iomap_dio_submit_bio(iter, dio, bio, pos);
 	return ret;
 
+out_bio_release_pages:
+	if (dio->flags & IOMAP_DIO_BOUNCE)
+		bio_iov_iter_unbounce(bio, true, false);
+	else
+		bio_release_pages(bio, false);
 out_put_bio:
 	bio_put(bio);
 	return ret;

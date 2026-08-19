@@ -10,7 +10,7 @@
 
 #include "vgic.h"
 
-static struct vgic_v5_ppi_caps ppi_caps;
+#define ppi_caps	kvm_vgic_global_state.vgic_v5_ppi_caps
 
 /*
  * Not all PPIs are guaranteed to be implemented for GICv5. Deterermine which
@@ -18,20 +18,17 @@ static struct vgic_v5_ppi_caps ppi_caps;
  */
 static void vgic_v5_get_implemented_ppis(void)
 {
-	if (!cpus_have_final_cap(ARM64_HAS_GICV5_CPUIF))
-		return;
-
 	/*
 	 * If we have KVM, we have EL2, which means that we have support for the
 	 * EL1 and EL2 Physical & Virtual timers.
 	 */
-	__assign_bit(GICV5_ARCH_PPI_CNTHP, ppi_caps.impl_ppi_mask, 1);
-	__assign_bit(GICV5_ARCH_PPI_CNTV, ppi_caps.impl_ppi_mask, 1);
-	__assign_bit(GICV5_ARCH_PPI_CNTHV, ppi_caps.impl_ppi_mask, 1);
-	__assign_bit(GICV5_ARCH_PPI_CNTP, ppi_caps.impl_ppi_mask, 1);
+	__set_bit(GICV5_ARCH_PPI_CNTHP, ppi_caps.impl_ppi_mask);
+	__set_bit(GICV5_ARCH_PPI_CNTV, ppi_caps.impl_ppi_mask);
+	__set_bit(GICV5_ARCH_PPI_CNTHV, ppi_caps.impl_ppi_mask);
+	__set_bit(GICV5_ARCH_PPI_CNTP, ppi_caps.impl_ppi_mask);
 
 	/* The SW_PPI should be available */
-	__assign_bit(GICV5_ARCH_PPI_SW_PPI, ppi_caps.impl_ppi_mask, 1);
+	__set_bit(GICV5_ARCH_PPI_SW_PPI, ppi_caps.impl_ppi_mask);
 
 	/* The PMUIRQ is available if we have the PMU */
 	__assign_bit(GICV5_ARCH_PPI_PMUIRQ, ppi_caps.impl_ppi_mask, system_supports_pmuv3());
@@ -146,9 +143,7 @@ int vgic_v5_init(struct kvm *kvm)
 	/* We only allow userspace to drive the SW_PPI, if it is implemented. */
 	bitmap_zero(kvm->arch.vgic.gicv5_vm.userspace_ppis,
 		    VGIC_V5_NR_PRIVATE_IRQS);
-	__assign_bit(GICV5_ARCH_PPI_SW_PPI,
-		     kvm->arch.vgic.gicv5_vm.userspace_ppis,
-		     VGIC_V5_NR_PRIVATE_IRQS);
+	__set_bit(GICV5_ARCH_PPI_SW_PPI, kvm->arch.vgic.gicv5_vm.userspace_ppis);
 	bitmap_and(kvm->arch.vgic.gicv5_vm.userspace_ppis,
 		   kvm->arch.vgic.gicv5_vm.userspace_ppis,
 		   ppi_caps.impl_ppi_mask, VGIC_V5_NR_PRIVATE_IRQS);
@@ -197,7 +192,7 @@ int vgic_v5_finalize_ppi_state(struct kvm *kvm)
 		/* Expose PPIs with an owner or the SW_PPI, only */
 		scoped_guard(raw_spinlock_irqsave, &irq->irq_lock) {
 			if (irq->owner || i == GICV5_ARCH_PPI_SW_PPI) {
-				__assign_bit(i, kvm->arch.vgic.gicv5_vm.vgic_ppi_mask, 1);
+				__set_bit(i, kvm->arch.vgic.gicv5_vm.vgic_ppi_mask);
 				__assign_bit(i, kvm->arch.vgic.gicv5_vm.vgic_ppi_hmr,
 					     irq->config == VGIC_CONFIG_LEVEL);
 			}
@@ -243,9 +238,9 @@ static u32 vgic_v5_get_effective_priority_mask(struct kvm_vcpu *vcpu)
 
 /*
  * For GICv5, the PPIs are mostly directly managed by the hardware. We (the
- * hypervisor) handle the pending, active, enable state save/restore, but don't
- * need the PPIs to be queued on a per-VCPU AP list. Therefore, sanity check the
- * state, unlock, and return.
+ * hypervisor) handle the pending, active, enable state save/restore, but
+ * don't need the PPIs to be queued on a per-VCPU AP list. Therefore,
+ * unlock, kick the vcpu and return.
  */
 bool vgic_v5_ppi_queue_irq_unlock(struct kvm *kvm, struct vgic_irq *irq,
 				  unsigned long flags)
@@ -255,12 +250,7 @@ bool vgic_v5_ppi_queue_irq_unlock(struct kvm *kvm, struct vgic_irq *irq,
 
 	lockdep_assert_held(&irq->irq_lock);
 
-	if (WARN_ON_ONCE(!__irq_is_ppi(KVM_DEV_TYPE_ARM_VGIC_V5, irq->intid)))
-		goto out_unlock_fail;
-
 	vcpu = irq->target_vcpu;
-	if (WARN_ON_ONCE(!vcpu))
-		goto out_unlock_fail;
 
 	raw_spin_unlock_irqrestore(&irq->irq_lock, flags);
 
@@ -269,11 +259,6 @@ bool vgic_v5_ppi_queue_irq_unlock(struct kvm *kvm, struct vgic_irq *irq,
 	kvm_vcpu_kick(vcpu);
 
 	return true;
-
-out_unlock_fail:
-	raw_spin_unlock_irqrestore(&irq->irq_lock, flags);
-
-	return false;
 }
 
 /*
@@ -287,10 +272,10 @@ void vgic_v5_set_ppi_dvi(struct kvm_vcpu *vcpu, struct vgic_irq *irq, bool dvi)
 	lockdep_assert_held(&irq->irq_lock);
 
 	ppi = vgic_v5_get_hwirq_id(irq->intid);
-	__assign_bit(ppi, cpu_if->vgic_ppi_dvir, dvi);
+	assign_bit(ppi, cpu_if->vgic_ppi_dvir, dvi);
 }
 
-static struct irq_ops vgic_v5_ppi_irq_ops = {
+static const struct irq_ops vgic_v5_ppi_irq_ops = {
 	.queue_irq_unlock = vgic_v5_ppi_queue_irq_unlock,
 	.set_direct_injection = vgic_v5_set_ppi_dvi,
 };
@@ -316,7 +301,7 @@ static void vgic_v5_sync_ppi_priorities(struct kvm_vcpu *vcpu)
 	 * those actually exposed to the guest by first iterating over the mask
 	 * of exposed PPIs.
 	 */
-	for_each_set_bit(i, vcpu->kvm->arch.vgic.gicv5_vm.vgic_ppi_mask, VGIC_V5_NR_PRIVATE_IRQS) {
+	for_each_visible_v5_ppi(i, vcpu->kvm) {
 		u32 intid = vgic_v5_make_ppi(i);
 		struct vgic_irq *irq;
 		int pri_idx, pri_reg, pri_bit;
@@ -358,7 +343,7 @@ bool vgic_v5_has_pending_ppi(struct kvm_vcpu *vcpu)
 	if (!priority_mask)
 		return false;
 
-	for_each_set_bit(i, vcpu->kvm->arch.vgic.gicv5_vm.vgic_ppi_mask, VGIC_V5_NR_PRIVATE_IRQS) {
+	for_each_visible_v5_ppi(i, vcpu->kvm) {
 		u32 intid = vgic_v5_make_ppi(i);
 		bool has_pending = false;
 		struct vgic_irq *irq;
@@ -391,8 +376,7 @@ void vgic_v5_fold_ppi_state(struct kvm_vcpu *vcpu)
 	activer = host_data_ptr(vgic_v5_ppi_state)->activer_exit;
 	pendr = host_data_ptr(vgic_v5_ppi_state)->pendr;
 
-	for_each_set_bit(i, vcpu->kvm->arch.vgic.gicv5_vm.vgic_ppi_mask,
-			 VGIC_V5_NR_PRIVATE_IRQS) {
+	for_each_visible_v5_ppi(i, vcpu->kvm) {
 		u32 intid = vgic_v5_make_ppi(i);
 		struct vgic_irq *irq;
 
@@ -429,8 +413,7 @@ void vgic_v5_flush_ppi_state(struct kvm_vcpu *vcpu)
 	 * ICC_PPI_PENDRx_EL1, however.
 	 */
 	bitmap_zero(pendr, VGIC_V5_NR_PRIVATE_IRQS);
-	for_each_set_bit(i, vcpu->kvm->arch.vgic.gicv5_vm.vgic_ppi_mask,
-			 VGIC_V5_NR_PRIVATE_IRQS) {
+	for_each_visible_v5_ppi(i, vcpu->kvm) {
 		u32 intid = vgic_v5_make_ppi(i);
 		struct vgic_irq *irq;
 

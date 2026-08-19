@@ -78,6 +78,10 @@ patternProperties:
       reg:
         maxItems: 1
 
+      label:
+        description: |
+          Unique name to identify which channel this is.
+
       qcom,decimation:
         $ref: /schemas/types.yaml#/definitions/uint32
         description: |
@@ -130,36 +134,47 @@ examples:
 
             vcoin: adc-channel@0 {
                 reg = <0x00 0x00>;
+                label = "vcoin";
             };
             vbat: adc-channel@1 {
                 reg = <0x00 0x01>;
+                label = "vbat";
             };
             dcin: adc-channel@2 {
                 reg = <0x00 0x02>;
+                label = "dcin";
             };
             ichg: adc-channel@3 {
                 reg = <0x00 0x03>;
+                label = "ichg";
             };
             vph_pwr: adc-channel@4 {
                 reg = <0x00 0x04>;
+                label = "vph_pwr";
             };
             usb_vbus: adc-channel@a {
                 reg = <0x00 0x0a>;
+                label = "usb_vbus";
             };
             die_temp: adc-channel@b {
                 reg = <0x00 0x0b>;
+                label = "die_temp";
             };
             ref_625mv: adc-channel@c {
                 reg = <0x00 0x0c>;
+                label = "ref_625mv";
             };
             ref_1250mv: adc-channel@d {
                 reg = <0x00 0x0d>;
+                label = "ref_1250mv";
             };
             ref_325mv: adc-channel@e {
                 reg = <0x00 0x0e>;
+                label = "ref_325mv";
             };
             ref_muxoff: adc-channel@f {
                 reg = <0x00 0x0f>;
+                label = "ref_muxoff";
             };
         };
     };

@@ -192,6 +192,24 @@ static const int tsl2591_calibscale_available[] = {
 	1, 25, 428, 9876,
 };
 
+static const u8 tsl2591_persist_table[] = {
+	[TSL2591_PRST_ALS_INT_CYCLE_ANY] = 1,
+	[TSL2591_PRST_ALS_INT_CYCLE_2]   = 2,
+	[TSL2591_PRST_ALS_INT_CYCLE_3]   = 3,
+	[TSL2591_PRST_ALS_INT_CYCLE_5]   = 5,
+	[TSL2591_PRST_ALS_INT_CYCLE_10]  = 10,
+	[TSL2591_PRST_ALS_INT_CYCLE_15]  = 15,
+	[TSL2591_PRST_ALS_INT_CYCLE_20]  = 20,
+	[TSL2591_PRST_ALS_INT_CYCLE_25]  = 25,
+	[TSL2591_PRST_ALS_INT_CYCLE_30]  = 30,
+	[TSL2591_PRST_ALS_INT_CYCLE_35]  = 35,
+	[TSL2591_PRST_ALS_INT_CYCLE_40]  = 40,
+	[TSL2591_PRST_ALS_INT_CYCLE_45]  = 45,
+	[TSL2591_PRST_ALS_INT_CYCLE_50]  = 50,
+	[TSL2591_PRST_ALS_INT_CYCLE_55]  = 55,
+	[TSL2591_PRST_ALS_INT_CYCLE_60]  = 60,
+};
+
 static int tsl2591_set_als_lower_threshold(struct tsl2591_chip *chip,
 					   u16 als_lower_threshold);
 static int tsl2591_set_als_upper_threshold(struct tsl2591_chip *chip,
@@ -231,78 +249,22 @@ static int tsl2591_multiplier_to_gain(const u32 multiplier)
 
 static int tsl2591_persist_cycle_to_lit(const u8 als_persist)
 {
-	switch (als_persist) {
-	case TSL2591_PRST_ALS_INT_CYCLE_ANY:
-		return 1;
-	case TSL2591_PRST_ALS_INT_CYCLE_2:
-		return 2;
-	case TSL2591_PRST_ALS_INT_CYCLE_3:
-		return 3;
-	case TSL2591_PRST_ALS_INT_CYCLE_5:
-		return 5;
-	case TSL2591_PRST_ALS_INT_CYCLE_10:
-		return 10;
-	case TSL2591_PRST_ALS_INT_CYCLE_15:
-		return 15;
-	case TSL2591_PRST_ALS_INT_CYCLE_20:
-		return 20;
-	case TSL2591_PRST_ALS_INT_CYCLE_25:
-		return 25;
-	case TSL2591_PRST_ALS_INT_CYCLE_30:
-		return 30;
-	case TSL2591_PRST_ALS_INT_CYCLE_35:
-		return 35;
-	case TSL2591_PRST_ALS_INT_CYCLE_40:
-		return 40;
-	case TSL2591_PRST_ALS_INT_CYCLE_45:
-		return 45;
-	case TSL2591_PRST_ALS_INT_CYCLE_50:
-		return 50;
-	case TSL2591_PRST_ALS_INT_CYCLE_55:
-		return 55;
-	case TSL2591_PRST_ALS_INT_CYCLE_60:
-		return 60;
-	default:
+	if (als_persist >= ARRAY_SIZE(tsl2591_persist_table) ||
+	    !tsl2591_persist_table[als_persist])
 		return -EINVAL;
-	}
+
+	return tsl2591_persist_table[als_persist];
 }
 
 static int tsl2591_persist_lit_to_cycle(const u8 als_persist)
 {
-	switch (als_persist) {
-	case 1:
-		return TSL2591_PRST_ALS_INT_CYCLE_ANY;
-	case 2:
-		return TSL2591_PRST_ALS_INT_CYCLE_2;
-	case 3:
-		return TSL2591_PRST_ALS_INT_CYCLE_3;
-	case 5:
-		return TSL2591_PRST_ALS_INT_CYCLE_5;
-	case 10:
-		return TSL2591_PRST_ALS_INT_CYCLE_10;
-	case 15:
-		return TSL2591_PRST_ALS_INT_CYCLE_15;
-	case 20:
-		return TSL2591_PRST_ALS_INT_CYCLE_20;
-	case 25:
-		return TSL2591_PRST_ALS_INT_CYCLE_25;
-	case 30:
-		return TSL2591_PRST_ALS_INT_CYCLE_30;
-	case 35:
-		return TSL2591_PRST_ALS_INT_CYCLE_35;
-	case 40:
-		return TSL2591_PRST_ALS_INT_CYCLE_40;
-	case 45:
-		return TSL2591_PRST_ALS_INT_CYCLE_45;
-	case 50:
-		return TSL2591_PRST_ALS_INT_CYCLE_50;
-	case 55:
-		return TSL2591_PRST_ALS_INT_CYCLE_55;
-	case 60:
-		return TSL2591_PRST_ALS_INT_CYCLE_60;
-	default:
-		return -EINVAL;
+	for (unsigned int i = TSL2591_PRST_ALS_INT_CYCLE_ANY;
+	     i < ARRAY_SIZE(tsl2591_persist_table); i++) {
+		if (als_persist == tsl2591_persist_table[i])
+			return i;
 	}
+
+	return -EINVAL;
 }
 
 static int tsl2591_compatible_int_time(struct tsl2591_chip *chip,
@@ -340,31 +302,6 @@ static int tsl2591_compatible_gain(struct tsl2591_chip *chip, const u8 als_gain)
 	case TSL2591_CTRL_ALS_MED_GAIN:
 	case TSL2591_CTRL_ALS_HIGH_GAIN:
 	case TSL2591_CTRL_ALS_MAX_GAIN:
-		return 0;
-	default:
-		return -EINVAL;
-	}
-}
-
-static int tsl2591_compatible_als_persist_cycle(struct tsl2591_chip *chip,
-						const u32 als_persist)
-{
-	switch (als_persist) {
-	case TSL2591_PRST_ALS_INT_CYCLE_ANY:
-	case TSL2591_PRST_ALS_INT_CYCLE_2:
-	case TSL2591_PRST_ALS_INT_CYCLE_3:
-	case TSL2591_PRST_ALS_INT_CYCLE_5:
-	case TSL2591_PRST_ALS_INT_CYCLE_10:
-	case TSL2591_PRST_ALS_INT_CYCLE_15:
-	case TSL2591_PRST_ALS_INT_CYCLE_20:
-	case TSL2591_PRST_ALS_INT_CYCLE_25:
-	case TSL2591_PRST_ALS_INT_CYCLE_30:
-	case TSL2591_PRST_ALS_INT_CYCLE_35:
-	case TSL2591_PRST_ALS_INT_CYCLE_40:
-	case TSL2591_PRST_ALS_INT_CYCLE_45:
-	case TSL2591_PRST_ALS_INT_CYCLE_50:
-	case TSL2591_PRST_ALS_INT_CYCLE_55:
-	case TSL2591_PRST_ALS_INT_CYCLE_60:
 		return 0;
 	default:
 		return -EINVAL;
@@ -951,10 +888,6 @@ static int tsl2591_write_event_value(struct iio_dev *indio_dev,
 			ret = -EINVAL;
 			goto err_unlock;
 		}
-
-		ret = tsl2591_compatible_als_persist_cycle(chip, als_persist);
-		if (ret < 0)
-			goto err_unlock;
 
 		ret = tsl2591_set_als_persist_cycle(chip, als_persist);
 		if (ret < 0)

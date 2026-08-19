@@ -18,6 +18,7 @@
 #include "pci.h"
 
 static int proc_initialized;	/* = 0 */
+static DEFINE_MUTEX(pci_proc_lock);
 
 static loff_t proc_bus_pci_lseek(struct file *file, loff_t off, int whence)
 {
@@ -416,40 +417,64 @@ static const struct seq_operations proc_bus_pci_devices_op = {
 
 static struct proc_dir_entry *proc_bus_pci_dir;
 
-int pci_proc_attach_device(struct pci_dev *dev)
+static int __pci_proc_attach_bus(struct pci_bus *bus)
 {
-	struct pci_bus *bus = dev->bus;
-	struct proc_dir_entry *e;
+	struct proc_dir_entry *dir;
 	char name[16];
+
+	lockdep_assert_held(&pci_proc_lock);
 
 	if (!proc_initialized)
 		return -EACCES;
 
-	if (!bus->procdir) {
-		if (pci_proc_domain(bus)) {
-			sprintf(name, "%04x:%02x", pci_domain_nr(bus),
-					bus->number);
-		} else {
-			sprintf(name, "%02x", bus->number);
-		}
-		bus->procdir = proc_mkdir(name, proc_bus_pci_dir);
-		if (!bus->procdir)
-			return -ENOMEM;
-	}
+	if (bus->procdir)
+		return 0;
+
+	if (pci_proc_domain(bus))
+		sprintf(name, "%04x:%02x", pci_domain_nr(bus), bus->number);
+	else
+		sprintf(name, "%02x", bus->number);
+
+	dir = proc_mkdir(name, proc_bus_pci_dir);
+	if (!dir)
+		return -ENOMEM;
+
+	bus->procdir = dir;
+
+	return 0;
+}
+
+int pci_proc_attach_device(struct pci_dev *dev)
+{
+	struct pci_bus *bus = dev->bus;
+	struct proc_dir_entry *entry;
+	char name[16];
+	int ret;
+
+	guard(mutex)(&pci_proc_lock);
+
+	if (dev->procent)
+		return 0;
+
+	ret = __pci_proc_attach_bus(bus);
+	if (ret)
+		return ret;
 
 	sprintf(name, "%02x.%x", PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn));
-	e = proc_create_data(name, S_IFREG | S_IRUGO | S_IWUSR, bus->procdir,
-			     &proc_bus_pci_ops, dev);
-	if (!e)
+	entry = proc_create_data(name, S_IFREG | S_IRUGO | S_IWUSR,
+				 bus->procdir, &proc_bus_pci_ops, dev);
+	if (!entry)
 		return -ENOMEM;
-	proc_set_size(e, dev->cfg_size);
-	dev->procent = e;
+
+	proc_set_size(entry, dev->cfg_size);
+	dev->procent = entry;
 
 	return 0;
 }
 
 int pci_proc_detach_device(struct pci_dev *dev)
 {
+	guard(mutex)(&pci_proc_lock);
 	proc_remove(dev->procent);
 	dev->procent = NULL;
 	return 0;
@@ -457,19 +482,27 @@ int pci_proc_detach_device(struct pci_dev *dev)
 
 int pci_proc_detach_bus(struct pci_bus *bus)
 {
+	guard(mutex)(&pci_proc_lock);
 	proc_remove(bus->procdir);
+	bus->procdir = NULL;
 	return 0;
 }
 
 static int __init pci_proc_init(void)
 {
 	struct pci_dev *dev = NULL;
-	proc_bus_pci_dir = proc_mkdir("bus/pci", NULL);
-	proc_create_seq("devices", 0, proc_bus_pci_dir,
-		    &proc_bus_pci_devices_op);
-	proc_initialized = 1;
+
+	scoped_guard(mutex, &pci_proc_lock) {
+		proc_bus_pci_dir = proc_mkdir("bus/pci", NULL);
+		proc_create_seq("devices", 0, proc_bus_pci_dir,
+				&proc_bus_pci_devices_op);
+		proc_initialized = 1;
+	}
+
+	pci_lock_rescan_remove();
 	for_each_pci_dev(dev)
 		pci_proc_attach_device(dev);
+	pci_unlock_rescan_remove();
 
 	return 0;
 }

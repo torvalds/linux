@@ -11,8 +11,8 @@ size_t symbol__fprintf(struct symbol *sym, FILE *fp)
 {
 	return fprintf(fp, " %" PRIx64 "-%" PRIx64 " %c %s\n",
 		       sym->start, sym->end,
-		       sym->binding == STB_GLOBAL ? 'g' :
-		       sym->binding == STB_LOCAL  ? 'l' : 'w',
+		       symbol__binding(sym) == STB_GLOBAL ? 'g' :
+		       symbol__binding(sym) == STB_LOCAL  ? 'l' : 'w',
 		       sym->name);
 }
 

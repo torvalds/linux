@@ -40,7 +40,7 @@ struct btf_node {
 int machine__process_bpf(struct machine *machine, union perf_event *event,
 			 struct perf_sample *sample);
 int evlist__add_bpf_sb_event(struct evlist *evlist, struct perf_env *env);
-void __bpf_event__print_bpf_prog_info(struct bpf_prog_info *info,
+void __bpf_event__print_bpf_prog_info(struct perf_bpil *info_linear,
 				      struct perf_env *env,
 				      FILE *fp);
 void bpf_metadata_free(struct bpf_metadata *metadata);
@@ -58,7 +58,7 @@ static inline int evlist__add_bpf_sb_event(struct evlist *evlist __maybe_unused,
 	return 0;
 }
 
-static inline void __bpf_event__print_bpf_prog_info(struct bpf_prog_info *info __maybe_unused,
+static inline void __bpf_event__print_bpf_prog_info(struct perf_bpil *info_linear __maybe_unused,
 						    struct perf_env *env __maybe_unused,
 						    FILE *fp __maybe_unused)
 {

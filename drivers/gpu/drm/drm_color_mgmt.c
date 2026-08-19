@@ -54,7 +54,7 @@
  *	&drm_crtc_state.degamma_lut.
  *
  * “DEGAMMA_LUT_SIZE”:
- *	Unsinged range property to give the size of the lookup table to be set
+ *	Unsigned range property to give the size of the lookup table to be set
  *	on the DEGAMMA_LUT property (the size depends on the underlying
  *	hardware). If drivers support multiple LUT sizes then they should
  *	publish the largest size, and sub-sample smaller sized LUTs (e.g. for

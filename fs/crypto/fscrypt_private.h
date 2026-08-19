@@ -236,13 +236,22 @@ struct fscrypt_symlink_data {
  * @tfm: crypto API transform object
  * @blk_key: key for blk-crypto
  *
- * Normally only one of the fields will be non-NULL.
+ * Only one of the fields is non-NULL.
  */
 struct fscrypt_prepared_key {
 	struct crypto_sync_skcipher *tfm;
 #ifdef CONFIG_FS_ENCRYPTION_INLINE_CRYPT
 	struct blk_crypto_key *blk_key;
 #endif
+};
+
+/* An entry in the linked list ->mk_mode_keys */
+struct fscrypt_mode_key {
+	struct fscrypt_prepared_key key;
+	struct list_head link;
+	u8 hkdf_context;
+	u8 mode_num;
+	u8 data_unit_bits;
 };
 
 /*
@@ -430,20 +439,12 @@ int fscrypt_derive_sw_secret(struct super_block *sb,
  * @prep_key, depending on which encryption implementation the file will use.
  */
 static inline bool
-fscrypt_is_key_prepared(struct fscrypt_prepared_key *prep_key,
+fscrypt_is_key_prepared(const struct fscrypt_prepared_key *prep_key,
 			const struct fscrypt_inode_info *ci)
 {
-	/*
-	 * The two smp_load_acquire()'s here pair with the smp_store_release()'s
-	 * in fscrypt_prepare_inline_crypt_key() and fscrypt_prepare_key().
-	 * I.e., in some cases (namely, if this prep_key is a per-mode
-	 * encryption key) another task can publish blk_key or tfm concurrently,
-	 * executing a RELEASE barrier.  We need to use smp_load_acquire() here
-	 * to safely ACQUIRE the memory the other task published.
-	 */
 	if (fscrypt_using_inline_encryption(ci))
-		return smp_load_acquire(&prep_key->blk_key) != NULL;
-	return smp_load_acquire(&prep_key->tfm) != NULL;
+		return prep_key->blk_key != NULL;
+	return prep_key->tfm != NULL;
 }
 
 #else /* CONFIG_FS_ENCRYPTION_INLINE_CRYPT */
@@ -486,14 +487,27 @@ fscrypt_derive_sw_secret(struct super_block *sb,
 }
 
 static inline bool
-fscrypt_is_key_prepared(struct fscrypt_prepared_key *prep_key,
+fscrypt_is_key_prepared(const struct fscrypt_prepared_key *prep_key,
 			const struct fscrypt_inode_info *ci)
 {
-	return smp_load_acquire(&prep_key->tfm) != NULL;
+	return prep_key->tfm != NULL;
 }
 #endif /* !CONFIG_FS_ENCRYPTION_INLINE_CRYPT */
 
 /* keyring.c */
+
+/*
+ * fscrypt_master_key_user - a user's claim to a master key
+ */
+struct fscrypt_master_key_user {
+	struct list_head link;
+	kuid_t uid;
+	/*
+	 * This 'struct key' contains no secret.  It exists solely to charge the
+	 * appropriate user's key quota.
+	 */
+	struct key *quota_key;
+};
 
 /*
  * fscrypt_master_key_secret - secret key material of an in-use master key
@@ -577,8 +591,8 @@ struct fscrypt_master_key {
 	/*
 	 * Active and structural reference counts.  An active ref guarantees
 	 * that the struct continues to exist, continues to be in the keyring
-	 * ->s_master_keys, and that any embedded subkeys (e.g.
-	 * ->mk_direct_keys) that have been prepared continue to exist.
+	 * ->s_master_keys, and that any non-file-scoped subkeys (e.g.
+	 * ->mk_mode_keys) that have been prepared continue to exist.
 	 * A structural ref only guarantees that the struct continues to exist.
 	 *
 	 * There is one active ref associated with ->mk_present being true, and
@@ -610,19 +624,18 @@ struct fscrypt_master_key {
 	struct fscrypt_key_specifier		mk_spec;
 
 	/*
-	 * Keyring which contains a key of type 'key_type_fscrypt_user' for each
-	 * user who has added this key.  Normally each key will be added by just
-	 * one user, but it's possible that multiple users share a key, and in
-	 * that case we need to keep track of those users so that one user can't
-	 * remove the key before the others want it removed too.
+	 * List of user claims to this key (struct fscrypt_master_key_user).
+	 * Normally each key will be added by just one user, but it's possible
+	 * that multiple users share a key, and in that case we need to keep
+	 * track of those users so that one user can't remove the key before the
+	 * others want it removed too.
 	 *
-	 * This is NULL for v1 policy keys; those can only be added by root.
+	 * Used only for v2 policy keys.  v1 policy keys can be added only by
+	 * root, so user tracking doesn't apply to them.
 	 *
-	 * Locking: protected by ->mk_sem.  (We don't just rely on the keyrings
-	 * subsystem semaphore ->mk_users->sem, as we need support for atomic
-	 * search+insert along with proper synchronization with other fields.)
+	 * Locking: protected by ->mk_sem.
 	 */
-	struct key		*mk_users;
+	struct list_head	mk_users;
 
 	/*
 	 * List of inodes that were unlocked using this key.  This allows the
@@ -632,12 +645,21 @@ struct fscrypt_master_key {
 	spinlock_t		mk_decrypted_inodes_lock;
 
 	/*
-	 * Per-mode encryption keys for the various types of encryption policies
-	 * that use them.  Allocated and derived on-demand.
+	 * A list of 'struct fscrypt_mode_key' for the (hkdf_context, mode_num,
+	 * data_unit_bits, inlinecrypt) combinations that are in use for this
+	 * master key, for hkdf_context in [HKDF_CONTEXT_DIRECT_KEY,
+	 * HKDF_CONTEXT_IV_INO_LBLK_32_KEY, HKDF_CONTEXT_IV_INO_LBLK_64_KEY].
+	 *
+	 * This is a linked list and not a hash table because in practice
+	 * there's just a single encryption policy per master key, using
+	 * _at most_ 2 nodes in this list.  Per-file keys don't use this at all.
+	 *
+	 * This list is append-only until the master key is fully removed, at
+	 * which time the list is cleared.  Before then,
+	 * fscrypt_mode_key_setup_mutex synchronizes appends, and searches use
+	 * the RCU read lock together with ->mk_sem held for read.
 	 */
-	struct fscrypt_prepared_key mk_direct_keys[FSCRYPT_MODE_MAX + 1];
-	struct fscrypt_prepared_key mk_iv_ino_lblk_64_keys[FSCRYPT_MODE_MAX + 1];
-	struct fscrypt_prepared_key mk_iv_ino_lblk_32_keys[FSCRYPT_MODE_MAX + 1];
+	struct list_head	mk_mode_keys;
 
 	/* Hash key for inode numbers.  Initialized only when needed. */
 	siphash_key_t		mk_ino_hash_key;

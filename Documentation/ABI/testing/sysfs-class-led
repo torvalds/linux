@@ -22,8 +22,8 @@ Description:
 		  For additional details please refer to
 		  Documentation/leds/leds-class-multicolor.rst.
 
-		The value is between 0 and
-		/sys/class/leds/<led>/max_brightness.
+		The value is between 0 and /sys/class/leds/<led>/max_brightness
+		and is represented by as a decimal.
 
 		Writing 0 to this file clears active trigger.
 

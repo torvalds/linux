@@ -231,7 +231,7 @@ struct eapol {
 	u8 version;
 	u8 type;
 	u16 length;
-} __attribute__ ((packed));
+} __packed;
 
 #define IEEE80211_FCS_LEN    4
 
@@ -274,7 +274,7 @@ struct ieee80211_snap_hdr {
 	u8    ssap;   /* always 0xAA */
 	u8    ctrl;   /* always 0x03 */
 	u8    oui[P80211_OUI_LEN];    /* organizational universal id */
-} __attribute__ ((packed));
+} __packed;
 
 #define SNAP_SIZE sizeof(struct ieee80211_snap_hdr)
 
@@ -394,18 +394,20 @@ enum {
 };
 
 #define IS_HT_RATE(_rate)				(_rate >= MGN_MCS0 && _rate <= MGN_MCS31)
-#define IS_CCK_RATE(_rate)				(MGN_1M == _rate || _rate == MGN_2M || _rate == MGN_5_5M || _rate == MGN_11M)
-#define IS_OFDM_RATE(_rate)				(MGN_6M <= _rate && _rate <= MGN_54M  && _rate != MGN_11M)
+#define IS_CCK_RATE(_rate)				(_rate == MGN_1M || _rate == MGN_2M || _rate == MGN_5_5M || _rate == MGN_11M)
+#define IS_OFDM_RATE(_rate)				(_rate >= MGN_6M && _rate <= MGN_54M  && _rate != MGN_11M)
 
 
 /* NOTE: This data is for statistical purposes; not all hardware provides this
  *       information for frames received.  Not setting these will not cause
- *       any adverse affects. */
+ *       any adverse affects.
+ */
 
 /* IEEE 802.11 requires that STA supports concurrent reception of at least
  * three fragmented frames. This define can be increased to support more
  * concurrent frames, but it should be noted that each entry can consume about
- * 2 kB of RAM and increasing cache size will slow down frame reassembly. */
+ * 2 kB of RAM and increasing cache size will slow down frame reassembly.
+ */
 #define IEEE80211_FRAG_CACHE_LEN 4
 
 #define SEC_KEY_1         (1<<0)
@@ -431,19 +433,17 @@ enum {
 #define BIP_AAD_SIZE  20
 
 /*
-
- 802.11 data frame from AP
-
-      ,-------------------------------------------------------------------.
-Bytes |  2   |  2   |    6    |    6    |    6    |  2   | 0..2312 |   4  |
-      |------|------|---------|---------|---------|------|---------|------|
-Desc. | ctrl | dura |  DA/RA  |   TA    |    SA   | Sequ |  frame  |  fcs |
-      |      | tion | (BSSID) |         |         | ence |  data   |      |
-      `-------------------------------------------------------------------'
-
-Total: 28-2340 bytes
-
-*/
+ * 802.11 data frame from AP
+ *
+ *       ,-------------------------------------------------------------------.
+ * Bytes |  2   |  2   |    6    |    6    |    6    |  2   | 0..2312 |   4  |
+ *       |------|------|---------|---------|---------|------|---------|------|
+ * Desc. | ctrl | dura |  DA/RA  |   TA    |    SA   | Sequ |  frame  |  fcs |
+ *       |      | tion | (BSSID) |         |         | ence |  data   |      |
+ *       `-------------------------------------------------------------------'
+ *
+ * Total: 28-2340 bytes
+ */
 
 #define BEACON_PROBE_SSID_ID_POSITION 12
 
@@ -467,7 +467,8 @@ Total: 28-2340 bytes
 /* MAX_RATES_LENGTH needs to be 12.  The spec says 8, and many APs
  * only use 8, and then use extended rates for the remaining supported
  * rates.  Other APs, however, stick all of their supported rates on the
- * main rates information element... */
+ * main rates information element...
+ */
 #define MAX_RATES_LENGTH                  ((u8)12)
 #define MAX_RATES_EX_LENGTH               ((u8)16)
 #define MAX_NETWORK_COUNT                  128
@@ -497,11 +498,11 @@ Total: 28-2340 bytes
 #define IEEE80211_PS_MBCAST IEEE80211_DTIM_MBCAST
 #define IW_ESSID_MAX_SIZE 32
 /*
-join_res:
--1: authentication fail
--2: association fail
-> 0: TID
-*/
+ * join_res:
+ * -1: authentication fail
+ * -2: association fail
+ * > 0: TID
+ */
 
 #define DEFAULT_MAX_SCAN_AGE (15 * HZ)
 #define DEFAULT_FTS 2346
@@ -555,8 +556,7 @@ enum {
 	ACT_PUBLIC_MAX
 };
 
-#define OUI_MICROSOFT 0x0050f2 /* Microsoft (also used in Wi-Fi specs)
-				* 00:50:F2 */
+#define OUI_MICROSOFT 0x0050f2 /* Microsoft OUI (also used in Wi-Fi specs) */
 #define WME_OUI_TYPE 2
 #define WME_OUI_SUBTYPE_INFORMATION_ELEMENT 0
 #define WME_OUI_SUBTYPE_PARAMETER_ELEMENT 1

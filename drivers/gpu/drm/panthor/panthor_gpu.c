@@ -170,11 +170,12 @@ int panthor_gpu_init(struct panthor_device *ptdev)
 		return irq;
 
 	ret = panthor_request_gpu_irq(ptdev, &ptdev->gpu->irq, irq,
-				      GPU_INTERRUPTS_MASK,
 				      ptdev->iomem + GPU_INT_BASE);
 	if (ret)
 		return ret;
 
+	panthor_gpu_irq_enable_events(&ptdev->gpu->irq, GPU_INTERRUPTS_MASK);
+	panthor_gpu_irq_resume(&ptdev->gpu->irq);
 	return 0;
 }
 

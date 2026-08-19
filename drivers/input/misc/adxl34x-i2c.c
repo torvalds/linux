@@ -96,7 +96,7 @@ static int adxl34x_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id adxl34x_id[] = {
-	{ "adxl34x" },
+	{ .name = "adxl34x" },
 	{ }
 };
 

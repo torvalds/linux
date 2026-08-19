@@ -15,7 +15,6 @@
 #include <linux/fs.h>
 #include <linux/kref.h>
 #include <linux/miscdevice.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
 #include <linux/platform_data/cros_ec_chardev.h>

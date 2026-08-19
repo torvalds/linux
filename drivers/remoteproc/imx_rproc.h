@@ -41,6 +41,8 @@ struct imx_rproc_dcfg {
 	/* For System Manager(SM) based SoCs */
 	u32				cpuid; /* ID of the remote core */
 	u32				lmid;  /* ID of the Logcial Machine */
+	/* reset_vector = elf_entry_addr & reset_vector_mask */
+	u32				reset_vector_mask;
 };
 
 #endif /* _IMX_RPROC_H */

@@ -396,6 +396,8 @@ enum {
 
 /* (noncompact only, HEAD) This pcluster refers to partial decompressed data */
 #define Z_EROFS_LI_PARTIAL_REF		(1 << 15)
+/* (noncompact only, HEAD) This pcluster can also be regarded as a HOLE */
+#define Z_EROFS_LI_HOLE			(1 << 14)
 
 /* Set on 1st non-head lcluster to store compressed block counti (in blocks) */
 #define Z_EROFS_LI_D0_CBLKCNT		(1 << 11)

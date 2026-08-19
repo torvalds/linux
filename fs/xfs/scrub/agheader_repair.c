@@ -652,7 +652,7 @@ xrep_agfl_fill(
 	while (agbno < start + len && af->fl_off < af->flcount)
 		af->agfl_bno[af->fl_off++] = cpu_to_be32(agbno++);
 
-	error = xagb_bitmap_set(&af->used_extents, start, agbno - 1);
+	error = xagb_bitmap_set(&af->used_extents, start, agbno - start);
 	if (error)
 		return error;
 

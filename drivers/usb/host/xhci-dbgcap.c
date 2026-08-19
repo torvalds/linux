@@ -275,7 +275,6 @@ xhci_dbc_queue_trb(struct xhci_ring *ring, u32 field1,
 	trace_xhci_dbc_gadget_ep_queue(ring, &trb->generic,
 				       xhci_trb_virt_to_dma(ring->enq_seg,
 							    ring->enqueue));
-	ring->num_trbs_free--;
 	next = ++(ring->enqueue);
 	if (TRB_TYPE_LINK_LE32(next->link.control)) {
 		next->link.control ^= cpu_to_le32(TRB_CYCLE);
@@ -296,7 +295,7 @@ static int xhci_dbc_queue_bulk_tx(struct dbc_ep *dep,
 
 	num_trbs = count_trbs(req->dma, req->length);
 	WARN_ON(num_trbs != 1);
-	if (ring->num_trbs_free < num_trbs)
+	if (xhci_num_trbs_free(ring) <= num_trbs)
 		return -EBUSY;
 
 	addr	= req->dma;
@@ -629,18 +628,36 @@ static void xhci_dbc_mem_cleanup(struct xhci_dbc *dbc)
 	dbc->ring_evt = NULL;
 }
 
+static int xhci_dbc_enable_dce(struct xhci_dbc *dbc, bool enable)
+{
+	u32 done_state = 0;
+	u32 ctrl = 0;
+
+	if (enable) {
+		ctrl = readl(&dbc->regs->control);
+		ctrl |= DBC_CTRL_DBC_ENABLE | DBC_CTRL_PORT_ENABLE;
+		done_state =  DBC_CTRL_DBC_ENABLE;
+	}
+
+	writel(ctrl, &dbc->regs->control);
+	return xhci_handshake(&dbc->regs->control, DBC_CTRL_DBC_ENABLE,
+			      done_state, 1000);
+}
+
+static void xhci_dbc_set_state(struct xhci_dbc *dbc, enum dbc_state new_state)
+{
+	dbc->state_timestamp = jiffies;
+	dbc->state = new_state;
+}
+
 static int xhci_do_dbc_start(struct xhci_dbc *dbc)
 {
 	int			ret;
-	u32			ctrl;
 
 	if (dbc->state != DS_DISABLED)
 		return -EINVAL;
 
-	writel(0, &dbc->regs->control);
-	ret = xhci_handshake(&dbc->regs->control,
-			     DBC_CTRL_DBC_ENABLE,
-			     0, 1000);
+	ret = xhci_dbc_enable_dce(dbc, false);
 	if (ret)
 		return ret;
 
@@ -648,27 +665,11 @@ static int xhci_do_dbc_start(struct xhci_dbc *dbc)
 	if (ret)
 		return ret;
 
-	ctrl = readl(&dbc->regs->control);
-	writel(ctrl | DBC_CTRL_DBC_ENABLE | DBC_CTRL_PORT_ENABLE,
-	       &dbc->regs->control);
-	ret = xhci_handshake(&dbc->regs->control,
-			     DBC_CTRL_DBC_ENABLE,
-			     DBC_CTRL_DBC_ENABLE, 1000);
+	ret = xhci_dbc_enable_dce(dbc, true);
 	if (ret)
 		return ret;
 
-	dbc->state = DS_ENABLED;
-
-	return 0;
-}
-
-static int xhci_do_dbc_stop(struct xhci_dbc *dbc)
-{
-	if (dbc->state == DS_DISABLED)
-		return -EINVAL;
-
-	writel(0, &dbc->regs->control);
-	dbc->state = DS_DISABLED;
+	xhci_dbc_set_state(dbc, DS_ENABLED);
 
 	return 0;
 }
@@ -684,29 +685,37 @@ static int xhci_dbc_start(struct xhci_dbc *dbc)
 
 	spin_lock_irqsave(&dbc->lock, flags);
 	ret = xhci_do_dbc_start(dbc);
+	if (ret)
+		goto err_unlock;
+
 	spin_unlock_irqrestore(&dbc->lock, flags);
 
-	if (ret) {
-		pm_runtime_put(dbc->dev); /* note this was self.controller */
-		return ret;
-	}
+	mod_delayed_work(system_percpu_wq, &dbc->event_work,
+			 msecs_to_jiffies(dbc->poll_interval));
 
-	return mod_delayed_work(system_percpu_wq, &dbc->event_work,
-				msecs_to_jiffies(dbc->poll_interval));
+	return 0;
+
+err_unlock:
+
+	spin_unlock_irqrestore(&dbc->lock, flags);
+	pm_runtime_put(dbc->dev); /* note this was self.controller */
+
+	return ret;
 }
 
 static void xhci_dbc_stop(struct xhci_dbc *dbc)
 {
-	int ret;
 	unsigned long		flags;
 
 	WARN_ON(!dbc);
 
+	spin_lock(&dbc->lock);
+
 	switch (dbc->state) {
 	case DS_DISABLED:
+		spin_unlock(&dbc->lock);
 		return;
 	case DS_CONFIGURED:
-		spin_lock(&dbc->lock);
 		xhci_dbc_flush_requests(dbc);
 		spin_unlock(&dbc->lock);
 
@@ -714,19 +723,20 @@ static void xhci_dbc_stop(struct xhci_dbc *dbc)
 			dbc->driver->disconnect(dbc);
 		break;
 	default:
+		spin_unlock(&dbc->lock);
 		break;
 	}
 
 	cancel_delayed_work_sync(&dbc->event_work);
 
 	spin_lock_irqsave(&dbc->lock, flags);
-	ret = xhci_do_dbc_stop(dbc);
+	writel(0, &dbc->regs->control);
+	xhci_dbc_set_state(dbc, DS_DISABLED);
 	spin_unlock_irqrestore(&dbc->lock, flags);
-	if (ret)
-		return;
 
 	xhci_dbc_mem_cleanup(dbc);
-	pm_runtime_put_sync(dbc->dev); /* note, was self.controller */
+
+	pm_runtime_put(dbc->dev); /* note, was self.controller */
 }
 
 static void
@@ -796,7 +806,6 @@ static void dbc_handle_xfer_event(struct xhci_dbc *dbc, union xhci_trb *event)
 		}
 		if (r->status == -COMP_STALL_ERROR) {
 			dev_warn(dbc->dev, "Give back stale stalled req\n");
-			ring->num_trbs_free++;
 			xhci_dbc_giveback(r, 0);
 		}
 	}
@@ -861,7 +870,6 @@ static void dbc_handle_xfer_event(struct xhci_dbc *dbc, union xhci_trb *event)
 		break;
 	}
 
-	ring->num_trbs_free++;
 	req->actual = req->length - remain_length;
 	xhci_dbc_giveback(req, status);
 }
@@ -893,21 +901,47 @@ static enum evtreturn xhci_dbc_do_handle_events(struct xhci_dbc *dbc)
 		return EVT_ERR;
 	case DS_ENABLED:
 		portsc = readl(&dbc->regs->portsc);
+		ctrl = readl(&dbc->regs->control);
+
 		if (portsc & DBC_PORTSC_CONN_STATUS) {
-			dbc->state = DS_CONNECTED;
+			xhci_dbc_set_state(dbc, DS_CONNECTED);
 			dev_info(dbc->dev, "DbC connected\n");
+		} else if (!(ctrl & DBC_CTRL_DBC_ENABLE)) {
+			dev_err(dbc->dev, "unexpected DbC disable, xHC reset?\n");
 		}
 
 		return EVT_DONE;
 	case DS_CONNECTED:
 		ctrl = readl(&dbc->regs->control);
+		portsc = readl(&dbc->regs->portsc);
 		if (ctrl & DBC_CTRL_DBC_RUN) {
-			dbc->state = DS_CONFIGURED;
+			xhci_dbc_set_state(dbc, DS_CONFIGURED);
 			dev_info(dbc->dev, "DbC configured\n");
-			portsc = readl(&dbc->regs->portsc);
 			writel(portsc, &dbc->regs->portsc);
 			ret = EVT_GSER;
 			break;
+		}
+
+		/* Connection lost */
+		if (!(portsc & DBC_PORTSC_CONN_STATUS)) {
+			/* covers DCE == 0 as it also sets CONN_STATUS to 0 */
+			dev_warn(dbc->dev, "DbC connection lost mid enumeration\n");
+			xhci_dbc_set_state(dbc, DS_ENABLED);
+
+			return EVT_DONE;
+		}
+
+		/* Enumeration timeout */
+		if (time_is_before_jiffies(dbc->state_timestamp +
+				msecs_to_jiffies(DBC_ENUMERATION_TIMEOUT))) {
+			dev_err(dbc->dev, "DbC enumeration timeout, re-enabling DbC\n");
+			dev_dbg(dbc->dev, "dcctrl %x, dcportsc %x\n", ctrl, portsc);
+
+			/* Toggle DCE to retry enumeration */
+			ret = xhci_dbc_enable_dce(dbc, false);
+			udelay(100);
+			ret = xhci_dbc_enable_dce(dbc, true);
+			xhci_dbc_set_state(dbc, DS_ENABLED);
 		}
 
 		return EVT_DONE;
@@ -917,7 +951,7 @@ static enum evtreturn xhci_dbc_do_handle_events(struct xhci_dbc *dbc)
 		if (!(portsc & DBC_PORTSC_PORT_ENABLED) &&
 		    !(portsc & DBC_PORTSC_CONN_STATUS)) {
 			dev_info(dbc->dev, "DbC cable unplugged\n");
-			dbc->state = DS_ENABLED;
+			xhci_dbc_set_state(dbc, DS_ENABLED);
 			xhci_dbc_flush_requests(dbc);
 			xhci_dbc_reinit_ep_rings(dbc);
 			return EVT_DISC;
@@ -927,7 +961,7 @@ static enum evtreturn xhci_dbc_do_handle_events(struct xhci_dbc *dbc)
 		if (portsc & DBC_PORTSC_RESET_CHANGE) {
 			dev_info(dbc->dev, "DbC port reset\n");
 			writel(portsc, &dbc->regs->portsc);
-			dbc->state = DS_ENABLED;
+			xhci_dbc_set_state(dbc, DS_ENABLED);
 			xhci_dbc_flush_requests(dbc);
 			xhci_dbc_reinit_ep_rings(dbc);
 			return EVT_DISC;
@@ -1075,12 +1109,17 @@ static ssize_t dbc_store(struct device *dev,
 	xhci = hcd_to_xhci(dev_get_drvdata(dev));
 	dbc = xhci->dbc;
 
-	if (sysfs_streq(buf, "enable"))
+	if (sysfs_streq(buf, "enable")) {
+		mutex_lock(&dbc->enable_mutex);
 		xhci_dbc_start(dbc);
-	else if (sysfs_streq(buf, "disable"))
+		mutex_unlock(&dbc->enable_mutex);
+	} else if (sysfs_streq(buf, "disable")) {
+		mutex_lock(&dbc->enable_mutex);
 		xhci_dbc_stop(dbc);
-	else
+		mutex_unlock(&dbc->enable_mutex);
+	} else {
 		return -EINVAL;
+	}
 
 	return count;
 }
@@ -1446,6 +1485,7 @@ xhci_alloc_dbc(struct device *dev, void __iomem *base, const struct dbc_driver *
 
 	INIT_DELAYED_WORK(&dbc->event_work, xhci_dbc_handle_events);
 	spin_lock_init(&dbc->lock);
+	mutex_init(&dbc->enable_mutex);
 
 	ret = sysfs_create_groups(&dev->kobj, dbc_dev_groups);
 	if (ret)
@@ -1463,8 +1503,9 @@ void xhci_dbc_remove(struct xhci_dbc *dbc)
 	if (!dbc)
 		return;
 	/* stop hw, stop wq and call dbc->ops->stop() */
+	mutex_lock(&dbc->enable_mutex);
 	xhci_dbc_stop(dbc);
-
+	mutex_unlock(&dbc->enable_mutex);
 	/* remove sysfs files */
 	sysfs_remove_groups(&dbc->dev->kobj, dbc_dev_groups);
 
@@ -1517,6 +1558,8 @@ int xhci_dbc_suspend(struct xhci_hcd *xhci)
 	if (!dbc)
 		return 0;
 
+	mutex_lock(&dbc->enable_mutex);
+
 	switch (dbc->state) {
 	case DS_ENABLED:
 	case DS_CONNECTED:
@@ -1528,6 +1571,7 @@ int xhci_dbc_suspend(struct xhci_hcd *xhci)
 	}
 
 	xhci_dbc_stop(dbc);
+	mutex_unlock(&dbc->enable_mutex);
 
 	return 0;
 }
@@ -1540,10 +1584,14 @@ int xhci_dbc_resume(struct xhci_hcd *xhci)
 	if (!dbc)
 		return 0;
 
+	mutex_lock(&dbc->enable_mutex);
+
 	if (dbc->resume_required) {
 		dbc->resume_required = 0;
 		xhci_dbc_start(dbc);
 	}
+
+	mutex_unlock(&dbc->enable_mutex);
 
 	return ret;
 }

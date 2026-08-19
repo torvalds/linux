@@ -243,37 +243,6 @@ struct stratix10_async_ctrl {
 };
 
 /**
- * struct stratix10_svc_controller - service controller
- * @dev: device
- * @chans: array of service channels
- * @num_chans: number of channels in 'chans' array
- * @num_active_client: number of active service client
- * @node: list management
- * @genpool: memory pool pointing to the memory region
- * @complete_status: state for completion
- * @invoke_fn: function to issue secure monitor call or hypervisor call
- * @svc: manages the list of client svc drivers
- * @sdm_lock: only allows a single command single response to SDM
- * @actrl: async control structure
- *
- * This struct is used to create communication channels for service clients, to
- * handle secure monitor or hypervisor call.
- */
-struct stratix10_svc_controller {
-	struct device *dev;
-	struct stratix10_svc_chan *chans;
-	int num_chans;
-	int num_active_client;
-	struct list_head node;
-	struct gen_pool *genpool;
-	struct completion complete_status;
-	svc_invoke_fn *invoke_fn;
-	struct stratix10_svc *svc;
-	struct mutex sdm_lock;
-	struct stratix10_async_ctrl actrl;
-};
-
-/**
  * struct stratix10_svc_chan - service communication channel
  * @ctrl: pointer to service controller which is the provider of this channel
  * @scl: pointer to service client which owns the channel
@@ -296,6 +265,37 @@ struct stratix10_svc_chan {
 	spinlock_t svc_fifo_lock;
 	spinlock_t lock;
 	struct stratix10_async_chan *async_chan;
+};
+
+/**
+ * struct stratix10_svc_controller - service controller
+ * @dev: device
+ * @num_chans: number of channels in 'chans' array
+ * @num_active_client: number of active service client
+ * @node: list management
+ * @genpool: memory pool pointing to the memory region
+ * @complete_status: state for completion
+ * @invoke_fn: function to issue secure monitor call or hypervisor call
+ * @svc: manages the list of client svc drivers
+ * @sdm_lock: only allows a single command single response to SDM
+ * @actrl: async control structure
+ * @chans: array of service channels
+ *
+ * This struct is used to create communication channels for service clients, to
+ * handle secure monitor or hypervisor call.
+ */
+struct stratix10_svc_controller {
+	struct device *dev;
+	int num_chans;
+	int num_active_client;
+	struct list_head node;
+	struct gen_pool *genpool;
+	struct completion complete_status;
+	svc_invoke_fn *invoke_fn;
+	struct stratix10_svc *svc;
+	struct mutex sdm_lock;
+	struct stratix10_async_ctrl actrl;
+	struct stratix10_svc_chan chans[] __counted_by(num_chans);
 };
 
 static LIST_HEAD(svc_ctrl);
@@ -465,6 +465,7 @@ static void svc_thread_recv_status_ok(struct stratix10_svc_data *p_data,
 	case COMMAND_FCS_SEND_CERTIFICATE:
 	case COMMAND_FCS_DATA_ENCRYPTION:
 	case COMMAND_FCS_DATA_DECRYPTION:
+	case COMMAND_FCS_GET_PROVISION_DATA:
 		cb_data->status = BIT(SVC_STATUS_OK);
 		break;
 	case COMMAND_RECONFIG_DATA_SUBMIT:
@@ -487,13 +488,18 @@ static void svc_thread_recv_status_ok(struct stratix10_svc_data *p_data,
 		cb_data->kaddr1 = &res.a1;
 		cb_data->kaddr2 = &res.a2;
 		break;
+	case COMMAND_SMC_ATF_BUILD_VER:
+		cb_data->status = BIT(SVC_STATUS_OK);
+		cb_data->kaddr1 = &res.a1;
+		cb_data->kaddr2 = &res.a2;
+		cb_data->kaddr3 = &res.a3;
+		break;
 	case COMMAND_RSU_DCMF_VERSION:
 		cb_data->status = BIT(SVC_STATUS_OK);
 		cb_data->kaddr1 = &res.a1;
 		cb_data->kaddr2 = &res.a2;
 		break;
 	case COMMAND_FCS_RANDOM_NUMBER_GEN:
-	case COMMAND_FCS_GET_PROVISION_DATA:
 	case COMMAND_POLL_SERVICE_STATUS:
 		cb_data->status = BIT(SVC_STATUS_OK);
 		cb_data->kaddr1 = &res.a1;
@@ -676,7 +682,7 @@ static int svc_normal_to_secure_thread(void *data)
 			break;
 		case COMMAND_FCS_GET_PROVISION_DATA:
 			a0 = INTEL_SIP_SMC_FCS_GET_PROVISION_DATA;
-			a1 = (unsigned long)pdata->paddr;
+			a1 = 0;
 			a2 = 0;
 			break;
 		/* for HWMON */
@@ -705,6 +711,12 @@ static int svc_normal_to_secure_thread(void *data)
 			a0 = INTEL_SIP_SMC_SVC_VERSION;
 			a1 = 0;
 			a2 = 0;
+			break;
+		case COMMAND_SMC_ATF_BUILD_VER:
+			a0 = INTEL_SIP_SMC_ATF_BUILD_VER;
+			a1 = 0;
+			a2 = 0;
+			a3 = 0;
 			break;
 		case COMMAND_MBOX_SEND_CMD:
 			a0 = INTEL_SIP_SMC_MBOX_SEND_CMD;
@@ -1910,7 +1922,6 @@ static int stratix10_svc_drv_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct stratix10_svc_controller *controller;
-	struct stratix10_svc_chan *chans;
 	struct gen_pool *genpool;
 	struct stratix10_svc_sh_memory *sh_memory;
 	struct stratix10_svc *svc = NULL;
@@ -1938,23 +1949,16 @@ static int stratix10_svc_drv_probe(struct platform_device *pdev)
 		return PTR_ERR(genpool);
 
 	/* allocate service controller and supporting channel */
-	controller = devm_kzalloc(dev, sizeof(*controller), GFP_KERNEL);
+	controller = devm_kzalloc(dev, struct_size(controller, chans, SVC_NUM_CHANNEL),
+				GFP_KERNEL);
 	if (!controller) {
 		ret = -ENOMEM;
 		goto err_destroy_pool;
 	}
 
-	chans = devm_kmalloc_array(dev, SVC_NUM_CHANNEL,
-				   sizeof(*chans), GFP_KERNEL | __GFP_ZERO);
-	if (!chans) {
-		ret = -ENOMEM;
-		goto err_destroy_pool;
-	}
-
-	controller->dev = dev;
 	controller->num_chans = SVC_NUM_CHANNEL;
+	controller->dev = dev;
 	controller->num_active_client = 0;
-	controller->chans = chans;
 	controller->genpool = genpool;
 	controller->invoke_fn = invoke_fn;
 	INIT_LIST_HEAD(&controller->node);
@@ -1975,16 +1979,16 @@ static int stratix10_svc_drv_probe(struct platform_device *pdev)
 	mutex_init(&controller->sdm_lock);
 
 	for (i = 0; i < SVC_NUM_CHANNEL; i++) {
-		chans[i].scl = NULL;
-		chans[i].ctrl = controller;
-		chans[i].name = (char *)chan_names[i];
-		spin_lock_init(&chans[i].lock);
-		ret = kfifo_alloc(&chans[i].svc_fifo, fifo_size, GFP_KERNEL);
+		controller->chans[i].scl = NULL;
+		controller->chans[i].ctrl = controller;
+		controller->chans[i].name = (char *)chan_names[i];
+		spin_lock_init(&controller->chans[i].lock);
+		ret = kfifo_alloc(&controller->chans[i].svc_fifo, fifo_size, GFP_KERNEL);
 		if (ret) {
 			dev_err(dev, "failed to allocate FIFO %d\n", i);
 			goto err_free_fifos;
 		}
-		spin_lock_init(&chans[i].svc_fifo_lock);
+		spin_lock_init(&controller->chans[i].svc_fifo_lock);
 	}
 
 	list_add_tail(&controller->node, &svc_ctrl);
@@ -2028,7 +2032,7 @@ err_free_fifos:
 		list_del(&controller->node);
 	/* free only the FIFOs that were successfully allocated */
 	while (i--)
-		kfifo_free(&chans[i].svc_fifo);
+		kfifo_free(&controller->chans[i].svc_fifo);
 	stratix10_svc_async_exit(controller);
 err_destroy_pool:
 	gen_pool_destroy(genpool);

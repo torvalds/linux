@@ -23,7 +23,7 @@
 #define MAX_SMB2_HDR_SIZE 0x78 /* 4 len + 64 hdr + (2*24 wct) + 2 bct + 2 pad */
 
 #define SMB21_DEFAULT_IOSIZE	(1024 * 1024)
-#define SMB3_DEFAULT_TRANS_SIZE	(1024 * 1024)
+#define SMB3_DEFAULT_TRANS_SIZE	(4 * 1024 * 1024)
 #define SMB3_MIN_IOSIZE		(64 * 1024)
 #define SMB3_MAX_IOSIZE		(8 * 1024 * 1024)
 #define SMB3_MAX_MSGSIZE	(4 * 4096)

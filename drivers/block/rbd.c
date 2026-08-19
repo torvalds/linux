@@ -580,14 +580,7 @@ static const struct bus_type rbd_bus_type = {
 	.bus_groups	= rbd_bus_groups,
 };
 
-static void rbd_root_dev_release(struct device *dev)
-{
-}
-
-static struct device rbd_root_dev = {
-	.init_name =    "rbd",
-	.release =      rbd_root_dev_release,
-};
+static struct device *rbd_root_dev;
 
 static __printf(2, 3)
 void rbd_warn(struct rbd_device *rbd_dev, const char *fmt, ...)
@@ -5378,7 +5371,7 @@ static struct rbd_device *__rbd_dev_create(struct rbd_spec *spec)
 
 	rbd_dev->dev.bus = &rbd_bus_type;
 	rbd_dev->dev.type = &rbd_device_type;
-	rbd_dev->dev.parent = &rbd_root_dev;
+	rbd_dev->dev.parent = rbd_root_dev;
 	device_initialize(&rbd_dev->dev);
 
 	return rbd_dev;
@@ -7324,15 +7317,13 @@ static int __init rbd_sysfs_init(void)
 {
 	int ret;
 
-	ret = device_register(&rbd_root_dev);
-	if (ret < 0) {
-		put_device(&rbd_root_dev);
-		return ret;
-	}
+	rbd_root_dev = root_device_register("rbd");
+	if (IS_ERR(rbd_root_dev))
+		return PTR_ERR(rbd_root_dev);
 
 	ret = bus_register(&rbd_bus_type);
 	if (ret < 0)
-		device_unregister(&rbd_root_dev);
+		root_device_unregister(rbd_root_dev);
 
 	return ret;
 }
@@ -7340,7 +7331,7 @@ static int __init rbd_sysfs_init(void)
 static void __exit rbd_sysfs_cleanup(void)
 {
 	bus_unregister(&rbd_bus_type);
-	device_unregister(&rbd_root_dev);
+	root_device_unregister(rbd_root_dev);
 }
 
 static int __init rbd_slab_init(void)

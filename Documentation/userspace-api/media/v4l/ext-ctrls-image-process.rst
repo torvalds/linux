@@ -24,7 +24,10 @@ Image Process Control IDs
 .. _v4l2-cid-link-freq:
 
 ``V4L2_CID_LINK_FREQ (integer menu)``
-    The frequency of the data bus (e.g. parallel or CSI-2).
+    The fundamental frequency of the operating symbol rate (serial interfaces
+    such as CSI-2) or the sampling rate (parallel interfaces such as DVP or
+    Bt.565) of the data interface. For CSI-2, the frequency is equal to
+    _1 / (2 * UI)_.
 
 .. _v4l2-cid-pixel-rate:
 

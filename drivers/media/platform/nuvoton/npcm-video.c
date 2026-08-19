@@ -1720,10 +1720,12 @@ static int npcm_video_init(struct npcm_video *video)
 	if (rc) {
 		dev_err(dev, "Failed to set DMA mask\n");
 		of_reserved_mem_device_release(dev);
+		return rc;
 	}
 
 	rc = npcm_video_ece_init(video);
 	if (rc) {
+		of_reserved_mem_device_release(dev);
 		dev_err(dev, "Failed to initialize ECE\n");
 		return rc;
 	}
@@ -1748,42 +1750,55 @@ static int npcm_video_probe(struct platform_device *pdev)
 	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs)) {
 		dev_err(&pdev->dev, "Failed to parse VCD reg in DTS\n");
-		return PTR_ERR(regs);
+		rc = PTR_ERR(regs);
+		goto err_free;
 	}
 
 	video->vcd_regmap = devm_regmap_init_mmio(&pdev->dev, regs,
 						  &npcm_video_regmap_cfg);
 	if (IS_ERR(video->vcd_regmap)) {
 		dev_err(&pdev->dev, "Failed to initialize VCD regmap\n");
-		return PTR_ERR(video->vcd_regmap);
+		rc = PTR_ERR(video->vcd_regmap);
+		goto err_free;
 	}
 
 	video->reset = devm_reset_control_get(&pdev->dev, NULL);
 	if (IS_ERR(video->reset)) {
 		dev_err(&pdev->dev, "Failed to get VCD reset control in DTS\n");
-		return PTR_ERR(video->reset);
+		rc = PTR_ERR(video->reset);
+		goto err_free;
 	}
 
 	video->gcr_regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
 							    "nuvoton,sysgcr");
-	if (IS_ERR(video->gcr_regmap))
-		return PTR_ERR(video->gcr_regmap);
+	if (IS_ERR(video->gcr_regmap)) {
+		rc = PTR_ERR(video->gcr_regmap);
+		goto err_free;
+	}
 
 	video->gfx_regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
 							    "nuvoton,sysgfxi");
-	if (IS_ERR(video->gfx_regmap))
-		return PTR_ERR(video->gfx_regmap);
+	if (IS_ERR(video->gfx_regmap)) {
+		rc = PTR_ERR(video->gfx_regmap);
+		goto err_free;
+	}
 
 	rc = npcm_video_init(video);
 	if (rc)
-		return rc;
+		goto err_free;
 
 	rc = npcm_video_setup_video(video);
 	if (rc)
-		return rc;
+		goto err_release_mem;
 
 	dev_info(video->dev, "NPCM video driver probed\n");
 	return 0;
+
+err_release_mem:
+	of_reserved_mem_device_release(&pdev->dev);
+err_free:
+	kfree(video);
+	return rc;
 }
 
 static void npcm_video_remove(struct platform_device *pdev)
@@ -1798,6 +1813,7 @@ static void npcm_video_remove(struct platform_device *pdev)
 	v4l2_device_unregister(v4l2_dev);
 	if (video->ece.enable)
 		npcm_video_ece_stop(video);
+	kfree(video);
 	of_reserved_mem_device_release(dev);
 }
 

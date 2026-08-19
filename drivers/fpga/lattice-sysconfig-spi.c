@@ -3,8 +3,13 @@
  * Lattice FPGA programming over slave SPI sysCONFIG interface.
  */
 
-#include <linux/of.h>
+#include <linux/dev_printk.h>
+#include <linux/device/devres.h>
+#include <linux/errno.h>
+#include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/spi/spi.h>
+#include <linux/types.h>
 
 #include "lattice-sysconfig.h"
 
@@ -85,7 +90,6 @@ static int sysconfig_spi_bitstream_burst_complete(struct sysconfig_priv *priv)
 
 static int sysconfig_spi_probe(struct spi_device *spi)
 {
-	const struct spi_device_id *dev_id;
 	struct device *dev = &spi->dev;
 	struct sysconfig_priv *priv;
 	const u32 *spi_max_speed;
@@ -94,15 +98,7 @@ static int sysconfig_spi_probe(struct spi_device *spi)
 	if (!priv)
 		return -ENOMEM;
 
-	spi_max_speed = device_get_match_data(dev);
-	if (!spi_max_speed) {
-		dev_id = spi_get_device_id(spi);
-		if (!dev_id)
-			return -ENODEV;
-
-		spi_max_speed = (const u32 *)dev_id->driver_data;
-	}
-
+	spi_max_speed = spi_get_device_match_data(spi);
 	if (!spi_max_speed)
 		return -EINVAL;
 
@@ -125,26 +121,26 @@ static const struct spi_device_id sysconfig_spi_ids[] = {
 	{
 		.name = "sysconfig-ecp5",
 		.driver_data = (kernel_ulong_t)&ecp5_spi_max_speed_hz,
-	}, {},
+	},
+	{}
 };
 MODULE_DEVICE_TABLE(spi, sysconfig_spi_ids);
 
-#if IS_ENABLED(CONFIG_OF)
 static const struct of_device_id sysconfig_of_ids[] = {
 	{
 		.compatible = "lattice,sysconfig-ecp5",
 		.data = &ecp5_spi_max_speed_hz,
-	}, {},
+	},
+	{}
 };
 MODULE_DEVICE_TABLE(of, sysconfig_of_ids);
-#endif /* IS_ENABLED(CONFIG_OF) */
 
 static struct spi_driver lattice_sysconfig_driver = {
 	.probe = sysconfig_spi_probe,
 	.id_table = sysconfig_spi_ids,
 	.driver = {
 		.name = "lattice_sysconfig_spi_fpga_mgr",
-		.of_match_table = of_match_ptr(sysconfig_of_ids),
+		.of_match_table = sysconfig_of_ids,
 	},
 };
 module_spi_driver(lattice_sysconfig_driver);

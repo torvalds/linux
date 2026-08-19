@@ -13,7 +13,7 @@
 #include <linux/types.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/rpmsg.h>
 #include <linux/kref.h>
 #include <linux/mutex.h>
 #include <linux/poll.h>

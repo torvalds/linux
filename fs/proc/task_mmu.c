@@ -132,6 +132,22 @@ static void release_task_mempolicy(struct proc_maps_private *priv)
 
 #ifdef CONFIG_PER_VMA_LOCK
 
+static inline int lock_ctx_mm(struct proc_maps_locking_ctx *lock_ctx)
+{
+	int ret = mmap_read_lock_killable(lock_ctx->mm);
+
+	if (!ret)
+		lock_ctx->mmap_locked = true;
+
+	return ret;
+}
+
+static inline void unlock_ctx_mm(struct proc_maps_locking_ctx *lock_ctx)
+{
+	mmap_read_unlock(lock_ctx->mm);
+	lock_ctx->mmap_locked = false;
+}
+
 static void reset_lock_ctx(struct proc_maps_locking_ctx *lock_ctx)
 {
 	lock_ctx->locked_vma = NULL;
@@ -146,25 +162,11 @@ static void unlock_ctx_vma(struct proc_maps_locking_ctx *lock_ctx)
 	}
 }
 
-static const struct seq_operations proc_pid_maps_op;
-
 static inline bool lock_vma_range(struct seq_file *m,
 				  struct proc_maps_locking_ctx *lock_ctx)
 {
-	/*
-	 * smaps and numa_maps perform page table walk, therefore require
-	 * mmap_lock but maps can be read with locking just the vma and
-	 * walking the vma tree under rcu read protection.
-	 */
-	if (m->op != &proc_pid_maps_op) {
-		if (mmap_read_lock_killable(lock_ctx->mm))
-			return false;
-
-		lock_ctx->mmap_locked = true;
-	} else {
-		rcu_read_lock();
-		reset_lock_ctx(lock_ctx);
-	}
+	rcu_read_lock();
+	reset_lock_ctx(lock_ctx);
 
 	return true;
 }
@@ -172,7 +174,7 @@ static inline bool lock_vma_range(struct seq_file *m,
 static inline void unlock_vma_range(struct proc_maps_locking_ctx *lock_ctx)
 {
 	if (lock_ctx->mmap_locked) {
-		mmap_read_unlock(lock_ctx->mm);
+		unlock_ctx_mm(lock_ctx);
 	} else {
 		unlock_ctx_vma(lock_ctx);
 		rcu_read_unlock();
@@ -213,17 +215,45 @@ static inline bool fallback_to_mmap_lock(struct proc_maps_private *priv,
 	return true;
 }
 
+static inline void drop_rcu(struct proc_maps_private *priv)
+{
+	if (priv->lock_ctx.mmap_locked)
+		return;
+
+	rcu_read_unlock();
+}
+
+static inline void reacquire_rcu(struct proc_maps_private *priv)
+{
+	if (priv->lock_ctx.mmap_locked)
+		return;
+
+	rcu_read_lock();
+	/* Reinitialize the iterator. */
+	vma_iter_set(&priv->iter, priv->lock_ctx.locked_vma->vm_end);
+}
+
 #else /* CONFIG_PER_VMA_LOCK */
+
+static inline int lock_ctx_mm(struct proc_maps_locking_ctx *lock_ctx)
+{
+	return mmap_read_lock_killable(lock_ctx->mm);
+}
+
+static inline void unlock_ctx_mm(struct proc_maps_locking_ctx *lock_ctx)
+{
+	mmap_read_unlock(lock_ctx->mm);
+}
 
 static inline bool lock_vma_range(struct seq_file *m,
 				  struct proc_maps_locking_ctx *lock_ctx)
 {
-	return mmap_read_lock_killable(lock_ctx->mm) == 0;
+	return lock_ctx_mm(lock_ctx) == 0;
 }
 
 static inline void unlock_vma_range(struct proc_maps_locking_ctx *lock_ctx)
 {
-	mmap_read_unlock(lock_ctx->mm);
+	unlock_ctx_mm(lock_ctx);
 }
 
 static struct vm_area_struct *get_next_vma(struct proc_maps_private *priv,
@@ -237,6 +267,9 @@ static inline bool fallback_to_mmap_lock(struct proc_maps_private *priv,
 {
 	return false;
 }
+
+static inline void drop_rcu(struct proc_maps_private *priv) {}
+static inline void reacquire_rcu(struct proc_maps_private *priv) {}
 
 #endif /* CONFIG_PER_VMA_LOCK */
 
@@ -538,12 +571,10 @@ static int query_vma_setup(struct proc_maps_locking_ctx *lock_ctx)
 
 static void query_vma_teardown(struct proc_maps_locking_ctx *lock_ctx)
 {
-	if (lock_ctx->mmap_locked) {
-		mmap_read_unlock(lock_ctx->mm);
-		lock_ctx->mmap_locked = false;
-	} else {
+	if (lock_ctx->mmap_locked)
+		unlock_ctx_mm(lock_ctx);
+	else
 		unlock_ctx_vma(lock_ctx);
-	}
 }
 
 static struct vm_area_struct *query_vma_find_by_addr(struct proc_maps_locking_ctx *lock_ctx,
@@ -1280,20 +1311,74 @@ static const struct mm_walk_ops smaps_shmem_walk_ops = {
 	.walk_lock		= PGWALK_RDLOCK,
 };
 
+#ifdef CONFIG_PER_VMA_LOCK
+
+static const struct mm_walk_ops smaps_walk_vma_lock_ops = {
+	.pmd_entry		= smaps_pte_range,
+	.hugetlb_entry		= smaps_hugetlb_range,
+	.walk_lock		= PGWALK_VMA_RDLOCK_VERIFY,
+};
+
+static const struct mm_walk_ops smaps_shmem_walk_vma_lock_ops = {
+	.pmd_entry		= smaps_pte_range,
+	.hugetlb_entry		= smaps_hugetlb_range,
+	.pte_hole		= smaps_pte_hole,
+	.walk_lock		= PGWALK_VMA_RDLOCK_VERIFY,
+};
+
+static inline const struct mm_walk_ops *
+get_smaps_walk_ops(struct proc_maps_private *priv)
+{
+	if (priv->lock_ctx.mmap_locked)
+		return &smaps_walk_ops;
+	return &smaps_walk_vma_lock_ops;
+}
+
+static inline const struct mm_walk_ops *
+get_smaps_shmem_walk_ops(struct proc_maps_private *priv)
+{
+	if (priv->lock_ctx.mmap_locked)
+		return  &smaps_shmem_walk_ops;
+	return &smaps_shmem_walk_vma_lock_ops;
+}
+
+#else /* CONFIG_PER_VMA_LOCK */
+
+static inline const struct mm_walk_ops *
+get_smaps_walk_ops(struct proc_maps_private *priv)
+{
+	return &smaps_walk_ops;
+}
+
+static inline const struct mm_walk_ops *
+get_smaps_shmem_walk_ops(struct proc_maps_private *priv)
+{
+	return &smaps_shmem_walk_ops;
+}
+
+#endif /* CONFIG_PER_VMA_LOCK */
+
 /*
  * Gather mem stats from @vma with the indicated beginning
  * address @start, and keep them in @mss.
  *
  * Use vm_start of @vma as the beginning address if @start is 0.
  */
-static void smap_gather_stats(struct vm_area_struct *vma,
-		struct mem_size_stats *mss, unsigned long start)
+static void smap_gather_stats(struct proc_maps_private *priv,
+			      struct vm_area_struct *vma,
+			      struct mem_size_stats *mss, unsigned long start)
 {
-	const struct mm_walk_ops *ops = &smaps_walk_ops;
+	const struct mm_walk_ops *ops = get_smaps_walk_ops(priv);
 
 	/* Invalid start */
 	if (start >= vma->vm_end)
 		return;
+
+	if (vma == get_gate_vma(priv->lock_ctx.mm))
+		return;
+
+	/* Might sleep. Drop RCU read lock but keep the VMA locked. */
+	drop_rcu(priv);
 
 	if (vma->vm_file && shmem_mapping(vma->vm_file->f_mapping)) {
 		/*
@@ -1312,15 +1397,16 @@ static void smap_gather_stats(struct vm_area_struct *vma,
 					!(vma->vm_flags & VM_WRITE))) {
 			mss->swap += shmem_swapped;
 		} else {
-			ops = &smaps_shmem_walk_ops;
+			ops = get_smaps_shmem_walk_ops(priv);
 		}
 	}
 
-	/* mmap_lock is held in m_start */
 	if (!start)
 		walk_page_vma(vma, ops, mss);
 	else
 		walk_page_range(vma->vm_mm, start, vma->vm_end, ops, mss);
+
+	reacquire_rcu(priv);
 }
 
 #define SEQ_PUT_DEC(str, val) \
@@ -1369,10 +1455,11 @@ static void __show_smap(struct seq_file *m, const struct mem_size_stats *mss,
 
 static int show_smap(struct seq_file *m, void *v)
 {
+	struct proc_maps_private *priv = m->private;
 	struct vm_area_struct *vma = v;
 	struct mem_size_stats mss = {};
 
-	smap_gather_stats(vma, &mss, 0);
+	smap_gather_stats(priv, vma, &mss, 0);
 
 	show_map_vma(m, vma);
 
@@ -1413,7 +1500,7 @@ static int show_smaps_rollup(struct seq_file *m, void *v)
 		goto out_put_task;
 	}
 
-	ret = mmap_read_lock_killable(mm);
+	ret = lock_ctx_mm(&priv->lock_ctx);
 	if (ret)
 		goto out_put_mm;
 
@@ -1425,7 +1512,7 @@ static int show_smaps_rollup(struct seq_file *m, void *v)
 
 	vma_start = vma->vm_start;
 	do {
-		smap_gather_stats(vma, &mss, 0);
+		smap_gather_stats(priv, vma, &mss, 0);
 		last_vma_end = vma->vm_end;
 
 		/*
@@ -1434,8 +1521,8 @@ static int show_smaps_rollup(struct seq_file *m, void *v)
 		 */
 		if (mmap_lock_is_contended(mm)) {
 			vma_iter_invalidate(&vmi);
-			mmap_read_unlock(mm);
-			ret = mmap_read_lock_killable(mm);
+			unlock_ctx_mm(&priv->lock_ctx);
+			ret = lock_ctx_mm(&priv->lock_ctx);
 			if (ret) {
 				release_task_mempolicy(priv);
 				goto out_put_mm;
@@ -1484,14 +1571,14 @@ static int show_smaps_rollup(struct seq_file *m, void *v)
 
 			/* Case 1 and 2 above */
 			if (vma->vm_start >= last_vma_end) {
-				smap_gather_stats(vma, &mss, 0);
+				smap_gather_stats(priv, vma, &mss, 0);
 				last_vma_end = vma->vm_end;
 				continue;
 			}
 
 			/* Case 4 above */
 			if (vma->vm_end > last_vma_end) {
-				smap_gather_stats(vma, &mss, last_vma_end);
+				smap_gather_stats(priv, vma, &mss, last_vma_end);
 				last_vma_end = vma->vm_end;
 			}
 		}
@@ -1505,7 +1592,7 @@ empty_set:
 	__show_smap(m, &mss, true);
 
 	release_task_mempolicy(priv);
-	mmap_read_unlock(mm);
+	unlock_ctx_mm(&priv->lock_ctx);
 
 out_put_mm:
 	mmput(mm);
@@ -2042,7 +2129,6 @@ static int pagemap_pmd_range_thp(pmd_t *pmdp, unsigned long addr,
 			flags |= PM_SOFT_DIRTY;
 		if (pmd_swp_uffd_wp(pmd))
 			flags |= PM_UFFD_WP;
-		VM_WARN_ON_ONCE(!pmd_is_migration_entry(pmd));
 		page = softleaf_to_page(entry);
 	}
 
@@ -2523,12 +2609,16 @@ static void make_uffd_wp_huge_pte(struct vm_area_struct *vma,
 	if (softleaf_is_hwpoison(entry) || softleaf_is_marker(entry))
 		return;
 
-	if (softleaf_is_migration(entry))
+	if (softleaf_is_migration(entry)) {
 		set_huge_pte_at(vma->vm_mm, addr, ptep,
 				pte_swp_mkuffd_wp(ptent), psize);
-	else
-		huge_ptep_modify_prot_commit(vma, addr, ptep, ptent,
-					     huge_pte_mkuffd_wp(ptent));
+	} else {
+		pte_t old_pte, new_pte;
+
+		old_pte = huge_ptep_modify_prot_start(vma, addr, ptep);
+		new_pte = huge_pte_mkuffd_wp(old_pte);
+		huge_ptep_modify_prot_commit(vma, addr, ptep, old_pte, new_pte);
+	}
 }
 #endif /* CONFIG_HUGETLB_PAGE */
 
@@ -2869,7 +2959,7 @@ static int pagemap_scan_hugetlb_entry(pte_t *ptep, unsigned long hmask,
 	if (~categories & PAGE_IS_WRITTEN)
 		goto out_unlock;
 
-	if (end != start + HPAGE_SIZE) {
+	if (end != start + huge_page_size(hstate_vma(vma))) {
 		/* Partial HugeTLB page WP isn't possible. */
 		pagemap_scan_backout_range(p, start, end);
 		p->arg.walk_end = start;
@@ -2886,8 +2976,62 @@ out_unlock:
 
 	return ret;
 }
+
+/*
+ * Write-protect the unpopulated hugetlb entries covering [addr, end) by
+ * installing uffd-wp markers inline, exactly as pagemap_scan_hugetlb_entry()
+ * does for populated entries.
+ *
+ * walk_hugetlb_range() currently calls ->pte_hole() once per huge page, so the
+ * loop normally runs a single iteration; it is written to cover the full range
+ * in case the walker ever coalesces adjacent holes.
+ *
+ * The obvious route -- uffd_wp_range() -> hugetlb_change_protection() --
+ * cannot be used here: it takes hugetlb_vma_lock_write(), but the page-table
+ * walker (walk_hugetlb_range()) already holds hugetlb_vma_lock_read() on the
+ * same VMA, so the scanning thread would deadlock against itself. PMD sharing
+ * is disabled on uffd-wp VMAs (hugetlb_unshare_all_pmds() at registration), so
+ * the vma lock guards nothing that matters for these entries anyway.
+ */
+static int pagemap_scan_hugetlb_hole_wp(struct vm_area_struct *vma,
+					unsigned long addr, unsigned long end)
+{
+	struct hstate *h = hstate_vma(vma);
+	unsigned long psize = huge_page_size(h);
+	struct mm_struct *mm = vma->vm_mm;
+	spinlock_t *ptl;
+	pte_t *ptep;
+	pte_t pte;
+
+	for (addr = ALIGN_DOWN(addr, psize); addr < end; addr += psize) {
+		ptep = huge_pte_alloc(mm, vma, addr, psize);
+		if (!ptep)
+			return -ENOMEM;
+
+		i_mmap_lock_write(vma->vm_file->f_mapping);
+		ptl = huge_pte_lock(h, mm, ptep);
+		pte = huge_ptep_get(mm, addr, ptep);
+		make_uffd_wp_huge_pte(vma, addr, ptep, pte);
+		/*
+		 * A none entry has no cached translation, so installing the
+		 * marker needs no TLB flush. Flush only if a fault populated
+		 * the entry between huge_pte_alloc() and the page table lock.
+		 */
+		if (!huge_pte_none(pte))
+			flush_hugetlb_tlb_range(vma, addr, addr + psize);
+		spin_unlock(ptl);
+		i_mmap_unlock_write(vma->vm_file->f_mapping);
+	}
+
+	return 0;
+}
 #else
 #define pagemap_scan_hugetlb_entry NULL
+static int pagemap_scan_hugetlb_hole_wp(struct vm_area_struct *vma,
+					unsigned long addr, unsigned long end)
+{
+	return 0;
+}
 #endif
 
 static int pagemap_scan_pte_hole(unsigned long addr, unsigned long end,
@@ -2907,7 +3051,10 @@ static int pagemap_scan_pte_hole(unsigned long addr, unsigned long end,
 	if (~p->arg.flags & PM_SCAN_WP_MATCHING)
 		return ret;
 
-	err = uffd_wp_range(vma, addr, end - addr, true);
+	if (is_vm_hugetlb_page(vma))
+		err = pagemap_scan_hugetlb_hole_wp(vma, addr, end);
+	else
+		err = uffd_wp_range(vma, addr, end - addr, true);
 	if (err < 0)
 		ret = err;
 
@@ -3291,6 +3438,31 @@ static const struct mm_walk_ops show_numa_ops = {
 	.walk_lock = PGWALK_RDLOCK,
 };
 
+#ifdef CONFIG_PER_VMA_LOCK
+static const struct mm_walk_ops show_numa_vma_lock_ops = {
+	.hugetlb_entry = gather_hugetlb_stats,
+	.pmd_entry = gather_pte_stats,
+	.walk_lock = PGWALK_VMA_RDLOCK_VERIFY,
+};
+
+static inline const struct mm_walk_ops *
+get_show_numa_ops(struct proc_maps_private *priv)
+{
+	if (priv->lock_ctx.mmap_locked)
+		return &show_numa_ops;
+	return &show_numa_vma_lock_ops;
+}
+
+#else /* CONFIG_PER_VMA_LOCK */
+
+static inline const struct mm_walk_ops *
+get_show_numa_ops(struct proc_maps_private *priv)
+{
+	return &show_numa_ops;
+}
+
+#endif /* CONFIG_PER_VMA_LOCK */
+
 /*
  * Display pages allocated per node and memory policy via /proc.
  */
@@ -3335,8 +3507,13 @@ static int show_numa_map(struct seq_file *m, void *v)
 	if (is_vm_hugetlb_page(vma))
 		seq_puts(m, " huge");
 
-	/* mmap_lock is held by m_start */
-	walk_page_vma(vma, &show_numa_ops, md);
+	/* Skip walking pages if gate VMA */
+	if (vma != get_gate_vma(proc_priv->lock_ctx.mm)) {
+		/* Might sleep. Drop RCU read lock but keep the VMA locked. */
+		drop_rcu(proc_priv);
+		walk_page_vma(vma, get_show_numa_ops(proc_priv), md);
+		reacquire_rcu(proc_priv);
+	}
 
 	if (!md->pages)
 		goto out;

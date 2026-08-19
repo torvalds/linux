@@ -20,9 +20,7 @@
 #include <linux/serial_reg.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
-#include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
-#include <linux/uaccess.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 #include <linux/unaligned.h>
@@ -146,11 +144,6 @@
 #define MX_WAIT_FOR_LOW_WATER		0x0040
 #define MX_WAIT_FOR_SEND_NEXT		0x0080
 
-#define MX_UPORT_2_PORT			BIT(0)
-#define MX_UPORT_4_PORT			BIT(1)
-#define MX_UPORT_8_PORT			BIT(2)
-#define MX_UPORT_16_PORT		BIT(3)
-
 /* This structure holds all of the local port information */
 struct mxuport_port {
 	u8 mcr_state;		/* Last MCR state */
@@ -159,26 +152,31 @@ struct mxuport_port {
 	spinlock_t spinlock;	/* Protects msr_state */
 };
 
+/* Encode number of ports (2..16 or undefined) */
+#define MX_PORTS_MASK			GENMASK(3, 0)
+#define MX_PORTS_OFFSET			1
+#define MX_PORTS(n)			(((n) - MX_PORTS_OFFSET) & MX_PORTS_MASK)
+
 /* Table of devices that work with this driver */
 static const struct usb_device_id mxuport_idtable[] = {
 	{ USB_DEVICE(MX_USBSERIAL_VID, MX_UPORT1250_PID),
-	  .driver_info = MX_UPORT_2_PORT },
+	  .driver_info = MX_PORTS(2) },
 	{ USB_DEVICE(MX_USBSERIAL_VID, MX_UPORT1251_PID),
-	  .driver_info = MX_UPORT_2_PORT },
+	  .driver_info = MX_PORTS(2) },
 	{ USB_DEVICE(MX_USBSERIAL_VID, MX_UPORT1410_PID),
-	  .driver_info = MX_UPORT_4_PORT },
+	  .driver_info = MX_PORTS(4) },
 	{ USB_DEVICE(MX_USBSERIAL_VID, MX_UPORT1450_PID),
-	  .driver_info = MX_UPORT_4_PORT },
+	  .driver_info = MX_PORTS(4) },
 	{ USB_DEVICE(MX_USBSERIAL_VID, MX_UPORT1451_PID),
-	  .driver_info = MX_UPORT_4_PORT },
+	  .driver_info = MX_PORTS(4) },
 	{ USB_DEVICE(MX_USBSERIAL_VID, MX_UPORT1618_PID),
-	  .driver_info = MX_UPORT_8_PORT },
+	  .driver_info = MX_PORTS(8) },
 	{ USB_DEVICE(MX_USBSERIAL_VID, MX_UPORT1658_PID),
-	  .driver_info = MX_UPORT_8_PORT },
+	  .driver_info = MX_PORTS(8) },
 	{ USB_DEVICE(MX_USBSERIAL_VID, MX_UPORT1613_PID),
-	  .driver_info = MX_UPORT_16_PORT },
+	  .driver_info = MX_PORTS(16) },
 	{ USB_DEVICE(MX_USBSERIAL_VID, MX_UPORT1653_PID),
-	  .driver_info = MX_UPORT_16_PORT },
+	  .driver_info = MX_PORTS(16) },
 	{}			/* Terminating entry */
 };
 
@@ -942,14 +940,8 @@ static int mxuport_calc_num_ports(struct usb_serial *serial,
 	int num_ports;
 	int i;
 
-	if (features & MX_UPORT_2_PORT) {
-		num_ports = 2;
-	} else if (features & MX_UPORT_4_PORT) {
-		num_ports = 4;
-	} else if (features & MX_UPORT_8_PORT) {
-		num_ports = 8;
-	} else if (features & MX_UPORT_16_PORT) {
-		num_ports = 16;
+	if (features & MX_PORTS_MASK) {
+		num_ports = (features & MX_PORTS_MASK) + MX_PORTS_OFFSET;
 	} else {
 		dev_warn(&serial->interface->dev,
 				"unknown device, assuming two ports\n");

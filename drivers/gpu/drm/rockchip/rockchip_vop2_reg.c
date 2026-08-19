@@ -8,7 +8,6 @@
 #include <linux/kernel.h>
 #include <linux/component.h>
 #include <linux/hw_bitfield.h>
-#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <drm/drm_blend.h>

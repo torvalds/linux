@@ -776,12 +776,12 @@ static int silead_ts_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(silead_ts_pm, silead_ts_suspend, silead_ts_resume);
 
 static const struct i2c_device_id silead_ts_id[] = {
-	{ "gsl1680" },
-	{ "gsl1688" },
-	{ "gsl3670" },
-	{ "gsl3675" },
-	{ "gsl3692" },
-	{ "mssl1680" },
+	{ .name = "gsl1680" },
+	{ .name = "gsl1688" },
+	{ .name = "gsl3670" },
+	{ .name = "gsl3675" },
+	{ .name = "gsl3692" },
+	{ .name = "mssl1680" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, silead_ts_id);

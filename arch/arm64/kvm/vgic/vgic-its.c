@@ -27,7 +27,7 @@ static struct kvm_device_ops kvm_arm_vgic_its_ops;
 
 static int vgic_its_save_tables_v0(struct vgic_its *its);
 static int vgic_its_restore_tables_v0(struct vgic_its *its);
-static int vgic_its_commit_v0(struct vgic_its *its);
+static void vgic_its_commit_v0(struct vgic_its *its);
 static int update_lpi_config(struct kvm *kvm, struct vgic_irq *irq,
 			     struct kvm_vcpu *filter_vcpu, bool needs_inv);
 
@@ -168,7 +168,7 @@ struct vgic_its_abi {
 	int ite_esz;
 	int (*save_tables)(struct vgic_its *its);
 	int (*restore_tables)(struct vgic_its *its);
-	int (*commit)(struct vgic_its *its);
+	void (*commit)(struct vgic_its *its);
 };
 
 #define ABI_0_ESZ	8
@@ -192,13 +192,13 @@ inline const struct vgic_its_abi *vgic_its_get_abi(struct vgic_its *its)
 	return &its_table_abi_versions[its->abi_rev];
 }
 
-static int vgic_its_set_abi(struct vgic_its *its, u32 rev)
+static void vgic_its_set_abi(struct vgic_its *its, u32 rev)
 {
 	const struct vgic_its_abi *abi;
 
 	its->abi_rev = rev;
 	abi = vgic_its_get_abi(its);
-	return abi->commit(its);
+	abi->commit(its);
 }
 
 /*
@@ -472,7 +472,8 @@ static int vgic_mmio_uaccess_write_its_iidr(struct kvm *kvm,
 
 	if (rev >= NR_ITS_ABIS)
 		return -EINVAL;
-	return vgic_its_set_abi(its, rev);
+	vgic_its_set_abi(its, rev);
+	return 0;
 }
 
 static unsigned long vgic_mmio_read_its_idregs(struct kvm *kvm,
@@ -1890,14 +1891,11 @@ static int vgic_its_create(struct kvm_device *dev, u32 type)
 	its->baser_coll_table = INITIAL_BASER_VALUE |
 		((u64)GITS_BASER_TYPE_COLLECTION << GITS_BASER_TYPE_SHIFT);
 	dev->kvm->arch.vgic.propbaser = INITIAL_PROPBASER_VALUE;
-
 	dev->private = its;
 
-	ret = vgic_its_set_abi(its, NR_ITS_ABIS - 1);
-
+	vgic_its_set_abi(its, NR_ITS_ABIS - 1);
 	mutex_unlock(&dev->kvm->arch.config_lock);
-
-	return ret;
+	return 0;
 }
 
 static void vgic_its_destroy(struct kvm_device *kvm_dev)
@@ -2612,7 +2610,7 @@ static int vgic_its_restore_tables_v0(struct vgic_its *its)
 	return ret;
 }
 
-static int vgic_its_commit_v0(struct vgic_its *its)
+static void vgic_its_commit_v0(struct vgic_its *its)
 {
 	const struct vgic_its_abi *abi;
 
@@ -2625,7 +2623,6 @@ static int vgic_its_commit_v0(struct vgic_its *its)
 
 	its->baser_device_table |= (GIC_ENCODE_SZ(abi->dte_esz, 5)
 					<< GITS_BASER_ENTRY_SIZE_SHIFT);
-	return 0;
 }
 
 static void vgic_its_reset(struct kvm *kvm, struct vgic_its *its)

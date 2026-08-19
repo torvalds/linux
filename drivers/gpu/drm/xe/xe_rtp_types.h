@@ -112,6 +112,16 @@ struct xe_rtp_entry {
 	u8 n_rules;
 };
 
+struct xe_rtp_table_sr {
+	const struct xe_rtp_entry_sr *entries;
+	size_t n_entries;
+};
+
+struct xe_rtp_table {
+	const struct xe_rtp_entry *entries;
+	size_t n_entries;
+};
+
 enum xe_rtp_process_type {
 	XE_RTP_PROCESS_TYPE_DEVICE,
 	XE_RTP_PROCESS_TYPE_GT,

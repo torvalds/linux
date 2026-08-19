@@ -377,8 +377,7 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 		return __constant_copy_to_user(to, from, n);
 	return __generic_copy_to_user(to, from, n);
 }
-#define INLINE_COPY_FROM_USER
-#define INLINE_COPY_TO_USER
+#define INLINE_COPY_USER
 
 #define __get_kernel_nofault(dst, src, type, err_label)			\
 do {									\

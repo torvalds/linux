@@ -14,6 +14,7 @@
 
 #include "pcie-cadence.h"
 #include "pcie-cadence-host-common.h"
+#include "../pci-host-common.h"
 
 #define LINK_RETRAIN_TIMEOUT HZ
 
@@ -114,6 +115,9 @@ int cdns_pcie_host_start_link(struct cdns_pcie_rc *rc,
 	 */
 	if (!ret && rc->quirk_retrain_flag)
 		ret = cdns_pcie_retrain(pcie, pcie_link_up);
+
+	if (!ret)
+		pci_host_common_link_train_delay(pcie->max_link_speed);
 
 	return ret;
 }

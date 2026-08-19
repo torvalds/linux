@@ -6308,7 +6308,7 @@ static int prog_stream_read(union bpf_attr *attr)
 	return ret;
 }
 
-#define BPF_PROG_ASSOC_STRUCT_OPS_LAST_FIELD prog_assoc_struct_ops.prog_fd
+#define BPF_PROG_ASSOC_STRUCT_OPS_LAST_FIELD prog_assoc_struct_ops.flags
 
 static int prog_assoc_struct_ops(union bpf_attr *attr)
 {

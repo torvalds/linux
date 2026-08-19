@@ -44,6 +44,7 @@ struct pca9450 {
 	unsigned int rcnt;
 	int irq;
 	bool sd_vsel_fixed_low;
+	int default_t_off_deb;
 };
 
 static const struct regmap_range pca9450_status_range = {
@@ -1209,7 +1210,7 @@ static int pca9450_of_init(struct pca9450 *pca9450)
 
 	ret = of_property_read_u32(i2c->dev.of_node, "nxp,pmic-on-req-off-debounce-us", &val);
 	if (ret == -EINVAL)
-		t_off_deb = T_OFF_DEB_120US;
+		t_off_deb = pca9450->default_t_off_deb;
 	else if (ret)
 		return ret;
 	else {
@@ -1304,21 +1305,25 @@ static int pca9450_i2c_probe(struct i2c_client *i2c)
 	case PCA9450_TYPE_PCA9450A:
 		regulator_desc = pca9450a_regulators;
 		pca9450->rcnt = ARRAY_SIZE(pca9450a_regulators);
+		pca9450->default_t_off_deb = T_OFF_DEB_120US;
 		type_name = "pca9450a";
 		break;
 	case PCA9450_TYPE_PCA9450BC:
 		regulator_desc = pca9450bc_regulators;
 		pca9450->rcnt = ARRAY_SIZE(pca9450bc_regulators);
+		pca9450->default_t_off_deb = T_OFF_DEB_120US;
 		type_name = "pca9450bc";
 		break;
 	case PCA9450_TYPE_PCA9451A:
 		regulator_desc = pca9451a_regulators;
 		pca9450->rcnt = ARRAY_SIZE(pca9451a_regulators);
+		pca9450->default_t_off_deb = T_OFF_DEB_2MS;
 		type_name = "pca9451a";
 		break;
 	case PCA9450_TYPE_PCA9452:
 		regulator_desc = pca9451a_regulators;
 		pca9450->rcnt = ARRAY_SIZE(pca9451a_regulators);
+		pca9450->default_t_off_deb = T_OFF_DEB_2MS;
 		type_name = "pca9452";
 		break;
 	default:

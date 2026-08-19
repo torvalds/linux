@@ -512,8 +512,8 @@ static void max8997_rtc_shutdown(struct platform_device *pdev)
 }
 
 static const struct platform_device_id rtc_id[] = {
-	{ "max8997-rtc", 0 },
-	{},
+	{ .name = "max8997-rtc" },
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, rtc_id);
 

@@ -514,7 +514,7 @@ static struct lp55xx_device_config lp5569_cfg = {
 };
 
 static const struct i2c_device_id lp5569_id[] = {
-	{ "lp5569",  .driver_data = (kernel_ulong_t)&lp5569_cfg, },
+	{ .name = "lp5569", .driver_data = (kernel_ulong_t)&lp5569_cfg },
 	{ }
 };
 

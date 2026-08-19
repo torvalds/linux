@@ -637,8 +637,8 @@ static const struct of_device_id t14s_ec_of_match[] = {
 MODULE_DEVICE_TABLE(of, t14s_ec_of_match);
 
 static const struct i2c_device_id t14s_ec_i2c_id_table[] = {
-	{ "thinkpad-t14s-ec", },
-	{}
+	{ .name = "thinkpad-t14s-ec" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, t14s_ec_i2c_id_table);
 

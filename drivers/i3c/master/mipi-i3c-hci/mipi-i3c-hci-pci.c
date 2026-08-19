@@ -461,21 +461,21 @@ static const struct dev_pm_ops mipi_i3c_hci_pci_pm_ops = {
 
 static const struct pci_device_id mipi_i3c_hci_pci_devices[] = {
 	/* Wildcat Lake-U */
-	{ PCI_VDEVICE(INTEL, 0x4d7c), (kernel_ulong_t)&intel_mi_1_info},
-	{ PCI_VDEVICE(INTEL, 0x4d6f), (kernel_ulong_t)&intel_si_2_info},
+	{ PCI_VDEVICE(INTEL, 0x4d7c), .driver_data = (kernel_ulong_t)&intel_mi_1_info },
+	{ PCI_VDEVICE(INTEL, 0x4d6f), .driver_data = (kernel_ulong_t)&intel_si_2_info },
 	/* Panther Lake-H */
-	{ PCI_VDEVICE(INTEL, 0xe37c), (kernel_ulong_t)&intel_mi_1_info},
-	{ PCI_VDEVICE(INTEL, 0xe36f), (kernel_ulong_t)&intel_si_2_info},
+	{ PCI_VDEVICE(INTEL, 0xe37c), .driver_data = (kernel_ulong_t)&intel_mi_1_info },
+	{ PCI_VDEVICE(INTEL, 0xe36f), .driver_data = (kernel_ulong_t)&intel_si_2_info },
 	/* Panther Lake-P */
-	{ PCI_VDEVICE(INTEL, 0xe47c), (kernel_ulong_t)&intel_mi_1_info},
-	{ PCI_VDEVICE(INTEL, 0xe46f), (kernel_ulong_t)&intel_si_2_info},
+	{ PCI_VDEVICE(INTEL, 0xe47c), .driver_data = (kernel_ulong_t)&intel_mi_1_info },
+	{ PCI_VDEVICE(INTEL, 0xe46f), .driver_data = (kernel_ulong_t)&intel_si_2_info },
 	/* Nova Lake-S */
-	{ PCI_VDEVICE(INTEL, 0x6e2c), (kernel_ulong_t)&intel_mi_1_info},
-	{ PCI_VDEVICE(INTEL, 0x6e2d), (kernel_ulong_t)&intel_mi_2_info},
+	{ PCI_VDEVICE(INTEL, 0x6e2c), .driver_data = (kernel_ulong_t)&intel_mi_1_info },
+	{ PCI_VDEVICE(INTEL, 0x6e2d), .driver_data = (kernel_ulong_t)&intel_mi_2_info },
 	/* Nova Lake-H */
-	{ PCI_VDEVICE(INTEL, 0xd37c), (kernel_ulong_t)&intel_mi_1_info},
-	{ PCI_VDEVICE(INTEL, 0xd36f), (kernel_ulong_t)&intel_mi_2_info},
-	{ },
+	{ PCI_VDEVICE(INTEL, 0xd37c), .driver_data = (kernel_ulong_t)&intel_mi_1_info },
+	{ PCI_VDEVICE(INTEL, 0xd36f), .driver_data = (kernel_ulong_t)&intel_mi_2_info },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, mipi_i3c_hci_pci_devices);
 

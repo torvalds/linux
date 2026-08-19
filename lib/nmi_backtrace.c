@@ -16,6 +16,7 @@
 #include <linux/cpumask.h>
 #include <linux/delay.h>
 #include <linux/kprobes.h>
+#include <linux/stringify.h>
 #include <linux/nmi.h>
 #include <linux/cpu.h>
 #include <linux/sched/debug.h>
@@ -26,6 +27,8 @@ static DECLARE_BITMAP(backtrace_mask, NR_CPUS) __read_mostly;
 
 /* "in progress" flag of arch_trigger_cpumask_backtrace */
 static unsigned long backtrace_flag;
+
+#define NMI_BT_TIMEOUT_SEC	10
 
 /*
  * When raise() is called it will be passed a pointer to the
@@ -68,14 +71,20 @@ void nmi_trigger_cpumask_backtrace(const cpumask_t *mask,
 		raise(to_cpumask(backtrace_mask));
 	}
 
-	/* Wait for up to 10 seconds for all CPUs to do the backtrace */
-	for (i = 0; i < 10 * 1000; i++) {
+	/* Wait for up to NMI_BT_TIMEOUT_SEC seconds for all CPUs to do the backtrace */
+	for (i = 0; i < NMI_BT_TIMEOUT_SEC * 1000; i++) {
 		if (cpumask_empty(to_cpumask(backtrace_mask)))
 			break;
 		mdelay(1);
 		touch_softlockup_watchdog();
 	}
-	nmi_backtrace_stall_check(to_cpumask(backtrace_mask));
+
+	if (!cpumask_empty(to_cpumask(backtrace_mask))) {
+		pr_warn("After " __stringify(NMI_BT_TIMEOUT_SEC) " seconds, these CPUS still haven't responded to the NMI: %*pbl\n",
+			cpumask_pr_args(to_cpumask(backtrace_mask)));
+
+		nmi_backtrace_stall_check(to_cpumask(backtrace_mask));
+	}
 
 	/*
 	 * Force flush any remote buffers that might be stuck in IRQ context

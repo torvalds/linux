@@ -251,6 +251,8 @@
 		typec-power-opmode = "default";
 		pd-disable;
 
+		vbus-supply = <&pmi632_vbus>;
+
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;

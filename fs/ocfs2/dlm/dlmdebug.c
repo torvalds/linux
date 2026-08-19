@@ -556,6 +556,7 @@ static int debug_lockres_open(struct inode *inode, struct file *file)
 	struct dlm_ctxt *dlm = inode->i_private;
 	struct debug_lockres *dl;
 	void *buf;
+	int status = -ENOMEM;
 
 	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!buf)
@@ -568,16 +569,23 @@ static int debug_lockres_open(struct inode *inode, struct file *file)
 	dl->dl_len = PAGE_SIZE;
 	dl->dl_buf = buf;
 
-	dlm_grab(dlm);
-	dl->dl_ctxt = dlm;
+	/* ->release uses dl_ctxt after open, so it needs a real pin. */
+	dl->dl_ctxt = dlm_grab(dlm);
+	if (!dl->dl_ctxt) {
+		status = -ENOENT;
+		goto bailseq;
+	}
 
 	return 0;
 
+bailseq:
+	seq_release_private(inode, file);
 bailfree:
 	kfree(buf);
 bail:
-	mlog_errno(-ENOMEM);
-	return -ENOMEM;
+	if (status != -ENOENT)
+		mlog_errno(status);
+	return status;
 }
 
 static int debug_lockres_release(struct inode *inode, struct file *file)

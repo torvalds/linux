@@ -48,8 +48,8 @@ static inline void update_timer_idle(void)
 	 * The accounted CPU times will be subtracted again from steal_timer
 	 * when accumulated steal time is calculated in do_account_vtime().
 	 */
-	lc->steal_timer += idle->clock_idle_enter - lc->last_update_clock;
-	lc->last_update_clock = lc->int_clock;
+	lc->steal_timer += idle->clock_idle_enter.tod - lc->last_update_clock;
+	lc->last_update_clock = lc->int_clock.tod;
 	lc->system_timer += lc->last_update_timer - idle->timer_idle_enter;
 	lc->last_update_timer = lc->sys_enter_timer;
 }

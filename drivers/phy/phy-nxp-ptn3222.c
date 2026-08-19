@@ -97,7 +97,7 @@ static int ptn3222_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ptn3222_table[] = {
-	{ "ptn3222" },
+	{ .name = "ptn3222" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ptn3222_table);

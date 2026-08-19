@@ -2094,7 +2094,7 @@ static int dmi_ipmi_probe(struct platform_device *pdev)
 #endif
 
 static const struct i2c_device_id ssif_id[] = {
-	{ DEVICE_NAME },
+	{ .name = DEVICE_NAME },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ssif_id);
@@ -2127,7 +2127,7 @@ static void ssif_platform_remove(struct platform_device *dev)
 }
 
 static const struct platform_device_id ssif_plat_ids[] = {
-    { "dmi-ipmi-ssif", 0 },
+    { .name = "dmi-ipmi-ssif" },
     { }
 };
 MODULE_DEVICE_TABLE(platform, ssif_plat_ids);

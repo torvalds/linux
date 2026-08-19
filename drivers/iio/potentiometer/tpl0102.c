@@ -149,10 +149,10 @@ static int tpl0102_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tpl0102_id[] = {
-	{ "cat5140-503", CAT5140_503 },
-	{ "cat5140-104", CAT5140_104 },
-	{ "tpl0102-104", TPL0102_104 },
-	{ "tpl0401-103", TPL0401_103 },
+	{ .name = "cat5140-503", .driver_data = CAT5140_503 },
+	{ .name = "cat5140-104", .driver_data = CAT5140_104 },
+	{ .name = "tpl0102-104", .driver_data = TPL0102_104 },
+	{ .name = "tpl0401-103", .driver_data = TPL0401_103 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tpl0102_id);

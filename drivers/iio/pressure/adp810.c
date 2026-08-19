@@ -16,7 +16,6 @@
 #include <linux/errno.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/mutex.h>
 #include <linux/types.h>
 #include <linux/unaligned.h>
@@ -199,7 +198,7 @@ static int adp810_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id adp810_id_table[] = {
-	{ "adp810" },
+	{ .name = "adp810" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adp810_id_table);

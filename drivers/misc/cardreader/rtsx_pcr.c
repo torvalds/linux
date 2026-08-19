@@ -42,21 +42,21 @@ static struct mfd_cell rtsx_pcr_cells[] = {
 };
 
 static const struct pci_device_id rtsx_pci_ids[] = {
-	{ PCI_DEVICE(0x10EC, 0x5209), PCI_CLASS_OTHERS << 16, 0xFF0000 },
-	{ PCI_DEVICE(0x10EC, 0x5229), PCI_CLASS_OTHERS << 16, 0xFF0000 },
-	{ PCI_DEVICE(0x10EC, 0x5289), PCI_CLASS_OTHERS << 16, 0xFF0000 },
-	{ PCI_DEVICE(0x10EC, 0x5227), PCI_CLASS_OTHERS << 16, 0xFF0000 },
-	{ PCI_DEVICE(0x10EC, 0x522A), PCI_CLASS_OTHERS << 16, 0xFF0000 },
-	{ PCI_DEVICE(0x10EC, 0x5249), PCI_CLASS_OTHERS << 16, 0xFF0000 },
-	{ PCI_DEVICE(0x10EC, 0x5287), PCI_CLASS_OTHERS << 16, 0xFF0000 },
-	{ PCI_DEVICE(0x10EC, 0x5286), PCI_CLASS_OTHERS << 16, 0xFF0000 },
-	{ PCI_DEVICE(0x10EC, 0x524A), PCI_CLASS_OTHERS << 16, 0xFF0000 },
-	{ PCI_DEVICE(0x10EC, 0x525A), PCI_CLASS_OTHERS << 16, 0xFF0000 },
-	{ PCI_DEVICE(0x10EC, 0x5260), PCI_CLASS_OTHERS << 16, 0xFF0000 },
-	{ PCI_DEVICE(0x10EC, 0x5261), PCI_CLASS_OTHERS << 16, 0xFF0000 },
-	{ PCI_DEVICE(0x10EC, 0x5228), PCI_CLASS_OTHERS << 16, 0xFF0000 },
-	{ PCI_DEVICE(0x10EC, 0x5264), PCI_CLASS_OTHERS << 16, 0xFF0000 },
-	{ 0, }
+	{ PCI_DEVICE(0x10EC, 0x5209), .class = PCI_CLASS_OTHERS << 16, .class_mask = 0xFF0000 },
+	{ PCI_DEVICE(0x10EC, 0x5229), .class = PCI_CLASS_OTHERS << 16, .class_mask = 0xFF0000 },
+	{ PCI_DEVICE(0x10EC, 0x5289), .class = PCI_CLASS_OTHERS << 16, .class_mask = 0xFF0000 },
+	{ PCI_DEVICE(0x10EC, 0x5227), .class = PCI_CLASS_OTHERS << 16, .class_mask = 0xFF0000 },
+	{ PCI_DEVICE(0x10EC, 0x522A), .class = PCI_CLASS_OTHERS << 16, .class_mask = 0xFF0000 },
+	{ PCI_DEVICE(0x10EC, 0x5249), .class = PCI_CLASS_OTHERS << 16, .class_mask = 0xFF0000 },
+	{ PCI_DEVICE(0x10EC, 0x5287), .class = PCI_CLASS_OTHERS << 16, .class_mask = 0xFF0000 },
+	{ PCI_DEVICE(0x10EC, 0x5286), .class = PCI_CLASS_OTHERS << 16, .class_mask = 0xFF0000 },
+	{ PCI_DEVICE(0x10EC, 0x524A), .class = PCI_CLASS_OTHERS << 16, .class_mask = 0xFF0000 },
+	{ PCI_DEVICE(0x10EC, 0x525A), .class = PCI_CLASS_OTHERS << 16, .class_mask = 0xFF0000 },
+	{ PCI_DEVICE(0x10EC, 0x5260), .class = PCI_CLASS_OTHERS << 16, .class_mask = 0xFF0000 },
+	{ PCI_DEVICE(0x10EC, 0x5261), .class = PCI_CLASS_OTHERS << 16, .class_mask = 0xFF0000 },
+	{ PCI_DEVICE(0x10EC, 0x5228), .class = PCI_CLASS_OTHERS << 16, .class_mask = 0xFF0000 },
+	{ PCI_DEVICE(0x10EC, 0x5264), .class = PCI_CLASS_OTHERS << 16, .class_mask = 0xFF0000 },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, rtsx_pci_ids);

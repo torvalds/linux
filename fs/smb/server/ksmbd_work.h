@@ -13,6 +13,8 @@ struct ksmbd_conn;
 struct ksmbd_session;
 struct ksmbd_tree_connect;
 
+#define KSMBD_WORK_INLINE_IOVS	4
+
 enum {
 	KSMBD_WORK_ACTIVE = 0,
 	KSMBD_WORK_CANCELLED,
@@ -42,6 +44,7 @@ struct ksmbd_work {
 	int				iov_alloc_cnt;
 	int				iov_cnt;
 	int				iov_idx;
+	struct kvec			iov_inline[KSMBD_WORK_INLINE_IOVS];
 
 	/* Next cmd hdr in compound req buf*/
 	int                             next_smb2_rcv_hdr_off;
@@ -57,11 +60,19 @@ struct ksmbd_work {
 	u64				compound_fid;
 	u64				compound_pfid;
 	u64				compound_sid;
+	__le32				compound_status;
 
 	const struct cred		*saved_cred;
 
 	/* Number of granted credits */
 	unsigned int			credits_granted;
+
+	/*
+	 * Credit charge added to conn->outstanding_credits at receive time
+	 * for the SMB2 PDU currently being processed, pending release.  Zero
+	 * once the charge has been returned (on the response or error path).
+	 */
+	unsigned short			credit_charge;
 
 	/* response smb header size */
 	unsigned int                    response_sz;

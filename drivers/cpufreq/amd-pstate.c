@@ -361,7 +361,8 @@ static int amd_pstate_set_floor_perf(struct cpufreq_policy *policy, u8 perf)
 
 out_trace:
 	if (trace_amd_pstate_cppc_req2_enabled())
-		trace_amd_pstate_cppc_req2(cpudata->cpu, perf, changed, ret);
+		trace_call__amd_pstate_cppc_req2(cpudata->cpu, perf, changed,
+						 ret);
 	return ret;
 }
 

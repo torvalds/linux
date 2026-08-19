@@ -16,6 +16,17 @@
 
 #ifdef CONFIG_LOCKDEP
 
+struct amdgpu_lockdep_dummy_locks {
+	struct mutex reset_lock;
+	struct mutex userq_sch_mutex;
+	struct mutex userq_mutex;
+	struct mutex notifier_lock;
+	struct mutex vram_lock;
+	struct mutex srbm_mutex;
+	struct mutex grbm_idx_mutex;
+	spinlock_t mmio_idx_lock;
+};
+
 /* Lock class keys for associating with real driver locks */
 static struct lock_class_key amdgpu_userq_sch_mutex_key;
 static struct lock_class_key amdgpu_userq_mutex_key;
@@ -84,72 +95,65 @@ void amdgpu_lockdep_set_class(struct amdgpu_device *adev)
 int amdgpu_lockdep_init(void)
 {
 	struct amdgpu_reset_domain *reset_domain = NULL;
-	struct amdgpu_reset_control reset_ctl;
-	struct mutex userq_sch_mutex;
-	struct mutex userq_mutex;
-	struct mutex notifier_lock;
-	struct mutex vram_lock;
-	struct mutex srbm_mutex;
-	struct mutex grbm_idx_mutex;
-	spinlock_t mmio_idx_lock;
+	struct amdgpu_lockdep_dummy_locks *locks;
 	unsigned long flags;
+
+	locks = kzalloc(sizeof(*locks), GFP_KERNEL);
+	if (!locks)
+		return -ENOMEM;
 
 	/*
 	 * Initialize dummy reset domain
 	 */
 	reset_domain = amdgpu_reset_create_reset_domain(SINGLE_DEVICE,
 							"lockdep_test");
-	if (!reset_domain)
+	if (!reset_domain) {
+		kfree(locks);
 		return -ENOMEM;
-
+	}
 	/* Initialize dummy locks */
-	mutex_init(&userq_sch_mutex);
-	mutex_init(&userq_mutex);
-	mutex_init(&notifier_lock);
-	mutex_init(&vram_lock);
-	mutex_init(&reset_ctl.reset_lock);
-	mutex_init(&srbm_mutex);
-	mutex_init(&grbm_idx_mutex);
-	spin_lock_init(&mmio_idx_lock);
+	mutex_init(&locks->userq_sch_mutex);
+	mutex_init(&locks->userq_mutex);
+	mutex_init(&locks->notifier_lock);
+	mutex_init(&locks->vram_lock);
+	mutex_init(&locks->reset_lock);
+	mutex_init(&locks->srbm_mutex);
+	mutex_init(&locks->grbm_idx_mutex);
+	spin_lock_init(&locks->mmio_idx_lock);
 
 	/*
 	 * Associate dummy locks with the same class keys used for real
 	 * driver locks. This ensures lockdep connects the ordering learned
 	 * here with the actual locks used at runtime.
 	 */
-	lockdep_set_class(&userq_sch_mutex, &amdgpu_userq_sch_mutex_key);
-	lockdep_set_class(&userq_mutex, &amdgpu_userq_mutex_key);
-	lockdep_set_class(&notifier_lock, &amdgpu_notifier_lock_key);
-	lockdep_set_class(&vram_lock, &amdgpu_vram_lock_key);
+	lockdep_set_class(&locks->userq_sch_mutex, &amdgpu_userq_sch_mutex_key);
+	lockdep_set_class(&locks->userq_mutex, &amdgpu_userq_mutex_key);
+	lockdep_set_class(&locks->notifier_lock, &amdgpu_notifier_lock_key);
+	lockdep_set_class(&locks->vram_lock, &amdgpu_vram_lock_key);
 	lockdep_set_class(&reset_domain->sem, &amdgpu_reset_sem_key);
-	lockdep_set_class(&reset_ctl.reset_lock, &amdgpu_reset_lock_key);
-	lockdep_set_class(&srbm_mutex, &amdgpu_srbm_lock_key);
-	lockdep_set_class(&grbm_idx_mutex, &amdgpu_grbm_lock_key);
-	lockdep_set_class(&mmio_idx_lock, &amdgpu_mmio_lock_key);
-
+	lockdep_set_class(&locks->reset_lock, &amdgpu_reset_lock_key);
+	lockdep_set_class(&locks->srbm_mutex, &amdgpu_srbm_lock_key);
+	lockdep_set_class(&locks->grbm_idx_mutex, &amdgpu_grbm_lock_key);
+	lockdep_set_class(&locks->mmio_idx_lock, &amdgpu_mmio_lock_key);
 	/*
 	 * Take locks in the correct order to train lockdep.
 	 * This establishes the dependency chain.
 	 */
 
 	/* Level 1: Global userq scheduler mutex (outermost) */
-	mutex_lock(&userq_sch_mutex);
+	mutex_lock(&locks->userq_sch_mutex);
 
 	/* Level 2: Per-context userq mutex */
-	mutex_lock(&userq_mutex);
-
+	mutex_lock(&locks->userq_mutex);
 	/* Level 3: MMU notifier lock */
-	mutex_lock(&notifier_lock);
-
+	mutex_lock(&locks->notifier_lock);
 	/* Level 4: VRAM allocator lock */
-	mutex_lock(&vram_lock);
-
+	mutex_lock(&locks->vram_lock);
 	/* Level 5: Reset domain semaphore */
 	down_read(&reset_domain->sem);
 
 	/* Level 6: Reset control lock */
-	mutex_lock(&reset_ctl.reset_lock);
-
+	mutex_lock(&locks->reset_lock);
 	/*
 	 * Mark potential memory reclaim boundary.
 	 * GPU operations might trigger memory allocation/reclaim.
@@ -157,36 +161,35 @@ int amdgpu_lockdep_init(void)
 	fs_reclaim_acquire(GFP_KERNEL);
 
 	/* Level 7: SRBM register access */
-	mutex_lock(&srbm_mutex);
-
+	mutex_lock(&locks->srbm_mutex);
 	/* Level 8: GRBM index access */
-	mutex_lock(&grbm_idx_mutex);
+	mutex_lock(&locks->grbm_idx_mutex);
 
 	/* Level 9: MMIO index access (innermost lock, spinlock) */
-	spin_lock_irqsave(&mmio_idx_lock, flags);
-
+	spin_lock_irqsave(&locks->mmio_idx_lock, flags);
 	/*
 	 * All locks acquired in order.
 	 * Lockdep has now learned the valid dependency chain.
 	 */
 
 	/* Release in reverse order */
-	spin_unlock_irqrestore(&mmio_idx_lock, flags);
-	mutex_unlock(&grbm_idx_mutex);
-	mutex_unlock(&srbm_mutex);
-
+	spin_unlock_irqrestore(&locks->mmio_idx_lock, flags);
+	mutex_unlock(&locks->grbm_idx_mutex);
+	mutex_unlock(&locks->srbm_mutex);
 	fs_reclaim_release(GFP_KERNEL);
 
-	mutex_unlock(&reset_ctl.reset_lock);
+	mutex_unlock(&locks->reset_lock);
 	up_read(&reset_domain->sem);
-	mutex_unlock(&vram_lock);
-	mutex_unlock(&notifier_lock);
-	mutex_unlock(&userq_mutex);
-	mutex_unlock(&userq_sch_mutex);
+
+	mutex_unlock(&locks->vram_lock);
+	mutex_unlock(&locks->notifier_lock);
+	mutex_unlock(&locks->userq_mutex);
+	mutex_unlock(&locks->userq_sch_mutex);
 
 	/* Cleanup */
 	amdgpu_reset_put_reset_domain(reset_domain);
 
+	kfree(locks);
 	pr_info("AMDGPU: Lockdep annotations initialized (9 lock levels)\n");
 
 	return 0;

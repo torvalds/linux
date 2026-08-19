@@ -71,7 +71,7 @@ struct i2c_atr_adap_desc {
 	struct device *parent;
 	struct fwnode_handle *bus_handle;
 	size_t num_aliases;
-	u16 *aliases;
+	u16 *aliases __counted_by_ptr(num_aliases);
 };
 
 /**

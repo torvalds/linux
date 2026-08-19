@@ -248,7 +248,7 @@ static void sh4_flush_cache_page(void *args)
 		 */
 		map_coherent = (current_cpu_data.dcache.n_aliases &&
 			test_bit(PG_dcache_clean, folio_flags(folio, 0)) &&
-			page_mapped(page));
+			folio_mapped(folio));
 		if (map_coherent)
 			vaddr = kmap_coherent(page, address);
 		else

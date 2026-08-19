@@ -13,6 +13,7 @@
 #include <linux/input.h>
 #include <linux/rfkill.h>
 #include <linux/sysfs.h>
+#include <linux/platform_device.h>
 
 struct cmpc_accel {
 	int sensitivity;
@@ -38,8 +39,8 @@ struct cmpc_accel {
 
 typedef void (*input_device_init)(struct input_dev *dev);
 
-static int cmpc_add_acpi_notify_device(struct acpi_device *acpi, char *name,
-				       input_device_init idev_init)
+static int cmpc_add_notify_device(struct device *dev, char *name,
+				  input_device_init idev_init)
 {
 	struct input_dev *inputdev;
 	int error;
@@ -48,22 +49,20 @@ static int cmpc_add_acpi_notify_device(struct acpi_device *acpi, char *name,
 	if (!inputdev)
 		return -ENOMEM;
 	inputdev->name = name;
-	inputdev->dev.parent = &acpi->dev;
+	inputdev->dev.parent = dev;
 	idev_init(inputdev);
 	error = input_register_device(inputdev);
 	if (error) {
 		input_free_device(inputdev);
 		return error;
 	}
-	dev_set_drvdata(&acpi->dev, inputdev);
+	dev_set_drvdata(dev, inputdev);
 	return 0;
 }
 
-static int cmpc_remove_acpi_notify_device(struct acpi_device *acpi)
+static void cmpc_remove_notify_device(struct device *dev)
 {
-	struct input_dev *inputdev = dev_get_drvdata(&acpi->dev);
-	input_unregister_device(inputdev);
-	return 0;
+	input_unregister_device(dev_get_drvdata(dev));
 }
 
 /*
@@ -179,15 +178,17 @@ static acpi_status cmpc_get_accel_v4(acpi_handle handle,
 	return status;
 }
 
-static void cmpc_accel_handler_v4(struct acpi_device *dev, u32 event)
+static void cmpc_accel_handler_v4(acpi_handle handle, u32 event, void *data)
 {
+	struct device *dev = data;
+
 	if (event == 0x81) {
 		int16_t x, y, z;
 		acpi_status status;
 
-		status = cmpc_get_accel_v4(dev->handle, &x, &y, &z);
+		status = cmpc_get_accel_v4(ACPI_HANDLE(dev), &x, &y, &z);
 		if (ACPI_SUCCESS(status)) {
-			struct input_dev *inputdev = dev_get_drvdata(&dev->dev);
+			struct input_dev *inputdev = dev_get_drvdata(dev);
 
 			input_report_abs(inputdev, ABS_X, x);
 			input_report_abs(inputdev, ABS_Y, y);
@@ -317,18 +318,17 @@ static struct device_attribute cmpc_accel_g_select_attr_v4 = {
 
 static int cmpc_accel_open_v4(struct input_dev *input)
 {
-	struct acpi_device *acpi;
+	acpi_handle handle = ACPI_HANDLE(input->dev.parent);
 	struct cmpc_accel *accel;
 
-	acpi = to_acpi_device(input->dev.parent);
 	accel = dev_get_drvdata(&input->dev);
 	if (!accel)
 		return -ENXIO;
 
-	cmpc_accel_set_sensitivity_v4(acpi->handle, accel->sensitivity);
-	cmpc_accel_set_g_select_v4(acpi->handle, accel->g_select);
+	cmpc_accel_set_sensitivity_v4(handle, accel->sensitivity);
+	cmpc_accel_set_g_select_v4(handle, accel->g_select);
 
-	if (ACPI_SUCCESS(cmpc_start_accel_v4(acpi->handle))) {
+	if (ACPI_SUCCESS(cmpc_start_accel_v4(handle))) {
 		accel->inputdev_state = CMPC_ACCEL_DEV_STATE_OPEN;
 		return 0;
 	}
@@ -337,13 +337,11 @@ static int cmpc_accel_open_v4(struct input_dev *input)
 
 static void cmpc_accel_close_v4(struct input_dev *input)
 {
-	struct acpi_device *acpi;
 	struct cmpc_accel *accel;
 
-	acpi = to_acpi_device(input->dev.parent);
 	accel = dev_get_drvdata(&input->dev);
 
-	cmpc_stop_accel_v4(acpi->handle);
+	cmpc_stop_accel_v4(ACPI_HANDLE(input->dev.parent));
 	accel->inputdev_state = CMPC_ACCEL_DEV_STATE_CLOSED;
 }
 
@@ -367,7 +365,7 @@ static int cmpc_accel_suspend_v4(struct device *dev)
 	accel = dev_get_drvdata(&inputdev->dev);
 
 	if (accel->inputdev_state == CMPC_ACCEL_DEV_STATE_OPEN)
-		return cmpc_stop_accel_v4(to_acpi_device(dev)->handle);
+		return cmpc_stop_accel_v4(ACPI_HANDLE(dev));
 
 	return 0;
 }
@@ -381,12 +379,12 @@ static int cmpc_accel_resume_v4(struct device *dev)
 	accel = dev_get_drvdata(&inputdev->dev);
 
 	if (accel->inputdev_state == CMPC_ACCEL_DEV_STATE_OPEN) {
-		cmpc_accel_set_sensitivity_v4(to_acpi_device(dev)->handle,
-					      accel->sensitivity);
-		cmpc_accel_set_g_select_v4(to_acpi_device(dev)->handle,
-					   accel->g_select);
+		acpi_handle handle = ACPI_HANDLE(dev);
 
-		if (ACPI_FAILURE(cmpc_start_accel_v4(to_acpi_device(dev)->handle)))
+		cmpc_accel_set_sensitivity_v4(handle, accel->sensitivity);
+		cmpc_accel_set_g_select_v4(handle, accel->g_select);
+
+		if (ACPI_FAILURE(cmpc_start_accel_v4(handle)))
 			return -EIO;
 	}
 
@@ -394,17 +392,29 @@ static int cmpc_accel_resume_v4(struct device *dev)
 }
 #endif
 
-static int cmpc_accel_add_v4(struct acpi_device *acpi)
+static int cmpc_accel_probe_v4(struct platform_device *pdev)
 {
 	int error;
 	struct input_dev *inputdev;
 	struct cmpc_accel *accel;
+	struct acpi_device *acpi;
 
-	accel = kmalloc_obj(*accel);
+	acpi = ACPI_COMPANION(&pdev->dev);
+	if (!acpi)
+		return -ENODEV;
+
+	accel = devm_kzalloc(&pdev->dev, sizeof(*accel), GFP_KERNEL);
 	if (!accel)
 		return -ENOMEM;
 
 	accel->inputdev_state = CMPC_ACCEL_DEV_STATE_CLOSED;
+
+	error = cmpc_add_notify_device(&pdev->dev, "cmpc_accel_v4", cmpc_accel_idev_init_v4);
+	if (error)
+		return error;
+
+	inputdev = dev_get_drvdata(&pdev->dev);
+	dev_set_drvdata(&acpi->dev, inputdev);
 
 	accel->sensitivity = CMPC_ACCEL_SENSITIVITY_DEFAULT;
 	cmpc_accel_set_sensitivity_v4(acpi->handle, accel->sensitivity);
@@ -420,30 +430,35 @@ static int cmpc_accel_add_v4(struct acpi_device *acpi)
 	if (error)
 		goto failed_g_select;
 
-	error = cmpc_add_acpi_notify_device(acpi, "cmpc_accel_v4",
-					    cmpc_accel_idev_init_v4);
+	error = acpi_dev_install_notify_handler(acpi, ACPI_DEVICE_NOTIFY,
+						cmpc_accel_handler_v4, &pdev->dev);
 	if (error)
-		goto failed_input;
+		goto failed_notify_handler;
 
-	inputdev = dev_get_drvdata(&acpi->dev);
 	dev_set_drvdata(&inputdev->dev, accel);
 
 	return 0;
 
-failed_input:
+failed_notify_handler:
 	device_remove_file(&acpi->dev, &cmpc_accel_g_select_attr_v4);
 failed_g_select:
 	device_remove_file(&acpi->dev, &cmpc_accel_sensitivity_attr_v4);
 failed_sensitivity:
-	kfree(accel);
+	dev_set_drvdata(&acpi->dev, NULL);
+	cmpc_remove_notify_device(&pdev->dev);
 	return error;
 }
 
-static void cmpc_accel_remove_v4(struct acpi_device *acpi)
+static void cmpc_accel_remove_v4(struct platform_device *pdev)
 {
-	device_remove_file(&acpi->dev, &cmpc_accel_sensitivity_attr_v4);
+	struct acpi_device *acpi = ACPI_COMPANION(&pdev->dev);
+
+	acpi_dev_remove_notify_handler(acpi, ACPI_DEVICE_NOTIFY,
+				       cmpc_accel_handler_v4);
 	device_remove_file(&acpi->dev, &cmpc_accel_g_select_attr_v4);
-	cmpc_remove_acpi_notify_device(acpi);
+	device_remove_file(&acpi->dev, &cmpc_accel_sensitivity_attr_v4);
+	dev_set_drvdata(&acpi->dev, NULL);
+	cmpc_remove_notify_device(&pdev->dev);
 }
 
 static SIMPLE_DEV_PM_OPS(cmpc_accel_pm, cmpc_accel_suspend_v4,
@@ -454,16 +469,14 @@ static const struct acpi_device_id cmpc_accel_device_ids_v4[] = {
 	{"", 0}
 };
 
-static struct acpi_driver cmpc_accel_acpi_driver_v4 = {
-	.name = "cmpc_accel_v4",
-	.class = "cmpc_accel_v4",
-	.ids = cmpc_accel_device_ids_v4,
-	.ops = {
-		.add = cmpc_accel_add_v4,
-		.remove = cmpc_accel_remove_v4,
-		.notify = cmpc_accel_handler_v4,
+static struct platform_driver cmpc_accel_acpi_driver_v4 = {
+	.probe = cmpc_accel_probe_v4,
+	.remove = cmpc_accel_remove_v4,
+	.driver = {
+		.name = "cmpc_accel_v4",
+		.acpi_match_table = cmpc_accel_device_ids_v4,
+		.pm = &cmpc_accel_pm,
 	},
-	.drv.pm = &cmpc_accel_pm,
 };
 
 
@@ -543,15 +556,17 @@ static acpi_status cmpc_get_accel(acpi_handle handle,
 	return status;
 }
 
-static void cmpc_accel_handler(struct acpi_device *dev, u32 event)
+static void cmpc_accel_handler(acpi_handle handle, u32 event, void *data)
 {
+	struct device *dev = data;
+
 	if (event == 0x81) {
 		unsigned char x, y, z;
 		acpi_status status;
 
-		status = cmpc_get_accel(dev->handle, &x, &y, &z);
+		status = cmpc_get_accel(ACPI_HANDLE(dev), &x, &y, &z);
 		if (ACPI_SUCCESS(status)) {
-			struct input_dev *inputdev = dev_get_drvdata(&dev->dev);
+			struct input_dev *inputdev = dev_get_drvdata(dev);
 
 			input_report_abs(inputdev, ABS_X, x);
 			input_report_abs(inputdev, ABS_Y, y);
@@ -618,20 +633,14 @@ static struct device_attribute cmpc_accel_sensitivity_attr = {
 
 static int cmpc_accel_open(struct input_dev *input)
 {
-	struct acpi_device *acpi;
-
-	acpi = to_acpi_device(input->dev.parent);
-	if (ACPI_SUCCESS(cmpc_start_accel(acpi->handle)))
+	if (ACPI_SUCCESS(cmpc_start_accel(ACPI_HANDLE(input->dev.parent))))
 		return 0;
 	return -EIO;
 }
 
 static void cmpc_accel_close(struct input_dev *input)
 {
-	struct acpi_device *acpi;
-
-	acpi = to_acpi_device(input->dev.parent);
-	cmpc_stop_accel(acpi->handle);
+	cmpc_stop_accel(ACPI_HANDLE(input->dev.parent));
 }
 
 static void cmpc_accel_idev_init(struct input_dev *inputdev)
@@ -644,15 +653,27 @@ static void cmpc_accel_idev_init(struct input_dev *inputdev)
 	inputdev->close = cmpc_accel_close;
 }
 
-static int cmpc_accel_add(struct acpi_device *acpi)
+static int cmpc_accel_probe(struct platform_device *pdev)
 {
 	int error;
 	struct input_dev *inputdev;
 	struct cmpc_accel *accel;
+	struct acpi_device *acpi;
 
-	accel = kmalloc_obj(*accel);
+	acpi = ACPI_COMPANION(&pdev->dev);
+	if (!acpi)
+		return -ENODEV;
+
+	accel = devm_kzalloc(&pdev->dev, sizeof(*accel), GFP_KERNEL);
 	if (!accel)
 		return -ENOMEM;
+
+	error = cmpc_add_notify_device(&pdev->dev, "cmpc_accel", cmpc_accel_idev_init);
+	if (error)
+		return error;
+
+	inputdev = dev_get_drvdata(&pdev->dev);
+	dev_set_drvdata(&acpi->dev, inputdev);
 
 	accel->sensitivity = CMPC_ACCEL_SENSITIVITY_DEFAULT;
 	cmpc_accel_set_sensitivity(acpi->handle, accel->sensitivity);
@@ -661,27 +682,32 @@ static int cmpc_accel_add(struct acpi_device *acpi)
 	if (error)
 		goto failed_file;
 
-	error = cmpc_add_acpi_notify_device(acpi, "cmpc_accel",
-					    cmpc_accel_idev_init);
+	error = acpi_dev_install_notify_handler(acpi, ACPI_DEVICE_NOTIFY,
+						cmpc_accel_handler, &pdev->dev);
 	if (error)
-		goto failed_input;
+		goto failed_notify_handler;
 
-	inputdev = dev_get_drvdata(&acpi->dev);
 	dev_set_drvdata(&inputdev->dev, accel);
 
 	return 0;
 
-failed_input:
+failed_notify_handler:
 	device_remove_file(&acpi->dev, &cmpc_accel_sensitivity_attr);
 failed_file:
-	kfree(accel);
+	dev_set_drvdata(&acpi->dev, NULL);
+	cmpc_remove_notify_device(&pdev->dev);
 	return error;
 }
 
-static void cmpc_accel_remove(struct acpi_device *acpi)
+static void cmpc_accel_remove(struct platform_device *pdev)
 {
+	struct acpi_device *acpi = ACPI_COMPANION(&pdev->dev);
+
+	acpi_dev_remove_notify_handler(acpi, ACPI_DEVICE_NOTIFY,
+				       cmpc_accel_handler);
 	device_remove_file(&acpi->dev, &cmpc_accel_sensitivity_attr);
-	cmpc_remove_acpi_notify_device(acpi);
+	dev_set_drvdata(&acpi->dev, NULL);
+	cmpc_remove_notify_device(&pdev->dev);
 }
 
 static const struct acpi_device_id cmpc_accel_device_ids[] = {
@@ -689,15 +715,13 @@ static const struct acpi_device_id cmpc_accel_device_ids[] = {
 	{"", 0}
 };
 
-static struct acpi_driver cmpc_accel_acpi_driver = {
-	.name = "cmpc_accel",
-	.class = "cmpc_accel",
-	.ids = cmpc_accel_device_ids,
-	.ops = {
-		.add = cmpc_accel_add,
-		.remove = cmpc_accel_remove,
-		.notify = cmpc_accel_handler,
-	}
+static struct platform_driver cmpc_accel_acpi_driver = {
+	.probe = cmpc_accel_probe,
+	.remove = cmpc_accel_remove,
+	.driver = {
+		.name = "cmpc_accel",
+		.acpi_match_table = cmpc_accel_device_ids,
+	},
 };
 
 
@@ -722,13 +746,14 @@ static acpi_status cmpc_get_tablet(acpi_handle handle,
 	return status;
 }
 
-static void cmpc_tablet_handler(struct acpi_device *dev, u32 event)
+static void cmpc_tablet_handler(acpi_handle handle, u32 event, void *data)
 {
+	struct device *dev = data;
 	unsigned long long val = 0;
-	struct input_dev *inputdev = dev_get_drvdata(&dev->dev);
+	struct input_dev *inputdev = dev_get_drvdata(dev);
 
 	if (event == 0x81) {
-		if (ACPI_SUCCESS(cmpc_get_tablet(dev->handle, &val))) {
+		if (ACPI_SUCCESS(cmpc_get_tablet(ACPI_HANDLE(dev), &val))) {
 			input_report_switch(inputdev, SW_TABLET_MODE, !val);
 			input_sync(inputdev);
 		}
@@ -737,28 +762,44 @@ static void cmpc_tablet_handler(struct acpi_device *dev, u32 event)
 
 static void cmpc_tablet_idev_init(struct input_dev *inputdev)
 {
+	acpi_handle handle = ACPI_HANDLE(inputdev->dev.parent);
 	unsigned long long val = 0;
-	struct acpi_device *acpi;
 
 	set_bit(EV_SW, inputdev->evbit);
 	set_bit(SW_TABLET_MODE, inputdev->swbit);
 
-	acpi = to_acpi_device(inputdev->dev.parent);
-	if (ACPI_SUCCESS(cmpc_get_tablet(acpi->handle, &val))) {
+	if (ACPI_SUCCESS(cmpc_get_tablet(handle, &val))) {
 		input_report_switch(inputdev, SW_TABLET_MODE, !val);
 		input_sync(inputdev);
 	}
 }
 
-static int cmpc_tablet_add(struct acpi_device *acpi)
+static int cmpc_tablet_probe(struct platform_device *pdev)
 {
-	return cmpc_add_acpi_notify_device(acpi, "cmpc_tablet",
-					   cmpc_tablet_idev_init);
+	struct acpi_device *acpi;
+	int error;
+
+	acpi = ACPI_COMPANION(&pdev->dev);
+	if (!acpi)
+		return -ENODEV;
+
+	error = cmpc_add_notify_device(&pdev->dev, "cmpc_tablet", cmpc_tablet_idev_init);
+	if (error)
+		return error;
+
+	error = acpi_dev_install_notify_handler(acpi, ACPI_DEVICE_NOTIFY,
+						cmpc_tablet_handler, &pdev->dev);
+	if (error)
+		cmpc_remove_notify_device(&pdev->dev);
+
+	return error;
 }
 
-static void cmpc_tablet_remove(struct acpi_device *acpi)
+static void cmpc_tablet_remove(struct platform_device *pdev)
 {
-	cmpc_remove_acpi_notify_device(acpi);
+	acpi_dev_remove_notify_handler(ACPI_COMPANION(&pdev->dev),
+				       ACPI_DEVICE_NOTIFY, cmpc_tablet_handler);
+	cmpc_remove_notify_device(&pdev->dev);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -767,7 +808,7 @@ static int cmpc_tablet_resume(struct device *dev)
 	struct input_dev *inputdev = dev_get_drvdata(dev);
 
 	unsigned long long val = 0;
-	if (ACPI_SUCCESS(cmpc_get_tablet(to_acpi_device(dev)->handle, &val))) {
+	if (ACPI_SUCCESS(cmpc_get_tablet(ACPI_HANDLE(dev), &val))) {
 		input_report_switch(inputdev, SW_TABLET_MODE, !val);
 		input_sync(inputdev);
 	}
@@ -782,16 +823,14 @@ static const struct acpi_device_id cmpc_tablet_device_ids[] = {
 	{"", 0}
 };
 
-static struct acpi_driver cmpc_tablet_acpi_driver = {
-	.name = "cmpc_tablet",
-	.class = "cmpc_tablet",
-	.ids = cmpc_tablet_device_ids,
-	.ops = {
-		.add = cmpc_tablet_add,
-		.remove = cmpc_tablet_remove,
-		.notify = cmpc_tablet_handler,
+static struct platform_driver cmpc_tablet_acpi_driver = {
+	.probe = cmpc_tablet_probe,
+	.remove = cmpc_tablet_remove,
+	.driver = {
+		.name = "cmpc_tablet",
+		.acpi_match_table = cmpc_tablet_device_ids,
+		.pm = &cmpc_tablet_pm,
 	},
-	.drv.pm = &cmpc_tablet_pm,
 };
 
 
@@ -958,11 +997,16 @@ struct ipml200_dev {
 	struct rfkill *rf;
 };
 
-static int cmpc_ipml_add(struct acpi_device *acpi)
+static int cmpc_ipml_probe(struct platform_device *pdev)
 {
 	int retval;
 	struct ipml200_dev *ipml;
 	struct backlight_properties props;
+	acpi_handle handle;
+
+	handle = ACPI_HANDLE(&pdev->dev);
+	if (!handle)
+		return -ENODEV;
 
 	ipml = kmalloc_obj(*ipml);
 	if (ipml == NULL)
@@ -971,16 +1015,16 @@ static int cmpc_ipml_add(struct acpi_device *acpi)
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_PLATFORM;
 	props.max_brightness = 7;
-	ipml->bd = backlight_device_register("cmpc_bl", &acpi->dev,
-					     acpi->handle, &cmpc_bl_ops,
+	ipml->bd = backlight_device_register("cmpc_bl", &pdev->dev,
+					     handle, &cmpc_bl_ops,
 					     &props);
 	if (IS_ERR(ipml->bd)) {
 		retval = PTR_ERR(ipml->bd);
 		goto out_bd;
 	}
 
-	ipml->rf = rfkill_alloc("cmpc_rfkill", &acpi->dev, RFKILL_TYPE_WLAN,
-				&cmpc_rfkill_ops, acpi->handle);
+	ipml->rf = rfkill_alloc("cmpc_rfkill", &pdev->dev, RFKILL_TYPE_WLAN,
+				&cmpc_rfkill_ops, handle);
 	/*
 	 * If RFKILL is disabled, rfkill_alloc will return ERR_PTR(-ENODEV).
 	 * This is OK, however, since all other uses of the device will not
@@ -994,7 +1038,7 @@ static int cmpc_ipml_add(struct acpi_device *acpi)
 		}
 	}
 
-	dev_set_drvdata(&acpi->dev, ipml);
+	platform_set_drvdata(pdev, ipml);
 	return 0;
 
 out_bd:
@@ -1002,11 +1046,11 @@ out_bd:
 	return retval;
 }
 
-static void cmpc_ipml_remove(struct acpi_device *acpi)
+static void cmpc_ipml_remove(struct platform_device *pdev)
 {
 	struct ipml200_dev *ipml;
 
-	ipml = dev_get_drvdata(&acpi->dev);
+	ipml = platform_get_drvdata(pdev);
 
 	backlight_device_unregister(ipml->bd);
 
@@ -1023,14 +1067,13 @@ static const struct acpi_device_id cmpc_ipml_device_ids[] = {
 	{"", 0}
 };
 
-static struct acpi_driver cmpc_ipml_acpi_driver = {
-	.name = "cmpc",
-	.class = "cmpc",
-	.ids = cmpc_ipml_device_ids,
-	.ops = {
-		.add = cmpc_ipml_add,
-		.remove = cmpc_ipml_remove
-	}
+static struct platform_driver cmpc_ipml_acpi_driver = {
+	.probe = cmpc_ipml_probe,
+	.remove = cmpc_ipml_remove,
+	.driver = {
+		.name = "cmpc",
+		.acpi_match_table = cmpc_ipml_device_ids,
+	},
 };
 
 
@@ -1053,14 +1096,15 @@ static int cmpc_keys_codes[] = {
 	KEY_MAX
 };
 
-static void cmpc_keys_handler(struct acpi_device *dev, u32 event)
+static void cmpc_keys_handler(acpi_handle handle, u32 event, void *data)
 {
+	struct device *dev = data;
 	struct input_dev *inputdev;
 	int code = KEY_MAX;
 
 	if ((event & 0x0F) < ARRAY_SIZE(cmpc_keys_codes))
 		code = cmpc_keys_codes[event & 0x0F];
-	inputdev = dev_get_drvdata(&dev->dev);
+	inputdev = dev_get_drvdata(dev);
 	input_report_key(inputdev, code, !(event & 0x10));
 	input_sync(inputdev);
 }
@@ -1074,15 +1118,32 @@ static void cmpc_keys_idev_init(struct input_dev *inputdev)
 		set_bit(cmpc_keys_codes[i], inputdev->keybit);
 }
 
-static int cmpc_keys_add(struct acpi_device *acpi)
+static int cmpc_keys_probe(struct platform_device *pdev)
 {
-	return cmpc_add_acpi_notify_device(acpi, "cmpc_keys",
-					   cmpc_keys_idev_init);
+	struct acpi_device *acpi;
+	int error;
+
+	acpi = ACPI_COMPANION(&pdev->dev);
+	if (!acpi)
+		return -ENODEV;
+
+	error = cmpc_add_notify_device(&pdev->dev, "cmpc_keys", cmpc_keys_idev_init);
+	if (error)
+		return error;
+
+	error = acpi_dev_install_notify_handler(acpi, ACPI_DEVICE_NOTIFY,
+						cmpc_keys_handler, &pdev->dev);
+	if (error)
+		cmpc_remove_notify_device(&pdev->dev);
+
+	return error;
 }
 
-static void cmpc_keys_remove(struct acpi_device *acpi)
+static void cmpc_keys_remove(struct platform_device *pdev)
 {
-	cmpc_remove_acpi_notify_device(acpi);
+	acpi_dev_remove_notify_handler(ACPI_COMPANION(&pdev->dev),
+				       ACPI_DEVICE_NOTIFY, cmpc_keys_handler);
+	cmpc_remove_notify_device(&pdev->dev);
 }
 
 static const struct acpi_device_id cmpc_keys_device_ids[] = {
@@ -1090,15 +1151,13 @@ static const struct acpi_device_id cmpc_keys_device_ids[] = {
 	{"", 0}
 };
 
-static struct acpi_driver cmpc_keys_acpi_driver = {
-	.name = "cmpc_keys",
-	.class = "cmpc_keys",
-	.ids = cmpc_keys_device_ids,
-	.ops = {
-		.add = cmpc_keys_add,
-		.remove = cmpc_keys_remove,
-		.notify = cmpc_keys_handler,
-	}
+static struct platform_driver cmpc_keys_acpi_driver = {
+	.probe = cmpc_keys_probe,
+	.remove = cmpc_keys_remove,
+	.driver = {
+		.name = "cmpc_keys",
+		.acpi_match_table = cmpc_keys_device_ids,
+	},
 };
 
 
@@ -1110,39 +1169,39 @@ static int cmpc_init(void)
 {
 	int r;
 
-	r = acpi_bus_register_driver(&cmpc_keys_acpi_driver);
+	r = platform_driver_register(&cmpc_keys_acpi_driver);
 	if (r)
 		goto failed_keys;
 
-	r = acpi_bus_register_driver(&cmpc_ipml_acpi_driver);
+	r = platform_driver_register(&cmpc_ipml_acpi_driver);
 	if (r)
 		goto failed_bl;
 
-	r = acpi_bus_register_driver(&cmpc_tablet_acpi_driver);
+	r = platform_driver_register(&cmpc_tablet_acpi_driver);
 	if (r)
 		goto failed_tablet;
 
-	r = acpi_bus_register_driver(&cmpc_accel_acpi_driver);
+	r = platform_driver_register(&cmpc_accel_acpi_driver);
 	if (r)
 		goto failed_accel;
 
-	r = acpi_bus_register_driver(&cmpc_accel_acpi_driver_v4);
+	r = platform_driver_register(&cmpc_accel_acpi_driver_v4);
 	if (r)
 		goto failed_accel_v4;
 
 	return r;
 
 failed_accel_v4:
-	acpi_bus_unregister_driver(&cmpc_accel_acpi_driver);
+	platform_driver_unregister(&cmpc_accel_acpi_driver);
 
 failed_accel:
-	acpi_bus_unregister_driver(&cmpc_tablet_acpi_driver);
+	platform_driver_unregister(&cmpc_tablet_acpi_driver);
 
 failed_tablet:
-	acpi_bus_unregister_driver(&cmpc_ipml_acpi_driver);
+	platform_driver_unregister(&cmpc_ipml_acpi_driver);
 
 failed_bl:
-	acpi_bus_unregister_driver(&cmpc_keys_acpi_driver);
+	platform_driver_unregister(&cmpc_keys_acpi_driver);
 
 failed_keys:
 	return r;
@@ -1150,11 +1209,11 @@ failed_keys:
 
 static void cmpc_exit(void)
 {
-	acpi_bus_unregister_driver(&cmpc_accel_acpi_driver_v4);
-	acpi_bus_unregister_driver(&cmpc_accel_acpi_driver);
-	acpi_bus_unregister_driver(&cmpc_tablet_acpi_driver);
-	acpi_bus_unregister_driver(&cmpc_ipml_acpi_driver);
-	acpi_bus_unregister_driver(&cmpc_keys_acpi_driver);
+	platform_driver_unregister(&cmpc_accel_acpi_driver_v4);
+	platform_driver_unregister(&cmpc_accel_acpi_driver);
+	platform_driver_unregister(&cmpc_tablet_acpi_driver);
+	platform_driver_unregister(&cmpc_ipml_acpi_driver);
+	platform_driver_unregister(&cmpc_keys_acpi_driver);
 }
 
 module_init(cmpc_init);

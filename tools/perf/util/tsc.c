@@ -127,7 +127,7 @@ size_t perf_event__fprintf_time_conv(union perf_event *event, FILE *fp)
 	 * when supported cap_user_time_short, for backward compatibility,
 	 * prints the extended fields only if they are contained in the event.
 	 */
-	if (event_contains(*tc, time_cycles)) {
+	if (event_contains(*tc, cap_user_time_short)) {
 		ret += fprintf(fp, "... Time Cycles     %" PRI_lu64 "\n",
 			       tc->time_cycles);
 		ret += fprintf(fp, "... Time Mask       %#" PRI_lx64 "\n",

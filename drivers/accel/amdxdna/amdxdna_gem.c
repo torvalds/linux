@@ -1300,7 +1300,7 @@ int amdxdna_drm_sync_bo_ioctl(struct drm_device *dev,
 		 args->handle, args->offset, args->size);
 
 	if (args->direction == SYNC_DIRECT_FROM_DEVICE)
-		ret = amdxdna_hwctx_sync_debug_bo(abo->client, args->handle);
+		ret = amdxdna_hwctx_sync_debug_bo(client, args->handle);
 
 put_obj:
 	drm_gem_object_put(gobj);

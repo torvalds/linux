@@ -6,6 +6,8 @@
 #ifndef __RGA_H__
 #define __RGA_H__
 
+#include <linux/bits.h>
+#include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <media/videobuf2-v4l2.h>
 #include <media/v4l2-ctrls.h>
@@ -13,32 +15,16 @@
 
 #define RGA_NAME "rockchip-rga"
 
-struct rga_fmt {
-	u32 fourcc;
-	int depth;
-	u8 uv_factor;
-	u8 y_div;
-	u8 x_div;
-	u8 color_swap;
-	u8 hw_format;
-};
+#define DEFAULT_WIDTH 100
+#define DEFAULT_HEIGHT 100
 
 struct rga_frame {
-	/* Original dimensions */
-	u32 width;
-	u32 height;
-	u32 colorspace;
-
 	/* Crop */
 	struct v4l2_rect crop;
 
 	/* Image format */
-	struct rga_fmt *fmt;
+	void *fmt;
 	struct v4l2_pix_format_mplane pix;
-
-	/* Variables that can calculated once and reused */
-	u32 stride;
-	u32 size;
 };
 
 struct rga_dma_desc {
@@ -57,6 +43,10 @@ struct rga_ctx {
 	struct rga_frame out;
 	struct v4l2_ctrl_handler ctrl_handler;
 
+	void *cmdbuf_virt;
+	dma_addr_t cmdbuf_phy;
+	bool cmdbuf_dirty;
+
 	int osequence;
 	int csequence;
 
@@ -73,6 +63,8 @@ static inline struct rga_ctx *file_to_rga_ctx(struct file *filp)
 	return container_of(file_to_v4l2_fh(filp), struct rga_ctx, fh);
 }
 
+struct rga_hw;
+
 struct rockchip_rga {
 	struct v4l2_device v4l2_dev;
 	struct v4l2_m2m_dev *m2m_dev;
@@ -81,9 +73,8 @@ struct rockchip_rga {
 	struct device *dev;
 	struct regmap *grf;
 	void __iomem *regs;
-	struct clk *sclk;
-	struct clk *aclk;
-	struct clk *hclk;
+	struct clk_bulk_data *clks;
+	int num_clks;
 	struct rockchip_rga_version version;
 
 	/* vfd lock */
@@ -92,14 +83,14 @@ struct rockchip_rga {
 	spinlock_t ctrl_lock;
 
 	struct rga_ctx *curr;
-	dma_addr_t cmdbuf_phy;
-	void *cmdbuf_virt;
+
+	const struct rga_hw *hw;
 };
 
-struct rga_addr_offset {
-	unsigned int y_off;
-	unsigned int u_off;
-	unsigned int v_off;
+struct rga_addrs {
+	dma_addr_t y_addr;
+	dma_addr_t u_addr;
+	dma_addr_t v_addr;
 };
 
 struct rga_vb_buffer {
@@ -111,8 +102,8 @@ struct rga_vb_buffer {
 	dma_addr_t dma_desc_pa;
 	size_t n_desc;
 
-	/* Plane offsets of this buffer into the mapping */
-	struct rga_addr_offset offset;
+	/* Plane DMA addresses after the MMU mapping of the buffer */
+	struct rga_addrs dma_addrs;
 };
 
 static inline struct rga_vb_buffer *vb_to_rga(struct vb2_v4l2_buffer *vb)
@@ -121,6 +112,9 @@ static inline struct rga_vb_buffer *vb_to_rga(struct vb2_v4l2_buffer *vb)
 }
 
 struct rga_frame *rga_get_frame(struct rga_ctx *ctx, enum v4l2_buf_type type);
+
+int rga_check_scaling(const struct rga_hw *hw, const struct v4l2_rect *crop_in,
+		      const struct v4l2_rect *crop_out, u32 rotate);
 
 /* RGA Buffers Manage */
 extern const struct vb2_ops rga_qops;
@@ -144,7 +138,37 @@ static inline void rga_mod(struct rockchip_rga *rga, u32 reg, u32 val, u32 mask)
 	rga_write(rga, reg, temp);
 };
 
-void rga_hw_start(struct rockchip_rga *rga,
-		  struct rga_vb_buffer *src, struct rga_vb_buffer *dst);
+#define RGA_FEATURE_FLIP	BIT(0)
+#define RGA_FEATURE_ROTATE	BIT(1)
+#define RGA_FEATURE_BG_COLOR	BIT(2)
+
+struct rga_hw {
+	const char *card_type;
+	bool has_internal_iommu;
+	size_t cmdbuf_size;
+	u32 min_width, min_height;
+	u32 max_width, max_height;
+	u8 max_scaling_factor;
+	u8 stride_alignment;
+	u8 features;
+
+	void (*setup_cmdbuf)(struct rga_ctx *ctx);
+	void (*start)(struct rockchip_rga *rga,
+		      struct rga_vb_buffer *src, struct rga_vb_buffer *dst);
+	bool (*handle_irq)(struct rockchip_rga *rga);
+	void (*get_version)(struct rockchip_rga *rga);
+	void *(*adjust_and_map_format)(struct rga_ctx *ctx,
+				       struct v4l2_pix_format_mplane *format,
+				       bool is_output);
+	int (*enum_format)(struct v4l2_fmtdesc *f);
+};
+
+static inline bool rga_has_internal_iommu(const struct rockchip_rga *rga)
+{
+	return rga->hw->has_internal_iommu;
+}
+
+extern const struct rga_hw rga2_hw;
+extern const struct rga_hw rga3_hw;
 
 #endif

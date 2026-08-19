@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #if !defined(KVM_X86_PMU_OP) || \
-    !defined(KVM_X86_PMU_OP_OPTIONAL)
+    !defined(KVM_X86_PMU_OP_OPTIONAL) || \
+    !defined(KVM_X86_PMU_OP_OPTIONAL_RET0)
 #error Missing one or more KVM_X86_PMU_OP #defines
 #else
 
@@ -23,6 +24,7 @@ KVM_X86_PMU_OP(init)
 KVM_X86_PMU_OP_OPTIONAL(reset)
 KVM_X86_PMU_OP_OPTIONAL(deliver_pmi)
 KVM_X86_PMU_OP_OPTIONAL(cleanup)
+KVM_X86_PMU_OP_OPTIONAL_RET0(pmc_is_disabled_in_current_mode)
 
 KVM_X86_PMU_OP_OPTIONAL(write_global_ctrl)
 KVM_X86_PMU_OP(mediated_load)
@@ -31,3 +33,4 @@ KVM_X86_PMU_OP(mediated_put)
 
 #undef KVM_X86_PMU_OP
 #undef KVM_X86_PMU_OP_OPTIONAL
+#undef KVM_X86_PMU_OP_OPTIONAL_RET0

@@ -262,6 +262,9 @@ int pcim_p2pdma_init(struct pci_dev *pdev)
 	struct pci_p2pdma *p2p;
 	int i, ret;
 
+	if (pdev->non_mappable_bars)
+		return -EOPNOTSUPP;
+
 	p2p = rcu_dereference_protected(pdev->p2pdma, 1);
 	if (p2p)
 		return 0;
@@ -318,7 +321,8 @@ struct p2pdma_provider *pcim_p2pdma_provider(struct pci_dev *pdev, int bar)
 {
 	struct pci_p2pdma *p2p;
 
-	if (!(pci_resource_flags(pdev, bar) & IORESOURCE_MEM))
+	if (!(pci_resource_flags(pdev, bar) & IORESOURCE_MEM) ||
+	    pdev->non_mappable_bars)
 		return NULL;
 
 	p2p = rcu_dereference_protected(pdev->p2pdma, 1);
@@ -548,6 +552,16 @@ static const struct pci_p2pdma_whitelist_entry {
 	{PCI_VENDOR_ID_INTEL,	0x2033, 0},
 	{PCI_VENDOR_ID_INTEL,	0x2020, 0},
 	{PCI_VENDOR_ID_INTEL,	0x09a2, 0},
+	{PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_DSA_SPR0, 0},
+	{PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_IAX_SPR0, 0},
+	{PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_DSA_GNRD, 0},
+	{PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_DSA_DMR, 0},
+	{PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_IAA_DMR, 0},
+	{PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_QAT_4XXX, 0},
+	{PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_QAT_401XX, 0},
+	{PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_QAT_402XX, 0},
+	{PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_QAT_420XX, 0},
+	{PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_QAT_6XXX, 0},
 	/* Google SoCs. */
 	{PCI_VENDOR_ID_GOOGLE,	PCI_ANY_ID, 0},
 	{}

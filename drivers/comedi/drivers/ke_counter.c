@@ -213,8 +213,8 @@ static int ke_counter_pci_probe(struct pci_dev *dev,
 }
 
 static const struct pci_device_id ke_counter_pci_table[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_KOLTER, 0x0014) },
-	{ 0 }
+	{ PCI_VDEVICE(KOLTER, 0x0014) },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, ke_counter_pci_table);
 

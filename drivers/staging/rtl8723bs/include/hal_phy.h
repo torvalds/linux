@@ -10,8 +10,8 @@
 /*  Antenna detection method, i.e., using single tone detection or RSSI reported from each antenna detected. */
 /*  Added by Roger, 2013.05.22. */
 /*  */
-#define ANT_DETECT_BY_SINGLE_TONE	BIT0
-#define ANT_DETECT_BY_RSSI				BIT1
+#define ANT_DETECT_BY_SINGLE_TONE	BIT(0)
+#define ANT_DETECT_BY_RSSI				BIT(1)
 #define IS_ANT_DETECT_SUPPORT_SINGLE_TONE(__Adapter)		((GET_HAL_DATA(__Adapter)->AntDetection) & ANT_DETECT_BY_SINGLE_TONE)
 #define IS_ANT_DETECT_SUPPORT_RSSI(__Adapter)		((GET_HAL_DATA(__Adapter)->AntDetection) & ANT_DETECT_BY_RSSI)
 

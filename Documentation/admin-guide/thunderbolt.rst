@@ -373,6 +373,67 @@ port which are named like ``thunderbolt0`` and so on. From this point
 you can either use standard userspace tools like ``ip`` to
 configure the interface or let your GUI handle it automatically.
 
+Streaming data directly over Thunderbolt cable
+----------------------------------------------
+In addition to Thunderbolt networking (aka. USB4NET) Linux supports
+streaming data directly over a cable as well (aka. USB4STREAM). This is
+possible through ``thunderbolt-stream`` driver.
+
+Similarly to ``thunderbolt-net`` you load the driver first on one end::
+
+  host1 # modprobe thunderbolt-stream
+
+Then you configure it via ``ConfigFS``::
+
+  host1 # cd /sys/kernel/config/thunderbolt/stream
+  host1 # mkdir -p 0-1.0/data
+  host1 # cd 0-1.0
+  host1 # echo -1 > data/in_hopid
+  host1 # echo -1 > data/out_hopid
+
+This information is automatically announced to the other side via
+XDomain properties so if you have cable connected the other side knows
+that there is a stream named ``data`` available and can configure it for
+you automatically::
+
+  host2 # cd /sys/kernel/config/thunderbolt/stream
+  host2 # mkdir -p 0-3.0/data
+
+Here we used auto-configuration but you can configure it manually too.
+In that case you need to fill ``in_hopid`` and ``out_hopid`` accordingly.
+If you set them to ``-1`` the next available HopID is used which is
+typically what we want.
+
+Once they are configured you can use ``/dev/tbstreamX`` on both sides to
+transfer data::
+
+  host2 # cat /dev/tbstream0
+  host1 # dmesg > /dev/tbstream0
+
+Once you are done with the stream you can remove them::
+
+  host2 # cd /sys/kernel/config/thunderbolt/stream
+  host2 # rmdir -p 0-1.0/data
+  host1 # cd /sys/kernel/config/thunderbolt/stream
+  host1 # rmdir -p 0-3.0/data
+
+Since streams are essentially files you can use any existing application
+that supports ``read(2)`` and ``write(2)`` in some form.
+
+It is possible to have more than one stream and you can have both stream
+and ``thunderbolt-net`` in use simultaneously. For example we can create
+two streams with name ``control`` and ``data`` like this::
+
+  host1 # cd /sys/kernel/config/thunderbolt/stream
+  host1 # mkdir 0-1.0
+  host1 # cd 0-1.0
+  host1 # mkdir control
+  host1 # mkdir data
+
+Then you have ``/dev/tbstream0`` for ``control`` and ``/dev/tbstream1``
+for ``data``. Before you can use them you need to configure them as
+shown above for the one stream case.
+
 Forcing power
 -------------
 Many OEMs include a method that can be used to force the power of a

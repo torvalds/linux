@@ -90,7 +90,7 @@ static const struct dev_pm_ops cma3000_i2c_pm_ops = {
 };
 
 static const struct i2c_device_id cma3000_i2c_id[] = {
-	{ "cma3000_d01" },
+	{ .name = "cma3000_d01" },
 	{ }
 };
 

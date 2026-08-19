@@ -1133,7 +1133,7 @@ static void sm_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	struct sm_ftl *ftl;
 
 	/* Allocate & initialize our private structure */
-	ftl = kzalloc_obj(struct sm_ftl);
+	ftl = kzalloc_flex(*ftl, cis_buffer, SM_SECTOR_SIZE);
 	if (!ftl)
 		goto error1;
 
@@ -1145,25 +1145,20 @@ static void sm_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	/* Read media information */
 	if (sm_get_media_info(ftl, mtd)) {
 		dbg("found unsupported mtd device, aborting");
-		goto error2;
+		goto error1;
 	}
 
-
-	/* Allocate temporary CIS buffer for read retry support */
-	ftl->cis_buffer = kzalloc(SM_SECTOR_SIZE, GFP_KERNEL);
-	if (!ftl->cis_buffer)
-		goto error2;
 
 	/* Allocate zone array, it will be initialized on demand */
 	ftl->zones = kzalloc_objs(struct ftl_zone, ftl->zone_count);
 	if (!ftl->zones)
-		goto error3;
+		goto error2;
 
 	/* Allocate the cache*/
 	ftl->cache_data = kzalloc(ftl->block_size, GFP_KERNEL);
 
 	if (!ftl->cache_data)
-		goto error4;
+		goto error3;
 
 	sm_cache_init(ftl);
 
@@ -1171,7 +1166,7 @@ static void sm_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	/* Allocate upper layer structure and initialize it */
 	trans = kzalloc_obj(struct mtd_blktrans_dev);
 	if (!trans)
-		goto error5;
+		goto error4;
 
 	ftl->trans = trans;
 	trans->priv = ftl;
@@ -1184,12 +1179,12 @@ static void sm_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 
 	if (sm_find_cis(ftl)) {
 		dbg("CIS not found on mtd device, aborting");
-		goto error6;
+		goto error5;
 	}
 
 	ftl->disk_attributes = sm_create_sysfs_attributes(ftl);
 	if (!ftl->disk_attributes)
-		goto error6;
+		goto error5;
 	trans->disk_attributes = ftl->disk_attributes;
 
 	sm_printk("Found %d MiB xD/SmartMedia FTL on mtd%d",
@@ -1206,17 +1201,15 @@ static void sm_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	/* Register device*/
 	if (add_mtd_blktrans_dev(trans)) {
 		dbg("error in mtdblktrans layer");
-		goto error6;
+		goto error5;
 	}
 	return;
-error6:
-	kfree(trans);
 error5:
-	kfree(ftl->cache_data);
+	kfree(trans);
 error4:
-	kfree(ftl->zones);
+	kfree(ftl->cache_data);
 error3:
-	kfree(ftl->cis_buffer);
+	kfree(ftl->zones);
 error2:
 	kfree(ftl);
 error1:
@@ -1242,7 +1235,6 @@ static void sm_remove_dev(struct mtd_blktrans_dev *dev)
 	}
 
 	sm_delete_sysfs_attributes(ftl);
-	kfree(ftl->cis_buffer);
 	kfree(ftl->zones);
 	kfree(ftl->cache_data);
 	kfree(ftl);

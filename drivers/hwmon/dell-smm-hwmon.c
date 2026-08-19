@@ -12,8 +12,10 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/acpi.h>
+#include <linux/align.h>
 #include <linux/capability.h>
+#include <linux/cleanup.h>
+#include <linux/compiler_attributes.h>
 #include <linux/cpu.h>
 #include <linux/ctype.h>
 #include <linux/delay.h>
@@ -36,10 +38,10 @@
 #include <linux/thermal.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
+#include <linux/unaligned.h>
 #include <linux/wmi.h>
 
 #include <linux/i8k.h>
-#include <linux/unaligned.h>
 
 #define I8K_SMM_FN_STATUS	0x0025
 #define I8K_SMM_POWER_STATUS	0x0069
@@ -232,7 +234,7 @@ static const struct dell_smm_ops i8k_smm_ops = {
 /*
  * Call the System Management Mode BIOS over WMI.
  */
-static ssize_t wmi_parse_register(u8 *buffer, u32 length, unsigned int *reg)
+static ssize_t wmi_parse_register(u8 *buffer, size_t length, unsigned int *reg)
 {
 	__le32 value;
 	u32 reg_size;
@@ -253,7 +255,7 @@ static ssize_t wmi_parse_register(u8 *buffer, u32 length, unsigned int *reg)
 	return reg_size + sizeof(reg_size);
 }
 
-static int wmi_parse_response(u8 *buffer, u32 length, struct smm_regs *regs)
+static int wmi_parse_response(u8 *buffer, size_t length, struct smm_regs *regs)
 {
 	unsigned int *registers[] = {
 		&regs->eax,
@@ -261,7 +263,7 @@ static int wmi_parse_response(u8 *buffer, u32 length, struct smm_regs *regs)
 		&regs->ecx,
 		&regs->edx
 	};
-	u32 offset = 0;
+	size_t offset = 0;
 	ssize_t ret;
 	int i;
 
@@ -273,11 +275,9 @@ static int wmi_parse_response(u8 *buffer, u32 length, struct smm_regs *regs)
 		if (ret < 0)
 			return ret;
 
-		offset += ret;
+		/* WMI aligns u32 integers on a 4 byte boundary */
+		offset = ALIGN(offset + ret, 4);
 	}
-
-	if (offset != length)
-		return -ENOMSG;
 
 	return 0;
 }
@@ -285,7 +285,6 @@ static int wmi_parse_response(u8 *buffer, u32 length, struct smm_regs *regs)
 static int wmi_smm_call(struct device *dev, struct smm_regs *regs)
 {
 	struct wmi_device *wdev = container_of(dev, struct wmi_device, dev);
-	struct acpi_buffer out = { ACPI_ALLOCATE_BUFFER, NULL };
 	u32 wmi_payload[] = {
 		sizeof(regs->eax),
 		regs->eax,
@@ -296,34 +295,20 @@ static int wmi_smm_call(struct device *dev, struct smm_regs *regs)
 		sizeof(regs->edx),
 		regs->edx
 	};
-	const struct acpi_buffer in = {
+	const struct wmi_buffer in = {
 		.length = sizeof(wmi_payload),
-		.pointer = &wmi_payload,
+		.data = &wmi_payload,
 	};
-	union acpi_object *obj;
-	acpi_status status;
+	struct wmi_buffer out;
 	int ret;
 
-	status = wmidev_evaluate_method(wdev, 0x0, DELL_SMM_LEGACY_EXECUTE, &in, &out);
-	if (ACPI_FAILURE(status))
-		return -EIO;
+	ret = wmidev_invoke_method(wdev, 0x0, DELL_SMM_LEGACY_EXECUTE, &in, &out, sizeof(__le32));
+	if (ret < 0)
+		return ret;
 
-	obj = out.pointer;
-	if (!obj)
-		return -ENODATA;
+	u8 *response __free(kfree) = out.data;
 
-	if (obj->type != ACPI_TYPE_BUFFER) {
-		ret = -ENOMSG;
-
-		goto err_free;
-	}
-
-	ret = wmi_parse_response(obj->buffer.pointer, obj->buffer.length, regs);
-
-err_free:
-	kfree(obj);
-
-	return ret;
+	return wmi_parse_response(response, out.length, regs);
 }
 
 static int dell_smm_call(const struct dell_smm_ops *ops, struct smm_regs *regs)

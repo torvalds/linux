@@ -204,22 +204,22 @@
 /*  */
 /*        8723/8188E Host System Interrupt Status Register (offset 0x5C, 32 byte) */
 /*  */
-#define HSISR_GPIO12_0_INT				BIT0
-#define HSISR_SPS_OCP_INT				BIT5
-#define HSISR_RON_INT					BIT6
-#define HSISR_PDNINT					BIT7
-#define HSISR_GPIO9_INT					BIT25
+#define HSISR_GPIO12_0_INT				BIT(0)
+#define HSISR_SPS_OCP_INT				BIT(5)
+#define HSISR_RON_INT					BIT(6)
+#define HSISR_PDNINT					BIT(7)
+#define HSISR_GPIO9_INT					BIT(25)
 
 /*  */
 /*        Response Rate Set Register	(offset 0x440, 24bits) */
 /*  */
-#define RRSR_1M					BIT0
-#define RRSR_2M					BIT1
-#define RRSR_5_5M				BIT2
-#define RRSR_11M				BIT3
-#define RRSR_6M					BIT4
-#define RRSR_12M				BIT6
-#define RRSR_24M				BIT8
+#define RRSR_1M					BIT(0)
+#define RRSR_2M					BIT(1)
+#define RRSR_5_5M				BIT(2)
+#define RRSR_11M				BIT(3)
+#define RRSR_6M					BIT(4)
+#define RRSR_12M				BIT(6)
+#define RRSR_24M				BIT(8)
 
 #define RRSR_CCK_RATES (RRSR_11M|RRSR_5_5M|RRSR_2M|RRSR_1M)
 
@@ -250,12 +250,12 @@
 /*  */
 /*        BW_OPMODE bits				(Offset 0x603, 8bit) */
 /*  */
-#define BW_OPMODE_20MHZ			BIT2
+#define BW_OPMODE_20MHZ			BIT(2)
 
 /*  */
 /*        CAM Config Setting (offset 0x680, 1 byte) */
 /*  */
-#define CAM_VALID				BIT15
+#define CAM_VALID				BIT(15)
 
 #define CAM_CONTENT_COUNT	8
 
@@ -263,8 +263,8 @@
 
 #define TOTAL_CAM_ENTRY		32
 
-#define CAM_WRITE				BIT16
-#define CAM_POLLINIG			BIT31
+#define CAM_WRITE				BIT(16)
+#define CAM_POLLINIG			BIT(31)
 
 /*  */
 /*  12. Host Interrupt Status Registers */
@@ -273,20 +273,20 @@
 /*  */
 /*        8192C (RCR) Receive Configuration Register	(Offset 0x608, 32 bits) */
 /*  */
-#define RCR_APPFCS				BIT31	/*  WMAC append FCS after pauload */
-#define RCR_APP_MIC				BIT30	/*  MACRX will retain the MIC at the bottom of the packet. */
-#define RCR_APP_ICV				BIT29	/*  MACRX will retain the ICV at the bottom of the packet. */
-#define RCR_APP_PHYST_RXFF		BIT28	/*  PHY Status is appended before RX packet in RXFF */
-#define RCR_APP_BA_SSN			BIT27	/*  SSN of previous TXBA is appended as after original RXDESC as the 4-th DW of RXDESC. */
-#define RCR_HTC_LOC_CTRL		BIT14	/*  MFC<--HTC = 1 MFC-->HTC = 0 */
-#define RCR_AMF					BIT13	/*  Accept management type frame */
-#define RCR_ADF					BIT11	/*  Accept data type frame. This bit also regulates BA, BAR, and PS-Poll (AP mode only). */
-#define RCR_ACRC32				BIT8		/*  Accept CRC32 error packet */
-#define RCR_CBSSID_BCN			BIT7		/*  Accept BSSID match packet (Rx beacon, probe rsp) */
-#define RCR_CBSSID_DATA		BIT6		/*  Accept BSSID match packet (Data) */
-#define RCR_AB					BIT3		/*  Accept broadcast packet */
-#define RCR_AM					BIT2		/*  Accept multicast packet */
-#define RCR_APM					BIT1		/*  Accept physical match packet */
+#define RCR_APPFCS				BIT(31)	/*  WMAC append FCS after pauload */
+#define RCR_APP_MIC				BIT(30)	/*  MACRX will retain the MIC at the bottom of the packet. */
+#define RCR_APP_ICV				BIT(29)	/*  MACRX will retain the ICV at the bottom of the packet. */
+#define RCR_APP_PHYST_RXFF		BIT(28)	/*  PHY Status is appended before RX packet in RXFF */
+#define RCR_APP_BA_SSN			BIT(27)	/*  SSN of previous TXBA is appended as after original RXDESC as the 4-th DW of RXDESC. */
+#define RCR_HTC_LOC_CTRL		BIT(14)	/*  MFC<--HTC = 1 MFC-->HTC = 0 */
+#define RCR_AMF					BIT(13)	/*  Accept management type frame */
+#define RCR_ADF					BIT(11)	/*  Accept data type frame. This bit also regulates BA, BAR, and PS-Poll (AP mode only). */
+#define RCR_ACRC32				BIT(8)		/*  Accept CRC32 error packet */
+#define RCR_CBSSID_BCN			BIT(7)		/*  Accept BSSID match packet (Rx beacon, probe rsp) */
+#define RCR_CBSSID_DATA		BIT(6)		/*  Accept BSSID match packet (Data) */
+#define RCR_AB					BIT(3)		/*  Accept broadcast packet */
+#define RCR_AM					BIT(2)		/*  Accept multicast packet */
+#define RCR_APM					BIT(1)		/*  Accept physical match packet */
 
 
 /*  */
@@ -540,26 +540,26 @@
 #define SDIO_HIMR_DISABLED			0
 
 /*  RTL8723/RTL8188E SDIO Host Interrupt Mask Register */
-#define SDIO_HIMR_RX_REQUEST_MSK		BIT0
-#define SDIO_HIMR_AVAL_MSK			BIT1
+#define SDIO_HIMR_RX_REQUEST_MSK		BIT(0)
+#define SDIO_HIMR_AVAL_MSK			BIT(1)
 
 /*  SDIO Host Interrupt Service Routine */
-#define SDIO_HISR_RX_REQUEST			BIT0
-#define SDIO_HISR_AVAL					BIT1
-#define SDIO_HISR_TXERR					BIT2
-#define SDIO_HISR_RXERR					BIT3
-#define SDIO_HISR_TXFOVW				BIT4
-#define SDIO_HISR_RXFOVW				BIT5
-#define SDIO_HISR_TXBCNOK				BIT6
-#define SDIO_HISR_TXBCNERR				BIT7
-#define SDIO_HISR_C2HCMD				BIT17
-#define SDIO_HISR_CPWM1				BIT18
-#define SDIO_HISR_CPWM2				BIT19
-#define SDIO_HISR_HSISR_IND			BIT20
-#define SDIO_HISR_GTINT3_IND			BIT21
-#define SDIO_HISR_GTINT4_IND			BIT22
-#define SDIO_HISR_PSTIMEOUT			BIT23
-#define SDIO_HISR_OCPINT				BIT24
+#define SDIO_HISR_RX_REQUEST			BIT(0)
+#define SDIO_HISR_AVAL					BIT(1)
+#define SDIO_HISR_TXERR					BIT(2)
+#define SDIO_HISR_RXERR					BIT(3)
+#define SDIO_HISR_TXFOVW				BIT(4)
+#define SDIO_HISR_RXFOVW				BIT(5)
+#define SDIO_HISR_TXBCNOK				BIT(6)
+#define SDIO_HISR_TXBCNERR				BIT(7)
+#define SDIO_HISR_C2HCMD				BIT(17)
+#define SDIO_HISR_CPWM1				BIT(18)
+#define SDIO_HISR_CPWM2				BIT(19)
+#define SDIO_HISR_HSISR_IND			BIT(20)
+#define SDIO_HISR_GTINT3_IND			BIT(21)
+#define SDIO_HISR_GTINT4_IND			BIT(22)
+#define SDIO_HISR_PSTIMEOUT			BIT(23)
+#define SDIO_HISR_OCPINT				BIT(24)
 
 #define MASK_SDIO_HISR_CLEAR		(SDIO_HISR_TXERR |\
 									SDIO_HISR_RXERR |\
@@ -590,9 +590,9 @@
 #define C2H_EVT_FW_CLOSE		0xFF	/*  Set by FW indicating that FW had set the C2H command message and it's not yet read by driver. */
 
 /* 2REG_MULTI_FUNC_CTRL(For RTL8723 Only) */
-#define WL_HWPDN_SL			BIT1	/*  WiFi HW PDn polarity control */
-#define WL_FUNC_EN				BIT2	/*  WiFi function enable */
-#define BT_FUNC_EN				BIT18	/*  BT function enable */
-#define GPS_FUNC_EN			BIT22	/*  GPS function enable */
+#define WL_HWPDN_SL			BIT(1)	/*  WiFi HW PDn polarity control */
+#define WL_FUNC_EN				BIT(2)	/*  WiFi function enable */
+#define BT_FUNC_EN				BIT(18)	/*  BT function enable */
+#define GPS_FUNC_EN			BIT(22)	/*  GPS function enable */
 
 #endif /* __HAL_COMMON_H__ */

@@ -689,6 +689,7 @@ struct r5conf {
 	struct list_head	pending_list;
 	int			pending_data_cnt;
 	struct r5pending_data	*next_pending_data;
+	bool			raid5_discard_unsupported;
 
 	mempool_t		*ctx_pool;
 	int			ctx_size;

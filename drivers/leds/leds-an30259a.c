@@ -331,7 +331,7 @@ static const struct of_device_id an30259a_match_table[] = {
 MODULE_DEVICE_TABLE(of, an30259a_match_table);
 
 static const struct i2c_device_id an30259a_id[] = {
-	{ "an30259a" },
+	{ .name = "an30259a" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, an30259a_id);

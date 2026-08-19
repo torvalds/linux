@@ -1088,11 +1088,9 @@ void cdnsp_mem_cleanup(struct cdnsp_device *pdev)
 			  pdev->dcbaa, pdev->dcbaa->dma);
 
 	pdev->dcbaa = NULL;
-
-	pdev->usb2_port.exist = 0;
-	pdev->usb3_port.exist = 0;
-	pdev->usb2_port.port_num = 0;
-	pdev->usb3_port.port_num = 0;
+	memset(&pdev->usb2_port, 0, sizeof(struct cdnsp_port));
+	memset(&pdev->eusb_port, 0, sizeof(struct cdnsp_port));
+	memset(&pdev->usb3_port, 0, sizeof(struct cdnsp_port));
 	pdev->active_port = NULL;
 }
 
@@ -1133,6 +1131,18 @@ static void cdnsp_add_in_port(struct cdnsp_device *pdev,
 	port_offset = CDNSP_EXT_PORT_OFF(temp);
 	port_count = CDNSP_EXT_PORT_COUNT(temp);
 
+	if (port == &pdev->eusb_port) {
+		/*
+		 * If controller has usb2 + eusb port then eusb is as
+		 * second port
+		 */
+		if (port_count == 2)
+			port_offset++;
+
+		if (port_count == 1 && pdev->usb2_port.exist)
+			return;
+	}
+
 	trace_cdnsp_port_info(addr, port_offset, port_count, port->maj_rev);
 
 	port->port_num = port_offset;
@@ -1152,13 +1162,10 @@ static int cdnsp_setup_port_arrays(struct cdnsp_device *pdev)
 	base = &pdev->cap_regs->hc_capbase;
 	offset = cdnsp_find_next_ext_cap(base, 0,
 					 EXT_CAP_CFG_DEV_20PORT_CAP_ID);
-	pdev->port20_regs = base + offset;
-
-	offset = cdnsp_find_next_ext_cap(base, 0, D_XEC_CFG_3XPORT_CAP);
-	pdev->port3x_regs =  base + offset;
+	if (offset)
+		pdev->port20_regs = base + offset;
 
 	offset = 0;
-	base = &pdev->cap_regs->hc_capbase;
 
 	/* Driver expects max 2 extended protocol capability. */
 	for (i = 0; i < 2; i++) {
@@ -1173,26 +1180,46 @@ static int cdnsp_setup_port_arrays(struct cdnsp_device *pdev)
 			cdnsp_add_in_port(pdev, &pdev->usb3_port,
 					  base + offset);
 
-		if (CDNSP_EXT_PORT_MAJOR(temp) == 0x02 &&
-		    !pdev->usb2_port.port_num)
-			cdnsp_add_in_port(pdev, &pdev->usb2_port,
-					  base + offset);
+		if (CDNSP_EXT_PORT_MAJOR(temp) == 0x02) {
+			if (!pdev->usb2_port.port_num && pdev->port20_regs)
+				cdnsp_add_in_port(pdev, &pdev->usb2_port,
+						  base + offset);
+
+			if (!pdev->eusb_port.port_num)
+				cdnsp_add_in_port(pdev, &pdev->eusb_port,
+						  base + offset);
+		}
 	}
 
-	if (!pdev->usb2_port.exist || !pdev->usb3_port.exist) {
-		dev_err(pdev->dev, "Error: Only one port detected\n");
+	if (!pdev->usb2_port.exist && !pdev->eusb_port.exist &&
+	    !pdev->usb3_port.exist) {
+		dev_err(pdev->dev, "Error: No port detected\n");
 		return -ENODEV;
 	}
 
-	trace_cdnsp_init("Found USB 2.0 ports and  USB 3.0 ports.");
+	if (pdev->usb2_port.exist) {
+		pdev->usb2_port.regs = (struct cdnsp_port_regs __iomem *)
+				       (&pdev->op_regs->port_reg_base + NUM_PORT_REGS *
+					(pdev->usb2_port.port_num - 1));
+		trace_cdnsp_init("Found USB 2.0 port.");
+	}
 
-	pdev->usb2_port.regs = (struct cdnsp_port_regs __iomem *)
-			       (&pdev->op_regs->port_reg_base + NUM_PORT_REGS *
-				(pdev->usb2_port.port_num - 1));
+	if (pdev->eusb_port.exist) {
+		pdev->eusb_port.regs = (struct cdnsp_port_regs __iomem *)
+				       (&pdev->op_regs->port_reg_base + NUM_PORT_REGS *
+					(pdev->eusb_port.port_num - 1));
+		trace_cdnsp_init("Found eUSB 2.0 port.");
+	}
 
-	pdev->usb3_port.regs = (struct cdnsp_port_regs __iomem *)
-			       (&pdev->op_regs->port_reg_base + NUM_PORT_REGS *
-				(pdev->usb3_port.port_num - 1));
+	if (pdev->usb3_port.exist) {
+		offset = cdnsp_find_next_ext_cap(base, 0, D_XEC_CFG_3XPORT_CAP);
+		pdev->port3x_regs =  base + offset;
+
+		pdev->usb3_port.regs = (struct cdnsp_port_regs __iomem *)
+				       (&pdev->op_regs->port_reg_base + NUM_PORT_REGS *
+					(pdev->usb3_port.port_num - 1));
+		trace_cdnsp_init("Found USB 3.x port.");
+	}
 
 	return 0;
 }

@@ -7,7 +7,6 @@
  * Datasheet: https://www.analog.com/media/en/technical-documentation/data-sheets/ADXL313.pdf
  */
 
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
@@ -70,6 +69,7 @@ static int adxl313_spi_setup(struct device *dev, struct regmap *regmap)
 static int adxl313_spi_probe(struct spi_device *spi)
 {
 	const struct adxl313_chip_info *chip_data;
+	struct device *dev = &spi->dev;
 	struct regmap *regmap;
 	int ret;
 
@@ -83,14 +83,10 @@ static int adxl313_spi_probe(struct spi_device *spi)
 	regmap = devm_regmap_init_spi(spi,
 				      &adxl31x_spi_regmap_config[chip_data->type]);
 
-	if (IS_ERR(regmap)) {
-		dev_err(&spi->dev, "Error initializing spi regmap: %ld\n",
-			PTR_ERR(regmap));
-		return PTR_ERR(regmap);
-	}
+	if (IS_ERR(regmap))
+		return dev_err_probe(dev, PTR_ERR(regmap), "Error initializing spi regmap\n");
 
-	return adxl313_core_probe(&spi->dev, regmap,
-				  chip_data, &adxl313_spi_setup);
+	return adxl313_core_probe(dev, regmap, chip_data, &adxl313_spi_setup);
 }
 
 static const struct spi_device_id adxl313_spi_id[] = {

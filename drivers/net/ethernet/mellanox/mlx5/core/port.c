@@ -908,25 +908,6 @@ int mlx5_set_mtpps(struct mlx5_core_dev *mdev, u32 *mtpps, u32 mtpps_size)
 				    sizeof(out), MLX5_REG_MTPPS, 0, 1);
 }
 
-int mlx5_query_mtppse(struct mlx5_core_dev *mdev, u8 pin, u8 *arm, u8 *mode)
-{
-	u32 out[MLX5_ST_SZ_DW(mtppse_reg)] = {0};
-	u32 in[MLX5_ST_SZ_DW(mtppse_reg)] = {0};
-	int err = 0;
-
-	MLX5_SET(mtppse_reg, in, pin, pin);
-
-	err = mlx5_core_access_reg(mdev, in, sizeof(in), out,
-				   sizeof(out), MLX5_REG_MTPPSE, 0, 0);
-	if (err)
-		return err;
-
-	*arm = MLX5_GET(mtppse_reg, in, event_arm);
-	*mode = MLX5_GET(mtppse_reg, in, event_generation_mode);
-
-	return err;
-}
-
 int mlx5_set_mtppse(struct mlx5_core_dev *mdev, u8 pin, u8 arm, u8 mode)
 {
 	u32 out[MLX5_ST_SZ_DW(mtppse_reg)] = {0};

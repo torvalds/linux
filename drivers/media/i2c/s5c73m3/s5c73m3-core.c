@@ -1728,7 +1728,7 @@ static void s5c73m3_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id s5c73m3_id[] = {
-	{ DRIVER_NAME },
+	{ .name = DRIVER_NAME },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, s5c73m3_id);

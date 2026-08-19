@@ -1910,7 +1910,7 @@ static irqreturn_t bmp380_trigger_handler(int irq, void *p)
 		u32 comp_press;
 		s32 comp_temp;
 		aligned_s64 timestamp;
-	} buffer;
+	} buffer = { };
 	int ret;
 
 	guard(mutex)(&data->lock);

@@ -4,7 +4,6 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/pm.h>
 #include <linux/regmap.h>
@@ -183,7 +182,7 @@ static int al3000a_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(al3000a_pm_ops, al3000a_suspend, al3000a_resume);
 
 static const struct i2c_device_id al3000a_id[] = {
-	{ "al3000a" },
+	{ .name = "al3000a" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, al3000a_id);

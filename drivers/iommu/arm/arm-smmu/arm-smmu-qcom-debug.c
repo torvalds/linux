@@ -10,7 +10,6 @@
 #include <linux/firmware/qcom/qcom_scm.h>
 #include <linux/iopoll.h>
 #include <linux/list.h>
-#include <linux/mod_devicetable.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/ratelimit.h>

@@ -616,15 +616,15 @@ static void is31fl32xx_remove(struct i2c_client *client)
  * even though it is not used for DeviceTree based instantiation.
  */
 static const struct i2c_device_id is31fl32xx_id[] = {
-	{ "is31fl3293" },
-	{ "is31fl3236" },
-	{ "is31fl3236a" },
-	{ "is31fl3235" },
-	{ "is31fl3218" },
-	{ "sn3218" },
-	{ "is31fl3216" },
-	{ "sn3216" },
-	{},
+	{ .name = "is31fl3293" },
+	{ .name = "is31fl3236" },
+	{ .name = "is31fl3236a" },
+	{ .name = "is31fl3235" },
+	{ .name = "is31fl3218" },
+	{ .name = "sn3218" },
+	{ .name = "is31fl3216" },
+	{ .name = "sn3216" },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, is31fl32xx_id);

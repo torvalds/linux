@@ -404,7 +404,7 @@ static void ptn36502_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ptn36502_table[] = {
-	{ "ptn36502" },
+	{ .name = "ptn36502" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ptn36502_table);

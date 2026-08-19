@@ -281,7 +281,7 @@ Global Temperature
 :Description: Global die temperature sense register.
 :Type:        Integer (read-only)
 :Range:       0 to 255
-:Conversion:  (value × 0.5 °C) − 50 °C
+:Conversion:  value × 2.19 K; subtract 273.15 for °C
 :Register:    0x75
 
 CHx Temperature Range
@@ -289,10 +289,11 @@ CHx Temperature Range
 
 :Description: Per-channel coarse temperature range indicator (x = 1, 2, 3, 4).
 :Type:        Integer (read-only)
-:Range:       0 to 3
-:Mapping:     0 = <80 °C, 1 = 80–100 °C, 2 = 100–120 °C, 3 = >120 °C
-:Register:    0xBB bits [7:6] (CH1), bits [5:4] (CH2),
-              0xBC bits [3:2] (CH3), bits [1:0] (CH4)
+:Range:       0 to 7
+:Mapping:     0 = <95 °C, 1 = 95–110 °C, 2 = 110–125 °C, 3 = 125–135 °C,
+              4 = 135–145 °C, 5 = 145–155 °C, 6 = 155–165 °C, 7 = >165 °C
+:Register:    0xBB bits [2:0] (CH1), bits [5:3] (CH2),
+              0xBC bits [2:0] (CH3), bits [5:3] (CH4)
 
 Load Diagnostics
 ================

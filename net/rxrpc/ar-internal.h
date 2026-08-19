@@ -669,7 +669,9 @@ enum rxrpc_call_event {
 enum rxrpc_call_state {
 	RXRPC_CALL_UNINITIALISED,
 	RXRPC_CALL_CLIENT_AWAIT_CONN,	/* - client waiting for connection to become available */
+	RXRPC_CALL_CLIENT_PRE_SEND,	/* - client is connected, but hasn't sent anything yet */
 	RXRPC_CALL_CLIENT_SEND_REQUEST,	/* - client sending request phase */
+	RXRPC_CALL_CLIENT_AWAIT_ACK,	/* - client awaiting ACKs of request */
 	RXRPC_CALL_CLIENT_AWAIT_REPLY,	/* - client awaiting reply */
 	RXRPC_CALL_CLIENT_RECV_REPLY,	/* - client receiving reply phase */
 	RXRPC_CALL_SERVER_PREALLOC,	/* - service preallocation */
@@ -1374,9 +1376,9 @@ static inline struct rxrpc_net *rxrpc_net(struct net *net)
 }
 
 /*
- * out_of_band.c
+ * oob.c
  */
-void rxrpc_notify_socket_oob(struct rxrpc_call *call, struct sk_buff *skb);
+bool rxrpc_notify_socket_oob(struct rxrpc_call *call, struct sk_buff *skb);
 void rxrpc_add_pending_oob(struct rxrpc_sock *rx, struct sk_buff *skb);
 int rxrpc_sendmsg_oob(struct rxrpc_sock *rx, struct msghdr *msg, size_t len);
 

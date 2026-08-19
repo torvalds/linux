@@ -28,7 +28,6 @@
 #include <linux/irq.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
-#include <linux/mod_devicetable.h>
 #include <linux/delay.h>
 #include <linux/crypto.h>
 #include <crypto/scatterwalk.h>

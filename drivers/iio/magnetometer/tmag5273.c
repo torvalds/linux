@@ -708,7 +708,7 @@ static DEFINE_RUNTIME_DEV_PM_OPS(tmag5273_pm_ops,
 				 NULL);
 
 static const struct i2c_device_id tmag5273_id[] = {
-	{ "tmag5273" },
+	{ .name = "tmag5273" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tmag5273_id);

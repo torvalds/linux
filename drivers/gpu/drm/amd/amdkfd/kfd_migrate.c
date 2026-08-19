@@ -128,7 +128,7 @@ svm_migrate_copy_memory_gart(struct amdgpu_device *adev, dma_addr_t *sys,
 			     enum MIGRATION_COPY_DIR direction,
 			     struct dma_fence **mfence)
 {
-	const u64 GTT_MAX_PAGES = AMDGPU_GTT_MAX_TRANSFER_SIZE;
+	const u64 GTT_MAX_PAGES = (AMDGPU_GTT_MAX_TRANSFER_SIZE >> PAGE_SHIFT);
 	struct amdgpu_ring *ring;
 	struct amdgpu_ttm_buffer_entity *entity;
 	u64 gart_s, gart_d;
@@ -424,7 +424,7 @@ svm_migrate_vma_to_vram(struct kfd_node *node, struct svm_range *prange,
 	migrate.dst = migrate.src + npages;
 	scratch = (dma_addr_t *)(migrate.dst + npages);
 
-	kfd_smi_event_migration_start(node, p->lead_thread->pid,
+	kfd_smi_event_migration_start(node, p->lead_thread,
 				      start >> PAGE_SHIFT, end >> PAGE_SHIFT,
 				      0, node->id, prange->prefetch_loc,
 				      prange->preferred_loc, trigger);
@@ -462,7 +462,7 @@ svm_migrate_vma_to_vram(struct kfd_node *node, struct svm_range *prange,
 
 out_free:
 	kvfree(buf);
-	kfd_smi_event_migration_end(node, p->lead_thread->pid,
+	kfd_smi_event_migration_end(node, p->lead_thread,
 				    start >> PAGE_SHIFT, end >> PAGE_SHIFT,
 				    0, node->id, trigger, r);
 out:
@@ -727,7 +727,7 @@ svm_migrate_vma_to_ram(struct kfd_node *node, struct svm_range *prange,
 	migrate.fault_page = fault_page;
 	scratch = (dma_addr_t *)(migrate.dst + npages);
 
-	kfd_smi_event_migration_start(node, p->lead_thread->pid,
+	kfd_smi_event_migration_start(node, p->lead_thread,
 				      start >> PAGE_SHIFT, end >> PAGE_SHIFT,
 				      node->id, 0, prange->prefetch_loc,
 				      prange->preferred_loc, trigger);
@@ -766,7 +766,7 @@ svm_migrate_vma_to_ram(struct kfd_node *node, struct svm_range *prange,
 
 out_free:
 	kvfree(buf);
-	kfd_smi_event_migration_end(node, p->lead_thread->pid,
+	kfd_smi_event_migration_end(node, p->lead_thread,
 				    start >> PAGE_SHIFT, end >> PAGE_SHIFT,
 				    node->id, 0, trigger, r);
 out:

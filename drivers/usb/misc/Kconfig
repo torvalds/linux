@@ -145,7 +145,7 @@ config USB_APPLEDISPLAY
 	  Displays over USB. This driver provides a sysfs interface.
 
 config USB_QCOM_EUD
-	tristate "QCOM Embedded USB Debugger(EUD) Driver"
+	tristate "Qualcomm Embedded USB Debugger(EUD) Driver"
 	depends on ARCH_QCOM || COMPILE_TEST
 	select QCOM_SCM
 	select USB_ROLE_SWITCH

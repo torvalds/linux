@@ -104,9 +104,10 @@ static const struct irq_class irqclass_sub_desc[] = {
 
 static void do_IRQ(struct pt_regs *regs, int irq)
 {
-	if (tod_after_eq(get_lowcore()->int_clock,
-			 get_lowcore()->clock_comparator))
-		/* Serve timer interrupts first. */
+	struct lowcore *lc = get_lowcore();
+
+	/* Serve timer interrupts first */
+	if (tod_after_eq(lc->int_clock.tod, lc->clock_comparator))
 		clock_comparator_work();
 	generic_handle_irq(irq);
 }

@@ -36,6 +36,7 @@ unsigned int uvc_no_drop_param = 1;
 static unsigned int uvc_quirks_param = -1;
 unsigned int uvc_dbg_param;
 unsigned int uvc_timeout_param = UVC_CTRL_STREAMING_TIMEOUT;
+bool uvc_allow_privacy_override_param;
 
 static struct usb_driver uvc_driver;
 
@@ -2504,6 +2505,9 @@ module_param_named(trace, uvc_dbg_param, uint, 0644);
 MODULE_PARM_DESC(trace, "Trace level bitmask");
 module_param_named(timeout, uvc_timeout_param, uint, 0644);
 MODULE_PARM_DESC(timeout, "Streaming control requests timeout");
+module_param_named(allow_privacy_override, uvc_allow_privacy_override_param, bool, 0644);
+MODULE_PARM_DESC(allow_privacy_override,
+		 "Allow access to privacy related controls");
 
 /* ------------------------------------------------------------------------
  * Driver initialization and cleanup

@@ -2067,6 +2067,10 @@ Kernel parameters
 			Format: nn[KMGTPE] or (node format)
 				<node>:nn[KMGTPE][,<node>:nn[KMGTPE]]
 
+			The size must be a multiple of the gigantic page size.
+			When using node format, this applies to each per-node size.
+			Missaligned values are dropped with a warning.
+
 			Reserve a CMA area of given size and allocate gigantic
 			hugepages using the CMA allocator. If enabled, the
 			boot-time allocation of gigantic hugepages is skipped.
@@ -2306,6 +2310,12 @@ Kernel parameters
 	ima_canonical_fmt [IMA]
 			Use the canonical format for the binary runtime
 			measurements, instead of host native format.
+
+	ima_flush_htable  [IMA]
+			Flush the IMA hash table when deleting all the
+			staged measurement records, to achieve maximum
+			memory saving at the cost of having duplicate
+			records across the staged measurement lists.
 
 	ima_hash=	[IMA]
 			Format: { md5 | sha1 | rmd160 | sha256 | sha384
@@ -4277,13 +4287,6 @@ Kernel parameters
 			after a reply of NFS4ERR_DELAY from the server.
 			Only applies if the softerr mount option is enabled,
 			and the specified value is >= 0.
-
-	nfs.enable_ino64=
-			[NFS] enable 64-bit inode numbers.
-			If zero, the NFS client will fake up a 32-bit inode
-			number for the readdir() and stat() syscalls instead
-			of returning the full 64-bit number.
-			The default is to return 64-bit inode numbers.
 
 	nfs.idmap_cache_timeout=
 			[NFS] set the maximum lifetime for idmapper cache
@@ -7861,6 +7864,22 @@ Kernel parameters
 			the trust source list starting with TPM and assigns the
 			first trust source as a backend which is initialized
 			successfully during iteration.
+
+	trusted.debug=	[KEYS]
+			Format: <bool>
+			Enable trusted keys debug traces at runtime when
+			CONFIG_TRUSTED_KEYS_DEBUG=y.
+
+			To make the traces visible after enabling the option,
+			use trusted.dyndbg='+p' as needed. By convention,
+			the subsystem uses pr_debug() for these traces.
+
+			SAFETY: The traces can leak sensitive data, so be
+			cautious before enabling this. They remain inactive
+			unless this parameter is set this option to  a true
+			value.
+
+			Default: false
 
 	trusted.rng=	[KEYS]
 			Format: <string>

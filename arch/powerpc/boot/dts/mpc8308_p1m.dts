@@ -9,6 +9,7 @@
 
 / {
 	compatible = "denx,mpc8308_p1m";
+	model = "denx,mpc8308_p1m";
 	#address-cells = <1>;
 	#size-cells = <1>;
 

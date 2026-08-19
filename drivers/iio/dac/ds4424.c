@@ -401,10 +401,10 @@ static void ds4424_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ds4424_id[] = {
-	{ "ds4402", (kernel_ulong_t)&ds4402_info },
-	{ "ds4404", (kernel_ulong_t)&ds4404_info },
-	{ "ds4422", (kernel_ulong_t)&ds4422_info },
-	{ "ds4424", (kernel_ulong_t)&ds4424_info },
+	{ .name = "ds4402", .driver_data = (kernel_ulong_t)&ds4402_info },
+	{ .name = "ds4404", .driver_data = (kernel_ulong_t)&ds4404_info },
+	{ .name = "ds4422", .driver_data = (kernel_ulong_t)&ds4422_info },
+	{ .name = "ds4424", .driver_data = (kernel_ulong_t)&ds4424_info },
 	{ }
 };
 

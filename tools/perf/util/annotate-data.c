@@ -74,7 +74,8 @@ void pr_debug_type_name(Dwarf_Die *die, enum type_state_kind kind)
 		break;
 	}
 
-	dwarf_aggregate_size(die, &size);
+	if (dwarf_aggregate_size(die, &size) != 0)
+		size = 0;
 
 	strbuf_init(&sb, 32);
 	die_get_typename_from_type(die, &sb);
@@ -146,9 +147,9 @@ static void pr_debug_scope(Dwarf_Die *scope_die)
 
 	tag = dwarf_tag(scope_die);
 	if (tag == DW_TAG_subprogram)
-		pr_info("[function] %s\n", dwarf_diename(scope_die));
+		pr_info("[function] %s\n", die_name(scope_die));
 	else if (tag == DW_TAG_inlined_subroutine)
-		pr_info("[inlined] %s\n", dwarf_diename(scope_die));
+		pr_info("[inlined] %s\n", die_name(scope_die));
 	else if (tag == DW_TAG_lexical_block)
 		pr_info("[block]\n");
 	else
@@ -250,9 +251,12 @@ static int __add_member_cb(Dwarf_Die *die, void *arg)
 	if (dwarf_aggregate_size(&die_mem, &size) < 0)
 		size = 0;
 
-	if (dwarf_attr_integrate(die, DW_AT_data_member_location, &attr))
-		dwarf_formudata(&attr, &loc);
-	else {
+	if (dwarf_attr_integrate(die, DW_AT_data_member_location, &attr)) {
+		if (dwarf_formudata(&attr, &loc) != 0) {
+			if (die_get_data_member_location(die, &loc) != 0)
+				loc = 0;
+		}
+	} else {
 		/* bitfield member */
 		if (dwarf_attr_integrate(die, DW_AT_data_bit_offset, &attr) &&
 		    dwarf_formudata(&attr, &loc) == 0)
@@ -273,7 +277,9 @@ static int __add_member_cb(Dwarf_Die *die, void *arg)
 				     dwarf_diename(die), (long)bit_size) < 0)
 				member->var_name = NULL;
 		} else {
-			member->var_name = strdup(dwarf_diename(die));
+			const char *name = dwarf_diename(die);
+
+			member->var_name = name ? strdup(name) : NULL;
 		}
 
 		if (member->var_name == NULL) {
@@ -370,7 +376,8 @@ static struct annotated_data_type *dso__findnew_data_type(struct dso *dso,
 	if (dwarf_tag(type_die) == DW_TAG_typedef)
 		die_get_real_type(type_die, type_die);
 
-	dwarf_aggregate_size(type_die, &size);
+	if (dwarf_aggregate_size(type_die, &size) != 0)
+		size = 0;
 
 	/* Check existing nodes in dso->data_types tree */
 	key.self.type_name = type_name;
@@ -1569,7 +1576,7 @@ static int find_data_type_die(struct data_loc_info *dloc, Dwarf_Die *type_die)
 	offset = loc->offset;
 
 	pr_debug_dtp("CU for %s (die:%#lx)\n",
-		     dwarf_diename(&cu_die), (long)dwarf_dieoffset(&cu_die));
+		     die_name(&cu_die), (long)dwarf_dieoffset(&cu_die));
 
 	if (reg == DWARF_REG_PC) {
 		if (get_global_var_type(&cu_die, dloc, dloc->ip, dloc->var_addr,
@@ -1636,7 +1643,7 @@ retry:
 		}
 
 		pr_debug_dtp("found \"%s\" (die: %#lx) in scope=%d/%d (die: %#lx) ",
-			     dwarf_diename(&var_die), (long)dwarf_dieoffset(&var_die),
+			     die_name(&var_die), (long)dwarf_dieoffset(&var_die),
 			     i+1, nr_scopes, (long)dwarf_dieoffset(&scopes[i]));
 
 		if (reg == DWARF_REG_PC) {

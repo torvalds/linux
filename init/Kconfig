@@ -1061,14 +1061,14 @@ config PAGE_COUNTER
 	bool
 
 config CGROUP_FAVOR_DYNMODS
-        bool "Favor dynamic modification latency reduction by default"
-        help
-          This option enables the "favordynmods" mount option by default
-          which reduces the latencies of dynamic cgroup modifications such
-          as task migrations and controller on/offs at the cost of making
-          hot path operations such as forks and exits more expensive.
+	bool "Favor dynamic modification latency reduction by default"
+	help
+	  This option enables the "favordynmods" mount option by default
+	  which reduces the latencies of dynamic cgroup modifications such
+	  as task migrations and controller on/offs at the cost of making
+	  hot path operations such as forks and exits more expensive.
 
-          Say N if unsure.
+	  Say N if unsure.
 
 config MEMCG
 	bool "Memory controller"
@@ -1150,7 +1150,7 @@ config GROUP_SCHED_WEIGHT
 	def_bool n
 
 config GROUP_SCHED_BANDWIDTH
-        def_bool n
+	def_bool n
 
 config FAIR_GROUP_SCHED
 	bool "Group scheduling for SCHED_OTHER"
@@ -1656,10 +1656,10 @@ config LD_ORPHAN_WARN
 	depends on $(ld-option,--orphan-handling=error)
 
 config LD_ORPHAN_WARN_LEVEL
-        string
-        depends on LD_ORPHAN_WARN
-        default "error" if WERROR
-        default "warn"
+	string
+	depends on LD_ORPHAN_WARN
+	default "error" if WERROR
+	default "warn"
 
 config SYSCTL
 	bool

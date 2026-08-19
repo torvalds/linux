@@ -37,7 +37,7 @@ all: protos.a $(HDRS) $(SRCS) $(KHDRS) $(KSRCS) $(UAPI) $(RSTS)
 
 protos.a: $(OBJS)
 	@echo -e "\tAR $@"
-	@ar rcs $@ $(OBJS)
+	@$(AR) rcs $@ $(OBJS)
 
 %-user.h: $(SPECS_DIR)/%.yaml $(TOOL)
 	@echo -e "\tGEN $@"

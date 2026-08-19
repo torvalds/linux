@@ -6,7 +6,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
 #include <linux/property.h>
@@ -26,6 +25,7 @@ static const struct regmap_config adxl355_spi_regmap_config = {
 static int adxl355_spi_probe(struct spi_device *spi)
 {
 	const struct adxl355_chip_info *chip_data;
+	struct device *dev = &spi->dev;
 	struct regmap *regmap;
 
 	chip_data = spi_get_device_match_data(spi);
@@ -33,14 +33,10 @@ static int adxl355_spi_probe(struct spi_device *spi)
 		return -EINVAL;
 
 	regmap = devm_regmap_init_spi(spi, &adxl355_spi_regmap_config);
-	if (IS_ERR(regmap)) {
-		dev_err(&spi->dev, "Error initializing spi regmap: %ld\n",
-			PTR_ERR(regmap));
+	if (IS_ERR(regmap))
+		return dev_err_probe(dev, PTR_ERR(regmap), "Error initializing spi regmap\n");
 
-		return PTR_ERR(regmap);
-	}
-
-	return adxl355_core_probe(&spi->dev, regmap, chip_data);
+	return adxl355_core_probe(dev, regmap, chip_data);
 }
 
 static const struct spi_device_id adxl355_spi_id[] = {

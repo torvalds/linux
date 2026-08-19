@@ -1980,19 +1980,15 @@ static void soc_cleanup_card_resources(struct snd_soc_card *card)
 	}
 }
 
-static void snd_soc_remove_device_links(struct snd_soc_card *card,
-					struct snd_soc_component *stop_at)
+static void snd_soc_remove_device_links(struct snd_soc_card *card)
 {
 	struct snd_soc_component *component;
 
 	for_each_card_components(card, component) {
-		if (card->dev == component->dev)
-			continue;
-
-		device_link_remove(card->dev, component->dev);
-
-		if (component == stop_at)
-			return;
+		if (component->card_device_link) {
+			device_link_del(component->card_device_link);
+			component->card_device_link = NULL;
+		}
 	}
 }
 
@@ -2001,7 +1997,7 @@ static void snd_soc_unbind_card(struct snd_soc_card *card)
 	if (snd_soc_card_is_instantiated(card)) {
 		card->instantiated = false;
 
-		snd_soc_remove_device_links(card, NULL);
+		snd_soc_remove_device_links(card);
 
 		soc_cleanup_card_resources(card);
 	}
@@ -2012,7 +2008,6 @@ static int snd_soc_bind_card(struct snd_soc_card *card)
 	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_component *component;
 	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
-	struct snd_soc_component *last_devlinked_component = NULL;
 	int ret;
 
 	snd_soc_card_mutex_lock_root(card);
@@ -2141,19 +2136,21 @@ static int snd_soc_bind_card(struct snd_soc_card *card)
 	 * Add device_link from card to component so that system_suspend
 	 * will be done in the correct order. The card must suspend first
 	 * to stop audio activity before the components suspend.
+	 *
+	 * If a driver pair already have a link in the opposite direction
+	 * they must manage their own suspend order.
 	 */
 	for_each_card_components(card, component) {
 		if (card->dev == component->dev)
 			continue;
 
-		if (!device_link_add(card->dev, component->dev, DL_FLAG_STATELESS)) {
-			dev_warn(card->dev, "Failed to create device link to %s\n",
+		component->card_device_link = device_link_add(card->dev,
+							      component->dev,
+							      DL_FLAG_STATELESS);
+		if (!component->card_device_link) {
+			dev_warn(card->dev, "Could not create device link to %s\n",
 				 dev_name(component->dev));
-			ret = -EINVAL;
-			goto probe_end;
 		}
-
-		last_devlinked_component = component;
 	}
 
 	ret = snd_soc_card_late_probe(card);
@@ -2185,9 +2182,7 @@ static int snd_soc_bind_card(struct snd_soc_card *card)
 
 probe_end:
 	if (ret < 0) {
-		if (last_devlinked_component)
-			snd_soc_remove_device_links(card, last_devlinked_component);
-
+		snd_soc_remove_device_links(card);
 		soc_cleanup_card_resources(card);
 	}
 

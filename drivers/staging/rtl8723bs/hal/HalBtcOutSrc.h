@@ -69,11 +69,11 @@ enum btc_chip_interface {
 };
 
 /*  following is for wifi link status */
-#define WIFI_STA_CONNECTED				BIT0
-#define WIFI_AP_CONNECTED				BIT1
-#define WIFI_HS_CONNECTED				BIT2
-#define WIFI_P2P_GO_CONNECTED			BIT3
-#define WIFI_P2P_GC_CONNECTED			BIT4
+#define WIFI_STA_CONNECTED				BIT(0)
+#define WIFI_AP_CONNECTED				BIT(1)
+#define WIFI_HS_CONNECTED				BIT(2)
+#define WIFI_P2P_GO_CONNECTED			BIT(3)
+#define WIFI_P2P_GC_CONNECTED			BIT(4)
 
 struct btc_board_info {
 	/*  The following is some board information */

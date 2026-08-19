@@ -715,14 +715,14 @@ static int dt3000_pci_probe(struct pci_dev *dev,
 }
 
 static const struct pci_device_id dt3000_pci_table[] = {
-	{ PCI_VDEVICE(DT, 0x0022), BOARD_DT3001 },
-	{ PCI_VDEVICE(DT, 0x0023), BOARD_DT3002 },
-	{ PCI_VDEVICE(DT, 0x0024), BOARD_DT3003 },
-	{ PCI_VDEVICE(DT, 0x0025), BOARD_DT3004 },
-	{ PCI_VDEVICE(DT, 0x0026), BOARD_DT3005 },
-	{ PCI_VDEVICE(DT, 0x0027), BOARD_DT3001_PGL },
-	{ PCI_VDEVICE(DT, 0x0028), BOARD_DT3003_PGL },
-	{ 0 }
+	{ PCI_VDEVICE(DT, 0x0022), .driver_data = BOARD_DT3001 },
+	{ PCI_VDEVICE(DT, 0x0023), .driver_data = BOARD_DT3002 },
+	{ PCI_VDEVICE(DT, 0x0024), .driver_data = BOARD_DT3003 },
+	{ PCI_VDEVICE(DT, 0x0025), .driver_data = BOARD_DT3004 },
+	{ PCI_VDEVICE(DT, 0x0026), .driver_data = BOARD_DT3005 },
+	{ PCI_VDEVICE(DT, 0x0027), .driver_data = BOARD_DT3001_PGL },
+	{ PCI_VDEVICE(DT, 0x0028), .driver_data = BOARD_DT3003_PGL },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, dt3000_pci_table);
 

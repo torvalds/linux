@@ -84,7 +84,7 @@ static void kvm_rtc_eoi_tracking_restore_all(struct kvm_ioapic *ioapic);
 
 static void rtc_status_pending_eoi_check_valid(struct kvm_ioapic *ioapic)
 {
-	if (WARN_ON(ioapic->rtc_status.pending_eoi < 0))
+	if (WARN_ON_ONCE(ioapic->rtc_status.pending_eoi < 0))
 		kvm_rtc_eoi_tracking_restore_all(ioapic);
 }
 
@@ -441,7 +441,7 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 				irq.dest_id = old_dest_id;
 				irq.dest_mode =
 				    kvm_lapic_irq_dest_mode(
-					!!e->fields.dest_mode);
+					!!old_dest_mode);
 				kvm_bitmap_or_dest_vcpus(ioapic->kvm, &irq,
 							 vcpu_bitmap);
 			}
@@ -484,7 +484,7 @@ static int ioapic_service(struct kvm_ioapic *ioapic, int irq, bool line_status)
 		 * ensures that it is only called if it is >= zero, namely
 		 * if rtc_irq_check_coalesced returns false).
 		 */
-		BUG_ON(ioapic->rtc_status.pending_eoi != 0);
+		WARN_ON_ONCE(ioapic->rtc_status.pending_eoi);
 		ret = __kvm_irq_delivery_to_apic(ioapic->kvm, NULL, &irqe,
 						 &ioapic->rtc_status);
 		ioapic->rtc_status.pending_eoi = (ret < 0 ? 0 : ret);
@@ -504,7 +504,8 @@ int kvm_ioapic_set_irq(struct kvm_kernel_irq_routing_entry *e, struct kvm *kvm,
 	int irq = e->irqchip.pin;
 	int ret, irq_level;
 
-	BUG_ON(irq < 0 || irq >= IOAPIC_NUM_PINS);
+	if (WARN_ON_ONCE(irq < 0 || irq >= IOAPIC_NUM_PINS))
+		return -1;
 
 	spin_lock(&ioapic->lock);
 	irq_level = __kvm_irq_line_state(&ioapic->irq_states[irq],

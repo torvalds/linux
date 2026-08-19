@@ -517,8 +517,9 @@ static int handle_pv_spx(struct kvm_vcpu *vcpu)
 static int handle_pv_sclp(struct kvm_vcpu *vcpu)
 {
 	struct kvm_s390_float_interrupt *fi = &vcpu->kvm->arch.float_int;
+	unsigned long flags;
 
-	spin_lock(&fi->lock);
+	spin_lock_irqsave(&fi->lock, flags);
 	/*
 	 * 2 cases:
 	 * a: an sccb answering interrupt was already pending or in flight.
@@ -534,7 +535,7 @@ static int handle_pv_sclp(struct kvm_vcpu *vcpu)
 	fi->srv_signal.ext_params |= 0x43000;
 	set_bit(IRQ_PEND_EXT_SERVICE, &fi->pending_irqs);
 	clear_bit(IRQ_PEND_EXT_SERVICE, &fi->masked_irqs);
-	spin_unlock(&fi->lock);
+	spin_unlock_irqrestore(&fi->lock, flags);
 	return 0;
 }
 

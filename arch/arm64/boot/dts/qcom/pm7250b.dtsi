@@ -86,7 +86,6 @@
 					  "msg-tx-discarded",
 					  "msg-rx-discarded",
 					  "fr-swap";
-			vdd-vbus-supply = <&pm7250b_vbus>;
 			status = "disabled";
 		};
 

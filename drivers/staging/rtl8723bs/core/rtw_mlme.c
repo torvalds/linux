@@ -351,9 +351,6 @@ int is_same_network(struct wlan_bssid_ex *src, struct wlan_bssid_ex *dst, u8 fea
 	u16 s_cap, d_cap;
 	__le16 tmps, tmpd;
 
-	if (rtw_bug_check(dst, src, &s_cap, &d_cap) == false)
-		return false;
-
 	memcpy((u8 *)&tmps, rtw_get_capability_from_ie(src->ies), 2);
 	memcpy((u8 *)&tmpd, rtw_get_capability_from_ie(dst->ies), 2);
 
@@ -457,11 +454,6 @@ static void update_current_network(struct adapter *adapter, struct wlan_bssid_ex
 {
 	struct	mlme_priv *pmlmepriv = &adapter->mlmepriv;
 
-	rtw_bug_check(&pmlmepriv->cur_network.network,
-		&pmlmepriv->cur_network.network,
-		&pmlmepriv->cur_network.network,
-		&pmlmepriv->cur_network.network);
-
 	if (check_fwstate(pmlmepriv, _FW_LINKED) && (is_same_network(&pmlmepriv->cur_network.network, pnetwork, 0))) {
 		update_network(&pmlmepriv->cur_network.network, pnetwork, adapter, true);
 		if (pmlmepriv->cur_network.network.ie_length < sizeof(struct ndis_802_11_fix_ie))
@@ -488,8 +480,6 @@ void rtw_update_scanned_network(struct adapter *adapter, struct wlan_bssid_ex *t
 	phead = get_list_head(queue);
 	list_for_each(plist, phead) {
 		pnetwork = list_entry(plist, struct wlan_network, list);
-
-		rtw_bug_check(pnetwork, pnetwork, pnetwork, pnetwork);
 
 		if (is_same_network(&pnetwork->network, target, feature)) {
 			target_find = 1;
@@ -611,6 +601,7 @@ static bool rtw_is_desired_network(struct adapter *adapter, struct wlan_network 
 		else
 			return false;
 	}
+
 	if (adapter->registrypriv.wifi_spec == 1) { /* for  correct flow of 8021X  to do.... */
 		u8 *p = NULL;
 		uint ie_len = 0;
@@ -752,18 +743,18 @@ void rtw_surveydone_event_callback(struct adapter	*adapter, u8 *pbuf)
 				rtw_indicate_connect(adapter);
 			} else {
 				if (rtw_to_roam(adapter) != 0) {
-					if (rtw_dec_to_roam(adapter) == 0
-						|| _SUCCESS != rtw_sitesurvey_cmd(adapter, &pmlmepriv->assoc_ssid, 1, NULL, 0)
-					) {
+					if (rtw_dec_to_roam(adapter) == 0 ||
+					    rtw_sitesurvey_cmd(adapter, &pmlmepriv->assoc_ssid,
+							       1, NULL, 0) != _SUCCESS) {
 						rtw_set_to_roam(adapter, 0);
 						rtw_free_assoc_resources(adapter, 1);
 						rtw_indicate_disconnect(adapter);
 					} else {
 						pmlmepriv->to_join = true;
 					}
-				} else
+				} else {
 					rtw_indicate_disconnect(adapter);
-
+				}
 				_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
 			}
 		}
@@ -1294,7 +1285,7 @@ void rtw_stassoc_event_callback(struct adapter *adapter, u8 *pbuf)
 	struct wlan_network	*cur_network = &pmlmepriv->cur_network;
 	struct wlan_network	*ptarget_wlan = NULL;
 
-	if (rtw_access_ctrl(adapter, pstassoc->macaddr) == false)
+	if (!rtw_access_ctrl(adapter, pstassoc->macaddr))
 		return;
 
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
@@ -1400,7 +1391,7 @@ void rtw_stadel_event_callback(struct adapter *adapter, u8 *pbuf)
 		u16 media_status;
 
 		media_status = (mac_id << 8) | 0; /*   MACID|OPMODE:0 means disconnect */
-		/* for STA, AP, ADHOC mode, report disconnect stauts to FW */
+		/* for STA, AP, ADHOC mode, report disconnect status to FW */
 		rtw_hal_set_hwreg(adapter, HW_VAR_H2C_MEDIA_STATUS_RPT, (u8 *)&media_status);
 	}
 
@@ -1576,15 +1567,17 @@ void rtw_mlme_reset_auto_scan_int(struct adapter *adapter)
 	struct mlme_ext_priv *pmlmeext = &adapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 
-	if (pmlmeinfo->VHT_enable) /* disable auto scan when connect to 11AC AP */
+	if (pmlmeinfo->VHT_enable) {
+		/* disable auto scan when connect to 11AC AP */
 		mlme->auto_scan_int_ms = 0;
-	else if (adapter->registrypriv.wifi_spec && is_client_associated_to_ap(adapter) == true)
+	} else if (adapter->registrypriv.wifi_spec && is_client_associated_to_ap(adapter)) {
 		mlme->auto_scan_int_ms = 60 * 1000;
-	else if (rtw_chk_roam_flags(adapter, RTW_ROAM_ACTIVE)) {
+	} else if (rtw_chk_roam_flags(adapter, RTW_ROAM_ACTIVE)) {
 		if (check_fwstate(mlme, WIFI_STATION_STATE) && check_fwstate(mlme, _FW_LINKED))
 			mlme->auto_scan_int_ms = mlme->roam_scan_int_ms;
-	} else
+	} else {
 		mlme->auto_scan_int_ms = 0; /* disabled */
+	}
 }
 
 static void rtw_auto_scan_handler(struct adapter *padapter)
@@ -1680,10 +1673,10 @@ static int rtw_check_roaming_candidate(struct mlme_priv *mlme
 	int updated = false;
 	struct adapter *adapter = container_of(mlme, struct adapter, mlmepriv);
 
-	if (is_same_ess(&competitor->network, &mlme->cur_network.network) == false)
+	if (!is_same_ess(&competitor->network, &mlme->cur_network.network))
 		goto exit;
 
-	if (rtw_is_desired_network(adapter, competitor) == false)
+	if (!rtw_is_desired_network(adapter, competitor))
 		goto exit;
 
 	/* got specific addr to roam */
@@ -1719,7 +1712,7 @@ int rtw_select_roaming_candidate(struct mlme_priv *mlme)
 	struct	wlan_network	*candidate = NULL;
 
 	if (!mlme->cur_network_scanned) {
-		rtw_warn_on(1);
+		WARN_ON(1);
 		return ret;
 	}
 
@@ -1775,13 +1768,13 @@ static int rtw_check_join_candidate(struct mlme_priv *mlme
 			goto exit;
 	}
 
-	if (rtw_is_desired_network(adapter, competitor)  == false)
+	if (!rtw_is_desired_network(adapter, competitor))
 		goto exit;
 
 	if (rtw_to_roam(adapter) > 0) {
-		if (jiffies_to_msecs(jiffies - competitor->last_scanned) >= mlme->roam_scanr_exp_ms
-			|| is_same_ess(&competitor->network, &mlme->cur_network.network) == false
-		)
+		if (jiffies_to_msecs(jiffies - competitor->last_scanned) >=
+		    mlme->roam_scanr_exp_ms ||
+		    !is_same_ess(&competitor->network, &mlme->cur_network.network))
 			goto exit;
 	}
 
@@ -2219,19 +2212,19 @@ void rtw_ht_use_default_setting(struct adapter *padapter)
 	else
 		phtpriv->bss_coexist = 0;
 
-	phtpriv->sgi_40m = TEST_FLAG(pregistrypriv->short_gi, BIT1) ? true : false;
-	phtpriv->sgi_20m = TEST_FLAG(pregistrypriv->short_gi, BIT0) ? true : false;
+	phtpriv->sgi_40m = TEST_FLAG(pregistrypriv->short_gi, BIT(1)) ? true : false;
+	phtpriv->sgi_20m = TEST_FLAG(pregistrypriv->short_gi, BIT(0)) ? true : false;
 
 	/*  LDPC support */
 	rtw_hal_get_def_var(padapter, HAL_DEF_RX_LDPC, (u8 *)&bHwLDPCSupport);
 	CLEAR_FLAGS(phtpriv->ldpc_cap);
 	if (bHwLDPCSupport) {
-		if (TEST_FLAG(pregistrypriv->ldpc_cap, BIT4))
+		if (TEST_FLAG(pregistrypriv->ldpc_cap, BIT(4)))
 			SET_FLAG(phtpriv->ldpc_cap, LDPC_HT_ENABLE_RX);
 	}
 	rtw_hal_get_def_var(padapter, HAL_DEF_TX_LDPC, (u8 *)&bHwLDPCSupport);
 	if (bHwLDPCSupport) {
-		if (TEST_FLAG(pregistrypriv->ldpc_cap, BIT5))
+		if (TEST_FLAG(pregistrypriv->ldpc_cap, BIT(5)))
 			SET_FLAG(phtpriv->ldpc_cap, LDPC_HT_ENABLE_TX);
 	}
 
@@ -2239,12 +2232,12 @@ void rtw_ht_use_default_setting(struct adapter *padapter)
 	rtw_hal_get_def_var(padapter, HAL_DEF_TX_STBC, (u8 *)&bHwSTBCSupport);
 	CLEAR_FLAGS(phtpriv->stbc_cap);
 	if (bHwSTBCSupport) {
-		if (TEST_FLAG(pregistrypriv->stbc_cap, BIT5))
+		if (TEST_FLAG(pregistrypriv->stbc_cap, BIT(5)))
 			SET_FLAG(phtpriv->stbc_cap, STBC_HT_ENABLE_TX);
 	}
 	rtw_hal_get_def_var(padapter, HAL_DEF_RX_STBC, (u8 *)&bHwSTBCSupport);
 	if (bHwSTBCSupport) {
-		if (TEST_FLAG(pregistrypriv->stbc_cap, BIT4))
+		if (TEST_FLAG(pregistrypriv->stbc_cap, BIT(4)))
 			SET_FLAG(phtpriv->stbc_cap, STBC_HT_ENABLE_RX);
 	}
 
@@ -2252,10 +2245,10 @@ void rtw_ht_use_default_setting(struct adapter *padapter)
 	rtw_hal_get_def_var(padapter, HAL_DEF_EXPLICIT_BEAMFORMER, (u8 *)&bHwSupportBeamformer);
 	rtw_hal_get_def_var(padapter, HAL_DEF_EXPLICIT_BEAMFORMEE, (u8 *)&bHwSupportBeamformee);
 	CLEAR_FLAGS(phtpriv->beamform_cap);
-	if (TEST_FLAG(pregistrypriv->beamform_cap, BIT4) && bHwSupportBeamformer)
+	if (TEST_FLAG(pregistrypriv->beamform_cap, BIT(4)) && bHwSupportBeamformer)
 		SET_FLAG(phtpriv->beamform_cap, BEAMFORMING_HT_BEAMFORMER_ENABLE);
 
-	if (TEST_FLAG(pregistrypriv->beamform_cap, BIT5) && bHwSupportBeamformee)
+	if (TEST_FLAG(pregistrypriv->beamform_cap, BIT(5)) && bHwSupportBeamformee)
 		SET_FLAG(phtpriv->beamform_cap, BEAMFORMING_HT_BEAMFORMEE_ENABLE);
 }
 
@@ -2304,9 +2297,10 @@ unsigned int rtw_restructure_ht_ie(struct adapter *padapter, u8 *in_ie, u8 *out_
 			operation_bw = padapter->mlmeextpriv.cur_bwmode;
 			if (operation_bw > CHANNEL_WIDTH_40)
 				operation_bw = CHANNEL_WIDTH_40;
-		} else
+		} else {
 			/* TDLS: TODO 40? */
 			operation_bw = CHANNEL_WIDTH_40;
+		}
 	} else {
 		p = rtw_get_ie(in_ie, WLAN_EID_HT_OPERATION, &ielen, in_len);
 		if (p && (ielen == sizeof(struct ieee80211_ht_addt_info))) {

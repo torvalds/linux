@@ -197,8 +197,8 @@ config PPP_SYNC_TTY
 	tristate "PPP support for sync tty ports"
 	help
 	  Say Y (or M) here if you want to be able to use PPP over synchronous
-	  (HDLC) tty devices, such as the SyncLink adapter. These devices
-	  are often used for high-speed leased lines like T1/E1.
+	  (HDLC) tty devices. These devices are often used for high-speed leased
+	  lines like T1/E1.
 
 	  To compile this driver as a module, choose M here.
 

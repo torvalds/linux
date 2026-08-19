@@ -90,11 +90,12 @@ static struct landlock_details *get_current_details(void)
 		return ERR_CAST(buffer);
 
 	/*
-	 * Create the new details according to the path's length.  Do not
-	 * allocate with GFP_KERNEL_ACCOUNT because it is independent from the
-	 * caller.
+	 * Create the new details according to the path's length.  Account to
+	 * the calling task's memcg, like the other Landlock per-domain
+	 * allocations, even if it may not control the related size.
 	 */
-	details = kzalloc_flex(*details, exe_path, path_size);
+	details =
+		kzalloc_flex(*details, exe_path, path_size, GFP_KERNEL_ACCOUNT);
 	if (!details)
 		return ERR_PTR(-ENOMEM);
 
@@ -156,6 +157,44 @@ get_layer_deny_mask(const access_mask_t all_existing_optional_access,
 	       << ((access_weight - 1) * HWEIGHT(LANDLOCK_MAX_NUM_LAYERS - 1));
 }
 
+/**
+ * landlock_get_quiet_optional_accesses - Get optional accesses which are
+ *                                        covered by quiet rule flags.
+ *
+ * @all_existing_optional_access: Bitmask of valid optional accesses.
+ * @deny_masks: Domain layer levels that denied each optional access (the
+ *              deny_masks field on struct landlock_file_security).
+ * @masks: The struct layer_masks collected during the path walk.
+ *
+ * Return: a bitmask of which optional accesses are denied by layers for which
+ * the quiet flag was collected during the path walk.
+ */
+optional_access_t landlock_get_quiet_optional_accesses(
+	const access_mask_t all_existing_optional_access,
+	const deny_masks_t deny_masks, const struct layer_masks *const masks)
+{
+	const unsigned long access_opt = all_existing_optional_access;
+	size_t access_index = 0;
+	unsigned long access_bit;
+	optional_access_t quiet_optional_accesses = 0;
+
+	/* This will require change with new object types. */
+	WARN_ON_ONCE(access_opt != _LANDLOCK_ACCESS_FS_OPTIONAL);
+
+	for_each_set_bit(access_bit, &access_opt,
+			 BITS_PER_TYPE(access_mask_t)) {
+		const u8 layer =
+			(deny_masks >> (access_index *
+					HWEIGHT(LANDLOCK_MAX_NUM_LAYERS - 1))) &
+			(LANDLOCK_MAX_NUM_LAYERS - 1);
+
+		if (masks->layers[layer].quiet)
+			quiet_optional_accesses |= BIT(access_index);
+		access_index++;
+	}
+	return quiet_optional_accesses;
+}
+
 #ifdef CONFIG_SECURITY_LANDLOCK_KUNIT_TEST
 
 static void test_get_layer_deny_mask(struct kunit *const test)
@@ -183,7 +222,7 @@ static void test_get_layer_deny_mask(struct kunit *const test)
 deny_masks_t
 landlock_get_deny_masks(const access_mask_t all_existing_optional_access,
 			const access_mask_t optional_access,
-			const struct layer_access_masks *const masks)
+			const struct layer_masks *const masks)
 {
 	const unsigned long access_opt = optional_access;
 	unsigned long access_bit;
@@ -200,8 +239,9 @@ landlock_get_deny_masks(const access_mask_t all_existing_optional_access,
 	if (WARN_ON_ONCE(!access_opt))
 		return 0;
 
-	for (ssize_t i = ARRAY_SIZE(masks->access) - 1; i >= 0; i--) {
-		const access_mask_t denied = masks->access[i] & optional_access;
+	for (ssize_t i = ARRAY_SIZE(masks->layers) - 1; i >= 0; i--) {
+		const access_mask_t denied = masks->layers[i].access &
+					     optional_access;
 		const unsigned long newly_denied = denied & ~all_denied;
 
 		if (!newly_denied)
@@ -221,12 +261,12 @@ landlock_get_deny_masks(const access_mask_t all_existing_optional_access,
 
 static void test_landlock_get_deny_masks(struct kunit *const test)
 {
-	const struct layer_access_masks layers1 = {
-		.access[0] = LANDLOCK_ACCESS_FS_EXECUTE |
-			     LANDLOCK_ACCESS_FS_IOCTL_DEV,
-		.access[1] = LANDLOCK_ACCESS_FS_TRUNCATE,
-		.access[2] = LANDLOCK_ACCESS_FS_IOCTL_DEV,
-		.access[9] = LANDLOCK_ACCESS_FS_EXECUTE,
+	const struct layer_masks layers1 = {
+		.layers[0].access = LANDLOCK_ACCESS_FS_EXECUTE |
+				    LANDLOCK_ACCESS_FS_IOCTL_DEV,
+		.layers[1].access = LANDLOCK_ACCESS_FS_TRUNCATE,
+		.layers[2].access = LANDLOCK_ACCESS_FS_IOCTL_DEV,
+		.layers[9].access = LANDLOCK_ACCESS_FS_EXECUTE,
 	};
 
 	KUNIT_EXPECT_EQ(test, 0x1,

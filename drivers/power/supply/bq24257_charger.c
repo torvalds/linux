@@ -1133,10 +1133,10 @@ static const struct bq2425x_chip_info bq24257_info = {
 };
 
 static const struct i2c_device_id bq24257_i2c_ids[] = {
-	{ "bq24250", (kernel_ulong_t)&bq24250_info },
-	{ "bq24251", (kernel_ulong_t)&bq24251_info },
-	{ "bq24257", (kernel_ulong_t)&bq24257_info },
-	{}
+	{ .name = "bq24250", .driver_data = (kernel_ulong_t)&bq24250_info },
+	{ .name = "bq24251", .driver_data = (kernel_ulong_t)&bq24251_info },
+	{ .name = "bq24257", .driver_data = (kernel_ulong_t)&bq24257_info },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, bq24257_i2c_ids);
 

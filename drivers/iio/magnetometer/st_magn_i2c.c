@@ -9,7 +9,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
 
@@ -93,15 +92,15 @@ static int st_magn_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id st_magn_id_table[] = {
-	{ LSM303DLH_MAGN_DEV_NAME },
-	{ LSM303DLHC_MAGN_DEV_NAME },
-	{ LSM303DLM_MAGN_DEV_NAME },
-	{ LIS3MDL_MAGN_DEV_NAME },
-	{ LSM303AGR_MAGN_DEV_NAME },
-	{ LIS2MDL_MAGN_DEV_NAME },
-	{ LSM9DS1_MAGN_DEV_NAME },
-	{ IIS2MDC_MAGN_DEV_NAME },
-	{ LSM303C_MAGN_DEV_NAME },
+	{ .name = LSM303DLH_MAGN_DEV_NAME },
+	{ .name = LSM303DLHC_MAGN_DEV_NAME },
+	{ .name = LSM303DLM_MAGN_DEV_NAME },
+	{ .name = LIS3MDL_MAGN_DEV_NAME },
+	{ .name = LSM303AGR_MAGN_DEV_NAME },
+	{ .name = LIS2MDL_MAGN_DEV_NAME },
+	{ .name = LSM9DS1_MAGN_DEV_NAME },
+	{ .name = IIS2MDC_MAGN_DEV_NAME },
+	{ .name = LSM303C_MAGN_DEV_NAME },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, st_magn_id_table);

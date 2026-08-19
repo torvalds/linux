@@ -37,7 +37,8 @@ class Conf:
 
     # runners
     def _run_conf(self, mode, dot_config=None, out_file='.config',
-                  interactive=False, in_keys=None, extra_env={}):
+                  interactive=False, in_keys=None, extra_env={},
+                  silent=False):
         """Run text-based Kconfig executable and save the result.
 
         mode: input mode option (--oldaskconfig, --defconfig=<file> etc.)
@@ -48,7 +49,10 @@ class Conf:
         extra_env: additional environments
         returncode: exit status of the Kconfig executable
         """
-        command = [CONF_PATH, mode, 'Kconfig']
+        command = [CONF_PATH]
+        if silent:
+            command.append('-s')
+        command += [mode, 'Kconfig']
 
         # Override 'srctree' environment to make the test as the top directory
         extra_env['srctree'] = self._test_dir

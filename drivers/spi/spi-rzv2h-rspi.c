@@ -366,14 +366,14 @@ static int rzv2h_rspi_transfer_dma(struct rzv2h_rspi_priv *rspi,
 	rzv2h_rspi_clear_all_irqs(rspi);
 
 	ret = wait_event_interruptible_timeout(rspi->wait, rspi->dma_callbacked, HZ);
-	if (ret) {
+	if (ret > 0) {
 		dmaengine_synchronize(rspi->controller->dma_tx);
 		dmaengine_synchronize(rspi->controller->dma_rx);
 		ret = 0;
 	} else {
 		dmaengine_terminate_sync(rspi->controller->dma_tx);
 		dmaengine_terminate_sync(rspi->controller->dma_rx);
-		ret = -ETIMEDOUT;
+		ret = ret ?: -ETIMEDOUT;
 	}
 
 	enable_irq(rspi->irq_rx);

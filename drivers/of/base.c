@@ -2160,7 +2160,7 @@ static bool of_check_bad_map(const __be32 *map, int len)
  * @map_mask_name: optional property name of the mask to use.
  * @filter_np: pointer to an optional filter node, or NULL to allow bypass.
  *	If non-NULL, the map property must exist (-ENODEV if absent). If
- *	*filter_np is also non-NULL, only entries targeting that node match.
+ *	``*filter_np`` is also non-NULL, only entries targeting that node match.
  * @arg: pointer to a &struct of_phandle_args for the result. On success,
  *	@arg->args_count will be set to the number of output specifier cells
  *	as defined by @cells_name in the target node, and
@@ -2350,7 +2350,7 @@ EXPORT_SYMBOL_GPL(of_map_iommu_id);
  *      stream/device ID) used as the lookup key in the msi-map table.
  * @filter_np: pointer to an optional filter node, or NULL to allow bypass.
  *	If non-NULL, the map property must exist (-ENODEV if absent). If
- *	*filter_np is also non-NULL, only entries targeting that node match.
+ *	``*filter_np`` is also non-NULL, only entries targeting that node match.
  * @arg: pointer to a &struct of_phandle_args for the result. On success,
  *	@arg->args_count will be set to the number of output specifier cells
  *	and @arg->args[0..args_count-1] will contain the translated output

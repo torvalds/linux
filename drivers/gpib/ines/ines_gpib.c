@@ -57,6 +57,34 @@ static int ines_line_status(const struct gpib_board *board)
 	return status;
 }
 
+static int ines72130_line_status(const struct gpib_board *board)
+{
+	int status = VALID_ALL;
+	int bsr_bits;
+	struct ines_priv *ines_priv = board->private_data;
+
+	bsr_bits = ines_inb(ines_priv, BUS_STATUS_REG);
+
+	if (bsr_bits & BSR_REN_BIT)
+		status |= BUS_REN;
+	if (bsr_bits & BSR_IFC_BIT)
+		status |= BUS_IFC;
+	if (bsr_bits & BSR_SRQ_BIT)
+		status |= BUS_SRQ;
+	if (bsr_bits & BSR_EOI_BIT)
+		status |= BUS_EOI;
+	if (bsr_bits & BSR_NRFD_BIT)
+		status |= BUS_NRFD;
+	if (bsr_bits & BSR_NDAC_BIT)
+		status |= BUS_NDAC;
+	if (bsr_bits & BSR_DAV_BIT)
+		status |= BUS_DAV;
+	if (bsr_bits & BSR_ATN_BIT)
+		status |= BUS_ATN;
+
+	return status;
+}
+
 static void ines_set_xfer_counter(struct ines_priv *priv, unsigned int count)
 {
 	if (count > 0xffff) {
@@ -74,6 +102,9 @@ static int ines_t1_delay(struct gpib_board *board, unsigned int nano_sec)
 	unsigned int retval;
 
 	retval = nec7210_t1_delay(board, nec_priv, nano_sec);
+
+	if (ines_priv->pci_chip_type == PCI_CHIP_INES_72130)
+		return retval;
 
 	if (nano_sec <= 250) {
 		write_byte(nec_priv, INES_AUXD | INES_FOLLOWING_T1_250ns |
@@ -294,6 +325,8 @@ static irqreturn_t ines_interrupt(struct gpib_board *board)
 	spin_lock_irqsave(&board->spinlock, flags);
 
 	nec7210_interrupt(board, nec_priv);
+	if (priv->pci_chip_type == PCI_CHIP_INES_72130)
+		goto out;
 	isr3_bits = ines_inb(priv, ISR3);
 	isr4_bits = ines_inb(priv, ISR4);
 	if (isr3_bits & IFC_ACTIVE_BIT)	{
@@ -311,11 +344,13 @@ static irqreturn_t ines_interrupt(struct gpib_board *board)
 
 	if (wake)
 		wake_up_interruptible(&board->wait);
+out:
 	spin_unlock_irqrestore(&board->spinlock, flags);
 	return IRQ_HANDLED;
 }
 
 static int ines_pci_attach(struct gpib_board *board, const struct gpib_board_config *config);
+static int ines_pci_xl_attach(struct gpib_board *board, const struct gpib_board_config *config);
 static int ines_pci_accel_attach(struct gpib_board *board, const struct gpib_board_config *config);
 static int ines_isa_attach(struct gpib_board *board, const struct gpib_board_config *config);
 
@@ -560,6 +595,34 @@ static struct gpib_interface ines_pci_unaccel_interface = {
 	.parallel_poll_response = ines_parallel_poll_response,
 	.local_parallel_poll_mode = NULL, // XXX
 	.line_status = ines_line_status,
+	.update_status = ines_update_status,
+	.primary_address = ines_primary_address,
+	.secondary_address = ines_secondary_address,
+	.serial_poll_response = ines_serial_poll_response,
+	.serial_poll_status = ines_serial_poll_status,
+	.t1_delay = ines_t1_delay,
+	.return_to_local = ines_return_to_local,
+};
+
+static struct gpib_interface ines_pci_xl_interface = {
+	.name = "ines_pci_xl",
+	.attach = ines_pci_xl_attach,
+	.detach = ines_pci_detach,
+	.read = ines_read,
+	.write = ines_write,
+	.command = ines_command,
+	.take_control = ines_take_control,
+	.go_to_standby = ines_go_to_standby,
+	.request_system_control = ines_request_system_control,
+	.interface_clear = ines_interface_clear,
+	.remote_enable = ines_remote_enable,
+	.enable_eos = ines_enable_eos,
+	.disable_eos = ines_disable_eos,
+	.parallel_poll = ines_parallel_poll,
+	.parallel_poll_configure = ines_parallel_poll_configure,
+	.parallel_poll_response = ines_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = ines72130_line_status,
 	.update_status = ines_update_status,
 	.primary_address = ines_primary_address,
 	.secondary_address = ines_secondary_address,
@@ -866,6 +929,24 @@ static int ines_pci_attach(struct gpib_board *board, const struct gpib_board_con
 
 	ines_priv = board->private_data;
 	ines_online(ines_priv, board, 0);
+
+	return 0;
+}
+
+static int ines_pci_xl_attach(struct gpib_board *board, const struct gpib_board_config *config)
+{
+	struct ines_priv *ines_priv;
+	struct nec7210_priv *nec_priv;
+	int retval;
+
+	retval = ines_common_pci_attach(board, config);
+	if (retval < 0)
+		return retval;
+
+	ines_priv = board->private_data;
+	ines_priv->pci_chip_type = PCI_CHIP_INES_72130;
+	nec_priv = &ines_priv->nec7210_priv;
+	nec7210_board_online(nec_priv, board);
 
 	return 0;
 }
@@ -1419,6 +1500,12 @@ static int __init ines_init_module(void)
 		goto err_pci_unaccel;
 	}
 
+	ret = gpib_register_driver(&ines_pci_xl_interface, THIS_MODULE);
+	if (ret) {
+		pr_err("gpib_register_driver failed: error = %d\n", ret);
+		goto err_pci_xl;
+	}
+
 	ret = gpib_register_driver(&ines_pci_accel_interface, THIS_MODULE);
 	if (ret) {
 		pr_err("gpib_register_driver failed: error = %d\n", ret);
@@ -1473,6 +1560,8 @@ err_isa:
 	gpib_unregister_driver(&ines_pci_accel_interface);
 err_pci_accel:
 	gpib_unregister_driver(&ines_pci_unaccel_interface);
+err_pci_xl:
+	gpib_unregister_driver(&ines_pci_xl_interface);
 err_pci_unaccel:
 	gpib_unregister_driver(&ines_pci_interface);
 err_pci:
@@ -1485,6 +1574,7 @@ static void __exit ines_exit_module(void)
 {
 	gpib_unregister_driver(&ines_pci_interface);
 	gpib_unregister_driver(&ines_pci_unaccel_interface);
+	gpib_unregister_driver(&ines_pci_xl_interface);
 	gpib_unregister_driver(&ines_pci_accel_interface);
 	gpib_unregister_driver(&ines_isa_interface);
 #ifdef CONFIG_GPIB_PCMCIA

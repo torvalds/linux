@@ -16,7 +16,7 @@
 #include <linux/cleanup.h>
 #include <linux/errno.h>
 #include <linux/kobject.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/of.h>
 #include <linux/property.h>
 #include <linux/list.h>
 

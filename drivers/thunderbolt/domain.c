@@ -319,12 +319,15 @@ const struct bus_type tb_bus_type = {
 static void tb_domain_release(struct device *dev)
 {
 	struct tb *tb = container_of(dev, struct tb, dev);
+	struct tb_nhi *nhi = tb->nhi;
 
 	tb_ctl_free(tb->ctl);
 	destroy_workqueue(tb->wq);
 	ida_free(&tb_domain_ida, tb->index);
 	mutex_destroy(&tb->lock);
 	kfree(tb);
+
+	complete(&nhi->domain_released);
 }
 
 const struct device_type tb_domain_type = {
@@ -402,7 +405,7 @@ struct tb *tb_domain_alloc(struct tb_nhi *nhi, int timeout_msec, size_t privsize
 	if (!tb->ctl)
 		goto err_destroy_wq;
 
-	tb->dev.parent = &nhi->pdev->dev;
+	tb->dev.parent = nhi->dev;
 	tb->dev.bus = &tb_bus_type;
 	tb->dev.type = &tb_domain_type;
 	tb->dev.groups = domain_attr_groups;
@@ -850,10 +853,41 @@ int tb_domain_disconnect_all_paths(struct tb *tb)
 	return bus_for_each_dev(&tb_bus_type, NULL, tb, disconnect_xdomain);
 }
 
+struct unregister_context {
+	const struct tb *tb;
+	int n;
+};
+
+static int unregister_unplugged_xdomain(struct device *dev, void *data)
+{
+	struct unregister_context *ctx = data;
+	struct tb_xdomain *xd;
+
+	xd = tb_to_xdomain(dev);
+	if (xd && xd->tb == ctx->tb && xd->is_unplugged) {
+		tb_xdomain_unregister(xd);
+		ctx->n++;
+	}
+	return 0;
+}
+
+int tb_domain_unregister_unplugged_xdomains(struct tb *tb)
+{
+	struct unregister_context ctx;
+
+	ctx.tb = tb_domain_get(tb);
+	ctx.n = 0;
+	bus_for_each_dev(&tb_bus_type, NULL, &ctx, unregister_unplugged_xdomain);
+	tb_domain_put(tb);
+
+	return ctx.n;
+}
+
 int tb_domain_init(void)
 {
 	int ret;
 
+	tb_configfs_init();
 	tb_debugfs_init();
 	tb_acpi_init();
 
@@ -883,4 +917,5 @@ void tb_domain_exit(void)
 	tb_xdomain_exit();
 	tb_acpi_exit();
 	tb_debugfs_exit();
+	tb_configfs_exit();
 }

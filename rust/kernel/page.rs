@@ -201,6 +201,7 @@ impl Page {
     }
 
     /// Get the node id containing this page.
+    #[inline]
     pub fn nid(&self) -> i32 {
         // SAFETY: Always safe to call with a valid page.
         unsafe { bindings::page_to_nid(self.as_ptr()) }

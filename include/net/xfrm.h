@@ -953,6 +953,9 @@ static inline bool addr_match(const void *token1, const void *token2,
 	unsigned int pdw;
 	unsigned int pbi;
 
+	if (prefixlen > 128)
+		return false;
+
 	pdw = prefixlen >> 5;	  /* num of whole u32 in prefix */
 	pbi = prefixlen &  0x1f;  /* num of bits in incomplete u32 in prefix */
 
@@ -977,6 +980,10 @@ static inline bool addr4_match(__be32 a1, __be32 a2, u8 prefixlen)
 	/* C99 6.5.7 (3): u32 << 32 is undefined behaviour */
 	if (sizeof(long) == 4 && prefixlen == 0)
 		return true;
+
+	if (prefixlen > 32)
+		return false;
+
 	return !((a1 ^ a2) & htonl(~0UL << (32 - prefixlen)));
 }
 
@@ -1260,8 +1267,8 @@ int __xfrm_policy_check(struct sock *, int dir, struct sk_buff *skb,
 static inline bool __xfrm_check_nopolicy(struct net *net, struct sk_buff *skb,
 					 int dir)
 {
-	if (!net->xfrm.policy_count[dir] && !secpath_exists(skb))
-		return net->xfrm.policy_default[dir] == XFRM_USERPOLICY_ACCEPT;
+	if (!READ_ONCE(net->xfrm.policy_count[dir]) && !secpath_exists(skb))
+		return READ_ONCE(net->xfrm.policy_default[dir]) == XFRM_USERPOLICY_ACCEPT;
 
 	return false;
 }
@@ -1361,8 +1368,8 @@ static inline int xfrm_route_forward(struct sk_buff *skb, unsigned short family)
 {
 	struct net *net = dev_net(skb->dev);
 
-	if (!net->xfrm.policy_count[XFRM_POLICY_OUT] &&
-	    net->xfrm.policy_default[XFRM_POLICY_OUT] == XFRM_USERPOLICY_ACCEPT)
+	if (!READ_ONCE(net->xfrm.policy_count[XFRM_POLICY_OUT]) &&
+	    READ_ONCE(net->xfrm.policy_default[XFRM_POLICY_OUT]) == XFRM_USERPOLICY_ACCEPT)
 		return true;
 
 	return (skb_dst(skb)->flags & DST_NOXFRM) ||

@@ -258,9 +258,6 @@ static inline struct dvobj_priv *pwrctl_to_dvobj(struct pwrctrl_priv *pwrctl_pri
 static inline struct device *dvobj_to_dev(struct dvobj_priv *dvobj)
 {
 	/* todo: get interface type from dvobj and the return the dev accordingly */
-#ifdef RTW_DVOBJ_CHIP_HW_TYPE
-#endif
-
 	return &dvobj->intf_data.func->dev;
 }
 
@@ -383,9 +380,9 @@ struct adapter {
 /*  */
 /*  Function disabled. */
 /*  */
-#define DF_TX_BIT		BIT0
-#define DF_RX_BIT		BIT1
-#define DF_IO_BIT		BIT2
+#define DF_TX_BIT		BIT(0)
+#define DF_RX_BIT		BIT(1)
+#define DF_IO_BIT		BIT(2)
 
 /* define RTW_ENABLE_FUNC(padapter, func) (atomic_sub(&adapter_to_dvobj(padapter)->disable_func, (func))) */
 

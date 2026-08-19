@@ -24,6 +24,7 @@ static void __used common(void)
 
 	if (IS_ENABLED(CONFIG_KVM_INTEL)) {
 		BLANK();
+		OFFSET(VMX_vcpu_arch_regs, vcpu_vmx, vcpu.arch.regs);
 		OFFSET(VMX_spec_ctrl, vcpu_vmx, spec_ctrl);
 	}
 }

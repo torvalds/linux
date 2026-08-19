@@ -9,9 +9,6 @@
 #define __HAVE_ARCH_STRCPY
 extern char *strcpy(char *dest, const char *src);
 
-#define __HAVE_ARCH_STRNCPY
-extern char *strncpy(char *dest, const char *src, size_t count);
-
 #define __HAVE_ARCH_STRCAT
 extern char *strcat(char *dest, const char *src);
 

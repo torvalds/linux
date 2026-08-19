@@ -1422,7 +1422,7 @@ static ssize_t enabled_show(struct kobject *kobj,
 			    struct kobj_attribute *attr,
 			    char *buf)
 {
-	return sprintf(buf, "%d\n", fw_dump.fadump_enabled);
+	return sysfs_emit(buf, "%d\n", fw_dump.fadump_enabled);
 }
 
 /*
@@ -1434,28 +1434,28 @@ static ssize_t hotplug_ready_show(struct kobject *kobj,
 				      struct kobj_attribute *attr,
 				      char *buf)
 {
-	return sprintf(buf, "%d\n", 1);
+	return sysfs_emit(buf, "%d\n", 1);
 }
 
 static ssize_t mem_reserved_show(struct kobject *kobj,
 				 struct kobj_attribute *attr,
 				 char *buf)
 {
-	return sprintf(buf, "%ld\n", fw_dump.reserve_dump_area_size);
+	return sysfs_emit(buf, "%ld\n", fw_dump.reserve_dump_area_size);
 }
 
 static ssize_t registered_show(struct kobject *kobj,
 			       struct kobj_attribute *attr,
 			       char *buf)
 {
-	return sprintf(buf, "%d\n", fw_dump.dump_registered);
+	return sysfs_emit(buf, "%d\n", fw_dump.dump_registered);
 }
 
 static ssize_t bootargs_append_show(struct kobject *kobj,
 				   struct kobj_attribute *attr,
 				   char *buf)
 {
-	return sprintf(buf, "%s\n", (char *)__va(fw_dump.param_area));
+	return sysfs_emit(buf, "%s\n", (char *)__va(fw_dump.param_area));
 }
 
 static ssize_t bootargs_append_store(struct kobject *kobj,
@@ -1759,10 +1759,10 @@ void __init fadump_setup_param_area(void)
 		 * 2. The range should be between MIN_RMA and RMA size (ppc64_rma_size)
 		 * 3. It must not overlap with the fadump reserved area.
 		 */
-		if (ppc64_rma_size < MIN_RMA*1024*1024)
+		if (ppc64_rma_size < MIN_RMA)
 			return;
 
-		range_start = MIN_RMA * 1024 * 1024;
+		range_start = MIN_RMA;
 		range_end = min(ppc64_rma_size, fw_dump.boot_mem_top);
 	}
 

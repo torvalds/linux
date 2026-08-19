@@ -4,6 +4,7 @@
  */
 
 #include <drm/amdxdna_accel.h>
+#include <drm/drm_managed.h>
 #include <linux/iommu.h>
 #include <linux/iova.h>
 
@@ -153,10 +154,30 @@ void amdxdna_iommu_free(struct amdxdna_dev *xdna, size_t size,
 	free_pages((unsigned long)cpu_addr, get_order(size));
 }
 
+static void amdxdna_cleanup_force_iova(struct drm_device *dev, void *res)
+{
+	struct amdxdna_dev *xdna = to_xdna_dev(dev);
+
+	if (xdna->domain) {
+		iommu_detach_group(xdna->domain, xdna->group);
+		put_iova_domain(&xdna->iovad);
+		iova_cache_put();
+		iommu_domain_free(xdna->domain);
+	}
+
+	iommu_group_put(xdna->group);
+}
+
+void amdxdna_iommu_fini(struct amdxdna_dev *xdna)
+{
+	if (xdna->group && !xdna->domain)
+		iommu_group_put(xdna->group);
+}
+
 int amdxdna_iommu_init(struct amdxdna_dev *xdna)
 {
 	unsigned long order;
-	int ret;
+	int ret = 0;
 
 	xdna->group = iommu_group_get(xdna->ddev.dev);
 	if (!xdna->group || !force_iova)
@@ -182,8 +203,14 @@ int amdxdna_iommu_init(struct amdxdna_dev *xdna)
 	if (ret)
 		goto put_iova;
 
+	ret = drmm_add_action(&xdna->ddev, amdxdna_cleanup_force_iova, NULL);
+	if (ret)
+		goto detach_group;
+
 	return 0;
 
+detach_group:
+	iommu_detach_group(xdna->domain, xdna->group);
 put_iova:
 	put_iova_domain(&xdna->iovad);
 	iova_cache_put();
@@ -191,20 +218,8 @@ free_domain:
 	iommu_domain_free(xdna->domain);
 put_group:
 	iommu_group_put(xdna->group);
+	xdna->group = NULL;
 	xdna->domain = NULL;
 
 	return ret;
-}
-
-void amdxdna_iommu_fini(struct amdxdna_dev *xdna)
-{
-	if (xdna->domain) {
-		iommu_detach_group(xdna->domain, xdna->group);
-		put_iova_domain(&xdna->iovad);
-		iova_cache_put();
-		iommu_domain_free(xdna->domain);
-	}
-
-	if (xdna->group)
-		iommu_group_put(xdna->group);
 }

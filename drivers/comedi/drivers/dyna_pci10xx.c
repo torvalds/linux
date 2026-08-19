@@ -246,8 +246,8 @@ static int dyna_pci10xx_pci_probe(struct pci_dev *dev,
 }
 
 static const struct pci_device_id dyna_pci10xx_pci_table[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_PLX, 0x1050) },
-	{ 0 }
+	{ PCI_VDEVICE(PLX, 0x1050) },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, dyna_pci10xx_pci_table);
 

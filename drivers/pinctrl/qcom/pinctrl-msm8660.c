@@ -974,6 +974,7 @@ static const struct of_device_id msm8660_pinctrl_of_match[] = {
 	{ .compatible = "qcom,msm8660-pinctrl", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, msm8660_pinctrl_of_match);
 
 static struct platform_driver msm8660_pinctrl_driver = {
 	.driver = {
@@ -998,4 +999,3 @@ module_exit(msm8660_pinctrl_exit);
 MODULE_AUTHOR("Bjorn Andersson <bjorn.andersson@sonymobile.com>");
 MODULE_DESCRIPTION("Qualcomm MSM8660 pinctrl driver");
 MODULE_LICENSE("GPL v2");
-MODULE_DEVICE_TABLE(of, msm8660_pinctrl_of_match);

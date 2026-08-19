@@ -1,0 +1,83 @@
+What:		/sys/kernel/config/thunderbolt/stream/<xdomain>.<service>
+Date:		Sep 2026
+KernelVersion:	v7.2
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
+Description:
+		Configuration group for a stream Thunderbolt/USB4
+		service. It is possible to create groups even if there
+		is no connection yet to the other host. Once a
+		connection established and there is stream service on
+		the remote side that matches, this configuration is
+		applied to it.
+
+		To find the service name you can run tblist from tbtools [1]:
+
+		  # tblist -A
+		  ...
+		  Domain 0 Route 3 Index 0: stream
+
+		[1] https://github.com/intel/tbtools
+
+What:		/sys/kernel/config/thunderbolt/stream/<xdomain>.<service>/$name
+Date:		Sep 2026
+KernelVersion:	v7.2
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
+Description:
+		Creates new stream with $name and fills it with the
+		default values. If there is an advertised remote stream
+		with the same name, uses its values as the default.
+
+What:		/sys/kernel/config/thunderbolt/stream/<xdomain>.<service>/$name/index
+Date:		Sep 2026
+KernelVersion:	v7.2
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
+Description:
+		This matches the X in /dev/tbstreamX and allows userspace
+		to map the configfs directory to the corresponding character
+		device.
+
+What:		/sys/kernel/config/thunderbolt/stream/<xdomain>.<service>/$name/in_hopid
+Date:		Sep 2026
+KernelVersion:	v7.2
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
+Description:
+		In HopID used with the read path of the tunnel. Available HopIDs
+		for tunneling start from 8. You can pass also -1 for automatic
+		allocation. The allocated value can be read here. Writing 0 will
+		de-allocate if the stream is not in use.
+
+		To figure out the maximum HopID you can run tbget from
+		tbtools for the lane adapter. For example below we check
+		for lane adapter number 1 (first USB4 port):
+
+		  # tbget -r 0 -a 1 -D ADP_CS_5.Max\ Input\ HopID
+		  19
+
+		This allows to use anything between 8 and 19 inclusive.
+
+What:		/sys/kernel/config/thunderbolt/stream/<xdomain>.<service>/$name/out_hopid
+Date:		Sep 2026
+KernelVersion:	v7.2
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
+Description:
+		Out HopID used with the write path of the tunnel. Available HopIDs
+		for tunneling start from 8. You can pass also -1 for automatic
+		allocation. The allocated value can be read here. Writing 0 will
+		de-allocate if the stream is not in use. See @in_hopid
+		for how to figure out the maximum HopID.
+
+What:		/sys/kernel/config/thunderbolt/stream/<xdomain>.<service>/$name/ring_size
+Date:		Sep 2026
+KernelVersion:	v7.2
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
+Description:
+		Size of the TX/RX rings. Can be adjusted between 32 and
+		4096. The default is 256.
+
+What:		/sys/kernel/config/thunderbolt/stream/<xdomain>.<service>/$name/throttling
+Date:		Sep 2026
+KernelVersion:	v7.2
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
+Description:
+		Interrupt throttling rate in ns. Lower values can give
+		better latency. The default is 8192 ns.

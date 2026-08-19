@@ -18,7 +18,11 @@ allOf:
 
 properties:
   compatible:
-    const: qcom,qcm2290-venus
+    oneOf:
+      - items:
+          - const: qcom,sm6115-venus
+          - const: qcom,qcm2290-venus
+      - const: qcom,qcm2290-venus
 
   power-domains:
     maxItems: 3

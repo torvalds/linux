@@ -198,7 +198,7 @@ static int v9fs_file_do_lock(struct file *filp, int cmd, struct file_lock *fl)
 		res = -EAGAIN;
 		break;
 	default:
-		WARN_ONCE(1, "unknown lock status code: %d\n", status);
+		p9_debug(P9_DEBUG_ERROR, "unknown lock status code: %d\n", status);
 		fallthrough;
 	case P9_LOCK_ERROR:
 	case P9_LOCK_GRACE:

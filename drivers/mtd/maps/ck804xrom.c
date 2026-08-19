@@ -335,7 +335,7 @@ static const struct pci_device_id ck804xrom_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, 0x0365), .driver_data = DEV_MCP55 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, 0x0366), .driver_data = DEV_MCP55 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, 0x0367), .driver_data = DEV_MCP55 },
-	{ 0, }
+	{ }
 };
 
 #if 0

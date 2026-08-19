@@ -1299,7 +1299,9 @@ int adxl372_probe(struct device *dev, struct regmap *regmap,
 	st->irq = irq;
 	st->chip_info = chip_info;
 
-	mutex_init(&st->threshold_m);
+	ret = devm_mutex_init(dev, &st->threshold_m);
+	if (ret < 0)
+		return ret;
 
 	indio_dev->channels = adxl372_channels;
 	indio_dev->num_channels = ARRAY_SIZE(adxl372_channels);
@@ -1314,10 +1316,8 @@ int adxl372_probe(struct device *dev, struct regmap *regmap,
 	}
 
 	ret = adxl372_setup(st);
-	if (ret < 0) {
-		dev_err(dev, "ADXL372 setup failed\n");
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "ADXL372 setup failed\n");
 
 	if (chip_info->fifo_supported) {
 		ret = adxl372_buffer_setup(indio_dev);

@@ -16,7 +16,6 @@
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/property.h>
 
 #define MCP4018_WIPER_MAX 127

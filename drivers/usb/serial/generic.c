@@ -17,7 +17,6 @@
 #include <linux/moduleparam.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
-#include <linux/uaccess.h>
 #include <linux/kfifo.h>
 #include <linux/serial.h>
 

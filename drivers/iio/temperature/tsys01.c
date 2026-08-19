@@ -13,7 +13,6 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/stat.h>
@@ -206,7 +205,7 @@ static int tsys01_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tsys01_id[] = {
-	{ "tsys01" },
+	{ .name = "tsys01" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tsys01_id);

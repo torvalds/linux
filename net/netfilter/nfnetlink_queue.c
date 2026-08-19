@@ -1184,6 +1184,173 @@ nfqnl_enqueue_packet(struct nf_queue_entry *entry, unsigned int queuenum)
 	return err;
 }
 
+static bool nfqnl_validate_ipopts(const struct iphdr *iph_new,
+				  const struct nf_queue_entry *e)
+{
+	const struct iphdr *iph_orig = ip_hdr(e->skb);
+	unsigned int ihl = iph_new->ihl * 4;
+
+	if (iph_new->ihl != iph_orig->ihl)
+		return false;
+	if (ihl == sizeof(*iph_orig))
+		return true;
+
+	return memcmp(iph_new + 1, ip_hdr(e->skb) + 1, ihl - sizeof(*iph_orig)) == 0;
+}
+
+static bool nfqnl_validate_ip4(const struct iphdr *iph, unsigned int data_len,
+			       const struct nf_queue_entry *e)
+{
+	unsigned int ihl;
+
+	if (data_len < sizeof(*iph))
+		return false;
+
+	ihl = iph->ihl * 4u;
+	if (ihl < sizeof(*iph) || data_len < ihl)
+		return false;
+
+	if (iph->version != 4 ||
+	    ((iph->frag_off ^ ip_hdr(e->skb)->frag_off) & ~htons(IP_DF)) != 0)
+		return false;
+
+	/* BIG TCP won't work; netlink attr len is u16 */
+	if (ntohs(iph->tot_len) != data_len)
+		return false;
+
+	/* support for ipopts mangling would require
+	 * recompile + skb transport header update.
+	 */
+	return nfqnl_validate_ipopts(iph, e);
+}
+
+static bool nfqnl_validate_one_exthdr(const u8 *data,
+				      unsigned int data_len,
+				      const struct nf_queue_entry *e,
+				      int start, int hdrlen)
+{
+	u16 octets;
+
+	if (data_len < hdrlen || hdrlen < 2)
+		return false;
+
+	while (hdrlen > 0) {
+		if (data_len < sizeof(octets))
+			return false;
+		data_len -= sizeof(octets);
+
+		if (skb_copy_bits(e->skb, start, &octets, sizeof(octets)))
+			return false;
+
+		if (hdrlen < sizeof(octets))
+			return false;
+
+		hdrlen -= sizeof(octets);
+		if (memcmp(data, &octets, sizeof(octets)))
+			return false;
+
+		start += sizeof(octets);
+		data += sizeof(octets);
+	}
+
+	return true;
+}
+
+static bool nfqnl_validate_exthdr(const struct ipv6hdr *ip6_new,
+				  unsigned int data_len,
+				  const struct nf_queue_entry *e)
+{
+	const struct ipv6hdr *ip6_orig = ipv6_hdr(e->skb);
+	int exthdr_cnt = 0, start = sizeof(*ip6_orig);
+	const u8 *data = (const u8 *)ip6_new;
+	u8 orig_nexthdr = ip6_orig->nexthdr;
+	u8 new_nexthdr = ip6_new->nexthdr;
+
+	if (new_nexthdr != orig_nexthdr)
+		return false;
+
+	data += sizeof(*ip6_new);
+	data_len -= sizeof(*ip6_new);
+
+	while (ipv6_ext_hdr(orig_nexthdr)) {
+		const struct ipv6_opt_hdr *hp;
+		struct ipv6_opt_hdr _hdr;
+		int hdrlen;
+
+		if (orig_nexthdr == NEXTHDR_NONE)
+			return true;
+
+		if (unlikely(exthdr_cnt++ >= IP6_MAX_EXT_HDRS_CNT))
+			return false;
+
+		hp = skb_header_pointer(e->skb, start, sizeof(_hdr), &_hdr);
+		if (!hp)
+			return false;
+
+		switch (orig_nexthdr) {
+		case NEXTHDR_FRAGMENT:
+			hdrlen = sizeof(struct frag_hdr);
+			break;
+		case NEXTHDR_AUTH:
+			hdrlen = ipv6_authlen(hp);
+			break;
+		default:
+			hdrlen = ipv6_optlen(hp);
+			break;
+		}
+
+		if (!nfqnl_validate_one_exthdr(data, data_len, e,
+					       start, hdrlen))
+			return false;
+
+		orig_nexthdr = hp->nexthdr;
+		hp = (const void *)data;
+		new_nexthdr = hp->nexthdr;
+
+		if (new_nexthdr != orig_nexthdr)
+			return false;
+
+		data_len -= hdrlen;
+		start += hdrlen;
+		data += hdrlen;
+	}
+
+	return true;
+}
+
+static bool nfqnl_validate_ip6(const struct ipv6hdr *ip6, unsigned int data_len,
+			       const struct nf_queue_entry *e)
+{
+	if (data_len < sizeof(*ip6))
+		return false;
+
+	/* BIG TCP/jumbograms won't work; netlink attr len is u16 */
+	if (ntohs(ip6->payload_len) != data_len - sizeof(*ip6))
+		return false;
+
+	if (ip6->version != 6)
+		return false;
+
+	return nfqnl_validate_exthdr(ip6, data_len, e);
+}
+
+static bool nfqnl_validate_write(const void *data, unsigned int data_len,
+				 const struct nf_queue_entry *e)
+{
+	switch (e->state.pf) {
+	case NFPROTO_IPV4:
+		return nfqnl_validate_ip4(data, data_len, e);
+	case NFPROTO_IPV6:
+		return nfqnl_validate_ip6(data, data_len, e) &&
+		       !(IP6CB(e->skb)->flags & IP6SKB_JUMBOGRAM);
+	case NFPROTO_BRIDGE:
+		/* No write support. Bridge is dubious: userspace doesn't even see L2 header */
+		return false;
+	}
+
+	return false;
+}
+
 static int
 nfqnl_mangle(void *data, unsigned int data_len, struct nf_queue_entry *e, int diff)
 {
@@ -1191,6 +1358,9 @@ nfqnl_mangle(void *data, unsigned int data_len, struct nf_queue_entry *e, int di
 
 	if (e->state.net->user_ns != &init_user_ns)
 		return -EPERM;
+
+	if (!nfqnl_validate_write(data, data_len, e))
+		return -EINVAL;
 
 	if (diff < 0) {
 		unsigned int min_len = skb_transport_offset(e->skb);
@@ -1261,6 +1431,9 @@ dev_cmp(struct nf_queue_entry *entry, unsigned long ifindex)
 	physoutif = nf_bridge_get_physoutif(entry->skb);
 
 	if (physinif == ifindex || physoutif == ifindex)
+		return 1;
+
+	if (entry->bridge_dev && entry->bridge_dev->ifindex == ifindex)
 		return 1;
 #endif
 	if (entry->skb_dev && entry->skb_dev->ifindex == ifindex)

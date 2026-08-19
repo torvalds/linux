@@ -416,7 +416,7 @@ static int find_alternative_probe_point(struct debuginfo *dinfo,
 	map__for_each_symbol_by_name(map, pp->function, sym, idx) {
 		if (uprobes) {
 			address = sym->start;
-			if (sym->type == STT_GNU_IFUNC)
+			if (symbol__type(sym) == STT_GNU_IFUNC)
 				pr_warning("Warning: The probe function (%s) is a GNU indirect function.\n"
 					   "Consider identifying the final function used at run time and set the probe directly on that.\n",
 					   pp->function);
@@ -3189,7 +3189,7 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 	for (j = 0; j < num_matched_functions; j++) {
 		sym = syms[j];
 
-		if (sym->type != STT_FUNC)
+		if (symbol__type(sym) != STT_FUNC)
 			continue;
 
 		/* There can be duplicated symbols in the map */

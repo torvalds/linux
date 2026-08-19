@@ -1845,7 +1845,7 @@ lpfc_copy_fcf_record(struct lpfc_fcf_rec *fcf_rec,
  * @flag: flag bits to be set to the driver fcf record.
  *
  * This routine updates the driver FCF record from the new HBA FCF record
- * together with the address mode, vlan_id, and other informations. This
+ * together with the address mode, vlan_id, and other information. This
  * routine is called with the hbalock held.
  **/
 static void
@@ -2120,7 +2120,7 @@ lpfc_match_fcf_conn_list(struct lpfc_hba *phba,
 /**
  * lpfc_check_pending_fcoe_event - Check if there is pending fcoe event.
  * @phba: pointer to lpfc hba data structure.
- * @unreg_fcf: Unregister FCF if FCF table need to be re-scaned.
+ * @unreg_fcf: Unregister FCF if FCF table need to be re-scanned.
  *
  * This function check if there is any fcoe event pending while driver
  * scan FCF entries. If there is any pending event, it will restart the
@@ -2290,7 +2290,7 @@ lpfc_sli4_fcf_rec_mbox_parse(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
  * @vlan_id: the lowest vlan identifier associated to this fcf record.
  * @next_fcf_index: the index to the next fcf record in hba's fcf table.
  *
- * This routine logs the detailed FCF record if the LOG_FIP loggin is
+ * This routine logs the detailed FCF record if the LOG_FIP login is
  * enabled.
  **/
 static void
@@ -3475,7 +3475,7 @@ lpfc_mbx_cmpl_read_sparam(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	phba->fc_edtov = ed_tov;
 	phba->fc_ratov = (2 * ed_tov) / 1000;
 	if (phba->fc_ratov < FF_DEF_RATOV) {
-		/* RA_TOV should be atleast 10sec for initial flogi */
+		/* RA_TOV should be at least 10sec for initial flogi */
 		phba->fc_ratov = FF_DEF_RATOV;
 	}
 
@@ -5239,7 +5239,7 @@ lpfc_set_unreg_login_mbx_cmpl(struct lpfc_hba *phba, struct lpfc_vport *vport,
  * Free rpi associated with LPFC_NODELIST entry.
  * This routine is called if the driver initiates a LOGO that completes
  * successfully, and we are waiting to PLOGI back to the remote NPort.
- * In addition, it is called after we receive and unsolicated ELS cmd,
+ * In addition, it is called after we receive and unsolicited ELS cmd,
  * send back a rsp, the rsp completes and we are waiting to PLOGI back
  * to the remote NPort.
  */
@@ -6551,7 +6551,7 @@ lpfc_nlp_init(struct lpfc_vport *vport, uint32_t did)
 	return ndlp;
 }
 
-/* This routine releases all resources associated with a specifc NPort's ndlp
+/* This routine releases all resources associated with a specific NPort's ndlp
  * and mempool_free's the nodelist.
  */
 static void

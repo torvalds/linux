@@ -650,7 +650,7 @@ int nfs_same_file(struct dentry *dentry, struct nfs_entry *entry)
 		return 0;
 
 	nfsi = NFS_I(inode);
-	if (entry->fattr->fileid != nfsi->fileid)
+	if (entry->fattr->fileid != inode->i_ino)
 		return 0;
 	if (entry->fh->size && nfs_compare_fh(entry->fh, &nfsi->fh) != 0)
 		return 0;
@@ -1105,7 +1105,7 @@ static void nfs_do_filldir(struct nfs_readdir_descriptor *desc,
 
 		ent = &array->array[i];
 		if (!dir_emit(desc->ctx, ent->name, ent->name_len,
-		    nfs_compat_user_ino64(ent->ino), ent->d_type)) {
+		    ent->ino, ent->d_type)) {
 			desc->eob = true;
 			break;
 		}
@@ -2301,7 +2301,7 @@ full_reval:
 	return nfs_do_lookup_revalidate(dir, name, dentry, flags);
 }
 
-#endif /* CONFIG_NFSV4 */
+#endif /* CONFIG_NFS_V4 */
 
 int nfs_atomic_open_v23(struct inode *dir, struct dentry *dentry,
 			struct file *file, unsigned int open_flags,

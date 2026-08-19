@@ -46,16 +46,16 @@ struct pdt_entry {
 	u8 function_number;
 };
 
-#define RMI_REG_DESC_PRESENSE_BITS	(32 * BITS_PER_BYTE)
+#define RMI_REG_DESC_PRESENCE_BITS	(32 * BITS_PER_BYTE)
+#define RMI_REG_DESC_PRESENCE_REGS_MAX	(3 + RMI_REG_DESC_PRESENCE_BITS / 8)
 #define RMI_REG_DESC_SUBPACKET_BITS	(37 * BITS_PER_BYTE)
 
 /* describes a single packet register */
 struct rmi_register_desc_item {
+	u32 reg_size;
 	u16 reg;
-	unsigned long reg_size;
-	u8 num_subpackets;
-	unsigned long subpacket_map[BITS_TO_LONGS(
-				RMI_REG_DESC_SUBPACKET_BITS)];
+	u16 num_subpackets;
+	DECLARE_BITMAP(subpacket_map, RMI_REG_DESC_SUBPACKET_BITS);
 };
 
 /*
@@ -64,8 +64,7 @@ struct rmi_register_desc_item {
  */
 struct rmi_register_descriptor {
 	unsigned long struct_size;
-	unsigned long presense_map[BITS_TO_LONGS(RMI_REG_DESC_PRESENSE_BITS)];
-	u8 num_registers;
+	u16 num_registers;
 	struct rmi_register_desc_item *registers;
 };
 

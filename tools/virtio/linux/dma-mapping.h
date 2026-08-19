@@ -61,5 +61,6 @@ enum dma_data_direction {
 #define DMA_MAPPING_ERROR		(~(dma_addr_t)0)
 
 #define DMA_ATTR_CPU_CACHE_CLEAN	(1UL << 11)
+#define DMA_ATTR_DEBUGGING_IGNORE_CACHELINES	0
 
 #endif

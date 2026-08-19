@@ -5,7 +5,6 @@
  */
 
 #include <linux/mfd/max77541.h>
-#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>

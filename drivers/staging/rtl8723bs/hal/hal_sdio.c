@@ -81,7 +81,6 @@ u32 rtw_hal_get_sdio_tx_max_length(struct adapter *padapter, u8 queue_idx)
 	struct hal_com_data	*pHalData = GET_HAL_DATA(padapter);
 	u32 deviceId, max_len;
 
-
 	deviceId = ffaddr2deviceId(pdvobjpriv, queue_idx);
 	switch (deviceId) {
 	case WLAN_TX_HIQ_DEVICE_ID:

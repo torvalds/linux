@@ -21,9 +21,7 @@ tmpfile="${temp_dir}/tmp-perf.data"
 perfdatafile="${temp_dir}/test-perf.data"
 outfile="${temp_dir}/test-out.txt"
 errfile="${temp_dir}/test-err.txt"
-workload="${temp_dir}/workload"
 awkscript="${temp_dir}/awkscript"
-jitdump_workload="${temp_dir}/jitdump_workload"
 maxbrstack="${temp_dir}/maxbrstack.py"
 
 cleanup()
@@ -59,37 +57,6 @@ perf_record_no_bpf()
 	# Options for no BPF events
 	perf record --no-bpf-event "$@"
 }
-
-have_workload=false
-cat << _end_of_file_ | /usr/bin/cc -o "${workload}" -xc - -pthread && have_workload=true
-#include <time.h>
-#include <pthread.h>
-
-void work(void) {
-	struct timespec tm = {
-		.tv_nsec = 1000000,
-	};
-	int i;
-
-	/* Run for about 30 seconds */
-	for (i = 0; i < 30000; i++)
-		nanosleep(&tm, NULL);
-}
-
-void *threadfunc(void *arg) {
-	work();
-	return NULL;
-}
-
-int main(void) {
-	pthread_t th;
-
-	pthread_create(&th, NULL, threadfunc, NULL);
-	work();
-	pthread_join(th, NULL);
-	return 0;
-}
-_end_of_file_
 
 can_cpu_wide()
 {
@@ -144,11 +111,6 @@ test_per_thread()
 	desc="$2"
 
 	echo "--- Test per-thread ${desc}recording ---"
-
-	if ! $have_workload ; then
-		echo "No workload, so skipping"
-		return 2
-	fi
 
 	if [ "${k}" = "k" ] ; then
 		can_kernel || return 2
@@ -252,9 +214,9 @@ test_per_thread()
 	}
 	_end_of_file_
 
-	$workload &
+	perf test -w thloop 30 2 &
 	w1=$!
-	$workload &
+	perf test -w thloop 30 2 &
 	w2=$!
 	echo "Workload PIDs are $w1 and $w2"
 	wait_for_threads ${w1} 2
@@ -283,139 +245,14 @@ test_jitdump()
 {
 	echo "--- Test tracing self-modifying code that uses jitdump ---"
 
-	script_path=$(realpath "$0")
-	script_dir=$(dirname "$script_path")
-	jitdump_incl_dir="${script_dir}/../../util"
-	jitdump_h="${jitdump_incl_dir}/jitdump.h"
-
         if ! perf check feature -q libelf ; then
 		echo "SKIP: libelf is needed for jitdump"
 		return 2
 	fi
 
-	if [ ! -e "${jitdump_h}" ] ; then
-		echo "SKIP: Include file jitdump.h not found"
-		return 2
-	fi
-
-	if [ -z "${have_jitdump_workload}" ] ; then
-		have_jitdump_workload=false
-		# Create a workload that uses self-modifying code and generates its own jitdump file
-		cat <<- "_end_of_file_" | /usr/bin/cc -o "${jitdump_workload}" -I "${jitdump_incl_dir}" -xc - -pthread && have_jitdump_workload=true
-		#define _GNU_SOURCE
-		#include <sys/mman.h>
-		#include <sys/types.h>
-		#include <stddef.h>
-		#include <stdio.h>
-		#include <stdint.h>
-		#include <unistd.h>
-		#include <string.h>
-
-		#include "jitdump.h"
-
-		#define CHK_BYTE 0x5a
-
-		static inline uint64_t rdtsc(void)
-		{
-			unsigned int low, high;
-
-			asm volatile("rdtsc" : "=a" (low), "=d" (high));
-
-			return low | ((uint64_t)high) << 32;
-		}
-
-		static FILE *open_jitdump(void)
-		{
-			struct jitheader header = {
-				.magic      = JITHEADER_MAGIC,
-				.version    = JITHEADER_VERSION,
-				.total_size = sizeof(header),
-				.pid        = getpid(),
-				.timestamp  = rdtsc(),
-				.flags      = JITDUMP_FLAGS_ARCH_TIMESTAMP,
-			};
-			char filename[256];
-			FILE *f;
-			void *m;
-
-			snprintf(filename, sizeof(filename), "jit-%d.dump", getpid());
-			f = fopen(filename, "w+");
-			if (!f)
-				goto err;
-			/* Create an MMAP event for the jitdump file. That is how perf tool finds it. */
-			m = mmap(0, 4096, PROT_READ | PROT_EXEC, MAP_PRIVATE, fileno(f), 0);
-			if (m == MAP_FAILED)
-				goto err_close;
-			munmap(m, 4096);
-			if (fwrite(&header,sizeof(header),1,f) != 1)
-				goto err_close;
-			return f;
-
-		err_close:
-			fclose(f);
-		err:
-			return NULL;
-		}
-
-		static int write_jitdump(FILE *f, void *addr, const uint8_t *dat, size_t sz, uint64_t *idx)
-		{
-			struct jr_code_load rec = {
-				.p.id          = JIT_CODE_LOAD,
-				.p.total_size  = sizeof(rec) + sz,
-				.p.timestamp   = rdtsc(),
-				.pid	       = getpid(),
-				.tid	       = gettid(),
-				.vma           = (unsigned long)addr,
-				.code_addr     = (unsigned long)addr,
-				.code_size     = sz,
-				.code_index    = ++*idx,
-			};
-
-			if (fwrite(&rec,sizeof(rec),1,f) != 1 ||
-			fwrite(dat, sz, 1, f) != 1)
-				return -1;
-			return 0;
-		}
-
-		static void close_jitdump(FILE *f)
-		{
-			fclose(f);
-		}
-
-		int main()
-		{
-			/* Get a memory page to store executable code */
-			void *addr = mmap(0, 4096, PROT_WRITE | PROT_EXEC, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-			/* Code to execute: mov CHK_BYTE, %eax ; ret */
-			uint8_t dat[] = {0xb8, CHK_BYTE, 0x00, 0x00, 0x00, 0xc3};
-			FILE *f = open_jitdump();
-			uint64_t idx = 0;
-			int ret = 1;
-
-			if (!f)
-				return 1;
-			/* Copy executable code to executable memory page */
-			memcpy(addr, dat, sizeof(dat));
-			/* Record it in the jitdump file */
-			if (write_jitdump(f, addr, dat, sizeof(dat), &idx))
-				goto out_close;
-			/* Call it */
-			ret = ((int (*)(void))addr)() - CHK_BYTE;
-		out_close:
-			close_jitdump(f);
-			return ret;
-		}
-		_end_of_file_
-	fi
-
-	if ! $have_jitdump_workload ; then
-		echo "SKIP: No jitdump workload"
-		return 2
-	fi
-
 	# Change to temp_dir so jitdump collateral files go there
 	cd "${temp_dir}"
-	perf_record_no_bpf -o "${tmpfile}" -e intel_pt//u "${jitdump_workload}"
+	perf_record_no_bpf -o "${tmpfile}" -e intel_pt//u perf test -w jitdump
 	perf inject -i "${tmpfile}" -o "${perfdatafile}" --jit
 	decode_br_cnt=$(perf script -i "${perfdatafile}" --itrace=b | wc -l)
 	# Note that overflow and lost errors are suppressed for the error count

@@ -116,6 +116,69 @@ above leaves scope for further attributes should they be needed. If sections
 of the name don't apply, just leave that section blank.
 
 
+Keyboard backlight control LED Device Naming
+============================================
+
+For backlit keyboards with a single brightness / color settings a single
+(multicolor) LED class device should be used to allow userspace to change
+the backlight brightness (and if possible the color). This LED class device
+must use "kbd_backlight" for the function part of the LED class device name.
+IOW the name must end with ":kbd_backlight".
+
+For backlit keyboards with multiple control zones, one (multicolor) LED class
+device should be used per zone. These LED class devices' name must follow:
+
+	"<devicename>:<color>:kbd_zoned_backlight-<zone_name>"
+
+and <devicename> must be the same for all zones of the same keyboard.
+
+<zone_name> should be descriptive of which part of the keyboard backlight
+the zone covers and should be suitable for userspace to show to an end user
+in an UI for controlling the zones.
+
+Where possible <zone_name> should be a value already used by other
+zoned keyboards with a similar or identical zone layout, e.g.:
+
+<devicename>:<color>:kbd_zoned_backlight-right
+<devicename>:<color>:kbd_zoned_backlight-middle
+<devicename>:<color>:kbd_zoned_backlight-left
+<devicename>:<color>:kbd_zoned_backlight-corners
+<devicename>:<color>:kbd_zoned_backlight-wasd
+
+or:
+
+<devicename>:<color>:kbd_zoned_backlight-main
+<devicename>:<color>:kbd_zoned_backlight-cursor
+<devicename>:<color>:kbd_zoned_backlight-numpad
+<devicename>:<color>:kbd_zoned_backlight-corners
+<devicename>:<color>:kbd_zoned_backlight-wasd
+
+Note that this is intended for keyboards with a limited number of zones,
+keyboards with per key addressable backlighting must not use LED class devices
+since the sysfs API is not suitable for rapidly change multiple LEDs in one
+"commit" as is necessary to do animations / special effects on such keyboards.
+
+An exception to the rule that all zones must follow:
+
+	"<devicename>:<color>:kbd_zoned_backlight-<zone_name>"
+
+is made for the special case where there is a single big zone which controls
+the backlighting of almost all of the keyboard and there are some small areas
+with separate control, like just the 4 cursor keys, or the WASD keys. In this
+case the main zone should use 'kbd_backlight' for the function part of the name
+for compatibility with (older) userspace code which is not aware of
+the "kbd_zoned_backlight-<zone_name>" function naming scheme.
+
+While the smaller zones should use the new zoned naming scheme. Such a setup
+would result in e.g.:
+
+<devicename>:<color>:kbd_backlight
+<devicename>:<color>:kbd_zoned_backlight-wasd
+
+"kbd_zoned_backlight-<zone_name>" aware userspace should be aware of this
+exception and check for a main zone with a "kbd_backlight" function-name.
+
+
 Brightness setting API
 ======================
 

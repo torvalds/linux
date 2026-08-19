@@ -799,7 +799,7 @@ static inline void hrtimer_switch_to_hres(void) { }
  *
  * This is only invoked when:
  *	- CONFIG_HIGH_RES_TIMERS is enabled.
- *	- CONFIG_NOHZ_COMMON is enabled
+ *	- CONFIG_NO_HZ_COMMON is enabled
  *
  * For the other cases this function is empty and because the call sites
  * are optimized out it vanishes as well, i.e. no need for lots of

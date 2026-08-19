@@ -1509,7 +1509,7 @@ static void disable_vbios_mode_if_required(
 
 struct dc *dc_create(const struct dc_init_data *init_params)
 {
-	struct dc *dc = kzalloc_obj(*dc);
+	struct dc *dc = kvzalloc_obj(*dc);
 	unsigned int full_pipe_count;
 
 	if (!dc)
@@ -1557,7 +1557,7 @@ struct dc *dc_create(const struct dc_init_data *init_params)
 
 destruct_dc:
 	dc_destruct(dc);
-	kfree(dc);
+	kvfree(dc);
 	return NULL;
 }
 
@@ -1606,7 +1606,7 @@ void dc_deinit_callbacks(struct dc *dc)
 void dc_destroy(struct dc **dc)
 {
 	dc_destruct(*dc);
-	kfree(*dc);
+	kvfree(*dc);
 	*dc = NULL;
 }
 
@@ -4077,8 +4077,6 @@ static void commit_planes_do_stream_update_sequence(struct dc *dc,
 {
 	int j;
 	struct block_sequence_state seq_state = { .steps = block_sequence, .num_steps = num_steps };
-	struct dsc_config dsc_cfgs[MAX_PIPES];
-	struct dsc_optc_config dsc_optc_cfgs[MAX_PIPES];
 	unsigned int dsc_cfg_index = 0;
 	*num_steps = 0; // Initialize to 0
 
@@ -4150,11 +4148,13 @@ static void commit_planes_do_stream_update_sequence(struct dc *dc,
 
 			if (stream_update->dsc_config)
 				if (dsc_cfg_index < MAX_PIPES) {
+					struct dsc_config dsc_cfg;
+					struct dsc_optc_config dsc_optc_cfg;
+
 					add_link_update_dsc_config_sequence(&seq_state,
 						pipe_ctx,
-						&dsc_cfgs[dsc_cfg_index],
-						&dsc_optc_cfgs[dsc_cfg_index]);
-					dsc_cfg_index++;
+						&dsc_cfg,
+						&dsc_optc_cfg);
 				}
 
 			if (stream_update->mst_bw_update) {

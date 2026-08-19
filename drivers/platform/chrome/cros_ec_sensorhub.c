@@ -9,7 +9,6 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/delay.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_data/cros_ec_commands.h>
 #include <linux/platform_data/cros_ec_proto.h>

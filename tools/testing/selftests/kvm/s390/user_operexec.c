@@ -6,6 +6,7 @@
  * Authors:
  *  Janosch Frank <frankja@linux.ibm.com>
  */
+#include "facility.h"
 #include "kselftest.h"
 #include "kvm_util.h"
 #include "test_util.h"
@@ -109,6 +110,111 @@ static void test_user_operexec_combined(void)
 	kvm_vm_free(vm);
 }
 
+static struct kvm_vm *create_vm_without_sthyi(void)
+{
+	struct kvm_s390_vm_cpu_processor info;
+	struct kvm_vm *vm;
+
+	vm = vm_create(1);
+
+	kvm_device_attr_get(vm->fd, KVM_S390_VM_CPU_MODEL,
+			    KVM_S390_VM_CPU_PROCESSOR, &info);
+
+	clear_bit_inv(74, (unsigned long *)&info.fac_list);
+	kvm_device_attr_set(vm->fd, KVM_S390_VM_CPU_MODEL,
+			    KVM_S390_VM_CPU_PROCESSOR, &info);
+
+	return vm;
+}
+
+static void test_user_instr0_no_stfle_74(void)
+{
+	struct kvm_vcpu *vcpu;
+	struct kvm_vm *vm;
+	int rc;
+
+	vm = create_vm_without_sthyi();
+
+	rc = __vm_enable_cap(vm, KVM_CAP_S390_USER_INSTR0, 0);
+	TEST_ASSERT_EQ(0, rc);
+
+	vcpu = vm_vcpu_add(vm, 0, guest_code_instr0);
+
+	vcpu_run(vcpu);
+	TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_S390_SIEIC);
+	TEST_ASSERT_EQ(vcpu->run->s390_sieic.icptcode, ICPT_OPEREXC);
+	TEST_ASSERT_EQ(vcpu->run->s390_sieic.ipa, 0x0000);
+
+	kvm_vm_free(vm);
+}
+
+static void test_user_operexec_no_stfle_74(void)
+{
+	struct kvm_vcpu *vcpu;
+	struct kvm_vm *vm;
+	int rc;
+
+	vm = create_vm_without_sthyi();
+
+	rc = __vm_enable_cap(vm, KVM_CAP_S390_USER_OPEREXEC, 0);
+	TEST_ASSERT_EQ(0, rc);
+
+	vcpu = vm_vcpu_add(vm, 0, guest_code_user_operexec);
+
+	vcpu_run(vcpu);
+	TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_S390_SIEIC);
+	TEST_ASSERT_EQ(vcpu->run->s390_sieic.icptcode, ICPT_OPEREXC);
+	TEST_ASSERT_EQ(vcpu->run->s390_sieic.ipa, 0x0807);
+
+	kvm_vm_free(vm);
+}
+
+static void test_instr0_combined_no_stfle_74(void)
+{
+	struct kvm_vcpu *vcpu;
+	struct kvm_vm *vm;
+	int rc;
+
+	vm = create_vm_without_sthyi();
+
+	rc = __vm_enable_cap(vm, KVM_CAP_S390_USER_INSTR0, 0);
+	TEST_ASSERT_EQ(0, rc);
+	rc = __vm_enable_cap(vm, KVM_CAP_S390_USER_OPEREXEC, 0);
+	TEST_ASSERT_EQ(0, rc);
+
+	vcpu = vm_vcpu_add(vm, 0, guest_code_instr0);
+
+	vcpu_run(vcpu);
+	TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_S390_SIEIC);
+	TEST_ASSERT_EQ(vcpu->run->s390_sieic.icptcode, ICPT_OPEREXC);
+	TEST_ASSERT_EQ(vcpu->run->s390_sieic.ipa, 0x0000);
+
+	kvm_vm_free(vm);
+}
+
+static void test_operexec_combined_no_stfle_74(void)
+{
+	struct kvm_vcpu *vcpu;
+	struct kvm_vm *vm;
+	int rc;
+
+	vm = create_vm_without_sthyi();
+
+	rc = __vm_enable_cap(vm, KVM_CAP_S390_USER_INSTR0, 0);
+	TEST_ASSERT_EQ(0, rc);
+	rc = __vm_enable_cap(vm, KVM_CAP_S390_USER_OPEREXEC, 0);
+	TEST_ASSERT_EQ(0, rc);
+
+	vcpu = vm_vcpu_add(vm, 0, guest_code_user_operexec);
+
+	vcpu_run(vcpu);
+	TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_S390_SIEIC);
+	TEST_ASSERT_EQ(vcpu->run->s390_sieic.icptcode, ICPT_OPEREXC);
+	TEST_ASSERT_EQ(vcpu->run->s390_sieic.ipa, 0x0807);
+
+	kvm_vm_free(vm);
+}
+
 /*
  * Run all tests above.
  *
@@ -122,6 +228,10 @@ static struct testdef {
 	{ "instr0", test_user_instr0 },
 	{ "operexec", test_user_operexec },
 	{ "operexec_combined", test_user_operexec_combined},
+	{ "instr0_no_stfle_74", test_user_instr0_no_stfle_74 },
+	{ "instr0_combined_no_stfle_74", test_instr0_combined_no_stfle_74 },
+	{ "operexec_combined_no_stfle_74", test_operexec_combined_no_stfle_74 },
+	{ "operexec_no_stfle_74", test_user_operexec_no_stfle_74 },
 };
 
 int main(int argc, char *argv[])

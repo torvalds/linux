@@ -9822,6 +9822,7 @@ int netif_change_flags(struct net_device *dev, unsigned int flags,
 	__dev_notify_flags(dev, old_flags, changes, 0, NULL);
 	return ret;
 }
+EXPORT_SYMBOL(netif_change_flags);
 
 int __netif_set_mtu(struct net_device *dev, int new_mtu)
 {
@@ -12093,6 +12094,7 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 	INIT_LIST_HEAD(&dev->ptype_all);
 	INIT_LIST_HEAD(&dev->ptype_specific);
 	INIT_LIST_HEAD(&dev->net_notifier_list);
+	INIT_LIST_HEAD(&dev->work_node);
 #ifdef CONFIG_NET_SCHED
 	hash_init(dev->qdisc_hash);
 #endif

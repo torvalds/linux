@@ -1,0 +1,102 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/nvidia,tegra238-pinmux-aon.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra238 AON Pinmux Controller
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+properties:
+  compatible:
+    const: nvidia,tegra238-pinmux-aon
+
+  reg:
+    maxItems: 1
+
+patternProperties:
+  "^pinmux(-[a-z0-9-]+)?$":
+    type: object
+
+    # pin groups
+    additionalProperties:
+      $ref: nvidia,tegra238-pinmux-common.yaml
+
+      properties:
+        nvidia,pins:
+          items:
+            enum: [ bootv_ctl_n_paa0, soc_gpio00_paa1, vcomp_alert_paa2,
+                    pwm1_paa3, batt_oc_paa4, soc_gpio04_paa5,
+                    soc_gpio25_paa6, soc_gpio26_paa7,
+                    hdmi_cec_pbb0,
+                    spi2_sck_pcc0, spi2_miso_pcc1, spi2_mosi_pcc2,
+                    spi2_cs0_pcc3, spi2_cs1_pcc4, uart3_tx_pcc5,
+                    uart3_rx_pcc6, gen2_i2c_scl_pcc7,
+                    gen2_i2c_sda_pdd0, gen8_i2c_scl_pdd1,
+                    gen8_i2c_sda_pdd2, touch_clk_pdd3, dmic1_clk_pdd4,
+                    dmic1_dat_pdd5, soc_gpio19_pdd6, pwm2_pdd7,
+                    pwm3_pee0, pwm7_pee1, soc_gpio49_pee2,
+                    soc_gpio82_pee3, soc_gpio50_pee4, soc_gpio83_pee5,
+                    soc_gpio69_pff0, soc_gpio70_pff1, soc_gpio71_pff2,
+                    soc_gpio72_pff3, soc_gpio73_pff4, soc_gpio74_pff5,
+                    soc_gpio80_pff6, soc_gpio76_pff7, soc_gpio77_pgg0,
+                    soc_gpio84_pgg1, uart2_tx_pgg2, uart2_rx_pgg3,
+                    uart2_rts_pgg4, uart2_cts_pgg5, soc_gpio85_pgg6,
+                    uart5_tx_pgg7, uart5_rx_phh0, uart5_rts_phh1,
+                    uart5_cts_phh2, soc_gpio86_phh3,
+                    # drive groups (ordered PAA, PBB, PCC, PDD, PEE, PFF, PGG, PHH)
+                    drive_bootv_ctl_n_paa0, drive_soc_gpio00_paa1,
+                    drive_vcomp_alert_paa2, drive_pwm1_paa3,
+                    drive_batt_oc_paa4, drive_soc_gpio04_paa5,
+                    drive_soc_gpio25_paa6, drive_soc_gpio26_paa7,
+                    drive_hdmi_cec_pbb0,
+                    drive_spi2_sck_pcc0, drive_spi2_miso_pcc1,
+                    drive_spi2_mosi_pcc2, drive_spi2_cs0_pcc3,
+                    drive_spi2_cs1_pcc4, drive_uart3_tx_pcc5,
+                    drive_uart3_rx_pcc6, drive_gen2_i2c_scl_pcc7,
+                    drive_gen2_i2c_sda_pdd0, drive_gen8_i2c_scl_pdd1,
+                    drive_gen8_i2c_sda_pdd2, drive_touch_clk_pdd3,
+                    drive_dmic1_clk_pdd4, drive_dmic1_dat_pdd5,
+                    drive_soc_gpio19_pdd6, drive_pwm2_pdd7,
+                    drive_pwm3_pee0, drive_pwm7_pee1,
+                    drive_soc_gpio49_pee2, drive_soc_gpio50_pee4,
+                    drive_soc_gpio82_pee3, drive_soc_gpio71_pff2,
+                    drive_soc_gpio76_pff7, drive_soc_gpio74_pff5,
+                    drive_soc_gpio86_phh3, drive_soc_gpio72_pff3,
+                    drive_soc_gpio77_pgg0, drive_soc_gpio80_pff6,
+                    drive_soc_gpio84_pgg1, drive_soc_gpio83_pee5,
+                    drive_soc_gpio73_pff4, drive_soc_gpio70_pff1,
+                    drive_soc_gpio85_pgg6, drive_soc_gpio69_pff0,
+                    drive_uart5_tx_pgg7, drive_uart5_rx_phh0,
+                    drive_uart2_tx_pgg2, drive_uart2_rx_pgg3,
+                    drive_uart2_cts_pgg5, drive_uart2_rts_pgg4,
+                    drive_uart5_cts_phh2, drive_uart5_rts_phh1 ]
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/pinctrl/pinctrl-tegra.h>
+
+    pinmux@c300000 {
+      compatible = "nvidia,tegra238-pinmux-aon";
+      reg = <0x0c300000 0x4000>;
+
+      pinctrl-names = "cec";
+      pinctrl-0 = <&cec_state>;
+
+      cec_state: pinmux-cec {
+        cec {
+          nvidia,pins = "hdmi_cec_pbb0";
+          nvidia,function = "hdmi_cec";
+        };
+      };
+    };
+...

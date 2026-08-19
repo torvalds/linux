@@ -22,8 +22,9 @@
  *
  */
 
-#include <generated/utsrelease.h>
 #include <linux/devcoredump.h>
+#include <linux/utsname.h>
+#include <drm/drm_exec.h>
 #include "amdgpu_dev_coredump.h"
 #include "atom.h"
 
@@ -207,28 +208,143 @@ static void amdgpu_devcoredump_fw_info(struct amdgpu_device *adev,
 	}
 }
 
+static void
+amdgpu_devcoredump_print_ibs(struct drm_printer *p,
+			     struct amdgpu_coredump_info *coredump,
+			     bool sizing_pass)
+{
+	struct amdgpu_device *adev = coredump->adev;
+	struct amdgpu_bo_va_mapping *mapping;
+	struct amdgpu_bo *abo;
+	struct drm_exec exec;
+	struct amdgpu_vm *vm;
+	u32 *ib_content;
+	u64 va_start, offset;
+	u8 *kptr;
+	u32 off;
+	int r;
+
+	/*
+	 * On the sizing pass there is no VM to look up and no BO to lock; the
+	 * size estimate doesn't depend on whether the IB BOs are reachable.
+	 * Just emit the per-IB headers (the content is not written anywhere).
+	 */
+	if (sizing_pass) {
+		for (int i = 0; i < coredump->num_ibs; i++) {
+			drm_printf(p, "\nIB #%d 0x%llx %d dw\n", i,
+				   coredump->ibs[i].gpu_addr,
+				   coredump->ibs[i].ib_size_dw);
+		}
+		return;
+	}
+
+	/*
+	 * Lock the VM root PD and every IB BO together in a single drm_exec
+	 * ticket. Reserving the IB BOs one by one while the root PD is held
+	 * would be a recursive reservation_ww_class_mutex acquire without a
+	 * ww_acquire_ctx, which trips lockdep and self-deadlocks for IB BOs
+	 * that share their dma_resv with the root PD (always-valid BOs).
+	 */
+	drm_exec_init(&exec, DRM_EXEC_IGNORE_DUPLICATES, 1 + coredump->num_ibs);
+	drm_exec_until_all_locked(&exec) {
+		vm = amdgpu_vm_lock_by_pasid(adev, coredump->pasid, &exec);
+		if (!vm)
+			goto unlock;
+
+		for (int i = 0; i < coredump->num_ibs; i++) {
+			u64 pfn = (coredump->ibs[i].gpu_addr &
+				   AMDGPU_GMC_HOLE_MASK) / AMDGPU_GPU_PAGE_SIZE;
+
+			mapping = amdgpu_vm_bo_lookup_mapping(vm, pfn);
+			if (!mapping)
+				continue;
+
+			abo = mapping->bo_va->base.bo;
+			r = drm_exec_lock_obj(&exec, &abo->tbo.base);
+			drm_exec_retry_on_contention(&exec);
+			if (r)
+				goto unlock;
+		}
+	}
+
+	for (int i = 0; i < coredump->num_ibs; i++) {
+		bool emit_content = false;
+
+		ib_content = kvmalloc_array(coredump->ibs[i].ib_size_dw, 4,
+					    GFP_KERNEL);
+		if (!ib_content)
+			continue;
+
+		va_start = coredump->ibs[i].gpu_addr & AMDGPU_GMC_HOLE_MASK;
+		mapping = amdgpu_vm_bo_lookup_mapping(vm,
+						      va_start / AMDGPU_GPU_PAGE_SIZE);
+		if (!mapping)
+			goto output_ib_content;
+
+		abo = mapping->bo_va->base.bo;
+		offset = va_start - mapping->start * AMDGPU_GPU_PAGE_SIZE;
+
+		if (abo->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS) {
+			struct amdgpu_res_cursor cursor;
+
+			off = 0;
+
+			if (abo->tbo.resource->mem_type != TTM_PL_VRAM)
+				goto output_ib_content;
+
+			amdgpu_res_first(abo->tbo.resource, offset,
+					 coredump->ibs[i].ib_size_dw * 4, &cursor);
+			while (cursor.remaining) {
+				amdgpu_device_mm_access(adev, cursor.start / 4,
+							&ib_content[off], cursor.size / 4,
+							false);
+				off += cursor.size;
+				amdgpu_res_next(&cursor, cursor.size);
+			}
+			emit_content = true;
+		} else {
+			r = ttm_bo_kmap(&abo->tbo, 0, PFN_UP(abo->tbo.base.size),
+					&abo->kmap);
+			if (r)
+				goto output_ib_content;
+
+			kptr = amdgpu_bo_kptr(abo);
+			kptr += offset;
+			memcpy(ib_content, kptr, coredump->ibs[i].ib_size_dw * 4);
+
+			amdgpu_bo_kunmap(abo);
+			emit_content = true;
+		}
+
+output_ib_content:
+		drm_printf(p, "\nIB #%d 0x%llx %d dw\n", i,
+			   coredump->ibs[i].gpu_addr, coredump->ibs[i].ib_size_dw);
+		if (emit_content) {
+			for (int j = 0; j < coredump->ibs[i].ib_size_dw; j++)
+				drm_printf(p, "0x%08x\n", ib_content[j]);
+		}
+		kvfree(ib_content);
+	}
+
+unlock:
+	drm_exec_fini(&exec);
+}
+
 static ssize_t
 amdgpu_devcoredump_format(char *buffer, size_t count, struct amdgpu_coredump_info *coredump)
 {
-	struct amdgpu_device *adev = coredump->adev;
 	struct drm_printer p;
 	struct drm_print_iterator iter;
 	struct amdgpu_vm_fault_info *fault_info;
-	struct amdgpu_bo_va_mapping *mapping;
 	struct amdgpu_ip_block *ip_block;
-	struct amdgpu_res_cursor cursor;
-	struct amdgpu_bo *abo, *root;
-	uint64_t va_start, offset;
 	struct amdgpu_ring *ring;
-	struct amdgpu_vm *vm;
-	u32 *ib_content;
-	uint8_t *kptr;
-	int ver, i, j, r;
+	int ver, i, j;
 	u32 ring_idx, off;
 	bool sizing_pass;
 
 	sizing_pass = buffer == NULL;
 	iter.data = buffer;
+	iter.start = 0;
 	iter.offset = 0;
 	iter.remain = count;
 
@@ -236,7 +352,7 @@ amdgpu_devcoredump_format(char *buffer, size_t count, struct amdgpu_coredump_inf
 
 	drm_printf(&p, "**** AMDGPU Device Coredump ****\n");
 	drm_printf(&p, "version: " AMDGPU_COREDUMP_VERSION "\n");
-	drm_printf(&p, "kernel: " UTS_RELEASE "\n");
+	drm_printf(&p, "kernel: %s\n", init_utsname()->release);
 	drm_printf(&p, "module: " KBUILD_MODNAME "\n");
 	drm_printf(&p, "time: %ptSp\n", &coredump->reset_time);
 
@@ -342,86 +458,8 @@ amdgpu_devcoredump_format(char *buffer, size_t count, struct amdgpu_coredump_inf
 	else if (coredump->reset_vram_lost)
 		drm_printf(&p, "VRAM is lost due to GPU reset!\n");
 
-	if (coredump->num_ibs) {
-		/* Don't try to lookup the VM or map the BOs when calculating the
-		 * size required to store the devcoredump.
-		 */
-		if (sizing_pass)
-			vm = NULL;
-		else
-			vm = amdgpu_vm_lock_by_pasid(adev, &root, coredump->pasid);
-
-		for (int i = 0; i < coredump->num_ibs && (sizing_pass || vm); i++) {
-			ib_content = kvmalloc_array(coredump->ibs[i].ib_size_dw, 4,
-						    GFP_KERNEL);
-			if (!ib_content)
-				continue;
-
-			/* vm=NULL can only happen when 'sizing_pass' is true. Skip to the
-			 * drm_printf() calls (ib_content doesn't need to be initialized
-			 * as its content won't be written anywhere).
-			 */
-			if (!vm)
-				goto output_ib_content;
-
-			va_start = coredump->ibs[i].gpu_addr & AMDGPU_GMC_HOLE_MASK;
-			mapping = amdgpu_vm_bo_lookup_mapping(vm, va_start / AMDGPU_GPU_PAGE_SIZE);
-			if (!mapping)
-				goto free_ib_content;
-
-			offset = va_start - (mapping->start * AMDGPU_GPU_PAGE_SIZE);
-			abo = amdgpu_bo_ref(mapping->bo_va->base.bo);
-			r = amdgpu_bo_reserve(abo, false);
-			if (r)
-				goto free_ib_content;
-
-			if (abo->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS) {
-				off = 0;
-
-				if (abo->tbo.resource->mem_type != TTM_PL_VRAM)
-					goto unreserve_abo;
-
-				amdgpu_res_first(abo->tbo.resource, offset,
-						 coredump->ibs[i].ib_size_dw * 4,
-						 &cursor);
-				while (cursor.remaining) {
-					amdgpu_device_mm_access(adev, cursor.start / 4,
-								&ib_content[off], cursor.size / 4,
-								false);
-					off += cursor.size;
-					amdgpu_res_next(&cursor, cursor.size);
-				}
-			} else {
-				r = ttm_bo_kmap(&abo->tbo, 0,
-						PFN_UP(abo->tbo.base.size),
-						&abo->kmap);
-				if (r)
-					goto unreserve_abo;
-
-				kptr = amdgpu_bo_kptr(abo);
-				kptr += offset;
-				memcpy(ib_content, kptr,
-				       coredump->ibs[i].ib_size_dw * 4);
-
-				amdgpu_bo_kunmap(abo);
-			}
-
-output_ib_content:
-			drm_printf(&p, "\nIB #%d 0x%llx %d dw\n",
-				   i, coredump->ibs[i].gpu_addr, coredump->ibs[i].ib_size_dw);
-			for (int j = 0; j < coredump->ibs[i].ib_size_dw; j++)
-				drm_printf(&p, "0x%08x\n", ib_content[j]);
-unreserve_abo:
-			if (vm)
-				amdgpu_bo_unreserve(abo);
-free_ib_content:
-			kvfree(ib_content);
-		}
-		if (vm) {
-			amdgpu_bo_unreserve(root);
-			amdgpu_bo_unref(&root);
-		}
-	}
+	if (coredump->num_ibs)
+		amdgpu_devcoredump_print_ibs(&p, coredump, sizing_pass);
 
 	return count - iter.remain;
 }

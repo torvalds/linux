@@ -20,7 +20,6 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/property.h>
 #include <linux/regulator/consumer.h>
 
@@ -572,7 +571,7 @@ static int mcp4728_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id mcp4728_id[] = {
-	{ "mcp4728" },
+	{ .name = "mcp4728" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mcp4728_id);

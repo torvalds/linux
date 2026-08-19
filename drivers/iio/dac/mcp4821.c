@@ -12,13 +12,12 @@
  *	MCP48x2: https://ww1.microchip.com/downloads/en/DeviceDoc/20002249B.pdf
  *
  * TODO:
- *	- Configurable gain
  *	- Regulator control
  */
 
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/spi/spi.h>
+#include <linux/units.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/types.h>
@@ -26,12 +25,32 @@
 #include <linux/unaligned.h>
 
 #define MCP4821_ACTIVE_MODE BIT(12)
+#define MCP4821_GAIN_ENABLE BIT(13)
 #define MCP4802_SECOND_CHAN BIT(15)
 
-/* DAC uses an internal Voltage reference of 4.096V at a gain of 2x */
-#define MCP4821_2X_GAIN_VREF_MV 4096
+/* DAC uses an internal Voltage reference of 2.048V */
+#define MCP4821_VREF_MV 2048
 
-enum mcp4821_supported_drvice_ids {
+/*
+ * MCP48xx DAC output:
+ *
+ * Vout = (Vref * D / 2^N) * G
+ *
+ * where:
+ *  - Vref = 2.048V (internal reference)
+ *  - N = DAC resolution (12 bits for MCP4821)
+ *  - G = gain selection:
+ *        1x when GA bit = 1
+ *        2x when GA bit = 0 (default)
+ *
+ * Therefore full-scale voltage is:
+ *  - 1x gain: 2.048V
+ *  - 2x gain: 4.096V
+ *
+ * Scale = Vfull-scale / 2^N
+ */
+
+enum mcp4821_supported_device_ids {
 	ID_MCP4801,
 	ID_MCP4802,
 	ID_MCP4811,
@@ -43,6 +62,8 @@ enum mcp4821_supported_drvice_ids {
 struct mcp4821_state {
 	struct spi_device *spi;
 	u16 dac_value[2];
+	int gain;
+	int scale_avail[4];
 };
 
 struct mcp4821_chip_info {
@@ -57,6 +78,7 @@ struct mcp4821_chip_info {
 		.channel = (channel_id),                              \
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),         \
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE), \
+		.info_mask_shared_by_type_available = BIT(IIO_CHAN_INFO_SCALE), \
 		.scan_type = {                                        \
 			.realbits = (resolution),                     \
 			.shift = 12 - (resolution),                   \
@@ -115,20 +137,31 @@ static int mcp4821_read_raw(struct iio_dev *indio_dev,
 			    struct iio_chan_spec const *chan, int *val,
 			    int *val2, long mask)
 {
-	struct mcp4821_state *state;
+	struct mcp4821_state *state = iio_priv(indio_dev);
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		state = iio_priv(indio_dev);
 		*val = state->dac_value[chan->channel];
 		return IIO_VAL_INT;
+
 	case IIO_CHAN_INFO_SCALE:
-		*val = MCP4821_2X_GAIN_VREF_MV;
+		*val = MCP4821_VREF_MV * state->gain;
 		*val2 = chan->scan_type.realbits;
 		return IIO_VAL_FRACTIONAL_LOG2;
 	default:
 		return -EINVAL;
 	}
+}
+
+static void mcp4821_calc_scale(int vref_mv, int resolution,
+				int *val, int *val2)
+{
+	s64 tmp;
+	int micro;
+
+	tmp = (s64)vref_mv * MICRO >> resolution;
+	*val = div_s64_rem(tmp, MICRO, &micro);
+	*val2 = micro;
 }
 
 static int mcp4821_write_raw(struct iio_dev *indio_dev,
@@ -139,35 +172,85 @@ static int mcp4821_write_raw(struct iio_dev *indio_dev,
 	u16 write_val;
 	__be16 write_buffer;
 	int ret;
+	int v, v2;
 
-	if (val2 != 0)
+	switch (mask) {
+	case IIO_CHAN_INFO_RAW:
+
+		if (val2 != 0)
+			return -EINVAL;
+
+		if (val < 0 || val >= BIT(chan->scan_type.realbits))
+			return -EINVAL;
+
+		write_val = MCP4821_ACTIVE_MODE | val << chan->scan_type.shift;
+		if (chan->channel)
+			write_val |= MCP4802_SECOND_CHAN;
+
+		/* GA bit = 1 -> 1x gain */
+		if (state->gain == 1)
+			write_val |= MCP4821_GAIN_ENABLE;
+
+		write_buffer = cpu_to_be16(write_val);
+		ret = spi_write(state->spi, &write_buffer, sizeof(write_buffer));
+		if (ret) {
+			dev_err(&state->spi->dev, "Failed to write to device: %d", ret);
+			return ret;
+		}
+
+		state->dac_value[chan->channel] = val;
+		return 0;
+
+	case IIO_CHAN_INFO_SCALE:
+		mcp4821_calc_scale(MCP4821_VREF_MV, chan->scan_type.realbits, &v, &v2);
+		if (val == v && val2 == v2) {
+			state->gain = 1;
+			return 0;
+		}
+
+		mcp4821_calc_scale(MCP4821_VREF_MV * 2,
+				chan->scan_type.realbits, &v, &v2);
+		if (val == v && val2 == v2) {
+			state->gain = 2;
+			return 0;
+		}
 		return -EINVAL;
-
-	if (val < 0 || val >= BIT(chan->scan_type.realbits))
+	default:
 		return -EINVAL;
-
-	if (mask != IIO_CHAN_INFO_RAW)
-		return -EINVAL;
-
-	write_val = MCP4821_ACTIVE_MODE | val << chan->scan_type.shift;
-	if (chan->channel)
-		write_val |= MCP4802_SECOND_CHAN;
-
-	write_buffer = cpu_to_be16(write_val);
-	ret = spi_write(state->spi, &write_buffer, sizeof(write_buffer));
-	if (ret) {
-		dev_err(&state->spi->dev, "Failed to write to device: %d", ret);
-		return ret;
 	}
+}
 
-	state->dac_value[chan->channel] = val;
+static inline void mcp4821_init_avail_gain(struct mcp4821_state *state,
+				int resolution)
+{
+	state->scale_avail[0] = MCP4821_VREF_MV;
+	state->scale_avail[1] = resolution;
+	state->scale_avail[2] = MCP4821_VREF_MV * 2;
+	state->scale_avail[3] = resolution;
+}
 
-	return 0;
+static int mcp4821_read_avail(struct iio_dev *indio_dev,
+			     struct iio_chan_spec const *chan,
+			     const int **vals, int *type, int *length,
+			     long info)
+{
+	struct mcp4821_state *state = iio_priv(indio_dev);
+
+	switch (info) {
+	case IIO_CHAN_INFO_SCALE:
+		*vals = state->scale_avail;
+		*type = IIO_VAL_FRACTIONAL_LOG2;
+		*length = ARRAY_SIZE(state->scale_avail);
+		return IIO_AVAIL_LIST;
+	default:
+		return -EINVAL;
+	}
 }
 
 static const struct iio_info mcp4821_info = {
 	.read_raw = &mcp4821_read_raw,
 	.write_raw = &mcp4821_write_raw,
+	.read_avail = &mcp4821_read_avail,
 };
 
 static int mcp4821_probe(struct spi_device *spi)
@@ -183,12 +266,15 @@ static int mcp4821_probe(struct spi_device *spi)
 	state = iio_priv(indio_dev);
 	state->spi = spi;
 
+	/* default gain is 2x */
+	state->gain = 2;
 	info = spi_get_device_match_data(spi);
 	indio_dev->name = info->name;
 	indio_dev->info = &mcp4821_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = info->channels;
 	indio_dev->num_channels = info->num_channels;
+	mcp4821_init_avail_gain(state, info->channels[0].scan_type.realbits);
 
 	return devm_iio_device_register(&spi->dev, indio_dev);
 }

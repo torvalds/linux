@@ -16,7 +16,6 @@
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/property.h>
 
 #define DS1803_WIPER_0         0xA9
@@ -235,10 +234,10 @@ static const struct of_device_id ds1803_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, ds1803_dt_ids);
 
 static const struct i2c_device_id ds1803_id[] = {
-	{ "ds1803-010", (kernel_ulong_t)&ds1803_cfg[DS1803_010] },
-	{ "ds1803-050", (kernel_ulong_t)&ds1803_cfg[DS1803_050] },
-	{ "ds1803-100", (kernel_ulong_t)&ds1803_cfg[DS1803_100] },
-	{ "ds3502", (kernel_ulong_t)&ds1803_cfg[DS3502] },
+	{ .name = "ds1803-010", .driver_data = (kernel_ulong_t)&ds1803_cfg[DS1803_010] },
+	{ .name = "ds1803-050", .driver_data = (kernel_ulong_t)&ds1803_cfg[DS1803_050] },
+	{ .name = "ds1803-100", .driver_data = (kernel_ulong_t)&ds1803_cfg[DS1803_100] },
+	{ .name = "ds3502", .driver_data = (kernel_ulong_t)&ds1803_cfg[DS3502] },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ds1803_id);

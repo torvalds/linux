@@ -294,6 +294,10 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 	static inline bool						\
 	trace_##name##_enabled(void)					\
 	{								\
+		if (IS_ENABLED(CONFIG_LOCKDEP)) {			\
+			WARN_ONCE(!rcu_is_watching(),			\
+				  "RCU not watching for tracepoint");	\
+		}							\
 		return static_branch_unlikely(&__tracepoint_##name.key);\
 	}
 

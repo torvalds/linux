@@ -1063,10 +1063,8 @@ struct nfs_server *nfs_alloc_server(void)
 		return NULL;
 
 	server->s_sysfs_id = ida_alloc(&s_sysfs_ids, GFP_KERNEL);
-	if (server->s_sysfs_id < 0) {
-		kfree(server);
-		return NULL;
-	}
+	if (server->s_sysfs_id < 0)
+		goto free_server;
 
 	server->client = server->client_acl = ERR_PTR(-EINVAL);
 
@@ -1088,8 +1086,8 @@ struct nfs_server *nfs_alloc_server(void)
 
 	server->io_stats = nfs_alloc_iostats();
 	if (!server->io_stats) {
-		kfree(server);
-		return NULL;
+		ida_free(&s_sysfs_ids, server->s_sysfs_id);
+		goto free_server;
 	}
 
 	server->change_attr_type = NFS4_CHANGE_TYPE_IS_UNDEFINED;
@@ -1103,6 +1101,10 @@ struct nfs_server *nfs_alloc_server(void)
 	rpc_init_wait_queue(&server->uoc_rpcwaitq, "NFS UOC");
 
 	return server;
+
+free_server:
+	kfree(server);
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(nfs_alloc_server);
 

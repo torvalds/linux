@@ -242,7 +242,7 @@ static int atla10_ec_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id atla10_ec_id_table[] = {
-	{ "vexia_atla10_ec" },
+	{ .name = "vexia_atla10_ec" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, atla10_ec_id_table);

@@ -20,9 +20,15 @@ static int vgic_irqfd_set_irq(struct kvm_kernel_irq_routing_entry *e,
 			int level, bool line_status)
 {
 	unsigned int spi_id = e->irqchip.pin + VGIC_NR_PRIVATE_IRQS;
+	int ret;
 
 	if (!vgic_valid_spi(kvm, spi_id))
 		return -EINVAL;
+
+	ret = vgic_lazy_init(kvm);
+	if (ret)
+		return ret;
+
 	return kvm_vgic_inject_irq(kvm, NULL, spi_id, level, NULL);
 }
 

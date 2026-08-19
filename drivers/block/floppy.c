@@ -180,7 +180,7 @@ static int print_unex = 1;
 #include <linux/major.h>
 #include <linux/mc146818rtc.h>	/* CMOS defines */
 #include <linux/mm.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/pnp.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>

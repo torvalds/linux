@@ -18,19 +18,6 @@ strcpy:
 	bne	1b
 	blr
 
-	.globl	strncpy
-strncpy:
-	cmpwi	0,r5,0
-	beqlr
-	mtctr	r5
-	addi	r6,r3,-1
-	addi	r4,r4,-1
-1:	lbzu	r0,1(r4)
-	cmpwi	0,r0,0
-	stbu	r0,1(r6)
-	bdnzf	2,1b		/* dec ctr, branch if ctr != 0 && !cr0.eq */
-	blr
-
 	.globl	strcat
 strcat:
 	addi	r5,r3,-1

@@ -462,10 +462,10 @@ EXPORT_SYMBOL(uart_update_timeout);
  *
  * Decode the termios structure into a numeric baud rate, taking account of the
  * magic 38400 baud rate (with spd_* flags), and mapping the %B0 rate to 9600
- * baud.
+ * baud or min argument, whichever is greater.
  *
  * If the new baud rate is invalid, try the @old termios setting. If it's still
- * invalid, we try 9600 baud. If that is also invalid 0 is returned.
+ * invalid, clip to the nearest chip supported rate.
  *
  * The @termios structure is updated to reflect the baud rate we're actually
  * going to be using. Don't do this for the case where B0 is requested ("hang
@@ -480,7 +480,6 @@ uart_get_baud_rate(struct uart_port *port, struct ktermios *termios,
 	unsigned int try;
 	unsigned int baud;
 	unsigned int altbaud;
-	int hung_up = 0;
 	upf_t flags = port->flags & UPF_SPD_MASK;
 
 	switch (flags) {
@@ -514,24 +513,20 @@ uart_get_baud_rate(struct uart_port *port, struct ktermios *termios,
 		/*
 		 * Special case: B0 rate.
 		 */
-		if (baud == 0) {
-			hung_up = 1;
-			baud = 9600;
-		}
+		if (baud == 0)
+			return max(min, 9600);
 
 		if (baud >= min && baud <= max)
 			return baud;
 
 		/*
-		 * Oops, the quotient was zero.  Try again with
+		 * If the range cannot be met then try again with
 		 * the old baud rate if possible.
 		 */
 		termios->c_cflag &= ~CBAUD;
 		if (old) {
 			baud = tty_termios_baud_rate(old);
-			if (!hung_up)
-				tty_termios_encode_baud_rate(termios,
-								baud, baud);
+			tty_termios_encode_baud_rate(termios, baud, baud);
 			old = NULL;
 			continue;
 		}
@@ -540,15 +535,16 @@ uart_get_baud_rate(struct uart_port *port, struct ktermios *termios,
 		 * As a last resort, if the range cannot be met then clip to
 		 * the nearest chip supported rate.
 		 */
-		if (!hung_up) {
-			if (baud <= min)
-				tty_termios_encode_baud_rate(termios,
-							min + 1, min + 1);
-			else
-				tty_termios_encode_baud_rate(termios,
-							max - 1, max - 1);
-		}
+		if (baud <= min)
+			baud = min + 1;
+		else
+			baud = max - 1;
+
+		tty_termios_encode_baud_rate(termios, baud, baud);
 	}
+
+	/* Should never happen */
+	WARN_ON(1);
 	return 0;
 }
 EXPORT_SYMBOL(uart_get_baud_rate);
@@ -2235,6 +2231,18 @@ uart_set_options(struct uart_port *port, struct console *co,
 	port->mctrl |= TIOCM_DTR;
 
 	port->ops->set_termios(port, &termios, &dummy);
+
+	/*
+	 * If console hardware flow control was specified and is supported,
+	 * the related policy UPSTAT_CTS_ENABLE must be set to allow console
+	 * drivers to identify if CTS should be used for polling.
+	 */
+	if (flow == 'r' && (termios.c_cflag & CRTSCTS)) {
+		/* Synchronize @status RMW update against the console. */
+		guard(uart_port_lock_irqsave)(port);
+		port->status |= UPSTAT_CTS_ENABLE;
+	}
+
 	/*
 	 * Allow the setting of the UART parameters with a NULL console
 	 * too:
@@ -2541,7 +2549,14 @@ uart_configure_port(struct uart_driver *drv, struct uart_state *state,
 		 * We probably don't need a spinlock around this, but
 		 */
 		scoped_guard(uart_port_lock_irqsave, port) {
-			port->mctrl &= TIOCM_DTR;
+			unsigned int mask = TIOCM_DTR;
+
+			/* Console hardware flow control polls CTS. */
+			if (uart_console_hwflow_active(port))
+				mask |= TIOCM_RTS;
+
+			port->mctrl &= mask;
+
 			if (!(port->rs485.flags & SER_RS485_ENABLED))
 				port->ops->set_mctrl(port, port->mctrl);
 		}
@@ -3496,7 +3511,7 @@ EXPORT_SYMBOL_GPL(uart_try_toggle_sysrq);
  * @port: uart device's target port
  *
  * This function implements the device tree binding described in
- * Documentation/devicetree/bindings/serial/rs485.txt.
+ * Documentation/devicetree/bindings/serial/rs485.yaml.
  */
 int uart_get_rs485_mode(struct uart_port *port)
 {

@@ -101,24 +101,27 @@ void blkg_rwstat_recursive_sum(struct blkcg_gq *blkg, struct blkcg_policy *pol,
 	struct cgroup_subsys_state *pos_css;
 	unsigned int i;
 
-	lockdep_assert_held(&blkg->q->queue_lock);
+	WARN_ON_ONCE(!rcu_read_lock_held());
 
 	memset(sum, 0, sizeof(*sum));
-	rcu_read_lock();
 	blkg_for_each_descendant_pre(pos_blkg, pos_css, blkg) {
 		struct blkg_rwstat *rwstat;
 
 		if (!pos_blkg->online)
 			continue;
 
-		if (pol)
-			rwstat = (void *)blkg_to_pd(pos_blkg, pol) + off;
-		else
+		if (pol) {
+			struct blkg_policy_data *pd = blkg_to_pd(pos_blkg, pol);
+
+			if (!pd)
+				continue;
+			rwstat = (void *)pd + off;
+		} else {
 			rwstat = (void *)pos_blkg + off;
+		}
 
 		for (i = 0; i < BLKG_RWSTAT_NR; i++)
 			sum->cnt[i] += blkg_rwstat_read_counter(rwstat, i);
 	}
-	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(blkg_rwstat_recursive_sum);

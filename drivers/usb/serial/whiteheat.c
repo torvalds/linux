@@ -16,13 +16,9 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
-#include <linux/tty_driver.h>
-#include <linux/tty_flip.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
-#include <linux/uaccess.h>
-#include <asm/termbits.h>
 #include <linux/usb.h>
 #include <linux/serial_reg.h>
 #include <linux/serial.h>

@@ -67,6 +67,11 @@ properties:
 
 # PIN CONFIGURATION NODES
 patternProperties:
+  "-hog(-[0-9]+)?$":
+    type: object
+    required:
+      - gpio-hog
+
   '-pins$':
     type: object
     additionalProperties: false

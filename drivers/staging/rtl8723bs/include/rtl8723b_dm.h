@@ -29,5 +29,4 @@ void rtl8723b_HalDmWatchDog(struct adapter *padapter);
 void rtl8723b_HalDmWatchDog_in_LPS(struct adapter *padapter);
 void rtl8723b_hal_dm_in_lps(struct adapter *padapter);
 
-
 #endif

@@ -21,7 +21,6 @@
 #include <linux/iio/sysfs.h>
 #include <linux/kstrtox.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/mutex.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
@@ -1170,30 +1169,30 @@ static int mcp47feb02_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id mcp47feb02_id[] = {
-	{ "mcp47feb01", (kernel_ulong_t)&mcp47feb01_chip_features },
-	{ "mcp47feb02", (kernel_ulong_t)&mcp47feb02_chip_features },
-	{ "mcp47feb04", (kernel_ulong_t)&mcp47feb04_chip_features },
-	{ "mcp47feb08", (kernel_ulong_t)&mcp47feb08_chip_features },
-	{ "mcp47feb11", (kernel_ulong_t)&mcp47feb11_chip_features },
-	{ "mcp47feb12", (kernel_ulong_t)&mcp47feb12_chip_features },
-	{ "mcp47feb14", (kernel_ulong_t)&mcp47feb14_chip_features },
-	{ "mcp47feb18", (kernel_ulong_t)&mcp47feb18_chip_features },
-	{ "mcp47feb21", (kernel_ulong_t)&mcp47feb21_chip_features },
-	{ "mcp47feb22", (kernel_ulong_t)&mcp47feb22_chip_features },
-	{ "mcp47feb24", (kernel_ulong_t)&mcp47feb24_chip_features },
-	{ "mcp47feb28", (kernel_ulong_t)&mcp47feb28_chip_features },
-	{ "mcp47fvb01", (kernel_ulong_t)&mcp47fvb01_chip_features },
-	{ "mcp47fvb02", (kernel_ulong_t)&mcp47fvb02_chip_features },
-	{ "mcp47fvb04", (kernel_ulong_t)&mcp47fvb04_chip_features },
-	{ "mcp47fvb08", (kernel_ulong_t)&mcp47fvb08_chip_features },
-	{ "mcp47fvb11", (kernel_ulong_t)&mcp47fvb11_chip_features },
-	{ "mcp47fvb12", (kernel_ulong_t)&mcp47fvb12_chip_features },
-	{ "mcp47fvb14", (kernel_ulong_t)&mcp47fvb14_chip_features },
-	{ "mcp47fvb18", (kernel_ulong_t)&mcp47fvb18_chip_features },
-	{ "mcp47fvb21", (kernel_ulong_t)&mcp47fvb21_chip_features },
-	{ "mcp47fvb22", (kernel_ulong_t)&mcp47fvb22_chip_features },
-	{ "mcp47fvb24", (kernel_ulong_t)&mcp47fvb24_chip_features },
-	{ "mcp47fvb28", (kernel_ulong_t)&mcp47fvb28_chip_features },
+	{ .name = "mcp47feb01", .driver_data = (kernel_ulong_t)&mcp47feb01_chip_features },
+	{ .name = "mcp47feb02", .driver_data = (kernel_ulong_t)&mcp47feb02_chip_features },
+	{ .name = "mcp47feb04", .driver_data = (kernel_ulong_t)&mcp47feb04_chip_features },
+	{ .name = "mcp47feb08", .driver_data = (kernel_ulong_t)&mcp47feb08_chip_features },
+	{ .name = "mcp47feb11", .driver_data = (kernel_ulong_t)&mcp47feb11_chip_features },
+	{ .name = "mcp47feb12", .driver_data = (kernel_ulong_t)&mcp47feb12_chip_features },
+	{ .name = "mcp47feb14", .driver_data = (kernel_ulong_t)&mcp47feb14_chip_features },
+	{ .name = "mcp47feb18", .driver_data = (kernel_ulong_t)&mcp47feb18_chip_features },
+	{ .name = "mcp47feb21", .driver_data = (kernel_ulong_t)&mcp47feb21_chip_features },
+	{ .name = "mcp47feb22", .driver_data = (kernel_ulong_t)&mcp47feb22_chip_features },
+	{ .name = "mcp47feb24", .driver_data = (kernel_ulong_t)&mcp47feb24_chip_features },
+	{ .name = "mcp47feb28", .driver_data = (kernel_ulong_t)&mcp47feb28_chip_features },
+	{ .name = "mcp47fvb01", .driver_data = (kernel_ulong_t)&mcp47fvb01_chip_features },
+	{ .name = "mcp47fvb02", .driver_data = (kernel_ulong_t)&mcp47fvb02_chip_features },
+	{ .name = "mcp47fvb04", .driver_data = (kernel_ulong_t)&mcp47fvb04_chip_features },
+	{ .name = "mcp47fvb08", .driver_data = (kernel_ulong_t)&mcp47fvb08_chip_features },
+	{ .name = "mcp47fvb11", .driver_data = (kernel_ulong_t)&mcp47fvb11_chip_features },
+	{ .name = "mcp47fvb12", .driver_data = (kernel_ulong_t)&mcp47fvb12_chip_features },
+	{ .name = "mcp47fvb14", .driver_data = (kernel_ulong_t)&mcp47fvb14_chip_features },
+	{ .name = "mcp47fvb18", .driver_data = (kernel_ulong_t)&mcp47fvb18_chip_features },
+	{ .name = "mcp47fvb21", .driver_data = (kernel_ulong_t)&mcp47fvb21_chip_features },
+	{ .name = "mcp47fvb22", .driver_data = (kernel_ulong_t)&mcp47fvb22_chip_features },
+	{ .name = "mcp47fvb24", .driver_data = (kernel_ulong_t)&mcp47fvb24_chip_features },
+	{ .name = "mcp47fvb28", .driver_data = (kernel_ulong_t)&mcp47fvb28_chip_features },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mcp47feb02_id);

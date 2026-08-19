@@ -3026,7 +3026,7 @@ config GEODE_COMMON
 
 config ALIX
 	bool "PCEngines ALIX System Support (LED setup)"
-	select GPIOLIB
+	depends on GPIO_CS5535=y
 	select GEODE_COMMON
 	help
 	  This option enables system support for the PCEngines ALIX.
@@ -3034,21 +3034,21 @@ config ALIX
 	  ALIX2/3/6 boards.  However, other system specific setup should
 	  get added here.
 
-	  Note: You must still enable the drivers for GPIO and LED support
-	  (GPIO_CS5535 & LEDS_GPIO) to actually use the LEDs
+	  Note: You must still enable the drivers for LED support (LEDS_GPIO)
+	  to actually use the LEDs
 
 	  Note: You have to set alix.force=1 for boards with Award BIOS.
 
 config NET5501
 	bool "Soekris Engineering net5501 System Support (LEDS, GPIO, etc)"
-	select GPIOLIB
+	depends on GPIO_CS5535=y
 	select GEODE_COMMON
 	help
 	  This option enables system support for the Soekris Engineering net5501.
 
 config GEOS
 	bool "Traverse Technologies GEOS System Support (LEDS, GPIO, etc)"
-	select GPIOLIB
+	depends on GPIO_CS5535=y
 	select GEODE_COMMON
 	depends on DMI
 	help

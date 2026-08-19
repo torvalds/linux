@@ -175,6 +175,13 @@ struct mm_struct___new {
 	struct rw_semaphore mmap_lock;
 } __attribute__((preserve_access_index));
 
+struct cas_ctx {
+	struct contention_data *data;
+	u64 duration;
+	int max_done;
+	int min_done;
+};
+
 extern struct kmem_cache *bpf_get_kmem_cache(u64 addr) __ksym __weak;
 
 /* control flags */
@@ -184,6 +191,7 @@ const volatile int has_type;
 const volatile int has_addr;
 const volatile int has_cgroup;
 const volatile int has_slab;
+const volatile int has_mmap_lock;
 const volatile int needs_callstack;
 const volatile int stack_skip;
 const volatile int lock_owner;
@@ -214,6 +222,8 @@ int data_map_full;
 struct task_struct *bpf_task_from_pid(s32 pid) __ksym __weak;
 void bpf_task_release(struct task_struct *p) __ksym __weak;
 
+static inline __u32 check_lock_type(__u64 lock, __u32 flags);
+
 static inline __u64 get_current_cgroup_id(void)
 {
 	struct task_struct *task;
@@ -239,6 +249,8 @@ static inline __u64 get_current_cgroup_id(void)
 
 static inline int can_record(u64 *ctx)
 {
+	bool is_addr_ok = false;
+
 	if (has_cpu) {
 		__u32 cpu = bpf_get_smp_processor_id();
 		__u8 *ok;
@@ -271,8 +283,10 @@ static inline int can_record(u64 *ctx)
 		__u64 addr = ctx[0];
 
 		ok = bpf_map_lookup_elem(&addr_filter, &addr);
-		if (!ok && !has_slab)
+		if (!ok && !has_slab && !has_mmap_lock)
 			return 0;
+
+		is_addr_ok = !!ok;
 	}
 
 	if (has_cgroup) {
@@ -284,6 +298,10 @@ static inline int can_record(u64 *ctx)
 			return 0;
 	}
 
+	if (is_addr_ok)
+		return 1;
+
+	/* slab and mmap_lock are part of the addr_filter */
 	if (has_slab && bpf_get_kmem_cache) {
 		__u8 *ok;
 		__u64 addr = ctx[0];
@@ -291,7 +309,17 @@ static inline int can_record(u64 *ctx)
 
 		kmem_cache_addr = (long)bpf_get_kmem_cache(addr);
 		ok = bpf_map_lookup_elem(&slab_filter, &kmem_cache_addr);
-		if (!ok)
+		if (ok)
+			return 1;
+		else if (!has_mmap_lock)
+			return 0;
+	}
+
+	if (has_mmap_lock) {
+		__u64 lock = ctx[0];
+		__u32 flag = ctx[1];
+
+		if (check_lock_type(lock, flag) != LCD_F_MMAP_LOCK)
 			return 0;
 	}
 
@@ -486,16 +514,49 @@ static inline s32 get_owner_stack_id(u64 *stacktrace)
 	return -1;
 }
 
+static long cas_min_max_cb(u64 idx, void *arg)
+{
+	struct cas_ctx *ctx = arg;
+
+	if (!ctx->max_done) {
+		u64 old_max = ctx->data->max_time;
+		if (old_max >= ctx->duration) {
+			ctx->max_done = 1;
+		} else {
+			u64 r = __sync_val_compare_and_swap(
+				&ctx->data->max_time, old_max, ctx->duration);
+			if (r == old_max)
+				ctx->max_done = 1;
+		}
+	}
+
+	if (!ctx->min_done) {
+		u64 old_min = ctx->data->min_time;
+		if (old_min <= ctx->duration) {
+			ctx->min_done = 1;
+		} else {
+			u64 r = __sync_val_compare_and_swap(
+				&ctx->data->min_time, old_min, ctx->duration);
+			if (r == old_min)
+				ctx->min_done = 1;
+		}
+	}
+
+	return (ctx->max_done && ctx->min_done) ? 1 : 0;
+}
+
 static inline void update_contention_data(struct contention_data *data, u64 duration, u32 count)
 {
 	__sync_fetch_and_add(&data->total_time, duration);
 	__sync_fetch_and_add(&data->count, count);
 
-	/* FIXME: need atomic operations */
-	if (data->max_time < duration)
-		data->max_time = duration;
-	if (data->min_time > duration)
-		data->min_time = duration;
+	struct cas_ctx ctx = {
+		.data     = data,
+		.duration = duration,
+		.max_done = 0,
+		.min_done = 0,
+	};
+	bpf_loop(64, cas_min_max_cb, &ctx, 0);
 }
 
 static inline void update_owner_stat(u32 id, u64 duration, u32 flags)
@@ -536,6 +597,8 @@ int contention_begin(u64 *ctx)
 	pelem->timestamp = bpf_ktime_get_ns();
 	pelem->lock = (__u64)ctx[0];
 	pelem->flags = (__u32)ctx[1];
+	if (aggr_mode == LOCK_AGGR_CGROUP)
+		pelem->cgroup_id = get_current_cgroup_id();
 
 	if (needs_callstack) {
 		u32 i = 0;
@@ -771,7 +834,7 @@ skip_owner:
 			key.stack_id = pelem->stack_id;
 		break;
 	case LOCK_AGGR_CGROUP:
-		key.lock_addr_or_cgroup = get_current_cgroup_id();
+		key.lock_addr_or_cgroup = pelem->cgroup_id;
 		break;
 	default:
 		/* should not happen */

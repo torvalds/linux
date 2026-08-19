@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 VERSION = 7
-PATCHLEVEL = 1
+PATCHLEVEL = 2
 SUBLEVEL = 0
-EXTRAVERSION =
+EXTRAVERSION = -rc2
 NAME = Baby Opossum Posse
 
 # *DOCUMENTATION*
@@ -528,6 +528,9 @@ OBJCOPY		= $(LLVM_PREFIX)llvm-objcopy$(LLVM_SUFFIX)
 OBJDUMP		= $(LLVM_PREFIX)llvm-objdump$(LLVM_SUFFIX)
 READELF		= $(LLVM_PREFIX)llvm-readelf$(LLVM_SUFFIX)
 STRIP		= $(LLVM_PREFIX)llvm-strip$(LLVM_SUFFIX)
+ifeq ($(filter -fuse-ld=% --ld-path=%,$(KBUILD_HOSTLDFLAGS)),)
+KBUILD_HOSTLDFLAGS += -fuse-ld=lld
+endif
 else
 CC		= $(CROSS_COMPILE)gcc
 LD		= $(CROSS_COMPILE)ld
@@ -790,7 +793,7 @@ endif
 # in addition to whatever we do anyway.
 # Just "make" or "make all" shall build modules as well
 
-ifneq ($(filter all modules nsdeps compile_commands.json clang-%,$(MAKECMDGOALS)),)
+ifneq ($(filter all modules nsdeps compile_commands.json clang-% sbom,$(MAKECMDGOALS)),)
   KBUILD_MODULES := y
 endif
 
@@ -828,12 +831,6 @@ endif # KBUILD_EXTMOD
 # This allow a user to issue only 'make' to build a kernel including modules
 # Defaults to vmlinux, but the arch makefile usually adds further targets
 all: vmlinux
-
-CFLAGS_GCOV	:= -fprofile-arcs -ftest-coverage
-ifdef CONFIG_CC_IS_GCC
-CFLAGS_GCOV	+= -fno-tree-loop-im
-endif
-export CFLAGS_GCOV
 
 # The arch Makefiles can override CC_FLAGS_FTRACE. We may also append it later.
 ifdef CONFIG_FUNCTION_TRACER
@@ -967,6 +964,9 @@ KBUILD_CFLAGS += $(stackp-flags-y)
 ifdef CONFIG_FRAME_POINTER
 KBUILD_CFLAGS	+= -fno-omit-frame-pointer -fno-optimize-sibling-calls
 KBUILD_RUSTFLAGS += -Cforce-frame-pointers=y
+# Work around rustc bug on compilers without
+# https://github.com/rust-lang/rust/pull/156980.
+KBUILD_RUSTFLAGS += $(if $(call rustc-min-version,109800),,-Zllvm_module_flag=frame-pointer:u32:2:max)
 else
 # Some targets (ARM with Thumb2, for example), can't be built with frame
 # pointers.  For those, we don't have FUNCTION_TRACER automatically
@@ -1161,6 +1161,27 @@ endif
 
 # Ensure compilers do not transform certain loops into calls to wcslen()
 KBUILD_CFLAGS += -fno-builtin-wcslen
+
+CFLAGS_GCOV	:= -fprofile-arcs -ftest-coverage
+ifdef CONFIG_CC_IS_GCC
+CFLAGS_GCOV	+= -fno-tree-loop-im
+# Use atomic counter updates to avoid concurrent-access crashes in GCOV.
+# Only enable if -fprofile-update=prefer-atomic does not introduce new
+# undefined symbols (e.g. libatomic calls that the kernel cannot link).
+CFLAGS_GCOV	+= $(call try-run,\
+	echo 'long long x; void f(void){x++;}' | \
+	$(CC) $(KBUILD_CPPFLAGS) $(KBUILD_CFLAGS) -w -fprofile-arcs \
+	-ftest-coverage -x c - -c -o "$$TMP.base" && \
+	echo 'long long x; void f(void){x++;}' | \
+	$(CC) $(KBUILD_CPPFLAGS) $(KBUILD_CFLAGS) -w -fprofile-arcs \
+	-ftest-coverage -fprofile-update=prefer-atomic \
+	-x c - -c -o "$$TMP" && \
+	$(NM) "$$TMP.base" | grep ' U ' > "$$TMP.ubase" || true ; \
+	$(NM) "$$TMP" | grep ' U ' > "$$TMP.utest" || true ; \
+	cmp -s "$$TMP.ubase" "$$TMP.utest",\
+	-fprofile-update=prefer-atomic)
+endif
+export CFLAGS_GCOV
 
 # change __FILE__ to the relative path to the source directory
 ifdef building_out_of_srctree
@@ -1706,7 +1727,7 @@ CLEAN_FILES += vmlinux.symvers modules-only.symvers \
 	       vmlinux.thinlto-index builtin.order \
 	       compile_commands.json rust/test \
 	       rust-project.json .vmlinux.objs .vmlinux.export.c \
-               .builtin-dtbs-list .builtin-dtbs.S
+	       .builtin-dtbs-list .builtin-dtbs.S sbom-*.spdx.json
 
 # Directories & files removed with 'make mrproper'
 MRPROPER_FILES += include/config include/generated          \
@@ -1827,6 +1848,7 @@ help:
 	@echo  ''
 	@echo  'Tools:'
 	@echo  '  nsdeps          - Generate missing symbol namespace dependencies'
+	@echo  '  sbom            - Generate Software Bill of Materials'
 	@echo  ''
 	@echo  'Kernel selftest:'
 	@echo  '  kselftest         - Build and run kernel selftest'
@@ -2216,6 +2238,29 @@ PHONY += nsdeps
 nsdeps: export KBUILD_NSDEPS=1
 nsdeps: modules
 	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/nsdeps
+
+# Script to generate .spdx.json SBOM documents describing the build
+# ---------------------------------------------------------------------------
+
+ifdef building_out_of_srctree
+sbom_targets := sbom-source.spdx.json
+endif
+sbom_targets += sbom-build.spdx.json sbom-output.spdx.json
+quiet_cmd_sbom = GEN     $(sbom_targets)
+      cmd_sbom = printf "%s\n" "$(KBUILD_IMAGE)" >"$(tmp-target)"; \
+                 $(if $(CONFIG_MODULES),sed 's/\.o$$/.ko/' $(objtree)/modules.order >> "$(tmp-target)";) \
+                 $(PYTHON3) $(srctree)/scripts/sbom/sbom.py \
+                     --src-tree $(abspath $(srctree)) \
+                     --obj-tree $(abspath $(objtree)) \
+                     --roots-file "$(tmp-target)" \
+                     --output-directory $(abspath $(objtree)) \
+                     --generate-spdx \
+                     --package-license "GPL-2.0 WITH Linux-syscall-note" \
+                     --package-version "$(KERNELVERSION)" \
+                     --write-output-on-error;
+PHONY += sbom
+sbom: $(notdir $(KBUILD_IMAGE)) include/generated/autoconf.h $(if $(CONFIG_MODULES),modules modules.order)
+	$(call cmd,sbom)
 
 # Clang Tooling
 # ---------------------------------------------------------------------------

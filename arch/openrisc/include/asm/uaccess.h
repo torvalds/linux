@@ -218,8 +218,7 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long size)
 {
 	return __copy_tofrom_user((__force void *)to, from, size);
 }
-#define INLINE_COPY_FROM_USER
-#define INLINE_COPY_TO_USER
+#define INLINE_COPY_USER
 
 extern unsigned long __clear_user(void __user *addr, unsigned long size);
 

@@ -19,6 +19,7 @@ properties:
       - samsung,exynos7-ufs
       - samsung,exynosautov9-ufs
       - samsung,exynosautov9-ufs-vh
+      - samsung,exynosautov920-ufs
       - tesla,fsd-ufs
 
   reg:

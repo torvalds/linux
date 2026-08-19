@@ -5,7 +5,6 @@
  * Copyright 2013 Freescale Semiconductor, Inc.
  */
 
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/property.h>

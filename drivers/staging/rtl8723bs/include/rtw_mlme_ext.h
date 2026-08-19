@@ -27,12 +27,12 @@
 
 /*  ====== ODM_ABILITY_E ======== */
 /*  BB ODM section BIT 0-15 */
-#define DYNAMIC_BB_DIG				BIT0 /* ODM_BB_DIG */
-#define DYNAMIC_BB_DYNAMIC_TXPWR	BIT2 /* ODM_BB_DYNAMIC_TXPWR */
-#define DYNAMIC_BB_ANT_DIV			BIT6 /* ODM_BB_ANT_DIV */
+#define DYNAMIC_BB_DIG				BIT(0) /* ODM_BB_DIG */
+#define DYNAMIC_BB_DYNAMIC_TXPWR	BIT(2) /* ODM_BB_DYNAMIC_TXPWR */
+#define DYNAMIC_BB_ANT_DIV			BIT(6) /* ODM_BB_ANT_DIV */
 
 /*  RF ODM section BIT 24-31 */
-#define DYNAMIC_RF_CALIBRATION		BIT26/* ODM_RF_CALIBRATION */
+#define DYNAMIC_RF_CALIBRATION		BIT(26)/* ODM_RF_CALIBRATION */
 
 #define DYNAMIC_ALL_FUNC_ENABLE		0xFFFFFFF
 
@@ -416,10 +416,6 @@ struct mlme_ext_priv {
 	u16  action_public_rxseq;
 
 	u8 active_keep_alive_check;
-#ifdef DBG_FIXED_CHAN
-	u8 fixed_chan;
-#endif
-
 };
 
 void init_mlme_default_rate_set(struct adapter *padapter);
@@ -708,10 +704,5 @@ enum {
 	GEN_EVT_CODE(_WMM),					/*25*/
 	MAX_C2HEVT
 };
-
-
-#ifdef _RTW_MLME_EXT_C_
-
-#endif/* _RTL8192C_CMD_C_ */
 
 #endif

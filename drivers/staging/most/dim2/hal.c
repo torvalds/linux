@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * hal.c - DIM2 HAL implementation
+ * DIM2 HAL implementation
  * (MediaLB, Device Interface Macro IP, OS62420)
  *
  * Copyright (C) 2015-2016, Microchip Technology Germany II GmbH & Co. KG

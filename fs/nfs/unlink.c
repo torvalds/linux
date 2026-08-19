@@ -460,7 +460,7 @@ nfs_sillyrename(struct inode *dir, struct dentry *dentry)
 	if (dentry->d_flags & DCACHE_NFSFS_RENAMED)
 		goto out;
 
-	fileid = NFS_FILEID(d_inode(dentry));
+	fileid = d_inode(dentry)->i_ino;
 
 	sdentry = NULL;
 	do {

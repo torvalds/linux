@@ -181,10 +181,10 @@ nf_ct_helper_ext_add(struct nf_conn *ct, gfp_t gfp)
 	struct nf_conn_help *help;
 
 	help = nf_ct_ext_add(ct, NF_CT_EXT_HELPER, gfp);
-	if (help)
+	if (help) {
+		__set_bit(IPS_HELPER_BIT, &ct->status);
 		INIT_HLIST_HEAD(&help->expectations);
-	else
-		pr_debug("failed to add helper extension area");
+	}
 	return help;
 }
 EXPORT_SYMBOL_GPL(nf_ct_helper_ext_add);
@@ -203,10 +203,8 @@ int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 		return 0;
 
 	help = nfct_help(tmpl);
-	if (help != NULL) {
+	if (help)
 		helper = rcu_dereference(help->helper);
-		set_bit(IPS_HELPER_BIT, &ct->status);
-	}
 
 	help = nfct_help(ct);
 
@@ -376,8 +374,13 @@ int __nf_conntrack_helper_register(struct nf_conntrack_helper *me)
 	if (!nf_ct_helper_hash)
 		return -ENOENT;
 
-	if (me->expect_policy->max_expected > NF_CT_EXPECT_MAX_CNT)
-		return -EINVAL;
+	for (i = 0; i <= me->expect_class_max; i++) {
+		if (!me->expect_policy[i].max_expected)
+			me->expect_policy[i].max_expected = NF_CT_EXPECT_MAX_CNT;
+
+		if (me->expect_policy[i].max_expected > NF_CT_EXPECT_MAX_CNT)
+			return -EINVAL;
+	}
 
 	mutex_lock(&nf_ct_helper_mutex);
 	for (i = 0; i < nf_ct_helper_hsize; i++) {

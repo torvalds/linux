@@ -897,11 +897,10 @@ static int refresh_signalling_expectation(struct nf_conn *ct,
 		    exp->tuple.dst.protonum != proto ||
 		    exp->tuple.dst.u.udp.port != port)
 			continue;
-		if (mod_timer_pending(&exp->timeout, jiffies + expires * HZ)) {
-			exp->flags &= ~NF_CT_EXPECT_INACTIVE;
-			found = 1;
-			break;
-		}
+		WRITE_ONCE(exp->timeout, nfct_time_stamp + (expires * HZ));
+		WRITE_ONCE(exp->flags, exp->flags & ~NF_CT_EXPECT_INACTIVE);
+		found = 1;
+		break;
 	}
 	spin_unlock_bh(&nf_conntrack_expect_lock);
 	return found;
@@ -920,8 +919,7 @@ static void flush_expectations(struct nf_conn *ct, bool media)
 	hlist_for_each_entry_safe(exp, next, &help->expectations, lnode) {
 		if ((exp->class != SIP_EXPECT_SIGNALLING) ^ media)
 			continue;
-		if (!nf_ct_remove_expect(exp))
-			continue;
+		nf_ct_unlink_expect(exp);
 		if (!media)
 			break;
 	}
@@ -958,7 +956,6 @@ static int set_expected_rtp_rtcp(struct sk_buff *skb, unsigned int protoff,
 			return NF_ACCEPT;
 		saddr = &ct->tuplehash[!dir].tuple.src.u3;
 	} else if (sip_external_media) {
-		struct net_device *dev = skb_dst(skb)->dev;
 		struct dst_entry *dst = NULL;
 		struct flowi fl;
 
@@ -980,7 +977,11 @@ static int set_expected_rtp_rtcp(struct sk_buff *skb, unsigned int protoff,
 		 * through the same interface as the signalling peer.
 		 */
 		if (dst) {
-			bool external_media = (dst->dev == dev);
+			const struct dst_entry *this_dst = skb_dst(skb);
+			bool external_media = false;
+
+			if (this_dst && dst->dev == this_dst->dev)
+				external_media = true;
 
 			dst_release(dst);
 			if (external_media)
@@ -1413,7 +1414,6 @@ static int process_register_request(struct sk_buff *skb, unsigned int protoff,
 
 	nf_ct_expect_init(exp, SIP_EXPECT_SIGNALLING, nf_ct_l3num(ct),
 			  saddr, &daddr, proto, NULL, &port);
-	exp->timeout.expires = sip_timeout * HZ;
 	rcu_assign_pointer(exp->assign_helper, helper);
 	exp->flags = NF_CT_EXPECT_PERMANENT | NF_CT_EXPECT_INACTIVE;
 

@@ -203,6 +203,8 @@ config MIPS_ALCHEMY
 	select CSRC_R4K
 	select IRQ_MIPS_CPU
 	select DMA_NONCOHERENT		# Au1000,1500,1100 aren't, rest is
+	select GPIOLIB
+	select GPIOLIB_LEGACY
 	select MIPS_FIXUP_BIGPHYS_ADDR if PCI
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_32BIT_KERNEL
@@ -304,6 +306,7 @@ config BCM47XX
 	select SYS_HAS_EARLY_PRINTK
 	select USE_GENERIC_EARLY_PRINTK_8250
 	select GPIOLIB
+	select GPIOLIB_LEGACY
 	select LEDS_GPIO_REGISTER
 	select BCM47XX_NVRAM
 	select BCM47XX_SPROM
@@ -327,6 +330,7 @@ config BCM63XX
 	select SYS_HAS_CPU_BMIPS4380
 	select SWAP_IO_SPACE
 	select GPIOLIB
+	select GPIOLIB_LEGACY
 	select MIPS_L1_CACHE_SHIFT_4
 	select HAVE_LEGACY_CLK
 	help
@@ -996,6 +1000,7 @@ config MIKROTIK_RB532
 	select SWAP_IO_SPACE
 	select BOOT_RAW
 	select GPIOLIB
+	select GPIOLIB_LEGACY
 	select MIPS_L1_CACHE_SHIFT_4
 	help
 	  Support the Mikrotik(tm) RouterBoard 532 series,
@@ -1045,15 +1050,6 @@ config CAVIUM_OCTEON_SOC
 	  Say Y here for most Octeon reference boards.
 
 endchoice
-
-config FIT_IMAGE_FDT_EPM5
-	bool "Include FDT for Mobileye EyeQ5 development platforms"
-	depends on MACH_EYEQ5
-	default n
-	help
-	  Enable this to include the FDT for the EyeQ5 development platforms
-	  from Mobileye in the FIT kernel image.
-	  This requires u-boot on the platform.
 
 source "arch/mips/alchemy/Kconfig"
 source "arch/mips/ath25/Kconfig"

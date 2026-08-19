@@ -564,10 +564,9 @@ static int snd_aica_probe(struct platform_device *devptr)
 		return -ENOMEM;
 	err = snd_card_new(&devptr->dev, index, SND_AICA_DRIVER,
 			   THIS_MODULE, 0, &dreamcastcard->card);
-	if (unlikely(err < 0)) {
-		kfree(dreamcastcard);
-		return err;
-	}
+	if (unlikely(err < 0))
+		goto free_card;
+
 	strscpy(dreamcastcard->card->driver, "snd_aica");
 	strscpy(dreamcastcard->card->shortname, SND_AICA_DRIVER);
 	strscpy(dreamcastcard->card->longname,
@@ -593,6 +592,7 @@ static int snd_aica_probe(struct platform_device *devptr)
 	return 0;
       freedreamcast:
 	snd_card_free(dreamcastcard->card);
+free_card:
 	kfree(dreamcastcard);
 	return err;
 }

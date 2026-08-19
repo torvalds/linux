@@ -16,6 +16,7 @@
 #include "linux/err.h"
 #include "util/auxtrace.h"
 #include "util/debug.h"
+#include "util/env.h"
 #include "util/dso.h"
 #include "util/event.h"
 #include "util/evsel.h"
@@ -159,13 +160,12 @@ static void output_sample_callchain_entry(const struct perf_tool *tool,
 static int process_sample_event(const struct perf_tool *tool,
 				union perf_event *event __maybe_unused,
 				struct perf_sample *sample,
-				struct evsel *evsel __maybe_unused,
 				struct machine *machine)
 {
 	struct convert_json *c = container_of(tool, struct convert_json, tool);
 	FILE *out = c->out;
 	struct addr_location al;
-	u64 sample_type = __evlist__combined_sample_type(evsel->evlist);
+	u64 sample_type = __evlist__combined_sample_type(sample->evsel->evlist);
 	u8 cpumode = PERF_RECORD_MISC_USER;
 
 	addr_location__init(&al);
@@ -177,6 +177,7 @@ static int process_sample_event(const struct perf_tool *tool,
 
 	if (perf_time__ranges_skip_sample(c->ptime_range, c->range_num, sample->time)) {
 		++c->skipped;
+		addr_location__exit(&al);
 		return 0;
 	}
 
@@ -245,7 +246,7 @@ static int process_sample_event(const struct perf_tool *tool,
 
 #ifdef HAVE_LIBTRACEEVENT
 	if (sample->raw_data) {
-		struct tep_event *tp_format = evsel__tp_format(evsel);
+		struct tep_event *tp_format = evsel__tp_format(sample->evsel);
 		struct tep_format_field **fields = tp_format ? tep_event_fields(tp_format) : NULL;
 
 		if (fields) {
@@ -273,7 +274,7 @@ static void output_headers(struct perf_session *session, struct convert_json *c)
 {
 	struct stat st;
 	const struct perf_header *header = &session->header;
-	const struct perf_env *env = perf_session__env(session);
+	struct perf_env *env = perf_session__env(session);
 	int ret;
 	int fd = perf_data__fd(session->data);
 	int i;
@@ -297,7 +298,8 @@ static void output_headers(struct perf_session *session, struct convert_json *c)
 	output_json_key_format(out, true, 2, "feat-offset", "%" PRIu64, header->feat_offset);
 
 	output_json_key_string(out, true, 2, "hostname", env->hostname);
-	output_json_key_string(out, true, 2, "os-release", env->os_release);
+	output_json_key_string(out, true, 2, "os-release",
+			       perf_env__os_release(env));
 	output_json_key_string(out, true, 2, "arch", env->arch);
 
 	if (env->cpu_desc)

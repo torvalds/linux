@@ -436,10 +436,9 @@ static int ad4062_check_ids(struct ad4062_state *st)
 		return ret;
 
 	val = be16_to_cpu(st->buf.be16);
-	if (val != AD4062_I3C_VENDOR) {
-		dev_err(dev, "Vendor ID x%x does not match expected value\n", val);
-		return -ENODEV;
-	}
+	if (val != AD4062_I3C_VENDOR)
+		return dev_err_probe(dev, -ENODEV,
+				     "Vendor ID x%x does not match expected value\n", val);
 
 	return 0;
 }

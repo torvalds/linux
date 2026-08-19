@@ -15,8 +15,9 @@ struct z_erofs_maprecorder {
 	u8  type, headtype;
 	u16 clusterofs;
 	u16 delta[2];
-	erofs_blk_t pblk, compressedblks;
+	erofs_blk_t pblk;
 	erofs_off_t nextpackoff;
+	int compressedblks;
 	bool partialref, in_mbox;
 };
 
@@ -54,7 +55,12 @@ static int z_erofs_load_full_lcluster(struct z_erofs_maprecorder *m, u64 lcn)
 	} else {
 		m->partialref = !!(advise & Z_EROFS_LI_PARTIAL_REF);
 		m->clusterofs = le16_to_cpu(di->di_clusterofs);
-		m->pblk = le32_to_cpu(di->di_u.blkaddr);
+		if (advise & Z_EROFS_LI_HOLE) {
+			m->compressedblks = 0;
+			m->pblk = EROFS_NULL_ADDR;
+		} else {
+			m->pblk = le32_to_cpu(di->di_u.blkaddr);
+		}
 	}
 	return 0;
 }
@@ -309,9 +315,10 @@ static int z_erofs_get_extent_compressedlen(struct z_erofs_maprecorder *m,
 	    ((m->headtype == Z_EROFS_LCLUSTER_TYPE_PLAIN ||
 	      m->headtype == Z_EROFS_LCLUSTER_TYPE_HEAD2) && !bigpcl2) ||
 	    (lcn << vi->z_lclusterbits) >= inode->i_size)
-		m->compressedblks = 1;
+		if (m->compressedblks < 0)
+			m->compressedblks = 1;
 
-	if (m->compressedblks)
+	if (m->compressedblks >= 0)
 		goto out;
 
 	err = z_erofs_load_lcluster_from_disk(m, lcn, false);
@@ -329,19 +336,22 @@ static int z_erofs_get_extent_compressedlen(struct z_erofs_maprecorder *m,
 	DBG_BUGON(lcn == initial_lcn &&
 		  m->type == Z_EROFS_LCLUSTER_TYPE_NONHEAD);
 
-	if (m->type == Z_EROFS_LCLUSTER_TYPE_NONHEAD && m->delta[0] != 1) {
+	if (m->type != Z_EROFS_LCLUSTER_TYPE_NONHEAD) {
+		/*
+		 * if the 1st NONHEAD lcluster is actually PLAIN or HEAD type
+		 * rather than CBLKCNT, it's a 1 block-sized pcluster.
+		 */
+		if (m->compressedblks < 0)
+			m->compressedblks = 1;
+	} else if (m->delta[0] != 1 || m->compressedblks < 0) {
 		erofs_err(sb, "bogus CBLKCNT @ lcn %llu of nid %llu", lcn, vi->nid);
 		DBG_BUGON(1);
 		return -EFSCORRUPTED;
 	}
 
-	/*
-	 * if the 1st NONHEAD lcluster is actually PLAIN or HEAD type rather
-	 * than CBLKCNT, it's a 1 block-sized pcluster.
-	 */
-	if (m->type != Z_EROFS_LCLUSTER_TYPE_NONHEAD || !m->compressedblks)
-		m->compressedblks = 1;
 out:
+	if (!m->compressedblks)
+		m->map->m_flags &= ~EROFS_MAP_MAPPED;
 	m->map->m_plen = erofs_pos(sb, m->compressedblks);
 	return 0;
 }
@@ -395,6 +405,7 @@ static int z_erofs_map_blocks_fo(struct inode *inode,
 		.inode = inode,
 		.map = map,
 		.in_mbox = erofs_inode_in_metabox(inode),
+		.compressedblks = -1,
 	};
 	unsigned int endoff;
 	unsigned long initial_lcn;

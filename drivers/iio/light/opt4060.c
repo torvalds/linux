@@ -1297,7 +1297,7 @@ static int opt4060_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id opt4060_id[] = {
-	{ "opt4060", },
+	{ .name = "opt4060" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, opt4060_id);

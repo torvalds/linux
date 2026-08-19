@@ -509,6 +509,10 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss,
 	default:
 		break;
 	}
+	if (clp->cl_xprtsec.cert_serial)
+		seq_puts(m, ",cert_serial=<redacted>");
+	if (clp->cl_xprtsec.privkey_serial)
+		seq_puts(m, ",privkey_serial=<redacted>");
 
 	if (version != 4)
 		nfs_show_mountd_options(m, nfss, showdefaults);

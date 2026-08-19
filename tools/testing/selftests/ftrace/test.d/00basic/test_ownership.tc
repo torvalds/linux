@@ -6,7 +6,7 @@
 original_group=`stat -c "%g" .`
 original_owner=`stat -c "%u" .`
 
-local mount_point=$(get_mount_point)
+mount_point=$(get_mount_point)
 
 mount_options=$(get_mnt_options "$mount_point")
 

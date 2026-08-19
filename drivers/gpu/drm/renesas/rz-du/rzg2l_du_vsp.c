@@ -56,12 +56,12 @@ void rzg2l_du_vsp_enable(struct rzg2l_du_crtc *crtc)
 		.callback_data = crtc,
 	};
 
-	vsp1_du_setup_lif(crtc->vsp->vsp, crtc->vsp_pipe, &cfg);
+	vsp1_du_enable(crtc->vsp->vsp, crtc->vsp_pipe, &cfg);
 }
 
 void rzg2l_du_vsp_disable(struct rzg2l_du_crtc *crtc)
 {
-	vsp1_du_setup_lif(crtc->vsp->vsp, crtc->vsp_pipe, NULL);
+	vsp1_du_disable(crtc->vsp->vsp, crtc->vsp_pipe);
 }
 
 void rzg2l_du_vsp_atomic_flush(struct rzg2l_du_crtc *crtc)

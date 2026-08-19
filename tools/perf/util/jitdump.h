@@ -11,9 +11,8 @@
 #ifndef JITDUMP_H
 #define JITDUMP_H
 
-#include <sys/time.h>
-#include <time.h>
 #include <stdint.h>
+#include <string.h>
 
 /* JiTD */
 #define JITHEADER_MAGIC		0x4A695444

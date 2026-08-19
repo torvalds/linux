@@ -144,4 +144,28 @@ static inline void snp_launch_update_data(struct kvm_vm *vm, gpa_t gpa,
 	vm_sev_ioctl(vm, KVM_SEV_SNP_LAUNCH_UPDATE, &update_data);
 }
 
+static inline void sev_dbg_crypt_memory(struct kvm_vm *vm, unsigned int cmd,
+					void *dst, void *src, unsigned int len)
+{
+	struct kvm_sev_dbg dbg = {
+		.src_uaddr = (unsigned long)src,
+		.dst_uaddr = (unsigned long)dst,
+		.len = len,
+	};
+
+	vm_sev_ioctl(vm, cmd, &dbg);
+}
+
+static inline void sev_decrypt_memory(struct kvm_vm *vm, void *dst, void *src,
+				      unsigned int len)
+{
+	sev_dbg_crypt_memory(vm, KVM_SEV_DBG_DECRYPT, dst, src, len);
+}
+
+static inline void sev_encrypt_memory(struct kvm_vm *vm, void *dst, void *src,
+				      unsigned int len)
+{
+	sev_dbg_crypt_memory(vm, KVM_SEV_DBG_ENCRYPT, dst, src, len);
+}
+
 #endif /* SELFTEST_KVM_SEV_H */

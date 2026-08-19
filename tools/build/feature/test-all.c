@@ -100,13 +100,13 @@
 
 # if 0
 /*
- * Disable libbabeltrace check for test-all, because the requested
+ * Disable babeltrace2-ctf-writer check for test-all, because the requested
  * library version is not released yet in most distributions. Will
  * reenable later.
  */
 
-#define main main_test_libbabeltrace
-# include "test-libbabeltrace.c"
+#define main main_test_babeltrace2_ctf_writer
+# include "test-babeltrace2-ctf-writer.c"
 #undef main
 #endif
 

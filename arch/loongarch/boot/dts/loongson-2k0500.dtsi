@@ -405,6 +405,8 @@
 		i2c0: i2c@1ff48000 {
 			compatible = "loongson,ls2k-i2c";
 			reg = <0x0 0x1ff48000 0x0 0x0800>;
+			clock-frequency = <100000>;
+			clocks = <&clk LOONGSON2_APB_CLK>;
 			interrupt-parent = <&eiointc>;
 			interrupts = <14>;
 			status = "disabled";
@@ -413,6 +415,8 @@
 		i2c@1ff48800 {
 			compatible = "loongson,ls2k-i2c";
 			reg = <0x0 0x1ff48800 0x0 0x0800>;
+			clock-frequency = <100000>;
+			clocks = <&clk LOONGSON2_APB_CLK>;
 			interrupt-parent = <&eiointc>;
 			interrupts = <15>;
 			status = "disabled";
@@ -421,6 +425,8 @@
 		i2c@1ff49000 {
 			compatible = "loongson,ls2k-i2c";
 			reg = <0x0 0x1ff49000 0x0 0x0800>;
+			clock-frequency = <100000>;
+			clocks = <&clk LOONGSON2_APB_CLK>;
 			interrupt-parent = <&eiointc>;
 			interrupts = <16>;
 			status = "disabled";
@@ -429,6 +435,8 @@
 		i2c@1ff49800 {
 			compatible = "loongson,ls2k-i2c";
 			reg = <0x0 0x1ff49800 0x0 0x0800>;
+			clock-frequency = <100000>;
+			clocks = <&clk LOONGSON2_APB_CLK>;
 			interrupt-parent = <&eiointc>;
 			interrupts = <17>;
 			status = "disabled";
@@ -437,6 +445,8 @@
 		i2c@1ff4a000 {
 			compatible = "loongson,ls2k-i2c";
 			reg = <0x0 0x1ff4a000 0x0 0x0800>;
+			clock-frequency = <100000>;
+			clocks = <&clk LOONGSON2_APB_CLK>;
 			interrupt-parent = <&eiointc>;
 			interrupts = <18>;
 			status = "disabled";
@@ -445,6 +455,8 @@
 		i2c@1ff4a800 {
 			compatible = "loongson,ls2k-i2c";
 			reg = <0x0 0x1ff4a800 0x0 0x0800>;
+			clock-frequency = <100000>;
+			clocks = <&clk LOONGSON2_APB_CLK>;
 			interrupt-parent = <&eiointc>;
 			interrupts = <19>;
 			status = "disabled";

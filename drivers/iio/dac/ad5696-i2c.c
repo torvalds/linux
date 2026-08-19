@@ -7,10 +7,13 @@
  * Copyright 2018 Analog Devices Inc.
  */
 
-#include "ad5686.h"
-
-#include <linux/module.h>
+#include <linux/errno.h>
 #include <linux/i2c.h>
+#include <linux/module.h>
+
+#include <asm/byteorder.h>
+
+#include "ad5686.h"
 
 static int ad5686_i2c_read(struct ad5686_state *st, u8 addr)
 {
@@ -58,49 +61,53 @@ static int ad5686_i2c_write(struct ad5686_state *st,
 	return (ret != 3) ? -EIO : 0;
 }
 
+static const struct ad5686_bus_ops ad5686_i2c_ops = {
+	.write = ad5686_i2c_write,
+	.read = ad5686_i2c_read,
+};
+
 static int ad5686_i2c_probe(struct i2c_client *i2c)
 {
-	const struct i2c_device_id *id = i2c_client_get_device_id(i2c);
-	return ad5686_probe(&i2c->dev, id->driver_data, id->name,
-			    ad5686_i2c_write, ad5686_i2c_read);
+	return ad5686_probe(&i2c->dev, i2c_get_match_data(i2c),
+			    i2c->name, &ad5686_i2c_ops);
 }
 
 static const struct i2c_device_id ad5686_i2c_id[] = {
-	{"ad5311r", ID_AD5311R},
-	{"ad5337r", ID_AD5337R},
-	{"ad5338r", ID_AD5338R},
-	{"ad5671r", ID_AD5671R},
-	{"ad5673r", ID_AD5673R},
-	{"ad5675r", ID_AD5675R},
-	{"ad5677r", ID_AD5677R},
-	{"ad5691r", ID_AD5691R},
-	{"ad5692r", ID_AD5692R},
-	{"ad5693", ID_AD5693},
-	{"ad5693r", ID_AD5693R},
-	{"ad5694", ID_AD5694},
-	{"ad5694r", ID_AD5694R},
-	{"ad5695r", ID_AD5695R},
-	{"ad5696", ID_AD5696},
-	{"ad5696r", ID_AD5696R},
+	{ .name = "ad5311r", .driver_data = (kernel_ulong_t)&ad5311r_chip_info },
+	{ .name = "ad5337r", .driver_data = (kernel_ulong_t)&ad5337r_chip_info },
+	{ .name = "ad5338r", .driver_data = (kernel_ulong_t)&ad5338r_chip_info },
+	{ .name = "ad5671r", .driver_data = (kernel_ulong_t)&ad5672r_chip_info },
+	{ .name = "ad5673r", .driver_data = (kernel_ulong_t)&ad5674r_chip_info },
+	{ .name = "ad5675r", .driver_data = (kernel_ulong_t)&ad5676r_chip_info },
+	{ .name = "ad5677r", .driver_data = (kernel_ulong_t)&ad5679r_chip_info },
+	{ .name = "ad5691r", .driver_data = (kernel_ulong_t)&ad5681r_chip_info },
+	{ .name = "ad5692r", .driver_data = (kernel_ulong_t)&ad5682r_chip_info },
+	{ .name = "ad5693",  .driver_data = (kernel_ulong_t)&ad5683_chip_info },
+	{ .name = "ad5693r", .driver_data = (kernel_ulong_t)&ad5683r_chip_info },
+	{ .name = "ad5694",  .driver_data = (kernel_ulong_t)&ad5684_chip_info },
+	{ .name = "ad5694r", .driver_data = (kernel_ulong_t)&ad5684r_chip_info },
+	{ .name = "ad5695r", .driver_data = (kernel_ulong_t)&ad5685r_chip_info },
+	{ .name = "ad5696",  .driver_data = (kernel_ulong_t)&ad5686_chip_info },
+	{ .name = "ad5696r", .driver_data = (kernel_ulong_t)&ad5686r_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ad5686_i2c_id);
 
 static const struct of_device_id ad5686_of_match[] = {
-	{ .compatible = "adi,ad5311r" },
-	{ .compatible = "adi,ad5337r" },
-	{ .compatible = "adi,ad5338r" },
-	{ .compatible = "adi,ad5671r" },
-	{ .compatible = "adi,ad5675r" },
-	{ .compatible = "adi,ad5691r" },
-	{ .compatible = "adi,ad5692r" },
-	{ .compatible = "adi,ad5693" },
-	{ .compatible = "adi,ad5693r" },
-	{ .compatible = "adi,ad5694" },
-	{ .compatible = "adi,ad5694r" },
-	{ .compatible = "adi,ad5695r" },
-	{ .compatible = "adi,ad5696" },
-	{ .compatible = "adi,ad5696r" },
+	{ .compatible = "adi,ad5311r", .data = &ad5311r_chip_info },
+	{ .compatible = "adi,ad5337r", .data = &ad5337r_chip_info },
+	{ .compatible = "adi,ad5338r", .data = &ad5338r_chip_info },
+	{ .compatible = "adi,ad5671r", .data = &ad5672r_chip_info },
+	{ .compatible = "adi,ad5675r", .data = &ad5676r_chip_info },
+	{ .compatible = "adi,ad5691r", .data = &ad5681r_chip_info },
+	{ .compatible = "adi,ad5692r", .data = &ad5682r_chip_info },
+	{ .compatible = "adi,ad5693",  .data = &ad5683_chip_info },
+	{ .compatible = "adi,ad5693r", .data = &ad5683r_chip_info },
+	{ .compatible = "adi,ad5694",  .data = &ad5684_chip_info },
+	{ .compatible = "adi,ad5694r", .data = &ad5684r_chip_info },
+	{ .compatible = "adi,ad5695r", .data = &ad5685r_chip_info },
+	{ .compatible = "adi,ad5696",  .data = &ad5686_chip_info },
+	{ .compatible = "adi,ad5696r", .data = &ad5686r_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ad5686_of_match);

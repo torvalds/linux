@@ -298,8 +298,12 @@ new_ioend:
 	 * appending writes.
 	 */
 	ioend->io_size += map_len;
-	if (ioend->io_offset + ioend->io_size > end_pos)
-		ioend->io_size = end_pos - ioend->io_offset;
+	if (ioend->io_offset + ioend->io_size > end_pos) {
+		if (ioend->io_offset >= end_pos)
+			ioend->io_size = 0;
+		else
+			ioend->io_size = end_pos - ioend->io_offset;
+	}
 
 	wbc_account_cgroup_owner(wpc->wbc, folio, map_len);
 	return map_len;

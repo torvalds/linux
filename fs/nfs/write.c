@@ -1817,7 +1817,7 @@ static void nfs_commit_release_pages(struct nfs_commit_data *data)
 
 		dprintk("NFS:       commit (%s/%llu %d@%lld)",
 			nfs_req_openctx(req)->dentry->d_sb->s_id,
-			(unsigned long long)NFS_FILEID(d_inode(nfs_req_openctx(req)->dentry)),
+			(unsigned long long)d_inode(nfs_req_openctx(req)->dentry)->i_ino,
 			req->wb_bytes,
 			(long long)req_offset(req));
 		if (status < 0) {

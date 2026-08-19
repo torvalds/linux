@@ -15,11 +15,6 @@ able to run that test on an older kernel. Hence, it is important to keep
 code that can still test an older kernel and make sure it skips the test
 gracefully on newer releases.
 
-You can find additional information on Kselftest framework, how to
-write new tests using the framework on Kselftest wiki:
-
-https://kselftest.wiki.kernel.org/
-
 On some systems, hot-plug tests could hang forever waiting for cpu and
 memory to be ready to be offlined. A special hot-plug target is created
 to run the full range of hot-plug tests. In default mode, hot-plug tests run

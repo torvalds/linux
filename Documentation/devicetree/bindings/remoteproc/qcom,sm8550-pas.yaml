@@ -30,12 +30,14 @@ properties:
       - items:
           - enum:
               - qcom,glymur-adsp-pas
+              - qcom,hawi-adsp-pas
               - qcom,kaanapali-adsp-pas
               - qcom,sm8750-adsp-pas
           - const: qcom,sm8550-adsp-pas
       - items:
           - enum:
               - qcom,glymur-cdsp-pas
+              - qcom,hawi-cdsp-pas
               - qcom,kaanapali-cdsp-pas
           - const: qcom,sm8550-cdsp-pas
       - items:
@@ -104,6 +106,8 @@ allOf:
             enum:
               - qcom,glymur-adsp-pas
               - qcom,glymur-cdsp-pas
+              - qcom,hawi-adsp-pas
+              - qcom,hawi-cdsp-pas
               - qcom,kaanapali-adsp-pas
               - qcom,kaanapali-cdsp-pas
               - qcom,sm8750-adsp-pas

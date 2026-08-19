@@ -200,7 +200,7 @@ static const struct pd692x0_msg pd692x0_msg_template_list[PD692X0_MSG_CNT] = {
 	},
 	[PD692X0_MSG_SET_USER_BYTE] = {
 		.key = PD692X0_KEY_PRG,
-		.sub = {0x41, PD692X0_USER_BYTE},
+		.sub = {0x41, PD692X0_USER_BYTE, 0x4e},
 		.data = {0x4e, 0x4e, 0x4e, 0x4e,
 			 0x4e, 0x4e, 0x4e, 0x4e},
 	},

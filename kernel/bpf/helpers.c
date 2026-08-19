@@ -3700,7 +3700,7 @@ __bpf_kfunc int bpf_copy_from_user_task_str(void *dst, u32 dst__sz,
 	return ret + 1;
 }
 
-/* Keep unsinged long in prototype so that kfunc is usable when emitted to
+/* Keep unsigned long in prototype so that kfunc is usable when emitted to
  * vmlinux.h in BPF programs directly, but note that while in BPF prog, the
  * unsigned long always points to 8-byte region on stack, the kernel may only
  * read and write the 4-bytes on 32-bit.

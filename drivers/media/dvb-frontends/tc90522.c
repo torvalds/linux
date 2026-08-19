@@ -830,9 +830,9 @@ static void tc90522_remove(struct i2c_client *client)
 
 
 static const struct i2c_device_id tc90522_id[] = {
-	{ TC90522_I2C_DEV_SAT, 0 },
-	{ TC90522_I2C_DEV_TER, 1 },
-	{}
+	{ .name = TC90522_I2C_DEV_SAT, .driver_data = 0 },
+	{ .name = TC90522_I2C_DEV_TER, .driver_data = 1 },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tc90522_id);
 

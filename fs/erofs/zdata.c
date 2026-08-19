@@ -806,6 +806,7 @@ static int z_erofs_pcluster_begin(struct z_erofs_frontend *fe)
 	struct super_block *sb = fe->inode->i_sb;
 	struct z_erofs_pcluster *pcl = NULL;
 	void *ptr = NULL;
+	bool needretry;
 	int ret;
 
 	DBG_BUGON(fe->pcl);
@@ -825,19 +826,16 @@ static int z_erofs_pcluster_begin(struct z_erofs_frontend *fe)
 		}
 		ptr = map->buf.page;
 	} else {
-		while (1) {
+		do {
 			rcu_read_lock();
 			pcl = xa_load(&EROFS_SB(sb)->managed_pslots, map->m_pa);
-			if (!pcl || z_erofs_get_pcluster(pcl)) {
-				DBG_BUGON(pcl && map->m_pa != pcl->pos);
-				rcu_read_unlock();
-				break;
-			}
+			needretry = pcl && !z_erofs_get_pcluster(pcl);
 			rcu_read_unlock();
-		}
+		} while (needretry);
 	}
 
 	if (pcl) {
+		DBG_BUGON(map->m_pa != pcl->pos);
 		fe->pcl = pcl;
 		ret = -EEXIST;
 	} else {
@@ -1459,21 +1457,19 @@ static void z_erofs_decompress_kickoff(struct z_erofs_decompressqueue *io,
 		if (sbi->sync_decompress == EROFS_SYNC_DECOMPRESS_AUTO)
 			sbi->sync_decompress = EROFS_SYNC_DECOMPRESS_FORCE_ON;
 #ifdef CONFIG_EROFS_FS_PCPU_KTHREAD
-		struct kthread_worker *worker;
+		scoped_guard(rcu) {
+			struct kthread_worker *worker;
 
-		rcu_read_lock();
-		worker = rcu_dereference(
+			worker = rcu_dereference(
 				z_erofs_pcpu_workers[raw_smp_processor_id()]);
-		if (!worker) {
-			INIT_WORK(&io->u.work, z_erofs_decompressqueue_work);
-			queue_work(z_erofs_workqueue, &io->u.work);
-		} else {
-			kthread_queue_work(worker, &io->u.kthread_work);
+			if (worker) {
+				kthread_queue_work(worker, &io->u.kthread_work);
+				return;
+			}
 		}
-		rcu_read_unlock();
-#else
-		queue_work(z_erofs_workqueue, &io->u.work);
+		INIT_WORK(&io->u.work, z_erofs_decompressqueue_work);
 #endif
+		queue_work(z_erofs_workqueue, &io->u.work);
 		return;
 	}
 	gfp_flag = memalloc_noio_save();
@@ -1714,8 +1710,6 @@ static void z_erofs_submit_queue(struct z_erofs_frontend *f,
 drain_io:
 				if (erofs_is_fileio_mode(EROFS_SB(sb)))
 					erofs_fileio_submit_bio(bio);
-				else if (erofs_is_fscache_mode(sb))
-					erofs_fscache_submit_bio(bio);
 				else
 					submit_bio(bio);
 
@@ -1744,8 +1738,6 @@ drain_io:
 			if (!bio) {
 				if (erofs_is_fileio_mode(EROFS_SB(sb)))
 					bio = erofs_fileio_bio_alloc(&mdev);
-				else if (erofs_is_fscache_mode(sb))
-					bio = erofs_fscache_bio_alloc(&mdev);
 				else
 					bio = bio_alloc(mdev.m_bdev, BIO_MAX_VECS,
 							REQ_OP_READ, GFP_NOIO);
@@ -1774,8 +1766,6 @@ drain_io:
 	if (bio) {
 		if (erofs_is_fileio_mode(EROFS_SB(sb)))
 			erofs_fileio_submit_bio(bio);
-		else if (erofs_is_fscache_mode(sb))
-			erofs_fscache_submit_bio(bio);
 		else
 			submit_bio(bio);
 	}

@@ -3080,12 +3080,10 @@ static void binder_transaction(struct binder_proc *proc,
 	int t_debug_id = atomic_inc_return(&binder_last_id);
 	ktime_t t_start_time = ktime_get();
 	struct lsm_context lsmctx = { };
-	struct list_head sgc_head;
-	struct list_head pf_head;
+	LIST_HEAD(sgc_head);
+	LIST_HEAD(pf_head);
 	const void __user *user_buffer = (const void __user *)
 				(uintptr_t)tr->data.ptr.buffer;
-	INIT_LIST_HEAD(&sgc_head);
-	INIT_LIST_HEAD(&pf_head);
 
 	e = binder_transaction_log_add(&binder_transaction_log);
 	e->debug_id = t_debug_id;

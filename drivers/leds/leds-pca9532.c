@@ -67,10 +67,10 @@ enum {
 };
 
 static const struct i2c_device_id pca9532_id[] = {
-	{ "pca9530", pca9530 },
-	{ "pca9531", pca9531 },
-	{ "pca9532", pca9532 },
-	{ "pca9533", pca9533 },
+	{ .name = "pca9530", .driver_data = pca9530 },
+	{ .name = "pca9531", .driver_data = pca9531 },
+	{ .name = "pca9532", .driver_data = pca9532 },
+	{ .name = "pca9533", .driver_data = pca9533 },
 	{ }
 };
 
@@ -182,11 +182,13 @@ static int pca9532_set_brightness(struct led_classdev *led_cdev,
 	int err = 0;
 	struct pca9532_led *led = ldev_to_led(led_cdev);
 
-	if (value == LED_OFF)
+	if (value == LED_OFF) {
 		led->state = PCA9532_OFF;
-	else if (value == LED_FULL)
+	} else if (led->state == PCA9532_PWM1) {
+		return 0; /* Non-zero brightness shall not stop HW blinking */
+	} else if (value == LED_FULL) {
 		led->state = PCA9532_ON;
-	else {
+	} else {
 		led->state = PCA9532_PWM0; /* Thecus: hardcode one pwm */
 		err = pca9532_calcpwm(led->client, PCA9532_PWM_ID_0, 0, value);
 		if (err)

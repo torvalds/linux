@@ -59,6 +59,11 @@ Environment variables for ``*config``:
     This environment variable makes Kconfig warn about all unrecognized
     symbols in the config input.
 
+``KCONFIG_WARN_CHANGED_INPUT``
+    If set to a non-blank value, Kconfig prints optional warnings for
+    user-provided values that change after Kconfig resolves dependencies
+    or applies other constraints such as ranges.
+
 ``KCONFIG_WERROR``
     If set, Kconfig treats warnings as errors.
 

@@ -457,8 +457,8 @@ static int __reconnect_target_locked(struct TCP_Server_Info *server,
 				server->hostname = hostname;
 				spin_unlock(&server->srv_lock);
 			} else {
-				cifs_dbg(FYI, "%s: couldn't extract hostname or address from dfs target: %ld\n",
-					 __func__, PTR_ERR(hostname));
+				cifs_dbg(FYI, "%s: couldn't extract hostname or address from dfs target: %pe\n",
+					 __func__, hostname);
 				cifs_dbg(FYI, "%s: default to last target server: %s\n", __func__,
 					 server->hostname);
 			}

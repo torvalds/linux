@@ -71,8 +71,8 @@ int av7110_set_ir_config(struct av7110 *av7110)
 {
 	dprintk(4, "ir config = %08x\n", av7110->ir.ir_config);
 
-	return av7110_fw_cmd(av7110, COMTYPE_PIDFILTER, SetIR, 1,
-			     av7110->ir.ir_config);
+	return av7110_fw_cmd(av7110, COMTYPE_PIDFILTER,
+			     AV7110_SET_IR, 1, av7110->ir.ir_config);
 }
 
 static int change_protocol(struct rc_dev *rcdev, u64 *rc_type)

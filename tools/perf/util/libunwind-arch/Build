@@ -1,0 +1,11 @@
+perf-util-$(CONFIG_LIBUNWIND) += libunwind-arch.o
+perf-util-$(CONFIG_LIBUNWIND) += libunwind-arm64.o
+perf-util-$(CONFIG_LIBUNWIND) += libunwind-arm.o
+perf-util-$(CONFIG_LIBUNWIND) += libunwind-loongarch.o
+perf-util-$(CONFIG_LIBUNWIND) += libunwind-mips.o
+perf-util-$(CONFIG_LIBUNWIND) += libunwind-ppc32.o
+perf-util-$(CONFIG_LIBUNWIND) += libunwind-ppc64.o
+perf-util-$(CONFIG_LIBUNWIND) += libunwind-riscv.o
+perf-util-$(CONFIG_LIBUNWIND) += libunwind-s390.o
+perf-util-$(CONFIG_LIBUNWIND) += libunwind-i386.o
+perf-util-$(CONFIG_LIBUNWIND) += libunwind-x86_64.o

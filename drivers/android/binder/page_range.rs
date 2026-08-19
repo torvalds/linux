@@ -705,7 +705,7 @@ unsafe extern "C" fn rust_shrink_free_page(
     let page;
     let page_index;
     let mm;
-    let mmap_read;
+    let vma_read;
     let mm_mutex;
     let vma_addr;
     let range_ptr;
@@ -728,14 +728,15 @@ unsafe extern "C" fn rust_shrink_free_page(
             None => return LRU_SKIP,
         };
 
-        mmap_read = match mm.mmap_read_trylock() {
-            Some(guard) => guard,
-            None => return LRU_SKIP,
-        };
-
         // We can't lock it normally here, since we hold the lru lock.
         let inner = match range.lock.try_lock() {
             Some(inner) => inner,
+            None => return LRU_SKIP,
+        };
+
+        vma_addr = inner.vma_addr;
+        vma_read = match mm.lock_vma_under_rcu(vma_addr) {
+            Some(guard) => guard,
             None => return LRU_SKIP,
         };
 
@@ -751,7 +752,6 @@ unsafe extern "C" fn rust_shrink_free_page(
         // `zap_page_range` before we release the mmap lock, so `use_page_slow` will not be able to
         // insert a new page until after our call to `zap_page_range`.
         page = unsafe { PageInfo::take_page(info) };
-        vma_addr = inner.vma_addr;
 
         // From this point on, we don't access this PageInfo or ShrinkablePageRange again, because
         // they can be freed at any point after we unlock `lru_lock`. This is with the exception of
@@ -761,14 +761,12 @@ unsafe extern "C" fn rust_shrink_free_page(
     // SAFETY: The lru lock is locked when this method is called.
     unsafe { bindings::spin_unlock(&raw mut (*lru).lock) };
 
-    if let Some(unchecked_vma) = mmap_read.vma_lookup(vma_addr) {
-        if let Some(vma) = check_vma(unchecked_vma, range_ptr) {
-            let user_page_addr = vma_addr + (page_index << PAGE_SHIFT);
-            vma.zap_vma_range(user_page_addr, PAGE_SIZE);
-        }
+    if let Some(vma) = check_vma(&vma_read, range_ptr) {
+        let user_page_addr = vma_addr + (page_index << PAGE_SHIFT);
+        vma.zap_vma_range(user_page_addr, PAGE_SIZE);
     }
 
-    drop(mmap_read);
+    drop(vma_read);
     drop(mm_mutex);
     drop(mm);
     drop(page);

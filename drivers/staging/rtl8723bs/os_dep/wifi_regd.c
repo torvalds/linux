@@ -83,23 +83,19 @@ static void _rtw_reg_apply_flags(struct wiphy *wiphy)
 }
 
 static int _rtw_reg_notifier_apply(struct wiphy *wiphy,
-				   struct regulatory_request *request,
-				   struct rtw_regulatory *reg)
+				   struct regulatory_request *request)
 {
 	/* Hard code flags */
 	_rtw_reg_apply_flags(wiphy);
 	return 0;
 }
 
-static const struct ieee80211_regdomain *_rtw_regdomain_select(struct
-							       rtw_regulatory
-							       *reg)
+static const struct ieee80211_regdomain *_rtw_regdomain_select(void)
 {
 	return &rtw_regdom_rd;
 }
 
-static void _rtw_regd_init_wiphy(struct rtw_regulatory *reg,
-				 struct wiphy *wiphy,
+static void _rtw_regd_init_wiphy(struct wiphy *wiphy,
 				 void (*reg_notifier)(struct wiphy *wiphy,
 						      struct
 						      regulatory_request *
@@ -113,7 +109,7 @@ static void _rtw_regd_init_wiphy(struct rtw_regulatory *reg,
 	wiphy->regulatory_flags &= ~REGULATORY_STRICT_REG;
 	wiphy->regulatory_flags &= ~REGULATORY_DISABLE_BEACON_HINTS;
 
-	regd = _rtw_regdomain_select(reg);
+	regd = _rtw_regdomain_select();
 	wiphy_apply_custom_regulatory(wiphy, regd);
 
 	/* Hard code flags */
@@ -124,12 +120,10 @@ void rtw_regd_init(struct wiphy *wiphy,
 		   void (*reg_notifier)(struct wiphy *wiphy,
 					struct regulatory_request *request))
 {
-	_rtw_regd_init_wiphy(NULL, wiphy, reg_notifier);
+	_rtw_regd_init_wiphy(wiphy, reg_notifier);
 }
 
 void rtw_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 {
-	struct rtw_regulatory *reg = NULL;
-
-	_rtw_reg_notifier_apply(wiphy, request, reg);
+	_rtw_reg_notifier_apply(wiphy, request);
 }

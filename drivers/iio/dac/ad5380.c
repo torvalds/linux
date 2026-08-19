@@ -513,22 +513,22 @@ static int ad5380_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id ad5380_i2c_ids[] = {
-	{ "ad5380-3", ID_AD5380_3 },
-	{ "ad5380-5", ID_AD5380_5 },
-	{ "ad5381-3", ID_AD5381_3 },
-	{ "ad5381-5", ID_AD5381_5 },
-	{ "ad5382-3", ID_AD5382_3 },
-	{ "ad5382-5", ID_AD5382_5 },
-	{ "ad5383-3", ID_AD5383_3 },
-	{ "ad5383-5", ID_AD5383_5 },
-	{ "ad5384-3", ID_AD5380_3 },
-	{ "ad5384-5", ID_AD5380_5 },
-	{ "ad5390-3", ID_AD5390_3 },
-	{ "ad5390-5", ID_AD5390_5 },
-	{ "ad5391-3", ID_AD5391_3 },
-	{ "ad5391-5", ID_AD5391_5 },
-	{ "ad5392-3", ID_AD5392_3 },
-	{ "ad5392-5", ID_AD5392_5 },
+	{ .name = "ad5380-3", .driver_data = ID_AD5380_3 },
+	{ .name = "ad5380-5", .driver_data = ID_AD5380_5 },
+	{ .name = "ad5381-3", .driver_data = ID_AD5381_3 },
+	{ .name = "ad5381-5", .driver_data = ID_AD5381_5 },
+	{ .name = "ad5382-3", .driver_data = ID_AD5382_3 },
+	{ .name = "ad5382-5", .driver_data = ID_AD5382_5 },
+	{ .name = "ad5383-3", .driver_data = ID_AD5383_3 },
+	{ .name = "ad5383-5", .driver_data = ID_AD5383_5 },
+	{ .name = "ad5384-3", .driver_data = ID_AD5380_3 },
+	{ .name = "ad5384-5", .driver_data = ID_AD5380_5 },
+	{ .name = "ad5390-3", .driver_data = ID_AD5390_3 },
+	{ .name = "ad5390-5", .driver_data = ID_AD5390_5 },
+	{ .name = "ad5391-3", .driver_data = ID_AD5391_3 },
+	{ .name = "ad5391-5", .driver_data = ID_AD5391_5 },
+	{ .name = "ad5392-3", .driver_data = ID_AD5392_3 },
+	{ .name = "ad5392-5", .driver_data = ID_AD5392_5 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ad5380_i2c_ids);

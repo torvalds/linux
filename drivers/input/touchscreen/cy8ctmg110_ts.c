@@ -267,7 +267,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(cy8ctmg110_pm,
 				cy8ctmg110_suspend, cy8ctmg110_resume);
 
 static const struct i2c_device_id cy8ctmg110_idtable[] = {
-	{ CY8CTMG110_DRIVER_NAME, 1 },
+	{ .name = CY8CTMG110_DRIVER_NAME, .driver_data = 1 },
 	{ }
 };
 

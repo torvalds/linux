@@ -6,6 +6,7 @@
  * Author: Kishon Vijay Abraham I <kishon@ti.com>
  */
 
+#include <linux/atomic.h>
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -43,6 +44,18 @@
 #define NTB_EPF_DB_DATA(n)	(0x34 + (n) * 4)
 #define NTB_EPF_DB_OFFSET(n)	(0xB4 + (n) * 4)
 
+/*
+ * Legacy doorbell slot layout when paired with pci-epf-*ntb:
+ *
+ *   slot 0 : reserved for link events
+ *   slot 1 : unused (historical extra offset)
+ *   slot 2 : DB#0
+ *   slot 3 : DB#1
+ *   ...
+ *
+ * Thus, NTB_EPF_MIN_DB_COUNT=3 means that we at least create vectors for
+ * doorbells DB#0 and DB#1.
+ */
 #define NTB_EPF_MIN_DB_COUNT	3
 #define NTB_EPF_MAX_DB_COUNT	31
 
@@ -69,7 +82,20 @@ enum epf_ntb_bar {
 	NTB_BAR_NUM,
 };
 
+enum epf_irq_slot {
+	EPF_IRQ_LINK = 0,
+	EPF_IRQ_RESERVED_DB, /* Historically skipped slot */
+	EPF_IRQ_DB_START,
+};
+
 #define NTB_EPF_MAX_MW_COUNT	(NTB_BAR_NUM - BAR_MW1)
+
+struct ntb_epf_dev;
+
+struct ntb_epf_irq_ctx {
+	struct ntb_epf_dev *ndev;
+	unsigned int irq_no;
+};
 
 struct ntb_epf_dev {
 	struct ntb_dev ntb;
@@ -90,8 +116,9 @@ struct ntb_epf_dev {
 	unsigned int self_spad;
 	unsigned int peer_spad;
 
-	int db_val;
+	atomic64_t db_val;
 	u64 db_valid_mask;
+	struct ntb_epf_irq_ctx irq_ctx[NTB_EPF_MAX_DB_COUNT + 1];
 };
 
 #define ntb_ndev(__ntb) container_of(__ntb, struct ntb_epf_dev, ntb)
@@ -315,16 +342,29 @@ static int ntb_epf_link_disable(struct ntb_dev *ntb)
 
 static irqreturn_t ntb_epf_vec_isr(int irq, void *dev)
 {
-	struct ntb_epf_dev *ndev = dev;
-	int irq_no;
+	struct ntb_epf_irq_ctx *ctx = dev;
+	struct ntb_epf_dev *ndev = ctx->ndev;
+	unsigned int db_vector;
+	unsigned int irq_no = ctx->irq_no;
 
-	irq_no = irq - pci_irq_vector(ndev->ntb.pdev, 0);
-	ndev->db_val = irq_no + 1;
-
-	if (irq_no == 0)
+	if (irq_no == EPF_IRQ_LINK) {
 		ntb_link_event(&ndev->ntb);
-	else
-		ntb_db_event(&ndev->ntb, irq_no);
+	} else if (irq_no == EPF_IRQ_RESERVED_DB) {
+		dev_warn_ratelimited(ndev->dev,
+				     "Unexpected reserved doorbell slot IRQ received\n");
+	} else {
+		db_vector = irq_no - EPF_IRQ_DB_START;
+		if (ndev->db_count < NTB_EPF_MIN_DB_COUNT ||
+		    db_vector >= ndev->db_count - 1) {
+			dev_warn_ratelimited(ndev->dev,
+					     "Unexpected doorbell vector %u (db_count %u)\n",
+					     db_vector, ndev->db_count);
+			return IRQ_HANDLED;
+		}
+
+		atomic64_or(BIT_ULL(db_vector), &ndev->db_val);
+		ntb_db_event(&ndev->ntb, db_vector);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -350,31 +390,30 @@ static int ntb_epf_init_isr(struct ntb_epf_dev *ndev, int msi_min, int msi_max)
 		argument &= ~MSIX_ENABLE;
 	}
 
+	ndev->db_count = irq - 1;
 	for (i = 0; i < irq; i++) {
+		ndev->irq_ctx[i].ndev = ndev;
+		ndev->irq_ctx[i].irq_no = i;
 		ret = request_irq(pci_irq_vector(pdev, i), ntb_epf_vec_isr,
-				  0, "ntb_epf", ndev);
+				  0, "ntb_epf", &ndev->irq_ctx[i]);
 		if (ret) {
 			dev_err(dev, "Failed to request irq\n");
-			goto err_request_irq;
+			goto err_free_irq;
 		}
 	}
-
-	ndev->db_count = irq - 1;
 
 	ret = ntb_epf_send_command(ndev, CMD_CONFIGURE_DOORBELL,
 				   argument | irq);
 	if (ret) {
 		dev_err(dev, "Failed to configure doorbell\n");
-		goto err_configure_db;
+		goto err_free_irq;
 	}
 
 	return 0;
 
-err_configure_db:
-	for (i = 0; i < ndev->db_count + 1; i++)
-		free_irq(pci_irq_vector(pdev, i), ndev);
-
-err_request_irq:
+err_free_irq:
+	while (i--)
+		free_irq(pci_irq_vector(pdev, i), &ndev->irq_ctx[i]);
 	pci_free_irq_vectors(pdev);
 
 	return ret;
@@ -393,6 +432,36 @@ static int ntb_epf_spad_count(struct ntb_dev *ntb)
 static u64 ntb_epf_db_valid_mask(struct ntb_dev *ntb)
 {
 	return ntb_ndev(ntb)->db_valid_mask;
+}
+
+static int ntb_epf_db_vector_count(struct ntb_dev *ntb)
+{
+	struct ntb_epf_dev *ndev = ntb_ndev(ntb);
+	unsigned int db_count = ndev->db_count;
+
+	/*
+	 * db_count includes an extra skipped slot due to the legacy
+	 * doorbell layout. Expose only the real doorbell vectors.
+	 */
+	if (db_count < NTB_EPF_MIN_DB_COUNT)
+		return 0;
+
+	return db_count - 1;
+}
+
+static u64 ntb_epf_db_vector_mask(struct ntb_dev *ntb, int db_vector)
+{
+	int nr_vec;
+
+	/*
+	 * db_count includes one skipped slot in the legacy layout. Valid
+	 * doorbell vectors are therefore [0 .. (db_count - 2)].
+	 */
+	nr_vec = ntb_epf_db_vector_count(ntb);
+	if (db_vector < 0 || db_vector >= nr_vec)
+		return 0;
+
+	return BIT_ULL(db_vector);
 }
 
 static int ntb_epf_db_set_mask(struct ntb_dev *ntb, u64 db_bits)
@@ -473,6 +542,14 @@ static int ntb_epf_peer_mw_get_addr(struct ntb_dev *ntb, int idx,
 static int ntb_epf_peer_db_set(struct ntb_dev *ntb, u64 db_bits)
 {
 	struct ntb_epf_dev *ndev = ntb_ndev(ntb);
+	/*
+	 * ffs() returns a 1-based bit index (bit 0 -> 1).
+	 *
+	 * With slot 0 reserved for link events, DB#0 would naturally map to
+	 * slot 1. Historically an extra +1 offset was added, so DB#0 maps to
+	 * slot 2 and slot 1 remains unused. Keep this mapping for
+	 * backward-compatibility.
+	 */
 	u32 interrupt_num = ffs(db_bits) + 1;
 	struct device *dev = ndev->dev;
 	u32 db_entry_size;
@@ -499,7 +576,7 @@ static u64 ntb_epf_db_read(struct ntb_dev *ntb)
 {
 	struct ntb_epf_dev *ndev = ntb_ndev(ntb);
 
-	return ndev->db_val;
+	return atomic64_read(&ndev->db_val);
 }
 
 static int ntb_epf_db_clear_mask(struct ntb_dev *ntb, u64 db_bits)
@@ -511,7 +588,7 @@ static int ntb_epf_db_clear(struct ntb_dev *ntb, u64 db_bits)
 {
 	struct ntb_epf_dev *ndev = ntb_ndev(ntb);
 
-	ndev->db_val = 0;
+	atomic64_and(~db_bits, &ndev->db_val);
 
 	return 0;
 }
@@ -521,6 +598,8 @@ static const struct ntb_dev_ops ntb_epf_ops = {
 	.spad_count		= ntb_epf_spad_count,
 	.peer_mw_count		= ntb_epf_peer_mw_count,
 	.db_valid_mask		= ntb_epf_db_valid_mask,
+	.db_vector_count	= ntb_epf_db_vector_count,
+	.db_vector_mask		= ntb_epf_db_vector_mask,
 	.db_set_mask		= ntb_epf_db_set_mask,
 	.mw_set_trans		= ntb_epf_mw_set_trans,
 	.mw_clear_trans		= ntb_epf_mw_clear_trans,
@@ -552,6 +631,12 @@ static int ntb_epf_init_dev(struct ntb_epf_dev *ndev)
 	struct device *dev = ndev->dev;
 	int ret;
 
+	ndev->mw_count = readl(ndev->ctrl_reg + NTB_EPF_MW_COUNT);
+	if (ndev->mw_count > NTB_EPF_MAX_MW_COUNT) {
+		dev_err(dev, "Unsupported MW count: %u\n", ndev->mw_count);
+		return -EINVAL;
+	}
+
 	/* One Link interrupt and rest doorbell interrupt */
 	ret = ntb_epf_init_isr(ndev, NTB_EPF_MIN_DB_COUNT + 1,
 			       NTB_EPF_MAX_DB_COUNT + 1);
@@ -560,14 +645,12 @@ static int ntb_epf_init_dev(struct ntb_epf_dev *ndev)
 		return ret;
 	}
 
-	ndev->db_valid_mask = BIT_ULL(ndev->db_count) - 1;
-	ndev->mw_count = readl(ndev->ctrl_reg + NTB_EPF_MW_COUNT);
+	/*
+	 * ndev->db_count includes an extra skipped slot due to the legacy
+	 * doorbell layout, hence -1.
+	 */
+	ndev->db_valid_mask = BIT_ULL(ndev->db_count - 1) - 1;
 	ndev->spad_count = readl(ndev->ctrl_reg + NTB_EPF_SPAD_COUNT);
-
-	if (ndev->mw_count > NTB_EPF_MAX_MW_COUNT) {
-		dev_err(dev, "Unsupported MW count: %u\n", ndev->mw_count);
-		return -EINVAL;
-	}
 
 	return 0;
 }
@@ -646,7 +729,8 @@ static void ntb_epf_deinit_pci(struct ntb_epf_dev *ndev)
 	struct pci_dev *pdev = ndev->ntb.pdev;
 
 	pci_iounmap(pdev, ndev->ctrl_reg);
-	pci_iounmap(pdev, ndev->peer_spad_reg);
+	if (ndev->barno_map[BAR_PEER_SPAD] != ndev->barno_map[BAR_CONFIG])
+		pci_iounmap(pdev, ndev->peer_spad_reg);
 	pci_iounmap(pdev, ndev->db_reg);
 
 	pci_release_regions(pdev);
@@ -662,7 +746,7 @@ static void ntb_epf_cleanup_isr(struct ntb_epf_dev *ndev)
 	ntb_epf_send_command(ndev, CMD_TEARDOWN_DOORBELL, ndev->db_count + 1);
 
 	for (i = 0; i < ndev->db_count + 1; i++)
-		free_irq(pci_irq_vector(pdev, i), ndev);
+		free_irq(pci_irq_vector(pdev, i), &ndev->irq_ctx[i]);
 	pci_free_irq_vectors(pdev);
 }
 

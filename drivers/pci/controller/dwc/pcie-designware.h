@@ -35,6 +35,7 @@
 #define DW_PCIE_VER_480A		0x3438302a
 #define DW_PCIE_VER_490A		0x3439302a
 #define DW_PCIE_VER_500A		0x3530302a
+#define DW_PCIE_VER_510A		0x3531302a
 #define DW_PCIE_VER_520A		0x3532302a
 #define DW_PCIE_VER_540A		0x3534302a
 #define DW_PCIE_VER_562A		0x3536322a
@@ -71,6 +72,8 @@
 
 /* Synopsys-specific PCIe configuration registers */
 #define PCIE_PORT_FORCE			0x708
+/* Bit[7:0] LINK_NUM: Link Number. Not used for endpoint */
+#define PORT_LINK_NUM_MASK		GENMASK(7, 0)
 #define PORT_FORCE_DO_DESKEW_FOR_SRIS	BIT(23)
 
 #define PCIE_PORT_AFR			0x70C
@@ -97,6 +100,28 @@
 
 #define PCIE_PORT_LANE_SKEW		0x714
 #define PORT_LANE_SKEW_INSERT_MASK	GENMASK(23, 0)
+
+/*
+ * PCIE_TIMER_CTRL_MAX_FUNC_NUM: Timer Control and Max Function Number
+ * Register.
+ *
+ * This register holds the ack frequency, latency, replay, fast link
+ * scaling timers, and max function number values.
+ *
+ * Bit[30:29] FAST_LINK_SCALING_FACTOR: Fast Link Timer Scaling Factor.
+ *   0x0 (SF_1024): Scaling Factor is 1024 (1ms is 1us).
+ *     When the LTSSM is in Config or L12 Entry State, 1ms
+ *     timer is 2us, 2ms timer is 4us and 3ms timer is 6us.
+ *   0x1 (SF_256): Scaling Factor is 256 (1ms is 4us)
+ *   0x2 (SF_64): Scaling Factor is 64 (1ms is 16us)
+ *   0x3 (SF_16): Scaling Factor is 16 (1ms is 64us)
+ */
+#define PCIE_TIMER_CTRL_MAX_FUNC_NUM	0x718
+#define PORT_FLT_SF_MASK	GENMASK(30, 29)
+#define PORT_FLT_SF_VAL_1024	0x0
+#define PORT_FLT_SF_VAL_256	0x1
+#define PORT_FLT_SF_VAL_64	0x2
+#define PORT_FLT_SF_VAL_16	0x3
 
 #define PCIE_PORT_DEBUG0		0x728
 #define PORT_LOGIC_LTSSM_STATE_MASK	0x3f
@@ -170,11 +195,6 @@
 #define PCIE_ATU_VIEWPORT_SIZE		0x2C
 #define PCIE_ATU_REGION_CTRL1		0x000
 #define PCIE_ATU_INCREASE_REGION_SIZE	BIT(13)
-#define PCIE_ATU_TYPE_MEM		0x0
-#define PCIE_ATU_TYPE_IO		0x2
-#define PCIE_ATU_TYPE_CFG0		0x4
-#define PCIE_ATU_TYPE_CFG1		0x5
-#define PCIE_ATU_TYPE_MSG		0x10
 #define PCIE_ATU_TD			BIT(8)
 #define PCIE_ATU_FUNC_NUM(pf)           ((pf) << 20)
 #define PCIE_ATU_REGION_CTRL2		0x004
@@ -450,6 +470,7 @@ struct dw_pcie_rp {
 	bool			ecam_enabled;
 	bool			native_ecam;
 	bool                    skip_l23_ready;
+	bool			skip_pwrctrl_off;
 };
 
 struct dw_pcie_ep_ops {
@@ -544,6 +565,8 @@ struct dw_pcie {
 	int			max_link_speed;
 	u8			n_fts[2];
 	struct dw_edma_chip	edma;
+	phys_addr_t		edma_reg_phys;
+	resource_size_t		edma_reg_size;
 	bool			l1ss_support;	/* L1 PM Substates support */
 	struct clk_bulk_data	app_clks[DW_PCIE_NUM_APP_CLKS];
 	struct clk_bulk_data	core_clks[DW_PCIE_NUM_CORE_CLKS];
@@ -605,6 +628,7 @@ int dw_pcie_prog_ep_inbound_atu(struct dw_pcie *pci, u8 func_no, int index,
 				u8 bar, size_t size);
 void dw_pcie_disable_atu(struct dw_pcie *pci, u32 dir, int index);
 void dw_pcie_hide_unsupported_l1ss(struct dw_pcie *pci);
+void dw_pcie_program_t_power_on(struct dw_pcie *pci, u32 t_power_on);
 void dw_pcie_setup(struct dw_pcie *pci);
 void dw_pcie_iatu_detect(struct dw_pcie *pci);
 int dw_pcie_edma_detect(struct dw_pcie *pci);

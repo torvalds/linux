@@ -876,7 +876,7 @@ static inline int vcpu_get_stats_fd(struct kvm_vcpu *vcpu)
 {
 	int fd = __vcpu_ioctl(vcpu, KVM_GET_STATS_FD, NULL);
 
-	TEST_ASSERT_VM_VCPU_IOCTL(fd >= 0, KVM_CHECK_EXTENSION, fd, vcpu->vm);
+	TEST_ASSERT_VM_VCPU_IOCTL(fd >= 0, KVM_GET_STATS_FD, fd, vcpu->vm);
 	return fd;
 }
 

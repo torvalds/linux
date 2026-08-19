@@ -60,6 +60,8 @@ unsigned long __stack_chk_guard __read_mostly;
 EXPORT_SYMBOL(__stack_chk_guard);
 #endif
 
+DEFINE_PER_CPU(struct task_struct *, cpu_tasks);
+
 /*
  * Idle related variables and functions
  */

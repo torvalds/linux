@@ -5,6 +5,7 @@
  * Copyright (c) 2003-2010 Cavium Networks
  */
 
+#include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/cache.h>
@@ -30,12 +31,6 @@
 #include "ethernet-util.h"
 
 static atomic_t oct_rx_ready = ATOMIC_INIT(0);
-
-static struct oct_rx_group {
-	int irq;
-	int group;
-	struct napi_struct napi;
-} oct_rx_group[16];
 
 /**
  * cvm_oct_do_interrupt - interrupt handler.
@@ -397,7 +392,7 @@ static int cvm_oct_poll(struct oct_rx_group *rx_group, int budget)
 		/* Restore the scratch area */
 		cvmx_scratch_write64(CVMX_SCR_SCRATCH, old_scratch);
 	}
-	cvm_oct_rx_refill_pool(0);
+	cvm_oct_rx_refill_pool(rx_group->pdev, 0);
 
 	return rx_count;
 }
@@ -434,24 +429,28 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
  */
 void cvm_oct_poll_controller(struct net_device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev->dev.parent);
+	struct octeon_ethernet_platform *plat = platform_get_drvdata(pdev);
 	int i;
 
 	if (!atomic_read(&oct_rx_ready))
 		return;
 
-	for (i = 0; i < ARRAY_SIZE(oct_rx_group); i++) {
+	for (i = 0; i < ARRAY_SIZE(plat->rx_group); i++) {
 		if (!(pow_receive_groups & BIT(i)))
 			continue;
 
-		cvm_oct_poll(&oct_rx_group[i], 16);
+		cvm_oct_poll(&plat->rx_group[i], 16);
 	}
 }
 #endif
 
-void cvm_oct_rx_initialize(void)
+void cvm_oct_rx_initialize(struct platform_device *pdev)
 {
 	int i;
 	struct net_device *dev_for_napi = NULL;
+	struct octeon_ethernet_platform *plat = platform_get_drvdata(pdev);
+	struct oct_rx_group *rx_group = plat->rx_group;
 
 	for (i = 0; i < TOTAL_NUMBER_OF_PORTS; i++) {
 		if (cvm_oct_device[i]) {
@@ -463,27 +462,28 @@ void cvm_oct_rx_initialize(void)
 	if (!dev_for_napi)
 		panic("No net_devices were allocated.");
 
-	for (i = 0; i < ARRAY_SIZE(oct_rx_group); i++) {
+	for (i = 0; i < ARRAY_SIZE(plat->rx_group); i++) {
 		int ret;
 
 		if (!(pow_receive_groups & BIT(i)))
 			continue;
 
-		netif_napi_add_weight(dev_for_napi, &oct_rx_group[i].napi,
+		netif_napi_add_weight(dev_for_napi, &rx_group[i].napi,
 				      cvm_oct_napi_poll, rx_napi_weight);
-		napi_enable(&oct_rx_group[i].napi);
+		napi_enable(&rx_group[i].napi);
 
-		oct_rx_group[i].irq = OCTEON_IRQ_WORKQ0 + i;
-		oct_rx_group[i].group = i;
+		rx_group[i].irq = OCTEON_IRQ_WORKQ0 + i;
+		rx_group[i].group = i;
+		rx_group[i].pdev = pdev;
 
 		/* Register an IRQ handler to receive POW interrupts */
-		ret = request_irq(oct_rx_group[i].irq, cvm_oct_do_interrupt, 0,
-				  "Ethernet", &oct_rx_group[i].napi);
+		ret = request_irq(rx_group[i].irq, cvm_oct_do_interrupt, 0,
+				  "Ethernet", &rx_group[i].napi);
 		if (ret)
 			panic("Could not acquire Ethernet IRQ %d\n",
-			      oct_rx_group[i].irq);
+			      rx_group[i].irq);
 
-		disable_irq_nosync(oct_rx_group[i].irq);
+		disable_irq_nosync(rx_group[i].irq);
 
 		/* Enable POW interrupt when our port has at least one packet */
 		if (OCTEON_IS_MODEL(OCTEON_CN68XX)) {
@@ -515,16 +515,17 @@ void cvm_oct_rx_initialize(void)
 		/* Schedule NAPI now. This will indirectly enable the
 		 * interrupt.
 		 */
-		napi_schedule(&oct_rx_group[i].napi);
+		napi_schedule(&rx_group[i].napi);
 	}
 	atomic_inc(&oct_rx_ready);
 }
 
-void cvm_oct_rx_shutdown(void)
+void cvm_oct_rx_shutdown(struct platform_device *pdev)
 {
+	struct octeon_ethernet_platform *plat = platform_get_drvdata(pdev);
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(oct_rx_group); i++) {
+	for (i = 0; i < ARRAY_SIZE(plat->rx_group); i++) {
 		if (!(pow_receive_groups & BIT(i)))
 			continue;
 
@@ -535,8 +536,8 @@ void cvm_oct_rx_shutdown(void)
 			cvmx_write_csr(CVMX_POW_WQ_INT_THRX(i), 0);
 
 		/* Free the interrupt handler */
-		free_irq(oct_rx_group[i].irq, &oct_rx_group[i].napi);
+		free_irq(plat->rx_group[i].irq, &plat->rx_group[i].napi);
 
-		netif_napi_del(&oct_rx_group[i].napi);
+		netif_napi_del(&plat->rx_group[i].napi);
 	}
 }

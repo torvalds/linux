@@ -265,10 +265,66 @@ def AmdDtlb() -> Optional[MetricGroup]:
     ], description="Data TLB metrics")
 
 
+def AmdIotlb() -> Optional[MetricGroup]:
+    global _zen_model
+    if _zen_model < 2:
+        return None
+
+    # On AMD, the pde events cover both 2M and 1G pages.
+    total_hit = Event("amd_iommu/mem_iommu_tlb_pte_hit/") + Event(
+        "amd_iommu/mem_iommu_tlb_pde_hit/"
+    )
+    total_miss = Event("amd_iommu/mem_iommu_tlb_pte_mis/") + Event(
+        "amd_iommu/mem_iommu_tlb_pde_mis/"
+    )
+    miss_rate = d_ratio(total_miss, total_miss + total_hit)
+
+    interrupt_cache_hit = Event("amd_iommu/int_dte_hit/")
+    interrupt_cache_miss = Event("amd_iommu/int_dte_mis/")
+    interrupt_cache_lookup = interrupt_cache_hit + interrupt_cache_miss
+    interrupt_cache_miss_rate = d_ratio(
+        interrupt_cache_miss, interrupt_cache_miss + interrupt_cache_hit
+    )
+
+    return MetricGroup(
+        "iotlb",
+        [
+            Metric("iotlb_total_hit", "IOTLB total hit", total_hit, "hits"),
+            Metric("iotlb_total_miss", "IOTLB total miss", total_miss, "misses"),
+            Metric("iotlb_miss_rate", "IOTLB miss rate", miss_rate, "100%"),
+            Metric(
+                "iotlb_interrupt_cache_hit",
+                "IOTLB interrupt cache hit",
+                interrupt_cache_hit,
+                "hits",
+            ),
+            Metric(
+                "iotlb_interrupt_cache_miss",
+                "IOTLB interrupt cache miss",
+                interrupt_cache_miss,
+                "misses",
+            ),
+            Metric(
+                "iotlb_interrupt_cache_lookup",
+                "IOTLB interrupt cache lookup",
+                interrupt_cache_lookup,
+                "lookups",
+            ),
+            Metric(
+                "iotlb_interrupt_cache_miss_rate",
+                "IOTLB interrupt cache miss rate",
+                interrupt_cache_miss_rate,
+                "100%",
+            ),
+        ],
+        description="IOMMU TLB metrics",
+    )
+
+
 def AmdItlb():
     global _zen_model
     l2h = Event("bp_l1_tlb_miss_l2_tlb_hit", "bp_l1_tlb_miss_l2_hit")
-    l2m = Event("l2_itlb_misses")
+    l2m = Event("bp_l1_tlb_miss_l2_tlb_miss.all", "l2_itlb_misses",)
     l2r = l2h + l2m
 
     itlb_l1_mg = None
@@ -473,6 +529,7 @@ def main() -> None:
         AmdBr(),
         AmdCtxSw(),
         AmdDtlb(),
+        AmdIotlb(),
         AmdItlb(),
         AmdLdSt(),
         AmdUpc(),

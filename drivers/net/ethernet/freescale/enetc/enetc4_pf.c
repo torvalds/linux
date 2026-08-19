@@ -322,6 +322,9 @@ static void enetc4_default_rings_allocation(struct enetc_pf *pf)
 	val = enetc4_psicfgr0_val_construct(false, num_tx_bdr, num_rx_bdr);
 	enetc_port_wr(hw, ENETC4_PSICFGR0(0), val);
 
+	if (!pf->caps.num_vsi)
+		return;
+
 	num_rx_bdr = pf->caps.num_rx_bdr - num_rx_bdr;
 	rx_rem = num_rx_bdr % pf->caps.num_vsi;
 	num_rx_bdr = num_rx_bdr / pf->caps.num_vsi;

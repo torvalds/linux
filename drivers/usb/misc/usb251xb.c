@@ -746,15 +746,15 @@ static int usb251xb_i2c_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(usb251xb_i2c_pm_ops, usb251xb_i2c_suspend, usb251xb_i2c_resume);
 
 static const struct i2c_device_id usb251xb_id[] = {
-	{ "usb2422" },
-	{ "usb2512b" },
-	{ "usb2512bi" },
-	{ "usb2513b" },
-	{ "usb2513bi" },
-	{ "usb2514b" },
-	{ "usb2514bi" },
-	{ "usb2517" },
-	{ "usb2517i" },
+	{ .name = "usb2422" },
+	{ .name = "usb2512b" },
+	{ .name = "usb2512bi" },
+	{ .name = "usb2513b" },
+	{ .name = "usb2513bi" },
+	{ .name = "usb2514b" },
+	{ .name = "usb2514bi" },
+	{ .name = "usb2517" },
+	{ .name = "usb2517i" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, usb251xb_id);

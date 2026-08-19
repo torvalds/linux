@@ -64,7 +64,7 @@ static int iproc_bcma_pcie_probe(struct bcma_device *bdev)
 	if (ret)
 		return ret;
 
-	pcie->map_irq = iproc_bcma_pcie_map_irq;
+	bridge->map_irq = iproc_bcma_pcie_map_irq;
 
 	bcma_set_drvdata(bdev, pcie);
 

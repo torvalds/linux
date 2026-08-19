@@ -670,7 +670,7 @@ static __always_inline bool kvm_age_hva_range_no_flush(struct mmu_notifier *mn,
 	return kvm_age_hva_range(mn, start, end, handler, false);
 }
 
-void kvm_mmu_invalidate_begin(struct kvm *kvm)
+void kvm_mmu_invalidate_start(struct kvm *kvm)
 {
 	lockdep_assert_held_write(&kvm->mmu_lock);
 	/*
@@ -726,7 +726,7 @@ static int kvm_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,
 		.start		= range->start,
 		.end		= range->end,
 		.handler	= kvm_mmu_unmap_gfn_range,
-		.on_lock	= kvm_mmu_invalidate_begin,
+		.on_lock	= kvm_mmu_invalidate_start,
 		.flush_on_ret	= true,
 		.may_block	= mmu_notifier_range_blockable(range),
 	};
@@ -2542,7 +2542,7 @@ static int kvm_vm_set_mem_attributes(struct kvm *kvm, gfn_t start, gfn_t end,
 		.end = end,
 		.arg.attributes = attributes,
 		.handler = kvm_pre_set_memory_attributes,
-		.on_lock = kvm_mmu_invalidate_begin,
+		.on_lock = kvm_mmu_invalidate_start,
 		.flush_on_ret = true,
 		.may_block = true,
 	};

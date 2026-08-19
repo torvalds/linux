@@ -140,8 +140,6 @@ static int do_account_vtime(struct task_struct *tsk)
 
 	if (hardirq_count())
 		lc->hardirq_timer += timer;
-	else if (in_serving_softirq())
-		lc->softirq_timer += timer;
 	else
 		lc->system_timer += timer;
 
@@ -241,62 +239,13 @@ EXPORT_SYMBOL_GPL(vtime_account_kernel);
 
 void vtime_account_softirq(struct task_struct *tsk)
 {
-	if (!__this_cpu_read(s390_idle.idle_dyntick))
-		get_lowcore()->softirq_timer += vtime_delta();
-	else
-		vtime_flush(tsk);
+	get_lowcore()->softirq_timer += vtime_delta();
 }
 
 void vtime_account_hardirq(struct task_struct *tsk)
 {
-	if (!__this_cpu_read(s390_idle.idle_dyntick)) {
-		get_lowcore()->hardirq_timer += vtime_delta();
-	} else {
-		/*
-		 * In dynticks mode, the idle cputime is accounted by the nohz
-		 * subsystem. Therefore the s390 timer/clocks are reset on IRQ
-		 * entry and steal time must be accounted now.
-		 */
-		vtime_flush(tsk);
-	}
+	get_lowcore()->hardirq_timer += vtime_delta();
 }
-
-#ifdef CONFIG_NO_HZ_COMMON
-/**
- * vtime_reset - Fast forward vtime entry clocks
- *
- * Called from dynticks idle IRQ entry to fast-forward the clocks to current time
- * so that the IRQ time is still accounted by vtime while nohz cputime is paused.
- */
-void vtime_reset(void)
-{
-	vtime_reset_last_update(get_lowcore());
-}
-
-/**
- * vtime_dyntick_start - Inform vtime about entry to idle-dynticks
- *
- * Called when idle enters in dyntick mode. The idle cputime that elapsed so far
- * is flushed and the tick subsystem takes over the idle cputime accounting.
- */
-void vtime_dyntick_start(void)
-{
-	__this_cpu_write(s390_idle.idle_dyntick, true);
-	vtime_flush(current);
-}
-
-/**
- * vtime_dyntick_stop - Inform vtime about exit from idle-dynticks
- *
- * Called when idle exits from dyntick mode. The vtime entry clocks are
- * fast-forward to current time and idle accounting resumes.
- */
-void vtime_dyntick_stop(void)
-{
-	vtime_reset_last_update(get_lowcore());
-	__this_cpu_write(s390_idle.idle_dyntick, false);
-}
-#endif /* CONFIG_NO_HZ_COMMON */
 
 /*
  * Sorted add to a list. List is linear searched until first bigger

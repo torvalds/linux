@@ -35,6 +35,7 @@ properties:
           - qcom,msm8994-rpmpd
           - qcom,msm8996-rpmpd
           - qcom,msm8998-rpmpd
+          - qcom,nord-rpmhpd
           - qcom,qcm2290-rpmpd
           - qcom,qcs404-rpmpd
           - qcom,qcs615-rpmhpd
@@ -55,6 +56,7 @@ properties:
           - qcom,sdx55-rpmhpd
           - qcom,sdx65-rpmhpd
           - qcom,sdx75-rpmhpd
+          - qcom,shikra-rpmpd
           - qcom,sm4450-rpmhpd
           - qcom,sm6115-rpmpd
           - qcom,sm6125-rpmpd

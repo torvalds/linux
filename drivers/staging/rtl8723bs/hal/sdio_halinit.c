@@ -21,7 +21,6 @@ static u8 CardEnable(struct adapter *padapter)
 	u8 bMacPwrCtrlOn;
 	u8 ret = _FAIL;
 
-
 	rtw_hal_get_hwreg(padapter, HW_VAR_APFM_ON_MAC, &bMacPwrCtrlOn);
 	if (!bMacPwrCtrlOn) {
 		/*  RSV_CTRL 0x1C[7:0] = 0x00 */
@@ -46,8 +45,6 @@ u8 _InitPowerOn_8723BS(struct adapter *padapter)
 	u16 value16;
 	u32 value32;
 	u8 ret;
-/* 	u8 bMacPwrCtrlOn; */
-
 
 	/*  all of these MUST be configured before power on */
 
@@ -68,10 +65,6 @@ u8 _InitPowerOn_8723BS(struct adapter *padapter)
 	value16 = rtw_read16(padapter, REG_APS_FSMCO);
 	value16 |= EnPDN; /*  Enable HW power down and RF on */
 	rtw_write16(padapter, REG_APS_FSMCO, value16);
-
-	/*  Enable CMD53 R/W Operation */
-/* 	bMacPwrCtrlOn = true; */
-/* 	rtw_hal_set_hwreg(padapter, HW_VAR_APFM_ON_MAC, &bMacPwrCtrlOn); */
 
 	rtw_write8(padapter, REG_CR, 0x00);
 	/*  Enable MAC DMA/WMAC/SCHEDULE/SEC block */
@@ -241,7 +234,6 @@ static void _InitNormalChipTwoOutEpPriority(struct adapter *Adapter)
 	struct registry_priv *pregistrypriv = &Adapter->registrypriv;
 	u16 beQ, bkQ, viQ, voQ, mgtQ, hiQ;
 
-
 	u16 valueHi = 0;
 	u16 valueLow = 0;
 
@@ -325,8 +317,6 @@ static void _InitQueuePriority(struct adapter *Adapter)
 	default:
 		break;
 	}
-
-
 }
 
 static void _InitPageBoundary(struct adapter *padapter)
@@ -359,7 +349,6 @@ static void _InitNetworkType(struct adapter *padapter)
 	value32 = rtw_read32(padapter, REG_CR);
 
 	/*  TODO: use the other function to set network type */
-/* 	value32 = (value32 & ~MASK_NETTYPE) | _NETTYPE(NT_LINK_AD_HOC); */
 	value32 = (value32 & ~MASK_NETTYPE) | _NETTYPE(NT_LINK_AP);
 
 	rtw_write32(padapter, REG_CR, value32);
@@ -369,7 +358,6 @@ static void _InitWMACSetting(struct adapter *padapter)
 {
 	struct hal_com_data *pHalData;
 	u16 value16;
-
 
 	pHalData = GET_HAL_DATA(padapter);
 
@@ -409,9 +397,6 @@ static void _InitAdaptiveCtrl(struct adapter *padapter)
 	value32 &= ~RATE_BITMAP_ALL;
 	value32 |= RATE_RRSR_CCK_ONLY_1M;
 	rtw_write32(padapter, REG_RRSR, value32);
-
-	/*  CF-END Threshold */
-	/* m_spIoBase->rtw_write8(REG_CFEND_TH, 0x1); */
 
 	/*  SIFS (used in NAV) */
 	value16 = _SPEC_SIFS_CCK(0x10) | _SPEC_SIFS_OFDM(0x10);
@@ -486,9 +471,6 @@ static void _initSdioAggregationSetting(struct adapter *padapter)
 {
 	struct hal_com_data	*pHalData = GET_HAL_DATA(padapter);
 
-	/*  Tx aggregation setting */
-/* 	sdio_AggSettingTxUpdate(padapter); */
-
 	/*  Rx aggregation setting */
 	HalRxAggr8723BSdio(padapter);
 
@@ -545,11 +527,6 @@ static void _InitInterrupt(struct adapter *padapter)
 	/*  Initialize and enable SDIO Host Interrupt. */
 	/*  */
 	InitInterrupt8723BSdio(padapter);
-
-	/*  */
-	/*  Initialize system Host Interrupt. */
-	/*  */
-	InitSysInterrupt8723BSdio(padapter);
 }
 
 static void _InitRFType(struct adapter *padapter)
@@ -573,11 +550,10 @@ static bool HalDetectPwrDownMode(struct adapter *Adapter)
 	struct hal_com_data *pHalData = GET_HAL_DATA(Adapter);
 	struct pwrctrl_priv *pwrctrlpriv = adapter_to_pwrctl(Adapter);
 
-
-	EFUSE_ShadowRead(Adapter, 1, 0x7B/*EEPROM_RF_OPT3_92C*/, (u32 *)&tmpvalue);
+	rtw_efuse_shadow_read(Adapter, 1, 0x7B/*EEPROM_RF_OPT3_92C*/, (u32 *)&tmpvalue);
 
 	/*  2010/08/25 MH INF priority > PDN Efuse value. */
-	if (tmpvalue & BIT4 && pwrctrlpriv->reg_pdnmode)
+	if (tmpvalue & BIT(4) && pwrctrlpriv->reg_pdnmode)
 		pHalData->pwrdown = true;
 	else
 		pHalData->pwrdown = false;
@@ -596,10 +572,8 @@ u32 rtl8723bs_hal_init(struct adapter *padapter)
 	pHalData = GET_HAL_DATA(padapter);
 	pwrctrlpriv = adapter_to_pwrctl(padapter);
 
-	if (
-		adapter_to_pwrctl(padapter)->bips_processing == true &&
-		adapter_to_pwrctl(padapter)->pre_ips_type == 0
-	) {
+	if (adapter_to_pwrctl(padapter)->bips_processing &&
+	    adapter_to_pwrctl(padapter)->pre_ips_type == 0) {
 		unsigned long start_time;
 		u8 cpwm_orig, cpwm_now;
 		u8 val8, bMacPwrCtrlOn = true;
@@ -640,9 +614,6 @@ u32 rtl8723bs_hal_init(struct adapter *padapter)
 		return _SUCCESS;
 	}
 
-	/*  Disable Interrupt first. */
-/* 	rtw_hal_disable_interrupt(padapter); */
-
 	ret = _InitPowerOn_8723BS(padapter);
 	if (ret == _FAIL)
 		return _FAIL;
@@ -654,14 +625,12 @@ u32 rtl8723bs_hal_init(struct adapter *padapter)
 		padapter->bFWReady = false;
 		pHalData->fw_ractrl = false;
 		return ret;
-	} else {
-		padapter->bFWReady = true;
-		pHalData->fw_ractrl = true;
 	}
 
-	rtl8723b_InitializeFirmwareVars(padapter);
+	padapter->bFWReady = true;
+	pHalData->fw_ractrl = true;
 
-/* 	SIC_Init(padapter); */
+	rtl8723b_InitializeFirmwareVars(padapter);
 
 	if (pwrctrlpriv->reg_rfoff)
 		pwrctrlpriv->rf_pwrstate = rf_off;
@@ -704,8 +673,6 @@ u32 rtl8723bs_hal_init(struct adapter *padapter)
 	pHalData->RfRegChnlVal[1] =
 		PHY_QueryRFReg(padapter, (enum rf_path)1, RF_CHNLBW, bRFRegOffsetMask);
 
-
-	/* if (!pHalData->bMACFuncEnable) { */
 	_InitQueueReservedPage(padapter);
 	_InitTxBufferBoundary(padapter);
 
@@ -745,11 +712,6 @@ u32 rtl8723bs_hal_init(struct adapter *padapter)
 	rtw_hal_set_chnl_bw(padapter, padapter->registrypriv.channel,
 		CHANNEL_WIDTH_20, HAL_PRIME_CHNL_OFFSET_DONT_CARE, HAL_PRIME_CHNL_OFFSET_DONT_CARE);
 
-	/*  Record original value for template. This is arough data, we can only use the data */
-	/*  for power adjust. The value can not be adjustde according to different power!!! */
-/* 	pHalData->OriginalCckTxPwrIdx = pHalData->CurrentCckTxPwrIdx; */
-/* 	pHalData->OriginalOfdm24GTxPwrIdx = pHalData->CurrentOfdm24GTxPwrIdx; */
-
 	rtl8723b_InitAntenna_Selection(padapter);
 
 	/*  */
@@ -762,7 +724,6 @@ u32 rtl8723bs_hal_init(struct adapter *padapter)
 	/*  set 0x0 to 0xFF by tynli. Default enable HW SEQ NUM. */
 	rtw_write8(padapter, REG_HWSEQ_CTRL, 0xFF);
 
-
 	/*  */
 	/*  Configure SDIO TxRx Control to enable Rx DMA timer masking. */
 	/*  2010.02.24. */
@@ -770,7 +731,6 @@ u32 rtl8723bs_hal_init(struct adapter *padapter)
 	rtw_write32(padapter, SDIO_LOCAL_BASE | SDIO_REG_TX_CTRL, 0);
 
 	_RfPowerSave(padapter);
-
 
 	rtl8723b_InitHalDm(padapter);
 
@@ -790,8 +750,6 @@ u32 rtl8723bs_hal_init(struct adapter *padapter)
 
 	/* ack for xmit mgmt frames. */
 	rtw_write32(padapter, REG_FWHW_TXQ_CTRL, rtw_read32(padapter, REG_FWHW_TXQ_CTRL) | BIT(12));
-
-/* 	pHalData->PreRpwmVal = SdioLocalCmd52Read1Byte(padapter, SDIO_REG_HRPWM1) & 0x80; */
 
 	{
 		pwrctrlpriv->rf_pwrstate = rf_on;
@@ -844,7 +802,7 @@ u32 rtl8723bs_hal_init(struct adapter *padapter)
 
 /*  */
 /*  Description: */
-/* 	RTL8723e card disable power sequence v003 which suggested by Scott. */
+/*	RTL8723e card disable power sequence v003 which suggested by Scott. */
 /*  */
 /*  First created by tynli. 2011.01.28. */
 /*  */
@@ -856,7 +814,7 @@ static void CardDisableRTL8723BSdio(struct adapter *padapter)
 	/*  Run LPS WL RFOFF flow */
 	HalPwrSeqCmdParsing(padapter, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_SDIO_MSK, rtl8723B_enter_lps_flow);
 
-	/* 	==== Reset digital sequence   ====== */
+	/*	==== Reset digital sequence   ====== */
 
 	val = rtw_read8(padapter, REG_MCUFWDL);
 	if ((val & RAM_DL_SEL) && padapter->bFWReady) /* 8051 RAM code */
@@ -879,7 +837,7 @@ static void CardDisableRTL8723BSdio(struct adapter *padapter)
 	val |= BIT(0);
 	rtw_write8(padapter, REG_RSV_CTRL + 1, val);
 
-	/* 	==== Reset digital sequence end ====== */
+	/*	==== Reset digital sequence end ====== */
 
 	bMacPwrCtrlOn = false;	/*  Disable CMD53 R/W */
 	rtw_hal_set_hwreg(padapter, HW_VAR_APFM_ON_MAC, &bMacPwrCtrlOn);
@@ -937,7 +895,6 @@ void rtl8723bs_init_default_value(struct adapter *padapter)
 {
 	struct hal_com_data *pHalData;
 
-
 	pHalData = GET_HAL_DATA(padapter);
 
 	rtl8723b_init_default_value(padapter);
@@ -952,7 +909,6 @@ void rtl8723bs_interface_configure(struct adapter *padapter)
 	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(padapter);
 	struct registry_priv *pregistrypriv = &padapter->registrypriv;
 	bool bWiFiConfig = pregistrypriv->wifi_spec;
-
 
 	pdvobjpriv->RtOutPipe[0] = WLAN_TX_HIQ_DEVICE_ID;
 	pdvobjpriv->RtOutPipe[1] = WLAN_TX_MIQ_DEVICE_ID;
@@ -981,13 +937,13 @@ void rtl8723bs_interface_configure(struct adapter *padapter)
 }
 
 /*  */
-/* 	Description: */
-/* 		We should set Efuse cell selection to WiFi cell in default. */
+/*	Description: */
+/*		We should set Efuse cell selection to WiFi cell in default. */
 /*  */
-/* 	Assumption: */
-/* 		PASSIVE_LEVEL */
+/*	Assumption: */
+/*		PASSIVE_LEVEL */
 /*  */
-/* 	Added by Roger, 2010.11.23. */
+/*	Added by Roger, 2010.11.23. */
 /*  */
 static void _EfuseCellSel(struct adapter *padapter)
 {
@@ -1004,7 +960,6 @@ static void _ReadRFType(struct adapter *Adapter)
 
 	pHalData->rf_chip = RF_6052;
 }
-
 
 static void Hal_EfuseParseMACAddr_8723BS(
 	struct adapter *padapter, u8 *hwinfo, bool AutoLoadFail
@@ -1073,24 +1028,22 @@ static void _ReadEfuseInfo8723BS(struct adapter *padapter)
 static void _ReadPROMContent(struct adapter *padapter)
 {
 	struct eeprom_priv *pEEPROM = GET_EEPROM_EFUSE_PRIV(padapter);
-	u8 	eeValue;
+	u8 eeValue;
 
 	eeValue = rtw_read8(padapter, REG_9346CR);
 	/*  To check system boot selection. */
 	pEEPROM->EepromOrEfuse = (eeValue & BOOT_FROM_EEPROM) ? true : false;
 	pEEPROM->bautoload_fail_flag = (eeValue & EEPROM_EN) ? false : true;
 
-/* 	pHalData->EEType = IS_BOOT_FROM_EEPROM(Adapter) ? EEPROM_93C46 : EEPROM_BOOT_EFUSE; */
-
 	_ReadEfuseInfo8723BS(padapter);
 }
 
 /*  */
-/* 	Description: */
-/* 		Read HW adapter information by E-Fuse or EEPROM according CR9346 reported. */
+/*	Description: */
+/*		Read HW adapter information by E-Fuse or EEPROM according CR9346 reported. */
 /*  */
-/* 	Assumption: */
-/* 		PASSIVE_LEVEL (SDIO interface) */
+/*	Assumption: */
+/*		PASSIVE_LEVEL (SDIO interface) */
 /*  */
 /*  */
 static s32 _ReadAdapterInfo8723BS(struct adapter *padapter)
@@ -1100,7 +1053,6 @@ static s32 _ReadAdapterInfo8723BS(struct adapter *padapter)
 	/*  before access eFuse, make sure card enable has been called */
 	if (!padapter->hw_init_completed)
 		_InitPowerOn_8723BS(padapter);
-
 
 	val8 = rtw_read8(padapter, 0x4e);
 	val8 |= BIT(6);
@@ -1118,7 +1070,7 @@ static s32 _ReadAdapterInfo8723BS(struct adapter *padapter)
 	return _SUCCESS;
 }
 
-void ReadAdapterInfo8723BS(struct adapter *padapter)
+void rtw_read_adapter_info(struct adapter *padapter)
 {
 	/*  Read EEPROM size before call any EEPROM function */
 	padapter->EepromAddressSize = GetEEPROMSize8723B(padapter);
@@ -1203,14 +1155,14 @@ void SetHwRegWithBuf8723B(struct adapter *padapter, u8 variable, u8 *pbuf, int l
 }
 
 /*  */
-/* 	Description: */
-/* 		Query setting of specified variable. */
+/*	Description: */
+/*		Query setting of specified variable. */
 /*  */
 u8 GetHalDefVar8723BSDIO(
 	struct adapter *Adapter, enum hal_def_variable eVariable, void *pValue
 )
 {
-	u8 	bResult = _SUCCESS;
+	u8 bResult = _SUCCESS;
 
 	switch (eVariable) {
 	case HAL_DEF_IS_SUPPORT_ANT_DIV:

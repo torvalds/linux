@@ -11,7 +11,6 @@
 #include <linux/usb/typec_dp.h>
 #include <linux/usb/typec_altmode.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/err.h>
 #include <linux/of_device.h>
 #include <linux/device.h>

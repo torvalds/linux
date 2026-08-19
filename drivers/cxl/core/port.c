@@ -458,6 +458,8 @@ static void cxl_root_decoder_release(struct device *dev)
 
 	if (atomic_read(&cxlrd->region_id) >= 0)
 		memregion_free(atomic_read(&cxlrd->region_id));
+	mutex_destroy(&cxlrd->regions_lock);
+	xa_destroy(&cxlrd->regions);
 	__cxl_decoder_release(&cxlrd->cxlsd.cxld);
 	kfree(cxlrd);
 }
@@ -2016,7 +2018,8 @@ struct cxl_root_decoder *cxl_root_decoder_alloc(struct cxl_port *port,
 		return ERR_PTR(rc);
 	}
 
-	mutex_init(&cxlrd->range_lock);
+	mutex_init(&cxlrd->regions_lock);
+	xa_init(&cxlrd->regions);
 
 	cxld = &cxlsd->cxld;
 	cxld->dev.type = &cxl_decoder_root_type;
@@ -2192,6 +2195,8 @@ static void cxld_unregister(void *dev)
 	if (is_endpoint_decoder(dev))
 		cxl_decoder_detach(NULL, to_cxl_endpoint_decoder(dev), -1,
 				   DETACH_INVALIDATE);
+	if (is_root_decoder(dev))
+		kill_regions(to_cxl_root_decoder(dev));
 
 	device_unregister(dev);
 }

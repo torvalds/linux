@@ -376,7 +376,7 @@
         "Unit": "cpu_lowpower"
     },
     {
-        "BriefDescription": "Counts the number of taken branch instructions retired",
+        "BriefDescription": "Counts the number of near taken branch instructions retired",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.NEAR_TAKEN",
@@ -423,12 +423,40 @@
         "Unit": "cpu_lowpower"
     },
     {
+        "BriefDescription": "Counts the number of relative JMP branch instructions retired.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc4",
+        "EventName": "BR_INST_RETIRED.REL_JMP",
+        "SampleAfterValue": "200003",
+        "UMask": "0xdf",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Counts the number of near relative JMP branch instructions retired.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.REL_JMP",
         "SampleAfterValue": "200003",
         "UMask": "0xdf",
+        "Unit": "cpu_lowpower"
+    },
+    {
+        "BriefDescription": "Counts the number of taken branch instructions retired",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc4",
+        "EventName": "BR_INST_RETIRED.TAKEN",
+        "SampleAfterValue": "200003",
+        "UMask": "0x80",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of taken branch instructions retired.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "Errata": "ARL011",
+        "EventCode": "0xc4",
+        "EventName": "BR_INST_RETIRED.TAKEN",
+        "SampleAfterValue": "200003",
+        "UMask": "0x80",
         "Unit": "cpu_lowpower"
     },
     {
@@ -1664,6 +1692,15 @@
         "Unit": "cpu_atom"
     },
     {
+        "BriefDescription": "Counts number of virtual trap actually taken (e.g. highest priority event during retirement). It can count virtual trap from FPC port 0 or port 1 (x87/SSE) equally in a single counter.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc3",
+        "EventName": "MACHINE_CLEARS.FPC_VIRTUAL_TRAP",
+        "SampleAfterValue": "20003",
+        "UMask": "0x40",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Counts the number of nukes due to memory renaming",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc3",
@@ -1671,6 +1708,15 @@
         "SampleAfterValue": "20003",
         "UMask": "0x10",
         "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of machines clears due to memory renaming.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc3",
+        "EventName": "MACHINE_CLEARS.MRN_NUKE",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x80",
+        "Unit": "cpu_lowpower"
     },
     {
         "BriefDescription": "Counts the number of machine clears that flush the pipeline and restart the machine without the use of microcode.",

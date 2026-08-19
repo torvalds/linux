@@ -44,7 +44,7 @@ required:
   - power-domains
   - '#power-domain-cells'
 
-unevaluatedProperties: false
+additionalProperties: false
 
 examples:
   - |

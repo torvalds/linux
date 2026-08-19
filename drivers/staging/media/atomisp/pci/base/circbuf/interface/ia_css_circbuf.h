@@ -139,21 +139,16 @@ static inline uint8_t ia_css_circbuf_get_pos_at_offset(
     u32 base,
     int offset)
 {
-	u8 dest;
-
 	OP___assert(cb);
 	OP___assert(cb->desc);
 	OP___assert(cb->desc->size > 0);
 
 	/* step 1: adjudst the offset  */
-	while (offset < 0) {
+	while (offset < 0)
 		offset += cb->desc->size;
-	}
 
 	/* step 2: shift and round by the upper limit */
-	dest = OP_std_modadd(base, offset, cb->desc->size);
-
-	return dest;
+	return (base + offset) % cb->desc->size;
 }
 
 /**

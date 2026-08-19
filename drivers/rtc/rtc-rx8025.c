@@ -71,8 +71,8 @@ enum rx_model {
 };
 
 static const struct i2c_device_id rx8025_id[] = {
-	{ "rx8025", model_rx_8025 },
-	{ "rx8035", model_rx_8035 },
+	{ .name = "rx8025", .driver_data = model_rx_8025 },
+	{ .name = "rx8035", .driver_data = model_rx_8035 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rx8025_id);

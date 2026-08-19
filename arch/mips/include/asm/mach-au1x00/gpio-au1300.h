@@ -13,6 +13,9 @@
 #include <asm/mach-au1x00/au1000.h>
 
 struct gpio_chip;
+struct software_node;
+
+extern const struct software_node alchemy_gpic_node;
 
 /* with the current GPIC design, up to 128 GPIOs are possible.
  * The only implementation so far is in the Au1300, which has 75 externally

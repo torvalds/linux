@@ -443,7 +443,7 @@ static int aw99706_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(aw99706_pm_ops, aw99706_suspend, aw99706_resume);
 
 static const struct i2c_device_id aw99706_ids[] = {
-	{ "aw99706" },
+	{ .name = "aw99706" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, aw99706_ids);

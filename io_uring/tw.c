@@ -34,10 +34,6 @@ void io_tctx_fallback_work(struct work_struct *work)
 						  fallback_work);
 	unsigned int count = 0;
 
-	/* see tctx_task_work() - a set bit must always have a run coming */
-	clear_bit(0, &tctx->tw_pending);
-	smp_mb__after_atomic();
-
 	/*
 	 * Run the entries directly. We're in PF_KTHRED context, hence
 	 * io_should_terminate_tw() is true and they will be marked as
@@ -55,7 +51,7 @@ static void io_fallback_tw(struct io_uring_task *tctx)
 	 * the queued work) stay around until the drain has run.
 	 */
 	get_task_struct(tctx->task);
-	if (!queue_work(system_unbound_wq, &tctx->fallback_work))
+	if (!queue_work(system_dfl_wq, &tctx->fallback_work))
 		put_task_struct(tctx->task);
 }
 
@@ -101,6 +97,13 @@ void tctx_task_work_run(struct io_uring_task *tctx, unsigned int max_entries,
 				io_poll_task_func, io_req_rw_complete,
 				(struct io_tw_req){req}, ts);
 		(*count)++;
+		/*
+		 * Break if most recent pop emptied the queue. This helps
+		 * bound task_work run, and also protects the regular
+		 * task_work addition.
+		 */
+		if (mpscq_pop_emptied(&tctx->task_list, tctx->task_head))
+			break;
 		if (unlikely(need_resched())) {
 			ctx_flush_and_put(ctx, ts);
 			ctx = NULL;
@@ -127,8 +130,6 @@ void tctx_task_work(struct callback_head *cb)
 	unsigned int count = 0;
 
 	tctx = container_of(cb, struct io_uring_task, task_work);
-	clear_bit(0, &tctx->tw_pending);
-	smp_mb__after_atomic();
 	tctx_task_work_run(tctx, UINT_MAX, &count);
 }
 
@@ -206,7 +207,7 @@ void io_req_normal_work_add(struct io_kiocb *req)
 	struct io_uring_task *tctx = req->tctx;
 	struct io_ring_ctx *ctx = req->ctx;
 
-	/* task_work already pending, we're done */
+	/* tw run already pending, nothing else to do */
 	if (!mpscq_push(&tctx->task_list, &req->io_task_work.node))
 		return;
 
@@ -222,10 +223,6 @@ void io_req_normal_work_add(struct io_kiocb *req)
 		__set_notify_signal(tctx->task);
 		return;
 	}
-
-	/* task_work must only be added once */
-	if (test_and_set_bit(0, &tctx->tw_pending))
-		return;
 
 	if (likely(!task_work_add(tctx->task, &tctx->task_work, ctx->notify_method)))
 		return;

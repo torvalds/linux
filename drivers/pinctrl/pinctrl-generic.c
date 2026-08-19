@@ -17,55 +17,23 @@
 #include "pinctrl-utils.h"
 #include "pinmux.h"
 
-static int pinctrl_generic_pins_function_dt_subnode_to_map(struct pinctrl_dev *pctldev,
-							   struct device_node *parent,
-							   struct device_node *np,
-							   struct pinctrl_map **maps,
-							   unsigned int *num_maps,
-							   unsigned int *num_reserved_maps,
-							   const char **group_names,
-							   unsigned int ngroups)
+int pinctrl_generic_to_map(struct pinctrl_dev *pctldev, struct device_node *parent,
+			   struct device_node *np, struct pinctrl_map **maps,
+			   unsigned int *num_maps, unsigned int *num_reserved_maps,
+			   const char **group_names, unsigned int ngroups,
+			   void *data, unsigned int *pins, unsigned int npins)
 {
 	struct device *dev = pctldev->dev;
-	const char **functions;
+	unsigned int num_configs;
 	const char *group_name;
 	unsigned long *configs;
-	unsigned int num_configs, pin, *pins;
-	int npins, ret, reserve = 1;
-
-	npins = of_property_count_u32_elems(np, "pins");
-
-	if (npins < 1) {
-		dev_err(dev, "invalid pinctrl group %pOFn.%pOFn %d\n",
-			parent, np, npins);
-		return npins;
-	}
+	int ret, reserve = 1;
 
 	group_name = devm_kasprintf(dev, GFP_KERNEL, "%pOFn.%pOFn", parent, np);
 	if (!group_name)
 		return -ENOMEM;
 
 	group_names[ngroups] = group_name;
-
-	pins = devm_kcalloc(dev, npins, sizeof(*pins), GFP_KERNEL);
-	if (!pins)
-		return -ENOMEM;
-
-	functions = devm_kcalloc(dev, npins, sizeof(*functions), GFP_KERNEL);
-	if (!functions)
-		return -ENOMEM;
-
-	for (int i = 0; i < npins; i++) {
-		ret = of_property_read_u32_index(np, "pins", i, &pin);
-		if (ret)
-			return ret;
-
-		pins[i] = pin;
-
-		ret = of_property_read_string(np, "function", &functions[i]);
-		if (ret)
-			return ret;
-	}
 
 	ret = pinctrl_utils_reserve_map(pctldev, maps, num_reserved_maps, num_maps, reserve);
 	if (ret)
@@ -76,7 +44,7 @@ static int pinctrl_generic_pins_function_dt_subnode_to_map(struct pinctrl_dev *p
 	if (ret < 0)
 		return ret;
 
-	ret = pinctrl_generic_add_group(pctldev, group_name, pins, npins, functions);
+	ret = pinctrl_generic_add_group(pctldev, group_name, pins, npins, data);
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "failed to add group %s: %d\n",
 				     group_name, ret);
@@ -102,18 +70,113 @@ static int pinctrl_generic_pins_function_dt_subnode_to_map(struct pinctrl_dev *p
 
 	return 0;
 };
+EXPORT_SYMBOL_GPL(pinctrl_generic_to_map);
 
-/*
- * For platforms that do not define groups or functions in the driver, but
- * instead use the devicetree to describe them. This function will, unlike
- * pinconf_generic_dt_node_to_map() etc which rely on driver defined groups
- * and functions, create them in addition to parsing pinconf properties and
- * adding mappings.
- */
-int pinctrl_generic_pins_function_dt_node_to_map(struct pinctrl_dev *pctldev,
-						 struct device_node *np,
-						 struct pinctrl_map **maps,
-						 unsigned int *num_maps)
+static int pinctrl_generic_pins_function_dt_subnode_to_map(struct pinctrl_dev *pctldev,
+							   struct device_node *parent,
+							   struct device_node *np,
+							   struct pinctrl_map **maps,
+							   unsigned int *num_maps,
+							   unsigned int *num_reserved_maps,
+							   const char **group_names,
+							   unsigned int ngroups)
+{
+	struct device *dev = pctldev->dev;
+	unsigned int pin, *pins;
+	const char **functions;
+	int npins, ret;
+
+	npins = of_property_count_u32_elems(np, "pins");
+
+	if (npins < 1) {
+		dev_err(dev, "invalid pinctrl group %pOFn.%pOFn %d\n",
+			parent, np, npins);
+		return npins;
+	}
+
+	pins = devm_kcalloc(dev, npins, sizeof(*pins), GFP_KERNEL);
+	if (!pins)
+		return -ENOMEM;
+
+	functions = devm_kcalloc(dev, npins, sizeof(*functions), GFP_KERNEL);
+	if (!functions)
+		return -ENOMEM;
+
+	for (int i = 0; i < npins; i++) {
+		ret = of_property_read_u32_index(np, "pins", i, &pin);
+		if (ret)
+			return ret;
+
+		pins[i] = pin;
+
+		ret = of_property_read_string(np, "function", &functions[i]);
+		if (ret)
+			return ret;
+	}
+
+	return pinctrl_generic_to_map(pctldev, parent, np, maps, num_maps,
+				      num_reserved_maps, group_names, ngroups,
+				      functions, pins, npins);
+}
+
+static int pinctrl_generic_pinmux_dt_subnode_to_map(struct pinctrl_dev *pctldev,
+						    struct device_node *parent,
+						    struct device_node *np,
+						    struct pinctrl_map **maps,
+						    unsigned int *num_maps,
+						    unsigned int *num_reserved_maps,
+						    const char **group_names,
+						    unsigned int ngroups)
+{
+	struct device *dev = pctldev->dev;
+	unsigned int *pins, *muxes;
+	int npins, ret;
+
+	npins = of_property_count_u32_elems(np, "pinmux");
+
+	if (npins < 1) {
+		dev_err(dev, "invalid pinctrl group %pOFn.%pOFn %d\n",
+			parent, np, npins);
+		return npins;
+	}
+
+	pins = devm_kcalloc(dev, npins, sizeof(*pins), GFP_KERNEL);
+	if (!pins)
+		return -ENOMEM;
+
+	muxes = devm_kcalloc(dev, npins, sizeof(*muxes), GFP_KERNEL);
+	if (!muxes)
+		return -ENOMEM;
+
+	for (int i = 0; i < npins; i++) {
+		unsigned int pinmux;
+
+		ret = of_property_read_u32_index(np, "pinmux", i, &pinmux);
+		if (ret)
+			return ret;
+
+		pins[i] = pinmux >> 16;
+		muxes[i] = pinmux & GENMASK(15, 0);
+	}
+
+	return pinctrl_generic_to_map(pctldev, parent, np, maps, num_maps,
+				      num_reserved_maps, group_names, ngroups,
+				      muxes, pins, npins);
+}
+
+static int pinctrl_generic_dt_node_to_map(struct pinctrl_dev *pctldev,
+					  struct device_node *np,
+					  struct pinctrl_map **maps,
+					  unsigned int *num_maps,
+					  int (dt_subnode_to_map)(
+						  struct pinctrl_dev *,
+						  struct device_node *,
+						  struct device_node *,
+						  struct pinctrl_map **,
+						  unsigned int *,
+						  unsigned int *,
+						  const char **,
+						  unsigned int))
 {
 	struct device *dev = pctldev->dev;
 	struct device_node *child_np;
@@ -136,11 +199,8 @@ int pinctrl_generic_pins_function_dt_node_to_map(struct pinctrl_dev *pctldev,
 	if (!group_names)
 		return -ENOMEM;
 
-	ret = pinctrl_generic_pins_function_dt_subnode_to_map(pctldev, np, np,
-							      maps, num_maps,
-							      &num_reserved_maps,
-							      group_names,
-							      ngroups);
+	ret = dt_subnode_to_map(pctldev, np, np, maps, num_maps,
+				&num_reserved_maps, group_names, ngroups);
 	if (ret) {
 		pinctrl_utils_free_map(pctldev, *maps, *num_maps);
 		return dev_err_probe(dev, ret, "error figuring out mappings for %s\n", np->name);
@@ -164,11 +224,8 @@ parent:
 
 	ngroups = 0;
 	for_each_available_child_of_node_scoped(np, child_np) {
-		ret = pinctrl_generic_pins_function_dt_subnode_to_map(pctldev, np, child_np,
-								      maps, num_maps,
-								      &num_reserved_maps,
-								      group_names,
-								      ngroups);
+		ret = dt_subnode_to_map(pctldev, np, child_np, maps, num_maps,
+					&num_reserved_maps, group_names, ngroups);
 		if (ret) {
 			pinctrl_utils_free_map(pctldev, *maps, *num_maps);
 			return dev_err_probe(dev, ret, "error figuring out mappings for %s\n",
@@ -186,4 +243,40 @@ parent:
 
 	return 0;
 }
+
+/*
+ * For platforms that do not define groups or functions in the driver, but
+ * instead use the devicetree to describe them. This function will, unlike
+ * pinconf_generic_dt_node_to_map() etc which rely on driver defined groups
+ * and functions, create them in addition to parsing pinconf properties and
+ * adding mappings.
+ */
+int pinctrl_generic_pins_function_dt_node_to_map(struct pinctrl_dev *pctldev,
+						 struct device_node *np,
+						 struct pinctrl_map **maps,
+						 unsigned int *num_maps)
+{
+	return pinctrl_generic_dt_node_to_map(pctldev, np, maps, num_maps,
+					      &pinctrl_generic_pins_function_dt_subnode_to_map);
+}
 EXPORT_SYMBOL_GPL(pinctrl_generic_pins_function_dt_node_to_map);
+
+/*
+ * For platforms that do not define groups or functions in the driver, but
+ * instead use the devicetree to describe them. This function will, unlike
+ * pinconf_generic_dt_node_to_map() etc which rely on driver defined groups
+ * and functions, create them in addition to parsing pinconf properties and
+ * adding mappings.
+ *
+ * It assumes that the upper 16 bits of the pinmux items contain the pin
+ * and the lower 16 the mux setting.
+ */
+int pinctrl_generic_pinmux_dt_node_to_map(struct pinctrl_dev *pctldev,
+					  struct device_node *np,
+					  struct pinctrl_map **maps,
+					  unsigned int *num_maps)
+{
+	return pinctrl_generic_dt_node_to_map(pctldev, np, maps, num_maps,
+					      &pinctrl_generic_pinmux_dt_subnode_to_map);
+};
+EXPORT_SYMBOL_GPL(pinctrl_generic_pinmux_dt_node_to_map);

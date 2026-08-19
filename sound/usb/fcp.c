@@ -1083,6 +1083,8 @@ static int fcp_find_fc_interface(struct usb_mixer_interface *mixer)
 
 		if (desc->bInterfaceClass != 255)
 			continue;
+		if (desc->bNumEndpoints < 1)
+			continue;
 
 		epd = get_endpoint(intf->altsetting, 0);
 		private->bInterfaceNumber = desc->bInterfaceNumber;

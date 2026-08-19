@@ -1776,7 +1776,7 @@ struct ncb {
 **	return from the subroutine.
 */
 
-#ifdef CONFIG_NCR53C8XX_PREFETCH
+#ifdef NCR53C8XX_PREFETCH
 #define PREFETCH_FLUSH_CNT	2
 #define PREFETCH_FLUSH		SCR_CALL, PADDRH (wait_dma),
 #else

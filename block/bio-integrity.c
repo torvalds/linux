@@ -38,6 +38,7 @@ unsigned int __bio_integrity_action(struct bio *bio)
 		}
 		return BI_ACT_BUFFER | BI_ACT_CHECK;
 	case REQ_OP_WRITE:
+	case REQ_OP_ZONE_APPEND:
 		/*
 		 * Flush masquerading as write?
 		 */
@@ -64,20 +65,18 @@ unsigned int __bio_integrity_action(struct bio *bio)
 }
 EXPORT_SYMBOL_GPL(__bio_integrity_action);
 
-void bio_integrity_alloc_buf(struct bio *bio, bool zero_buffer)
+void bio_integrity_alloc_buf(struct bio *bio, gfp_t gfp, bool zero_buffer)
 {
 	struct blk_integrity *bi = blk_get_integrity(bio->bi_bdev->bd_disk);
 	struct bio_integrity_payload *bip = bio_integrity(bio);
 	unsigned int len = bio_integrity_bytes(bi, bio_sectors(bio));
-	gfp_t gfp = GFP_NOIO | (zero_buffer ? __GFP_ZERO : 0);
 	void *buf;
 
-	buf = kmalloc(len, (gfp & ~__GFP_DIRECT_RECLAIM) |
-			__GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN);
+	buf = kmalloc(len, gfp | __GFP_NOWARN | (zero_buffer ? __GFP_ZERO : 0));
 	if (unlikely(!buf)) {
 		struct page *page;
 
-		page = mempool_alloc(&integrity_buf_pool, GFP_NOFS);
+		page = mempool_alloc(&integrity_buf_pool, gfp);
 		if (zero_buffer)
 			memset(page_address(page), 0, len);
 		bvec_set_page(&bip->bip_vec[0], page, len, 0);

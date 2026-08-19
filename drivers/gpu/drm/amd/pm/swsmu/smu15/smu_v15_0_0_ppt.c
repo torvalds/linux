@@ -227,8 +227,13 @@ static int smu_v15_0_0_system_features_control(struct smu_context *smu, bool en)
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
 
-	if (!en && !adev->in_s0ix)
+	if (!en && !adev->in_s0ix) {
 		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_PrepareMp1ForUnload, NULL);
+
+		/* SMU resets BIF_FB_EN to zero, re-enable MC access on APUs with SMU V15 */
+		if (!ret && adev->nbio.funcs && adev->nbio.funcs->mc_access_enable)
+			adev->nbio.funcs->mc_access_enable(adev, true);
+	}
 
 	return ret;
 }

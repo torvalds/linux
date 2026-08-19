@@ -237,12 +237,16 @@ static void snd_caiaq_input_read_erp(struct snd_usb_caiaqdev *cdev,
 
 	switch (cdev->chip.usb_id) {
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AK1):
+		if (len < 2)
+			return;
 		i = decode_erp(buf[0], buf[1]);
 		input_report_abs(input_dev, ABS_X, i);
 		input_sync(input_dev);
 		break;
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_KORECONTROLLER):
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_KORECONTROLLER2):
+		if (len < 16)
+			return;
 		i = decode_erp(buf[7], buf[5]);
 		input_report_abs(input_dev, ABS_HAT0X, i);
 		i = decode_erp(buf[12], buf[14]);
@@ -263,6 +267,8 @@ static void snd_caiaq_input_read_erp(struct snd_usb_caiaqdev *cdev,
 		break;
 
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_MASCHINECONTROLLER):
+		if (len < 22)
+			return;
 		/* 4 under the left screen */
 		input_report_abs(input_dev, ABS_HAT0X, decode_erp(buf[21], buf[20]));
 		input_report_abs(input_dev, ABS_HAT0Y, decode_erp(buf[15], buf[14]));
@@ -308,9 +314,13 @@ static void snd_caiaq_input_read_io(struct snd_usb_caiaqdev *cdev,
 	switch (cdev->chip.usb_id) {
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_KORECONTROLLER):
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_KORECONTROLLER2):
+		if (len < 5)
+			return;
 		input_report_abs(cdev->input_dev, ABS_MISC, 255 - buf[4]);
 		break;
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_TRAKTORKONTROLX1):
+		if (len < 7)
+			return;
 		/* rotary encoders */
 		input_report_abs(cdev->input_dev, ABS_X, buf[5] & 0xf);
 		input_report_abs(cdev->input_dev, ABS_Y, buf[5] >> 4);
@@ -330,7 +340,7 @@ static void snd_usb_caiaq_tks4_dispatch(struct snd_usb_caiaqdev *cdev,
 {
 	struct device *dev = caiaqdev_to_dev(cdev);
 
-	while (len) {
+	while (len >= TKS4_MSGBLOCK_SIZE) {
 		unsigned int i, block_id = (buf[0] << 8) | buf[1];
 
 		switch (block_id) {

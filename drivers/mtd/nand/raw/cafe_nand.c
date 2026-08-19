@@ -830,8 +830,7 @@ static void cafe_nand_remove(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id cafe_nand_tbl[] = {
-	{ PCI_VENDOR_ID_MARVELL, PCI_DEVICE_ID_MARVELL_88ALP01_NAND,
-	  PCI_ANY_ID, PCI_ANY_ID },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, PCI_DEVICE_ID_MARVELL_88ALP01_NAND) },
 	{ }
 };
 

@@ -160,6 +160,9 @@ static int ge_put_enum_double(struct snd_kcontrol *kcontrol,
 	unsigned int reg = e->reg;
 	int ret;
 
+	if (item[0] >= e->items)
+		return -EINVAL;
+
 	reg &= ~SDW_SDCA_CTL_CSEL(0x3F);
 	reg |= SDW_SDCA_CTL_CSEL(SDCA_CTL_GE_DETECTED_MODE);
 

@@ -1,0 +1,20 @@
+[
+    {
+        "BriefDescription": "Counts the number of LBR entries recorded. Requires LBRs to be enabled in IA32_LBR_CTL. [This event is alias to MISC_RETIRED.LBR_INSERTS]",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xe4",
+        "EventName": "LBR_INSERTS.ANY",
+        "PublicDescription": "Counts the number of LBR entries recorded. Requires LBRs to be enabled in IA32_LBR_CTL. [This event is alias to MISC_RETIRED.LBR_INSERTS] Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts the total number of BTCLEARS.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xe8",
+        "EventName": "PREDICTION.BTCLEAR",
+        "PublicDescription": "Counts the total number of BTCLEARS which occurs when the Branch Target Buffer (BTB) predicts a taken branch.",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1"
+    }
+]

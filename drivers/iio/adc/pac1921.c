@@ -1310,7 +1310,7 @@ static int pac1921_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id pac1921_id[] = {
-	{ .name = "pac1921", 0 },
+	{ .name = "pac1921" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pac1921_id);

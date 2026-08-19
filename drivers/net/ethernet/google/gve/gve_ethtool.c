@@ -984,7 +984,8 @@ const struct ethtool_ops gve_ethtool_ops = {
 	.supported_ring_params = ETHTOOL_RING_USE_TCP_DATA_SPLIT |
 				 ETHTOOL_RING_USE_RX_BUF_LEN,
 	.op_needs_rtnl = ETHTOOL_OP_NEEDS_RTNL_SCHANNELS |
-			 ETHTOOL_OP_NEEDS_RTNL_SRINGPARAM,
+			 ETHTOOL_OP_NEEDS_RTNL_SRINGPARAM |
+			 ETHTOOL_OP_NEEDS_RTNL_GLINK,
 	.get_drvinfo = gve_get_drvinfo,
 	.get_strings = gve_get_strings,
 	.get_sset_count = gve_get_sset_count,

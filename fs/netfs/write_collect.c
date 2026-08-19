@@ -408,6 +408,16 @@ bool netfs_write_collection(struct netfs_io_request *wreq)
 	netfs_wake_rreq_flag(wreq, NETFS_RREQ_IN_PROGRESS, netfs_rreq_trace_wake_ip);
 	/* As we cleared NETFS_RREQ_IN_PROGRESS, we acquired its ref. */
 
+	switch (wreq->origin) {
+	case NETFS_WRITEBACK:
+	case NETFS_WRITEBACK_SINGLE:
+	case NETFS_WRITETHROUGH:
+		netfs_wb_end(ictx);
+		break;
+	default:
+		break;
+	}
+
 	if (wreq->iocb) {
 		size_t written = min(wreq->transferred, wreq->len);
 		wreq->iocb->ki_pos += written;

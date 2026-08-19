@@ -8,6 +8,7 @@
 #include <linux/ioport.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
+#include <linux/sysfs.h>
 #include <linux/ndctl.h>
 #include <linux/sched.h>
 #include <linux/libnvdimm.h>
@@ -1062,8 +1063,8 @@ static ssize_t health_bitmap_inject_show(struct device *dev,
 	struct nvdimm *dimm = to_nvdimm(dev);
 	struct papr_scm_priv *p = nvdimm_provider_data(dimm);
 
-	return sprintf(buf, "%#llx\n",
-		       READ_ONCE(p->health_bitmap_inject_mask));
+	return sysfs_emit(buf, "%#llx\n",
+			  READ_ONCE(p->health_bitmap_inject_mask));
 }
 
 static DEVICE_ATTR_ADMIN_RO(health_bitmap_inject);

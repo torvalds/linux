@@ -11,6 +11,7 @@
 #include <linux/delay.h>
 #include <linux/of_device.h>
 #include <linux/clk.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
@@ -18,6 +19,7 @@
 #include <sound/pcm_params.h>
 #include <sound/dmaengine_pcm.h>
 #include <sound/tlv.h>
+
 #include "rockchip_sai.h"
 
 #define DRV_NAME		"rockchip-sai"
@@ -215,12 +217,14 @@ wait_for_idle:
 static int rockchip_sai_runtime_suspend(struct device *dev)
 {
 	struct rk_sai_dev *sai = dev_get_drvdata(dev);
+	unsigned long flags;
 
 	rockchip_sai_fsync_lost_detect(sai, 0);
 	rockchip_sai_fsync_err_detect(sai, 0);
 
-	scoped_guard(spinlock_irqsave, &sai->xfer_lock)
-		rockchip_sai_xfer_clk_stop_and_wait(sai, NULL);
+	spin_lock_irqsave(&sai->xfer_lock, flags);
+	rockchip_sai_xfer_clk_stop_and_wait(sai, NULL);
+	spin_unlock_irqrestore(&sai->xfer_lock, flags);
 
 	regcache_cache_only(sai->regmap, true);
 	/*
@@ -480,6 +484,7 @@ static int rockchip_sai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	struct rk_sai_dev *sai = snd_soc_dai_get_drvdata(dai);
 	unsigned int mask = 0, val = 0;
 	unsigned int clk_gates;
+	unsigned long flags;
 	int ret = 0;
 
 	pm_runtime_get_sync(dai->dev);
@@ -495,56 +500,56 @@ static int rockchip_sai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		sai->is_master_mode = false;
 		break;
 	default:
-		pm_runtime_put(dai->dev);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_pm_put;
 	}
 
-	scoped_guard(spinlock_irqsave, &sai->xfer_lock) {
-		rockchip_sai_xfer_clk_stop_and_wait(sai, &clk_gates);
-		if (sai->initialized) {
-			if (sai->has_capture && sai->has_playback)
-				rockchip_sai_xfer_stop(sai, -1);
-			else if (sai->has_capture)
-				rockchip_sai_xfer_stop(sai, SNDRV_PCM_STREAM_CAPTURE);
-			else
-				rockchip_sai_xfer_stop(sai, SNDRV_PCM_STREAM_PLAYBACK);
-		} else {
-			rockchip_sai_clear(sai, 0);
-			sai->initialized = true;
-		}
-
-		regmap_update_bits(sai->regmap, SAI_CKR, mask, val);
-
-		mask = SAI_CKR_CKP_MASK | SAI_CKR_FSP_MASK;
-		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
-		case SND_SOC_DAIFMT_NB_NF:
-			val = SAI_CKR_CKP_NORMAL | SAI_CKR_FSP_NORMAL;
-			break;
-		case SND_SOC_DAIFMT_NB_IF:
-			val = SAI_CKR_CKP_NORMAL | SAI_CKR_FSP_INVERTED;
-			break;
-		case SND_SOC_DAIFMT_IB_NF:
-			val = SAI_CKR_CKP_INVERTED | SAI_CKR_FSP_NORMAL;
-			break;
-		case SND_SOC_DAIFMT_IB_IF:
-			val = SAI_CKR_CKP_INVERTED | SAI_CKR_FSP_INVERTED;
-			break;
-		default:
-			ret = -EINVAL;
-			break;
-		}
-
-		if (ret == 0) {
-			regmap_update_bits(sai->regmap, SAI_CKR, mask, val);
-			rockchip_sai_fmt_create(sai, fmt);
-		}
-
-		if (clk_gates)
-			regmap_update_bits(sai->regmap, SAI_XFER,
-					SAI_XFER_CLK_MASK | SAI_XFER_FSS_MASK,
-					clk_gates);
+	spin_lock_irqsave(&sai->xfer_lock, flags);
+	rockchip_sai_xfer_clk_stop_and_wait(sai, &clk_gates);
+	if (sai->initialized) {
+		if (sai->has_capture && sai->has_playback)
+			rockchip_sai_xfer_stop(sai, -1);
+		else if (sai->has_capture)
+			rockchip_sai_xfer_stop(sai, SNDRV_PCM_STREAM_CAPTURE);
+		else
+			rockchip_sai_xfer_stop(sai, SNDRV_PCM_STREAM_PLAYBACK);
+	} else {
+		rockchip_sai_clear(sai, 0);
+		sai->initialized = true;
 	}
 
+	regmap_update_bits(sai->regmap, SAI_CKR, mask, val);
+
+	mask = SAI_CKR_CKP_MASK | SAI_CKR_FSP_MASK;
+	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
+	case SND_SOC_DAIFMT_NB_NF:
+		val = SAI_CKR_CKP_NORMAL | SAI_CKR_FSP_NORMAL;
+		break;
+	case SND_SOC_DAIFMT_NB_IF:
+		val = SAI_CKR_CKP_NORMAL | SAI_CKR_FSP_INVERTED;
+		break;
+	case SND_SOC_DAIFMT_IB_NF:
+		val = SAI_CKR_CKP_INVERTED | SAI_CKR_FSP_NORMAL;
+		break;
+	case SND_SOC_DAIFMT_IB_IF:
+		val = SAI_CKR_CKP_INVERTED | SAI_CKR_FSP_INVERTED;
+		break;
+	default:
+		ret = -EINVAL;
+		goto err_xfer_unlock;
+	}
+
+	regmap_update_bits(sai->regmap, SAI_CKR, mask, val);
+
+	rockchip_sai_fmt_create(sai, fmt);
+
+err_xfer_unlock:
+	if (clk_gates)
+		regmap_update_bits(sai->regmap, SAI_XFER,
+				SAI_XFER_CLK_MASK | SAI_XFER_FSS_MASK,
+				clk_gates);
+	spin_unlock_irqrestore(&sai->xfer_lock, flags);
+err_pm_put:
 	pm_runtime_put(dai->dev);
 
 	return ret;
@@ -560,6 +565,7 @@ static int rockchip_sai_hw_params(struct snd_pcm_substream *substream,
 	unsigned int ch_per_lane, slot_width;
 	unsigned int val, fscr, reg;
 	unsigned int lanes, req_lanes;
+	unsigned long flags;
 	int ret = 0;
 
 	if (!rockchip_sai_stream_valid(substream, dai))
@@ -586,8 +592,8 @@ static int rockchip_sai_hw_params(struct snd_pcm_substream *substream,
 			dev_err(sai->dev, "not enough lanes (%d) for requested number of %s channels (%d)\n",
 				lanes, reg == SAI_TXCR ? "playback" : "capture",
 				params_channels(params));
-			pm_runtime_put(sai->dev);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto err_pm_put;
 		} else {
 			lanes = req_lanes;
 		}
@@ -613,88 +619,84 @@ static int rockchip_sai_hw_params(struct snd_pcm_substream *substream,
 		val = SAI_XCR_VDW(32);
 		break;
 	default:
-		pm_runtime_put(sai->dev);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_pm_put;
 	}
 
 	val |= SAI_XCR_CSR(lanes);
 
-	scoped_guard(spinlock_irqsave, &sai->xfer_lock) {
+	spin_lock_irqsave(&sai->xfer_lock, flags);
 
-		regmap_update_bits(sai->regmap, reg, SAI_XCR_VDW_MASK | SAI_XCR_CSR_MASK, val);
+	regmap_update_bits(sai->regmap, reg, SAI_XCR_VDW_MASK | SAI_XCR_CSR_MASK, val);
 
-		if (!sai->is_tdm)
-			regmap_update_bits(sai->regmap, reg, SAI_XCR_SBW_MASK,
-					   SAI_XCR_SBW(params_physical_width(params)));
+	if (!sai->is_tdm)
+		regmap_update_bits(sai->regmap, reg, SAI_XCR_SBW_MASK,
+				   SAI_XCR_SBW(params_physical_width(params)));
 
-		regmap_read(sai->regmap, reg, &val);
+	regmap_read(sai->regmap, reg, &val);
 
-		slot_width = SAI_XCR_SBW_V(val);
-		ch_per_lane = params_channels(params) / lanes;
+	slot_width = SAI_XCR_SBW_V(val);
+	ch_per_lane = params_channels(params) / lanes;
 
-		regmap_update_bits(sai->regmap, reg, SAI_XCR_SNB_MASK,
-				   SAI_XCR_SNB(ch_per_lane));
+	regmap_update_bits(sai->regmap, reg, SAI_XCR_SNB_MASK,
+			   SAI_XCR_SNB(ch_per_lane));
 
-		fscr = SAI_FSCR_FW(sai->fw_ratio * slot_width * ch_per_lane);
+	fscr = SAI_FSCR_FW(sai->fw_ratio * slot_width * ch_per_lane);
 
-		switch (sai->fpw) {
-		case FPW_ONE_BCLK_WIDTH:
-			fscr |= SAI_FSCR_FPW(1);
-			break;
-		case FPW_ONE_SLOT_WIDTH:
-			fscr |= SAI_FSCR_FPW(slot_width);
-			break;
-		case FPW_HALF_FRAME_WIDTH:
-			fscr |= SAI_FSCR_FPW(sai->fw_ratio * slot_width * ch_per_lane / 2);
-			break;
-		default:
-			dev_err(sai->dev, "Invalid Frame Pulse Width %d\n", sai->fpw);
-			ret = -EINVAL;
-			break;
-		}
-
-		if (ret == 0) {
-			regmap_update_bits(sai->regmap, SAI_FSCR,
-					   SAI_FSCR_FW_MASK | SAI_FSCR_FPW_MASK, fscr);
-
-			if (sai->is_master_mode) {
-				bclk_rate = sai->fw_ratio * slot_width *
-						ch_per_lane * params_rate(params);
-				ret = clk_set_rate(sai->mclk, sai->mclk_rate);
-				if (ret)
-					dev_err(sai->dev, "Failed to set mclk to %u: %pe\n",
-						sai->mclk_rate, ERR_PTR(ret));
-				else {
-					mclk_rate = clk_get_rate(sai->mclk);
-					if (mclk_rate < bclk_rate) {
-						dev_err(sai->dev, "Mismatch mclk: %u, at least %u\n",
-							mclk_rate, bclk_rate);
-						ret = -EINVAL;
-					} else {
-
-						div_bclk = DIV_ROUND_CLOSEST(mclk_rate, bclk_rate);
-						mclk_req_rate = bclk_rate * div_bclk;
-
-						if (mclk_rate <
-							mclk_req_rate - CLK_SHIFT_RATE_HZ_MAX ||
-						    mclk_rate >
-							mclk_req_rate + CLK_SHIFT_RATE_HZ_MAX) {
-							dev_err(sai->dev,
-								"Mismatch mclk: %u, expected %u (+/- %dHz)\n",
-								mclk_rate, mclk_req_rate,
-								CLK_SHIFT_RATE_HZ_MAX);
-							ret = -EINVAL;
-						} else
-							regmap_update_bits(sai->regmap,
-									SAI_CKR,
-									SAI_CKR_MDIV_MASK,
-									SAI_CKR_MDIV(div_bclk));
-					}
-				}
-			}
-		}
+	switch (sai->fpw) {
+	case FPW_ONE_BCLK_WIDTH:
+		fscr |= SAI_FSCR_FPW(1);
+		break;
+	case FPW_ONE_SLOT_WIDTH:
+		fscr |= SAI_FSCR_FPW(slot_width);
+		break;
+	case FPW_HALF_FRAME_WIDTH:
+		fscr |= SAI_FSCR_FPW(sai->fw_ratio * slot_width * ch_per_lane / 2);
+		break;
+	default:
+		dev_err(sai->dev, "Invalid Frame Pulse Width %d\n", sai->fpw);
+		ret = -EINVAL;
+		goto err_xfer_unlock;
 	}
 
+	regmap_update_bits(sai->regmap, SAI_FSCR,
+			   SAI_FSCR_FW_MASK | SAI_FSCR_FPW_MASK, fscr);
+
+	if (sai->is_master_mode) {
+		bclk_rate = sai->fw_ratio * slot_width * ch_per_lane * params_rate(params);
+		ret = clk_set_rate(sai->mclk, sai->mclk_rate);
+		if (ret) {
+			dev_err(sai->dev, "Failed to set mclk to %u: %pe\n",
+				sai->mclk_rate, ERR_PTR(ret));
+			goto err_xfer_unlock;
+		}
+
+		mclk_rate = clk_get_rate(sai->mclk);
+		if (mclk_rate < bclk_rate) {
+			dev_err(sai->dev, "Mismatch mclk: %u, at least %u\n",
+				mclk_rate, bclk_rate);
+			ret = -EINVAL;
+			goto err_xfer_unlock;
+		}
+
+		div_bclk = DIV_ROUND_CLOSEST(mclk_rate, bclk_rate);
+		mclk_req_rate = bclk_rate * div_bclk;
+
+		if (mclk_rate < mclk_req_rate - CLK_SHIFT_RATE_HZ_MAX ||
+		    mclk_rate > mclk_req_rate + CLK_SHIFT_RATE_HZ_MAX) {
+			dev_err(sai->dev, "Mismatch mclk: %u, expected %u (+/- %dHz)\n",
+				mclk_rate, mclk_req_rate, CLK_SHIFT_RATE_HZ_MAX);
+			ret = -EINVAL;
+			goto err_xfer_unlock;
+		}
+
+		regmap_update_bits(sai->regmap, SAI_CKR, SAI_CKR_MDIV_MASK,
+				   SAI_CKR_MDIV(div_bclk));
+	}
+
+err_xfer_unlock:
+	spin_unlock_irqrestore(&sai->xfer_lock, flags);
+err_pm_put:
 	pm_runtime_put(sai->dev);
 
 	return ret;
@@ -704,6 +706,7 @@ static int rockchip_sai_prepare(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
 	struct rk_sai_dev *sai = snd_soc_dai_get_drvdata(dai);
+	unsigned long flags;
 
 	if (!rockchip_sai_stream_valid(substream, dai))
 		return 0;
@@ -724,12 +727,13 @@ static int rockchip_sai_prepare(struct snd_pcm_substream *substream,
 		 * udelay falls short.
 		 */
 		udelay(20);
-		scoped_guard(spinlock_irqsave, &sai->xfer_lock)
-			regmap_update_bits(sai->regmap, SAI_XFER,
-					   SAI_XFER_CLK_MASK |
-					   SAI_XFER_FSS_MASK,
-					   SAI_XFER_CLK_EN |
-					   SAI_XFER_FSS_EN);
+		spin_lock_irqsave(&sai->xfer_lock, flags);
+		regmap_update_bits(sai->regmap, SAI_XFER,
+				   SAI_XFER_CLK_MASK |
+				   SAI_XFER_FSS_MASK,
+				   SAI_XFER_CLK_EN |
+				   SAI_XFER_FSS_EN);
+		spin_unlock_irqrestore(&sai->xfer_lock, flags);
 	}
 
 	rockchip_sai_fsync_lost_detect(sai, 1);
@@ -912,6 +916,7 @@ static int rockchip_sai_set_tdm_slot(struct snd_soc_dai *dai,
 				     int slots, int slot_width)
 {
 	struct rk_sai_dev *sai = snd_soc_dai_get_drvdata(dai);
+	unsigned long flags;
 	unsigned int clk_gates;
 	int sw = slot_width;
 
@@ -927,16 +932,16 @@ static int rockchip_sai_set_tdm_slot(struct snd_soc_dai *dai,
 		return -EINVAL;
 
 	pm_runtime_get_sync(dai->dev);
-	scoped_guard(spinlock_irqsave, &sai->xfer_lock) {
-		rockchip_sai_xfer_clk_stop_and_wait(sai, &clk_gates);
-		regmap_update_bits(sai->regmap, SAI_TXCR, SAI_XCR_SBW_MASK,
-				   SAI_XCR_SBW(sw));
-		regmap_update_bits(sai->regmap, SAI_RXCR, SAI_XCR_SBW_MASK,
-				   SAI_XCR_SBW(sw));
-		regmap_update_bits(sai->regmap, SAI_XFER,
-				   SAI_XFER_CLK_MASK | SAI_XFER_FSS_MASK,
-				   clk_gates);
-	}
+	spin_lock_irqsave(&sai->xfer_lock, flags);
+	rockchip_sai_xfer_clk_stop_and_wait(sai, &clk_gates);
+	regmap_update_bits(sai->regmap, SAI_TXCR, SAI_XCR_SBW_MASK,
+			   SAI_XCR_SBW(sw));
+	regmap_update_bits(sai->regmap, SAI_RXCR, SAI_XCR_SBW_MASK,
+			   SAI_XCR_SBW(sw));
+	regmap_update_bits(sai->regmap, SAI_XFER,
+			   SAI_XFER_CLK_MASK | SAI_XFER_FSS_MASK,
+			   clk_gates);
+	spin_unlock_irqrestore(&sai->xfer_lock, flags);
 	pm_runtime_put(dai->dev);
 
 	return 0;

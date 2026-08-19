@@ -317,8 +317,8 @@ static void hdc2010_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id hdc2010_id[] = {
-	{ "hdc2010" },
-	{ "hdc2080" },
+	{ .name = "hdc2010" },
+	{ .name = "hdc2080" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, hdc2010_id);
