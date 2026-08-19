@@ -230,7 +230,7 @@ static void modify_fac_list(char *str)
 			if (str == endp)
 				break;
 			str = endp;
-			while (val <= endval) {
+			while (val <= endval && val < MAX_FACILITY_BIT) {
 				modify_facility(val, clear);
 				val++;
 			}
