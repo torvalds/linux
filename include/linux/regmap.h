@@ -587,7 +587,7 @@ typedef void (*regmap_hw_free_context)(void *context);
  *               must serialise with respect to non-async I/O.
  * @reg_write: Write a single register value to the given register address. This
  *             write operation has to complete when returning from the function.
- * @reg_write_noinc: Write multiple register value to the same register. This
+ * @reg_noinc_write: Write multiple register values to the same register. This
  *             write operation has to complete when returning from the function.
  * @reg_update_bits: Update bits operation to be used against volatile
  *                   registers, intended for devices supporting some mechanism
@@ -596,6 +596,8 @@ typedef void (*regmap_hw_free_context)(void *context);
  * @read: Read operation.  Data is returned in the buffer used to transmit
  *         data.
  * @reg_read: Read a single register value from a given register address.
+ * @reg_noinc_read: Read multiple register values from the same register. This
+ *             read operation has to complete when returning from the function.
  * @free_context: Free context.
  * @async_alloc: Allocate a regmap_async() structure.
  * @read_flag_mask: Mask to be set in the top byte of the register when doing
@@ -991,7 +993,8 @@ bool regmap_ac97_default_volatile(struct device *dev, unsigned int reg);
 /**
  * regmap_init_sdw_mbq_cfg() - Initialise MBQ SDW register map with config
  *
- * @sdw: Device that will be interacted with
+ * @dev: &struct device that will be interacted with
+ * @sdw: Soundwire device that will be interacted with
  * @config: Configuration for register map
  * @mbq_config: Properties for the MBQ registers
  *
@@ -1584,6 +1587,7 @@ regmap_fields_force_update_bits(struct regmap_field *field, unsigned int id,
  * struct regmap_irq_type - IRQ type definitions.
  *
  * @type_reg_offset: Offset register for the irq type setting.
+ * @type_reg_mask: Device interrupt mask
  * @type_rising_val: Register value to configure RISING type irq.
  * @type_falling_val: Register value to configure FALLING type irq.
  * @type_level_low_val: Register value to configure LEVEL_LOW type irq.
@@ -1717,6 +1721,8 @@ struct regmap_irq_chip_data;
  *		 main status base, [0, num_config_regs[ for any config
  *		 register base, and [0, num_regs[ for any other base.
  *		 If unspecified then regmap_irq_get_irq_reg_linear() is used.
+ * @irq_reqres:	 Callback function to request IRQ resources (may be %NULL)
+ * @irq_relres:  Callback function to release IRQ resources (may be %NULL)
  * @irq_drv_data:    Driver specific IRQ data which is passed as parameter when
  *		     driver specific pre/post interrupt handler is called.
  *

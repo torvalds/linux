@@ -16,7 +16,7 @@
 
 static int regcache_rbtree_write(struct regmap *map, unsigned int reg,
 				 unsigned int value);
-static int regcache_rbtree_exit(struct regmap *map);
+static void regcache_rbtree_exit(struct regmap *map);
 
 struct regcache_rbtree_node {
 	/* block of adjacent registers */
@@ -196,7 +196,7 @@ static int regcache_rbtree_init(struct regmap *map)
 	return 0;
 }
 
-static int regcache_rbtree_exit(struct regmap *map)
+static void regcache_rbtree_exit(struct regmap *map)
 {
 	struct rb_node *next;
 	struct regcache_rbtree_ctx *rbtree_ctx;
@@ -205,7 +205,7 @@ static int regcache_rbtree_exit(struct regmap *map)
 	/* if we've already been called then just return */
 	rbtree_ctx = map->cache;
 	if (!rbtree_ctx)
-		return 0;
+		return;
 
 	/* free up the rbtree */
 	next = rb_first(&rbtree_ctx->root);
@@ -221,8 +221,6 @@ static int regcache_rbtree_exit(struct regmap *map)
 	/* release the resources */
 	kfree(map->cache);
 	map->cache = NULL;
-
-	return 0;
 }
 
 static int regcache_rbtree_populate(struct regmap *map)
