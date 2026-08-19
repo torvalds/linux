@@ -373,3 +373,4 @@ module_exit(imx8qxp_clk_exit);
 MODULE_AUTHOR("Aisheng Dong <aisheng.dong@nxp.com>");
 MODULE_DESCRIPTION("NXP i.MX8QXP clock driver");
 MODULE_LICENSE("GPL v2");
+MODULE_SOFTDEP("pre: scu_pd");

@@ -75,6 +75,10 @@ properties:
           - enum:
               - qcom,msm8937-rpmpd
           - const: qcom,msm8917-rpmpd
+      - items:
+          - enum:
+              - qcom,maili-rpmhpd
+          - const: qcom,hawi-rpmhpd
 
   '#power-domain-cells':
     const: 1

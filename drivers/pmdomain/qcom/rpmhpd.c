@@ -41,7 +41,6 @@
  * @addr:		Resource address as looped up using resource name from
  *			cmd-db
  * @state_synced:	Indicator that sync_state has been invoked for the rpmhpd resource
- * @skip_retention_level: Indicate that retention level should not be used for the power domain
  */
 struct rpmhpd {
 	struct device	*dev;
@@ -58,7 +57,6 @@ struct rpmhpd {
 	const char	*res_name;
 	u32		addr;
 	bool		state_synced;
-	bool            skip_retention_level;
 };
 
 struct rpmhpd_desc {
@@ -191,7 +189,6 @@ static struct rpmhpd mxc = {
 	.pd = { .name = "mxc", },
 	.peer = &mxc_ao,
 	.res_name = "mxc.lvl",
-	.skip_retention_level = true,
 };
 
 static struct rpmhpd mxc_ao = {
@@ -199,7 +196,6 @@ static struct rpmhpd mxc_ao = {
 	.active_only = true,
 	.peer = &mxc,
 	.res_name = "mxc.lvl",
-	.skip_retention_level = true,
 };
 
 static struct rpmhpd nsp = {
@@ -309,10 +305,10 @@ static struct rpmhpd *sa8775p_rpmhpds[] = {
 	[SA8775P_LMX] = &lmx,
 	[SA8775P_MMCX] = &mmcx,
 	[SA8775P_MMCX_AO] = &mmcx_ao,
-	[SA8775P_MXC] = &mxc,
-	[SA8775P_MXC_AO] = &mxc_ao,
 	[SA8775P_MX] = &mx,
 	[SA8775P_MX_AO] = &mx_ao,
+	[SA8775P_MXC] = &mxc,
+	[SA8775P_MXC_AO] = &mxc_ao,
 	[SA8775P_NSP0] = &nsp0,
 	[SA8775P_NSP1] = &nsp1,
 };
@@ -329,10 +325,10 @@ static struct rpmhpd *nord_rpmhpds[] = {
 	[RPMHPD_EBI] = &ebi,
 	[RPMHPD_GFX] = &gfx,
 	[RPMHPD_GFX1] = &gfx1,
-	[RPMHPD_MX] = &mx,
-	[RPMHPD_MX_AO] = &mx_ao,
 	[RPMHPD_MMCX] = &mmcx,
 	[RPMHPD_MMCX_AO] = &mmcx_ao,
+	[RPMHPD_MX] = &mx,
+	[RPMHPD_MX_AO] = &mx_ao,
 	[RPMHPD_MXC] = &mxc,
 	[RPMHPD_MXC_AO] = &mxc_ao,
 	[RPMHPD_NSP0] = &nsp0,
@@ -484,9 +480,9 @@ static struct rpmhpd *sm7150_rpmhpds[] = {
 	[RPMHPD_GFX] = &gfx,
 	[RPMHPD_LCX] = &lcx,
 	[RPMHPD_LMX] = &lmx,
+	[RPMHPD_MSS] = &mss,
 	[RPMHPD_MX] = &mx,
 	[RPMHPD_MX_AO] = &mx_ao,
-	[RPMHPD_MSS] = &mss,
 };
 
 static const struct rpmhpd_desc sm7150_desc = {
@@ -702,11 +698,11 @@ static struct rpmhpd *hawi_rpmhpds[] = {
 	[RPMHPD_LMX] = &lmx,
 	[RPMHPD_MMCX] = &mmcx,
 	[RPMHPD_MMCX_AO] = &mmcx_ao,
+	[RPMHPD_MSS] = &mss,
 	[RPMHPD_MX] = &mx,
 	[RPMHPD_MX_AO] = &mx_ao,
 	[RPMHPD_MXC] = &mxc,
 	[RPMHPD_MXC_AO] = &mxc_ao,
-	[RPMHPD_MSS] = &mss,
 	[RPMHPD_NSP] = &nsp,
 	[RPMHPD_NSP2] = &nsp2,
 };
@@ -813,18 +809,18 @@ static struct rpmhpd *glymur_rpmhpds[] = {
 	[RPMHPD_CX_AO] = &cx_ao,
 	[RPMHPD_EBI] = &ebi,
 	[RPMHPD_GFX] = &gfx,
+	[RPMHPD_GMXC] = &gmxc,
 	[RPMHPD_LCX] = &lcx,
 	[RPMHPD_LMX] = &lmx,
 	[RPMHPD_MMCX] = &mmcx,
 	[RPMHPD_MMCX_AO] = &mmcx_ao,
+	[RPMHPD_MSS] = &mss,
 	[RPMHPD_MX] = &mx,
 	[RPMHPD_MX_AO] = &mx_ao,
 	[RPMHPD_MXC] = &mxc,
 	[RPMHPD_MXC_AO] = &mxc_ao,
-	[RPMHPD_MSS] = &mss,
 	[RPMHPD_NSP] = &nsp,
 	[RPMHPD_NSP2] = &nsp2,
-	[RPMHPD_GMXC] = &gmxc,
 };
 
 static const struct rpmhpd_desc glymur_desc = {
@@ -838,15 +834,15 @@ static struct rpmhpd *x1e80100_rpmhpds[] = {
 	[RPMHPD_CX_AO] = &cx_ao,
 	[RPMHPD_EBI] = &ebi,
 	[RPMHPD_GFX] = &gfx,
+	[RPMHPD_GMXC] = &gmxc,
 	[RPMHPD_LCX] = &lcx,
 	[RPMHPD_LMX] = &lmx,
 	[RPMHPD_MMCX] = &mmcx,
 	[RPMHPD_MMCX_AO] = &mmcx_ao,
 	[RPMHPD_MX] = &mx,
 	[RPMHPD_MX_AO] = &mx_ao,
-	[RPMHPD_NSP] = &nsp,
 	[RPMHPD_MXC] = &mxc,
-	[RPMHPD_GMXC] = &gmxc,
+	[RPMHPD_NSP] = &nsp,
 };
 
 static const struct rpmhpd_desc x1e80100_desc = {
@@ -864,10 +860,10 @@ static struct rpmhpd *qcs8300_rpmhpds[] = {
 	[RPMHPD_LMX] = &lmx,
 	[RPMHPD_MMCX] = &mmcx_w_cx_parent,
 	[RPMHPD_MMCX_AO] = &mmcx_ao_w_cx_parent,
-	[RPMHPD_MXC] = &mxc,
-	[RPMHPD_MXC_AO] = &mxc_ao,
 	[RPMHPD_MX] = &mx,
 	[RPMHPD_MX_AO] = &mx_ao,
+	[RPMHPD_MXC] = &mxc,
+	[RPMHPD_MXC_AO] = &mxc_ao,
 	[RPMHPD_NSP0] = &nsp0,
 	[RPMHPD_NSP1] = &nsp1,
 };
@@ -1097,7 +1093,15 @@ static int rpmhpd_update_level_mapping(struct rpmhpd *rpmhpd)
 		return -EINVAL;
 
 	for (i = 0; i < rpmhpd->level_count; i++) {
-		if (rpmhpd->skip_retention_level && buf[i] == RPMH_REGULATOR_LEVEL_RETENTION)
+		/*
+		 * Most HW won't function properly at Retention. The minimum
+		 * operational level is the first level above Retention. The
+		 * small subset of HW that can operate at Retention isn't
+		 * controlled by HLOS. Skip the Retention level to avoid HW
+		 * failures when the PD is enabled without first having an
+		 * explicit OPP level set.
+		 */
+		if (buf[i] == RPMH_REGULATOR_LEVEL_RETENTION)
 			continue;
 
 		rpmhpd->level[i] = buf[i];

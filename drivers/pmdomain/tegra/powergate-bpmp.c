@@ -137,6 +137,13 @@ static char *tegra_bpmp_powergate_get_name(struct tegra_bpmp *bpmp,
 	if (err < 0 || msg.rx.ret < 0)
 		return NULL;
 
+	if (response.get_name.name[0] == '\0')
+		return NULL;
+
+	if (dev_to_node(bpmp->dev) != NUMA_NO_NODE)
+		return kasprintf(GFP_KERNEL, "%d-%s", dev_to_node(bpmp->dev),
+				 response.get_name.name);
+
 	return kstrdup(response.get_name.name, GFP_KERNEL);
 }
 
@@ -234,7 +241,7 @@ tegra_bpmp_probe_powergates(struct tegra_bpmp *bpmp,
 		struct tegra_powergate_info *info = &powergates[count];
 
 		info->name = tegra_bpmp_powergate_get_name(bpmp, id);
-		if (!info->name || info->name[0] == '\0') {
+		if (!info->name) {
 			num_holes++;
 			continue;
 		}
