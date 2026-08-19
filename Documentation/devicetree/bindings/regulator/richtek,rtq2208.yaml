@@ -42,10 +42,13 @@ properties:
 
   richtek,mtp-sel-high:
     type: boolean
+    deprecated: true
     description:
       vout register selection based on this boolean value.
       false - Using DVS0 register setting to adjust vout
       true - Using DVS1 register setting to adjust vout
+
+      The property is now deprecated. Will be identified by RG HW register.
 
   regulators:
     type: object
@@ -100,7 +103,6 @@ examples:
         compatible = "richtek,rtq2208";
         reg = <0x10>;
         interrupts-extended = <&gpio26 0 IRQ_TYPE_LEVEL_LOW>;
-        richtek,mtp-sel-high;
 
         regulators {
           buck-a {

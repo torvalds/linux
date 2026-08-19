@@ -43,7 +43,9 @@ patternProperties:
 
   "^BUCK[1-6]$":
     type: object
-    $ref: regulator.yaml#
+    allOf:
+      - $ref: regulator.yaml#
+      - $ref: rohm,pmic-states.yaml#
     description:
       Properties for single BUCK regulator.
 
@@ -54,28 +56,16 @@ patternProperties:
           should be "buck1", ..., "buck6"
 
       rohm,dvs-run-voltage:
-        $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 1300000
-        description:
-          PMIC default "RUN" state voltage in uV. See below table for
-          bucks which support this. 0 means disabled.
 
       rohm,dvs-idle-voltage:
-        $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 1300000
-        description:
-          PMIC default "IDLE" state voltage in uV. See below table for
-          bucks which support this. 0 means disabled.
 
       rohm,dvs-suspend-voltage:
-        $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 1300000
-        description:
-          PMIC default "SUSPEND" state voltage in uV. See below table for
-          bucks which support this. 0 means disabled.
 
         # Supported default DVS states:
         #

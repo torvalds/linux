@@ -428,10 +428,10 @@ static int max77857_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id max77857_id[] = {
-	{ "max77831", ID_MAX77831 },
-	{ "max77857", ID_MAX77857 },
-	{ "max77859", ID_MAX77859 },
-	{ "max77859a", ID_MAX77859A },
+	{ .name = "max77831", .driver_data = ID_MAX77831 },
+	{ .name = "max77857", .driver_data = ID_MAX77857 },
+	{ .name = "max77859", .driver_data = ID_MAX77859 },
+	{ .name = "max77859a", .driver_data = ID_MAX77859A },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max77857_id);

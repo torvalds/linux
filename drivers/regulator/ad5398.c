@@ -207,8 +207,8 @@ struct ad5398_current_data_format {
 static const struct ad5398_current_data_format df_10_4_120 = {10, 4, 0, 120000};
 
 static const struct i2c_device_id ad5398_id[] = {
-	{ "ad5398", (kernel_ulong_t)&df_10_4_120 },
-	{ "ad5821", (kernel_ulong_t)&df_10_4_120 },
+	{ .name = "ad5398", .driver_data = (kernel_ulong_t)&df_10_4_120 },
+	{ .name = "ad5821", .driver_data = (kernel_ulong_t)&df_10_4_120 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ad5398_id);

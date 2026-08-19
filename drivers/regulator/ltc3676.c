@@ -357,7 +357,7 @@ static int ltc3676_regulator_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ltc3676_i2c_id[] = {
-	{ "ltc3676" },
+	{ .name = "ltc3676" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ltc3676_i2c_id);

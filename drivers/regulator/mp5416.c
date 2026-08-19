@@ -228,9 +228,9 @@ static const struct of_device_id mp5416_of_match[] = {
 MODULE_DEVICE_TABLE(of, mp5416_of_match);
 
 static const struct i2c_device_id mp5416_id[] = {
-	{ "mp5416", (kernel_ulong_t)&mp5416_regulators_desc },
-	{ "mp5496", (kernel_ulong_t)&mp5496_regulators_desc },
-	{}
+	{ .name = "mp5416", .driver_data = (kernel_ulong_t)&mp5416_regulators_desc },
+	{ .name = "mp5496", .driver_data = (kernel_ulong_t)&mp5496_regulators_desc },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mp5416_id);
 

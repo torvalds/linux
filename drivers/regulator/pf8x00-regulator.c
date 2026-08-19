@@ -596,10 +596,10 @@ static const struct of_device_id pf8x00_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, pf8x00_dt_ids);
 
 static const struct i2c_device_id pf8x00_i2c_id[] = {
-	{ "pf8100" },
-	{ "pf8121a" },
-	{ "pf8200" },
-	{}
+	{ .name = "pf8100" },
+	{ .name = "pf8121a" },
+	{ .name = "pf8200" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pf8x00_i2c_id);
 

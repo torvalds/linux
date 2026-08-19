@@ -522,15 +522,15 @@ static int da9211_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id da9211_i2c_id[] = {
-	{"da9211", DA9211},
-	{"da9212", DA9212},
-	{"da9213", DA9213},
-	{"da9223", DA9223},
-	{"da9214", DA9214},
-	{"da9224", DA9224},
-	{"da9215", DA9215},
-	{"da9225", DA9225},
-	{},
+	{ .name = "da9211", .driver_data = DA9211 },
+	{ .name = "da9212", .driver_data = DA9212 },
+	{ .name = "da9213", .driver_data = DA9213 },
+	{ .name = "da9223", .driver_data = DA9223 },
+	{ .name = "da9214", .driver_data = DA9214 },
+	{ .name = "da9224", .driver_data = DA9224 },
+	{ .name = "da9215", .driver_data = DA9215 },
+	{ .name = "da9225", .driver_data = DA9225 },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, da9211_i2c_id);
 

@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/rohm,pmic-states.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ROHM PMICs' hardware state machine descriptions
+
+maintainers:
+  - Matti Vaittinen <mazziesaccount@gmail.com>
+
+description:
+  Many of the ROHM PMICs have internal state-machine designed to provide
+  correct voltages for different SOC states. In many cases the states and
+  transitions are SOC specific, but ones described here can be found from a
+  few of the different ROHM PMICs.
+
+properties:
+  rohm,dvs-run-voltage:
+    description:
+      PMIC "RUN" state voltage in uV when PMIC HW states are used. 0 means the
+      regulator should be disabled at RUN state. Some regulators do not support
+      setting HW state specific voltage but do support enable/disable control.
+      For them any positive value means the regulator should be enabled without
+      touching the voltage.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  rohm,dvs-suspend-voltage:
+    description:
+      PMIC "SUSPEND" state voltage in uV when PMIC HW states are used. 0 means
+      the regulator should be disabled at SUSPEND state. Some regulators do not
+      support setting HW state specific voltage but do support enable/disable
+      control. For them any positive value means the regulator should be
+      enabled without touching the voltage.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  rohm,dvs-idle-voltage:
+    description:
+      PMIC "IDLE" state voltage in uV. 0 means the regulator should be disabled
+      at IDLE state. Some regulators do not support setting HW state specific
+      voltage but do support enable/disable control. For them any positive
+      value means the regulator should be enabled without touching the voltage.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  rohm,dvs-lpsr-voltage:
+    description:
+      PMIC "LPSR" state voltage in uV when PMIC HW states are used. 0 means the
+      regulator should be disabled at LPSR state. Some regulators do not
+      support setting HW state specific voltage but do support enable/disable
+      control. For them any positive value means the regulator should be
+      enabled without touching the voltage. Some PMICs' documentation may refer
+      to this state as a "deep-idle state".
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+# The schema is expected to be reference by PMIC schemas, which may introduce
+# other properties that must be allowed.
+additionalProperties: true

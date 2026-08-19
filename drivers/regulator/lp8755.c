@@ -430,8 +430,8 @@ static void lp8755_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id lp8755_id[] = {
-	{ LP8755_NAME },
-	{}
+	{ .name = LP8755_NAME },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, lp8755_id);
