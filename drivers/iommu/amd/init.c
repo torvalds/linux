@@ -909,7 +909,9 @@ static void free_ga_log(struct amd_iommu *iommu)
 {
 #ifdef CONFIG_IRQ_REMAP
 	iommu_free_pages(iommu->ga_log);
+	iommu->ga_log = NULL;
 	iommu_free_pages(iommu->ga_log_tail);
+	iommu->ga_log_tail = NULL;
 #endif
 }
 
@@ -955,6 +957,9 @@ static int iommu_init_ga_log(struct amd_iommu *iommu)
 
 	if (WARN_ON_ONCE(!AMD_IOMMU_GUEST_IR_VAPIC(amd_iommu_guest_ir)))
 		return -EINVAL;
+
+	if (iommu->ga_log && iommu->ga_log_tail)
+		return 0;
 
 	iommu->ga_log = iommu_alloc_pages_node_sz(nid, GFP_KERNEL, GA_LOG_SIZE);
 	if (!iommu->ga_log)
