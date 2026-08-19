@@ -8,6 +8,7 @@
 #include <linux/hid-over-spi.h>
 #include <linux/sizes.h>
 #include <linux/wait.h>
+#include <linux/workqueue.h>
 
 #include "quickspi-protocol.h"
 
@@ -126,6 +127,8 @@ struct acpi_device;
  * @get_feature_cmpl: indicate get feature received or not
  * @set_feature_cmpl_wq: workqueue for waiting set feature to device
  * @set_feature_cmpl: indicate set feature send complete or not
+ * @recover_work: Work structure for recovery
+ * @recovery_disabled: Whether recovery work is blocked during teardown
  */
 struct quickspi_device {
 	struct device *dev;
@@ -174,6 +177,9 @@ struct quickspi_device {
 
 	wait_queue_head_t set_report_cmpl_wq;
 	bool set_report_cmpl;
+
+	struct work_struct recover_work;
+	bool recovery_disabled;
 };
 
 #endif /* _QUICKSPI_DEV_H_ */

@@ -252,34 +252,33 @@ static irqreturn_t quickspi_irq_quick_handler(int irq, void *dev_id)
 }
 
 /**
- * try_recover - Try to recovery THC and Device
- * @qsdev: pointer to quickspi device
+ * try_recover - Recover callback to recover THC
+ * @work: pointer to work_struct
  *
- * This function is a error handler, called when fatal error happens.
- * It try to reset Touch Device and re-configure THC to recovery
+ * This function is an error handler, called when fatal error happens.
+ * It try to reset Touch Device and re-configure THC to recover
  * transferring between Device and THC.
- *
- * Return: 0 if successful or error code on failed.
  */
-static int try_recover(struct quickspi_device *qsdev)
+static void try_recover(struct work_struct *work)
 {
-	int ret;
+	struct quickspi_device *qsdev = container_of(work, struct quickspi_device, recover_work);
 
-	ret = reset_tic(qsdev);
-	if (ret) {
-		dev_err(qsdev->dev, "Reset touch device failed, ret = %d\n", ret);
-		return ret;
+	if (READ_ONCE(qsdev->recovery_disabled))
+		return;
+
+	if (pm_runtime_resume_and_get(qsdev->dev))
+		return;
+
+	thc_interrupt_enable(qsdev->thc_hw, false);
+
+	if (thc_rxdma_reset(qsdev->thc_hw)) {
+		qsdev->state = QUICKSPI_DISABLED;
+		dev_err(qsdev->dev, "RxDMA reset failed during recover, disable QuickSPI\n");
+	} else {
+		thc_interrupt_enable(qsdev->thc_hw, true);
 	}
 
-	thc_dma_unconfigure(qsdev->thc_hw);
-
-	ret = thc_dma_configure(qsdev->thc_hw);
-	if (ret) {
-		dev_err(qsdev->dev, "Re-configure THC DMA failed, ret = %d\n", ret);
-		return ret;
-	}
-
-	return 0;
+	pm_runtime_put_autosuspend(qsdev->dev);
 }
 
 /**
@@ -337,11 +336,10 @@ static irqreturn_t quickspi_irq_thread_handler(int irq, void *dev_id)
 	}
 
 end:
-	thc_interrupt_enable(qsdev->thc_hw, true);
-
 	if (err_recover)
-		if (try_recover(qsdev))
-			qsdev->state = QUICKSPI_DISABLED;
+		schedule_work(&qsdev->recover_work);
+	else
+		thc_interrupt_enable(qsdev->thc_hw, true);
 
 	pm_runtime_put_autosuspend(qsdev->dev);
 
@@ -385,6 +383,8 @@ static struct quickspi_device *quickspi_dev_init(struct pci_dev *pdev, void __io
 	init_waitqueue_head(&qsdev->report_desc_got_wq);
 	init_waitqueue_head(&qsdev->get_report_cmpl_wq);
 	init_waitqueue_head(&qsdev->set_report_cmpl_wq);
+	WRITE_ONCE(qsdev->recovery_disabled, false);
+	INIT_WORK(&qsdev->recover_work, try_recover);
 
 	/* thc hw init */
 	qsdev->thc_hw = thc_dev_init(qsdev->dev, qsdev->mem_addr);
@@ -461,6 +461,10 @@ static struct quickspi_device *quickspi_dev_init(struct pci_dev *pdev, void __io
  */
 static void quickspi_dev_deinit(struct quickspi_device *qsdev)
 {
+	WRITE_ONCE(qsdev->recovery_disabled, true);
+	cancel_work_sync(&qsdev->recover_work);
+
+	thc_interrupt_quiesce(qsdev->thc_hw, true);
 	thc_interrupt_enable(qsdev->thc_hw, false);
 	thc_ltr_unconfig(qsdev->thc_hw);
 	thc_wot_unconfig(qsdev->thc_hw);
@@ -718,12 +722,13 @@ static void quickspi_remove(struct pci_dev *pdev)
 		return;
 
 	quickspi_hid_remove(qsdev);
+
+	quickspi_dev_deinit(qsdev);
+
 	quickspi_dma_deinit(qsdev);
 
 	pm_runtime_dont_use_autosuspend(qsdev->dev);
 	pm_runtime_get_noresume(qsdev->dev);
-
-	quickspi_dev_deinit(qsdev);
 
 	pci_clear_master(pdev);
 }
@@ -745,10 +750,10 @@ static void quickspi_shutdown(struct pci_dev *pdev)
 	if (!qsdev)
 		return;
 
+	quickspi_dev_deinit(qsdev);
+
 	/* Must stop DMA before reboot to avoid DMA entering into unknown state */
 	quickspi_dma_deinit(qsdev);
-
-	quickspi_dev_deinit(qsdev);
 }
 
 static int quickspi_suspend(struct device *device)
@@ -766,6 +771,9 @@ static int quickspi_suspend(struct device *device)
 		if (ret)
 			return ret;
 	}
+
+	WRITE_ONCE(qsdev->recovery_disabled, true);
+	cancel_work_sync(&qsdev->recover_work);
 
 	ret = thc_interrupt_quiesce(qsdev->thc_hw, true);
 	if (ret)
@@ -791,6 +799,8 @@ static int quickspi_resume(struct device *device)
 	ret = thc_port_select(qsdev->thc_hw, THC_PORT_TYPE_SPI);
 	if (ret)
 		return ret;
+
+	WRITE_ONCE(qsdev->recovery_disabled, false);
 
 	/*
 	 * A wake-enabled device keeps its power and state across suspend, so
@@ -872,6 +882,9 @@ static int quickspi_freeze(struct device *device)
 	if (!qsdev)
 		return -ENODEV;
 
+	WRITE_ONCE(qsdev->recovery_disabled, true);
+	cancel_work_sync(&qsdev->recover_work);
+
 	ret = thc_interrupt_quiesce(qsdev->thc_hw, true);
 	if (ret)
 		return ret;
@@ -903,6 +916,8 @@ static int quickspi_thaw(struct device *device)
 	if (ret)
 		return ret;
 
+	WRITE_ONCE(qsdev->recovery_disabled, false);
+
 	return 0;
 }
 
@@ -926,6 +941,8 @@ static int quickspi_poweroff(struct device *device)
 	thc_interrupt_enable(qsdev->thc_hw, false);
 
 	thc_ltr_unconfig(qsdev->thc_hw);
+
+	quickspi_dev_deinit(qsdev);
 
 	quickspi_dma_deinit(qsdev);
 
