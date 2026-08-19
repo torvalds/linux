@@ -4859,6 +4859,7 @@ Kernel parameters
 
 	panic_print=	Bitmask for printing system info when panic happens.
 			User can chose combination of the following bits:
+
 			bit 0: print all tasks info
 			bit 1: print system memory info
 			bit 2: print timer info
@@ -4867,10 +4868,16 @@ Kernel parameters
 			bit 5: replay all kernel messages on consoles at the end of panic
 			bit 6: print all CPUs backtrace (if available in the arch)
 			bit 7: print only tasks in uninterruptible (blocked) state
-			*Be aware* that this option may print a _lot_ of lines,
-			so there are risks of losing older messages in the log.
-			Use this option carefully, maybe worth to setup a
-			bigger log buffer with "log_buf_len" along with this.
+
+			*Be aware* that this option may print a _lot_ of lines.
+
+			There is an increased risk of losing older messages in
+			the log. Maybe worth to setup a	bigger log buffer with
+			"log_buf_len" along with this.
+
+			Also consider using "printk.console_no_auto_verbose=Y"
+			if using this along with pstore, to avoid extra delays
+			due to increased console verbosity during panic.
 
 	panic_sys_info= A comma separated list of extra information to be dumped
                         on panic.
@@ -4885,7 +4892,9 @@ Kernel parameters
                         all_bt:         print all CPUs backtrace (if available in the arch)
                         blocked_tasks:  print only tasks in uninterruptible (blocked) state
 
-                        This is a human readable alternative to the 'panic_print' option.
+			This is a human readable alternative to the 'panic_print'
+			option above. Please be aware of the caveats using this,
+			check the 'panic_print' parameter for more details.
 
 	panic_console_replay
 			When panic happens, replay all kernel messages on
