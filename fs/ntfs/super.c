@@ -645,7 +645,7 @@ static bool parse_ntfs_boot_sector(struct ntfs_volume *vol,
 {
 	unsigned int sectors_per_cluster, sectors_per_cluster_bits, nr_hidden_sects;
 	int clusters_per_mft_record, clusters_per_index_record;
-	s64 ll;
+	u64 ll;
 
 	vol->sector_size = le16_to_cpu(b->bpb.bytes_per_sector);
 	vol->sector_size_bits = ffs(vol->sector_size) - 1;
@@ -755,23 +755,23 @@ static bool parse_ntfs_boot_sector(struct ntfs_volume *vol,
 	 * the same as it is much faster on 32-bit CPUs.
 	 */
 	ll = le64_to_cpu(b->number_of_sectors) >> sectors_per_cluster_bits;
-	if ((u64)ll >= 1ULL << 32) {
+	if (ll >= 1ULL << 32) {
 		ntfs_error(vol->sb, "Cannot handle 64-bit clusters.");
 		return false;
 	}
 	vol->nr_clusters = ll;
 	ntfs_debug("vol->nr_clusters = 0x%llx", vol->nr_clusters);
 	ll = le64_to_cpu(b->mft_lcn);
-	if (ll >= vol->nr_clusters) {
-		ntfs_error(vol->sb, "MFT LCN (%lli, 0x%llx) is beyond end of volume.  Weird.",
+	if (ll >= (u64)vol->nr_clusters) {
+		ntfs_error(vol->sb, "MFT LCN (%llu, 0x%llx) is beyond end of volume.  Weird.",
 				ll, ll);
 		return false;
 	}
 	vol->mft_lcn = ll;
 	ntfs_debug("vol->mft_lcn = 0x%llx", vol->mft_lcn);
 	ll = le64_to_cpu(b->mftmirr_lcn);
-	if (ll >= vol->nr_clusters) {
-		ntfs_error(vol->sb, "MFTMirr LCN (%lli, 0x%llx) is beyond end of volume.  Weird.",
+	if (ll >= (u64)vol->nr_clusters) {
+		ntfs_error(vol->sb, "MFTMirr LCN (%llu, 0x%llx) is beyond end of volume.  Weird.",
 				ll, ll);
 		return false;
 	}
