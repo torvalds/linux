@@ -490,9 +490,9 @@ void vgic_v3_reset(struct kvm_vcpu *vcpu)
 	}
 
 	vcpu->arch.vgic_cpu.num_id_bits = FIELD_GET(ICH_VTR_EL2_IDbits,
-						    kvm_vgic_global_state.ich_vtr_el2);
+						    vgic_ich_vtr());
 	vcpu->arch.vgic_cpu.num_pri_bits = FIELD_GET(ICH_VTR_EL2_PRIbits,
-						     kvm_vgic_global_state.ich_vtr_el2) + 1;
+						     vgic_ich_vtr()) + 1;
 }
 
 void vcpu_set_ich_hcr(struct kvm_vcpu *vcpu)
@@ -809,27 +809,9 @@ static int __init early_gicv4_enable(char *buf)
 }
 early_param("kvm-arm.vgic_v4_enable", early_gicv4_enable);
 
-static const struct midr_range broken_seis[] = {
-	MIDR_ALL_VERSIONS(MIDR_APPLE_M1_ICESTORM),
-	MIDR_ALL_VERSIONS(MIDR_APPLE_M1_FIRESTORM),
-	MIDR_ALL_VERSIONS(MIDR_APPLE_M1_ICESTORM_PRO),
-	MIDR_ALL_VERSIONS(MIDR_APPLE_M1_FIRESTORM_PRO),
-	MIDR_ALL_VERSIONS(MIDR_APPLE_M1_ICESTORM_MAX),
-	MIDR_ALL_VERSIONS(MIDR_APPLE_M1_FIRESTORM_MAX),
-	MIDR_ALL_VERSIONS(MIDR_APPLE_M2_BLIZZARD),
-	MIDR_ALL_VERSIONS(MIDR_APPLE_M2_AVALANCHE),
-	MIDR_ALL_VERSIONS(MIDR_APPLE_M2_BLIZZARD_PRO),
-	MIDR_ALL_VERSIONS(MIDR_APPLE_M2_AVALANCHE_PRO),
-	MIDR_ALL_VERSIONS(MIDR_APPLE_M2_BLIZZARD_MAX),
-	MIDR_ALL_VERSIONS(MIDR_APPLE_M2_AVALANCHE_MAX),
-	{},
-};
-
-static bool vgic_v3_broken_seis(void)
+static __always_inline bool vgic_v3_broken_seis(void)
 {
-	return (is_kernel_in_hyp_mode() &&
-		is_midr_in_range_list(broken_seis) &&
-		(read_sysreg_s(SYS_ICH_VTR_EL2) & ICH_VTR_EL2_SEIS));
+	return cpus_have_cap(ARM64_WORKAROUND_GICv3_BROKEN_SEIS);
 }
 
 void noinstr kvm_compute_ich_hcr_trap_bits(struct alt_instr *alt,
@@ -876,6 +858,61 @@ void noinstr kvm_compute_ich_hcr_trap_bits(struct alt_instr *alt,
 	*updptr = cpu_to_le32(insn);
 }
 
+void noinstr kvm_patch_ich_vtr_el2(struct alt_instr *alt,
+				   __le32 *origptr, __le32 *updptr,
+				   int nr_inst)
+{
+	struct arm_smccc_res res = {};
+	u32 insn, oinsn, rd, vtr;
+
+	/* No KVM? Nothing to do */
+	if (!is_hyp_mode_available())
+		return;
+
+	/* No v3, compat, nor the fruity erzatz of a GIC? Bugger off */
+	if (!cpus_have_cap(ARM64_HAS_GICV5_LEGACY) &&
+	    !cpus_have_cap(ARM64_HAS_GICV3_CPUIF) &&
+	    !vgic_v3_broken_seis())
+		return;
+
+	/*
+	 * At the point where this is called, we are guaranteed that if
+	 * we're running at EL1, then the EL2 stubs are still in place.
+	 */
+	if (is_kernel_in_hyp_mode())
+		res.a1 = read_sysreg_s(SYS_ICH_VTR_EL2);
+	else
+		arm_smccc_1_1_hvc(HVC_GET_ICH_VTR_EL2, &res);
+
+	if (res.a0 == HVC_STUB_ERR)
+		return;
+
+	vtr = res.a1;
+
+	if (vgic_v3_broken_seis())
+		vtr &= ~ICH_VTR_EL2_SEIS;
+
+	/* Compute target register */
+	oinsn = le32_to_cpu(*origptr);
+	rd = aarch64_insn_decode_register(AARCH64_INSN_REGTYPE_RD, oinsn);
+
+	/* movz rd, #(vtr & 0xffff) */
+	insn = aarch64_insn_gen_movewide(rd,
+					 (u16)vtr,
+					 0,
+					 AARCH64_INSN_VARIANT_64BIT,
+					 AARCH64_INSN_MOVEWIDE_ZERO);
+	*updptr++ = cpu_to_le32(insn);
+
+	/* movk rd, #((vtr >> 16) & 0xffff), lsl #16 */
+	insn = aarch64_insn_gen_movewide(rd,
+					 (u16)(vtr >> 16),
+					 16,
+					 AARCH64_INSN_VARIANT_64BIT,
+					 AARCH64_INSN_MOVEWIDE_KEEP);
+	*updptr++ = cpu_to_le32(insn);
+}
+
 void vgic_v3_enable_cpuif_traps(void)
 {
 	u64 traps = vgic_ich_hcr_trap_bits();
@@ -899,12 +936,12 @@ void vgic_v3_enable_cpuif_traps(void)
  */
 int vgic_v3_probe(const struct gic_kvm_info *info)
 {
-	u64 ich_vtr_el2 = kvm_call_hyp_ret(__vgic_v3_get_gic_config);
+	u64 ich_vtr_el2;
 	bool has_v2;
 	int ret;
 
-	has_v2 = ich_vtr_el2 >> 63;
-	ich_vtr_el2 = (u32)ich_vtr_el2;
+	has_v2 = kvm_call_hyp_ret(__vgic_v3_get_gic_config);
+	ich_vtr_el2 = vgic_ich_vtr();
 
 	/*
 	 * The ListRegs field is 5 bits, but there is an architectural
@@ -912,7 +949,6 @@ int vgic_v3_probe(const struct gic_kvm_info *info)
 	 */
 	kvm_vgic_global_state.nr_lr = (ich_vtr_el2 & 0xf) + 1;
 	kvm_vgic_global_state.can_emulate_gicv2 = false;
-	kvm_vgic_global_state.ich_vtr_el2 = ich_vtr_el2;
 
 	/* GICv4 support? */
 	if (info->has_v4) {
@@ -958,11 +994,6 @@ int vgic_v3_probe(const struct gic_kvm_info *info)
 	 */
 	if (has_v2)
 		static_branch_enable(&vgic_v3_has_v2_compat);
-
-	if (vgic_v3_broken_seis()) {
-		kvm_info("GICv3 with broken locally generated SEI\n");
-		kvm_vgic_global_state.ich_vtr_el2 &= ~ICH_VTR_EL2_SEIS;
-	}
 
 	vgic_v3_enable_cpuif_traps();
 

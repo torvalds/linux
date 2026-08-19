@@ -282,7 +282,7 @@ extern int __kvm_vcpu_run(struct kvm_vcpu *vcpu);
 
 extern void __kvm_adjust_pc(struct kvm_vcpu *vcpu);
 
-extern u64 __vgic_v3_get_gic_config(void);
+extern bool __vgic_v3_get_gic_config(void);
 extern void __vgic_v3_init_lrs(void);
 
 #define __KVM_EXTABLE(from, to)						\
