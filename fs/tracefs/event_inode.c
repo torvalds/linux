@@ -594,6 +594,10 @@ static int eventfs_iterate(struct file *file, struct dir_context *ctx)
 	if (!(ti->flags & TRACEFS_EVENT_INODE))
 		return -EINVAL;
 
+	/* Logic should prevent ctx->pos from going out of range */
+	if (WARN_ON_ONCE(ctx->pos < 2 || ctx->pos > 0x7fffffffULL))
+		return -EINVAL;
+
 	c = ctx->pos - 2;
 
 	guard(srcu)(&eventfs_srcu);

@@ -3296,6 +3296,13 @@ event_create_dir(struct eventfs_inode *parent, struct trace_event_file *file)
 	if (WARN_ON_ONCE(strcmp(call->class->system, TRACE_SYSTEM) == 0))
 		return -ENODEV;
 
+	ret = event_define_fields(call);
+	if (ret < 0) {
+		pr_warn("Could not initialize trace point events/%s\n",
+			trace_event_name(call));
+		return ret;
+	}
+
 	e_events = event_subsystem_dir(tr, call->class->system, file, parent);
 	if (!e_events)
 		return -ENOMEM;
@@ -3313,12 +3320,6 @@ event_create_dir(struct eventfs_inode *parent, struct trace_event_file *file)
 	}
 
 	file->ei = ei;
-
-	ret = event_define_fields(call);
-	if (ret < 0) {
-		pr_warn("Could not initialize trace point events/%s\n", name);
-		return ret;
-	}
 
 	/* Gets decremented on freeing of the "enable" file */
 	event_file_get(file);
