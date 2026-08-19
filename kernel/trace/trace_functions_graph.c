@@ -1349,7 +1349,7 @@ print_graph_return(struct ftrace_graph_ret_entry *retentry, struct trace_seq *s,
 		 * that if the funcgraph-tail option is enabled.
 		 */
 		if (func_match && !(flags & TRACE_GRAPH_PRINT_TAIL))
-			trace_seq_puts(s, "}");
+			trace_seq_putc(s, '}');
 		else
 			trace_seq_printf(s, "} /* %ps */", (void *)func);
 	}

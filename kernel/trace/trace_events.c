@@ -14,6 +14,7 @@
 #include <linux/workqueue.h>
 #include <linux/security.h>
 #include <linux/spinlock.h>
+#include <linux/seq_buf.h>
 #include <linux/kthread.h>
 #include <linux/tracefs.h>
 #include <linux/uaccess.h>
@@ -22,6 +23,7 @@
 #include <linux/sort.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/btf.h>
 
 #include <trace/events/sched.h>
 #include <trace/syscall.h>
@@ -400,6 +402,33 @@ static bool process_string(const char *fmt, int len, struct trace_event_call *ca
 	return true;
 }
 
+static void test_double_dereference(const char *str, int len,
+				    struct trace_event_call *call)
+{
+	const char *ptr;
+	const char *end = str + len;
+
+	ptr = strstr(str, "REC->");
+
+	while (ptr && ptr < end) {
+
+		ptr += 5;
+		for (; ptr < end; ptr++) {
+			if (ptr[0] == '-' && ptr[1] == '>') {
+				pr_warn("TRACE EVENT ERROR: Event %s has double dereference in TP_printk: %.*s\n",
+					trace_event_name(call), len, str);
+				WARN_ONCE(1, "Event %s has double dereference in TP_printk: %.*s\n",
+					  trace_event_name(call), len, str);
+				return;
+			}
+			if (!isalnum(*ptr) && *ptr != '_')
+				break;
+		}
+
+		ptr = strstr(ptr, "REC->");
+	}
+}
+
 static void handle_dereference_arg(const char *arg_str, u64 string_flags, int len,
 				   u64 *dereference_flags, int arg,
 				   struct trace_event_call *call)
@@ -459,12 +488,6 @@ static void test_event_printk(struct trace_event_call *call)
 				if (in_quote) {
 					arg = 0;
 					first = false;
-					/*
-					 * If there was no %p* uses
-					 * the fmt is OK.
-					 */
-					if (!dereference_flags)
-						return;
 				}
 			}
 			if (in_quote) {
@@ -576,6 +599,8 @@ static void test_event_printk(struct trace_event_call *call)
 				continue;
 			}
 
+			test_double_dereference(fmt + start_arg, e - start_arg, call);
+
 			if (dereference_flags & (1ULL << arg)) {
 				handle_dereference_arg(fmt + start_arg, string_flags,
 						       e - start_arg,
@@ -588,6 +613,8 @@ static void test_event_printk(struct trace_event_call *call)
 			i--;
 		}
 	}
+
+	test_double_dereference(fmt + start_arg, i - start_arg, call);
 
 	if (dereference_flags & (1ULL << arg)) {
 		handle_dereference_arg(fmt + start_arg, string_flags,
@@ -2202,6 +2229,61 @@ event_id_read(struct file *filp, char __user *ubuf, size_t cnt, loff_t *ppos)
 }
 #endif
 
+#ifdef CONFIG_BPF_EVENTS
+static ssize_t
+event_btf_ids_read(struct file *filp, char __user *ubuf, size_t cnt, loff_t *ppos)
+{
+	struct trace_event_file *file;
+	struct trace_event_call *call;
+	const struct btf_type *t;
+	struct module *mod = NULL;
+	u32 raw_id = 0, tp_id = 0, obj_id = 0;
+	const u32 *ids;
+	struct btf *btf;
+	char buf[128];
+	int len;
+
+	/* Module unload could free call->class and ids[] mid-read. */
+	scoped_guard(mutex, &event_mutex) {
+		file = event_file_file(filp);
+		if (!file)
+			return -ENODEV;
+
+		call = file->event_call;
+		ids = call->class->btf_ids;
+		if (!ids)
+			return -ENOENT;
+		if (!(call->flags & TRACE_EVENT_FL_DYNAMIC))
+			mod = (struct module *)call->module;
+
+		btf = btf_get_module_btf(mod);
+		if (IS_ERR_OR_NULL(btf))
+			return -ENOENT;
+
+		/* Module-local ids in ids[] need base+local relocation. */
+		tp_id = btf_relocate_id(btf, ids[1]);
+
+		/*
+		 * Without FL_TRACEPOINT the dispatcher is shared (e.g. all
+		 * per-syscall events fan out from __bpf_trace_sys_enter), so
+		 * raw_btf_id has no per-event attach point — report 0.
+		 */
+		if (call->flags & TRACE_EVENT_FL_TRACEPOINT) {
+			t = btf_type_by_id(btf, btf_relocate_id(btf, ids[0]));
+			raw_id = t ? t->type : 0;
+		}
+		obj_id = btf_obj_id(btf);
+		btf_put(btf);
+	}
+
+	len = scnprintf(buf, sizeof(buf),
+			"btf_obj_id: %u\nraw_btf_id: %u\ntp_btf_id: %u\n",
+			obj_id, raw_id, tp_id);
+
+	return simple_read_from_buffer(ubuf, cnt, ppos, buf, len);
+}
+#endif
+
 static ssize_t
 event_filter_read(struct file *filp, char __user *ubuf, size_t cnt,
 		  loff_t *ppos)
@@ -2702,6 +2784,13 @@ static const struct file_operations ftrace_event_id_fops = {
 };
 #endif
 
+#ifdef CONFIG_BPF_EVENTS
+static const struct file_operations ftrace_event_btf_ids_fops = {
+	.read = event_btf_ids_read,
+	.llseek = default_llseek,
+};
+#endif
+
 static const struct file_operations ftrace_event_filter_fops = {
 	.open = tracing_open_file_tr,
 	.read = event_filter_read,
@@ -3095,6 +3184,14 @@ static int event_callback(const char *name, umode_t *mode, void **data,
 	}
 #endif
 
+#ifdef CONFIG_BPF_EVENTS
+	if (call->class->btf_ids && strcmp(name, "btf_ids") == 0) {
+		*mode = TRACE_MODE_READ;
+		*fops = &ftrace_event_btf_ids_fops;
+		return 1;
+	}
+#endif
+
 #ifdef CONFIG_HIST_TRIGGERS
 	if (strcmp(name, "hist") == 0) {
 		*mode = TRACE_MODE_READ;
@@ -3149,7 +3246,14 @@ event_create_dir(struct eventfs_inode *parent, struct trace_event_file *file)
 			.callback	= event_callback,
 		},
 #endif
-#define NR_RO_EVENT_ENTRIES	(1 + IS_ENABLED(CONFIG_PERF_EVENTS))
+#ifdef CONFIG_BPF_EVENTS
+		{
+			.name		= "btf_ids",
+			.callback	= event_callback,
+		},
+#endif
+#define NR_RO_EVENT_ENTRIES	(1 + IS_ENABLED(CONFIG_PERF_EVENTS) + \
+				 IS_ENABLED(CONFIG_BPF_EVENTS))
 /* Readonly files must be above this line and counted by NR_RO_EVENT_ENTRIES. */
 		{
 			.name		= "enable",
@@ -3557,7 +3661,7 @@ static void update_event_fields(struct trace_event_call *call,
 }
 
 /* Update all events for replacing eval and sanitizing */
-void trace_event_update_all(struct trace_eval_map **map, int len)
+void trace_event_update_all(struct trace_eval_map **map, int len, struct module *mod)
 {
 	struct trace_event_call *call, *p;
 	const char *last_system = NULL;
@@ -3569,6 +3673,10 @@ void trace_event_update_all(struct trace_eval_map **map, int len)
 	mutex_lock(&event_mutex);
 	down_write(&trace_event_sem);
 	list_for_each_entry_safe(call, p, &ftrace_events, list) {
+
+		if (mod && call->module != mod)
+			continue;
+
 		/* events are usually grouped together with systems */
 		if (!last_system || call->class->system != last_system) {
 			first = true;
@@ -4505,13 +4613,20 @@ extern struct trace_event_call *__start_ftrace_events[];
 extern struct trace_event_call *__stop_ftrace_events[];
 
 static char bootup_event_buf[COMMAND_LINE_SIZE] __initdata;
+static struct seq_buf bootup_event_seq __initdata = {
+	.buffer = bootup_event_buf,
+	.size = sizeof(bootup_event_buf),
+};
 
 static __init int setup_trace_event(char *str)
 {
-	if (bootup_event_buf[0] != '\0')
-		strlcat(bootup_event_buf, ",", COMMAND_LINE_SIZE);
+	if (seq_buf_used(&bootup_event_seq) > 0)
+		seq_buf_puts(&bootup_event_seq, ",");
 
-	strlcat(bootup_event_buf, str, COMMAND_LINE_SIZE);
+	seq_buf_puts(&bootup_event_seq, str);
+
+	if (seq_buf_has_overflowed(&bootup_event_seq))
+		return -ENOMEM;
 
 	trace_set_ring_buffer_expanded(NULL);
 	disable_tracing_selftest("running event tracing");
@@ -4770,6 +4885,7 @@ static __init int event_trace_enable(void)
 	 */
 	__trace_early_add_events(tr);
 
+	seq_buf_str(&bootup_event_seq);
 	early_enable_events(tr, bootup_event_buf, false);
 
 	trace_printk_start_comm();
@@ -4798,6 +4914,7 @@ static __init int event_trace_enable_again(void)
 	if (!tr)
 		return -ENODEV;
 
+	seq_buf_str(&bootup_event_seq);
 	early_enable_events(tr, bootup_event_buf, true);
 
 	return 0;
