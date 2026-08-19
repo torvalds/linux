@@ -372,7 +372,7 @@ static void audit_add_to_parent(struct audit_krule *krule,
 	struct audit_watch *w, *watch = krule->watch;
 	int watch_found = 0;
 
-	BUG_ON(!mutex_is_locked(&audit_filter_mutex));
+	lockdep_assert_held(&audit_filter_mutex);
 
 	list_for_each_entry(w, &parent->watches, wlist) {
 		if (strcmp(watch->path, w->path))
