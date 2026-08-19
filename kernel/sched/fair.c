@@ -4934,7 +4934,12 @@ static int tg_cpus(struct task_group *tg)
 			nr = cpuset_num_cpus(cgrp);
 	}
 
-	return nr;
+	/*
+	 * An empty cpuset would propagate a 0 shares_max into
+	 * __calc_smp_shares(), where clamp() yields hi when hi < lo and so
+	 * defeats the MIN_SHARES floor. Match tg_tasks(), which floors at 1.
+	 */
+	return max(nr, 1);
 }
 
 static inline int tg_tasks(struct task_group *tg)
