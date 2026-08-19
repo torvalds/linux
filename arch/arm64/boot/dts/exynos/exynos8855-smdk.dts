@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Samsung Exynos8855 SMDK board device tree source
+ *
+ * Copyright (C) 2023 Samsung Electronics Co., Ltd.
+ *
+ * Device tree source file for Samsung SMDK board which is based on
+ * Exynos8855 SoC.
+ */
+
+/dts-v1/;
+
+#include "exynos8855.dtsi"
+
+/ {
+	model = "Samsung Exynos8855 SMDK board";
+	compatible = "samsung,exynos8855-smdk","samsung,exynos8855";
+
+	chosen {
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x0 0x80000000 0x80000000>;
+	};
+
+};
+
+&oscclk {
+	clock-frequency = <76800000>;
+};

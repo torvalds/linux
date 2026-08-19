@@ -1,0 +1,343 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
+/*
+ * Copyright (C) 2024 Yangyu Chen <cyy@cyyself.name>
+ */
+
+#include "k230.dtsi"
+
+/ {
+	model = "Canaan CanMV-K230";
+	compatible = "canaan,canmv-k230", "canaan,kendryte-k230";
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	ddr: memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x0 0x0 0x20000000>;
+	};
+
+	timerx_pulse_in: clock-50000000 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <50000000>;
+	};
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&pinctrl {
+	jtag_pins: jtag-pins {
+		jtag-tck-cfg {
+			pinmux = <K230_PINMUX(2, 1)>;
+			slew-rate = <0>;
+			drive-strength = <4>;
+			power-source = <K230_MSC_1V8>;
+			input-enable;
+			bias-pull-down;
+			input-schmitt-enable;
+		};
+
+		jtag-tdi-cfg {
+			pinmux = <K230_PINMUX(3, 1)>;
+			slew-rate = <0>;
+			drive-strength = <4>;
+			power-source = <K230_MSC_1V8>;
+			input-enable;
+			bias-disable;
+		};
+
+		jtag-tdo-cfg {
+			pinmux = <K230_PINMUX(4, 1)>;
+			slew-rate = <0>;
+			drive-strength = <4>;
+			power-source = <K230_MSC_1V8>;
+			output-enable;
+			bias-disable;
+		};
+
+		jtag-tms-cfg {
+			pinmux = <K230_PINMUX(5, 1)>;
+			slew-rate = <0>;
+			drive-strength = <4>;
+			power-source = <K230_MSC_1V8>;
+			input-enable;
+			bias-pull-up;
+		};
+	};
+
+	uart2_pins: uart2-pins {
+		uart2-pins-cfg {
+			pinmux = <K230_PINMUX(5, 3)>, /* uart2 txd */
+				 <K230_PINMUX(6, 3)>; /* uart2 rxd */
+			slew-rate = <0>;
+			drive-strength = <4>;
+			power-source = <K230_MSC_1V8>;
+			input-enable;
+			output-enable;
+			bias-disable;
+		};
+	};
+
+	pwm2_pins: pwm2-pins {
+		pwm2-pin-cfg {
+			pinmux = <K230_PINMUX(7, 1)>;
+			slew-rate = <0>;
+			drive-strength = <7>;
+			power-source = <K230_MSC_1V8>;
+			input-enable;
+			output-enable;
+			bias-disable;
+			input-schmitt-enable;
+		};
+	};
+
+	pwm3_pins: pwm3-pins {
+		pwm3-pin-cfg {
+			pinmux = <K230_PINMUX(8, 1)>;
+			slew-rate = <0>;
+			drive-strength = <7>;
+			power-source = <K230_MSC_1V8>;
+			input-enable;
+			output-enable;
+			bias-disable;
+			input-schmitt-enable;
+		};
+	};
+
+	pwm4_pins: pwm4-pins {
+		pwm4-pin-cfg {
+			pinmux = <K230_PINMUX(9, 1)>;
+			slew-rate = <0>;
+			drive-strength = <7>;
+			power-source = <K230_MSC_1V8>;
+			input-enable;
+			output-enable;
+			bias-disable;
+			input-schmitt-enable;
+		};
+	};
+
+	iis_pins: iis-pins {
+		iis-clk-cfg {
+			pinmux = <K230_PINMUX(32, 2)>;
+			slew-rate = <0>;
+			drive-strength = <4>;
+			power-source = <K230_MSC_1V8>;
+			output-enable;
+			bias-disable;
+		};
+
+		iis-ws-cfg {
+			pinmux = <K230_PINMUX(33, 2)>;
+			slew-rate = <0>;
+			drive-strength = <4>;
+			power-source = <K230_MSC_1V8>;
+			output-enable;
+			bias-disable;
+		};
+
+		iis-din0-cfg {
+			pinmux = <K230_PINMUX(34, 2)>;
+			slew-rate = <0>;
+			drive-strength = <4>;
+			power-source = <K230_MSC_1V8>;
+			input-enable;
+			bias-disable;
+		};
+
+		iis-dout0-cfg {
+			pinmux = <K230_PINMUX(35, 2)>;
+			slew-rate = <0>;
+			drive-strength = <4>;
+			power-source = <K230_MSC_1V8>;
+			output-enable;
+			bias-disable;
+		};
+	};
+
+	uart4_pins: uart4-pins {
+		uart4-txd-cfg {
+			pinmux = <K230_PINMUX(36, 4)>;
+			slew-rate = <0>;
+			drive-strength = <7>;
+			power-source = <K230_MSC_1V8>;
+			output-enable;
+			bias-disable;
+			input-schmitt-enable;
+		};
+
+		uart4-rxd-cfg {
+			pinmux = <K230_PINMUX(37, 4)>;
+			slew-rate = <0>;
+			drive-strength = <7>;
+			power-source = <K230_MSC_1V8>;
+			input-enable;
+			bias-disable;
+			input-schmitt-enable;
+		};
+	};
+
+	uart0_pins: uart0-pins {
+		uart0-txd-cfg {
+			pinmux = <K230_PINMUX(38, 1)>;
+			slew-rate = <0>;
+			drive-strength = <7>;
+			power-source = <K230_MSC_1V8>;
+			output-enable;
+			bias-disable;
+			input-schmitt-enable;
+		};
+
+		uart0-rxd-cfg {
+			pinmux = <K230_PINMUX(39, 1)>;
+			slew-rate = <0>;
+			drive-strength = <7>;
+			power-source = <K230_MSC_1V8>;
+			input-enable;
+			bias-disable;
+			input-schmitt-enable;
+		};
+	};
+
+	iic1_pins: iic1-pins {
+		iic1-pins-cfg {
+			pinmux = <K230_PINMUX(40, 2)>, /* iic1 scl */
+				 <K230_PINMUX(41, 2)>; /* iic1 sda */
+			slew-rate = <0>;
+			drive-strength = <7>;
+			power-source = <K230_MSC_1V8>;
+			input-enable;
+			output-enable;
+			bias-pull-up;
+			input-schmitt-enable;
+		};
+	};
+
+	iic3_pins: iic3-pins {
+		iic3-pins-cfg {
+			pinmux = <K230_PINMUX(44, 2)>, /* iic3 scl */
+				 <K230_PINMUX(45, 2)>; /* iic3 sda */
+			slew-rate = <0>;
+			drive-strength = <7>;
+			power-source = <K230_MSC_1V8>;
+			input-enable;
+			output-enable;
+			bias-pull-up;
+			input-schmitt-enable;
+		};
+	};
+
+	iic4_pins: iic4-pins {
+		iic4-pins-cfg {
+			pinmux = <K230_PINMUX(46, 3)>, /* iic4 scl */
+				 <K230_PINMUX(47, 3)>; /* iic4 sda */
+			slew-rate = <0>;
+			drive-strength = <7>;
+			power-source = <K230_MSC_1V8>;
+			input-enable;
+			output-enable;
+			bias-pull-up;
+			input-schmitt-enable;
+		};
+	};
+
+	iic0_pins: iic0-pins {
+		iic0-pins-cfg {
+			pinmux = <K230_PINMUX(48, 3)>, /* iic0 scl */
+				 <K230_PINMUX(49, 3)>; /* iic0 sda */
+			slew-rate = <0>;
+			drive-strength = <7>;
+			power-source = <K230_MSC_1V8>;
+			input-enable;
+			output-enable;
+			bias-pull-up;
+			input-schmitt-enable;
+		};
+	};
+
+	uart3_pins: uart3-pins {
+		uart3-txd-cfg {
+			pinmux = <K230_PINMUX(50, 1)>;
+			slew-rate = <0>;
+			drive-strength = <7>;
+			power-source = <K230_MSC_3V3>;
+			output-enable;
+			bias-disable;
+			input-schmitt-enable;
+		};
+
+		uart3-rxd-cfg {
+			pinmux = <K230_PINMUX(51, 1)>;
+			slew-rate = <0>;
+			drive-strength = <7>;
+			power-source = <K230_MSC_3V3>;
+			input-enable;
+			bias-disable;
+			input-schmitt-enable;
+		};
+	};
+
+	key_pins: key-pins {
+		key-pins-cfg {
+			pinmux = <K230_PINMUX(52, 0)>, /* key0 */
+				 <K230_PINMUX(53, 0)>; /* key1 */
+			slew-rate = <0>;
+			drive-strength = <7>;
+			power-source = <K230_MSC_3V3>;
+			input-enable;
+			output-enable;
+			bias-disable;
+			input-schmitt-enable;
+		};
+	};
+
+	mmc1_pins: mmc1-pins {
+		mmc1-cmd-cfg {
+			pinmux = <K230_PINMUX(54, 2)>;
+			slew-rate = <0>;
+			drive-strength = <7>;
+			power-source = <K230_MSC_3V3>;
+			input-enable;
+			output-enable;
+			bias-pull-up;
+			input-schmitt-enable;
+		};
+
+		mmc1-clk-cfg {
+			pinmux = <K230_PINMUX(55, 2)>;
+			slew-rate = <0>;
+			drive-strength = <7>;
+			power-source = <K230_MSC_3V3>;
+			output-enable;
+			bias-disable;
+			input-schmitt-enable;
+		};
+
+		mmc1-data-cfg {
+			pinmux = <K230_PINMUX(56, 2)>, /* mmc1 data0 */
+				 <K230_PINMUX(57, 2)>, /* mmc1 data1 */
+				 <K230_PINMUX(58, 2)>, /* mmc1 data2 */
+				 <K230_PINMUX(59, 2)>; /* mmc1 data3 */
+			slew-rate = <0>;
+			drive-strength = <7>;
+			power-source = <K230_MSC_3V3>;
+			input-enable;
+			output-enable;
+			bias-pull-up;
+			input-schmitt-enable;
+		};
+	};
+};
+
+&sysclk {
+	clocks = <&osc24m>, <&timerx_pulse_in>;
+	clock-names = "osc24m", "timer-pulse-in";
+};

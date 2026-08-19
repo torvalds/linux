@@ -1,0 +1,167 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+//
+// Device Tree file describing the Lynx 28G SerDes blocks found on the LX2160A
+// Rev1 and Rev2
+//
+// Copyright 2026 NXP
+
+&soc {
+	/* Note on the interpretation of SerDes lane numbering from
+	 * LX2160ARM lane mappings for RCW[SRDS_PRTCL_S1]:
+	 * The letters (A-H) correspond to logical lane numbers in the
+	 * SerDes register map (lane A's registers start with LNAGCR0),
+	 * while the numbers (0-7) correspond to physical lanes as
+	 * routed to pins.  SerDes block #1 is flipped in the LX2160A
+	 * floorplan (logical lane A goes to physical lane 7's pins),
+	 * while SerDes blocks #2 and #3 are not.  The lanes below are
+	 * listed right to left when looking at that table.
+	 * Both the numbers and the letters are according to the logical
+	 * numbering scheme, and do not account for the flipping.
+	 */
+	serdes_1: phy@1ea0000 {
+		compatible = "fsl,lx2160a-serdes1", "fsl,lynx-28g";
+		reg = <0x0 0x1ea0000 0x0 0x1e30>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#phy-cells = <1>;
+		status = "disabled";
+
+		serdes_1_lane_a: phy@0 {
+			reg = <0>;
+			#phy-cells = <0>;
+		};
+
+		serdes_1_lane_b: phy@1 {
+			reg = <1>;
+			#phy-cells = <0>;
+		};
+
+		serdes_1_lane_c: phy@2 {
+			reg = <2>;
+			#phy-cells = <0>;
+		};
+
+		serdes_1_lane_d: phy@3 {
+			reg = <3>;
+			#phy-cells = <0>;
+		};
+
+		serdes_1_lane_e: phy@4 {
+			reg = <4>;
+			#phy-cells = <0>;
+		};
+
+		serdes_1_lane_f: phy@5 {
+			reg = <5>;
+			#phy-cells = <0>;
+		};
+
+		serdes_1_lane_g: phy@6 {
+			reg = <6>;
+			#phy-cells = <0>;
+		};
+
+		serdes_1_lane_h: phy@7 {
+			reg = <7>;
+			#phy-cells = <0>;
+		};
+	};
+
+	serdes_2: phy@1eb0000 {
+		compatible = "fsl,lx2160a-serdes2", "fsl,lynx-28g";
+		reg = <0x0 0x1eb0000 0x0 0x1e30>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#phy-cells = <1>;
+		status = "disabled";
+
+		serdes_2_lane_a: phy@0 {
+			reg = <0>;
+			#phy-cells = <0>;
+		};
+
+		serdes_2_lane_b: phy@1 {
+			reg = <1>;
+			#phy-cells = <0>;
+		};
+
+		serdes_2_lane_c: phy@2 {
+			reg = <2>;
+			#phy-cells = <0>;
+		};
+
+		serdes_2_lane_d: phy@3 {
+			reg = <3>;
+			#phy-cells = <0>;
+		};
+
+		serdes_2_lane_e: phy@4 {
+			reg = <4>;
+			#phy-cells = <0>;
+		};
+
+		serdes_2_lane_f: phy@5 {
+			reg = <5>;
+			#phy-cells = <0>;
+		};
+
+		serdes_2_lane_g: phy@6 {
+			reg = <6>;
+			#phy-cells = <0>;
+		};
+
+		serdes_2_lane_h: phy@7 {
+			reg = <7>;
+			#phy-cells = <0>;
+		};
+	};
+
+	serdes_3: phy@1ec0000 {
+		compatible = "fsl,lx2160a-serdes3";
+		reg = <0x0 0x1ec0000 0x0 0x1e30>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#phy-cells = <1>;
+		status = "disabled";
+
+		serdes_3_lane_a: phy@0 {
+			reg = <0>;
+			#phy-cells = <0>;
+		};
+
+		serdes_3_lane_b: phy@1 {
+			reg = <1>;
+			#phy-cells = <0>;
+		};
+
+		serdes_3_lane_c: phy@2 {
+			reg = <2>;
+			#phy-cells = <0>;
+		};
+
+		serdes_3_lane_d: phy@3 {
+			reg = <3>;
+			#phy-cells = <0>;
+		};
+
+		serdes_3_lane_e: phy@4 {
+			reg = <4>;
+			#phy-cells = <0>;
+		};
+
+		serdes_3_lane_f: phy@5 {
+			reg = <5>;
+			#phy-cells = <0>;
+		};
+
+		serdes_3_lane_g: phy@6 {
+			reg = <6>;
+			#phy-cells = <0>;
+		};
+
+		serdes_3_lane_h: phy@7 {
+			reg = <7>;
+			#phy-cells = <0>;
+		};
+	};
+};

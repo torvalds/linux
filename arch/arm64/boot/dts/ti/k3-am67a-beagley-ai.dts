@@ -146,6 +146,19 @@
 			default-state = "on";
 		};
 	};
+
+	dsi_csi_mux: mux-controller {
+		compatible = "gpio-mux";
+		#mux-state-cells = <1>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&dsi_csi_mux_pins_default>;
+
+		mux-gpios = <&main_gpio0 2 GPIO_ACTIVE_HIGH>,
+			    <&main_gpio0 1 GPIO_ACTIVE_HIGH>;
+
+		/* state = SEL + 2*OE : 0 = DSI0, 1 = CSI1, 2,3 = off */
+		idle-state = <2>;
+	};
 };
 
 &main_pmx0 {
@@ -155,6 +168,13 @@
 			J722S_IOPAD(0x01e4, PIN_INPUT_PULLUP, 0) /* (B22) I2C0_SDA */
 		>;
 		bootph-all;
+	};
+
+	main_i2c2_pins_default: main-i2c2-default-pins {
+		pinctrl-single,pins = <
+			J722S_IOPAD(0x00b0, PIN_INPUT_PULLUP, 1) /* (P22) GPMC0_CSn2.I2C2_SCL */
+			J722S_IOPAD(0x00b4, PIN_INPUT_PULLUP, 1) /* (P23) GPMC0_CSn3.I2C2_SDA */
+		>;
 	};
 
 	main_uart0_pins_default: main-uart0-default-pins {
@@ -189,6 +209,13 @@
 		pinctrl-single,pins = <
 			J722S_IOPAD(0x0160, PIN_OUTPUT, 0) /* (AC24) MDIO0_MDC */
 			J722S_IOPAD(0x015c, PIN_INPUT, 0) /* (AD25) MDIO0_MDIO */
+		>;
+	};
+
+	dsi_csi_mux_pins_default: dsi-csi-mux-default-pins {
+		pinctrl-single,pins = <
+			J722S_IOPAD(0x0004, PIN_OUTPUT, 7) /* (L23) OSPI0_LBCLKO.GPIO0_1 */
+			J722S_IOPAD(0x0008, PIN_OUTPUT, 7) /* (L22) OSPI0_DQS.GPIO0_2 */
 		>;
 	};
 
@@ -254,9 +281,32 @@
 	status = "okay";
 };
 
+&main_gpio0 {
+	gpio-line-names = "", "", "", "", "", /* 0-4 */
+			  "", "", "", "", "", /* 5-9 */
+			  "", "", "", "", "", /* 10-14 */
+			  "", "", "", "", "", /* 15-19 */
+			  "", "", "", "", "", /* 20-24 */
+			  "", "", "", "", "", /* 25-29 */
+			  "", "", "USB_RST", "GPIO27", "", /* 30-34 */
+			  "", "GPIO26", "", "GPIO4", "", /* 35-39 */
+			  "", "GPIO22", "GPIO25", "", ""; /* 40-44 */
+};
+
 &main_gpio1 {
 	bootph-all;
 	status = "okay";
+	gpio-line-names = "", "", "", "", "", /* 0-4 */
+			  "", "", "GPIO16", "GPIO17", "GPIO21", /* 5-9 */
+			  "GPIO20", "GPIO18", "GPIO19", "GPIO15", "GPIO14", /* 10-14 */
+			  "GPIO5", "GPIO12", "GPIO6", "GPIO13", ""; /* 15-19 */
+};
+
+&mcu_gpio0 {
+	gpio-line-names = "GPIO8", "", "GPIO11", "GPIO10", "GPIO9", /* 0-4 */
+			  "", "", "GPIO23", "", "GPIO7", /* 5-9 */
+			  "GPIO24", "", "", "HDMI_RSTn", "HDMI_INTn", /* 10-14 */
+			  "", "", "GPIO3", "GPIO2", ""; /* 15-19 */
 };
 
 &main_uart0 {
@@ -397,6 +447,24 @@
 	bootph-all;
 	ti,fails-without-test-cd;
 	status = "okay";
+};
+
+&main_i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_i2c0_pins_default>;
+	clock-frequency = <400000>;
+
+	/* Only used by the CSI1/DSI0 connector; enable it in the overlay */
+	status = "disabled";
+};
+
+&main_i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_i2c2_pins_default>;
+	clock-frequency = <400000>;
+
+	/* Only used by the CSI0 connector; enable it in the overlay */
+	status = "disabled";
 };
 
 #include "k3-j722s-ti-ipc-firmware.dtsi"

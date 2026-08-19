@@ -73,7 +73,7 @@
 		enable-active-high;
 		gpio = <&r_pio 0 9 GPIO_ACTIVE_HIGH>; /* PL9 */
 		vin-supply = <&reg_vcc5v0>;
-        };
+	};
 
 	reg_vdd_sys: vdd-sys {
 		compatible = "regulator-fixed";
@@ -85,7 +85,7 @@
 		enable-active-high;
 		gpio = <&r_pio 0 8 GPIO_ACTIVE_HIGH>; /* PL8 */
 		vin-supply = <&reg_vcc5v0>;
-        };
+	};
 
 	wifi_pwrseq: pwrseq {
 		compatible = "mmc-pwrseq-simple";

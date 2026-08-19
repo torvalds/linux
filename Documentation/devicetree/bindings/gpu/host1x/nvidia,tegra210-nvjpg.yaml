@@ -12,7 +12,7 @@ description: |
   through Host1x channels.
 
 maintainers:
-  - Thierry Reding <treding@gmail.com>
+  - Thierry Reding <thierry.reding@kernel.org>
   - Mikko Perttunen <mperttunen@nvidia.com>
 
 properties:

@@ -99,6 +99,11 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	firmware {
+		#address-cells = <2>;
+		#size-cells = <2>;
+	};
+
 	/* FIXED REGULATORS - parents above children */
 
 	/* This is the top level supply and variable voltage */
@@ -993,8 +998,8 @@ ap_spi_fp: &spi10 {
 
 &usb_1_qmpphy {
 	status = "okay";
-	vdda-phy-supply = <&vdda_usb_ss_dp_1p2>;
-	vdda-pll-supply = <&vdda_usb_ss_dp_core>;
+	vdda-phy-supply = <&vdda_usb_ss_dp_core>;
+	vdda-pll-supply = <&vdda_usb_ss_dp_1p2>;
 };
 
 &venus {

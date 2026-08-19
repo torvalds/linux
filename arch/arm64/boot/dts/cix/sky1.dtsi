@@ -514,6 +514,20 @@
 			reg = <0x0 0x04170000 0x0 0x1000>;
 		};
 
+		fch_dmac: dma-controller@4190000 {
+			compatible = "arm,dma-350";
+			reg = <0x0 0x4190000 0x0 0x10000>;
+			interrupts = <GIC_SPI 303 IRQ_TYPE_LEVEL_HIGH 0>,
+				     <GIC_SPI 303 IRQ_TYPE_LEVEL_HIGH 0>,
+				     <GIC_SPI 303 IRQ_TYPE_LEVEL_HIGH 0>,
+				     <GIC_SPI 303 IRQ_TYPE_LEVEL_HIGH 0>,
+				     <GIC_SPI 303 IRQ_TYPE_LEVEL_HIGH 0>,
+				     <GIC_SPI 303 IRQ_TYPE_LEVEL_HIGH 0>,
+				     <GIC_SPI 303 IRQ_TYPE_LEVEL_HIGH 0>,
+				     <GIC_SPI 303 IRQ_TYPE_LEVEL_HIGH 0>;
+			#dma-cells = <1>;
+		};
+
 		mbox_ap2se: mailbox@5060000 {
 			compatible = "cix,sky1-mbox";
 			reg = <0x0 0x05060000 0x0 0x10000>;

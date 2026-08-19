@@ -1491,8 +1491,8 @@
 };
 
 &usb_1_ss0_qmpphy {
-	vdda-phy-supply = <&vreg_l2j>;
-	vdda-pll-supply = <&vreg_l1j>;
+	vdda-phy-supply = <&vreg_l1j>;
+	vdda-pll-supply = <&vreg_l2j>;
 
 	status = "okay";
 };
@@ -1521,8 +1521,8 @@
 };
 
 &usb_1_ss1_qmpphy {
-	vdda-phy-supply = <&vreg_l2j>;
-	vdda-pll-supply = <&vreg_l2d>;
+	vdda-phy-supply = <&vreg_l2d>;
+	vdda-pll-supply = <&vreg_l2j>;
 
 	status = "okay";
 };
@@ -1565,15 +1565,15 @@
 };
 
 &usb_mp_qmpphy0 {
-	vdda-phy-supply = <&vreg_l3e>;
-	vdda-pll-supply = <&vreg_l3c>;
+	vdda-phy-supply = <&vreg_l3c>;
+	vdda-pll-supply = <&vreg_l3e>;
 
 	status = "okay";
 };
 
 &usb_mp_qmpphy1 {
-	vdda-phy-supply = <&vreg_l3e>;
-	vdda-pll-supply = <&vreg_l3c>;
+	vdda-phy-supply = <&vreg_l3c>;
+	vdda-pll-supply = <&vreg_l3e>;
 
 	status = "okay";
 };

@@ -4,5 +4,5 @@
 /plugin/;
 
 &usb {
-         dr_mode = "host";
+	dr_mode = "host";
 };

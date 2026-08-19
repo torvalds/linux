@@ -270,7 +270,6 @@
 
 		conf-cd {
 			groups = "sdio0_cd_0_grp";
-			bias-high-impedance;
 			bias-pull-up;
 			slew-rate = <SLEW_RATE_SLOW>;
 			power-source = <IO_STANDARD_LVCMOS18>;
@@ -283,7 +282,6 @@
 
 		conf-wp {
 			groups = "sdio0_wp_0_grp";
-			bias-high-impedance;
 			bias-pull-up;
 			slew-rate = <SLEW_RATE_SLOW>;
 			power-source = <IO_STANDARD_LVCMOS18>;

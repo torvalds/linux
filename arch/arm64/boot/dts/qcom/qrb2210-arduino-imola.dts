@@ -235,8 +235,8 @@
 };
 
 &pm4125_vbus {
-	regulator-min-microamp = <500000>;
-	regulator-max-microamp = <500000>;
+	regulator-min-microvolt = <5000000>;
+	regulator-max-microvolt = <5000000>;
 
 	status = "okay";
 };

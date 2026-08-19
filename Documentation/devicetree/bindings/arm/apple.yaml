@@ -123,6 +123,14 @@ description: |
   - Mac Studio (M2 Ultra, 2023)
   - Mac Pro (M2 Ultra, 2023)
 
+  Devices based on the "M3 Pro", "M3 Max" and "M3 Ultra" SoCs:
+
+  - MacBook Pro (14-inch, M3 Pro, 2023)
+  - MacBook Pro (14-inch, M3 Max, 2023)
+  - MacBook Pro (16-inch, M3 Pro, 2023)
+  - MacBook Pro (16-inch, M3 Max, 2023)
+  - Mac Studio (M3 Ultra, 2025)
+
   The compatible property should follow this format:
 
   compatible = "apple,<targettype>", "apple,<socid>", "apple,arm-platform";
@@ -363,6 +371,35 @@ properties:
               - apple,j180d # Mac Pro (M2 Ultra, 2023)
               - apple,j475d # Mac Studio (M2 Ultra, 2023)
           - const: apple,t6022
+          - const: apple,arm-platform
+
+      - description: Apple M3 Pro SoC based platforms
+        items:
+          - enum:
+              - apple,j514s  # MacBook Pro (14-inch, M3 Pro, 2023)
+              - apple,j516s  # MacBook Pro (16-inch, M3 Pro, 2023)
+          - const: apple,t6030
+          - const: apple,arm-platform
+
+      - description: Apple M3 Max SoC based platforms
+        oneOf:
+          - items:
+              - enum:
+                  - apple,j514c  # MacBook Pro (14-inch, M3 Max, 16 cores, 2023)
+                  - apple,j516c  # MacBook Pro (16-inch, M3 Max, 16 cores, 2023)
+              - const: apple,t6031
+              - const: apple,arm-platform
+          - items:
+              - enum:
+                  - apple,j514m  # MacBook Pro (14-inch, M3 Max, 14 cores, 2023)
+                  - apple,j516m  # MacBook Pro (16-inch, M3 Max, 14 cores, 2023)
+              - const: apple,t6034
+              - const: apple,arm-platform
+
+      - description: Apple M3 Ultra SoC based platforms
+        items:
+          - const: apple,j575d  # Mac Studio (M3 Ultra, 2025)
+          - const: apple,t6032
           - const: apple,arm-platform
 
 additionalProperties: true

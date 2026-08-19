@@ -121,9 +121,10 @@
 };
 
 &usbdrd {
-	status = "okay";
 	vdd10-supply = <&reg_dummy>;
 	vdd33-supply = <&reg_dummy>;
+
+	status = "okay";
 };
 
 &usbdrd_phy {

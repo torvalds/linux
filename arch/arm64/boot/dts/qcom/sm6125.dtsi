@@ -374,22 +374,23 @@
 	};
 
 	soc@0 {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges = <0x00 0x00 0x00 0xffffffff>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges = <0 0 0 0 0x10 0>;
+		dma-ranges = <0 0 0 0 0x10 0>;
 		compatible = "simple-bus";
 
 		tcsr_mutex: hwlock@340000 {
 			compatible = "qcom,tcsr-mutex";
-			reg = <0x00340000 0x20000>;
+			reg = <0x0 0x00340000 0x0 0x20000>;
 			#hwlock-cells = <1>;
 		};
 
 		tlmm: pinctrl@500000 {
 			compatible = "qcom,sm6125-tlmm";
-			reg = <0x00500000 0x400000>,
-			      <0x00900000 0x400000>,
-			      <0x00d00000 0x400000>;
+			reg = <0x0 0x00500000 0x0 0x400000>,
+			      <0x0 0x00900000 0x0 0x400000>,
+			      <0x0 0x00d00000 0x0 0x400000>;
 			reg-names = "west", "south", "east";
 			interrupts = <GIC_SPI 227 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-controller;
@@ -672,7 +673,7 @@
 
 		gcc: clock-controller@1400000 {
 			compatible = "qcom,gcc-sm6125";
-			reg = <0x01400000 0x1f0000>;
+			reg = <0x0 0x01400000 0x0 0x1f0000>;
 			#clock-cells = <1>;
 			#reset-cells = <1>;
 			#power-domain-cells = <1>;
@@ -682,7 +683,7 @@
 
 		hsusb_phy1: phy@1613000 {
 			compatible = "qcom,msm8996-qusb2-phy";
-			reg = <0x01613000 0x180>;
+			reg = <0x0 0x01613000 0x0 0x180>;
 			#phy-cells = <0>;
 
 			clocks = <&gcc GCC_AHB2PHY_USB_CLK>,
@@ -695,18 +696,18 @@
 
 		rng: rng@1b53000 {
 			compatible = "qcom,prng-ee";
-			reg = <0x01b53000 0x1000>;
+			reg = <0x0 0x01b53000 0x0 0x1000>;
 			clocks = <&gcc GCC_PRNG_AHB_CLK>;
 			clock-names = "core";
 		};
 
 		spmi_bus: spmi@1c40000 {
 			compatible = "qcom,spmi-pmic-arb";
-			reg = <0x01c40000 0x1100>,
-			      <0x01e00000 0x2000000>,
-			      <0x03e00000 0x100000>,
-			      <0x03f00000 0xa0000>,
-			      <0x01c0a000 0x26000>;
+			reg = <0x0 0x01c40000 0x0 0x1100>,
+			      <0x0 0x01e00000 0x0 0x2000000>,
+			      <0x0 0x03e00000 0x0 0x100000>,
+			      <0x0 0x03f00000 0x0 0xa0000>,
+			      <0x0 0x01c0a000 0x0 0x26000>;
 			reg-names = "core", "chnls", "obsrvr", "intr", "cnfg";
 			interrupt-names = "periph_irq";
 			interrupts = <GIC_SPI 183 IRQ_TYPE_LEVEL_HIGH>;
@@ -720,12 +721,13 @@
 
 		rpm_msg_ram: sram@45f0000 {
 			compatible = "qcom,rpm-msg-ram";
-			reg = <0x045f0000 0x7000>;
+			reg = <0x0 0x045f0000 0x0 0x7000>;
 		};
 
 		sdhc_1: mmc@4744000 {
 			compatible = "qcom,sm6125-sdhci", "qcom,sdhci-msm-v5";
-			reg = <0x04744000 0x1000>, <0x04745000 0x1000>;
+			reg = <0x0 0x04744000 0x0 0x1000>,
+			      <0x0 0x04745000 0x0 0x1000>;
 			reg-names = "hc", "cqhci";
 
 			interrupts = <GIC_SPI 348 IRQ_TYPE_LEVEL_HIGH>,
@@ -752,7 +754,7 @@
 
 		sdhc_2: mmc@4784000 {
 			compatible = "qcom,sm6125-sdhci", "qcom,sdhci-msm-v5";
-			reg = <0x04784000 0x1000>;
+			reg = <0x0 0x04784000 0x0 0x1000>;
 			reg-names = "hc";
 
 			interrupts = <GIC_SPI 350 IRQ_TYPE_LEVEL_HIGH>,
@@ -780,7 +782,8 @@
 
 		ufs_mem_hc: ufshc@4804000 {
 			compatible = "qcom,sm6125-ufshc", "qcom,ufshc", "jedec,ufs-2.0";
-			reg = <0x04804000 0x3000>, <0x04810000 0x8000>;
+			reg = <0x0 0x04804000 0x0 0x3000>,
+			      <0x0 0x04810000 0x0 0x8000>;
 			reg-names = "std", "ice";
 			interrupts = <GIC_SPI 356 IRQ_TYPE_LEVEL_HIGH>;
 
@@ -825,7 +828,7 @@
 
 		ufs_mem_phy: phy@4807000 {
 			compatible = "qcom,sm6125-qmp-ufs-phy";
-			reg = <0x04807000 0xdb8>;
+			reg = <0x0 0x04807000 0x0 0xdb8>;
 
 			clocks = <&rpmcc RPM_SMD_XO_CLK_SRC>,
 				 <&gcc GCC_UFS_PHY_PHY_AUX_CLK>,
@@ -846,7 +849,7 @@
 
 		gpi_dma0: dma-controller@4a00000 {
 			compatible = "qcom,sm6125-gpi-dma", "qcom,sdm845-gpi-dma";
-			reg = <0x04a00000 0x60000>;
+			reg = <0x0 0x04a00000 0x0 0x60000>;
 			interrupts = <GIC_SPI 335 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 336 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 337 IRQ_TYPE_LEVEL_HIGH>,
@@ -864,19 +867,19 @@
 
 		qupv3_id_0: geniqup@4ac0000 {
 			compatible = "qcom,geni-se-qup";
-			reg = <0x04ac0000 0x2000>;
+			reg = <0x0 0x04ac0000 0x0 0x2000>;
 			clocks = <&gcc GCC_QUPV3_WRAP_0_M_AHB_CLK>,
 				 <&gcc GCC_QUPV3_WRAP_0_S_AHB_CLK>;
 			clock-names = "m-ahb", "s-ahb";
 			iommus = <&apps_smmu 0x123 0x0>;
-			#address-cells = <1>;
-			#size-cells = <1>;
+			#address-cells = <2>;
+			#size-cells = <2>;
 			ranges;
 			status = "disabled";
 
 			i2c0: i2c@4a80000 {
 				compatible = "qcom,geni-i2c";
-				reg = <0x04a80000 0x4000>;
+				reg = <0x0 0x04a80000 0x0 0x4000>;
 				clocks = <&gcc GCC_QUPV3_WRAP0_S0_CLK>;
 				clock-names = "se";
 				interrupts = <GIC_SPI 327 IRQ_TYPE_LEVEL_HIGH>;
@@ -893,7 +896,7 @@
 
 			spi0: spi@4a80000 {
 				compatible = "qcom,geni-spi";
-				reg = <0x04a80000 0x4000>;
+				reg = <0x0 0x04a80000 0x0 0x4000>;
 				clocks = <&gcc GCC_QUPV3_WRAP0_S0_CLK>;
 				clock-names = "se";
 				interrupts = <GIC_SPI 327 IRQ_TYPE_LEVEL_HIGH>;
@@ -910,7 +913,7 @@
 
 			i2c1: i2c@4a84000 {
 				compatible = "qcom,geni-i2c";
-				reg = <0x04a84000 0x4000>;
+				reg = <0x0 0x04a84000 0x0 0x4000>;
 				clocks = <&gcc GCC_QUPV3_WRAP0_S1_CLK>;
 				clock-names = "se";
 				interrupts = <GIC_SPI 328 IRQ_TYPE_LEVEL_HIGH>;
@@ -927,7 +930,7 @@
 
 			i2c2: i2c@4a88000 {
 				compatible = "qcom,geni-i2c";
-				reg = <0x04a88000 0x4000>;
+				reg = <0x0 0x04a88000 0x0 0x4000>;
 				clocks = <&gcc GCC_QUPV3_WRAP0_S2_CLK>;
 				clock-names = "se";
 				interrupts = <GIC_SPI 329 IRQ_TYPE_LEVEL_HIGH>;
@@ -944,7 +947,7 @@
 
 			spi2: spi@4a88000 {
 				compatible = "qcom,geni-spi";
-				reg = <0x04a88000 0x4000>;
+				reg = <0x0 0x04a88000 0x0 0x4000>;
 				clocks = <&gcc GCC_QUPV3_WRAP0_S2_CLK>;
 				clock-names = "se";
 				interrupts = <GIC_SPI 329 IRQ_TYPE_LEVEL_HIGH>;
@@ -961,7 +964,7 @@
 
 			i2c3: i2c@4a8c000 {
 				compatible = "qcom,geni-i2c";
-				reg = <0x04a8c000 0x4000>;
+				reg = <0x0 0x04a8c000 0x0 0x4000>;
 				clocks = <&gcc GCC_QUPV3_WRAP0_S3_CLK>;
 				clock-names = "se";
 				interrupts = <GIC_SPI 330 IRQ_TYPE_LEVEL_HIGH>;
@@ -978,7 +981,7 @@
 
 			i2c4: i2c@4a90000 {
 				compatible = "qcom,geni-i2c";
-				reg = <0x04a90000 0x4000>;
+				reg = <0x0 0x04a90000 0x0 0x4000>;
 				clocks = <&gcc GCC_QUPV3_WRAP0_S4_CLK>;
 				clock-names = "se";
 				interrupts = <GIC_SPI 331 IRQ_TYPE_LEVEL_HIGH>;
@@ -995,7 +998,7 @@
 
 			uart4: serial@4a90000 {
 				compatible = "qcom,geni-debug-uart";
-				reg = <0x04a90000 0x4000>;
+				reg = <0x0 0x04a90000 0x0 0x4000>;
 				clocks = <&gcc GCC_QUPV3_WRAP0_S4_CLK>;
 				clock-names = "se";
 				interrupts = <GIC_SPI 331 IRQ_TYPE_LEVEL_HIGH>;
@@ -1007,7 +1010,7 @@
 
 		gpi_dma1: dma-controller@4c00000 {
 			compatible = "qcom,sm6125-gpi-dma", "qcom,sdm845-gpi-dma";
-			reg = <0x04c00000 0x60000>;
+			reg = <0x0 0x04c00000 0x0 0x60000>;
 			interrupts = <GIC_SPI 314 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 315 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 316 IRQ_TYPE_LEVEL_HIGH>,
@@ -1025,19 +1028,19 @@
 
 		qupv3_id_1: geniqup@4cc0000 {
 			compatible = "qcom,geni-se-qup";
-			reg = <0x04cc0000 0x2000>;
+			reg = <0x0 0x04cc0000 0x0 0x2000>;
 			clocks = <&gcc GCC_QUPV3_WRAP_1_M_AHB_CLK>,
 				 <&gcc GCC_QUPV3_WRAP_1_S_AHB_CLK>;
 			clock-names = "m-ahb", "s-ahb";
 			iommus = <&apps_smmu 0x143 0x0>;
-			#address-cells = <1>;
-			#size-cells = <1>;
+			#address-cells = <2>;
+			#size-cells = <2>;
 			ranges;
 			status = "disabled";
 
 			i2c5: i2c@4c80000 {
 				compatible = "qcom,geni-i2c";
-				reg = <0x04c80000 0x4000>;
+				reg = <0x0 0x04c80000 0x0 0x4000>;
 				clocks = <&gcc GCC_QUPV3_WRAP1_S0_CLK>;
 				clock-names = "se";
 				interrupts = <GIC_SPI 308 IRQ_TYPE_LEVEL_HIGH>;
@@ -1054,7 +1057,7 @@
 
 			spi5: spi@4c80000 {
 				compatible = "qcom,geni-spi";
-				reg = <0x04c80000 0x4000>;
+				reg = <0x0 0x04c80000 0x0 0x4000>;
 				clocks = <&gcc GCC_QUPV3_WRAP1_S0_CLK>;
 				clock-names = "se";
 				interrupts = <GIC_SPI 308 IRQ_TYPE_LEVEL_HIGH>;
@@ -1071,7 +1074,7 @@
 
 			i2c6: i2c@4c84000 {
 				compatible = "qcom,geni-i2c";
-				reg = <0x04c84000 0x4000>;
+				reg = <0x0 0x04c84000 0x0 0x4000>;
 				clocks = <&gcc GCC_QUPV3_WRAP1_S1_CLK>;
 				clock-names = "se";
 				interrupts = <GIC_SPI 309 IRQ_TYPE_LEVEL_HIGH>;
@@ -1088,7 +1091,7 @@
 
 			spi6: spi@4c84000 {
 				compatible = "qcom,geni-spi";
-				reg = <0x04c84000 0x4000>;
+				reg = <0x0 0x04c84000 0x0 0x4000>;
 				clocks = <&gcc GCC_QUPV3_WRAP1_S1_CLK>;
 				clock-names = "se";
 				interrupts = <GIC_SPI 309 IRQ_TYPE_LEVEL_HIGH>;
@@ -1105,7 +1108,7 @@
 
 			i2c7: i2c@4c88000 {
 				compatible = "qcom,geni-i2c";
-				reg = <0x04c88000 0x4000>;
+				reg = <0x0 0x04c88000 0x0 0x4000>;
 				clocks = <&gcc GCC_QUPV3_WRAP1_S2_CLK>;
 				clock-names = "se";
 				interrupts = <GIC_SPI 310 IRQ_TYPE_LEVEL_HIGH>;
@@ -1122,7 +1125,7 @@
 
 			i2c8: i2c@4c8c000 {
 				compatible = "qcom,geni-i2c";
-				reg = <0x04c8c000 0x4000>;
+				reg = <0x0 0x04c8c000 0x0 0x4000>;
 				clocks = <&gcc GCC_QUPV3_WRAP1_S3_CLK>;
 				clock-names = "se";
 				interrupts = <GIC_SPI 311 IRQ_TYPE_LEVEL_HIGH>;
@@ -1139,7 +1142,7 @@
 
 			spi8: spi@4c8c000 {
 				compatible = "qcom,geni-spi";
-				reg = <0x04c8c000 0x4000>;
+				reg = <0x0 0x04c8c000 0x0 0x4000>;
 				clocks = <&gcc GCC_QUPV3_WRAP1_S3_CLK>;
 				clock-names = "se";
 				interrupts = <GIC_SPI 311 IRQ_TYPE_LEVEL_HIGH>;
@@ -1156,7 +1159,7 @@
 
 			i2c9: i2c@4c90000 {
 				compatible = "qcom,geni-i2c";
-				reg = <0x04c90000 0x4000>;
+				reg = <0x0 0x04c90000 0x0 0x4000>;
 				clocks = <&gcc GCC_QUPV3_WRAP1_S4_CLK>;
 				clock-names = "se";
 				interrupts = <GIC_SPI 312 IRQ_TYPE_LEVEL_HIGH>;
@@ -1173,7 +1176,7 @@
 
 			spi9: spi@4c90000 {
 				compatible = "qcom,geni-spi";
-				reg = <0x04c90000 0x4000>;
+				reg = <0x0 0x04c90000 0x0 0x4000>;
 				clocks = <&gcc GCC_QUPV3_WRAP1_S4_CLK>;
 				clock-names = "se";
 				interrupts = <GIC_SPI 312 IRQ_TYPE_LEVEL_HIGH>;
@@ -1191,9 +1194,9 @@
 
 		usb3: usb@4ef8800 {
 			compatible = "qcom,sm6125-dwc3", "qcom,dwc3";
-			reg = <0x04ef8800 0x400>;
-			#address-cells = <1>;
-			#size-cells = <1>;
+			reg = <0x0 0x04ef8800 0x0 0x400>;
+			#address-cells = <2>;
+			#size-cells = <2>;
 			ranges;
 
 			clocks = <&gcc GCC_CFG_NOC_USB3_PRIM_AXI_CLK>,
@@ -1228,7 +1231,7 @@
 
 			usb3_dwc3: usb@4e00000 {
 				compatible = "snps,dwc3";
-				reg = <0x04e00000 0xcd00>;
+				reg = <0x0 0x04e00000 0x0 0xcd00>;
 				interrupts = <GIC_SPI 255 IRQ_TYPE_LEVEL_HIGH>;
 				iommus = <&apps_smmu 0x100 0x0>;
 				phys = <&hsusb_phy1>;
@@ -1238,18 +1241,31 @@
 				snps,dis-u1-entry-quirk;
 				snps,dis-u2-entry-quirk;
 				maximum-speed = "high-speed";
-				dr_mode = "peripheral";
+
+				usb-role-switch;
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+
+						usb_dwc3_hs: endpoint {
+						};
+					};
+				};
 			};
 		};
 
 		sram@4690000 {
 			compatible = "qcom,rpm-stats";
-			reg = <0x04690000 0x10000>;
+			reg = <0x0 0x04690000 0x0 0x10000>;
 		};
 
 		mdss: display-subsystem@5e00000 {
 			compatible = "qcom,sm6125-mdss";
-			reg = <0x05e00000 0x1000>;
+			reg = <0x0 0x05e00000 0x0 0x1000>;
 			reg-names = "mdss";
 
 			interrupts = <GIC_SPI 186 IRQ_TYPE_LEVEL_HIGH>;
@@ -1269,16 +1285,16 @@
 
 			iommus = <&apps_smmu 0x400 0x0>;
 
-			#address-cells = <1>;
-			#size-cells = <1>;
+			#address-cells = <2>;
+			#size-cells = <2>;
 			ranges;
 
 			status = "disabled";
 
 			mdss_mdp: display-controller@5e01000 {
 				compatible = "qcom,sm6125-dpu";
-				reg = <0x05e01000 0x83208>,
-				      <0x05eb0000 0x3000>;
+				reg = <0x0 0x05e01000 0x0 0x83208>,
+				      <0x0 0x05eb0000 0x0 0x3000>;
 				reg-names = "mdp", "vbif";
 
 				interrupt-parent = <&mdss>;
@@ -1348,7 +1364,7 @@
 
 			mdss_dsi0: dsi@5e94000 {
 				compatible = "qcom,sm6125-dsi-ctrl", "qcom,mdss-dsi-ctrl";
-				reg = <0x05e94000 0x400>;
+				reg = <0x0 0x05e94000 0x0 0x400>;
 				reg-names = "dsi_ctrl";
 
 				interrupt-parent = <&mdss>;
@@ -1417,9 +1433,9 @@
 
 			mdss_dsi0_phy: phy@5e94400 {
 				compatible = "qcom,sm6125-dsi-phy-14nm";
-				reg = <0x05e94400 0x100>,
-				      <0x05e94500 0x300>,
-				      <0x05e94800 0x188>;
+				reg = <0x0 0x05e94400 0x0 0x100>,
+				      <0x0 0x05e94500 0x0 0x300>,
+				      <0x0 0x05e94800 0x0 0x188>;
 				reg-names = "dsi_phy",
 					    "dsi_phy_lane",
 					    "dsi_pll";
@@ -1441,7 +1457,7 @@
 
 		dispcc: clock-controller@5f00000 {
 			compatible = "qcom,sm6125-dispcc";
-			reg = <0x05f00000 0x20000>;
+			reg = <0x0 0x05f00000 0x0 0x20000>;
 
 			clocks = <&rpmcc RPM_SMD_XO_CLK_SRC>,
 				 <&mdss_dsi0_phy DSI_BYTE_PLL_CLK>,
@@ -1470,7 +1486,7 @@
 
 		apps_smmu: iommu@c600000 {
 			compatible = "qcom,sm6125-smmu-500", "qcom,smmu-500", "arm,mmu-500";
-			reg = <0x0c600000 0x80000>;
+			reg = <0x0 0x0c600000 0x0 0x80000>;
 			interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>,
@@ -1544,74 +1560,74 @@
 		apcs_glb: mailbox@f111000 {
 			compatible = "qcom,sm6125-apcs-hmss-global",
 				     "qcom,msm8994-apcs-kpss-global";
-			reg = <0x0f111000 0x1000>;
+			reg = <0x0 0x0f111000 0x0 0x1000>;
 
 			#mbox-cells = <1>;
 		};
 
 		timer@f120000 {
 			compatible = "arm,armv7-timer-mem";
-			#address-cells = <1>;
+			#address-cells = <2>;
 			#size-cells = <1>;
-			ranges;
-			reg = <0x0f120000 0x1000>;
+			reg = <0x0 0x0f120000 0x0 0x1000>;
+			ranges = <0x0 0x0 0x0 0x0 0x20000000>;
 			clock-frequency = <19200000>;
 
 			frame@f121000 {
 				frame-number = <0>;
 				interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
-				reg = <0x0f121000 0x1000>,
-				      <0x0f122000 0x1000>;
+				reg = <0x0 0x0f121000 0x1000>,
+				      <0x0 0x0f122000 0x1000>;
 			};
 
 			frame@f123000 {
 				frame-number = <1>;
 				interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
-				reg = <0x0f123000 0x1000>;
+				reg = <0x0 0x0f123000 0x1000>;
 				status = "disabled";
 			};
 
 			frame@f124000 {
 				frame-number = <2>;
 				interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
-				reg = <0x0f124000 0x1000>;
+				reg = <0x0 0x0f124000 0x1000>;
 				status = "disabled";
 			};
 
 			frame@f125000 {
 				frame-number = <3>;
 				interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
-				reg = <0x0f125000 0x1000>;
+				reg = <0x0 0x0f125000 0x1000>;
 				status = "disabled";
 			};
 
 			frame@f126000 {
 				frame-number = <4>;
 				interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
-				reg = <0x0f126000 0x1000>;
+				reg = <0x0 0x0f126000 0x1000>;
 				status = "disabled";
 			};
 
 			frame@f127000 {
 				frame-number = <5>;
 				interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
-				reg = <0x0f127000 0x1000>;
+				reg = <0x0 0x0f127000 0x1000>;
 				status = "disabled";
 			};
 
 			frame@f128000 {
 				frame-number = <6>;
 				interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
-				reg = <0x0f128000 0x1000>;
+				reg = <0x0 0x0f128000 0x1000>;
 				status = "disabled";
 			};
 		};
 
 		intc: interrupt-controller@f200000 {
 			compatible = "arm,gic-v3";
-			reg = <0x0f200000 0x20000>,
-			      <0x0f300000 0x100000>;
+			reg = <0x0 0x0f200000 0x0 0x20000>,
+			      <0x0 0x0f300000 0x0 0x100000>;
 			#interrupt-cells = <3>;
 			interrupt-controller;
 			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;

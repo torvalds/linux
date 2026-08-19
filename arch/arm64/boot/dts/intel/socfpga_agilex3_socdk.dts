@@ -109,7 +109,7 @@
 			#size-cells = <1>;
 
 			qspi_boot: partition@0 {
-				label = "u-boot";
+				label = "Boot and fpga data";
 				reg = <0x0 0x00c00000>;
 			};
 

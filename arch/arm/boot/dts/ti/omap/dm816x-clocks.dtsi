@@ -177,7 +177,7 @@
 		compatible = "ti,gate-clock";
 		clocks = <&sysclk2_ck>;
 		ti,bit-shift = <1>;
-                reg = <0x15dc>;
+		reg = <0x15dc>;
 	};
 
 	audio_pll_a_ck: audio_pll_a_ck@35c {

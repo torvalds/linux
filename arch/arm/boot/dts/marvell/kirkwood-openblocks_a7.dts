@@ -130,7 +130,7 @@
 			label = "obsa7:yellow:stat";
 			gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;
 		};
-        };
+	};
 
 	gpio_keys {
 		compatible = "gpio-keys";

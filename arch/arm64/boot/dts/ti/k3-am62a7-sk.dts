@@ -230,6 +230,10 @@
 	};
 };
 
+&cpsw_mac_syscon {
+	bootph-all;
+};
+
 /* WKUP UART0 is used for DM firmware logs */
 &wkup_uart0 {
 	pinctrl-names = "default";

@@ -1632,6 +1632,30 @@
 
 			/* Sleep state for BLSP2_I2C5 is missing.. */
 
+			blsp2_spi5_default: blsp2-spi5-default-state {
+				spi-pins {
+					pins = "gpio58", "gpio59", "gpio61";
+					function = "blsp_spi11";
+					drive-strength = <12>;
+					bias-disable;
+				};
+
+				cs-pins {
+					pins = "gpio60";
+					function = "blsp_spi11";
+					drive-strength = <16>;
+					bias-disable;
+					output-high;
+				};
+			};
+
+			blsp2_spi5_sleep: blsp2-spi5-sleep-state {
+				pins = "gpio58", "gpio59", "gpio60", "gpio61";
+				function = "gpio";
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+
 			cdc_reset_active: cdc-reset-active-state {
 				pins = "gpio64";
 				function = "gpio";
@@ -3426,6 +3450,23 @@
 			clock-names = "core", "iface";
 			pinctrl-names = "default";
 			pinctrl-0 = <&blsp2_i2c5_default>;
+			dmas = <&blsp2_dma 20>, <&blsp2_dma 21>;
+			dma-names = "tx", "rx";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		blsp2_spi5: spi@75b9000 {
+			compatible = "qcom,spi-qup-v2.2.1";
+			reg = <0x75b9000 0x600>;
+			interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&gcc GCC_BLSP2_QUP5_SPI_APPS_CLK>,
+				 <&gcc GCC_BLSP2_AHB_CLK>;
+			clock-names = "core", "iface";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&blsp2_spi5_default>;
+			pinctrl-1 = <&blsp2_spi5_sleep>;
 			dmas = <&blsp2_dma 20>, <&blsp2_dma 21>;
 			dma-names = "tx", "rx";
 			#address-cells = <1>;

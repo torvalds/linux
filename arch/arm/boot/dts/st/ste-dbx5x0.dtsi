@@ -1119,7 +1119,7 @@
 
 			dmas = <&dma 14 0 0x12>, /* Logical  - DevToMem - HighPrio */
 			       <&dma 14 1 0x19>; /* Physical Chan 1 - MemToDev
-                                                    HighPrio - Fixed */
+						    HighPrio - Fixed */
 			dma-names = "rx", "tx";
 
 			clocks = <&prcc_kclk 2 3>, <&prcc_pclk 2 5>;

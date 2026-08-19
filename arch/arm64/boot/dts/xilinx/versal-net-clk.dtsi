@@ -1,72 +1,52 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * dts file for Xilinx Versal NET fixed clock
+ * dts file for Xilinx Versal NET with PM
  *
- * (C) Copyright 2022, Xilinx, Inc.
- * (C) Copyright 2022 - 2025, Advanced Micro Devices, Inc.
+ * Copyright (C) 2022, Xilinx, Inc.
+ * Copyright (C) 2022 - 2026, Advanced Micro Devices, Inc.
  *
  * Michal Simek <michal.simek@amd.com>
  */
 
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include "xlnx-versal-net-clk.h"
+#include "xlnx-versal-net-power.h"
+#include "xlnx-versal-net-resets.h"
+
 / {
-	clk60: clk60 {
+	ref_clk: clock-33333333 {
 		compatible = "fixed-clock";
+		bootph-all;
+		clock-frequency = <33333333>;
+		clock-output-names = "ref_clk";
 		#clock-cells = <0>;
-		clock-frequency = <60000000>;
 	};
 
-	clk100: clk100 {
+	rtc_clk: clock-32768 {
 		compatible = "fixed-clock";
+		bootph-all;
+		clock-frequency = <32768>;
+		clock-output-names = "rtc_clk";
 		#clock-cells = <0>;
-		clock-frequency = <100000000>;
 	};
 
-	clk125: clk125 {
-		compatible = "fixed-clock";
+	can0_clk: can0-clk {
+		compatible = "fixed-factor-clock";
+		clocks = <&versal_net_clk CAN0_REF_2X>;
+		clock-div = <2>;
+		clock-mult = <1>;
+		clock-output-names = "can0_clk";
 		#clock-cells = <0>;
-		clock-frequency = <125000000>;
 	};
 
-	clk150: clk150 {
-		compatible = "fixed-clock";
+	can1_clk: can1-clk {
+		compatible = "fixed-factor-clock";
+		clocks = <&versal_net_clk CAN1_REF_2X>;
+		clock-div = <2>;
+		clock-mult = <1>;
+		clock-output-names = "can1_clk";
 		#clock-cells = <0>;
-		clock-frequency = <150000000>;
-	};
-
-	clk160: clk160 {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <160000000>;
-	};
-
-	clk200: clk200 {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <200000000>;
-	};
-
-	clk250: clk250 {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <250000000>;
-	};
-
-	clk300: clk300 {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <300000000>;
-	};
-
-	clk450: clk450 {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <450000000>;
-	};
-
-	clk1200: clk1200 {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <1200000000>;
 	};
 
 	firmware {
@@ -74,158 +54,325 @@
 			compatible = "xlnx,versal-net-firmware", "xlnx,versal-firmware";
 			bootph-all;
 			method = "smc";
+			#power-domain-cells = <1>;
+
+			versal_net_reset: reset-controller {
+				compatible = "xlnx,versal-net-reset";
+				#reset-cells = <1>;
+			};
+
+			versal_net_clk: clock-controller {
+				compatible = "xlnx,versal-net-clk", "xlnx,versal-clk";
+				bootph-all;
+				clocks = <&ref_clk>, <&ref_clk>, <&ref_clk>;
+				clock-names = "ref", "pl_alt_ref", "alt_ref";
+				#clock-cells = <1>;
+			};
+
+			versal_net_power: power-management {
+				compatible = "xlnx,zynqmp-power";
+				mboxes = <&ipi_mailbox_pmu1 0>,
+					 <&ipi_mailbox_pmu1 1>;
+				mbox-names = "tx", "rx";
+			};
+		};
+	};
+
+	zynqmp-ipi {
+		compatible = "xlnx,zynqmp-ipi-mailbox";
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+		xlnx,ipi-id = <2>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		ipi_mailbox_pmu1: mailbox@eb3f0440 {
+			compatible = "xlnx,zynqmp-ipi-dest-mailbox";
+			reg = <0 0xeb3f0440 0 0x20>,
+			      <0 0xeb3f0460 0 0x20>,
+			      <0 0xeb3f0280 0 0x20>,
+			      <0 0xeb3f02a0 0 0x20>;
+			reg-names = "local_request_region", "local_response_region",
+				    "remote_request_region", "remote_response_region";
+			#mbox-cells = <1>;
+			xlnx,ipi-id = <1>;
 		};
 	};
 };
 
-&adma0 {
-	clocks = <&clk450>, <&clk450>;
+&cpu0 {
+	clocks = <&versal_net_clk ACPU_0>;
 };
 
-&adma1 {
-	clocks = <&clk450>, <&clk450>;
+&cpu100 {
+	clocks = <&versal_net_clk ACPU_0>;
 };
 
-&adma2 {
-	clocks = <&clk450>, <&clk450>;
+&cpu200 {
+	clocks = <&versal_net_clk ACPU_0>;
 };
 
-&adma3 {
-	clocks = <&clk450>, <&clk450>;
+&cpu300 {
+	clocks = <&versal_net_clk ACPU_0>;
 };
 
-&adma4 {
-	clocks = <&clk450>, <&clk450>;
+&cpu10000 {
+	clocks = <&versal_net_clk ACPU_1>;
 };
 
-&adma5 {
-	clocks = <&clk450>, <&clk450>;
+&cpu10100 {
+	clocks = <&versal_net_clk ACPU_1>;
 };
 
-&adma6 {
-	clocks = <&clk450>, <&clk450>;
+&cpu10200 {
+	clocks = <&versal_net_clk ACPU_1>;
 };
 
-&adma7 {
-	clocks = <&clk450>, <&clk450>;
+&cpu10300 {
+	clocks = <&versal_net_clk ACPU_1>;
+};
+
+&cpu20000 {
+	clocks = <&versal_net_clk ACPU_2>;
+};
+
+&cpu20100 {
+	clocks = <&versal_net_clk ACPU_2>;
+};
+
+&cpu20200 {
+	clocks = <&versal_net_clk ACPU_2>;
+};
+
+&cpu20300 {
+	clocks = <&versal_net_clk ACPU_2>;
+};
+
+&cpu30000 {
+	clocks = <&versal_net_clk ACPU_3>;
+};
+
+&cpu30100 {
+	clocks = <&versal_net_clk ACPU_3>;
+};
+
+&cpu30200 {
+	clocks = <&versal_net_clk ACPU_3>;
+};
+
+&cpu30300 {
+	clocks = <&versal_net_clk ACPU_3>;
 };
 
 &can0 {
-	clocks = <&clk160>, <&clk160>;
+	clocks = <&can0_clk>, <&versal_net_clk LPD_LSBUS>;
+	power-domains = <&versal_net_firmware PM_DEV_CAN_FD_0>;
 };
 
 &can1 {
-	clocks = <&clk160>, <&clk160>;
+	clocks = <&can1_clk>, <&versal_net_clk LPD_LSBUS>;
+	power-domains = <&versal_net_firmware PM_DEV_CAN_FD_1>;
 };
 
 &gem0 {
-	clocks = <&clk125>, <&clk125>, <&clk125>, <&clk125>, <&clk250>;
+	clocks = <&versal_net_clk LPD_LSBUS>,
+		 <&versal_net_clk GEM0_REF>, <&versal_net_clk GEM0_TX>,
+		 <&versal_net_clk GEM0_RX>, <&versal_net_clk GEM_TSU>;
+	power-domains = <&versal_net_firmware PM_DEV_GEM_0>;
 };
 
 &gem1 {
-	clocks = <&clk125>, <&clk125>, <&clk125>, <&clk125>, <&clk250>;
+	clocks = <&versal_net_clk LPD_LSBUS>,
+		 <&versal_net_clk GEM1_REF>, <&versal_net_clk GEM1_TX>,
+		 <&versal_net_clk GEM1_RX>, <&versal_net_clk GEM_TSU>;
+	power-domains = <&versal_net_firmware PM_DEV_GEM_1>;
 };
 
 &gpio0 {
-	clocks = <&clk100>;
+	clocks = <&versal_net_clk LPD_LSBUS>;
+	power-domains = <&versal_net_firmware PM_DEV_GPIO>;
 };
 
 &gpio1 {
-	clocks = <&clk100>;
+	clocks = <&versal_net_clk PMC_LSBUS_REF>;
+	power-domains = <&versal_net_firmware PM_DEV_GPIO_PMC>;
 };
 
 &i2c0 {
-	clocks = <&clk100>;
+	clocks = <&versal_net_clk I3C0_REF>;
+	power-domains = <&versal_net_firmware PM_DEV_I2C_0>;
 };
 
 &i2c1 {
-	clocks = <&clk100>;
+	clocks = <&versal_net_clk I3C1_REF>;
+	power-domains = <&versal_net_firmware PM_DEV_I2C_1>;
 };
 
 &i3c0 {
-	clocks = <&clk100>;
+	clocks = <&versal_net_clk I3C0_REF>;
+	power-domains = <&versal_net_firmware PM_DEV_I2C_0>;
 };
 
 &i3c1 {
-	clocks = <&clk100>;
+	clocks = <&versal_net_clk I3C1_REF>;
+	power-domains = <&versal_net_firmware PM_DEV_I2C_1>;
 };
 
-&ospi {
-	clocks = <&clk200>;
+&adma0 {
+	clocks = <&versal_net_clk ADMA>, <&versal_net_clk LPD_LSBUS>;
+	power-domains = <&versal_net_firmware PM_DEV_ADMA_0>;
+};
+
+&adma1 {
+	clocks = <&versal_net_clk ADMA>, <&versal_net_clk LPD_LSBUS>;
+	power-domains = <&versal_net_firmware PM_DEV_ADMA_1>;
+};
+
+&adma2 {
+	clocks = <&versal_net_clk ADMA>, <&versal_net_clk LPD_LSBUS>;
+	power-domains = <&versal_net_firmware PM_DEV_ADMA_2>;
+};
+
+&adma3 {
+	clocks = <&versal_net_clk ADMA>, <&versal_net_clk LPD_LSBUS>;
+	power-domains = <&versal_net_firmware PM_DEV_ADMA_3>;
+};
+
+&adma4 {
+	clocks = <&versal_net_clk ADMA>, <&versal_net_clk LPD_LSBUS>;
+	power-domains = <&versal_net_firmware PM_DEV_ADMA_4>;
+};
+
+&adma5 {
+	clocks = <&versal_net_clk ADMA>, <&versal_net_clk LPD_LSBUS>;
+	power-domains = <&versal_net_firmware PM_DEV_ADMA_5>;
+};
+
+&adma6 {
+	clocks = <&versal_net_clk ADMA>, <&versal_net_clk LPD_LSBUS>;
+	power-domains = <&versal_net_firmware PM_DEV_ADMA_6>;
+};
+
+&adma7 {
+	clocks = <&versal_net_clk ADMA>, <&versal_net_clk LPD_LSBUS>;
+	power-domains = <&versal_net_firmware PM_DEV_ADMA_7>;
 };
 
 &qspi {
-	clocks = <&clk300>, <&clk300>;
+	clocks = <&versal_net_clk QSPI_REF>, <&versal_net_clk LPD_LSBUS>;
+	power-domains = <&versal_net_firmware PM_DEV_QSPI>;
+};
+
+&ospi {
+	clocks = <&versal_net_clk OSPI_REF>;
+	power-domains = <&versal_net_firmware PM_DEV_OSPI>;
 };
 
 &rtc {
-	/* Nothing */
-};
-
-&sdhci0 {
-	clocks = <&clk200>, <&clk200>, <&clk1200>;
-};
-
-&sdhci1 {
-	clocks = <&clk200>, <&clk200>, <&clk1200>;
+	clocks = <&rtc_clk>;
+	clock-names = "rtc";
+	power-domains = <&versal_net_firmware PM_DEV_RTC>;
 };
 
 &serial0 {
-	clocks = <&clk100>, <&clk100>;
+	clocks = <&versal_net_clk UART0_REF>, <&versal_net_clk LPD_LSBUS>;
+	power-domains = <&versal_net_firmware PM_DEV_UART_0>;
 };
 
 &serial1 {
-	clocks = <&clk100>, <&clk100>;
+	clocks = <&versal_net_clk UART1_REF>, <&versal_net_clk LPD_LSBUS>;
+	power-domains = <&versal_net_firmware PM_DEV_UART_1>;
+};
+
+&sdhci0 {
+	clocks = <&versal_net_clk SDIO0_REF>, <&versal_net_clk LPD_LSBUS>,
+		 <&versal_net_clk SD_DLL_REF>;
+	power-domains = <&versal_net_firmware PM_DEV_SDIO_0>;
+};
+
+&sdhci1 {
+	clocks = <&versal_net_clk SDIO1_REF>, <&versal_net_clk LPD_LSBUS>,
+		 <&versal_net_clk SD_DLL_REF>;
+	power-domains = <&versal_net_firmware PM_DEV_SDIO_1>;
 };
 
 &spi0 {
-	clocks = <&clk200>, <&clk200>;
+	clocks = <&versal_net_clk SPI0_REF>, <&versal_net_clk LPD_LSBUS>;
+	power-domains = <&versal_net_firmware PM_DEV_SPI_0>;
 };
 
 &spi1 {
-	clocks = <&clk200>, <&clk200>;
+	clocks = <&versal_net_clk SPI1_REF>, <&versal_net_clk LPD_LSBUS>;
+	power-domains = <&versal_net_firmware PM_DEV_SPI_1>;
 };
 
 &ttc0 {
-	clocks = <&clk150>;
+	clocks = <&versal_net_clk TTC0>;
+	power-domains = <&versal_net_firmware PM_DEV_TTC_0>;
+};
+
+&ttc1 {
+	clocks = <&versal_net_clk TTC1>;
+	power-domains = <&versal_net_firmware PM_DEV_TTC_1>;
+};
+
+&ttc2 {
+	clocks = <&versal_net_clk TTC2>;
+	power-domains = <&versal_net_firmware PM_DEV_TTC_2>;
+};
+
+&ttc3 {
+	clocks = <&versal_net_clk TTC3>;
+	power-domains = <&versal_net_firmware PM_DEV_TTC_3>;
 };
 
 &usb0 {
-	clocks = <&clk60>, <&clk60>;
+	clocks = <&versal_net_clk USB0_BUS_REF>, <&versal_net_clk USB0_BUS_REF>;
+	power-domains = <&versal_net_firmware PM_DEV_USB_0>;
+	resets = <&versal_net_reset VERSAL_RST_USB_0>;
 };
 
 &dwc3_0 {
-	clocks = <&clk60>;
+	clocks = <&versal_net_clk USB0_BUS_REF>;
 };
 
 &usb1 {
-	clocks = <&clk60>, <&clk60>;
+	clocks = <&versal_net_clk USB1_BUS_REF>, <&versal_net_clk USB1_BUS_REF>;
+	power-domains = <&versal_net_firmware PM_DEV_USB_1>;
+	resets = <&versal_net_reset VERSAL_RST_USB_1>;
 };
 
 &dwc3_1 {
-	clocks = <&clk60>;
+	clocks = <&versal_net_clk USB1_BUS_REF>;
 };
 
 &wwdt0 {
-	clocks = <&clk150>;
+	clocks = <&versal_net_clk FPD_WWDT0>;
+	power-domains = <&versal_net_firmware PM_DEV_FPD_SWDT_0>;
 };
 
 &wwdt1 {
-	clocks = <&clk150>;
+	clocks = <&versal_net_clk FPD_WWDT1>;
+	power-domains = <&versal_net_firmware PM_DEV_FPD_SWDT_1>;
 };
 
 &wwdt2 {
-	clocks = <&clk150>;
+	clocks = <&versal_net_clk FPD_WWDT2>;
+	power-domains = <&versal_net_firmware PM_DEV_FPD_SWDT_2>;
 };
 
 &wwdt3 {
-	clocks = <&clk150>;
+	clocks = <&versal_net_clk FPD_WWDT3>;
+	power-domains = <&versal_net_firmware PM_DEV_FPD_SWDT_3>;
 };
 
 &lpd_wwdt0 {
-	clocks = <&clk150>;
+	clocks = <&versal_net_clk LPD_WWDT0>;
+	power-domains = <&versal_net_firmware PM_DEV_LPD_SWDT_0>;
 };
 
 &lpd_wwdt1 {
-	clocks = <&clk150>;
+	clocks = <&versal_net_clk LPD_WWDT1>;
+	power-domains = <&versal_net_firmware PM_DEV_LPD_SWDT_1>;
 };

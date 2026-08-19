@@ -77,7 +77,7 @@
 			     <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH 0>;
 	};
 
-	gpa5: gpa5-gpio-bank  {
+	gpa5: gpa5-gpio-bank {
 		gpio-controller;
 		#gpio-cells = <2>;
 		interrupt-controller;
@@ -91,7 +91,7 @@
 			     <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH 0>;
 	};
 
-	gpa9: gpa9-gpio-bank  {
+	gpa9: gpa9-gpio-bank {
 		gpio-controller;
 		#gpio-cells = <2>;
 		interrupt-controller;
@@ -106,7 +106,7 @@
 			     <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH 0>;
 	};
 
-	gpa10: gpa10-gpio-bank  {
+	gpa10: gpa10-gpio-bank {
 		gpio-controller;
 		#gpio-cells = <2>;
 		interrupt-controller;
@@ -1030,7 +1030,7 @@
 		#interrupt-cells = <2>;
 	};
 
-	hsi2c13_bus: hsi2c13-bus-pins  {
+	hsi2c13_bus: hsi2c13-bus-pins {
 		samsung,pins = "gpp25-0", "gpp25-1";
 		samsung,pin-function = <GS101_PIN_FUNC_2>;
 		samsung,pin-pud = <GS101_PIN_PULL_NONE>;

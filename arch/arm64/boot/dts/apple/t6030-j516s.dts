@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * MacBook Pro (16-inch, M3 Pro, Nov 2023)
+ *
+ * target-type: J516s
+ *
+ * Copyright The Asahi Linux Contributors
+ */
+
+/dts-v1/;
+
+#include "t6030.dtsi"
+#include "t603x-j514-j516.dtsi"
+
+/ {
+	compatible = "apple,j516s", "apple,t6030", "apple,arm-platform";
+	model = "Apple MacBook Pro (16-inch, M3 Pro, Nov 2023)";
+};
+
+&framebuffer0 {
+	power-domains = <&ps_disp_cpu>;
+};

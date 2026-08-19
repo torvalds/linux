@@ -29,6 +29,17 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	memory@c8000000 {
+		device_type = "memory";
+		/* first 128MiB is reserved for secure area. */
+		reg = <0x0 0xc8000000 0x0 0x38000000>;
+	};
+
+	memory@240000000 {
+		device_type = "memory";
+		reg = <0x2 0x40000000 0x1 0xc0000000>;
+	};
+
 	reg_1p8v: regulator-1p8v {
 		compatible = "regulator-fixed";
 		regulator-name = "fixed-1.8V";
@@ -257,6 +268,9 @@
 	sci0_pins: sci0-pins {
 		pinmux = <RZT2H_PORT_PINMUX(27, 4, 0x14)>,
 			 <RZT2H_PORT_PINMUX(27, 5, 0x14)>;
+		drive-strength-microamp = <9000>;
+		slew-rate = <1>;
+		input-schmitt-disable;
 	};
 
 #if SD0_EMMC

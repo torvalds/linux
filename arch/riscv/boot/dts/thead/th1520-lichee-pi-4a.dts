@@ -103,17 +103,78 @@
 
 };
 
-&padctrl1_apsys {
-	i2c1_pins: i2c1-0 {
-		i2c-pins {
-			pins = "I2C1_SCL", "I2C1_SDA";
-			function = "i2c";
-			bias-pull-up = <2100>;
-			drive-strength = <7>;
-			input-enable;
-			input-schmitt-enable;
-			slew-rate = <0>;
-		};
+&dpu {
+	status = "okay";
+};
+
+&hdmi {
+	status = "okay";
+};
+
+&hdmi_out_port {
+	hdmi_out_con: endpoint {
+		remote-endpoint = <&hdmi_con_in>;
+	};
+};
+
+&i2c0 {
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins>;
+	status = "okay";
+
+	ioexp1: gpio@18 {
+		compatible = "nxp,pca9557";
+		reg = <0x18>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-line-names = "cam0_dvdd12",
+				  "cam0_avdd28",
+				  "cam0_dovdd18";
+	};
+};
+
+&i2c1 {
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_pins>;
+	status = "okay";
+
+	ioexp2: gpio@18 {
+		compatible = "nxp,pca9557";
+		reg = <0x18>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-line-names = "",
+				  "cam0_reset",
+				  "cam1_reset",
+				  "cam2_reset",
+				  "wl_host_wake_dev",
+				  "bt_resetn",
+				  "",
+				  "bt_host_wake_dev";
+	};
+};
+
+&i2c3 {
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c3_pins>;
+	status = "okay";
+
+	ioexp3: gpio@18 {
+		compatible = "nxp,pca9557";
+		reg = <0x18>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-line-names = "tp0_rst",
+				  "",
+				  "",
+				  "vcc5v_usb",
+				  "vdd28_tp0",
+				  "vdd33_lcd0",
+				  "vdd18_lcd0",
+				  "lcd0_reset";
 	};
 };
 
@@ -126,6 +187,18 @@
 			drive-strength = <25>;
 			input-disable;
 			input-schmitt-disable;
+			slew-rate = <0>;
+		};
+	};
+
+	i2c3_pins: i2c3-0 {
+		i2c-pins {
+			pins = "I2C3_SCL", "I2C3_SDA";
+			function = "i2c";
+			bias-pull-up = <2100>;
+			drive-strength = <7>;
+			input-enable;
+			input-schmitt-enable;
 			slew-rate = <0>;
 		};
 	};
@@ -153,17 +226,29 @@
 	};
 };
 
-&i2c1 {
-	clock-frequency = <400000>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_pins>;
-	status = "okay";
+&padctrl1_apsys {
+	i2c0_pins: i2c0-0 {
+		i2c-pins {
+			pins = "I2C0_SCL", "I2C0_SDA";
+			function = "i2c";
+			bias-pull-up = <2100>;
+			drive-strength = <7>;
+			input-enable;
+			input-schmitt-enable;
+			slew-rate = <0>;
+		};
+	};
 
-	ioexp2: gpio@18 {
-		compatible = "nxp,pca9557";
-		reg = <0x18>;
-		gpio-controller;
-		#gpio-cells = <2>;
+	i2c1_pins: i2c1-0 {
+		i2c-pins {
+			pins = "I2C1_SCL", "I2C1_SDA";
+			function = "i2c";
+			bias-pull-up = <2100>;
+			drive-strength = <7>;
+			input-enable;
+			input-schmitt-enable;
+			slew-rate = <0>;
+		};
 	};
 };
 
@@ -177,20 +262,6 @@
 	mmc-pwrseq = <&wifi_pwrseq>;
 	non-removable;
 	status = "okay";
-};
-
-&dpu {
-	status = "okay";
-};
-
-&hdmi {
-	status = "okay";
-};
-
-&hdmi_out_port {
-	hdmi_out_con: endpoint {
-		remote-endpoint = <&hdmi_con_in>;
-	};
 };
 
 &uart0 {

@@ -1,0 +1,81 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2026 NXP
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/clock/imx93-clock.h>
+
+&{/} {
+	panel-lvds {
+		compatible = "boe,ev121wxm-n10-1850";
+		backlight = <&backlight_lvds>;
+		power-supply = <&buck4>;
+
+		panel-timing {
+			/*
+			 * Set clock frequency to 71142858Hz to accommodate
+			 * IMX93_CLK_VIDEO_PLL rate at 498000000Hz in a rate
+			 * table.
+			 */
+			clock-frequency = <71142858>;
+			hactive = <1280>;
+			vactive = <800>;
+			hfront-porch = <48>;
+			hback-porch = <80>;
+			hsync-len = <32>;
+			vfront-porch = <3>;
+			vback-porch = <14>;
+			vsync-len = <6>;
+		};
+
+		port {
+			panel_lvds_in: endpoint {
+				remote-endpoint = <&ldb_lvds_ch0>;
+			};
+		};
+	};
+};
+
+&backlight_lvds {
+	status = "okay";
+};
+
+&lcdif {
+	status = "okay";
+};
+
+&lvds_bridge {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+
+			ldb_lvds_ch0: endpoint {
+				remote-endpoint = <&panel_lvds_in>;
+			};
+		};
+	};
+};
+
+&media_blk_ctrl {
+	assigned-clocks = <&clk IMX93_CLK_MEDIA_AXI>,
+			  <&clk IMX93_CLK_MEDIA_APB>,
+			  <&clk IMX93_CLK_MEDIA_DISP_PIX>,
+			  <&clk IMX93_CLK_VIDEO_PLL>;
+	assigned-clock-parents = <&clk IMX93_CLK_SYS_PLL_PFD1>,
+				 <&clk IMX93_CLK_SYS_PLL_PFD1_DIV2>,
+				 <&clk IMX93_CLK_VIDEO_PLL>;
+	/*
+	 * Set IMX93_CLK_MEDIA_DISP_PIX rate to 71142858Hz to accommodate
+	 * IMX93_CLK_VIDEO_PLL rate at 498000000Hz in a rate table.
+	 */
+	assigned-clock-rates = <400000000>, <133333333>, <71142858>, <498000000>;
+	status = "okay";
+};

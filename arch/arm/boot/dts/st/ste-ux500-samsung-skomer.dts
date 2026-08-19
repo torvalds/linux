@@ -253,7 +253,7 @@
 		 */
 		mmc@80005000 {
 			arm,primecell-periphid = <0x10480180>;
-		        max-frequency = <100000000>;
+			max-frequency = <100000000>;
 			bus-width = <8>;
 			non-removable;
 			cap-mmc-highspeed;

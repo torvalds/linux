@@ -94,10 +94,10 @@
 
 		serial@12000 {
 			/* Internal on test pins, 3.3v TTL
-		 	 * UART0_RX = Testpoint 65
+			 * UART0_RX = Testpoint 65
 			 * UART0_TX = Testpoint 66
 			 * See the Excito Wiki for more details.
-		 	 */
+			 */
 			status = "okay";
 		};
 

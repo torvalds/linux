@@ -178,7 +178,6 @@
 			compatible = "st,spear600-ehci", "usb-ehci";
 			reg = <0xe4800000 0x1000>;
 			interrupts = <0 64 0x4>;
-			usbh0_id = <0>;
 			status = "disabled";
 		};
 
@@ -186,7 +185,6 @@
 			compatible = "st,spear600-ehci", "usb-ehci";
 			reg = <0xe5800000 0x1000>;
 			interrupts = <0 66 0x4>;
-			usbh1_id = <1>;
 			status = "disabled";
 		};
 
@@ -194,7 +192,6 @@
 			compatible = "st,spear600-ohci", "usb-ohci";
 			reg = <0xe4000000 0x1000>;
 			interrupts = <0 65 0x4>;
-			usbh0_id = <0>;
 			status = "disabled";
 		};
 
@@ -202,7 +199,6 @@
 			compatible = "st,spear600-ohci", "usb-ohci";
 			reg = <0xe5000000 0x1000>;
 			interrupts = <0 67 0x4>;
-			usbh1_id = <1>;
 			status = "disabled";
 		};
 

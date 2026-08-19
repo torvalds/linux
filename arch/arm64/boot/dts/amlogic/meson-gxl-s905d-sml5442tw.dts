@@ -64,7 +64,7 @@
 };
 
 &ir {
-        linux,rc-map-name = "rc-khamsin";
+	linux,rc-map-name = "rc-khamsin";
 };
 
 /* This is connected to the Bluetooth module: */

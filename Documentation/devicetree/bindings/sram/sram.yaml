@@ -35,6 +35,7 @@ properties:
         - nvidia,tegra194-sysram
         - nvidia,tegra234-sysram
         - qcom,eliza-imem
+        - qcom,glymur-imem
         - qcom,hawi-imem
         - qcom,kaanapali-imem
         - qcom,milos-imem

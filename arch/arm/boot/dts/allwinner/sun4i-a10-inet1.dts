@@ -78,7 +78,7 @@
 	cpu-supply = <&reg_dcdc2>;
 };
 
-&ehci0  {
+&ehci0 {
 	status = "okay";
 };
 
@@ -157,7 +157,7 @@
 	status = "okay";
 };
 
-&ohci0  {
+&ohci0 {
 	status = "okay";
 };
 

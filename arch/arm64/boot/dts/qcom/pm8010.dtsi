@@ -64,6 +64,16 @@
 			interrupts = <0xc 0x24 0x0 IRQ_TYPE_EDGE_BOTH>;
 			#thermal-sensor-cells = <0>;
 		};
+
+		pm8010_m_gpios: gpio@c000 {
+			compatible = "qcom,pm8010-gpio", "qcom,spmi-gpio";
+			reg = <0xc000>;
+			gpio-controller;
+			gpio-ranges = <&pm8010_m_gpios 0 0 2>;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
 	};
 
 	pm8010_n: pmic@d {
@@ -77,6 +87,16 @@
 			reg = <0x2400>;
 			interrupts = <0xd 0x24 0x0 IRQ_TYPE_EDGE_BOTH>;
 			#thermal-sensor-cells = <0>;
+		};
+
+		pm8010_n_gpios: gpio@c000 {
+			compatible = "qcom,pm8010-gpio", "qcom,spmi-gpio";
+			reg = <0xc000>;
+			gpio-controller;
+			gpio-ranges = <&pm8010_n_gpios 0 0 2>;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 		};
 	};
 };

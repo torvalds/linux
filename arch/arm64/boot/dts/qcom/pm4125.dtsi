@@ -37,7 +37,7 @@
 		};
 
 		pm4125_vbus: usb-vbus-regulator@1100 {
-			compatible = "qcom,pm4125-vbus-reg", "qcom,pm8150b-vbus-reg";
+			compatible = "qcom,pm4125-vbus-reg";
 			reg = <0x1100>;
 			status = "disabled";
 		};

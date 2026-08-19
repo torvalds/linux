@@ -259,7 +259,7 @@
 			stream_name = "spdif-cap", "spdif-play", "i2s-play", "i2s-cap";
 			dai_name = "spdifin-pcm", "spdifout-pcm", "i2s0-pcm", "i2s1-pcm";
 			nr_controllers = <4>;
-		        status = "okay";
+			status = "okay";
 		};
 
 		spdif0: spdif-in@d0100000 {

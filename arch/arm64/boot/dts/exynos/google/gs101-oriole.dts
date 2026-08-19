@@ -39,6 +39,7 @@
 
 &cont_splash_mem {
 	reg = <0x0 0xfac00000 (1080 * 2400 * 4)>;
+
 	status = "okay";
 };
 
@@ -47,5 +48,6 @@
 	height = <2400>;
 	stride = <(1080 * 4)>;
 	format = "a8r8g8b8";
+
 	status = "okay";
 };

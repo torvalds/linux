@@ -88,6 +88,9 @@ dtb-$(CONFIG_ARCH_OMAP4) += \
 am335x-bonegreen-hdmi-00a0-dtbs := am335x-bonegreen-eco.dtb \
 	am335x-bone-hdmi-00a0.dtbo
 
+am335x-icev2-prueth-dtbs := am335x-icev2.dtb \
+	am335x-icev2-prueth-overlay.dtbo
+
 dtb-$(CONFIG_SOC_AM33XX) += \
 	am335x-baltos-ir2110.dtb \
 	am335x-baltos-ir3220.dtb \
@@ -106,6 +109,7 @@ dtb-$(CONFIG_SOC_AM33XX) += \
 	am335x-evmsk.dtb \
 	am335x-guardian.dtb \
 	am335x-icev2.dtb \
+	am335x-icev2-prueth.dtb \
 	am335x-lxm.dtb \
 	am335x-mba335x.dtb \
 	am335x-moxa-uc-2101.dtb \

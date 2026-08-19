@@ -64,6 +64,10 @@
 	VBAT-supply = <&pp3300_ldo_z>;
 };
 
+&mmc1 {
+	status = "disabled";
+};
+
 &sound {
 	compatible = "mediatek,mt8192_mt6359_rt1015p_rt5682";
 
