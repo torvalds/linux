@@ -4647,7 +4647,6 @@ static int validate_ibt(struct objtool_file *file)
 		    !strcmp(sec->name, ".kcfi_traps")			||
 		    !strcmp(sec->name, ".orc_unwind_ip")		||
 		    !strcmp(sec->name, ".retpoline_sites")		||
-		    !strcmp(sec->name, ".smp_locks")			||
 		    !strcmp(sec->name, ".static_call_sites")		||
 		    !strcmp(sec->name, "_error_injection_whitelist")	||
 		    !strcmp(sec->name, "_kprobe_blacklist")		||

@@ -352,18 +352,6 @@ SECTIONS
 		__init_end = .;
 	}
 
-	/*
-	 * smp_locks might be freed after init
-	 * start/end must be page aligned
-	 */
-	. = ALIGN(PAGE_SIZE);
-	.smp_locks : AT(ADDR(.smp_locks) - LOAD_OFFSET) {
-		__smp_locks = .;
-		*(.smp_locks)
-		. = ALIGN(PAGE_SIZE);
-		__smp_locks_end = .;
-	}
-
 #ifdef CONFIG_X86_64
 	.data_nosave : AT(ADDR(.data_nosave) - LOAD_OFFSET) {
 		NOSAVE_DATA

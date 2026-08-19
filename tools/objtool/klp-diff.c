@@ -344,7 +344,6 @@ static bool is_special_section(struct section *sec)
 	static const char * const specials[] = {
 		".altinstructions",
 		".kcfi_traps",
-		".smp_locks",
 		"__bug_table",
 		"__ex_table",
 		"__jump_table",

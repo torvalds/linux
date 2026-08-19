@@ -41,15 +41,6 @@ static int __init debug_alt(char *str)
 }
 __setup("debug-alternative", debug_alt);
 
-static int noreplace_smp;
-
-static int __init setup_noreplace_smp(char *str)
-{
-	noreplace_smp = 1;
-	return 1;
-}
-__setup("noreplace-smp", setup_noreplace_smp);
-
 #define DPRINTK(type, fmt, args...)					\
 do {									\
 	if (debug_alternative & DA_##type)				\
@@ -2128,159 +2119,6 @@ void apply_fineibt(s32 *start_retpoline, s32 *end_retpoline,
 			       /* .builtin = */ false);
 }
 
-#ifdef CONFIG_SMP
-static void alternatives_smp_lock(const s32 *start, const s32 *end,
-				  u8 *text, u8 *text_end)
-{
-	const s32 *poff;
-
-	for (poff = start; poff < end; poff++) {
-		u8 *ptr = (u8 *)poff + *poff;
-
-		if (!*poff || ptr < text || ptr >= text_end)
-			continue;
-		/* turn DS segment override prefix into lock prefix */
-		if (*ptr == 0x3e)
-			text_poke(ptr, ((unsigned char []){0xf0}), 1);
-	}
-}
-
-static void alternatives_smp_unlock(const s32 *start, const s32 *end,
-				    u8 *text, u8 *text_end)
-{
-	const s32 *poff;
-
-	for (poff = start; poff < end; poff++) {
-		u8 *ptr = (u8 *)poff + *poff;
-
-		if (!*poff || ptr < text || ptr >= text_end)
-			continue;
-		/* turn lock prefix into DS segment override prefix */
-		if (*ptr == 0xf0)
-			text_poke(ptr, ((unsigned char []){0x3E}), 1);
-	}
-}
-
-struct smp_alt_module {
-	/* what is this ??? */
-	struct module	*mod;
-	char		*name;
-
-	/* ptrs to lock prefixes */
-	const s32	*locks;
-	const s32	*locks_end;
-
-	/* .text segment, needed to avoid patching init code ;) */
-	u8		*text;
-	u8		*text_end;
-
-	struct list_head next;
-};
-static LIST_HEAD(smp_alt_modules);
-static bool uniproc_patched = false;	/* protected by text_mutex */
-
-void __init_or_module alternatives_smp_module_add(struct module *mod,
-						  char *name,
-						  void *locks, void *locks_end,
-						  void *text,  void *text_end)
-{
-	struct smp_alt_module *smp;
-
-	mutex_lock(&text_mutex);
-	if (!uniproc_patched)
-		goto unlock;
-
-	if (num_possible_cpus() == 1)
-		/* Don't bother remembering, we'll never have to undo it. */
-		goto smp_unlock;
-
-	smp = kzalloc_obj(*smp);
-	if (NULL == smp)
-		/* we'll run the (safe but slow) SMP code then ... */
-		goto unlock;
-
-	smp->mod	= mod;
-	smp->name	= name;
-	smp->locks	= locks;
-	smp->locks_end	= locks_end;
-	smp->text	= text;
-	smp->text_end	= text_end;
-	DPRINTK(SMP, "locks %p -> %p, text %p -> %p, name %s\n",
-		smp->locks, smp->locks_end,
-		smp->text, smp->text_end, smp->name);
-
-	list_add_tail(&smp->next, &smp_alt_modules);
-smp_unlock:
-	alternatives_smp_unlock(locks, locks_end, text, text_end);
-unlock:
-	mutex_unlock(&text_mutex);
-}
-
-void __init_or_module alternatives_smp_module_del(struct module *mod)
-{
-	struct smp_alt_module *item;
-
-	mutex_lock(&text_mutex);
-	list_for_each_entry(item, &smp_alt_modules, next) {
-		if (mod != item->mod)
-			continue;
-		list_del(&item->next);
-		kfree(item);
-		break;
-	}
-	mutex_unlock(&text_mutex);
-}
-
-void alternatives_enable_smp(void)
-{
-	struct smp_alt_module *mod;
-
-	/* Why bother if there are no other CPUs? */
-	BUG_ON(num_possible_cpus() == 1);
-
-	mutex_lock(&text_mutex);
-
-	if (uniproc_patched) {
-		pr_info("switching to SMP code\n");
-		BUG_ON(num_online_cpus() != 1);
-		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_UP);
-		clear_cpu_cap(&cpu_data(0), X86_FEATURE_UP);
-		list_for_each_entry(mod, &smp_alt_modules, next)
-			alternatives_smp_lock(mod->locks, mod->locks_end,
-					      mod->text, mod->text_end);
-		uniproc_patched = false;
-	}
-	mutex_unlock(&text_mutex);
-}
-
-/*
- * Return 1 if the address range is reserved for SMP-alternatives.
- * Must hold text_mutex.
- */
-int alternatives_text_reserved(void *start, void *end)
-{
-	struct smp_alt_module *mod;
-	const s32 *poff;
-	u8 *text_start = start;
-	u8 *text_end = end;
-
-	lockdep_assert_held(&text_mutex);
-
-	list_for_each_entry(mod, &smp_alt_modules, next) {
-		if (mod->text > text_end || mod->text_end < text_start)
-			continue;
-		for (poff = mod->locks; poff < mod->locks_end; poff++) {
-			const u8 *ptr = (const u8 *)poff + *poff;
-
-			if (text_start <= ptr && text_end > ptr)
-				return 1;
-		}
-	}
-
-	return 0;
-}
-#endif /* CONFIG_SMP */
-
 /*
  * Self-test for the INT3 based CALL emulation code.
  *
@@ -2459,39 +2297,11 @@ void __init alternative_instructions(void)
 
 	ibt_restore(ibt);
 
-#ifdef CONFIG_SMP
-	/* Patch to UP if other cpus not imminent. */
-	if (!noreplace_smp && (num_present_cpus() == 1 || setup_max_cpus <= 1)) {
-		uniproc_patched = true;
-		alternatives_smp_module_add(NULL, "core kernel",
-					    __smp_locks, __smp_locks_end,
-					    _text, _etext);
-	}
-#endif
-
 	restart_nmi();
 	alternatives_patched = 1;
 
 	alt_reloc_selftest();
 }
-
-#ifdef CONFIG_SMP
-/*
- * With CONFIG_DEFERRED_STRUCT_PAGE_INIT enabled we can free_init_pages() only
- * after the deferred initialization of the memory map is complete.
- */
-static int __init free_smp_locks(void)
-{
-	if (!uniproc_patched || num_possible_cpus() == 1) {
-		free_init_pages("SMP alternatives",
-				(unsigned long)__smp_locks,
-				(unsigned long)__smp_locks_end);
-	}
-
-	return 0;
-}
-arch_initcall(free_smp_locks);
-#endif
 
 /**
  * text_poke_early - Update instructions on a live kernel at boot time

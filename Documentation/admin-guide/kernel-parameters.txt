@@ -4614,9 +4614,6 @@ Kernel parameters
 	norandmaps	Don't use address space randomization.  Equivalent to
 			echo 0 > /proc/sys/kernel/randomize_va_space
 
-	noreplace-smp	[X86-32,SMP] Don't replace SMP instructions
-			with UP alternatives
-
 	noresume	[SWSUSP] Disables resume and restores original swap
 			space.
 

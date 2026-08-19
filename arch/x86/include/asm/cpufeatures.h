@@ -78,7 +78,7 @@
 #define X86_FEATURE_ZEN6		( 3*32+ 6) /* CPU based on Zen6 microarchitecture */
 /* Free                                 ( 3*32+ 7) */
 #define X86_FEATURE_CONSTANT_TSC	( 3*32+ 8) /* "constant_tsc" TSC ticks at a constant rate */
-#define X86_FEATURE_UP			( 3*32+ 9) /* "up" SMP kernel running on UP */
+/* free: was #define X86_FEATURE_UP	( 3*32+ 9) * "up" SMP kernel running on UP */
 #define X86_FEATURE_ART			( 3*32+10) /* "art" Always running timer (ART) */
 #define X86_FEATURE_ARCH_PERFMON	( 3*32+11) /* "arch_perfmon" Intel Architectural PerfMon */
 #define X86_FEATURE_PEBS		( 3*32+12) /* "pebs" Precise-Event Based Sampling */

@@ -73,7 +73,7 @@ static const char * const	sym_regex_kernel[S_NSYMTYPES] = {
 	"^(__init_(begin|end)|"
 	"__x86_cpu_dev_(start|end)|"
 	"__alt_instructions(_end)?|"
-	"(__iommu_table|__apicdrivers|__smp_locks)(_end)?|"
+	"(__iommu_table|__apicdrivers)(_end)?|"
 	"__(start|end)_pci_.*|"
 #if CONFIG_FW_LOADER
 	"__(start|end)_builtin_fw|"
