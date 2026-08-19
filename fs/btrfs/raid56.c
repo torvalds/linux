@@ -1652,12 +1652,7 @@ static void verify_bio_data_sectors(struct btrfs_raid_bio *rbio,
 				    struct bio *bio)
 {
 	struct btrfs_fs_info *fs_info = rbio->bioc->fs_info;
-	const u32 step = min(fs_info->sectorsize, PAGE_SIZE);
-	const u32 nr_steps = rbio->sector_nsteps;
 	int total_sector_nr = get_bio_sector_nr(rbio, bio);
-	u32 offset = 0;
-	phys_addr_t paddrs[BTRFS_MAX_BLOCKSIZE / PAGE_SIZE];
-	phys_addr_t paddr;
 
 	/* No data csum for the whole stripe, no need to verify. */
 	if (!rbio->csum_bitmap || !rbio->csum_buf)
@@ -1667,28 +1662,20 @@ static void verify_bio_data_sectors(struct btrfs_raid_bio *rbio,
 	if (total_sector_nr >= rbio->nr_data * rbio->stripe_nsectors)
 		return;
 
-	btrfs_bio_for_each_block_all(paddr, bio, step) {
+	for (struct bvec_iter iter = init_bvec_iter_for_bio(bio);
+	     iter.bi_size;
+	     bio_advance_iter(bio, &iter, fs_info->sectorsize), total_sector_nr++) {
 		u8 csum_buf[BTRFS_CSUM_SIZE];
 		u8 *expected_csum;
 
-		paddrs[(offset / step) % nr_steps] = paddr;
-		offset += step;
-
-		/* Not yet covering the full fs block, continue to the next step. */
-		if (!IS_ALIGNED(offset, fs_info->sectorsize))
-			continue;
-
 		/* No csum for this sector, skip to the next sector. */
-		if (!test_bit(total_sector_nr, rbio->csum_bitmap)) {
-			total_sector_nr++;
+		if (!test_bit(total_sector_nr, rbio->csum_bitmap))
 			continue;
-		}
 
 		expected_csum = rbio->csum_buf + total_sector_nr * fs_info->csum_size;
-		btrfs_calculate_block_csum_pages(fs_info, paddrs, csum_buf);
+		btrfs_csum_one_bio_block(fs_info, bio, &iter, csum_buf);
 		if (unlikely(memcmp(csum_buf, expected_csum, fs_info->csum_size) != 0))
 			set_bit(total_sector_nr, rbio->error_bitmap);
-		total_sector_nr++;
 	}
 }
 
@@ -1879,6 +1866,27 @@ void raid56_parity_write(struct bio *bio, struct btrfs_io_context *bioc)
 	start_async_work(rbio, rmw_rbio_work);
 }
 
+static void calculate_block_csum_paddrs(struct btrfs_fs_info *fs_info,
+					const phys_addr_t paddrs[], u8 *dest)
+{
+	const u32 blocksize = fs_info->sectorsize;
+	const u32 step = min(blocksize, PAGE_SIZE);
+	const u32 nr_steps = blocksize / step;
+	struct btrfs_csum_ctx csum;
+
+	btrfs_csum_init(&csum, fs_info->csum_type);
+	for (int i = 0; i < nr_steps; i++) {
+		const phys_addr_t paddr = paddrs[i];
+		void *kaddr;
+
+		ASSERT(offset_in_page(paddr) + step <= PAGE_SIZE);
+		kaddr = kmap_local_page(phys_to_page(paddr)) + offset_in_page(paddr);
+		btrfs_csum_update(&csum, kaddr, step);
+		kunmap_local(kaddr);
+	}
+	btrfs_csum_final(&csum, dest);
+}
+
 static int verify_one_sector(struct btrfs_raid_bio *rbio,
 			     int stripe_nr, int sector_nr)
 {
@@ -1906,7 +1914,7 @@ static int verify_one_sector(struct btrfs_raid_bio *rbio,
 	csum_expected = rbio->csum_buf +
 			(stripe_nr * rbio->stripe_nsectors + sector_nr) *
 			fs_info->csum_size;
-	btrfs_calculate_block_csum_pages(fs_info, paddrs, csum_buf);
+	calculate_block_csum_paddrs(fs_info, paddrs, csum_buf);
 	if (unlikely(memcmp(csum_buf, csum_expected, fs_info->csum_size) != 0))
 		return -EIO;
 	return 0;
