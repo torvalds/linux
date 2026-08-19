@@ -3897,9 +3897,6 @@ static int console_call_setup(struct console *newcon, char *options)
  * the newly registered console with any of the ones selected
  * by either the command line or add_preferred_console() and
  * setup/enable it.
- *
- * Care need to be taken with consoles that are statically
- * enabled such as netconsole
  */
 static int try_enable_preferred_console(struct console *newcon,
 					bool user_specified)
@@ -3939,14 +3936,6 @@ static int try_enable_preferred_console(struct console *newcon,
 			newcon->flags |= CON_CONSDEV;
 		return 0;
 	}
-
-	/*
-	 * Some consoles, such as pstore and netconsole, can be enabled even
-	 * without matching. Accept the pre-enabled consoles only when match()
-	 * and setup() had a chance to be called.
-	 */
-	if (newcon->flags & CON_ENABLED && c->user_specified ==	user_specified)
-		return 0;
 
 	return -ENOENT;
 }
@@ -4129,6 +4118,14 @@ void register_console(struct console *newcon)
 	/* If not, try to match against the platform default(s) */
 	if (err == -ENOENT)
 		err = try_enable_preferred_console(newcon, false);
+
+	/*
+	 * Some consoles, such as pstore and netconsole, can be enabled even
+	 * without matching. Accept them at this stage when they had a chance
+	 * to match() and call setup().
+	 */
+	if (err == -ENOENT && (newcon->flags & CON_ENABLED))
+		err = 0;
 
 	/* printk() messages are not printed to the Braille console. */
 	if (err || newcon->flags & CON_BRL) {
