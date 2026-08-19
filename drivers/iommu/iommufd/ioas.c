@@ -375,6 +375,42 @@ out_put:
 	return rc;
 }
 
+#ifdef CONFIG_IOMMUFD_NOIOMMU
+int iommufd_ioas_noiommu_get_pa(struct iommufd_ucmd *ucmd)
+{
+	struct iommu_ioas_noiommu_get_pa *cmd = ucmd->cmd;
+	struct iommufd_ioas *ioas;
+	int rc;
+
+	if (!capable(CAP_SYS_RAWIO))
+		return -EPERM;
+
+	if (cmd->flags || cmd->__reserved)
+		return -EOPNOTSUPP;
+
+	if (!cmd->length)
+		return -EINVAL;
+
+	if (cmd->iova >= ULONG_MAX)
+		return -EOVERFLOW;
+
+	ioas = iommufd_get_ioas(ucmd->ictx, cmd->ioas_id);
+	if (IS_ERR(ioas))
+		return PTR_ERR(ioas);
+
+	rc = iopt_get_phys(&ioas->iopt, cmd->iova, &cmd->out_phys,
+			   &cmd->length);
+	if (rc)
+		goto out_put;
+
+	rc = iommufd_ucmd_respond(ucmd, sizeof(*cmd));
+out_put:
+	iommufd_put_object(ucmd->ictx, &ioas->obj);
+
+	return rc;
+}
+#endif
+
 static void iommufd_release_all_iova_rwsem(struct iommufd_ctx *ictx,
 					   struct xarray *ioas_list)
 {
@@ -537,6 +573,10 @@ int iommufd_ioas_change_process(struct iommufd_ucmd *ucmd)
 		return rc;
 
 	for_each_ioas_area(&ioas_list, index, ioas, area)  {
+		if (!area->pages) {
+			rc = -EBUSY;
+			goto out;
+		}
 		if (area->pages->type != IOPT_ADDRESS_FILE) {
 			rc = -EINVAL;
 			goto out;

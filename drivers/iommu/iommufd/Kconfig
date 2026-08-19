@@ -16,6 +16,18 @@ config IOMMUFD
 	  If you don't know what to do here, say N.
 
 if IOMMUFD
+config IOMMUFD_NOIOMMU
+	bool
+	depends on !GENERIC_ATOMIC64 # IOMMU_PT_AMDV1 requires cmpxchg64
+	select GENERIC_PT
+	select IOMMU_PT
+	select IOMMU_PT_AMDV1
+	help
+	  Provides a SW-only IO page table for devices without hardware
+	  IOMMU backing. This uses the AMDV1 page table format for
+	  IOVA-to-PA lookups only, not for hardware DMA translation.
+	  To be selected by VFIO_NOIOMMU when VFIO_DEVICE_CDEV is enabled.
+
 config IOMMUFD_VFIO_CONTAINER
 	bool "IOMMUFD provides the VFIO container /dev/vfio/vfio"
 	depends on VFIO_GROUP && !VFIO_CONTAINER

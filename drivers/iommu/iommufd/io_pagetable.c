@@ -859,6 +859,84 @@ int iopt_unmap_iova(struct io_pagetable *iopt, unsigned long iova,
 	return iopt_unmap_iova_range(iopt, iova, iova_last, unmapped);
 }
 
+#ifdef CONFIG_IOMMUFD_NOIOMMU
+int iopt_get_phys(struct io_pagetable *iopt, unsigned long iova, u64 *paddr,
+		  u64 *length)
+{
+	struct iopt_area *area;
+	struct iopt_pages *pages;
+	u64 max_length = *length;
+	u64 tmp_length = 0;
+	u64 tmp_paddr = 0;
+	int rc = 0;
+
+	if (!max_length)
+		return -EINVAL;
+
+	down_read(&iopt->iova_rwsem);
+	area = iopt_area_iter_first(iopt, iova, iova);
+	if (!area || !area->pages) {
+		rc = -ENOENT;
+		goto unlock_exit;
+	}
+
+	pages = area->pages;
+	mutex_lock(&pages->mutex);
+	if (iopt_dmabuf_revoked(pages)) {
+		rc = -EINVAL;
+		goto unlock_pages;
+	}
+
+	if (!area->storage_domain ||
+	    area->storage_domain->owner != &iommufd_noiommu_ops) {
+		rc = -EOPNOTSUPP;
+		goto unlock_pages;
+	}
+
+	*paddr = iommu_iova_to_phys(area->storage_domain, iova);
+	tmp_length = min_t(u64, PAGE_SIZE - offset_in_page(iova),
+			   iopt_area_last_iova(area) - iova + 1);
+	tmp_paddr = *paddr;
+	/*
+	 * Return the physically contiguous length, capped by the caller
+	 * supplied range length.
+	 */
+	while (iova < iopt_area_last_iova(area)) {
+		unsigned long next_iova;
+		u64 next_paddr;
+
+		if (tmp_length >= max_length)
+			break;
+
+		if (check_add_overflow(iova, PAGE_SIZE, &next_iova))
+			break;
+
+		if (next_iova > iopt_area_last_iova(area))
+			break;
+
+		next_paddr = iommu_iova_to_phys(area->storage_domain, next_iova);
+
+		if (!next_paddr || next_paddr != tmp_paddr + PAGE_SIZE)
+			break;
+
+		iova = next_iova;
+		tmp_paddr += PAGE_SIZE;
+		tmp_length += PAGE_SIZE;
+	}
+
+	if (tmp_length > max_length)
+		tmp_length = max_length;
+	*length = tmp_length;
+
+unlock_pages:
+	mutex_unlock(&pages->mutex);
+unlock_exit:
+	up_read(&iopt->iova_rwsem);
+
+	return rc;
+}
+#endif
+
 int iopt_unmap_all(struct io_pagetable *iopt, unsigned long *unmapped)
 {
 	/* If the IOVAs are empty then unmap all succeeds */
@@ -1513,7 +1591,7 @@ int iopt_table_enforce_dev_resv_regions(struct io_pagetable *iopt,
 		return -EINVAL;
 
 	down_write(&iopt->iova_rwsem);
-	/* FIXME: drivers allocate memory but there is no failure propogated */
+	/* FIXME: drivers allocate memory but there is no failure propagated */
 	iommu_get_resv_regions(dev, &resv_regions);
 
 	list_for_each_entry(resv, &resv_regions, list) {
