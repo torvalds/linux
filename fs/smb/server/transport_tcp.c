@@ -523,6 +523,12 @@ static int create_socket(struct interface *iface)
 		goto out_error;
 	}
 
+	/*
+	 * Accepted sockets inherit the listener's net reference. Keep TCP
+	 * timers alive after a kernel socket is released.
+	 */
+	sk_net_refcnt_upgrade(ksmbd_socket->sk);
+
 	ret = kernel_listen(ksmbd_socket, KSMBD_SOCKET_BACKLOG);
 	if (ret) {
 		pr_err("Port listen() error: %d\n", ret);
