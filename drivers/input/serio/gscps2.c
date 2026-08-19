@@ -22,18 +22,15 @@
  *                 was usable/enabled ?)
  */
 
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/serio.h>
+#include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
-#include <linux/spinlock.h>
-#include <linux/delay.h>
+#include <linux/io.h>
 #include <linux/ioport.h>
+#include <linux/property.h>
+#include <linux/serio.h>
 
 #include <asm/irq.h>
-#include <asm/io.h>
 #include <asm/parisc-device.h>
 
 MODULE_AUTHOR("Laurent Canet <canetl@esiee.fr>, Thibaut Varene <varenet@parisc-linux.org>, Helge Deller <deller@gmx.de>");
@@ -80,6 +77,116 @@ MODULE_LICENSE("GPL");
 #define GSC_ID_KEYBOARD		0	/* device ID values */
 #define GSC_ID_MOUSE		1
 
+#ifndef CONFIG_SERIO_GSCPS2_RDI_KEYCODES
+# define CONFLICT(x, y) x
+#else
+# define CONFLICT(x, y) y
+#endif
+
+/*
+ * Sadly RDI (Tadpole) decided to ship a different keyboard layout
+ * than HP for their PS/2 laptop keyboard which leads to conflicting
+ * keycodes between a normal HP PS/2 keyboard and a RDI PrecisionBook.
+ *                       HP:            RDI:
+ */
+#define C_07	CONFLICT(KEY_F12,	KEY_F1)
+#define C_11	CONFLICT(KEY_LEFTALT,	KEY_LEFTCTRL)
+#define C_14	CONFLICT(KEY_LEFTCTRL,	KEY_CAPSLOCK)
+#define C_58	CONFLICT(KEY_CAPSLOCK,	KEY_RIGHTCTRL)
+#define C_61	CONFLICT(KEY_102ND,	KEY_LEFT)
+
+/*
+ * Special keycode value recognized by atkbd (ATKBD_KEY_NULL) to silently
+ * discard scancodes without generating input events or "unknown key" warnings.
+ */
+#define KEY_NULL	255
+
+#define KEYMAP_ENTRY(scancode, keycode) (((scancode) << 16) | (keycode))
+
+static const u32 gscps2_keymap[] = {
+	KEYMAP_ENTRY(0x01, KEY_F9),		KEYMAP_ENTRY(0x03, KEY_F5),
+	KEYMAP_ENTRY(0x04, KEY_F3),		KEYMAP_ENTRY(0x05, KEY_F1),
+	KEYMAP_ENTRY(0x06, KEY_F2),		KEYMAP_ENTRY(0x07, C_07),
+	KEYMAP_ENTRY(0x08, KEY_ESC),		KEYMAP_ENTRY(0x09, KEY_F10),
+	KEYMAP_ENTRY(0x0a, KEY_F8),		KEYMAP_ENTRY(0x0b, KEY_F6),
+	KEYMAP_ENTRY(0x0c, KEY_F4),		KEYMAP_ENTRY(0x0d, KEY_TAB),
+	KEYMAP_ENTRY(0x0e, KEY_GRAVE),		KEYMAP_ENTRY(0x0f, KEY_F2),
+	KEYMAP_ENTRY(0x11, C_11),		KEYMAP_ENTRY(0x12, KEY_LEFTSHIFT),
+	KEYMAP_ENTRY(0x14, C_14),		KEYMAP_ENTRY(0x15, KEY_Q),
+	KEYMAP_ENTRY(0x16, KEY_1),		KEYMAP_ENTRY(0x17, KEY_F3),
+	KEYMAP_ENTRY(0x19, KEY_LEFTALT),	KEYMAP_ENTRY(0x1a, KEY_Z),
+	KEYMAP_ENTRY(0x1b, KEY_S),		KEYMAP_ENTRY(0x1c, KEY_A),
+	KEYMAP_ENTRY(0x1d, KEY_W),		KEYMAP_ENTRY(0x1e, KEY_2),
+	KEYMAP_ENTRY(0x1f, KEY_F4),		KEYMAP_ENTRY(0x21, KEY_C),
+	KEYMAP_ENTRY(0x22, KEY_X),		KEYMAP_ENTRY(0x23, KEY_D),
+	KEYMAP_ENTRY(0x24, KEY_E),		KEYMAP_ENTRY(0x25, KEY_4),
+	KEYMAP_ENTRY(0x26, KEY_3),		KEYMAP_ENTRY(0x27, KEY_F5),
+	KEYMAP_ENTRY(0x29, KEY_SPACE),		KEYMAP_ENTRY(0x2a, KEY_V),
+	KEYMAP_ENTRY(0x2b, KEY_F),		KEYMAP_ENTRY(0x2c, KEY_T),
+	KEYMAP_ENTRY(0x2d, KEY_R),		KEYMAP_ENTRY(0x2e, KEY_5),
+	KEYMAP_ENTRY(0x2f, KEY_F6),		KEYMAP_ENTRY(0x31, KEY_N),
+	KEYMAP_ENTRY(0x32, KEY_B),		KEYMAP_ENTRY(0x33, KEY_H),
+	KEYMAP_ENTRY(0x34, KEY_G),		KEYMAP_ENTRY(0x35, KEY_Y),
+	KEYMAP_ENTRY(0x36, KEY_6),		KEYMAP_ENTRY(0x37, KEY_F7),
+	KEYMAP_ENTRY(0x39, KEY_RIGHTALT),	KEYMAP_ENTRY(0x3a, KEY_M),
+	KEYMAP_ENTRY(0x3b, KEY_J),		KEYMAP_ENTRY(0x3c, KEY_U),
+	KEYMAP_ENTRY(0x3d, KEY_7),		KEYMAP_ENTRY(0x3e, KEY_8),
+	KEYMAP_ENTRY(0x3f, KEY_F8),		KEYMAP_ENTRY(0x41, KEY_COMMA),
+	KEYMAP_ENTRY(0x42, KEY_K),		KEYMAP_ENTRY(0x43, KEY_I),
+	KEYMAP_ENTRY(0x44, KEY_O),		KEYMAP_ENTRY(0x45, KEY_0),
+	KEYMAP_ENTRY(0x46, KEY_9),		KEYMAP_ENTRY(0x47, KEY_F9),
+	KEYMAP_ENTRY(0x49, KEY_DOT),		KEYMAP_ENTRY(0x4a, KEY_SLASH),
+	KEYMAP_ENTRY(0x4b, KEY_L),		KEYMAP_ENTRY(0x4c, KEY_SEMICOLON),
+	KEYMAP_ENTRY(0x4d, KEY_P),		KEYMAP_ENTRY(0x4e, KEY_MINUS),
+	KEYMAP_ENTRY(0x4f, KEY_F10),		KEYMAP_ENTRY(0x52, KEY_APOSTROPHE),
+	KEYMAP_ENTRY(0x54, KEY_LEFTBRACE),	KEYMAP_ENTRY(0x55, KEY_EQUAL),
+	KEYMAP_ENTRY(0x56, KEY_F11),		KEYMAP_ENTRY(0x57, KEY_SYSRQ),
+	KEYMAP_ENTRY(0x58, C_58),		KEYMAP_ENTRY(0x59, KEY_RIGHTSHIFT),
+	KEYMAP_ENTRY(0x5a, KEY_ENTER),		KEYMAP_ENTRY(0x5b, KEY_RIGHTBRACE),
+	KEYMAP_ENTRY(0x5c, KEY_BACKSLASH),	KEYMAP_ENTRY(0x5d, KEY_BACKSLASH),
+	KEYMAP_ENTRY(0x5e, KEY_F12),		KEYMAP_ENTRY(0x5f, KEY_SCROLLLOCK),
+	KEYMAP_ENTRY(0x60, KEY_DOWN),		KEYMAP_ENTRY(0x61, C_61),
+	KEYMAP_ENTRY(0x62, KEY_PAUSE),		KEYMAP_ENTRY(0x63, KEY_UP),
+	KEYMAP_ENTRY(0x64, KEY_DELETE),		KEYMAP_ENTRY(0x65, KEY_END),
+	KEYMAP_ENTRY(0x66, KEY_BACKSPACE),	KEYMAP_ENTRY(0x67, KEY_INSERT),
+	KEYMAP_ENTRY(0x69, KEY_KP1),		KEYMAP_ENTRY(0x6a, KEY_RIGHT),
+	KEYMAP_ENTRY(0x6b, KEY_KP4),		KEYMAP_ENTRY(0x6c, KEY_KP7),
+	KEYMAP_ENTRY(0x6d, KEY_PAGEDOWN),	KEYMAP_ENTRY(0x6e, KEY_HOME),
+	KEYMAP_ENTRY(0x6f, KEY_PAGEUP),		KEYMAP_ENTRY(0x70, KEY_KP0),
+	KEYMAP_ENTRY(0x71, KEY_KPDOT),		KEYMAP_ENTRY(0x72, KEY_KP2),
+	KEYMAP_ENTRY(0x73, KEY_KP5),		KEYMAP_ENTRY(0x74, KEY_KP6),
+	KEYMAP_ENTRY(0x75, KEY_KP8),		KEYMAP_ENTRY(0x76, KEY_ESC),
+	KEYMAP_ENTRY(0x77, KEY_NUMLOCK),	KEYMAP_ENTRY(0x78, KEY_F11),
+	KEYMAP_ENTRY(0x79, KEY_KPPLUS),		KEYMAP_ENTRY(0x7a, KEY_KP3),
+	KEYMAP_ENTRY(0x7b, KEY_KPMINUS),	KEYMAP_ENTRY(0x7c, KEY_KPASTERISK),
+	KEYMAP_ENTRY(0x7d, KEY_KP9),		KEYMAP_ENTRY(0x7e, KEY_SCROLLLOCK),
+	KEYMAP_ENTRY(0x7f, KEY_102ND),		KEYMAP_ENTRY(0x91, KEY_RIGHTALT),
+	KEYMAP_ENTRY(0x92, KEY_NULL),		KEYMAP_ENTRY(0x94, KEY_RIGHTCTRL),
+	KEYMAP_ENTRY(0x9d, KEY_CAPSLOCK),	KEYMAP_ENTRY(0x9f, KEY_LEFTMETA),
+	KEYMAP_ENTRY(0xa7, KEY_RIGHTMETA),	KEYMAP_ENTRY(0xaf, KEY_COMPOSE),
+	KEYMAP_ENTRY(0xca, KEY_KPSLASH),	KEYMAP_ENTRY(0xda, KEY_KPENTER),
+	KEYMAP_ENTRY(0xe9, KEY_END),		KEYMAP_ENTRY(0xeb, KEY_LEFT),
+	KEYMAP_ENTRY(0xec, KEY_HOME),		KEYMAP_ENTRY(0xf0, KEY_INSERT),
+	KEYMAP_ENTRY(0xf1, KEY_DELETE),		KEYMAP_ENTRY(0xf2, KEY_DOWN),
+	KEYMAP_ENTRY(0xf4, KEY_RIGHT),		KEYMAP_ENTRY(0xf5, KEY_UP),
+	KEYMAP_ENTRY(0xf7, KEY_PAUSE),		KEYMAP_ENTRY(0xfa, KEY_PAGEDOWN),
+	KEYMAP_ENTRY(0xfc, KEY_SYSRQ),		KEYMAP_ENTRY(0xfd, KEY_PAGEUP),
+
+	/* Escaped keycodes */
+	KEYMAP_ENTRY(0x103, KEY_F7),		KEYMAP_ENTRY(0x10b, KEY_LEFTMETA),
+	KEYMAP_ENTRY(0x10c, KEY_RIGHTMETA),	KEYMAP_ENTRY(0x111, KEY_RIGHTALT),
+	KEYMAP_ENTRY(0x114, KEY_RIGHTCTRL),
+};
+
+static const struct property_entry gscps2_props[] = {
+	PROPERTY_ENTRY_U32_ARRAY("linux,keymap", gscps2_keymap),
+	{ }
+};
+
+static const struct software_node gscps2_keyboard_node = {
+	.name = "gscps2-keyboard",
+	.properties = gscps2_props,
+};
 
 static irqreturn_t gscps2_interrupt(int irq, void *dev);
 
@@ -398,6 +505,17 @@ static int __init gscps2_probe(struct parisc_device *dev)
 		goto fail;
 #endif
 
+	if (ps2port->id == GSC_ID_KEYBOARD) {
+		ret = device_add_software_node(&serio->dev,
+					       &gscps2_keyboard_node);
+		if (ret) {
+			dev_err(&dev->dev,
+				"failed to add software node for keyboard: %d\n",
+				ret);
+			goto fail;
+		}
+	}
+
 	pr_info("serio: %s port at 0x%08lx irq %d @ %s\n",
 		ps2port->port->name,
 		hpa,
@@ -411,11 +529,16 @@ static int __init gscps2_probe(struct parisc_device *dev)
 	return 0;
 
 fail:
+	if (ps2port->id == GSC_ID_KEYBOARD)
+		device_remove_software_node(&serio->dev);
+
 	free_irq(dev->irq, ps2port);
 
 fail_miserably:
 	iounmap(ps2port->addr);
+#if 0
 	release_mem_region(dev->hpa.start, GSC_STATUS + 4);
+#endif
 
 fail_nomem:
 	kfree(ps2port);
@@ -433,6 +556,9 @@ fail_nomem:
 static void __exit gscps2_remove(struct parisc_device *dev)
 {
 	struct gscps2port *ps2port = dev_get_drvdata(&dev->dev);
+
+	if (ps2port->id == GSC_ID_KEYBOARD)
+		device_remove_software_node(&ps2port->port->dev);
 
 	serio_unregister_port(ps2port->port);
 	free_irq(dev->irq, ps2port);
@@ -465,16 +591,25 @@ static struct parisc_driver parisc_ps2_driver __refdata = {
 
 static int __init gscps2_init(void)
 {
-	register_parisc_driver(&parisc_ps2_driver);
-	return 0;
+	int error;
+
+	error = software_node_register(&gscps2_keyboard_node);
+	if (error)
+		return error;
+
+	error = register_parisc_driver(&parisc_ps2_driver);
+	if (error)
+		software_node_unregister(&gscps2_keyboard_node);
+
+	return error;
 }
 
 static void __exit gscps2_exit(void)
 {
 	unregister_parisc_driver(&parisc_ps2_driver);
+	software_node_unregister(&gscps2_keyboard_node);
 }
 
 
 module_init(gscps2_init);
 module_exit(gscps2_exit);
-

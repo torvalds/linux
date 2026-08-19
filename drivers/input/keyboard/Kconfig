@@ -119,44 +119,6 @@ config KEYBOARD_ATKBD
 	  To compile this driver as a module, choose M here: the
 	  module will be called atkbd.
 
-config KEYBOARD_ATKBD_HP_KEYCODES
-	bool "Use HP keyboard scancodes"
-	depends on PARISC && KEYBOARD_ATKBD
-	default y
-	help
-	  Say Y here if you have a PA-RISC machine and want to use an AT or
-	  PS/2 keyboard, and your keyboard uses keycodes that are specific to
-	  PA-RISC keyboards.
-
-	  Say N if you use a standard keyboard.
-
-config KEYBOARD_ATKBD_RDI_KEYCODES
-	bool "Use PrecisionBook keyboard scancodes"
-	depends on KEYBOARD_ATKBD_HP_KEYCODES
-	default n
-	help
-	  If you have an RDI PrecisionBook, say Y here if you want to use its
-	  built-in keyboard (as opposed to an external keyboard).
-
-	  The PrecisionBook has five keys that conflict with those used by most
-	  AT and PS/2 keyboards. These are as follows:
-
-	    PrecisionBook    Standard AT or PS/2
-
-	    F1               F12
-	    Left Ctrl        Left Alt
-	    Caps Lock        Left Ctrl
-	    Right Ctrl       Caps Lock
-	    Left             102nd key (the key to the right of Left Shift)
-
-	  If you say N here, and use the PrecisionBook keyboard, then each key
-	  in the left-hand column will be interpreted as the corresponding key
-	  in the right-hand column.
-
-	  If you say Y here, and use an external keyboard, then each key in the
-	  right-hand column will be interpreted as the key shown in the
-	  left-hand column.
-
 config KEYBOARD_QT1050
 	tristate "Microchip AT42QT1050 Touch Sensor Chip"
 	depends on I2C

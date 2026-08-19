@@ -417,6 +417,13 @@ static int w8001_detect(struct w8001 *w8001)
 	return 0;
 }
 
+static void w8001_append_suffix(char *dest, const char *suffix, size_t dest_sz)
+{
+	size_t used = strnlen(dest, dest_sz);
+
+	strscpy(dest + used, suffix, dest_sz - used);
+}
+
 static int w8001_setup_pen(struct w8001 *w8001, char *basename,
 			   size_t basename_sz)
 {
@@ -453,7 +460,7 @@ static int w8001_setup_pen(struct w8001 *w8001, char *basename,
 	}
 
 	w8001->id = 0x90;
-	strlcat(basename, " Penabled", basename_sz);
+	w8001_append_suffix(basename, " Penabled", basename_sz);
 
 	return 0;
 }
@@ -503,14 +510,14 @@ static int w8001_setup_touch(struct w8001 *w8001, char *basename,
 	case 2:
 		w8001->pktlen = W8001_PKTLEN_TOUCH93;
 		w8001->id = 0x93;
-		strlcat(basename, " 1FG", basename_sz);
+		w8001_append_suffix(basename, " 1FG", basename_sz);
 		break;
 
 	case 1:
 	case 3:
 	case 4:
 		w8001->pktlen = W8001_PKTLEN_TOUCH9A;
-		strlcat(basename, " 1FG", basename_sz);
+		w8001_append_suffix(basename, " 1FG", basename_sz);
 		w8001->id = 0x9a;
 		break;
 
@@ -534,7 +541,7 @@ static int w8001_setup_touch(struct w8001 *w8001, char *basename,
 		input_abs_set_res(dev, ABS_MT_POSITION_X, touch.panel_res);
 		input_abs_set_res(dev, ABS_MT_POSITION_Y, touch.panel_res);
 
-		strlcat(basename, " 2FG", basename_sz);
+		w8001_append_suffix(basename, " 2FG", basename_sz);
 		if (w8001->max_pen_x && w8001->max_pen_y)
 			w8001->id = 0xE3;
 		else
@@ -542,7 +549,7 @@ static int w8001_setup_touch(struct w8001 *w8001, char *basename,
 		break;
 	}
 
-	strlcat(basename, " Touchscreen", basename_sz);
+	w8001_append_suffix(basename, " Touchscreen", basename_sz);
 
 	return 0;
 }

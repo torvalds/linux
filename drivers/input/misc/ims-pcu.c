@@ -2234,6 +2234,7 @@ static const struct usb_device_id ims_pcu_id_table[] = {
 	},
 	{ }
 };
+MODULE_DEVICE_TABLE(usb, ims_pcu_id_table);
 
 static const struct attribute_group *ims_pcu_sysfs_groups[] = {
 	&ims_pcu_attr_group,
