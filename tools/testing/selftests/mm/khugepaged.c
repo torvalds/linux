@@ -124,7 +124,8 @@ static void get_finfo(const char *dir)
 	char *str, *end;
 
 	finfo.dir = dir;
-	stat(finfo.dir, &path_stat);
+	if (stat(finfo.dir, &path_stat))
+		ksft_exit_fail_perror("stat()");
 	if (!S_ISDIR(path_stat.st_mode))
 		ksft_exit_fail_msg("%s: Not a directory (%s)\n", __func__, finfo.dir);
 	if (snprintf(finfo.path, sizeof(finfo.path), "%s/" TEST_FILE,
