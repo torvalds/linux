@@ -71,3 +71,5 @@ config SMB_SERVER_KERBEROS5
 	bool "Support for Kerberos 5"
 	depends on SMB_SERVER
 	default y
+
+source "fs/smb/server/tests/Kconfig"
