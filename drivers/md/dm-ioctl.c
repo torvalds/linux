@@ -54,10 +54,8 @@ struct hash_cell {
 };
 
 struct vers_iter {
-	size_t param_size;
 	struct dm_target_versions *vers, *old_vers;
 	char *end;
-	uint32_t flags;
 };
 
 
@@ -694,118 +692,108 @@ static int list_devices(struct file *filp, struct dm_ioctl *param, size_t param_
 {
 	struct rb_node *n;
 	struct hash_cell *hc;
-	size_t len, needed = 0;
-	struct gendisk *disk;
-	struct dm_name_list *orig_nl, *nl, *old_nl = NULL;
+	size_t len;
+	struct dm_name_list *nl, *old_nl = NULL;
+	void *result_start, *result_limit;
 	uint32_t *event_nr;
-
-	down_write(&_hash_lock);
-
-	/*
-	 * Loop through all the devices working out how much
-	 * space we need.
-	 */
-	for (n = rb_first(&name_rb_tree); n; n = rb_next(n)) {
-		hc = container_of(n, struct hash_cell, name_node);
-		if (!filter_device(hc, param->name, param->uuid))
-			continue;
-		needed += align_val(offsetof(struct dm_name_list, name) + strlen(hc->name) + 1);
-		needed += align_val(sizeof(uint32_t) * 2);
-		if (param->flags & DM_UUID_FLAG && hc->uuid)
-			needed += align_val(strlen(hc->uuid) + 1);
-	}
 
 	/*
 	 * Grab our output buffer.
 	 */
-	nl = orig_nl = get_result_buffer(param, param_size, &len);
-	if (len < needed || len < sizeof(nl->dev)) {
-		param->flags |= DM_BUFFER_FULL_FLAG;
-		goto out;
-	}
-	param->data_size = param->data_start + needed;
+	nl = result_start = get_result_buffer(param, param_size, &len);
+	result_limit = result_start + len;
 
-	nl->dev = 0;	/* Flags no data */
+	if (len >= sizeof(*nl))
+		nl->dev = 0;	/* Flags no data */
+
+	down_write(&_hash_lock);
 
 	/*
-	 * Now loop through filling out the names.
+	 * Loop through filling out the names.
 	 */
 	for (n = rb_first(&name_rb_tree); n; n = rb_next(n)) {
-		void *uuid_ptr;
+		void *next_nl;
 
 		hc = container_of(n, struct hash_cell, name_node);
 		if (!filter_device(hc, param->name, param->uuid))
 			continue;
-		if (old_nl)
-			old_nl->next = (uint32_t) ((void *) nl -
-						   (void *) old_nl);
-		disk = dm_disk(hc->md);
-		nl->dev = huge_encode_dev(disk_devt(disk));
-		nl->next = 0;
-		strcpy(nl->name, hc->name);
 
-		old_nl = nl;
-		event_nr = align_ptr(nl->name + strlen(hc->name) + 1);
+		len = strlen(hc->name);
+		event_nr = align_ptr(nl->name + len + 1);
+		next_nl = event_nr + 2;
+		if (next_nl > result_limit)
+			break;
+
+		((u64 *)event_nr)[-1] = 0;
+		memcpy(nl->name, hc->name, len);
+
+		nl->dev = huge_encode_dev(disk_devt(dm_disk(hc->md)));
+
 		event_nr[0] = dm_get_event_nr(hc->md);
 		event_nr[1] = 0;
-		uuid_ptr = align_ptr(event_nr + 2);
+
 		if (param->flags & DM_UUID_FLAG) {
 			if (hc->uuid) {
+				len = strlen(hc->uuid);
+				next_nl = align_ptr(next_nl + len + 1);
+				if (next_nl > result_limit)
+					break;
 				event_nr[1] |= DM_NAME_LIST_FLAG_HAS_UUID;
-				strcpy(uuid_ptr, hc->uuid);
-				uuid_ptr = align_ptr(uuid_ptr + strlen(hc->uuid) + 1);
+				((u64 *)next_nl)[-1] = 0;
+				memcpy(event_nr + 2, hc->uuid, len);
 			} else {
 				event_nr[1] |= DM_NAME_LIST_FLAG_DOESNT_HAVE_UUID;
 			}
 		}
-		nl = uuid_ptr;
+		nl->next = next_nl - (void *)nl;
+		old_nl = nl;
+		nl = next_nl;
 	}
-	/*
-	 * If mismatch happens, security may be compromised due to buffer
-	 * overflow, so it's better to crash.
-	 */
-	BUG_ON((char *)nl - (char *)orig_nl != needed);
 
- out:
+	if (old_nl)
+		old_nl->next = 0;
+
+	if (n)
+		param->flags |= DM_BUFFER_FULL_FLAG;
+	else
+		param->data_size = param->data_start + ((void *)nl - result_start);
+
 	up_write(&_hash_lock);
 	return 0;
-}
-
-static void list_version_get_needed(struct target_type *tt, void *needed_param)
-{
-	size_t *needed = needed_param;
-
-	*needed += sizeof(struct dm_target_versions);
-	*needed += strlen(tt->name) + 1;
-	*needed += ALIGN_MASK;
 }
 
 static void list_version_get_info(struct target_type *tt, void *param)
 {
 	struct vers_iter *info = param;
+	struct dm_target_versions *vers = info->vers;
+	size_t name_len = strlen(tt->name);
 
-	/* Check space - it might have changed since the first iteration */
-	if ((char *)info->vers + sizeof(struct dm_target_versions) + strlen(tt->name) + 1 > info->end) {
-		info->flags = DM_BUFFER_FULL_FLAG;
+	if (!vers)
+		return;
+
+	info->old_vers = vers;
+	info->vers = align_ptr((void *)(info->vers + 1) + name_len + 1);
+
+	/* Check space */
+	if ((char *)info->vers > info->end) {
+		info->vers = NULL;
 		return;
 	}
 
-	if (info->old_vers)
-		info->old_vers->next = (uint32_t) ((void *)info->vers - (void *)info->old_vers);
+	/* Zero padding and terminate vers->name[] */
+	((u64 *)info->vers)[-1] = 0;
 
-	info->vers->version[0] = tt->version[0];
-	info->vers->version[1] = tt->version[1];
-	info->vers->version[2] = tt->version[2];
-	info->vers->next = 0;
-	strcpy(info->vers->name, tt->name);
+	vers->next = (char *)info->vers - (char *)vers;
 
-	info->old_vers = info->vers;
-	info->vers = align_ptr((void *)(info->vers + 1) + strlen(tt->name) + 1);
+	vers->version[0] = tt->version[0];
+	vers->version[1] = tt->version[1];
+	vers->version[2] = tt->version[2];
+	memcpy(vers->name, tt->name, name_len);
 }
 
 static int __list_versions(struct dm_ioctl *param, size_t param_size, const char *name)
 {
-	size_t len, needed = 0;
+	size_t len;
 	struct dm_target_versions *vers;
 	struct vers_iter iter_info;
 	struct target_type *tt = NULL;
@@ -817,40 +805,30 @@ static int __list_versions(struct dm_ioctl *param, size_t param_size, const char
 	}
 
 	/*
-	 * Loop through all the devices working out how much
-	 * space we need.
-	 */
-	if (!tt)
-		dm_target_iterate(list_version_get_needed, &needed);
-	else
-		list_version_get_needed(tt, &needed);
-
-	/*
 	 * Grab our output buffer.
 	 */
 	vers = get_result_buffer(param, param_size, &len);
-	if (len < needed) {
-		param->flags |= DM_BUFFER_FULL_FLAG;
-		goto out;
-	}
-	param->data_size = param->data_start + needed;
 
-	iter_info.param_size = param_size;
 	iter_info.old_vers = NULL;
 	iter_info.vers = vers;
-	iter_info.flags = 0;
-	iter_info.end = (char *)vers + needed;
+	iter_info.end = (char *)vers + len;
 
 	/*
-	 * Now loop through filling out the names & versions.
+	 * Loop through filling out the names & versions.
 	 */
 	if (!tt)
 		dm_target_iterate(list_version_get_info, &iter_info);
 	else
 		list_version_get_info(tt, &iter_info);
-	param->flags |= iter_info.flags;
 
- out:
+	if (iter_info.vers) {
+		if (iter_info.old_vers)
+			iter_info.old_vers->next = 0;
+		param->data_size = param->data_start + ((char *)iter_info.vers - (char *)vers);
+	} else {
+		param->flags |= DM_BUFFER_FULL_FLAG;
+	}
+
 	if (tt)
 		dm_put_target_type(tt);
 	return 0;
@@ -1444,10 +1422,6 @@ static void retrieve_status(struct dm_table *table,
 
 		outptr += sizeof(struct dm_target_spec);
 		remaining = len - (outptr - outbuf);
-		if (remaining <= 0) {
-			param->flags |= DM_BUFFER_FULL_FLAG;
-			break;
-		}
 
 		/* Get the status/table string from the target driver */
 		if (ti->type->status) {
@@ -1998,33 +1972,32 @@ static int target_message(struct file *filp, struct dm_ioctl *param, size_t para
 static ioctl_fn lookup_ioctl(unsigned int cmd, int *ioctl_flags)
 {
 	static const struct {
-		int cmd;
 		int flags;
 		ioctl_fn fn;
 	} _ioctls[] = {
-		{DM_VERSION_CMD, 0, NULL}, /* version is dealt with elsewhere */
-		{DM_REMOVE_ALL_CMD, IOCTL_FLAGS_NO_PARAMS | IOCTL_FLAGS_ISSUE_GLOBAL_EVENT, remove_all},
-		{DM_LIST_DEVICES_CMD, 0, list_devices},
+		[DM_VERSION_CMD] = {0, NULL}, /* version is dealt with elsewhere */
+		[DM_REMOVE_ALL_CMD] = {IOCTL_FLAGS_NO_PARAMS | IOCTL_FLAGS_ISSUE_GLOBAL_EVENT, remove_all},
+		[DM_LIST_DEVICES_CMD] = {0, list_devices},
 
-		{DM_DEV_CREATE_CMD, IOCTL_FLAGS_NO_PARAMS | IOCTL_FLAGS_ISSUE_GLOBAL_EVENT, dev_create},
-		{DM_DEV_REMOVE_CMD, IOCTL_FLAGS_NO_PARAMS | IOCTL_FLAGS_ISSUE_GLOBAL_EVENT, dev_remove},
-		{DM_DEV_RENAME_CMD, IOCTL_FLAGS_ISSUE_GLOBAL_EVENT, dev_rename},
-		{DM_DEV_SUSPEND_CMD, IOCTL_FLAGS_NO_PARAMS, dev_suspend},
-		{DM_DEV_STATUS_CMD, IOCTL_FLAGS_NO_PARAMS, dev_status},
-		{DM_DEV_WAIT_CMD, 0, dev_wait},
+		[DM_DEV_CREATE_CMD] = {IOCTL_FLAGS_NO_PARAMS | IOCTL_FLAGS_ISSUE_GLOBAL_EVENT, dev_create},
+		[DM_DEV_REMOVE_CMD] = {IOCTL_FLAGS_NO_PARAMS | IOCTL_FLAGS_ISSUE_GLOBAL_EVENT, dev_remove},
+		[DM_DEV_RENAME_CMD] = {IOCTL_FLAGS_ISSUE_GLOBAL_EVENT, dev_rename},
+		[DM_DEV_SUSPEND_CMD] = {IOCTL_FLAGS_NO_PARAMS, dev_suspend},
+		[DM_DEV_STATUS_CMD] = {IOCTL_FLAGS_NO_PARAMS, dev_status},
+		[DM_DEV_WAIT_CMD] = {0, dev_wait},
 
-		{DM_TABLE_LOAD_CMD, 0, table_load},
-		{DM_TABLE_CLEAR_CMD, IOCTL_FLAGS_NO_PARAMS, table_clear},
-		{DM_TABLE_DEPS_CMD, 0, table_deps},
-		{DM_TABLE_STATUS_CMD, 0, table_status},
+		[DM_TABLE_LOAD_CMD] = {0, table_load},
+		[DM_TABLE_CLEAR_CMD] = {IOCTL_FLAGS_NO_PARAMS, table_clear},
+		[DM_TABLE_DEPS_CMD] = {0, table_deps},
+		[DM_TABLE_STATUS_CMD] = {0, table_status},
 
-		{DM_LIST_VERSIONS_CMD, 0, list_versions},
+		[DM_LIST_VERSIONS_CMD] = {0, list_versions},
 
-		{DM_TARGET_MSG_CMD, 0, target_message},
-		{DM_DEV_SET_GEOMETRY_CMD, 0, dev_set_geometry},
-		{DM_DEV_ARM_POLL_CMD, IOCTL_FLAGS_NO_PARAMS, dev_arm_poll},
-		{DM_GET_TARGET_VERSION_CMD, 0, get_target_version},
-		{DM_MPATH_PROBE_PATHS_CMD, 0, NULL}, /* block device ioctl */
+		[DM_TARGET_MSG_CMD] = {0, target_message},
+		[DM_DEV_SET_GEOMETRY_CMD] = {0, dev_set_geometry},
+		[DM_DEV_ARM_POLL_CMD] = {IOCTL_FLAGS_NO_PARAMS, dev_arm_poll},
+		[DM_GET_TARGET_VERSION_CMD] = {0, get_target_version},
+		[DM_MPATH_PROBE_PATHS_CMD] = {0, NULL}, /* block device ioctl */
 	};
 
 	if (unlikely(cmd >= ARRAY_SIZE(_ioctls)))
@@ -2273,12 +2246,9 @@ static long dm_compat_ctl_ioctl(struct file *file, uint command, ulong u)
 
 static int dm_open(struct inode *inode, struct file *filp)
 {
-	int r;
 	struct dm_file *priv;
 
-	r = nonseekable_open(inode, filp);
-	if (unlikely(r))
-		return r;
+	nonseekable_open(inode, filp);
 
 	priv = filp->private_data = kmalloc_obj(struct dm_file);
 	if (!priv)

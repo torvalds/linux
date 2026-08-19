@@ -347,7 +347,6 @@ static int inlinecrypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	err = get_key_size(&argv[1]);
 	if (err < 0) {
 		ti->error = "Cannot parse key size";
-		err = -EINVAL;
 		goto bad;
 	}
 	ctx->key_size = err;

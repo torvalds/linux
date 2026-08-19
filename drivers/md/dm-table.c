@@ -2035,7 +2035,7 @@ int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 		limits->features &= ~BLK_FEAT_NOWAIT;
 
 	/*
-	 * The current polling impementation does not support request based
+	 * The current polling implementation does not support request based
 	 * stacking.
 	 */
 	if (!__table_type_bio_based(t->type))

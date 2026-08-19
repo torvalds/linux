@@ -258,7 +258,7 @@ out:
 static int mirror_flush(struct dm_target *ti)
 {
 	struct mirror_set *ms = ti->private;
-	unsigned long error_bits;
+	unsigned long error_bits, unsup_bits;
 
 	unsigned int i;
 	struct dm_io_region io[MAX_NR_MIRRORS];
@@ -277,8 +277,8 @@ static int mirror_flush(struct dm_target *ti)
 	}
 
 	error_bits = -1;
-	dm_io(&io_req, ms->nr_mirrors, io, &error_bits, IOPRIO_DEFAULT);
-	if (unlikely(error_bits != 0)) {
+	dm_io(&io_req, ms->nr_mirrors, io, &error_bits, &unsup_bits, IOPRIO_DEFAULT);
+	if (unlikely((error_bits | unsup_bits) != 0)) {
 		for (i = 0; i < ms->nr_mirrors; i++)
 			if (test_bit(i, &error_bits))
 				fail_mirror(ms->mirror + i,
@@ -511,7 +511,7 @@ static void hold_bio(struct mirror_set *ms, struct bio *bio)
  * Reads
  *---------------------------------------------------------------
  */
-static void read_callback(unsigned long error, void *context)
+static void read_callback(unsigned long error, unsigned long unsup, void *context)
 {
 	struct bio *bio = context;
 	struct mirror *m;
@@ -520,6 +520,8 @@ static void read_callback(unsigned long error, void *context)
 	bio_set_m(bio, NULL);
 
 	if (likely(!error)) {
+		if (unlikely(unsup != 0))
+			bio->bi_status = BLK_STS_INVAL;
 		bio_endio(bio);
 		return;
 	}
@@ -553,7 +555,7 @@ static void read_async_bio(struct mirror *m, struct bio *bio)
 
 	map_region(&io, m, bio);
 	bio_set_m(bio, m);
-	BUG_ON(dm_io(&io_req, 1, &io, NULL, IOPRIO_DEFAULT));
+	BUG_ON(dm_io(&io_req, 1, &io, NULL, NULL, IOPRIO_DEFAULT));
 }
 
 static inline int region_in_sync(struct mirror_set *ms, region_t region,
@@ -600,7 +602,7 @@ static void do_reads(struct mirror_set *ms, struct bio_list *reads)
  * NOSYNC:	increment pending, just write to the default mirror
  *---------------------------------------------------------------------
  */
-static void write_callback(unsigned long error, void *context)
+static void write_callback(unsigned long error, unsigned long unsup, void *context)
 {
 	unsigned int i;
 	struct bio *bio = context;
@@ -617,7 +619,7 @@ static void write_callback(unsigned long error, void *context)
 	 * This way we handle both writes to SYNC and NOSYNC
 	 * regions with the same code.
 	 */
-	if (likely(!error)) {
+	if (likely(!(error | unsup))) {
 		bio_endio(bio);
 		return;
 	}
@@ -628,6 +630,12 @@ static void write_callback(unsigned long error, void *context)
 	 */
 	if (bio_op(bio) == REQ_OP_DISCARD) {
 		bio->bi_status = BLK_STS_NOTSUPP;
+		bio_endio(bio);
+		return;
+	}
+
+	if (!error && unsup) {
+		bio->bi_status = BLK_STS_INVAL;
 		bio_endio(bio);
 		return;
 	}
@@ -680,7 +688,7 @@ static void do_write(struct mirror_set *ms, struct bio *bio)
 	 */
 	bio_set_m(bio, get_default_mirror(ms));
 
-	BUG_ON(dm_io(&io_req, ms->nr_mirrors, io, NULL, IOPRIO_DEFAULT));
+	BUG_ON(dm_io(&io_req, ms->nr_mirrors, io, NULL, NULL, IOPRIO_DEFAULT));
 }
 
 static void do_writes(struct mirror_set *ms, struct bio_list *writes)
@@ -1262,7 +1270,7 @@ static int mirror_end_io(struct dm_target *ti, struct bio *bio,
 		return DM_ENDIO_DONE;
 	}
 
-	if (*error == BLK_STS_NOTSUPP)
+	if (*error == BLK_STS_NOTSUPP || *error == BLK_STS_INVAL)
 		goto out;
 
 	if (bio->bi_opf & REQ_RAHEAD)

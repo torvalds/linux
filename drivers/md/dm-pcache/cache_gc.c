@@ -6,14 +6,13 @@
 
 /**
  * cache_key_gc - Releases the reference of a cache key segment.
- * @cache: Pointer to the pcache_cache structure.
  * @key: Pointer to the cache key to be garbage collected.
  *
  * This function decrements the reference count of the cache segment
  * associated with the given key. If the reference count drops to zero,
  * the segment may be invalidated and reused.
  */
-static void cache_key_gc(struct pcache_cache *cache, struct pcache_cache_key *key)
+static void cache_key_gc(struct pcache_cache_key *key)
 {
 	cache_seg_put(key->cache_pos.cache_seg);
 }
@@ -37,18 +36,18 @@ static bool need_gc(struct pcache_cache *cache, struct pcache_cache_pos *dirty_t
 
 	kset_onmedia = (struct pcache_cache_kset_onmedia *)cache->gc_kset_onmedia_buf;
 
-	to_copy = min(PCACHE_KSET_ONMEDIA_SIZE_MAX, PCACHE_SEG_SIZE - key_tail->seg_off);
+	to_copy = min(PCACHE_KSET_ONMEDIA_SIZE_MAX, cache_seg_remain(key_tail));
 	ret = copy_mc_to_kernel(kset_onmedia, key_addr, to_copy);
 	if (ret) {
 		pcache_dev_err(pcache, "error to read kset: %d", ret);
 		return false;
 	}
 
-	/* Check if kset_onmedia is corrupted */
-	if (kset_onmedia->magic != PCACHE_KSET_MAGIC) {
-		pcache_dev_debug(pcache, "gc error: magic is not as expected. key_tail: %u:%u magic: %llx, expected: %llx\n",
+	/* Reject a corrupted or out-of-bounds kset before reading its keys */
+	if (!kset_onmedia_valid(kset_onmedia)) {
+		pcache_dev_debug(pcache, "gc error: invalid kset. key_tail: %u:%u magic: %llx, key_num: %u\n",
 					key_tail->cache_seg->cache_seg_id, key_tail->seg_off,
-					kset_onmedia->magic, PCACHE_KSET_MAGIC);
+					kset_onmedia->magic, kset_onmedia->key_num);
 		return false;
 	}
 
@@ -74,10 +73,16 @@ static bool need_gc(struct pcache_cache *cache, struct pcache_cache_pos *dirty_t
  * @cache: Pointer to the pcache_cache structure.
  * @kset_onmedia: Pointer to the kset_onmedia structure for the last kset.
  */
-static void last_kset_gc(struct pcache_cache *cache, struct pcache_cache_kset_onmedia *kset_onmedia)
+static int last_kset_gc(struct pcache_cache *cache, struct pcache_cache_kset_onmedia *kset_onmedia)
 {
 	struct dm_pcache *pcache = CACHE_TO_PCACHE(cache);
 	struct pcache_cache_segment *cur_seg, *next_seg;
+
+	if (!cache_seg_id_valid(cache, kset_onmedia->next_cache_seg_id)) {
+		pcache_dev_err(pcache, "invalid next_cache_seg_id %u in gc (n_segs %u)\n",
+				kset_onmedia->next_cache_seg_id, cache->n_segs);
+		return -EIO;
+	}
 
 	cur_seg = cache->key_tail.cache_seg;
 
@@ -94,6 +99,8 @@ static void last_kset_gc(struct pcache_cache *cache, struct pcache_cache_kset_on
 	spin_lock(&cache->seg_map_lock);
 	__clear_bit(cur_seg->cache_seg_id, cache->seg_map);
 	spin_unlock(&cache->seg_map_lock);
+
+	return 0;
 }
 
 void pcache_cache_gc_fn(struct work_struct *work)
@@ -130,8 +137,17 @@ void pcache_cache_gc_fn(struct work_struct *work)
 			if (dirty_tail.cache_seg == key_tail.cache_seg)
 				break;
 
-			last_kset_gc(cache, kset_onmedia);
+			ret = last_kset_gc(cache, kset_onmedia);
+			if (ret) {
+				atomic_inc(&cache->gc_errors);
+				return;
+			}
 			continue;
+		}
+
+		if (get_kset_onmedia_size(kset_onmedia) > cache_seg_remain(&key_tail)) {
+			atomic_inc(&cache->gc_errors);
+			return;
 		}
 
 		for (i = 0; i < kset_onmedia->key_num; i++) {
@@ -152,7 +168,7 @@ void pcache_cache_gc_fn(struct work_struct *work)
 				return;
 			}
 
-			cache_key_gc(cache, key);
+			cache_key_gc(key);
 		}
 
 		pcache_dev_debug(pcache, "gc advance: %u:%u %u\n",

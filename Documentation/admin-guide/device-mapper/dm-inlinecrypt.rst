@@ -33,7 +33,7 @@ Parameters::
     or it can be passed as <key_string> prefixed with single colon
     character (':') for keys residing in kernel keyring service.
     You can only use key sizes that are valid for the selected cipher.
-    Note that the size in bytes of a valid key must be in bellow range.
+    Note that the size in bytes of a valid key must be in below range.
 
         [BLK_CRYPTO_KEY_TYPE_RAW, BLK_CRYPTO_KEY_TYPE_HW_WRAPPED]
 
