@@ -20,13 +20,6 @@
 #define RPM_DYNAMIC_ADDR	0x14
 #define RPM_DYNAMIC_ADDR_MASK	0xFFFF
 
-#define STAT_TYPE_OFFSET	0x0
-#define COUNT_OFFSET		0x4
-#define LAST_ENTERED_AT_OFFSET	0x8
-#define LAST_EXITED_AT_OFFSET	0x10
-#define ACCUMULATED_OFFSET	0x18
-#define CLIENT_VOTES_OFFSET	0x20
-
 #define DDR_STATS_MAGIC_KEY		0xA1157A75
 #define DDR_STATS_MAX_NUM_MODES		20
 #define DDR_STATS_MAGIC_KEY_ADDR	0x0
@@ -54,6 +47,8 @@ static const struct subsystem_data subsystems[] = {
 	{ "cdsp1", 607, 12 },
 	{ "gpdsp0", 607, 17 },
 	{ "gpdsp1", 607, 18 },
+	{ "soccp", 607, 19 },
+	{ "dcp", 607, 22 },
 	{ "slpi", 608, 3 },
 	{ "gpu", 609, 0 },
 	{ "display", 610, 0 },
@@ -138,7 +133,7 @@ static int qcom_soc_sleep_stats_show(struct seq_file *s, void *unused)
 	if (d->appended_stats_avail) {
 		struct appended_stats votes;
 
-		memcpy_fromio(&votes, reg + CLIENT_VOTES_OFFSET, sizeof(votes));
+		memcpy_fromio(&votes, reg + sizeof(struct sleep_stats), sizeof(votes));
 		seq_printf(s, "Client Votes: %#x\n", votes.client_votes);
 	}
 

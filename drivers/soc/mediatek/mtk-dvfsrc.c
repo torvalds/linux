@@ -862,6 +862,7 @@ static const struct of_device_id mtk_dvfsrc_of_match[] = {
 	{ .compatible = "mediatek,mt8196-dvfsrc", .data = &mt8196_data },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, mtk_dvfsrc_of_match);
 
 static struct platform_driver mtk_dvfsrc_driver = {
 	.probe	= mtk_dvfsrc_probe,

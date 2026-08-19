@@ -908,7 +908,7 @@ struct fsl_mc_device *fsl_mc_get_endpoint(struct fsl_mc_device *mc_dev,
 	int state, err;
 
 	mc_bus_dev = to_fsl_mc_device(mc_dev->dev.parent);
-	strcpy(endpoint1.type, mc_dev->obj_desc.type);
+	strscpy(endpoint1.type, mc_dev->obj_desc.type);
 	endpoint1.id = mc_dev->obj_desc.id;
 	endpoint1.if_id = if_id;
 
@@ -925,7 +925,7 @@ struct fsl_mc_device *fsl_mc_get_endpoint(struct fsl_mc_device *mc_dev,
 		return ERR_PTR(err);
 	}
 
-	strcpy(endpoint_desc.type, endpoint2.type);
+	strscpy(endpoint_desc.type, endpoint2.type);
 	endpoint_desc.id = endpoint2.id;
 	endpoint = fsl_mc_device_lookup(&endpoint_desc, mc_bus_dev);
 	if (endpoint)
@@ -1202,7 +1202,7 @@ static const struct of_device_id fsl_mc_bus_match_table[] = {
 MODULE_DEVICE_TABLE(of, fsl_mc_bus_match_table);
 
 static const struct acpi_device_id fsl_mc_bus_acpi_match_table[] = {
-	{"NXP0008", 0 },
+	{ .id = "NXP0008" },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, fsl_mc_bus_acpi_match_table);

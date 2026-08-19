@@ -94,19 +94,19 @@ properties:
 
   reboot-mode:
     $ref: /schemas/power/reset/syscon-reboot-mode.yaml
-    type: object
+    unevaluatedProperties: false
     description:
       Reboot mode to alter bootloader behavior for the next boot
 
   syscon-poweroff:
     $ref: /schemas/power/reset/syscon-poweroff.yaml#
-    type: object
+    unevaluatedProperties: false
     description:
       Node for power off method
 
   syscon-reboot:
     $ref: /schemas/power/reset/syscon-reboot.yaml#
-    type: object
+    unevaluatedProperties: false
     description:
       Node for reboot method
 
@@ -181,8 +181,29 @@ allOf:
         compatible:
           contains:
             enum:
+              - samsung,exynos7-pmu
+    then:
+      properties:
+        reboot-mode:
+          patternProperties:
+            # Negative look-ahead to disallow unsupported modes. The '$' has to be
+            # part of lookahead group to work, instead of trailing outside of ().
+            "^mode-(?!(bootloader$|download$|fastboot$|recovery$))": false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
               - google,gs101-pmu
     then:
+      properties:
+        reboot-mode:
+          patternProperties:
+            # Negative look-ahead to disallow unsupported modes. The '$' has to be
+            # part of lookahead group to work, instead of trailing outside of ().
+            "^mode-(?!(bootloader$|charge$|dm-verity-device-corrupted$|fastboot$|reboot-ab-update$|recovery$)|rescue$|shutdown-thermal$|shutdown-thermal-battery$)": false
+
       required:
         - google,pmu-intr-gen-syscon
     else:

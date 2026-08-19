@@ -521,12 +521,8 @@ static int register_dprc_irq_handler(struct fsl_mc_device *mc_dev)
 					  IRQF_NO_SUSPEND | IRQF_ONESHOT,
 					  dev_name(&mc_dev->dev),
 					  &mc_dev->dev);
-	if (error < 0) {
-		dev_err(&mc_dev->dev,
-			"devm_request_threaded_irq() failed: %d\n",
-			error);
+	if (error < 0)
 		return error;
-	}
 
 	return 0;
 }
