@@ -27,6 +27,21 @@ Description:
 		default values. If there is an advertised remote stream
 		with the same name, uses its values as the default.
 
+What:		/sys/kernel/config/thunderbolt/stream/<xdomain>.<service>/$name/busy_poll
+Date:		Nov 2026
+KernelVersion:	v7.3
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
+Description:
+		Instead of using interrupts for completing the frames in
+		the TX/RX rings, busy poll them directly from the
+		read(2) and write(2) calls. This burns more CPU cycles
+		but provides lower latency for applications that need it.
+
+		This also makes poll(2) return EPOLLERR because
+		interrupts do not provide wakeup anymore. Likewise a
+		blocking read(2) without available data busy-spins until
+		data arrives or a signal is received.
+
 What:		/sys/kernel/config/thunderbolt/stream/<xdomain>.<service>/$name/index
 Date:		Sep 2026
 KernelVersion:	v7.2

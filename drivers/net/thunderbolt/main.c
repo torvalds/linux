@@ -1350,7 +1350,7 @@ static void tbnet_generate_mac(struct net_device *dev)
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 }
 
-static int tbnet_probe(struct tb_service *svc, const struct tb_service_id *id)
+static int tbnet_probe(struct tb_service *svc)
 {
 	struct tb_xdomain *xd = tb_service_parent(svc);
 	struct net_device *dev;
@@ -1470,7 +1470,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(tbnet_pm_ops, tbnet_suspend, tbnet_resume);
 
 static const struct tb_service_id tbnet_ids[] = {
 	{ TB_SERVICE("network", 1) },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(tbsvc, tbnet_ids);
 
