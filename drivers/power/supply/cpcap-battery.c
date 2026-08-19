@@ -1206,3 +1206,4 @@ module_platform_driver(cpcap_battery_driver);
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Tony Lindgren <tony@atomide.com>");
 MODULE_DESCRIPTION("CPCAP PMIC Battery Driver");
+MODULE_IMPORT_NS("IIO_CONSUMER");

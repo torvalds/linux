@@ -580,10 +580,8 @@ static int gp2ap002_probe(struct i2c_client *client)
 	ret = devm_request_threaded_irq(dev, client->irq, NULL,
 					gp2ap002_prox_irq, IRQF_ONESHOT,
 					"gp2ap002", indio_dev);
-	if (ret) {
-		dev_err(dev, "unable to request IRQ\n");
+	if (ret)
 		goto out_put_pm;
-	}
 	gp2ap002->irq = client->irq;
 
 	/*
@@ -731,3 +729,4 @@ module_i2c_driver(gp2ap002_driver);
 MODULE_AUTHOR("Linus Walleij <linus.walleij@linaro.org>");
 MODULE_DESCRIPTION("GP2AP002 ambient light and proximity sensor driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS("IIO_CONSUMER");

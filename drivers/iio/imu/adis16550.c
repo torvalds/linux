@@ -88,25 +88,7 @@ struct adis16550_sync {
 	u16 max_rate;
 };
 
-struct adis16550_chip_info {
-	const struct iio_chan_spec *channels;
-	const struct adis16550_sync *sync_mode;
-	char *name;
-	u32 num_channels;
-	u32 gyro_max_val;
-	u32 gyro_max_scale;
-	u32 accel_max_val;
-	u32 accel_max_scale;
-	u32 temp_scale;
-	u32 deltang_max_val;
-	u32 deltvel_max_val;
-	u32 int_clk;
-	u16 max_dec;
-	u16 num_sync;
-};
-
 struct adis16550 {
-	const struct adis16550_chip_info *info;
 	struct adis adis;
 	unsigned long clk_freq_hz;
 	u32 sync_mode;
@@ -449,8 +431,8 @@ static int adis16550_set_freq_hz(struct adis16550 *st, u32 freq_hz)
 	 * The optimal sample rate for the supported IMUs is between
 	 * int_clk - 1000 and int_clk + 500.
 	 */
-	u32 max_sample_rate = st->info->int_clk * 1000 + 500000;
-	u32 min_sample_rate = st->info->int_clk * 1000 - 1000000;
+	u32 max_sample_rate = 4000 * 1000 + 500000;
+	u32 min_sample_rate = 4000 * 1000 - 1000000;
 
 	if (!freq_hz)
 		return -EINVAL;
@@ -483,7 +465,7 @@ static int adis16550_set_freq_hz(struct adis16550 *st, u32 freq_hz)
 	if (dec)
 		dec--;
 
-	dec = min(dec, st->info->max_dec);
+	dec = min(dec, 4095);
 
 	return __adis_write_reg_16(&st->adis, ADIS16550_REG_DEC_RATE, dec);
 }
@@ -591,30 +573,30 @@ static int adis16550_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
 		case IIO_ANGL_VEL:
-			*val = st->info->gyro_max_val;
-			*val2 = st->info->gyro_max_scale;
+			*val = 1;
+			*val2 = IIO_RAD_TO_DEGREE(80 << 16);
 			return IIO_VAL_FRACTIONAL;
 		case IIO_ACCEL:
-			*val = st->info->accel_max_val;
-			*val2 = st->info->accel_max_scale;
+			*val = 1;
+			*val2 = IIO_M_S_2_TO_G(102400000);
 			return IIO_VAL_FRACTIONAL;
 		case IIO_TEMP:
-			*val = st->info->temp_scale;
+			*val = 4;
 			return IIO_VAL_INT;
 		case IIO_DELTA_ANGL:
-			*val = st->info->deltang_max_val;
+			*val = IIO_DEGREE_TO_RAD(720);
 			*val2 = 31;
 			return IIO_VAL_FRACTIONAL_LOG2;
 		case IIO_DELTA_VELOCITY:
-			*val = st->info->deltvel_max_val;
+			*val = 125;
 			*val2 = 31;
 			return IIO_VAL_FRACTIONAL_LOG2;
 		default:
 			return -EINVAL;
 		}
 	case IIO_CHAN_INFO_OFFSET:
-		/* temperature centered at 25°C */
-		*val = DIV_ROUND_CLOSEST(25000, st->info->temp_scale);
+		/* temperature centered at 25°C divided by temp scale */
+		*val = 25000 / 4;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_CALIBBIAS:
 		ret = adis_read_reg_32(&st->adis,
@@ -792,23 +774,6 @@ static const struct adis16550_sync adis16550_sync_modes[] = {
 	{ ADIS16550_SYNC_MODE_SCALED, 1, 128 },
 };
 
-static const struct adis16550_chip_info adis16550_chip_info = {
-	.num_channels = ARRAY_SIZE(adis16550_channels),
-	.channels = adis16550_channels,
-	.name = "adis16550",
-	.gyro_max_val = 1,
-	.gyro_max_scale = IIO_RAD_TO_DEGREE(80 << 16),
-	.accel_max_val = 1,
-	.accel_max_scale = IIO_M_S_2_TO_G(102400000),
-	.temp_scale = 4,
-	.deltang_max_val = IIO_DEGREE_TO_RAD(720),
-	.deltvel_max_val = 125,
-	.int_clk = 4000,
-	.max_dec = 4095,
-	.sync_mode = adis16550_sync_modes,
-	.num_sync = ARRAY_SIZE(adis16550_sync_modes),
-};
-
 static u32 adis16550_validate_crc(__be32 *buffer, const u8 n_elem)
 {
 	int i;
@@ -917,21 +882,21 @@ static int adis16550_config_sync(struct adis16550 *st)
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 	if (!clk) {
-		st->clk_freq_hz = st->info->int_clk * 1000;
+		st->clk_freq_hz = 4000000;
 		return 0;
 	}
 
 	st->clk_freq_hz = clk_get_rate(clk);
 
-	for (i = 0; i < st->info->num_sync; i++) {
-		if (st->clk_freq_hz >= st->info->sync_mode[i].min_rate &&
-		    st->clk_freq_hz <= st->info->sync_mode[i].max_rate) {
-			sync_mode_data = &st->info->sync_mode[i];
+	for (i = 0; i < ARRAY_SIZE(adis16550_sync_modes); i++) {
+		if (st->clk_freq_hz >= adis16550_sync_modes[i].min_rate &&
+		    st->clk_freq_hz <= adis16550_sync_modes[i].max_rate) {
+			sync_mode_data = &adis16550_sync_modes[i];
 			break;
 		}
 	}
 
-	if (i == st->info->num_sync)
+	if (i == ARRAY_SIZE(adis16550_sync_modes))
 		return dev_err_probe(dev, -EINVAL, "Clk rate: %lu not in a valid range",
 				     st->clk_freq_hz);
 
@@ -942,7 +907,7 @@ static int adis16550_config_sync(struct adis16550 *st)
 		 * of [3000 4500].
 		 */
 
-		sync_scale = DIV_ROUND_CLOSEST(st->info->int_clk, st->clk_freq_hz);
+		sync_scale = DIV_ROUND_CLOSEST(4000, st->clk_freq_hz);
 
 		if (3000 > sync_scale || 4500 < sync_scale)
 			return dev_err_probe(dev, -EINVAL,
@@ -954,7 +919,7 @@ static int adis16550_config_sync(struct adis16550 *st)
 		if (ret)
 			return ret;
 
-		st->clk_freq_hz = st->info->int_clk;
+		st->clk_freq_hz = 4000;
 	}
 
 	st->clk_freq_hz *= 1000;
@@ -1063,13 +1028,11 @@ static int adis16550_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
-	st->info = spi_get_device_match_data(spi);
-	if (!st->info)
-		return -EINVAL;
+
 	adis = &st->adis;
-	indio_dev->name = st->info->name;
-	indio_dev->channels = st->info->channels;
-	indio_dev->num_channels = st->info->num_channels;
+	indio_dev->name = "adis16550";
+	indio_dev->channels = adis16550_channels;
+	indio_dev->num_channels = ARRAY_SIZE(adis16550_channels);
 	indio_dev->available_scan_masks = adis16550_channel_masks;
 	indio_dev->info = &adis16550_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -1116,13 +1079,13 @@ static int adis16550_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id adis16550_id[] = {
-	{ "adis16550",  (kernel_ulong_t)&adis16550_chip_info},
+	{ .name = "adis16550" },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, adis16550_id);
 
 static const struct of_device_id adis16550_of_match[] = {
-	{ .compatible = "adi,adis16550", .data = &adis16550_chip_info },
+	{ .compatible = "adi,adis16550" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, adis16550_of_match);

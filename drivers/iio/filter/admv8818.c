@@ -789,7 +789,7 @@ static int admv8818_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id admv8818_id[] = {
-	{ "admv8818", 0 },
+	{ .name = "admv8818" },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, admv8818_id);

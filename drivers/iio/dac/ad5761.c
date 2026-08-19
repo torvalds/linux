@@ -342,10 +342,10 @@ static int ad5761_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id ad5761_id[] = {
-	{"ad5721", ID_AD5721},
-	{"ad5721r", ID_AD5721R},
-	{"ad5761", ID_AD5761},
-	{"ad5761r", ID_AD5761R},
+	{ .name = "ad5721", .driver_data = ID_AD5721 },
+	{ .name = "ad5721r", .driver_data = ID_AD5721R },
+	{ .name = "ad5761", .driver_data = ID_AD5761 },
+	{ .name = "ad5761r", .driver_data = ID_AD5761R },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad5761_id);

@@ -33,7 +33,8 @@ config AB8500_GPADC
 	  and USB voltages integral to the U8500 platform.
 
 config AD_SIGMA_DELTA
-	tristate
+	tristate "Analog Devices Sigma-Delta Modulator support" if COMPILE_TEST
+	depends on SPI
 	select IIO_BUFFER
 	select IIO_BUFFER_DMAENGINE
 	select IIO_TRIGGERED_BUFFER
@@ -945,6 +946,25 @@ config LTC2309
 	  This driver can also be built as a module. If so, the module will
 	  be called ltc2309.
 
+config LTC2378
+	tristate "Analog Devices LTC2378 ADC driver"
+	depends on SPI
+	depends on REGULATOR || COMPILE_TEST
+	depends on GPIOLIB
+	depends on PWM
+	select IIO_BUFFER
+	select IIO_BUFFER_DMA
+	select IIO_BUFFER_DMAENGINE
+	select IIO_TRIGGERED_BUFFER
+	select SPI_OFFLOAD
+	select SPI_OFFLOAD_TRIGGER_PWM
+	help
+	  Say yes here to build support for Analog Devices LTC2378-20 and
+	  similar analog to digital converters.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ltc2378.
+
 config LTC2471
 	tristate "Linear Technology LTC2471 and LTC2473 ADC driver"
 	depends on I2C
@@ -1166,6 +1186,17 @@ config MCP3911
 
 	  This driver can also be built as a module. If so, the module will be
 	  called mcp3911.
+
+config MEDIATEK_MT6323_AUXADC
+	tristate "MediaTek MT6323 PMIC AUXADC driver"
+	depends on MFD_MT6397
+	help
+	  Say yes here to enable support for MediaTek MT6323 PMIC Auxiliary ADC.
+	  This driver provides multiple channels for system monitoring,
+	  such as battery voltage, PMIC temperature, and others.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called mt6323-auxadc.
 
 config MEDIATEK_MT6359_AUXADC
 	tristate "MediaTek MT6359 PMIC AUXADC driver"
@@ -1791,6 +1822,18 @@ config TI_ADS1119
          This driver can also be built as a module. If so, the module will be
          called ti-ads1119.
 
+config TI_ADS112C14
+	tristate "Texas Instruments ADS112C14/ADS122C14"
+	depends on I2C
+	select CRC8
+	select REGMAP
+	help
+	  If you say yes here you get support for Texas Instruments ADS112C14,
+	  ADS122C14 ADC chips.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called ti-ads112c14.
+
 config TI_ADS124S08
 	tristate "Texas Instruments ADS124S08"
 	depends on SPI
@@ -1965,6 +2008,39 @@ config TWL6030_GPADC
 
 	  This driver can also be built as a module. If so, the module will be
 	  called twl6030-gpadc.
+
+config VERSAL_SYSMON_CORE
+	tristate
+	select REGMAP
+
+config VERSAL_SYSMON
+	tristate "AMD Versal SysMon driver"
+	depends on ARCH_ZYNQMP || COMPILE_TEST
+	depends on HAS_IOMEM
+	select VERSAL_SYSMON_CORE
+	help
+	  Say yes here to have support for the AMD/Xilinx Versal System
+	  Monitor (SysMon). This driver provides voltage and temperature
+	  monitoring through the IIO subsystem.
+
+	  The SysMon measures up to 160 supply voltages and reads up to
+	  64 temperature satellites distributed across the SoC.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called versal-sysmon.
+
+config VERSAL_SYSMON_I2C
+	tristate "AMD Versal SysMon I2C driver"
+	depends on I2C
+	select VERSAL_SYSMON_CORE
+	help
+	  Say yes here to have support for the AMD/Xilinx Versal System
+	  Monitor (SysMon) via I2C interface. This driver enables voltage
+	  and temperature monitoring when the Versal chip has SysMon
+	  configured with I2C access.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called versal-sysmon-i2c.
 
 config VF610_ADC
 	tristate "Freescale vf610 ADC driver"

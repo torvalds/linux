@@ -420,10 +420,8 @@ static int mma9551_gpio_probe(struct iio_dev *indio_dev)
 				NULL, mma9551_event_handler,
 				IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 				"mma9551_event", indio_dev);
-		if (ret < 0) {
-			dev_err(dev, "request irq %d failed\n", data->irqs[i]);
+		if (ret)
 			return ret;
-		}
 
 		dev_dbg(dev, "gpio resource, no:%d irq:%d\n",
 			desc_to_gpio(gpio), data->irqs[i]);

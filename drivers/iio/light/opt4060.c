@@ -1205,7 +1205,7 @@ static int opt4060_setup_trigger(struct opt4060_chip *chip, struct iio_dev *idev
 					IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 					name, idev);
 	if (ret)
-		return dev_err_probe(chip->dev, ret, "Could not request IRQ\n");
+		return ret;
 
 	init_completion(&chip->completion);
 

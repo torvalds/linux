@@ -47,7 +47,7 @@ static const struct of_device_id hts221_spi_of_match[] = {
 MODULE_DEVICE_TABLE(of, hts221_spi_of_match);
 
 static const struct spi_device_id hts221_spi_id_table[] = {
-	{ HTS221_DEV_NAME },
+	{ .name = HTS221_DEV_NAME },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, hts221_spi_id_table);

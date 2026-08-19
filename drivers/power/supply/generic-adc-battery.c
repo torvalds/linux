@@ -298,3 +298,4 @@ module_platform_driver(gab_driver);
 MODULE_AUTHOR("anish kumar <yesanishhere@gmail.com>");
 MODULE_DESCRIPTION("generic battery driver using IIO");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS("IIO_CONSUMER");

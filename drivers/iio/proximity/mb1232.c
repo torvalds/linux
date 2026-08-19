@@ -213,10 +213,8 @@ static int mb1232_probe(struct i2c_client *client)
 	if (data->irqnr > 0) {
 		ret = devm_request_irq(dev, data->irqnr, mb1232_handle_irq,
 				IRQF_TRIGGER_FALLING, id->name, indio_dev);
-		if (ret < 0) {
-			dev_err(dev, "request_irq: %d\n", ret);
+		if (ret)
 			return ret;
-		}
 	}
 
 	ret = devm_iio_triggered_buffer_setup(dev, indio_dev,

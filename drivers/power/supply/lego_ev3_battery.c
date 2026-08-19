@@ -230,3 +230,4 @@ module_platform_driver(lego_ev3_battery_driver);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Lechner <david@lechnology.com>");
 MODULE_DESCRIPTION("LEGO MINDSTORMS EV3 Battery Driver");
+MODULE_IMPORT_NS("IIO_CONSUMER");

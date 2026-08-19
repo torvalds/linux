@@ -1284,8 +1284,7 @@ static int apds9306_probe(struct i2c_client *client)
 						apds9306_irq_handler, IRQF_ONESHOT,
 						"apds9306_event", indio_dev);
 		if (ret)
-			return dev_err_probe(dev, ret,
-					     "failed to assign interrupt.\n");
+			return ret;
 	} else {
 		indio_dev->info = &apds9306_info_no_events;
 		indio_dev->channels = apds9306_channels_without_events;

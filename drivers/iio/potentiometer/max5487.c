@@ -125,9 +125,9 @@ static void max5487_spi_remove(struct spi_device *spi)
 }
 
 static const struct spi_device_id max5487_id[] = {
-	{ "MAX5487", 10 },
-	{ "MAX5488", 50 },
-	{ "MAX5489", 100 },
+	{ .name = "MAX5487", .driver_data = 10 },
+	{ .name = "MAX5488", .driver_data = 50 },
+	{ .name = "MAX5489", .driver_data = 100 },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, max5487_id);

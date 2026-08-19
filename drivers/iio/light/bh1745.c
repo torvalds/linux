@@ -784,8 +784,7 @@ static int bh1745_setup_triggered_buffer(struct iio_dev *indio_dev,
 						IRQF_ONESHOT,
 						"bh1745_interrupt", indio_dev);
 		if (ret)
-			return dev_err_probe(dev, ret,
-					     "Request for IRQ failed\n");
+			return ret;
 	}
 
 	return 0;

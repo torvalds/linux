@@ -212,8 +212,8 @@ static int adis16080_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id adis16080_ids[] = {
-	{ "adis16080", ID_ADIS16080 },
-	{ "adis16100", ID_ADIS16100 },
+	{ .name = "adis16080", .driver_data = ID_ADIS16080 },
+	{ .name = "adis16100", .driver_data = ID_ADIS16100 },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, adis16080_ids);

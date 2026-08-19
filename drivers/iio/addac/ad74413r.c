@@ -1457,7 +1457,7 @@ static int ad74413r_probe(struct spi_device *spi)
 	ret = devm_request_irq(st->dev, spi->irq, ad74413r_adc_data_interrupt,
 			       0, st->chip_info->name, indio_dev);
 	if (ret)
-		return dev_err_probe(st->dev, ret, "Failed to request irq\n");
+		return ret;
 
 	ret = devm_iio_triggered_buffer_setup(st->dev, indio_dev,
 					      &iio_pollfunc_store_time,

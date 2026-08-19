@@ -1350,3 +1350,4 @@ module_platform_driver(sc27xx_fgu_driver);
 
 MODULE_DESCRIPTION("Spreadtrum SC27XX PMICs Fual Gauge Unit Driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS("IIO_CONSUMER");

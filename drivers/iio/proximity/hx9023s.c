@@ -1139,7 +1139,7 @@ static int hx9023s_probe(struct i2c_client *client)
 						IRQF_ONESHOT,
 						"hx9023s_event", indio_dev);
 		if (ret)
-			return dev_err_probe(dev, ret, "irq request failed\n");
+			return ret;
 
 		data->trig = devm_iio_trigger_alloc(dev, "%s-dev%d",
 						    indio_dev->name,

@@ -86,7 +86,7 @@ static unsigned long long simple_strntoull(const char *startp, char **endp, unsi
 	cp = _parse_integer_fixup_radix(startp, &base);
 	prefix_chars = cp - startp;
 	if (prefix_chars < max_chars) {
-		rv = _parse_integer_limit(cp, base, &result, max_chars - prefix_chars);
+		rv = _parse_integer(cp, base, &result, max_chars - prefix_chars);
 		/* FIXME */
 		cp += (rv & ~KSTRTOX_OVERFLOW);
 	} else {

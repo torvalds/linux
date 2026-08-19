@@ -659,3 +659,4 @@ module_platform_driver(mp2629_charger_driver);
 MODULE_AUTHOR("Saravanan Sekar <sravanhome@gmail.com>");
 MODULE_DESCRIPTION("MP2629 Charger driver");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS("IIO_CONSUMER");

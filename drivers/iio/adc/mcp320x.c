@@ -476,19 +476,19 @@ static const struct of_device_id mcp320x_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, mcp320x_dt_ids);
 
 static const struct spi_device_id mcp320x_id[] = {
-	{ "mcp3001", mcp3001 },
-	{ "mcp3002", mcp3002 },
-	{ "mcp3004", mcp3004 },
-	{ "mcp3008", mcp3008 },
-	{ "mcp3201", mcp3201 },
-	{ "mcp3202", mcp3202 },
-	{ "mcp3204", mcp3204 },
-	{ "mcp3208", mcp3208 },
-	{ "mcp3301", mcp3301 },
-	{ "mcp3550-50", mcp3550_50 },
-	{ "mcp3550-60", mcp3550_60 },
-	{ "mcp3551", mcp3551 },
-	{ "mcp3553", mcp3553 },
+	{ .name = "mcp3001", .driver_data = mcp3001 },
+	{ .name = "mcp3002", .driver_data = mcp3002 },
+	{ .name = "mcp3004", .driver_data = mcp3004 },
+	{ .name = "mcp3008", .driver_data = mcp3008 },
+	{ .name = "mcp3201", .driver_data = mcp3201 },
+	{ .name = "mcp3202", .driver_data = mcp3202 },
+	{ .name = "mcp3204", .driver_data = mcp3204 },
+	{ .name = "mcp3208", .driver_data = mcp3208 },
+	{ .name = "mcp3301", .driver_data = mcp3301 },
+	{ .name = "mcp3550-50", .driver_data = mcp3550_50 },
+	{ .name = "mcp3550-60", .driver_data = mcp3550_60 },
+	{ .name = "mcp3551", .driver_data = mcp3551 },
+	{ .name = "mcp3553", .driver_data = mcp3553 },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, mcp320x_id);

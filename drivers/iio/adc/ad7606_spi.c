@@ -463,17 +463,17 @@ static int ad7606_spi_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id ad7606_id_table[] = {
-	{ "ad7605-4", (kernel_ulong_t)&ad7605_4_bus_info },
-	{ "ad7606-4", (kernel_ulong_t)&ad7606_4_bus_info },
-	{ "ad7606-6", (kernel_ulong_t)&ad7606_6_bus_info },
-	{ "ad7606-8", (kernel_ulong_t)&ad7606_8_bus_info },
-	{ "ad7606b",  (kernel_ulong_t)&ad7606b_bus_info },
-	{ "ad7606c-16", (kernel_ulong_t)&ad7606c_16_bus_info },
-	{ "ad7606c-18", (kernel_ulong_t)&ad7606c_18_bus_info },
-	{ "ad7607",   (kernel_ulong_t)&ad7607_bus_info },
-	{ "ad7608",   (kernel_ulong_t)&ad7608_bus_info },
-	{ "ad7609",   (kernel_ulong_t)&ad7609_bus_info },
-	{ "ad7616",   (kernel_ulong_t)&ad7616_bus_info },
+	{ .name = "ad7605-4",   .driver_data = (kernel_ulong_t)&ad7605_4_bus_info },
+	{ .name = "ad7606-4",   .driver_data = (kernel_ulong_t)&ad7606_4_bus_info },
+	{ .name = "ad7606-6",   .driver_data = (kernel_ulong_t)&ad7606_6_bus_info },
+	{ .name = "ad7606-8",   .driver_data = (kernel_ulong_t)&ad7606_8_bus_info },
+	{ .name = "ad7606b",    .driver_data = (kernel_ulong_t)&ad7606b_bus_info },
+	{ .name = "ad7606c-16", .driver_data = (kernel_ulong_t)&ad7606c_16_bus_info },
+	{ .name = "ad7606c-18", .driver_data = (kernel_ulong_t)&ad7606c_18_bus_info },
+	{ .name = "ad7607",     .driver_data = (kernel_ulong_t)&ad7607_bus_info },
+	{ .name = "ad7608",     .driver_data = (kernel_ulong_t)&ad7608_bus_info },
+	{ .name = "ad7609",     .driver_data = (kernel_ulong_t)&ad7609_bus_info },
+	{ .name = "ad7616",     .driver_data = (kernel_ulong_t)&ad7616_bus_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad7606_id_table);

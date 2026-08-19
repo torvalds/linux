@@ -551,10 +551,8 @@ static int afe4404_probe(struct i2c_client *client)
 				       iio_trigger_generic_data_rdy_poll,
 				       IRQF_NO_THREAD, AFE4404_DRIVER_NAME,
 				       afe->trig);
-		if (ret) {
-			dev_err(dev, "Unable to request IRQ\n");
+		if (ret)
 			return ret;
-		}
 	}
 
 	ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
