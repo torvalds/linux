@@ -65,6 +65,8 @@
 		switch (t) {						\
 		case KVM_DEV_TYPE_ARM_VGIC_V5:				\
 			__ret = is_v5_type(GICV5_HWIRQ_TYPE_PPI, (i));	\
+			__ret &= FIELD_GET(GICV5_HWIRQ_ID, (i)) <	\
+				 VGIC_V5_NR_PRIVATE_IRQS;		\
 			break;						\
 		default:						\
 			__ret  = (i) >= VGIC_NR_SGIS;			\

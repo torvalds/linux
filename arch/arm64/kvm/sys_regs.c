@@ -4969,10 +4969,8 @@ static int kvm_handle_cp_64(struct kvm_vcpu *vcpu,
 	 * Make a 64-bit value out of Rt and Rt2. As we use the same trap
 	 * backends between AArch32 and AArch64, we get away with it.
 	 */
-	if (params.is_write) {
-		params.regval = vcpu_get_reg(vcpu, Rt) & 0xffffffff;
-		params.regval |= vcpu_get_reg(vcpu, Rt2) << 32;
-	}
+	params.regval = vcpu_get_reg(vcpu, Rt) & 0xffffffff;
+	params.regval |= vcpu_get_reg(vcpu, Rt2) << 32;
 
 	/*
 	 * If the table contains a handler, handle the

@@ -1535,11 +1535,12 @@ static bool timer_irqs_are_valid(struct kvm_vcpu *vcpu)
 
 		ctx = vcpu_get_timer(vcpu, i);
 		irq = timer_irq(ctx);
-		if (kvm_vgic_set_owner(vcpu, irq, ctx))
-			break;
 
 		/* With GICv5, the default PPI is what you get -- nothing else */
 		if (vgic_is_v5(vcpu->kvm) && irq != get_vgic_ppi(vcpu->kvm, default_ppi[i]))
+			break;
+
+		if (kvm_vgic_set_owner(vcpu, irq, ctx))
 			break;
 
 		/*

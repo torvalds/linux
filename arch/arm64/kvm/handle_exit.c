@@ -530,10 +530,20 @@ void handle_exit_early(struct kvm_vcpu *vcpu, int exception_index)
 		kvm_handle_guest_serror(vcpu, kvm_vcpu_get_esr(vcpu));
 }
 
+static bool nvhe_hyp_panic_host_s2_disabled(void)
+{
+	return !is_protected_kvm_enabled() ||
+	       IS_ENABLED(CONFIG_PKVM_DISABLE_STAGE2_ON_PANIC);
+}
+
 static void print_nvhe_hyp_panic(const char *name, u64 panic_addr)
 {
-	kvm_err("nVHE hyp %s at: [<%016llx>] %pB!\n", name, panic_addr,
-		(void *)(panic_addr + kaslr_offset()));
+	/* Kallsyms might not be mapped in the host stage-2 */
+	if (nvhe_hyp_panic_host_s2_disabled())
+		kvm_err("nVHE hyp %s at: [<%016llx>] %pB!\n", name, panic_addr,
+			(void *)(panic_addr + kaslr_offset()));
+	else
+		kvm_err("nVHE hyp %s at: %016llx!\n", name, panic_addr);
 }
 
 static void kvm_nvhe_report_cfi_failure(u64 panic_addr)
@@ -561,8 +571,7 @@ void __noreturn __cold nvhe_hyp_panic_handler(u64 esr, u64 spsr,
 		unsigned int line = 0;
 
 		/* All hyp bugs, including warnings, are treated as fatal. */
-		if (!is_protected_kvm_enabled() ||
-		    IS_ENABLED(CONFIG_PKVM_DISABLE_STAGE2_ON_PANIC)) {
+		if (nvhe_hyp_panic_host_s2_disabled()) {
 			struct bug_entry *bug = find_bug(elr_in_kimg);
 
 			if (bug)
