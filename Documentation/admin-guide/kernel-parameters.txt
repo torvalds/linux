@@ -566,6 +566,9 @@ Kernel parameters
 	arm64.nogcs	[ARM64] Unconditionally disable Guarded Control Stack
 			support
 
+	arm64.nohaft	[ARM64] Unconditionally disable Hardware managed Access
+			Flag for Table descriptors support
+
 	arm64.nomops	[ARM64] Unconditionally disable Memory Copy and Memory
 			Set instructions support
 

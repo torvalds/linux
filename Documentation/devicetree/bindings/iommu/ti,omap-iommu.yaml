@@ -1,0 +1,114 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iommu/ti,omap-iommu.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: OMAP2+ IOMMU
+
+maintainers:
+  - Bhargav Joshi <j.bhargav.u@gmail.com>
+
+properties:
+  compatible:
+    enum:
+      - ti,omap2-iommu
+      - ti,omap4-iommu
+      - ti,dra7-dsp-iommu
+      - ti,dra7-iommu
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  '#iommu-cells':
+    const: 0
+
+  ti,#tlb-entries:
+    description: Number of entries in the translation look-aside buffer.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [8, 32]
+    default: 32
+
+  ti,iommu-bus-err-back:
+    description:
+      Indicates the IOMMU instance supports throwing back a bus error response
+      on MMU faults.
+    type: boolean
+
+  ti,syscon-mmuconfig:
+    description:
+      Pair of the phandle to the DSP_SYSTEM syscon node that
+      contains the additional control register for enabling the MMU, and the
+      MMU instance number (0-indexed) within the sub-system. The instance number
+      should be 0 for DSP MDMA MMUs and 1 for DSP EDMA MMUs.
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    maxItems: 1
+    items:
+      items:
+        - description: phandle to the DSP_SYSTEM syscon node
+        - description: MMU instance number
+          enum: [0, 1]
+
+  ti,hwmods:
+    description: Name of the hwmod associated with the IOMMU instance
+    $ref: /schemas/types.yaml#/definitions/string
+    deprecated: true
+
+required:
+  - compatible
+  - reg
+  - '#iommu-cells'
+  - interrupts
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ti,dra7-dsp-iommu
+    then:
+      required:
+        - ti,syscon-mmuconfig
+    else:
+      properties:
+        ti,syscon-mmuconfig: false
+
+additionalProperties: false
+
+examples:
+  - |
+    mmu@480bd400 {
+        #iommu-cells = <0>;
+        compatible = "ti,omap2-iommu";
+        reg = <0x480bd400 0x80>;
+        interrupts = <24>;
+        ti,hwmods = "mmu_isp";
+        ti,#tlb-entries = <8>;
+    };
+
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    mmu@41501000 {
+        compatible = "ti,dra7-dsp-iommu";
+        reg = <0x41501000 0x100>;
+        interrupts = <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>;
+        ti,hwmods = "mmu0_dsp2";
+        #iommu-cells = <0>;
+        ti,syscon-mmuconfig = <&dsp2_system 0x0>;
+    };
+
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    mmu@41502000 {
+        compatible = "ti,dra7-dsp-iommu";
+        reg = <0x41502000 0x100>;
+        interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
+        ti,hwmods = "mmu1_dsp2";
+        #iommu-cells = <0>;
+        ti,syscon-mmuconfig = <&dsp2_system 0x1>;
+    };

@@ -109,9 +109,9 @@ static void riscv_iommu_pci_shutdown(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id riscv_iommu_pci_tbl[] = {
-	{PCI_VDEVICE(REDHAT, PCI_DEVICE_ID_REDHAT_RISCV_IOMMU), 0},
-	{PCI_VDEVICE(RIVOS, PCI_DEVICE_ID_RIVOS_RISCV_IOMMU_GA), 0},
-	{0,}
+	{ PCI_VDEVICE(REDHAT, PCI_DEVICE_ID_REDHAT_RISCV_IOMMU) },
+	{ PCI_VDEVICE(RIVOS, PCI_DEVICE_ID_RIVOS_RISCV_IOMMU_GA) },
+	{ }
 };
 
 static struct pci_driver riscv_iommu_pci_driver = {
