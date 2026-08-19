@@ -214,7 +214,7 @@ static int keembay_wdt_probe(struct platform_device *pdev)
 	ret = devm_request_irq(dev, wdt->th_irq, keembay_wdt_th_isr, 0,
 			       "keembay-wdt", wdt);
 	if (ret)
-		return dev_err_probe(dev, ret, "Failed to request IRQ for threshold\n");
+		return ret;
 
 	wdt->to_irq = platform_get_irq_byname(pdev, "timeout");
 	if (wdt->to_irq < 0)
@@ -223,7 +223,7 @@ static int keembay_wdt_probe(struct platform_device *pdev)
 	ret = devm_request_irq(dev, wdt->to_irq, keembay_wdt_to_isr, 0,
 			       "keembay-wdt", wdt);
 	if (ret)
-		return dev_err_probe(dev, ret, "Failed to request IRQ for timeout\n");
+		return ret;
 
 	wdt->wdd.parent		= dev;
 	wdt->wdd.info		= &keembay_wdt_info;

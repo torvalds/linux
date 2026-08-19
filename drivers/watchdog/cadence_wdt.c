@@ -312,12 +312,8 @@ static int cdns_wdt_probe(struct platform_device *pdev)
 	if (!wdt->rst && irq >= 0) {
 		ret = devm_request_irq(dev, irq, cdns_wdt_irq_handler, 0,
 				       pdev->name, pdev);
-		if (ret) {
-			dev_err(dev,
-				"cannot register interrupt handler err=%d\n",
-				ret);
+		if (ret)
 			return ret;
-		}
 	}
 
 	/* Initialize the members of cdns_wdt structure */

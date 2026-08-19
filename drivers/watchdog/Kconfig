@@ -93,9 +93,18 @@ config WATCHDOG_PRETIMEOUT_GOV_SEL
 	tristate
 	depends on WATCHDOG_PRETIMEOUT_GOV
 	default m
-	select WATCHDOG_PRETIMEOUT_GOV_PANIC if WATCHDOG_PRETIMEOUT_GOV_NOOP=n
+	select WATCHDOG_PRETIMEOUT_GOV_PANIC if \
+		WATCHDOG_PRETIMEOUT_GOV_NOOP=n && WATCHDOG_PRETIMEOUT_GOV_DUMP=n
 
 if WATCHDOG_PRETIMEOUT_GOV
+
+config WATCHDOG_PRETIMEOUT_GOV_DUMP
+	tristate "Dump watchdog pretimeout governor"
+	depends on WATCHDOG_CORE
+	default WATCHDOG_CORE
+	help
+	  Dump watchdog pretimeout governor, all cpu backtrace is
+	  added to kernel log buffer.
 
 config WATCHDOG_PRETIMEOUT_GOV_NOOP
 	tristate "Noop watchdog pretimeout governor"
@@ -120,6 +129,14 @@ choice
 	  This option selects a default watchdog pretimeout governor.
 	  The governor takes its action, if a watchdog is capable
 	  to report a pretimeout event.
+
+config WATCHDOG_PRETIMEOUT_DEFAULT_GOV_DUMP
+	bool "dump"
+	depends on WATCHDOG_PRETIMEOUT_GOV_DUMP
+	help
+	  Use dump watchdog pretimeout governor by default. If dump
+	  governor is selected by a user, dump all cpu backtrace to
+	  the kernel log buffer and don't do any system changes.
 
 config WATCHDOG_PRETIMEOUT_DEFAULT_GOV_NOOP
 	bool "noop"
@@ -290,6 +307,18 @@ config LENOVO_SE30_WDT
 
 	  This driver can also be built as a module. If so, the module
 	  will be called lenovo-se30-wdt.
+
+config LENOVO_SE30G2_SE60_WDT
+	tristate "Lenovo SE30 Gen 2, SE60 Watchdog"
+	depends on (X86 && DMI) || COMPILE_TEST
+	depends on HAS_IOPORT
+	select WATCHDOG_CORE
+	help
+	  If you say yes here you get support for the watchdog
+	  functionality for the Lenovo SE30 Gen2 and SE60 platforms.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called lenovo-se30g2-se60-wdt.
 
 config MENF21BMC_WATCHDOG
 	tristate "MEN 14F021P00 BMC Watchdog"
@@ -720,6 +749,16 @@ config STMP3XXX_RTC_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called stmp3xxx_rtc_wdt.
 
+config MA35D1_WDT
+	tristate "Nuvoton MA35D1 Watchdog Timer"
+	depends on ARCH_MA35 || COMPILE_TEST
+	select WATCHDOG_CORE
+	help
+	  Say Y here to include support for the watchdog timer
+	  for the Nuvoton MA35D1 series microprocessor.
+	  To compile this driver as a module, choose M here: the
+	  module will be called ma35d1_wdt.
+
 config TS4800_WATCHDOG
 	tristate "TS-4800 Watchdog"
 	depends on HAS_IOMEM && OF
@@ -1076,6 +1115,7 @@ config REALTEK_OTTO_WDT
 	depends on MACH_REALTEK_RTL || COMPILE_TEST
 	depends on COMMON_CLK
 	select WATCHDOG_CORE
+	select REGMAP_MMIO
 	default MACH_REALTEK_RTL
 	help
 	  Say Y here to include support for the watchdog timer on Realtek
