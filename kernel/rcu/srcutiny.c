@@ -41,6 +41,7 @@ static int init_srcu_struct_fields(struct srcu_struct *ssp)
 	ssp->srcu_cb_tail = &ssp->srcu_cb_head;
 	ssp->srcu_gp_running = false;
 	ssp->srcu_gp_waiting = false;
+	ssp->srcu_atomic_gp_flag = 0;
 	ssp->srcu_idx = 0;
 	ssp->srcu_idx_max = 0;
 	INIT_WORK(&ssp->srcu_work, srcu_drive_gp);
@@ -339,6 +340,80 @@ void synchronize_srcu(struct srcu_struct *ssp)
 }
 EXPORT_SYMBOL_GPL(synchronize_srcu);
 
+/*
+ * synchronize_srcu_atomic - spinning grace period for atomic-reader domains
+ * @ssp: srcu_struct with which to synchronize.
+ *
+ * On !SMP this cannot spin: a reader observed mid-section is preempted
+ * or interrupted-out, and can only finish if we yield the CPU. But it
+ * is also never needed: an atomic-flavor reader (preemption disabled)
+ * cannot be observed mid-section from process context on the sole CPU.
+ * So a reader observed here has broken the atomic-domain promise, and
+ * the only correct wait for it is a real grace period.
+ *
+ * (Actual kernel-doc header is in Tree SRCU.)
+ */
+void synchronize_srcu_atomic(struct srcu_struct *ssp)
+{
+	int idx;
+	bool ret;
+	unsigned long srcu_state = get_state_synchronize_srcu(ssp);
+
+	srcu_lock_sync(&ssp->dep_map);
+
+	if (IS_ENABLED(CONFIG_PREEMPTION))
+		synchronize_rcu(); // Needed for RCU Tasks Trace to imply RCU grace period.
+				   // And in Tiny RCU, it is near zero cost and doesn't block.
+
+	// Usually, there will be no readers.
+	preempt_disable();  // Guard against lazy preemption and some other grace period.
+	ret = !READ_ONCE(ssp->srcu_lock_nesting[0]) && !READ_ONCE(ssp->srcu_lock_nesting[1]);
+	if (ret) {
+		WRITE_ONCE(ssp->srcu_idx_max, ssp->srcu_idx + 2);
+		WRITE_ONCE(ssp->srcu_idx, ssp->srcu_idx + 2);
+		preempt_enable();
+		return;
+	}
+
+	// Wait to drive a grace period or for someone else to do it
+	// for us while we are lazily preempted.
+	while (ssp->srcu_atomic_gp_flag) {
+		if (poll_state_synchronize_srcu(ssp, srcu_state)) {
+			preempt_enable();
+			return;
+		}
+		preempt_enable();
+		cpu_relax();
+		cond_resched_tasks_rcu_qs();
+		preempt_disable();
+	}
+	ssp->srcu_atomic_gp_flag = 1;  // Acquire SRCU grace-period "lock".
+	preempt_enable();
+
+	// We get here if a reader has been lazily preempted.
+	// First, wait for old readers, which are quite unlikely.
+	WRITE_ONCE(ssp->srcu_idx_max, get_state_synchronize_srcu(ssp));
+	idx = !(((READ_ONCE(ssp->srcu_idx) + 1) & 0x2) >> 1);
+	while (READ_ONCE(ssp->srcu_lock_nesting[idx])) {
+		cond_resched_tasks_rcu_qs();
+		cpu_relax();
+	}
+
+	// Next, flip the index and wait for the other group of readers.
+	WRITE_ONCE(ssp->srcu_idx, ssp->srcu_idx + 1);
+	idx = !idx;
+	while (READ_ONCE(ssp->srcu_lock_nesting[idx])) {
+		cond_resched_tasks_rcu_qs();
+		cpu_relax();
+	}
+
+	// Finally, flip the index again for poll_state_synchronize_srcu().
+	WRITE_ONCE(ssp->srcu_idx, ssp->srcu_idx + 1);
+	WARN_ON_ONCE(!poll_state_synchronize_srcu(ssp, srcu_state));
+	ssp->srcu_atomic_gp_flag = 0; // Release SRCU grace-period "lock".
+}
+EXPORT_SYMBOL_GPL(synchronize_srcu_atomic);
+
 /* Register any deferred callbacks, then wait for all in-flight ones. */
 void srcu_barrier(struct srcu_struct *ssp)
 {
@@ -367,6 +442,11 @@ EXPORT_SYMBOL_GPL(get_state_synchronize_srcu);
  * The difference between this and get_state_synchronize_srcu() is that
  * this function ensures that the poll_state_synchronize_srcu() will
  * eventually return the value true.
+ *
+ * This function cannot be used with atomic SRCU, which only has
+ * atomic grace periods.  Doing so will silently corrupt internal
+ * SRCU state.  Tree SRCU has appropriate checking with splats,
+ * so please test with CONFIG_SMP=y as well as CONFIG_SMP=n.
  */
 unsigned long start_poll_synchronize_srcu(struct srcu_struct *ssp)
 {
