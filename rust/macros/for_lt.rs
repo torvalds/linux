@@ -154,8 +154,8 @@ impl<'a> Prover<'a> {
             // Note that if we encounter `&'other_lt T`, then we still need to make sure the type
             // is wellformed if `T` involves `&'lt`, so we defer to the compiler.
             //
-            // This is to block cases like `ForLt!(for<'a> &'static &'a u32)`, as the presence of
-            // the type implies `'a: 'static` but this is unsound.
+            // This is to block cases like `CovariantForLt!(for<'a> &'static &'a u32)`, as the
+            // presence of the type implies `'a: 'static` but this is unsound.
             Type::Reference(ty)
                 if ty.mutability.is_none() && ty.lifetime.as_ref() == Some(self.0) =>
             {
@@ -176,7 +176,12 @@ impl<'a> Prover<'a> {
     }
 }
 
-pub(crate) fn for_lt(input: HigherRankedType) -> TokenStream {
+/// Shared implementation for both `ForLt!` and `CovariantForLt!`.
+///
+/// Both macros run the prover and emit `ProveWf` structs to check well-formedness for all lifetime
+/// instances (workaround for <https://github.com/rust-lang/rust/issues/152489>). `CovariantForLt!`
+/// additionally emits covariance proof functions and sets `N = 1`.
+fn for_lt_inner(input: HigherRankedType, prove_covariance: bool) -> TokenStream {
     let (ty, lifetime) = match input {
         HigherRankedType::Explicit { lifetime, ty, .. } => (ty, lifetime),
         HigherRankedType::Implicit { ty } => {
@@ -211,14 +216,16 @@ pub(crate) fn for_lt(input: HigherRankedType) -> TokenStream {
         ));
 
         // Insert a proof that the type is covariant.
-        let cov_proof_name = format_ident!("prove_covariant_{idx}");
-        proof.push(quote!(
-            fn #cov_proof_name<'__short, '__long: '__short>(
-                long: #wf_proof_name<'__long>
-            ) -> #wf_proof_name<'__short> {
-                long
-            }
-        ));
+        if prove_covariance {
+            let cov_proof_name = format_ident!("prove_covariant_{idx}");
+            proof.push(quote!(
+                fn #cov_proof_name<'__short, '__long: '__short>(
+                    long: #wf_proof_name<'__long>
+                ) -> #wf_proof_name<'__short> {
+                    long
+                }
+            ));
+        }
     }
 
     // Make sure that the type is wellformed when substituting lifetime with `'static`.
@@ -234,6 +241,8 @@ pub(crate) fn for_lt(input: HigherRankedType) -> TokenStream {
         },
     );
 
+    let n: usize = prove_covariance.into();
+
     quote!(
         ::kernel::types::for_lt::UnsafeForLtImpl::<
             dyn for<#lifetime> ::kernel::types::for_lt::WithLt<#lifetime, Of = #ty>,
@@ -241,8 +250,16 @@ pub(crate) fn for_lt(input: HigherRankedType) -> TokenStream {
             {
                 #(#proof)*
 
-                0
+                #n
             }
         >
     )
+}
+
+pub(crate) fn for_lt(input: HigherRankedType) -> TokenStream {
+    for_lt_inner(input, false)
+}
+
+pub(crate) fn covariant_for_lt(input: HigherRankedType) -> TokenStream {
+    for_lt_inner(input, true)
 }

@@ -13,7 +13,10 @@ use pin_init::{PinInit, Wrapper, Zeroable};
 
 #[doc(hidden)]
 pub mod for_lt;
-pub use for_lt::ForLt;
+pub use for_lt::{
+    CovariantForLt,
+    ForLt, //
+};
 
 /// Used to transfer ownership to and from foreign (non-Rust) languages.
 ///

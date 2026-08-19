@@ -291,26 +291,6 @@ macro_rules! module_driver {
     }
 }
 
-// Calling the FFI function directly from the `Adapter` impl may result in it being called
-// directly from driver modules. This happens since the Rust compiler will use monomorphisation, so
-// it might happen that functions are instantiated within the calling driver module. For now, work
-// around this with `#[inline(never)]` helpers.
-//
-// TODO: Remove once a more generic solution has been implemented. For instance, we may be able to
-// leverage `bindgen` to take care of this depending on whether a symbol is (already) exported.
-#[inline(never)]
-#[allow(clippy::missing_safety_doc)]
-#[allow(dead_code)]
-#[must_use]
-unsafe fn acpi_of_match_device(
-    adev: *const bindings::acpi_device,
-    of_match_table: *const bindings::of_device_id,
-    of_id: *mut *const bindings::of_device_id,
-) -> bool {
-    // SAFETY: Safety requirements are the same as `bindings::acpi_of_match_device`.
-    unsafe { bindings::acpi_of_match_device(adev, of_match_table, of_id) }
-}
-
 /// The bus independent adapter to match a drivers and a devices.
 ///
 /// This trait should be implemented by the bus specific adapter, which represents the connection
@@ -324,118 +304,23 @@ pub trait Adapter {
     /// The [`acpi::IdTable`] of the corresponding driver
     fn acpi_id_table() -> Option<acpi::IdTable<Self::IdInfo>>;
 
-    /// Returns the driver's private data from the matching entry in the [`acpi::IdTable`], if any.
-    ///
-    /// If this returns `None`, it means there is no match with an entry in the [`acpi::IdTable`].
-    fn acpi_id_info(dev: &device::Device) -> Option<&'static Self::IdInfo> {
-        #[cfg(not(CONFIG_ACPI))]
-        {
-            let _ = dev;
-            None
-        }
-
-        #[cfg(CONFIG_ACPI)]
-        {
-            let table = Self::acpi_id_table()?;
-
-            // SAFETY:
-            // - `table` has static lifetime, hence it's valid for read,
-            // - `dev` is guaranteed to be valid while it's alive, and so is `dev.as_raw()`.
-            let raw_id = unsafe { bindings::acpi_match_device(table.as_ptr(), dev.as_raw()) };
-
-            if raw_id.is_null() {
-                None
-            } else {
-                // SAFETY: `DeviceId` is a `#[repr(transparent)]` wrapper of `struct acpi_device_id`
-                // and does not add additional invariants, so it's safe to transmute.
-                let id = unsafe { &*raw_id.cast::<acpi::DeviceId>() };
-
-                Some(table.info(<acpi::DeviceId as crate::device_id::RawDeviceIdIndex>::index(id)))
-            }
-        }
-    }
-
     /// The [`of::IdTable`] of the corresponding driver.
     fn of_id_table() -> Option<of::IdTable<Self::IdInfo>>;
-
-    /// Returns the driver's private data from the matching entry in the [`of::IdTable`], if any.
-    ///
-    /// If this returns `None`, it means there is no match with an entry in the [`of::IdTable`].
-    fn of_id_info(dev: &device::Device) -> Option<&'static Self::IdInfo> {
-        let table = Self::of_id_table()?;
-
-        #[cfg(not(any(CONFIG_OF, CONFIG_ACPI)))]
-        {
-            let _ = (dev, table);
-        }
-
-        #[cfg(CONFIG_OF)]
-        {
-            // SAFETY:
-            // - `table` has static lifetime, hence it's valid for read,
-            // - `dev` is guaranteed to be valid while it's alive, and so is `dev.as_raw()`.
-            let raw_id = unsafe { bindings::of_match_device(table.as_ptr(), dev.as_raw()) };
-
-            if !raw_id.is_null() {
-                // SAFETY: `DeviceId` is a `#[repr(transparent)]` wrapper of `struct of_device_id`
-                // and does not add additional invariants, so it's safe to transmute.
-                let id = unsafe { &*raw_id.cast::<of::DeviceId>() };
-
-                return Some(table.info(
-                    <of::DeviceId as crate::device_id::RawDeviceIdIndex>::index(id),
-                ));
-            }
-        }
-
-        #[cfg(CONFIG_ACPI)]
-        {
-            use core::ptr;
-            use device::property::FwNode;
-
-            let mut raw_id = ptr::null();
-
-            let fwnode = dev.fwnode().map_or(ptr::null_mut(), FwNode::as_raw);
-
-            // SAFETY: `fwnode` is a pointer to a valid `fwnode_handle`. A null pointer will be
-            // passed through the function.
-            let adev = unsafe { bindings::to_acpi_device_node(fwnode) };
-
-            // SAFETY:
-            // - `adev` is a valid pointer to `acpi_device` or is null. It is guaranteed to be
-            //   valid as long as `dev` is alive.
-            // - `table` has static lifetime, hence it's valid for read.
-            if unsafe { acpi_of_match_device(adev, table.as_ptr(), &raw mut raw_id) } {
-                // SAFETY:
-                // - the function returns true, therefore `raw_id` has been set to a pointer to a
-                //   valid `of_device_id`.
-                // - `DeviceId` is a `#[repr(transparent)]` wrapper of `struct of_device_id`
-                //   and does not add additional invariants, so it's safe to transmute.
-                let id = unsafe { &*raw_id.cast::<of::DeviceId>() };
-
-                return Some(table.info(
-                    <of::DeviceId as crate::device_id::RawDeviceIdIndex>::index(id),
-                ));
-            }
-        }
-
-        None
-    }
 
     /// Returns the driver's private data from the matching entry of any of the ID tables, if any.
     ///
     /// If this returns `None`, it means that there is no match in any of the ID tables directly
     /// associated with a [`device::Device`].
-    fn id_info(dev: &device::Device) -> Option<&'static Self::IdInfo> {
-        let id = Self::acpi_id_info(dev);
-        if id.is_some() {
-            return id;
-        }
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that the `dev` matched data is of type `Self::IdInfo`.
+    #[inline]
+    unsafe fn id_info(dev: &device::Device) -> Option<&'static Self::IdInfo> {
+        // SAFETY: `dev` is guaranteed to be valid while it's alive, and so is `dev.as_raw()`.
+        let data = unsafe { bindings::device_get_match_data(dev.as_raw()) };
 
-        let id = Self::of_id_info(dev);
-        if id.is_some() {
-            return id;
-        }
-
-        None
+        // SAFETY: Per safety requirement, `data` is of type `Self::IdInfo`.
+        unsafe { data.cast::<Self::IdInfo>().as_ref() }
     }
 }

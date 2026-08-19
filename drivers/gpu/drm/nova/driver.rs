@@ -43,7 +43,6 @@ const AUXILIARY_NAME: &CStr = c"nova-drm";
 
 kernel::auxiliary_device_table!(
     AUX_TABLE,
-    MODULE_AUX_TABLE,
     <NovaDriver as auxiliary::Driver>::IdInfo,
     [(
         auxiliary::DeviceId::new(NOVA_CORE_MODULE_NAME, AUXILIARY_NAME),

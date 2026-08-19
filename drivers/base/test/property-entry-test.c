@@ -4,6 +4,8 @@
 // Copyright 2019 Google LLC.
 
 #include <kunit/test.h>
+
+#include <linux/of.h>
 #include <linux/property.h>
 #include <linux/types.h>
 
@@ -489,6 +491,139 @@ static void pe_test_reference(struct kunit *test)
 	software_node_unregister_node_group(group);
 }
 
+static struct fwnode_handle *create_device_node(struct kunit *test,
+						const char *name,
+						const char *full_name,
+						struct device_node *parent)
+{
+	struct device_node *node;
+
+	node = kunit_kzalloc(test, sizeof(*node), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, node);
+
+	node->name = kunit_kstrdup(test, name, GFP_KERNEL);
+	node->full_name = kunit_kstrdup(test, full_name, GFP_KERNEL);
+
+	if (parent) {
+		node->sibling = parent->child;
+		/* set the node as the first child of the parent */
+		parent->child = node;
+		node->parent = parent;
+	}
+
+	of_node_init(node);
+	return of_fwnode_handle(node);
+}
+
+/* Verifies that fwnode_for_each_child_node() can output correct children */
+static void pe_test_child_iteration(struct kunit *test)
+{
+	struct fwnode_handle *of_node, *of_node1;
+	struct fwnode_handle *sw_node, *sw_node1;
+	struct fwnode_handle *child;
+	int error, i, num;
+
+	static const struct software_node node = { .name = "sw" };
+	static const struct software_node node1 = { .name = "sw-1", .parent = &node};
+	static const struct software_node node2 = { .name = "sw-2", .parent = &node};
+	static const struct software_node node3 = { .name = "sw-3", .parent = &node};
+	static const struct software_node *group[] = { &node, &node1, &node2, &node3, NULL };
+
+	static const char * const of_child_array[] = { "of-1", "of-2", "of-3" };
+	static const char * const sw_child_array[] = { "sw-1", "sw-2", "sw-3" };
+	static const char * const of_sw_child_array[] = { "of-1", "of-2", "of-3",
+							  "sw-1", "sw-2", "sw-3" };
+	static const char * const sw_of_child_array[] = { "sw-1", "sw-2", "sw-3",
+							  "of-1", "of-2", "of-3" };
+
+	/* 1. Test OF node child iteration */
+
+	of_node = create_device_node(test, "of", "of", NULL);
+	create_device_node(test, "of", "of-3", to_of_node(of_node));
+	create_device_node(test, "of", "of-2", to_of_node(of_node));
+	of_node1 = create_device_node(test, "of", "of-1", to_of_node(of_node));
+
+	i = 0;
+	num = ARRAY_SIZE(of_child_array);
+	fwnode_for_each_child_node(of_node, child) {
+		KUNIT_ASSERT_LT(test, i, num);
+		KUNIT_EXPECT_STREQ(test, of_child_array[i++], fwnode_get_name(child));
+	}
+	KUNIT_EXPECT_PTR_EQ(test, child, NULL);
+
+	/* 2. Test SW node child iteration */
+
+	error = software_node_register_node_group(group);
+	KUNIT_ASSERT_EQ(test, error, 0);
+
+	sw_node = software_node_fwnode(&node);
+
+	i = 0;
+	num = ARRAY_SIZE(sw_child_array);
+	fwnode_for_each_child_node(sw_node, child) {
+		KUNIT_ASSERT_LT(test, i, num);
+		KUNIT_EXPECT_STREQ(test, sw_child_array[i++], fwnode_get_name(child));
+	}
+	KUNIT_EXPECT_PTR_EQ(test, child, NULL);
+
+	/* 3. Test OF (primary) + SW (secondary) node child iteration */
+
+	of_node->secondary = sw_node;
+	sw_node->secondary = ERR_PTR(-ENODEV);
+
+	i = 0;
+	num = ARRAY_SIZE(of_sw_child_array);
+	fwnode_for_each_child_node(of_node, child) {
+		KUNIT_ASSERT_LT(test, i, num);
+		KUNIT_EXPECT_STREQ(test, of_sw_child_array[i++], fwnode_get_name(child));
+	}
+	KUNIT_EXPECT_PTR_EQ(test, child, NULL);
+
+	/* 4. Test SW (primary) + OF (secondary) node child iteration */
+
+	sw_node->secondary = of_node;
+	of_node->secondary = ERR_PTR(-ENODEV);
+
+	i = 0;
+	num = ARRAY_SIZE(sw_of_child_array);
+	fwnode_for_each_child_node(sw_node, child) {
+		KUNIT_ASSERT_LT(test, i, num);
+		KUNIT_EXPECT_STREQ(test, sw_of_child_array[i++], fwnode_get_name(child));
+	}
+	KUNIT_EXPECT_PTR_EQ(test, child, NULL);
+
+	/* 5. Test OF (primary) + SW (secondary, but no children) node child iteration */
+
+	sw_node1 = software_node_fwnode(&node1);
+	of_node->secondary = sw_node1;
+	sw_node->secondary = ERR_PTR(-ENODEV);
+
+	i = 0;
+	num = ARRAY_SIZE(of_child_array);
+	fwnode_for_each_child_node(of_node, child) {
+		KUNIT_ASSERT_LT(test, i, num);
+		KUNIT_EXPECT_STREQ(test, of_child_array[i++], fwnode_get_name(child));
+	}
+	KUNIT_EXPECT_PTR_EQ(test, child, NULL);
+
+	/* 6. Test SW (primary) + OF (secondary, but no children) node child iteration */
+
+	sw_node->secondary = of_node1;
+	of_node->secondary = ERR_PTR(-ENODEV);
+
+	i = 0;
+	num = ARRAY_SIZE(sw_child_array);
+	fwnode_for_each_child_node(sw_node, child) {
+		KUNIT_ASSERT_LT(test, i, num);
+		KUNIT_EXPECT_STREQ(test, sw_child_array[i++], fwnode_get_name(child));
+	}
+	KUNIT_EXPECT_PTR_EQ(test, child, NULL);
+
+	of_node->secondary = NULL;
+	sw_node->secondary = NULL;
+	software_node_unregister_node_group(group);
+}
+
 static struct kunit_case property_entry_test_cases[] = {
 	KUNIT_CASE(pe_test_uints),
 	KUNIT_CASE(pe_test_uint_arrays),
@@ -497,6 +632,7 @@ static struct kunit_case property_entry_test_cases[] = {
 	KUNIT_CASE(pe_test_move_inline_u8),
 	KUNIT_CASE(pe_test_move_inline_str),
 	KUNIT_CASE(pe_test_reference),
+	KUNIT_CASE(pe_test_child_iteration),
 	{ }
 };
 
@@ -509,4 +645,5 @@ kunit_test_suite(property_entry_test_suite);
 
 MODULE_DESCRIPTION("Test module for the property entry API");
 MODULE_AUTHOR("Dmitry Torokhov <dtor@chromium.org>");
+MODULE_IMPORT_NS("EXPORTED_FOR_KUNIT_TESTING");
 MODULE_LICENSE("GPL");

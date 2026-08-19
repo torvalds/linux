@@ -101,7 +101,7 @@ static int __init apmt_add_platform_device(struct acpi_apmt_node *node,
 	if (ret)
 		goto dev_put;
 
-	pdev->dev.fwnode = fwnode;
+	platform_device_set_fwnode(pdev, fwnode);
 
 	ret = platform_device_add(pdev);
 

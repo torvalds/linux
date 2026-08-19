@@ -285,10 +285,10 @@ pub(crate) struct Gpu<'gpu> {
 }
 
 impl<'gpu> Gpu<'gpu> {
-    pub(crate) fn new(
-        pdev: &'gpu pci::Device<device::Core<'_>>,
+    pub(crate) fn new<'a>(
+        pdev: &'gpu pci::Device<device::Core<'a>>,
         bar: Bar0<'gpu>,
-    ) -> impl PinInit<Self, Error> + 'gpu {
+    ) -> impl PinInit<Self, Error> + use<'gpu, 'a> {
         try_pin_init!(Self {
             device: pdev.as_ref(),
             spec: Spec::new(pdev.as_ref(), bar).inspect(|spec| {

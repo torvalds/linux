@@ -19,7 +19,6 @@ struct SampleDriver {
 
 kernel::usb_device_table!(
     USB_TABLE,
-    MODULE_USB_TABLE,
     <SampleDriver as usb::Driver>::IdInfo,
     [(usb::DeviceId::from_id(0x1234, 0x5678), ()),]
 );
@@ -32,7 +31,7 @@ impl usb::Driver for SampleDriver {
     fn probe<'bound>(
         intf: &'bound usb::Interface<Core<'_>>,
         _id: &usb::DeviceId,
-        _info: &'bound Self::IdInfo,
+        _info: Option<&'bound Self::IdInfo>,
     ) -> impl PinInit<Self, Error> + 'bound {
         let dev: &device::Device<Core<'_>> = intf.as_ref();
         dev_info!(dev, "Rust USB driver sample probed\n");

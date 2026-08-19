@@ -65,10 +65,6 @@ unsafe impl RawDeviceId for DeviceId {
 // SAFETY: `DRIVER_DATA_OFFSET` is the offset to the `driver_data` field.
 unsafe impl RawDeviceIdIndex for DeviceId {
     const DRIVER_DATA_OFFSET: usize = core::mem::offset_of!(bindings::i2c_device_id, driver_data);
-
-    fn index(&self) -> usize {
-        self.0.driver_data
-    }
 }
 
 /// IdTable type for I2C
@@ -77,14 +73,8 @@ pub type IdTable<T> = &'static dyn kernel::device_id::IdTable<DeviceId, T>;
 /// Create a I2C `IdTable` with its alias for modpost.
 #[macro_export]
 macro_rules! i2c_device_table {
-    ($table_name:ident, $module_table_name:ident, $id_info_type: ty, $table_data: expr) => {
-        const $table_name: $crate::device_id::IdArray<
-            $crate::i2c::DeviceId,
-            $id_info_type,
-            { $table_data.len() },
-        > = $crate::device_id::IdArray::new($table_data);
-
-        $crate::module_device_table!("i2c", $module_table_name, $table_name);
+    ($($tt:tt)*) => {
+        $crate::module_device_table!("i2c", $crate::i2c::DeviceId, $($tt)*);
     };
 }
 
@@ -159,8 +149,10 @@ impl<T: Driver> Adapter<T> {
         // INVARIANT: `idev` is valid for the duration of `probe_callback()`.
         let idev = unsafe { &*idev.cast::<I2cClient<device::CoreInternal<'_>>>() };
 
-        let info =
-            Self::i2c_id_info(idev).or_else(|| <Self as driver::Adapter>::id_info(idev.as_ref()));
+        let info = Self::i2c_id_info(idev).or_else(|| {
+            // SAFETY: `idev` matched data is of type `Self::IdInfo`.
+            unsafe { <Self as driver::Adapter>::id_info(idev.as_ref()) }
+        });
 
         from_result(|| {
             let data = T::probe(idev, info);
@@ -218,7 +210,8 @@ impl<T: Driver> Adapter<T> {
         // does not add additional invariants, so it's safe to transmute.
         let id = unsafe { &*raw_id.cast::<DeviceId>() };
 
-        Some(table.info(<DeviceId as RawDeviceIdIndex>::index(id)))
+        // SAFETY: `id` comes from `table` which is of type `IdArray<_, Self::IdInfo>`.
+        Some(unsafe { id.info_unchecked::<T::IdInfo>() })
     }
 }
 
@@ -267,7 +260,6 @@ macro_rules! module_i2c_driver {
 ///
 /// kernel::acpi_device_table!(
 ///     ACPI_TABLE,
-///     MODULE_ACPI_TABLE,
 ///     <MyDriver as i2c::Driver>::IdInfo,
 ///     [
 ///         (acpi::DeviceId::new(c"LNUXBEEF"), ())
@@ -276,7 +268,6 @@ macro_rules! module_i2c_driver {
 ///
 /// kernel::i2c_device_table!(
 ///     I2C_TABLE,
-///     MODULE_I2C_TABLE,
 ///     <MyDriver as i2c::Driver>::IdInfo,
 ///     [
 ///          (i2c::DeviceId::new(c"rust_driver_i2c"), ())
@@ -285,7 +276,6 @@ macro_rules! module_i2c_driver {
 ///
 /// kernel::of_device_table!(
 ///     OF_TABLE,
-///     MODULE_OF_TABLE,
 ///     <MyDriver as i2c::Driver>::IdInfo,
 ///     [
 ///         (of::DeviceId::new(c"test,device"), ())

@@ -89,7 +89,10 @@ impl<T: Driver> Adapter<T> {
             // does not add additional invariants, so it's safe to transmute.
             let id = unsafe { &*id.cast::<DeviceId>() };
 
-            let info = T::ID_TABLE.info(id.index());
+            // SAFETY: `id` comes from `T::ID_TABLE` which is of type `IdArray<_, T::IdInfo>`. It
+            // can also come from dynamic IDs, which will ensure that `driver_data` exists in
+            // `T::ID_TABLE` or is 0.
+            let info = unsafe { id.info_unchecked_opt::<T::IdInfo>() };
             let data = T::probe(intf, id, info);
 
             let dev: &device::Device<device::CoreInternal<'_>> = intf.as_ref();
@@ -242,10 +245,6 @@ unsafe impl RawDeviceId for DeviceId {
 // SAFETY: `DRIVER_DATA_OFFSET` is the offset to the `driver_info` field.
 unsafe impl RawDeviceIdIndex for DeviceId {
     const DRIVER_DATA_OFFSET: usize = core::mem::offset_of!(bindings::usb_device_id, driver_info);
-
-    fn index(&self) -> usize {
-        self.0.driver_info
-    }
 }
 
 /// [`IdTable`](kernel::device_id::IdTable) type for USB.
@@ -254,14 +253,8 @@ pub type IdTable<T> = &'static dyn kernel::device_id::IdTable<DeviceId, T>;
 /// Create a USB `IdTable` with its alias for modpost.
 #[macro_export]
 macro_rules! usb_device_table {
-    ($table_name:ident, $module_table_name:ident, $id_info_type: ty, $table_data: expr) => {
-        const $table_name: $crate::device_id::IdArray<
-            $crate::usb::DeviceId,
-            $id_info_type,
-            { $table_data.len() },
-        > = $crate::device_id::IdArray::new($table_data);
-
-        $crate::module_device_table!("usb", $module_table_name, $table_name);
+    ($($tt:tt)*) => {
+        $crate::module_device_table!("usb", $crate::usb::DeviceId, $($tt)*);
     };
 }
 
@@ -277,7 +270,6 @@ macro_rules! usb_device_table {
 ///
 /// kernel::usb_device_table!(
 ///     USB_TABLE,
-///     MODULE_USB_TABLE,
 ///     <MyDriver as usb::Driver>::IdInfo,
 ///     [
 ///         (usb::DeviceId::from_id(0x1234, 0x5678), ()),
@@ -293,7 +285,7 @@ macro_rules! usb_device_table {
 ///     fn probe<'bound>(
 ///         _interface: &'bound usb::Interface<Core<'_>>,
 ///         _id: &usb::DeviceId,
-///         _info: &'bound Self::IdInfo,
+///         _info: Option<&'bound Self::IdInfo>,
 ///     ) -> impl PinInit<Self::Data<'bound>, Error> + 'bound {
 ///         Err(ENODEV)
 ///     }
@@ -322,7 +314,7 @@ pub trait Driver {
     fn probe<'bound>(
         interface: &'bound Interface<device::Core<'_>>,
         id: &DeviceId,
-        id_info: &'bound Self::IdInfo,
+        id_info: Option<&'bound Self::IdInfo>,
     ) -> impl PinInit<Self::Data<'bound>, Error> + 'bound;
 
     /// USB driver disconnect.

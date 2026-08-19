@@ -1992,7 +1992,7 @@ static int __init iort_add_platform_device(struct acpi_iort_node *node,
 		goto dev_put;
 	}
 
-	pdev->dev.fwnode = fwnode;
+	platform_device_set_fwnode(pdev, fwnode);
 
 	if (ops->dev_dma_configure)
 		ops->dev_dma_configure(&pdev->dev, node);

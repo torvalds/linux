@@ -75,7 +75,10 @@ fn create_file_write(
             GFP_KERNEL,
         )?;
     }
-    let blob = KBox::pin_init(new_mutex!([0x42; SZ_4K]), GFP_KERNEL)?;
+    let blob = KBox::pin_init(
+        new_mutex!(pin_init::init_array_from_fn(|_| 0x42)),
+        GFP_KERNEL,
+    )?;
 
     let scope = KBox::pin_init(
         mod_data.device_dir.scope(

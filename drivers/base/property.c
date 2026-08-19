@@ -7,10 +7,10 @@
  *          Mika Westerberg <mika.westerberg@linux.intel.com>
  */
 
+#include <linux/cleanup.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/export.h>
-#include <linux/kconfig.h>
 #include <linux/of.h>
 #include <linux/property.h>
 #include <linux/phy.h>
@@ -517,7 +517,6 @@ EXPORT_SYMBOL_GPL(fwnode_property_read_string);
 int fwnode_property_match_string(const struct fwnode_handle *fwnode,
 	const char *propname, const char *string)
 {
-	const char **values;
 	int nval, ret;
 
 	nval = fwnode_property_string_array_count(fwnode, propname);
@@ -527,20 +526,18 @@ int fwnode_property_match_string(const struct fwnode_handle *fwnode,
 	if (nval == 0)
 		return -ENODATA;
 
-	values = kcalloc(nval, sizeof(*values), GFP_KERNEL);
+	const char **values __free(kfree) = kcalloc(nval, sizeof(*values), GFP_KERNEL);
 	if (!values)
 		return -ENOMEM;
 
 	ret = fwnode_property_read_string_array(fwnode, propname, values, nval);
 	if (ret < 0)
-		goto out_free;
+		return ret;
 
 	ret = match_string(values, nval, string);
 	if (ret < 0)
-		ret = -ENODATA;
+		return -ENODATA;
 
-out_free:
-	kfree(values);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(fwnode_property_match_string);
@@ -807,18 +804,31 @@ struct fwnode_handle *
 fwnode_get_next_child_node(const struct fwnode_handle *fwnode,
 			   struct fwnode_handle *child)
 {
+	const struct fwnode_handle *parent;
+	struct fwnode_handle *child_parent __free(fwnode_handle) = NULL;
 	struct fwnode_handle *next;
 
-	if (IS_ERR_OR_NULL(fwnode))
+	/*
+	 * If this function is in a loop and the previous iteration returned
+	 * an child from fwnode->secondary, then we need to use the secondary
+	 * as parent rather than @fwnode.
+	 */
+	if (child) {
+		child_parent = fwnode_get_parent(child);
+		parent = child_parent;
+	} else {
+		parent = fwnode;
+	}
+	if (IS_ERR_OR_NULL(parent))
 		return NULL;
 
 	/* Try to find a child in primary fwnode */
-	next = fwnode_call_ptr_op(fwnode, get_next_child_node, child);
+	next = fwnode_call_ptr_op(parent, get_next_child_node, child);
 	if (next)
 		return next;
 
 	/* When no more children in primary, continue with secondary */
-	return fwnode_call_ptr_op(fwnode->secondary, get_next_child_node, child);
+	return fwnode_get_next_child_node(parent->secondary, NULL);
 }
 EXPORT_SYMBOL_GPL(fwnode_get_next_child_node);
 
@@ -1115,8 +1125,9 @@ struct fwnode_handle *
 fwnode_graph_get_next_endpoint(const struct fwnode_handle *fwnode,
 			       struct fwnode_handle *prev)
 {
-	struct fwnode_handle *ep, *port_parent = NULL;
 	const struct fwnode_handle *parent;
+	struct fwnode_handle *port_parent __free(fwnode_handle) = NULL;
+	struct fwnode_handle *ep;
 
 	/*
 	 * If this function is in a loop and the previous iteration returned
@@ -1134,13 +1145,9 @@ fwnode_graph_get_next_endpoint(const struct fwnode_handle *fwnode,
 
 	ep = fwnode_call_ptr_op(parent, graph_get_next_endpoint, prev);
 	if (ep)
-		goto out_put_port_parent;
+		return ep;
 
-	ep = fwnode_graph_get_next_endpoint(parent->secondary, NULL);
-
-out_put_port_parent:
-	fwnode_handle_put(port_parent);
-	return ep;
+	return fwnode_graph_get_next_endpoint(parent->secondary, NULL);
 }
 EXPORT_SYMBOL_GPL(fwnode_graph_get_next_endpoint);
 
