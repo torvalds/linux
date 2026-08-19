@@ -314,15 +314,15 @@ F:	drivers/firmware/efi/cper*
 
 ACPI COMPONENT ARCHITECTURE (ACPICA)
 M:	"Rafael J. Wysocki" <rafael@kernel.org>
-M:	Saket Dumbre <saket.dumbre@intel.com>
+M:	Maciej Wieczor-Retman <maciej.wieczor-retman@intel.com>
+M:	Pawel Chmielewski <pawel.chmielewski@intel.com>
 L:	linux-acpi@vger.kernel.org
 L:	acpica-devel@lists.linux.dev
 S:	Supported
 W:	https://acpica.org/
-W:	https://github.com/acpica/acpica/
+W:	https://github.com/open-acpica/acpica/
 Q:	https://patchwork.kernel.org/project/linux-acpi/list/
 B:	https://bugzilla.kernel.org
-B:	https://bugs.acpica.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm
 F:	drivers/acpi/acpica/
 F:	include/acpi/
