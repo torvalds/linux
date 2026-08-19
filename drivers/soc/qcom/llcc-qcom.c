@@ -5657,6 +5657,10 @@ static int qcom_llcc_probe(struct platform_device *pdev)
 	}
 
 	drv_data->ecc_irq = platform_get_irq_optional(pdev, 0);
+	if (drv_data->ecc_irq < 0 && drv_data->ecc_irq != -ENXIO)
+		return dev_err_probe(&pdev->dev, drv_data->ecc_irq,
+				     "failed to get IRQ resource\n");
+
 	drv_data->edac_reg_offset = cfg->edac_reg_offset;
 	drv_data->ecc_irq_configured = cfg->irq_configured;
 	drv_data->dev = dev;
