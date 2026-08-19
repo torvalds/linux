@@ -50,7 +50,7 @@ void ptdump_walk_user_pgd_level_checkwx(void);
 extern spinlock_t pgd_lock;
 extern struct list_head pgd_list;
 
-extern struct mm_struct *pgd_page_get_mm(struct page *page);
+struct mm_struct *pgd_page_get_mm(struct ptdesc *pt);
 
 extern pmdval_t early_pmd_flags;
 
