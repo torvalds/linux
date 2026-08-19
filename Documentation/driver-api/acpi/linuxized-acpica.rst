@@ -117,7 +117,7 @@ ACPICA Release
 ==============
 
 The ACPICA project maintains its code base at the following repository URL:
-https://github.com/acpica/acpica.git. As a rule, a release is made every
+https://github.com/open-acpica/acpica.git. As a rule, a release is made every
 month.
 
 As the coding style adopted by the ACPICA project is not acceptable by
@@ -173,7 +173,7 @@ illustrated in the following figure::
        utility located in source/tools/acpisrc folder and a number of
        scripts located in generate/linux folder.
     B. acpica / master - "master" branch of the git repository at
-       <https://github.com/acpica/acpica.git>.
+       <https://github.com/open-acpica/acpica.git>.
     C. linux-pm / linux-next - "linux-next" branch of the git repository at
        <https://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm.git>.
     D. linux / master - "master" branch of the git repository at
@@ -244,7 +244,7 @@ before they become available from the ACPICA release process.
    Then the gen-patch.sh command can help to cherry-pick an ACPICA commit
    from the ACPICA local repository::
 
-   $ git clone https://github.com/acpica/acpica
+   $ git clone https://github.com/open-acpica/acpica
    $ cd acpica
    $ generate/linux/gen-patch.sh -u [commit ID]
 
@@ -259,7 +259,7 @@ before they become available from the ACPICA release process.
    You can generate the ACPICA release series yourself and rebase your code on
    top of the generated ACPICA release patches::
 
-   $ git clone https://github.com/acpica/acpica
+   $ git clone https://github.com/open-acpica/acpica
    $ cd acpica
    $ generate/linux/make-patches.sh -u [commit ID]
 
@@ -273,7 +273,7 @@ before they become available from the ACPICA release process.
    If you have local copies of both Linux and upstream ACPICA, you can generate
    a diff file indicating the state of the current divergences::
 
-   # git clone https://github.com/acpica/acpica
+   # git clone https://github.com/open-acpica/acpica
    # git clone https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
    # cd acpica
    # generate/linux/divergence.sh -s ../linux
