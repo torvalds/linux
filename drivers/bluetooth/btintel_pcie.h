@@ -125,7 +125,9 @@ enum {
 	BTINTEL_PCIE_FWTRIGGER_DUMP_INPROGRESS,
 	BTINTEL_PCIE_RECOVERY_IN_PROGRESS,
 	BTINTEL_PCIE_SETUP_DONE,
-	BTINTEL_PCIE_MAIL_BOX_INTR
+	BTINTEL_PCIE_MAIL_BOX_INTR,
+	BTINTEL_PCIE_MBOX_PARSE_PENDING,
+	BTINTEL_PCIE_MBOX_PARSE_READY
 };
 
 enum btintel_pcie_tlv_type {
@@ -178,6 +180,7 @@ enum btintel_pcie_mbox_msg {
 
 /* Default interrupt timeout in msec */
 #define BTINTEL_DEFAULT_INTR_TIMEOUT_MS	3000
+#define BTINTEL_PCIE_MBOX_INTR_TIMEOUT_MS	500
 
 #define BTINTEL_PCIE_DX_TRANSITION_MAX_RETRIES	3
 
@@ -588,6 +591,11 @@ struct btintel_pcie_data {
 	u32	debug_table_size;
 	struct btintel_pcie_dump_mem_info	dump_info;
 	struct btintel_pcie_mbox	mbox;
+
+	/* Wait queue for mbox_worker to wait for GP0 alive interrupt */
+	wait_queue_head_t	mbox_parse_wait_q;
+	/* Timestamp captured in GP1 handler when mbox interrupt is received */
+	ktime_t	mbox_intr_ts;
 };
 
 static inline u32 btintel_pcie_rd_reg32(struct btintel_pcie_data *data,
