@@ -1080,6 +1080,15 @@ config HID_ROCCAT
 	Say Y here if you have a Roccat mouse or keyboard and want
 	support for its special functionalities.
 
+config HID_ROCCAT_KONE_KUNIT_TEST
+	bool "KUnit tests for the Roccat Kone driver" if !KUNIT_ALL_TESTS
+	depends on HID_ROCCAT=y && KUNIT=y
+	default KUNIT_ALL_TESTS
+	help
+	  Enable the KUnit regression tests for the Roccat Kone driver,
+	  covering bounds checking of device-supplied profile indices.
+	  If unsure, say N.
+
 config HID_SAITEK
 	tristate "Saitek (Mad Catz) non-fully HID-compliant devices"
 	help
