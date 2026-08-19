@@ -245,8 +245,8 @@ static int ipq_pwm_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id pwm_ipq_dt_match[] = {
-	{ .compatible = "qcom,ipq6018-pwm", },
-	{}
+	{ .compatible = "qcom,ipq6018-pwm" },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, pwm_ipq_dt_match);
 

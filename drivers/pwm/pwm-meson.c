@@ -596,15 +596,14 @@ static const struct of_device_id meson_pwm_matches[] = {
 	{
 		.compatible = "amlogic,meson8-pwm-v2",
 		.data = &pwm_meson8_v2_data
-	},
-	{
+	}, {
 		.compatible = "amlogic,meson-axg-pwm-v2",
 		.data = &pwm_meson_axg_v2_data
-	},
-	{
+	}, {
 		.compatible = "amlogic,meson-g12-pwm-v2",
 		.data = &pwm_meson_axg_v2_data
 	},
+
 	/* The following compatibles are obsolete */
 	{
 		.compatible = "amlogic,meson8b-pwm",
@@ -642,7 +641,7 @@ static const struct of_device_id meson_pwm_matches[] = {
 		.compatible = "amlogic,meson-s4-pwm",
 		.data = &pwm_s4_data
 	},
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, meson_pwm_matches);
 

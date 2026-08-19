@@ -155,7 +155,7 @@ static int lpc32xx_pwm_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id lpc32xx_pwm_dt_ids[] = {
-	{ .compatible = "nxp,lpc3220-pwm", },
+	{ .compatible = "nxp,lpc3220-pwm" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, lpc32xx_pwm_dt_ids);

@@ -222,7 +222,7 @@ static const struct pwm_ops brcmstb_pwm_ops = {
 };
 
 static const struct of_device_id brcmstb_pwm_of_match[] = {
-	{ .compatible = "brcm,bcm7038-pwm", },
+	{ .compatible = "brcm,bcm7038-pwm" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, brcmstb_pwm_of_match);

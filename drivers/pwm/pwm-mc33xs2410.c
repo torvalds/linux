@@ -381,7 +381,7 @@ static int mc33xs2410_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id mc33xs2410_spi_id[] = {
-	{ "mc33xs2410" },
+	{ .name = "mc33xs2410" },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, mc33xs2410_spi_id);

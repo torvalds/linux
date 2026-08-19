@@ -165,7 +165,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(bcm2835_pwm_pm_ops, bcm2835_pwm_suspend,
 				bcm2835_pwm_resume);
 
 static const struct of_device_id bcm2835_pwm_of_match[] = {
-	{ .compatible = "brcm,bcm2835-pwm", },
+	{ .compatible = "brcm,bcm2835-pwm" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, bcm2835_pwm_of_match);

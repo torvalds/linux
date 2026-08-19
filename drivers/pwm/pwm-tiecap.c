@@ -211,9 +211,9 @@ static const struct pwm_ops ecap_pwm_ops = {
 };
 
 static const struct of_device_id ecap_of_match[] = {
-	{ .compatible	= "ti,am3352-ecap" },
-	{ .compatible	= "ti,am33xx-ecap" },
-	{},
+	{ .compatible = "ti,am3352-ecap" },
+	{ .compatible = "ti,am33xx-ecap" },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ecap_of_match);
 

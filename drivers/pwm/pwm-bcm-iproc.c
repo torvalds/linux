@@ -230,7 +230,7 @@ static int iproc_pwmc_probe(struct platform_device *pdev)
 
 static const struct of_device_id bcm_iproc_pwmc_dt[] = {
 	{ .compatible = "brcm,iproc-pwm" },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, bcm_iproc_pwmc_dt);
 

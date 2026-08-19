@@ -319,7 +319,7 @@ static int kona_pwmc_probe(struct platform_device *pdev)
 
 static const struct of_device_id bcm_kona_pwmc_dt[] = {
 	{ .compatible = "brcm,kona-pwm" },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, bcm_kona_pwmc_dt);
 

@@ -407,7 +407,7 @@ static const struct pwm_ops ehrpwm_pwm_ops = {
 static const struct of_device_id ehrpwm_of_match[] = {
 	{ .compatible = "ti,am3352-ehrpwm" },
 	{ .compatible = "ti,am33xx-ehrpwm" },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ehrpwm_of_match);
 

@@ -369,7 +369,7 @@ static const struct of_device_id sun4i_pwm_dt_ids[] = {
 		.data = &sun50i_h6_pwm_data,
 	}, {
 		/* sentinel */
-	},
+	}
 };
 MODULE_DEVICE_TABLE(of, sun4i_pwm_dt_ids);
 

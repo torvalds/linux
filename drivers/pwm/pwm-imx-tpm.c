@@ -442,7 +442,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(imx_tpm_pwm_pm,
 				pwm_imx_tpm_suspend, pwm_imx_tpm_resume);
 
 static const struct of_device_id imx_tpm_pwm_dt_ids[] = {
-	{ .compatible = "fsl,imx7ulp-pwm", },
+	{ .compatible = "fsl,imx7ulp-pwm" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, imx_tpm_pwm_dt_ids);

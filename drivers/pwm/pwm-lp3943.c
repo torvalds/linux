@@ -296,7 +296,7 @@ static int lp3943_pwm_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id lp3943_pwm_of_match[] = {
-	{ .compatible = "ti,lp3943-pwm", },
+	{ .compatible = "ti,lp3943-pwm" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, lp3943_pwm_of_match);

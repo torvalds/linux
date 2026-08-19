@@ -378,7 +378,7 @@ static const struct pwm_ops pwm_imx27_ops = {
 };
 
 static const struct of_device_id pwm_imx27_dt_ids[] = {
-	{ .compatible = "fsl,imx27-pwm", },
+	{ .compatible = "fsl,imx27-pwm" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, pwm_imx27_dt_ids);

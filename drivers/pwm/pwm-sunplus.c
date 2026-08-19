@@ -213,8 +213,8 @@ static int sunplus_pwm_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id sunplus_pwm_of_match[] = {
-	{ .compatible = "sunplus,sp7021-pwm", },
-	{}
+	{ .compatible = "sunplus,sp7021-pwm" },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, sunplus_pwm_of_match);
 

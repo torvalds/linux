@@ -276,8 +276,8 @@ static int sprd_pwm_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id sprd_pwm_of_match[] = {
-	{ .compatible = "sprd,ums512-pwm", },
-	{ },
+	{ .compatible = "sprd,ums512-pwm" },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, sprd_pwm_of_match);
 

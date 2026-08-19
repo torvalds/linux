@@ -362,7 +362,7 @@ static int twl_pwm_probe(struct platform_device *pdev)
 static const struct of_device_id twl_pwm_of_match[] = {
 	{ .compatible = "ti,twl4030-pwm" },
 	{ .compatible = "ti,twl6030-pwm" },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, twl_pwm_of_match);
 #endif

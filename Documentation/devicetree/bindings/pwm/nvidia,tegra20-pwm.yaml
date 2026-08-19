@@ -16,6 +16,7 @@ properties:
       - enum:
           - nvidia,tegra20-pwm
           - nvidia,tegra186-pwm
+          - nvidia,tegra264-pwm
 
       - items:
           - enum:

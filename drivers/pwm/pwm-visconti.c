@@ -156,7 +156,7 @@ static int visconti_pwm_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id visconti_pwm_of_match[] = {
-	{ .compatible = "toshiba,visconti-pwm", },
+	{ .compatible = "toshiba,visconti-pwm" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, visconti_pwm_of_match);

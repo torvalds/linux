@@ -441,9 +441,8 @@ static const struct of_device_id atmel_pwm_dt_ids[] = {
 	}, {
 		.compatible = "microchip,sam9x60-pwm",
 		.data = &mchp_sam9x60_pwm_data,
-	}, {
-		/* sentinel */
 	},
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, atmel_pwm_dt_ids);
 
