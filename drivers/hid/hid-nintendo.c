@@ -609,6 +609,8 @@ struct joycon_ctlr {
 	unsigned int last_input_report_msecs;
 	unsigned int last_subcmd_sent_msecs;
 	unsigned int consecutive_valid_report_deltas;
+	unsigned int subcmd_rate_exhaustions;
+	bool subcmd_rate_relaxed;
 
 	/* factory calibration data */
 	struct joycon_stick_cal left_stick_cal_x;
@@ -841,10 +843,11 @@ static void joycon_wait_for_input_report(struct joycon_ctlr *ctlr)
 #define JC_SUBCMD_TX_OFFSET_MS		4
 #define JC_SUBCMD_VALID_DELTA_REQ	3
 #define JC_SUBCMD_RATE_MAX_ATTEMPTS	25
+#define JC_SUBCMD_RATE_MAX_FAILURES	4
 #define JC_SUBCMD_RATE_LIMITER_USB_MS	20
 #define JC_SUBCMD_RATE_LIMITER_BT_MS	60
 #define JC_SUBCMD_RATE_LIMITER_MS(ctlr)	((ctlr)->hdev->bus == BUS_USB ? JC_SUBCMD_RATE_LIMITER_USB_MS : JC_SUBCMD_RATE_LIMITER_BT_MS)
-static void joycon_enforce_subcmd_rate(struct joycon_ctlr *ctlr)
+static void joycon_enforce_subcmd_rate_strict(struct joycon_ctlr *ctlr)
 {
 	unsigned int current_ms;
 	unsigned long subcmd_delta;
@@ -872,6 +875,14 @@ static void joycon_enforce_subcmd_rate(struct joycon_ctlr *ctlr)
 
 	if (attempts >= JC_SUBCMD_RATE_MAX_ATTEMPTS) {
 		hid_warn(ctlr->hdev, "%s: exceeded max attempts", __func__);
+
+		if (++ctlr->subcmd_rate_exhaustions == JC_SUBCMD_RATE_MAX_FAILURES) {
+			ctlr->subcmd_rate_relaxed = true;
+			hid_info(ctlr->hdev,
+				 "input report cadence does not fit the %d-%dms window; using the legacy subcommand throttle\n",
+				 JC_INPUT_REPORT_MIN_DELTA,
+				 JC_INPUT_REPORT_MAX_DELTA);
+		}
 		return;
 	}
 
@@ -884,6 +895,32 @@ static void joycon_enforce_subcmd_rate(struct joycon_ctlr *ctlr)
 	 * the rate of disconnections.
 	 */
 	msleep(JC_SUBCMD_TX_OFFSET_MS);
+}
+
+/* The rate limiter as it was before commit d750d1480362, without the report
+ * cadence requirement.
+ */
+static void joycon_enforce_subcmd_rate_legacy(struct joycon_ctlr *ctlr)
+{
+	static const unsigned int max_subcmd_rate_ms = 25;
+	unsigned int current_ms = jiffies_to_msecs(jiffies);
+	unsigned int delta_ms = current_ms - ctlr->last_subcmd_sent_msecs;
+
+	while (delta_ms < max_subcmd_rate_ms &&
+	       ctlr->ctlr_state == JOYCON_CTLR_STATE_READ) {
+		joycon_wait_for_input_report(ctlr);
+		current_ms = jiffies_to_msecs(jiffies);
+		delta_ms = current_ms - ctlr->last_subcmd_sent_msecs;
+	}
+	ctlr->last_subcmd_sent_msecs = current_ms;
+}
+
+static void joycon_enforce_subcmd_rate(struct joycon_ctlr *ctlr)
+{
+	if (ctlr->subcmd_rate_relaxed)
+		joycon_enforce_subcmd_rate_legacy(ctlr);
+	else
+		joycon_enforce_subcmd_rate_strict(ctlr);
 }
 
 static int joycon_hid_send_sync(struct joycon_ctlr *ctlr, u8 *data, size_t len,
@@ -1474,7 +1511,6 @@ static void joycon_parse_imu_report(struct joycon_ctlr *ctlr,
 		dropped_threshold = ctlr->imu_avg_delta_ms * 3 / 2;
 		dropped_pkts = (delta - min(delta, dropped_threshold)) /
 				ctlr->imu_avg_delta_ms;
-		ctlr->imu_timestamp_us += 1000 * ctlr->imu_avg_delta_ms;
 		if (dropped_pkts > JC_IMU_DROPPED_PKT_WARNING) {
 			hid_warn_ratelimited(ctlr->hdev,
 				 "compensating for %u dropped IMU reports\n",
@@ -2162,10 +2198,6 @@ static int joycon_input_create(struct joycon_ctlr *ctlr)
 	ctlr->input->phys = hdev->phys;
 	input_set_drvdata(ctlr->input, ctlr);
 
-	ret = input_register_device(ctlr->input);
-	if (ret)
-		return ret;
-
 	if (joycon_type_is_right_joycon(ctlr)) {
 		joycon_config_right_stick(ctlr->input);
 		joycon_config_buttons(ctlr->input, right_joycon_button_mappings);
@@ -2207,6 +2239,10 @@ static int joycon_input_create(struct joycon_ctlr *ctlr)
 
 	if (joycon_has_rumble(ctlr))
 		joycon_config_rumble(ctlr);
+
+	ret = input_register_device(ctlr->input);
+	if (ret)
+		return ret;
 
 	return 0;
 }
