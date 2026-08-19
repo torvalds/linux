@@ -46,6 +46,9 @@
  * @awb_config:		For header->type == MALI_C55_PARAM_BLOCK_AWB_CONFIG
  * @shading_config:	For header->type == MALI_C55_PARAM_MESH_SHADING_CONFIG
  * @shading_selection:	For header->type == MALI_C55_PARAM_MESH_SHADING_SELECTION
+ * @ccm:		For header->type == MALI_C55_PARAM_BLOCK_CCM
+ * @gamma:		For header->type == MALI_C55_PARAM_BLOCK_GAMMA_FR and
+ *			header->type = MALI_C55_PARAM_BLOCK_GAMMA_DS
  * @data:		Allows easy initialisation of a union variable with a
  *			pointer into a __u8 array.
  */
@@ -59,6 +62,8 @@ union mali_c55_params_block {
 	const struct mali_c55_params_awb_config *awb_config;
 	const struct mali_c55_params_mesh_shading_config *shading_config;
 	const struct mali_c55_params_mesh_shading_selection *shading_selection;
+	const struct mali_c55_params_ccm *ccm;
+	const struct mali_c55_params_gamma *gamma;
 	const __u8 *data;
 };
 
@@ -212,6 +217,7 @@ mali_c55_params_aexp_hist_weights(struct mali_c55 *mali_c55,
 
 	val = params->zone_weights[MALI_C55_MAX_ZONES - 1];
 	addr = base + MALI_C55_AEXP_HIST_ZONE_WEIGHTS_OFFSET + (4 * 56);
+	mali_c55_ctx_write(mali_c55, addr, val & MALI_C55_AEXP_HIST_ZONE_WEIGHT_MASK);
 }
 
 static void mali_c55_params_digital_gain(struct mali_c55 *mali_c55,
@@ -414,6 +420,116 @@ static void mali_c55_params_lsc_selection(struct mali_c55 *mali_c55,
 				 params->mesh_strength);
 }
 
+static void mali_c55_params_ccm(struct mali_c55 *mali_c55,
+				union mali_c55_params_block block)
+{
+	const struct mali_c55_params_ccm *params = block.ccm;
+
+	if (block.header->flags & V4L2_ISP_PARAMS_FL_BLOCK_DISABLE) {
+		mali_c55_ctx_write(mali_c55, MALI_C55_REG_CCM_ENABLE, 0);
+		return;
+	}
+
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_CCM_COEF_R_R,
+				 MALI_C55_CCM_COEF_MASK, params->coeffs[0][0]);
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_CCM_COEF_R_G,
+				 MALI_C55_CCM_COEF_MASK, params->coeffs[0][1]);
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_CCM_COEF_R_B,
+				 MALI_C55_CCM_COEF_MASK, params->coeffs[0][2]);
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_CCM_COEF_G_R,
+				 MALI_C55_CCM_COEF_MASK, params->coeffs[1][0]);
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_CCM_COEF_G_G,
+				 MALI_C55_CCM_COEF_MASK, params->coeffs[1][1]);
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_CCM_COEF_G_B,
+				 MALI_C55_CCM_COEF_MASK, params->coeffs[1][2]);
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_CCM_COEF_B_R,
+				 MALI_C55_CCM_COEF_MASK, params->coeffs[2][0]);
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_CCM_COEF_B_G,
+				 MALI_C55_CCM_COEF_MASK, params->coeffs[2][1]);
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_CCM_COEF_B_B,
+				 MALI_C55_CCM_COEF_MASK, params->coeffs[2][2]);
+
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_CCM_ANTIFOG_GAIN_R,
+				 MALI_C55_CCM_ANTIFOG_GAIN_MASK, params->gains[0]);
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_CCM_ANTIFOG_GAIN_G,
+				 MALI_C55_CCM_ANTIFOG_GAIN_MASK, params->gains[1]);
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_CCM_ANTIFOG_GAIN_B,
+				 MALI_C55_CCM_ANTIFOG_GAIN_MASK, params->gains[2]);
+
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_CCM_ANTIFOG_OFFSET_R,
+				 MALI_C55_CCM_ANTIFOG_OFFSET_MASK, params->offs[0]);
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_CCM_ANTIFOG_OFFSET_G,
+				 MALI_C55_CCM_ANTIFOG_OFFSET_MASK, params->offs[1]);
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_CCM_ANTIFOG_OFFSET_B,
+				 MALI_C55_CCM_ANTIFOG_OFFSET_MASK, params->offs[2]);
+
+	mali_c55_ctx_write(mali_c55, MALI_C55_REG_CCM_ENABLE, 1);
+}
+
+static void mali_c55_params_gamma(struct mali_c55 *mali_c55,
+				  union mali_c55_params_block block,
+				  __u32 offset, __u32 lut_base)
+{
+	const struct mali_c55_params_gamma *params = block.gamma;
+
+	if (block.header->flags & V4L2_ISP_PARAMS_FL_BLOCK_DISABLE) {
+		mali_c55_ctx_update_bits(mali_c55,
+					 MALI_C55_REG_GAMMA_RGB_ENABLE + offset,
+					 MALI_C55_GAMMA_ENABLE_MASK, 0x00);
+		return;
+	}
+
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_GAMMA_GAINS_RG + offset,
+				 MALI_C55_GAMMA_GAIN_R_MASK, params->gains[0]);
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_GAMMA_GAINS_RG + offset,
+				 MALI_C55_GAMMA_GAIN_G_MASK,
+				 MALI_C55_GAMMA_GAIN_G(params->gains[1]));
+	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_GAMMA_GAINS_B + offset,
+				 MALI_C55_GAMMA_GAIN_B_MASK, params->gains[2]);
+	mali_c55_ctx_update_bits(mali_c55,
+				 MALI_C55_REG_GAMMA_OFFSETS_RG + offset,
+				 MALI_C55_GAMMA_OFFSET_R_MASK,
+				 params->offs[0]);
+	mali_c55_ctx_update_bits(mali_c55,
+				 MALI_C55_REG_GAMMA_OFFSETS_RG + offset,
+				 MALI_C55_GAMMA_OFFSET_G_MASK,
+				 MALI_C55_GAMMA_OFFSET_G(params->offs[1]));
+	mali_c55_ctx_update_bits(mali_c55,
+				 MALI_C55_REG_GAMMA_OFFSETS_B + offset,
+				 MALI_C55_GAMMA_OFFSET_B_MASK,
+				 params->offs[2]);
+
+	for (unsigned int i = 0; i < MALI_C55_NUM_GAMMA_LUT_ELEMENTS; i++) {
+		__u32 addr = lut_base + (i * 4);
+
+		mali_c55_ctx_write(mali_c55, addr, params->lut[i]);
+	}
+
+	mali_c55_ctx_update_bits(mali_c55,
+				 MALI_C55_REG_GAMMA_RGB_ENABLE + offset,
+				 MALI_C55_GAMMA_ENABLE_MASK, 0x1);
+}
+
+static void mali_c55_params_gamma_fr(struct mali_c55 *mali_c55,
+				     union mali_c55_params_block block)
+{
+	return mali_c55_params_gamma(mali_c55, block,
+				     MALI_C55_CAP_DEV_FR_REG_OFFSET,
+				     MALI_C55_REG_FR_GAMMA_RGB_MEM);
+}
+
+static void mali_c55_params_gamma_ds(struct mali_c55 *mali_c55,
+				     union mali_c55_params_block block)
+{
+	/* We cannot apply parameters to DS if it is not fitted. */
+	if (!(mali_c55->capabilities & MALI_C55_GPS_DS_PIPE_FITTED))
+		return;
+
+	return mali_c55_params_gamma(mali_c55, block,
+				     MALI_C55_CAP_DEV_DS_REG_OFFSET,
+				     MALI_C55_REG_DS_GAMMA_RGB_MEM);
+}
+
 static const mali_c55_params_handler mali_c55_params_handlers[] = {
 	[MALI_C55_PARAM_BLOCK_SENSOR_OFFS] = &mali_c55_params_sensor_offs,
 	[MALI_C55_PARAM_BLOCK_AEXP_HIST] = &mali_c55_params_aexp_hist,
@@ -426,6 +542,9 @@ static const mali_c55_params_handler mali_c55_params_handlers[] = {
 	[MALI_C55_PARAM_BLOCK_AWB_GAINS_AEXP] = &mali_c55_params_awb_gains,
 	[MALI_C55_PARAM_MESH_SHADING_CONFIG] = &mali_c55_params_lsc_config,
 	[MALI_C55_PARAM_MESH_SHADING_SELECTION] = &mali_c55_params_lsc_selection,
+	[MALI_C55_PARAM_BLOCK_CCM] = &mali_c55_params_ccm,
+	[MALI_C55_PARAM_BLOCK_GAMMA_FR] = &mali_c55_params_gamma_fr,
+	[MALI_C55_PARAM_BLOCK_GAMMA_DS] = &mali_c55_params_gamma_ds,
 };
 
 static const struct v4l2_isp_params_block_type_info
@@ -463,6 +582,15 @@ mali_c55_params_block_types_info[] = {
 	[MALI_C55_PARAM_MESH_SHADING_SELECTION] = {
 		.size = sizeof(struct mali_c55_params_mesh_shading_selection),
 	},
+	[MALI_C55_PARAM_BLOCK_CCM] = {
+		.size = sizeof(struct mali_c55_params_ccm),
+	},
+	[MALI_C55_PARAM_BLOCK_GAMMA_FR] = {
+		.size = sizeof(struct mali_c55_params_gamma),
+	},
+	[MALI_C55_PARAM_BLOCK_GAMMA_DS] = {
+		.size = sizeof(struct mali_c55_params_gamma),
+	},
 };
 
 static_assert(ARRAY_SIZE(mali_c55_params_handlers) ==
@@ -487,7 +615,7 @@ static int mali_c55_params_g_fmt_meta_out(struct file *file, void *fh,
 {
 	static const struct v4l2_meta_format mfmt = {
 		.dataformat = V4L2_META_FMT_MALI_C55_PARAMS,
-		.buffersize = v4l2_isp_params_buffer_size(MALI_C55_PARAMS_MAX_SIZE),
+		.buffersize = v4l2_isp_buffer_size(MALI_C55_PARAMS_MAX_SIZE),
 	};
 
 	f->fmt.meta = mfmt;
@@ -540,13 +668,13 @@ mali_c55_params_queue_setup(struct vb2_queue *q, unsigned int *num_buffers,
 	if (*num_planes && *num_planes > 1)
 		return -EINVAL;
 
-	if (sizes[0] && sizes[0] < v4l2_isp_params_buffer_size(MALI_C55_PARAMS_MAX_SIZE))
+	if (sizes[0] && sizes[0] < v4l2_isp_buffer_size(MALI_C55_PARAMS_MAX_SIZE))
 		return -EINVAL;
 
 	*num_planes = 1;
 
 	if (!sizes[0])
-		sizes[0] = v4l2_isp_params_buffer_size(MALI_C55_PARAMS_MAX_SIZE);
+		sizes[0] = v4l2_isp_buffer_size(MALI_C55_PARAMS_MAX_SIZE);
 
 	return 0;
 }
@@ -556,7 +684,7 @@ static int mali_c55_params_buf_init(struct vb2_buffer *vb)
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct mali_c55_params_buf *buf = to_mali_c55_params_buf(vbuf);
 
-	buf->config = kvmalloc(v4l2_isp_params_buffer_size(MALI_C55_PARAMS_MAX_SIZE),
+	buf->config = kvmalloc(v4l2_isp_buffer_size(MALI_C55_PARAMS_MAX_SIZE),
 			       GFP_KERNEL);
 	if (!buf->config)
 		return -ENOMEM;
@@ -583,7 +711,7 @@ static int mali_c55_params_buf_prepare(struct vb2_buffer *vb)
 	int ret;
 
 	ret = v4l2_isp_params_validate_buffer_size(mali_c55->dev, vb,
-			v4l2_isp_params_buffer_size(MALI_C55_PARAMS_MAX_SIZE));
+			v4l2_isp_buffer_size(MALI_C55_PARAMS_MAX_SIZE));
 	if (ret)
 		return ret;
 
@@ -593,7 +721,7 @@ static int mali_c55_params_buf_prepare(struct vb2_buffer *vb)
 	 * changed to the buffer content whilst the driver processes it.
 	 */
 
-	memcpy(buf->config, config, v4l2_isp_params_buffer_size(MALI_C55_PARAMS_MAX_SIZE));
+	memcpy(buf->config, config, v4l2_isp_buffer_size(MALI_C55_PARAMS_MAX_SIZE));
 
 	return v4l2_isp_params_validate_buffer(mali_c55->dev, vb, buf->config,
 					       mali_c55_params_block_types_info,

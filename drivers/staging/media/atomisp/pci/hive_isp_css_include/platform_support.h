@@ -7,7 +7,7 @@
 #ifndef __PLATFORM_SUPPORT_H_INCLUDED__
 #define __PLATFORM_SUPPORT_H_INCLUDED__
 
-/**
+/*
 * @file
 * Platform specific includes and functionality.
 */

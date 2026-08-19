@@ -104,14 +104,13 @@ static int __vsp1_video_try_format(struct vsp1_video *video,
 	const struct vsp1_format_info *info;
 	unsigned int width = pix->width;
 	unsigned int height = pix->height;
-	unsigned int i;
 
 	/*
 	 * Backward compatibility: replace deprecated RGB formats by their XRGB
 	 * equivalent. This selects the format older userspace applications want
 	 * while still exposing the new format.
 	 */
-	for (i = 0; i < ARRAY_SIZE(xrgb_formats); ++i) {
+	for (unsigned int i = 0; i < ARRAY_SIZE(xrgb_formats); ++i) {
 		if (xrgb_formats[i][0] == pix->pixelformat) {
 			pix->pixelformat = xrgb_formats[i][1];
 			break;
@@ -161,7 +160,7 @@ static int __vsp1_video_try_format(struct vsp1_video *video,
 	 * the datasheet, strides not aligned to a multiple of 128 bytes result
 	 * in image corruption.
 	 */
-	for (i = 0; i < min(info->planes, 2U); ++i) {
+	for (unsigned int i = 0; i < min(info->planes, 2U); ++i) {
 		unsigned int hsub = i > 0 ? info->hsub : 1;
 		unsigned int vsub = i > 0 ? info->vsub : 1;
 		unsigned int align = 128;
@@ -209,7 +208,6 @@ vsp1_video_complete_buffer(struct vsp1_video *video)
 	struct vsp1_pipeline *pipe = video->rwpf->entity.pipe;
 	struct vsp1_vb2_buffer *next = NULL;
 	struct vsp1_vb2_buffer *done;
-	unsigned int i;
 
 	scoped_guard(spinlock_irqsave, &video->irqlock) {
 		if (list_empty(&video->irqqueue))
@@ -227,7 +225,7 @@ vsp1_video_complete_buffer(struct vsp1_video *video)
 
 	done->buf.sequence = pipe->sequence;
 	done->buf.vb2_buf.timestamp = ktime_get_ns();
-	for (i = 0; i < done->buf.vb2_buf.num_planes; ++i)
+	for (unsigned int i = 0; i < done->buf.vb2_buf.num_planes; ++i)
 		vb2_set_plane_payload(&done->buf.vb2_buf, i,
 				      vb2_plane_size(&done->buf.vb2_buf, i));
 	vb2_buffer_done(&done->buf.vb2_buf, VB2_BUF_STATE_DONE);
@@ -267,7 +265,6 @@ static void vsp1_video_pipeline_run(struct vsp1_pipeline *pipe)
 	struct vsp1_entity *entity;
 	struct vsp1_dl_body *dlb;
 	struct vsp1_dl_list *dl;
-	unsigned int partition;
 
 	dl = vsp1_dl_list_get(pipe->output->dlm);
 
@@ -289,7 +286,7 @@ static void vsp1_video_pipeline_run(struct vsp1_pipeline *pipe)
 	vsp1_video_pipeline_run_partition(pipe, dl, 0);
 
 	/* Process consecutive partitions as necessary. */
-	for (partition = 1; partition < pipe->partitions; ++partition) {
+	for (unsigned int partition = 1; partition < pipe->partitions; ++partition) {
 		struct vsp1_dl_list *dl_next;
 
 		dl_next = vsp1_dl_list_get(pipe->output->dlm);
@@ -321,7 +318,6 @@ static void vsp1_video_pipeline_frame_end(struct vsp1_pipeline *pipe,
 	struct vsp1_device *vsp1 = pipe->output->entity.vsp1;
 	enum vsp1_pipeline_state state;
 	unsigned long flags;
-	unsigned int i;
 
 	/* M2M Pipelines should never call here with an incomplete frame. */
 	WARN_ON_ONCE(!(completion & VSP1_DL_FRAME_END_COMPLETED));
@@ -329,7 +325,7 @@ static void vsp1_video_pipeline_frame_end(struct vsp1_pipeline *pipe,
 	spin_lock_irqsave(&pipe->irqlock, flags);
 
 	/* Complete buffers on all video nodes. */
-	for (i = 0; i < vsp1->info->rpf_count; ++i) {
+	for (unsigned int i = 0; i < vsp1->info->rpf_count; ++i) {
 		if (!pipe->inputs[i])
 			continue;
 
@@ -449,7 +445,6 @@ static int vsp1_video_pipeline_build(struct vsp1_pipeline *pipe,
 	struct media_graph graph;
 	struct media_entity *entity = &video->video.entity;
 	struct media_device *mdev = entity->graph_obj.mdev;
-	unsigned int i;
 	int ret;
 
 	/* Walk the graph to locate the entities and video nodes. */
@@ -517,7 +512,7 @@ static int vsp1_video_pipeline_build(struct vsp1_pipeline *pipe,
 	 * Follow links downstream for each input and make sure the graph
 	 * contains no loop and that all branches end at the output WPF.
 	 */
-	for (i = 0; i < video->vsp1->info->rpf_count; ++i) {
+	for (unsigned int i = 0; i < video->vsp1->info->rpf_count; ++i) {
 		if (!pipe->inputs[i])
 			continue;
 
@@ -606,13 +601,12 @@ vsp1_video_queue_setup(struct vb2_queue *vq,
 {
 	struct vsp1_video *video = vb2_get_drv_priv(vq);
 	const struct v4l2_pix_format_mplane *format = &video->rwpf->format;
-	unsigned int i;
 
 	if (*nplanes) {
 		if (*nplanes != format->num_planes)
 			return -EINVAL;
 
-		for (i = 0; i < *nplanes; i++)
+		for (unsigned int i = 0; i < *nplanes; i++)
 			if (sizes[i] < format->plane_fmt[i].sizeimage)
 				return -EINVAL;
 		return 0;
@@ -620,7 +614,7 @@ vsp1_video_queue_setup(struct vb2_queue *vq,
 
 	*nplanes = format->num_planes;
 
-	for (i = 0; i < format->num_planes; ++i)
+	for (unsigned int i = 0; i < format->num_planes; ++i)
 		sizes[i] = format->plane_fmt[i].sizeimage;
 
 	return 0;
@@ -682,7 +676,6 @@ static int vsp1_video_pipeline_setup_partitions(struct vsp1_pipeline *pipe)
 	const struct v4l2_mbus_framefmt *format;
 	struct vsp1_entity *entity;
 	unsigned int div_size;
-	unsigned int i;
 
 	/*
 	 * Partitions are computed on the size before rotation, use the format
@@ -716,7 +709,7 @@ static int vsp1_video_pipeline_setup_partitions(struct vsp1_pipeline *pipe)
 	if (!pipe->part_table)
 		return -ENOMEM;
 
-	for (i = 0; i < pipe->partitions; ++i)
+	for (unsigned int i = 0; i < pipe->partitions; ++i)
 		vsp1_pipeline_calculate_partition(pipe, &pipe->part_table[i],
 						  div_size, i);
 
@@ -1116,7 +1109,6 @@ static const struct media_entity_operations vsp1_video_media_ops = {
 
 void vsp1_video_suspend(struct vsp1_device *vsp1)
 {
-	unsigned int i;
 	int ret;
 
 	/*
@@ -1124,7 +1116,7 @@ void vsp1_video_suspend(struct vsp1_device *vsp1)
 	 * pipelines twice, first to set them all to the stopping state, and
 	 * then to wait for the stop to complete.
 	 */
-	for (i = 0; i < vsp1->info->wpf_count; ++i) {
+	for (unsigned int i = 0; i < vsp1->info->wpf_count; ++i) {
 		struct vsp1_rwpf *wpf = vsp1->wpf[i];
 		struct vsp1_pipeline *pipe;
 
@@ -1141,7 +1133,7 @@ void vsp1_video_suspend(struct vsp1_device *vsp1)
 		}
 	}
 
-	for (i = 0; i < vsp1->info->wpf_count; ++i) {
+	for (unsigned int i = 0; i < vsp1->info->wpf_count; ++i) {
 		struct vsp1_rwpf *wpf = vsp1->wpf[i];
 		struct vsp1_pipeline *pipe;
 
@@ -1162,10 +1154,8 @@ void vsp1_video_suspend(struct vsp1_device *vsp1)
 
 void vsp1_video_resume(struct vsp1_device *vsp1)
 {
-	unsigned int i;
-
 	/* Resume all running pipelines. */
-	for (i = 0; i < vsp1->info->wpf_count; ++i) {
+	for (unsigned int i = 0; i < vsp1->info->wpf_count; ++i) {
 		struct vsp1_rwpf *wpf = vsp1->wpf[i];
 		struct vsp1_pipeline *pipe;
 

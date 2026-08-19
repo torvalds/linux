@@ -12,7 +12,7 @@
  * Native command interface (NCI).
  *
  *****************************************************/
-/**
+/*
  * @brief Get the csi rx frontend state.
  * Get the state of the csi rx frontend regiester-set.
  *
@@ -22,7 +22,7 @@
 void csi_rx_fe_ctrl_get_state(
     const csi_rx_frontend_ID_t ID,
     csi_rx_fe_ctrl_state_t *state);
-/**
+/*
  * @brief Dump the csi rx frontend state.
  * Dump the state of the csi rx frontend regiester-set.
  *
@@ -32,7 +32,7 @@ void csi_rx_fe_ctrl_get_state(
 void csi_rx_fe_ctrl_dump_state(
     const csi_rx_frontend_ID_t ID,
     csi_rx_fe_ctrl_state_t *state);
-/**
+/*
  * @brief Get the state of the csi rx fe dlane.
  * Get the state of the register set per dlane process.
  *
@@ -44,7 +44,7 @@ void csi_rx_fe_ctrl_get_dlane_state(
     const csi_rx_frontend_ID_t ID,
     const u32 lane,
     csi_rx_fe_ctrl_lane_t *dlane_state);
-/**
+/*
  * @brief Get the csi rx backend state.
  * Get the state of the csi rx backend regiester-set.
  *
@@ -54,7 +54,7 @@ void csi_rx_fe_ctrl_get_dlane_state(
 void csi_rx_be_ctrl_get_state(
     const csi_rx_backend_ID_t ID,
     csi_rx_be_ctrl_state_t *state);
-/**
+/*
  * @brief Dump the csi rx backend state.
  * Dump the state of the csi rx backend regiester-set.
  *
@@ -71,7 +71,7 @@ void csi_rx_be_ctrl_dump_state(
  * Device level interface (DLI).
  *
  *****************************************************/
-/**
+/*
  * @brief Load the register value.
  * Load the value of the register of the csi rx fe.
  *
@@ -83,7 +83,7 @@ void csi_rx_be_ctrl_dump_state(
 hrt_data csi_rx_fe_ctrl_reg_load(
     const csi_rx_frontend_ID_t ID,
     const hrt_address reg);
-/**
+/*
  * @brief Store a value to the register.
  * Store a value to the register of the csi rx fe.
  *
@@ -96,7 +96,7 @@ void csi_rx_fe_ctrl_reg_store(
     const csi_rx_frontend_ID_t ID,
     const hrt_address reg,
     const hrt_data value);
-/**
+/*
  * @brief Load the register value.
  * Load the value of the register of the csirx be.
  *
@@ -108,7 +108,7 @@ void csi_rx_fe_ctrl_reg_store(
 hrt_data csi_rx_be_ctrl_reg_load(
     const csi_rx_backend_ID_t ID,
     const hrt_address reg);
-/**
+/*
  * @brief Store a value to the register.
  * Store a value to the register of the csi rx be.
  *

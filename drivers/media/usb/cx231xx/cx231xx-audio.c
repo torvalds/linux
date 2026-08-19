@@ -443,6 +443,11 @@ static int snd_cx231xx_pcm_close(struct snd_pcm_substream *substream)
 	int ret;
 	struct cx231xx *dev = snd_pcm_substream_chip(substream);
 
+	if (!dev) {
+		pr_err("cx231xx: called with null device\n");
+		return -ENODEV;
+	}
+
 	dev_dbg(dev->dev, "closing device\n");
 
 	/* inform hardware to stop streaming */

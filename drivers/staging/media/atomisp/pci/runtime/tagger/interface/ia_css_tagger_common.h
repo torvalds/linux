@@ -10,14 +10,14 @@
 #include <system_local.h>
 #include <type_support.h>
 
-/**
+/*
  * @brief The tagger's circular buffer.
  *
  * Should be one less than NUM_CONTINUOUS_FRAMES in sh_css_internal.h
  */
 #define MAX_CB_ELEMS_FOR_TAGGER 14
 
-/**
+/*
  * @brief Data structure for the tagger buffer element.
  */
 typedef struct {

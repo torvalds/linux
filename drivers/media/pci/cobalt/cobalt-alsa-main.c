@@ -135,7 +135,6 @@ int cobalt_alsa_init(struct cobalt_stream *s)
 err_exit_free:
 	if (sc != NULL)
 		snd_card_free(sc);
-	kfree(cobsc);
 err_exit:
 	return ret;
 }

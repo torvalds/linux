@@ -257,7 +257,6 @@ vsp1_dl_body_pool_create(struct vsp1_device *vsp1, unsigned int num_bodies,
 {
 	struct vsp1_dl_body_pool *pool;
 	size_t dlb_size;
-	unsigned int i;
 
 	pool = kzalloc_obj(*pool);
 	if (!pool)
@@ -291,7 +290,7 @@ vsp1_dl_body_pool_create(struct vsp1_device *vsp1, unsigned int num_bodies,
 	spin_lock_init(&pool->lock);
 	INIT_LIST_HEAD(&pool->free);
 
-	for (i = 0; i < num_bodies; ++i) {
+	for (unsigned int i = 0; i < num_bodies; ++i) {
 		struct vsp1_dl_body *dlb = &pool->bodies[i];
 
 		dlb->pool = pool;
@@ -426,7 +425,6 @@ vsp1_dl_cmd_pool_create(struct vsp1_device *vsp1, enum vsp1_extcmd_type type,
 			unsigned int num_cmds)
 {
 	struct vsp1_dl_cmd_pool *pool;
-	unsigned int i;
 	size_t cmd_size;
 
 	pool = kzalloc_obj(*pool);
@@ -457,7 +455,7 @@ vsp1_dl_cmd_pool_create(struct vsp1_device *vsp1, enum vsp1_extcmd_type type,
 		return NULL;
 	}
 
-	for (i = 0; i < num_cmds; ++i) {
+	for (unsigned int i = 0; i < num_cmds; ++i) {
 		struct vsp1_dl_ext_cmd *cmd = &pool->cmds[i];
 		size_t cmd_offset = i * cmd_size;
 		/* data_offset must be 16 byte aligned for DMA. */
@@ -1046,7 +1044,6 @@ unsigned int vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 /* Hardware Setup */
 void vsp1_dlm_setup(struct vsp1_device *vsp1)
 {
-	unsigned int i;
 	u32 ctrl = (256 << VI6_DL_CTRL_AR_WAIT_SHIFT)
 		 | VI6_DL_CTRL_DC2 | VI6_DL_CTRL_DC1 | VI6_DL_CTRL_DC0
 		 | VI6_DL_CTRL_DLE;
@@ -1054,7 +1051,7 @@ void vsp1_dlm_setup(struct vsp1_device *vsp1)
 		   | VI6_DL_EXT_CTRL_DLPRI | VI6_DL_EXT_CTRL_EXT;
 
 	if (vsp1_feature(vsp1, VSP1_HAS_EXT_DL)) {
-		for (i = 0; i < vsp1->info->wpf_count; ++i)
+		for (unsigned int i = 0; i < vsp1->info->wpf_count; ++i)
 			vsp1_write(vsp1, VI6_DL_EXT_CTRL(i), ext_dl);
 	}
 
@@ -1092,7 +1089,6 @@ struct vsp1_dl_manager *vsp1_dlm_create(struct vsp1_device *vsp1,
 {
 	struct vsp1_dl_manager *dlm;
 	size_t header_size;
-	unsigned int i;
 
 	dlm = devm_kzalloc(vsp1->dev, sizeof(*dlm), GFP_KERNEL);
 	if (!dlm)
@@ -1128,7 +1124,7 @@ struct vsp1_dl_manager *vsp1_dlm_create(struct vsp1_device *vsp1,
 	if (!dlm->pool)
 		return NULL;
 
-	for (i = 0; i < prealloc; ++i) {
+	for (unsigned int i = 0; i < prealloc; ++i) {
 		struct vsp1_dl_list *dl;
 
 		dl = vsp1_dl_list_alloc(dlm);

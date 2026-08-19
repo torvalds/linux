@@ -40,9 +40,8 @@ EXPORT_SYMBOL(cx18_ext_init);
 
 /* add your revision and whatnot here */
 static const struct pci_device_id cx18_pci_tbl[] = {
-	{PCI_VENDOR_ID_CX, PCI_DEVICE_ID_CX23418,
-	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0,}
+	{ PCI_VDEVICE(CX, PCI_DEVICE_ID_CX23418) },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, cx18_pci_tbl);

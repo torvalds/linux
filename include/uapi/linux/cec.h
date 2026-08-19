@@ -403,6 +403,8 @@ struct cec_log_addrs {
 #define CEC_LOG_ADDRS_FL_ALLOW_RC_PASSTHRU	(1 << 1)
 /* CDC-Only device: supports only CDC messages */
 #define CEC_LOG_ADDRS_FL_CDC_ONLY		(1 << 2)
+/* Configuration failed */
+#define CEC_LOG_ADDRS_FL_CONFIG_FAILED		(1 << 3)
 
 /**
  * struct cec_drm_connector_info - tells which drm connector is

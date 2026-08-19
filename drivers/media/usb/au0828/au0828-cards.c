@@ -124,6 +124,17 @@ struct au0828_board au0828_boards[] = {
 			},
 		},
 	},
+	[AU0828_BOARD_MONOPRICE_106456] = {
+		/*
+		 * Monoprice 106456 USB ATSC/QAM tuner (board rev TV22AD-A),
+		 * a.k.a. AnyTV AUTV002, USB ID 05e1:0400. Same AU8522 demod +
+		 * NXP TDA18271HDC2 tuner @ 0x60 as the Hauppauge Woodbury.
+		 */
+		.name	= "Monoprice 106456 USB ATSC/QAM (TV22AD-A)",
+		.tuner_type = TUNER_NXP_TDA18271,
+		.tuner_addr = 0x60,
+		.i2c_clk_divider = AU0828_I2C_CLK_250KHZ,
+	},
 	[AU0828_BOARD_HAUPPAUGE_HVR1265] = {
 		.name	= "Hauppauge HVR1265",
 		.tuner_type = TUNER_XC5000,
@@ -294,6 +305,7 @@ void au0828_gpio_setup(struct au0828_dev *dev)
 	case AU0828_BOARD_HAUPPAUGE_WOODBURY:
 	case AU0828_BOARD_HAUPPAUGE_HVR1265:
 	case AU0828_BOARD_HAUPPAUGE_IMPACTVCBE:
+	case AU0828_BOARD_MONOPRICE_106456:
 		/* GPIO's
 		 * 4 - CS5340
 		 * 5 - AU8522 Demodulator
@@ -378,6 +390,8 @@ struct usb_device_id au0828_usb_id_table[] = {
 		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q_MXL },
 	{ USB_DEVICE(0x05e1, 0x0480),
 		.driver_info = AU0828_BOARD_HAUPPAUGE_WOODBURY },
+	{ USB_DEVICE(0x05e1, 0x0400),
+		.driver_info = AU0828_BOARD_MONOPRICE_106456 },
 	{ USB_DEVICE(0x2040, 0x8200),
 		.driver_info = AU0828_BOARD_HAUPPAUGE_WOODBURY },
 	{ USB_DEVICE(0x2040, 0x7260),

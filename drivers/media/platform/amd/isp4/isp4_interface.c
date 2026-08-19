@@ -148,12 +148,9 @@ static void isp4if_gpu_mem_free(struct isp4_interface *ispif,
 				struct isp4if_gpu_mem_info **mem_info_ptr)
 {
 	struct isp4if_gpu_mem_info *mem_info = *mem_info_ptr;
-	struct device *dev = ispif->dev;
 
-	if (!mem_info) {
-		dev_err(dev, "invalid mem_info\n");
+	if (!mem_info)
 		return;
-	}
 
 	*mem_info_ptr = NULL;
 	isp_kernel_buffer_free(&mem_info->mem_handle, &mem_info->gpu_mc_addr,
@@ -201,6 +198,7 @@ static int isp4if_alloc_fw_gpumem(struct isp4_interface *ispif)
 
 error_no_memory:
 	dev_err(dev, "failed to allocate gpu memory\n");
+	isp4if_dealloc_fw_gpumem(ispif);
 	return -ENOMEM;
 }
 
@@ -375,7 +373,7 @@ static int isp4if_send_fw_cmd(struct isp4_interface *ispif, u32 cmd_id,
 			return -ENOMEM;
 
 		/* Get two references: one for the resp thread, one for us */
-		atomic_set(&ele->refcnt, 2);
+		refcount_set(&ele->refcnt, 2);
 		init_completion(&ele->cmd_done);
 	}
 
@@ -455,7 +453,7 @@ err_dequeue_ele:
 
 put_ele_ref:
 	/* Don't free the command if we didn't put the last reference */
-	if (ele && atomic_dec_return(&ele->refcnt))
+	if (ele && !refcount_dec_and_test(&ele->refcnt))
 		ele = NULL;
 
 free_ele:

@@ -2279,16 +2279,10 @@ static int __maybe_unused cx23885_resume(struct device *dev_d)
 static const struct pci_device_id cx23885_pci_tbl[] = {
 	{
 		/* CX23885 */
-		.vendor       = 0x14f1,
-		.device       = 0x8852,
-		.subvendor    = PCI_ANY_ID,
-		.subdevice    = PCI_ANY_ID,
+		PCI_DEVICE(0x14f1, 0x8852),
 	}, {
 		/* CX23887 Rev 2 */
-		.vendor       = 0x14f1,
-		.device       = 0x8880,
-		.subvendor    = PCI_ANY_ID,
-		.subdevice    = PCI_ANY_ID,
+		PCI_DEVICE(0x14f1, 0x8880),
 	}, {
 		/* --- end of list --- */
 	}

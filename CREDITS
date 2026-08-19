@@ -640,6 +640,10 @@ S: 25-29 St Giles
 S: Oxford
 S: United Kingdom
 
+N: Bingbu Cao
+E: bingbu.cao@amd.com
+D: Ipu6, ipu7 and camera sensor drivers
+
 N: Luiz Fernando N. Capitulino
 E: lcapitulino@mandriva.com.br
 E: lcapitulino@gmail.com
@@ -3333,6 +3337,9 @@ N: Richard Purdie
 E: rpurdie@rpsys.net
 D: Backlight subsystem maintainer
 S: United Kingdom
+
+N: Tian Shu Qiu
+D: Ipu6, ipu7 and camera sensor drivers
 
 N: Daniel Quinlan
 E: quinlan@pathname.com

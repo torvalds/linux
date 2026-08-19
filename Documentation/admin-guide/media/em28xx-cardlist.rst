@@ -446,3 +446,7 @@ EM28xx cards list
      - MyGica UTV3 Analog USB2.0 TV Box
      - em2860
      - eb1a:2860
+   * - 113
+     - StarTech SVID2USB232
+     - em28281
+     - eb1a:8286

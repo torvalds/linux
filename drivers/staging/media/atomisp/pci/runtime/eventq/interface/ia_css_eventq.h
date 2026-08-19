@@ -9,7 +9,7 @@
 
 #include "ia_css_queue.h"	/* queue APIs */
 
-/**
+/*
  * @brief HOST receives event from SP.
  *
  * @param[in]	eventq_handle	eventq_handle.
@@ -22,7 +22,7 @@ int ia_css_eventq_recv(
     ia_css_queue_t *eventq_handle,
     uint8_t *payload);
 
-/**
+/*
  * @brief The Host sends the event to SP.
  * The caller of this API will be blocked until the event
  * is sent.

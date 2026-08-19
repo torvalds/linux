@@ -15,7 +15,7 @@
  |             Native command interface (NCI)             |
  + -------------------------------------------------------*/
 
-/**
+/*
 * @brief Get the isys irq status.
 * Refer to "isys_irq.h" for details.
 */
@@ -34,7 +34,7 @@ void isys_irqc_state_get(
 	*/
 }
 
-/**
+/*
 * @brief Dump the isys irq status.
 * Refer to "isys_irq.h" for details.
 */

@@ -974,10 +974,10 @@ static int vdec_vp9_slice_setup_pfc(struct vdec_vp9_slice_instance *instance,
 	return 0;
 }
 
-static int vdec_vp9_slice_setup_lat_buffer(struct vdec_vp9_slice_instance *instance,
-					   struct vdec_vp9_slice_vsi *vsi,
-					   struct mtk_vcodec_mem *bs,
-					   struct vdec_lat_buf *lat_buf)
+static void vdec_vp9_slice_setup_lat_buffer(struct vdec_vp9_slice_instance *instance,
+					    struct vdec_vp9_slice_vsi *vsi,
+					    struct mtk_vcodec_mem *bs,
+					    struct vdec_lat_buf *lat_buf)
 {
 	int i;
 
@@ -1011,12 +1011,10 @@ static int vdec_vp9_slice_setup_lat_buffer(struct vdec_vp9_slice_instance *insta
 
 	vsi->row_info.buf = 0;
 	vsi->row_info.size = 0;
-
-	return 0;
 }
 
-static int vdec_vp9_slice_setup_prob_buffer(struct vdec_vp9_slice_instance *instance,
-					    struct vdec_vp9_slice_vsi *vsi)
+static void vdec_vp9_slice_setup_prob_buffer(struct vdec_vp9_slice_instance *instance,
+					     struct vdec_vp9_slice_vsi *vsi)
 {
 	struct vdec_vp9_slice_frame_ctx *frame_ctx;
 	struct vdec_vp9_slice_uncompressed_header *uh;
@@ -1032,8 +1030,6 @@ static int vdec_vp9_slice_setup_prob_buffer(struct vdec_vp9_slice_instance *inst
 	else
 		frame_ctx = vdec_vp9_slice_default_frame_ctx;
 	memcpy(instance->prob.va, frame_ctx, sizeof(*frame_ctx));
-
-	return 0;
 }
 
 static void vdec_vp9_slice_setup_seg_buffer(struct vdec_vp9_slice_instance *instance,
@@ -1166,17 +1162,13 @@ static int vdec_vp9_slice_setup_lat(struct vdec_vp9_slice_instance *instance,
 	if (ret)
 		goto err;
 
-	ret = vdec_vp9_slice_setup_lat_buffer(instance, vsi, bs, lat_buf);
-	if (ret)
-		goto err;
+	vdec_vp9_slice_setup_lat_buffer(instance, vsi, bs, lat_buf);
 
 	vdec_vp9_slice_setup_seg_buffer(instance, vsi, &instance->seg[0]);
 
 	/* setup prob/tile buffers for LAT */
 
-	ret = vdec_vp9_slice_setup_prob_buffer(instance, vsi);
-	if (ret)
-		goto err;
+	vdec_vp9_slice_setup_prob_buffer(instance, vsi);
 
 	ret = vdec_vp9_slice_setup_tile_buffer(instance, vsi, bs);
 	if (ret)
@@ -1808,10 +1800,7 @@ static int vdec_vp9_slice_setup_single(struct vdec_vp9_slice_instance *instance,
 
 	vdec_vp9_slice_setup_single_buffer(instance, pfc, vsi, bs, fb);
 	vdec_vp9_slice_setup_seg_buffer(instance, vsi, &instance->seg[0]);
-
-	ret = vdec_vp9_slice_setup_prob_buffer(instance, vsi);
-	if (ret)
-		goto err;
+	vdec_vp9_slice_setup_prob_buffer(instance, vsi);
 
 	ret = vdec_vp9_slice_setup_tile_buffer(instance, vsi, bs);
 	if (ret)

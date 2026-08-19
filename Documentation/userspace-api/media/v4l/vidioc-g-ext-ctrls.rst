@@ -72,12 +72,6 @@ partial array, all elements have to be set or retrieved. The total size
 is calculated as ``elems`` * ``elem_size``. These values can be obtained
 by calling :ref:`VIDIOC_QUERY_EXT_CTRL <VIDIOC_QUERYCTRL>`.
 
-To change the value of a set of controls applications initialize the
-``id``, ``size``, ``reserved2`` and ``value/value64/string/ptr`` fields
-of each struct :c:type:`v4l2_ext_control` and call
-the :ref:`VIDIOC_S_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` ioctl. The controls will only be set if *all*
-control values are valid.
-
 To check if a set of controls have correct values applications
 initialize the ``id``, ``size``, ``reserved2`` and
 ``value/value64/string/ptr`` fields of each struct
@@ -85,6 +79,15 @@ initialize the ``id``, ``size``, ``reserved2`` and
 :ref:`VIDIOC_TRY_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` ioctl. It is up to the driver whether wrong
 values are automatically adjusted to a valid value or if an error is
 returned.
+
+To change the value of a set of controls applications initialize the
+``id``, ``size``, ``reserved2`` and ``value/value64/string/ptr`` fields
+of each struct :c:type:`v4l2_ext_control` and call
+the :ref:`VIDIOC_S_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` ioctl.
+:ref:`VIDIOC_S_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` will implicitly call
+:ref:`VIDIOC_TRY_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` first and return an
+error if that fails. So the controls will only be set if *all*
+control values are valid.
 
 When the ``id`` or ``which`` is invalid drivers return an ``EINVAL`` error
 code. When the value is out of bounds drivers can choose to take the

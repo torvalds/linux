@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0
+config VIDEO_DCT_RPPX1
+	tristate
+	depends on V4L_PLATFORM_DRIVERS
+	select V4L2_ISP
+	help
+	  Support library for Dreamchip HDR RPP X1 High Dynamic Range Real-time
+	  Pixel Processor (RPP). The library can be used by other drivers who
+	  utilises the RPP as part of an ISP implementation.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rppx1.

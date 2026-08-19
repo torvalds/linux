@@ -13,7 +13,7 @@
 #include "ia_css_err.h"
 #define BUFQ_EVENT_SIZE 4
 
-/**
+/*
  * @brief Query the internal frame ID.
  *
  * @param[in]	key	The query key.
@@ -29,7 +29,7 @@ bool ia_css_query_internal_queue_id(
     enum sh_css_queue_id *val
 );
 
-/**
+/*
  * @brief  Map buffer type to a internal queue id.
  *
  * @param[in] thread id		Thread in which the buffer type has to be mapped or unmapped
@@ -43,13 +43,13 @@ void ia_css_queue_map(
     bool map
 );
 
-/**
+/*
  * @brief  Initialize buffer type to a queue id mapping
  * @return none
  */
 void ia_css_queue_map_init(void);
 
-/**
+/*
  * @brief initializes bufq module
  * It create instances of
  * -host to SP buffer queue  which is a list with predefined size,
@@ -62,7 +62,7 @@ void ia_css_queue_map_init(void);
  */
 void ia_css_bufq_init(void);
 
-/**
+/*
 * @brief Enqueues an item into host to SP buffer queue
  *
  * @param thread_index[in]	Thread in which the item to be enqueued
@@ -77,7 +77,7 @@ int ia_css_bufq_enqueue_buffer(
     int queue_id,
     uint32_t item);
 
-/**
+/*
 * @brief Dequeues an item from SP to host buffer queue.
  *
  * @param queue_id[in]		Specifies  the index of the queue in the list where
@@ -90,7 +90,7 @@ int ia_css_bufq_dequeue_buffer(
     int queue_id,
     uint32_t *item);
 
-/**
+/*
 * @brief  Enqueue an event item into host to SP communication event queue.
  *
  * @param[in]	evt_id		      The event ID.
@@ -107,7 +107,7 @@ int ia_css_bufq_enqueue_psys_event(
     uint8_t evt_payload_2
 );
 
-/**
+/*
  * @brief   Dequeue an item from  SP to host communication event queue.
  *
  * @param item	Object to be dequeued into this item.
@@ -119,7 +119,7 @@ int ia_css_bufq_dequeue_psys_event(
 
 );
 
-/**
+/*
  * @brief  Enqueue an event item into host to SP EOF event queue.
  *
  * @param[in]	evt_id		      The event ID.
@@ -129,7 +129,7 @@ int ia_css_bufq_dequeue_psys_event(
 int ia_css_bufq_enqueue_isys_event(
     uint8_t evt_id);
 
-/**
+/*
 * @brief   Dequeue an item from  SP to host communication EOF event queue.
 
  *
@@ -140,7 +140,7 @@ int ia_css_bufq_enqueue_isys_event(
 int ia_css_bufq_dequeue_isys_event(
     u8 item[BUFQ_EVENT_SIZE]);
 
-/**
+/*
 * @brief   Enqueue a tagger command item into tagger command queue..
  *
  * @param item	Object to be enqueue.
@@ -150,7 +150,7 @@ int ia_css_bufq_dequeue_isys_event(
 int ia_css_bufq_enqueue_tag_cmd(
     uint32_t item);
 
-/**
+/*
 * @brief  Uninitializes bufq module.
  *
  * @return	0 or error code upon error.
@@ -158,7 +158,7 @@ int ia_css_bufq_enqueue_tag_cmd(
 */
 int ia_css_bufq_deinit(void);
 
-/**
+/*
 * @brief  Dump queue states
  *
  * @return	None

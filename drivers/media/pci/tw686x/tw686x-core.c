@@ -416,25 +416,24 @@ static void tw686x_remove(struct pci_dev *pci_dev)
 /* driver_data is number of A/V channels */
 static const struct pci_device_id tw686x_pci_tbl[] = {
 	{
-		PCI_DEVICE(PCI_VENDOR_ID_TECHWELL, 0x6864),
-		.driver_data = 4
-	},
-	{
-		PCI_DEVICE(PCI_VENDOR_ID_TECHWELL, 0x6865), /* not tested */
-		.driver_data = 4 | TYPE_SECOND_GEN
+		PCI_VDEVICE(TECHWELL, 0x6864),
+		.driver_data = 4,
+	}, {
+		PCI_VDEVICE(TECHWELL, 0x6865), /* not tested */
+		.driver_data = 4 | TYPE_SECOND_GEN,
 	},
 	/*
 	 * TW6868 supports 8 A/V channels with an external TW2865 chip;
 	 * not supported by the driver.
 	 */
 	{
-		PCI_DEVICE(PCI_VENDOR_ID_TECHWELL, 0x6868), /* not tested */
-		.driver_data = 4
+		PCI_VDEVICE(TECHWELL, 0x6868), /* not tested */
+		.driver_data = 4,
+	}, {
+		PCI_VDEVICE(TECHWELL, 0x6869),
+		.driver_data = 8 | TYPE_SECOND_GEN
 	},
-	{
-		PCI_DEVICE(PCI_VENDOR_ID_TECHWELL, 0x6869),
-		.driver_data = 8 | TYPE_SECOND_GEN},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, tw686x_pci_tbl);
 

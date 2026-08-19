@@ -7,7 +7,7 @@
 #ifndef __IA_CSS_CONVERSION_TYPES_H
 #define __IA_CSS_CONVERSION_TYPES_H
 
-/**
+/*
  *  Conversion Kernel parameters.
  *  Deinterleave bayer quad into isys format
  *

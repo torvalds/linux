@@ -263,7 +263,7 @@ static int stk1160_scan_usb(struct usb_interface *intf, struct usb_device *udev,
 static int stk1160_probe(struct usb_interface *interface,
 		const struct usb_device_id *id)
 {
-	int rc = 0;
+	int rc;
 
 	unsigned int *alt_max_pkt_size;	/* array of wMaxPacketSize */
 	struct usb_device *udev;
@@ -290,15 +290,13 @@ static int stk1160_probe(struct usb_interface *interface,
 	 * Also, check if device speed is fast enough.
 	 */
 	rc = stk1160_scan_usb(interface, udev, alt_max_pkt_size);
-	if (rc < 0) {
-		kfree(alt_max_pkt_size);
-		return rc;
-	}
+	if (rc < 0)
+		goto free_array;
 
 	dev = kzalloc_obj(struct stk1160);
 	if (dev == NULL) {
-		kfree(alt_max_pkt_size);
-		return -ENOMEM;
+		rc = -ENOMEM;
+		goto free_array;
 	}
 
 	dev->alt_max_pkt_size = alt_max_pkt_size;
@@ -379,8 +377,9 @@ unreg_v4l2:
 free_ctrl:
 	v4l2_ctrl_handler_free(&dev->ctrl_handler);
 free_err:
-	kfree(alt_max_pkt_size);
 	kfree(dev);
+free_array:
+	kfree(alt_max_pkt_size);
 
 	return rc;
 }

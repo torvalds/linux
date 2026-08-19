@@ -1241,41 +1241,42 @@ exit:
 	return ret;
 }
 
+static const struct regmap_config regmap_config = {
+	.val_bits = 8,
+	.reg_bits = 16,
+	.disable_locking = true,
+};
+
 static int ov2740_register_nvmem(struct i2c_client *client,
 				 struct ov2740 *ov2740)
 {
 	struct nvm_data *nvm;
-	struct regmap_config regmap_config = { };
-	struct nvmem_config nvmem_config = { };
 	struct regmap *regmap;
 	struct device *dev = ov2740->dev;
+	struct nvmem_config nvmem_config = {
+		.name = dev_name(dev),
+		.dev = dev,
+		.read_only = true,
+		.root_only = true,
+		.owner = THIS_MODULE,
+		.compat = true,
+		.base_dev = dev,
+		.reg_read = ov2740_nvmem_read,
+		.stride = 1,
+		.word_size = 1,
+		.size = CUSTOMER_USE_OTP_SIZE,
+	};
 
 	nvm = devm_kzalloc(dev, sizeof(*nvm), GFP_KERNEL);
 	if (!nvm)
 		return -ENOMEM;
 
-	regmap_config.val_bits = 8;
-	regmap_config.reg_bits = 16;
-	regmap_config.disable_locking = true;
 	regmap = devm_regmap_init_i2c(client, &regmap_config);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
 	nvm->regmap = regmap;
-
-	nvmem_config.name = dev_name(dev);
-	nvmem_config.dev = dev;
-	nvmem_config.read_only = true;
-	nvmem_config.root_only = true;
-	nvmem_config.owner = THIS_MODULE;
-	nvmem_config.compat = true;
-	nvmem_config.base_dev = dev;
-	nvmem_config.reg_read = ov2740_nvmem_read;
-	nvmem_config.reg_write = NULL;
 	nvmem_config.priv = nvm;
-	nvmem_config.stride = 1;
-	nvmem_config.word_size = 1;
-	nvmem_config.size = CUSTOMER_USE_OTP_SIZE;
 
 	nvm->nvmem = devm_nvmem_register(dev, &nvmem_config);
 	if (IS_ERR(nvm->nvmem))

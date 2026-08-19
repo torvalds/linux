@@ -694,9 +694,9 @@ static void mgb4_remove(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id mgb4_pci_ids[] = {
-	{ PCI_DEVICE(DIGITEQ_VID, T100_DID), },
-	{ PCI_DEVICE(DIGITEQ_VID, T200_DID), },
-	{ 0, }
+	{ PCI_DEVICE(DIGITEQ_VID, T100_DID) },
+	{ PCI_DEVICE(DIGITEQ_VID, T200_DID) },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, mgb4_pci_ids);
 

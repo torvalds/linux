@@ -122,10 +122,10 @@ properties:
       - rc-proteus-2309
       - rc-purpletv
       - rc-pv951
-      - rc-rc5-tv
       - rc-rc6-mce
       - rc-real-audio-220-32-keys
       - rc-reddo
+      - rc-siemens-gigaset-rc20
       - rc-snapstream-firefly
       - rc-streamzap
       - rc-su3000
@@ -147,11 +147,11 @@ properties:
       - rc-tt-1500
       - rc-twinhan-dtv-cab-ci
       - rc-twinhan1027
+      - rc-vega-s9x
       - rc-videomate-k100
       - rc-videomate-s350
       - rc-videomate-tv-pvr
       - rc-videostrong-kii-pro
-      - rc-vega-s9x
       - rc-wetek-hub
       - rc-wetek-play2
       - rc-winfast

@@ -681,8 +681,8 @@ static int snd_cx25821_pcm(struct cx25821_audio_dev *chip, int device,
  */
 
 static const struct pci_device_id __maybe_unused cx25821_audio_pci_tbl[] = {
-	{0x14f1, 0x0920, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0,}
+	{ PCI_DEVICE(0x14f1, 0x0920) },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, cx25821_audio_pci_tbl);

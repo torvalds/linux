@@ -12,7 +12,7 @@
  * Native command interface (NCI).
  *
  *****************************************************/
-/**
+/*
  * @brief Get the stream2mmio-controller state.
  * Get the state of the stream2mmio-controller regiester-set.
  *
@@ -23,7 +23,7 @@ STORAGE_CLASS_STREAM2MMIO_H void stream2mmio_get_state(
     const stream2mmio_ID_t ID,
     stream2mmio_state_t *state);
 
-/**
+/*
  * @brief Get the state of the stream2mmio-controller sidess.
  * Get the state of the register set per buf-controller sidess.
  *
@@ -42,7 +42,7 @@ STORAGE_CLASS_STREAM2MMIO_H void stream2mmio_get_sid_state(
  * Device level interface (DLI).
  *
  *****************************************************/
-/**
+/*
  * @brief Load the register value.
  * Load the value of the register of the stream2mmio-controller.
  *
@@ -57,7 +57,7 @@ STORAGE_CLASS_STREAM2MMIO_H hrt_data stream2mmio_reg_load(
     const stream2mmio_sid_ID_t sid_id,
     const uint32_t reg_idx);
 
-/**
+/*
  * @brief Dump the SID processor state.
  * Dump the state of the sid regiester-set.
  *
@@ -65,7 +65,7 @@ STORAGE_CLASS_STREAM2MMIO_H hrt_data stream2mmio_reg_load(
  */
 STORAGE_CLASS_STREAM2MMIO_H void stream2mmio_print_sid_state(
     stream2mmio_sid_state_t	*state);
-/**
+/*
  * @brief Dump the stream2mmio state.
  * Dump the state of the ibuf-controller regiester-set.
  *
@@ -75,7 +75,7 @@ STORAGE_CLASS_STREAM2MMIO_H void stream2mmio_print_sid_state(
 STORAGE_CLASS_STREAM2MMIO_H void stream2mmio_dump_state(
     const stream2mmio_ID_t ID,
     stream2mmio_state_t *state);
-/**
+/*
  * @brief Store a value to the register.
  * Store a value to the registe of the stream2mmio-controller.
  *
