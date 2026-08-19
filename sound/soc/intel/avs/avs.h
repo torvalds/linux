@@ -336,14 +336,13 @@ int avs_icl_load_basefw(struct avs_dev *adev, struct firmware *fw);
 /* Soc component members */
 
 struct avs_soc_component {
-	struct snd_soc_component base;
+	struct snd_soc_component *base;
 	struct avs_tplg *tplg;
 
 	struct list_head node;
 };
 
-#define to_avs_soc_component(comp) \
-	container_of(comp, struct avs_soc_component, base)
+#define to_avs_soc_component(comp) snd_soc_component_to_priv(comp)
 
 extern const struct snd_soc_dai_ops avs_dai_fe_ops;
 

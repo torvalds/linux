@@ -101,6 +101,7 @@ struct dummy_timer_ops {
 	int (*prepare)(struct snd_pcm_substream *);
 	int (*start)(struct snd_pcm_substream *);
 	int (*stop)(struct snd_pcm_substream *);
+	int (*sync_stop)(struct snd_pcm_substream *);
 	snd_pcm_uframes_t (*pointer)(struct snd_pcm_substream *);
 };
 
@@ -286,6 +287,14 @@ static int dummy_systimer_stop(struct snd_pcm_substream *substream)
 	return 0;
 }
 
+static int dummy_systimer_sync_stop(struct snd_pcm_substream *substream)
+{
+	struct dummy_systimer_pcm *dpcm = substream->runtime->private_data;
+
+	timer_delete_sync(&dpcm->timer);
+	return 0;
+}
+
 static int dummy_systimer_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -342,7 +351,10 @@ static int dummy_systimer_create(struct snd_pcm_substream *substream)
 
 static void dummy_systimer_free(struct snd_pcm_substream *substream)
 {
-	kfree(substream->runtime->private_data);
+	struct dummy_systimer_pcm *dpcm = substream->runtime->private_data;
+
+	timer_shutdown_sync(&dpcm->timer);
+	kfree(dpcm);
 }
 
 static const struct dummy_timer_ops dummy_systimer_ops = {
@@ -351,6 +363,7 @@ static const struct dummy_timer_ops dummy_systimer_ops = {
 	.prepare =	dummy_systimer_prepare,
 	.start =	dummy_systimer_start,
 	.stop =		dummy_systimer_stop,
+	.sync_stop =	dummy_systimer_sync_stop,
 	.pointer =	dummy_systimer_pointer,
 };
 
@@ -408,9 +421,12 @@ static int dummy_hrtimer_stop(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static inline void dummy_hrtimer_sync(struct dummy_hrtimer_pcm *dpcm)
+static int dummy_hrtimer_sync_stop(struct snd_pcm_substream *substream)
 {
+	struct dummy_hrtimer_pcm *dpcm = substream->runtime->private_data;
+
 	hrtimer_cancel(&dpcm->timer);
+	return 0;
 }
 
 static snd_pcm_uframes_t
@@ -436,7 +452,6 @@ static int dummy_hrtimer_prepare(struct snd_pcm_substream *substream)
 	long sec;
 	unsigned long nsecs;
 
-	dummy_hrtimer_sync(dpcm);
 	period = runtime->period_size;
 	rate = runtime->rate;
 	sec = period / rate;
@@ -464,7 +479,7 @@ static int dummy_hrtimer_create(struct snd_pcm_substream *substream)
 static void dummy_hrtimer_free(struct snd_pcm_substream *substream)
 {
 	struct dummy_hrtimer_pcm *dpcm = substream->runtime->private_data;
-	dummy_hrtimer_sync(dpcm);
+
 	kfree(dpcm);
 }
 
@@ -474,6 +489,7 @@ static const struct dummy_timer_ops dummy_hrtimer_ops = {
 	.prepare =	dummy_hrtimer_prepare,
 	.start =	dummy_hrtimer_start,
 	.stop =		dummy_hrtimer_stop,
+	.sync_stop =	dummy_hrtimer_sync_stop,
 	.pointer =	dummy_hrtimer_pointer,
 };
 
@@ -494,6 +510,13 @@ static int dummy_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		return get_dummy_ops(substream)->stop(substream);
 	}
 	return -EINVAL;
+}
+
+static int dummy_pcm_sync_stop(struct snd_pcm_substream *substream)
+{
+	if (get_dummy_ops(substream)->sync_stop)
+		return get_dummy_ops(substream)->sync_stop(substream);
+	return 0;
 }
 
 static int dummy_pcm_prepare(struct snd_pcm_substream *substream)
@@ -647,6 +670,7 @@ static const struct snd_pcm_ops dummy_pcm_ops = {
 	.hw_params =	dummy_pcm_hw_params,
 	.prepare =	dummy_pcm_prepare,
 	.trigger =	dummy_pcm_trigger,
+	.sync_stop =	dummy_pcm_sync_stop,
 	.pointer =	dummy_pcm_pointer,
 };
 
@@ -656,6 +680,7 @@ static const struct snd_pcm_ops dummy_pcm_ops_no_buf = {
 	.hw_params =	dummy_pcm_hw_params,
 	.prepare =	dummy_pcm_prepare,
 	.trigger =	dummy_pcm_trigger,
+	.sync_stop =	dummy_pcm_sync_stop,
 	.pointer =	dummy_pcm_pointer,
 	.copy =		dummy_pcm_copy,
 	.fill_silence =	dummy_pcm_silence,
@@ -1017,6 +1042,12 @@ static int snd_dummy_probe(struct platform_device *devptr)
 	const struct dummy_model *m = NULL, **mdl;
 	int idx, err;
 	int dev = devptr->id;
+
+	if (dev < 0 || dev >= SNDRV_CARDS) {
+		dev_warn(&devptr->dev,
+			 "Invalid card index %d, using default 0\n", dev);
+		dev = 0;
+	}
 
 	err = snd_devm_card_new(&devptr->dev, index[dev], id[dev], THIS_MODULE,
 				sizeof(struct snd_dummy), &card);

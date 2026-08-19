@@ -56,7 +56,4 @@ void snd_usb_init_quirk_flags_table(struct snd_usb_audio *chip);
 void snd_usb_init_quirk_flags_parse_string(struct snd_usb_audio *chip,
 					   const char *str);
 
-const char *snd_usb_quirk_flag_find_name(unsigned long flag);
-u32 snd_usb_quirk_flags_from_name(const char *name);
-
 #endif /* __USBAUDIO_QUIRKS_H */

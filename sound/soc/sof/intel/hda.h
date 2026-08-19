@@ -523,6 +523,29 @@ struct sof_intel_hda_dev {
 	/* the maximum number of streams (playback + capture) supported */
 	u32 stream_max;
 
+	/*
+	 * ACE2+ link DMA stream allocation constraints (stream index =
+	 * stream_tag - 1, shared between input and output directions). All
+	 * masks are cleared by hda_dsp_ctrl_init_chip() on controller reset
+	 * (CRST#).
+	 *
+	 * - Concurrent (cross-direction) constraint: a SoundWire stream and
+	 *   a HDA/iDisp/UAOL stream cannot share a physical stream index
+	 *   across directions, the resulting LLP/timestamp values are wrong.
+	 *   link_dma_active_sdw_mask and link_dma_active_multi_mask
+	 *   (indexed by SNDRV_PCM_STREAM_*) track currently allocated
+	 *   streams per direction in each of the conflicting groups; SSP
+	 *   and DMIC do not participate. Bits are cleared on stream release.
+	 *
+	 * - Sequential (playback only) constraint: once a HDA/iDisp link
+	 *   has used a playback stream index, that index cannot drive a
+	 *   non-HDA/iDisp link in the same direction until the next CRST#.
+	 *   link_dma_out_hda_used_mask records this.
+	 */
+	u32 link_dma_active_sdw_mask[SNDRV_PCM_STREAM_LAST + 1];
+	u32 link_dma_active_multi_mask[SNDRV_PCM_STREAM_LAST + 1];
+	u32 link_dma_out_hda_used_mask;
+
 	/* PM related */
 	bool l1_disabled;/* is DMI link L1 disabled? */
 
@@ -739,7 +762,7 @@ struct hdac_ext_stream *hda_cl_prepare(struct device *dev, unsigned int format,
 int hda_cl_trigger(struct device *dev, struct hdac_ext_stream *hext_stream, int cmd);
 
 int hda_cl_cleanup(struct device *dev, struct snd_dma_buffer *dmab,
-		   bool persistent_buffer, struct hdac_ext_stream *hext_stream);
+		   bool persistent_buffer, struct hdac_ext_stream *hext_stream, bool is_iccmax);
 int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag, bool imr_boot);
 #define HDA_CL_STREAM_FORMAT 0x40
 
@@ -911,7 +934,8 @@ hda_data_stream_prepare(struct device *dev, unsigned int format, unsigned int si
 			bool is_iccmax, bool pair);
 
 int hda_data_stream_cleanup(struct device *dev, struct snd_dma_buffer *dmab,
-			    bool persistent_buffer, struct hdac_ext_stream *hext_stream, bool pair);
+			    bool persistent_buffer, struct hdac_ext_stream *hext_stream,
+			    bool is_iccmax, bool pair);
 
 /* common dai driver */
 extern struct snd_soc_dai_driver skl_dai[];
@@ -1030,7 +1054,8 @@ struct hda_dai_widget_dma_ops {
 						   struct snd_pcm_substream *substream);
 	struct hdac_ext_stream *(*assign_hext_stream)(struct snd_sof_dev *sdev,
 						      struct snd_soc_dai *cpu_dai,
-						      struct snd_pcm_substream *substream);
+						      struct snd_pcm_substream *substream,
+						      struct hdac_ext_link *hlink);
 	void (*release_hext_stream)(struct snd_sof_dev *sdev, struct snd_soc_dai *cpu_dai,
 				    struct snd_pcm_substream *substream);
 	void (*setup_hext_stream)(struct snd_sof_dev *sdev, struct hdac_ext_stream *hext_stream,

@@ -44,7 +44,7 @@ struct snd_usb_audio {
 	atomic_t active;
 	atomic_t shutdown;
 	struct snd_refcount usage_count;
-	unsigned int quirk_flags;
+	u64 quirk_flags;
 	unsigned int need_delayed_register:1; /* warn for delayed registration */
 	int num_interfaces;
 	int last_iface;
@@ -254,6 +254,16 @@ extern bool snd_usb_skip_validation;
  *  check being non-fatal and only disabling GET_CUR instead of the whole mixer.
  *  The current volume will then be provided by the internal cache that stores
  *  the last set volume
+ * QUIRK_FLAG_PLAYBACK_URB_FIXUP
+ *  Set URB_ISO_ASAP flag for isochronous URBs and force nurbs to MAX_URBS.
+ *  This is needed for devices that exhibit boot-time audio stuttering due
+ *  to insufficient buffer depth combined with xHCI scheduling variability.
+ *  The larger buffer (MAX_URBS = 12, ~64ms) absorbs system scheduling
+ *  jitter during boot, while URB_ISO_ASAP ensures consistent xHCI scheduling.
+ * QUIRK_FLAG_ALWAYS_SET_RATE:
+ *  Issue SET_CUR for the sample rate even when the clock already reports the
+ *  requested rate.  A device advertising a single rate is otherwise never sent
+ *  the request at all, and some require it before streaming will start.
  */
 
 enum {
@@ -288,10 +298,12 @@ enum {
 	QUIRK_TYPE_MIXER_CAPTURE_LINEAR_VOL	= 28,
 	QUIRK_TYPE_IFB_SILENCE_ON_EMPTY		= 29,
 	QUIRK_TYPE_MIXER_GET_CUR_BROKEN		= 30,
+	QUIRK_TYPE_PLAYBACK_URB_FIXUP		= 31,
+	QUIRK_TYPE_ALWAYS_SET_RATE		= 32,
 /* Please also edit snd_usb_audio_quirk_flag_names */
 };
 
-#define QUIRK_FLAG(x)	BIT_U32(QUIRK_TYPE_ ## x)
+#define QUIRK_FLAG(x)	BIT_U64(QUIRK_TYPE_ ## x)
 
 #define QUIRK_FLAG_GET_SAMPLE_RATE		QUIRK_FLAG(GET_SAMPLE_RATE)
 #define QUIRK_FLAG_SHARE_MEDIA_DEVICE		QUIRK_FLAG(SHARE_MEDIA_DEVICE)
@@ -324,5 +336,7 @@ enum {
 #define QUIRK_FLAG_MIXER_CAPTURE_LINEAR_VOL	QUIRK_FLAG(MIXER_CAPTURE_LINEAR_VOL)
 #define QUIRK_FLAG_IFB_SILENCE_ON_EMPTY		QUIRK_FLAG(IFB_SILENCE_ON_EMPTY)
 #define QUIRK_FLAG_MIXER_GET_CUR_BROKEN		QUIRK_FLAG(MIXER_GET_CUR_BROKEN)
+#define QUIRK_FLAG_PLAYBACK_URB_FIXUP		QUIRK_FLAG(PLAYBACK_URB_FIXUP)
+#define QUIRK_FLAG_ALWAYS_SET_RATE		QUIRK_FLAG(ALWAYS_SET_RATE)
 
 #endif /* __USBAUDIO_H */

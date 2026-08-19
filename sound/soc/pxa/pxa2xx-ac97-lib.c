@@ -316,10 +316,8 @@ int pxa2xx_ac97_hw_probe(struct platform_device *dev)
 	int irq;
 
 	ac97_reg_base = devm_platform_ioremap_resource(dev, 0);
-	if (IS_ERR(ac97_reg_base)) {
-		dev_err(&dev->dev, "Missing MMIO resource\n");
+	if (IS_ERR(ac97_reg_base))
 		return PTR_ERR(ac97_reg_base);
-	}
 
 	if (cpu_is_pxa27x()) {
 		/* Assert reset using GPIOD_OUT_HIGH, because reset is GPIO_ACTIVE_LOW */

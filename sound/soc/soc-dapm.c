@@ -1203,6 +1203,8 @@ static int dapm_create_or_share_kcontrol(struct snd_soc_dapm_widget *w,
 			case snd_soc_dapm_pga:
 			case snd_soc_dapm_effect:
 			case snd_soc_dapm_out_drv:
+			case snd_soc_dapm_encoder:
+			case snd_soc_dapm_decoder:
 				wname_in_long_name = true;
 				kcname_in_long_name = true;
 				break;
@@ -2785,6 +2787,8 @@ static ssize_t dapm_widget_show_component(struct snd_soc_component *component,
 		case snd_soc_dapm_pga:
 		case snd_soc_dapm_effect:
 		case snd_soc_dapm_out_drv:
+		case snd_soc_dapm_encoder:
+		case snd_soc_dapm_decoder:
 		case snd_soc_dapm_mixer:
 		case snd_soc_dapm_mixer_named_ctl:
 		case snd_soc_dapm_supply:
@@ -3367,6 +3371,8 @@ int snd_soc_dapm_new_widgets(struct snd_soc_card *card)
 		case snd_soc_dapm_pga:
 		case snd_soc_dapm_effect:
 		case snd_soc_dapm_out_drv:
+		case snd_soc_dapm_encoder:
+		case snd_soc_dapm_decoder:
 			dapm_new_pga(w);
 			break;
 		case snd_soc_dapm_dai_link:

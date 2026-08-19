@@ -2,23 +2,130 @@
 //
 // Loongson ASoC Audio Machine driver
 //
-// Copyright (C) 2023 Loongson Technology Corporation Limited
+// Copyright (C) 2023-2026 Loongson Technology Corporation Limited
 // Author: Yingkun Meng <mengyingkun@loongson.cn>
+//         Binbin Zhou <zhoubinbin@loongson.cn>
 //
 
+#include <linux/acpi.h>
+#include <linux/gpio/consumer.h>
 #include <linux/module.h>
+#include <linux/pci.h>
+#include <sound/jack.h>
+#include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/soc-acpi.h>
-#include <linux/acpi.h>
-#include <linux/pci.h>
-#include <sound/pcm_params.h>
 
 static char codec_name[SND_ACPI_I2C_ID_LEN];
 
 struct loongson_card_data {
 	struct snd_soc_card snd_card;
 	unsigned int mclk_fs;
+	struct gpio_desc *gpiod_hp_det;
+	struct gpio_desc *gpiod_hp_ctl;
+	struct gpio_desc *gpiod_spkr_en;
+	const struct loongson_card_config *cfg;
 };
+
+struct loongson_card_config {
+	unsigned int fmt;
+	bool add_hp_jack;
+	bool add_dapm_widgets;
+	bool add_dapm_routes;
+};
+
+static const struct loongson_card_config ls2k1000_card_config = {
+	.fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_IB_NF | SND_SOC_DAIFMT_CBC_CFC,
+	.add_hp_jack = false,
+	.add_dapm_widgets = false,
+	.add_dapm_routes = false,
+};
+
+static const struct loongson_card_config ls2k0300_forever_pi_card_config = {
+	.fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBC_CFC,
+	.add_hp_jack = false,
+	.add_dapm_widgets = false,
+	.add_dapm_routes = false,
+};
+
+static const struct loongson_card_config ls2k0300_dl2k0300b_card_config = {
+	.fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBC_CFC,
+	.add_hp_jack = true,
+	.add_dapm_widgets = true,
+	.add_dapm_routes = true,
+};
+
+static int tegra_machine_event(struct snd_soc_dapm_widget *w,
+			       struct snd_kcontrol *k, int event)
+{
+	struct snd_soc_card *card = snd_soc_dapm_to_card(w->dapm);
+	struct loongson_card_data *priv = snd_soc_card_get_drvdata(card);
+
+	if (!snd_soc_dapm_widget_name_cmp(w, "Speaker"))
+		gpiod_set_value_cansleep(priv->gpiod_spkr_en,
+					 SND_SOC_DAPM_EVENT_ON(event));
+
+	if (!snd_soc_dapm_widget_name_cmp(w, "Headphone"))
+		gpiod_set_value_cansleep(priv->gpiod_hp_ctl,
+					 SND_SOC_DAPM_EVENT_ON(event));
+
+	return 0;
+}
+
+static const struct snd_soc_dapm_widget loongson_aosc_dapm_widgets[] = {
+	SND_SOC_DAPM_HP("Headphone", tegra_machine_event),
+	SND_SOC_DAPM_SPK("Speaker", tegra_machine_event),
+};
+
+/* Headphones Jack */
+
+static struct snd_soc_jack loongson_asoc_hp_jack;
+
+static struct snd_soc_jack_pin loongson_asoc_hp_jack_pins[] = {
+	{
+		.pin = "Headphone",
+		.mask = SND_JACK_HEADPHONE
+	},
+	{
+		.pin = "Speaker",
+		.mask = SND_JACK_HEADPHONE,
+		.invert = 1
+	},
+};
+
+static struct snd_soc_jack_gpio loongson_asoc_hp_jack_gpio = {
+	.name = "Headphones detection",
+	.report = SND_JACK_HEADPHONE,
+	.debounce_time = 150,
+};
+
+static int loongson_asoc_machine_init(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_card *card = rtd->card;
+	struct loongson_card_data *ls_priv = snd_soc_card_get_drvdata(card);
+	int ret = 0;
+
+	if (!ls_priv->cfg->add_hp_jack || !ls_priv->gpiod_hp_det)
+		return 0;
+
+	ret = snd_soc_card_jack_new_pins(card, "Headphones Jack",
+					 SND_JACK_HEADPHONE,
+					 &loongson_asoc_hp_jack,
+					 loongson_asoc_hp_jack_pins,
+					 ARRAY_SIZE(loongson_asoc_hp_jack_pins));
+	if (ret) {
+		dev_err(rtd->dev, "Headphones Jack creation failed: %d\n", ret);
+		return ret;
+	}
+
+	loongson_asoc_hp_jack_gpio.desc = ls_priv->gpiod_hp_det;
+
+	ret = snd_soc_jack_add_gpios(&loongson_asoc_hp_jack, 1, &loongson_asoc_hp_jack_gpio);
+	if (ret)
+		dev_err(rtd->dev, "Headphone GPIO not added: %d\n", ret);
+
+	return ret;
+}
 
 static int loongson_card_hw_params(struct snd_pcm_substream *substream,
 				   struct snd_pcm_hw_params *params)
@@ -45,7 +152,7 @@ static int loongson_card_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	return 0;
+	return snd_soc_runtime_set_dai_fmt(rtd, ls_card->cfg->fmt);
 }
 
 static const struct snd_soc_ops loongson_ops = {
@@ -61,8 +168,7 @@ static struct snd_soc_dai_link loongson_dai_links[] = {
 	{
 		.name = "Loongson Audio Port",
 		.stream_name = "Loongson Audio",
-		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_IB_NF
-			| SND_SOC_DAIFMT_CBC_CFC,
+		.init = loongson_asoc_machine_init,
 		SND_SOC_DAILINK_REG(analog),
 		.ops = &loongson_ops,
 	},
@@ -91,7 +197,7 @@ static int loongson_card_parse_acpi(struct loongson_card_data *data)
 	const char *codec_dai_name;
 	struct acpi_device *adev;
 	struct device *phy_dev;
-	int i;
+	int i, ret;
 
 	/* fixup platform name based on reference node */
 	adev = loongson_card_acpi_find_device(card, "cpu");
@@ -108,7 +214,9 @@ static int loongson_card_parse_acpi(struct loongson_card_data *data)
 		return -ENOENT;
 	snprintf(codec_name, sizeof(codec_name), "i2c-%s", acpi_dev_name(adev));
 
-	device_property_read_string(card->dev, "codec-dai-name", &codec_dai_name);
+	ret = device_property_read_string(card->dev, "codec-dai-name", &codec_dai_name);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < card->num_links; i++) {
 		loongson_dai_links[i].platforms->name = dev_name(phy_dev);
@@ -121,16 +229,35 @@ static int loongson_card_parse_acpi(struct loongson_card_data *data)
 
 static int loongson_card_parse_of(struct loongson_card_data *data)
 {
-	struct device_node *cpu, *codec;
 	struct snd_soc_card *card = &data->snd_card;
+	struct device_node *cpu, *codec;
 	struct device *dev = card->dev;
 	int ret, i;
+
+	data->gpiod_hp_det = devm_gpiod_get_optional(dev, "hp-det", GPIOD_IN);
+	if (IS_ERR(data->gpiod_hp_det))
+		return PTR_ERR(data->gpiod_hp_det);
+
+	data->gpiod_hp_ctl = devm_gpiod_get_optional(dev, "hp-ctl", GPIOD_OUT_LOW);
+	if (IS_ERR(data->gpiod_hp_ctl))
+		return PTR_ERR(data->gpiod_hp_ctl);
+
+	data->gpiod_spkr_en = devm_gpiod_get_optional(dev, "spkr-en", GPIOD_OUT_LOW);
+	if (IS_ERR(data->gpiod_spkr_en))
+		return PTR_ERR(data->gpiod_spkr_en);
+
+	if (data->cfg->add_dapm_routes) {
+		ret = snd_soc_of_parse_audio_routing(card, "audio-routing");
+		if (ret)
+			return ret;
+	}
 
 	cpu = of_get_child_by_name(dev->of_node, "cpu");
 	if (!cpu) {
 		dev_err(dev, "platform property missing or invalid\n");
 		return -EINVAL;
 	}
+
 	codec = of_get_child_by_name(dev->of_node, "codec");
 	if (!codec) {
 		dev_err(dev, "audio-codec property missing or invalid\n");
@@ -175,12 +302,22 @@ static int loongson_asoc_card_probe(struct platform_device *pdev)
 	if (!ls_priv)
 		return -ENOMEM;
 
+	ls_priv->cfg = (const struct loongson_card_config *)device_get_match_data(dev);
+	if (!ls_priv->cfg)
+		return -EINVAL;
+
 	card = &ls_priv->snd_card;
 
 	card->dev = dev;
 	card->owner = THIS_MODULE;
 	card->dai_link = loongson_dai_links;
 	card->num_links = ARRAY_SIZE(loongson_dai_links);
+
+	if (ls_priv->cfg->add_dapm_widgets) {
+		card->dapm_widgets = loongson_aosc_dapm_widgets;
+		card->num_dapm_widgets = ARRAY_SIZE(loongson_aosc_dapm_widgets);
+	}
+
 	snd_soc_card_set_drvdata(card, ls_priv);
 
 	ret = device_property_read_string(dev, "model", &card->name);
@@ -200,7 +337,19 @@ static int loongson_asoc_card_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id loongson_asoc_dt_ids[] = {
-	{ .compatible = "loongson,ls-audio-card" },
+	/* Loongson-2K1000/Loongson-2K2000/LS7A */
+	{
+		.compatible = "loongson,ls-audio-card",
+		.data = &ls2k1000_card_config
+	},
+	{
+		.compatible = "loongson,ls2k0300-forever-pi-audio-card",
+		.data = &ls2k0300_forever_pi_card_config
+	},
+	{
+		.compatible = "loongson,ls2k0300-dl2k0300b-audio-card",
+		.data = &ls2k0300_dl2k0300b_card_config
+	},
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, loongson_asoc_dt_ids);

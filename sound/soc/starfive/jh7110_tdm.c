@@ -559,10 +559,8 @@ static int jh7110_tdm_clk_reset_get(struct platform_device *pdev,
 	tdm->clks[5].id = "tdm";
 
 	ret = devm_clk_bulk_get(&pdev->dev, ARRAY_SIZE(tdm->clks), tdm->clks);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to get tdm clocks\n");
+	if (ret)
 		return ret;
-	}
 
 	tdm->resets = devm_reset_control_array_get_exclusive(&pdev->dev);
 	if (IS_ERR(tdm->resets)) {
@@ -589,42 +587,33 @@ static int jh7110_tdm_probe(struct platform_device *pdev)
 	tdm->dev = &pdev->dev;
 
 	ret = jh7110_tdm_clk_reset_get(pdev, tdm);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to enable audio-tdm clock\n");
+	if (ret)
 		return ret;
-	}
 
 	jh7110_tdm_init_params(tdm);
 
 	dev_set_drvdata(&pdev->dev, tdm);
 	ret = devm_snd_soc_register_component(&pdev->dev, &jh7110_tdm_component,
 					      &jh7110_tdm_dai, 1);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to register dai\n");
+	if (ret)
 		return ret;
-	}
 
 	ret = devm_snd_dmaengine_pcm_register(&pdev->dev,
 					      &jh7110_dmaengine_pcm_config,
 					      SND_DMAENGINE_PCM_FLAG_COMPAT);
-	if (ret) {
-		dev_err(&pdev->dev, "Could not register pcm: %d\n", ret);
+	if (ret)
 		return ret;
-	}
 
 	pm_runtime_enable(&pdev->dev);
 	if (!pm_runtime_enabled(&pdev->dev)) {
 		ret = jh7110_tdm_runtime_resume(&pdev->dev);
-		if (ret)
-			goto err_pm_disable;
+		if (ret) {
+			pm_runtime_disable(&pdev->dev);
+			return ret;
+		}
 	}
 
 	return 0;
-
-err_pm_disable:
-	pm_runtime_disable(&pdev->dev);
-
-	return ret;
 }
 
 static void jh7110_tdm_dev_remove(struct platform_device *pdev)

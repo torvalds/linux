@@ -3935,6 +3935,12 @@ int snd_usb_mixer_resume(struct usb_mixer_interface *mixer)
 	struct usb_mixer_elem_list *list;
 	int id, err;
 
+	if (mixer->private_resume) {
+		err = mixer->private_resume(mixer);
+		if (err < 0)
+			return err;
+	}
+
 	/* restore cached mixer values */
 	for (id = 0; id < MAX_ID_ELEMS; id++) {
 		for_each_mixer_elem(list, mixer, id) {

@@ -3,6 +3,7 @@
 //  Copyright (C) 2013, Analog Devices Inc.
 //	Author: Lars-Peter Clausen <lars@metafoo.de>
 
+#include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/dmaengine.h>
@@ -77,7 +78,7 @@ static int dmaengine_pcm_hw_params(struct snd_soc_component *component,
 				   struct snd_pcm_substream *substream,
 				   struct snd_pcm_hw_params *params)
 {
-	struct dmaengine_pcm *pcm = soc_component_to_pcm(component);
+	struct dmaengine_pcm *pcm = snd_soc_component_to_priv(component);
 	struct dma_chan *chan = snd_dmaengine_pcm_get_chan(substream);
 	struct dma_slave_config slave_config;
 	int ret;
@@ -99,7 +100,7 @@ dmaengine_pcm_set_runtime_hwparams(struct snd_soc_component *component,
 				   struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
-	struct dmaengine_pcm *pcm = soc_component_to_pcm(component);
+	struct dmaengine_pcm *pcm = snd_soc_component_to_priv(component);
 	struct device *dma_dev = dmaengine_dma_dev(pcm, substream);
 	struct dma_chan *chan = pcm->chan[substream->stream];
 	struct snd_dmaengine_dai_dma_data *dma_data;
@@ -148,7 +149,7 @@ dmaengine_pcm_set_runtime_hwparams(struct snd_soc_component *component,
 static int dmaengine_pcm_open(struct snd_soc_component *component,
 			      struct snd_pcm_substream *substream)
 {
-	struct dmaengine_pcm *pcm = soc_component_to_pcm(component);
+	struct dmaengine_pcm *pcm = snd_soc_component_to_priv(component);
 	struct dma_chan *chan = pcm->chan[substream->stream];
 	int ret;
 
@@ -176,7 +177,7 @@ static struct dma_chan *dmaengine_pcm_compat_request_channel(
 	struct snd_soc_pcm_runtime *rtd,
 	struct snd_pcm_substream *substream)
 {
-	struct dmaengine_pcm *pcm = soc_component_to_pcm(component);
+	struct dmaengine_pcm *pcm = snd_soc_component_to_priv(component);
 	struct snd_dmaengine_dai_dma_data *dma_data;
 
 	if (rtd->dai_link->num_cpus > 1) {
@@ -219,7 +220,7 @@ static bool dmaengine_pcm_can_report_residue(struct device *dev,
 static int dmaengine_pcm_new(struct snd_soc_component *component,
 			     struct snd_soc_pcm_runtime *rtd)
 {
-	struct dmaengine_pcm *pcm = soc_component_to_pcm(component);
+	struct dmaengine_pcm *pcm = snd_soc_component_to_priv(component);
 	const struct snd_dmaengine_pcm_config *config = pcm->config;
 	struct device *dev = component->dev;
 	size_t prealloc_buffer_size;
@@ -279,7 +280,7 @@ static snd_pcm_uframes_t dmaengine_pcm_pointer(
 	struct snd_soc_component *component,
 	struct snd_pcm_substream *substream)
 {
-	struct dmaengine_pcm *pcm = soc_component_to_pcm(component);
+	struct dmaengine_pcm *pcm = snd_soc_component_to_priv(component);
 
 	if (pcm->flags & SND_DMAENGINE_PCM_FLAG_NO_RESIDUE)
 		return snd_dmaengine_pcm_pointer_no_residue(substream);
@@ -293,7 +294,7 @@ static int dmaengine_copy(struct snd_soc_component *component,
 			  struct iov_iter *iter, unsigned long bytes)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct dmaengine_pcm *pcm = soc_component_to_pcm(component);
+	struct dmaengine_pcm *pcm = snd_soc_component_to_priv(component);
 	int (*process)(struct snd_pcm_substream *substream,
 		       int channel, unsigned long hwoff,
 		       unsigned long bytes) = pcm->config->process;
@@ -395,6 +396,27 @@ static int dmaengine_pcm_request_chan_of(struct dmaengine_pcm *pcm,
 			 */
 			if (PTR_ERR(chan) == -EPROBE_DEFER)
 				return -EPROBE_DEFER;
+
+			bool has_fw_node = dev->of_node || is_acpi_device_node(dev->fwnode);
+			bool name_exists_in_fw = false;
+
+			if (has_fw_node)
+				name_exists_in_fw = device_property_match_string(dev,
+										 "dma-names",
+										 name) >= 0;
+
+			if (has_fw_node && name_exists_in_fw)
+				dev_warn(dev, "DTS/ACPI DMA channel '%s' request failed (%ld)\n",
+					 name, PTR_ERR(chan));
+
+			if (has_fw_node && !name_exists_in_fw)
+				dev_warn(dev, "DTS/ACPI name '%s' not found, legacy failed (%ld)\n",
+					 name, PTR_ERR(chan));
+
+			if (!has_fw_node)
+				dev_warn(dev, "Legacy DMA channel '%s' request failed (%ld)\n",
+					 name, PTR_ERR(chan));
+
 			pcm->chan[i] = NULL;
 		} else {
 			pcm->chan[i] = chan;
@@ -405,6 +427,12 @@ static int dmaengine_pcm_request_chan_of(struct dmaengine_pcm *pcm,
 
 	if (pcm->flags & SND_DMAENGINE_PCM_FLAG_HALF_DUPLEX)
 		pcm->chan[1] = pcm->chan[0];
+
+	if (!pcm->chan[0] &&
+	    !pcm->chan[1]) {
+		dev_err(dev, "no DMA channel found for either playback or capture\n");
+		return -ENODEV;
+	}
 
 	return 0;
 }
@@ -435,9 +463,14 @@ static const struct snd_dmaengine_pcm_config snd_dmaengine_pcm_default_config = 
 int snd_dmaengine_pcm_register(struct device *dev,
 	const struct snd_dmaengine_pcm_config *config, unsigned int flags)
 {
+	struct snd_soc_component *component;
 	const struct snd_soc_component_driver *driver;
 	struct dmaengine_pcm *pcm;
 	int ret;
+
+	component = snd_soc_component_alloc(dev);
+	if (!component)
+		return -ENOMEM;
 
 	pcm = kzalloc_obj(*pcm);
 	if (!pcm)
@@ -449,7 +482,8 @@ int snd_dmaengine_pcm_register(struct device *dev,
 	pcm->flags = flags;
 
 	if (config->name)
-		pcm->component.name = config->name;
+		snd_soc_component_set_name(component, config->name);
+	snd_soc_component_set_priv(component, pcm);
 
 	ret = dmaengine_pcm_request_chan_of(pcm, dev, config);
 	if (ret)
@@ -460,11 +494,7 @@ int snd_dmaengine_pcm_register(struct device *dev,
 	else
 		driver = &dmaengine_pcm_component;
 
-	ret = snd_soc_component_initialize(&pcm->component, driver, dev);
-	if (ret)
-		goto err_free_dma;
-
-	ret = snd_soc_add_component(&pcm->component, NULL, 0);
+	ret = snd_soc_register_component(component, driver, NULL, 0);
 	if (ret)
 		goto err_free_dma;
 
@@ -493,7 +523,7 @@ void snd_dmaengine_pcm_unregister(struct device *dev)
 	if (!component)
 		return;
 
-	pcm = soc_component_to_pcm(component);
+	pcm = snd_soc_component_to_priv(component);
 
 	snd_soc_unregister_component_by_driver(dev, component->driver);
 	dmaengine_pcm_release_chan(pcm);

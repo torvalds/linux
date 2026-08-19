@@ -410,6 +410,402 @@ static const struct reg_sequence rt1321_blind_write[] = {
 	{ 0x41001988, 0x03 },
 };
 
+static const struct reg_sequence rt1321_va1_blind_write[] = {
+	{ 0x0000c003, 0xf0 },
+	{ 0x0000c01b, 0xfc },
+	{ 0x0000c5c3, 0xf2 },
+	{ 0x0000c5c2, 0x00 },
+	{ 0x0000c5c1, 0x10 },
+	{ 0x0000c5c0, 0x04 },
+	{ 0x0000c5c7, 0x03 },
+	{ 0x0000c5c6, 0x10 },
+	{ 0x0000c526, 0x47 },
+	{ 0x0000c5c4, 0x12 },
+	{ 0x0000c5c5, 0x60 },
+	{ 0x0000c520, 0x10 },
+	{ 0x0000c521, 0x32 },
+	{ 0x0000c5c7, 0x00 },
+	{ 0x0000c5c8, 0x03 },
+	{ 0x0000c5d3, 0x08 },
+	{ 0x0000c5d2, 0x0a },
+	{ 0x0000c5d1, 0x49 },
+	{ 0x0000c5d0, 0x0f },
+	{ 0x0000c580, 0x10 },
+	{ 0x0000c581, 0x32 },
+	{ 0x0000c582, 0x01 },
+	{ 0x0000c682, 0x60 },
+	{ 0x0000c019, 0x10 },
+	{ 0x0000c5f0, 0x01 },
+	{ 0x0000c5f7, 0x22 },
+	{ 0x0000c5f6, 0x22 },
+	{ 0x0000c057, 0x51 },
+	{ 0x0000c054, 0x55 },
+	{ 0x0000c053, 0x55 },
+	{ 0x0000c052, 0x55 },
+	{ 0x0000c051, 0x01 },
+	{ 0x0000c050, 0x15 },
+	{ 0x0000c060, 0x99 },
+	{ 0x0000c030, 0x55 },
+	{ 0x0000c061, 0x55 },
+	{ 0x0000c063, 0x55 },
+	{ 0x0000c065, 0xa5 },
+	{ 0x0000c06b, 0x0a },
+	{ 0x0000ca05, 0xd6 },
+	{ 0x0000ca06, 0x11 },
+	{ 0x0000ca07, 0x1e },
+	{ 0x0000ca25, 0xd6 },
+	{ 0x0000ca26, 0x11 },
+	{ 0x0000ca27, 0x1e },
+	{ 0x0000cd00, 0x05 },
+	{ 0x0000cd81, 0x49 },
+	{ 0x0000cd82, 0x49 },
+	{ 0x0000c604, 0x40 },
+	{ 0x0000c609, 0x40 },
+	{ 0x0000c046, 0xf7 },
+	{ 0x0000c045, 0xff },
+	{ 0x0000c044, 0xff },
+	{ 0x0000c043, 0xff },
+	{ 0x0000c042, 0xff },
+	{ 0x0000c041, 0xff },
+	{ 0x0000c040, 0xff },
+	{ 0x0000c049, 0xff },
+	{ 0x0000c028, 0x3f },
+	{ 0x0000c020, 0x3f },
+	{ 0x0000c032, 0x13 },
+	{ 0x0000c033, 0x01 },
+	{ 0x0000cc10, 0x01 },
+	{ 0x0000dc20, 0x03 },
+	{ 0x0000de03, 0x05 },
+	{ 0x0000dc00, 0x00 },
+	{ 0x0000c700, 0xf0 },
+	{ 0x0000c701, 0x13 },
+	{ 0x0000c900, 0xc3 },
+	{ 0x0000c570, 0x08 },
+	{ 0x0000c086, 0x02 },
+	{ 0x0000c085, 0x7f },
+	{ 0x0000c084, 0x00 },
+	{ 0x0000c081, 0xff },
+	{ 0x0000f084, 0x0f },
+	{ 0x0000f083, 0xff },
+	{ 0x0000f082, 0xff },
+	{ 0x0000f081, 0xff },
+	{ 0x0000f080, 0xff },
+	{ 0x20003003, 0x3f },
+	{ 0x20005818, 0x81 },
+	{ 0x20009018, 0x81 },
+	{ 0x2000301c, 0x81 },
+	{ 0x0000c003, 0xc0 },
+	{ 0x0000c047, 0x80 },
+	{ 0x0000d541, 0x80 },
+	{ 0x0000d487, 0x0b },
+	{ 0x0000d487, 0x3b },
+	{ 0x0000d486, 0xc3 },
+	{ 0x0000d470, 0x89 },
+	{ 0x0000d471, 0x3a },
+	{ 0x0000d472, 0x3d },
+	{ 0x0000d474, 0x11 },
+	{ 0x0000d475, 0x32 },
+	{ 0x0000d476, 0x64 },
+	{ 0x0000d477, 0x10 },
+	{ 0x0000d478, 0xff },
+	{ 0x0000d479, 0x20 },
+	{ 0x0000d47a, 0x10 },
+	{ 0x0000d73c, 0xb7 },
+	{ 0x0000d73d, 0xd7 },
+	{ 0x0000d73e, 0x00 },
+	{ 0x0000d73f, 0x10 },
+	{ 0x1000cd56, 0x00 },
+	{ 0x3fc2dfc0, 0x03 },
+	{ 0x3fc2dfc1, 0x00 },
+	{ 0x3fc2dfc2, 0x00 },
+	{ 0x3fc2dfc3, 0x00 },
+	{ 0x3fc2dfc4, 0x01 },
+	{ 0x3fc2dfc5, 0x00 },
+	{ 0x3fc2dfc6, 0x00 },
+	{ 0x3fc2dfc7, 0x00 },
+	{ 0x3fc2df80, 0x00 },
+	{ 0x3fc2df81, 0x00 },
+	{ 0x3fc2df82, 0x00 },
+	{ 0x3fc2df83, 0x00 },
+	{ 0x0000d541, 0x40 },
+	{ 0x0000d486, 0x43 },
+	{ 0x1000db00, 0x04 },
+	{ 0x1000db01, 0x00 },
+	{ 0x1000db02, 0x10 },
+	{ 0x1000db03, 0x00 },
+	{ 0x1000db04, 0x00 },
+	{ 0x1000db05, 0x45 },
+	{ 0x1000db06, 0x0d },
+	{ 0x1000db07, 0x01 },
+	{ 0x1000db08, 0x00 },
+	{ 0x1000db09, 0x00 },
+	{ 0x1000db0a, 0xbf },
+	{ 0x1000db0b, 0x0b },
+	{ 0x1000db0c, 0x11 },
+	{ 0x1000db0d, 0x00 },
+	{ 0x1000db0e, 0x00 },
+	{ 0x1000db0f, 0x00 },
+	{ 0x1000db10, 0x2c },
+	{ 0x1000db11, 0xfa },
+	{ 0x1000db12, 0x00 },
+	{ 0x1000db13, 0x00 },
+	{ 0x1000db14, 0x09 },
+	{ 0x0000d540, 0x21 },
+	{ 0x0000c570, 0x08 },
+	{ 0x0000d714, 0x17 },
+	{ 0x0000c5c3, 0xf2 },
+	{ 0x0000c5c8, 0x03 },
+	{ 0x20009012, 0x00 },
+	{ 0x0000dd08, 0x17 },
+	{ 0x0000dd09, 0x0e },
+	{ 0x0000dd0a, 0x17 },
+	{ 0x0000dd0b, 0x0e },
+	{ 0x0000c570, 0x08 },
+	{ 0x0000d471, 0x3a },
+	{ 0x0000db00, 0x00 },
+	{ 0x0000db01, 0x00 },
+	{ 0x0000db02, 0x73 },
+	{ 0x0000db03, 0x00 },
+	{ 0x0000db04, 0x00 },
+	{ 0x0000db05, 0x00 },
+	{ 0x0000db06, 0x00 },
+	{ 0x0000db07, 0x00 },
+	{ 0x0000db08, 0x7f },
+	{ 0x0000db09, 0x00 },
+	{ 0x0000db1a, 0x00 },
+	{ 0x0000db1b, 0x00 },
+	{ 0x0000db19, 0x00 },
+};
+
+static const struct reg_sequence rt1321_va2_blind_write[] = {
+	{ 0x0000c003, 0xf0 },
+	{ 0x0000c01b, 0xfc },
+	{ 0x0000c5c3, 0xf2 },
+	{ 0x0000c5c2, 0x00 },
+	{ 0x0000c5c1, 0x10 },
+	{ 0x0000c5c0, 0x04 },
+	{ 0x0000c5c7, 0x03 },
+	{ 0x0000c5c6, 0x10 },
+	{ 0x0000c526, 0x47 },
+	{ 0x0000c5c4, 0x12 },
+	{ 0x0000c5c5, 0x60 },
+	{ 0x0000c520, 0x10 },
+	{ 0x0000c521, 0x32 },
+	{ 0x0000c5c7, 0x00 },
+	{ 0x0000c5c8, 0x03 },
+	{ 0x0000c5d3, 0x08 },
+	{ 0x0000c5d2, 0x0a },
+	{ 0x0000c5d1, 0x49 },
+	{ 0x0000c5d0, 0x0f },
+	{ 0x0000c580, 0x10 },
+	{ 0x0000c581, 0x32 },
+	{ 0x0000c582, 0x01 },
+	{ 0x0000c682, 0x60 },
+	{ 0x0000c019, 0x10 },
+	{ 0x0000c5f0, 0x01 },
+	{ 0x0000c5f7, 0x22 },
+	{ 0x0000c5f6, 0x22 },
+	{ 0x0000c057, 0x51 },
+	{ 0x0000c054, 0x55 },
+	{ 0x0000c053, 0x55 },
+	{ 0x0000c052, 0x55 },
+	{ 0x0000c051, 0x01 },
+	{ 0x0000c050, 0x15 },
+	{ 0x0000c060, 0x99 },
+	{ 0x0000c030, 0x55 },
+	{ 0x0000c061, 0x55 },
+	{ 0x0000c063, 0x55 },
+	{ 0x0000c065, 0xa5 },
+	{ 0x0000c06b, 0x0a },
+	{ 0x0000ca05, 0xd6 },
+	{ 0x0000ca06, 0x11 },
+	{ 0x0000ca07, 0x1e },
+	{ 0x0000ca25, 0xd6 },
+	{ 0x0000ca26, 0x11 },
+	{ 0x0000ca27, 0x1e },
+	{ 0x0000cd00, 0x05 },
+	{ 0x0000cd81, 0x49 },
+	{ 0x0000cd82, 0x49 },
+	{ 0x0000c604, 0x40 },
+	{ 0x0000c609, 0x40 },
+	{ 0x0000c046, 0xf7 },
+	{ 0x0000c045, 0xff },
+	{ 0x0000c044, 0xff },
+	{ 0x0000c043, 0xff },
+	{ 0x0000c042, 0xff },
+	{ 0x0000c041, 0xff },
+	{ 0x0000c040, 0xff },
+	{ 0x0000c049, 0xff },
+	{ 0x0000c028, 0x3f },
+	{ 0x0000c020, 0x3f },
+	{ 0x0000c032, 0x13 },
+	{ 0x0000c033, 0x01 },
+	{ 0x0000cc10, 0x01 },
+	{ 0x0000dc20, 0x03 },
+	{ 0x0000de03, 0x05 },
+	{ 0x0000dc00, 0x00 },
+	{ 0x0000c700, 0xf0 },
+	{ 0x0000c701, 0x13 },
+	{ 0x0000c900, 0xc3 },
+	{ 0x0000c570, 0x08 },
+	{ 0x0000c086, 0x02 },
+	{ 0x0000c085, 0x7f },
+	{ 0x0000c084, 0x00 },
+	{ 0x0000c081, 0xff },
+	{ 0x0000f084, 0x0f },
+	{ 0x0000f083, 0xff },
+	{ 0x0000f082, 0xff },
+	{ 0x0000f081, 0xff },
+	{ 0x0000f080, 0xff },
+	{ 0x20003003, 0x3f },
+	{ 0x20005818, 0x81 },
+	{ 0x20009018, 0x81 },
+	{ 0x2000301c, 0x81 },
+	{ 0x0000c003, 0xc0 },
+	{ 0x0000c047, 0x80 },
+	{ 0x0000d541, 0x80 },
+	{ 0x0000d487, 0x0b },
+	{ 0x0000d487, 0x3b },
+	{ 0x0000d486, 0xc3 },
+	{ 0x0000d470, 0x89 },
+	{ 0x0000d471, 0x3a },
+	{ 0x0000d472, 0x3d },
+	{ 0x0000d474, 0x11 },
+	{ 0x0000d475, 0x32 },
+	{ 0x0000d476, 0x64 },
+	{ 0x0000d477, 0x10 },
+	{ 0x0000d478, 0xff },
+	{ 0x0000d479, 0x20 },
+	{ 0x0000d47a, 0x10 },
+	{ 0x10008000, 0x67 },
+	{ 0x10008001, 0x80 },
+	{ 0x10008002, 0x00 },
+	{ 0x10008003, 0x00 },
+	{ 0x1000cd56, 0x00 },
+	{ 0x0000d486, 0x43 },
+	{ 0x3fc2dfc3, 0x00 },
+	{ 0x3fc2dfc2, 0x00 },
+	{ 0x3fc2dfc1, 0x00 },
+	{ 0x3fc2dfc0, 0x03 },
+	{ 0x3fc2dfc7, 0x00 },
+	{ 0x3fc2dfc6, 0x00 },
+	{ 0x3fc2dfc5, 0x00 },
+	{ 0x3fc2dfc4, 0x01 },
+	{ 0x3fc2dfa3, 0x00 },
+	{ 0x3fc2dfa2, 0x00 },
+	{ 0x3fc2dfa1, 0x00 },
+	{ 0x3fc2dfa0, 0x00 },
+	{ 0x3fc2df80, 0x10 },
+	{ 0x3fc2df81, 0x20 },
+	{ 0x3fc2df82, 0x00 },
+	{ 0x3fc2df83, 0x00 },
+	{ 0x3fc2df84, 0x50 },
+	{ 0x3fc2df85, 0x19 },
+	{ 0x3fc2df86, 0x00 },
+	{ 0x3fc2df87, 0x00 },
+	{ 0x3fc2df88, 0x52 },
+	{ 0x3fc2df89, 0x23 },
+	{ 0x3fc2df8a, 0x00 },
+	{ 0x3fc2df8b, 0x00 },
+	{ 0x3fc2df8c, 0xe0 },
+	{ 0x3fc2df8d, 0x2e },
+	{ 0x3fc2df8e, 0x00 },
+	{ 0x3fc2df8f, 0x00 },
+	{ 0x3fc2df90, 0xe0 },
+	{ 0x3fc2df91, 0x2e },
+	{ 0x3fc2df92, 0x00 },
+	{ 0x3fc2df93, 0x00 },
+	{ 0x3fc2df94, 0x01 },
+	{ 0x3fc2df95, 0x08 },
+	{ 0x3fc2df96, 0x00 },
+	{ 0x3fc2df97, 0x00 },
+	{ 0x3fc2df40, 0x80 },
+	{ 0x3fc2df41, 0xbb },
+	{ 0x3fc2df42, 0x00 },
+	{ 0x3fc2df43, 0x00 },
+	{ 0x3fc2df44, 0xc0 },
+	{ 0x3fc2df45, 0x99 },
+	{ 0x3fc2df46, 0x01 },
+	{ 0x3fc2df47, 0x00 },
+	{ 0x3fc2df48, 0x00 },
+	{ 0x3fc2df49, 0x00 },
+	{ 0x3fc2df4a, 0x00 },
+	{ 0x3fc2df4b, 0x00 },
+	{ 0x3fc2df4c, 0x00 },
+	{ 0x3fc2df4d, 0x00 },
+	{ 0x3fc2df4e, 0x00 },
+	{ 0x3fc2df4f, 0x00 },
+	{ 0x3fc2df50, 0x01 },
+	{ 0x3fc2df51, 0x00 },
+	{ 0x3fc2df52, 0x00 },
+	{ 0x3fc2df53, 0x00 },
+	{ 0x3fc2df54, 0x01 },
+	{ 0x3fc2df55, 0x00 },
+	{ 0x3fc2df56, 0x00 },
+	{ 0x3fc2df57, 0x00 },
+	{ 0x3fc2df58, 0x00 },
+	{ 0x3fc2df59, 0x00 },
+	{ 0x3fc2df5a, 0x00 },
+	{ 0x3fc2df5b, 0x00 },
+	{ 0x3fc2df5c, 0x01 },
+	{ 0x3fc2df5d, 0x00 },
+	{ 0x3fc2df5e, 0x00 },
+	{ 0x3fc2df5f, 0x00 },
+	{ 0x3fc2df60, 0x00 },
+	{ 0x3fc2df61, 0x00 },
+	{ 0x3fc2df62, 0x00 },
+	{ 0x3fc2df63, 0x00 },
+	{ 0x3fc2df64, 0x00 },
+	{ 0x3fc2df65, 0x00 },
+	{ 0x3fc2df66, 0x00 },
+	{ 0x3fc2df67, 0x10 },
+	{ 0x3fc2df68, 0x01 },
+	{ 0x3fc2df69, 0x00 },
+	{ 0x3fc2df6a, 0x00 },
+	{ 0x3fc2df6b, 0x00 },
+	{ 0x3fc2df6c, 0x01 },
+	{ 0x3fc2df6d, 0x00 },
+	{ 0x3fc2df6e, 0x00 },
+	{ 0x3fc2df6f, 0x00 },
+	{ 0x3fc2df70, 0x04 },
+	{ 0x3fc2df71, 0x00 },
+	{ 0x3fc2df72, 0x00 },
+	{ 0x3fc2df73, 0x00 },
+	{ 0x3fc2df74, 0x01 },
+	{ 0x3fc2df75, 0x00 },
+	{ 0x3fc2df76, 0x00 },
+	{ 0x3fc2df77, 0x00 },
+	{ 0x1000db00, 0x04 },
+	{ 0x1000db01, 0x00 },
+	{ 0x1000db02, 0x10 },
+	{ 0x1000db03, 0x00 },
+	{ 0x1000db04, 0x00 },
+	{ 0x1000db05, 0x45 },
+	{ 0x1000db06, 0x0d },
+	{ 0x1000db07, 0x01 },
+	{ 0x1000db08, 0x00 },
+	{ 0x1000db09, 0x00 },
+	{ 0x1000db0a, 0xbf },
+	{ 0x1000db0b, 0x0b },
+	{ 0x1000db0c, 0x11 },
+	{ 0x1000db0d, 0x00 },
+	{ 0x1000db0e, 0x00 },
+	{ 0x1000db0f, 0x00 },
+	{ 0x1000db10, 0x2c },
+	{ 0x1000db11, 0xfa },
+	{ 0x1000db12, 0x00 },
+	{ 0x1000db13, 0x00 },
+	{ 0x1000db14, 0x09 },
+	{ 0x0000d540, 0x21 },
+	{ 0x0000d714, 0x17 },
+	{ 0x0000dd0b, 0x0d },
+	{ 0x0000dd0a, 0xff },
+	{ 0x0000dd09, 0x0d },
+	{ 0x0000dd08, 0xff },
+	{ 0x0000c5fb, 0x12 },
+	{ 0x0000c570, 0x08 },
+};
+
 static const struct reg_default rt1320_reg_defaults[] = {
 	{ SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_PDE11, RT1320_SDCA_CTL_REQ_POWER_STATE, 0), 0x03 },
 	{ SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_FU113, RT1320_SDCA_CTL_FU_MUTE, CH_01), 0x01 },
@@ -440,6 +836,7 @@ static const struct reg_default rt1320_mbq_defaults[] = {
 static bool rt1320_readable_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
+	case 0x004d:
 	case 0xc000 ... 0xc086:
 	case 0xc400 ... 0xc409:
 	case 0xc480 ... 0xc48f:
@@ -497,10 +894,15 @@ static bool rt1320_readable_register(struct device *dev, unsigned int reg)
 	case RT1321_PATCH_MAIN_VER ... RT1321_PATCH_BETA_VER:
 	case 0x1000f008:
 	case 0x1000f021:
-	case 0x2000300f:
+	case 0x20003000 ... 0x2000300f:
 	case 0x2000301c:
-	case 0x2000900f:
+	case 0x20003040 ... 0x20003059:
+	case 0x20005800 ... 0x2000580f:
+	case 0x20005818:
+	case 0x20005840 ... 0x20005859:
+	case 0x20009000 ... 0x2000900f:
 	case 0x20009018:
+	case 0x20009040 ... 0x20009059:
 	case 0x3fc000c0 ... 0x3fc2dfc8:
 	case 0x3fe00000 ... 0x3fe36fff:
 	/* 0x40801508/0x40801809/0x4080180a/0x40801909/0x4080190a */
@@ -545,6 +947,7 @@ static bool rt1320_readable_register(struct device *dev, unsigned int reg)
 static bool rt1320_volatile_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
+	case 0x004d:
 	case 0xc000:
 	case 0xc003:
 	case 0xc081:
@@ -596,15 +999,20 @@ static bool rt1320_volatile_register(struct device *dev, unsigned int reg)
 	case 0x1000c000 ... 0x1000dfff:
 	case 0x1000f008:
 	case 0x1000f021:
-	case 0x2000300f:
+	case 0x2000300e ... 0x2000300f:
 	case 0x2000301c:
-	case 0x2000900f:
+	case 0x20003040 ... 0x20003059:
+	case 0x2000580e ... 0x2000580f:
+	case 0x20005818:
+	case 0x20005840 ... 0x20005859:
+	case 0x2000900e ... 0x2000900f:
 	case 0x20009018:
+	case 0x20009040 ... 0x20009059:
 	case 0x3fc2ab80 ... 0x3fc2ac4c:
 	case 0x3fc2b780:
 	case 0x3fc2bf80 ... 0x3fc2bf83:
 	case 0x3fc2bfc0 ... 0x3fc2bfc8:
-	case 0x3fc2d300 ... 0x3fc2d354:
+	case 0x3fc2d300 ... 0x3fc2d3cc:
 	case 0x3fc2dfc0 ... 0x3fc2dfc8:
 	case 0x3fe2e000 ... 0x3fe2e003:
 	case SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_PDE11, RT1320_SDCA_CTL_ACTUAL_POWER_STATE, 0):
@@ -892,6 +1300,42 @@ static int rt1320_check_fw_ready(struct rt1320_sdw_priv *rt1320)
 	return 0;
 }
 
+static int rt1320_dspfw_status(struct rt1320_sdw_priv *rt1320)
+{
+	struct device *dev = &rt1320->sdw_slave->dev;
+	unsigned int fw_status_addr, fw_ready;
+	unsigned int dspfw_run;
+
+	switch (rt1320->dev_id) {
+	case RT1320_DEV_ID:
+		fw_status_addr = RT1320_DSPFW_STATUS_ADDR;
+		break;
+	case RT1321_DEV_ID:
+		fw_status_addr = RT1321_DSPFW_STATUS_ADDR;
+		break;
+	default:
+		dev_err(dev, "%s: Unknown device ID %d\n", __func__, rt1320->dev_id);
+		return -EINVAL;
+	}
+
+	regmap_read(rt1320->regmap, fw_status_addr, &fw_ready);
+	fw_ready &= 0x1;
+
+	if (rt1320->dev_id == RT1321_DEV_ID) {
+		regmap_read(rt1320->regmap, 0xf01e, &dspfw_run);
+		dspfw_run &= 0x1;
+		fw_ready = (!dspfw_run && fw_ready);
+	}
+
+	if (fw_ready) {
+		dev_dbg(dev, "%s, DSP FW was already\n", __func__);
+		return 1;
+	}
+
+	dev_dbg(dev, "%s, DSP FW is NOT ready. Please load DSP FW first\n", __func__);
+	return 0;
+}
+
 static int rt1320_check_power_state_ready(struct rt1320_sdw_priv *rt1320, enum rt1320_power_state ps)
 {
 	struct device *dev = &rt1320->sdw_slave->dev;
@@ -981,6 +1425,9 @@ static int rt1320_fw_param_protocol(struct rt1320_sdw_priv *rt1320, enum rt1320_
 	tempbuf = kzalloc(sizeof(paramhr) + paramsize, GFP_KERNEL);
 	if (!tempbuf)
 		return -ENOMEM;
+
+	if (rt1320->dev_id == RT1321_DEV_ID && rt1320->version_id == RT1321_VA2)
+		paramid += 0x0bff0000;
 
 	paramhr.moudleid = 1;
 	paramhr.commandtype = cmdid;
@@ -1120,45 +1567,73 @@ static void rt1320_calc_r0(struct rt1320_sdw_priv *rt1320)
 		l_calir0, l_calir0_lo, r_calir0, r_calir0_lo);
 }
 
+static int rt1320_pilot_tone_output(struct rt1320_sdw_priv *rt1320)
+{
+	struct device *dev = &rt1320->sdw_slave->dev;
+	int l_targetpostgain, r_targetpostgain;
+	unsigned long long factor = (1 << 12);
+	int l_pilotgain[9], r_pilotgain[9];
+	const int postgain_step = 234;
+	int targetGain;
+
+	switch (rt1320->dev_id) {
+	case RT1320_DEV_ID:
+		targetGain = -320000;
+		break;
+	case RT1321_DEV_ID:
+		targetGain = -420000;
+		if (rt1320->version_id == RT1321_VA0)
+			targetGain = -320000;
+		break;
+	default:
+		dev_err(dev, "%s: Unknown device ID %d\n", __func__, rt1320->dev_id);
+		return -EINVAL;
+	}
+
+	rt1320_fw_param_protocol(rt1320, RT1320_GET_PARAM, 70, &l_pilotgain[0], sizeof(l_pilotgain));
+	rt1320_fw_param_protocol(rt1320, RT1320_GET_PARAM, 71, &r_pilotgain[0], sizeof(r_pilotgain));
+	dev_dbg(dev, "%s, LR pilotgain %d, %d\n", __func__, l_pilotgain[2], r_pilotgain[2]);
+
+	/* calculate pilot tone gain */
+	l_pilotgain[2] = (l_pilotgain[2] * 10000) / factor;
+	r_pilotgain[2] = (r_pilotgain[2] * 10000) / factor;
+
+	/* calculate post gain to meet target gain */
+	l_targetpostgain = abs(targetGain - l_pilotgain[2]) / postgain_step;
+	r_targetpostgain = abs(targetGain - r_pilotgain[2]) / postgain_step;
+	l_targetpostgain = 0xfff - l_targetpostgain;
+	r_targetpostgain = 0xfff - r_targetpostgain;
+	dev_dbg(dev, "%s, LR targetpostgain=0x%x, 0x%x\n", __func__, l_targetpostgain, r_targetpostgain);
+
+	regmap_write(rt1320->regmap, 0xdd0b, (l_targetpostgain & 0xf00) >> 8);
+	regmap_write(rt1320->regmap, 0xdd0a, l_targetpostgain & 0xff);
+	regmap_write(rt1320->regmap, 0xdd09, (r_targetpostgain & 0xf00) >> 8);
+	regmap_write(rt1320->regmap, 0xdd08, r_targetpostgain & 0xff);
+
+	return 0;
+}
+
 static void rt1320_calibrate(struct rt1320_sdw_priv *rt1320)
 {
 	struct device *dev = &rt1320->sdw_slave->dev;
 	struct rt1320_datafixpoint audfixpoint[2];
 	unsigned int reg_c5fb, reg_c570, reg_cd00;
-	unsigned int vol_reg[4], fw_ready;
+	unsigned int vol_reg[4];
 	unsigned long long l_meanr0, r_meanr0;
-	unsigned int fw_status_addr;
 	int l_re[5], r_re[5];
 	int ret, tmp;
 	unsigned long long factor = (1 << 27);
 	unsigned short l_advancegain, r_advancegain;
 	unsigned int delay_s = 7; /* delay seconds for the calibration */
+	int dspfw_status;
 
 	if (!rt1320->component)
 		return;
 
-	switch (rt1320->dev_id) {
-	case RT1320_DEV_ID:
-		fw_status_addr = RT1320_DSPFW_STATUS_ADDR;
-		break;
-	case RT1321_DEV_ID:
-		fw_status_addr = RT1321_DSPFW_STATUS_ADDR;
-		break;
-	default:
-		dev_err(dev, "%s: Unknown device ID %d\n", __func__, rt1320->dev_id);
-		return;
-	}
-
-	/* set volume 0dB */
 	regmap_read(rt1320->regmap, 0xdd0b, &vol_reg[3]);
 	regmap_read(rt1320->regmap, 0xdd0a, &vol_reg[2]);
 	regmap_read(rt1320->regmap, 0xdd09, &vol_reg[1]);
 	regmap_read(rt1320->regmap, 0xdd08, &vol_reg[0]);
-	regmap_write(rt1320->regmap, 0xdd0b, 0x0f);
-	regmap_write(rt1320->regmap, 0xdd0a, 0xff);
-	regmap_write(rt1320->regmap, 0xdd09, 0x0f);
-	regmap_write(rt1320->regmap, 0xdd08, 0xff);
-
 	regmap_read(rt1320->regmap, 0xc5fb, &reg_c5fb);
 	regmap_read(rt1320->regmap, 0xc570, &reg_c570);
 	regmap_read(rt1320->regmap, 0xcd00, &reg_cd00);
@@ -1171,9 +1646,8 @@ static void rt1320_calibrate(struct rt1320_sdw_priv *rt1320)
 		goto _finish_;
 	}
 
-	regmap_read(rt1320->regmap, fw_status_addr, &fw_ready);
-	fw_ready &= 0x1;
-	if (!fw_ready) {
+	dspfw_status = rt1320_dspfw_status(rt1320);
+	if (dspfw_status <= 0) {
 		dev_dbg(dev, "%s, DSP FW is NOT ready. Please load DSP FW first\n", __func__);
 		goto _finish_;
 	}
@@ -1184,8 +1658,19 @@ static void rt1320_calibrate(struct rt1320_sdw_priv *rt1320)
 		goto _finish_;
 	}
 
-	if (rt1320->dev_id == RT1320_DEV_ID)
-		regmap_write(rt1320->regmap, 0xc5fb, 0x00);
+	/* fine tune pilot tone output */
+	ret = rt1320_pilot_tone_output(rt1320);
+	if (ret < 0) {
+		dev_dbg(dev, "%s, Failed to tune pilot tone output\n", __func__);
+		goto _finish_;
+	}
+
+	if (rt1320->dev_id == RT1321_DEV_ID) {
+		regmap_update_bits(rt1320->regmap, 0xc047, 0x80, 0x00);
+		regmap_write(rt1320->regmap, 0xc5c4, 0x12);
+	}
+
+	regmap_write(rt1320->regmap, 0xc5fb, 0x00);
 	regmap_write(rt1320->regmap, 0xc570, 0x0b);
 	regmap_write(rt1320->regmap, 0xcd00, 0xc5);
 
@@ -1246,6 +1731,11 @@ _finish_:
 		SDW_SDCA_CTL(FUNC_NUM_AMP, RT1320_SDCA_ENT_PDE23, RT1320_SDCA_CTL_REQ_POWER_STATE, 0), 0x03);
 	rt1320_pde_transition_delay(rt1320, FUNC_NUM_AMP, RT1320_SDCA_ENT_PDE23, 0x03);
 
+	if (rt1320->dev_id == RT1321_DEV_ID) {
+		regmap_update_bits(rt1320->regmap, 0xc047, 0x80, 0x80);
+		regmap_write(rt1320->regmap, 0xc5c4, 0x10);
+	}
+
 	/* advance gain will be set when R0 load, not here */
 	regmap_write(rt1320->regmap, 0xdd0b, vol_reg[3]);
 	regmap_write(rt1320->regmap, 0xdd0a, vol_reg[2]);
@@ -1296,7 +1786,7 @@ static int rt1320_r0_cali_put(struct snd_kcontrol *kcontrol,
 static void rt1320_load_mcu_patch(struct rt1320_sdw_priv *rt1320)
 {
 	struct sdw_slave *slave = rt1320->sdw_slave;
-	const struct firmware *patch;
+	const struct firmware *patch __free(firmware) = NULL;
 	const char *filename;
 	unsigned int addr, val, min_addr, max_addr;
 	const unsigned char *ptr;
@@ -1312,6 +1802,9 @@ static void rt1320_load_mcu_patch(struct rt1320_sdw_priv *rt1320)
 		max_addr = 0x10007fff;
 		break;
 	case RT1321_DEV_ID:
+		if (rt1320->version_id == RT1321_VA2)
+			return;
+
 		filename = RT1321_VA_MCU_PATCH;
 		min_addr = 0x10008000;
 		max_addr = 0x10008fff;
@@ -1347,17 +1840,15 @@ static void rt1320_load_mcu_patch(struct rt1320_sdw_priv *rt1320)
 
 				if (addr > max_addr || addr < min_addr) {
 					dev_err(&slave->dev, "%s: the address 0x%x is wrong", __func__, addr);
-					goto _exit_;
+					return;
 				}
 				if (val > 0xff) {
 					dev_err(&slave->dev, "%s: the value 0x%x is wrong", __func__, val);
-					goto _exit_;
+					return;
 				}
 				regmap_write(rt1320->regmap, addr, val);
 			}
 		}
-_exit_:
-		release_firmware(patch);
 	}
 }
 
@@ -1382,30 +1873,17 @@ static void rt1320_vab_preset(struct rt1320_sdw_priv *rt1320)
 static void rt1320_t0_load(struct rt1320_sdw_priv *rt1320, unsigned int l_t0, unsigned int r_t0)
 {
 	struct device *dev = &rt1320->sdw_slave->dev;
-	unsigned int factor = (1 << 22), fw_ready;
+	unsigned int factor = (1 << 22);
 	int l_t0_data[38], r_t0_data[38];
-	unsigned int fw_status_addr;
-
-	switch (rt1320->dev_id) {
-	case RT1320_DEV_ID:
-		fw_status_addr = RT1320_DSPFW_STATUS_ADDR;
-		break;
-	case RT1321_DEV_ID:
-		fw_status_addr = RT1321_DSPFW_STATUS_ADDR;
-		break;
-	default:
-		dev_err(dev, "%s: Unknown device ID %d\n", __func__, rt1320->dev_id);
-		return;
-	}
+	int dspfw_status;
 
 	regmap_write(rt1320->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_AMP, RT1320_SDCA_ENT_PDE23,
 				RT1320_SDCA_CTL_REQ_POWER_STATE, 0), 0x00);
 	rt1320_pde_transition_delay(rt1320, FUNC_NUM_AMP, RT1320_SDCA_ENT_PDE23, 0x00);
 
-	regmap_read(rt1320->regmap, fw_status_addr, &fw_ready);
-	fw_ready &= 0x1;
-	if (!fw_ready) {
+	dspfw_status = rt1320_dspfw_status(rt1320);
+	if (dspfw_status <= 0) {
 		dev_warn(dev, "%s, DSP FW is NOT ready\n", __func__);
 		goto _exit_;
 	}
@@ -1444,7 +1922,7 @@ static int rt1320_rae_load(struct rt1320_sdw_priv *rt1320)
 	struct device *dev = &rt1320->sdw_slave->dev;
 	static const char func_tag[] = "FUNC";
 	static const char xu_tag[] = "XU";
-	const struct firmware *rae_fw = NULL;
+	const struct firmware *rae_fw __free(firmware) = NULL;
 	unsigned int fw_offset;
 	unsigned char *fw_data;
 	unsigned char *param_data;
@@ -1483,22 +1961,46 @@ static int rt1320_rae_load(struct rt1320_sdw_priv *rt1320)
 	request_firmware(&rae_fw, rae_filename, dev);
 	if (rae_fw) {
 
-		/* RAE CRC clear */
-		regmap_write(rt1320->regmap, 0xe80b, 0x0f);
-
-		/* RAE stop & CRC disable */
-		regmap_update_bits(rt1320->regmap, 0xe803, 0xbc, 0x00);
-
-		while (--retry) {
-			regmap_read(rt1320->regmap, 0xe83f, &value);
-			if (value & 0x40)
-				break;
-			usleep_range(1000, 1100);
-		}
-		if (!retry && !(value & 0x40)) {
-			dev_err(dev, "%s: RAE is not ready to load\n", __func__);
-			release_firmware(rae_fw);
-			return -ETIMEDOUT;
+		switch (rt1320->dev_id) {
+		case RT1320_DEV_ID:
+			/* RAE CRC clear */
+			regmap_write(rt1320->regmap, 0xe80b, 0x0f);
+			/* RAE stop & CRC disable */
+			regmap_update_bits(rt1320->regmap, 0xe803, 0xbc, 0x00);
+			while (--retry) {
+				regmap_read(rt1320->regmap, 0xe83f, &value);
+				if (value & 0x40)
+					break;
+				usleep_range(1000, 1100);
+			}
+			if (!retry && !(value & 0x40)) {
+				dev_err(dev, "%s: RAE is not ready to load\n", __func__);
+				return -ETIMEDOUT;
+			}
+			break;
+		case RT1321_DEV_ID:
+			/* RAE CRC clear */
+			regmap_write(rt1320->regmap, 0x2000300e, 0xc0);
+			regmap_write(rt1320->regmap, 0x2000300f, 0x0f);
+			/* RAE stop & Phase sync & CRC disable */
+			regmap_update_bits(rt1320->regmap, 0x20003003, 0xfe, 0x00);
+			regmap_update_bits(rt1320->regmap, 0xc047, 0x80, 0x00);
+			regmap_update_bits(rt1320->regmap, 0x2000301c, 0x01, 0x00);
+			/* check whether write state is ready */
+			while (--retry) {
+				regmap_read(rt1320->regmap, 0x20003043, &value);
+				if (value & 0x40)
+					break;
+				usleep_range(1000, 1100);
+			}
+			if (!retry && !(value & 0x40)) {
+				dev_err(dev, "%s: RAE is not ready to load\n", __func__);
+				return -ETIMEDOUT;
+			}
+			break;
+		default:
+			dev_err(dev, "%s: Unknown device ID %d\n", __func__, rt1320->dev_id);
+			return -EINVAL;
 		}
 
 		dev_dbg(dev, "%s, rae_fw size=0x%zx\n", __func__, rae_fw->size);
@@ -1551,7 +2053,6 @@ static int rt1320_rae_load(struct rt1320_sdw_priv *rt1320)
 		}
 
 		regcache_cache_bypass(rt1320->regmap, false);
-		release_firmware(rae_fw);
 
 	} else {
 		dev_err(dev, "%s: Failed to load %s firmware\n", __func__, rae_filename);
@@ -1559,18 +2060,34 @@ static int rt1320_rae_load(struct rt1320_sdw_priv *rt1320)
 		goto _exit_;
 	}
 
-	/* RAE CRC enable */
-	regmap_update_bits(rt1320->regmap, 0xe803, 0x0c, 0x0c);
-
-	/* RAE update */
-	regmap_update_bits(rt1320->regmap, 0xe80b, 0x80, 0x00);
-	regmap_update_bits(rt1320->regmap, 0xe80b, 0x80, 0x80);
-
-	/* RAE run */
-	regmap_update_bits(rt1320->regmap, 0xe803, 0x80, 0x80);
-
-	regmap_read(rt1320->regmap, 0xe80b, &value);
-	dev_dbg(dev, "%s: CAE run => 0xe80b reg = 0x%x\n", __func__, value);
+	switch (rt1320->dev_id) {
+	case RT1320_DEV_ID:
+		/* RAE CRC enable */
+		regmap_update_bits(rt1320->regmap, 0xe803, 0x0c, 0x0c);
+		/* RAE update */
+		regmap_update_bits(rt1320->regmap, 0xe80b, 0x80, 0x00);
+		regmap_update_bits(rt1320->regmap, 0xe80b, 0x80, 0x80);
+		/* RAE run */
+		regmap_update_bits(rt1320->regmap, 0xe803, 0x80, 0x80);
+		regmap_read(rt1320->regmap, 0xe80b, &value);
+		dev_dbg(dev, "%s: CAE run => 0xe80b reg = 0x%x\n", __func__, value);
+		break;
+	case RT1321_DEV_ID:
+		/* RAE CRC enable */
+		regmap_update_bits(rt1320->regmap, 0x20003003, 0x30, 0x30);
+		/* RAE update */
+		regmap_update_bits(rt1320->regmap, 0x2000301c, 0x80, 0x00);
+		regmap_update_bits(rt1320->regmap, 0x2000301c, 0x80, 0x80);
+		regmap_update_bits(rt1320->regmap, 0x20009018, 0x80, 0x00);
+		regmap_update_bits(rt1320->regmap, 0x20009018, 0x80, 0x80);
+		regmap_update_bits(rt1320->regmap, 0x20005818, 0x80, 0x00);
+		regmap_update_bits(rt1320->regmap, 0x20005818, 0x80, 0x80);
+		/* RAE run */
+		regmap_update_bits(rt1320->regmap, 0x2000301c, 0x01, 0x01);
+		/* Phase sync eanble */
+		regmap_update_bits(rt1320->regmap, 0xc047, 0x80, 0x80);
+		break;
+	}
 
 	rt1320->rae_update_done = true;
 
@@ -1598,31 +2115,20 @@ struct rt1320_dspfwheader {
 
 	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(rt1320->component);
 	struct device *dev = &rt1320->sdw_slave->dev;
-	unsigned int val, i, fw_offset, fw_ready;
-	unsigned int fw_status_addr;
+	unsigned int val, i, fw_offset;
 	struct rt1320_dspfwheader *fwheader;
 	struct rt1320_imageinfo *ptr_img;
 	struct sdw_bpt_section sec[10];
-	const struct firmware *fw = NULL;
+	const struct firmware *fw __free(firmware) = NULL;
 	unsigned char *fw_data;
 	bool dev_fw_match = false;
 	static const char hdr_sig[] = "AFX";
 	unsigned int hdr_size = 0;
 	const char *dmi_vendor, *dmi_product, *dmi_sku;
 	int len_vendor, len_product, len_sku;
+	unsigned char boot_mode = 0; /* 0: from RAM; 1: from ROM */
+	unsigned char has_0x3fc00000 = 0;
 	char filename[512];
-
-	switch (rt1320->dev_id) {
-	case RT1320_DEV_ID:
-		fw_status_addr = RT1320_DSPFW_STATUS_ADDR;
-		break;
-	case RT1321_DEV_ID:
-		fw_status_addr = RT1321_DSPFW_STATUS_ADDR;
-		break;
-	default:
-		dev_err(dev, "%s: Unknown device ID %d\n", __func__, rt1320->dev_id);
-		return;
-	}
 
 	dmi_vendor = dmi_get_system_info(DMI_SYS_VENDOR);
 	dmi_product = dmi_get_system_info(DMI_PRODUCT_NAME);
@@ -1653,16 +2159,11 @@ struct rt1320_dspfwheader {
 				RT1320_SDCA_CTL_REQ_POWER_STATE, 0), 0x00);
 	rt1320_pde_transition_delay(rt1320, FUNC_NUM_AMP, RT1320_SDCA_ENT_PDE23, 0x00);
 
-	regmap_read(rt1320->regmap, fw_status_addr, &fw_ready);
-	fw_ready &= 0x1;
-	if (fw_ready) {
+	if (rt1320_dspfw_status(rt1320)) {
 		dev_dbg(dev, "%s, DSP FW was already\n", __func__);
 		rt1320->fw_load_done = true;
 		goto _exit_;
 	}
-
-	/* change to IRAM */
-	regmap_update_bits(rt1320->regmap, 0xf01e, 0x80, 0x00);
 
 	request_firmware(&fw, filename, dev);
 	if (fw) {
@@ -1672,7 +2173,6 @@ struct rt1320_dspfwheader {
 
 		if (fwheader->sync != 0x0a1c5679) {
 			dev_err(dev, "%s: FW sync error\n", __func__);
-			release_firmware(fw);
 			goto _exit_;
 		}
 
@@ -1709,9 +2209,11 @@ struct rt1320_dspfwheader {
 						dev_fw_match = true;
 				break;
 			case RT1321_DEV_ID:
-				if (ptr_img->addr == 0x3fc00000)
-					if (fw_data[9] == '1')
+				if (ptr_img->addr == 0x3fc00000) {
+					if (fw_data[7] == '1')
 						dev_fw_match = true;
+					has_0x3fc00000 = 1;
+				}
 				break;
 			default:
 				dev_err(dev, "%s: Unknown device ID %d\n", __func__, rt1320->dev_id);
@@ -1720,6 +2222,22 @@ struct rt1320_dspfwheader {
 
 			fw_offset += ptr_img->size;
 		}
+
+		if (rt1320->dev_id == RT1321_DEV_ID && rt1320->version_id == RT1321_VA2) {
+			/*
+			 * For 1321 VA2, if the FW doesn't include the section for address 0x3fc00000,
+			 * it means the FW will boot from ROM and force dev_fw_match to true to download FW by BRA.
+			 */
+			if (!has_0x3fc00000) {
+				boot_mode = 1;
+				dev_fw_match = true;
+			}
+			dev_dbg(dev, "%s: Boot from %s for VA2\n", __func__, (boot_mode ? "ROM" : "RAM"));
+		}
+
+		/* change to IRAM */
+		if (!boot_mode)
+			regmap_update_bits(rt1320->regmap, 0xf01e, 0x80, 0x00);
 
 		if (dev_fw_match) {
 			dev_dbg(dev, "%s, starting BRA downloading FW..\n", __func__);
@@ -1732,7 +2250,6 @@ struct rt1320_dspfwheader {
 		}
 
 		regcache_cache_bypass(rt1320->regmap, false);
-		release_firmware(fw);
 
 		if (!dev_fw_match) {
 			dev_err(dev, "%s: FW file doesn't match to device\n", __func__);
@@ -1743,24 +2260,39 @@ struct rt1320_dspfwheader {
 		goto _exit_;
 	}
 
-	/* run RAM code */
-	regmap_read(rt1320->regmap, 0x3fc2bfc0, &val);
-	val |= 0x8;
-	regmap_write(rt1320->regmap, 0x3fc2bfc0, val);
-
-	/* clear frame counter */
 	switch (rt1320->dev_id) {
 	case RT1320_DEV_ID:
+		/* run RAM code */
+		regmap_read(rt1320->regmap, 0x3fc2bfc0, &val);
+		val |= 0x8;
+		regmap_write(rt1320->regmap, 0x3fc2bfc0, val);
+		/* clear frame counter */
 		regmap_write(rt1320->regmap, 0x3fc2bfcb, 0x00);
 		regmap_write(rt1320->regmap, 0x3fc2bfca, 0x00);
 		regmap_write(rt1320->regmap, 0x3fc2bfc9, 0x00);
 		regmap_write(rt1320->regmap, 0x3fc2bfc8, 0x00);
 		break;
 	case RT1321_DEV_ID:
+		if (!boot_mode) {
+			/* run RAM code */
+			regmap_read(rt1320->regmap, 0x3fc2dfc0, &val);
+			val |= 0x8;
+			regmap_write(rt1320->regmap, 0x3fc2dfc0, val);
+		}
+		/* clear frame counter */
 		regmap_write(rt1320->regmap, 0x3fc2dfcb, 0x00);
 		regmap_write(rt1320->regmap, 0x3fc2dfca, 0x00);
 		regmap_write(rt1320->regmap, 0x3fc2dfc9, 0x00);
 		regmap_write(rt1320->regmap, 0x3fc2dfc8, 0x00);
+		/* enable handshake */
+		regmap_write(rt1320->regmap, 0x3fc2dfc4, 0x00);
+		regmap_write(rt1320->regmap, 0xd470, 0xad);
+		/* minimum phase settings */
+		regmap_write(rt1320->regmap, 0xc5c4, 0x10);
+		regmap_write(rt1320->regmap, 0x20003003, 0x31);
+		regmap_update_bits(rt1320->regmap, 0x20003002, 0x40, 0x00);
+		regmap_write(rt1320->regmap, 0xc5b3, 0x01);
+		regmap_write(rt1320->regmap, 0xc052, 0x11);
 		break;
 	}
 
@@ -1843,14 +2375,35 @@ static void rt1320_vc_preset(struct rt1320_sdw_priv *rt1320)
 
 static void rt1321_preset(struct rt1320_sdw_priv *rt1320)
 {
+	const struct reg_sequence *blindwrite;
 	unsigned int i, reg, val, delay;
+	unsigned int array_size;
 
-	for (i = 0; i < ARRAY_SIZE(rt1321_blind_write); i++) {
-		reg = rt1321_blind_write[i].reg;
-		val = rt1321_blind_write[i].def;
-		delay = rt1321_blind_write[i].delay_us;
+	switch (rt1320->version_id) {
+	case RT1321_VA0:
+		blindwrite = rt1321_blind_write;
+		array_size = ARRAY_SIZE(rt1321_blind_write);
+		break;
+	case RT1321_VA1:
+		blindwrite = rt1321_va1_blind_write;
+		array_size = ARRAY_SIZE(rt1321_va1_blind_write);
+		break;
+	case RT1321_VA2:
+		blindwrite = rt1321_va2_blind_write;
+		array_size = ARRAY_SIZE(rt1321_va2_blind_write);
+		break;
+	default:
+		dev_err(&rt1320->sdw_slave->dev, "%s: Unknown version ID %d\n",
+			__func__, rt1320->version_id);
+		return;
+	}
 
-		if (reg == 0x3fc2dfc3)
+	for (i = 0; i < array_size; i++) {
+		reg = blindwrite[i].reg;
+		val = blindwrite[i].def;
+		delay = blindwrite[i].delay_us;
+
+		if (reg == 0x1000cd56)
 			rt1320_load_mcu_patch(rt1320);
 
 		regmap_write(rt1320->regmap, reg, val);
@@ -1892,6 +2445,24 @@ static int rt1320_io_init(struct device *dev, struct sdw_slave *slave)
 		regmap_read(rt1320->regmap, RT1320_DEV_ID_0, &val);
 		regmap_read(rt1320->regmap, RT1320_DEV_ID_1, &tmp);
 		rt1320->dev_id = (val << 8) | tmp;
+
+		/* This is a workaround that reads the value twice to obtain the correct result. */
+		rt1320_pr_read(rt1320, RT1320_HV_DEV_ID_0, &val);
+		rt1320_pr_read(rt1320, RT1320_HV_DEV_ID_1, &tmp);
+		rt1320_pr_read(rt1320, RT1320_HV_DEV_ID_0, &val);
+		rt1320_pr_read(rt1320, RT1320_HV_DEV_ID_1, &tmp);
+		val = (val << 8) | tmp;
+
+		if (rt1320->dev_id == RT1321_DEV_ID) {
+			if (rt1320->version_id == 0x01)
+				rt1320->version_id = RT1321_VA2;
+			else if (val == RT1321_DEV_HV_VA0_ID)
+				rt1320->version_id = RT1321_VA0;
+			else if (val == RT1321_DEV_HV_VA1_ID)
+				rt1320->version_id = RT1321_VA1;
+			else
+				dev_err(dev, "%s: Unknown version ID 0x%x for RT1321\n", __func__, rt1320->version_id);
+		}
 	}
 
 	regmap_read(rt1320->regmap,
@@ -2326,24 +2897,11 @@ static const DECLARE_TLV_DB_SCALE(in_vol_tlv, -1725, 75, 0);
 static int rt1320_r0_load(struct rt1320_sdw_priv *rt1320)
 {
 	struct device *dev = regmap_get_device(rt1320->regmap);
-	unsigned int fw_status_addr;
-	unsigned int fw_ready;
+	int dspfw_status;
 	int ret = 0;
 
 	if (!rt1320->r0_l_reg || !rt1320->r0_r_reg)
 		return -EINVAL;
-
-	switch (rt1320->dev_id) {
-	case RT1320_DEV_ID:
-		fw_status_addr = RT1320_DSPFW_STATUS_ADDR;
-		break;
-	case RT1321_DEV_ID:
-		fw_status_addr = RT1321_DSPFW_STATUS_ADDR;
-		break;
-	default:
-		dev_err(dev, "%s: Unknown device ID %d\n", __func__, rt1320->dev_id);
-		return -EINVAL;
-	}
 
 	regmap_write(rt1320->regmap,
 		SDW_SDCA_CTL(FUNC_NUM_AMP, RT1320_SDCA_ENT_PDE23, RT1320_SDCA_CTL_REQ_POWER_STATE, 0), 0x00);
@@ -2353,9 +2911,8 @@ static int rt1320_r0_load(struct rt1320_sdw_priv *rt1320)
 		goto _timeout_;
 	}
 
-	regmap_read(rt1320->regmap, fw_status_addr, &fw_ready);
-	fw_ready &= 0x1;
-	if (!fw_ready) {
+	dspfw_status = rt1320_dspfw_status(rt1320);
+	if (dspfw_status <= 0) {
 		dev_dbg(dev, "%s, DSP FW is NOT ready\n", __func__);
 		goto _timeout_;
 	}
@@ -2458,7 +3015,7 @@ static int rt1320_dspfw_load_put(struct snd_kcontrol *kcontrol,
 	if (!rt1320->hw_init)
 		return 0;
 
-	ret = pm_runtime_resume(component->dev);
+	ret = pm_runtime_resume_and_get(component->dev);
 	if (ret < 0 && ret != -EACCES)
 		return ret;
 
@@ -2469,6 +3026,8 @@ static int rt1320_dspfw_load_put(struct snd_kcontrol *kcontrol,
 	if (!ucontrol->value.integer.value[0])
 		rt1320->fw_load_done = false;
 
+	pm_runtime_mark_last_busy(component->dev);
+	pm_runtime_put_autosuspend(component->dev);
 	return 0;
 }
 
@@ -2819,6 +3378,37 @@ static int rt1320_sdw_pcm_hw_free(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static int rt1320_bus_config(struct sdw_slave *slave,
+				struct sdw_bus_params *params)
+{
+	struct  rt1320_sdw_priv *rt1320 = dev_get_drvdata(&slave->dev);
+	unsigned int clk_base;
+
+	regmap_read(rt1320->regmap, 0x004d, &clk_base);
+	dev_dbg(&rt1320->sdw_slave->dev, "%s clk_base=%x", __func__, clk_base);
+
+	switch (clk_base) {
+	case RT1320_CLK_FREQ_19_2_MHZ:
+	case RT1320_CLK_FREQ_24MHZ:
+		regmap_write(rt1320->regmap, 0xc600, 0x04);
+		regmap_write(rt1320->regmap, 0xc601, 0x83);
+		regmap_write(rt1320->regmap, 0xc602, 0x1f);
+		regmap_write(rt1320->regmap, 0xc603, 0x40);
+		break;
+	case RT1320_CLK_FREQ_24_576MHZ:
+	case RT1320_CLK_FREQ_22_5792MHZ:
+		regmap_write(rt1320->regmap, 0xc600, 0x07);
+		regmap_write(rt1320->regmap, 0xc601, 0x80);
+		regmap_write(rt1320->regmap, 0xc602, 0x0f);
+		regmap_write(rt1320->regmap, 0xc603, 0x40);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /*
  * slave_ops: callbacks for get_clock_stop_mode, clock_stop and
  * port_prep are not defined for now
@@ -2826,12 +3416,13 @@ static int rt1320_sdw_pcm_hw_free(struct snd_pcm_substream *substream,
 static const struct sdw_slave_ops rt1320_slave_ops = {
 	.read_prop = rt1320_read_prop,
 	.update_status = rt1320_update_status,
+	.bus_config = rt1320_bus_config,
 };
 
 static int rt1320_sdw_component_probe(struct snd_soc_component *component)
 {
-	int ret;
 	struct rt1320_sdw_priv *rt1320 = snd_soc_component_get_drvdata(component);
+	int ret;
 
 	rt1320->component = component;
 
@@ -3062,10 +3653,23 @@ static int rt1320_dev_resume(struct device *dev)
 		return ret;
 
 	regcache_cache_only(rt1320->regmap, false);
-	regcache_sync(rt1320->regmap);
+	ret = regcache_sync(rt1320->regmap);
+	if (ret)
+		goto err_sync;
+
 	regcache_cache_only(rt1320->mbq_regmap, false);
-	regcache_sync(rt1320->mbq_regmap);
+	ret = regcache_sync(rt1320->mbq_regmap);
+	if (ret)
+		goto err_sync;
+
 	return 0;
+
+err_sync:
+	regcache_cache_only(rt1320->regmap, true);
+	regcache_cache_only(rt1320->mbq_regmap, true);
+	regcache_mark_dirty(rt1320->regmap);
+	regcache_mark_dirty(rt1320->mbq_regmap);
+	return ret;
 }
 
 static const struct dev_pm_ops rt1320_pm = {

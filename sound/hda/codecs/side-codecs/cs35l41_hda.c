@@ -170,6 +170,7 @@ static int cs35l41_request_firmware_file(struct cs35l41_hda *cs35l41,
 	char *s, c;
 	int ret = 0;
 
+	*firmware = NULL;
 	if (spkid > -1 && ssid && amp_name)
 		*filename = kasprintf(GFP_KERNEL, "cirrus/%s-%s-%s-%s-spkid%d-%s.%s", CS35L41_PART,
 				      dsp_name, cs35l41_hda_fw_ids[cs35l41->firmware_type],
@@ -528,8 +529,8 @@ static int cs35l41_read_tuning_params(struct cs35l41_hda *cs35l41, const struct 
 
 static int cs35l41_load_tuning_params(struct cs35l41_hda *cs35l41, char *tuning_filename)
 {
-	const struct firmware *tuning_param_file = NULL;
-	char *tuning_param_filename = NULL;
+	const struct firmware *tuning_param_file __free(firmware) = NULL;
+	char *tuning_param_filename __free(kfree) = NULL;
 	int ret;
 
 	ret = cs35l41_request_tuning_param_file(cs35l41, tuning_filename, &tuning_param_file,
@@ -548,19 +549,16 @@ static int cs35l41_load_tuning_params(struct cs35l41_hda *cs35l41, char *tuning_
 		cs35l41_set_default_tuning_params(cs35l41);
 	}
 
-	release_firmware(tuning_param_file);
-	kfree(tuning_param_filename);
-
 	return ret;
 }
 
 static int cs35l41_init_dsp(struct cs35l41_hda *cs35l41)
 {
-	const struct firmware *coeff_firmware = NULL;
-	const struct firmware *wmfw_firmware = NULL;
+	const struct firmware *coeff_firmware __free(firmware) = NULL;
+	const struct firmware *wmfw_firmware __free(firmware) = NULL;
 	struct cs_dsp *dsp = &cs35l41->cs_dsp;
-	char *coeff_filename = NULL;
-	char *wmfw_filename = NULL;
+	char *coeff_filename __free(kfree) = NULL;
+	char *wmfw_filename __free(kfree) = NULL;
 	int ret;
 
 	if (!cs35l41->halo_initialized) {
@@ -592,20 +590,13 @@ static int cs35l41_init_dsp(struct cs35l41_hda *cs35l41)
 
 	ret = cs_dsp_power_up(dsp, wmfw_firmware, wmfw_filename, coeff_firmware, coeff_filename,
 			      cs35l41_hda_fw_ids[cs35l41->firmware_type]);
-	if (ret)
-		goto err;
+	if (ret) {
+		cs35l41_set_default_tuning_params(cs35l41);
+		return ret;
+	}
 
 	cs35l41_hda_apply_calibration(cs35l41);
-
-err:
-	if (ret)
-		cs35l41_set_default_tuning_params(cs35l41);
-	release_firmware(wmfw_firmware);
-	release_firmware(coeff_firmware);
-	kfree(wmfw_filename);
-	kfree(coeff_filename);
-
-	return ret;
+	return 0;
 }
 
 static void cs35l41_shutdown_dsp(struct cs35l41_hda *cs35l41)
@@ -1924,7 +1915,6 @@ err:
 static int cs35l41_hda_read_acpi(struct cs35l41_hda *cs35l41, const char *hid, int id)
 {
 	struct acpi_device *adev;
-	struct device *physdev;
 	struct spi_device *spi;
 	const char *sub;
 	int ret;
@@ -1936,7 +1926,8 @@ static int cs35l41_hda_read_acpi(struct cs35l41_hda *cs35l41, const char *hid, i
 	}
 
 	cs35l41->dacpi = adev;
-	physdev = get_device(acpi_get_first_physical_node(adev));
+	struct device *physdev __free(put_device) =
+		get_device(acpi_get_first_physical_node(adev));
 	if (!physdev) {
 		acpi_dev_put(adev);
 		return -ENODEV;
@@ -1954,13 +1945,9 @@ static int cs35l41_hda_read_acpi(struct cs35l41_hda *cs35l41, const char *hid, i
 	}
 
 	ret = cs35l41_hda_parse_acpi(cs35l41, physdev, id);
-	if (ret) {
-		put_device(physdev);
+	if (ret)
 		return ret;
-	}
 out:
-	put_device(physdev);
-
 	cs35l41->bypass_fw = false;
 	if (cs35l41->control_bus == SPI) {
 		spi = to_spi_device(cs35l41->dev);

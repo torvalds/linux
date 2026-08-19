@@ -15,7 +15,8 @@
 
 enum {
 	QUIRK_CM_STD = 0x0,
-	QUIRK_GENE_TWL7_SSID = 0x160dc000
+	QUIRK_GENE_TWL7_SSID = 0x160dc000,
+	QUIRK_IBP_SSID = 0x15bd3275
 };
 
 /* CM9825 Offset Definitions */
@@ -40,13 +41,19 @@ enum {
 #define CM9825_VERB_SET_GAD 0x7b4
 #define CM9825_VERB_SET_TMOD 0x7b5
 #define CM9825_VERB_SET_SNR 0x7b6
+#define CM9825_VERB_SET_OMTP 0x7ef
+#define CM9825_VERB_READ_OMTP 0xfec
 
 struct cmi_spec {
 	struct hda_gen_spec gen;
 	const struct hda_verb *chip_d0_verbs;
 	const struct hda_verb *chip_d3_verbs;
+	const struct hda_verb *chip_playback_start_verbs;
+	const struct hda_verb *chip_playback_stop_verbs;
 	const struct hda_verb *chip_hp_present_verbs;
 	const struct hda_verb *chip_hp_remove_verbs;
+	const struct hda_verb *chip_lineout_present_verbs;
+	const struct hda_verb *chip_lineout_remove_verbs;
 	struct hda_codec *codec;
 	struct delayed_work unsol_inputs_work;
 	struct delayed_work unsol_lineout_work;
@@ -193,6 +200,94 @@ static const struct hda_verb cm9825_gene_twl7_playback_stop_verbs[] = {
 	{}
 };
 
+/*
+ * To save power, AD/CLK is turned off.
+ */
+static const struct hda_verb cm9825_ibp_d3_verbs[] = {
+	{0x43, CM9825_VERB_SET_D2S, 0x62},
+	{0x43, CM9825_VERB_SET_PLL, 0x01},
+	{0x43, CM9825_VERB_SET_NEG, 0xc2},
+	{0x43, CM9825_VERB_SET_ADCL, 0x00},
+	{0x43, CM9825_VERB_SET_DACL, 0x02},
+	{0x43, CM9825_VERB_SET_VNEG, 0x50},
+	{0x43, CM9825_VERB_SET_MBIAS, 0x00},
+	{0x43, CM9825_VERB_SET_PDNEG, 0x04},
+	{0x43, CM9825_VERB_SET_CDALR, 0xf6},
+	{0x43, CM9825_VERB_SET_OTP, 0xcd},
+	{}
+};
+
+/*
+ * D0 configuration: enable PLL/CLK/ADC/DAC and optimize performance
+ */
+static const struct hda_verb cm9825_ibp_d0_verbs[] = {
+	{0x34, AC_VERB_SET_EAPD_BTLENABLE, 0x02},
+	{0x43, CM9825_VERB_SET_SNR, 0x38},
+	{0x43, CM9825_VERB_SET_PLL, 0x00},
+	{0x43, CM9825_VERB_SET_ADCL, 0x00},
+	{0x43, CM9825_VERB_SET_DACL, 0x02},
+	{0x43, CM9825_VERB_SET_MBIAS, 0x00},
+	{0x43, CM9825_VERB_SET_VNEG, 0x56},
+	{0x43, CM9825_VERB_SET_D2S, 0x62},
+	{0x43, CM9825_VERB_SET_DACTRL, 0x00},
+	{0x43, CM9825_VERB_SET_PDNEG, 0x0c},
+	{0x43, CM9825_VERB_SET_CDALR, 0xf4},
+	{0x43, CM9825_VERB_SET_OTP, 0xcd},
+	{0x43, CM9825_VERB_SET_MTCBA, 0x61},
+	{0x43, CM9825_VERB_SET_OCP, 0x33},
+	{0x43, CM9825_VERB_SET_GAD, 0x07},
+	{0x43, CM9825_VERB_SET_TMOD, 0x26},
+	{0x3c, AC_VERB_SET_AMP_GAIN_MUTE | 0xa0, 0x2d},
+	{0x3c, AC_VERB_SET_AMP_GAIN_MUTE | 0x90, 0x2d},
+	{0x43, CM9825_VERB_SET_HPF_1, 0x40},
+	{0x43, CM9825_VERB_SET_HPF_2, 0x40},
+	{}
+};
+
+/*
+ * Enable mbias, ADC.
+ */
+static const struct hda_verb cm9825_ibp_lineout_present_verbs[] = {
+	{0x43, CM9825_VERB_SET_ADCL, 0x8c},
+	{0x43, CM9825_VERB_SET_MBIAS, 0x10},
+	{}
+};
+
+/*
+ * Disable mbias, ADC.
+ */
+static const struct hda_verb cm9825_ibp_lineout_remove_verbs[] = {
+	{0x43, CM9825_VERB_SET_ADCL, 0x00},
+	{0x43, CM9825_VERB_SET_MBIAS, 0x00},
+	{}
+};
+
+/*
+ * Turn on the DAC (widget NID 0x43) in the playback path by writing
+ * a sequence of vendor-specific verbs.
+ */
+static const struct hda_verb cm9825_ibp_playback_start_verbs[] = {
+	{0x43, CM9825_VERB_SET_DACL, 0xaa},
+	{0x43, CM9825_VERB_SET_D2S, 0xf2},
+	{0x43, CM9825_VERB_SET_VDO, 0xc4},
+	{0x43, CM9825_VERB_SET_SNR, 0x30},
+	{}
+};
+
+/*
+ * Shut down the playback path. The order differs slightly from the
+ * enable sequence, likely to avoid audible pop noise when powering
+ * down the output stage.
+ */
+static const struct hda_verb cm9825_ibp_playback_stop_verbs[] = {
+	{0x43, CM9825_VERB_SET_VDO, 0xc0},
+	{0x43, CM9825_VERB_SET_DACL, 0x02},
+	{0x43, CM9825_VERB_SET_D2S, 0x62},
+	{0x43, CM9825_VERB_SET_VDO, 0x80},
+	{0x43, CM9825_VERB_SET_SNR, 0x38},
+	{}
+};
+
 static void cm9825_update_jk_plug_status(struct hda_codec *codec, hda_nid_t nid)
 {
 	struct cmi_spec *spec = codec->spec;
@@ -232,6 +327,23 @@ static void cm9825_unsol_lineout_delayed(struct work_struct *work)
 	struct cmi_spec *spec =
 	    container_of(to_delayed_work(work), struct cmi_spec,
 			 unsol_lineout_work);
+	hda_nid_t line_out_pin = spec->gen.autocfg.line_out_pins[0];
+	bool line_out_jack_plugin = false;
+
+	line_out_jack_plugin = snd_hda_jack_detect(spec->codec, line_out_pin);
+
+	codec_dbg(spec->codec, "lineout_jack_plugin %d, lineout_pin 0x%X\n",
+		  (int)line_out_jack_plugin, line_out_pin);
+
+	if (!line_out_jack_plugin) {
+		/* Jack plugout */
+		snd_hda_sequence_write(spec->codec,
+				       spec->chip_lineout_remove_verbs);
+	} else {
+		/* Jack plugin */
+		snd_hda_sequence_write(spec->codec,
+				       spec->chip_lineout_present_verbs);
+	}
 
 	cm9825_update_jk_plug_status(spec->codec,
 				     spec->gen.autocfg.line_out_pins[0]);
@@ -362,12 +474,10 @@ static void cm9825_playback_pcm_hook(struct hda_pcm_stream *hinfo,
 
 	switch (action) {
 	case HDA_GEN_PCM_ACT_PREPARE:
-		snd_hda_sequence_write(spec->codec,
-				       cm9825_gene_twl7_playback_start_verbs);
+		snd_hda_sequence_write(codec, spec->chip_playback_start_verbs);
 		break;
 	case HDA_GEN_PCM_ACT_CLEANUP:
-		snd_hda_sequence_write(spec->codec,
-				       cm9825_gene_twl7_playback_stop_verbs);
+		snd_hda_sequence_write(codec, spec->chip_playback_stop_verbs);
 		break;
 	default:
 		return;
@@ -471,7 +581,8 @@ static int cm9825_resume(struct hda_codec *codec)
 
 	if (codec->core.subsystem_id == QUIRK_CM_STD)
 		cm9825_cm_std_resume(codec);
-	else if (codec->core.subsystem_id == QUIRK_GENE_TWL7_SSID) {
+	else if (codec->core.subsystem_id == QUIRK_GENE_TWL7_SSID ||
+		 codec->core.subsystem_id == QUIRK_IBP_SSID) {
 		snd_hda_codec_init(codec);
 		snd_hda_sequence_write(codec, spec->chip_d0_verbs);
 	}
@@ -487,6 +598,7 @@ static int cm9825_probe(struct hda_codec *codec, const struct hda_device_id *id)
 	struct cmi_spec *spec;
 	struct auto_pin_cfg *cfg;
 	int err = 0;
+	unsigned int val;
 
 	spec = kzalloc_obj(*spec);
 	if (spec == NULL)
@@ -523,8 +635,32 @@ static int cm9825_probe(struct hda_codec *codec, const struct hda_device_id *id)
 		spec->chip_d0_verbs = cm9825_gene_twl7_d0_verbs;
 		spec->chip_d3_verbs = cm9825_gene_twl7_d3_verbs;
 		spec->gen.pcm_playback_hook = cm9825_playback_pcm_hook;
+		spec->chip_playback_start_verbs =
+		    cm9825_gene_twl7_playback_start_verbs;
+		spec->chip_playback_stop_verbs =
+		    cm9825_gene_twl7_playback_stop_verbs;
 		/* Internal fixed device, Rear, Mic-in, 3.5mm */
 		snd_hda_codec_set_pincfg(codec, 0x37, 0x24A70100);
+		break;
+	case QUIRK_IBP_SSID:
+		snd_hda_codec_set_name(codec, "CM9825 IBP");
+		spec->chip_d0_verbs = cm9825_ibp_d0_verbs;
+		spec->chip_d3_verbs = cm9825_ibp_d3_verbs;
+		spec->gen.pcm_playback_hook = cm9825_playback_pcm_hook;
+		spec->chip_lineout_present_verbs =
+		    cm9825_ibp_lineout_present_verbs;
+		spec->chip_lineout_remove_verbs =
+		    cm9825_ibp_lineout_remove_verbs;
+		spec->chip_playback_start_verbs =
+		    cm9825_ibp_playback_start_verbs;
+		spec->chip_playback_stop_verbs = cm9825_ibp_playback_stop_verbs;
+
+		/* OMTP */
+		val =
+		    snd_hda_codec_read(codec, 0x46, 0, CM9825_VERB_READ_OMTP,
+				       0x0);
+		snd_hda_codec_write(codec, 0x46, 0, CM9825_VERB_SET_OMTP,
+				    (val >> 24) & 0x7f);
 		break;
 	default:
 		err = -ENXIO;

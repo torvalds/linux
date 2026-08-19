@@ -558,7 +558,7 @@ static const struct snd_soc_dai_ops cv1800b_i2s_dai_ops = {
 	.set_sysclk = cv1800b_i2s_dai_set_sysclk,
 };
 
-static const struct snd_soc_dai_driver cv1800b_i2s_dai_template = {
+static struct snd_soc_dai_driver cv1800b_i2s_dai_template = {
 	.name = "cv1800b-i2s",
 	.playback = {
 		.stream_name = "Playback",
@@ -636,7 +636,6 @@ static int cv1800b_i2s_probe(struct platform_device *pdev)
 	struct cv1800b_i2s *i2s;
 	struct resource *res;
 	void __iomem *regs;
-	struct snd_soc_dai_driver *dai;
 	int ret;
 
 	i2s = devm_kzalloc(dev, sizeof(*i2s), GFP_KERNEL);
@@ -666,21 +665,14 @@ static int cv1800b_i2s_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, i2s);
 	cv1800b_i2s_setup_tdm(i2s);
 
-	dai = devm_kmemdup(dev, &cv1800b_i2s_dai_template, sizeof(*dai),
-			   GFP_KERNEL);
-	if (!dai)
-		return -ENOMEM;
-
-	ret = devm_snd_soc_register_component(dev, &cv1800b_i2s_component, dai,
-					      1);
+	ret = devm_snd_soc_register_component(dev, &cv1800b_i2s_component,
+					      &cv1800b_i2s_dai_template, 1);
 	if (ret)
 		return ret;
 
 	ret = devm_snd_dmaengine_pcm_register(dev, &cv1800b_i2s_pcm_config, 0);
-	if (ret) {
-		dev_err(dev, "dmaengine_pcm_register failed: %d\n", ret);
+	if (ret)
 		return ret;
-	}
 
 	return 0;
 }

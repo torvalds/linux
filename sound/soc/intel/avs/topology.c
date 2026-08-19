@@ -2222,7 +2222,7 @@ struct avs_tplg *avs_tplg_new(struct snd_soc_component *comp)
 
 int avs_load_topology(struct snd_soc_component *comp, const char *filename)
 {
-	const struct firmware *fw;
+	const struct firmware *fw __free(firmware) = NULL;
 	int ret;
 
 	ret = request_firmware(&fw, filename, comp->dev);
@@ -2235,7 +2235,6 @@ int avs_load_topology(struct snd_soc_component *comp, const char *filename)
 	if (ret < 0)
 		dev_err(comp->dev, "load topology \"%s\" failed: %d\n", filename, ret);
 
-	release_firmware(fw);
 	return ret;
 }
 

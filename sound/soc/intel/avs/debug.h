@@ -9,6 +9,7 @@
 #ifndef __SOUND_SOC_INTEL_AVS_DEBUG_H
 #define __SOUND_SOC_INTEL_AVS_DEBUG_H
 
+#include <linux/cleanup.h>
 #include "messages.h"
 #include "registers.h"
 
@@ -26,14 +27,9 @@ struct avs_dev;
 
 static inline int avs_log_buffer_status_locked(struct avs_dev *adev, union avs_notify_msg *msg)
 {
-	unsigned long flags;
-	int ret;
+	guard(spinlock_irqsave)(&adev->trace_lock);
 
-	spin_lock_irqsave(&adev->trace_lock, flags);
-	ret = avs_dsp_op(adev, log_buffer_status, msg);
-	spin_unlock_irqrestore(&adev->trace_lock, flags);
-
-	return ret;
+	return avs_dsp_op(adev, log_buffer_status, msg);
 }
 
 struct avs_apl_log_buffer_layout {

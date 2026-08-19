@@ -3,6 +3,8 @@ subdir-ccflags-y += -I$(src)/../../common
 
 snd-hda-cirrus-scodec-y :=	cirrus_scodec.o
 snd-hda-cirrus-scodec-test-y :=	cirrus_scodec_test.o
+snd-hda-scodec-aw88399-y :=	aw88399_hda.o
+snd-hda-scodec-aw88399-i2c-y :=	aw88399_hda_i2c.o
 snd-hda-scodec-cs35l41-y :=	cs35l41_hda.o cs35l41_hda_property.o
 snd-hda-scodec-cs35l41-i2c-y :=	cs35l41_hda_i2c.o
 snd-hda-scodec-cs35l41-spi-y :=	cs35l41_hda_spi.o
@@ -16,6 +18,8 @@ snd-hda-scodec-tas2781-spi-y :=	tas2781_hda_spi.o
 
 obj-$(CONFIG_SND_HDA_CIRRUS_SCODEC) += snd-hda-cirrus-scodec.o
 obj-$(CONFIG_SND_HDA_CIRRUS_SCODEC_KUNIT_TEST) += snd-hda-cirrus-scodec-test.o
+obj-$(CONFIG_SND_HDA_SCODEC_AW88399) += snd-hda-scodec-aw88399.o
+obj-$(CONFIG_SND_HDA_SCODEC_AW88399_I2C) += snd-hda-scodec-aw88399-i2c.o
 obj-$(CONFIG_SND_HDA_SCODEC_CS35L41) += snd-hda-scodec-cs35l41.o
 obj-$(CONFIG_SND_HDA_SCODEC_CS35L41_I2C) += snd-hda-scodec-cs35l41-i2c.o
 obj-$(CONFIG_SND_HDA_SCODEC_CS35L41_SPI) += snd-hda-scodec-cs35l41-spi.o

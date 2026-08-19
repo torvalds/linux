@@ -6,6 +6,7 @@
 //          Amadeusz Slawinski <amadeuszx.slawinski@linux.intel.com>
 //
 
+#include <linux/cleanup.h>
 #include <linux/firmware.h>
 #include <linux/kfifo.h>
 #include <linux/slab.h>
@@ -48,13 +49,12 @@ int avs_get_module_entry(struct avs_dev *adev, const guid_t *uuid, struct avs_mo
 {
 	int idx;
 
-	mutex_lock(&adev->modres_mutex);
+	guard(mutex)(&adev->modres_mutex);
 
 	idx = avs_module_entry_index(adev, uuid);
 	if (idx >= 0)
 		memcpy(entry, &adev->mods_info->entries[idx], sizeof(*entry));
 
-	mutex_unlock(&adev->modres_mutex);
 	return (idx < 0) ? idx : 0;
 }
 
@@ -62,13 +62,12 @@ int avs_get_module_id_entry(struct avs_dev *adev, u32 module_id, struct avs_modu
 {
 	int idx;
 
-	mutex_lock(&adev->modres_mutex);
+	guard(mutex)(&adev->modres_mutex);
 
 	idx = avs_module_id_entry_index(adev, module_id);
 	if (idx >= 0)
 		memcpy(entry, &adev->mods_info->entries[idx], sizeof(*entry));
 
-	mutex_unlock(&adev->modres_mutex);
 	return (idx < 0) ? idx : 0;
 }
 
@@ -86,13 +85,12 @@ bool avs_is_module_ida_empty(struct avs_dev *adev, u32 module_id)
 	bool ret = false;
 	int idx;
 
-	mutex_lock(&adev->modres_mutex);
+	guard(mutex)(&adev->modres_mutex);
 
 	idx = avs_module_id_entry_index(adev, module_id);
 	if (idx >= 0)
 		ret = ida_is_empty(adev->mod_idas[idx]);
 
-	mutex_unlock(&adev->modres_mutex);
 	return ret;
 }
 
@@ -163,68 +161,57 @@ int avs_module_info_init(struct avs_dev *adev, bool purge)
 	if (ret)
 		return AVS_IPC_RET(ret);
 
-	mutex_lock(&adev->modres_mutex);
+	guard(mutex)(&adev->modres_mutex);
 
 	ret = avs_module_ida_alloc(adev, info, purge);
 	if (ret < 0) {
 		dev_err(adev->dev, "initialize module idas failed: %d\n", ret);
-		goto exit;
+		return ret;
 	}
 
 	/* Refresh current information with newly received table. */
 	kfree(adev->mods_info);
 	adev->mods_info = info;
 
-exit:
-	mutex_unlock(&adev->modres_mutex);
 	return ret;
 }
 
 void avs_module_info_free(struct avs_dev *adev)
 {
-	mutex_lock(&adev->modres_mutex);
+	guard(mutex)(&adev->modres_mutex);
 
 	avs_module_ida_destroy(adev);
 	kfree(adev->mods_info);
 	adev->mods_info = NULL;
-
-	mutex_unlock(&adev->modres_mutex);
 }
 
 int avs_module_id_alloc(struct avs_dev *adev, u16 module_id)
 {
-	int ret, idx, max_id;
+	int idx, max_id;
 
-	mutex_lock(&adev->modres_mutex);
+	guard(mutex)(&adev->modres_mutex);
 
 	idx = avs_module_id_entry_index(adev, module_id);
 	if (idx == -ENOENT) {
 		dev_err(adev->dev, "invalid module id: %d", module_id);
-		ret = -EINVAL;
-		goto exit;
+		return -EINVAL;
 	}
 	max_id = adev->mods_info->entries[idx].instance_max_count - 1;
-	ret = ida_alloc_max(adev->mod_idas[idx], max_id, GFP_KERNEL);
-exit:
-	mutex_unlock(&adev->modres_mutex);
-	return ret;
+
+	return ida_alloc_max(adev->mod_idas[idx], max_id, GFP_KERNEL);
 }
 
 void avs_module_id_free(struct avs_dev *adev, u16 module_id, u8 instance_id)
 {
 	int idx;
 
-	mutex_lock(&adev->modres_mutex);
+	guard(mutex)(&adev->modres_mutex);
 
 	idx = avs_module_id_entry_index(adev, module_id);
-	if (idx == -ENOENT) {
+	if (idx == -ENOENT)
 		dev_err(adev->dev, "invalid module id: %d", module_id);
-		goto exit;
-	}
-
-	ida_free(adev->mod_idas[idx], instance_id);
-exit:
-	mutex_unlock(&adev->modres_mutex);
+	else
+		ida_free(adev->mod_idas[idx], instance_id);
 }
 
 /*

@@ -28,17 +28,17 @@
 
 struct snd_seq_subscribers {
 	struct snd_seq_port_subscribe info;	/* additional info */
-	struct list_head src_list;	/* link of sources */
-	struct list_head dest_list;	/* link of destinations */
+	struct hlist_node src_list;	/* link of sources */
+	struct hlist_node dest_list;	/* link of destinations */
 	atomic_t ref_count;
+	struct rcu_head rcu;		/* for deferred free */
 };
 
 struct snd_seq_port_subs_info {
-	struct list_head list_head;	/* list of subscribed ports */
+	struct hlist_head list_head;	/* list of subscribed ports */
 	unsigned int count;		/* count of subscribers */
 	unsigned int exclusive: 1;	/* exclusive mode */
 	struct rw_semaphore list_mutex;
-	rwlock_t list_lock;
 	int (*open)(void *private_data, struct snd_seq_port_subscribe *info);
 	int (*close)(void *private_data, struct snd_seq_port_subscribe *info);
 };

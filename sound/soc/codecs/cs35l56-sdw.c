@@ -231,7 +231,7 @@ static void cs35l56_sdw_init(struct sdw_slave *peripheral)
 	 * a soft reset.
 	 */
 	if (cs35l56->base.init_done)
-		cs35l56_unmask_soundwire_interrupts(cs35l56->sdw_peripheral);
+		cs35l56_unmask_soundwire_interrupts(cs35l56);
 
 out:
 	pm_runtime_put_autosuspend(cs35l56->base.dev);
@@ -240,45 +240,15 @@ out:
 static int cs35l56_sdw_interrupt(struct sdw_slave *peripheral,
 				 struct sdw_slave_intr_status *status)
 {
-	struct cs35l56_private *cs35l56 = dev_get_drvdata(&peripheral->dev);
-
-	/* SoundWire core holds our pm_runtime when calling this function. */
-
-	dev_dbg(cs35l56->base.dev, "int control_port=%#x\n", status->control_port);
-
-	if ((status->control_port & SDW_SCP_INT1_IMPL_DEF) == 0)
-		return 0;
-
 	/*
-	 * Prevent bus manager suspending and possibly issuing a
-	 * bus-reset before the queued work has run.
+	 * The IRQ itself was handled through the regmap_irq handler, this is
+	 * just clearing up the additional Cirrus SoundWire registers that are
+	 * not covered by the SoundWire framework or the IRQ handler itself.
 	 */
-	pm_runtime_get_noresume(cs35l56->base.dev);
-
-	/*
-	 * Mask and clear until it has been handled.
-	 * None of the interrupts are time-critical so use the
-	 * power-efficient queue.
-	 */
-	cs35l56_mask_soundwire_interrupts(peripheral);
-	queue_work(system_power_efficient_wq, &cs35l56->sdw_irq_work);
+	sdw_read_no_pm(peripheral, CS35L56_SDW_GEN_INT_STAT_1);
+	sdw_write_no_pm(peripheral, CS35L56_SDW_GEN_INT_STAT_1, 0xFF);
 
 	return 0;
-}
-
-static void cs35l56_sdw_irq_work(struct work_struct *work)
-{
-	struct cs35l56_private *cs35l56 = container_of(work,
-						       struct cs35l56_private,
-						       sdw_irq_work);
-
-	cs35l56_irq(-1, &cs35l56->base);
-
-	/* unmask interrupts */
-	if (!cs35l56->sdw_irq_no_unmask)
-		cs35l56_unmask_soundwire_interrupts(cs35l56->sdw_peripheral);
-
-	pm_runtime_put_autosuspend(cs35l56->base.dev);
 }
 
 static int cs35l56_sdw_read_prop(struct sdw_slave *peripheral)
@@ -302,6 +272,7 @@ static int cs35l56_sdw_read_prop(struct sdw_slave *peripheral)
 	prop->source_ports = BIT(CS35L56_SDW1_CAPTURE_PORT);
 	prop->sink_ports = BIT(CS35L56_SDW1_PLAYBACK_PORT);
 	prop->paging_support = true;
+	prop->use_domain_irq = true;
 	prop->quirks = SDW_SLAVE_QUIRKS_INVALID_INITIAL_PARITY;
 	prop->scp_int1_mask = SDW_SCP_INT1_BUS_CLASH | SDW_SCP_INT1_PARITY | SDW_SCP_INT1_IMPL_DEF;
 
@@ -406,7 +377,7 @@ static int __maybe_unused cs35l56_sdw_runtime_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	cs35l56_unmask_soundwire_interrupts(cs35l56->sdw_peripheral);
+	cs35l56_unmask_soundwire_interrupts(cs35l56);
 
 	return 0;
 }
@@ -418,19 +389,10 @@ static int __maybe_unused cs35l56_sdw_system_suspend(struct device *dev)
 	if (!cs35l56->base.init_done)
 		return 0;
 
-	cs35l56_disable_sdw_interrupts(cs35l56);
+	/* runtime_resume unmasks the interrupt */
+	cs35l56_mask_soundwire_interrupts(cs35l56);
 
 	return cs35l56_system_suspend(dev);
-}
-
-static int __maybe_unused cs35l56_sdw_system_resume(struct device *dev)
-{
-	struct cs35l56_private *cs35l56 = dev_get_drvdata(dev);
-
-	cs35l56->sdw_irq_no_unmask = false;
-	/* runtime_resume re-enables the interrupt */
-
-	return cs35l56_system_resume(dev);
 }
 
 static int cs35l56_sdw_probe(struct sdw_slave *peripheral, const struct sdw_device_id *id)
@@ -447,7 +409,6 @@ static int cs35l56_sdw_probe(struct sdw_slave *peripheral, const struct sdw_devi
 	cs35l56->base.dev = dev;
 	cs35l56->sdw_peripheral = peripheral;
 	cs35l56->sdw_link_num = peripheral->bus->link_id;
-	INIT_WORK(&cs35l56->sdw_irq_work, cs35l56_sdw_irq_work);
 
 	dev_set_drvdata(dev, cs35l56);
 
@@ -457,6 +418,7 @@ static int cs35l56_sdw_probe(struct sdw_slave *peripheral, const struct sdw_devi
 		regmap_config = &cs35l56_regmap_sdw;
 		break;
 	case 0x3563:
+	case 0x3562:
 		regmap_config = &cs35l63_regmap_sdw;
 		break;
 	default:
@@ -483,25 +445,21 @@ static int cs35l56_sdw_probe(struct sdw_slave *peripheral, const struct sdw_devi
 	/* Start in cache-only until device is enumerated */
 	regcache_cache_only(cs35l56->base.regmap, true);
 
-	ret = cs35l56_common_probe(cs35l56);
-	if (ret != 0)
-		return ret;
-
-	return 0;
+	return cs35l56_common_probe(cs35l56, peripheral->irq);
 }
 
 static void cs35l56_sdw_remove(struct sdw_slave *peripheral)
 {
 	struct cs35l56_private *cs35l56 = dev_get_drvdata(&peripheral->dev);
 
-	cs35l56_disable_sdw_interrupts(cs35l56);
+	cs35l56_mask_soundwire_interrupts(cs35l56);
 
 	cs35l56_remove(cs35l56);
 }
 
 static const struct dev_pm_ops cs35l56_sdw_pm = {
 	SET_RUNTIME_PM_OPS(cs35l56_sdw_runtime_suspend, cs35l56_sdw_runtime_resume, NULL)
-	SYSTEM_SLEEP_PM_OPS(cs35l56_sdw_system_suspend, cs35l56_sdw_system_resume)
+	SYSTEM_SLEEP_PM_OPS(cs35l56_sdw_system_suspend, cs35l56_system_resume)
 	LATE_SYSTEM_SLEEP_PM_OPS(cs35l56_system_suspend_late, cs35l56_system_resume_early)
 	/* NOIRQ stage not needed, SoundWire doesn't use a hard IRQ */
 };
@@ -509,6 +467,7 @@ static const struct dev_pm_ops cs35l56_sdw_pm = {
 static const struct sdw_device_id cs35l56_sdw_id[] = {
 	SDW_SLAVE_ENTRY(0x01FA, 0x3556, 0x3556),
 	SDW_SLAVE_ENTRY(0x01FA, 0x3557, 0x3557),
+	SDW_SLAVE_ENTRY(0x01FA, 0x3562, 0x3562),
 	SDW_SLAVE_ENTRY(0x01FA, 0x3563, 0x3563),
 	{},
 };

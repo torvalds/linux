@@ -1157,10 +1157,11 @@ static int snd_ump_legacy_open(struct snd_rawmidi_substream *substream)
 		return -ENODEV;
 	if (dir == SNDRV_RAWMIDI_STREAM_OUTPUT) {
 		if (!ump->legacy_out_opens) {
-			err = snd_rawmidi_kernel_open(&ump->core, 0,
-						      SNDRV_RAWMIDI_LFLG_OUTPUT |
-						      SNDRV_RAWMIDI_LFLG_APPEND,
-						      &ump->legacy_out_rfile);
+			err = snd_rawmidi_kernel_open_nested(&ump->core, 0,
+							     SNDRV_RAWMIDI_LFLG_OUTPUT |
+							     SNDRV_RAWMIDI_LFLG_APPEND,
+							     &ump->legacy_out_rfile,
+							     SINGLE_DEPTH_NESTING);
 			if (err < 0)
 				return err;
 		}

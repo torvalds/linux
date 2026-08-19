@@ -71,7 +71,7 @@ static inline void snd_mask_set(struct snd_mask *mask, unsigned int val)
 static inline void snd_mask_set_format(struct snd_mask *mask,
 				       snd_pcm_format_t format)
 {
-	snd_mask_set(mask, (__force unsigned int)format);
+	snd_mask_set(mask, format);
 }
 
 static inline void snd_mask_reset(struct snd_mask *mask, unsigned int val)
@@ -132,7 +132,7 @@ static inline int snd_mask_test(const struct snd_mask *mask, unsigned int val)
 static inline int snd_mask_test_format(const struct snd_mask *mask,
 				       snd_pcm_format_t format)
 {
-	return snd_mask_test(mask, (__force unsigned int)format);
+	return snd_mask_test(mask, format);
 }
 
 static inline int snd_mask_single(const struct snd_mask *mask)
@@ -302,8 +302,7 @@ static inline int snd_interval_eq(const struct snd_interval *i1, const struct sn
  */
 static inline snd_pcm_access_t params_access(const struct snd_pcm_hw_params *p)
 {
-	return (__force snd_pcm_access_t)snd_mask_min(hw_param_mask_c(p,
-		SNDRV_PCM_HW_PARAM_ACCESS));
+	return snd_mask_min(hw_param_mask_c(p, SNDRV_PCM_HW_PARAM_ACCESS));
 }
 
 /**
@@ -312,8 +311,7 @@ static inline snd_pcm_access_t params_access(const struct snd_pcm_hw_params *p)
  */
 static inline snd_pcm_format_t params_format(const struct snd_pcm_hw_params *p)
 {
-	return (__force snd_pcm_format_t)snd_mask_min(hw_param_mask_c(p,
-		SNDRV_PCM_HW_PARAM_FORMAT));
+	return snd_mask_min(hw_param_mask_c(p, SNDRV_PCM_HW_PARAM_FORMAT));
 }
 
 /**
@@ -323,8 +321,7 @@ static inline snd_pcm_format_t params_format(const struct snd_pcm_hw_params *p)
 static inline snd_pcm_subformat_t
 params_subformat(const struct snd_pcm_hw_params *p)
 {
-	return (__force snd_pcm_subformat_t)snd_mask_min(hw_param_mask_c(p,
-		SNDRV_PCM_HW_PARAM_SUBFORMAT));
+	return snd_mask_min(hw_param_mask_c(p, SNDRV_PCM_HW_PARAM_SUBFORMAT));
 }
 
 /**

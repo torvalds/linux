@@ -30,9 +30,7 @@ static int snd_mixer_oss_open(struct inode *inode, struct file *file)
 	struct snd_mixer_oss_file *fmixer;
 	int err;
 
-	err = nonseekable_open(inode, file);
-	if (err < 0)
-		return err;
+	nonseekable_open(inode, file);
 
 	card = snd_lookup_oss_minor_data(iminor(inode),
 					 SNDRV_OSS_DEVICE_TYPE_MIXER);
@@ -60,7 +58,7 @@ static int snd_mixer_oss_open(struct inode *inode, struct file *file)
 		kfree(fmixer);
 		snd_card_file_remove(card, file);
 		snd_card_unref(card);
-		return -EFAULT;
+		return -ENODEV;
 	}
 	snd_card_unref(card);
 	return 0;
@@ -407,13 +405,12 @@ static long snd_mixer_oss_ioctl_compat(struct file *file, unsigned int cmd,
  *  REGISTRATION PART
  */
 
-static const struct file_operations snd_mixer_oss_f_ops =
-{
-	.owner =	THIS_MODULE,
-	.open =		snd_mixer_oss_open,
-	.release =	snd_mixer_oss_release,
-	.unlocked_ioctl =	snd_mixer_oss_ioctl,
-	.compat_ioctl =	snd_mixer_oss_ioctl_compat,
+static const struct file_operations snd_mixer_oss_f_ops = {
+	.owner		=	THIS_MODULE,
+	.open		=	snd_mixer_oss_open,
+	.release	=	snd_mixer_oss_release,
+	.unlocked_ioctl	=	snd_mixer_oss_ioctl,
+	.compat_ioctl	=	snd_mixer_oss_ioctl_compat,
 };
 
 /*

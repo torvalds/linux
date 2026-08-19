@@ -526,7 +526,7 @@ _release_dma:
 static int sscape_upload_bootblock(struct snd_card *card)
 {
 	struct soundscape *sscape = get_card_soundscape(card);
-	const struct firmware *init_fw = NULL;
+	const struct firmware *init_fw __free(firmware) = NULL;
 	int data = 0;
 	int ret;
 
@@ -536,8 +536,6 @@ static int sscape_upload_bootblock(struct snd_card *card)
 		return ret;
 	}
 	ret = upload_dma_data(sscape, init_fw->data, init_fw->size);
-
-	release_firmware(init_fw);
 
 	guard(spinlock_irqsave)(&sscape->lock);
 	if (ret == 0)
@@ -562,7 +560,7 @@ static int sscape_upload_bootblock(struct snd_card *card)
 static int sscape_upload_microcode(struct snd_card *card, int version)
 {
 	struct soundscape *sscape = get_card_soundscape(card);
-	const struct firmware *init_fw = NULL;
+	const struct firmware *init_fw __free(firmware) = NULL;
 	char name[14];
 	int err;
 
@@ -578,8 +576,6 @@ static int sscape_upload_microcode(struct snd_card *card, int version)
 	if (err == 0)
 		dev_info(card->dev, "sscape: MIDI firmware loaded %zu KBs\n",
 			 init_fw->size >> 10);
-
-	release_firmware(init_fw);
 
 	return err;
 }

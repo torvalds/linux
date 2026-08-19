@@ -505,6 +505,19 @@ static const struct usbmix_connector_map gigabyte_b450_connector_map[] = {
 	{}
 };
 
+/* Audient iD14: FU 12 advertises Volume on only 4 of its 6 logical channels
+ * and sits on the monitor mixer branch, but it is traced through to the
+ * Speaker output terminal and gets named "Speaker Playback Volume".  Userspace
+ * then adopts it as the stream's hardware volume, and any setting below 0 dB
+ * attenuates some channels but not others (20 dB imbalance at 80%).  Give it a
+ * non-standard name so that it is no longer taken for the stream's master
+ * volume, while remaining reachable for anyone who wants the monitor gain.
+ */
+static const struct usbmix_name_map audient_id14_map[] = {
+	{ 12, "Monitor Mix Playback" },	/* FU, partial coverage */
+	{}
+};
+
 /*
  * Control map entries
  */
@@ -587,6 +600,11 @@ static const struct usbmix_ctl_map usbmix_ctl_maps[] = {
 		/* MAYA44 USB+ */
 		.id = USB_ID(0x2573, 0x0008),
 		.map = maya44_map,
+	},
+	{
+		/* Audient iD14 */
+		.id = USB_ID(0x2708, 0x0008),
+		.map = audient_id14_map,
 	},
 	{
 		/* KEF X300A */

@@ -231,7 +231,7 @@ static const struct platform_device_id avs_rt286_driver_ids[] = {
 	{
 		.name = "avs_rt286",
 	},
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, avs_rt286_driver_ids);
 

@@ -51,15 +51,7 @@ static int cs35l56_i2c_probe(struct i2c_client *client)
 		return dev_err_probe(cs35l56->base.dev, ret, "Failed to allocate register map\n");
 	}
 
-	ret = cs35l56_common_probe(cs35l56);
-	if (ret != 0)
-		return ret;
-
-	ret = cs35l56_irq_request(&cs35l56->base, client->irq);
-	if (ret < 0)
-		cs35l56_remove(cs35l56);
-
-	return ret;
+	return cs35l56_common_probe(cs35l56, client->irq);
 }
 
 static void cs35l56_i2c_remove(struct i2c_client *client)

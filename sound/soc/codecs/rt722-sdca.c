@@ -6,6 +6,7 @@
 //
 //
 
+#include <linux/cleanup.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/dmi.h>
@@ -294,7 +295,7 @@ io_error:
 
 static void rt722_sdca_jack_init(struct rt722_sdca_priv *rt722)
 {
-	mutex_lock(&rt722->calibrate_mutex);
+	guard(mutex)(&rt722->calibrate_mutex);
 	if (rt722->hs_jack) {
 		/* set SCP_SDCA_IntMask1[0]=1 */
 		sdw_write_no_pm(rt722->slave, SDW_SCP_SDCA_INTMASK1,
@@ -317,7 +318,6 @@ static void rt722_sdca_jack_init(struct rt722_sdca_priv *rt722)
 		rt722_sdca_index_update_bits(rt722, RT722_VENDOR_HDA_CTL,
 			RT722_GE_RELATED_CTL2, 0x4000, 0x4000);
 	}
-	mutex_unlock(&rt722->calibrate_mutex);
 }
 
 static int rt722_sdca_set_jack_detect(struct snd_soc_component *component,
@@ -352,8 +352,6 @@ static int rt722_cae_load(struct rt722_sdca_priv *rt722)
 	static const char func_tag[] = "FUNC";
 	static const char xu_tag[] = "XU";
 	const char *dmi_vendor, *dmi_product, *dmi_sku;
-	char *cae_filename;
-	const struct firmware *cae_fw = NULL;
 	unsigned int cae_st_spk, cae_st_hp, cae_st_mic;
 	unsigned int func, value;
 	unsigned int combined_val;
@@ -385,7 +383,8 @@ static int rt722_cae_load(struct rt722_sdca_priv *rt722)
 	space = strchr(dmi_sku, ' ');
 	s_len = space ? space - dmi_sku : strlen(dmi_sku);
 
-	cae_filename = kasprintf(GFP_KERNEL,
+	char *cae_filename __free(kfree) =
+		kasprintf(GFP_KERNEL,
 				 "realtek/rt722/rt722_RAE_%.*s_%.*s_%.*s.dat",
 				 v_len, dmi_vendor,
 				 p_len, dmi_product,
@@ -399,8 +398,8 @@ static int rt722_cae_load(struct rt722_sdca_priv *rt722)
 	regmap_write(rt722->regmap, RT722_MIC_CAE_PARAM39, 0x5f);
 	usleep_range(50000, 60000);
 
+	const struct firmware *cae_fw __free(firmware) = NULL;
 	request_firmware(&cae_fw, cae_filename, dev);
-	kfree(cae_filename);
 	if (!cae_fw) {
 		dev_err(dev, "%s: Failed to load CAE firmware\n", __func__);
 		return -ENOENT;
@@ -555,7 +554,6 @@ static int rt722_cae_load(struct rt722_sdca_priv *rt722)
 	regcache_cache_bypass(rt722->regmap, false);
 	rt722->cae_update_done = 1;
 	dev_dbg(dev, "%s: CAE FW update done.\n", __func__);
-	release_firmware(cae_fw);
 	return 0;
 
 verify_abort:
@@ -565,7 +563,6 @@ verify_abort:
 out_release:
 	rt722_sdca_index_update_bits(rt722, RT722_VENDOR_REG,
 			RT722_MISC_CTRL1, 0x8000, 0x0000);
-	release_firmware(cae_fw);
 	dev_err(dev, "%s: CAE FW update aborted (ret=%d).\n", __func__, ret);
 	return ret;
 }
@@ -1905,6 +1902,9 @@ int rt722_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 	rt722_sdca_dmic_preset(rt722);
 	rt722_sdca_amp_preset(rt722);
 	rt722_sdca_jack_preset(rt722);
+
+	if (rt722->hs_jack && (!rt722->first_hw_init))
+		rt722_sdca_jack_init(rt722);
 
 	if (rt722->first_hw_init) {
 		regcache_cache_bypass(rt722->regmap, false);
