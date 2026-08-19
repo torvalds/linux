@@ -1,0 +1,300 @@
+.. SPDX-License-Identifier: GPL-2.0-only
+.. Copyright (c) 2026 Free Mobile - Vincent Jardin <vjardin@free.fr>
+
+Kernel driver mpq8646
+=====================
+
+Supported chips:
+
+  * MPS MPQ8646
+
+    Prefix: 'mpq8646'
+
+Author:
+  - Vincent Jardin <vjardin@free.fr>
+
+Chip-identity
+-------------
+
+Support the boards that are designed with the MPS MPQ8646 probed thanks
+to``MFR_MODEL`` register.
+
+This driver targets the MPQ8646 silicon specifically.
+
+Description
+-----------
+
+The MPQ8646 is a fully integrated, PMBus-compatible, high-frequency,
+synchronous buck converter. It offers a compact solution that
+achieves up high Amps output current per phase, with excellent load
+and line regulation over a wide input supply range. The chip
+operates at high efficiency over a wide output current load range.
+
+The PMBus interface provides converter configurations and key
+parameters monitoring.
+
+The device adopts MPS's proprietary multi-phase digital
+constant-on-time (MCOT) control, which provides fast transient
+response and eases loop stabilization. The MCOT scheme also allows
+multiple devices or channels to be connected in parallel with
+excellent current sharing and phase interleaving for high-current
+applications.
+
+Fully integrated protection features include over-current
+protection (OCP), over-voltage protection (OVP), under-voltage
+protection (UVP), and over-temperature protection (OTP).
+
+This device is compliant with:
+
+- PMBus rev 1.3 interface.
+
+The driver exports the following attributes via the 'sysfs' files
+for input voltage:
+
+- in1_input
+- in1_label
+- in1_max
+- in1_max_alarm
+- in1_min
+- in1_min_alarm
+- in1_crit
+- in1_crit_alarm
+
+The driver provides the following attributes for output voltage:
+
+- in2_input
+- in2_label
+- in2_alarm
+- in2_max
+- in2_max_alarm
+- in2_min
+- in2_min_alarm
+- in2_crit
+- in2_crit_alarm
+- in2_lcrit
+- in2_lcrit_alarm
+
+The driver provides the following attributes for output current:
+
+- curr1_input
+- curr1_label
+- curr1_max
+- curr1_max_alarm
+- curr1_crit
+- curr1_crit_alarm
+
+The driver provides the following attributes for temperature:
+
+- temp1_input
+- temp1_max
+- temp1_max_alarm
+- temp1_crit
+- temp1_crit_alarm
+
+Alarm acknowledgment
+---------------------
+
+The hwmon-class ``inX_alarm``/``currX_alarm``/``tempX_alarm`` files are
+read-only in pmbus_core. The driver exposes the standard
+``PMBUS_VIRT_RESET_*_HISTORY`` virtual-register channel for fault
+acknowledgment: writing ``1`` to ``inX_reset_history`` /
+``currX_reset_history`` / ``tempX_reset_history`` sends the chip a
+``CLEAR_FAULTS`` (0x03) Send-Byte, which clears the latched
+``STATUS_WORD`` / ``STATUS_VOUT`` / ``STATUS_IOUT`` /
+``STATUS_INPUT`` / ``STATUS_TEMPERATURE`` bits the chip is currently
+exposing.
+
+The MPS-specific NVM post-mortem register
+``PROTECTION_LAST`` (0xFB) is not cleared by this path; it can be read
+(decoded) via the ``protection_last`` debugfs entry described below.
+
+Regulator framework integration
+-------------------------------
+
+When ``CONFIG_REGULATOR=y`` is set, the chip is
+exposed under ``/sys/class/regulator/`` and accepts the standard
+regulator framework operations:
+
+- ``regulator_enable()`` / ``regulator_disable()`` -> ``OPERATION`` (0x01)
+- ``regulator_set_voltage()`` -> ``VOUT_COMMAND`` (0x21)
+- ``regulator_get_voltage()`` -> ``READ_VOUT`` (0x8B)
+- ``regulator_is_enabled()`` -> ``OPERATION`` bit-decode
+
+The single regulator descriptor is named ``"vout"`` (page 0). For a
+multi-page configuration the descriptor table can be extended in
+the driver.
+
+In-driver alarm-poll fallback
+-----------------------------
+
+On boards where the chip's ``SMBALERT#`` pin is unavailable to the
+SoC, ``pmbus_core::pmbus_irq_setup`` cannot deliver SMBALERT-driven
+``poll(POLLPRI)`` wakes or ``udev change@...`` events on the
+``inX_alarm`` files. The driver provides a ``delayed_work``-based
+polling fallback that
+periodically invokes the pmbus core fault check,
+``pmbus_check_and_notify_faults()``, which sends the notifications and
+then clears the latched faults, exactly like the ``SMBALERT#``
+interrupt path. The frequency of polling is tunable:
+
+::
+
+  /sys/kernel/debug/i2c/i2c-<bus>/<bus>-<addr>/alarm_poll_interval_ms
+
+The default is 1000 ms.
+
+Set it to 0 to disable. The worker self-suppresses
+when ``client->irq != 0`` (i.e. when DT supplies an
+``interrupts = <...>``  property on the regulator node), so adding
+``SMBALERT#`` wiring is a zero-driver-change uplift on a future
+board rev.
+
+MPS post-mortem (PROTECTION_LAST)
+---------------------------------
+
+The MPQ8646 silicon keeps a single 16-bit NVM-backed record of the
+last protection event in ``PROTECTION_LAST`` (0xFB). It survives
+chip power/reset. The following debugfs entries expose it:
+
+::
+
+  /sys/kernel/debug/i2c/i2c-<bus>/<bus>-<addr>/protection_last     (RO)
+  /sys/kernel/debug/i2c/i2c-<bus>/<bus>-<addr>/status_decoded      (RO)
+
+``protection_last`` decodes the 16-bit value based on the datasheet
+fault names (``INIT_FAULT``, ``NVM_CRC_ERROR``, ``NVM_FAULT``,
+``OC_PHASE_FAULT``, ``OTP_SELF_FAULT``, ``SWITCH_PRD_FAULT``,
+``VIN_OV_FAULT``, ``VOUT_OV_FAULT``, ``VOUT_UV_FAULT``,
+``OC_TOT_FAULT``, ``VIN_UVLO_FAULT``, ``DRMOS_OTP``).
+
+``status_decoded`` reads ``STATUS_WORD`` (0x79) and renders the
+16 bits with MPS-extension labels (bit12 = ``NVM_SUMMARY``,
+bit8 = ``WATCH_DOG``, bit0 = ``DRMOS_FAULT``) instead of the
+PMBus 1.3 spec generic names.
+
+NVMEM snapshot
+--------------
+
+When ``CONFIG_NVMEM=y`` is set, the chip's NVM-backed
+observability registers are exposed as a single 16-byte read-only
+``nvmem_device`` at ``/sys/bus/nvmem/devices/<i2c-name>/nvmem``.
+Layout (little-endian for 16-bit fields, zero-fill on per-entry read
+failure and for the reserved tail):
+
+::
+
+  offset 0..1   PROTECTION_LAST  (0xFB)  word
+  offset 2..3   MFR_RETRY_TIMES  (0xF4)  word
+  offset 4..5   MFR_CONFIG_ID    (0xC0)  word
+  offset 6..7   MFR_VBOOT_CFG    (0xFC)  word
+  offset 8      MFR_SILICON_REV  (0xC3)  byte
+  offset 9..15  reserved (zero)
+
+Suitable for single-``cat`` post-mortem capture by a fleet daemon.
+
+Diagnostics and introspection
+-----------------------------
+
+When ``CONFIG_DEBUG_FS=y`` is set, the driver adds a read-only
+decode surface to the client's pmbus debugfs directory,
+``/sys/kernel/debug/i2c/i2c-<bus>/<bus>-<addr>/``.
+The driver intentionally exposes no raw register poke/peek debugfs;
+use i2c-dev (``i2cget``/``i2cset``/``i2ctransfer``) for that.
+
+Identity / observability (read-only):
+
+==========================  ==================  =================================
+File                        PMBus / MFR cmd     Description
+==========================  ==================  =================================
+``mfr_config_id``           0xC0 (word)         board / SKU NVM identifier
+``mfr_config_code_rev``     0xC1 (word)         NVM image revision (PART_RECOG +
+                                                config code rev fields)
+``mfr_silicon_rev``         0xC3 (byte)         die revision
+``mfr_retry_times``         0xF4 (word)         per-fault-class recovery-mode
+                                                configuration (NOT a retry
+                                                count). Four 4-bit fields
+                                                [15:12]=OTP, [11:8]=VOUT_OV,
+                                                [7:4]=VOUT_UV, [3:0]=OCP.
+                                                Each field: 0x0=latch-off,
+                                                0x1..0xE=retry N times then
+                                                latch off, 0xF=hiccup
+                                                (retry indefinitely). The
+                                                chip exposes no in-NVM
+                                                retry-event counter; track
+                                                transitions externally if
+                                                needed (poll
+                                                ``protection_last`` or watch
+                                                ``inX_alarm`` / ``temp1_alarm``
+                                                ``poll(POLLPRI)`` wakes).
+``mfr_vboot_cfg``           0xFC (word)         ADDR/VBOOT latched at POR
+==========================  ==================  =================================
+
+Timing / UVLO knobs (read-only):
+
+==========================  ==================  =================================
+File                        PMBus cmd           Description
+==========================  ==================  =================================
+``vin_on``                  0x35 (word)         UVLO turn-on threshold
+``vin_off``                 0x36 (word)         UVLO turn-off threshold
+``ton_delay``               0x60 (word)         soft-start delay
+``ton_rise``                0x61 (word)         soft-start ramp time
+``toff_delay``              0x64 (word)         soft-stop delay
+``toff_fall``               0x65 (word)         soft-stop ramp time
+==========================  ==================  =================================
+
+The only writable entry is ``alarm_poll_interval_ms`` (the alarm-poll
+worker cadence, see above), it is driver-local and never touches the
+chip.
+
+Unsafe provisioning
+-------------------
+
+Available only when ``CONFIG_SENSORS_MPQ8646_DEBUG_UNSAFE=y``
+(``default n``, it is for boards bring up only). They WRITE to the regulator.
+On many designs the MPQ8646 powers the main CPU core rail, so a wrong write can
+brown out the board or persist a bad setpoint into finite-cycle NVM.
+WARNING: Some wrong register writes can and likely will physically damage or
+destroy the chip and/or the board. An explicit warning banner is printed at probe
+time when this option is enabled.
+
+===============================  ===============  =========================================================
+File                             PMBus / MFR cmd  Description
+===============================  ===============  =========================================================
+``store_all``                    0x15             STORE_USER_ALL Send-Byte (commit RAM config to NVM)
+``restore_all``                  0x16             RESTORE_USER_ALL Send-Byte (revert RAM to last-NVM image)
+``clear_protection_last``        0x08             CLEAR_LAST_FAULT Send-Byte
+``clear_protection_last_force``  --               gated CLEAR_LAST_FAULT, see below
+``on_off_config``                0x02 (byte)      PMBus vs CTRL-pin on/off source + active polarity
+``vout_margin_high``             0x25 (word)      margin-high VOUT setpoint
+``vout_margin_low``              0x26 (word)      margin-low VOUT setpoint
+``mfr_pmbus_lock``               0xEE (word)      programmable PMBus write-lock
+``mfr_product_rev_user``         0xC2 (word)      user-programmable product revision
+===============================  ===============  =========================================================
+
+``clear_protection_last`` writes ``CLEAR_LAST_FAULT`` (0x08) Send-Byte.
+The chip silently no-ops unless ``MFR_CFG_EXT`` (0xF5) bit[6] is set.
+
+``clear_protection_last_force`` performs the unlock with the following
+six-step dancing:
+
+1. read ``WRITE_PROTECT`` (0x10) and ``MFR_CFG_EXT`` (0xF5) for restore
+2. clear ``WRITE_PROTECT`` if set
+3. set ``MFR_CFG_EXT`` bit[6] = 1, preserving other bits
+4. send ``CLEAR_LAST_FAULT`` (0x08)
+5. restore ``MFR_CFG_EXT`` (with retry to handle the chip's
+   undocumented post-NVM-write busy window)
+6. restore ``WRITE_PROTECT``
+
+Devicetree
+----------
+
+The driver uses ``compatible = "mps,mpq8646"``. There are some few optional
+properties:
+
+- ``mps,vout-fb-divider-ratio-permille`` : it writes ``VOUT_SCALE_LOOP``
+  (0x29) at probe to compensate for an external resistor divider in
+  the VOUT feedback path. The valid range is 11-bit.
+- ``interrupts = <...>`` : if the board routes the chip's
+  ``SMBALERT#`` pin to a SoC GPIO, declaring it here lights up
+  ``pmbus_core::pmbus_irq_setup`` and disables the in-driver
+  alarm-poll fallback

@@ -57,8 +57,8 @@ struct hwmon_device_attribute {
 };
 
 #define to_hwmon_attr(d) \
-	container_of(d, struct hwmon_device_attribute, dev_attr)
-#define to_dev_attr(a) container_of(a, struct device_attribute, attr)
+	container_of_const(d, struct hwmon_device_attribute, dev_attr)
+#define to_dev_attr(a) container_of_const(a, struct device_attribute, attr)
 
 /*
  * Thermal zone information
@@ -71,27 +71,27 @@ struct hwmon_thermal_data {
 };
 
 static ssize_t
-name_show(struct device *dev, struct device_attribute *attr, char *buf)
+name_show(struct device *dev, const struct device_attribute *attr, char *buf)
 {
 	return sysfs_emit(buf, "%s\n", to_hwmon_device(dev)->name);
 }
-static DEVICE_ATTR_RO(name);
+static const DEVICE_ATTR_RO(name);
 
 static ssize_t
-label_show(struct device *dev, struct device_attribute *attr, char *buf)
+label_show(struct device *dev, const struct device_attribute *attr, char *buf)
 {
 	return sysfs_emit(buf, "%s\n", to_hwmon_device(dev)->label);
 }
-static DEVICE_ATTR_RO(label);
+static const DEVICE_ATTR_RO(label);
 
-static struct attribute *hwmon_dev_attrs[] = {
+static const struct attribute *const hwmon_dev_attrs[] = {
 	&dev_attr_name.attr,
 	&dev_attr_label.attr,
 	NULL
 };
 
 static umode_t hwmon_dev_attr_is_visible(struct kobject *kobj,
-					 struct attribute *attr, int n)
+					 const struct attribute *attr, int n)
 {
 	struct device *dev = kobj_to_dev(kobj);
 	struct hwmon_device *hdev = to_hwmon_device(dev);
@@ -106,8 +106,8 @@ static umode_t hwmon_dev_attr_is_visible(struct kobject *kobj,
 }
 
 static const struct attribute_group hwmon_dev_attr_group = {
-	.attrs		= hwmon_dev_attrs,
-	.is_visible	= hwmon_dev_attr_is_visible,
+	.attrs_const		= hwmon_dev_attrs,
+	.is_visible_const	= hwmon_dev_attr_is_visible,
 };
 
 static const struct attribute_group *hwmon_dev_attr_groups[] = {
@@ -115,13 +115,13 @@ static const struct attribute_group *hwmon_dev_attr_groups[] = {
 	NULL
 };
 
-static void hwmon_free_attrs(struct attribute **attrs)
+static void hwmon_free_attrs(const struct attribute *const *attrs)
 {
 	int i;
 
 	for (i = 0; attrs[i]; i++) {
-		struct device_attribute *dattr = to_dev_attr(attrs[i]);
-		struct hwmon_device_attribute *hattr = to_hwmon_attr(dattr);
+		const struct device_attribute *dattr = to_dev_attr(attrs[i]);
+		const struct hwmon_device_attribute *hattr = to_hwmon_attr(dattr);
 
 		kfree(hattr);
 	}
@@ -132,8 +132,8 @@ static void hwmon_dev_release(struct device *dev)
 {
 	struct hwmon_device *hwdev = to_hwmon_device(dev);
 
-	if (hwdev->group.attrs)
-		hwmon_free_attrs(hwdev->group.attrs);
+	if (hwdev->group.attrs_const)
+		hwmon_free_attrs(hwdev->group.attrs_const);
 	kfree(hwdev->groups);
 	kfree(hwdev->label);
 	kfree(hwdev);
@@ -341,7 +341,7 @@ static int hwmon_match_device(struct device *dev, const void *data)
 	return dev->class == &hwmon_class;
 }
 
-static ssize_t pec_show(struct device *dev, struct device_attribute *dummy,
+static ssize_t pec_show(struct device *dev, const struct device_attribute *dummy,
 			char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -349,7 +349,7 @@ static ssize_t pec_show(struct device *dev, struct device_attribute *dummy,
 	return sysfs_emit(buf, "%d\n", !!(client->flags & I2C_CLIENT_PEC));
 }
 
-static ssize_t pec_store(struct device *dev, struct device_attribute *devattr,
+static ssize_t pec_store(struct device *dev, const struct device_attribute *devattr,
 			 const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -390,7 +390,7 @@ put:
 	return err;
 }
 
-static DEVICE_ATTR_RW(pec);
+static const DEVICE_ATTR_RW(pec);
 
 static void hwmon_remove_pec(void *dev)
 {
@@ -425,9 +425,9 @@ static int hwmon_pec_register(struct device *hdev)
 /* sysfs attribute management */
 
 static ssize_t hwmon_attr_show(struct device *dev,
-			       struct device_attribute *devattr, char *buf)
+			       const struct device_attribute *devattr, char *buf)
 {
-	struct hwmon_device_attribute *hattr = to_hwmon_attr(devattr);
+	const struct hwmon_device_attribute *hattr = to_hwmon_attr(devattr);
 	struct hwmon_device *hwdev = to_hwmon_device(dev);
 	s64 val64;
 	long val;
@@ -450,10 +450,10 @@ static ssize_t hwmon_attr_show(struct device *dev,
 }
 
 static ssize_t hwmon_attr_show_string(struct device *dev,
-				      struct device_attribute *devattr,
+				      const struct device_attribute *devattr,
 				      char *buf)
 {
-	struct hwmon_device_attribute *hattr = to_hwmon_attr(devattr);
+	const struct hwmon_device_attribute *hattr = to_hwmon_attr(devattr);
 	struct hwmon_device *hwdev = to_hwmon_device(dev);
 	enum hwmon_sensor_types type = hattr->type;
 	const char *s;
@@ -473,10 +473,10 @@ static ssize_t hwmon_attr_show_string(struct device *dev,
 }
 
 static ssize_t hwmon_attr_store(struct device *dev,
-				struct device_attribute *devattr,
+				const struct device_attribute *devattr,
 				const char *buf, size_t count)
 {
-	struct hwmon_device_attribute *hattr = to_hwmon_attr(devattr);
+	const struct hwmon_device_attribute *hattr = to_hwmon_attr(devattr);
 	struct hwmon_device *hwdev = to_hwmon_device(dev);
 	long val;
 	int ret;
@@ -510,12 +510,12 @@ static bool is_string_attr(enum hwmon_sensor_types type, u32 attr)
 	       (type == hwmon_fan && attr == hwmon_fan_label);
 }
 
-static struct attribute *hwmon_genattr(const void *drvdata,
-				       enum hwmon_sensor_types type,
-				       u32 attr,
-				       int index,
-				       const char *template,
-				       const struct hwmon_ops *ops)
+static const struct attribute *hwmon_genattr(const void *drvdata,
+					     enum hwmon_sensor_types type,
+					     u32 attr,
+					     int index,
+					     const char *template,
+					     const struct hwmon_ops *ops)
 {
 	struct hwmon_device_attribute *hattr;
 	struct device_attribute *dattr;
@@ -552,8 +552,8 @@ static struct attribute *hwmon_genattr(const void *drvdata,
 	hattr->ops = ops;
 
 	dattr = &hattr->dev_attr;
-	dattr->show = is_string ? hwmon_attr_show_string : hwmon_attr_show;
-	dattr->store = hwmon_attr_store;
+	dattr->show_const = is_string ? hwmon_attr_show_string : hwmon_attr_show;
+	dattr->store_const = hwmon_attr_store;
 
 	a = &dattr->attr;
 	sysfs_attr_init(a);
@@ -831,7 +831,7 @@ static int hwmon_num_channel_attrs(const struct hwmon_channel_info *info)
 }
 
 static int hwmon_genattrs(const void *drvdata,
-			  struct attribute **attrs,
+			  const struct attribute **attrs,
 			  const struct hwmon_ops *ops,
 			  const struct hwmon_channel_info *info)
 {
@@ -850,7 +850,7 @@ static int hwmon_genattrs(const void *drvdata,
 		u32 attr;
 
 		while (attr_mask) {
-			struct attribute *a;
+			const struct attribute *a;
 
 			attr = __ffs(attr_mask);
 			attr_mask &= ~BIT(attr);
@@ -869,11 +869,11 @@ static int hwmon_genattrs(const void *drvdata,
 	return aindex;
 }
 
-static struct attribute **
+static const struct attribute **
 __hwmon_create_attrs(const void *drvdata, const struct hwmon_chip_info *chip)
 {
 	int ret, i, aindex = 0, nattrs = 0;
-	struct attribute **attrs;
+	const struct attribute **attrs;
 
 	for (i = 0; chip->info[i]; i++)
 		nattrs += hwmon_num_channel_attrs(chip->info[i]);
@@ -928,7 +928,7 @@ __hwmon_device_register(struct device *dev, const char *name, void *drvdata,
 	hdev = &hwdev->dev;
 
 	if (chip) {
-		struct attribute **attrs;
+		const struct attribute **attrs;
 		int ngroups = 2; /* terminating NULL plus &hwdev->groups */
 
 		if (groups)
@@ -947,7 +947,7 @@ __hwmon_device_register(struct device *dev, const char *name, void *drvdata,
 			goto free_hwmon;
 		}
 
-		hwdev->group.attrs = attrs;
+		hwdev->group.attrs_const = attrs;
 		ngroups = 0;
 		hwdev->groups[ngroups++] = &hwdev->group;
 

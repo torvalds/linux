@@ -53,6 +53,7 @@ struct yoga_fan_data {
 };
 
 /* Specific configurations mapped via DMI */
+
 static const struct yogafan_config yoga_8bit_fans_cfg = {
 	.multiplier = 100,
 	.fan_count = 1,
@@ -69,6 +70,24 @@ static const struct yogafan_config legion_16bit_dual_cfg = {
 	.multiplier = 1,
 	.fan_count = 2,
 	.paths = { "\\_SB.PCI0.LPC0.EC0.FANS", "\\_SB.PCI0.LPC0.EC0.FA2S" }
+};
+
+static const struct yogafan_config loq_15iax9_8bit_dual_cfg = {
+	.multiplier = 100,
+	.fan_count = 2,
+	.paths = { "\\_SB.PC00.LPCB.EC0.FA1S", "\\_SB.PC00.LPCB.EC0.FA2S" }
+};
+
+static const struct yogafan_config xiaoxin_8bit_dual_cfg = {
+	.multiplier = 100,
+	.fan_count = 2,
+	.paths = { "\\_SB.PCI0.LPC0.EC0.FANS", "\\_SB.PCI0.LPC0.EC0.FA2S" }
+};
+
+static const struct yogafan_config yoga_pro_7_14iah10_cfg = {
+	.multiplier = 100,
+	.fan_count = 1,
+	.paths = { "\\_SB.PC00.LPCB.EC0.FANS", NULL }
 };
 
 static void apply_rllag_filter(struct yoga_fan_data *data, int idx, long raw_rpm)
@@ -170,6 +189,54 @@ static const struct hwmon_chip_info yoga_fan_chip_info = {
 };
 
 static const struct dmi_system_id yogafan_quirks[] = {
+	{
+		.ident = "Lenovo LOQ 15IAX9",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_FAMILY, "LOQ 15IAX9"),
+		},
+		.driver_data = (void *)&loq_15iax9_8bit_dual_cfg,
+	},
+	{
+		.ident = "Lenovo XiaoXin Pro 13ARE 2020",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_FAMILY, "XiaoXinPro-13ARE 2020"),
+		},
+		.driver_data = (void *)&xiaoxin_8bit_dual_cfg,
+	},
+	{
+		.ident = "Lenovo IdeaPad 3 15ALC6",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_FAMILY, "IdeaPad 3 15ALC6"),
+		},
+		.driver_data = (void *)&ideapad_8bit_fan0_cfg,
+	},
+	{
+		.ident = "Lenovo Legion Pro 7 16AFR10H",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_FAMILY, "Legion Pro 7 16AFR10H"),
+		},
+		.driver_data = (void *)&xiaoxin_8bit_dual_cfg,
+	},
+	{
+		.ident = "Lenovo Yoga Pro 7 14IAH10",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_FAMILY, "Yoga Pro 7 14IAH10"),
+		},
+		.driver_data = (void *)&yoga_pro_7_14iah10_cfg,
+	},
+	{
+		.ident = "Lenovo Yoga 7 16ARP8",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_FAMILY, "Yoga 7 16ARP8"),
+		},
+		.driver_data = (void *)&xiaoxin_8bit_dual_cfg,
+	},
 	{
 		.ident = "Lenovo Yoga",
 		.matches = {

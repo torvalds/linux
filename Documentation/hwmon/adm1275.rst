@@ -67,6 +67,30 @@ Supported chips:
 
     Datasheet: https://www.analog.com/media/en/technical-documentation/data-sheets/ADM1293_1294.pdf
 
+  * ROHM Semiconductor BD12780
+
+    Prefix: 'bd12780'
+
+    Addresses scanned: -
+
+    Datasheet: https://fscdn.rohm.com/en/products/databook/datasheet/ic/power/power_switch/bd12780muv-lb-e.pdf
+
+  * ROHM Semiconductor BD12780A
+
+    Prefix: 'bd12780'
+
+    Addresses scanned: -
+
+    Datasheet: https://fscdn.rohm.com/en/products/databook/datasheet/ic/power/power_switch/bd12780amuv-lb-e.pdf
+
+  * ROHM Semiconductor BD12790
+
+    Prefix: 'bd12790'
+
+    Addresses scanned: -
+
+    Datasheet: -
+
   * Silergy SQ24905C
 
     Prefix: 'mc09c'

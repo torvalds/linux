@@ -196,6 +196,8 @@ properties:
           - isil,isl76682
             # JEDEC JESD300 (SPD5118) Hub and Serial Presence Detect
           - jedec,spd5118
+            # Kandou KB9002 PCIe 5.0 retimer
+          - kandou,kb9002
             # Linear Technology LTC2488
           - lineartechnology,ltc2488
             # Regulated 12V, 860W, Digital DC/DC Power Module
@@ -362,6 +364,8 @@ properties:
           - mps,mp9941
             # Monolithic Power Systems Inc. digital step-down converter mp9945
           - mps,mp9945
+            # Monolithic Power Systems Inc. digital step-down converter mpq82d00
+          - mps,mpq82d00
             # Murata D1U74T-W power supply unit
           - murata,d1u74t
             # Temperature sensor with integrated fan control

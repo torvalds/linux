@@ -13,6 +13,7 @@ Supported devices:
 * NZXT Kraken Z73
 * NZXT Kraken 2023
 * NZXT Kraken 2023 Elite
+* NZXT Kraken 2024 Elite
 
 Author: Jonas Malaco, Aleksa Savic
 

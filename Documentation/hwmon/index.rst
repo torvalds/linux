@@ -112,6 +112,7 @@ Hardware Monitoring Kernel Drivers
    jc42
    k10temp
    k8temp
+   kb9002
    kbatt
    kfan
    lan966x
@@ -201,6 +202,8 @@ Hardware Monitoring Kernel Drivers
    mp5990
    mp9941
    mp9945
+   mpq82d00
+   mpq8646
    mpq8785
    nct6683
    nct6775
@@ -253,6 +256,7 @@ Hardware Monitoring Kernel Drivers
    smsc47m1
    sparx5-temp
    spd5118
+   sq24860
    stpddc60
    surface_fan
    sy7636a-hwmon
@@ -272,12 +276,14 @@ Hardware Monitoring Kernel Drivers
    tps53679
    tps546d24
    tsc1641
+   tvs-mpfs
    twl4030-madc-hwmon
    ucd9000
    ucd9200
    vexpress
    via686a
    vt1211
+   vt7505
    w83627ehf
    w83627hf
    w83773g

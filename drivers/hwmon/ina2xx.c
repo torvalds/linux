@@ -123,6 +123,7 @@ static const struct regmap_config ina2xx_regmap_config = {
 enum ina2xx_ids {
 	ina219,
 	ina226,
+	ina232,
 	ina234,
 	ina260,
 	sy24655
@@ -195,6 +196,20 @@ static const struct ina2xx_config ina2xx_config[] = {
 		.has_ishunt = false,
 		.has_power_average = false,
 		.current_shift = 4,
+		.has_update_interval = true,
+	},
+	[ina232] = {
+		.config_default = INA226_CONFIG_DEFAULT,
+		.calibration_value = 2048,
+		.shunt_div = 400,
+		.shunt_voltage_shift = 0,
+		.bus_voltage_shift = 0,
+		.bus_voltage_lsb = 1600,
+		.power_lsb_factor = 32,
+		.has_alerts = true,
+		.has_ishunt = false,
+		.has_power_average = false,
+		.current_shift = 0,
 		.has_update_interval = true,
 	},
 	[ina260] = {
@@ -1014,6 +1029,7 @@ static const struct i2c_device_id ina2xx_id[] = {
 	{ .name = "ina226", .driver_data = ina226 },
 	{ .name = "ina230", .driver_data = ina226 },
 	{ .name = "ina231", .driver_data = ina226 },
+	{ .name = "ina232", .driver_data = ina232 },
 	{ .name = "ina234", .driver_data = ina234 },
 	{ .name = "ina260", .driver_data = ina260 },
 	{ .name = "sy24655", .driver_data = sy24655 },
@@ -1045,6 +1061,10 @@ static const struct of_device_id __maybe_unused ina2xx_of_match[] = {
 	{
 		.compatible = "ti,ina231",
 		.data = (void *)ina226
+	},
+	{
+		.compatible = "ti,ina232",
+		.data = (void *)ina232
 	},
 	{
 		.compatible = "ti,ina234",

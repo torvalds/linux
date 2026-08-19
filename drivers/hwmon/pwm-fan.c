@@ -628,12 +628,8 @@ static int pwm_fan_probe(struct platform_device *pdev)
 		if (tach->irq > 0) {
 			ret = devm_request_irq(dev, tach->irq, pulse_handler,
 					       IRQF_NO_THREAD, pdev->name, tach);
-			if (ret) {
-				dev_err(dev,
-					"Failed to request interrupt: %d\n",
-					ret);
+			if (ret)
 				return ret;
-			}
 		}
 
 		if (!ctx->pulses_per_revolution[i]) {

@@ -18,7 +18,7 @@ Authors:
 Description
 -----------
 
-This driver supprts hardware monitoring for onboard MCU with
+This driver supports hardware monitoring for onboard MCU with
 i2c interface.
 
 Usage Notes
