@@ -2011,7 +2011,6 @@ pl022_remove(struct amba_device *adev)
 	amba_release_regions(adev);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int pl022_suspend(struct device *dev)
 {
 	struct pl022 *pl022 = dev_get_drvdata(dev);
@@ -2049,9 +2048,7 @@ static int pl022_resume(struct device *dev)
 
 	return ret;
 }
-#endif
 
-#ifdef CONFIG_PM
 static int pl022_runtime_suspend(struct device *dev)
 {
 	struct pl022 *pl022 = dev_get_drvdata(dev);
@@ -2071,11 +2068,10 @@ static int pl022_runtime_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops pl022_dev_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pl022_suspend, pl022_resume)
-	SET_RUNTIME_PM_OPS(pl022_runtime_suspend, pl022_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(pl022_suspend, pl022_resume)
+	RUNTIME_PM_OPS(pl022_runtime_suspend, pl022_runtime_resume, NULL)
 };
 
 static struct vendor_data vendor_arm = {
@@ -2166,7 +2162,7 @@ MODULE_DEVICE_TABLE(amba, pl022_ids);
 static struct amba_driver pl022_driver = {
 	.drv = {
 		.name	= "ssp-pl022",
-		.pm	= &pl022_dev_pm_ops,
+		.pm	= pm_ptr(&pl022_dev_pm_ops),
 	},
 	.id_table	= pl022_ids,
 	.probe		= pl022_probe,

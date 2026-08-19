@@ -1837,14 +1837,14 @@ static void tegra_qspi_remove(struct platform_device *pdev)
 	tegra_qspi_deinit_dma(tqspi);
 }
 
-static int __maybe_unused tegra_qspi_suspend(struct device *dev)
+static int tegra_qspi_suspend(struct device *dev)
 {
 	struct spi_controller *host = dev_get_drvdata(dev);
 
 	return spi_controller_suspend(host);
 }
 
-static int __maybe_unused tegra_qspi_resume(struct device *dev)
+static int tegra_qspi_resume(struct device *dev)
 {
 	struct spi_controller *host = dev_get_drvdata(dev);
 	struct tegra_qspi *tqspi = spi_controller_get_devdata(host);
@@ -1863,7 +1863,7 @@ static int __maybe_unused tegra_qspi_resume(struct device *dev)
 	return spi_controller_resume(host);
 }
 
-static int __maybe_unused tegra_qspi_runtime_suspend(struct device *dev)
+static int tegra_qspi_runtime_suspend(struct device *dev)
 {
 	struct spi_controller *host = dev_get_drvdata(dev);
 	struct tegra_qspi *tqspi = spi_controller_get_devdata(host);
@@ -1879,7 +1879,7 @@ static int __maybe_unused tegra_qspi_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused tegra_qspi_runtime_resume(struct device *dev)
+static int tegra_qspi_runtime_resume(struct device *dev)
 {
 	struct spi_controller *host = dev_get_drvdata(dev);
 	struct tegra_qspi *tqspi = spi_controller_get_devdata(host);
@@ -1896,14 +1896,14 @@ static int __maybe_unused tegra_qspi_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops tegra_qspi_pm_ops = {
-	SET_RUNTIME_PM_OPS(tegra_qspi_runtime_suspend, tegra_qspi_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(tegra_qspi_suspend, tegra_qspi_resume)
+	RUNTIME_PM_OPS(tegra_qspi_runtime_suspend, tegra_qspi_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(tegra_qspi_suspend, tegra_qspi_resume)
 };
 
 static struct platform_driver tegra_qspi_driver = {
 	.driver = {
 		.name		= "tegra-qspi",
-		.pm		= &tegra_qspi_pm_ops,
+		.pm		= pm_ptr(&tegra_qspi_pm_ops),
 		.of_match_table	= tegra_qspi_of_match,
 		.acpi_match_table = ACPI_PTR(tegra_qspi_acpi_match),
 	},

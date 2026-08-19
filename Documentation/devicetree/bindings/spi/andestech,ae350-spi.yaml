@@ -24,10 +24,6 @@ properties:
   clocks:
     maxItems: 1
 
-  num-cs:
-    description: Number of chip selects supported
-    maxItems: 1
-
   dmas:
     items:
       - description: Transmit FIFO DMA channel

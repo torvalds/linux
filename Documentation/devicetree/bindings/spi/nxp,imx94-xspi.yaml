@@ -30,6 +30,16 @@ properties:
       - const: base
       - const: mmap
 
+  dmas:
+    items:
+      - description: Transmit DMA
+      - description: Receive DMA
+
+  dma-names:
+    items:
+      - const: tx
+      - const: rx
+
   interrupts:
     items:
       - description: interrupt for EENV0

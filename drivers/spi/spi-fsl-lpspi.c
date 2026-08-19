@@ -842,7 +842,6 @@ static irqreturn_t fsl_lpspi_isr(int irq, void *dev_id)
 	return IRQ_NONE;
 }
 
-#ifdef CONFIG_PM
 static int fsl_lpspi_runtime_resume(struct device *dev)
 {
 	struct spi_controller *controller = dev_get_drvdata(dev);
@@ -876,7 +875,6 @@ static int fsl_lpspi_runtime_suspend(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static int fsl_lpspi_init_rpm(struct fsl_lpspi_data *fsl_lpspi)
 {
@@ -1056,8 +1054,8 @@ static int fsl_lpspi_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops fsl_lpspi_pm_ops = {
-	SET_RUNTIME_PM_OPS(fsl_lpspi_runtime_suspend,
-				fsl_lpspi_runtime_resume, NULL)
+	RUNTIME_PM_OPS(fsl_lpspi_runtime_suspend,
+		       fsl_lpspi_runtime_resume, NULL)
 	SYSTEM_SLEEP_PM_OPS(fsl_lpspi_suspend, fsl_lpspi_resume)
 };
 

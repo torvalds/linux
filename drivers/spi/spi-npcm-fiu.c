@@ -393,7 +393,7 @@ static int npcm_fiu_uma_write(struct spi_mem *mem,
 {
 	struct npcm_fiu_spi *fiu =
 		spi_controller_get_devdata(mem->spi->controller);
-	u32 uma_cfg = BIT(10);
+	u32 uma_cfg = cmd ? BIT(10) : 0;
 	u32 data_reg[4] = {0};
 	u32 val;
 	u32 i;
@@ -403,8 +403,11 @@ static int npcm_fiu_uma_write(struct spi_mem *mem,
 			   (spi_get_chipselect(mem->spi, 0) <<
 			    NPCM_FIU_UMA_CTS_DEV_NUM_SHIFT));
 
-	regmap_update_bits(fiu->regmap, NPCM_FIU_UMA_CMD,
-			   NPCM_FIU_UMA_CMD_CMD, cmd);
+	if (cmd)
+		regmap_update_bits(fiu->regmap, NPCM_FIU_UMA_CMD,
+				   NPCM_FIU_UMA_CMD_CMD, cmd);
+	else
+		uma_cfg |= ilog2(op->data.buswidth) << NPCM_FIU_UMA_CFG_WDBPCK_SHIFT;
 
 	if (data_size) {
 		memcpy(data_reg, data, data_size);
@@ -464,8 +467,7 @@ static int npcm_fiu_manualwrite(struct spi_mem *mem,
 
 	/* Starting the data writing loop in multiples of 8 */
 	for (idx = 0; idx < num_data_chunks; ++idx) {
-		ret = npcm_fiu_uma_write(mem, op, data[0], false,
-					 &data[1], CHUNK_SIZE - 1);
+		ret = npcm_fiu_uma_write(mem, op, 0, false, &data[0], CHUNK_SIZE);
 		if (ret)
 			return ret;
 
@@ -474,8 +476,7 @@ static int npcm_fiu_manualwrite(struct spi_mem *mem,
 
 	/* Handling chunk remains */
 	if (remain_data > 0) {
-		ret = npcm_fiu_uma_write(mem, op, data[0], false,
-					 &data[1], remain_data - 1);
+		ret = npcm_fiu_uma_write(mem, op, 0, false, &data[0], remain_data);
 		if (ret)
 			return ret;
 	}

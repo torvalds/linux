@@ -33,6 +33,17 @@ allOf:
     else:
       properties:
         amd,pensando-elba-syscon: false
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: starfive,jhb100-sfc
+    then:
+      required:
+        - starfive,sfc-filter-syscon
+    else:
+      properties:
+        starfive,sfc-filter-syscon: false
 
 properties:
   compatible:
@@ -72,6 +83,8 @@ properties:
         const: amd,pensando-elba-spi
       - description: Canaan Kendryte K210 SoS SPI Controller
         const: canaan,k210-spi
+      - description: StarFive JHB100 SoC SPI Flash Controller
+        const: starfive,jhb100-sfc
       - description: Renesas RZ/N1 SPI Controller
         items:
           - const: renesas,r9a06g032-spi # RZ/N1D
@@ -145,6 +158,15 @@ properties:
     description:
       Block address to control SPI chip-selects. The Elba SoC system controller
       provides an interface to override the native DWC SSI CS control.
+
+  starfive,sfc-filter-syscon:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    description:
+      Phandle to the system controller register that controls the SPI NOR flash
+      address mode filter. This system controller interface provides additional
+      configuration to switch between 3-byte and 4-byte addressing modes, which
+      is required when accessing SPI NOR flash devices with different address
+      width requirements.
 
 patternProperties:
   "@[0-9a-f]$":

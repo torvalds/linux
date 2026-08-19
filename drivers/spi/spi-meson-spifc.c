@@ -325,30 +325,23 @@ static int meson_spifc_probe(struct platform_device *pdev)
 
 	meson_spifc_hw_init(spifc);
 
-	pm_runtime_set_active(spifc->dev);
-	pm_runtime_enable(spifc->dev);
+	ret =  devm_pm_runtime_set_active_enabled(spifc->dev);
+	if (ret)
+		return dev_err_probe(spifc->dev, ret, "failed to set runtime PM\n");
 
 	ret = devm_spi_register_controller(spifc->dev, host);
-	if (ret) {
-		dev_err(spifc->dev, "failed to register spi host\n");
-		goto out_pm;
-	}
+	if (ret)
+		return dev_err_probe(spifc->dev, ret, "failed to register spi host\n");
 
 	return 0;
-out_pm:
-	pm_runtime_disable(spifc->dev);
-
-	return ret;
 }
 
 static void meson_spifc_remove(struct platform_device *pdev)
 {
 	pm_runtime_get_sync(&pdev->dev);
-	pm_runtime_disable(&pdev->dev);
 	pm_runtime_put_noidle(&pdev->dev);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int meson_spifc_suspend(struct device *dev)
 {
 	struct spi_controller *host = dev_get_drvdata(dev);
@@ -385,9 +378,7 @@ static int meson_spifc_resume(struct device *dev)
 
 	return ret;
 }
-#endif /* CONFIG_PM_SLEEP */
 
-#ifdef CONFIG_PM
 static int meson_spifc_runtime_suspend(struct device *dev)
 {
 	struct spi_controller *host = dev_get_drvdata(dev);
@@ -405,13 +396,12 @@ static int meson_spifc_runtime_resume(struct device *dev)
 
 	return clk_prepare_enable(spifc->clk);
 }
-#endif /* CONFIG_PM */
 
 static const struct dev_pm_ops meson_spifc_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(meson_spifc_suspend, meson_spifc_resume)
-	SET_RUNTIME_PM_OPS(meson_spifc_runtime_suspend,
-			   meson_spifc_runtime_resume,
-			   NULL)
+	SYSTEM_SLEEP_PM_OPS(meson_spifc_suspend, meson_spifc_resume)
+	RUNTIME_PM_OPS(meson_spifc_runtime_suspend,
+		       meson_spifc_runtime_resume,
+		       NULL)
 };
 
 static const struct of_device_id meson_spifc_dt_match[] = {
@@ -427,7 +417,7 @@ static struct platform_driver meson_spifc_driver = {
 	.driver	= {
 		.name		= "meson-spifc",
 		.of_match_table	= of_match_ptr(meson_spifc_dt_match),
-		.pm		= &meson_spifc_pm_ops,
+		.pm		= pm_ptr(&meson_spifc_pm_ops),
 	},
 };
 

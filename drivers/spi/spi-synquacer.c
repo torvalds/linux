@@ -738,7 +738,7 @@ static void synquacer_spi_remove(struct platform_device *pdev)
 	clk_disable_unprepare(sspi->clk);
 }
 
-static int __maybe_unused synquacer_spi_suspend(struct device *dev)
+static int synquacer_spi_suspend(struct device *dev)
 {
 	struct spi_controller *host = dev_get_drvdata(dev);
 	struct synquacer_spi *sspi = spi_controller_get_devdata(host);
@@ -754,7 +754,7 @@ static int __maybe_unused synquacer_spi_suspend(struct device *dev)
 	return ret;
 }
 
-static int __maybe_unused synquacer_spi_resume(struct device *dev)
+static int synquacer_spi_resume(struct device *dev)
 {
 	struct spi_controller *host = dev_get_drvdata(dev);
 	struct synquacer_spi *sspi = spi_controller_get_devdata(host);
@@ -786,8 +786,8 @@ static int __maybe_unused synquacer_spi_resume(struct device *dev)
 	return ret;
 }
 
-static SIMPLE_DEV_PM_OPS(synquacer_spi_pm_ops, synquacer_spi_suspend,
-			 synquacer_spi_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(synquacer_spi_pm_ops, synquacer_spi_suspend,
+				synquacer_spi_resume);
 
 static const struct of_device_id synquacer_spi_of_match[] = {
 	{.compatible = "socionext,synquacer-spi"},
@@ -806,7 +806,7 @@ MODULE_DEVICE_TABLE(acpi, synquacer_hsspi_acpi_ids);
 static struct platform_driver synquacer_spi_driver = {
 	.driver = {
 		.name = "synquacer-spi",
-		.pm = &synquacer_spi_pm_ops,
+		.pm = pm_sleep_ptr(&synquacer_spi_pm_ops),
 		.of_match_table = synquacer_spi_of_match,
 		.acpi_match_table = ACPI_PTR(synquacer_hsspi_acpi_ids),
 	},

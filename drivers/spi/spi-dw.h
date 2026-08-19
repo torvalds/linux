@@ -17,6 +17,9 @@
 
 /* Synopsys DW SSI component versions (FourCC sequence) */
 #define DW_HSSI_102A			0x3130322a
+#define DW_HSSI_103A			0x3130332a
+#define DW_HSSI_200A			0x3230302a
+#define DW_PSSI_400A			0x3430302a
 
 /* DW SSI IP-core ID and version check helpers */
 #define dw_spi_ip_is(_dws, _ip) \
@@ -32,6 +35,7 @@
 /* DW SPI controller capabilities */
 #define DW_SPI_CAP_CS_OVERRIDE		BIT(0)
 #define DW_SPI_CAP_DFS32		BIT(1)
+#define DW_SPI_CAP_EMODE		BIT(2)
 
 /* Register offsets (Generic for both DWC APB SSI and DWC SSI IP-cores) */
 #define DW_SPI_CTRLR0			0x00
@@ -60,7 +64,13 @@
 #define DW_SPI_VERSION			0x5c
 #define DW_SPI_DR			0x60
 #define DW_SPI_RX_SAMPLE_DLY		0xf0
+#define DW_SPI_SPI_CTRLR0		0xf4
 #define DW_SPI_CS_OVERRIDE		0xf4
+
+/* Register offsets (StarFive JHB100 DWC SSI IP-cores) */
+#define DW_SPI_JHB100_INST		0x1000
+#define DW_SPI_JHB100_ADDR		0x1004
+#define DW_SPI_JHB100_FILTER_IMR	0x1008
 
 /* Bit fields in CTRLR0 (DWC APB SSI) */
 #define DW_PSSI_CTRLR0_DFS_MASK			GENMASK(3, 0)
@@ -94,6 +104,12 @@
 #define DW_HSSI_CTRLR0_TMOD_MASK		GENMASK(11, 10)
 #define DW_HSSI_CTRLR0_SRL			BIT(13)
 #define DW_HSSI_CTRLR0_MST			BIT(31)
+#define DW_HSSI_CTRLR0_SPI_FRF_MASK		GENMASK(23, 22)
+#define DW_PSSI_CTRLR0_SPI_FRF_MASK		GENMASK(22, 21)
+#define DW_SPI_CTRLR0_SPI_FRF_STD_SPI		0x0
+#define DW_SPI_CTRLR0_SPI_FRF_DUAL_SPI		0x1
+#define DW_SPI_CTRLR0_SPI_FRF_QUAD_SPI		0x2
+#define DW_SPI_CTRLR0_SPI_FRF_OCT_SPI		0x3
 
 /* Bit fields in CTRLR1 */
 #define DW_SPI_NDF_MASK				GENMASK(15, 0)
@@ -121,6 +137,19 @@
 #define DW_SPI_DMACR_RDMAE			BIT(0)
 #define DW_SPI_DMACR_TDMAE			BIT(1)
 
+/* Bit fields in SPI_CTRLR0 */
+#define DW_SPI_ENH_CTRLR0_CLK_STRETCH_EN	BIT(30)
+#define DW_SPI_ENH_CTRLR0_WAIT_CYCLE_MASK	GENMASK(15, 11)
+#define DW_SPI_ENH_CTRLR0_INST_L_MASK		GENMASK(9, 8)
+#define DW_SPI_ENH_CTRLR0_INST_L_INST_L0	0x0
+#define DW_SPI_ENH_CTRLR0_INST_L_INST_L8	0x2
+#define DW_SPI_ENH_CTRLR0_INST_L_INST_L16	0x3
+#define DW_SPI_ENH_CTRLR0_ADDR_L_MASK		GENMASK(5, 2)
+#define DW_SPI_ENH_CTRLR0_TRANS_TYPE_TT0	0x0
+#define DW_SPI_ENH_CTRLR0_TRANS_TYPE_TT1	0x1
+#define DW_SPI_ENH_CTRLR0_TRANS_TYPE_TT2	0x2
+#define DW_SPI_ENH_CTRLR0_TRANS_TYPE_MASK	GENMASK(1, 0)
+
 /* Mem/DMA operations helpers */
 #define DW_SPI_WAIT_RETRIES			5
 #define DW_SPI_BUF_SIZE \
@@ -135,6 +164,14 @@ struct dw_spi_cfg {
 	u8 dfs;
 	u32 ndf;
 	u32 freq;
+	u8 spi_frf;
+};
+
+struct dw_spi_enh_cfg {
+	u8 wait_c;
+	u8 inst_l;
+	u8 addr_l;
+	u8 trans_t;
 };
 
 struct dw_spi;
@@ -167,6 +204,7 @@ struct dw_spi {
 	u32			num_cs;		/* chip select lines */
 	u16			bus_num;
 	void (*set_cs)(struct spi_device *spi, bool enable);
+	int (*set_addr_nbyte)(struct spi_device *spi, u8 nbyte);
 
 	/* Current message transfer state info */
 	void			*tx;
@@ -195,6 +233,9 @@ struct dw_spi {
 	dma_addr_t		dma_addr; /* phy address of the Data register */
 	const struct dw_spi_dma_ops *dma_ops;
 	struct completion	dma_completion;
+
+#define DW_SPI_QUIRK_JHB100		BIT(0)
+	u32			quirk_flags;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs;
@@ -264,6 +305,15 @@ static inline void dw_spi_umask_intr(struct dw_spi *dws, u32 mask)
 	dw_writel(dws, DW_SPI_IMR, new_mask);
 }
 
+/* Disable JHB100 SPI filter IRQ bits */
+static inline void dw_spi_jhb100_mask_intr(struct dw_spi *dws, u32 mask)
+{
+	u32 new_mask;
+
+	new_mask = dw_readl(dws, DW_SPI_JHB100_FILTER_IMR) & ~mask;
+	dw_writel(dws, DW_SPI_JHB100_FILTER_IMR, new_mask);
+}
+
 /*
  * This disables the SPI controller, interrupts, clears the interrupts status
  * and CS, then re-enables the controller back. Transmit and receive FIFO
@@ -288,7 +338,7 @@ static inline void dw_spi_shutdown_chip(struct dw_spi *dws)
 
 extern void dw_spi_set_cs(struct spi_device *spi, bool enable);
 extern void dw_spi_update_config(struct dw_spi *dws, struct spi_device *spi,
-				 struct dw_spi_cfg *cfg);
+				 struct dw_spi_cfg *cfg, struct dw_spi_enh_cfg *enh_cfg);
 extern int dw_spi_check_status(struct dw_spi *dws, bool raw);
 extern int dw_spi_add_controller(struct device *dev, struct dw_spi *dws);
 extern void dw_spi_remove_controller(struct dw_spi *dws);
