@@ -84,7 +84,7 @@ possibilities of user namespaces are not covered in this document.
 The kernel also offers a lot of troubleshooting and debugging facilities, which
 can constitute attack vectors when placed in wrong hands. While some of them
 are designed to be accessible to regular local users with a low risk (e.g.
-kernel logs via ``/proc/kmsg``), some would expose enough information to
+kernel logs via ``/dev/kmsg``), some would expose enough information to
 represent a risk in most places and the decision to expose them is under the
 administrator's responsibility (perf events, traces), and others are not
 designed to be accessed by non-privileged users (e.g. debugfs). Access to these
