@@ -23,7 +23,7 @@ description: |
   The each AXI bus has the owned source clock but, has not the only owned power
   line. The power line might be shared among one more sub-blocks.  So, we can
   divide into two type of device as the role of each sub-block.  There are two
-  type of bus devices as following::
+  type of bus devices as following:
    - parent bus device
    - passive bus device
 
@@ -44,8 +44,8 @@ description: |
   able to support the bus frequency for all Exynos SoCs.
 
   Detailed correlation between sub-blocks and power line according
-  to Exynos SoC::
-   - In case of Exynos3250, there are two power line as following::
+  to Exynos SoC:
+   - In case of Exynos3250, there are two power line as following:
      VDD_MIF |--- DMC (Dynamic Memory Controller)
 
      VDD_INT |--- LEFTBUS (parent device)
@@ -89,7 +89,7 @@ description: |
        |L5   |200000 |200000  |400000 |300000 |       ||1000000 |
        ----------------------------------------------------------
 
-   - In case of Exynos4210, there is one power line as following::
+   - In case of Exynos4210, there is one power line as following:
      VDD_INT |--- DMC (parent device, Dynamic Memory Controller)
        |--- LEFTBUS
        |--- PERIL
@@ -106,7 +106,7 @@ description: |
        |--- LCD0
        |--- LCD1
 
-   - In case of Exynos4x12, there are two power line as following::
+   - In case of Exynos4x12, there are two power line as following:
      VDD_MIF |--- DMC (Dynamic Memory Controller)
 
      VDD_INT |--- LEFTBUS (parent device)
@@ -124,7 +124,7 @@ description: |
        |--- LCD0
        |--- ISP
 
-   - In case of Exynos5422, there are two power line as following::
+   - In case of Exynos5422, there are two power line as following:
      VDD_MIF |--- DREX 0 (parent device, DRAM EXpress controller)
              |--- DREX 1
 
@@ -143,7 +143,7 @@ description: |
        |--- FSYS
        |--- FSYS2
 
-   - In case of Exynos5433, there is VDD_INT power line as following::
+   - In case of Exynos5433, there is VDD_INT power line as following:
      VDD_INT |--- G2D (parent device)
        |--- MSCL
        |--- GSCL

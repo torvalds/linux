@@ -41,6 +41,9 @@ I. For patch submitters
      See Documentation/devicetree/bindings/writing-schema.rst for more details
      about schema and tools setup.
 
+     The example DTS in new bindings should pass scripts/dtc/dt-check-style in
+     'strict' mode without warnings.
+
   3) DT binding files should be dual licensed. The preferred license tag is
      (GPL-2.0-only OR BSD-2-Clause).
 

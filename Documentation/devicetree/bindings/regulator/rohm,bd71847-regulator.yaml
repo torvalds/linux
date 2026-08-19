@@ -93,8 +93,8 @@ patternProperties:
       # Setups where regulator (especially the buck8) output voltage is scaled
       # by adding external connection where some other regulator output is
       # connected to feedback-pin (over suitable resistors) is getting popular
-      # amongst users of BD71837. (This allows for example scaling down the
-      # buck8 voltages to suit lover GPU voltages for projects where buck8 is
+      # amongst users of BD71837. This allows for example scaling down the
+      # buck8 voltages to suit lower GPU voltages for projects where buck8 is
       # (ab)used to supply power for GPU.
       #
       # So we allow describing this external connection from DT and scale the

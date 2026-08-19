@@ -68,6 +68,7 @@ properties:
           - qcom,scm-sdx55
           - qcom,scm-sdx65
           - qcom,scm-sdx75
+          - qcom,scm-shikra
           - qcom,scm-sm6115
           - qcom,scm-sm6125
           - qcom,scm-sm6350
@@ -156,6 +157,7 @@ allOf:
               - qcom,scm-msm8974
               - qcom,scm-msm8976
               - qcom,scm-qcm2290
+              - qcom,scm-shikra
               - qcom,scm-sm6375
     then:
       required:
@@ -175,6 +177,7 @@ allOf:
               - qcom,scm-msm8660
               - qcom,scm-msm8960
               - qcom,scm-qcm2290
+              - qcom,scm-shikra
               - qcom,scm-sm6375
     then:
       properties:

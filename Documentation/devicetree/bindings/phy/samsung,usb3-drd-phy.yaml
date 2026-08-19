@@ -14,7 +14,7 @@ maintainers:
 description: |
   For samsung,exynos5250-usbdrd-phy and samsung,exynos5420-usbdrd-phy
   compatible PHYs, the second cell in the PHY specifier identifies the
-  PHY id, which is interpreted as follows::
+  PHY id, which is interpreted as follows:
     0 - UTMI+ type phy,
     1 - PIPE3 type phy.
 

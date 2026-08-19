@@ -641,7 +641,8 @@ static void __init fdt_init_reserved_mem_node(unsigned long node, const char *un
 	struct reserved_mem *rmem = &reserved_mem[reserved_mem_count];
 
 	if (reserved_mem_count == total_reserved_mem_cnt) {
-		pr_err("not enough space for all defined regions.\n");
+		pr_err("not enough space for all defined regions, skip '%s'\n",
+		       uname);
 		return;
 	}
 
@@ -794,6 +795,50 @@ void of_reserved_mem_device_release(struct device *dev)
 	}
 }
 EXPORT_SYMBOL_GPL(of_reserved_mem_device_release);
+
+static void devm_of_reserved_mem_device_release(struct device *dev, void *res)
+{
+	of_reserved_mem_device_release(*(struct device **)res);
+}
+
+static int devm_of_reserved_mem_device_init_by_idx(struct device *dev,
+						   struct device_node *np, int idx)
+{
+	struct device **ptr;
+	int ret;
+
+	ptr = devres_alloc(devm_of_reserved_mem_device_release, sizeof(*ptr),
+			   GFP_KERNEL);
+	if (!ptr)
+		return -ENOMEM;
+
+	ret = of_reserved_mem_device_init_by_idx(dev, np, idx);
+	if (ret) {
+		devres_free(ptr);
+		return ret;
+	}
+
+	*ptr = dev;
+	devres_add(dev, ptr);
+
+	return 0;
+}
+
+/**
+ * devm_of_reserved_mem_device_init() - Resource managed of_reserved_mem_device_init()
+ * @dev: Pointer to the device to configure
+ *
+ * This is a resource managed version of of_reserved_mem_device_init().
+ * The reserved memory region will be released automatically when the device
+ * is unbound.
+ *
+ * Returns: Negative errno on failure or zero on success.
+ */
+int devm_of_reserved_mem_device_init(struct device *dev)
+{
+	return devm_of_reserved_mem_device_init_by_idx(dev, dev->of_node, 0);
+}
+EXPORT_SYMBOL_GPL(devm_of_reserved_mem_device_init);
 
 /**
  * of_reserved_mem_lookup() - acquire reserved_mem from a device node

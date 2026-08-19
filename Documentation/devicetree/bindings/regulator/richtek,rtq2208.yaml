@@ -21,7 +21,7 @@ description: |
   conduction mode (FCCM).
 
   The definition of modes is in the datasheet which is available in below link
-  and their meaning is::
+  and their meaning is:
     0 - Auto mode for power saving, which reducing the switching frequency at light load condition
     to maintain high frequency.
     1 - FCCM to meet the strict voltage regulation accuracy, which keeping constant switching frequency.

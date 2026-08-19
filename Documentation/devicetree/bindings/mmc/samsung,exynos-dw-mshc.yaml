@@ -85,7 +85,7 @@ properties:
     description: |
       The value of CIU TX and RX clock phase shift value for HS400 mode
       operation.
-      Valid values for SDR and DDR CIU clock timing::
+      Valid values for SDR and DDR CIU clock timing:
         - valid value for tx phase shift and rx phase shift is 0 to 7.
         - when CIU clock divider value is set to 3, all possible 8 phase shift
           values can be used.

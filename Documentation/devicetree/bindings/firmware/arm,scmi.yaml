@@ -8,7 +8,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: System Control and Management Interface (SCMI) Message Protocol
 
 maintainers:
-  - Sudeep Holla <sudeep.holla@arm.com>
+  - Sudeep Holla <sudeep.holla@kernel.org>
 
 description: |
   The SCMI is intended to allow agents such as OSPM to manage various functions

@@ -29,7 +29,7 @@ patternProperties:
     description: |
       Every SLIMbus controller node can contain zero or more child nodes
       representing slave devices on the bus. Every SLIMbus slave device is
-      uniquely determined by the enumeration address containing 4 fields::
+      uniquely determined by the enumeration address containing 4 fields:
       Manufacturer ID, Product code, Device index, and Instance value for the
       device.
 
@@ -48,7 +48,7 @@ patternProperties:
       reg:
         maxItems: 1
         description: |
-          Pair of (device index, instande ID), where::
+          Pair of (device index, instande ID), where:
            - Device index, which uniquely identifies multiple devices within a
              single component.
            - Instance ID, can be used for the cases where multiple devices of

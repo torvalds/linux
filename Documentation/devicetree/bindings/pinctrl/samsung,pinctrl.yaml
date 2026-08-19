@@ -18,7 +18,7 @@ description: |
   All the pin controller nodes should be represented in the aliases node using
   the following format 'pinctrl{n}' where n is a unique number for the alias.
 
-  The controller supports three types of interrupts::
+  The controller supports three types of interrupts:
    - External GPIO interrupts (see interrupts property in pin controller node);
 
    - External wake-up interrupts - multiplexed (capable of waking up the system

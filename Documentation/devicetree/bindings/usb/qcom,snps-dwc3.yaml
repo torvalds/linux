@@ -87,14 +87,14 @@ properties:
 
   clocks:
     description: |
-      Several clocks are used, depending on the variant. Typical ones are::
-       - cfg_noc:: System Config NOC clock.
-       - core:: Master/Core clock, has to be >= 125 MHz for SS operation and >=
+      Several clocks are used, depending on the variant. Typical ones are:
+       - cfg_noc: System Config NOC clock.
+       - core: Master/Core clock, has to be >= 125 MHz for SS operation and >=
                 60MHz for HS operation.
-       - iface:: System bus AXI clock.
-       - sleep:: Sleep clock, used for wakeup when USB3 core goes into low
+       - iface: System bus AXI clock.
+       - sleep: Sleep clock, used for wakeup when USB3 core goes into low
                  power mode (U3).
-       - mock_utmi:: Mock utmi clock needed for ITP/SOF generation in host
+       - mock_utmi: Mock utmi clock needed for ITP/SOF generation in host
                      mode. Its frequency should be 19.2MHz.
     minItems: 1
     maxItems: 9

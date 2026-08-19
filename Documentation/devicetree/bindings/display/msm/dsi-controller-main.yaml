@@ -73,16 +73,16 @@ properties:
 
   clocks:
     description: |
-      Several clocks are used, depending on the variant. Typical ones are::
-       - bus:: Display AHB clock.
-       - byte:: Display byte clock.
-       - byte_intf:: Display byte interface clock.
-       - core:: Display core clock.
-       - core_mss:: Core MultiMedia SubSystem clock.
-       - iface:: Display AXI clock.
-       - mdp_core:: MDP Core clock.
-       - mnoc:: MNOC clock
-       - pixel:: Display pixel clock.
+      Several clocks are used, depending on the variant. Typical ones are:
+       - bus: Display AHB clock.
+       - byte: Display byte clock.
+       - byte_intf: Display byte interface clock.
+       - core: Display core clock.
+       - core_mss: Core MultiMedia SubSystem clock.
+       - iface: Display AXI clock.
+       - mdp_core: MDP Core clock.
+       - mnoc: MNOC clock
+       - pixel: Display pixel clock.
     minItems: 3
     maxItems: 12
 

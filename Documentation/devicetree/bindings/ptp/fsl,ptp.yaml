@@ -146,11 +146,11 @@ examples:
         reg = <0x24e00 0xb0>;
         interrupts = <12 IRQ_TYPE_LEVEL_LOW>;
         interrupt-parent = <&ipic>;
-        fsl,cksel       = <1>;
+        fsl,cksel = <1>;
         fsl,tclk-period = <10>;
-        fsl,tmr-prsc    = <100>;
-        fsl,tmr-add     = <0x999999a4>;
-        fsl,tmr-fiper1  = <0x3b9ac9f6>;
-        fsl,tmr-fiper2  = <0x00018696>;
-        fsl,max-adj     = <659999998>;
+        fsl,tmr-prsc = <100>;
+        fsl,tmr-add = <0x999999a4>;
+        fsl,tmr-fiper1 = <0x3b9ac9f6>;
+        fsl,tmr-fiper2 = <0x00018696>;
+        fsl,max-adj = <659999998>;
     };
