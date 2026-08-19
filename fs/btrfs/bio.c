@@ -186,7 +186,6 @@ static void btrfs_end_repair_bio(struct btrfs_bio *repair_bbio,
 	 */
 	struct bvec_iter saved_iter = repair_bbio->saved_iter;
 	const u32 step = min(fs_info->sectorsize, PAGE_SIZE);
-	const u64 logical = repair_bbio->saved_iter.bi_sector << SECTOR_SHIFT;
 	const u32 nr_steps = repair_bbio->saved_iter.bi_size / step;
 	int mirror = repair_bbio->mirror_num;
 	phys_addr_t paddrs[BTRFS_MAX_BLOCKSIZE / PAGE_SIZE];
@@ -220,9 +219,8 @@ static void btrfs_end_repair_bio(struct btrfs_bio *repair_bbio,
 
 	do {
 		mirror = prev_repair_mirror(fbio, mirror);
-		btrfs_repair_io_failure(fs_info, btrfs_ino(inode),
-				  repair_bbio->file_offset, fs_info->sectorsize,
-				  logical, paddrs, step, mirror);
+		btrfs_repair_bbio_failure(repair_bbio, &repair_bbio->saved_iter,
+					  fs_info->sectorsize, mirror);
 	} while (mirror != fbio->bbio->mirror_num);
 
 done:
@@ -925,21 +923,23 @@ void btrfs_submit_bbio(struct btrfs_bio *bbio, int mirror_num)
  * The I/O is issued synchronously to block the repair read completion from
  * freeing the bio.
  *
- * @ino:	Offending inode number
- * @fileoff:	File offset inside the inode
+ * @bbio:	Original bbio where the repair is needed
+ * @orig_iter:	Points to where the repair start is
  * @length:	Length of the repair write
- * @logical:	Logical address of the range
- * @paddrs:	Physical address array of the content
- * @step:	Length of for each paddrs
  * @mirror_num: Mirror number to write to. Must not be zero
  */
-int btrfs_repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 fileoff,
-			    u32 length, u64 logical, const phys_addr_t paddrs[],
-			    unsigned int step, int mirror_num)
+int btrfs_repair_bbio_failure(struct btrfs_bio *bbio, const struct bvec_iter *orig_iter,
+			      u32 length, int mirror_num)
 {
-	const u32 nr_steps = DIV_ROUND_UP_POW2(length, step);
+	struct btrfs_inode *inode = bbio->inode;
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct btrfs_io_stripe smap = { 0 };
-	struct bio *bio = NULL;
+	struct bvec_iter iter = *orig_iter;
+	struct bio *repair_bio = NULL;
+	const u64 logical = iter.bi_sector << SECTOR_SHIFT;
+	const u64 fileoff = bbio->file_offset +
+			    ((iter.bi_sector - bbio->saved_iter.bi_sector) << SECTOR_SHIFT);
+	u32 cur = 0;
 	int ret = 0;
 
 	BUG_ON(!mirror_num);
@@ -950,8 +950,9 @@ int btrfs_repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 fileoff,
 	ASSERT(IS_ALIGNED(fileoff, fs_info->sectorsize));
 	/* Either it's a single data or metadata block. */
 	ASSERT(length <= BTRFS_MAX_BLOCKSIZE);
-	ASSERT(step <= length);
-	ASSERT(is_power_of_2(step));
+
+	/* Our current iter should not be before the original bbio saved_iter. */
+	ASSERT(iter.bi_sector >= bbio->saved_iter.bi_sector);
 
 	/*
 	 * The fs either mounted RO or hit critical errors, no need
@@ -979,15 +980,22 @@ int btrfs_repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 fileoff,
 		goto out_counter_dec;
 	}
 
-	bio = bio_alloc(smap.dev->bdev, nr_steps, REQ_OP_WRITE | REQ_SYNC, GFP_NOFS);
-	bio->bi_iter.bi_sector = smap.physical >> SECTOR_SHIFT;
-	for (int i = 0; i < nr_steps; i++) {
-		ret = bio_add_page(bio, phys_to_page(paddrs[i]), step, offset_in_page(paddrs[i]));
-		/* We should have allocated enough slots to contain all the different pages. */
-		ASSERT(ret == step);
+	repair_bio = bio_alloc(smap.dev->bdev, max(1, length >> PAGE_SHIFT),
+			       REQ_OP_WRITE | REQ_SYNC, GFP_NOFS);
+	repair_bio->bi_iter.bi_sector = smap.physical >> SECTOR_SHIFT;
+	while (cur < length) {
+		struct page *page = bio_iter_page(&bbio->bio, iter);
+		const u32 pg_off = bio_iter_offset(&bbio->bio, iter);
+		const u32 cur_len = min(bio_iter_len(&bbio->bio, iter), length - cur);
+
+		ret = bio_add_page(repair_bio, page, cur_len, pg_off);
+		ASSERT(ret == cur_len);
+		bio_advance_iter_single(&bbio->bio, &iter, cur_len);
+		cur += cur_len;
 	}
-	ret = submit_bio_wait(bio);
-	bio_put(bio);
+
+	ret = submit_bio_wait(repair_bio);
+	bio_put(repair_bio);
 	if (ret) {
 		/* try to remap that extent elsewhere? */
 		btrfs_dev_stat_inc_and_print(smap.dev, BTRFS_DEV_STAT_WRITE_ERRS);
@@ -995,8 +1003,9 @@ int btrfs_repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 fileoff,
 	}
 
 	btrfs_info_rl(fs_info,
-		"read error corrected: ino %llu off %llu (dev %s sector %llu)",
-			     ino, fileoff, btrfs_dev_name(smap.dev),
+		"read error corrected: root %llu ino %llu off %llu (dev %s sector %llu)",
+			     btrfs_root_id(inode->root), btrfs_ino(inode), fileoff,
+			     btrfs_dev_name(smap.dev),
 			     smap.physical >> SECTOR_SHIFT);
 	ret = 0;
 
