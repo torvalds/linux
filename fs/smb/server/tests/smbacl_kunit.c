@@ -12,10 +12,11 @@
  *   sits beyond struct smb_acl::size; stopping at the declared DACL
  *   size (the fixed behaviour) rejects it.
  *
- * - ksmbd_smb_check_perm_dacl_boundary: drives the real
+ * - ksmbd_smb_check_perm_dacl_boundary and
+ *   ksmbd_smb_check_perm_dacl_maximal_boundary: drive the real
  *   smb_check_perm_dacl() with a descriptor stored through ksmbd's own
- *   NTACL xattr path on a tmpfs file, and asserts that a post-boundary
- *   ACE is not selected for a regular access check.
+ *   NTACL xattr path on a tmpfs file, and assert that a post-boundary
+ *   ACE is not selected for either a regular or maximal access check.
  */
 
 #include <kunit/test.h>
@@ -242,9 +243,49 @@ out:
 	fput(file);
 }
 
+static void
+ksmbd_smb_check_perm_dacl_maximal_boundary_test(struct kunit *test)
+{
+	struct file *file;
+	struct smb_ntsd *pntsd;
+	__le32 daccess = FILE_MAXIMAL_ACCESS_LE;
+	int ntsd_size, rc;
+
+	/*
+	 * The in-boundary ACE grants read access.  The trailing ACE grants
+	 * write access, which must not be included in the maximal access mask.
+	 */
+	pntsd = build_boundary_ntsd(test, &test_owner_sid, FILE_READ_DATA,
+				     FILE_WRITE_DATA, &ntsd_size);
+	KUNIT_ASSERT_NOT_NULL(test, pntsd);
+
+	file = shmem_file_setup("ksmbd-kunit-dacl-maximal", 0,
+				mk_vma_flags(VMA_NORESERVE_BIT));
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, file);
+
+	rc = ksmbd_vfs_set_sd_xattr(NULL, mnt_idmap(file->f_path.mnt),
+				    &file->f_path, pntsd, ntsd_size,
+				    false);
+	KUNIT_EXPECT_EQ(test, 0, rc);
+	if (rc)
+		goto out;
+
+	rc = smb_check_perm_dacl(NULL, &file->f_path, &daccess,
+				 FILE_MAXIMAL_ACCESS_LE, 0, false);
+	KUNIT_EXPECT_EQ(test, 0, rc);
+	if (rc)
+		goto out;
+
+	KUNIT_EXPECT_TRUE(test, le32_to_cpu(daccess) & FILE_READ_DATA);
+	KUNIT_EXPECT_FALSE(test, le32_to_cpu(daccess) & FILE_WRITE_DATA);
+out:
+	fput(file);
+}
+
 static struct kunit_case ksmbd_smbacl_test_cases[] = {
 	KUNIT_CASE(ksmbd_dacl_walk_must_stop_at_declared_size),
 	KUNIT_CASE(ksmbd_smb_check_perm_dacl_boundary_test),
+	KUNIT_CASE(ksmbd_smb_check_perm_dacl_maximal_boundary_test),
 	{}
 };
 
