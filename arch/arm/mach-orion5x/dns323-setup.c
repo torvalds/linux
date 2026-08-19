@@ -13,7 +13,7 @@
  * License, or (at your option) any later version.
  *
  */
-#include <linux/gpio.h>
+#include <linux/gpio/legacy.h>
 #include <linux/gpio/machine.h>
 #include <linux/kernel.h>
 #include <linux/init.h>

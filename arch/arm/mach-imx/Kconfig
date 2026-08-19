@@ -40,14 +40,19 @@ if ARCH_MULTI_V6
 comment "ARM1136 platforms"
 
 config SOC_IMX31
-	bool "i.MX31 support"
-	select CPU_V6
+	bool "i.MX31 support (DEPRECATED)"
+	depends on !SMP
+	select CPU_ARM1136R0
 	select MXC_AVIC
 	help
 	  This enables support for Freescale i.MX31 processor
 
+	  This SoC is scheduled for removal in early 2027,
+	  since it uses the ARM1136r0 CPU revision.
+
 config SOC_IMX35
 	bool "i.MX35 support"
+	select CPU_ARM1136R1
 	select MXC_AVIC
 	help
 	  This enables support for Freescale i.MX35 processor
@@ -214,11 +219,13 @@ config SOC_IMX7ULP
 	  This enables support for Freescale i.MX7 Ultra Low Power processor.
 
 config SOC_IMXRT
-	bool "i.MXRT support"
+	bool "i.MXRT support (DEPRECATED)"
 	depends on ARM_SINGLE_ARMV7M
 	select ARMV7M_SYSTICK if ARM_SINGLE_ARMV7M
 	help
 	  This enables support for Freescale i.MXRT Crossover processor.
+
+	  This platform is scheduled for removal in early 2027
 
 config SOC_VF610
 	bool "Vybrid Family VF610 support"

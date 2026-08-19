@@ -17,7 +17,7 @@
 #include <linux/input.h>
 #include <linux/i2c.h>
 #include <linux/ata_platform.h>
-#include <linux/gpio.h>
+#include <linux/gpio/legacy.h>
 #include <linux/gpio/machine.h>
 #include <linux/delay.h>
 #include <asm/mach-types.h>

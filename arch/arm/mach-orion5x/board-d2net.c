@@ -13,7 +13,7 @@
 #include <linux/pci.h>
 #include <linux/irq.h>
 #include <linux/leds.h>
-#include <linux/gpio.h>
+#include <linux/gpio/legacy.h>
 #include <linux/gpio/machine.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>

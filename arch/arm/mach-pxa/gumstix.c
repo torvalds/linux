@@ -22,7 +22,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/gpio/machine.h>
 #include <linux/gpio/property.h>
-#include <linux/gpio.h>
+#include <linux/gpio/legacy.h>
 #include <linux/err.h>
 #include <linux/clk.h>
 

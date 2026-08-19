@@ -376,6 +376,7 @@ config CPU_PJ4B
 # ARMv6
 config CPU_V6
 	bool
+	depends on !SMP
 	select CPU_32v6
 	select CPU_ABRT_EV6
 	select CPU_CACHE_V6
@@ -386,7 +387,6 @@ config CPU_V6
 	select CPU_PABRT_V6
 	select CPU_THUMB_CAPABLE
 	select CPU_TLB_V6 if MMU
-	select SMP_ON_UP if SMP
 
 # ARMv6k
 config CPU_V6K
@@ -402,6 +402,30 @@ config CPU_V6K
 	select CPU_PABRT_V6
 	select CPU_THUMB_CAPABLE
 	select CPU_TLB_V6 if MMU
+
+config CPU_ARM1136R0
+	bool
+	select CPU_V6
+	depends on !SMP
+	help
+	  These early revisions of ARM1136 lack support for the
+	  ARMv6k extensions for multiprocessing.
+	  Support for this revision is scheduled for removal
+	  from the kernel in early 2027.
+
+config CPU_ARM1136R1
+	bool
+	select CPU_V6K
+	help
+	  Later revisions of ARM1136 add ARMv6k (atomics, barriers
+	  and TLS register) in addition to the features from r0.
+
+config CPU_ARM1176
+	bool
+	select CPU_V6K
+	help
+	  ARM1176 implements ARMv6k, VMSAv7 and Trustzone in
+	  addition to the ARMv6 baseline.
 
 # ARMv7 and ARMv8 architectures
 config CPU_V7
@@ -754,7 +778,8 @@ config CPU_LITTLE_ENDIAN
 	  space builds.
 
 config CPU_BIG_ENDIAN
-	bool "Build big-endian kernel"
+	bool "Build big-endian kernel (DEPRECATED)"
+	depends on ARCH_MULTI_V5 || BROKEN
 	depends on !LD_IS_LLD
 	help
 	  Say Y if you plan on running a kernel in big-endian mode.

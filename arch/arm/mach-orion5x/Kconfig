@@ -19,7 +19,7 @@ menuconfig ARCH_ORION5X
 if ARCH_ORION5X
 
 config ARCH_ORION5X_DT
-	bool "Marvell Orion5x Flattened Device Tree"
+	def_bool y
 	select ORION_CLK
 	select ORION_IRQCHIP
 	select ORION_TIMER
@@ -38,43 +38,58 @@ config MACH_RD88F5182_DT
 	  Orion-NAS (88F5182) RD2, Flattened Device Tree.
 
 config MACH_KUROBOX_PRO
-	bool "KuroBox Pro"
+	bool "KuroBox Pro (DEPRECATED)"
 	select I2C_BOARDINFO if I2C
 	depends on ATAGS
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  KuroBox Pro platform.
 
+	  Support for this machine will go away in early 2027,
+	  unless it gets converted to device tree.
+
 config MACH_DNS323
-	bool "D-Link DNS-323"
+	bool "D-Link DNS-323 (DEPRECATED)"
 	select I2C_BOARDINFO if I2C
 	depends on ATAGS
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  D-Link DNS-323 platform.
 
+	  Support for this machine will go away in early 2027,
+	  unless it gets converted to device tree.
+
 config MACH_TS209
-	bool "QNAP TS-109/TS-209"
+	bool "QNAP TS-109/TS-209 (DEPRECATED)"
 	depends on ATAGS
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  QNAP TS-109/TS-209 platform.
 
+	  Support for this machine will go away in early 2027,
+	  unless it gets converted to device tree.
+
 config MACH_TERASTATION_PRO2
-	bool "Buffalo Terastation Pro II/Live"
+	bool "Buffalo Terastation Pro II/Live (DEPRECATED)"
 	depends on ATAGS
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  Buffalo Terastation Pro II/Live platform.
 
+	  Support for this machine will go away in early 2027,
+	  unless it gets converted to device tree.
+
 config MACH_LINKSTATION_PRO
-	bool "Buffalo Linkstation Pro/Live"
+	bool "Buffalo Linkstation Pro/Live (DEPRECATED)"
 	depends on ATAGS
 	select I2C_BOARDINFO if I2C
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  Buffalo Linkstation Pro/Live platform. Both v1 and
 	  v2 devices are supported.
+
+	  Support for this machine will go away in early 2027,
+	  unless it gets converted to device tree.
 
 config MACH_LINKSTATION_MINI
 	bool "Buffalo Linkstation Mini (Flattened Device Tree)"
@@ -84,25 +99,34 @@ config MACH_LINKSTATION_MINI
 	  Buffalo Linkstation Mini (LS-WSGL) platform.
 
 config MACH_TS409
-	bool "QNAP TS-409"
+	bool "QNAP TS-409 (DEPRECATED)"
 	depends on ATAGS
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  QNAP TS-409 platform.
 
+	  Support for this machine will go away in early 2027,
+	  unless it gets converted to device tree.
+
 config MACH_TS78XX
-	bool "Technologic Systems TS-78xx"
+	bool "Technologic Systems TS-78xx (DEPRECATED)"
 	depends on ATAGS
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  Technologic Systems TS-78xx platform.
 
+	  Support for this machine will go away in early 2027,
+	  unless it gets converted to device tree.
+
 config MACH_MV2120
-	bool "HP Media Vault mv2120"
+	bool "HP Media Vault mv2120 (DEPRECATED)"
 	depends on ATAGS
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  HP Media Vault mv2120 or mv5100.
+
+	  Support for this machine will go away in early 2027,
+	  unless it gets converted to device tree.
 
 config MACH_D2NET_DT
 	bool "LaCie d2 Network / Big Disk Network (Flattened Device Tree)"
@@ -112,12 +136,15 @@ config MACH_D2NET_DT
 	  LaCie d2 Network NAS.
 
 config MACH_NET2BIG
-	bool "LaCie 2Big Network"
+	bool "LaCie 2Big Network (DEPRECATED)"
 	depends on ATAGS
 	select I2C_BOARDINFO if I2C
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  LaCie 2Big Network NAS.
+
+	  Support for this machine will go away in early 2027,
+	  unless it gets converted to device tree.
 
 config MACH_MSS2_DT
 	bool "Maxtor Shared Storage II (Flattened Device Tree)"

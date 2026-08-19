@@ -74,14 +74,6 @@ void __init mxc_arch_reset_init(void __iomem *base)
 		clk_prepare(wdog_clk);
 }
 
-#ifdef CONFIG_SOC_IMX1
-void __init imx1_reset_init(void __iomem *base)
-{
-	wcr_enable = (1 << 0);
-	mxc_arch_reset_init(base);
-}
-#endif
-
 #ifdef CONFIG_CACHE_L2X0
 void __init imx_init_l2cache(void)
 {

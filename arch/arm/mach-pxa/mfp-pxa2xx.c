@@ -9,7 +9,7 @@
  *  on PXA3xx,  what's more important, the low power pin state and
  *  wakeup detection are also supported by the same framework.
  */
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/gpio-pxa.h>
 #include <linux/module.h>
 #include <linux/kernel.h>

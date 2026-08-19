@@ -10,7 +10,7 @@
  */
 #include <linux/dmaengine.h>
 #include <linux/dma/pxa-dma.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/gpio-pxa.h>
 #include <linux/module.h>
 #include <linux/kernel.h>

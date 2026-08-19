@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 config ARCH_AXXIA
-	bool "LSI Axxia platforms"
+	bool "LSI Axxia platforms (DEPRECATED)"
 	depends on ARCH_MULTI_V7 && ARM_LPAE
 	select ARM_AMBA
 	select ARM_GIC
@@ -13,3 +13,5 @@ config ARCH_AXXIA
 
 	  The LSI Axxia platforms require a Flattened Device Tree to be passed
 	  to the kernel.
+
+	  This platform is scheduled for removal in early 2027

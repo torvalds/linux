@@ -13,8 +13,10 @@
 #include <linux/gpio/driver.h>
 #include <linux/gpio/gpio-reg.h>
 #include <linux/gpio/machine.h>
-#include <linux/gpio_keys.h>
+#include <linux/gpio/property.h>
+#include <linux/input.h>
 #include <linux/ioport.h>
+#include <linux/property.h>
 #include <linux/platform_data/sa11x0-serial.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
@@ -467,28 +469,53 @@ static const struct gpio_led_platform_data assabet_leds_pdata __initconst = {
 	.leds = assabet_leds,
 };
 
-static struct gpio_keys_button assabet_keys_buttons[] = {
-	{
-		.gpio = 0,
-		.irq = IRQ_GPIO0,
-		.desc = "gpio0",
-		.wakeup = 1,
-		.can_disable = 1,
-		.debounce_interval = 5,
-	}, {
-		.gpio = 1,
-		.irq = IRQ_GPIO1,
-		.desc = "gpio1",
-		.wakeup = 1,
-		.can_disable = 1,
-		.debounce_interval = 5,
-	},
+static const struct software_node assabet_gpio_keys_node = {
+	.name = "assabet-gpio-keys",
 };
 
-static const struct gpio_keys_platform_data assabet_keys_pdata = {
-	.buttons = assabet_keys_buttons,
-	.nbuttons = ARRAY_SIZE(assabet_keys_buttons),
-	.rep = 0,
+static const struct property_entry assabet_key0_props[] = {
+	PROPERTY_ENTRY_U32("linux,code", KEY_RESERVED),
+	PROPERTY_ENTRY_GPIO("gpios", &sa1100_gpiochip_node,
+			    0, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_STRING("label", "gpio0"),
+	PROPERTY_ENTRY_BOOL("wakeup-source"),
+	PROPERTY_ENTRY_BOOL("linux,can-disable"),
+	PROPERTY_ENTRY_U32("debounce-interval", 5),
+	{ }
+};
+
+static const struct software_node assabet_key0_node = {
+	.parent = &assabet_gpio_keys_node,
+	.properties = assabet_key0_props,
+};
+
+static const struct property_entry assabet_key1_props[] = {
+	PROPERTY_ENTRY_U32("linux,code", KEY_RESERVED),
+	PROPERTY_ENTRY_GPIO("gpios", &sa1100_gpiochip_node,
+			    1, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_STRING("label", "gpio1"),
+	PROPERTY_ENTRY_BOOL("wakeup-source"),
+	PROPERTY_ENTRY_BOOL("linux,can-disable"),
+	PROPERTY_ENTRY_U32("debounce-interval", 5),
+	{ }
+};
+
+static const struct software_node assabet_key1_node = {
+	.parent = &assabet_gpio_keys_node,
+	.properties = assabet_key1_props,
+};
+
+static const struct software_node * const assabet_gpio_keys_swnodes[] __initconst = {
+	&assabet_gpio_keys_node,
+	&assabet_key0_node,
+	&assabet_key1_node,
+	NULL
+};
+
+static const struct platform_device_info assabet_gpio_keys_dev_info __initconst = {
+	.name = "gpio-keys",
+	.id = PLATFORM_DEVID_NONE,
+	.swnode = &assabet_gpio_keys_node,
 };
 
 static struct gpiod_lookup_table assabet_uart1_gpio_table = {
@@ -571,10 +598,8 @@ static void __init assabet_init(void)
 
 	}
 
-	platform_device_register_resndata(NULL, "gpio-keys", 0,
-					  NULL, 0,
-					  &assabet_keys_pdata,
-					  sizeof(assabet_keys_pdata));
+	software_node_register_node_group(assabet_gpio_keys_swnodes);
+	platform_device_register_full(&assabet_gpio_keys_dev_info);
 
 	gpiod_add_lookup_table(&assabet_leds_gpio_table);
 	gpio_led_register_device(-1, &assabet_leds_pdata);

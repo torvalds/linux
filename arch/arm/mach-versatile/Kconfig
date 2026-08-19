@@ -110,10 +110,14 @@ config INTEGRATOR_CM1026EJS
 	select CPU_ARM1026
 
 config INTEGRATOR_CM1136JFS
-	bool "Integrator/CM1136JF-S core module"
+	bool "Integrator/CM1136JF-S core module (DEPRECATED)"
 	depends on ARCH_INTEGRATOR_AP
 	depends on ARCH_MULTI_V6
-	select CPU_V6
+	depends on !SMP
+	select CPU_ARM1136R0
+	help
+	  This machine is scheduled for removal in early 2027,
+	  since it uses the ARM1136r0 CPU revision.
 
 config ARCH_INTEGRATOR_CP
 	bool "Support Integrator/CP platform"
@@ -135,7 +139,7 @@ config INTEGRATOR_CTB36
 	bool "Integrator/CTB36 (ARM1136JF-S) core tile"
 	depends on ARCH_INTEGRATOR_CP
 	depends on ARCH_MULTI_V6
-	select CPU_V6
+	select CPU_ARM1136R1
 
 config ARCH_CINTEGRATOR
 	depends on ARCH_INTEGRATOR_CP
@@ -182,7 +186,7 @@ config MACH_REALVIEW_EB
 config REALVIEW_EB_ARM1136
 	bool "Support ARM1136J(F)-S Tile"
 	depends on MACH_REALVIEW_EB && ARCH_MULTI_V6
-	select CPU_V6
+	select CPU_ARM1136R1
 	help
 	  Enable support for the ARM1136 tile fitted to the
 	  Realview(R) Emulation Baseboard platform.
@@ -201,11 +205,10 @@ config REALVIEW_EB_A9MP
 	  Enable support for the Cortex-A9MPCore tile fitted to the
 	  Realview(R) Emulation Baseboard platform.
 
-# ARMv6 CPU without K extensions, but does have the new exclusive ops
 config MACH_REALVIEW_PB1176
 	bool "Support RealView(R) Platform Baseboard for ARM1176JZF-S"
 	depends on ARCH_MULTI_V6
-	select CPU_V6
+	select CPU_ARM1176
 	select HAVE_TCM
 	help
 	  Include support for the ARM(R) RealView(R) Platform Baseboard for

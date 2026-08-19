@@ -4,7 +4,6 @@ CONFIG_PREEMPT=y
 CONFIG_LOG_BUF_SHIFT=14
 # CONFIG_BLK_DEV_BSG is not set
 CONFIG_ARCH_MMP=y
-CONFIG_AEABI=y
 CONFIG_MACH_MMP2_DT=y
 CONFIG_CMDLINE="root=/dev/nfs rootfstype=nfs nfsroot=192.168.1.100:/nfsroot/ ip=192.168.1.101:192.168.1.100::255.255.255.0::eth0:on console=ttyS2,38400 mem=128M user_debug=255 earlyprintk"
 CONFIG_VFP=y

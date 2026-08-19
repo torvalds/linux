@@ -48,6 +48,9 @@ int sa11xx_clk_init(void);
 struct gpiod_lookup_table;
 void sa11x0_register_pcmcia(int socket, struct gpiod_lookup_table *);
 
+struct software_node;
+extern const struct software_node sa1100_gpiochip_node;
+
 struct fixed_voltage_config;
 struct regulator_consumer_supply;
 int sa11x0_register_fixed_regulator(int n, struct fixed_voltage_config *cfg,

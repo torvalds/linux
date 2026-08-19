@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 menuconfig ARCH_DOVE
-	bool "Marvell Dove" if ARCH_MULTI_V7
+	bool "Marvell Dove (DEPRECATED)" if ARCH_MULTI_V7
 	depends on ATAGS
 	select CPU_PJ4
 	select GPIOLIB
@@ -11,7 +11,11 @@ menuconfig ARCH_DOVE
 	select PM_GENERIC_DOMAINS if PM
 	select PCI_QUIRKS if PCI
 	help
-	  Support for the Marvell Dove SoC 88AP510
+	  Support for the Marvell Dove SoC 88AP510 using board files.
+
+	  Support for this machine will be removed in early 2027, unless
+	  there is a strong reason to keep it. Users should migrate to
+	  the devicetree-enabled version (CONFIG_MACH_DOVE) instead.
 
 if ARCH_DOVE
 

@@ -7,7 +7,7 @@
 #include <linux/string.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/export.h>
 
 #include "irqs.h"

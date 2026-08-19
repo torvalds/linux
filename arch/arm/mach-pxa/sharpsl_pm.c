@@ -19,7 +19,7 @@
 #include <linux/delay.h>
 #include <linux/leds.h>
 #include <linux/suspend.h>
-#include <linux/gpio.h>
+#include <linux/gpio/legacy.h>
 #include <linux/io.h>
 
 #include <asm/mach-types.h>

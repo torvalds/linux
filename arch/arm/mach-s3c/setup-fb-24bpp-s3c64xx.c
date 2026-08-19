@@ -9,7 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 
 #include "fb.h"
 #include "gpio-cfg.h"

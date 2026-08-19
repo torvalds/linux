@@ -6,7 +6,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/io.h>
 #include <plat/mpp.h>
 #include <plat/orion-gpio.h>

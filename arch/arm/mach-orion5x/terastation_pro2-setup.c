@@ -4,7 +4,7 @@
  *
  * Maintainer: Sylver Bruneau <sylver.bruneau@googlemail.com>
  */
-#include <linux/gpio.h>
+#include <linux/gpio/legacy.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
