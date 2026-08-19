@@ -533,6 +533,15 @@ static int handle_pv_sclp(struct kvm_vcpu *vcpu)
 	set_bit(IRQ_PEND_EXT_SERVICE, &fi->pending_irqs);
 	clear_bit(IRQ_PEND_EXT_SERVICE, &fi->masked_irqs);
 	spin_unlock_irqrestore(&fi->lock, flags);
+
+	/*
+	 * We missed the floating IRQ kick since we can only inject
+	 * when we end up here and not when the irq was injected via
+	 * the FLIC.
+	 *
+	 * Now that we have cleared the masking we can kick cpus.
+	 */
+	kvm_s390_pv_sclp_kick(vcpu);
 	return 0;
 }
 

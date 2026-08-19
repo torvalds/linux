@@ -1963,10 +1963,7 @@ static void vcpu_intervention_kick(struct kvm_vcpu *vcpu, u64 type)
 	kvm_s390_vcpu_wakeup(vcpu);
 }
 
-/*
- * Find a destination VCPU for a floating irq and kick it.
- */
-static void __floating_irq_kick(struct kvm *kvm, u64 type, int isc)
+static void kick_cpu_irq(struct kvm *kvm, u64 type, u64 parm)
 {
 	struct kvm_vcpu *dst_vcpu;
 	int sigcpu, online_vcpus, nr_tries = 0;
@@ -1977,7 +1974,7 @@ static void __floating_irq_kick(struct kvm *kvm, u64 type, int isc)
 	if (!online_vcpus)
 		return;
 
-	irq_pend_mask = inti_to_irq_pend_mask(type, isc);
+	irq_pend_mask = inti_to_irq_pend_mask(type, parm);
 	for (sigcpu = kvm->arch.float_int.last_sleep_cpu; ; sigcpu++) {
 		sigcpu %= online_vcpus;
 		dst_vcpu = kvm_get_vcpu(kvm, sigcpu);
@@ -2001,10 +1998,46 @@ static void __floating_irq_kick(struct kvm *kvm, u64 type, int isc)
 	vcpu_intervention_kick(dst_vcpu, type);
 }
 
+void kvm_s390_pv_sclp_kick(struct kvm_vcpu *vcpu)
+{
+	/*
+	 * The cpu that called sclp likely will also take the IRQ, no
+	 * need to kick anyone.
+	 */
+	if (deliverable_irqs(vcpu) & BIT(IRQ_PEND_EXT_SERVICE))
+		return;
+
+	/*
+	 * For the other cases we might have sleeping cpus with open
+	 * masks. Time to find and kick them.
+	 */
+	kick_cpu_irq(vcpu->kvm, KVM_S390_INT_SERVICE, -1);
+}
+
+/*
+ * Find a destination VCPU for a floating irq and kick it.
+ */
+static void __floating_irq_kick(struct kvm *kvm, u64 type, u64 parm)
+{
+	struct kvm_s390_float_interrupt *fi = &kvm->arch.float_int;
+
+	/*
+	 * No need to kick on non-ev service IRQs for PV VMs, we're
+	 * not allowed to inject anyway. We need to wait for the sclp
+	 * instruction notification AFTER re-entry of the vcpu that
+	 * handled the instruction intercept.
+	 */
+	if (type == KVM_S390_INT_SERVICE && !(parm & SCCB_EVENT_PENDING) &&
+	    test_bit(IRQ_PEND_EXT_SERVICE, &fi->masked_irqs))
+		return;
+
+	kick_cpu_irq(kvm, type, parm);
+}
+
 static int __inject_vm(struct kvm *kvm, struct kvm_s390_interrupt_info *inti)
 {
 	u64 type = READ_ONCE(inti->type);
-	int isc = -1;
+	u64 parm = -1;
 	int rc;
 
 	switch (type) {
@@ -2015,6 +2048,7 @@ static int __inject_vm(struct kvm *kvm, struct kvm_s390_interrupt_info *inti)
 		rc = __inject_virtio(kvm, inti);
 		break;
 	case KVM_S390_INT_SERVICE:
+		parm = inti->ext.ext_params & SCCB_EVENT_PENDING;
 		rc = __inject_service(kvm, inti);
 		break;
 	case KVM_S390_INT_PFAULT_DONE:
@@ -2022,7 +2056,7 @@ static int __inject_vm(struct kvm *kvm, struct kvm_s390_interrupt_info *inti)
 		break;
 	case KVM_S390_INT_IO_MIN...KVM_S390_INT_IO_MAX:
 		/* Grab isc here since __inject_io() might free inti */
-		isc = int_word_to_isc(inti->io.io_int_word);
+		parm = int_word_to_isc(inti->io.io_int_word);
 		rc = __inject_io(kvm, inti);
 		break;
 	default:
@@ -2031,7 +2065,7 @@ static int __inject_vm(struct kvm *kvm, struct kvm_s390_interrupt_info *inti)
 	if (rc)
 		return rc;
 
-	__floating_irq_kick(kvm, type, isc);
+	__floating_irq_kick(kvm, type, parm);
 	return 0;
 }
 
