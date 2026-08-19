@@ -253,6 +253,7 @@ static int init_srcu_struct_fields(struct srcu_struct *ssp, bool is_static, bool
 	ssp->srcu_sup->node = NULL;
 	mutex_init(&ssp->srcu_sup->srcu_cb_mutex);
 	mutex_init(&ssp->srcu_sup->srcu_gp_mutex);
+	atomic_set(&ssp->srcu_sup->srcu_atomic_gp_flag, 0);
 	ssp->srcu_sup->srcu_gp_seq = SRCU_GP_SEQ_INITIAL_VAL;
 	ssp->srcu_sup->srcu_barrier_seq = 0;
 	mutex_init(&ssp->srcu_sup->srcu_barrier_mutex);
@@ -330,6 +331,13 @@ int __init_srcu_struct_fast_updown(struct srcu_struct *ssp, const char *name,
 }
 EXPORT_SYMBOL_GPL(__init_srcu_struct_fast_updown);
 
+int __init_srcu_struct_atomic(struct srcu_struct *ssp, const char *name, struct lock_class_key *key)
+{
+	ssp->srcu_reader_flavor = SRCU_READ_FLAVOR_ATOMIC;
+	return __init_srcu_struct_common(ssp, name, key);
+}
+EXPORT_SYMBOL_GPL(__init_srcu_struct_atomic);
+
 #else /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
 /**
@@ -384,6 +392,26 @@ int init_srcu_struct_fast_updown(struct srcu_struct *ssp)
 	return init_srcu_struct_fields(ssp, false, false);
 }
 EXPORT_SYMBOL_GPL(init_srcu_struct_fast_updown);
+
+/**
+ * init_srcu_struct_atomic - initialize an atomic sleep-RCU structure
+ * @ssp: structure to initialize.
+ *
+ * Use this in place of DEFINE_SRCU_ATOMIC() and DEFINE_STATIC_SRCU_ATOMIC()
+ * for non-static srcu_struct structures that are to be passed to
+ * srcu_read_lock_atomic() and friends.  It is necessary to invoke this on a
+ * given srcu_struct before passing that srcu_struct to any other function.
+ * Each srcu_struct represents a separate domain of SRCU protection.
+ *
+ * And yes, we really are defining a sleepable RCU implementation that
+ * cannot sleep.  Strange universe we live in, isn't it?
+ */
+int init_srcu_struct_atomic(struct srcu_struct *ssp)
+{
+	ssp->srcu_reader_flavor = SRCU_READ_FLAVOR_ATOMIC;
+	return init_srcu_struct_fields(ssp, false, false);
+}
+EXPORT_SYMBOL_GPL(init_srcu_struct_atomic);
 
 #endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
@@ -802,7 +830,10 @@ void __srcu_check_read_flavor(struct srcu_struct *ssp, int read_flavor)
 	WARN_ON_ONCE(ssp->srcu_reader_flavor && read_flavor != ssp->srcu_reader_flavor);
 	WARN_ON_ONCE(old_read_flavor && ssp->srcu_reader_flavor &&
 		     old_read_flavor != ssp->srcu_reader_flavor);
-	WARN_ON_ONCE(read_flavor == SRCU_READ_FLAVOR_FAST && !ssp->srcu_reader_flavor);
+	WARN_ON_ONCE(!!(read_flavor & SRCU_READ_FLAVOR_PREDEF) &&
+		     read_flavor != ssp->srcu_reader_flavor);
+	WARN_ON_ONCE(!!(ssp->srcu_reader_flavor & SRCU_READ_FLAVOR_PREDEF) &&
+		     read_flavor != ssp->srcu_reader_flavor);
 	if (!old_read_flavor) {
 		old_read_flavor = cmpxchg(&sdp->srcu_reader_flavor, 0, read_flavor);
 		if (!old_read_flavor)
@@ -942,7 +973,7 @@ static void srcu_schedule_cbs_snp(struct srcu_struct *ssp, struct srcu_node *snp
  * are initiating callback invocation.  This allows the ->srcu_have_cbs[]
  * array to have a finite number of elements.
  */
-static void srcu_gp_end(struct srcu_struct *ssp)
+static void srcu_gp_end(struct srcu_struct *ssp, bool is_atomic)
 {
 	unsigned long cbdelay = 1;
 	bool cbs;
@@ -958,7 +989,8 @@ static void srcu_gp_end(struct srcu_struct *ssp)
 	struct srcu_usage *sup = ssp->srcu_sup;
 
 	/* Prevent more than one additional grace period. */
-	mutex_lock(&sup->srcu_cb_mutex);
+	if (!is_atomic)
+		mutex_lock(&sup->srcu_cb_mutex);
 
 	/* End the current grace period. */
 	raw_spin_lock_irq_rcu_node(sup);
@@ -973,7 +1005,8 @@ static void srcu_gp_end(struct srcu_struct *ssp)
 	if (ULONG_CMP_LT(sup->srcu_gp_seq_needed_exp, gpseq))
 		WRITE_ONCE(sup->srcu_gp_seq_needed_exp, gpseq);
 	raw_spin_unlock_irq_rcu_node(sup);
-	mutex_unlock(&sup->srcu_gp_mutex);
+	if (!is_atomic)
+		mutex_unlock(&sup->srcu_gp_mutex);
 	/* A new grace period can start at this point.  But only one. */
 
 	/* Initiate callback invocation as needed. */
@@ -1018,13 +1051,15 @@ static void srcu_gp_end(struct srcu_struct *ssp)
 		}
 
 	/* Callback initiation done, allow grace periods after next. */
-	mutex_unlock(&sup->srcu_cb_mutex);
+	if (!is_atomic)
+		mutex_unlock(&sup->srcu_cb_mutex);
 
 	/* Start a new grace period if needed. */
 	raw_spin_lock_irq_rcu_node(sup);
 	gpseq = rcu_seq_current(&sup->srcu_gp_seq);
 	if (!rcu_seq_state(gpseq) &&
 	    ULONG_CMP_LT(gpseq, sup->srcu_gp_seq_needed)) {
+		WARN_ON_ONCE(ssp->srcu_reader_flavor & SRCU_READ_FLAVOR_ATOMIC);
 		srcu_gp_start(ssp);
 		raw_spin_unlock_irq_rcu_node(sup);
 		srcu_reschedule(ssp, 0);
@@ -1148,6 +1183,7 @@ static void srcu_funnel_gp_start(struct srcu_struct *ssp, struct srcu_data *sdp,
 	/* If grace period not already in progress, start it. */
 	if (!WARN_ON_ONCE(rcu_seq_done(&sup->srcu_gp_seq, s)) &&
 	    rcu_seq_state(sup->srcu_gp_seq) == SRCU_STATE_IDLE) {
+		WARN_ON_ONCE(ssp->srcu_reader_flavor & SRCU_READ_FLAVOR_ATOMIC);
 		srcu_gp_start(ssp);
 
 		// And how can that list_add() in the "else" clause
@@ -1482,6 +1518,8 @@ static void srcu_do_enqueue(struct srcu_struct *ssp, struct rcu_head *rhp,
 static void __call_srcu(struct srcu_struct *ssp, struct rcu_head *rhp,
 			rcu_callback_t func, bool do_norm)
 {
+	if (WARN_ON_ONCE(ssp->srcu_reader_flavor == SRCU_READ_FLAVOR_ATOMIC))
+		return; // Leak the callback rather than corrupt SRCU state.
 	if (should_rcu_defer()) {
 		struct srcu_defer *sndp = this_cpu_ptr(&srcu_defer);
 		struct srcu_data *sdp;
@@ -1621,6 +1659,11 @@ static void __synchronize_srcu(struct srcu_struct *ssp, bool do_norm)
 
 	if (rcu_scheduler_active == RCU_SCHEDULER_INACTIVE)
 		return;
+	if (WARN_ON_ONCE(ssp->srcu_reader_flavor == SRCU_READ_FLAVOR_ATOMIC)) {
+		// This works, and exposes a possible bug.
+		synchronize_srcu_atomic(ssp);
+		return;
+	}
 	might_sleep();
 	check_init_srcu_struct(ssp, false);
 	init_completion(&rcu.completion);
@@ -1741,10 +1784,21 @@ EXPORT_SYMBOL_GPL(get_state_synchronize_srcu);
  * period has elapsed in the meantime.  Unlike get_state_synchronize_srcu(),
  * this function also ensures that any needed SRCU grace period will be
  * started.  This convenience does come at a cost in terms of CPU overhead.
+ *
+ * This function cannot be used with atomic SRCU, which only has
+ * atomic grace periods.  Give a warning if someone tries, and return
+ * the same cookie that would have been returned, but refrain from
+ * messing up state by starting a grace period.  If someone somewhere
+ * somehow invokes synchronize_srcu_atomic(), passing this cookie to
+ * poll_state_synchronize_srcu() will return true.  If no one ever invokes
+ * synchronize_srcu_atomic(), too bad.
  */
 unsigned long start_poll_synchronize_srcu(struct srcu_struct *ssp)
 {
-	return srcu_gp_start_if_needed(ssp, NULL, true);
+	if (WARN_ON_ONCE(ssp->srcu_reader_flavor == SRCU_READ_FLAVOR_ATOMIC))
+		return get_state_synchronize_srcu(ssp);
+	else
+		return srcu_gp_start_if_needed(ssp, NULL, true);
 }
 EXPORT_SYMBOL_GPL(start_poll_synchronize_srcu);
 
@@ -1833,6 +1887,12 @@ void srcu_barrier(struct srcu_struct *ssp)
 	unsigned long s;
 
 	check_init_srcu_struct(ssp, false);
+	if (WARN_ON_ONCE(ssp->srcu_reader_flavor == SRCU_READ_FLAVOR_ATOMIC)) {
+		// There shouldn't be any callbacks for atomic SRCU,
+		// but just in case.
+		schedule_timeout_uninterruptible(HZ/10);
+		return;
+	}
 
 	/*
 	 * Register any deferred callbacks before snapshotting the sequence.  The
@@ -1904,6 +1964,9 @@ static void srcu_expedite_current_cb(struct rcu_head *rhp)
  * no current grace period, one might be created.  If the current grace
  * period is currently sleeping, that sleep will complete before expediting
  * will take effect.
+ *
+ * This function must not be invoked on srcu_struct structures that are
+ * used with srcu_read_lock_atomic() and synchronize_srcu_atomic().
  */
 void srcu_expedite_current(struct srcu_struct *ssp)
 {
@@ -1911,6 +1974,9 @@ void srcu_expedite_current(struct srcu_struct *ssp)
 	bool needcb = false;
 	struct srcu_data *sdp;
 
+	// Atomic SRCU has no callbacks, so there is nothing to expedite.
+	if (WARN_ON_ONCE(ssp->srcu_reader_flavor == SRCU_READ_FLAVOR_ATOMIC))
+		return;
 	migrate_disable();
 	sdp = this_cpu_ptr(ssp->sda);
 	raw_spin_lock_irqsave_sdp_contention(sdp, &flags);
@@ -1978,8 +2044,10 @@ static void srcu_advance_state(struct srcu_struct *ssp, bool is_atomic)
 			return;
 		}
 		idx = rcu_seq_state(READ_ONCE(ssp->srcu_sup->srcu_gp_seq));
-		if (idx == SRCU_STATE_IDLE)
+		if (idx == SRCU_STATE_IDLE) {
+			WARN_ON_ONCE(ssp->srcu_reader_flavor & SRCU_READ_FLAVOR_ATOMIC);
 			srcu_gp_start(ssp);
+		}
 		raw_spin_unlock_irq_rcu_node(ssp->srcu_sup);
 		if (idx != SRCU_STATE_IDLE) {
 			if (!is_atomic)
@@ -2015,9 +2083,78 @@ static void srcu_advance_state(struct srcu_struct *ssp, bool is_atomic)
 			return; /* readers present, retry later. */
 		}
 		ssp->srcu_sup->srcu_n_exp_nodelay = 0;
-		srcu_gp_end(ssp);  /* Releases ->srcu_gp_mutex. */
+		srcu_gp_end(ssp, is_atomic);  /* Releases ->srcu_gp_mutex. */
 	}
 }
+
+/**
+ * synchronize_srcu_atomic - spin for prior SRCU read-side critical-section completion
+ * @ssp: srcu_struct with which to synchronize.
+ *
+ * Similar to synchronize_srcu(), but spins rather than blocking.
+ * Use only with srcu_read_lock_atomic() and srcu_read_unlock_atomic(),
+ * which are forbidden from voluntarily context switching.  If
+ * synchronize_srcu_atomic() is invoked from a more restrictive context
+ * (for example, interrupts disabled) for a given srcu_struct structure,
+ * then for that structure, all calls to both srcu_read_lock_atomic()
+ * and srcu_read_unlock_atomic() must be invoked from that same context,
+ * or one that is even more strict.
+ *
+ * If synchronize_srcu_atomic() is invoked on a given srcu_struct
+ * structure, then none of call_srcu(), synchronize_srcu(),
+ * synchronize_srcu_expedited(), start_poll_synchronize_srcu(),
+ * srcu_barrier(), or srcu_expedite_current() may be invoked on that
+ * same structure.
+ *
+ * Because synchronize_srcu_atomic() is even more expedited than is
+ * synchronize_srcu_expedited(), there is no expedited counterpart to
+ * this function.
+ */
+void synchronize_srcu_atomic(struct srcu_struct *ssp)
+{
+	unsigned long srcu_state;
+	struct srcu_usage *sup = ssp->srcu_sup;
+
+	// Initialize.	Either init_srcu_struct() was invoked or
+	// DEFINE_SRCU() or similar was used.  Therefore, no allocation
+	// will be done here.
+	check_init_srcu_struct(ssp, true);
+	srcu_check_read_flavor(ssp, SRCU_READ_FLAVOR_ATOMIC);
+
+	// Perhaps others will do our work for us.
+	srcu_state = get_state_synchronize_srcu(ssp);
+	while (atomic_read(&sup->srcu_atomic_gp_flag) ||
+	       atomic_xchg(&sup->srcu_atomic_gp_flag, 1)) {
+		if (poll_state_synchronize_srcu(ssp, srcu_state))
+			return;
+		cpu_relax();
+	}
+
+	// One last check for others doing our work for us under the lock.
+	raw_spin_lock_irq_rcu_node(sup);
+	if (poll_state_synchronize_srcu(ssp, srcu_state)) {
+		raw_spin_unlock_irq_rcu_node(sup);
+		atomic_set(&sup->srcu_atomic_gp_flag, 0);
+		return;
+	}
+
+	// OK, we really have to do it ourselves.  Start the grace period.
+	non_block_start();  // We must not voluntarily block!
+	smp_store_release(&sup->srcu_gp_seq_needed, srcu_state); // See srcu_funnel_gp_start().
+	ASSERT_EXCLUSIVE_WRITER(ssp->srcu_sup->srcu_gp_seq);
+	srcu_gp_start(ssp);
+	raw_spin_unlock_irq_rcu_node(sup);
+
+	// Wait for it to complete, helping it along.
+	while (!poll_state_synchronize_srcu(ssp, srcu_state)) {
+		cpu_relax();
+		srcu_advance_state(ssp, true);
+	}
+	ASSERT_EXCLUSIVE_WRITER(sup->srcu_atomic_gp_flag);
+	atomic_set_release(&sup->srcu_atomic_gp_flag, 0);
+	non_block_end();
+}
+EXPORT_SYMBOL_GPL(synchronize_srcu_atomic);
 
 /*
  * Invoke a limited number of SRCU callbacks that have passed through
@@ -2098,6 +2235,7 @@ static void srcu_reschedule(struct srcu_struct *ssp, unsigned long delay)
 		}
 	} else if (!rcu_seq_state(ssp->srcu_sup->srcu_gp_seq)) {
 		/* Outstanding request and no GP.  Start one. */
+		WARN_ON_ONCE(ssp->srcu_reader_flavor & SRCU_READ_FLAVOR_ATOMIC);
 		srcu_gp_start(ssp);
 	}
 	raw_spin_unlock_irq_rcu_node(ssp->srcu_sup);

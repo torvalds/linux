@@ -36,6 +36,8 @@ static inline int __init_srcu_struct(struct srcu_struct *ssp, const char *name,
 int __init_srcu_struct_fast(struct srcu_struct *ssp, const char *name, struct lock_class_key *key);
 int __init_srcu_struct_fast_updown(struct srcu_struct *ssp, const char *name,
 				   struct lock_class_key *key);
+int __init_srcu_struct_atomic(struct srcu_struct *ssp, const char *name,
+			      struct lock_class_key *key);
 #endif // #ifndef CONFIG_TINY_SRCU
 
 #define init_srcu_struct_fast(ssp) \
@@ -52,6 +54,13 @@ int __init_srcu_struct_fast_updown(struct srcu_struct *ssp, const char *name,
 	__init_srcu_struct_fast_updown((ssp), #ssp, &__srcu_key); \
 })
 
+#define init_srcu_struct_atomic(ssp) \
+({ \
+	static struct lock_class_key __srcu_key; \
+	\
+	__init_srcu_struct_atomic((ssp), #ssp, &__srcu_key); \
+})
+
 #define __SRCU_DEP_MAP_INIT(srcu_name)	.dep_map = { .name = #srcu_name },
 #else /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
@@ -64,6 +73,7 @@ static inline int __init_srcu_struct(struct srcu_struct *ssp, const char *name,
 #ifndef CONFIG_TINY_SRCU
 int init_srcu_struct_fast(struct srcu_struct *ssp);
 int init_srcu_struct_fast_updown(struct srcu_struct *ssp);
+int init_srcu_struct_atomic(struct srcu_struct *ssp);
 #endif // #ifndef CONFIG_TINY_SRCU
 
 #define __SRCU_DEP_MAP_INIT(srcu_name)
@@ -77,14 +87,18 @@ int init_srcu_struct_fast_updown(struct srcu_struct *ssp);
 })
 
 /* Values for SRCU Tree srcu_data ->srcu_reader_flavor, but also used by rcutorture. */
-#define SRCU_READ_FLAVOR_NORMAL		0x1		// srcu_read_lock().
-#define SRCU_READ_FLAVOR_NMI		0x2		// srcu_read_lock_nmisafe().
-//					0x4		// SRCU-lite is no longer with us.
-#define SRCU_READ_FLAVOR_FAST		0x4		// srcu_read_lock_fast(), also NMI-safe.
-#define SRCU_READ_FLAVOR_FAST_UPDOWN	0x8		// srcu_read_lock_fast_updown().
+#define SRCU_READ_FLAVOR_NORMAL		0x01		// srcu_read_lock().
+#define SRCU_READ_FLAVOR_NMI		0x02		// srcu_read_lock_nmisafe().
+//					0x04		// SRCU-lite is no longer with us.
+#define SRCU_READ_FLAVOR_FAST		0x04		// srcu_read_lock_fast(), also NMI-safe.
+#define SRCU_READ_FLAVOR_FAST_UPDOWN	0x08		// srcu_read_lock_fast_updown().
+#define SRCU_READ_FLAVOR_ATOMIC		0x10		// srcu_read_lock_atomic().
 #define SRCU_READ_FLAVOR_ALL		(SRCU_READ_FLAVOR_NORMAL | SRCU_READ_FLAVOR_NMI | \
-					 SRCU_READ_FLAVOR_FAST | SRCU_READ_FLAVOR_FAST_UPDOWN)
+					 SRCU_READ_FLAVOR_FAST | SRCU_READ_FLAVOR_FAST_UPDOWN | \
+					 SRCU_READ_FLAVOR_ATOMIC)
 						// All of the above.
+#define SRCU_READ_FLAVOR_PREDEF		(SRCU_READ_FLAVOR_FAST | SRCU_READ_FLAVOR_ATOMIC)
+						// Flavors special DEFINE_SRCU() flavors.
 #define SRCU_READ_FLAVOR_SLOWGP		(SRCU_READ_FLAVOR_FAST | SRCU_READ_FLAVOR_FAST_UPDOWN)
 						// Flavors requiring synchronize_rcu()
 						// instead of smp_mb().
@@ -102,6 +116,7 @@ void call_srcu(struct srcu_struct *ssp, struct rcu_head *head,
 		void (*func)(struct rcu_head *head));
 void cleanup_srcu_struct(struct srcu_struct *ssp);
 void synchronize_srcu(struct srcu_struct *ssp);
+void synchronize_srcu_atomic(struct srcu_struct *ssp);
 
 #define SRCU_GET_STATE_COMPLETED 0x1
 
@@ -307,6 +322,43 @@ static inline int srcu_read_lock(struct srcu_struct *ssp)
 }
 
 /**
+ * srcu_read_lock_atomic - register a new reader promising an atomic section
+ * @ssp: srcu_struct in which to register the new reader.
+ *
+ * As srcu_read_lock(), but the caller promises that the read-side
+ * critical section never sleeps and never blocks on anything which
+ * may itself depend on memory allocation to make progress. Preemption
+ * is disabled for the duration, which both enforces that promise (any
+ * sleepable call in the section will splat on every configuration)
+ * and bounds the section so that the update side may spin rather
+ * than sleep when waiting for readers: see synchronize_srcu_atomic().
+ *
+ * The lock and matching srcu_read_unlock_atomic() must be invoked on
+ * the same CPU, from the same context; passing the return value to
+ * another task is not permitted for this flavor.
+ */
+static inline int srcu_read_lock_atomic(struct srcu_struct *ssp)
+	__acquires_shared(ssp)
+{
+	int retval;
+
+	preempt_disable();
+	/*
+	 * Arm might_sleep() to catch even a *potentially* sleeping call
+	 * in the section, not just an actual schedule: the atomic-domain
+	 * promise must hold on every path, contended or not. In hardirq
+	 * the annotation would land on the interrupted task; it is also
+	 * redundant there, so skip it.
+	 */
+	if (!in_hardirq())
+		non_block_start();
+	srcu_check_read_flavor(ssp, SRCU_READ_FLAVOR_ATOMIC);
+	retval = __srcu_read_lock(ssp);
+	srcu_lock_acquire(&ssp->dep_map);
+	return retval;
+}
+
+/**
  * srcu_read_lock_fast - register a new reader for an SRCU-protected structure.
  * @ssp: srcu_struct in which to register the new reader.
  *
@@ -496,6 +548,23 @@ static inline void srcu_read_unlock(struct srcu_struct *ssp, int idx)
 	srcu_check_read_flavor(ssp, SRCU_READ_FLAVOR_NORMAL);
 	srcu_lock_release(&ssp->dep_map);
 	__srcu_read_unlock(ssp, idx);
+}
+
+/**
+ * srcu_read_unlock_atomic - unregister an atomic-section reader
+ * @ssp: srcu_struct from which to unregister the old reader.
+ * @idx: return value from corresponding srcu_read_lock_atomic().
+ */
+static inline void srcu_read_unlock_atomic(struct srcu_struct *ssp, int idx)
+	__releases_shared(ssp)
+{
+	WARN_ON_ONCE(idx & ~0x1);
+	srcu_check_read_flavor(ssp, SRCU_READ_FLAVOR_ATOMIC);
+	srcu_lock_release(&ssp->dep_map);
+	__srcu_read_unlock(ssp, idx);
+	if (!in_hardirq())
+		non_block_end();
+	preempt_enable();
 }
 
 /**
