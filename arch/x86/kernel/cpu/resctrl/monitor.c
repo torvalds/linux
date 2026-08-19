@@ -513,7 +513,7 @@ static void _resctrl_abmc_enable(struct rdt_resource *r, bool enable)
 
 	lockdep_assert_cpus_held();
 
-	list_for_each_entry(d, &r->mon_domains, hdr.list) {
+	list_for_each_entry_rcu(d, &r->mon_domains, hdr.list, lockdep_is_cpus_held()) {
 		on_each_cpu_mask(&d->hdr.cpu_mask, resctrl_abmc_set_one_amd,
 				 &enable, 1);
 		resctrl_arch_reset_rmid_all(r, d);
