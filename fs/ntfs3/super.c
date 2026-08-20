@@ -23,6 +23,7 @@
  * allocated_size                - Total size of clusters allocated for non-resident content
  * total_size                    - Actual size of allocated clusters for sparse or compressed attributes
  *                               - Constraint: valid_size <= data_size <= allocated_size
+ * ADS                           - Alternative data stream: Named data attribute (0x80)
  *
  * WSL - Windows Subsystem for Linux
  * https://docs.microsoft.com/en-us/windows/wsl/file-permissions
@@ -65,6 +66,7 @@
 #include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/nls.h>
+#include <linux/overflow.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/statfs.h>
@@ -271,6 +273,8 @@ enum Opt {
 	Opt_nocase,
 	Opt_delalloc,
 	Opt_delalloc_bool,
+	Opt_ads,
+	Opt_ads_bool,
 	Opt_err,
 };
 
@@ -297,6 +301,8 @@ static const struct fs_parameter_spec ntfs_fs_parameters[] = {
 	fsparam_flag("nocase",		Opt_nocase),
 	fsparam_flag("delalloc",	Opt_delalloc),
 	fsparam_bool("delalloc",	Opt_delalloc_bool),
+	fsparam_flag("ads",		Opt_ads),
+	fsparam_bool("ads",		Opt_ads_bool),
 	{}
 };
 // clang-format on
@@ -419,6 +425,12 @@ static int ntfs_fs_parse_param(struct fs_context *fc,
 		break;
 	case Opt_delalloc_bool:
 		opts->delalloc = result.boolean;
+		break;
+	case Opt_ads:
+		opts->ads = 1;
+		break;
+	case Opt_ads_bool:
+		opts->ads = result.boolean;
 		break;
 	default:
 		/* Should not be here unless we forget add case. */
@@ -791,6 +803,8 @@ static int ntfs_show_options(struct seq_file *m, struct dentry *root)
 		seq_puts(m, ",nocase");
 	if (opts->delalloc)
 		seq_puts(m, ",delalloc");
+	if (opts->ads)
+		seq_puts(m, ",ads");
 
 	return 0;
 }
@@ -957,7 +971,7 @@ static int ntfs_init_from_boot(struct super_block *sb, u32 sector_size,
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
 	int err;
 	u32 mb, gb, boot_sector_size, sct_per_clst, record_size;
-	u64 sectors, clusters, mlcn, mlcn2, dev_size0;
+	u64 sectors, clusters, mlcn, mlcn2, mft_pos, mft2_pos, dev_size0;
 	struct NTFS_BOOT *boot;
 	struct buffer_head *bh;
 	struct MFT_REC *rec;
@@ -1026,7 +1040,15 @@ read_boot:
 	mlcn2 = le64_to_cpu(boot->mft2_clst);
 	sectors = le64_to_cpu(boot->sectors_per_volume);
 
-	if (mlcn * sct_per_clst >= sectors || mlcn2 * sct_per_clst >= sectors) {
+	/*
+	 * Convert mlcn/mlcn2 to sector positions before comparing with
+	 * 'sectors'.  All three are u64 values that come from the boot
+	 * sector, so use check_mul_overflow() to keep a wraparound from
+	 * silently bypassing the comparison.
+	 */
+	if (check_mul_overflow(mlcn, (u64)sct_per_clst, &mft_pos) ||
+	    check_mul_overflow(mlcn2, (u64)sct_per_clst, &mft2_pos) ||
+	    mft_pos >= sectors || mft2_pos >= sectors) {
 		ntfs_err(
 			sb,
 			"%s: start of MFT 0x%llx (0x%llx) is out of volume 0x%llx.",
@@ -1189,7 +1211,7 @@ read_boot:
 #ifdef CONFIG_NTFS3_64BIT_CLUSTER
 	if (clusters >= (1ull << (64 - cluster_bits)))
 		sbi->maxbytes = -1;
-	sbi->maxbytes_sparse = -1;
+	sbi->maxbytes_sparse = MAX_LFS_FILESIZE;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 #else
 	/* Maximum size for sparse file. */
@@ -1458,7 +1480,10 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 					    Add2Ptr(a, roff),
 					    le32_to_cpu(a->size) - roff);
 			if (err < 0) {
-				ntfs_err(sb, "Failed to unpack $MFT bitmap extent (%d).", err);
+				ntfs_err(
+					sb,
+					"Failed to unpack $MFT bitmap extent (%d).",
+					err);
 				goto put_inode_out;
 			}
 			err = 0;
@@ -1866,9 +1891,9 @@ static int ntfs_init_fs_context(struct fs_context *fc)
 	/* Default options. */
 	opts->fs_uid = current_uid();
 	opts->fs_gid = current_gid();
-	opts->fs_fmask_inv = ~current_umask();
-	opts->fs_dmask_inv = ~current_umask();
+	opts->fs_fmask_inv = opts->fs_dmask_inv = ~current_umask();
 	opts->prealloc = 1;
+	opts->ads = 1;
 
 #ifdef CONFIG_NTFS3_FS_POSIX_ACL
 	/* Set the default value 'acl' */
@@ -1928,7 +1953,6 @@ static struct file_system_type ntfs_fs_type = {
 	.kill_sb		= ntfs3_kill_sb,
 	.fs_flags		= FS_REQUIRES_DEV | FS_ALLOW_IDMAP,
 };
-
 // clang-format on
 
 static int __init init_ntfs_fs(void)

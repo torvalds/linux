@@ -1265,8 +1265,8 @@ int run_unpack_ex(struct runs_tree *run, struct ntfs_sb_info *sbi, CLST ino,
  * Return the highest vcn from a mapping pairs array
  * it used while replaying log file.
  */
-int run_get_highest_vcn(CLST vcn, const u8 *run_buf, size_t run_buf_size, 
-		       u64 *highest_vcn)
+int run_get_highest_vcn(CLST vcn, const u8 *run_buf, size_t run_buf_size,
+			u64 *highest_vcn)
 {
 	const u8 *run_last = run_buf + run_buf_size;
 	u64 vcn64 = vcn;
@@ -1279,7 +1279,7 @@ int run_get_highest_vcn(CLST vcn, const u8 *run_buf, size_t run_buf_size,
 		if (size_size > 8 || offset_size > 8)
 			return -EINVAL;
 
-		if (run_buf + size_size + offset_size > run_last) 
+		if (run_buf + size_size + offset_size > run_last)
 			return -EINVAL;
 
 		len = run_unpack_s64(run_buf, size_size, 0);
@@ -1357,7 +1357,8 @@ bool run_remove_range(struct runs_tree *run, CLST vcn, CLST len, CLST *done)
 		if (r_end > end) {
 			/* Remove a middle part, split. */
 			CLST tail_lcn = r->lcn == SPARSE_LCN ?
-					SPARSE_LCN : (r->lcn + (end - r->vcn));
+						SPARSE_LCN :
+						(r->lcn + (end - r->vcn));
 
 			*done += len;
 			r->len = d;
