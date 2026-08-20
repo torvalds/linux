@@ -145,6 +145,9 @@
 #define CLK_MPMU_I2S3_SYSCLK     48
 #define CLK_MPMU_I2S4_SYSCLK     49
 #define CLK_MPMU_I2S5_SYSCLK     50
+#define CLK_MPMU_I2S_SYSCLK      51
+#define CLK_MPMU_I2S_BCLK_FACTOR 52
+#define CLK_MPMU_I2S1_SYSCLK_SRC 53
 
 /* APBC clocks */
 #define CLK_APBC_UART0           0
@@ -385,6 +388,7 @@
 #define CLK_APMU_PCIE_PORTC_DBI  91
 #define CLK_APMU_PCIE_PORTD_DBI  92
 #define CLK_APMU_PCIE_PORTE_DBI  93
+#define CLK_APMU_UFS_REFCLK      94
 
 /* DCIU clocks */
 #define CLK_DCIU_HDMA            0
