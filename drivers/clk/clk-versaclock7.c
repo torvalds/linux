@@ -1197,7 +1197,7 @@ static int vc7_probe(struct i2c_client *client)
 		if (ret) {
 			dev_err_probe(&client->dev, ret,
 				      "unable to register output %d\n", i);
-			return ret;
+			goto err_clk;
 		}
 
 		switch (bank_src_map.type) {
@@ -1288,8 +1288,8 @@ static const struct regmap_config vc7_regmap_config = {
 };
 
 static const struct i2c_device_id vc7_i2c_id[] = {
-	{ "rc21008a", .driver_data = (kernel_ulong_t)&vc7_rc21008a_info },
-	{}
+	{ .name = "rc21008a", .driver_data = (kernel_ulong_t)&vc7_rc21008a_info },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, vc7_i2c_id);
 
