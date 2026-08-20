@@ -883,8 +883,12 @@ static ssize_t shunt_resistor_show(struct device *dev,
 				   struct device_attribute *da, char *buf)
 {
 	struct ina2xx_data *data = dev_get_drvdata(dev);
+	long rshunt;
 
-	return sysfs_emit(buf, "%li\n", data->rshunt);
+	scoped_guard(hwmon_lock, dev) {
+		rshunt = data->rshunt;
+	}
+	return sysfs_emit(buf, "%li\n", rshunt);
 }
 
 static ssize_t shunt_resistor_store(struct device *dev,
