@@ -8,6 +8,7 @@
  */
 
 #include <linux/bitfield.h>
+#include <linux/bitops.h>
 #include <linux/bits.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -159,6 +160,7 @@ struct ina2xx_data {
 	const struct ina2xx_config *config;
 	enum ina2xx_ids chip;
 
+	enum ina2xx_alert_type active_alert;
 	long rshunt;
 	long current_lsb_uA;
 	long power_lsb_uW;
@@ -463,6 +465,35 @@ static u32 ina2xx_alert_type_to_mask(enum ina2xx_alert_type alert)
 	}
 }
 
+static enum ina2xx_alert_type ina2xx_mask_to_alert_type(u32 mask)
+{
+	int top_bit = fls(mask & INA226_ALERT_CONFIG_MASK);
+
+	if (!top_bit)
+		return INA2XX_ALERT_NONE;
+
+	/*
+	 * Multiple bits may be set, with the highest-set function taking
+	 * precedence according to the datasheet. Shunt voltage masks are
+	 * assumed to map to voltage monitoring rather than current monitoring,
+	 * since the latter isn't directly implemented in the hardware.
+	 */
+	switch (BIT(top_bit - 1)) {
+	case INA226_SHUNT_OVER_VOLTAGE_MASK:
+		return INA2XX_ALERT_SHUNT_VOLTAGE_HIGH;
+	case INA226_SHUNT_UNDER_VOLTAGE_MASK:
+		return INA2XX_ALERT_SHUNT_VOLTAGE_LOW;
+	case INA226_BUS_OVER_VOLTAGE_MASK:
+		return INA2XX_ALERT_BUS_VOLTAGE_HIGH;
+	case INA226_BUS_UNDER_VOLTAGE_MASK:
+		return INA2XX_ALERT_BUS_VOLTAGE_LOW;
+	case INA226_POWER_OVER_LIMIT_MASK:
+		return INA2XX_ALERT_POWER_HIGH;
+	default:
+		return INA2XX_ALERT_NONE;
+	}
+}
+
 static int ina226_alert_limit_read(struct ina2xx_data *data, enum ina2xx_alert_type alert,
 				   int reg, long *val)
 {
@@ -470,6 +501,12 @@ static int ina226_alert_limit_read(struct ina2xx_data *data, enum ina2xx_alert_t
 	int regval;
 	u32 mask;
 	int ret;
+
+	/* Avoid nonzero reads from inactive alerts caused by shared limit register */
+	if (data->active_alert != alert) {
+		*val = 0;
+		return 0;
+	}
 
 	ret = regmap_read(regmap, INA226_MASK_ENABLE, &regval);
 	if (ret)
@@ -506,6 +543,7 @@ static int ina226_alert_limit_write(struct ina2xx_data *data, enum ina2xx_alert_
 				 INA226_ALERT_CONFIG_MASK, 0);
 	if (ret < 0)
 		return ret;
+	data->active_alert = INA2XX_ALERT_NONE;
 
 	ret = regmap_write(regmap, INA226_ALERT_LIMIT,
 			   ina226_alert_to_reg(data, reg, val));
@@ -514,9 +552,13 @@ static int ina226_alert_limit_write(struct ina2xx_data *data, enum ina2xx_alert_
 
 	if (val) {
 		mask = ina2xx_alert_type_to_mask(alert);
-		return regmap_update_bits(regmap, INA226_MASK_ENABLE,
-					  INA226_ALERT_CONFIG_MASK, mask);
+		ret = regmap_update_bits(regmap, INA226_MASK_ENABLE,
+					 INA226_ALERT_CONFIG_MASK, mask);
+		if (ret < 0)
+			return ret;
+		data->active_alert = alert;
 	}
+
 	return 0;
 }
 
@@ -545,6 +587,15 @@ static int ina226_alert_read(struct ina2xx_data *data, enum ina2xx_alert_type al
 	unsigned int regval;
 	u32 mask;
 	int ret;
+
+	/*
+	 * With alert latching, reading alerts from hardware also clears the
+	 * alert, so return early if the alert is inactive.
+	 */
+	if (data->active_alert != alert) {
+		*val = 0;
+		return 0;
+	}
 
 	ret = regmap_read_bypassed(data->regmap, INA226_MASK_ENABLE, &regval);
 	if (ret)
@@ -988,6 +1039,16 @@ static int ina2xx_init(struct device *dev, struct ina2xx_data *data)
 
 	if (data->config->has_alerts) {
 		bool active_high = device_property_read_bool(dev, "ti,alert-polarity-active-high");
+		unsigned int mask_enable;
+
+		/*
+		 * Infer active alert from MASK_ENABLE in case it's already
+		 * configured (e.g., by a past probe or firmware)
+		 */
+		ret = regmap_read(regmap, INA226_MASK_ENABLE, &mask_enable);
+		if (ret < 0)
+			return ret;
+		data->active_alert = ina2xx_mask_to_alert_type(mask_enable);
 
 		regmap_update_bits(regmap, INA226_MASK_ENABLE,
 				   INA226_ALERT_LATCH_ENABLE | INA226_ALERT_POLARITY,
