@@ -417,6 +417,9 @@ struct ublk_shmem_buf_reg {
  */
 #define UBLK_F_SHMEM_ZC	(1ULL << 19)
 
+/* ublksrv_io_desc size is specified by ublksrv_ctrl_dev_info's io_desc_size */
+#define UBLK_F_IO_DESC_SIZE (1ULL << 20)
+
 /* device state */
 #define UBLK_S_DEV_DEAD	0
 #define UBLK_S_DEV_LIVE	1
@@ -452,7 +455,7 @@ struct ublksrv_ctrl_dev_info {
 	__u16	nr_hw_queues;
 	__u16	queue_depth;
 	__u16	state;
-	__u16	pad0;
+	__u16	io_desc_size;
 
 	__u32	max_io_buf_bytes;
 	__u32	dev_id;

@@ -359,6 +359,7 @@ static ssize_t iomap_dio_bio_iter_one(struct iomap_iter *iter,
 				iomap_max_bio_size(&iter->iomap), alignment);
 	else
 		ret = bio_iov_iter_get_pages(bio, dio->submit.iter,
+					     bdev_dma_alignment(bio->bi_bdev),
 					     alignment - 1);
 	if (unlikely(ret))
 		goto out_put_bio;
@@ -1033,7 +1034,9 @@ ssize_t __iomap_dio_read_simple(struct kiocb *iocb, struct iov_iter *iter,
 	bio->bi_iter.bi_sector = iomap_sector(&iomi->iomap, iomi->pos);
 	bio->bi_ioprio = iocb->ki_ioprio;
 
-	ret = bio_iov_iter_get_pages(bio, iter, alignment - 1);
+	ret = bio_iov_iter_get_pages(bio, iter,
+				bdev_dma_alignment(bio->bi_bdev),
+				alignment - 1);
 	if (unlikely(ret))
 		goto out_bio_put;
 

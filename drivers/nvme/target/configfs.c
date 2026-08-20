@@ -312,15 +312,17 @@ static ssize_t nvmet_param_mdts_store(struct config_item *item,
 		const char *page, size_t count)
 {
 	struct nvmet_port *port = to_nvmet_port(item);
-	int ret;
+	int ret, mdts;
 
 	if (nvmet_is_port_enabled(port, __func__))
 		return -EACCES;
-	ret = kstrtoint(page, 0, &port->mdts);
-	if (ret) {
-		pr_err("Invalid value '%s' for mdts\n", page);
+	ret = kstrtoint(page, 0, &mdts);
+	if (ret || mdts < 0 || mdts > NVMET_MAX_MDTS) {
+		pr_err("Invalid value '%s' for mdts, should be 0-%d\n",
+		       page, NVMET_MAX_MDTS);
 		return -EINVAL;
 	}
+	port->mdts = mdts;
 	return count;
 }
 

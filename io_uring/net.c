@@ -1440,7 +1440,7 @@ static int io_sg_from_iter(struct sk_buff *skb,
 		return zerocopy_fill_skb_from_iter(skb, from, length);
 
 	bi.bi_size = min(from->count, length);
-	bi.bi_bvec_done = from->iov_offset;
+	bi.bi_offset = from->iov_offset;
 	bi.bi_idx = 0;
 
 	while (bi.bi_size && frag < MAX_SKB_FRAGS) {
@@ -1459,7 +1459,7 @@ static int io_sg_from_iter(struct sk_buff *skb,
 	from->bvec += bi.bi_idx;
 	from->nr_segs -= bi.bi_idx;
 	from->count -= copied;
-	from->iov_offset = bi.bi_bvec_done;
+	from->iov_offset = bi.bi_offset;
 
 	skb->data_len += copied;
 	skb->len += copied;
