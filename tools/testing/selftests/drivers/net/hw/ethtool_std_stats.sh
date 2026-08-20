@@ -43,10 +43,12 @@ traffic_test()
 	done
 
 	# shellcheck disable=SC2086 # needs split options
-	run_on "$iface" "$MZ" "$iface" -q -c "$num_tx" $pkt_format
+	run_on "$iface" "$MZ" "$iface" -q -d 10usec -c "$num_tx" $pkt_format
 
 	# shellcheck disable=SC2086 # needs split options
-	run_on "$neigh" "$MZ" "$neigh" -q -c "$num_rx" $pkt_format
+	run_on "$neigh" "$MZ" "$neigh" -q -d 10usec -c "$num_rx" $pkt_format
+
+	hw_stats_settle "$int"
 
 	for i in "${!counters[@]}"; do
 		read -r int grp cnt target exact_check xfail_message \

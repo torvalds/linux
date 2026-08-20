@@ -398,7 +398,6 @@ int mlx5hws_cmd_rtc_create(struct mlx5_core_dev *mdev,
 	MLX5_SET(rtc, attr, update_method, rtc_attr->fw_gen_wqe);
 	MLX5_SET(rtc, attr, update_index_mode, rtc_attr->update_index_mode);
 	MLX5_SET(rtc, attr, access_index_mode, rtc_attr->access_index_mode);
-	MLX5_SET(rtc, attr, num_hash_definer, rtc_attr->num_hash_definer);
 	MLX5_SET(rtc, attr, log_depth, rtc_attr->log_depth);
 	MLX5_SET(rtc, attr, log_hash_size, rtc_attr->log_size);
 	MLX5_SET(rtc, attr, table_type, rtc_attr->table_type);
@@ -611,9 +610,11 @@ int mlx5hws_cmd_stc_modify(struct mlx5_core_dev *mdev,
 
 	ret = mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
 	if (ret)
-		mlx5_core_err(mdev, "Failed to modify STC FW action_type %d\n",
-			      stc_attr->action_type);
-
+		mlx5_core_err(mdev,
+			      "Failed to modify STC action_type %d, err %d, syndrome 0x%x\n",
+			      stc_attr->action_type, ret,
+			      MLX5_GET(general_obj_out_cmd_hdr,
+				       out, syndrome));
 	return ret;
 }
 
@@ -1172,19 +1173,13 @@ int mlx5hws_cmd_query_caps(struct mlx5_core_dev *mdev,
 		}
 
 		if (MLX5_GET(query_hca_cap_out, out,
-			     capability.esw_cap.esw_manager_vport_number_valid))
+			     capability.e_switch_cap.esw_manager_vport_number_valid))
 			caps->eswitch_manager_vport_number =
 				MLX5_GET(query_hca_cap_out, out,
-					 capability.esw_cap.esw_manager_vport_number);
+					 capability.e_switch_cap.esw_manager_vport_number);
 
 		caps->merged_eswitch = MLX5_GET(query_hca_cap_out, out,
-						capability.esw_cap.merged_eswitch);
-	}
-
-	ret = mlx5_cmd_exec(mdev, in, sizeof(in), out, out_size);
-	if (ret) {
-		mlx5_core_err(mdev, "Failed to query device attributes\n");
-		goto out;
+						capability.e_switch_cap.merged_eswitch);
 	}
 
 	snprintf(caps->fw_ver, sizeof(caps->fw_ver), "%d.%d.%d",

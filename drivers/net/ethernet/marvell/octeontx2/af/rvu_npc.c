@@ -4195,10 +4195,40 @@ npc_set_var_len_offset_pkind(struct rvu *rvu, u16 pcifunc, u64 pkind,
 	return 0;
 }
 
+static int npc_set_skip_size_pkind(struct rvu *rvu, u16 pcifunc, u64 pkind,
+				   u8 skip_size)
+{
+	struct npc_kpu_action0 *act0;
+	int blkaddr;
+	u64 val;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, pcifunc);
+	if (blkaddr < 0) {
+		dev_err(rvu->dev, "%s: NPC block not implemented\n", __func__);
+		return -EINVAL;
+	}
+
+	val = rvu_read64(rvu, blkaddr, NPC_AF_PKINDX_ACTION0(pkind));
+	act0 = (struct npc_kpu_action0 *)&val;
+	act0->ptr_advance = skip_size;
+	rvu_write64(rvu, blkaddr, NPC_AF_PKINDX_ACTION0(pkind), val);
+
+	/* Update CPT_HR new PKIND */
+	val = rvu_read64(rvu, blkaddr, NPC_AF_PKINDX_ACTION0(pkind + 4));
+	act0 = (struct npc_kpu_action0 *)&val;
+	act0->ptr_advance = (skip_size + 40);
+	act0->next_state = NPC_S_KPU1_CPT_HDR;
+	act0->var_len_offset = (skip_size + 6);
+	act0->var_len_mask = 0xe0;
+	act0->var_len_shift = 0x5;
+	act0->var_len_right = 0x1;
+	rvu_write64(rvu, blkaddr, NPC_AF_PKINDX_ACTION0(pkind + 4), val);
+	return 0;
+}
+
 int rvu_npc_set_parse_mode(struct rvu *rvu, u16 pcifunc, u64 mode, u8 dir,
 			   u64 pkind, u8 var_len_off, u8 var_len_off_mask,
-			   u8 shift_dir)
-
+			   u8 shift_dir, u8 skip_size)
 {
 	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, pcifunc);
 	int pf = rvu_get_pf(rvu->pdev, pcifunc);
@@ -4218,6 +4248,12 @@ int rvu_npc_set_parse_mode(struct rvu *rvu, u16 pcifunc, u64 mode, u8 dir,
 							  var_len_off,
 							  var_len_off_mask,
 							  shift_dir);
+			if (rc)
+				return rc;
+		} else if (pkind >= NPC_RX_SKIP_SIZE_PKIND &&
+			   pkind <= NPC_RX_SKIP_SIZE_PKIND + 3) {
+			rc = npc_set_skip_size_pkind(rvu, pcifunc, pkind,
+						     skip_size);
 			if (rc)
 				return rc;
 		}
@@ -4263,7 +4299,45 @@ int rvu_mbox_handler_npc_set_pkind(struct rvu *rvu, struct npc_set_pkind *req,
 {
 	return rvu_npc_set_parse_mode(rvu, req->hdr.pcifunc, req->mode,
 				      req->dir, req->pkind, req->var_len_off,
-				      req->var_len_off_mask, req->shift_dir);
+				      req->var_len_off_mask, req->shift_dir,
+				      req->skip_size);
+}
+
+int rvu_mbox_handler_npc_read_default_rule(struct rvu *rvu,
+					   struct msg_req *req,
+					   struct npc_mcam_read_base_rule_rsp *rsp)
+{
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	int index, blkaddr, nixlf, rc;
+	u16 pcifunc = req->hdr.pcifunc;
+	u8 intf, enable;
+
+	if (is_cn20k(rvu->pdev))
+		return NPC_MCAM_INVALID_REQ;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	if (blkaddr < 0)
+		return NPC_MCAM_INVALID_REQ;
+
+	rc = nix_get_nixlf(rvu, pcifunc, &nixlf, NULL);
+	if (rc < 0)
+		return rc;
+
+	/* Read the default ucast entry */
+	mutex_lock(&mcam->lock);
+	index = npc_get_nixlf_mcam_index(mcam, pcifunc, nixlf,
+					 NIXLF_UCAST_ENTRY);
+	if (index < 0) {
+		mutex_unlock(&mcam->lock);
+		return NIX_AF_ERR_AF_LF_INVALID;
+	}
+
+	/* Read the mcam entry */
+	npc_read_mcam_entry(rvu, mcam, blkaddr, index, &rsp->entry, &intf,
+			    &enable);
+	mutex_unlock(&mcam->lock);
+
+	return 0;
 }
 
 int rvu_mbox_handler_npc_read_base_steer_rule(struct rvu *rvu,

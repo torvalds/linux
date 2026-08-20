@@ -52,6 +52,29 @@ void *phy_package_get_priv(struct phy_device *phydev)
 }
 EXPORT_SYMBOL_GPL(phy_package_get_priv);
 
+/**
+ * phy_package_lock - acquire the PHY package lock
+ * @phydev: PHY device that has joined the package
+ *
+ * Use this to serialize access to package-private data. Release the lock
+ * with phy_package_unlock().
+ */
+void phy_package_lock(struct phy_device *phydev)
+{
+	mutex_lock(&phydev->mdio.bus->shared_lock);
+}
+EXPORT_SYMBOL_GPL(phy_package_lock);
+
+/**
+ * phy_package_unlock - release the PHY package lock
+ * @phydev: PHY device that has joined the package
+ */
+void phy_package_unlock(struct phy_device *phydev)
+{
+	mutex_unlock(&phydev->mdio.bus->shared_lock);
+}
+EXPORT_SYMBOL_GPL(phy_package_unlock);
+
 static int phy_package_address(struct phy_device *phydev,
 			       unsigned int addr_offset)
 {

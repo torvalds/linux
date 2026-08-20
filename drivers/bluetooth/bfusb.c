@@ -301,6 +301,11 @@ static inline int bfusb_recv_block(struct bfusb_data *data, int hdr, unsigned ch
 				return -EILSEQ;
 			}
 			break;
+
+		default:
+			bt_dev_err(data->hdev, "unknown packet type 0x%02x",
+				   pkt_type);
+			return -EILSEQ;
 		}
 
 		skb = bt_skb_alloc(pkt_len, GFP_ATOMIC);
@@ -317,6 +322,13 @@ static inline int bfusb_recv_block(struct bfusb_data *data, int hdr, unsigned ch
 			bt_dev_err(data->hdev, "unexpected continuation block");
 			return -EIO;
 		}
+	}
+
+	if (len > skb_tailroom(data->reassembly)) {
+		bt_dev_err(data->hdev, "block exceeds packet length");
+		kfree_skb(data->reassembly);
+		data->reassembly = NULL;
+		return -EILSEQ;
 	}
 
 	if (len > 0)
@@ -353,6 +365,13 @@ static void bfusb_rx_complete(struct urb *urb)
 	skb_put(skb, count);
 
 	while (count) {
+		if (count < 2) {
+			bt_dev_err(data->hdev, "short block header");
+			kfree_skb(data->reassembly);
+			data->reassembly = NULL;
+			break;
+		}
+
 		hdr = buf[0] | (buf[1] << 8);
 
 		if (hdr & 0x4000) {
@@ -360,16 +379,28 @@ static void bfusb_rx_complete(struct urb *urb)
 			count -= 2;
 			buf   += 2;
 		} else {
+			if (count < 3) {
+				bt_dev_err(data->hdev, "short block header");
+				kfree_skb(data->reassembly);
+				data->reassembly = NULL;
+				break;
+			}
+
 			len = (buf[2] == 0) ? 256 : buf[2];
 			count -= 3;
 			buf   += 3;
 		}
 
-		if (count < len)
+		if (count < len) {
 			bt_dev_err(data->hdev, "block extends over URB buffer ranges");
+			kfree_skb(data->reassembly);
+			data->reassembly = NULL;
+			break;
+		}
 
-		if ((hdr & 0xe1) == 0xc1)
-			bfusb_recv_block(data, hdr, buf, len);
+		if ((hdr & 0xe1) == 0xc1 &&
+		    bfusb_recv_block(data, hdr, buf, len) < 0)
+			data->hdev->stat.err_rx++;
 
 		count -= len;
 		buf   += len;

@@ -448,8 +448,9 @@ typedef unsigned int __bitwise iwl_ucode_tlv_capa_t;
  * @IWL_UCODE_TLV_CAPA_EXT_FSEQ_IMAGE_SUPPORT: external FSEQ image support
  * @IWL_UCODE_TLV_CAPA_RESET_DURING_ASSERT: FW reset handshake is needed
  *	during assert handling even if the dump isn't split
- * @IWL_UCODE_TLV_CAPA_FW_ACCEPTS_RAW_DSM_TABLE: Firmware has capability of
- *	handling raw DSM table data.
+ * @IWL_UCODE_TLV_CAPA_FW_ACCEPTS_RAW_DSM_TABLE: Firmware can handle raw DSM
+ *	table data. For LARI_CONFIG_CHANGE command version 13 and above, this
+ *	capability is obsolete since raw DSM values are accepted by default.
  * @IWL_UCODE_TLV_CAPA_NAN_SYNC_SUPPORT: Supports NAN synchronization
  *
  * @NUM_IWL_UCODE_TLV_CAPA: number of bits used

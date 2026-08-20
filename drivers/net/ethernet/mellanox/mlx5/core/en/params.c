@@ -545,8 +545,8 @@ bool slow_pci_heuristic(struct mlx5_core_dev *mdev)
 
 	mlx5_port_max_linkspeed(mdev, &link_speed);
 	pci_bw = pcie_bandwidth_available(mdev->pdev, NULL, NULL, NULL);
-	mlx5_core_dbg_once(mdev, "Max link speed = %d, PCI BW = %d\n",
-			   link_speed, pci_bw);
+	mlx5_core_dbg(mdev, "Max link speed = %d, PCI BW = %d\n", link_speed,
+		      pci_bw);
 
 #define MLX5E_SLOW_PCI_RATIO (2)
 

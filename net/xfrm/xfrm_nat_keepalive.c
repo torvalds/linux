@@ -135,7 +135,7 @@ static void nat_keepalive_send(struct nat_keepalive *ka)
 	uh = skb_push(skb, sizeof(*uh));
 	uh->source = ka->encap_sport;
 	uh->dest = ka->encap_dport;
-	uh->len = htons(skb->len);
+	udp_set_len_short(uh, skb->len);
 	uh->check = 0;
 
 	skb->mark = ka->smark;

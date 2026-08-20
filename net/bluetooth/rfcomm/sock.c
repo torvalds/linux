@@ -60,6 +60,7 @@ static void rfcomm_sk_data_ready(struct rfcomm_dlc *d, struct sk_buff *skb)
 }
 
 static void rfcomm_sk_state_change(struct rfcomm_dlc *d, int err)
+	__must_hold(&d->lock)
 {
 	struct sock *sk = d->owner, *parent;
 

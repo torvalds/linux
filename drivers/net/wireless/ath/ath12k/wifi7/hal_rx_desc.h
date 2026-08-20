@@ -140,6 +140,38 @@ struct rx_mpdu_start_qcn9274 {
 	__le32 res1;
 } __packed;
 
+struct rx_mpdu_start_qcc2072 {
+	__le32 info0;
+	__le32 info2;
+	__le32 reo_queue_desc_lo;
+	__le32 info1;
+	__le32 pn[4];
+	__le32 info4;
+	__le32 peer_meta_data;
+	__le16 ast_index;
+	__le16 sw_peer_id;
+	__le16 info3;
+	__le16 phy_ppdu_id;
+	__le32 info5;
+	__le32 info6;
+	__le16 frame_ctrl;
+	__le16 duration;
+	u8 addr1[ETH_ALEN];
+	u8 addr2[ETH_ALEN];
+	u8 addr3[ETH_ALEN];
+	__le16 seq_ctrl;
+	u8 addr4[ETH_ALEN];
+	__le16 qos_ctrl;
+	__le32 ht_ctrl;
+	__le32 info7;
+	__le32 res0;
+	__le32 res1;
+	__le32 res2;
+	__le32 info8;
+	__le32 res3;
+	__le32 res4;
+} __packed;
+
 #define QCN9274_MPDU_START_SELECT_MPDU_START_TAG			BIT(0)
 #define QCN9274_MPDU_START_SELECT_INFO0_REO_QUEUE_DESC_LO		BIT(1)
 #define QCN9274_MPDU_START_SELECT_INFO1_PN_31_0				BIT(2)
@@ -1492,7 +1524,7 @@ struct hal_rx_desc_qcc2072 {
 	struct rx_msdu_end_qcn9274 msdu_end;
 	u8 rx_padding0[RX_BE_PADDING0_BYTES];
 	__le32 mpdu_start_tag;
-	struct rx_mpdu_start_qcn9274 mpdu_start;
+	struct rx_mpdu_start_qcc2072 mpdu_start;
 	struct rx_pkt_hdr_tlv_qcc2072 pkt_hdr_tlv;
 	u8 msdu_payload[];
 };

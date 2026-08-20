@@ -11,6 +11,7 @@
 #include "sparx5_main_regs.h"
 #include "sparx5_main.h"
 #include "sparx5_port.h"
+#include "sparx5_qos.h"
 
 #define SPX5_ETYPE_TAG_C     0x8100
 #define SPX5_ETYPE_TAG_S     0x88a8
@@ -1049,6 +1050,9 @@ int sparx5_port_config(struct sparx5 *sparx5,
 		 QFWD_SWITCH_PORT_MODE_FWD_URGENCY,
 		 sparx5,
 		 QFWD_SWITCH_PORT_MODE(port->portno));
+
+	/* Notify TAS about the speed. */
+	sparx5_tas_speed(port, conf->speed);
 
 	/* Save the new values */
 	port->conf = *conf;

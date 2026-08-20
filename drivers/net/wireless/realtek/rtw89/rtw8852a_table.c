@@ -2,6 +2,7 @@
 /* Copyright(c) 2019-2020  Realtek Corporation
  */
 
+#include "fw.h"
 #include "phy.h"
 #include "reg.h"
 #include "rtw8852a_table.h"
@@ -50983,19 +50984,19 @@ const struct rtw89_txpwr_table rtw89_8852a_byr_table = {
 	.load = rtw89_phy_load_txpwr_byrate,
 };
 
-const struct rtw89_txpwr_track_cfg rtw89_8852a_trk_cfg = {
-	.delta_swingidx_5gb_n = _txpwr_track_delta_swingidx_5gb_n,
-	.delta_swingidx_5gb_p = _txpwr_track_delta_swingidx_5gb_p,
-	.delta_swingidx_5ga_n = _txpwr_track_delta_swingidx_5ga_n,
-	.delta_swingidx_5ga_p = _txpwr_track_delta_swingidx_5ga_p,
-	.delta_swingidx_2gb_n = _txpwr_track_delta_swingidx_2gb_n,
-	.delta_swingidx_2gb_p = _txpwr_track_delta_swingidx_2gb_p,
-	.delta_swingidx_2ga_n = _txpwr_track_delta_swingidx_2ga_n,
-	.delta_swingidx_2ga_p = _txpwr_track_delta_swingidx_2ga_p,
-	.delta_swingidx_2g_cck_b_n = _txpwr_track_delta_swingidx_2g_cck_b_n,
-	.delta_swingidx_2g_cck_b_p = _txpwr_track_delta_swingidx_2g_cck_b_p,
-	.delta_swingidx_2g_cck_a_n = _txpwr_track_delta_swingidx_2g_cck_a_n,
-	.delta_swingidx_2g_cck_a_p = _txpwr_track_delta_swingidx_2g_cck_a_p,
+const struct rtw89_fw_txpwr_track_cfg rtw89_8852a_trk_cfg = {
+	.delta[RTW89_FW_TXPWR_TRK_TYPE_5GB_N] = _txpwr_track_delta_swingidx_5gb_n,
+	.delta[RTW89_FW_TXPWR_TRK_TYPE_5GB_P] = _txpwr_track_delta_swingidx_5gb_p,
+	.delta[RTW89_FW_TXPWR_TRK_TYPE_5GA_N] = _txpwr_track_delta_swingidx_5ga_n,
+	.delta[RTW89_FW_TXPWR_TRK_TYPE_5GA_P] = _txpwr_track_delta_swingidx_5ga_p,
+	.delta[RTW89_FW_TXPWR_TRK_TYPE_2GB_N] = &_txpwr_track_delta_swingidx_2gb_n,
+	.delta[RTW89_FW_TXPWR_TRK_TYPE_2GB_P] = &_txpwr_track_delta_swingidx_2gb_p,
+	.delta[RTW89_FW_TXPWR_TRK_TYPE_2GA_N] = &_txpwr_track_delta_swingidx_2ga_n,
+	.delta[RTW89_FW_TXPWR_TRK_TYPE_2GA_P] = &_txpwr_track_delta_swingidx_2ga_p,
+	.delta[RTW89_FW_TXPWR_TRK_TYPE_2G_CCK_B_N] = &_txpwr_track_delta_swingidx_2g_cck_b_n,
+	.delta[RTW89_FW_TXPWR_TRK_TYPE_2G_CCK_B_P] = &_txpwr_track_delta_swingidx_2g_cck_b_p,
+	.delta[RTW89_FW_TXPWR_TRK_TYPE_2G_CCK_A_N] = &_txpwr_track_delta_swingidx_2g_cck_a_n,
+	.delta[RTW89_FW_TXPWR_TRK_TYPE_2G_CCK_A_P] = &_txpwr_track_delta_swingidx_2g_cck_a_p,
 };
 
 const struct rtw89_rfe_parms rtw89_8852a_dflt_parms = {

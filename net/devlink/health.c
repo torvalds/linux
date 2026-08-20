@@ -358,7 +358,7 @@ devlink_health_reporter_get_from_info(struct devlink *devlink,
 int devlink_nl_health_reporter_get_doit(struct sk_buff *skb,
 					struct genl_info *info)
 {
-	struct devlink *devlink = info->user_ptr[0];
+	struct devlink *devlink = devlink_nl_ctx(info)->devlink;
 	struct devlink_health_reporter *reporter;
 	struct sk_buff *msg;
 	int err;
@@ -456,7 +456,7 @@ int devlink_nl_health_reporter_get_dumpit(struct sk_buff *skb,
 int devlink_nl_health_reporter_set_doit(struct sk_buff *skb,
 					struct genl_info *info)
 {
-	struct devlink *devlink = info->user_ptr[0];
+	struct devlink *devlink = devlink_nl_ctx(info)->devlink;
 	struct devlink_health_reporter *reporter;
 
 	reporter = devlink_health_reporter_get_from_info(devlink, info);
@@ -715,7 +715,7 @@ EXPORT_SYMBOL_GPL(devlink_health_reporter_state_update);
 int devlink_nl_health_reporter_recover_doit(struct sk_buff *skb,
 					    struct genl_info *info)
 {
-	struct devlink *devlink = info->user_ptr[0];
+	struct devlink *devlink = devlink_nl_ctx(info)->devlink;
 	struct devlink_health_reporter *reporter;
 
 	reporter = devlink_health_reporter_get_from_info(devlink, info);
@@ -1157,7 +1157,7 @@ nla_put_failure:
 int devlink_nl_health_reporter_diagnose_doit(struct sk_buff *skb,
 					     struct genl_info *info)
 {
-	struct devlink *devlink = info->user_ptr[0];
+	struct devlink *devlink = devlink_nl_ctx(info)->devlink;
 	struct devlink_health_reporter *reporter;
 	struct devlink_fmsg *fmsg;
 	int err;
@@ -1252,7 +1252,7 @@ unlock:
 int devlink_nl_health_reporter_dump_clear_doit(struct sk_buff *skb,
 					       struct genl_info *info)
 {
-	struct devlink *devlink = info->user_ptr[0];
+	struct devlink *devlink = devlink_nl_ctx(info)->devlink;
 	struct devlink_health_reporter *reporter;
 
 	reporter = devlink_health_reporter_get_from_info(devlink, info);
@@ -1269,7 +1269,7 @@ int devlink_nl_health_reporter_dump_clear_doit(struct sk_buff *skb,
 int devlink_nl_health_reporter_test_doit(struct sk_buff *skb,
 					 struct genl_info *info)
 {
-	struct devlink *devlink = info->user_ptr[0];
+	struct devlink *devlink = devlink_nl_ctx(info)->devlink;
 	struct devlink_health_reporter *reporter;
 
 	reporter = devlink_health_reporter_get_from_info(devlink, info);

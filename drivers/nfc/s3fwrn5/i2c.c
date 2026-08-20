@@ -210,9 +210,9 @@ static const struct i2c_device_id s3fwrn5_i2c_id_table[] = {
 };
 MODULE_DEVICE_TABLE(i2c, s3fwrn5_i2c_id_table);
 
-static const struct of_device_id of_s3fwrn5_i2c_match[] __maybe_unused = {
-	{ .compatible = "samsung,s3fwrn5-i2c", },
-	{}
+static const struct of_device_id of_s3fwrn5_i2c_match[] = {
+	{ .compatible = "samsung,s3fwrn5-i2c" },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, of_s3fwrn5_i2c_match);
 

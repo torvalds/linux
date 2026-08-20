@@ -7,6 +7,12 @@
 
 #include "ipvlan.h"
 
+#if IS_ENABLED(CONFIG_IPVTAP)
+void (*__ipvtap_dellink_ptr)(struct net *net, struct net_device *dev,
+			     struct list_head *head);
+EXPORT_SYMBOL(__ipvtap_dellink_ptr);
+#endif
+
 static int ipvlan_set_port_mode(struct ipvl_port *port, u16 nval,
 				struct netlink_ext_ack *extack)
 {
@@ -16,6 +22,8 @@ static int ipvlan_set_port_mode(struct ipvl_port *port, u16 nval,
 
 	ASSERT_RTNL();
 	if (port->mode != nval) {
+		mutex_lock(&port->pnodes_lock);
+
 		list_for_each_entry(ipvlan, &port->ipvlans, pnode) {
 			flags = ipvlan->dev->flags;
 			if (nval == IPVLAN_MODE_L3 || nval == IPVLAN_MODE_L3S) {
@@ -40,6 +48,8 @@ static int ipvlan_set_port_mode(struct ipvl_port *port, u16 nval,
 			ipvlan_l3s_unregister(port);
 		}
 		port->mode = nval;
+
+		mutex_unlock(&port->pnodes_lock);
 	}
 	return 0;
 
@@ -55,6 +65,8 @@ fail:
 			dev_change_flags(ipvlan->dev, flags & ~IFF_NOARP,
 					 NULL);
 	}
+
+	mutex_unlock(&port->pnodes_lock);
 
 	return err;
 }
@@ -76,6 +88,7 @@ static int ipvlan_port_create(struct net_device *dev)
 		INIT_HLIST_HEAD(&port->hlhead[idx]);
 
 	spin_lock_init(&port->addrs_lock);
+	mutex_init(&port->pnodes_lock);
 	skb_queue_head_init(&port->backlog);
 	INIT_WORK(&port->wq, ipvlan_process_multicast);
 	ida_init(&port->ida);
@@ -86,6 +99,7 @@ static int ipvlan_port_create(struct net_device *dev)
 		goto err;
 
 	netdev_hold(dev, &port->dev_tracker, GFP_KERNEL);
+
 	return 0;
 
 err:
@@ -93,22 +107,45 @@ err:
 	return err;
 }
 
-static void ipvlan_port_destroy(struct net_device *dev)
+static void ipvlan_port_destroy(struct ipvl_port *port)
 {
-	struct ipvl_port *port = ipvlan_port_get_rtnl(dev);
+	struct net_device *dev = port->dev;
 	struct sk_buff *skb;
 
-	netdev_put(dev, &port->dev_tracker);
 	if (port->mode == IPVLAN_MODE_L3S)
 		ipvlan_l3s_unregister(port);
+
 	netdev_rx_handler_unregister(dev);
 	cancel_work_sync(&port->wq);
+	netdev_put(dev, &port->dev_tracker);
+
 	while ((skb = __skb_dequeue(&port->backlog)) != NULL) {
 		dev_put(skb->dev);
 		kfree_skb(skb);
 	}
 	ida_destroy(&port->ida);
 	kfree(port);
+}
+
+static void ipvlan_port_put(struct ipvl_port *port)
+{
+	if (refcount_dec_and_test(&port->count))
+		ipvlan_port_destroy(port);
+}
+
+static struct ipvl_port *ipvlan_port_get(struct net_device *dev)
+{
+	struct ipvl_port *port = NULL;
+
+	rcu_read_lock();
+	if (netif_is_ipvlan_port(dev)) {
+		port = ipvlan_port_get_rcu(dev);
+		if (!refcount_inc_not_zero(&port->count))
+			port = NULL;
+	}
+	rcu_read_unlock();
+
+	return port;
 }
 
 #define IPVLAN_ALWAYS_ON_OFLOADS \
@@ -155,30 +192,45 @@ static int ipvlan_init(struct net_device *dev)
 	if (!ipvlan->pcpu_stats)
 		return -ENOMEM;
 
+	netdev_lock(phy_dev);
+
 	if (!netif_is_ipvlan_port(phy_dev)) {
 		err = ipvlan_port_create(phy_dev);
 		if (err < 0) {
+			netdev_unlock(phy_dev);
 			free_percpu(ipvlan->pcpu_stats);
 			return err;
 		}
+		port = ipvlan_port_get_rtnl(phy_dev);
+		refcount_set(&port->count, 1);
+	} else {
+		port = ipvlan_port_get_rtnl(phy_dev);
+		refcount_inc(&port->count);
 	}
-	port = ipvlan_port_get_rtnl(phy_dev);
-	port->count += 1;
+
+	netdev_unlock(phy_dev);
+
+	ipvlan->port = port;
+
 	return 0;
 }
 
 static void ipvlan_uninit(struct net_device *dev)
 {
 	struct ipvl_dev *ipvlan = netdev_priv(dev);
-	struct net_device *phy_dev = ipvlan->phy_dev;
-	struct ipvl_port *port;
+	netdevice_tracker dev_tracker;
+	struct net_device *phy_dev;
 
 	free_percpu(ipvlan->pcpu_stats);
 
-	port = ipvlan_port_get_rtnl(phy_dev);
-	port->count -= 1;
-	if (!port->count)
-		ipvlan_port_destroy(port->dev);
+	phy_dev = ipvlan->phy_dev;
+	netdev_hold(phy_dev, &dev_tracker, GFP_KERNEL);
+	netdev_lock(phy_dev);
+
+	ipvlan_port_put(ipvlan->port);
+
+	netdev_unlock(phy_dev);
+	netdev_put(phy_dev, &dev_tracker);
 }
 
 static int ipvlan_open(struct net_device *dev)
@@ -596,9 +648,7 @@ int ipvlan_link_new(struct net_device *dev, struct rtnl_newlink_params *params,
 	if (err < 0)
 		return err;
 
-	/* ipvlan_init() would have created the port, if required */
-	port = ipvlan_port_get_rtnl(phy_dev);
-	ipvlan->port = port;
+	port = ipvlan->port;
 
 	/* If the port-id base is at the MAX value, then wrap it around and
 	 * begin from 0x1 again. This may be due to a busy system where lots
@@ -641,7 +691,10 @@ int ipvlan_link_new(struct net_device *dev, struct rtnl_newlink_params *params,
 	if (err)
 		goto unlink_netdev;
 
+	mutex_lock(&port->pnodes_lock);
 	list_add_tail_rcu(&ipvlan->pnode, &port->ipvlans);
+	mutex_unlock(&port->pnodes_lock);
+
 	netif_stacked_transfer_operstate(phy_dev, dev);
 	return 0;
 
@@ -655,7 +708,8 @@ unregister_netdev:
 }
 EXPORT_SYMBOL_GPL(ipvlan_link_new);
 
-void ipvlan_link_delete(struct net_device *dev, struct list_head *head)
+void __ipvlan_link_delete(struct net *net, struct net_device *dev,
+			  struct list_head *head)
 {
 	struct ipvl_dev *ipvlan = netdev_priv(dev);
 	struct ipvl_addr *addr, *next;
@@ -670,10 +724,20 @@ void ipvlan_link_delete(struct net_device *dev, struct list_head *head)
 
 	ida_free(&ipvlan->port->ida, dev->dev_id);
 	list_del_rcu(&ipvlan->pnode);
-	unregister_netdevice_queue(dev, head);
+	unregister_netdevice_queue_net(net, dev, head);
 	netdev_upper_dev_unlink(ipvlan->phy_dev, dev);
 }
-EXPORT_SYMBOL_GPL(ipvlan_link_delete);
+EXPORT_SYMBOL(__ipvlan_link_delete);
+
+static void ipvlan_link_delete(struct net_device *dev, struct list_head *head)
+{
+	struct ipvl_dev *ipvlan = netdev_priv(dev);
+
+	mutex_lock(&ipvlan->port->pnodes_lock);
+	if (!ipvlan->dying)
+		__ipvlan_link_delete(dev_net(dev), dev, head);
+	mutex_unlock(&ipvlan->port->pnodes_lock);
+}
 
 void ipvlan_link_setup(struct net_device *dev)
 {
@@ -731,14 +795,19 @@ static int ipvlan_device_event(struct notifier_block *unused,
 	struct netdev_notifier_pre_changeaddr_info *prechaddr_info;
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct ipvl_dev *ipvlan, *next;
+	int err, ret = NOTIFY_DONE;
 	struct ipvl_port *port;
 	LIST_HEAD(lst_kill);
-	int err;
 
-	if (!netif_is_ipvlan_port(dev))
-		return NOTIFY_DONE;
+	if (event == NETDEV_PRECHANGEUPPER ||
+	    event == NETDEV_CHANGEUPPER)
+		return ret;
 
-	port = ipvlan_port_get_rtnl(dev);
+	port = ipvlan_port_get(dev);
+	if (!port)
+		return ret;
+
+	mutex_lock(&port->pnodes_lock);
 
 	switch (event) {
 	case NETDEV_UP:
@@ -762,16 +831,26 @@ static int ipvlan_device_event(struct notifier_block *unused,
 			ipvlan_migrate_l3s_hook(oldnet, newnet);
 		break;
 	}
-	case NETDEV_UNREGISTER:
+	case NETDEV_UNREGISTER: {
+		struct net *net = dev_net(dev);
+
 		if (dev->reg_state != NETREG_UNREGISTERING)
 			break;
 
-		list_for_each_entry_safe(ipvlan, next, &port->ipvlans, pnode)
-			ipvlan->dev->rtnl_link_ops->dellink(ipvlan->dev,
-							    &lst_kill);
+		list_for_each_entry_safe(ipvlan, next, &port->ipvlans, pnode) {
+			ipvlan->dying = true;
+
+#if IS_ENABLED(CONFIG_IPVTAP)
+			if (ipvlan->dev->rtnl_link_ops != &ipvlan_link_ops)
+				__ipvtap_dellink_ptr(net, ipvlan->dev, &lst_kill);
+			else
+#endif
+				__ipvlan_link_delete(net, ipvlan->dev, &lst_kill);
+		}
+
 		unregister_netdevice_many(&lst_kill);
 		break;
-
+	}
 	case NETDEV_FEAT_CHANGE:
 		list_for_each_entry(ipvlan, &port->ipvlans, pnode) {
 			netif_inherit_tso_max(ipvlan->dev, dev);
@@ -792,8 +871,10 @@ static int ipvlan_device_event(struct notifier_block *unused,
 			err = netif_pre_changeaddr_notify(ipvlan->dev,
 							  prechaddr_info->dev_addr,
 							  extack);
-			if (err)
-				return notifier_from_errno(err);
+			if (err) {
+				ret = notifier_from_errno(err);
+				break;
+			}
 		}
 		break;
 
@@ -806,7 +887,8 @@ static int ipvlan_device_event(struct notifier_block *unused,
 
 	case NETDEV_PRE_TYPE_CHANGE:
 		/* Forbid underlying device to change its type. */
-		return NOTIFY_BAD;
+		ret = NOTIFY_BAD;
+		break;
 
 	case NETDEV_NOTIFY_PEERS:
 	case NETDEV_BONDING_FAILOVER:
@@ -814,7 +896,12 @@ static int ipvlan_device_event(struct notifier_block *unused,
 		list_for_each_entry(ipvlan, &port->ipvlans, pnode)
 			call_netdevice_notifiers(event, ipvlan->dev);
 	}
-	return NOTIFY_DONE;
+
+	mutex_unlock(&port->pnodes_lock);
+
+	ipvlan_port_put(port);
+
+	return ret;
 }
 
 /* the caller must held the addrs lock */

@@ -42,15 +42,6 @@ config IBMVETH_KUNIT_TEST
 
 source "drivers/net/ethernet/ibm/emac/Kconfig"
 
-config EHEA
-	tristate "eHEA Ethernet support"
-	depends on IBMEBUS && SPARSEMEM
-	help
-	  This driver supports the IBM pSeries eHEA ethernet adapter.
-
-	  To compile the driver as a module, choose M here. The module
-	  will be called ehea.
-
 config IBMVNIC
 	tristate "IBM Virtual NIC support"
 	depends on PPC_PSERIES

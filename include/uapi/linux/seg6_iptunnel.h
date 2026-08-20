@@ -21,6 +21,7 @@ enum {
 	SEG6_IPTUNNEL_UNSPEC,
 	SEG6_IPTUNNEL_SRH,
 	SEG6_IPTUNNEL_SRC,	/* struct in6_addr */
+	SEG6_IPTUNNEL_TABLE,	/* __u32 FIB table for post-encap SID lookup */
 	__SEG6_IPTUNNEL_MAX,
 };
 #define SEG6_IPTUNNEL_MAX (__SEG6_IPTUNNEL_MAX - 1)

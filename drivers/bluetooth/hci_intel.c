@@ -1057,8 +1057,8 @@ static const struct hci_uart_proto intel_proto = {
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id intel_acpi_match[] = {
-	{ "INT33E1", 0 },
-	{ "INT33E3", 0 },
+	{ .id = "INT33E1" },
+	{ .id = "INT33E3" },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, intel_acpi_match);

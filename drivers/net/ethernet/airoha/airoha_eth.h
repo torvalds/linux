@@ -570,24 +570,31 @@ struct airoha_qdma {
 	DECLARE_BITMAP(qos_channel_map, AIROHA_NUM_QOS_CHANNELS);
 };
 
-enum airoha_priv_flags {
-	AIROHA_PRIV_F_WAN = BIT(0),
+enum airoha_dev_flags {
+	AIROHA_DEV_F_WAN,
+	AIROHA_DEV_F_TX_QOS,
 };
 
 struct airoha_gdm_dev {
+	struct airoha_qdma __rcu *qdma;
 	struct airoha_gdm_port *port;
-	struct airoha_qdma *qdma;
 	struct airoha_eth *eth;
 
 	DECLARE_BITMAP(qos_sq_bmap, AIROHA_NUM_QOS_CHANNELS);
-	/* qos stats counters */
-	u64 cpu_tx_packets;
-	u64 fwd_tx_packets;
+	struct {
+		u32 cpu_tx_packets;
+		u32 fwd_tx_packets;
+	} qos_stats[AIROHA_NUM_QOS_CHANNELS];
 
-	u32 flags;
+	unsigned long flags;
 	int nbq;
 
 	struct airoha_hw_stats stats;
+
+	/* Serialize netdev_tx_completed_queue() calls per TX queue during
+	 * QDMA migration.
+	 */
+	spinlock_t txq_lock[AIROHA_NUM_NETDEV_TX_RINGS];
 };
 
 struct airoha_gdm_port {
@@ -694,7 +701,7 @@ static inline u16 airoha_qdma_get_txq(struct airoha_qdma *qdma, u16 qid)
 
 static inline bool airoha_is_lan_gdm_dev(struct airoha_gdm_dev *dev)
 {
-	return !(dev->flags & AIROHA_PRIV_F_WAN);
+	return !test_bit(AIROHA_DEV_F_WAN, &dev->flags);
 }
 
 static inline bool airoha_is_7581(struct airoha_eth *eth)
@@ -710,6 +717,16 @@ static inline bool airoha_is_7583(struct airoha_eth *eth)
 int airoha_get_fe_port(struct airoha_gdm_dev *dev);
 bool airoha_is_valid_gdm_dev(struct airoha_eth *eth,
 			     struct airoha_gdm_dev *dev);
+
+extern struct mutex flow_offload_mutex;
+
+static inline struct airoha_qdma *
+airoha_qdma_deref(struct airoha_gdm_dev *dev)
+{
+	return rcu_dereference_protected(dev->qdma,
+					 lockdep_rtnl_is_held() ||
+					 lockdep_is_held(&flow_offload_mutex));
+}
 
 void airoha_ppe_set_xmit_frame_size(struct airoha_gdm_dev *dev);
 void airoha_ppe_set_cpu_port(struct airoha_gdm_dev *dev, u8 ppe_id, u8 fport);

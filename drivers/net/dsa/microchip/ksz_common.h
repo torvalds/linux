@@ -8,12 +8,14 @@
 #define __KSZ_COMMON_H
 
 #include <linux/etherdevice.h>
+#include <linux/irqdomain.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
 #include <linux/pcs/pcs-xpcs.h>
 #include <linux/phy.h>
 #include <linux/regmap.h>
 #include <net/dsa.h>
+#include <net/pkt_cls.h>
 #include <linux/irq.h>
 #include <linux/platform_data/microchip-ksz.h>
 
@@ -38,6 +40,45 @@ enum ksz_regmap_width {
 
 struct vlan_table {
 	u32 table[3];
+};
+
+struct ksz_stats_raw {
+	u64 rx_hi;
+	u64 rx_undersize;
+	u64 rx_fragments;
+	u64 rx_oversize;
+	u64 rx_jabbers;
+	u64 rx_symbol_err;
+	u64 rx_crc_err;
+	u64 rx_align_err;
+	u64 rx_mac_ctrl;
+	u64 rx_pause;
+	u64 rx_bcast;
+	u64 rx_mcast;
+	u64 rx_ucast;
+	u64 rx_64_or_less;
+	u64 rx_65_127;
+	u64 rx_128_255;
+	u64 rx_256_511;
+	u64 rx_512_1023;
+	u64 rx_1024_1522;
+	u64 rx_1523_2000;
+	u64 rx_2001;
+	u64 tx_hi;
+	u64 tx_late_col;
+	u64 tx_pause;
+	u64 tx_bcast;
+	u64 tx_mcast;
+	u64 tx_ucast;
+	u64 tx_deferred;
+	u64 tx_total_col;
+	u64 tx_exc_col;
+	u64 tx_single_col;
+	u64 tx_mult_col;
+	u64 rx_total;
+	u64 tx_total;
+	u64 rx_discards;
+	u64 tx_discards;
 };
 
 struct ksz_port_mib {
@@ -153,6 +194,7 @@ struct ksz_port {
 	struct kernel_hwtstamp_config tstamp_config;
 	bool hwts_tx_en;
 	bool hwts_rx_en;
+	bool last_tx_is_pdelayresp;
 	struct ksz_irq ptpirq;
 	struct ksz_ptp_irq ptpmsg_irq[3];
 	ktime_t tstamp_msg;
@@ -393,12 +435,8 @@ int ksz_switch_resume(struct device *dev);
 void ksz_teardown(struct dsa_switch *ds);
 
 void ksz_init_mib_timer(struct ksz_device *dev);
-bool ksz_is_port_mac_global_usable(struct dsa_switch *ds, int port);
 void ksz_r_mib_stats64(struct ksz_device *dev, int port);
-void ksz88xx_r_mib_stats64(struct ksz_device *dev, int port);
 void ksz_port_stp_state_set(struct dsa_switch *ds, int port, u8 state);
-bool ksz_get_gbit(struct ksz_device *dev, int port);
-phy_interface_t ksz_get_xmii(struct ksz_device *dev, int port, bool gbit);
 extern const struct ksz_chip_data ksz_switch_chips[];
 int ksz_switch_macaddr_get(struct dsa_switch *ds, int port,
 			   struct netlink_ext_ack *extack);
@@ -443,11 +481,15 @@ void ksz_phylink_mac_link_down(struct phylink_config *config,
 			       unsigned int mode,
 			       phy_interface_t interface);
 
-int ksz_max_mtu(struct dsa_switch *ds, int port);
-
 int ksz_set_mac_eee(struct dsa_switch *ds, int port,
 		    struct ethtool_keee *e);
 
+int ksz_ets_band_to_queue(struct tc_ets_qopt_offload_replace_params *p,
+			  int band);
+int ksz_setup_tc_cbs(struct dsa_switch *ds, int port,
+		     struct tc_cbs_qopt_offload *qopt);
+int ksz_tc_ets_validate(struct ksz_device *dev, int port,
+			struct tc_ets_qopt_offload_replace_params *p);
 int ksz_setup_tc(struct dsa_switch *ds, int port,
 		 enum tc_setup_type type, void *type_data);
 
@@ -468,11 +510,44 @@ int ksz_sw_mdio_write(struct mii_bus *bus, int addr, int regnum, u16 val);
 int ksz_parent_mdio_read(struct mii_bus *bus, int addr, int regnum);
 int ksz_parent_mdio_write(struct mii_bus *bus, int addr, int regnum, u16 val);
 int ksz_mdio_register(struct ksz_device *dev);
+void ksz_irq_bus_lock(struct irq_data *d);
+void ksz_irq_bus_sync_unlock(struct irq_data *d);
+int ksz_irq_common_setup(struct ksz_device *dev, struct ksz_irq *kirq,
+			 const struct irq_domain_ops *ops);
 int ksz_pirq_setup(struct ksz_device *dev, u8 p);
 int ksz_girq_setup(struct ksz_device *dev);
 void ksz_irq_free(struct ksz_irq *kirq);
-int ksz_parse_drive_strength(struct ksz_device *dev);
-int ksz9477_set_default_prio_queue_mapping(struct ksz_device *dev, int port);
+
+struct ksz_driver_strength_prop {
+	const char *name;
+	int offset;
+	int value;
+};
+
+enum ksz_driver_strength_type {
+	KSZ_DRIVER_STRENGTH_HI,
+	KSZ_DRIVER_STRENGTH_LO,
+	KSZ_DRIVER_STRENGTH_IO,
+};
+
+/**
+ * struct ksz_drive_strength - drive strength mapping
+ * @reg_val:	register value
+ * @microamp:	microamp value
+ */
+struct ksz_drive_strength {
+	u32 reg_val;
+	u32 microamp;
+};
+
+void ksz_drive_strength_error(struct ksz_device *dev,
+			      const struct ksz_drive_strength *array,
+			      size_t array_size, int microamp);
+int ksz_drive_strength_to_reg(const struct ksz_drive_strength *array,
+			      size_t array_size, int microamp);
+int ksz_drive_strength_write(struct ksz_device *dev,
+			     struct ksz_driver_strength_prop *props,
+			     int num_props);
 
 /* Common register access functions */
 static inline struct regmap *ksz_regmap_8(struct ksz_device *dev)

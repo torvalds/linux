@@ -5369,6 +5369,18 @@ extern const struct sparx5_regs *regs;
 #define HSCH_TAS_STATEMACHINE_CFG_REVISIT_DLY_GET(x)\
 	FIELD_GET(HSCH_TAS_STATEMACHINE_CFG_REVISIT_DLY, x)
 
+/* HSCH:TAS_PROFILE_CFG:TAS_PROFILE_CONFIG */
+#define HSCH_TAS_PROFILE_CONFIG(g)                                             \
+	__REG(TARGET_HSCH, 0, 1, regs->gaddr[GA_HSCH_TAS_PROFILE_CFG], g,       \
+	      regs->gcnt[GC_HSCH_TAS_PROFILE_CFG],                              \
+	      regs->gsize[GW_HSCH_TAS_PROFILE_CFG], 32, 0, 1, 4)
+
+#define HSCH_TAS_PROFILE_CONFIG_LINK_SPEED       GENMASK(10, 8)
+#define HSCH_TAS_PROFILE_CONFIG_LINK_SPEED_SET(x)\
+	FIELD_PREP(HSCH_TAS_PROFILE_CONFIG_LINK_SPEED, x)
+#define HSCH_TAS_PROFILE_CONFIG_LINK_SPEED_GET(x)\
+	FIELD_GET(HSCH_TAS_PROFILE_CONFIG_LINK_SPEED, x)
+
 /* LAN969X ONLY */
 /* HSIOWRAP:XMII_CFG:XMII_CFG */
 #define HSIO_WRAP_XMII_CFG(g)                                                  \

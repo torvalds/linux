@@ -5,6 +5,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/bits.h>
+#include <linux/limits.h>
 
 /*
  * Hardware limits for ZL3073x chip family
@@ -17,6 +18,7 @@
 #define ZL3073X_NUM_OUTPUT_PINS	(ZL3073X_NUM_OUTS * 2)
 #define ZL3073X_NUM_PINS	(ZL3073X_NUM_INPUT_PINS + \
 				 ZL3073X_NUM_OUTPUT_PINS)
+#define ZL3073X_NCO_PIN_ID	ZL3073X_NUM_PINS
 
 /*
  * Register address structure:
@@ -164,10 +166,32 @@
 #define ZL_DPLL_MODE_REFSEL_MODE_NCO		4
 #define ZL_DPLL_MODE_REFSEL_REF			GENMASK(7, 4)
 
+#define ZL_REG_DPLL_CTRL(_idx)						\
+	ZL_REG_IDX(_idx, 5, 0x05, 1, ZL3073X_MAX_CHANNELS, 4)
+#define ZL_DPLL_CTRL_TIE_CLEAR			BIT(0)
+#define ZL_DPLL_CTRL_TOD_STEP_RST		BIT(2)
+#define ZL_DPLL_CTRL_NCO_AUTO_READ		BIT(7)
+
 #define ZL_REG_DPLL_DF_READ(_idx)					\
 	ZL_REG_IDX(_idx, 5, 0x28, 1, ZL3073X_MAX_CHANNELS, 1)
 #define ZL_DPLL_DF_READ_SEM			BIT(4)
 #define ZL_DPLL_DF_READ_REF_OFST		BIT(3)
+#define ZL_DPLL_DF_READ_CMD			GENMASK(2, 0)
+#define ZL_DPLL_DF_READ_CMD_ACC_I		4
+
+#define ZL_REG_DPLL_TIE_CTRL			ZL_REG(5, 0x30, 1)
+#define ZL_DPLL_TIE_CTRL_OP			GENMASK(2, 0)
+#define ZL_DPLL_TIE_CTRL_OP_WR			4
+
+#define ZL_REG_DPLL_TIE_CTRL_MASK		ZL_REG(5, 0x31, 1)
+
+#define ZL_REG_DPLL_TOD_CTRL(_idx)					\
+	ZL_REG_IDX(_idx, 5, 0x38, 1, ZL3073X_MAX_CHANNELS, 1)
+#define ZL_DPLL_TOD_CTRL_SEM			BIT(4)
+#define ZL_DPLL_TOD_CTRL_CMD			GENMASK(3, 0)
+#define ZL_DPLL_TOD_CTRL_CMD_WR_NEXT_1HZ	1
+#define ZL_DPLL_TOD_CTRL_CMD_RD_CURRENT		8
+#define ZL_DPLL_TOD_CTRL_CMD_RD_NEXT_1HZ	9
 
 #define ZL_REG_DPLL_MEAS_CTRL			ZL_REG(5, 0x50, 1)
 #define ZL_DPLL_MEAS_CTRL_EN			BIT(0)
@@ -183,6 +207,9 @@
 
 /*******************************
  * Register Pages 6-7, DPLL Data
+ *
+ * Per-channel registers with stride 0x20. Channels 0-3 reside on page 6,
+ * channel 4 on page 7.
  *******************************/
 
 #define ZL_REG_DPLL_DF_OFFSET_03(_idx)					\
@@ -190,6 +217,25 @@
 #define ZL_REG_DPLL_DF_OFFSET_4		ZL_REG(7, 0x00, 6)
 #define ZL_REG_DPLL_DF_OFFSET(_idx)					\
 	((_idx) < 4 ? ZL_REG_DPLL_DF_OFFSET_03(_idx) : ZL_REG_DPLL_DF_OFFSET_4)
+#define ZL_DPLL_DF_OFFSET_UNKNOWN	S64_MIN
+
+#define ZL_REG_DPLL_TIE_DATA_03(_idx)					\
+	ZL_REG_IDX(_idx, 6, 0x0C, 6, 4, 0x20)
+#define ZL_REG_DPLL_TIE_DATA_4			ZL_REG(7, 0x0C, 6)
+#define ZL_REG_DPLL_TIE_DATA(_idx)					\
+	((_idx) < 4 ? ZL_REG_DPLL_TIE_DATA_03(_idx) : ZL_REG_DPLL_TIE_DATA_4)
+
+#define ZL_REG_DPLL_TOD_SEC_03(_idx)					\
+	ZL_REG_IDX(_idx, 6, 0x12, 6, 4, 0x20)
+#define ZL_REG_DPLL_TOD_SEC_4			ZL_REG(7, 0x12, 6)
+#define ZL_REG_DPLL_TOD_SEC(_idx)					\
+	((_idx) < 4 ? ZL_REG_DPLL_TOD_SEC_03(_idx) : ZL_REG_DPLL_TOD_SEC_4)
+
+#define ZL_REG_DPLL_TOD_NS_03(_idx)					\
+	ZL_REG_IDX(_idx, 6, 0x18, 4, 4, 0x20)
+#define ZL_REG_DPLL_TOD_NS_4			ZL_REG(7, 0x18, 4)
+#define ZL_REG_DPLL_TOD_NS(_idx)					\
+	((_idx) < 4 ? ZL_REG_DPLL_TOD_NS_03(_idx) : ZL_REG_DPLL_TOD_NS_4)
 
 /***********************************
  * Register Page 9, Synth and Output
@@ -209,6 +255,23 @@
 	ZL_REG_IDX(_idx, 9, 0x28, 1, ZL3073X_NUM_OUTS, 1)
 #define ZL_OUTPUT_CTRL_EN			BIT(0)
 #define ZL_OUTPUT_CTRL_SYNTH_SEL		GENMASK(6, 4)
+
+#define ZL_REG_OUTPUT_STEP_TIME_MASK		ZL_REG(9, 0x36, 2)
+
+#define ZL_REG_OUTPUT_PHASE_STEP_CTRL		ZL_REG(9, 0x38, 1)
+#define ZL_OUTPUT_PHASE_STEP_CTRL_DPLL		GENMASK(6, 4)
+#define ZL_OUTPUT_PHASE_STEP_CTRL_TOD_STEP	BIT(3)
+#define ZL_OUTPUT_PHASE_STEP_CTRL_OP		GENMASK(1, 0)
+#define ZL_OUTPUT_PHASE_STEP_CTRL_OP_NONE	0
+#define ZL_OUTPUT_PHASE_STEP_CTRL_OP_RESET	1
+#define ZL_OUTPUT_PHASE_STEP_CTRL_OP_READ	2
+#define ZL_OUTPUT_PHASE_STEP_CTRL_OP_WRITE	3
+
+#define ZL_REG_OUTPUT_PHASE_STEP_NUMBER		ZL_REG(9, 0x39, 1)
+
+#define ZL_REG_OUTPUT_PHASE_STEP_MASK		ZL_REG(9, 0x3a, 2)
+
+#define ZL_REG_OUTPUT_PHASE_STEP_DATA		ZL_REG(9, 0x3c, 4)
 
 /*******************************
  * Register Page 10, Ref Mailbox

@@ -20,6 +20,8 @@ struct fsl_mc_io;
 
 #define DPSW_MAX_IF		64
 
+#define DPSW_MAX_LAG_IFS	8
+
 int dpsw_open(struct fsl_mc_io *mc_io, u32 cmd_flags, int dpsw_id, u16 *token);
 
 int dpsw_close(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token);
@@ -788,4 +790,32 @@ int dpsw_if_add_reflection(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 
 int dpsw_if_remove_reflection(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 			      u16 if_id, const struct dpsw_reflection_cfg *cfg);
+
+/* Link Aggregation Group configuration */
+
+#define DPSW_LAG_SET_PHASE_APPLY 0
+#define DPSW_LAG_SET_PHASE_CHECK 1
+
+/**
+ * struct dpsw_lag_cfg - Configuration structure for a LAG group
+ * @group_id: Link aggregation group ID. Valid values are in the
+ * [1, DPSW_MAX_LAG_IFS] range.
+ * @num_ifs: Number of interfaces in this LAG group, valid range is
+ * [0, DPSW_MAX_LAG_IFS].
+ * @if_id: Array containing the interface IDs of the ports part of a LAG group
+ * @phase: Use DPSW_LAG_SET_PHASE_APPLY for LAG configuration processing or
+ * DPSW_LAG_SET_PHASE_CHECK for LAG configuration validation.
+ */
+struct dpsw_lag_cfg {
+	u8 group_id;
+	u8 num_ifs;
+	u8 if_id[DPSW_MAX_LAG_IFS];
+	u8 phase;
+};
+
+int dpsw_lag_set(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+		 const struct dpsw_lag_cfg *cfg);
+
+int dpsw_if_set_lag_state(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			  u16 if_id, u8 tx_enabled);
 #endif /* __FSL_DPSW_H */

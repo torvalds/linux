@@ -567,7 +567,7 @@ static int eeprom_write(struct et131x_adapter *adapter, u32 addr, u8 data)
 		 */
 		err = eeprom_wait_ready(pdev, &status);
 		if (err < 0)
-			return 0;
+			return err;
 
 		/* Check bit 3 of the LBCIF Status Register.  If  equal to 1,
 		 * an error has occurred.Don't break here if we are revision

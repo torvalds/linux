@@ -1183,7 +1183,7 @@ void rvu_switch_enable_lbk_link(struct rvu *rvu, u16 pcifunc, bool ena);
 
 int rvu_npc_set_parse_mode(struct rvu *rvu, u16 pcifunc, u64 mode, u8 dir,
 			   u64 pkind, u8 var_len_off, u8 var_len_off_mask,
-			   u8 shift_dir);
+			   u8 shift_dir, u8 skip_size);
 int rvu_get_hwvf(struct rvu *rvu, int pcifunc);
 
 /* CN10K MCS */

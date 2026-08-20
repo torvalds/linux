@@ -261,8 +261,7 @@ static int hinic3_tx_csum(struct hinic3_txq *txq, struct hinic3_sq_task *task,
 		    ((struct udphdr *)skb_transport_header(skb))->dest !=
 		    VXLAN_OFFLOAD_PORT_LE) {
 			/* Unsupported tunnel packet, disable csum offload */
-			skb_checksum_help(skb);
-			return 0;
+			return skb_checksum_help(skb);
 		}
 	}
 
@@ -412,6 +411,10 @@ static u32 hinic3_tx_offload(struct sk_buff *skb, struct hinic3_sq_task *task,
 		offload |= HINIC3_TX_OFFLOAD_TSO;
 	} else {
 		tso_cs_en = hinic3_tx_csum(txq, task, skb);
+		if (tso_cs_en < 0) {
+			offload = HINIC3_TX_OFFLOAD_INVALID;
+			return offload;
+		}
 		if (tso_cs_en)
 			offload |= HINIC3_TX_OFFLOAD_CSUM;
 	}
@@ -545,6 +548,7 @@ static netdev_tx_t hinic3_send_one_skb(struct sk_buff *skb,
 		skb->len = MIN_SKB_LEN;
 	}
 
+	offload = hinic3_tx_offload(skb, &task, &queue_info, txq);
 	num_sge = skb_shinfo(skb)->nr_frags + 1;
 	/* assume normal wqe format + 1 wqebb for task info */
 	wqebb_cnt = num_sge + 1;
@@ -560,7 +564,6 @@ static netdev_tx_t hinic3_send_one_skb(struct sk_buff *skb,
 		return NETDEV_TX_BUSY;
 	}
 
-	offload = hinic3_tx_offload(skb, &task, &queue_info, txq);
 	if (unlikely(offload == HINIC3_TX_OFFLOAD_INVALID)) {
 		goto err_drop_pkt;
 	} else if (!offload) {
@@ -578,8 +581,6 @@ static netdev_tx_t hinic3_send_one_skb(struct sk_buff *skb,
 		*wqe_combo.task = task;
 
 	tx_info = &txq->tx_info[pi];
-	tx_info->skb = skb;
-	tx_info->wqebb_cnt = wqebb_cnt;
 
 	err = hinic3_tx_map_skb(netdev, skb, txq, tx_info, &wqe_combo);
 	if (err) {
@@ -588,6 +589,9 @@ static netdev_tx_t hinic3_send_one_skb(struct sk_buff *skb,
 		txq->sq->owner = saved_sq_owner;
 		goto err_drop_pkt;
 	}
+
+	tx_info->skb = skb;
+	tx_info->wqebb_cnt = wqebb_cnt;
 
 	netif_subqueue_sent(netdev, txq->sq->q_id, skb->len);
 	netif_subqueue_maybe_stop(netdev, txq->sq->q_id,

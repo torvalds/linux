@@ -2328,11 +2328,14 @@ static void smp_send_security_req(struct smp_chan *smp, __u8 auth)
 
 int smp_conn_security(struct hci_conn *hcon, __u8 sec_level)
 {
-	struct l2cap_conn *conn = hcon->l2cap_data;
+	struct l2cap_conn *conn;
 	struct l2cap_chan *chan;
 	struct smp_chan *smp;
 	__u8 authreq;
 	int ret;
+
+	/* Caller shall ensure there can be no race with l2cap_conn_del() */
+	conn = context_unsafe(hcon->l2cap_data);
 
 	bt_dev_dbg(hcon->hdev, "conn %p hcon %p level 0x%2.2x", conn, hcon,
 		   sec_level);
@@ -2421,6 +2424,8 @@ int smp_cancel_and_remove_pairing(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	hcon = hci_conn_hash_lookup_le(hdev, bdaddr, addr_type);
 	if (!hcon)
 		goto done;
+
+	lockdep_assert_held(&hcon->hdev->lock);
 
 	conn = hcon->l2cap_data;
 	if (!conn)

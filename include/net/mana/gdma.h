@@ -47,6 +47,7 @@ enum gdma_queue_type {
 	GDMA_RQ,
 	GDMA_CQ,
 	GDMA_EQ,
+	GDMA_DIM,
 };
 
 enum gdma_work_request_flags {
@@ -126,6 +127,17 @@ union gdma_doorbell_entry {
 		u64 tail_ptr	: 31;
 		u64 arm		: 1;
 	} eq;
+
+	struct {
+		u64 id           : 24;
+		u64 reserved     : 8;
+		u64 mod_usec     : 10;
+		u64 reserve1     : 5;
+		u64 mod_usec_vld : 1;
+		u64 mod_comps    : 8;
+		u64 reserve2     : 7;
+		u64 mod_comps_vld: 1;
+	} dim;
 }; /* HW DATA */
 
 struct gdma_msg_hdr {
@@ -170,6 +182,7 @@ struct gdma_general_req {
 #define GDMA_MESSAGE_V2 2
 #define GDMA_MESSAGE_V3 3
 #define GDMA_MESSAGE_V4 4
+#define GDMA_MESSAGE_V5 5
 
 struct gdma_general_resp {
 	struct gdma_resp_hdr hdr;
@@ -227,6 +240,14 @@ struct gdma_mem_info {
 	dma_addr_t dma_handle;
 	void *virt_addr;
 	u64 length;
+
+	/* Scattered fallback: when @nr_pages > 0 the ring is that many
+	 * PAGE_SIZE coherent allocations in @pages_va/@pages_dma, not
+	 * @virt_addr/@dma_handle.
+	 */
+	void **pages_va;
+	dma_addr_t *pages_dma;
+	unsigned int nr_pages;
 
 	/* Allocated by the PF driver */
 	u64 dma_region_handle;
@@ -416,6 +437,9 @@ struct gdma_context {
 	/* L2 MTU */
 	u16 adapter_mtu;
 
+	/* NIC supports CQE x8 coalescing */
+	bool cqe8_coalescing_sup;
+
 	/* This maps a CQ index to the queue structure. */
 	unsigned int		max_num_cqs;
 	struct gdma_queue	**cq_table;
@@ -500,7 +524,13 @@ int mana_gd_poll_cq(struct gdma_queue *cq, struct gdma_comp *comp, int num_cqe);
 
 void mana_gd_ring_cq(struct gdma_queue *cq, u8 arm_bit);
 
+ssize_t mana_gd_read_ring(struct gdma_queue *q, char __user *buf,
+			  size_t count, loff_t *pos);
+
 int mana_schedule_serv_work(struct gdma_context *gc, enum gdma_eqe_type type);
+
+void mana_gd_ring_dim(struct gdma_queue *cq, u32 mod_usec, bool mod_usec_vld,
+		      u32 mod_comps, bool mod_comps_vld);
 
 struct gdma_wqe {
 	u32 reserved	:24;
@@ -650,6 +680,12 @@ enum {
 /* Driver supports self recovery on Hardware Channel timeouts */
 #define GDMA_DRV_CAP_FLAG_1_HWC_TIMEOUT_RECOVERY BIT(25)
 
+/* Driver supports dynamic interrupt moderation - DIM */
+#define GDMA_DRV_CAP_FLAG_1_DYN_INTERRUPT_MODERATION BIT(28)
+
+/* Driver supports non-contiguous queue buffers */
+#define GDMA_DRV_CAP_FLAG_1_NON_CONTIGUOUS_BUFFERS BIT(30)
+
 #define GDMA_DRV_CAP_FLAGS1 \
 	(GDMA_DRV_CAP_FLAG_1_EQ_SHARING_MULTI_VPORT | \
 	 GDMA_DRV_CAP_FLAG_1_NAPI_WKDONE_FIX | \
@@ -665,7 +701,9 @@ enum {
 	 GDMA_DRV_CAP_FLAG_1_PROBE_RECOVERY | \
 	 GDMA_DRV_CAP_FLAG_1_HANDLE_STALL_SQ_RECOVERY | \
 	 GDMA_DRV_CAP_FLAG_1_HWC_TIMEOUT_RECOVERY | \
-	 GDMA_DRV_CAP_FLAG_1_EQ_MSI_UNSHARE_MULTI_VPORT)
+	 GDMA_DRV_CAP_FLAG_1_EQ_MSI_UNSHARE_MULTI_VPORT | \
+	 GDMA_DRV_CAP_FLAG_1_DYN_INTERRUPT_MODERATION | \
+	 GDMA_DRV_CAP_FLAG_1_NON_CONTIGUOUS_BUFFERS)
 
 #define GDMA_DRV_CAP_FLAGS2 0
 
@@ -700,6 +738,9 @@ struct gdma_verify_ver_req {
 	u8 os_ver_str3[128];
 	u8 os_ver_str4[128];
 }; /* HW DATA */
+
+/* HW supports dynamic interrupt moderation - DIM */
+#define GDMA_PF_CAP_FLAG_1_DYN_INTERRUPT_MODERATION BIT(15)
 
 struct gdma_verify_ver_resp {
 	struct gdma_resp_hdr hdr;
@@ -1023,7 +1064,7 @@ void mana_gd_wq_ring_doorbell(struct gdma_context *gc,
 			      struct gdma_queue *queue);
 
 int mana_gd_alloc_memory(struct gdma_context *gc, unsigned int length,
-			 struct gdma_mem_info *gmi);
+			 struct gdma_mem_info *gmi, bool allow_scatter);
 
 void mana_gd_free_memory(struct gdma_mem_info *gmi);
 

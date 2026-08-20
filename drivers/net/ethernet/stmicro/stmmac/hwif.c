@@ -328,18 +328,6 @@ int stmmac_hwif_init(struct stmmac_priv *priv)
 	/* Save ID for later use */
 	priv->synopsys_id = version.snpsver;
 
-	/* Lets assume some safe values first */
-	if (core_type == DWMAC_CORE_GMAC4) {
-		priv->ptpaddr = priv->ioaddr + PTP_GMAC4_OFFSET;
-		priv->mmcaddr = priv->ioaddr + MMC_GMAC4_OFFSET;
-		priv->estaddr = priv->ioaddr + EST_GMAC4_OFFSET;
-	} else {
-		priv->ptpaddr = priv->ioaddr + PTP_GMAC3_X_OFFSET;
-		priv->mmcaddr = priv->ioaddr + MMC_GMAC3_X_OFFSET;
-		if (core_type == DWMAC_CORE_XGMAC)
-			priv->estaddr = priv->ioaddr + EST_XGMAC_OFFSET;
-	}
-
 	mac = devm_kzalloc(priv->device, sizeof(*mac), GFP_KERNEL);
 	if (!mac)
 		return -ENOMEM;

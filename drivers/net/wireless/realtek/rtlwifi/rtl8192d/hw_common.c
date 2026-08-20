@@ -775,7 +775,6 @@ static void rtl92d_update_hal_rate_table(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &rtlpriv->phy;
 	enum wireless_mode wirelessmode;
-	u8 mimo_ps = IEEE80211_SMPS_OFF;
 	u8 curtxbw_40mhz = mac->bw_40;
 	u8 nmode = mac->ht_enable;
 	u8 curshortgi_40mhz;
@@ -784,6 +783,7 @@ static void rtl92d_update_hal_rate_table(struct ieee80211_hw *hw,
 	u8 ratr_index = 0;
 	u16 shortgi_rate;
 	u32 ratr_value;
+	u32 ratr_mask;
 
 	curshortgi_40mhz = !!(sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SGI_40);
 	curshortgi_20mhz = !!(sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SGI_20);
@@ -811,20 +811,15 @@ static void rtl92d_update_hal_rate_table(struct ieee80211_hw *hw,
 	case WIRELESS_MODE_N_24G:
 	case WIRELESS_MODE_N_5G:
 		nmode = 1;
-		if (mimo_ps == IEEE80211_SMPS_STATIC) {
-			ratr_value &= 0x0007F005;
+
+		if (get_rf_type(rtlphy) == RF_1T2R ||
+		    get_rf_type(rtlphy) == RF_1T1R) {
+			ratr_mask = 0x000ff005;
 		} else {
-			u32 ratr_mask;
-
-			if (get_rf_type(rtlphy) == RF_1T2R ||
-			    get_rf_type(rtlphy) == RF_1T1R) {
-				ratr_mask = 0x000ff005;
-			} else {
-				ratr_mask = 0x0f0ff005;
-			}
-
-			ratr_value &= ratr_mask;
+			ratr_mask = 0x0f0ff005;
 		}
+
+		ratr_value &= ratr_mask;
 		break;
 	default:
 		if (rtlphy->rf_type == RF_1T2R)

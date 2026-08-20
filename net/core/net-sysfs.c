@@ -1432,7 +1432,7 @@ static ssize_t traffic_class_show(struct kobject *kobj, struct attribute *attr,
 	/* If queue belongs to subordinate dev use its TC mapping */
 	dev = netdev_get_tx_queue(dev, index)->sb_dev ? : dev;
 
-	num_tc = dev->num_tc;
+	num_tc = READ_ONCE(dev->num_tc);
 	tc = netdev_txq_to_tc(dev, index);
 
 	rtnl_unlock();

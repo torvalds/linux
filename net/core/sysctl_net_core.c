@@ -678,7 +678,7 @@ static struct ctl_table net_core_table[] = {
 	},
 };
 
-static struct ctl_table netns_core_table[] = {
+static const struct ctl_table netns_core_table[] = {
 #if IS_ENABLED(CONFIG_RPS)
 	{
 		.procname	= "rps_default_mask",
@@ -787,26 +787,38 @@ static int __init fb_tunnels_only_for_init_net_sysctl_setup(char *str)
 }
 __setup("fb_tunnels=", fb_tunnels_only_for_init_net_sysctl_setup);
 
-static __net_init int sysctl_core_net_init(struct net *net)
+static const struct ctl_table *netns_core_table_dup(struct net *net)
 {
 	size_t table_size = ARRAY_SIZE(netns_core_table);
 	struct ctl_table *tbl;
+	int i;
+
+	tbl = kmemdup(netns_core_table, sizeof(netns_core_table), GFP_KERNEL);
+	if (!tbl)
+		return NULL;
+
+	for (i = 0; i < table_size; ++i) {
+		if (tbl[i].data == &sysctl_wmem_max)
+			break;
+
+		tbl[i].data += (char *)net - (char *)&init_net;
+	}
+	for (; i < table_size; ++i)
+		tbl[i].mode &= ~0222;
+
+	return tbl;
+}
+
+static __net_init int sysctl_core_net_init(struct net *net)
+{
+	size_t table_size = ARRAY_SIZE(netns_core_table);
+	const struct ctl_table *tbl;
 
 	tbl = netns_core_table;
 	if (!net_eq(net, &init_net)) {
-		int i;
-		tbl = kmemdup(tbl, sizeof(netns_core_table), GFP_KERNEL);
+		tbl = netns_core_table_dup(net);
 		if (tbl == NULL)
 			goto err_dup;
-
-		for (i = 0; i < table_size; ++i) {
-			if (tbl[i].data == &sysctl_wmem_max)
-				break;
-
-			tbl[i].data += (char *)net - (char *)&init_net;
-		}
-		for (; i < table_size; ++i)
-			tbl[i].mode &= ~0222;
 	}
 
 	net->core.sysctl_hdr = register_net_sysctl_sz(net, "net/core", tbl, table_size);

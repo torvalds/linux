@@ -23,6 +23,7 @@
 #include "wow.h"
 #include "dp_cmn.h"
 #include "peer.h"
+#include "qmi.h"
 
 unsigned int ath12k_debug_mask;
 module_param_named(debug_mask, ath12k_debug_mask, uint, 0644);
@@ -49,9 +50,10 @@ ath12k_mem_profile_based_param ath12k_mem_profile_based_param[] = {
 		.dp_params = {
 			.tx_comp_ring_size = 32768,
 			.rxdma_monitor_buf_ring_size = 4096,
-			.rxdma_monitor_dst_ring_size = 8092,
+			.rxdma_monitor_dst_ring_size = 8192,
 			.num_pool_tx_desc = 32768,
 			.rx_desc_count = 12288,
+			.rx_release_ring_size = 16384,
 		},
 	},
 [ATH12K_QMI_MEMORY_MODE_LOW_512_M] = {
@@ -65,6 +67,7 @@ ath12k_mem_profile_based_param ath12k_mem_profile_based_param[] = {
 			.rxdma_monitor_dst_ring_size = 512,
 			.num_pool_tx_desc = 16384,
 			.rx_desc_count = 6144,
+			.rx_release_ring_size = 8192,
 		},
 	},
 };
@@ -637,31 +640,6 @@ u32 ath12k_core_get_max_peers_per_radio(struct ath12k_base *ab)
 }
 EXPORT_SYMBOL(ath12k_core_get_max_peers_per_radio);
 
-struct reserved_mem *ath12k_core_get_reserved_mem(struct ath12k_base *ab,
-						  int index)
-{
-	struct device *dev = ab->dev;
-	struct reserved_mem *rmem;
-	struct device_node *node;
-
-	node = of_parse_phandle(dev->of_node, "memory-region", index);
-	if (!node) {
-		ath12k_dbg(ab, ATH12K_DBG_BOOT,
-			   "failed to parse memory-region for index %d\n", index);
-		return NULL;
-	}
-
-	rmem = of_reserved_mem_lookup(node);
-	of_node_put(node);
-	if (!rmem) {
-		ath12k_dbg(ab, ATH12K_DBG_BOOT,
-			   "unable to get memory-region for index %d\n", index);
-		return NULL;
-	}
-
-	return rmem;
-}
-
 static inline
 void ath12k_core_to_group_ref_get(struct ath12k_base *ab)
 {
@@ -708,8 +686,10 @@ static void ath12k_core_stop(struct ath12k_base *ab)
 
 	ath12k_core_to_group_ref_put(ab);
 
-	if (!test_bit(ATH12K_FLAG_CRASH_FLUSH, &ab->dev_flags))
+	if (!test_bit(ATH12K_FLAG_CRASH_FLUSH, &ab->dev_flags)) {
+		ath12k_dp_reoq_lut_addr_reset(ath12k_ab_to_dp(ab));
 		ath12k_qmi_firmware_stop(ab);
+	}
 
 	ath12k_acpi_stop(ab);
 
@@ -817,7 +797,7 @@ static int ath12k_core_soc_create(struct ath12k_base *ab)
 	int ret;
 
 	if (ath12k_ftm_mode) {
-		ab->fw_mode = ATH12K_FIRMWARE_MODE_FTM;
+		ab->fw_mode = ATH12K_QMI_FIRMWARE_MODE_FTM;
 		ath12k_info(ab, "Booting in ftm mode\n");
 	}
 
@@ -1211,7 +1191,7 @@ err_mac_destroy:
 }
 
 static int ath12k_core_start_firmware(struct ath12k_base *ab,
-				      enum ath12k_firmware_mode mode)
+				      enum ath12k_qmi_firmware_mode mode)
 {
 	int ret;
 
@@ -1371,6 +1351,7 @@ err_core_stop:
 	goto exit;
 
 err_deinit:
+	ath12k_dp_reoq_lut_addr_reset(ath12k_ab_to_dp(ab));
 	ath12k_dp_cmn_device_deinit(ath12k_ab_to_dp(ab));
 	mutex_unlock(&ab->core_lock);
 	mutex_unlock(&ag->mutex);
@@ -1524,7 +1505,7 @@ static void ath12k_core_pre_reconfigure_recovery(struct ath12k_base *ab)
 			complete_all(&ar->scan.completed);
 			complete(&ar->scan.on_channel);
 			complete(&ar->peer_assoc_done);
-			complete(&ar->peer_delete_done);
+			ath12k_peer_delete_wait_flush(ar);
 			complete(&ar->install_key_done);
 			complete(&ar->vdev_setup_done);
 			complete(&ar->vdev_delete_done);

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config BT_BNEP
 	tristate "BNEP protocol support"
-	depends on BT_BREDR
+	depends on BT && BT_BREDR
 	select CRC32
 	help
 	  BNEP (Bluetooth Network Encapsulation Protocol) is Ethernet

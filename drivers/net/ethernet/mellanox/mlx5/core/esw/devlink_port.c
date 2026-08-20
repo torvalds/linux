@@ -74,7 +74,7 @@ static void mlx5_esw_offloads_pf_vf_devlink_port_attrs_set(struct mlx5_eswitch *
 		memcpy(dl_port->attrs.switch_id.id, ppid.id, ppid.id_len);
 		dl_port->attrs.switch_id.id_len = ppid.id_len;
 		devlink_port_attrs_pci_pf_set(dl_port, controller_num, pfnum,
-					      true);
+					      false);
 	}
 }
 
@@ -134,13 +134,16 @@ static void mlx5_esw_offloads_sf_devlink_port_attrs_set(struct mlx5_eswitch *esw
 {
 	struct mlx5_core_dev *dev = esw->dev;
 	struct netdev_phys_item_id ppid = {};
+	u32 hpf_ctrl;
 	u16 pfnum;
 
 	pfnum = mlx5_esw_sf_controller_to_pfnum(dev, controller);
+	hpf_ctrl = mlx5_esw_get_hpf_host_number(dev) + 1;
 	mlx5_esw_get_port_parent_id(dev, &ppid);
 	memcpy(dl_port->attrs.switch_id.id, &ppid.id[0], ppid.id_len);
 	dl_port->attrs.switch_id.id_len = ppid.id_len;
-	devlink_port_attrs_pci_sf_set(dl_port, controller, pfnum, sfnum, !!controller);
+	devlink_port_attrs_pci_sf_set(dl_port, controller, pfnum, sfnum,
+				      controller == hpf_ctrl);
 }
 
 int mlx5_esw_offloads_sf_devlink_port_init(struct mlx5_eswitch *esw, struct mlx5_vport *vport,
@@ -268,7 +271,6 @@ void mlx5_esw_offloads_devlink_port_unregister(struct mlx5_vport *vport)
 	dl_port = vport->dl_port;
 	mlx5_esw_devlink_port_res_unregister(&dl_port->dl_port);
 
-	mlx5_esw_qos_vport_update_parent(vport, NULL, NULL);
 	devl_rate_leaf_destroy(&dl_port->dl_port);
 
 	devl_port_unregister(&dl_port->dl_port);

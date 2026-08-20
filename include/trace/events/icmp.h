@@ -44,7 +44,7 @@ TRACE_EVENT(icmp_send,
 			} else {
 				__entry->sport = ntohs(uh->source);
 				__entry->dport = ntohs(uh->dest);
-				__entry->ulen = ntohs(uh->len);
+				__entry->ulen = udp_get_len_short(uh);
 			}
 
 			p32 = (__be32 *) __entry->saddr;

@@ -278,11 +278,8 @@ static int pptp_rcv_core(struct sock *sk, struct sk_buff *skb)
 	__u8 *payload;
 	struct pptp_gre_header *header;
 
-	if (!(sk->sk_state & PPPOX_CONNECTED)) {
-		if (sock_queue_rcv_skb(sk, skb))
-			goto drop;
-		return NET_RX_SUCCESS;
-	}
+	if (!(sk->sk_state & PPPOX_CONNECTED))
+		goto drop;
 
 	header = (struct pptp_gre_header *)(skb->data);
 	headersize  = sizeof(*header);
@@ -539,7 +536,6 @@ static void pptp_sock_destruct(struct sock *sk)
 		del_chan(pppox_sk(sk));
 		pppox_unbind_sock(sk);
 	}
-	skb_queue_purge(&sk->sk_receive_queue);
 	dst_release(rcu_dereference_protected(sk->sk_dst_cache, 1));
 }
 

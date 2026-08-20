@@ -548,6 +548,7 @@ struct mlx5_debugfs_entries {
 	struct dentry *cq_debugfs;
 	struct dentry *cmdif_debugfs;
 	struct dentry *frag_buf_dma_pools_debugfs;
+	struct dentry *db_dma_pools_debugfs;
 	struct dentry *pages_debugfs;
 	struct dentry *lag_debugfs;
 };
@@ -569,6 +570,7 @@ enum mlx5_page_mgt_mode {
 };
 
 struct mlx5_frag_buf_node_pools;
+struct mlx5_dma_pool;
 struct mlx5_ft_pool;
 struct mlx5_priv {
 	/* IRQ table valid only for real pci devices PF or VF */
@@ -598,10 +600,8 @@ struct mlx5_priv {
 	struct mutex            alloc_mutex;
 	int                     numa_node;
 
-	struct mutex            pgdir_mutex;
-	struct list_head        pgdir_list;
-
 	struct mlx5_frag_buf_node_pools **frag_buf_node_pools;
+	struct mlx5_dma_pool **db_node_pools;
 	/* end: alloc stuff */
 
 	struct mlx5_adev       **adev;
@@ -806,7 +806,7 @@ struct mlx5_core_dev {
 struct mlx5_db {
 	__be32			*db;
 	union {
-		struct mlx5_db_pgdir		*pgdir;
+		struct mlx5_dma_pool_page	*pool_page;
 		struct mlx5_ib_user_db_page	*user_page;
 	}			u;
 	dma_addr_t		dma;

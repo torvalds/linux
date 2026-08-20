@@ -54,7 +54,7 @@ int nf_hooks_lwtunnel_sysctl_handler(const struct ctl_table *table, int write,
 }
 EXPORT_SYMBOL_GPL(nf_hooks_lwtunnel_sysctl_handler);
 
-static struct ctl_table nf_lwtunnel_sysctl_table[] = {
+static const struct ctl_table nf_lwtunnel_sysctl_table[] = {
 	{
 		.procname	= "nf_hooks_lwtunnel",
 		.data		= NULL,
@@ -66,8 +66,8 @@ static struct ctl_table nf_lwtunnel_sysctl_table[] = {
 
 static int __net_init nf_lwtunnel_net_init(struct net *net)
 {
+	const struct ctl_table *table;
 	struct ctl_table_header *hdr;
-	struct ctl_table *table;
 
 	table = nf_lwtunnel_sysctl_table;
 	if (!net_eq(net, &init_net)) {

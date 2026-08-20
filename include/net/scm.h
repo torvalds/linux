@@ -50,8 +50,8 @@ struct scm_cookie {
 #endif
 };
 
-void scm_detach_fds(struct msghdr *msg, struct scm_cookie *scm);
-void scm_detach_fds_compat(struct msghdr *msg, struct scm_cookie *scm);
+void scm_detach_fds(struct msghdr *msg, struct scm_cookie *scm, bool notrunc);
+void scm_detach_fds_compat(struct msghdr *msg, struct scm_cookie *scm, bool notrunc);
 int __scm_send(struct socket *sock, struct msghdr *msg, struct scm_cookie *scm);
 void __scm_destroy(struct scm_cookie *scm);
 struct scm_fp_list *scm_fp_dup(struct scm_fp_list *fpl);
@@ -107,13 +107,8 @@ void scm_recv(struct socket *sock, struct msghdr *msg,
 void scm_recv_unix(struct socket *sock, struct msghdr *msg,
 		   struct scm_cookie *scm, int flags);
 
-static inline int scm_recv_one_fd(struct file *f, int __user *ufd,
-				  unsigned int flags)
-{
-	if (!ufd)
-		return -EFAULT;
-	return receive_fd(f, ufd, flags);
-}
+int scm_recv_one_fd(struct file *f, int __user *ufd, unsigned int flags,
+		    bool notrunc);
 
 #endif /* __LINUX_NET_SCM_H */
 

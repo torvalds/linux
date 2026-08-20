@@ -301,7 +301,7 @@ nf_log_dump_udp_header(struct nf_log_buf *m,
 
 	/* Max length: 20 "SPT=65535 DPT=65535 " */
 	nf_log_buf_add(m, "SPT=%u DPT=%u LEN=%u ",
-		       ntohs(uh->source), ntohs(uh->dest), ntohs(uh->len));
+		       ntohs(uh->source), ntohs(uh->dest), udp_get_len_short(uh));
 
 out:
 	return 0;

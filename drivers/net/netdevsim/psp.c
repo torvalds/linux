@@ -84,6 +84,7 @@ nsim_do_psp(struct sk_buff *skb, struct netdevsim *ns,
 		struct iphdr *iph;
 		struct udphdr *uh;
 		__wsum csum;
+		int udplen;
 
 		/* Do not decapsulate. Receive the skb with the udp and psp
 		 * headers still there as if this is a normal udp packet.
@@ -91,19 +92,20 @@ nsim_do_psp(struct sk_buff *skb, struct netdevsim *ns,
 		 * provide a valid checksum here, so the skb isn't dropped.
 		 */
 		uh = udp_hdr(skb);
+		udplen = udp_get_len(skb, uh, skb_transport_offset(skb));
 		csum = skb_checksum(skb, skb_transport_offset(skb),
-				    ntohs(uh->len), 0);
+				    udplen, 0);
 
 		switch (skb->protocol) {
 		case htons(ETH_P_IP):
 			iph = ip_hdr(skb);
-			uh->check = udp_v4_check(ntohs(uh->len), iph->saddr,
+			uh->check = udp_v4_check(udplen, iph->saddr,
 						 iph->daddr, csum);
 			break;
 #if IS_ENABLED(CONFIG_IPV6)
 		case htons(ETH_P_IPV6):
 			ip6h = ipv6_hdr(skb);
-			uh->check = udp_v6_check(ntohs(uh->len), &ip6h->saddr,
+			uh->check = udp_v6_check(udplen, &ip6h->saddr,
 						 &ip6h->daddr, csum);
 			break;
 #endif

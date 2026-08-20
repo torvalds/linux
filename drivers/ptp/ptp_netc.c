@@ -482,6 +482,9 @@ static int net_timer_enable_perout(struct netc_timer *priv,
 
 		netc_timer_enable_periodic_pulse(priv, channel);
 	} else {
+		if (!pp->enabled)
+			goto unlock_spinlock;
+
 		netc_timer_disable_periodic_pulse(priv, channel);
 		priv->fs_alarm_bitmap &= ~BIT(pp->alarm_id);
 		memset(pp, 0, sizeof(*pp));

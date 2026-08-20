@@ -158,6 +158,8 @@ static bool get_ct_or_tuple_from_skb(struct net *net,
 		return true;
 
 	found_ct = nf_ct_tuplehash_to_ctrack(h);
+	*tuple = found_ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple;
+	*zone = nf_ct_zone(found_ct);
 	*refcounted = true;
 	*ct = found_ct;
 

@@ -18,6 +18,11 @@ enum {
 	MT_LMAC_PSMP0,
 };
 
+enum {
+	TXS_FM_MPDU = 0,
+	TXS_FM_PPDU = 2,
+};
+
 #define MT_CT_PARSE_LEN			72
 #define MT_CT_DMA_BUF_NUM		2
 
@@ -236,7 +241,9 @@ enum tx_frag_idx {
 #define MT_TXD2_HDR_PAD			GENMASK(11, 10)
 #define MT_TXD2_RTS			BIT(9)
 #define MT_TXD2_OWN_MAC_MAP		BIT(8)
+#define MT_TXD2_OWN_MAC_MAP_V2		BIT(9)
 #define MT_TXD2_BF_TYPE			GENMASK(6, 7)
+#define MT_TXD2_BF_TYPE_V2		GENMASK(6, 8)
 #define MT_TXD2_FRAME_TYPE		GENMASK(5, 4)
 #define MT_TXD2_SUB_TYPE		GENMASK(3, 0)
 
@@ -261,6 +268,7 @@ enum tx_frag_idx {
 #define MT_TXD5_BYPASS_TBB		BIT(14)
 #define MT_TXD5_BYPASS_RBB		BIT(13)
 #define MT_TXD5_BSS_COLOR_ZERO		BIT(12)
+#define MT_TXD5_OCUP_BY_OTHER_LNK	BIT(11)
 #define MT_TXD5_TX_STATUS_HOST		BIT(10)
 #define MT_TXD5_TX_STATUS_MCU		BIT(9)
 #define MT_TXD5_TX_STATUS_FMT		BIT(8)
@@ -270,15 +278,19 @@ enum tx_frag_idx {
 #define MT_TXD6_VTA			BIT(28)
 #define MT_TXD6_FIXED_BW		BIT(25)
 #define MT_TXD6_BW			GENMASK(24, 22)
+#define MT_TXD6_BW_V2			GENMASK(25, 22)
 #define MT_TXD6_TX_RATE			GENMASK(21, 16)
 #define MT_TXD6_TIMESTAMP_OFS_EN	BIT(15)
+#define MT_TXD6_TIMESTAMP_OFS_EN_V2	GENMASK(15, 13)
 #define MT_TXD6_TIMESTAMP_OFS_IDX	GENMASK(14, 10)
+#define MT_TXD6_TIMESTAMP_OFS_IDX_V2	GENMASK(12, 8)
 #define MT_TXD6_TID_ADDBA		GENMASK(10, 8)
 #define MT_TXD6_MSDU_CNT		GENMASK(9, 4)
 #define MT_TXD6_MSDU_CNT_V2		GENMASK(15, 10)
 #define MT_TXD6_DIS_MAT			BIT(3)
 #define MT_TXD6_DAS			BIT(2)
 #define MT_TXD6_AMSDU_CAP		BIT(1)
+#define MT_TXD6_MLD			BIT(0)
 
 #define MT_TXD7_TXD_LEN			GENMASK(31, 30)
 #define MT_TXD7_IP_SUM			BIT(29)
@@ -287,6 +299,9 @@ enum tx_frag_idx {
 #define MT_TXD7_CTXD			BIT(26)
 #define MT_TXD7_CTXD_CNT		GENMASK(25, 22)
 #define MT_TXD7_UDP_TCP_SUM		BIT(15)
+#define MT_TXD7_IMMEDIATE_TX		BIT(14)
+#define MT_TXD7_FORCE_RTS_CTS		BIT(13)
+#define MT_TXD7_ENABLE_ICI		BIT(12)
 #define MT_TXD7_TX_TIME			GENMASK(9, 0)
 
 #define MT_TXD9_WLAN_IDX		GENMASK(23, 8)
@@ -396,5 +411,32 @@ enum tx_frag_idx {
 #define MT_TXS7_MPDU_RETRY_CNT		GENMASK(30, 20)
 #define MT_TXS7_MPDU_RETRY_BYTE_SCALE	BIT(15)
 #define MT_TXS7_MPDU_RETRY_BYTE		GENMASK(14, 0)
+
+struct mt7928_uni_txdone_event {
+	__le16  tag;
+	__le16  len;
+
+	u8      pid;            /* HW packet ID */
+	u8      status;         /* TX_RESULT_xx */
+	__le16  seq;            /* packet sequence number */
+
+	u8      wcid;           /* WLAN index (WTBL) */
+	u8      tx_count;       /* TX attempts including retries */
+	__le16  tx_rate;
+
+	u8      flag;           /* TXS_WITH_ADVANCED_INFO or TXS_IS_EXIST */
+	u8      tid;
+	u8      rsp_rate;
+	u8      rate_tbl_idx;   /* last TX rate index from WLAN table */
+
+	u8      bw;             /* bandwidth used for this PPDU */
+	u8      tx_pwr;         /* dBm */
+	u8      flush_reason;
+	u8      rsv[1];
+
+	__le32  tx_delay;       /* unit: 32us, UMAC TX to TX status */
+	__le32  timestamp;      /* local TSF at first bit of MAC header */
+	__le32  applied_flags;
+} __packed;
 
 #endif /* __MT76_CONNAC3_MAC_H */

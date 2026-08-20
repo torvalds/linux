@@ -24,15 +24,15 @@ int netdev_debug_event(struct notifier_block *nb, unsigned long event,
 	case NETDEV_CHANGE:
 	case NETDEV_REGISTER:
 	case NETDEV_UP:
+	case NETDEV_DOWN:
+	case NETDEV_GOING_DOWN:
 		netdev_assert_locked_ops_compat(dev);
 		fallthrough;
-	case NETDEV_DOWN:
 	case NETDEV_REBOOT:
 	case NETDEV_UNREGISTER:
 	case NETDEV_CHANGEMTU:
 	case NETDEV_CHANGEADDR:
 	case NETDEV_PRE_CHANGEADDR:
-	case NETDEV_GOING_DOWN:
 	case NETDEV_FEAT_CHANGE:
 	case NETDEV_BONDING_FAILOVER:
 	case NETDEV_PRE_UP:

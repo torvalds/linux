@@ -246,7 +246,7 @@ void ip_vs_est_reload_start(struct netns_ipvs *ipvs, bool restart)
 	/* Bump the kthread configuration genid if stopping is requested */
 	if (restart)
 		atomic_inc(&ipvs->est_genid);
-	queue_delayed_work(system_long_wq, &ipvs->est_reload_work, 0);
+	queue_delayed_work(system_dfl_long_wq, &ipvs->est_reload_work, 0);
 }
 
 /* Start kthread task with current configuration */

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright(c) 2021-2025 Intel Corporation
+ * Copyright(c) 2021-2026 Intel Corporation
  */
 
 #include "iwl-drv.h"
@@ -248,6 +248,12 @@ int iwl_uefi_reduce_power_parse(struct iwl_trans *trans,
 			IWL_DEBUG_FW(trans,
 				     "Got IWL_UCODE_TLV_PNVM_SKU len %d\n",
 				     tlv_len);
+			if (tlv_len < sizeof(*tlv_sku_id)) {
+				IWL_ERR(trans, "invalid PNVM SKU TLV len: %u\n",
+					tlv_len);
+				return -EINVAL;
+			}
+
 			IWL_DEBUG_FW(trans, "sku_id 0x%0x 0x%0x 0x%0x\n",
 				     le32_to_cpu(tlv_sku_id->data[0]),
 				     le32_to_cpu(tlv_sku_id->data[1]),
@@ -884,6 +890,8 @@ int iwl_uefi_get_wbem(struct iwl_fw_runtime *fwrt, u32 *value)
 		goto out;
 	}
 	*value = data->wbem_320mhz_per_mcc & IWL_UEFI_WBEM_REV0_MASK;
+	fwrt->wbem_source = BIOS_SOURCE_UEFI;
+	fwrt->wbem_revision = data->revision;
 	IWL_DEBUG_RADIO(fwrt, "Loaded WBEM config from UEFI\n");
 out:
 	kfree(data);
@@ -919,7 +927,7 @@ static int iwl_uefi_load_dsm_values(struct iwl_fw_runtime *fwrt)
 	 */
 	fwrt->dsm_funcs_valid |= BIT(DSM_FUNC_QUERY);
 
-	for (int func = 1; func < ARRAY_SIZE(fwrt->dsm_values); func++) {
+	for (int func = 0; func < ARRAY_SIZE(fwrt->dsm_values); func++) {
 		if (!(fwrt->dsm_funcs_valid & BIT(func))) {
 			IWL_DEBUG_RADIO(fwrt, "DSM func %d not in 0x%x\n",
 					func, fwrt->dsm_funcs_valid);
@@ -970,29 +978,29 @@ int iwl_uefi_get_dsm(struct iwl_fw_runtime *fwrt, enum iwl_dsm_funcs func,
 int iwl_uefi_get_puncturing(struct iwl_fw_runtime *fwrt)
 {
 	struct uefi_cnv_var_puncturing_data *data;
-	/* default value is not enabled if there is any issue in reading
-	 * uefi variable or revision is not supported
-	 */
-	int puncturing = 0;
+	int ret = 0;
 
 	data = iwl_uefi_get_verified_variable(fwrt->trans,
 					      IWL_UEFI_PUNCTURING_NAME,
 					      "UefiCnvWlanPuncturing",
 					      sizeof(*data), NULL);
 	if (IS_ERR(data))
-		return puncturing;
+		return -EINVAL;
 
 	if (data->revision != IWL_UEFI_PUNCTURING_REVISION) {
 		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI PUNCTURING rev:%d\n",
 				data->revision);
+		ret = -EINVAL;
 	} else {
-		puncturing = data->puncturing & IWL_UEFI_PUNCTURING_REV0_MASK;
+		fwrt->puncturing_source = BIOS_SOURCE_UEFI;
+		fwrt->puncturing_revision = data->revision;
+		fwrt->bios_puncturing = data->puncturing;
 		IWL_DEBUG_RADIO(fwrt, "Loaded puncturing bits from UEFI: %d\n",
-				puncturing);
+				fwrt->bios_puncturing);
 	}
 
 	kfree(data);
-	return puncturing;
+	return ret;
 }
 IWL_EXPORT_SYMBOL(iwl_uefi_get_puncturing);
 

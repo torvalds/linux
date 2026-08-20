@@ -171,6 +171,7 @@ int irq_can_set_affinity(unsigned int irq)
 {
 	return __irq_can_set_affinity(irq_to_desc(irq));
 }
+EXPORT_SYMBOL_GPL(irq_can_set_affinity);
 
 /**
  * irq_can_set_affinity_usr - Check if affinity of a irq can be set from user space

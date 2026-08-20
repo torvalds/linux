@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2019-2025 Intel Corporation
+ * Copyright (C) 2019-2026 Intel Corporation
  */
 #include <linux/uuid.h>
 #include "iwl-drv.h"
@@ -181,6 +181,7 @@ static int iwl_acpi_load_dsm_values(struct iwl_fw_runtime *fwrt)
 
 	fwrt->dsm_revision = ACPI_DSM_REV;
 	fwrt->dsm_source = BIOS_SOURCE_ACPI;
+	fwrt->dsm_values[DSM_FUNC_QUERY] = (u32)query_func_val;
 
 	IWL_DEBUG_RADIO(fwrt, "ACPI DSM validity bitmap 0x%x\n",
 			(u32)query_func_val);
@@ -246,7 +247,7 @@ int iwl_acpi_get_dsm(struct iwl_fw_runtime *fwrt,
 	BUILD_BUG_ON(ARRAY_SIZE(fwrt->dsm_values) != DSM_FUNC_NUM_FUNCS);
 	BUILD_BUG_ON(BITS_PER_TYPE(fwrt->dsm_funcs_valid) < DSM_FUNC_NUM_FUNCS);
 
-	if (WARN_ON(func >= ARRAY_SIZE(fwrt->dsm_values) || !func))
+	if (WARN_ON(func >= ARRAY_SIZE(fwrt->dsm_values)))
 		return -EINVAL;
 
 	if (!(fwrt->dsm_funcs_valid & BIT(func))) {
@@ -1193,6 +1194,8 @@ int iwl_acpi_get_wbem(struct iwl_fw_runtime *fwrt, u32 *value)
 
 	*value = wifi_pkg->package.elements[1].integer.value &
 		 IWL_ACPI_WBEM_REV0_MASK;
+	fwrt->wbem_source = BIOS_SOURCE_ACPI;
+	fwrt->wbem_revision = tbl_rev;
 	IWL_DEBUG_RADIO(fwrt, "Loaded WBEM config from ACPI\n");
 	ret = 0;
 out_free:

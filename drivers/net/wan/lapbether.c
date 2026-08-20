@@ -497,9 +497,15 @@ static const char banner[] __initconst =
 
 static int __init lapbeth_init_driver(void)
 {
+	int err;
+
 	dev_add_pack(&lapbeth_packet_type);
 
-	register_netdevice_notifier(&lapbeth_dev_notifier);
+	err = register_netdevice_notifier(&lapbeth_dev_notifier);
+	if (err) {
+		dev_remove_pack(&lapbeth_packet_type);
+		return err;
+	}
 
 	printk(banner);
 

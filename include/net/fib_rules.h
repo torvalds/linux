@@ -82,7 +82,7 @@ struct fib_rules_ops {
 					     struct fib_rule_hdr *,
 					     struct nlattr **,
 					     struct netlink_ext_ack *);
-	int			(*delete)(struct fib_rule *);
+	void			(*delete)(struct fib_rule *);
 	int			(*compare)(struct fib_rule *,
 					   struct fib_rule_hdr *,
 					   struct nlattr **);
@@ -93,11 +93,13 @@ struct fib_rules_ops {
 	/* Called after modifications to the rules set, must flush
 	 * the route cache if one exists. */
 	void			(*flush_cache)(struct fib_rules_ops *ops);
+	bool			(*need_rtnl)(struct net *net);
 
 	int			nlgroup;
 	struct list_head	rules_list;
 	struct module		*owner;
 	struct net		*fro_net;
+	struct mutex		lock;
 	struct rcu_head		rcu;
 };
 

@@ -1428,14 +1428,17 @@ static void vxlan_mdb_flush(struct vxlan_dev *vxlan,
 	struct vxlan_mdb_entry *mdb_entry;
 	struct hlist_node *tmp;
 
-	/* The removal of an entry cannot trigger the removal of another entry
-	 * since entries are always added to the head of the list.
-	 */
 	hlist_for_each_entry_safe(mdb_entry, tmp, &vxlan->mdb_list, mdb_node) {
 		if (desc->src_vni && desc->src_vni != mdb_entry->key.vni)
 			continue;
 
 		vxlan_mdb_remotes_flush(vxlan, mdb_entry, desc);
+		/* The flush can remove the (S, G) entries created for the
+		 * source list of this entry, including the one saved by
+		 * hlist_for_each_entry_safe(), so re-read it while this entry
+		 * is still linked.
+		 */
+		tmp = mdb_entry->mdb_node.next;
 		/* Entry will only be removed if its remotes list is empty. */
 		vxlan_mdb_entry_put(vxlan, mdb_entry);
 	}

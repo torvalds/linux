@@ -1164,8 +1164,8 @@ static int __send_pkts(struct ifobject *ifobject, struct xsk_socket_info *xsk,
 		       bool test_timeout)
 {
 	u32 i, idx = 0, valid_pkts = 0, valid_frags = 0, buffer_len;
+	struct xsk_umem_info *umem = ifobject->xsk_arr[0].umem_real;
 	struct pkt_stream *pkt_stream = xsk->pkt_stream;
-	struct xsk_umem_info *umem = xsk->umem;
 	bool use_poll = ifobject->use_poll;
 	struct pollfd fds = { };
 	int ret;
@@ -1513,7 +1513,7 @@ static int thread_common_ops_tx(struct test_spec *test, struct ifobject *ifobjec
 	umem_tx->base_addr = 0;
 	umem_tx->next_buffer = 0;
 
-	ret = xsk_configure(test, ifobject, umem_tx, true);
+	ret = xsk_configure(test, ifobject, umem_rx, true);
 	if (ret)
 		return ret;
 	ifobject->xsk = &ifobject->xsk_arr[0];

@@ -1139,10 +1139,10 @@ attribute-sets:
         type: binary
       -
         name: fils-discovery
-        type: binary  # TOOD: nest
+        type: binary  # TODO: nest
       -
         name: unsol-bcast-probe-resp
-        type: binary  # TOOD: nest
+        type: binary  # TODO: nest
       -
         name: s1g-capability
         type: binary

@@ -11,7 +11,6 @@
 #include <linux/crc32.h>
 #include <linux/ethtool.h>
 #include <linux/ip.h>
-#include <linux/phy.h>
 #include <linux/udp.h>
 #include <net/pkt_cls.h>
 #include <net/pkt_sched.h>
@@ -154,9 +153,9 @@ static struct sk_buff *stmmac_test_get_udp_skb(struct stmmac_priv *priv,
 	} else {
 		uhdr->source = htons(attr->sport);
 		uhdr->dest = htons(attr->dport);
-		uhdr->len = htons(sizeof(*shdr) + sizeof(*uhdr) + attr->size);
+		udp_set_len_short(uhdr, sizeof(*shdr) + sizeof(*uhdr) + attr->size);
 		if (attr->max_size)
-			uhdr->len = htons(attr->max_size -
+			udp_set_len_short(uhdr, attr->max_size -
 					  (sizeof(*ihdr) + sizeof(*ehdr)));
 		uhdr->check = 0;
 	}
@@ -372,25 +371,6 @@ static int stmmac_test_mac_loopback(struct stmmac_priv *priv)
 
 	attr.dst = priv->dev->dev_addr;
 	return __stmmac_test_loopback(priv, &attr);
-}
-
-static int stmmac_test_phy_loopback(struct stmmac_priv *priv)
-{
-	struct stmmac_packet_attrs attr = { };
-	int ret;
-
-	if (!priv->dev->phydev)
-		return -EOPNOTSUPP;
-
-	ret = phy_loopback(priv->dev->phydev, true, 0);
-	if (ret)
-		return ret;
-
-	attr.dst = priv->dev->dev_addr;
-	ret = __stmmac_test_loopback(priv, &attr);
-
-	phy_loopback(priv->dev->phydev, false, 0);
-	return ret;
 }
 
 static int stmmac_test_mmc(struct stmmac_priv *priv)
@@ -735,13 +715,13 @@ out:
 static int stmmac_test_flowctrl(struct stmmac_priv *priv)
 {
 	unsigned char paddr[ETH_ALEN] = {0x01, 0x80, 0xC2, 0x00, 0x00, 0x01};
-	struct phy_device *phydev = priv->dev->phydev;
 	u32 rx_cnt = priv->plat->rx_queues_to_use;
+	struct mac_device_info *mac = priv->hw;
 	struct stmmac_test_priv *tpriv;
 	unsigned int pkt_count;
 	int i, ret = 0;
 
-	if (!phydev || (!phydev->pause && !phydev->asym_pause))
+	if (!(mac->link.caps & MAC_SYM_PAUSE))
 		return -EOPNOTSUPP;
 
 	tpriv = kzalloc_obj(*tpriv);
@@ -1815,10 +1795,6 @@ fail_disable:
 	return ret;
 }
 
-#define STMMAC_LOOPBACK_NONE	0
-#define STMMAC_LOOPBACK_MAC	1
-#define STMMAC_LOOPBACK_PHY	2
-
 static const struct stmmac_test {
 	char name[ETH_GSTRING_LEN];
 	int lb;
@@ -1826,131 +1802,96 @@ static const struct stmmac_test {
 } stmmac_selftests[] = {
 	{
 		.name = "MAC Loopback               ",
-		.lb = STMMAC_LOOPBACK_MAC,
 		.fn = stmmac_test_mac_loopback,
 	}, {
-		.name = "PHY Loopback               ",
-		.lb = STMMAC_LOOPBACK_NONE, /* Test will handle it */
-		.fn = stmmac_test_phy_loopback,
-	}, {
 		.name = "MMC Counters               ",
-		.lb = STMMAC_LOOPBACK_PHY,
 		.fn = stmmac_test_mmc,
 	}, {
 		.name = "EEE                        ",
-		.lb = STMMAC_LOOPBACK_PHY,
 		.fn = stmmac_test_eee,
 	}, {
 		.name = "Hash Filter MC             ",
-		.lb = STMMAC_LOOPBACK_PHY,
 		.fn = stmmac_test_hfilt,
 	}, {
 		.name = "Perfect Filter UC          ",
-		.lb = STMMAC_LOOPBACK_PHY,
 		.fn = stmmac_test_pfilt,
 	}, {
 		.name = "MC Filter                  ",
-		.lb = STMMAC_LOOPBACK_PHY,
 		.fn = stmmac_test_mcfilt,
 	}, {
 		.name = "UC Filter                  ",
-		.lb = STMMAC_LOOPBACK_PHY,
 		.fn = stmmac_test_ucfilt,
 	}, {
 		.name = "Flow Control               ",
-		.lb = STMMAC_LOOPBACK_PHY,
 		.fn = stmmac_test_flowctrl,
 	}, {
 		.name = "RSS                        ",
-		.lb = STMMAC_LOOPBACK_PHY,
 		.fn = stmmac_test_rss,
 	}, {
 		.name = "VLAN Filtering             ",
-		.lb = STMMAC_LOOPBACK_PHY,
 		.fn = stmmac_test_vlanfilt,
 	}, {
 		.name = "VLAN Filtering (perf)      ",
-		.lb = STMMAC_LOOPBACK_PHY,
 		.fn = stmmac_test_vlanfilt_perfect,
 	}, {
 		.name = "Double VLAN Filter         ",
-		.lb = STMMAC_LOOPBACK_PHY,
 		.fn = stmmac_test_dvlanfilt,
 	}, {
 		.name = "Double VLAN Filter (perf)  ",
-		.lb = STMMAC_LOOPBACK_PHY,
 		.fn = stmmac_test_dvlanfilt_perfect,
 	}, {
 		.name = "Flexible RX Parser         ",
-		.lb = STMMAC_LOOPBACK_PHY,
 		.fn = stmmac_test_rxp,
 	}, {
 		.name = "SA Insertion (desc)        ",
-		.lb = STMMAC_LOOPBACK_PHY,
 		.fn = stmmac_test_desc_sai,
 	}, {
 		.name = "SA Replacement (desc)      ",
-		.lb = STMMAC_LOOPBACK_PHY,
 		.fn = stmmac_test_desc_sar,
 	}, {
 		.name = "SA Insertion (reg)         ",
-		.lb = STMMAC_LOOPBACK_PHY,
 		.fn = stmmac_test_reg_sai,
 	}, {
 		.name = "SA Replacement (reg)       ",
-		.lb = STMMAC_LOOPBACK_PHY,
 		.fn = stmmac_test_reg_sar,
 	}, {
 		.name = "VLAN TX Insertion          ",
-		.lb = STMMAC_LOOPBACK_PHY,
 		.fn = stmmac_test_vlanoff,
 	}, {
 		.name = "SVLAN TX Insertion         ",
-		.lb = STMMAC_LOOPBACK_PHY,
 		.fn = stmmac_test_svlanoff,
 	}, {
 		.name = "L3 DA Filtering            ",
-		.lb = STMMAC_LOOPBACK_PHY,
 		.fn = stmmac_test_l3filt_da,
 	}, {
 		.name = "L3 SA Filtering            ",
-		.lb = STMMAC_LOOPBACK_PHY,
 		.fn = stmmac_test_l3filt_sa,
 	}, {
 		.name = "L4 DA TCP Filtering        ",
-		.lb = STMMAC_LOOPBACK_PHY,
 		.fn = stmmac_test_l4filt_da_tcp,
 	}, {
 		.name = "L4 SA TCP Filtering        ",
-		.lb = STMMAC_LOOPBACK_PHY,
 		.fn = stmmac_test_l4filt_sa_tcp,
 	}, {
 		.name = "L4 DA UDP Filtering        ",
-		.lb = STMMAC_LOOPBACK_PHY,
 		.fn = stmmac_test_l4filt_da_udp,
 	}, {
 		.name = "L4 SA UDP Filtering        ",
-		.lb = STMMAC_LOOPBACK_PHY,
 		.fn = stmmac_test_l4filt_sa_udp,
 	}, {
 		.name = "ARP Offload                ",
-		.lb = STMMAC_LOOPBACK_PHY,
 		.fn = stmmac_test_arpoffload,
 	}, {
 		.name = "Jumbo Frame                ",
-		.lb = STMMAC_LOOPBACK_PHY,
 		.fn = stmmac_test_jumbo,
 	}, {
 		.name = "Multichannel Jumbo         ",
-		.lb = STMMAC_LOOPBACK_PHY,
 		.fn = stmmac_test_mjumbo,
 	}, {
 		.name = "Split Header               ",
-		.lb = STMMAC_LOOPBACK_PHY,
 		.fn = stmmac_test_sph,
 	}, {
 		.name = "TBS (ETF Scheduler)        ",
-		.lb = STMMAC_LOOPBACK_PHY,
 		.fn = stmmac_test_tbs,
 	},
 };
@@ -1978,57 +1919,21 @@ void stmmac_selftest_run(struct net_device *dev,
 	/* Wait for queues drain */
 	msleep(200);
 
+	ret = stmmac_set_mac_loopback(priv, priv->ioaddr, true);
+	if (ret) {
+		netdev_err(priv->dev, "Loopback is not supported\n");
+		etest->flags |= ETH_TEST_FL_FAILED;
+		return;
+	}
+
 	for (i = 0; i < count; i++) {
-		ret = 0;
-
-		switch (stmmac_selftests[i].lb) {
-		case STMMAC_LOOPBACK_PHY:
-			ret = -EOPNOTSUPP;
-			if (dev->phydev)
-				ret = phy_loopback(dev->phydev, true, 0);
-			if (!ret)
-				break;
-			fallthrough;
-		case STMMAC_LOOPBACK_MAC:
-			ret = stmmac_set_mac_loopback(priv, priv->ioaddr, true);
-			break;
-		case STMMAC_LOOPBACK_NONE:
-			break;
-		default:
-			ret = -EOPNOTSUPP;
-			break;
-		}
-
-		/*
-		 * First tests will always be MAC / PHY loopback. If any of
-		 * them is not supported we abort earlier.
-		 */
-		if (ret) {
-			netdev_err(priv->dev, "Loopback is not supported\n");
-			etest->flags |= ETH_TEST_FL_FAILED;
-			break;
-		}
-
 		ret = stmmac_selftests[i].fn(priv);
 		if (ret && (ret != -EOPNOTSUPP))
 			etest->flags |= ETH_TEST_FL_FAILED;
 		buf[i] = ret;
-
-		switch (stmmac_selftests[i].lb) {
-		case STMMAC_LOOPBACK_PHY:
-			ret = -EOPNOTSUPP;
-			if (dev->phydev)
-				ret = phy_loopback(dev->phydev, false, 0);
-			if (!ret)
-				break;
-			fallthrough;
-		case STMMAC_LOOPBACK_MAC:
-			stmmac_set_mac_loopback(priv, priv->ioaddr, false);
-			break;
-		default:
-			break;
-		}
 	}
+
+	stmmac_set_mac_loopback(priv, priv->ioaddr, false);
 }
 
 void stmmac_selftest_get_strings(struct stmmac_priv *priv, u8 *data)

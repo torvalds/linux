@@ -782,7 +782,7 @@ static bool tcf_ct_skb_nfct_cached(struct net *net, struct sk_buff *skb,
 	return true;
 
 drop_ct:
-	nf_ct_put(ct);
+	nf_reset_ct(skb);
 	nf_ct_set(skb, NULL, IP_CT_UNTRACKED);
 
 	return false;
@@ -1008,7 +1008,7 @@ TC_INDIRECT_SCOPE int tcf_ct_act(struct sk_buff *skb, const struct tc_action *a,
 		qdisc_skb_cb(skb)->post_ct = false;
 		ct = nf_ct_get(skb, &ctinfo);
 		if (ct) {
-			nf_ct_put(ct);
+			nf_reset_ct(skb);
 			nf_ct_set(skb, NULL, IP_CT_UNTRACKED);
 		}
 
@@ -1055,7 +1055,7 @@ TC_INDIRECT_SCOPE int tcf_ct_act(struct sk_buff *skb, const struct tc_action *a,
 
 		/* Associate skb with specified zone. */
 		if (tmpl) {
-			nf_conntrack_put(skb_nfct(skb));
+			nf_reset_ct(skb);
 			nf_conntrack_get(&tmpl->ct_general);
 			nf_ct_set(skb, tmpl, IP_CT_NEW);
 		}
@@ -1548,8 +1548,8 @@ static int tcf_ct_dump_helper(struct sk_buff *skb,
 		return 0;
 
 	if (nla_put_string(skb, TCA_CT_HELPER_NAME, helper->name) ||
-	    nla_put_u8(skb, TCA_CT_HELPER_FAMILY, helper->tuple.src.l3num) ||
-	    nla_put_u8(skb, TCA_CT_HELPER_PROTO, helper->tuple.dst.protonum))
+	    nla_put_u8(skb, TCA_CT_HELPER_FAMILY, helper->nfproto) ||
+	    nla_put_u8(skb, TCA_CT_HELPER_PROTO, helper->l4proto))
 		return -1;
 
 	return 0;

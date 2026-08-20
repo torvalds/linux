@@ -1035,7 +1035,6 @@ int otx2_sq_init(struct otx2_nic *pfvf, u16 qidx, u16 sqb_aura)
 	if (qidx > pfvf->hw.xdp_queues)
 		otx2_attach_xsk_buff(pfvf, sq, (qidx - pfvf->hw.xdp_queues));
 
-
 	chan_offset = qidx % pfvf->hw.tx_chan_cnt;
 	err = pfvf->hw_ops->sq_aq_init(pfvf, qidx, chan_offset, sqb_aura);
 	if (err) {
@@ -1517,6 +1516,7 @@ int otx2_pool_aq_init(struct otx2_nic *pfvf, u16 pool_id,
 		pp_params.nid = NUMA_NO_NODE;
 		pp_params.dev = pfvf->dev;
 		pp_params.dma_dir = DMA_FROM_DEVICE;
+		pp_params.netdev = pfvf->netdev;
 		pool->page_pool = page_pool_create(&pp_params);
 		if (IS_ERR(pool->page_pool)) {
 			netdev_err(pfvf->netdev, "Creation of page pool failed\n");

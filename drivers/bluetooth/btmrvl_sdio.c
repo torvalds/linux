@@ -799,7 +799,7 @@ static int btmrvl_sdio_card_to_host(struct btmrvl_private *priv)
 		skb_pull(skb, SDIO_HEADER_LEN);
 
 		if (btmrvl_process_event(priv, skb))
-			hci_recv_frame(hdev, skb);
+			kfree_skb(skb);
 
 		hdev->stat.byte_rx += buf_len;
 		break;

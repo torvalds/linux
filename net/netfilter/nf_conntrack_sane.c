@@ -34,11 +34,6 @@ MODULE_AUTHOR("Michal Schmidt <mschmidt@redhat.com>");
 MODULE_DESCRIPTION("SANE connection tracking helper");
 MODULE_ALIAS_NFCT_HELPER(HELPER_NAME);
 
-#define MAX_PORTS 8
-static u_int16_t ports[MAX_PORTS];
-static unsigned int ports_c;
-module_param_array(ports, ushort, &ports_c, 0400);
-
 struct sane_request {
 	__be32 RPC_code;
 #define SANE_NET_START      7   /* RPC code */
@@ -169,8 +164,8 @@ static int help(struct sk_buff *skb,
 	return ret;
 }
 
-static struct nf_conntrack_helper sane[MAX_PORTS * 2] __read_mostly;
-static struct nf_conntrack_helper *sane_ptr[MAX_PORTS * 2] __read_mostly;
+static struct nf_conntrack_helper sane __read_mostly;
+static struct nf_conntrack_helper *sane_ptr __read_mostly;
 
 static const struct nf_conntrack_expect_policy sane_exp_policy = {
 	.max_expected	= 1,
@@ -179,32 +174,21 @@ static const struct nf_conntrack_expect_policy sane_exp_policy = {
 
 static void __exit nf_conntrack_sane_fini(void)
 {
-	nf_conntrack_helpers_unregister(sane_ptr, ports_c * 2);
+	nf_conntrack_helper_unregister(sane_ptr);
 }
 
 static int __init nf_conntrack_sane_init(void)
 {
-	int i, ret = 0;
+	int ret = 0;
 
 	NF_CT_HELPER_BUILD_BUG_ON(sizeof(struct nf_ct_sane_master));
 
-	if (ports_c == 0)
-		ports[ports_c++] = SANE_PORT;
+	nf_ct_helper_init(&sane, NFPROTO_UNSPEC, IPPROTO_TCP,
+			  HELPER_NAME,
+			  &sane_exp_policy, 0, help, NULL,
+			  THIS_MODULE);
 
-	/* FIXME should be configurable whether IPv4 and IPv6 connections
-		 are tracked or not - YK */
-	for (i = 0; i < ports_c; i++) {
-		nf_ct_helper_init(&sane[2 * i], AF_INET, IPPROTO_TCP,
-				  HELPER_NAME, SANE_PORT, ports[i], ports[i],
-				  &sane_exp_policy, 0, help, NULL,
-				  THIS_MODULE);
-		nf_ct_helper_init(&sane[2 * i + 1], AF_INET6, IPPROTO_TCP,
-				  HELPER_NAME, SANE_PORT, ports[i], ports[i],
-				  &sane_exp_policy, 0, help, NULL,
-				  THIS_MODULE);
-	}
-
-	ret = nf_conntrack_helpers_register(sane, ports_c * 2, sane_ptr);
+	ret = nf_conntrack_helper_register(&sane, &sane_ptr);
 	if (ret < 0) {
 		pr_err("failed to register helpers\n");
 		return ret;

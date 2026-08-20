@@ -127,7 +127,7 @@ static int snmp_translate(struct nf_conn *ct, int dir, struct sk_buff *skb)
 {
 	struct iphdr *iph = ip_hdr(skb);
 	struct udphdr *udph = (struct udphdr *)((__be32 *)iph + iph->ihl);
-	u16 datalen = ntohs(udph->len) - sizeof(struct udphdr);
+	u16 datalen = udp_get_len_short(udph) - sizeof(struct udphdr);
 	char *data = (unsigned char *)udph + sizeof(struct udphdr);
 	struct snmp_ctx ctx;
 	int ret;
@@ -181,7 +181,7 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 	 * enough room for a UDP header.  Just verify the UDP length field so we
 	 * can mess around with the payload.
 	 */
-	if (ntohs(udph->len) != skb->len - (iph->ihl << 2)) {
+	if (udp_get_len_short(udph) != skb->len - (iph->ihl << 2)) {
 		nf_ct_helper_log(skb, ct, "dropping malformed packet\n");
 		return NF_DROP;
 	}
@@ -213,7 +213,7 @@ static int __init nf_nat_snmp_basic_init(void)
 	RCU_INIT_POINTER(nf_nat_snmp_hook, help);
 
 	nf_ct_helper_init(&snmp_trap_helper, AF_INET, IPPROTO_UDP,
-			  "snmp_trap", SNMP_TRAP_PORT, SNMP_TRAP_PORT, SNMP_TRAP_PORT,
+			  "snmp_trap",
 			  &snmp_exp_policy, 0, help, NULL, THIS_MODULE);
 
 	err = nf_conntrack_helper_register(&snmp_trap_helper, &snmp_trap_helper_ptr);

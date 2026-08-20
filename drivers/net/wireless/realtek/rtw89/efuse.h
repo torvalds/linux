@@ -16,6 +16,11 @@
 #define EF_CV_MASK GENMASK(7, 4)
 #define EF_CV_INV 15
 
+#define EFUSE_THERMAL_K_OFFSET_BE 0x17CC
+#define EFUSE_THERMAL_K_VALID_BE BIT(9)
+#define EFUSE_THERMAL_K_SIGN_BE BIT(8)
+#define EFUSE_THERMAL_K_VAL_BE GENMASK(7, 0)
+
 struct rtw89_efuse_block_cfg {
 	u32 offset;
 	u32 size;
@@ -32,5 +37,7 @@ int rtw89_efuse_recognize_mss_info_v1(struct rtw89_dev *rtwdev, u8 b1, u8 b2);
 int rtw89_efuse_read_fw_secure_ax(struct rtw89_dev *rtwdev);
 int rtw89_efuse_read_fw_secure_be(struct rtw89_dev *rtwdev);
 int rtw89_efuse_read_ecv_be(struct rtw89_dev *rtwdev);
+int rtw89_efuse_read_thermal_k_be(struct rtw89_dev *rtwdev);
+int rtw89_efuse_read_pwr_data_be(struct rtw89_dev *rtwdev);
 
 #endif

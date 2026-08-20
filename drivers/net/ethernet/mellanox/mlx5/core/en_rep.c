@@ -1262,9 +1262,11 @@ static void mlx5e_cleanup_rep_tx(struct mlx5e_priv *priv)
 	mlx5e_rep_neigh_cleanup(rpriv);
 }
 
-static void mlx5e_rep_enable(struct mlx5e_priv *priv)
+static int mlx5e_rep_enable(struct mlx5e_priv *priv)
 {
 	mlx5e_set_netdev_mtu_boundaries(priv);
+
+	return 0;
 }
 
 static void mlx5e_rep_disable(struct mlx5e_priv *priv)
@@ -1322,7 +1324,7 @@ static int uplink_rep_async_event(struct notifier_block *nb, unsigned long event
 	return NOTIFY_DONE;
 }
 
-static void mlx5e_uplink_rep_enable(struct mlx5e_priv *priv)
+static int mlx5e_uplink_rep_enable(struct mlx5e_priv *priv)
 {
 	struct net_device *netdev = priv->netdev;
 	struct mlx5_core_dev *mdev = priv->mdev;
@@ -1357,6 +1359,8 @@ static void mlx5e_uplink_rep_enable(struct mlx5e_priv *priv)
 	netdev_unlock(netdev);
 	netif_device_attach(netdev);
 	rtnl_unlock();
+
+	return 0;
 }
 
 static void mlx5e_uplink_rep_disable(struct mlx5e_priv *priv)

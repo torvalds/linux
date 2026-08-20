@@ -537,7 +537,7 @@ static void at803x_link_change_notify(struct phy_device *phydev)
 	 * in the FIFO. In such cases, the FIFO enters an error mode it
 	 * cannot recover from by software.
 	 */
-	if (phydev->state == PHY_NOLINK && phydev->mdio.reset_gpio) {
+	if (phydev->state == PHY_NOLINK && phy_device_has_reset(phydev)) {
 		struct at803x_context context;
 
 		at803x_context_save(phydev, &context);

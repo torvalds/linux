@@ -1517,12 +1517,48 @@ static int iwl_mvm_fill_lari_config(struct iwl_fw_runtime *fwrt,
 	return 0;
 }
 
+static void iwl_mvm_send_lari_cfg_extension(struct iwl_mvm *mvm)
+{
+	struct iwl_fw_runtime *fwrt = &mvm->fwrt;
+	struct iwl_lari_config_extension_cmd cmd = {};
+	u32 cmd_id = WIDE_ID(REGULATORY_AND_NVM_GROUP,
+			     LARI_CONFIG_EXTENSION);
+	u32 value;
+	int ret;
+
+	if (iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id, 0) < 1)
+		return;
+
+	ret = iwl_bios_get_dsm(fwrt, DSM_FUNC_REGULATORY_CONFIG, &value);
+	if (ret)
+		return;
+
+	cmd.dsm_table_hdr.table_source = fwrt->dsm_source;
+	cmd.dsm_table_hdr.table_revision = fwrt->dsm_revision;
+	cmd.oem_uhb_allow_extension_bitmap = cpu_to_le32(value);
+
+	IWL_DEBUG_RADIO(mvm,
+			"sending LARI_CONFIG_EXTENSION, oem_uhb_allow_extension_bitmap=0x%x\n",
+			le32_to_cpu(cmd.oem_uhb_allow_extension_bitmap));
+	ret = iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0, sizeof(cmd), &cmd);
+	if (ret < 0)
+		IWL_DEBUG_RADIO(mvm,
+				"Failed to send LARI_CONFIG_EXTENSION (%d)\n",
+				ret);
+}
+
 static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 {
 	struct iwl_lari_config_change_cmd cmd;
 	size_t cmd_size;
 	int ret;
 
+	/*
+	 * LARI_CONFIG_CHANGE triggers a profile update, so send
+	 * LARI_CONFIG_EXTENSION first to make sure its data is applied
+	 * in the same update.
+	 */
+	iwl_mvm_send_lari_cfg_extension(mvm);
 	ret = iwl_mvm_fill_lari_config(&mvm->fwrt, &cmd, &cmd_size);
 	if (!ret) {
 		ret = iwl_mvm_send_cmd_pdu(mvm,

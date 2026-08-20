@@ -182,6 +182,19 @@ static void rds_message_purge(struct rds_message *rm)
 		kref_put(&rm->atomic.op_rdma_mr->r_kref, __rds_put_mr_final);
 }
 
+static void rds_message_unpin_worker(struct work_struct *work)
+{
+	struct rds_message *rm = container_of(work, struct rds_message,
+					      m_unpin_work);
+
+	if (rm->rdma.op_unpin_deferred)
+		rds_rdma_op_unpin_pages(&rm->rdma);
+	if (rm->atomic.op_unpin_deferred)
+		rds_atomic_op_unpin_page(&rm->atomic);
+
+	kfree(rm);
+}
+
 void rds_message_put(struct rds_message *rm)
 {
 	rdsdebug("put rm %p ref %d\n", rm, refcount_read(&rm->m_refcount));
@@ -189,7 +202,20 @@ void rds_message_put(struct rds_message *rm)
 	if (refcount_dec_and_test(&rm->m_refcount)) {
 		BUG_ON(!list_empty(&rm->m_sock_item));
 		BUG_ON(!list_empty(&rm->m_conn_item));
+
 		rds_message_purge(rm);
+
+		/* A final put in atomic context cannot dirty the ops'
+		 * user pages on unpin, so rds_rdma_free_op() and
+		 * rds_atomic_free_op() deferred it.  Finish the unpin,
+		 * and the free, from process context.
+		 */
+		if (rm->rdma.op_unpin_deferred ||
+		    rm->atomic.op_unpin_deferred) {
+			INIT_WORK(&rm->m_unpin_work, rds_message_unpin_worker);
+			queue_work(rds_wq, &rm->m_unpin_work);
+			return;
+		}
 
 		kfree(rm);
 	}

@@ -46,7 +46,7 @@ static void test_blackholedev(struct kunit *test)
 	uh = (struct udphdr *)skb_push(skb, sizeof(struct udphdr));
 	skb_set_transport_header(skb, 0);
 	uh->source = uh->dest = htons(UDP_PORT);
-	uh->len = htons(data_len);
+	udp_set_len_short(uh, data_len);
 	uh->check = 0;
 	/* (Network) IPv6 */
 	ip6h = (struct ipv6hdr *)skb_push(skb, sizeof(struct ipv6hdr));

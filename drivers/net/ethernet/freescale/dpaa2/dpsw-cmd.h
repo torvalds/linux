@@ -12,7 +12,7 @@
 
 /* DPSW Version */
 #define DPSW_VER_MAJOR		8
-#define DPSW_VER_MINOR		9
+#define DPSW_VER_MINOR		13
 
 #define DPSW_CMD_BASE_VERSION	1
 #define DPSW_CMD_VERSION_2	2
@@ -92,10 +92,13 @@
 #define DPSW_CMDID_CTRL_IF_SET_POOLS        DPSW_CMD_ID(0x0A1)
 #define DPSW_CMDID_CTRL_IF_ENABLE           DPSW_CMD_ID(0x0A2)
 #define DPSW_CMDID_CTRL_IF_DISABLE          DPSW_CMD_ID(0x0A3)
+#define DPSW_CMDID_SET_LAG                  DPSW_CMD_V2(0x0A4)
 #define DPSW_CMDID_CTRL_IF_SET_QUEUE        DPSW_CMD_ID(0x0A6)
 
 #define DPSW_CMDID_SET_EGRESS_FLOOD         DPSW_CMD_ID(0x0AC)
 #define DPSW_CMDID_IF_SET_LEARNING_MODE     DPSW_CMD_ID(0x0AD)
+
+#define DPSW_CMDID_IF_SET_LAG_STATE         DPSW_CMD_ID(0x0B0)
 
 /* Macros for accessing command fields smaller than 1byte */
 #define DPSW_MASK(field)        \
@@ -551,6 +554,19 @@ struct dpsw_cmd_if_reflection {
 	__le16 vlan_id;
 	/* only 2 bits from the LSB */
 	u8 filter;
+};
+
+struct dpsw_cmd_lag {
+	u8 group_id;
+	u8 num_ifs;
+	u8 pad[6];
+	u8 if_id[DPSW_MAX_LAG_IFS];
+	u8 phase;
+};
+
+struct dpsw_cmd_if_set_lag_state {
+	__le16 if_id;
+	u8 tx_enabled;
 };
 #pragma pack(pop)
 #endif /* __FSL_DPSW_CMD_H */

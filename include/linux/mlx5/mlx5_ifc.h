@@ -508,7 +508,8 @@ struct mlx5_ifc_flow_table_prop_layout_bits {
 	u8         reformat_l2_to_l3_audp_tunnel[0x1];
 	u8         reformat_l3_audp_tunnel_to_l2[0x1];
 	u8         ignore_flow_level_rtc_valid[0x1];
-	u8         reserved_at_70[0x8];
+	u8         reserved_at_70[0x7];
+	u8         reformat_del_psp_transport[0x1];
 	u8         log_max_ft_num[0x8];
 
 	u8         reserved_at_80[0x10];
@@ -798,6 +799,15 @@ struct mlx5_ifc_fte_match_set_misc5_bits {
 	u8         reserved_at_100[0x100];
 };
 
+struct mlx5_ifc_fte_match_set_misc6_bits {
+	u8         reserved_at_0[0x1a];
+	u8         psp_version[0x4];
+	u8         reserved_at_1e[0x2];
+
+	u8         reserved_at_20[0x1e0];
+};
+
+
 struct mlx5_ifc_cmd_pas_bits {
 	u8         pa_h[0x20];
 
@@ -1042,20 +1052,6 @@ struct mlx5_ifc_wqe_based_flow_table_cap_bits {
 	u8         reserved_at_1c1[0x1f];
 };
 
-struct mlx5_ifc_esw_cap_bits {
-	u8         reserved_at_0[0x1d];
-	u8         merged_eswitch[0x1];
-	u8         reserved_at_1e[0x2];
-
-	u8         reserved_at_20[0x40];
-
-	u8         esw_manager_vport_number_valid[0x1];
-	u8         reserved_at_61[0xf];
-	u8         esw_manager_vport_number[0x10];
-
-	u8         reserved_at_80[0x780];
-};
-
 enum {
 	MLX5_COUNTER_SOURCE_ESWITCH = 0x0,
 	MLX5_COUNTER_FLOW_ESWITCH   = 0x1,
@@ -1096,7 +1092,11 @@ struct mlx5_ifc_e_switch_cap_bits {
 	u8         log_max_esw_sf[0x5];
 	u8         esw_sf_base_id[0x10];
 
-	u8         reserved_at_60[0x7a0];
+	u8         esw_manager_vport_number_valid[0x1];
+	u8         reserved_at_61[0xf];
+	u8         esw_manager_vport_number[0x10];
+
+	u8         reserved_at_80[0x780];
 
 };
 
@@ -2352,7 +2352,7 @@ struct mlx5_ifc_fte_match_param_bits {
 
 	struct mlx5_ifc_fte_match_set_misc5_bits misc_parameters_5;
 
-	u8         reserved_at_e00[0x200];
+	struct mlx5_ifc_fte_match_set_misc6_bits misc_parameters_6;
 };
 
 enum {
@@ -3859,7 +3859,6 @@ union mlx5_ifc_hca_cap_union_bits {
 	struct mlx5_ifc_flow_table_nic_cap_bits flow_table_nic_cap;
 	struct mlx5_ifc_flow_table_eswitch_cap_bits flow_table_eswitch_cap;
 	struct mlx5_ifc_wqe_based_flow_table_cap_bits wqe_based_flow_table_cap;
-	struct mlx5_ifc_esw_cap_bits esw_cap;
 	struct mlx5_ifc_e_switch_cap_bits e_switch_cap;
 	struct mlx5_ifc_port_selection_cap_bits port_selection_cap;
 	struct mlx5_ifc_qos_cap_bits qos_cap;
@@ -6999,6 +6998,7 @@ enum {
 	MLX5_QUERY_FLOW_GROUP_IN_MATCH_CRITERIA_ENABLE_MISC_PARAMETERS_3 = 0x4,
 	MLX5_QUERY_FLOW_GROUP_IN_MATCH_CRITERIA_ENABLE_MISC_PARAMETERS_4 = 0x5,
 	MLX5_QUERY_FLOW_GROUP_IN_MATCH_CRITERIA_ENABLE_MISC_PARAMETERS_5 = 0x6,
+	MLX5_QUERY_FLOW_GROUP_IN_MATCH_CRITERIA_ENABLE_MISC_PARAMETERS_6 = 0x7,
 };
 
 struct mlx5_ifc_query_flow_group_out_bits {
@@ -7260,6 +7260,7 @@ enum mlx5_reformat_ctx_type {
 	MLX5_REFORMAT_TYPE_REMOVE_HDR = 0x10,
 	MLX5_REFORMAT_TYPE_ADD_MACSEC = 0x11,
 	MLX5_REFORMAT_TYPE_DEL_MACSEC = 0x12,
+	MLX5_REFORMAT_TYPE_REMOVE_PSP_TRANSPORT = 0x16,
 };
 
 struct mlx5_ifc_alloc_packet_reformat_context_in_bits {
@@ -7383,6 +7384,7 @@ enum {
 	MLX5_ACTION_IN_FIELD_OUT_EMD_47_32     = 0x6F,
 	MLX5_ACTION_IN_FIELD_OUT_EMD_31_0      = 0x70,
 	MLX5_ACTION_IN_FIELD_PSP_SYNDROME      = 0x71,
+	MLX5_ACTION_IN_FIELD_PSP_HEADER_1      = 0x78,
 };
 
 struct mlx5_ifc_alloc_modify_header_context_out_bits {

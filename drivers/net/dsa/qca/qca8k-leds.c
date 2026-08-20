@@ -457,6 +457,9 @@ qca8k_setup_led_ctrl(struct qca8k_priv *priv)
 	int ret;
 
 	ports = device_get_named_child_node(priv->dev, "ports");
+	if (!ports)
+		ports = device_get_named_child_node(priv->dev, "ethernet-ports");
+
 	if (!ports) {
 		dev_info(priv->dev, "No ports node specified in device tree!");
 		return 0;

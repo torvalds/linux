@@ -37,82 +37,6 @@
 
 #define MIB_COUNTER_NUM 0x20
 
-struct ksz_stats_raw {
-	u64 rx_hi;
-	u64 rx_undersize;
-	u64 rx_fragments;
-	u64 rx_oversize;
-	u64 rx_jabbers;
-	u64 rx_symbol_err;
-	u64 rx_crc_err;
-	u64 rx_align_err;
-	u64 rx_mac_ctrl;
-	u64 rx_pause;
-	u64 rx_bcast;
-	u64 rx_mcast;
-	u64 rx_ucast;
-	u64 rx_64_or_less;
-	u64 rx_65_127;
-	u64 rx_128_255;
-	u64 rx_256_511;
-	u64 rx_512_1023;
-	u64 rx_1024_1522;
-	u64 rx_1523_2000;
-	u64 rx_2001;
-	u64 tx_hi;
-	u64 tx_late_col;
-	u64 tx_pause;
-	u64 tx_bcast;
-	u64 tx_mcast;
-	u64 tx_ucast;
-	u64 tx_deferred;
-	u64 tx_total_col;
-	u64 tx_exc_col;
-	u64 tx_single_col;
-	u64 tx_mult_col;
-	u64 rx_total;
-	u64 tx_total;
-	u64 rx_discards;
-	u64 tx_discards;
-};
-
-struct ksz88xx_stats_raw {
-	u64 rx;
-	u64 rx_hi;
-	u64 rx_undersize;
-	u64 rx_fragments;
-	u64 rx_oversize;
-	u64 rx_jabbers;
-	u64 rx_symbol_err;
-	u64 rx_crc_err;
-	u64 rx_align_err;
-	u64 rx_mac_ctrl;
-	u64 rx_pause;
-	u64 rx_bcast;
-	u64 rx_mcast;
-	u64 rx_ucast;
-	u64 rx_64_or_less;
-	u64 rx_65_127;
-	u64 rx_128_255;
-	u64 rx_256_511;
-	u64 rx_512_1023;
-	u64 rx_1024_1522;
-	u64 tx;
-	u64 tx_hi;
-	u64 tx_late_col;
-	u64 tx_pause;
-	u64 tx_bcast;
-	u64 tx_mcast;
-	u64 tx_ucast;
-	u64 tx_deferred;
-	u64 tx_total_col;
-	u64 tx_exc_col;
-	u64 tx_single_col;
-	u64 tx_mult_col;
-	u64 rx_discards;
-	u64 tx_discards;
-};
-
 static const struct ksz_mib_names ksz88xx_mib_names[] = {
 	{ 0x00, "rx" },
 	{ 0x01, "rx_hi" },
@@ -189,28 +113,6 @@ static const struct ksz_mib_names ksz9477_mib_names[] = {
 	{ 0x83, "tx_discards" },
 };
 
-struct ksz_driver_strength_prop {
-	const char *name;
-	int offset;
-	int value;
-};
-
-enum ksz_driver_strength_type {
-	KSZ_DRIVER_STRENGTH_HI,
-	KSZ_DRIVER_STRENGTH_LO,
-	KSZ_DRIVER_STRENGTH_IO,
-};
-
-/**
- * struct ksz_drive_strength - drive strength mapping
- * @reg_val:	register value
- * @microamp:	microamp value
- */
-struct ksz_drive_strength {
-	u32 reg_val;
-	u32 microamp;
-};
-
 /* ksz9477_drive_strengths - Drive strength mapping for KSZ9477 variants
  *
  * This values are not documented in KSZ9477 variants but confirmed by
@@ -244,15 +146,6 @@ static const struct ksz_drive_strength ksz9477_drive_strengths[] = {
 	{ SW_DRIVE_STRENGTH_20MA, 20000 },
 	{ SW_DRIVE_STRENGTH_24MA, 24000 },
 	{ SW_DRIVE_STRENGTH_28MA, 28000 },
-};
-
-/* ksz88x3_drive_strengths - Drive strength mapping for KSZ8863, KSZ8873, ..
- *			     variants.
- * This values are documented in KSZ8873 and KSZ8863 datasheets.
- */
-static const struct ksz_drive_strength ksz88x3_drive_strengths[] = {
-	{ 0,  8000 },
-	{ KSZ8873_DRIVE_STRENGTH_16MA, 16000 },
 };
 
 /**
@@ -2013,7 +1906,6 @@ void ksz_r_mib_stats64(struct ksz_device *dev, int port)
 	struct rtnl_link_stats64 *stats;
 	struct ksz_stats_raw *raw;
 	struct ksz_port_mib *mib;
-	int ret;
 
 	mib = &dev->ports[port].mib;
 	stats = &mib->stats64;
@@ -2032,61 +1924,6 @@ void ksz_r_mib_stats64(struct ksz_device *dev, int port)
 	 */
 	stats->rx_bytes = raw->rx_total - stats->rx_packets * ETH_FCS_LEN;
 	stats->tx_bytes = raw->tx_total - stats->tx_packets * ETH_FCS_LEN;
-
-	stats->rx_length_errors = raw->rx_undersize + raw->rx_fragments +
-		raw->rx_oversize;
-
-	stats->rx_crc_errors = raw->rx_crc_err;
-	stats->rx_frame_errors = raw->rx_align_err;
-	stats->rx_dropped = raw->rx_discards;
-	stats->rx_errors = stats->rx_length_errors + stats->rx_crc_errors +
-		stats->rx_frame_errors  + stats->rx_dropped;
-
-	stats->tx_window_errors = raw->tx_late_col;
-	stats->tx_fifo_errors = raw->tx_discards;
-	stats->tx_aborted_errors = raw->tx_exc_col;
-	stats->tx_errors = stats->tx_window_errors + stats->tx_fifo_errors +
-		stats->tx_aborted_errors;
-
-	stats->multicast = raw->rx_mcast;
-	stats->collisions = raw->tx_total_col;
-
-	pstats->tx_pause_frames = raw->tx_pause;
-	pstats->rx_pause_frames = raw->rx_pause;
-
-	spin_unlock(&mib->stats64_lock);
-
-	if (dev->info->phy_errata_9477 && !ksz_is_sgmii_port(dev, port)) {
-		ret = ksz9477_errata_monitor(dev, port, raw->tx_late_col);
-		if (ret)
-			dev_err(dev->dev, "Failed to monitor transmission halt\n");
-	}
-}
-
-void ksz88xx_r_mib_stats64(struct ksz_device *dev, int port)
-{
-	struct ethtool_pause_stats *pstats;
-	struct rtnl_link_stats64 *stats;
-	struct ksz88xx_stats_raw *raw;
-	struct ksz_port_mib *mib;
-
-	mib = &dev->ports[port].mib;
-	stats = &mib->stats64;
-	pstats = &mib->pause_stats;
-	raw = (struct ksz88xx_stats_raw *)mib->counters;
-
-	spin_lock(&mib->stats64_lock);
-
-	stats->rx_packets = raw->rx_bcast + raw->rx_mcast + raw->rx_ucast +
-		raw->rx_pause;
-	stats->tx_packets = raw->tx_bcast + raw->tx_mcast + raw->tx_ucast +
-		raw->tx_pause;
-
-	/* HW counters are counting bytes + FCS which is not acceptable
-	 * for rtnl_link_stats64 interface
-	 */
-	stats->rx_bytes = raw->rx + raw->rx_hi - stats->rx_packets * ETH_FCS_LEN;
-	stats->tx_bytes = raw->tx + raw->tx_hi - stats->tx_packets * ETH_FCS_LEN;
 
 	stats->rx_length_errors = raw->rx_undersize + raw->rx_fragments +
 		raw->rx_oversize;
@@ -2582,14 +2419,14 @@ static void ksz_irq_unmask(struct irq_data *d)
 	kirq->masked &= ~BIT(d->hwirq);
 }
 
-static void ksz_irq_bus_lock(struct irq_data *d)
+void ksz_irq_bus_lock(struct irq_data *d)
 {
 	struct ksz_irq *kirq  = irq_data_get_irq_chip_data(d);
 
 	mutex_lock(&kirq->dev->lock_irq);
 }
 
-static void ksz_irq_bus_sync_unlock(struct irq_data *d)
+void ksz_irq_bus_sync_unlock(struct irq_data *d)
 {
 	struct ksz_irq *kirq  = irq_data_get_irq_chip_data(d);
 	struct ksz_device *dev = kirq->dev;
@@ -2667,14 +2504,15 @@ out:
 	return (nhandled > 0 ? IRQ_HANDLED : IRQ_NONE);
 }
 
-static int ksz_irq_common_setup(struct ksz_device *dev, struct ksz_irq *kirq)
+int ksz_irq_common_setup(struct ksz_device *dev, struct ksz_irq *kirq,
+			 const struct irq_domain_ops *ops)
 {
 	int ret, n;
 
 	kirq->dev = dev;
 
-	kirq->domain = irq_domain_create_simple(dev_fwnode(dev->dev), kirq->nirqs, 0,
-						&ksz_irq_domain_ops, kirq);
+	kirq->domain = irq_domain_create_simple(dev_fwnode(dev->dev),
+						kirq->nirqs, 0, ops, kirq);
 	if (!kirq->domain)
 		return -ENOMEM;
 
@@ -2706,7 +2544,7 @@ int ksz_girq_setup(struct ksz_device *dev)
 
 	girq->irq_num = dev->irq;
 
-	return ksz_irq_common_setup(dev, girq);
+	return ksz_irq_common_setup(dev, girq, &ksz_irq_domain_ops);
 }
 
 int ksz_pirq_setup(struct ksz_device *dev, u8 p)
@@ -2723,7 +2561,7 @@ int ksz_pirq_setup(struct ksz_device *dev, u8 p)
 	if (!pirq->irq_num)
 		return -EINVAL;
 
-	return ksz_irq_common_setup(dev, pirq);
+	return ksz_irq_common_setup(dev, pirq, &ksz_irq_domain_ops);
 }
 
 void ksz_teardown(struct dsa_switch *ds)
@@ -2885,28 +2723,6 @@ void ksz_port_bridge_leave(struct dsa_switch *ds, int port,
 	 */
 }
 
-int ksz9477_set_default_prio_queue_mapping(struct ksz_device *dev, int port)
-{
-	u32 queue_map = 0;
-	int ipm;
-
-	for (ipm = 0; ipm < dev->info->num_ipms; ipm++) {
-		int queue;
-
-		/* Traffic Type (TT) is corresponding to the Internal Priority
-		 * Map (IPM) in the switch. Traffic Class (TC) is
-		 * corresponding to the queue in the switch.
-		 */
-		queue = ieee8021q_tt_to_tc(ipm, dev->info->num_tx_queues);
-		if (queue < 0)
-			return queue;
-
-		queue_map |= queue << (ipm * KSZ9477_PORT_TC_MAP_S);
-	}
-
-	return ksz_pwrite32(dev, port, KSZ9477_PORT_MRI_TC_MAP__4, queue_map);
-}
-
 void ksz_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
 {
 	struct ksz_device *dev = ds->priv;
@@ -2984,40 +2800,6 @@ int ksz_port_bridge_flags(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-int ksz_max_mtu(struct dsa_switch *ds, int port)
-{
-	struct ksz_device *dev = ds->priv;
-
-	switch (dev->chip_id) {
-	case KSZ8795_CHIP_ID:
-	case KSZ8794_CHIP_ID:
-	case KSZ8765_CHIP_ID:
-		return KSZ8795_HUGE_PACKET_SIZE - VLAN_ETH_HLEN - ETH_FCS_LEN;
-	case KSZ8463_CHIP_ID:
-	case KSZ88X3_CHIP_ID:
-	case KSZ8864_CHIP_ID:
-	case KSZ8895_CHIP_ID:
-		return KSZ8863_HUGE_PACKET_SIZE - VLAN_ETH_HLEN - ETH_FCS_LEN;
-	case KSZ8563_CHIP_ID:
-	case KSZ8567_CHIP_ID:
-	case KSZ9477_CHIP_ID:
-	case KSZ9563_CHIP_ID:
-	case KSZ9567_CHIP_ID:
-	case KSZ9893_CHIP_ID:
-	case KSZ9896_CHIP_ID:
-	case KSZ9897_CHIP_ID:
-	case LAN9370_CHIP_ID:
-	case LAN9371_CHIP_ID:
-	case LAN9372_CHIP_ID:
-	case LAN9373_CHIP_ID:
-	case LAN9374_CHIP_ID:
-	case LAN9646_CHIP_ID:
-		return KSZ9477_MAX_FRAME_SIZE - VLAN_ETH_HLEN - ETH_FCS_LEN;
-	}
-
-	return -EOPNOTSUPP;
-}
-
 int ksz_set_mac_eee(struct dsa_switch *ds, int port,
 		    struct ethtool_keee *e)
 {
@@ -3086,39 +2868,6 @@ void ksz_set_xmii(struct ksz_device *dev, int port, phy_interface_t interface)
 	ksz_pwrite8(dev, port, regs[P_XMII_CTRL_1], data8);
 }
 
-phy_interface_t ksz_get_xmii(struct ksz_device *dev, int port, bool gbit)
-{
-	const u8 *bitval = dev->info->xmii_ctrl1;
-	const u16 *regs = dev->info->regs;
-	phy_interface_t interface;
-	u8 data8;
-	u8 val;
-
-	ksz_pread8(dev, port, regs[P_XMII_CTRL_1], &data8);
-
-	val = FIELD_GET(P_MII_SEL_M, data8);
-
-	if (val == bitval[P_MII_SEL]) {
-		if (gbit)
-			interface = PHY_INTERFACE_MODE_GMII;
-		else
-			interface = PHY_INTERFACE_MODE_MII;
-	} else if (val == bitval[P_RMII_SEL]) {
-		interface = PHY_INTERFACE_MODE_RMII;
-	} else {
-		interface = PHY_INTERFACE_MODE_RGMII;
-		if (data8 & P_RGMII_ID_EG_ENABLE)
-			interface = PHY_INTERFACE_MODE_RGMII_TXID;
-		if (data8 & P_RGMII_ID_IG_ENABLE) {
-			interface = PHY_INTERFACE_MODE_RGMII_RXID;
-			if (data8 & P_RGMII_ID_EG_ENABLE)
-				interface = PHY_INTERFACE_MODE_RGMII_ID;
-		}
-	}
-
-	return interface;
-}
-
 bool ksz_phylink_need_config(struct phylink_config *config,
 			     unsigned int mode)
 {
@@ -3152,24 +2901,6 @@ void ksz_phylink_mac_config(struct phylink_config *config,
 
 	if (ksz_phylink_need_config(config, mode))
 		ksz_set_xmii(dev, port, state->interface);
-}
-
-bool ksz_get_gbit(struct ksz_device *dev, int port)
-{
-	const u8 *bitval = dev->info->xmii_ctrl1;
-	const u16 *regs = dev->info->regs;
-	bool gbit = false;
-	u8 data8;
-	bool val;
-
-	ksz_pread8(dev, port, regs[P_XMII_CTRL_1], &data8);
-
-	val = FIELD_GET(P_GMII_1GBIT_M, data8);
-
-	if (val == bitval[P_GMII_1GBIT])
-		gbit = true;
-
-	return gbit;
 }
 
 static int ksz_switch_detect(struct ksz_device *dev)
@@ -3264,7 +2995,7 @@ static int ksz_switch_detect(struct ksz_device *dev)
 			break;
 		default:
 			dev_err(dev->dev,
-				"unsupported switch detected %x)\n", id32);
+				"unsupported switch detected (0x%x)\n", id32);
 			return -ENODEV;
 		}
 	}
@@ -3314,8 +3045,8 @@ static int ksz_setup_tc_mode(struct ksz_device *dev, int port, u8 scheduler,
 			   FIELD_PREP(MTI_SHAPING_M, shaper));
 }
 
-static int ksz_setup_tc_cbs(struct dsa_switch *ds, int port,
-			    struct tc_cbs_qopt_offload *qopt)
+int ksz_setup_tc_cbs(struct dsa_switch *ds, int port,
+		     struct tc_cbs_qopt_offload *qopt)
 {
 	struct ksz_device *dev = ds->priv;
 	int ret;
@@ -3380,112 +3111,14 @@ static int ksz_disable_egress_rate_limit(struct ksz_device *dev, int port)
 	return 0;
 }
 
-static int ksz_ets_band_to_queue(struct tc_ets_qopt_offload_replace_params *p,
-				 int band)
+int ksz_ets_band_to_queue(struct tc_ets_qopt_offload_replace_params *p,
+			  int band)
 {
 	/* Compared to queues, bands prioritize packets differently. In strict
 	 * priority mode, the lowest priority is assigned to Queue 0 while the
 	 * highest priority is given to Band 0.
 	 */
 	return p->bands - 1 - band;
-}
-
-static u8 ksz8463_tc_ctrl(int port, int queue)
-{
-	u8 reg;
-
-	reg = 0xC8 + port * 4;
-	reg += ((3 - queue) / 2) * 2;
-	reg++;
-	reg -= (queue & 1);
-	return reg;
-}
-
-/**
- * ksz88x3_tc_ets_add - Configure ETS (Enhanced Transmission Selection)
- *                      for a port on KSZ88x3 switch
- * @dev: Pointer to the KSZ switch device structure
- * @port: Port number to configure
- * @p: Pointer to offload replace parameters describing ETS bands and mapping
- *
- * The KSZ88x3 supports two scheduling modes: Strict Priority and
- * Weighted Fair Queuing (WFQ). Both modes have fixed behavior:
- *   - No configurable queue-to-priority mapping
- *   - No weight adjustment in WFQ mode
- *
- * This function configures the switch to use strict priority mode by
- * clearing the WFQ enable bit for all queues associated with ETS bands.
- * If strict priority is not explicitly requested, the switch will default
- * to WFQ mode.
- *
- * Return: 0 on success, or a negative error code on failure
- */
-static int ksz88x3_tc_ets_add(struct ksz_device *dev, int port,
-			      struct tc_ets_qopt_offload_replace_params *p)
-{
-	int ret, band;
-
-	/* Only strict priority mode is supported for now.
-	 * WFQ is implicitly enabled when strict mode is disabled.
-	 */
-	for (band = 0; band < p->bands; band++) {
-		int queue = ksz_ets_band_to_queue(p, band);
-		u8 reg;
-
-		/* Calculate TXQ Split Control register address for this
-		 * port/queue
-		 */
-		reg = KSZ8873_TXQ_SPLIT_CTRL_REG(port, queue);
-		if (ksz_is_ksz8463(dev))
-			reg = ksz8463_tc_ctrl(port, queue);
-
-		/* Clear WFQ enable bit to select strict priority scheduling */
-		ret = ksz_rmw8(dev, reg, KSZ8873_TXQ_WFQ_ENABLE, 0);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
-/**
- * ksz88x3_tc_ets_del - Reset ETS (Enhanced Transmission Selection) config
- *                      for a port on KSZ88x3 switch
- * @dev: Pointer to the KSZ switch device structure
- * @port: Port number to reset
- *
- * The KSZ88x3 supports only fixed scheduling modes: Strict Priority or
- * Weighted Fair Queuing (WFQ), with no reconfiguration of weights or
- * queue mapping. This function resets the port’s scheduling mode to
- * the default, which is WFQ, by enabling the WFQ bit for all queues.
- *
- * Return: 0 on success, or a negative error code on failure
- */
-static int ksz88x3_tc_ets_del(struct ksz_device *dev, int port)
-{
-	int ret, queue;
-
-	/* Iterate over all transmit queues for this port */
-	for (queue = 0; queue < dev->info->num_tx_queues; queue++) {
-		u8 reg;
-
-		/* Calculate TXQ Split Control register address for this
-		 * port/queue
-		 */
-		reg = KSZ8873_TXQ_SPLIT_CTRL_REG(port, queue);
-		if (ksz_is_ksz8463(dev))
-			reg = ksz8463_tc_ctrl(port, queue);
-
-		/* Set WFQ enable bit to revert back to default scheduling
-		 * mode
-		 */
-		ret = ksz_rmw8(dev, reg, KSZ8873_TXQ_WFQ_ENABLE,
-			       KSZ8873_TXQ_WFQ_ENABLE);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
 }
 
 static int ksz_queue_set_strict(struct ksz_device *dev, int port, int queue)
@@ -3580,8 +3213,8 @@ static int ksz_tc_ets_del(struct ksz_device *dev, int port)
 	return ksz9477_set_default_prio_queue_mapping(dev, port);
 }
 
-static int ksz_tc_ets_validate(struct ksz_device *dev, int port,
-			       struct tc_ets_qopt_offload_replace_params *p)
+int ksz_tc_ets_validate(struct ksz_device *dev, int port,
+			struct tc_ets_qopt_offload_replace_params *p)
 {
 	int band;
 
@@ -3622,9 +3255,6 @@ static int ksz_tc_setup_qdisc_ets(struct dsa_switch *ds, int port,
 	struct ksz_device *dev = ds->priv;
 	int ret;
 
-	if (is_ksz8(dev) && !(ksz_is_ksz88x3(dev) || ksz_is_ksz8463(dev)))
-		return -EOPNOTSUPP;
-
 	if (qopt->parent != TC_H_ROOT) {
 		dev_err(dev->dev, "Parent should be \"root\"\n");
 		return -EOPNOTSUPP;
@@ -3636,16 +3266,9 @@ static int ksz_tc_setup_qdisc_ets(struct dsa_switch *ds, int port,
 		if (ret)
 			return ret;
 
-		if (ksz_is_ksz88x3(dev) || ksz_is_ksz8463(dev))
-			return ksz88x3_tc_ets_add(dev, port,
-						  &qopt->replace_params);
-		else
-			return ksz_tc_ets_add(dev, port, &qopt->replace_params);
+		return ksz_tc_ets_add(dev, port, &qopt->replace_params);
 	case TC_ETS_DESTROY:
-		if (ksz_is_ksz88x3(dev) || ksz_is_ksz8463(dev))
-			return ksz88x3_tc_ets_del(dev, port);
-		else
-			return ksz_tc_ets_del(dev, port);
+		return ksz_tc_ets_del(dev, port);
 	case TC_ETS_STATS:
 	case TC_ETS_GRAFT:
 		return -EOPNOTSUPP;
@@ -3702,6 +3325,34 @@ int ksz_handle_wake_reason(struct ksz_device *dev, int port)
 
 	return ops->pme_pwrite8(dev, port, regs[REG_PORT_PME_STATUS],
 				pme_status);
+}
+
+/**
+ * ksz_is_port_mac_global_usable - Check if the MAC address on a given port
+ *                                 can be used as a global address.
+ * @ds: Pointer to the DSA switch structure.
+ * @port: The port number on which the MAC address is to be checked.
+ *
+ * This function examines the MAC address set on the specified port and
+ * determines if it can be used as a global address for the switch.
+ *
+ * Return: true if the port's MAC address can be used as a global address, false
+ * otherwise.
+ */
+static bool ksz_is_port_mac_global_usable(struct dsa_switch *ds, int port)
+{
+	struct net_device *user = dsa_to_port(ds, port)->user;
+	const unsigned char *addr = user->dev_addr;
+	struct ksz_switch_macaddr *switch_macaddr;
+	struct ksz_device *dev = ds->priv;
+
+	ASSERT_RTNL();
+
+	switch_macaddr = dev->switch_macaddr;
+	if (switch_macaddr && !ether_addr_equal(switch_macaddr->addr, addr))
+		return false;
+
+	return true;
 }
 
 /**
@@ -3895,34 +3546,6 @@ int ksz_port_set_mac_address(struct dsa_switch *ds, int port,
 	}
 
 	return 0;
-}
-
-/**
- * ksz_is_port_mac_global_usable - Check if the MAC address on a given port
- *                                 can be used as a global address.
- * @ds: Pointer to the DSA switch structure.
- * @port: The port number on which the MAC address is to be checked.
- *
- * This function examines the MAC address set on the specified port and
- * determines if it can be used as a global address for the switch.
- *
- * Return: true if the port's MAC address can be used as a global address, false
- * otherwise.
- */
-bool ksz_is_port_mac_global_usable(struct dsa_switch *ds, int port)
-{
-	struct net_device *user = dsa_to_port(ds, port)->user;
-	const unsigned char *addr = user->dev_addr;
-	struct ksz_switch_macaddr *switch_macaddr;
-	struct ksz_device *dev = ds->priv;
-
-	ASSERT_RTNL();
-
-	switch_macaddr = dev->switch_macaddr;
-	if (switch_macaddr && !ether_addr_equal(switch_macaddr->addr, addr))
-		return false;
-
-	return true;
 }
 
 /**
@@ -4132,8 +3755,8 @@ static void ksz_parse_rgmii_delay(struct ksz_device *dev, int port_num,
  * Returns: If found, the corresponding register value for that drive strength
  * is returned. Otherwise, -EINVAL is returned indicating an invalid value.
  */
-static int ksz_drive_strength_to_reg(const struct ksz_drive_strength *array,
-				     size_t array_size, int microamp)
+int ksz_drive_strength_to_reg(const struct ksz_drive_strength *array,
+			      size_t array_size, int microamp)
 {
 	int i;
 
@@ -4156,9 +3779,9 @@ static int ksz_drive_strength_to_reg(const struct ksz_drive_strength *array,
  * is detected. It lists out all the supported drive strength values for
  * reference in the error message.
  */
-static void ksz_drive_strength_error(struct ksz_device *dev,
-				     const struct ksz_drive_strength *array,
-				     size_t array_size, int microamp)
+void ksz_drive_strength_error(struct ksz_device *dev,
+			      const struct ksz_drive_strength *array,
+			      size_t array_size, int microamp)
 {
 	char supported_values[100];
 	size_t remaining_size;
@@ -4185,8 +3808,8 @@ static void ksz_drive_strength_error(struct ksz_device *dev,
 }
 
 /**
- * ksz9477_drive_strength_write() - Set the drive strength for specific KSZ9477
- *				    chip variants.
+ * ksz_drive_strength_write() - Set the drive strength for specific KSZ9477
+ *				and the KSZ87xx chip variants.
  * @dev:       ksz device
  * @props:     Array of drive strength properties to be applied
  * @num_props: Number of properties in the array
@@ -4197,9 +3820,9 @@ static void ksz_drive_strength_error(struct ksz_device *dev,
  *
  * Return: 0 on successful configuration, a negative error code on failure.
  */
-static int ksz9477_drive_strength_write(struct ksz_device *dev,
-					struct ksz_driver_strength_prop *props,
-					int num_props)
+int ksz_drive_strength_write(struct ksz_device *dev,
+			     struct ksz_driver_strength_prop *props,
+			     int num_props)
 {
 	size_t array_size = ARRAY_SIZE(ksz9477_drive_strengths);
 	int i, ret, reg;
@@ -4234,130 +3857,6 @@ static int ksz9477_drive_strength_write(struct ksz_device *dev,
 	}
 
 	return ksz_rmw8(dev, reg, mask, val);
-}
-
-/**
- * ksz88x3_drive_strength_write() - Set the drive strength configuration for
- *				    KSZ8863 compatible chip variants.
- * @dev:       ksz device
- * @props:     Array of drive strength properties to be set
- * @num_props: Number of properties in the array
- *
- * This function applies the specified drive strength settings to KSZ88X3 chip
- * variants (KSZ8873, KSZ8863).
- * It ensures the configurations align with what the chip variant supports and
- * warns or errors out on unsupported settings.
- *
- * Return: 0 on success, error code otherwise
- */
-static int ksz88x3_drive_strength_write(struct ksz_device *dev,
-					struct ksz_driver_strength_prop *props,
-					int num_props)
-{
-	size_t array_size = ARRAY_SIZE(ksz88x3_drive_strengths);
-	int microamp;
-	int i, ret;
-
-	for (i = 0; i < num_props; i++) {
-		if (props[i].value == -1 || i == KSZ_DRIVER_STRENGTH_IO)
-			continue;
-
-		dev_warn(dev->dev, "%s is not supported by this chip variant\n",
-			 props[i].name);
-	}
-
-	microamp = props[KSZ_DRIVER_STRENGTH_IO].value;
-	ret = ksz_drive_strength_to_reg(ksz88x3_drive_strengths, array_size,
-					microamp);
-	if (ret < 0) {
-		ksz_drive_strength_error(dev, ksz88x3_drive_strengths,
-					 array_size, microamp);
-		return ret;
-	}
-
-	return ksz_rmw8(dev, KSZ8873_REG_GLOBAL_CTRL_12,
-			KSZ8873_DRIVE_STRENGTH_16MA, ret);
-}
-
-/**
- * ksz_parse_drive_strength() - Extract and apply drive strength configurations
- *				from device tree properties.
- * @dev:	ksz device
- *
- * This function reads the specified drive strength properties from the
- * device tree, validates against the supported chip variants, and sets
- * them accordingly. An error should be critical here, as the drive strength
- * settings are crucial for EMI compliance.
- *
- * Return: 0 on success, error code otherwise
- */
-int ksz_parse_drive_strength(struct ksz_device *dev)
-{
-	struct ksz_driver_strength_prop of_props[] = {
-		[KSZ_DRIVER_STRENGTH_HI] = {
-			.name = "microchip,hi-drive-strength-microamp",
-			.offset = SW_HI_SPEED_DRIVE_STRENGTH_S,
-			.value = -1,
-		},
-		[KSZ_DRIVER_STRENGTH_LO] = {
-			.name = "microchip,lo-drive-strength-microamp",
-			.offset = SW_LO_SPEED_DRIVE_STRENGTH_S,
-			.value = -1,
-		},
-		[KSZ_DRIVER_STRENGTH_IO] = {
-			.name = "microchip,io-drive-strength-microamp",
-			.offset = 0, /* don't care */
-			.value = -1,
-		},
-	};
-	struct device_node *np = dev->dev->of_node;
-	bool have_any_prop = false;
-	int i, ret;
-
-	for (i = 0; i < ARRAY_SIZE(of_props); i++) {
-		ret = of_property_read_u32(np, of_props[i].name,
-					   &of_props[i].value);
-		if (ret && ret != -EINVAL)
-			dev_warn(dev->dev, "Failed to read %s\n",
-				 of_props[i].name);
-		if (ret)
-			continue;
-
-		have_any_prop = true;
-	}
-
-	if (!have_any_prop)
-		return 0;
-
-	switch (dev->chip_id) {
-	case KSZ88X3_CHIP_ID:
-		return ksz88x3_drive_strength_write(dev, of_props,
-						    ARRAY_SIZE(of_props));
-	case KSZ8795_CHIP_ID:
-	case KSZ8794_CHIP_ID:
-	case KSZ8765_CHIP_ID:
-	case KSZ8563_CHIP_ID:
-	case KSZ8567_CHIP_ID:
-	case KSZ9477_CHIP_ID:
-	case KSZ9563_CHIP_ID:
-	case KSZ9567_CHIP_ID:
-	case KSZ9893_CHIP_ID:
-	case KSZ9896_CHIP_ID:
-	case KSZ9897_CHIP_ID:
-	case LAN9646_CHIP_ID:
-		return ksz9477_drive_strength_write(dev, of_props,
-						    ARRAY_SIZE(of_props));
-	default:
-		for (i = 0; i < ARRAY_SIZE(of_props); i++) {
-			if (of_props[i].value == -1)
-				continue;
-
-			dev_warn(dev->dev, "%s is not supported by this chip variant\n",
-				 of_props[i].name);
-		}
-	}
-
-	return 0;
 }
 
 static int ksz8463_configure_straps_spi(struct ksz_device *dev)

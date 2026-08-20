@@ -1659,3 +1659,63 @@ int dpsw_if_remove_reflection(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 
 	return mc_send_command(mc_io, &cmd);
 }
+
+/**
+ * dpsw_lag_set() - Set LAG configuration
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPSW object
+ * @cfg:	pointer to LAG configuration
+ *
+ * Return:   '0' on Success; Error code otherwise.
+ */
+int dpsw_lag_set(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+		 const struct dpsw_lag_cfg *cfg)
+{
+	struct fsl_mc_command cmd = { 0 };
+	struct dpsw_cmd_lag *cmd_params;
+	int i = 0;
+
+	cmd.header = mc_encode_cmd_header(DPSW_CMDID_SET_LAG, cmd_flags, token);
+
+	if (cfg->num_ifs > DPSW_MAX_LAG_IFS)
+		return -EOPNOTSUPP;
+
+	cmd_params = (struct dpsw_cmd_lag *)cmd.params;
+	cmd_params->group_id = cfg->group_id;
+	cmd_params->num_ifs = cfg->num_ifs;
+	cmd_params->phase = cfg->phase;
+
+	for (i = 0; i < cfg->num_ifs; i++)
+		cmd_params->if_id[i] = cfg->if_id[i];
+
+	return mc_send_command(mc_io, &cmd);
+}
+
+/**
+ * dpsw_if_set_lag_state() - Change per port LAG state
+ * @mc_io:      Pointer to MC portal's I/O object
+ * @cmd_flags:  Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:      Token of DPSW object
+ * @if_id:      ID of the switch interface
+ * @tx_enabled: Value of the per port LAG state
+ *     - 0 if the interface will not be active as part of the LAG group
+ *     - 1 if the interface will be active in the LAG group
+ *
+ * Return:   '0' on Success; Error code otherwise.
+ */
+int dpsw_if_set_lag_state(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			  u16 if_id, u8 tx_enabled)
+{
+	struct dpsw_cmd_if_set_lag_state *cmd_params;
+	struct fsl_mc_command cmd = { 0 };
+
+	cmd.header = mc_encode_cmd_header(DPSW_CMDID_IF_SET_LAG_STATE,
+					  cmd_flags, token);
+
+	cmd_params = (struct dpsw_cmd_if_set_lag_state *)cmd.params;
+	cmd_params->if_id = cpu_to_le16(if_id);
+	cmd_params->tx_enabled = tx_enabled;
+
+	return mc_send_command(mc_io, &cmd);
+}

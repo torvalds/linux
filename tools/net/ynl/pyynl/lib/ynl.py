@@ -661,6 +661,14 @@ class YnlFamily(SpecFamily):
     """
     YNL family -- a Netlink interface built from a YAML spec.
 
+    The spec can be selected either by file path (def_path=) or, when it
+    ships in a well-known location, by family name (family="xyz"); exactly
+    one of the two must be given. For example:
+
+      from pyynl import YnlFamily
+
+      ynl = YnlFamily(family="netdev")
+
     Primary use of the class is to execute Netlink commands:
 
       ynl.<op_name>(attrs, ...)
@@ -691,11 +699,16 @@ class YnlFamily(SpecFamily):
 
       ynl.get_policy(op_name, mode)      -- query kernel policy for an op
     """
-    def __init__(self, def_path, schema=None, process_unknown=False,
-                 recv_size=0):
-        super().__init__(def_path, schema)
+    def __init__(self, def_path=None, schema=None, process_unknown=None,
+                 recv_size=0, family=None):
+        super().__init__(def_path, schema, family=family)
 
         self.include_raw = False
+        # Specs from /usr (selected by family=) have a higher chance of being
+        # stale, default to ignoring unknown attrs. In-tree users, and users
+        # who bundle the spec need to make a conscious decision.
+        if process_unknown is None:
+            process_unknown = family is not None
         self.process_unknown = process_unknown
 
         try:

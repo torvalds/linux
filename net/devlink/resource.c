@@ -117,7 +117,7 @@ devlink_resource_validate_size(struct devlink_resource *resource, u64 size,
 
 int devlink_nl_resource_set_doit(struct sk_buff *skb, struct genl_info *info)
 {
-	struct devlink *devlink = info->user_ptr[0];
+	struct devlink *devlink = devlink_nl_ctx(info)->devlink;
 	struct devlink_resource *resource;
 	u64 resource_id;
 	u64 size;
@@ -251,8 +251,9 @@ static int devlink_resource_list_fill(struct sk_buff *skb,
 static int devlink_resource_fill(struct genl_info *info,
 				 enum devlink_command cmd, int flags)
 {
-	struct devlink_port *devlink_port = info->user_ptr[1];
-	struct devlink *devlink = info->user_ptr[0];
+	struct devlink_nl_ctx *ctx = devlink_nl_ctx(info);
+	struct devlink *devlink = ctx->devlink;
+	struct devlink_port *devlink_port;
 	struct devlink_resource *resource;
 	struct list_head *resource_list;
 	struct nlattr *resources_attr;
@@ -263,6 +264,7 @@ static int devlink_resource_fill(struct genl_info *info,
 	int i;
 	int err;
 
+	devlink_port = ctx->devlink_port;
 	resource_list = devlink_port ?
 		&devlink_port->resource_list : &devlink->resource_list;
 	resource = list_first_entry(resource_list,
@@ -326,10 +328,12 @@ err_resource_put:
 
 int devlink_nl_resource_dump_doit(struct sk_buff *skb, struct genl_info *info)
 {
-	struct devlink_port *devlink_port = info->user_ptr[1];
-	struct devlink *devlink = info->user_ptr[0];
+	struct devlink_nl_ctx *ctx = devlink_nl_ctx(info);
+	struct devlink *devlink = ctx->devlink;
+	struct devlink_port *devlink_port;
 	struct list_head *resource_list;
 
+	devlink_port = ctx->devlink_port;
 	if (info->attrs[DEVLINK_ATTR_PORT_INDEX] && !devlink_port)
 		return -ENODEV;
 

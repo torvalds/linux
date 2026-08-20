@@ -30,13 +30,53 @@ devlink_rate_leaf_get_from_info(struct devlink *devlink, struct genl_info *info)
 	return devlink_rate ?: ERR_PTR(-ENODEV);
 }
 
+/* Repeatedly walks the nested devlink chain while cross device rate nodes are
+ * supported and finds the topmost instance where rates should be stored.
+ * That instance is locked, referenced and returned.
+ * When cross device rate nodes aren't supported the original devlink instance
+ * is returned.
+ */
+static struct devlink *devl_rate_lock(struct devlink *devlink)
+{
+	struct devlink *rate_devlink = devlink, *parent;
+
+	devl_assert_locked(devlink);
+
+	while (rate_devlink->ops &&
+	       rate_devlink->ops->supported_cross_device_rate_nodes) {
+		parent = devlink_nested_in_get_lock(rate_devlink);
+		if (!parent)
+			break;
+		if (rate_devlink != devlink) {
+			/* Unlock intermediate instances. */
+			devl_unlock(rate_devlink);
+			devlink_put(rate_devlink);
+		}
+		rate_devlink = parent;
+	}
+	return rate_devlink;
+}
+
+/* Unlocks and puts 'rate devlink' if different than 'devlink'. */
+static void devl_rate_unlock(struct devlink *devlink,
+			     struct devlink *rate_devlink)
+{
+	if (devlink == rate_devlink)
+		return;
+
+	devl_unlock(rate_devlink);
+	devlink_put(rate_devlink);
+}
+
 static struct devlink_rate *
-devlink_rate_node_get_by_name(struct devlink *devlink, const char *node_name)
+devlink_rate_node_get_by_name(struct devlink *rate_devlink,
+			      struct devlink *devlink, const char *node_name)
 {
 	struct devlink_rate *devlink_rate;
 
-	list_for_each_entry(devlink_rate, &devlink->rate_list, list) {
-		if (devlink_rate_is_node(devlink_rate) &&
+	list_for_each_entry(devlink_rate, &rate_devlink->rate_list, list) {
+		if (devlink_rate->devlink == devlink &&
+		    devlink_rate_is_node(devlink_rate) &&
 		    !strcmp(node_name, devlink_rate->name))
 			return devlink_rate;
 	}
@@ -44,7 +84,8 @@ devlink_rate_node_get_by_name(struct devlink *devlink, const char *node_name)
 }
 
 static struct devlink_rate *
-devlink_rate_node_get_from_attrs(struct devlink *devlink, struct nlattr **attrs)
+devlink_rate_node_get_from_attrs(struct devlink *rate_devlink,
+				 struct devlink *devlink, struct nlattr **attrs)
 {
 	const char *rate_node_name;
 	size_t len;
@@ -57,24 +98,30 @@ devlink_rate_node_get_from_attrs(struct devlink *devlink, struct nlattr **attrs)
 	if (!len || strspn(rate_node_name, "0123456789") == len)
 		return ERR_PTR(-EINVAL);
 
-	return devlink_rate_node_get_by_name(devlink, rate_node_name);
+	return devlink_rate_node_get_by_name(rate_devlink, devlink,
+					     rate_node_name);
 }
 
 static struct devlink_rate *
-devlink_rate_node_get_from_info(struct devlink *devlink, struct genl_info *info)
+devlink_rate_node_get_from_info(struct devlink *rate_devlink,
+				struct devlink *devlink,
+				struct genl_info *info)
 {
-	return devlink_rate_node_get_from_attrs(devlink, info->attrs);
+	return devlink_rate_node_get_from_attrs(rate_devlink, devlink,
+						info->attrs);
 }
 
 static struct devlink_rate *
-devlink_rate_get_from_info(struct devlink *devlink, struct genl_info *info)
+devlink_rate_get_from_info(struct devlink *rate_devlink,
+			   struct devlink *devlink, struct genl_info *info)
 {
 	struct nlattr **attrs = info->attrs;
 
 	if (attrs[DEVLINK_ATTR_PORT_INDEX])
 		return devlink_rate_leaf_get_from_info(devlink, info);
 	else if (attrs[DEVLINK_ATTR_RATE_NODE_NAME])
-		return devlink_rate_node_get_from_info(devlink, info);
+		return devlink_rate_node_get_from_info(rate_devlink, devlink,
+						       info);
 	else
 		return ERR_PTR(-EINVAL);
 }
@@ -100,6 +147,25 @@ static int devlink_rate_put_tc_bws(struct sk_buff *msg, u32 *tc_bw)
 nla_put_failure:
 	nla_nest_cancel(msg, nla_tc_bw);
 	return -EMSGSIZE;
+}
+
+static int devlink_nl_rate_parent_fill(struct sk_buff *msg,
+				       struct devlink_rate *devlink_rate)
+{
+	struct devlink_rate *parent = devlink_rate->parent;
+	struct devlink *devlink = parent->devlink;
+
+	if (nla_put_string(msg, DEVLINK_ATTR_RATE_PARENT_NODE_NAME,
+			   parent->name))
+		return -EMSGSIZE;
+
+	if (devlink != devlink_rate->devlink &&
+	    devlink_nl_put_nested_handle(msg,
+					 devlink_net(devlink_rate->devlink),
+					 devlink, DEVLINK_ATTR_PARENT_DEV))
+		return -EMSGSIZE;
+
+	return 0;
 }
 
 static int devlink_nl_rate_fill(struct sk_buff *msg,
@@ -146,10 +212,9 @@ static int devlink_nl_rate_fill(struct sk_buff *msg,
 			devlink_rate->tx_weight))
 		goto nla_put_failure;
 
-	if (devlink_rate->parent)
-		if (nla_put_string(msg, DEVLINK_ATTR_RATE_PARENT_NODE_NAME,
-				   devlink_rate->parent->name))
-			goto nla_put_failure;
+	if (devlink_rate->parent &&
+	    devlink_nl_rate_parent_fill(msg, devlink_rate))
+		goto nla_put_failure;
 
 	if (devlink_rate_put_tc_bws(msg, devlink_rate->tc_bw))
 		goto nla_put_failure;
@@ -190,17 +255,25 @@ static void devlink_rate_notify(struct devlink_rate *devlink_rate,
 void devlink_rates_notify_register(struct devlink *devlink)
 {
 	struct devlink_rate *rate_node;
+	struct devlink *rate_devlink;
 
-	list_for_each_entry(rate_node, &devlink->rate_list, list)
-		devlink_rate_notify(rate_node, DEVLINK_CMD_RATE_NEW);
+	rate_devlink = devl_rate_lock(devlink);
+	list_for_each_entry(rate_node, &rate_devlink->rate_list, list)
+		if (rate_node->devlink == devlink)
+			devlink_rate_notify(rate_node, DEVLINK_CMD_RATE_NEW);
+	devl_rate_unlock(devlink, rate_devlink);
 }
 
 void devlink_rates_notify_unregister(struct devlink *devlink)
 {
 	struct devlink_rate *rate_node;
+	struct devlink *rate_devlink;
 
-	list_for_each_entry_reverse(rate_node, &devlink->rate_list, list)
-		devlink_rate_notify(rate_node, DEVLINK_CMD_RATE_DEL);
+	rate_devlink = devl_rate_lock(devlink);
+	list_for_each_entry_reverse(rate_node, &rate_devlink->rate_list, list)
+		if (rate_node->devlink == devlink)
+			devlink_rate_notify(rate_node, DEVLINK_CMD_RATE_DEL);
+	devl_rate_unlock(devlink, rate_devlink);
 }
 
 static int
@@ -209,17 +282,20 @@ devlink_nl_rate_get_dump_one(struct sk_buff *msg, struct devlink *devlink,
 {
 	struct devlink_nl_dump_state *state = devlink_dump_state(cb);
 	struct devlink_rate *devlink_rate;
+	struct devlink *rate_devlink;
 	int idx = 0;
 	int err = 0;
 
-	list_for_each_entry(devlink_rate, &devlink->rate_list, list) {
+	rate_devlink = devl_rate_lock(devlink);
+	list_for_each_entry(devlink_rate, &rate_devlink->rate_list, list) {
 		enum devlink_command cmd = DEVLINK_CMD_RATE_NEW;
 		u32 id = NETLINK_CB(cb->skb).portid;
 
-		if (idx < state->idx) {
+		if (idx < state->idx || devlink_rate->devlink != devlink) {
 			idx++;
 			continue;
 		}
+
 		err = devlink_nl_rate_fill(msg, devlink_rate, cmd, id,
 					   cb->nlh->nlmsg_seq, flags, NULL);
 		if (err) {
@@ -228,6 +304,7 @@ devlink_nl_rate_get_dump_one(struct sk_buff *msg, struct devlink *devlink,
 		}
 		idx++;
 	}
+	devl_rate_unlock(devlink, rate_devlink);
 
 	return err;
 }
@@ -239,28 +316,38 @@ int devlink_nl_rate_get_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 
 int devlink_nl_rate_get_doit(struct sk_buff *skb, struct genl_info *info)
 {
-	struct devlink *devlink = info->user_ptr[0];
+	struct devlink *rate_devlink, *devlink = devlink_nl_ctx(info)->devlink;
 	struct devlink_rate *devlink_rate;
 	struct sk_buff *msg;
 	int err;
 
-	devlink_rate = devlink_rate_get_from_info(devlink, info);
-	if (IS_ERR(devlink_rate))
-		return PTR_ERR(devlink_rate);
+	rate_devlink = devl_rate_lock(devlink);
+	devlink_rate = devlink_rate_get_from_info(rate_devlink, devlink, info);
+	if (IS_ERR(devlink_rate)) {
+		err = PTR_ERR(devlink_rate);
+		goto unlock;
+	}
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
-	if (!msg)
-		return -ENOMEM;
+	if (!msg) {
+		err = -ENOMEM;
+		goto unlock;
+	}
 
 	err = devlink_nl_rate_fill(msg, devlink_rate, DEVLINK_CMD_RATE_NEW,
 				   info->snd_portid, info->snd_seq, 0,
 				   info->extack);
-	if (err) {
-		nlmsg_free(msg);
-		return err;
-	}
+	if (err)
+		goto err_fill;
 
+	devl_rate_unlock(devlink, rate_devlink);
 	return genlmsg_reply(msg, info);
+
+err_fill:
+	nlmsg_free(msg);
+unlock:
+	devl_rate_unlock(devlink, rate_devlink);
+	return err;
 }
 
 static bool
@@ -277,16 +364,18 @@ devlink_rate_is_parent_node(struct devlink_rate *devlink_rate,
 
 static int
 devlink_nl_rate_parent_node_set(struct devlink_rate *devlink_rate,
+				struct devlink *rate_devlink,
 				struct genl_info *info,
 				struct nlattr *nla_parent)
 {
-	struct devlink *devlink = devlink_rate->devlink;
+	struct devlink *devlink = devlink_rate->devlink, *parent_devlink;
 	const char *parent_name = nla_data(nla_parent);
 	const struct devlink_ops *ops = devlink->ops;
 	size_t len = strlen(parent_name);
 	struct devlink_rate *parent;
 	int err = -EOPNOTSUPP;
 
+	parent_devlink = devlink_nl_ctx(info)->parent_devlink ? : devlink;
 	parent = devlink_rate->parent;
 
 	if (parent && !len) {
@@ -304,7 +393,14 @@ devlink_nl_rate_parent_node_set(struct devlink_rate *devlink_rate,
 		refcount_dec(&parent->refcnt);
 		devlink_rate->parent = NULL;
 	} else if (len) {
-		parent = devlink_rate_node_get_by_name(devlink, parent_name);
+		/* parent_devlink (when different than devlink) isn't locked,
+		 * but the rate node devlink instance is, so nobody from the
+		 * same group of devices sharing rates could change the used
+		 * fields or unregister the parent.
+		 */
+		parent = devlink_rate_node_get_by_name(rate_devlink,
+						       parent_devlink,
+						       parent_name);
 		if (IS_ERR(parent))
 			return -ENODEV;
 
@@ -423,6 +519,7 @@ static int devlink_nl_rate_tc_bw_set(struct devlink_rate *devlink_rate,
 }
 
 static int devlink_nl_rate_set(struct devlink_rate *devlink_rate,
+			       struct devlink *rate_devlink,
 			       const struct devlink_ops *ops,
 			       struct genl_info *info)
 {
@@ -497,7 +594,8 @@ static int devlink_nl_rate_set(struct devlink_rate *devlink_rate,
 	 */
 	nla_parent = attrs[DEVLINK_ATTR_RATE_PARENT_NODE_NAME];
 	if (nla_parent) {
-		err = devlink_nl_rate_parent_node_set(devlink_rate, info,
+		err = devlink_nl_rate_parent_node_set(devlink_rate,
+						      rate_devlink, info,
 						      nla_parent);
 		if (err)
 			return err;
@@ -588,31 +686,51 @@ static bool devlink_rate_set_ops_supported(const struct devlink_ops *ops,
 
 int devlink_nl_rate_set_doit(struct sk_buff *skb, struct genl_info *info)
 {
-	struct devlink *devlink = info->user_ptr[0];
+	struct devlink_nl_ctx *ctx = devlink_nl_ctx(info);
+	struct devlink *devlink = ctx->devlink;
 	struct devlink_rate *devlink_rate;
 	const struct devlink_ops *ops;
+	struct devlink *rate_devlink;
 	int err;
 
-	devlink_rate = devlink_rate_get_from_info(devlink, info);
-	if (IS_ERR(devlink_rate))
-		return PTR_ERR(devlink_rate);
+	rate_devlink = devl_rate_lock(devlink);
+	devlink_rate = devlink_rate_get_from_info(rate_devlink, devlink, info);
+	if (IS_ERR(devlink_rate)) {
+		err = PTR_ERR(devlink_rate);
+		goto unlock;
+	}
 
 	ops = devlink->ops;
-	if (!ops || !devlink_rate_set_ops_supported(ops, info, devlink_rate->type))
-		return -EOPNOTSUPP;
+	if (!ops ||
+	    !devlink_rate_set_ops_supported(ops, info, devlink_rate->type)) {
+		err = -EOPNOTSUPP;
+		goto unlock;
+	}
 
-	err = devlink_nl_rate_set(devlink_rate, ops, info);
+	if (ctx->parent_devlink && ctx->parent_devlink != devlink &&
+	    !ops->supported_cross_device_rate_nodes) {
+		NL_SET_ERR_MSG(info->extack,
+			       "Cross-device rate parents aren't supported");
+		err = -EOPNOTSUPP;
+		goto unlock;
+	}
+
+	err = devlink_nl_rate_set(devlink_rate, rate_devlink, ops, info);
 
 	if (!err)
 		devlink_rate_notify(devlink_rate, DEVLINK_CMD_RATE_NEW);
+unlock:
+	devl_rate_unlock(devlink, rate_devlink);
 	return err;
 }
 
 int devlink_nl_rate_new_doit(struct sk_buff *skb, struct genl_info *info)
 {
-	struct devlink *devlink = info->user_ptr[0];
+	struct devlink_nl_ctx *ctx = devlink_nl_ctx(info);
+	struct devlink *devlink = ctx->devlink;
 	struct devlink_rate *rate_node;
 	const struct devlink_ops *ops;
+	struct devlink *rate_devlink;
 	int err;
 
 	ops = devlink->ops;
@@ -624,15 +742,29 @@ int devlink_nl_rate_new_doit(struct sk_buff *skb, struct genl_info *info)
 	if (!devlink_rate_set_ops_supported(ops, info, DEVLINK_RATE_TYPE_NODE))
 		return -EOPNOTSUPP;
 
-	rate_node = devlink_rate_node_get_from_attrs(devlink, info->attrs);
-	if (!IS_ERR(rate_node))
-		return -EEXIST;
-	else if (rate_node == ERR_PTR(-EINVAL))
-		return -EINVAL;
+	if (ctx->parent_devlink && ctx->parent_devlink != devlink &&
+	    !ops->supported_cross_device_rate_nodes) {
+		NL_SET_ERR_MSG(info->extack,
+			       "Cross-device rate parents aren't supported");
+		return -EOPNOTSUPP;
+	}
+
+	rate_devlink = devl_rate_lock(devlink);
+	rate_node = devlink_rate_node_get_from_attrs(rate_devlink, devlink,
+						     info->attrs);
+	if (!IS_ERR(rate_node)) {
+		err = -EEXIST;
+		goto unlock;
+	} else if (rate_node == ERR_PTR(-EINVAL)) {
+		err = -EINVAL;
+		goto unlock;
+	}
 
 	rate_node = kzalloc_obj(*rate_node);
-	if (!rate_node)
-		return -ENOMEM;
+	if (!rate_node) {
+		err = -ENOMEM;
+		goto unlock;
+	}
 
 	rate_node->devlink = devlink;
 	rate_node->type = DEVLINK_RATE_TYPE_NODE;
@@ -646,13 +778,14 @@ int devlink_nl_rate_new_doit(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		goto err_node_new;
 
-	err = devlink_nl_rate_set(rate_node, ops, info);
+	err = devlink_nl_rate_set(rate_node, rate_devlink, ops, info);
 	if (err)
 		goto err_rate_set;
 
 	refcount_set(&rate_node->refcnt, 1);
-	list_add(&rate_node->list, &devlink->rate_list);
+	list_add(&rate_node->list, &rate_devlink->rate_list);
 	devlink_rate_notify(rate_node, DEVLINK_CMD_RATE_NEW);
+	devl_rate_unlock(devlink, rate_devlink);
 	return 0;
 
 err_rate_set:
@@ -661,22 +794,29 @@ err_node_new:
 	kfree(rate_node->name);
 err_strdup:
 	kfree(rate_node);
+unlock:
+	devl_rate_unlock(devlink, rate_devlink);
 	return err;
 }
 
 int devlink_nl_rate_del_doit(struct sk_buff *skb, struct genl_info *info)
 {
-	struct devlink *devlink = info->user_ptr[0];
+	struct devlink *rate_devlink, *devlink = devlink_nl_ctx(info)->devlink;
 	struct devlink_rate *rate_node;
 	int err;
 
-	rate_node = devlink_rate_node_get_from_info(devlink, info);
-	if (IS_ERR(rate_node))
-		return PTR_ERR(rate_node);
+	rate_devlink = devl_rate_lock(devlink);
+	rate_node = devlink_rate_node_get_from_info(rate_devlink, devlink,
+						    info);
+	if (IS_ERR(rate_node)) {
+		err = PTR_ERR(rate_node);
+		goto unlock;
+	}
 
 	if (refcount_read(&rate_node->refcnt) > 1) {
 		NL_SET_ERR_MSG(info->extack, "Node has children. Cannot delete node.");
-		return -EBUSY;
+		err = -EBUSY;
+		goto unlock;
 	}
 
 	devlink_rate_notify(rate_node, DEVLINK_CMD_RATE_DEL);
@@ -687,6 +827,8 @@ int devlink_nl_rate_del_doit(struct sk_buff *skb, struct genl_info *info)
 	list_del(&rate_node->list);
 	kfree(rate_node->name);
 	kfree(rate_node);
+unlock:
+	devl_rate_unlock(devlink, rate_devlink);
 	return err;
 }
 
@@ -695,14 +837,20 @@ int devlink_rates_check(struct devlink *devlink,
 			struct netlink_ext_ack *extack)
 {
 	struct devlink_rate *devlink_rate;
+	struct devlink *rate_devlink;
+	int err = 0;
 
-	list_for_each_entry(devlink_rate, &devlink->rate_list, list)
-		if (!rate_filter || rate_filter(devlink_rate)) {
+	rate_devlink = devl_rate_lock(devlink);
+	list_for_each_entry(devlink_rate, &rate_devlink->rate_list, list)
+		if (devlink_rate->devlink == devlink &&
+		    (!rate_filter || rate_filter(devlink_rate))) {
 			if (extack)
 				NL_SET_ERR_MSG(extack, "Rate node(s) exists.");
-			return -EBUSY;
+			err = -EBUSY;
+			break;
 		}
-	return 0;
+	devl_rate_unlock(devlink, rate_devlink);
+	return err;
 }
 
 /**
@@ -719,14 +867,21 @@ devl_rate_node_create(struct devlink *devlink, void *priv, char *node_name,
 		      struct devlink_rate *parent)
 {
 	struct devlink_rate *rate_node;
+	struct devlink *rate_devlink;
 
-	rate_node = devlink_rate_node_get_by_name(devlink, node_name);
-	if (!IS_ERR(rate_node))
-		return ERR_PTR(-EEXIST);
+	rate_devlink = devl_rate_lock(devlink);
+	rate_node = devlink_rate_node_get_by_name(rate_devlink, devlink,
+						  node_name);
+	if (!IS_ERR(rate_node)) {
+		rate_node = ERR_PTR(-EEXIST);
+		goto unlock;
+	}
 
 	rate_node = kzalloc_obj(*rate_node);
-	if (!rate_node)
-		return ERR_PTR(-ENOMEM);
+	if (!rate_node) {
+		rate_node = ERR_PTR(-ENOMEM);
+		goto unlock;
+	}
 
 	rate_node->type = DEVLINK_RATE_TYPE_NODE;
 	rate_node->devlink = devlink;
@@ -735,7 +890,8 @@ devl_rate_node_create(struct devlink *devlink, void *priv, char *node_name,
 	rate_node->name = kstrdup(node_name, GFP_KERNEL);
 	if (!rate_node->name) {
 		kfree(rate_node);
-		return ERR_PTR(-ENOMEM);
+		rate_node = ERR_PTR(-ENOMEM);
+		goto unlock;
 	}
 
 	if (parent) {
@@ -744,8 +900,10 @@ devl_rate_node_create(struct devlink *devlink, void *priv, char *node_name,
 	}
 
 	refcount_set(&rate_node->refcnt, 1);
-	list_add(&rate_node->list, &devlink->rate_list);
+	list_add(&rate_node->list, &rate_devlink->rate_list);
 	devlink_rate_notify(rate_node, DEVLINK_CMD_RATE_NEW);
+unlock:
+	devl_rate_unlock(devlink, rate_devlink);
 	return rate_node;
 }
 EXPORT_SYMBOL_GPL(devl_rate_node_create);
@@ -761,10 +919,10 @@ EXPORT_SYMBOL_GPL(devl_rate_node_create);
 int devl_rate_leaf_create(struct devlink_port *devlink_port, void *priv,
 			  struct devlink_rate *parent)
 {
-	struct devlink *devlink = devlink_port->devlink;
+	struct devlink *rate_devlink, *devlink = devlink_port->devlink;
 	struct devlink_rate *devlink_rate;
 
-	devl_assert_locked(devlink_port->devlink);
+	devl_assert_locked(devlink);
 
 	if (WARN_ON(devlink_port->devlink_rate))
 		return -EBUSY;
@@ -773,6 +931,7 @@ int devl_rate_leaf_create(struct devlink_port *devlink_port, void *priv,
 	if (!devlink_rate)
 		return -ENOMEM;
 
+	rate_devlink = devl_rate_lock(devlink);
 	if (parent) {
 		devlink_rate->parent = parent;
 		refcount_inc(&devlink_rate->parent->refcnt);
@@ -782,9 +941,10 @@ int devl_rate_leaf_create(struct devlink_port *devlink_port, void *priv,
 	devlink_rate->devlink = devlink;
 	devlink_rate->devlink_port = devlink_port;
 	devlink_rate->priv = priv;
-	list_add_tail(&devlink_rate->list, &devlink->rate_list);
+	list_add_tail(&devlink_rate->list, &rate_devlink->rate_list);
 	devlink_port->devlink_rate = devlink_rate;
 	devlink_rate_notify(devlink_rate, DEVLINK_CMD_RATE_NEW);
+	devl_rate_unlock(devlink, rate_devlink);
 
 	return 0;
 }
@@ -800,16 +960,19 @@ EXPORT_SYMBOL_GPL(devl_rate_leaf_create);
 void devl_rate_leaf_destroy(struct devlink_port *devlink_port)
 {
 	struct devlink_rate *devlink_rate = devlink_port->devlink_rate;
+	struct devlink *rate_devlink, *devlink = devlink_port->devlink;
 
-	devl_assert_locked(devlink_port->devlink);
+	devl_assert_locked(devlink);
 	if (!devlink_rate)
 		return;
 
+	rate_devlink = devl_rate_lock(devlink);
 	devlink_rate_notify(devlink_rate, DEVLINK_CMD_RATE_DEL);
 	if (devlink_rate->parent)
 		refcount_dec(&devlink_rate->parent->refcnt);
 	list_del(&devlink_rate->list);
 	devlink_port->devlink_rate = NULL;
+	devl_rate_unlock(devlink, rate_devlink);
 	kfree(devlink_rate);
 }
 EXPORT_SYMBOL_GPL(devl_rate_leaf_destroy);
@@ -818,20 +981,30 @@ EXPORT_SYMBOL_GPL(devl_rate_leaf_destroy);
  * devl_rate_nodes_destroy - destroy all devlink rate nodes on device
  * @devlink: devlink instance
  *
- * Unset parent for all rate objects and destroy all rate nodes
- * on specified device.
+ * Unset parent for all rate objects involving this device and destroy all rate
+ * nodes on it.
  */
 void devl_rate_nodes_destroy(struct devlink *devlink)
 {
-	const struct devlink_ops *ops = devlink->ops;
 	struct devlink_rate *devlink_rate, *tmp;
+	const struct devlink_ops *ops;
+	struct devlink *rate_devlink;
 
 	devl_assert_locked(devlink);
+	rate_devlink = devl_rate_lock(devlink);
 
-	list_for_each_entry(devlink_rate, &devlink->rate_list, list) {
-		if (!devlink_rate->parent)
+	list_for_each_entry(devlink_rate, &rate_devlink->rate_list, list) {
+		if (!devlink_rate->parent ||
+		    (devlink_rate->devlink != devlink &&
+		     devlink_rate->parent->devlink != devlink))
 			continue;
 
+		/* This could destroy rate objects on other devlinks in the
+		 * same hierarchy under 'rate_devlink'. This is safe because
+		 * the shared common ancestor is locked so there can be no
+		 * other concurrent rate operations on devlink_rate->devlink.
+		 */
+		ops = devlink_rate->devlink->ops;
 		if (devlink_rate_is_leaf(devlink_rate))
 			ops->rate_leaf_parent_set(devlink_rate, NULL, devlink_rate->priv,
 						  NULL, NULL);
@@ -842,13 +1015,17 @@ void devl_rate_nodes_destroy(struct devlink *devlink)
 		refcount_dec(&devlink_rate->parent->refcnt);
 		devlink_rate->parent = NULL;
 	}
-	list_for_each_entry_safe(devlink_rate, tmp, &devlink->rate_list, list) {
-		if (devlink_rate_is_node(devlink_rate)) {
+	ops = devlink->ops;
+	list_for_each_entry_safe(devlink_rate, tmp, &rate_devlink->rate_list,
+				 list) {
+		if (devlink_rate->devlink == devlink &&
+		    devlink_rate_is_node(devlink_rate)) {
 			ops->rate_node_del(devlink_rate, devlink_rate->priv, NULL);
 			list_del(&devlink_rate->list);
 			kfree(devlink_rate->name);
 			kfree(devlink_rate);
 		}
 	}
+	devl_rate_unlock(devlink, rate_devlink);
 }
 EXPORT_SYMBOL_GPL(devl_rate_nodes_destroy);

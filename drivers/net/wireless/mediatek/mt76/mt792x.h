@@ -23,17 +23,19 @@
 #define MT792x_CFEND_RATE_11B		0x03	/* 11B LP, 11M */
 
 #define MT792x_FW_TAG_FEATURE	4
+#define MT792x_FW_CAP_NAN	BIT(5)
 #define MT792x_FW_CAP_CNM	BIT(7)
 
 #define MT792x_CHIP_CAP_CLC_EVT_EN BIT(0)
 #define MT792x_CHIP_CAP_RSSI_NOTIFY_EVT_EN BIT(1)
 #define MT792x_CHIP_CAP_WF_RF_PIN_CTRL_EVT_EN BIT(3)
 #define MT792x_CHIP_CAP_11D_EN BIT(4)
+#define MT792x_CHIP_CAP_REGD_EN BIT(5)
 #define MT792x_CHIP_CAP_MLO_EN BIT(8)
 #define MT792x_CHIP_CAP_MLO_EML_EN BIT(9)
 
 /* NOTE: used to map mt76_rates. idx may change if firmware expands table */
-#define MT792x_BASIC_RATES_TBL	11
+#define MT792x_BASIC_RATES_TBL	14
 
 #define MT792x_WATCHDOG_TIME	(HZ / 4)
 
@@ -47,6 +49,7 @@
 #define MT7922_FIRMWARE_WM	"mediatek/WIFI_RAM_CODE_MT7922_1.bin"
 #define MT7925_FIRMWARE_WM	"mediatek/mt7925/WIFI_RAM_CODE_MT7925_1_1.bin"
 #define MT7927_FIRMWARE_WM	"mediatek/mt7927/WIFI_RAM_CODE_MT6639_2_1.bin"
+#define MT7928_FIRMWARE_WM	"mediatek/mt7928/WIFI_RAM_CODE_MT7935_1_1.bin"
 
 #define MT7902_ROM_PATCH	"mediatek/WIFI_MT7902_patch_mcu_1_1_hdr.bin"
 #define MT7920_ROM_PATCH	"mediatek/WIFI_MT7961_patch_mcu_1a_2_hdr.bin"
@@ -54,6 +57,10 @@
 #define MT7922_ROM_PATCH	"mediatek/WIFI_MT7922_patch_mcu_1_1_hdr.bin"
 #define MT7925_ROM_PATCH	"mediatek/mt7925/WIFI_MT7925_PATCH_MCU_1_1_hdr.bin"
 #define MT7927_ROM_PATCH	"mediatek/mt7927/WIFI_MT6639_PATCH_MCU_2_1_hdr.bin"
+#define MT7928_ROM_PATCH	"mediatek/mt7928/WIFI_MT7935_PATCH_MCU_1_1_hdr.bin"
+
+#define MT7928_CB_ROM_PATCH	"mediatek/mt7928/CBMCU_CODE_MT7935_1_1.bin"
+#define MT7928_PHY_RAM		"mediatek/mt7928/WIFI_MT7935_PHY_RAM_CODE_1_1.bin"
 
 #define MT792x_SDIO_HDR_TX_BYTES	GENMASK(15, 0)
 #define MT792x_SDIO_HDR_PKT_TYPE	GENMASK(17, 16)
@@ -77,6 +84,7 @@ enum {
 	MT792x_CLC_POWER,
 	MT792x_CLC_POWER_EXT,
 	MT792x_CLC_BE_CTRL,
+	MT792x_CLC_REGD,
 	MT792x_CLC_MAX_NUM,
 };
 
@@ -115,6 +123,20 @@ struct mt792x_link_sta {
 	struct ieee80211_link_sta *pri_link;
 };
 
+struct mt792x_sta_nan_sched {
+	/* protects NAN peer schedule state */
+	u16 committed_dw;
+	u32 sch_idx;
+	bool idx_assigned;
+	unsigned long ndp_ctx_bitmap;
+	bool ndp_ctx_assigned;
+	u8 ndp_ctx_id;		/* assigned NDP context ID (for NDI sta) */
+	struct {
+		u8 map_id;
+		struct cfg80211_chan_def chans[CFG80211_NAN_SCHED_NUM_TIME_SLOTS];
+	} maps[CFG80211_NAN_MAX_PEER_MAPS];
+};
+
 struct mt792x_sta {
 	struct mt792x_link_sta deflink; /* must be first */
 	struct mt792x_link_sta __rcu *link[IEEE80211_MLD_MAX_NUM_LINKS];
@@ -123,6 +145,9 @@ struct mt792x_sta {
 
 	u16 valid_links;
 	u8 deflink_id;
+
+	/* NAN peer schedule */
+	struct mt792x_sta_nan_sched nan_sched;
 };
 
 DECLARE_EWMA(rssi, 10, 8);
@@ -139,6 +164,25 @@ struct mt792x_bss_conf {
 	unsigned int link_id;
 };
 
+struct mt792x_nan_conf {
+	u8 master_pref;
+	u8 bands;
+	u8 cluster_id[ETH_ALEN];
+	u32 discovery_beacon_interval;
+	bool enable_dw_notification;
+};
+
+struct mt792x_nan {
+	struct mt792x_nan_conf conf;
+
+	/* Scheduler */
+	struct cfg80211_chan_def local_sched[CFG80211_NAN_SCHED_NUM_TIME_SLOTS];
+	u32 seq_id;
+
+	/* Connection index bitmap, up to NAN_MAX_CONN_CFG peers */
+	unsigned long conn_bitmap;
+};
+
 struct mt792x_vif {
 	struct mt792x_bss_conf bss_conf; /* must be first */
 	struct mt792x_bss_conf __rcu *link_conf[IEEE80211_MLD_MAX_NUM_LINKS];
@@ -153,6 +197,8 @@ struct mt792x_vif {
 
 	struct work_struct csa_work;
 	struct timer_list csa_timer;
+
+	struct mt792x_nan nan;
 };
 
 struct mt792x_phy {
@@ -200,6 +246,7 @@ struct mt792x_irq_map {
 		u32 mcu_complete_mask;
 	} tx;
 	struct {
+		u32 all_complete_mask;
 		u32 data_complete_mask;
 		u32 wm_complete_mask;
 		u32 wm2_complete_mask;
@@ -216,6 +263,7 @@ struct mt792x_dma_layout {
 	struct mt792x_dma_ring tx_data0;
 	struct mt792x_dma_ring tx_mcu;
 	struct mt792x_dma_ring tx_fwdl;
+	struct mt792x_dma_ring tx_done;
 	struct mt792x_dma_ring rx_data;
 	struct mt792x_dma_ring rx_mcu;
 };
@@ -235,6 +283,11 @@ struct mt792x_hif_ops {
 	int (*mcu_init)(struct mt792x_dev *dev);
 	int (*drv_own)(struct mt792x_dev *dev);
 	int (*fw_own)(struct mt792x_dev *dev);
+};
+
+struct mt792x_pcie_reg {
+	u32 imask;
+	u32 pm;
 };
 
 struct mt792x_dev {
@@ -259,6 +312,7 @@ struct mt792x_dev {
 	bool hif_idle:1;
 	bool hif_resumed:1;
 	bool regd_change:1;
+	bool skip_wpdma_reinit:1;
 	wait_queue_head_t wait;
 
 	struct work_struct init_work;
@@ -272,6 +326,7 @@ struct mt792x_dev {
 	struct mt76_connac_coredump coredump;
 	const struct mt792x_hif_ops *hif_ops;
 	const struct mt792x_irq_map *irq_map;
+	const struct mt792x_pcie_reg *pcie_reg;
 
 	struct work_struct ipv6_ns_work;
 	struct delayed_work mlo_pm_work;
@@ -283,6 +338,10 @@ struct mt792x_dev {
 	u32 backup_l2;
 
 	struct ieee80211_chanctx_conf *new_ctx;
+
+	struct ieee80211_vif *nan_vif;
+	const struct ieee80211_iface_combination *iface_combinations;
+	int n_iface_combinations;
 };
 
 static inline struct mt792x_bss_conf *
@@ -486,6 +545,8 @@ static inline char *mt792x_ram_name(struct mt792x_dev *dev)
 		return MT7925_FIRMWARE_WM;
 	case 0x7927:
 		return MT7927_FIRMWARE_WM;
+	case 0x7928:
+		return MT7928_FIRMWARE_WM;
 	default:
 		return MT7921_FIRMWARE_WM;
 	}
@@ -504,8 +565,30 @@ static inline char *mt792x_patch_name(struct mt792x_dev *dev)
 		return MT7925_ROM_PATCH;
 	case 0x7927:
 		return MT7927_ROM_PATCH;
+	case 0x7928:
+		return MT7928_ROM_PATCH;
 	default:
 		return MT7921_ROM_PATCH;
+	}
+}
+
+static inline char *mt792x_cb_patch_name(struct mt792x_dev *dev)
+{
+	switch (mt76_chip(&dev->mt76)) {
+	case 0x7928:
+		return MT7928_CB_ROM_PATCH;
+	default:
+		return NULL;
+	}
+}
+
+static inline char *mt792x_phy_ram_name(struct mt792x_dev *dev)
+{
+	switch (mt76_chip(&dev->mt76)) {
+	case 0x7928:
+		return MT7928_PHY_RAM;
+	default:
+		return NULL;
 	}
 }
 

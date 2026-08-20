@@ -244,13 +244,33 @@ enum ovs_vport_cmd {
 	OVS_VPORT_CMD_SET
 };
 
+/**
+ * enum ovs_vport_type - OVS vport types for %OVS_VPORT_ATTR_TYPE.
+ * @OVS_VPORT_TYPE_NETDEV: Existing network device attached as a vport.
+ * @OVS_VPORT_TYPE_INTERNAL: Network device implemented by the OVS datapath.
+ * @OVS_VPORT_TYPE_GRE: Legacy GRE tunnel.  Not supported, see below.
+ * @OVS_VPORT_TYPE_VXLAN: Legacy VXLAN tunnel.  Not supported, see below.
+ * @OVS_VPORT_TYPE_GENEVE: Legacy Geneve tunnel.  Not supported, see below.
+ *
+ * The tunnel vport types are not supported.  Instead, create the tunnel device
+ * using %RTM_NEWLINK with the appropriate %IFLA_INFO_KIND (e.g. ``gre``,
+ * ``gretap``, ``vxlan``, ``geneve``, or other tunnel types) and add it as
+ * %OVS_VPORT_TYPE_NETDEV.  To match and set tunnel parameters on a per-flow
+ * basis, the tunnel device should collect metadata.  To do that, some tunnel
+ * types require an explicit flag such as %IFLA_VXLAN_COLLECT_METADATA for
+ * ``vxlan``, while others such as ``bareudp`` collect metadata
+ * unconditionally.
+ */
 enum ovs_vport_type {
+	/* private: */
 	OVS_VPORT_TYPE_UNSPEC,
+	/* public: */
 	OVS_VPORT_TYPE_NETDEV,   /* network device */
 	OVS_VPORT_TYPE_INTERNAL, /* network device implemented by datapath */
-	OVS_VPORT_TYPE_GRE,      /* GRE tunnel. */
-	OVS_VPORT_TYPE_VXLAN,	 /* VXLAN tunnel. */
-	OVS_VPORT_TYPE_GENEVE,	 /* Geneve tunnel. */
+	OVS_VPORT_TYPE_GRE,      /* GRE tunnel (legacy, not supported). */
+	OVS_VPORT_TYPE_VXLAN,	 /* VXLAN tunnel (legacy, not supported). */
+	OVS_VPORT_TYPE_GENEVE,	 /* Geneve tunnel (legacy, not supported). */
+	/* private: */
 	__OVS_VPORT_TYPE_MAX
 };
 
@@ -284,7 +304,7 @@ enum ovs_vport_type {
  * %OVS_VPORT_ATTR_NAME attributes are required.  %OVS_VPORT_ATTR_PORT_NO is
  * optional; if not specified a free port number is automatically selected.
  * Whether %OVS_VPORT_ATTR_OPTIONS is required or optional depends on the type
- * of vport.
+ * of vport.  None of currently supported vport types support options.
  *
  * For other requests, if %OVS_VPORT_ATTR_NAME is specified then it is used to
  * look up the vport to operate on; otherwise dp_idx from the &struct
@@ -336,7 +356,8 @@ enum {
 #define OVS_VXLAN_EXT_MAX (__OVS_VXLAN_EXT_MAX - 1)
 
 
-/* OVS_VPORT_ATTR_OPTIONS attributes for tunnels.
+/* OVS_VPORT_ATTR_OPTIONS attributes for legacy tunnel vports.
+ * Not supported, see the note for enum ovs_vport_type.
  */
 enum {
 	OVS_TUNNEL_ATTR_UNSPEC,

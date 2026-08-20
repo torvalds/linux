@@ -13,6 +13,26 @@
 #include "mld.h"
 #include "hcmd.h"
 
+static ssize_t iwl_mld_get_lari_config_cmd_size(u8 cmd_ver)
+{
+	switch (cmd_ver) {
+	case 15:
+		return sizeof(struct iwl_lari_config_change_cmd);
+	case 14:
+		return offsetof(struct iwl_lari_config_change_cmd,
+				oem_supported_dsm_bitmap);
+	case 13:
+		return offsetof(struct iwl_lari_config_change_cmd,
+				oem_uhb_allow_extension_bitmap);
+	case 12:
+		return offsetof(struct iwl_lari_config_change_cmd,
+				oem_11bn_allow_bitmap);
+	default:
+		WARN(true, "unsupported version: %d", cmd_ver);
+		return -EINVAL;
+	}
+}
+
 void iwl_mld_get_bios_tables(struct iwl_mld *mld)
 {
 	int ret;
@@ -67,6 +87,9 @@ void iwl_mld_get_bios_tables(struct iwl_mld *mld)
 	iwl_uefi_get_uneb_table(mld->trans, &mld->fwrt);
 
 	iwl_bios_get_phy_filters(&mld->fwrt);
+
+	iwl_uefi_get_sgom_table(mld->trans, &mld->fwrt);
+	iwl_uefi_get_puncturing(&mld->fwrt);
 }
 
 static int iwl_mld_geo_sar_init(struct iwl_mld *mld)
@@ -325,10 +348,22 @@ void iwl_mld_configure_lari(struct iwl_mld *mld)
 	struct iwl_lari_config_change_cmd cmd = {
 		.config_bitmap = iwl_mld_get_lari_config_bitmap(fwrt),
 	};
-	bool has_raw_dsm_capa = fw_has_capa(&fwrt->fw->ucode_capa,
-					    IWL_UCODE_TLV_CAPA_FW_ACCEPTS_RAW_DSM_TABLE);
+	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mld->fw,
+					   WIDE_ID(REGULATORY_AND_NVM_GROUP,
+						   LARI_CONFIG_CHANGE), 12);
+	/*
+	 * For LARI_CONFIG_CHANGE command version 13 and above, firmware accepts
+	 * raw DSM values by default and this TLV is no longer needed.
+	 */
+	bool has_raw_dsm_capa = cmd_ver >= 13 ||
+		fw_has_capa(&fwrt->fw->ucode_capa,
+			    IWL_UCODE_TLV_CAPA_FW_ACCEPTS_RAW_DSM_TABLE);
+	ssize_t cmd_len = iwl_mld_get_lari_config_cmd_size(cmd_ver);
 	int ret;
 	u32 value;
+
+	if (cmd_len < 0)
+		return;
 
 	ret = iwl_bios_get_dsm(fwrt, DSM_FUNC_11AX_ENABLEMENT, &value);
 	if (!ret) {
@@ -371,8 +406,11 @@ void iwl_mld_configure_lari(struct iwl_mld *mld)
 	}
 
 	ret = iwl_bios_get_wbem(fwrt, &value);
-	if (!ret)
+	if (!ret) {
 		cmd.oem_320mhz_allow_bitmap = cpu_to_le32(value);
+		cmd.bios_wbem_hdr.table_source = fwrt->wbem_source;
+		cmd.bios_wbem_hdr.table_revision = fwrt->wbem_revision;
+	}
 
 	ret = iwl_bios_get_dsm(fwrt, DSM_FUNC_ENABLE_11BE, &value);
 	if (!ret)
@@ -386,8 +424,21 @@ void iwl_mld_configure_lari(struct iwl_mld *mld)
 	if (!ret)
 		cmd.oem_unii9_enable = cpu_to_le32(value);
 
+	ret = iwl_bios_get_dsm(fwrt, DSM_FUNC_REGULATORY_CONFIG, &value);
+	if (!ret)
+		cmd.oem_uhb_allow_extension_bitmap = cpu_to_le32(value);
+
+	ret = iwl_bios_get_dsm(fwrt, DSM_FUNC_QUERY, &value);
+	if (!ret)
+		cmd.oem_supported_dsm_bitmap = cpu_to_le32(value);
+
+	cmd.bios_wcpe_hdr.table_source = fwrt->puncturing_source;
+	cmd.bios_wcpe_hdr.table_revision = fwrt->puncturing_revision;
+	cmd.wcpe_bitmap = cpu_to_le32(fwrt->bios_puncturing);
+
 	if (!cmd.config_bitmap &&
 	    !cmd.oem_uhb_allow_bitmap &&
+	    !cmd.oem_uhb_allow_extension_bitmap &&
 	    !cmd.oem_11ax_allow_bitmap &&
 	    !cmd.oem_unii4_allow_bitmap &&
 	    !cmd.chan_state_active_bitmap &&
@@ -396,7 +447,9 @@ void iwl_mld_configure_lari(struct iwl_mld *mld)
 	    !cmd.oem_320mhz_allow_bitmap &&
 	    !cmd.oem_11be_allow_bitmap &&
 	    !cmd.oem_11bn_allow_bitmap &&
-	    !cmd.oem_unii9_enable)
+	    !cmd.oem_unii9_enable &&
+	    !cmd.wcpe_bitmap &&
+	    !cmd.oem_supported_dsm_bitmap)
 		return;
 
 	cmd.bios_hdr.table_source = fwrt->dsm_source;
@@ -415,6 +468,9 @@ void iwl_mld_configure_lari(struct iwl_mld *mld)
 			le32_to_cpu(cmd.oem_uhb_allow_bitmap),
 			le32_to_cpu(cmd.force_disable_channels_bitmap));
 	IWL_DEBUG_RADIO(mld,
+			"sending LARI_CONFIG_CHANGE, oem_uhb_allow_extension_bitmap=0x%x\n",
+			le32_to_cpu(cmd.oem_uhb_allow_extension_bitmap));
+	IWL_DEBUG_RADIO(mld,
 			"sending LARI_CONFIG_CHANGE, edt_bitmap=0x%x, oem_320mhz_allow_bitmap=0x%x\n",
 			le32_to_cpu(cmd.edt_bitmap),
 			le32_to_cpu(cmd.oem_320mhz_allow_bitmap));
@@ -427,22 +483,16 @@ void iwl_mld_configure_lari(struct iwl_mld *mld)
 	IWL_DEBUG_RADIO(mld,
 			"sending LARI_CONFIG_CHANGE, oem_unii9_enable=0x%x\n",
 			le32_to_cpu(cmd.oem_unii9_enable));
+	IWL_DEBUG_RADIO(mld,
+			"sending LARI_CONFIG_CHANGE, wcpe_bitmap=0x%x\n",
+			le32_to_cpu(cmd.wcpe_bitmap));
+	IWL_DEBUG_RADIO(mld,
+			"sending LARI_CONFIG_CHANGE, oem_supported_dsm_bitmap=0x%x\n",
+			le32_to_cpu(cmd.oem_supported_dsm_bitmap));
 
-	if (iwl_fw_lookup_cmd_ver(mld->fw,
-				  WIDE_ID(REGULATORY_AND_NVM_GROUP,
-					  LARI_CONFIG_CHANGE), 12) == 12) {
-		int cmd_size = offsetof(typeof(cmd), oem_11bn_allow_bitmap);
-
-		ret = iwl_mld_send_cmd_pdu(mld,
-					   WIDE_ID(REGULATORY_AND_NVM_GROUP,
-						   LARI_CONFIG_CHANGE),
-					   &cmd, cmd_size);
-	} else {
-		ret = iwl_mld_send_cmd_pdu(mld,
-					   WIDE_ID(REGULATORY_AND_NVM_GROUP,
-						   LARI_CONFIG_CHANGE),
-					   &cmd);
-	}
+	ret = iwl_mld_send_cmd_pdu(mld,
+				   WIDE_ID(REGULATORY_AND_NVM_GROUP,
+					   LARI_CONFIG_CHANGE), &cmd, cmd_len);
 	if (ret)
 		IWL_DEBUG_RADIO(mld,
 				"Failed to send LARI_CONFIG_CHANGE (%d)\n",
@@ -488,6 +538,8 @@ void iwl_mld_init_ap_type_tables(struct iwl_mld *mld)
 	if (ret)
 		IWL_ERR(mld, "failed to send MCC_ALLOWED_AP_TYPE_CMD (%d)\n",
 			ret);
+	else
+		IWL_DEBUG_RADIO(mld, "MCC_ALLOWED_AP_TYPE_CMD sent to FW\n");
 }
 
 void iwl_mld_init_tas(struct iwl_mld *mld)

@@ -62,7 +62,7 @@ static int prepare_skb_header(struct sk_buff *skb, struct wg_device *wg)
 		 * to have UDP fields.
 		 */
 		return -EINVAL;
-	data_len = ntohs(udp->len);
+	data_len = udp_get_len_short(udp);
 	if (unlikely(data_len < sizeof(struct udphdr) ||
 		     data_len > skb->len - data_offset))
 		/* UDP packet is reporting too small of a size or lying about

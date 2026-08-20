@@ -2534,7 +2534,7 @@ exit:
 
 static int cfg80211_rtw_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 				struct cfg80211_mgmt_tx_params *params,
-				u64 *cookie)
+				u64 cookie)
 {
 	struct net_device *ndev = wdev_to_ndev(wdev);
 	struct ieee80211_channel *chan = params->chan;
@@ -2556,11 +2556,8 @@ static int cfg80211_rtw_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 
 	padapter = rtw_netdev_priv(ndev);
 
-	/* cookie generation */
-	*cookie = (unsigned long)buf;
-
 	/* indicate ack before issue frame to avoid racing with rsp frame */
-	rtw_cfg80211_mgmt_tx_status(padapter, *cookie, buf, len, ack, GFP_KERNEL);
+	rtw_cfg80211_mgmt_tx_status(padapter, cookie, buf, len, ack, GFP_KERNEL);
 
 	if (!rtw_action_frame_parse(buf, len, &category, &action))
 		goto exit;

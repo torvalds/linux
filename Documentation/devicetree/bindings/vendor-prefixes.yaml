@@ -461,6 +461,8 @@ patternProperties:
     description: Dongwoon Anatech
   "^dptechnics,.*":
     description: DPTechnics
+  "^dptel,.*":
+    description: Guangdong Dapu Telecom Co., Ltd.
   "^dragino,.*":
     description: Dragino Technology Co., Limited
   "^dream,.*":

@@ -181,6 +181,7 @@ static void ops_exit_rtnl_list(const struct list_head *ops_list,
 				ops->exit_rtnl(net, &dev_kill_list);
 		}
 
+		unregister_netdevice_queue_many_net(net, &dev_kill_list);
 		__rtnl_net_unlock(net);
 	}
 
@@ -422,6 +423,9 @@ static __net_init int preinit_net(struct net *net, struct user_namespace *user_n
 #ifdef CONFIG_DEBUG_NET_SMALL_RTNL
 	mutex_init(&net->rtnl_mutex);
 	lock_set_cmp_fn(&net->rtnl_mutex, rtnl_net_lock_cmp_fn, NULL);
+	INIT_WORK(&net->rtnl_work, rtnl_net_work_func);
+	INIT_LIST_HEAD(&net->dev_unreg_head);
+	spin_lock_init(&net->dev_unreg_lock);
 #endif
 
 	INIT_LIST_HEAD(&net->ptype_all);

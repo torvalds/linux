@@ -101,6 +101,7 @@ static void batadv_v_ogm_start_queue_timer(struct batadv_hard_iface *hard_iface)
 static void batadv_v_ogm_start_timer(struct batadv_priv *bat_priv)
 {
 	unsigned long msecs;
+
 	/* this function may be invoked in different contexts (ogm rescheduling
 	 * or hard_iface activation), but the work timer should not be reset
 	 */
@@ -115,14 +116,14 @@ static void batadv_v_ogm_start_timer(struct batadv_priv *bat_priv)
 
 /**
  * batadv_v_ogm_send_to_if() - send a batman ogm using a given interface
- * @bat_priv: the bat priv with all the mesh interface information
  * @skb: the OGM to send
  * @hard_iface: the interface to use to send the OGM
  */
-static void batadv_v_ogm_send_to_if(struct batadv_priv *bat_priv,
-				    struct sk_buff *skb,
+static void batadv_v_ogm_send_to_if(struct sk_buff *skb,
 				    struct batadv_hard_iface *hard_iface)
 {
+	struct batadv_priv *bat_priv = netdev_priv(hard_iface->mesh_iface);
+
 	if (hard_iface->if_status != BATADV_IF_ACTIVE) {
 		kfree_skb(skb);
 		return;
@@ -189,7 +190,6 @@ static void batadv_v_ogm_aggr_list_free(struct batadv_hard_iface *hard_iface)
 
 /**
  * batadv_v_ogm_aggr_send() - flush & send aggregation queue
- * @bat_priv: the bat priv with all the mesh interface information
  * @hard_iface: the interface with the aggregation queue to flush
  *
  * Aggregates all OGMv2 packets currently in the aggregation queue into a
@@ -199,8 +199,7 @@ static void batadv_v_ogm_aggr_list_free(struct batadv_hard_iface *hard_iface)
  *
  * Caller needs to hold the hard_iface->bat_v.aggr_list.lock.
  */
-static void batadv_v_ogm_aggr_send(struct batadv_priv *bat_priv,
-				   struct batadv_hard_iface *hard_iface)
+static void batadv_v_ogm_aggr_send(struct batadv_hard_iface *hard_iface)
 {
 	unsigned int aggr_len = hard_iface->bat_v.aggr_len;
 	struct sk_buff *skb_aggr;
@@ -230,26 +229,21 @@ static void batadv_v_ogm_aggr_send(struct batadv_priv *bat_priv,
 		consume_skb(skb);
 	}
 
-	batadv_v_ogm_send_to_if(bat_priv, skb_aggr, hard_iface);
+	batadv_v_ogm_send_to_if(skb_aggr, hard_iface);
 }
 
 /**
  * batadv_v_ogm_queue_on_if() - queue a batman ogm on a given interface
- * @bat_priv: the bat priv with all the mesh interface information
  * @skb: the OGM to queue
  * @hard_iface: the interface to queue the OGM on
  */
-static void batadv_v_ogm_queue_on_if(struct batadv_priv *bat_priv,
-				     struct sk_buff *skb,
+static void batadv_v_ogm_queue_on_if(struct sk_buff *skb,
 				     struct batadv_hard_iface *hard_iface)
 {
-	if (hard_iface->mesh_iface != bat_priv->mesh_iface) {
-		kfree_skb(skb);
-		return;
-	}
+	struct batadv_priv *bat_priv = netdev_priv(hard_iface->mesh_iface);
 
 	if (!READ_ONCE(bat_priv->aggregated_ogms)) {
-		batadv_v_ogm_send_to_if(bat_priv, skb, hard_iface);
+		batadv_v_ogm_send_to_if(skb, hard_iface);
 		return;
 	}
 
@@ -260,7 +254,7 @@ static void batadv_v_ogm_queue_on_if(struct batadv_priv *bat_priv,
 	}
 
 	if (!batadv_v_ogm_queue_left(skb, hard_iface))
-		batadv_v_ogm_aggr_send(bat_priv, hard_iface);
+		batadv_v_ogm_aggr_send(hard_iface);
 
 	hard_iface->bat_v.aggr_len += batadv_v_ogm_len(skb);
 	__skb_queue_tail(&hard_iface->bat_v.aggr_list, skb);
@@ -275,11 +269,12 @@ unlock:
  */
 static void batadv_v_ogm_send_meshif(struct batadv_priv *bat_priv)
 {
-	struct batadv_hard_iface *hard_iface;
 	struct batadv_ogm2_packet *ogm_packet;
+	struct batadv_hard_iface *hard_iface;
 	struct batadv_ogm_buf *ogm_buff;
-	struct sk_buff *skb, *skb_tmp;
+	struct sk_buff *skb_tmp;
 	struct list_head *iter;
+	struct sk_buff *skb;
 	u16 tvlv_len;
 	int ret;
 
@@ -357,7 +352,7 @@ static void batadv_v_ogm_send_meshif(struct batadv_priv *bat_priv)
 			break;
 		}
 
-		batadv_v_ogm_queue_on_if(bat_priv, skb_tmp, hard_iface);
+		batadv_v_ogm_queue_on_if(skb_tmp, hard_iface);
 		batadv_hardif_put(hard_iface);
 	}
 	rcu_read_unlock();
@@ -397,14 +392,12 @@ void batadv_v_ogm_aggr_work(struct work_struct *work)
 {
 	struct batadv_hard_iface_bat_v *batv;
 	struct batadv_hard_iface *hard_iface;
-	struct batadv_priv *bat_priv;
 
 	batv = container_of(work, struct batadv_hard_iface_bat_v, aggr_wq.work);
 	hard_iface = container_of(batv, struct batadv_hard_iface, bat_v);
-	bat_priv = netdev_priv(hard_iface->mesh_iface);
 
 	spin_lock_bh(&hard_iface->bat_v.aggr_list.lock);
-	batadv_v_ogm_aggr_send(bat_priv, hard_iface);
+	batadv_v_ogm_aggr_send(hard_iface);
 	spin_unlock_bh(&hard_iface->bat_v.aggr_list.lock);
 
 	batadv_v_ogm_start_queue_timer(hard_iface);
@@ -601,7 +594,7 @@ static void batadv_v_ogm_forward(struct batadv_priv *bat_priv,
 		   if_outgoing->net_dev->name, ntohl(ogm_forward->throughput),
 		   ogm_forward->ttl, if_incoming->net_dev->name);
 
-	batadv_v_ogm_queue_on_if(bat_priv, skb, if_outgoing);
+	batadv_v_ogm_queue_on_if(skb, if_outgoing);
 
 out:
 	batadv_orig_ifinfo_put(orig_ifinfo);
@@ -630,11 +623,11 @@ static int batadv_v_ogm_metric_update(struct batadv_priv *bat_priv,
 				      struct batadv_hard_iface *if_incoming,
 				      struct batadv_hard_iface *if_outgoing)
 {
-	struct batadv_orig_ifinfo *orig_ifinfo;
 	struct batadv_neigh_ifinfo *neigh_ifinfo = NULL;
+	struct batadv_orig_ifinfo *orig_ifinfo;
 	bool protection_started = false;
-	int ret = -EINVAL;
 	u32 path_throughput;
+	int ret = -EINVAL;
 	s32 seq_diff;
 
 	orig_ifinfo = batadv_orig_ifinfo_new(orig_node, if_outgoing);
@@ -712,15 +705,17 @@ static bool batadv_v_ogm_route_update(struct batadv_priv *bat_priv,
 				      struct batadv_hard_iface *if_incoming,
 				      struct batadv_hard_iface *if_outgoing)
 {
-	struct batadv_neigh_node *router = NULL;
-	struct batadv_orig_node *orig_neigh_node;
 	struct batadv_neigh_node *orig_neigh_router = NULL;
-	struct batadv_neigh_ifinfo *router_ifinfo = NULL, *neigh_ifinfo = NULL;
-	u32 router_throughput, neigh_throughput;
+	struct batadv_neigh_ifinfo *router_ifinfo = NULL;
+	struct batadv_neigh_ifinfo *neigh_ifinfo = NULL;
+	struct batadv_orig_node *orig_neigh_node;
+	struct batadv_neigh_node *router = NULL;
+	u32 router_throughput;
 	u32 router_last_seqno;
+	u32 neigh_throughput;
 	u32 neigh_last_seqno;
-	s32 neigh_seq_diff;
 	bool forward = false;
+	s32 neigh_seq_diff;
 
 	orig_neigh_node = batadv_v_ogm_orig_get(bat_priv, ethhdr->h_source);
 	if (!orig_neigh_node)
@@ -880,14 +875,16 @@ static void batadv_v_ogm_process(const struct sk_buff *skb, int ogm_offset,
 				 struct batadv_hard_iface *if_incoming)
 {
 	struct batadv_priv *bat_priv = netdev_priv(if_incoming->mesh_iface);
-	struct ethhdr *ethhdr;
-	struct batadv_orig_node *orig_node = NULL;
 	struct batadv_hardif_neigh_node *hardif_neigh = NULL;
 	struct batadv_neigh_node *neigh_node = NULL;
-	struct batadv_hard_iface *hard_iface;
+	struct batadv_orig_node *orig_node = NULL;
 	struct batadv_ogm2_packet *ogm_packet;
-	u32 ogm_throughput, link_throughput, path_throughput;
+	struct batadv_hard_iface *hard_iface;
 	struct list_head *iter;
+	struct ethhdr *ethhdr;
+	u32 link_throughput;
+	u32 path_throughput;
+	u32 ogm_throughput;
 	int ret;
 
 	ethhdr = eth_hdr(skb);
@@ -1013,9 +1010,9 @@ int batadv_v_ogm_packet_recv(struct sk_buff *skb,
 	struct batadv_priv *bat_priv = netdev_priv(if_incoming->mesh_iface);
 	struct batadv_ogm2_packet *ogm_packet;
 	struct ethhdr *ethhdr;
+	int ret = NET_RX_DROP;
 	int ogm_offset;
 	u8 *packet_pos;
-	int ret = NET_RX_DROP;
 
 	/* did we receive a OGM2 packet on an interface that does not have
 	 * B.A.T.M.A.N. V enabled ?

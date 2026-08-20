@@ -671,7 +671,7 @@ static int expect_h245(struct sk_buff *skb, struct nf_conn *ct,
 static int callforward_do_filter(struct net *net,
 				 const union nf_inet_addr *src,
 				 const union nf_inet_addr *dst,
-				 u_int8_t family)
+				 u8 family)
 {
 	int ret = 0;
 
@@ -1713,19 +1713,19 @@ static int __init h323_helper_init(void)
 	int ret;
 
 	nf_ct_helper_init(&nf_conntrack_helper_ras[0], AF_INET, IPPROTO_UDP,
-			  "RAS", RAS_PORT, RAS_PORT, RAS_PORT,
+			  "RAS",
 			  &ras_exp_policy, 0, ras_help, NULL, THIS_MODULE);
 	nf_ct_helper_init(&nf_conntrack_helper_ras[1], AF_INET6, IPPROTO_UDP,
-			  "RAS", RAS_PORT, RAS_PORT, RAS_PORT,
+			  "RAS",
 			  &ras_exp_policy, 0, ras_help, NULL, THIS_MODULE);
 	nf_ct_helper_init(&nf_conntrack_helper_h245, AF_UNSPEC, IPPROTO_UDP,
-			  "H.245", 0, 0, 0,
+			  "H.245",
 			  &h245_exp_policy, 0, h245_help, NULL, THIS_MODULE);
 	nf_ct_helper_init(&nf_conntrack_helper_q931[0], AF_INET, IPPROTO_TCP,
-			  "Q.931", Q931_PORT, Q931_PORT, Q931_PORT,
+			  "Q.931",
 			  &q931_exp_policy, 0, q931_help, NULL, THIS_MODULE);
 	nf_ct_helper_init(&nf_conntrack_helper_q931[1], AF_INET6, IPPROTO_TCP,
-			  "Q.931", Q931_PORT, Q931_PORT, Q931_PORT,
+			  "Q.931",
 			  &q931_exp_policy, 0, q931_help, NULL, THIS_MODULE);
 
 	ret = nf_conntrack_helper_register(&nf_conntrack_helper_h245,

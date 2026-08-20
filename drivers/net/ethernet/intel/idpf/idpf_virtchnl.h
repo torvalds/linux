@@ -4,89 +4,9 @@
 #ifndef _IDPF_VIRTCHNL_H_
 #define _IDPF_VIRTCHNL_H_
 
-#include "virtchnl2.h"
+#include <linux/net/intel/virtchnl2.h>
 
 #define IDPF_VC_XN_DEFAULT_TIMEOUT_MSEC	(60 * 1000)
-#define IDPF_VC_XN_IDX_M		GENMASK(7, 0)
-#define IDPF_VC_XN_SALT_M		GENMASK(15, 8)
-#define IDPF_VC_XN_RING_LEN		U8_MAX
-
-/**
- * enum idpf_vc_xn_state - Virtchnl transaction status
- * @IDPF_VC_XN_IDLE: not expecting a reply, ready to be used
- * @IDPF_VC_XN_WAITING: expecting a reply, not yet received
- * @IDPF_VC_XN_COMPLETED_SUCCESS: a reply was expected and received, buffer
- *				  updated
- * @IDPF_VC_XN_COMPLETED_FAILED: a reply was expected and received, but there
- *				 was an error, buffer not updated
- * @IDPF_VC_XN_SHUTDOWN: transaction object cannot be used, VC torn down
- * @IDPF_VC_XN_ASYNC: transaction sent asynchronously and doesn't have the
- *		      return context; a callback may be provided to handle
- *		      return
- */
-enum idpf_vc_xn_state {
-	IDPF_VC_XN_IDLE = 1,
-	IDPF_VC_XN_WAITING,
-	IDPF_VC_XN_COMPLETED_SUCCESS,
-	IDPF_VC_XN_COMPLETED_FAILED,
-	IDPF_VC_XN_SHUTDOWN,
-	IDPF_VC_XN_ASYNC,
-};
-
-struct idpf_vc_xn;
-/* Callback for asynchronous messages */
-typedef int (*async_vc_cb) (struct idpf_adapter *, struct idpf_vc_xn *,
-			    const struct idpf_ctlq_msg *);
-
-/**
- * struct idpf_vc_xn - Data structure representing virtchnl transactions
- * @completed: virtchnl event loop uses that to signal when a reply is
- *	       available, uses kernel completion API
- * @lock: protects the transaction state fields below
- * @state: virtchnl event loop stores the data below, protected by @lock
- * @reply_sz: Original size of reply, may be > reply_buf.iov_len; it will be
- *	      truncated on its way to the receiver thread according to
- *	      reply_buf.iov_len.
- * @reply: Reference to the buffer(s) where the reply data should be written
- *	   to. May be 0-length (then NULL address permitted) if the reply data
- *	   should be ignored.
- * @async_handler: if sent asynchronously, a callback can be provided to handle
- *		   the reply when it's received
- * @vc_op: corresponding opcode sent with this transaction
- * @idx: index used as retrieval on reply receive, used for cookie
- * @salt: changed every message to make unique, used for cookie
- */
-struct idpf_vc_xn {
-	struct completion completed;
-	spinlock_t lock;
-	enum idpf_vc_xn_state state;
-	size_t reply_sz;
-	struct kvec reply;
-	async_vc_cb async_handler;
-	u32 vc_op;
-	u8 idx;
-	u8 salt;
-};
-
-/**
- * struct idpf_vc_xn_params - Parameters for executing transaction
- * @send_buf: kvec for send buffer
- * @recv_buf: kvec for recv buffer, may be NULL, must then have zero length
- * @timeout_ms: timeout to wait for reply
- * @async: send message asynchronously, will not wait on completion
- * @async_handler: If sent asynchronously, optional callback handler. The user
- *		   must be careful when using async handlers as the memory for
- *		   the recv_buf _cannot_ be on stack if this is async.
- * @vc_op: virtchnl op to send
- */
-struct idpf_vc_xn_params {
-	struct kvec send_buf;
-	struct kvec recv_buf;
-	int timeout_ms;
-	bool async;
-	async_vc_cb async_handler;
-	u32 vc_op;
-};
 
 struct idpf_adapter;
 struct idpf_netdev_priv;
@@ -96,8 +16,6 @@ struct idpf_vport_max_q;
 struct idpf_vport_config;
 struct idpf_vport_user_config_data;
 
-ssize_t idpf_vc_xn_exec(struct idpf_adapter *adapter,
-			const struct idpf_vc_xn_params *params);
 int idpf_init_dflt_mbx(struct idpf_adapter *adapter);
 void idpf_deinit_dflt_mbx(struct idpf_adapter *adapter);
 int idpf_vc_core_init(struct idpf_adapter *adapter);
@@ -124,9 +42,35 @@ bool idpf_sideband_action_ena(struct idpf_vport *vport,
 			      struct ethtool_rx_flow_spec *fsp);
 unsigned int idpf_fsteer_max_rules(struct idpf_vport *vport);
 
-int idpf_recv_mb_msg(struct idpf_adapter *adapter, struct idpf_ctlq_info *arq);
-int idpf_send_mb_msg(struct idpf_adapter *adapter, struct idpf_ctlq_info *asq,
-		     u32 op, u16 msg_size, u8 *msg, u16 cookie);
+void idpf_recv_event_msg(struct libie_ctlq_ctx *ctx,
+			 struct libie_ctlq_msg *ctlq_msg);
+int idpf_send_mb_msg(struct idpf_adapter *adapter,
+		     struct libie_ctlq_xn_send_params *xn_params,
+		     void *send_buf, size_t send_buf_size);
+int idpf_send_mb_msg_kfree(struct idpf_adapter *adapter,
+			   struct libie_ctlq_xn_send_params *xn_params,
+			   void *send_buf, size_t send_buf_size);
+void idpf_send_vf_reset_msg(struct idpf_adapter *adapter);
+bool idpf_mmio_region_non_static(struct libie_mmio_info *mmio_info,
+				 struct libie_pci_mmio_region *reg);
+
+/**
+ * idpf_send_mb_msg_stack - send a mailbox message from an on-stack buffer
+ * @adapter: driver specific private structure
+ * @xn_params: Xn send parameters to fill
+ * @ptr: pointer to the on-stack message object to send
+ *
+ * Send size is deduced based on the pointer type.
+ *
+ * Return: %0 on success, -%errno on failure.
+ */
+#define idpf_send_mb_msg_stack(adapter, xn_params, ptr)			\
+({									\
+	typeof(ptr) __ptr = (ptr);					\
+									\
+	static_assert(sizeof(*__ptr) <= LIBIE_CP_TX_COPYBREAK);		\
+	idpf_send_mb_msg(adapter, xn_params, __ptr, sizeof(*__ptr));	\
+})
 
 struct idpf_queue_ptr {
 	enum virtchnl2_queue_type	type;
@@ -208,13 +152,10 @@ int idpf_send_ena_dis_loopback_msg(struct idpf_adapter *adapter, u32 vport_id,
 int idpf_send_get_stats_msg(struct idpf_netdev_priv *np,
 			    struct idpf_port_stats *port_stats);
 int idpf_send_set_sriov_vfs_msg(struct idpf_adapter *adapter, u16 num_vfs);
-int idpf_send_get_set_rss_key_msg(struct idpf_adapter *adapter,
-				  struct idpf_rss_data *rss_data,
-				  u32 vport_id, bool get);
-int idpf_send_get_set_rss_lut_msg(struct idpf_adapter *adapter,
-				  struct idpf_rss_data *rss_data,
-				  u32 vport_id, bool get);
-void idpf_vc_xn_shutdown(struct idpf_vc_xn_manager *vcxn_mngr);
+int idpf_send_set_rss_key_msg(struct idpf_adapter *adapter,
+			      struct idpf_rss_data *rss_data, u32 vport_id);
+int idpf_send_set_rss_lut_msg(struct idpf_adapter *adapter,
+			      struct idpf_rss_data *rss_data, u32 vport_id);
 int idpf_idc_rdma_vc_send_sync(struct iidc_rdma_core_dev_info *cdev_info,
 			       u8 *send_msg, u16 msg_size,
 			       u8 *recv_msg, u16 *recv_len);

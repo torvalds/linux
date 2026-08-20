@@ -186,7 +186,7 @@ int mlx5e_health_rsc_fmsg_dump(struct mlx5e_priv *priv, struct mlx5_rsc_key *key
 	struct page *page;
 	int size;
 
-	if (IS_ERR_OR_NULL(mdev->rsc_dump))
+	if (!mdev->rsc_dump)
 		return -EOPNOTSUPP;
 
 	page = alloc_page(GFP_KERNEL);

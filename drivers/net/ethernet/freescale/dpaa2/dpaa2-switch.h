@@ -41,7 +41,8 @@
 #define ETHSW_MAX_FRAME_LENGTH	(DPAA2_MFL - VLAN_ETH_HLEN - ETH_FCS_LEN)
 #define ETHSW_L2_MAX_FRM(mtu)	((mtu) + VLAN_ETH_HLEN + ETH_FCS_LEN)
 
-#define ETHSW_FEATURE_MAC_ADDR	BIT(0)
+#define ETHSW_FEATURE_MAC_ADDR		BIT(0)
+#define ETHSW_FEATURE_LAG_OFFLOAD	BIT(1)
 
 /* Number of receive queues (one RX and one TX_CONF) */
 #define DPAA2_SWITCH_RX_NUM_FQS	2
@@ -86,6 +87,9 @@
 
 #define DPAA2_ETHSW_PORT_ACL_CMD_BUF_SIZE	256
 
+#define DPAA2_ETHSW_FLC_IF_ID(flc)		(((flc) >> 32) & GENMASK(15, 0))
+#define DPAA2_ETHSW_FLC_IMPRECISE_IF_ID(flc)	((flc) & BIT_ULL(63))
+
 extern const struct ethtool_ops dpaa2_switch_port_ethtool_ops;
 
 struct ethsw_core;
@@ -99,10 +103,28 @@ struct dpaa2_switch_fq {
 	u32 fqid;
 };
 
+struct dpaa2_mac_addr {
+	unsigned char addr[ETH_ALEN];
+	u16 vid;
+	refcount_t refcount;
+	struct list_head list;
+};
+
 struct dpaa2_switch_fdb {
 	struct net_device	*bridge_dev;
 	u16			fdb_id;
 	bool			in_use;
+};
+
+struct dpaa2_switch_lag {
+	struct ethsw_core	*ethsw;
+	struct net_device	*bond_dev;
+	bool			in_use;
+	u8			id;
+	struct ethsw_port_priv	*primary;
+	/* Protects the list of fdbs installed on this LAG */
+	struct mutex		fdb_lock;
+	struct list_head	fdbs;
 };
 
 struct dpaa2_switch_acl_entry {
@@ -163,6 +185,8 @@ struct ethsw_port_priv {
 	struct dpaa2_mac	*mac;
 	/* Protects against changes to port_priv->mac */
 	struct mutex		mac_lock;
+
+	struct dpaa2_switch_lag __rcu *lag;
 };
 
 /* Switch data */
@@ -190,6 +214,8 @@ struct ethsw_core {
 	struct dpaa2_switch_fdb		*fdbs;
 	struct dpaa2_switch_filter_block *filter_blocks;
 	u16				mirror_port;
+
+	struct dpaa2_switch_lag		*lags;
 };
 
 static inline int dpaa2_switch_get_index(struct ethsw_core *ethsw,
@@ -274,4 +300,18 @@ int dpaa2_switch_block_offload_mirror(struct dpaa2_switch_filter_block *block,
 
 int dpaa2_switch_block_unoffload_mirror(struct dpaa2_switch_filter_block *block,
 					struct ethsw_port_priv *port_priv);
+
+static inline bool
+dpaa2_switch_port_offloads_bridge_port(struct ethsw_port_priv *port_priv,
+				       const struct net_device *dev)
+{
+	struct dpaa2_switch_lag *lag = rcu_dereference_rtnl(port_priv->lag);
+
+	if (lag && lag->bond_dev == dev)
+		return true;
+	if (port_priv->netdev == dev)
+		return true;
+	return false;
+}
+
 #endif	/* __ETHSW_H */

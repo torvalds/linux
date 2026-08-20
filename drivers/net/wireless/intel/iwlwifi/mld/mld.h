@@ -172,7 +172,6 @@
  * @debug_max_sleep: maximum sleep time in D3 (for debug purposes)
  * @led: the led device
  * @mcc_src: the source id of the MCC, comes from the firmware
- * @bios_enable_puncturing: is puncturing enabled by bios
  * @fw_id_to_ba: maps a fw (BA) id to a corresponding Block Ack session data.
  * @num_rx_ba_sessions: tracks the number of active Rx Block Ack (BA) sessions.
  *	the driver ensures that new BA sessions are blocked once the maximum
@@ -279,7 +278,6 @@ struct iwl_mld {
 	struct led_classdev led;
 #endif
 	enum iwl_mcc_source mcc_src;
-	bool bios_enable_puncturing;
 
 	struct iwl_mld_baid_data __rcu *fw_id_to_ba[IWL_MAX_BAID];
 	u8 num_rx_ba_sessions;

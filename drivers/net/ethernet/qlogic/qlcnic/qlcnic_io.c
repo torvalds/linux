@@ -29,7 +29,7 @@
 #define QLCNIC_FLAGS_VLAN_OOB		0x40
 
 #define qlcnic_set_tx_vlan_tci(cmd_desc, v)	\
-	(cmd_desc)->vlan_TCI = cpu_to_le16(v);
+	(cmd_desc)->vlan_TCI = cpu_to_le16(v)
 #define qlcnic_set_cmd_desc_port(cmd_desc, var)	\
 	((cmd_desc)->port_ctxid |= ((var) & 0x0F))
 #define qlcnic_set_cmd_desc_ctxid(cmd_desc, var)	\

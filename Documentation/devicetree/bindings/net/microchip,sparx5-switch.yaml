@@ -210,9 +210,9 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     switch: switch@600000000 {
       compatible = "microchip,sparx5-switch";
-      reg =  <0 0x401000>,
-             <0x10004000 0x7fc000>,
-             <0x11010000 0xaf0000>;
+      reg = <0 0x401000>,
+            <0x10004000 0x7fc000>,
+            <0x11010000 0xaf0000>;
       reg-names = "cpu", "devices", "gcb";
       interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
       interrupt-names = "xtr";

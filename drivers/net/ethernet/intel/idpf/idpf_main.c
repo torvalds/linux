@@ -15,6 +15,8 @@
 
 MODULE_DESCRIPTION(DRV_SUMMARY);
 MODULE_IMPORT_NS("LIBETH");
+MODULE_IMPORT_NS("LIBIE_CP");
+MODULE_IMPORT_NS("LIBIE_PCI");
 MODULE_IMPORT_NS("LIBETH_XDP");
 MODULE_LICENSE("GPL");
 
@@ -56,7 +58,15 @@ static int idpf_get_device_type(struct pci_dev *pdev)
 static int idpf_dev_init(struct idpf_adapter *adapter,
 			 const struct pci_device_id *ent)
 {
+	struct libie_mmio_info *mmio_info = &adapter->ctlq_ctx.mmio_info;
 	int ret;
+
+	ret = libie_pci_init_dev(adapter->pdev);
+	if (ret)
+		return ret;
+
+	mmio_info->pdev = adapter->pdev;
+	INIT_LIST_HEAD(&mmio_info->mmio_list);
 
 	if (ent->class == IDPF_CLASS_NETWORK_ETHERNET_PROGIF) {
 		ret = idpf_get_device_type(adapter->pdev);
@@ -88,6 +98,15 @@ static int idpf_dev_init(struct idpf_adapter *adapter,
 	}
 
 	return 0;
+}
+
+/**
+ * idpf_decfg_device - deconfigure device and device specific resources
+ * @adapter: driver specific private structure
+ */
+static void idpf_decfg_device(struct idpf_adapter *adapter)
+{
+	libie_pci_unmap_all_mmio_regions(&adapter->ctlq_ctx.mmio_info);
 }
 
 /**
@@ -151,14 +170,13 @@ destroy_wqs:
 	adapter->vport_config = NULL;
 	kfree(adapter->netdevs);
 	adapter->netdevs = NULL;
-	kfree(adapter->vcxn_mngr);
-	adapter->vcxn_mngr = NULL;
 
 	mutex_destroy(&adapter->vport_ctrl_lock);
 	mutex_destroy(&adapter->vector_lock);
 	mutex_destroy(&adapter->queue_lock);
 	mutex_destroy(&adapter->vc_buf_lock);
 
+	idpf_decfg_device(adapter);
 	pci_set_drvdata(pdev, NULL);
 	kfree(adapter);
 }
@@ -181,46 +199,44 @@ static void idpf_shutdown(struct pci_dev *pdev)
 }
 
 /**
- * idpf_cfg_hw - Initialize HW struct
- * @adapter: adapter to setup hw struct for
+ * idpf_cfg_device - configure device and device specific resources
+ * @adapter: driver specific private structure
  *
- * Returns 0 on success, negative on failure
+ * Return: %0 on success, -%errno on failure.
  */
-static int idpf_cfg_hw(struct idpf_adapter *adapter)
+static int idpf_cfg_device(struct idpf_adapter *adapter)
 {
-	resource_size_t res_start, mbx_start, rstat_start;
+	struct libie_mmio_info *mmio_info = &adapter->ctlq_ctx.mmio_info;
 	struct pci_dev *pdev = adapter->pdev;
-	struct idpf_hw *hw = &adapter->hw;
-	struct device *dev = &pdev->dev;
-	long len;
-
-	res_start = pci_resource_start(pdev, 0);
+	struct resource *region;
+	bool mapped;
+	int err;
 
 	/* Map mailbox space for virtchnl communication */
-	mbx_start = res_start + adapter->dev_ops.static_reg_info[0].start;
-	len = resource_size(&adapter->dev_ops.static_reg_info[0]);
-	hw->mbx.vaddr = devm_ioremap(dev, mbx_start, len);
-	if (!hw->mbx.vaddr) {
-		pci_err(pdev, "failed to allocate BAR0 mbx region\n");
-
+	region = &adapter->dev_ops.static_reg_info[0];
+	mapped = libie_pci_map_mmio_region(mmio_info, region->start,
+					   resource_size(region));
+	if (!mapped) {
+		pci_err(pdev, "failed to map BAR0 mbx region\n");
 		return -ENOMEM;
 	}
-	hw->mbx.addr_start = adapter->dev_ops.static_reg_info[0].start;
-	hw->mbx.addr_len = len;
 
 	/* Map rstat space for resets */
-	rstat_start = res_start + adapter->dev_ops.static_reg_info[1].start;
-	len = resource_size(&adapter->dev_ops.static_reg_info[1]);
-	hw->rstat.vaddr = devm_ioremap(dev, rstat_start, len);
-	if (!hw->rstat.vaddr) {
-		pci_err(pdev, "failed to allocate BAR0 rstat region\n");
+	region = &adapter->dev_ops.static_reg_info[1];
 
+	mapped = libie_pci_map_mmio_region(mmio_info, region->start,
+					   resource_size(region));
+	if (!mapped) {
+		pci_err(pdev, "failed to map BAR0 rstat region\n");
+		libie_pci_unmap_all_mmio_regions(mmio_info);
 		return -ENOMEM;
 	}
-	hw->rstat.addr_start = adapter->dev_ops.static_reg_info[1].start;
-	hw->rstat.addr_len = len;
 
-	hw->back = adapter;
+	err = pci_enable_ptm(pdev);
+	if (err)
+		pci_dbg(pdev, "PCIe PTM is not supported by PCIe bus/controller\n");
+
+	pci_set_drvdata(pdev, adapter);
 
 	return 0;
 }
@@ -246,31 +262,20 @@ static int idpf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->req_rx_splitq = true;
 
 	adapter->pdev = pdev;
-	err = pcim_enable_device(pdev);
-	if (err)
-		goto err_free;
 
-	err = pcim_request_region(pdev, 0, pci_name(pdev));
+	err = idpf_dev_init(adapter, ent);
 	if (err) {
-		pci_err(pdev, "pcim_request_region failed %pe\n", ERR_PTR(err));
-
+		dev_err(&pdev->dev, "Failed to initialize device (ID 0x%x): %d\n",
+			ent->device, err);
 		goto err_free;
 	}
 
-	err = pci_enable_ptm(pdev);
-	if (err)
-		pci_dbg(pdev, "PCIe PTM is not supported by PCIe bus/controller\n");
-
-	/* set up for high or low dma */
-	err = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
+	err = idpf_cfg_device(adapter);
 	if (err) {
-		pci_err(pdev, "DMA configuration failed: %pe\n", ERR_PTR(err));
-
+		pci_err(pdev, "Failed to configure device specific resources: %pe\n",
+			ERR_PTR(err));
 		goto err_free;
 	}
-
-	pci_set_master(pdev);
-	pci_set_drvdata(pdev, adapter);
 
 	adapter->init_wq = alloc_workqueue("%s-%s-init",
 					   WQ_UNBOUND | WQ_MEM_RECLAIM, 0,
@@ -279,7 +284,7 @@ static int idpf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!adapter->init_wq) {
 		dev_err(dev, "Failed to allocate init workqueue\n");
 		err = -ENOMEM;
-		goto err_free;
+		goto err_init_wq;
 	}
 
 	adapter->serv_wq = alloc_workqueue("%s-%s-service",
@@ -324,20 +329,6 @@ static int idpf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* setup msglvl */
 	adapter->msg_enable = netif_msg_init(-1, IDPF_AVAIL_NETIF_M);
 
-	err = idpf_dev_init(adapter, ent);
-	if (err) {
-		dev_err(&pdev->dev, "Unexpected dev ID 0x%x in idpf probe\n",
-			ent->device);
-		goto destroy_vc_event_wq;
-	}
-
-	err = idpf_cfg_hw(adapter);
-	if (err) {
-		dev_err(dev, "Failed to configure HW structure for adapter: %d\n",
-			err);
-		goto destroy_vc_event_wq;
-	}
-
 	mutex_init(&adapter->vport_ctrl_lock);
 	mutex_init(&adapter->vector_lock);
 	mutex_init(&adapter->queue_lock);
@@ -356,8 +347,6 @@ static int idpf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	return 0;
 
-destroy_vc_event_wq:
-	destroy_workqueue(adapter->vc_event_wq);
 err_vc_event_wq_alloc:
 	destroy_workqueue(adapter->stats_wq);
 err_stats_wq_alloc:
@@ -366,6 +355,8 @@ err_mbx_wq_alloc:
 	destroy_workqueue(adapter->serv_wq);
 err_serv_wq_alloc:
 	destroy_workqueue(adapter->init_wq);
+err_init_wq:
+	idpf_decfg_device(adapter);
 err_free:
 	kfree(adapter);
 	return err;

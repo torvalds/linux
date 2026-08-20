@@ -118,6 +118,7 @@ struct mgmt_rp_read_index_list {
 #define MGMT_SETTING_LL_PRIVACY		BIT(22)
 #define MGMT_SETTING_PAST_SENDER	BIT(23)
 #define MGMT_SETTING_PAST_RECEIVER	BIT(24)
+#define MGMT_SETTING_SCI		BIT(25)
 
 #define MGMT_OP_READ_INFO		0x0004
 #define MGMT_READ_INFO_SIZE		0
@@ -893,6 +894,23 @@ struct mgmt_cp_hci_cmd_sync {
 } __packed;
 #define MGMT_HCI_CMD_SYNC_SIZE		6
 
+#define MGMT_OP_LOAD_CONN_SUBRATE	0x005C
+struct mgmt_conn_subrate {
+	struct mgmt_addr_info addr;
+	__le16 min_interval;
+	__le16 max_interval;
+	__le16 subrate_min;
+	__le16 subrate_max;
+	__le16 max_latency;
+	__le16 cont_num;
+	__le16 supv_timeout;
+} __packed;
+struct mgmt_cp_load_conn_subrate {
+	__le16 param_count;
+	struct mgmt_conn_subrate params[] __counted_by_le(param_count);
+} __packed;
+#define MGMT_LOAD_CONN_SUBRATE_SIZE	2
+
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {
 	__le16	opcode;
@@ -1191,4 +1209,15 @@ struct mgmt_ev_mesh_device_found {
 #define MGMT_EV_MESH_PACKET_CMPLT		0x0032
 struct mgmt_ev_mesh_pkt_cmplt {
 	__u8	handle;
+} __packed;
+
+#define MGMT_EV_CONN_SUBRATE			0x0033
+struct mgmt_ev_conn_subrate {
+	struct mgmt_addr_info addr;
+	__u8	status;
+	__le16	interval;
+	__le16	subrate;
+	__le16	latency;
+	__le16	cont_num;
+	__le16	supv_timeout;
 } __packed;
