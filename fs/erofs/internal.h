@@ -98,11 +98,9 @@ struct erofs_sb_info {
 	unsigned int sync_decompress;	/* strategy for sync decompression */
 	unsigned int shrinker_run_no;
 
-	/* pseudo inode to manage cached pages */
-	struct inode *managed_cache;
-
 	struct erofs_sb_lz4_info lz4;
 #endif	/* CONFIG_EROFS_FS_ZIP */
+	struct inode *managed_cache; /* pseudo inode to cache physical data */
 	struct inode *packed_inode;
 	struct inode *metabox_inode;
 	struct erofs_dev_context *devs;
@@ -176,10 +174,10 @@ enum {
 
 struct erofs_buf {
 	struct address_space *mapping;
-	struct file *file;
 	u64 off;
 	struct page *page;
 	void *base;
+	bool mc;
 };
 #define __EROFS_BUF_INITIALIZER	((struct erofs_buf){ .page = NULL })
 
@@ -269,7 +267,7 @@ struct erofs_inode {
 #ifdef CONFIG_EROFS_FS_ZIP
 		struct {
 			unsigned short z_advise;
-			unsigned char  z_algorithmtype[2];
+			unsigned char  z_algofmt[2];
 			unsigned char  z_lclusterbits;
 			union {
 				u64    z_tailextent_headlcn;
@@ -399,6 +397,12 @@ extern const struct file_operations erofs_ishare_fops;
 
 extern const struct iomap_ops z_erofs_iomap_report_ops;
 
+int erofs_setup_managed_cache(struct super_block *sb);
+#ifdef CONFIG_EROFS_FS_BACKED_BY_FILE
+int erofs_read_meta_folio(struct file *file, struct folio *folio);
+#else
+#define erofs_read_meta_folio NULL
+#endif
 void *erofs_read_metadata(struct super_block *sb, struct erofs_buf *buf,
 			  erofs_off_t *offset, int *lengthp);
 void erofs_unmap_metabuf(struct erofs_buf *buf);

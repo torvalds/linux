@@ -128,7 +128,17 @@ struct z_erofs_pcluster_slab {
 #define _PCLP(n) { .maxpages = n }
 
 static struct z_erofs_pcluster_slab pcluster_pool[] __read_mostly = {
-	_PCLP(1), _PCLP(4), _PCLP(16), _PCLP(64), _PCLP(128),
+	_PCLP(1),
+	_PCLP(4),
+#if Z_EROFS_PCLUSTER_MAX_PAGES > 16
+	_PCLP(16),
+#endif
+#if Z_EROFS_PCLUSTER_MAX_PAGES > 64
+	_PCLP(64),
+#endif
+#if Z_EROFS_PCLUSTER_MAX_PAGES > 128
+	_PCLP(128),
+#endif
 	_PCLP(Z_EROFS_PCLUSTER_MAX_PAGES + 1)
 };
 
@@ -666,21 +676,16 @@ static const struct address_space_operations z_erofs_cache_aops = {
 
 int z_erofs_init_super(struct super_block *sb)
 {
-	struct inode *inode;
 	int err;
 
 	err = z_erofs_init_pcpu_workers(sb);
 	if (err)
 		return err;
 
-	inode = new_inode(sb);
-	if (!inode)
-		return -ENOMEM;
-	set_nlink(inode, 1);
-	inode->i_size = OFFSET_MAX;
-	inode->i_mapping->a_ops = &z_erofs_cache_aops;
-	mapping_set_gfp_mask(inode->i_mapping, GFP_KERNEL);
-	EROFS_SB(sb)->managed_cache = inode;
+	err = erofs_setup_managed_cache(sb);
+	if (err)
+		return err;
+	EROFS_SB(sb)->managed_cache->i_mapping->a_ops = &z_erofs_cache_aops;
 	xa_init(&EROFS_SB(sb)->managed_pslots);
 	return 0;
 }
