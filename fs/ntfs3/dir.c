@@ -14,6 +14,7 @@
 #include "debug.h"
 #include "ntfs.h"
 #include "ntfs_fs.h"
+#include <trace/events/ntfs3.h>
 
 /* Convert little endian UTF-16 to NLS string. */
 int ntfs_utf16_to_nls(struct ntfs_sb_info *sbi, const __le16 *name, u32 len,
@@ -283,6 +284,8 @@ struct inode *dir_search_flags(struct inode *dir, const struct cpu_str *uni,
 	int diff;
 	struct inode *inode = NULL;
 	struct ntfs_fnd *fnd_a = NULL;
+
+	trace_ntfs3_dir_search_u(dir, uni ? uni->len : 0);
 
 	if (!fnd) {
 		fnd_a = fnd_get();

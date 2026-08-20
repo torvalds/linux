@@ -13,6 +13,7 @@
 #include "debug.h"
 #include "ntfs.h"
 #include "ntfs_fs.h"
+#include <trace/events/ntfs3.h>
 
 static const struct INDEX_NAMES {
 	const __le16 *name;
@@ -1181,6 +1182,8 @@ int indx_find(struct ntfs_index *indx, struct ntfs_inode *ni,
 	if (!root)
 		root = indx_get_root(&ni->dir, ni, NULL, NULL);
 
+	trace_ntfs3_indx_find(&ni->vfs_inode, indx->type, key_len);
+
 	if (!root) {
 		/* Should not happen. */
 		return -EINVAL;
@@ -2062,6 +2065,9 @@ int indx_insert_entry(struct ntfs_index *indx, struct ntfs_inode *ni,
 		goto out;
 	}
 
+	trace_ntfs3_indx_insert_entry(&ni->vfs_inode, indx->type,
+				      le16_to_cpu(new_de->key_size), undo);
+
 	if (fnd_is_empty(fnd)) {
 		/*
 		 * Find the spot the tree where we want to
@@ -2419,6 +2425,8 @@ int indx_delete_entry(struct ntfs_index *indx, struct ntfs_inode *ni,
 		err = -EINVAL;
 		goto out;
 	}
+
+	trace_ntfs3_indx_delete_entry(&ni->vfs_inode, indx->type, key_len);
 
 	/* Locate the entry to remove. */
 	err = indx_find(indx, ni, root, key, key_len, ctx, &diff, &e, fnd);

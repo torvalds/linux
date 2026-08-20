@@ -142,6 +142,87 @@ TRACE_EVENT(ntfs3_create_inode,
 		  __entry->parent_ino, __get_str(name))
 );
 
+TRACE_EVENT(ntfs3_dir_search_u,
+	TP_PROTO(struct inode *dir, unsigned int name_len),
+	TP_ARGS(dir, name_len),
+	TP_STRUCT__entry(
+		__field(unsigned long, dir_ino)
+		__field(dev_t, dev)
+		__field(unsigned int, name_len)
+	),
+	TP_fast_assign(
+		__entry->dir_ino = dir->i_ino;
+		__entry->dev = dir->i_sb->s_dev;
+		__entry->name_len = name_len;
+	),
+	TP_printk("dev=(%d,%d) dir=%lu name_len=%u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->dir_ino, __entry->name_len)
+);
+
+TRACE_EVENT(ntfs3_indx_find,
+	TP_PROTO(struct inode *inode, u8 type, size_t key_len),
+	TP_ARGS(inode, type, key_len),
+	TP_STRUCT__entry(
+		__field(unsigned long, ino)
+		__field(size_t, key_len)
+		__field(dev_t, dev)
+		__field(u8, type)
+	),
+	TP_fast_assign(
+		__entry->ino = inode->i_ino;
+		__entry->key_len = key_len;
+		__entry->dev = inode->i_sb->s_dev;
+		__entry->type = type;
+	),
+	TP_printk("dev=(%d,%d) ino=%lu type=%u key_len=%zu",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino, __entry->type, __entry->key_len)
+);
+
+TRACE_EVENT(ntfs3_indx_insert_entry,
+	TP_PROTO(struct inode *inode, u8 type, u16 key_len, bool undo),
+	TP_ARGS(inode, type, key_len, undo),
+	TP_STRUCT__entry(
+		__field(unsigned long, ino)
+		__field(dev_t, dev)
+		__field(u16, key_len)
+		__field(u8, type)
+		__field(bool, undo)
+	),
+	TP_fast_assign(
+		__entry->ino = inode->i_ino;
+		__entry->dev = inode->i_sb->s_dev;
+		__entry->key_len = key_len;
+		__entry->type = type;
+		__entry->undo = undo;
+	),
+	TP_printk("dev=(%d,%d) ino=%lu type=%u key_len=%u undo=%d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino, __entry->type, __entry->key_len,
+		  __entry->undo)
+);
+
+TRACE_EVENT(ntfs3_indx_delete_entry,
+	TP_PROTO(struct inode *inode, u8 type, u32 key_len),
+	TP_ARGS(inode, type, key_len),
+	TP_STRUCT__entry(
+		__field(unsigned long, ino)
+		__field(u32, key_len)
+		__field(dev_t, dev)
+		__field(u8, type)
+	),
+	TP_fast_assign(
+		__entry->ino = inode->i_ino;
+		__entry->key_len = key_len;
+		__entry->dev = inode->i_sb->s_dev;
+		__entry->type = type;
+	),
+	TP_printk("dev=(%d,%d) ino=%lu type=%u key_len=%u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino, __entry->type, __entry->key_len)
+);
+
 #endif /* _TRACE_NTFS3_H */
 
 #include <trace/define_trace.h>
