@@ -97,6 +97,7 @@ enum reg2i6_op {
 };
 
 enum reg2i12_op {
+	sltui_op	= 0x09,
 	addiw_op	= 0x0a,
 	addid_op	= 0x0b,
 	lu52id_op	= 0x0c,
@@ -153,6 +154,8 @@ enum reg3_op {
 	addd_op		= 0x21,
 	subw_op		= 0x22,
 	subd_op		= 0x23,
+	maskeqz_op	= 0x26,
+	masknez_op	= 0x27,
 	nor_op		= 0x28,
 	and_op		= 0x29,
 	or_op		= 0x2a,
@@ -199,6 +202,10 @@ enum reg3_op {
 	amswaph_op	= 0x70b9,
 	amaddb_op	= 0x70ba,
 	amaddh_op	= 0x70bb,
+	amswapdbb_op	= 0x70bc,
+	amswapdbh_op	= 0x70bd,
+	amadddbb_op	= 0x70be,
+	amadddbh_op	= 0x70bf,
 	amswapw_op	= 0x70c0,
 	amswapd_op	= 0x70c1,
 	amaddw_op	= 0x70c2,
@@ -404,6 +411,7 @@ enum loongarch_gpr {
 	LOONGARCH_GPR_T6,
 	LOONGARCH_GPR_T7,
 	LOONGARCH_GPR_T8,
+	LOONGARCH_GPR_U0 = 21,	/* Kernel per-CPU base register ($r21) */
 	LOONGARCH_GPR_FP = 22,
 	LOONGARCH_GPR_S0 = 23,
 	LOONGARCH_GPR_S1,
@@ -644,6 +652,7 @@ static inline void emit_##NAME(union loongarch_instruction *insn,	\
 	insn->reg2i12_format.rj = rj;					\
 }
 
+DEF_EMIT_REG2I12_FORMAT(sltui, sltui_op)
 DEF_EMIT_REG2I12_FORMAT(addiw, addiw_op)
 DEF_EMIT_REG2I12_FORMAT(addid, addid_op)
 DEF_EMIT_REG2I12_FORMAT(lu52id, lu52id_op)
@@ -749,6 +758,8 @@ DEF_EMIT_REG3_FORMAT(divd, divd_op)
 DEF_EMIT_REG3_FORMAT(modd, modd_op)
 DEF_EMIT_REG3_FORMAT(divdu, divdu_op)
 DEF_EMIT_REG3_FORMAT(moddu, moddu_op)
+DEF_EMIT_REG3_FORMAT(maskeqz, maskeqz_op)
+DEF_EMIT_REG3_FORMAT(masknez, masknez_op)
 DEF_EMIT_REG3_FORMAT(and, and_op)
 DEF_EMIT_REG3_FORMAT(or, or_op)
 DEF_EMIT_REG3_FORMAT(xor, xor_op)
@@ -783,6 +794,20 @@ DEF_EMIT_REG3_FORMAT(amswapb, amswapb_op)
 DEF_EMIT_REG3_FORMAT(amswaph, amswaph_op)
 DEF_EMIT_REG3_FORMAT(amswapw, amswapw_op)
 DEF_EMIT_REG3_FORMAT(amswapd, amswapd_op)
+DEF_EMIT_REG3_FORMAT(amswapdbb, amswapdbb_op)
+DEF_EMIT_REG3_FORMAT(amswapdbh, amswapdbh_op)
+DEF_EMIT_REG3_FORMAT(amadddbb, amadddbb_op)
+DEF_EMIT_REG3_FORMAT(amadddbh, amadddbh_op)
+DEF_EMIT_REG3_FORMAT(amadddbw, amadddbw_op)
+DEF_EMIT_REG3_FORMAT(amadddbd, amadddbd_op)
+DEF_EMIT_REG3_FORMAT(amanddbw, amanddbw_op)
+DEF_EMIT_REG3_FORMAT(amanddbd, amanddbd_op)
+DEF_EMIT_REG3_FORMAT(amordbw, amordbw_op)
+DEF_EMIT_REG3_FORMAT(amordbd, amordbd_op)
+DEF_EMIT_REG3_FORMAT(amxordbw, amxordbw_op)
+DEF_EMIT_REG3_FORMAT(amxordbd, amxordbd_op)
+DEF_EMIT_REG3_FORMAT(amswapdbw, amswapdbw_op)
+DEF_EMIT_REG3_FORMAT(amswapdbd, amswapdbd_op)
 
 #define DEF_EMIT_REG3SA2_FORMAT(NAME, OP)				\
 static inline void emit_##NAME(union loongarch_instruction *insn,	\
