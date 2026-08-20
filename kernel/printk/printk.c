@@ -3264,10 +3264,8 @@ static bool console_flush_one_record(bool do_cond_resched, u64 *next_seq, bool *
 		if (flags & CON_NBCON) {
 			progress = nbcon_legacy_emit_next_record(con, handover, cookie,
 								 !do_cond_resched);
-			printk_seq = nbcon_seq_read(con);
 		} else {
 			progress = console_emit_next_record(con, handover, cookie);
-			printk_seq = con->seq;
 		}
 
 		/*
@@ -3276,6 +3274,15 @@ static bool console_flush_one_record(bool do_cond_resched, u64 *next_seq, bool *
 		 */
 		if (*handover)
 			goto fail;
+
+		/*
+		 * @con can be used here now that it is certain that this
+		 * context is still holding the SRCU read lock.
+		 */
+		if (flags & CON_NBCON)
+			printk_seq = nbcon_seq_read(con);
+		else
+			printk_seq = con->seq;
 
 		/* Track the next of the highest seq flushed. */
 		if (printk_seq > *next_seq)
@@ -3890,9 +3897,6 @@ static int console_call_setup(struct console *newcon, char *options)
  * the newly registered console with any of the ones selected
  * by either the command line or add_preferred_console() and
  * setup/enable it.
- *
- * Care need to be taken with consoles that are statically
- * enabled such as netconsole
  */
 static int try_enable_preferred_console(struct console *newcon,
 					bool user_specified)
@@ -3932,14 +3936,6 @@ static int try_enable_preferred_console(struct console *newcon,
 			newcon->flags |= CON_CONSDEV;
 		return 0;
 	}
-
-	/*
-	 * Some consoles, such as pstore and netconsole, can be enabled even
-	 * without matching. Accept the pre-enabled consoles only when match()
-	 * and setup() had a chance to be called.
-	 */
-	if (newcon->flags & CON_ENABLED && c->user_specified ==	user_specified)
-		return 0;
 
 	return -ENOENT;
 }
@@ -4122,6 +4118,14 @@ void register_console(struct console *newcon)
 	/* If not, try to match against the platform default(s) */
 	if (err == -ENOENT)
 		err = try_enable_preferred_console(newcon, false);
+
+	/*
+	 * Some consoles, such as pstore and netconsole, can be enabled even
+	 * without matching. Accept them at this stage when they had a chance
+	 * to match() and call setup().
+	 */
+	if (err == -ENOENT && (newcon->flags & CON_ENABLED))
+		err = 0;
 
 	/* printk() messages are not printed to the Braille console. */
 	if (err || newcon->flags & CON_BRL) {

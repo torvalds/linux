@@ -2360,6 +2360,9 @@ void __init hash_pointers_finalize(bool slub_debug)
 
 static int __init hash_pointers_mode_parse(char *str)
 {
+	/* Avoid stale no_hash_pointers state when hash_pointers overrides it */
+	no_hash_pointers = false;
+
 	if (!str) {
 		pr_warn("Hash pointers mode empty; falling back to auto.\n");
 		hash_pointers_mode = HASH_PTR_AUTO;
@@ -2369,6 +2372,7 @@ static int __init hash_pointers_mode_parse(char *str)
 	} else if (strcmp(str, "never") == 0) {
 		pr_info("Hash pointers mode set to never.\n");
 		hash_pointers_mode = HASH_PTR_NEVER;
+		no_hash_pointers = true;
 	} else if (strcmp(str, "always") == 0) {
 		pr_info("Hash pointers mode set to always.\n");
 		hash_pointers_mode = HASH_PTR_ALWAYS;
