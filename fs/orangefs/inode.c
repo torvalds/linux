@@ -652,8 +652,8 @@ vm_fault_t orangefs_page_mkwrite(struct vm_fault *vmf)
 		wr = folio_get_private(folio);
 		if (uid_eq(wr->uid, current_fsuid()) &&
 		    gid_eq(wr->gid, current_fsgid())) {
-			wr->pos = page_offset(vmf->page);
-			wr->len = PAGE_SIZE;
+			wr->pos = folio_pos(folio);
+			wr->len = folio_size(folio);
 			goto okay;
 		} else {
 			if (orangefs_launder_folio(folio)) {
@@ -667,8 +667,8 @@ vm_fault_t orangefs_page_mkwrite(struct vm_fault *vmf)
 		ret = VM_FAULT_LOCKED|VM_FAULT_RETRY;
 		goto out;
 	}
-	wr->pos = page_offset(vmf->page);
-	wr->len = PAGE_SIZE;
+	wr->pos = folio_pos(folio);
+	wr->len = folio_size(folio);
 	wr->uid = current_fsuid();
 	wr->gid = current_fsgid();
 	folio_attach_private(folio, wr);
