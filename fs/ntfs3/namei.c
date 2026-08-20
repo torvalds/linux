@@ -13,6 +13,7 @@
 #include "debug.h"
 #include "ntfs.h"
 #include "ntfs_fs.h"
+#include <trace/events/ntfs3.h>
 
 /*
  * fill_name_de - Format NTFS_DE in @buf.
@@ -76,6 +77,8 @@ static struct dentry *ntfs_lookup(struct inode *dir, struct dentry *dentry,
 	struct cpu_str *uni = kmalloc(PATH_MAX, GFP_KERNEL);
 	struct inode *inode;
 	int err;
+
+	trace_ntfs3_lookup(dir, dentry);
 
 	if (!uni)
 		return ERR_PTR(-ENOMEM);
@@ -298,6 +301,8 @@ static int ntfs_rename(struct mnt_idmap *idmap, struct inode *dir,
 
 	if (unlikely(ntfs3_forced_shutdown(sb)))
 		return -EIO;
+
+	trace_ntfs3_rename(dir, dentry, new_dir, new_dentry);
 
 	if (flags & ~RENAME_NOREPLACE)
 		return -EINVAL;
