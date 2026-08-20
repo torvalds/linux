@@ -1,11 +1,6 @@
 .. include:: ../disclaimer-ita.rst
 
-.. note:: Per leggere la documentazione originale in inglese:
-	  :ref:`Documentation/doc-guide/index.rst <doc_guide>`
-
 .. title:: Commenti in kernel-doc
-
-.. _it_kernel_doc:
 
 =================================
 Scrivere i commenti in kernel-doc
@@ -82,10 +77,14 @@ che questo produca alcuna documentazione. Per esempio::
 
 	tools/docs/kernel-doc -v -none drivers/foo/bar.c
 
-Il formato della documentazione è verificato della procedura di generazione
-del kernel quando viene richiesto di effettuare dei controlli extra con GCC::
+Il formato della documentazione dei file ``.c`` è verificato anche dalla
+procedura di generazione del kernel quando viene richiesto di effettuare dei
+controlli extra con GCC::
 
 	make W=n
+
+Tuttavia, il comando precedente non verifica i file d'intestazione. Questi
+devono essere controllati separatamente utilizzando ``kernel-doc``.
 
 Documentare le funzioni
 ------------------------
@@ -172,7 +171,7 @@ Valore di ritorno
 ~~~~~~~~~~~~~~~~~
 
 Il valore di ritorno, se c'è, viene descritto in una sezione dedicata di nome
-``Return``.
+``Return`` (o ``Returns``).
 
 .. note::
 
@@ -202,7 +201,8 @@ Il valore di ritorno, se c'è, viene descritto in una sezione dedicata di nome
 Documentare strutture, unioni ed enumerazioni
 ---------------------------------------------
 
-Generalmente il formato di un commento kernel-doc per struct, union ed enum è::
+Generalmente il formato di un commento kernel-doc per ``struct``, ``union``
+ed ``enum`` è::
 
   /**
    * struct struct_name - Brief description.
@@ -236,6 +236,10 @@ verranno inclusi nella documentazione finale.
 Le etichette ``private:`` e ``public:`` devono essere messe subito dopo
 il marcatore di un commento ``/*``. Opzionalmente, possono includere commenti
 fra ``:`` e il marcatore di fine commento ``*/``.
+
+Quando ``private:`` viene usata su strutture annidate, si propaga solo alle
+strutture/unioni interne.
+
 
 Esempio::
 
@@ -280,13 +284,15 @@ Strutture ed unioni annidate
         union {
           struct {
             int memb1;
+            /* private: nasconde memb2 dalla documentazione */
             int memb2;
-        }
+          };
+          /* Qui torna tutto pubblico, l'ambito private è terminato */
           struct {
             void *memb3;
             int memb4;
-          }
-        }
+          };
+        };
         union {
           struct {
             int memb1;
@@ -366,9 +372,22 @@ Anche i tipi di dato per prototipi di funzione possono essere documentati::
    * Description of the type.
    *
    * Context: Locking context.
-   * Return: Meaning of the return value.
+   * Returns: Meaning of the return value.
    */
    typedef void (*type_name)(struct v4l2_ctrl *arg1, void *arg2);
+
+Documentazione delle variabili
+-------------------------------
+
+Generalmente il formato di un commento kernel-doc per una variabile è
+il seguente::
+
+  /**
+   * var var_name - Brief description.
+   *
+   * Description of the var_name variable.
+   */
+   extern int var_name;
 
 Documentazione di macro simili a oggetti
 ----------------------------------------
@@ -433,6 +452,10 @@ del `dominio Sphinx per il C`_.
 ``%CONST``
   Il nome di una costante (nessun riferimento, solo formattazione)
 
+  Esempi::
+
+    %0    %NULL    %-1    %-EFAULT    %-EINVAL    %-ENOMEM
+
 ````literal````
   Un blocco di testo che deve essere riportato così com'è. La rappresentazione
   finale utilizzerà caratteri a ``spaziatura fissa``.
@@ -484,15 +507,22 @@ la seguente sintassi::
   See :c:func:`my custom link text for function foo <foo>`.
   See :c:type:`my custom link text for struct bar <bar>`.
 
+Per ulteriori dettagli, consultate la documentazione del `dominio Sphinx per
+il C`_.
+
+.. note::
+   Le variabili non vengono automaticamente collegate tramite riferimenti
+   incrociati. Per queste, dovete aggiungere esplicitamente un riferimento
+   incrociato del dominio C.
 
 Commenti per una documentazione generale
 ----------------------------------------
 
 Al fine d'avere il codice ed i commenti nello stesso file, potete includere
 dei blocchi di documentazione kernel-doc con un formato libero invece
-che nel formato specifico per funzioni, strutture, unioni, enumerati o tipi
-di dato. Per esempio, questo tipo di commento potrebbe essere usato per la
-spiegazione delle operazioni di un driver o di una libreria
+che nel formato specifico per funzioni, strutture, unioni, enumerati, tipi
+di dato o variabili. Per esempio, questo tipo di commento potrebbe essere
+usato per la spiegazione delle operazioni di un driver o di una libreria
 
 Questo s'ottiene utilizzando la parola chiave ``DOC:`` a cui viene associato
 un titolo.
@@ -565,6 +595,8 @@ identifiers: *[ function/type ...]*
   Include la documentazione per ogni *function* e *type*  in *source*.
   Se non vengono esplicitamente specificate le funzioni da includere, allora
   verranno incluse tutte quelle disponibili in *source*.
+  *type* può essere un identificatore di tipo ``struct``, ``union``,
+  ``enum``, ``typedef`` o ``var``.
 
   Esempi::
 
@@ -601,7 +633,25 @@ dai file sorgenti.
 Come utilizzare kernel-doc per generare pagine man
 --------------------------------------------------
 
-Se volete utilizzare kernel-doc solo per generare delle pagine man, potete
-farlo direttamente dai sorgenti del kernel::
+Per generare le pagine man di tutti i file che contengono marcatori
+kernel-doc, eseguite::
 
-  $ tools/docs/kernel-doc -man $(git grep -l '/\*\*' -- :^Documentation :^tools) | scripts/split-man.pl /tmp/man
+  $ make mandocs
+
+Oppure, chiamando direttamente ``script-build-wrapper``::
+
+  $ ./tools/docs/sphinx-build-wrapper mandocs
+
+Il risultato sarà disponibile nella cartella ``/man`` dentro la cartella
+di output (predefinita: ``Documentation/output``).
+
+Opzionalmente, è possibile generare un sottoinsieme di pagine man usando
+SPHINXDIRS:
+
+  $ make SPHINXDIRS=driver-api/media mandocs
+
+.. note::
+
+   Quando si usa SPHINXDIRS={subdir}, verranno generate le pagine man solo
+   per i file che si trovano esplicitamente all'interno di un file
+   ``Documentation/{subdir}/.../*.rst``.

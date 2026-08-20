@@ -624,7 +624,7 @@ class ManFormat(OutputFormat):
     ``manual``
         Defaults to ``Kernel API Manual``.
 
-    The above controls the output of teh corresponding fields on troff
+    The above controls the output of the corresponding fields on troff
     title headers, which will be filled like this::
 
         .TH "{name}" {section} "{date}" "{modulename}" "{manual}"

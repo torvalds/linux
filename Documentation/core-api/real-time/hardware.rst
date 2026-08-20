@@ -130,3 +130,107 @@ https://github.com/Linutronix/RTC-Testbench.
 The goal of this project is to validate real-time network communication. It can
 be thought of as a "cyclictest" for networking and also serves as a starting
 point for application development.
+
+Firmware
+--------
+
+The firmware often plays a significant role in system operation because it can
+perform tasks that the kernel cannot directly access, and in some cases it can
+even preempt or intercept the kernel.
+
+A common example of firmware assisting the kernel is when it provides a generic
+interface to a resource. Instead of accessing an RTC chip through an I2C host
+controller, the kernel may query the firmware for the current time, and the
+firmware then accesses the RTC behind the scenes.
+
+Firmware can also intercept kernel execution by providing services that
+temporarily take control of the system. One example is memory scrubbing, where
+the firmware periodically pauses the kernel, reads back portions of system
+memory, and then returns control. During this time, the kernel is effectively
+interrupted.
+In contrast, some systems provide hardware-based memory scrubbing, which
+operates independently of firmware or software. See
+Documentation/edac/scrub.rst for details.
+
+If the kernel is intercepted for longer periods then these periods can be made
+visible with the hardware latency detector. See
+Documentation/trace/hwlat_detector.rst.
+
+The kernel can also be intercepted in response to specific events, such as
+overheating. In this case, the firmware may throttle the CPU or shut it down
+immediately to prevent hardware damage.
+
+Unless the firmware is well documented, it should be thoroughly tested to
+uncover any unexpected behaviour.
+
+EFI
+~~~~
+
+EFI provides runtime services that act as a communication interface between the
+firmware and the operating system. One such service is reading and writing EFI
+variables, which are used, for example, to determine the boot source.
+
+Invoking a runtime service may require the architecture to disable kernel
+preemption or interrupts during the call. This means the duration of a service
+invocation directly affects the system’s observable latency. There is also
+nothing that prevents a service call from disabling interrupts internally while
+it runs.
+
+For these reasons, EFI runtime services are disabled by default on a PREEMPT_RT
+kernel. They can still be enabled at boot time or via a Kconfig option if
+required.
+The native EFI runtime service implementation (where both the EFI service and
+the kernel are either 32-bit or 64-bit executables) uses a wrapper mechanism
+that invokes the service through a dedicated workqueue. This workqueue is named
+efi_runtime, and it can be restricted to a housekeeping CPU using the
+``/sys/devices/virtual/workqueue/efi_runtime/cpumask`` sysfs file. Assigning it
+to a housekeeping CPU ensures that potentially long service invocations do not
+impact the real-time workload which is restricted to other CPUs.
+
+It must also be verified that the runtime services behave as expected. Some
+implementations on the x86 architecture pause all other CPUs while one CPU
+performs the service call. In such cases, the interruption affects all CPUs,
+and restricting the workqueue to a single CPU provides no benefit.
+
+OP-TEE (ARM)
+~~~~~~~~~~~~
+
+Execution flows from the normal world (Linux) into the secure world (OP-TEE)
+through the secure monitor at EL3. The transition is initiated by the `smc`
+(Secure Monitor Call) opcode or the `hvc` (Hypervisor Call) opcode together
+with a function identifier. The calling convention defines two types of calls:
+**yielding calls** and **fast calls**:
+
+- A **yielding call** unmasks interrupts before handling the requested service,
+  allowing normal world interrupts to occur.
+- A **fast call** handles the requested service atomically, without allowing
+  interrupts from either the normal world or the secure world.
+
+In addition, the secure world (EL3 and OP-TEE) can receive interrupts routed to
+the secure world. While a secure world interrupt is being serviced,
+normal world interrupts are masked and cannot preempt the operation.
+
+The transition from normal world to secure monitor to OP-TEE and back introduces
+additional latency due to world switching and context save/restore. This
+overhead is typically a few microseconds and usually remains within the noise
+floor.
+
+It is worth noting that the normal world cannot mask secure interrupts, while
+the secure world can mask normal-world interrupts during execution. How OP-TEE
+affects real-time workloads depends on whether secure interrupts are enabled
+and which OP-TEE services are invoked.
+
+A practical concern is any fast call that runs longer than expected, for
+example a function that occasionally performs a long-running cryptographic
+computation. Another example that may block in an unexpected way are OP-TEE
+drivers that issue RPC requests. An OP-TEE service in the secure world (RPMB
+for instance) may need to issue a request back to the normal world (the Linux
+driver) in order to complete the operation. While Linux remains preemptible,
+the thread that issued the request stays blocked until the RPC completes and
+the secure function call returns.
+
+The TF-A project provides documentation on interrupt management:
+https://trustedfirmware-a.readthedocs.io/en/latest/design/interrupt-framework-design.html#interrupt-management-framework
+
+The OP-TEE project provides documentation on how interrupts are handled:
+https://optee.readthedocs.io/en/latest/architecture/core.html#interrupt-handling

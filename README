@@ -30,15 +30,15 @@ Who Are You?
 
 Find your role below:
 
-* New Kernel Developer - Getting started with kernel development
-* Academic Researcher - Studying kernel internals and architecture
-* Security Expert - Hardening and vulnerability analysis
-* Backport/Maintenance Engineer - Maintaining stable kernels
-* System Administrator - Configuring and troubleshooting
-* Maintainer - Leading subsystems and reviewing patches
-* Hardware Vendor - Writing drivers for new hardware
-* Distribution Maintainer - Packaging kernels for distros
-* AI Coding Assistant - LLMs and AI-powered development tools
+* New Kernel Developer: Getting started with kernel development
+* Academic Researcher: Studying kernel internals and architecture
+* Security Expert: Hardening and vulnerability analysis
+* Backport/Maintenance Engineer: Maintaining stable kernels
+* System Administrator: Configuring and troubleshooting
+* Maintainer: Leading subsystems and reviewing patches
+* Hardware Vendor: Writing drivers for new hardware
+* Distribution Maintainer: Packaging kernels for distros
+* AI Coding Assistant: LLMs and AI-powered development tools
 
 
 For Specific Users

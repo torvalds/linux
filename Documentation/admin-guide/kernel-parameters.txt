@@ -1618,10 +1618,17 @@ Kernel parameters
 			on all PCI bridges while in the EFI boot stub
 
 	efi_no_storage_paranoia [EFI,X86,EARLY]
-			Using this parameter you can use more than 50% of
-			your efi variable storage. Use this parameter only if
-			you are really sure that your UEFI does sane gc and
-			fulfills the spec otherwise your board may brick.
+			The kernel reserves 5KB of EFI variable storage for
+			safety, because some UEFI implementation may fail to
+			boot if there's insufficient space in the EFI variable
+			storage.
+
+			Using this parameter, you can use the 5KB reservation
+			in the EFI variable storage.
+
+			However, Use this parameter only if you are really
+			sure that your UEFI does sane gc and fulfills the spec
+			otherwise your board may brick.
 
 	efivar_ssdt=	[EFI; X86] Name of an EFI variable that contains an SSDT
 			that is to be dynamically loaded by Linux. If there are
@@ -6446,9 +6453,9 @@ Kernel parameters
 	reboot=		[KNL]
 			Format (x86 or x86_64):
 				[w[arm] | c[old] | h[ard] | s[oft] | g[pio]] | d[efault] \
-				[[,]s[mp]#### \
+				[[,]s[mp]####] \
 				[[,]b[ios] | a[cpi] | k[bd] | t[riple] | e[fi] | p[ci]] \
-				[[,]f[orce]
+				[[,]f[orce]]
 			Where reboot_mode is one of warm (soft) or cold (hard) or gpio
 					(prefix with 'panic_' to set mode for panic
 					reboot only),
@@ -6908,7 +6915,7 @@ Kernel parameters
 			xtime_lock contention on larger systems, and/or RCU lock
 			contention on all systems with CONFIG_MAXSMP set.
 			Format: { "0" | "1" }
-			0 -- disable. (may be 1 via CONFIG_CMDLINE="skew_tick=1"
+			0 -- disable. (may be 1 via CONFIG_CMDLINE="skew_tick=1")
 			1 -- enable.
 			Note: increases power consumption, thus should only be
 			enabled if running jitter sensitive (HPC/RT) workloads.
@@ -6949,7 +6956,7 @@ Kernel parameters
 			apic=verbose is specified.
 			Example: apic=debug show_lapic=all
 
-	slab_debug[=options[,slabs][;[options[,slabs]]...]	[MM]
+	slab_debug[=options[,slabs][;[options[,slabs]]...]]	[MM]
 			Enabling slab_debug allows one to determine the
 			culprit if slab objects become corrupted. Enabling
 			slab_debug can create guard zones around objects and
@@ -7038,17 +7045,6 @@ Kernel parameters
 			system.  By default, let CSD-lock acquisition
 			take as long as they take.  Specifying 300,000
 			for this value provides a 5-minute timeout.
-
-	smsc-ircc2.nopnp	[HW] Don't use PNP to discover SMC devices
-	smsc-ircc2.ircc_cfg=	[HW] Device configuration I/O port
-	smsc-ircc2.ircc_sir=	[HW] SIR base I/O port
-	smsc-ircc2.ircc_fir=	[HW] FIR base I/O port
-	smsc-ircc2.ircc_irq=	[HW] IRQ line
-	smsc-ircc2.ircc_dma=	[HW] DMA channel
-	smsc-ircc2.ircc_transceiver= [HW] Transceiver type:
-				0: Toshiba Satellite 1800 (GP data pin select)
-				1: Fast pin select (default)
-				2: ATC IRMode
 
 	smt=		[KNL,MIPS,S390,EARLY] Set the maximum number of threads
 			(logical CPUs) to use per physical CPU on systems

@@ -160,7 +160,7 @@ Description:
 		in trace events, such as CXL DRAM and CXL general media
 		error records of CXL memory devices.
 
-		When readng back these attributes, it returns the current
+		When reading back these attributes, it returns the current
 		value of memory requested to be repaired.
 
 		bank_group - The bank group of the memory to repair.

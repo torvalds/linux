@@ -143,7 +143,7 @@ Because of this, it's often advantageous to first do an errseq_check to
 see if anything has changed, and only later do an
 errseq_check_and_advance after taking the lock. e.g.::
 
-        if (errseq_check(&wd.wd_err, READ_ONCE(su.s_wd_err)) {
+        if (errseq_check(&wd.wd_err, READ_ONCE(su.s_wd_err))) {
                 /* su.s_wd_err is protected by s_wd_err_lock */
                 spin_lock(&su.s_wd_err_lock);
                 err = errseq_check_and_advance(&wd.wd_err, &su.s_wd_err);

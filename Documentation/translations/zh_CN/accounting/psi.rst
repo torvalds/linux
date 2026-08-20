@@ -148,7 +148,7 @@ psi接口提供的均值即可。
 Cgroup2接口
 ===========
 
-对于CONFIG_CGROUP=y及挂载了cgroup2文件系统的系统，能够获取cgroups内任务的psi。
+对于CONFIG_CGROUPS=y及挂载了cgroup2文件系统的系统，能够获取cgroups内任务的psi。
 此场景下cgroupfs挂载点的子目录包含cpu.pressure、memory.pressure、io.pressure文件，
 内容格式与/proc/pressure/下的文件相同。
 
