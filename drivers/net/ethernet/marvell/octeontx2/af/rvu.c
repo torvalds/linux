@@ -3331,8 +3331,8 @@ static int rvu_register_interrupts(struct rvu *rvu)
 		goto fail;
 
 	for (i = 0; i < rvu->num_vec; i++) {
-		if (strstr(&rvu->irq_name[i * NAME_SIZE], "Mbox") ||
-		    strstr(&rvu->irq_name[i * NAME_SIZE], "FLR"))
+		if (strnstr(&rvu->irq_name[i * NAME_SIZE], "Mbox", NAME_SIZE) ||
+		    strnstr(&rvu->irq_name[i * NAME_SIZE], "FLR", NAME_SIZE))
 			irq_set_affinity(pci_irq_vector(rvu->pdev, i),
 					 cpumask_of(0));
 	}
