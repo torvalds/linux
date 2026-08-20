@@ -179,6 +179,23 @@ test_kprobes_c_bnez_addr3:
 	ret
 SYM_FUNC_END(test_kprobes_c_bnez)
 
+#ifdef CONFIG_32BIT
+SYM_FUNC_START(test_kprobes_c_jal)
+	li a0, 0
+	mv a1, ra
+test_kprobes_c_jal_addr1:
+	c.jal 2f
+	ret
+1:	li a0, KPROBE_TEST_MAGIC_UPPER
+	ret
+test_kprobes_c_jal_addr2:
+2:	c.jal 1b
+	li a2, KPROBE_TEST_MAGIC_LOWER
+	add a0, a0, a2
+	jr a1
+SYM_FUNC_END(test_kprobes_c_jal)
+#endif
+
 #endif /* CONFIG_RISCV_ISA_C */
 
 .section .rodata
@@ -209,6 +226,10 @@ SYM_DATA_START(test_kprobes_addresses)
 	RISCV_PTR test_kprobes_c_bnez_addr1
 	RISCV_PTR test_kprobes_c_bnez_addr2
 	RISCV_PTR test_kprobes_c_bnez_addr3
+#ifdef CONFIG_32BIT
+	RISCV_PTR test_kprobes_c_jal_addr1
+	RISCV_PTR test_kprobes_c_jal_addr2
+#endif
 #endif /* CONFIG_RISCV_ISA_C */
 	RISCV_PTR 0
 SYM_DATA_END(test_kprobes_addresses)
@@ -226,6 +247,9 @@ SYM_DATA_START(test_kprobes_functions)
 	RISCV_PTR test_kprobes_c_jalr
 	RISCV_PTR test_kprobes_c_beqz
 	RISCV_PTR test_kprobes_c_bnez
+#ifdef CONFIG_32BIT
+	RISCV_PTR test_kprobes_c_jal
+#endif
 #endif /* CONFIG_RISCV_ISA_C */
 	RISCV_PTR 0
 SYM_DATA_END(test_kprobes_functions)

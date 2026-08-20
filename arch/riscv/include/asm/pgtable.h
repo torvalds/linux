@@ -568,6 +568,8 @@ static inline void update_mmu_cache_range(struct vm_fault *vmf,
 		struct vm_area_struct *vma, unsigned long address,
 		pte_t *ptep, unsigned int nr)
 {
+	unsigned long asid = get_mm_asid(vma->vm_mm);
+
 	/*
 	 * Svvptc guarantees that the new valid pte will be visible within
 	 * a bounded timeframe, so when the uarch does not cache invalid
@@ -575,6 +577,14 @@ static inline void update_mmu_cache_range(struct vm_fault *vmf,
 	 */
 	if (riscv_has_extension_unlikely(RISCV_ISA_EXT_SVVPTC))
 		return;
+
+	if (riscv_has_extension_unlikely(RISCV_ISA_EXT_SVINVAL)) {
+		local_sfence_w_inval();
+		while (nr--)
+			local_sinval_vma(address + nr * PAGE_SIZE, asid);
+		local_sfence_inval_ir();
+		return;
+	}
 
 	/*
 	 * The kernel assumes that TLBs don't cache invalid entries, but
@@ -584,7 +594,7 @@ static inline void update_mmu_cache_range(struct vm_fault *vmf,
 	 * the extra traps reduce performance.  So, eagerly SFENCE.VMA.
 	 */
 	while (nr--)
-		local_flush_tlb_page(address + nr * PAGE_SIZE);
+		local_flush_tlb_page_asid(address + nr * PAGE_SIZE, asid);
 
 }
 #define update_mmu_cache(vma, addr, ptep) \

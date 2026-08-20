@@ -22,6 +22,7 @@
 #include <linux/initrd.h>
 #include <linux/security.h>
 #include <linux/kmemleak.h>
+#include <asm/fixmap.h>
 #include "internal.h"
 
 #ifdef CONFIG_ACPI_CUSTOM_DSDT
