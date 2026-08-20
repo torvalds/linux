@@ -129,6 +129,17 @@ enum ina2xx_ids {
 	sy24655
 };
 
+enum ina2xx_alert_type {
+	INA2XX_ALERT_NONE,
+	INA2XX_ALERT_CURRENT_LOW,
+	INA2XX_ALERT_CURRENT_HIGH,
+	INA2XX_ALERT_POWER_HIGH,
+	INA2XX_ALERT_BUS_VOLTAGE_LOW,
+	INA2XX_ALERT_BUS_VOLTAGE_HIGH,
+	INA2XX_ALERT_SHUNT_VOLTAGE_LOW,
+	INA2XX_ALERT_SHUNT_VOLTAGE_HIGH,
+};
+
 struct ina2xx_config {
 	u16 config_default;
 	bool has_alerts;	/* chip supports alerts and limits */
@@ -428,16 +439,43 @@ static u16 ina226_alert_to_reg(struct ina2xx_data *data, int reg, long val)
 	}
 }
 
-static int ina226_alert_limit_read(struct ina2xx_data *data, u32 mask, int reg, long *val)
+static u32 ina2xx_alert_type_to_mask(enum ina2xx_alert_type alert)
+{
+	switch (alert) {
+	case INA2XX_ALERT_CURRENT_LOW:
+	case INA2XX_ALERT_SHUNT_VOLTAGE_LOW:
+		return INA226_SHUNT_UNDER_VOLTAGE_MASK;
+	case INA2XX_ALERT_CURRENT_HIGH:
+	case INA2XX_ALERT_SHUNT_VOLTAGE_HIGH:
+		return INA226_SHUNT_OVER_VOLTAGE_MASK;
+	case INA2XX_ALERT_BUS_VOLTAGE_LOW:
+		return INA226_BUS_UNDER_VOLTAGE_MASK;
+	case INA2XX_ALERT_BUS_VOLTAGE_HIGH:
+		return INA226_BUS_OVER_VOLTAGE_MASK;
+	case INA2XX_ALERT_POWER_HIGH:
+		return INA226_POWER_OVER_LIMIT_MASK;
+	case INA2XX_ALERT_NONE:
+		return 0;
+	default:
+		/* programmer error */
+		WARN_ON_ONCE(1);
+		return 0;
+	}
+}
+
+static int ina226_alert_limit_read(struct ina2xx_data *data, enum ina2xx_alert_type alert,
+				   int reg, long *val)
 {
 	struct regmap *regmap = data->regmap;
 	int regval;
+	u32 mask;
 	int ret;
 
 	ret = regmap_read(regmap, INA226_MASK_ENABLE, &regval);
 	if (ret)
 		return ret;
 
+	mask = ina2xx_alert_type_to_mask(alert);
 	if (regval & mask) {
 		ret = regmap_read(regmap, INA226_ALERT_LIMIT, &regval);
 		if (ret)
@@ -449,9 +487,11 @@ static int ina226_alert_limit_read(struct ina2xx_data *data, u32 mask, int reg, 
 	return 0;
 }
 
-static int ina226_alert_limit_write(struct ina2xx_data *data, u32 mask, int reg, long val)
+static int ina226_alert_limit_write(struct ina2xx_data *data, enum ina2xx_alert_type alert,
+				    int reg, long val)
 {
 	struct regmap *regmap = data->regmap;
+	u32 mask;
 	int ret;
 
 	if (val < 0)
@@ -472,9 +512,11 @@ static int ina226_alert_limit_write(struct ina2xx_data *data, u32 mask, int reg,
 	if (ret < 0)
 		return ret;
 
-	if (val)
+	if (val) {
+		mask = ina2xx_alert_type_to_mask(alert);
 		return regmap_update_bits(regmap, INA226_MASK_ENABLE,
 					  INA226_ALERT_CONFIG_MASK, mask);
+	}
 	return 0;
 }
 
@@ -498,15 +540,17 @@ static int ina2xx_chip_read(struct device *dev, u32 attr, long *val)
 	return 0;
 }
 
-static int ina226_alert_read(struct ina2xx_data *data, u32 mask, long *val)
+static int ina226_alert_read(struct ina2xx_data *data, enum ina2xx_alert_type alert, long *val)
 {
 	unsigned int regval;
+	u32 mask;
 	int ret;
 
 	ret = regmap_read_bypassed(data->regmap, INA226_MASK_ENABLE, &regval);
 	if (ret)
 		return ret;
 
+	mask = ina2xx_alert_type_to_mask(alert);
 	*val = (regval & mask) && (regval & INA226_ALERT_FUNCTION_FLAG);
 
 	return 0;
@@ -515,10 +559,10 @@ static int ina226_alert_read(struct ina2xx_data *data, u32 mask, long *val)
 static int ina2xx_in_read(struct device *dev, u32 attr, int channel, long *val)
 {
 	int voltage_reg = channel ? INA2XX_BUS_VOLTAGE : INA2XX_SHUNT_VOLTAGE;
-	u32 under_voltage_mask = channel ? INA226_BUS_UNDER_VOLTAGE_MASK
-					 : INA226_SHUNT_UNDER_VOLTAGE_MASK;
-	u32 over_voltage_mask = channel ? INA226_BUS_OVER_VOLTAGE_MASK
-					: INA226_SHUNT_OVER_VOLTAGE_MASK;
+	enum ina2xx_alert_type under_voltage_alert = channel ? INA2XX_ALERT_BUS_VOLTAGE_LOW
+							     : INA2XX_ALERT_SHUNT_VOLTAGE_LOW;
+	enum ina2xx_alert_type over_voltage_alert = channel ? INA2XX_ALERT_BUS_VOLTAGE_HIGH
+							    : INA2XX_ALERT_SHUNT_VOLTAGE_HIGH;
 	struct ina2xx_data *data = dev_get_drvdata(dev);
 	struct regmap *regmap = data->regmap;
 	unsigned int regval;
@@ -532,15 +576,15 @@ static int ina2xx_in_read(struct device *dev, u32 attr, int channel, long *val)
 		*val = ina2xx_get_value(data, voltage_reg, regval);
 		break;
 	case hwmon_in_lcrit:
-		return ina226_alert_limit_read(data, under_voltage_mask,
+		return ina226_alert_limit_read(data, under_voltage_alert,
 					       voltage_reg, val);
 	case hwmon_in_crit:
-		return ina226_alert_limit_read(data, over_voltage_mask,
+		return ina226_alert_limit_read(data, over_voltage_alert,
 					       voltage_reg, val);
 	case hwmon_in_lcrit_alarm:
-		return ina226_alert_read(data, under_voltage_mask, val);
+		return ina226_alert_read(data, under_voltage_alert, val);
 	case hwmon_in_crit_alarm:
-		return ina226_alert_read(data, over_voltage_mask, val);
+		return ina226_alert_read(data, over_voltage_alert, val);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -594,10 +638,10 @@ static int ina2xx_power_read(struct device *dev, u32 attr, long *val)
 	case hwmon_power_average:
 		return sy24655_average_power_read(data, SY24655_EIN, val);
 	case hwmon_power_crit:
-		return ina226_alert_limit_read(data, INA226_POWER_OVER_LIMIT_MASK,
+		return ina226_alert_limit_read(data, INA2XX_ALERT_POWER_HIGH,
 					       INA2XX_POWER, val);
 	case hwmon_power_crit_alarm:
-		return ina226_alert_read(data, INA226_POWER_OVER_LIMIT_MASK, val);
+		return ina226_alert_read(data, INA2XX_ALERT_POWER_HIGH, val);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -633,15 +677,15 @@ static int ina2xx_curr_read(struct device *dev, u32 attr, long *val)
 		*val = ina2xx_get_value(data, INA2XX_CURRENT, regval);
 		return 0;
 	case hwmon_curr_lcrit:
-		return ina226_alert_limit_read(data, INA226_SHUNT_UNDER_VOLTAGE_MASK,
+		return ina226_alert_limit_read(data, INA2XX_ALERT_CURRENT_LOW,
 					       INA2XX_CURRENT, val);
 	case hwmon_curr_crit:
-		return ina226_alert_limit_read(data, INA226_SHUNT_OVER_VOLTAGE_MASK,
+		return ina226_alert_limit_read(data, INA2XX_ALERT_CURRENT_HIGH,
 					       INA2XX_CURRENT, val);
 	case hwmon_curr_lcrit_alarm:
-		return ina226_alert_read(data, INA226_SHUNT_UNDER_VOLTAGE_MASK, val);
+		return ina226_alert_read(data, INA2XX_ALERT_CURRENT_LOW, val);
 	case hwmon_curr_crit_alarm:
-		return ina226_alert_read(data, INA226_SHUNT_OVER_VOLTAGE_MASK, val);
+		return ina226_alert_read(data, INA2XX_ALERT_CURRENT_HIGH, val);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -685,12 +729,12 @@ static int ina2xx_in_write(struct device *dev, u32 attr, int channel, long val)
 	switch (attr) {
 	case hwmon_in_lcrit:
 		return ina226_alert_limit_write(data,
-			channel ? INA226_BUS_UNDER_VOLTAGE_MASK : INA226_SHUNT_UNDER_VOLTAGE_MASK,
+			channel ? INA2XX_ALERT_BUS_VOLTAGE_LOW : INA2XX_ALERT_SHUNT_VOLTAGE_LOW,
 			channel ? INA2XX_BUS_VOLTAGE : INA2XX_SHUNT_VOLTAGE,
 			val);
 	case hwmon_in_crit:
 		return ina226_alert_limit_write(data,
-			channel ? INA226_BUS_OVER_VOLTAGE_MASK : INA226_SHUNT_OVER_VOLTAGE_MASK,
+			channel ? INA2XX_ALERT_BUS_VOLTAGE_HIGH : INA2XX_ALERT_SHUNT_VOLTAGE_HIGH,
 			channel ? INA2XX_BUS_VOLTAGE : INA2XX_SHUNT_VOLTAGE,
 			val);
 	default:
@@ -705,7 +749,7 @@ static int ina2xx_power_write(struct device *dev, u32 attr, long val)
 
 	switch (attr) {
 	case hwmon_power_crit:
-		return ina226_alert_limit_write(data, INA226_POWER_OVER_LIMIT_MASK,
+		return ina226_alert_limit_write(data, INA2XX_ALERT_POWER_HIGH,
 						INA2XX_POWER, val);
 	default:
 		return -EOPNOTSUPP;
@@ -719,10 +763,10 @@ static int ina2xx_curr_write(struct device *dev, u32 attr, long val)
 
 	switch (attr) {
 	case hwmon_curr_lcrit:
-		return ina226_alert_limit_write(data, INA226_SHUNT_UNDER_VOLTAGE_MASK,
+		return ina226_alert_limit_write(data, INA2XX_ALERT_CURRENT_LOW,
 						INA2XX_CURRENT, val);
 	case hwmon_curr_crit:
-		return ina226_alert_limit_write(data, INA226_SHUNT_OVER_VOLTAGE_MASK,
+		return ina226_alert_limit_write(data, INA2XX_ALERT_CURRENT_HIGH,
 						INA2XX_CURRENT, val);
 	default:
 		return -EOPNOTSUPP;
