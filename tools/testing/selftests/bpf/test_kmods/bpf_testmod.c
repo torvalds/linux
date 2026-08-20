@@ -161,6 +161,33 @@ bpf_testmod_test_arg_ptr_to_struct(struct bpf_testmod_struct_arg_1 *a) {
 	return bpf_testmod_test_struct_arg_result;
 }
 
+#ifdef __SIZEOF_INT128__
+noinline __int128
+bpf_testmod_test_int128_ret(int a)
+{
+	bpf_testmod_test_struct_arg_result = a;
+	return (__int128)a;
+}
+
+/*
+ * The __int128 'a' is the first argument on purpose. On arm64 a 16-byte
+ * argument must start in an even-numbered register pair, so placing it
+ * after a single-register scalar would leave a padding register (x1)
+ * unused. pahole maps parameters to registers positionally and would then
+ * see the following argument in an "unexpected" register and skip BTF
+ * encoding of the whole function, making it unattachable. Keeping the
+ * __int128 first (x0:x1) avoids the padding while still exercising the
+ * trampoline packing of a 128-bit argument together with the trailing
+ * int and long arguments.
+ */
+noinline long
+bpf_testmod_test_int128_arg(__int128 a, int b, long c)
+{
+	bpf_testmod_test_struct_arg_result = (long)a + b + c;
+	return bpf_testmod_test_struct_arg_result;
+}
+#endif
+
 __weak noinline void bpf_testmod_looooooooooooooooooooooooooooooong_name(void)
 {
 }
@@ -208,6 +235,44 @@ __bpf_kfunc void bpf_iter_testmod_seq_destroy(struct bpf_iter_testmod_seq *it)
 
 __bpf_kfunc void bpf_kfunc_common_test(void)
 {
+}
+
+__bpf_kfunc u64 bpf_kfunc_arena_arg_test(u64 *val__arena)
+{
+	u64 old;
+
+	old = *val__arena;
+	*val__arena = old + 1;
+	return old;
+}
+
+__bpf_kfunc u64 bpf_kfunc_arena_cap_test(u64 *val__arena)
+{
+	return (u64)val__arena;
+}
+
+__bpf_kfunc u64 bpf_kfunc_arena_cap_nullable_test(u64 *val__arena__nullable)
+{
+	return (u64)val__arena__nullable;
+}
+
+__bpf_kfunc u64 bpf_kfunc_arena_args5_test(u64 *a__arena, u64 *b__arena,
+					   u64 *c__arena, u64 *d__arena,
+					   u64 *e__arena__nullable)
+{
+	return *a__arena + *b__arena + *c__arena + *d__arena +
+	       (e__arena__nullable ? *e__arena__nullable : 0);
+}
+
+__bpf_kfunc u64 bpf_kfunc_arena_stack_arg_test(u64 a, u64 b, u64 c, u64 d, u64 e,
+						u64 *f__arena)
+{
+	return a + b + c + d + e + *f__arena;
+}
+
+__bpf_kfunc u64 bpf_kfunc_arena_mixed_test(u64 *a__arena, u64 *b__arena__nullable)
+{
+	return *a__arena + (b__arena__nullable ? *b__arena__nullable : 0);
 }
 
 __bpf_kfunc void bpf_kfunc_dynptr_test(struct bpf_dynptr *ptr,
@@ -320,9 +385,36 @@ static int bpf_testmod_test_4(void)
 	return 0;
 }
 
+static int bpf_testmod_ops3__test_arena(u64 *ptr__arena)
+{
+	return 0;
+}
+
+static int bpf_testmod_ops3__test_arena_nullable(u64 *ptr__arena__nullable)
+{
+	return 0;
+}
+
+static int bpf_testmod_ops3__test_arena_stack(u64 a, u64 b, u64 c, u64 d,
+					      u64 e, u64 f, u64 g, u64 h,
+					      u64 *ptr__arena)
+{
+	return 0;
+}
+
+static int bpf_testmod_ops3__test_arena_multislot(struct bpf_testmod_arena_pair p,
+						  u64 *ptr__arena)
+{
+	return 0;
+}
+
 static struct bpf_testmod_ops3 __bpf_testmod_ops3 = {
 	.test_1 = bpf_testmod_test_3,
 	.test_2 = bpf_testmod_test_4,
+	.test_arena = bpf_testmod_ops3__test_arena,
+	.test_arena_nullable = bpf_testmod_ops3__test_arena_nullable,
+	.test_arena_stack = bpf_testmod_ops3__test_arena_stack,
+	.test_arena_multislot = bpf_testmod_ops3__test_arena_multislot,
 };
 
 static void bpf_testmod_test_struct_ops3(void)
@@ -339,6 +431,28 @@ __bpf_kfunc void bpf_testmod_ops3_call_test_1(void)
 __bpf_kfunc void bpf_testmod_ops3_call_test_2(void)
 {
 	st_ops3->test_2();
+}
+
+__bpf_kfunc int bpf_testmod_ops3_call_test_arena(u64 *ptr__arena)
+{
+	return st_ops3->test_arena(ptr__arena);
+}
+
+__bpf_kfunc int bpf_testmod_ops3_call_test_arena_nullable(u64 *ptr__arena__nullable)
+{
+	return st_ops3->test_arena_nullable(ptr__arena__nullable);
+}
+
+__bpf_kfunc int bpf_testmod_ops3_call_test_arena_stack(u64 *ptr__arena)
+{
+	return st_ops3->test_arena_stack(1, 2, 3, 4, 5, 6, 7, 8, ptr__arena);
+}
+
+__bpf_kfunc int bpf_testmod_ops3_call_test_arena_multislot(u64 *ptr__arena)
+{
+	struct bpf_testmod_arena_pair p = { .a = 11, .b = 22 };
+
+	return st_ops3->test_arena_multislot(p, ptr__arena);
 }
 
 struct bpf_testmod_btf_type_tag_1 {
@@ -513,6 +627,11 @@ bpf_testmod_test_read(struct file *file, struct kobject *kobj,
 	(void)bpf_testmod_test_union_arg_2(6, union_arg2);
 
 	(void)bpf_testmod_test_arg_ptr_to_struct(&struct_arg1_2);
+
+#ifdef __SIZEOF_INT128__
+	(void)bpf_testmod_test_int128_ret(i);
+	(void)bpf_testmod_test_int128_arg((__int128)1, 2, 3);
+#endif
 
 	(void)trace_bpf_testmod_test_raw_tp_null_tp(NULL);
 
@@ -723,6 +842,12 @@ BTF_ID_FLAGS(func, bpf_iter_testmod_seq_next, KF_ITER_NEXT | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_iter_testmod_seq_destroy, KF_ITER_DESTROY)
 BTF_ID_FLAGS(func, bpf_iter_testmod_seq_value)
 BTF_ID_FLAGS(func, bpf_kfunc_common_test)
+BTF_ID_FLAGS(func, bpf_kfunc_arena_arg_test)
+BTF_ID_FLAGS(func, bpf_kfunc_arena_cap_test)
+BTF_ID_FLAGS(func, bpf_kfunc_arena_cap_nullable_test)
+BTF_ID_FLAGS(func, bpf_kfunc_arena_args5_test)
+BTF_ID_FLAGS(func, bpf_kfunc_arena_stack_arg_test)
+BTF_ID_FLAGS(func, bpf_kfunc_arena_mixed_test)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test_mem_len_pass1)
 BTF_ID_FLAGS(func, bpf_kfunc_dynptr_test)
 BTF_ID_FLAGS(func, bpf_kfunc_nested_acquire_nonzero_offset_test, KF_ACQUIRE)
@@ -738,6 +863,10 @@ BTF_ID_FLAGS(func, bpf_testmod_ctx_create, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_testmod_ctx_release, KF_RELEASE)
 BTF_ID_FLAGS(func, bpf_testmod_ops3_call_test_1)
 BTF_ID_FLAGS(func, bpf_testmod_ops3_call_test_2)
+BTF_ID_FLAGS(func, bpf_testmod_ops3_call_test_arena)
+BTF_ID_FLAGS(func, bpf_testmod_ops3_call_test_arena_nullable)
+BTF_ID_FLAGS(func, bpf_testmod_ops3_call_test_arena_stack)
+BTF_ID_FLAGS(func, bpf_testmod_ops3_call_test_arena_multislot)
 BTF_ID_FLAGS(func, bpf_kfunc_get_default_trusted_ptr_test);
 BTF_ID_FLAGS(func, bpf_kfunc_put_default_trusted_ptr_test);
 BTF_KFUNCS_END(bpf_testmod_common_kfunc_ids)
@@ -1352,7 +1481,7 @@ __bpf_kfunc void bpf_kfunc_trigger_ctx_check(void)
 }
 
 BTF_KFUNCS_START(bpf_testmod_check_kfunc_ids)
-BTF_ID_FLAGS(func, bpf_testmod_test_mod_kfunc)
+BTF_ID_FLAGS(func, bpf_testmod_test_mod_kfunc, KF_SPINLOCK_SAFE)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test1)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test2)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test3)

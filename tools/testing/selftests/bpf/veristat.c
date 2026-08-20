@@ -514,6 +514,40 @@ cleanup:
 	return err == 0;
 }
 
+/* Exact filter match */
+static bool name_filter_matches(struct filter *f, const char *filename, const char *prog_name)
+{
+	if (f->any_glob)
+		return glob_matches(filename, f->any_glob) ||
+		       (prog_name && glob_matches(prog_name, f->any_glob));
+	if (f->file_glob && f->prog_glob)
+		return prog_name &&
+		       glob_matches(filename, f->file_glob) &&
+		       glob_matches(prog_name, f->prog_glob);
+	if (f->file_glob)
+		return glob_matches(filename, f->file_glob);
+	if (f->prog_glob)
+		return prog_name && glob_matches(prog_name, f->prog_glob);
+	return false;
+}
+
+/* Check if the filter does not outright reject the file name */
+static bool name_filter_may_match(struct filter *f, const char *filename)
+{
+	if (f->file_glob)
+		return glob_matches(filename, f->file_glob);
+	/*
+	 * If we don't know program name yet, any_glob filter
+	 * has to assume that current BPF object file might be
+	 * relevant; we'll check again later on after opening
+	 * BPF object file, at which point program name will
+	 * be known finally.
+	 */
+	if (f->any_glob || f->prog_glob)
+		return true;
+	return false;
+}
+
 static bool should_process_file_prog(const char *filename, const char *prog_name)
 {
 	struct filter *f;
@@ -521,16 +555,7 @@ static bool should_process_file_prog(const char *filename, const char *prog_name
 
 	for (i = 0; i < env.deny_filter_cnt; i++) {
 		f = &env.deny_filters[i];
-		if (f->kind != FILTER_NAME)
-			continue;
-
-		if (f->any_glob && glob_matches(filename, f->any_glob))
-			return false;
-		if (f->any_glob && prog_name && glob_matches(prog_name, f->any_glob))
-			return false;
-		if (f->file_glob && glob_matches(filename, f->file_glob))
-			return false;
-		if (f->prog_glob && prog_name && glob_matches(prog_name, f->prog_glob))
+		if (f->kind == FILTER_NAME && name_filter_matches(f, filename, prog_name))
 			return false;
 	}
 
@@ -540,24 +565,15 @@ static bool should_process_file_prog(const char *filename, const char *prog_name
 			continue;
 
 		allow_cnt++;
-		if (f->any_glob) {
-			if (glob_matches(filename, f->any_glob))
-				return true;
-			/* If we don't know program name yet, any_glob filter
-			 * has to assume that current BPF object file might be
-			 * relevant; we'll check again later on after opening
-			 * BPF object file, at which point program name will
-			 * be known finally.
-			 */
-			if (!prog_name || glob_matches(prog_name, f->any_glob))
-				return true;
-		} else {
-			if (f->file_glob && !glob_matches(filename, f->file_glob))
-				continue;
-			if (f->prog_glob && prog_name && !glob_matches(prog_name, f->prog_glob))
-				continue;
+		if (prog_name && name_filter_matches(f, filename, prog_name))
 			return true;
-		}
+		/*
+		 * If there is no prog_name and the file name is not blocked by
+		 * the filter, allow to open the file. Afterwards there would be
+		 * a second refining query with prog_name set.
+		 */
+		if (!prog_name && name_filter_may_match(f, filename))
+			return true;
 	}
 
 	/* if there are no file/prog name allow filters, allow all progs,
@@ -701,6 +717,12 @@ static int append_filter(struct filter **filters, int *cnt, const char *str)
 				return -ENOMEM;
 			}
 		}
+	}
+
+	if ((!f->any_glob && !f->file_glob && !f->prog_glob) ||
+	    (f->any_glob && strcmp(f->any_glob, "") == 0)) {
+		fprintf(stderr, "Invalid filter: '%s'\n", str);
+		return -EINVAL;
 	}
 
 	*cnt += 1;
@@ -993,13 +1015,15 @@ static void free_verif_stats(struct verif_stats *stats, size_t stat_cnt)
 
 static char verif_log_buf[64 * 1024];
 
-#define MAX_PARSED_LOG_LINES 100
+/* Keep room for all 256 subprogram records and trailing statistics. */
+#define MAX_PARSED_LOG_LINES 300
 
 static int parse_verif_log(char * const buf, size_t buf_sz, struct verif_stats *s)
 {
 	const char *cur;
-	int pos, lines, sub_stack, cnt = 0;
-	char *state = NULL, *token, stack[512];
+	long sub_stack;
+	int pos, lines, cnt = 0;
+	char *state = NULL, *token, stack[512] = {};
 
 	buf[buf_sz - 1] = '\0';
 
@@ -1025,11 +1049,24 @@ static int parse_verif_log(char * const buf, size_t buf_sz, struct verif_stats *
 				&s->stats[MARK_READ_MAX_LEN]))
 			continue;
 
+		/*
+		 * New kernels emit one "subprog <id> (<name>) <kind>" record
+		 * per subprogram with the stack depth at the end, while old
+		 * kernels emit a single "stack depth <a+...+n> max <max>"
+		 * line. Match both formats so veristat works against either
+		 * kernel.
+		 */
+		if (sscanf(cur, "stack depth max %ld", &s->stats[MAX_STACK]) == 1)
+			continue;
+		if (sscanf(cur, "subprog %*d %*s %*s insns_self %*d insns_total %*d stack %ld", &sub_stack) == 1) {
+			s->stats[STACK] += sub_stack;
+			continue;
+		}
 		if (2 == sscanf(cur, "stack depth %511s max %ld", stack, &s->stats[MAX_STACK]))
 			continue;
 	}
 	while ((token = strtok_r(cnt++ ? NULL : stack, "+", &state))) {
-		if (sscanf(token, "%d", &sub_stack) == 0)
+		if (sscanf(token, "%ld", &sub_stack) == 0)
 			break;
 		s->stats[STACK] += sub_stack;
 	}
@@ -1248,6 +1285,29 @@ static void fixup_obj_maps(struct bpf_object *obj)
 
 		/* fix up map size, if necessary */
 		switch (bpf_map__type(map)) {
+		/*
+		 * if the verifier doesn't use max_entries
+		 * then set to 1 to avoid -ENOMEM
+		 */
+		case BPF_MAP_TYPE_HASH:
+		case BPF_MAP_TYPE_PERCPU_HASH:
+		case BPF_MAP_TYPE_LRU_HASH:
+		case BPF_MAP_TYPE_LRU_PERCPU_HASH:
+		case BPF_MAP_TYPE_SOCKHASH:
+		case BPF_MAP_TYPE_DEVMAP_HASH:
+		case BPF_MAP_TYPE_QUEUE:
+		case BPF_MAP_TYPE_STACK:
+		case BPF_MAP_TYPE_BLOOM_FILTER:
+		case BPF_MAP_TYPE_STACK_TRACE:
+			bpf_map__set_max_entries(map, 1);
+			break;
+
+		/* ringbufs must be page-aligned */
+		case BPF_MAP_TYPE_RINGBUF:
+		case BPF_MAP_TYPE_USER_RINGBUF:
+			bpf_map__set_max_entries(map, sysconf(_SC_PAGESIZE));
+			break;
+
 		case BPF_MAP_TYPE_SK_STORAGE:
 		case BPF_MAP_TYPE_TASK_STORAGE:
 		case BPF_MAP_TYPE_INODE_STORAGE:

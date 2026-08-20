@@ -66,7 +66,7 @@ cleanup:
 	close(map_fd);
 }
 
-void test_arena_direct_value(void)
+void serial_test_arena_direct_value(void)
 {
 	if (test__start_subtest("one_past_end"))
 		test_arena_direct_value_one_past_end();

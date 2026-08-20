@@ -589,7 +589,7 @@ static int btf_parse_type_sec(struct btf *btf)
 		if (type_size < 0)
 			return type_size;
 		if (next_type + type_size > end_type) {
-			pr_warn("BTF type [%d] is malformed\n", btf->start_id + btf->nr_types);
+			pr_warn("BTF type [%u] is malformed\n", btf->start_id + btf->nr_types);
 			return -EINVAL;
 		}
 
@@ -1424,7 +1424,7 @@ static int btf_find_elf_sections(Elf *elf, const char *path, struct btf_elf_secs
 			continue;
 
 		if (sh.sh_type != SHT_PROGBITS) {
-			pr_warn("unexpected section type (%d) of section(%d, %s) from %s\n",
+			pr_warn("unexpected section type (%u) of section(%d, %s) from %s\n",
 				sh.sh_type, idx, name, path);
 			goto err;
 		}
@@ -1506,9 +1506,6 @@ static struct btf *btf_parse_elf(const char *path, struct btf *base_btf,
 		dist_base_btf = NULL;
 	}
 
-	if (dist_base_btf)
-		btf->owns_base = true;
-
 	switch (gelf_getclass(elf)) {
 	case ELFCLASS32:
 		btf__set_pointer_size(btf, 4);
@@ -1523,13 +1520,16 @@ static struct btf *btf_parse_elf(const char *path, struct btf *base_btf,
 
 	if (btf_ext && secs.btf_ext_data) {
 		*btf_ext = btf_ext__new(secs.btf_ext_data->d_buf, secs.btf_ext_data->d_size);
-		if (IS_ERR(*btf_ext)) {
-			err = PTR_ERR(*btf_ext);
+		if (!*btf_ext) {
+			err = -errno;
 			goto done;
 		}
 	} else if (btf_ext) {
 		*btf_ext = NULL;
 	}
+
+	if (dist_base_btf)
+		btf->owns_base = true;
 done:
 	if (elf)
 		elf_end(elf);
@@ -4854,7 +4854,7 @@ recur:
 				continue;
 			if (!btf_dedup_identical_types(d, m1->type, m2->type, depth - 1)) {
 				if (t1->name_off) {
-					pr_debug("%s '%s' size=%d vlen=%d id1[%u] id2[%u] shallow-equal but not identical for field#%d '%s'\n",
+					pr_debug("%s '%s' size=%u vlen=%u id1[%u] id2[%u] shallow-equal but not identical for field#%d '%s'\n",
 						 k1 == BTF_KIND_STRUCT ? "STRUCT" : "UNION",
 						 btf__name_by_offset(d->btf, t1->name_off),
 						 t1->size, btf_vlen(t1), id1, id2, i,
@@ -5104,7 +5104,7 @@ static int btf_dedup_is_equiv(struct btf_dedup *d, __u32 cand_id,
 			eq = btf_dedup_is_equiv(d, cand_m->type, canon_m->type);
 			if (eq <= 0) {
 				if (cand_type->name_off) {
-					pr_debug("%s '%s' size=%d vlen=%d cand_id[%u] canon_id[%u] shallow-equal but not equiv for field#%d '%s': %d\n",
+					pr_debug("%s '%s' size=%u vlen=%u cand_id[%u] canon_id[%u] shallow-equal but not equiv for field#%d '%s': %d\n",
 						 cand_kind == BTF_KIND_STRUCT ? "STRUCT" : "UNION",
 						 btf__name_by_offset(d->btf, cand_type->name_off),
 						 cand_type->size, vlen, cand_id, canon_id, i,
@@ -6069,7 +6069,7 @@ static int btf_add_distilled_types(struct btf_distill *dist)
 			err = btf_add_type(&dist->pipe, t);
 			break;
 		default:
-			pr_warn("unexpected kind when adding base type '%s'[%u] of kind [%u] to distilled base BTF.\n",
+			pr_warn("unexpected kind when adding base type '%s'[%d] of kind [%d] to distilled base BTF.\n",
 				name, i, kind);
 			return -EINVAL;
 

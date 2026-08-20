@@ -438,7 +438,6 @@ static int setup(void)
 	SYS(fail_close_ns_client, "ip link add %s type veth peer name %s",
 	    "veth1 mtu 1500 netns " CLIENT_NS " address " MAC_ADDR_VETH1,
 	    "veth2 mtu 1500 netns " SERVER_NS " address " MAC_ADDR_VETH2);
-	SYS(fail_close_ns_client, "ethtool -K veth1 tso off");
 	SYS(fail_close_ns_client, "ip link set veth1 up");
 	nstoken_server = open_netns(SERVER_NS);
 	if (!ASSERT_OK_PTR(nstoken_server, "open server ns"))

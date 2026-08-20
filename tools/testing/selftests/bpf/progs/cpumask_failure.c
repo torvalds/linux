@@ -116,9 +116,9 @@ int BPF_PROG(test_cpumask_null, struct task_struct *task, u64 clone_flags)
 	return 0;
 }
 
-SEC("tp_btf/task_newtask")
+SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
 __failure __msg("R2 must be a rcu pointer")
-int BPF_PROG(test_global_mask_out_of_rcu, struct task_struct *task, u64 clone_flags)
+int BPF_PROG(test_global_mask_out_of_rcu)
 {
 	struct bpf_cpumask *local, *prev;
 
@@ -133,6 +133,10 @@ int BPF_PROG(test_global_mask_out_of_rcu, struct task_struct *task, u64 clone_fl
 		return 0;
 	}
 
+	/*
+	 * Use a sleepable program so explicit RCU is the only source of RCU
+	 * protection.
+	 */
 	bpf_rcu_read_lock();
 	local = global_mask;
 	if (!local) {
@@ -231,7 +235,7 @@ int BPF_PROG(test_populate_invalid_destination, struct task_struct *task, u64 cl
 	u64 bits;
 	int ret;
 
-	ret = bpf_cpumask_populate((struct cpumask *)invalid, &bits, sizeof(bits));
+	ret = bpf_cpumask_populate(invalid, &bits, sizeof(bits));
 	if (!ret)
 		err = 2;
 
@@ -252,11 +256,30 @@ int BPF_PROG(test_populate_invalid_source, struct task_struct *task, u64 clone_f
 		return 0;
 	}
 
-	ret = bpf_cpumask_populate((struct cpumask *)local, garbage, 8);
+	ret = bpf_cpumask_populate(local, garbage, 8);
 	if (!ret)
 		err = 2;
 
 	bpf_cpumask_release(local);
+
+	return 0;
+}
+
+SEC("tp_btf/task_newtask")
+__failure __msg("expected pointer to STRUCT bpf_cpumask but R1 has a pointer to STRUCT cpumask")
+int BPF_PROG(test_populate_borrowed_destination, struct task_struct *task, u64 clone_flags)
+{
+	u64 bits;
+	int ret;
+
+	/*
+	 * task->cpus_ptr is a borrowed, read-only struct cpumask *, not an
+	 * owned struct bpf_cpumask *. The verifier must reject it as a
+	 * writable destination for bpf_cpumask_populate().
+	 */
+	ret = bpf_cpumask_populate((struct bpf_cpumask *)task->cpus_ptr, &bits, sizeof(bits));
+	if (!ret)
+		err = 2;
 
 	return 0;
 }

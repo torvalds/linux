@@ -12,7 +12,7 @@ extern struct buddy __arena buddy;
 
 #ifdef BPF_ARENA_ASAN
 
-#include "st_asan_common.h"
+#include "test_asan_common.h"
 
 static __always_inline int asan_test_buddy_oob_single(size_t alloc_size)
 {
@@ -154,7 +154,8 @@ __weak int asan_test_buddy_oob(void)
 	size_t sizes[] = {
 		7, 8, 17, 18, 64, 256, 317, 512, 1024,
 	};
-	int ret, i;
+	int ret;
+	u32 i;
 
 	ret = buddy_init(&buddy);
 	if (ret) {
@@ -163,6 +164,7 @@ __weak int asan_test_buddy_oob(void)
 	}
 
 	for (i = zero; i < sizeof(sizes) / sizeof(sizes[0]) && can_loop; i++) {
+		barrier_var(i);
 		ret = asan_test_buddy_oob_single(sizes[i]);
 		if (ret) {
 			arena_stdout("%s:%d Failed for size %lu", __func__,
@@ -190,7 +192,8 @@ __stderr("Call trace:\n"
 __weak int asan_test_buddy_uaf(void)
 {
 	size_t sizes[] = { 16, 32, 64, 128, 256, 512, 1024, 16384 };
-	int ret, i;
+	int ret;
+	u32 i;
 
 	ret = buddy_init(&buddy);
 	if (ret) {
@@ -199,6 +202,7 @@ __weak int asan_test_buddy_uaf(void)
 	}
 
 	for (i = zero; i < sizeof(sizes) / sizeof(sizes[0]) && can_loop; i++) {
+		barrier_var(i);
 		ret = asan_test_buddy_uaf_single(sizes[i]);
 		if (ret) {
 			arena_stdout("%s:%d Failed for size %lu", __func__,

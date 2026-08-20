@@ -103,6 +103,12 @@ void test_stream_arena_fault_address(void)
 		test_address(skel->progs.stream_arena_read_fault, &skel->bss->fault_addr);
 	if (test__start_subtest("write_fault"))
 		test_address(skel->progs.stream_arena_write_fault, &skel->bss->fault_addr);
+	if (test__start_subtest("load_acquire_fault"))
+		test_address(skel->progs.stream_arena_load_acquire_fault, &skel->bss->fault_addr);
+	if (test__start_subtest("xchg_fault"))
+		test_address(skel->progs.stream_arena_xchg_fault, &skel->bss->fault_addr);
+	if (test__start_subtest("cmpxchg_fault"))
+		test_address(skel->progs.stream_arena_cmpxchg_fault, &skel->bss->fault_addr);
 
 	stream__destroy(skel);
 }

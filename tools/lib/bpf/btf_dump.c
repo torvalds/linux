@@ -1776,7 +1776,7 @@ static int btf_dump_get_bitfield_value(struct btf_dump *d,
 
 	/* Maximum supported bitfield size is 64 bits */
 	if (t->size > 8) {
-		pr_warn("unexpected bitfield size %d\n", t->size);
+		pr_warn("unexpected bitfield size %u\n", t->size);
 		return -EINVAL;
 	}
 
@@ -2251,7 +2251,7 @@ static int btf_dump_get_enum_value(struct btf_dump *d,
 		*value = is_signed ? *(__s8 *)data : *(__u8 *)data;
 		return 0;
 	default:
-		pr_warn("unexpected size %d for enum, id:[%u]\n", t->size, id);
+		pr_warn("unexpected size %u for enum, id:[%u]\n", t->size, id);
 		return -EINVAL;
 	}
 }

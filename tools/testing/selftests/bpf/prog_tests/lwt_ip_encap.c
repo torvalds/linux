@@ -410,7 +410,8 @@ close_netns:
 static int check_ping_ok(const char *ns1)
 {
 	SYS(fail, "ip netns exec %s ping -c 1 -W1 -I veth1 %s > /dev/null", ns1, IP4_ADDR_DST);
-	SYS(fail, "ip netns exec %s ping6 -c 1 -W1 -I veth1 %s > /dev/null", ns1, IP6_ADDR_DST);
+	SYS(fail, "ip netns exec %s %s -c 1 -W1 -I veth1 %s > /dev/null", ns1,
+	    ping_command(AF_INET6), IP6_ADDR_DST);
 	return 0;
 fail:
 	return -1;
@@ -424,7 +425,8 @@ static int check_ping_fails(const char *ns1)
 	if (!ret)
 		return -1;
 
-	ret = SYS_NOFAIL("ip netns exec %s ping6 -c 1 -W1 -I veth1 %s", ns1, IP6_ADDR_DST);
+	ret = SYS_NOFAIL("ip netns exec %s %s -c 1 -W1 -I veth1 %s", ns1,
+			 ping_command(AF_INET6), IP6_ADDR_DST);
 	if (!ret)
 		return -1;
 
@@ -657,9 +659,10 @@ static void lwt_ip_encap_vxlan(bool ipv4_encap)
 	skel->bss->fexit_triggered = false;
 
 	if (ipv4_encap)
-		SYS(out, "ip netns exec %s ping  -c 1 -W1 %s", ns1, IP4_ADDR_DST);
+		SYS(out, "ip netns exec %s ping -c 1 -W1 %s", ns1, IP4_ADDR_DST);
 	else
-		SYS(out, "ip netns exec %s ping6 -c 1 -W1 %s", ns1, IP6_ADDR_DST);
+		SYS(out, "ip netns exec %s %s -c 1 -W1 %s", ns1,
+		    ping_command(AF_INET6), IP6_ADDR_DST);
 
 	if (!ASSERT_TRUE(skel->bss->fexit_triggered, "fexit_triggered"))
 		goto out;

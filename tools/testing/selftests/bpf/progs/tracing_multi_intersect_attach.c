@@ -11,6 +11,14 @@ __u64 test_result_fentry_1 = 0;
 __u64 test_result_fentry_2 = 0;
 __u64 test_result_fexit_1 = 0;
 __u64 test_result_fexit_2 = 0;
+__u64 test_result_fentry = 0;
+
+SEC("fentry/bpf_fentry_test1")
+int BPF_PROG(fentry)
+{
+	tracing_multi_arg_check(ctx, &test_result_fentry, false);
+	return 0;
+}
 
 SEC("fentry.multi")
 int BPF_PROG(fentry_1)

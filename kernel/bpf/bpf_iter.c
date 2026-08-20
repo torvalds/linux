@@ -782,8 +782,8 @@ __bpf_kfunc int bpf_iter_num_new(struct bpf_iter_num *it, int start, int end)
 		return -EINVAL;
 	}
 
-	/* avoid overflows, e.g., if start == INT_MIN and end == INT_MAX */
-	if ((s64)end - (s64)start > BPF_MAX_LOOPS) {
+	/* start <= end here, so end - start fits in a u32 without overflow */
+	if ((u32)(end - start) > BPF_MAX_LOOPS) {
 		s->cur = s->end = 0;
 		return -E2BIG;
 	}
@@ -802,12 +802,11 @@ __bpf_kfunc int *bpf_iter_num_next(struct bpf_iter_num* it)
 {
 	struct bpf_iter_num_kern *s = (void *)it;
 
-	/* check failed initialization or if we are done (same behavior);
-	 * need to be careful about overflow, so convert to s64 for checks,
-	 * e.g., if s->cur == s->end == INT_MAX, we can't just do
-	 * s->cur + 1 >= s->end
+	/*
+	 * s->cur < s->end while iterating, else s->cur == s->end == 0; the signed
+	 * s->cur + 1 >= s->end holds even when s->cur + 1 wraps (start == INT_MIN).
 	 */
-	if ((s64)(s->cur + 1) >= s->end) {
+	if (s->cur + 1 >= s->end) {
 		s->cur = s->end = 0;
 		return NULL;
 	}
@@ -819,9 +818,7 @@ __bpf_kfunc int *bpf_iter_num_next(struct bpf_iter_num* it)
 
 __bpf_kfunc void bpf_iter_num_destroy(struct bpf_iter_num *it)
 {
-	struct bpf_iter_num_kern *s = (void *)it;
-
-	s->cur = s->end = 0;
+	/* no-op */
 }
 
 __bpf_kfunc_end_defs();

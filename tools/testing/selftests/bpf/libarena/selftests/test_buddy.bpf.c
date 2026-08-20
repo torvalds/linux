@@ -171,7 +171,8 @@ __weak int test_buddy_alloc_multiple(void)
 SEC("syscall")
 __weak int test_buddy_alignment(void)
 {
-	int ret, i;
+	int ret;
+	u32 i;
 
 	ret = buddy_init(&buddy);
 	if (ret)
@@ -179,6 +180,7 @@ __weak int test_buddy_alignment(void)
 
 	/* Allocate various sizes and check alignment */
 	for (i = zero; i < 17 && can_loop; i++) {
+		barrier_var(i);
 		ptrs[i] = buddy_alloc(&buddy, alignment_sizes[i]);
 		if (!ptrs[i]) {
 			arena_stdout("alignment test: alloc failed for size %lu",
@@ -198,8 +200,10 @@ __weak int test_buddy_alignment(void)
 	}
 
 	/* Free all allocations */
-	for (i = zero; i < 17 && can_loop; i++)
+	for (i = zero; i < 17 && can_loop; i++) {
+		barrier_var(i);
 		buddy_free(&buddy, ptrs[i]);
+	}
 
 	buddy_destroy(&buddy);
 
