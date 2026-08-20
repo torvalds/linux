@@ -896,7 +896,7 @@ static inline void cgroup_threadgroup_change_begin(struct task_struct *tsk)
  * cgroup_threadgroup_change_end - threadgroup exclusion for cgroups
  * @tsk: target task
  *
- * Counterpart of cgroup_threadcgroup_change_begin().
+ * Counterpart of cgroup_threadgroup_change_begin().
  */
 static inline void cgroup_threadgroup_change_end(struct task_struct *tsk)
 {

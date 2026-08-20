@@ -204,7 +204,7 @@ static s64 cpuset_read_s64(struct cgroup_subsys_state *css, struct cftype *cft)
 }
 
 /*
- * update task's spread flag if cpuset's page/slab spread flag is set
+ * Update a task's spread flag if the cpuset's page spread flag is set.
  *
  * Call with callback_lock or cpuset_mutex held. The check can be skipped
  * if on default hierarchy.
@@ -219,18 +219,13 @@ void cpuset1_update_task_spread_flags(struct cpuset *cs,
 		task_set_spread_page(tsk);
 	else
 		task_clear_spread_page(tsk);
-
-	if (is_spread_slab(cs))
-		task_set_spread_slab(tsk);
-	else
-		task_clear_spread_slab(tsk);
 }
 
 /**
- * cpuset1_update_tasks_flags - update the spread flags of tasks in the cpuset.
- * @cs: the cpuset in which each task's spread flags needs to be changed
+ * cpuset1_update_tasks_flags - update the page spread flag of cpuset tasks
+ * @cs: the cpuset whose tasks need their page spread flag updated
  *
- * Iterate through each task of @cs updating its spread flags.  As this
+ * Iterate through each task of @cs updating its page spread flag.  As this
  * function is called with cpuset_mutex held, cpuset membership stays
  * stable.
  */

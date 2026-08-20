@@ -37,6 +37,7 @@
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 #include <linux/task_work.h>
+#include <linux/llist.h>
 
 DEFINE_STATIC_KEY_FALSE(cpusets_pre_enable_key);
 DEFINE_STATIC_KEY_FALSE(cpusets_enabled_key);
@@ -222,14 +223,14 @@ void inc_dl_tasks_cs(struct task_struct *p)
 {
 	struct cpuset *cs = task_cs(p);
 
-	cs->nr_deadline_tasks++;
+	atomic_inc(&cs->nr_deadline_tasks);
 }
 
 void dec_dl_tasks_cs(struct task_struct *p)
 {
 	struct cpuset *cs = task_cs(p);
 
-	cs->nr_deadline_tasks--;
+	atomic_dec(&cs->nr_deadline_tasks);
 }
 
 static inline bool is_partition_valid(const struct cpuset *cs)
@@ -356,6 +357,41 @@ static struct workqueue_struct *cpuset_migrate_mm_wq;
 
 static DECLARE_WAIT_QUEUE_HEAD(cpuset_attach_wq);
 
+/*
+ * Cpuset task attach context
+ * Protected by cpuset_mutex
+ */
+static struct {
+	int in_progress;
+	bool cpus_updated;
+	bool mems_updated;
+	bool task_work_queued;
+	bool many_dest_cs;	/* Have many destination cpusets */
+	struct cpuset *old_cs;	/* Source cpuset */
+	nodemask_t nodemask_to;
+} attach_ctx;
+static LLIST_HEAD(src_cs_head);
+static LLIST_HEAD(dst_cs_head);
+
+/*
+ * Wait if task attach is in progress until it is done and then acquire
+ * cpuset_mutex before returning.
+ */
+static void wait_attach_done_lock(void)
+	    __acquires(&cpuset_mutex)
+{
+	for (;;) {
+		mutex_lock(&cpuset_mutex);
+		if (!attach_ctx.in_progress)
+			return;
+
+		mutex_unlock(&cpuset_mutex);
+
+		/* Wait until attach operation is done to prevent racing */
+		wait_event(cpuset_attach_wq, attach_ctx.in_progress == 0);
+	}
+}
+
 static inline void check_insane_mems_config(nodemask_t *nodes)
 {
 	if (!cpusets_insane_config() &&
@@ -368,22 +404,22 @@ static inline void check_insane_mems_config(nodemask_t *nodes)
 }
 
 /*
- * decrease cs->attach_in_progress.
- * wake_up cpuset_attach_wq if cs->attach_in_progress==0.
+ * decrease attach_ctx.in_progress.
+ * wake_up cpuset_attach_wq if attach_ctx.in_progress==0.
  */
-static inline void dec_attach_in_progress_locked(struct cpuset *cs)
+static inline void dec_attach_in_progress_locked(void)
 {
 	lockdep_assert_cpuset_lock_held();
 
-	cs->attach_in_progress--;
-	if (!cs->attach_in_progress)
+	attach_ctx.in_progress--;
+	if (!attach_ctx.in_progress)
 		wake_up(&cpuset_attach_wq);
 }
 
-static inline void dec_attach_in_progress(struct cpuset *cs)
+static inline void dec_attach_in_progress(void)
 {
 	mutex_lock(&cpuset_mutex);
-	dec_attach_in_progress_locked(cs);
+	dec_attach_in_progress_locked();
 	mutex_unlock(&cpuset_mutex);
 }
 
@@ -432,8 +468,7 @@ static inline bool partition_is_populated(struct cpuset *cs,
 	 * nr_populated_domain_children may include populated
 	 * csets from descendants that are partitions.
 	 */
-	if (cgroup_has_tasks(cs->css.cgroup) ||
-	    cs->attach_in_progress)
+	if (cgroup_has_tasks(cs->css.cgroup))
 		return true;
 
 	rcu_read_lock();
@@ -489,7 +524,10 @@ static void guarantee_active_cpus(struct task_struct *tsk,
  * Return in *pmask the portion of a cpusets's mems_allowed that
  * are online, with memory.  If none are online with memory, walk
  * up the cpuset hierarchy until we find one that does have some
- * online mems.  The top cpuset always has some mems online.
+ * online mems.  The top cpuset always has some mems online. With v2,
+ * effective_mems should always contain online memory nodes except
+ * during the transition period where a memory node hotunplug operation
+ * is in progress.
  *
  * One way or another, we guarantee to return some non-empty subset
  * of node_states[N_MEMORY].
@@ -581,6 +619,7 @@ static struct cpuset *dup_or_alloc_cpuset(struct cpuset *cs)
 		return NULL;
 
 	trial->dl_bw_cpu = -1;
+	init_llist_node(&trial->attach_node);
 
 	/* Setup cpumask pointer array */
 	cpumask_var_t *pmask[4] = {
@@ -918,7 +957,7 @@ static void dl_update_tasks_root_domain(struct cpuset *cs)
 	struct css_task_iter it;
 	struct task_struct *task;
 
-	if (cs->nr_deadline_tasks == 0)
+	if (atomic_read(&cs->nr_deadline_tasks) == 0)
 		return;
 
 	css_task_iter_start(&cs->css, 0, &it);
@@ -1089,12 +1128,35 @@ void cpuset_update_tasks_cpumask(struct cpuset *cs, struct cpumask *new_cpus)
  * @cs: the cpuset the need to recompute the new effective_cpus mask
  * @parent: the parent cpuset
  *
+ * For v2, the parent's effective_cpus is inherited if cpumask is empty.
  * The result is valid only if the given cpuset isn't a partition root.
  */
 static void compute_effective_cpumask(struct cpumask *new_cpus,
 				      struct cpuset *cs, struct cpuset *parent)
 {
-	cpumask_and(new_cpus, cs->cpus_allowed, parent->effective_cpus);
+	bool has_cpus;
+
+	has_cpus = cpumask_and(new_cpus, cs->cpus_allowed, parent->effective_cpus);
+	if (!has_cpus && is_in_v2_mode())
+		cpumask_copy(new_cpus, parent->effective_cpus);
+}
+
+/**
+ * compute_effective_nodemask - Compute the effective nodemask of the cpuset
+ * @new_mems: the temp variable for the new effective_mems mask
+ * @cs: the cpuset the need to recompute the new effective_mems mask
+ * @parent: the parent cpuset
+ *
+ * For v2, the parent's effective_mems is inherited if nodemask is empty.
+ */
+static void compute_effective_nodemask(nodemask_t *new_mems,
+				       struct cpuset *cs, struct cpuset *parent)
+{
+	bool has_mems;
+
+	has_mems = nodes_and(*new_mems, cs->mems_allowed, parent->effective_mems);
+	if (!has_mems && is_in_v2_mode())
+		nodes_copy(*new_mems, parent->effective_mems);
 }
 
 /*
@@ -1525,7 +1587,7 @@ static int remote_partition_enable(struct cpuset *cs, int new_prs,
 	cpumask_copy(cs->effective_xcpus, tmp->new_cpus);
 	spin_unlock_irq(&callback_lock);
 	cpuset_force_rebuild();
-	cs->prs_err = 0;
+	WRITE_ONCE(cs->prs_err, 0);
 
 	/*
 	 * Propagate changes in top_cpuset's effective_cpus down the hierarchy.
@@ -1599,7 +1661,7 @@ static void remote_cpus_update(struct cpuset *cs, struct cpumask *xcpus,
 	WARN_ON_ONCE(!cpumask_subset(cs->effective_xcpus, subpartitions_cpus));
 
 	if (cpumask_empty(excpus)) {
-		cs->prs_err = PERR_CPUSEMPTY;
+		WRITE_ONCE(cs->prs_err, PERR_CPUSEMPTY);
 		goto invalidate;
 	}
 
@@ -1614,13 +1676,13 @@ static void remote_cpus_update(struct cpuset *cs, struct cpumask *xcpus,
 	if (adding) {
 		WARN_ON_ONCE(cpumask_intersects(tmp->addmask, subpartitions_cpus));
 		if (!capable(CAP_SYS_ADMIN))
-			cs->prs_err = PERR_ACCESS;
+			WRITE_ONCE(cs->prs_err, PERR_ACCESS);
 		else if (cpumask_intersects(tmp->addmask, subpartitions_cpus) ||
 			 cpumask_subset(top_cpuset.effective_cpus, tmp->addmask))
-			cs->prs_err = PERR_NOCPUS;
+			WRITE_ONCE(cs->prs_err, PERR_NOCPUS);
 		else if ((prs == PRS_ISOLATED) &&
 			 !isolated_cpus_can_update(tmp->addmask, tmp->delmask))
-			cs->prs_err = PERR_HKEEPING;
+			WRITE_ONCE(cs->prs_err, PERR_HKEEPING);
 		if (cs->prs_err)
 			goto invalidate;
 	}
@@ -2048,13 +2110,13 @@ static void compute_partition_effective_cpumask(struct cpuset *cs,
 		 * partition root.
 		 */
 		WARN_ON_ONCE(is_remote_partition(child));
-		child->prs_err = 0;
+		WRITE_ONCE(child->prs_err, 0);
 		if (!cpumask_subset(child->effective_xcpus,
 				    cs->effective_xcpus))
-			child->prs_err = PERR_INVCPUS;
+			WRITE_ONCE(child->prs_err, PERR_INVCPUS);
 		else if (populated &&
 			 cpumask_subset(new_ecpus, child->effective_xcpus))
-			child->prs_err = PERR_NOCPUS;
+			WRITE_ONCE(child->prs_err, PERR_NOCPUS);
 
 		if (child->prs_err) {
 			int old_prs = child->partition_root_state;
@@ -2142,15 +2204,6 @@ static void update_cpumasks_hier(struct cpuset *cs, struct tmpmasks *tmp,
 			update_parent = true;
 			goto update_parent_effective;
 		}
-
-		/*
-		 * If it becomes empty, inherit the effective mask of the
-		 * parent, which is guaranteed to have some CPUs unless
-		 * it is a partition root that has explicitly distributed
-		 * out all its CPUs.
-		 */
-		if (is_in_v2_mode() && !remote && cpumask_empty(tmp->new_cpus))
-			cpumask_copy(tmp->new_cpus, parent->effective_cpus);
 
 		/*
 		 * Skip the whole subtree if
@@ -2367,8 +2420,10 @@ static void partition_cpus_change(struct cpuset *cs, struct cpuset *trialcs,
 		return;
 
 	prs_err = validate_partition(cs, trialcs);
-	if (prs_err)
-		trialcs->prs_err = cs->prs_err = prs_err;
+	if (prs_err) {
+		WRITE_ONCE(cs->prs_err, prs_err);
+		trialcs->prs_err = prs_err;
+	}
 
 	if (is_remote_partition(cs)) {
 		if (trialcs->prs_err)
@@ -2619,6 +2674,14 @@ static void *cpuset_being_rebound;
  * Iterate through each task of @cs updating its mems_allowed to the
  * effective cpuset's.  As this function is called with cpuset_mutex held,
  * cpuset membership stays stable.
+ *
+ * - cpuset_change_task_nodemask(): guarantee_online_mems()
+ * - mpol_rebind_mm(): effective_mems
+ * - cpuset_migrate_mm(): guarantee_online_mems()
+ * - old_mems_allowed: guarantee_online_mems()
+ *
+ * For v2, guarantee_online_mems() should return a node mask that is the same
+ * as the effective_mems of current cpuset.
  */
 void cpuset_update_tasks_nodemask(struct cpuset *cs)
 {
@@ -2627,7 +2690,6 @@ void cpuset_update_tasks_nodemask(struct cpuset *cs)
 	struct task_struct *task;
 
 	cpuset_being_rebound = cs;		/* causes mpol_dup() rebind */
-
 	guarantee_online_mems(cs, &newmems);
 
 	/*
@@ -2646,6 +2708,10 @@ void cpuset_update_tasks_nodemask(struct cpuset *cs)
 		bool migrate;
 
 		cpuset_change_task_nodemask(task, &newmems);
+
+		/* Rebind and migrate mm only for thread group leader */
+		if (!thread_group_leader(task))
+			continue;
 
 		mm = get_task_mm(task);
 		if (!mm)
@@ -2697,14 +2763,7 @@ static void update_nodemasks_hier(struct cpuset *cs, nodemask_t *new_mems)
 	cpuset_for_each_descendant_pre(cp, pos_css, cs) {
 		struct cpuset *parent = parent_cs(cp);
 
-		bool has_mems = nodes_and(*new_mems, cp->mems_allowed, parent->effective_mems);
-
-		/*
-		 * If it becomes empty, inherit the effective mask of the
-		 * parent, which is guaranteed to have some MEMs.
-		 */
-		if (is_in_v2_mode() && !has_mems)
-			*new_mems = parent->effective_mems;
+		compute_effective_nodemask(new_mems, cp, parent);
 
 		/* Skip the whole subtree if the nodemask remains the same. */
 		if (nodes_equal(*new_mems, cp->effective_mems)) {
@@ -2805,7 +2864,7 @@ int cpuset_update_flag(cpuset_flagbits_t bit, struct cpuset *cs,
 {
 	struct cpuset *trialcs;
 	int balance_flag_changed;
-	int spread_flag_changed;
+	int spread_page_changed;
 	int err;
 
 	trialcs = dup_or_alloc_cpuset(cs);
@@ -2824,8 +2883,7 @@ int cpuset_update_flag(cpuset_flagbits_t bit, struct cpuset *cs,
 	balance_flag_changed = (is_sched_load_balance(cs) !=
 				is_sched_load_balance(trialcs));
 
-	spread_flag_changed = ((is_spread_slab(cs) != is_spread_slab(trialcs))
-			|| (is_spread_page(cs) != is_spread_page(trialcs)));
+	spread_page_changed = is_spread_page(cs) != is_spread_page(trialcs);
 
 	spin_lock_irq(&callback_lock);
 	cs->flags = trialcs->flags;
@@ -2838,7 +2896,7 @@ int cpuset_update_flag(cpuset_flagbits_t bit, struct cpuset *cs,
 			rebuild_sched_domains_locked();
 	}
 
-	if (spread_flag_changed)
+	if (spread_page_changed)
 		cpuset1_update_tasks_flags(cs);
 out:
 	free_cpuset(trialcs);
@@ -2973,58 +3031,47 @@ out:
 	return 0;
 }
 
-static struct cpuset *cpuset_attach_old_cs;
-
 /*
  * Check to see if a cpuset can accept a new task
  * For v1, cpus_allowed and mems_allowed can't be empty.
  * For v2, effective_cpus can't be empty.
  * Note that in v1, effective_cpus = cpus_allowed.
+ *
+ * Also set the boolean flag passed in by @psetsched depending on if
+ * security_task_setscheduler() call is needed and @oldcs is not NULL.
  */
-static int cpuset_can_attach_check(struct cpuset *cs)
+static int cpuset_can_attach_check(struct cpuset *cs, struct cpuset *oldcs,
+				   bool *psetsched)
 {
+	bool cpus_updated, mems_updated;
+
 	if (cpumask_empty(cs->effective_cpus) ||
 	   (!is_in_v2_mode() && nodes_empty(cs->mems_allowed)))
 		return -ENOSPC;
-	return 0;
-}
 
-static void reset_migrate_dl_data(struct cpuset *cs)
-{
-	cs->nr_migrate_dl_tasks = 0;
-	cs->sum_migrate_dl_bw = 0;
-	cs->dl_bw_cpu = -1;
-}
+	if (!oldcs)
+		return 0;
 
-/* Called by cgroups to determine if a cpuset is usable; cpuset_mutex held */
-static int cpuset_can_attach(struct cgroup_taskset *tset)
-{
-	struct cgroup_subsys_state *css;
-	struct cpuset *cs, *oldcs;
-	struct task_struct *task;
-	bool setsched_check;
-	int cpu, ret;
+	if (!llist_on_list(&oldcs->attach_node))
+		llist_add(&oldcs->attach_node, &src_cs_head);
 
-	/* used later by cpuset_attach() */
-	cpuset_attach_old_cs = task_cs(cgroup_taskset_first(tset, &css));
-	oldcs = cpuset_attach_old_cs;
-	cs = css_cs(css);
+	if (!llist_on_list(&cs->attach_node))
+		llist_add(&cs->attach_node, &dst_cs_head);
 
-	mutex_lock(&cpuset_mutex);
+	cpus_updated = !cpumask_equal(cs->effective_cpus, oldcs->effective_cpus);
+	mems_updated = !nodes_equal(cs->effective_mems, oldcs->effective_mems);
 
-	/* Check to see if task is allowed in the cpuset */
-	ret = cpuset_can_attach_check(cs);
-	if (ret)
-		goto out_unlock;
+	if (cpus_updated)
+		attach_ctx.cpus_updated = true;
+	if (mems_updated)
+		attach_ctx.mems_updated = true;
 
 	/*
-	 * Skip rights over task setsched check in v2 when nothing changes,
-	 * migration permission derives from hierarchy ownership in
-	 * cgroup_procs_write_permission()).
+	 * Skip rights over task setsched check in v2 when nothing changes for
+	 * the current oldcs/cs pair, migration permission derives from
+	 * hierarchy ownership in cgroup_procs_write_permission()).
 	 */
-	setsched_check = !cpuset_v2() ||
-		!cpumask_equal(cs->effective_cpus, oldcs->effective_cpus) ||
-		!nodes_equal(cs->effective_mems, oldcs->effective_mems);
+	*psetsched = !cpuset_v2() || cpus_updated || mems_updated;
 
 	/*
 	 * A v1 cpuset with tasks will have no CPU left only when CPU hotplug
@@ -3034,12 +3081,122 @@ static int cpuset_can_attach(struct cgroup_taskset *tset)
 	 * sure they will be able to run after migration.
 	 */
 	if (!is_in_v2_mode() && cpumask_empty(oldcs->effective_cpus))
-		setsched_check = false;
+		*psetsched = false;
 
+	return 0;
+}
+
+static int cpuset_reserve_dl_bw(void)
+{
+	struct cpuset *cs;
+	int cpu, ret;
+
+	llist_for_each_entry(cs, dst_cs_head.first, attach_node) {
+		if (!cs->sum_migrate_dl_bw)
+			continue;
+
+		cpu = cpumask_any_and(cpu_active_mask, cs->effective_cpus);
+		if (unlikely(cpu >= nr_cpu_ids))
+			return -EINVAL;
+
+		ret = dl_bw_alloc(cpu, cs->sum_migrate_dl_bw);
+		if (ret)
+			return ret;
+
+		cs->dl_bw_cpu = cpu;
+	}
+	return 0;
+}
+
+/*
+ * Clear and optionally apply (@cancel is false) the attach related data in the
+ * source or destination cpuset.
+ */
+static void clear_attach_data(struct llist_head *head, bool cancel)
+{
+	struct cpuset *cs, *next;
+	struct llist_node *lnode = __llist_del_all(head);
+
+	llist_for_each_entry_safe(cs, next, lnode, attach_node) {
+		init_llist_node(&cs->attach_node);
+		if (cs->nr_migrate_dl_tasks) {
+			if (!cancel)
+				atomic_add(cs->nr_migrate_dl_tasks, &cs->nr_deadline_tasks);
+			else if (cs->dl_bw_cpu >= 0) /* && cancel */
+				dl_bw_free(cs->dl_bw_cpu, cs->sum_migrate_dl_bw);
+			cs->nr_migrate_dl_tasks = 0;
+			cs->sum_migrate_dl_bw = 0;
+			cs->dl_bw_cpu = -1;
+		}
+	}
+}
+
+/* Called by cgroups to determine if a cpuset is usable; cpuset_mutex held */
+static int cpuset_can_attach(struct cgroup_taskset *tset)
+{
+	struct cgroup_subsys_state *css;
+	struct cpuset *cs, *oldcs;
+	struct task_struct *task;
+	bool setsched_check;
+	int ret;
+
+	cs = oldcs = NULL;
+	mutex_lock(&cpuset_mutex);
+	attach_ctx.old_cs = NULL;	/* Used later in cpuset_attach_task() */
+	attach_ctx.cpus_updated = false;
+	attach_ctx.mems_updated = false;
+	attach_ctx.many_dest_cs = false;
+
+	/*
+	 * The attach_ctx.old_cs is used mainly by cpuset_migrate_mm() to get
+	 * the old_mems_allowed value. There are two ways that many-to-one
+	 * cpuset migration can happen:
+	 * 1) A multithread application with threads in different cpusets is
+	 *    wholely migrated to a new cpuset.
+	 * 2) Disabling v2 cpuset controller will move all the tasks in child
+	 *    cpusets to the parent cpuset.
+	 *
+	 * In the former case, it is the mm setting of the group leader that
+	 * really matters. So attach_ctx.old_cs should track the oldcs of the
+	 * group leader. It falls back to the oldcs of the first task if there
+	 * is no group leader in the taskset. In the latter case, effective_mems
+	 * of child cpusets must always be a subset of the parent. So no real
+	 * page migration will be necessary no matter which child cpuset is
+	 * selected as attach_ctx.old_cs.
+	 *
+	 * For a v2 threaded subtree where cpuset isn't enabled in some of the
+	 * cgroups, it is possible that oldcs == cs for some of the tasks.
+	 * In this case, we can skip checking on those tasks as there is no
+	 * actual migration wrt cpuset.
+	 */
 	cgroup_taskset_for_each(task, css, tset) {
+		struct cpuset *new_cs = css_cs(css);
+		struct cpuset *new_oldcs = task_cs(task);
+
+		if ((new_oldcs != oldcs) || (new_cs != cs)) {
+			if (cs && (new_cs != cs))
+				attach_ctx.many_dest_cs = true;
+			cs = new_cs;
+			oldcs = new_oldcs;
+			if (oldcs == cs)
+				continue;
+			if (!attach_ctx.old_cs)
+				attach_ctx.old_cs = oldcs;
+			ret = cpuset_can_attach_check(cs, oldcs, &setsched_check);
+			if (ret)
+				goto out_unlock;
+		}
+
+		if (oldcs == cs)
+			continue;
+
 		ret = task_can_attach(task);
 		if (ret)
 			goto out_unlock;
+
+		/* Update attach_ctx.old_cs to the latest group leader */
+		if (task == task->group_leader)
+			attach_ctx.old_cs = task_cs(task);
 
 		if (setsched_check) {
 			ret = security_task_setscheduler(task);
@@ -3054,57 +3211,48 @@ static int cpuset_can_attach(struct cgroup_taskset *tset)
 			 * contribute to sum_migrate_dl_bw.
 			 */
 			cs->nr_migrate_dl_tasks++;
+			oldcs->nr_migrate_dl_tasks--;
 			if (dl_task_needs_bw_move(task, cs->effective_cpus))
 				cs->sum_migrate_dl_bw += task->dl.dl_bw;
 		}
 	}
 
-	if (!cs->sum_migrate_dl_bw)
-		goto out_success;
-
-	cpu = cpumask_any_and(cpu_active_mask, cs->effective_cpus);
-	if (unlikely(cpu >= nr_cpu_ids)) {
+	/*
+	 * The only case where there are multiple destination cpusets for
+	 * task migration is when enabling a v2 cpuset controllers where
+	 * tasks will be migrated to multiple child cpusets from a parent
+	 * cpuset with the same effective CPUs and memory nodes. IOW,
+	 * both attach_cpus_updated and attach_mems_updated should be false.
+	 * If not, it is a condition that the current code cannot handle.
+	 * Print a warning and abort the attach operation as further code
+	 * change may be needed.
+	 */
+	if (WARN_ON_ONCE(attach_ctx.many_dest_cs && (!cpuset_v2() ||
+			 attach_ctx.cpus_updated || attach_ctx.mems_updated))) {
 		ret = -EINVAL;
 		goto out_unlock;
 	}
 
-	ret = dl_bw_alloc(cpu, cs->sum_migrate_dl_bw);
-	if (ret)
-		goto out_unlock;
-
-	cs->dl_bw_cpu = cpu;
-
-out_success:
-	/*
-	 * Mark attach is in progress.  This makes validate_change() fail
-	 * changes which zero cpus/mems_allowed.
-	 */
-	cs->attach_in_progress++;
+	ret = cpuset_reserve_dl_bw();
 
 out_unlock:
-	if (ret)
-		reset_migrate_dl_data(cs);
+	if (ret) {
+		clear_attach_data(&src_cs_head, true);
+		clear_attach_data(&dst_cs_head, true);
+	} else {
+		attach_ctx.in_progress++;
+	}
+
 	mutex_unlock(&cpuset_mutex);
 	return ret;
 }
 
 static void cpuset_cancel_attach(struct cgroup_taskset *tset)
 {
-	struct cgroup_subsys_state *css;
-	struct cpuset *cs;
-
-	cgroup_taskset_first(tset, &css);
-	cs = css_cs(css);
-
 	mutex_lock(&cpuset_mutex);
-	dec_attach_in_progress_locked(cs);
-
-	if (cs->dl_bw_cpu >= 0)
-		dl_bw_free(cs->dl_bw_cpu, cs->sum_migrate_dl_bw);
-
-	if (cs->nr_migrate_dl_tasks)
-		reset_migrate_dl_data(cs);
-
+	dec_attach_in_progress_locked();
+	clear_attach_data(&src_cs_head, true);
+	clear_attach_data(&dst_cs_head, true);
 	mutex_unlock(&cpuset_mutex);
 }
 
@@ -3114,10 +3262,11 @@ static void cpuset_cancel_attach(struct cgroup_taskset *tset)
  * allocate from cpuset_init().
  */
 static cpumask_var_t cpus_attach;
-static nodemask_t cpuset_attach_nodemask_to;
 
 static void cpuset_attach_task(struct cpuset *cs, struct task_struct *task)
 {
+	struct mm_struct *mm;
+
 	lockdep_assert_cpuset_lock_held();
 
 	if (cs != &top_cpuset)
@@ -3131,90 +3280,88 @@ static void cpuset_attach_task(struct cpuset *cs, struct task_struct *task)
 	 */
 	WARN_ON_ONCE(set_cpus_allowed_ptr(task, cpus_attach));
 
-	cpuset_change_task_nodemask(task, &cpuset_attach_nodemask_to);
+	if (cpuset_v2() && !attach_ctx.mems_updated)
+		return;
+
+	cpuset_change_task_nodemask(task, &attach_ctx.nodemask_to);
 	cpuset1_update_task_spread_flags(cs, task);
+
+	if ((task != task->group_leader) || !attach_ctx.mems_updated)
+		return;
+
+	/*
+	 * Change mm for threadgroup leader. This is expensive and may
+	 * sleep and should be moved outside migration path proper.
+	 */
+	mm = get_task_mm(task);
+	if (mm) {
+		struct cpuset *oldcs = attach_ctx.old_cs;
+
+		mpol_rebind_mm(mm, &cs->effective_mems);
+
+		/*
+		 * old_mems_allowed is the same with mems_allowed
+		 * here, except if this task is being moved
+		 * automatically due to hotplug.  In that case
+		 * @mems_allowed has been updated and is empty, so
+		 * @old_mems_allowed is the right nodesets that we
+		 * migrate mm from.
+		 */
+		if (is_memory_migrate(cs)) {
+			cpuset_migrate_mm(mm, &oldcs->old_mems_allowed,
+					  &attach_ctx.nodemask_to);
+			attach_ctx.task_work_queued = true;
+		} else {
+			mmput(mm);
+		}
+	}
 }
 
 static void cpuset_attach(struct cgroup_taskset *tset)
 {
 	struct task_struct *task;
-	struct task_struct *leader;
 	struct cgroup_subsys_state *css;
 	struct cpuset *cs;
-	struct cpuset *oldcs = cpuset_attach_old_cs;
-	bool cpus_updated, mems_updated;
-	bool queue_task_work = false;
 
 	cgroup_taskset_first(tset, &css);
 	cs = css_cs(css);
 
 	lockdep_assert_cpus_held();	/* see cgroup_attach_lock() */
 	mutex_lock(&cpuset_mutex);
-	cpus_updated = !cpumask_equal(cs->effective_cpus,
-				      oldcs->effective_cpus);
-	mems_updated = !nodes_equal(cs->effective_mems, oldcs->effective_mems);
+	attach_ctx.task_work_queued = false;
+	guarantee_online_mems(cs, &attach_ctx.nodemask_to);
+
+	/*
+	 * attach_ctx.old_cs can only be NULL if no task is actually migrating.
+	 * This is highly unlikely. If it happens at all, we can skip task
+	 * iteration and setting old_mems_allowed.
+	 */
+	if (unlikely(!attach_ctx.old_cs))
+		goto out;
 
 	/*
 	 * In the default hierarchy, enabling cpuset in the child cgroups
-	 * will trigger a number of cpuset_attach() calls with no change
-	 * in effective cpus and mems. In that case, we can optimize out
-	 * by skipping the task iteration and update.
+	 * will trigger a cpuset_attach() call with no change in effective cpus
+	 * and mems. In that case, we can optimize out by skipping the task
+	 * iteration and the destination cpuset list is iterated to set
+	 * old_mems_allowed.
 	 */
-	if (cpuset_v2() && !cpus_updated && !mems_updated) {
-		cpuset_attach_nodemask_to = cs->effective_mems;
+	if (cpuset_v2() && !attach_ctx.cpus_updated && !attach_ctx.mems_updated) {
+		llist_for_each_entry(cs, dst_cs_head.first, attach_node)
+			cs->old_mems_allowed = attach_ctx.nodemask_to;
 		goto out;
 	}
-
-	guarantee_online_mems(cs, &cpuset_attach_nodemask_to);
 
 	cgroup_taskset_for_each(task, css, tset)
 		cpuset_attach_task(cs, task);
 
-	/*
-	 * Change mm for all threadgroup leaders. This is expensive and may
-	 * sleep and should be moved outside migration path proper. Skip it
-	 * if there is no change in effective_mems and CS_MEMORY_MIGRATE is
-	 * not set.
-	 */
-	cpuset_attach_nodemask_to = cs->effective_mems;
-	if (!is_memory_migrate(cs) && !mems_updated)
-		goto out;
-
-	cgroup_taskset_for_each_leader(leader, css, tset) {
-		struct mm_struct *mm = get_task_mm(leader);
-
-		if (mm) {
-			mpol_rebind_mm(mm, &cpuset_attach_nodemask_to);
-
-			/*
-			 * old_mems_allowed is the same with mems_allowed
-			 * here, except if this task is being moved
-			 * automatically due to hotplug.  In that case
-			 * @mems_allowed has been updated and is empty, so
-			 * @old_mems_allowed is the right nodesets that we
-			 * migrate mm from.
-			 */
-			if (is_memory_migrate(cs)) {
-				cpuset_migrate_mm(mm, &oldcs->old_mems_allowed,
-						  &cpuset_attach_nodemask_to);
-				queue_task_work = true;
-			} else
-				mmput(mm);
-		}
-	}
-
-out:
-	if (queue_task_work)
+	if (attach_ctx.task_work_queued)
 		schedule_flush_migrate_mm();
-	cs->old_mems_allowed = cpuset_attach_nodemask_to;
-
-	if (cs->nr_migrate_dl_tasks) {
-		cs->nr_deadline_tasks += cs->nr_migrate_dl_tasks;
-		oldcs->nr_deadline_tasks -= cs->nr_migrate_dl_tasks;
-		reset_migrate_dl_data(cs);
-	}
-
-	dec_attach_in_progress_locked(cs);
+	cs->old_mems_allowed = attach_ctx.nodemask_to;
+out:
+	clear_attach_data(&src_cs_head, false);
+	clear_attach_data(&dst_cs_head, false);
+	dec_attach_in_progress_locked();
 
 	mutex_unlock(&cpuset_mutex);
 }
@@ -3234,7 +3381,12 @@ ssize_t cpuset_write_resmask(struct kernfs_open_file *of,
 		return -EACCES;
 
 	buf = strstrip(buf);
-	cpuset_full_lock();
+
+	/* cpuset_mutex acquired in wait_attach_done_lock() */
+	mutex_lock(&cpuset_top_mutex);
+	cpus_read_lock();
+	wait_attach_done_lock();
+
 	if (!is_cpuset_online(cs))
 		goto out_unlock;
 
@@ -3365,7 +3517,10 @@ static ssize_t cpuset_partition_write(struct kernfs_open_file *of, char *buf,
 	else
 		return -EINVAL;
 
-	cpuset_full_lock();
+	mutex_lock(&cpuset_top_mutex);
+	cpus_read_lock();
+	wait_attach_done_lock();
+
 	if (is_cpuset_online(cs))
 		retval = update_prstate(cs, val);
 	cpuset_update_sd_hk_unlock();
@@ -3592,7 +3747,7 @@ static int cpuset_can_fork(struct task_struct *task, struct css_set *cset)
 	mutex_lock(&cpuset_mutex);
 
 	/* Check to see if task is allowed in the cpuset */
-	ret = cpuset_can_attach_check(cs);
+	ret = cpuset_can_attach_check(cs, NULL, NULL);
 	if (ret)
 		goto out_unlock;
 
@@ -3604,11 +3759,7 @@ static int cpuset_can_fork(struct task_struct *task, struct css_set *cset)
 	if (ret)
 		goto out_unlock;
 
-	/*
-	 * Mark attach is in progress.  This makes validate_change() fail
-	 * changes which zero cpus/mems_allowed.
-	 */
-	cs->attach_in_progress++;
+	attach_ctx.in_progress++;
 out_unlock:
 	mutex_unlock(&cpuset_mutex);
 	return ret;
@@ -3626,7 +3777,7 @@ static void cpuset_cancel_fork(struct task_struct *task, struct css_set *cset)
 	if (same_cs)
 		return;
 
-	dec_attach_in_progress(cs);
+	dec_attach_in_progress();
 }
 
 /*
@@ -3636,15 +3787,14 @@ static void cpuset_cancel_fork(struct task_struct *task, struct css_set *cset)
  */
 static void cpuset_fork(struct task_struct *task)
 {
-	struct cpuset *cs;
-	bool same_cs;
+	struct cpuset *cs, *oldcs;
 
 	rcu_read_lock();
 	cs = task_cs(task);
-	same_cs = (cs == task_cs(current));
+	oldcs = task_cs(current);
 	rcu_read_unlock();
 
-	if (same_cs) {
+	if (cs == oldcs) {
 		if (cs == &top_cpuset)
 			return;
 
@@ -3655,10 +3805,22 @@ static void cpuset_fork(struct task_struct *task)
 
 	/* CLONE_INTO_CGROUP */
 	mutex_lock(&cpuset_mutex);
-	guarantee_online_mems(cs, &cpuset_attach_nodemask_to);
-	cpuset_attach_task(cs, task);
+	guarantee_online_mems(cs, &attach_ctx.nodemask_to);
+	cs->old_mems_allowed = attach_ctx.nodemask_to;
 
-	dec_attach_in_progress_locked(cs);
+	/*
+	 * Assume CPUs and memory nodes are updated
+	 * A CLONE_INTO_CGROUP operation should have taken the cgroup mutex
+	 * and so there shouldn't be a competing cpuset_attach() operation.
+	 */
+	attach_ctx.cpus_updated = attach_ctx.mems_updated = true;
+	attach_ctx.task_work_queued = false;
+	attach_ctx.old_cs = oldcs;
+	cpuset_attach_task(cs, task);
+	if (attach_ctx.task_work_queued)
+		schedule_flush_migrate_mm();
+
+	dec_attach_in_progress_locked();
 	mutex_unlock(&cpuset_mutex);
 }
 
@@ -3705,6 +3867,7 @@ int __init cpuset_init(void)
 	cpumask_setall(top_cpuset.effective_xcpus);
 	cpumask_setall(top_cpuset.exclusive_cpus);
 	nodes_setall(top_cpuset.effective_mems);
+	init_llist_node(&top_cpuset.attach_node);
 
 	cpuset1_init(&top_cpuset);
 
@@ -3762,23 +3925,11 @@ static void cpuset_hotplug_update_tasks(struct cpuset *cs, struct tmpmasks *tmp)
 	bool remote;
 	int partcmd = -1;
 	struct cpuset *parent;
-retry:
-	wait_event(cpuset_attach_wq, cs->attach_in_progress == 0);
 
-	mutex_lock(&cpuset_mutex);
-
-	/*
-	 * We have raced with task attaching. We wait until attaching
-	 * is finished, so we won't attach a task to an empty cpuset.
-	 */
-	if (cs->attach_in_progress) {
-		mutex_unlock(&cpuset_mutex);
-		goto retry;
-	}
-
+	wait_attach_done_lock();
 	parent = parent_cs(cs);
 	compute_effective_cpumask(&new_cpus, cs, parent);
-	nodes_and(new_mems, cs->mems_allowed, parent->effective_mems);
+	compute_effective_nodemask(&new_mems, cs, parent);
 
 	if (!tmp || !cs->partition_root_state)
 		goto update_tasks;
@@ -3794,7 +3945,7 @@ retry:
 	if (remote && (cpumask_empty(subpartitions_cpus) ||
 			(cpumask_empty(&new_cpus) &&
 			 partition_is_populated(cs, NULL)))) {
-		cs->prs_err = PERR_HOTPLUG;
+		WRITE_ONCE(cs->prs_err, PERR_HOTPLUG);
 		remote_partition_disable(cs, tmp);
 		compute_effective_cpumask(&new_cpus, cs, parent);
 		remote = false;
@@ -4337,14 +4488,10 @@ void cpuset_nodes_allowed(struct cgroup *cgroup, nodemask_t *mask)
  * cpuset_spread_node() - On which node to begin search for a page
  * @rotor: round robin rotor
  *
- * If a task is marked PF_SPREAD_PAGE or PF_SPREAD_SLAB (as for
- * tasks in a cpuset with is_spread_page or is_spread_slab set),
- * and if the memory allocation used cpuset_mem_spread_node()
- * to determine on which node to start looking, as it will for
- * certain page cache or slab cache pages such as used for file
- * system buffers and inode caches, then instead of starting on the
- * local node to look for a free page, rather spread the starting
- * node around the tasks mems_allowed nodes.
+ * If a task is marked PFA_SPREAD_PAGE and a page cache allocation uses
+ * cpuset_mem_spread_node() to determine where to start looking, spread the
+ * starting node around the task's mems_allowed nodes instead of starting on
+ * the local node.
  *
  * We don't have to worry about the returned node being offline
  * because "it can't happen", and even if it did, it would be ok.

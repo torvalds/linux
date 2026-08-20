@@ -1860,7 +1860,6 @@ static __always_inline bool is_user_task(struct task_struct *task)
 /* Per-process atomic flags. */
 #define PFA_NO_NEW_PRIVS		0	/* May not gain new privileges. */
 #define PFA_SPREAD_PAGE			1	/* Spread page cache over cpuset */
-#define PFA_SPREAD_SLAB			2	/* Spread some slab caches over cpuset */
 #define PFA_SPEC_SSB_DISABLE		3	/* Speculative Store Bypass disabled */
 #define PFA_SPEC_SSB_FORCE_DISABLE	4	/* Speculative Store Bypass force disabled*/
 #define PFA_SPEC_IB_DISABLE		5	/* Indirect branch speculation restricted */
@@ -1885,10 +1884,6 @@ TASK_PFA_SET(NO_NEW_PRIVS, no_new_privs)
 TASK_PFA_TEST(SPREAD_PAGE, spread_page)
 TASK_PFA_SET(SPREAD_PAGE, spread_page)
 TASK_PFA_CLEAR(SPREAD_PAGE, spread_page)
-
-TASK_PFA_TEST(SPREAD_SLAB, spread_slab)
-TASK_PFA_SET(SPREAD_SLAB, spread_slab)
-TASK_PFA_CLEAR(SPREAD_SLAB, spread_slab)
 
 TASK_PFA_TEST(SPEC_SSB_DISABLE, spec_ssb_disable)
 TASK_PFA_SET(SPEC_SSB_DISABLE, spec_ssb_disable)

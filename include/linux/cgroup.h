@@ -480,7 +480,7 @@ static inline void cgroup_unlock(void)
 		rcu_read_lock_sched_held() ||				\
 		lockdep_is_held(&cgroup_mutex) ||			\
 		lockdep_is_held(&css_set_lock) ||			\
-		((task)->flags & PF_EXITING) || (__c))
+		(data_race((task)->flags) & PF_EXITING) || (__c))
 #else
 #define task_css_set_check(task, __c)					\
 	rcu_dereference((task)->cgroups)
