@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
+ * Realtek Interrupt controller.
+ *
+ * The Realtek Interrupt controller is a big endian device found in the
+ * Realtek MIPS SoCs.
+ *
  * Copyright (C) 2020 Birger Koblitz <mail@birger-koblitz.de>
  * Copyright (C) 2020 Bert Vermeulen <bert@biot.com>
  * Copyright (C) 2020 John Crispin <john@phrozen.org>
@@ -50,18 +55,18 @@ static inline void enable_gimr(unsigned int cpu, unsigned int hw_irq)
 {
 	u32 gimr;
 
-	gimr = readl(REG(cpu, RTL_ICTL_GIMR));
+	gimr = readl_be(REG(cpu, RTL_ICTL_GIMR));
 	gimr |= BIT(hw_irq);
-	writel(gimr, REG(cpu, RTL_ICTL_GIMR));
+	writel_be(gimr, REG(cpu, RTL_ICTL_GIMR));
 }
 
 static inline void disable_gimr(unsigned int cpu, unsigned int hw_irq)
 {
 	u32 gimr;
 
-	gimr = readl(REG(cpu, RTL_ICTL_GIMR));
+	gimr = readl_be(REG(cpu, RTL_ICTL_GIMR));
 	gimr &= ~BIT(hw_irq);
-	writel(gimr, REG(cpu, RTL_ICTL_GIMR));
+	writel_be(gimr, REG(cpu, RTL_ICTL_GIMR));
 }
 
 static void write_irr(unsigned int cpu, int hw_irq, u32 value)
@@ -71,9 +76,9 @@ static void write_irr(unsigned int cpu, int hw_irq, u32 value)
 	unsigned int shift = IRR_SHIFT(hw_irq);
 	u32 irr;
 
-	irr = readl(irr0 + offset) & ~(0xf << shift);
+	irr = readl_be(irr0 + offset) & ~(0xf << shift);
 	irr |= (value & 0xf) << shift;
-	writel(irr, irr0 + offset);
+	writel_be(irr, irr0 + offset);
 }
 
 static void realtek_ictl_unmask_irq(struct irq_data *i)
@@ -159,7 +164,8 @@ static void realtek_irq_dispatch(struct irq_desc *desc)
 	unsigned int hw_irq;
 
 	chained_irq_enter(chip, desc);
-	pending = readl(REG(cpu, RTL_ICTL_GIMR)) & readl(REG(cpu, RTL_ICTL_GISR)) & output->mask;
+	pending = readl_be(REG(cpu, RTL_ICTL_GIMR)) &
+		  readl_be(REG(cpu, RTL_ICTL_GISR)) & output->mask;
 
 	if (unlikely(!pending)) {
 		spurious_interrupt();
