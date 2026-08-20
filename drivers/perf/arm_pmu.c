@@ -570,7 +570,7 @@ static ssize_t cpus_show(struct device *dev,
 			 struct device_attribute *attr, char *buf)
 {
 	struct arm_pmu *armpmu = to_arm_pmu(dev_get_drvdata(dev));
-	return cpumap_print_to_pagebuf(true, buf, &armpmu->supported_cpus);
+	return sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(&armpmu->supported_cpus));
 }
 
 static DEVICE_ATTR_RO(cpus);

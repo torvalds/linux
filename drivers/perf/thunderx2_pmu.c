@@ -254,7 +254,7 @@ static ssize_t cpumask_show(struct device *dev, struct device_attribute *attr,
 	struct tx2_uncore_pmu *tx2_pmu;
 
 	tx2_pmu = pmu_to_tx2_pmu(dev_get_drvdata(dev));
-	return cpumap_print_to_pagebuf(true, buf, cpumask_of(tx2_pmu->cpu));
+	return sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(cpumask_of(tx2_pmu->cpu)));
 }
 static DEVICE_ATTR_RO(cpumask);
 

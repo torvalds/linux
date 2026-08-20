@@ -239,7 +239,7 @@ static ssize_t arm_ni_cpumask_show(struct device *dev,
 {
 	struct arm_ni *ni = cd_to_ni(pmu_to_cd(dev_get_drvdata(dev)));
 
-	return cpumap_print_to_pagebuf(true, buf, cpumask_of(ni->cpu));
+	return sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(cpumask_of(ni->cpu)));
 }
 
 static struct device_attribute arm_ni_cpumask_attr =

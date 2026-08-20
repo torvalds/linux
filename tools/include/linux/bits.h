@@ -17,7 +17,7 @@
  * position @h. For example
  * GENMASK_ULL(39, 21) gives us the 64bit vector 0x000000ffffe00000.
  */
-#if !defined(__ASSEMBLY__)
+#if !defined(__ASSEMBLER__)
 
 /*
  * Missing asm support
@@ -75,7 +75,7 @@
 #define BIT_U32(nr)	BIT_TYPE(u32, nr)
 #define BIT_U64(nr)	BIT_TYPE(u64, nr)
 
-#else /* defined(__ASSEMBLY__) */
+#else /* defined(__ASSEMBLER__) */
 
 /*
  * BUILD_BUG_ON_ZERO is not available in h files included from asm files,
@@ -84,6 +84,6 @@
 #define GENMASK(h, l)		__GENMASK(h, l)
 #define GENMASK_ULL(h, l)	__GENMASK_ULL(h, l)
 
-#endif /* !defined(__ASSEMBLY__) */
+#endif /* !defined(__ASSEMBLER__) */
 
 #endif	/* __LINUX_BITS_H */

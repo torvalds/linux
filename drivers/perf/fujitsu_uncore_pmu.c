@@ -373,7 +373,7 @@ static ssize_t cpumask_show(struct device *dev,
 {
 	struct uncore_pmu *uncorepmu = to_uncore_pmu(dev_get_drvdata(dev));
 
-	return cpumap_print_to_pagebuf(true, buf, cpumask_of(uncorepmu->cpu));
+	return sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(cpumask_of(uncorepmu->cpu)));
 }
 static DEVICE_ATTR_RO(cpumask);
 

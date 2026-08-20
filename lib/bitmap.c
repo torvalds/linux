@@ -424,6 +424,9 @@ EXPORT_SYMBOL(__bitmap_clear);
  * The @align_mask should be one less than a power of 2; the effect is that
  * the bit offset of all zero areas this function finds plus @align_offset
  * is multiple of that power of 2.
+ *
+ * Return: The bit offset of the found area or a value greater than or equal
+ * to @size if no area is found.
  */
 unsigned long bitmap_find_next_zero_area_off(unsigned long *map,
 					     unsigned long size,
@@ -432,22 +435,23 @@ unsigned long bitmap_find_next_zero_area_off(unsigned long *map,
 					     unsigned long align_mask,
 					     unsigned long align_offset)
 {
-	unsigned long index, end, i;
-again:
-	index = find_next_zero_bit(map, size, start);
+	unsigned long end, i, off;
 
-	/* Align allocation */
-	index = __ALIGN_MASK(index + align_offset, align_mask) - align_offset;
+	for_each_clear_bit_from(start, map, size) {
+		start = __ALIGN_MASK(start + align_offset, align_mask) - align_offset;
+		end = start + nr;
+		if (end > size)
+			break;
 
-	end = index + nr;
-	if (end > size)
-		return end;
-	i = find_next_bit(map, end, index);
-	if (i < end) {
-		start = i + 1;
-		goto again;
+		off = round_down(start, BITS_PER_LONG);
+		i = find_last_bit(map + start / BITS_PER_LONG, end - off) + off;
+		if (i >= end || i < start)
+			return start;
+
+		start = i;
 	}
-	return index;
+
+	return size;
 }
 EXPORT_SYMBOL(bitmap_find_next_zero_area_off);
 
