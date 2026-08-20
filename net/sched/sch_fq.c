@@ -828,8 +828,12 @@ begin:
 		 * f->time_next_packet was set when prior packet was sent,
 		 * and current time (@now) can be too late by tens of us.
 		 */
-		if (f->time_next_packet)
-			len -= min(len/2, now - f->time_next_packet);
+		if (f->time_next_packet) {
+			s64 drift = now - f->time_next_packet;
+
+			if (drift > 0)
+				len -= min_t(u64, len / 2, drift);
+		}
 		f->time_next_packet = now + len;
 	}
 out:
