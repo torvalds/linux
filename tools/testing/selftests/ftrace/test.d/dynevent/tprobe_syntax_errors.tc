@@ -46,7 +46,7 @@ check_error 't kfree ^&1'		# BAD_FETCH_ARG
 
 # We've introduced this limitation with array support
 if grep -q ' <type>\\\[<array-size>\\\]' README; then
-check_error 't kfree +0(^+0(+0(+0(+0(+0(+0(+0(+0(+0(+0(+0(+0(+0(@0))))))))))))))'	# TOO_MANY_OPS?
+check_error 't kfree +0(+0(+0(+0(+0(+0(+0(+0(^+0(@0)))))))))'	# TOO_MANY_NESTED
 check_error 't kfree +0(@11):u8[10^'		# ARRAY_NO_CLOSE
 check_error 't kfree +0(@11):u8[10]^a'		# BAD_ARRAY_SUFFIX
 check_error 't kfree +0(@11):u8[^10a]'		# BAD_ARRAY_NUM
@@ -61,7 +61,7 @@ check_error 't kfree ^arg123456789012345678901234567890=@11'	# ARG_NAME_TOO_LOG
 check_error 't kfree ^=@11'			# NO_ARG_NAME
 check_error 't kfree ^var.1=@11'		# BAD_ARG_NAME
 check_error 't kfree var1=@11 ^var1=@12'	# USED_ARG_NAME
-check_error 't kfree ^+1234567(+1234567(+1234567(+1234567(+1234567(+1234567(@1234))))))'	# ARG_TOO_LONG
+check_error 't kfree ^+1234567(+1234567(+1234567(+1234567(+1234567(+1234567(+1234567(+1234567(+1234567(+1234567(+1234567(+1234567(+1234567(+1234567(+1234567(+1234567(+1234567(+1234567(+1234567(+1234567(+1234567(+1234567(+1234567(+1234567(+1234567(+1234567(@1234))))))))))))))))))))))))))'	# ARG_TOO_LONG
 check_error 't kfree arg1=^'			# NO_ARG_BODY
 
 

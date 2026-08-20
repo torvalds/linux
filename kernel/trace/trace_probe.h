@@ -32,7 +32,7 @@
 #include "trace_output.h"
 
 #define MAX_TRACE_ARGS		128
-#define MAX_ARGSTR_LEN		63
+#define MAX_ARGSTR_LEN		255
 #define MAX_ARRAY_LEN		64
 #define MAX_ARG_NAME_LEN	32
 #define MAX_BTF_ARGS_LEN	128
@@ -83,38 +83,48 @@ static nokprobe_inline u32 update_data_loc(u32 loc, int consumed)
 /* Printing function type */
 typedef int (*print_type_func_t)(struct trace_seq *, void *, void *);
 
-enum fetch_op {
-	FETCH_OP_NOP = 0,
-	// Stage 1 (load) ops
-	FETCH_OP_REG,		/* Register : .param = offset */
-	FETCH_OP_STACK,		/* Stack : .param = index */
-	FETCH_OP_STACKP,	/* Stack pointer */
-	FETCH_OP_RETVAL,	/* Return value */
-	FETCH_OP_IMM,		/* Immediate : .immediate */
-	FETCH_OP_COMM,		/* Current comm */
-	FETCH_OP_ARG,		/* Function argument : .param */
-	FETCH_OP_FOFFS,		/* File offset: .immediate */
-	FETCH_OP_DATA,		/* Allocated data: .data */
-	FETCH_OP_EDATA,		/* Entry data: .offset */
-	// Stage 2 (dereference) op
-	FETCH_OP_DEREF,		/* Dereference: .offset */
-	FETCH_OP_UDEREF,	/* User-space Dereference: .offset */
-	// Stage 3 (store) ops
-	FETCH_OP_ST_RAW,	/* Raw: .size */
-	FETCH_OP_ST_MEM,	/* Mem: .offset, .size */
-	FETCH_OP_ST_UMEM,	/* Mem: .offset, .size */
-	FETCH_OP_ST_STRING,	/* String: .offset, .size */
-	FETCH_OP_ST_USTRING,	/* User String: .offset, .size */
-	FETCH_OP_ST_SYMSTR,	/* Kernel Symbol String: .offset, .size */
-	FETCH_OP_ST_EDATA,	/* Store Entry Data: .offset */
-	// Stage 4 (modify) op
-	FETCH_OP_MOD_BF,	/* Bitfield: .basesize, .lshift, .rshift */
-	// Stage 5 (loop) op
-	FETCH_OP_LP_ARRAY,	/* Array: .param = loop count */
-	FETCH_OP_TP_ARG,	/* Trace Point argument */
-	FETCH_OP_END,
-	FETCH_NOP_SYMBOL,	/* Unresolved Symbol holder */
-};
+#define FETCH_OP_LIST	{						\
+	/* Stage 1 (load) ops */					\
+	FETCH_OP(NOP, none),		/* NOP */			\
+	FETCH_OP(REG, param),		/* Register: .param = offset */	\
+	FETCH_OP(STACK, param),		/* Stack: .param = index */	\
+	FETCH_OP(STACKP, none),		/* Stack pointer */		\
+	FETCH_OP(RETVAL, none),		/* Return value */		\
+	FETCH_OP(IMM, imm),		/* Immediate: .immediate */	\
+	FETCH_OP(COMM, none),		/* Current comm */		\
+	FETCH_OP(CURRENT, none),	/* Current task_struct address */\
+	FETCH_OP(ARG, param),		/* Argument: .param = index */	\
+	FETCH_OP(FOFFS, imm),		/* File offset: .immediate */	\
+	FETCH_OP(IMMSTR, string),	/* Allocated string: .data */	\
+	FETCH_OP(EDATA, offset),	/* Entry data: .offset */	\
+	FETCH_OP(TP_ARG, tp_arg),	/* Tracepoint argument: .data */\
+	/* Stage 2 (dereference) ops */					\
+	FETCH_OP(DEREF, offset),	/* Dereference: .offset */	\
+	FETCH_OP(UDEREF, offset),	/* User-space dereference: .offset */\
+	FETCH_OP(CPU_PTR, none),	/* Per-CPU pointer: .offset */	\
+	/* Stage 3 (store) ops */					\
+	FETCH_OP(ST_RAW, store),	/* Raw value: .size */		\
+	FETCH_OP(ST_MEM, store),	/* Memory: .offset, .size */	\
+	FETCH_OP(ST_UMEM, store),	/* User memory: .offset, .size */\
+	FETCH_OP(ST_STRING, store),	/* String: .offset, .size */	\
+	FETCH_OP(ST_USTRING, store),	/* User string: .offset, .size */\
+	FETCH_OP(ST_SYMSTR, store),	/* Symbol name: .offset, .size */\
+	FETCH_OP(ST_EDATA, offset),	/* Entry data: .offset */	\
+	/* Stage 4 (modify) op */					\
+	FETCH_OP(MOD_BF, bf),		/* Bitfield: .basesize, .lshift, .rshift*/\
+	/* Stage 5 (loop) op */						\
+	FETCH_OP(LP_ARRAY, param),	/* Loop array: .param = count */\
+	/* End */							\
+	FETCH_OP(END, none),						\
+	/* Unresolved Symbol holder */					\
+	FETCH_OP(NOP_SYMBOL, symbol),	/* Non loaded symbol: .data = symbol name */\
+}
+
+#define FETCH_OP(opname, decode_fn) FETCH_OP_##opname
+enum fetch_op FETCH_OP_LIST;
+#undef FETCH_OP
+
+#define FETCH_NOP_SYMBOL FETCH_OP_NOP_SYMBOL
 
 struct fetch_insn {
 	enum fetch_op op;
@@ -209,7 +219,6 @@ DECLARE_BASIC_PRINT_TYPE_FUNC(symbol);
 	_ASSIGN_FETCH_TYPE(#ptype, ptype, ftype, sizeof(ftype), sign, atype)
 
 #define ASSIGN_FETCH_TYPE_END {}
-#define MAX_ARRAY_LEN	64
 
 #ifdef CONFIG_KPROBE_EVENTS
 bool trace_kprobe_on_func_entry(struct trace_event_call *call);
@@ -350,7 +359,7 @@ static inline int trace_probe_unregister_event_call(struct trace_probe *tp)
 
 static inline bool trace_probe_has_single_file(struct trace_probe *tp)
 {
-	return !!list_is_singular(&tp->event->files);
+	return list_is_singular(&tp->event->files);
 }
 
 int trace_probe_init(struct trace_probe *tp, const char *event,
@@ -370,6 +379,13 @@ bool trace_probe_match_command_args(struct trace_probe *tp,
 int trace_probe_create(const char *raw_command, int (*createfn)(int, const char **));
 int trace_probe_print_args(struct trace_seq *s, struct probe_arg *args, int nr_args,
 		 u8 *data, void *field);
+#ifdef CONFIG_PROBE_EVENTS_DUMP_FETCHARG
+void trace_probe_dump_args(struct seq_file *m, struct trace_probe *tp);
+#else
+static inline void trace_probe_dump_args(struct seq_file *m, struct trace_probe *tp)
+{
+}
+#endif
 
 #ifdef CONFIG_HAVE_FUNCTION_ARG_ACCESS_API
 int traceprobe_get_entry_data_size(struct trace_probe *tp);
@@ -414,6 +430,39 @@ static inline bool tparg_is_function_return(unsigned int flags)
 	return (flags & TPARG_FL_LOC_MASK) == (TPARG_FL_KERNEL | TPARG_FL_RETURN);
 }
 
+static inline bool tparg_is_event_probe(unsigned int flags)
+{
+	return !!(flags & TPARG_FL_TEVENT);
+}
+
+/* Each typecast consumes nested level. So the max number of typecast is 8. */
+#define TRACEPROBE_MAX_NESTED_LEVEL 8
+
+enum parse_state_type {
+	STATE_DEREF,
+	STATE_TYPECAST,
+};
+
+struct parse_state {
+	int type;
+	union {
+		struct {
+			int deref;
+			long offset;
+			int cur_offs;
+			char *inner_arg;
+			bool is_cpu_read;
+		} deref;
+		struct {
+			char *casttype;
+			char *fieldname;
+			int orig_offset;
+			int field_offset_diff;
+			char *inner_arg;
+		} typecast;
+	};
+};
+
 struct traceprobe_parse_context {
 	struct trace_event_call *event;
 	/* BTF related parameters */
@@ -430,7 +479,11 @@ struct traceprobe_parse_context {
 	struct trace_probe *tp;
 	unsigned int flags;
 	int offset;
+	int prefix_byteoffs;	/* The byte offset of the prefix field of typecast */
+	struct parse_state stack[TRACEPROBE_MAX_NESTED_LEVEL + 1];
+	int depth;
 };
+
 
 extern int traceprobe_parse_probe_arg(struct trace_probe *tp, int i,
 				      const char *argv,
@@ -485,88 +538,95 @@ extern int traceprobe_define_arg_fields(struct trace_event_call *event_call,
 
 #undef ERRORS
 #define ERRORS	\
-	C(FILE_NOT_FOUND,	"Failed to find the given file"),	\
-	C(NO_REGULAR_FILE,	"Not a regular file"),			\
-	C(BAD_REFCNT,		"Invalid reference counter offset"),	\
-	C(REFCNT_OPEN_BRACE,	"Reference counter brace is not closed"), \
-	C(BAD_REFCNT_SUFFIX,	"Reference counter has wrong suffix"),	\
-	C(BAD_UPROBE_OFFS,	"Invalid uprobe offset"),		\
-	C(BAD_MAXACT_TYPE,	"Maxactive is only for function exit"),	\
-	C(BAD_MAXACT,		"Invalid maxactive number"),		\
-	C(MAXACT_TOO_BIG,	"Maxactive is too big"),		\
-	C(BAD_PROBE_ADDR,	"Invalid probed address or symbol"),	\
-	C(NON_UNIQ_SYMBOL,	"The symbol is not unique"),		\
-	C(BAD_RETPROBE,		"Retprobe address must be an function entry"), \
-	C(NO_TRACEPOINT,	"Tracepoint is not found"),		\
-	C(BAD_TP_NAME,		"Invalid character in tracepoint name"),\
-	C(BAD_ADDR_SUFFIX,	"Invalid probed address suffix"), \
-	C(NO_GROUP_NAME,	"Group name is not specified"),		\
-	C(GROUP_TOO_LONG,	"Group name is too long"),		\
-	C(BAD_GROUP_NAME,	"Group name must follow the same rules as C identifiers"), \
-	C(NO_EVENT_NAME,	"Event name is not specified"),		\
-	C(EVENT_TOO_LONG,	"Event name is too long"),		\
-	C(BAD_EVENT_NAME,	"Event name must follow the same rules as C identifiers"), \
-	C(EVENT_EXIST,		"Given group/event name is already used by another event"), \
-	C(RETVAL_ON_PROBE,	"$retval is not available on probe"),	\
-	C(NO_RETVAL,		"This function returns 'void' type"),	\
-	C(BAD_STACK_NUM,	"Invalid stack number"),		\
-	C(BAD_ARG_NUM,		"Invalid argument number"),		\
-	C(BAD_VAR,		"Invalid $-variable specified"),	\
-	C(BAD_REG_NAME,		"Invalid register name"),		\
-	C(BAD_MEM_ADDR,		"Invalid memory address"),		\
-	C(BAD_IMM,		"Invalid immediate value"),		\
-	C(IMMSTR_NO_CLOSE,	"String is not closed with '\"'"),	\
-	C(FILE_ON_KPROBE,	"File offset is not available with kprobe"), \
-	C(BAD_FILE_OFFS,	"Invalid file offset value"),		\
-	C(SYM_ON_UPROBE,	"Symbol is not available with uprobe"),	\
-	C(TOO_MANY_OPS,		"Dereference is too much nested"), 	\
-	C(DEREF_NEED_BRACE,	"Dereference needs a brace"),		\
-	C(BAD_DEREF_OFFS,	"Invalid dereference offset"),		\
-	C(DEREF_OPEN_BRACE,	"Dereference brace is not closed"),	\
-	C(COMM_CANT_DEREF,	"$comm can not be dereferenced"),	\
-	C(BAD_FETCH_ARG,	"Invalid fetch argument"),		\
-	C(ARRAY_NO_CLOSE,	"Array is not closed"),			\
-	C(BAD_ARRAY_SUFFIX,	"Array has wrong suffix"),		\
-	C(BAD_ARRAY_NUM,	"Invalid array size"),			\
-	C(ARRAY_TOO_BIG,	"Array number is too big"),		\
-	C(BAD_TYPE,		"Unknown type is specified"),		\
-	C(BAD_STRING,		"String accepts only memory argument"),	\
-	C(BAD_SYMSTRING,	"Symbol String doesn't accept data/userdata"),	\
-	C(BAD_BITFIELD,		"Invalid bitfield"),			\
-	C(ARG_NAME_TOO_LONG,	"Argument name is too long"),		\
-	C(NO_ARG_NAME,		"Argument name is not specified"),	\
-	C(BAD_ARG_NAME,		"Argument name must follow the same rules as C identifiers"), \
-	C(USED_ARG_NAME,	"This argument name is already used"),	\
-	C(ARG_TOO_LONG,		"Argument expression is too long"),	\
-	C(NO_ARG_BODY,		"No argument expression"),		\
-	C(BAD_INSN_BNDRY,	"Probe point is not an instruction boundary"),\
-	C(FAIL_REG_PROBE,	"Failed to register probe event"),\
-	C(DIFF_PROBE_TYPE,	"Probe type is different from existing probe"),\
-	C(DIFF_ARG_TYPE,	"Argument type or name is different from existing probe"),\
-	C(SAME_PROBE,		"There is already the exact same probe event"),\
-	C(NO_EVENT_INFO,	"This requires both group and event name to attach"),\
-	C(BAD_ATTACH_EVENT,	"Attached event does not exist"),\
-	C(BAD_ATTACH_ARG,	"Attached event does not have this field"),\
-	C(NO_EP_FILTER,		"No filter rule after 'if'"),		\
-	C(NOSUP_BTFARG,		"BTF is not available or not supported"),	\
-	C(NO_BTFARG,		"This variable is not found at this probe point"),\
-	C(NO_BTF_ENTRY,		"No BTF entry for this probe point"),	\
-	C(BAD_VAR_ARGS,		"$arg* must be an independent parameter without name etc."),\
-	C(NOFENTRY_ARGS,	"$arg* can be used only on function entry or exit"),	\
-	C(DOUBLE_ARGS,		"$arg* can be used only once in the parameters"),	\
-	C(ARGS_2LONG,		"$arg* failed because the argument list is too long"),	\
 	C(ARGIDX_2BIG,		"$argN index is too big"),		\
-	C(NO_PTR_STRCT,		"This is not a pointer to union/structure."),	\
-	C(NOSUP_DAT_ARG,	"Non pointer structure/union argument is not supported."),\
+	C(ARGS_2LONG,		"$arg* failed because the argument list is too long"),	\
+	C(ARG_NAME_TOO_LONG,	"Argument name is too long"),		\
+	C(ARG_TOO_LONG,		"Argument expression is too long"),		\
+	C(ARRAY_NO_CLOSE,	"Array is not closed"),		\
+	C(ARRAY_TOO_BIG,	"Array number is too big"),		\
+	C(BAD_ADDR_SUFFIX,	"Invalid probed address suffix"),		\
+	C(BAD_ARG_NAME,		"Argument name must follow the same rules as C identifiers"),	\
+	C(BAD_ARG_NUM,		"Invalid argument number"),		\
+	C(BAD_ARRAY_NUM,	"Invalid array size"),		\
+	C(BAD_ARRAY_SUFFIX,	"Array has wrong suffix"),		\
+	C(BAD_ATTACH_ARG,	"Attached event does not have this field"),	\
+	C(BAD_ATTACH_EVENT,	"Attached event does not exist"),		\
+	C(BAD_BITFIELD,		"Invalid bitfield"),		\
+	C(BAD_BTF_TID,		"Failed to get BTF type info."),		\
+	C(BAD_DEREF_OFFS,	"Invalid dereference offset"),		\
+	C(BAD_EVENT_NAME,	"Event name must follow the same rules as C identifiers"),	\
+	C(BAD_FETCH_ARG,	"Invalid fetch argument"),		\
+	C(BAD_FILE_OFFS,	"Invalid file offset value"),		\
+	C(BAD_GROUP_NAME,	"Group name must follow the same rules as C identifiers"),	\
 	C(BAD_HYPHEN,		"Failed to parse single hyphen. Forgot '>'?"),	\
-	C(NO_BTF_FIELD,		"This field is not found."),	\
-	C(BAD_BTF_TID,		"Failed to get BTF type info."),\
-	C(BAD_TYPE4STR,		"This type does not fit for string."),\
-	C(NEED_STRING_TYPE,	"$comm and immediate-string only accepts string type"),\
-	C(TOO_MANY_ARGS,	"Too many arguments are specified"),	\
+	C(BAD_IMM,		"Invalid immediate value"),		\
+	C(BAD_INSN_BNDRY,	"Probe point is not an instruction boundary"),	\
+	C(BAD_MAXACT,		"Invalid maxactive number"),		\
+	C(BAD_MAXACT_TYPE,	"Maxactive is only for function exit"),	\
+	C(BAD_MEM_ADDR,		"Invalid memory address"),		\
+	C(BAD_PROBE_ADDR,	"Invalid probed address or symbol"),		\
+	C(BAD_REFCNT,		"Invalid reference counter offset"),		\
+	C(BAD_REFCNT_SUFFIX,	"Reference counter has wrong suffix"),	\
+	C(BAD_REG_NAME,		"Invalid register name"),		\
+	C(BAD_RETPROBE,		"Retprobe address must be an function entry"),	\
+	C(BAD_STACK_NUM,	"Invalid stack number"),		\
+	C(BAD_STRING,		"String accepts only memory argument"),		\
+	C(BAD_SYMSTRING,	"Symbol String doesn't accept data/userdata"),	\
+	C(BAD_TP_NAME,		"Invalid character in tracepoint name"),	\
+	C(BAD_TYPE,		"Unknown type is specified"),		\
+	C(BAD_TYPE4STR,		"This type does not fit for string."),	\
+	C(BAD_UPROBE_OFFS,	"Invalid uprobe offset"),		\
+	C(BAD_VAR,		"Invalid $-variable specified"),		\
+	C(BAD_VAR_ARGS,		"$arg* must be an independent parameter without name etc."),	\
+	C(COMM_CANT_DEREF,	"$comm can not be dereferenced"),		\
+	C(DEREF_NEED_BRACE,	"Dereference needs a brace"),		\
+	C(DEREF_OPEN_BRACE,	"Dereference brace is not closed"),	\
+	C(DIFF_ARG_TYPE,	"Argument type or name is different from existing probe"),	\
+	C(DIFF_PROBE_TYPE,	"Probe type is different from existing probe"),	\
+	C(DOUBLE_ARGS,		"$arg* can be used only once in the parameters"),	\
+	C(EVENT_EXIST,		"Given group/event name is already used by another event"),	\
+	C(EVENT_TOO_BIG,	"Event too big (too many fields?)"),		\
+	C(EVENT_TOO_LONG,	"Event name is too long"),		\
+	C(FAIL_REG_PROBE,	"Failed to register probe event"),		\
+	C(FILE_NOT_FOUND,	"Failed to find the given file"),		\
+	C(FILE_ON_KPROBE,	"File offset is not available for kernel probes"),	\
+	C(GROUP_TOO_LONG,	"Group name is too long"),		\
+	C(IMMSTR_NO_CLOSE,	"String is not closed with '\"'"),		\
+	C(MAXACT_TOO_BIG,	"Maxactive is too big"),		\
+	C(NEED_STRING_TYPE,	"$comm and immediate-string only accepts string type"),	\
+	C(NOFENTRY_ARGS,	"$arg* can be used only on function entry or exit"),	\
+	C(NON_UNIQ_SYMBOL,	"The symbol is not unique"),		\
+	C(NOSUP_BTFARG,		"BTF is not available or not supported"),	\
+	C(NOSUP_DAT_ARG,	"Non pointer structure/union argument is not supported."),	\
+	C(NOSUP_PERCPU,		"Per-cpu variable access is only for kernel probes"),	\
+	C(NO_ARG_BODY,		"No argument expression"),		\
+	C(NO_ARG_NAME,		"Argument name is not specified"),		\
+	C(NO_BTFARG,		"This variable is not found at this probe point"),	\
+	C(NO_BTF_ENTRY,		"No BTF entry for this probe point"),		\
+	C(NO_BTF_FIELD,		"This field is not found."),		\
+	C(NO_EP_FILTER,		"No filter rule after 'if'"),		\
+	C(NO_EVENT_FIELD,	"This event field is not found."),		\
+	C(NO_EVENT_INFO,	"This requires both group and event name to attach"),	\
+	C(NO_EVENT_NAME,	"Event name is not specified"),		\
+	C(NO_GROUP_NAME,	"Group name is not specified"),		\
+	C(NO_PTR_STRCT,		"This is not a pointer to union/structure."),	\
+	C(NO_REGULAR_FILE,	"Not a regular file"),		\
+	C(NO_RETVAL,		"This function returns 'void' type"),		\
+	C(NO_TRACEPOINT,	"Tracepoint is not found"),		\
+	C(REFCNT_OPEN_BRACE,	"Reference counter brace is not closed"),	\
+	C(RETVAL_ON_PROBE,	"$retval is not available on probe"),	\
+	C(SAME_PROBE,		"There is already the exact same probe event"),	\
+	C(SYM_ON_UPROBE,	"Symbol is not available with uprobe"),	\
+	C(TOO_MANY_ARGS,	"Too many arguments are specified"),		\
 	C(TOO_MANY_EARGS,	"Too many entry arguments specified"),	\
-	C(EVENT_TOO_BIG,	"Event too big (too many fields?)"),  \
-	C(TYPECAST_NOT_EVENT,	"Typecasts are only for eprobe fields"),
+	C(TOO_MANY_NESTED,	"Too many nested typecasts/dereferences"),	\
+	C(TOO_MANY_OPS,		"Dereference is too much nested"),		\
+	C(TYPECAST_BAD_ARROW,	"Typecast field option does not support -> operator"),	\
+	C(TYPECAST_NOT_ALIGNED,	"Typecast field option is not byte-aligned"),	\
+	C(TYPECAST_NOT_EVENT,	"Typecasts are only for eprobe fields"),	\
+	C(TYPECAST_REQ_FIELD,	"Typecast requires a field access"),	\
+	C(TYPECAST_SYM_OFFSET,	"@SYM+/-OFFSET with typecast needs parentheses"),	\
+	C(USED_ARG_NAME,	"This argument name is already used"),
 
 #undef C
 #define C(a, b)		TP_ERR_##a

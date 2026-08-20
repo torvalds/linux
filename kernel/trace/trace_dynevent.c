@@ -116,6 +116,8 @@ int dyn_event_release(const char *raw_command, struct dyn_event_operations *type
 	return ret;
 }
 
+static int create_dyn_event(const char *raw_command);
+
 /*
  * Locked version of event creation. The event creation must be protected by
  * dyn_event_ops_mutex because of protecting trace_probe_log.
@@ -123,6 +125,9 @@ int dyn_event_release(const char *raw_command, struct dyn_event_operations *type
 int dyn_event_create(const char *raw_command, struct dyn_event_operations *type)
 {
 	int ret;
+
+	if (!type)
+		return create_dyn_event(raw_command);
 
 	mutex_lock(&dyn_event_ops_mutex);
 	ret = type->create(raw_command);

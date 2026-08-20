@@ -13,6 +13,12 @@ fi
 MOD=trace_printk
 FUNC=trace_printk_irq_work
 
+:;: "Add an event on a module function without module name" ;:
+
+echo "p:event0 $FUNC" > kprobe_events
+test -d events/kprobes/event0 || exit_failure
+echo "-:kprobes/event0" >> kprobe_events
+
 :;: "Add an event on a module function without specifying event name" ;:
 
 echo "p $MOD:$FUNC" > kprobe_events

@@ -121,9 +121,21 @@ ftrace.[instance.INSTANCE.]event.synthetic.EVENT.fields = FIELD[, FIELD2[...]]
    Defines new synthetic event with FIELDs. Each field should be
    "type varname".
 
-Note that kprobe and synthetic event definitions can be written under
-instance node, but those are also visible from other instances. So please
-take care for event name conflict.
+ftrace.[instance.INSTANCE.]event.eprobes.EVENT.probes = PROBE[, PROBE2[...]]
+   Defines new event probe based on PROBEs. This option is available only
+   for the event which group name is "eprobes".
+
+ftrace.[instance.INSTANCE.]event.fprobes.EVENT.probes = PROBE[, PROBE2[...]]
+   Defines new fprobe event based on PROBEs. This option is available only
+   for the event which group name is "fprobes".
+
+ftrace.[instance.INSTANCE.]event.tracepoints.EVENT.probes = PROBE[, PROBE2[...]]
+   Defines new tracepoint probe based on PROBEs. This option is available only
+   for the event which group name is "tracepoints" or "tprobes".
+
+Note that dynamic event definitions can be written under instance node, but
+those are also visible from other instances. So please take care for event
+name conflict.
 
 Ftrace Histogram Options
 ------------------------
