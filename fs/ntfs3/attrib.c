@@ -13,6 +13,7 @@
 #include "debug.h"
 #include "ntfs.h"
 #include "ntfs_fs.h"
+#include <trace/events/ntfs3.h>
 
 /*
  * You can set external NTFS_MIN_LOG2_OF_CLUMP/NTFS_MAX_LOG2_OF_CLUMP to manage
@@ -171,6 +172,8 @@ int attr_allocate_clusters(struct ntfs_sb_info *sbi, struct runs_tree *run,
 	int err;
 	CLST flen, vcn0 = vcn, pre = pre_alloc ? *pre_alloc : 0;
 	size_t cnt = run->count;
+
+	trace_ntfs3_attr_allocate_clusters(sbi->sb, vcn, lcn, len, opt);
 
 	for (;;) {
 		err = ntfs_look_for_free_space(sbi, lcn, len + pre, &lcn, &flen,
@@ -469,6 +472,12 @@ again:
 		err = -ENOENT;
 		goto bad_inode;
 	}
+
+	trace_ntfs3_attr_set_size_ex(&ni->vfs_inode, le32_to_cpu(type),
+				     attr_b->non_res ?
+					     le64_to_cpu(attr_b->nres.data_size) :
+					     le32_to_cpu(attr_b->res.data_size),
+				     new_size, keep_prealloc, no_da);
 
 	if (!attr_b->non_res) {
 		err = attr_set_size_res(ni, attr_b, le_b, mi_b, new_size, run,
@@ -970,6 +979,9 @@ int attr_data_get_block(struct ntfs_inode *ni, CLST vcn, CLST clen, CLST *lcn,
 		*new = false;
 	if (res)
 		*res = NULL;
+
+	trace_ntfs3_attr_data_get_block(&ni->vfs_inode, vcn, clen, new, zero,
+					no_da);
 
 	/* Try to find in cache. */
 	down_read(&ni->file.run_lock);
