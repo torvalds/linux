@@ -20,6 +20,7 @@
 #include "debug.h"
 #include "ntfs.h"
 #include "ntfs_fs.h"
+#include <trace/events/ntfs3.h>
 
 /*
  * cifx, btrfs, exfat, ext4, f2fs use this constant.
@@ -827,6 +828,8 @@ static ssize_t ntfs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	unsigned int dio_flags;
 	ssize_t ret;
 
+	trace_ntfs3_file_read_iter(iocb, iter);
+
 	ret = check_read_restriction(inode);
 	if (ret)
 		return ret;
@@ -1246,6 +1249,8 @@ static ssize_t ntfs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	struct ntfs_inode *ni = ntfs_i(inode);
 	loff_t vbo, endbyte;
 	ssize_t ret, err;
+
+	trace_ntfs3_file_write_iter(iocb, from);
 
 	if (!inode_trylock(inode)) {
 		if (iocb->ki_flags & IOCB_NOWAIT)

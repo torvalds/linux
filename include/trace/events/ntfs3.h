@@ -351,6 +351,39 @@ TRACE_EVENT(ntfs3_iomap_end,
 		  __entry->written, __entry->flags)
 );
 
+DECLARE_EVENT_CLASS(ntfs3_file_class,
+	TP_PROTO(struct kiocb *iocb, struct iov_iter *iter),
+	TP_ARGS(iocb, iter),
+	TP_STRUCT__entry(
+		__field(loff_t, size)
+		__field(loff_t, offset)
+		__field(size_t, count)
+		__field(unsigned long, ino)
+		__field(dev_t, dev)
+	),
+	TP_fast_assign(
+		__entry->size = i_size_read(file_inode(iocb->ki_filp));
+		__entry->offset = iocb->ki_pos;
+		__entry->count = iov_iter_count(iter);
+		__entry->ino = file_inode(iocb->ki_filp)->i_ino;
+		__entry->dev = file_inode(iocb->ki_filp)->i_sb->s_dev;
+	),
+	TP_printk("dev=(%d,%d) ino=%lu size=%lld pos=%lld bytecount=%zu",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino, __entry->size, __entry->offset,
+		  __entry->count)
+);
+
+DEFINE_EVENT(ntfs3_file_class, ntfs3_file_read_iter,
+	TP_PROTO(struct kiocb *iocb, struct iov_iter *iter),
+	TP_ARGS(iocb, iter)
+);
+
+DEFINE_EVENT(ntfs3_file_class, ntfs3_file_write_iter,
+	TP_PROTO(struct kiocb *iocb, struct iov_iter *iter),
+	TP_ARGS(iocb, iter)
+);
+
 #endif /* _TRACE_NTFS3_H */
 
 #include <trace/define_trace.h>
