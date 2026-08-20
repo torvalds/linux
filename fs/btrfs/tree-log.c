@@ -221,7 +221,7 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 static int link_to_fixup_dir(struct walk_control *wc, u64 objectid);
 static noinline int replay_dir_deletes(struct walk_control *wc,
 				       u64 dirid, bool del_all);
-static void wait_log_commit(struct btrfs_root *root, int transid);
+static bool wait_log_commit(struct btrfs_root *root, int transid);
 
 /*
  * tree logging is a special write ahead log used to make sure that
@@ -305,24 +305,13 @@ static int start_log_trans(struct btrfs_trans_handle *trans,
 
 again:
 	if (root->log_root) {
-		int index = (root->log_transid + 1) % 2;
-
 		if (btrfs_need_log_full_commit(trans)) {
 			ret = BTRFS_LOG_FORCE_COMMIT;
 			goto out;
 		}
 
-		if (zoned && atomic_read(&root->log_commit[index])) {
-			wait_log_commit(root, root->log_transid - 1);
+		if (zoned && wait_log_commit(root, root->log_transid - 1))
 			goto again;
-		}
-
-		if (!root->log_start_pid) {
-			clear_bit(BTRFS_ROOT_MULTI_LOG_TASKS, &root->state);
-			root->log_start_pid = current->pid;
-		} else if (root->log_start_pid != current->pid) {
-			set_bit(BTRFS_ROOT_MULTI_LOG_TASKS, &root->state);
-		}
 	} else {
 		/*
 		 * This means fs_info->log_root_tree was already created
@@ -340,8 +329,6 @@ again:
 			goto out;
 
 		set_bit(BTRFS_ROOT_HAS_LOG_TREE, &root->state);
-		clear_bit(BTRFS_ROOT_MULTI_LOG_TASKS, &root->state);
-		root->log_start_pid = current->pid;
 	}
 
 	atomic_inc(&root->log_writers);
@@ -372,13 +359,9 @@ static int join_running_log_trans(struct btrfs_root *root)
 	mutex_lock(&root->log_mutex);
 again:
 	if (root->log_root) {
-		int index = (root->log_transid + 1) % 2;
-
 		ret = 0;
-		if (zoned && atomic_read(&root->log_commit[index])) {
-			wait_log_commit(root, root->log_transid - 1);
+		if (zoned && wait_log_commit(root, root->log_transid - 1))
 			goto again;
-		}
 		atomic_inc(&root->log_writers);
 	}
 	mutex_unlock(&root->log_mutex);
@@ -2986,6 +2969,7 @@ static noinline int walk_down_log_tree(struct btrfs_path *path, int *level,
 {
 	struct btrfs_trans_handle *trans = wc->trans;
 	struct btrfs_fs_info *fs_info = wc->log->fs_info;
+	struct btrfs_eb_prealloc pa = { 0 };
 	u64 bytenr;
 	u64 ptr_gen;
 	struct extent_buffer *next;
@@ -3010,7 +2994,7 @@ static noinline int walk_down_log_tree(struct btrfs_path *path, int *level,
 		check.has_first_key = true;
 		btrfs_node_key_to_cpu(cur, &check.first_key, path->slots[*level]);
 
-		next = btrfs_find_create_tree_block(fs_info, bytenr,
+		next = btrfs_find_create_tree_block(fs_info, &pa, bytenr,
 						    btrfs_header_owner(cur),
 						    *level - 1);
 		if (IS_ERR(next)) {
@@ -3181,10 +3165,14 @@ static int update_log_root(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-static void wait_log_commit(struct btrfs_root *root, int transid)
+/* Returns true if we had to wait, false otherwise. */
+static bool wait_log_commit(struct btrfs_root *root, int transid)
 {
 	DEFINE_WAIT(wait);
-	int index = transid % 2;
+	const int index = (transid >= 0 ? transid % 2 : -transid % 2);
+
+	if (!root->log_commit[index])
+		return false;
 
 	/*
 	 * we only allow two pending log transactions at a time,
@@ -3195,15 +3183,17 @@ static void wait_log_commit(struct btrfs_root *root, int transid)
 		prepare_to_wait(&root->log_commit_wait[index],
 				&wait, TASK_UNINTERRUPTIBLE);
 
-		if (!(root->log_transid_committed < transid &&
-		      atomic_read(&root->log_commit[index])))
-			break;
-
 		mutex_unlock(&root->log_mutex);
 		schedule();
 		mutex_lock(&root->log_mutex);
+
+		if (!(root->log_transid_committed < transid &&
+		      root->log_commit[index]))
+			break;
 	}
 	finish_wait(&root->log_commit_wait[index], &wait);
+
+	return true;
 }
 
 static void wait_for_writer(struct btrfs_root *root)
@@ -3307,15 +3297,15 @@ static inline void btrfs_remove_all_log_ctxs(struct btrfs_root *root,
 int btrfs_sync_log(struct btrfs_trans_handle *trans,
 		   struct btrfs_root *root, struct btrfs_log_ctx *ctx)
 {
-	int index1;
-	int index2;
 	int mark;
 	int ret;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_root *log = root->log_root;
 	struct btrfs_root *log_root_tree = fs_info->log_root_tree;
 	struct btrfs_root_item new_root_item;
-	int log_transid = 0;
+	int log_transid = ctx->log_transid;
+	int index1 = log_transid % 2;
+	int index2;
 	struct btrfs_log_ctx root_log_ctx;
 	struct blk_plug plug;
 	u64 log_root_start;
@@ -3323,41 +3313,25 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 
 	mutex_lock(&root->log_mutex);
 	trace_btrfs_sync_log_enter(trans, root, ctx);
-	log_transid = ctx->log_transid;
 	if (root->log_transid_committed >= log_transid) {
 		trace_btrfs_sync_log_exit(trans, root, ctx, ctx->log_ret);
 		mutex_unlock(&root->log_mutex);
 		return ctx->log_ret;
 	}
 
-	index1 = log_transid % 2;
-	if (atomic_read(&root->log_commit[index1])) {
-		wait_log_commit(root, log_transid);
+	if (wait_log_commit(root, log_transid)) {
 		trace_btrfs_sync_log_exit(trans, root, ctx, ctx->log_ret);
 		mutex_unlock(&root->log_mutex);
 		return ctx->log_ret;
 	}
 	ASSERT(log_transid == root->log_transid,
 	       "log_transid=%d root->log_transid=%d", log_transid, root->log_transid);
-	atomic_set(&root->log_commit[index1], 1);
+	root->log_commit[index1] = true;
 
 	/* wait for previous tree log sync to complete */
-	if (atomic_read(&root->log_commit[(index1 + 1) % 2]))
-		wait_log_commit(root, log_transid - 1);
+	wait_log_commit(root, log_transid - 1);
 
-	while (1) {
-		int batch = atomic_read(&root->log_batch);
-		/* when we're on an ssd, just kick the log commit out */
-		if (!btrfs_test_opt(fs_info, SSD) &&
-		    test_bit(BTRFS_ROOT_MULTI_LOG_TASKS, &root->state)) {
-			mutex_unlock(&root->log_mutex);
-			schedule_timeout_uninterruptible(1);
-			mutex_lock(&root->log_mutex);
-		}
-		wait_for_writer(root);
-		if (batch == atomic_read(&root->log_batch))
-			break;
-	}
+	wait_for_writer(root);
 
 	/* bail out if we need to do a full commit */
 	if (btrfs_need_log_full_commit(trans)) {
@@ -3414,7 +3388,6 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 
 	btrfs_set_root_log_transid(root, root->log_transid + 1);
 	log->log_transid = root->log_transid;
-	root->log_start_pid = 0;
 	/*
 	 * IO has been started, blocks of the log tree have WRITTEN flag set
 	 * in their headers. new modifications of the log will be written to
@@ -3473,7 +3446,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 
-	if (atomic_read(&log_root_tree->log_commit[index2])) {
+	if (log_root_tree->log_commit[index2]) {
 		blk_finish_plug(&plug);
 		ret = btrfs_wait_tree_log_extents(log, mark);
 		wait_log_commit(log_root_tree,
@@ -3487,12 +3460,9 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	ASSERT(root_log_ctx.log_transid == log_root_tree->log_transid,
 	       "root_log_ctx.log_transid=%d log_root_tree->log_transid=%d",
 		root_log_ctx.log_transid, log_root_tree->log_transid);
-	atomic_set(&log_root_tree->log_commit[index2], 1);
+	log_root_tree->log_commit[index2] = true;
 
-	if (atomic_read(&log_root_tree->log_commit[(index2 + 1) % 2])) {
-		wait_log_commit(log_root_tree,
-				root_log_ctx.log_transid - 1);
-	}
+	wait_log_commit(log_root_tree, root_log_ctx.log_transid - 1);
 
 	/*
 	 * now that we've moved on to the tree of log tree roots,
@@ -3590,7 +3560,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 
 	/*
 	 * We know there can only be one task here, since we have not yet set
-	 * root->log_commit[index1] to 0 and any task attempting to sync the
+	 * root->log_commit[index1] to false and any task attempting to sync the
 	 * log must wait for the previous log transaction to commit if it's
 	 * still in progress or wait for the current log transaction commit if
 	 * someone else already started it. We use <= and not < because the
@@ -3606,7 +3576,7 @@ out_wake_log_root:
 	btrfs_remove_all_log_ctxs(log_root_tree, index2, ret);
 
 	log_root_tree->log_transid_committed++;
-	atomic_set(&log_root_tree->log_commit[index2], 0);
+	log_root_tree->log_commit[index2] = false;
 	mutex_unlock(&log_root_tree->log_mutex);
 
 	/*
@@ -3619,7 +3589,7 @@ out:
 	mutex_lock(&root->log_mutex);
 	btrfs_remove_all_log_ctxs(root, index1, ret);
 	root->log_transid_committed++;
-	atomic_set(&root->log_commit[index1], 0);
+	root->log_commit[index1] = false;
 	mutex_unlock(&root->log_mutex);
 
 	/*
@@ -5620,6 +5590,15 @@ static int btrfs_log_holes(struct btrfs_trans_handle *trans,
 	int ret;
 
 	if (!btrfs_fs_incompat(fs_info, NO_HOLES) || i_size == 0)
+		return 0;
+
+	/*
+	 * If there are no prealloc extents (which can be located past i_size),
+	 * and disk space used is greater than or equals to i_size, then there
+	 * are no holes.
+	 */
+	if (!(inode->flags & BTRFS_INODE_PREALLOC) &&
+	    i_size <= inode_get_bytes(&inode->vfs_inode))
 		return 0;
 
 	key.objectid = ino;

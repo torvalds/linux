@@ -875,62 +875,56 @@ again:
 
 /*
  * Locks the extent and properly waits for data=ordered extents to finish
- * before allowing the folios to be modified if need.
+ * before allowing the folios to be modified.
  *
  * Return:
- * 1 - the extent is locked
- * 0 - the extent is not locked, and everything is OK
+ * 0 - the extent is locked
  * -EAGAIN - need to prepare the folios again
  */
 static noinline int
-lock_and_cleanup_extent_if_need(struct btrfs_inode *inode, struct folio *folio,
-				loff_t pos, size_t write_bytes,
-				u64 *lockstart, u64 *lockend, bool nowait,
-				struct extent_state **cached_state)
+lock_and_cleanup_extent(struct btrfs_inode *inode, struct folio *folio,
+			loff_t pos, size_t write_bytes,
+			u64 *lockstart, u64 *lockend, bool nowait,
+			struct extent_state **cached_state)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	struct btrfs_ordered_extent *ordered;
 	u64 start_pos;
 	u64 last_pos;
-	int ret = 0;
 
 	start_pos = round_down(pos, fs_info->sectorsize);
 	last_pos = round_up(pos + write_bytes, fs_info->sectorsize) - 1;
 
-	if (start_pos < inode->vfs_inode.i_size) {
-		struct btrfs_ordered_extent *ordered;
-
-		if (nowait) {
-			if (!btrfs_try_lock_extent(&inode->io_tree, start_pos,
-						   last_pos, cached_state)) {
-				folio_unlock(folio);
-				folio_put(folio);
-				return -EAGAIN;
-			}
-		} else {
-			btrfs_lock_extent(&inode->io_tree, start_pos, last_pos,
-					  cached_state);
-		}
-
-		ordered = btrfs_lookup_ordered_range(inode, start_pos,
-						     last_pos - start_pos + 1);
-		if (ordered &&
-		    ordered->file_offset + ordered->num_bytes > start_pos &&
-		    ordered->file_offset <= last_pos) {
-			btrfs_unlock_extent(&inode->io_tree, start_pos, last_pos,
-					    cached_state);
+	if (nowait) {
+		if (!btrfs_try_lock_extent(&inode->io_tree, start_pos,
+					   last_pos, cached_state)) {
 			folio_unlock(folio);
 			folio_put(folio);
-			btrfs_start_ordered_extent(ordered);
-			btrfs_put_ordered_extent(ordered);
 			return -EAGAIN;
 		}
-		if (ordered)
-			btrfs_put_ordered_extent(ordered);
-
-		*lockstart = start_pos;
-		*lockend = last_pos;
-		ret = 1;
+	} else {
+		btrfs_lock_extent(&inode->io_tree, start_pos, last_pos,
+				  cached_state);
 	}
+
+	ordered = btrfs_lookup_ordered_range(inode, start_pos,
+					     last_pos - start_pos + 1);
+	if (ordered &&
+	    ordered->file_offset + ordered->num_bytes > start_pos &&
+	    ordered->file_offset <= last_pos) {
+		btrfs_unlock_extent(&inode->io_tree, start_pos, last_pos,
+				    cached_state);
+		folio_unlock(folio);
+		folio_put(folio);
+		btrfs_start_ordered_extent(ordered);
+		btrfs_put_ordered_extent(ordered);
+		return -EAGAIN;
+	}
+	if (ordered)
+		btrfs_put_ordered_extent(ordered);
+
+	*lockstart = start_pos;
+	*lockend = last_pos;
 
 	/*
 	 * We should be called after prepare_one_folio() which should have locked
@@ -938,7 +932,7 @@ lock_and_cleanup_extent_if_need(struct btrfs_inode *inode, struct folio *folio,
 	 */
 	WARN_ON(!folio_test_locked(folio));
 
-	return ret;
+	return 0;
 }
 
 /*
@@ -1195,7 +1189,6 @@ static int copy_one_range(struct btrfs_inode *inode, struct iov_iter *iter,
 	const u64 reserved_start = round_down(start, fs_info->sectorsize);
 	u64 reserved_len;
 	struct folio *folio = NULL;
-	int extents_locked;
 	u64 lockstart;
 	u64 lockend;
 	bool only_release_metadata = false;
@@ -1253,18 +1246,16 @@ again:
 		reserved_len = last_block - reserved_start;
 	}
 
-	extents_locked = lock_and_cleanup_extent_if_need(inode, folio, start,
-							 write_bytes, &lockstart,
-							 &lockend, nowait,
-							 &cached_state);
-	if (extents_locked < 0) {
-		if (!nowait && extents_locked == -EAGAIN)
+	ret = lock_and_cleanup_extent(inode, folio, start, write_bytes,
+				      &lockstart, &lockend, nowait, &cached_state);
+	if (ret < 0) {
+		if (!nowait)
 			goto again;
 
 		btrfs_delalloc_release_extents(inode, reserved_len);
 		release_space(inode, *data_reserved, reserved_start, reserved_len,
 			      only_release_metadata);
-		return extents_locked;
+		return ret;
 	}
 
 	copied = copy_folio_from_iter_atomic(folio, offset_in_folio(folio, start),
@@ -1288,11 +1279,8 @@ again:
 
 		/* No copied bytes, unlock, release reserved space and exit. */
 		if (copied == 0) {
-			if (extents_locked)
-				btrfs_unlock_extent(&inode->io_tree, lockstart, lockend,
-						    &cached_state);
-			else
-				btrfs_free_extent_state(cached_state);
+			btrfs_unlock_extent(&inode->io_tree, lockstart, lockend,
+					    &cached_state);
 			btrfs_delalloc_release_extents(inode, reserved_len);
 			release_space(inode, *data_reserved, reserved_start, reserved_len,
 				      only_release_metadata);
@@ -1311,17 +1299,7 @@ again:
 
 	ret = btrfs_dirty_folio(inode, folio, start, copied, &cached_state,
 				only_release_metadata);
-	/*
-	 * If we have not locked the extent range, because the range's start
-	 * offset is >= i_size, we might still have a non-NULL cached extent
-	 * state, acquired while marking the extent range as delalloc through
-	 * btrfs_dirty_page(). Therefore free any possible cached extent state
-	 * to avoid a memory leak.
-	 */
-	if (extents_locked)
-		btrfs_unlock_extent(&inode->io_tree, lockstart, lockend, &cached_state);
-	else
-		btrfs_free_extent_state(cached_state);
+	btrfs_unlock_extent(&inode->io_tree, lockstart, lockend, &cached_state);
 
 	btrfs_delalloc_release_extents(inode, reserved_len);
 	if (ret) {
@@ -1595,8 +1573,6 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	else
 		btrfs_inode_lock(inode, BTRFS_ILOCK_MMAP);
 
-	atomic_inc(&root->log_batch);
-
 	/*
 	 * Before we acquired the inode's lock and the mmap lock, someone may
 	 * have dirtied more pages in the target range. We need to make sure
@@ -1678,8 +1654,6 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 
 	if (ret)
 		goto out_release_extents;
-
-	atomic_inc(&root->log_batch);
 
 	if (skip_inode_logging(&ctx)) {
 		/*
@@ -2683,8 +2657,8 @@ static int btrfs_punch_hole(struct file *file, loff_t offset, loff_t len)
 
 	lockstart = round_up(offset, fs_info->sectorsize);
 	lockend = round_down(offset + len, fs_info->sectorsize) - 1;
-	same_block = (BTRFS_BYTES_TO_BLKS(fs_info, offset))
-		== (BTRFS_BYTES_TO_BLKS(fs_info, offset + len - 1));
+	same_block = (offset >> fs_info->sectorsize_bits) ==
+		     ((offset + len - 1) >> fs_info->sectorsize_bits);
 	/*
 	 * Only do this if we are in the same block and we aren't doing the
 	 * entire block.
@@ -2888,7 +2862,7 @@ enum {
 static int btrfs_zero_range_check_range_boundary(struct btrfs_inode *inode,
 						 u64 offset)
 {
-	const u64 sectorsize = inode->root->fs_info->sectorsize;
+	const u32 sectorsize = inode->root->fs_info->sectorsize;
 	struct extent_map *em;
 	int ret;
 
@@ -2918,7 +2892,7 @@ static int btrfs_zero_range(struct inode *inode,
 	struct extent_changeset *data_reserved = NULL;
 	int ret;
 	u64 alloc_hint = 0;
-	const u64 sectorsize = fs_info->sectorsize;
+	const u32 sectorsize = fs_info->sectorsize;
 	const u64 orig_start = offset;
 	const u64 orig_end = offset + len - 1;
 	u64 alloc_start = round_down(offset, sectorsize);
@@ -2967,8 +2941,8 @@ static int btrfs_zero_range(struct inode *inode,
 	}
 	btrfs_free_extent_map(em);
 
-	if (BTRFS_BYTES_TO_BLKS(fs_info, offset) ==
-	    BTRFS_BYTES_TO_BLKS(fs_info, offset + len - 1)) {
+	if ((offset >> fs_info->sectorsize_bits) ==
+	    ((offset + len - 1) >> fs_info->sectorsize_bits)) {
 		em = btrfs_get_extent(BTRFS_I(inode), NULL, alloc_start, sectorsize);
 		if (IS_ERR(em)) {
 			ret = PTR_ERR(em);

@@ -130,10 +130,10 @@ static_assert(offsetof(struct backref_cache_entry, entry) == 0);
 #define SEND_MAX_DIR_CREATED_CACHE_SIZE			64
 
 /*
- * Max number of entries in the cache that stores directories that were already
- * created. The cache uses raw struct btrfs_lru_cache_entry entries, so it uses
- * at most 4096 bytes - sizeof(struct btrfs_lru_cache_entry) is 48 bytes, but
- * the kmalloc-64 slab is used, so we get 4096 bytes (64 bytes * 64).
+ * Maximum number of entries in the cache that stores utimes values for directories.
+ * The cache uses raw struct btrfs_lru_cache_entry entries, so it uses at most
+ * 4096 bytes - sizeof(struct btrfs_lru_cache_entry) is 48 bytes, but the
+ * kmalloc-64 slab is used, so we get 4096 bytes (64 bytes * 64).
  */
 #define SEND_MAX_DIR_UTIMES_CACHE_SIZE			64
 
@@ -625,9 +625,8 @@ static void fs_path_unreverse(struct fs_path *p)
 static inline bool is_current_inode_path(const struct send_ctx *sctx,
 					 const struct fs_path *path)
 {
-	const struct fs_path *cur = &sctx->cur_inode_path;
-
-	return (strncmp(path->start, cur->start, fs_path_len(cur)) == 0);
+	/* Paths are always nul terminated. */
+	return (strcmp(path->start, sctx->cur_inode_path.start) == 0);
 }
 
 static struct btrfs_path *alloc_path_for_send(void)
@@ -6033,7 +6032,7 @@ static int send_write_or_clone(struct send_ctx *sctx,
 	int ret = 0;
 	u64 offset = key->offset;
 	u64 end;
-	u64 bs = sctx->send_root->fs_info->sectorsize;
+	const u32 bs = sctx->send_root->fs_info->sectorsize;
 	struct btrfs_file_extent_item *ei;
 	u64 disk_byte;
 	u64 data_offset;
@@ -8251,7 +8250,7 @@ out:
 	}
 
 	if (sort_clone_roots) {
-		for (i = 0; i < sctx->clone_roots_cnt; i++) {
+		for (i = 0; sctx && i < sctx->clone_roots_cnt; i++) {
 			btrfs_root_dec_send_in_progress(
 					sctx->clone_roots[i].root);
 			btrfs_put_root(sctx->clone_roots[i].root);

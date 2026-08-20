@@ -110,7 +110,8 @@ void btrfs_detach_folio_state(const struct btrfs_fs_info *fs_info, struct folio 
 
 /* Allocate additional data where page represents more than one sector */
 struct btrfs_folio_state *btrfs_alloc_folio_state(const struct btrfs_fs_info *fs_info,
-						  size_t fsize, enum btrfs_folio_type type);
+						  size_t fsize, enum btrfs_folio_type type,
+						  gfp_t gfp);
 static inline void btrfs_free_folio_state(struct btrfs_folio_state *bfs)
 {
 	kfree(bfs);
