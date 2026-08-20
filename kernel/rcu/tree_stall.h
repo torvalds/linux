@@ -159,7 +159,7 @@ static int __init check_cpu_stall_init(void)
 early_initcall(check_cpu_stall_init);
 
 /* If so specified via sysctl, panic, yielding cleaner stall-warning output. */
-static void panic_on_rcu_stall(void)
+static void panic_on_rcu_stall(const struct cpumask *stalled_mask)
 {
 	static int cpu_stall;
 
@@ -167,7 +167,7 @@ static void panic_on_rcu_stall(void)
 	 * Attempt to kick out the BPF scheduler if it's installed and defer
 	 * the panic to give the system a chance to recover.
 	 */
-	if (scx_rcu_cpu_stall())
+	if (scx_rcu_cpu_stall(stalled_mask))
 		return;
 
 	if (++cpu_stall < sysctl_max_rcu_stall_to_panic)
@@ -644,6 +644,8 @@ static void print_other_cpu_stall(unsigned long gp_seq, unsigned long gps)
 	if (rcu_stall_is_suppressed())
 		return;
 
+	cpumask_clear(&rcu_stall_cpumask);
+
 	nbcon_cpu_emergency_enter();
 
 	/*
@@ -659,6 +661,7 @@ static void print_other_cpu_stall(unsigned long gp_seq, unsigned long gps)
 			for_each_leaf_node_possible_cpu(rnp, cpu)
 				if (rnp->qsmask & leaf_node_cpu_bit(rnp, cpu)) {
 					print_cpu_stall_info(cpu);
+					cpumask_set_cpu(cpu, &rcu_stall_cpumask);
 					ndetected++;
 				}
 		}
@@ -700,7 +703,7 @@ static void print_other_cpu_stall(unsigned long gp_seq, unsigned long gps)
 
 	nbcon_cpu_emergency_exit();
 
-	panic_on_rcu_stall();
+	panic_on_rcu_stall(&rcu_stall_cpumask);
 
 	rcu_force_quiescent_state();  /* Kick them all. */
 }
@@ -753,7 +756,9 @@ static void print_cpu_stall(unsigned long gp_seq, unsigned long gps)
 
 	nbcon_cpu_emergency_exit();
 
-	panic_on_rcu_stall();
+	cpumask_clear(&rcu_stall_cpumask);
+	cpumask_set_cpu(smp_processor_id(), &rcu_stall_cpumask);
+	panic_on_rcu_stall(&rcu_stall_cpumask);
 
 	/*
 	 * Attempt to revive the RCU machinery by forcing a context switch.

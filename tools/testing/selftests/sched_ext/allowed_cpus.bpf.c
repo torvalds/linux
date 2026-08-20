@@ -15,14 +15,47 @@ UEI_DEFINE(uei);
 private(PREF_CPUS) struct bpf_cpumask __kptr * allowed_cpumask;
 
 static void
-validate_idle_cpu(const struct task_struct *p, const struct cpumask *allowed, s32 cpu)
+validate_local_idle_state(void)
 {
-	if (scx_bpf_test_and_clear_cpu_idle(cpu))
-		scx_bpf_error("CPU %d should be marked as busy", cpu);
+	const struct cpumask *idle;
+	struct task_struct *curr;
+	s32 cpu = bpf_get_smp_processor_id();
+	bool cpu_is_idle, curr_is_idle;
 
-	if (bpf_cpumask_subset(allowed, p->cpus_ptr) &&
-	    !bpf_cpumask_test_cpu(cpu, allowed))
+	bpf_rcu_read_lock();
+	curr = scx_bpf_cpu_curr(cpu);
+	curr_is_idle = curr && (curr->flags & PF_IDLE);
+	bpf_rcu_read_unlock();
+
+	idle = scx_bpf_get_idle_cpumask();
+	cpu_is_idle = bpf_cpumask_test_cpu(cpu, idle);
+	scx_bpf_put_idle_cpumask(idle);
+
+	/*
+	 * Unlike a remote selected CPU, the local CPU cannot go through an
+	 * idle re-pick while this callback is running. If it is running a
+	 * non-idle scheduling context, it must not be advertised as idle.
+	 */
+	if (!curr_is_idle && cpu_is_idle)
+		scx_bpf_error("running CPU %d should be marked as busy", cpu);
+}
+
+static void
+validate_selected_cpu(const struct task_struct *p, s32 cpu)
+{
+	const struct cpumask *allowed = cast_mask(allowed_cpumask);
+
+	if (!allowed) {
+		scx_bpf_error("allowed domain not initialized");
+		return;
+	}
+
+	if (!bpf_cpumask_test_cpu(cpu, allowed))
 		scx_bpf_error("CPU %d not in the allowed domain for %d (%s)",
+			      cpu, p->pid, p->comm);
+
+	if (!bpf_cpumask_test_cpu(cpu, p->cpus_ptr))
+		scx_bpf_error("CPU %d not in the affinity mask for %d (%s)",
 			      cpu, p->pid, p->comm);
 }
 
@@ -32,6 +65,7 @@ s32 BPF_STRUCT_OPS(allowed_cpus_select_cpu,
 	const struct cpumask *allowed;
 	s32 cpu;
 
+	validate_local_idle_state();
 	allowed = cast_mask(allowed_cpumask);
 	if (!allowed) {
 		scx_bpf_error("allowed domain not initialized");
@@ -43,7 +77,7 @@ s32 BPF_STRUCT_OPS(allowed_cpus_select_cpu,
 	 */
 	cpu = scx_bpf_select_cpu_and(p, prev_cpu, wake_flags, allowed, 0);
 	if (cpu >= 0) {
-		validate_idle_cpu(p, allowed, cpu);
+		validate_selected_cpu(p, cpu);
 		scx_bpf_dsq_insert(p, SCX_DSQ_LOCAL, SCX_SLICE_DFL, 0);
 
 		return cpu;
@@ -59,6 +93,7 @@ void BPF_STRUCT_OPS(allowed_cpus_enqueue, struct task_struct *p, u64 enq_flags)
 
 	scx_bpf_dsq_insert(p, SCX_DSQ_GLOBAL, SCX_SLICE_DFL, 0);
 
+	validate_local_idle_state();
 	allowed = cast_mask(allowed_cpumask);
 	if (!allowed) {
 		scx_bpf_error("allowed domain not initialized");
@@ -71,7 +106,7 @@ void BPF_STRUCT_OPS(allowed_cpus_enqueue, struct task_struct *p, u64 enq_flags)
 	 */
 	cpu = scx_bpf_select_cpu_and(p, prev_cpu, 0, allowed, 0);
 	if (cpu >= 0) {
-		validate_idle_cpu(p, allowed, cpu);
+		validate_selected_cpu(p, cpu);
 		scx_bpf_kick_cpu(cpu, SCX_KICK_IDLE);
 	}
 }

@@ -4900,6 +4900,9 @@ static void __init rcu_dump_rcu_node_tree(void)
 
 struct workqueue_struct *rcu_gp_wq;
 
+static struct cpumask rcu_stall_cpumask;
+static struct cpumask rcu_exp_stall_cpumask;
+
 void __init rcu_init(void)
 {
 	int cpu = smp_processor_id();

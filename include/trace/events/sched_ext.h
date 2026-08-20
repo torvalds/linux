@@ -84,6 +84,34 @@ TRACE_EVENT(sched_ext_bypass_lb,
 	)
 );
 
+TRACE_EVENT(sched_ext_exit,
+
+	TP_PROTO(struct scx_sched *sch, __u32 kind),
+
+	TP_ARGS(sch, kind),
+
+	TP_STRUCT__entry(
+		__string(	name,		sch->ops.name		)
+		__field(	__s32,		level			)
+		__field(	__u64,		sub_cgroup_id		)
+		__string(	cgrp_path,	sch_cgrp_path(sch)	)
+		__field(	__u32,		kind			)
+	),
+
+	TP_fast_assign(
+		__assign_str(name);
+		__entry->level		= sch->level;
+		__entry->sub_cgroup_id	= sch->ops.sub_cgroup_id;
+		__assign_str(cgrp_path);
+		__entry->kind		= kind;
+	),
+
+	TP_printk("sched %s level %d sub_cgroup_id %llu cgrp_path %s kind %u",
+		  __get_str(name), __entry->level, __entry->sub_cgroup_id,
+		  __get_str(cgrp_path), __entry->kind
+	)
+);
+
 #endif /* _TRACE_SCHED_EXT_H */
 
 /* This part must be outside protection */

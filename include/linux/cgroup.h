@@ -82,12 +82,38 @@ enum cgroup_lifetime_events {
 	CGROUP_LIFETIME_OFFLINE,
 };
 
+/*
+ * Events on cgroup_task_notifier, data is struct cgroup_task_migrate_ctx.
+ * MIGRATING fires per task before the migration commits and an error return
+ * from the chain fails the migration, in which case tasks that were already
+ * notified receive MIGRATE_CANCELED. MIGRATED fires per task after the
+ * migration is committed and can't fail. Only migrations that change a task's
+ * dfl cgroup are reported.
+ */
+enum cgroup_task_events {
+	CGROUP_TASK_MIGRATING,
+	CGROUP_TASK_MIGRATED,
+	CGROUP_TASK_MIGRATE_CANCELED,
+};
+
+/*
+ * @src_dcgrp and @dst_dcgrp are @task's dfl cgroups before and after the
+ * migration. @src_dcgrp is NULL for CGROUP_TASK_MIGRATED as per-task sources
+ * are not tracked past the commit point.
+ */
+struct cgroup_task_migrate_ctx {
+	struct task_struct	*task;
+	struct cgroup		*src_dcgrp;
+	struct cgroup		*dst_dcgrp;
+};
+
 extern struct file_system_type cgroup_fs_type;
 extern struct cgroup_root cgrp_dfl_root;
 extern struct css_set init_css_set;
 extern struct mutex cgroup_mutex;
 extern spinlock_t css_set_lock;
 extern struct blocking_notifier_head cgroup_lifetime_notifier;
+extern struct blocking_notifier_head cgroup_task_notifier;
 
 #define SUBSYS(_x) extern struct cgroup_subsys _x ## _cgrp_subsys;
 #include <linux/cgroup_subsys.h>

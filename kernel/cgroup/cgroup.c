@@ -88,6 +88,8 @@ EXPORT_SYMBOL_GPL(css_set_lock);
 
 struct blocking_notifier_head cgroup_lifetime_notifier =
 	BLOCKING_NOTIFIER_INIT(cgroup_lifetime_notifier);
+struct blocking_notifier_head cgroup_task_notifier =
+	BLOCKING_NOTIFIER_INIT(cgroup_task_notifier);
 
 DEFINE_SPINLOCK(trace_cgroup_path_lock);
 char trace_cgroup_path[TRACE_CGROUP_PATH_LEN];
@@ -2676,14 +2678,27 @@ struct task_struct *cgroup_taskset_next(struct cgroup_taskset *tset,
 	return NULL;
 }
 
+static void cgroup_migrate_notify_canceled(struct css_set *src_cset,
+					   struct task_struct *task)
+{
+	struct cgroup_task_migrate_ctx ctx = {
+		.task = task,
+		.src_dcgrp = src_cset->dfl_cgrp,
+		.dst_dcgrp = src_cset->mg_dst_cset->dfl_cgrp,
+	};
+
+	blocking_notifier_call_chain(&cgroup_task_notifier,
+				     CGROUP_TASK_MIGRATE_CANCELED, &ctx);
+}
+
 /**
  * cgroup_migrate_execute - migrate a taskset
  * @mgctx: migration context
  *
- * Migrate tasks in @mgctx as setup by migration preparation functions.
- * This function fails iff one of the ->can_attach callbacks fails and
- * guarantees that either all or none of the tasks in @mgctx are migrated.
- * @mgctx is consumed regardless of success.
+ * Migrate tasks in @mgctx as setup by migration preparation functions. This
+ * function fails iff one of the ->can_attach callbacks or CGROUP_TASK_MIGRATING
+ * notifications fails and guarantees that either all or none of the tasks in
+ * @mgctx are migrated. @mgctx is consumed regardless of success.
  */
 static int cgroup_migrate_execute(struct cgroup_mgctx *mgctx)
 {
@@ -2691,6 +2706,7 @@ static int cgroup_migrate_execute(struct cgroup_mgctx *mgctx)
 	struct cgroup_subsys *ss;
 	struct task_struct *task, *tmp_task;
 	struct css_set *cset, *tmp_cset;
+	bool dfl_migration = false;
 	int ssid, failed_ssid, ret;
 
 	/* check that we can legitimately attach to the cgroup */
@@ -2705,6 +2721,33 @@ static int cgroup_migrate_execute(struct cgroup_mgctx *mgctx)
 				}
 			}
 		} while_each_subsys_mask();
+	}
+
+	/*
+	 * Notify each task about the impending migration. An error return fails
+	 * the migration. Only migrations on the default hierarchy are reported:
+	 * a migration modifies either every moved task's dfl cgroup or, on
+	 * cgroup1 or for subtree_control writes, none.
+	 */
+	list_for_each_entry(cset, &tset->src_csets, mg_node) {
+		if (cset->dfl_cgrp == cset->mg_dst_cset->dfl_cgrp)
+			continue;
+		dfl_migration = true;
+		list_for_each_entry(task, &cset->mg_tasks, cg_list) {
+			struct cgroup_task_migrate_ctx ctx = {
+				.task = task,
+				.src_dcgrp = cset->dfl_cgrp,
+				.dst_dcgrp = cset->mg_dst_cset->dfl_cgrp,
+			};
+
+			ret = blocking_notifier_call_chain_robust(&cgroup_task_notifier,
+								  CGROUP_TASK_MIGRATING,
+								  CGROUP_TASK_MIGRATE_CANCELED,
+								  &ctx);
+			ret = notifier_to_errno(ret);
+			if (ret)
+				goto out_cancel_migrating;
+		}
 	}
 
 	/*
@@ -2750,9 +2793,41 @@ static int cgroup_migrate_execute(struct cgroup_mgctx *mgctx)
 		} while_each_subsys_mask();
 	}
 
+	/*
+	 * Notify each task after successful migration. The operation can no
+	 * longer fail and the return value is ignored. The MIGRATING loop
+	 * above explains why only dfl migrations are reported. Per-task
+	 * sources are not tracked past the commit point, so src_dcgrp is
+	 * NULL.
+	 */
+	if (dfl_migration) {
+		list_for_each_entry(cset, &tset->dst_csets, mg_node) {
+			list_for_each_entry(task, &cset->mg_tasks, cg_list) {
+				struct cgroup_task_migrate_ctx ctx = {
+					.task = task,
+					.dst_dcgrp = cset->dfl_cgrp,
+				};
+
+				blocking_notifier_call_chain(
+					&cgroup_task_notifier,
+					CGROUP_TASK_MIGRATED, &ctx);
+			}
+		}
+	}
+
 	ret = 0;
 	goto out_release_tset;
 
+out_cancel_migrating:
+	list_for_each_entry_continue_reverse(task, &cset->mg_tasks, cg_list)
+		cgroup_migrate_notify_canceled(cset, task);
+	list_for_each_entry_continue_reverse(cset, &tset->src_csets, mg_node) {
+		if (cset->dfl_cgrp == cset->mg_dst_cset->dfl_cgrp)
+			continue;
+		list_for_each_entry_reverse(task, &cset->mg_tasks, cg_list)
+			cgroup_migrate_notify_canceled(cset, task);
+	}
+	failed_ssid = CGROUP_SUBSYS_COUNT;
 out_cancel_attach:
 	if (tset->nr_tasks) {
 		do_each_subsys_mask(ss, ssid, mgctx->ss_mask) {
@@ -2976,11 +3051,11 @@ int cgroup_migrate_prepare_dst(struct cgroup_mgctx *mgctx)
  * cgroup_migrate_prepare_dst() on the targets before invoking this
  * function and following up with cgroup_migrate_finish().
  *
- * As long as a controller's ->can_attach() doesn't fail, this function is
- * guaranteed to succeed.  This means that, excluding ->can_attach()
- * failure, when migrating multiple targets, the success or failure can be
- * decided for all targets by invoking group_migrate_prepare_dst() before
- * actually starting migrating.
+ * As long as a controller's ->can_attach() or a CGROUP_TASK_MIGRATING
+ * notification doesn't fail, this function is guaranteed to succeed.  This
+ * means that, excluding those failures, when migrating multiple targets,
+ * the success or failure can be decided for all targets by invoking
+ * group_migrate_prepare_dst() before actually starting migrating.
  */
 int cgroup_migrate(struct task_struct *leader, bool threadgroup,
 		   struct cgroup_mgctx *mgctx)
