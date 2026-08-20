@@ -85,7 +85,13 @@ static unsigned int acpi_platform_adjust_resources(struct acpi_device *adev,
 	for (i = 0; i < count; ) {
 		struct resource *res = &resources[i];
 
-		if (resource_type(new_res) != resource_type(res) ||
+		/*
+		 * Look for overlaps of resources of the same type that would
+		 * cause resource insertion to fail down the road.
+		 */
+		if (__resource_contains_unbound(res, new_res) ||
+		    __resource_contains_unbound(new_res, res) ||
+		    resource_type(new_res) != resource_type(res) ||
 		    !resource_union(new_res, res, new_res)) {
 			i++;
 			continue;
