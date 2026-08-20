@@ -296,4 +296,36 @@ xdrgen_encode_opaque(struct xdr_stream *xdr, opaque val)
 	return true;
 }
 
+struct svc_rqst;
+
+/**
+ * xdrgen_svc_decode_void - Decode a void argument
+ * @rqstp: RPC transaction context
+ * @xdr: source XDR data stream
+ *
+ * Return values:
+ *   %true: procedure arguments decoded successfully
+ *   %false: decode failed
+ */
+static inline bool
+xdrgen_svc_decode_void(struct svc_rqst *rqstp, struct xdr_stream *xdr)
+{
+	return xdrgen_decode_void(xdr);
+}
+
+/**
+ * xdrgen_svc_encode_void - Encode a void result
+ * @rqstp: RPC transaction context
+ * @xdr: target XDR data stream
+ *
+ * Return values:
+ *   %true: procedure results encoded successfully
+ *   %false: encode failed
+ */
+static inline bool
+xdrgen_svc_encode_void(struct svc_rqst *rqstp, struct xdr_stream *xdr)
+{
+	return xdrgen_encode_void(xdr);
+}
+
 #endif /* _SUNRPC_XDRGEN__BUILTINS_H_ */

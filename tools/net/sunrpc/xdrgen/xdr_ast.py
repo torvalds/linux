@@ -5,7 +5,7 @@
 
 import sys
 from typing import List
-from dataclasses import dataclass
+from dataclasses import dataclass, KW_ONLY
 
 from lark import ast_utils, Transformer
 from lark.tree import Meta
@@ -64,6 +64,16 @@ max_widths = {
 @dataclass
 class _XdrAst(ast_utils.Ast):
     """Base class for the XDR abstract syntax tree"""
+
+    # Source position of the construct's declared identifier, when
+    # the transformer records one, so semantic diagnostics can point
+    # at the exact declaration. The KW_ONLY marker makes the fields
+    # keyword-only, so they never disturb the positional child
+    # ordering lark uses to build each node; 0 means the position was
+    # not recorded.
+    _: KW_ONLY
+    line: int = 0
+    column: int = 0
 
 
 @dataclass
@@ -488,7 +498,7 @@ class _RpcProcedure(_XdrAst):
     """RPC procedure definition"""
 
     name: str
-    number: str
+    number: int
     argument: _XdrTypeSpecifier
     result: _XdrTypeSpecifier
 
@@ -498,7 +508,7 @@ class _RpcVersion(_XdrAst):
     """RPC version definition"""
 
     name: str
-    number: str
+    number: int
     procedures: List[_RpcProcedure]
 
 
@@ -507,7 +517,7 @@ class _RpcProgram(_XdrAst):
     """RPC program definition"""
 
     name: str
-    number: str
+    number: int
     versions: List[_RpcVersion]
 
 
@@ -543,7 +553,8 @@ class ParseToAst(Transformer):
 
     def identifier(self, children):
         """Instantiate one _XdrIdentifier object"""
-        return _XdrIdentifier(children[0].value)
+        token = children[0]
+        return _XdrIdentifier(token.value, line=token.line, column=token.column)
 
     def value(self, children):
         """Instantiate one _XdrValue object"""
@@ -573,84 +584,103 @@ class ParseToAst(Transformer):
 
     def constant_def(self, children):
         """Instantiate one _XdrConstant object"""
-        name = children[0].symbol
+        ident = children[0]
         value = children[1].value
-        return _XdrConstant(name, value)
+        return _XdrConstant(ident.symbol, value, line=ident.line, column=ident.column)
 
     def enum(self, children):
         """Instantiate one _XdrEnum object"""
-        enum_name = children[0].symbol
+        name_ident = children[0]
 
         i = 0
         enumerators = []
         body = children[1]
         while i < len(body.children):
-            name = body.children[i].symbol
+            ident = body.children[i]
             value = body.children[i + 1].value
-            enumerators.append(_XdrEnumerator(name, value))
+            enumerators.append(
+                _XdrEnumerator(
+                    ident.symbol, value, line=ident.line, column=ident.column
+                )
+            )
             i = i + 2
 
-        return _XdrEnum(enum_name, enumerators)
+        return _XdrEnum(
+            name_ident.symbol,
+            enumerators,
+            line=name_ident.line,
+            column=name_ident.column,
+        )
 
     def fixed_length_opaque(self, children):
         """Instantiate one _XdrFixedLengthOpaque declaration object"""
-        name = children[0].symbol
+        ident = children[0]
         size = children[1].value
 
-        return _XdrFixedLengthOpaque(name, size)
+        return _XdrFixedLengthOpaque(
+            ident.symbol, size, line=ident.line, column=ident.column
+        )
 
     def variable_length_opaque(self, children):
         """Instantiate one _XdrVariableLengthOpaque declaration object"""
-        name = children[0].symbol
+        ident = children[0]
         if children[1] is not None:
             maxsize = children[1].value
         else:
             maxsize = "0"
 
-        return _XdrVariableLengthOpaque(name, maxsize)
+        return _XdrVariableLengthOpaque(
+            ident.symbol, maxsize, line=ident.line, column=ident.column
+        )
 
     def string(self, children):
         """Instantiate one _XdrString declaration object"""
-        name = children[0].symbol
+        ident = children[0]
         if children[1] is not None:
             maxsize = children[1].value
         else:
             maxsize = "0"
 
-        return _XdrString(name, maxsize)
+        return _XdrString(ident.symbol, maxsize, line=ident.line, column=ident.column)
 
     def fixed_length_array(self, children):
         """Instantiate one _XdrFixedLengthArray declaration object"""
         spec = children[0]
-        name = children[1].symbol
+        ident = children[1]
         size = children[2].value
 
-        return _XdrFixedLengthArray(name, spec, size)
+        return _XdrFixedLengthArray(
+            ident.symbol, spec, size, line=ident.line, column=ident.column
+        )
 
     def variable_length_array(self, children):
         """Instantiate one _XdrVariableLengthArray declaration object"""
         spec = children[0]
-        name = children[1].symbol
+        ident = children[1]
         if children[2] is not None:
             maxsize = children[2].value
         else:
             maxsize = "0"
 
-        return _XdrVariableLengthArray(name, spec, maxsize)
+        return _XdrVariableLengthArray(
+            ident.symbol, spec, maxsize, line=ident.line, column=ident.column
+        )
 
     def optional_data(self, children):
         """Instantiate one _XdrOptionalData declaration object"""
         spec = children[0]
-        name = children[1].symbol
+        ident = children[1]
 
-        return _XdrOptionalData(name, spec)
+        return _XdrOptionalData(
+            ident.symbol, spec, line=ident.line, column=ident.column
+        )
 
     def basic(self, children):
         """Instantiate one _XdrBasic object"""
         spec = children[0]
-        name = children[1].symbol
+        ident = children[1]
 
-        return _XdrBasic(name, spec)
+        return _XdrBasic(ident.symbol, spec, line=ident.line, column=ident.column)
 
     def void(self, children):
         """Instantiate one _XdrVoid declaration object"""
@@ -659,17 +689,19 @@ class ParseToAst(Transformer):
 
     def struct(self, children):
         """Instantiate one _XdrStruct object"""
-        name = children[0].symbol
+        ident = children[0]
+        name = ident.symbol
         fields = children[1].children
+        pos = {"line": ident.line, "column": ident.column}
 
         last_field = fields[-1]
         if (
             isinstance(last_field, _XdrOptionalData)
             and name == last_field.spec.type_name
         ):
-            return _XdrPointer(name, fields)
+            return _XdrPointer(name, fields, **pos)
 
-        return _XdrStruct(name, fields)
+        return _XdrStruct(name, fields, **pos)
 
     def typedef(self, children):
         """Instantiate one _XdrTypedef object"""
@@ -694,39 +726,57 @@ class ParseToAst(Transformer):
 
     def union(self, children):
         """Instantiate one _XdrUnion object"""
-        name = children[0].symbol
+        ident = children[0]
 
         body = children[1]
         discriminant = body.children[0].children[0]
         cases = body.children[1:-1]
         default = body.children[-1]
 
-        return _XdrUnion(name, discriminant, cases, default)
+        return _XdrUnion(
+            ident.symbol,
+            discriminant,
+            cases,
+            default,
+            line=ident.line,
+            column=ident.column,
+        )
 
     def procedure_def(self, children):
         """Instantiate one _RpcProcedure object"""
         result = children[0]
-        name = children[1].symbol
+        ident = children[1]
         argument = children[2]
         number = children[3].value
 
-        return _RpcProcedure(name, number, argument, result)
+        return _RpcProcedure(
+            ident.symbol,
+            number,
+            argument,
+            result,
+            line=ident.line,
+            column=ident.column,
+        )
 
     def version_def(self, children):
         """Instantiate one _RpcVersion object"""
-        name = children[0].symbol
+        ident = children[0]
         number = children[-1].value
         procedures = children[1:-1]
 
-        return _RpcVersion(name, number, procedures)
+        return _RpcVersion(
+            ident.symbol, number, procedures, line=ident.line, column=ident.column
+        )
 
     def program_def(self, children):
         """Instantiate one _RpcProgram object"""
-        name = children[0].symbol
+        ident = children[0]
         number = children[-1].value
         versions = children[1:-1]
 
-        return _RpcProgram(name, number, versions)
+        return _RpcProgram(
+            ident.symbol, number, versions, line=ident.line, column=ident.column
+        )
 
     def pragma_def(self, children):
         """Instantiate one _Pragma object"""
@@ -764,7 +814,9 @@ def _merge_consecutive_passthru(definitions: List[Definition]) -> List[Definitio
             lines = [definitions[i].value.content]
             meta = definitions[i].meta
             j = i + 1
-            while j < len(definitions) and isinstance(definitions[j].value, _XdrPassthru):
+            while j < len(definitions) and isinstance(
+                definitions[j].value, _XdrPassthru
+            ):
                 lines.append(definitions[j].value.content)
                 j += 1
             merged = _XdrPassthru("\n".join(lines))
@@ -776,10 +828,174 @@ def _merge_consecutive_passthru(definitions: List[Definition]) -> List[Definitio
     return result
 
 
+def _meta_line(meta) -> int:
+    """Return the 1-based source line for a node's meta, or 0 if unknown"""
+    try:
+        return meta.line
+    except AttributeError:
+        return 0
+
+
+class XdrSemanticError(Exception):
+    """A specification that parses but violates an XDR semantic rule.
+
+    Detection lives in the language-independent front end because a
+    duplicate name is malformed XDR regardless of the output language.
+    """
+
+    def __init__(self, message: str, meta):
+        super().__init__(message)
+        self.message = message
+        self.line = _meta_line(meta)
+        self.column = getattr(meta, "column", 0)
+
+
+def _introduced_names(value):
+    """Yield (name, node) for each identifier a definition introduces."""
+    if isinstance(value, (_XdrStruct, _XdrUnion, _XdrPointer)):
+        yield value.name, value
+    elif isinstance(value, _XdrEnum):
+        yield value.name, value
+        for enumerator in value.enumerators:
+            yield enumerator.name, enumerator
+    elif isinstance(value, _XdrTypedef):
+        yield value.declaration.name, value.declaration
+    elif isinstance(value, _XdrConstant):
+        yield value.name, value
+    elif isinstance(value, _RpcProgram):
+        yield value.name, value
+
+
+def _check_rpc_scope_names(program: "_RpcProgram") -> None:
+    """Enforce RFC 5531 Section 12.3 scoping within an RPC program.
+
+    A version name and number are unique within the program and a
+    procedure name and number are unique within its version.
+    """
+    version_names = set()
+    version_numbers = set()
+    for version in program.versions:
+        if version.name in version_names:
+            raise XdrSemanticError(
+                f"duplicate version name '{version.name}'"
+                f" in program '{program.name}'",
+                version,
+            )
+        version_names.add(version.name)
+        if version.number in version_numbers:
+            raise XdrSemanticError(
+                f"duplicate version number {version.number}"
+                f" in program '{program.name}'",
+                version,
+            )
+        version_numbers.add(version.number)
+        procedure_names = set()
+        procedure_numbers = set()
+        for procedure in version.procedures:
+            if procedure.name in procedure_names:
+                raise XdrSemanticError(
+                    f"duplicate procedure name '{procedure.name}'"
+                    f" in version '{version.name}'",
+                    procedure,
+                )
+            procedure_names.add(procedure.name)
+            if procedure.number in procedure_numbers:
+                raise XdrSemanticError(
+                    f"duplicate procedure number {procedure.number}"
+                    f" in version '{version.name}'",
+                    procedure,
+                )
+            procedure_numbers.add(procedure.number)
+
+
+def check_duplicate_definitions(root: "Specification") -> None:
+    """Reject a spec that declares an identifier more than once.
+
+    RFC 4506 Section 6.4 places constant and type identifiers in a
+    single name space that must be unique within a specification.
+    RFC 5531 Section 12.3 adds RPC program names to that name space
+    and scopes version names and numbers to their program and
+    procedure names and numbers to their version.
+    """
+    seen = {}
+    for definition in root.definitions:
+        for name, node in _introduced_names(definition.value):
+            where = node if node.line else definition.meta
+            first = seen.get(name)
+            if first is not None:
+                raise XdrSemanticError(
+                    f"duplicate identifier '{name}'"
+                    f" (first declared at line {_meta_line(first)})",
+                    where,
+                )
+            seen[name] = where
+        if isinstance(definition.value, _RpcProgram):
+            _check_rpc_scope_names(definition.value)
+
+
+# RFC 5531 (Section 9) encodes program, version, and procedure numbers
+# as unsigned 32-bit integers, so each must fall within [0, 2**32 - 1].
+_RPC_NUMBER_MAX = 2**32 - 1
+
+
+def _check_rpc_number(kind: str, number: int, scope: str, meta) -> None:
+    """Reject one RPC number that is negative or wider than 32 bits."""
+    if number < 0:
+        raise XdrSemanticError(
+            f"negative {kind} number {number} {scope}",
+            meta,
+        )
+    if number > _RPC_NUMBER_MAX:
+        raise XdrSemanticError(
+            f"{kind} number {number} {scope} exceeds {_RPC_NUMBER_MAX}",
+            meta,
+        )
+
+
+def check_rpc_number_range(root: "Specification") -> None:
+    """Reject an out-of-range program, version, or procedure number.
+
+    RFC 5531 assigns only unsigned constants to program, version, and
+    procedure numbers (Section 12.3) and encodes each as an unsigned
+    32-bit integer (Section 9). RFC 4506 Section 6.2 permits a signed
+    decimal constant for XDR constants in general and sets no ceiling on
+    magnitude, so the grammar accepts an out-of-range value; the range
+    is enforced here instead. The parser retains no per-version or
+    per-procedure source location, so a violation is reported against the
+    program definition.
+    """
+    for definition in root.definitions:
+        program = definition.value
+        if not isinstance(program, _RpcProgram):
+            continue
+        _check_rpc_number(
+            "program",
+            program.number,
+            f"in program '{program.name}'",
+            definition.meta,
+        )
+        for version in program.versions:
+            _check_rpc_number(
+                "version",
+                version.number,
+                f"in program '{program.name}'",
+                definition.meta,
+            )
+            for procedure in version.procedures:
+                _check_rpc_number(
+                    "procedure",
+                    procedure.number,
+                    f"in version '{version.name}'",
+                    definition.meta,
+                )
+
+
 def transform_parse_tree(parse_tree):
     """Transform productions into an abstract syntax tree"""
     ast = transformer.transform(parse_tree)
     ast.definitions = _merge_consecutive_passthru(ast.definitions)
+    check_duplicate_definitions(ast)
+    check_rpc_number_range(ast)
     return ast
 
 

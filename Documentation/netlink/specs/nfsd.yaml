@@ -330,6 +330,91 @@ attribute-sets:
           of which client holds the state. Intended for use after
           all clients have been unexported from a given path,
           enabling the underlying filesystem to be unmounted.
+  -
+    name: server-proc-entry
+    attributes:
+      -
+        name: op
+        type: u32
+      -
+        name: count
+        type: u64
+      -
+        name: pad
+        type: pad
+  -
+    name: server-stats
+    attributes:
+      -
+        name: rc-hits
+        type: u64
+      -
+        name: rc-misses
+        type: u64
+      -
+        name: rc-nocache
+        type: u64
+      -
+        name: pad
+        type: pad
+      -
+        name: fh-stale
+        type: u64
+      -
+        name: io-read
+        type: u64
+      -
+        name: io-write
+        type: u64
+      -
+        name: netcnt
+        type: u32
+      -
+        name: netudpcnt
+        type: u32
+      -
+        name: nettcpcnt
+        type: u32
+      -
+        name: nettcpconn
+        type: u32
+      -
+        name: rpccnt
+        type: u32
+      -
+        name: rpcbadfmt
+        type: u32
+      -
+        name: rpcbadauth
+        type: u32
+      -
+        name: rpcbadclnt
+        type: u32
+      -
+        name: proc2-ops
+        type: nest
+        nested-attributes: server-proc-entry
+        multi-attr: true
+      -
+        name: proc3-ops
+        type: nest
+        nested-attributes: server-proc-entry
+        multi-attr: true
+      -
+        name: proc4-ops
+        type: nest
+        nested-attributes: server-proc-entry
+        multi-attr: true
+      -
+        name: proc4ops-ops
+        type: nest
+        nested-attributes: server-proc-entry
+        multi-attr: true
+      -
+        name: proc4cb-ops
+        type: nest
+        nested-attributes: server-proc-entry
+        multi-attr: true
 
 operations:
   list:
@@ -516,6 +601,32 @@ operations:
         request:
           attributes:
             - path
+    -
+      name: server-stats-get
+      doc: dump NFS server statistics
+      attribute-set: server-stats
+      dump:
+        reply:
+          attributes:
+            - rc-hits
+            - rc-misses
+            - rc-nocache
+            - fh-stale
+            - io-read
+            - io-write
+            - netcnt
+            - netudpcnt
+            - nettcpcnt
+            - nettcpconn
+            - rpccnt
+            - rpcbadfmt
+            - rpcbadauth
+            - rpcbadclnt
+            - proc2-ops
+            - proc3-ops
+            - proc4-ops
+            - proc4ops-ops
+            - proc4cb-ops
 
 mcast-groups:
   list:

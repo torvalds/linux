@@ -82,6 +82,7 @@ nfsd_proc_setattr(struct svc_rqst *rqstp)
 		.na_iattr	= iap,
 	};
 	struct svc_fh *fhp;
+	int hosterr;
 
 	dprintk("nfsd: SETATTR  %s, valid=%x, size=%ld\n",
 		SVCFH_fmt(&argp->fh),
@@ -116,6 +117,12 @@ nfsd_proc_setattr(struct svc_rqst *rqstp)
 		resp->status = fh_verify(rqstp, fhp, 0, NFSD_MAY_NOP);
 		if (resp->status != nfs_ok)
 			goto out;
+
+		hosterr = fh_want_write(fhp);
+		if (hosterr) {
+			resp->status = nfserrno(hosterr);
+			goto out;
+		}
 
 		if (delta < 0)
 			delta = -delta;
@@ -298,7 +305,7 @@ nfsd_proc_create(struct svc_rqst *rqstp)
 	/* Check for NFSD_MAY_WRITE in nfsd_create if necessary */
 
 	resp->status = nfserr_exist;
-	if (isdotent(argp->name, argp->len))
+	if (name_is_dot_dotdot(argp->name, argp->len))
 		goto done;
 	hosterr = fh_want_write(dirfhp);
 	if (hosterr) {
@@ -838,13 +845,10 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 	},
 };
 
-static DEFINE_PER_CPU_ALIGNED(unsigned long,
-			      nfsd_count2[ARRAY_SIZE(nfsd_procedures2)]);
 const struct svc_version nfsd_version2 = {
 	.vs_vers	= 2,
 	.vs_nproc	= ARRAY_SIZE(nfsd_procedures2),
 	.vs_proc	= nfsd_procedures2,
-	.vs_count	= nfsd_count2,
 	.vs_dispatch	= nfsd_dispatch,
 	.vs_xdrsize	= NFS2_SVC_XDRSIZE,
 };

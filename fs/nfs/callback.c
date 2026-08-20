@@ -231,8 +231,9 @@ int nfs_callback_up(u32 minorversion, struct rpc_xprt *xprt)
 	cb_info->users++;
 err_net:
 	if (!cb_info->users) {
+		xprt_svc_shutdown_bc(xprt);
 		svc_set_num_threads(cb_info->serv, 0, 0);
-		svc_destroy(&cb_info->serv);
+		xprt_svc_destroy_nullify_bc(xprt, &cb_info->serv);
 	}
 err_create:
 	mutex_unlock(&nfs_callback_mutex);
@@ -254,6 +255,7 @@ void nfs_callback_down(int minorversion, struct net *net, struct rpc_xprt *xprt)
 
 	mutex_lock(&nfs_callback_mutex);
 	serv = cb_info->serv;
+	xprt_svc_shutdown_bc(xprt);
 	nfs_callback_down_net(minorversion, serv, net);
 	cb_info->users--;
 	if (cb_info->users == 0) {
