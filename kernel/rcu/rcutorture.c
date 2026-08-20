@@ -4024,7 +4024,7 @@ static int __init rcu_torture_fwd_prog_init(void)
 	}
 	if (fwd_progress_holdoff <= 0)
 		fwd_progress_holdoff = 1;
-	if (fwd_progress_div <= 0)
+	if (fwd_progress_div < 2)
 		fwd_progress_div = 4;
 	rfp = kzalloc_objs(*rfp, fwd_progress);
 	fwd_prog_tasks = kzalloc_objs(*fwd_prog_tasks, fwd_progress);
