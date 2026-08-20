@@ -1644,8 +1644,7 @@ static void *__test_alloc(struct nfit_test *t, size_t size, dma_addr_t *dma,
  err:
 	if (*dma && size >= DIMM_SIZE)
 		gen_pool_free(nfit_pool, *dma, size);
-	if (buf)
-		vfree(buf);
+	vfree(buf);
 	kfree(nfit_res);
 	return NULL;
 }
