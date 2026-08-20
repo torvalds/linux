@@ -2368,10 +2368,8 @@ static int atmel_aes_probe(struct platform_device *pdev)
 
 	err = devm_request_irq(&pdev->dev, aes_dd->irq, atmel_aes_irq,
 			       IRQF_SHARED, "atmel-aes", aes_dd);
-	if (err) {
-		dev_err(dev, "unable to request aes irq.\n");
+	if (err)
 		goto err_tasklet_kill;
-	}
 
 	/* Initializing the clock */
 	aes_dd->iclk = devm_clk_get_prepared(&pdev->dev, "aes_clk");

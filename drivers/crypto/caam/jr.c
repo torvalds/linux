@@ -40,7 +40,6 @@ static void register_algs(struct caam_drv_private_jr *jrpriv,
 	caam_algapi_hash_init(dev);
 	caam_pkc_init(dev);
 	jrpriv->hwrng = !caam_rng_init(dev);
-	caam_prng_register(dev);
 	caam_qi_algapi_init(dev);
 
 algs_unlock:
@@ -55,7 +54,6 @@ static void unregister_algs(void)
 		goto algs_unlock;
 
 	caam_qi_algapi_exit();
-	caam_prng_unregister(NULL);
 	caam_pkc_exit();
 	caam_algapi_hash_exit();
 	caam_algapi_exit();
@@ -576,23 +574,25 @@ static int caam_jr_init(struct device *dev)
 	return error;
 }
 
-static void caam_jr_irq_dispose_mapping(void *data)
-{
-	irq_dispose_mapping((unsigned long)data);
-}
-
 /*
  * Probe routine for each detected JobR subsystem.
  */
 static int caam_jr_probe(struct platform_device *pdev)
 {
 	struct device *jrdev;
-	struct device_node *nprop;
-	struct caam_job_ring __iomem *ctrl;
 	struct caam_drv_private_jr *jrpriv;
 	static int total_jobrs;
-	struct resource *r;
+	void __iomem *ctrl;
 	int error;
+	int irq;
+
+	ctrl = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(ctrl))
+		return PTR_ERR(ctrl);
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
 
 	jrdev = &pdev->dev;
 	jrpriv = devm_kzalloc(jrdev, sizeof(*jrpriv), GFP_KERNEL);
@@ -604,22 +604,7 @@ static int caam_jr_probe(struct platform_device *pdev)
 	/* save ring identity relative to detection */
 	jrpriv->ridx = total_jobrs++;
 
-	nprop = pdev->dev.of_node;
-	/* Get configuration properties from device tree */
-	/* First, get register page */
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r) {
-		dev_err(jrdev, "platform_get_resource() failed\n");
-		return -ENOMEM;
-	}
-
-	ctrl = devm_ioremap(jrdev, r->start, resource_size(r));
-	if (!ctrl) {
-		dev_err(jrdev, "devm_ioremap() failed\n");
-		return -ENOMEM;
-	}
-
-	jrpriv->rregs = (struct caam_job_ring __iomem __force *)ctrl;
+	jrpriv->rregs = ctrl;
 
 	error = dma_set_mask_and_coherent(jrdev, caam_get_dma_mask(jrdev));
 	if (error) {
@@ -649,16 +634,7 @@ static int caam_jr_probe(struct platform_device *pdev)
 	}
 
 	/* Identify the interrupt */
-	jrpriv->irq = irq_of_parse_and_map(nprop, 0);
-	if (!jrpriv->irq) {
-		dev_err(jrdev, "irq_of_parse_and_map failed\n");
-		return -EINVAL;
-	}
-
-	error = devm_add_action_or_reset(jrdev, caam_jr_irq_dispose_mapping,
-					 (void *)(unsigned long)jrpriv->irq);
-	if (error)
-		return error;
+	jrpriv->irq = irq;
 
 	/* Now do the platform independent part */
 	error = caam_jr_init(jrdev); /* now turn on hardware */

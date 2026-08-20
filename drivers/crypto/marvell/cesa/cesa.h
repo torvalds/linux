@@ -415,6 +415,7 @@ struct mv_cesa_dev_dma {
  * @zclk:		engine zclk
  * @max_req_len:	maximum chunk length (useful to create the TDMA chain)
  * @int_mask:		interrupt mask cache
+ * @cesa:		back-pointer to the parent CESA device
  * @pool:		memory pool pointing to the memory region reserved in
  *			SRAM
  * @queue:		fifo of the pending crypto requests
@@ -441,6 +442,7 @@ struct mv_cesa_engine {
 	struct clk *zclk;
 	size_t max_req_len;
 	u32 int_mask;
+	struct mv_cesa_dev *cesa;
 	struct gen_pool *pool;
 	struct crypto_queue queue;
 	atomic_t load;

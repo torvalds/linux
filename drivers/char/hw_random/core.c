@@ -17,14 +17,17 @@
 #include <linux/hw_random.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
+#include <linux/lockdep.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
+#include <linux/notifier.h>
 #include <linux/random.h>
 #include <linux/rcupdate.h>
 #include <linux/sched.h>
 #include <linux/sched/signal.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/suspend.h>
 #include <linux/sysfs.h>
 #include <linux/uaccess.h>
 #include <linux/workqueue.h>
@@ -45,6 +48,8 @@ static DEFINE_MUTEX(rng_mutex);
 static DEFINE_MUTEX(reading_mutex);
 static int data_avail;
 static u8 *rng_buffer, *rng_fillbuf;
+/* Set to true during suspend-resume by PM notifier, protected by rng_mutex */
+static bool hwrng_fillfn_stopped;
 static unsigned short current_quality;
 static unsigned short default_quality = 1024; /* default to maximum */
 
@@ -57,6 +62,8 @@ MODULE_PARM_DESC(default_quality,
 
 static int hwrng_init(struct hwrng *rng);
 static int hwrng_fillfn(void *unused);
+static void hwrng_start_hwrng_fillfn(void);
+static void hwrng_stop_hwrng_fillfn(void);
 
 static size_t rng_buffer_size(void)
 {
@@ -114,13 +121,7 @@ static int set_current_rng(struct hwrng *rng)
 	}
 
 	/* if necessary, start hwrng thread */
-	if (!hwrng_fill) {
-		hwrng_fill = kthread_run(hwrng_fillfn, NULL, "hwrng");
-		if (IS_ERR(hwrng_fill)) {
-			pr_err("hwrng_fill thread creation failed\n");
-			hwrng_fill = NULL;
-		}
-	}
+	hwrng_start_hwrng_fillfn();
 
 	return 0;
 }
@@ -137,10 +138,7 @@ static void drop_current_rng(void)
 	RCU_INIT_POINTER(current_rng, NULL);
 	synchronize_rcu();
 
-	if (hwrng_fill) {
-		kthread_stop(hwrng_fill);
-		hwrng_fill = NULL;
-	}
+	hwrng_stop_hwrng_fillfn();
 
 	/* decrease last reference for triggering the cleanup */
 	kref_put(&rng->ref, cleanup_rng);
@@ -506,6 +504,36 @@ static struct attribute *rng_dev_attrs[] = {
 
 ATTRIBUTE_GROUPS(rng_dev);
 
+static void hwrng_start_hwrng_fillfn(void)
+{
+	lockdep_assert_held(&rng_mutex);
+
+	/*
+	 * PM notifier stopped the hwrng_fillfn kthread, prevent userspace to
+	 * restart it until kernel freezes threads.
+	 */
+	if (hwrng_fillfn_stopped)
+		return;
+
+	if (!hwrng_fill) {
+		hwrng_fill = kthread_run(hwrng_fillfn, NULL, "hwrng");
+		if (IS_ERR(hwrng_fill)) {
+			pr_err("hwrng_fill thread creation failed\n");
+			hwrng_fill = NULL;
+		}
+	}
+}
+
+static void hwrng_stop_hwrng_fillfn(void)
+{
+	lockdep_assert_held(&rng_mutex);
+
+	if (hwrng_fill) {
+		kthread_stop(hwrng_fill);
+		hwrng_fill = NULL;
+	}
+}
+
 static int hwrng_fillfn(void *unused)
 {
 	size_t entropy, entropy_credit = 0; /* in 1/1024 of a bit */
@@ -559,6 +587,37 @@ static int hwrng_fillfn(void *unused)
 	return 0;
 }
 
+static int hwrng_pm_notifier(struct notifier_block *nb, unsigned long action,
+			     void *data)
+{
+	switch (action) {
+	case PM_SUSPEND_PREPARE:
+	case PM_HIBERNATION_PREPARE:
+	case PM_RESTORE_PREPARE:
+		mutex_lock(&rng_mutex);
+		hwrng_stop_hwrng_fillfn();
+		hwrng_fillfn_stopped = true;
+		mutex_unlock(&rng_mutex);
+		break;
+
+	case PM_POST_SUSPEND:
+	case PM_POST_HIBERNATION:
+	case PM_POST_RESTORE:
+		mutex_lock(&rng_mutex);
+		hwrng_fillfn_stopped = false;
+		if (rcu_access_pointer(current_rng))
+			hwrng_start_hwrng_fillfn();
+		mutex_unlock(&rng_mutex);
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block hwrng_pm_nb = {
+	.notifier_call = hwrng_pm_notifier,
+};
+
 int hwrng_register(struct hwrng *rng)
 {
 	int err = -EINVAL;
@@ -596,11 +655,13 @@ int hwrng_register(struct hwrng *rng)
 			 */
 			err = set_current_rng(rng);
 			if (err)
-				goto out_unlock;
+				goto out_list_del;
 		}
 	}
 	mutex_unlock(&rng_mutex);
 	return 0;
+out_list_del:
+	list_del_init(&rng->list);
 out_unlock:
 	mutex_unlock(&rng_mutex);
 out:
@@ -705,10 +766,20 @@ static int __init hwrng_modinit(void)
 	}
 
 	ret = misc_register(&rng_miscdev);
-	if (ret) {
-		kfree(rng_fillbuf);
-		kfree(rng_buffer);
-	}
+	if (ret)
+		goto misc_err;
+
+	ret = register_pm_notifier(&hwrng_pm_nb);
+	if (ret)
+		goto pm_err;
+
+	return 0;
+
+pm_err:
+	misc_deregister(&rng_miscdev);
+misc_err:
+	kfree(rng_fillbuf);
+	kfree(rng_buffer);
 
 	return ret;
 }
@@ -720,6 +791,8 @@ static void __exit hwrng_modexit(void)
 	kfree(rng_buffer);
 	kfree(rng_fillbuf);
 	mutex_unlock(&rng_mutex);
+
+	unregister_pm_notifier(&hwrng_pm_nb);
 
 	misc_deregister(&rng_miscdev);
 }

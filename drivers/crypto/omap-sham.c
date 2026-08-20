@@ -30,8 +30,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/scatterlist.h>
@@ -1896,78 +1894,7 @@ static const struct of_device_id omap_sham_of_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, omap_sham_of_match);
-
-static int omap_sham_get_res_of(struct omap_sham_dev *dd,
-		struct device *dev, struct resource *res)
-{
-	struct device_node *node = dev->of_node;
-	int err = 0;
-
-	dd->pdata = of_device_get_match_data(dev);
-	if (!dd->pdata) {
-		dev_err(dev, "no compatible OF match\n");
-		err = -EINVAL;
-		goto err;
-	}
-
-	err = of_address_to_resource(node, 0, res);
-	if (err < 0) {
-		dev_err(dev, "can't translate OF node address\n");
-		err = -EINVAL;
-		goto err;
-	}
-
-	dd->irq = irq_of_parse_and_map(node, 0);
-	if (!dd->irq) {
-		dev_err(dev, "can't translate OF irq value\n");
-		err = -EINVAL;
-		goto err;
-	}
-
-err:
-	return err;
-}
-#else
-static const struct of_device_id omap_sham_of_match[] = {
-	{},
-};
-
-static int omap_sham_get_res_of(struct omap_sham_dev *dd,
-		struct device *dev, struct resource *res)
-{
-	return -EINVAL;
-}
 #endif
-
-static int omap_sham_get_res_pdev(struct omap_sham_dev *dd,
-		struct platform_device *pdev, struct resource *res)
-{
-	struct device *dev = &pdev->dev;
-	struct resource *r;
-	int err = 0;
-
-	/* Get the base address */
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r) {
-		dev_err(dev, "no MEM resource info\n");
-		err = -ENODEV;
-		goto err;
-	}
-	memcpy(res, r, sizeof(*res));
-
-	/* Get the IRQ */
-	dd->irq = platform_get_irq(pdev, 0);
-	if (dd->irq < 0) {
-		err = dd->irq;
-		goto err;
-	}
-
-	/* Only OMAP2/3 can be non-DT */
-	dd->pdata = &omap_sham_pdata_omap2;
-
-err:
-	return err;
-}
 
 static ssize_t fallback_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
@@ -2060,10 +1987,19 @@ static int omap_sham_probe(struct platform_device *pdev)
 {
 	struct omap_sham_dev *dd;
 	struct device *dev = &pdev->dev;
-	struct resource res;
+	void __iomem *io_base;
+	struct resource *res;
 	dma_cap_mask_t mask;
-	int err, i, j;
+	int err, i, j, irq;
 	u32 rev;
+
+	io_base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
+	if (IS_ERR(io_base))
+		return PTR_ERR(io_base);
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
 
 	dd = devm_kzalloc(dev, sizeof(struct omap_sham_dev), GFP_KERNEL);
 	if (dd == NULL) {
@@ -2078,25 +2014,18 @@ static int omap_sham_probe(struct platform_device *pdev)
 	INIT_WORK(&dd->done_task, omap_sham_done_task);
 	crypto_init_queue(&dd->queue, OMAP_SHAM_QUEUE_LENGTH);
 
-	err = (dev->of_node) ? omap_sham_get_res_of(dd, dev, &res) :
-			       omap_sham_get_res_pdev(dd, pdev, &res);
-	if (err)
-		goto data_err;
+	dd->pdata = device_get_match_data(dev);
+	if (!dd->pdata)
+		dd->pdata = &omap_sham_pdata_omap2;
 
-	dd->io_base = devm_ioremap_resource(dev, &res);
-	if (IS_ERR(dd->io_base)) {
-		err = PTR_ERR(dd->io_base);
-		goto data_err;
-	}
-	dd->phys_base = res.start;
+	dd->irq = irq;
+	dd->io_base = io_base;
+	dd->phys_base = res->start;
 
 	err = devm_request_irq(dev, dd->irq, dd->pdata->intr_hdlr,
 			       IRQF_TRIGGER_NONE, dev_name(dev), dd);
-	if (err) {
-		dev_err(dev, "unable to request irq %d, err = %d\n",
-			dd->irq, err);
+	if (err)
 		goto data_err;
-	}
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
@@ -2213,7 +2142,7 @@ static struct platform_driver omap_sham_driver = {
 	.remove = omap_sham_remove,
 	.driver	= {
 		.name	= "omap-sham",
-		.of_match_table	= omap_sham_of_match,
+		.of_match_table	= of_match_ptr(omap_sham_of_match),
 		.dev_groups = omap_sham_groups,
 	},
 };

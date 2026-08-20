@@ -3,10 +3,8 @@
 //
 // Based on msm-rng.c and downstream driver
 
-#include <crypto/internal/rng.h>
 #include <linux/acpi.h>
 #include <linux/clk.h>
-#include <linux/crypto.h>
 #include <linux/hw_random.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
@@ -32,23 +30,14 @@
 #define QCOM_TRNG_QUALITY	1024
 
 struct qcom_rng {
-	struct mutex lock;
 	void __iomem *base;
 	struct clk *clk;
 	struct hwrng hwrng;
-	struct qcom_rng_match_data *match_data;
-};
-
-struct qcom_rng_ctx {
-	struct qcom_rng *rng;
 };
 
 struct qcom_rng_match_data {
-	bool skip_init;
 	bool hwrng_support;
 };
-
-static struct qcom_rng *qcom_rng_dev;
 
 static int qcom_rng_read(struct qcom_rng *rng, u8 *data, unsigned int max)
 {
@@ -65,8 +54,6 @@ static int qcom_rng_read(struct qcom_rng *rng, u8 *data, unsigned int max)
 			return ret;
 
 		val = readl_relaxed(rng->base + PRNG_DATA_OUT);
-		if (!val)
-			return -EINVAL;
 
 		if ((max - currsize) >= WORD_SZ) {
 			memcpy(data, &val, WORD_SZ);
@@ -82,35 +69,11 @@ static int qcom_rng_read(struct qcom_rng *rng, u8 *data, unsigned int max)
 	return currsize;
 }
 
-static int qcom_rng_generate(struct crypto_rng *tfm,
-			     const u8 *src, unsigned int slen,
-			     u8 *dstn, unsigned int dlen)
+static int qcom_hwrng_init(struct hwrng *hwrng)
 {
-	struct qcom_rng_ctx *ctx = crypto_rng_ctx(tfm);
-	struct qcom_rng *rng = ctx->rng;
-	int ret;
+	struct qcom_rng *qrng = container_of(hwrng, struct qcom_rng, hwrng);
 
-	ret = clk_prepare_enable(rng->clk);
-	if (ret)
-		return ret;
-
-	mutex_lock(&rng->lock);
-
-	ret = qcom_rng_read(rng, dstn, dlen);
-
-	mutex_unlock(&rng->lock);
-	clk_disable_unprepare(rng->clk);
-
-	if (ret >= 0)
-		ret = 0;
-
-	return ret;
-}
-
-static int qcom_rng_seed(struct crypto_rng *tfm, const u8 *seed,
-			 unsigned int slen)
-{
-	return 0;
+	return clk_prepare_enable(qrng->clk);
 }
 
 static int qcom_hwrng_read(struct hwrng *hwrng, void *data, size_t max, bool wait)
@@ -120,73 +83,32 @@ static int qcom_hwrng_read(struct hwrng *hwrng, void *data, size_t max, bool wai
 	return qcom_rng_read(qrng, data, max);
 }
 
-static int qcom_rng_enable(struct qcom_rng *rng)
+static void qcom_hwrng_cleanup(struct hwrng *hwrng)
 {
-	u32 val;
-	int ret;
+	struct qcom_rng *qrng = container_of(hwrng, struct qcom_rng, hwrng);
 
-	ret = clk_prepare_enable(rng->clk);
-	if (ret)
-		return ret;
-
-	/* Enable PRNG only if it is not already enabled */
-	val = readl_relaxed(rng->base + PRNG_CONFIG);
-	if (val & PRNG_CONFIG_HW_ENABLE)
-		goto already_enabled;
-
-	val = readl_relaxed(rng->base + PRNG_LFSR_CFG);
-	val &= ~PRNG_LFSR_CFG_MASK;
-	val |= PRNG_LFSR_CFG_CLOCKS;
-	writel(val, rng->base + PRNG_LFSR_CFG);
-
-	val = readl_relaxed(rng->base + PRNG_CONFIG);
-	val |= PRNG_CONFIG_HW_ENABLE;
-	writel(val, rng->base + PRNG_CONFIG);
-
-already_enabled:
-	clk_disable_unprepare(rng->clk);
-
-	return 0;
+	clk_disable_unprepare(qrng->clk);
 }
-
-static int qcom_rng_init(struct crypto_tfm *tfm)
-{
-	struct qcom_rng_ctx *ctx = crypto_tfm_ctx(tfm);
-
-	ctx->rng = qcom_rng_dev;
-
-	if (!ctx->rng->match_data->skip_init)
-		return qcom_rng_enable(ctx->rng);
-
-	return 0;
-}
-
-static struct rng_alg qcom_rng_alg = {
-	.generate	= qcom_rng_generate,
-	.seed		= qcom_rng_seed,
-	.seedsize	= 0,
-	.base		= {
-		.cra_name		= "stdrng",
-		.cra_driver_name	= "qcom-rng",
-		.cra_flags		= CRYPTO_ALG_TYPE_RNG,
-		.cra_priority		= 300,
-		.cra_ctxsize		= sizeof(struct qcom_rng_ctx),
-		.cra_module		= THIS_MODULE,
-		.cra_init		= qcom_rng_init,
-	}
-};
 
 static int qcom_rng_probe(struct platform_device *pdev)
 {
+	const struct qcom_rng_match_data *match_data;
 	struct qcom_rng *rng;
 	int ret;
+
+	match_data = device_get_match_data(&pdev->dev);
+	if (match_data == NULL || !match_data->hwrng_support) {
+		dev_info(&pdev->dev, "TRNG support not detected\n");
+		/*
+		 * In this case the driver does nothing except the dev_info(),
+		 * but bind the device anyway to avoid effects on GCC state.
+		 */
+		return 0;
+	}
 
 	rng = devm_kzalloc(&pdev->dev, sizeof(*rng), GFP_KERNEL);
 	if (!rng)
 		return -ENOMEM;
-
-	platform_set_drvdata(pdev, rng);
-	mutex_init(&rng->lock);
 
 	rng->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rng->base))
@@ -196,53 +118,26 @@ static int qcom_rng_probe(struct platform_device *pdev)
 	if (IS_ERR(rng->clk))
 		return PTR_ERR(rng->clk);
 
-	rng->match_data = (struct qcom_rng_match_data *)device_get_match_data(&pdev->dev);
-
-	qcom_rng_dev = rng;
-	ret = crypto_register_rng(&qcom_rng_alg);
-	if (ret) {
-		dev_err(&pdev->dev, "Register crypto rng failed: %d\n", ret);
-		qcom_rng_dev = NULL;
-		return ret;
-	}
-
-	if (rng->match_data->hwrng_support) {
-		rng->hwrng.name = "qcom_hwrng";
-		rng->hwrng.read = qcom_hwrng_read;
-		rng->hwrng.quality = QCOM_TRNG_QUALITY;
-		ret = devm_hwrng_register(&pdev->dev, &rng->hwrng);
-		if (ret) {
-			dev_err(&pdev->dev, "Register hwrng failed: %d\n", ret);
-			qcom_rng_dev = NULL;
-			goto fail;
-		}
-	}
-
+	rng->hwrng.name = "qcom_hwrng";
+	rng->hwrng.init = qcom_hwrng_init;
+	rng->hwrng.read = qcom_hwrng_read;
+	rng->hwrng.cleanup = qcom_hwrng_cleanup;
+	rng->hwrng.quality = QCOM_TRNG_QUALITY;
+	ret = devm_hwrng_register(&pdev->dev, &rng->hwrng);
+	if (ret)
+		dev_err(&pdev->dev, "Register hwrng failed: %d\n", ret);
 	return ret;
-fail:
-	crypto_unregister_rng(&qcom_rng_alg);
-	return ret;
-}
-
-static void qcom_rng_remove(struct platform_device *pdev)
-{
-	crypto_unregister_rng(&qcom_rng_alg);
-
-	qcom_rng_dev = NULL;
 }
 
 static struct qcom_rng_match_data qcom_prng_match_data = {
-	.skip_init = false,
 	.hwrng_support = false,
 };
 
 static struct qcom_rng_match_data qcom_prng_ee_match_data = {
-	.skip_init = true,
 	.hwrng_support = false,
 };
 
 static struct qcom_rng_match_data qcom_trng_match_data = {
-	.skip_init = true,
 	.hwrng_support = true,
 };
 
@@ -262,7 +157,6 @@ MODULE_DEVICE_TABLE(of, qcom_rng_of_match);
 
 static struct platform_driver qcom_rng_driver = {
 	.probe = qcom_rng_probe,
-	.remove =  qcom_rng_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
 		.of_match_table = qcom_rng_of_match,

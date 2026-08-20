@@ -86,8 +86,8 @@ static void xtrng_softreset(struct xilinx_rng *rng)
 	xtrng_readwrite32(rng->rng_base + TRNG_CTRL_OFFSET, TRNG_CTRL_PRNGSRST_MASK, 0);
 }
 
-/* Return no. of bytes read */
-static size_t xtrng_readblock32(void __iomem *rng_base, __be32 *buf, int blocks32, bool wait)
+/* Return no. of bytes read or a negative error before any data is read. */
+static int xtrng_readblock32(void __iomem *rng_base, __be32 *buf, int blocks32, bool wait)
 {
 	int read = 0, ret;
 	int timeout = 1;
@@ -102,8 +102,11 @@ static size_t xtrng_readblock32(void __iomem *rng_base, __be32 *buf, int blocks3
 		ret = readl_poll_timeout(rng_base + TRNG_STATUS_OFFSET, val,
 					 (val & TRNG_STATUS_QCNT_MASK) ==
 					 TRNG_STATUS_QCNT_16_BYTES, !!wait, timeout);
-		if (ret)
+		if (ret) {
+			if (!read)
+				return ret;
 			break;
+		}
 
 		for (idx = 0; idx < TRNG_READ_4_WORD; idx++) {
 			*(buf + read) = cpu_to_be32(ioread32(rng_base + TRNG_CORE_OUTPUT_OFFSET));
@@ -118,27 +121,40 @@ static int xtrng_collect_random_data(struct xilinx_rng *rng, u8 *rand_gen_buf,
 {
 	u8 randbuf[TRNG_SEC_STRENGTH_BYTES];
 	int byteleft, blocks, count = 0;
+	int full_blocks_bytes;
 	int ret;
 
 	byteleft = no_of_random_bytes & (TRNG_SEC_STRENGTH_BYTES - 1);
 	blocks = no_of_random_bytes >> TRNG_SEC_STRENGTH_SHIFT;
+	full_blocks_bytes = blocks * TRNG_SEC_STRENGTH_BYTES;
 	xtrng_readwrite32(rng->rng_base + TRNG_CTRL_OFFSET, TRNG_CTRL_PRNGSTART_MASK,
 			  TRNG_CTRL_PRNGSTART_MASK);
 	if (blocks) {
 		ret = xtrng_readblock32(rng->rng_base, (__be32 *)rand_gen_buf, blocks, wait);
-		if (!ret)
-			return 0;
+		if (ret <= 0) {
+			count = ret;
+			goto out_stop;
+		}
 		count += ret;
+		if (ret < full_blocks_bytes)
+			goto out_stop;
 	}
 
 	if (byteleft) {
 		ret = xtrng_readblock32(rng->rng_base, (__be32 *)randbuf, 1, wait);
+		if (ret < 0) {
+			if (!count)
+				count = ret;
+			goto out_stop;
+		}
 		if (!ret)
-			return count;
-		memcpy(rand_gen_buf + (blocks * TRNG_SEC_STRENGTH_BYTES), randbuf, byteleft);
-		count += byteleft;
+			goto out_stop;
+		ret = min(ret, no_of_random_bytes - count);
+		memcpy(rand_gen_buf + count, randbuf, ret);
+		count += ret;
 	}
 
+out_stop:
 	xtrng_readwrite32(rng->rng_base + TRNG_CTRL_OFFSET,
 			  TRNG_CTRL_PRNGMODE_MASK | TRNG_CTRL_PRNGSTART_MASK, 0U);
 

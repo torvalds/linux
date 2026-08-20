@@ -193,7 +193,7 @@ config HW_RANDOM_IXP4XX
 
 config HW_RANDOM_OMAP
 	tristate "OMAP Random Number Generator support"
-	depends on ARCH_OMAP16XX || ARCH_OMAP2PLUS || ARCH_MVEBU || ARCH_K3 || COMPILE_TEST
+	depends on ARCH_OMAP16XX || ARCH_OMAP2PLUS || ARCH_MVEBU || ARCH_K3 || ARCH_RZN1 || COMPILE_TEST
 	default HW_RANDOM
 	help
 	  This driver provides kernel-side support for the Random Number
@@ -635,6 +635,17 @@ config HW_RANDOM_XILINX
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called xilinx-trng.
+
+config HW_RANDOM_QCOM
+	tristate "Qualcomm True Random Number Generator Driver"
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on HW_RANDOM
+	help
+	  This driver provides support for the True Random Number
+	  Generator hardware found on some Qualcomm SoCs.
+
+	  To compile this driver as a module, choose M here. The
+	  module will be called qcom-rng. If unsure, say N.
 
 endif # HW_RANDOM
 

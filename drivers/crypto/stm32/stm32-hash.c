@@ -2356,10 +2356,8 @@ static int stm32_hash_probe(struct platform_device *pdev)
 						stm32_hash_irq_thread,
 						IRQF_ONESHOT,
 						dev_name(dev), hdev);
-		if (ret) {
-			dev_err(dev, "Cannot grab IRQ\n");
+		if (ret)
 			return ret;
-		}
 	} else {
 		dev_info(dev, "No IRQ, use polling mode\n");
 		hdev->polled = true;

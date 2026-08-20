@@ -7,6 +7,42 @@ kernel configuration:
 
 .. contents:: :local:
 
+.. _af_alg_restrict:
+
+af_alg_restrict
+===============
+
+Controls the level of restriction of AF_ALG.
+
+AF_ALG is a deprecated and rarely-used userspace interface that is a
+frequent source of vulnerabilities. It also unnecessarily exposes a
+large number of kernel implementation details. For more information
+about AF_ALG, see :ref:`Documentation/crypto/userspace-if.rst
+<crypto_userspace_interface>`.
+
+Starting in Linux v7.3, AF_ALG supports only a limited set of
+algorithms by default. This sysctl allows the system administrator to
+remove this restriction when needed for compatibility reasons, or to
+go further and disable AF_ALG entirely. The default value is 1.
+
+===  ==================================================================
+0    AF_ALG is unrestricted.
+
+1    AF_ALG is supported with a limited list of algorithms. The list
+     is designed for compatibility with known users such as iwd and
+     bluez that haven't yet been fixed to use userspace crypto code.
+
+     Specifically, there is an allowlist for unprivileged processes
+     and a somewhat longer allowlist for processes that hold
+     CAP_SYS_ADMIN or CAP_NET_ADMIN in the initial user namespace.
+
+     Attempts to bind() an AF_ALG socket with a disallowed algorithm
+     fail with ENOENT.
+
+2    AF_ALG is completely disabled. Attempts to create an AF_ALG
+     socket fail with EAFNOSUPPORT.
+===  ==================================================================
+
 fips_enabled
 ============
 

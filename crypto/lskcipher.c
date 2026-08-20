@@ -95,7 +95,6 @@ static int crypto_lskcipher_crypt_unaligned(
 
 	while (len >= bs) {
 		unsigned chunk = min((unsigned)PAGE_SIZE, len);
-		int err;
 
 		if (chunk > cs)
 			chunk &= ~(cs - 1);
@@ -528,8 +527,7 @@ struct lskcipher_instance *lskcipher_alloc_instance_simple(
 		int len;
 
 		err = -EINVAL;
-		len = strscpy(ecb_name, &cipher_alg->co.base.cra_name[4],
-			      sizeof(ecb_name));
+		len = strscpy(ecb_name, &cipher_alg->co.base.cra_name[4]);
 		if (len < 2)
 			goto err_free_inst;
 
