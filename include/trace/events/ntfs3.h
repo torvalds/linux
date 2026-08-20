@@ -301,6 +301,56 @@ TRACE_EVENT(ntfs3_attr_data_get_block,
 		  __entry->zero, __entry->no_da)
 );
 
+TRACE_EVENT(ntfs3_iomap_begin,
+	TP_PROTO(struct inode *inode, loff_t offset, loff_t length,
+		 unsigned int flags),
+	TP_ARGS(inode, offset, length, flags),
+	TP_STRUCT__entry(
+		__field(unsigned long, ino)
+		__field(loff_t, offset)
+		__field(loff_t, length)
+		__field(dev_t, dev)
+		__field(unsigned int, flags)
+	),
+	TP_fast_assign(
+		__entry->ino = inode->i_ino;
+		__entry->offset = offset;
+		__entry->length = length;
+		__entry->dev = inode->i_sb->s_dev;
+		__entry->flags = flags;
+	),
+	TP_printk("dev=(%d,%d) ino=%lu offset=%lld length=%lld flags=0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino, __entry->offset, __entry->length,
+		  __entry->flags)
+);
+
+TRACE_EVENT(ntfs3_iomap_end,
+	TP_PROTO(struct inode *inode, loff_t pos, loff_t length,
+		 ssize_t written, unsigned int flags),
+	TP_ARGS(inode, pos, length, written, flags),
+	TP_STRUCT__entry(
+		__field(unsigned long, ino)
+		__field(loff_t, pos)
+		__field(loff_t, length)
+		__field(ssize_t, written)
+		__field(dev_t, dev)
+		__field(unsigned int, flags)
+	),
+	TP_fast_assign(
+		__entry->ino = inode->i_ino;
+		__entry->pos = pos;
+		__entry->length = length;
+		__entry->written = written;
+		__entry->dev = inode->i_sb->s_dev;
+		__entry->flags = flags;
+	),
+	TP_printk("dev=(%d,%d) ino=%lu pos=%lld length=%lld written=%zd flags=0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino, __entry->pos, __entry->length,
+		  __entry->written, __entry->flags)
+);
+
 #endif /* _TRACE_NTFS3_H */
 
 #include <trace/define_trace.h>

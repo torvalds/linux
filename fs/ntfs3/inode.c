@@ -954,6 +954,8 @@ static int ntfs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 	bool new_clst = false;
 	bool no_da;
 	bool zero = false;
+
+	trace_ntfs3_iomap_begin(inode, offset, length, flags);
 	if (unlikely(ntfs3_forced_shutdown(sbi->sb)))
 		return -EIO;
 
@@ -1090,6 +1092,8 @@ static int ntfs_iomap_end(struct inode *inode, loff_t pos, loff_t length,
 	int err = 0;
 	struct ntfs_inode *ni = ntfs_i(inode);
 	loff_t endbyte = pos + written;
+
+	trace_ntfs3_iomap_end(inode, pos, length, written, flags);
 
 	if ((flags & IOMAP_WRITE) || (flags & IOMAP_ZERO)) {
 		if (iomap->type == IOMAP_INLINE) {
