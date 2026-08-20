@@ -14142,7 +14142,7 @@ R:	ChenXiaoSong <chenxiaosong@chenxiaosong.com>
 R:	ChenXiaoSong <chenxiaosong@kylinos.cn>
 L:	linux-cifs@vger.kernel.org
 S:	Maintained
-T:	git https://git.samba.org/ksmbd.git ksmbd-for-next
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linkinjeon/smb.git ksmbd-for-next
 F:	Documentation/filesystems/smb/ksmbd.rst
 F:	fs/smb/common/
 F:	fs/smb/server/
