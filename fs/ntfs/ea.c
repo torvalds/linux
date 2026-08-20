@@ -674,8 +674,10 @@ static int ntfs_new_attr_flags(struct ntfs_inode *ni, __le32 fattr)
 	}
 
 	if (!a->non_resident) {
-		if (!(new_aflags & (ATTR_IS_SPARSE | ATTR_IS_COMPRESSED)))
-			return 0;
+		if (!(new_aflags & (ATTR_IS_SPARSE | ATTR_IS_COMPRESSED))) {
+			err = 0;
+			goto err_out;
+		}
 
 		if (le32_to_cpu(a->data.resident.value_length)) {
 			pr_err("Can't change sparse/compressed for non-empty file");
