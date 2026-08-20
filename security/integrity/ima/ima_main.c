@@ -1258,6 +1258,28 @@ int ima_measure_critical_data(const char *event_label,
 }
 EXPORT_SYMBOL_GPL(ima_measure_critical_data);
 
+/**
+ * ima_measure_raw_policy - Measure the raw policy write buffer
+ * @buf: pointer to the buffer containing the raw policy data
+ * @buf_len: size of the buffer
+ *
+ * Measure the raw policy buffer sent to the IMA policy securityfs file. The
+ * buffer is written from userspace, and the measurement is performed before
+ * parsing it. This measurement includes any data written on the policy file
+ * such as malformed policy rules and comments.
+ *
+ * Return 0 on success, a negative value otherwise.
+ */
+int ima_measure_raw_policy(const char *buf, size_t buf_len)
+{
+	if (!buf || !buf_len)
+		return -EINVAL;
+
+	return process_buffer_measurement(&nop_mnt_idmap, NULL, buf, buf_len,
+					  "ima_policy_written", POLICY_CHECK,
+					  0, NULL, false, NULL, 0);
+}
+
 #ifdef CONFIG_INTEGRITY_ASYMMETRIC_KEYS
 
 /**
@@ -1376,5 +1398,9 @@ DEFINE_LSM(ima) = {
 	.order = LSM_ORDER_LAST,
 	.blobs = &ima_blob_sizes,
 	/* Start IMA after the TPM is available */
+#ifndef CONFIG_IMA_INIT_LATE_SYNC
 	.initcall_late = init_ima,
+#else
+	.initcall_late_sync = init_ima,
+#endif
 };
