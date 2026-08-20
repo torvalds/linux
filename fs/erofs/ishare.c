@@ -156,7 +156,7 @@ static int erofs_ishare_fadvise(struct file *file, loff_t offset,
 
 const struct file_operations erofs_ishare_fops = {
 	.open		= erofs_ishare_file_open,
-	.llseek		= generic_file_llseek,
+	.llseek		= erofs_file_llseek,
 	.read_iter	= erofs_ishare_file_read_iter,
 	.mmap		= erofs_ishare_mmap,
 	.release	= erofs_ishare_file_release,

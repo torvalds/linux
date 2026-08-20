@@ -507,7 +507,7 @@ static int erofs_file_mmap_prepare(struct vm_area_desc *desc)
 #define erofs_file_mmap_prepare	generic_file_readonly_mmap_prepare
 #endif
 
-static loff_t erofs_file_llseek(struct file *file, loff_t offset, int whence)
+loff_t erofs_file_llseek(struct file *file, loff_t offset, int whence)
 {
 	struct inode *inode = file->f_mapping->host;
 	const struct iomap_ops *ops = &erofs_iomap_ops;
