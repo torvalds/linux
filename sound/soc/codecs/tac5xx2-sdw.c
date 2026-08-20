@@ -55,6 +55,12 @@
 #define TAC_XU_BYPASS_REG(func, xu)                        \
 	SDW_SDCA_CTL(TAC_FUNCTION_ID_##func, TAC_SDCA_ENT_##xu, \
 			TAC_SDCA_CTL_XU_BYPASS, 0)
+#define TAC_VOLUME_REG(func, fu, ch) \
+	SDW_SDCA_CTL(TAC_FUNCTION_ID_##func, TAC_SDCA_ENT_##fu, \
+		     TAC_SDCA_CHANNEL_VOLUME, TAC_CHANNEL_##ch)
+#define TAC_GAIN_REG(func, fu, ch) \
+	SDW_SDCA_CTL(TAC_FUNCTION_ID_##func, TAC_SDCA_ENT_##fu, \
+		     TAC_SDCA_CHANNEL_GAIN, TAC_CHANNEL_##ch)
 
 /* mute registers */
 #define FU21_L_MUTE_REG  TAC_MUTE_REG(SA, FU21, LEFT)
@@ -381,6 +387,46 @@ static const struct reg_default tac_reg_default[] = {
 	{TAC_REG_SDW(0, 1, 0x71), 0x5},
 	{TAC_REG_SDW(0, 1, 0x72), 0x6},
 	{TAC_REG_SDW(0, 1, 0x73), 0x7},
+	/* SA */
+	{TAC_MUTE_REG(SA, FU21, LEFT), 0x1},
+	{TAC_MUTE_REG(SA, FU21, RIGHT), 0x1},
+	{TAC_VOLUME_REG(SA, FU21, LEFT), 0x9c00},
+	{TAC_VOLUME_REG(SA, FU21, RIGHT), 0x9c00},
+	{TAC_MUTE_REG(SA, FU23, LEFT), 0x1},
+	{TAC_MUTE_REG(SA, FU23, RIGHT), 0x1},
+	{TAC_GAIN_REG(SA, FU23, LEFT), 0x0},
+	{TAC_GAIN_REG(SA, FU23, RIGHT), 0x0},
+	/* SM */
+	{TAC_USAGE_REG(SM, IT11), 0x0},
+	{TAC_USAGE_REG(SM, OT113), 0x0},
+	{TAC_MUTE_REG(SM, FU113, LEFT), 0x1},
+	{TAC_MUTE_REG(SM, FU113, RIGHT), 0x1},
+	{TAC_GAIN_REG(SM, FU113, LEFT), 0x0},
+	{TAC_GAIN_REG(SM, FU113, RIGHT), 0x0},
+	{TAC_MUTE_REG(SM, FU11,  LEFT), 0x1},
+	{TAC_MUTE_REG(SM, FU11,  RIGHT), 0x1},
+	{TAC_GAIN_REG(SM, FU11,  LEFT), 0x0},
+	{TAC_GAIN_REG(SM, FU11,  RIGHT), 0x0},
+	{TAC_XU_BYPASS_REG(SM, XU12), 0x1},
+	{SDW_SDCA_CTL(TAC_FUNCTION_ID_SM, TAC_SDCA_ENT_CS113,
+		      TAC_SDCA_CTL_CS_SAMP_RATE_IDX, 0), 0x0},
+	/* UAJ */
+	{TAC_USAGE_REG(UAJ, IT33), 0x0},
+	{TAC_USAGE_REG(UAJ, IT41), 0x0},
+	{TAC_USAGE_REG(UAJ, OT36), 0x0},
+	{TAC_USAGE_REG(UAJ, OT45), 0x0},
+	{TAC_MUTE_REG(UAJ, FU41, LEFT), 0x1},
+	{TAC_MUTE_REG(UAJ, FU41, RIGHT), 0x1},
+	{TAC_VOLUME_REG(UAJ, FU41, LEFT), 0x0},
+	{TAC_VOLUME_REG(UAJ, FU41, RIGHT), 0x0},
+	{TAC_MUTE_REG(UAJ, FU36, RIGHT), 0x1},
+	{SDW_SDCA_CTL(TAC_FUNCTION_ID_UAJ, TAC_SDCA_ENT_FU36,
+		      TAC_SDCA_CHANNEL_VOLUME, TAC_JACK_MONO_CS), 0x0},
+	{TAC_XU_BYPASS_REG(UAJ, XU42), 0x0},
+	{SDW_SDCA_CTL(TAC_FUNCTION_ID_UAJ, TAC_SDCA_ENT_CS36,
+		      TAC_SDCA_CTL_CS_SAMP_RATE_IDX, 0), 0x0},
+	{SDW_SDCA_CTL(TAC_FUNCTION_ID_UAJ, TAC_SDCA_ENT_CS41,
+		      TAC_SDCA_CTL_CS_SAMP_RATE_IDX, 0), 0x0},
 };
 
 static const struct reg_sequence tac_spk_seq[] = {
@@ -388,30 +434,6 @@ static const struct reg_sequence tac_spk_seq[] = {
 			      TAC_SDCA_CHANNEL_VOLUME, TAC_CHANNEL_LEFT), 0),
 	REG_SEQ0(SDW_SDCA_CTL(TAC_FUNCTION_ID_SA, TAC_SDCA_ENT_FU21,
 			      TAC_SDCA_CHANNEL_VOLUME, TAC_CHANNEL_RIGHT), 0),
-	REG_SEQ0(SDW_SDCA_CTL(TAC_FUNCTION_ID_SA, TAC_SDCA_ENT_FU23,
-			      TAC_SDCA_CHANNEL_VOLUME, TAC_CHANNEL_LEFT), 0),
-	REG_SEQ0(SDW_SDCA_CTL(TAC_FUNCTION_ID_SA, TAC_SDCA_ENT_FU23,
-			      TAC_SDCA_CHANNEL_VOLUME, TAC_CHANNEL_RIGHT), 0),
-};
-
-static const struct reg_sequence tac_sm_seq[] = {
-	REG_SEQ0(SDW_SDCA_CTL(TAC_FUNCTION_ID_SM, TAC_SDCA_ENT_FU113,
-			      TAC_SDCA_CHANNEL_VOLUME, TAC_CHANNEL_LEFT), 0),
-	REG_SEQ0(SDW_SDCA_CTL(TAC_FUNCTION_ID_SM, TAC_SDCA_ENT_FU113,
-			      TAC_SDCA_CHANNEL_VOLUME, TAC_CHANNEL_RIGHT), 0),
-	REG_SEQ0(SDW_SDCA_CTL(TAC_FUNCTION_ID_SM, TAC_SDCA_ENT_FU11,
-			      TAC_SDCA_CHANNEL_VOLUME, TAC_CHANNEL_LEFT), 0),
-	REG_SEQ0(SDW_SDCA_CTL(TAC_FUNCTION_ID_SM, TAC_SDCA_ENT_FU11,
-			      TAC_SDCA_CHANNEL_VOLUME, TAC_CHANNEL_RIGHT), 0),
-};
-
-static const struct reg_sequence tac_uaj_seq[] = {
-	REG_SEQ0(SDW_SDCA_CTL(TAC_FUNCTION_ID_UAJ, TAC_SDCA_ENT_FU41,
-			      TAC_SDCA_CHANNEL_VOLUME, TAC_CHANNEL_LEFT), 0),
-	REG_SEQ0(SDW_SDCA_CTL(TAC_FUNCTION_ID_UAJ, TAC_SDCA_ENT_FU41,
-			      TAC_SDCA_CHANNEL_VOLUME, TAC_CHANNEL_RIGHT), 0),
-	REG_SEQ0(SDW_SDCA_CTL(TAC_FUNCTION_ID_UAJ, TAC_SDCA_ENT_FU36,
-			      TAC_SDCA_CHANNEL_VOLUME, TAC_JACK_MONO_CS), 0),
 };
 
 static bool tac_volatile_reg(struct device *dev, unsigned int reg)
@@ -1761,16 +1783,6 @@ static int tac_io_init(struct device *dev, struct sdw_slave *slave, bool first)
 			goto io_init_err;
 		}
 		dev_dbg(dev, "smartmic init done\n");
-
-		if (first) {
-			ret = regmap_multi_reg_write(tac_dev->regmap, tac_sm_seq,
-						     ARRAY_SIZE(tac_sm_seq));
-			if (ret) {
-				dev_err(tac_dev->dev,
-					"init writes failed, err=%d", ret);
-				goto io_init_err;
-			}
-		}
 	}
 
 	if (tac_dev->uaj_func_data) {
@@ -1783,14 +1795,6 @@ static int tac_io_init(struct device *dev, struct sdw_slave *slave, bool first)
 		dev_dbg(dev, "uaj init done\n");
 
 		if (first) {
-			ret = regmap_multi_reg_write(tac_dev->regmap, tac_uaj_seq,
-						     ARRAY_SIZE(tac_uaj_seq));
-			if (ret) {
-				dev_err(tac_dev->dev,
-					"init writes failed, err=%d", ret);
-				goto io_init_err;
-			}
-
 			if (tac_dev->hs_jack) {
 				ret = tac5xx2_jack_init(tac_dev);
 				if (ret) {
