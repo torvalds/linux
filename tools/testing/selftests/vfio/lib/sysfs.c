@@ -107,8 +107,7 @@ char *sysfs_sriov_vf_bdf_get(const char *pf_bdf, int i)
 	char *out_vf_bdf;
 
 	/* Fit "0000:00:00.0" */
-	out_vf_bdf = calloc(16, sizeof(char));
-	VFIO_ASSERT_NOT_NULL(out_vf_bdf);
+	out_vf_bdf = calloc_assert(16, sizeof(char));
 
 	snprintf_assert(path, PATH_MAX, "/sys/bus/pci/devices/%s/virtfn%d", pf_bdf, i);
 	readlink_base(path, "%s", out_vf_bdf);
