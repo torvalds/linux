@@ -225,6 +225,7 @@ TEST_GEN_PROGS_s390 += rseq_test
 TEST_GEN_PROGS_s390 += s390/irq_routing
 TEST_GEN_PROGS_s390 += mmu_stress_test
 TEST_GEN_PROGS_s390 += pre_fault_memory_test
+TEST_GEN_PROGS_s390 += s390/irq_injection
 
 TEST_GEN_PROGS_riscv = $(TEST_GEN_PROGS_COMMON)
 TEST_GEN_PROGS_riscv += riscv/sbi_pmu_test
