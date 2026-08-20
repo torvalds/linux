@@ -554,7 +554,7 @@ static int hbg_ring_page_pool_init(struct hbg_priv *priv, struct hbg_ring *ring)
 		.nid = dev_to_node(&priv->pdev->dev),
 		.dev = &priv->pdev->dev,
 		.napi = &ring->napi,
-		.dma_dir = DMA_FROM_DEVICE,
+		.dma_dir = DMA_BIDIRECTIONAL,
 		.offset = 0,
 		.max_len = hbg_get_page_size(ring),
 	};
