@@ -3761,7 +3761,7 @@ static void pci_remove(struct pci_dev *dev)
 	dev_notice(&dev->dev, "removing fw-ohci device\n");
 }
 
-static int __maybe_unused pci_suspend(struct device *dev)
+static int pci_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct fw_ohci *ohci = pci_get_drvdata(pdev);
@@ -3773,7 +3773,7 @@ static int __maybe_unused pci_suspend(struct device *dev)
 }
 
 
-static int __maybe_unused pci_resume(struct device *dev)
+static int pci_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct fw_ohci *ohci = pci_get_drvdata(pdev);
@@ -3804,14 +3804,14 @@ static const struct pci_device_id pci_table[] = {
 
 MODULE_DEVICE_TABLE(pci, pci_table);
 
-static SIMPLE_DEV_PM_OPS(pci_pm_ops, pci_suspend, pci_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(pci_pm_ops, pci_suspend, pci_resume);
 
 static struct pci_driver fw_ohci_pci_driver = {
 	.name		= ohci_driver_name,
 	.id_table	= pci_table,
 	.probe		= pci_probe,
 	.remove		= pci_remove,
-	.driver.pm	= &pci_pm_ops,
+	.driver.pm	= pm_sleep_ptr(&pci_pm_ops),
 };
 
 static int __init fw_ohci_init(void)
