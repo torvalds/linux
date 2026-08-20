@@ -324,8 +324,10 @@ struct pid *alloc_pid(struct pid_namespace *ns, pid_t *arg_set_tid,
 	 * error path may try to wakeup the possibly freed ns->child_reaper.
 	 */
 	retval = -ENOMEM;
-	if (unlikely(!(ns->pid_allocated & PIDNS_ADDING)))
-		goto out_free;
+	for (upid = pid->numbers + ns->level; upid >= pid->numbers; --upid)
+		if (unlikely(!(upid->ns->pid_allocated & PIDNS_ADDING)))
+			goto out_free;
+
 	for (upid = pid->numbers + ns->level; upid >= pid->numbers; --upid) {
 		/* Make the PID visible to find_pid_ns. */
 		idr_replace(&upid->ns->idr, pid, upid->nr);

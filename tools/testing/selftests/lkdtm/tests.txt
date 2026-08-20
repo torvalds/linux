@@ -78,7 +78,7 @@ USERCOPY_STACK_FRAME_TO
 USERCOPY_STACK_FRAME_FROM
 USERCOPY_STACK_BEYOND
 USERCOPY_KERNEL
-STACKLEAK_ERASING OK: the rest of the thread stack is properly erased
+KSTACK_ERASE OK: the rest of the thread stack is properly erased
 CFI_FORWARD_PROTO
 CFI_BACKWARD call trace:|ok: control flow unchanged
 FORTIFY_STRSCPY detected buffer overflow

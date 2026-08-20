@@ -310,6 +310,7 @@ int amdxdna_drm_destroy_hwctx_ioctl(struct drm_device *dev, void *data, struct d
 	if (!drm_dev_enter(dev, &idx))
 		return -ENODEV;
 
+	mutex_lock(&xdna->client_lock);
 	mutex_lock(&xdna->dev_lock);
 	hwctx = xa_erase(&client->hwctx_xa, args->handle);
 	if (!hwctx) {
@@ -328,6 +329,7 @@ int amdxdna_drm_destroy_hwctx_ioctl(struct drm_device *dev, void *data, struct d
 	XDNA_DBG(xdna, "PID %d destroyed HW context %d", client->pid, args->handle);
 out:
 	mutex_unlock(&xdna->dev_lock);
+	mutex_unlock(&xdna->client_lock);
 	drm_dev_exit(idx);
 	return ret;
 }
@@ -382,16 +384,27 @@ int amdxdna_drm_config_hwctx_ioctl(struct drm_device *dev, void *data, struct dr
 		return -EINVAL;
 	}
 
-	guard(mutex)(&xdna->dev_lock);
+	ret = amdxdna_pm_resume_get(xdna);
+	if (ret) {
+		XDNA_ERR(xdna, "Resume failed, ret %d", ret);
+		goto free_buf;
+	}
+
+	mutex_lock(&xdna->client_lock);
+	mutex_lock(&xdna->dev_lock);
 	hwctx = xa_load(&client->hwctx_xa, args->handle);
 	if (!hwctx) {
 		XDNA_DBG(xdna, "PID %d failed to get hwctx %d", client->pid, args->handle);
 		ret = -EINVAL;
-		goto free_buf;
+		goto unlock;
 	}
 
 	ret = xdna->dev_info->ops->hwctx_config(hwctx, args->param_type, val, buf, buf_size);
 
+unlock:
+	mutex_unlock(&xdna->dev_lock);
+	mutex_unlock(&xdna->client_lock);
+	amdxdna_pm_suspend_put(xdna);
 free_buf:
 	kfree(buf);
 	return ret;
@@ -412,16 +425,27 @@ int amdxdna_hwctx_sync_debug_bo(struct amdxdna_client *client, u32 debug_bo_hdl)
 	if (!gobj)
 		return -EINVAL;
 
+	ret = amdxdna_pm_resume_get(xdna);
+	if (ret) {
+		XDNA_ERR(xdna, "Resume failed, ret %d", ret);
+		goto put_obj;
+	}
+
 	abo = to_xdna_obj(gobj);
-	guard(mutex)(&xdna->dev_lock);
+	mutex_lock(&xdna->client_lock);
+	mutex_lock(&xdna->dev_lock);
 	hwctx = xa_load(&client->hwctx_xa, abo->assigned_hwctx);
 	if (!hwctx) {
 		ret = -EINVAL;
-		goto put_obj;
+		goto unlock;
 	}
 
 	ret = xdna->dev_info->ops->hwctx_sync_debug_bo(hwctx, debug_bo_hdl);
 
+unlock:
+	mutex_unlock(&xdna->dev_lock);
+	mutex_unlock(&xdna->client_lock);
+	amdxdna_pm_suspend_put(xdna);
 put_obj:
 	drm_gem_object_put(gobj);
 	return ret;
@@ -448,9 +472,7 @@ static int amdxdna_hwctx_expand_heap(struct amdxdna_hwctx *hwctx)
 			break;
 		}
 
-		mutex_unlock(&client->mm_lock);
 		ret = xdna->dev_info->ops->hwctx_heap_expand(hwctx, heap);
-		mutex_lock(&client->mm_lock);
 		if (ret) {
 			amdxdna_gem_unpin(heap);
 			drm_gem_object_put(to_gobj(heap));
@@ -469,18 +491,26 @@ int amdxdna_update_heap(struct amdxdna_client *client, struct amdxdna_hwctx *hwc
 	unsigned long hwctx_id;
 	int ret;
 
-	guard(mutex)(&client->mm_lock);
+	ret = amdxdna_pm_resume_get_locked(client->xdna);
+	if (ret)
+		return ret;
 
-	if (hwctx)
-		return amdxdna_hwctx_expand_heap(hwctx);
+	mutex_lock(&client->mm_lock);
 
-	amdxdna_for_each_hwctx(client, hwctx_id, hwctx) {
+	if (hwctx) {
 		ret = amdxdna_hwctx_expand_heap(hwctx);
-		if (ret)
-			return ret;
+	} else {
+		amdxdna_for_each_hwctx(client, hwctx_id, hwctx) {
+			ret = amdxdna_hwctx_expand_heap(hwctx);
+			if (ret)
+				break;
+		}
 	}
+	mutex_unlock(&client->mm_lock);
 
-	return 0;
+	amdxdna_pm_suspend_put(client->xdna);
+
+	return ret;
 }
 
 static void
@@ -547,6 +577,7 @@ void amdxdna_sched_job_cleanup(struct amdxdna_sched_job *job)
 	amdxdna_arg_bos_put(job);
 	amdxdna_gem_put_obj(job->cmd_bo);
 	dma_fence_put(job->fence);
+	mmdrop(job->mm);
 }
 
 int amdxdna_cmd_submit(struct amdxdna_client *client,
@@ -560,6 +591,10 @@ int amdxdna_cmd_submit(struct amdxdna_client *client,
 	int ret, idx;
 
 	XDNA_DBG(xdna, "Command BO hdl %d, Arg BO count %d", cmd_bo_hdl, arg_bo_cnt);
+
+	if (!xdna->dev_info->ops->cmd_submit)
+		return -EOPNOTSUPP;
+
 	job = kzalloc_flex(*job, bos, arg_bo_cnt);
 	if (!job)
 		return -ENOMEM;
@@ -573,6 +608,16 @@ int amdxdna_cmd_submit(struct amdxdna_client *client,
 			ret = -EINVAL;
 			goto free_job;
 		}
+	} else if (!drv_cmd) {
+		/*
+		 * Only internal driver commands (drv_cmd != NULL) may omit a
+		 * command BO. A user command submission with the invalid handle
+		 * would leave job->cmd_bo NULL and later fault when the scheduler
+		 * dereferences it in amdxdna_cmd_set_state().
+		 */
+		XDNA_DBG(xdna, "Command BO handle required for user submission");
+		ret = -EINVAL;
+		goto free_job;
 	}
 
 	ret = amdxdna_arg_bos_lookup(client, job, arg_bo_hdls, arg_bo_cnt);
@@ -598,6 +643,7 @@ int amdxdna_cmd_submit(struct amdxdna_client *client,
 
 	job->hwctx = hwctx;
 	job->mm = current->mm;
+	mmgrab(job->mm);
 
 	job->fence = amdxdna_fence_create(hwctx);
 	if (!job->fence) {
@@ -632,6 +678,8 @@ put_bos:
 cmd_put:
 	amdxdna_gem_put_obj(job->cmd_bo);
 free_job:
+	if (job->mm)
+		mmdrop(job->mm);
 	kfree(job);
 	return ret;
 }

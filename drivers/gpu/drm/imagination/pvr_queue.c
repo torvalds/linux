@@ -726,8 +726,6 @@ static void pvr_queue_submit_job_to_cccb(struct pvr_job *job)
 		cmd->partial_render_geom_frag_fence.value = job->done_fence->seqno - 1;
 	}
 
-	trace_pvr_job_submit_fw(job);
-
 	/* Submit job to FW */
 	pvr_cccb_write_command_with_header(cccb, job->fw_ccb_cmd_type, job->cmd_len, job->cmd,
 					   job->id, job->id);
@@ -802,6 +800,9 @@ static struct dma_fence *pvr_queue_run_job(struct drm_sched_job *sched_job)
 						 job->hwrt,
 						 frag_job->fw_ccb_cmd_type ==
 						 ROGUE_FWIF_CCB_CMD_TYPE_FRAG_PR);
+
+		trace_pvr_job_submit_fw(geom_job);
+		trace_pvr_job_submit_fw(frag_job);
 	} else {
 		struct pvr_queue *queue = container_of(job->base.sched,
 						       struct pvr_queue, scheduler);
@@ -809,6 +810,8 @@ static struct dma_fence *pvr_queue_run_job(struct drm_sched_job *sched_job)
 		pvr_cccb_send_kccb_kick(pvr_dev, &queue->cccb,
 					pvr_context_get_fw_addr(job->ctx) + queue->ctx_offset,
 					job->hwrt);
+
+		trace_pvr_job_submit_fw(job);
 	}
 
 	return dma_fence_get(job->done_fence);
@@ -1282,6 +1285,7 @@ struct pvr_queue *pvr_queue_create(struct pvr_context *ctx,
 	const struct drm_sched_init_args sched_args = {
 		.ops = &pvr_queue_sched_ops,
 		.submit_wq = pvr_dev->sched_wq,
+		.num_rqs = 1,
 		.credit_limit = 64 * 1024,
 		.hang_limit = 1,
 		.timeout = msecs_to_jiffies(SCHED_TIMEOUT_PERIOD),

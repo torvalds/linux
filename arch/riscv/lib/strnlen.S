@@ -83,8 +83,13 @@ strnlen_zbb:
 	sub	t3, t3, t2
 	slli	t2, t2, 3
 
-	/* Aligned boundary. */
+	/*
+	 * Aligned boundary.  Use the address of the last valid byte
+	 * (s + count - 1) to avoid loading a word past the count
+	 * boundary in the loop below.  count == 0 is handled above.
+	 */
 	add	t4, a0, a1
+	addi	t4, t4, -1
 	andi	t4, t4, -SZREG
 
 	/* Get the first word.  */
@@ -119,6 +124,9 @@ strnlen_zbb:
 	minu	a0, a0, a1
 
 	bgtu	t3, a0, 2f
+
+	/* All remaining bytes are in the first word, no loop needed. */
+	bgeu	t0, t4, 2f
 
 	/* Prepare for the word comparison loop. */
 	addi	t2, t0, SZREG

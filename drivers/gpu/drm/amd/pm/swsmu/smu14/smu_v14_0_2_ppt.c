@@ -1646,36 +1646,36 @@ static int smu_v14_0_2_init_ppt_limits(struct smu_context *smu)
 	PPTable_t *pptable = table_context->driver_pptable;
 	CustomSkuTable_t *skutable = &pptable->CustomSkuTable;
 	int16_t od_percent_upper = 0, od_percent_lower = 0;
-	uint32_t pp_limit, msg_limit, min_limit, max_limit;
-	int i;
+        uint32_t pp_limit, msg_limit, min_limit, max_limit;
+        int i;
 
-	if (powerplay_table &&
-	    smu_v14_0_2_is_od_feature_supported(smu, PP_OD_FEATURE_PPT_BIT)) {
-		od_percent_upper = pptable->SkuTable.OverDriveLimitsBasicMax.Ppt;
-		od_percent_lower = pptable->SkuTable.OverDriveLimitsBasicMin.Ppt;
-	}
+        if (powerplay_table && 
+            smu_v14_0_2_is_od_feature_supported(smu, PP_OD_FEATURE_PPT_BIT)) {
+                od_percent_upper = pptable->SkuTable.OverDriveLimitsBasicMax.Ppt;
+                od_percent_lower = pptable->SkuTable.OverDriveLimitsBasicMin.Ppt;
+        }
 
-	for (i = SMU_POWER_SOURCE_AC; i < SMU_POWER_SOURCE_COUNT; i++) {
-		pp_limit = i == SMU_POWER_SOURCE_AC ?
-			skutable->SocketPowerLimitAc[PPT_THROTTLER_PPT0] :
-			skutable->SocketPowerLimitDc[PPT_THROTTLER_PPT0];
-		msg_limit = pptable->SkuTable.MsgLimits.Power
-			[PPT_THROTTLER_PPT0][i];
-		min_limit = min(pp_limit, msg_limit);
-		max_limit = max(pp_limit, msg_limit);
+        for (i = SMU_POWER_SOURCE_AC; i < SMU_POWER_SOURCE_COUNT; i++) {
+                pp_limit = i == SMU_POWER_SOURCE_AC ?
+                        skutable->SocketPowerLimitAc[PPT_THROTTLER_PPT0] :
+                        skutable->SocketPowerLimitDc[PPT_THROTTLER_PPT0];
+                msg_limit = pptable->SkuTable.MsgLimits.Power
+                        [PPT_THROTTLER_PPT0][i];
+                min_limit = min(pp_limit, msg_limit);
+                max_limit = max(pp_limit, msg_limit);
 
-		smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].default_value =
-			pp_limit;
-		smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].max = max_limit;
-		smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].min =
-			min_limit * (100 + od_percent_lower) / 100;
-		smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].od_max =
-			max_limit * (100 + od_percent_upper) / 100;
-		smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].od_min =
-			smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].min;
-	}
+                smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].default_value =
+                        pp_limit;
+                smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].max = max_limit;
+                smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].min =
+                        min_limit * (100 + od_percent_lower) / 100;
+                smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].od_max =
+                        max_limit * (100 + od_percent_upper) / 100;
+                smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].od_min =
+                        smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].min;
+        }
 
-	smu->ppt_limits.supported_mask |= BIT(SMU_PPT_LIMIT_PPT0);
+        smu->ppt_limits.supported_mask |= BIT(SMU_PPT_LIMIT_PPT0);
 
 	return 0;
 }

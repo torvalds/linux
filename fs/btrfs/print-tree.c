@@ -449,9 +449,9 @@ void btrfs_print_leaf(const struct extent_buffer *l)
 	nr = btrfs_header_nritems(l);
 
 	btrfs_info(fs_info,
-		   "leaf %llu gen %llu total ptrs %d free space %d owner %llu",
+		   "leaf %llu gen %llu total ptrs %d free space %d owner %lld",
 		   btrfs_header_bytenr(l), btrfs_header_generation(l), nr,
-		   btrfs_leaf_free_space(l), btrfs_header_owner(l));
+		   btrfs_leaf_free_space(l), (s64)btrfs_header_owner(l));
 	print_eb_refs_lock(l);
 	for (i = 0 ; i < nr ; i++) {
 		char key_buf[KEY_TYPE_BUF_SIZE];
@@ -600,10 +600,10 @@ void btrfs_print_tree(const struct extent_buffer *c, bool follow)
 		return;
 	}
 	btrfs_info(fs_info,
-		   "node %llu level %d gen %llu total ptrs %d free spc %u owner %llu",
+		   "node %llu level %d gen %llu total ptrs %d free spc %u owner %lld",
 		   btrfs_header_bytenr(c), level, btrfs_header_generation(c),
 		   nr, (u32)BTRFS_NODEPTRS_PER_BLOCK(fs_info) - nr,
-		   btrfs_header_owner(c));
+		   (s64)btrfs_header_owner(c));
 	print_eb_refs_lock(c);
 	for (i = 0; i < nr; i++) {
 		btrfs_node_key_to_cpu(c, &key, i);

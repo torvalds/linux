@@ -18,6 +18,7 @@ use crate::{
     }, //
 };
 
+#[cfg(CONFIG_HAS_IOMEM)]
 pub mod mem;
 pub mod poll;
 pub mod register;

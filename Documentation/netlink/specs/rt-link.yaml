@@ -1585,31 +1585,31 @@ attribute-sets:
         type: u32
       -
         name: mode
-        type: flag
+        type: u8
       -
         name: guard
-        type: flag
+        type: u8
       -
         name: protect
-        type: flag
+        type: u8
       -
         name: fast-leave
-        type: flag
+        type: u8
       -
         name: learning
-        type: flag
+        type: u8
       -
         name: unicast-flood
-        type: flag
+        type: u8
       -
         name: proxyarp
-        type: flag
+        type: u8
       -
         name: learning-sync
-        type: flag
+        type: u8
       -
         name: proxyarp-wifi
-        type: flag
+        type: u8
       -
         name: root-id
         type: binary
@@ -1656,34 +1656,34 @@ attribute-sets:
         type: pad
       -
         name: mcast-flood
-        type: flag
+        type: u8
       -
         name: mcast-to-ucast
-        type: flag
+        type: u8
       -
         name: vlan-tunnel
-        type: flag
+        type: u8
       -
         name: bcast-flood
-        type: flag
+        type: u8
       -
         name: group-fwd-mask
         type: u16
       -
         name: neigh-suppress
-        type: flag
+        type: u8
       -
         name: isolated
-        type: flag
+        type: u8
       -
         name: backup-port
         type: u32
       -
         name: mrp-ring-open
-        type: flag
+        type: u8
       -
         name: mrp-in-open
-        type: flag
+        type: u8
       -
         name: mcast-eht-hosts-limit
         type: u32
@@ -1692,10 +1692,10 @@ attribute-sets:
         type: u32
       -
         name: locked
-        type: flag
+        type: u8
       -
         name: mab
-        type: flag
+        type: u8
       -
         name: mcast-n-groups
         type: u32
@@ -1704,7 +1704,7 @@ attribute-sets:
         type: u32
       -
         name: neigh-vlan-suppress
-        type: flag
+        type: u8
       -
         name: backup-nhid
         type: u32

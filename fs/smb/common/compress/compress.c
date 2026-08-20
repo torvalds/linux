@@ -95,6 +95,7 @@ static int smb_decompress_lz77_payload(const u8 **src, u32 *slen, u8 **dst,
 }
 
 static int smb_decompress_chained(__le16 alg, bool allow_chained,
+				  bool allow_pattern,
 				  const struct smb2_compression_hdr *hdr,
 				  u32 slen, void *dst, u32 dlen)
 {
@@ -143,6 +144,8 @@ static int smb_decompress_chained(__le16 alg, bool allow_chained,
 			rc = smb_decompress_none(&src, &remaining, &out,
 						 &out_remaining, len);
 		} else if (payload_alg == SMB3_COMPRESS_PATTERN) {
+			if (!allow_pattern)
+				return -EINVAL;
 			rc = smb_decompress_pattern(&src, &remaining, &out,
 						    &out_remaining, len);
 		} else if (payload_alg == alg && alg == SMB3_COMPRESS_LZ77) {
@@ -185,6 +188,7 @@ static int smb_decompress_unchained(__le16 alg,
  * smb_compression_decompress() - decode an SMB2 compression transform
  * @alg: negotiated general-purpose compression algorithm
  * @allow_chained: whether chained transforms were negotiated
+ * @allow_pattern: whether Pattern_V1 payloads were negotiated
  * @src: transform header followed by compressed payload data
  * @slen: total number of bytes available at @src
  * @dst: output buffer for the reconstructed SMB2 message
@@ -197,7 +201,8 @@ static int smb_decompress_unchained(__le16 alg,
  * Return: 0 on success, otherwise a negative errno.
  */
 int smb_compression_decompress(__le16 alg, bool allow_chained,
-			       const void *src, u32 slen, void *dst, u32 dlen)
+			       bool allow_pattern, const void *src, u32 slen,
+			       void *dst, u32 dlen)
 {
 	const struct smb2_compression_hdr *hdr = src;
 
@@ -207,8 +212,8 @@ int smb_compression_decompress(__le16 alg, bool allow_chained,
 		return -EINVAL;
 
 	if (hdr->Flags == cpu_to_le16(SMB2_COMPRESSION_FLAG_CHAINED))
-		return smb_decompress_chained(alg, allow_chained, hdr, slen,
-					      dst, dlen);
+		return smb_decompress_chained(alg, allow_chained, allow_pattern,
+					      hdr, slen, dst, dlen);
 
 	if (hdr->Flags != cpu_to_le16(SMB2_COMPRESSION_FLAG_NONE))
 		return -EINVAL;

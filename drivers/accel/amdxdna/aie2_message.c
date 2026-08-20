@@ -840,7 +840,7 @@ static struct aie2_exec_msg_ops npu_exec_message_ops = {
 static int aie2_init_exec_req(void *req, struct amdxdna_gem_obj *cmd_abo,
 			      size_t *size, u32 *msg_op)
 {
-	struct amdxdna_dev *xdna = cmd_abo->client->xdna;
+	struct amdxdna_dev *xdna = to_xdna_dev(to_gobj(cmd_abo)->dev);
 	int ret;
 	u32 op;
 
@@ -874,7 +874,7 @@ static int
 aie2_cmdlist_fill_slot(void *slot, struct amdxdna_gem_obj *cmd_abo,
 		       size_t *size, u32 *cmd_op)
 {
-	struct amdxdna_dev *xdna = cmd_abo->client->xdna;
+	struct amdxdna_dev *xdna = to_xdna_dev(to_gobj(cmd_abo)->dev);
 	int ret;
 	u32 op;
 

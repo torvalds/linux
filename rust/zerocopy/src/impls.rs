@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (BSD-2-Clause OR Apache-2.0) OR MIT
-
+//
 // Copyright 2024 The Fuchsia Authors
 //
 // Licensed under the 2-Clause BSD License <LICENSE-BSD or
@@ -1359,7 +1359,7 @@ mod simd {
         #[cfg(not(no_zerocopy_aarch64_simd_1_59_0))]
         simd_arch_mod!(
             #[cfg(all(
-                target_arch = "aarch64", 
+                target_arch = "aarch64",
                 any(
                     target_endian = "little",
                     not(no_zerocopy_aarch64_simd_be_1_87_0)

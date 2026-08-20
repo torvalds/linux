@@ -43,20 +43,22 @@ struct aie2_ctx_health {
 
 static inline void aie2_tdr_signal(struct amdxdna_dev *xdna)
 {
-	WRITE_ONCE(xdna->dev_handle->tdr_status, AIE2_TDR_SIGNALED);
+	WRITE_ONCE(xdna->dev_handle->last_signal_ts, jiffies);
 }
 
 static bool aie2_tdr_detect(struct amdxdna_dev *xdna)
 {
 	struct amdxdna_dev_hdl *ndev = xdna->dev_handle;
+	unsigned long last = READ_ONCE(ndev->last_signal_ts);
 
-	if (READ_ONCE(ndev->tdr_status) == AIE2_TDR_WAIT) {
-		XDNA_ERR(xdna, "TDR timeout detected");
-		return true;
-	}
+	if (!tdr_timeout_ms)
+		return false;
 
-	WRITE_ONCE(ndev->tdr_status, AIE2_TDR_WAIT);
-	return false;
+	if (!time_after(jiffies, last + msecs_to_jiffies(tdr_timeout_ms)))
+		return false;
+
+	XDNA_ERR(xdna, "TDR timeout detected");
+	return true;
 }
 
 static void aie2_cmd_release(struct kref *ref)
@@ -434,6 +436,12 @@ out:
 		mmput(job->mm);
 		fence = ERR_PTR(ret);
 	} else {
+		/*
+		 * Command is successfully posted to hardware, update the
+		 * tdr timestamp. The total pending commands are limited.
+		 * So there will not be a case that driver keeps posting
+		 * commands without getting any hardware respond.
+		 */
 		aie2_tdr_signal(hwctx->client->xdna);
 	}
 	trace_xdna_job(sched_job, hwctx->name, "sent to device",
@@ -657,8 +665,11 @@ int aie2_hwctx_init(struct amdxdna_hwctx *hwctx)
 	struct amdxdna_dev *xdna = client->xdna;
 	const struct drm_sched_init_args args = {
 		.ops = &sched_ops,
+		.num_rqs = DRM_SCHED_PRIORITY_COUNT,
 		.credit_limit = HWCTX_MAX_CMDS,
-		.timeout = msecs_to_jiffies(tdr_timeout_ms),
+		.timeout = tdr_timeout_ms ?
+			msecs_to_jiffies(tdr_timeout_ms) :
+			MAX_SCHEDULE_TIMEOUT,
 		.name = "amdxdna_js",
 		.dev = xdna->ddev.dev,
 	};
@@ -875,7 +886,7 @@ static int aie2_hwctx_cu_config(struct amdxdna_hwctx *hwctx, void *buf, u32 size
 	if (!hwctx->cus)
 		return -ENOMEM;
 
-	ret = amdxdna_pm_resume_get_locked(xdna);
+	ret = amdxdna_pm_resume_get(xdna);
 	if (ret)
 		goto free_cus;
 
@@ -900,13 +911,16 @@ free_cus:
 static void aie2_cmd_wait(struct amdxdna_hwctx *hwctx, u64 seq)
 {
 	struct dma_fence *out_fence = aie2_cmd_get_out_fence(hwctx, seq);
+	struct amdxdna_dev *xdna = hwctx->client->xdna;
 
 	if (!out_fence) {
-		XDNA_ERR(hwctx->client->xdna, "Failed to get fence");
+		XDNA_ERR(xdna, "Failed to get fence");
 		return;
 	}
 
+	mutex_unlock(&xdna->dev_lock);
 	dma_fence_wait_timeout(out_fence, false, MAX_SCHEDULE_TIMEOUT);
+	mutex_lock(&xdna->dev_lock);
 	dma_fence_put(out_fence);
 }
 
@@ -1039,22 +1053,36 @@ again:
 	found = false;
 	down_write(&xdna->notifier_lock);
 	list_for_each_entry(mapp, &abo->mem.umap_list, node) {
-		if (mapp->invalid) {
+		/*
+		 * Skip entries that have already been unmapped.
+		 *
+		 * If userspace unmaps the address and later submits I/O using
+		 * it, the IOMMU will reject the access and report a fault.
+		 * Ignore such entries here.
+		 */
+		if (mapp->unmapped)
+			continue;
+
+		if (mapp->invalid && kref_get_unless_zero(&mapp->refcnt)) {
 			found = true;
 			break;
 		}
 	}
 
 	if (!found) {
+		/*
+		 * This also covers the case where all mappings have been
+		 * removed. There are no invalid mappings left to process.
+		 * Any subsequent I/O using the unmapped address will be
+		 * rejected by the IOMMU.
+		 */
 		abo->mem.map_invalid = false;
 		up_write(&xdna->notifier_lock);
 		return 0;
 	}
-	kref_get(&mapp->refcnt);
+
 	up_write(&xdna->notifier_lock);
 
-	XDNA_DBG(xdna, "populate memory range %lx %lx",
-		 mapp->vma->vm_start, mapp->vma->vm_end);
 	mm = mapp->notifier.mm;
 	if (!mmget_not_zero(mm)) {
 		amdxdna_umap_put(mapp);
@@ -1221,10 +1249,6 @@ int aie2_hwctx_heap_expand(struct amdxdna_hwctx *hwctx,
 	u64 addr;
 	int ret;
 
-	ret = amdxdna_pm_resume_get_locked(xdna);
-	if (ret)
-		return ret;
-
 	addr = amdxdna_obj_dma_addr(heap);
 	ret = aie2_add_host_buf(xdna->dev_handle, hwctx->fw_ctx_id,
 				addr, heap->mem.size);
@@ -1232,8 +1256,6 @@ int aie2_hwctx_heap_expand(struct amdxdna_hwctx *hwctx,
 		XDNA_ERR(xdna, "Add heap failed hwctx %s 0x%lx ret %d",
 			 hwctx->name, heap->mem.size, ret);
 	}
-
-	amdxdna_pm_suspend_put(xdna);
 
 	return ret;
 }

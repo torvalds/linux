@@ -298,19 +298,5 @@ void hmac_md5_usingrawkey(const u8 *raw_key, size_t raw_key_len,
 }
 EXPORT_SYMBOL_GPL(hmac_md5_usingrawkey);
 
-#ifdef md5_mod_init_arch
-static int __init md5_mod_init(void)
-{
-	md5_mod_init_arch();
-	return 0;
-}
-subsys_initcall(md5_mod_init);
-
-static void __exit md5_mod_exit(void)
-{
-}
-module_exit(md5_mod_exit);
-#endif
-
 MODULE_DESCRIPTION("MD5 and HMAC-MD5 library functions");
 MODULE_LICENSE("GPL");

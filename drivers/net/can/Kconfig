@@ -40,11 +40,8 @@ config CAN_VXCAN
 	  When one end receives the packet it appears on its pair and vice
 	  versa. The vxcan can be used for cross namespace communication.
 
-	  In opposite to vcan loopback devices the vxcan only forwards CAN
-	  frames to its pair and does *not* provide a local echo of sent
-	  CAN frames. To disable a potential echo in af_can.c the vxcan driver
-	  announces IFF_ECHO in the interface flags. To have a clean start
-	  in each namespace the CAN GW hop counter is set to zero.
+	  To have a clean start in each namespace the CAN GW hop counter is
+	  set to zero.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called vxcan.

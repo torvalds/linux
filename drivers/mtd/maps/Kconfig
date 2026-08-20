@@ -277,6 +277,12 @@ config MTD_PCMCIA_ANONYMOUS
 
 	  If unsure, say N.
 
+config MTD_UCLINUX
+	bool "Generic uClinux RAM/ROM filesystem support"
+	depends on (MTD_RAM=y || MTD_ROM=y) && (!MMU || COLDFIRE)
+	help
+	  Map driver to support image based filesystems for uClinux.
+
 config MTD_PLATRAM
 	tristate "Map driver for platform device RAM (mtd-ram)"
 	select MTD_RAM

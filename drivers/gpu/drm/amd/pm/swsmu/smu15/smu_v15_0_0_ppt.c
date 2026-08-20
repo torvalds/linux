@@ -521,14 +521,14 @@ static int smu_v15_0_0_get_smu_metrics_data(struct smu_context *smu,
 	if (ret < 0)
 		return ret;
 
-	if (ret == 0 &&
-	    metrics_info->metrics[metrics_info->active_idx].IOD.AccumulationCounter !=
-	    metrics_info->metrics[!metrics_info->active_idx].IOD.AccumulationCounter) {
-		/* New sample: active_idx already points to the latest sample. */
-		smu_v15_0_0_compute_all_metrics(metrics_info->avg_metric,
-						&metrics_info->metrics[!metrics_info->active_idx],
-						&metrics_info->metrics[metrics_info->active_idx]);
-	}
+        if (ret == 0 &&
+            metrics_info->metrics[metrics_info->active_idx].IOD.AccumulationCounter !=
+            metrics_info->metrics[!metrics_info->active_idx].IOD.AccumulationCounter) {
+                /* New sample: active_idx already points to the latest sample. */
+                smu_v15_0_0_compute_all_metrics(metrics_info->avg_metric,
+                                                &metrics_info->metrics[!metrics_info->active_idx],
+                                                &metrics_info->metrics[metrics_info->active_idx]);
+        }
 
 	*value = metrics_info->avg_metric[member];
 

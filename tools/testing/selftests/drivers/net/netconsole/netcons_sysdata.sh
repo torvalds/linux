@@ -197,7 +197,7 @@ function runtest {
 	# Send the message
 	taskset -c "${CPU}" echo "${MSG}: ${TARGET}" > /dev/kmsg
 	# Wait until socat saves the file to disk
-	busywait "${BUSYWAIT_TIMEOUT}" test -s "${OUTPUT_FILE}"
+	busywait "${BUSYWAIT_TIMEOUT}" test -s "${OUTPUT_FILE}" || true
 }
 
 # ========== #

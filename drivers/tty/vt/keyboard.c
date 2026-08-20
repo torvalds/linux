@@ -765,16 +765,22 @@ static void k_fn(struct vc_data *vc, unsigned char value, char up_flag)
 /*
  * Compute xterm-style modifier parameter for CSI sequences.
  * Returns 1 + (shift ? 1 : 0) + (alt ? 2 : 0) + (ctrl ? 4 : 0)
+ *
+ * Only the canonical modifier weights are counted. The left/right variants
+ * (KG_SHIFTL, KG_SHIFTR, KG_CTRLL, KG_CTRLR) and KG_ALTGR are commonly
+ * repurposed as keymap layout-group or level selectors rather than as plain
+ * modifiers (for instance XKB-derived keymaps select the layout group with
+ * KG_SHIFTL/KG_SHIFTR), so counting them would encode a spurious modifier.
  */
 static int csi_modifier_param(void)
 {
 	int mod = 1;
 
-	if (shift_state & (BIT(KG_SHIFT) | BIT(KG_SHIFTL) | BIT(KG_SHIFTR)))
+	if (shift_state & BIT(KG_SHIFT))
 		mod += 1;
-	if (shift_state & (BIT(KG_ALT) | BIT(KG_ALTGR)))
+	if (shift_state & BIT(KG_ALT))
 		mod += 2;
-	if (shift_state & (BIT(KG_CTRL) | BIT(KG_CTRLL) | BIT(KG_CTRLR)))
+	if (shift_state & BIT(KG_CTRL))
 		mod += 4;
 	return mod;
 }
@@ -1431,7 +1437,7 @@ static void kbd_keycode(unsigned int keycode, int down, bool hw_raw)
 	struct keyboard_notifier_param param = { .vc = vc, .value = keycode, .down = down };
 	int rc;
 
-	tty = vc->port.tty;
+	tty = tty_port_tty_get(&vc->port);
 
 	if (tty && (!tty->driver_data)) {
 		/* No driver data? Strange. Okay we fix it then. */
@@ -1491,8 +1497,11 @@ static void kbd_keycode(unsigned int keycode, int down, bool hw_raw)
 		 * characters get aren't echoed locally. This makes key repeat
 		 * usable with slow applications and under heavy loads.
 		 */
+		tty_kref_put(tty);
 		return;
 	}
+
+	tty_kref_put(tty);
 
 	param.shift = shift_final = (shift_state | kbd->slockstate) ^ kbd->lockstate;
 	param.ledstate = kbd->ledflagstate;

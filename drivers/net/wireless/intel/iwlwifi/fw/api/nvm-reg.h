@@ -205,6 +205,7 @@ struct iwl_nvm_get_info_phy {
 
 #define IWL_NUM_CHANNELS_V1	51
 #define IWL_NUM_CHANNELS_V2	110
+#define IWL_NUM_CHANNELS_V3	115
 
 /**
  * struct iwl_nvm_get_info_regulatory_v1 - regulatory information
@@ -219,12 +220,12 @@ struct iwl_nvm_get_info_regulatory_v1 {
 } __packed; /* REGULATORY_NVM_GET_INFO_REGULATORY_S_VER_1 */
 
 /**
- * struct iwl_nvm_get_info_regulatory - regulatory information
+ * struct iwl_nvm_get_info_regulatory_v2 - regulatory information
  * @lar_enabled: is LAR enabled
  * @n_channels: number of valid channels in the array
  * @channel_profile: regulatory data of this channel
  */
-struct iwl_nvm_get_info_regulatory {
+struct iwl_nvm_get_info_regulatory_v2 {
 	__le32 lar_enabled;
 	__le32 n_channels;
 	__le32 channel_profile[IWL_NUM_CHANNELS_V2];
@@ -245,6 +246,32 @@ struct iwl_nvm_get_info_rsp_v3 {
 } __packed; /* REGULATORY_NVM_GET_INFO_RSP_API_S_VER_3 */
 
 /**
+ * struct iwl_nvm_get_info_rsp_v4 - response to get NVM data
+ * @general: general NVM data
+ * @mac_sku: data relating to MAC sku
+ * @phy_sku: data relating to PHY sku
+ * @regulatory: regulatory data
+ */
+struct iwl_nvm_get_info_rsp_v4 {
+	struct iwl_nvm_get_info_general general;
+	struct iwl_nvm_get_info_sku mac_sku;
+	struct iwl_nvm_get_info_phy phy_sku;
+	struct iwl_nvm_get_info_regulatory_v2 regulatory;
+} __packed; /* REGULATORY_NVM_GET_INFO_RSP_API_S_VER_4 */
+
+/**
+ * struct iwl_nvm_get_info_regulatory - regulatory information
+ * @lar_enabled: is LAR enabled
+ * @n_channels: number of valid channels in the array
+ * @channel_profile: regulatory data of this channel
+ */
+struct iwl_nvm_get_info_regulatory {
+	__le32 lar_enabled;
+	__le32 n_channels;
+	__le32 channel_profile[IWL_NUM_CHANNELS_V3];
+} __packed; /* REGULATORY_NVM_GET_INFO_REGULATORY_S_VER_3 */
+
+/**
  * struct iwl_nvm_get_info_rsp - response to get NVM data
  * @general: general NVM data
  * @mac_sku: data relating to MAC sku
@@ -256,7 +283,7 @@ struct iwl_nvm_get_info_rsp {
 	struct iwl_nvm_get_info_sku mac_sku;
 	struct iwl_nvm_get_info_phy phy_sku;
 	struct iwl_nvm_get_info_regulatory regulatory;
-} __packed; /* REGULATORY_NVM_GET_INFO_RSP_API_S_VER_4 */
+} __packed; /* REGULATORY_NVM_GET_INFO_RSP_API_S_VER_5 */
 
 /**
  * struct iwl_nvm_access_complete_cmd - NVM_ACCESS commands are completed

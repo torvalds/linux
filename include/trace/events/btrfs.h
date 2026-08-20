@@ -689,6 +689,41 @@ DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_lookup_first,
 	     TP_ARGS(inode, ordered)
 );
 
+/*
+ * The writepage fixup worker deferred a block because this still-running
+ * ordered extent covers it.
+ */
+DEFINE_EVENT(btrfs__ordered_extent, btrfs_writepage_fixup_defer,
+
+	     TP_PROTO(const struct btrfs_inode *inode,
+		      const struct btrfs_ordered_extent *ordered),
+
+	     TP_ARGS(inode, ordered)
+);
+
+/* The writepage fixup worker reserved space for a block and set delalloc. */
+TRACE_EVENT(btrfs_writepage_fixup_reserve,
+
+	TP_PROTO(const struct btrfs_inode *inode, u64 start, u32 len),
+
+	TP_ARGS(inode, start, len),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,	ino		)
+		__field(	u64,	start		)
+		__field(	u32,	len		)
+	),
+
+	TP_fast_assign_btrfs(inode->root->fs_info,
+		__entry->ino	= btrfs_ino(inode);
+		__entry->start	= start;
+		__entry->len	= len;
+	),
+
+	TP_printk_btrfs("ino=%llu start=%llu len=%u",
+			__entry->ino, __entry->start, __entry->len)
+);
+
 DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_split,
 
 	     TP_PROTO(const struct btrfs_inode *inode,

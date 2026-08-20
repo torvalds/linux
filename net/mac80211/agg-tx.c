@@ -915,6 +915,7 @@ void ieee80211_stop_tx_ba_cb(struct sta_info *sta, int tid,
 			     struct tid_ampdu_tx *tid_tx)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	bool ndp = ndp = tid_tx->ndp;
 	bool send_delba = false;
 	bool start_txq = false;
 
@@ -934,6 +935,7 @@ void ieee80211_stop_tx_ba_cb(struct sta_info *sta, int tid,
 		send_delba = true;
 
 	ieee80211_remove_tid_tx(sta, tid);
+	/* tid_tx is now invalid since ieee80211_remove_tid_tx() frees it */
 	start_txq = true;
 
  unlock_sta:
@@ -946,7 +948,7 @@ void ieee80211_stop_tx_ba_cb(struct sta_info *sta, int tid,
 		ieee80211_send_delba(sdata, sta->sta.addr, tid,
 				     WLAN_BACK_INITIATOR,
 				     WLAN_REASON_QSTA_NOT_USE,
-				     tid_tx->ndp);
+				     ndp);
 }
 
 void ieee80211_stop_tx_ba_cb_irqsafe(struct ieee80211_vif *vif,

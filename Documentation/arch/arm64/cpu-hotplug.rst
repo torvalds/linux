@@ -47,11 +47,12 @@ ever have can be described at boot. There are no power-domain considerations
 as such devices are emulated.
 
 CPU Hotplug on virtual systems is supported. It is distinct from physical
-CPU Hotplug as all resources are described as ``present``, but CPUs may be
-marked as disabled by firmware. Only the CPU's online/offline behaviour is
-influenced by firmware. An example is where a virtual machine boots with a
-single CPU, and additional CPUs are added once a cloud orchestrator deploys
-the workload.
+CPU Hotplug as all vCPU resources are statically described in the firmware
+configuration tables (e.g. MADT), meaning their maximum possible count is
+known at boot. However, vCPUs that are not enabled at boot are not marked
+as ``present`` by the kernel until they are hotplugged. An example is where
+a virtual machine boots with a single CPU, and additional CPUs are added
+once a cloud orchestrator deploys the workload.
 
 For a virtual machine, the VMM (e.g. Qemu) plays the part of firmware.
 
@@ -60,16 +61,19 @@ brought online. Firmware can enforce its policy via PSCI's return codes. e.g.
 ``DENIED``.
 
 The ACPI tables must describe all the resources of the virtual machine. CPUs
-that firmware wishes to disable either from boot (or later) should not be
-``enabled`` in the MADT GICC structures, but should have the ``online capable``
-bit set, to indicate they can be enabled later. The boot CPU must be marked as
-``enabled``.  The 'always on' GICR structure must be used to describe the
-redistributors.
+that are hot-pluggable must have the ``online capable`` bit set and the
+``enabled`` bit cleared in the MADT GICC structures to indicate they can be
+enabled later. The boot CPU must be marked as ``enabled`` with its
+``online capable`` bit cleared. The 'always on' GICR structure must be used
+to describe the redistributors.
 
 CPUs described as ``online capable`` but not ``enabled`` can be set to enabled
 by the DSDT's Processor object's _STA method. On virtual systems the _STA method
-must always report the CPU as ``present``. Changes to the firmware policy can
-be notified to the OS via device-check or eject-request.
+must always set the ``ACPI_STA_DEVICE_PRESENT`` bit, while toggling the
+``ACPI_STA_DEVICE_ENABLED`` bit to reflect its plug status. The kernel will
+then dynamically mark the vCPU as ``present`` within the OS when the
+``ACPI_STA_DEVICE_ENABLED`` bit becomes set during hot-add. Changes to the
+firmware policy can be notified to the OS via device-check or eject-request.
 
 CPUs described as ``enabled`` in the static table, should not have their _STA
 modified dynamically by firmware. Soft-restart features such as kexec will

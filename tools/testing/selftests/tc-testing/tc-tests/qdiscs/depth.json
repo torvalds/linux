@@ -1,0 +1,74 @@
+[
+    {
+        "id": "ad43",
+        "name": "Create qdisc hierarchy at maximum depth",
+        "category": [
+            "qdisc",
+            "depth"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DUMMY root handle 1: htb default 1",
+            "$TC class add dev $DUMMY parent 1: classid 1:1 htb rate 10mbit",
+            "$TC qdisc add dev $DUMMY parent 1:1 handle 2: htb default 1",
+            "$TC class add dev $DUMMY parent 2: classid 2:1 htb rate 10mbit",
+            "$TC qdisc add dev $DUMMY parent 2:1 handle 3: htb default 1",
+            "$TC class add dev $DUMMY parent 3: classid 3:1 htb rate 10mbit",
+            "$TC qdisc add dev $DUMMY parent 3:1 handle 4: htb default 1",
+            "$TC class add dev $DUMMY parent 4: classid 4:1 htb rate 10mbit",
+            "$TC qdisc add dev $DUMMY parent 4:1 handle 5: htb default 1",
+            "$TC class add dev $DUMMY parent 5: classid 5:1 htb rate 10mbit",
+            "$TC qdisc add dev $DUMMY parent 5:1 handle 6: htb default 1",
+            "$TC class add dev $DUMMY parent 6: classid 6:1 htb rate 10mbit",
+            "$TC qdisc add dev $DUMMY parent 6:1 handle 7: htb default 1",
+            "$TC class add dev $DUMMY parent 7: classid 7:1 htb rate 10mbit"
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY parent 7:1 handle 8: htb default 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc htb 8: parent 7:1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY root"
+        ]
+    },
+    {
+        "id": "c519",
+        "name": "Reject qdisc hierarchy above maximum depth",
+        "category": [
+            "qdisc",
+            "depth"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DUMMY root handle 1: htb default 1",
+            "$TC class add dev $DUMMY parent 1: classid 1:1 htb rate 10mbit",
+            "$TC qdisc add dev $DUMMY parent 1:1 handle 2: htb default 1",
+            "$TC class add dev $DUMMY parent 2: classid 2:1 htb rate 10mbit",
+            "$TC qdisc add dev $DUMMY parent 2:1 handle 3: htb default 1",
+            "$TC class add dev $DUMMY parent 3: classid 3:1 htb rate 10mbit",
+            "$TC qdisc add dev $DUMMY parent 3:1 handle 4: htb default 1",
+            "$TC class add dev $DUMMY parent 4: classid 4:1 htb rate 10mbit",
+            "$TC qdisc add dev $DUMMY parent 4:1 handle 5: htb default 1",
+            "$TC class add dev $DUMMY parent 5: classid 5:1 htb rate 10mbit",
+            "$TC qdisc add dev $DUMMY parent 5:1 handle 6: htb default 1",
+            "$TC class add dev $DUMMY parent 6: classid 6:1 htb rate 10mbit",
+            "$TC qdisc add dev $DUMMY parent 6:1 handle 7: htb default 1",
+            "$TC class add dev $DUMMY parent 7: classid 7:1 htb rate 10mbit",
+            "$TC qdisc add dev $DUMMY parent 7:1 handle 8: htb default 1",
+            "$TC class add dev $DUMMY parent 8: classid 8:1 htb rate 10mbit"
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY parent 8:1 handle 9: htb default 1",
+        "expExitCode": "2",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc htb 9:",
+        "matchCount": "0",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY root"
+        ]
+    }
+]

@@ -536,6 +536,8 @@ int snp_prepare(void)
 		goto unlock;
 	}
 
+	wbinvd_on_all_cpus();
+
 	/*
 	 * MtrrFixDramModEn is not shared between threads on a core,
 	 * therefore it must be set on all CPUs prior to enabling SNP.

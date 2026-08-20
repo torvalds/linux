@@ -84,6 +84,8 @@ struct gaokun_ucsi_port {
 	struct auxiliary_device *bridge;
 
 	struct typec_mux *typec_mux;
+	struct typec_mux_state state;
+	struct typec_altmode dp_alt;
 
 	int idx;
 	enum gaokun_ucsi_ccx ccx;
@@ -292,24 +294,22 @@ static int gaokun_ucsi_refresh(struct gaokun_ucsi *uec)
 static void gaokun_ucsi_handle_usb_mode(struct gaokun_ucsi_port *port)
 {
 	struct gaokun_ucsi *uec = port->ucsi;
-	struct typec_mux_state state = {};
-	struct typec_altmode dp_alt = {};
 	int idx = port->idx, ret;
 
 	/*
 	 * For every typec port on this platform, the only mode-switch is
 	 * controlled by its qmp combo phy which consumes svid and mode only.
 	 */
-	dp_alt.svid = port->svid;
-	state.mode = port->mode;
-	state.alt = &dp_alt;
+	port->dp_alt.svid = port->svid;
+	port->state.mode = port->mode;
+	port->state.alt = &port->dp_alt;
 
 	if (idx >= uec->num_ports) {
 		dev_warn(uec->dev, "altmode port out of range: %d\n", idx);
 		return;
 	}
 
-	ret = typec_mux_set(port->typec_mux, &state);
+	ret = typec_mux_set(port->typec_mux, &port->state);
 	if (ret)
 		dev_err(uec->dev, "failed to set mux %d\n", ret);
 

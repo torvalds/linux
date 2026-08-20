@@ -601,7 +601,6 @@ static void lan966x_vcap_admin_free(struct vcap_admin *admin)
 	kfree(admin->cache.keystream);
 	kfree(admin->cache.maskstream);
 	kfree(admin->cache.actionstream);
-	mutex_destroy(&admin->lock);
 	kfree(admin);
 }
 
@@ -615,7 +614,7 @@ lan966x_vcap_admin_alloc(struct lan966x *lan966x, struct vcap_control *ctrl,
 	if (!admin)
 		return ERR_PTR(-ENOMEM);
 
-	mutex_init(&admin->lock);
+	admin->vctrl = ctrl;
 	INIT_LIST_HEAD(&admin->list);
 	INIT_LIST_HEAD(&admin->rules);
 	INIT_LIST_HEAD(&admin->enabled);
@@ -721,6 +720,7 @@ int lan966x_vcap_init(struct lan966x *lan966x)
 	ctrl->ops = &lan966x_vcap_ops;
 
 	INIT_LIST_HEAD(&ctrl->list);
+	mutex_init(&ctrl->lock);
 	for (int i = 0; i < ARRAY_SIZE(lan966x_vcap_inst_cfg); ++i) {
 		cfg = &lan966x_vcap_inst_cfg[i];
 
@@ -780,5 +780,6 @@ void lan966x_vcap_deinit(struct lan966x *lan966x)
 		lan966x_vcap_admin_free(admin);
 	}
 
+	mutex_destroy(&ctrl->lock);
 	kfree(ctrl);
 }

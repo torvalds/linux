@@ -2127,6 +2127,9 @@ static int btintel_pcie_send_frame(struct hci_dev *hdev,
 	if (test_bit(BTINTEL_PCIE_CORE_HALTED, &data->flags))
 		return -ENODEV;
 
+	if (test_bit(BTINTEL_PCIE_RECOVERY_IN_PROGRESS, &data->flags))
+		return -ENODEV;
+
 	/* Due to the fw limitation, the type header of the packet should be
 	 * 4 bytes unlike 1 byte for UART. In UART, the firmware can read
 	 * the first byte to get the packet type and redirect the rest of data
@@ -2485,7 +2488,6 @@ static void btintel_pcie_inc_recovery_count(struct pci_dev *pdev,
 	}
 }
 
-static int btintel_pcie_setup_hdev(struct btintel_pcie_data *data);
 static void btintel_pcie_reset(struct hci_dev *hdev);
 
 static int btintel_pcie_acpi_reset_method(struct btintel_pcie_data *data)
@@ -2596,12 +2598,45 @@ static void btintel_pcie_perform_pldr(struct btintel_pcie_data *data)
 	}
 }
 
+/*
+ * Issue a Function Level Reset and hand teardown/re-init off to the PCI
+ * core via device_reprobe(), mirroring the PLDR path's contract.
+ *
+ * Caller must hold pci_lock_rescan_remove() and must have already
+ * disabled interrupts and drained both rx_work and coredump_work.
+ */
+static int btintel_pcie_perform_flr(struct btintel_pcie_data *data)
+{
+	struct pci_dev *pdev = data->pdev;
+	int err;
+
+	/* pci_try_reset_function() avoids the device_lock ABBA against
+	 * btintel_pcie_remove(): .remove() runs with device_lock held and
+	 * then waits for this work via disable_work_sync(); the blocking
+	 * pci_reset_function() would deadlock by trying to re-acquire
+	 * device_lock here.
+	 */
+	err = pci_try_reset_function(pdev);
+	if (err) {
+		BT_ERR("Failed resetting the pcie device (%d)", err);
+		return err;
+	}
+
+	/* device_reprobe() always detaches the driver first (running
+	 * .remove(), which frees 'data'); any re-probe failure leaves the
+	 * device unbound but 'data' is already gone, so just log it.
+	 */
+	if (device_reprobe(&pdev->dev))
+		BT_ERR("BT reprobe failed for BDF:%s", pci_name(pdev));
+
+	return 0;
+}
+
 static void btintel_pcie_reset_work(struct work_struct *wk)
 {
 	struct btintel_pcie_data *data =
 		container_of(wk, struct btintel_pcie_data, reset_work);
 	struct pci_dev *pdev = data->pdev;
-	int err;
 
 	pci_lock_rescan_remove();
 
@@ -2621,60 +2656,27 @@ static void btintel_pcie_reset_work(struct work_struct *wk)
 	disable_work_sync(&data->coredump_work);
 
 	bt_dev_dbg(data->hdev, "Release bluetooth interface");
+
+	/* Both reset paths follow the same contract: on success they
+	 * destroy 'data' via device_reprobe() (a fresh probe re-INIT_WORKs
+	 * the coredump_work with disable count 0), so enable_work() must
+	 * NOT be called on the success path. Only the FLR path can fail
+	 * with 'data' still alive, in which case we balance the
+	 * disable_work_sync() above so a later successful reset is not
+	 * permanently blocked.
+	 *
+	 * pci_lock_rescan_remove() (held above) serializes against PCI
+	 * device addition/removal (hotplug), so no device can be added to
+	 * or removed from the bus list while this code runs.
+	 */
 	if (data->reset_type == BTINTEL_PCIE_IOSF_PRR_PLDR) {
-		/* This function holds pci_lock_rescan_remove(), which acquires
-		 * pci_rescan_remove_lock. This mutex serializes against PCI device
-		 * addition/removal (hotplug), so no device can be added to or
-		 * removed from the bus list while this code runs.
-		 *
-		 * device_reprobe() inside btintel_pcie_perform_pldr() destroys
-		 * 'data' via .remove(); a fresh probe re-INIT_WORKs the
-		 * coredump_work with disable count 0, so we must not call
-		 * enable_work() on this path.
-		 */
 		btintel_pcie_perform_pldr(data);
 		goto out;
 	}
-	btintel_pcie_release_hdev(data);
 
-	/* Use pci_try_reset_function() rather than pci_reset_function() to
-	 * avoid an ABBA deadlock against btintel_pcie_remove(): the PCI core
-	 * calls .remove() with device_lock held, and remove() then waits for
-	 * this work via cancel_work_sync(); pci_reset_function() would in
-	 * turn try to acquire the same device_lock, deadlocking both paths.
-	 */
-	err = pci_try_reset_function(pdev);
-	if (err) {
-		BT_ERR("Failed resetting the pcie device (%d)", err);
-		goto out_enable;
-	}
+	if (btintel_pcie_perform_flr(data))
+		enable_work(&data->coredump_work);
 
-	btintel_pcie_enable_interrupts(data);
-	btintel_pcie_config_msix(data);
-
-	err = btintel_pcie_enable_bt(data);
-	if (err) {
-		BT_ERR("Failed to enable bluetooth hardware after reset (%d)",
-		       err);
-		goto out_enable;
-	}
-
-	btintel_pcie_reset_ia(data);
-	btintel_pcie_start_rx(data);
-	data->flags = 0;
-
-	err = btintel_pcie_setup_hdev(data);
-	if (err) {
-		BT_ERR("Failed registering hdev (%d)", err);
-		goto out_enable;
-	}
-
-out_enable:
-	/* Balance disable_work_sync() above on every exit. Leaving the
-	 * counter incremented on a failed reset would permanently disable
-	 * coredump_work even after a later successful reset.
-	 */
-	enable_work(&data->coredump_work);
 out:
 	pci_dev_put(pdev);
 	pci_unlock_rescan_remove();

@@ -53,8 +53,23 @@
 #ifdef CONFIG_FAULT_INJECTION
 #include <linux/fault-inject.h>
 static DECLARE_FAULT_ATTR(backup_fault_inject);
+
+/*
+ * Exposed to ttm_backup.c so a mid-compound subpage can be made to fail
+ * with -ENOMEM, exercising the reactive split-and-retry fallback in
+ * ttm_pool_backup() for high-order backups.
+ */
+bool ttm_backup_fault_inject_folio(void)
+{
+	return should_fail(&backup_fault_inject, 1);
+}
 #else
 #define should_fail(...) false
+
+bool ttm_backup_fault_inject_folio(void)
+{
+	return false;
+}
 #endif
 
 /**
@@ -492,7 +507,7 @@ static void ttm_pool_split_for_swap(struct ttm_pool *pool, struct page *p)
 /**
  * DOC: Partial backup and restoration of a struct ttm_tt.
  *
- * Swapout using ttm_backup_backup_page() and swapin using
+ * Swapout using ttm_backup_backup_folio() and swapin using
  * ttm_backup_copy_page() may fail.
  * The former most likely due to lack of swap-space or memory, the latter due
  * to lack of memory or because of signal interruption during waits.
@@ -1050,12 +1065,12 @@ long ttm_pool_backup(struct ttm_pool *pool, struct ttm_tt *tt,
 {
 	struct file *backup = tt->backup;
 	struct page *page;
-	unsigned long handle;
 	gfp_t alloc_gfp;
 	gfp_t gfp;
 	int ret = 0;
 	pgoff_t shrunken = 0;
-	pgoff_t i, num_pages;
+	pgoff_t i, j, num_pages, npages;
+	pgoff_t nr_backed;
 
 	if (WARN_ON(ttm_tt_is_backed_up(tt)))
 		return -EINVAL;
@@ -1065,9 +1080,31 @@ long ttm_pool_backup(struct ttm_pool *pool, struct ttm_tt *tt,
 		return -EBUSY;
 
 #ifdef CONFIG_X86
-	/* Anything returned to the system needs to be cached. */
-	if (tt->caching != ttm_cached)
-		set_pages_array_wb(tt->pages, tt->num_pages);
+	/* Anything returned to the system needs to be cached. Walk allocations
+	 * skipping NULL pages and issue set_pages_array_wb() per contiguous run.
+	 */
+	if (tt->caching != ttm_cached) {
+		pgoff_t run_start = 0, run_count = 0;
+
+		for (i = 0; i < tt->num_pages; i += num_pages) {
+			page = tt->pages[i];
+			if (unlikely(!page || ttm_backup_page_ptr_is_handle(page))) {
+				if (run_count) {
+					set_pages_array_wb(&tt->pages[run_start],
+							   run_count);
+					run_count = 0;
+				}
+				num_pages = 1;
+				continue;
+			}
+			num_pages = 1UL << ttm_pool_page_order(pool, page);
+			if (!run_count)
+				run_start = i;
+			run_count += num_pages;
+		}
+		if (run_count)
+			set_pages_array_wb(&tt->pages[run_start], run_count);
+	}
 #endif
 
 	if (tt->dma_address || flags->purge) {
@@ -1075,7 +1112,7 @@ long ttm_pool_backup(struct ttm_pool *pool, struct ttm_tt *tt,
 			unsigned int order;
 
 			page = tt->pages[i];
-			if (unlikely(!page)) {
+			if (unlikely(!page || ttm_backup_page_ptr_is_handle(page))) {
 				num_pages = 1;
 				continue;
 			}
@@ -1111,26 +1148,74 @@ long ttm_pool_backup(struct ttm_pool *pool, struct ttm_tt *tt,
 	if (IS_ENABLED(CONFIG_FAULT_INJECTION) && should_fail(&backup_fault_inject, 1))
 		num_pages = DIV_ROUND_UP(num_pages, 2);
 
-	for (i = 0; i < num_pages; ++i) {
-		s64 shandle;
+	for (i = 0; i < num_pages; i += npages) {
+		unsigned int order;
+		s64 handle;
 
+		npages = 1;
 		page = tt->pages[i];
 		if (unlikely(!page))
 			continue;
 
-		ttm_pool_split_for_swap(pool, page);
+		/* Already-handled entry from a previous attempt. */
+		if (unlikely(ttm_backup_page_ptr_is_handle(page)))
+			continue;
 
-		shandle = ttm_backup_backup_page(backup, page, flags->writeback, i,
-						 gfp, alloc_gfp);
-		if (shandle < 0) {
-			/* We allow partially shrunken tts */
-			ret = shandle;
+		order = ttm_pool_page_order(pool, page);
+		npages = 1UL << order;
+
+		/*
+		 * We don't allow dipping kernel reserves for high order backup
+		 */
+		if (order)
+			alloc_gfp |= __GFP_NOMEMALLOC;
+		else
+			alloc_gfp &= ~__GFP_NOMEMALLOC;
+
+		/*
+		 * Back up the compound atomically at its native order. If
+		 * fault injection truncated num_pages mid-compound, skip
+		 * the partial tail rather than splitting.
+		 */
+		if (unlikely(i + npages > num_pages))
+			break;
+
+		handle = ttm_backup_backup_folio(backup, page_folio(page),
+						 order, flags->writeback, i,
+						 gfp, alloc_gfp,
+						 &nr_backed);
+		/*
+		 * Zero progress on this compound (whether order 0 or a
+		 * high-order compound that failed before backing up even
+		 * its first subpage) is unrecoverable: bail out rather than
+		 * looping forever with npages == nr_backed == 0 below.
+		 */
+		if (unlikely(handle < 0 && !nr_backed)) {
+			ret = handle;
 			break;
 		}
-		handle = shandle;
-		tt->pages[i] = ttm_backup_handle_to_page_ptr(handle);
-		__free_pages_gpu_account(page, 0, false);
-		shrunken++;
+
+		for (j = 0; j < nr_backed; j++)
+			tt->pages[i + j] = ttm_backup_handle_to_page_ptr(handle + j);
+
+		shrunken += nr_backed;
+
+		if (unlikely(nr_backed < npages)) {
+			/*
+			 * Partial OOM backup: split the compound and free the
+			 * subpages whose content is now in shmem. Continue the
+			 * loop from the first un-backed order-0 page.
+			 */
+			ttm_pool_split_for_swap(pool, page);
+			for (j = 0; j < nr_backed; j++)
+				__free_pages_gpu_account(page + j, 0, false);
+			npages = nr_backed;
+			continue;
+		}
+
+		/* Fully backed up: free at native order. */
+		page->private = 0;
+		__free_pages_gpu_account(page, order, false);
 	}
 
 	return shrunken ? shrunken : ret;

@@ -2080,6 +2080,15 @@ static int blkfront_resume(struct xenbus_device *dev)
 				continue;
 
 			/*
+			 * For requests split across multiple slots, process the
+			 * underlying request only once: skip the linked, sg-less
+			 * secondary slot.
+			 */
+			if (shadow[j].associated_id != NO_ASSOCIATED_ID &&
+			    shadow[j].num_sg == 0)
+				continue;
+
+			/*
 			 * Get the bios in the request so we can re-queue them.
 			 */
 			if (req_op(shadow[j].request) == REQ_OP_FLUSH ||

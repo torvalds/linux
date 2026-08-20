@@ -257,7 +257,7 @@ static void tbstream_ring_free(struct tbstream_ring *ring)
 
 		if (sf->frame.buffer_phy)
 			dma_unmap_page(dma_dev, sf->frame.buffer_phy,
-				       tb_ring_frame_size(&sf->frame), dir);
+				       TB_MAX_FRAME_SIZE, dir);
 		sf->frame.buffer_phy = 0;
 		if (sf->page)
 			__free_page(sf->page);

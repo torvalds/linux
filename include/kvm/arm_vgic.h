@@ -247,9 +247,6 @@ struct vgic_irq {
 					 * affinity reg (v3).
 					 */
 
-	bool pending_release:1;		/* Used for LPIs only, unreferenced IRQ
-					 * pending a release */
-
 	bool pending_latch:1;		/* The pending latch state used to calculate
 					 * the pending state for both level
 					 * and edge triggered IRQs. */

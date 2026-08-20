@@ -15,6 +15,7 @@
 	.non_shared_ant = ANT_B,					\
 	.vht_mu_mimo_supported = true,					\
 	.uhb_supported = true,						\
+	.unii9_supported = true,					\
 	.eht_supported = true,						\
 	.uhr_supported = true,						\
 	.num_rbds = IWL_NUM_RBDS_EHT,					\

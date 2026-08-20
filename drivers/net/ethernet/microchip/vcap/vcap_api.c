@@ -934,6 +934,16 @@ static bool vcap_rule_exists(struct vcap_control *vctrl, u32 id)
 	return false;
 }
 
+void vcap_lock(struct vcap_admin *admin)
+{
+	mutex_lock(&admin->vctrl->lock);
+}
+
+void vcap_unlock(struct vcap_admin *admin)
+{
+	mutex_unlock(&admin->vctrl->lock);
+}
+
 /* Find a rule with a provided rule id return a locked vcap */
 static struct vcap_rule_internal *
 vcap_get_locked_rule(struct vcap_control *vctrl, u32 id)
@@ -943,11 +953,11 @@ vcap_get_locked_rule(struct vcap_control *vctrl, u32 id)
 
 	/* Look for the rule id in all vcaps */
 	list_for_each_entry(admin, &vctrl->list, list) {
-		mutex_lock(&admin->lock);
+		vcap_lock(admin);
 		list_for_each_entry(ri, &admin->rules, list)
 			if (ri->data.id == id)
 				return ri;
-		mutex_unlock(&admin->lock);
+		vcap_unlock(admin);
 	}
 	return NULL;
 }
@@ -961,14 +971,14 @@ int vcap_lookup_rule_by_cookie(struct vcap_control *vctrl, u64 cookie)
 
 	/* Look for the rule id in all vcaps */
 	list_for_each_entry(admin, &vctrl->list, list) {
-		mutex_lock(&admin->lock);
+		vcap_lock(admin);
 		list_for_each_entry(ri, &admin->rules, list) {
 			if (ri->data.cookie == cookie) {
 				id = ri->data.id;
 				break;
 			}
 		}
-		mutex_unlock(&admin->lock);
+		vcap_unlock(admin);
 		if (id)
 			return id;
 	}
@@ -985,11 +995,11 @@ int vcap_admin_rule_count(struct vcap_admin *admin, int cid)
 	int count = 0;
 
 	list_for_each_entry(elem, &admin->rules, list) {
-		mutex_lock(&admin->lock);
+		vcap_lock(admin);
 		if (elem->data.vcap_chain_id >= min_cid &&
 		    elem->data.vcap_chain_id < max_cid)
 			++count;
-		mutex_unlock(&admin->lock);
+		vcap_unlock(admin);
 	}
 	return count;
 }
@@ -2266,7 +2276,7 @@ int vcap_add_rule(struct vcap_rule *rule)
 	if (ret)
 		return ret;
 	/* Insert the new rule in the list of vcap rules */
-	mutex_lock(&ri->admin->lock);
+	vcap_lock(ri->admin);
 
 	vcap_rule_set_state(ri);
 	ret = vcap_insert_rule(ri, &move);
@@ -2302,7 +2312,7 @@ int vcap_add_rule(struct vcap_rule *rule)
 		goto out;
 	}
 out:
-	mutex_unlock(&ri->admin->lock);
+	vcap_unlock(ri->admin);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(vcap_add_rule);
@@ -2330,7 +2340,7 @@ struct vcap_rule *vcap_alloc_rule(struct vcap_control *vctrl,
 	if (vctrl->vcaps[admin->vtype].rows == 0)
 		return ERR_PTR(-EINVAL);
 
-	mutex_lock(&admin->lock);
+	vcap_lock(admin);
 	/* Check if a rule with this id already exists */
 	if (vcap_rule_exists(vctrl, id)) {
 		err = -EINVAL;
@@ -2369,13 +2379,13 @@ struct vcap_rule *vcap_alloc_rule(struct vcap_control *vctrl,
 		goto out_free;
 	}
 
-	mutex_unlock(&admin->lock);
+	vcap_unlock(admin);
 	return (struct vcap_rule *)ri;
 
 out_free:
 	kfree(ri);
 out_unlock:
-	mutex_unlock(&admin->lock);
+	vcap_unlock(admin);
 	return ERR_PTR(err);
 
 }
@@ -2446,7 +2456,7 @@ struct vcap_rule *vcap_get_rule(struct vcap_control *vctrl, u32 id)
 		return ERR_PTR(-ENOENT);
 
 	rule = vcap_decode_rule(elem);
-	mutex_unlock(&elem->admin->lock);
+	vcap_unlock(elem->admin);
 	return rule;
 }
 EXPORT_SYMBOL_GPL(vcap_get_rule);
@@ -2483,7 +2493,7 @@ int vcap_mod_rule(struct vcap_rule *rule)
 	err =  vcap_write_counter(ri, &ctr);
 
 out:
-	mutex_unlock(&ri->admin->lock);
+	vcap_unlock(ri->admin);
 	return err;
 }
 EXPORT_SYMBOL_GPL(vcap_mod_rule);
@@ -2570,7 +2580,7 @@ int vcap_del_rule(struct vcap_control *vctrl, struct net_device *ndev, u32 id)
 		admin->last_used_addr = elem->addr;
 	}
 
-	mutex_unlock(&admin->lock);
+	vcap_unlock(admin);
 	return err;
 }
 EXPORT_SYMBOL_GPL(vcap_del_rule);
@@ -2585,7 +2595,7 @@ int vcap_del_rules(struct vcap_control *vctrl, struct vcap_admin *admin)
 	if (ret)
 		return ret;
 
-	mutex_lock(&admin->lock);
+	vcap_lock(admin);
 	list_for_each_entry_safe(ri, next_ri, &admin->rules, list) {
 		vctrl->ops->init(ri->ndev, admin, ri->addr, ri->size);
 		list_del(&ri->list);
@@ -2598,7 +2608,7 @@ int vcap_del_rules(struct vcap_control *vctrl, struct vcap_admin *admin)
 		list_del(&eport->list);
 		kfree(eport);
 	}
-	mutex_unlock(&admin->lock);
+	vcap_unlock(admin);
 
 	return 0;
 }
@@ -3016,7 +3026,7 @@ static int vcap_enable_rules(struct vcap_control *vctrl,
 			continue;
 
 		/* Found the admin, now find the offloadable rules */
-		mutex_lock(&admin->lock);
+		vcap_lock(admin);
 		list_for_each_entry(ri, &admin->rules, list) {
 			/* Is the rule in the lookup defined by the chain */
 			if (!(ri->data.vcap_chain_id >= chain &&
@@ -3034,7 +3044,7 @@ static int vcap_enable_rules(struct vcap_control *vctrl,
 			if (err)
 				break;
 		}
-		mutex_unlock(&admin->lock);
+		vcap_unlock(admin);
 		if (err)
 			break;
 	}
@@ -3074,7 +3084,7 @@ static int vcap_disable_rules(struct vcap_control *vctrl,
 			continue;
 
 		/* Found the admin, now find the rules on the chain */
-		mutex_lock(&admin->lock);
+		vcap_lock(admin);
 		list_for_each_entry(ri, &admin->rules, list) {
 			if (ri->data.vcap_chain_id != chain)
 				continue;
@@ -3089,7 +3099,7 @@ static int vcap_disable_rules(struct vcap_control *vctrl,
 			if (err)
 				break;
 		}
-		mutex_unlock(&admin->lock);
+		vcap_unlock(admin);
 		if (err)
 			break;
 	}
@@ -3133,9 +3143,9 @@ static int vcap_enable(struct vcap_control *vctrl, struct net_device *ndev,
 	eport->cookie = cookie;
 	eport->src_cid = src_cid;
 	eport->dst_cid = dst_cid;
-	mutex_lock(&admin->lock);
+	vcap_lock(admin);
 	list_add_tail(&eport->list, &admin->enabled);
-	mutex_unlock(&admin->lock);
+	vcap_unlock(admin);
 
 	if (vcap_path_exist(vctrl, ndev, src_cid)) {
 		/* Enable chained lookups */
@@ -3185,9 +3195,9 @@ static int vcap_disable(struct vcap_control *vctrl, struct net_device *ndev,
 		dst_cid = vcap_get_next_chain(vctrl, ndev, dst_cid);
 	}
 
-	mutex_lock(&found->lock);
+	vcap_lock(found);
 	list_del(&eport->list);
-	mutex_unlock(&found->lock);
+	vcap_unlock(found);
 	kfree(eport);
 	return 0;
 }
@@ -3270,9 +3280,9 @@ int vcap_rule_set_counter(struct vcap_rule *rule, struct vcap_counter *ctr)
 		return -EINVAL;
 	}
 
-	mutex_lock(&ri->admin->lock);
+	vcap_lock(ri->admin);
 	err = vcap_write_counter(ri, ctr);
-	mutex_unlock(&ri->admin->lock);
+	vcap_unlock(ri->admin);
 
 	return err;
 }
@@ -3291,9 +3301,9 @@ int vcap_rule_get_counter(struct vcap_rule *rule, struct vcap_counter *ctr)
 		return -EINVAL;
 	}
 
-	mutex_lock(&ri->admin->lock);
+	vcap_lock(ri->admin);
 	err = vcap_read_counter(ri, ctr);
-	mutex_unlock(&ri->admin->lock);
+	vcap_unlock(ri->admin);
 
 	return err;
 }
@@ -3395,7 +3405,7 @@ int vcap_get_rule_count_by_cookie(struct vcap_control *vctrl,
 
 	/* Iterate all rules in each VCAP instance */
 	list_for_each_entry(admin, &vctrl->list, list) {
-		mutex_lock(&admin->lock);
+		vcap_lock(admin);
 		list_for_each_entry(ri, &admin->rules, list) {
 			if (ri->data.cookie != cookie)
 				continue;
@@ -3412,12 +3422,12 @@ int vcap_get_rule_count_by_cookie(struct vcap_control *vctrl,
 			if (err)
 				goto unlock;
 		}
-		mutex_unlock(&admin->lock);
+		vcap_unlock(admin);
 	}
 	return err;
 
 unlock:
-	mutex_unlock(&admin->lock);
+	vcap_unlock(admin);
 	return err;
 }
 EXPORT_SYMBOL_GPL(vcap_get_rule_count_by_cookie);

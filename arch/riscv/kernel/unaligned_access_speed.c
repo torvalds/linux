@@ -289,7 +289,7 @@ free:
 }
 
 /* Measure unaligned access speed on all CPUs present at boot in parallel. */
-static int __init vec_check_unaligned_access_speed_all_cpus(void *unused __always_unused)
+static int vec_check_unaligned_access_speed_all_cpus(void *unused __always_unused)
 {
 	schedule_on_each_cpu(check_vector_unaligned_access);
 	riscv_hwprobe_complete_async_probe();
@@ -297,7 +297,7 @@ static int __init vec_check_unaligned_access_speed_all_cpus(void *unused __alway
 	return 0;
 }
 #else /* CONFIG_RISCV_PROBE_VECTOR_UNALIGNED_ACCESS */
-static int __init vec_check_unaligned_access_speed_all_cpus(void *unused __always_unused)
+static int vec_check_unaligned_access_speed_all_cpus(void *unused __always_unused)
 {
 	return 0;
 }
@@ -411,4 +411,10 @@ static int __init check_unaligned_access_all_cpus(void)
 	return 0;
 }
 
-late_initcall(check_unaligned_access_all_cpus);
+/*
+ * Run after clocksource_done_booting() so measure_cycles() uses a stable
+ * clocksource, but before rootfs_initcall() enables usermode helpers. Those
+ * helpers can reach hwprobe and populate the vDSO cache, so async hwprobe
+ * probes must be registered first.
+ */
+fs_initcall_sync(check_unaligned_access_all_cpus);

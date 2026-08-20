@@ -452,9 +452,6 @@ static void rk_combphy_common_cfg_ssc(struct rockchip_combphy_priv *priv, unsign
 	struct device_node *np = priv->dev->of_node;
 	u32 val;
 
-	if (!priv->enable_ssc)
-		return;
-
 	/* Set SSC downward spread spectrum for PCIe and USB3 */
 	if (priv->type == PHY_TYPE_PCIE || priv->type == PHY_TYPE_USB3) {
 		val = FIELD_PREP(RK3568_PHYREG32_SSC_MASK, RK3568_PHYREG32_SSC_DOWNWARD);
@@ -470,6 +467,9 @@ static void rk_combphy_common_cfg_ssc(struct rockchip_combphy_priv *priv, unsign
 		rockchip_combphy_updatel(priv, RK3568_PHYREG32_SSC_MASK, val,
 					 RK3568_PHYREG32);
 	}
+
+	if (!priv->enable_ssc)
+		return;
 
 	/* Enable SSC */
 	val = readl(priv->mmio + RK3568_PHYREG8);

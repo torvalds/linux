@@ -848,8 +848,10 @@ int rsi_hal_load_key(struct rsi_common *common,
 		} else {
 			memcpy(&set_key->key[0][0], data, key_len);
 		}
-		memcpy(set_key->tx_mic_key, &data[16], 8);
-		memcpy(set_key->rx_mic_key, &data[24], 8);
+		if (cipher == WLAN_CIPHER_SUITE_TKIP) {
+			memcpy(set_key->tx_mic_key, &data[16], 8);
+			memcpy(set_key->rx_mic_key, &data[24], 8);
+		}
 	} else {
 		memset(&set_key[FRAME_DESC_SZ], 0, frame_len - FRAME_DESC_SZ);
 	}
@@ -1909,6 +1911,12 @@ int rsi_send_bgscan_probe_req(struct rsi_common *common,
 	if (!probereq_skb) {
 		dev_kfree_skb(skb);
 		return -ENOMEM;
+	}
+
+	if (probereq_skb->len > MAX_BGSCAN_PROBE_REQ_LEN) {
+		dev_kfree_skb(probereq_skb);
+		dev_kfree_skb(skb);
+		return -EINVAL;
 	}
 
 	memcpy(&skb->data[frame_len], probereq_skb->data, probereq_skb->len);

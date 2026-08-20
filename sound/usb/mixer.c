@@ -1473,8 +1473,8 @@ sticky:
 	if (!cval->cmask) {
 		snd_usb_set_cur_mix_value(cval, 0, 0, cval->max);
 	} else {
+		idx = 0;
 		for (i = 0; i < MAX_CHANNELS; i++) {
-			idx = 0;
 			if (cval->cmask & BIT(i)) {
 				snd_usb_set_cur_mix_value(cval, i + 1, idx, cval->max);
 				idx++;

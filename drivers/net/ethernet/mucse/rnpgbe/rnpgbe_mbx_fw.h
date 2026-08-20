@@ -80,6 +80,20 @@ struct mbx_fw_cmd_reply {
 	};
 } __packed;
 
+/* Union wrappers to expose struct as __le32 dword array for mailbox
+ * transport, eliminating the need for pointer casts.  The __packed
+ * structs have no padding, so dwords[] overlays the fields exactly.
+ */
+union mbx_fw_cmd_req_u {
+	struct mbx_fw_cmd_req r;
+	__le32 dwords[sizeof(struct mbx_fw_cmd_req) / sizeof(__le32)];
+};
+
+union mbx_fw_cmd_reply_u {
+	struct mbx_fw_cmd_reply r;
+	__le32 dwords[sizeof(struct mbx_fw_cmd_reply) / sizeof(__le32)];
+};
+
 int mucse_mbx_sync_fw(struct mucse_hw *hw);
 int mucse_mbx_powerup(struct mucse_hw *hw, bool is_powerup);
 int mucse_mbx_reset_hw(struct mucse_hw *hw);

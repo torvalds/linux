@@ -467,13 +467,13 @@ int amdgpu_xcp_open_device(struct amdgpu_device *adev,
 void amdgpu_xcp_release_sched(struct amdgpu_device *adev,
 				  struct amdgpu_ctx_entity *entity)
 {
-	struct drm_gpu_scheduler *sched =
-		container_of(entity->entity.rq, typeof(*sched), rq);
 	struct amdgpu_xcp_mgr *xcp_mgr = adev->xcp_mgr;
+	struct drm_gpu_scheduler *sched;
 
 	if (!xcp_mgr)
 		return;
 
+	sched = entity->entity.rq->sched;
 	if (drm_sched_wqueue_ready(sched)) {
 		struct amdgpu_ring *ring = to_amdgpu_ring(sched);
 

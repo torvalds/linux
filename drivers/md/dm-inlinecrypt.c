@@ -347,7 +347,8 @@ static int inlinecrypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	err = get_key_size(&argv[1]);
 	if (err < 0) {
 		ti->error = "Cannot parse key size";
-		return -EINVAL;
+		err = -EINVAL;
+		goto bad;
 	}
 	ctx->key_size = err;
 
@@ -398,6 +399,7 @@ static int inlinecrypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	if (ctx->iv_offset & ((ctx->sector_size >> SECTOR_SHIFT) - 1)) {
 		ti->error = "Wrong alignment of iv_offset sector";
 		err = -EINVAL;
+		goto bad;
 	}
 
 	ctx->max_dun = (ctx->iv_offset + ti->len - 1) >>

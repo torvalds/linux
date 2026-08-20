@@ -106,12 +106,12 @@ static int amdgpu_vm_sdma_prepare(struct amdgpu_vm_update_params *p,
 static int amdgpu_vm_sdma_commit(struct amdgpu_vm_update_params *p,
 				 struct dma_fence **fence)
 {
-	struct drm_gpu_scheduler *sched =
-		container_of(p->vm->delayed.rq, typeof(*sched), rq);
-	struct amdgpu_ring *ring =
-		container_of(sched, struct amdgpu_ring, sched);
 	struct amdgpu_ib *ib = p->job->ibs;
+	struct amdgpu_ring *ring;
 	struct dma_fence *f;
+
+	ring = container_of(p->vm->delayed.rq->sched, struct amdgpu_ring,
+			    sched);
 
 	WARN_ON(ib->length_dw == 0);
 	amdgpu_ring_pad_ib(ring, ib);

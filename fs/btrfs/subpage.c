@@ -345,18 +345,74 @@ void btrfs_subpage_clear_uptodate(const struct btrfs_fs_info *fs_info,
 	spin_unlock_irqrestore(&bfs->lock, flags);
 }
 
+/*
+ * folio_mark_dirty() for a folio we are dirtying with a space reservation.
+ *
+ * Dirtiers without a reservation use btrfs_data_dirty_folio().
+ */
+static void btrfs_folio_mark_dirty(struct folio *folio)
+{
+	struct address_space *mapping = folio_mapping(folio);
+
+	if (!mapping || !mapping->host || !is_data_inode(BTRFS_I(mapping->host))) {
+		folio_mark_dirty(folio);
+		return;
+	}
+	if (folio_test_reclaim(folio))
+		folio_clear_reclaim(folio);
+	filemap_dirty_folio(mapping, folio);
+}
+
+/*
+ * The set helper of the dirty ops, so it only runs for folios without a
+ * fixup bitmap: for those the folio flag is the whole fixup state, and this
+ * reserving write covers the block, so retire it.  Metadata never has the
+ * flag set and only pays the test.
+ */
+static void btrfs_folio_mark_dirty_reserved(struct folio *folio)
+{
+	if (folio_test_fixup_pending(folio))
+		folio_clear_fixup_pending(folio);
+	btrfs_folio_mark_dirty(folio);
+}
+
 void btrfs_subpage_set_dirty(const struct btrfs_fs_info *fs_info,
 			     struct folio *folio, u64 start, u32 len)
 {
 	struct btrfs_folio_state *bfs = folio_get_private(folio);
-	unsigned int start_bit = subpage_calc_start_bit(fs_info, folio,
+	unsigned int dirty_bit = subpage_calc_start_bit(fs_info, folio,
 							dirty, start, len);
+	unsigned int fixup_bit = subpage_calc_start_bit(fs_info, folio,
+							fixup, start, len);
+	const unsigned int nbits = len >> fs_info->sectorsize_bits;
 	unsigned long flags;
 
 	spin_lock_irqsave(&bfs->lock, flags);
-	bitmap_set(bfs->bitmaps, start_bit, len >> fs_info->sectorsize_bits);
+	bitmap_set(bfs->bitmaps, dirty_bit, nbits);
+	/* Proper dirtying obviates the need for fixup. */
+	bitmap_clear(bfs->bitmaps, fixup_bit, nbits);
+	if (folio_test_fixup_pending(folio) &&
+	    subpage_test_bitmap_all_zero(fs_info, folio, fixup))
+		folio_clear_fixup_pending(folio);
 	spin_unlock_irqrestore(&bfs->lock, flags);
-	folio_mark_dirty(folio);
+	btrfs_folio_mark_dirty(folio);
+}
+
+static void folio_clear_tags(struct folio *folio)
+{
+	struct address_space *mapping = folio_mapping(folio);
+	XA_STATE(xas, &mapping->i_pages, folio->index);
+	unsigned long flags;
+
+	ASSERT(folio_test_locked(folio));
+	ASSERT(mapping);
+	ASSERT(mapping_use_writeback_tags(mapping));
+
+	xas_lock_irqsave(&xas, flags);
+	xas_load(&xas);
+	xas_clear_mark(&xas, PAGECACHE_TAG_DIRTY);
+	xas_clear_mark(&xas, PAGECACHE_TAG_TOWRITE);
+	xas_unlock_irqrestore(&xas, flags);
 }
 
 /*
@@ -403,7 +459,6 @@ void btrfs_subpage_set_writeback(const struct btrfs_fs_info *fs_info,
 	unsigned int start_bit = subpage_calc_start_bit(fs_info, folio,
 							writeback, start, len);
 	unsigned long flags;
-	bool keep_write;
 
 	spin_lock_irqsave(&bfs->lock, flags);
 	bitmap_set(bfs->bitmaps, start_bit, len >> fs_info->sectorsize_bits);
@@ -413,10 +468,14 @@ void btrfs_subpage_set_writeback(const struct btrfs_fs_info *fs_info,
 	 * folio. Doing so can cause WB_SYNC_ALL writepages() to overlook it,
 	 * assume writeback is complete, and exit too early — violating sync
 	 * ordering guarantees.
+	 *
+	 * Instead we manually clear the DIRTY and TOWRITE tags after the folio
+	 * is no longer dirty.
 	 */
-	keep_write = folio_test_dirty(folio);
 	if (!folio_test_writeback(folio))
-		__folio_start_writeback(folio, keep_write);
+		__folio_start_writeback(folio, true);
+	if (!folio_test_dirty(folio))
+		folio_clear_tags(folio);
 	spin_unlock_irqrestore(&bfs->lock, flags);
 }
 
@@ -435,6 +494,172 @@ void btrfs_subpage_clear_writeback(const struct btrfs_fs_info *fs_info,
 		folio_end_writeback(folio);
 	}
 	spin_unlock_irqrestore(&bfs->lock, flags);
+}
+
+void btrfs_subpage_clear_fixup(const struct btrfs_fs_info *fs_info,
+			       struct folio *folio, u64 start, u32 len)
+{
+	struct btrfs_folio_state *bfs = folio_get_private(folio);
+	unsigned int start_bit = subpage_calc_start_bit(fs_info, folio,
+							fixup, start, len);
+	unsigned long flags;
+
+	spin_lock_irqsave(&bfs->lock, flags);
+	bitmap_clear(bfs->bitmaps, start_bit, len >> fs_info->sectorsize_bits);
+	if (subpage_test_bitmap_all_zero(fs_info, folio, fixup))
+		folio_clear_fixup_pending(folio);
+	spin_unlock_irqrestore(&bfs->lock, flags);
+}
+
+/*
+ * In one pass under bfs->lock, mark every block with a clear dirty bit in the
+ * range both dirty and needing fixup.
+ *
+ * Only called from the dirty_folio callback, which owns the folio-level
+ * dirty flag; calling folio_mark_dirty() here would recurse.
+ *
+ * The folio fixup flag and bits are both set under bfs->lock so that a
+ * writeback pass observing the new bits also observes the flag.
+ */
+static void btrfs_subpage_set_fixup_dirty(const struct btrfs_fs_info *fs_info,
+					  struct folio *folio, u64 start, u32 len)
+{
+	struct btrfs_folio_state *bfs = folio_get_private(folio);
+	unsigned int dirty_bit = subpage_calc_start_bit(fs_info, folio,
+							dirty, start, len);
+	unsigned int fixup_bit = subpage_calc_start_bit(fs_info, folio,
+							fixup, start, len);
+	const unsigned int nbits = len >> fs_info->sectorsize_bits;
+	unsigned long flags;
+	bool marked = false;
+
+	spin_lock_irqsave(&bfs->lock, flags);
+	for (unsigned int i = 0; i < nbits; i++) {
+		if (test_bit(dirty_bit + i, bfs->bitmaps))
+			continue;
+		set_bit(dirty_bit + i, bfs->bitmaps);
+		set_bit(fixup_bit + i, bfs->bitmaps);
+		marked = true;
+	}
+	if (marked)
+		folio_set_fixup_pending(folio);
+	spin_unlock_irqrestore(&bfs->lock, flags);
+}
+
+/*
+ * Mark the still-clean blocks of a folio dirty and needing fixup, for
+ * btrfs_data_dirty_folio().
+ *
+ * A subpage block size folio that is not uptodate is left alone: its clean
+ * blocks may hold content that was never read in, which must not be marked
+ * dirty.
+ */
+void btrfs_folio_set_fixup_dirty(const struct btrfs_fs_info *fs_info,
+				 struct folio *folio, u64 start, u32 len)
+{
+	if (!btrfs_is_subpage(fs_info, folio)) {
+		if (!folio_test_dirty(folio))
+			folio_set_fixup_pending(folio);
+		return;
+	}
+	if (!folio_test_uptodate(folio))
+		return;
+	btrfs_subpage_set_fixup_dirty(fs_info, folio, start, len);
+}
+
+/*
+ * Drop the fixup blocks inside the range: clear both their fixup and dirty
+ * bits.
+ *
+ * Fixup blocks carry no space reservation, so their fixup and dirty bits
+ * must be dropped together. Clearing only the fixup bit would leave a
+ * dirty block without a reservation which is not a valid state.
+ *
+ * Returns true if the folio has no dirty blocks left.
+ */
+static bool btrfs_subpage_clear_fixup_dirty(const struct btrfs_fs_info *fs_info,
+					    struct folio *folio, u64 start, u32 len)
+{
+	struct btrfs_folio_state *bfs = folio_get_private(folio);
+	unsigned int dirty_bit = subpage_calc_start_bit(fs_info, folio,
+							dirty, start, len);
+	unsigned int fixup_bit = subpage_calc_start_bit(fs_info, folio,
+							fixup, start, len);
+	const unsigned int nbits = len >> fs_info->sectorsize_bits;
+	unsigned long flags;
+	bool last;
+
+	spin_lock_irqsave(&bfs->lock, flags);
+	for (unsigned int i = 0; i < nbits; i++) {
+		if (!test_bit(fixup_bit + i, bfs->bitmaps))
+			continue;
+		clear_bit(fixup_bit + i, bfs->bitmaps);
+		clear_bit(dirty_bit + i, bfs->bitmaps);
+	}
+	if (subpage_test_bitmap_all_zero(fs_info, folio, fixup))
+		folio_clear_fixup_pending(folio);
+	last = subpage_test_bitmap_all_zero(fs_info, folio, dirty);
+	spin_unlock_irqrestore(&bfs->lock, flags);
+	return last;
+}
+
+/*
+ * Drop the fixup blocks inside the range, for callers discarding their data:
+ * btrfs_invalidate_folio() and the writepage fixup worker's error path.
+ *
+ * Callers that have just reserved space for a block want
+ * btrfs_folio_clear_fixup() instead - there the block stays dirty and gets
+ * written.
+ *
+ * The range can be byte-granular (an unaligned truncate through
+ * btrfs_invalidate_folio()); only blocks fully inside it are dropped, as a
+ * partially covered block still holds live data outside the range.  For
+ * single-block folios the folio flag is the fixup state, so it is dropped
+ * only when the range covers the whole folio.
+ */
+void btrfs_folio_clear_fixup_dirty(const struct btrfs_fs_info *fs_info,
+				   struct folio *folio, u64 start, u32 len)
+{
+	u64 aligned_start;
+	u64 aligned_end;
+
+	/* The folio flag is set whenever any fixup bitmap bit is. */
+	if (!folio_test_fixup_pending(folio))
+		return;
+	if (!btrfs_is_subpage(fs_info, folio)) {
+		if (start <= folio_pos(folio) &&
+		    start + len >= folio_next_pos(folio)) {
+			folio_clear_fixup_pending(folio);
+			folio_clear_dirty_for_io(folio);
+		}
+		return;
+	}
+	btrfs_subpage_clamp_range(folio, &start, &len);
+	aligned_start = round_up(start, fs_info->sectorsize);
+	aligned_end = round_down(start + len, fs_info->sectorsize);
+	if (aligned_end <= aligned_start)
+		return;
+	if (btrfs_subpage_clear_fixup_dirty(fs_info, folio, aligned_start,
+					    aligned_end - aligned_start))
+		folio_clear_dirty_for_io(folio);
+}
+
+bool btrfs_folio_test_fixup(const struct btrfs_fs_info *fs_info,
+			    struct folio *folio, u64 start, u32 len)
+{
+	if (!btrfs_is_subpage(fs_info, folio))
+		return folio_test_fixup_pending(folio);
+	return btrfs_subpage_test_fixup(fs_info, folio, start, len);
+}
+
+void btrfs_folio_clear_fixup(const struct btrfs_fs_info *fs_info,
+			     struct folio *folio, u64 start, u32 len)
+{
+	if (!btrfs_is_subpage(fs_info, folio)) {
+		folio_clear_fixup_pending(folio);
+		return;
+	}
+	btrfs_subpage_clear_fixup(fs_info, folio, start, len);
 }
 
 /*
@@ -460,6 +685,7 @@ bool btrfs_subpage_test_##name(const struct btrfs_fs_info *fs_info,	\
 IMPLEMENT_BTRFS_SUBPAGE_TEST_OP(uptodate);
 IMPLEMENT_BTRFS_SUBPAGE_TEST_OP(dirty);
 IMPLEMENT_BTRFS_SUBPAGE_TEST_OP(writeback);
+IMPLEMENT_BTRFS_SUBPAGE_TEST_OP(fixup);
 
 /*
  * Note that, in selftests (extent-io-tests), we can have empty fs_info passed
@@ -551,8 +777,8 @@ bool btrfs_meta_folio_test_##name(struct folio *folio, const struct extent_buffe
 }
 IMPLEMENT_BTRFS_PAGE_OPS(uptodate, folio_mark_uptodate, folio_clear_uptodate,
 			 folio_test_uptodate);
-IMPLEMENT_BTRFS_PAGE_OPS(dirty, folio_mark_dirty, folio_clear_dirty_for_io,
-			 folio_test_dirty);
+IMPLEMENT_BTRFS_PAGE_OPS(dirty, btrfs_folio_mark_dirty_reserved,
+			 folio_clear_dirty_for_io, folio_test_dirty);
 IMPLEMENT_BTRFS_PAGE_OPS(writeback, folio_start_writeback, folio_end_writeback,
 			 folio_test_writeback);
 

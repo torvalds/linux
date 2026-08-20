@@ -329,6 +329,7 @@ static const struct of_device_id mt6316_regulator_match[] = {
 	{ .compatible = "mediatek,mt6316d-regulator", .data = (void *)MT6316_TYPE_4PHASE },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, mt6316_regulator_match);
 
 static struct spmi_driver mt6316_regulator_driver = {
 	.driver = {
