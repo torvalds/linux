@@ -10874,6 +10874,10 @@ static void nft_set_commit_update(struct nft_ctx *ctx,
 		nft_ctx_update(ctx, trans);
 
 		switch (trans->msg_type) {
+		case NFT_MSG_DELSET:
+		case NFT_MSG_DESTROYSET:
+			nft_trans_set(trans)->dead = 1;
+			break;
 		case NFT_MSG_DELSETELEM:
 			te = nft_trans_container_elem(trans);
 			if (!te->set->ops->commit)
