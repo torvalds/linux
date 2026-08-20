@@ -9,7 +9,6 @@
 #include <linux/fsnotify.h>
 #include <linux/poll.h>
 #include <linux/nospec.h>
-#include <linux/compat.h>
 #include <linux/io_uring/cmd.h>
 #include <linux/indirect_call_wrapper.h>
 
@@ -50,33 +49,20 @@ static bool io_file_supports_nowait(struct io_kiocb *req, __poll_t mask)
 	return false;
 }
 
-static int io_iov_compat_buffer_select_prep(struct io_rw *rw)
-{
-	struct compat_iovec __user *uiov = u64_to_user_ptr(rw->addr);
-	struct compat_iovec iov;
-
-	if (copy_from_user(&iov, uiov, sizeof(iov)))
-		return -EFAULT;
-	rw->len = iov.iov_len;
-	return 0;
-}
-
 static int io_iov_buffer_select_prep(struct io_kiocb *req)
 {
 	struct iovec __user *uiov;
-	struct iovec iov;
+	struct iovec fast_iov, *iov;
 	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
 
 	if (rw->len != 1)
 		return -EINVAL;
 
-	if (io_is_compat(req->ctx))
-		return io_iov_compat_buffer_select_prep(rw);
-
 	uiov = u64_to_user_ptr(rw->addr);
-	if (copy_from_user(&iov, uiov, sizeof(*uiov)))
-		return -EFAULT;
-	rw->len = iov.iov_len;
+	iov = iovec_from_user(uiov, 1, 1, &fast_iov, io_is_compat(req->ctx));
+	if (IS_ERR(iov))
+		return PTR_ERR(iov);
+	rw->len = iov->iov_len;
 	return 0;
 }
 

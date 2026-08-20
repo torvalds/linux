@@ -13,6 +13,7 @@
 #include <linux/cpuset.h>
 #include <linux/sched/cputime.h>
 #include <linux/io_uring.h>
+#include <linux/kcov.h>
 
 #include <uapi/linux/io_uring.h>
 
@@ -332,10 +333,14 @@ static int io_sq_thread(void *data)
 
 		cap_entries = !list_is_singular(&sqd->ctx_list);
 		list_for_each_entry(ctx, &sqd->ctx_list, sqd_list) {
-			int ret = __io_sq_thread(ctx, sqd, cap_entries, &ist);
+			int ret;
+
+			kcov_remote_start_common(ctx->kcov_handle);
+			ret = __io_sq_thread(ctx, sqd, cap_entries, &ist);
 
 			if (!sqt_spin && (ret > 0 || !list_empty(&ctx->iopoll_list)))
 				sqt_spin = true;
+			kcov_remote_stop();
 		}
 		if (io_sq_tw(IORING_TW_CAP_ENTRIES_VALUE))
 			sqt_spin = true;
