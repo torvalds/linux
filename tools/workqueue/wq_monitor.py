@@ -37,9 +37,6 @@ import re
 import time
 import json
 
-import drgn
-from drgn.helpers.linux.list import list_for_each_entry
-
 import argparse
 parser = argparse.ArgumentParser(description=desc,
                                  formatter_class=argparse.RawTextHelpFormatter)
@@ -50,6 +47,9 @@ parser.add_argument('-i', '--interval', metavar='SECS', type=float, default=1,
 parser.add_argument('-j', '--json', action='store_true',
                     help='Output in json')
 args = parser.parse_args()
+
+import drgn
+from drgn.helpers.linux.list import list_for_each_entry
 
 workqueues              = prog['workqueues']
 

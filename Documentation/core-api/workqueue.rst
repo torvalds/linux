@@ -356,7 +356,7 @@ Guidelines
   well under the default limit.
 
 * A wq serves as a domain for forward progress guarantee
-  (``WQ_MEM_RECLAIM``, flush and work item attributes.  Work items
+  (``WQ_MEM_RECLAIM``), flush and work item attributes.  Work items
   which are not involved in memory reclaim and don't need to be
   flushed as a part of a group of work items, and don't require any
   special attribute, can use one of the system wq.  There is no
