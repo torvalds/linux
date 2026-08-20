@@ -1130,9 +1130,9 @@ policy and the underlying scheduler. From the point of view of the cpu controlle
 processes can be categorized as follows:
 
 * Processes under the fair-class scheduler
-* Processes under a BPF scheduler with the ``cgroup_set_weight`` callback
+* Processes under a BPF scheduler with the corresponding ``cgroup_set_*`` callback
 * Everything else: ``SCHED_{FIFO,RR,DEADLINE}`` and processes under a BPF scheduler
-  without the ``cgroup_set_weight`` callback
+  without the corresponding ``cgroup_set_*`` callback
 
 For details on when a process is under the fair-class scheduler or a BPF scheduler,
 check out :ref:`Documentation/scheduler/sched-ext.rst <sched-ext>`.
@@ -1202,7 +1202,9 @@ will be referred to. All time durations are in microseconds.
 	$PERIOD duration.  "max" for $MAX indicates no limit.  If only
 	one number is written, $MAX is updated.
 
-	This file affects only processes under the fair-class scheduler.
+	This file affects only processes under the fair-class scheduler and a BPF
+	scheduler with the ``cgroup_set_bandwidth`` callback depending on what
+	the callback actually does.
 
   cpu.max.burst
 	A read-write single value file which exists on non-root
@@ -1210,7 +1212,9 @@ will be referred to. All time durations are in microseconds.
 
 	The burst in the range [0, $MAX].
 
-	This file affects only processes under the fair-class scheduler.
+	This file affects only processes under the fair-class scheduler and a BPF
+	scheduler with the ``cgroup_set_bandwidth`` callback depending on what
+	the callback actually does.
 
   cpu.pressure
 	A read-write nested-keyed file.
@@ -1262,7 +1266,9 @@ will be referred to. All time durations are in microseconds.
 	own relative priorities, but the cgroup itself will be treated as
 	very low priority relative to its peers.
 
-	This file affects only processes under the fair-class scheduler.
+	This file affects only processes under the fair-class scheduler and a BPF
+	scheduler with the ``cgroup_set_idle`` callback depending on what the
+	callback actually does.
 
 Memory
 ------
