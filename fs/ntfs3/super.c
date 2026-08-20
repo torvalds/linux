@@ -78,6 +78,9 @@
 #include "lib/lib.h"
 #endif
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/ntfs3.h>
+
 #ifdef CONFIG_PRINTK
 /*
  * ntfs_printk - Trace warnings/notices/errors.
@@ -991,7 +994,7 @@ static int ntfs_init_from_boot(struct super_block *sb, u32 sector_size,
 {
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
 	int err;
-	u32 mb, gb, boot_sector_size, sct_per_clst, record_size;
+	u32 mb, gb, boot_sector_size = 0, sct_per_clst, record_size;
 	u64 sectors, clusters, mlcn, mlcn2, mft_pos, mft2_pos, dev_size0;
 	struct NTFS_BOOT *boot;
 	struct buffer_head *bh;
@@ -1264,6 +1267,8 @@ read_boot:
 	}
 
 out:
+	trace_ntfs3_init_from_boot(sb, sector_size, boot_sector_size,
+				   !!boot_block, err);
 	brelse(bh);
 
 	if (err == -EINVAL && !boot_block && dev_size0 > PAGE_SHIFT) {
@@ -1782,12 +1787,16 @@ load_root:
 	}
 
 	ntfs_create_procdir(sb);
+	trace_ntfs3_fill_super(sb, ro, sbi->cluster_size, sbi->record_size,
+			       sbi->index_size, 0);
 
 	return 0;
 
 put_inode_out:
 	iput(inode);
 out:
+	trace_ntfs3_fill_super(sb, ro, sbi->cluster_size, sbi->record_size,
+			       sbi->index_size, err);
 	/* sbi->options == options */
 	if (options) {
 		put_mount_options(sbi->options);

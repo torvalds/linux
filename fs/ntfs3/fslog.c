@@ -14,6 +14,7 @@
 #include "debug.h"
 #include "ntfs.h"
 #include "ntfs_fs.h"
+#include <trace/events/ntfs3.h>
 
 /*
  * LOG FILE structs
@@ -5417,6 +5418,8 @@ out:
 		err = 0;
 	else if (log->set_dirty)
 		ntfs_set_state(sbi, NTFS_DIRTY_ERROR);
+
+	trace_ntfs3_log_replay(&ni->vfs_inode, *initialized, err);
 
 	kfree(log);
 
