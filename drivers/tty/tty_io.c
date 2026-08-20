@@ -1032,33 +1032,6 @@ out:
 	return ret;
 }
 
-#ifdef CONFIG_PRINT_QUOTA_WARNING
-/**
- * tty_write_message - write a message to a certain tty, not just the console.
- * @tty: the destination tty_struct
- * @msg: the message to write
- *
- * This is used for messages that need to be redirected to a specific tty. We
- * don't put it into the syslog queue right now maybe in the future if really
- * needed.
- *
- * We must still hold the BTM and test the CLOSING flag for the moment.
- *
- * This function is DEPRECATED, do not use in new code.
- */
-void tty_write_message(struct tty_struct *tty, char *msg)
-{
-	if (tty) {
-		mutex_lock(&tty->atomic_write_lock);
-		tty_lock(tty);
-		if (tty->ops->write && tty->count > 0)
-			tty->ops->write(tty, msg, strlen(msg));
-		tty_unlock(tty);
-		tty_write_unlock(tty);
-	}
-}
-#endif
-
 static ssize_t file_tty_write(struct file *file, struct kiocb *iocb, struct iov_iter *from)
 {
 	struct tty_struct *tty = file_tty(file);

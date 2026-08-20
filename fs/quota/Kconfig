@@ -25,16 +25,6 @@ config QUOTA_NETLINK_INTERFACE
 	  hardlimit, etc.) will be reported through netlink interface. If unsure,
 	  say Y.
 
-config PRINT_QUOTA_WARNING
-	bool "Print quota warnings to console (OBSOLETE)"
-	depends on QUOTA && BROKEN
-	default y
-	help
-	  If you say Y here, quota warnings (about exceeding softlimit, reaching
-	  hardlimit, etc.) will be printed to the process' controlling terminal.
-	  Note that this behavior is currently deprecated and may go away in
-	  future. Please use notification via netlink socket instead.
-
 config QUOTA_DEBUG
 	bool "Additional quota sanity checks"
 	depends on QUOTA
