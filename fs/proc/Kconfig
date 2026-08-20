@@ -80,10 +80,9 @@ config PROC_VMCORE_DEVICE_RAM
 
 	  Relevant architectures should select NEED_PROC_VMCORE_DEVICE_RAM.
 
-config PROC_SYSCTL
+config SYSCTL
 	bool "Sysctl support (/proc/sys)" if EXPERT
 	depends on PROC_FS
-	select SYSCTL
 	default y
 	help
 	  The sysctl interface provides a means of dynamically changing

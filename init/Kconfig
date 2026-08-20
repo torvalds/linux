@@ -1665,9 +1665,6 @@ config LD_ORPHAN_WARN_LEVEL
 	default "error" if WERROR
 	default "warn"
 
-config SYSCTL
-	bool
-
 config HAVE_UID16
 	bool
 

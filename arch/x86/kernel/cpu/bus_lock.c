@@ -50,7 +50,7 @@ static struct ratelimit_state bld_ratelimit;
 static unsigned int sysctl_sld_mitigate = 1;
 static DEFINE_SEMAPHORE(buslock_sem, 1);
 
-#ifdef CONFIG_PROC_SYSCTL
+#ifdef CONFIG_SYSCTL
 static const struct ctl_table sld_sysctls[] = {
 	{
 		.procname       = "split_lock_mitigate",
