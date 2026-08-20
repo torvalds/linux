@@ -349,7 +349,7 @@ do_next_tag:
 		u8 *dp_back_addr;
 
 		/* Check if we are done / still in range. */
-		if (cb >= cb_sb_end || dp_addr > dp_sb_end)
+		if (cb >= cb_sb_end || dp_addr >= dp_sb_end)
 			break;
 
 		/* Determine token type and parse appropriately.*/
