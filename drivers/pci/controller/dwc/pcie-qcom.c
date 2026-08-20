@@ -20,6 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/limits.h>
 #include <linux/init.h>
+#include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/of_pci.h>
 #include <linux/pci.h>
@@ -73,6 +74,23 @@
 #define PARF_BDF_TO_SID_TABLE_N			0x2000
 #define PARF_BDF_TO_SID_CFG			0x2c00
 
+/*
+ * Outbound blocker range registers. The blocked range has a write pair
+ * (WR_BASE/WR_LIMIT) and a read pair (RD_BASE/RD_LIMIT); each address is
+ * split into a low (32-bit) and a HI (upper 32-bit) register.
+ */
+#define PARF_BLOCK_SLV_AXI_WR_BASE		0x360
+#define PARF_BLOCK_SLV_AXI_WR_BASE_HI		0x364
+#define PARF_BLOCK_SLV_AXI_WR_LIMIT		0x368
+#define PARF_BLOCK_SLV_AXI_WR_LIMIT_HI		0x36c
+#define PARF_BLOCK_SLV_AXI_RD_BASE		0x370
+#define PARF_BLOCK_SLV_AXI_RD_BASE_HI		0x374
+#define PARF_BLOCK_SLV_AXI_RD_LIMIT		0x378
+#define PARF_BLOCK_SLV_AXI_RD_LIMIT_HI		0x37c
+
+#define PARF_ECAM_BASE				0x380
+#define PARF_ECAM_BASE_HI			0x384
+
 /* ELBI registers */
 #define ELBI_SYS_CTRL				0x04
 #define ELBI_SYS_STTS				0x08
@@ -90,6 +108,7 @@
 
 /* PARF_SYS_CTRL register fields */
 #define MAC_PHY_POWERDOWN_IN_P2_D_MUX_EN	BIT(29)
+#define OUTBOUND_BLOCKER_EN			BIT(26)
 #define MST_WAKEUP_EN				BIT(13)
 #define SLV_WAKEUP_EN				BIT(12)
 #define MSTR_ACLK_CGC_DIS			BIT(10)
@@ -308,6 +327,7 @@ struct qcom_pcie {
 	struct gpio_desc *reset;
 	int global_irq;
 	bool use_pm_opp;
+	struct mutex reset_lock;
 };
 
 #define to_qcom_pcie(x)		dev_get_drvdata((x)->dev)
@@ -443,6 +463,25 @@ static void qcom_pcie_configure_dbi_atu_base(struct qcom_pcie *pcie)
 		writel(SLV_ADDR_SPACE_SZ, pcie->parf +
 					PARF_SLV_ADDR_SPACE_SIZE_V2_HI);
 	}
+}
+
+static void qcom_pcie_init_outbound_blocker(struct qcom_pcie *pcie)
+{
+	struct dw_pcie *pci = pcie->pci;
+
+	/* ECAM base must match the DBI base address */
+	writel(lower_32_bits(pci->dbi_phys_addr), pcie->parf + PARF_ECAM_BASE);
+	writel(upper_32_bits(pci->dbi_phys_addr), pcie->parf + PARF_ECAM_BASE_HI);
+
+	writel(0, pcie->parf + PARF_BLOCK_SLV_AXI_WR_BASE);
+	writel(0, pcie->parf + PARF_BLOCK_SLV_AXI_WR_BASE_HI);
+	writel(U32_MAX, pcie->parf + PARF_BLOCK_SLV_AXI_WR_LIMIT);
+	writel(U32_MAX, pcie->parf + PARF_BLOCK_SLV_AXI_WR_LIMIT_HI);
+
+	writel(0, pcie->parf + PARF_BLOCK_SLV_AXI_RD_BASE);
+	writel(0, pcie->parf + PARF_BLOCK_SLV_AXI_RD_BASE_HI);
+	writel(U32_MAX, pcie->parf + PARF_BLOCK_SLV_AXI_RD_LIMIT);
+	writel(U32_MAX, pcie->parf + PARF_BLOCK_SLV_AXI_RD_LIMIT_HI);
 }
 
 static void qcom_pcie_2_1_0_ltssm_enable(struct qcom_pcie *pcie)
@@ -990,6 +1029,8 @@ static int qcom_pcie_post_init_2_3_3(struct qcom_pcie *pcie)
 
 	dw_pcie_dbi_ro_wr_dis(pci);
 
+	qcom_pcie_init_outbound_blocker(pcie);
+
 	return 0;
 }
 
@@ -1103,6 +1144,8 @@ static int qcom_pcie_post_init_2_7_0(struct qcom_pcie *pcie)
 				pcie->parf + PARF_NO_SNOOP_OVERRIDE);
 
 	qcom_pcie_set_slot_cap(pcie->pci);
+
+	qcom_pcie_init_outbound_blocker(pcie);
 
 	return 0;
 }
@@ -1322,6 +1365,8 @@ static int qcom_pcie_post_init_2_9_0(struct qcom_pcie *pcie)
 	for (i = 0; i < 256; i++)
 		writel(0, pcie->parf + PARF_BDF_TO_SID_TABLE_N + (4 * i));
 
+	qcom_pcie_init_outbound_blocker(pcie);
+
 	return 0;
 }
 
@@ -1380,6 +1425,18 @@ static void qcom_pcie_configure_ports(struct qcom_pcie *pcie)
 
 	list_for_each_entry(port, &pcie->ports, list)
 		dw_pcie_program_t_power_on(pcie->pci, port->l1ss_t_power_on);
+}
+
+static void qcom_pcie_enable_outbound_blocker(struct qcom_pcie *pcie)
+{
+	u32 sys_ctrl;
+
+	sys_ctrl = readl(pcie->parf + PARF_SYS_CTRL);
+	sys_ctrl |= OUTBOUND_BLOCKER_EN;
+	writel(sys_ctrl, pcie->parf + PARF_SYS_CTRL);
+
+	/* Flush the write so the blocker is enabled before this function returns */
+	readl(pcie->parf + PARF_SYS_CTRL);
 }
 
 static int qcom_pcie_host_init(struct dw_pcie_rp *pp)
@@ -1775,6 +1832,8 @@ static int qcom_pcie_reset_root_port(struct pci_host_bridge *bridge,
 	u32 val;
 	int ret;
 
+	guard(mutex)(&pcie->reset_lock);
+
 	/* Wait for the pending transactions to be completed */
 	ret = readl_relaxed_poll_timeout(pcie->parf + PARF_STATUS, val,
 					 val & FLUSH_COMPLETED, 10,
@@ -1878,6 +1937,11 @@ static irqreturn_t qcom_pcie_global_irq_thread(int irq, void *data)
 
 	if (test_and_clear_bit(INT_ALL_LINK_DOWN, &status)) {
 		dev_dbg(dev, "Received Link down event\n");
+
+		mutex_lock(&pcie->reset_lock);
+		qcom_pcie_enable_outbound_blocker(pcie);
+		mutex_unlock(&pcie->reset_lock);
+
 		for_each_pci_bridge(port, pp->bridge->bus) {
 			if (pci_pcie_type(port) == PCI_EXP_TYPE_ROOT_PORT)
 				pci_host_handle_link_down(port);
@@ -2206,6 +2270,10 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	}
 
 	INIT_LIST_HEAD(&pcie->ports);
+
+	ret = devm_mutex_init(dev, &pcie->reset_lock);
+	if (ret)
+		goto err_pm_runtime_put;
 
 	pci->dev = dev;
 	pci->ops = &dw_pcie_ops;
