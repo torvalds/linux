@@ -15,6 +15,7 @@
 #include <cxlmem.h>
 #include <cxl.h>
 #include "core.h"
+#include "mce.h"
 
 /**
  * DOC: cxl core region
@@ -682,8 +683,8 @@ static int alloc_hpa(struct cxl_region *cxlr, resource_size_t size)
 				    dev_name(&cxlr->dev));
 	if (IS_ERR(res)) {
 		dev_dbg(&cxlr->dev,
-			"HPA allocation error (%ld) for size:%pap in %s %pr\n",
-			PTR_ERR(res), &size, cxlrd->res->name, cxlrd->res);
+			"HPA allocation error (%pe) for size:%pap in %s %pr\n",
+			res, &size, cxlrd->res->name, cxlrd->res);
 		return PTR_ERR(res);
 	}
 
@@ -1913,15 +1914,14 @@ static int find_pos_and_ways(struct cxl_port *port, struct range *range,
 {
 	struct cxl_switch_decoder *cxlsd;
 	struct cxl_port *parent;
-	struct device *dev;
 	int rc = -ENXIO;
 
 	parent = parent_port_of(port);
 	if (!parent)
 		return rc;
 
-	dev = device_find_child(&parent->dev, range,
-				match_switch_decoder_by_range);
+	struct device *dev __free(put_device) =
+		device_find_child(&parent->dev, range, match_switch_decoder_by_range);
 	if (!dev) {
 		dev_err(port->uport_dev,
 			"failed to find decoder mapping %#llx-%#llx\n",
@@ -1938,14 +1938,11 @@ static int find_pos_and_ways(struct cxl_port *port, struct range *range,
 			break;
 		}
 	}
-	put_device(dev);
-
 	if (rc)
 		dev_err(port->uport_dev,
 			"failed to find %s:%s in target list of %s\n",
 			dev_name(&port->dev),
-			dev_name(port->parent_dport->dport_dev),
-			dev_name(&cxlsd->cxld.dev));
+			dev_name(port->parent_dport->dport_dev), dev_name(dev));
 
 	return rc;
 }
@@ -3773,9 +3770,9 @@ static struct cxl_region *construct_region(struct cxl_root_decoder *cxlrd,
 
 	if (IS_ERR(cxlr)) {
 		dev_err(cxlmd->dev.parent,
-			"%s:%s: %s failed assign region: %ld\n",
+			"%s:%s: %s failed assign region: %pe\n",
 			dev_name(&cxlmd->dev), dev_name(&cxled->cxld.dev),
-			__func__, PTR_ERR(cxlr));
+			__func__, cxlr);
 		return cxlr;
 	}
 
@@ -3858,34 +3855,6 @@ int cxl_add_to_region(struct cxl_endpoint_decoder *cxled)
 	return rc;
 }
 EXPORT_SYMBOL_NS_GPL(cxl_add_to_region, "CXL");
-
-u64 cxl_port_get_spa_cache_alias(struct cxl_port *endpoint, u64 spa)
-{
-	struct cxl_region_ref *iter;
-	unsigned long index;
-
-	if (!endpoint)
-		return ~0ULL;
-
-	guard(rwsem_write)(&cxl_rwsem.region);
-
-	xa_for_each(&endpoint->regions, index, iter) {
-		struct cxl_region_params *p = &iter->region->params;
-
-		if (cxl_resource_contains_addr(p->res, spa)) {
-			if (!p->cache_size)
-				return ~0ULL;
-
-			if (spa >= p->res->start + p->cache_size)
-				return spa - p->cache_size;
-
-			return spa + p->cache_size;
-		}
-	}
-
-	return ~0ULL;
-}
-EXPORT_SYMBOL_NS_GPL(cxl_port_get_spa_cache_alias, "CXL");
 
 static int is_system_ram(struct resource *res, void *arg)
 {
@@ -4216,6 +4185,20 @@ static int cxl_region_probe(struct device *dev)
 	rc = devm_add_action_or_reset(&cxlr->dev, shutdown_notifiers, cxlr);
 	if (rc)
 		return rc;
+
+	/*
+	 * Regions fronted by an extended linear cache need the MCE notifier to
+	 * offline the aliased page on a memory error.
+	 */
+	if (p->cache_size) {
+		rc = devm_cxl_register_mce_notifier(&cxlr->dev,
+						    &cxlr->mce_notifier);
+		if (rc == -EOPNOTSUPP)
+			dev_warn(&cxlr->dev,
+				 "CONFIG_CXL_MCE disabled, MCE notifier not registered\n");
+		else if (rc)
+			return rc;
+	}
 
 	rc = cxl_region_setup_poison(cxlr);
 	if (rc)

@@ -107,7 +107,7 @@ TRACE_EVENT(cxl_aer_uncorrectable_error,
 		memcpy(__entry->header_log, hl,
 			CXL_HEADERLOG_TRACE_SIZE_U32 * sizeof(u32));
 	),
-	TP_printk("memdev=%s host=%s serial=%lld: status: '%s' first_error: '%s'",
+	TP_printk("memdev=%s host=%s serial=%llu: status: '%s' first_error: '%s'",
 		  __get_str(memdev), __get_str(host), __entry->serial,
 		  show_uc_errs(__entry->status),
 		  show_uc_errs(__entry->first_error)
@@ -166,7 +166,7 @@ TRACE_EVENT(cxl_aer_correctable_error,
 		__entry->serial = cxlmd->cxlds->serial;
 		__entry->status = status;
 	),
-	TP_printk("memdev=%s host=%s serial=%lld: status: '%s'",
+	TP_printk("memdev=%s host=%s serial=%llu: status: '%s'",
 		  __get_str(memdev), __get_str(host), __entry->serial,
 		  show_ce_errs(__entry->status)
 	)
@@ -206,7 +206,7 @@ TRACE_EVENT(cxl_overflow,
 		__entry->last_ts = le64_to_cpu(payload->last_overflow_timestamp);
 	),
 
-	TP_printk("memdev=%s host=%s serial=%lld: log=%s : %u records from %llu to %llu",
+	TP_printk("memdev=%s host=%s serial=%llu: log=%s : %u records from %llu to %llu",
 		__get_str(memdev), __get_str(host), __entry->serial,
 		cxl_event_log_type_str(__entry->log), __entry->count,
 		__entry->first_ts, __entry->last_ts)
@@ -279,7 +279,7 @@ TRACE_EVENT(cxl_overflow,
 	__entry->hdr_head_id = (hdr).head_id
 
 #define CXL_EVT_TP_printk(fmt, ...) \
-	TP_printk("memdev=%s host=%s serial=%lld log=%s : time=%llu uuid=%pUb "	\
+	TP_printk("memdev=%s host=%s serial=%llu log=%s : time=%llu uuid=%pUb "	\
 		"len=%d flags='%s' handle=%x related_handle=%x "		\
 		"maint_op_class=%u maint_op_sub_class=%u "			\
 		"ld_id=%x head_id=%x : " fmt,					\
@@ -1088,7 +1088,7 @@ TRACE_EVENT(cxl_poison,
 		}
 	    ),
 
-	TP_printk("memdev=%s host=%s serial=%lld trace_type=%s region=%s "  \
+	TP_printk("memdev=%s host=%s serial=%llu trace_type=%s region=%s "  \
 		"region_uuid=%pU hpa=0x%llx hpa_alias0=0x%llx dpa=0x%llx " \
 		"dpa_length=0x%x source=%s flags=%s overflow_time=%llu",
 		__get_str(memdev),
