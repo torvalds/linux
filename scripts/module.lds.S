@@ -3,11 +3,6 @@
  * Archs are free to supply their own linker scripts.  ld will
  * combine them automatically.
  */
-#ifdef CONFIG_UNWIND_TABLES
-#define DISCARD_EH_FRAME
-#else
-#define DISCARD_EH_FRAME	*(.eh_frame)
-#endif
 
 #include <asm-generic/codetag.lds.h>
 
