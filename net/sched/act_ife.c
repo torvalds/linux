@@ -28,6 +28,7 @@
 #include <uapi/linux/tc_act/tc_ife.h>
 #include <net/tc_act/tc_ife.h>
 #include <linux/etherdevice.h>
+#include <linux/if_arp.h>
 #include <net/ife.h>
 #include <net/tc_wrapper.h>
 
@@ -723,7 +724,7 @@ static int tcf_ife_decode(struct sk_buff *skb, const struct tc_action *a,
 	tcf_lastuse_update(&ife->tcf_tm);
 
 	if (skb_at_tc_ingress(skb))
-		skb_push(skb, skb->dev->hard_header_len);
+		skb_push(skb, ETH_HLEN);
 
 	tlv_data = ife_decode(skb, &metalen);
 	if (unlikely(!tlv_data)) {
@@ -795,7 +796,7 @@ static int tcf_ife_encode(struct sk_buff *skb, const struct tc_action *a,
 	   where ORIGDATA = original ethernet header ...
 	 */
 	u16 metalen = ife_get_sz(skb, p);
-	int hdrm = metalen + skb->dev->hard_header_len + IFE_METAHDRLEN;
+	int hdrm = metalen + ETH_HLEN + IFE_METAHDRLEN;
 	unsigned int skboff = 0;
 	int new_len = skb->len + hdrm;
 	bool exceed_mtu = false;
@@ -826,7 +827,7 @@ drop:
 	}
 
 	if (skb_at_tc_ingress(skb))
-		skb_push(skb, skb->dev->hard_header_len);
+		skb_push(skb, ETH_HLEN);
 
 	ife_meta = ife_encode(skb, metalen);
 	if (!ife_meta)
@@ -856,9 +857,25 @@ drop:
 	oethh->h_proto = htons(p->eth_type);
 
 	if (skb_at_tc_ingress(skb))
-		skb_pull(skb, skb->dev->hard_header_len);
+		skb_pull(skb, ETH_HLEN);
 
 	return action;
+}
+
+/* IFE encapsulates the original Ethernet header and, on decode, expects to
+ * find one, so it can only ever work on skbs that carry one. Loopback carries
+ * Ethernet header as well, so it qualifies here.
+ * At ingress, also verify that the L2 header about to be pushed back really
+ * is an Ethernet header because the skb could've been redirected with mirred
+ * from a non-Ethernet device.
+ */
+static bool tcf_ife_is_eth_skb(const struct sk_buff *skb)
+{
+	if (skb->dev->type != ARPHRD_ETHER &&
+	    skb->dev->type != ARPHRD_LOOPBACK)
+		return false;
+
+	return !skb_at_tc_ingress(skb) || skb->mac_len == ETH_HLEN;
 }
 
 TC_INDIRECT_SCOPE int tcf_ife_act(struct sk_buff *skb,
@@ -868,6 +885,13 @@ TC_INDIRECT_SCOPE int tcf_ife_act(struct sk_buff *skb,
 	struct tcf_ife_info *ife = to_ife(a);
 	struct tcf_ife_params *p;
 	int ret;
+
+	if (unlikely(!tcf_ife_is_eth_skb(skb))) {
+		bstats_update(this_cpu_ptr(ife->common.cpu_bstats), skb);
+		tcf_lastuse_update(&ife->tcf_tm);
+		qstats_cpu_drop_inc(ife->common.cpu_qstats);
+		return TC_ACT_SHOT;
+	}
 
 	p = rcu_dereference_bh(ife->params);
 	if (p->flags & IFE_ENCODE) {
