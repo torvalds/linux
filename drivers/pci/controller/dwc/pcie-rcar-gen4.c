@@ -13,8 +13,11 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
+#include <linux/irqchip/arm-gic-v3.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -30,6 +33,10 @@
 #define DEVICE_TYPE_EP		0
 #define DEVICE_TYPE_RC		BIT(4)
 #define BIFUR_MOD_SET_ON	BIT(0)
+
+/* MSI Capability */
+#define MSICAP0			0x0050
+#define MSICAP0_MSIE		BIT(16)
 
 /* PCIe Interrupt Status 0 */
 #define PCIEINTSTS0		0x0084
@@ -54,6 +61,14 @@
 #define PCIERSTCTRL1		0x0014
 #define APP_HOLD_PHY_RST	BIT(16)
 #define APP_LTSSM_ENABLE	BIT(0)
+
+/* INTC address */
+#define AXIINTCADDR		0x0a00
+
+/* INTC control & mask */
+#define AXIINTCCONT		0x0a04
+#define INTC_EN			BIT(31)
+#define INTC_MASK		GENMASK(11, 3)
 
 /* PCIe Power Management Control */
 #define PCIEPWRMNGCTRL		0x0070
@@ -305,13 +320,103 @@ static struct rcar_gen4_pcie *rcar_gen4_pcie_alloc(struct platform_device *pdev)
 	return rcar;
 }
 
+static int rcar_gen4_pcie_host_msi_addr(struct dw_pcie_rp *pp, u32 *msi_addr)
+{
+	struct dw_pcie *dw = to_dw_pcie_from_pp(pp);
+	struct device_node *msi_node = NULL;
+	struct device *dev = dw->dev;
+	struct resource res;
+	u64 addr;
+	int ret;
+
+	/*
+	 * Either the "msi-parent" or the "msi-map" phandle needs to exist
+	 * to obtain the MSI node.
+	 */
+	of_msi_xlate(dev, &msi_node, 0);
+	if (!msi_node)
+		return -ENODEV;
+
+	/* Check if "msi-parent" or the "msi-map" points to ARM GICv3 ITS. */
+	if (!of_device_is_compatible(msi_node, "arm,gic-v3-its"))
+		return dev_err_probe(dev, -ENODEV, "Compatible MSI controller not found\n");
+
+	/* Derive GITS_TRANSLATER address from GICv3 */
+	ret = of_address_to_resource(msi_node, 0, &res);
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "MSI controller resources not obtained\n");
+
+	addr = res.start + GITS_TRANSLATER;
+	if (addr >= SZ_4G)
+		return dev_err_probe(dev, -EINVAL, "MSI controller address above 32bit range\n");
+
+	*msi_addr = addr;
+	return 0;
+}
+
+static int rcar_gen4_pcie_host_msi_init(struct dw_pcie_rp *pp)
+{
+	struct dw_pcie *dw = to_dw_pcie_from_pp(pp);
+	struct rcar_gen4_pcie *rcar = to_rcar_gen4_pcie(dw);
+	u32 val;
+	int ret;
+
+	/* Make sure MSICAP0 MSIE is configured. */
+	val = dw_pcie_readl_dbi(dw, MSICAP0);
+	if (pci_msi_enabled())
+		val |= MSICAP0_MSIE;
+	else
+		val &= ~MSICAP0_MSIE;
+	dw_pcie_writel_dbi(dw, MSICAP0, val);
+
+	if (!pci_msi_enabled() || pp->use_imsi_rx) {
+		/* Clear AXIINTC mapping. */
+		writel(0, rcar->base + AXIINTCADDR);
+		writel(0, rcar->base + AXIINTCCONT);
+	} else {
+		ret = rcar_gen4_pcie_host_msi_addr(pp, &val);
+		if (ret)
+			goto err;
+
+		/* Point AXIINTC to GIC ITS and enable. */
+		writel(val, rcar->base + AXIINTCADDR);
+		writel(INTC_EN | INTC_MASK, rcar->base + AXIINTCCONT);
+	}
+
+	/* Configure MSI interrupt signal */
+	val = readl(rcar->base + PCIEINTSTS0EN);
+	if (pci_msi_enabled())
+		val |= MSI_CTRL_INT;
+	else
+		val &= ~MSI_CTRL_INT;
+	writel(val, rcar->base + PCIEINTSTS0EN);
+
+	return 0;
+
+err:
+	/* Deconfigure MSICAP0 MSIE. */
+	val = dw_pcie_readl_dbi(dw, MSICAP0);
+	val &= ~MSICAP0_MSIE;
+	dw_pcie_writel_dbi(dw, MSICAP0, val);
+
+	/* Clear AXIINTC mapping. */
+	writel(0, rcar->base + AXIINTCADDR);
+	writel(0, rcar->base + AXIINTCCONT);
+
+	/* Deconfigure MSI interrupt signal */
+	val = readl(rcar->base + PCIEINTSTS0EN);
+	val &= ~MSI_CTRL_INT;
+	writel(val, rcar->base + PCIEINTSTS0EN);
+
+	return ret;
+}
+
 /* Host mode */
 static int rcar_gen4_pcie_host_init(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *dw = to_dw_pcie_from_pp(pp);
 	struct rcar_gen4_pcie *rcar = to_rcar_gen4_pcie(dw);
 	int ret;
-	u32 val;
 
 	gpiod_set_value_cansleep(dw->pe_rst, 1);
 
@@ -328,16 +433,19 @@ static int rcar_gen4_pcie_host_init(struct dw_pcie_rp *pp)
 	dw_pcie_writel_dbi2(dw, PCI_BASE_ADDRESS_0, 0x0);
 	dw_pcie_writel_dbi2(dw, PCI_BASE_ADDRESS_1, 0x0);
 
-	/* Enable MSI interrupt signal */
-	val = readl(rcar->base + PCIEINTSTS0EN);
-	val |= MSI_CTRL_INT;
-	writel(val, rcar->base + PCIEINTSTS0EN);
+	ret = rcar_gen4_pcie_host_msi_init(pp);
+	if (ret)
+		goto err;
 
 	msleep(PCIE_T_PVPERL_MS);	/* pe_rst requires 100msec delay */
 
 	gpiod_set_value_cansleep(dw->pe_rst, 0);
 
 	return 0;
+
+err:
+	rcar_gen4_pcie_common_deinit(rcar);
+	return ret;
 }
 
 static void rcar_gen4_pcie_host_deinit(struct dw_pcie_rp *pp)

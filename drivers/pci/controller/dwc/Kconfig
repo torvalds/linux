@@ -346,7 +346,7 @@ config PCIE_RCAR_GEN4
 
 config PCIE_RCAR_GEN4_HOST
 	tristate "Renesas R-Car Gen4 PCIe controller (host mode)"
-	depends on ARCH_RENESAS || COMPILE_TEST
+	depends on ARM64 && (ARCH_RENESAS || COMPILE_TEST)
 	depends on PCI_MSI
 	select PCIE_DW_HOST
 	select PCIE_RCAR_GEN4
@@ -357,7 +357,7 @@ config PCIE_RCAR_GEN4_HOST
 
 config PCIE_RCAR_GEN4_EP
 	tristate "Renesas R-Car Gen4 PCIe controller (endpoint mode)"
-	depends on ARCH_RENESAS || COMPILE_TEST
+	depends on ARM64 && (ARCH_RENESAS || COMPILE_TEST)
 	depends on PCI_ENDPOINT
 	select PCIE_DW_EP
 	select PCIE_RCAR_GEN4
