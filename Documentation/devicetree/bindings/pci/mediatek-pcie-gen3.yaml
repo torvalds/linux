@@ -51,6 +51,7 @@ properties:
               - mediatek,mt7981-pcie
               - mediatek,mt7986-pcie
               - mediatek,mt8188-pcie
+              - mediatek,mt8189-pcie
               - mediatek,mt8195-pcie
           - const: mediatek,mt8192-pcie
       - items:
@@ -114,6 +115,10 @@ properties:
 
   power-domains:
     maxItems: 1
+
+  memory-region:
+    maxItems: 1
+    description: phandle to restricted DMA buffer
 
   mediatek,pbus-csr:
     $ref: /schemas/types.yaml#/definitions/phandle-array
@@ -193,6 +198,7 @@ allOf:
           contains:
             enum:
               - mediatek,mt8188-pcie
+              - mediatek,mt8189-pcie
               - mediatek,mt8195-pcie
     then:
       properties:
