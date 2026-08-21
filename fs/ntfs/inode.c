@@ -173,10 +173,11 @@ struct inode *ntfs_iget(struct super_block *sb, u64 mft_no)
 		unlock_new_inode(vi);
 	}
 	/*
-	 * There is no point in keeping bad inodes around if the failure was
-	 * due to ENOMEM. We want to be able to retry again later.
+	 * There is no point in keeping bad inodes around. This also
+	 * simplifies things in that we never need to check for bad inodes
+	 * elsewhere.
 	 */
-	if (unlikely(err == -ENOMEM)) {
+	if (unlikely(err)) {
 		iput(vi);
 		vi = ERR_PTR(err);
 	}
