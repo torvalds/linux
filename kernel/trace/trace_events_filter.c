@@ -118,6 +118,7 @@ struct filter_pred {
 	C(IP_FIELD_ONLY,	"Only 'ip' field is supported for function trace"), \
 	C(INVALID_VALUE,	"Invalid value (did you forget quotes)?"), \
 	C(NO_FUNCTION,		"Function not found"),			\
+	C(GLOB_WITHIN,		"'within' filter cannot take glob expressions"), \
 	C(ERRNO,		"Error"),				\
 	C(NO_FILTER,		"No filter found")
 
@@ -2027,8 +2028,10 @@ static int parse_pred(const char *str, void *data,
 		} else if (field->filter_type == FILTER_WITHIN) {
 			unsigned long func;
 
-			if (op == OP_GLOB)
+			if (op == OP_GLOB) {
+				parse_error(pe, FILT_ERR_GLOB_WITHIN, pos + i);
 				goto err_free;
+			}
 
 			pred->fn_num = FILTER_PRED_FN_WITHIN;
 			func = kallsyms_lookup_name(pred->regex->pattern);
