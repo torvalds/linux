@@ -244,9 +244,9 @@ out_unlock:
 
 static int parse_wof_chunk_table(struct ntfs_inode *base_ni,
 				 struct ntfs_inode *ni, u64 chunk_idx,
-				 u64 chunk_count, u64 *chunk_offset,
-				 u32 *chunk_size, void *table_buf,
-				 size_t table_buf_size)
+				 u64 chunk_count, u32 decomp_size,
+				 u64 *chunk_offset, u32 *chunk_size,
+				 void *table_buf, size_t table_buf_size)
 {
 	u8 bytes_per_off;
 	u8 *buf;
@@ -269,11 +269,11 @@ static int parse_wof_chunk_table(struct ntfs_inode *base_ni,
 	chunk_data_size = (u64)ni->data_size - table_size;
 
 	if (chunk_count == 1) {
-		if (chunk_data_size > U32_MAX)
+		if (chunk_data_size > decomp_size)
 			return -EINVAL;
 		*chunk_offset = 0;
 		*chunk_size = chunk_data_size;
-		return 0;
+		goto out;
 	}
 
 	byte_off = chunk_idx ? (chunk_idx - 1) * bytes_per_off : 0;
@@ -281,10 +281,7 @@ static int parse_wof_chunk_table(struct ntfs_inode *base_ni,
 				bytes_per_off :
 				(chunk_idx ? 2 : 1) * bytes_per_off;
 
-	if (!NInoNonResident(ni))
-		return -EOPNOTSUPP;
-
-	{
+	if (NInoNonResident(ni)) {
 		sector_t start_sector = byte_off >> 9;
 		u32 sector_off = byte_off & ((1 << 9) - 1);
 		u32 sectors = DIV_ROUND_UP(sector_off + bytes_to_read, 512);
@@ -294,11 +291,45 @@ static int parse_wof_chunk_table(struct ntfs_inode *base_ni,
 		buf = table_buf;
 		ret = ntfs_bdev_read_from_rl(ni->vol, &ni->runlist,
 					     start_sector, sectors, buf);
-		if (ret) {
-			ret = -EIO;
-			return ret;
-		}
+		if (ret)
+			return -EIO;
 		buf += sector_off;
+	} else {
+		struct ntfs_attr_search_ctx *ctx;
+		u32 value_length;
+		u16 value_offset;
+
+		if (bytes_to_read > table_buf_size)
+			return -EINVAL;
+
+		mutex_lock(&base_ni->mrec_lock);
+		ctx = ntfs_attr_get_search_ctx(base_ni, NULL);
+		if (!ctx) {
+			ret = -ENOMEM;
+			goto out_unlock_mrec;
+		}
+		ret = ntfs_attr_lookup(ni->type, ni->name, ni->name_len,
+				       CASE_SENSITIVE, 0, NULL, 0, ctx);
+		if (ret)
+			goto out_put_ctx;
+
+		value_length =
+			le32_to_cpu(ctx->attr->data.resident.value_length);
+		value_offset =
+			le16_to_cpu(ctx->attr->data.resident.value_offset);
+		if (byte_off + bytes_to_read > value_length) {
+			ret = -EINVAL;
+			goto out_put_ctx;
+		}
+		memcpy(table_buf, (u8 *)ctx->attr + value_offset + byte_off,
+		       bytes_to_read);
+		buf = table_buf;
+out_put_ctx:
+		ntfs_attr_put_search_ctx(ctx);
+out_unlock_mrec:
+		mutex_unlock(&base_ni->mrec_lock);
+		if (ret)
+			return ret;
 	}
 
 	if (bytes_per_off == sizeof(__le32)) {
@@ -320,14 +351,15 @@ static int parse_wof_chunk_table(struct ntfs_inode *base_ni,
 	}
 
 	if (off[1] <= off[0] || off[1] > chunk_data_size ||
-	    off[1] - off[0] > U32_MAX) {
-		ret = -EINVAL;
-		return ret;
-	}
+	    off[1] - off[0] > decomp_size)
+		return -EINVAL;
 
 	*chunk_offset = table_size + off[0];
 	*chunk_size = off[1] - off[0];
-	return ret;
+out:
+	if (!*chunk_size)
+		return -EINVAL;
+	return 0;
 }
 
 static int ntfs_read_wof_chunk(struct ntfs_volume *vol,
@@ -335,23 +367,54 @@ static int ntfs_read_wof_chunk(struct ntfs_volume *vol,
 			       u32 chunk_size, void *input, size_t input_size,
 			       char **chunk_mem)
 {
+	struct ntfs_inode *base_ni = wof_ni->ext.base_ntfs_ino;
+	struct ntfs_attr_search_ctx *ctx;
 	u32 input_offset = chunk_offset & 511;
 	u32 input_size_aligned;
+	u32 value_length;
+	u16 value_offset;
 	int err;
 
 	input_size_aligned = round_up(chunk_size + input_offset, 512);
 	if (input_size_aligned > input_size)
 		return -EINVAL;
 
-	if (!NInoNonResident(wof_ni))
-		return -EOPNOTSUPP;
+	if (NInoNonResident(wof_ni)) {
+		err = ntfs_bdev_read_from_rl(vol, &wof_ni->runlist,
+					     chunk_offset >> 9,
+					     input_size_aligned >> 9, input);
+		if (err)
+			return err;
+		*chunk_mem = (u8 *)input + input_offset;
+		return 0;
+	}
 
-	err = ntfs_bdev_read_from_rl(vol, &wof_ni->runlist, chunk_offset >> 9,
-				     input_size_aligned >> 9, input);
+	mutex_lock(&base_ni->mrec_lock);
+	ctx = ntfs_attr_get_search_ctx(base_ni, NULL);
+	if (!ctx) {
+		err = -ENOMEM;
+		goto out_unlock_mrec;
+	}
+
+	err = ntfs_attr_lookup(wof_ni->type, wof_ni->name, wof_ni->name_len,
+			       CASE_SENSITIVE, 0, NULL, 0, ctx);
 	if (err)
-		return err;
-	*chunk_mem = (u8 *)input + input_offset;
-	return 0;
+		goto out_put_ctx;
+
+	value_length = le32_to_cpu(ctx->attr->data.resident.value_length);
+	value_offset = le16_to_cpu(ctx->attr->data.resident.value_offset);
+	if (chunk_offset + chunk_size > value_length) {
+		err = -EINVAL;
+		goto out_put_ctx;
+	}
+	memcpy(input, (u8 *)ctx->attr + value_offset + chunk_offset,
+	       chunk_size);
+	*chunk_mem = input;
+out_put_ctx:
+	ntfs_attr_put_search_ctx(ctx);
+out_unlock_mrec:
+	mutex_unlock(&base_ni->mrec_lock);
+	return err;
 }
 
 struct ntfs_wof_dest {
@@ -580,11 +643,7 @@ int ntfs_read_wof_compressed_block(struct folio *folio)
 		err = -EIO;
 		goto out_iput;
 	}
-	if (!NInoNonResident(wof_ni)) {
-		err = -EOPNOTSUPP;
-		goto out_iput;
-	}
-	if (!NInoFullyMapped(wof_ni)) {
+	if (NInoNonResident(wof_ni) && !NInoFullyMapped(wof_ni)) {
 		down_write(&wof_ni->runlist.lock);
 		if (!NInoFullyMapped(wof_ni))
 			err = ntfs_attr_map_whole_runlist(wof_ni);
@@ -607,22 +666,15 @@ int ntfs_read_wof_compressed_block(struct folio *folio)
 		u64 chunk_file_offset;
 		loff_t chunk_end, copy_start, copy_end;
 
-		err = parse_wof_chunk_table(ni, wof_ni, chunk_idx, chunk_count,
-					    &chunk_offset, &chunk_size,
-					    ws->input, ws->input_size);
-		if (err)
-			goto out_unlock_ws;
 		decomp_size = chunk_idx + 1 == chunk_count ?
 				      i_size - chunk_idx * ws->comp_unit :
 				      ws->comp_unit;
-		if (!chunk_size || chunk_size > decomp_size) {
-			ntfs_error(
-				vol->sb,
-				"Invalid compressed size (%u) for frame size (%u)",
-				chunk_size, decomp_size);
-			err = -EINVAL;
+		err = parse_wof_chunk_table(ni, wof_ni, chunk_idx, chunk_count,
+					    decomp_size, &chunk_offset,
+					    &chunk_size, ws->input,
+					    ws->input_size);
+		if (err)
 			goto out_unlock_ws;
-		}
 
 		err = ntfs_read_wof_chunk(vol, wof_ni, chunk_offset, chunk_size,
 					  ws->input, ws->input_size,
