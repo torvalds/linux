@@ -571,8 +571,10 @@ static int f2fs_unlink(struct inode *dir, struct dentry *dentry)
 
 	trace_f2fs_unlink_enter(dir, dentry);
 
-	if (IS_DEVICE_ALIASING(inode))
-		return -EPERM;
+	if (IS_DEVICE_ALIASING(inode)) {
+		err = -EPERM;
+		goto out;
+	}
 
 	if (unlikely(f2fs_cp_error(sbi))) {
 		err = -EIO;
@@ -1025,8 +1027,10 @@ static int f2fs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 	}
 
 	if (new_inode) {
-		if (IS_DEVICE_ALIASING(new_inode))
-			return -EPERM;
+		if (IS_DEVICE_ALIASING(new_inode)) {
+			err = -EPERM;
+			goto out_dir;
+		}
 
 		err = -ENOTEMPTY;
 		if (old_is_dir && !f2fs_empty_dir(new_inode))
