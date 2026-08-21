@@ -288,7 +288,7 @@ static ssize_t heater_enable_store(struct device *dev,
 
 	data->heating_complete = jiffies + msecs_to_jiffies(heating_time_bound);
 	data->data_pending = true;
-	return 0;
+	return count;
 }
 
 static ssize_t heater_power_show(struct device *dev,
