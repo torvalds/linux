@@ -558,7 +558,7 @@ static void nvmet_p2pmem_ns_add_p2p(struct nvmet_ctrl *ctrl,
 	if (ret < 0)
 		pci_dev_put(p2p_dev);
 
-	pr_info("using p2pmem on %s for nsid %d\n", pci_name(p2p_dev),
+	pr_info("using p2pmem on %s for nsid %u\n", pci_name(p2p_dev),
 		ns->nsid);
 }
 
