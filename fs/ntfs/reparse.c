@@ -223,24 +223,8 @@ static bool valid_reparse_data(struct ntfs_inode *ni,
 			return false;
 		break;
 	case IO_REPARSE_TAG_WOF: {
-		const struct wof_reparse_data *wof_data =
-			(const struct wof_reparse_data *)reparse_attr->reparse_data;
-
 		if (!valid_reparse_buffer(ni, reparse_attr, size,
 					  sizeof(struct wof_reparse_data)))
-			return false;
-
-		if (le16_to_cpu(reparse_attr->reparse_data_length) <
-		    sizeof(struct wof_reparse_data) ||
-		    wof_data->version != WOF_CURRENT_VERSION ||
-		    wof_data->provider != WOF_PROVIDER_FILE ||
-		    wof_data->provider_version !=
-		    WOF_PROVIDER_CURRENT_VERSION)
-			return false;
-		if (wof_data->compression_format != WOF_COMPRESSION_XPRESS4K &&
-		    wof_data->compression_format != WOF_COMPRESSION_XPRESS8K &&
-		    wof_data->compression_format != WOF_COMPRESSION_XPRESS16K &&
-		    wof_data->compression_format != WOF_COMPRESSION_LZX)
 			return false;
 		break;
 	}
@@ -361,22 +345,35 @@ int ntfs_parse_reparse(struct ntfs_inode *ni, unsigned int *mode)
 		const struct wof_reparse_data *wof_data =
 			(const struct wof_reparse_data *)reparse_attr->reparse_data;
 
-		switch (wof_data->compression_format) {
-		case WOF_COMPRESSION_XPRESS4K:
-			ni->itype.compressed.block_size_bits = 12;
-			break;
-		case WOF_COMPRESSION_XPRESS8K:
-			ni->itype.compressed.block_size_bits = 13;
-			break;
-		case WOF_COMPRESSION_XPRESS16K:
-			ni->itype.compressed.block_size_bits = 14;
-			break;
-		case WOF_COMPRESSION_LZX:
-			ni->itype.compressed.block_size_bits = 15;
-			break;
+		ni->itype.compressed.block_size_bits = 0;
+		ni->itype.compressed.block_size = 0;
+		if (wof_data->version == WOF_CURRENT_VERSION &&
+		    wof_data->provider == WOF_PROVIDER_FILE &&
+		    wof_data->provider_version ==
+			    WOF_PROVIDER_CURRENT_VERSION) {
+			switch (wof_data->compression_format) {
+			case WOF_COMPRESSION_XPRESS4K:
+				ni->itype.compressed.block_size_bits =
+					12;
+				break;
+			case WOF_COMPRESSION_XPRESS8K:
+				ni->itype.compressed.block_size_bits =
+					13;
+				break;
+			case WOF_COMPRESSION_XPRESS16K:
+				ni->itype.compressed.block_size_bits =
+					14;
+				break;
+			case WOF_COMPRESSION_LZX:
+				ni->itype.compressed.block_size_bits =
+					15;
+				break;
+			}
 		}
-		ni->itype.compressed.block_size =
-			1 << ni->itype.compressed.block_size_bits;
+		if (ni->itype.compressed.block_size_bits)
+			ni->itype.compressed.block_size =
+				1
+				<< ni->itype.compressed.block_size_bits;
 #endif
 		NInoSetWofCompressed(ni);
 		VFS_I(ni)->i_mode &= ~0222;

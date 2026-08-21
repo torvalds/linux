@@ -2691,6 +2691,9 @@ static void __exit exit_ntfs_fs(void)
 	 * destroy cache.
 	 */
 	rcu_barrier();
+#ifdef CONFIG_NTFS_FS_WOF_COMPRESSION
+	ntfs_wof_free_workspaces();
+#endif
 	kmem_cache_destroy(ntfs_big_inode_cache);
 	kmem_cache_destroy(ntfs_inode_cache);
 	kmem_cache_destroy(ntfs_name_cache);

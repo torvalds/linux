@@ -7,7 +7,7 @@ ntfs-y := aops.o attrib.o collate.o dir.o file.o index.o inode.o \
 	  upcase.o bitmap.o lcnalloc.o logfile.o reparse.o compress.o \
 	  iomap.o debug.o sysctl.o object_id.o bdev-io.o
 
-ntfs-$(CONFIG_NTFS_FS_WOF_COMPRESSION) += \
+ntfs-$(CONFIG_NTFS_FS_WOF_COMPRESSION) += wof.o \
 	lib/decompress_common.o lib/lzx_decompress.o lib/xpress_decompress.o
 
 ccflags-$(CONFIG_NTFS_DEBUG) += -DDEBUG

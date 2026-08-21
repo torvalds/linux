@@ -2137,7 +2137,7 @@ int ntfs_attr_make_non_resident(struct ntfs_inode *ni, const u32 data_size)
 		ni->runlist.count = 0;
 	write_lock_irqsave(&ni->size_lock, flags);
 	ni->allocated_size = new_size;
-	if (NInoSparse(ni) || NInoCompressed(ni)) {
+	if ((NInoSparse(ni) && !NInoWofCompressed(ni)) || NInoCompressed(ni)) {
 		ni->itype.compressed.size = ni->allocated_size;
 		if (a->data.non_resident.compression_unit) {
 			ni->itype.compressed.block_size = 1U <<

@@ -840,6 +840,17 @@ static bool ntfs_is_reserved_lxattr(const char *name)
 	       !strcmp(name, "$LXMOD") || !strcmp(name, "$LXDEV");
 }
 
+static int ntfs_validate_fattr(struct ntfs_inode *ni, __le32 fattr)
+{
+	const __le32 wof_flags = FILE_ATTR_SPARSE_FILE |
+				 FILE_ATTR_REPARSE_POINT;
+
+	if (NInoWofCompressed(ni) && ((ni->flags ^ fattr) & wof_flags))
+		return -EPERM;
+
+	return 0;
+}
+
 static int ntfs_setxattr(const struct xattr_handler *handler,
 		struct mnt_idmap *idmap, struct dentry *unused,
 		struct inode *inode, const char *name, const void *value,
@@ -860,7 +871,8 @@ static int ntfs_setxattr(const struct xattr_handler *handler,
 			err = -EINVAL;
 			goto out;
 		}
-		fattr = cpu_to_le32(*(u8 *)value);
+		fattr = cpu_to_le32((le32_to_cpu(ni->flags) & ~0xffU) |
+				    *(u8 *)value);
 		goto set_fattr;
 	}
 
@@ -875,6 +887,10 @@ static int ntfs_setxattr(const struct xattr_handler *handler,
 		else
 			fattr = cpu_to_le32(*(u32 *)value);
 
+		err = ntfs_validate_fattr(ni, fattr);
+		if (err)
+			goto out;
+
 		if (S_ISREG(inode->i_mode)) {
 			mutex_lock(&ni->mrec_lock);
 			err = ntfs_new_attr_flags(ni, fattr);
@@ -888,6 +904,10 @@ set_fattr:
 			fattr |= FILE_ATTR_DIRECTORY;
 		else
 			fattr &= ~FILE_ATTR_DIRECTORY;
+
+		err = ntfs_validate_fattr(ni, fattr);
+		if (err)
+			goto out;
 
 		if (ni->flags != fattr) {
 			ni->flags = fattr;
