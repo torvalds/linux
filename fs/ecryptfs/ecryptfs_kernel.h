@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
-/**
+/*
  * eCryptfs: Linux filesystem encryption layer
  * Kernel declarations.
  *
@@ -204,7 +204,7 @@ struct ecryptfs_filename {
 	char dentry_name[ECRYPTFS_ENCRYPTED_DENTRY_NAME_LEN + 1];
 };
 
-/**
+/*
  * This is the primary struct associated with each encrypted file.
  *
  * TODO: cache align/pack?
@@ -255,7 +255,8 @@ struct ecryptfs_inode_info {
 };
 
 /**
- * ecryptfs_global_auth_tok - A key used to encrypt all new files under the mountpoint
+ * struct ecryptfs_global_auth_tok - A key used to encrypt all new files
+ *   under the mountpoint
  * @flags: Status flags
  * @mount_crypt_stat_list: These auth_toks hang off the mount-wide
  *                         cryptographic context. Every time a new
@@ -263,7 +264,6 @@ struct ecryptfs_inode_info {
  *                         the auth_toks on that list to the set of
  *                         auth_toks on the inode's crypt_stat
  * @global_auth_tok_key: The key from the user's keyring for the sig
- * @global_auth_tok: The key contents
  * @sig: The key identifier
  *
  * ecryptfs_global_auth_tok structs refer to authentication token keys
@@ -283,7 +283,7 @@ struct ecryptfs_global_auth_tok {
 };
 
 /**
- * ecryptfs_key_tfm - Persistent key tfm
+ * struct ecryptfs_key_tfm - Persistent key tfm
  * @key_tfm: crypto API handle to the key
  * @key_size: Key size in bytes
  * @key_tfm_mutex: Mutex to ensure only one operation in eCryptfs is
@@ -306,7 +306,7 @@ struct ecryptfs_key_tfm {
 
 extern struct mutex key_tfm_list_mutex;
 
-/**
+/*
  * This struct is to enable a mount-wide passphrase/salt combo. This
  * is more or less a stopgap to provide similar functionality to other
  * crypto filesystems like EncFS or CFS until full policy support is
@@ -580,7 +580,8 @@ int ecryptfs_generate_key_packet_set(char *dest_base,
 				     size_t *len, size_t max);
 int
 ecryptfs_parse_packet_set(struct ecryptfs_crypt_stat *crypt_stat,
-			  unsigned char *src, struct dentry *ecryptfs_dentry);
+			  unsigned char *src, size_t src_size,
+			  struct dentry *ecryptfs_dentry);
 int ecryptfs_truncate(struct dentry *dentry, loff_t new_length);
 ssize_t
 ecryptfs_getxattr_lower(struct dentry *lower_dentry, struct inode *lower_inode,
