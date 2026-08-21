@@ -1610,7 +1610,7 @@ static int nvme_identify_ns_descs(struct nvme_ctrl *ctrl,
 	}
 
 	if (nvme_multi_css(ctrl) && !csi_seen) {
-		dev_warn(ctrl->device, "Command set not reported for nsid:%d\n",
+		dev_warn(ctrl->device, "Command set not reported for nsid:%u\n",
 			 info->nsid);
 		status = -EINVAL;
 	}
@@ -4126,13 +4126,13 @@ static int nvme_init_ns_head(struct nvme_ns *ns, struct nvme_ns_info *info)
 		    ((ns->ctrl->subsys->cmic & NVME_CTRL_CMIC_MULTI_CTRL) &&
 		     info->is_shared)) {
 			dev_err(ctrl->device,
-				"ignoring nsid %d because of duplicate IDs\n",
+				"ignoring nsid %u because of duplicate IDs\n",
 				info->nsid);
 			return ret;
 		}
 
 		dev_err(ctrl->device,
-			"clearing duplicate IDs for nsid %d\n", info->nsid);
+			"clearing duplicate IDs for nsid %u\n", info->nsid);
 		dev_err(ctrl->device,
 			"use of /dev/disk/by-id/ may cause data corruption\n");
 		memset(&info->ids.nguid, 0, sizeof(info->ids.nguid));
@@ -4147,7 +4147,7 @@ static int nvme_init_ns_head(struct nvme_ns *ns, struct nvme_ns_info *info)
 		ret = nvme_subsys_check_duplicate_ids(ctrl->subsys, &info->ids);
 		if (ret) {
 			dev_err(ctrl->device,
-				"duplicate IDs in subsystem for nsid %d\n",
+				"duplicate IDs in subsystem for nsid %u\n",
 				info->nsid);
 			goto out_unlock;
 		}
@@ -4161,20 +4161,20 @@ static int nvme_init_ns_head(struct nvme_ns *ns, struct nvme_ns_info *info)
 		if ((!info->is_shared || !head->shared) &&
 		    !list_empty(&head->list)) {
 			dev_err(ctrl->device,
-				"Duplicate unshared namespace %d\n",
+				"Duplicate unshared namespace %u\n",
 				info->nsid);
 			goto out_put_ns_head;
 		}
 		if (!nvme_ns_ids_equal(&head->ids, &info->ids)) {
 			dev_err(ctrl->device,
-				"IDs don't match for shared namespace %d\n",
+				"IDs don't match for shared namespace %u\n",
 					info->nsid);
 			goto out_put_ns_head;
 		}
 
 		if (!multipath) {
 			dev_warn(ctrl->device,
-				"Found shared namespace %d, but multipathing not supported.\n",
+				"Found shared namespace %u, but multipathing not supported.\n",
 				info->nsid);
 			dev_warn_once(ctrl->device,
 				"Shared namespace support requires core_nvme.multipath=Y.\n");
@@ -4423,7 +4423,7 @@ static void nvme_validate_ns(struct nvme_ns *ns, struct nvme_ns_info *info)
 
 	if (!nvme_ns_ids_equal(&ns->head->ids, &info->ids)) {
 		dev_err(ns->ctrl->device,
-			"identifiers changed for nsid %d\n", ns->head->ns_id);
+			"identifiers changed for nsid %u\n", ns->head->ns_id);
 		goto out;
 	}
 
@@ -4450,7 +4450,7 @@ static void nvme_scan_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 
 	if (info.ids.csi != NVME_CSI_NVM && !nvme_multi_css(ctrl)) {
 		dev_warn(ctrl->device,
-			"command set not reported for nsid: %d\n", nsid);
+			"command set not reported for nsid: %u\n", nsid);
 		return;
 	}
 
