@@ -20849,6 +20849,7 @@ B:	https://bugzilla.kernel.org
 C:	irc://irc.oftc.net/linux-pci
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pci/pci.git
 F:	Documentation/ABI/testing/debugfs-pcie-ptm
+F:	Documentation/PCI/controller/
 F:	Documentation/devicetree/bindings/pci/
 F:	Documentation/trace/events-pci-controller.rst
 F:	drivers/pci/controller/
