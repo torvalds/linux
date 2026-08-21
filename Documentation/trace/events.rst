@@ -243,6 +243,18 @@ the function "security_prepare_creds" and less than the end of that function.
 The ".function" postfix can only be attached to values of size long, and can only
 be compared with "==" or "!=".
 
+The special field "within" can be used to filter events based on whether
+a specific function appears in the current call stack::
+
+  within == "function_name"
+  within != "function_name"
+
+For example, to only trace events where "vfs_read" is in the call stack::
+
+  # echo 'within == "vfs_read"' > events/sched/sched_switch/filter
+
+The within field supports only the "==" and "!=" operators.
+
 Cpumask fields or scalar fields that encode a CPU number can be filtered using
 a user-provided cpumask in cpulist format. The format is as follows::
 

@@ -201,6 +201,9 @@ static int trace_define_generic_fields(void)
 	__generic_field(char *, comm, FILTER_COMM);
 	__generic_field(char *, stacktrace, FILTER_STACKTRACE);
 	__generic_field(char *, STACKTRACE, FILTER_STACKTRACE);
+#ifdef CONFIG_STACKTRACE
+	__generic_field(char *, within, FILTER_WITHIN);
+#endif
 
 	return ret;
 }
