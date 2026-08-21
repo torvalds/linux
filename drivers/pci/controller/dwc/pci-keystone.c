@@ -1391,13 +1391,17 @@ static int ks_pcie_fault(unsigned long addr, unsigned int fsr,
 
 static int __init ks_pcie_init(void)
 {
+	struct device_node *np;
 	/*
 	 * PCIe access errors that result into OCP errors are caught by ARM as
 	 * "External aborts"
 	 */
-	if (of_find_matching_node(NULL, ks_pcie_of_match))
+	np = of_find_matching_node(NULL, ks_pcie_of_match);
+	if (np) {
+		of_node_put(np);
 		hook_fault_code(17, ks_pcie_fault, SIGBUS, 0,
 				"Asynchronous external abort");
+	}
 
 	return platform_driver_register(&ks_pcie_driver);
 }
