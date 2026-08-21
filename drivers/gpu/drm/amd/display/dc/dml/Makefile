@@ -36,7 +36,11 @@ ifneq ($(CONFIG_FRAME_WARN),0)
             frame_warn_limit := 3072
         endif
     else
-        frame_warn_limit := 2048
+        ifeq ($(CONFIG_CC_IS_CLANG),y)
+            frame_warn_limit := 3072
+        else
+            frame_warn_limit := 2048
+        endif
     endif
 
     ifeq ($(call test-lt, $(CONFIG_FRAME_WARN), $(frame_warn_limit)),y)
