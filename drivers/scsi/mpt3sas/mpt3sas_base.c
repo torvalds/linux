@@ -8369,11 +8369,7 @@ _base_make_ioc_operational(struct MPT3SAS_ADAPTER *ioc)
 		return r; /* scan_start and scan_finished support */
 	}
 
-	r = _base_send_port_enable(ioc);
-	if (r)
-		return r;
-
-	return r;
+	return _base_send_port_enable(ioc);
 }
 
 /**

@@ -163,7 +163,6 @@ struct ufs_pm_lvl_states {
  * @ucd_req_dma_addr: UPIU request dma address for debug
  * @scsi_status: SCSI status of the command
  * @command_type: SCSI, UFS, Query.
- * @task_tag: Task tag of the command
  * @lun: LUN of the command
  * @intr_cmd: Interrupt command (doesn't participate in interrupt aggregation)
  * @req_abort_skip: skip request abort task flag
@@ -212,8 +211,7 @@ struct ufs_query_req {
 };
 
 /**
- * struct ufs_query_resp - UPIU QUERY
- * @response: device response code
+ * struct ufs_query_res - UPIU QUERY
  * @upiu_res: query response data
  */
 struct ufs_query_res {
@@ -237,11 +235,13 @@ struct ufs_query {
  * @type: device management command type - Query, NOP OUT
  * @lock: lock to allow one command at a time
  * @query: Device management query information
+ * @tag: tag of the reserved request in use
  */
 struct ufs_dev_cmd {
 	enum dev_cmd_type type;
 	struct mutex lock;
 	struct ufs_query query;
+	u8 tag;
 };
 
 /**
@@ -359,6 +359,7 @@ struct ufshcd_tx_eqtr_record {
  * @is_valid: True if parameter contains valid TX Equalization settings
  * @is_applied: True if settings have been applied to UniPro of both sides
  * @is_trained: True if parameters obtained from TX EQTR procedure
+ * @from_dt: True if settings are from Device Tree
  */
 struct ufshcd_tx_eq_params {
 	struct ufshcd_tx_eq_settings host[UFS_MAX_LANES];
@@ -367,12 +368,12 @@ struct ufshcd_tx_eq_params {
 	bool is_valid;
 	bool is_applied;
 	bool is_trained;
+	bool from_dt;
 };
 
 /**
  * struct ufs_hba_variant_ops - variant specific callbacks
  * @name: variant name
- * @max_num_rtt: maximum RTT supported by the host
  * @init: called when the driver is initialized
  * @exit: called to cleanup everything done in init
  * @set_dma_mask: For setting another DMA mask than indicated by the 64AS
@@ -417,10 +418,11 @@ struct ufshcd_tx_eq_params {
  * @get_rx_fom: called to get Figure of Merit (FOM) value.
  * @tx_eqtr_notify: called before and after TX Equalization Training procedure
  *	to allow platform vendor specific configs to take place.
+ * @get_hba_nortt: called to get maximum number of outstanding RTTs supported by
+ *	the controller.
  */
 struct ufs_hba_variant_ops {
 	const char *name;
-	int	max_num_rtt;
 	int	(*init)(struct ufs_hba *);
 	void    (*exit)(struct ufs_hba *);
 	u32	(*get_ufs_hci_version)(struct ufs_hba *);
@@ -479,6 +481,7 @@ struct ufs_hba_variant_ops {
 	int	(*tx_eqtr_notify)(struct ufs_hba *hba,
 				  enum ufs_notify_change_status status,
 				  struct ufs_pa_layer_attr *pwr_mode);
+	int	(*get_hba_nortt)(struct ufs_hba *hba);
 };
 
 /* clock gating state  */
@@ -552,6 +555,7 @@ struct ufs_clk_gating {
  * @is_initialized: Indicates whether clock scaling is initialized or not
  * @is_busy_started: tracks if busy period has started or not
  * @is_suspended: tracks if devfreq is suspended or not
+ * @suspend_on_no_request: suspend clock scaling only when no request
  */
 struct ufs_clk_scaling {
 	struct workqueue_struct *workq;
@@ -952,9 +956,13 @@ enum ufshcd_mcq_opr {
  * @ucdl_base_addr: UFS Command Descriptor base address
  * @utrdl_base_addr: UTP Transfer Request Descriptor base address
  * @utmrdl_base_addr: UTP Task Management Descriptor base address
+ * @devman_ucd_base_addr: UFS Command Descriptor base address for the reserved
+ *	device management tag (has a larger response area)
  * @ucdl_dma_addr: UFS Command Descriptor DMA address
  * @utrdl_dma_addr: UTRDL DMA address
  * @utmrdl_dma_addr: UTMRDL DMA address
+ * @devman_ucd_dma_addr: UFS Command Descriptor DMA address for the reserved
+ *	device management tag
  * @host: Scsi_Host instance of the driver
  * @dev: device handle
  * @ufs_device_wlun: WLUN that controls the entire UFS device.
@@ -973,7 +981,7 @@ enum ufshcd_mcq_opr {
  * @capabilities: UFS Controller Capabilities
  * @mcq_capabilities: UFS Multi Circular Queue capabilities
  * @nutrs: Transfer Request Queue depth supported by controller
- * @nortt - Max outstanding RTTs supported by controller
+ * @nortt: Max outstanding RTTs supported by controller
  * @nutmrs: Task Management Queue depth supported by controller
  * @ufs_version: UFS Version to which controller complies
  * @vops: pointer to variant specific operations
@@ -1035,7 +1043,6 @@ enum ufshcd_mcq_opr {
  *  device is known or not.
  * @wb_mutex: used to serialize devfreq and sysfs write booster toggling
  * @clk_scaling_lock: used to serialize device commands and clock scaling
- * @desc_size: descriptor sizes reported by device
  * @bsg_dev: struct device associated with the BSG queue
  * @bsg_queue: BSG queue associated with the UFS controller
  * @rpm_dev_flush_recheck_work: used to suspend from RPM (runtime power
@@ -1050,16 +1057,19 @@ enum ufshcd_mcq_opr {
  * @debugfs_ee_work: used to restore ee_ctrl_mask after a delay
  * @debugfs_ee_rate_limit_ms: user configurable delay after which to restore
  *	ee_ctrl_mask
+ * @trigger_eh_attr: fault attributes for the fault injection trigger EH
+ * @timeout_attr: fault attributes for the timeout fault injection trigger
  * @luns_avail: number of regular and well known LUNs supported by the UFS
  *	device
  * @nr_hw_queues: number of hardware queues configured
  * @nr_queues: number of Queues of different queue types
  * @complete_put: whether or not to call ufshcd_rpm_put() from inside
  *	ufshcd_resume_complete()
+ * @scsi_host_added: indicates that scsi_add_host() has been called
  * @mcq_sup: is mcq supported by UFSHC
+ * @lsdb_sup: LSDBS capability
  * @mcq_enabled: is mcq ready to accept requests
  * @mcq_esi_enabled: is mcq ESI configured
- * @res: array of resource info of MCQ registers
  * @mcq_base: Multi circular queue registers base address
  * @uhq: array of supported hardware queues
  * @mcq_opr: MCQ operation and runtime registers
@@ -1075,6 +1085,7 @@ enum ufshcd_mcq_opr {
  *	field within the Host Controller's UECDME register. Bit[0] is a flag
  *	indicating that the DME QoS Monitor has been reset by the host.
  * @dme_qos_sysfs_handle: handle for 'dme_qos_notification' sysfs entry
+ * @vcc_off_delay_us: length of delay after VCC is powered off
  * @rpmbs: list of OP-TEE RPMB devices (one per RPMB region)
  * @host_preshoot_cap: a bitfield to indicate supported PreShoot dBs of host's TX lanes, cache of
  *	host M-PHY TX_HS_PreShoot_Setting_Capability Attribute (ID 0x15)
@@ -1093,11 +1104,13 @@ struct ufs_hba {
 	struct utp_transfer_cmd_desc *ucdl_base_addr;
 	struct utp_transfer_req_desc *utrdl_base_addr;
 	struct utp_task_req_desc *utmrdl_base_addr;
+	struct utp_devman_cmd_desc *devman_ucd_base_addr;
 
 	/* DMA memory reference */
 	dma_addr_t ucdl_dma_addr;
 	dma_addr_t utrdl_dma_addr;
 	dma_addr_t utmrdl_dma_addr;
+	dma_addr_t devman_ucd_dma_addr;
 
 	struct Scsi_Host *host;
 	struct device *dev;
@@ -1281,7 +1294,7 @@ struct ufs_hba {
  * @cqe_dma_addr: completion queue dma address
  * @max_entries: max number of slots in this hardware queue
  * @id: hardware queue ID
- * @sq_tp_slot: current slot to which SQ tail pointer is pointing
+ * @sq_tail_slot: current slot to which SQ tail pointer is pointing
  * @sq_lock: serialize submission queue access
  * @cq_tail_slot: current slot to which CQ tail pointer is pointing
  * @cq_head_slot: current slot to which CQ head pointer is pointing
@@ -1354,6 +1367,18 @@ ufs_hba_from_crypto_profile(struct blk_crypto_profile *profile)
 static inline size_t ufshcd_get_ucd_size(const struct ufs_hba *hba)
 {
 	return sizeof(struct utp_transfer_cmd_desc) + SG_ALL * ufshcd_sg_entry_size(hba);
+}
+
+/*
+ * Two entries should be enough for the largest devman PRDT transfer (4 KiB),
+ * like advanced RPMB.
+ */
+#define UFSHCD_DEVMAN_SG_ENTRIES	2
+
+static inline size_t ufshcd_get_devman_ucd_size(const struct ufs_hba *hba)
+{
+	return sizeof(struct utp_devman_cmd_desc) +
+		UFSHCD_DEVMAN_SG_ENTRIES * ufshcd_sg_entry_size(hba);
 }
 
 /* Returns true if clocks can be gated. Otherwise false */
@@ -1505,6 +1530,8 @@ static inline void ufshcd_set_variant(struct ufs_hba *hba, void *variant)
 /**
  * ufshcd_get_variant - get variant specific data from the hba
  * @hba: per adapter instance
+ *
+ * Returns: pointer to the hba's private data area
  */
 static inline void *ufshcd_get_variant(struct ufs_hba *hba)
 {

@@ -981,6 +981,9 @@ size_t dma_max_mapping_size(struct device *dev)
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 	size_t size = SIZE_MAX;
 
+	if (!dev->dma_mask)
+		return 0;
+
 	if (dma_map_direct(dev, ops))
 		size = dma_direct_max_mapping_size(dev);
 	else if (use_dma_iommu(dev))

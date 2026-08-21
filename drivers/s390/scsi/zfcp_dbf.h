@@ -3,7 +3,7 @@
  * zfcp device driver
  * debug feature declarations
  *
- * Copyright IBM Corp. 2008, 2020
+ * Copyright IBM Corp. 2008, 2026
  */
 
 #ifndef ZFCP_DBF_H
@@ -140,6 +140,8 @@ struct zfcp_dbf_hba_res {
 	u8  fsf_status_qual[FSF_STATUS_QUALIFIER_SIZE];
 	u32 port_handle;
 	u32 lun_handle;
+	u32 plogi_len;
+	u32 prli_len;
 } __packed;
 
 /**
@@ -149,6 +151,13 @@ struct zfcp_dbf_hba_res {
  * @d_id: destination ID
  * @lun: logical unit number
  * @queue_designator: queue designator
+ * @length: buffer length
+ * @res1: reserved field 1
+ * @res2: reserved field 2
+ * @class: class of service
+ * @res3: reserved field 3
+ * @s_id: source ID
+ * @res4: reserved field 4
  */
 struct zfcp_dbf_hba_uss {
 	u32 status_type;
@@ -156,6 +165,25 @@ struct zfcp_dbf_hba_uss {
 	u32 d_id;
 	u64 lun;
 	u64 queue_designator;
+	u32 length;
+	u32 res1;
+	u8 res2;
+	u32 class;
+	u8 res3;
+	u32 s_id;
+	u8 res4[20];
+} __packed;
+
+/**
+ * struct zfcp_dbf_hba_uas - trace record for sysfs unit add store
+ * @wwpn: remote port wwn
+ * @fcp_lun: FCP LUN
+ * @ret: return value
+ */
+struct zfcp_dbf_hba_uas {
+	u64 wwpn;
+	u64 fcp_lun;
+	u32 ret;
 } __packed;
 
 /**
@@ -184,6 +212,7 @@ struct zfcp_dbf_hba_fces {
  * @ZFCP_DBF_HBA_BIT: bit error trace record
  * @ZFCP_DBF_HBA_BASIC: basic adapter event, only trace tag, no other data
  * @ZFCP_DBF_HBA_FCES: FC Endpoint Security trace record
+ * @ZFCP_DBF_HBA_UAS: unit add store trace record
  */
 enum zfcp_dbf_hba_id {
 	ZFCP_DBF_HBA_RES	= 1,
@@ -191,6 +220,7 @@ enum zfcp_dbf_hba_id {
 	ZFCP_DBF_HBA_BIT	= 3,
 	ZFCP_DBF_HBA_BASIC	= 4,
 	ZFCP_DBF_HBA_FCES	= 5,
+	ZFCP_DBF_HBA_UAS        = 6,
 };
 
 /**
@@ -207,6 +237,7 @@ enum zfcp_dbf_hba_id {
  * @u.uss:  data for unsolicited status buffer
  * @u.be:   data for bit error unsolicited status buffer
  * @u.fces: data for FC Endpoint Security
+ * @u.uas:  data for unit add store
  */
 struct zfcp_dbf_hba {
 	u8 id;
@@ -221,6 +252,7 @@ struct zfcp_dbf_hba {
 		struct zfcp_dbf_hba_uss uss;
 		struct fsf_bit_error_payload be;
 		struct zfcp_dbf_hba_fces fces;
+		struct zfcp_dbf_hba_uas uas;
 	} u;
 } __packed;
 

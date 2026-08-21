@@ -706,7 +706,7 @@ static const struct zorro_device_id zorro_esp_zorro_tbl[] = {
 		.id = ZORRO_ID(PHASE5, 0x19, 0),
 		.driver_data = ZORRO_CYBERII,
 	},
-	{ 0 }
+	{ }
 };
 MODULE_DEVICE_TABLE(zorro, zorro_esp_zorro_tbl);
 

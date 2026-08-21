@@ -2182,7 +2182,6 @@ static void msgin_set_sync(struct AdapterCtlBlk *acb, struct ScsiReqBlk *srb)
 {
 	struct DeviceCtlBlk *dcb = srb->dcb;
 	u8 bval;
-	int fact;
 
 	if (srb->msgin_buf[4] > 15)
 		srb->msgin_buf[4] = 15;
@@ -2204,11 +2203,6 @@ static void msgin_set_sync(struct AdapterCtlBlk *acb, struct ScsiReqBlk *srb)
 	dcb->sync_period &= 0xf0;
 	dcb->sync_period |= ALT_SYNC | bval;
 	dcb->min_nego_period = srb->msgin_buf[3];
-
-	if (dcb->sync_period & WIDE_SYNC)
-		fact = 500;
-	else
-		fact = 250;
 
 	if (!(srb->state & SRB_DO_SYNC_NEGO)) {
 		/* Reply with corrected SDTR Message */

@@ -1738,8 +1738,8 @@ static int qlt_build_abts_resp_iocb(struct qla_tgt_mgmt_cmd *mcmd)
 		return -EAGAIN;
 	}
 
-	resp = (struct abts_resp_to_24xx *)qpair->req->ring_ptr;
-	memset(resp, 0, sizeof(*resp));
+	resp = (struct abts_resp_to_24xx *)qla_req_ring_slot(ha, qpair->req);
+	memset(resp, 0, qla_req_entry_size(ha));
 
 	h = qlt_make_handle(qpair);
 	if (unlikely(h == QLA_TGT_NULL_HANDLE)) {
@@ -2490,17 +2490,13 @@ static int qlt_check_reserve_free_req(struct qla_qpair *qpair,
 /*
  * ha->hardware_lock supposed to be held on entry. Might drop it, then reaquire
  */
-static inline void *qlt_get_req_pkt(struct req_que *req)
+static inline void *qlt_get_req_pkt(struct qla_hw_data *ha,
+				     struct req_que *req)
 {
 	/* Adjust ring index. */
-	req->ring_index++;
-	if (req->ring_index == req->length) {
-		req->ring_index = 0;
-		req->ring_ptr = req->ring;
-	} else {
-		req->ring_ptr++;
-	}
-	return (cont_entry_t *)req->ring_ptr;
+	qla_req_ring_advance(ha, req);
+
+	return qla_req_ring_slot(ha, req);
 }
 
 /* ha->hardware_lock supposed to be held on entry */
@@ -2549,9 +2545,9 @@ static int qlt_24xx_build_ctio_pkt(struct qla_qpair *qpair,
 	uint16_t temp;
 	struct qla_tgt_cmd      *cmd = prm->cmd;
 
-	pkt = (struct ctio7_to_24xx *)qpair->req->ring_ptr;
+	pkt = (struct ctio7_to_24xx *)qla_req_ring_slot(qpair->hw, qpair->req);
 	prm->pkt = pkt;
-	memset(pkt, 0, sizeof(*pkt));
+	memset(pkt, 0, qla_req_entry_size(qpair->hw));
 
 	pkt->entry_type = CTIO_TYPE7;
 	pkt->entry_count = (uint8_t)prm->req_cnt;
@@ -2600,11 +2596,12 @@ static void qlt_load_cont_data_segments(struct qla_tgt_prm *prm)
 {
 	int cnt;
 	struct dsd64 *cur_dsd;
+	struct qla_hw_data *ha = prm->cmd->qpair->hw;
 
 	/* Build continuation packets */
 	while (prm->seg_cnt > 0) {
 		cont_a64_entry_t *cont_pkt64 =
-			(cont_a64_entry_t *)qlt_get_req_pkt(
+			(cont_a64_entry_t *)qlt_get_req_pkt(ha,
 			   prm->cmd->qpair->req);
 
 		/*
@@ -2614,7 +2611,7 @@ static void qlt_load_cont_data_segments(struct qla_tgt_prm *prm)
 		 * that.
 		 */
 
-		memset(cont_pkt64, 0, sizeof(*cont_pkt64));
+		memset(cont_pkt64, 0, qla_req_entry_size(ha));
 
 		cont_pkt64->entry_count = 1;
 		cont_pkt64->sys_define = 0;
@@ -3012,9 +3009,9 @@ qlt_build_ctio_crc2_pkt(struct qla_qpair *qpair, struct qla_tgt_prm *prm)
 
 	ha = vha->hw;
 
-	pkt = (struct ctio_crc2_to_fw *)qpair->req->ring_ptr;
+	pkt = (struct ctio_crc2_to_fw *)qla_req_ring_slot(ha, qpair->req);
 	prm->pkt = pkt;
-	memset(pkt, 0, sizeof(*pkt));
+	memset(pkt, 0, qla_req_entry_size(ha));
 
 	ql_dbg_qp(ql_dbg_tgt, cmd->qpair, 0xe071,
 		"qla_target(%d):%s: se_cmd[%p] CRC2 prot_op[0x%x] cmd prot sg:cnt[%p:%x] lba[%llu]\n",
@@ -3306,7 +3303,7 @@ int qlt_xmit_response(struct qla_tgt_cmd *cmd, int xmit_type,
 			 */
 			struct ctio7_to_24xx *ctio =
 				(struct ctio7_to_24xx *)qlt_get_req_pkt(
-				    qpair->req);
+				    vha->hw, qpair->req);
 
 			ql_dbg_qp(ql_dbg_tgt, qpair, 0x305e,
 			    "Building additional status packet 0x%p.\n",
@@ -3316,6 +3313,7 @@ int qlt_xmit_response(struct qla_tgt_cmd *cmd, int xmit_type,
 			 * T10Dif: ctio_crc2_to_fw overlay ontop of
 			 * ctio7_to_24xx
 			 */
+			memset(ctio, 0, qla_req_entry_size(vha->hw));
 			memcpy(ctio, pkt, sizeof(*ctio));
 			/* reset back to CTIO7 */
 			ctio->entry_count = 1;
