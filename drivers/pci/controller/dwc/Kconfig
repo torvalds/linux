@@ -126,7 +126,9 @@ config PCI_IMX6_EP
 	depends on ARCH_MXC || COMPILE_TEST
 	depends on PCI_ENDPOINT
 	select PCIE_DW_EP
+	select PCI_HOST_COMMON
 	select PCI_IMX6
+	select PCI_PWRCTRL_GENERIC
 	help
 	  Enables support for the PCIe controller in the i.MX SoCs to
 	  work in endpoint mode. The PCI controller on i.MX is based
