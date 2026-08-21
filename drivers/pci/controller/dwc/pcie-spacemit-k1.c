@@ -342,6 +342,7 @@ static const struct of_device_id k1_pcie_of_match_table[] = {
 	{ .compatible = "spacemit,k1-pcie", },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, k1_pcie_of_match_table);
 
 static struct platform_driver k1_pcie_driver = {
 	.probe	= k1_pcie_probe,
