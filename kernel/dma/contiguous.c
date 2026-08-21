@@ -140,21 +140,22 @@ static bool numa_cma_configured __initdata;
 static int __init early_numa_cma(char *p)
 {
 	int nid, count = 0;
-	unsigned long tmp;
+	unsigned long node;
+	phys_addr_t size;
 	char *s = p;
 
 	while (*s) {
-		if (sscanf(s, "%lu%n", &tmp, &count) != 1)
+		if (sscanf(s, "%lu%n", &node, &count) != 1)
 			break;
 
 		if (s[count] == ':') {
-			if (tmp >= MAX_NUMNODES)
+			if (node >= MAX_NUMNODES)
 				break;
-			nid = array_index_nospec(tmp, MAX_NUMNODES);
+			nid = array_index_nospec(node, MAX_NUMNODES);
 
 			s += count + 1;
-			tmp = memparse(s, &s);
-			numa_cma_size[nid] = tmp;
+			size = memparse(s, &s);
+			numa_cma_size[nid] = size;
 
 			if (*s == ',')
 				s++;
@@ -207,9 +208,10 @@ static void __init dma_numa_cma_reserve(void)
 		pernuma_size_bytes = cma_get_size(dma_contiguous_default_area);
 
 	for_each_node(nid) {
-		int size, ret;
+		phys_addr_t size;
 		char name[CMA_MAX_NAME];
 		struct cma **cma;
+		int ret;
 
 		if (!node_online(nid)) {
 			if (pernuma_size_bytes || numa_cma_size[nid])
