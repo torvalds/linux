@@ -3,7 +3,6 @@
 use kernel::prelude::*;
 
 use crate::{
-    driver::Bar0,
     falcon::{
         Falcon,
         FalconBromParams,
@@ -34,7 +33,7 @@ pub(crate) enum LoadMethod {
 /// registers.
 pub(crate) trait FalconHal<E: FalconEngine>: Send + Sync {
     /// Activates the Falcon core if the engine is a risvc/falcon dual engine.
-    fn select_core(&self, _falcon: &Falcon<E>, _bar: Bar0<'_>) -> Result {
+    fn select_core(&self, _falcon: &Falcon<'_, E>) -> Result {
         Ok(())
     }
 
@@ -42,24 +41,28 @@ pub(crate) trait FalconHal<E: FalconEngine>: Send + Sync {
     /// falcon instance. `engine_id_mask` and `ucode_id` are obtained from the firmware header.
     fn signature_reg_fuse_version(
         &self,
-        falcon: &Falcon<E>,
-        bar: Bar0<'_>,
+        falcon: &Falcon<'_, E>,
         engine_id_mask: u16,
         ucode_id: u8,
     ) -> Result<u32>;
 
     /// Program the boot ROM registers prior to starting a secure firmware.
-    fn program_brom(&self, falcon: &Falcon<E>, bar: Bar0<'_>, params: &FalconBromParams);
+    fn program_brom(&self, falcon: &Falcon<'_, E>, params: &FalconBromParams);
 
     /// Check if the RISC-V core is active.
     /// Returns `true` if the RISC-V core is active, `false` otherwise.
-    fn is_riscv_active(&self, bar: Bar0<'_>) -> bool;
+    fn is_riscv_active(&self, falcon: &Falcon<'_, E>) -> bool;
+
+    /// Checks whether the RISC-V core is halted.
+    ///
+    /// Returns [`ENOTSUPP`] if the chipset does not expose RISC-V halt status.
+    fn is_riscv_halted(&self, falcon: &Falcon<'_, E>) -> Result<bool>;
 
     /// Wait for memory scrubbing to complete.
-    fn reset_wait_mem_scrubbing(&self, bar: Bar0<'_>) -> Result;
+    fn reset_wait_mem_scrubbing(&self, falcon: &Falcon<'_, E>) -> Result;
 
     /// Reset the falcon engine.
-    fn reset_eng(&self, bar: Bar0<'_>) -> Result;
+    fn reset_eng(&self, falcon: &Falcon<'_, E>) -> Result;
 
     /// Returns the method used to load data into the falcon's memory.
     ///

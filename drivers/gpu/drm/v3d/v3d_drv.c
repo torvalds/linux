@@ -4,7 +4,11 @@
 /**
  * DOC: Broadcom V3D Graphics Driver
  *
- * This driver supports the Broadcom V3D 3.3 and 4.1 OpenGL ES GPUs.
+ * This driver supports the Broadcom V3D 4.2 and 7.1 GPUs.
+ *
+ * Support for V3D 3.3 and 4.1 GPUs is deprecated and it will be removed
+ * in the next kernel release.
+ *
  * For V3D 2.x support, see the VC4 driver.
  *
  * The V3D GPU includes a tiled render (composed of a bin and render
@@ -414,13 +418,25 @@ static int v3d_platform_drm_probe(struct platform_device *pdev)
 	 */
 	WARN_ON(v3d->ver != gen);
 
+	/* V3D 3.3 and V3D 4.1 has had no in-tree userspace since Mesa
+	 * dropped support in 2024 (MR#25851) and they have no known users.
+	 * Due to that, support is scheduled for removal in the next release.
+	 */
+	if (v3d->ver <= V3D_GEN_41) {
+		dev_warn(dev,
+			 "V3D %u.%u support is deprecated and will be removed "
+			 "in the next kernel release. If you rely on this hardware, "
+			 "please report it to dri-devel@lists.freedesktop.org.\n",
+			 v3d->ver / 10, v3d->ver % 10);
+	}
+
 	v3d->cores = V3D_GET_FIELD(ident1, V3D_HUB_IDENT1_NCORES);
 	WARN_ON(v3d->cores > 1); /* multicore not yet implemented */
 
 	ident3 = V3D_READ(V3D_HUB_IDENT3);
 	v3d->rev = V3D_GET_FIELD(ident3, V3D_HUB_IDENT3_IPREV);
 
-	pm_runtime_set_autosuspend_delay(dev, 100);
+	pm_runtime_set_autosuspend_delay(dev, 50);
 	pm_runtime_use_autosuspend(dev);
 
 	ret = drm_dev_register(drm, 0);

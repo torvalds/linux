@@ -19,6 +19,15 @@ pub struct GpuVmBo<T: DriverGpuVm> {
     data: T::VmBoData,
 }
 
+// SAFETY: It is safe to send a `GpuVmBo<T>` to another thread: dropping it there drops
+// `T::VmBoData` and the GEM `T::Object`, both `Send` by the `DriverGpuVm` bounds.
+unsafe impl<T: DriverGpuVm> Send for GpuVmBo<T> {}
+
+// SAFETY: It is safe to share a `&GpuVmBo<T>` between threads: it effectively shares
+// `&T::VmBoData` and the GEM `&T::Object` (both `Sync`), and any thread may upgrade to an
+// `ARef` and ultimately drop them (both `Send`), per the `DriverGpuVm` bounds.
+unsafe impl<T: DriverGpuVm> Sync for GpuVmBo<T> {}
+
 // SAFETY: By type invariants, the allocation is managed by the refcount in `self.inner`.
 unsafe impl<T: DriverGpuVm> AlwaysRefCounted for GpuVmBo<T> {
     fn inc_ref(&self) {

@@ -55,6 +55,13 @@
 #define SMUQ10_TO_UINT(x) ((x) >> 10)
 #define SMUQ10_FRAC(x) ((x) & 0x3ff)
 #define SMUQ10_ROUND(x) ((SMUQ10_TO_UINT(x)) + ((SMUQ10_FRAC(x)) >= 0x200))
+/* Convert Q10 watts to milliwatts, preserving the fractional part */
+#define SMUQ10_TO_MILLIWATT(x) (SMUQ10_TO_UINT(x) * MILLIWATT_PER_WATT + \
+				((SMUQ10_FRAC(x) * MILLIWATT_PER_WATT) >> 10))
+/* Convert Q10 degrees Celsius to millidegrees, preserving the fractional part */
+#define SMUQ10_TO_MILLICELSIUS(x) \
+	(SMUQ10_TO_UINT(x) * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES + \
+	 ((SMUQ10_FRAC(x) * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES) >> 10))
 
 #define hbm_stack_mask_valid(umc_mask) \
 	(((umc_mask) & 0xF) == 0xF)
@@ -71,6 +78,8 @@
 	[smu_feature] = { 1, (smu_15_0_8_feature) }
 
 #define FEATURE_MASK(feature) (1ULL << feature)
+
+static int smu_v15_0_8_init_ppt_limits(struct smu_context *smu);
 
 static const struct smu_feature_bits smu_v15_0_8_dpm_features = {
 	.bits = { SMU_FEATURE_BIT_INIT(FEATURE_ID_DATA_CALCULATION),
@@ -411,12 +420,10 @@ static int smu_v15_0_8_get_smu_metrics_data(struct smu_context *smu,
 		*value = SMUQ10_ROUND(metrics->DramBandwidthUtilization);
 		break;
 	case METRICS_CURR_SOCKETPOWER:
-		*value = SMUQ10_ROUND(metrics->SocketPower) *
-			 MILLIWATT_PER_WATT;
+		*value = SMUQ10_TO_MILLIWATT(metrics->SocketPower);
 		break;
 	case METRICS_TEMPERATURE_HOTSPOT:
-		*value = SMUQ10_ROUND(metrics->MaxSocketTemperature) *
-			 SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		*value = SMUQ10_TO_MILLICELSIUS(metrics->MaxSocketTemperature);
 		break;
 	case METRICS_TEMPERATURE_MEM:
 	{
@@ -434,19 +441,18 @@ static int smu_v15_0_8_get_smu_metrics_data(struct smu_context *smu,
 				if (!hbm_stack_mask_valid(mask))
 					continue;
 
-				temp = SMUQ10_ROUND(metrics->HbmTemperature[stack_idx]);
+				temp = metrics->HbmTemperature[stack_idx];
 				if (temp > max_hbm_temp)
 					max_hbm_temp = temp;
 			}
 		}
-		*value = max_hbm_temp * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		*value = SMUQ10_TO_MILLICELSIUS(max_hbm_temp);
 		break;
 	}
 	/* This is the max of all VRs and not just SOC VR.
 	 */
 	case METRICS_TEMPERATURE_VRSOC:
-		*value = SMUQ10_ROUND(metrics->MaxVrTemperature) *
-			 SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		*value = SMUQ10_TO_MILLICELSIUS(metrics->MaxVrTemperature);
 		break;
 	default:
 		*value = UINT_MAX;
@@ -1153,7 +1159,7 @@ static int smu_v15_0_8_set_default_dpm_table(struct smu_context *smu)
 	if (ret)
 		return ret;
 
-	return 0;
+	return smu_v15_0_8_init_ppt_limits(smu);
 }
 
 static int smu_v15_0_8_irq_process(struct amdgpu_device *adev,
@@ -1767,12 +1773,17 @@ static ssize_t smu_v15_0_8_get_gpu_metrics(struct smu_context *smu, void **table
 		idx++;
 	}
 
-	/* Per-VCN clocks */
+	/* Per-VCN clocks and busy */
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
 		inst = GET_INST(VCN, i);
 		if (inst >= 0) {
 			gpu_metrics->current_vclk0[i] = SMUQ10_ROUND(metrics->VclkFrequency[inst]);
 			gpu_metrics->current_dclk0[i] = SMUQ10_ROUND(metrics->DclkFrequency[inst]);
+			gpu_metrics->vcn_busy[i] = SMUQ10_ROUND(metrics->VcnBusy[inst]);
+			for (j = 0; j < NUM_JPEG_RINGS_FW; ++j)
+				gpu_metrics->jpeg_busy[(i * NUM_JPEG_RINGS_FW) + j] =
+					SMUQ10_ROUND(metrics->JpegBusy[(inst * NUM_JPEG_RINGS_FW)
+								       + j]);
 		}
 	}
 
@@ -1843,34 +1854,59 @@ static void smu_v15_0_8_get_unique_id(struct smu_context *smu)
 	adev->unique_id = pptable->PublicSerialNumberMID;
 }
 
-static int smu_v15_0_8_get_power_limit(struct smu_context *smu,
-				       uint32_t *current_power_limit,
-				       uint32_t *default_power_limit,
-				       uint32_t *max_power_limit,
-				       uint32_t *min_power_limit)
+static int smu_v15_0_8_get_ppt_limit(struct smu_context *smu,
+				     enum smu_ppt_limit_type limit_type,
+				     uint32_t *ppt_limit)
 {
-	struct smu_table_context *smu_table = &smu->smu_table;
-	PPTable_t *pptable = (PPTable_t *)smu_table->driver_pptable;
-	uint32_t power_limit = 0;
 	int ret;
 
-	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetPptLimit, &power_limit);
+	if (limit_type == SMU_PPT_LIMIT_PPT1)
+		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetFastPptLimit,
+					       ppt_limit);
+	else
+		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetPptLimit,
+					       ppt_limit);
 	if (ret) {
 		dev_err(smu->adev->dev, "Couldn't get PPT limit");
 		return -EINVAL;
 	}
 
-	if (current_power_limit)
-		*current_power_limit = power_limit;
+	return 0;
+}
 
-	if (default_power_limit)
-		*default_power_limit = pptable->MaxSocketPowerLimit;
+static int smu_v15_0_8_init_ppt_limits(struct smu_context *smu)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	PPTable_t *pptable = (PPTable_t *)smu_table->driver_pptable;
+	int i;
 
-	if (max_power_limit)
-		*max_power_limit = pptable->MaxSocketPowerLimit;
+	for (i = SMU_POWER_SOURCE_AC; i < SMU_POWER_SOURCE_COUNT; i++) {
+		smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].default_value =
+			pptable->MaxSocketPowerLimit;
+		smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].max =
+			pptable->MaxSocketPowerLimit;
+		smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].min = 0;
+		smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].od_max =
+			pptable->MaxSocketPowerLimit;
+		smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].od_min = 0;
+	}
+	smu->ppt_limits.supported_mask |= BIT(SMU_PPT_LIMIT_PPT0);
 
-	if (min_power_limit)
-		*min_power_limit = 0;
+	if (pptable->PPT1Max) {
+		for (i = SMU_POWER_SOURCE_AC; i < SMU_POWER_SOURCE_COUNT; i++) {
+			smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT1].default_value =
+				pptable->PPT1Default;
+			smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT1].max =
+				pptable->PPT1Max;
+			smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT1].min =
+				pptable->PPT1Min;
+			smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT1].od_max =
+				pptable->PPT1Max;
+			smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT1].od_min =
+				pptable->PPT1Min;
+		}
+		smu->ppt_limits.supported_mask |= BIT(SMU_PPT_LIMIT_PPT1);
+	}
 
 	return 0;
 }
@@ -1915,7 +1951,7 @@ static int smu_v15_0_8_set_performance_level(struct smu_context *smu,
 	struct smu_dpm_table *gfx_table = &dpm_context->dpm_tables.gfx_table;
 	struct smu_dpm_table *uclk_table = &dpm_context->dpm_tables.uclk_table;
 	struct smu_umd_pstate_table *pstate_table = &smu->pstate_table;
-	int ret;
+	int ret = 0;
 
 	switch (level) {
 	case AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM:
@@ -1955,9 +1991,6 @@ static int smu_v15_0_8_set_performance_level(struct smu_context *smu,
 			pstate_table->uclk_pstate.curr.max =
 				SMU_DPM_TABLE_MAX(uclk_table);
 		}
-
-		if (ret)
-			goto out;
 
 		smu_cmn_reset_custom_level(smu);
 
@@ -2208,15 +2241,15 @@ static int smu_v15_0_8_get_thermal_temperature_range(struct smu_context *smu,
 	return 0;
 }
 
-static int smu_v15_0_8_set_power_limit(struct smu_context *smu,
-				       enum smu_ppt_limit_type limit_type,
-				       uint32_t limit)
+static int smu_v15_0_8_set_ppt_limit(struct smu_context *smu,
+				     enum smu_ppt_limit_type limit_type,
+				     uint32_t limit)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	PPTable_t *pptable = (PPTable_t *)smu_table->driver_pptable;
 	int ret;
 
-	if (limit_type == SMU_FAST_PPT_LIMIT) {
+	if (limit_type == SMU_PPT_LIMIT_PPT1) {
 		if (!pptable->PPT1Max)
 			return -EOPNOTSUPP;
 
@@ -2235,49 +2268,7 @@ static int smu_v15_0_8_set_power_limit(struct smu_context *smu,
 		return ret;
 	}
 
-	return smu_v15_0_set_power_limit(smu, limit_type, limit);
-}
-
-static int smu_v15_0_8_get_ppt_limit(struct smu_context *smu,
-				     uint32_t *ppt_limit,
-				     enum smu_ppt_limit_type type,
-				     enum smu_ppt_limit_level level)
-{
-	struct smu_table_context *smu_table = &smu->smu_table;
-	PPTable_t *pptable = (PPTable_t *)smu_table->driver_pptable;
-	int ret = 0;
-
-	if (!ppt_limit)
-		return -EINVAL;
-
-	if (type == SMU_FAST_PPT_LIMIT) {
-		if (!pptable->PPT1Max)
-			return -EOPNOTSUPP;
-
-		switch (level) {
-		case SMU_PPT_LIMIT_MAX:
-			*ppt_limit = pptable->PPT1Max;
-			break;
-		case SMU_PPT_LIMIT_CURRENT:
-			ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetFastPptLimit,
-						   ppt_limit);
-			if (ret)
-				dev_err(smu->adev->dev,
-					"Get fast PPT limit failed!\n");
-			break;
-		case SMU_PPT_LIMIT_DEFAULT:
-			*ppt_limit = pptable->PPT1Default;
-			break;
-		case SMU_PPT_LIMIT_MIN:
-			*ppt_limit = pptable->PPT1Min;
-			break;
-		default:
-			return -EOPNOTSUPP;
-		}
-		return ret;
-	}
-
-	return -EOPNOTSUPP;
+	return smu_v15_0_set_ppt_limit(smu, limit_type, limit);
 }
 
 static uint32_t smu_v15_0_8_get_throttler_status(struct smu_context *smu)
@@ -2374,9 +2365,8 @@ static const struct pptable_funcs smu_v15_0_8_ppt_funcs = {
 	.get_dpm_ultimate_freq = smu_v15_0_8_get_dpm_ultimate_freq,
 	.get_gpu_metrics = smu_v15_0_8_get_gpu_metrics,
 	.get_unique_id = smu_v15_0_8_get_unique_id,
-	.get_power_limit = smu_v15_0_8_get_power_limit,
-	.set_power_limit = smu_v15_0_8_set_power_limit,
 	.get_ppt_limit = smu_v15_0_8_get_ppt_limit,
+	.set_ppt_limit = smu_v15_0_8_set_ppt_limit,
 	.emit_clk_levels = smu_v15_0_8_emit_clk_levels,
 	.read_sensor = smu_v15_0_8_read_sensor,
 	.populate_umd_state_clk = smu_v15_0_8_populate_umd_state_clk,

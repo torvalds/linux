@@ -6,6 +6,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/bits.h>
+#include <linux/mutex.h>
 #include <linux/types.h>
 
 #include <drm/drm_device.h>
@@ -43,6 +44,15 @@ struct gen_pool;
 #define NPU_REG_BASEP_HI(x)	(0x0084 + (x) * 8)
 #define NPU_BASEP_REGION_MAX	8
 
+#define NPU_REG_PMCR		0x0180
+#define NPU_REG_PMCNTENSET	0x0184
+#define NPU_REG_PMCNTENCLR	0x0188
+#define NPU_REG_PMCCNTR_LO	0x01A0
+#define NPU_REG_PMCCNTR_HI	0x01A4
+#define NPU_REG_PMCCNTR_CFG	0x01A8
+#define NPU_REG_PMU_EVCNTR(x)	(0x0300 + (x) * 4)
+#define NPU_REG_PMU_EVTYPER(x)	(0x0380 + (x) * 4)
+
 #define ID_ARCH_MAJOR_MASK	GENMASK(31, 28)
 #define ID_ARCH_MINOR_MASK	GENMASK(27, 20)
 #define ID_ARCH_PATCH_MASK	GENMASK(19, 16)
@@ -66,6 +76,15 @@ struct gen_pool;
 #define RESET_PENDING_CPL	BIT(0)
 
 #define PROT_ACTIVE_CSL		BIT(1)
+
+#define PMCR_NUM_EVENT_CNT_MASK	GENMASK(15, 11)
+#define PMCR_CYCLE_CNT_RST	BIT(2)
+#define PMCR_EVENT_CNT_RST	BIT(1)
+#define PMCR_CNT_EN		BIT(0)
+
+#define PMU_EV_TYPE_NONE	0
+#define PMU_EV_TYPE_CYCLES	0x11
+#define PMU_EV_TYPE_IDLE	0x20
 
 enum ethosu_cmds {
 	NPU_OP_CONV = 0x2,
@@ -152,6 +171,8 @@ enum ethosu_cmds {
 
 #define ETHOSU_SRAM_REGION	2	/* Matching Vela compiler */
 
+struct ethosu_perfmon;
+
 /**
  * struct ethosu_device - Ethosu device
  */
@@ -161,6 +182,7 @@ struct ethosu_device {
 
 	/** @iomem: CPU mapping of the registers. */
 	void __iomem *regs;
+	void __iomem *pmu_regs;
 
 	void __iomem *sram;
 	struct gen_pool *srampool;
@@ -173,8 +195,6 @@ struct ethosu_device {
 	struct drm_ethosu_npu_info npu_info;
 
 	struct ethosu_job *in_flight_job;
-	/* For in_flight_job and ethosu_job_hw_submit() */
-	struct mutex job_lock;
 
 	/* For dma_fence */
 	spinlock_t fence_lock;
@@ -184,6 +204,17 @@ struct ethosu_device {
 	struct mutex sched_lock;
 	u64 fence_context;
 	u64 emit_seqno;
+
+	/* Tracks the performance monitor state. */
+	struct {
+		/* Protects @active. */
+		struct mutex lock;
+
+		/* Perfmon currently programmed in HW (or NULL if none). */
+		struct ethosu_perfmon *active;
+	} perfmon_state;
+
+	struct ethosu_perfmon *global_perfmon;
 };
 
 #define to_ethosu_device(drm_dev) \

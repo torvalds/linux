@@ -69,7 +69,7 @@ static void dma_resv_kunit_active_fence_init(struct kunit *test,
 	struct dma_fence *fence;
 
 	fence = alloc_mock_fence(test);
-	dma_fence_enable_sw_signaling(fence);
+	dma_fence_enable_signaling(fence);
 
 	dma_resv_lock(resv, NULL);
 	dma_resv_reserve_fences(resv, 1);

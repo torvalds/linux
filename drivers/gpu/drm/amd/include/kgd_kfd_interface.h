@@ -339,6 +339,9 @@ struct kfd2kgd_calls {
 			     uint32_t *ptl_state,
 			     enum amdgpu_ptl_fmt *fmt1,
 			     enum amdgpu_ptl_fmt *fmt2);
+	int (*hqd_sdma_get_counter)(struct amdgpu_device *adev,
+				    void *mqd, uint32_t num_sdma_queues_per_eng,
+				    uint64_t *val);
 };
 
 #endif	/* KGD_KFD_INTERFACE_H_INCLUDED */

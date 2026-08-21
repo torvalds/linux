@@ -749,4 +749,45 @@ void dpp401_set_cursor_matrix(
 	enum dc_color_space color_space,
 	struct dc_csc_transform cursor_csc_color_matrix);
 
+enum dcn401_dscl_mode_sel dpp401_dscl_get_dscl_mode(
+	struct dpp *dpp_base,
+	const struct scaler_data *data,
+	bool dbg_always_scale);
+
+void dpp401_power_on_dscl(
+	struct dpp *dpp_base,
+	bool power_on);
+
+void dpp401_dscl_set_recout(
+	struct dcn401_dpp *dpp,
+	const struct rect *recout);
+
+enum lb_memory_config dpp401_dscl_find_lb_memory_config(
+	struct dcn401_dpp *dpp,
+	const struct scaler_data *scl_data);
+
+void dpp401_dscl_program_isharp(
+	struct dpp *dpp_base,
+	const struct scaler_data *scl_data,
+	bool program_isharp_1dlut,
+	bool *bs_coeffs_updated);
+
+void dpp401_dscl_set_isharp_filter(
+	struct dcn401_dpp *dpp,
+	const uint32_t *filter);
+
+void dpp401_dscl_set_scl_filter(
+	struct dcn401_dpp *dpp,
+	const struct scaler_data *scl_data,
+	bool chroma_coef_mode,
+	bool force_coeffs_update);
+
+void dpp401_dscl_disable_easf(
+	struct dpp *dpp_base,
+	const struct scaler_data *scl_data);
+
+void dpp401_dscl_program_easf(
+	struct dpp *dpp_base,
+	const struct scaler_data *scl_data);
+
 #endif /* __DCN401_DPP_H__ */

@@ -60,6 +60,7 @@
 #include "amdgpu_atomfirmware.h"
 #include "amdgpu_res_cursor.h"
 #include "bif/bif_4_1_d.h"
+#include "kfd_svm.h"
 
 MODULE_IMPORT_NS("DMA_BUF");
 
@@ -244,8 +245,9 @@ static int amdgpu_ttm_map_buffer(struct amdgpu_ttm_buffer_entity *entity,
 	r = amdgpu_job_alloc_with_ib(adev, &entity->base,
 				     AMDGPU_FENCE_OWNER_UNDEFINED,
 				     num_dw * 4 + num_bytes,
-				     AMDGPU_IB_POOL_DELAYED, &job,
-				     AMDGPU_KERNEL_JOB_ID_TTM_MAP_BUFFER);
+				     AMDGPU_IB_POOL_DELAYED,
+				     AMDGPU_KERNEL_JOB_ID_TTM_MAP_BUFFER,
+				     &job);
 	if (r)
 		return r;
 
@@ -1487,6 +1489,7 @@ static bool amdgpu_ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 					    const struct ttm_place *place)
 {
 	struct dma_resv_iter resv_cursor;
+	struct amdgpu_bo *abo;
 	struct dma_fence *f;
 
 	if (!amdgpu_bo_is_amdgpu_bo(bo))
@@ -1495,6 +1498,22 @@ static bool amdgpu_ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 	/* Swapout? */
 	if (bo->resource->mem_type == TTM_PL_SYSTEM)
 		return true;
+
+	abo = ttm_to_amdgpu_bo(bo);
+	if ((abo->flags & AMDGPU_GEM_CREATE_DISCARDABLE) &&
+	    bo->destroy == &svm_range_bo_destroy) {
+		/*
+		 * SVM BOs are migrated to system memory synchronously in this
+		 * TTM eviction context. The migration needs the owning
+		 * process's mmap lock, but the normal lock order is
+		 * mmap_lock -> BO reservation and the BO is already reserved
+		 * here. svm_range_evict_svm_bo() only trylocks the mmap lock;
+		 * if the eviction fails for any reason, we return false so TTM
+		 * skips this BO instead of risking a deadlock.
+		 */
+		if (svm_range_evict_svm_bo(abo) < 0)
+			return false;
+	}
 
 	if (bo->type == ttm_bo_type_kernel &&
 	    !amdgpu_vm_evictable(ttm_to_amdgpu_bo(bo)))
@@ -1507,7 +1526,7 @@ static bool amdgpu_ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 	dma_resv_for_each_fence(&resv_cursor, bo->base.resv,
 				DMA_RESV_USAGE_BOOKKEEP, f) {
 		if (amdkfd_fence_check_mm(f, current->mm) &&
-		    !(place->flags & TTM_PL_FLAG_CONTIGUOUS))
+		    !(place && (place->flags & TTM_PL_FLAG_CONTIGUOUS)))
 			return false;
 	}
 
@@ -1592,8 +1611,8 @@ static int amdgpu_ttm_access_memory_sdma(struct ttm_buffer_object *bo,
 	r = amdgpu_job_alloc_with_ib(adev, &adev->mman.default_entity.base,
 				     AMDGPU_FENCE_OWNER_UNDEFINED,
 				     num_dw * 4, AMDGPU_IB_POOL_DELAYED,
-				     &job,
-				     AMDGPU_KERNEL_JOB_ID_TTM_ACCESS_MEMORY_SDMA);
+				     AMDGPU_KERNEL_JOB_ID_TTM_ACCESS_MEMORY_SDMA,
+				     &job);
 	if (r)
 		goto out;
 
@@ -1675,6 +1694,9 @@ static int amdgpu_ttm_access_memory(struct ttm_buffer_object *bo,
 static void
 amdgpu_bo_delete_mem_notify(struct ttm_buffer_object *bo)
 {
+	if (bo->resource && bo->resource->mem_type == TTM_PL_TT)
+		amdgpu_gtt_mgr_mark_bo_teardown(bo);
+
 	amdgpu_bo_move_notify(bo, false, NULL);
 }
 
@@ -2200,7 +2222,7 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 		return r;
 	}
 
-	/* Create a boorbell page for kernel usages */
+	/* Create a doorbell page for kernel usages */
 	r = amdgpu_doorbell_create_kernel_doorbells(adev);
 	if (r) {
 		dev_err(adev->dev, "Failed to initialize kernel doorbells.\n");
@@ -2452,7 +2474,7 @@ static int amdgpu_ttm_prepare_job(struct amdgpu_device *adev,
 	int r;
 	r = amdgpu_job_alloc_with_ib(adev, &entity->base,
 				     AMDGPU_FENCE_OWNER_UNDEFINED,
-				     num_dw * 4, pool, job, k_job_id);
+				     num_dw * 4, pool, k_job_id, job);
 	if (r)
 		return r;
 
@@ -2467,6 +2489,27 @@ static int amdgpu_ttm_prepare_job(struct amdgpu_device *adev,
 
 	return drm_sched_job_add_resv_dependencies(&(*job)->base, resv,
 						   DMA_RESV_USAGE_BOOKKEEP);
+}
+
+static int amdgpu_calc_bytes_per_packet(u32 max_bytes_per_packet,
+					u32 byte_count)
+{
+	/* Byte count is dword-aligned and fits a single packet */
+	if (!(byte_count & 0x3) && byte_count <= max_bytes_per_packet)
+		return max_bytes_per_packet;
+
+	/*
+	 * Align down maximum byte count to 256 bytes so that
+	 * the copy optimally uses all memory channels and
+	 * also to ensure that SDMA can use its dword mode, which
+	 * is faster.
+	 *
+	 * This assumes that the starting addresses of BOs are always
+	 * dword aligned, which should be the case for every copy
+	 * operation in the kernel, because the kernel always copies
+	 * pages.
+	 */
+	return ALIGN_DOWN(max_bytes_per_packet, SZ_256);
 }
 
 int amdgpu_copy_buffer(struct amdgpu_device *adev,
@@ -2492,7 +2535,8 @@ int amdgpu_copy_buffer(struct amdgpu_device *adev,
 		return -EINVAL;
 	}
 
-	max_bytes = adev->mman.buffer_funcs->copy_max_bytes;
+	max_bytes = amdgpu_calc_bytes_per_packet(adev->mman.buffer_funcs->copy_max_bytes,
+						 byte_count);
 	num_loops = DIV_ROUND_UP(byte_count, max_bytes);
 	num_dw = ALIGN(num_loops * adev->mman.buffer_funcs->copy_num_dw, 8);
 	r = amdgpu_ttm_prepare_job(adev, entity, num_dw,
@@ -2536,7 +2580,8 @@ static int amdgpu_ttm_fill_mem(struct amdgpu_device *adev,
 	unsigned int i;
 	int r;
 
-	max_bytes = adev->mman.buffer_funcs->fill_max_bytes;
+	max_bytes = amdgpu_calc_bytes_per_packet(adev->mman.buffer_funcs->fill_max_bytes,
+						 byte_count);
 	num_loops = DIV_ROUND_UP_ULL(byte_count, max_bytes);
 	num_dw = ALIGN(num_loops * adev->mman.buffer_funcs->fill_num_dw, 8);
 	r = amdgpu_ttm_prepare_job(adev, entity, num_dw, resv,

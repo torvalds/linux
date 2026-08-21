@@ -116,20 +116,6 @@ static void set_priority(struct v9_mqd *m, struct queue_properties *q)
 	m->cp_hqd_pipe_priority = pipe_priority_map[q->priority];
 }
 
-static bool mqd_on_vram(struct amdgpu_device *adev)
-{
-	if (adev->apu_prefer_gtt)
-		return false;
-
-	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
-	case IP_VERSION(9, 4, 3):
-	case IP_VERSION(9, 5, 0):
-		return true;
-	default:
-		return false;
-	}
-}
-
 static struct kfd_mem_obj *allocate_mqd(struct mqd_manager *mm,
 		struct queue_properties *q)
 {
@@ -488,6 +474,20 @@ static void restore_mqd(struct mqd_manager *mm, void **mqd,
 				m->cp_hqd_pq_doorbell_control);
 
 	qp->is_active = 0;
+}
+
+static void update_mqd_gpu_addr(struct mqd_manager *mm, void *mqd,
+				struct kfd_mem_obj *mqd_mem_obj,
+				struct queue_properties *qp)
+{
+	struct v9_mqd *m = get_mqd(mqd);
+	uint64_t addr = mqd_mem_obj->gpu_addr;
+
+	m->cp_mqd_base_addr_lo = lower_32_bits(addr);
+	m->cp_mqd_base_addr_hi = upper_32_bits(addr);
+
+	if (mqd_on_vram(mm->dev->adev))
+		amdgpu_device_flush_hdp(mm->dev->adev, NULL);
 }
 
 static void init_mqd_hiq(struct mqd_manager *mm, void **mqd,
@@ -874,6 +874,30 @@ static void restore_mqd_v9_4_3(struct mqd_manager *mm, void **mqd,
 	if (mqd_on_vram(mm->dev->adev))
 		amdgpu_device_flush_hdp(mm->dev->adev, NULL);
 }
+
+static void update_mqd_gpu_addr_v9_4_3(struct mqd_manager *mm, void *mqd,
+				       struct kfd_mem_obj *mqd_mem_obj,
+				       struct queue_properties *qp)
+{
+	struct kfd_mem_obj xcc_mqd_mem_obj;
+	uint64_t offset = mm->mqd_stride(mm, qp);
+	u32 num_xcc = NUM_XCC(mm->dev->xcc_mask);
+	struct v9_mqd *m;
+	int xcc;
+
+	memset(&xcc_mqd_mem_obj, 0x0, sizeof(struct kfd_mem_obj));
+
+	for (xcc = 0; xcc < num_xcc; xcc++) {
+		get_xcc_mqd(mqd_mem_obj, &xcc_mqd_mem_obj, offset * xcc);
+		m = get_mqd(mqd + offset * xcc);
+		m->cp_mqd_base_addr_lo = lower_32_bits(xcc_mqd_mem_obj.gpu_addr);
+		m->cp_mqd_base_addr_hi = upper_32_bits(xcc_mqd_mem_obj.gpu_addr);
+	}
+
+	if (mqd_on_vram(mm->dev->adev))
+		amdgpu_device_flush_hdp(mm->dev->adev, NULL);
+}
+
 static int destroy_mqd_v9_4_3(struct mqd_manager *mm, void *mqd,
 		   enum kfd_preempt_type type, unsigned int timeout,
 		   uint32_t pipe_id, uint32_t queue_id)
@@ -1031,6 +1055,7 @@ struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
 			mqd->get_wave_state = get_wave_state_v9_4_3;
 			mqd->checkpoint_mqd = checkpoint_mqd_v9_4_3;
 			mqd->restore_mqd = restore_mqd_v9_4_3;
+			mqd->update_mqd_gpu_addr = update_mqd_gpu_addr_v9_4_3;
 		} else {
 			mqd->init_mqd = init_mqd;
 			mqd->load_mqd = load_mqd;
@@ -1039,6 +1064,7 @@ struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
 			mqd->get_wave_state = get_wave_state;
 			mqd->checkpoint_mqd = checkpoint_mqd;
 			mqd->restore_mqd = restore_mqd;
+			mqd->update_mqd_gpu_addr = update_mqd_gpu_addr;
 		}
 		break;
 	case KFD_MQD_TYPE_HIQ:

@@ -204,18 +204,18 @@ int mgag200_device_init(struct mga_device *mdev,
  */
 
 static const struct pci_device_id mgag200_pciidlist[] = {
-	{ PCI_VENDOR_ID_MATROX, 0x520, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_PCI },
-	{ PCI_VENDOR_ID_MATROX, 0x521, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_AGP },
-	{ PCI_VENDOR_ID_MATROX, 0x522, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_SE_A },
-	{ PCI_VENDOR_ID_MATROX, 0x524, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_SE_B },
-	{ PCI_VENDOR_ID_MATROX, 0x530, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_EV },
-	{ PCI_VENDOR_ID_MATROX, 0x532, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_WB },
-	{ PCI_VENDOR_ID_MATROX, 0x533, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_EH },
-	{ PCI_VENDOR_ID_MATROX, 0x534, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_ER },
-	{ PCI_VENDOR_ID_MATROX, 0x536, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_EW3 },
-	{ PCI_VENDOR_ID_MATROX, 0x538, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_EH3 },
-	{ PCI_VENDOR_ID_MATROX, 0x53a, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_EH5 },
-	{0,}
+	{ PCI_VDEVICE(MATROX, 0x0520), .driver_data = G200_PCI },
+	{ PCI_VDEVICE(MATROX, 0x0521), .driver_data = G200_AGP },
+	{ PCI_VDEVICE(MATROX, 0x0522), .driver_data = G200_SE_A },
+	{ PCI_VDEVICE(MATROX, 0x0524), .driver_data = G200_SE_B },
+	{ PCI_VDEVICE(MATROX, 0x0530), .driver_data = G200_EV },
+	{ PCI_VDEVICE(MATROX, 0x0532), .driver_data = G200_WB },
+	{ PCI_VDEVICE(MATROX, 0x0533), .driver_data = G200_EH },
+	{ PCI_VDEVICE(MATROX, 0x0534), .driver_data = G200_ER },
+	{ PCI_VDEVICE(MATROX, 0x0536), .driver_data = G200_EW3 },
+	{ PCI_VDEVICE(MATROX, 0x0538), .driver_data = G200_EH3 },
+	{ PCI_VDEVICE(MATROX, 0x053a), .driver_data = G200_EH5 },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, mgag200_pciidlist);

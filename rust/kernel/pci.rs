@@ -25,6 +25,7 @@ use crate::{
 use core::{
     marker::PhantomData,
     mem::offset_of,
+    num::NonZero,
     ptr::{
         addr_of_mut,
         NonNull, //
@@ -447,6 +448,18 @@ impl Device {
 }
 
 impl<'a> Device<device::Core<'a>> {
+    /// Returns the total number of VFs, or [`None`] if SR-IOV is not available.
+    #[inline]
+    pub fn sriov_get_totalvfs(&self) -> Option<NonZero<u16>> {
+        // SAFETY: `self.as_raw()` is a valid pointer to a `struct pci_dev`.
+        let total_vfs = unsafe { bindings::pci_sriov_get_totalvfs(self.as_raw()) };
+
+        // CAST: The C function returns `unsigned int`, but the value originates
+        // from TotalVFs/driver_max_VFs (which are defined as `u16`), so this cast
+        // cannot truncate.
+        NonZero::new(total_vfs as u16)
+    }
+
     /// Enable memory resources for this device.
     pub fn enable_device_mem(&self) -> Result {
         // SAFETY: `self.as_raw` is guaranteed to be a pointer to a valid `struct pci_dev`.

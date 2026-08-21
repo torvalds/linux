@@ -238,8 +238,9 @@ union MESAPI_SET_HW_RESOURCES {
 				uint32_t enable_mes_sch_stb_log : 1;
 				uint32_t limit_single_process : 1;
 				uint32_t is_strix_tmz_wa_enabled  :1;
-				uint32_t enable_lr_compute_wa : 1;
-				uint32_t reserved : 12;
+				uint32_t enable_lr_compute_wa : 2;
+				uint32_t enable_compute_pipe_reset : 1;
+				uint32_t reserved : 10;
 			};
 			uint32_t	uint32_t_all;
 		};
@@ -328,6 +329,7 @@ union MESAPI__ADD_QUEUE {
 		uint32_t                    pipe_id;
 		uint32_t                    queue_id;
 		uint32_t                    alignment_mode_setting;
+		uint32_t                    full_sh_mem_config_data;
 		uint64_t                    unmap_flag_addr;
 	};
 
@@ -357,6 +359,8 @@ union MESAPI__REMOVE_QUEUE {
 		uint32_t                    tf_data;
 
 		enum MES_QUEUE_TYPE         queue_type;
+		uint64_t                    timestamp;
+		uint32_t                    gang_context_array_index;
 	};
 
 	uint32_t	max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];
@@ -515,14 +519,50 @@ union MESAPI__SET_LOGGING_BUFFER {
 	uint32_t	max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];
 };
 
+enum MES_API_QUERY_MES_OPCODE {
+	MES_API_QUERY_MES__GET_CTX_ARRAY_SIZE,
+	MES_API_QUERY_MES__GET_CAPS = MES_API_QUERY_MES__GET_CTX_ARRAY_SIZE,
+	MES_API_QUERY_MES__CHECK_HEALTHY,
+	MES_API_QUERY_MES__MAX,
+};
+
+enum { QUERY_MES_MAX_SIZE_IN_DWORDS = 20 };
+
+/**
+ * Obsolete
+ * to be removed once KMD stopped refering to it.
+ * use MES_API_QUERY_MES__CAPS instead
+*/
+struct MES_API_QUERY_MES__CTX_ARRAY_SIZE {
+    uint64_t    proc_ctx_array_size_addr;
+    uint64_t    gang_ctx_array_size_addr;
+};
+
+struct MES_API_QUERY_MES__HEALTHY_CHECK {
+    uint64_t    healthy_addr;
+};
+
+struct MES_API_QUERY_MES__CAPS {
+    uint64_t    proc_ctx_array_size_addr;
+    uint64_t    gang_ctx_array_size_addr;
+    uint64_t    features_enablement_addr;
+};
+
 union MESAPI__QUERY_MES_STATUS {
 	struct {
-		union MES_API_HEADER	header;
-		bool			mes_healthy; /* 0 - not healthy, 1 - healthy */
-		struct MES_API_STATUS	api_status;
+		union MES_API_HEADER            header;
+		enum MES_API_QUERY_MES_OPCODE   subopcode;
+		struct MES_API_STATUS           api_status;
+		uint64_t                        timestamp;
+		union {
+			struct MES_API_QUERY_MES__CTX_ARRAY_SIZE    ctx_array_size;
+			struct MES_API_QUERY_MES__CAPS              caps;
+			struct MES_API_QUERY_MES__HEALTHY_CHECK     healthy_check;
+			uint32_t data[QUERY_MES_MAX_SIZE_IN_DWORDS];
+		};
 	};
 
-	uint32_t	max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];
+	uint32_t max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];
 };
 
 union MESAPI__PROGRAM_GDS {

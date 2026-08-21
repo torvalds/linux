@@ -220,6 +220,18 @@ config DRM_I915_SELFTEST_BROKEN
 
 	  If in doubt, say "N".
 
+config DRM_I915_KUNIT_TEST
+	tristate "KUnit tests for the drm i915 driver" if !KUNIT_ALL_TESTS
+	depends on DRM_I915 && KUNIT && DEBUG_FS
+	default KUNIT_ALL_TESTS
+	help
+	  Choose this option to allow the driver to perform selftests under
+	  the kunit framework
+
+	  Recommended for driver developers only.
+
+	  If in doubt, say "N".
+
 config DRM_I915_LOW_LEVEL_TRACEPOINTS
 	bool "Enable low level request tracing events"
 	depends on DRM_I915

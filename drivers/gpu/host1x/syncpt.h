@@ -12,6 +12,7 @@
 #include <linux/host1x.h>
 #include <linux/kernel.h>
 #include <linux/kref.h>
+#include <linux/overflow.h>
 #include <linux/sched.h>
 
 #include "fence.h"
@@ -77,7 +78,7 @@ static inline bool host1x_syncpt_check_max(struct host1x_syncpt *sp, u32 real)
 	if (sp->client_managed)
 		return true;
 	max = host1x_syncpt_read_max(sp);
-	return (s32)(max - real) >= 0;
+	return (s32)wrapping_sub(u32, max, real) >= 0;
 }
 
 /* Return true if sync point is client managed. */

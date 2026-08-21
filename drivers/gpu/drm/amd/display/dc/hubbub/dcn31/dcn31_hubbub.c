@@ -138,10 +138,10 @@ static void dcn31_program_compbuf_size(struct hubbub *hubbub, unsigned int compb
 
 	if (safe_to_increase || compbuf_size_segments <= hubbub2->compbuf_size_segments) {
 		if (compbuf_size_segments > hubbub2->compbuf_size_segments) {
-			REG_WAIT(DCHUBBUB_DET0_CTRL, DET0_SIZE_CURRENT, hubbub2->det0_size, 1, 100);
-			REG_WAIT(DCHUBBUB_DET1_CTRL, DET1_SIZE_CURRENT, hubbub2->det1_size, 1, 100);
-			REG_WAIT(DCHUBBUB_DET2_CTRL, DET2_SIZE_CURRENT, hubbub2->det2_size, 1, 100);
-			REG_WAIT(DCHUBBUB_DET3_CTRL, DET3_SIZE_CURRENT, hubbub2->det3_size, 1, 100);
+			dcn31_wait_for_det_apply(hubbub, 0);
+			dcn31_wait_for_det_apply(hubbub, 1);
+			dcn31_wait_for_det_apply(hubbub, 2);
+			dcn31_wait_for_det_apply(hubbub, 3);
 		}
 		/* Should never be hit, if it is we have an erroneous hw config*/
 		ASSERT(hubbub2->det0_size + hubbub2->det1_size + hubbub2->det2_size

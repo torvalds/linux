@@ -75,13 +75,13 @@ int amdgpu_ih_ring_init(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih,
 	} else {
 		unsigned wptr_offs, rptr_offs;
 
-		r = amdgpu_device_wb_get(adev, &wptr_offs);
+		r = amdgpu_wb_get(adev, &wptr_offs);
 		if (r)
 			return r;
 
-		r = amdgpu_device_wb_get(adev, &rptr_offs);
+		r = amdgpu_wb_get(adev, &rptr_offs);
 		if (r) {
-			amdgpu_device_wb_free(adev, wptr_offs);
+			amdgpu_wb_free(adev, wptr_offs);
 			return r;
 		}
 
@@ -90,8 +90,8 @@ int amdgpu_ih_ring_init(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih,
 					    &ih->ring_obj, &ih->gpu_addr,
 					    (void **)&ih->ring);
 		if (r) {
-			amdgpu_device_wb_free(adev, rptr_offs);
-			amdgpu_device_wb_free(adev, wptr_offs);
+			amdgpu_wb_free(adev, rptr_offs);
+			amdgpu_wb_free(adev, wptr_offs);
 			return r;
 		}
 
@@ -131,8 +131,8 @@ void amdgpu_ih_ring_fini(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih)
 	} else {
 		amdgpu_bo_free_kernel(&ih->ring_obj, &ih->gpu_addr,
 				      (void **)&ih->ring);
-		amdgpu_device_wb_free(adev, (ih->wptr_addr - ih->gpu_addr) / 4);
-		amdgpu_device_wb_free(adev, (ih->rptr_addr - ih->gpu_addr) / 4);
+		amdgpu_wb_free(adev, (ih->wptr_addr - ih->gpu_addr) / 4);
+		amdgpu_wb_free(adev, (ih->rptr_addr - ih->gpu_addr) / 4);
 	}
 }
 

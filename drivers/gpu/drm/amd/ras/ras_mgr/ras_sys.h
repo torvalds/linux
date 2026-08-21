@@ -30,6 +30,9 @@
 #include <linux/mempool.h>
 #include "amdgpu.h"
 
+/* inject address is 52 bits */
+#define RAS_UMC_INJECT_ADDR_LIMIT       (0x1ULL << 52)
+
 #define RAS_DEV_ERR(device, fmt, ...)                                               \
 	do {                                                                      \
 		if (device)                                                             \

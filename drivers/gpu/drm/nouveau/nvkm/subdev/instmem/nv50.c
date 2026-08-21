@@ -30,9 +30,13 @@
 #include <subdev/gsp.h>
 #include <subdev/mmu.h>
 
+#include <linux/io-mapping.h>
+
 struct nv50_instmem {
 	struct nvkm_instmem base;
 	u64 addr;
+
+	struct io_mapping iomap;
 
 	/* Mappings that can be evicted when BAR2 space has been exhausted. */
 	struct list_head lru;
@@ -124,7 +128,6 @@ nv50_instobj_kmap(struct nv50_instobj *iobj, struct nvkm_vmm *vmm)
 	struct nv50_instobj *eobj;
 	struct nvkm_memory *memory = &iobj->base.memory;
 	struct nvkm_subdev *subdev = &imem->base.subdev;
-	struct nvkm_device *device = subdev->device;
 	struct nvkm_vma *bar = NULL, *ebar;
 	u64 size = nvkm_memory_size(memory);
 	void *emap;
@@ -155,7 +158,7 @@ nv50_instobj_kmap(struct nv50_instobj *iobj, struct nvkm_vmm *vmm)
 		mutex_unlock(&imem->base.mutex);
 		if (!eobj)
 			break;
-		iounmap(emap);
+		io_mapping_unmap(emap);
 		nvkm_vmm_put(vmm, &ebar);
 	}
 
@@ -172,8 +175,7 @@ nv50_instobj_kmap(struct nv50_instobj *iobj, struct nvkm_vmm *vmm)
 
 	/* Make the mapping visible to the host. */
 	iobj->bar = bar;
-	iobj->map = ioremap_wc(device->func->resource_addr(device, NVKM_BAR2_INST) +
-			       (u32)iobj->bar->addr, size);
+	iobj->map = io_mapping_map_wc(&imem->iomap, (u32)iobj->bar->addr, size);
 	if (!iobj->map) {
 		nvkm_warn(subdev, "PRAMIN ioremap failed\n");
 		nvkm_vmm_put(vmm, &iobj->bar);
@@ -186,6 +188,16 @@ nv50_instobj_map(struct nvkm_memory *memory, u64 offset, struct nvkm_vmm *vmm,
 {
 	memory = nv50_instobj(memory)->ram;
 	return nvkm_memory_map(memory, offset, vmm, vma, argv, argc);
+}
+
+static bool
+check_io_mapping(struct nv50_instmem *imem)
+{
+	struct nvkm_device *device = imem->base.subdev.device;
+
+	return io_mapping_init_wc(&imem->iomap,
+				  device->func->resource_addr(device, NVKM_BAR2_INST),
+				  device->func->resource_size(device, NVKM_BAR2_INST)) != NULL;
 }
 
 static void
@@ -239,7 +251,7 @@ nv50_instobj_acquire(struct nvkm_memory *memory)
 
 	/* Attempt to get a direct CPU mapping of the object. */
 	if ((vmm = nvkm_bar_bar2_vmm(imem->subdev.device))) {
-		if (!iobj->map)
+		if (!iobj->map && iobj->imem->iomap.size)
 			nv50_instobj_kmap(iobj, vmm);
 		map = iobj->map;
 	}
@@ -277,7 +289,12 @@ nv50_instobj_boot(struct nvkm_memory *memory, struct nvkm_vmm *vmm)
 		iobj->lru.next = NULL;
 	}
 
-	nv50_instobj_kmap(iobj, vmm);
+	/*
+	 * boot is only called on BAR2, if we can't remap the complete
+	 * BAR it's unlikely things are functioning well.
+	 */
+	if (check_io_mapping(iobj->imem))
+		nv50_instobj_kmap(iobj, vmm);
 	nvkm_instmem_boot(imem);
 	mutex_unlock(&imem->mutex);
 }
@@ -330,7 +347,7 @@ nv50_instobj_dtor(struct nvkm_memory *memory)
 
 	if (map) {
 		struct nvkm_vmm *vmm = nvkm_bar_bar2_vmm(imem->subdev.device);
-		iounmap(map);
+		io_mapping_unmap(map);
 		if (likely(vmm)) /* Can be NULL during BAR destructor. */
 			nvkm_vmm_put(vmm, &bar);
 	}
@@ -406,10 +423,14 @@ nv50_instmem_fini(struct nvkm_instmem *base)
 	nv50_instmem(base)->addr = ~0ULL;
 }
 
-static void *
+void *
 nv50_instmem_dtor(struct nvkm_instmem *base)
 {
-	return nv50_instmem(base);
+	struct nv50_instmem *imem = nv50_instmem(base);
+
+	if (imem->iomap.size)
+		io_mapping_fini(&imem->iomap);
+	return imem;
 }
 
 static const struct nvkm_instmem_func

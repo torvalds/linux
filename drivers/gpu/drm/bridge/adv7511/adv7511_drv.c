@@ -1004,7 +1004,7 @@ static const struct drm_bridge_funcs adv7511_bridge_funcs = {
 	.atomic_disable = adv7511_bridge_atomic_disable,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
-	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
 
 	.hdmi_tmds_char_rate_valid = adv7511_bridge_hdmi_tmds_char_rate_valid,
 	.hdmi_clear_audio_infoframe = adv7511_bridge_hdmi_clear_audio_infoframe,
@@ -1471,11 +1471,11 @@ static const struct adv7511_chip_info adv7535_chip_info = {
 };
 
 static const struct i2c_device_id adv7511_i2c_ids[] = {
-	{ "adv7511", (kernel_ulong_t)&adv7511_chip_info },
-	{ "adv7511w", (kernel_ulong_t)&adv7511_chip_info },
-	{ "adv7513", (kernel_ulong_t)&adv7511_chip_info },
-	{ "adv7533", (kernel_ulong_t)&adv7533_chip_info },
-	{ "adv7535", (kernel_ulong_t)&adv7535_chip_info },
+	{ .name = "adv7511", .driver_data = (kernel_ulong_t)&adv7511_chip_info },
+	{ .name = "adv7511w", .driver_data = (kernel_ulong_t)&adv7511_chip_info },
+	{ .name = "adv7513", .driver_data = (kernel_ulong_t)&adv7511_chip_info },
+	{ .name = "adv7533", .driver_data = (kernel_ulong_t)&adv7533_chip_info },
+	{ .name = "adv7535", .driver_data = (kernel_ulong_t)&adv7535_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adv7511_i2c_ids);

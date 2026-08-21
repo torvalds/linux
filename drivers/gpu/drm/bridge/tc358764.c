@@ -266,7 +266,8 @@ static void tc358764_reset(struct tc358764 *ctx)
 	usleep_range(1000, 2000);
 }
 
-static void tc358764_post_disable(struct drm_bridge *bridge)
+static void tc358764_post_disable(struct drm_bridge *bridge,
+				  struct drm_atomic_commit *commit)
 {
 	struct tc358764 *ctx = bridge_to_tc358764(bridge);
 	int ret;
@@ -278,7 +279,8 @@ static void tc358764_post_disable(struct drm_bridge *bridge)
 		dev_err(ctx->dev, "error disabling regulators (%d)\n", ret);
 }
 
-static void tc358764_pre_enable(struct drm_bridge *bridge)
+static void tc358764_pre_enable(struct drm_bridge *bridge,
+				struct drm_atomic_commit *commit)
 {
 	struct tc358764 *ctx = bridge_to_tc358764(bridge);
 	int ret;
@@ -303,8 +305,11 @@ static int tc358764_attach(struct drm_bridge *bridge,
 }
 
 static const struct drm_bridge_funcs tc358764_bridge_funcs = {
-	.post_disable = tc358764_post_disable,
-	.pre_enable = tc358764_pre_enable,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
+	.atomic_post_disable = tc358764_post_disable,
+	.atomic_pre_enable = tc358764_pre_enable,
 	.attach = tc358764_attach,
 };
 
@@ -371,23 +376,15 @@ static int tc358764_probe(struct mipi_dsi_device *dsi)
 	ctx->bridge.of_node = dev->of_node;
 	ctx->bridge.pre_enable_prev_first = true;
 
-	drm_bridge_add(&ctx->bridge);
+	ret = devm_drm_bridge_add(dev, &ctx->bridge);
+	if (ret < 0)
+		return ret;
 
-	ret = mipi_dsi_attach(dsi);
-	if (ret < 0) {
-		drm_bridge_remove(&ctx->bridge);
+	ret = devm_mipi_dsi_attach(dev, dsi);
+	if (ret < 0)
 		dev_err(dev, "failed to attach dsi\n");
-	}
 
 	return ret;
-}
-
-static void tc358764_remove(struct mipi_dsi_device *dsi)
-{
-	struct tc358764 *ctx = mipi_dsi_get_drvdata(dsi);
-
-	mipi_dsi_detach(dsi);
-	drm_bridge_remove(&ctx->bridge);
 }
 
 static const struct of_device_id tc358764_of_match[] = {
@@ -398,7 +395,6 @@ MODULE_DEVICE_TABLE(of, tc358764_of_match);
 
 static struct mipi_dsi_driver tc358764_driver = {
 	.probe = tc358764_probe,
-	.remove = tc358764_remove,
 	.driver = {
 		.name = "tc358764",
 		.of_match_table = tc358764_of_match,

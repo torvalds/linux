@@ -57,6 +57,7 @@
 #include "umc_v6_0.h"
 #include "umc_v6_7.h"
 #include "umc_v12_0.h"
+#include "ras_umc_v12_0.h"
 #include "hdp_v4_0.h"
 #include "mca_v3_0.h"
 
@@ -1382,7 +1383,7 @@ static void gmc_v9_0_set_umc_funcs(struct amdgpu_device *adev)
 	case IP_VERSION(12, 0, 0):
 	case IP_VERSION(12, 5, 0):
 		adev->umc.max_ras_err_cnt_per_query =
-			UMC_V12_0_TOTAL_CHANNEL_NUM(adev) * UMC_V12_0_BAD_PAGE_NUM_PER_CHANNEL;
+			UMC_V12_0_TOTAL_CHANNEL_NUM * UMC_V12_0_BAD_PAGE_NUM_PER_CHANNEL;
 		adev->umc.channel_inst_num = UMC_V12_0_CHANNEL_INSTANCE_NUM;
 		adev->umc.umc_inst_num = UMC_V12_0_UMC_INSTANCE_NUM;
 		adev->umc.node_inst_num /= UMC_V12_0_UMC_INSTANCE_NUM;
@@ -1638,10 +1639,6 @@ static int gmc_v9_0_late_init(struct amdgpu_ip_block *ip_block)
 		amdgpu_ras_reset_error_count(adev, AMDGPU_RAS_BLOCK__MMHUB);
 		amdgpu_ras_reset_error_count(adev, AMDGPU_RAS_BLOCK__HDP);
 	}
-
-	r = amdgpu_gmc_ras_late_init(adev);
-	if (r)
-		return r;
 
 	return amdgpu_irq_get(adev, &adev->gmc.vm_fault, 0);
 }
@@ -2025,11 +2022,19 @@ static int gmc_v9_0_sw_init(struct amdgpu_ip_block *ip_block)
 	 * The first KFD VMID is 8 for GPUs with graphics, 3 for
 	 * compute-only GPUs. On compute-only GPUs that leaves 2 VMIDs
 	 * for video processing.
+	 *
+	 * If kernel queues are disabled, allow KFD to use all vmids.
 	 */
-	adev->vm_manager.first_kfd_vmid =
-		(amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 1) ||
-		 amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 2) ||
-		 amdgpu_is_multi_aid(adev)) ?
+	if (adev->gfx.disable_kq &&
+	    adev->jpeg.disable_kq &&
+	    adev->vcn.disable_kq &&
+	    adev->sdma.no_user_submission)
+		adev->vm_manager.first_kfd_vmid = 1;
+	else
+		adev->vm_manager.first_kfd_vmid =
+			(amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 1) ||
+			 amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 2) ||
+			 amdgpu_is_multi_aid(adev)) ?
 			3 :
 			8;
 
@@ -2054,7 +2059,6 @@ static int gmc_v9_0_sw_fini(struct amdgpu_ip_block *ip_block)
 	if (amdgpu_is_multi_aid(adev))
 		amdgpu_gmc_sysfs_fini(adev);
 
-	amdgpu_gmc_ras_fini(adev);
 	amdgpu_gem_force_release(adev);
 	amdgpu_vm_manager_fini(adev);
 	if (!adev->gmc.real_vram_size) {

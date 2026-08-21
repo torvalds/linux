@@ -650,6 +650,27 @@ static inline struct cgroup *cgroup_ancestor(struct cgroup *cgrp,
 }
 
 /**
+ * cgroup_common_ancestor - find common ancestor of two cgroups
+ * @a: first cgroup to find common ancestor of
+ * @b: second cgroup to find common ancestor of
+ *
+ * Find the first cgroup that is an ancestor of both @a and @b, if it exists
+ * and return a pointer to it. If such a cgroup doesn't exist, return NULL.
+ *
+ * This function is safe to call as long as both @a and @b are accessible.
+ */
+static inline struct cgroup *cgroup_common_ancestor(struct cgroup *a,
+						    struct cgroup *b)
+{
+	int level;
+
+	for (level = min(a->level, b->level); level >= 0; level--)
+		if (a->ancestors[level] == b->ancestors[level])
+			return a->ancestors[level];
+	return NULL;
+}
+
+/**
  * task_under_cgroup_hierarchy - test task's membership of cgroup ancestry
  * @task: the task to be tested
  * @ancestor: possible ancestor of @task's cgroup

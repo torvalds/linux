@@ -16,6 +16,9 @@ static struct spl_callbacks dcn32_spl_callbacks = {
 static struct spl_callbacks dcn401_spl_callbacks = {
 	.spl_calc_lb_num_partitions = dscl401_spl_calc_lb_num_partitions,
 };
+static struct spl_callbacks dcn50_spl_callbacks = {
+	.spl_calc_lb_num_partitions = dscl401_spl_calc_lb_num_partitions,
+};
 static void populate_splrect_from_rect(struct spl_rect *spl_rect, const struct rect *rect)
 {
 	spl_rect->x = rect->x;
@@ -71,6 +74,23 @@ static void populate_splformat_from_format(enum spl_pixel_format *spl_pixel_form
 	else
 		*spl_pixel_format = SPL_PIXEL_FORMAT_INVALID;
 }
+static void set_linear_light_scaling_preference(const struct dc_plane_state *plane_state, struct spl_in *spl_in)
+{
+	if (plane_state != NULL) {
+		switch (plane_state->scaling_linearity) {
+		case DC_SCALING_LINEARITY_LINEAR:
+			spl_in->lls_pref = LLS_PREF_YES;
+			break;
+		case DC_SCALING_LINEARITY_SOURCE:
+			spl_in->lls_pref = LLS_PREF_NO;
+			break;
+		default:
+			spl_in->lls_pref = LLS_PREF_DONT_CARE;
+			break;
+		}
+	} else
+		spl_in->lls_pref = LLS_PREF_DONT_CARE;
+}
 /// @brief Translate SPL input parameters from pipe context
 /// @param pipe_ctx
 /// @param spl_in
@@ -93,6 +113,9 @@ void translate_SPL_in_params_from_pipe_ctx(struct pipe_ctx *pipe_ctx, struct spl
 	case DCN_VERSION_4_2:
 	case DCN_VERSION_4_2B:
 		spl_in->callbacks = dcn401_spl_callbacks;
+		break;
+	case DCN_VERSION_6_0:
+		spl_in->callbacks = dcn50_spl_callbacks;
 		break;
 	default:
 		spl_in->callbacks = dcn2_spl_callbacks;
@@ -189,7 +212,14 @@ void translate_SPL_in_params_from_pipe_ctx(struct pipe_ctx *pipe_ctx, struct spl
 	if (pipe_ctx->stream->ctx->dc->debug.force_lls > 0)
 		spl_in->lls_pref = pipe_ctx->stream->ctx->dc->debug.force_lls;
 	else
-		spl_in->lls_pref = plane_state->linear_light_scaling;
+		if ((plane_state->ctx->dce_version == DCN_VERSION_4_01) ||
+			(plane_state->ctx->dce_version == DCN_VERSION_4_2) ||
+			(plane_state->ctx->dce_version == DCN_VERSION_4_2B))
+			spl_in->lls_pref = LLS_PREF_DONT_CARE;
+		else
+			set_linear_light_scaling_preference(plane_state, spl_in);
+	/* Translate upsampling mode*/
+	spl_in->upsp_mode = pipe_ctx->plane_res.scl_data.upsp;
 	/* Translate chroma subsampling offset ( cositing ) */
 	if (pipe_ctx->stream->ctx->dc->debug.force_cositing)
 		spl_in->basic_in.cositing = pipe_ctx->stream->ctx->dc->debug.force_cositing - 1;

@@ -29,6 +29,7 @@
 #include "dc_types.h"
 #include "dc_state.h"
 #include "dc_plane.h"
+#include "dc_probe.h"
 #include "grph_object_defs.h"
 #include "logger_types.h"
 #include "hdcp_msg_types.h"
@@ -65,7 +66,7 @@ struct dcn_dsc_reg_state;
 struct dcn_optc_reg_state;
 struct dcn_dccg_reg_state;
 
-#define DC_VER "3.2.384"
+#define DC_VER "3.2.392"
 
 /**
  * MAX_SURFACES - representative of the upper bound of surfaces that can be piped to a single CRTC
@@ -173,6 +174,13 @@ struct dc_plane_cap {
 		uint32_t fp16 : 1;
 		uint32_t p010 : 1;
 		uint32_t ayuv : 1;
+		uint32_t yuy2 : 1; // Packed 422 8bpc
+		uint32_t y210 : 1; // Packed 422 10bpc
+		uint32_t y212 : 1; // Packed 422 12bpc
+		uint32_t p208 : 1; // Planar 422 8bpc
+		uint32_t p210 : 1; // Planar 422 10bpc
+		uint32_t p212 : 1; // Planar 422 12bpc
+		/* Not all caps will be used/supported */
 	} pixel_format_support;
 	// max upscaling factor x1000
 	// upscaling factors are always >= 1
@@ -239,6 +247,7 @@ struct rom_curve_caps {
  * @ogam_ram: programmable out/blend gamma LUT
  * @ocsc: output color space conversion
  * @dgam_rom_for_yuv: pre-defined degamma LUT for YUV planes
+ * @upsp_pre_scaler: Ability to upsample 420/422 before scaling
  * @dgam_rom_caps: pre-definied curve caps for degamma 1D LUT
  * @ogam_rom_caps: pre-definied curve caps for regamma 1D LUT
  *
@@ -255,6 +264,7 @@ struct dpp_color_caps {
 	uint16_t ogam_ram : 1;
 	uint16_t ocsc : 1;
 	uint16_t dgam_rom_for_yuv : 1;
+	uint16_t upsp_pre_scaler : 1;
 	struct rom_curve_caps dgam_rom_caps;
 	struct rom_curve_caps ogam_rom_caps;
 };
@@ -314,6 +324,7 @@ struct mpc_color_caps {
 	struct lut3d_caps mcm_3d_lut_caps;
 	struct lut3d_caps rmcm_3d_lut_caps;
 	bool preblend;
+	struct fixed31_32 max_gamut_remap_coeff;
 };
 
 /**
@@ -518,7 +529,7 @@ struct dc_static_screen_params {
  * underscan we don't expect to see this call at all.
  */
 
-enum surface_update_type {
+enum dc_update_type {
 	UPDATE_TYPE_FAST, /* super fast, safe to execute in isr */
 	UPDATE_TYPE_MED,  /* ISR safe, most of programming needed, no bw/clk change*/
 	UPDATE_TYPE_FULL, /* may need to shuffle resources */
@@ -529,10 +540,11 @@ enum dc_lock_descriptor {
 	LOCK_DESCRIPTOR_STREAM = 0x1,
 	LOCK_DESCRIPTOR_LINK = 0x2,
 	LOCK_DESCRIPTOR_GLOBAL = 0x4,
+	LOCK_DESCRIPTOR_PROBE = 0x8,
 };
 
-struct surface_update_descriptor {
-	enum surface_update_type update_type;
+struct dc_update_descriptor {
+	enum dc_update_type update_type;
 	enum dc_lock_descriptor lock_descriptor;
 };
 
@@ -591,7 +603,6 @@ struct dc_config {
 	bool enable_mipi_converter_optimization;
 	bool enable_frl;
 	bool force_hdmi21_frl_enc_enable;
-	bool skip_frl_pretraining;
 	bool use_default_clock_table;
 	bool force_bios_enable_lttpr;
 	uint8_t force_bios_fixed_vs;
@@ -615,6 +626,7 @@ struct dc_config {
 	bool unify_link_enc_assignment;
 	bool enable_cursor_offload;
 	bool dp_connector_no_native_i2c;
+	unsigned int link_index_with_no_ddc;
 	bool frame_update_cmd_version2;
 	struct spl_sharpness_range dcn_sharpness_range;
 	struct spl_sharpness_range dcn_override_sharpness_range;
@@ -633,6 +645,7 @@ enum visual_confirm {
 	VISUAL_CONFIRM_SMARTMUX_DGPU = 10,
 	VISUAL_CONFIRM_REPLAY = 12,
 	VISUAL_CONFIRM_SUBVP = 14,
+	VISUAL_CONFIRM_ABM = 15,
 	VISUAL_CONFIRM_MCLK_SWITCH = 16,
 	VISUAL_CONFIRM_FAMS2 = 19,
 	VISUAL_CONFIRM_HW_CURSOR = 20,
@@ -757,6 +770,15 @@ struct dc_clocks {
 	 * Elements below are not compared for the purposes of
 	 * optimization required
 	 */
+
+	/*
+	 * @cstate_allow
+	 *
+	 * DCN's DF C-state vote as last successfully acknowledged by PMFW.
+	 * false = DCN does NOT permit DF C-state;
+	 * true = DCN permits DF C-state;
+	 */
+	bool cstate_allow;
 	bool prev_p_state_change_support;
 	bool fclk_prev_p_state_change_support;
 	int num_ways;
@@ -773,6 +795,7 @@ struct dc_clocks {
 	 */
 	bool fw_based_mclk_switching;
 	bool fw_based_mclk_switching_shut_down;
+	bool alt_ch_pstate_switch;
 	int prev_num_ways;
 	enum dtm_pstate dtm_level;
 	int max_supported_dppclk_khz;
@@ -783,6 +806,18 @@ struct dc_clocks {
 	int idle_fclk_khz;
 	int subvp_prefetch_dramclk_khz;
 	int subvp_prefetch_fclk_khz;
+	/* deprecated: use _KBps variants — will be removed after DML update */
+	unsigned int utm_urgent_bandwidth_lb_Kbps;
+	unsigned int utm_nominal_bandwidth_lb_Kbps;
+	unsigned int utm_urgent_bandwidth_lb_KBps;
+	unsigned int utm_nominal_bandwidth_lb_KBps;
+	unsigned int utm_latency_ub_index;
+	unsigned int utm_lsdma_bandwidth_lb_KBps;
+	unsigned int utm_nominal_max_latency_ub_ns;
+	unsigned int utm_nominal_avg_latency_ub_ns;
+	/* deprecated: use _KBps variant — will be removed after DML update */
+	unsigned int required_avg_active_bandwidth_Kbps;
+	unsigned int required_avg_active_bandwidth_KBps;
 
 	/* Stutter efficiency is technically not clock values
 	 * but stored here so the values are part of the update_clocks call similar to num_ways
@@ -1017,14 +1052,9 @@ struct dc_bounding_box_overrides {
 };
 
 struct dc_qos_info {
-	uint32_t actual_peak_bw_in_mbps;
 	uint32_t qos_bandwidth_lb_in_mbps;
-	uint32_t actual_avg_bw_in_mbps;
 	uint32_t calculated_avg_bw_in_mbps;
-	uint32_t actual_max_latency_in_ns;
-	uint32_t actual_min_latency_in_ns;
 	uint32_t qos_max_latency_ub_in_ns;
-	uint32_t actual_avg_latency_in_ns;
 	uint32_t qos_avg_latency_ub_in_ns;
 	uint32_t dcn_bandwidth_ub_in_mbps;
 	uint32_t qos_max_bw_budget_in_mbps;
@@ -1129,8 +1159,6 @@ struct dc_debug_options {
 	unsigned int force_fclk_khz;
 	bool enable_tri_buf;
 	bool ips_disallow_entry;
-	bool dmub_offload_enabled;
-	bool dmcub_emulation;
 	bool disable_idle_power_optimizations;
 	unsigned int mall_size_override;
 	unsigned int mall_additional_timer_percent;
@@ -1152,7 +1180,6 @@ struct dc_debug_options {
 	bool validate_dml_output;
 	bool enable_dmcub_surface_flip;
 	bool usbc_combo_phy_reset_wa;
-	bool force_vrr;
 	bool force_fva;
 	int max_frl_rate;
 	unsigned int  force_frl_rate;
@@ -1290,6 +1317,10 @@ struct dc_debug_options {
 	unsigned int min_deep_sleep_dcfclk_khz;
 	unsigned int force_odm2to1_for_edp_pixclk_mhz;
 	bool enable_replay_esd_recovery;
+	uint8_t iommu_mismatch_temp_wka;
+	bool disable_dynamic_expansion_for_test_pattern;
+	uint32_t dml21_custom_derate_num_dpms;
+	uint32_t dml21_custom_derate_at_dpm[DML2_MAX_NUM_DPM_LVL];
 };
 
 
@@ -1332,7 +1363,6 @@ struct dc_init_data {
 	enum dce_environment dce_environment;
 
 	struct dmub_offload_funcs *dmub_if;
-	struct dc_reg_helper_state *dmub_offload;
 
 	struct dc_config flags;
 	uint64_t log_mask;
@@ -1429,6 +1459,7 @@ struct dc_transfer_func {
 	enum dc_transfer_func_predefined tf;
 	/* FP16 1.0 reference level in nits, default is 80 nits, only for PQ*/
 	uint32_t sdr_ref_white_level;
+	struct fixed31_32 hdr_multiplier;
 	union {
 		struct pwl_params pwl;
 		struct dc_transfer_func_distributed_points tf_pts;
@@ -1479,15 +1510,50 @@ struct lut_mem_mapping {
 struct dc_rmcm_3dlut {
 	bool isInUse;
 	const struct dc_stream_state *stream;
-	uint8_t protection_bits;
 };
 
 struct dc_3dlut {
 	struct kref refcount;
 	struct tetrahedral_params lut_3d;
-	struct fixed31_32 hdr_multiplier;
 	union dc_3dlut_state state;
 };
+
+/* 3DLUT DMA (Fast Load) params */
+struct dc_3dlut_dma {
+	struct dc_plane_address addr;
+	enum dc_cm_lut_swizzle swizzle;
+	enum dc_cm_lut_pixel_format format;
+	uint16_t bias; /* FP1.5.10 */
+	uint16_t scale; /* FP1.5.10 */
+	enum dc_cm_lut_size size;
+};
+
+/* color manager */
+union dc_plane_cm_flags {
+	unsigned int all;
+	struct {
+		unsigned int shaper_enable    : 1;
+		unsigned int lut3d_enable     : 1;
+		unsigned int blend_enable     : 1;
+		/* whether legacy (lut3d_func) or DMA is valid */
+		unsigned int lut3d_dma_enable : 1;
+		/* RMCM lut to be used instead of MCM */
+		unsigned int rmcm_enable	 : 1;
+		unsigned int reserved: 27;
+	} bits;
+};
+
+struct dc_plane_cm {
+	struct kref refcount;
+	struct dc_transfer_func shaper_func;
+	union {
+		struct dc_3dlut lut3d_func;
+		struct dc_3dlut_dma lut3d_dma;
+	};
+	struct dc_transfer_func blend_func;
+	union dc_plane_cm_flags flags;
+};
+
 /*
  * This structure is filled in by dc_surface_get_status and contains
  * the last requested address and the currently active address so the called
@@ -1501,46 +1567,116 @@ struct dc_plane_status {
 	struct cm_hist cm_hist;
 };
 
-union surface_update_flags {
-
-	struct {
-		uint32_t addr_update:1;
-		/* Medium updates */
-		uint32_t dcc_change:1;
-		uint32_t color_space_change:1;
-		uint32_t horizontal_mirror_change:1;
-		uint32_t per_pixel_alpha_change:1;
-		uint32_t global_alpha_change:1;
-		uint32_t hdr_mult:1;
-		uint32_t rotation_change:1;
-		uint32_t swizzle_change:1;
-		uint32_t scaling_change:1;
-		uint32_t position_change:1;
-		uint32_t in_transfer_func_change:1;
-		uint32_t input_csc_change:1;
-		uint32_t coeff_reduction_change:1;
-		uint32_t pixel_format_change:1;
-		uint32_t plane_size_change:1;
-		uint32_t gamut_remap_change:1;
-		uint32_t cursor_csc_color_matrix_change:1;
-
-		/* Full updates */
-		uint32_t new_plane:1;
-		uint32_t bpp_change:1;
-		uint32_t gamma_change:1;
-		uint32_t bandwidth_change:1;
-		uint32_t clock_change:1;
-		uint32_t stereo_format_change:1;
-		uint32_t lut_3d:1;
-		uint32_t tmz_changed:1;
-		uint32_t mcm_transfer_function_enable_change:1; /* disable or enable MCM transfer func */
-		uint32_t full_update:1;
-		uint32_t sdr_white_level_nits:1;
-		uint32_t cm_hist_change:1;
-	} bits;
-
-	uint32_t raw;
+struct pipe_update_bits {
+	uint32_t addr_update:1;
+	uint32_t dcc_change:1;
+	uint32_t color_space_change:1;
+	uint32_t horizontal_mirror_change:1;
+	uint32_t per_pixel_alpha_change:1;
+	uint32_t global_alpha_change:1;
+	uint32_t hdr_mult:1;
+	uint32_t rotation_change:1;
+	uint32_t swizzle_change:1;
+	uint32_t scaling_change:1;
+	uint32_t position_change:1;
+	uint32_t in_transfer_func_change:1;
+	uint32_t input_csc_change:1;
+	uint32_t coeff_reduction_change:1;
+	uint32_t pixel_format_change:1;
+	uint32_t plane_size_change:1;
+	uint32_t gamut_remap_change:1;
+	uint32_t cursor_csc_color_matrix_change:1;
+	uint32_t new_plane:1;
+	uint32_t bpp_change:1;
+	uint32_t gamma_change:1;
+	uint32_t bandwidth_change:1;
+	uint32_t clock_change:1;
+	uint32_t stereo_format_change:1;
+	uint32_t lut_3d:1;
+	uint32_t tmz_changed:1;
+	uint32_t full_update:1;
+	uint32_t sdr_white_level_nits:1;
+	uint32_t cm_hist_change:1;
+	/* NOTE: When adding a new field, also update:
+	 *   - dc_pipe_update_bits_set_full()
+	 *   - dc_pipe_update_bits_is_any_set()
+	 */
 };
+
+static inline void dc_pipe_update_bits_clear(struct pipe_update_bits *flags)
+{
+	/* memset ensures padding bits are zeroed */
+	memset(flags, 0, sizeof(*flags));
+}
+
+static inline void dc_pipe_update_bits_set_full(struct pipe_update_bits *flags)
+{
+	dc_pipe_update_bits_clear(flags);
+	flags->addr_update = 1;
+	flags->dcc_change = 1;
+	flags->color_space_change = 1;
+	flags->horizontal_mirror_change = 1;
+	flags->per_pixel_alpha_change = 1;
+	flags->global_alpha_change = 1;
+	flags->hdr_mult = 1;
+	flags->rotation_change = 1;
+	flags->swizzle_change = 1;
+	flags->scaling_change = 1;
+	flags->position_change = 1;
+	flags->in_transfer_func_change = 1;
+	flags->input_csc_change = 1;
+	flags->coeff_reduction_change = 1;
+	flags->pixel_format_change = 1;
+	flags->plane_size_change = 1;
+	flags->gamut_remap_change = 1;
+	flags->cursor_csc_color_matrix_change = 1;
+	flags->new_plane = 1;
+	flags->bpp_change = 1;
+	flags->gamma_change = 1;
+	flags->bandwidth_change = 1;
+	flags->clock_change = 1;
+	flags->stereo_format_change = 1;
+	flags->lut_3d = 1;
+	flags->tmz_changed = 1;
+	flags->full_update = 1;
+	flags->sdr_white_level_nits = 1;
+	flags->cm_hist_change = 1;
+}
+
+static inline bool dc_pipe_update_bits_is_any_set(const struct pipe_update_bits *flags)
+{
+	return flags->addr_update ||
+		flags->dcc_change ||
+		flags->color_space_change ||
+		flags->horizontal_mirror_change ||
+		flags->per_pixel_alpha_change ||
+		flags->global_alpha_change ||
+		flags->hdr_mult ||
+		flags->rotation_change ||
+		flags->swizzle_change ||
+		flags->scaling_change ||
+		flags->position_change ||
+		flags->in_transfer_func_change ||
+		flags->input_csc_change ||
+		flags->coeff_reduction_change ||
+		flags->pixel_format_change ||
+		flags->plane_size_change ||
+		flags->gamut_remap_change ||
+		flags->cursor_csc_color_matrix_change ||
+		flags->new_plane ||
+		flags->bpp_change ||
+		flags->gamma_change ||
+		flags->bandwidth_change ||
+		flags->clock_change ||
+		flags->stereo_format_change ||
+		flags->lut_3d ||
+		flags->tmz_changed ||
+		flags->full_update ||
+		flags->sdr_white_level_nits ||
+		flags->cm_hist_change;
+}
+
+bool dc_check_address_only_update(struct pipe_update_bits update_bits);
 
 #define DC_REMOVE_PLANE_POINTERS 1
 
@@ -1566,14 +1702,20 @@ struct dc_plane_state {
 	struct fixed31_32 hdr_mult;
 	struct colorspace_transform gamut_remap_matrix;
 
-	// TODO: No longer used, remove
-	struct dc_hdr_static_metadata hdr_static_ctx;
-
 	enum dc_color_space color_space;
 
+#ifndef TRIM_CM2
+	bool lut_bank_a;
+	struct dc_hdr_static_metadata hdr_static_ctx;
 	struct dc_3dlut lut3d_func;
 	struct dc_transfer_func in_shaper_func;
 	struct dc_transfer_func blend_tf;
+	enum dc_cm2_shaper_3dlut_setting mcm_shaper_3dlut_setting;
+	bool mcm_lut1d_enable;
+	struct dc_cm2_func_luts mcm_luts;
+	enum mpcc_movable_cm_location mcm_location;
+#endif /* TRIM_CM2 */
+	struct dc_plane_cm cm;
 
 	struct dc_transfer_func *gamcor_tf;
 	enum surface_pixel_format format;
@@ -1590,7 +1732,7 @@ struct dc_plane_state {
 	bool horizontal_mirror;
 	unsigned int layer_index;
 
-	union surface_update_flags update_flags;
+	struct pipe_update_bits update_bits;
 	bool flip_int_enabled;
 	bool skip_manual_trigger;
 
@@ -1610,16 +1752,11 @@ struct dc_plane_state {
 
 	bool is_statically_allocated;
 	enum chroma_cositing cositing;
-	enum dc_cm2_shaper_3dlut_setting mcm_shaper_3dlut_setting;
-	bool mcm_lut1d_enable;
-	struct dc_cm2_func_luts mcm_luts;
-	bool lut_bank_a;
-	enum mpcc_movable_cm_location mcm_location;
 	struct dc_csc_transform cursor_csc_color_matrix;
 	bool adaptive_sharpness_en;
 	int adaptive_sharpness_policy;
 	unsigned int sharpness_level;
-	enum linear_light_scaling linear_light_scaling;
+	enum dc_scaling_linearity scaling_linearity;
 	unsigned int sdr_white_level_nits;
 	struct cm_hist_control cm_hist_control;
 	struct spl_sharpness_range sharpness_range;
@@ -1643,6 +1780,7 @@ struct dc_plane_info {
 	bool input_csc_enabled;
 	unsigned int layer_index;
 	enum chroma_cositing cositing;
+	enum dc_scaling_linearity scaling_linearity;
 };
 
 #include "dc_stream.h"
@@ -1728,6 +1866,10 @@ struct dc_scratch_space {
 	 * of ddc_pin to know which aux instance is associated with link.
 	 */
 	bool no_ddc_pin;
+	/** When set, forces all native I2C communication on this DP connector
+	 *  to use the I2C-over-AUX protocol instead of native I2C signaling.
+	 */
+	bool force_to_use_aux;
 	enum gpio_ddc_line aux_hw_inst;
 
 	enum gpio_ddc_line ddc_hw_inst;
@@ -1846,6 +1988,7 @@ struct dc_scratch_space {
 	// BW ALLOCATON USB4 ONLY
 	struct dc_dpia_bw_alloc dpia_bw_alloc_config;
 	bool skip_implict_edp_power_control;
+	bool forced_psr_active;
 	enum backlight_control_type backlight_control_type;
 };
 
@@ -1868,6 +2011,12 @@ struct dc {
 
 	struct dc_state *current_state;
 	struct resource_pool *res_pool;
+
+	/**
+	 * @update_scratch_pool: Per-commit scratch buffers for dc_update_state.
+	 */
+	struct dc_update_scratch_space *update_scratch_pool[MAX_STREAMS + 1];
+	bool update_scratch_in_use[MAX_STREAMS + 1];
 
 	struct clk_mgr *clk_mgr;
 
@@ -1980,23 +2129,164 @@ struct dc_surface_update {
 
 	const struct dc_csc_transform *input_csc_color_matrix;
 	const struct fixed31_32 *coeff_reduction_factor;
-	const struct dc_transfer_func *func_shaper;
-	const struct dc_3dlut *lut3d_func;
-	const struct dc_transfer_func *blend_tf;
 	const struct colorspace_transform *gamut_remap_matrix;
-	/*
-	 * Color Transformations for pre-blend MCM (Shaper, 3DLUT, 1DLUT)
-	 *
-	 * change cm2_params.component_settings: Full update
-	 * change cm2_params.cm2_luts: Fast update
-	 */
-	const struct dc_cm2_parameters *cm2_params;
 	const struct dc_plane_cm *cm;
 	const struct dc_csc_transform *cursor_csc_color_matrix;
 	unsigned int sdr_white_level_nits;
 	struct dc_bias_and_scale bias_and_scale;
 	struct cm_hist_control *cm_hist_control;
 };
+
+struct dc_state_update {
+	struct dc_stream_state   *stream;
+	struct dc_stream_update  *stream_update;
+	struct dc_surface_update *surface_updates;
+	int                       surface_count;
+	const struct dc_probe_updates *probe_updates;
+};
+
+/**
+ * dc_check_state_update() - Classify an update without committing it.
+ * @check_config: DC check configuration
+ * @updates:      root update object to classify
+ *
+ * Return: descriptor indicating update type and required lock scope.
+ */
+struct dc_update_descriptor dc_check_state_update(
+		const struct dc_check_config *check_config,
+		const struct dc_state_update *updates);
+
+/**
+ * dc_update_state - Commit an absolute dc_state_update.
+ * @dc:      DC structure
+ * @updates: root update object carrying stream, plane, and probe updates
+ *
+ * Return: true on success, false on failure.
+ */
+bool dc_update_state(struct dc *dc, const struct dc_state_update *updates);
+
+struct dc_update_scratch_space;
+
+/**
+ * dc_update_state_init - Acquire and initialise a commit scratch buffer.
+ * @dc:      DC structure
+ * @updates: update descriptor; validated before the slot is acquired
+ *
+ * Return: a scratch slot on success, NULL if validation fails or the pool
+ * is exhausted. The slot must be released via dc_update_state_cleanup() on
+ * success, or automatically by dc_update_state_prepare() on failure.
+ */
+struct dc_update_scratch_space *dc_update_state_init(
+		struct dc *dc,
+		const struct dc_state_update *updates
+);
+
+/**
+ * dc_update_state_prepare - Prepare the commit under the global lock.
+ * @scratch: commit scratch from dc_update_state_init()
+ *
+ * On failure the scratch slot is released and false is returned; the caller
+ * must not call execute or cleanup.
+ */
+bool dc_update_state_prepare(struct dc_update_scratch_space *scratch);
+
+/**
+ * dc_update_state_execute - Program hardware; called without the global lock.
+ * @scratch: commit scratch from dc_update_state_init()
+ */
+void dc_update_state_execute(const struct dc_update_scratch_space *scratch);
+
+/**
+ * dc_update_state_cleanup - Finalise the commit and release the scratch slot.
+ * @scratch: commit scratch from dc_update_state_init()
+ *
+ * Must be called with the global lock held. Returns true if the caller must
+ * loop back to prepare (SEAMLESS continuation).
+ */
+bool dc_update_state_cleanup(struct dc_update_scratch_space *scratch);
+
+/**
+ * struct dc_probe_latencies - min/max/avg memory latency in ns.
+ * @max_latency_ns: maximum latency in nanoseconds
+ * @avg_latency_ns: average latency in nanoseconds
+ * @min_latency_ns: minimum latency in nanoseconds
+ */
+struct dc_probe_latencies {
+	uint32_t max_latency_ns;
+	uint32_t avg_latency_ns;
+	uint32_t min_latency_ns;
+};
+
+/**
+ * struct dc_probe_status - results for a probe.
+ * @valid: true if a measurement was latched.
+ * @type: type of the probe that produced this result.
+ * @u.bandwidth_mbps:         peak BW in Mbps (DC_PROBE_PEAK_MEM_BW).
+ * @u.latency:                min/max/avg memory latency in ns (DC_PROBE_MEM_LATENCY),
+ *                            stored as struct dc_probe_latencies.
+ * @u.urgent_assertion_count: number of urgent assertion events (DC_PROBE_URGENT_ASSERTION_COUNT).
+ * @u.prefetch_data_size:     total prefetch data in bytes (DC_PROBE_PREFETCH_DATA_SIZE).
+ */
+struct dc_probe_status {
+	bool                       valid;
+	enum dc_probe_type         type;
+	union {
+		uint32_t bandwidth_mbps;
+		struct dc_probe_latencies latency;
+		uint32_t urgent_assertion_count;
+		uint32_t prefetch_data_size;
+	} u;
+};
+
+/**
+ * enum dc_get_status_type - Bitmask selecting which status classes to populate.
+ * @DC_GET_STATUS_STREAM: populate stream_status fields in dc_state_status
+ * @DC_GET_STATUS_PROBE:  populate probe_status fields in dc_state_status
+ */
+enum dc_get_status_type {
+	DC_GET_STATUS_STREAM = (1u << 0),
+	DC_GET_STATUS_PROBE  = (1u << 1),
+};
+
+/**
+ * struct dc_get_status_options - Input selector for dc_state_get_status.
+ * @state:  source state to read status from
+ * @types:  OR of dc_get_status_type values selecting classes to populate
+ * @stream: optional stream filter for DC_GET_STATUS_STREAM. NULL means
+ *          populate status for all streams in the state
+ * @probe:  optional probe filter for DC_GET_STATUS_PROBE. NULL means
+ *          populate status for all probes in the state
+ */
+struct dc_get_status_options {
+	struct dc_state              *state;
+	uint32_t                      types;
+	const struct dc_stream_state *stream;
+	const struct dc_probe_state  *probe;
+};
+
+/**
+ * struct dc_state_status - Output-only status object from dc_state_get_status.
+ * @stream_count: number of valid entries in stream_status (DC_GET_STATUS_STREAM)
+ * @stream_status: pointers to live per-stream status entries
+ * @probe_count: number of valid entries in probe_status (DC_GET_STATUS_PROBE)
+ * @probe_status: pointers to live per-probe status entries
+ */
+struct dc_state_status {
+	int                     stream_count;
+	struct dc_stream_status *stream_status[MAX_STREAMS];
+	int                     probe_count;
+	struct dc_probe_status *probe_status[MAX_PROBES];
+};
+
+/**
+ * dc_state_get_status - Unified status readback for dc_state.
+ * @status:  output object populated according to options->types
+ * @options: selects the source state, status classes to fill, and filters
+ *
+ * Return: DC_OK on success, DC_ERROR_UNEXPECTED if state is NULL.
+ */
+enum dc_status dc_state_get_status(struct dc_state_status *status,
+		const struct dc_get_status_options *options);
 
 struct dc_underflow_debug_data {
 	struct dcn_hubbub_reg_state *hubbub_reg_state;
@@ -2036,6 +2326,10 @@ struct dc_3dlut *dc_create_3dlut_func(void);
 void dc_3dlut_func_release(struct dc_3dlut *lut);
 void dc_3dlut_func_retain(struct dc_3dlut *lut);
 
+struct dc_plane_cm *dc_plane_cm_create(void);
+void dc_plane_cm_release(struct dc_plane_cm *cm);
+void dc_plane_cm_retain(struct dc_plane_cm *cm);
+
 void dc_post_update_surfaces_to_stream(
 		struct dc *dc);
 
@@ -2049,9 +2343,9 @@ void dc_post_update_surfaces_to_stream(
 void dc_get_default_tiling_info(const struct dc *dc, struct dc_tiling_info *tiling_info);
 
 /**
- * struct dc_validation_set - Struct to store surface/stream associations for validation
+ * struct dc_validation_stream - Per-stream surface/stream association for validation
  */
-struct dc_validation_set {
+struct dc_validation_stream {
 	/**
 	 * @stream: Stream state properties
 	 */
@@ -2068,6 +2362,31 @@ struct dc_validation_set {
 	uint8_t plane_count;
 };
 
+/**
+ * struct dc_validation_set - Root validation input grouping all streams for a commit
+ */
+struct dc_validation_set {
+	/**
+	 * @streams: Per-stream entries (stream + its planes)
+	 */
+	struct dc_validation_stream streams[MAX_STREAMS];
+
+	/**
+	 * @stream_count: Number of active entries in @streams
+	 */
+	uint8_t stream_count;
+
+	/**
+	 * @probes: Global probe descriptors to validate alongside the streams
+	 */
+	struct dc_probe_state probes[MAX_PROBES];
+
+	/**
+	 * @probe_count: Number of active entries in @probes
+	 */
+	uint8_t probe_count;
+};
+
 bool dc_validate_boot_timing(const struct dc *dc,
 				const struct dc_sink *sink,
 				struct dc_crtc_timing *crtc_timing);
@@ -2075,8 +2394,7 @@ bool dc_validate_boot_timing(const struct dc *dc,
 enum dc_status dc_validate_plane(struct dc *dc, const struct dc_plane_state *plane_state);
 
 enum dc_status dc_validate_with_context(struct dc *dc,
-					const struct dc_validation_set set[],
-					unsigned int set_count,
+					const struct dc_validation_set *set,
 					struct dc_state *context,
 					enum dc_validate_mode validate_mode);
 
@@ -2686,6 +3004,14 @@ bool dc_link_set_pr_general_cmd(struct dc_link *link,
 		struct dmub_cmd_pr_general_cmd_data *general_cmd_data);
 
 /*
+ * Measure Panel Replay residency for the given link.
+ * mode: PR_RESIDENCY_MODE_PHY, PR_RESIDENCY_MODE_ALPM, or
+ *       PR_RESIDENCY_MODE_ENABLEMENT_PERIOD
+ */
+void dc_link_edp_replay_residency(const struct dc_link *link,
+		unsigned int *residency, bool is_start, enum pr_residency_mode mode);
+
+/*
  * Get Panel Replay state:
  *
  * @link: pointer to the dc_link struct instance
@@ -2897,6 +3223,8 @@ void dc_set_power_state(
 void dc_resume(struct dc *dc);
 
 void dc_power_down_on_boot(struct dc *dc);
+
+void dc_disable_dangling_timing_generators(struct dc *dc);
 
 /*
  * HDCP Interfaces

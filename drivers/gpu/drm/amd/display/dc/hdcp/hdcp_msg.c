@@ -177,6 +177,15 @@ static bool hdmi_14_process_transaction(
 	i2c_command.engine = I2C_COMMAND_ENGINE_HW;//only HW
 	i2c_command.speed = link->ddc->ctx->dc->caps.i2c_speed_in_khz;
 
+	if (link->force_to_use_aux)
+		result = dm_helpers_submit_i2c_over_aux(
+			link->ddc,
+			hdcp_i2c_addr_link_primary,
+			offset,
+			message_info->data,
+			message_info->length,
+			hdcp_cmd_is_read[message_info->msg_id]);
+	else
 	result = dm_helpers_submit_i2c(
 			link->ctx,
 			link,

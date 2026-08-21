@@ -418,13 +418,13 @@ static int i9xx_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
 	unsigned int num, den;
 
 	/*
-	 * Note that crtc_state->pixel_rate accounts for both
+	 * Note that crtc_state->pixel_rate_cdclk accounts for both
 	 * horizontal and vertical panel fitter downscaling factors.
 	 * Pre-HSW bspec tells us to only consider the horizontal
 	 * downscaling factor here. We ignore that and just consider
 	 * both for simplicity.
 	 */
-	pixel_rate = crtc_state->pixel_rate;
+	pixel_rate = crtc_state->pixel_rate_cdclk;
 
 	i9xx_plane_ratio(crtc_state, plane_state, &num, &den);
 
@@ -1107,6 +1107,10 @@ intel_primary_plane_create(struct intel_display *display, enum pipe pipe)
 		drm_plane_create_rotation_property(&plane->base,
 						   DRM_MODE_ROTATE_0,
 						   supported_rotations);
+
+	if (display->platform.valleyview || display->platform.cherryview)
+		drm_plane_create_blend_mode_property(&plane->base,
+						     BIT(DRM_MODE_BLEND_PREMULTI));
 
 	zpos = 0;
 	drm_plane_create_zpos_immutable_property(&plane->base, zpos);

@@ -24,25 +24,58 @@ use kernel::{
 pub(crate) mod cmdq;
 pub(crate) mod commands;
 mod fw;
+mod regs;
 mod sequencer;
 
 pub(crate) use fw::{
     GspFmcBootParams,
     GspFwWprMeta,
+    LibosMemoryRegionInitArgument,
     LibosParams, //
 };
+pub(crate) use hal::boot_firmware_files;
 
 use crate::{
-    gsp::cmdq::Cmdq,
-    gsp::fw::{
-        GspArgumentsPadded,
-        LibosMemoryRegionInitArgument, //
+    driver::Bar0,
+    falcon::{
+        gsp::Gsp as GspFalcon,
+        sec2::Sec2 as Sec2Falcon,
+        Falcon, //
+    },
+    fsp::Fsp,
+    gpu::Chipset,
+    gsp::{
+        cmdq::Cmdq,
+        fw::GspArgumentsPadded, //
     },
     num,
+    vgpu::VgpuManager, //
 };
 
 pub(crate) const GSP_PAGE_SHIFT: usize = 12;
 pub(crate) const GSP_PAGE_SIZE: usize = 1 << GSP_PAGE_SHIFT;
+
+/// Common context for the GSP boot process.
+///
+/// It carries two distinct lifetimes:
+///
+/// - `'gpu` is the lifetime of the bound GPU device, as captured by the GPU subdevices.
+/// - `'ctx` is a shorter lifetime during which this context borrows those subdevices.
+pub(crate) struct GspBootContext<'ctx, 'gpu> {
+    pub(crate) pdev: &'gpu pci::Device<device::Bound>,
+    pub(crate) bar: Bar0<'gpu>,
+    pub(crate) chipset: Chipset,
+    pub(crate) gsp_falcon: &'ctx Falcon<'gpu, GspFalcon>,
+    pub(crate) sec2_falcon: &'ctx Falcon<'gpu, Sec2Falcon>,
+    pub(crate) fsp: Option<&'ctx mut Fsp<'gpu>>,
+    pub(crate) vgpu: &'ctx VgpuManager,
+}
+
+impl<'ctx, 'gpu> GspBootContext<'ctx, 'gpu> {
+    pub(crate) fn dev(&self) -> &'gpu device::Device<device::Bound> {
+        self.pdev.as_ref()
+    }
+}
 
 /// Number of GSP pages to use in a RM log buffer.
 const RM_LOG_BUFFER_NUM_PAGES: usize = 0x10;
@@ -89,7 +122,7 @@ impl LogBuffer {
     fn new(dev: &device::Device<device::Bound>) -> Result<Self> {
         let obj = Self(Coherent::zeroed(dev, GFP_KERNEL)?);
 
-        let start_addr = obj.0.dma_handle();
+        let start_addr = obj.0.dma_address();
 
         let pte_view = io_project!(
             obj.0,
@@ -181,6 +214,11 @@ impl Gsp {
                 },
             }))
         })
+    }
+
+    /// Query the GSP for the static GPU information.
+    pub(crate) fn get_static_info(&self, bar: Bar0<'_>) -> Result<commands::GetGspStaticInfoReply> {
+        self.cmdq.send_command(bar, commands::GetGspStaticInfo)
     }
 }
 

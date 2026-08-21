@@ -548,7 +548,7 @@ static void enable_signaling(struct i915_active_fence *active)
 	if (!fence)
 		return;
 
-	dma_fence_enable_sw_signaling(fence);
+	dma_fence_enable_signaling(fence);
 	dma_fence_put(fence);
 }
 

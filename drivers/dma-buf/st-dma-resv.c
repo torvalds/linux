@@ -48,7 +48,7 @@ static void test_sanitycheck(struct kunit *test)
 	f = alloc_fence();
 	KUNIT_ASSERT_NOT_NULL(test, f);
 
-	dma_fence_enable_sw_signaling(f);
+	dma_fence_enable_signaling(f);
 
 	dma_fence_signal(f);
 	dma_fence_put(f);
@@ -73,7 +73,7 @@ static void test_signaling(struct kunit *test)
 	f = alloc_fence();
 	KUNIT_ASSERT_NOT_NULL(test, f);
 
-	dma_fence_enable_sw_signaling(f);
+	dma_fence_enable_signaling(f);
 
 	dma_resv_init(&resv);
 	r = dma_resv_lock(&resv, NULL);
@@ -117,7 +117,7 @@ static void test_for_each(struct kunit *test)
 	f = alloc_fence();
 	KUNIT_ASSERT_NOT_NULL(test, f);
 
-	dma_fence_enable_sw_signaling(f);
+	dma_fence_enable_signaling(f);
 
 	dma_resv_init(&resv);
 	r = dma_resv_lock(&resv, NULL);
@@ -176,7 +176,7 @@ static void test_for_each_unlocked(struct kunit *test)
 	f = alloc_fence();
 	KUNIT_ASSERT_NOT_NULL(test, f);
 
-	dma_fence_enable_sw_signaling(f);
+	dma_fence_enable_signaling(f);
 
 	dma_resv_init(&resv);
 	r = dma_resv_lock(&resv, NULL);
@@ -246,7 +246,7 @@ static void test_get_fences(struct kunit *test)
 	f = alloc_fence();
 	KUNIT_ASSERT_NOT_NULL(test, f);
 
-	dma_fence_enable_sw_signaling(f);
+	dma_fence_enable_signaling(f);
 
 	dma_resv_init(&resv);
 	r = dma_resv_lock(&resv, NULL);

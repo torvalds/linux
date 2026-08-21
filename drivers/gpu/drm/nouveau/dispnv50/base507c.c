@@ -297,6 +297,7 @@ base507c = {
 	.image_set = base507c_image_set,
 	.image_clr = base507c_image_clr,
 	.update = base507c_update,
+	.blend_modes = BASE_BLEND_MODES,
 };
 
 int

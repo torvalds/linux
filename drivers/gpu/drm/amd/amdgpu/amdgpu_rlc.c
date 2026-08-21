@@ -583,3 +583,42 @@ int amdgpu_gfx_rlc_init_microcode(struct amdgpu_device *adev,
 		amdgpu_gfx_rlc_init_microcode_v2_5(adev);
 	return 0;
 }
+
+static const struct amdgpu_rlc_reg_funcs amdgpu_sriov_rlc_reg_funcs = {
+	.rreg32 = amdgpu_sriov_rreg,
+	.wreg32 = amdgpu_sriov_wreg,
+};
+
+static u32
+amdgpu_rlc_rreg(struct amdgpu_device *adev, u32 reg, u32 acc_flags, u32 hwip,
+		u32 xcc_id)
+{
+	return amdgpu_device_rreg(adev, reg, 0);
+}
+
+static void
+amdgpu_rlc_wreg(struct amdgpu_device *adev, u32 reg, u32 value, u32 acc_flags,
+		u32 hwip, u32 xcc_id)
+{
+	amdgpu_device_wreg(adev, reg, value, 0);
+}
+
+static const struct amdgpu_rlc_reg_funcs amdgpu_rlc_reg_funcs = {
+	.rreg32 = amdgpu_rlc_rreg,
+	.wreg32 = amdgpu_rlc_wreg,
+};
+
+void amdgpu_early_init_rlc_reg_funcs(struct amdgpu_device *adev)
+{
+	adev->gfx.rlc.reg_funcs = &amdgpu_rlc_reg_funcs;
+}
+
+void amdgpu_init_rlc_reg_funcs(struct amdgpu_device *adev)
+{
+	if (amdgpu_sriov_vf(adev) &&
+	    adev->gfx.rlc.funcs &&
+	    adev->gfx.rlc.rlcg_reg_access_supported)
+		adev->gfx.rlc.reg_funcs = &amdgpu_sriov_rlc_reg_funcs;
+	else
+		adev->gfx.rlc.reg_funcs = &amdgpu_rlc_reg_funcs;
+}

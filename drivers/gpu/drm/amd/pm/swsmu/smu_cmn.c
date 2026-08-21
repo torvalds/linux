@@ -1544,3 +1544,143 @@ int smu_cmn_dpm_pcie_width_idx(int width)
 
 	return ret;
 }
+
+static int smu_cmn_get_pptable_v2_0(struct smu_context *smu, void **table, uint32_t *size)
+{
+	const struct smc_firmware_header_v2_0 *v2;
+	struct amdgpu_device *adev = smu->adev;
+	size_t fw_size = adev->pm.fw->size;
+	uint32_t ppt_offset_bytes;
+	uint32_t ppt_size_bytes;
+
+	if (fw_size < sizeof(*v2)) {
+		dev_err(adev->dev,
+			"SMC firmware too small for v2.0 header: %zu < %zu\n",
+			fw_size, sizeof(*v2));
+		return -EINVAL;
+	}
+
+	v2 = (const struct smc_firmware_header_v2_0 *)adev->pm.fw->data;
+
+	ppt_offset_bytes = le32_to_cpu(v2->ppt_offset_bytes);
+	ppt_size_bytes   = le32_to_cpu(v2->ppt_size_bytes);
+
+	if (ppt_offset_bytes > fw_size ||
+	    ppt_size_bytes > fw_size - ppt_offset_bytes) {
+		dev_err(adev->dev,
+			"pptable v2.0 exceeds firmware binary: offset %u + size %u > %zu\n",
+			ppt_offset_bytes, ppt_size_bytes, fw_size);
+		return -EINVAL;
+	}
+
+	*size  = ppt_size_bytes;
+	*table = (uint8_t *)v2 + ppt_offset_bytes;
+
+	return 0;
+}
+
+static int smu_cmn_get_pptable_v2_1(struct smu_context *smu, void **table,
+				     uint32_t *size, uint32_t pptable_id)
+{
+	const struct smc_firmware_header_v2_1 *v2_1;
+	struct amdgpu_device *adev = smu->adev;
+	struct smc_soft_pptable_entry *entries;
+	size_t fw_size = adev->pm.fw->size;
+	uint32_t pptable_entry_offset;
+	uint32_t ppt_offset_bytes;
+	uint32_t ppt_size_bytes;
+	uint32_t pptable_count;
+	int i;
+
+	if (fw_size < sizeof(*v2_1)) {
+		dev_err(adev->dev,
+			"SMC firmware too small for v2.1 header: %zu < %zu\n",
+			fw_size, sizeof(*v2_1));
+		return -EINVAL;
+	}
+
+	v2_1 = (const struct smc_firmware_header_v2_1 *)adev->pm.fw->data;
+
+	pptable_entry_offset = le32_to_cpu(v2_1->pptable_entry_offset);
+	pptable_count        = le32_to_cpu(v2_1->pptable_count);
+
+	if (pptable_entry_offset > fw_size ||
+	    pptable_count > (fw_size - pptable_entry_offset) / sizeof(*entries)) {
+		dev_err(adev->dev,
+			"pptable v2.1 entry array exceeds firmware binary: offset %u, count %u\n",
+			pptable_entry_offset, pptable_count);
+		return -EINVAL;
+	}
+
+	entries = (struct smc_soft_pptable_entry *)
+		((uint8_t *)v2_1 + pptable_entry_offset);
+
+	for (i = 0; i < pptable_count; i++) {
+		if (le32_to_cpu(entries[i].id) != pptable_id)
+			continue;
+
+		ppt_offset_bytes = le32_to_cpu(entries[i].ppt_offset_bytes);
+		ppt_size_bytes   = le32_to_cpu(entries[i].ppt_size_bytes);
+
+		if (ppt_offset_bytes > fw_size ||
+		    ppt_size_bytes > fw_size - ppt_offset_bytes) {
+			dev_err(adev->dev,
+				"pptable entry %d exceeds firmware binary: offset %u + size %u > %zu\n",
+				i, ppt_offset_bytes, ppt_size_bytes, fw_size);
+			return -EINVAL;
+		}
+
+		*table = (uint8_t *)v2_1 + ppt_offset_bytes;
+		*size  = ppt_size_bytes;
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+/**
+ * smu_cmn_get_pptable_from_firmware - locate the soft pptable embedded in the
+ *                                     SMC firmware binary.
+ * @smu:        SMU context
+ * @table:      on success, set to the start of the pptable within the firmware
+ *              blob
+ * @size:       on success, set to the pptable size in bytes
+ * @pptable_id: the entry ID to search for (used only for v2.1 binaries)
+ *
+ * Reads the firmware header version and dispatches to the appropriate v2.x
+ * parser.  Only major version 2 is supported; minor version selects between
+ * the single-entry (v2.0) and multi-entry directory (v2.1) layouts.
+ *
+ * Return: 0 on success, -EINVAL for an unsupported version or if the
+ *         requested pptable cannot be found or exceeds the binary bounds.
+ */
+int smu_cmn_get_pptable_from_firmware(struct smu_context *smu, void **table,
+				      uint32_t *size, uint32_t pptable_id)
+{
+	const struct smc_firmware_header_v1_0 *hdr;
+	struct amdgpu_device *adev = smu->adev;
+	uint16_t version_major, version_minor;
+
+	hdr = (const struct smc_firmware_header_v1_0 *)adev->pm.fw->data;
+	if (!hdr)
+		return -EINVAL;
+
+	dev_info(adev->dev, "use driver provided pptable %d\n", pptable_id);
+
+	version_major = le16_to_cpu(hdr->header.header_version_major);
+	version_minor = le16_to_cpu(hdr->header.header_version_minor);
+	if (version_major != 2) {
+		dev_err(adev->dev, "Unsupported smu firmware version %d.%d\n",
+			version_major, version_minor);
+		return -EINVAL;
+	}
+
+	switch (version_minor) {
+	case 0:
+		return smu_cmn_get_pptable_v2_0(smu, table, size);
+	case 1:
+		return smu_cmn_get_pptable_v2_1(smu, table, size, pptable_id);
+	default:
+		return -EINVAL;
+	}
+}

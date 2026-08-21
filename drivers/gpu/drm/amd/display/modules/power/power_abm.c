@@ -245,29 +245,80 @@ struct iram_table_v_2_2 {
 #define MOD_POWER_TO_CORE(mod_power)\
 		container_of(mod_power, struct core_power, mod_public)
 
+/* Maximum brightness expressed in millipercent (100% * 1000). */
+#define BACKLIGHT_MILLIPERCENT_MAX (100 * 1000)
+
 static uint16_t backlight_8_to_16(unsigned int backlight_8bit)
 {
 	return (uint16_t)(backlight_8bit * 0x101);
 }
 
+/* Caches the link's backlight control type on the panel's backlight
+ * properties so the brightness translation helpers can pick the correct
+ * mapping.
+ */
+void mod_power_set_backlight_control_type(struct core_power *core_power,
+		unsigned int inst, enum backlight_control_type backlight_control_type)
+{
+	if (core_power == NULL)
+		return;
+
+	core_power->bl_prop[inst].backlight_control_type = backlight_control_type;
+}
+
+/* Returns true when the panel uses the VESA AUX backlight control path, which
+ * requires zero-anchored linear brightness interpolation.
+ */
+static bool is_vesa_abc(struct core_power *core_power, unsigned int inst)
+{
+	if (core_power == NULL)
+		return false;
+
+	return core_power->bl_prop[inst].backlight_control_type ==
+			BACKLIGHT_CONTROL_VESA_AUX;
+}
+
+/* Legacy millipercent→millinit conversion: scales linearly between
+ * [0%, 100%] → [min_brightness_millinits, max_brightness_millinits].
+ */
+static unsigned int backlight_millipercent_to_millinit_legacy(
+		struct core_power *core_power, unsigned int millipercent, unsigned int inst)
+{
+	if (core_power == NULL)
+		return 0;
+
+	return (unsigned int)div_u64((unsigned long long)millipercent *
+			core_power->bl_prop[inst].nits_range,
+			100000) +
+			core_power->bl_prop[inst].min_brightness_millinits;
+}
+
+/* Converts millipercent to millinit.
+ * For VESA AUX brightness control, uses simple linear interpolation with
+ * 0% = 0 nits and 100% = max_brightness_millinits.
+ * Otherwise, falls back to the legacy min→max nits range mapping.
+ */
 unsigned int backlight_millipercent_to_millinit(
 		struct core_power *core_power, unsigned int millipercent, unsigned int inst)
 {
-	unsigned int millinit = 0;
-	unsigned long long numerator = 0;
+	if (!is_vesa_abc(core_power, inst))
+		return backlight_millipercent_to_millinit_legacy(core_power, millipercent, inst);
 
 	if (core_power == NULL)
 		return 0;
 
-	numerator = ((unsigned long long)millipercent) *
-				core_power->bl_prop[inst].nits_range;
-	millinit = ((unsigned int)div_u64(numerator, 100000)) +
-			core_power->bl_prop[inst].min_brightness_millinits;
+	if (millipercent >= BACKLIGHT_MILLIPERCENT_MAX)
+		return core_power->bl_prop[inst].max_brightness_millinits;
 
-	return millinit;
+	return (unsigned int)div_u64((unsigned long long)millipercent *
+			core_power->bl_prop[inst].max_brightness_millinits,
+			BACKLIGHT_MILLIPERCENT_MAX);
 }
 
-static unsigned int backlight_millinit_to_millipercent(
+/* Legacy millinit→millipercent conversion: scales linearly between
+ * [min_brightness_millinits, max_brightness_millinits] → [0%, 100%].
+ */
+static unsigned int backlight_millinit_to_millipercent_legacy(
 		struct core_power *core_power, unsigned int millinit, unsigned int inst)
 {
 	unsigned int millipercent = 0;
@@ -280,7 +331,7 @@ static unsigned int backlight_millinit_to_millipercent(
 		return 0;
 
 	if (millinit >= core_power->bl_prop[inst].max_brightness_millinits)
-		return (100 * 1000);
+		return BACKLIGHT_MILLIPERCENT_MAX;
 
 	numerator = (((unsigned long long)millinit) -
 			core_power->bl_prop[inst].min_brightness_millinits) * 100000;
@@ -290,7 +341,31 @@ static unsigned int backlight_millinit_to_millipercent(
 	return millipercent;
 }
 
-static unsigned int backlight_pwm_to_millipercent(
+/* Converts millinit to millipercent.
+ * For VESA AUX brightness control, uses simple linear interpolation with
+ * 0 nits = 0% and max_brightness_millinits = 100%.
+ * Otherwise, falls back to the legacy min→max nits range mapping.
+ */
+static unsigned int backlight_millinit_to_millipercent(
+		struct core_power *core_power, unsigned int millinit, unsigned int inst)
+{
+	if (!is_vesa_abc(core_power, inst))
+		return backlight_millinit_to_millipercent_legacy(core_power, millinit, inst);
+
+	if (core_power == NULL)
+		return 0;
+
+	if (core_power->bl_prop[inst].max_brightness_millinits == 0)
+		return 0;
+
+	if (millinit >= core_power->bl_prop[inst].max_brightness_millinits)
+		return BACKLIGHT_MILLIPERCENT_MAX;
+
+	return (unsigned int)div_u64((unsigned long long)millinit * 100000,
+			core_power->bl_prop[inst].max_brightness_millinits);
+}
+
+static unsigned int backlight_pwm_to_millipercent_legacy(
 		struct core_power *core_power, unsigned int pwm, unsigned int inst)
 {
 	unsigned int millipercent = 0;
@@ -362,12 +437,37 @@ static unsigned int backlight_pwm_to_millipercent(
 	}
 
 	/* No interpolation, just take closest index */
-	millipercent = 1000 * 100 * mid / max_index;
+	millipercent = BACKLIGHT_MILLIPERCENT_MAX * mid / max_index;
 
 	return millipercent;
 }
 
-static unsigned int backlight_pwm_to_millinit(
+/* Converts PWM to millipercent.
+ * For VESA AUX brightness control, uses simple linear interpolation with
+ * 0 PWM = 0% and max_backlight_pwm = 100%.
+ * Otherwise, falls back to the legacy LUT based mapping.
+ */
+static unsigned int backlight_pwm_to_millipercent(
+		struct core_power *core_power, unsigned int pwm, unsigned int inst)
+{
+	if (!is_vesa_abc(core_power, inst))
+		return backlight_pwm_to_millipercent_legacy(core_power, pwm, inst);
+
+	if (core_power == NULL)
+		return 0;
+
+	if (core_power->bl_prop[inst].max_backlight_pwm == 0)
+		return 0;
+
+	if (pwm >= core_power->bl_prop[inst].max_backlight_pwm)
+		return BACKLIGHT_MILLIPERCENT_MAX;
+
+	return (unsigned int)div_u64((unsigned long long)pwm *
+			BACKLIGHT_MILLIPERCENT_MAX,
+			core_power->bl_prop[inst].max_backlight_pwm);
+}
+
+static unsigned int backlight_pwm_to_millinit_legacy(
 		struct core_power *core_power, unsigned int pwm, unsigned int inst)
 {
 	unsigned int millinit = 0;
@@ -394,7 +494,32 @@ static unsigned int backlight_pwm_to_millinit(
 	return millinit;
 }
 
-unsigned int backlight_millipercent_to_pwm(
+/* Converts PWM to millinit.
+ * For VESA AUX brightness control, uses simple linear interpolation with
+ * 0 PWM = 0 nits and max_backlight_pwm = max_brightness_millinits.
+ * Otherwise, falls back to the legacy min→max nits range mapping.
+ */
+static unsigned int backlight_pwm_to_millinit(
+		struct core_power *core_power, unsigned int pwm, unsigned int inst)
+{
+	if (!is_vesa_abc(core_power, inst))
+		return backlight_pwm_to_millinit_legacy(core_power, pwm, inst);
+
+	if (core_power == NULL)
+		return 0;
+
+	if (core_power->bl_prop[inst].max_backlight_pwm == 0)
+		return 0;
+
+	if (pwm >= core_power->bl_prop[inst].max_backlight_pwm)
+		return core_power->bl_prop[inst].max_brightness_millinits;
+
+	return (unsigned int)div_u64((unsigned long long)pwm *
+			core_power->bl_prop[inst].max_brightness_millinits,
+			core_power->bl_prop[inst].max_backlight_pwm);
+}
+
+static unsigned int backlight_millipercent_to_pwm_legacy(
 		struct core_power *core_power, unsigned int millipercent, unsigned int inst)
 {
 	unsigned int pwm = (unsigned int)-1;
@@ -431,7 +556,32 @@ unsigned int backlight_millipercent_to_pwm(
 	return pwm;
 }
 
-static unsigned int backlight_millinit_to_pwm(
+/* Converts millipercent to PWM.
+ * For VESA AUX brightness control, uses simple linear interpolation with
+ * 0% = 0 PWM and 100% = max_backlight_pwm.
+ * Otherwise, falls back to the legacy LUT based mapping.
+ */
+unsigned int backlight_millipercent_to_pwm(
+		struct core_power *core_power, unsigned int millipercent, unsigned int inst)
+{
+	if (!is_vesa_abc(core_power, inst))
+		return backlight_millipercent_to_pwm_legacy(core_power, millipercent, inst);
+
+	if (core_power == NULL)
+		return 0;
+
+	if (millipercent >= BACKLIGHT_MILLIPERCENT_MAX)
+		return core_power->bl_prop[inst].max_backlight_pwm;
+
+	return (unsigned int)div_u64((unsigned long long)millipercent *
+			core_power->bl_prop[inst].max_backlight_pwm,
+			BACKLIGHT_MILLIPERCENT_MAX);
+}
+
+/* Legacy millinit→PWM conversion: scales linearly between
+ * [min_brightness_millinits, max_brightness_millinits] → [min_backlight_pwm, max_backlight_pwm].
+ */
+static unsigned int backlight_millinit_to_pwm_legacy(
 		struct core_power *core_power, unsigned int millinit, unsigned int inst)
 {
 	unsigned int pwm = 0;
@@ -458,6 +608,35 @@ static unsigned int backlight_millinit_to_pwm(
 		pwm = core_power->bl_prop[inst].max_backlight_pwm;
 
 	return pwm;
+}
+
+/* Converts millinit to PWM.
+ * For VESA AUX brightness control, uses simple linear interpolation with
+ * 0 nits = 0 PWM and max_brightness_millinits = max_backlight_pwm.
+ * Otherwise, falls back to the legacy min→max nits range mapping.
+ */
+static unsigned int backlight_millinit_to_pwm(
+		struct core_power *core_power, unsigned int millinit, unsigned int inst)
+{
+	if (!is_vesa_abc(core_power, inst))
+		return backlight_millinit_to_pwm_legacy(core_power, millinit, inst);
+
+	if (core_power == NULL)
+		return 0;
+
+	if (core_power->bl_prop[inst].max_brightness_millinits == 0)
+		return 0;
+
+	if (millinit >= core_power->bl_prop[inst].max_brightness_millinits)
+		return core_power->bl_prop[inst].max_backlight_pwm;
+
+	/* millinit is bounded by max_brightness_millinits (up to ~10^7 for ~10000 nits).
+	 * max_backlight_pwm is a 32-bit value.
+	 * Worst-case product (~10^7 × UINT_MAX ≈ 4×10^16) fits within unsigned long long.
+	 */
+	return (unsigned int)div_u64((unsigned long long)millinit *
+			core_power->bl_prop[inst].max_backlight_pwm,
+			core_power->bl_prop[inst].max_brightness_millinits);
 }
 
 static bool validate_ext_backlight_caps(
@@ -716,8 +895,17 @@ void mod_power_update_backlight_on_mode_change(
 {
     struct set_backlight_level_params backlight_level_params = { 0 };
 
-		if (link->dpcd_sink_ext_caps.bits.hdr_aux_backlight_control == 1 ||
-			link->dpcd_sink_ext_caps.bits.sdr_aux_backlight_control == 1)
+		/* Cache the panel's backlight control type once at mode-change/init
+		 * time. It is a stable per-panel property (decided in the OS shim
+		 * from panel type + DPCD caps), so the brightness translation
+		 * helpers can read it without it being passed on every call.
+		 */
+		mod_power_set_backlight_control_type(core_power, panel_inst,
+				link->backlight_control_type);
+
+		if ((link->dpcd_sink_ext_caps.bits.hdr_aux_backlight_control == 1 ||
+			link->dpcd_sink_ext_caps.bits.sdr_aux_backlight_control == 1) &&
+			link->backlight_control_type == BACKLIGHT_CONTROL_AMD_AUX)
 			dc_link_set_backlight_level_nits(link, core_power->bl_state[panel_inst].isHDR,
 				core_power->bl_state[panel_inst].backlight_millinit, 0);
 
@@ -745,6 +933,11 @@ static bool set_backlight_millinits_aux(struct core_power *core_power,
 		return true;
 
 	link = dc_stream_get_link(stream);
+
+	// only use internal backlight control if dmub capabilities are not present
+	if (link->backlight_control_type == BACKLIGHT_CONTROL_VESA_AUX &&
+		link->dc->caps.dmub_caps.aux_backlight_support)
+		return true;
 
 	return dc_link_set_backlight_level_nits(link, core_power->bl_state[inst].isHDR,
 			backlight_millinits, transition_time_millisec);
@@ -849,12 +1042,7 @@ bool mod_power_set_backlight_nits(struct mod_power *mod_power,
 	core_power = MOD_POWER_TO_CORE(mod_power);
 	link = dc_stream_get_link(stream);
 
-	if (link->ctx->dc->config.dp_connector_no_native_i2c && link->no_ddc_pin) {
-		aux_inst = (uint8_t)link->aux_hw_inst;
-	} else {
-		ASSERT(link->ddc->ddc_pin->hw_info.ddc_channel <= 0xFF);
-		aux_inst = (uint8_t)link->ddc->ddc_pin->hw_info.ddc_channel;
-	}
+	aux_inst = link->dc->link_srv->get_ddc_aux_inst(link);
 
 	if (!dc_get_edp_link_panel_inst(core_power->dc, stream->link, &panel_inst))
 		return false;
@@ -941,12 +1129,7 @@ bool mod_power_set_backlight_percent(struct mod_power *mod_power,
 
 	core_power = MOD_POWER_TO_CORE(mod_power);
 	link = dc_stream_get_link(stream);
-	if (link->ctx->dc->config.dp_connector_no_native_i2c && link->no_ddc_pin) {
-		aux_inst = (uint8_t)link->aux_hw_inst;
-	} else {
-		ASSERT(link->ddc->ddc_pin->hw_info.ddc_channel <= 0xFF);
-		aux_inst = (uint8_t)link->ddc->ddc_pin->hw_info.ddc_channel;
-	}
+	aux_inst = link->dc->link_srv->get_ddc_aux_inst(link);
 
 	if (!dc_get_edp_link_panel_inst(core_power->dc, stream->link, &panel_inst))
 		return false;
@@ -1461,6 +1644,76 @@ bool mod_power_is_abm_active(struct mod_power *mod_power,
 						user_backlight,
 						current_backlight);
 	return is_active;
+}
+
+bool mod_power_is_abm_supported(struct mod_power *mod_power,
+		unsigned int inst)
+{
+	struct core_power *core_power = NULL;
+	struct dc *dc = NULL;
+
+	if (mod_power == NULL)
+		return false;
+
+	core_power = MOD_POWER_TO_CORE(mod_power);
+	dc = core_power->dc;
+
+	// It's only implemented on dmcub.
+	if (dc->ctx->dmub_srv) {
+		if (!dmub_is_abm_supported(dc->res_pool, inst))
+			return false;
+	} else
+		return false;
+
+	return true;
+}
+
+bool mod_power_abm_set_event(struct mod_power *mod_power,
+		unsigned int full_screen, unsigned int trans_info,
+		unsigned int hdr_mode, unsigned int scaling_enable,
+		unsigned int scaling_strength_map, unsigned int inst)
+{
+	struct core_power *core_power = NULL;
+	struct dc *dc = NULL;
+
+	if (mod_power == NULL)
+		return false;
+
+	core_power = MOD_POWER_TO_CORE(mod_power);
+	dc = core_power->dc;
+
+	// It's only implemented on dmcub.
+	if (dc->ctx->dmub_srv) {
+		if (!dmub_set_abm_event(dc->res_pool, full_screen, trans_info,
+				hdr_mode, scaling_enable, scaling_strength_map, inst))
+			return false;
+	} else
+		return false;
+
+	return true;
+}
+
+bool mod_power_abm_set_strength(struct mod_power *mod_power,
+		unsigned int strength,
+		unsigned int inst)
+{
+	struct core_power *core_power = NULL;
+	struct dc *dc = NULL;
+
+	if (mod_power == NULL)
+		return false;
+
+	core_power = MOD_POWER_TO_CORE(mod_power);
+	dc = core_power->dc;
+
+	// It's only implemented on dmcub.
+	if (dc->ctx->dmub_srv) {
+		if (!dmub_set_abm_strength(dc->res_pool, strength, inst))
+			return false;
+	} else
+		return false;
+
+	return true;
 }
 
 static void fill_backlight_transform_table(struct dmcu_iram_parameters params,
@@ -1996,6 +2249,62 @@ bool dmub_init_abm_config(struct resource_pool *res_pool,
 	} else
 		result = res_pool->abm->funcs->init_abm_config(
 			res_pool->abm, (char *)(&config), sizeof(struct abm_config_table), 0);
+
+	return result;
+}
+
+bool dmub_is_abm_supported(struct resource_pool *res_pool, unsigned int inst)
+{
+
+	if (res_pool->abm == NULL && res_pool->multiple_abms[inst] == NULL)
+		return false;
+
+	return true;
+}
+
+bool dmub_set_abm_event(struct resource_pool *res_pool,
+		unsigned int full_screen, unsigned int trans_info,
+		unsigned int hdr_mode, unsigned int scaling_enable, unsigned int scaling_strength_map,
+		unsigned int inst)
+{
+	bool result = false;
+
+	if (res_pool->abm == NULL && res_pool->multiple_abms[inst] == NULL)
+		return false;
+
+	if (res_pool->multiple_abms[inst]) {
+		if (res_pool->multiple_abms[inst]->funcs->set_abm_event)
+			result = res_pool->multiple_abms[inst]->funcs->set_abm_event(
+				res_pool->multiple_abms[inst], full_screen, trans_info,
+					hdr_mode, scaling_enable, scaling_strength_map, inst);
+	} else {
+		if (res_pool->abm->funcs->set_abm_event)
+			result = res_pool->abm->funcs->set_abm_event(
+					res_pool->abm, full_screen, trans_info,
+					hdr_mode, scaling_enable, scaling_strength_map, inst);
+	}
+
+	return result;
+}
+
+bool dmub_set_abm_strength(struct resource_pool *res_pool,
+	unsigned int strength,
+	unsigned int inst)
+{
+	bool result = false;
+
+	if (res_pool->abm == NULL && res_pool->multiple_abms[inst] == NULL)
+		return false;
+
+	if (res_pool->multiple_abms[inst]) {
+		if (res_pool->multiple_abms[inst]->funcs->set_abm_level)
+			result = res_pool->multiple_abms[inst]->funcs->set_abm_level(
+				res_pool->multiple_abms[inst], strength);
+	} else {
+		if (res_pool->abm->funcs->set_abm_level)
+			result = res_pool->abm->funcs->set_abm_level(
+					res_pool->abm, strength);
+	}
 
 	return result;
 }

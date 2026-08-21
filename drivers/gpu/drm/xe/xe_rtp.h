@@ -323,6 +323,25 @@ struct xe_reg_sr;
 	  .read_mask = 0, ##__VA_ARGS__ }
 
 /**
+ * XE_RTP_ACTION_FIELD_SET_FUNC: Set a bit range to the value returned by a function
+ * @reg_: Register
+ * @mask_bits_: Mask of bits to be changed in the register, forming a field
+ * @func_: Function that returns value to set in the field denoted by @mask_bits_
+ * @...: Additional fields to override in the struct xe_rtp_action entry
+ *
+ * This macro works like XE_RTP_ACTION_FIELD_SET(), except that the
+ * field value is evaluated at the time the RTP table is processed.
+ *
+ * @func_ will only be called a single time, when the RTP table is being
+ * processed.  After processing, the value in the reg_sr entry is fixed and
+ * will not be re-evaluated.
+ */
+#define XE_RTP_ACTION_FIELD_SET_FUNC(reg_, mask_bits_, func_, ...)		\
+	{ .reg = XE_RTP_DROP_CAST(reg_),					\
+	  .clr_bits = mask_bits_, .set_func = func_, .use_func = 1,		\
+	  .read_mask = mask_bits_, ##__VA_ARGS__ }
+
+/**
  * XE_RTP_ACTION_WHITELIST - Add register to userspace whitelist
  * @reg_: Register
  * @val_: Whitelist-specific flags to set

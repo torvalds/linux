@@ -309,6 +309,67 @@ static inline void pm_build_dequeue_wait_counts_packet_info(struct packet_manage
 		reg_data);
 }
 
+/* pm_grace_period_0_supported - whether firmware tolerates a CWSR grace
+ * period of 0 on this ASIC.
+ *
+ * The debugger may request a grace period of 0 via AMDKFD_IOC_DBG_TRAP.
+ * Most firmware revisions locked up on an infinite (0) grace period, so
+ * an earlier change clamped 0 to 1 for all ASICs. Firmware has since been
+ * fixed on most ASICs; return true only where the running MEC firmware is
+ * known to handle 0. The +32768 offset on IP_VERSION(9, 0, 1) accounts for
+ * the SR-IOV firmware version encoding.
+ *
+ * Navi3x (gfx11) and MI350 (IP_VERSION(9, 5, 0)) support a grace period of
+ * 0 in every firmware revision and need no version check. MI100
+ * (IP_VERSION(9, 4, 1)) never received the fix and is intentionally kept
+ * clamped. Any unlisted or future ASIC defaults to the safe behaviour
+ * (clamp).
+ */
+static bool pm_grace_period_0_supported(struct packet_manager *pm)
+{
+	struct kfd_node *dev = pm->dqm->dev;
+	uint32_t mec_fw_version = dev->kfd->mec_fw_version;
+
+	/* Navi3x (gfx11) always supports a grace period of 0. */
+	if (KFD_GC_VERSION(dev) >= IP_VERSION(11, 0, 0) &&
+	    KFD_GC_VERSION(dev) < IP_VERSION(12, 0, 0))
+		return true;
+
+	switch (KFD_GC_VERSION(dev)) {
+	case IP_VERSION(9, 0, 1):
+		return mec_fw_version >= 461 + 32768;
+	case IP_VERSION(9, 1, 0):
+	case IP_VERSION(9, 2, 1):
+	case IP_VERSION(9, 2, 2):
+	case IP_VERSION(9, 3, 0):
+	case IP_VERSION(9, 4, 0):
+		return mec_fw_version >= 461;
+	/* MI100/Arcturus never received the firmware fix; keep clamped. */
+	case IP_VERSION(9, 4, 1):
+		return false;
+	case IP_VERSION(9, 4, 2):
+		return mec_fw_version >= 63;
+	case IP_VERSION(9, 4, 3):
+	case IP_VERSION(9, 4, 4):
+		return mec_fw_version >= 96;
+	/* MI350 supports a grace period of 0 in every firmware revision. */
+	case IP_VERSION(9, 5, 0):
+		return true;
+	case IP_VERSION(10, 1, 10):
+	case IP_VERSION(10, 1, 2):
+	case IP_VERSION(10, 1, 1):
+		return mec_fw_version >= 146;
+	case IP_VERSION(10, 3, 0):
+	case IP_VERSION(10, 3, 2):
+	case IP_VERSION(10, 3, 1):
+	case IP_VERSION(10, 3, 4):
+	case IP_VERSION(10, 3, 5):
+		return mec_fw_version >= 93;
+	default:
+		return false;
+	}
+}
+
 /* pm_config_dequeue_wait_counts_v9: Builds WRITE_DATA packet with
  *    register/value for configuring dequeue wait counts
  *
@@ -357,11 +418,12 @@ static int pm_config_dequeue_wait_counts_v9(struct packet_manager *pm,
 		break;
 
 	case KFD_DEQUEUE_WAIT_SET_SCH_WAVE:
-		/* The CP cannot handle value 0 and it will result in
-		 * an infinite grace period being set so set to 1 to prevent this. Also
-		 * avoid debugger API breakage as it sets 0 and expects a low value.
+		/* A grace period of 0 requests an infinite CWSR grace period.
+		 * Older firmware locks up on this, so clamp to 1 unless the ASIC
+		 * firmware is known to handle 0. Also avoid debugger API breakage
+		 * as it sets 0 and expects a low value.
 		 */
-		if (!value)
+		if (!value && !pm_grace_period_0_supported(pm))
 			value = 1;
 		pm_build_dequeue_wait_counts_packet_info(pm, value, 0, &reg_offset, &reg_data);
 		break;

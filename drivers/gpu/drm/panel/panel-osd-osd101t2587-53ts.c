@@ -32,11 +32,11 @@ static inline struct osd101t2587_panel *ti_osd_panel(struct drm_panel *panel)
 static int osd101t2587_panel_disable(struct drm_panel *panel)
 {
 	struct osd101t2587_panel *osd101t2587 = ti_osd_panel(panel);
-	int ret;
+	struct mipi_dsi_multi_context ctx = { .dsi = osd101t2587->dsi };
 
-	ret = mipi_dsi_shutdown_peripheral(osd101t2587->dsi);
+	mipi_dsi_shutdown_peripheral_multi(&ctx);
 
-	return ret;
+	return ctx.accum_err;
 }
 
 static int osd101t2587_panel_unprepare(struct drm_panel *panel)
@@ -58,13 +58,11 @@ static int osd101t2587_panel_prepare(struct drm_panel *panel)
 static int osd101t2587_panel_enable(struct drm_panel *panel)
 {
 	struct osd101t2587_panel *osd101t2587 = ti_osd_panel(panel);
-	int ret;
+	struct mipi_dsi_multi_context ctx = { .dsi = osd101t2587->dsi };
 
-	ret = mipi_dsi_turn_on_peripheral(osd101t2587->dsi);
-	if (ret)
-		return ret;
+	mipi_dsi_turn_on_peripheral_multi(&ctx);
 
-	return ret;
+	return ctx.accum_err;
 }
 
 static const struct drm_display_mode default_mode_osd101t2587 = {

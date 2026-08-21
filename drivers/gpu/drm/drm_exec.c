@@ -79,7 +79,7 @@ void drm_exec_init(struct drm_exec *exec, u32 flags, unsigned nr)
 		nr = PAGE_SIZE / sizeof(void *);
 
 	exec->flags = flags;
-	exec->objects = kvmalloc_array(nr, sizeof(void *), GFP_KERNEL);
+	exec->objects = kvmalloc_objs(*exec->objects, nr, GFP_KERNEL);
 
 	/* If allocation here fails, just delay that till the first use */
 	exec->max_objects = exec->objects ? nr : 0;

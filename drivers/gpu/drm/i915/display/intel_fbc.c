@@ -59,6 +59,7 @@
 #include "intel_fbc_regs.h"
 #include "intel_frontbuffer.h"
 #include "intel_parent.h"
+#include "skl_universal_plane.h"
 
 #define for_each_fbc_id(__display, __fbc_id) \
 	for ((__fbc_id) = INTEL_FBC_A; (__fbc_id) < I915_MAX_FBCS; (__fbc_id)++) \
@@ -1305,6 +1306,9 @@ static bool intel_fbc_surface_size_ok(const struct intel_plane_state *plane_stat
 	struct intel_display *display = to_intel_display(plane_state);
 	unsigned int effective_w, effective_h, max_w, max_h;
 
+	if (DISPLAY_VER(display) >= 20)
+		return true;
+
 	intel_fbc_max_surface_size(display, &max_w, &max_h);
 
 	effective_w = plane_state->view.color_plane[0].x +
@@ -1315,10 +1319,18 @@ static bool intel_fbc_surface_size_ok(const struct intel_plane_state *plane_stat
 	return effective_w <= max_w && effective_h <= max_h;
 }
 
-static void intel_fbc_max_plane_size(struct intel_display *display,
+static void intel_fbc_max_plane_size(const struct intel_plane_state *plane_state,
 				     unsigned int *w, unsigned int *h)
 {
-	if (DISPLAY_VER(display) >= 10) {
+	struct intel_display *display = to_intel_display(plane_state);
+	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
+	const struct drm_framebuffer *fb = plane_state->hw.fb;
+	unsigned int rotation = plane_state->hw.rotation;
+
+	if (DISPLAY_VER(display) >= 20) {
+		*w = intel_plane_max_width(plane, fb, 0, rotation);
+		*h = 4096;
+	} else if (DISPLAY_VER(display) >= 10) {
 		*w = 5120;
 		*h = 4096;
 	} else if (DISPLAY_VER(display) >= 8 || display->platform.haswell) {
@@ -1335,10 +1347,9 @@ static void intel_fbc_max_plane_size(struct intel_display *display,
 
 static bool intel_fbc_plane_size_valid(const struct intel_plane_state *plane_state)
 {
-	struct intel_display *display = to_intel_display(plane_state);
 	unsigned int w, h, max_w, max_h;
 
-	intel_fbc_max_plane_size(display, &max_w, &max_h);
+	intel_fbc_max_plane_size(plane_state, &max_w, &max_h);
 
 	w = drm_rect_width(&plane_state->uapi.src) >> 16;
 	h = drm_rect_height(&plane_state->uapi.src) >> 16;
@@ -1567,7 +1578,7 @@ static int _intel_fbc_min_cdclk(const struct intel_crtc_state *crtc_state)
 
 	/* WaFbcExceedCdClockThreshold:hsw,bdw */
 	if (display->platform.haswell || display->platform.broadwell)
-		return DIV_ROUND_UP(crtc_state->pixel_rate * 100, 95);
+		return DIV_ROUND_UP(crtc_state->pixel_rate_cdclk * 100, 95);
 
 	/* no FBC specific limits to worry about */
 	return 0;

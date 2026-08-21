@@ -384,6 +384,20 @@ enum signal_type dcn401_get_dig_mode(
 	}
 }
 
+void dcn401_setup_ri_pj_check_in_sw_or_hw_mode(
+	struct link_encoder *enc,
+	unsigned char aux_or_ddc_instance,
+	bool enable_sw_mode)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+
+	REG_UPDATE_2(HDCP_I2C_CONTROL_0,
+			HDCP_I2C_DISABLE, enable_sw_mode,
+			HDCP_I2C_DDC_SELECT, aux_or_ddc_instance);
+
+	REG_UPDATE(HDCP_INT_CONTROL, HDCP_I2C_XFER_REQ_MASK, enable_sw_mode);
+}
+
 static const struct link_encoder_funcs dcn401_link_enc_funcs = {
 	.read_state = link_enc2_read_state,
 	.validate_output_with_stream =
@@ -423,6 +437,7 @@ static const struct link_encoder_funcs dcn401_link_enc_funcs = {
 	.get_txffe = dpcs401_get_txffe,
 	.set_txffe = dpcs401_set_txffe,
 	.set_dio_phy_mux = dcn31_link_encoder_set_dio_phy_mux,
+	.setup_ri_pj_check_in_sw_or_hw_mode = dcn401_setup_ri_pj_check_in_sw_or_hw_mode,
 	.get_hpd_state = dcn10_get_hpd_state,
 	.program_hpd_filter = dcn10_program_hpd_filter,
 };

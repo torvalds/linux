@@ -73,7 +73,7 @@
  *    the bufmgr status can show the progress of write back, can be used for debug purpose
  */
 
-static void mmhubbub32_warmup_mcif(struct mcif_wb *mcif_wb,
+void mmhubbub32_warmup_mcif(struct mcif_wb *mcif_wb,
 		struct mcif_warmup_params *params)
 {
 	struct dcn30_mmhubbub *mcif_wb30 = TO_DCN30_MMHUBBUB(mcif_wb);
@@ -100,7 +100,7 @@ static void mmhubbub32_warmup_mcif(struct mcif_wb *mcif_wb,
 	REG_UPDATE(MMHUBBUB_WARMUP_CONTROL_STATUS, MMHUBBUB_WARMUP_EN, false);
 }
 
-static void mmhubbub32_config_mcif_buf(struct mcif_wb *mcif_wb,
+void mmhubbub32_config_mcif_buf(struct mcif_wb *mcif_wb,
 		struct mcif_buf_params *params,
 		unsigned int dest_height)
 {

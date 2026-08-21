@@ -29,6 +29,14 @@ __rust_helper unsigned int rust_helper_pci_irq_type(struct pci_dev *pdev)
 	return pci_irq_type(pdev);
 }
 
+#ifndef CONFIG_PCI_IOV
+__rust_helper unsigned int
+rust_helper_pci_sriov_get_totalvfs(struct pci_dev *pdev)
+{
+	return pci_sriov_get_totalvfs(pdev);
+}
+#endif
+
 #ifndef CONFIG_PCI_MSI
 __rust_helper int rust_helper_pci_alloc_irq_vectors(struct pci_dev *dev,
 						    unsigned int min_vecs,

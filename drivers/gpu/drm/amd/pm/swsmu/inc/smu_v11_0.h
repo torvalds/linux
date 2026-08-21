@@ -108,10 +108,6 @@ struct smu_11_5_power_context {
 	uint32_t	power_source;
 	uint8_t		in_power_limit_boost_mode;
 	enum smu_11_0_power_state power_state;
-
-	uint32_t	current_fast_ppt_limit;
-	uint32_t	default_fast_ppt_limit;
-	uint32_t	max_fast_ppt_limit;
 };
 
 #if defined(SWSMU_CODE_LAYER_L2) || defined(SWSMU_CODE_LAYER_L3)
@@ -151,12 +147,13 @@ int smu_v11_0_set_allowed_mask(struct smu_context *smu);
 
 int smu_v11_0_notify_display_change(struct smu_context *smu);
 
-int smu_v11_0_get_current_power_limit(struct smu_context *smu,
-				      uint32_t *power_limit);
+int smu_v11_0_get_ppt_limit(struct smu_context *smu,
+			    enum smu_ppt_limit_type limit_type,
+			    uint32_t *ppt_limit);
 
-int smu_v11_0_set_power_limit(struct smu_context *smu,
-			      enum smu_ppt_limit_type limit_type,
-			      uint32_t limit);
+int smu_v11_0_set_ppt_limit(struct smu_context *smu,
+			    enum smu_ppt_limit_type limit_type,
+			    uint32_t limit);
 
 int smu_v11_0_init_max_sustainable_clocks(struct smu_context *smu);
 
@@ -198,8 +195,6 @@ int smu_v11_0_set_xgmi_pstate(struct smu_context *smu,
 int smu_v11_0_gfx_off_control(struct smu_context *smu, bool enable);
 
 int smu_v11_0_register_irq_handler(struct smu_context *smu);
-
-int smu_v11_0_set_azalia_d3_pme(struct smu_context *smu);
 
 int smu_v11_0_get_max_sustainable_clocks_by_dc(struct smu_context *smu,
 		struct pp_smu_nv_clock_table *max_clocks);

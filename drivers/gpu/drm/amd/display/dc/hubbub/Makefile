@@ -109,4 +109,12 @@ AMD_DAL_HUBBUB_DCN42 = $(addprefix $(AMDDALPATH)/dc/hubbub/dcn42/,$(HUBBUB_DCN42
 
 AMD_DISPLAY_FILES += $(AMD_DAL_HUBBUB_DCN42)
 
+###############################################################################
+HUBBUB_DCN60 = dcn60_hubbub.o
+
+AMD_DAL_HUBBUB_DCN60 = $(addprefix $(AMDDALPATH)/dc/hubbub/dcn60/,$(HUBBUB_DCN60))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_HUBBUB_DCN60)
+
+
 endif

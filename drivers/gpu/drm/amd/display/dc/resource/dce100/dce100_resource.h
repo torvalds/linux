@@ -33,7 +33,6 @@
 
 struct dc;
 struct resource_pool;
-struct dc_validation_set;
 
 struct resource_pool *dce100_create_resource_pool(
 	uint8_t num_virtual_links,

@@ -13,6 +13,7 @@
 
 #include "resource.h"
 #include "include/irq_service_interface.h"
+#include "basics/conversion.h"
 
 #include "dcn42b_resource.h"
 #include "dcn20/dcn20_resource.h"
@@ -134,6 +135,34 @@
 #define regHUBP3_HUBPREQ_DEBUG                0x088d
 #define regHUBP3_HUBPREQ_DEBUG_BASE_IDX       2
 
+#define regDP_SYM32_ENC0_DP_SYM32_ENC_VID_CRC_CONTROL                                                   0x3687
+#define regDP_SYM32_ENC0_DP_SYM32_ENC_VID_CRC_CONTROL_BASE_IDX                                          2
+#define regDP_SYM32_ENC1_DP_SYM32_ENC_VID_CRC_CONTROL                                                   0x375b
+#define regDP_SYM32_ENC1_DP_SYM32_ENC_VID_CRC_CONTROL_BASE_IDX                                          2
+#define regDP_SYM32_ENC2_DP_SYM32_ENC_VID_CRC_CONTROL                                                   0x382f
+#define regDP_SYM32_ENC2_DP_SYM32_ENC_VID_CRC_CONTROL_BASE_IDX                                          2
+#define regDP_SYM32_ENC0_DP_SYM32_ENC_HBLANK_CONTROL                                                    0x366b
+#define regDP_SYM32_ENC0_DP_SYM32_ENC_HBLANK_CONTROL_BASE_IDX                                           2
+#define regDP_SYM32_ENC1_DP_SYM32_ENC_HBLANK_CONTROL                                                    0x373f
+#define regDP_SYM32_ENC1_DP_SYM32_ENC_HBLANK_CONTROL_BASE_IDX                                           2
+#define regDP_SYM32_ENC2_DP_SYM32_ENC_HBLANK_CONTROL                                                    0x3813
+#define regDP_SYM32_ENC2_DP_SYM32_ENC_HBLANK_CONTROL_BASE_IDX                                           2
+
+#define DP_SYM32_ENC0_DP_SYM32_ENC_VID_CRC_CONTROL__CRC_ENABLE__SHIFT                                         0x0
+#define DP_SYM32_ENC0_DP_SYM32_ENC_VID_CRC_CONTROL__CRC_CONT_MODE_ENABLE__SHIFT                               0x4
+#define DP_SYM32_ENC0_DP_SYM32_ENC_VID_CRC_CONTROL__CRC_ENABLE_MASK                                           0x00000001L
+#define DP_SYM32_ENC0_DP_SYM32_ENC_VID_CRC_CONTROL__CRC_CONT_MODE_ENABLE_MASK                                 0x00000010L
+#define DP_SYM32_ENC0_DP_SYM32_ENC_HBLANK_CONTROL__HBLANK_MINIMUM_SYMBOL_WIDTH__SHIFT                         0x0
+#define DP_SYM32_ENC0_DP_SYM32_ENC_HBLANK_CONTROL__HBLANK_MINIMUM_SYMBOL_WIDTH_MASK                           0x0000FFFFL
+
+
+#define DP_SYM32_ENC1_DP_SYM32_ENC_VID_CRC_CONTROL__CRC_ENABLE__SHIFT                                         0x0
+#define DP_SYM32_ENC1_DP_SYM32_ENC_VID_CRC_CONTROL__CRC_CONT_MODE_ENABLE__SHIFT                               0x4
+#define DP_SYM32_ENC1_DP_SYM32_ENC_VID_CRC_CONTROL__CRC_ENABLE_MASK                                           0x00000001L
+#define DP_SYM32_ENC1_DP_SYM32_ENC_VID_CRC_CONTROL__CRC_CONT_MODE_ENABLE_MASK                                 0x00000010L
+#define DP_SYM32_ENC1_DP_SYM32_ENC_HBLANK_CONTROL__HBLANK_MINIMUM_SYMBOL_WIDTH__SHIFT                         0x0
+#define DP_SYM32_ENC1_DP_SYM32_ENC_HBLANK_CONTROL__HBLANK_MINIMUM_SYMBOL_WIDTH_MASK                           0x0000FFFFL
+
 enum dcn401_clk_src_array_id {
 	DCN401_CLK_SRC_PLL0,
 	DCN401_CLK_SRC_PLL1,
@@ -253,10 +282,10 @@ static struct bios_registers bios_regs;
 static struct dce110_clk_src_regs clk_src_regs[5];
 
 static const struct dce110_clk_src_shift cs_shift = {
-	CS_COMMON_MASK_SH_LIST_DCN3_2(__SHIFT)
+	CS_COMMON_MASK_SH_LIST_DCN4_0_1(__SHIFT)
 };
 static const struct dce110_clk_src_mask cs_mask = {
-	CS_COMMON_MASK_SH_LIST_DCN3_2(_MASK)
+	CS_COMMON_MASK_SH_LIST_DCN4_0_1(_MASK)
 };
 #define abm_regs_init(id) \
 	ABM_DCN42B_REG_LIST_RI(id)
@@ -351,15 +380,15 @@ static const struct dcn10_link_enc_mask le_mask = {
 	LINK_ENCODER_MASK_SH_LIST_DCN42B(_MASK)};
 
 #define hpo_dp_stream_encoder_reg_init(id) \
-	DCN42B_HPO_DP_STREAM_ENC_REG_LIST_RI(id)
+	DCN42_HPO_DP_STREAM_ENC_REG_LIST_RI(id)
 
 static struct dcn31_hpo_dp_stream_encoder_registers hpo_dp_stream_enc_regs[4];
 
 static const struct dcn31_hpo_dp_stream_encoder_shift hpo_dp_se_shift = {
-	DCN4_2B_HPO_DP_STREAM_ENC_MASK_SH_LIST(__SHIFT)};
+	DCN4_2_HPO_DP_STREAM_ENC_MASK_SH_LIST(__SHIFT)};
 
 static const struct dcn31_hpo_dp_stream_encoder_mask hpo_dp_se_mask = {
-	DCN4_2B_HPO_DP_STREAM_ENC_MASK_SH_LIST(_MASK)};
+	DCN4_2_HPO_DP_STREAM_ENC_MASK_SH_LIST(_MASK)};
 
 #define hpo_dp_link_encoder_reg_init(id) \
 	DCN42B_HPO_DP_LINK_ENC_REG_LIST_RI(id)
@@ -756,6 +785,7 @@ static const struct dc_plane_cap plane_cap = {
 	.min_height = 64};
 
 static const struct dc_debug_options debug_defaults_drv = {
+	.limit_ffe = 3,
 	.disable_dmcu = true,
 	.force_abm_enable = false,
 	.clock_trace = true,
@@ -775,7 +805,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.underflow_assert_delay_us = 0xFFFFFFFF,
 	.dwb_fi_phase = -1, // -1 = disable,
 	.dmub_command_table = true,
-	.pstate_enabled = false,
+	.pstate_enabled = true,
 	.enable_mem_low_power = {
 		.bits = {
 			.vga = false,
@@ -801,7 +831,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		}
 	},
 	.seamless_boot_odm_combine = DML_FAIL_SOURCE_PIXEL_FORMAT,
-	.enable_z9_disable_interface = false, /* Allow support for the PMFW interface for disable Z9*/
+	.enable_z9_disable_interface = true, /* Allow support for the PMFW interface for disable Z9*/
 	.minimum_z8_residency_time = 1, /* Always allow when other conditions are met */
 	.support_eDP1_5 = true,
 	.use_max_lb = true,
@@ -823,7 +853,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.disable_timeout = true,
 	.min_disp_clk_khz = 50000,
 	.static_screen_wait_frames = 2,
-	.disable_z10 = true,
+	.disable_z10 = false,
 	.ignore_pg = true,
 	.disable_stutter_for_wm_program = true,
 	.min_deep_sleep_dcfclk_khz = 8000,
@@ -1034,9 +1064,9 @@ static struct hubp *dcn42b_hubp_create(
 }
 static const struct dc_panel_config dcn42b_panel_config_defaults = {
 	.psr = {
-		.disable_psr = true,
+		.disable_psr = false,
 		.disallow_psrsu = true,
-		.disallow_replay = true,
+		.disallow_replay = false,
 	},
 	.ilr = {
 		.optimize_edp_link_rate = true,
@@ -1842,7 +1872,7 @@ static struct link_encoder *dcn42b_link_enc_create_minimal(
 {
 	struct dcn20_link_encoder *enc20;
 
-	if ((unsigned int)(eng_id - ENGINE_ID_DIGA) > ctx->dc->res_pool->res_cap->num_dig_link_enc)
+	if ((unsigned int)(eng_id - ENGINE_ID_DIGA) >= ctx->dc->res_pool->res_cap->num_dig_link_enc)
 		return NULL;
 
 	enc20 = kzalloc(sizeof(struct dcn20_link_encoder), GFP_KERNEL);
@@ -1854,6 +1884,8 @@ static struct link_encoder *dcn42b_link_enc_create_minimal(
 			ctx,
 			&link_enc_feature,
 			&link_enc_regs[eng_id - ENGINE_ID_DIGA],
+			&le_shift,
+			&le_mask,
 			eng_id);
 
 	return &enc20->enc10.base;
@@ -2002,11 +2034,10 @@ static bool dcn42b_resource_construct(
 	dc->caps.dmcub_support = true;
 	dc->caps.is_apu = true;
 	dc->caps.seamless_odm = true;
-	dc->caps.zstate_support = false;
-	dc->caps.ips_support = false;
+	dc->caps.zstate_support = true;
+	dc->caps.ips_support = true;
 	dc->caps.max_v_total = (1 << 15) - 1;
 	dc->caps.vtotal_limited_by_fp2 = true;
-	dc->config.disable_ips = DMUB_IPS_DISABLE_ALL;
 
 	/* Color pipeline capabilities */
 	dc->caps.color.dpp.dcn_arch = 1;
@@ -2066,6 +2097,7 @@ static bool dcn42b_resource_construct(
 	dc->caps.color.mpc.rmcm_3d_lut_caps.mem_format_support.float_fp1_5_10 = 1;
 	dc->caps.color.mpc.rmcm_3d_lut_caps.mem_pixel_order_support.order_rgba = 1;
 	dc->caps.color.mpc.rmcm_3d_lut_caps.mem_pixel_order_support.order_bgra = 1;
+	dc->caps.color.mpc.max_gamut_remap_coeff = dc_fixpt_from_fraction(S3D12_MAX, DIVIDER);
 
 	dc->caps.num_of_host_routers = 0;
 	dc->caps.num_of_dpias_per_host_router = 0;

@@ -2768,6 +2768,7 @@ nv50_display_read_hw_state(struct nouveau_drm *drm)
 {
 	struct drm_device *dev = drm->dev;
 	struct drm_encoder *encoder;
+	struct drm_plane *plane;
 	struct drm_modeset_acquire_ctx ctx;
 	struct nv50_disp *disp = nv50_disp(dev);
 	int ret;
@@ -2780,6 +2781,9 @@ nv50_display_read_hw_state(struct nouveau_drm *drm)
 
 		nv50_display_read_hw_or_state(dev, disp, nouveau_encoder(encoder));
 	}
+
+	drm_for_each_plane(plane, dev)
+		nv50_wndw_default_state(nv50_wndw(plane));
 
 	DRM_MODESET_LOCK_ALL_END(dev, ctx, ret);
 }

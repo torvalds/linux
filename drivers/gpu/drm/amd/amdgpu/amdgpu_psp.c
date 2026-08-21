@@ -1292,7 +1292,18 @@ static int psp_ptl_invoke(struct psp_context *psp, u32 req_code,
 {
 	struct psp_gfx_cmd_resp *cmd;
 	struct amdgpu_ptl *ptl = &psp->ptl;
+	struct amdgpu_device *adev = psp->adev;
 	int ret;
+
+	if (amdgpu_sriov_vf(adev)) {
+		ret = amdgpu_virt_ptl_request(adev, req_code, ptl_state, fmt1, fmt2);
+		if (!ret) {
+			ptl->enabled = *ptl_state;
+			ptl->fmt1 = *fmt1;
+			ptl->fmt2 = *fmt2;
+		}
+		return ret;
+	}
 
 	cmd = acquire_psp_cmd_buf(psp);
 
@@ -1356,14 +1367,17 @@ int amdgpu_ptl_perf_monitor_ctrl(struct amdgpu_device *adev, u32 req_code,
 	if (!adev || !ptl_state || !fmt1 || !fmt2)
 		return -EINVAL;
 
-	if (amdgpu_sriov_vf(adev))
-		return 0;
-
 	psp = &adev->psp;
 	ptl = &psp->ptl;
 
 	if (ptl->permanently_disabled && *ptl_state == 1)
 		return 0;
+
+	if (amdgpu_sriov_vf(adev)) {
+		ptl_fmt1 = *fmt1;
+		ptl_fmt2 = *fmt2;
+		return psp_ptl_invoke(psp, req_code, ptl_state, &ptl_fmt1, &ptl_fmt2);
+	}
 
 	if (amdgpu_ip_version(adev, GC_HWIP, 0) != IP_VERSION(9, 4, 4) ||
 			psp->sos.fw_version < 0x0036081a)
@@ -1503,6 +1517,18 @@ static ssize_t ptl_enable_show(struct device *dev, struct device_attribute *attr
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 	struct amdgpu_ptl *ptl = &adev->psp.ptl;
+	uint32_t ptl_state, fmt1, fmt2;
+	int ret;
+
+	if (amdgpu_sriov_vf(adev)) {
+		ptl_state = ptl->enabled;
+		fmt1 = ptl->fmt1;
+		fmt2 = ptl->fmt2;
+		ret = amdgpu_ptl_perf_monitor_ctrl(adev, PSP_PTL_PERF_MON_QUERY,
+				&ptl_state, &fmt1, &fmt2);
+		if (ret)
+			return ret;
+	}
 
 	if (ptl->permanently_disabled)
 		return sysfs_emit(buf, "permanently disabled\n");
@@ -1561,11 +1587,23 @@ static ssize_t ptl_format_show(struct device *dev, struct device_attribute *attr
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
-	struct psp_context *psp = &adev->psp;
+	struct amdgpu_ptl *ptl = &adev->psp.ptl;
+	uint32_t ptl_state, fmt1, fmt2;
+	int ret;
+
+	if (amdgpu_sriov_vf(adev)) {
+		ptl_state = ptl->enabled;
+		fmt1 = ptl->fmt1;
+		fmt2 = ptl->fmt2;
+		ret = amdgpu_ptl_perf_monitor_ctrl(adev, PSP_PTL_PERF_MON_QUERY,
+				&ptl_state, &fmt1, &fmt2);
+		if (ret)
+			return ret;
+	}
 
 	return sysfs_emit(buf, "%s,%s\n",
-			amdgpu_ptl_fmt_str[psp->ptl.fmt1],
-			amdgpu_ptl_fmt_str[psp->ptl.fmt2]);
+			amdgpu_ptl_fmt_str[ptl->fmt1],
+			amdgpu_ptl_fmt_str[ptl->fmt2]);
 }
 
 static umode_t amdgpu_ptl_is_visible(struct kobject *kobj, struct attribute *attr, int idx)
@@ -1575,7 +1613,7 @@ static umode_t amdgpu_ptl_is_visible(struct kobject *kobj, struct attribute *att
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 
 	/* Only show PTL sysfs files if PTL hardware is supported */
-	if (!adev->psp.ptl.hw_supported)
+	if (adev->psp.ptl.hw_supported_state != AMDGPU_PTL_HW_SUPPORTED)
 		return 0;
 
 	return attr->mode;
@@ -1586,7 +1624,7 @@ int amdgpu_ptl_sysfs_init(struct amdgpu_device *adev)
 	struct amdgpu_ptl *ptl = &adev->psp.ptl;
 	int ret;
 
-	if (!ptl->hw_supported)
+	if (ptl->hw_supported_state != AMDGPU_PTL_HW_SUPPORTED)
 		return 0;
 
 	if (ptl->ptl_sysfs_created)
@@ -1603,7 +1641,7 @@ void amdgpu_ptl_sysfs_fini(struct amdgpu_device *adev)
 {
 	struct amdgpu_ptl *ptl = &adev->psp.ptl;
 
-	if (!ptl->hw_supported)
+	if (ptl->hw_supported_state != AMDGPU_PTL_HW_SUPPORTED)
 		return;
 
 	if (!ptl->ptl_sysfs_created)
@@ -1889,6 +1927,12 @@ invoke:
 	/* note down the capbility flag for XGMI TA */
 	psp->xgmi_context.xgmi_ta_caps = xgmi_cmd->caps_flag;
 
+	if (!amdgpu_sriov_vf(psp->adev))
+		psp->xgmi_context.supports_ext_link_info = psp->xgmi_context.xgmi_ta_caps &
+			EXTEND_PEER_LINK_INFO_CMD_FLAG;
+	else
+		psp->xgmi_context.supports_ext_link_info = amdgpu_sriov_xgmi_ta_ext_peer_link_en(psp->adev);
+
 	return ret;
 }
 
@@ -2066,15 +2110,13 @@ int psp_xgmi_get_topology_info(struct psp_context *psp,
 			amdgpu_ip_version(psp->adev, MP0_HWIP, 0) ==
 				IP_VERSION(13, 0, 14) ||
 			amdgpu_sriov_vf(psp->adev);
-		bool ta_port_num_support = psp->xgmi_context.xgmi_ta_caps & EXTEND_PEER_LINK_INFO_CMD_FLAG ||
-			amdgpu_sriov_xgmi_ta_ext_peer_link_en(psp->adev);
 
 		/* popluate the shared output buffer rather than the cmd input buffer
 		 * with node_ids as the input for GET_PEER_LINKS command execution.
 		 * This is required for GET_PEER_LINKS per xgmi ta implementation.
 		 * The same requirement for GET_EXTEND_PEER_LINKS command.
 		 */
-		if (ta_port_num_support) {
+		if (psp->xgmi_context.supports_ext_link_info) {
 			link_extend_info_output = &xgmi_cmd->xgmi_out_message.get_extend_link_info;
 
 			for (i = 0; i < topology->num_nodes; i++)
@@ -2097,7 +2139,7 @@ int psp_xgmi_get_topology_info(struct psp_context *psp,
 			return ret;
 
 		for (i = 0; i < topology->num_nodes; i++) {
-			uint8_t node_num_links = ta_port_num_support ?
+			uint8_t node_num_links = psp->xgmi_context.supports_ext_link_info ?
 				link_extend_info_output->nodes[i].num_links : link_info_output->nodes[i].num_links;
 			/* accumulate num_links on extended data */
 			if (get_extended_data) {
@@ -2107,7 +2149,7 @@ int psp_xgmi_get_topology_info(struct psp_context *psp,
 								topology->nodes[i].num_links : node_num_links;
 			}
 			/* popluate the connected port num info if supported and available */
-			if (ta_port_num_support && topology->nodes[i].num_links) {
+			if (psp->xgmi_context.supports_ext_link_info && topology->nodes[i].num_links) {
 				memcpy(topology->nodes[i].port_num, link_extend_info_output->nodes[i].port_num,
 				       sizeof(struct xgmi_connected_port_num) * TA_XGMI__MAX_PORT_NUM);
 			}

@@ -18,7 +18,7 @@ typedef void (*drmres_release_t)(struct drm_device *dev, void *res);
  * @action: function which should be called when @dev is released
  * @data: opaque pointer, passed to @action
  *
- * This function adds the @release action with optional parameter @data to the
+ * This function adds the release @action with optional parameter @data to the
  * list of cleanup actions for @dev. The cleanup actions will be run in reverse
  * order in the final drm_dev_put() call for @dev.
  */

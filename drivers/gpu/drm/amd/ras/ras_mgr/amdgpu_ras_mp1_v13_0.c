@@ -24,6 +24,7 @@
 #include "amdgpu_smu.h"
 #include "amdgpu_reset.h"
 #include "amdgpu_ras_mp1_v13_0.h"
+#include "smu13_driver_if_v13_0_6.h"
 
 #define RAS_MP1_MSG_QueryValidMcaCeCount  0x3A
 #define RAS_MP1_MSG_McaBankCeDumpDW       0x3B
@@ -131,10 +132,23 @@ static int mp1_v13_0_get_ras_enabled_mask(struct ras_core_context *ras_core,
 	return ret;
 }
 
+static int mp1_v13_0_set_debug_mode(struct ras_core_context *ras_core, bool enable)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)ras_core->dev;
+	int ret;
+	u32 smu_msg = SMU_MSG_ClearMcaOnRead;
+
+	ret = amdgpu_smu_ras_send_msg(adev, smu_msg,
+			enable ? 0 : ClearMcaOnRead_UE_FLAG_MASK |
+			ClearMcaOnRead_CE_POLL_MASK, NULL);
+	return ret;
+}
+
 const struct ras_mp1_sys_func amdgpu_ras_mp1_sys_func_v13_0 = {
 	.mp1_get_valid_bank_count = mp1_v13_0_get_valid_bank_count,
 	.mp1_dump_valid_bank = mp1_v13_0_dump_valid_bank,
 	.mp1_send_eeprom_msg = mp1_v13_0_eeprom_send_msg,
 	.mp1_get_ras_enabled_mask = mp1_v13_0_get_ras_enabled_mask,
+	.mp1_set_debug_mode = mp1_v13_0_set_debug_mode,
 };
 

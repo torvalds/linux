@@ -246,5 +246,15 @@ RESOURCE_DCN42B = dcn42b_resource.o
 AMD_DAL_RESOURCE_DCN42B = $(addprefix $(AMDDALPATH)/dc/resource/dcn42b/,$(RESOURCE_DCN42B))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_RESOURCE_DCN42B)
+
+
+###############################################################################
+
+RESOURCE_DCN60 = dcn60_resource.o
+
+AMD_DAL_RESOURCE_DCN60 = $(addprefix $(AMDDALPATH)/dc/resource/dcn60/,$(RESOURCE_DCN60))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_RESOURCE_DCN60)
+###############################################################################
 endif
 

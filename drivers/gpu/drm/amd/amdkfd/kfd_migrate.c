@@ -68,8 +68,8 @@ svm_migrate_gart_map(struct amdgpu_ring *ring,
 				     AMDGPU_FENCE_OWNER_UNDEFINED,
 				     num_dw * 4 + num_bytes,
 				     AMDGPU_IB_POOL_DELAYED,
-				     &job,
-				     AMDGPU_KERNEL_JOB_ID_KFD_GART_MAP);
+				     AMDGPU_KERNEL_JOB_ID_KFD_GART_MAP,
+				     &job);
 	if (r)
 		return r;
 
@@ -954,12 +954,12 @@ static vm_fault_t svm_migrate_to_ram(struct vm_fault *vmf)
 		pr_debug("failed get device page at addr 0x%lx\n", addr);
 		return VM_FAULT_SIGBUS;
 	}
-	if (!mmget_not_zero(svm_bo->eviction_fence->mm)) {
+	if (!mmget_not_zero(svm_bo->mm)) {
 		pr_debug("addr 0x%lx of process mm is destroyed\n", addr);
 		return VM_FAULT_SIGBUS;
 	}
 
-	mm = svm_bo->eviction_fence->mm;
+	mm = svm_bo->mm;
 	if (mm != vmf->vma->vm_mm)
 		pr_debug("addr 0x%lx is COW mapping in child process\n", addr);
 

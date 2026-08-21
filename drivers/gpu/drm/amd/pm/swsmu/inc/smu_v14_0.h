@@ -132,12 +132,13 @@ int smu_v14_0_set_allowed_mask(struct smu_context *smu);
 
 int smu_v14_0_notify_display_change(struct smu_context *smu);
 
-int smu_v14_0_get_current_power_limit(struct smu_context *smu,
-				      uint32_t *power_limit);
+int smu_v14_0_get_ppt_limit(struct smu_context *smu,
+			    enum smu_ppt_limit_type limit_type,
+			    uint32_t *ppt_limit);
 
-int smu_v14_0_set_power_limit(struct smu_context *smu,
-			      enum smu_ppt_limit_type limit_type,
-			      uint32_t limit);
+int smu_v14_0_set_ppt_limit(struct smu_context *smu,
+			    enum smu_ppt_limit_type limit_type,
+			    uint32_t limit);
 
 int smu_v14_0_gfx_off_control(struct smu_context *smu, bool enable);
 
@@ -203,10 +204,6 @@ int smu_v14_0_set_gfx_power_up_by_imu(struct smu_context *smu);
 
 int smu_v14_0_set_default_dpm_tables(struct smu_context *smu);
 
-int smu_v14_0_get_pptable_from_firmware(struct smu_context *smu,
-					void **table,
-					uint32_t *size,
-					uint32_t pptable_id);
 
 int smu_v14_0_od_edit_dpm_table(struct smu_context *smu,
 			enum PP_OD_DPM_TABLE_COMMAND type,

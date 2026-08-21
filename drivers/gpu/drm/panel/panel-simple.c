@@ -693,7 +693,7 @@ static struct panel_simple *panel_simple_probe(struct device *dev)
 		return dev_err_cast_probe(dev, panel->enable_gpio,
 					  "failed to request GPIO\n");
 
-	err = of_drm_get_panel_orientation(dev->of_node, &panel->orientation);
+	err = drm_of_get_panel_orientation(dev->of_node, &panel->orientation);
 	if (err) {
 		dev_err(dev, "%pOF: failed to get orientation %d\n", dev->of_node, err);
 		return ERR_PTR(err);
@@ -904,6 +904,36 @@ static const struct panel_desc ampire_am_800480l1tmqw_t00h = {
 	.size = {
 		.width = 111,
 		.height = 67,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH |
+		     DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE |
+		     DRM_BUS_FLAG_SYNC_SAMPLE_NEGEDGE,
+	.connector_type = DRM_MODE_CONNECTOR_DPI,
+};
+
+static const struct display_timing ampire_am_800480n3tzqw_00h_timing = {
+	.pixelclock = {23000000, 25000000, 27000000},
+	.hactive = { 800, 800, 800 },
+	.hfront_porch = { 4, 8, 48 },
+	.hback_porch = { 4, 8, 48 },
+	.hsync_len = { 2, 8, 8 },
+	.vactive = { 480, 480, 480 },
+	.vfront_porch = { 4, 8, 12 },
+	.vback_porch = { 4, 8, 12 },
+	.vsync_len = { 2, 4, 8 },
+	.flags = DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW |
+		 DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_PIXDATA_POSEDGE |
+		 DISPLAY_FLAGS_SYNC_POSEDGE,
+};
+
+static const struct panel_desc ampire_am_800480n3tzqw_00h = {
+	.timings = &ampire_am_800480n3tzqw_00h_timing,
+	.num_timings = 1,
+	.bpc = 8,
+	.size = {
+		.width = 108,
+		.height = 65,
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
 	.bus_flags = DRM_BUS_FLAG_DE_HIGH |
@@ -5649,6 +5679,9 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "ampire,am-800480l1tmqw-t00h",
 		.data = &ampire_am_800480l1tmqw_t00h,
 	}, {
+		.compatible = "ampire,am-800480n3tzqw-00h",
+		.data = &ampire_am_800480n3tzqw_00h,
+	}, {
 		.compatible = "ampire,am800480r3tmqwa1h",
 		.data = &ampire_am800480r3tmqwa1h,
 	}, {
@@ -5909,6 +5942,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "koe,tx31d200vm0baa",
 		.data = &koe_tx31d200vm0baa,
+	}, {
+		.compatible = "kyo,tcg070wvlq",
+		.data = &lg_lb070wv8,
 	}, {
 		.compatible = "kyo,tcg121xglp",
 		.data = &kyo_tcg121xglp,

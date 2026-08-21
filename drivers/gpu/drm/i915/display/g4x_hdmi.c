@@ -126,12 +126,12 @@ static bool g4x_compute_has_hdmi_sink(struct intel_atomic_state *state,
 	return false;
 }
 
-static int g4x_hdmi_compute_config(struct intel_encoder *encoder,
+static int g4x_hdmi_compute_config(struct intel_atomic_state *state,
+				   struct intel_encoder *encoder,
 				   struct intel_crtc_state *crtc_state,
 				   struct drm_connector_state *conn_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct intel_atomic_state *state = to_intel_atomic_state(crtc_state->uapi.state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
 	if (HAS_PCH_SPLIT(display))

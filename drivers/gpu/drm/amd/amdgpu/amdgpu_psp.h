@@ -232,6 +232,7 @@ struct psp_xgmi_context {
 	struct ta_context		context;
 	struct psp_xgmi_topology_info	top_info;
 	bool				supports_extended_data;
+	bool				supports_ext_link_info;
 	uint8_t				xgmi_ta_caps;
 };
 

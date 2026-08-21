@@ -217,26 +217,15 @@ void v3d_perfmon_get(struct v3d_perfmon *perfmon)
 
 void v3d_perfmon_put(struct v3d_perfmon *perfmon)
 {
-	if (perfmon && refcount_dec_and_test(&perfmon->refcnt)) {
-		mutex_destroy(&perfmon->lock);
+	if (perfmon && refcount_dec_and_test(&perfmon->refcnt))
 		kfree(perfmon);
-	}
 }
 
-void v3d_perfmon_start(struct v3d_dev *v3d, struct v3d_perfmon *perfmon)
+static void v3d_perfmon_hw_start(struct v3d_dev *v3d, struct v3d_perfmon *perfmon)
 {
+	u8 ncounters = perfmon->ncounters;
+	u32 mask = GENMASK(ncounters - 1, 0);
 	unsigned int i;
-	u32 mask;
-	u8 ncounters;
-
-	if (WARN_ON_ONCE(!perfmon || v3d->active_perfmon))
-		return;
-
-	if (!pm_runtime_get_if_active(v3d->drm.dev))
-		return;
-
-	ncounters = perfmon->ncounters;
-	mask = GENMASK(ncounters - 1, 0);
 
 	for (i = 0; i < ncounters; i++) {
 		u32 source = i / 4;
@@ -258,39 +247,112 @@ void v3d_perfmon_start(struct v3d_dev *v3d, struct v3d_perfmon *perfmon)
 	V3D_CORE_WRITE(0, V3D_V4_PCTR_0_EN, mask);
 	V3D_CORE_WRITE(0, V3D_V4_PCTR_0_CLR, mask);
 	V3D_CORE_WRITE(0, V3D_PCTR_0_OVERFLOW, mask);
+}
 
-	v3d->active_perfmon = perfmon;
+static void v3d_perfmon_hw_capture(struct v3d_dev *v3d, struct v3d_perfmon *perfmon)
+{
+	u32 mask = GENMASK(perfmon->ncounters - 1, 0);
 
+	for (int i = 0; i < perfmon->ncounters; i++)
+		perfmon->values[i] += V3D_CORE_READ(0, V3D_PCTR_0_PCTRX(i));
+
+	V3D_CORE_WRITE(0, V3D_V4_PCTR_0_CLR, mask);
+}
+
+static void v3d_perfmon_hw_stop(struct v3d_dev *v3d, struct v3d_perfmon *perfmon,
+				bool capture)
+{
+	if (capture)
+		v3d_perfmon_hw_capture(v3d, perfmon);
+
+	V3D_CORE_WRITE(0, V3D_V4_PCTR_0_EN, 0);
+}
+
+void v3d_perfmon_start(struct v3d_dev *v3d, struct v3d_perfmon *perfmon)
+{
+	guard(spinlock_irqsave)(&v3d->perfmon_state.lock);
+
+	if (!perfmon || v3d->global_perfmon)
+		return;
+
+	/* Cross-queue serialization should have drained any previous perfmon
+	 * job before this one runs.
+	 */
+	if (WARN_ON_ONCE(v3d->perfmon_state.active))
+		return;
+
+	if (!pm_runtime_get_if_active(v3d->drm.dev))
+		return;
+
+	v3d_perfmon_hw_start(v3d, perfmon);
+	v3d->perfmon_state.active = perfmon;
+
+	v3d_pm_runtime_put(v3d);
+}
+
+static void v3d_perfmon_capture_locked(struct v3d_dev *v3d,
+				       struct v3d_perfmon *perfmon)
+{
+	lockdep_assert_held(&v3d->perfmon_state.lock);
+
+	if (!perfmon || perfmon != v3d->perfmon_state.active)
+		return;
+
+	if (!pm_runtime_get_if_active(v3d->drm.dev))
+		return;
+
+	v3d_perfmon_hw_capture(v3d, perfmon);
+	v3d_pm_runtime_put(v3d);
+}
+
+void v3d_perfmon_stop_locked(struct v3d_dev *v3d, struct v3d_perfmon *perfmon,
+			     bool capture)
+{
+	lockdep_assert_held(&v3d->perfmon_state.lock);
+
+	if (!perfmon || perfmon != v3d->perfmon_state.active)
+		return;
+
+	v3d->perfmon_state.active = NULL;
+
+	/* If the device is suspended, the HW has already stopped counting. */
+	if (!pm_runtime_get_if_active(v3d->drm.dev))
+		return;
+
+	v3d_perfmon_hw_stop(v3d, perfmon, capture);
 	v3d_pm_runtime_put(v3d);
 }
 
 void v3d_perfmon_stop(struct v3d_dev *v3d, struct v3d_perfmon *perfmon,
 		      bool capture)
 {
-	unsigned int i;
-
-	if (!perfmon || !v3d->active_perfmon)
+	if (!perfmon)
 		return;
 
-	mutex_lock(&perfmon->lock);
-	if (perfmon != v3d->active_perfmon)
-		goto out;
+	guard(spinlock_irqsave)(&v3d->perfmon_state.lock);
+	v3d_perfmon_stop_locked(v3d, perfmon, capture);
+}
 
-	if (!pm_runtime_get_if_active(v3d->drm.dev))
-		goto out_clear;
+void
+v3d_perfmon_suspend(struct v3d_dev *v3d)
+{
+	guard(spinlock_irqsave)(&v3d->perfmon_state.lock);
 
-	if (capture)
-		for (i = 0; i < perfmon->ncounters; i++)
-			perfmon->values[i] += V3D_CORE_READ(0, V3D_PCTR_0_PCTRX(i));
+	if (!v3d->perfmon_state.active)
+		return;
 
-	V3D_CORE_WRITE(0, V3D_V4_PCTR_0_EN, 0);
+	v3d_perfmon_hw_stop(v3d, v3d->perfmon_state.active, true);
+}
 
-	v3d_pm_runtime_put(v3d);
+void
+v3d_perfmon_resume(struct v3d_dev *v3d)
+{
+	guard(spinlock_irqsave)(&v3d->perfmon_state.lock);
 
-out_clear:
-	v3d->active_perfmon = NULL;
-out:
-	mutex_unlock(&perfmon->lock);
+	if (!v3d->perfmon_state.active)
+		return;
+
+	v3d_perfmon_hw_start(v3d, v3d->perfmon_state.active);
 }
 
 struct v3d_perfmon *v3d_perfmon_find(struct v3d_file_priv *v3d_priv, int id)
@@ -316,14 +378,17 @@ static void v3d_perfmon_delete(struct v3d_file_priv *v3d_priv,
 	struct v3d_dev *v3d = v3d_priv->v3d;
 
 	/* If the active perfmon is being destroyed, stop it first */
-	if (perfmon == v3d->active_perfmon)
-		v3d_perfmon_stop(v3d, perfmon, false);
+	scoped_guard(spinlock_irqsave, &v3d->perfmon_state.lock) {
+		v3d_perfmon_stop_locked(v3d, perfmon, false);
 
-	/* If the global perfmon is being destroyed, clean it and release
-	 * the reference stashed in v3d_perfmon_set_global_ioctl().
-	 */
-	if (cmpxchg(&v3d->global_perfmon, perfmon, NULL) == perfmon)
-		v3d_perfmon_put(perfmon);
+		/* If the global perfmon is being destroyed, clean it and release
+		 * the reference stashed in v3d_perfmon_set_global_ioctl().
+		 */
+		if (v3d->global_perfmon == perfmon) {
+			v3d_perfmon_put(v3d->global_perfmon);
+			v3d->global_perfmon = NULL;
+		}
+	}
 
 	v3d_perfmon_put(perfmon);
 }
@@ -371,12 +436,10 @@ int v3d_perfmon_create_ioctl(struct drm_device *dev, void *data,
 	perfmon->ncounters = req->ncounters;
 
 	refcount_set(&perfmon->refcnt, 1);
-	mutex_init(&perfmon->lock);
 
 	ret = xa_alloc(&v3d_priv->perfmons, &id, perfmon, xa_limit_32b,
 		       GFP_KERNEL);
 	if (ret < 0) {
-		mutex_destroy(&perfmon->lock);
 		kfree(perfmon);
 		return ret;
 	}
@@ -408,7 +471,9 @@ int v3d_perfmon_get_values_ioctl(struct drm_device *dev, void *data,
 	struct v3d_dev *v3d = to_v3d_dev(dev);
 	struct v3d_file_priv *v3d_priv = file_priv->driver_priv;
 	struct drm_v3d_perfmon_get_values *req = data;
+	u64 values[DRM_V3D_MAX_PERF_COUNTERS];
 	struct v3d_perfmon *perfmon;
+	size_t size;
 	int ret = 0;
 
 	if (req->pad != 0)
@@ -418,10 +483,14 @@ int v3d_perfmon_get_values_ioctl(struct drm_device *dev, void *data,
 	if (!perfmon)
 		return -EINVAL;
 
-	v3d_perfmon_stop(v3d, perfmon, true);
+	size = perfmon->ncounters * sizeof(u64);
 
-	if (copy_to_user(u64_to_user_ptr(req->values_ptr), perfmon->values,
-			 perfmon->ncounters * sizeof(u64)))
+	scoped_guard(spinlock_irqsave, &v3d->perfmon_state.lock) {
+		v3d_perfmon_capture_locked(v3d, perfmon);
+		memcpy(values, perfmon->values, size);
+	}
+
+	if (copy_to_user(u64_to_user_ptr(req->values_ptr), values, size))
 		ret = -EFAULT;
 
 	v3d_perfmon_put(perfmon);
@@ -482,18 +551,36 @@ int v3d_perfmon_set_global_ioctl(struct drm_device *dev, void *data,
 		 */
 		v3d_perfmon_put(perfmon);
 
-		old = xchg(&v3d->global_perfmon, NULL);
-		if (!old)
-			return -EINVAL;
+		scoped_guard(spinlock_irqsave, &v3d->perfmon_state.lock) {
+			old = v3d->global_perfmon;
+			if (!old)
+				return -EINVAL;
+
+			v3d_perfmon_stop_locked(v3d, old, true);
+			v3d->global_perfmon = NULL;
+		}
 
 		v3d_perfmon_put(old);
 
 		return 0;
 	}
 
-	if (cmpxchg(&v3d->global_perfmon, NULL, perfmon)) {
-		v3d_perfmon_put(perfmon);
-		return -EBUSY;
+	scoped_guard(spinlock_irqsave, &v3d->perfmon_state.lock) {
+		if (v3d->perfmon_state.active || v3d->global_perfmon) {
+			v3d_perfmon_put(perfmon);
+			return -EBUSY;
+		}
+
+		v3d->global_perfmon = perfmon;
+		v3d->perfmon_state.active = perfmon;
+
+		/* If the device is suspended, v3d_perfmon_resume() will
+		 * program the HW on the next resume.
+		 */
+		if (pm_runtime_get_if_active(v3d->drm.dev)) {
+			v3d_perfmon_hw_start(v3d, perfmon);
+			v3d_pm_runtime_put(v3d);
+		}
 	}
 
 	return 0;

@@ -275,6 +275,9 @@ void intel_sagv_pre_plane_update(struct intel_atomic_state *state)
 	if (!intel_has_sagv(display))
 		return;
 
+	if (HAS_PMDEMAND(display))
+		return;
+
 	if (DISPLAY_VER(display) >= 11)
 		icl_sagv_pre_plane_update(state);
 	else
@@ -293,6 +296,9 @@ void intel_sagv_post_plane_update(struct intel_atomic_state *state)
 	 * as it will throw an error. So have to check it here.
 	 */
 	if (!intel_has_sagv(display))
+		return;
+
+	if (HAS_PMDEMAND(display))
 		return;
 
 	if (DISPLAY_VER(display) >= 11)

@@ -585,7 +585,7 @@ impl<T: AsBytes + FromBytes + KnownSize + ?Sized> From<CoherentBox<T>> for Coher
 /// # Invariants
 ///
 /// - For the lifetime of an instance of [`Coherent`], the `cpu_addr` is a valid pointer
-///   to an allocated region of coherent memory and `dma_handle` is the DMA address base of the
+///   to an allocated region of coherent memory and `dma_addr` is the DMA address base of the
 ///   region.
 /// - The size in bytes of the allocation is equal to size information via pointer.
 // TODO
@@ -602,7 +602,7 @@ impl<T: AsBytes + FromBytes + KnownSize + ?Sized> From<CoherentBox<T>> for Coher
 // entire `Coherent` including the allocated memory itself.
 pub struct Coherent<T: KnownSize + ?Sized> {
     dev: ARef<device::Device>,
-    dma_handle: DmaAddress,
+    dma_addr: DmaAddress,
     cpu_addr: NonNull<T>,
     dma_attrs: Attrs,
 }
@@ -627,11 +627,10 @@ impl<T: KnownSize + ?Sized> Coherent<T> {
         self.cpu_addr.as_ptr()
     }
 
-    /// Returns a DMA handle which may be given to the device as the DMA address base of
-    /// the region.
+    /// Returns a DMA address which may be given to the device as the base of the region.
     #[inline]
-    pub fn dma_handle(&self) -> DmaAddress {
-        self.dma_handle
+    pub fn dma_address(&self) -> DmaAddress {
+        self.dma_addr
     }
 
     /// Returns a reference to the data in the region.
@@ -678,13 +677,13 @@ impl<T: AsBytes + FromBytes> Coherent<T> {
             );
         }
 
-        let mut dma_handle = 0;
+        let mut dma_addr = 0;
         // SAFETY: Device pointer is guaranteed as valid by the type invariant on `Device`.
         let addr = unsafe {
             bindings::dma_alloc_attrs(
                 dev.as_raw(),
                 core::mem::size_of::<T>(),
-                &mut dma_handle,
+                &mut dma_addr,
                 gfp_flags.as_raw(),
                 dma_attrs.as_raw(),
             )
@@ -696,7 +695,7 @@ impl<T: AsBytes + FromBytes> Coherent<T> {
         // - We also hold a refcounted reference to the device.
         Ok(Self {
             dev: dev.into(),
-            dma_handle,
+            dma_addr,
             cpu_addr,
             dma_attrs,
         })
@@ -795,13 +794,13 @@ impl<T: AsBytes + FromBytes> Coherent<T> {
         }
 
         let size = core::mem::size_of::<T>().checked_mul(len).ok_or(ENOMEM)?;
-        let mut dma_handle = 0;
+        let mut dma_addr = 0;
         // SAFETY: Device pointer is guaranteed as valid by the type invariant on `Device`.
         let addr = unsafe {
             bindings::dma_alloc_attrs(
                 dev.as_raw(),
                 size,
-                &mut dma_handle,
+                &mut dma_addr,
                 gfp_flags.as_raw(),
                 dma_attrs.as_raw(),
             )
@@ -813,7 +812,7 @@ impl<T: AsBytes + FromBytes> Coherent<T> {
         // - We also hold a refcounted reference to the device.
         Ok(Coherent {
             dev: dev.into(),
-            dma_handle,
+            dma_addr,
             cpu_addr,
             dma_attrs,
         })
@@ -927,14 +926,14 @@ impl<T: KnownSize + ?Sized> Drop for Coherent<T> {
     fn drop(&mut self) {
         let size = T::size(self.cpu_addr.as_ptr());
         // SAFETY: Device pointer is guaranteed as valid by the type invariant on `Device`.
-        // The cpu address, and the dma handle are valid due to the type invariants on
+        // The cpu address, and the dma address are valid due to the type invariants on
         // `Coherent`.
         unsafe {
             bindings::dma_free_attrs(
                 self.dev.as_raw(),
                 size,
                 self.cpu_addr.as_ptr().cast(),
-                self.dma_handle,
+                self.dma_addr,
                 self.dma_attrs.as_raw(),
             )
         }
@@ -993,13 +992,13 @@ impl<T: KnownSize + AsBytes + ?Sized> debugfs::BinaryWriter for Coherent<T> {
 ///
 /// - `cpu_handle` holds the opaque handle returned by `dma_alloc_attrs` with
 ///   `DMA_ATTR_NO_KERNEL_MAPPING` set, and is only valid for passing back to `dma_free_attrs`.
-/// - `dma_handle` is the corresponding bus address for device DMA.
+/// - `dma_addr` is the corresponding bus address for device DMA.
 /// - `size` is the allocation size in bytes as passed to `dma_alloc_attrs`.
 /// - `dma_attrs` contains the attributes used for the allocation, always including
 ///   `DMA_ATTR_NO_KERNEL_MAPPING`.
 pub struct CoherentHandle {
     dev: ARef<device::Device>,
-    dma_handle: DmaAddress,
+    dma_addr: DmaAddress,
     cpu_handle: NonNull<c_void>,
     size: usize,
     dma_attrs: Attrs,
@@ -1023,13 +1022,13 @@ impl CoherentHandle {
         }
 
         let dma_attrs = dma_attrs | Attrs(bindings::DMA_ATTR_NO_KERNEL_MAPPING);
-        let mut dma_handle = 0;
+        let mut dma_addr = 0;
         // SAFETY: `dev.as_raw()` is valid by the type invariant on `device::Device`.
         let cpu_handle = unsafe {
             bindings::dma_alloc_attrs(
                 dev.as_raw(),
                 size,
-                &mut dma_handle,
+                &mut dma_addr,
                 gfp_flags.as_raw(),
                 dma_attrs.as_raw(),
             )
@@ -1038,11 +1037,11 @@ impl CoherentHandle {
         let cpu_handle = NonNull::new(cpu_handle).ok_or(ENOMEM)?;
 
         // INVARIANT: `cpu_handle` is the opaque handle from a successful `dma_alloc_attrs` call
-        // with `DMA_ATTR_NO_KERNEL_MAPPING`, `dma_handle` is the corresponding DMA address,
+        // with `DMA_ATTR_NO_KERNEL_MAPPING`, `dma_addr` is the corresponding DMA address,
         // and we hold a refcounted reference to the device.
         Ok(Self {
             dev: dev.into(),
-            dma_handle,
+            dma_addr,
             cpu_handle,
             size,
             dma_attrs,
@@ -1059,12 +1058,12 @@ impl CoherentHandle {
         Self::alloc_with_attrs(dev, size, gfp_flags, Attrs(0))
     }
 
-    /// Returns the DMA handle for this allocation.
+    /// Returns the DMA address for this allocation.
     ///
     /// This address can be programmed into device hardware for DMA access.
     #[inline]
-    pub fn dma_handle(&self) -> DmaAddress {
-        self.dma_handle
+    pub fn dma_address(&self) -> DmaAddress {
+        self.dma_addr
     }
 
     /// Returns the size in bytes of this allocation.
@@ -1083,28 +1082,29 @@ impl Drop for CoherentHandle {
                 self.dev.as_raw(),
                 self.size,
                 self.cpu_handle.as_ptr(),
-                self.dma_handle,
+                self.dma_addr,
                 self.dma_attrs.as_raw(),
             )
         }
     }
 }
 
-// SAFETY: `CoherentHandle` only holds a device reference, a DMA handle, an opaque CPU handle,
+// SAFETY: `CoherentHandle` only holds a device reference, a DMA address, an opaque CPU handle,
 // and a size. None of these are tied to a specific thread.
 unsafe impl Send for CoherentHandle {}
 
 // SAFETY: `CoherentHandle` provides no CPU access to the underlying allocation. The only
-// operations on `&CoherentHandle` are reading the DMA handle and size, both of which are
+// operations on `&CoherentHandle` are reading the DMA address and size, both of which are
 // plain `Copy` values.
 unsafe impl Sync for CoherentHandle {}
 
 /// View type for `Coherent`.
 ///
-/// This is same as [`SysMem`] but with additional information that allows handing out a DMA handle.
+/// This is same as [`SysMem`] but with additional information that allows handing out a DMA
+/// address.
 pub struct CoherentView<'a, T: ?Sized> {
     cpu_addr: SysMem<'a, T>,
-    dma_handle: DmaAddress,
+    dma_addr: DmaAddress,
 }
 
 impl<T: ?Sized> Copy for CoherentView<'_, T> {}
@@ -1116,16 +1116,16 @@ impl<T: ?Sized> Clone for CoherentView<'_, T> {
 }
 
 impl<'a, T: ?Sized> CoherentView<'a, T> {
-    /// Erase the DMA handle information and obtain a [`SysMem`] view of the same memory region.
+    /// Erase the DMA address information and obtain a [`SysMem`] view of the same memory region.
     #[inline]
     pub fn as_sys_mem(self) -> SysMem<'a, T> {
         self.cpu_addr
     }
 
-    /// Returns a DMA handle which may be given to the device as the DMA address base of the region.
+    /// Returns the DMA address which may be given to the device as base of the region.
     #[inline]
-    pub fn dma_handle(self) -> DmaAddress {
-        self.dma_handle
+    pub fn dma_address(self) -> DmaAddress {
+        self.dma_addr
     }
 
     /// Returns a reference to the data in the region.
@@ -1178,9 +1178,9 @@ impl IoBackend for CoherentIoBackend {
     ) -> Self::View<'a, U> {
         let offset = ptr.addr() - view.cpu_addr.as_ptr().addr();
         // CAST: The offset DMA address can never overflow.
-        let dma_handle = view.dma_handle + offset as DmaAddress;
+        let dma_addr = view.dma_addr + offset as DmaAddress;
         CoherentView {
-            dma_handle,
+            dma_addr,
             // SAFETY: Per safety requirement.
             cpu_addr: unsafe { SysMemBackend::project_view(view.cpu_addr, ptr) },
         }
@@ -1245,7 +1245,7 @@ impl<'a, T: ?Sized + KnownSize> IoBase<'a> for &'a Coherent<T> {
         CoherentView {
             // SAFETY: `cpu_addr` is valid and aligned kernel accessible memory.
             cpu_addr: unsafe { SysMem::new(self.cpu_addr.as_ptr()) },
-            dma_handle: self.dma_handle,
+            dma_addr: self.dma_addr,
         }
     }
 }

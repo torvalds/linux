@@ -61,7 +61,7 @@ static u32 get_wopcm_size(struct xe_device *xe)
 	return wopcm_size;
 }
 
-static u64 detect_bar2_dgfx(struct xe_device *xe, struct xe_ttm_stolen_mgr *mgr)
+static u64 detect_lmembar_dgfx(struct xe_device *xe, struct xe_ttm_stolen_mgr *mgr)
 {
 	struct xe_vram_region *tile_vram = xe_device_get_root_tile(xe)->mem.vram;
 	resource_size_t tile_io_start = xe_vram_region_io_start(tile_vram);
@@ -102,7 +102,7 @@ static u64 detect_bar2_dgfx(struct xe_device *xe, struct xe_ttm_stolen_mgr *mgr)
 	return ALIGN_DOWN(stolen_size, SZ_1M);
 }
 
-static u32 detect_bar2_integrated(struct xe_device *xe, struct xe_ttm_stolen_mgr *mgr)
+static u32 detect_lmembar_integrated(struct xe_device *xe, struct xe_ttm_stolen_mgr *mgr)
 {
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
 	struct xe_gt *media_gt = xe_device_get_root_tile(xe)->media_gt;
@@ -212,9 +212,9 @@ int xe_ttm_stolen_mgr_init(struct xe_device *xe)
 	if (IS_SRIOV_VF(xe))
 		stolen_size = 0;
 	else if (IS_DGFX(xe))
-		stolen_size = detect_bar2_dgfx(xe, mgr);
+		stolen_size = detect_lmembar_dgfx(xe, mgr);
 	else if (GRAPHICS_VERx100(xe) >= 1270)
-		stolen_size = detect_bar2_integrated(xe, mgr);
+		stolen_size = detect_lmembar_integrated(xe, mgr);
 	else
 		stolen_size = detect_stolen(xe, mgr);
 
@@ -262,9 +262,9 @@ u64 xe_ttm_stolen_io_offset(struct xe_bo *bo, u32 offset)
 	return mgr->io_base + (bo->ttm.resource->start << PAGE_SHIFT) + offset;
 }
 
-static int __xe_ttm_stolen_io_mem_reserve_bar2(struct xe_device *xe,
-					       struct xe_ttm_stolen_mgr *mgr,
-					       struct ttm_resource *mem)
+static int __xe_ttm_stolen_io_mem_reserve_lmembar(struct xe_device *xe,
+						  struct xe_ttm_stolen_mgr *mgr,
+						  struct ttm_resource *mem)
 {
 	if (!mgr->io_base)
 		return -EIO;
@@ -321,7 +321,7 @@ int xe_ttm_stolen_io_mem_reserve(struct xe_device *xe, struct ttm_resource *mem)
 	if (xe_ttm_stolen_cpu_access_needs_ggtt(xe))
 		return __xe_ttm_stolen_io_mem_reserve_stolen(xe, mgr, mem);
 	else
-		return __xe_ttm_stolen_io_mem_reserve_bar2(xe, mgr, mem);
+		return __xe_ttm_stolen_io_mem_reserve_lmembar(xe, mgr, mem);
 }
 
 u64 xe_ttm_stolen_gpu_offset(struct xe_device *xe)

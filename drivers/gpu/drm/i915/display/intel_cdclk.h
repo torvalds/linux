@@ -22,6 +22,7 @@ struct intel_cdclk_config {
 	bool joined_mbus;
 };
 
+int intel_cdclk_ppc(struct intel_display *display, bool double_wide);
 void intel_cdclk_init_hw(struct intel_display *display);
 void intel_cdclk_uninit_hw(struct intel_display *display);
 void intel_init_cdclk_hooks(struct intel_display *display);

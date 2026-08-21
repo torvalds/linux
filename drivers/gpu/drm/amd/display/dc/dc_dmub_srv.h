@@ -37,17 +37,8 @@ struct dc_crtc_timing;
 struct dc_state;
 struct dc_surface_update;
 
-struct dc_reg_helper_state {
-	bool gather_in_progress;
-	uint32_t same_addr_count;
-	bool should_burst_write;
-	union dmub_rb_cmd cmd_data;
-	unsigned int reg_seq_count;
-};
-
 struct dc_dmub_srv {
 	struct dmub_srv *dmub;
-	struct dc_reg_helper_state reg_helper_offload;
 
 	struct dc_context *ctx;
 	void *dm;
@@ -212,11 +203,31 @@ void dc_dmub_srv_fams2_passthrough_flip(
 		int surface_count);
 
 bool dmub_lsdma_init(struct dc_dmub_srv *dc_dmub_srv);
+
+struct lsdma_linear_copy_params {
+	uint32_t src_lo;
+	uint32_t src_hi;
+
+	uint32_t dst_lo;
+	uint32_t dst_hi;
+
+	uint32_t count            : 30;
+	uint32_t read_compress    : 2;
+
+	uint32_t tmz              : 4;
+	uint32_t cache_policy_src : 3;
+	uint32_t cache_policy_dst : 3;
+	uint32_t data_format      : 6;
+	uint32_t num_type         : 3;
+	uint32_t write_compress   : 2;
+	uint32_t max_com          : 2;
+	uint32_t max_uncom        : 1;
+	uint32_t reserved0        : 8;
+};
+
 bool dmub_lsdma_send_linear_copy_command(
 	struct dc_dmub_srv *dc_dmub_srv,
-	uint64_t src_addr,
-	uint64_t dst_addr,
-	uint32_t count);
+	struct lsdma_linear_copy_params copy_data);
 
 struct lsdma_linear_sub_window_copy_params {
 	uint32_t src_lo;
@@ -244,7 +255,13 @@ struct lsdma_linear_sub_window_copy_params {
 	uint32_t element_size     : 3;
 	uint32_t src_cache_policy : 3;
 	uint32_t dst_cache_policy : 3;
-	uint32_t padding          : 19;
+	uint32_t data_format      : 6;
+	uint32_t num_type         : 3;
+	uint32_t read_compress    : 2;
+	uint32_t write_compress   : 2;
+	uint32_t max_com          : 2;
+	uint32_t max_uncom        : 1;
+	uint32_t reserved0        : 3;
 };
 
 bool dmub_lsdma_send_linear_sub_window_copy_command(
@@ -384,4 +401,27 @@ void dc_dmub_srv_release_hw(const struct dc *dc);
  * @dc - pointer to DC object
  */
 void dc_dmub_srv_log_preos_dmcub_info(struct dc_dmub_srv *dc_dmub_srv);
+
+/**
+ * dc_dmub_srv_ihc_set_dig_hdcp_interrupt_dest() - Configure IHC interrupt destination.
+ * @dc_dmub_srv: DMUB service handle
+ * @dig_id: DIG engine ID (0-3)
+ * @to_dmu: Route interrupt to DMU (true) or not (false)
+ *
+ * Sends command to DMUB firmware to configure IHC interrupt routing
+ * for HDCP I2C transfer requests.
+ *
+ * Return: true on success, false on failure
+ */
+bool dc_dmub_srv_ihc_set_dig_hdcp_interrupt_dest(
+	struct dc_dmub_srv *dc_dmub_srv,
+	uint8_t dig_id,
+	bool to_dmu);
+
+/**
+ * dc_dmub_srv_get_fams2_debug_meta() - Queries for FAMS2 debug metadata from DMUB and logs it.
+ *
+ * @dc_dmub_srv - pointer to DMUB service object
+ */
+void dc_dmub_srv_get_fams2_debug_meta(struct dc_dmub_srv *dc_dmub_srv);
 #endif /* _DMUB_DC_SRV_H_ */

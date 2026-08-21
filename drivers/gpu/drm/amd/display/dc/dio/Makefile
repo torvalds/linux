@@ -132,4 +132,12 @@ DIO_DCN42 = dcn42_dio_link_encoder.o dcn42_dio_stream_encoder.o
 AMD_DAL_DIO_DCN42 = $(addprefix $(AMDDALPATH)/dc/dio/dcn42/,$(DIO_DCN42))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_DIO_DCN42)
+###############################################################################
+# DCN60
+###############################################################################
+DIO_DCN60 = dcn60_dio_link_encoder.o dcn60_dio_stream_encoder.o
+
+AMD_DAL_DIO_DCN60 = $(addprefix $(AMDDALPATH)/dc/dio/dcn60/,$(DIO_DCN60))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_DIO_DCN60)
 endif

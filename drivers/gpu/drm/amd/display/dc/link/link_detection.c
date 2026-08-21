@@ -336,6 +336,34 @@ static void query_dp_dual_mode_adaptor(
 	sink_cap->max_hdmi_pixel_clock = DP_ADAPTOR_DVI_MAX_TMDS_CLK;
 
 	/* Read DP-HDMI dongle I2c (no response interpreted as DP-DVI dongle)*/
+	if (link->force_to_use_aux) {
+
+		if (!dm_helpers_submit_i2c_over_aux(
+			ddc,
+			DP_HDMI_DONGLE_ADDRESS,
+			0,
+			type2_dongle_buf,
+			sizeof(type2_dongle_buf),
+			true)) {
+
+			/* Use same approach as below with native i2c - HDMI dongles can sometimes fail here without retrying*/
+			while (retry_count > 0) {
+				if (dm_helpers_submit_i2c_over_aux(
+					ddc,
+					DP_HDMI_DONGLE_ADDRESS,
+					0,
+					type2_dongle_buf,
+					sizeof(type2_dongle_buf),
+					true))
+					break;
+				retry_count--;
+			}
+			/* In case I2C over Aux no response, it is interpreted as DISPLAY_DONGLE_NONE */
+			if (retry_count == 0) {
+				return;
+			}
+		}
+	} else {
 	if (!i2c_read(
 		ddc,
 		DP_HDMI_DONGLE_ADDRESS,
@@ -359,6 +387,7 @@ static void query_dp_dual_mode_adaptor(
 					DP_ADAPTOR_DVI_MAX_TMDS_CLK / 1000);
 			return;
 		}
+	}
 	}
 
 	/* Check if Type 2 dongle.*/
@@ -497,6 +526,12 @@ static void query_hdcp_capability(enum signal_type signal, struct dc_link *link)
 		msg22.data = link->hdcp_caps.rx_caps.raw;
 		msg22.length = sizeof(link->hdcp_caps.rx_caps.raw);
 		msg22.msg_id = HDCP_MESSAGE_ID_RX_CAPS;
+		if (link->force_to_use_aux && (signal == SIGNAL_TYPE_HDMI_TYPE_A)) {
+			// case with passive dongle with i2c over aux
+			msg22.data = &link->hdcp_caps.rx_caps.fields.version;
+			msg22.length = sizeof(link->hdcp_caps.rx_caps.fields.version);
+			msg22.msg_id = HDCP_MESSAGE_ID_HDCP2VERSION;
+		}
 	} else {
 		msg22.data = &link->hdcp_caps.rx_caps.fields.version;
 		msg22.length = sizeof(link->hdcp_caps.rx_caps.fields.version);
@@ -597,7 +632,24 @@ static bool detect_dp(struct dc_link *link,
 	if (sink_caps->transaction_type == DDC_TRANSACTION_TYPE_I2C_OVER_AUX) {
 		sink_caps->signal = SIGNAL_TYPE_DISPLAY_PORT;
 		if (!detect_dp_sink_caps(link)) {
-			return false;
+			if (link->force_to_use_aux) {
+				sink_caps->signal = dp_passive_dongle_detection(link->ddc, sink_caps, audio_support);
+				link->dpcd_caps.dongle_type = sink_caps->dongle_type;
+				link->dpcd_caps.is_dongle_type_one = sink_caps->is_dongle_type_one;
+				link->dpcd_caps.dpcd_rev.raw = 0;
+				/* Type 1 dongles do not work with I2C over Aux and also some of
+				 * Type 2 dongles do not support I2C over Aux well, so for these
+				 * cases when native Aux transactons fails and I2C over Aux fails
+				 * report that nothing is connected, as we can't tell is it bad
+				 * DP sink or bad passive dongle.
+				 */
+				if (sink_caps->dongle_type == DISPLAY_DONGLE_NONE)
+					return false;
+				else
+					return true;
+			} else {
+				return false;
+			}
 		}
 
 		if (is_dp_branch_device(link))
@@ -933,7 +985,7 @@ static bool should_verify_link_capability_destructively(struct dc_link *link,
 		destrictive = true;
 		if (is_hdmi_frl_in_use(link)) {
 			destrictive = false;
-		} else if (link->dc->config.skip_frl_pretraining) {
+		} else if (link->local_sink->edid_caps.panel_patch.skip_frl_pre_training) {
 			for (i = 0; i < MAX_PIPES; i++) {
 				if (pipes[i].stream != NULL &&
 					pipes[i].stream->link == link) {

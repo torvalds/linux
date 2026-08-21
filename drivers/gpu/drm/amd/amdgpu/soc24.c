@@ -34,6 +34,7 @@
 #include "amdgpu_smu.h"
 #include "atom.h"
 #include "amd_pcie.h"
+#include "amdgpu_video_codecs.h"
 
 #include "gc/gc_12_0_0_offset.h"
 #include "gc/gc_12_0_0_sh_mask.h"
@@ -238,16 +239,6 @@ const struct amdgpu_ip_block_version soc24_common_ip_block = {
 	.funcs = &soc24_common_ip_funcs,
 };
 
-static bool soc24_need_full_reset(struct amdgpu_device *adev)
-{
-	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
-	case IP_VERSION(12, 0, 0):
-	case IP_VERSION(12, 0, 1):
-	default:
-		return true;
-	}
-}
-
 static bool soc24_need_reset_on_init(struct amdgpu_device *adev)
 {
 	u32 sol_reg;
@@ -330,7 +321,6 @@ static const struct amdgpu_asic_funcs soc24_asic_funcs = {
 	.get_xclk = &soc24_get_xclk,
 	.get_config_memsize = &soc24_get_config_memsize,
 	.init_doorbell_index = &soc24_init_doorbell_index,
-	.need_full_reset = &soc24_need_full_reset,
 	.need_reset_on_init = &soc24_need_reset_on_init,
 	.get_pcie_replay_count = &soc24_get_pcie_replay_count,
 	.supports_baco = &amdgpu_dpm_is_baco_supported,

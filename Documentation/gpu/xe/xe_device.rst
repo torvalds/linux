@@ -8,3 +8,10 @@ Xe Device Wedging
 
 .. kernel-doc:: drivers/gpu/drm/xe/xe_device.c
    :doc: Xe Device Wedging
+
+====================
+GPU Health Indicator
+====================
+
+.. kernel-doc:: drivers/gpu/drm/xe/xe_ras.c
+   :doc: GPU Health Indicator

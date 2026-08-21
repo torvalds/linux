@@ -270,13 +270,11 @@ struct mod_power *mod_power_create(struct dc *dc,
 fail_bad_brightness_range:
 fail_alloc_backlight_array:
 	for (inst = 0; inst < edp_num; inst++)
-		if (core_power->bl_prop[inst].backlight_lut)
-			kfree(core_power->bl_prop[inst].backlight_lut);
+		kfree(core_power->bl_prop[inst].backlight_lut);
 fail_construct:
-	for (i = 0; i < MOD_POWER_MAX_CONCURRENT_STREAMS; i++) {
-		if (core_power->map[i].psr_context)
-			kfree(core_power->map[i].psr_context);
-	}
+	for (i = 0; i < MOD_POWER_MAX_CONCURRENT_STREAMS; i++)
+		kfree(core_power->map[i].psr_context);
+
 	kfree(core_power->map);
 
 fail_alloc_map:
@@ -295,8 +293,7 @@ void mod_power_destroy(struct mod_power *mod_power)
 				MOD_POWER_TO_CORE(mod_power);
 
 		for (i = 0; i < MOD_POWER_MAX_CONCURRENT_STREAMS; i++)
-			if (core_power->map[i].psr_context)
-				kfree(core_power->map[i].psr_context);
+			kfree(core_power->map[i].psr_context);
 
 		for (i = 0; i < core_power->num_entities; i++)
 			if (core_power->map[i].stream)
@@ -305,8 +302,7 @@ void mod_power_destroy(struct mod_power *mod_power)
 		kfree(core_power->map);
 
 		for (i = 0; i < MAX_NUM_EDP; i++)
-			if (core_power->bl_prop[i].backlight_lut)
-				kfree(core_power->bl_prop[i].backlight_lut);
+			kfree(core_power->bl_prop[i].backlight_lut);
 
 		kfree(core_power);
 	}
@@ -483,12 +479,7 @@ bool mod_power_notify_mode_change(struct mod_power *mod_power,
 	link = dc_stream_get_link(stream);
 
 	if (link != NULL && dc_get_edp_link_panel_inst(dc, link, &panel_inst)) {
-		if (link->ctx->dc->config.dp_connector_no_native_i2c && link->no_ddc_pin) {
-			aux_inst = (uint8_t)link->aux_hw_inst;
-		} else {
-			ASSERT(link->ddc->ddc_pin->hw_info.ddc_channel <= 0xFF);
-			aux_inst = (uint8_t)link->ddc->ddc_pin->hw_info.ddc_channel;
-		}
+		aux_inst = link->dc->link_srv->get_ddc_aux_inst(link);
 
 		mod_power_update_backlight_on_mode_change(core_power, link, panel_inst, aux_inst, is_hdr);
 
@@ -500,4 +491,9 @@ bool mod_power_notify_mode_change(struct mod_power *mod_power,
 	}
 
 	return true;
+}
+
+bool mod_power_only_edp(const struct dc_state *context, const struct dc_stream_state *stream)
+{
+	return context && context->stream_count == 1 && dc_is_embedded_signal(stream->signal);
 }

@@ -51,61 +51,56 @@ static void novatek_nt37801_reset(struct novatek_nt37801 *ctx)
 	mipi_dsi_dcs_write_seq_multi((dsi_ctx), NT37801_DCS_SWITCH_PAGE, \
 				     0x55, 0xaa, 0x52, 0x08, (page))
 
-static int novatek_nt37801_on(struct novatek_nt37801 *ctx)
+static void novatek_nt37801_on(struct mipi_dsi_multi_context *dsi_ctx)
 {
-	struct mipi_dsi_device *dsi = ctx->dsi;
-	struct mipi_dsi_multi_context dsi_ctx = { .dsi = dsi };
+	dsi_ctx->dsi->mode_flags |= MIPI_DSI_MODE_LPM;
 
-	dsi->mode_flags |= MIPI_DSI_MODE_LPM;
-
-	novatek_nt37801_switch_page(&dsi_ctx, 0x01);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x6f, 0x01);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xc5, 0x0b, 0x0b, 0x0b);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xff, 0xaa, 0x55, 0xa5, 0x80);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x6f, 0x02);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xf5, 0x10);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x6f, 0x1b);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xf4, 0x55);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x6f, 0x18);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xf8, 0x19);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x6f, 0x0f);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xfc, 0x00);
-	mipi_dsi_dcs_set_column_address_multi(&dsi_ctx, 0x0000, 0x059f);
-	mipi_dsi_dcs_set_page_address_multi(&dsi_ctx, 0x0000, 0x0c7f);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x90, 0x03, 0x03);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x91,
+	novatek_nt37801_switch_page(dsi_ctx, 0x01);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x6f, 0x01);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xc5, 0x0b, 0x0b, 0x0b);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xff, 0xaa, 0x55, 0xa5, 0x80);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x6f, 0x02);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xf5, 0x10);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x6f, 0x1b);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xf4, 0x55);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x6f, 0x18);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xf8, 0x19);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x6f, 0x0f);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xfc, 0x00);
+	mipi_dsi_dcs_set_column_address_multi(dsi_ctx, 0x0000, 0x059f);
+	mipi_dsi_dcs_set_page_address_multi(dsi_ctx, 0x0000, 0x0c7f);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x90, 0x03, 0x03);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x91,
 				     0x89, 0x28, 0x00, 0x28, 0xc2, 0x00, 0x02,
 				     0x68, 0x04, 0x6c, 0x00, 0x0a, 0x02, 0x77,
 				     0x01, 0xe9, 0x10, 0xf0);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xff, 0xaa, 0x55, 0xa5, 0x81);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x6f, 0x23);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xfb,
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xff, 0xaa, 0x55, 0xa5, 0x81);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x6f, 0x23);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xfb,
 				     0x00, 0x01, 0x00, 0x11, 0x33, 0x33, 0x33,
 				     0x55, 0x57, 0xd0, 0x00, 0x00, 0x44, 0x56,
 				     0x77, 0x78, 0x9a, 0xbc, 0xdd, 0xf0);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x6f, 0x06);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xf3, 0xdc);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, MIPI_DCS_SET_GAMMA_CURVE, 0x00);
-	mipi_dsi_dcs_set_tear_on_multi(&dsi_ctx, MIPI_DSI_DCS_TEAR_MODE_VBLANK);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x3b, 0x00, 0x18, 0x00, 0x10);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, MIPI_DCS_WRITE_CONTROL_DISPLAY,
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x6f, 0x06);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xf3, 0xdc);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, MIPI_DCS_SET_GAMMA_CURVE, 0x00);
+	mipi_dsi_dcs_set_tear_on_multi(dsi_ctx, MIPI_DSI_DCS_TEAR_MODE_VBLANK);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x3b, 0x00, 0x18, 0x00, 0x10);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, MIPI_DCS_WRITE_CONTROL_DISPLAY,
 				     0x20);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x51,
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x51,
 				     0x07, 0xff, 0x07, 0xff, 0x0f, 0xff);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x5a, 0x01);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x5f, 0x00);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x9c, 0x01);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, MIPI_DCS_WRITE_MEMORY_START);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x2f, 0x00);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x5a, 0x01);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x5f, 0x00);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x9c, 0x01);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, MIPI_DCS_WRITE_MEMORY_START);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x2f, 0x00);
 
-	novatek_nt37801_switch_page(&dsi_ctx, 0x01);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xb2, 0x55, 0x01, 0xff, 0x03);
-	mipi_dsi_dcs_exit_sleep_mode_multi(&dsi_ctx);
-	mipi_dsi_msleep(&dsi_ctx, 120);
-	mipi_dsi_dcs_set_display_on_multi(&dsi_ctx);
-	mipi_dsi_msleep(&dsi_ctx, 20);
-
-	return dsi_ctx.accum_err;
+	novatek_nt37801_switch_page(dsi_ctx, 0x01);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xb2, 0x55, 0x01, 0xff, 0x03);
+	mipi_dsi_dcs_exit_sleep_mode_multi(dsi_ctx);
+	mipi_dsi_msleep(dsi_ctx, 120);
+	mipi_dsi_dcs_set_display_on_multi(dsi_ctx);
+	mipi_dsi_msleep(dsi_ctx, 20);
 }
 
 static int novatek_nt37801_off(struct novatek_nt37801 *ctx)
@@ -127,7 +122,8 @@ static int novatek_nt37801_off(struct novatek_nt37801 *ctx)
 static int novatek_nt37801_prepare(struct drm_panel *panel)
 {
 	struct novatek_nt37801 *ctx = to_novatek_nt37801(panel);
-	struct device *dev = &ctx->dsi->dev;
+	struct mipi_dsi_device *dsi = ctx->dsi;
+	struct mipi_dsi_multi_context dsi_ctx = { .dsi = dsi };
 	struct drm_dsc_picture_parameter_set pps;
 	int ret;
 
@@ -137,22 +133,12 @@ static int novatek_nt37801_prepare(struct drm_panel *panel)
 		return ret;
 
 	novatek_nt37801_reset(ctx);
-
-	ret = novatek_nt37801_on(ctx);
-	if (ret < 0)
-		goto err;
-
+	novatek_nt37801_on(&dsi_ctx);
 	drm_dsc_pps_payload_pack(&pps, &ctx->dsc);
-
-	ret = mipi_dsi_picture_parameter_set(ctx->dsi, &pps);
-	if (ret < 0) {
-		dev_err(panel->dev, "failed to transmit PPS: %d\n", ret);
-		goto err;
-	}
-
-	ret = mipi_dsi_compression_mode(ctx->dsi, true);
-	if (ret < 0) {
-		dev_err(dev, "failed to enable compression mode: %d\n", ret);
+	mipi_dsi_picture_parameter_set_multi(&dsi_ctx, &pps);
+	mipi_dsi_compression_mode_multi(&dsi_ctx, true);
+	if (dsi_ctx.accum_err) {
+		ret = dsi_ctx.accum_err;
 		goto err;
 	}
 

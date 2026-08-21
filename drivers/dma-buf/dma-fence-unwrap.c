@@ -93,9 +93,9 @@ static int fence_cmp(const void *_a, const void *_b)
  *
  * Return: Number of unique fences remaining in the array.
  */
-int dma_fence_dedup_array(struct dma_fence **fences, int num_fences)
+size_t dma_fence_dedup_array(struct dma_fence **fences, size_t num_fences)
 {
-	int i, j;
+	size_t i, j;
 
 	if (!num_fences)
 		return 0;
@@ -118,14 +118,14 @@ int dma_fence_dedup_array(struct dma_fence **fences, int num_fences)
 EXPORT_SYMBOL_GPL(dma_fence_dedup_array);
 
 /* Implementation for the dma_fence_merge() marco, don't use directly */
-struct dma_fence *__dma_fence_unwrap_merge(unsigned int num_fences,
+struct dma_fence *__dma_fence_unwrap_merge(size_t num_fences,
 					   struct dma_fence **fences,
 					   struct dma_fence_unwrap *iter)
 {
 	struct dma_fence *tmp, *unsignaled = NULL, **array;
 	struct dma_fence_array *result;
 	ktime_t timestamp;
-	int i, count;
+	size_t i, count;
 
 	count = 0;
 	timestamp = ns_to_ktime(0);

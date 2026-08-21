@@ -50,8 +50,10 @@ MODULE_PARM_DESC(debug, "Enable debug output, where each bit enables a debug cat
 "\t\tBit 3 (0x08)  will enable PRIME messages (prime code)\n"
 "\t\tBit 4 (0x10)  will enable ATOMIC messages (atomic code)\n"
 "\t\tBit 5 (0x20)  will enable VBL messages (vblank code)\n"
+"\t\tBit 6 (0x40)  will enable STATE messages (atomic state code)\n"
 "\t\tBit 7 (0x80)  will enable LEASE messages (leasing code)\n"
-"\t\tBit 8 (0x100) will enable DP messages (displayport code)");
+"\t\tBit 8 (0x100) will enable DP messages (displayport code)\n"
+"\t\tBit 9 (0x200) will enable DRMRES messages (managed resources code)");
 
 #if !defined(CONFIG_DRM_USE_DYNAMIC_DEBUG)
 module_param_named(debug, __drm_debug, ulong, 0600);

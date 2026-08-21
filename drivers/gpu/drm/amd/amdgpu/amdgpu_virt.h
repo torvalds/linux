@@ -116,6 +116,8 @@ struct amdgpu_virt_ops {
 	int (*req_ras_chk_criti)(struct amdgpu_device *adev, u64 addr);
 	int (*req_remote_ras_cmd)(struct amdgpu_device *adev,
 			u32 param1, u32 param2, u32 param3);
+	int (*req_ptl_update)(struct amdgpu_device *adev,
+			u32 req_code, u32 ptl_state, u32 fmt1, u32 fmt2);
 };
 
 /*
@@ -341,6 +343,11 @@ struct amdgpu_virt {
 	/* Spinlock to protect access to the RLCG register interface */
 	spinlock_t rlcg_reg_lock;
 
+	/* PTL (Performance Throttle Limiter) response from host */
+	uint32_t ptl_state;
+	uint32_t ptl_pref_format1;
+	uint32_t ptl_pref_format2;
+
 	struct mutex access_req_mutex;
 
 	union amd_sriov_ras_caps ras_en_caps;
@@ -447,6 +454,8 @@ static inline bool is_virtual_machine(void)
 	((adev)->virt.gim_feature & AMDGIM_FEATURE_MES_INFO_ENABLE)
 #define amdgpu_sriov_is_unitid_support(adev) \
 	((adev)->virt.gim_feature & AMDGIM_FEATURE_UNITID_SUPPORT)
+#define amdgpu_sriov_ptl_support(adev) \
+	((adev)->virt.gim_feature & AMDGIM_FEATURE_PTL_SUPPORT)
 
 #define amdgpu_virt_xgmi_migrate_enabled(adev) \
 	((adev)->virt.is_xgmi_node_migrate_enabled && (adev)->gmc.xgmi.node_segment_size != 0)
@@ -457,6 +466,8 @@ int amdgpu_virt_request_full_gpu(struct amdgpu_device *adev, bool init);
 int amdgpu_virt_release_full_gpu(struct amdgpu_device *adev, bool init);
 int amdgpu_virt_reset_gpu(struct amdgpu_device *adev);
 void amdgpu_virt_request_init_data(struct amdgpu_device *adev);
+int amdgpu_virt_ptl_request(struct amdgpu_device *adev, u32 req_code,
+			    uint32_t *ptl_state, uint32_t *fmt1, uint32_t *fmt2);
 void amdgpu_virt_ready_to_reset(struct amdgpu_device *adev);
 int amdgpu_virt_wait_reset(struct amdgpu_device *adev);
 int amdgpu_virt_alloc_mm_table(struct amdgpu_device *adev);

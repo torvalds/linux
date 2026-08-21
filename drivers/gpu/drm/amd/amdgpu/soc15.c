@@ -77,6 +77,7 @@
 #include "mxgpu_ai.h"
 #include "amdgpu_ras.h"
 #include "amdgpu_xgmi.h"
+#include "amdgpu_video_codecs.h"
 #include <uapi/linux/kfd_ioctl.h>
 
 #define mmMP0_MISC_CGTT_CTRL0                                                                   0x01b9
@@ -721,12 +722,6 @@ void soc15_set_virt_ops(struct amdgpu_device *adev)
 	soc15_reg_base_init(adev);
 }
 
-static bool soc15_need_full_reset(struct amdgpu_device *adev)
-{
-	/* change this when we implement soft reset */
-	return true;
-}
-
 static void soc15_get_pcie_usage(struct amdgpu_device *adev, uint64_t *count0,
 				 uint64_t *count1)
 {
@@ -878,7 +873,6 @@ static const struct amdgpu_asic_funcs soc15_asic_funcs =
 	.set_uvd_clocks = &soc15_set_uvd_clocks,
 	.set_vce_clocks = &soc15_set_vce_clocks,
 	.get_config_memsize = &soc15_get_config_memsize,
-	.need_full_reset = &soc15_need_full_reset,
 	.init_doorbell_index = &vega10_doorbell_index_init,
 	.get_pcie_usage = &soc15_get_pcie_usage,
 	.need_reset_on_init = &soc15_need_reset_on_init,
@@ -899,7 +893,6 @@ static const struct amdgpu_asic_funcs vega20_asic_funcs =
 	.set_uvd_clocks = &soc15_set_uvd_clocks,
 	.set_vce_clocks = &soc15_set_vce_clocks,
 	.get_config_memsize = &soc15_get_config_memsize,
-	.need_full_reset = &soc15_need_full_reset,
 	.init_doorbell_index = &vega20_doorbell_index_init,
 	.get_pcie_usage = &vega20_get_pcie_usage,
 	.need_reset_on_init = &soc15_need_reset_on_init,
@@ -920,7 +913,6 @@ static const struct amdgpu_asic_funcs aqua_vanjaram_asic_funcs =
 	.set_uvd_clocks = &soc15_set_uvd_clocks,
 	.set_vce_clocks = &soc15_set_vce_clocks,
 	.get_config_memsize = &soc15_get_config_memsize,
-	.need_full_reset = &soc15_need_full_reset,
 	.init_doorbell_index = &aqua_vanjaram_doorbell_index_init,
 	.need_reset_on_init = &soc15_need_reset_on_init,
 	.get_pcie_replay_count = &amdgpu_nbio_get_pcie_replay_count,

@@ -658,6 +658,33 @@ static int vf_cache_sched_groups_status(struct xe_gt *gt)
 	return 0;
 }
 
+static int vf_cache_num_paging_engines(struct xe_gt *gt)
+{
+	struct xe_guc *guc = &gt->uc.guc;
+	struct xe_uc_fw_version guc_version;
+	u32 value = 0;
+	int err;
+
+	xe_gt_sriov_vf_guc_versions(gt, NULL, &guc_version);
+
+	if (MAKE_GUC_VER_STRUCT(guc_version) < MAKE_GUC_VER(1, 36, 0))
+		return 0;
+
+	err = guc_action_query_single_klv32(guc, GUC_KLV_GLOBAL_CFG_NUM_PAGING_ENGINE_INSTANCES_KEY,
+					    &value);
+	if (unlikely(err)) {
+		xe_gt_sriov_err(gt,
+				"Failed to obtain the number of paging instances (%pe)\n",
+				ERR_PTR(err));
+		return err;
+	}
+
+	gt->sriov.vf.runtime.num_paging_engine_instances = value;
+
+	xe_gt_sriov_dbg(gt, "num_paging_engines %u\n", value);
+	return 0;
+}
+
 /**
  * xe_gt_sriov_vf_query_config - Query SR-IOV config data over MMIO.
  * @gt: the &xe_gt
@@ -694,6 +721,10 @@ int xe_gt_sriov_vf_query_config(struct xe_gt *gt)
 	if (has_gmdid(xe))
 		vf_cache_gmdid(gt);
 
+	err = vf_cache_num_paging_engines(gt);
+	if (unlikely(err))
+		return err;
+
 	return 0;
 }
 
@@ -729,6 +760,22 @@ u16 xe_gt_sriov_vf_guc_ids(struct xe_gt *gt)
 	xe_gt_assert(gt, gt->sriov.vf.self_config.num_ctxs);
 
 	return gt->sriov.vf.self_config.num_ctxs;
+}
+
+/**
+ * xe_gt_sriov_vf_paging_engines - Return the number of paging engine instances
+ * @gt: the &xe_gt
+ *
+ * This function is for VF use only.
+ *
+ * Return: number of GuC paging engine instances configured by the PF.
+ */
+u32 xe_gt_sriov_vf_paging_engines(struct xe_gt *gt)
+{
+	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
+	xe_gt_assert(gt, gt->sriov.vf.guc_version.major);
+
+	return gt->sriov.vf.runtime.num_paging_engine_instances;
 }
 
 static int relay_action_handshake(struct xe_gt *gt, u32 *major, u32 *minor)

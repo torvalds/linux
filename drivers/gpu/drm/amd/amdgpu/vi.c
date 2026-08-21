@@ -34,6 +34,7 @@
 #include "amdgpu_ucode.h"
 #include "atom.h"
 #include "amd_pcie.h"
+#include "amdgpu_video_codecs.h"
 
 #include "gmc/gmc_8_1_d.h"
 #include "gmc/gmc_8_1_sh_mask.h"
@@ -1328,27 +1329,6 @@ static void vi_invalidate_hdp(struct amdgpu_device *adev,
 	}
 }
 
-static bool vi_need_full_reset(struct amdgpu_device *adev)
-{
-	switch (adev->asic_type) {
-	case CHIP_CARRIZO:
-	case CHIP_STONEY:
-		/* CZ has hang issues with full reset at the moment */
-		return false;
-	case CHIP_FIJI:
-	case CHIP_TONGA:
-		/* XXX: soft reset should work on fiji and tonga */
-		return true;
-	case CHIP_POLARIS10:
-	case CHIP_POLARIS11:
-	case CHIP_POLARIS12:
-	case CHIP_TOPAZ:
-	default:
-		/* change this when we support soft reset */
-		return true;
-	}
-}
-
 static void vi_get_pcie_usage(struct amdgpu_device *adev, uint64_t *count0,
 			      uint64_t *count1)
 {
@@ -1407,9 +1387,29 @@ static uint64_t vi_get_pcie_replay_count(struct amdgpu_device *adev)
 	return (nak_r + nak_g);
 }
 
+struct vi_reset_quirk {
+	u16 device;
+	u16 subsystem_vendor;
+	u16 subsystem_device;
+	u8 revision;
+};
+
+static const struct vi_reset_quirk vi_reset_quirks[] = {
+	{ 0x67ef, PCI_VENDOR_ID_APPLE, 0x0190, 0xe3 }, /* Radeon Pro 555X */
+	{ 0x67ef, PCI_VENDOR_ID_APPLE, 0x018f, 0xc2 }, /* Radeon Pro 560X */
+};
+
 static bool vi_need_reset_on_init(struct amdgpu_device *adev)
 {
+	unsigned int i;
 	u32 clock_cntl, pc;
+
+	for (i = 0; i < ARRAY_SIZE(vi_reset_quirks); i++)
+		if (adev->pdev->device == vi_reset_quirks[i].device &&
+		    adev->pdev->subsystem_vendor == vi_reset_quirks[i].subsystem_vendor &&
+		    adev->pdev->subsystem_device == vi_reset_quirks[i].subsystem_device &&
+		    adev->pdev->revision == vi_reset_quirks[i].revision)
+			return true;
 
 	if (adev->flags & AMD_IS_APU)
 		return false;
@@ -1437,7 +1437,6 @@ static const struct amdgpu_asic_funcs vi_asic_funcs =
 	.get_config_memsize = &vi_get_config_memsize,
 	.flush_hdp = &vi_flush_hdp,
 	.invalidate_hdp = &vi_invalidate_hdp,
-	.need_full_reset = &vi_need_full_reset,
 	.init_doorbell_index = &legacy_doorbell_index_init,
 	.get_pcie_usage = &vi_get_pcie_usage,
 	.need_reset_on_init = &vi_need_reset_on_init,

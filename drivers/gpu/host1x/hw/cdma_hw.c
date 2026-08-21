@@ -246,22 +246,23 @@ static void timeout_release_mlock(struct host1x_cdma *cdma)
 	 * so it turns out that if we don't /actually/ need MLOCKs, we can just
 	 * ignore them.
 	 *
-	 * As such, for now just implement this on Tegra234 where things are
-	 * stricter but also easy to implement.
+	 * As such, for now just implement this on Tegra234 and above where things
+	 * are stricter but also easy to implement.
 	 */
 	struct host1x_channel *ch = cdma_to_channel(cdma);
 	struct host1x *host1x = cdma_to_host1x(cdma);
 	u32 offset;
 
 	switch (ch->client->class) {
+	case HOST1X_CLASS_VIC:
+		offset = HOST1X_COMMON_VIC_MLOCK;
+		break;
+#if HOST1X_HW == 8
 	case HOST1X_CLASS_NVJPG1:
 		offset = HOST1X_COMMON_NVJPG1_MLOCK;
 		break;
 	case HOST1X_CLASS_NVENC:
 		offset = HOST1X_COMMON_NVENC_MLOCK;
-		break;
-	case HOST1X_CLASS_VIC:
-		offset = HOST1X_COMMON_VIC_MLOCK;
 		break;
 	case HOST1X_CLASS_NVJPG:
 		offset = HOST1X_COMMON_NVJPG_MLOCK;
@@ -272,6 +273,7 @@ static void timeout_release_mlock(struct host1x_cdma *cdma)
 	case HOST1X_CLASS_OFA:
 		offset = HOST1X_COMMON_OFA_MLOCK;
 		break;
+#endif
 	default:
 		WARN(1, "%s was not updated for class %u", __func__, ch->client->class);
 		return;
@@ -355,7 +357,7 @@ static int cdma_timeout_init(struct host1x_cdma *cdma)
 static void cdma_timeout_destroy(struct host1x_cdma *cdma)
 {
 	if (cdma->timeout.initialized)
-		cancel_delayed_work(&cdma->timeout.wq);
+		cancel_delayed_work_sync(&cdma->timeout.wq);
 
 	cdma->timeout.initialized = false;
 }

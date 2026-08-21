@@ -175,11 +175,10 @@ static bool mod_power_update_replay_active_status(unsigned int active_replay_eve
 		if (link->replay_settings.coasting_vtotal_table[PR_COASTING_TYPE_TEST_HARNESS])
 			*coasting_vtotal =
 				link->replay_settings.coasting_vtotal_table[PR_COASTING_TYPE_TEST_HARNESS];
-		if (link->replay_settings.frame_skip_number_table[PR_COASTING_TYPE_TEST_HARNESS]) {
-			ASSERT(link->replay_settings.frame_skip_number_table[PR_COASTING_TYPE_TEST_HARNESS] <= 0xFFFF);
-			*frame_skip_number =
-				(uint16_t)link->replay_settings.frame_skip_number_table[PR_COASTING_TYPE_TEST_HARNESS];
-		}
+
+		ASSERT(link->replay_settings.frame_skip_number_table[PR_COASTING_TYPE_TEST_HARNESS] <= 0xFFFF);
+		*frame_skip_number =
+			(uint16_t)link->replay_settings.frame_skip_number_table[PR_COASTING_TYPE_TEST_HARNESS];
 
 		/* During the ultra sleep mode testing, disable the timing sync in short vblank mode */
 		if (active_replay_events & (replay_event_test_harness_enable_replay)) {
@@ -805,6 +804,13 @@ void mod_power_replay_notify_mode_change(struct mod_power *mod_power,
 
 	core_power = MOD_POWER_TO_CORE(mod_power);
 	active_replay_events = core_power->map[stream_index].replay_events;
+
+	/* forced psr is active for seamless switch.
+	 * Re-running edp_setup_psr would disturb the freeze,
+	 * so skip the PSR re-setup until forced psr releases the override.
+	 */
+	if (active_replay_events & replay_event_os_override_hold)
+		return;
 
 	link->replay_settings.replay_smu_opt_enable =
 		(link->replay_settings.config.replay_smu_opt_supported &&

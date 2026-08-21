@@ -35,6 +35,7 @@ struct tdo_tl070wsh30_panel *to_tdo_tl070wsh30_panel(struct drm_panel *panel)
 static int tdo_tl070wsh30_panel_prepare(struct drm_panel *panel)
 {
 	struct tdo_tl070wsh30_panel *tdo_tl070wsh30 = to_tdo_tl070wsh30_panel(panel);
+	struct mipi_dsi_multi_context dsi_ctx = { .dsi = tdo_tl070wsh30->link };
 	int err;
 
 	err = regulator_enable(tdo_tl070wsh30->supply);
@@ -51,44 +52,27 @@ static int tdo_tl070wsh30_panel_prepare(struct drm_panel *panel)
 
 	msleep(200);
 
-	err = mipi_dsi_dcs_exit_sleep_mode(tdo_tl070wsh30->link);
-	if (err < 0) {
-		dev_err(panel->dev, "failed to exit sleep mode: %d\n", err);
+	mipi_dsi_dcs_exit_sleep_mode_multi(&dsi_ctx);
+	mipi_dsi_msleep(&dsi_ctx, 200);
+	mipi_dsi_dcs_set_display_on_multi(&dsi_ctx);
+	mipi_dsi_msleep(&dsi_ctx, 20);
+
+	if (dsi_ctx.accum_err)
 		regulator_disable(tdo_tl070wsh30->supply);
-		return err;
-	}
 
-	msleep(200);
-
-	err = mipi_dsi_dcs_set_display_on(tdo_tl070wsh30->link);
-	if (err < 0) {
-		dev_err(panel->dev, "failed to set display on: %d\n", err);
-		regulator_disable(tdo_tl070wsh30->supply);
-		return err;
-	}
-
-	msleep(20);
-
-	return 0;
+	return dsi_ctx.accum_err;
 }
 
 static int tdo_tl070wsh30_panel_unprepare(struct drm_panel *panel)
 {
 	struct tdo_tl070wsh30_panel *tdo_tl070wsh30 = to_tdo_tl070wsh30_panel(panel);
-	int err;
+	struct mipi_dsi_multi_context dsi_ctx = { .dsi = tdo_tl070wsh30->link };
 
-	err = mipi_dsi_dcs_set_display_off(tdo_tl070wsh30->link);
-	if (err < 0)
-		dev_err(panel->dev, "failed to set display off: %d\n", err);
-
+	mipi_dsi_dcs_set_display_off_multi(&dsi_ctx);
+	/* Reset error to continue power-down sequence even if display off failed */
+	dsi_ctx.accum_err = 0;
 	usleep_range(10000, 11000);
-
-	err = mipi_dsi_dcs_enter_sleep_mode(tdo_tl070wsh30->link);
-	if (err < 0) {
-		dev_err(panel->dev, "failed to enter sleep mode: %d\n", err);
-		return err;
-	}
-
+	mipi_dsi_dcs_enter_sleep_mode_multi(&dsi_ctx);
 	usleep_range(10000, 11000);
 
 	regulator_disable(tdo_tl070wsh30->supply);
