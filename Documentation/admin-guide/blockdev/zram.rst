@@ -61,8 +61,8 @@ and, in general case, something like::
 
 should suffice.
 
-1) Load Module
-==============
+Load Module
+===========
 
 ::
 
@@ -73,8 +73,8 @@ This creates 4 devices: /dev/zram{0,1,2,3}
 num_devices parameter is optional and tells zram how many devices should be
 pre-created. Default: 1.
 
-2) Select compression algorithm
-===============================
+Select compression algorithm
+============================
 
 Using comp_algorithm device attribute one can see available and
 currently selected (shown in square brackets) compression algorithms,
@@ -93,8 +93,8 @@ Examples::
 For the time being, the `comp_algorithm` content shows only compression
 algorithms that are supported by zram.
 
-3) Set compression algorithm parameters: Optional
-=================================================
+Set compression algorithm parameters: Optional
+==============================================
 
 Compression algorithms may support specific parameters which can be
 tweaked for particular dataset. ZRAM has an `algorithm_params` device
@@ -124,8 +124,8 @@ better the compression ratio, it even can take negatives values for some
 algorithms), for other algorithms `level` is acceleration level (the higher
 the value the lower the compression ratio).
 
-4) Set Disksize
-===============
+Set Disksize
+============
 
 Set disk size by writing the value to sysfs node 'disksize'.
 The value can be either in bytes or you can use mem suffixes.
@@ -144,8 +144,8 @@ There is little point creating a zram of greater than twice the size of memory
 since we expect a 2:1 compression ratio. Note that zram uses about 0.1% of the
 size of the disk when not in use so a huge zram is wasteful.
 
-5) Set memory limit: Optional
-=============================
+Set memory limit: Optional
+==========================
 
 Set memory limit by writing the value to sysfs node 'mem_limit'.
 The value can be either in bytes or you can use mem suffixes.
@@ -163,8 +163,8 @@ Examples::
 	# To disable memory limit
 	echo 0 > /sys/block/zram0/mem_limit
 
-6) Activate
-===========
+Activate
+========
 
 ::
 
@@ -174,8 +174,8 @@ Examples::
 	mkfs.ext4 /dev/zram1
 	mount /dev/zram1 /tmp
 
-7) Add/remove zram devices
-==========================
+Add/remove zram devices
+=======================
 
 zram provides a control interface, which enables dynamic (on-demand) device
 addition and removal.
@@ -194,8 +194,8 @@ execute::
 
 	echo X > /sys/class/zram-control/hot_remove
 
-8) Stats
-========
+Stats
+=====
 
 Per-device statistics are exported as various nodes under /sys/block/zram<id>/
 
@@ -296,16 +296,16 @@ a single line of text and contains the following stats separated by whitespace:
 		Unit: 4K bytes
  ============== =============================================================
 
-9) Deactivate
-==============
+Deactivate
+==========
 
 ::
 
 	swapoff /dev/zram0
 	umount /dev/zram1
 
-10) Reset
-=========
+Reset
+=====
 
 	Write any positive value to 'reset' sysfs node::
 

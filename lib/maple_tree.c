@@ -6447,7 +6447,7 @@ static void mt_dump_range(unsigned long min, unsigned long max,
 {
 	static const char spaces[] = "                                ";
 
-	switch(format) {
+	switch (format) {
 	case mt_dump_hex:
 		if (min == max)
 			pr_info("%.*s%lx: ", depth * 2, spaces, min);
@@ -6489,7 +6489,7 @@ static void mt_dump_range64(const struct maple_tree *mt, void *entry,
 
 	pr_cont(" contents: ");
 	for (i = 0; i < MAPLE_RANGE64_SLOTS - 1; i++) {
-		switch(format) {
+		switch (format) {
 		case mt_dump_hex:
 			pr_cont(PTR_FMT " %lX ", node->slot[i], node->pivot[i]);
 			break;
@@ -6517,7 +6517,7 @@ static void mt_dump_range64(const struct maple_tree *mt, void *entry,
 		if (last == max)
 			break;
 		if (last > max) {
-			switch(format) {
+			switch (format) {
 			case mt_dump_hex:
 				pr_err("node " PTR_FMT " last (%lx) > max (%lx) at pivot %d!\n",
 					node, last, max, i);
@@ -6576,7 +6576,7 @@ static void mt_dump_arange64(const struct maple_tree *mt, void *entry,
 		if (last == max)
 			break;
 		if (last > max) {
-			switch(format) {
+			switch (format) {
 			case mt_dump_hex:
 				pr_err("node " PTR_FMT " last (%lx) > max (%lx) at pivot %d!\n",
 					node, last, max, i);

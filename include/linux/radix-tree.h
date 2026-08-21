@@ -111,7 +111,7 @@ struct radix_tree_iter {
 };
 
 /**
- * Radix-tree synchronization
+ * DOC: Radix-tree synchronization
  *
  * The radix-tree API requires that users provide all synchronisation (with
  * specific exceptions, noted below).
@@ -182,6 +182,7 @@ static inline void *radix_tree_deref_slot(void __rcu **slot)
 /**
  * radix_tree_deref_slot_protected - dereference a slot with tree lock held
  * @slot: slot pointer, returned by radix_tree_lookup_slot
+ * @treelock: caller must hold this spinlock
  *
  * Similar to radix_tree_deref_slot.  The caller does not hold the RCU read
  * lock but it must hold the tree lock to prevent parallel updates.
@@ -306,7 +307,7 @@ radix_tree_iter_init(struct radix_tree_iter *iter, unsigned long start)
  * Also it fills @iter with data about chunk: position in the tree (index),
  * its end (next_index), and constructs a bit mask for tagged iterating (tags).
  */
-void __rcu **radix_tree_next_chunk(const struct radix_tree_root *,
+void __rcu **radix_tree_next_chunk(const struct radix_tree_root *root,
 			     struct radix_tree_iter *iter, unsigned flags);
 
 /**

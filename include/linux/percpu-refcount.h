@@ -12,8 +12,8 @@
  * start shutting down you call percpu_ref_kill() _before_ dropping the initial
  * refcount.
  *
- * The refcount will have a range of 0 to ((1U << 31) - 1), i.e. one bit less
- * than an atomic_t - this is because of the way shutdown works, see
+ * The refcount will have a range of 0 to LONG_MAX, i.e. one bit less
+ * than an atomic_long_t - this is because of the way shutdown works, see
  * percpu_ref_kill()/PERCPU_COUNT_BIAS.
  *
  * Before you call percpu_ref_kill(), percpu_ref_put() does not check for the
@@ -269,6 +269,7 @@ static inline bool percpu_ref_tryget(struct percpu_ref *ref)
 /**
  * percpu_ref_tryget_live_rcu - same as percpu_ref_tryget_live() but the
  * caller is responsible for taking RCU.
+ * @ref: percpu_ref to try-get
  *
  * This function is safe to call as long as @ref is between init and exit.
  */

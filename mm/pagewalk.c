@@ -816,10 +816,10 @@ int walk_page_mapping(struct address_space *mapping, pgoff_t first_index,
 		return -EINVAL;
 
 	lockdep_assert_held(&mapping->i_mmap_rwsem);
-	vma_interval_tree_foreach(vma, &mapping->i_mmap, first_index,
+	mapping_rmap_tree_foreach(vma, mapping, first_index,
 				  first_index + nr - 1) {
 		/* Clip to the vma */
-		vba = vma->vm_pgoff;
+		vba = vma_start_pgoff(vma);
 		vea = vba + vma_pages(vma);
 		cba = first_index;
 		cba = max(cba, vba);

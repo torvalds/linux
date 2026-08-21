@@ -17,14 +17,8 @@
 	     iter != NULL;				\
 	     iter = mem_cgroup_iter(root, iter, NULL))
 
-#define for_each_mem_cgroup(iter)			\
-	for (iter = mem_cgroup_iter(NULL, NULL, NULL);	\
-	     iter != NULL;				\
-	     iter = mem_cgroup_iter(NULL, iter, NULL))
-
 void drain_all_stock(struct mem_cgroup *root_memcg);
 
-unsigned long memcg_events(struct mem_cgroup *memcg, int event);
 int memory_stat_show(struct seq_file *m, void *v);
 
 struct mem_cgroup *mem_cgroup_private_id_get_online(struct mem_cgroup *memcg,

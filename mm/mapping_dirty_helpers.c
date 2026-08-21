@@ -95,7 +95,7 @@ static int clean_record_pte(pte_t *pte, unsigned long addr,
 
 	if (pte_dirty(ptent)) {
 		pgoff_t pgoff = ((addr - walk->vma->vm_start) >> PAGE_SHIFT) +
-			walk->vma->vm_pgoff - cwalk->bitmap_pgoff;
+			vma_start_pgoff(walk->vma) - cwalk->bitmap_pgoff;
 		pte_t old_pte = ptep_modify_prot_start(walk->vma, addr, pte);
 
 		ptent = pte_mkclean(old_pte);

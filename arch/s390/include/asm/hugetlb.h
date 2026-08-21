@@ -77,20 +77,20 @@ static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
 	__set_huge_pte_at(mm, addr, ptep, pte_wrprotect(pte));
 }
 
-#define __HAVE_ARCH_HUGE_PTE_MKUFFD_WP
-static inline pte_t huge_pte_mkuffd_wp(pte_t pte)
+#define __HAVE_ARCH_HUGE_PTE_MKUFFD
+static inline pte_t huge_pte_mkuffd(pte_t pte)
 {
 	return pte;
 }
 
-#define __HAVE_ARCH_HUGE_PTE_CLEAR_UFFD_WP
-static inline pte_t huge_pte_clear_uffd_wp(pte_t pte)
+#define __HAVE_ARCH_HUGE_PTE_CLEAR_UFFD
+static inline pte_t huge_pte_clear_uffd(pte_t pte)
 {
 	return pte;
 }
 
-#define __HAVE_ARCH_HUGE_PTE_UFFD_WP
-static inline int huge_pte_uffd_wp(pte_t pte)
+#define __HAVE_ARCH_HUGE_PTE_UFFD
+static inline int huge_pte_uffd(pte_t pte)
 {
 	return 0;
 }
