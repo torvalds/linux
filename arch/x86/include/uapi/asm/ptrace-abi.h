@@ -2,6 +2,7 @@
 #ifndef _ASM_X86_PTRACE_ABI_H
 #define _ASM_X86_PTRACE_ABI_H
 
+#if defined(__ASSEMBLER__) || defined(__FRAME_OFFSETS)
 #ifdef __i386__
 
 #define EBX 0
@@ -25,7 +26,6 @@
 
 #else /* __i386__ */
 
-#if defined(__ASSEMBLER__) || defined(__FRAME_OFFSETS)
 /*
  * C ABI says these regs are callee-preserved. They aren't saved on kernel entry
  * unless syscall needs a complete, fully filled "struct pt_regs".
@@ -57,12 +57,12 @@
 #define EFLAGS 144
 #define RSP 152
 #define SS 160
-#endif /* __ASSEMBLER__ */
 
 /* top of stack page */
 #define FRAME_SIZE 168
 
 #endif /* !__i386__ */
+#endif /* defined(__ASSEMBLER__) || defined(__FRAME_OFFSETS) */
 
 /* Arbitrarily choose the same ptrace numbers as used by the Sparc code. */
 #define PTRACE_GETREGS            12
