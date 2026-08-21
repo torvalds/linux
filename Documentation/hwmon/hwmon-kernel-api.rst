@@ -42,6 +42,9 @@ register/unregister functions::
 
   char *devm_hwmon_sanitize_name(struct device *dev, const char *name);
 
+  int hwmon_notify_event(struct device *dev, enum hwmon_sensor_types type,
+			 u32 attr, int channel);
+
   void hwmon_lock(struct device *dev);
   void hwmon_unlock(struct device *dev);
 
@@ -89,6 +92,18 @@ for other functions such as interrupt handlers, attributes which are fully
 implemented in the driver, or debugfs functions, hwmon_lock() and hwmon_unlock()
 can be used to ensure that calls to those functions are serialized. Those
 functions also support guard() and scoped_guard() variants.
+
+Drivers can call hwmon_notify_event() to notify userspace and the thermal
+subsystem when a hardware monitoring event (such as an alarm or a fault
+condition) occurs or clears. The parameters are the hwmon device, the sensor
+type, the attribute identifier associated with the event (such as
+hwmon_temp_max_alarm or hwmon_fan_fault), and the sensor channel number.
+hwmon_notify_event() generates a sysfs event (calling sysfs_notify()) and a
+udev event with the attribute name passed in the NAME environment property
+(e.g., "NAME=temp1_max_alarm"). If the event is for a temperature sensor and
+the sensor is attached to a thermal zone, it also notifies the thermal
+subsystem to update the thermal zone. hwmon_notify_event() returns 0 on
+success or a negative error code on failure.
 
 Using devm_hwmon_device_register_with_info()
 --------------------------------------------
