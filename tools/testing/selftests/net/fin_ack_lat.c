@@ -103,7 +103,8 @@ static void server(int sock, struct sockaddr_in address)
 
 static void sig_handler(int signum)
 {
-	kill(SIGTERM, child_pid);
+	if (child_pid > 0)
+		kill(child_pid, SIGTERM);
 	exit(0);
 }
 
