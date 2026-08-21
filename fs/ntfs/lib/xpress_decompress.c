@@ -15,6 +15,7 @@
 
 #include "decompress_common.h"
 #include "lib.h"
+#include "../ntfs_codec.h"
 
 #define XPRESS_NUM_CHARS	256
 #define XPRESS_NUM_SYMBOLS	512
@@ -118,3 +119,36 @@ void xpress_free_decompressor(struct xpress_decompressor *d)
 {
 	kfree(d);
 }
+
+static size_t xpress_scratch_size(u32 chunk_size)
+{
+	return sizeof(struct xpress_decompressor);
+}
+
+static int xpress_decompress_chunk(void *scratch, const void *src,
+				   size_t src_len, void *dst, size_t dst_len,
+				   u32 chunk_size)
+{
+	return xpress_decompress(scratch, src, src_len, dst, dst_len);
+}
+
+const struct ntfs_codec_ops ntfs_xpress4k_codec_ops = {
+	.id = NTFS_CODEC_XPRESS4K,
+	.name = "xpress4k",
+	.scratch_size = xpress_scratch_size,
+	.decompress_chunk = xpress_decompress_chunk,
+};
+
+const struct ntfs_codec_ops ntfs_xpress8k_codec_ops = {
+	.id = NTFS_CODEC_XPRESS8K,
+	.name = "xpress8k",
+	.scratch_size = xpress_scratch_size,
+	.decompress_chunk = xpress_decompress_chunk,
+};
+
+const struct ntfs_codec_ops ntfs_xpress16k_codec_ops = {
+	.id = NTFS_CODEC_XPRESS16K,
+	.name = "xpress16k",
+	.scratch_size = xpress_scratch_size,
+	.decompress_chunk = xpress_decompress_chunk,
+};
