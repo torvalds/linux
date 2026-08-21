@@ -1024,9 +1024,6 @@ static int ssi_port_irq(struct hsi_port *port, struct platform_device *pd)
 	omap_port->irq = err;
 	err = devm_request_threaded_irq(&port->device, omap_port->irq, NULL,
 				ssi_pio_thread, IRQF_ONESHOT, "SSI PORT", port);
-	if (err < 0)
-		dev_err(&port->device, "Request IRQ %d failed (%d)\n",
-							omap_port->irq, err);
 	return err;
 }
 
@@ -1048,9 +1045,6 @@ static int ssi_wake_irq(struct hsi_port *port, struct platform_device *pd)
 		ssi_wake_thread,
 		IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 		"SSI cawake", port);
-	if (err < 0)
-		dev_err(&port->device, "Request Wake in IRQ %d failed %d\n",
-						cawake_irq, err);
 	err = enable_irq_wake(cawake_irq);
 	if (err < 0)
 		dev_err(&port->device, "Enable wake on the wakeline in irq %d failed %d\n",
