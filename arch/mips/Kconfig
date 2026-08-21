@@ -395,7 +395,6 @@ config MACH_DECSTATION
 config ECONET
 	bool "EcoNet MIPS family"
 	select BOOT_RAW
-	select CPU_BIG_ENDIAN
 	select DEBUG_ZBOOT if DEBUG_KERNEL
 	select EARLY_PRINTK_8250
 	select ECONET_EN751221_TIMER

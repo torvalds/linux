@@ -301,12 +301,6 @@ void __init tx4938_sio_init(unsigned int sclk, unsigned int cts_mask)
 	}
 }
 
-void __init tx4938_spi_init(int busid)
-{
-	txx9_spi_init(busid, TX4938_SPI_REG & 0xfffffffffULL,
-		      TXX9_IRQ_BASE + TX4938_IR_SPI);
-}
-
 void __init tx4938_ethaddr_init(unsigned char *addr0, unsigned char *addr1)
 {
 	u64 pcfg = __raw_readq(&tx4938_ccfgptr->pcfg);
