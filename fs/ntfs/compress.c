@@ -21,6 +21,7 @@
 #include <linux/slab.h>
 
 #include "attrib.h"
+#include "ntfs_codec.h"
 #include "inode.h"
 #include "debug.h"
 #include "ntfs.h"
@@ -774,7 +775,7 @@ lock_retry_remap:
 		unsigned int prev_cur_page = cur_page;
 
 		ntfs_debug("Found compressed compression block.");
-		err = ntfs_decompress(pages, completed_pages, &cur_page,
+		err = ntfs_lznt1_codec_ops.decompress_pages(pages, completed_pages, &cur_page,
 				&cur_ofs, cb_max_page, cb_max_ofs, xpage,
 				&xpage_done, cb_pos, cb_size - (cb_pos - cb),
 				i_size, initialized_size);
@@ -1351,7 +1352,7 @@ static int ntfs_write_cb(struct ntfs_inode *ni, loff_t pos, struct page **pages,
 		pbuf = &outbuf[compsz];
 		addr = kmap_local_page(pages[page_idx]);
 		input = addr + offset_in_page(input_offset);
-		sz = ntfs_compress_block(ctx, input, bsz, pbuf);
+		sz = ntfs_lznt1_codec_ops.compress_subblock(ctx, input, bsz, pbuf);
 		kunmap_local(addr);
 		if (sz < 0) {
 			err = sz;
@@ -1609,3 +1610,10 @@ out:
 
 	return written;
 }
+
+const struct ntfs_codec_ops ntfs_lznt1_codec_ops = {
+	.id = NTFS_CODEC_LZNT1,
+	.name = "lznt1",
+	.decompress_pages = ntfs_decompress,
+	.compress_subblock = ntfs_compress_block,
+};

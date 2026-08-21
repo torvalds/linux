@@ -43,4 +43,6 @@ struct ntfs_codec_ops {
 				 const char *inbuf, int bufsize, char *outbuf);
 };
 
+extern const struct ntfs_codec_ops ntfs_lznt1_codec_ops;
+
 #endif /* _NTFS_CODEC_H */
