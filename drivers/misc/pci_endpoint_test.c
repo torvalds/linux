@@ -1071,6 +1071,7 @@ static int pci_endpoint_test_doorbell(struct pci_endpoint_test *test)
 	struct pci_dev *pdev = test->pdev;
 	struct device *dev = &pdev->dev;
 	int irq_type = test->irq_type;
+	int ret = 0;
 	enum pci_barno bar;
 	u32 data, status;
 	u32 addr;
@@ -1093,7 +1094,7 @@ static int pci_endpoint_test_doorbell(struct pci_endpoint_test *test)
 	left = wait_for_completion_timeout(&test->irq_raised, msecs_to_jiffies(1000));
 
 	status = pci_endpoint_test_readl(test, PCI_ENDPOINT_TEST_STATUS);
-	if (!left || (status & STATUS_DOORBELL_ENABLE_FAIL)) {
+	if (!left || !(status & STATUS_DOORBELL_ENABLE_SUCCESS)) {
 		dev_err(dev, "Failed to enable doorbell\n");
 		return -EINVAL;
 	}
@@ -1119,8 +1120,11 @@ static int pci_endpoint_test_doorbell(struct pci_endpoint_test *test)
 
 	status = pci_endpoint_test_readl(test, PCI_ENDPOINT_TEST_STATUS);
 
-	if (!left || !(status & STATUS_DOORBELL_SUCCESS))
+	if (!left || !(status & STATUS_DOORBELL_SUCCESS)) {
 		dev_err(dev, "Failed to trigger doorbell in endpoint\n");
+		/* Store error code, but continue to disable doorbell. */
+		ret = -EINVAL;
+	}
 
 	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_COMMAND,
 				 COMMAND_DISABLE_DOORBELL);
@@ -1129,15 +1133,12 @@ static int pci_endpoint_test_doorbell(struct pci_endpoint_test *test)
 
 	status |= pci_endpoint_test_readl(test, PCI_ENDPOINT_TEST_STATUS);
 
-	if (status & STATUS_DOORBELL_DISABLE_FAIL) {
+	if (!(status & STATUS_DOORBELL_DISABLE_SUCCESS)) {
 		dev_err(dev, "Failed to disable doorbell\n");
 		return -EINVAL;
 	}
 
-	if (!(status & STATUS_DOORBELL_SUCCESS))
-		return -EINVAL;
-
-	return 0;
+	return ret;
 }
 
 static long pci_endpoint_test_ioctl(struct file *file, unsigned int cmd,
