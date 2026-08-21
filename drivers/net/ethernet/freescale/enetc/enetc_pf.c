@@ -556,8 +556,7 @@ static void enetc_pl_mac_link_up(struct phylink_config *config,
 	struct enetc_hw *hw = &pf->si->hw;
 	struct enetc_si *si = pf->si;
 	struct enetc_ndev_priv *priv;
-	u32 rbmr, cmd_cfg;
-	int idx;
+	u32 cmd_cfg;
 
 	priv = netdev_priv(pf->si->ndev);
 
@@ -569,16 +568,7 @@ static void enetc_pl_mac_link_up(struct phylink_config *config,
 		enetc_force_rgmii_mac(si, speed, duplex);
 
 	/* Flow control */
-	for (idx = 0; idx < priv->num_rx_rings; idx++) {
-		rbmr = enetc_rxbdr_rd(hw, idx, ENETC_RBMR);
-
-		if (tx_pause)
-			rbmr |= ENETC_RBMR_CM;
-		else
-			rbmr &= ~ENETC_RBMR_CM;
-
-		enetc_rxbdr_wr(hw, idx, ENETC_RBMR, rbmr);
-	}
+	enetc_set_congestion_mode(priv, tx_pause);
 
 	if (tx_pause) {
 		/* When the port first enters congestion, send a PAUSE request
