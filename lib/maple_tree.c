@@ -5658,9 +5658,10 @@ EXPORT_SYMBOL_GPL(mas_find_range_rev);
  * Searches for @mas->index, sets @mas->index and @mas->last to the range and
  * erases that range.
  *
- * Note that erase requires allocations and will use GFP_KERNEL to do so if
- * necessary.  If the allocation fails, the internal lock will be dropped to
- * retry.
+ * Note that erase requires allocations and will use GFP_KERNEL | __GFP_NOFAIL
+ * to do so if necessary.  If the allocation fails, the internal lock will be
+ * dropped to retry.  An externally locked tree must be protected by a lock that
+ * allows blocking for this API.
  *
  * Return: the entry that was erased or %NULL, @mas->index and @mas->last are updated.
  */
@@ -5672,8 +5673,8 @@ void *mas_erase(struct ma_state *mas)
 
 	/*
 	 * In low memory situations, the allocation is retried with the gfp flag
-	 * GFP_KERNEL.  The internal spinlock is dropped in mas_nomem(), however
-	 * the external lock is not dropped.
+	 * GFP_KERNEL | __GFP_NOFAIL.  The internal spinlock is dropped in
+	 * mas_nomem_nofail(), however the external lock is not dropped.
 	 */
 	if (mt_external_lock(mas->tree))
 		might_alloc(GFP_KERNEL);
@@ -5689,16 +5690,8 @@ write_retry:
 	/* Must reset to ensure spanning writes of last slot are detected */
 	mas_reset(mas);
 	mas_wr_preallocate(&wr_mas, NULL);
-	if (mas_nomem(mas, GFP_KERNEL)) {
-		/* in case the range of entry changed when unlocked */
-		mas->index = mas->last = index;
+	if (mas_nomem_nofail(mas, index, index))
 		goto write_retry;
-	}
-
-	if (mas_is_err(mas)) {
-		entry = NULL;
-		goto out;
-	}
 
 	mas_wr_store_entry(&wr_mas);
 out:
@@ -5721,6 +5714,10 @@ bool mas_nomem(struct ma_state *mas, gfp_t gfp)
 	if (likely(mas->node != MA_ERROR(-ENOMEM)))
 		return false;
 
+	/* Allocations can fail, don't do this. */
+	WARN_ON_ONCE(!gfpflags_allow_blocking(gfp) &&
+		     mt_external_lock(mas->tree));
+
 	if (gfpflags_allow_blocking(gfp) && !mt_external_lock(mas->tree)) {
 		mtree_unlock(mas->tree);
 		mas_alloc_nodes(mas, gfp);
@@ -5731,12 +5728,47 @@ bool mas_nomem(struct ma_state *mas, gfp_t gfp)
 
 	/*
 	 * Return false on zero forward progress.  Partial allocations are kept
-	 * so the retry path will attempt to get the rest.
+	 * so the retry path will attempt to get the rest.  The failure should
+	 * not happen as we try our best to reclaim.  The user would need an
+	 * external lock with a non-blocking gfp in a low memory situation.
 	 */
 	if (!mas->sheaf && !mas->alloc)
 		return false;
 
 	mas_reset(mas);
+	return true;
+}
+
+/**
+ * mas_nomem_nofail() - Retry allocations with __GFP_NOFAIL, if the maple state
+ * has stored the -ENOMEM error.
+ * @mas: The maple state
+ * @index: The start of the range for the @mas reset
+ * @last: The end of the range for the @mas reset
+ *
+ * Return: false if @mas isn't in an -ENOMEM state.  True if the allocation
+ * happens, the state is reset.  The internal lock will be dropped and external
+ * locks must allow blocking.
+ */
+bool mas_nomem_nofail(struct ma_state *mas, unsigned long index,
+		unsigned long last)
+	__must_hold(mas->tree->ma_lock)
+{
+	gfp_t gfp;
+
+	if (likely(mas->node != MA_ERROR(-ENOMEM)))
+		return false;
+
+	gfp = GFP_KERNEL | __GFP_NOFAIL;
+	if (!mt_external_lock(mas->tree)) {
+		mtree_unlock(mas->tree);
+		mas_alloc_nodes(mas, gfp);
+		mtree_lock(mas->tree);
+	} else {
+		mas_alloc_nodes(mas, gfp);
+	}
+
+	mas_set_range(mas, index, last);
 	return true;
 }
 
@@ -6026,9 +6058,9 @@ EXPORT_SYMBOL(mtree_alloc_rrange);
  * Erasing is the same as a walk to an entry then a store of a NULL to that
  * ENTIRE range.  In fact, it is implemented as such using the advanced API.
  *
- * Note that erase requires allocations and will use GFP_KERNEL to do so if
- * necessary.  If the allocation fails, the internal lock will be dropped to
- * retry.
+ * Note that erase requires allocations and will use GFP_KERNEL | __GFP_NOFAIL
+ * to do so if necessary.  If the allocation fails, the internal lock will be
+ * dropped to retry.
  *
  * Return: The entry stored at the @index or %NULL
  */
