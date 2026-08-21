@@ -17,12 +17,16 @@ description: |
 
 properties:
   compatible:
-    enum:
-      - qcom,pm8916-pon
-      - qcom,pm8941-pon
-      - qcom,pms405-pon
-      - qcom,pm8998-pon
-      - qcom,pmk8350-pon
+    oneOf:
+      - enum:
+          - qcom,pm8916-pon
+          - qcom,pm8941-pon
+          - qcom,pms405-pon
+          - qcom,pm8998-pon
+          - qcom,pmk8350-pon
+      - items:
+          - const: qcom,pmm8654au-pon
+          - const: qcom,pmk8350-pon
 
   reg:
     description: |
@@ -79,6 +83,10 @@ allOf:
         reg-names:
           items:
             - const: pon
+      patternProperties:
+        # Negative look-ahead to disallow unsupported modes. The '$' has to be
+        # part of lookahead group to work, instead of trailing outside of ().
+        "^mode-(?!(bootloader$|recovery$))": false
     else:
       patternProperties:
         "^mode-.*$": false

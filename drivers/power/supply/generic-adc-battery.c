@@ -246,7 +246,7 @@ static int gab_probe(struct platform_device *pdev)
 				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 				"battery charged", adc_bat);
 		if (ret < 0)
-			return dev_err_probe(&pdev->dev, ret, "Failed to register irq\n");
+			return ret;
 	}
 
 	platform_set_drvdata(pdev, adc_bat);

@@ -922,8 +922,7 @@ static int smb_init_irq(struct smb_chip *chip, int *irq, const char *name,
 	rc = devm_request_threaded_irq(chip->dev, irqnum, NULL, handler,
 				       IRQF_ONESHOT, name, chip);
 	if (rc < 0)
-		return dev_err_probe(chip->dev, rc, "Couldn't request irq %s\n",
-				     name);
+		return rc;
 
 	if (irq)
 		*irq = irqnum;

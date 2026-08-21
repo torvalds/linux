@@ -630,10 +630,8 @@ static int mp2629_charger_probe(struct platform_device *pdev)
 	ret = devm_request_threaded_irq(dev, irq, NULL,	mp2629_irq_handler,
 					IRQF_ONESHOT | IRQF_TRIGGER_RISING,
 					"mp2629-charger", charger);
-	if (ret) {
-		dev_err(dev, "failed to request gpio IRQ\n");
+	if (ret)
 		return ret;
-	}
 
 	regmap_update_bits(charger->regmap, MP2629_REG_INTERRUPT,
 				GENMASK(6, 5), BIT(6) | BIT(5));

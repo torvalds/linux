@@ -1030,11 +1030,8 @@ static int axp20x_usb_power_probe(struct platform_device *pdev)
 		ret = devm_request_any_context_irq(&pdev->dev, power->irqs[i],
 						   axp20x_usb_power_irq, 0,
 						   DRVNAME, power);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "Error requesting %s IRQ: %d\n",
-				axp_data->irq_names[i], ret);
+		if (ret < 0)
 			return ret;
-		}
 	}
 
 	if (axp20x_usb_vbus_needs_polling(power))

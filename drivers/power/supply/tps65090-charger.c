@@ -302,12 +302,8 @@ static int tps65090_charger_probe(struct platform_device *pdev)
 	if (irq != -ENXIO) {
 		ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 			tps65090_charger_isr, IRQF_ONESHOT, "tps65090-charger", cdata);
-		if (ret) {
-			dev_err(cdata->dev,
-				"Unable to register irq %d err %d\n", irq,
-				ret);
+		if (ret)
 			return ret;
-		}
 	} else {
 		cdata->poll_task = kthread_run(tps65090_charger_poll_task,
 					      cdata, "ktps65090charger");

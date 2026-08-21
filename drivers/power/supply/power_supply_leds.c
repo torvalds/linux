@@ -17,8 +17,6 @@
 
 #include "power_supply.h"
 
-/* Battery specific LEDs triggers. */
-
 struct power_supply_led_trigger {
 	struct led_trigger trig;
 	struct power_supply *psy;
@@ -89,7 +87,7 @@ static void power_supply_unregister_led_trigger(struct led_trigger *trig)
 	kfree(psy_trig);
 }
 
-static void power_supply_update_bat_leds(struct power_supply *psy)
+static void power_supply_update_status_leds(struct power_supply *psy)
 {
 	union power_supply_propval status;
 	unsigned int intensity_green[3] = { 0, 255, 0 };
@@ -102,7 +100,7 @@ static void power_supply_update_bat_leds(struct power_supply *psy)
 
 	switch (status.intval) {
 	case POWER_SUPPLY_STATUS_FULL:
-		led_trigger_event(psy->trig, LED_FULL);
+		led_trigger_event(psy->charging_or_full_trig, LED_FULL);
 		led_trigger_event(psy->charging_trig, LED_OFF);
 		led_trigger_event(psy->full_trig, LED_FULL);
 		/* Going from blink to LED on requires a LED_OFF event to stop blink */
@@ -114,7 +112,7 @@ static void power_supply_update_bat_leds(struct power_supply *psy)
 				     LED_FULL);
 		break;
 	case POWER_SUPPLY_STATUS_CHARGING:
-		led_trigger_event(psy->trig, LED_FULL);
+		led_trigger_event(psy->charging_or_full_trig, LED_FULL);
 		led_trigger_event(psy->charging_trig, LED_FULL);
 		led_trigger_event(psy->full_trig, LED_OFF);
 		led_trigger_blink(psy->charging_blink_full_solid_trig, 0, 0);
@@ -124,7 +122,7 @@ static void power_supply_update_bat_leds(struct power_supply *psy)
 				     LED_FULL);
 		break;
 	default:
-		led_trigger_event(psy->trig, LED_OFF);
+		led_trigger_event(psy->charging_or_full_trig, LED_OFF);
 		led_trigger_event(psy->charging_trig, LED_OFF);
 		led_trigger_event(psy->full_trig, LED_OFF);
 		led_trigger_event(psy->charging_blink_full_solid_trig,
@@ -135,21 +133,15 @@ static void power_supply_update_bat_leds(struct power_supply *psy)
 	}
 }
 
-static void power_supply_remove_bat_triggers(struct power_supply *psy)
-{
-	power_supply_unregister_led_trigger(psy->trig);
-	power_supply_unregister_led_trigger(psy->charging_trig);
-	power_supply_unregister_led_trigger(psy->full_trig);
-	power_supply_unregister_led_trigger(psy->charging_blink_full_solid_trig);
-	power_supply_unregister_led_trigger(psy->charging_orange_full_green_trig);
-}
-
-static int power_supply_create_bat_triggers(struct power_supply *psy)
+static int power_supply_create_status_triggers(struct power_supply *psy)
 {
 	int err = 0;
 
+	if (!power_supply_has_property(psy, POWER_SUPPLY_PROP_STATUS))
+		return 0;
+
 	power_supply_register_led_trigger(psy, "%s-charging-or-full",
-					  &psy->trig, &err);
+					  &psy->charging_or_full_trig, &err);
 	power_supply_register_led_trigger(psy, "%s-charging",
 					  &psy->charging_trig, &err);
 	power_supply_register_led_trigger(psy, "%s-full",
@@ -158,15 +150,11 @@ static int power_supply_create_bat_triggers(struct power_supply *psy)
 					  &psy->charging_blink_full_solid_trig, &err);
 	power_supply_register_led_trigger(psy, "%s-charging-orange-full-green",
 					  &psy->charging_orange_full_green_trig, &err);
-	if (err)
-		power_supply_remove_bat_triggers(psy);
 
 	return err;
 }
 
-/* Generated power specific LEDs triggers. */
-
-static void power_supply_update_gen_leds(struct power_supply *psy)
+static void power_supply_update_online_leds(struct power_supply *psy)
 {
 	union power_supply_propval online;
 
@@ -175,43 +163,53 @@ static void power_supply_update_gen_leds(struct power_supply *psy)
 
 	dev_dbg(&psy->dev, "%s %d\n", __func__, online.intval);
 
-	if (online.intval)
-		led_trigger_event(psy->trig, LED_FULL);
-	else
-		led_trigger_event(psy->trig, LED_OFF);
+	led_trigger_event(psy->online_trig, online.intval ? LED_FULL : LED_OFF);
 }
 
-static int power_supply_create_gen_triggers(struct power_supply *psy)
+static int power_supply_create_online_trigger(struct power_supply *psy)
 {
-	return power_supply_register_led_trigger(psy, "%s-online", &psy->trig, NULL);
-}
+	int err = 0;
 
-static void power_supply_remove_gen_triggers(struct power_supply *psy)
-{
-	power_supply_unregister_led_trigger(psy->trig);
-}
+	if (!power_supply_has_property(psy, POWER_SUPPLY_PROP_ONLINE))
+		return 0;
 
-/* Choice what triggers to create&update. */
+	power_supply_register_led_trigger(psy, "%s-online", &psy->online_trig,
+					  &err);
+
+	return err;
+}
 
 void power_supply_update_leds(struct power_supply *psy)
 {
-	if (psy->desc->type == POWER_SUPPLY_TYPE_BATTERY)
-		power_supply_update_bat_leds(psy);
-	else
-		power_supply_update_gen_leds(psy);
+	power_supply_update_online_leds(psy);
+	power_supply_update_status_leds(psy);
 }
 
 int power_supply_create_triggers(struct power_supply *psy)
 {
-	if (psy->desc->type == POWER_SUPPLY_TYPE_BATTERY)
-		return power_supply_create_bat_triggers(psy);
-	return power_supply_create_gen_triggers(psy);
+	int err;
+
+	err = power_supply_create_online_trigger(psy);
+	if (err)
+		goto err_remove;
+
+	err = power_supply_create_status_triggers(psy);
+	if (err)
+		goto err_remove;
+
+	return 0;
+
+err_remove:
+	power_supply_remove_triggers(psy);
+	return err;
 }
 
 void power_supply_remove_triggers(struct power_supply *psy)
 {
-	if (psy->desc->type == POWER_SUPPLY_TYPE_BATTERY)
-		power_supply_remove_bat_triggers(psy);
-	else
-		power_supply_remove_gen_triggers(psy);
+	power_supply_unregister_led_trigger(psy->online_trig);
+	power_supply_unregister_led_trigger(psy->charging_or_full_trig);
+	power_supply_unregister_led_trigger(psy->charging_trig);
+	power_supply_unregister_led_trigger(psy->full_trig);
+	power_supply_unregister_led_trigger(psy->charging_blink_full_solid_trig);
+	power_supply_unregister_led_trigger(psy->charging_orange_full_green_trig);
 }

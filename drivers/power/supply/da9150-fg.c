@@ -524,10 +524,8 @@ static int da9150_fg_probe(struct platform_device *pdev)
 
 	ret = devm_request_threaded_irq(dev, irq, NULL, da9150_fg_irq,
 					IRQF_ONESHOT, "FG", fg);
-	if (ret) {
-		dev_err(dev, "Failed to request IRQ %d: %d\n", irq, ret);
+	if (ret)
 		return ret;
-	}
 
 	return 0;
 }

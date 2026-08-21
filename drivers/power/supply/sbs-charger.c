@@ -217,7 +217,7 @@ static int sbs_probe(struct i2c_client *client)
 					IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 					dev_name(&client->dev), chip);
 		if (ret)
-			return dev_err_probe(&client->dev, ret, "Failed to request irq\n");
+			return ret;
 	} else {
 		ret = devm_delayed_work_autocancel(&client->dev, &chip->work,
 						   sbs_delayed_work);

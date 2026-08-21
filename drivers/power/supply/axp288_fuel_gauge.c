@@ -791,7 +791,7 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 						fuel_gauge_thread_handler,
 						IRQF_ONESHOT, DEV_NAME, info);
 		if (ret)
-			return dev_err_probe(dev, ret, "requesting IRQ %d\n", info->irq[i]);
+			return ret;
 	}
 
 	return 0;
