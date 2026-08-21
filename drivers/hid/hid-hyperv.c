@@ -687,7 +687,7 @@ static void mousevsc_device_info_valid_descriptor(struct kunit *test)
 
 	info->hid_descriptor.bLength = sizeof(struct hid_descriptor);
 	info->hid_descriptor.rpt_desc.wDescriptorLength = cpu_to_le16(4);
-	report = ((u8 *)&info->hid_descriptor) + info->hid_descriptor.bLength;
+	report = (u8 *)(info + 1);
 	memset(report, 0x42, 4);
 
 	mousevsc_on_receive_device_info(input_dev, info, sizeof(*info) + 4);
@@ -713,7 +713,7 @@ static void mousevsc_device_info_report_desc_oob(struct kunit *test)
 
 	info->hid_descriptor.bLength = sizeof(struct hid_descriptor);
 	info->hid_descriptor.rpt_desc.wDescriptorLength = cpu_to_le16(64);
-	report = ((u8 *)&info->hid_descriptor) + info->hid_descriptor.bLength;
+	report = (u8 *)(info + 1);
 	memset(report, 0x42, 8);
 
 	mousevsc_on_receive_device_info(input_dev, info, sizeof(*info) + 8);
