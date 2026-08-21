@@ -451,11 +451,6 @@ static const struct option longopts[] = {
 		.has_arg = required_argument,
 	},
 	{
-		.name = "batch",
-		.val = 'b',
-		.has_arg = required_argument,
-	},
-	{
 	}
 };
 

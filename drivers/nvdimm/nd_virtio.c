@@ -9,26 +9,130 @@
 #include "virtio_pmem.h"
 #include "nd.h"
 
+struct virtio_pmem_flush_work {
+	struct work_struct work;
+	struct nd_region *nd_region;
+	struct bio *bio;
+};
+
+static void virtio_pmem_req_release(struct kref *kref)
+{
+	struct virtio_pmem_request *req;
+
+	req = container_of(kref, struct virtio_pmem_request, kref);
+	kfree(req);
+}
+
+static void virtio_pmem_signal_done(struct virtio_pmem_request *req)
+{
+	/* Pairs with smp_load_acquire() in virtio_pmem_req_done(). */
+	smp_store_release(&req->done, true);
+	wake_up(&req->host_acked);
+}
+
+static bool virtio_pmem_req_done(struct virtio_pmem_request *req)
+{
+	/* Pairs with smp_store_release() in virtio_pmem_signal_done(). */
+	return smp_load_acquire(&req->done);
+}
+
+static void virtio_pmem_complete_err(struct virtio_pmem_request *req)
+{
+	req->resp.ret = cpu_to_le32(1);
+	virtio_pmem_signal_done(req);
+}
+
+static void virtio_pmem_wake_one_waiter(struct virtio_pmem *vpmem)
+{
+	struct virtio_pmem_request *req_buf;
+
+	if (list_empty(&vpmem->req_list))
+		return;
+
+	req_buf = list_first_entry(&vpmem->req_list,
+				   struct virtio_pmem_request, list);
+	list_del_init(&req_buf->list);
+	WRITE_ONCE(req_buf->wq_buf_avail, true);
+	wake_up(&req_buf->wq_buf);
+}
+
+static void virtio_pmem_wake_all_waiters(struct virtio_pmem *vpmem)
+{
+	struct virtio_pmem_request *req, *tmp;
+
+	list_for_each_entry_safe(req, tmp, &vpmem->req_list, list) {
+		list_del_init(&req->list);
+		WRITE_ONCE(req->wq_buf_avail, true);
+		wake_up(&req->wq_buf);
+	}
+}
+
+static void virtio_pmem_clear_inflight(struct virtio_pmem *vpmem,
+				       struct virtio_pmem_request *req)
+{
+	if (vpmem->req_inflight == req)
+		vpmem->req_inflight = NULL;
+}
+
+static void virtio_pmem_wake_inflight(struct virtio_pmem *vpmem)
+{
+	struct virtio_pmem_request *req = vpmem->req_inflight;
+
+	if (req)
+		wake_up(&req->host_acked);
+}
+
+void virtio_pmem_mark_broken(struct virtio_pmem *vpmem)
+{
+	if (!READ_ONCE(vpmem->broken)) {
+		WRITE_ONCE(vpmem->broken, true);
+		dev_err_once(&vpmem->vdev->dev, "virtqueue is broken\n");
+	}
+
+	virtio_pmem_wake_inflight(vpmem);
+	virtio_pmem_wake_all_waiters(vpmem);
+}
+EXPORT_SYMBOL_GPL(virtio_pmem_mark_broken);
+
+void virtio_pmem_drain(struct virtio_pmem *vpmem)
+{
+	struct virtio_pmem_request *req;
+	unsigned int len;
+
+	if (!vpmem->req_vq)
+		return;
+
+	while ((req = virtqueue_get_buf(vpmem->req_vq, &len)) != NULL) {
+		virtio_pmem_clear_inflight(vpmem, req);
+		virtio_pmem_complete_err(req);
+		kref_put(&req->kref, virtio_pmem_req_release);
+	}
+
+	while ((req = virtqueue_detach_unused_buf(vpmem->req_vq)) != NULL) {
+		virtio_pmem_clear_inflight(vpmem, req);
+		virtio_pmem_complete_err(req);
+		kref_put(&req->kref, virtio_pmem_req_release);
+	}
+}
+EXPORT_SYMBOL_GPL(virtio_pmem_drain);
+
  /* The interrupt handler */
 void virtio_pmem_host_ack(struct virtqueue *vq)
 {
 	struct virtio_pmem *vpmem = vq->vdev->priv;
-	struct virtio_pmem_request *req_data, *req_buf;
+	struct virtio_pmem_request *req_data;
 	unsigned long flags;
 	unsigned int len;
 
 	spin_lock_irqsave(&vpmem->pmem_lock, flags);
 	while ((req_data = virtqueue_get_buf(vq, &len)) != NULL) {
-		req_data->done = true;
-		wake_up(&req_data->host_acked);
-
-		if (!list_empty(&vpmem->req_list)) {
-			req_buf = list_first_entry(&vpmem->req_list,
-					struct virtio_pmem_request, list);
-			req_buf->wq_buf_avail = true;
-			wake_up(&req_buf->wq_buf);
-			list_del(&req_buf->list);
-		}
+		virtio_pmem_clear_inflight(vpmem, req_data);
+		virtio_pmem_wake_one_waiter(vpmem);
+		if (READ_ONCE(vpmem->broken))
+			virtio_pmem_complete_err(req_data);
+		else
+			virtio_pmem_signal_done(req_data);
+		kref_put(&req_data->kref, virtio_pmem_req_release);
 	}
 	spin_unlock_irqrestore(&vpmem->pmem_lock, flags);
 }
@@ -55,11 +159,15 @@ static int virtio_pmem_flush(struct nd_region *nd_region)
 		return -EIO;
 	}
 
-	req_data = kmalloc_obj(*req_data);
+	if (READ_ONCE(vpmem->broken))
+		return -EIO;
+
+	req_data = kmalloc_obj(*req_data, GFP_NOIO);
 	if (!req_data)
 		return -ENOMEM;
 
-	req_data->done = false;
+	kref_init(&req_data->kref);
+	WRITE_ONCE(req_data->done, false);
 	init_waitqueue_head(&req_data->host_acked);
 	init_waitqueue_head(&req_data->wq_buf);
 	INIT_LIST_HEAD(&req_data->list);
@@ -70,67 +178,132 @@ static int virtio_pmem_flush(struct nd_region *nd_region)
 	sgs[1] = &ret;
 
 	spin_lock_irqsave(&vpmem->pmem_lock, flags);
-	 /*
-	  * If virtqueue_add_sgs returns -ENOSPC then req_vq virtual
-	  * queue does not have free descriptor. We add the request
-	  * to req_list and wait for host_ack to wake us up when free
-	  * slots are available.
-	  */
-	while ((err = virtqueue_add_sgs(vpmem->req_vq, sgs, 1, 1, req_data,
-					GFP_ATOMIC)) == -ENOSPC) {
+	/*
+	 * If virtqueue_add_sgs returns -ENOSPC then req_vq virtual
+	 * queue does not have free descriptor. We add the request
+	 * to req_list and wait for host_ack to wake us up when free
+	 * slots are available.
+	 */
+	for (;;) {
+		if (READ_ONCE(vpmem->broken)) {
+			err = -EIO;
+			break;
+		}
 
-		dev_info(&vdev->dev, "failed to send command to virtio pmem device, no free slots in the virtqueue\n");
-		req_data->wq_buf_avail = false;
+		err = virtqueue_add_sgs(vpmem->req_vq, sgs, 1, 1, req_data,
+					GFP_ATOMIC);
+		if (!err) {
+			/*
+			 * Take the virtqueue reference while @pmem_lock is
+			 * held so completion cannot run concurrently.
+			 */
+			kref_get(&req_data->kref);
+			vpmem->req_inflight = req_data;
+			break;
+		}
+
+		if (err != -ENOSPC)
+			break;
+
+		dev_info_ratelimited(&vdev->dev,
+				     "failed to send command to virtio pmem device, no free slots in the virtqueue\n");
+		WRITE_ONCE(req_data->wq_buf_avail, false);
 		list_add_tail(&req_data->list, &vpmem->req_list);
 		spin_unlock_irqrestore(&vpmem->pmem_lock, flags);
 
 		/* A host response results in "host_ack" getting called */
-		wait_event(req_data->wq_buf, req_data->wq_buf_avail);
+		wait_event(req_data->wq_buf,
+			   READ_ONCE(req_data->wq_buf_avail) ||
+			   READ_ONCE(vpmem->broken));
 		spin_lock_irqsave(&vpmem->pmem_lock, flags);
+
+		if (READ_ONCE(vpmem->broken))
+			break;
 	}
-	err1 = virtqueue_kick(vpmem->req_vq);
+
+	if (READ_ONCE(vpmem->broken))
+		err = -EIO;
+	if (err == -EIO || virtqueue_is_broken(vpmem->req_vq))
+		virtio_pmem_mark_broken(vpmem);
+
+	err1 = true;
+	if (!err && !READ_ONCE(vpmem->broken)) {
+		err1 = virtqueue_kick(vpmem->req_vq);
+		if (!err1)
+			virtio_pmem_mark_broken(vpmem);
+	}
 	spin_unlock_irqrestore(&vpmem->pmem_lock, flags);
 	/*
 	 * virtqueue_add_sgs failed with error different than -ENOSPC, we can't
 	 * do anything about that.
 	 */
-	if (err || !err1) {
+	if (READ_ONCE(vpmem->broken) || err || !err1) {
 		dev_info(&vdev->dev, "failed to send command to virtio pmem device\n");
 		err = -EIO;
 	} else {
 		/* A host response results in "host_ack" getting called */
-		wait_event(req_data->host_acked, req_data->done);
-		err = le32_to_cpu(req_data->resp.ret);
+		wait_event(req_data->host_acked,
+			   virtio_pmem_req_done(req_data) ||
+			   READ_ONCE(vpmem->broken));
+		if (virtio_pmem_req_done(req_data))
+			err = le32_to_cpu(req_data->resp.ret);
+		else
+			err = -EIO;
 	}
 
-	kfree(req_data);
+	kref_put(&req_data->kref, virtio_pmem_req_release);
 	return err;
 };
+
+static void virtio_pmem_flush_work(struct work_struct *work)
+{
+	struct virtio_pmem_flush_work *flush;
+	int err;
+
+	flush = container_of(work, struct virtio_pmem_flush_work, work);
+	err = virtio_pmem_flush(flush->nd_region);
+	if (err > 0)
+		err = -EIO;
+	if (err)
+		flush->bio->bi_status = errno_to_blk_status(err);
+	bio_endio(flush->bio);
+	kfree(flush);
+}
 
 /* The asynchronous flush callback function */
 int async_pmem_flush(struct nd_region *nd_region, struct bio *bio)
 {
-	/*
-	 * Create child bio for asynchronous flush and chain with
-	 * parent bio. Otherwise directly call nd_region flush.
-	 */
-	if (bio && bio->bi_iter.bi_sector != -1) {
-		struct bio *child = bio_alloc(bio->bi_bdev, 0,
-					      REQ_OP_WRITE | REQ_PREFLUSH,
-					      GFP_ATOMIC);
+	struct virtio_device *vdev = nd_region->provider_data;
+	struct virtio_pmem *vpmem = vdev->priv;
+	struct virtio_pmem_flush_work *flush;
+	unsigned long flags;
+	int err;
 
-		if (!child)
+	if (bio && bio->bi_iter.bi_sector != -1) {
+		flush = kmalloc_obj(*flush, GFP_NOIO);
+		if (!flush)
 			return -ENOMEM;
-		bio_clone_blkg_association(child, bio);
-		child->bi_iter.bi_sector = -1;
-		bio_chain(child, bio);
-		submit_bio(child);
-		return 0;
+
+		INIT_WORK(&flush->work, virtio_pmem_flush_work);
+		flush->nd_region = nd_region;
+		flush->bio = bio;
+
+		spin_lock_irqsave(&vpmem->pmem_lock, flags);
+		if (READ_ONCE(vpmem->broken)) {
+			spin_unlock_irqrestore(&vpmem->pmem_lock, flags);
+			kfree(flush);
+			return -EIO;
+		}
+		queue_work(vpmem->flush_wq, &flush->work);
+		spin_unlock_irqrestore(&vpmem->pmem_lock, flags);
+		return NVDIMM_FLUSH_ASYNC;
 	}
-	if (virtio_pmem_flush(nd_region))
+
+	err = virtio_pmem_flush(nd_region);
+	if (err > 0)
 		return -EIO;
 
-	return 0;
+	return err;
 };
 EXPORT_SYMBOL_GPL(async_pmem_flush);
 MODULE_DESCRIPTION("Virtio Persistent Memory Driver");

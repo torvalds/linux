@@ -17,7 +17,7 @@
  * @ops: the base dma_buf_ops. ops.attach MUST be virtio_dma_buf_attach.
  * @device_attach: [optional] callback invoked by virtio_dma_buf_attach during
  *		   all attach operations.
- * @get_uid: [required] callback to get the uuid of the exported object.
+ * @get_uuid: [required] callback to get the uuid of the exported object.
  */
 struct virtio_dma_buf_ops {
 	struct dma_buf_ops ops;

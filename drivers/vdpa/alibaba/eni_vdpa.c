@@ -545,6 +545,7 @@ static struct pci_device_id eni_pci_ids[] = {
 			 VIRTIO_ID_NET) },
 	{ 0 },
 };
+MODULE_DEVICE_TABLE(pci, eni_pci_ids);
 
 static struct pci_driver eni_vdpa_driver = {
 	.name		= "alibaba-eni-vdpa",

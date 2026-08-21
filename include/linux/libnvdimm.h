@@ -126,6 +126,15 @@ struct nd_mapping_desc {
 struct bio;
 struct resource;
 struct nd_region;
+
+/*
+ * Provider flush callback return values:
+ *   0: flush completed synchronously
+ *  <0: flush failed
+ *  >0: flush completion was queued and @bio will be completed later
+ */
+#define NVDIMM_FLUSH_ASYNC 1
+
 struct nd_region_desc {
 	struct resource *res;
 	struct nd_mapping_desc *mapping;
