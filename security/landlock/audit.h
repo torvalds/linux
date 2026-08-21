@@ -8,66 +8,33 @@
 #ifndef _SECURITY_LANDLOCK_AUDIT_H
 #define _SECURITY_LANDLOCK_AUDIT_H
 
-#include <linux/audit.h>
-#include <linux/lsm_audit.h>
+#include <linux/types.h>
 
 #include "access.h"
-#include "cred.h"
 
-enum landlock_request_type {
-	LANDLOCK_REQUEST_PTRACE = 1,
-	LANDLOCK_REQUEST_FS_CHANGE_TOPOLOGY,
-	LANDLOCK_REQUEST_FS_ACCESS,
-	LANDLOCK_REQUEST_NET_ACCESS,
-	LANDLOCK_REQUEST_SCOPE_ABSTRACT_UNIX_SOCKET,
-	LANDLOCK_REQUEST_SCOPE_SIGNAL,
-};
-
-/*
- * We should be careful to only use a variable of this type for
- * landlock_log_denial().  This way, the compiler can remove it entirely if
- * CONFIG_AUDIT is not set.
- */
-struct landlock_request {
-	/* Mandatory fields. */
-	enum landlock_request_type type;
-	struct common_audit_data audit;
-
-	/**
-	 * layer_plus_one: First layer level that denies the request + 1.  The
-	 * extra one is useful to detect uninitialized field.
-	 */
-	size_t layer_plus_one;
-
-	/* Required field for configurable access control. */
-	access_mask_t access;
-
-	/* Required fields for requests with layer masks. */
-	const struct layer_masks *layer_masks;
-
-	/* Required fields for requests with deny masks. */
-	const access_mask_t all_existing_optional_access;
-	deny_masks_t deny_masks;
-	optional_access_t quiet_optional_accesses;
-};
+struct landlock_hierarchy;
+struct landlock_request;
 
 #ifdef CONFIG_AUDIT
 
-void landlock_log_drop_domain(const struct landlock_hierarchy *const hierarchy);
+void landlock_audit_denial(const struct landlock_request *const request,
+			   struct landlock_hierarchy *const youngest_denied,
+			   const access_mask_t missing, const bool logged);
 
-void landlock_log_denial(const struct landlock_cred_security *const subject,
-			 const struct landlock_request *const request);
+void landlock_audit_free_domain(
+	const struct landlock_hierarchy *const hierarchy);
 
 #else /* CONFIG_AUDIT */
 
 static inline void
-landlock_log_drop_domain(const struct landlock_hierarchy *const hierarchy)
+landlock_audit_denial(const struct landlock_request *const request,
+		      struct landlock_hierarchy *const youngest_denied,
+		      const access_mask_t missing, const bool logged)
 {
 }
 
 static inline void
-landlock_log_denial(const struct landlock_cred_security *const subject,
-		    const struct landlock_request *const request)
+landlock_audit_free_domain(const struct landlock_hierarchy *const hierarchy)
 {
 }
 

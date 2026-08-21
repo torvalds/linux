@@ -62,32 +62,104 @@ static void *idle(void *data)
 	pthread_cleanup_pop(1);
 }
 
-TEST(multi_threaded_success)
+FIXTURE(multi_threaded)
+{
+	int ruleset_fd;
+};
+
+FIXTURE_VARIANT(multi_threaded)
+{
+	const __u32 restrict_flags;
+	/* Sets no_new_privs with prctl(2) before the enforcement. */
+	const bool prior_no_new_privs;
+	/* Enforces the maximum number of allowed layers beforehand. */
+	const bool max_layers;
+	const int expected_errno;
+	/* Expected no_new_privs state of all threads after the call. */
+	const bool expected_no_new_privs;
+};
+
+/* clang-format off */
+FIXTURE_VARIANT_ADD(multi_threaded, success) {
+	/* clang-format on */
+	.restrict_flags = LANDLOCK_RESTRICT_SELF_TSYNC,
+	.prior_no_new_privs = true,
+	.expected_no_new_privs = true,
+};
+
+/* clang-format off */
+FIXTURE_VARIANT_ADD(multi_threaded, no_new_privs) {
+	/* clang-format on */
+	.restrict_flags = LANDLOCK_RESTRICT_SELF_TSYNC |
+			  LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS,
+	.expected_no_new_privs = true,
+};
+
+/* clang-format off */
+FIXTURE_VARIANT_ADD(multi_threaded, no_new_privs_max_layers) {
+	/* clang-format on */
+	.restrict_flags = LANDLOCK_RESTRICT_SELF_TSYNC |
+			  LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS,
+	.max_layers = true,
+	.expected_errno = E2BIG,
+	.expected_no_new_privs = false,
+};
+
+FIXTURE_SETUP(multi_threaded)
+{
+	self->ruleset_fd = create_ruleset(_metadata);
+
+	if (variant->max_layers) {
+		/* Enforces the maximum number of allowed layers. */
+		for (int i = 0; i < LANDLOCK_MAX_NUM_LAYERS; i++)
+			ASSERT_EQ(0,
+				  landlock_restrict_self(self->ruleset_fd, 0));
+	}
+
+	disable_caps(_metadata);
+}
+
+FIXTURE_TEARDOWN(multi_threaded)
+{
+	EXPECT_EQ(0, close(self->ruleset_fd));
+}
+
+TEST_F(multi_threaded, restrict)
 {
 	pthread_t t1, t2;
 	bool no_new_privs1, no_new_privs2;
-	const int ruleset_fd = create_ruleset(_metadata);
-
-	disable_caps(_metadata);
 
 	ASSERT_EQ(0, pthread_create(&t1, NULL, idle, &no_new_privs1));
 	ASSERT_EQ(0, pthread_create(&t2, NULL, idle, &no_new_privs2));
 
-	ASSERT_EQ(0, prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0));
+	if (variant->prior_no_new_privs) {
+		ASSERT_EQ(0, prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0));
+	} else {
+		/* No prior prctl(2) PR_SET_NO_NEW_PRIVS call. */
+		ASSERT_EQ(0, prctl(PR_GET_NO_NEW_PRIVS, 0, 0, 0, 0));
+	}
 
-	EXPECT_EQ(0, landlock_restrict_self(ruleset_fd,
-					    LANDLOCK_RESTRICT_SELF_TSYNC));
+	if (variant->expected_errno) {
+		EXPECT_EQ(-1, landlock_restrict_self(self->ruleset_fd,
+						     variant->restrict_flags));
+		EXPECT_EQ(variant->expected_errno, errno);
+	} else {
+		EXPECT_EQ(0, landlock_restrict_self(self->ruleset_fd,
+						    variant->restrict_flags));
+	}
+
+	/* Checks the no_new_privs state of the calling thread. */
+	EXPECT_EQ(variant->expected_no_new_privs,
+		  prctl(PR_GET_NO_NEW_PRIVS, 0, 0, 0, 0));
 
 	ASSERT_EQ(0, pthread_cancel(t1));
 	ASSERT_EQ(0, pthread_cancel(t2));
 	ASSERT_EQ(0, pthread_join(t1, NULL));
 	ASSERT_EQ(0, pthread_join(t2, NULL));
 
-	/* The no_new_privs flag was implicitly enabled on all threads. */
-	EXPECT_TRUE(no_new_privs1);
-	EXPECT_TRUE(no_new_privs2);
-
-	EXPECT_EQ(0, close(ruleset_fd));
+	/* Checks the no_new_privs state of the sibling threads. */
+	EXPECT_EQ(variant->expected_no_new_privs, no_new_privs1);
+	EXPECT_EQ(variant->expected_no_new_privs, no_new_privs2);
 }
 
 TEST(multi_threaded_success_despite_diverging_domains)

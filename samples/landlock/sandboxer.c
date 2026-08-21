@@ -369,7 +369,7 @@ static int add_quiet_access(const char *const env_var,
 	return 0;
 }
 
-#define LANDLOCK_ABI_LAST 10
+#define LANDLOCK_ABI_LAST 11
 
 #define XSTR(s) #s
 #define STR(s) XSTR(s)
@@ -453,8 +453,9 @@ int main(const int argc, char *const argv[], char *const *const envp)
 		.quiet_scoped = 0,
 	};
 	bool quiet_supported = true;
-	int supported_restrict_flags = LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON;
-	int set_restrict_flags = 0;
+	int supported_restrict_flags = LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON |
+				       LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS;
+	int set_restrict_flags = LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS;
 
 	if (argc < 2) {
 		fprintf(stderr, help, argv[0]);
@@ -545,6 +546,12 @@ int main(const int argc, char *const argv[], char *const *const envp)
 			  LANDLOCK_ACCESS_NET_CONNECT_SEND_UDP);
 		/* Removes quiet flags for ABI < 10 later on. */
 		quiet_supported = false;
+		__attribute__((fallthrough));
+	case 10:
+		/* Removes LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS for ABI < 11 */
+		supported_restrict_flags &=
+			~LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS;
+		set_restrict_flags &= ~LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS;
 
 		/* Must be printed for any ABI < LANDLOCK_ABI_LAST. */
 		fprintf(stderr,
@@ -673,7 +680,8 @@ int main(const int argc, char *const argv[], char *const *const envp)
 		}
 	}
 
-	if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
+	if (!(set_restrict_flags & LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS) &&
+	    prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
 		perror("Failed to restrict privileges");
 		goto err_close_ruleset;
 	}
