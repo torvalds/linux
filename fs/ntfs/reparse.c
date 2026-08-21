@@ -405,7 +405,7 @@ unsigned int ntfs_reparse_tag_dt_types(struct ntfs_volume *vol, unsigned long mr
 
 	vi = ntfs_iget(vol->sb, mref);
 	if (IS_ERR(vi))
-		return PTR_ERR(vi);
+		return DT_UNKNOWN;
 
 	reparse_attr = (struct reparse_point *)ntfs_attr_readall(NTFS_I(vi),
 			AT_REPARSE_POINT, NULL, 0, &attr_size);
