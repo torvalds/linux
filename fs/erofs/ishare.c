@@ -148,6 +148,13 @@ static int erofs_ishare_mmap(struct file *file, struct vm_area_struct *vma)
 	return generic_file_readonly_mmap(file, vma);
 }
 
+static ssize_t erofs_ishare_splice_read(struct file *in, loff_t *ppos,
+					struct pipe_inode_info *pipe,
+					size_t len, unsigned int flags)
+{
+	return filemap_splice_read(in->private_data, ppos, pipe, len, flags);
+}
+
 static int erofs_ishare_fadvise(struct file *file, loff_t offset,
 				loff_t len, int advice)
 {
@@ -161,7 +168,7 @@ const struct file_operations erofs_ishare_fops = {
 	.mmap		= erofs_ishare_mmap,
 	.release	= erofs_ishare_file_release,
 	.get_unmapped_area = thp_get_unmapped_area,
-	.splice_read	= filemap_splice_read,
+	.splice_read	= erofs_ishare_splice_read,
 	.fadvise	= erofs_ishare_fadvise,
 };
 
