@@ -373,7 +373,7 @@ static void rcar_gen4_remove_dw_pcie_rp(struct rcar_gen4_pcie *rcar)
 }
 
 /* Endpoint mode */
-static void rcar_gen4_pcie_ep_pre_init(struct dw_pcie_ep *ep)
+static int rcar_gen4_pcie_ep_pre_init(struct dw_pcie_ep *ep)
 {
 	struct dw_pcie *dw = to_dw_pcie_from_ep(ep);
 	struct rcar_gen4_pcie *rcar = to_rcar_gen4_pcie(dw);
@@ -381,9 +381,11 @@ static void rcar_gen4_pcie_ep_pre_init(struct dw_pcie_ep *ep)
 
 	ret = rcar_gen4_pcie_common_init(rcar);
 	if (ret)
-		return;
+		return ret;
 
 	writel(PCIEDMAINTSTSEN_INIT, rcar->base + PCIEDMAINTSTSEN);
+
+	return 0;
 }
 
 static void rcar_gen4_pcie_ep_deinit(struct rcar_gen4_pcie *rcar)

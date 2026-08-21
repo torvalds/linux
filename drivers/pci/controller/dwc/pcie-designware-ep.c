@@ -1032,6 +1032,8 @@ int dw_pcie_ep_raise_msi_irq(struct dw_pcie_ep *ep, u8 func_no,
 		 * there is no unified way to check if we have operations in
 		 * flight, thus we don't know if we should WARN() or not.
 		 */
+		/* flush posted write before unmap */
+		readl(ep->msi_mem + ep->msi_iatu_mapped_offset);
 		dw_pcie_ep_unmap_addr(epc, func_no, 0, ep->msi_mem_phys);
 		ep->msi_iatu_mapped = false;
 	}
@@ -1044,6 +1046,7 @@ int dw_pcie_ep_raise_msi_irq(struct dw_pcie_ep *ep, u8 func_no,
 			return ret;
 
 		ep->msi_iatu_mapped = true;
+		ep->msi_iatu_mapped_offset = offset;
 		ep->msi_msg_addr = msg_addr;
 		ep->msi_map_size = map_size;
 	}
@@ -1122,6 +1125,17 @@ int dw_pcie_ep_raise_msix_irq(struct dw_pcie_ep *ep, u8 func_no,
 	if (vec_ctrl & PCI_MSIX_ENTRY_CTRL_MASKBIT) {
 		dev_dbg(pci->dev, "MSI-X entry ctrl set\n");
 		return -EPERM;
+	}
+
+	/*
+	 * ep->msi_iatu_mapped means that an MSI target address is cached,
+	 * unmap it first so that we can reuse ep->msi_mem_phys for MSI-X.
+	 */
+	if (ep->msi_iatu_mapped) {
+		/* flush posted write before unmap */
+		readl(ep->msi_mem + ep->msi_iatu_mapped_offset);
+		dw_pcie_ep_unmap_addr(epc, func_no, 0, ep->msi_mem_phys);
+		ep->msi_iatu_mapped = false;
 	}
 
 	msg_addr = dw_pcie_ep_align_addr(epc, msg_addr, &map_size, &offset);
@@ -1372,8 +1386,11 @@ int dw_pcie_ep_init_registers(struct dw_pcie_ep *ep)
 		list_add_tail(&ep_func->list, &ep->func_list);
 	}
 
-	if (ep->ops->init)
-		ep->ops->init(ep);
+	if (ep->ops->init) {
+		ret = ep->ops->init(ep);
+		if (ret)
+			goto err_remove_edma;
+	}
 
 	dw_pcie_ep_disable_bars(ep);
 
@@ -1526,8 +1543,11 @@ int dw_pcie_ep_init(struct dw_pcie_ep *ep)
 	if (ret)
 		return ret;
 
-	if (ep->ops->pre_init)
-		ep->ops->pre_init(ep);
+	if (ep->ops->pre_init) {
+		ret = ep->ops->pre_init(ep);
+		if (ret)
+			return ret;
+	}
 
 	ret = pci_epc_mem_init(epc, ep->phys_base, ep->addr_size,
 			       ep->page_size);
