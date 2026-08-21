@@ -555,7 +555,7 @@ static u32 sdhci_arasan_cqhci_irq(struct sdhci_host *host, u32 intmask)
 	if (!sdhci_cqe_irq(host, intmask, &cmd_error, &data_error))
 		return intmask;
 
-	cqhci_irq(host->mmc, intmask, cmd_error, data_error);
+	cqhci_irq(host->mmc, cmd_error, data_error);
 
 	return 0;
 }

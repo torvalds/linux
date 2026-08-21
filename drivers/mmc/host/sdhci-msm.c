@@ -2165,7 +2165,7 @@ static u32 sdhci_msm_cqe_irq(struct sdhci_host *host, u32 intmask)
 	if (!sdhci_cqe_irq(host, intmask, &cmd_error, &data_error))
 		return intmask;
 
-	cqhci_irq(host->mmc, intmask, cmd_error, data_error);
+	cqhci_irq(host->mmc, cmd_error, data_error);
 	return 0;
 }
 
@@ -2864,10 +2864,8 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	ret = devm_request_threaded_irq(&pdev->dev, msm_host->pwr_irq, NULL,
 					sdhci_msm_pwr_irq, IRQF_ONESHOT,
 					dev_name(&pdev->dev), host);
-	if (ret) {
-		dev_err(&pdev->dev, "Request IRQ failed (%d)\n", ret);
+	if (ret)
 		goto clk_disable;
-	}
 
 	msm_host->mmc->caps |= MMC_CAP_WAIT_WHILE_BUSY | MMC_CAP_NEED_RSP_BUSY;
 

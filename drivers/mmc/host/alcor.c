@@ -1103,8 +1103,7 @@ static int alcor_pci_sdmmc_drv_probe(struct platform_device *pdev)
 			alcor_irq, alcor_irq_thread, IRQF_SHARED,
 			DRV_NAME_ALCOR_PCI_SDMMC, host);
 	if (ret)
-		return dev_err_probe(&pdev->dev, ret,
-				     "Failed to get irq for data line\n");
+		return ret;
 
 	mutex_init(&host->cmd_mutex);
 	INIT_DELAYED_WORK(&host->timeout_work, alcor_timeout_timer);

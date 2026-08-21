@@ -141,14 +141,14 @@
 			status = "okay";
 		};
 
-		mmc0: sdhci@9060000 {
+		mmc0: mmc@9060000 {
 			pinctrl-0 = <&pinctrl_sd0>;
 			bus-width = <4>;
 			status = "okay";
 		};
 
 		/* high speed expansion connector */
-		mmc1: sdhci@9080000 {
+		mmc1: mmc@9080000 {
 			status = "okay";
 		};
 

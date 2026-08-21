@@ -27100,6 +27100,13 @@ Q:	http://patchwork.linuxtv.org/project/linux-media/list/
 T:	git git://linuxtv.org/mhadli/v4l-dvb-davinci_devices.git
 F:	drivers/media/platform/ti/am437x/
 
+TI AM654 SDHCI DRIVER
+M:	Judith Mendez <jm@ti.com>
+L:	linux-mmc@vger.kernel.org
+S:	Supported
+F:	Documentation/devicetree/bindings/mmc/sdhci-am654.yaml
+F:	drivers/mmc/host/sdhci_am654.c
+
 TI BANDGAP AND THERMAL DRIVER
 M:	Eduardo Valentin <edubezval@gmail.com>
 M:	Keerthy <j-keerthy@ti.com>

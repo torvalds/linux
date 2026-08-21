@@ -55,7 +55,7 @@ static inline void esdhc_clrset_be(struct sdhci_host *host,
 	if (reg == SDHCI_HOST_CONTROL)
 		val |= ESDHC_PROCTL_D3CD;
 
-	writel((readl(base) & ~mask) | val, base);
+	mcf_write32((mcf_read32(base) & ~mask) | val, base);
 }
 
 /*
@@ -71,7 +71,7 @@ static void esdhc_mcf_writeb_be(struct sdhci_host *host, u8 val, int reg)
 	if (reg == SDHCI_HOST_CONTROL) {
 		u32 host_ctrl = ESDHC_DEFAULT_HOST_CONTROL;
 		u8 dma_bits = (val & SDHCI_CTRL_DMA_MASK) >> 3;
-		u8 tmp = readb(host->ioaddr + SDHCI_HOST_CONTROL + 1);
+		u8 tmp = mcf_read8(host->ioaddr + SDHCI_HOST_CONTROL + 1);
 
 		tmp &= ~0x03;
 		tmp |= dma_bits;
@@ -82,12 +82,12 @@ static void esdhc_mcf_writeb_be(struct sdhci_host *host, u8 val, int reg)
 		 */
 		host_ctrl |= val;
 		host_ctrl |= (dma_bits << 8);
-		writel(host_ctrl, host->ioaddr + SDHCI_HOST_CONTROL);
+		mcf_write32(host_ctrl, host->ioaddr + SDHCI_HOST_CONTROL);
 
 		return;
 	}
 
-	writel((readl(base) & mask) | (val << shift), base);
+	mcf_write32((mcf_read32(base) & mask) | (val << shift), base);
 }
 
 static void esdhc_mcf_writew_be(struct sdhci_host *host, u16 val, int reg)
@@ -110,24 +110,24 @@ static void esdhc_mcf_writew_be(struct sdhci_host *host, u16 val, int reg)
 		 * As for the fsl driver,
 		 * we have to set the mode in a single write here.
 		 */
-		writel(val << 16 | mcf_data->aside,
+		mcf_write32(val << 16 | mcf_data->aside,
 		       host->ioaddr + SDHCI_TRANSFER_MODE);
 		return;
 	}
 
-	writel((readl(base) & mask) | (val << shift), base);
+	mcf_write32((mcf_read32(base) & mask) | (val << shift), base);
 }
 
 static void esdhc_mcf_writel_be(struct sdhci_host *host, u32 val, int reg)
 {
-	writel(val, host->ioaddr + reg);
+	mcf_write32(val, host->ioaddr + reg);
 }
 
 static u8 esdhc_mcf_readb_be(struct sdhci_host *host, int reg)
 {
 	if (reg == SDHCI_HOST_CONTROL) {
 		u8 __iomem *base = host->ioaddr + (reg & ~3);
-		u16 val = readw(base + 2);
+		u16 val = mcf_read16(base + 2);
 		u8 dma_bits = (val >> 5) & SDHCI_CTRL_DMA_MASK;
 		u8 host_ctrl = val & 0xff;
 
@@ -137,7 +137,7 @@ static u8 esdhc_mcf_readb_be(struct sdhci_host *host, int reg)
 		return host_ctrl;
 	}
 
-	return readb(host->ioaddr + (reg ^ 0x3));
+	return mcf_read8(host->ioaddr + (reg ^ 0x3));
 }
 
 static u16 esdhc_mcf_readw_be(struct sdhci_host *host, int reg)
@@ -149,14 +149,14 @@ static u16 esdhc_mcf_readw_be(struct sdhci_host *host, int reg)
 	if (reg == SDHCI_HOST_VERSION)
 		reg -= 2;
 
-	return readw(host->ioaddr + (reg ^ 0x2));
+	return mcf_read16(host->ioaddr + (reg ^ 0x2));
 }
 
 static u32 esdhc_mcf_readl_be(struct sdhci_host *host, int reg)
 {
 	u32 val;
 
-	val = readl(host->ioaddr + reg);
+	val = mcf_read32(host->ioaddr + reg);
 
 	/*
 	 * RM (25.3.9) sd pin clock must never exceed 25Mhz.
@@ -245,7 +245,7 @@ static void esdhc_mcf_pltfm_set_clock(struct sdhci_host *host,
 	 * fvco = fsys * outdvi1 + 1
 	 * fshdc = fvco / outdiv3 + 1
 	 */
-	temp = readl(pll_dr);
+	temp = mcf_read32(pll_dr);
 	fsys = pltfm_host->clock;
 	fvco = fsys * ((temp & 0x1f) + 1);
 	fesdhc = fvco / (((temp >> 10) & 0x1f) + 1);
