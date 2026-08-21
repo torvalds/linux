@@ -1719,7 +1719,7 @@ static int advk_pcie_setup_phy(struct advk_pcie *pcie)
 
 	/* Old bindings miss the PHY handle */
 	if (IS_ERR(pcie->phy)) {
-		dev_warn(dev, "PHY unavailable (%ld)\n", PTR_ERR(pcie->phy));
+		dev_warn(dev, "PHY unavailable (%pe)\n", pcie->phy);
 		pcie->phy = NULL;
 		return 0;
 	}
