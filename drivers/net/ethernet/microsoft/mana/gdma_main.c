@@ -182,6 +182,7 @@ static int mana_gd_query_max_resources(struct pci_dev *pdev)
 	struct gdma_query_max_resources_resp resp = {};
 	struct gdma_general_req req = {};
 	unsigned int max_num_queues;
+	unsigned int msix_vec_count;
 	u8 bm_hostmode;
 	u16 num_ports;
 	int err;
@@ -216,6 +217,24 @@ static int mana_gd_query_max_resources(struct pci_dev *pdev)
 		 * (num_msix_usable - 1 HWC) <= num_online_cpus()
 		 */
 		gc->num_msix_usable = min(resp.max_msix, num_online_cpus() + 1);
+	}
+
+	/* MSI-X vectors are allocated by index into the device MSI-X table, so
+	 * never ask for more than the table holds. It can be smaller than both
+	 * resp.max_msix and the CPU count.
+	 */
+	err = pci_msix_vec_count(pdev);
+	if (err <= 0) {
+		dev_err(gc->dev, "Failed to query MSI-X table size: %d\n", err);
+		return err < 0 ? err : -ENOSPC;
+	}
+	msix_vec_count = err;
+
+	if (gc->num_msix_usable > msix_vec_count) {
+		dev_info(gc->dev,
+			 "Limiting MSI-X vectors from %u to table size %u\n",
+			 gc->num_msix_usable, msix_vec_count);
+		gc->num_msix_usable = msix_vec_count;
 	}
 
 	if (gc->num_msix_usable <= 1)
