@@ -256,6 +256,8 @@ unsigned int ntfs_make_symlink(struct ntfs_inode *ni)
 
 	reparse_attr = ntfs_attr_readall(ni, AT_REPARSE_POINT, NULL, 0,
 					 &attr_size);
+	if (IS_ERR(reparse_attr))
+		reparse_attr = NULL;
 	if (reparse_attr &&
 	    valid_reparse_data(ni, reparse_attr, attr_size)) {
 		err = -EINVAL;
@@ -335,6 +337,8 @@ unsigned int ntfs_reparse_tag_dt_types(struct ntfs_volume *vol, unsigned long mr
 
 	reparse_attr = (struct reparse_point *)ntfs_attr_readall(NTFS_I(vi),
 			AT_REPARSE_POINT, NULL, 0, &attr_size);
+	if (IS_ERR(reparse_attr))
+		reparse_attr = NULL;
 
 	if (reparse_attr && attr_size >= sizeof(*reparse_attr)) {
 		switch (reparse_attr->reparse_tag) {
