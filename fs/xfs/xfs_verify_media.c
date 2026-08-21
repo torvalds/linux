@@ -268,6 +268,8 @@ xfs_verify_media(
 	struct xfs_buftarg	*btp = NULL;
 	struct bio		*bio;
 	struct folio		*folio;
+	xfs_daddr_t		dev_start = 0;
+	xfs_daddr_t		dev_end = 0;
 	xfs_daddr_t		daddr;
 	uint64_t		bbcount;
 	int			error = 0;
@@ -277,24 +279,33 @@ xfs_verify_media(
 	switch (me->me_dev) {
 	case XFS_DEV_DATA:
 		btp = mp->m_ddev_targp;
+		dev_end = XFS_FSB_TO_BB(mp, mp->m_sb.sb_dblocks);
 		break;
 	case XFS_DEV_LOG:
-		if (mp->m_logdev_targp != mp->m_ddev_targp)
+		if (mp->m_logdev_targp != mp->m_ddev_targp) {
 			btp = mp->m_logdev_targp;
+			dev_end = XFS_FSB_TO_BB(mp, mp->m_sb.sb_logblocks);
+		}
 		break;
 	case XFS_DEV_RT:
 		btp = mp->m_rtdev_targp;
+		dev_start = XFS_FSB_TO_BB(mp, mp->m_sb.sb_rtstart);
+		dev_end = XFS_FSB_TO_BB(mp, mp->m_sb.sb_rtstart +
+					    mp->m_sb.sb_rblocks);
 		break;
 	}
 	if (!btp)
 		return -ENODEV;
 
 	/*
-	 * If the caller told us to verify beyond the end of the disk, tell the
-	 * user exactly where that was.
+	 * If the caller told us to verify before the start or beyond the end
+	 * of the disk volume, tell the user exactly where the volume starts
+	 * and ends.
 	 */
-	if (me->me_end_daddr > btp->bt_nr_sectors)
-		me->me_end_daddr = btp->bt_nr_sectors;
+	if (me->me_end_daddr > dev_end)
+		me->me_end_daddr = dev_end;
+	if (me->me_start_daddr < dev_start)
+		me->me_start_daddr = dev_start;
 
 	/* start and end have to be aligned to the lba size */
 	if (!IS_ALIGNED(BBTOB(me->me_start_daddr | me->me_end_daddr),
@@ -323,8 +334,7 @@ xfs_verify_media(
 	 *    verifying.
 	 */
 	daddr = me->me_start_daddr;
-	bbcount = min_t(sector_t, me->me_end_daddr, btp->bt_nr_sectors) -
-			  me->me_start_daddr;
+	bbcount = me->me_end_daddr - me->me_start_daddr;
 
 	folio = xfs_verify_alloc_folio(xfs_verify_iosize(me, btp, bbcount));
 	if (!folio)
