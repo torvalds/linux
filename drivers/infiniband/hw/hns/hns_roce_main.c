@@ -223,11 +223,9 @@ static int hns_roce_query_device(struct ib_device *ib_dev,
 	struct hns_roce_dev *hr_dev = to_hr_dev(ib_dev);
 	int ret;
 
-	ret = ib_is_udata_in_empty(uhw);
+	ret = ib_no_udata_io(uhw);
 	if (ret)
 		return ret;
-
-	memset(props, 0, sizeof(*props));
 
 	props->fw_ver = hr_dev->caps.fw_ver;
 	props->sys_image_guid = cpu_to_be64(hr_dev->sys_image_guid);
@@ -279,7 +277,7 @@ static int hns_roce_query_device(struct ib_device *ib_dev,
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_XRC)
 		props->device_cap_flags |= IB_DEVICE_XRC;
 
-	return ib_respond_empty_udata(uhw);
+	return 0;
 }
 
 static int hns_roce_query_port(struct ib_device *ib_dev, u32 port_num,

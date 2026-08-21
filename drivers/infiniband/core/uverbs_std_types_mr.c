@@ -364,7 +364,8 @@ static int UVERBS_HANDLER(UVERBS_METHOD_REG_MR)(
 							dmah, attrs);
 	else
 		mr = pd->device->ops.reg_user_mr(pd, addr, length, iova,
-						 access_flags, dmah, NULL);
+						 access_flags, dmah,
+						 &attrs->driver_udata);
 
 	if (IS_ERR(mr))
 		return PTR_ERR(mr);
@@ -527,7 +528,8 @@ DECLARE_UVERBS_NAMED_METHOD(
 			    UA_MANDATORY),
 	UVERBS_ATTR_PTR_OUT(UVERBS_ATTR_REG_MR_RESP_RKEY,
 			    UVERBS_ATTR_TYPE(u32),
-			    UA_MANDATORY));
+			    UA_MANDATORY),
+	UVERBS_ATTR_UHW());
 
 DECLARE_UVERBS_NAMED_METHOD_DESTROY(
 	UVERBS_METHOD_MR_DESTROY,

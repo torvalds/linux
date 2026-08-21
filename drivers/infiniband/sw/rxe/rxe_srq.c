@@ -13,8 +13,8 @@ int rxe_srq_chk_init(struct rxe_dev *rxe, struct ib_srq_init_attr *init)
 	struct ib_srq_attr *attr = &init->attr;
 
 	if (attr->max_wr > rxe->attr.max_srq_wr) {
-		rxe_dbg_dev(rxe, "max_wr(%d) > max_srq_wr(%d)\n",
-			attr->max_wr, rxe->attr.max_srq_wr);
+		rxe_dbg_dev(rxe, "max_wr(%u) > max_srq_wr(%u)\n",
+			    attr->max_wr, rxe->attr.max_srq_wr);
 		goto err1;
 	}
 
@@ -27,8 +27,8 @@ int rxe_srq_chk_init(struct rxe_dev *rxe, struct ib_srq_init_attr *init)
 		attr->max_wr = RXE_MIN_SRQ_WR;
 
 	if (attr->max_sge > rxe->attr.max_srq_sge) {
-		rxe_dbg_dev(rxe, "max_sge(%d) > max_srq_sge(%d)\n",
-			attr->max_sge, rxe->attr.max_srq_sge);
+		rxe_dbg_dev(rxe, "max_sge(%u) > max_srq_sge(%u)\n",
+			    attr->max_sge, rxe->attr.max_srq_sge);
 		goto err1;
 	}
 
@@ -107,8 +107,8 @@ int rxe_srq_chk_attr(struct rxe_dev *rxe, struct rxe_srq *srq,
 
 	if (mask & IB_SRQ_MAX_WR) {
 		if (attr->max_wr > rxe->attr.max_srq_wr) {
-			rxe_dbg_srq(srq, "max_wr(%d) > max_srq_wr(%d)\n",
-				attr->max_wr, rxe->attr.max_srq_wr);
+			rxe_dbg_srq(srq, "max_wr(%u) > max_srq_wr(%u)\n",
+				    attr->max_wr, rxe->attr.max_srq_wr);
 			goto err1;
 		}
 
@@ -129,8 +129,8 @@ int rxe_srq_chk_attr(struct rxe_dev *rxe, struct rxe_srq *srq,
 
 	if (mask & IB_SRQ_LIMIT) {
 		if (attr->srq_limit > rxe->attr.max_srq_wr) {
-			rxe_dbg_srq(srq, "srq_limit(%d) > max_srq_wr(%d)\n",
-				attr->srq_limit, rxe->attr.max_srq_wr);
+			rxe_dbg_srq(srq, "srq_limit(%u) > max_srq_wr(%u)\n",
+				    attr->srq_limit, rxe->attr.max_srq_wr);
 			goto err1;
 		}
 

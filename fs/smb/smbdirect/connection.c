@@ -287,7 +287,7 @@ int smbdirect_connection_create_qp(struct smbdirect_socket *sc)
 	    qp_cap.max_send_wr > sc->ib.dev->attrs.max_qp_wr) {
 		pr_err("Possible CQE overrun: max_send_wr %d\n",
 		       qp_cap.max_send_wr);
-		pr_err("device %.*s reporting max_cqe %d max_qp_wr %d\n",
+		pr_err("device %.*s reporting max_cqe %u max_qp_wr %u\n",
 		       IB_DEVICE_NAME_MAX,
 		       sc->ib.dev->name,
 		       sc->ib.dev->attrs.max_cqe,
@@ -302,7 +302,7 @@ int smbdirect_connection_create_qp(struct smbdirect_socket *sc)
 	     max_send_wr >= sc->ib.dev->attrs.max_qp_wr)) {
 		pr_err("Possible CQE overrun: rdma_send_wr %d + max_send_wr %d = %d\n",
 		       rdma_send_wr, qp_cap.max_send_wr, max_send_wr);
-		pr_err("device %.*s reporting max_cqe %d max_qp_wr %d\n",
+		pr_err("device %.*s reporting max_cqe %u max_qp_wr %u\n",
 		       IB_DEVICE_NAME_MAX,
 		       sc->ib.dev->name,
 		       sc->ib.dev->attrs.max_cqe,
@@ -316,7 +316,7 @@ int smbdirect_connection_create_qp(struct smbdirect_socket *sc)
 	    qp_cap.max_recv_wr > sc->ib.dev->attrs.max_qp_wr) {
 		pr_err("Possible CQE overrun: max_recv_wr %d\n",
 		       qp_cap.max_recv_wr);
-		pr_err("device %.*s reporting max_cqe %d max_qp_wr %d\n",
+		pr_err("device %.*s reporting max_cqe %u max_qp_wr %u\n",
 		       IB_DEVICE_NAME_MAX,
 		       sc->ib.dev->name,
 		       sc->ib.dev->attrs.max_cqe,
@@ -328,7 +328,7 @@ int smbdirect_connection_create_qp(struct smbdirect_socket *sc)
 
 	if (qp_cap.max_send_sge > sc->ib.dev->attrs.max_send_sge ||
 	    qp_cap.max_recv_sge > sc->ib.dev->attrs.max_recv_sge) {
-		pr_err("device %.*s max_send_sge/max_recv_sge = %d/%d too small\n",
+		pr_err("device %.*s max_send_sge/max_recv_sge = %u/%u too small\n",
 		       IB_DEVICE_NAME_MAX,
 		       sc->ib.dev->name,
 		       sc->ib.dev->attrs.max_send_sge,

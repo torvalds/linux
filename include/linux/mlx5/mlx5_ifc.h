@@ -2005,7 +2005,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         log_max_stride_sz_rq[0x5];
 	u8         reserved_at_3a8[0x3];
 	u8         log_min_stride_sz_rq[0x5];
-	u8         reserved_at_3b0[0x3];
+	u8         reserved_at_3b0[0x2];
+	u8         qp_latency_sensitive_disable[0x1];
 	u8         log_max_stride_sz_sq[0x5];
 	u8         reserved_at_3b8[0x3];
 	u8         log_min_stride_sz_sq[0x5];

@@ -21,10 +21,9 @@
 /*
  * Do all the common PCIe setup and initialization.
  */
-int hfi1_pcie_init(struct hfi1_devdata *dd)
+int hfi1_pcie_init(struct pci_dev *pdev)
 {
 	int ret;
-	struct pci_dev *pdev = dd->pcidev;
 
 	ret = pci_enable_device(pdev);
 	if (ret) {
@@ -40,13 +39,15 @@ int hfi1_pcie_init(struct hfi1_devdata *dd)
 		 * about that, it appears.  If the original BAR was retained
 		 * in the kernel data structures, this may be OK.
 		 */
-		dd_dev_err(dd, "pci enable failed: error %d\n", -ret);
+		dev_err(&pdev->dev, "pci enable failed: error %pe\n",
+			ERR_PTR(ret));
 		return ret;
 	}
 
 	ret = pci_request_regions(pdev, DRIVER_NAME);
 	if (ret) {
-		dd_dev_err(dd, "pci_request_regions fails: err %d\n", -ret);
+		dev_err(&pdev->dev, "pci_request_regions fails: err %pe\n",
+			ERR_PTR(ret));
 		goto bail;
 	}
 
@@ -59,7 +60,8 @@ int hfi1_pcie_init(struct hfi1_devdata *dd)
 		 */
 		ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (ret) {
-			dd_dev_err(dd, "Unable to set DMA mask: %d\n", ret);
+			dev_err(&pdev->dev, "Unable to set DMA mask: %pe\n",
+				ERR_PTR(ret));
 			goto bail;
 		}
 	}
@@ -512,29 +514,28 @@ pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 
 	switch (state) {
 	case pci_channel_io_normal:
-		dd_dev_info(dd, "State Normal, ignoring\n");
+		dev_info(&pdev->dev, "State Normal, ignoring\n");
 		break;
 
 	case pci_channel_io_frozen:
-		dd_dev_info(dd, "State Frozen, requesting reset\n");
+		dev_info(&pdev->dev, "State Frozen, requesting reset\n");
 		pci_disable_device(pdev);
 		ret = PCI_ERS_RESULT_NEED_RESET;
 		break;
 
 	case pci_channel_io_perm_failure:
+		dev_info(&pdev->dev, "State Permanent Failure, disabling\n");
 		if (dd) {
-			dd_dev_info(dd, "State Permanent Failure, disabling\n");
 			/* no more register accesses! */
 			dd->flags &= ~HFI1_PRESENT;
 			hfi1_disable_after_error(dd);
 		}
-		 /* else early, or other problem */
 		ret =  PCI_ERS_RESULT_DISCONNECT;
 		break;
 
 	default: /* shouldn't happen */
-		dd_dev_info(dd, "HFI1 PCI errors detected (state %d)\n",
-			    state);
+		dev_info(&pdev->dev, "HFI1 PCI errors detected (state %d)\n",
+			 state);
 		break;
 	}
 	return ret;
@@ -561,9 +562,7 @@ pci_mmio_enabled(struct pci_dev *pdev)
 static pci_ers_result_t
 pci_slot_reset(struct pci_dev *pdev)
 {
-	struct hfi1_devdata *dd = pci_get_drvdata(pdev);
-
-	dd_dev_info(dd, "HFI1 slot_reset function called, ignored\n");
+	dev_info(&pdev->dev, "HFI1 slot_reset function called, ignored\n");
 	return PCI_ERS_RESULT_CAN_RECOVER;
 }
 
@@ -572,7 +571,10 @@ pci_resume(struct pci_dev *pdev)
 {
 	struct hfi1_devdata *dd = pci_get_drvdata(pdev);
 
-	dd_dev_info(dd, "HFI1 resume function called\n");
+	dev_info(&pdev->dev, "HFI1 resume function called\n");
+	if (!dd)
+		return;
+
 	/*
 	 * Running jobs will fail, since it's asynchronous
 	 * unlike sysfs-requested reset.   Better than

@@ -32,8 +32,9 @@ int smbdirect_accept_connect_request(struct smbdirect_socket *sc,
 	/*
 	 * First set what the we as server are able to support
 	 */
-	sp->initiator_depth = min_t(u8, sp->initiator_depth,
-				    sc->ib.dev->attrs.max_qp_rd_atom);
+	sp->initiator_depth = min3(sp->initiator_depth,
+				   sc->ib.dev->attrs.max_qp_rd_atom,
+				   U8_MAX);
 
 	peer_initiator_depth = param->initiator_depth;
 	peer_responder_resources = param->responder_resources;

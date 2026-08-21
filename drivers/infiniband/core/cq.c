@@ -327,6 +327,7 @@ void ib_free_cq(struct ib_cq *cq)
 	if (WARN_ON_ONCE(cq->cqe_used))
 		return;
 
+	rdma_restrack_del(&cq->res);
 	if (cq->device->ops.pre_destroy_cq) {
 		ret = cq->device->ops.pre_destroy_cq(cq);
 		WARN_ONCE(ret, "Disable of kernel CQ shouldn't fail");
@@ -353,7 +354,6 @@ void ib_free_cq(struct ib_cq *cq)
 	else
 		ret = cq->device->ops.destroy_cq(cq, NULL);
 	WARN_ONCE(ret, "Destroy of kernel CQ shouldn't fail");
-	rdma_restrack_del(&cq->res);
 	kfree(cq->wc);
 	kfree(cq);
 }
@@ -393,8 +393,7 @@ static int ib_alloc_cqs(struct ib_device *dev, unsigned int nr_cqes,
 	 * a reasonable batch size so that we can share CQs between
 	 * multiple users instead of allocating a larger number of CQs.
 	 */
-	nr_cqes = min_t(unsigned int, dev->attrs.max_cqe,
-			max(nr_cqes, IB_MAX_SHARED_CQ_SZ));
+	nr_cqes = min(dev->attrs.max_cqe, max(nr_cqes, IB_MAX_SHARED_CQ_SZ));
 	nr_cqs = min_t(unsigned int, dev->num_comp_vectors, num_online_cpus());
 	for (i = 0; i < nr_cqs; i++) {
 		cq = ib_alloc_cq(dev, NULL, nr_cqes, i, poll_ctx);

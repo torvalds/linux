@@ -969,7 +969,6 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	if (err)
 		return err;
 
-	memset(props, 0, sizeof(*props));
 	err = mlx5_query_system_image_guid(ibdev,
 					   &props->sys_image_guid);
 	if (err)
@@ -4477,6 +4476,7 @@ static const struct uapi_definition mlx5_ib_defs[] = {
 	UAPI_DEF_CHAIN(mlx5_ib_dm_defs),
 	UAPI_DEF_CHAIN(mlx5_ib_create_cq_defs),
 	UAPI_DEF_CHAIN(mlx5_ib_create_qp_defs),
+	UAPI_DEF_CHAIN(mlx5_ib_create_srq_defs),
 
 	UAPI_DEF_CHAIN_OBJ_TREE(UVERBS_OBJECT_DEVICE, &mlx5_ib_query_context),
 	UAPI_DEF_CHAIN_OBJ_TREE(UVERBS_OBJECT_MR, &mlx5_ib_reg_dmabuf_mr),
@@ -4951,6 +4951,9 @@ static int mlx5_ib_stage_bfrag_init(struct mlx5_ib_dev *dev)
 	if (err)
 		return err;
 
+	if (MLX5_CAP_GEN(dev->mdev, qp_latency_sensitive_disable))
+		return 0;
+
 	err = mlx5_alloc_bfreg(dev->mdev, &dev->fp_bfreg, false, true);
 	if (err)
 		mlx5_free_bfreg(dev->mdev, &dev->bfreg);
@@ -4960,7 +4963,8 @@ static int mlx5_ib_stage_bfrag_init(struct mlx5_ib_dev *dev)
 
 static void mlx5_ib_stage_bfrag_cleanup(struct mlx5_ib_dev *dev)
 {
-	mlx5_free_bfreg(dev->mdev, &dev->fp_bfreg);
+	if (!MLX5_CAP_GEN(dev->mdev, qp_latency_sensitive_disable))
+		mlx5_free_bfreg(dev->mdev, &dev->fp_bfreg);
 	mlx5_free_bfreg(dev->mdev, &dev->bfreg);
 }
 
@@ -5501,13 +5505,13 @@ static int __init mlx5_ib_init(void)
 {
 	int ret;
 
-	xlt_emergency_page = (void *)__get_free_page(GFP_KERNEL);
+	xlt_emergency_page = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!xlt_emergency_page)
 		return -ENOMEM;
 
 	mlx5_ib_event_wq = alloc_ordered_workqueue("mlx5_ib_event_wq", 0);
 	if (!mlx5_ib_event_wq) {
-		free_page((unsigned long)xlt_emergency_page);
+		kfree(xlt_emergency_page);
 		return -ENOMEM;
 	}
 
@@ -5538,10 +5542,11 @@ mp_err:
 dd_err:
 	mlx5r_rep_cleanup();
 rep_err:
+	rcu_barrier();
 	mlx5_ib_qp_event_cleanup();
 qp_event_err:
 	destroy_workqueue(mlx5_ib_event_wq);
-	free_page((unsigned long)xlt_emergency_page);
+	kfree(xlt_emergency_page);
 	return ret;
 }
 
@@ -5551,10 +5556,11 @@ static void __exit mlx5_ib_cleanup(void)
 	auxiliary_driver_unregister(&mlx5r_driver);
 	auxiliary_driver_unregister(&mlx5r_mp_driver);
 	mlx5r_rep_cleanup();
+	rcu_barrier();
 
 	mlx5_ib_qp_event_cleanup();
 	destroy_workqueue(mlx5_ib_event_wq);
-	free_page((unsigned long)xlt_emergency_page);
+	kfree(xlt_emergency_page);
 }
 
 module_init(mlx5_ib_init);

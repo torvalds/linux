@@ -10,18 +10,6 @@
 #include "hfi.h"
 #include "device.h"
 
-static char *hfi1_devnode(const struct device *dev, umode_t *mode)
-{
-	if (mode)
-		*mode = 0600;
-	return kasprintf(GFP_KERNEL, "%s", dev_name(dev));
-}
-
-static const struct class class = {
-	.name = "hfi1",
-	.devnode = hfi1_devnode,
-};
-
 static char *hfi1_user_devnode(const struct device *dev, umode_t *mode)
 {
 	if (mode)
@@ -38,7 +26,6 @@ static dev_t hfi1_dev;
 int hfi1_cdev_init(int minor, const char *name,
 		   const struct file_operations *fops,
 		   struct cdev *cdev, struct device **devp,
-		   bool user_accessible,
 		   struct kobject *parent)
 {
 	const dev_t dev = MKDEV(MAJOR(hfi1_dev), minor);
@@ -57,10 +44,7 @@ int hfi1_cdev_init(int minor, const char *name,
 		goto done;
 	}
 
-	if (user_accessible)
-		device = device_create(&user_class, NULL, dev, NULL, "%s", name);
-	else
-		device = device_create(&class, NULL, dev, NULL, "%s", name);
+	device = device_create(&user_class, NULL, dev, NULL, "%s", name);
 
 	if (IS_ERR(device)) {
 		ret = PTR_ERR(device);
@@ -100,33 +84,21 @@ int __init dev_init(void)
 	ret = alloc_chrdev_region(&hfi1_dev, 0, HFI1_NMINORS, DRIVER_NAME);
 	if (ret < 0) {
 		pr_err("Could not allocate chrdev region (err %d)\n", -ret);
-		goto done;
-	}
-
-	ret = class_register(&class);
-	if (ret) {
-		pr_err("Could not create device class (err %d)\n", -ret);
-		unregister_chrdev_region(hfi1_dev, HFI1_NMINORS);
-		goto done;
+		return ret;
 	}
 
 	ret = class_register(&user_class);
 	if (ret) {
 		pr_err("Could not create device class for user accessible files (err %d)\n",
 		       -ret);
-		class_unregister(&class);
 		unregister_chrdev_region(hfi1_dev, HFI1_NMINORS);
-		goto done;
 	}
 
-done:
 	return ret;
 }
 
 void dev_cleanup(void)
 {
-	class_unregister(&class);
 	class_unregister(&user_class);
-
 	unregister_chrdev_region(hfi1_dev, HFI1_NMINORS);
 }

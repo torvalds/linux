@@ -193,7 +193,6 @@ int bnxt_re_query_device(struct ib_device *ibdev,
 	if (rc)
 		return rc;
 
-	memset(ib_attr, 0, sizeof(*ib_attr));
 	memcpy(&ib_attr->fw_ver, dev_attr->fw_ver,
 	       min(sizeof(dev_attr->fw_ver),
 		   sizeof(ib_attr->fw_ver)));
@@ -695,7 +694,7 @@ int bnxt_re_dealloc_pd(struct ib_pd *ib_pd, struct ib_udata *udata)
 	struct bnxt_re_dev *rdev = pd->rdev;
 	int ret;
 
-	ret = ib_is_udata_in_empty(udata);
+	ret = ib_no_udata_io(udata);
 	if (ret)
 		return ret;
 
@@ -712,7 +711,7 @@ int bnxt_re_dealloc_pd(struct ib_pd *ib_pd, struct ib_udata *udata)
 					   &pd->qplib_pd))
 			atomic_dec(&rdev->stats.res.pd_count);
 	}
-	return ib_respond_empty_udata(udata);
+	return 0;
 }
 
 int bnxt_re_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
@@ -844,7 +843,7 @@ int bnxt_re_create_ah(struct ib_ah *ib_ah, struct rdma_ah_init_attr *init_attr,
 	u8 nw_type;
 	int rc;
 
-	rc = ib_is_udata_in_empty(udata);
+	rc = ib_no_udata_io(udata);
 	if (rc)
 		return rc;
 
@@ -901,7 +900,7 @@ int bnxt_re_create_ah(struct ib_ah *ib_ah, struct rdma_ah_init_attr *init_attr,
 	if (active_ahs > rdev->stats.res.ah_watermark)
 		rdev->stats.res.ah_watermark = active_ahs;
 
-	return ib_respond_empty_udata(udata);
+	return 0;
 }
 
 int bnxt_re_query_ah(struct ib_ah *ib_ah, struct rdma_ah_attr *ah_attr)
@@ -1015,7 +1014,7 @@ int bnxt_re_destroy_qp(struct ib_qp *ib_qp, struct ib_udata *udata)
 	unsigned int flags;
 	int rc;
 
-	rc = ib_is_udata_in_empty(udata);
+	rc = ib_no_udata_io(udata);
 	if (rc)
 		return rc;
 
@@ -1064,7 +1063,7 @@ int bnxt_re_destroy_qp(struct ib_qp *ib_qp, struct ib_udata *udata)
 	if (scq_nq != rcq_nq)
 		bnxt_re_synchronize_nq(rcq_nq);
 
-	return ib_respond_empty_udata(udata);
+	return 0;
 }
 
 static u8 __from_ib_qp_type(enum ib_qp_type type)
@@ -2148,18 +2147,33 @@ int bnxt_re_destroy_srq(struct ib_srq *ib_srq, struct ib_udata *udata)
 	struct bnxt_qplib_srq *qplib_srq = &srq->qplib_srq;
 	int ret;
 
-	ret = ib_is_udata_in_empty(udata);
+	ret = ib_no_udata_io(udata);
 	if (ret)
 		return ret;
 
-	if (rdev->chip_ctx->modes.toggle_bits & BNXT_QPLIB_SRQ_TOGGLE_BIT)
-		hash_del(&srq->hash_entry);
+	if (rdev->chip_ctx->modes.toggle_bits & BNXT_QPLIB_SRQ_TOGGLE_BIT) {
+		struct bnxt_re_ucontext *uctx =
+			rdma_udata_to_drv_context(udata, struct bnxt_re_ucontext, ib_uctx);
+
+		/*
+		 * Untrack the SRQ before releasing its hardware ID below, so a
+		 * concurrent create that gets the same ID reused by firmware
+		 * cannot have its fresh XArray entry erased by this destroy.
+		 */
+		if (uctx)
+			xa_erase(&uctx->srq_xa, srq->qplib_srq.id);
+	}
 	bnxt_qplib_destroy_srq(&rdev->qplib_res, qplib_srq);
-	if (rdev->chip_ctx->modes.toggle_bits & BNXT_QPLIB_SRQ_TOGGLE_BIT)
-		free_page((unsigned long)srq->uctx_srq_page);
+	if (rdev->chip_ctx->modes.toggle_bits & BNXT_QPLIB_SRQ_TOGGLE_BIT) {
+		struct bnxt_re_ucontext *uctx =
+			rdma_udata_to_drv_context(udata, struct bnxt_re_ucontext, ib_uctx);
+
+		if (uctx)
+			rdma_user_mmap_entry_remove(&srq->toggle_entry->rdma_entry);
+	}
 	ib_umem_release(srq->umem);
 	atomic_dec(&rdev->stats.res.srq_count);
-	return ib_respond_empty_udata(udata);
+	return 0;
 }
 
 static int bnxt_re_init_user_srq(struct bnxt_re_dev *rdev,
@@ -2263,20 +2277,28 @@ int bnxt_re_create_srq(struct ib_srq *ib_srq,
 
 		resp.srqid = srq->qplib_srq.id;
 		if (rdev->chip_ctx->modes.toggle_bits & BNXT_QPLIB_SRQ_TOGGLE_BIT) {
-			hash_add(rdev->srq_hash, &srq->hash_entry, srq->qplib_srq.id);
 			srq->uctx_srq_page = (void *)get_zeroed_page(GFP_KERNEL);
 			if (!srq->uctx_srq_page) {
 				rc = -ENOMEM;
-				goto fail;
+				goto fail_destroy_srq;
+			}
+			srq->toggle_entry = bnxt_re_mmap_entry_insert(uctx, (u64)srq->uctx_srq_page,
+								      BNXT_RE_MMAP_TOGGLE_PAGE,
+								      NULL);
+			if (!srq->toggle_entry) {
+				rc = -ENOMEM;
+				goto fail_free_srq_page;
+			}
+			if (xa_is_err(xa_store(&uctx->srq_xa, srq->qplib_srq.id,
+					       ib_srq->uobject, GFP_KERNEL))) {
+				rc = -ENOMEM;
+				goto fail_remove_toggle_entry;
 			}
 			resp.comp_mask |= BNXT_RE_SRQ_TOGGLE_PAGE_SUPPORT;
 		}
 		rc = ib_respond_udata(udata, resp);
-		if (rc) {
-			bnxt_qplib_destroy_srq(&rdev->qplib_res,
-					       &srq->qplib_srq);
-			goto fail;
-		}
+		if (rc)
+			goto fail_respond;
 	}
 	active_srqs = atomic_inc_return(&rdev->stats.res.srq_count);
 	if (active_srqs > rdev->stats.res.srq_watermark)
@@ -2285,6 +2307,20 @@ int bnxt_re_create_srq(struct ib_srq *ib_srq,
 
 	return 0;
 
+fail_respond:
+	if (rdev->chip_ctx->modes.toggle_bits & BNXT_QPLIB_SRQ_TOGGLE_BIT) {
+		xa_erase(&uctx->srq_xa, srq->qplib_srq.id);
+		goto fail_remove_toggle_entry;
+	}
+	bnxt_qplib_destroy_srq(&rdev->qplib_res, &srq->qplib_srq);
+	goto fail;
+fail_remove_toggle_entry:
+	rdma_user_mmap_entry_remove(&srq->toggle_entry->rdma_entry);
+	goto fail_destroy_srq;
+fail_free_srq_page:
+	free_page((unsigned long)srq->uctx_srq_page);
+fail_destroy_srq:
+	bnxt_qplib_destroy_srq(&rdev->qplib_res, &srq->qplib_srq);
 fail:
 	ib_umem_release(srq->umem);
 exit:
@@ -2297,34 +2333,25 @@ int bnxt_re_modify_srq(struct ib_srq *ib_srq, struct ib_srq_attr *srq_attr,
 {
 	struct bnxt_re_srq *srq = container_of(ib_srq, struct bnxt_re_srq,
 					       ib_srq);
-	struct bnxt_re_dev *rdev = srq->rdev;
 	int ret;
 
-	ret = ib_is_udata_in_empty(udata);
+	ret = ib_no_udata_io(udata);
 	if (ret)
 		return ret;
 
-	switch (srq_attr_mask) {
-	case IB_SRQ_MAX_WR:
-		/* SRQ resize is not supported */
+	if (srq_attr_mask != IB_SRQ_LIMIT)
 		return -EINVAL;
-	case IB_SRQ_LIMIT:
-		/* Change the SRQ threshold */
-		if (srq_attr->srq_limit > srq->qplib_srq.max_wqe)
-			return -EINVAL;
 
-		srq->qplib_srq.threshold = srq_attr->srq_limit;
-		bnxt_qplib_srq_arm_db(&srq->qplib_srq.dbinfo, srq->qplib_srq.threshold);
-
-		/* On success, update the shadow */
-		srq->srq_limit = srq_attr->srq_limit;
-		/* No need to Build and send response back to udata */
-		return ib_respond_empty_udata(udata);
-	default:
-		ibdev_err(&rdev->ibdev,
-			  "Unsupported srq_attr_mask 0x%x", srq_attr_mask);
+	if (srq_attr->srq_limit > srq->qplib_srq.max_wqe)
 		return -EINVAL;
-	}
+
+	srq->qplib_srq.threshold = srq_attr->srq_limit;
+	bnxt_qplib_srq_arm_db(&srq->qplib_srq.dbinfo, srq->qplib_srq.threshold);
+
+	/* On success, update the shadow */
+	srq->srq_limit = srq_attr->srq_limit;
+	/* No need to Build and send response back to udata */
+	return 0;
 }
 
 int bnxt_re_query_srq(struct ib_srq *ib_srq, struct ib_srq_attr *srq_attr)
@@ -2437,7 +2464,7 @@ int bnxt_re_modify_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 	unsigned int flags;
 	u8 nw_type;
 
-	rc = ib_is_udata_in_empty(udata);
+	rc = ib_no_udata_io(udata);
 	if (rc)
 		return rc;
 
@@ -2689,7 +2716,7 @@ int bnxt_re_modify_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 		if (rc)
 			return rc;
 	}
-	return ib_respond_empty_udata(udata);
+	return 0;
 }
 
 int bnxt_re_query_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
@@ -3471,22 +3498,37 @@ int bnxt_re_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 	nq = cq->qplib_cq.nq;
 	cctx = rdev->chip_ctx;
 
-	ret = ib_is_udata_in_empty(udata);
+	ret = ib_no_udata_io(udata);
 	if (ret)
 		return ret;
 
-	if (cctx->modes.toggle_bits & BNXT_QPLIB_CQ_TOGGLE_BIT)
-		hash_del(&cq->hash_entry);
+	if (cctx->modes.toggle_bits & BNXT_QPLIB_CQ_TOGGLE_BIT) {
+		struct bnxt_re_ucontext *uctx =
+			rdma_udata_to_drv_context(udata, struct bnxt_re_ucontext, ib_uctx);
+
+		/*
+		 * Untrack the CQ before releasing its hardware ID below, so a
+		 * concurrent create that gets the same ID reused by firmware
+		 * cannot have its fresh XArray entry erased by this destroy.
+		 */
+		if (uctx)
+			xa_erase(&uctx->cq_xa, cq->qplib_cq.id);
+	}
 	bnxt_qplib_destroy_cq(&rdev->qplib_res, &cq->qplib_cq);
-	if (cctx->modes.toggle_bits & BNXT_QPLIB_CQ_TOGGLE_BIT)
-		free_page((unsigned long)cq->uctx_cq_page);
+	if (cctx->modes.toggle_bits & BNXT_QPLIB_CQ_TOGGLE_BIT) {
+		struct bnxt_re_ucontext *uctx =
+			rdma_udata_to_drv_context(udata, struct bnxt_re_ucontext, ib_uctx);
+
+		if (uctx)
+			rdma_user_mmap_entry_remove(&cq->toggle_entry->rdma_entry);
+	}
 
 	bnxt_re_put_nq(rdev, nq);
 
 	atomic_dec(&rdev->stats.res.cq_count);
 	kfree(cq->cql);
 	ib_umem_release(cq->umem);
-	return ib_respond_empty_udata(udata);
+	return 0;
 }
 
 int bnxt_re_create_user_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
@@ -3554,14 +3596,22 @@ int bnxt_re_create_user_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *att
 	spin_lock_init(&cq->cq_lock);
 
 	if (cctx->modes.toggle_bits & BNXT_QPLIB_CQ_TOGGLE_BIT) {
-		hash_add(rdev->cq_hash, &cq->hash_entry, cq->qplib_cq.id);
-		/* Allocate a page */
 		cq->uctx_cq_page = (void *)get_zeroed_page(GFP_KERNEL);
 		if (!cq->uctx_cq_page) {
 			rc = -ENOMEM;
 			goto destroy_cq;
 		}
-
+		cq->toggle_entry = bnxt_re_mmap_entry_insert(uctx, (u64)cq->uctx_cq_page,
+							     BNXT_RE_MMAP_TOGGLE_PAGE, NULL);
+		if (!cq->toggle_entry) {
+			rc = -ENOMEM;
+			goto free_cq_page;
+		}
+		if (xa_is_err(xa_store(&uctx->cq_xa, cq->qplib_cq.id,
+				       ibcq->uobject, GFP_KERNEL))) {
+			rc = -ENOMEM;
+			goto remove_toggle_entry;
+		}
 		resp.comp_mask |= BNXT_RE_CQ_TOGGLE_PAGE_SUPPORT;
 	}
 	resp.cqid = cq->qplib_cq.id;
@@ -3574,6 +3624,13 @@ int bnxt_re_create_user_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *att
 	return 0;
 
 free_mem:
+	if (cctx->modes.toggle_bits & BNXT_QPLIB_CQ_TOGGLE_BIT)
+		xa_erase(&uctx->cq_xa, cq->qplib_cq.id);
+remove_toggle_entry:
+	if (cctx->modes.toggle_bits & BNXT_QPLIB_CQ_TOGGLE_BIT)
+		rdma_user_mmap_entry_remove(&cq->toggle_entry->rdma_entry);
+	goto destroy_cq;
+free_cq_page:
 	free_page((unsigned long)cq->uctx_cq_page);
 destroy_cq:
 	bnxt_qplib_destroy_cq(&rdev->qplib_res, &cq->qplib_cq);
@@ -3688,6 +3745,10 @@ int bnxt_re_resize_cq(struct ib_cq *ibcq, unsigned int cqe,
 	if (rc)
 		goto fail;
 
+	rc = ib_respond_empty_udata(udata);
+	if (rc)
+		goto fail;
+
 	cq->resize_umem = ib_umem_get_va(&rdev->ibdev, req.cq_va,
 					 entries * sizeof(struct cq_base),
 					 IB_ACCESS_LOCAL_WRITE);
@@ -3717,7 +3778,7 @@ int bnxt_re_resize_cq(struct ib_cq *ibcq, unsigned int cqe,
 	cq->ib_cq.cqe = cq->resize_cqe;
 	atomic_inc(&rdev->stats.res.resize_count);
 
-	return ib_respond_empty_udata(udata);
+	return 0;
 
 fail:
 	if (cq->resize_umem) {
@@ -4449,7 +4510,7 @@ int bnxt_re_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata)
 	struct bnxt_re_dev *rdev = mr->rdev;
 	int rc;
 
-	rc = ib_is_udata_in_empty(udata);
+	rc = ib_no_udata_io(udata);
 	if (rc)
 		return rc;
 
@@ -4472,7 +4533,7 @@ int bnxt_re_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata)
 	atomic_dec(&rdev->stats.res.mr_count);
 	if (rc)
 		return rc;
-	return ib_respond_empty_udata(udata);
+	return 0;
 }
 
 static int bnxt_re_set_page(struct ib_mr *ib_mr, u64 addr)
@@ -4795,6 +4856,8 @@ int bnxt_re_alloc_ucontext(struct ib_ucontext *ctx, struct ib_udata *udata)
 		goto cfail;
 	}
 	uctx->shpage_mmap = &entry->rdma_entry;
+	xa_init(&uctx->cq_xa);
+	xa_init(&uctx->srq_xa);
 	if (rdev->pacing.dbr_pacing)
 		resp.comp_mask |= BNXT_RE_UCNTX_CMASK_DBR_PACING_ENABLED;
 
@@ -4803,6 +4866,8 @@ int bnxt_re_alloc_ucontext(struct ib_ucontext *ctx, struct ib_udata *udata)
 
 	if (_is_modify_qp_rate_limit_supported(dev_attr->dev_cap_flags2))
 		resp.comp_mask |= BNXT_RE_UCNTX_CMASK_QP_RATE_LIMIT_ENABLED;
+
+	resp.comp_mask |= BNXT_RE_UCNTX_CMASK_TOGGLE_MEM_UOBJ_SUPPORT;
 
 	if (udata->inlen) {
 		rc = ib_copy_validate_udata_in_cm(
@@ -4847,6 +4912,8 @@ void bnxt_re_dealloc_ucontext(struct ib_ucontext *ib_uctx)
 	uctx->shpage_mmap = NULL;
 	if (uctx->shpg)
 		free_page((unsigned long)uctx->shpg);
+	xa_destroy(&uctx->cq_xa);
+	xa_destroy(&uctx->srq_xa);
 
 	if (uctx->dpi.dbr) {
 		/* Free DPI only if this is the first PD allocated by the
@@ -4991,11 +5058,13 @@ int bnxt_re_mmap(struct ib_ucontext *ib_uctx, struct vm_area_struct *vma)
 	case BNXT_RE_MMAP_DBR_PAGE:
 	case BNXT_RE_MMAP_TOGGLE_PAGE:
 		/* Driver doesn't expect write access for user space */
-		if (vma->vm_flags & VM_WRITE)
+		if (vma->vm_flags & VM_WRITE) {
 			ret = -EFAULT;
-		else
+		} else {
+			vm_flags_clear(vma, VM_MAYWRITE);
 			ret = vm_insert_page(vma, vma->vm_start,
 					     virt_to_page((void *)bnxt_entry->mem_offset));
+		}
 		break;
 	default:
 		ret = -EINVAL;
@@ -5012,6 +5081,16 @@ void bnxt_re_mmap_free(struct rdma_user_mmap_entry *rdma_entry)
 
 	bnxt_entry = container_of(rdma_entry, struct bnxt_re_user_mmap_entry,
 				  rdma_entry);
+
+	/*
+	 * For toggle pages the kernel VA was stored directly in mem_offset
+	 * at creation time (bnxt_re_create_user_cq / bnxt_re_create_srq).
+	 * Free it here — this is the only place it is freed, ensuring the
+	 * page outlives every concurrent bnxt_re_mmap() call that may have
+	 * incremented the entry's reference count.
+	 */
+	if (bnxt_entry->mmap_flag == BNXT_RE_MMAP_TOGGLE_PAGE)
+		free_page((unsigned long)bnxt_entry->mem_offset);
 
 	if (bnxt_entry->dpi_valid)
 		bnxt_qplib_free_uc_dpi(&bnxt_entry->uctx->rdev->qplib_res,

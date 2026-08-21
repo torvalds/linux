@@ -908,8 +908,8 @@ struct gdma_destroy_dma_region_req {
 }; /* HW DATA */
 
 enum gdma_pd_flags {
-	GDMA_PD_FLAG_INVALID = 0,
-	GDMA_PD_FLAG_ALLOW_GPA_MR = 1,
+	GDMA_PD_FLAG_ALLOW_GPA_MR = BIT(0),
+	GDMA_PD_FLAG_SHORT_PDN = BIT(2),
 };
 
 struct gdma_create_pd_req {
@@ -930,7 +930,7 @@ struct gdma_destroy_pd_req {
 	u64 pd_handle;
 };/* HW DATA */
 
-struct gdma_destory_pd_resp {
+struct gdma_destroy_pd_resp {
 	struct gdma_resp_hdr hdr;
 };/* HW DATA */
 

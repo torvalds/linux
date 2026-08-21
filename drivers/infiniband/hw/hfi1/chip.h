@@ -660,7 +660,7 @@ static inline u32 chip_rcv_array_count(struct hfi1_devdata *dd)
 }
 
 u8 encode_rcv_header_entry_size(u8 size);
-int hfi1_validate_rcvhdrcnt(struct hfi1_devdata *dd, uint thecnt);
+int hfi1_validate_rcvhdrcnt(struct pci_dev *pdev, uint thecnt);
 void set_hdrq_regs(struct hfi1_devdata *dd, u8 ctxt, u8 entsize, u16 hdrcnt);
 
 u64 create_pbc(struct hfi1_pportdata *ppd, u64 flags, int srate_mbs, u32 vl,

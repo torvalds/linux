@@ -62,7 +62,7 @@ Receiving MADs
 	struct ib_user_mad *mad;
 	mad = malloc(sizeof *mad + 256);
 	ret = read(fd, mad, sizeof *mad + 256);
-	if (ret == -ENOSPC)) {
+	if (ret == -ENOSPC) {
 		length = mad.length;
 		free(mad);
 		mad = malloc(sizeof *mad + length);
