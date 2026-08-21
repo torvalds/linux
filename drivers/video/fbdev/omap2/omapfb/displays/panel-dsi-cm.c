@@ -1150,13 +1150,13 @@ static int dsicm_probe(struct platform_device *pdev)
 	dssdev->caps = OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE |
 		OMAP_DSS_DISPLAY_CAP_TEAR_ELIM;
 
+	mutex_init(&ddata->lock);
+
 	r = omapdss_register_display(dssdev);
 	if (r) {
 		dev_err(dev, "Failed to register panel\n");
 		goto err_reg;
 	}
-
-	mutex_init(&ddata->lock);
 
 	atomic_set(&ddata->do_update, 0);
 
@@ -1185,10 +1185,8 @@ static int dsicm_probe(struct platform_device *pdev)
 				IRQF_TRIGGER_RISING,
 				"taal vsync", ddata);
 
-		if (r) {
-			dev_err(dev, "IRQ request failed\n");
+		if (r)
 			return r;
-		}
 
 		INIT_DEFERRABLE_WORK(&ddata->te_timeout_work,
 					dsicm_te_timeout_work_callback);

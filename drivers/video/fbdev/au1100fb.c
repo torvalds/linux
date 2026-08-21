@@ -393,7 +393,7 @@ static struct au1100fb_panel known_lcd_panels[] =
 #define DRIVER_DESC "LCD controller driver for AU1100 processors"
 
 #define to_au1100fb_device(_info) \
-	  (_info ? container_of(_info, struct au1100fb_device, info) : NULL);
+	  (_info ? container_of(_info, struct au1100fb_device, info) : NULL)
 
 /* Bitfields format supported by the controller. Note that the order of formats
  * SHOULD be the same as in the LCD_CONTROL_SBPPF field, so we can retrieve the
