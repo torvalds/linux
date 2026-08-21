@@ -143,6 +143,8 @@ int main(int argc, char const *argv[])
 
 	fprintf(stderr, "server port: %d\n", ntohs(laddr.sin_port));
 	child_pid = fork();
+	if (child_pid < 0)
+		error(-1, errno, "fork");
 	if (!child_pid)
 		client(ntohs(laddr.sin_port));
 	else
