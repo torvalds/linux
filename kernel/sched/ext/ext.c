@@ -7694,7 +7694,7 @@ static void scx_root_enable_workfn(struct kthread_work *work)
 	/*
 	 * Enable ops for every task. Fork is excluded by scx_fork_rwsem
 	 * preventing new tasks from being added. No need to exclude tasks
-	 * leaving as sched_ext_free() can handle both prepped and enabled
+	 * leaving as sched_ext_dead() can handle both prepped and enabled
 	 * tasks. Prep all tasks first and then enable them with preemption
 	 * disabled.
 	 *
@@ -7786,7 +7786,7 @@ static void scx_root_enable_workfn(struct kthread_work *work)
 
 	/*
 	 * We're fully committed and can't fail. The task READY -> ENABLED
-	 * transitions here are synchronized against sched_ext_free() through
+	 * transitions here are synchronized against sched_ext_dead() through
 	 * scx_tasks_lock.
 	 */
 	percpu_down_write(&scx_fork_rwsem);
@@ -9004,12 +9004,6 @@ static bool scx_dsq_move(struct bpf_iter_scx_dsq_kern *kit,
 	if (unlikely(READ_ONCE(sch->aborting)))
 		return false;
 
-	if (unlikely(!scx_task_on_sched(sch, p))) {
-		scx_error(sch, "scx_bpf_dsq_move[_vtime]() on %s[%d] but the task belongs to a different scheduler",
-			  p->comm, p->pid);
-		return false;
-	}
-
 	/*
 	 * Can be called from either ops.dispatch() holding the dispatched rq's
 	 * lock or any context where no rq lock is held. If latter, lock @p's
@@ -9037,6 +9031,17 @@ static bool scx_dsq_move(struct bpf_iter_scx_dsq_kern *kit,
 
 	/* did someone else get to it while we dropped the locks? */
 	if (nldsq_cursor_lost_task(&kit->cursor, src_rq, src_dsq, p)) {
+		raw_spin_unlock(&src_dsq->lock);
+		goto out;
+	}
+
+	/*
+	 * @p has been on $src_dsq and can't move anymore. If @p is not on @sch,
+	 * the caller didn't have authority over @p at the time of the call.
+	 */
+	if (unlikely(!scx_task_on_sched(sch, p))) {
+		scx_error(sch, "scx_bpf_dsq_move[_vtime]() on %s[%d] but the task belongs to a different scheduler",
+			  p->comm, p->pid);
 		raw_spin_unlock(&src_dsq->lock);
 		goto out;
 	}
