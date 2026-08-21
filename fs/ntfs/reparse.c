@@ -694,8 +694,9 @@ static int update_reparse_data(struct ntfs_inode *ni, struct ntfs_index_context 
 		goto put_rp_inode;
 	}
 
-	if (set_reparse_index(ni, xr, ((const struct reparse_point *)value)->reparse_tag) &&
-	    oldsize > 0) {
+	err = set_reparse_index(ni, xr,
+				((const struct reparse_point *)value)->reparse_tag);
+	if (err && oldsize > 0) {
 		/*
 		 * If cannot index, try to remove the reparse
 		 * data and log the error. There will be an
