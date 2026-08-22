@@ -158,7 +158,7 @@ int perf_session__inject_header(struct perf_session *session,
 				struct feat_copier *fc,
 				bool write_attrs_after_data);
 
-size_t perf_session__data_offset(const struct evlist *evlist);
+size_t perf_session__data_offset(struct evlist *evlist);
 
 void perf_header__set_feat(struct perf_header *header, int feat);
 void perf_header__clear_feat(struct perf_header *header, int feat);

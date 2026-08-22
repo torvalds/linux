@@ -9,11 +9,23 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <linux/bits.h>
+#include <linux/bitfield.h>
 
 #define HISI_PTT_8DW_CHECK_MASK		GENMASK(31, 11)
 #define HISI_PTT_IS_8DW_PKT		GENMASK(31, 11)
 #define HISI_PTT_MAX_SPACE_LEN		10
-#define HISI_PTT_FIELD_LENTH		4
+#define HISI_PTT_FIELD_LENGTH		4
+
+/* Header DW0 fields for 4DW format */
+#define HISI_PTT_HEAD0_4DW_TIME		GENMASK_U32(10, 0)
+#define HISI_PTT_HEAD0_4DW_LEN		GENMASK_U32(20, 11)
+#define HISI_PTT_HEAD0_4DW_SO		BIT_U32(21)
+#define HISI_PTT_HEAD0_4DW_TH		BIT_U32(22)
+#define HISI_PTT_HEAD0_4DW_T8		BIT_U32(23)
+#define HISI_PTT_HEAD0_4DW_T9		BIT_U32(24)
+#define HISI_PTT_HEAD0_4DW_TYPE		GENMASK_U32(29, 25)
+#define HISI_PTT_HEAD0_4DW_FORMAT	GENMASK_U32(31, 30)
 
 enum hisi_ptt_pkt_type {
 	HISI_PTT_4DW_PKT,

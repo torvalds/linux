@@ -87,7 +87,7 @@ if (slots_fd < 0)
 
 /* Memory mapping the fd permits _rdpmc calls from userspace */
 void *slots_p = mmap(0, getpagesize(), PROT_READ, MAP_SHARED, slots_fd, 0);
-if (!slot_p)
+if (slots_p == MAP_FAILED)
 	.... error ...
 
 /*
@@ -107,7 +107,7 @@ if (metrics_fd < 0)
 
 /* Memory mapping the fd permits _rdpmc calls from userspace */
 void *metrics_p = mmap(0, getpagesize(), PROT_READ, MAP_SHARED, metrics_fd, 0);
-if (!metrics_p)
+if (metrics_p == MAP_FAILED)
 	... error ...
 
 Note: the file descriptors returned by the perf_event_open calls must be memory

@@ -880,8 +880,8 @@ static int map__process_kallsym_symbol(void *arg, const char *name,
 	if (!symbol_type__filter(type))
 		return 0;
 
-	/* Ignore mapping symbols in kallsyms */
-	if (is_ignored_kernel_symbol(name))
+	/* Ignore mapping and livepatch symbols in kallsyms */
+	if (is_ignored_kernel_symbol(name) || is_livepatch_symbol(name))
 		return 0;
 
 	/*
@@ -2452,8 +2452,7 @@ static bool symbol__read_kptr_restrict(void)
 {
 	bool value = false;
 	FILE *fp = fopen("/proc/sys/kernel/kptr_restrict", "r");
-	bool used_root;
-	bool cap_syslog = perf_cap__capable(CAP_SYSLOG, &used_root);
+	bool cap_syslog = perf_cap__capable(CAP_SYSLOG);
 
 	if (fp != NULL) {
 		char line[8];

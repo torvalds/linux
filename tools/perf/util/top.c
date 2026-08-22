@@ -71,7 +71,7 @@ size_t perf_top__header_snprintf(struct perf_top *top, char *bf, size_t size)
 			       esamples_percent);
 	}
 
-	if (top->evlist->core.nr_entries == 1) {
+	if (evlist__nr_entries(top->evlist) == 1) {
 		struct evsel *first = evlist__first(top->evlist);
 		ret += SNPRINTF(bf + ret, size - ret, "%" PRIu64 "%s ",
 				(uint64_t)first->core.attr.sample_period,
@@ -94,7 +94,7 @@ size_t perf_top__header_snprintf(struct perf_top *top, char *bf, size_t size)
 	else
 		ret += SNPRINTF(bf + ret, size - ret, " (all");
 
-	nr_cpus = perf_cpu_map__nr(top->evlist->core.user_requested_cpus);
+	nr_cpus = perf_cpu_map__nr(evlist__core(top->evlist)->user_requested_cpus);
 	if (target->cpu_list)
 		ret += SNPRINTF(bf + ret, size - ret, ", CPU%s: %s)",
 				nr_cpus > 1 ? "s" : "",

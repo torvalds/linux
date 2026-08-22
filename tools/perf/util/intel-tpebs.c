@@ -98,8 +98,9 @@ static int evsel__tpebs_start_perf_record(struct evsel *evsel)
 	record_argv[i++] = "-o";
 	record_argv[i++] = PERF_DATA;
 
-	if (!perf_cpu_map__is_any_cpu_or_is_empty(evsel->evlist->core.user_requested_cpus)) {
-		cpu_map__snprint(evsel->evlist->core.user_requested_cpus, cpumap_buf,
+	if (!perf_cpu_map__is_any_cpu_or_is_empty(
+			evlist__core(evsel->evlist)->user_requested_cpus)) {
+		cpu_map__snprint(evlist__core(evsel->evlist)->user_requested_cpus, cpumap_buf,
 				 sizeof(cpumap_buf));
 		record_argv[i++] = "-C";
 		record_argv[i++] = cpumap_buf;
@@ -176,7 +177,7 @@ static bool should_ignore_sample(const struct perf_sample *sample, const struct 
 	if (t->evsel->evlist == NULL)
 		return true;
 
-	workload_pid = t->evsel->evlist->workload.pid;
+	workload_pid = evlist__workload_pid(t->evsel->evlist);
 	if (workload_pid < 0 || workload_pid == sample_pid)
 		return false;
 

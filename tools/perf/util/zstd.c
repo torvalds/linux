@@ -31,9 +31,11 @@ int zstd_fini(struct zstd_data *data)
 
 ssize_t zstd_compress_stream_to_records(struct zstd_data *data, void *dst, size_t dst_size,
 				       void *src, size_t src_size, size_t max_record_size,
-				       size_t process_header(void *record, size_t increment))
+				       ssize_t process_header(void *record, size_t dst_size,
+							      size_t data_size))
 {
-	size_t ret, size, compressed = 0;
+	size_t ret, compressed = 0;
+	ssize_t size;
 	ZSTD_inBuffer input = { src, src_size, 0 };
 	ZSTD_outBuffer output;
 	void *record;
@@ -55,12 +57,9 @@ ssize_t zstd_compress_stream_to_records(struct zstd_data *data, void *dst, size_
 
 	while (input.pos < input.size) {
 		record = dst;
-		/* process_header writes the event header into record */
-		if (dst_size < sizeof(struct perf_event_header))
-			goto reset;
-		size = process_header(record, 0);
+		size = process_header(record, dst_size, 0);
 		/* Output buffer full — cannot fit even the record header */
-		if (size > dst_size)
+		if (size < 0)
 			goto reset;
 		compressed += size;
 		dst += size;
@@ -74,17 +73,21 @@ ssize_t zstd_compress_stream_to_records(struct zstd_data *data, void *dst, size_
 				(long)src_size, ZSTD_getErrorName(ret));
 			goto reset;
 		}
-		size = output.pos;
+		compressed += output.pos;
+		dst += output.pos;
+		dst_size -= output.pos;
 		/*
 		 * No progress: ZSTD couldn't emit any bytes into the
 		 * remaining output buffer.  Calling process_header
-		 * with size=0 would re-trigger header initialization,
+		 * with output.pos=0 would re-trigger header initialization,
 		 * double-subtracting the header size from dst_size and
 		 * underflowing the unsigned counter.
 		 */
-		if (size == 0)
+		if (output.pos == 0)
 			goto reset;
-		size = process_header(record, size);
+		size = process_header(record, dst_size, output.pos);
+		if (size < 0)
+			goto reset;
 		compressed += size;
 		dst += size;
 		dst_size -= size;

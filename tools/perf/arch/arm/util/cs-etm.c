@@ -201,7 +201,7 @@ static int cs_etm_validate_config(struct perf_pmu *cs_etm_pmu,
 {
 	unsigned int idx;
 	int err = 0;
-	struct perf_cpu_map *event_cpus = evsel->evlist->core.user_requested_cpus;
+	struct perf_cpu_map *event_cpus = evlist__core(evsel->evlist)->user_requested_cpus;
 	struct perf_cpu_map *intersect_cpus;
 	struct perf_cpu cpu;
 
@@ -325,7 +325,7 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 				container_of(itr, struct cs_etm_recording, itr);
 	struct perf_pmu *cs_etm_pmu = ptr->cs_etm_pmu;
 	struct evsel *evsel, *cs_etm_evsel = NULL;
-	struct perf_cpu_map *cpus = evlist->core.user_requested_cpus;
+	struct perf_cpu_map *cpus = evlist__core(evlist)->user_requested_cpus;
 	bool privileged = perf_event_paranoid_check(-1);
 	int err = 0;
 
@@ -551,7 +551,7 @@ cs_etm_info_priv_size(struct auxtrace_record *itr,
 {
 	unsigned int idx;
 	int etmv3 = 0, etmv4 = 0, ete = 0;
-	struct perf_cpu_map *event_cpus = evlist->core.user_requested_cpus;
+	struct perf_cpu_map *event_cpus = evlist__core(evlist)->user_requested_cpus;
 	struct perf_cpu_map *intersect_cpus;
 	struct perf_cpu cpu;
 	struct perf_pmu *cs_etm_pmu = cs_etm_get_pmu(itr);
@@ -790,7 +790,7 @@ static int cs_etm_info_fill(struct auxtrace_record *itr,
 	u32 offset;
 	u64 nr_cpu, type;
 	struct perf_cpu_map *cpu_map;
-	struct perf_cpu_map *event_cpus = session->evlist->core.user_requested_cpus;
+	struct perf_cpu_map *event_cpus = evlist__core(session->evlist)->user_requested_cpus;
 	struct perf_cpu_map *online_cpus = perf_cpu_map__new_online_cpus();
 	struct cs_etm_recording *ptr =
 			container_of(itr, struct cs_etm_recording, itr);
@@ -800,7 +800,7 @@ static int cs_etm_info_fill(struct auxtrace_record *itr,
 	if (priv_size != cs_etm_info_priv_size(itr, session->evlist))
 		return -EINVAL;
 
-	if (!session->evlist->core.nr_mmaps)
+	if (!evlist__core(session->evlist)->nr_mmaps)
 		return -EINVAL;
 
 	/* If the cpu_map has the "any" CPU all online CPUs are involved */

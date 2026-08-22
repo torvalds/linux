@@ -59,7 +59,7 @@ static int test__openat_syscall_event_on_all_cpus(struct test_suite *test __mayb
 			 "tweak /proc/sys/kernel/perf_event_paranoid?\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		err = TEST_SKIP;
-		goto out_evsel_delete;
+		goto out_evsel_put;
 	}
 
 	perf_cpu_map__for_each_cpu(cpu, idx, cpus) {
@@ -116,8 +116,8 @@ static int test__openat_syscall_event_on_all_cpus(struct test_suite *test __mayb
 	evsel__free_counts(evsel);
 out_close_fd:
 	perf_evsel__close_fd(&evsel->core);
-out_evsel_delete:
-	evsel__delete(evsel);
+out_evsel_put:
+	evsel__put(evsel);
 out_cpu_map_delete:
 	perf_cpu_map__put(cpus);
 out_thread_map_delete:

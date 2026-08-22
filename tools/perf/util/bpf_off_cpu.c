@@ -1,23 +1,25 @@
 // SPDX-License-Identifier: GPL-2.0
-#include "util/bpf_counter.h"
-#include "util/debug.h"
-#include "util/evsel.h"
-#include "util/evlist.h"
-#include "util/off_cpu.h"
-#include "util/perf-hooks.h"
-#include "util/record.h"
-#include "util/session.h"
-#include "util/target.h"
-#include "util/cpumap.h"
-#include "util/thread_map.h"
-#include "util/cgroup.h"
-#include "util/strlist.h"
+#include <linux/time64.h>
+
 #include <bpf/bpf.h>
 #include <bpf/btf.h>
 #include <internal/xyarray.h>
-#include <linux/time64.h>
 
+#include "bpf_counter.h"
 #include "bpf_skel/off_cpu.skel.h"
+#include "cgroup.h"
+#include "cpumap.h"
+#include "debug.h"
+#include "evlist.h"
+#include "evsel.h"
+#include "off_cpu.h"
+#include "parse-events.h"
+#include "perf-hooks.h"
+#include "record.h"
+#include "session.h"
+#include "strlist.h"
+#include "target.h"
+#include "thread_map.h"
 
 #define MAX_STACKS  32
 #define MAX_PROC  4096
@@ -71,13 +73,13 @@ static void off_cpu_start(void *arg)
 
 	/* update task filter for the given workload */
 	if (skel->rodata->has_task && skel->rodata->uses_tgid &&
-	    perf_thread_map__pid(evlist->core.threads, 0) != -1) {
+	    perf_thread_map__pid(evlist__core(evlist)->threads, 0) != -1) {
 		int fd;
 		u32 pid;
 		u8 val = 1;
 
 		fd = bpf_map__fd(skel->maps.task_filter);
-		pid = perf_thread_map__pid(evlist->core.threads, 0);
+		pid = perf_thread_map__pid(evlist__core(evlist)->threads, 0);
 		bpf_map_update_elem(fd, &pid, &val, BPF_ANY);
 	}
 
@@ -166,7 +168,7 @@ int off_cpu_prepare(struct evlist *evlist, struct target *target,
 
 	/* don't need to set cpu filter for system-wide mode */
 	if (target->cpu_list) {
-		ncpus = perf_cpu_map__nr(evlist->core.user_requested_cpus);
+		ncpus = perf_cpu_map__nr(evlist__core(evlist)->user_requested_cpus);
 		bpf_map__set_max_entries(skel->maps.cpu_filter, ncpus);
 		skel->rodata->has_cpu = 1;
 	}
@@ -197,7 +199,7 @@ int off_cpu_prepare(struct evlist *evlist, struct target *target,
 		skel->rodata->has_task = 1;
 		skel->rodata->uses_tgid = 1;
 	} else if (target__has_task(target)) {
-		ntasks = perf_thread_map__nr(evlist->core.threads);
+		ntasks = perf_thread_map__nr(evlist__core(evlist)->threads);
 		bpf_map__set_max_entries(skel->maps.task_filter, ntasks);
 		skel->rodata->has_task = 1;
 	} else if (target__none(target)) {
@@ -207,7 +209,7 @@ int off_cpu_prepare(struct evlist *evlist, struct target *target,
 	}
 
 	if (evlist__first(evlist)->cgrp) {
-		ncgrps = evlist->core.nr_entries - 1; /* excluding a dummy */
+		ncgrps = evlist__nr_entries(evlist) - 1; /* excluding a dummy */
 		bpf_map__set_max_entries(skel->maps.cgroup_filter, ncgrps);
 
 		if (!cgroup_is_v2("perf_event"))
@@ -238,7 +240,7 @@ int off_cpu_prepare(struct evlist *evlist, struct target *target,
 		fd = bpf_map__fd(skel->maps.cpu_filter);
 
 		for (i = 0; i < ncpus; i++) {
-			cpu = perf_cpu_map__cpu(evlist->core.user_requested_cpus, i).cpu;
+			cpu = perf_cpu_map__cpu(evlist__core(evlist)->user_requested_cpus, i).cpu;
 			bpf_map_update_elem(fd, &cpu, &val, BPF_ANY);
 		}
 	}
@@ -267,7 +269,7 @@ int off_cpu_prepare(struct evlist *evlist, struct target *target,
 		fd = bpf_map__fd(skel->maps.task_filter);
 
 		for (i = 0; i < ntasks; i++) {
-			pid = perf_thread_map__pid(evlist->core.threads, i);
+			pid = perf_thread_map__pid(evlist__core(evlist)->threads, i);
 			bpf_map_update_elem(fd, &pid, &val, BPF_ANY);
 		}
 	}

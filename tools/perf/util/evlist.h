@@ -2,29 +2,33 @@
 #ifndef __PERF_EVLIST_H
 #define __PERF_EVLIST_H 1
 
+#include <signal.h>
+
 #include <linux/compiler.h>
 #include <linux/kernel.h>
-#include <linux/refcount.h>
 #include <linux/list.h>
+#include <linux/refcount.h>
+#include <pthread.h>
+#include <unistd.h>
+
 #include <api/fd/array.h>
 #include <internal/evlist.h>
 #include <internal/evsel.h>
+#include <internal/rc_check.h>
 #include <perf/evlist.h>
+
 #include "affinity.h"
 #include "events_stats.h"
 #include "evsel.h"
 #include "rblist.h"
-#include <pthread.h>
-#include <signal.h>
-#include <unistd.h>
 
-struct pollfd;
-struct thread_map;
 struct perf_cpu_map;
 struct perf_stat_config;
+struct pollfd;
 struct record_opts;
 struct strbuf;
 struct target;
+struct thread_map;
 
 /*
  * State machine of bkw_mmap_state:
@@ -56,8 +60,9 @@ enum bkw_mmap_state {
 
 struct event_enable_timer;
 
-struct evlist {
+DECLARE_RC_STRUCT(evlist) {
 	struct perf_evlist core;
+	refcount_t	 refcnt;
 	bool		 enabled;
 	bool		 no_affinity;
 	int		 id_pos;
@@ -82,7 +87,7 @@ struct evlist {
 	struct {
 		pthread_t		th;
 		volatile int		done;
-	} thread;
+	} sb_thread;
 	struct {
 		int	fd;	/* control file descriptor */
 		int	ack;	/* ack file descriptor for control commands */
@@ -103,13 +108,232 @@ struct evsel_str_handler {
 	void	   *handler;
 };
 
+static inline struct perf_evlist *evlist__core(struct evlist *evlist)
+{
+	return &RC_CHK_ACCESS(evlist)->core;
+}
+
+static inline const struct perf_evlist *evlist__const_core(const struct evlist *evlist)
+{
+	return &RC_CHK_ACCESS(evlist)->core;
+}
+
+static inline int evlist__nr_entries(const struct evlist *evlist)
+{
+	return evlist__const_core(evlist)->nr_entries;
+}
+
+static inline bool evlist__enabled(const struct evlist *evlist)
+{
+	return RC_CHK_ACCESS(evlist)->enabled;
+}
+
+static inline void evlist__set_enabled(struct evlist *evlist, bool enabled)
+{
+	RC_CHK_ACCESS(evlist)->enabled = enabled;
+}
+
+static inline bool evlist__no_affinity(const struct evlist *evlist)
+{
+	return RC_CHK_ACCESS(evlist)->no_affinity;
+}
+
+static inline void evlist__set_no_affinity(struct evlist *evlist, bool no_affinity)
+{
+	RC_CHK_ACCESS(evlist)->no_affinity = no_affinity;
+}
+
+static inline int evlist__sb_thread_done(const struct evlist *evlist)
+{
+	return RC_CHK_ACCESS(evlist)->sb_thread.done;
+}
+
+static inline void evlist__set_sb_thread_done(struct evlist *evlist, int done)
+{
+	RC_CHK_ACCESS(evlist)->sb_thread.done = done;
+}
+
+static inline pthread_t *evlist__sb_thread_th(struct evlist *evlist)
+{
+	return &RC_CHK_ACCESS(evlist)->sb_thread.th;
+}
+
+static inline int evlist__id_pos(const struct evlist *evlist)
+{
+	return RC_CHK_ACCESS(evlist)->id_pos;
+}
+
+static inline int evlist__is_pos(const struct evlist *evlist)
+{
+	return RC_CHK_ACCESS(evlist)->is_pos;
+}
+
+static inline struct event_enable_timer *evlist__event_enable_timer(struct evlist *evlist)
+{
+	return RC_CHK_ACCESS(evlist)->eet;
+}
+
+static inline enum bkw_mmap_state evlist__bkw_mmap_state(const struct evlist *evlist)
+{
+	return RC_CHK_ACCESS(evlist)->bkw_mmap_state;
+}
+
+static inline void evlist__set_bkw_mmap_state(struct evlist *evlist, enum bkw_mmap_state state)
+{
+	RC_CHK_ACCESS(evlist)->bkw_mmap_state = state;
+}
+
+static inline struct mmap *evlist__mmap(struct evlist *evlist)
+{
+	return RC_CHK_ACCESS(evlist)->mmap;
+}
+
+static inline struct mmap *evlist__overwrite_mmap(struct evlist *evlist)
+{
+	return RC_CHK_ACCESS(evlist)->overwrite_mmap;
+}
+
+static inline struct events_stats *evlist__stats(struct evlist *evlist)
+{
+	return &RC_CHK_ACCESS(evlist)->stats;
+}
+
+static inline u64 evlist__first_sample_time(const struct evlist *evlist)
+{
+	return RC_CHK_ACCESS(evlist)->first_sample_time;
+}
+
+static inline void evlist__set_first_sample_time(struct evlist *evlist, u64 first)
+{
+	RC_CHK_ACCESS(evlist)->first_sample_time = first;
+}
+
+static inline u64 evlist__last_sample_time(const struct evlist *evlist)
+{
+	return RC_CHK_ACCESS(evlist)->last_sample_time;
+}
+
+static inline void evlist__set_last_sample_time(struct evlist *evlist, u64 last)
+{
+	RC_CHK_ACCESS(evlist)->last_sample_time = last;
+}
+
+static inline int evlist__nr_br_cntr(const struct evlist *evlist)
+{
+	return RC_CHK_ACCESS(evlist)->nr_br_cntr;
+}
+
+static inline void evlist__set_nr_br_cntr(struct evlist *evlist, int nr)
+{
+	RC_CHK_ACCESS(evlist)->nr_br_cntr = nr;
+}
+
+static inline struct perf_session *evlist__session(struct evlist *evlist)
+{
+	return RC_CHK_ACCESS(evlist)->session;
+}
+
+static inline void evlist__set_session(struct evlist *evlist, struct perf_session *session)
+{
+	RC_CHK_ACCESS(evlist)->session = session;
+}
+
+static inline void (*evlist__trace_event_sample_raw(struct evlist *evlist))
+			(struct evlist *evlist,
+			 union perf_event *event,
+			 struct perf_sample *sample)
+{
+	return RC_CHK_ACCESS(evlist)->trace_event_sample_raw;
+}
+
+static inline void evlist__set_trace_event_sample_raw(struct evlist *evlist,
+						void (*fun)(struct evlist *evlist,
+							union perf_event *event,
+							struct perf_sample *sample))
+{
+	RC_CHK_ACCESS(evlist)->trace_event_sample_raw = fun;
+}
+
+static inline pid_t evlist__workload_pid(const struct evlist *evlist)
+{
+	return RC_CHK_ACCESS(evlist)->workload.pid;
+}
+
+static inline void evlist__set_workload_pid(struct evlist *evlist, pid_t pid)
+{
+	RC_CHK_ACCESS(evlist)->workload.pid = pid;
+}
+
+static inline int evlist__workload_cork_fd(const struct evlist *evlist)
+{
+	return RC_CHK_ACCESS(evlist)->workload.cork_fd;
+}
+
+static inline void evlist__set_workload_cork_fd(struct evlist *evlist, int cork_fd)
+{
+	RC_CHK_ACCESS(evlist)->workload.cork_fd = cork_fd;
+}
+
+static inline int evlist__ctl_fd_fd(const struct evlist *evlist)
+{
+	return RC_CHK_ACCESS(evlist)->ctl_fd.fd;
+}
+
+static inline void evlist__set_ctl_fd_fd(struct evlist *evlist, int fd)
+{
+	RC_CHK_ACCESS(evlist)->ctl_fd.fd = fd;
+}
+
+static inline int evlist__ctl_fd_ack(const struct evlist *evlist)
+{
+	return RC_CHK_ACCESS(evlist)->ctl_fd.ack;
+}
+
+static inline void evlist__set_ctl_fd_ack(struct evlist *evlist, int ack)
+{
+	RC_CHK_ACCESS(evlist)->ctl_fd.ack = ack;
+}
+
+static inline int evlist__ctl_fd_pos(const struct evlist *evlist)
+{
+	return RC_CHK_ACCESS(evlist)->ctl_fd.pos;
+}
+
+static inline void evlist__set_ctl_fd_pos(struct evlist *evlist, int pos)
+{
+	RC_CHK_ACCESS(evlist)->ctl_fd.pos = pos;
+}
+
+static inline refcount_t *evlist__refcnt(struct evlist *evlist)
+{
+	return &RC_CHK_ACCESS(evlist)->refcnt;
+}
+
+static inline struct rblist *evlist__metric_events(struct evlist *evlist)
+{
+	return &RC_CHK_ACCESS(evlist)->metric_events;
+}
+
+static inline struct list_head *evlist__deferred_samples(struct evlist *evlist)
+{
+	return &RC_CHK_ACCESS(evlist)->deferred_samples;
+}
+
+static inline struct evsel *evlist__selected(struct evlist *evlist)
+{
+	return RC_CHK_ACCESS(evlist)->selected;
+}
+
+static inline void evlist__set_selected(struct evlist *evlist, struct evsel *evsel)
+{
+	RC_CHK_ACCESS(evlist)->selected = evsel;
+}
+
 struct evlist *evlist__new(void);
 struct evlist *evlist__new_default(const struct target *target, bool sample_callchains);
 struct evlist *evlist__new_dummy(void);
-void evlist__init(struct evlist *evlist, struct perf_cpu_map *cpus,
-		  struct perf_thread_map *threads);
-void evlist__exit(struct evlist *evlist);
-void evlist__delete(struct evlist *evlist);
+struct evlist *evlist__get(struct evlist *evlist);
+void evlist__put(struct evlist *evlist);
 
 void evlist__add(struct evlist *evlist, struct evsel *entry);
 void evlist__remove(struct evlist *evlist, struct evsel *evsel);
@@ -198,8 +422,8 @@ int evlist__mmap_ex(struct evlist *evlist, unsigned int pages,
 			 unsigned int auxtrace_pages,
 			 bool auxtrace_overwrite, int nr_cblocks,
 			 int affinity, int flush, int comp_level);
-int evlist__mmap(struct evlist *evlist, unsigned int pages);
-void evlist__munmap(struct evlist *evlist);
+int evlist__do_mmap(struct evlist *evlist, unsigned int pages);
+void evlist__do_munmap(struct evlist *evlist);
 
 size_t evlist__mmap_size(unsigned long pages);
 
@@ -210,8 +434,6 @@ void evlist__disable_evsel(struct evlist *evlist, char *evsel_name);
 void evlist__enable_evsel(struct evlist *evlist, char *evsel_name);
 void evlist__disable_non_dummy(struct evlist *evlist);
 void evlist__enable_non_dummy(struct evlist *evlist);
-
-void evlist__set_selected(struct evlist *evlist, struct evsel *evsel);
 
 int evlist__create_maps(struct evlist *evlist, struct target *target);
 int evlist__apply_filters(struct evlist *evlist, struct evsel **err_evsel,
@@ -235,26 +457,26 @@ void evlist__splice_list_tail(struct evlist *evlist, struct list_head *list);
 
 static inline bool evlist__empty(struct evlist *evlist)
 {
-	return list_empty(&evlist->core.entries);
+	return list_empty(&evlist__core(evlist)->entries);
 }
 
 static inline struct evsel *evlist__first(struct evlist *evlist)
 {
-	struct perf_evsel *evsel = perf_evlist__first(&evlist->core);
+	struct perf_evsel *evsel = perf_evlist__first(evlist__core(evlist));
 
 	return container_of(evsel, struct evsel, core);
 }
 
 static inline struct evsel *evlist__last(struct evlist *evlist)
 {
-	struct perf_evsel *evsel = perf_evlist__last(&evlist->core);
+	struct perf_evsel *evsel = perf_evlist__last(evlist__core(evlist));
 
 	return container_of(evsel, struct evsel, core);
 }
 
 static inline int evlist__nr_groups(struct evlist *evlist)
 {
-	return perf_evlist__nr_groups(&evlist->core);
+	return perf_evlist__nr_groups(evlist__core(evlist));
 }
 
 int evlist__strerror_open(struct evlist *evlist, int err, char *buf, size_t size);
@@ -277,7 +499,7 @@ void evlist__to_front(struct evlist *evlist, struct evsel *move_evsel);
  * @evsel: struct evsel iterator
  */
 #define evlist__for_each_entry(evlist, evsel) \
-	__evlist__for_each_entry(&(evlist)->core.entries, evsel)
+	__evlist__for_each_entry(&evlist__core(evlist)->entries, evsel)
 
 /**
  * __evlist__for_each_entry_continue - continue iteration thru all the evsels
@@ -293,7 +515,7 @@ void evlist__to_front(struct evlist *evlist, struct evsel *move_evsel);
  * @evsel: struct evsel iterator
  */
 #define evlist__for_each_entry_continue(evlist, evsel) \
-	__evlist__for_each_entry_continue(&(evlist)->core.entries, evsel)
+	__evlist__for_each_entry_continue(&evlist__core(evlist)->entries, evsel)
 
 /**
  * __evlist__for_each_entry_from - continue iteration from @evsel (included)
@@ -309,7 +531,7 @@ void evlist__to_front(struct evlist *evlist, struct evsel *move_evsel);
  * @evsel: struct evsel iterator
  */
 #define evlist__for_each_entry_from(evlist, evsel) \
-	__evlist__for_each_entry_from(&(evlist)->core.entries, evsel)
+	__evlist__for_each_entry_from(&evlist__core(evlist)->entries, evsel)
 
 /**
  * __evlist__for_each_entry_reverse - iterate thru all the evsels in reverse order
@@ -325,7 +547,7 @@ void evlist__to_front(struct evlist *evlist, struct evsel *move_evsel);
  * @evsel: struct evsel iterator
  */
 #define evlist__for_each_entry_reverse(evlist, evsel) \
-	__evlist__for_each_entry_reverse(&(evlist)->core.entries, evsel)
+	__evlist__for_each_entry_reverse(&evlist__core(evlist)->entries, evsel)
 
 /**
  * __evlist__for_each_entry_safe - safely iterate thru all the evsels
@@ -343,7 +565,7 @@ void evlist__to_front(struct evlist *evlist, struct evsel *move_evsel);
  * @tmp: struct evsel temp iterator
  */
 #define evlist__for_each_entry_safe(evlist, tmp, evsel) \
-	__evlist__for_each_entry_safe(&(evlist)->core.entries, tmp, evsel)
+	__evlist__for_each_entry_safe(&evlist__core(evlist)->entries, tmp, evsel)
 
 /** Iterator state for evlist__for_each_cpu */
 struct evlist_cpu_iterator {
@@ -449,7 +671,6 @@ int evlist__ctlfd_ack(struct evlist *evlist);
 int evlist__parse_event_enable_time(struct evlist *evlist, struct record_opts *opts,
 				    const char *str, int unset);
 int event_enable_timer__start(struct event_enable_timer *eet);
-void event_enable_timer__exit(struct event_enable_timer **ep);
 int event_enable_timer__process(struct event_enable_timer *eet);
 
 struct evsel *evlist__find_evsel(struct evlist *evlist, int idx);

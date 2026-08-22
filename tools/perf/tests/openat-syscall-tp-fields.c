@@ -51,7 +51,7 @@ static int test__syscall_openat_tp_fields(struct test_suite *test __maybe_unused
 	if (IS_ERR(evsel)) {
 		pr_debug("%s: evsel__newtp\n", __func__);
 		ret = PTR_ERR(evsel) == -EACCES ? TEST_SKIP : TEST_FAIL;
-		goto out_delete_evlist;
+		goto out_put_evlist;
 	}
 
 	evlist__add(evlist, evsel);
@@ -59,25 +59,25 @@ static int test__syscall_openat_tp_fields(struct test_suite *test __maybe_unused
 	err = evlist__create_maps(evlist, &opts.target);
 	if (err < 0) {
 		pr_debug("%s: evlist__create_maps\n", __func__);
-		goto out_delete_evlist;
+		goto out_put_evlist;
 	}
 
 	evsel__config(evsel, &opts, NULL);
 
-	perf_thread_map__set_pid(evlist->core.threads, 0, getpid());
+	perf_thread_map__set_pid(evlist__core(evlist)->threads, 0, getpid());
 
 	err = evlist__open(evlist);
 	if (err < 0) {
 		pr_debug("perf_evlist__open: %s\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
-		goto out_delete_evlist;
+		goto out_put_evlist;
 	}
 
-	err = evlist__mmap(evlist, UINT_MAX);
+	err = evlist__do_mmap(evlist, UINT_MAX);
 	if (err < 0) {
 		pr_debug("evlist__mmap: %s\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
-		goto out_delete_evlist;
+		goto out_put_evlist;
 	}
 
 	evlist__enable(evlist);
@@ -90,11 +90,11 @@ static int test__syscall_openat_tp_fields(struct test_suite *test __maybe_unused
 	while (1) {
 		int before = nr_events;
 
-		for (i = 0; i < evlist->core.nr_mmaps; i++) {
+		for (i = 0; i < evlist__core(evlist)->nr_mmaps; i++) {
 			union perf_event *event;
 			struct mmap *md;
 
-			md = &evlist->mmap[i];
+			md = &evlist__mmap(evlist)[i];
 			if (perf_mmap__read_init(&md->core) < 0)
 				continue;
 
@@ -115,7 +115,7 @@ static int test__syscall_openat_tp_fields(struct test_suite *test __maybe_unused
 				if (err) {
 					pr_debug("Can't parse sample, err = %d\n", err);
 					perf_sample__exit(&sample);
-					goto out_delete_evlist;
+					goto out_put_evlist;
 				}
 
 				tp_flags = perf_sample__intval(&sample, "flags");
@@ -126,7 +126,7 @@ static int test__syscall_openat_tp_fields(struct test_suite *test __maybe_unused
 				    (tp_flags & flags) != flags) {
 					pr_debug("%s: Expected flags=%#x, got %#x\n",
 						 __func__, flags, tp_flags);
-					goto out_delete_evlist;
+					goto out_put_evlist;
 				}
 
 				goto out_ok;
@@ -139,13 +139,13 @@ static int test__syscall_openat_tp_fields(struct test_suite *test __maybe_unused
 
 		if (++nr_polls > 5) {
 			pr_debug("%s: no events!\n", __func__);
-			goto out_delete_evlist;
+			goto out_put_evlist;
 		}
 	}
 out_ok:
 	ret = TEST_OK;
-out_delete_evlist:
-	evlist__delete(evlist);
+out_put_evlist:
+	evlist__put(evlist);
 out:
 	return ret;
 }

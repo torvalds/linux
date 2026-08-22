@@ -135,8 +135,14 @@ test_callchain_aslr() {
     echo "Callchain ASLR test [Failed - no noploop samples in original file]"
     err=1
   elif [ -z "$new_addr" ]; then
-    echo "Callchain ASLR test [Failed - could not find remapped address]"
-    err=1
+    if perf evlist -v -i "${data}" | grep -q 'sample_type:.*STACK_USER'; then
+      echo "Dropping stack user sample as possible ASLR leak"
+      echo "Call-graph dwarf not supported with 'perf inject --aslr'"
+      echo "Callchain ASLR test [Skip]"
+    else
+      echo "Callchain ASLR test [Failed - could not find remapped address]"
+      err=1
+    fi
   elif [ "$orig_addr" = "$new_addr" ]; then
     echo "Callchain ASLR test [Failed - addresses are not remapped]"
     err=1

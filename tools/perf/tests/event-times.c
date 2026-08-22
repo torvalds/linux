@@ -50,7 +50,7 @@ static int attach__enable_on_exec(struct evlist *evlist)
 
 static int detach__enable_on_exec(struct evlist *evlist)
 {
-	waitpid(evlist->workload.pid, NULL, 0);
+	waitpid(evlist__workload_pid(evlist), NULL, 0);
 	return 0;
 }
 
@@ -186,7 +186,7 @@ static int test_times(int (attach)(struct evlist *),
 	err = attach(evlist);
 	if (err == TEST_SKIP) {
 		pr_debug("  SKIP  : not enough rights\n");
-		evlist__delete(evlist);
+		evlist__put(evlist);
 		return err;
 	}
 
@@ -205,7 +205,7 @@ static int test_times(int (attach)(struct evlist *),
 		 count.ena, count.run);
 
 out_err:
-	evlist__delete(evlist);
+	evlist__put(evlist);
 	return !err ? TEST_OK : TEST_FAIL;
 }
 

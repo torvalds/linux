@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "debug.h"
+#include "env.h"
 #include "evsel.h"
 #include "kvm-stat.h"
 #include <dwarf-regs.h>
+#include <subcmd/parse-options.h>
 
 bool kvm_exit_event(struct evsel *evsel)
 {
@@ -267,4 +269,43 @@ int kvm_add_default_arch_event(uint16_t e_machine, int *argc, const char **argv)
 	default:
 		return 0;
 	}
+}
+
+bool kvm_need_default_arch_event(uint16_t e_machine, int argc, const char **argv)
+{
+	const char **tmp_argv;
+	bool event = false;
+	int i;
+
+	const struct option event_options[] = {
+		OPT_BOOLEAN('e', "event", &event, NULL),
+		OPT_BOOLEAN(0, "pfm-events", &event, NULL),
+		OPT_END()
+	};
+
+	switch (e_machine) {
+	case EM_PPC:
+	case EM_PPC64:
+		break;
+	case EM_X86_64:
+	case EM_386:
+		if (!x86__is_intel_cpu())
+			return false;
+		break;
+	default:
+		return false;
+	}
+
+	/* parse_options() may change the argv, let's make a copy */
+	tmp_argv = calloc(argc + 1, sizeof(char *));
+	if (!tmp_argv)
+		return false;
+
+	for (i = 0; i < argc; i++)
+		tmp_argv[i] = argv[i];
+
+	parse_options(argc, tmp_argv, event_options, NULL, PARSE_OPT_KEEP_UNKNOWN);
+	free(tmp_argv);
+
+	return !event;
 }

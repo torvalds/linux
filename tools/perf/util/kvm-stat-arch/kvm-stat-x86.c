@@ -7,7 +7,6 @@
 #include "../../../arch/x86/include/uapi/asm/svm.h"
 #include "../../../arch/x86/include/uapi/asm/vmx.h"
 #include "../../../arch/x86/include/uapi/asm/kvm.h"
-#include <subcmd/parse-options.h>
 
 define_exit_reasons_table(vmx_exit_reasons, VMX_EXIT_REASONS);
 define_exit_reasons_table(svm_exit_reasons, SVM_EXIT_REASONS);
@@ -211,39 +210,13 @@ int __cpu_isa_init_x86(struct perf_kvm_stat *kvm, const char *cpuid)
  */
 int __kvm_add_default_arch_event_x86(int *argc, const char **argv)
 {
-	const char **tmp;
-	bool event = false;
-	int ret = 0, i, j = *argc;
+	int j = *argc;
 
-	const struct option event_options[] = {
-		OPT_BOOLEAN('e', "event", &event, NULL),
-		OPT_BOOLEAN(0, "pfm-events", &event, NULL),
-		OPT_END()
-	};
+	argv[j++] = "-e";
+	argv[j++] = "cycles";
+	*argc += 2;
 
-	if (!x86__is_intel_cpu())
-		return 0;
-
-	tmp = calloc(j + 1, sizeof(char *));
-	if (!tmp)
-		return -ENOMEM;
-
-	for (i = 0; i < j; i++)
-		tmp[i] = argv[i];
-
-	parse_options(j, tmp, event_options, NULL, PARSE_OPT_KEEP_UNKNOWN);
-	if (!event) {
-		argv[j++] = STRDUP_FAIL_EXIT("-e");
-		argv[j++] = STRDUP_FAIL_EXIT("cycles");
-		*argc += 2;
-	}
-
-	free(tmp);
 	return 0;
-
-EXIT:
-	free(tmp);
-	return ret;
 }
 
 const char * const *__kvm_events_tp_x86(void)

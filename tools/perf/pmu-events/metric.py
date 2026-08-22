@@ -276,7 +276,7 @@ class Operator(Expression):
     lhs = self.lhs.Simplify()
     rhs = self.rhs.Simplify()
     if isinstance(lhs, Constant) and isinstance(rhs, Constant):
-      return Constant(ast.literal_eval(lhs + self.operator + rhs))
+      return Constant(ast.literal_eval(lhs.value + self.operator + rhs.value))
 
     if isinstance(self.lhs, Constant):
       if self.operator in ('+', '|') and lhs.value == '0':
@@ -298,7 +298,7 @@ class Operator(Expression):
       if self.operator == '*' and rhs.value == '0':
         return Constant(0)
 
-      if self.operator == '*' and self.rhs.value == '1':
+      if self.operator == '*' and rhs.value == '1':
         return lhs
 
     return Operator(self.operator, lhs, rhs)
@@ -316,9 +316,7 @@ class Operator(Expression):
     if self.Equals(expression):
       return Event(name)
     lhs = self.lhs.Substitute(name, expression)
-    rhs = None
-    if self.rhs:
-      rhs = self.rhs.Substitute(name, expression)
+    rhs = self.rhs.Substitute(name, expression)
     return Operator(self.operator, lhs, rhs)
 
 
@@ -382,7 +380,9 @@ class Function(Expression):
                rhs: Optional[Union[int, float, Expression]] = None):
     self.fn = fn
     self.lhs = _Constify(lhs)
-    self.rhs = _Constify(rhs)
+    self.rhs = None
+    if rhs is not None:
+      self.rhs = _Constify(rhs)
 
   def ToPerfJson(self):
     if self.rhs:
@@ -407,7 +407,8 @@ class Function(Expression):
     return Function(self.fn, lhs, rhs)
 
   def HasExperimentalEvents(self) -> bool:
-    return self.lhs.HasExperimentalEvents() or (self.rhs and self.rhs.HasExperimentalEvents())
+    return (self.lhs.HasExperimentalEvents() or
+            (self.rhs is not None and self.rhs.HasExperimentalEvents()))
 
   def Equals(self, other: Expression) -> bool:
     if isinstance(other, Function):
@@ -623,7 +624,11 @@ class Metric:
 
   def __lt__(self, other):
     """Sort order."""
-    return self.name < other.name
+    if self.name != other.name:
+      return self.name < other.name
+    if not self.expr.Equals(other.expr):
+      return self.expr.ToPerfJson() < other.expr.ToPerfJson()
+    return self.description < other.description
 
   def AddToMetricGroup(self, group):
     """Callback used when being added to a MetricGroup."""
@@ -679,7 +684,7 @@ class MetricGroup:
 
   def Flatten(self) -> Set[Metric]:
     """Returns a set of all leaf metrics."""
-    result = set()
+    result: Set[Metric] = set()
     for x in self.metric_list:
       result = result.union(x.Flatten())
 

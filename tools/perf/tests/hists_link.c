@@ -353,7 +353,7 @@ static int test__hists_link(struct test_suite *test __maybe_unused, int subtest 
 
 out:
 	/* tear down everything */
-	evlist__delete(evlist);
+	evlist__put(evlist);
 	reset_output_field();
 	machines__exit(&machines);
 	put_fake_samples();

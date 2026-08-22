@@ -535,6 +535,62 @@ test_stat_delay() {
   echo "stat -D test [Success]"
 }
 
+test_csv_json_fail() {
+  echo "stat -x <sep> -j test"
+  if perf stat -x , -j true > /dev/null 2>&1
+  then
+    echo "stat -x <sep> -j test [Failed - command should have errored]"
+    err=1
+  else
+    echo "stat -x <sep> -j test [Success]"
+  fi
+}
+
+test_hide_zero_events_stat() {
+  echo "Hide zero events stat test"
+  if ! perf stat -e context-switches,cpu-migrations true > "${stat_output}" 2>&1
+  then
+    echo "Hide zero events stat test [Skipped event parsing failed]"
+    return
+  fi
+
+  zero_event=""
+  if grep -q -E "[[:space:]]+0[[:space:]]+context-switches" "${stat_output}"; then
+    zero_event="context-switches"
+  elif grep -q -E "[[:space:]]+0[[:space:]]+cpu-migrations" "${stat_output}"; then
+    zero_event="cpu-migrations"
+  fi
+
+  if [ -z "$zero_event" ]; then
+    echo "Hide zero events stat test [Skipped - no zero count event found]"
+    return
+  fi
+
+  if ! perf stat --hide-zero-events -e context-switches,cpu-migrations true > "${stat_output}" 2>&1
+  then
+    echo "Hide zero events stat test [Failed - command failed]"
+    err=1
+    return
+  fi
+
+  if grep -q -E "$zero_event" "${stat_output}"
+  then
+    echo "Hide zero events stat test [Failed - zero event $zero_event was not hidden]"
+    err=1
+    return
+  fi
+
+  # Check that --metric-only works with --hide-zero-events
+  if ! perf stat --hide-zero-events --metric-only -e instructions,cycles true > "${stat_output}" 2>&1
+  then
+    echo "Hide zero events stat test [Failed - metric-only command failed]"
+    err=1
+    return
+  fi
+
+  echo "Hide zero events stat test [Success]"
+}
+
 test_default_stat
 test_null_stat
 test_offline_cpu_stat
@@ -551,6 +607,8 @@ test_stat_detailed
 test_stat_repeat
 test_stat_pid
 test_stat_delay
+test_csv_json_fail
+test_hide_zero_events_stat
 
 cleanup
 exit $err

@@ -18,7 +18,6 @@
 #define CAP_BPF		39
 #endif
 
-/* Query if a capability is supported, used_root is set if the fallback root check was used. */
-bool perf_cap__capable(int cap, bool *used_root);
+bool perf_cap__capable(int cap);
 
 #endif /* __PERF_CAP_H */
