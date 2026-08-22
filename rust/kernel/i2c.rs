@@ -404,6 +404,7 @@ impl I2cAdapter {
     }
 
     /// Gets pointer to an `i2c_adapter` by index.
+    #[inline]
     pub fn get(index: i32) -> Result<ARef<Self>> {
         // SAFETY: `index` must refer to a valid I2C adapter; the kernel
         // guarantees that `i2c_get_adapter(index)` returns either a valid
@@ -425,11 +426,13 @@ kernel::impl_device_context_into_aref!(I2cAdapter);
 
 // SAFETY: Instances of `I2cAdapter` are always reference-counted.
 unsafe impl AlwaysRefCounted for I2cAdapter {
+    #[inline]
     fn inc_ref(&self) {
         // SAFETY: The existence of a shared reference guarantees that the refcount is non-zero.
         unsafe { bindings::i2c_get_adapter(self.index()) };
     }
 
+    #[inline]
     unsafe fn dec_ref(obj: NonNull<Self>) {
         // SAFETY: The safety requirements guarantee that the refcount is non-zero.
         unsafe { bindings::i2c_put_adapter(obj.as_ref().as_raw()) }
