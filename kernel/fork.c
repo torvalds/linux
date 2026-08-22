@@ -1508,15 +1508,9 @@ static void mm_release(struct task_struct *tsk, struct mm_struct *mm)
 		complete_vfork_done(tsk);
 }
 
-void exit_mm_release(struct task_struct *tsk, struct mm_struct *mm)
+void mm_exit_exec_release(struct task_struct *tsk, struct mm_struct *mm)
 {
-	futex_exit_release(tsk);
-	mm_release(tsk, mm);
-}
-
-void exec_mm_release(struct task_struct *tsk, struct mm_struct *mm)
-{
-	futex_exec_release(tsk);
+	futex_exit_exec_release(tsk);
 	mm_release(tsk, mm);
 }
 
