@@ -48,9 +48,9 @@
 #define INTC0_INTMX_IER		0x1b00
 #define INTC0_INTMX_ISR		0x1b04
 #define INTC0_INTMX_BANK_SIZE	0x10
-#define INTC0_INTM_BANK_NUM	3
 #define INTC0_IRQS_PER_BANK	32
 #define INTM_IRQS_PER_BANK	10
+#define INTC0_INTM_BANK_NUM	(INTC0_INTM_NUM / INTM_IRQS_PER_BANK)
 #define INTC0_SEL_BASE			0x200
 #define INTC0_SEL_BANK_SIZE		0x4
 #define INTC0_SEL_ROUTE_SIZE	0x100
@@ -312,7 +312,7 @@ int aspeed_intc0_resolve_route(const struct irq_domain *c0domain, size_t nc1outs
 		return -ENOENT;
 
 	if (!IS_ENABLED(CONFIG_ASPEED_AST2700_INTC_TEST) &&
-	    !fwnode_device_is_compatible(c0domain->fwnode, "aspeed,ast2700-intc0"))
+	    !of_device_is_compatible(to_of_node(c0domain->fwnode), "aspeed,ast2700-intc0"))
 		return -ENODEV;
 
 	intc0 = c0domain->host_data;

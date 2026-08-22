@@ -199,7 +199,7 @@ int gicv5_irs_iste_alloc(const u32 lpi)
 	if (!gicv5_global_data.ist.l2)
 		return 0;
 
-	irs_data = per_cpu(per_cpu_irs_data, smp_processor_id());
+	irs_data = per_cpu(per_cpu_irs_data, 0);
 	if (!irs_data)
 		return -ENOENT;
 
@@ -488,6 +488,12 @@ static int gicv5_irs_wait_for_idle(struct gicv5_irs_chip_data *irs_data)
 					GICV5_IRS_CR0_IDLE, NULL);
 }
 
+static void __init gicv5_irs_disable(struct gicv5_irs_chip_data *irs_data)
+{
+	irs_writel_relaxed(irs_data, 0, GICV5_IRS_CR0);
+	gicv5_irs_wait_for_idle(irs_data);
+}
+
 void gicv5_irs_syncr(void)
 {
 	struct gicv5_irs_chip_data *irs_data;
@@ -651,6 +657,18 @@ static int __init gicv5_irs_of_init_affinity(struct device_node *node,
 	return ret;
 }
 
+static void __init gicv5_irs_clear_affinity(struct gicv5_irs_chip_data *irs_data)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		if (per_cpu(per_cpu_irs_data, cpu) == irs_data) {
+			per_cpu(cpu_iaffid, cpu).valid = false;
+			per_cpu(per_cpu_irs_data, cpu) = NULL;
+		}
+	}
+}
+
 static void irs_setup_pri_bits(u32 idr1)
 {
 	switch (FIELD_GET(GICV5_IRS_IDR1_PRIORITY_BITS, idr1)) {
@@ -722,6 +740,7 @@ static int __init gicv5_irs_init(struct gicv5_irs_chip_data *irs_data)
 static int __init gicv5_irs_of_init(struct device_node *node)
 {
 	struct gicv5_irs_chip_data *irs_data;
+	struct resource res;
 	void __iomem *irs_base;
 	u8 iaffid_bits;
 	u32 idr;
@@ -739,6 +758,11 @@ static int __init gicv5_irs_of_init(struct device_node *node)
 		goto out_err;
 	}
 
+	if (of_address_to_resource(node, ret, &res)) {
+		ret = -EINVAL;
+		goto out_err;
+	}
+
 	irs_base = of_io_request_and_map(node, ret, of_node_full_name(node));
 	if (IS_ERR(irs_base)) {
 		pr_err("%pOF: unable to map GICv5 IRS registers\n", node);
@@ -747,6 +771,7 @@ static int __init gicv5_irs_of_init(struct device_node *node)
 	}
 
 	irs_data->fwnode = of_fwnode_handle(node);
+	irs_data->res = res;
 	gicv5_irs_init_bases(irs_data, irs_base, of_property_read_bool(node, "dma-noncoherent"));
 
 	idr = irs_readl_relaxed(irs_data, GICV5_IRS_IDR1);
@@ -773,7 +798,10 @@ static int __init gicv5_irs_of_init(struct device_node *node)
 	return ret;
 
 out_iomem:
+	gicv5_irs_clear_affinity(irs_data);
+	gicv5_irs_disable(irs_data);
 	iounmap(irs_base);
+	release_mem_region(res.start, resource_size(&res));
 out_err:
 	kfree(irs_data);
 	return ret;
@@ -787,7 +815,10 @@ void __init gicv5_irs_remove(void)
 	gicv5_deinit_lpis();
 
 	list_for_each_entry_safe(irs_data, tmp_data, &irs_nodes, entry) {
+		gicv5_irs_clear_affinity(irs_data);
+		gicv5_irs_disable(irs_data);
 		iounmap(irs_data->irs_base);
+		release_mem_region(irs_data->res.start, resource_size(&irs_data->res));
 		list_del(&irs_data->entry);
 		kfree(irs_data);
 	}
@@ -860,6 +891,8 @@ static int __init gic_acpi_parse_iaffid(union acpi_subtable_headers *header,
 		return 0;
 
 	cpu = get_logical_index(gicc->arm_mpidr);
+	if (cpu < 0)
+		return 0;
 
 	if (gicc->iaffid & ~GENMASK(current_iaffid_bits - 1, 0)) {
 		pr_warn("CPU %d iaffid 0x%x exceeds IRS iaffid bits\n", cpu, gicc->iaffid);
@@ -934,6 +967,7 @@ static int __init gic_acpi_parse_madt_irs(union acpi_subtable_headers *header,
 	}
 
 	gicv5_irs_init_bases(irs_data, irs_base, irs->flags & ACPI_MADT_IRS_NON_COHERENT);
+	irs_data->res = *r;
 
 	gicv5_irs_acpi_init_affinity(irs->irs_id, irs_data);
 
@@ -951,6 +985,8 @@ static int __init gic_acpi_parse_madt_irs(union acpi_subtable_headers *header,
 	return 0;
 
 out_map:
+	gicv5_irs_clear_affinity(irs_data);
+	gicv5_irs_disable(irs_data);
 	iounmap(irs_base);
 out_release:
 	release_mem_region(r->start, resource_size(r));
