@@ -3,6 +3,8 @@
 #
 # Testing for IPv4 and IPv6 BIG TCP over VXLAN and GENEVE tunnels.
 
+source "$(dirname "$0")/lib.sh"
+
 SERVER_NS=$(mktemp -u server-XXXXXXXX)
 SERVER_IP4="192.168.1.1"
 SERVER_IP6="2001:db8::1:1"
@@ -39,6 +41,7 @@ setup() {
 		gro_max_size 196608 gro_ipv4_max_size 196608
 
 	ip netns exec "$SERVER_NS" netserver >/dev/null
+	wait_local_port_listen "$SERVER_NS" 12865 tcp
 }
 
 setup_tunnel() {
