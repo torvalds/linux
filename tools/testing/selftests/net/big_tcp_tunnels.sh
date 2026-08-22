@@ -17,10 +17,17 @@ CLIENT_IP6="2001:db8::1:2"
 CLIENT_IP4_TUN="192.168.2.2"
 CLIENT_IP6_TUN="2001:db8::2:2"
 
-: "${PACKETS_THRESHOLD:=1000}"
-
 # Kselftest framework requirement - SKIP code is 4.
 ksft_skip=4
+
+if [ -z "$PACKETS_THRESHOLD" ]; then
+	if [ "$KSFT_MACHINE_SLOW" = yes ]; then
+		echo 'Debug kernel detected, lowering the default threshold'
+		PACKETS_THRESHOLD=100
+	else
+		PACKETS_THRESHOLD=1000
+	fi
+fi
 
 setup() {
 	ip netns add "$SERVER_NS"
