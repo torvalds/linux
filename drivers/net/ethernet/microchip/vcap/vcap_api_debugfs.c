@@ -400,6 +400,27 @@ void vcap_port_debugfs(struct device *dev, struct dentry *parent,
 }
 EXPORT_SYMBOL_GPL(vcap_port_debugfs);
 
+void vcap_port_debugfs_portno(struct device *dev,
+			      struct dentry *parent,
+			      struct vcap_control *vctrl,
+			      struct net_device *ndev,
+			      unsigned int portno)
+{
+	struct vcap_port_debugfs_info *info;
+	char name[16];
+
+	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return;
+
+	info->vctrl = vctrl;
+	info->ndev = ndev;
+
+	snprintf(name, sizeof(name), "p%u", portno);
+	debugfs_create_file(name, 0444, parent, info, &vcap_port_debugfs_fops);
+}
+EXPORT_SYMBOL_GPL(vcap_port_debugfs_portno);
+
 /* Show the full VCAP instance data (rules with all fields) */
 static int vcap_debugfs_show(struct seq_file *m, void *unused)
 {
