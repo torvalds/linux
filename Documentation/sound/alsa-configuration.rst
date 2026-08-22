@@ -2406,6 +2406,11 @@ quirk_flags
           works around it by enforcing the fixed max URBs (12) instead of
           the dynamic calculation from the buffer size, and passing the
           `URB_ISO_ASAP` URB flag.
+        * bit 32: ``always_set_rate``
+          Issue SET_CUR for the sample rate even when the clock already reports
+          the requested rate.  A device advertising a single rate is otherwise
+          never sent the request at all, and some require it before streaming
+          will start.
 
 This module supports multiple devices, autoprobe and hotplugging.
 
