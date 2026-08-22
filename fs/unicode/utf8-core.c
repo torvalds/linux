@@ -138,28 +138,6 @@ int utf8_casefold_hash(const struct unicode_map *um, const void *salt,
 }
 EXPORT_SYMBOL(utf8_casefold_hash);
 
-int utf8_normalize(const struct unicode_map *um, const struct qstr *str,
-		   unsigned char *dest, size_t dlen)
-{
-	struct utf8cursor cur;
-	ssize_t nlen = 0;
-
-	if (utf8ncursor(&cur, um, UTF8_NFDI, str->name, str->len) < 0)
-		return -EINVAL;
-
-	for (nlen = 0; nlen < dlen; nlen++) {
-		int c = utf8byte(&cur);
-
-		dest[nlen] = c;
-		if (!c)
-			return nlen;
-		if (c == -1)
-			break;
-	}
-	return -EINVAL;
-}
-EXPORT_SYMBOL(utf8_normalize);
-
 static const struct utf8data *find_table_version(const struct utf8data *table,
 		size_t nr_entries, unsigned int version)
 {
@@ -226,17 +204,19 @@ int utf8_parse_version(char *version)
 	substring_t args[3];
 	unsigned int maj, min, rev;
 	static const struct match_token token[] = {
-		{1, "%d.%d.%d"},
+		{1, "%u.%u.%u"},
 		{0, NULL}
 	};
 
 	if (match_token(version, token, args) != 1)
 		return -EINVAL;
 
-	if (match_int(&args[0], &maj) || match_int(&args[1], &min) ||
-	    match_int(&args[2], &rev))
+	if (match_uint(&args[0], &maj) || match_uint(&args[1], &min) ||
+	    match_uint(&args[2], &rev))
 		return -EINVAL;
 
+	if (maj > U8_MAX || min > U8_MAX || rev > U8_MAX)
+		return -EINVAL;
 	return UNICODE_AGE(maj, min, rev);
 }
 EXPORT_SYMBOL(utf8_parse_version);
