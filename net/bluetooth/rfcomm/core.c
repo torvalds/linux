@@ -2182,8 +2182,10 @@ static void rfcomm_kill_listener(void)
 
 	BT_DBG("");
 
+	rfcomm_lock();
 	list_for_each_entry_safe(s, n, &session_list, list)
 		rfcomm_session_del(s);
+	rfcomm_unlock();
 }
 
 static int rfcomm_run(void *unused)
