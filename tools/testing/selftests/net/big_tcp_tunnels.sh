@@ -49,6 +49,8 @@ setup() {
 
 	ip netns exec "$SERVER_NS" netserver >/dev/null
 	wait_local_port_listen "$SERVER_NS" 12865 tcp
+
+	DEFAULT_TCP_MIN_TSO_SEGS=$(ip netns exec "$CLIENT_NS" sysctl -n net.ipv4.tcp_min_tso_segs)
 }
 
 setup_tunnel() {
@@ -133,6 +135,21 @@ do_test() {
 		IPTABLES_SACK=iptables
 	else
 		IPTABLES_SACK=ip6tables
+	fi
+
+	if [ "$3" != 'on' ] && [ "$KSFT_MACHINE_SLOW" = yes ]; then
+		echo 'Slow configuration; increasing net.ipv4.tcp_min_tso_segs and initcwnd'
+		ip netns exec "$CLIENT_NS" sysctl -w net.ipv4.tcp_min_tso_segs=52
+		if [ "$2" = 4 ]; then
+			ip -netns "$CLIENT_NS" \
+			    route change 192.168.2.0/24 dev tun0 initcwnd 100
+		else
+			ip -netns "$CLIENT_NS" -6 \
+			    route change 2001:db8::2:0/112 dev tun0 initcwnd 100
+		fi
+	else
+		ip netns exec "$CLIENT_NS" \
+		    sysctl -w net.ipv4.tcp_min_tso_segs="$DEFAULT_TCP_MIN_TSO_SEGS"
 	fi
 
 	ip netns exec "$SERVER_NS" "$IPTABLES" -w -t raw -I PREROUTING -i "${CAPTURE_IFACE}1" -m length ! --length 0:65535 -m comment --comment "bigtcp"
