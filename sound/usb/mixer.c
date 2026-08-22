@@ -1447,6 +1447,14 @@ no_checks:
 		}
 	}
 
+	/*
+	 * When GET_CUR is sticky, the saved value is bogus, so mixer values set
+	 * by the sanity checks must be discarded through init_cur_mix_raw().
+	 * After that, we can clear the flag as per QUIRK_FLAG_MIXER_GET_CUR_OK.
+	 */
+	if (cval->head.mixer->chip->quirk_flags & QUIRK_FLAG_MIXER_GET_CUR_OK)
+		cval->get_cur_broken = 0;
+
 	return 0;
 }
 
