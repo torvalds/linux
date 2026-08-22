@@ -2395,6 +2395,9 @@ static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
 		   QUIRK_FLAG_IFB_SILENCE_ON_EMPTY),
 	DEVICE_FLG(0x13e5, 0x0001, /* Serato Phono */
 		   QUIRK_FLAG_IGNORE_CTL_ERROR),
+	DEVICE_FLG(0x152a, 0x85dd, /* SMSL USB DAC */
+		   QUIRK_FLAG_DSD_RAW | QUIRK_FLAG_DISABLE_AUTOSUSPEND |
+		   QUIRK_FLAG_SKIP_IFACE_SETUP),
 	DEVICE_FLG(0x152a, 0x880a, /* NeuralDSP Quad Cortex */
 		   0), /* Doesn't have the vendor quirk which would otherwise apply */
 	DEVICE_FLG(0x1532, 0x055e, /* Razer Nommo V2 X */
