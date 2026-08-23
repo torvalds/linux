@@ -53,9 +53,8 @@ position p != {m1.p1,m2.p2};
   \(kmalloc\|kzalloc\|kcalloc\|kmem_cache_alloc\|kmem_cache_zalloc\|
    kmem_cache_alloc_node\|kmalloc_node\|kzalloc_node\|vmalloc\|vzalloc\|
    dma_alloc_coherent\|devm_kmalloc\|devm_kzalloc\|
-   kvmalloc\|kvzalloc\|kvmalloc_node\|kvzalloc_node\|pci_alloc_consistent\|
-   pci_zalloc_consistent\|kmem_alloc\|kmem_zalloc\|kmem_zone_alloc\|
-   kmem_zone_zalloc\|vmalloc_node\|vzalloc_node\)(...)
+   kvmalloc\|kvzalloc\|kvmalloc_node\|kvzalloc_node\|
+   vmalloc_node\|vzalloc_node\)(...)
 
 //----------------------------------------------------------
 //  For context mode
@@ -76,9 +75,8 @@ type r1.T;
   \(kmalloc\|kzalloc\|kcalloc\|kmem_cache_alloc\|kmem_cache_zalloc\|
    kmem_cache_alloc_node\|kmalloc_node\|kzalloc_node\|vmalloc\|vzalloc\|
    dma_alloc_coherent\|devm_kmalloc\|devm_kzalloc\|
-   kvmalloc\|kvzalloc\|kvmalloc_node\|kvzalloc_node\|pci_alloc_consistent\|
-   pci_zalloc_consistent\|kmem_alloc\|kmem_zalloc\|kmem_zone_alloc\|
-   kmem_zone_zalloc\|vmalloc_node\|vzalloc_node\)(...)
+   kvmalloc\|kvzalloc\|kvmalloc_node\|kvzalloc_node\|
+   vmalloc_node\|vzalloc_node\)(...)
 
 //----------------------------------------------------------
 //  For patch mode
@@ -99,9 +97,8 @@ type r1.T;
   \(kmalloc\|kzalloc\|kcalloc\|kmem_cache_alloc\|kmem_cache_zalloc\|
    kmem_cache_alloc_node\|kmalloc_node\|kzalloc_node\|vmalloc\|vzalloc\|
    dma_alloc_coherent\|devm_kmalloc\|devm_kzalloc\|
-   kvmalloc\|kvzalloc\|kvmalloc_node\|kvzalloc_node\|pci_alloc_consistent\|
-   pci_zalloc_consistent\|kmem_alloc\|kmem_zalloc\|kmem_zone_alloc\|
-   kmem_zone_zalloc\|vmalloc_node\|vzalloc_node\)(...)
+   kvmalloc\|kvzalloc\|kvmalloc_node\|kvzalloc_node\|
+   vmalloc_node\|vzalloc_node\)(...)
 
 //----------------------------------------------------------
 //  For org and report mode
@@ -116,9 +113,8 @@ position p != {m1.p1,m2.p2};
   \(kmalloc\|kzalloc\|kcalloc\|kmem_cache_alloc\|kmem_cache_zalloc\|
    kmem_cache_alloc_node\|kmalloc_node\|kzalloc_node\|vmalloc\|vzalloc\|
    dma_alloc_coherent\|devm_kmalloc\|devm_kzalloc\|
-   kvmalloc\|kvzalloc\|kvmalloc_node\|kvzalloc_node\|pci_alloc_consistent\|
-   pci_zalloc_consistent\|kmem_alloc\|kmem_zalloc\|kmem_zone_alloc\|
-   kmem_zone_zalloc\|vmalloc_node\|vzalloc_node\)(...)
+   kvmalloc\|kvzalloc\|kvmalloc_node\|kvzalloc_node\|
+   vmalloc_node\|vzalloc_node\)(...)
 
 @script:python depends on org@
 p << r2.p;
