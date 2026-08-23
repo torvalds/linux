@@ -112,7 +112,8 @@ ksmbd/nfsd interoperability    Planned for future. The features that ksmbd
                                support are Leases, Notify, ACLs and Share modes.
 SMB3.1.1 Compression           Supported.
 SMB3.1.1 over QUIC             Planned for future.
-Signing/Encryption over RDMA   Planned for future.
+Signing over RDMA              Under development.
+Encryption over RDMA           Supported.
 SMB3.1.1 GMAC signing support  Planned for future.
 ============================== =================================================
 
