@@ -34,7 +34,7 @@ int ntfs_bdev_read(struct block_device *bdev, char *data, loff_t start, size_t s
 	int error;
 	struct bio *bio;
 	blk_opf_t op;
-	sector_t sector = start >> SECTOR_SHIFT;
+	sector_t sector = ntfs_bytes_to_bio_sector(start);
 
 	if (start & (SECTOR_SIZE - 1))
 		return -EINVAL;
