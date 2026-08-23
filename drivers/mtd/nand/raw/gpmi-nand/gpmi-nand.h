@@ -161,6 +161,12 @@ struct gpmi_nand_data {
 #define DMA_CHANS		8
 	struct dma_chan		*dma_chans[DMA_CHANS];
 	struct completion	dma_done;
+
+#ifdef CONFIG_DEBUG_FS
+	struct			dentry *dbg_root;
+	struct			debugfs_blob_wrapper dbg_bch_geo;
+	bool			raw_mode;
+#endif
 };
 
 /* BCH : Status Block Completion Codes */
