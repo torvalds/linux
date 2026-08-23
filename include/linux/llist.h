@@ -66,7 +66,7 @@ struct llist_node {
 
 /**
  * init_llist_head - initialize lock-less list head
- * @head:	the head for your lock-less list
+ * @list:	the head for your lock-less list
  */
 static inline void init_llist_head(struct llist_head *list)
 {

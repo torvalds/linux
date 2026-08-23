@@ -152,40 +152,37 @@ void raid6_recov_datap(int disks, size_t bytes, int faila, void **ptrs)
 }
 EXPORT_SYMBOL_GPL(raid6_recov_datap);
 
-#define RAID6_TIME_JIFFIES_LG2	4
-#define RAID6_TEST_DISKS	8
+#define BENCH_SIZE	SZ_4K
+#define NR_SRCS		8
+#define NR_DISKS	(NR_SRCS + 2)
+#define REPS		800U
 
-static int raid6_choose_gen(void *(*const dptrs)[RAID6_TEST_DISKS],
-		const int disks)
+static int raid6_choose_gen(void *dptrs[NR_DISKS], const int disks)
 {
-	/* work on the second half of the disks */
-	int start = (disks >> 1) - 1, stop = disks - 3;
 	const struct raid6_calls *best = NULL;
 	unsigned long bestgenperf = 0;
 	unsigned int i;
 
 	for (i = 0; i < raid6_nr_algos; i++) {
 		const struct raid6_calls *algo = raid6_algos[i];
-		unsigned long perf = 0, j0, j1;
+		unsigned long perf = 0;
+		u64 t;
+		int i;
 
 		preempt_disable();
-		j0 = jiffies;
-		while ((j1 = jiffies) == j0)
-			cpu_relax();
-		while (time_before(jiffies,
-				    j1 + (1<<RAID6_TIME_JIFFIES_LG2))) {
-			algo->gen_syndrome(disks, PAGE_SIZE, *dptrs);
-			perf++;
-		}
+		t = ktime_get_ns();
+		for (i = 0; i < REPS; i++)
+			algo->gen_syndrome(disks, BENCH_SIZE, dptrs);
+		t = max(ktime_get_ns() - t, 1);
 		preempt_enable();
 
+		/* bytes/ns == GB/s, multiply by 1000 to get MB/s [not MiB/s] */
+		perf = div64_u64((u64)BENCH_SIZE * REPS * NR_SRCS * 1000, t);
 		if (perf > bestgenperf) {
 			bestgenperf = perf;
 			best = algo;
 		}
-		pr_info("raid6: %-8s gen() %5ld MB/s\n", algo->name,
-			(perf * HZ * (disks-2)) >>
-			(20 - PAGE_SHIFT + RAID6_TIME_JIFFIES_LG2));
+		pr_info("raid6: %-8s gen() %5lu MB/s\n", algo->name, perf);
 	}
 
 	if (!best) {
@@ -197,28 +194,24 @@ static int raid6_choose_gen(void *(*const dptrs)[RAID6_TEST_DISKS],
 	static_call_update(raid6_xor_syndrome_impl, best->xor_syndrome);
 
 	pr_info("raid6: using algorithm %s gen() %ld MB/s\n",
-		best->name,
-		(bestgenperf * HZ * (disks - 2)) >>
-		(20 - PAGE_SHIFT + RAID6_TIME_JIFFIES_LG2));
+		best->name, bestgenperf);
 
 	if (best->xor_syndrome) {
-		unsigned long perf = 0, j0, j1;
+		/* work on the second half of the disks */
+		int start = (disks / 2) - 1, stop = disks - 3;
+		u64 t;
 
 		preempt_disable();
-		j0 = jiffies;
-		while ((j1 = jiffies) == j0)
-			cpu_relax();
-		while (time_before(jiffies,
-				   j1 + (1 << RAID6_TIME_JIFFIES_LG2))) {
-			best->xor_syndrome(disks, start, stop,
-					   PAGE_SIZE, *dptrs);
-			perf++;
-		}
+		t = ktime_get_ns();
+		for (i = 0; i < REPS; i++)
+			best->xor_syndrome(disks, start, stop, BENCH_SIZE,
+				dptrs);
+		t = max(ktime_get_ns() - t, 1);
 		preempt_enable();
 
-		pr_info("raid6: .... xor() %ld MB/s, rmw enabled\n",
-			(perf * HZ * (disks - 2)) >>
-			(20 - PAGE_SHIFT + RAID6_TIME_JIFFIES_LG2 + 1));
+		pr_info("raid6: .... xor() %llu MB/s, rmw enabled\n",
+			div64_u64((u64)BENCH_SIZE * REPS * NR_SRCS / 2 * 1000,
+				t));
 	}
 
 	return 0;
@@ -230,24 +223,20 @@ static int raid6_choose_gen(void *(*const dptrs)[RAID6_TEST_DISKS],
 
 static int __init raid6_select_algo(void)
 {
-	const int disks = RAID6_TEST_DISKS;
+	const int disks = NR_DISKS;
+	void *dptrs[NR_DISKS];
 	char *disk_ptr, *p;
-	void *dptrs[RAID6_TEST_DISKS];
 	int i, cycle;
 	int error;
 
 	if (!IS_ENABLED(CONFIG_RAID6_PQ_BENCHMARK) || raid6_nr_algos == 1) {
 		pr_info("raid6: skipped pq benchmark and selected %s\n",
 			raid6_algos[raid6_nr_algos - 1]->name);
-		static_call_update(raid6_gen_syndrome_impl,
-				raid6_algos[raid6_nr_algos - 1]->gen_syndrome);
-		static_call_update(raid6_xor_syndrome_impl,
-				raid6_algos[raid6_nr_algos - 1]->xor_syndrome);
 		return 0;
 	}
 
 	/* prepare the buffer and fill it circularly with gfmul table */
-	disk_ptr = kmalloc(PAGE_SIZE * RAID6_TEST_DISKS, GFP_KERNEL);
+	disk_ptr = kmalloc_array(NR_DISKS, BENCH_SIZE, GFP_KERNEL);
 	if (!disk_ptr) {
 		pr_err("raid6: Yikes!  No memory available.\n");
 		return -ENOMEM;
@@ -255,19 +244,19 @@ static int __init raid6_select_algo(void)
 
 	p = disk_ptr;
 	for (i = 0; i < disks; i++)
-		dptrs[i] = p + PAGE_SIZE * i;
+		dptrs[i] = p + BENCH_SIZE * i;
 
-	cycle = ((disks - 2) * PAGE_SIZE) / 65536;
+	cycle = ((disks - 2) * BENCH_SIZE) / 65536;
 	for (i = 0; i < cycle; i++) {
 		memcpy(p, raid6_gfmul, 65536);
 		p += 65536;
 	}
 
-	if ((disks - 2) * PAGE_SIZE % 65536)
-		memcpy(p, raid6_gfmul, (disks - 2) * PAGE_SIZE % 65536);
+	if ((disks - 2) * BENCH_SIZE % 65536)
+		memcpy(p, raid6_gfmul, (disks - 2) * BENCH_SIZE % 65536);
 
 	/* select raid gen_syndrome function */
-	error = raid6_choose_gen(&dptrs, disks);
+	error = raid6_choose_gen(dptrs, disks);
 
 	kfree(disk_ptr);
 
@@ -329,13 +318,34 @@ static int __init raid6_init(void)
 	static_call_update(raid6_recov_datap_impl, raid6_recov_algo->datap);
 	pr_info("raid6: using %s recovery algorithm\n", raid6_recov_algo->name);
 
+	/*
+	 * Pick the last registered implementation as the temporary default until
+	 * calibration happens.
+	 */
+	static_call_update(raid6_gen_syndrome_impl,
+			raid6_algos[raid6_nr_algos - 1]->gen_syndrome);
+	static_call_update(raid6_xor_syndrome_impl,
+			raid6_algos[raid6_nr_algos - 1]->xor_syndrome);
+
+#ifdef MODULE
 	return raid6_select_algo();
+#else
+	return 0;
+#endif
 }
 
 static void __exit raid6_exit(void)
 {
 }
 
+/*
+ * When built-in we must register the default implementation before md
+ * initializes, but we don't want calibration to run that early as that
+ * would delay the boot process.
+ */
+#ifndef MODULE
+device_initcall(raid6_select_algo);
+#endif
 subsys_initcall(raid6_init);
 module_exit(raid6_exit);
 MODULE_LICENSE("GPL");

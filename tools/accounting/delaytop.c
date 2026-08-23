@@ -878,7 +878,7 @@ static void display_results(int psi_ret)
 	suc &= BOOL_FPRINT(out, "\033[H\033[J");
 
 	/* PSI output (one-line, no cat style) */
-	suc &= BOOL_FPRINT(out, "System Pressure Information: (avg10/avg60vg300/total)\n");
+	suc &= BOOL_FPRINT(out, "System Pressure Information: (avg10/avg60/avg300/total)\n");
 	if (psi_ret) {
 		suc &= BOOL_FPRINT(out, "  PSI not found: check if psi=1 enabled in cmdline\n");
 	} else {

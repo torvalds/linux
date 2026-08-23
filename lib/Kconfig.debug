@@ -1292,10 +1292,10 @@ config DETECT_HUNG_TASK_BLOCKER
 	depends on !PREEMPT_RT
 	default y
 	help
-	  Say Y here to show the blocker task's stacktrace who acquires
-	  the mutex lock which "hung tasks" are waiting.
-	  This will add overhead a bit but shows suspicious tasks and
-	  call trace if it comes from waiting a mutex.
+	  Say Y here to show a possible blocker task's stacktrace when
+	  a hung task is waiting on a mutex, semaphore, or rwsem.
+	  This will add a bit of overhead but shows suspicious tasks and
+	  call traces for waits on one of these locks.
 
 config WQ_WATCHDOG
 	bool "Detect Workqueue Stalls"
@@ -2219,10 +2219,11 @@ config KCOV_INSTRUMENT_ALL
 config KCOV_IRQ_AREA_SIZE
 	hex "Size of interrupt coverage collection area in words"
 	depends on KCOV
+	range 0x80 0x1000000
 	default 0x40000
 	help
-	  KCOV uses preallocated per-cpu areas to collect coverage from
-	  soft interrupts. This specifies the size of those areas in the
+	  KCOV uses preallocated areas to collect coverage from soft
+	  interrupts. This specifies the size of those areas in the
 	  number of unsigned long words.
 
 config KCOV_SELFTEST
@@ -3489,6 +3490,23 @@ config GCD_KUNIT_TEST
 
 	  If unsure, say N
 
+config POLYNOMIAL_KUNIT_TEST
+	tristate "Polynomial calculation (polynomial_calc) test" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	select POLYNOMIAL
+	default KUNIT_ALL_TESTS
+	help
+	  This option enables the KUnit test suite for the polynomial_calc()
+	  function, which evaluates integer polynomials using factor
+	  redistribution to avoid overflow.
+
+	  The test suite verifies correctness for constant, linear, and
+	  quadratic polynomials, negative coefficients, per-step dividers,
+	  divider_leftover, total_divider scaling, and a real sensor
+	  N-to-temperature conversion polynomial.
+
+	  If unsure, say N
+
 config PRIME_NUMBERS_KUNIT_TEST
 	tristate "Prime number generator test" if !KUNIT_ALL_TESTS
 	depends on KUNIT
@@ -3513,6 +3531,15 @@ config GLOB_KUNIT_TEST
 
 	  This test suite verifies the correctness of glob_match() across various
 	  scenarios, including edge cases.
+
+	  If unsure, say N
+
+config PRANDOM_KUNIT_TEST
+	tristate "KUnit test for prandom" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  Enable this option to test the prandom functions at runtime.
 
 	  If unsure, say N
 

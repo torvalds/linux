@@ -11,7 +11,7 @@ struct pt_regs;
 #ifdef CONFIG_ARCH_STACKWALK
 
 /**
- * stack_trace_consume_fn - Callback for arch_stack_walk()
+ * typedef stack_trace_consume_fn - Callback for arch_stack_walk()
  * @cookie:	Caller supplied pointer handed back by arch_stack_walk()
  * @addr:	The stack entry address to consume
  *
@@ -48,9 +48,9 @@ void arch_stack_walk(stack_trace_consume_fn consume_entry, void *cookie,
  *			@consume_entry
  * @task:		Pointer to a task struct, can be NULL
  *
- * This function returns an error if it detects any unreliable
+ * Returns: a negative error code if it detects any unreliable
  * features of the stack. Otherwise it guarantees that the stack
- * trace is reliable.
+ * trace is reliable and returns %0.
  *
  * If the task is not 'current', the caller *must* ensure the task is
  * inactive and its stack is pinned.

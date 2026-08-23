@@ -836,8 +836,7 @@ int main(int argc, char **argv)
 	}
 
 	fin = fopen(argv[optind], "r");
-	fout = fopen(argv[optind + 1], "w");
-	if (!fin || !fout) {
+	if (!fin) {
 		usage();
 		perror("open: ");
 		exit(1);
@@ -872,6 +871,13 @@ int main(int argc, char **argv)
 			break;
 		if (!add_list(buf, buf_len, ext_buf))
 			goto out_free;
+	}
+
+	fout = fopen(argv[optind + 1], "w");
+	if (!fout) {
+		usage();
+		perror("open: ");
+		exit(1);
 	}
 
 	printf("loaded %d\n", list_size);

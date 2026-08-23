@@ -326,6 +326,7 @@ static ssize_t o2nm_node_local_store(struct config_item *item, const char *page,
 	struct o2nm_node *node = to_o2nm_node(item);
 	struct o2nm_cluster *cluster;
 	unsigned long tmp;
+	bool starting = false;
 	char *p = (char *)page;
 	ssize_t ret;
 
@@ -362,11 +363,13 @@ static ssize_t o2nm_node_local_store(struct config_item *item, const char *page,
 		ret = o2net_start_listening(node);
 		if (ret)
 			goto out;
+		starting = true;
 	}
 
 	if (!tmp && cluster->cl_has_local &&
 	    cluster->cl_local_node == node->nd_num) {
 		o2net_stop_listening(node);
+		cluster->cl_has_local = 0;
 		cluster->cl_local_node = O2NM_INVALID_NODE_NUM;
 	}
 
@@ -374,6 +377,8 @@ static ssize_t o2nm_node_local_store(struct config_item *item, const char *page,
 	if (node->nd_local) {
 		cluster->cl_has_local = tmp;
 		cluster->cl_local_node = node->nd_num;
+		if (starting)
+			o2net_complete_start_listening(node);
 	}
 
 	ret = count;
@@ -777,17 +782,23 @@ int o2nm_depend_item(struct config_item *item)
 	return configfs_depend_item(&o2nm_cluster_group.cs_subsys, item);
 }
 
+int o2nm_depend_item_unlocked(struct config_item *item)
+{
+	return configfs_depend_item_unlocked(&o2nm_cluster_group.cs_subsys,
+					     item);
+}
+
 void o2nm_undepend_item(struct config_item *item)
 {
 	configfs_undepend_item(item);
 }
 
-int o2nm_depend_this_node(void)
+int o2nm_depend_node(u8 node_num)
 {
 	int ret = 0;
 	struct o2nm_node *local_node;
 
-	local_node = o2nm_get_node_by_num(o2nm_this_node());
+	local_node = o2nm_get_node_by_num(node_num);
 	if (!local_node) {
 		ret = -EINVAL;
 		goto out;
@@ -800,15 +811,25 @@ out:
 	return ret;
 }
 
-void o2nm_undepend_this_node(void)
+void o2nm_undepend_node(u8 node_num)
 {
 	struct o2nm_node *local_node;
 
-	local_node = o2nm_get_node_by_num(o2nm_this_node());
+	local_node = o2nm_get_node_by_num(node_num);
 	BUG_ON(!local_node);
 
 	o2nm_undepend_item(&local_node->nd_item);
 	o2nm_node_put(local_node);
+}
+
+int o2nm_depend_this_node(void)
+{
+	return o2nm_depend_node(o2nm_this_node());
+}
+
+void o2nm_undepend_this_node(void)
+{
+	o2nm_undepend_node(o2nm_this_node());
 }
 
 
