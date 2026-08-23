@@ -688,7 +688,7 @@ static int nvme_tcp_handle_c2h_data(struct nvme_tcp_queue *queue,
 		dev_err(queue->ctrl->ctrl.device,
 			"queue %d tag %#x unexpected data for a write\n",
 			nvme_tcp_queue_id(queue), rq->tag);
-		return -EIO;
+		return -EPROTO;
 	}
 
 	req = blk_mq_rq_to_pdu(rq);
