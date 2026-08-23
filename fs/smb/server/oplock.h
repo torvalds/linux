@@ -66,6 +66,7 @@ struct oplock_info {
 	struct ksmbd_file	*o_fp;
 	int                     level;
 	int                     op_state;
+	spinlock_t		state_lock;
 	unsigned long		pending_break;
 	u64			fid;
 	atomic_t		breaking_cnt;
@@ -96,9 +97,10 @@ struct oplock_break_info {
 
 int smb_grant_oplock(struct ksmbd_work *work, int req_op_level,
 		     u64 pid, struct ksmbd_file *fp, __u16 tid,
-		     struct lease_ctx_info *lctx, int share_ret);
+		     struct lease_ctx_info *lctx, int share_ret, bool replay);
 void smb_break_all_levII_oplock(struct ksmbd_work *work,
-				struct ksmbd_file *fp, int is_trunc);
+					struct ksmbd_file *fp, int is_trunc);
+void smb_break_all_levII_oplock_rename(struct ksmbd_work *work, struct ksmbd_file *fp);
 void smb_break_all_levII_oplock_no_interim(struct ksmbd_work *work,
 					   struct ksmbd_file *fp, int is_trunc);
 void smb_break_all_levII_oplock_for_delete(struct ksmbd_work *work,
@@ -125,6 +127,8 @@ void create_durable_v2_rsp_buf(char *cc, struct ksmbd_file *fp);
 void create_mxac_rsp_buf(char *cc, int maximal_access);
 void create_disk_id_rsp_buf(char *cc, __u64 file_id, __u64 vol_id);
 void create_posix_rsp_buf(char *cc, struct ksmbd_file *fp);
+void create_aapl_rsp_buf(char *cc, __u64 vol_caps, __u64 req_bitmap,
+			 bool readdir_attr_v2);
 struct create_context *smb2_find_context_vals(void *open_req, const char *tag, int tag_len);
 struct oplock_info *lookup_lease_in_table(struct ksmbd_conn *conn,
 					  char *lease_key);

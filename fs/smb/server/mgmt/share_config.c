@@ -29,6 +29,63 @@ struct ksmbd_veto_pattern {
 	struct list_head	list;
 };
 
+#ifdef CONFIG_PROC_FS
+static const struct ksmbd_const_name ksmbd_share_flag_names[] = {
+	{KSMBD_SHARE_FLAG_AVAILABLE, "available"},
+	{KSMBD_SHARE_FLAG_BROWSEABLE, "browseable"},
+	{KSMBD_SHARE_FLAG_WRITEABLE, "writeable"},
+	{KSMBD_SHARE_FLAG_READONLY, "read-only"},
+	{KSMBD_SHARE_FLAG_GUEST_OK, "guest-ok"},
+	{KSMBD_SHARE_FLAG_GUEST_ONLY, "guest-only"},
+	{KSMBD_SHARE_FLAG_STORE_DOS_ATTRS, "store-dos-attrs"},
+	{KSMBD_SHARE_FLAG_OPLOCKS, "oplocks"},
+	{KSMBD_SHARE_FLAG_PIPE, "pipe"},
+	{KSMBD_SHARE_FLAG_HIDE_DOT_FILES, "hide-dot-files"},
+	{KSMBD_SHARE_FLAG_INHERIT_OWNER, "inherit-owner"},
+	{KSMBD_SHARE_FLAG_STREAMS, "streams"},
+	{KSMBD_SHARE_FLAG_FOLLOW_SYMLINKS, "follow-symlinks"},
+	{KSMBD_SHARE_FLAG_ACL_XATTR, "acl-xattr"},
+	{KSMBD_SHARE_FLAG_UPDATE, "update"},
+	{KSMBD_SHARE_FLAG_CROSSMNT, "crossmnt"},
+	{KSMBD_SHARE_FLAG_CONTINUOUS_AVAILABILITY, "continuous-availability"},
+	{KSMBD_SHARE_FLAG_ENCRYPT_DATA, "encrypt-data"},
+};
+
+static int proc_show_shares(struct seq_file *m, void *v)
+{
+	struct ksmbd_share_config *share;
+	int i;
+
+	down_read(&shares_table_lock);
+	hash_for_each(shares_table, i, share, hlist) {
+		seq_printf(m, "name:\t%s\n", share->name);
+		seq_printf(m, "type:\t%s\n",
+			   test_share_config_flag(share, KSMBD_SHARE_FLAG_PIPE) ?
+			   "pipe" : "disk");
+		seq_printf(m, "tree_connects:\t%d\n",
+			   atomic_read(&share->tree_connections));
+		seq_printf(m, "file_mask:\t0%07o\n", share->create_mask);
+		seq_printf(m, "directory_mask:\t0%07o\n", share->directory_mask);
+		seq_puts(m, "flags:\t");
+		ksmbd_proc_show_flag_names(m, ksmbd_share_flag_names,
+					   ARRAY_SIZE(ksmbd_share_flag_names),
+					   share->flags);
+		seq_puts(m, "\n\n");
+	}
+	up_read(&shares_table_lock);
+	return 0;
+}
+
+int create_proc_shares(void)
+{
+	if (!ksmbd_proc_create("shares", proc_show_shares, NULL))
+		return -ENOMEM;
+	return 0;
+}
+#else
+int create_proc_shares(void) { return 0; }
+#endif
+
 static unsigned int share_name_hash(const char *name)
 {
 	return jhash(name, strlen(name), 0);
@@ -157,8 +214,14 @@ static struct ksmbd_share_config *share_config_request(struct ksmbd_work *work,
 
 	share->flags = resp->flags;
 	atomic_set(&share->refcount, 1);
+	ksmbd_share_tree_conn_init(share);
 	INIT_LIST_HEAD(&share->veto_list);
 	share->name = kstrdup(name, KSMBD_DEFAULT_GFP);
+	if (!share->name) {
+		kill_share(share);
+		share = NULL;
+		goto out;
+	}
 
 	if (!test_share_config_flag(share, KSMBD_SHARE_FLAG_PIPE)) {
 		int path_len = PATH_MAX;
@@ -205,7 +268,7 @@ static struct ksmbd_share_config *share_config_request(struct ksmbd_work *work,
 				share->path = NULL;
 			}
 		}
-		if (ret || !share->name) {
+		if (ret) {
 			kill_share(share);
 			share = NULL;
 			goto out;

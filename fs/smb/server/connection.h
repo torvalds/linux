@@ -17,13 +17,24 @@
 #include <linux/nls.h>
 #include <linux/unicode.h>
 #include <linux/workqueue.h>
+#include <linux/bitmap.h>
 
 #include "smb_common.h"
 #include "ksmbd_work.h"
 
 struct smbdirect_buffer_descriptor_v1;
+struct ksmbd_session;
 
 #define KSMBD_SOCKET_BACKLOG		16
+
+/*
+ * Size of the per-connection SMB2 command sequence window. This mirrors
+ * SMB2_MAX_CREDITS, the maximum number of credits (and therefore the
+ * maximum number of outstanding sequence numbers) that can be granted on
+ * a connection. It must be a power of two so the window can be indexed as
+ * a ring.
+ */
+#define KSMBD_CMD_SEQ_WINDOW		8192
 
 enum {
 	KSMBD_SESS_NEW = 0,
@@ -74,6 +85,16 @@ struct ksmbd_conn {
 	unsigned int			total_credits;
 	unsigned int			outstanding_credits;
 	spinlock_t			credits_lock;
+	/*
+	 * Connection command sequence window. [seq_low, seq_high) is the
+	 * range of granted sequence numbers (message IDs). seq_bitmap marks
+	 * the ones in that range that have been granted but
+	 * not yet consumed by a received request.  All three are protected by
+	 * credits_lock.
+	 */
+	u64				seq_low;
+	u64				seq_high;
+	DECLARE_BITMAP(seq_bitmap, KSMBD_CMD_SEQ_WINDOW);
 	wait_queue_head_t		req_running_q;
 	wait_queue_head_t		r_count_q;
 	/* Lock to protect requests list*/
@@ -118,12 +139,17 @@ struct ksmbd_conn {
 	/* Negotiated SMB 3.1.1 compression capabilities. */
 	bool				compress_chained;
 	bool				compress_pattern;
+	/* Bitmap indexed by SMB2_RDMA_TRANSFORM_* IDs. */
+	unsigned long			rdma_transform_ids;
+	bool				rdma_transform_negotiated;
 	bool				posix_ext_supported;
 	bool				signing_negotiated;
 	__le16				signing_algorithm;
 	bool				binding;
 	atomic_t			refcnt;
 	bool				is_aapl;
+	bool				aapl_readdir_attr; /* READDIR_ATTR negotiated */
+	bool				aapl_readdir_attr_v2; /* V2 specifically */
 	struct work_struct		release_work;
 };
 
@@ -132,14 +158,22 @@ struct ksmbd_conn_ops {
 	int	(*terminate_fn)(struct ksmbd_conn *conn);
 };
 
+struct ksmbd_transport_write {
+	struct kvec	*iov;
+	int		iov_cnt;
+	int		size;
+	bool		need_invalidate_rkey;
+	unsigned int	remote_key;
+	int		msg_flags;
+};
+
 struct ksmbd_transport_ops {
 	void (*disconnect)(struct ksmbd_transport *t);
 	void (*shutdown)(struct ksmbd_transport *t);
 	int (*read)(struct ksmbd_transport *t, char *buf,
 		    unsigned int size, int max_retries);
-	int (*writev)(struct ksmbd_transport *t, struct kvec *iovs, int niov,
-		      int size, bool need_invalidate_rkey,
-		      unsigned int remote_key);
+	int (*writev)(struct ksmbd_transport *t,
+		      const struct ksmbd_transport_write *tx);
 	int (*rdma_read)(struct ksmbd_transport *t,
 			 void *buf, unsigned int len,
 			 struct smbdirect_buffer_descriptor_v1 *desc,
@@ -166,15 +200,18 @@ extern struct rw_semaphore conn_list_lock;
 
 bool ksmbd_conn_alive(struct ksmbd_conn *conn);
 void ksmbd_conn_wait_idle(struct ksmbd_conn *conn);
-int ksmbd_conn_wait_idle_sess_id(struct ksmbd_conn *curr_conn, u64 sess_id);
+int ksmbd_conn_wait_idle_sess(struct ksmbd_conn *curr_conn,
+			      struct ksmbd_session *sess);
 struct ksmbd_conn *ksmbd_conn_alloc(void);
 void ksmbd_conn_free(struct ksmbd_conn *conn);
 struct ksmbd_conn *ksmbd_conn_get(struct ksmbd_conn *conn);
 void ksmbd_conn_put(struct ksmbd_conn *conn);
+void ksmbd_conn_abort(struct ksmbd_conn *conn);
 int ksmbd_conn_wq_init(void);
 void ksmbd_conn_wq_destroy(void);
 bool ksmbd_conn_lookup_dialect(struct ksmbd_conn *c);
 int ksmbd_conn_write(struct ksmbd_work *work);
+int ksmbd_conn_write_eor(struct ksmbd_work *work);
 int ksmbd_conn_rdma_read(struct ksmbd_conn *conn,
 			 void *buf, unsigned int buflen,
 			 struct smbdirect_buffer_descriptor_v1 *desc,
@@ -279,5 +316,5 @@ static inline void ksmbd_conn_set_releasing(struct ksmbd_conn *conn)
 	WRITE_ONCE(conn->status, KSMBD_SESS_RELEASING);
 }
 
-void ksmbd_all_conn_set_status(u64 sess_id, u32 status);
+void ksmbd_all_conn_set_status(struct ksmbd_session *sess, u32 status);
 #endif /* __CONNECTION_H__ */

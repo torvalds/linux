@@ -14183,9 +14183,11 @@ M:	Steve French <smfrench@gmail.com>
 M:	Steve French <sfrench@samba.org>
 R:	Sergey Senozhatsky <senozhatsky@chromium.org>
 R:	Tom Talpey <tom@talpey.com>
+R:	ChenXiaoSong <chenxiaosong@chenxiaosong.com>
+R:	ChenXiaoSong <chenxiaosong@kylinos.cn>
 L:	linux-cifs@vger.kernel.org
 S:	Maintained
-T:	git https://git.samba.org/ksmbd.git ksmbd-for-next
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linkinjeon/smb.git ksmbd-for-next
 F:	Documentation/filesystems/smb/ksmbd.rst
 F:	fs/smb/common/
 F:	fs/smb/server/

@@ -164,7 +164,22 @@ int ksmbd_verify_smb_message(struct ksmbd_work *work)
 	hdr = smb_get_msg(work->request_buf);
 	if (*(__le32 *)hdr->Protocol == SMB1_PROTO_NUMBER &&
 	    hdr->Command == SMB_COM_NEGOTIATE) {
-		work->conn->outstanding_credits++;
+		struct ksmbd_conn *conn = work->conn;
+
+		conn->outstanding_credits++;
+		/*
+		 * A legacy SMB1 multi-protocol negotiate occupies sequence
+		 * number 0 but does not pass through
+		 * ksmbd_smb2_check_message(). Consume it here so that, after
+		 * the connection is upgraded to SMB2, the command sequence
+		 * window can advance instead of staying pinned at 0.
+		 */
+		spin_lock(&conn->credits_lock);
+		if (conn->seq_low == 0) {
+			__clear_bit(0, conn->seq_bitmap);
+			conn->seq_low = 1;
+		}
+		spin_unlock(&conn->credits_lock);
 		return 0;
 	}
 

@@ -48,6 +48,8 @@ struct ksmbd_server_config {
 	char			*conf[SERVER_CONF_WORK_GROUP + 1];
 	struct task_struct	*dh_task;
 	bool			bind_interfaces_only;
+	/* AAPL model string for Finder icon, e.g. "Xserve" */
+	char			aapl_model[32];
 };
 
 extern struct ksmbd_server_config server_conf;

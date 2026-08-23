@@ -146,11 +146,21 @@ int smbdirect_accept_connect_request(struct smbdirect_socket *sc,
 
 rdma_accept_failed:
 	/*
-	 * smbdirect_connection_destroy_qp() calls ib_drain_qp(),
-	 * so that smbdirect_accept_negotiate_recv_done() will
-	 * call smbdirect_connection_put_recv_io()
+	 * The recv_io posted above is now owned by the QP (recv_io was set to
+	 * NULL after a successful post).  smbdirect_connection_destroy_qp()
+	 * calls ib_drain_qp(), whose completion
+	 * (smbdirect_accept_negotiate_recv_done) returns the recv_io to the
+	 * free list via smbdirect_connection_put_recv_io().  It therefore MUST
+	 * run BEFORE smbdirect_connection_destroy_mem_pools(): otherwise the
+	 * posted recv_io is still outstanding when kmem_cache_destroy() runs
+	 * ("Slab cache still has objects") and is later freed into an
+	 * already-destroyed mempool (mempool_free_bulk NULL-ptr-deref).
 	 */
+	smbdirect_connection_destroy_qp(sc);
+	smbdirect_connection_destroy_mem_pools(sc);
+	return ret;
 post_recv_io_failed:
+	/* post failed: recv_io was not accepted by the QP, still in hand */
 	if (recv_io)
 		smbdirect_connection_put_recv_io(recv_io);
 get_recv_io_failed:
