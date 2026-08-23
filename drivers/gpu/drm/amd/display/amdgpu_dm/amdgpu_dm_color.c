@@ -471,6 +471,12 @@ bool __is_lut_linear(const struct drm_color_lut *lut, uint32_t size)
 	uint32_t expected;
 	int delta;
 
+	/* A LUT with fewer than two entries can't be interpolated and would
+	 * divide by zero below (size - 1); it can't be treated as linear.
+	 */
+	if (size < 2)
+		return false;
+
 	for (i = 0; i < size; i++) {
 		/* All color values should equal */
 		if ((lut[i].red != lut[i].green) || (lut[i].green != lut[i].blue))
@@ -1488,6 +1494,13 @@ __set_dm_plane_degamma(struct drm_plane_state *plane_state,
 
 	degamma_lut = __extract_blob_lut(dm_plane_state->degamma_lut,
 					 &degamma_size);
+
+	if (degamma_lut && degamma_size != MAX_COLOR_LUT_ENTRIES) {
+		drm_dbg(plane_state->state->dev,
+			"Invalid Plane Degamma LUT size. Should be %u but got %u.\n",
+			MAX_COLOR_LUT_ENTRIES, degamma_size);
+		return -EINVAL;
+	}
 
 	has_degamma_lut = degamma_lut &&
 			  !__is_lut_linear(degamma_lut, degamma_size);

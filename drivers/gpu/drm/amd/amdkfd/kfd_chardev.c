@@ -3329,7 +3329,7 @@ static int kfd_ioctl_create_process(struct file *filep, struct kfd_process *p, v
 	return 0;
 }
 
-static inline uint32_t profile_lock_device(struct kfd_process *p,
+static inline int profile_lock_device(struct kfd_process *p,
 					   uint32_t gpu_id, uint32_t op)
 {
 	struct kfd_process_device *pdd;

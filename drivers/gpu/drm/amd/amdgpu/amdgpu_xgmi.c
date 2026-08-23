@@ -1380,6 +1380,9 @@ static void amdgpu_xgmi_reset_on_init_work(struct work_struct *work)
 	amdgpu_device_unlock_reset_domain(tmp_adev->reset_domain);
 
 	list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head) {
+		/* Enable ttm buffers funcs after the reset lock has been dropped. */
+		amdgpu_ttm_enable_buffer_funcs(tmp_adev);
+
 		r = amdgpu_ras_init_badpage_info(tmp_adev);
 		if (r && r != -EHWPOISON)
 			dev_err(tmp_adev->dev,
