@@ -3910,7 +3910,7 @@ skb_zerocopy(struct sk_buff *to, struct sk_buff *from, int len, int hlen)
 	}
 
 	if (!skb_frags_readable(from) && j > 0 && len) {
-		put_page(virt_to_head_page(from->head));
+		put_page(page);
 		return -EFAULT;
 	}
 
@@ -3918,7 +3918,7 @@ skb_zerocopy(struct sk_buff *to, struct sk_buff *from, int len, int hlen)
 
 	if (unlikely(skb_orphan_frags(from, GFP_ATOMIC))) {
 		if (j > 0)
-			put_page(virt_to_head_page(from->head));
+			put_page(page);
 		return -ENOMEM;
 	}
 	skb_zerocopy_clone(to, from, GFP_ATOMIC);
