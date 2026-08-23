@@ -2004,11 +2004,11 @@ int skb_copy_ubufs(struct sk_buff *skb, gfp_t gfp_mask)
 	int i, order, psize, new_frags;
 	u32 d_off;
 
-	if (skb_shared(skb) || skb_unclone(skb, gfp_mask))
-		return -EINVAL;
-
 	if (!skb_frags_readable(skb))
 		return -EFAULT;
+
+	if (skb_shared(skb) || skb_unclone(skb, gfp_mask))
+		return -EINVAL;
 
 	if (!num_frags)
 		goto release;
