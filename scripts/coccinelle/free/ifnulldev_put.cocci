@@ -23,13 +23,13 @@ expression E;
 |
   dev_put(E);
 |
-  dev_put_track(E, ...);
+  netdev_put(E, ...);
 |
   __dev_hold(E);
 |
   dev_hold(E);
 |
-  dev_hold_track(E, ...);
+  netdev_hold(E, ...);
 )
 
 @r depends on context || report || org @
@@ -38,8 +38,8 @@ position p;
 @@
 
 * if (E != NULL)
-*	\(__dev_put@p\|dev_put@p\|dev_put_track@p\|__dev_hold@p\|dev_hold@p\|
-*         dev_hold_track@p\)(E, ...);
+*	\(__dev_put@p\|dev_put@p\|netdev_put@p\|__dev_hold@p\|dev_hold@p\|
+*         netdev_hold@p\)(E, ...);
 
 @script:python depends on org@
 p << r.p;
