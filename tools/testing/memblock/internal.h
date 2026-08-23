@@ -46,4 +46,9 @@ static inline bool __is_kernel(unsigned long addr)
 
 #define __SetPageReserved(p)	((void)(p))
 
+static inline bool kho_scratch_overlap(phys_addr_t phys, size_t size)
+{
+	return false;
+}
+
 #endif

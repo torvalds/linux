@@ -3079,14 +3079,7 @@ static __init void *alloc_bootmem(struct hstate *h, int nid, bool node_exact)
 	if (hugetlb_early_cma(h))
 		return hugetlb_cma_alloc_bootmem(h, nid, node_exact);
 
-	if (node_exact)
-		return memblock_alloc_exact_nid_raw(huge_page_size(h),
-				huge_page_size(h), 0,
-				MEMBLOCK_ALLOC_ACCESSIBLE, nid);
-
-	return memblock_alloc_try_nid_raw(huge_page_size(h),
-				huge_page_size(h), 0,
-				MEMBLOCK_ALLOC_ACCESSIBLE, nid);
+	return memblock_alloc_hugetlb(huge_page_size(h), nid, node_exact);
 }
 
 void *__init arch_alloc_bootmem_huge_page(struct hstate *h, int nid)

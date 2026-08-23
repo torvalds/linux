@@ -15,3 +15,4 @@ generic-y += fprobe.h
 generic-y += mcs_spinlock.h
 generic-y += mmzone.h
 generic-y += ring_buffer.h
+generic-y += kexec_handover.h
