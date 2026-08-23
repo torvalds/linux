@@ -224,7 +224,7 @@ static int uvio_attestation(struct uvio_ioctl_cb *uv_ioctl)
 	if (ret)
 		goto out;
 
-	uv_call_sched(0, (u64)uvcb_attest);
+	uv_call(0, (u64)uvcb_attest);
 
 	uv_ioctl->uv_rc = uvcb_attest->header.rc;
 	uv_ioctl->uv_rrc = uvcb_attest->header.rrc;
@@ -291,7 +291,7 @@ static int uvio_add_secret(struct uvio_ioctl_cb *uv_ioctl)
 
 	ret = 0;
 	uvcb.addr = (u64)asrcb;
-	uv_call_sched(0, (u64)&uvcb);
+	uv_call(0, (u64)&uvcb);
 	uv_ioctl->uv_rc = uvcb.header.rc;
 	uv_ioctl->uv_rrc = uvcb.header.rrc;
 
@@ -457,7 +457,7 @@ static int uvio_retr_secret(struct uvio_ioctl_cb *uv_ioctl)
 
 	uvcb.buf_addr = (u64)buf;
 	uvcb.buf_size = buf_len;
-	uv_call_sched(0, (u64)&uvcb);
+	uv_call(0, (u64)&uvcb);
 
 	if (copy_to_user((__user void *)uv_ioctl->argument_addr, buf, buf_len))
 		goto err;

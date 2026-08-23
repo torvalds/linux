@@ -42,9 +42,9 @@ static inline void huge_pte_clear(struct mm_struct *mm, unsigned long addr,
 				  pte_t *ptep, unsigned long sz)
 {
 	if ((pte_val(ptep_get(ptep)) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R3)
-		set_pte(ptep, __pte(_REGION3_ENTRY_EMPTY));
+		set_pud((pud_t *)ptep, __pud(_REGION3_ENTRY_EMPTY));
 	else
-		set_pte(ptep, __pte(_SEGMENT_ENTRY_EMPTY));
+		set_pmd((pmd_t *)ptep, __pmd(_SEGMENT_ENTRY_EMPTY));
 }
 
 #define __HAVE_ARCH_HUGE_PTEP_CLEAR_FLUSH

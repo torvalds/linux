@@ -6856,6 +6856,13 @@ L:	linux-riscv@lists.infradead.org
 S:	Maintained
 F:	drivers/cpuidle/cpuidle-riscv-sbi.c
 
+CPUIDLE DRIVER - S390
+M:	Mete Durlu <meted@linux.ibm.com>
+L:	linux-pm@vger.kernel.org
+L:	linux-s390@vger.kernel.org
+S:	Maintained
+F:	drivers/cpuidle/cpuidle-s390.c
+
 CPUMASK API [RUST]
 M:	Viresh Kumar <viresh.kumar@linaro.org>
 R:	Yury Norov <yury.norov@gmail.com>
@@ -23928,6 +23935,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/s390/linux.git
 F:	Documentation/driver-api/s390-drivers.rst
 F:	Documentation/arch/s390/
 F:	arch/s390/
+F:	drivers/cpuidle/cpuidle-s390.c
 F:	drivers/s390/
 F:	drivers/watchdog/diag288_wdt.c
 

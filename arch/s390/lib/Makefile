@@ -3,6 +3,8 @@
 # Makefile for s390-specific library files..
 #
 
+CONTEXT_ANALYSIS := y
+
 # string.o implements standard library functions like memset/memcpy etc.
 # Use -ffreestanding to ensure that the compiler does not try to "optimize"
 # them into calls to themselves.

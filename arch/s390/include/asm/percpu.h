@@ -107,8 +107,8 @@
 	"	.endif\n"							\
 	".endr\n"								\
 	".endm\n"								\
-	ALTERNATIVE("GEN_MVIY " __stringify(disp)    " " __stringify(reg) "\n",	\
-		    "GEN_MVIY " __stringify(dispalt) " " __stringify(reg) "\n",	\
+	ALTERNATIVE("GEN_MVIY " disp    ", " reg "\n",				\
+		    "GEN_MVIY " dispalt ", " reg "\n",				\
 		    ALT_FEATURE(MFEATURE_LOWCORE))				\
 	".purgem GEN_MVIY\n"
 

@@ -941,7 +941,6 @@ void gmap_split_huge_pages(struct gmap *gmap)
 		scoped_guard(read_lock, &gmap->kvm->mmu_lock)
 			start = _dat_walk_gfn_range(start, asce_end(gmap->asce), gmap->asce,
 						    &ops, DAT_WALK_IGN_HOLES, gmap);
-		cond_resched();
 	} while (start);
 }
 
@@ -963,7 +962,6 @@ static int _gmap_enable_skeys(struct gmap *gmap)
 	do {
 		scoped_guard(write_lock, &gmap->kvm->mmu_lock)
 			start = dat_reset_skeys(gmap->asce, start);
-		cond_resched();
 	} while (start);
 	return 0;
 }
@@ -1019,7 +1017,6 @@ int gmap_pv_destroy_range(struct gmap *gmap, gfn_t start, gfn_t end, bool interr
 						    DAT_WALK_IGN_HOLES, NULL);
 		if (interruptible && fatal_signal_pending(current))
 			return -EINTR;
-		cond_resched();
 	} while (start && start < end);
 	return 0;
 }
@@ -1138,7 +1135,6 @@ void _gmap_set_cmma_all(struct gmap *gmap, bool dirty)
 			gfn = _dat_walk_gfn_range(gfn, asce_end(gmap->asce), gmap->asce, &ops,
 						  DAT_WALK_IGN_HOLES,
 						  &gmap->kvm->arch.cmma_dirty_pages);
-		cond_resched();
 	} while (gfn);
 }
 

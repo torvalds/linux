@@ -909,7 +909,6 @@ int __cpu_disable(void)
 	cregs[6].val  &= ~0xff000000UL;	/* disable all I/O interrupts */
 	cregs[14].val &= ~0x1f000000UL;	/* disable most machine checks */
 	__local_ctl_load(0, 15, cregs);
-	clear_cpu_flag(CIF_NOHZ_DELAY);
 	return 0;
 }
 
@@ -1039,6 +1038,7 @@ static ssize_t cpu_configure_store(struct device *dev,
 			per_cpu(pcpu_devices, cpu + i).state = CPU_STATE_STANDBY;
 			smp_cpu_set_polarization(cpu + i,
 						 POLARIZATION_UNKNOWN);
+			set_cpu_enabled(cpu + i, false);
 		}
 		topology_expect_change();
 		break;
@@ -1054,6 +1054,7 @@ static ssize_t cpu_configure_store(struct device *dev,
 			per_cpu(pcpu_devices, cpu + i).state = CPU_STATE_CONFIGURED;
 			smp_cpu_set_polarization(cpu + i,
 						 POLARIZATION_UNKNOWN);
+			set_cpu_enabled(cpu + i, true);
 		}
 		topology_expect_change();
 		break;
@@ -1091,6 +1092,7 @@ bool arch_cpu_is_hotpluggable(int cpu)
 
 int arch_register_cpu(int cpu)
 {
+	struct pcpu *pcpu = per_cpu_ptr(&pcpu_devices, cpu);
 	struct cpu *c = per_cpu_ptr(&cpu_devices, cpu);
 	int rc;
 
@@ -1104,6 +1106,8 @@ int arch_register_cpu(int cpu)
 	rc = topology_cpu_init(c);
 	if (rc)
 		goto out_topology;
+	if (pcpu->state != CPU_STATE_CONFIGURED)
+		set_cpu_enabled(cpu, false);
 	return 0;
 
 out_topology:

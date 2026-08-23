@@ -93,7 +93,7 @@ SYSCALL_DEFINE0(ni_syscall)
 	return -ENOSYS;
 }
 
-void noinstr __do_syscall(struct pt_regs *regs, int per_trap)
+void noinstr __do_syscall(struct pt_regs *regs, unsigned long flags)
 {
 	unsigned long nr;
 	bool permit;
@@ -107,7 +107,7 @@ void noinstr __do_syscall(struct pt_regs *regs, int per_trap)
 		current->thread.last_break = regs->last_break;
 	local_irq_enable();
 	regs->orig_gpr2 = regs->gprs[2];
-	if (unlikely(per_trap))
+	if (unlikely(flags & SYSCALL_FLAG_PER_TRAP))
 		set_thread_flag(TIF_PER_TRAP);
 	regs->flags = 0;
 	set_pt_regs_flag(regs, PIF_SYSCALL);

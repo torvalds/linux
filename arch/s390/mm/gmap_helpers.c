@@ -40,6 +40,7 @@
  *   and locked.
  */
 pte_t *try_get_locked_pte(struct mm_struct *mm, unsigned long vmaddr, spinlock_t **ptl)
+__context_unsafe(/* Returns nonnull if lock taken or not taken */)
 {
 	pmd_t *pmdp, pmd, pmdval;
 	pud_t *pudp, pud;
@@ -90,6 +91,7 @@ EXPORT_SYMBOL_GPL(try_get_locked_pte);
  * Context: needs to be called while holding the mmap lock.
  */
 void gmap_helper_zap_one_page(struct mm_struct *mm, unsigned long vmaddr)
+__context_unsafe(/* pte_unmap_unlock() not instrumented */)
 {
 	struct vm_area_struct *vma;
 	spinlock_t *ptl;	/* Lock for the host (userspace) page table */
@@ -161,6 +163,7 @@ EXPORT_SYMBOL_GPL(gmap_helper_discard);
  *          disabled.
  */
 void gmap_helper_try_set_pte_unused(struct mm_struct *mm, unsigned long vmaddr)
+__context_unsafe(/* pte_unmap_unlock() not instrumented */)
 {
 	spinlock_t *ptl;	/* Lock for the host (userspace) page table */
 	pte_t *ptep;
@@ -272,7 +275,6 @@ retry:
 		 * truncation. In that case, the shared zeropage would be gone
 		 * and we can simply retry and make progress.
 		 */
-		cond_resched();
 		goto retry;
 	}
 

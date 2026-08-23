@@ -481,6 +481,7 @@ static unsigned int raw3215_drop(struct raw3215_info *raw)
  */
 static unsigned int raw3215_make_room(struct raw3215_info *raw,
 				      unsigned int length, bool drop)
+	__must_hold(get_ccwdev_lock(raw->cdev))
 {
 	while (RAW3215_BUFFER_SIZE - raw->count < length) {
 		if (drop)
