@@ -764,7 +764,7 @@ static int ntfs_new_attr_flags(struct ntfs_inode *ni, __le32 fattr)
 			memmove((u8 *)a + mp_ofs, (u8 *)a + old_mp_ofs, mp_size);
 	}
 
-	err = ntfs_attr_record_resize(m, a, arec_size);
+	err = ntfs_attr_record_resize(ctx->mrec, a, arec_size);
 	if (unlikely(err))
 		goto err_out;
 
