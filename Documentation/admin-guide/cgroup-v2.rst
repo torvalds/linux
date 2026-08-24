@@ -3019,7 +3019,7 @@ Miscellaneous controller provides 3 interface files. If two misc resources (res_
 	change in this file generates a file modified event. All fields in
 	this file are hierarchical.
 
-	  max
+	  <res>.max
 		The number of times the cgroup's resource usage was
 		about to go over the max boundary.
 
