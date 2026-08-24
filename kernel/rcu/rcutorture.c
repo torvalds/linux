@@ -4491,6 +4491,8 @@ rcu_torture_cleanup(void)
 		for (i = 0; i < nrealreaders; i++)
 			torture_stop_kthread(rcu_torture_reader,
 					     reader_tasks[i]);
+		if (irqreader && cur_ops->irq_capable)
+			kick_all_cpus_sync();
 		kfree(reader_tasks);
 		reader_tasks = NULL;
 	}
