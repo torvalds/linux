@@ -571,6 +571,7 @@ static const struct of_device_id mt8183_pinctrl_of_match[] = {
 	{ .compatible = "mediatek,mt8183-pinctrl", .data = &mt8183_data },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, mt8183_pinctrl_of_match);
 
 static struct platform_driver mt8183_pinctrl_driver = {
 	.driver = {
@@ -586,3 +587,6 @@ static int __init mt8183_pinctrl_init(void)
 	return platform_driver_register(&mt8183_pinctrl_driver);
 }
 arch_initcall(mt8183_pinctrl_init);
+
+MODULE_DESCRIPTION("MediaTek MT8183 Pinctrl Driver");
+MODULE_LICENSE("GPL v2");

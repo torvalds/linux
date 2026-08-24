@@ -963,6 +963,7 @@ static const struct of_device_id mt8195_pinctrl_of_match[] = {
 	{ .compatible = "mediatek,mt8195-pinctrl", .data = &mt8195_data },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, mt8195_pinctrl_of_match);
 
 static struct platform_driver mt8195_pinctrl_driver = {
 	.driver = {
@@ -978,3 +979,6 @@ static int __init mt8195_pinctrl_init(void)
 	return platform_driver_register(&mt8195_pinctrl_driver);
 }
 arch_initcall(mt8195_pinctrl_init);
+
+MODULE_DESCRIPTION("MediaTek MT8195 Pinctrl Driver");
+MODULE_LICENSE("GPL v2");

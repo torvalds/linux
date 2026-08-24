@@ -479,7 +479,7 @@ struct tb10x_port {
  */
 struct tb10x_pinctrl {
 	struct pinctrl_dev *pctl;
-	void *base;
+	void __iomem *base;
 	const struct tb10x_pinfuncgrp *pingroups;
 	unsigned int pinfuncgrpcnt;
 	unsigned int pinfuncnt;

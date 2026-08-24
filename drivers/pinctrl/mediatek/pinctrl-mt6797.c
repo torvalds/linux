@@ -61,6 +61,7 @@ static const struct of_device_id mt6797_pinctrl_of_match[] = {
 	{ .compatible = "mediatek,mt6797-pinctrl", .data = &mt6797_data },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, mt6797_pinctrl_of_match);
 
 static struct platform_driver mt6797_pinctrl_driver = {
 	.driver = {
@@ -75,3 +76,6 @@ static int __init mt6797_pinctrl_init(void)
 	return platform_driver_register(&mt6797_pinctrl_driver);
 }
 arch_initcall(mt6797_pinctrl_init);
+
+MODULE_DESCRIPTION("MediaTek MT6797 Pinctrl Driver");
+MODULE_LICENSE("GPL v2");

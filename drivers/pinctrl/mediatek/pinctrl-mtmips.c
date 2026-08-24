@@ -349,3 +349,7 @@ int mtmips_pinctrl_init(struct platform_device *pdev,
 
 	return PTR_ERR_OR_ZERO(dev);
 }
+EXPORT_SYMBOL_NS_GPL(mtmips_pinctrl_init, "MTK_PINCTRL");
+
+MODULE_DESCRIPTION("MediaTek MIPS Pinctrl Common Driver");
+MODULE_LICENSE("GPL v2");
