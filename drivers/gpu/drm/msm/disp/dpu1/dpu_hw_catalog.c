@@ -303,6 +303,16 @@ static const u32 wb2_formats_rgb_yuv[] = {
 	.num_formats = ARRAY_SIZE(plane_formats), \
 	}
 
+#define _DMA_SBLK_V13() \
+	{ \
+	.sspp_rec0_blk = {.name = "sspp_rec0", \
+		.base = 0x1000, .len = 0x180,}, \
+	.sspp_rec1_blk = {.name = "sspp_rec1", \
+		.base = 0x3000, .len = 0x180,}, \
+	.format_list = plane_formats, \
+	.num_formats = ARRAY_SIZE(plane_formats), \
+	}
+
 static const struct dpu_rotation_cfg dpu_rot_sc7280_cfg_v2 = {
 	.rot_maxheight = 1088,
 	.rot_num_formats = ARRAY_SIZE(rotation_v2_formats),
@@ -352,6 +362,8 @@ static const struct dpu_sspp_sub_blks dpu_vig_sblk_qseed3_3_5 =
 static const struct dpu_sspp_sub_blks dpu_rgb_sblk = _RGB_SBLK();
 
 static const struct dpu_sspp_sub_blks dpu_dma_sblk = _DMA_SBLK();
+
+static const struct dpu_sspp_sub_blks dpu_dma_sblk_v13 = _DMA_SBLK_V13();
 
 /*************************************************************
  * MIXER sub blocks config

@@ -112,6 +112,25 @@ static inline u32 hdmi_read(struct hdmi *hdmi, u32 reg)
 	return readl(hdmi->mmio + reg);
 }
 
+static inline void hdmi_clear_bits(struct hdmi *hdmi, u32 reg, u32 mask)
+{
+	u32 val;
+
+	val = hdmi_read(hdmi, reg);
+	val &= ~mask;
+	hdmi_write(hdmi, reg, val);
+}
+
+static inline void hdmi_update_bits(struct hdmi *hdmi, u32 reg, u32 mask, u32 data)
+{
+	u32 val;
+
+	val = hdmi_read(hdmi, reg);
+	val &= ~mask;
+	val |= data & mask;
+	hdmi_write(hdmi, reg, val);
+}
+
 static inline u32 hdmi_qfprom_read(struct hdmi *hdmi, u32 reg)
 {
 	return readl(hdmi->qfprom_mmio + reg);

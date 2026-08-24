@@ -505,6 +505,8 @@ static void recover_worker(struct kthread_work *work)
 		 */
 		if (!vm->managed)
 			msm_gem_vm_unusable(submit->vm);
+
+		put_task_struct(task);
 	}
 
 	noreclaim_flag = memalloc_noreclaim_save();
@@ -552,10 +554,12 @@ static void recover_worker(struct kthread_work *work)
 		msm_update_fence(ring->fctx, fence);
 	}
 
-	/* retire completed submits, plus the one that hung: */
-	retire_submits(gpu);
+	priv->disable_err_irq = false;
 
 	gpu->funcs->recover(gpu);
+
+	/* retire completed submits, plus the one that hung: */
+	retire_submits(gpu);
 
 	/*
 	 * Replay all remaining submits starting with highest priority
@@ -875,7 +879,7 @@ msm_gpu_create_private_vm(struct msm_gpu *gpu, struct task_struct *task,
 			to_msm_vm(vm)->pid = get_pid(task_pid(task));
 	}
 
-	if (IS_ERR_OR_NULL(vm))
+	if (IS_ERR_OR_NULL(vm) && kernel_managed)
 		vm = drm_gpuvm_get(gpu->vm);
 
 	return vm;

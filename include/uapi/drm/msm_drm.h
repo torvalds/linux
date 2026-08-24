@@ -228,7 +228,7 @@ struct drm_msm_gem_cpu_fini {
 
 struct drm_msm_syncobj {
 	__u32 handle;     /* in, syncobj handle. */
-	__u32 flags;      /* in, from MSM_SUBMIT_SYNCOBJ_FLAGS */
+	__u32 flags;      /* in, from MSM_SYNCOBJ_FLAGS */
 	__u64 point;      /* in, timepoint for timeline syncobjs. */
 };
 
@@ -393,9 +393,9 @@ struct drm_msm_vm_bind {
 	__s32 fence_fd;
 	/** @queue_id: in, submitqueue id */
 	__u32 queue_id;
-	/** @in_syncobjs: in, ptr to array of drm_msm_gem_syncobj */
+	/** @in_syncobjs: in, ptr to array of drm_msm_syncobj */
 	__u64 in_syncobjs;
-	/** @out_syncobjs: in, ptr to array of drm_msm_gem_syncobj */
+	/** @out_syncobjs: in, ptr to array of drm_msm_syncobj */
 	__u64 out_syncobjs;
 	/** @nr_in_syncobjs: in, number of entries in in_syncobj */
 	__u32 nr_in_syncobjs;
