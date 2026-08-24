@@ -48,31 +48,31 @@ static int init_srcu_struct_fields(struct srcu_struct *ssp)
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 
-int __init_srcu_struct(struct srcu_struct *ssp, const char *name,
-		       struct lock_class_key *key)
+int init_srcu_struct_lockdep(struct srcu_struct *ssp, const char *name,
+		     struct lock_class_key *key)
 {
 	/* Don't re-initialize a lock while it is held. */
 	debug_check_no_locks_freed((void *)ssp, sizeof(*ssp));
 	lockdep_init_map(&ssp->dep_map, name, key, 0);
 	return init_srcu_struct_fields(ssp);
 }
-EXPORT_SYMBOL_GPL(__init_srcu_struct);
+EXPORT_SYMBOL_GPL(init_srcu_struct_lockdep);
 
 #else /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
 /*
- * init_srcu_struct - initialize a sleep-RCU structure
+ * init_srcu_struct_generic - initialize a sleep-RCU structure
  * @ssp: structure to initialize.
  *
  * Must invoke this on a given srcu_struct before passing that srcu_struct
  * to any other function.  Each srcu_struct represents a separate domain
  * of SRCU protection.
  */
-int init_srcu_struct(struct srcu_struct *ssp)
+int init_srcu_struct_generic(struct srcu_struct *ssp)
 {
 	return init_srcu_struct_fields(ssp);
 }
-EXPORT_SYMBOL_GPL(init_srcu_struct);
+EXPORT_SYMBOL_GPL(init_srcu_struct_generic);
 
 #endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
@@ -85,7 +85,7 @@ EXPORT_SYMBOL_GPL(init_srcu_struct);
  */
 void cleanup_srcu_struct(struct srcu_struct *ssp)
 {
-	WARN_ON(ssp->srcu_lock_nesting[0] || ssp->srcu_lock_nesting[1]);
+	WARN_ON(srcu_readers_active(ssp));
 	irq_work_sync(&ssp->srcu_irq_work);
 	flush_work(&ssp->srcu_work);
 	WARN_ON(ssp->srcu_gp_running);

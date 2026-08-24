@@ -91,6 +91,8 @@ torture_param(int, shutdown_secs, !IS_MODULE(CONFIG_RCU_SCALE_TEST) * 300,
 torture_param(int, verbose, 1, "Enable verbose debugging printk()s");
 torture_param(int, writer_holdoff, 0, "Holdoff (us) between GPs, zero to disable");
 torture_param(int, writer_holdoff_jiffies, 0, "Holdoff (jiffies) between GPs, zero to disable");
+torture_param(int, nexp, 0, "Number of expedited GP threads to run concurrently");
+torture_param(int, exp_interval, 0, "Interval (us) between expedited GPs, zero to disable");
 torture_param(int, kfree_rcu_test, 0, "Do we run a kfree_rcu() scale test?");
 torture_param(int, kfree_mult, 1, "Multiple of kfree_obj size to allocate.");
 torture_param(int, kfree_by_call_rcu, 0, "Use call_rcu() to emulate kfree_rcu()?");
@@ -115,8 +117,10 @@ struct writer_freelist {
 
 static int nrealreaders;
 static int nrealwriters;
+static int nrealexp;
 static struct task_struct **writer_tasks;
 static struct task_struct **reader_tasks;
+static struct task_struct **exp_tasks;
 
 static u64 **writer_durations;
 static bool *writer_done;
@@ -463,6 +467,34 @@ rcu_scale_reader(void *arg)
 }
 
 /*
+ * RCU expedited GP kthread.  Repeatedly invokes expedited grace periods
+ * to generate concurrent expedited GP load while the normal-GP writers
+ * are being measured.  This allows measuring the benefit of callbacks
+ * that can piggyback on expedited grace periods.
+ */
+static int
+rcu_scale_exp(void *arg)
+{
+	long me = (long)arg;
+
+	VERBOSE_SCALEOUT_STRING("rcu_scale_exp task started");
+	set_cpus_allowed_ptr(current, cpumask_of(me % nr_cpu_ids));
+	set_user_nice(current, MIN_NICE);
+
+	if (holdoff)
+		schedule_timeout_idle(holdoff * HZ);
+
+	do {
+		if (exp_interval)
+			udelay(exp_interval);
+		cur_ops->exp_sync();
+		rcu_scale_wait_shutdown();
+	} while (!torture_must_stop());
+	torture_kthread_stopping("rcu_scale_exp");
+	return 0;
+}
+
+/*
  * Allocate a writer_mblock structure for the specified rcu_scale_writer
  * task.
  */
@@ -664,8 +696,10 @@ static void
 rcu_scale_print_module_parms(struct rcu_scale_ops *cur_ops, const char *tag)
 {
 	pr_alert("%s" SCALE_FLAG
-		 "--- %s: gp_async=%d gp_async_max=%d gp_exp=%d holdoff=%d minruntime=%d nreaders=%d nwriters=%d writer_holdoff=%d writer_holdoff_jiffies=%d verbose=%d shutdown_secs=%d\n",
-		 scale_type, tag, gp_async, gp_async_max, gp_exp, holdoff, minruntime, nrealreaders, nrealwriters, writer_holdoff, writer_holdoff_jiffies, verbose, shutdown_secs);
+		 "--- %s: gp_async=%d gp_async_max=%d gp_exp=%d holdoff=%d minruntime=%d nreaders=%d nwriters=%d nexp=%d exp_interval=%d writer_holdoff=%d writer_holdoff_jiffies=%d verbose=%d shutdown_secs=%d\n",
+		 scale_type, tag, gp_async, gp_async_max, gp_exp, holdoff,
+		 minruntime, nrealreaders, nrealwriters, nrealexp, exp_interval,
+		 writer_holdoff, writer_holdoff_jiffies, verbose, shutdown_secs);
 }
 
 /*
@@ -809,6 +843,13 @@ kfree_scale_cleanup(void)
 	if (torture_cleanup_begin())
 		return;
 
+	if (exp_tasks) {
+		for (i = 0; i < nrealexp; i++)
+			torture_stop_kthread(rcu_scale_exp, exp_tasks[i]);
+		kfree(exp_tasks);
+		exp_tasks = NULL;
+	}
+
 	if (kfree_reader_tasks) {
 		for (i = 0; i < kfree_nrealthreads; i++)
 			torture_stop_kthread(kfree_scale_thread,
@@ -903,6 +944,22 @@ kfree_scale_init(void)
 			goto unwind;
 	}
 
+	if (nrealexp > 0 && cur_ops->exp_sync) {
+		exp_tasks = kzalloc_objs(exp_tasks[0], nrealexp);
+		if (!exp_tasks) {
+			SCALEOUT_ERRSTRING("out of memory");
+			firsterr = -ENOMEM;
+			goto unwind;
+		}
+		for (i = 0; i < nrealexp; i++) {
+			firsterr = torture_create_kthread(rcu_scale_exp,
+							  (void *)i,
+							  exp_tasks[i]);
+			if (torture_init_error(firsterr))
+				goto unwind;
+		}
+	}
+
 	while (atomic_read(&n_kfree_scale_thread_started) < kfree_nrealthreads)
 		schedule_timeout_uninterruptible(1);
 
@@ -957,6 +1014,13 @@ rcu_scale_cleanup(void)
 	if (!cur_ops) {
 		torture_cleanup_end();
 		return;
+	}
+
+	if (exp_tasks) {
+		for (i = 0; i < nrealexp; i++)
+			torture_stop_kthread(rcu_scale_exp, exp_tasks[i]);
+		kfree(exp_tasks);
+		exp_tasks = NULL;
 	}
 
 	if (reader_tasks) {
@@ -1076,6 +1140,7 @@ rcu_scale_init(void)
 		if (kthread_tp)
 			kthread_stime = kthread_tp->stime;
 	}
+	nrealexp = nexp;
 	if (kfree_rcu_test)
 		return kfree_scale_init();
 
@@ -1107,6 +1172,21 @@ rcu_scale_init(void)
 	}
 	while (atomic_read(&n_rcu_scale_reader_started) < nrealreaders)
 		schedule_timeout_uninterruptible(1);
+	if (nrealexp > 0 && cur_ops->exp_sync) {
+		exp_tasks = kzalloc_objs(exp_tasks[0], nrealexp);
+		if (!exp_tasks) {
+			SCALEOUT_ERRSTRING("out of memory");
+			firsterr = -ENOMEM;
+			goto unwind;
+		}
+		for (i = 0; i < nrealexp; i++) {
+			firsterr = torture_create_kthread(rcu_scale_exp,
+							  (void *)i,
+							  exp_tasks[i]);
+			if (torture_init_error(firsterr))
+				goto unwind;
+		}
+	}
 	writer_tasks = kzalloc_objs(writer_tasks[0], nrealwriters);
 	writer_durations = kcalloc(nrealwriters, sizeof(*writer_durations), GFP_KERNEL);
 	writer_n_durations = kzalloc_objs(*writer_n_durations, nrealwriters);

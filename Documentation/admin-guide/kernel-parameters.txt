@@ -6157,6 +6157,11 @@ Kernel parameters
 			the number of CPUs.  For example, -2 selects N
 			(the number of CPUs), -3 selects N+1, and so on.
 
+	rcutorture.nwriters= [KNL]
+			Set number of RCU writers, which must be either
+			zero or one.  For additional writers, use instead
+			the rcutorture.nfakewriters parameter.
+
 	rcutorture.object_debug= [KNL]
 			Enable debug-object double-call_rcu() testing.
 
@@ -6245,6 +6250,15 @@ Kernel parameters
 			warnings, zero to disable.  If both stall_cpu
 			and stall_gp_kthread are specified, the
 			kthread is starved first, then the CPU.
+
+	rcutorture.stall_only= [KNL]
+			Shut off all rcutorture kthreads other than the
+			RCU CPU stall-warning test kthreads.  The purpose
+			of this is to test production applictions'
+			reactions to CPU stalls, and with minimal
+			additional overhead.  Or you can omit the
+			stall-warning tests as well and get a heavy
+			no-op, your choice!
 
 	rcutorture.stat_interval= [KNL]
 			Time (s) between statistics printk()s.

@@ -2785,7 +2785,7 @@ both srcu_read_lock() and srcu_read_unlock().  This need is handled by
 a Tasks Trace RCU API implemented as thin wrappers around SRCU-fast,
 which avoids the read-side memory barriers, at least for architectures
 that apply noinstr to kernel entry/exit code (or that build with
-``CONFIG_TASKS_TRACE_RCU_NO_MB=y``.
+``CONFIG_TASKS_TRACE_RCU_NO_MB=y``).
 
 Now that the implementation is based on SRCU-fast, a call
 to synchronize_rcu_tasks_trace() implies at least one call to

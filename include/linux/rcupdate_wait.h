@@ -18,7 +18,7 @@ struct rcu_synchronize {
 	struct completion completion;
 
 	/* This is for debugging. */
-	struct rcu_gp_oldstate oldstate;
+	struct rcu_gp_seq oldstate;
 };
 void wakeme_after_rcu(struct rcu_head *head);
 

@@ -140,7 +140,6 @@ config FORCE_TASKS_TRACE_RCU
 config TASKS_TRACE_RCU
 	bool
 	default n
-	select IRQ_WORK
 
 config TASKS_TRACE_RCU_NO_MB
 	bool "Override RCU Tasks Trace inclusion of read-side memory barriers"

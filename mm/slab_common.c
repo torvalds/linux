@@ -1339,7 +1339,7 @@ static struct workqueue_struct *rcu_reclaim_wq;
  */
 struct kvfree_rcu_bulk_data {
 	struct list_head list;
-	struct rcu_gp_oldstate gp_snap;
+	struct rcu_gp_seq gp_snap;
 	unsigned long nr_records;
 	void *records[] __counted_by(nr_records);
 };
@@ -1364,7 +1364,7 @@ struct kvfree_rcu_bulk_data {
 struct kfree_rcu_cpu_work {
 	struct rcu_work rcu_work;
 	struct rcu_head *head_free;
-	struct rcu_gp_oldstate head_free_gp_snap;
+	struct rcu_gp_seq head_free_gp_snap;
 	struct list_head bulk_head_free[FREE_N_CHANNELS];
 	struct kfree_rcu_cpu *krcp;
 };
@@ -1572,7 +1572,7 @@ static void kfree_rcu_work(struct work_struct *work)
 	struct rcu_head *head;
 	struct kfree_rcu_cpu *krcp;
 	struct kfree_rcu_cpu_work *krwp;
-	struct rcu_gp_oldstate head_gp_snap;
+	struct rcu_gp_seq head_gp_snap;
 	int i;
 
 	krwp = container_of(to_rcu_work(work),
