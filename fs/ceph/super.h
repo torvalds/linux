@@ -611,6 +611,14 @@ static inline u64 ceph_snap(const struct inode *inode)
 }
 
 /**
+ * Is this inode in a ".snap" directory?
+ */
+static inline bool ceph_in_snap(const struct inode *inode)
+{
+	return ceph_snap(inode) != CEPH_NOSNAP;
+}
+
+/**
  * ceph_present_ino - format an inode number for presentation to userland
  * @sb: superblock where the inode lives
  * @ino: inode number to (possibly) convert
