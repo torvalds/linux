@@ -801,14 +801,12 @@ static int stm32f4_i2c_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, irq_event, stm32f4_i2c_isr_event, 0,
 			       pdev->name, i2c_dev);
 	if (ret)
-		return dev_err_probe(&pdev->dev, ret,
-				     "Failed to request irq event %i\n", irq_event);
+		return ret;
 
 	ret = devm_request_irq(&pdev->dev, irq_error, stm32f4_i2c_isr_error, 0,
 			       pdev->name, i2c_dev);
 	if (ret)
-		return dev_err_probe(&pdev->dev, ret,
-				     "Failed to request irq error %i\n", irq_error);
+		return ret;
 
 	ret = stm32f4_i2c_hw_config(i2c_dev);
 	if (ret)

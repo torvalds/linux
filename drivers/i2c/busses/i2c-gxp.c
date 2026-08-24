@@ -551,7 +551,7 @@ static int gxp_i2c_probe(struct platform_device *pdev)
 	rc = devm_request_irq(&pdev->dev, drvdata->irq, gxp_i2c_irq_handler,
 			      IRQF_SHARED, gxp_i2c_name[drvdata->engine], drvdata);
 	if (rc < 0)
-		return dev_err_probe(&pdev->dev, rc, "irq request failed\n");
+		return rc;
 
 	i2c_parse_fw_timings(&pdev->dev, &drvdata->t, true);
 

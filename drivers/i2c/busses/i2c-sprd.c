@@ -546,10 +546,8 @@ static int sprd_i2c_probe(struct platform_device *pdev)
 		sprd_i2c_isr, sprd_i2c_isr_thread,
 		IRQF_NO_SUSPEND | IRQF_ONESHOT,
 		pdev->name, i2c_dev);
-	if (ret) {
-		dev_err_probe(&pdev->dev, ret, "failed to request irq %d\n", i2c_dev->irq);
+	if (ret)
 		goto err_rpm_put;
-	}
 
 	ret = i2c_add_numbered_adapter(&i2c_dev->adap);
 	if (ret) {

@@ -581,8 +581,7 @@ static int mchp_corei2c_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, irq, mchp_corei2c_isr, IRQF_SHARED,
 			       pdev->name, idev);
 	if (ret)
-		return dev_err_probe(&pdev->dev, ret,
-				     "failed to claim irq %d\n", irq);
+		return ret;
 
 	ret = clk_prepare_enable(idev->i2c_clk);
 	if (ret)
