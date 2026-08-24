@@ -7519,7 +7519,7 @@ Kernel parameters
 			Execution Facility on pSeries.
 
 	swiotlb=	[ARM,PPC,MIPS,X86,S390,EARLY]
-			Format: { <int> [,<int>] | force | noforce }
+			Format: { <int> [,<int>] | force | noforce | track_hiwater}
 			<int> -- Number of I/O TLB slabs
 			<int> -- Second integer after comma. Number of swiotlb
 				 areas with their own lock. Will be rounded up
@@ -7527,6 +7527,8 @@ Kernel parameters
 			force -- force using of bounce buffers even if they
 			         wouldn't be automatically used by the kernel
 			noforce -- Never use bounce buffers (for debugging)
+			track_hiwater -- Track high watermark of swiotlb buffers.
+			                 Only available when CONFIG_DEBUG_FS is set.
 
 	switches=	[HW,M68k,EARLY]
 
