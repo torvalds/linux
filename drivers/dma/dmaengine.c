@@ -814,9 +814,14 @@ static const struct dma_slave_map *dma_filter_match(struct dma_device *device,
  */
 struct dma_chan *dma_request_chan(struct device *dev, const char *name)
 {
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
+	struct fwnode_handle *fwnode;
 	struct dma_device *d, *_d;
 	struct dma_chan *chan = NULL;
+
+	if (WARN_ON(!dev || !name))
+		return ERR_PTR(-EINVAL);
+
+	fwnode = dev_fwnode(dev);
 
 	if (is_of_node(fwnode))
 		chan = of_dma_request_slave_channel(to_of_node(fwnode), name);
@@ -1100,6 +1105,8 @@ static int __dma_async_device_channel_register(struct dma_device *device,
 	chan->dev->device.parent = device->dev;
 	chan->dev->chan = chan;
 	chan->dev->dev_id = device->dev_id;
+	spin_lock_init(&chan->lock);
+
 	if (!name)
 		dev_set_name(&chan->dev->device, "dma%dchan%d", device->dev_id, chan->chan_id);
 	else

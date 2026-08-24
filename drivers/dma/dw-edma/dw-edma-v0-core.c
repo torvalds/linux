@@ -7,6 +7,7 @@
  */
 
 #include <linux/bitfield.h>
+#include <linux/iopoll.h>
 #include <linux/irqreturn.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 
@@ -24,6 +25,8 @@ enum dw_edma_control {
 	DW_EDMA_V0_CCS					= BIT(8),
 	DW_EDMA_V0_LLE					= BIT(9),
 };
+
+#define EDMA_V0_FUNC_NUM_MASK				GENMASK(16, 12)
 
 static inline struct dw_edma_v0_regs __iomem *__dw_regs(struct dw_edma *dw)
 {
@@ -159,7 +162,93 @@ static inline u32 readl_ch(struct dw_edma *dw, enum dw_edma_dir dir, u16 ch,
 #define GET_CH_32(dw, dir, ch, name) \
 	readl_ch(dw, dir, ch, &(__dw_ch_regs(dw, dir, ch)->name))
 
+static u32 dw_edma_v0_func_num(struct dw_edma_chan *chan)
+{
+	return FIELD_PREP(EDMA_V0_FUNC_NUM_MASK, chan->func_no);
+}
+
 /* eDMA management callbacks */
+static void dw_edma_v0_core_ch_power(struct dw_edma *dw,
+				     enum dw_edma_dir dir, u16 id, bool enable)
+{
+	u32 value = enable ? BIT(0) : 0;
+
+	if (WARN_ON_ONCE(id >= EDMA_V0_MAX_NR_CH))
+		return;
+
+	switch (id) {
+	case 0:
+		SET_RW_COMPAT(dw, dir, ch0_pwr_en, value);
+		break;
+	case 1:
+		SET_RW_COMPAT(dw, dir, ch1_pwr_en, value);
+		break;
+	case 2:
+		SET_RW_COMPAT(dw, dir, ch2_pwr_en, value);
+		break;
+	case 3:
+		SET_RW_COMPAT(dw, dir, ch3_pwr_en, value);
+		break;
+	case 4:
+		SET_RW_COMPAT(dw, dir, ch4_pwr_en, value);
+		break;
+	case 5:
+		SET_RW_COMPAT(dw, dir, ch5_pwr_en, value);
+		break;
+	case 6:
+		SET_RW_COMPAT(dw, dir, ch6_pwr_en, value);
+		break;
+	case 7:
+		SET_RW_COMPAT(dw, dir, ch7_pwr_en, value);
+		break;
+	}
+}
+
+static int dw_edma_v0_core_engine_disable(struct dw_edma *dw,
+					  enum dw_edma_dir dir)
+{
+	u32 value;
+	int ret;
+
+	SET_RW_32(dw, dir, engine_en, 0);
+	ret = read_poll_timeout(GET_RW_32, value, !(value & BIT(0)), 100,
+				200000, false, dw, dir, engine_en);
+	if (ret)
+		dev_warn(dw->chip->dev, "%s engine did not stop within 200ms\n",
+			 dir == EDMA_DIR_WRITE ? "write" : "read");
+
+	return ret;
+}
+
+static int dw_edma_v0_core_dir_off(struct dw_edma *dw, enum dw_edma_dir dir)
+{
+	u16 count, id;
+	int ret = 0;
+
+	scoped_guard(raw_spinlock_irqsave, &dw->lock)
+		SET_RW_32(dw, dir, int_mask,
+			  EDMA_V0_DONE_INT_MASK | EDMA_V0_ABORT_INT_MASK);
+
+	if (dw->chip->mf == EDMA_MF_HDMA_COMPAT) {
+		/*
+		 * DWC PCIe Controller Databook 6.10a-lca06, "Legacy DMA
+		 * and HDMA Software Compatibility": HDMA compatibility mode
+		 * does not implement ENGINE_EN, but retains CHi_PWR_EN for
+		 * per-channel enable and disable.
+		 */
+		count = dir == EDMA_DIR_WRITE ? dw->wr_ch_cnt : dw->rd_ch_cnt;
+		for (id = 0; id < count; id++)
+			dw_edma_v0_core_ch_power(dw, dir, id, false);
+	} else {
+		ret = dw_edma_v0_core_engine_disable(dw, dir);
+	}
+
+	SET_RW_32(dw, dir, int_clear,
+		  EDMA_V0_DONE_INT_MASK | EDMA_V0_ABORT_INT_MASK);
+
+	return ret;
+}
+
 static void dw_edma_v0_core_off(struct dw_edma *dw)
 {
 	SET_BOTH_32(dw, int_mask,
@@ -167,6 +256,33 @@ static void dw_edma_v0_core_off(struct dw_edma *dw)
 	SET_BOTH_32(dw, int_clear,
 		    EDMA_V0_DONE_INT_MASK | EDMA_V0_ABORT_INT_MASK);
 	SET_BOTH_32(dw, engine_en, 0);
+}
+
+static int dw_edma_v0_core_quiesce(struct dw_edma *dw)
+{
+	int ret = 0;
+	int err;
+
+	if (dw->wr_ch_cnt)
+		ret = dw_edma_v0_core_dir_off(dw, EDMA_DIR_WRITE);
+	if (dw->rd_ch_cnt) {
+		err = dw_edma_v0_core_dir_off(dw, EDMA_DIR_READ);
+		if (!ret)
+			ret = err;
+	}
+
+	return ret;
+}
+
+/*
+ * The unrolled eDMA and HDMA compatibility register maps share interrupt
+ * control per direction, so the whole direction is quiesced. Callers must
+ * own the direction entirely and prevent the peer from programming it after
+ * this point. Partial ownership mode validates direction granularity.
+ */
+static int dw_edma_v0_core_ch_quiesce(struct dw_edma_chan *chan)
+{
+	return dw_edma_v0_core_dir_off(chan->dw, chan->dir);
 }
 
 static u16 dw_edma_v0_core_ch_count(struct dw_edma *dw, enum dw_edma_dir dir)
@@ -218,18 +334,6 @@ static void dw_edma_v0_core_clear_abort_int(struct dw_edma_chan *chan)
 		  FIELD_PREP(EDMA_V0_ABORT_INT_MASK, BIT(chan->id)));
 }
 
-static u32 dw_edma_v0_core_status_done_int(struct dw_edma *dw, enum dw_edma_dir dir)
-{
-	return FIELD_GET(EDMA_V0_DONE_INT_MASK,
-			 GET_RW_32(dw, dir, int_status));
-}
-
-static u32 dw_edma_v0_core_status_abort_int(struct dw_edma *dw, enum dw_edma_dir dir)
-{
-	return FIELD_GET(EDMA_V0_ABORT_INT_MASK,
-			 GET_RW_32(dw, dir, int_status));
-}
-
 static irqreturn_t
 dw_edma_v0_core_handle_int(struct dw_edma_irq *dw_irq, enum dw_edma_dir dir,
 			   dw_edma_handler_t done, dw_edma_handler_t abort)
@@ -239,7 +343,8 @@ dw_edma_v0_core_handle_int(struct dw_edma_irq *dw_irq, enum dw_edma_dir dir,
 	irqreturn_t ret = IRQ_NONE;
 	struct dw_edma_chan *chan;
 	unsigned long off;
-	u32 mask;
+	unsigned long *mask;
+	u32 sts;
 
 	if (dir == EDMA_DIR_WRITE) {
 		total = dw->wr_ch_cnt;
@@ -251,10 +356,23 @@ dw_edma_v0_core_handle_int(struct dw_edma_irq *dw_irq, enum dw_edma_dir dir,
 		mask = dw_irq->rd_mask;
 	}
 
-	val = dw_edma_v0_core_status_done_int(dw, dir);
-	val &= mask;
+	/*
+	 * DONE and ABORT status share one register, and on remote setups
+	 * every read is a non-posted round trip across the PCIe link. Take
+	 * one snapshot and derive both views from it. An abort raised
+	 * after the snapshot is deferred, not lost: only bits observed in
+	 * the snapshot are ever cleared below, so its status remains set and
+	 * triggers another handler pass.
+	 */
+	sts = GET_RW_32(dw, dir, int_status);
+
+	val = FIELD_GET(EDMA_V0_DONE_INT_MASK, sts);
+	val &= *mask;
 	for_each_set_bit(pos, &val, total) {
 		chan = &dw->chan[pos + off];
+
+		if (unlikely(dw_edma_core_ch_ignore_irq(chan)))
+			continue;
 
 		dw_edma_v0_core_clear_done_int(chan);
 		done(chan);
@@ -262,10 +380,13 @@ dw_edma_v0_core_handle_int(struct dw_edma_irq *dw_irq, enum dw_edma_dir dir,
 		ret = IRQ_HANDLED;
 	}
 
-	val = dw_edma_v0_core_status_abort_int(dw, dir);
-	val &= mask;
+	val = FIELD_GET(EDMA_V0_ABORT_INT_MASK, sts);
+	val &= *mask;
 	for_each_set_bit(pos, &val, total) {
 		chan = &dw->chan[pos + off];
+
+		if (unlikely(dw_edma_core_ch_ignore_irq(chan)))
+			continue;
 
 		dw_edma_v0_core_clear_abort_int(chan);
 		abort(chan);
@@ -276,77 +397,90 @@ dw_edma_v0_core_handle_int(struct dw_edma_irq *dw_irq, enum dw_edma_dir dir,
 	return ret;
 }
 
-static void dw_edma_v0_write_ll_data(struct dw_edma_chunk *chunk, int i,
+static void dw_edma_v0_write_ll_data(struct dw_edma_chan *chan, int i,
 				     u32 control, u32 size, u64 sar, u64 dar)
 {
 	ptrdiff_t ofs = i * sizeof(struct dw_edma_v0_lli);
 
-	if (chunk->chan->dw->chip->flags & DW_EDMA_CHIP_LOCAL) {
-		struct dw_edma_v0_lli *lli = chunk->ll_region.vaddr.mem + ofs;
+	if (chan->dw->chip->flags & DW_EDMA_CHIP_LOCAL) {
+		struct dw_edma_v0_lli *lli = chan->ll_region.vaddr.mem + ofs;
 
-		lli->control = control;
 		lli->transfer_size = size;
 		lli->sar.reg = sar;
 		lli->dar.reg = dar;
+		dma_wmb();
+		lli->control = control;
 	} else {
-		struct dw_edma_v0_lli __iomem *lli = chunk->ll_region.vaddr.io + ofs;
+		struct dw_edma_v0_lli __iomem *lli = chan->ll_region.vaddr.io + ofs;
 
-		writel(control, &lli->control);
 		writel(size, &lli->transfer_size);
 		writeq(sar, &lli->sar.reg);
 		writeq(dar, &lli->dar.reg);
+		writel(control, &lli->control);
 	}
 }
 
-static void dw_edma_v0_write_ll_link(struct dw_edma_chunk *chunk,
+static void dw_edma_v0_write_ll_link(struct dw_edma_chan *chan,
 				     int i, u32 control, u64 pointer)
 {
 	ptrdiff_t ofs = i * sizeof(struct dw_edma_v0_lli);
 
-	if (chunk->chan->dw->chip->flags & DW_EDMA_CHIP_LOCAL) {
-		struct dw_edma_v0_llp *llp = chunk->ll_region.vaddr.mem + ofs;
+	if (chan->dw->chip->flags & DW_EDMA_CHIP_LOCAL) {
+		struct dw_edma_v0_llp *llp = chan->ll_region.vaddr.mem + ofs;
 
-		llp->control = control;
 		llp->llp.reg = pointer;
+		dma_wmb();
+		llp->control = control;
 	} else {
-		struct dw_edma_v0_llp __iomem *llp = chunk->ll_region.vaddr.io + ofs;
+		struct dw_edma_v0_llp __iomem *llp = chan->ll_region.vaddr.io + ofs;
 
-		writel(control, &llp->control);
 		writeq(pointer, &llp->llp.reg);
+		writel(control, &llp->control);
 	}
 }
 
-static void dw_edma_v0_core_write_chunk(struct dw_edma_chunk *chunk)
+static void dw_edma_v0_core_ch_enable(struct dw_edma_chan *chan)
 {
-	struct dw_edma_burst *child;
-	struct dw_edma_chan *chan = chunk->chan;
-	u32 control = 0, i = 0;
-	int j;
+	struct dw_edma *dw = chan->dw;
+	unsigned long flags;
+	u32 tmp;
 
-	if (chunk->cb)
-		control = DW_EDMA_V0_CB;
+	 /* Enable engine */
+	SET_RW_32(dw, chan->dir, engine_en, BIT(0));
+	if (dw->chip->mf == EDMA_MF_HDMA_COMPAT)
+		dw_edma_v0_core_ch_power(dw, chan->dir, chan->id, true);
+	/* Interrupt mask/unmask - done, abort */
+	raw_spin_lock_irqsave(&dw->lock, flags);
 
-	j = chunk->bursts_alloc;
-	list_for_each_entry(child, &chunk->burst->list, list) {
-		j--;
-		if (!j) {
-			control |= DW_EDMA_V0_LIE;
-			if (!(chan->dw->chip->flags & DW_EDMA_CHIP_LOCAL))
-				control |= DW_EDMA_V0_RIE;
-		}
-
-		dw_edma_v0_write_ll_data(chunk, i++, control, child->sz,
-					 child->sar, child->dar);
+	tmp = GET_RW_32(dw, chan->dir, int_mask);
+	if (chan->irq_mode == DW_EDMA_CH_IRQ_REMOTE) {
+		tmp |= FIELD_PREP(EDMA_V0_DONE_INT_MASK, BIT(chan->id));
+		tmp |= FIELD_PREP(EDMA_V0_ABORT_INT_MASK, BIT(chan->id));
+	} else {
+		tmp &= ~FIELD_PREP(EDMA_V0_DONE_INT_MASK, BIT(chan->id));
+		tmp &= ~FIELD_PREP(EDMA_V0_ABORT_INT_MASK, BIT(chan->id));
 	}
+	SET_RW_32(dw, chan->dir, int_mask, tmp);
+	/* Linked list error */
+	tmp = GET_RW_32(dw, chan->dir, linked_list_err_en);
+	tmp |= FIELD_PREP(EDMA_V0_LINKED_LIST_ERR_MASK, BIT(chan->id));
+	SET_RW_32(dw, chan->dir, linked_list_err_en, tmp);
 
-	control = DW_EDMA_V0_LLP | DW_EDMA_V0_TCB;
-	if (!chunk->cb)
-		control |= DW_EDMA_V0_CB;
+	raw_spin_unlock_irqrestore(&dw->lock, flags);
 
-	dw_edma_v0_write_ll_link(chunk, i, control, chunk->ll_region.paddr);
+	/* Channel control */
+	SET_CH_32(dw, chan->dir, chan->id, ch_control1,
+		  DW_EDMA_V0_CCS | DW_EDMA_V0_LLE |
+		  dw_edma_v0_func_num(chan));
+	/* Linked list */
+	/* llp is not aligned on 64bit -> keep 32bit accesses */
+	SET_CH_32(dw, chan->dir, chan->id, llp.lsb,
+		  lower_32_bits(chan->ll_region.paddr));
+	SET_CH_32(dw, chan->dir, chan->id, llp.msb,
+		  upper_32_bits(chan->ll_region.paddr));
 }
 
-static void dw_edma_v0_sync_ll_data(struct dw_edma_chunk *chunk)
+static void dw_edma_v0_sync_ll_data(struct dw_edma_chan *chan)
 {
 	/*
 	 * In case of remote eDMA engine setup, the DW PCIe RP/EP internal
@@ -356,88 +490,8 @@ static void dw_edma_v0_sync_ll_data(struct dw_edma_chunk *chunk)
 	 * LL memory in a hope that the MRd TLP will return only after the
 	 * last MWr TLP is completed
 	 */
-	if (!(chunk->chan->dw->chip->flags & DW_EDMA_CHIP_LOCAL))
-		readl(chunk->ll_region.vaddr.io);
-}
-
-static void dw_edma_v0_core_start(struct dw_edma_chunk *chunk, bool first)
-{
-	struct dw_edma_chan *chan = chunk->chan;
-	struct dw_edma *dw = chan->dw;
-	unsigned long flags;
-	u32 tmp;
-
-	dw_edma_v0_core_write_chunk(chunk);
-
-	if (first) {
-		/* Enable engine */
-		SET_RW_32(dw, chan->dir, engine_en, BIT(0));
-		if (dw->chip->mf == EDMA_MF_HDMA_COMPAT) {
-			switch (chan->id) {
-			case 0:
-				SET_RW_COMPAT(dw, chan->dir, ch0_pwr_en,
-					      BIT(0));
-				break;
-			case 1:
-				SET_RW_COMPAT(dw, chan->dir, ch1_pwr_en,
-					      BIT(0));
-				break;
-			case 2:
-				SET_RW_COMPAT(dw, chan->dir, ch2_pwr_en,
-					      BIT(0));
-				break;
-			case 3:
-				SET_RW_COMPAT(dw, chan->dir, ch3_pwr_en,
-					      BIT(0));
-				break;
-			case 4:
-				SET_RW_COMPAT(dw, chan->dir, ch4_pwr_en,
-					      BIT(0));
-				break;
-			case 5:
-				SET_RW_COMPAT(dw, chan->dir, ch5_pwr_en,
-					      BIT(0));
-				break;
-			case 6:
-				SET_RW_COMPAT(dw, chan->dir, ch6_pwr_en,
-					      BIT(0));
-				break;
-			case 7:
-				SET_RW_COMPAT(dw, chan->dir, ch7_pwr_en,
-					      BIT(0));
-				break;
-			}
-		}
-		/* Interrupt unmask - done, abort */
-		raw_spin_lock_irqsave(&dw->lock, flags);
-
-		tmp = GET_RW_32(dw, chan->dir, int_mask);
-		tmp &= ~FIELD_PREP(EDMA_V0_DONE_INT_MASK, BIT(chan->id));
-		tmp &= ~FIELD_PREP(EDMA_V0_ABORT_INT_MASK, BIT(chan->id));
-		SET_RW_32(dw, chan->dir, int_mask, tmp);
-		/* Linked list error */
-		tmp = GET_RW_32(dw, chan->dir, linked_list_err_en);
-		tmp |= FIELD_PREP(EDMA_V0_LINKED_LIST_ERR_MASK, BIT(chan->id));
-		SET_RW_32(dw, chan->dir, linked_list_err_en, tmp);
-
-		raw_spin_unlock_irqrestore(&dw->lock, flags);
-
-		/* Channel control */
-		SET_CH_32(dw, chan->dir, chan->id, ch_control1,
-			  (DW_EDMA_V0_CCS | DW_EDMA_V0_LLE));
-		/* Linked list */
-		/* llp is not aligned on 64bit -> keep 32bit accesses */
-		SET_CH_32(dw, chan->dir, chan->id, llp.lsb,
-			  lower_32_bits(chunk->ll_region.paddr));
-		SET_CH_32(dw, chan->dir, chan->id, llp.msb,
-			  upper_32_bits(chunk->ll_region.paddr));
-	}
-
-	dw_edma_v0_sync_ll_data(chunk);
-
-	/* Doorbell */
-	SET_RW_32(dw, chan->dir, doorbell,
-		  FIELD_PREP(EDMA_V0_DOORBELL_CH_MASK, chan->id));
+	if (!(chan->dw->chip->flags & DW_EDMA_CHIP_LOCAL))
+		readl(chan->ll_region.vaddr.io);
 }
 
 static void dw_edma_v0_core_ch_config(struct dw_edma_chan *chan)
@@ -509,6 +563,59 @@ static void dw_edma_v0_core_ch_config(struct dw_edma_chan *chan)
 	}
 }
 
+static void
+dw_edma_v0_core_ll_data(struct dw_edma_chan *chan, struct dw_edma_burst *burst,
+			u32 idx, bool cb, bool irq)
+{
+	u32 control = 0;
+
+	if (cb)
+		control |= DW_EDMA_V0_CB;
+
+	if (irq) {
+		control |= DW_EDMA_V0_LIE;
+
+		/*
+		 * A local instance never issues transfers on a remote-routed
+		 * channel: on CHIP_LOCAL instances, REMOTE routing denotes a
+		 * channel handed over to the remote side, which programs the
+		 * linked list through its own instance. The remote-only
+		 * recipe (LIE|RIE with the local interrupt masked) is thus
+		 * applied by the instance that owns the transfer, and the
+		 * LIE-only write below never executes for a remote-routed
+		 * channel.
+		 */
+		if (!(chan->dw->chip->flags & DW_EDMA_CHIP_LOCAL) &&
+		    chan->irq_mode == DW_EDMA_CH_IRQ_REMOTE)
+			control |= DW_EDMA_V0_RIE;
+	}
+
+	dw_edma_v0_write_ll_data(chan, idx, control, burst->sz, burst->sar,
+				 burst->dar);
+}
+
+static void
+dw_edma_v0_core_ll_link(struct dw_edma_chan *chan, u32 idx, bool cb, u64 addr)
+{
+	u32 control = DW_EDMA_V0_LLP | DW_EDMA_V0_TCB;
+
+	if (!cb)
+		control |= DW_EDMA_V0_CB;
+
+	dw_edma_v0_write_ll_link(chan, idx, control, addr);
+}
+
+static void dw_edma_v0_core_ch_doorbell(struct dw_edma_chan *chan)
+{
+	struct dw_edma *dw = chan->dw;
+
+	dw_edma_v0_sync_ll_data(chan);
+
+	/* Doorbell */
+	SET_RW_32(dw, chan->dir, doorbell,
+		  FIELD_PREP(EDMA_V0_DOORBELL_CH_MASK, chan->id));
+}
+
 /* eDMA debugfs callbacks */
 static void dw_edma_v0_core_debugfs_on(struct dw_edma *dw)
 {
@@ -536,10 +643,15 @@ static resource_size_t dw_edma_v0_core_db_offset(struct dw_edma *dw)
 
 static const struct dw_edma_core_ops dw_edma_v0_core = {
 	.off = dw_edma_v0_core_off,
+	.quiesce = dw_edma_v0_core_quiesce,
+	.ch_quiesce = dw_edma_v0_core_ch_quiesce,
 	.ch_count = dw_edma_v0_core_ch_count,
 	.ch_status = dw_edma_v0_core_ch_status,
 	.handle_int = dw_edma_v0_core_handle_int,
-	.start = dw_edma_v0_core_start,
+	.ll_data = dw_edma_v0_core_ll_data,
+	.ll_link = dw_edma_v0_core_ll_link,
+	.ch_doorbell = dw_edma_v0_core_ch_doorbell,
+	.ch_enable = dw_edma_v0_core_ch_enable,
 	.ch_config = dw_edma_v0_core_ch_config,
 	.debugfs_on = dw_edma_v0_core_debugfs_on,
 	.ack_emulated_irq = dw_edma_v0_core_ack_emulated_irq,
