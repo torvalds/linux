@@ -4444,6 +4444,14 @@ F:	Documentation/devicetree/bindings/phy/axiado,ax3000-emmc-phy.yaml
 F:	drivers/phy/axiado/Kconfig
 F:	drivers/phy/axiado/phy-axiado-emmc.c
 
+AXIADO MAILBOX DRIVER
+M:	Krishnakumar Kesavan <kkesavan@axiado.com>
+M:	Prasad Bolisetty <pbolisetty@axiado.com>
+M:	Swark Yang <syang@axiado.com>
+S:	Supported
+F:	Documentation/devicetree/bindings/mailbox/axiado,ax3005-mailbox.yaml
+F:	drivers/mailbox/axiado-mailbox.c
+
 AXI SPI ENGINE
 M:	Michael Hennerich <michael.hennerich@analog.com>
 M:	Nuno Sá <nuno.sa@analog.com>

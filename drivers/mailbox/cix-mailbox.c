@@ -587,19 +587,15 @@ static int cix_mbox_probe(struct platform_device *pdev)
 	if (priv->irq < 0)
 		return priv->irq;
 
-	if (device_property_read_string(dev, "cix,mbox-dir", &dir_str)) {
-		dev_err(priv->dev, "cix,mbox_dir property not found\n");
-		return -EINVAL;
-	}
+	if (device_property_read_string(dev, "cix,mbox-dir", &dir_str))
+		return dev_err_probe(dev, -EINVAL, "cix,mbox-dir property not found\n");
 
 	if (!strcmp(dir_str, "tx"))
 		priv->dir = 0;
 	else if (!strcmp(dir_str, "rx"))
 		priv->dir = 1;
-	else {
-		dev_err(priv->dev, "cix,mbox_dir=%s is not expected\n", dir_str);
-		return -EINVAL;
-	}
+	else
+		return dev_err_probe(dev, -EINVAL, "cix,mbox-dir=%s is not expected\n", dir_str);
 
 	cix_mbox_init(priv);
 
@@ -613,9 +609,9 @@ static int cix_mbox_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, priv);
 	ret = devm_mbox_controller_register(dev, &priv->mbox);
 	if (ret)
-		dev_err(dev, "Failed to register mailbox %d\n", ret);
+		return dev_err_probe(dev, ret, "Failed to register mailbox\n");
 
-	return ret;
+	return 0;
 }
 
 static const struct of_device_id cix_mbox_dt_ids[] = {

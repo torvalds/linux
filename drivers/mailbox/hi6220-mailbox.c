@@ -297,11 +297,8 @@ static int hi6220_mbox_probe(struct platform_device *pdev)
 
 	err = devm_request_irq(dev, mbox->irq, hi6220_mbox_interrupt, 0,
 			dev_name(dev), mbox);
-	if (err) {
-		dev_err(dev, "Failed to register a mailbox IRQ handler: %d\n",
-			err);
+	if (err)
 		return -ENODEV;
-	}
 
 	mbox->controller.dev = dev;
 	mbox->controller.chans = &mbox->chan[0];
