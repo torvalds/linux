@@ -134,7 +134,6 @@
 #define TIMEOUT_MS						100
 #define QCOM_SWRM_MAX_RD_LEN					0x1
 #define DEFAULT_CLK_FREQ					9600000
-#define SWRM_MAX_DAIS						0xF
 #define SWR_INVALID_PARAM					0xFF
 #define SWR_HSTOP_MAX_VAL					0xF
 #define SWR_HSTART_MIN_VAL					0x0
@@ -215,7 +214,7 @@ struct qcom_swrm_ctrl {
 	u8 wcmd_id;
 	/* Port numbers are 1 - 14 */
 	struct qcom_swrm_port_config *pconfig;
-	struct sdw_stream_runtime *sruntime[SWRM_MAX_DAIS];
+	struct sdw_stream_runtime **sruntime;
 	enum sdw_slave_status status[SDW_MAX_DEVICES + 1];
 	int (*reg_read)(struct qcom_swrm_ctrl *ctrl, int reg, u32 *val);
 	int (*reg_write)(struct qcom_swrm_ctrl *ctrl, int reg, int val);
@@ -976,6 +975,20 @@ static enum sdw_command_response qcom_swrm_xfer_msg(struct sdw_bus *bus,
 	struct qcom_swrm_ctrl *ctrl = to_qcom_sdw(bus);
 	int ret, i, len;
 
+	if (msg->page) {
+		ret = qcom_swrm_cmd_fifo_wr_cmd(ctrl, msg->addr_page1,
+						msg->dev_num,
+						SDW_SCP_ADDRPAGE1);
+		if (ret)
+			return ret;
+
+		ret = qcom_swrm_cmd_fifo_wr_cmd(ctrl, msg->addr_page2,
+						msg->dev_num,
+						SDW_SCP_ADDRPAGE2);
+		if (ret)
+			return ret;
+	}
+
 	if (msg->flags == SDW_MSG_FLAG_READ) {
 		for (i = 0; i < msg->len;) {
 			len = min(msg->len - i, QCOM_SWRM_MAX_RD_LEN);
@@ -1271,7 +1284,7 @@ static int qcom_swrm_stream_alloc_ports(struct qcom_swrm_ctrl *ctrl,
 				else
 					pn = find_first_zero_bit(port_mask, maxport);
 
-				if (pn > maxport) {
+				if (pn >= maxport) {
 					dev_err(ctrl->dev, "All ports busy\n");
 					return -EBUSY;
 				}
@@ -1383,6 +1396,10 @@ static int qcom_swrm_register_dais(struct qcom_swrm_ctrl *ctrl)
 	struct snd_soc_pcm_stream *stream;
 	struct device *dev = ctrl->dev;
 	int i;
+
+	ctrl->sruntime = devm_kcalloc(dev, num_dais, sizeof(*ctrl->sruntime), GFP_KERNEL);
+	if (!ctrl->sruntime)
+		return -ENOMEM;
 
 	/* PDM dais are only tested for now */
 	dais = devm_kcalloc(dev, num_dais, sizeof(*dais), GFP_KERNEL);
@@ -1616,6 +1633,7 @@ static int qcom_swrm_probe(struct platform_device *pdev)
 
 	prop = &ctrl->bus.prop;
 	prop->max_clk_freq = DEFAULT_CLK_FREQ;
+	prop->mclk_freq = DEFAULT_CLK_FREQ;
 	prop->num_clk_gears = 0;
 	prop->num_clk_freq = MAX_FREQ_NUM;
 	prop->clk_freq = &qcom_swrm_freq_tbl[0];
