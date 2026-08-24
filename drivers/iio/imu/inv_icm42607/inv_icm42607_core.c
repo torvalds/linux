@@ -537,9 +537,8 @@ static int inv_icm42607_enable_vddio_reg(struct inv_icm42607_state *st)
 	return 0;
 }
 
-static void inv_icm42607_sensors_off(void *_data)
+static int inv_icm42607_sensors_off(struct inv_icm42607_state *st)
 {
-	struct inv_icm42607_state *st = _data;
 	const struct device *dev = regmap_get_device(st->map);
 	int ret;
 
@@ -552,6 +551,13 @@ static void inv_icm42607_sensors_off(void *_data)
 					 st->conf.accel.mode);
 	if (ret)
 		dev_err(dev, "Unable to turn off sensors\n");
+
+	return ret;
+}
+
+static void inv_icm42607_sensors_off_action(void *data)
+{
+	inv_icm42607_sensors_off(data);
 }
 
 static void inv_icm42607_disable_vddio_reg(void *_data)
@@ -619,7 +625,7 @@ int inv_icm42607_core_probe(struct regmap *regmap,
 	 * Ensure if sensors get turned on at some point, they're turned off
 	 * as part of teardown.
 	 */
-	ret = devm_add_action_or_reset(dev, inv_icm42607_sensors_off, st);
+	ret = devm_add_action_or_reset(dev, inv_icm42607_sensors_off_action, st);
 	if (ret)
 		return ret;
 
@@ -688,8 +694,7 @@ static int inv_icm42607_runtime_suspend(struct device *dev)
 	 * however the tradeoff is that an unused sensor won't be
 	 * turned off until the entire chip is no longer in use.
 	 */
-	inv_icm42607_sensors_off(st);
-	return 0;
+	return inv_icm42607_sensors_off(st);
 }
 
 EXPORT_NS_GPL_DEV_PM_OPS(inv_icm42607_pm_ops, IIO_ICM42607) = {
