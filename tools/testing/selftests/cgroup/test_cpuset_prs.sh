@@ -1156,6 +1156,63 @@ test_isolated()
 }
 
 #
+# Select an online CPU isolated from scheduler domains at boot.
+# $1: test name used in the skip message
+#
+get_boot_isolated_cpu()
+{
+	TEST_NAME=$1
+	BOOT_ISOLATED_FILE=/sys/devices/system/cpu/isolated
+
+	[[ -r $BOOT_ISOLATED_FILE ]] || {
+		echo "$TEST_NAME test SKIPPED: boot isolation state unavailable"
+		return 1
+	}
+	BOOT_CPUS=$(cat $BOOT_ISOLATED_FILE)
+	[[ -n "$BOOT_CPUS" ]] || {
+		echo "$TEST_NAME test SKIPPED: no boot-isolated CPU"
+		return 1
+	}
+
+	BOOT_CPU=$(echo "$BOOT_CPUS" | sed -e 's/[,-].*//')
+	CPU_ONLINE=/sys/devices/system/cpu/cpu${BOOT_CPU}/online
+	[[ ! -e $CPU_ONLINE || $(cat $CPU_ONLINE) -eq 1 ]] || {
+		echo "$TEST_NAME test SKIPPED: CPU $BOOT_CPU is offline"
+		return 1
+	}
+}
+
+#
+# A CPU isolated at boot must stay isolated after it is released by a dynamic
+# isolated partition.
+#
+test_boot_isolated()
+{
+	TEST_NAME="Boot-isolated CPU partition release"
+	get_boot_isolated_cpu "$TEST_NAME" || return 0
+	echo "Running $TEST_NAME test ..."
+
+	cd $CGROUP2/test
+	echo member > cpuset.cpus.partition
+	echo $BOOT_CPU > cpuset.cpus
+	[[ $(cat cpuset.cpus.effective) = "$BOOT_CPU" ]] || {
+		echo "$TEST_NAME test SKIPPED: CPU $BOOT_CPU is unavailable"
+		echo "" > cpuset.cpus
+		cd $CGROUP2
+		return 0
+	}
+	test_partition isolated
+	test_partition member
+	check_isolcpus "." || {
+		echo "Boot-isolated CPU $BOOT_CPU was lost after partition release"
+		exit 1
+	}
+	echo "" > cpuset.cpus
+	cd $CGROUP2
+	echo "$TEST_NAME test PASSED."
+}
+
+#
 # Wait for inotify event for the given file and read it
 # $1: cgroup file to wait for
 # $2: file to store the read result
@@ -1226,5 +1283,6 @@ trap cleanup 0 2 3 6
 run_state_test TEST_MATRIX
 run_remote_state_test REMOTE_TEST_MATRIX
 test_isolated
+test_boot_isolated
 test_inotify
 echo "All tests PASSED."
