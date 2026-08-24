@@ -24291,7 +24291,7 @@ F:	include/scsi/sg.h
 
 SCSI SUBSYSTEM
 M:	"James E.J. Bottomley" <James.Bottomley@HansenPartnership.com>
-M:	"Martin K. Petersen" <martin.petersen@oracle.com>
+M:	"Martin K. Petersen" <mkp@kernel.org>
 L:	linux-scsi@vger.kernel.org
 S:	Maintained
 Q:	https://patchwork.kernel.org/project/linux-scsi/list/
@@ -24321,7 +24321,7 @@ F:	drivers/target/target_core_user.c
 F:	include/uapi/linux/target_core_user.h
 
 SCSI TARGET SUBSYSTEM
-M:	"Martin K. Petersen" <martin.petersen@oracle.com>
+M:	"Martin K. Petersen" <mkp@kernel.org>
 L:	linux-scsi@vger.kernel.org
 L:	target-devel@vger.kernel.org
 S:	Supported
