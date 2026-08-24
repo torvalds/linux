@@ -2111,6 +2111,7 @@ static int mxl862xx_probe(struct mdio_device *mdiodev)
 	ds->ops = &mxl862xx_switch_ops;
 	ds->phylink_mac_ops = &mxl862xx_phylink_mac_ops;
 	ds->num_ports = MXL862XX_MAX_PORTS;
+	ds->assisted_learning_on_cpu_port = true;
 	ds->fdb_isolation = true;
 	ds->max_num_bridges = MXL862XX_MAX_BRIDGES;
 
