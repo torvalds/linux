@@ -5641,9 +5641,8 @@ static ssize_t f2fs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	bool dio;
 	bool may_need_sync = true;
 	int preallocated;
-	const loff_t pos = iocb->ki_pos;
-	const ssize_t count = iov_iter_count(from);
 	ssize_t ret;
+	loff_t bufio_start_pos;
 
 	if (unlikely(f2fs_cp_error(F2FS_I_SB(inode)))) {
 		ret = -EIO;
@@ -5664,15 +5663,17 @@ static ssize_t f2fs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		inode_lock(inode);
 	}
 
+	ret = f2fs_write_checks(iocb, from);
+	if (ret <= 0)
+		goto out_unlock;
+
 	if (f2fs_is_pinned_file(inode) &&
-	    !f2fs_overwrite_io(inode, pos, count)) {
+	    !f2fs_overwrite_io(inode, iocb->ki_pos, iov_iter_count(from))) {
 		ret = -EIO;
 		goto out_unlock;
 	}
 
-	ret = f2fs_write_checks(iocb, from);
-	if (ret <= 0)
-		goto out_unlock;
+	bufio_start_pos = iocb->ki_pos;
 
 	/* Determine whether we will do a direct write or a buffered write. */
 	dio = f2fs_should_use_dio(inode, iocb, from);
@@ -5727,8 +5728,8 @@ out:
 	 */
 	if (ret > 0 && !dio && (iocb->ki_flags & IOCB_DIRECT))
 		f2fs_flush_buffered_write(iocb->ki_filp->f_mapping,
-					  orig_pos,
-					  orig_pos + ret - 1);
+					  bufio_start_pos,
+					  bufio_start_pos + ret - 1);
 
 	return ret;
 }
