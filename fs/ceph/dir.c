@@ -2134,7 +2134,7 @@ static void ceph_d_prune(struct dentry *dentry)
 
 	/* we hold d_lock, so d_parent is stable */
 	dir_ci = ceph_inode(d_inode(dentry->d_parent));
-	if (dir_ci->i_vino.snap == CEPH_SNAPDIR)
+	if (ceph_snap(&dir_ci->netfs.inode) == CEPH_SNAPDIR)
 		return;
 
 	/* who calls d_delete() should also disable dcache readdir */
