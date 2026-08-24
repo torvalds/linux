@@ -1867,11 +1867,13 @@ static int tcf_action_delete(struct net *net, struct tc_action *actions[])
 static struct sk_buff *tcf_reoffload_del_notify_msg(struct net *net,
 						    struct tc_action *action)
 {
-	size_t attr_size = tcf_action_fill_size(action);
 	struct tc_action *actions[TCA_ACT_MAX_PRIO] = {
 		[0] = action,
 	};
 	struct sk_buff *skb;
+	size_t attr_size;
+
+	attr_size = tcf_action_full_attrs_size(tcf_action_fill_size(action));
 
 	skb = alloc_skb(max(attr_size, NLMSG_GOODSIZE), GFP_KERNEL);
 	if (!skb)
@@ -1888,15 +1890,18 @@ static struct sk_buff *tcf_reoffload_del_notify_msg(struct net *net,
 static int tcf_reoffload_del_notify(struct net *net, struct tc_action *action)
 {
 	const struct tc_action_ops *ops = action->ops;
-	struct sk_buff *skb;
+	struct sk_buff *skb = NULL;
 	int ret;
 
-	if (!rtnl_notify_needed(net, 0, RTNLGRP_TC)) {
-		skb = NULL;
-	} else {
+	if (rtnl_notify_needed(net, 0, RTNLGRP_TC)) {
 		skb = tcf_reoffload_del_notify_msg(net, action);
+		/* The action has already lost its hardware instance and is
+		 * skip_sw, so it must be released whether or not the
+		 * notification can be built.  Drop the notification rather
+		 * than leave an action behind that processes no packets.
+		 */
 		if (IS_ERR(skb))
-			return PTR_ERR(skb);
+			skb = NULL;
 	}
 
 	ret = tcf_idr_release_unsafe(action);
