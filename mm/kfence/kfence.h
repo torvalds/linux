@@ -102,9 +102,6 @@ struct kfence_metadata {
 	struct kfence_track free_track __guarded_by(&lock);
 	/* For updating alloc_covered on frees. */
 	u32 alloc_stack_hash __guarded_by(&lock);
-#ifdef CONFIG_MEMCG
-	struct slabobj_ext obj_exts;
-#endif
 };
 
 #define KFENCE_METADATA_SIZE PAGE_ALIGN(sizeof(struct kfence_metadata) * \
