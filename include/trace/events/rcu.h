@@ -626,7 +626,7 @@ TRACE_EVENT_RCU(rcu_invoke_callback,
  */
 TRACE_EVENT_RCU(rcu_invoke_kvfree_callback,
 
-	TP_PROTO(const char *rcuname, struct rcu_head *rhp, unsigned long offset),
+	TP_PROTO(const char *rcuname, struct kvfree_rcu_head *rhp, unsigned long offset),
 
 	TP_ARGS(rcuname, rhp, offset),
 

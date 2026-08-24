@@ -1107,19 +1107,22 @@ static inline void rcu_read_unlock_migrate(void)
 /*
  * In mm/slab_common.c, no suitable header to include here.
  */
-void kvfree_call_rcu(struct rcu_head *head, void *ptr);
+void kvfree_call_rcu(struct kvfree_rcu_head *head, void *ptr);
+void kfree_call_rcu_nolock(struct kvfree_rcu_head *head, void *ptr);
 
 /*
  * The BUILD_BUG_ON() makes sure the rcu_head offset can be handled. See the
  * comment of kfree_rcu() for details.
  */
-#define kvfree_rcu_arg_2(ptr, rhf)					\
+#define kvfree_rcu_arg_2(ptr, kvrhf)					\
 do {									\
 	typeof (ptr) ___p = (ptr);					\
+	struct kvfree_rcu_head *___head;				\
 									\
 	if (___p) {							\
-		BUILD_BUG_ON(offsetof(typeof(*(ptr)), rhf) >= 4096);	\
-		kvfree_call_rcu(&((___p)->rhf), (void *) (___p));	\
+		BUILD_BUG_ON(offsetof(typeof(*(ptr)), kvrhf) >= 4096);	\
+		___head = (struct kvfree_rcu_head *) &(___p)->kvrhf;	\
+		kvfree_call_rcu(___head, (void *) (___p));		\
 	}								\
 } while (0)
 
@@ -1129,6 +1132,27 @@ do {								\
 								\
 	if (___p)						\
 		kvfree_call_rcu(NULL, (void *) (___p));		\
+} while (0)
+
+/**
+ * kfree_rcu_nolock() - a version of kfree_rcu() that can be called in any context.
+ * @ptr: pointer to kfree for double-argument invocations.
+ * @kvrhf: the name of the struct kvfree_rcu_head within the type of @ptr.
+ *
+ * With KVFREE_RCU_BATCHED, kfree_rcu_nolock() tries hard to free objects
+ * without any deferred processing, but may still defer freeing.
+ * Large kmalloc and vmalloc objects are always deferred.
+ *
+ * kfree_rcu_nolock() supports 2-arg variant only.
+ */
+#define kfree_rcu_nolock(ptr, kvrhf)						\
+do {										\
+	typeof (ptr) ___p = (ptr);						\
+										\
+	if (___p) {								\
+		BUILD_BUG_ON(offsetof(typeof(*(ptr)), kvrhf) >= 4096);		\
+		kfree_call_rcu_nolock(&((___p)->kvrhf), (void *) (___p));	\
+	}									\
 } while (0)
 
 /*
