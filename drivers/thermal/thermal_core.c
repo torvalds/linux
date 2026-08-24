@@ -889,7 +889,9 @@ unbind:
 	kfree(pos);
 }
 
-static struct class *thermal_class __ro_after_init;
+static const struct class thermal_class = {
+	.name = "thermal",
+};
 static bool thermal_class_unavailable __ro_after_init = true;
 
 static inline
@@ -1011,7 +1013,7 @@ int thermal_cooling_device_add(struct thermal_cooling_device *cdev, void *devdat
 	mutex_init(&cdev->lock);
 	INIT_LIST_HEAD(&cdev->thermal_instances);
 	cdev->updated = false;
-	cdev->device.class = thermal_class;
+	cdev->device.class = &thermal_class;
 	cdev->device.release = thermal_cdev_release;
 	device_initialize(&cdev->device);
 	cdev->devdata = devdata;
@@ -1484,7 +1486,7 @@ thermal_zone_device_register_with_trips(const char *type,
 	if (!tz->ops.critical)
 		tz->ops.critical = thermal_zone_device_critical;
 
-	tz->device.class = thermal_class;
+	tz->device.class = &thermal_class;
 	tz->device.release = thermal_zone_device_release;
 	tz->devdata = devdata;
 	tz->num_trips = num_trips;
@@ -1790,7 +1792,6 @@ void thermal_pm_complete(void)
 
 static int __init thermal_init(void)
 {
-	struct class *tc;
 	int result;
 
 	thermal_debug_init();
@@ -1809,13 +1810,10 @@ static int __init thermal_init(void)
 	if (result)
 		goto unregister_governors;
 
-	tc = class_create("thermal");
-	if (IS_ERR(tc)) {
-		result = PTR_ERR(tc);
+	result = class_register(&thermal_class);
+	if (result)
 		goto unregister_governors;
-	}
 
-	thermal_class = tc;
 	thermal_class_unavailable = false;
 
 	return 0;
