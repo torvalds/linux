@@ -81,6 +81,33 @@ void enetc_reset_mac_addr_filter(struct enetc_mac_filter *filter)
 }
 EXPORT_SYMBOL_GPL(enetc_reset_mac_addr_filter);
 
+void enetc_set_congestion_mode(struct enetc_ndev_priv *priv, bool enable)
+{
+	struct enetc_si *si = priv->si;
+	struct enetc_hw *hw = &si->hw;
+
+	spin_lock(&si->gen_lock);
+
+	if (enable)
+		set_bit(ENETC_RXBDR_CM, &priv->flags);
+	else
+		clear_bit(ENETC_RXBDR_CM, &priv->flags);
+
+	for (int i = 0; i < priv->num_rx_rings; i++) {
+		u32 old_rbmr = enetc_rxbdr_rd(hw, i, ENETC_RBMR);
+		u32 rbmr;
+
+		rbmr = u32_replace_bits(old_rbmr, enable, ENETC_RBMR_CM);
+		if (rbmr == old_rbmr)
+			continue;
+
+		enetc_rxbdr_wr(hw, i, ENETC_RBMR, rbmr);
+	}
+
+	spin_unlock(&si->gen_lock);
+}
+EXPORT_SYMBOL_GPL(enetc_set_congestion_mode);
+
 static int enetc_num_stack_tx_queues(struct enetc_ndev_priv *priv)
 {
 	int num_tx_rings = priv->num_tx_rings;
@@ -2632,7 +2659,6 @@ static void enetc_setup_rxbdr(struct enetc_hw *hw, struct enetc_bdr *rx_ring,
 			      bool extended)
 {
 	int idx = rx_ring->index;
-	u32 rbmr = 0;
 
 	enetc_rxbdr_wr(hw, idx, ENETC_RBBAR0,
 		       lower_32_bits(rx_ring->bd_dma_base));
@@ -2660,12 +2686,6 @@ static void enetc_setup_rxbdr(struct enetc_hw *hw, struct enetc_bdr *rx_ring,
 	enetc_rxbdr_wr(hw, idx, ENETC_RBICR0, ENETC_RBICR0_ICEN | 0x1);
 
 	rx_ring->ext_en = extended;
-	if (rx_ring->ext_en)
-		rbmr |= ENETC_RBMR_BDS;
-
-	if (rx_ring->ndev->features & NETIF_F_HW_VLAN_CTAG_RX)
-		rbmr |= ENETC_RBMR_VTE;
-
 	rx_ring->rcir = hw->reg + ENETC_BDR(RX, idx, ENETC_RBCIR);
 	rx_ring->idr = hw->reg + ENETC_SIRXIDR;
 
@@ -2676,8 +2696,6 @@ static void enetc_setup_rxbdr(struct enetc_hw *hw, struct enetc_bdr *rx_ring,
 	enetc_lock_mdio();
 	enetc_refill_rx_ring(rx_ring, enetc_bd_unused(rx_ring));
 	enetc_unlock_mdio();
-
-	enetc_rxbdr_wr(hw, idx, ENETC_RBMR, rbmr);
 }
 
 static void enetc_setup_bdrs(struct enetc_ndev_priv *priv, bool extended)
@@ -2704,21 +2722,34 @@ static void enetc_enable_txbdr(struct enetc_hw *hw, struct enetc_bdr *tx_ring)
 
 static void enetc_enable_rxbdr(struct enetc_hw *hw, struct enetc_bdr *rx_ring)
 {
+	struct enetc_ndev_priv *priv = netdev_priv(rx_ring->ndev);
 	int idx = rx_ring->index;
-	u32 rbmr;
+	u32 rbmr = ENETC_RBMR_EN;
 
-	rbmr = enetc_rxbdr_rd(hw, idx, ENETC_RBMR);
-	rbmr |= ENETC_RBMR_EN;
+	if (rx_ring->ext_en)
+		rbmr |= ENETC_RBMR_BDS;
+
+	if (rx_ring->ndev->features & NETIF_F_HW_VLAN_CTAG_RX)
+		rbmr |= ENETC_RBMR_VTE;
+
+	if (test_bit(ENETC_RXBDR_CM, &priv->flags))
+		rbmr |= ENETC_RBMR_CM;
+
 	enetc_rxbdr_wr(hw, idx, ENETC_RBMR, rbmr);
 }
 
 static void enetc_enable_rx_bdrs(struct enetc_ndev_priv *priv)
 {
-	struct enetc_hw *hw = &priv->si->hw;
+	struct enetc_si *si = priv->si;
+	struct enetc_hw *hw = &si->hw;
 	int i;
+
+	spin_lock(&si->gen_lock);
 
 	for (i = 0; i < priv->num_rx_rings; i++)
 		enetc_enable_rxbdr(hw, priv->rx_ring[i]);
+
+	spin_unlock(&si->gen_lock);
 }
 
 static void enetc_enable_tx_bdrs(struct enetc_ndev_priv *priv)
@@ -2748,11 +2779,16 @@ static void enetc_disable_txbdr(struct enetc_hw *hw, struct enetc_bdr *rx_ring)
 
 static void enetc_disable_rx_bdrs(struct enetc_ndev_priv *priv)
 {
-	struct enetc_hw *hw = &priv->si->hw;
+	struct enetc_si *si = priv->si;
+	struct enetc_hw *hw = &si->hw;
 	int i;
+
+	spin_lock(&si->gen_lock);
 
 	for (i = 0; i < priv->num_rx_rings; i++)
 		enetc_disable_rxbdr(hw, priv->rx_ring[i]);
+
+	spin_unlock(&si->gen_lock);
 }
 
 static void enetc_disable_tx_bdrs(struct enetc_ndev_priv *priv)
@@ -3344,11 +3380,16 @@ EXPORT_SYMBOL_GPL(enetc_get_stats);
 static void enetc_enable_rxvlan(struct net_device *ndev, bool en)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
-	struct enetc_hw *hw = &priv->si->hw;
+	struct enetc_si *si = priv->si;
+	struct enetc_hw *hw = &si->hw;
 	int i;
+
+	spin_lock(&si->gen_lock);
 
 	for (i = 0; i < priv->num_rx_rings; i++)
 		enetc_bdr_enable_rxvlan(hw, i, en);
+
+	spin_unlock(&si->gen_lock);
 }
 
 static void enetc_enable_txvlan(struct net_device *ndev, bool en)
@@ -3679,6 +3720,7 @@ int enetc_pci_probe(struct pci_dev *pdev, const char *name, int sizeof_priv)
 
 	si = PTR_ALIGN(p, ENETC_SI_ALIGN);
 	si->pad = (char *)si - (char *)p;
+	spin_lock_init(&si->gen_lock);
 
 	pci_set_drvdata(pdev, si);
 	si->pdev = pdev;
