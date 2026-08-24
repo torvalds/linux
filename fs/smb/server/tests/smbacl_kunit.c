@@ -11,13 +11,22 @@
  *   security descriptor (the pre-fix behaviour) selects an ACE that
  *   sits beyond struct smb_acl::size; stopping at the declared DACL
  *   size (the fixed behaviour) rejects it.
+ *
+ * - ksmbd_smb_check_perm_dacl_boundary: drives the real
+ *   smb_check_perm_dacl() with a descriptor stored through ksmbd's own
+ *   NTACL xattr path on a tmpfs file, and asserts that a post-boundary
+ *   ACE is not selected for a regular access check.
  */
 
 #include <kunit/test.h>
+#include <linux/fs.h>
+#include <linux/mm.h>
+#include <linux/shmem_fs.h>
 #include <linux/slab.h>
 
 #include "../smbacl.h"
 #include "../smb_common.h"
+#include "../vfs.h"
 
 struct ksmbd_acl_walk_result {
 	bool found;
@@ -154,8 +163,88 @@ static void ksmbd_dacl_walk_must_stop_at_declared_size(struct kunit *test)
 	KUNIT_EXPECT_TRUE(test, enclosing.allowed);
 }
 
+/*
+ * Build an NTSD whose DACL declares one ACE (pdacl->size) but actually
+ * contains two: the second ACE sits beyond the declared DACL boundary
+ * yet inside the enclosing security descriptor.  The trailing ACE applies
+ * to S-1-22-1-0, which smb_check_perm_dacl() looks for when uid is zero.
+ */
+static struct smb_ntsd *build_boundary_ntsd(struct kunit *test,
+					    const struct smb_sid *first_sid,
+					    u32 first_access,
+					    u32 trailing_access,
+					    int *ntsd_size)
+{
+	struct smb_ntsd *pntsd;
+	struct smb_acl *pdacl;
+	struct smb_ace *ace;
+	u16 first_size = test_ace_size(first_sid);
+	u16 trailing_size = test_ace_size(&test_owner_sid);
+
+	*ntsd_size = sizeof(struct smb_ntsd) + sizeof(struct smb_acl) +
+		     first_size + trailing_size;
+	pntsd = kunit_kzalloc(test, *ntsd_size, GFP_KERNEL);
+	if (!pntsd)
+		return NULL;
+
+	pntsd->revision = cpu_to_le16(SD_REVISION);
+	pntsd->type = cpu_to_le16(DACL_PRESENT);
+	pntsd->dacloffset = cpu_to_le32(sizeof(struct smb_ntsd));
+
+	pdacl = (struct smb_acl *)((char *)pntsd + sizeof(struct smb_ntsd));
+	pdacl->revision = cpu_to_le16(2);
+	pdacl->num_aces = cpu_to_le16(2);
+	pdacl->size = cpu_to_le16(sizeof(struct smb_acl) + first_size);
+
+	ace = (struct smb_ace *)((char *)pdacl + sizeof(struct smb_acl));
+	fill_test_ace(ace, first_sid, first_access);
+
+	ace = (struct smb_ace *)((char *)ace + first_size);
+	fill_test_ace(ace, &test_owner_sid, trailing_access);
+
+	return pntsd;
+}
+
+static void ksmbd_smb_check_perm_dacl_boundary_test(struct kunit *test)
+{
+	struct file *file;
+	struct smb_ntsd *pntsd;
+	__le32 daccess = cpu_to_le32(FILE_READ_DATA);
+	int ntsd_size, rc;
+
+	pntsd = build_boundary_ntsd(test, &test_nonmatching_sid, 0,
+				     FILE_READ_DATA, &ntsd_size);
+	KUNIT_ASSERT_NOT_NULL(test, pntsd);
+
+	file = shmem_file_setup("ksmbd-kunit-dacl", 0,
+				mk_vma_flags(VMA_NORESERVE_BIT));
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, file);
+
+	rc = ksmbd_vfs_set_sd_xattr(NULL, mnt_idmap(file->f_path.mnt),
+				    &file->f_path, pntsd, ntsd_size,
+				    false);
+	KUNIT_EXPECT_EQ(test, 0, rc);
+	if (rc)
+		goto out;
+
+	rc = smb_check_perm_dacl(NULL, &file->f_path, &daccess,
+				 cpu_to_le32(FILE_READ_DATA), 0, false);
+
+	/*
+	 * The post-boundary ACE (ACE #2, beyond pdacl->size) grants
+	 * FILE_READ_DATA to the caller's SID, but it must not be
+	 * selected: the walk stops at the declared DACL size and access
+	 * is denied.  Before the fix the walk used the enclosing
+	 * descriptor length, selected ACE #2 and returned 0.
+	 */
+	KUNIT_EXPECT_EQ(test, -EACCES, rc);
+out:
+	fput(file);
+}
+
 static struct kunit_case ksmbd_smbacl_test_cases[] = {
 	KUNIT_CASE(ksmbd_dacl_walk_must_stop_at_declared_size),
+	KUNIT_CASE(ksmbd_smb_check_perm_dacl_boundary_test),
 	{}
 };
 
@@ -168,3 +257,4 @@ kunit_test_suite(ksmbd_smbacl_test_suite);
 
 MODULE_DESCRIPTION("KUnit tests for ksmbd smbacl helpers");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS("EXPORTED_FOR_KUNIT_TESTING");
