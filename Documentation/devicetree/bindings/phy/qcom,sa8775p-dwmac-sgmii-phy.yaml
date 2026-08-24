@@ -35,6 +35,17 @@ properties:
   phy-supply:
     description:
       Phandle to a regulator that provides power to the PHY.
+    deprecated: true
+
+  vdda-0p9-supply:
+    description:
+      Phandle to a 0.9V regulator supply to the PHY, which draws a peak
+      current of 46 mA.
+
+  vdda-1p2-supply:
+    description:
+      Phandle to a 1.2V regulator supply to the PHY, which draws a peak
+      current of 15 mA.
 
   "#phy-cells":
     const: 0

@@ -387,7 +387,7 @@ static void lynx_10g_backup_pccr_val(struct lynx_lane *lane)
  */
 static bool lynx_10g_pccr_val_enabled(u32 pccr)
 {
-	return FIELD_PREP(PCCR8_SGMIIa_CFG, pccr) != 0;
+	return FIELD_GET(PCCR8_SGMIIa_CFG, pccr) != 0;
 }
 
 static bool lynx_10g_lane_is_3_125g(struct lynx_lane *lane)
