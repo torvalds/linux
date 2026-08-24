@@ -890,6 +890,7 @@ unbind:
 }
 
 static struct class *thermal_class __ro_after_init;
+static bool thermal_class_unavailable __ro_after_init = true;
 
 static inline
 void print_bind_err_msg(struct thermal_zone_device *tz,
@@ -973,7 +974,7 @@ thermal_cooling_device_alloc(const char *type, const struct thermal_cooling_devi
 	    !ops->set_cur_state)
 		return ERR_PTR(-EINVAL);
 
-	if (!thermal_class)
+	if (thermal_class_unavailable)
 		return ERR_PTR(-ENODEV);
 
 	cdev = kzalloc_obj(*cdev);
@@ -1447,7 +1448,7 @@ thermal_zone_device_register_with_trips(const char *type,
 	if (polling_delay && passive_delay > polling_delay)
 		return ERR_PTR(-EINVAL);
 
-	if (!thermal_class)
+	if (thermal_class_unavailable)
 		return ERR_PTR(-ENODEV);
 
 	tz = kzalloc_flex(*tz, trips, num_trips);
@@ -1745,7 +1746,7 @@ static void __thermal_pm_prepare(void)
 
 void thermal_pm_prepare(void)
 {
-	if (!thermal_class)
+	if (thermal_class_unavailable)
 		return;
 
 	__thermal_pm_prepare();
@@ -1776,7 +1777,7 @@ void thermal_pm_complete(void)
 {
 	struct thermal_zone_device *tz;
 
-	if (!thermal_class)
+	if (thermal_class_unavailable)
 		return;
 
 	guard(mutex)(&thermal_list_lock);
@@ -1815,6 +1816,8 @@ static int __init thermal_init(void)
 	}
 
 	thermal_class = tc;
+	thermal_class_unavailable = false;
+
 	return 0;
 
 unregister_governors:
