@@ -31,6 +31,9 @@ static int hsmp_hwmon_write(struct device *dev, enum hwmon_sensor_types type,
 	if (attr != hwmon_power_cap)
 		return -EOPNOTSUPP;
 
+	if (val < 0)
+		return -EINVAL;
+
 	msg.num_args = 1;
 	msg.args[0] = val / MICROWATT_PER_MILLIWATT;
 	msg.msg_id = HSMP_SET_SOCKET_POWER_LIMIT;

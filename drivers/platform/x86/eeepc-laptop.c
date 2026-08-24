@@ -34,8 +34,6 @@
 #define EEEPC_LAPTOP_NAME	"Eee PC Hotkey Driver"
 #define EEEPC_LAPTOP_FILE	"eeepc"
 
-#define EEEPC_ACPI_CLASS	"hotkey"
-#define EEEPC_ACPI_DEVICE_NAME	"Hotkey"
 #define EEEPC_ACPI_HID		"ASUS010"
 
 MODULE_AUTHOR("Corentin Chary, Eric Cooper");
@@ -1214,8 +1212,7 @@ static void eeepc_acpi_notify(acpi_handle handle, u32 event, void *data)
 	if (event > ACPI_MAX_SYS_NOTIFY)
 		return;
 	count = eeepc->event_count[event % 128]++;
-	acpi_bus_generate_netlink_event(device->pnp.device_class,
-					dev_name(&device->dev), event,
+	acpi_bus_generate_netlink_event("hotkey", dev_name(&device->dev), event,
 					count);
 
 	/* Brightness events are special */
@@ -1376,8 +1373,6 @@ static int eeepc_acpi_probe(struct platform_device *pdev)
 	if (!eeepc)
 		return -ENOMEM;
 	eeepc->handle = device->handle;
-	strscpy(acpi_device_name(device), EEEPC_ACPI_DEVICE_NAME);
-	strscpy(acpi_device_class(device), EEEPC_ACPI_CLASS);
 	eeepc->device = device;
 
 	platform_set_drvdata(pdev, eeepc);

@@ -42,8 +42,6 @@
 #define ASUS_LAPTOP_VERSION	"0.42"
 
 #define ASUS_LAPTOP_NAME	"Asus Laptop Support"
-#define ASUS_LAPTOP_CLASS	"hotkey"
-#define ASUS_LAPTOP_DEVICE_NAME	"Hotkey"
 #define ASUS_LAPTOP_FILE	KBUILD_MODNAME
 #define ASUS_LAPTOP_PREFIX	"\\_SB.ATKD."
 
@@ -1524,9 +1522,8 @@ static void asus_acpi_notify(acpi_handle handle, u32 event, void *data)
 
 	/* TODO Find a better way to handle events count. */
 	count = asus->event_count[event % 128]++;
-	acpi_bus_generate_netlink_event(asus->device->pnp.device_class,
-					dev_name(&asus->device->dev), event,
-					count);
+	acpi_bus_generate_netlink_event("hotkey", dev_name(&asus->device->dev),
+					event, count);
 
 	if (event >= ATKD_BRNUP_MIN && event <= ATKD_BRNUP_MAX)
 		event = ATKD_BRNUP;
@@ -1840,8 +1837,6 @@ static int asus_acpi_probe(struct platform_device *pdev)
 	if (!asus)
 		return -ENOMEM;
 	asus->handle = device->handle;
-	strscpy(acpi_device_name(device), ASUS_LAPTOP_DEVICE_NAME);
-	strscpy(acpi_device_class(device), ASUS_LAPTOP_CLASS);
 	asus->device = device;
 
 	asus_dmi_check();

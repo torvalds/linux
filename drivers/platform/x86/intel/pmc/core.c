@@ -1583,7 +1583,7 @@ int pmc_core_pmt_get_lpm_req(struct pmc_dev *pmcdev, struct pmc *pmc, struct tel
 {
 	const u8 *lpm_indices;
 	int num_maps, mode_offset = 0;
-	int ret, lpm_size;
+	int ret = 0, lpm_size;
 	u8 mode;
 
 	lpm_indices = pmc->map->lpm_reg_index;
