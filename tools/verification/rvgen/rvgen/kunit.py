@@ -173,7 +173,7 @@ EXPORT_SYMBOL_IF_KUNIT({struct_name});
             for path in (header_file_path, kunit_c_file_path):
                 if path.exists():
                     try:
-                        path.rename(path.with_suffix(path.suffix + ".bak"))
+                        path.rename(path.with_suffix(path.suffix + ".old"))
                     except OSError as e:
                         raise KUnitError(f"Error backing up file {path}: {e}") from e
 
