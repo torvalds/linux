@@ -255,6 +255,16 @@ struct callback_head {
 } __attribute__((aligned(sizeof(void *))));
 #define rcu_head callback_head
 
+#ifdef CONFIG_KVFREE_RCU_BATCHED
+struct kvfree_rcu_head {
+	struct kvfree_rcu_head *next;
+};
+#else
+struct kvfree_rcu_head {
+	struct rcu_head head;
+};
+#endif
+
 typedef void (*rcu_callback_t)(struct rcu_head *head);
 typedef void (*call_rcu_func_t)(struct rcu_head *head, rcu_callback_t func);
 

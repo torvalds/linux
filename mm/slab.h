@@ -24,9 +24,25 @@
 #define SLAB_ALLOC_NO_RECURSE	0x04 /* prevent kmalloc() recursion */
 #define SLAB_ALLOC_NO_OBJ_EXT	0x08 /* prevent obj_exts array allocation */
 
+#define SLAB_FREE_DEFAULT	0x00 /* no flags */
+#define SLAB_FREE_NOLOCK	0x01 /* spinning not allowed */
+
+static inline unsigned int to_alloc_flags(unsigned int free_flags)
+{
+	if (free_flags & SLAB_FREE_NOLOCK)
+		return SLAB_ALLOC_NOLOCK;
+	else
+		return SLAB_ALLOC_DEFAULT;
+}
+
 static inline bool alloc_flags_allow_spinning(const unsigned int alloc_flags)
 {
 	return !(alloc_flags & SLAB_ALLOC_NOLOCK);
+}
+
+static inline bool free_flags_allow_spinning(const unsigned int free_flags)
+{
+	return !(free_flags & SLAB_FREE_NOLOCK);
 }
 
 void *__kmalloc_flags_noprof(DECL_TOKEN_PARAMS(size, token), gfp_t flags,
@@ -332,6 +348,37 @@ static inline unsigned int obj_to_index(const struct kmem_cache *cache,
 }
 
 /*
+ * kvfree_rcu_head offset can be only less than page size.
+ * Calculate the start address while preserving the KASAN tag.
+ */
+static inline void *kvmalloc_obj_start_addr(void *head)
+{
+	unsigned long offset;
+
+	if (unlikely(is_vmalloc_addr(head))) {
+		offset = offset_in_page(head);
+	} else {
+		struct slab *slab = virt_to_slab(head);
+
+		if (!slab) {
+			offset = offset_in_page(head);
+		} else if (is_kfence_address(head)) {
+			offset = head - kfence_object_start(head);
+		} else {
+			struct kmem_cache *s = slab->slab_cache;
+			unsigned int idx = __obj_to_index(s, slab_address(slab), head);
+			void *obj = slab_address(slab) + s->size * idx;
+
+			obj = fixup_red_left(s, obj);
+			obj = kasan_reset_tag(obj);
+			offset = kasan_reset_tag(head) - obj;
+		}
+	}
+
+	return head - offset;
+}
+
+/*
  * State of the slab allocator.
  *
  * This is used to describe the states of the allocator during bootup.
@@ -431,7 +478,7 @@ static inline bool is_kmalloc_normal(struct kmem_cache *s)
 	return !(s->flags & (SLAB_CACHE_DMA|SLAB_ACCOUNT|SLAB_RECLAIM_ACCOUNT|SLAB_NO_OBJ_EXT));
 }
 
-bool __kfree_rcu_sheaf(struct kmem_cache *s, void *obj);
+bool __kfree_rcu_sheaf(struct kmem_cache *s, void *obj, unsigned int free_flags);
 void flush_all_rcu_sheaves(void);
 void flush_rcu_sheaves_on_cache(struct kmem_cache *s);
 
@@ -899,7 +946,8 @@ void __kmem_obj_info(struct kmem_obj_info *kpp, void *object, struct slab *slab)
 void __check_heap_object(const void *ptr, unsigned long n,
 			 const struct slab *slab, bool to_user);
 
-void defer_free_barrier(void);
+void deferred_work_barrier(void);
+void defer_kfree_rcu(struct kvfree_rcu_head *head);
 
 static inline bool slub_debug_orig_size(struct kmem_cache *s)
 {
