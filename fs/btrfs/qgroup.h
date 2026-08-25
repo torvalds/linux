@@ -121,8 +121,8 @@ struct btrfs_qgroup_swapped_blocks;
  * To minimize the chance of collision with new persisted status flags, these
  * count backwards from the MSB.
  */
-#define BTRFS_QGROUP_RUNTIME_FLAG_CANCEL_RESCAN		(1ULL << 63)
-#define BTRFS_QGROUP_RUNTIME_FLAG_NO_ACCOUNTING		(1ULL << 62)
+#define BTRFS_QGROUP_RUNTIME_BIT_CANCEL_RESCAN		(BITS_PER_LONG - 1)
+#define BTRFS_QGROUP_RUNTIME_BIT_NO_ACCOUNTING		(BITS_PER_LONG - 2)
 
 #define BTRFS_QGROUP_DROP_SUBTREE_THRES_DEFAULT		(3)
 

@@ -2359,9 +2359,7 @@ static ssize_t qgroup_enabled_show(struct kobject *qgroups_kobj,
 	struct btrfs_fs_info *fs_info = to_fs_info(qgroups_kobj->parent);
 	bool enabled;
 
-	spin_lock(&fs_info->qgroup_lock);
-	enabled = fs_info->qgroup_flags & BTRFS_QGROUP_STATUS_FLAG_ON;
-	spin_unlock(&fs_info->qgroup_lock);
+	enabled = test_bit(BTRFS_QGROUP_STATUS_BIT_ON, &fs_info->qgroup_flags);
 
 	return sysfs_emit(buf, "%d\n", enabled);
 }
@@ -2401,9 +2399,7 @@ static ssize_t qgroup_inconsistent_show(struct kobject *qgroups_kobj,
 	struct btrfs_fs_info *fs_info = to_fs_info(qgroups_kobj->parent);
 	bool inconsistent;
 
-	spin_lock(&fs_info->qgroup_lock);
-	inconsistent = (fs_info->qgroup_flags & BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT);
-	spin_unlock(&fs_info->qgroup_lock);
+	inconsistent = test_bit(BTRFS_QGROUP_STATUS_BIT_INCONSISTENT, &fs_info->qgroup_flags);
 
 	return sysfs_emit(buf, "%d\n", inconsistent);
 }

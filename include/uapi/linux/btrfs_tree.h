@@ -1255,13 +1255,16 @@ static inline __u16 btrfs_qgroup_level(__u64 qgroupid)
 }
 
 /*
- * is subvolume quota turned on?
+ * The following BTRFS_QGROUP_STATUS_BIT_* are for * btrfs_qgroup_status_item::flags.
+ *
+ * Is subvolume quota turned on?
  */
-#define BTRFS_QGROUP_STATUS_FLAG_ON		(1ULL << 0)
-/*
- * RESCAN is set during the initialization phase
- */
-#define BTRFS_QGROUP_STATUS_FLAG_RESCAN		(1ULL << 1)
+#define BTRFS_QGROUP_STATUS_BIT_ON		(0)
+#define BTRFS_QGROUP_STATUS_FLAG_ON		(1UL << BTRFS_QGROUP_STATUS_BIT_ON)
+
+/* RESCAN is set during the initialization phase */
+#define BTRFS_QGROUP_STATUS_BIT_RESCAN		(1)
+#define BTRFS_QGROUP_STATUS_FLAG_RESCAN		(1UL << BTRFS_QGROUP_STATUS_BIT_RESCAN)
 /*
  * Some qgroup entries are known to be out of date,
  * either because the configuration has changed in a way that
@@ -1269,14 +1272,16 @@ static inline __u16 btrfs_qgroup_level(__u64 qgroupid)
  * with a non-qgroup-aware version.
  * Turning qouta off and on again makes it inconsistent, too.
  */
-#define BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT	(1ULL << 2)
+#define BTRFS_QGROUP_STATUS_BIT_INCONSISTENT	(2)
+#define BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT	(1UL << BTRFS_QGROUP_STATUS_BIT_INCONSISTENT)
 
 /*
  * Whether or not this filesystem is using simple quotas.  Not exactly the
  * incompat bit, because we support using simple quotas, disabling it, then
  * going back to full qgroup quotas.
  */
-#define BTRFS_QGROUP_STATUS_FLAG_SIMPLE_MODE	(1ULL << 3)
+#define BTRFS_QGROUP_STATUS_BIT_SIMPLE_MODE	(3)
+#define BTRFS_QGROUP_STATUS_FLAG_SIMPLE_MODE	(1UL << BTRFS_QGROUP_STATUS_BIT_SIMPLE_MODE)
 
 #define BTRFS_QGROUP_STATUS_FLAGS_MASK	(BTRFS_QGROUP_STATUS_FLAG_ON |		\
 					 BTRFS_QGROUP_STATUS_FLAG_RESCAN |	\
