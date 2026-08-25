@@ -215,9 +215,9 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 
 	ret = devm_mbox_controller_register(&pdev->dev, &mb->mbox);
 	if (ret < 0)
-		dev_err(&pdev->dev, "Failed to register mailbox: %d\n", ret);
+		return dev_err_probe(&pdev->dev, ret, "Failed to register mailbox\n");
 
-	return ret;
+	return 0;
 }
 
 static struct platform_driver rockchip_mbox_driver = {
