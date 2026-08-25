@@ -32,6 +32,7 @@ struct btrfs_trans_handle;
 struct btrfs_bio;
 struct btrfs_file_extent;
 struct btrfs_delayed_node;
+struct btrfs_dir_index_prealloc;
 
 /*
  * Since we search a directory based on f_pos (struct dir_context::pos) we have
@@ -523,7 +524,8 @@ int btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 		       const struct fscrypt_str *name);
 int btrfs_add_link(struct btrfs_trans_handle *trans,
 		   struct btrfs_inode *parent_inode, struct btrfs_inode *inode,
-		   const struct fscrypt_str *name, bool add_backref, u64 index);
+		   const struct fscrypt_str *name, bool add_backref, u64 index,
+		   struct btrfs_dir_index_prealloc *prealloc);
 int btrfs_delete_subvolume(struct btrfs_inode *dir, struct dentry *dentry);
 int btrfs_truncate_block(struct btrfs_inode *inode, u64 offset, u64 start, u64 end);
 
