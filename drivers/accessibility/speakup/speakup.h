@@ -62,7 +62,7 @@ int spk_set_num_var(int val, struct st_var_header *var, int how);
 int spk_set_string_var(const char *page, struct st_var_header *var, int len);
 int spk_set_mask_bits(const char *input, const int which, const int how);
 extern special_func spk_special_handler;
-int spk_handle_help(struct vc_data *vc, u_char type, u_char ch, u_short key);
+int spk_handle_help(struct vc_data *vc, u_char type, u_char ch, u16 key);
 int synth_init(char *name);
 void synth_release(void);
 
@@ -82,7 +82,7 @@ void synth_writeu(const char *buf, size_t count);
 int synth_supports_indexing(void);
 
 extern struct vc_data *spk_sel_cons;
-extern unsigned short spk_xs, spk_ys, spk_xe, spk_ye; /* our region points */
+extern u16 spk_xs, spk_ys, spk_xe, spk_ye; /* our region points */
 
 extern wait_queue_head_t speakup_event;
 extern struct kobject *speakup_kobj;
@@ -95,20 +95,20 @@ extern struct st_spk_t *speakup_console[];
 extern struct spk_synth *synth;
 extern char spk_pitch_buff[];
 extern u_char *spk_our_keys[];
-extern short spk_punc_masks[];
+extern u16 spk_punc_masks[];
 extern char spk_str_caps_start[], spk_str_caps_stop[], spk_str_pause[];
 extern bool spk_paused;
 extern const struct st_bits_data spk_punc_info[];
 extern u_char spk_key_buf[600];
 extern char *spk_characters[];
 extern char *spk_default_chars[];
-extern u_short spk_chartab[];
+extern u16 spk_chartab[];
 extern int spk_no_intr, spk_say_ctrl, spk_say_word_ctl, spk_punc_level;
 extern int spk_reading_punc, spk_attrib_bleep, spk_bleeps;
 extern int spk_bleep_time, spk_bell_pos;
 extern int spk_spell_delay, spk_key_echo;
 extern int spk_cur_phonetic;
-extern short spk_punc_mask;
+extern u16 spk_punc_mask;
 extern short spk_pitch_shift, synth_flags;
 extern bool spk_quiet_boot;
 extern char *synth_name;

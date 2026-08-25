@@ -826,3 +826,4 @@ MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Johan Palsson, Karl Komierowski, Arun R Murthy");
 MODULE_ALIAS("platform:ab8500-btemp");
 MODULE_DESCRIPTION("AB8500 battery temperature driver");
+MODULE_IMPORT_NS("IIO_CONSUMER");

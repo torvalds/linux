@@ -240,7 +240,7 @@ static const struct dev_pm_ops mei_csc_pm_ops = {
 
 static const struct pci_device_id mei_csc_pci_tbl[] = {
 	{ PCI_DEVICE_DATA(INTEL, MEI_CRI, MEI_ME_CSC_CFG) },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, mei_csc_pci_tbl);
 

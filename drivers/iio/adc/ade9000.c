@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * ADE9000 driver
  *
  * Copyright 2025 Analog Devices Inc.
@@ -1768,7 +1768,7 @@ static int ade9000_probe(struct spi_device *spi)
 };
 
 static const struct spi_device_id ade9000_id[] = {
-	{ "ade9000", 0 },
+	{ .name = "ade9000" },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ade9000_id);

@@ -818,3 +818,4 @@ module_platform_driver(rn5t618_power_driver);
 MODULE_ALIAS("platform:rn5t618-power");
 MODULE_DESCRIPTION("Power supply driver for RICOH RN5T618");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS("IIO_CONSUMER");

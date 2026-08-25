@@ -189,10 +189,8 @@ static int adc081c_probe(struct i2c_client *client)
 
 	err = devm_iio_triggered_buffer_setup(&client->dev, iio, NULL,
 					      adc081c_trigger_handler, NULL);
-	if (err < 0) {
-		dev_err(&client->dev, "iio triggered buffer setup failed\n");
-		return err;
-	}
+	if (err < 0)
+		return dev_err_probe(&client->dev, err, "iio triggered buffer setup failed\n");
 
 	return devm_iio_device_register(&client->dev, iio);
 }

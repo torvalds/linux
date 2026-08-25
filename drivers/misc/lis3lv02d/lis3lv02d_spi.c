@@ -60,7 +60,7 @@ static union axis_conversion lis3lv02d_axis_normal =
 #ifdef CONFIG_OF
 static const struct of_device_id lis302dl_spi_dt_ids[] = {
 	{ .compatible = "st,lis302dl-spi" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, lis302dl_spi_dt_ids);
 #endif

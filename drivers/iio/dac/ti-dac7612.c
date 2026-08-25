@@ -165,7 +165,7 @@ static int dac7612_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id dac7612_id[] = {
-	{"ti-dac7612"},
+	{ .name = "ti-dac7612" },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, dac7612_id);

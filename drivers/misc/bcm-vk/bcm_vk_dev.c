@@ -1370,21 +1370,15 @@ static int bcm_vk_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		err = devm_request_irq(dev, pci_irq_vector(pdev, vk->num_irqs),
 				       bcm_vk_msgq_irqhandler,
 				       IRQF_SHARED, DRV_MODULE_NAME, vk);
-		if (err) {
-			dev_err(dev, "failed to request msgq IRQ %d for MSIX %d\n",
-				pdev->irq + vk->num_irqs, vk->num_irqs + 1);
+		if (err)
 			goto err_irq;
-		}
 	}
 	/* one irq for notification from VK */
 	err = devm_request_irq(dev, pci_irq_vector(pdev, vk->num_irqs),
 			       bcm_vk_notf_irqhandler,
 			       IRQF_SHARED, DRV_MODULE_NAME, vk);
-	if (err) {
-		dev_err(dev, "failed to request notf IRQ %d for MSIX %d\n",
-			pdev->irq + vk->num_irqs, vk->num_irqs + 1);
+	if (err)
 		goto err_irq;
-	}
 	vk->num_irqs++;
 
 	for (i = 0;
@@ -1393,11 +1387,8 @@ static int bcm_vk_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		err = devm_request_irq(dev, pci_irq_vector(pdev, vk->num_irqs),
 				       bcm_vk_tty_irqhandler,
 				       IRQF_SHARED, DRV_MODULE_NAME, vk);
-		if (err) {
-			dev_err(dev, "failed request tty IRQ %d for MSIX %d\n",
-				pdev->irq + vk->num_irqs, vk->num_irqs + 1);
+		if (err)
 			goto err_irq;
-		}
 		bcm_vk_tty_set_irq_enabled(vk, i);
 	}
 
@@ -1632,7 +1623,7 @@ static void bcm_vk_shutdown(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id bcm_vk_ids[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_VALKYRIE), },
+	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_VALKYRIE) },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, bcm_vk_ids);

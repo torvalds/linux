@@ -10,6 +10,8 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
+#include <linux/kref.h>
+#include <linux/rwsem.h>
 #include <linux/sched.h>
 #include <linux/tty.h>
 #include <linux/serial.h>
@@ -24,6 +26,8 @@
 #define IP_OCTAL_NB_BLOCKS          4
 
 static const struct tty_operations ipoctal_fops;
+
+static void ipoctal_release(struct kref *kref);
 
 struct ipoctal_channel {
 	struct ipoctal_stats		stats;
@@ -49,6 +53,10 @@ struct ipoctal {
 	struct tty_driver		*tty_drv;
 	u8 __iomem			*mem8_space;
 	u8 __iomem			*int_space;
+	struct kref			kref;
+	struct module			*carrier_owner;
+	struct rw_semaphore		remove_sem;
+	bool				removed;
 };
 
 static inline struct ipoctal *chan_to_ipoctal(struct ipoctal_channel *chan,
@@ -70,8 +78,14 @@ static void ipoctal_reset_channel(struct ipoctal_channel *channel)
 static int ipoctal_port_activate(struct tty_port *port, struct tty_struct *tty)
 {
 	struct ipoctal_channel *channel;
+	struct ipoctal *ipoctal;
 
 	channel = dev_get_drvdata(tty->dev);
+	ipoctal = chan_to_ipoctal(channel, tty->index);
+
+	guard(rwsem_read)(&ipoctal->remove_sem);
+	if (ipoctal->removed)
+		return -ENODEV;
 
 	/*
 	 * Enable RX. TX will be enabled when
@@ -95,6 +109,7 @@ static int ipoctal_install(struct tty_driver *driver, struct tty_struct *tty)
 	if (res)
 		goto err_put_carrier;
 
+	kref_get(&ipoctal->kref);
 	tty->driver_data = channel;
 
 	return 0;
@@ -460,7 +475,12 @@ static ssize_t ipoctal_write_tty(struct tty_struct *tty, const u8 *buf,
 				 size_t count)
 {
 	struct ipoctal_channel *channel = tty->driver_data;
+	struct ipoctal *ipoctal = chan_to_ipoctal(channel, tty->index);
 	size_t char_copied;
+
+	guard(rwsem_read)(&ipoctal->remove_sem);
+	if (ipoctal->removed || !channel->tty_port.xmit_buf)
+		return 0;
 
 	char_copied = ipoctal_copy_write_buffer(channel, buf, count);
 
@@ -501,7 +521,12 @@ static void ipoctal_set_termios(struct tty_struct *tty,
 	unsigned char mr2 = 0;
 	unsigned char csr = 0;
 	struct ipoctal_channel *channel = tty->driver_data;
+	struct ipoctal *ipoctal = chan_to_ipoctal(channel, tty->index);
 	speed_t baud;
+
+	guard(rwsem_read)(&ipoctal->remove_sem);
+	if (ipoctal->removed)
+		return;
 
 	cflag = tty->termios.c_cflag;
 
@@ -631,8 +656,14 @@ static void ipoctal_hangup(struct tty_struct *tty)
 {
 	unsigned long flags;
 	struct ipoctal_channel *channel = tty->driver_data;
+	struct ipoctal *ipoctal;
 
 	if (channel == NULL)
+		return;
+
+	ipoctal = chan_to_ipoctal(channel, tty->index);
+	guard(rwsem_read)(&ipoctal->remove_sem);
+	if (ipoctal->removed)
 		return;
 
 	spin_lock_irqsave(&channel->lock, flags);
@@ -651,8 +682,14 @@ static void ipoctal_hangup(struct tty_struct *tty)
 static void ipoctal_shutdown(struct tty_struct *tty)
 {
 	struct ipoctal_channel *channel = tty->driver_data;
+	struct ipoctal *ipoctal;
 
 	if (channel == NULL)
+		return;
+
+	ipoctal = chan_to_ipoctal(channel, tty->index);
+	guard(rwsem_read)(&ipoctal->remove_sem);
+	if (ipoctal->removed)
 		return;
 
 	ipoctal_reset_channel(channel);
@@ -664,8 +701,9 @@ static void ipoctal_cleanup(struct tty_struct *tty)
 	struct ipoctal_channel *channel = tty->driver_data;
 	struct ipoctal *ipoctal = chan_to_ipoctal(channel, tty->index);
 
-	/* release the carrier driver */
-	ipack_put_carrier(ipoctal->dev);
+	/* release the carrier driver via cached owner */
+	module_put(ipoctal->carrier_owner);
+	kref_put(&ipoctal->kref, ipoctal_release);
 }
 
 static const struct tty_operations ipoctal_fops = {
@@ -683,6 +721,13 @@ static const struct tty_operations ipoctal_fops = {
 	.cleanup =              ipoctal_cleanup,
 };
 
+static void ipoctal_release(struct kref *kref)
+{
+	struct ipoctal *ipoctal = container_of(kref, struct ipoctal, kref);
+
+	kfree(ipoctal);
+}
+
 static int ipoctal_probe(struct ipack_device *dev)
 {
 	int res;
@@ -692,7 +737,11 @@ static int ipoctal_probe(struct ipack_device *dev)
 	if (ipoctal == NULL)
 		return -ENOMEM;
 
+	kref_init(&ipoctal->kref);
+	init_rwsem(&ipoctal->remove_sem);
+
 	ipoctal->dev = dev;
+	ipoctal->carrier_owner = dev->bus->owner;
 	res = ipoctal_inst_slot(ipoctal, dev->bus->bus_nr, dev->slot);
 	if (res)
 		goto out_uninst;
@@ -701,13 +750,16 @@ static int ipoctal_probe(struct ipack_device *dev)
 	return 0;
 
 out_uninst:
-	kfree(ipoctal);
+	kref_put(&ipoctal->kref, ipoctal_release);
 	return res;
 }
 
 static void __ipoctal_remove(struct ipoctal *ipoctal)
 {
 	int i;
+
+	scoped_guard(rwsem_write, &ipoctal->remove_sem)
+		ipoctal->removed = true;
 
 	ipoctal->dev->bus->ops->free_irq(ipoctal->dev);
 
@@ -725,7 +777,7 @@ static void __ipoctal_remove(struct ipoctal *ipoctal)
 	tty_unregister_driver(ipoctal->tty_drv);
 	kfree(ipoctal->tty_drv->name);
 	tty_driver_kref_put(ipoctal->tty_drv);
-	kfree(ipoctal);
+	kref_put(&ipoctal->kref, ipoctal_release);
 }
 
 static void ipoctal_remove(struct ipack_device *idev)

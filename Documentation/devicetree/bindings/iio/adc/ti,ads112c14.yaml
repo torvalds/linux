@@ -1,0 +1,219 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/adc/ti,ads112c14.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments' ADS112C14 and similar ADC chips
+
+description: |
+  Supports the following Texas Instruments' ADC chips:
+  - ADS112C14 (16-bit)
+  - ADS122C14 (24-bit)
+
+  https://www.ti.com/lit/ds/symlink/ads122c14.pdf
+
+  These chips are primarily designed for use with resistive sensors such as
+  RTDs, thermocouples, Wheatstone bridges, etc. The channel bindings reflect
+  this in that each channel represents the conditions required to make a
+  measurement rather than strictly just the physical input channels.
+
+maintainers:
+  - David Lechner <dlechner@baylibre.com>
+
+properties:
+  compatible:
+    enum:
+      - ti,ads112c14
+      - ti,ads122c14
+
+  reg:
+    items:
+      - minimum: 0x40
+        maximum: 0x47
+
+  clocks:
+    maxItems: 1
+    description: Optional external clock connected to GPIO3 pin.
+
+  avdd-supply: true
+  dvdd-supply: true
+
+  refp-supply: true
+  refn-supply: true
+
+  ti,refp-refn-resistor-ohms:
+    description:
+      The resistance of the external resistor between REFP and REFN when using
+      resistor bridge driven by current outputs for RTD measurements.
+
+  interrupts:
+    minItems: 1
+    items:
+      - description: /FAULT interrupt (GPIO2 pin)
+      - description: /DRDY interrupt (GPIO3 pin)
+
+  interrupt-names:
+    minItems: 1
+    maxItems: 2
+    items:
+      enum: [fault, drdy]
+
+  gpio-controller: true
+  '#gpio-cells':
+    const: 2
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
+patternProperties:
+  ^channel@[0-9a-f]$:
+    $ref: adc.yaml
+
+    unevaluatedProperties: false
+
+    properties:
+      reg:
+        items:
+          - maximum: 15 # arbitrary limit, channel@ can be any combination of AIN0-AIN7
+
+      single-channel:
+        maximum: 7
+
+      diff-channels:
+        items:
+          maximum: 7
+
+      bipolar: true
+
+      input-chopping: true
+
+      excitation-channels:
+        maxItems: 2
+        items:
+          maximum: 7
+
+      excitation-current-nanoamp:
+        maxItems: 2
+        items:
+          enum: [1000, 10000, 20000, 30000, 40000, 50000, 60000, 70000, 80000,
+                 90000, 100000, 200000, 300000, 400000, 500000, 600000, 700000,
+                 800000, 900000, 1000000]
+
+      burn-out-current-nanoamp:
+        items:
+          - enum: [200, 1000, 10000]
+
+      reference-sources:
+        items:
+          - enum: [internal-2.5v, internal-1.25v, external, avdd]
+            default: internal-2.5v
+
+    dependencies:
+      excitation-channels: [ excitation-current-nanoamp ]
+      excitation-current-nanoamp: [ excitation-channels ]
+
+    oneOf:
+      - required: [ single-channel ]
+      - required: [ diff-channels ]
+
+unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+  - avdd-supply
+  - dvdd-supply
+
+dependencies:
+  refn-supply: [ refp-supply ]
+
+oneOf:
+  - required: [ refp-supply ]
+  - required: [ "ti,refp-refn-resistor-ohms" ]
+  - properties:
+      refp-supply: false
+      refn-supply: false
+      ti,refp-refn-resistor-ohms: false
+
+# /DRDY out and CLK in use the same AIN7/GPIO3 pin.
+if:
+  required:
+    - interrupt-names
+  properties:
+    interrupt-names:
+      contains:
+        const: drdy
+then:
+  properties:
+    clocks: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        adc@40 {
+            compatible = "ti,ads112c14";
+            reg = <0x40>;
+
+            avdd-supply = <&avdd>;
+            dvdd-supply = <&dvdd>;
+
+            /* 3-Wire RTD: Two IDACs, One Measurement (AIN1-AIN2) */
+
+            ti,refp-refn-resistor-ohms = <500>;
+
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            channel@0 {
+                reg = <0>;
+                diff-channels = <1>, <2>;
+                input-chopping;
+                excitation-channels = <0>, <3>;
+                excitation-current-nanoamp = <500000>, <500000>;
+                reference-sources = "external";
+                label = "rtd";
+            };
+        };
+    };
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        adc@40 {
+            compatible = "ti,ads112c14";
+            reg = <0x40>;
+
+            avdd-supply = <&avdd>;
+            dvdd-supply = <&dvdd>;
+
+            /* Resistive Bridge Measurement With a Thermistor for Temperature Compensation */
+
+            refp-supply = <&avdd>;
+
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            channel@0 {
+                reg = <0>;
+                diff-channels = <6>, <7>;
+                bipolar;
+                reference-sources = "external";
+                label = "bridge";
+            };
+
+            channel@1 {
+                reg = <1>;
+                diff-channels = <1>, <2>;
+                reference-sources = "internal-2.5v";
+                label = "thermistor";
+            };
+        };
+    };

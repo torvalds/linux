@@ -24,10 +24,9 @@ static int bme680_i2c_probe(struct i2c_client *client)
 	const char *name = NULL;
 
 	regmap = devm_regmap_init_i2c(client, &bme680_regmap_config);
-	if (IS_ERR(regmap)) {
-		dev_err(&client->dev, "Failed to register i2c regmap %ld\n", PTR_ERR(regmap));
-		return PTR_ERR(regmap);
-	}
+	if (IS_ERR(regmap))
+		return dev_err_probe(&client->dev, PTR_ERR(regmap),
+				     "Failed to register i2c regmap\n");
 
 	if (id)
 		name = id->name;

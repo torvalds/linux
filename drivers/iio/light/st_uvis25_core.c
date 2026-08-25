@@ -196,11 +196,8 @@ static int st_uvis25_allocate_trigger(struct iio_dev *iio_dev)
 					st_uvis25_trigger_handler_thread,
 					irq_type | IRQF_ONESHOT,
 					iio_dev->name, hw);
-	if (err) {
-		dev_err(dev, "failed to request trigger irq %d\n",
-			hw->irq);
+	if (err)
 		return err;
-	}
 
 	hw->trig = devm_iio_trigger_alloc(dev, "%s-trigger",
 					  iio_dev->name);

@@ -83,22 +83,16 @@
 
 #define PCH_PHUB_OROM_SIZE 15360
 
+enum pch_phub_type {
+	PCH_EG20T,
+	PCH_ML7213,
+	PCH_ML7223M,
+	PCH_ML7223N,
+	PCH_ML7831,
+};
+
 /**
  * struct pch_phub_reg - PHUB register structure
- * @phub_id_reg:			PHUB_ID register val
- * @q_pri_val_reg:			QUEUE_PRI_VAL register val
- * @rc_q_maxsize_reg:			RC_QUEUE_MAXSIZE register val
- * @bri_q_maxsize_reg:			BRI_QUEUE_MAXSIZE register val
- * @comp_resp_timeout_reg:		COMP_RESP_TIMEOUT register val
- * @bus_slave_control_reg:		BUS_SLAVE_CONTROL_REG register val
- * @deadlock_avoid_type_reg:		DEADLOCK_AVOID_TYPE register val
- * @intpin_reg_wpermit_reg0:		INTPIN_REG_WPERMIT register 0 val
- * @intpin_reg_wpermit_reg1:		INTPIN_REG_WPERMIT register 1 val
- * @intpin_reg_wpermit_reg2:		INTPIN_REG_WPERMIT register 2 val
- * @intpin_reg_wpermit_reg3:		INTPIN_REG_WPERMIT register 3 val
- * @int_reduce_control_reg:		INT_REDUCE_CONTROL registers val
- * @clkcfg_reg:				CLK CFG register val
- * @funcsel_reg:			Function select register value
  * @pch_phub_base_address:		Register base address
  * @pch_phub_extrom_base_address:	external rom base address
  * @pch_mac_start_address:		MAC address area start address
@@ -107,25 +101,11 @@
  * @pdev:				pointer to pci device struct
  */
 struct pch_phub_reg {
-	u32 phub_id_reg;
-	u32 q_pri_val_reg;
-	u32 rc_q_maxsize_reg;
-	u32 bri_q_maxsize_reg;
-	u32 comp_resp_timeout_reg;
-	u32 bus_slave_control_reg;
-	u32 deadlock_avoid_type_reg;
-	u32 intpin_reg_wpermit_reg0;
-	u32 intpin_reg_wpermit_reg1;
-	u32 intpin_reg_wpermit_reg2;
-	u32 intpin_reg_wpermit_reg3;
-	u32 int_reduce_control_reg[MAX_NUM_INT_REDUCE_CONTROL_REG];
-	u32 clkcfg_reg;
-	u32 funcsel_reg;
 	void __iomem *pch_phub_base_address;
 	void __iomem *pch_phub_extrom_base_address;
 	u32 pch_mac_start_address;
 	u32 pch_opt_rom_start_address;
-	int ioh_type;
+	enum pch_phub_type ioh_type;
 	struct pci_dev *pdev;
 };
 
@@ -344,10 +324,19 @@ static int pch_phub_write_gbe_mac_addr(struct pch_phub_reg *chip, u8 *data)
 	int retval;
 	int i;
 
-	if ((chip->ioh_type == 1) || (chip->ioh_type == 5)) /* EG20T or ML7831*/
+	switch (chip->ioh_type) {
+	case PCH_EG20T:
+	case PCH_ML7831:
 		retval = pch_phub_gbe_serial_rom_conf(chip);
-	else	/* ML7223 */
+		break;
+
+	case PCH_ML7213:
+	case PCH_ML7223M:
+	case PCH_ML7223N:
 		retval = pch_phub_gbe_serial_rom_conf_mp(chip);
+		break;
+	}
+
 	if (retval)
 		return retval;
 
@@ -535,14 +524,6 @@ static const struct bin_attribute pch_bin_attr = {
 	.size = PCH_PHUB_OROM_SIZE + 1,
 	.read = pch_phub_bin_read,
 	.write = pch_phub_bin_write,
-};
-
-enum {
-	PCH_EG20T,
-	PCH_ML7213,
-	PCH_ML7223M,
-	PCH_ML7223N,
-	PCH_ML7831,
 };
 
 static int pch_phub_probe(struct pci_dev *pdev,

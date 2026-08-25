@@ -29,6 +29,7 @@ obj-y += dac/
 obj-y += dummy/
 obj-y += gyro/
 obj-y += filter/
+obj-y += flow/
 obj-y += frequency/
 obj-y += health/
 obj-y += humidity/

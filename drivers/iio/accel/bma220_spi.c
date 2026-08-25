@@ -25,7 +25,7 @@ static int bma220_spi_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id bma220_spi_id[] = {
-	{ "bma220", 0 },
+	{ .name = "bma220" },
 	{ }
 };
 

@@ -262,15 +262,15 @@ static int maxim_thermocouple_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id maxim_thermocouple_id[] = {
-	{"max6675", MAX6675},
-	{"max31855", MAX31855},
-	{"max31855k", MAX31855K},
-	{"max31855j", MAX31855J},
-	{"max31855n", MAX31855N},
-	{"max31855s", MAX31855S},
-	{"max31855t", MAX31855T},
-	{"max31855e", MAX31855E},
-	{"max31855r", MAX31855R},
+	{ .name = "max6675", .driver_data = MAX6675 },
+	{ .name = "max31855", .driver_data = MAX31855 },
+	{ .name = "max31855k", .driver_data = MAX31855K },
+	{ .name = "max31855j", .driver_data = MAX31855J },
+	{ .name = "max31855n", .driver_data = MAX31855N },
+	{ .name = "max31855s", .driver_data = MAX31855S },
+	{ .name = "max31855t", .driver_data = MAX31855T },
+	{ .name = "max31855e", .driver_data = MAX31855E },
+	{ .name = "max31855r", .driver_data = MAX31855R },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, maxim_thermocouple_id);

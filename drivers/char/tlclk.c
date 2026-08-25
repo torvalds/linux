@@ -328,7 +328,7 @@ static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
 static ssize_t store_received_ref_clk3a(struct device *d,
 		 struct device_attribute *attr, const char *buf, size_t count)
 {
-	unsigned long tmp;
+	unsigned long tmp = 0;
 	unsigned char val;
 	unsigned long flags;
 
@@ -350,7 +350,7 @@ static DEVICE_ATTR(received_ref_clk3a, (S_IWUSR|S_IWGRP), NULL,
 static ssize_t store_received_ref_clk3b(struct device *d,
 		 struct device_attribute *attr, const char *buf, size_t count)
 {
-	unsigned long tmp;
+	unsigned long tmp = 0;
 	unsigned char val;
 	unsigned long flags;
 
@@ -372,7 +372,7 @@ static DEVICE_ATTR(received_ref_clk3b, (S_IWUSR|S_IWGRP), NULL,
 static ssize_t store_enable_clk3b_output(struct device *d,
 		 struct device_attribute *attr, const char *buf, size_t count)
 {
-	unsigned long tmp;
+	unsigned long tmp = 0;
 	unsigned char val;
 	unsigned long flags;
 
@@ -394,7 +394,7 @@ static ssize_t store_enable_clk3a_output(struct device *d,
 		 struct device_attribute *attr, const char *buf, size_t count)
 {
 	unsigned long flags;
-	unsigned long tmp;
+	unsigned long tmp = 0;
 	unsigned char val;
 
 	sscanf(buf, "%lX", &tmp);
@@ -415,7 +415,7 @@ static ssize_t store_enable_clkb1_output(struct device *d,
 		 struct device_attribute *attr, const char *buf, size_t count)
 {
 	unsigned long flags;
-	unsigned long tmp;
+	unsigned long tmp = 0;
 	unsigned char val;
 
 	sscanf(buf, "%lX", &tmp);
@@ -437,7 +437,7 @@ static ssize_t store_enable_clka1_output(struct device *d,
 		 struct device_attribute *attr, const char *buf, size_t count)
 {
 	unsigned long flags;
-	unsigned long tmp;
+	unsigned long tmp = 0;
 	unsigned char val;
 
 	sscanf(buf, "%lX", &tmp);
@@ -458,7 +458,7 @@ static ssize_t store_enable_clkb0_output(struct device *d,
 		 struct device_attribute *attr, const char *buf, size_t count)
 {
 	unsigned long flags;
-	unsigned long tmp;
+	unsigned long tmp = 0;
 	unsigned char val;
 
 	sscanf(buf, "%lX", &tmp);
@@ -479,7 +479,7 @@ static ssize_t store_enable_clka0_output(struct device *d,
 		 struct device_attribute *attr, const char *buf, size_t count)
 {
 	unsigned long flags;
-	unsigned long tmp;
+	unsigned long tmp = 0;
 	unsigned char val;
 
 	sscanf(buf, "%lX", &tmp);
@@ -500,7 +500,7 @@ static ssize_t store_select_amcb2_transmit_clock(struct device *d,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	unsigned long flags;
-	unsigned long tmp;
+	unsigned long tmp = 0;
 	unsigned char val;
 
 	sscanf(buf, "%lX", &tmp);
@@ -541,7 +541,7 @@ static DEVICE_ATTR(select_amcb2_transmit_clock, (S_IWUSR|S_IWGRP), NULL,
 static ssize_t store_select_amcb1_transmit_clock(struct device *d,
 		 struct device_attribute *attr, const char *buf, size_t count)
 {
-	unsigned long tmp;
+	unsigned long tmp = 0;
 	unsigned char val;
 	unsigned long flags;
 
@@ -583,7 +583,7 @@ static DEVICE_ATTR(select_amcb1_transmit_clock, (S_IWUSR|S_IWGRP), NULL,
 static ssize_t store_select_redundant_clock(struct device *d,
 		 struct device_attribute *attr, const char *buf, size_t count)
 {
-	unsigned long tmp;
+	unsigned long tmp = 0;
 	unsigned char val;
 	unsigned long flags;
 
@@ -604,7 +604,7 @@ static DEVICE_ATTR(select_redundant_clock, (S_IWUSR|S_IWGRP), NULL,
 static ssize_t store_select_ref_frequency(struct device *d,
 		 struct device_attribute *attr, const char *buf, size_t count)
 {
-	unsigned long tmp;
+	unsigned long tmp = 0;
 	unsigned char val;
 	unsigned long flags;
 
@@ -625,7 +625,7 @@ static DEVICE_ATTR(select_ref_frequency, (S_IWUSR|S_IWGRP), NULL,
 static ssize_t store_filter_select(struct device *d,
 		 struct device_attribute *attr, const char *buf, size_t count)
 {
-	unsigned long tmp;
+	unsigned long tmp = 0;
 	unsigned char val;
 	unsigned long flags;
 
@@ -645,7 +645,7 @@ static DEVICE_ATTR(filter_select, (S_IWUSR|S_IWGRP), NULL, store_filter_select);
 static ssize_t store_hardware_switching_mode(struct device *d,
 		 struct device_attribute *attr, const char *buf, size_t count)
 {
-	unsigned long tmp;
+	unsigned long tmp = 0;
 	unsigned char val;
 	unsigned long flags;
 
@@ -666,7 +666,7 @@ static DEVICE_ATTR(hardware_switching_mode, (S_IWUSR|S_IWGRP), NULL,
 static ssize_t store_hardware_switching(struct device *d,
 		 struct device_attribute *attr, const char *buf, size_t count)
 {
-	unsigned long tmp;
+	unsigned long tmp = 0;
 	unsigned char val;
 	unsigned long flags;
 
@@ -687,7 +687,7 @@ static DEVICE_ATTR(hardware_switching, (S_IWUSR|S_IWGRP), NULL,
 static ssize_t store_refalign (struct device *d,
 		 struct device_attribute *attr, const char *buf, size_t count)
 {
-	unsigned long tmp;
+	unsigned long tmp = 0;
 	unsigned long flags;
 
 	sscanf(buf, "%lX", &tmp);
@@ -706,7 +706,7 @@ static DEVICE_ATTR(refalign, (S_IWUSR|S_IWGRP), NULL, store_refalign);
 static ssize_t store_mode_select (struct device *d,
 		 struct device_attribute *attr, const char *buf, size_t count)
 {
-	unsigned long tmp;
+	unsigned long tmp = 0;
 	unsigned char val;
 	unsigned long flags;
 
@@ -726,7 +726,7 @@ static DEVICE_ATTR(mode_select, (S_IWUSR|S_IWGRP), NULL, store_mode_select);
 static ssize_t store_reset (struct device *d,
 		 struct device_attribute *attr, const char *buf, size_t count)
 {
-	unsigned long tmp;
+	unsigned long tmp = 0;
 	unsigned char val;
 	unsigned long flags;
 

@@ -1,0 +1,73 @@
+What:		/sys/class/issei/
+Date:		June 2026
+KernelVersion:	7.2
+Contact:	Alexander Usyskin <alexander.usyskin@intel.com>
+Description:
+		The issei/ class sub-directory belongs to issei device class
+
+What:		/sys/class/issei/issei<N>/
+Date:		June 2026
+KernelVersion:	7.2
+Contact:	Alexander Usyskin <alexander.usyskin@intel.com>
+Description:
+		The /sys/class/issei/isseiN directory is created for
+		each probed issei device
+
+What:		/sys/class/issei/issei<N>/fw_ver
+Date:		June 2026
+KernelVersion:	7.2
+Contact:	Alexander Usyskin <alexander.usyskin@intel.com>
+Description:	Display the ISSE firmware version.
+
+		The version of the ISSE firmware is in format:
+		<major>.<minor>.<milestone>.<build_no>.
+
+What:		/sys/class/issei/issei<N>/fw_clients
+Date:		June 2026
+KernelVersion:	7.2
+Contact:	Alexander Usyskin <alexander.usyskin@intel.com>
+Description:
+		The fw_clients directory stores all firmware clients on the
+		probed issei device
+
+What:		/sys/class/issei/issei<N>/fw_clients/<M>
+Date:		June 2026
+KernelVersion:	7.2
+Contact:	Alexander Usyskin <alexander.usyskin@intel.com>
+Description:
+		The /sys/class/issei/isseiN/fw_client/M directory is created for
+		each firmware client on the probed issei device where M is the
+		id of firmware client.
+
+What:		/sys/class/issei/issei<N>/fw_clients/<M>/id
+Date:		June 2026
+KernelVersion:	7.2
+Contact:	Alexander Usyskin <alexander.usyskin@intel.com>
+Description:    Displays id of the firmware client
+
+		The id of firmware client is it's number in client enumeration order,
+		starting from 1.
+
+What:		/sys/class/issei/issei<N>/fw_clients/<M>/uuid
+Date:		June 2026
+KernelVersion:	7.2
+Contact:	Alexander Usyskin <alexander.usyskin@intel.com>
+Description:    Displays uuid of the firmware client
+
+		The universally unique identifier of the firmware client
+
+What:		/sys/class/issei/issei<N>/fw_clients/<M>/mtu
+Date:		June 2026
+KernelVersion:	7.2
+Contact:	Alexander Usyskin <alexander.usyskin@intel.com>
+Description:    Displays maximum transmission unit of the firmware client
+
+		The maximum transmission unit (in bytes) used by the firmware client.
+
+What:		/sys/class/issei/issei<N>/fw_clients/<M>/ver
+Date:		June 2026
+KernelVersion:	7.2
+Contact:	Alexander Usyskin <alexander.usyskin@intel.com>
+Description:    Displays version of the firmware client
+
+		The version of the firmware client

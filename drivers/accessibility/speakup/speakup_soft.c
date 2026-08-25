@@ -446,8 +446,9 @@ static int softsynth_adjust(struct spk_synth *synth, struct st_var_header *var)
 	if (var->var_id != PUNC_LEVEL)
 		return 0;
 
-	/* We want to set the the speech synthesis punctuation level
-	 * accordingly, so it properly tunes speaking A_PUNC characters */
+	/* We want to set the speech synthesis punctuation level
+	 * accordingly, so it properly tunes speaking A_PUNC characters
+	 */
 	var_data = var->data;
 	if (!var_data)
 		return 0;

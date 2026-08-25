@@ -577,3 +577,4 @@ module_platform_driver(twl6030_charger_driver);
 
 MODULE_DESCRIPTION("TWL6030 Battery Charger Interface driver");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS("IIO_CONSUMER");

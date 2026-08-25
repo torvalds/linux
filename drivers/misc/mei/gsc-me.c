@@ -101,10 +101,8 @@ static int mei_gsc_probe(struct auxiliary_device *aux_dev,
 						mei_me_irq_quick_handler,
 						mei_me_irq_thread_handler,
 						IRQF_ONESHOT, KBUILD_MODNAME, dev);
-		if (ret) {
-			dev_err(device, "irq register failed %d\n", ret);
+		if (ret)
 			goto err;
-		}
 	}
 
 	ret = mei_register(dev, device);

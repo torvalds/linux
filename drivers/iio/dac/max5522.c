@@ -24,15 +24,8 @@
 
 #define MAX5522_REG_DATA(x)	((x) + MAX5522_CTRL_LOAD_IN_A)
 
-struct max5522_chip_info {
-	const char *name;
-	const struct iio_chan_spec *channels;
-	unsigned int num_channels;
-};
-
 struct max5522_state {
 	struct regmap *regmap;
-	const struct max5522_chip_info *chip_info;
 	unsigned short dac_cache[2];
 	int vref_mV;
 };
@@ -55,18 +48,6 @@ struct max5522_state {
 static const struct iio_chan_spec max5522_channels[] = {
 	MAX5522_CHANNEL(0),
 	MAX5522_CHANNEL(1),
-};
-
-enum max5522_type {
-	ID_MAX5522,
-};
-
-static const struct max5522_chip_info max5522_chip_info_tbl[] = {
-	[ID_MAX5522] = {
-		.name = "max5522",
-		.channels = max5522_channels,
-		.num_channels = 2,
-	},
 };
 
 static inline int max5522_info_to_reg(struct iio_chan_spec const *chan)
@@ -139,9 +120,6 @@ static int max5522_spi_probe(struct spi_device *spi)
 	}
 
 	state = iio_priv(indio_dev);
-	state->chip_info = spi_get_device_match_data(spi);
-	if (!state->chip_info)
-		return -EINVAL;
 
 	ret = devm_regulator_get_enable_read_voltage(&spi->dev, "vrefin");
 	if (ret < 0)
@@ -158,22 +136,19 @@ static int max5522_spi_probe(struct spi_device *spi)
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = max5522_channels;
 	indio_dev->num_channels = ARRAY_SIZE(max5522_channels);
-	indio_dev->name = max5522_chip_info_tbl[ID_MAX5522].name;
+	indio_dev->name = "max5522";
 
 	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct spi_device_id max5522_ids[] = {
-	{ "max5522", (kernel_ulong_t)&max5522_chip_info_tbl[ID_MAX5522] },
+	{ .name = "max5522" },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, max5522_ids);
 
 static const struct of_device_id max5522_of_match[] = {
-	{
-		.compatible = "maxim,max5522",
-		.data = &max5522_chip_info_tbl[ID_MAX5522],
-	},
+	{ .compatible = "maxim,max5522" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, max5522_of_match);

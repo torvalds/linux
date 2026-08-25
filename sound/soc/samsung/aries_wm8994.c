@@ -701,3 +701,4 @@ module_platform_driver(aries_audio_driver);
 MODULE_DESCRIPTION("ALSA SoC ARIES WM8994");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:aries-audio-wm8994");
+MODULE_IMPORT_NS("IIO_CONSUMER");

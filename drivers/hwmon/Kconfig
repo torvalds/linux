@@ -1993,7 +1993,7 @@ config SENSORS_SL28CPLD
 
 config SENSORS_SBTSI
 	tristate "Emulated SB-TSI temperature sensor"
-	depends on I2C
+	depends on AMD_SBTSI
 	help
 	  If you say yes here you get support for emulated temperature
 	  sensors on AMD SoCs with SB-TSI interface connected to a BMC device.
@@ -2188,6 +2188,16 @@ config SENSORS_SMSC47M192
 
 	  This driver can also be built as a module. If so, the module
 	  will be called smsc47m192.
+
+config SENSORS_ALTERA_SOCFPGA_HWMON
+	tristate "Altera SoC FPGA hardware monitoring features"
+	depends on INTEL_STRATIX10_SERVICE
+	help
+	  If you say yes here you get support for the temperature and
+	  voltage sensors of Altera SoC FPGA devices.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called socfpga-hwmon.
 
 config SENSORS_SMSC47B397
 	tristate "SMSC LPC47B397-NC"

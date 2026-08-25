@@ -1338,7 +1338,7 @@ static int fmh_gpib_init(struct fmh_priv *e_priv, struct gpib_board *board, int 
 	write_byte(nec_priv, AUX_LO_SPEED, AUXMR);
 	nec7210_set_handshake_mode(board, nec_priv, handshake_mode);
 
-	/* Hueristically check if hardware supports fifo half full/empty interrupts */
+	/* Heuristically check if hardware supports fifo half full/empty interrupts */
 	fifo_status_bits = fifos_read(e_priv, FIFO_CONTROL_STATUS_REG);
 	e_priv->supports_fifo_interrupts = (fifo_status_bits & TX_FIFO_EMPTY) &&
 		(fifo_status_bits & TX_FIFO_HALF_EMPTY);

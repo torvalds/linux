@@ -384,8 +384,8 @@ impl<'a> AllocationView<'a> {
                 BINDER_TYPE_WEAK_BINDER
             };
             newobj.flags = obj.flags;
-            newobj.__bindgen_anon_1.binder = ptr as _;
-            newobj.cookie = cookie as _;
+            newobj.__bindgen_anon_1.binder = ptr as uapi::binder_uintptr_t;
+            newobj.cookie = cookie as uapi::binder_uintptr_t;
             self.write(offset, &newobj)?;
             // Increment the user ref count on the node. It will be decremented as part of the
             // destruction of the buffer, when we see a binder or weak-binder object.

@@ -1763,13 +1763,13 @@ static const struct ad4030_chip_info adaq4224_chip_info = {
 };
 
 static const struct spi_device_id ad4030_id_table[] = {
-	{ "ad4030-24", (kernel_ulong_t)&ad4030_24_chip_info },
-	{ "ad4630-16", (kernel_ulong_t)&ad4630_16_chip_info },
-	{ "ad4630-24", (kernel_ulong_t)&ad4630_24_chip_info },
-	{ "ad4632-16", (kernel_ulong_t)&ad4632_16_chip_info },
-	{ "ad4632-24", (kernel_ulong_t)&ad4632_24_chip_info },
-	{ "adaq4216", (kernel_ulong_t)&adaq4216_chip_info },
-	{ "adaq4224", (kernel_ulong_t)&adaq4224_chip_info },
+	{ .name = "ad4030-24", .driver_data = (kernel_ulong_t)&ad4030_24_chip_info },
+	{ .name = "ad4630-16", .driver_data = (kernel_ulong_t)&ad4630_16_chip_info },
+	{ .name = "ad4630-24", .driver_data = (kernel_ulong_t)&ad4630_24_chip_info },
+	{ .name = "ad4632-16", .driver_data = (kernel_ulong_t)&ad4632_16_chip_info },
+	{ .name = "ad4632-24", .driver_data = (kernel_ulong_t)&ad4632_24_chip_info },
+	{ .name = "adaq4216", .driver_data = (kernel_ulong_t)&adaq4216_chip_info },
+	{ .name = "adaq4224", .driver_data = (kernel_ulong_t)&adaq4224_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad4030_id_table);

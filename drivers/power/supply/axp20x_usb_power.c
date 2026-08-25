@@ -1077,3 +1077,4 @@ module_platform_driver(axp20x_usb_power_driver);
 MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
 MODULE_DESCRIPTION("AXP20x PMIC USB power supply status driver");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS("IIO_CONSUMER");

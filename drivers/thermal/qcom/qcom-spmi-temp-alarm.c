@@ -904,3 +904,4 @@ module_platform_driver(qpnp_tm_driver);
 MODULE_ALIAS("platform:spmi-temp-alarm");
 MODULE_DESCRIPTION("QPNP PMIC Temperature Alarm driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS("IIO_CONSUMER");

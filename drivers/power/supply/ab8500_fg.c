@@ -3262,3 +3262,4 @@ MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Johan Palsson, Karl Komierowski");
 MODULE_ALIAS("platform:ab8500-fg");
 MODULE_DESCRIPTION("AB8500 Fuel Gauge driver");
+MODULE_IMPORT_NS("IIO_CONSUMER");

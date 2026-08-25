@@ -773,3 +773,4 @@ module_platform_driver(midas_driver);
 MODULE_AUTHOR("Simon Shields <simon@lineageos.org>");
 MODULE_DESCRIPTION("ASoC support for Midas");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS("IIO_CONSUMER");

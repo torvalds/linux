@@ -71,9 +71,9 @@ void speakup_fake_down_arrow(void)
 	input_sync(virt_keyboard);
 	__this_cpu_write(reporting_keystroke, false);
 
-	/* reenable preemption */
+	/* re-enable preemption */
 	preempt_enable();
-	/* reenable keyboard interrupts */
+	/* re-enable keyboard interrupts */
 	local_irq_restore(flags);
 }
 

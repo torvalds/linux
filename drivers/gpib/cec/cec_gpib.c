@@ -353,8 +353,8 @@ static int cec_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 }
 
 static const struct pci_device_id cec_pci_table[] = {
-	{CEC_VENDOR_ID, CEC_DEV_ID, PCI_ANY_ID, CEC_SUBID, 0, 0, 0 },
-	{0}
+	{ PCI_DEVICE_SUB(CEC_VENDOR_ID, CEC_DEV_ID, PCI_ANY_ID, CEC_SUBID) },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, cec_pci_table);
 

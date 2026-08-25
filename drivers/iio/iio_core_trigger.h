@@ -56,4 +56,4 @@ static inline int iio_trigger_detach_poll_func(struct iio_trigger *trig,
 	return 0;
 }
 
-#endif /* CONFIG_TRIGGER_CONSUMER */
+#endif /* CONFIG_IIO_TRIGGER */

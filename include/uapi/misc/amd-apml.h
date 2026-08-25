@@ -73,6 +73,13 @@ struct apml_reg_xfer_msg {
 	__u8 rflag;
 };
 
+struct apml_tsi_xfer_msg {
+	__u8 reg_addr;		/* TSI register address offset */
+	__u8 data_in_out;	/* Register data for read/write */
+	__u8 rflag;		/* Register read or write */
+	__u8 pad;		/* Explicit padding */
+};
+
 /*
  * AMD sideband interface base IOCTL
  */
@@ -148,5 +155,21 @@ struct apml_reg_xfer_msg {
  * - Register xfer protocol to get/set hardware register for given offset
  */
 #define SBRMI_IOCTL_REG_XFER_CMD	_IOWR(SB_BASE_IOCTL_NR, 3, struct apml_reg_xfer_msg)
+
+/**
+ * DOC: SBTSI_IOCTL_REG_XFER_CMD
+ *
+ * @Parameters
+ *
+ * @struct apml_tsi_xfer_msg
+ *	Pointer to the &struct apml_tsi_xfer_msg that will contain the protocol
+ *	information
+ *
+ * @Description
+ * IOCTL command for APML TSI messages using generic _IOWR
+ * The IOCTL provides userspace access to AMD sideband TSI register xfer protocol
+ * - TSI protocol to read/write temperature sensor registers
+ */
+#define SBTSI_IOCTL_REG_XFER_CMD	_IOWR(SB_BASE_IOCTL_NR, 4, struct apml_tsi_xfer_msg)
 
 #endif /*_AMD_APML_H_*/

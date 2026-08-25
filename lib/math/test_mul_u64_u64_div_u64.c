@@ -157,6 +157,7 @@ static void __exit test_exit(void)
 #define __div64_32 __div64_32
 #define div_s64_rem div_s64_rem
 #define div64_u64_rem div64_u64_rem
+#define div64_s64_rem div64_s64_rem
 #define div64_u64 div64_u64
 #define div64_s64 div64_s64
 #define iter_div_u64_rem iter_div_u64_rem

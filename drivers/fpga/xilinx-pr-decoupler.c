@@ -118,18 +118,10 @@ static int xlnx_pr_decoupler_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->io_base))
 		return PTR_ERR(priv->io_base);
 
-	priv->clk = devm_clk_get(&pdev->dev, "aclk");
+	priv->clk = devm_clk_get_prepared(&pdev->dev, "aclk");
 	if (IS_ERR(priv->clk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(priv->clk),
 				     "input clock not found\n");
-
-	err = clk_prepare_enable(priv->clk);
-	if (err) {
-		dev_err(&pdev->dev, "unable to enable clock\n");
-		return err;
-	}
-
-	clk_disable(priv->clk);
 
 	br = fpga_bridge_register(&pdev->dev, priv->ipconfig->name,
 				  &xlnx_pr_decoupler_br_ops, priv);
@@ -137,27 +129,19 @@ static int xlnx_pr_decoupler_probe(struct platform_device *pdev)
 		err = PTR_ERR(br);
 		dev_err(&pdev->dev, "unable to register %s",
 			priv->ipconfig->name);
-		goto err_clk;
+		return err;
 	}
 
 	platform_set_drvdata(pdev, br);
 
 	return 0;
-
-err_clk:
-	clk_unprepare(priv->clk);
-
-	return err;
 }
 
 static void xlnx_pr_decoupler_remove(struct platform_device *pdev)
 {
 	struct fpga_bridge *bridge = platform_get_drvdata(pdev);
-	struct xlnx_pr_decoupler_data *p = bridge->priv;
 
 	fpga_bridge_unregister(bridge);
-
-	clk_unprepare(p->clk);
 }
 
 static struct platform_driver xlnx_pr_decoupler_driver = {

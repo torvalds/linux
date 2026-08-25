@@ -162,10 +162,11 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		Raw (unscaled) differential voltage measurement equivalent to
 		channel Y - channel Z where these channel numbers apply to the
-		physically equivalent inputs when non differential readings are
-		separately available. In differential only parts, then all that
-		is required is a consistent labeling.  Units after application
-		of scale and offset are millivolts.
+		physically equivalent inputs when non-differential readings are
+		separately available. Even though differential-only parts had
+		been merely required to have consistent channel labeling, this
+		ABI is preferred over the non-differential one for those chips.
+		Units after application of scale and offset are millivolts.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_altvoltageY_rms_raw
 KernelVersion:	6.18
@@ -507,6 +508,8 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_red_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_green_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_blue_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_concentration_co2_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_volumeflow_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_volumeflowY_scale
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -770,6 +773,7 @@ Description:
 		3.85kohm_to_gnd: connected to ground via a 3.85kOhm resistor,
 		6kohm_to_gnd: connected to ground via a 6kOhm resistor,
 		7.7kohm_to_gnd: connected to ground via a 7.7kOhm resistor,
+		10kohm_to_gnd: connected to ground via a 10kOhm resistor,
 		16kohm_to_gnd: connected to ground via a 16kOhm resistor,
 		20kohm_to_gnd: connected to ground via a 20kOhm resistor,
 		32kohm_to_gnd: connected to ground via a 32kOhm resistor,
@@ -917,7 +921,7 @@ Description:
 
 		Note the driver will assume the last p events requested are
 		to be enabled where p is how many it supports (which may vary
-		depending on the exact set requested. So if you want to be
+		depending on the exact set requested). So if you want to be
 		sure you have set what you think you have, check the contents of
 		these attributes after everything is configured. Drivers may
 		have to buffer any parameters so that they are consistent when
@@ -973,7 +977,7 @@ Description:
 
 		Note the driver will assume the last p events requested are
 		to be enabled where p is however many it supports (which may
-		vary depending on the exact set requested. So if you want to be
+		vary depending on the exact set requested). So if you want to be
 		sure you have set what you think you have, check the contents of
 		these attributes after everything is configured. Drivers may
 		have to buffer any parameters so that they are consistent when
@@ -1528,9 +1532,9 @@ Description:
 		the unused bits, so to get a clean value the bits value must be
 		used to mask the buffer output value appropriately. The storagebits
 		value also specifies the data alignment. So s48/64>>2 will be a
-		signed 48 bit integer stored in a 64 bit location aligned to a 64
-		bit boundary. To obtain the clean value, shift right 2 and apply a
-		mask to zero the top 16 bits of the result.
+		signed 48-bit integer stored in a 64-bit location aligned to a
+		64-bit boundary. To obtain the clean value, shift right 2 and apply
+		a mask to zero the top 16 bits of the result.
 		For other storage combinations this attribute will be extended
 		appropriately.
 
@@ -2496,3 +2500,12 @@ Description:
 		seconds, expressed as:
 
 		- a range specified as "[min step max]"
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_volumeflow_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_volumeflowY_raw
+KernelVersion:	7.3
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Raw (unscaled) volumetric flow rate reading from the channel.
+		To convert to standard units (cubic metres per second, m^3/s)
+		apply the channel's _scale (and _offset, when present).

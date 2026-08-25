@@ -716,7 +716,7 @@ int inv_icm45600_core_probe(struct regmap *regmap, const struct inv_icm45600_chi
 
 	dev_set_drvdata(dev, st);
 
-	st->fifo.data = devm_kzalloc(dev, 8192, GFP_KERNEL);
+	st->fifo.data = devm_kzalloc(dev, INV_ICM45600_FIFO_SIZE_MAX, GFP_KERNEL);
 	if (!st->fifo.data)
 		return -ENOMEM;
 

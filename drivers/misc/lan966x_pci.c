@@ -183,6 +183,7 @@ static int lan966x_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	return 0;
 
 err_unload_overlay:
+	of_platform_depopulate(dev);
 	lan966x_pci_unload_overlay(data);
 	return ret;
 }

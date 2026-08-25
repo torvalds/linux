@@ -574,8 +574,6 @@ static int i2c_nuvoton_probe(struct i2c_client *client)
 				      dev_name(&chip->dev),
 				      chip);
 		if (rc) {
-			dev_err(dev, "%s() Unable to request irq: %d for use\n",
-				__func__, priv->irq);
 			priv->irq = 0;
 		} else {
 			chip->flags |= TPM_CHIP_FLAG_IRQ;

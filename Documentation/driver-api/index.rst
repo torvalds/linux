@@ -105,6 +105,7 @@ Subsystem-specific APIs
    interconnect
    ipmb
    ipmi
+   issei/index
    libata
    mailbox
    md/index

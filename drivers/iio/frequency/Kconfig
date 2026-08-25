@@ -29,6 +29,16 @@ endmenu
 
 menu "Phase-Locked Loop (PLL) frequency synthesizers"
 
+config ADF41513
+	tristate "Analog Devices ADF41513 PLL Frequency Synthesizer"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices ADF41513
+	  26.5 GHz Integer-N/Fractional-N PLL Frequency Synthesizer.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called adf41513.
+
 config ADF4350
 	tristate "Analog Devices ADF4350/ADF4351 Wideband Synthesizers"
 	depends on SPI

@@ -1025,7 +1025,7 @@ static const struct of_device_id max11410_spi_of_id[] = {
 MODULE_DEVICE_TABLE(of, max11410_spi_of_id);
 
 static const struct spi_device_id max11410_id[] = {
-	{ "max11410" },
+	{ .name = "max11410" },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, max11410_id);

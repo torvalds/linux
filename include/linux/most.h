@@ -15,7 +15,7 @@ struct module;
 struct interface_private;
 
 /**
- * Interface type
+ * enum most_interface_type - Interface type
  */
 enum most_interface_type {
 	ITYPE_LOOPBACK = 1,
@@ -30,7 +30,7 @@ enum most_interface_type {
 };
 
 /**
- * Channel direction.
+ * enum most_channel_direction - Channel direction.
  */
 enum most_channel_direction {
 	MOST_CH_RX = 1 << 0,
@@ -38,7 +38,7 @@ enum most_channel_direction {
 };
 
 /**
- * Channel data type.
+ * enum most_channel_data_type - Channel data type.
  */
 enum most_channel_data_type {
 	MOST_CH_CONTROL = 1 << 0,
@@ -115,6 +115,7 @@ struct most_channel_capability {
  * @subbuffer_size: size of a subbuffer
  * @packets_per_xact: number of MOST frames that are packet inside one USB
  *		      packet. This is USB specific
+ * @dbr_size: DBR data buffer size (MediaLB communication only)
  *
  * Describes the configuration for a MOST channel. This information is
  * provided from the MostCore to a HDM (like the Medusa PCIe Interface) as a
@@ -189,28 +190,31 @@ struct mbo {
 };
 
 /**
- * Interface instance description.
+ * struct most_interface - Interface instance description.
  *
  * Describes an interface of a MOST device the core driver is bound to.
  * This structure is allocated and initialized in the HDM. MostCore may not
  * modify this structure.
  *
  * @dev: the actual device
+ * @driver_dev: struct device for calling snd_card_new()
  * @mod: module
- * @interface Interface type. \sa most_interface_type.
- * @description PRELIMINARY.
+ * @interface: Interface type. \sa most_interface_type.
+ * @description: PRELIMINARY.
  *   Unique description of the device instance from point of view of the
  *   interface in free text form (ASCII).
  *   It may be a hexadecimal presentation of the memory address for the MediaLB
  *   IP or USB device ID with USB properties for USB interface, etc.
- * @num_channels Number of channels and size of the channel_vector.
- * @channel_vector Properties of the channels.
+ * @num_channels: Number of channels and size of the channel_vector.
+ * @channel_vector: Properties of the channels.
  *   Array index represents channel ID by the driver.
- * @configure Callback to change data type for the channel of the
+ * @dma_alloc: Callback to interface driver to allocation DMA memory.
+ * @dma_free: Callback to interface driver to free a DMA memory allocation.
+ * @configure: Callback to change data type for the channel of the
  *   interface instance. May be zero if the instance of the interface is not
  *   configurable. Parameter channel_config describes direction and data
  *   type for the channel, configured by the higher level. The content of
- * @enqueue Delivers MBO to the HDM for processing.
+ * @enqueue: Delivers MBO to the HDM for processing.
  *   After HDM completes Rx- or Tx- operation the processed MBO shall
  *   be returned back to the MostCore using completion routine.
  *   The reason to get the MBO delivered from the MostCore after the channel
@@ -218,7 +222,7 @@ struct mbo {
  *   In this case the HDM shall hold MBOs and service the channel as usual.
  *   The HDM must be able to hold at least one MBO for each channel.
  *   The callback returns a negative value on error, otherwise 0.
- * @poison_channel Informs HDM about closing the channel. The HDM shall
+ * @poison_channel: Informs HDM about closing the channel. The HDM shall
  *   cancel all transfers and synchronously or asynchronously return
  *   all enqueued for this channel MBOs using the completion routine.
  *   The callback returns a negative value on error, otherwise 0.
@@ -226,7 +230,8 @@ struct mbo {
  *   means of "Message exchange over MDP/MEP"
  *   The call of the function request_netinfo with the parameter on_netinfo as
  *   NULL prohibits use of the previously obtained function pointer.
- * @priv Private field used by mostcore to store context information.
+ * @priv: Private field used by mostcore to store context information.
+ * @p: &struct interface_private pointer
  */
 struct most_interface {
 	struct device *dev;
@@ -255,10 +260,12 @@ struct most_interface {
  * struct most_component - identifies a loadable component for the mostcore
  * @list: list_head
  * @name: component name
+ * @mod: owning module
  * @probe_channel: function for core to notify driver about channel connection
  * @disconnect_channel: callback function to disconnect a certain channel
  * @rx_completion: completion handler for received packets
  * @tx_completion: completion handler for transmitted packets
+ * @cfg_complete: setup completion function called after the device is matched
  */
 struct most_component {
 	struct list_head list;
@@ -278,7 +285,7 @@ struct most_component {
  * most_register_interface - Registers instance of the interface.
  * @iface: Pointer to the interface instance description.
  *
- * Returns a pointer to the kobject of the generated instance.
+ * Returns: a pointer to the kobject of the generated instance.
  *
  * Note: HDM has to ensure that any reference held on the kobj is
  * released before deregistering the interface.
@@ -286,8 +293,8 @@ struct most_component {
 int most_register_interface(struct most_interface *iface);
 
 /**
- * Deregisters instance of the interface.
- * @intf_instance Pointer to the interface instance description.
+ * most_deregister_interface - Deregisters instance of the interface.
+ * @iface: Pointer to the interface instance description.
  */
 void most_deregister_interface(struct most_interface *iface);
 void most_submit_mbo(struct mbo *mbo);

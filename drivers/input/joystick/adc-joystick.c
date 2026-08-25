@@ -329,3 +329,4 @@ module_platform_driver(adc_joystick_driver);
 MODULE_DESCRIPTION("Input driver for joysticks connected over ADC");
 MODULE_AUTHOR("Artur Rojek <contact@artur-rojek.eu>");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS("IIO_CONSUMER");

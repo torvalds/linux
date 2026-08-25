@@ -7,13 +7,12 @@
  * Copyright (c) 2020, Kun Yi <kunyi@google.com>
  */
 
+#include <linux/auxiliary_bus.h>
 #include <linux/err.h>
-#include <linux/i2c.h>
-#include <linux/init.h>
 #include <linux/hwmon.h>
+#include <linux/init.h>
 #include <linux/module.h>
-#include <linux/of.h>
-#include <linux/bitfield.h>
+#include <linux/misc/tsi.h>
 
 /*
  * SB-TSI registers only support SMBus byte data access. "_INT" registers are
@@ -22,38 +21,16 @@
  */
 #define SBTSI_REG_TEMP_INT		0x01 /* RO */
 #define SBTSI_REG_STATUS		0x02 /* RO */
-#define SBTSI_REG_CONFIG		0x03 /* RO */
 #define SBTSI_REG_TEMP_HIGH_INT		0x07 /* RW */
 #define SBTSI_REG_TEMP_LOW_INT		0x08 /* RW */
 #define SBTSI_REG_TEMP_DEC		0x10 /* RW */
 #define SBTSI_REG_TEMP_HIGH_DEC		0x13 /* RW */
 #define SBTSI_REG_TEMP_LOW_DEC		0x14 /* RW */
 
-/*
- * Bit for reporting value with temperature measurement range.
- * bit == 0: Use default temperature range (0C to 255.875C).
- * bit == 1: Use extended temperature range (-49C to +206.875C).
- */
-#define SBTSI_CONFIG_EXT_RANGE_SHIFT	2
-/*
- * ReadOrder bit specifies the reading order of integer and decimal part of
- * CPU temperature for atomic reads. If bit == 0, reading integer part triggers
- * latching of the decimal part, so integer part should be read first.
- * If bit == 1, read order should be reversed.
- */
-#define SBTSI_CONFIG_READ_ORDER_SHIFT	5
-
 #define SBTSI_TEMP_EXT_RANGE_ADJ	49000
 
 #define SBTSI_TEMP_MIN	0
 #define SBTSI_TEMP_MAX	255875
-
-/* Each client has this additional data */
-struct sbtsi_data {
-	struct i2c_client *client;
-	bool ext_range_mode;
-	bool read_order;
-};
 
 /*
  * From SB-TSI spec: CPU temperature readings and limit registers encode the
@@ -84,40 +61,79 @@ static inline void sbtsi_mc_to_reg(s32 temp, u8 *integer, u8 *decimal)
 	*decimal = (temp & 0x7) << 5;
 }
 
+/*
+ * Read integer and decimal parts of an SB-TSI temperature register pair
+ * The read order is determined by the ReadOrder bit to ensure atomic latching.
+ */
+static int sbtsi_temp_read(struct sbtsi_data *data, u8 reg1, u8 reg2,
+			   u8 *val1, u8 *val2)
+{
+	int ret;
+
+	guard(sbtsi)(data);
+	ret = sbtsi_xfer(data, reg1, val1, true);
+	if (!ret)
+		ret = sbtsi_xfer(data, reg2, val2, true);
+	return ret;
+}
+
+/*
+ * Write integer and decimal parts of an SB-TSI temperature register pair.
+ */
+static int sbtsi_temp_write(struct sbtsi_data *data, u8 reg_int, u8 reg_dec,
+			    u8 val_int, u8 val_dec)
+{
+	int ret;
+
+	guard(sbtsi)(data);
+	ret = sbtsi_xfer(data, reg_int, &val_int, false);
+	if (!ret)
+		ret = sbtsi_xfer(data, reg_dec, &val_dec, false);
+	return ret;
+}
+
 static int sbtsi_read(struct device *dev, enum hwmon_sensor_types type,
 		      u32 attr, int channel, long *val)
 {
 	struct sbtsi_data *data = dev_get_drvdata(dev);
 	s32 temp_int, temp_dec;
+	int err;
+	u8 val_int, val_dec;
 
 	switch (attr) {
 	case hwmon_temp_input:
-		if (data->read_order) {
-			temp_dec = i2c_smbus_read_byte_data(data->client, SBTSI_REG_TEMP_DEC);
-			temp_int = i2c_smbus_read_byte_data(data->client, SBTSI_REG_TEMP_INT);
-		} else {
-			temp_int = i2c_smbus_read_byte_data(data->client, SBTSI_REG_TEMP_INT);
-			temp_dec = i2c_smbus_read_byte_data(data->client, SBTSI_REG_TEMP_DEC);
-		}
+		if (data->read_order)
+			err = sbtsi_temp_read(data,
+					      SBTSI_REG_TEMP_DEC, SBTSI_REG_TEMP_INT,
+					      &val_dec, &val_int);
+		else
+			err = sbtsi_temp_read(data,
+					      SBTSI_REG_TEMP_INT, SBTSI_REG_TEMP_DEC,
+					      &val_int, &val_dec);
+		if (err < 0)
+			return err;
 		break;
 	case hwmon_temp_max:
-		temp_int = i2c_smbus_read_byte_data(data->client, SBTSI_REG_TEMP_HIGH_INT);
-		temp_dec = i2c_smbus_read_byte_data(data->client, SBTSI_REG_TEMP_HIGH_DEC);
+		err = sbtsi_temp_read(data,
+				      SBTSI_REG_TEMP_HIGH_INT, SBTSI_REG_TEMP_HIGH_DEC,
+				      &val_int, &val_dec);
+		if (err < 0)
+			return err;
 		break;
 	case hwmon_temp_min:
-		temp_int = i2c_smbus_read_byte_data(data->client, SBTSI_REG_TEMP_LOW_INT);
-		temp_dec = i2c_smbus_read_byte_data(data->client, SBTSI_REG_TEMP_LOW_DEC);
+		err = sbtsi_temp_read(data,
+				      SBTSI_REG_TEMP_LOW_INT, SBTSI_REG_TEMP_LOW_DEC,
+				      &val_int, &val_dec);
+
+		if (err < 0)
+			return err;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-
-	if (temp_int < 0)
-		return temp_int;
-	if (temp_dec < 0)
-		return temp_dec;
-
+	temp_int = val_int;
+	temp_dec = val_dec;
 	*val = sbtsi_reg_to_mc(temp_int, temp_dec);
 	if (data->ext_range_mode)
 		*val -= SBTSI_TEMP_EXT_RANGE_ADJ;
@@ -129,7 +145,7 @@ static int sbtsi_write(struct device *dev, enum hwmon_sensor_types type,
 		       u32 attr, int channel, long val)
 {
 	struct sbtsi_data *data = dev_get_drvdata(dev);
-	int reg_int, reg_dec, err;
+	int reg_int, reg_dec;
 	u8 temp_int, temp_dec;
 
 	switch (attr) {
@@ -150,11 +166,7 @@ static int sbtsi_write(struct device *dev, enum hwmon_sensor_types type,
 	val = clamp_val(val, SBTSI_TEMP_MIN, SBTSI_TEMP_MAX);
 	sbtsi_mc_to_reg(val, &temp_int, &temp_dec);
 
-	err = i2c_smbus_write_byte_data(data->client, reg_int, temp_int);
-	if (err)
-		return err;
-
-	return i2c_smbus_write_byte_data(data->client, reg_dec, temp_dec);
+	return sbtsi_temp_write(data, reg_int, reg_dec, temp_int, temp_dec);
 }
 
 static umode_t sbtsi_is_visible(const void *data,
@@ -195,55 +207,33 @@ static const struct hwmon_chip_info sbtsi_chip_info = {
 	.info = sbtsi_info,
 };
 
-static int sbtsi_probe(struct i2c_client *client)
+static int sbtsi_probe(struct auxiliary_device *adev,
+		       const struct auxiliary_device_id *id)
 {
-	struct device *dev = &client->dev;
+	struct sbtsi_data *data = dev_get_drvdata(adev->dev.parent);
+	struct device *dev = &adev->dev;
 	struct device *hwmon_dev;
-	struct sbtsi_data *data;
-	int err;
 
-	data = devm_kzalloc(dev, sizeof(struct sbtsi_data), GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
-
-	data->client = client;
-
-	err = i2c_smbus_read_byte_data(data->client, SBTSI_REG_CONFIG);
-	if (err < 0)
-		return err;
-	data->ext_range_mode = FIELD_GET(BIT(SBTSI_CONFIG_EXT_RANGE_SHIFT), err);
-	data->read_order = FIELD_GET(BIT(SBTSI_CONFIG_READ_ORDER_SHIFT), err);
-
-	hwmon_dev = devm_hwmon_device_register_with_info(dev, client->name, data,
+	hwmon_dev = devm_hwmon_device_register_with_info(dev, "sbtsi", data,
 							 &sbtsi_chip_info, NULL);
 
 	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
-static const struct i2c_device_id sbtsi_id[] = {
-	{ .name = "sbtsi" },
+static const struct auxiliary_device_id sbtsi_id[] = {
+	{ .name = AMD_SBTSI_ADEV "." AMD_SBTSI_AUX_HWMON },
 	{ }
 };
-MODULE_DEVICE_TABLE(i2c, sbtsi_id);
+MODULE_DEVICE_TABLE(auxiliary, sbtsi_id);
 
-static const struct of_device_id __maybe_unused sbtsi_of_match[] = {
-	{
-		.compatible = "amd,sbtsi",
-	},
-	{ },
-};
-MODULE_DEVICE_TABLE(of, sbtsi_of_match);
-
-static struct i2c_driver sbtsi_driver = {
+static struct auxiliary_driver sbtsi_driver = {
 	.driver = {
 		.name = "sbtsi",
-		.of_match_table = of_match_ptr(sbtsi_of_match),
 	},
 	.probe = sbtsi_probe,
 	.id_table = sbtsi_id,
 };
-
-module_i2c_driver(sbtsi_driver);
+module_auxiliary_driver(sbtsi_driver);
 
 MODULE_AUTHOR("Kun Yi <kunyi@google.com>");
 MODULE_DESCRIPTION("Hwmon driver for AMD SB-TSI emulated sensor");

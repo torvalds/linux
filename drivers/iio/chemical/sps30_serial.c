@@ -2,7 +2,7 @@
 /*
  * Sensirion SPS30 particulate matter sensor serial driver
  *
- * Copyright (c) 2021 Tomasz Duszynski <tomasz.duszynski@octakon.com>
+ * Copyright (c) 2021 Tomasz Duszynski <tduszyns@gmail.com>
  */
 #include <linux/completion.h>
 #include <linux/device.h>
@@ -425,7 +425,7 @@ static struct serdev_device_driver sps30_serial_driver = {
 };
 module_serdev_device_driver(sps30_serial_driver);
 
-MODULE_AUTHOR("Tomasz Duszynski <tomasz.duszynski@octakon.com>");
+MODULE_AUTHOR("Tomasz Duszynski <tduszyns@gmail.com>");
 MODULE_DESCRIPTION("Sensirion SPS30 particulate matter sensor serial driver");
 MODULE_LICENSE("GPL v2");
 MODULE_IMPORT_NS("IIO_SPS30");

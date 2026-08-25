@@ -83,11 +83,8 @@ static int xilly_probe(struct pci_dev *pdev,
 	}
 	rc = devm_request_irq(&pdev->dev, pdev->irq, xillybus_isr, 0,
 			      xillyname, endpoint);
-	if (rc) {
-		dev_err(endpoint->dev,
-			"Failed to register MSI handler. Aborting.\n");
+	if (rc)
 		return -ENODEV;
-	}
 
 	/*
 	 * Some (old and buggy?) hardware drops 64-bit addressed PCIe packets,

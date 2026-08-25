@@ -57,7 +57,7 @@ def parse_inputs_from_commands(
         try:
             inputs = matched_parser(single_command)
             input_files.extend(inputs)
-        except (CmdParsingError, IndexError) as e:
+        except (CmdParsingError, IndexError, ValueError) as e:
             log_error_or_warning(
                 "Skipped parsing command {single_command} because of command parsing error: {error_message}",
                 single_command=single_command,

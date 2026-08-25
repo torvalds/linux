@@ -308,7 +308,7 @@ static int tps6594_pfsm_probe(struct platform_device *pdev)
 						tps6594_pfsm_isr, IRQF_ONESHOT,
 						pdev->resource[i].name, pdev);
 		if (ret)
-			return dev_err_probe(dev, ret, "Failed to request irq\n");
+			return ret;
 	}
 
 	platform_set_drvdata(pdev, pfsm);
