@@ -128,10 +128,10 @@ static void test_sev_migrate_locking(void)
 		       sizeof(input[i].source_vms));
 
 	for (i = 0; i < NR_LOCK_TESTING_THREADS; ++i)
-		pthread_create(&pt[i], NULL, locking_test_thread, &input[i]);
+		kvm_pthread_create(&pt[i], NULL, locking_test_thread, &input[i]);
 
 	for (i = 0; i < NR_LOCK_TESTING_THREADS; ++i)
-		pthread_join(pt[i], NULL);
+		kvm_pthread_join(pt[i], NULL);
 	for (i = 0; i < NR_LOCK_TESTING_THREADS; ++i)
 		kvm_vm_free(input[i].vm);
 }

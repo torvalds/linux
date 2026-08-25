@@ -7,8 +7,10 @@
  *               Claudio Imbrenda <imbrenda@linux.ibm.com>
  */
 
-#ifndef ARCH_KVM_S390_GMAP_H
-#define ARCH_KVM_S390_GMAP_H
+#ifndef ARCH_KVM_GMAP_GMAP_H
+#define ARCH_KVM_GMAP_GMAP_H
+
+#include <linux/kvm_host.h>
 
 #include "dat.h"
 
@@ -83,7 +85,6 @@ struct gmap_cache {
 	for (pos = (head); n = pos ? pos->next : NULL, pos; pos = n)
 
 int s390_replace_asce(struct gmap *gmap);
-bool _gmap_unmap_prefix(struct gmap *gmap, gfn_t gfn, gfn_t end, bool hint);
 bool gmap_age_gfn(struct gmap *gmap, gfn_t start, gfn_t end);
 bool gmap_unmap_gfn_range(struct gmap *gmap, struct kvm_memory_slot *slot, gfn_t start, gfn_t end);
 int gmap_try_fixup_minor(struct gmap *gmap, struct guest_fault *fault);
@@ -98,13 +99,16 @@ int gmap_set_limit(struct gmap *gmap, gfn_t limit);
 int gmap_ucas_translate(struct kvm_s390_mmu_cache *mc, struct gmap *gmap, gpa_t *gaddr);
 int gmap_ucas_map(struct gmap *gmap, gfn_t p_gfn, gfn_t c_gfn, unsigned long count);
 void gmap_ucas_unmap(struct gmap *gmap, gfn_t c_gfn, unsigned long count);
+
+#if KVM_S390_MANAGES_S390_GUEST
 int gmap_enable_skeys(struct gmap *gmap);
+#endif /* KVM_S390_MANAGES_S390_GUEST */
+
 int gmap_pv_destroy_range(struct gmap *gmap, gfn_t start, gfn_t end, bool interruptible);
 int gmap_insert_rmap(struct kvm_s390_mmu_cache *mc, struct gmap *sg, gfn_t p_gfn,
 		     gfn_t r_gfn, int level);
 int gmap_protect_rmap(struct kvm_s390_mmu_cache *mc, struct gmap *sg, gfn_t p_gfn, gfn_t r_gfn,
 		      kvm_pfn_t pfn, int level, bool wr);
-void _gmap_set_cmma_all(struct gmap *gmap, bool dirty);
 void _gmap_handle_vsie_unshadow_event(struct gmap *parent, gfn_t gfn);
 struct gmap *gmap_create_shadow(struct kvm_s390_mmu_cache *mc, struct gmap *gmap,
 				union asce asce, int edat_level);
@@ -158,6 +162,14 @@ static inline void gmap_handle_vsie_unshadow_event(struct gmap *parent, gfn_t gf
 		_gmap_handle_vsie_unshadow_event(parent, gfn);
 }
 
+#if KVM_S390_MANAGES_S390_GUEST
+bool _gmap_unmap_prefix(struct gmap *gmap, gfn_t gfn, gfn_t end, bool hint);
+#else
+static inline bool _gmap_unmap_prefix(struct gmap *gmap, gfn_t gfn, gfn_t end, bool hint)
+{
+	return true;
+}
+#endif /* KVM_S390_MANAGES_S390_GUEST */
 static inline bool gmap_mkold_prefix(struct gmap *gmap, gfn_t gfn, gfn_t end)
 {
 	return _gmap_unmap_prefix(gmap, gfn, end, true);
@@ -198,6 +210,8 @@ static inline bool pte_needs_unshadow(union pte oldpte, union pte newpte, union 
 	return !newpte.h.p || !newpte.s.pr;
 }
 
+#if KVM_S390_MANAGES_S390_GUEST
+void _gmap_set_cmma_all(struct gmap *gmap, bool dirty);
 static inline void gmap_set_cmma_all_dirty(struct gmap *gmap)
 {
 	_gmap_set_cmma_all(gmap, true);
@@ -207,6 +221,7 @@ static inline void gmap_set_cmma_all_clean(struct gmap *gmap)
 {
 	_gmap_set_cmma_all(gmap, false);
 }
+#endif /* KVM_S390_MANAGES_S390_GUEST */
 
 static inline union pgste _gmap_ptep_xchg(struct gmap *gmap, union pte *ptep, union pte newpte,
 					  union pgste pgste, gfn_t gfn, bool needs_lock)
@@ -330,4 +345,4 @@ static inline bool gmap_is_shadow_valid(struct gmap *sg, union asce asce, int ed
 	return sg->guest_asce.val == asce.val && sg->edat_level == edat_level;
 }
 
-#endif /* ARCH_KVM_S390_GMAP_H */
+#endif /* ARCH_KVM_GMAP_GMAP_H */

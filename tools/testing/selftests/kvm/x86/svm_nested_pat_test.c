@@ -25,8 +25,6 @@
 #include "processor.h"
 #include "svm_util.h"
 
-#define L2_GUEST_STACK_SIZE 256
-
 #define PAT_DEFAULT		0x0007040600070406ULL
 #define L1_PAT_VALUE		0x0007040600070404ULL  /* Change PA0 to WT */
 #define L2_VMCB12_PAT		0x0606060606060606ULL  /* All WB */
@@ -59,14 +57,13 @@ static void l2_guest_code(void)
 
 static void l1_guest_code(struct svm_test_data *svm)
 {
-	unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
 	struct vmcb *vmcb = svm->vmcb;
 	int i;
 
 	wrmsr(MSR_IA32_CR_PAT, L1_PAT_VALUE);
 	GUEST_ASSERT_EQ(rdmsr(MSR_IA32_CR_PAT), L1_PAT_VALUE);
 
-	generic_svm_setup(svm, l2_guest_code, &l2_guest_stack[L2_GUEST_STACK_SIZE]);
+	generic_svm_setup(svm, l2_guest_code);
 
 	vmcb->save.g_pat = L2_VMCB12_PAT;
 	vmcb->control.intercept &= ~(1ULL << INTERCEPT_MSR_PROT);
@@ -94,11 +91,10 @@ static void l1_guest_code(struct svm_test_data *svm)
 
 static void l1_guest_code_invalid_gpat(struct svm_test_data *svm)
 {
-	unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
 	struct vmcb *vmcb = svm->vmcb;
 
 	/* VMRUN should fail without running L2 */
-	generic_svm_setup(svm, NULL, &l2_guest_stack[L2_GUEST_STACK_SIZE]);
+	generic_svm_setup(svm, NULL);
 
 	vmcb->save.g_pat = INVALID_PAT_VALUE;
 	run_guest(vmcb, svm->vmcb_gpa);

@@ -23,7 +23,7 @@
 #include <asm/nmi.h>
 #include <asm/dis.h>
 #include <asm/facility.h>
-#include "kvm-s390.h"
+#include "s390.h"
 #include "gaccess.h"
 #include "gmap.h"
 
@@ -33,10 +33,7 @@ enum vsie_page_flags {
 
 struct vsie_page {
 	struct kvm_s390_sie_block scb_s;	/* 0x0000 */
-	/*
-	 * the backup info for machine check. ensure it's at
-	 * the same offset as that in struct sie_page!
-	 */
+	/* backup info for machine check */
 	struct mcck_volatile_info mcck_info;    /* 0x0200 */
 	/*
 	 * The pinned original scb. Be aware that other VCPUs can modify
@@ -71,6 +68,8 @@ struct vsie_page {
 };
 
 static_assert(sizeof(struct vsie_page) == PAGE_SIZE);
+static_assert(offsetof(struct vsie_page, mcck_info) == offsetof(struct sie_page, mcck_info));
+static_assert(IS_ALIGNED(offsetof(struct vsie_page, crycb), 8));
 
 /* trigger a validity icpt for the given scb */
 static int set_validity_icpt(struct kvm_s390_sie_block *scb,
@@ -173,6 +172,7 @@ static int setup_apcb10(struct kvm_vcpu *vcpu, struct kvm_s390_apcb1 *apcb_s,
 			    sizeof(struct kvm_s390_apcb0)))
 		return -EFAULT;
 
+	memset(apcb_s, 0, sizeof(*apcb_s));
 	apcb_s->apm[0] = apcb_h->apm[0] & tmp.apm[0];
 	apcb_s->aqm[0] = apcb_h->aqm[0] & tmp.aqm[0] & 0xffff000000000000UL;
 	apcb_s->adm[0] = apcb_h->adm[0] & tmp.adm[0] & 0xffff000000000000UL;
@@ -701,7 +701,7 @@ static int pin_guest_page(struct kvm *kvm, gpa_t gpa, hpa_t *hpa)
 /* Unpins a page previously pinned via pin_guest_page, marking it as dirty. */
 static void unpin_guest_page(struct kvm *kvm, gpa_t gpa, hpa_t hpa)
 {
-	kvm_release_page_dirty(pfn_to_page(hpa >> PAGE_SHIFT));
+	kvm_release_page_dirty(pfn_to_page(phys_to_pfn(hpa)));
 	/* mark the page always as dirty for migration */
 	mark_page_dirty(kvm, gpa_to_gfn(gpa));
 }
@@ -1485,7 +1485,7 @@ static struct vsie_page *get_vsie_page(struct kvm *kvm, unsigned long addr)
 	int nr_vcpus;
 
 	rcu_read_lock();
-	vsie_page = radix_tree_lookup(&kvm->arch.vsie.addr_to_page, addr >> 9);
+	vsie_page = radix_tree_lookup(&kvm->arch.vsie.addr_to_page, addr >> SCB_ALIGNMENT_SHIFT);
 	rcu_read_unlock();
 	if (vsie_page) {
 		if (try_get_vsie_page(vsie_page)) {
@@ -1526,13 +1526,14 @@ static struct vsie_page *get_vsie_page(struct kvm *kvm, unsigned long addr)
 		}
 		if (vsie_page->scb_gpa != ULONG_MAX)
 			radix_tree_delete(&kvm->arch.vsie.addr_to_page,
-					  vsie_page->scb_gpa >> 9);
+					  vsie_page->scb_gpa >> SCB_ALIGNMENT_SHIFT);
 	}
 	/* Mark it as invalid until it resides in the tree. */
 	vsie_page->scb_gpa = ULONG_MAX;
 
 	/* Double use of the same address or allocation failure. */
-	if (radix_tree_insert(&kvm->arch.vsie.addr_to_page, addr >> 9, vsie_page)) {
+	if (radix_tree_insert(&kvm->arch.vsie.addr_to_page, addr >> SCB_ALIGNMENT_SHIFT,
+			      vsie_page)) {
 		put_vsie_page(vsie_page);
 		mutex_unlock(&kvm->arch.vsie.mutex);
 		return NULL;
@@ -1564,7 +1565,6 @@ int kvm_s390_handle_vsie(struct kvm_vcpu *vcpu)
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
 
-	BUILD_BUG_ON(sizeof(struct vsie_page) != PAGE_SIZE);
 	scb_addr = kvm_s390_get_base_disp_s(vcpu, NULL);
 
 	/* 512 byte alignment */
@@ -1631,7 +1631,7 @@ void kvm_s390_vsie_destroy(struct kvm *kvm)
 		/* free the radix tree entry */
 		if (vsie_page->scb_gpa != ULONG_MAX)
 			radix_tree_delete(&kvm->arch.vsie.addr_to_page,
-					  vsie_page->scb_gpa >> 9);
+					  vsie_page->scb_gpa >> SCB_ALIGNMENT_SHIFT);
 		free_page((unsigned long)vsie_page);
 	}
 	kvm->arch.vsie.page_count = 0;

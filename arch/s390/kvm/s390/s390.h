@@ -452,7 +452,7 @@ void kvm_s390_vsie_destroy(struct kvm *kvm);
 int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_sigp_pei(struct kvm_vcpu *vcpu);
 
-/* implemented in kvm-s390.c */
+/* implemented in s390.c */
 int kvm_s390_try_set_tod_clock(struct kvm *kvm, const struct kvm_s390_vm_tod_clock *gtod);
 int kvm_s390_store_status_unloaded(struct kvm_vcpu *vcpu, unsigned long addr);
 int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr);
@@ -472,6 +472,9 @@ int __kvm_s390_mprotect_many(struct gmap *gmap, gpa_t gpa, u8 npages, unsigned i
 			     unsigned long bits);
 
 bool kvm_arch_setup_async_pf(struct kvm_vcpu *vcpu);
+void kvm_s390_update_cmma_dirty(struct kvm *kvm, struct kvm_memory_slot *old);
+int kvm_s390_vm_stop_migration(struct kvm *kvm);
+
 
 /* implemented in diag.c */
 int kvm_s390_handle_diag(struct kvm_vcpu *vcpu);
@@ -592,6 +595,11 @@ static inline bool kvm_s390_cur_gmap_fault_is_write(void)
 	if (current->thread.gmap_int_code == PGM_PROTECTION)
 		return true;
 	return test_facility(75) && (current->thread.gmap_teid.fsi == TEID_FSI_STORE);
+}
+
+static __always_inline int kvm_s390_is_migration_mode(struct kvm *kvm)
+{
+	return kvm->arch.migration_mode;
 }
 
 /**

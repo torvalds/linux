@@ -272,7 +272,7 @@ has_neoverse_n1_erratum_1542419(const struct arm64_cpu_capabilities *entry,
 	return is_midr_in_range(&range) && has_dic;
 }
 
-static const struct midr_range impdef_pmuv3_cpus[] = {
+static const struct midr_range apple_cpus[] = {
 	MIDR_ALL_VERSIONS(MIDR_APPLE_M1_ICESTORM),
 	MIDR_ALL_VERSIONS(MIDR_APPLE_M1_FIRESTORM),
 	MIDR_ALL_VERSIONS(MIDR_APPLE_M1_ICESTORM_PRO),
@@ -301,7 +301,14 @@ static bool has_impdef_pmuv3(const struct arm64_cpu_capabilities *entry, int sco
 	if (pmuver != ID_AA64DFR0_EL1_PMUVer_IMP_DEF)
 		return false;
 
-	return is_midr_in_range_list(impdef_pmuv3_cpus);
+	return is_midr_in_range_list(apple_cpus);
+}
+
+static bool has_broken_gic_v3_seis(const struct arm64_cpu_capabilities *entry, int scope)
+{
+	return (is_kernel_in_hyp_mode() &&
+		is_midr_in_range_list(apple_cpus) &&
+		(read_sysreg_s(SYS_ICH_VTR_EL2) & ICH_VTR_EL2_SEIS));
 }
 
 static void cpu_enable_impdef_pmuv3_traps(const struct arm64_cpu_capabilities *__unused)
@@ -1016,6 +1023,12 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 		.type = ARM64_CPUCAP_LOCAL_CPU_ERRATUM,
 		.matches = has_impdef_pmuv3,
 		.cpu_enable = cpu_enable_impdef_pmuv3_traps,
+	},
+	{
+		.desc = "Known broken GICv3 SEIS implementation",
+		.capability = ARM64_WORKAROUND_GICv3_BROKEN_SEIS,
+		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
+		.matches = has_broken_gic_v3_seis,
 	},
 	{
 	}

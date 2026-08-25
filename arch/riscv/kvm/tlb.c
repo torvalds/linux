@@ -8,6 +8,7 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/module.h>
+#include <linux/overflow.h>
 #include <linux/smp.h>
 #include <linux/kvm_host.h>
 #include <asm/cacheflush.h>
@@ -24,7 +25,12 @@ void kvm_riscv_local_hfence_gvma_vmid_gpa(unsigned long vmid,
 					  gpa_t gpa, gpa_t gpsz,
 					  unsigned long order)
 {
-	gpa_t pos;
+	gpa_t end, pos, step = BIT(order);
+
+	if (check_add_overflow(gpa, gpsz, &end)) {
+		kvm_riscv_local_hfence_gvma_vmid_all(vmid);
+		return;
+	}
 
 	if (PTRS_PER_PTE < (gpsz >> order)) {
 		kvm_riscv_local_hfence_gvma_vmid_all(vmid);
@@ -33,14 +39,20 @@ void kvm_riscv_local_hfence_gvma_vmid_gpa(unsigned long vmid,
 
 	if (has_svinval()) {
 		asm volatile (SFENCE_W_INVAL() ::: "memory");
-		for (pos = gpa; pos < (gpa + gpsz); pos += BIT(order))
+		for (pos = gpa; pos < end; pos += step) {
 			asm volatile (HINVAL_GVMA(%0, %1)
 			: : "r" (pos >> 2), "r" (vmid) : "memory");
+			if (end - pos <= step)
+				break;
+		}
 		asm volatile (SFENCE_INVAL_IR() ::: "memory");
 	} else {
-		for (pos = gpa; pos < (gpa + gpsz); pos += BIT(order))
+		for (pos = gpa; pos < end; pos += step) {
 			asm volatile (HFENCE_GVMA(%0, %1)
 			: : "r" (pos >> 2), "r" (vmid) : "memory");
+			if (end - pos <= step)
+				break;
+		}
 	}
 }
 
@@ -52,7 +64,12 @@ void kvm_riscv_local_hfence_gvma_vmid_all(unsigned long vmid)
 void kvm_riscv_local_hfence_gvma_gpa(gpa_t gpa, gpa_t gpsz,
 				     unsigned long order)
 {
-	gpa_t pos;
+	gpa_t end, pos, step = BIT(order);
+
+	if (check_add_overflow(gpa, gpsz, &end)) {
+		kvm_riscv_local_hfence_gvma_all();
+		return;
+	}
 
 	if (PTRS_PER_PTE < (gpsz >> order)) {
 		kvm_riscv_local_hfence_gvma_all();
@@ -61,14 +78,20 @@ void kvm_riscv_local_hfence_gvma_gpa(gpa_t gpa, gpa_t gpsz,
 
 	if (has_svinval()) {
 		asm volatile (SFENCE_W_INVAL() ::: "memory");
-		for (pos = gpa; pos < (gpa + gpsz); pos += BIT(order))
+		for (pos = gpa; pos < end; pos += step) {
 			asm volatile(HINVAL_GVMA(%0, zero)
 			: : "r" (pos >> 2) : "memory");
+			if (end - pos <= step)
+				break;
+		}
 		asm volatile (SFENCE_INVAL_IR() ::: "memory");
 	} else {
-		for (pos = gpa; pos < (gpa + gpsz); pos += BIT(order))
+		for (pos = gpa; pos < end; pos += step) {
 			asm volatile(HFENCE_GVMA(%0, zero)
 			: : "r" (pos >> 2) : "memory");
+			if (end - pos <= step)
+				break;
+		}
 	}
 }
 
@@ -83,7 +106,13 @@ void kvm_riscv_local_hfence_vvma_asid_gva(unsigned long vmid,
 					  unsigned long gvsz,
 					  unsigned long order)
 {
-	unsigned long pos, hgatp;
+	unsigned long end, pos, step = BIT(order);
+	unsigned long hgatp;
+
+	if (check_add_overflow(gva, gvsz, &end)) {
+		kvm_riscv_local_hfence_vvma_asid_all(vmid, asid);
+		return;
+	}
 
 	if (PTRS_PER_PTE < (gvsz >> order)) {
 		kvm_riscv_local_hfence_vvma_asid_all(vmid, asid);
@@ -94,14 +123,20 @@ void kvm_riscv_local_hfence_vvma_asid_gva(unsigned long vmid,
 
 	if (has_svinval()) {
 		asm volatile (SFENCE_W_INVAL() ::: "memory");
-		for (pos = gva; pos < (gva + gvsz); pos += BIT(order))
+		for (pos = gva; pos < end; pos += step) {
 			asm volatile(HINVAL_VVMA(%0, %1)
 			: : "r" (pos), "r" (asid) : "memory");
+			if (end - pos <= step)
+				break;
+		}
 		asm volatile (SFENCE_INVAL_IR() ::: "memory");
 	} else {
-		for (pos = gva; pos < (gva + gvsz); pos += BIT(order))
+		for (pos = gva; pos < end; pos += step) {
 			asm volatile(HFENCE_VVMA(%0, %1)
 			: : "r" (pos), "r" (asid) : "memory");
+			if (end - pos <= step)
+				break;
+		}
 	}
 
 	csr_write(CSR_HGATP, hgatp);
@@ -123,7 +158,13 @@ void kvm_riscv_local_hfence_vvma_gva(unsigned long vmid,
 				     unsigned long gva, unsigned long gvsz,
 				     unsigned long order)
 {
-	unsigned long pos, hgatp;
+	unsigned long end, pos, step = BIT(order);
+	unsigned long hgatp;
+
+	if (check_add_overflow(gva, gvsz, &end)) {
+		kvm_riscv_local_hfence_vvma_all(vmid);
+		return;
+	}
 
 	if (PTRS_PER_PTE < (gvsz >> order)) {
 		kvm_riscv_local_hfence_vvma_all(vmid);
@@ -134,14 +175,20 @@ void kvm_riscv_local_hfence_vvma_gva(unsigned long vmid,
 
 	if (has_svinval()) {
 		asm volatile (SFENCE_W_INVAL() ::: "memory");
-		for (pos = gva; pos < (gva + gvsz); pos += BIT(order))
+		for (pos = gva; pos < end; pos += step) {
 			asm volatile(HINVAL_VVMA(%0, zero)
 			: : "r" (pos) : "memory");
+			if (end - pos <= step)
+				break;
+		}
 		asm volatile (SFENCE_INVAL_IR() ::: "memory");
 	} else {
-		for (pos = gva; pos < (gva + gvsz); pos += BIT(order))
+		for (pos = gva; pos < end; pos += step) {
 			asm volatile(HFENCE_VVMA(%0, zero)
 			: : "r" (pos) : "memory");
+			if (end - pos <= step)
+				break;
+		}
 	}
 
 	csr_write(CSR_HGATP, hgatp);
@@ -325,14 +372,11 @@ void kvm_riscv_hfence_process(struct kvm_vcpu *vcpu)
 	}
 }
 
-static void make_xfence_request(struct kvm *kvm,
-				unsigned long hbase, unsigned long hmask,
-				unsigned int req, unsigned int fallback_req,
-				const struct kvm_riscv_hfence *data)
+static void make_xfence_request_nodata(struct kvm *kvm, unsigned long hbase,
+				       unsigned long hmask, unsigned int req)
 {
 	unsigned long i;
 	struct kvm_vcpu *vcpu;
-	unsigned int actual_req = req;
 	DECLARE_BITMAP(vcpu_mask, KVM_MAX_VCPUS);
 
 	bitmap_zero(vcpu_mask, KVM_MAX_VCPUS);
@@ -346,9 +390,34 @@ static void make_xfence_request(struct kvm *kvm,
 		}
 
 		bitmap_set(vcpu_mask, i, 1);
+	}
 
-		if (!data || !data->type)
-			continue;
+	kvm_make_vcpus_request_mask(kvm, req, vcpu_mask);
+}
+
+static void make_xfence_request(struct kvm *kvm,
+				unsigned long hbase, unsigned long hmask,
+				unsigned int req, unsigned int fallback_req,
+				const struct kvm_riscv_hfence *data)
+{
+	unsigned long i;
+	struct kvm_vcpu *vcpu;
+	DECLARE_BITMAP(req_vcpu_mask, KVM_MAX_VCPUS);
+	DECLARE_BITMAP(fallback_req_vcpu_mask, KVM_MAX_VCPUS);
+
+	if (!data || !data->type)
+		return;
+
+	bitmap_zero(req_vcpu_mask, KVM_MAX_VCPUS);
+	bitmap_zero(fallback_req_vcpu_mask, KVM_MAX_VCPUS);
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		if (hbase != -1UL) {
+			if (vcpu->vcpu_id < hbase ||
+				vcpu->vcpu_id >= hbase + BITS_PER_LONG)
+				continue;
+			if (!(hmask & (1UL << (vcpu->vcpu_id - hbase))))
+				continue;
+		}
 
 		/*
 		 * Enqueue hfence data to VCPU hfence queue. If we don't
@@ -356,17 +425,19 @@ static void make_xfence_request(struct kvm *kvm,
 		 * a more conservative hfence request.
 		 */
 		if (!vcpu_hfence_enqueue(vcpu, data))
-			actual_req = fallback_req;
+			bitmap_set(fallback_req_vcpu_mask, i, 1);
+		else
+			bitmap_set(req_vcpu_mask, i, 1);
 	}
 
-	kvm_make_vcpus_request_mask(kvm, actual_req, vcpu_mask);
+	kvm_make_vcpus_request_mask(kvm, req, req_vcpu_mask);
+	kvm_make_vcpus_request_mask(kvm, fallback_req, fallback_req_vcpu_mask);
 }
 
 void kvm_riscv_fence_i(struct kvm *kvm,
 		       unsigned long hbase, unsigned long hmask)
 {
-	make_xfence_request(kvm, hbase, hmask, KVM_REQ_FENCE_I,
-			    KVM_REQ_FENCE_I, NULL);
+	make_xfence_request_nodata(kvm, hbase, hmask, KVM_REQ_FENCE_I);
 }
 
 void kvm_riscv_hfence_gvma_vmid_gpa(struct kvm *kvm,

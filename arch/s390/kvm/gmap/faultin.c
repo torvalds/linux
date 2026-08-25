@@ -9,10 +9,11 @@
 #include <linux/kvm_host.h>
 
 #include "gmap.h"
-#include "trace.h"
 #include "faultin.h"
 
 bool kvm_arch_setup_async_pf(struct kvm_vcpu *vcpu);
+#define CREATE_TRACE_POINTS
+#include "trace_gmap.h"
 
 /*
  * kvm_s390_faultin_gfn() - handle a dat fault.

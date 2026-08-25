@@ -14,7 +14,7 @@
 #include <asm/pci_io.h>
 #include <asm/sclp.h>
 #include "pci.h"
-#include "kvm-s390.h"
+#include "s390.h"
 
 struct zpci_aift *aift;
 

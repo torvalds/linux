@@ -181,7 +181,7 @@ static void race_sync_regs(struct kvm_vcpu *vcpu, void *racer)
 		    !!(run->s.regs.sregs.cr4 & X86_CR4_PAE),
 		    !!(run->s.regs.sregs.efer & EFER_LME));
 
-	TEST_ASSERT_EQ(pthread_create(&thread, NULL, racer, (void *)run), 0);
+	kvm_pthread_create(&thread, NULL, racer, (void *)run);
 
 	for (t = time(NULL) + TIMEOUT; time(NULL) < t;) {
 		/*
@@ -199,8 +199,7 @@ static void race_sync_regs(struct kvm_vcpu *vcpu, void *racer)
 		}
 	}
 
-	TEST_ASSERT_EQ(pthread_cancel(thread), 0);
-	TEST_ASSERT_EQ(pthread_join(thread, NULL), 0);
+	kvm_pthread_cancel_join(thread);
 
 	kvm_x86_state_cleanup(state);
 }

@@ -791,6 +791,7 @@ struct kvm {
 	/* The current active memslot set for each address space */
 	struct kvm_memslots __rcu *memslots[KVM_MAX_NR_ADDRESS_SPACES];
 	struct xarray vcpu_array;
+	DECLARE_BITMAP(vcpu_ids, KVM_MAX_VCPU_IDS);
 	/*
 	 * Protected by slots_lock, but can be read outside if an
 	 * incorrect answer is acceptable.
@@ -987,6 +988,13 @@ static inline struct kvm_io_bus *kvm_get_bus(struct kvm *kvm, enum kvm_bus idx)
 {
 	return rcu_dereference_protected(kvm->buses[idx],
 					 lockdep_is_held(&kvm->slots_lock));
+}
+
+static inline void kvm_lockdep_assert_vcpu_is_locked_or_unreachable(struct kvm_vcpu *vcpu)
+{
+	lockdep_assert_once(lockdep_is_held(&vcpu->mutex) ||
+			    vcpu->vcpu_idx < 0 ||
+			    !refcount_read(&vcpu->kvm->users_count));
 }
 
 static inline struct kvm_vcpu *kvm_get_vcpu(struct kvm *kvm, int i)
@@ -1412,6 +1420,25 @@ static inline void kvm_vcpu_map_mark_dirty(struct kvm_vcpu *vcpu,
 	if (kvm_vcpu_mapped(map))
 		kvm_vcpu_mark_page_dirty(vcpu, map->gfn);
 }
+
+typedef struct {
+	struct kvm_vcpu *vcpu;
+	struct kvm_host_map map;
+	int ret;
+} kvm_vcpu_local_map_t;
+
+#define DEFINE_VCPU_MAP_CLASS(ro)					\
+DEFINE_CLASS(kvm_vcpu_map_local##ro, kvm_vcpu_local_map_t,		\
+	     if (!_T.ret) kvm_vcpu_unmap(_T.vcpu, &_T.map),		\
+	     ({								\
+		kvm_vcpu_local_map_t m = { .vcpu = vcpu };		\
+									\
+		m.ret = kvm_vcpu_map##ro(vcpu, gfn, &m.map);		\
+									\
+		m;							\
+	     }), struct kvm_vcpu *vcpu, gfn_t gfn);
+DEFINE_VCPU_MAP_CLASS();
+DEFINE_VCPU_MAP_CLASS(_readonly);
 
 unsigned long kvm_vcpu_gfn_to_hva(struct kvm_vcpu *vcpu, gfn_t gfn);
 unsigned long kvm_vcpu_gfn_to_hva_prot(struct kvm_vcpu *vcpu, gfn_t gfn, bool *writable);
@@ -2572,8 +2599,9 @@ static inline int kvm_gmem_get_pfn(struct kvm *kvm,
 }
 #endif /* CONFIG_KVM_GUEST_MEMFD */
 
-#ifdef CONFIG_HAVE_KVM_ARCH_GMEM_PREPARE
-int kvm_arch_gmem_prepare(struct kvm *kvm, gfn_t gfn, kvm_pfn_t pfn, int max_order);
+#ifdef CONFIG_HAVE_KVM_ARCH_GMEM_CONVERT
+int kvm_arch_gmem_make_private(struct kvm *kvm, gfn_t gfn, kvm_pfn_t pfn,
+			       kvm_pfn_t nr_pages);
 #endif
 
 #ifdef CONFIG_HAVE_KVM_ARCH_GMEM_POPULATE
@@ -2606,8 +2634,12 @@ long kvm_gmem_populate(struct kvm *kvm, gfn_t start_gfn, void __user *src,
 		       kvm_gmem_populate_cb post_populate, void *opaque);
 #endif
 
+#ifdef CONFIG_HAVE_KVM_ARCH_GMEM_RECLAIM
+void kvm_arch_gmem_reclaim(kvm_pfn_t pfn, kvm_pfn_t nr_pages);
+#endif
+
 #ifdef CONFIG_HAVE_KVM_ARCH_GMEM_INVALIDATE
-void kvm_arch_gmem_invalidate(kvm_pfn_t start, kvm_pfn_t end);
+void kvm_arch_gmem_invalidate_range(struct kvm *kvm, struct kvm_gfn_range *range);
 #endif
 
 #ifdef CONFIG_KVM_GENERIC_PRE_FAULT_MEMORY

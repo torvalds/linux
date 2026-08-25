@@ -527,6 +527,46 @@ void test_single_step_from_userspace(int test_cnt)
 	kvm_vm_free(vm);
 }
 
+static void guest_code_wp(void)
+{
+	write_data = 'x';
+	GUEST_DONE();
+}
+
+/*
+ * A userspace hardware watchpoint (KVM_GUESTDBG_USE_HW) must fire and report
+ * the accessed address in debug.arch.far, exercising the watchpoint exit path.
+ */
+static void test_watchpoint_from_userspace(void)
+{
+	struct kvm_guest_debug debug = {};
+	struct kvm_vcpu *vcpu;
+	struct kvm_run *run;
+	struct kvm_vm *vm;
+
+	vm = vm_create_with_one_vcpu(&vcpu, guest_code_wp);
+	run = vcpu->run;
+
+	debug.control = KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_USE_HW;
+	debug.arch.dbg_wcr[0] = DBGWCR_LEN8 | DBGWCR_RD | DBGWCR_WR |
+				DBGWCR_EL1 | DBGWCR_E;
+	/*
+	 * BAS = 0xff (LEN8) requires a doubleword-aligned DBGWVR; FAR still
+	 * reports the exact accessed byte.
+	 */
+	debug.arch.dbg_wvr[0] = PC(write_data) & ~7UL;
+	vcpu_guest_debug_set(vcpu, &debug);
+
+	vcpu_run(vcpu);
+	TEST_ASSERT(run->exit_reason == KVM_EXIT_DEBUG,
+		    "Expected KVM_EXIT_DEBUG, got %u", run->exit_reason);
+	TEST_ASSERT((u64)run->debug.arch.far == PC(write_data),
+		    "Watchpoint FAR 0x%lx != accessed address 0x%lx",
+		    (u64)run->debug.arch.far, PC(write_data));
+
+	kvm_vm_free(vm);
+}
+
 /*
  * Run debug testing using the various breakpoint#, watchpoint# and
  * context-aware breakpoint# with the given ID_AA64DFR0_EL1 configuration.
@@ -600,6 +640,7 @@ int main(int argc, char *argv[])
 
 	test_guest_debug_exceptions_all(aa64dfr0);
 	test_single_step_from_userspace(ss_iteration);
+	test_watchpoint_from_userspace();
 
 	return 0;
 }

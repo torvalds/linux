@@ -32,6 +32,39 @@ enum lapic_mode {
 	LAPIC_MODE_X2APIC = MSR_IA32_APICBASE_ENABLE | X2APIC_ENABLE,
 };
 
+/*
+ * Track the mode of the optimized logical map, as the rules for decoding the
+ * destination vary per mode.  Enabling the optimized logical map requires all
+ * software-enabled local APIs to be in the same mode, each addressable APIC to
+ * be mapped to only one MDA, and each MDA to map to at most one APIC.
+ */
+enum kvm_apic_logical_mode {
+	/* All local APICs are software disabled. */
+	KVM_APIC_MODE_SW_DISABLED,
+	/* All software enabled local APICs in xAPIC cluster addressing mode. */
+	KVM_APIC_MODE_XAPIC_CLUSTER,
+	/* All software enabled local APICs in xAPIC flat addressing mode. */
+	KVM_APIC_MODE_XAPIC_FLAT,
+	/* All software enabled local APICs in x2APIC mode. */
+	KVM_APIC_MODE_X2APIC,
+	/*
+	 * Optimized map disabled, e.g. not all local APICs in the same logical
+	 * mode, same logical ID assigned to multiple APICs, etc.
+	 */
+	KVM_APIC_MODE_MAP_DISABLED,
+};
+
+struct kvm_apic_map {
+	struct rcu_head rcu;
+	enum kvm_apic_logical_mode logical_mode;
+	u32 max_apic_id;
+	union {
+		struct kvm_lapic *xapic_flat_map[8];
+		struct kvm_lapic *xapic_cluster_map[16][4];
+	};
+	struct kvm_lapic *phys_map[];
+};
+
 enum lapic_lvt_entry {
 	LVT_TIMER,
 	LVT_THERMAL_MONITOR,
@@ -131,6 +164,9 @@ static inline int kvm_irq_delivery_to_apic(struct kvm *kvm,
 }
 
 void kvm_apic_send_ipi(struct kvm_lapic *apic, u32 icr_low, u32 icr_high);
+int kvm_pv_send_ipi(struct kvm *kvm, unsigned long ipi_bitmap_low,
+		    unsigned long ipi_bitmap_high, u32 min,
+		    unsigned long icr, int op_64_bit);
 
 int kvm_apic_set_base(struct kvm_vcpu *vcpu, u64 value, bool host_initiated);
 int kvm_apic_get_state(struct kvm_vcpu *vcpu, struct kvm_lapic_state *s);
@@ -235,6 +271,11 @@ static inline bool kvm_apic_init_sipi_allowed(struct kvm_vcpu *vcpu)
 static inline int kvm_lapic_latched_init(struct kvm_vcpu *vcpu)
 {
 	return lapic_in_kernel(vcpu) && test_bit(KVM_APIC_INIT, &vcpu->arch.apic->pending_events);
+}
+
+static inline u16 kvm_lapic_irq_dest_mode(bool dest_mode_logical)
+{
+	return dest_mode_logical ? APIC_DEST_LOGICAL : APIC_DEST_PHYSICAL;
 }
 
 bool kvm_apic_pending_eoi(struct kvm_vcpu *vcpu, int vector);

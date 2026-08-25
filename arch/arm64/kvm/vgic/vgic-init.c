@@ -176,6 +176,7 @@ int kvm_vgic_create(struct kvm *kvm, u32 type)
 		}
 
 		kvm->arch.vgic.vgic_model = 0;
+		kvm->arch.vgic.in_kernel = false;
 		goto out_unlock;
 	}
 
@@ -209,6 +210,9 @@ static int kvm_vgic_dist_init(struct kvm *kvm, unsigned int nr_spis)
 	struct vgic_dist *dist = &kvm->arch.vgic;
 	struct kvm_vcpu *vcpu0 = kvm_get_vcpu(kvm, 0);
 	int i;
+
+	if (dist->spis)
+		return 0;
 
 	dist->active_spis = (atomic_t)ATOMIC_INIT(0);
 	dist->spis = kzalloc_objs(struct vgic_irq, nr_spis, GFP_KERNEL_ACCOUNT);
@@ -787,7 +791,8 @@ int kvm_vgic_hyp_init(void)
 
 	if (has_mask && !gic_kvm_info->maint_irq) {
 		kvm_err("No vgic maintenance irq\n");
-		return -ENXIO;
+		ret = -ENXIO;
+		goto out_free;
 	}
 
 	/*
@@ -820,6 +825,7 @@ int kvm_vgic_hyp_init(void)
 
 	kvm_vgic_global_state.maint_irq = gic_kvm_info->maint_irq;
 
+out_free:
 	kfree(gic_kvm_info);
 	gic_kvm_info = NULL;
 

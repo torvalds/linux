@@ -119,10 +119,24 @@ void kvm_restore_timer(struct kvm_vcpu *vcpu)
 	delta = 0;
 	now = ktime_get();
 	expire = vcpu->arch.expire;
+	if (!expire) {
+		/*
+		 * vcpu->arch.expire is host-internal and is not migrated,
+		 * so it is 0 after migration. Reload the remaining countdown
+		 * from the migrated TVAL. This covers both one-shot and
+		 * periodic timers.
+		 */
+		if (ticks < cfg)
+			delta = tick_to_ns(vcpu, ticks);
+		expire = ktime_add_ns(now, delta);
+	}
+
 	if (ktime_before(now, expire))
 		delta = ktime_to_tick(vcpu, ktime_sub(expire, now));
 	else if (cfg & CSR_TCFG_PERIOD) {
 		period = cfg & CSR_TCFG_VAL;
+		if (!period)
+			period = 1;
 		delta = ktime_to_tick(vcpu, ktime_sub(now, expire));
 		delta = period - (delta % period);
 

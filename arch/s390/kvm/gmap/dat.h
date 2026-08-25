@@ -6,9 +6,10 @@
  *    Author(s): Claudio Imbrenda <imbrenda@linux.ibm.com>
  */
 
-#ifndef __KVM_S390_DAT_H
-#define __KVM_S390_DAT_H
+#ifndef ARCH_KVM_GMAP_DAT_H
+#define ARCH_KVM_GMAP_DAT_H
 
+#include <linux/kvm_host.h>
 #include <linux/radix-tree.h>
 #include <linux/refcount.h>
 #include <linux/io.h>
@@ -532,6 +533,8 @@ int dat_entry_walk(struct kvm_s390_mmu_cache *mc, gfn_t gfn, union asce asce, in
 void dat_free_level(struct crst_table *table, bool owns_ptes);
 struct crst_table *dat_alloc_crst_sleepable(unsigned long init);
 int dat_set_asce_limit(struct kvm_s390_mmu_cache *mc, union asce *asce, int newtype);
+
+#if KVM_S390_MANAGES_S390_GUEST
 int dat_get_storage_key(union asce asce, gfn_t gfn, union skey *skey);
 int dat_set_storage_key(struct kvm_s390_mmu_cache *mc, union asce asce, gfn_t gfn,
 			union skey skey, bool nq);
@@ -539,21 +542,33 @@ int dat_cond_set_storage_key(struct kvm_s390_mmu_cache *mmc, union asce asce, gf
 			     union skey skey, union skey *oldkey, bool nq, bool mr, bool mc);
 int dat_reset_reference_bit(union asce asce, gfn_t gfn, union skey *skey);
 long dat_reset_skeys(union asce asce, gfn_t start);
+#endif /* KVM_S390_MANAGES_S390_GUEST */
 
 unsigned long dat_get_ptval(struct page_table *table, struct ptval_param param);
 void dat_set_ptval(struct page_table *table, struct ptval_param param, unsigned long val);
 
 int dat_set_slot(struct kvm_s390_mmu_cache *mc, union asce asce, gfn_t start, gfn_t end,
 		 u16 type, u16 param);
+
+#if KVM_S390_MANAGES_S390_GUEST
 int dat_set_prefix_notif_bit(union asce asce, gfn_t gfn);
+#else
+static inline int dat_set_prefix_notif_bit(union asce asce, gfn_t gfn)
+{
+	return 0;
+}
+#endif /* KVM_S390_MANAGES_S390_GUEST */
+
 bool dat_test_age_gfn(union asce asce, gfn_t start, gfn_t end);
 
+#if KVM_S390_MANAGES_S390_GUEST
 int dat_perform_essa(union asce asce, gfn_t gfn, int orc, union essa_state *state, bool *dirty);
 long dat_reset_cmma(union asce asce, gfn_t start_gfn);
 int dat_peek_cmma(gfn_t start, union asce asce, unsigned int *count, u8 *values);
 int dat_get_cmma(union asce asce, gfn_t *start, unsigned int *count, u8 *values, atomic64_t *rem);
 int dat_set_cmma_bits(struct kvm_s390_mmu_cache *mc, union asce asce, gfn_t gfn,
 		      unsigned long count, unsigned long mask, const uint8_t *bits);
+#endif /* KVM_S390_MANAGES_S390_GUEST */
 
 int kvm_s390_mmu_cache_topup(struct kvm_s390_mmu_cache *mc);
 
@@ -975,4 +990,4 @@ static inline bool crste_is_ucas(union crste crste)
 	return is_pmd(crste) && crste.h.i && crste.h.fc0.tl == 1 && crste.h.fc == 0;
 }
 
-#endif /* __KVM_S390_DAT_H */
+#endif /* ARCH_KVM_GMAP_DAT_H */

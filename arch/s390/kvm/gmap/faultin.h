@@ -6,8 +6,8 @@
  *    Author(s): Claudio Imbrenda <imbrenda@linux.ibm.com>
  */
 
-#ifndef __KVM_S390_FAULTIN_H
-#define __KVM_S390_FAULTIN_H
+#ifndef ARCH_KVM_GMAP_FAULTIN_H
+#define ARCH_KVM_GMAP_FAULTIN_H
 
 #include <linux/kvm_host.h>
 
@@ -89,4 +89,4 @@ static inline int kvm_s390_get_guest_pages(struct kvm *kvm, struct guest_fault *
 #define kvm_s390_array_needs_retry_safe(kvm, seq, array) \
 	kvm_s390_multiple_faults_need_retry(kvm, seq, array, ARRAY_SIZE(array), false)
 
-#endif /* __KVM_S390_FAULTIN_H */
+#endif /* ARCH_KVM_GMAP_FAULTIN_H */

@@ -36,16 +36,13 @@ static void l2_guest_code(void)
 
 static void l1_guest_code(struct vmx_pages *vmx_pages, unsigned long high_gpa)
 {
-#define L2_GUEST_STACK_SIZE 64
-	unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
 	u32 control;
 
 	GUEST_ASSERT(prepare_for_vmx_operation(vmx_pages));
 	GUEST_ASSERT(load_vmcs(vmx_pages));
 
 	/* Prepare the VMCS for L2 execution. */
-	prepare_vmcs(vmx_pages, l2_guest_code,
-		     &l2_guest_stack[L2_GUEST_STACK_SIZE]);
+	prepare_vmcs(vmx_pages, l2_guest_code);
 	control = vmreadz(CPU_BASED_VM_EXEC_CONTROL);
 	control |= CPU_BASED_ACTIVATE_SECONDARY_CONTROLS;
 	vmwrite(CPU_BASED_VM_EXEC_CONTROL, control);

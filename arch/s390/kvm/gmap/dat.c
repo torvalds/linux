@@ -613,6 +613,7 @@ long _dat_walk_gfn_range(gfn_t start, gfn_t end, union asce asce,
 	return dat_crste_walk_range(start, min(end, asce_end(asce)), table, &walk);
 }
 
+#if KVM_S390_MANAGES_S390_GUEST
 int dat_get_storage_key(union asce asce, gfn_t gfn, union skey *skey)
 {
 	union crste *crstep;
@@ -722,9 +723,12 @@ int dat_cond_set_storage_key(struct kvm_s390_mmu_cache *mmc, union asce asce, gf
 	if (rc)
 		return rc;
 
-	if (!ptep)
+	if (!ptep) {
+		if (!oldkey)
+			oldkey = &prev;
 		return page_cond_set_storage_key(large_crste_to_phys(*crstep, gfn), skey, oldkey,
 						 nq, mr, mc);
+	}
 
 	old = pgste_get_lock(ptep);
 	pgste = old;
@@ -734,6 +738,7 @@ int dat_cond_set_storage_key(struct kvm_s390_mmu_cache *mmc, union asce asce, gf
 	pgste.fp = skey.fp;
 	pgste.gc = skey.c;
 	pgste.gr = skey.r;
+	prev.skey = 0;
 
 	if (!ptep->h.i) {
 		rc = page_cond_set_storage_key(pte_origin(*ptep), skey, &prev, nq, mr, mc);
@@ -839,6 +844,7 @@ long dat_reset_skeys(union asce asce, gfn_t start)
 
 	return _dat_walk_gfn_range(start, asce_end(asce), asce, &ops, DAT_WALK_IGN_HOLES, NULL);
 }
+#endif /* KVM_S390_MANAGES_S390_GUEST */
 
 struct slot_priv {
 	unsigned long token;
@@ -920,11 +926,8 @@ static void pgste_set_unlock_multiple(union pte *first, int n, union pgste *pgst
 {
 	int i;
 
-	for (i = 0; i < n; i++) {
-		if (!pgstes[i].pcl)
-			break;
+	for (i = 0; i < n; i++)
 		pgste_set_unlock(first + i, pgstes[i]);
-	}
 }
 
 static bool pgste_get_trylock_multiple(union pte *first, int n, union pgste *pgstes)
@@ -937,7 +940,7 @@ static bool pgste_get_trylock_multiple(union pte *first, int n, union pgste *pgs
 	}
 	if (i == n)
 		return true;
-	pgste_set_unlock_multiple(first, n, pgstes);
+	pgste_set_unlock_multiple(first, i, pgstes);
 	return false;
 }
 
@@ -1009,6 +1012,7 @@ bool dat_test_age_gfn(union asce asce, gfn_t start, gfn_t end)
 	return _dat_walk_gfn_range(start, end, asce, &test_age_ops, 0, NULL) > 0;
 }
 
+#if KVM_S390_MANAGES_S390_GUEST
 static long dat_set_pn_crste(union crste *crstep, gfn_t gfn, gfn_t next, struct dat_walk *walk)
 {
 	union crste newcrste, oldcrste;
@@ -1334,3 +1338,4 @@ int dat_set_cmma_bits(struct kvm_s390_mmu_cache *mc, union asce asce, gfn_t gfn,
 	}
 	return _dat_walk_gfn_range(gfn, gfn + count, asce, &ops, DAT_WALK_IGN_HOLES, &state);
 }
+#endif /* KVM_S390_MANAGES_S390_GUEST */

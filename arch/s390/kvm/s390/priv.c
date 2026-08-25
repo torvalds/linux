@@ -26,7 +26,7 @@
 #include <asm/ap.h>
 #include <asm/gmap_helpers.h>
 #include "gaccess.h"
-#include "kvm-s390.h"
+#include "s390.h"
 #include "trace.h"
 #include "gmap.h"
 

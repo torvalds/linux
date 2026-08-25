@@ -40,7 +40,6 @@ static void vgic_v5_get_implemented_ppis(void)
 int vgic_v5_probe(const struct gic_kvm_info *info)
 {
 	bool v5_registered = false;
-	u64 ich_vtr_el2;
 	int ret;
 
 	kvm_vgic_global_state.type = VGIC_V5;
@@ -83,14 +82,12 @@ skip_v5:
 	}
 
 	kvm_vgic_global_state.has_gcie_v3_compat = true;
-	ich_vtr_el2 =  kvm_call_hyp_ret(__vgic_v3_get_gic_config);
-	kvm_vgic_global_state.ich_vtr_el2 = (u32)ich_vtr_el2;
 
 	/*
 	 * The ListRegs field is 5 bits, but there is an architectural
 	 * maximum of 16 list registers. Just ignore bit 4...
 	 */
-	kvm_vgic_global_state.nr_lr = (ich_vtr_el2 & 0xf) + 1;
+	kvm_vgic_global_state.nr_lr = (vgic_ich_vtr() & 0xf) + 1;
 
 	ret = kvm_register_vgic_device(KVM_DEV_TYPE_ARM_VGIC_V3);
 	if (ret) {

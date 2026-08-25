@@ -106,16 +106,19 @@ SYM_CODE_START_LOCAL(___kvm_hyp_init)
 	and	x2, x1, x2
 	cbz	x2, 1f
 
-	// hVHE: Replay the EL2 setup to account for the E2H bit
-	// TPIDR_EL2 is used to preserve x0 across the macro maze...
+	/*
+	 * hVHE: Replay the EL2 setup to account for the E2H bit
+	 * TPIDR_EL2 and FAR_EL2 are used to preserve x0 and LR across
+	 * the macro maze...
+	 */
 	isb
 	msr	tpidr_el2, x0
-	str	lr, [x0, #NVHE_INIT_TMP]
+	msr	far_el2, lr
 
 	bl	__kvm_init_el2_state
 
+	mrs	lr, far_el2
 	mrs	x0, tpidr_el2
-	ldr	lr, [x0, #NVHE_INIT_TMP]
 
 1:
 	ldr	x1, [x0, #NVHE_INIT_TPIDR_EL2]

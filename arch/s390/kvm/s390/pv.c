@@ -18,7 +18,7 @@
 #include <linux/sched/mm.h>
 #include <linux/mmu_notifier.h>
 #include <asm/gmap_helpers.h>
-#include "kvm-s390.h"
+#include "s390.h"
 #include "dat.h"
 #include "gaccess.h"
 #include "gmap.h"
@@ -242,6 +242,10 @@ static void kvm_s390_clear_pv_state(struct kvm *kvm)
 	kvm->arch.pv.guest_len = 0;
 	kvm->arch.pv.stor_base = 0;
 	kvm->arch.pv.stor_var = NULL;
+	if (kvm->arch.pv.dumping) {
+		kvm_s390_vcpu_unblock_all(kvm);
+		kvm->arch.pv.dumping = false;
+	}
 }
 
 static void kvm_s390_pv_dispose_cpu(struct kvm_vcpu *vcpu, bool free_stor_base)

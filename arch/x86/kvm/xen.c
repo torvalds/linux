@@ -22,6 +22,7 @@
 #include <xen/interface/version.h>
 #include <xen/interface/event_channel.h>
 #include <xen/interface/sched.h>
+#include <xen/xen-ops.h>
 
 #include <asm/xen/cpuid.h>
 #include <asm/pvclock.h>
@@ -97,8 +98,6 @@ static int kvm_xen_shared_info_init(struct kvm *kvm)
 
 	wc->version = wc_version + 1;
 	read_unlock_irq(&gpc->lock);
-
-	kvm_make_all_cpus_request(kvm, KVM_REQ_MASTERCLOCK_UPDATE);
 
 out:
 	srcu_read_unlock(&kvm->srcu, idx);
@@ -588,29 +587,45 @@ void kvm_xen_update_runstate(struct kvm_vcpu *v, int state)
 {
 	struct kvm_vcpu_xen *vx = &v->arch.xen;
 	u64 now = get_kvmclock_ns(v->kvm);
-	u64 delta_ns = now - vx->runstate_entry_time;
 	u64 run_delay = current->sched_info.run_delay;
+	s64 delta_ns = now - vx->runstate_entry_time;
+	s64 steal_ns = run_delay - vx->last_steal;
 
+	/*
+	 * If the vCPU was never run before, its prior state should
+	 * be considered RUNSTATE_offline.
+	 */
 	if (unlikely(!vx->runstate_entry_time))
 		vx->current_runstate = RUNSTATE_offline;
+
+	/*
+	 * If KVM clock went backwards, just update the current runstate
+	 * but don't account any time. Leave entry_time unchanged so the
+	 * next positive delta covers the full period once the clock
+	 * catches up. Update last_steal every time so stolen time only
+	 * reflects the interval since the most recent call.
+	 */
+	if (delta_ns < 0)
+		goto update_guest;
 
 	/*
 	 * Time waiting for the scheduler isn't "stolen" if the
 	 * vCPU wasn't running anyway.
 	 */
-	if (vx->current_runstate == RUNSTATE_running) {
-		u64 steal_ns = run_delay - vx->last_steal;
+	if (vx->current_runstate == RUNSTATE_running && steal_ns > 0) {
+		if (steal_ns > delta_ns)
+			steal_ns = delta_ns;
 
 		delta_ns -= steal_ns;
-
 		vx->runstate_times[RUNSTATE_runnable] += steal_ns;
 	}
-	vx->last_steal = run_delay;
 
 	vx->runstate_times[vx->current_runstate] += delta_ns;
-	vx->current_runstate = state;
 	vx->runstate_entry_time = now;
 
+ update_guest:
+	vx->current_runstate = state;
+	vx->last_steal = run_delay;
 	if (vx->runstate_cache.active)
 		kvm_xen_update_runstate_guest(v, state == RUNSTATE_runnable);
 }
@@ -1103,6 +1118,8 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 		break;
 
 	case KVM_XEN_VCPU_ATTR_TYPE_VCPU_ID:
+		BUILD_BUG_ON(XEN_VCPU_ID_INVALID < KVM_MAX_VCPUS);
+
 		if (data->u.vcpu_id >= KVM_MAX_VCPUS)
 			r = -EINVAL;
 		else {
@@ -1607,16 +1624,28 @@ static bool kvm_xen_hcall_vcpu_op(struct kvm_vcpu *vcpu, bool longmode, int cmd,
 	struct vcpu_set_singleshot_timer oneshot;
 	struct x86_exception e;
 
+	if (cmd != VCPUOP_set_singleshot_timer &&
+	    cmd != VCPUOP_stop_singleshot_timer)
+		return false;
+
 	if (!kvm_xen_timer_enabled(vcpu))
 		return false;
 
-	switch (cmd) {
-	case VCPUOP_set_singleshot_timer:
-		if (vcpu->arch.xen.vcpu_id != vcpu_id) {
-			*r = -EINVAL;
-			return true;
-		}
+	if (vcpu->arch.xen.vcpu_id == XEN_VCPU_ID_INVALID)
+		return false;
 
+	/*
+	 * Reject the hypercall if the guest is trying to start/stop the timer
+	 * for a different vCPU.  Xen per-vCPU hypercalls take a target vCPU as
+	 * a common parameter, as all per-vCPU hypercalls *except* single-shot
+	 * timer updates can be cross-vCPU.
+	 */
+	if (vcpu->arch.xen.vcpu_id != vcpu_id) {
+		*r = -EINVAL;
+		return true;
+	}
+
+	if (cmd == VCPUOP_set_singleshot_timer) {
 		/*
 		 * The only difference for 32-bit compat is the 4 bytes of
 		 * padding after the interesting part of the structure. So
@@ -1640,20 +1669,12 @@ static bool kvm_xen_hcall_vcpu_op(struct kvm_vcpu *vcpu, bool longmode, int cmd,
 		}
 
 		kvm_xen_start_timer(vcpu, oneshot.timeout_abs_ns, false);
-		*r = 0;
-		return true;
-
-	case VCPUOP_stop_singleshot_timer:
-		if (vcpu->arch.xen.vcpu_id != vcpu_id) {
-			*r = -EINVAL;
-			return true;
-		}
+	} else {
 		kvm_xen_stop_timer(vcpu);
-		*r = 0;
-		return true;
 	}
 
-	return false;
+	*r = 0;
+	return true;
 }
 
 static bool kvm_xen_hcall_set_timer_op(struct kvm_vcpu *vcpu, uint64_t timeout,
@@ -2299,7 +2320,7 @@ static bool kvm_xen_hcall_evtchn_send(struct kvm_vcpu *vcpu, u64 param, u64 *r)
 
 void kvm_xen_init_vcpu(struct kvm_vcpu *vcpu)
 {
-	vcpu->arch.xen.vcpu_id = vcpu->vcpu_idx;
+	vcpu->arch.xen.vcpu_id = XEN_VCPU_ID_INVALID;
 	vcpu->arch.xen.poll_evtchn = 0;
 
 	timer_setup(&vcpu->arch.xen.poll_timer, cancel_evtchn_poll, 0);
