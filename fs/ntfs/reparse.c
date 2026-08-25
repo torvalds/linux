@@ -24,6 +24,25 @@ struct wsl_link_reparse_data {
 	char	link[];
 };
 
+struct wof_reparse_data {
+	__le32 version;
+	__le32 provider;
+	__le32 provider_version;
+	__le32 compression_format;
+} __packed;
+
+#define WOF_CURRENT_VERSION			cpu_to_le32(1)
+
+#define WOF_PROVIDER_WIM			cpu_to_le32(1)
+#define WOF_PROVIDER_FILE			cpu_to_le32(2)
+
+#define WOF_PROVIDER_CURRENT_VERSION		cpu_to_le32(1)
+
+#define WOF_COMPRESSION_XPRESS4K		cpu_to_le32(0)
+#define WOF_COMPRESSION_LZX			cpu_to_le32(1)
+#define WOF_COMPRESSION_XPRESS8K		cpu_to_le32(2)
+#define WOF_COMPRESSION_XPRESS16K		cpu_to_le32(3)
+
 static bool reparse_name_is_valid(size_t size, size_t name_off, u16 len)
 {
 	if ((name_off | len) & 1)
@@ -203,6 +222,12 @@ static bool valid_reparse_data(struct ntfs_inode *ni,
 		    !(ni->flags & FILE_ATTRIBUTE_RECALL_ON_OPEN))
 			return false;
 		break;
+	case IO_REPARSE_TAG_WOF: {
+		if (!valid_reparse_buffer(ni, reparse_attr, size,
+					  sizeof(struct wof_reparse_data)))
+			return false;
+		break;
+	}
 	default:
 		if (!valid_reparse_buffer(ni, reparse_attr, size, 0))
 			return false;
@@ -239,88 +264,136 @@ static unsigned int ntfs_reparse_tag_mode(__le32 reparse_tag)
 }
 
 /*
- * Get the target for symbolic link
+ * Parse reparse point data and initialize its in-memory representation.
  */
-unsigned int ntfs_make_symlink(struct ntfs_inode *ni)
+int ntfs_parse_reparse(struct ntfs_inode *ni, unsigned int *mode)
 {
 	s64 attr_size = 0;
-	int err;
+	int err = -EINVAL;
 	unsigned int lth;
 	struct reparse_point *reparse_attr;
-	unsigned int mode = 0;
 
 	kvfree(ni->target);
 	ni->target = NULL;
 	ni->reparse_tag = 0;
 	ni->reparse_flags = 0;
+	*mode = 0;
 
 	reparse_attr = ntfs_attr_readall(ni, AT_REPARSE_POINT, NULL, 0,
 					 &attr_size);
-	if (reparse_attr &&
-	    valid_reparse_data(ni, reparse_attr, attr_size)) {
-		err = -EINVAL;
+	if (IS_ERR(reparse_attr)) {
+		err = PTR_ERR(reparse_attr);
+		ntfs_error(ni->vol->sb,
+			   "Failed to read reparse point: %d.", err);
+		return err;
+	}
+	if (!valid_reparse_data(ni, reparse_attr, attr_size)) {
+		ntfs_error(ni->vol->sb, "Invalid reparse point.");
+		err = -EFSCORRUPTED;
+		goto out;
+	}
 
-		switch (reparse_attr->reparse_tag) {
-		case IO_REPARSE_TAG_MOUNT_POINT:
-		{
-			struct mount_point_reparse_data *data =
-				(struct mount_point_reparse_data *)reparse_attr->reparse_data;
-			const __le16 *name = (const __le16 *)((u8 *)data->path_buffer +
-					      le16_to_cpu(data->substitute_name_offset));
+	switch (reparse_attr->reparse_tag) {
+	case IO_REPARSE_TAG_MOUNT_POINT:
+	{
+		struct mount_point_reparse_data *data =
+			(struct mount_point_reparse_data *)reparse_attr->reparse_data;
+		const __le16 *name = (const __le16 *)((u8 *)data->path_buffer +
+				      le16_to_cpu(data->substitute_name_offset));
 
-			err = ntfs_reparse_target_to_nls(ni->vol,
-							 name,
-							 le16_to_cpu(data->substitute_name_length),
-							 &ni->target);
-			break;
-		}
-		case IO_REPARSE_TAG_SYMLINK:
-		{
-			struct symlink_reparse_data *data =
-				(struct symlink_reparse_data *)reparse_attr->reparse_data;
-			const __le16 *name = (const __le16 *)((u8 *)data->path_buffer +
-							le16_to_cpu(data->substitute_name_offset));
+		err = ntfs_reparse_target_to_nls(ni->vol,
+						 name,
+						 le16_to_cpu(data->substitute_name_length),
+						 &ni->target);
+		break;
+	}
+	case IO_REPARSE_TAG_SYMLINK:
+	{
+		struct symlink_reparse_data *data =
+			(struct symlink_reparse_data *)reparse_attr->reparse_data;
+		const __le16 *name = (const __le16 *)((u8 *)data->path_buffer +
+						le16_to_cpu(data->substitute_name_offset));
 
-			err = ntfs_reparse_target_to_nls(ni->vol,
-							 name,
-							 le16_to_cpu(data->substitute_name_length),
-							 &ni->target);
-			if (!err)
-				ni->reparse_flags = data->flags;
-			break;
-		}
-		case IO_REPARSE_TAG_LX_SYMLINK:
-		{
-			struct wsl_link_reparse_data *wsl_link_data =
-				(struct wsl_link_reparse_data *)reparse_attr->reparse_data;
+		err = ntfs_reparse_target_to_nls(ni->vol,
+						 name,
+						 le16_to_cpu(data->substitute_name_length),
+						 &ni->target);
+		if (!err)
+			ni->reparse_flags = data->flags;
+		break;
+	}
+	case IO_REPARSE_TAG_LX_SYMLINK:
+	{
+		struct wsl_link_reparse_data *wsl_link_data =
+			(struct wsl_link_reparse_data *)reparse_attr->reparse_data;
 
-			if (wsl_link_data->type == cpu_to_le32(2)) {
-				lth = le16_to_cpu(reparse_attr->reparse_data_length) -
-					  sizeof(wsl_link_data->type);
-				ni->target = kvzalloc(lth + 1, GFP_NOFS);
-				if (ni->target) {
-					memcpy(ni->target, wsl_link_data->link, lth);
-					ni->target[lth] = 0;
-					err = 0;
-				}
+		if (wsl_link_data->type == cpu_to_le32(2)) {
+			lth = le16_to_cpu(reparse_attr->reparse_data_length) -
+				  sizeof(wsl_link_data->type);
+			ni->target = kvzalloc(lth + 1, GFP_NOFS);
+			if (ni->target) {
+				memcpy(ni->target, wsl_link_data->link, lth);
+				ni->target[lth] = 0;
+				err = 0;
 			}
-			break;
 		}
-		default:
-			err = 0;
+		break;
+	}
+	case IO_REPARSE_TAG_WOF:
+	{
+#ifdef CONFIG_NTFS_FS_WOF_COMPRESSION
+		const struct wof_reparse_data *wof_data =
+			(const struct wof_reparse_data *)reparse_attr->reparse_data;
+
+		ni->itype.compressed.block_size_bits = 0;
+		ni->itype.compressed.block_size = 0;
+		if (wof_data->version == WOF_CURRENT_VERSION &&
+		    wof_data->provider == WOF_PROVIDER_FILE &&
+		    wof_data->provider_version ==
+			    WOF_PROVIDER_CURRENT_VERSION) {
+			switch (wof_data->compression_format) {
+			case WOF_COMPRESSION_XPRESS4K:
+				ni->itype.compressed.block_size_bits =
+					12;
+				break;
+			case WOF_COMPRESSION_XPRESS8K:
+				ni->itype.compressed.block_size_bits =
+					13;
+				break;
+			case WOF_COMPRESSION_XPRESS16K:
+				ni->itype.compressed.block_size_bits =
+					14;
+				break;
+			case WOF_COMPRESSION_LZX:
+				ni->itype.compressed.block_size_bits =
+					15;
+				break;
+			}
 		}
+		if (ni->itype.compressed.block_size_bits)
+			ni->itype.compressed.block_size =
+				1
+				<< ni->itype.compressed.block_size_bits;
+#endif
+		NInoSetWofCompressed(ni);
+		VFS_I(ni)->i_mode &= ~0222;
+		err = 0;
+		break;
+	}
+	default:
+		err = 0;
+	}
 
-		if (!err) {
-			mode = ntfs_reparse_tag_mode(reparse_attr->reparse_tag);
-			ni->reparse_tag = reparse_attr->reparse_tag;
-		}
-	} else
-		ni->flags &= ~FILE_ATTR_REPARSE_POINT;
+	if (!err) {
+		*mode = ntfs_reparse_tag_mode(
+			reparse_attr->reparse_tag);
+		ni->reparse_tag = reparse_attr->reparse_tag;
+	}
 
-	if (reparse_attr)
-		kvfree(reparse_attr);
+out:
+	kvfree(reparse_attr);
 
-	return mode;
+	return err;
 }
 
 unsigned int ntfs_reparse_tag_dt_types(struct ntfs_volume *vol, unsigned long mref)
@@ -336,6 +409,8 @@ unsigned int ntfs_reparse_tag_dt_types(struct ntfs_volume *vol, unsigned long mr
 
 	reparse_attr = (struct reparse_point *)ntfs_attr_readall(NTFS_I(vi),
 			AT_REPARSE_POINT, NULL, 0, &attr_size);
+	if (IS_ERR(reparse_attr))
+		reparse_attr = NULL;
 
 	if (reparse_attr && attr_size >= sizeof(*reparse_attr)) {
 		switch (reparse_attr->reparse_tag) {
@@ -358,8 +433,7 @@ unsigned int ntfs_reparse_tag_dt_types(struct ntfs_volume *vol, unsigned long mr
 		}
 	}
 
-	if (reparse_attr)
-		kvfree(reparse_attr);
+	kvfree(reparse_attr);
 
 	iput(vi);
 	return dt_type;
@@ -894,12 +968,7 @@ int ntfs_reparse_set_native_symlink(struct ntfs_inode *ni,
 
 	err = ntfs_set_ntfs_reparse_data(ni, (char *)reparse, total_reparse_len);
 	if (!err) {
-		int len = strlen(sub_name);
-
-		for (i = 0; i < len; i++) {
-			if (sub_name[i] == '\\')
-				sub_name[i] = '/';
-		}
+		strreplace(sub_name, '\\', '/');
 		ni->target = sub_name;
 		sub_name = NULL;
 		if (prt_sub_shared)

@@ -693,15 +693,42 @@ static bool ntfs_non_resident_attr_value_is_valid(const struct attr_record *a)
 	u32 attr_len;
 	u32 min_len;
 	u16 mp_offset;
+	u16 name_offset;
+	u32 name_end;
 
 	attr_len = le32_to_cpu(a->length);
 	min_len = offsetof(struct attr_record, data.non_resident.initialized_size) +
 		  sizeof(a->data.non_resident.initialized_size);
+
+	/* Sparse and compressed attributes have the extra compressed_size field */
+	if (a->flags & (ATTR_IS_SPARSE | ATTR_COMPRESSION_MASK))
+		min_len += sizeof(a->data.non_resident.compressed_size);
+
 	if (attr_len < min_len)
 		return false;
 
 	mp_offset = le16_to_cpu(a->data.non_resident.mapping_pairs_offset);
-	return mp_offset >= min_len && mp_offset <= attr_len;
+	if (mp_offset < min_len || mp_offset > attr_len)
+		return false;
+
+	if (a->name_length) {
+		name_offset = le16_to_cpu(a->name_offset);
+
+		if (name_offset < min_len || name_offset >= attr_len)
+			return false;
+
+		name_end = name_offset + a->name_length * sizeof(__le16);
+		if (name_end > attr_len || name_end > mp_offset)
+			return false;
+	}
+
+	/* Ensure there's room for the compressed_size field if needed. */
+	if (!(a->flags & (ATTR_IS_SPARSE | ATTR_COMPRESSION_MASK)) &&
+	    attr_len - mp_offset <
+			sizeof(a->data.non_resident.compressed_size))
+		return false;
+
+	return true;
 }
 
 static bool ntfs_attr_value_is_valid(struct ntfs_volume *vol,
@@ -2110,7 +2137,7 @@ int ntfs_attr_make_non_resident(struct ntfs_inode *ni, const u32 data_size)
 		ni->runlist.count = 0;
 	write_lock_irqsave(&ni->size_lock, flags);
 	ni->allocated_size = new_size;
-	if (NInoSparse(ni) || NInoCompressed(ni)) {
+	if ((NInoSparse(ni) && !NInoWofCompressed(ni)) || NInoCompressed(ni)) {
 		ni->itype.compressed.size = ni->allocated_size;
 		if (a->data.non_resident.compression_unit) {
 			ni->itype.compressed.block_size = 1U <<
@@ -3531,8 +3558,13 @@ int ntfs_attr_record_move_away(struct ntfs_attr_search_ctx *ctx, int extra)
 	unmap_mft_record(ni);
 
 	err = ntfs_attr_record_move_to(ctx, ni);
-	if (err)
+	if (err) {
 		ntfs_error(sb, "Couldn't move attribute to MFT record");
+		if (ntfs_mft_record_free(base_ni->vol, ni))
+			ntfs_error(sb, "Couldn't free empty MFT record");
+		else
+			ntfs_inode_close(ni);
+	}
 
 	return err;
 }
@@ -5264,6 +5296,7 @@ int ntfs_attr_remove(struct ntfs_inode *ni, const __le32 type, __le16 *name,
  * On success a buffer is allocated with the content of the attribute
  * and which needs to be freed when it's not needed anymore. If the
  * @data_size parameter is non-NULL then the data size is set there.
+ * On error, an ERR_PTR() containing the negative error code is returned.
  */
 void *ntfs_attr_readall(struct ntfs_inode *ni, const __le32 type,
 		__le16 *name, u32 name_len, s64 *data_size)
@@ -5278,6 +5311,7 @@ void *ntfs_attr_readall(struct ntfs_inode *ni, const __le32 type,
 
 	bmp_vi = ntfs_attr_iget(VFS_I(ni), type, name, name_len);
 	if (IS_ERR(bmp_vi)) {
+		ret = ERR_PTR(PTR_ERR(bmp_vi));
 		ntfs_debug("ntfs_attr_iget failed");
 		goto err_exit;
 	}
@@ -5287,17 +5321,21 @@ void *ntfs_attr_readall(struct ntfs_inode *ni, const __le32 type,
 		(bmp_ni->type != AT_BITMAP ||
 		bmp_ni->data_size > ((ni->vol->nr_clusters + 7) >> 3))) {
 		ntfs_error(sb, "Invalid attribute data size");
+		ret = ERR_PTR(-EIO);
 		goto out;
 	}
 
 	data = kvmalloc(bmp_ni->data_size, GFP_NOFS);
-	if (!data)
+	if (!data) {
+		ret = ERR_PTR(-ENOMEM);
 		goto out;
+	}
 
 	size = ntfs_inode_attr_pread(VFS_I(bmp_ni), 0, bmp_ni->data_size,
 			(u8 *)data);
 	if (size != bmp_ni->data_size) {
 		ntfs_error(sb, "ntfs_attr_pread failed");
+		ret = size < 0 ? ERR_PTR((int)size) : ERR_PTR(-EIO);
 		kvfree(data);
 		goto out;
 	}
