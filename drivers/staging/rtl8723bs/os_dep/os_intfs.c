@@ -19,7 +19,7 @@ static int rtw_rfintfs = HWPI;
 static int rtw_lbkmode;/* RTL8712_AIR_TRX; */
 
 
-static int rtw_network_mode = Ndis802_11IBSS;/* Ndis802_11Infrastructure;infra, ad-hoc, auto */
+static int rtw_network_mode = NL80211_IFTYPE_ADHOC;/* infra, ad-hoc, auto */
 /* struct ndis_802_11_ssid	ssid; */
 static int rtw_channel = 1;/* ad-hoc support requirement */
 static int rtw_wireless_mode = WIRELESS_11BG_24N;
@@ -143,7 +143,6 @@ module_param(rtw_wifi_spec, int, 0644);
 module_param(rtw_antdiv_cfg, int, 0644);
 module_param(rtw_antdiv_type, int, 0644);
 
-
 module_param(rtw_hw_wps_pbc, int, 0644);
 
 static uint rtw_max_roaming_times = 2;
@@ -176,7 +175,7 @@ MODULE_PARM_DESC(rtw_tx_pwr_by_rate, "0:Disable, 1:Enable, 2: Depend on efuse");
 
 static int netdev_close(struct net_device *pnetdev);
 
-static void loadparam(struct adapter *padapter, struct net_device *pnetdev)
+static void loadparam(struct adapter *padapter)
 {
 	struct registry_priv  *registry_par = &padapter->registrypriv;
 
@@ -237,7 +236,6 @@ static void loadparam(struct adapter *padapter, struct net_device *pnetdev)
 
 	registry_par->lowrate_two_xmit = (u8)rtw_lowrate_two_xmit;
 	registry_par->low_power = (u8)rtw_low_power;
-
 
 	registry_par->wifi_spec = (u8)rtw_wifi_spec;
 
@@ -334,7 +332,6 @@ static unsigned int rtw_classify8021d(struct sk_buff *skb)
 
 	return dscp >> 5;
 }
-
 
 static u16 rtw_select_queue(struct net_device *dev, struct sk_buff *skb,
 			    struct net_device *sb_dev)
@@ -442,7 +439,7 @@ struct net_device *rtw_init_netdev(struct adapter *old_padapter)
 	pnetdev->watchdog_timeo = HZ * 3; /* 3 second timeout */
 
 	/* step 2. */
-	loadparam(padapter, pnetdev);
+	loadparam(padapter);
 
 	return pnetdev;
 }
@@ -534,8 +531,8 @@ static void rtw_init_default_value(struct adapter *padapter)
 	psecuritypriv->sw_encrypt = pregistrypriv->software_encrypt;
 	psecuritypriv->sw_decrypt = pregistrypriv->software_decrypt;
 
-	psecuritypriv->dot11AuthAlgrthm = dot11AuthAlgrthm_Open; /* open system */
-	psecuritypriv->dot11PrivacyAlgrthm = _NO_PRIVACY_;
+	psecuritypriv->dot11_auth_algrthm = dot11_auth_algrthm_open; /* open system */
+	psecuritypriv->dot11_privacy_algrthm = _NO_PRIVACY_;
 
 	psecuritypriv->dot11PrivacyKeyIndex = 0;
 
@@ -633,7 +630,6 @@ void rtw_reset_drv_sw(struct adapter *padapter)
 	rtw_set_signal_stat_timer(&padapter->recvpriv);
 }
 
-
 u8 rtw_init_drv_sw(struct adapter *padapter)
 {
 	int res;
@@ -661,7 +657,6 @@ u8 rtw_init_drv_sw(struct adapter *padapter)
 
 	if (_rtw_init_recv_priv(&padapter->recvpriv, padapter) == _FAIL)
 		goto free_xmit_priv;
-	/*  add for CONFIG_IEEE80211W, none 11w also can use */
 	spin_lock_init(&padapter->security_key_mutex);
 
 	/*  We don't need to memset padapter->XXX to zero, because adapter is allocated by vzalloc(). */
@@ -791,7 +786,7 @@ int rtw_drv_register_netdev(struct adapter *if1)
 
 static int _netdev_open(struct net_device *pnetdev)
 {
-	uint status;
+	unsigned int status;
 	struct adapter *padapter = rtw_netdev_priv(pnetdev);
 	struct pwrctrl_priv *pwrctrlpriv = adapter_to_pwrctl(padapter);
 
@@ -803,7 +798,7 @@ static int _netdev_open(struct net_device *pnetdev)
 	}
 
 	if (!padapter->bup) {
-		padapter->bDriverStopped = false;
+		padapter->driver_stopped = false;
 		padapter->bSurpriseRemoved = false;
 		padapter->bCardDisableWOHSM = false;
 
@@ -871,7 +866,7 @@ static int  ips_netdrv_open(struct adapter *padapter)
 
 	padapter->net_closed = false;
 
-	padapter->bDriverStopped = false;
+	padapter->driver_stopped = false;
 	padapter->bCardDisableWOHSM = false;
 	/* padapter->bup = true; */
 
@@ -890,7 +885,6 @@ netdev_open_error:
 
 	return _FAIL;
 }
-
 
 int rtw_ips_pwr_up(struct adapter *padapter)
 {
@@ -978,7 +972,7 @@ void rtw_dev_unload(struct adapter *padapter)
 	u8 cnt = 0;
 
 	if (padapter->bup) {
-		padapter->bDriverStopped = true;
+		padapter->driver_stopped = true;
 		if (padapter->xmitpriv.ack_tx)
 			rtw_ack_tx_done(&padapter->xmitpriv, RTW_SCTX_DONE_DRV_STOP);
 
@@ -1024,8 +1018,8 @@ static int rtw_suspend_free_assoc_resource(struct adapter *padapter)
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
 	if (rtw_chk_roam_flags(padapter, RTW_ROAM_ON_RESUME)) {
-		if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)
-			&& check_fwstate(pmlmepriv, _FW_LINKED)) {
+		if (check_fwstate(pmlmepriv, WIFI_STATION_STATE) &&
+		    check_fwstate(pmlmepriv, _FW_LINKED)) {
 			rtw_set_to_roam(padapter, 1);
 		}
 	}
@@ -1094,7 +1088,7 @@ void rtw_suspend_common(struct adapter *padapter)
 	while (pwrpriv->bips_processing)
 		msleep(1);
 
-	if ((!padapter->bup) || (padapter->bDriverStopped) || (padapter->bSurpriseRemoved))
+	if ((!padapter->bup) || (padapter->driver_stopped) || (padapter->bSurpriseRemoved))
 		return;
 
 	rtw_ps_deny(padapter, PS_DENY_SUSPEND);

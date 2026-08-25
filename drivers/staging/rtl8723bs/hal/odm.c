@@ -257,7 +257,7 @@ static void odm_RefreshRateAdaptiveMaskCE(struct dm_odm_t *pDM_Odm)
 	u8 i;
 	struct adapter *padapter =  pDM_Odm->Adapter;
 
-	if (padapter->bDriverStopped)
+	if (padapter->driver_stopped)
 		return;
 
 	if (!pDM_Odm->bUseRAMask)

@@ -77,13 +77,6 @@ struct initchip_param {
 	unsigned short master_clock;
 
 	/*
-	 * 0 = leave all engine state untouched.
-	 * 1 = make sure they are off: 2D, Overlay,
-	 * video alpha, alpha, hardware cursors
-	 */
-	unsigned short set_all_eng_off;
-
-	/*
 	 * 0 = Do not reset the memory controller
 	 * 1 = Reset the memory controller
 	 */

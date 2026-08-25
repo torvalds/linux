@@ -8,7 +8,7 @@
 struct platform_device;
 
 void cvm_oct_poll_controller(struct net_device *dev);
-void cvm_oct_rx_initialize(struct platform_device *pdev);
+int cvm_oct_rx_initialize(struct platform_device *pdev);
 void cvm_oct_rx_shutdown(struct platform_device *pdev);
 
 static inline void cvm_oct_rx_refill_pool(struct platform_device *pdev,

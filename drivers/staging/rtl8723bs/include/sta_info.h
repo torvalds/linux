@@ -214,7 +214,7 @@ struct sta_info {
 	/*  */
 
 	/* To store the sequence number of received management frame */
-	u16 RxMgmtFrameSeqNum;
+	u16 rx_mgmt_frame_seq_num;
 };
 
 #define sta_rx_pkts(sta) \

@@ -45,7 +45,6 @@
 		u8 *cmd_buf;	/* shall be non-paged, and 4 bytes aligned */
 		u8 *cmd_allocated_buf;
 		u8 *rsp_buf;	/* shall be non-paged, and 4 bytes aligned */
-		u8 *rsp_allocated_buf;
 		u32 cmd_issued_cnt;
 		u32 cmd_done_cnt;
 		u32 rsp_cnt;
@@ -133,8 +132,8 @@ enum {
 	INTEl_WIDI_WK_CID,
 	C2H_WK_CID,
 	RTP_TIMER_CFG_WK_CID,
-	RESET_SECURITYPRIV, /*  add for CONFIG_IEEE80211W, none 11w also can use */
-	FREE_ASSOC_RESOURCES, /*  add for CONFIG_IEEE80211W, none 11w also can use */
+	RESET_SECURITYPRIV,
+	FREE_ASSOC_RESOURCES,
 	DM_IN_LPS_WK_CID,
 	DM_RA_MSK_WK_CID, /* add for STA update RAMask when bandwidth change. */
 	BEAMFORMING_WK_CID,
@@ -551,9 +550,6 @@ struct RunInThread_param {
 };
 
 
-#define GEN_CMD_CODE(cmd)	cmd ## _CMD_
-
-
 /*
 
 Result:
@@ -586,7 +582,7 @@ extern u8 rtw_clearstakey_cmd(struct adapter *padapter, struct sta_info *sta, u8
 
 extern u8 rtw_joinbss_cmd(struct adapter *padapter, struct wlan_network *pnetwork);
 u8 rtw_disassoc_cmd(struct adapter *padapter, u32 deauth_timeout_ms, bool enqueue);
-extern u8 rtw_setopmode_cmd(struct adapter  *padapter, enum ndis_802_11_network_infrastructure networktype, bool enqueue);
+extern u8 rtw_setopmode_cmd(struct adapter  *padapter, enum nl80211_iftype networktype, bool enqueue);
 extern u8 rtw_setrfintfs_cmd(struct adapter  *padapter, u8 mode);
 
 extern u8 rtw_gettssi_cmd(struct adapter  *padapter, u8 offset, u8 *pval);
@@ -594,7 +590,6 @@ extern u8 rtw_setfwdig_cmd(struct adapter *padapter, u8 type);
 extern u8 rtw_setfwra_cmd(struct adapter *padapter, u8 type);
 
 extern u8 rtw_addbareq_cmd(struct adapter *padapter, u8 tid, u8 *addr);
-/*  add for CONFIG_IEEE80211W, none 11w also can use */
 extern u8 rtw_reset_securitypriv_cmd(struct adapter *padapter);
 extern u8 rtw_free_assoc_resources_cmd(struct adapter *padapter);
 extern u8 rtw_dynamic_chk_wk_cmd(struct adapter *adapter);
@@ -630,86 +625,81 @@ struct _cmd_callback {
 };
 
 enum {
-	GEN_CMD_CODE(_Read_MACREG),	/*0*/
-	GEN_CMD_CODE(_Write_MACREG),
-	GEN_CMD_CODE(_Read_BBREG),
-	GEN_CMD_CODE(_Write_BBREG),
-	GEN_CMD_CODE(_Read_RFREG),
-	GEN_CMD_CODE(_Write_RFREG), /*5*/
-	GEN_CMD_CODE(_Read_EEPROM),
-	GEN_CMD_CODE(_Write_EEPROM),
-	GEN_CMD_CODE(_Read_EFUSE),
-	GEN_CMD_CODE(_Write_EFUSE),
+	READ_MACREG_CMD,	/*0*/
+	WRITE_MACREG_CMD,
+	READ_BBREG_CMD,
+	WRITE_BBREG_CMD,
+	READ_RFREG_CMD,
+	WRITE_RFREG_CMD, /*5*/
+	READ_EEPROM_CMD,
+	WRITE_EEPROM_CMD,
+	READ_EFUSE_CMD,
+	WRITE_EFUSE_CMD,
 
-	GEN_CMD_CODE(_Read_CAM),	/*10*/
-	GEN_CMD_CODE(_Write_CAM),
-	GEN_CMD_CODE(_setBCNITV),
-	GEN_CMD_CODE(_setMBIDCFG),
-	GEN_CMD_CODE(_JoinBss),   /*14*/
-	GEN_CMD_CODE(_DisConnect), /*15*/
-	GEN_CMD_CODE(_CreateBss),
-	GEN_CMD_CODE(_SetOpMode),
-	GEN_CMD_CODE(_SiteSurvey),  /*18*/
-	GEN_CMD_CODE(_SetAuth),
+	READ_CAM_CMD,	/*10*/
+	WRITE_CAM_CMD,
+	SET_BCNITV_CMD,
+	SET_MBIDCFG_CMD,
+	JOIN_BSS_CMD,   /*14*/
+	DISCONNECT_CMD, /*15*/
+	CREATE_BSS_CMD,
+	SET_OP_MODE_CMD,
+	SITE_SURVEY_CMD,  /*18*/
+	SET_AUTH_CMD,
 
-	GEN_CMD_CODE(_SetKey),	/*20*/
-	GEN_CMD_CODE(_SetStaKey),
-	GEN_CMD_CODE(_SetAssocSta),
-	GEN_CMD_CODE(_DelAssocSta),
-	GEN_CMD_CODE(_SetStaPwrState),
-	GEN_CMD_CODE(_SetBasicRate), /*25*/
-	GEN_CMD_CODE(_GetBasicRate),
-	GEN_CMD_CODE(_SetDataRate),
-	GEN_CMD_CODE(_GetDataRate),
-	GEN_CMD_CODE(_SetPhyInfo),
+	SET_KEY_CMD,	/*20*/
+	SET_STA_KEY_CMD,
+	SET_ASSOC_STA_CMD,
+	DEL_ASSOC_STA_CMD,
+	SET_STA_PWR_STATE_CMD,
+	SET_BASIC_RATE_CMD, /*25*/
+	GET_BASIC_RATE_CMD,
+	SET_DATA_RATE_CMD,
+	GET_DATA_RATE_CMD,
+	SET_PHY_INFO_CMD,
 
-	GEN_CMD_CODE(_GetPhyInfo),	/*30*/
-	GEN_CMD_CODE(_SetPhy),
-	GEN_CMD_CODE(_GetPhy),
-	GEN_CMD_CODE(_readRssi),
-	GEN_CMD_CODE(_readGain),
-	GEN_CMD_CODE(_SetAtim), /*35*/
-	GEN_CMD_CODE(_SetPwrMode),
-	GEN_CMD_CODE(_JoinbssRpt),
-	GEN_CMD_CODE(_SetRaTable),
-	GEN_CMD_CODE(_GetRaTable),
+	GET_PHY_INFO_CMD,	/*30*/
+	SET_PHY_CMD,
+	GET_PHY_CMD,
+	READ_RSSI_CMD,
+	READ_GAIN_CMD,
+	SET_ATIM_CMD, /*35*/
+	SET_PWR_MODE_CMD,
+	JOIN_BSS_RPT_CMD,
+	SET_RA_TABLE_CMD,
+	GET_RA_TABLE_CMD,
 
-	GEN_CMD_CODE(_GetCCXReport), /*40*/
-	GEN_CMD_CODE(_GetDTMReport),
-	GEN_CMD_CODE(_GetTXRateStatistics),
-	GEN_CMD_CODE(_SetUsbSuspend),
-	GEN_CMD_CODE(_SetH2cLbk),
-	GEN_CMD_CODE(_AddBAReq), /*45*/
-	GEN_CMD_CODE(_SetChannel), /*46*/
-	GEN_CMD_CODE(_SetTxPower),
-	GEN_CMD_CODE(_SwitchAntenna),
-	GEN_CMD_CODE(_SetCrystalCap),
-	GEN_CMD_CODE(_SetSingleCarrierTx), /*50*/
+	GET_CCX_REPORT_CMD, /*40*/
+	GET_DTM_REPORT_CMD,
+	GET_TX_RATE_STATISTICS_CMD,
+	SET_USB_SUSPEND_CMD,
+	SET_H2C_LBK_CMD,
+	ADD_BA_REQ_CMD, /*45*/
+	SET_CHANNEL_CMD, /*46*/
+	SET_TX_POWER_CMD,
+	SWITCH_ANTENNA_CMD,
+	SET_CRYSTAL_CAP_CMD,
+	SET_SINGLE_CARRIER_TX_CMD, /*50*/
 
-	GEN_CMD_CODE(_SetSingleToneTx),/*51*/
-	GEN_CMD_CODE(_SetCarrierSuppressionTx),
-	GEN_CMD_CODE(_SetContinuousTx),
-	GEN_CMD_CODE(_SwitchBandwidth), /*54*/
-	GEN_CMD_CODE(_TX_Beacon), /*55*/
+	SET_SINGLE_TONE_TX_CMD, /*51*/
+	SET_CARRIER_SUPPRESSION_TX_CMD,
+	SET_CONTINUOUS_TX_CMD,
+	SWITCH_BANDWIDTH_CMD, /*54*/
+	TX_BEACON_CMD, /*55*/
 
-	GEN_CMD_CODE(_Set_MLME_EVT), /*56*/
-	GEN_CMD_CODE(_Set_Drv_Extra), /*57*/
-	GEN_CMD_CODE(_Set_H2C_MSG), /*58*/
+	SET_MLME_EVT_CMD, /*56*/
+	SET_DRV_EXTRA_CMD, /*57*/
+	SET_H2C_MSG_CMD, /*58*/
 
-	GEN_CMD_CODE(_SetChannelPlan), /*59*/
+	SET_CHANNEL_PLAN_CMD, /*59*/
 
-	GEN_CMD_CODE(_SetChannelSwitch), /*60*/
-	GEN_CMD_CODE(_TDLS), /*61*/
-	GEN_CMD_CODE(_ChkBMCSleepq), /*62*/
+	SET_CHANNEL_SWITCH_CMD, /*60*/
+	TDLS_CMD, /*61*/
+	CHK_BMC_SLEEPQ_CMD, /*62*/
 
-	GEN_CMD_CODE(_RunInThreadCMD), /*63*/
+	RUN_IN_THREAD_CMD, /*63*/
 
 	MAX_H2CCMD
 };
-
-#define _GetBBReg_CMD_		_Read_BBREG_CMD_
-#define _SetBBReg_CMD_		_Write_BBREG_CMD_
-#define _GetRFReg_CMD_		_Read_RFREG_CMD_
-#define _SetRFReg_CMD_		_Write_RFREG_CMD_
 
 #endif /* __RTW_CMD_H_ */

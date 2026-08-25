@@ -263,33 +263,6 @@ int ddk750_init_hw(struct initchip_param *p_init_param)
 		poke32(MISC_CTRL, reg);
 	}
 
-	if (p_init_param->set_all_eng_off == 1) {
-		sm750_enable_2d_engine(0);
-
-		/* Disable Overlay, if a former application left it on */
-		reg = peek32(VIDEO_DISPLAY_CTRL);
-		reg &= ~DISPLAY_CTRL_PLANE;
-		poke32(VIDEO_DISPLAY_CTRL, reg);
-
-		/* Disable video alpha, if a former application left it on */
-		reg = peek32(VIDEO_ALPHA_DISPLAY_CTRL);
-		reg &= ~DISPLAY_CTRL_PLANE;
-		poke32(VIDEO_ALPHA_DISPLAY_CTRL, reg);
-
-		/* Disable alpha plane, if a former application left it on */
-		reg = peek32(ALPHA_DISPLAY_CTRL);
-		reg &= ~DISPLAY_CTRL_PLANE;
-		poke32(ALPHA_DISPLAY_CTRL, reg);
-
-		/* Disable DMA Channel, if a former application left it on */
-		reg = peek32(DMA_ABORT_INTERRUPT);
-		reg |= DMA_ABORT_INTERRUPT_ABORT_1;
-		poke32(DMA_ABORT_INTERRUPT, reg);
-
-		/* Disable DMA Power, if a former application left it on */
-		sm750_enable_dma(0);
-	}
-
 	/* We can add more initialization as needed. */
 
 	return 0;

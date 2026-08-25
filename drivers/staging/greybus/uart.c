@@ -951,7 +951,7 @@ static int gb_tty_init(void)
 					 TTY_DRIVER_DYNAMIC_DEV);
 	if (IS_ERR(gb_tty_driver)) {
 		pr_err("Can not allocate tty driver\n");
-		retval = -ENOMEM;
+		retval = PTR_ERR(gb_tty_driver);
 		goto fail_unregister_dev;
 	}
 

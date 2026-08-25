@@ -13,8 +13,8 @@
 /* define   MAX_JOIN_TIMEOUT	2500 */
 #define   MAX_JOIN_TIMEOUT	6500
 
-/* 	Commented by Albert 20101105 */
-/* 	Increase the scanning timeout because of increasing the SURVEY_TO value. */
+/* Commented by Albert 20101105 */
+/* Increase the scanning timeout because of increasing the SURVEY_TO value. */
 
 #define		SCANNING_TIMEOUT	8000
 
@@ -44,15 +44,15 @@
 
 
 enum {
- dot11AuthAlgrthm_Open = 0,
- dot11AuthAlgrthm_Shared,
- dot11AuthAlgrthm_8021X,
- dot11AuthAlgrthm_Auto,
- dot11AuthAlgrthm_WAPI,
- dot11AuthAlgrthm_MaxNum
+	dot11_auth_algrthm_open = 0,
+	dot11_auth_algrthm_shared,
+	dot11_auth_algrthm_8021x,
+	dot11_auth_algrthm_auto,
+	dot11_auth_algrthm_wapi,
+	dot11_auth_algrthm_maxnum
 };
 
-/*  Scan type including active and passive scan. */
+/* Scan type including active and passive scan. */
 enum rt_scan_type {
 	SCAN_PASSIVE,
 	SCAN_ACTIVE,
@@ -67,23 +67,22 @@ enum {
 };
 
 /*
-
-there are several "locks" in mlme_priv,
-since mlme_priv is a shared resource between many threads,
-like ISR/Call-Back functions, the OID handlers, and even timer functions.
-
-Each struct __queue has its own locks, already.
-Other items in mlme_priv are protected by mlme_priv.lock, while items in
-xmit_priv are protected by xmit_priv.lock.
-
-To avoid possible dead lock, any thread trying to modifying mlme_priv
-SHALL not lock up more than one locks at a time!
-
-The only exception is that queue functions which take the __queue.lock
-may be called with the xmit_priv.lock held. In this case the order
-MUST always be first lock xmit_priv.lock and then call any queue functions
-which take __queue.lock.
-*/
+ * There are several "locks" in mlme_priv,
+ * since mlme_priv is a shared resource between many threads,
+ * like ISR/Call-Back functions, the OID handlers, and even timer functions.
+ *
+ * Each struct __queue has its own locks, already.
+ * Other items in mlme_priv are protected by mlme_priv.lock, while items in
+ * xmit_priv are protected by xmit_priv.lock.
+ *
+ * To avoid possible dead lock, any thread trying to modifying mlme_priv
+ * SHALL not lock up more than one locks at a time!
+ *
+ * The only exception is that queue functions which take the __queue.lock
+ * may be called with the xmit_priv.lock held. In this case the order
+ * MUST always be first lock xmit_priv.lock and then call any queue functions
+ * which take __queue.lock.
+ */
 
 struct sitesurvey_ctrl {
 	u64	last_tx_pkts;
@@ -184,7 +183,8 @@ struct mlme_priv {
 	u32 wps_probe_req_ie_len;
 
 	/* Number of associated Non-ERP stations (i.e., stations using 802.11b
-	 * in 802.11g BSS) */
+	 * in 802.11g BSS)
+	 */
 	int num_sta_non_erp;
 
 	/* Number of associated stations that do not support Short Slot Time */
@@ -217,12 +217,12 @@ struct mlme_priv {
 	u8 *wps_beacon_ie;
 	/* u8 *wps_probe_req_ie; */
 	u8 *wps_probe_resp_ie;
-	u8 *wps_assoc_resp_ie; /*  for CONFIG_IOCTL_CFG80211, this IE could include p2p ie / wfd ie */
+	u8 *wps_assoc_resp_ie; /* this IE could include p2p ie / wfd ie */
 
 	u32 wps_beacon_ie_len;
 	/* u32 wps_probe_req_ie_len; */
 	u32 wps_probe_resp_ie_len;
-	u32 wps_assoc_resp_ie_len; /*  for CONFIG_IOCTL_CFG80211, this IE len could include p2p ie / wfd ie */
+	u32 wps_assoc_resp_ie_len; /* this IE len could include p2p ie / wfd ie */
 
 	u8 *p2p_beacon_ie;
 	u8 *p2p_probe_req_ie;
@@ -258,7 +258,6 @@ extern void rtw_surveydone_event_callback(struct adapter *adapter, u8 *pbuf);
 extern void rtw_joinbss_event_callback(struct adapter *adapter, u8 *pbuf);
 extern void rtw_stassoc_event_callback(struct adapter *adapter, u8 *pbuf);
 extern void rtw_stadel_event_callback(struct adapter *adapter, u8 *pbuf);
-extern void rtw_atimdone_event_callback(struct adapter *adapter, u8 *pbuf);
 extern void rtw_cpwm_event_callback(struct adapter *adapter, u8 *pbuf);
 extern void rtw_wmm_event_callback(struct adapter *padapter, u8 *pbuf);
 
@@ -279,7 +278,7 @@ extern signed int rtw_set_auth(struct adapter *adapter, struct security_priv *ps
 
 static inline u8 *get_bssid(struct mlme_priv *pmlmepriv)
 {	/* if sta_mode:pmlmepriv->cur_network.network.mac_address => bssid */
-	/*  if adhoc_mode:pmlmepriv->cur_network.network.mac_address => ibss mac address */
+	/* if adhoc_mode:pmlmepriv->cur_network.network.mac_address => ibss mac address */
 	return pmlmepriv->cur_network.network.mac_address;
 }
 

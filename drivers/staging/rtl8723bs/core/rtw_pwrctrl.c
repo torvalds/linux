@@ -242,7 +242,7 @@ void rtw_set_rpwm(struct adapter *padapter, u8 pslv)
 		return;
 	}
 
-	if (padapter->bDriverStopped) {
+	if (padapter->driver_stopped) {
 		if (pslv < PS_STATE_S2)
 			return;
 	}
@@ -315,7 +315,7 @@ static u8 PS_RDY_CHECK(struct adapter *padapter)
 	)
 		return false;
 
-	if (padapter->securitypriv.dot11AuthAlgrthm == dot11AuthAlgrthm_8021X &&
+	if (padapter->securitypriv.dot11_auth_algrthm == dot11_auth_algrthm_8021x &&
 	    !padapter->securitypriv.binstallGrpkey)
 		return false;
 
@@ -389,35 +389,29 @@ void rtw_set_ps_mode(struct adapter *padapter, u8 ps_mode,
 
 /*
  * Return:
- *0:	Leave OK
- *-1:	Timeout
- *-2:	Other error
+ * 0:           Leave OK
+ * -ETIMEDOUT:  Timeout
+ * -ENODEV:     Other error
  */
-s32 LPS_RF_ON_check(struct adapter *padapter, u32 delay_ms)
+int LPS_RF_ON_check(struct adapter *padapter, u32 delay_ms)
 {
 	unsigned long start_time;
 	u8 bAwake = false;
-	s32 err = 0;
 
 	start_time = jiffies;
 	while (1) {
 		rtw_hal_get_hwreg(padapter, HW_VAR_FWLPS_RF_ON, &bAwake);
 		if (bAwake)
-			break;
+			return 0;
 
-		if (padapter->bSurpriseRemoved) {
-			err = -2;
-			break;
-		}
+		if (padapter->bSurpriseRemoved)
+			return -ENODEV;
 
-		if (jiffies_to_msecs(jiffies - start_time) > delay_ms) {
-			err = -1;
-			break;
-		}
+		if (jiffies_to_msecs(jiffies - start_time) > delay_ms)
+			return -ETIMEDOUT;
+
 		msleep(1);
 	}
-
-	return err;
 }
 
 /* Description: Enter the leisure power save mode. */
@@ -1051,7 +1045,7 @@ int _rtw_pwr_wakeup(struct adapter *padapter, u32 ips_deffer_ms, const char *cal
 	}
 
 	/* TODO: the following checking need to be merged... */
-	if (padapter->bDriverStopped || !padapter->bup || !padapter->hw_init_completed) {
+	if (padapter->driver_stopped || !padapter->bup || !padapter->hw_init_completed) {
 		ret = false;
 		goto exit;
 	}

@@ -150,7 +150,7 @@ void odm_EdcaTurboCheckCE(void *pDM_VOID)
 	} else {
 		/*  Turn Off EDCA turbo here. */
 		/*  Restore original EDCA according to the declaration of AP. */
-		 if (pDM_Odm->DM_EDCA_Table.bCurrentTurboEDCA) {
+		if (pDM_Odm->DM_EDCA_Table.bCurrentTurboEDCA) {
 			rtw_write32(Adapter, REG_EDCA_BE_PARAM, pHalData->AcParam_BE);
 			pDM_Odm->DM_EDCA_Table.bCurrentTurboEDCA = false;
 		}
