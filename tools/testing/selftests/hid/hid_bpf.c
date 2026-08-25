@@ -909,6 +909,32 @@ TEST_F(hid_bpf, test_rdesc_fixup_get_data_overflow)
 	ASSERT_EQ(self->skel->bss->get_data_overflow_check, 1);
 }
 
+TEST_F(hid_bpf, test_rdesc_fixup_change_uniq_name_phys)
+{
+	const struct test_program progs[] = {
+		{ .name = "hid_rdesc_fixup_change_uniq_name_phys" },
+	};
+	char expected[256], buf[256] = {};
+	int err;
+
+	LOAD_PROGRAMS(progs);
+
+	err = ioctl(self->hidraw_fd, HIDIOCGRAWNAME(sizeof(buf)), buf);
+	ASSERT_GE(err, 0) TH_LOG("HIDIOCGRAWNAME");
+	ASSERT_STREQ("name coming from bpf", buf);
+
+	snprintf(expected, sizeof(expected), "%d phys:coming:from:bpf", self->hid.dev_id);
+
+	err = ioctl(self->hidraw_fd, HIDIOCGRAWPHYS(sizeof(buf)), buf);
+	ASSERT_GE(err, 0) TH_LOG("HIDIOCGRAWPHYS");
+	ASSERT_STREQ(expected, buf);
+
+	err = ioctl(self->hidraw_fd, HIDIOCGRAWUNIQ(sizeof(buf)), buf);
+	ASSERT_GE(err, 0) TH_LOG("HIDIOCGRAWUNIQ");
+	ASSERT_STREQ("uniq:coming:from:bpf", buf);
+
+}
+
 static int libbpf_print_fn(enum libbpf_print_level level,
 			   const char *format, va_list args)
 {
