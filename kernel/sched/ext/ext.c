@@ -2806,6 +2806,8 @@ static void dispatch_to_local_dsq(struct scx_sched *sch, struct rq *rq,
  * @p: task to finish dispatching
  * @qseq_at_dispatch: qseq when @p started getting dispatched
  * @dsq_id: destination DSQ ID
+ * @slice: slice carried by the insert verdict, 0 keeps the current value
+ * @vtime: vtime carried by the insert verdict, committed on PRIQ inserts
  * @enq_flags: %SCX_ENQ_*
  *
  * Dispatching to local DSQs may need to wait for queueing to complete or
