@@ -58,6 +58,7 @@ void gv100_head_rgpos(struct nvkm_head *head, u16 *hline, u16 *vline);
 
 void tu102_head_vblank_get(struct nvkm_head *);
 void tu102_head_vblank_put(struct nvkm_head *);
+extern const struct nvkm_head_func tu102_gsp_head;
 
 #define HEAD_MSG(h,l,f,a...) do {                                              \
 	struct nvkm_head *_h = (h);                                            \
