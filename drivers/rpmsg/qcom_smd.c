@@ -1460,7 +1460,7 @@ static ssize_t rpmsg_name_show(struct device *dev,
 {
 	struct qcom_smd_edge *edge = to_smd_edge(dev);
 
-	return sprintf(buf, "%s\n", edge->name);
+	return sysfs_emit(buf, "%s\n", edge->name);
 }
 static DEVICE_ATTR_RO(rpmsg_name);
 

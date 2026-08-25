@@ -212,7 +212,6 @@ be probed with.
 
 unregisters an rpmsg driver from the rpmsg bus. user should provide
 a pointer to a previously-registered rpmsg_driver struct.
-Returns 0 on success, and an appropriate error value on failure.
 
 
 Typical usage
