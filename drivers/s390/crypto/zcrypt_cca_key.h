@@ -219,6 +219,7 @@ static inline int zcrypt_type6_crt_key(struct ica_rsa_modexpo_crt *crt, void *p)
 	    copy_from_user(key->key_parts + 2 * long_len + 2 * short_len,
 			   crt->u_mult_inv, long_len))
 		return -EFAULT;
+	memset(key->key_parts + 3 * long_len + 2 * short_len, 0, pad_len);
 	memset(key->key_parts + 3 * long_len + 2 * short_len + pad_len,
 	       0xff, crt->inputdatalength);
 	pub = (struct cca_public_sec *)(key->key_parts + key_len);
