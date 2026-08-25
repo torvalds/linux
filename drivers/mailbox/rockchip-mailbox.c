@@ -12,15 +12,15 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
-#define MAILBOX_A2B_INTEN		0x00
-#define MAILBOX_A2B_STATUS		0x04
-#define MAILBOX_A2B_CMD(x)		(0x08 + (x) * 8)
-#define MAILBOX_A2B_DAT(x)		(0x0c + (x) * 8)
+#define ROCKCHIP_MAILBOX_A2B_INTEN		0x00
+#define ROCKCHIP_MAILBOX_A2B_STATUS		0x04
+#define ROCKCHIP_MAILBOX_A2B_CMD(x)		(0x08 + (x) * 8)
+#define ROCKCHIP_MAILBOX_A2B_DAT(x)		(0x0c + (x) * 8)
 
-#define MAILBOX_B2A_INTEN		0x28
-#define MAILBOX_B2A_STATUS		0x2C
-#define MAILBOX_B2A_CMD(x)		(0x30 + (x) * 8)
-#define MAILBOX_B2A_DAT(x)		(0x34 + (x) * 8)
+#define ROCKCHIP_MAILBOX_B2A_INTEN		0x28
+#define ROCKCHIP_MAILBOX_B2A_STATUS		0x2C
+#define ROCKCHIP_MAILBOX_B2A_CMD(x)		(0x30 + (x) * 8)
+#define ROCKCHIP_MAILBOX_B2A_DAT(x)		(0x34 + (x) * 8)
 
 struct rockchip_mbox_msg {
 	u32 cmd;
@@ -68,9 +68,10 @@ static int rockchip_mbox_send_data(struct mbox_chan *chan, void *data)
 
 	mb->chans[chans->idx].msg = msg;
 
-	writel_relaxed(msg->cmd, mb->mbox_base + MAILBOX_A2B_CMD(chans->idx));
+	writel_relaxed(msg->cmd, mb->mbox_base +
+		       ROCKCHIP_MAILBOX_A2B_CMD(chans->idx));
 	writel_relaxed(msg->rx_size, mb->mbox_base +
-		       MAILBOX_A2B_DAT(chans->idx));
+		       ROCKCHIP_MAILBOX_A2B_DAT(chans->idx));
 
 	return 0;
 }
@@ -81,7 +82,7 @@ static int rockchip_mbox_startup(struct mbox_chan *chan)
 
 	/* Enable all B2A interrupts */
 	writel_relaxed((1 << mb->mbox.num_chans) - 1,
-		       mb->mbox_base + MAILBOX_B2A_INTEN);
+		       mb->mbox_base + ROCKCHIP_MAILBOX_B2A_INTEN);
 
 	return 0;
 }
@@ -92,7 +93,7 @@ static void rockchip_mbox_shutdown(struct mbox_chan *chan)
 	struct rockchip_mbox_chan *chans = mb->chans;
 
 	/* Disable all B2A interrupts */
-	writel_relaxed(0, mb->mbox_base + MAILBOX_B2A_INTEN);
+	writel_relaxed(0, mb->mbox_base + ROCKCHIP_MAILBOX_B2A_INTEN);
 
 	mb->chans[chans->idx].msg = NULL;
 }
@@ -107,13 +108,13 @@ static irqreturn_t rockchip_mbox_irq(int irq, void *dev_id)
 {
 	int idx;
 	struct rockchip_mbox *mb = (struct rockchip_mbox *)dev_id;
-	u32 status = readl_relaxed(mb->mbox_base + MAILBOX_B2A_STATUS);
+	u32 status = readl_relaxed(mb->mbox_base + ROCKCHIP_MAILBOX_B2A_STATUS);
 
 	for (idx = 0; idx < mb->mbox.num_chans; idx++) {
 		if ((status & (1 << idx)) && (irq == mb->chans[idx].irq)) {
 			/* Clear mbox interrupt */
 			writel_relaxed(1 << idx,
-				       mb->mbox_base + MAILBOX_B2A_STATUS);
+				       mb->mbox_base + ROCKCHIP_MAILBOX_B2A_STATUS);
 			return IRQ_WAKE_THREAD;
 		}
 	}
