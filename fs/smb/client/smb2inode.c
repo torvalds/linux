@@ -22,6 +22,7 @@
 #include "smb2glob.h"
 #include "smb2proto.h"
 #include "cached_dir.h"
+#include "reparse.h"
 #include "../common/smb2status.h"
 #include "../common/smbfsctl.h"
 
@@ -40,9 +41,11 @@ static struct reparse_data_buffer *reparse_buf_ptr(struct kvec *iov)
 
 	buf = (struct reparse_data_buffer *)((u8 *)io + off);
 	len = sizeof(*buf);
-	rdlen = le16_to_cpu(buf->ReparseDataLength);
+	if (count < len)
+		return ERR_PTR(smb_EIO2(smb_eio_trace_reparse_rdlen, count, 0));
 
-	if (count < len || count < rdlen + len)
+	rdlen = le16_to_cpu(buf->ReparseDataLength);
+	if (count < rdlen + len)
 		return ERR_PTR(smb_EIO2(smb_eio_trace_reparse_rdlen, count, rdlen));
 	return buf;
 }
@@ -574,8 +577,10 @@ finished:
 		idata->fi.Attributes = create_rsp->FileAttributes;
 		idata->fi.AllocationSize = create_rsp->AllocationSize;
 		idata->fi.EndOfFile = create_rsp->EndofFile;
+		idata->contains_posix_file_info = false;
 		if (le32_to_cpu(idata->fi.NumberOfLinks) == 0)
 			idata->fi.NumberOfLinks = cpu_to_le32(1); /* dummy value */
+		idata->unknown_nlink = true;
 		idata->fi.DeletePending = 0; /* successful open = not delete pending */
 		idata->fi.Directory = !!(le32_to_cpu(create_rsp->FileAttributes) & ATTR_DIRECTORY);
 
@@ -596,7 +601,6 @@ finished:
 		switch (cmds[i]) {
 		case SMB2_OP_QUERY_INFO:
 			idata = in_iov[i].iov_base;
-			idata->contains_posix_file_info = false;
 			if (rc == 0 && cfile && cfile->symlink_target) {
 				idata->symlink_target = kstrdup(cfile->symlink_target, GFP_KERNEL);
 				if (!idata->symlink_target)
@@ -609,6 +613,8 @@ finished:
 					le16_to_cpu(qi_rsp->OutputBufferOffset),
 					le32_to_cpu(qi_rsp->OutputBufferLength),
 					&rsp_iov[i + 1], sizeof(idata->fi), (char *)&idata->fi);
+				if (!rc)
+					idata->contains_posix_file_info = false;
 			}
 			SMB2_query_info_free(&rqst[num_rqst++]);
 			if (rc)
@@ -620,7 +626,6 @@ finished:
 			break;
 		case SMB2_OP_POSIX_QUERY_INFO:
 			idata = in_iov[i].iov_base;
-			idata->contains_posix_file_info = true;
 			if (rc == 0 && cfile && cfile->symlink_target) {
 				idata->symlink_target = kstrdup(cfile->symlink_target, GFP_KERNEL);
 				if (!idata->symlink_target)
@@ -634,6 +639,8 @@ finished:
 					le32_to_cpu(qi_rsp->OutputBufferLength),
 					&rsp_iov[i + 1], sizeof(idata->posix_fi) /* add SIDs */,
 					(char *)&idata->posix_fi);
+				if (!rc)
+					idata->contains_posix_file_info = true;
 			}
 			if (rc == 0)
 				rc = parse_posix_sids(idata, &rsp_iov[i + 1]);
@@ -705,7 +712,6 @@ finished:
 				idata = in_iov[i].iov_base;
 				idata->reparse.io.iov = *iov;
 				idata->reparse.io.buftype = resp_buftype[i + 1];
-				idata->contains_posix_file_info = false; /* BB VERIFY */
 				rbuf = reparse_buf_ptr(iov);
 				if (IS_ERR(rbuf)) {
 					rc = PTR_ERR(rbuf);
@@ -727,7 +733,6 @@ finished:
 		case SMB2_OP_QUERY_WSL_EA:
 			if (!rc) {
 				idata = in_iov[i].iov_base;
-				idata->contains_posix_file_info = false;
 				qi_rsp = rsp_iov[i + 1].iov_base;
 				data[0] = (u8 *)qi_rsp + le16_to_cpu(qi_rsp->OutputBufferOffset);
 				size[0] = le32_to_cpu(qi_rsp->OutputBufferLength);
@@ -1000,12 +1005,13 @@ int smb2_query_path_info(const unsigned int xid,
 		/*
 		 * If the symlink was already parsed in create response then it is needed to fix
 		 * its type now (after the second call with OPEN_REPARSE_POINT which filled the
-		 * data->fi.Attributes). If the symlink was not parsed in create response then
+		 * metadata attributes). If the symlink was not parsed in create response then
 		 * the data->symlink_target was not filled yet and then the type will be fixed
 		 * later after data->symlink_target is filled.
 		 */
 		if (data->reparse.tag == IO_REPARSE_TAG_SYMLINK && !rc && data->symlink_target) {
-			bool directory = le32_to_cpu(data->fi.Attributes) & ATTR_DIRECTORY;
+			bool directory = cifs_open_data_attrs(data) & ATTR_DIRECTORY;
+
 			rc = smb2_fix_symlink_target_type(&data->symlink_target, directory, cifs_sb);
 		}
 		break;

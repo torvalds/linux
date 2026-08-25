@@ -3372,6 +3372,7 @@ replay_again:
 #endif /* CIFS_DEBUG2 */
 
 	if (file_info) {
+		buf->contains_posix_file_info = false;
 		file_info->CreationTime = rsp->CreationTime;
 		file_info->LastAccessTime = rsp->LastAccessTime;
 		file_info->LastWriteTime = rsp->LastWriteTime;
@@ -4564,8 +4565,10 @@ smb2_new_read_req(void **buf, unsigned int *total_len,
 	if (rc)
 		return rc;
 
-	if (server == NULL)
-		return -ECONNABORTED;
+	if (!server) {
+		rc = -ECONNABORTED;
+		goto free_req;
+	}
 
 	shdr = &req->hdr;
 	shdr->Id.SyncId.ProcessId = cpu_to_le32(io_parms->pid);
@@ -4596,8 +4599,10 @@ smb2_new_read_req(void **buf, unsigned int *total_len,
 
 		rdata->mr = smbd_register_mr(server->smbd_conn, &rdata->subreq.io_iter,
 					     true, need_invalidate);
-		if (!rdata->mr)
-			return -EAGAIN;
+		if (!rdata->mr) {
+			rc = -EAGAIN;
+			goto free_req;
+		}
 
 		req->Channel = SMB2_CHANNEL_RDMA_V1_INVALIDATE;
 		if (need_invalidate)
@@ -4637,6 +4642,10 @@ smb2_new_read_req(void **buf, unsigned int *total_len,
 		req->RemainingBytes = 0;
 
 	*buf = req;
+	return rc;
+
+free_req:
+	cifs_small_buf_release(req);
 	return rc;
 }
 
@@ -4885,6 +4894,7 @@ out:
 	    smb2_should_replay(tcon,
 			       &rdata->retries,
 			       &rdata->cur_sleep)) {
+		rdata->replay = true;
 		trace_netfs_sreq(&rdata->subreq, netfs_sreq_trace_io_retry_needed);
 		__set_bit(NETFS_SREQ_NEED_RETRY, &rdata->subreq.flags);
 	}
