@@ -571,7 +571,6 @@ static void rawmidi_release_priv(struct snd_rawmidi_file *rfile)
 	struct snd_rawmidi *rmidi;
 
 	rmidi = rfile->rmidi;
-	guard(mutex)(&rmidi->open_mutex);
 	if (rfile->input) {
 		close_substream(rmidi, rfile->input, 1);
 		rfile->input = NULL;
@@ -585,7 +584,8 @@ static void rawmidi_release_priv(struct snd_rawmidi_file *rfile)
 }
 
 /* called from sound/core/seq/seq_midi.c */
-int snd_rawmidi_kernel_release(struct snd_rawmidi_file *rfile)
+int snd_rawmidi_kernel_release_nested(struct snd_rawmidi_file *rfile,
+				      int depth)
 {
 	struct snd_rawmidi *rmidi;
 
@@ -593,11 +593,13 @@ int snd_rawmidi_kernel_release(struct snd_rawmidi_file *rfile)
 		return -ENXIO;
 
 	rmidi = rfile->rmidi;
+	mutex_lock_nested(&rmidi->open_mutex, depth);
 	rawmidi_release_priv(rfile);
+	mutex_unlock(&rmidi->open_mutex);
 	module_put(rmidi->card->module);
 	return 0;
 }
-EXPORT_SYMBOL(snd_rawmidi_kernel_release);
+EXPORT_SYMBOL(snd_rawmidi_kernel_release_nested);
 
 static int snd_rawmidi_release(struct inode *inode, struct file *file)
 {
@@ -607,7 +609,8 @@ static int snd_rawmidi_release(struct inode *inode, struct file *file)
 
 	rfile = file->private_data;
 	rmidi = rfile->rmidi;
-	rawmidi_release_priv(rfile);
+	scoped_guard(mutex, &rmidi->open_mutex)
+		rawmidi_release_priv(rfile);
 	kfree(rfile);
 	module = rmidi->card->module;
 	snd_card_file_remove(rmidi->card, file);
