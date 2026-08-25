@@ -26,9 +26,6 @@ struct xe_sysctrl {
 	/** @cmd_lock: Mutex protecting mailbox command operations */
 	struct mutex cmd_lock;
 
-	/** @phase_bit: Message boundary phase toggle bit (0 or 1) */
-	bool phase_bit;
-
 	/** @work: Pending events worker */
 	struct work_struct work;
 
