@@ -256,9 +256,6 @@ struct mctrl_gpios *mctrl_gpio_init(struct uart_port *port, unsigned int idx)
 				       gpios);
 		if (ret) {
 			/* alternatively implement polling */
-			dev_err(port->dev,
-				"failed to request irq for %s (idx=%d, err=%d)\n",
-				mctrl_gpios_desc[i].name, idx, ret);
 			return ERR_PTR(ret);
 		}
 	}

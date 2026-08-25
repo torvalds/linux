@@ -23,6 +23,7 @@
  *	console=uart8250,mmio32,0xff5e0000,115200n8
  */
 
+#include <linux/align.h>
 #include <linux/tty.h>
 #include <linux/init.h>
 #include <linux/console.h>
@@ -177,6 +178,23 @@ OF_EARLYCON_DECLARE(ns16550a, "ns16550a", early_serial8250_setup);
 OF_EARLYCON_DECLARE(uart, "nvidia,tegra20-uart", early_serial8250_setup);
 OF_EARLYCON_DECLARE(uart, "snps,dw-apb-uart", early_serial8250_setup);
 
+static int __init early_serial8250_xscale_setup(struct earlycon_device *device,
+					     const char *options)
+{
+	/*
+	 * Adjust for BE32 register accesses: drop any hardcoded
+	 * address for the big endian byte target, add it explicitly
+	 * if running on BE32.
+	 */
+	device->port.membase = PTR_ALIGN_DOWN(device->port.membase, 4);
+	if (IS_ENABLED(CONFIG_CPU_ENDIAN_BE32))
+		device->port.membase += 3;
+	device->port.regshift = 2;
+
+	return early_serial8250_setup(device, options);
+}
+OF_EARLYCON_DECLARE(uart, "intel,xscale-uart", early_serial8250_xscale_setup);
+
 static int __init early_serial8250_rs2_setup(struct earlycon_device *device,
 					     const char *options)
 {
@@ -184,7 +202,6 @@ static int __init early_serial8250_rs2_setup(struct earlycon_device *device,
 
 	return early_serial8250_setup(device, options);
 }
-OF_EARLYCON_DECLARE(uart, "intel,xscale-uart", early_serial8250_rs2_setup);
 OF_EARLYCON_DECLARE(uart, "mrvl,mmp-uart", early_serial8250_rs2_setup);
 OF_EARLYCON_DECLARE(uart, "mrvl,pxa-uart", early_serial8250_rs2_setup);
 

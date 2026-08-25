@@ -404,29 +404,21 @@ static int mvebu_uart_startup(struct uart_port *port)
 		ret = devm_request_irq(port->dev, mvuart->irq[UART_IRQ_SUM],
 				       mvebu_uart_isr, port->irqflags,
 				       dev_name(port->dev), port);
-		if (ret) {
-			dev_err(port->dev, "unable to request IRQ %d\n",
-				mvuart->irq[UART_IRQ_SUM]);
+		if (ret)
 			return ret;
-		}
 	} else {
 		/* New bindings with an IRQ for RX and TX (both UART) */
 		ret = devm_request_irq(port->dev, mvuart->irq[UART_RX_IRQ],
 				       mvebu_uart_rx_isr, port->irqflags,
 				       dev_name(port->dev), port);
-		if (ret) {
-			dev_err(port->dev, "unable to request IRQ %d\n",
-				mvuart->irq[UART_RX_IRQ]);
+		if (ret)
 			return ret;
-		}
 
 		ret = devm_request_irq(port->dev, mvuart->irq[UART_TX_IRQ],
 				       mvebu_uart_tx_isr, port->irqflags,
 				       dev_name(port->dev),
 				       port);
 		if (ret) {
-			dev_err(port->dev, "unable to request IRQ %d\n",
-				mvuart->irq[UART_TX_IRQ]);
 			devm_free_irq(port->dev, mvuart->irq[UART_RX_IRQ],
 				      port);
 			return ret;

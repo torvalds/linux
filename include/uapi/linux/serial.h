@@ -72,6 +72,7 @@ struct serial_struct {
 #define SERIAL_IO_TSI	  5
 #define SERIAL_IO_MEM32BE 6
 #define SERIAL_IO_MEM16	7
+#define SERIAL_IO_BUS	8
 
 #define UART_CLEAR_FIFO		0x01
 #define UART_USE_FIFO		0x02
