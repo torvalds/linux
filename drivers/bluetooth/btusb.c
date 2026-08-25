@@ -3316,10 +3316,10 @@ struct qca_dump_hdr {
 	__le16 seqno;
 	u8 reserved;
 	union {
-		u8 data[0];
+		DECLARE_FLEX_ARRAY(u8, data);
 		struct {
 			__le32 ram_dump_size;
-			u8 data0[0];
+			DECLARE_FLEX_ARRAY(u8, data0);
 		} __packed;
 	};
 } __packed;
