@@ -5704,7 +5704,7 @@ int ntfs_attr_fallocate(struct ntfs_inode *ni, loff_t start, loff_t byte_len, bo
 								  lcn << vol->cluster_size_bits,
 								  alloc_cnt <<
 								  vol->cluster_size_bits);
-					if (err > 0)
+					if (err)
 						goto out;
 				}
 
