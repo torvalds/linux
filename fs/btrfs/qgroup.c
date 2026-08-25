@@ -426,7 +426,6 @@ int btrfs_read_qgroup_config(struct btrfs_fs_info *fs_info)
 	struct extent_buffer *l;
 	int slot;
 	int ret = 0;
-	u64 flags = 0;
 	u64 rescan_progress = 0;
 
 	if (!fs_info->quota_root)
@@ -609,7 +608,6 @@ next2:
 	}
 out:
 	btrfs_free_path(path);
-	fs_info->qgroup_flags |= flags;
 	if (ret >= 0) {
 		if (fs_info->qgroup_flags & BTRFS_QGROUP_STATUS_FLAG_ON)
 			set_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags);
