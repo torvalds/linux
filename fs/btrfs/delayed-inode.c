@@ -687,7 +687,7 @@ static int btrfs_insert_delayed_item(struct btrfs_trans_handle *trans,
 	/*
 	 * For delayed items to insert, we track reserved metadata bytes based
 	 * on the number of leaves that we will use.
-	 * See btrfs_insert_delayed_dir_index() and
+	 * See btrfs_insert_delayed_dir_index_prealloc() and
 	 * btrfs_delayed_item_reserve_metadata()).
 	 */
 	ASSERT(first_item->bytes_reserved == 0);
@@ -1629,23 +1629,6 @@ release_node:
 	return ret;
 }
 
-/* Return 0, -ENOMEM or -EEXIST (index number collision, unexpected). */
-int btrfs_insert_delayed_dir_index(struct btrfs_trans_handle *trans,
-				   const char *name, int name_len,
-				   struct btrfs_inode *dir,
-				   const struct btrfs_disk_key *disk_key, u8 flags,
-				   u64 index)
-{
-	struct btrfs_dir_index_prealloc *prealloc;
-
-	prealloc = btrfs_prealloc_delayed_dir_index(dir, name, name_len);
-	if (IS_ERR(prealloc))
-		return PTR_ERR(prealloc);
-
-	return btrfs_insert_delayed_dir_index_prealloc(trans, dir, prealloc,
-						       disk_key, flags, index);
-}
-
 static bool btrfs_delete_delayed_insertion_item(struct btrfs_delayed_node *node,
 						u64 index)
 {
@@ -1661,7 +1644,7 @@ static bool btrfs_delete_delayed_insertion_item(struct btrfs_delayed_node *node,
 	/*
 	 * For delayed items to insert, we track reserved metadata bytes based
 	 * on the number of leaves that we will use.
-	 * See btrfs_insert_delayed_dir_index() and
+	 * See btrfs_insert_delayed_dir_index_prealloc() and
 	 * btrfs_delayed_item_reserve_metadata()).
 	 */
 	ASSERT(item->bytes_reserved == 0);

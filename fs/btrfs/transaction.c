@@ -1891,8 +1891,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 		goto fail;
 
 	ret = btrfs_insert_dir_item(trans, &fname.disk_name,
-				    parent_inode, &key, BTRFS_FT_DIR,
-				    index);
+				    parent_inode, &key, BTRFS_FT_DIR, index, NULL);
 	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto fail;

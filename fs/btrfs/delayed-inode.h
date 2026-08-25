@@ -115,11 +115,6 @@ struct btrfs_delayed_item {
 };
 
 void btrfs_init_delayed_root(struct btrfs_delayed_root *delayed_root);
-int btrfs_insert_delayed_dir_index(struct btrfs_trans_handle *trans,
-				   const char *name, int name_len,
-				   struct btrfs_inode *dir,
-				   const struct btrfs_disk_key *disk_key, u8 flags,
-				   u64 index);
 
 struct btrfs_dir_index_prealloc {
 	struct btrfs_delayed_node *node;

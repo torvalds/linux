@@ -13,12 +13,14 @@ struct btrfs_path;
 struct btrfs_inode;
 struct btrfs_root;
 struct btrfs_trans_handle;
+struct btrfs_dir_index_prealloc;
 
 int btrfs_check_dir_item_collision(struct btrfs_root *root, u64 dir_ino,
 			  const struct fscrypt_str *name);
 int btrfs_insert_dir_item(struct btrfs_trans_handle *trans,
 			  const struct fscrypt_str *name, struct btrfs_inode *dir,
-			  const struct btrfs_key *location, u8 type, u64 index);
+			  const struct btrfs_key *location, u8 type, u64 index,
+			  struct btrfs_dir_index_prealloc *prealloc);
 struct btrfs_dir_item *btrfs_lookup_dir_item(struct btrfs_trans_handle *trans,
 					     struct btrfs_root *root,
 					     struct btrfs_path *path, u64 dir,
@@ -53,5 +55,4 @@ static inline u64 btrfs_name_hash(const char *name, int len)
 {
        return crc32c((u32)~1, name, len);
 }
-
 #endif
