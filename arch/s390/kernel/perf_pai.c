@@ -1242,7 +1242,7 @@ static int __init paipmu_setup(void)
 static int __init pai_init(void)
 {
 	/* Setup s390dbf facility */
-	paidbg = debug_register("pai", 32, 256, 128);
+	paidbg = debug_register("pai", 1, 1, 128);
 	if (!paidbg) {
 		pr_err("Registration of s390dbf pai failed\n");
 		return -ENOMEM;
