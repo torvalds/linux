@@ -1074,11 +1074,9 @@ static int k3_r5_cluster_rproc_init(struct platform_device *pdev)
 		}
 
 		kproc->reset = devm_reset_control_get_exclusive(cdev, NULL);
-		if (IS_ERR_OR_NULL(kproc->reset)) {
-			ret = PTR_ERR_OR_ZERO(kproc->reset);
-			if (!ret)
-				ret = -ENODEV;
-			dev_err_probe(cdev, ret, "failed to get reset handle\n");
+		if (IS_ERR(kproc->reset)) {
+			ret = dev_err_probe(cdev, PTR_ERR(kproc->reset),
+					    "failed to get reset handle\n");
 			goto out;
 		}
 

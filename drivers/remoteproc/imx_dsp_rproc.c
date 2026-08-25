@@ -644,32 +644,6 @@ static void imx_dsp_rproc_free_mbox(struct imx_dsp_rproc *priv)
 	mbox_free_channel(priv->rxdb_ch);
 }
 
-static int imx_dsp_rproc_mem_alloc(struct rproc *rproc,
-				   struct rproc_mem_entry *mem)
-{
-	struct device *dev = rproc->dev.parent;
-	void *va;
-
-	va = ioremap_wc(mem->dma, mem->len);
-	if (!va) {
-		dev_err(dev, "Unable to map memory region: %pa+%zx\n",
-			&mem->dma, mem->len);
-		return -ENOMEM;
-	}
-
-	mem->va = va;
-
-	return 0;
-}
-
-static int imx_dsp_rproc_mem_release(struct rproc *rproc,
-				     struct rproc_mem_entry *mem)
-{
-	iounmap(mem->va);
-
-	return 0;
-}
-
 /**
  * imx_dsp_rproc_add_carveout() - request mailbox channels
  * @priv: private data pointer
@@ -700,8 +674,10 @@ static int imx_dsp_rproc_add_carveout(struct imx_dsp_rproc *priv)
 
 		/* Register memory region */
 		mem = rproc_mem_entry_init(dev, NULL, (dma_addr_t)att->sa,
-					   att->size, da, imx_dsp_rproc_mem_alloc,
-					   imx_dsp_rproc_mem_release, "dsp_mem");
+					   att->size, da,
+					   rproc_mem_entry_ioremap_wc,
+					   rproc_mem_entry_iounmap,
+					   "dsp_mem");
 
 		if (mem)
 			rproc_coredump_add_segment(rproc, da, att->size);
@@ -732,8 +708,8 @@ static int imx_dsp_rproc_add_carveout(struct imx_dsp_rproc *priv)
 		/* Register memory region */
 		mem = rproc_mem_entry_init(dev, NULL, (dma_addr_t)res.start,
 					   resource_size(&res), da,
-					    imx_dsp_rproc_mem_alloc,
-					    imx_dsp_rproc_mem_release,
+					   rproc_mem_entry_ioremap_wc,
+					   rproc_mem_entry_iounmap,
 					   "%.*s", strchrnul(res.name, '@') - res.name, res.name);
 		if (!mem)
 			return -ENOMEM;
@@ -980,9 +956,8 @@ static int imx_dsp_rproc_elf_load_segments(struct rproc *rproc, const struct fir
 
 static int imx_dsp_rproc_parse_fw(struct rproc *rproc, const struct firmware *fw)
 {
-	if (rproc_elf_load_rsc_table(rproc, fw))
-		dev_warn(&rproc->dev, "no resource table found for this firmware\n");
-
+	rproc_elf_load_rsc_table_optional(rproc, fw, dev_warn,
+					  "no resource table found for this firmware\n");
 	return 0;
 }
 

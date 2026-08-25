@@ -36,6 +36,7 @@ struct mtk_scp *scp_get(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *scp_node;
 	struct platform_device *scp_pdev;
+	struct mtk_scp *scp;
 
 	scp_node = of_parse_phandle(dev->of_node, "mediatek,scp", 0);
 	if (!scp_node) {
@@ -51,7 +52,13 @@ struct mtk_scp *scp_get(struct platform_device *pdev)
 		return NULL;
 	}
 
-	return platform_get_drvdata(scp_pdev);
+	scp = platform_get_drvdata(scp_pdev);
+	if (!scp) {
+		put_device(&scp_pdev->dev);
+		return NULL;
+	}
+
+	return scp;
 }
 EXPORT_SYMBOL_GPL(scp_get);
 
@@ -1239,10 +1246,8 @@ static struct mtk_scp *scp_rproc_init(struct platform_device *pdev,
 					scp_irq_handler, IRQF_ONESHOT,
 					pdev->name, scp);
 
-	if (ret) {
-		dev_err(dev, "failed to request irq\n");
+	if (ret)
 		goto remove_subdev;
-	}
 
 	return scp;
 

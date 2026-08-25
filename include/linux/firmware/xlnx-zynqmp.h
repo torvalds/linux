@@ -652,6 +652,8 @@ int zynqmp_pm_get_node_status(const u32 node, u32 *const status,
 			      u32 *const requirements, u32 *const usage);
 int zynqmp_pm_get_rpu_node_status(const u32 node, u32 *const status,
 				  u32 *const requirements, u32 *const usage);
+int zynqmp_pm_start_rpu(const u32 node, const u64 bootaddr);
+int zynqmp_pm_stop_rpu(const u32 node);
 int zynqmp_pm_set_sd_config(u32 node, enum pm_sd_config_type config, u32 value);
 int zynqmp_pm_set_gem_config(u32 node, enum pm_gem_config_type config,
 			     u32 value);
@@ -964,6 +966,16 @@ static inline int zynqmp_pm_get_node_status(const u32 node, u32 *const status,
 static inline int zynqmp_pm_get_rpu_node_status(const u32 node, u32 *const status,
 						u32 *const requirements,
 						u32 *const usage)
+{
+	return -ENODEV;
+}
+
+static inline int zynqmp_pm_start_rpu(const u32 node, const u64 bootaddr)
+{
+	return -ENODEV;
+}
+
+static inline int zynqmp_pm_stop_rpu(const u32 node)
 {
 	return -ENODEV;
 }
