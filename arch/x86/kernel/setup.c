@@ -6,6 +6,7 @@
  * parts of early kernel initialization.
  */
 #include <linux/acpi.h>
+#include <linux/bootconfig.h>
 #include <linux/console.h>
 #include <linux/cpu.h>
 #include <linux/crash_dump.h>
@@ -880,7 +881,6 @@ static void __init x86_report_nx(void)
  *
  * Note: On x86_64, fixmaps are ready for use even before this is called.
  */
-
 void __init setup_arch(char **cmdline_p)
 {
 #ifdef CONFIG_X86_32
@@ -922,6 +922,18 @@ void __init setup_arch(char **cmdline_p)
 	}
 #endif
 	builtin_cmdline_added = true;
+#endif
+
+#ifdef CONFIG_CMDLINE_FROM_BOOTCONFIG
+	/*
+	 * Prepend the build-time-rendered embedded "kernel" keys here so
+	 * parse_early_param() below sees them, using the same opt-in as the
+	 * runtime parser, plus the build-time CONFIG_BOOT_CONFIG_FORCE.
+	 */
+	if (bootconfig_cmdline_requested(boot_command_line, NULL) ||
+	    IS_ENABLED(CONFIG_BOOT_CONFIG_FORCE))
+		xbc_prepend_embedded_cmdline(boot_command_line,
+					     COMMAND_LINE_SIZE);
 #endif
 
 	strscpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
