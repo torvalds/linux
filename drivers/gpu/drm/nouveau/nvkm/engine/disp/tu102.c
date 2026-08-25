@@ -123,7 +123,7 @@ tu102_sor_new(struct nvkm_disp *disp, int id)
  * enables to us. These program the RM head-timing line (bit 1 of the
  * per-head enable, not the bit nvkm's own gv100 path uses).
  */
-void
+static void
 tu102_head_vblank_put(struct nvkm_head *head)
 {
 	struct nvkm_device *device = head->disp->engine.subdev.device;
@@ -131,7 +131,7 @@ tu102_head_vblank_put(struct nvkm_head *head)
 	nvkm_mask(device, 0x611d80 + (head->id * 4), 0x00000002, 0x00000000);
 }
 
-void
+static void
 tu102_head_vblank_get(struct nvkm_head *head)
 {
 	struct nvkm_device *device = head->disp->engine.subdev.device;

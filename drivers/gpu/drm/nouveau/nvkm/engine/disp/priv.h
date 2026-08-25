@@ -42,6 +42,8 @@ struct nvkm_disp_func {
 	 */
 	struct {
 		irqreturn_t (*intr)(struct nvkm_inth *);
+		/* Head-timing interrupts arrive on a second DISP vector. */
+		bool intr_low_latency;
 		const struct nvkm_head_func *head;
 		void (*hdmi_gcp)(struct nvkm_ior *, int head, bool enable);
 		void (*hdmi_infoframe_avi)(struct nvkm_ior *, int head, void *data, u32 size);
