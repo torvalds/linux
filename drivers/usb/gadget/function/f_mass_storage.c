@@ -203,7 +203,6 @@
 /*------------------------------------------------------------------------*/
 
 #define FSG_DRIVER_DESC		"Mass Storage Function"
-#define FSG_DRIVER_VERSION	"2009/09/11"
 
 static const char fsg_string_interface[] = "Mass Storage";
 
@@ -3512,8 +3511,6 @@ static struct usb_function_instance *fsg_alloc_inst(void)
 					CONFIG_USB_GADGET_STORAGE_NUM_BUFFERS);
 	if (rc)
 		goto release_common;
-
-	pr_info(FSG_DRIVER_DESC ", version: " FSG_DRIVER_VERSION "\n");
 
 	memset(&config, 0, sizeof(config));
 	config.removable = true;

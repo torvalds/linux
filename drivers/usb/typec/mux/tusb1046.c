@@ -178,6 +178,7 @@ static const struct of_device_id tusb1046_match_table[] = {
 	{.compatible = "ti,tusb1046"},
 	{},
 };
+MODULE_DEVICE_TABLE(of, tusb1046_match_table);
 
 static struct i2c_driver tusb1046_driver = {
 	.driver = {

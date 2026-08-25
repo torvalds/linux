@@ -106,6 +106,9 @@ enum pd_ext_msg_type {
 #define PD_HEADER_LE(type, pwr, data, rev, id, cnt) \
 	cpu_to_le16(PD_HEADER((type), (pwr), (data), (rev), (id), (cnt), (0)))
 
+#define PD_HEADER_EXT_LE(type, pwr, data, rev, id, cnt) \
+	cpu_to_le16(PD_HEADER((type), (pwr), (data), (rev), (id), (cnt), (1)))
+
 static inline unsigned int pd_header_cnt(u16 header)
 {
 	return (header >> PD_HEADER_CNT_SHIFT) & PD_HEADER_CNT_MASK;
@@ -218,6 +221,25 @@ static inline u8 count_chunked_data_objs(u32 size)
 	size += offsetof(struct pd_chunked_ext_message_data, data);
 	return ((size / 4) + (size % 4 ? 1 : 0));
 }
+
+/**
+ * batt_cap_ext_msg - Battery capability extended PD message
+ * @vid: Battery Vendor ID (assigned by USB-IF)
+ * @pid: Battery Product ID (assigned by battery or device vendor)
+ * @batt_design_cap: Battery design capacity in 0.1Wh
+ * @batt_last_chg_cap: Battery last full charge capacity in 0.1Wh
+ * @batt_type: Battery Type. bit0 when set indicates invalid battery reference.
+ *             Rest of the bits are reserved.
+ */
+struct batt_cap_ext_msg {
+	__le16 vid;
+	__le16 pid;
+	__le16 batt_design_cap;
+	__le16 batt_last_chg_cap;
+	u8 batt_type;
+} __packed;
+
+#define BATT_CAP_BATT_TYPE_INVALID_REF BIT(0)
 
 /* Sink Caps Extended Data Block Version */
 #define SKEDB_VER_1_0				1
@@ -493,7 +515,7 @@ static inline unsigned int pdo_epr_avs_apdo_min_voltage_mv(u32 pdo)
 
 static inline unsigned int pdo_epr_avs_apdo_max_voltage_mv(u32 pdo)
 {
-	return FIELD_GET(PDO_EPR_AVS_APDO_MIN_VOLT, pdo) * 100;
+	return FIELD_GET(PDO_EPR_AVS_APDO_MAX_VOLT, pdo) * 100;
 }
 
 static inline unsigned int pdo_epr_avs_apdo_pdp_w(u32 pdo)
@@ -723,5 +745,34 @@ int usb_power_delivery_link_device(struct usb_power_delivery *pd, struct device 
 void usb_power_delivery_unlink_device(struct usb_power_delivery *pd, struct device *dev);
 
 #endif /* CONFIG_TYPEC */
+
+/* Battery Status Data Object */
+#define BSDO_PRESENT_CAPACITY				GENMASK(31, 16)
+#define BSDO_CHG_STATUS					GENMASK(11, 10)
+#define BSDO_BATTERY_PRESENT				BIT(9)
+#define BSDO_INVALID_BATTERY_REFERENCE			BIT(8)
+
+/*
+ * Battery Charge Status: Battery Charging Status Values as defined in
+ * "USB PD Spec Rev3.1 Ver1.8", "Table 6-46 Battery Status Data Object (BSDO)".
+ */
+#define BSDO_BATTERY_INFO_CHARGING			0x0
+#define BSDO_BATTERY_INFO_DISCHARGING			0x1
+#define BSDO_BATTERY_INFO_IDLE				0x2
+#define BSDO_BATTERY_INFO_RSVD				0x3
+
+/**
+ * BSDO() - Pack data into Battery Status Data Object format.
+ * @batt_charge: Battery's present state of charge in 0.1WH increment.
+ * @chg_status: Battery charge status.
+ * @batt_present: Indicates that battery is present/attached when set else absent when unset.
+ * @invalid_ref: Indicates that an invalid battery reference was made in the Get_Battery_Status
+ *		 request.
+ */
+#define BSDO(batt_charge, chg_status, batt_present, invalid_ref)	\
+	((FIELD_PREP(BSDO_PRESENT_CAPACITY, batt_charge)) |		\
+	 (FIELD_PREP(BSDO_CHG_STATUS, chg_status)) |			\
+	 ((batt_present) ? BSDO_BATTERY_PRESENT : 0) |			\
+	 ((invalid_ref) ? BSDO_INVALID_BATTERY_REFERENCE : 0))
 
 #endif /* __LINUX_USB_PD_H */

@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/dmapool.h>
 #include <linux/dma-mapping.h>
+#include <linux/bitfield.h>
 
 #include "xhci.h"
 #include "xhci-trace.h"
@@ -1001,7 +1002,6 @@ int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id,
 	for (i = 0; i < 31; i++) {
 		dev->eps[i].ep_index = i;
 		dev->eps[i].vdev = dev;
-		dev->eps[i].xhci = xhci;
 		INIT_LIST_HEAD(&dev->eps[i].cancelled_td_list);
 		INIT_LIST_HEAD(&dev->eps[i].bw_endpoint_list);
 	}
@@ -1493,6 +1493,7 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 		return -ENOMEM;
 
 	virt_dev->eps[ep_index].skip = false;
+	virt_dev->eps[ep_index].next_uframe = -1;
 	ep_ring = virt_dev->eps[ep_index].new_ring;
 	xhci_ring_init(xhci, ep_ring);
 
@@ -2083,7 +2084,7 @@ static void xhci_add_in_port(struct xhci_hcd *xhci, unsigned int num_ports,
 		       addr, port_offset, port_count, major_revision);
 	/* Port count includes the current port offset */
 	if (port_offset == 0 || (port_offset + port_count - 1) > num_ports)
-		/* WTF? "Valid values are ‘1’ to MaxPorts" */
+		/* WTF? "Valid values are '1' to MaxPorts" */
 		return;
 
 	port_cap = &xhci->port_caps[xhci->num_port_caps++];
@@ -2300,7 +2301,7 @@ xhci_alloc_interrupter(struct xhci_hcd *xhci, unsigned int segs, gfp_t flags)
 	if (!segs)
 		segs = ERST_DEFAULT_SEGS;
 
-	max_segs = BIT(HCS_ERST_MAX(xhci->hcs_params2));
+	max_segs = FIELD_GET(HCS_ERST_MAX, xhci->hcs_params2) << 2;
 	segs = min(segs, max_segs);
 
 	ir = kzalloc_node(sizeof(*ir), flags, dev_to_node(dev));

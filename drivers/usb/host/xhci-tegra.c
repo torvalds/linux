@@ -6,6 +6,7 @@
  * Copyright (C) 2014 Google, Inc.
  */
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
@@ -993,7 +994,7 @@ static int tegra_xusb_wait_for_falcon(struct tegra_xusb *tegra)
 	u32 value;
 
 	cap_regs = tegra->regs;
-	op_regs = tegra->regs + HC_LENGTH(readl(&cap_regs->hc_capbase));
+	op_regs = tegra->regs + FIELD_GET(HC_LENGTH, readl(&cap_regs->hc_capbase)),
 
 	ret = readl_poll_timeout(&op_regs->status, value, !(value & STS_CNR), 1000, 200000);
 
@@ -1895,7 +1896,7 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 		goto remove_usb2;
 	}
 
-	if (HCC_MAX_PSA(xhci->hcc_params) >= 4)
+	if (GET_MAX_PSA_SIZE(xhci->hcc_params) >= 4)
 		xhci->shared_hcd->can_do_streams = 1;
 
 	err = usb_add_hcd(xhci->shared_hcd, tegra->xhci_irq, IRQF_SHARED);

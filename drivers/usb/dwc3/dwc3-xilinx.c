@@ -98,18 +98,10 @@ static int dwc3_xlnx_init_versal(struct dwc3_xlnx *priv_data)
 
 	dwc3_xlnx_mask_phy_rst(priv_data, false);
 
-	/* Assert and De-assert reset */
-	ret = reset_control_assert(crst);
-	if (ret < 0) {
-		dev_err_probe(dev, ret, "failed to assert Reset\n");
-		return ret;
-	}
-
-	ret = reset_control_deassert(crst);
-	if (ret < 0) {
-		dev_err_probe(dev, ret, "failed to De-assert Reset\n");
-		return ret;
-	}
+	/* assert and deassert reset */
+	ret = reset_control_reset(crst);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to assert and deassert reset\n");
 
 	dwc3_xlnx_mask_phy_rst(priv_data, true);
 	dwc3_xlnx_set_coherency(priv_data, XLNX_USB2_TRAFFIC_ROUTE_CONFIG);
@@ -194,7 +186,7 @@ static int dwc3_xlnx_init_zynqmp(struct dwc3_xlnx *priv_data)
 	}
 
 	if (priv_data->usb3_phy) {
-		/* Set PIPE Power Present signal in FPD Power Present Register*/
+		/* Set PIPE Power Present signal in FPD Power Present Register */
 		writel(FPD_POWER_PRSNT_OPTION, priv_data->regs + XLNX_USB_FPD_POWER_PRSNT);
 		/* Set the PIPE Clock Select bit in FPD PIPE Clock register */
 		writel(PIPE_CLK_SELECT, priv_data->regs + XLNX_USB_FPD_PIPE_CLK);

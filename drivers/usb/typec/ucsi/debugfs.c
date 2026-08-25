@@ -82,8 +82,8 @@ static int ucsi_resp_show(struct seq_file *s, void *not_used)
 	if (ucsi->debugfs->status)
 		return ucsi->debugfs->status;
 
-	seq_printf(s, "0x%016llx%016llx\n", ucsi->debugfs->response.high,
-		   ucsi->debugfs->response.low);
+	seq_printf(s, "0x%016llx%016llx%016llx\n", ucsi->debugfs->response.ext,
+		   ucsi->debugfs->response.high, ucsi->debugfs->response.low);
 	return 0;
 }
 DEFINE_SHOW_ATTRIBUTE(ucsi_resp);
@@ -162,6 +162,7 @@ void ucsi_debugfs_unregister(struct ucsi *ucsi)
 
 	debugfs_remove_recursive(ucsi->debugfs->dentry);
 	kfree(ucsi->debugfs);
+	ucsi->debugfs = NULL;
 }
 
 void ucsi_debugfs_init(void)

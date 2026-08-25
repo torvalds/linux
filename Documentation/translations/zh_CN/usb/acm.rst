@@ -20,33 +20,26 @@ Linux ACM 驱动 v0.16
 
 0. 免责声明
 ~~~~~~~~~~~
-本程序是自由软件；你可以在自由软件基金会发布的
-GNU 通用公共许可证第 2 版，或者（按你的选择）
-任何后续版本的条款下重新发布和/或修改它。
+本程序是自由软件；你可以在自由软件基金会发布的 GNU 通用公共许可证第 2 版，
+或者（按你的选择）任何后续版本的条款下重新发布和/或修改它。
 
-发布本程序是希望它能发挥作用，但它不附带任何担保；
-甚至不包括对适销性或特定用途适用性的默示担保。
-详情见 GNU 通用公共许可证。
+发布本程序是希望它能发挥作用，但它不附带任何担保；甚至不包括对适销性或
+特定用途适用性的默示担保。详情见 GNU 通用公共许可证。
 
-你应该已经随本程序收到了 GNU 通用公共许可证的副本；
-如果没有，请致信：Free Software Foundation, Inc., 59
-Temple Place, Suite 330, Boston, MA 02111-1307 USA。
+你应该已经随本程序收到了 GNU 通用公共许可证的副本；如果没有，请参见
+COPYING 文件。
 
-如需联系作者，可发送电子邮件至 vojtech@suse.cz，
-或邮寄至：
-Vojtech Pavlik, Ucitelska 1576, Prague 8,
-182 00, Czech Republic。
+如需联系作者，可发送电子邮件至 vojtech@suse.cz，或邮寄至：
+Vojtech Pavlik, Ucitelska 1576, Prague 8, 182 00, Czech Republic。
 
-为方便起见，软件包中已附带 GNU 通用公共许可证
-第 2 版：见 COPYING 文件。
+为方便起见，软件包中已附带 GNU 通用公共许可证第 2 版：见 COPYING 文件。
 
 1. 使用方法
 ~~~~~~~~~~~
-``drivers/usb/class/cdc-acm.c`` 驱动可用于符合 USB
-通信设备类抽象控制模型（USB CDC ACM）规范的
-USB 调制解调器和 USB ISDN 终端适配器。
+``drivers/usb/class/cdc-acm.c`` 驱动适用于符合 USB 通信设备类抽象控制模型
+（USB CDC ACM）规范的 USB 调制解调器和 USB ISDN 终端适配器。
 
-许多调制解调器支持此驱动，以下是我所知道的一些型号：
+已知支持该驱动的调制解调器包括：
 
 	- 3Com OfficeConnect 56k
 	- 3Com Voice FaxModem Pro
@@ -56,17 +49,16 @@ USB 调制解调器和 USB ISDN 终端适配器。
 	- Compaq 56k FaxModem
 	- ELSA Microlink 56k
 
-我知道有一款 ISDN 终端适配器可以与 ACM 驱动一起使用：
+已知有一款 ISDN 终端适配器可以配合 ACM 驱动使用：
 
 	- 3Com USR ISDN Pro TA
 
-一些手机也可以通过 USB 连接。
-我知道以下机型可以正常工作：
+一些手机也可以通过 USB 连接，已知可用的机型有：
 
 	- SonyEricsson K800i
 
-遗憾的是，许多调制解调器和大多数 ISDN TA
-都使用专有接口，因此无法与此驱动配合工作。
+遗憾的是，很多调制解调器和大多数 ISDN TA 都使用专有接口，因此无法配合该
+驱动工作。
 购买前请先确认设备是否符合 ACM 规范。
 
 要使用这些调制解调器，需要加载以下模块::
@@ -75,15 +67,13 @@ USB 调制解调器和 USB ISDN 终端适配器。
 	uhci-hcd.ko ohci-hcd.ko or ehci-hcd.ko
 	cdc-acm.ko
 
-之后就应该可以访问这些调制解调器了。
-应当可以使用 ``minicom``、``ppp`` 和 ``mgetty``
-与它们通信。
+之后就应该能访问这些调制解调器，并用 ``minicom``、``ppp`` 和
+``mgetty`` 与它们通信。
 
 2. 验证驱动是否正常工作
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-第一步是检查 ``/sys/kernel/debug/usb/devices``，
-其内容应该类似如下::
+第一步是查看 ``/sys/kernel/debug/usb/devices``，其内容应当类似下面这样::
 
   T:  Bus=01 Lev=00 Prnt=00 Port=00 Cnt=00 Dev#=  1 Spd=12  MxCh= 2
   B:  Alloc=  0/900 us ( 0%), #Int=  0, #Iso=  0
@@ -112,11 +102,10 @@ USB 调制解调器和 USB ISDN 终端适配器。
   E:  Ad=85(I) Atr=02(Bulk) MxPS=  64 Ivl=  0ms
   E:  Ad=04(O) Atr=02(Bulk) MxPS=  64 Ivl=  0ms
 
-这三行的存在很关键（以及 ``Cls=`` 字段里出现的
-``comm`` 和 ``data`` 类）；它说明这是一个 ACM
-设备。``Driver=acm`` 表示该设备正在使用 acm 驱动。
-如果只看到 ``Cls=ff(vend.)``，那就无能为力了：
-这说明你手上的设备使用的是厂商专有接口::
+关键是看这三行，再结合 ``Cls=`` 字段里出现的 ``comm`` 和 ``data`` 类，就
+能判断这是一台 ACM 设备。``Driver=acm`` 表示该设备正在使用 acm 驱动。如果
+只看到 ``Cls=ff(vend.)``，那就说明这台设备使用的是厂商专有接口，ACM 驱动
+无法处理::
 
     D:  Ver= 1.00 Cls=02(comm.) Sub=00 Prot=00 MxPS= 8 #Cfgs=  2
     I:  If#= 0 Alt= 0 #EPs= 1 Cls=02(comm.) Sub=02 Prot=01 Driver=acm
@@ -142,6 +131,5 @@ USB 调制解调器和 USB ISDN 终端适配器。
   usb.c: acm driver claimed interface c7b5f3f8
   usb.c: acm driver claimed interface c7691fa0
 
-如果以上都正常，请启动 ``minicom``，
-把它配置为连接 ``ttyACM`` 设备，然后
-尝试输入 ``at``。如果返回 ``OK``，说明一切工作正常。
+如果这些都正常，请启动 ``minicom``，把它配置为连接到 ``ttyACM`` 设备，然后
+尝试输入 ``at``。如果返回 ``OK``，说明驱动工作正常。

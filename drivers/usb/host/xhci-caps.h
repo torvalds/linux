@@ -5,22 +5,23 @@
  */
 
 #include <linux/bits.h>
+#include <linux/bitfield.h>
 
 /* hc_capbase - bitmasks */
 /* bits 7:0 - Capability Registers Length */
-#define HC_LENGTH(p)		((p) & 0xff)
+#define HC_LENGTH		GENMASK(7, 0)
 /* bits 15:8 - Rsvd */
 /* bits 31:16 - Host Controller Interface Version Number */
-#define HC_VERSION(p)		(((p) >> 16) & 0xffff)
+#define HC_VERSION		GENMASK(31, 16)
 
 /* HCSPARAMS1 - hcs_params1 - bitmasks */
 /* bits 7:0 - Number of Device Slots */
-#define HCS_MAX_SLOTS(p)	(((p) >> 0) & 0xff)
-#define HCS_SLOTS_MASK		0xff
-/* bits 18:8 - Number of Interrupters, max values is 1024 */
-#define HCS_MAX_INTRS(p)	(((p) >> 8) & 0x7ff)
-/* bits 31:24, Max Ports - max value is 255 */
-#define HCS_MAX_PORTS(p)	(((p) >> 24) & 0xff)
+#define HCS_SLOTS_MASK		GENMASK(7, 0)
+/* bits 18:8 - Number of Interrupters, max values is 1024  */
+#define HCS_MAX_INTRS		GENMASK(18, 8)
+/* bits 23:19 - Rsvd */
+/* bits 31:24 - Max Ports, max values is 255 */
+#define HCS_MAX_PORTS		GENMASK(31, 24)
 
 /* HCSPARAMS2 - hcs_params2 - bitmasks */
 /*
@@ -33,24 +34,25 @@
  * Note: 1 Frame = 8 Microframes
  * xHCI specification section 5.3.4.
  */
-#define HCS_IST_VALUE(p)	((p) & 0x7)
+#define HCS_IST_VALUE		GENMASK(2, 0)
 #define HCS_IST_UNIT		BIT(3)
 /* bits 7:4 - Event Ring Segment Table Max, 2^(n) */
-#define HCS_ERST_MAX(p)		(((p) >> 4) & 0xf)
+#define HCS_ERST_MAX		GENMASK(7, 4)
 /* bits 20:8 - Rsvd */
 /* bits 25:21 - Max Scratchpad Buffers (Hi), 5 Most significant bits */
-#define HCS_MAX_SP_HI(p)	(((p) >> 21) & 0x1f)
+#define HCS_MAX_SP_HI		GENMASK(25, 21)
 /* bit 26 - Scratchpad restore, for save/restore HW state */
 /* bits 31:27 - Max Scratchpad Buffers (Lo), 5 Least significant bits */
-#define HCS_MAX_SP_LO(p)	(((p) >> 27) & 0x1f)
-#define HCS_MAX_SCRATCHPAD(p)	(HCS_MAX_SP_HI(p) << 5 | HCS_MAX_SP_LO(p))
+#define HCS_MAX_SP_LO		GENMASK(31, 27)
+#define HCS_MAX_SCRATCHPAD(p)	(FIELD_GET(HCS_MAX_SP_HI, (p)) << 5 | \
+				 FIELD_GET(HCS_MAX_SP_LO, (p)))
 
 /* HCSPARAMS3 - hcs_params3 - bitmasks */
 /* bits 7:0 - U1 Device Exit Latency, Max U1 to U0 latency for the roothub ports */
-#define HCS_U1_LATENCY(p)	(((p) >> 0) & 0xff)
+#define HCS_U1_LATENCY		GENMASK(7, 0)
 /* bits 15:8 - Rsvd */
 /* bits 31:16 - U2 Device Exit Latency, Max U2 to U0 latency for the roothub ports */
-#define HCS_U2_LATENCY(p)	(((p) >> 16) & 0xffff)
+#define HCS_U2_LATENCY		GENMASK(31, 16)
 
 /* HCCPARAMS1 - hcc_params - bitmasks */
 /* bit 0 - 64-bit Addressing Capability */
@@ -77,19 +79,20 @@
 /* bit 11 - Contiguous Frame ID Capability */
 #define HCC_CFC			BIT(11)
 /* bits 15:12 - Max size for Primary Stream Arrays, 2^(n+1) */
-#define HCC_MAX_PSA(p)		(1 << ((((p) >> 12) & 0xf) + 1))
+#define HCC_MAX_PSA		GENMASK(15, 12)
+#define GET_MAX_PSA_SIZE(p)	(1 << (FIELD_GET(HCC_MAX_PSA, (p)) + 1))
 /* bits 31:16 - xHCI Extended Capabilities Pointer, from PCI base: 2^(n) */
-#define HCC_EXT_CAPS(p)		(((p) >> 16) & 0xffff)
+#define HCC_EXT_CAPS		GENMASK(31, 16)
 
 /* DBOFF - db_off - bitmasks */
 /* bits 1:0 - Rsvd */
 /* bits 31:2 - Doorbell Array Offset */
-#define	DBOFF_MASK	(0xfffffffc)
+#define	DBOFF_MASK		GENMASK(31, 2)
 
 /* RTSOFF - run_regs_off - bitmasks */
 /* bits 4:0 - Rsvd */
 /* bits 31:5 - Runtime Register Space Offse */
-#define	RTSOFF_MASK	(~0x1f)
+#define	RTSOFF_MASK		GENMASK(31, 5)
 
 /* HCCPARAMS2 - hcc_params2 - bitmasks */
 /* bit 0 - U3 Entry Capability */

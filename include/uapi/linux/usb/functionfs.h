@@ -25,6 +25,7 @@ enum functionfs_flags {
 	FUNCTIONFS_EVENTFD = 32,
 	FUNCTIONFS_ALL_CTRL_RECIP = 64,
 	FUNCTIONFS_CONFIG0_SETUP = 128,
+	FUNCTIONFS_RW_PROXY_EPS = 256,
 };
 
 /* Descriptor of an non-audio endpoint */
@@ -413,5 +414,28 @@ struct usb_functionfs_event {
  */
 #define FUNCTIONFS_DMABUF_TRANSFER	_IOW('g', 133, \
 					     struct usb_ffs_dmabuf_transfer_req)
+
+/*
+ * Enable or disable automatic zero-length packet (ZLP) appending for the
+ * endpoint. The argument is a pointer to a __u32: 0 to disable, non-zero to
+ * enable.
+ *
+ * When enabled, the kernel will automatically append a ZLP at the end of
+ * a transfer if the payload length is an exact multiple of the endpoint's
+ * max packet size.
+ *
+ * This is useful for compatibility with legacy protocols which require
+ * automatic ZLP appending to data written from userspace.
+ *
+ * This ioctl can only be used on IN endpoints. It can be called at any time
+ * after the FunctionFS instance is active, even before the host has connected
+ * or enabled the endpoint.
+ *
+ * Returns zero on success, or a negative errno value on error:
+ * -ENODEV: The FunctionFS instance is not active.
+ * -EINVAL: The endpoint is not an IN endpoint.
+ * -EFAULT: Invalid user space pointer for the argument.
+ */
+#define	FUNCTIONFS_ENDPOINT_ENABLE_ZLP	_IOW('g', 134, __u32)
 
 #endif /* _UAPI__LINUX_FUNCTIONFS_H__ */
