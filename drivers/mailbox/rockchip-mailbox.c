@@ -22,13 +22,11 @@
 #define ROCKCHIP_MAILBOX_B2A_CMD(x)		(0x30 + (x) * 8)
 #define ROCKCHIP_MAILBOX_B2A_DAT(x)		(0x34 + (x) * 8)
 
+#define ROCKCHIP_MAILBOX_NUM_CHANS		4
+
 struct rockchip_mbox_msg {
 	u32 cmd;
 	int rx_size;
-};
-
-struct rockchip_mbox_data {
-	int num_chans;
 };
 
 struct rockchip_mbox_chan {
@@ -151,20 +149,15 @@ static irqreturn_t rockchip_mbox_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static const struct rockchip_mbox_data rk3368_drv_data = {
-	.num_chans = 4,
-};
-
 static const struct of_device_id rockchip_mbox_of_match[] = {
-	{ .compatible = "rockchip,rk3368-mailbox", .data = &rk3368_drv_data},
-	{ },
+	{ .compatible = "rockchip,rk3368-mailbox" },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, rockchip_mbox_of_match);
 
 static int rockchip_mbox_probe(struct platform_device *pdev)
 {
 	struct rockchip_mbox *mb;
-	const struct rockchip_mbox_data *drv_data;
 	struct resource *res;
 	struct clk *pclk;
 	int ret, irq, i;
@@ -172,13 +165,13 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 	if (!pdev->dev.of_node)
 		return -ENODEV;
 
-	drv_data = (const struct rockchip_mbox_data *) device_get_match_data(&pdev->dev);
-
-	mb = devm_kzalloc(&pdev->dev, struct_size(mb, chans, drv_data->num_chans), GFP_KERNEL);
+	mb = devm_kzalloc(&pdev->dev,
+			  struct_size(mb, chans, ROCKCHIP_MAILBOX_NUM_CHANS),
+			  GFP_KERNEL);
 	if (!mb)
 		return -ENOMEM;
 
-	mb->mbox.chans = devm_kcalloc(&pdev->dev, drv_data->num_chans,
+	mb->mbox.chans = devm_kcalloc(&pdev->dev, ROCKCHIP_MAILBOX_NUM_CHANS,
 				      sizeof(*mb->mbox.chans), GFP_KERNEL);
 	if (!mb->mbox.chans)
 		return -ENOMEM;
@@ -186,7 +179,7 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, mb);
 
 	mb->mbox.dev = &pdev->dev;
-	mb->mbox.num_chans = drv_data->num_chans;
+	mb->mbox.num_chans = ROCKCHIP_MAILBOX_NUM_CHANS;
 	mb->mbox.ops = &rockchip_mbox_chan_ops;
 	mb->mbox.txdone_irq = true;
 
@@ -195,7 +188,7 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 		return PTR_ERR(mb->mbox_base);
 
 	/* Each channel has two buffers for A2B and B2A */
-	mb->buf_size = (size_t)resource_size(res) / (drv_data->num_chans * 2);
+	mb->buf_size = (size_t)resource_size(res) / (ROCKCHIP_MAILBOX_NUM_CHANS * 2);
 
 	pclk = devm_clk_get_enabled(&pdev->dev, "pclk_mailbox");
 	if (IS_ERR(pclk))
