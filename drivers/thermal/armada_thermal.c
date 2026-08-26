@@ -4,6 +4,7 @@
  *
  * Copyright (C) 2013 Marvell
  */
+#include <linux/bitfield.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/io.h>
@@ -20,41 +21,35 @@
 #include <linux/interrupt.h>
 
 /* Thermal Manager Control and Status Register */
-#define PMU_TDC0_SW_RST_MASK		(0x1 << 1)
-#define PMU_TM_DISABLE_OFFS		0
-#define PMU_TM_DISABLE_MASK		(0x1 << PMU_TM_DISABLE_OFFS)
-#define PMU_TDC0_REF_CAL_CNT_OFFS	11
-#define PMU_TDC0_REF_CAL_CNT_MASK	(0x1ff << PMU_TDC0_REF_CAL_CNT_OFFS)
-#define PMU_TDC0_OTF_CAL_MASK		(0x1 << 30)
-#define PMU_TDC0_START_CAL_MASK		(0x1 << 25)
+#define PMU_TDC0_SW_RST_MASK		BIT(1)
+#define PMU_TM_DISABLE_MASK		BIT(0)
+#define PMU_TDC0_REF_CAL_CNT_MASK	GENMASK(19, 11)
+#define PMU_TDC0_OTF_CAL_MASK		BIT(30)
+#define PMU_TDC0_START_CAL_MASK		BIT(25)
 
-#define A375_UNIT_CONTROL_SHIFT		27
-#define A375_UNIT_CONTROL_MASK		0x7
+#define A375_UNIT_CONTROL_MASK		GENMASK(29, 27)
 #define A375_READOUT_INVERT		BIT(15)
 #define A375_HW_RESETn			BIT(8)
 
 /* Errata fields */
-#define CONTROL0_TSEN_TC_TRIM_MASK	0x7
+#define CONTROL0_TSEN_TC_TRIM_MASK	GENMASK(2, 0)
 #define CONTROL0_TSEN_TC_TRIM_VAL	0x3
 
 #define CONTROL0_TSEN_START		BIT(0)
 #define CONTROL0_TSEN_RESET		BIT(1)
 #define CONTROL0_TSEN_ENABLE		BIT(2)
 #define CONTROL0_TSEN_AVG_BYPASS	BIT(6)
-#define CONTROL0_TSEN_CHAN_SHIFT	13
-#define CONTROL0_TSEN_CHAN_MASK		0xF
-#define CONTROL0_TSEN_OSR_SHIFT		24
-#define CONTROL0_TSEN_OSR_MAX		0x3
-#define CONTROL0_TSEN_MODE_SHIFT	30
+#define CONTROL0_TSEN_CHAN_MASK		GENMASK(16, 13)
+#define CONTROL0_TSEN_OSR_MASK		GENMASK(25, 24)
+#define CONTROL0_TSEN_OSR_MAX		FIELD_MAX(CONTROL0_TSEN_OSR_MASK)
+#define CONTROL0_TSEN_MODE_MASK		GENMASK(31, 30)
 #define CONTROL0_TSEN_MODE_EXTERNAL	0x2
-#define CONTROL0_TSEN_MODE_MASK		0x3
 
-#define CONTROL1_TSEN_AVG_MASK		0x7
+#define CONTROL1_TSEN_AVG_MASK		GENMASK(2, 0)
 #define CONTROL1_EXT_TSEN_SW_RESET	BIT(7)
 #define CONTROL1_EXT_TSEN_HW_RESETn	BIT(8)
 #define CONTROL1_TSEN_INT_EN		BIT(25)
-#define CONTROL1_TSEN_SELECT_OFF	21
-#define CONTROL1_TSEN_SELECT_MASK	0x3
+#define CONTROL1_TSEN_SELECT_MASK	GENMASK(22, 21)
 
 #define STATUS_POLL_PERIOD_US		1000
 #define STATUS_POLL_TIMEOUT_US		100000
@@ -140,23 +135,21 @@ static void armadaxp_init(struct platform_device *pdev,
 	u32 reg;
 
 	regmap_read(priv->syscon, data->syscon_control1_off, &reg);
-	reg |= PMU_TDC0_OTF_CAL_MASK;
+	FIELD_MODIFY(PMU_TDC0_OTF_CAL_MASK, &reg, 1);
 
 	/* Reference calibration value */
-	reg &= ~PMU_TDC0_REF_CAL_CNT_MASK;
-	reg |= (0xf1 << PMU_TDC0_REF_CAL_CNT_OFFS);
+	FIELD_MODIFY(PMU_TDC0_REF_CAL_CNT_MASK, &reg, 0xf1);
 
 	/* Reset the sensor */
-	reg |= PMU_TDC0_SW_RST_MASK;
-
+	FIELD_MODIFY(PMU_TDC0_SW_RST_MASK, &reg, 1);
 	regmap_write(priv->syscon, data->syscon_control1_off, reg);
 
-	reg &= ~PMU_TDC0_SW_RST_MASK;
+	FIELD_MODIFY(PMU_TDC0_SW_RST_MASK, &reg, 0);
 	regmap_write(priv->syscon, data->syscon_control1_off, reg);
 
 	/* Enable the sensor */
 	regmap_read(priv->syscon, data->syscon_status_off, &reg);
-	reg &= ~PMU_TM_DISABLE_MASK;
+	FIELD_MODIFY(PMU_TM_DISABLE_MASK, &reg, 0);
 	regmap_write(priv->syscon, data->syscon_status_off, reg);
 }
 
@@ -167,14 +160,13 @@ static void armada370_init(struct platform_device *pdev,
 	u32 reg;
 
 	regmap_read(priv->syscon, data->syscon_control1_off, &reg);
-	reg |= PMU_TDC0_OTF_CAL_MASK;
+	FIELD_MODIFY(PMU_TDC0_OTF_CAL_MASK, &reg, 1);
 
 	/* Reference calibration value */
-	reg &= ~PMU_TDC0_REF_CAL_CNT_MASK;
-	reg |= (0xf1 << PMU_TDC0_REF_CAL_CNT_OFFS);
+	FIELD_MODIFY(PMU_TDC0_REF_CAL_CNT_MASK, &reg, 0xf1);
 
 	/* Reset the sensor */
-	reg &= ~PMU_TDC0_START_CAL_MASK;
+	FIELD_MODIFY(PMU_TDC0_START_CAL_MASK, &reg, 0);
 
 	regmap_write(priv->syscon, data->syscon_control1_off, reg);
 
@@ -188,14 +180,14 @@ static void armada375_init(struct platform_device *pdev,
 	u32 reg;
 
 	regmap_read(priv->syscon, data->syscon_control1_off, &reg);
-	reg &= ~(A375_UNIT_CONTROL_MASK << A375_UNIT_CONTROL_SHIFT);
-	reg &= ~A375_READOUT_INVERT;
-	reg &= ~A375_HW_RESETn;
+	FIELD_MODIFY(A375_UNIT_CONTROL_MASK, &reg, 0);
+	FIELD_MODIFY(A375_READOUT_INVERT, &reg, 0);
+	FIELD_MODIFY(A375_HW_RESETn, &reg, 0);
 	regmap_write(priv->syscon, data->syscon_control1_off, reg);
 
 	msleep(20);
 
-	reg |= A375_HW_RESETn;
+	FIELD_MODIFY(A375_HW_RESETn, &reg, 1);
 	regmap_write(priv->syscon, data->syscon_control1_off, reg);
 
 	msleep(50);
@@ -220,14 +212,13 @@ static void armada380_init(struct platform_device *pdev,
 
 	/* Disable the HW/SW reset */
 	regmap_read(priv->syscon, data->syscon_control1_off, &reg);
-	reg |= CONTROL1_EXT_TSEN_HW_RESETn;
-	reg &= ~CONTROL1_EXT_TSEN_SW_RESET;
+	FIELD_MODIFY(CONTROL1_EXT_TSEN_HW_RESETn, &reg, 1);
+	FIELD_MODIFY(CONTROL1_EXT_TSEN_SW_RESET, &reg, 0);
 	regmap_write(priv->syscon, data->syscon_control1_off, reg);
 
 	/* Set Tsen Tc Trim to correct default value (errata #132698) */
 	regmap_read(priv->syscon, data->syscon_control0_off, &reg);
-	reg &= ~CONTROL0_TSEN_TC_TRIM_MASK;
-	reg |= CONTROL0_TSEN_TC_TRIM_VAL;
+	FIELD_MODIFY(CONTROL0_TSEN_TC_TRIM_MASK, &reg, CONTROL0_TSEN_TC_TRIM_VAL);
 	regmap_write(priv->syscon, data->syscon_control0_off, reg);
 }
 
@@ -238,14 +229,15 @@ static void armada_ap80x_init(struct platform_device *pdev,
 	u32 reg;
 
 	regmap_read(priv->syscon, data->syscon_control0_off, &reg);
-	reg &= ~CONTROL0_TSEN_RESET;
-	reg |= CONTROL0_TSEN_START | CONTROL0_TSEN_ENABLE;
+	FIELD_MODIFY(CONTROL0_TSEN_RESET, &reg, 0);
+	FIELD_MODIFY(CONTROL0_TSEN_START, &reg, 1);
+	FIELD_MODIFY(CONTROL0_TSEN_ENABLE, &reg, 1);
 
 	/* Sample every ~2ms */
-	reg |= CONTROL0_TSEN_OSR_MAX << CONTROL0_TSEN_OSR_SHIFT;
+	FIELD_MODIFY(CONTROL0_TSEN_OSR_MASK, &reg, CONTROL0_TSEN_OSR_MAX);
 
 	/* Enable average (2 samples by default) */
-	reg &= ~CONTROL0_TSEN_AVG_BYPASS;
+	FIELD_MODIFY(CONTROL0_TSEN_AVG_BYPASS, &reg, 0);
 
 	regmap_write(priv->syscon, data->syscon_control0_off, reg);
 }
@@ -260,13 +252,12 @@ static void armada_cp110_init(struct platform_device *pdev,
 
 	/* Sample every ~2ms */
 	regmap_read(priv->syscon, data->syscon_control0_off, &reg);
-	reg |= CONTROL0_TSEN_OSR_MAX << CONTROL0_TSEN_OSR_SHIFT;
+	FIELD_MODIFY(CONTROL0_TSEN_OSR_MASK, &reg, CONTROL0_TSEN_OSR_MAX);
 	regmap_write(priv->syscon, data->syscon_control0_off, reg);
 
 	/* Average the output value over 2^1 = 2 samples */
 	regmap_read(priv->syscon, data->syscon_control1_off, &reg);
-	reg &= ~CONTROL1_TSEN_AVG_MASK;
-	reg |= 1;
+	FIELD_MODIFY(CONTROL1_TSEN_AVG_MASK, &reg, 1);
 	regmap_write(priv->syscon, data->syscon_control1_off, reg);
 }
 
@@ -313,7 +304,7 @@ armada_disable_overheat_interrupt(struct armada_thermal_priv *priv)
 	u32 reg;
 
 	regmap_read(priv->syscon, data->syscon_control1_off, &reg);
-	reg &= ~CONTROL1_TSEN_INT_EN;
+	FIELD_MODIFY(CONTROL1_TSEN_INT_EN, &reg, 0);
 	regmap_write(priv->syscon, data->syscon_control1_off, reg);
 }
 
@@ -331,20 +322,18 @@ static int armada_select_channel(struct armada_thermal_priv *priv, int channel)
 
 	/* Stop the measurements */
 	regmap_read(priv->syscon, data->syscon_control0_off, &ctrl0);
-	ctrl0 &= ~CONTROL0_TSEN_START;
+	FIELD_MODIFY(CONTROL0_TSEN_START, &ctrl0, 0);
 	regmap_write(priv->syscon, data->syscon_control0_off, ctrl0);
-
-	/* Reset the mode, internal sensor will be automatically selected */
-	ctrl0 &= ~(CONTROL0_TSEN_MODE_MASK << CONTROL0_TSEN_MODE_SHIFT);
 
 	/* Other channels are external and should be selected accordingly */
 	if (channel) {
 		/* Change the mode to external */
-		ctrl0 |= CONTROL0_TSEN_MODE_EXTERNAL <<
-			 CONTROL0_TSEN_MODE_SHIFT;
+		FIELD_MODIFY(CONTROL0_TSEN_MODE_MASK, &ctrl0, CONTROL0_TSEN_MODE_EXTERNAL);
 		/* Select the sensor */
-		ctrl0 &= ~(CONTROL0_TSEN_CHAN_MASK << CONTROL0_TSEN_CHAN_SHIFT);
-		ctrl0 |= (channel - 1) << CONTROL0_TSEN_CHAN_SHIFT;
+		FIELD_MODIFY(CONTROL0_TSEN_CHAN_MASK, &ctrl0, channel - 1);
+	} else {
+		/* Reset the mode, internal sensor will be automatically selected */
+		FIELD_MODIFY(CONTROL0_TSEN_MODE_MASK, &ctrl0, 0);
 	}
 
 	/* Actually set the mode/channel */
@@ -352,7 +341,7 @@ static int armada_select_channel(struct armada_thermal_priv *priv, int channel)
 	priv->current_channel = channel;
 
 	/* Re-start the measurements */
-	ctrl0 |= CONTROL0_TSEN_START;
+	FIELD_MODIFY(CONTROL0_TSEN_START, &ctrl0, 1);
 	regmap_write(priv->syscon, data->syscon_control0_off, ctrl0);
 
 	/*
@@ -722,7 +711,6 @@ static const struct regmap_config armada_thermal_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
-	.fast_io = true,
 };
 
 static int armada_thermal_probe_legacy(struct platform_device *pdev,
@@ -913,11 +901,8 @@ static int armada_thermal_probe(struct platform_device *pdev)
 						armada_overheat_isr,
 						armada_overheat_isr_thread,
 						0, NULL, priv);
-		if (ret) {
-			dev_err(&pdev->dev, "Cannot request threaded IRQ %d\n",
-				irq);
+		if (ret)
 			return ret;
-		}
 	}
 
 	/*
