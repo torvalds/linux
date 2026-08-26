@@ -4112,6 +4112,10 @@ S: 4226 Landgreen Street
 S: Rockville, Maryland 20853
 S: USA
 
+N: Michael Turquette
+E: mturquette@baylibre.com
+D: common clk maintenance
+
 N: Stephen Tweedie
 E: sct@redhat.com
 P: 1024/E7A417AD E2 FE A4 20 34 EC ED FC 7D 7E 67 8D E0 31 D1 69

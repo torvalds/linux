@@ -23,6 +23,13 @@ config CLK_RV1103B
 	help
 	  Build the driver for RV1103B Clock Driver.
 
+config CLK_RV1106
+	bool "Rockchip RV1106 clock controller support"
+	depends on ARM || COMPILE_TEST
+	default y
+	help
+	  Build the driver for RV1106 Clock Driver.
+
 config CLK_RV110X
 	bool "Rockchip RV110x clock controller support"
 	depends on ARM || COMPILE_TEST

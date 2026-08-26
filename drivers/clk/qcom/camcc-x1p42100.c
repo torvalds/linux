@@ -2165,7 +2165,7 @@ static struct clk_alpha_pll *cam_cc_x1p42100_plls[] = {
 	&cam_cc_pll6,
 };
 
-static u32 cam_cc_x1p42100_critical_cbcrs[] = {
+static const u32 cam_cc_x1p42100_critical_cbcrs[] = {
 	0x13a9c, /* CAM_CC_GDSC_CLK */
 	0x13ab8, /* CAM_CC_SLEEP_CLK */
 };
@@ -2178,14 +2178,14 @@ static const struct regmap_config cam_cc_x1p42100_regmap_config = {
 	.fast_io = true,
 };
 
-static struct qcom_cc_driver_data cam_cc_x1p42100_driver_data = {
+static const struct qcom_cc_driver_data cam_cc_x1p42100_driver_data = {
 	.alpha_plls = cam_cc_x1p42100_plls,
 	.num_alpha_plls = ARRAY_SIZE(cam_cc_x1p42100_plls),
 	.clk_cbcrs = cam_cc_x1p42100_critical_cbcrs,
 	.num_clk_cbcrs = ARRAY_SIZE(cam_cc_x1p42100_critical_cbcrs),
 };
 
-static struct qcom_cc_desc cam_cc_x1p42100_desc = {
+static const struct qcom_cc_desc cam_cc_x1p42100_desc = {
 	.config = &cam_cc_x1p42100_regmap_config,
 	.clks = cam_cc_x1p42100_clocks,
 	.num_clks = ARRAY_SIZE(cam_cc_x1p42100_clocks),

@@ -679,7 +679,7 @@ MODULE_DEVICE_TABLE(of, cdce706_dt_match);
 #endif
 
 static const struct i2c_device_id cdce706_id[] = {
-	{ "cdce706" },
+	{ .name = "cdce706" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, cdce706_id);

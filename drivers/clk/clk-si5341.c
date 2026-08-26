@@ -1825,11 +1825,11 @@ static void si5341_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id si5341_id[] = {
-	{ "si5340", 0 },
-	{ "si5341", 1 },
-	{ "si5342", 2 },
-	{ "si5344", 4 },
-	{ "si5345", 5 },
+	{ .name = "si5340" },
+	{ .name = "si5341" },
+	{ .name = "si5342" },
+	{ .name = "si5344" },
+	{ .name = "si5345" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, si5341_id);

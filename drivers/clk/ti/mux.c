@@ -119,14 +119,14 @@ const struct clk_ops ti_clk_mux_ops = {
 };
 
 static struct clk *_register_mux(struct device_node *node, const char *name,
-				 const char * const *parent_names,
+				 const struct clk_parent_data *parent_data,
 				 u8 num_parents, unsigned long flags,
 				 struct clk_omap_reg *reg, u8 shift, u32 mask,
 				 s8 latch, u8 clk_mux_flags, u32 *table)
 {
+	struct clk_init_data init = {};
 	struct clk_omap_mux *mux;
 	struct clk *clk;
-	struct clk_init_data init;
 
 	/* allocate the mux */
 	mux = kzalloc_obj(*mux);
@@ -136,7 +136,7 @@ static struct clk *_register_mux(struct device_node *node, const char *name,
 	init.name = name;
 	init.ops = &ti_clk_mux_ops;
 	init.flags = flags;
-	init.parent_names = parent_names;
+	init.parent_data = parent_data;
 	init.num_parents = num_parents;
 
 	/* struct clk_mux assignments */
@@ -167,24 +167,26 @@ static void of_mux_clk_setup(struct device_node *node)
 	struct clk *clk;
 	struct clk_omap_reg reg;
 	unsigned int num_parents;
-	const char **parent_names;
+	struct clk_parent_data *parent_data;
 	const char *name;
 	u8 clk_mux_flags = 0;
 	u32 mask = 0;
 	u32 shift = 0;
 	s32 latch = -EINVAL;
 	u32 flags = CLK_SET_RATE_NO_REPARENT;
+	int i;
 
 	num_parents = of_clk_get_parent_count(node);
 	if (num_parents < 2) {
 		pr_err("mux-clock %pOFn must have parents\n", node);
 		return;
 	}
-	parent_names = kcalloc(num_parents, sizeof(char *), GFP_KERNEL);
-	if (!parent_names)
-		goto cleanup;
+	parent_data = kcalloc(num_parents, sizeof(*parent_data), GFP_KERNEL);
+	if (!parent_data)
+		return;
 
-	of_clk_parent_fill(node, parent_names, num_parents);
+	for (i = 0; i < num_parents; i++)
+		parent_data[i].index = i;
 
 	if (ti_clk_get_reg_addr(node, 0, &reg))
 		goto cleanup;
@@ -207,7 +209,7 @@ static void of_mux_clk_setup(struct device_node *node)
 	mask = (1 << fls(mask)) - 1;
 
 	name = ti_dt_clk_name(node);
-	clk = _register_mux(node, name, parent_names, num_parents,
+	clk = _register_mux(node, name, parent_data, num_parents,
 			    flags, &reg, shift, mask, latch, clk_mux_flags,
 			    NULL);
 
@@ -215,7 +217,7 @@ static void of_mux_clk_setup(struct device_node *node)
 		of_clk_add_provider(node, of_clk_src_simple_get, clk);
 
 cleanup:
-	kfree(parent_names);
+	kfree(parent_data);
 }
 CLK_OF_DECLARE(mux_clk, "ti,mux-clock", of_mux_clk_setup);
 

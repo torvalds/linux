@@ -629,7 +629,6 @@ static const struct regmap_config vlpckgen_regmap_config = {
 	.val_bits = 32,
 	.reg_stride = 4,
 	.max_register = 0x1000,
-	.fast_io = true,
 };
 
 static int clk_mt8196_vlp_probe(struct platform_device *pdev)
