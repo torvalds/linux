@@ -2919,6 +2919,10 @@ N: Thomas Molina
 E: tmolina@cablespeed.com
 D: bug fixes, documentation, minor hackery
 
+N: Bob Moore
+E: robert.moore@intel.com
+D: ACPI Component Architecture (ACPICA)
+
 N: Paul Moore
 E: paul@paul-moore.com
 W: https://www.paul-moore.com
