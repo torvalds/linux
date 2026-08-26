@@ -909,7 +909,7 @@ static void dm_test_populate_hdmi_frl_dsc_12bpc(struct kunit *test)
 
 	KUNIT_EXPECT_EQ(test, caps->max_frl_rate, 2);
 	KUNIT_EXPECT_TRUE(test, caps->frl_dsc_support);
-	KUNIT_EXPECT_FALSE(test, caps->frl_dsc_10bpc);
+	KUNIT_EXPECT_TRUE(test, caps->frl_dsc_10bpc);
 	KUNIT_EXPECT_TRUE(test, caps->frl_dsc_12bpc);
 	KUNIT_EXPECT_EQ(test, caps->frl_dsc_max_slices, 7);
 	KUNIT_EXPECT_EQ(test, caps->frl_dsc_max_frl_rate, 1);

@@ -1202,9 +1202,10 @@ void populate_hdmi_info_from_connector(bool enable_frl, struct drm_hdmi_info *hd
 		edid_caps->max_frl_rate = get_max_frl_rate(hdmi->max_lanes, hdmi->max_frl_rate_per_lane);
 		edid_caps->frl_dsc_support = hdmi->dsc_cap.v_1p2;
 		if (edid_caps->frl_dsc_support) {
-			if (hdmi->dsc_cap.bpc_supported == 10)
+			/* HF-VSDB DSC max bpc is cumulative: >=12 implies 10 and 8. */
+			if (hdmi->dsc_cap.bpc_supported >= 10)
 				edid_caps->frl_dsc_10bpc = true;
-			else if (hdmi->dsc_cap.bpc_supported == 12)
+			if (hdmi->dsc_cap.bpc_supported >= 12)
 				edid_caps->frl_dsc_12bpc = true;
 			edid_caps->frl_dsc_all_bpp = hdmi->dsc_cap.all_bpp;
 			edid_caps->frl_dsc_native_420 = hdmi->dsc_cap.native_420;
