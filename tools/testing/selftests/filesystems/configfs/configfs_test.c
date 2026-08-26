@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <pthread.h>
 #include <sched.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -40,6 +41,8 @@
 #define GROUP_ITEM		GROUP "/kselftest-a"
 #define LINK_SRC		SYMLINKS "/kselftest-src"
 #define LINK			LINK_SRC "/kselftest-link"
+
+#define RACE_ITERATIONS		20000
 
 static const char * const test_links[] = {
 	LINK,
@@ -403,6 +406,65 @@ TEST_F(configfs, symlink_target_is_an_attribute)
 	/* The target is resolved with LOOKUP_DIRECTORY. */
 	ASSERT_EQ(symlink(CHILDLESS "/storeme", LINK), -1);
 	EXPECT_EQ(errno, ENOTDIR);
+}
+
+static volatile int race_stop;
+
+static void *rmdir_target(void *arg)
+{
+	while (!race_stop) {
+		if (mkdir(ITEM_A, 0755) == 0 || errno == EEXIST)
+			rmdir(ITEM_A);
+	}
+
+	return NULL;
+}
+
+/* -1 if the kernel does not export a warning counter. */
+static long warn_count(void)
+{
+	char buf[32];
+
+	if (read_attr("/sys/kernel/warn_count", buf, sizeof(buf)) < 0)
+		return -1;
+
+	return strtol(buf, NULL, 10);
+}
+
+TEST_F(configfs, symlink_races_with_target_rmdir)
+{
+	pthread_t thread;
+	long warns;
+	int i;
+
+	warns = warn_count();
+	if (warns < 0)
+		SKIP(return, "no /sys/kernel/warn_count to watch");
+
+	ASSERT_EQ(mkdir(LINK_SRC, 0755), 0);
+	ASSERT_EQ(pthread_create(&thread, NULL, rmdir_target, NULL), 0);
+
+	/*
+	 * configfs_rmdir() drops the last reference to the item while its
+	 * dentry is still hashed, and get_target() takes a hashed dentry as
+	 * proof that the item behind it is alive.  The symlink then walks
+	 * ->ci_dentry into a released dirent, which configfs_get() warns
+	 * about.  KASAN sees the freed item itself.
+	 */
+	for (i = 0; i < RACE_ITERATIONS; i++) {
+		if (symlink(ITEM_A, LINK) == 0)
+			unlink(LINK);
+
+		/* Give up on the first splat rather than flood the log. */
+		if (!(i % 128) && warn_count() != warns)
+			break;
+	}
+
+	race_stop = 1;
+	ASSERT_EQ(pthread_join(thread, NULL), 0);
+
+	EXPECT_EQ(warn_count(), warns)
+		TH_LOG("kernel warned after %d iterations", i);
 }
 
 TEST_F(configfs, module_pinned_by_item)
