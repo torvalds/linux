@@ -25105,10 +25105,9 @@ F:	Documentation/admin-guide/LSM/Smack.rst
 F:	security/smack/
 
 SMBDIRECT (RDMA Stream Transport with Read/Write-Offload, MS-SMBD)
-M:	Steve French <smfrench@gmail.com>
-M:	Steve French <sfrench@samba.org>
 M:	Namjae Jeon <linkinjeon@kernel.org>
 M:	Namjae Jeon <linkinjeon@samba.org>
+M:	Paulo Alcantara <pc@manguebit.org>
 R:	Stefan Metzmacher <metze@samba.org>
 R:	Tom Talpey <tom@talpey.com>
 L:	linux-cifs@vger.kernel.org
