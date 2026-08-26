@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Exercise the configfs userspace interface through the three subsystems
+ * Exercise the configfs userspace interface through the subsystems
  * registered by samples/configfs.
  *
  * Copyright (c) 2026 Meta Platforms, Inc. and affiliates
@@ -10,6 +10,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <sched.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -31,16 +32,24 @@
 #define CHILDLESS		"01-childless"
 #define SIMPLE			"02-simple-children"
 #define GROUPS			"03-group-children"
+#define SYMLINKS		"04-symlink-children"
 
 #define ITEM_A			SIMPLE "/kselftest-a"
 #define ITEM_B			SIMPLE "/kselftest-b"
 #define GROUP			GROUPS "/kselftest-group"
 #define GROUP_ITEM		GROUP "/kselftest-a"
+#define LINK_SRC		SYMLINKS "/kselftest-src"
+#define LINK			LINK_SRC "/kselftest-link"
+
+static const char * const test_links[] = {
+	LINK,
+};
 
 /* Deepest first, so one pass empties the tree. */
 static const char * const test_dirs[] = {
 	GROUP_ITEM,
 	GROUP,
+	LINK_SRC,
 	ITEM_A,
 	ITEM_B,
 };
@@ -48,6 +57,10 @@ static const char * const test_dirs[] = {
 static void drop_test_dirs(void)
 {
 	size_t i;
+
+	/* Links first: they hold both their source and their target. */
+	for (i = 0; i < ARRAY_SIZE(test_links); i++)
+		unlink(test_links[i]);
 
 	for (i = 0; i < ARRAY_SIZE(test_dirs); i++)
 		rmdir(test_dirs[i]);
@@ -131,7 +144,7 @@ FIXTURE_TEARDOWN(configfs)
 
 TEST_F(configfs, mount_and_subsystems)
 {
-	const char * const subsys[] = { CHILDLESS, SIMPLE, GROUPS };
+	const char * const subsys[] = { CHILDLESS, SIMPLE, GROUPS, SYMLINKS };
 	struct statfs sfs;
 	struct stat st;
 	size_t i;
@@ -322,6 +335,74 @@ TEST_F(configfs, symlink_without_allow_link)
 	ASSERT_EQ(mkdir(ITEM_A, 0755), 0);
 	ASSERT_EQ(symlink(ITEM_A, SIMPLE "/kselftest-link"), -1);
 	EXPECT_EQ(errno, EPERM);
+}
+
+TEST_F(configfs, symlink_and_unlink)
+{
+	char buf[PATH_MAX];
+	struct stat st;
+	ssize_t n;
+
+	ASSERT_EQ(mkdir(ITEM_A, 0755), 0);
+	ASSERT_EQ(mkdir(LINK_SRC, 0755), 0);
+
+	ASSERT_EQ(symlink(ITEM_A, LINK), 0);
+
+	/* configfs stores its own body, a path relative to the link. */
+	n = readlink(LINK, buf, sizeof(buf) - 1);
+	ASSERT_GT(n, 0);
+	buf[n] = '\0';
+	EXPECT_STREQ(buf, "../../" ITEM_A);
+	EXPECT_EQ(stat(LINK "/storeme", &st), 0);
+
+	/* ->allow_link() ran on the source, not on the target. */
+	ASSERT_GT(read_attr(LINK_SRC "/nlinks", buf, sizeof(buf)), 0);
+	EXPECT_STREQ(buf, "1\n");
+
+	ASSERT_EQ(unlink(LINK), 0);
+	ASSERT_GT(read_attr(LINK_SRC "/nlinks", buf, sizeof(buf)), 0);
+	EXPECT_STREQ(buf, "0\n");
+}
+
+TEST_F(configfs, symlink_pins_both_ends)
+{
+	ASSERT_EQ(mkdir(ITEM_A, 0755), 0);
+	ASSERT_EQ(mkdir(LINK_SRC, 0755), 0);
+	ASSERT_EQ(symlink(ITEM_A, LINK), 0);
+
+	/* A linked item cannot go away under the link. */
+	ASSERT_EQ(rmdir(ITEM_A), -1);
+	EXPECT_EQ(errno, EBUSY);
+
+	/* The link counts as a child of its source. */
+	ASSERT_EQ(rmdir(LINK_SRC), -1);
+	EXPECT_EQ(errno, ENOTEMPTY);
+
+	ASSERT_EQ(unlink(LINK), 0);
+	EXPECT_EQ(rmdir(ITEM_A), 0);
+}
+
+TEST_F(configfs, symlink_target_outside_configfs)
+{
+	ASSERT_EQ(mkdir(LINK_SRC, 0755), 0);
+	ASSERT_EQ(symlink("/", LINK), -1);
+	EXPECT_EQ(errno, EPERM);
+}
+
+TEST_F(configfs, symlink_target_missing)
+{
+	ASSERT_EQ(mkdir(LINK_SRC, 0755), 0);
+	ASSERT_EQ(symlink(SIMPLE "/kselftest-gone", LINK), -1);
+	EXPECT_EQ(errno, ENOENT);
+}
+
+TEST_F(configfs, symlink_target_is_an_attribute)
+{
+	ASSERT_EQ(mkdir(LINK_SRC, 0755), 0);
+
+	/* The target is resolved with LOOKUP_DIRECTORY. */
+	ASSERT_EQ(symlink(CHILDLESS "/storeme", LINK), -1);
+	EXPECT_EQ(errno, ENOTDIR);
 }
 
 TEST_F(configfs, module_pinned_by_item)
