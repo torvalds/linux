@@ -34,6 +34,7 @@ TARGETS += exec
 TARGETS += fchmodat2
 TARGETS += filesystems
 TARGETS += filesystems/binderfs
+TARGETS += filesystems/configfs
 TARGETS += filesystems/epoll
 TARGETS += filesystems/eventfd
 TARGETS += filesystems/failfs
