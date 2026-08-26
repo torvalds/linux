@@ -1872,7 +1872,7 @@ static int nxp_serdev_probe(struct serdev_device *serdev)
 					     "failed to get pwrseq\n");
 
 		nxpdev->pwrseq = pwrseq;
-		err = pwrseq_power_on(pwrseq);
+		err = pwrseq_enable(pwrseq);
 		if (err)
 			goto err_pwrseq_put;
 	}
