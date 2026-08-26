@@ -1013,3 +1013,10 @@ Description:	Every time a write operation completes f2fs_write_end_io() is
 		the maximum size of a write bio that is completed in atomic
 		(atc) context. The default value for this attribute is UINT_MAX
 		which means that this functionality is disabled by default.
+
+What:		/sys/fs/f2fs/<disk>/pinned_area_max_secno
+Date:		August 2026
+Contact:	"Daeho Jeong" <daehojeong@google.com>
+Description:	This is a read-only entry to show the upper bound section number
+		for pinned files. Pinned files will only be allocated within
+		sections 0 to pinned_area_max_secno - 1.
