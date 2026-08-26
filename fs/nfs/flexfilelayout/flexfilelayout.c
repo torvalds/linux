@@ -1322,7 +1322,8 @@ static int ff_layout_async_handle_error_v4(struct rpc_task *task,
 	struct pnfs_layout_hdr *lo = lseg->pls_layout;
 	struct inode *inode = lo->plh_inode;
 	struct nfs4_deviceid_node *devid = FF_LAYOUT_DEVID_NODE(lseg, idx, dss_id);
-	struct nfs4_slot_table *tbl = &clp->cl_session->fc_slot_table;
+	struct nfs4_slot_table *tbl = nfs4_has_session(clp) ?
+		&clp->cl_session->fc_slot_table : clp->cl_slot_tbl;
 
 	switch (op_status) {
 	case NFS4_OK:
@@ -1543,6 +1544,17 @@ static void ff_layout_io_track_ds_error(struct pnfs_layout_segment *lseg,
 		case -EACCES:
 			*op_status = status = NFS4ERR_ACCESS;
 			break;
+		case -ECANCELED:
+			/*
+			 * In-flight I/O we cancelled to return a recalled or
+			 * revoked layout.  Report it as a failure to reach the
+			 * device (NFS4ERR_NXIO), like the transport errors
+			 * above, so the server can reconcile the affected mirror
+			 * instance.  We aborted the I/O ourselves rather than
+			 * observe the device fail, so don't condemn it below.
+			 */
+			*op_status = status = NFS4ERR_NXIO;
+			break;
 		default:
 			return;
 		}
@@ -1552,6 +1564,15 @@ static void ff_layout_io_track_ds_error(struct pnfs_layout_segment *lseg,
 	err = ff_layout_track_ds_error(FF_LAYOUT_FROM_HDR(lseg->pls_layout),
 				       mirror, dss_id, offset, length, status, opnum,
 				       nfs_io_gfp_mask());
+
+	/*
+	 * I/O we cancelled ourselves to return a recalled or revoked layout
+	 * is reported above so the server can reconcile the mirror, but we
+	 * have no evidence the device is at fault: don't mark it unreachable
+	 * or force a return.
+	 */
+	if (error == -ECANCELED)
+		goto out;
 
 	switch (status) {
 	case NFS4ERR_DELAY:
@@ -1572,6 +1593,7 @@ static void ff_layout_io_track_ds_error(struct pnfs_layout_segment *lseg,
 						  lseg);
 	}
 
+out:
 	dprintk("%s: err %d op %d status %u\n", __func__, err, opnum, status);
 }
 
@@ -2462,7 +2484,7 @@ static void ff_layout_cancel_io(struct pnfs_layout_segment *lseg)
 			clnt = ds_clp->cl_rpcclient;
 			if (!clnt)
 				continue;
-			if (!rpc_cancel_tasks(clnt, -EAGAIN,
+			if (!rpc_cancel_tasks(clnt, -ECANCELED,
 					      ff_layout_match_io, lseg))
 				continue;
 			rpc_clnt_disconnect(clnt);

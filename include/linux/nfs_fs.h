@@ -110,6 +110,7 @@ struct nfs_open_context {
 #define NFS_CONTEXT_UNLOCK	(3)
 #define NFS_CONTEXT_FILE_OPEN		(4)
 #define NFS_CONTEXT_WRITE_SYNC		(5)
+#define NFS_CONTEXT_O_DIRECT		(6)
 
 	struct nfs4_threshold	*mdsthreshold;
 	struct list_head list;
@@ -161,6 +162,8 @@ struct nfs_inode {
 	 */
 
 	struct timespec64	btime;
+
+	bool			uncacheable_file_data : 1;
 
 	/*
 	 * read_cache_jiffies is when we started read-caching this inode.
@@ -319,6 +322,7 @@ struct nfs4_copy_state {
 #define NFS_INO_INVALID_NLINK	BIT(16)		/* cached nlinks is invalid */
 #define NFS_INO_INVALID_MODE	BIT(17)		/* cached mode is invalid */
 #define NFS_INO_INVALID_BTIME	BIT(18)		/* cached btime is invalid */
+#define NFS_INO_INVALID_UNCACHEABLE_FILE_DATA	BIT(19)		/* cached uncacheable_file_data is invalid */
 
 #define NFS_INO_INVALID_ATTR	(NFS_INO_INVALID_CHANGE \
 		| NFS_INO_INVALID_CTIME \
