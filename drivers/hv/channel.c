@@ -13,11 +13,13 @@
 #include <linux/wait.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
+#include <linux/log2.h>
 #include <linux/module.h>
 #include <linux/hyperv.h>
 #include <linux/uio.h>
 #include <linux/interrupt.h>
 #include <linux/set_memory.h>
+#include <linux/vmalloc.h>
 #include <linux/export.h>
 #include <asm/page.h>
 #include <asm/mshyperv.h>
@@ -40,6 +42,7 @@ static inline u32 hv_gpadl_size(enum hv_gpadl_type type, u32 size)
 {
 	switch (type) {
 	case HV_GPADL_BUFFER:
+	case HV_GPADL_BUFFER_DECRYPTED:
 		return size;
 	case HV_GPADL_RING:
 		/* The size of a ringbuffer must be page-aligned */
@@ -100,6 +103,7 @@ static inline u64 hv_gpadl_hvpfn(enum hv_gpadl_type type, void *kbuffer,
 
 	switch (type) {
 	case HV_GPADL_BUFFER:
+	case HV_GPADL_BUFFER_DECRYPTED:
 		break;
 	case HV_GPADL_RING:
 		if (i == 0)
@@ -460,7 +464,8 @@ static int __vmbus_establish_gpadl(struct vmbus_channel *channel,
 	}
 
 	gpadl->decrypted = !((channel->co_external_memory && type == HV_GPADL_BUFFER) ||
-		(channel->co_ring_buffer && type == HV_GPADL_RING));
+		(channel->co_ring_buffer && type == HV_GPADL_RING) ||
+		(type == HV_GPADL_BUFFER_DECRYPTED));
 	if (gpadl->decrypted) {
 		/*
 		 * The "decrypted" flag being true assumes that set_memory_decrypted() succeeds.
@@ -575,7 +580,7 @@ cleanup:
  * @channel: a channel
  * @kbuffer: from kmalloc or vmalloc
  * @size: page-size multiple
- * @gpadl_handle: some funky thing
+ * @gpadl: output gpadl
  */
 int vmbus_establish_gpadl(struct vmbus_channel *channel, void *kbuffer,
 			  u32 size, struct vmbus_gpadl *gpadl)
@@ -584,6 +589,179 @@ int vmbus_establish_gpadl(struct vmbus_channel *channel, void *kbuffer,
 				       0U, gpadl);
 }
 EXPORT_SYMBOL_GPL(vmbus_establish_gpadl);
+
+/*
+ * vmbus_establish_gpadl_caller_decrypted - Establish a GPADL for a buffer
+ * that has already been decrypted by the caller.
+ *
+ * @channel: a channel
+ * @kbuffer: from kmalloc or vmalloc; must already be decrypted by the caller
+ * @size: page-size multiple
+ * @gpadl: output gpadl
+ *
+ * The caller is responsible for re-encrypting the buffer before freeing it.
+ */
+int vmbus_establish_gpadl_caller_decrypted(struct vmbus_channel *channel,
+					   void *kbuffer, u32 size,
+					   struct vmbus_gpadl *gpadl)
+{
+	return __vmbus_establish_gpadl(channel, HV_GPADL_BUFFER_DECRYPTED,
+				       kbuffer, size, 0U, gpadl);
+}
+EXPORT_SYMBOL_GPL(vmbus_establish_gpadl_caller_decrypted);
+
+/**
+ * vmbus_free_buffer - release a buffer allocated by vmbus_alloc_buffer().
+ *
+ * @addr: buffer address, or NULL if none was allocated (e.g. cleanup from a
+ *        failed allocation)
+ * @chunks: chunks array from vmbus_alloc_buffer(), or NULL
+ * @chunk_cnt: number of entries in @chunks
+ *
+ * When @chunks is NULL the buffer is a plain vzalloc() allocation.
+ *
+ * Otherwise tear down the vmap, and for each chunk re-encrypt and free
+ * the underlying pages. Any chunk that cannot be re-encrypted is leaked.
+ */
+void vmbus_free_buffer(void *addr, struct page **chunks, u32 chunk_cnt)
+{
+	u32 i;
+
+	if (!chunks) {
+		vfree(addr);
+		return;
+	}
+
+	vunmap(addr);
+
+	for (i = 0; i < chunk_cnt; i++) {
+		unsigned long vaddr =
+			(unsigned long)page_address(chunks[i]);
+		unsigned int order = folio_order(page_folio(chunks[i]));
+
+		if (set_memory_encrypted(vaddr, 1U << order))
+			continue;
+		__free_pages(chunks[i], order);
+	}
+
+	kvfree(chunks);
+}
+EXPORT_SYMBOL_GPL(vmbus_free_buffer);
+
+/**
+ * vmbus_alloc_buffer - allocate a host-visible, virtually-contiguous buffer.
+ *
+ * @channel: the channel the buffer will be attached to
+ * @size: requested buffer size in bytes (will be rounded up to PAGE_SIZE)
+ * @chunks_out: on success, set to the array of underlying chunks, or NULL when
+ *              the buffer was allocated with vzalloc()
+ * @chunk_cnt_out: on success, set to the number of chunks
+ *
+ * Buffers not requiring decryption are allocated with vzalloc().
+ *
+ * Buffers requiring decryption are allocated as a series of
+ * physically-contiguous chunks, starting at MAX_PAGE_ORDER and falling back to
+ * smaller orders on allocation failure. Each chunk is transitioned to
+ * host-visible via set_memory_decrypted() on its direct-map address, then all
+ * chunks are combined into a virtually-contiguous range via vmap().
+ *
+ * Return: the buffer's virtual address, or NULL on failure.
+ */
+void *vmbus_alloc_buffer(struct vmbus_channel *channel,
+			 u32 size,
+			 struct page ***chunks_out,
+			 u32 *chunk_cnt_out)
+{
+	unsigned long nr_pages = PFN_UP(size);
+	unsigned long remaining = nr_pages;
+	unsigned long page_idx = 0;
+	struct page **chunks = NULL;
+	struct page **pages = NULL;
+	int order = MAX_PAGE_ORDER;
+	u32 chunk_cnt = 0;
+	void *addr;
+	u32 i;
+	int ret;
+
+	*chunks_out = NULL;
+	*chunk_cnt_out = 0;
+
+	if (!nr_pages)
+		return NULL;
+
+	/* If the buffer does not need to be decrypted, just use vzalloc() */
+	if (!hv_is_isolation_supported() || channel->co_external_memory)
+		return vzalloc(nr_pages << PAGE_SHIFT);
+
+	/* Worst case: every chunk is a single page. */
+	chunks = kvmalloc_array(nr_pages, sizeof(*chunks),
+				GFP_KERNEL | __GFP_ZERO);
+	if (!chunks)
+		goto err;
+
+	pages = kvmalloc_array(nr_pages, sizeof(*pages), GFP_KERNEL);
+	if (!pages)
+		goto err;
+
+	while (remaining) {
+		struct page *page;
+		gfp_t gfp;
+
+		order = min(order, ilog2(remaining));
+
+		/*
+		 * Use __GFP_NORETRY | __GFP_NOWARN to avoid OOM-killing,
+		 * but try harder at order 0 since that is the final
+		 * fallback.
+		 * __GFP_COMP stores order information in the page folio.
+		 */
+		gfp = GFP_KERNEL | __GFP_ZERO;
+		if (order)
+			gfp |= __GFP_COMP | __GFP_NORETRY | __GFP_NOWARN;
+
+		page = alloc_pages_node(cpu_to_node(channel->target_cpu),
+					gfp, order);
+		if (!page) {
+			if (!order--)
+				goto err;
+			continue;
+		}
+
+		ret = set_memory_decrypted((unsigned long)page_address(page),
+					   1U << order);
+		if (ret) {
+			/*
+			 * set_memory_decrypted() failed; the page state is
+			 * unknown so it must be leaked rather than freed.
+			 */
+			goto err;
+		}
+
+		chunks[chunk_cnt++] = page;
+
+		for (i = 0; i < (1U << order); i++)
+			pages[page_idx++] = page + i;
+
+		remaining -= 1U << order;
+	}
+
+	addr = vmap(pages, nr_pages, VM_MAP, pgprot_decrypted(PAGE_KERNEL));
+	if (!addr)
+		goto err;
+
+	memset(addr, 0, nr_pages << PAGE_SHIFT);
+
+	kvfree(pages);
+	*chunks_out = chunks;
+	*chunk_cnt_out = chunk_cnt;
+	return addr;
+
+err:
+	kvfree(pages);
+	vmbus_free_buffer(NULL, chunks, chunk_cnt);
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(vmbus_alloc_buffer);
 
 /**
  * request_arr_init - Allocates memory for the requestor array. Each slot
