@@ -114,6 +114,32 @@ bad:
 	return -EIO;
 }
 
+/*
+ * Decode the inline_version + inline_data fields the MDS puts into
+ * reply inodes.  With inline data support disabled we still have to
+ * consume them, we just don't keep the data around.
+ */
+static int parse_reply_info_inline_data(void **p, void *end,
+					struct ceph_mds_reply_info_in *info)
+{
+#ifdef CONFIG_CEPH_FS_INLINE_DATA
+	ceph_decode_64_safe(p, end, info->inline_version, bad);
+	ceph_decode_32_safe(p, end, info->inline_len, bad);
+	ceph_decode_need(p, end, info->inline_len, bad);
+	info->inline_data = *p;
+	*p += info->inline_len;
+#else
+	u32 len;
+
+	ceph_decode_skip_64(p, end, bad);
+	ceph_decode_32_safe(p, end, len, bad);
+	ceph_decode_skip_n(p, end, len, bad);
+#endif
+	return 0;
+bad:
+	return -EIO;
+}
+
 static int parse_reply_info_in(void **p, void *end,
 			       struct ceph_mds_reply_info_in *info,
 			       u64 features,
@@ -158,11 +184,9 @@ static int parse_reply_info_in(void **p, void *end,
 
 	if (features == (u64)-1) {
 		/* inline data */
-		ceph_decode_64_safe(p, end, info->inline_version, bad);
-		ceph_decode_32_safe(p, end, info->inline_len, bad);
-		ceph_decode_need(p, end, info->inline_len, bad);
-		info->inline_data = *p;
-		*p += info->inline_len;
+		err = parse_reply_info_inline_data(p, end, info);
+		if (err < 0)
+			goto out_bad;
 		/* quota */
 		err = parse_reply_info_quota(p, end, info);
 		if (err < 0)
@@ -278,13 +302,12 @@ static int parse_reply_info_in(void **p, void *end,
 	} else {
 		/* legacy (unversioned) struct */
 		if (features & CEPH_FEATURE_MDS_INLINE_DATA) {
-			ceph_decode_64_safe(p, end, info->inline_version, bad);
-			ceph_decode_32_safe(p, end, info->inline_len, bad);
-			ceph_decode_need(p, end, info->inline_len, bad);
-			info->inline_data = *p;
-			*p += info->inline_len;
-		} else
+			err = parse_reply_info_inline_data(p, end, info);
+			if (err < 0)
+				goto out_bad;
+		} else {
 			info->inline_version = CEPH_INLINE_NONE;
+		}
 
 		if (features & CEPH_FEATURE_MDS_QUOTA) {
 			err = parse_reply_info_quota(p, end, info);

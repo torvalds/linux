@@ -401,7 +401,9 @@ struct ceph_inode_info {
 	spinlock_t i_ceph_lock;
 
 	u64 i_version;
+#ifdef CONFIG_CEPH_FS_INLINE_DATA
 	u64 i_inline_version;
+#endif
 	u32 i_time_warp_seq;
 
 	unsigned long i_ceph_flags;
@@ -1404,15 +1406,64 @@ extern void __ceph_touch_fmode(struct ceph_inode_info *ci,
 extern const struct address_space_operations ceph_aops;
 extern const struct netfs_request_ops ceph_netfs_ops;
 int ceph_mmap_prepare(struct vm_area_desc *desc);
-extern int ceph_uninline_data(struct file *file);
 extern int ceph_pool_perm_check(struct inode *inode, int need);
 extern void ceph_pool_perm_destroy(struct ceph_mds_client* mdsc);
 int ceph_purge_inode_cap(struct inode *inode, struct ceph_cap *cap, bool *invalidate);
 
+#ifdef CONFIG_CEPH_FS_INLINE_DATA
+extern int ceph_uninline_data(struct file *file);
+extern void ceph_fill_inline_data(struct inode *inode, struct page *locked_page,
+				  char *data, size_t len);
+
+static inline u64 ceph_inline_version(const struct ceph_inode_info *ci)
+{
+	return ci->i_inline_version;
+}
+
+static inline void ceph_set_inline_version(struct ceph_inode_info *ci,
+					   u64 version)
+{
+	ci->i_inline_version = version;
+}
+#else
+/*
+ * Only ever called under ceph_has_inline_data(), which is a constant
+ * false here, so this is unreachable; 0 keeps the error paths above
+ * simple without implying anything was done.
+ */
+static inline int ceph_uninline_data(struct file *file)
+{
+	return 0;
+}
+
+static inline void ceph_fill_inline_data(struct inode *inode,
+					 struct page *locked_page,
+					 char *data, size_t len)
+{
+}
+
+/*
+ * Without inline data support an inode never has any, so report the
+ * version the MDS uses for "no inline data" and ignore any update.
+ * This constant-folds all the inline data handling away.
+ */
+static inline u64 ceph_inline_version(const struct ceph_inode_info *ci)
+{
+	return CEPH_INLINE_NONE;
+}
+
+static inline void ceph_set_inline_version(struct ceph_inode_info *ci,
+					   u64 version)
+{
+}
+#endif /* CONFIG_CEPH_FS_INLINE_DATA */
+
 static inline bool ceph_has_inline_data(const struct ceph_inode_info *ci)
 {
-	if (ci->i_inline_version == CEPH_INLINE_NONE ||
-	    ci->i_inline_version == 1) /* initial version, no data */
+	u64 version = ceph_inline_version(ci);
+
+	if (version == CEPH_INLINE_NONE ||
+	    version == 1) /* initial version, no data */
 		return false;
 	return true;
 }
@@ -1428,8 +1479,6 @@ extern ssize_t __ceph_sync_read(struct inode *inode, loff_t *ki_pos,
 				struct iov_iter *to, int *retry_op,
 				u64 *last_objver);
 extern int ceph_release(struct inode *inode, struct file *filp);
-extern void ceph_fill_inline_data(struct inode *inode, struct page *locked_page,
-				  char *data, size_t len);
 
 /* dir.c */
 extern const struct file_operations ceph_dir_fops;

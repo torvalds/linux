@@ -636,7 +636,7 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	spin_lock_init(&ci->i_ceph_lock);
 
 	ci->i_version = 0;
-	ci->i_inline_version = 0;
+	ceph_set_inline_version(ci, 0);
 	ci->i_time_warp_seq = 0;
 	ci->i_ceph_flags = 0;
 	atomic64_set(&ci->i_ordered_count, 1);
@@ -1372,9 +1372,9 @@ int ceph_fill_inode(struct inode *inode, struct page *locked_page,
 	}
 
 	if (iinfo->inline_version > 0 &&
-	    iinfo->inline_version >= ci->i_inline_version) {
+	    iinfo->inline_version >= ceph_inline_version(ci)) {
 		int cache_caps = CEPH_CAP_FILE_CACHE | CEPH_CAP_FILE_LAZYIO;
-		ci->i_inline_version = iinfo->inline_version;
+		ceph_set_inline_version(ci, iinfo->inline_version);
 		if (ceph_has_inline_data(ci) &&
 		    (locked_page || (info_caps & cache_caps)))
 			fill_inline = true;

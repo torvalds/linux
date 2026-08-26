@@ -1500,7 +1500,7 @@ static void __prep_cap(struct cap_msg_args *arg, struct ceph_inode_info *ci,
 	arg->gid = inode->i_gid;
 	arg->mode = inode->i_mode;
 
-	arg->inline_data = ci->i_inline_version != CEPH_INLINE_NONE;
+	arg->inline_data = ceph_inline_version(ci) != CEPH_INLINE_NONE;
 	if (!(flags & CEPH_CLIENT_CAPS_PENDING_CAPSNAP) &&
 	    !list_empty(&ci->i_cap_snaps)) {
 		struct ceph_cap_snap *capsnap;
@@ -3542,6 +3542,32 @@ struct cap_extra_info {
 };
 
 /*
+ * Cap grant messages (msg_version >= 4) always carry inline_version
+ * followed by inline_data.  With inline data support disabled we still
+ * have to consume the fields, we just don't keep the data around.
+ */
+static int parse_inline_data(void **p, void *end,
+			     struct cap_extra_info *extra_info)
+{
+#ifdef CONFIG_CEPH_FS_INLINE_DATA
+	ceph_decode_64_safe(p, end, extra_info->inline_version, bad);
+	ceph_decode_32_safe(p, end, extra_info->inline_len, bad);
+	ceph_decode_need(p, end, extra_info->inline_len, bad);
+	extra_info->inline_data = *p;
+	*p += extra_info->inline_len;
+#else
+	u32 len;
+
+	ceph_decode_skip_64(p, end, bad);
+	ceph_decode_32_safe(p, end, len, bad);
+	ceph_decode_skip_n(p, end, len, bad);
+#endif
+	return 0;
+bad:
+	return -EIO;
+}
+
+/*
  * Handle a cap GRANT message from the MDS.  (Note that a GRANT may
  * actually be a revocation if it specifies a smaller cap set.)
  *
@@ -3833,9 +3859,9 @@ static void handle_cap_grant(struct inode *inode,
 	}
 
 	if (extra_info->inline_version > 0 &&
-	    extra_info->inline_version >= ci->i_inline_version) {
-		ci->i_inline_version = extra_info->inline_version;
-		if (ci->i_inline_version != CEPH_INLINE_NONE &&
+	    extra_info->inline_version >= ceph_inline_version(ci)) {
+		ceph_set_inline_version(ci, extra_info->inline_version);
+		if (extra_info->inline_version != CEPH_INLINE_NONE &&
 		    (newcaps & (CEPH_CAP_FILE_CACHE|CEPH_CAP_FILE_LAZYIO)))
 			fill_inline = true;
 	}
@@ -4427,6 +4453,7 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	struct ceph_snap_realm *realm = NULL;
 	int op;
 	int msg_version = le16_to_cpu(msg->hdr.version);
+	int err;
 	u32 seq, mseq, issue_seq;
 	struct ceph_vino vino;
 	void *snaptrace;
@@ -4478,12 +4505,9 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	}
 
 	if (msg_version >= 4) {
-		ceph_decode_64_safe(&p, end, extra_info.inline_version, bad);
-		ceph_decode_32_safe(&p, end, extra_info.inline_len, bad);
-		if (p + extra_info.inline_len > end)
+		err = parse_inline_data(&p, end, &extra_info);
+		if (err < 0)
 			goto bad;
-		extra_info.inline_data = p;
-		p += extra_info.inline_len;
 	}
 
 	if (msg_version >= 5) {

@@ -277,6 +277,7 @@ static void finish_netfs_read(struct ceph_osd_request *req)
 	ceph_dec_osd_stopping_blocker(fsc->mdsc);
 }
 
+#ifdef CONFIG_CEPH_FS_INLINE_DATA
 static bool ceph_netfs_issue_op_inline(struct netfs_io_subrequest *subreq)
 {
 	struct netfs_io_request *rreq = subreq->rreq;
@@ -337,6 +338,12 @@ out:
 	netfs_read_subreq_terminated(subreq);
 	return true;
 }
+#else
+static bool ceph_netfs_issue_op_inline(struct netfs_io_subrequest *subreq)
+{
+	return false;
+}
+#endif /* CONFIG_CEPH_FS_INLINE_DATA */
 
 static int ceph_netfs_prepare_read(struct netfs_io_subrequest *subreq)
 {
@@ -2181,6 +2188,7 @@ out_free:
 	return ret;
 }
 
+#ifdef CONFIG_CEPH_FS_INLINE_DATA
 void ceph_fill_inline_data(struct inode *inode, struct page *locked_page,
 			   char	*data, size_t len)
 {
@@ -2242,7 +2250,7 @@ int ceph_uninline_data(struct file *file)
 	u64 len;
 
 	spin_lock(&ci->i_ceph_lock);
-	inline_version = ci->i_inline_version;
+	inline_version = ceph_inline_version(ci);
 	spin_unlock(&ci->i_ceph_lock);
 
 	doutc(cl, "%llx.%llx inline_version %llu\n", ceph_vinop(inode),
@@ -2358,7 +2366,7 @@ out_uninline:
 		/* Set to CAP_INLINE_NONE and dirty the caps */
 		down_read(&fsc->mdsc->snap_rwsem);
 		spin_lock(&ci->i_ceph_lock);
-		ci->i_inline_version = CEPH_INLINE_NONE;
+		ceph_set_inline_version(ci, CEPH_INLINE_NONE);
 		dirty = __ceph_mark_dirty_caps(ci, CEPH_CAP_FILE_WR, &prealloc_cf);
 		spin_unlock(&ci->i_ceph_lock);
 		up_read(&fsc->mdsc->snap_rwsem);
@@ -2381,6 +2389,7 @@ out:
 	      ceph_vinop(inode), inline_version, err);
 	return err;
 }
+#endif /* CONFIG_CEPH_FS_INLINE_DATA */
 
 static const struct vm_operations_struct ceph_vmops = {
 	.fault		= ceph_filemap_fault,
