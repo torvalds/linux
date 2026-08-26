@@ -11,7 +11,7 @@ config SECURITY_APPARMOR
 	  This enables the AppArmor security module.
 	  Required userspace tools (if they are not included in your
 	  distribution) and further information may be found at
-	  http://apparmor.wiki.kernel.org
+	  https://apparmor.wiki.kernel.org
 
 	  If you are unsure how to answer this question, answer N.
 
@@ -92,6 +92,18 @@ config SECURITY_APPARMOR_EXPORT_BINARY
 	  It increases the amount of kernel memory needed by policy and
 	  also increases policy load time. This option is required for
 	  checkpoint and restore support, and debugging of loaded policy.
+
+config SECURITY_APPARMOR_COMPRESSED_POLICY
+	bool "Allow loading policy in a compressed format"
+	depends on SECURITY_APPARMOR
+	select ZSTD_DECOMPRESS
+	default y
+	help
+	  This option allows loading policy from userspace in a
+	  compressed format. This allows for userspace to not have to
+	  decrompress caches before loading policy, and also allows
+	  for less kernel memory to be used when "exporting the raw
+	  binary policy" is enabled.
 
 config SECURITY_APPARMOR_PARANOID_LOAD
 	bool "Perform full verification of loaded policy"

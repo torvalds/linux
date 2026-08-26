@@ -72,7 +72,7 @@ struct path_cond {
 #define COMBINED_PERM_MASK(X) ((X).allow | (X).audit | (X).quiet | (X).kill)
 
 int aa_audit_file(const struct cred *cred,
-		  struct aa_profile *profile, struct aa_perms *perms,
+		  struct aa_profile *profile, const struct aa_perms *perms,
 		  const char *op, u32 request, const char *name,
 		  const char *target, struct aa_label *tlabel, kuid_t ouid,
 		  const char *info, int error);

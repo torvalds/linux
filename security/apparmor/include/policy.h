@@ -26,7 +26,6 @@
 #include "file.h"
 #include "lib.h"
 #include "label.h"
-#include "net.h"
 #include "perms.h"
 #include "resource.h"
 
@@ -37,7 +36,6 @@ extern int unprivileged_userns_apparmor_policy;
 extern int aa_unprivileged_unconfined_restricted;
 
 extern const char *const aa_profile_mode_names[];
-#define APPARMOR_MODE_NAMES_MAX_INDEX 4
 
 #define PROFILE_MODE(_profile, _mode)		\
 	((aa_g_profile_mode == (_mode)) ||	\
@@ -76,6 +74,7 @@ enum profile_mode {
 	APPARMOR_KILL,		/* kill task on access violation */
 	APPARMOR_UNCONFINED,	/* profile set to unconfined */
 	APPARMOR_USER,		/* modified complain mode to userspace */
+	PROFILE_MODE_NAMES_COUNT	/* Must be last entry */
 };
 
 
@@ -295,6 +294,9 @@ struct aa_profile *aa_alloc_profile(const char *name, struct aa_proxy *proxy,
 				    gfp_t gfp);
 struct aa_profile *aa_alloc_null(struct aa_profile *parent, const char *name,
 				 gfp_t gfp);
+struct aa_profile *__aa_new_learning_profile(struct aa_profile *parent,
+					     bool hat, const char *base,
+					     gfp_t gfp);
 struct aa_profile *aa_new_learning_profile(struct aa_profile *parent, bool hat,
 					   const char *base, gfp_t gfp);
 void aa_free_profile(struct aa_profile *profile);
@@ -305,7 +307,8 @@ struct aa_profile *aa_fqlookupn_profile(struct aa_label *base,
 					const char *fqname, size_t n);
 
 ssize_t aa_replace_profiles(struct aa_ns *view, struct aa_label *label,
-			    u32 mask, struct aa_loaddata *udata);
+			    u32 mask, struct aa_loaddata *udata,
+			    char *compressed_profile, size_t compressed_size);
 ssize_t aa_remove_profiles(struct aa_ns *view, struct aa_label *label,
 			   char *name, size_t size);
 void __aa_profile_list_release(struct list_head *head);
@@ -351,8 +354,12 @@ static inline aa_state_t RULE_MEDIATES_NET(struct aa_ruleset *rules)
 	/* fallback and check v7/8 if v9 is NOT mediated */
 	if (!state)
 		state = RULE_MEDIATES(rules, AA_CLASS_NET);
-
 	return state;
+}
+
+static inline aa_state_t RULE_MEDIATES_UNIX(struct aa_ruleset *rules)
+{
+	return RULE_MEDIATES_v9NET(rules);
 }
 
 
@@ -429,7 +436,7 @@ static inline void aa_put_profile(struct aa_profile *p)
 		kref_put(&p->label.count.count, aa_label_kref);
 }
 
-static inline int AUDIT_MODE(struct aa_profile *profile)
+static inline int AUDIT_MODE(const struct aa_profile *profile)
 {
 	if (aa_g_audit != AUDIT_NORMAL)
 		return aa_g_audit;

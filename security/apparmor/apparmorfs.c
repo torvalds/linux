@@ -23,6 +23,7 @@
 #include <linux/fs_context.h>
 #include <linux/poll.h>
 #include <linux/zstd.h>
+#include <linux/string.h>
 #include <uapi/linux/major.h>
 #include <uapi/linux/magic.h>
 
@@ -33,6 +34,7 @@
 #include "include/crypto.h"
 #include "include/ipc.h"
 #include "include/label.h"
+#include "include/net.h"
 #include "include/lib.h"
 #include "include/policy.h"
 #include "include/policy_ns.h"
@@ -482,6 +484,126 @@ static struct aa_loaddata *aa_simple_write_to_buffer(const char __user *userbuf,
 	return data;
 }
 
+#if defined(CONFIG_SECURITY_APPARMOR_COMPRESSED_POLICY) || \
+    defined(CONFIG_SECURITY_APPARMOR_EXPORT_BINARY)
+static int decompress_zstd(char *src, size_t slen, char *dst, size_t dlen)
+{
+	if (slen < dlen) {
+		const size_t wksp_len = zstd_dctx_workspace_bound();
+		zstd_dctx *ctx;
+		void *wksp;
+		size_t out_len;
+		int ret = 0;
+
+		wksp = kvzalloc(wksp_len, GFP_KERNEL);
+		if (!wksp) {
+			ret = -ENOMEM;
+			goto cleanup;
+		}
+		ctx = zstd_init_dctx(wksp, wksp_len);
+		if (ctx == NULL) {
+			ret = -ENOMEM;
+			goto cleanup;
+		}
+		out_len = zstd_decompress_dctx(ctx, dst, dlen, src, slen);
+		if (zstd_is_error(out_len)) {
+			ret = -EINVAL;
+			goto cleanup;
+		}
+cleanup:
+		kvfree(wksp);
+		return ret;
+	}
+
+	if (dlen < slen)
+		return -EINVAL;
+	memcpy(dst, src, slen);
+	return 0;
+}
+#endif
+
+
+#ifdef CONFIG_SECURITY_APPARMOR_COMPRESSED_POLICY
+/**
+ * aa_get_data_from_compressed - common routine for getting compressed policy
+ * from user and get both compressed and uncompressed version.
+ * @userbuf: user buffer to copy data from  (NOT NULL)
+ * @buffer_size: size of user buffer
+ * @pos: position write is at in the file (NOT NULL)
+ * @compressed_data: Ptr on compressed data. *compressed_data is allocated there
+ *
+ * Returns: kernel buffer containing copy of user buffer data or an
+ *          ERR_PTR on failure.
+ */
+static struct aa_loaddata *aa_get_data_from_compressed(const char __user *userbuf,
+						  size_t buffer_size,
+						  loff_t *pos,
+						  char **compressed_data)
+{
+	struct aa_loaddata *data;
+	zstd_frame_header header;
+	int error;
+
+	if (!userbuf || !pos)
+		return ERR_PTR(-EINVAL);
+	if (*pos)
+		return ERR_PTR(-ESPIPE);
+
+	*compressed_data = kvmalloc(buffer_size, GFP_KERNEL);
+	if (!*compressed_data)
+		return ERR_PTR(-ENOMEM);
+	if (copy_from_user(*compressed_data, userbuf, buffer_size)) {
+		error = -EFAULT;
+		goto fail;
+	}
+	error = zstd_get_frame_header(&header, *compressed_data, buffer_size);
+	if (error || header.frameContentSize == ZSTD_CONTENTSIZE_UNKNOWN ||
+	    header.frameContentSize == ZSTD_CONTENTSIZE_ERROR) {
+		error = -EINVAL;
+		goto fail;
+	}
+
+	data = aa_loaddata_alloc(header.frameContentSize);
+	if (IS_ERR(data)) {
+		error = PTR_ERR(data);
+		goto fail;
+	}
+
+	// We then decompress the data
+	error = decompress_zstd(*compressed_data, buffer_size, data->data,
+				header.frameContentSize);
+	if (error)
+		goto fail_decompress;
+
+	data->size = header.frameContentSize;
+	return data;
+
+fail_decompress:
+	aa_put_i_loaddata(data);
+fail:
+	kvfree(*compressed_data);
+	return ERR_PTR(error);
+
+}
+#else
+static struct aa_loaddata *aa_get_data_from_compressed(const char __user *userbuf __always_unused,
+						  size_t buffer_size __always_unused,
+						  loff_t *pos __always_unused,
+						  char **compressed_data __always_unused)
+{
+	return ERR_PTR(-EINVAL);
+}
+#endif /* CONFIG_SECURITY_APPARMOR_COMPRESSED_POLICY */
+
+struct aa_user_hdr {
+	uint8_t version;
+	uint8_t compress_level;
+	uint8_t padding[6];	/* force 8-byte alignment */
+} __packed __aligned(8);
+
+#define aa_hdr_magic "\x04\x08\x00\x76\x65\x72\x73\x69\x6f\x6e\x00\x02"
+#define aa_hdr_magic_size 12
+
 static ssize_t policy_update(u32 mask, const char __user *buf, size_t size,
 			     loff_t *pos, struct aa_ns *ns,
 			     const struct cred *ocred)
@@ -489,8 +611,13 @@ static ssize_t policy_update(u32 mask, const char __user *buf, size_t size,
 	struct aa_loaddata *data;
 	struct aa_label *label;
 	ssize_t error;
+	char *compressed_data = NULL;
+	__le32 magic_le;
+	bool is_compressed;
+	u8 aahdr[aa_hdr_magic_size];
+	bool needput;
 
-	label = begin_current_label_crit_section();
+	label = begin_current_label_crit_section(&needput);
 
 	/* high level check about policy management - fine grained in
 	 * below after unpack
@@ -499,17 +626,59 @@ static ssize_t policy_update(u32 mask, const char __user *buf, size_t size,
 	if (error)
 		goto end_section;
 
-	data = aa_simple_write_to_buffer(buf, size, size, pos);
-	error = PTR_ERR(data);
+	/* If the policy is userspace compressed we start by decompressing it
+	 * to make the required checks (computing hash, verifying profile, ...)
+	 *
+	 * Getting a userspace-compressed version then decompressing it in the
+	 * kernel actually makes sense since zstd decompression is ~3.5x faster
+	 * than compression. This also allow to increase the compression level.
+	 */
+
+	if (size >= sizeof(__le32) &&
+	    !copy_from_user(&magic_le, buf, sizeof(magic_le)) &&
+	    le32_to_cpu(magic_le) == ZSTD_MAGICNUMBER) {
+		is_compressed = true;
+	} else if (size >= sizeof(struct aa_user_hdr) + sizeof(__le32) &&
+		   !copy_from_user(&magic_le,
+				   buf + sizeof(struct aa_user_hdr),
+				   sizeof(magic_le)) &&
+		   le32_to_cpu(magic_le) == ZSTD_MAGICNUMBER) {
+		is_compressed = true;
+		/* skip the userspace header if present */
+		buf += sizeof(struct aa_user_hdr);
+		size -= sizeof(struct aa_user_hdr);
+	} else if (size >= sizeof(struct aa_user_hdr) +
+		   aa_hdr_magic_size &&
+		   !copy_from_user(&aahdr,
+				   buf + sizeof(struct aa_user_hdr),
+				   aa_hdr_magic_size) &&
+		   memcmp(&aahdr, aa_hdr_magic, aa_hdr_magic_size) == 0) {
+		/* uncompressed blob with user hdr */
+		buf += sizeof(struct aa_user_hdr);
+		size -= sizeof(struct aa_user_hdr);
+		is_compressed = false;
+	} else {
+		is_compressed = false;
+	}
+	if (is_compressed) {
+
+		data = aa_get_data_from_compressed(buf, size, pos, &compressed_data);
+		error = PTR_ERR(data);
+	} else {
+		data = aa_simple_write_to_buffer(buf, size, size, pos);
+		error = PTR_ERR(data);
+	}
+
 	if (!IS_ERR(data)) {
-		error = aa_replace_profiles(ns, label, mask, data);
+		error = aa_replace_profiles(ns, label, mask, data,
+					    compressed_data, size);
 		/* put pcount, which will put count and free if no
 		 * profiles referencing it.
 		 */
 		aa_put_profile_loaddata(data);
 	}
 end_section:
-	end_current_label_crit_section(label);
+	end_current_label_crit_section(label, needput);
 
 	return error;
 }
@@ -549,6 +718,7 @@ static const struct file_operations aa_fs_profile_replace = {
 	.llseek = default_llseek,
 };
 
+
 /* .remove file hook fn to remove loaded policy */
 static ssize_t profile_remove(struct file *f, const char __user *buf,
 			      size_t size, loff_t *pos)
@@ -557,8 +727,9 @@ static ssize_t profile_remove(struct file *f, const char __user *buf,
 	struct aa_label *label;
 	ssize_t error;
 	struct aa_ns *ns = get_ns_common_ref(f->f_inode->i_private);
+	bool needput;
 
-	label = begin_current_label_crit_section();
+	label = begin_current_label_crit_section(&needput);
 	/* high level check about policy management - fine grained in
 	 * below after unpack
 	 */
@@ -580,7 +751,7 @@ static ssize_t profile_remove(struct file *f, const char __user *buf,
 		aa_put_profile_loaddata(data);
 	}
  out:
-	end_current_label_crit_section(label);
+	end_current_label_crit_section(label, needput);
 	aa_put_ns(ns);
 	return error;
 }
@@ -685,7 +856,8 @@ static const struct file_operations aa_fs_ns_revision_fops = {
 	.release	= ns_revision_release,
 };
 
-static void profile_query_cb(struct aa_profile *profile, struct aa_perms *perms,
+static void profile_query_cb(const struct aa_profile *profile,
+			     struct aa_perms *perms,
 			     const char *match_str, size_t match_len)
 {
 	struct aa_ruleset *rules = profile->label.rules[0];
@@ -755,6 +927,7 @@ static ssize_t query_data(char *buf, size_t buf_len,
 	struct aa_data *data;
 	u32 bytes, blocks;
 	__le32 outle32;
+	bool needput;
 
 	if (!query_len)
 		return -EINVAL; /* need a query */
@@ -768,9 +941,9 @@ static ssize_t query_data(char *buf, size_t buf_len,
 	if (buf_len < sizeof(bytes) + sizeof(blocks))
 		return -EINVAL; /* not enough space */
 
-	curr = begin_current_label_crit_section();
+	curr = begin_current_label_crit_section(&needput);
 	label = aa_label_parse(curr, query, GFP_KERNEL, false, false);
-	end_current_label_crit_section(curr);
+	end_current_label_crit_section(curr, needput);
 	if (IS_ERR(label))
 		return PTR_ERR(label);
 
@@ -846,6 +1019,7 @@ static ssize_t query_label(char *buf, size_t buf_len,
 	size_t label_name_len, match_len;
 	struct aa_perms perms;
 	struct label_it i;
+	bool needput;
 
 	if (!query_len)
 		return -EINVAL;
@@ -864,9 +1038,9 @@ static ssize_t query_label(char *buf, size_t buf_len,
 	match_str = label_name + label_name_len + 1;
 	match_len = query_len - label_name_len - 1;
 
-	curr = begin_current_label_crit_section();
+	curr = begin_current_label_crit_section(&needput);
 	label = aa_label_parse(curr, label_name, GFP_KERNEL, false, false);
-	end_current_label_crit_section(curr);
+	end_current_label_crit_section(curr, needput);
 	if (IS_ERR(label))
 		return PTR_ERR(label);
 
@@ -1234,10 +1408,11 @@ static const struct file_operations seq_ns_ ##NAME ##_fops = {	      \
 static int seq_ns_stacked_show(struct seq_file *seq, void *v)
 {
 	struct aa_label *label;
+	bool needput;
 
-	label = begin_current_label_crit_section();
+	label = begin_current_label_crit_section(&needput);
 	seq_printf(seq, "%s\n", str_yes_no(label->size > 1));
-	end_current_label_crit_section(label);
+	end_current_label_crit_section(label, needput);
 
 	return 0;
 }
@@ -1248,8 +1423,9 @@ static int seq_ns_nsstacked_show(struct seq_file *seq, void *v)
 	struct aa_profile *profile;
 	struct label_it it;
 	int count = 1;
+	bool needput;
 
-	label = begin_current_label_crit_section();
+	label = begin_current_label_crit_section(&needput);
 
 	if (label->size > 1) {
 		label_for_each(it, label, profile)
@@ -1260,7 +1436,7 @@ static int seq_ns_nsstacked_show(struct seq_file *seq, void *v)
 	}
 
 	seq_printf(seq, "%s\n", str_yes_no(count > 1));
-	end_current_label_crit_section(label);
+	end_current_label_crit_section(label, needput);
 
 	return 0;
 }
@@ -1268,23 +1444,32 @@ static int seq_ns_nsstacked_show(struct seq_file *seq, void *v)
 static int seq_ns_level_show(struct seq_file *seq, void *v)
 {
 	struct aa_label *label;
+	bool needput;
 
-	label = begin_current_label_crit_section();
+	label = begin_current_label_crit_section(&needput);
 	seq_printf(seq, "%d\n", labels_ns(label)->level);
-	end_current_label_crit_section(label);
+	end_current_label_crit_section(label, needput);
 
 	return 0;
 }
 
 static int seq_ns_name_show(struct seq_file *seq, void *v)
 {
-	struct aa_label *label = begin_current_label_crit_section();
+	bool needput;
+	struct aa_label *label = begin_current_label_crit_section(&needput);
+
 	seq_printf(seq, "%s\n", labels_ns(label)->base.name);
-	end_current_label_crit_section(label);
+	end_current_label_crit_section(label, needput);
 
 	return 0;
 }
 
+SEQ_NS_FOPS(stacked);
+SEQ_NS_FOPS(nsstacked);
+SEQ_NS_FOPS(level);
+SEQ_NS_FOPS(name);
+
+#ifdef CONFIG_SECURITY_APPARMOR_EXPORT_BINARY
 static int seq_ns_compress_min_show(struct seq_file *seq, void *v)
 {
 	seq_printf(seq, "%d\n", AA_MIN_CLEVEL);
@@ -1297,16 +1482,11 @@ static int seq_ns_compress_max_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-SEQ_NS_FOPS(stacked);
-SEQ_NS_FOPS(nsstacked);
-SEQ_NS_FOPS(level);
-SEQ_NS_FOPS(name);
 SEQ_NS_FOPS(compress_min);
 SEQ_NS_FOPS(compress_max);
 
 
 /* policy/raw_data/ * file ops */
-#ifdef CONFIG_SECURITY_APPARMOR_EXPORT_BINARY
 #define SEQ_RAWDATA_FOPS(NAME)						      \
 static int seq_rawdata_ ##NAME ##_open(struct inode *inode, struct file *file)\
 {									      \
@@ -1395,41 +1575,6 @@ SEQ_RAWDATA_FOPS(abi);
 SEQ_RAWDATA_FOPS(revision);
 SEQ_RAWDATA_FOPS(hash);
 SEQ_RAWDATA_FOPS(compressed_size);
-
-static int decompress_zstd(char *src, size_t slen, char *dst, size_t dlen)
-{
-	if (slen < dlen) {
-		const size_t wksp_len = zstd_dctx_workspace_bound();
-		zstd_dctx *ctx;
-		void *wksp;
-		size_t out_len;
-		int ret = 0;
-
-		wksp = kvzalloc(wksp_len, GFP_KERNEL);
-		if (!wksp) {
-			ret = -ENOMEM;
-			goto cleanup;
-		}
-		ctx = zstd_init_dctx(wksp, wksp_len);
-		if (ctx == NULL) {
-			ret = -ENOMEM;
-			goto cleanup;
-		}
-		out_len = zstd_decompress_dctx(ctx, dst, dlen, src, slen);
-		if (zstd_is_error(out_len)) {
-			ret = -EINVAL;
-			goto cleanup;
-		}
-cleanup:
-		kvfree(wksp);
-		return ret;
-	}
-
-	if (dlen < slen)
-		return -EINVAL;
-	memcpy(dst, src, slen);
-	return 0;
-}
 
 static ssize_t rawdata_read(struct file *file, char __user *buf, size_t size,
 			    loff_t *ppos)
@@ -1935,11 +2080,12 @@ static struct dentry *ns_mkdir_op(struct mnt_idmap *idmap, struct inode *dir,
 	/* TODO: improve permission check */
 	struct aa_label *label;
 	int error;
+	bool needput;
 
-	label = begin_current_label_crit_section();
+	label = begin_current_label_crit_section(&needput);
 	error = aa_may_manage_policy(current_cred(), label, NULL, NULL,
 				     AA_MAY_LOAD_POLICY);
-	end_current_label_crit_section(label);
+	end_current_label_crit_section(label, needput);
 	if (error)
 		return ERR_PTR(error);
 
@@ -1984,12 +2130,13 @@ static int ns_rmdir_op(struct inode *dir, struct dentry *dentry)
 	struct aa_ns *ns, *parent;
 	/* TODO: improve permission check */
 	struct aa_label *label;
+	bool needput;
 	int error;
 
-	label = begin_current_label_crit_section();
+	label = begin_current_label_crit_section(&needput);
 	error = aa_may_manage_policy(current_cred(), label, NULL, NULL,
 				     AA_MAY_LOAD_POLICY);
-	end_current_label_crit_section(label);
+	end_current_label_crit_section(label, needput);
 	if (error)
 		return error;
 
@@ -2483,6 +2630,10 @@ static struct aa_sfs_entry aa_sfs_entry_policy[] = {
 	AA_SFS_FILE_STRING("permstable32", PERMS32STR),
 	AA_SFS_FILE_U64("state32",	1),
 	AA_SFS_DIR("unconfined_restrictions",   aa_sfs_entry_unconfined),
+#ifdef CONFIG_SECURITY_APPARMOR_COMPRESSED_POLICY
+	AA_SFS_FILE_BOOLEAN("compressed_load",	1),
+	AA_SFS_FILE_BOOLEAN("extended_policy_header",	1),
+#endif
 	{ }
 };
 
@@ -2547,8 +2698,10 @@ static struct aa_sfs_entry aa_sfs_entry_apparmor[] = {
 	AA_SFS_FILE_FOPS(".ns_level", 0444, &seq_ns_level_fops),
 	AA_SFS_FILE_FOPS(".ns_name", 0444, &seq_ns_name_fops),
 	AA_SFS_FILE_FOPS("profiles", 0444, &aa_sfs_profiles_fops),
+#ifdef CONFIG_SECURITY_APPARMOR_EXPORT_BINARY
 	AA_SFS_FILE_FOPS("raw_data_compression_level_min", 0444, &seq_ns_compress_min_fops),
 	AA_SFS_FILE_FOPS("raw_data_compression_level_max", 0444, &seq_ns_compress_max_fops),
+#endif
 	AA_SFS_DIR("features", aa_sfs_entry_features),
 	{ }
 };
