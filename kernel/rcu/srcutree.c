@@ -2123,11 +2123,14 @@ void synchronize_srcu_atomic(struct srcu_struct *ssp)
 
 	// Perhaps others will do our work for us.
 	srcu_state = get_state_synchronize_srcu(ssp);
+	preempt_disable();
 	while (atomic_read(&sup->srcu_atomic_gp_flag) ||
 	       atomic_xchg(&sup->srcu_atomic_gp_flag, 1)) {
+		preempt_enable();
 		if (poll_state_synchronize_srcu(ssp, srcu_state))
 			return;
 		cpu_relax();
+		preempt_disable();
 	}
 
 	// One last check for others doing our work for us under the lock.
@@ -2135,6 +2138,7 @@ void synchronize_srcu_atomic(struct srcu_struct *ssp)
 	if (poll_state_synchronize_srcu(ssp, srcu_state)) {
 		raw_spin_unlock_irq_rcu_node(sup);
 		atomic_set(&sup->srcu_atomic_gp_flag, 0);
+		preempt_enable();
 		return;
 	}
 
@@ -2152,6 +2156,7 @@ void synchronize_srcu_atomic(struct srcu_struct *ssp)
 	}
 	ASSERT_EXCLUSIVE_WRITER(sup->srcu_atomic_gp_flag);
 	atomic_set_release(&sup->srcu_atomic_gp_flag, 0);
+	preempt_enable();
 	non_block_end();
 }
 EXPORT_SYMBOL_GPL(synchronize_srcu_atomic);
