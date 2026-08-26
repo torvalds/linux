@@ -1647,8 +1647,9 @@ static int ade9000_setup_clkout(struct device *dev, struct ade9000_state *st)
 		return 0;
 
 	/* CLKOUT passes through CLKIN with divider of 1 */
-	clkout_hw = devm_clk_hw_register_divider(dev, "clkout", __clk_get_name(st->clkin),
-						 CLK_SET_RATE_PARENT, NULL, 0, 1, 0, NULL);
+	clkout_hw = devm_clk_hw_register_fixed_factor(dev, "clkout",
+						      __clk_get_name(st->clkin),
+						      CLK_SET_RATE_PARENT, 1, 1);
 	if (IS_ERR(clkout_hw))
 		return dev_err_probe(dev, PTR_ERR(clkout_hw), "Failed to register clkout");
 
