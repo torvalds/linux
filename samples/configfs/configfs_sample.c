@@ -314,6 +314,126 @@ static struct configfs_subsystem group_children_subsys = {
 /* ----------------------------------------------------------------- */
 
 /*
+ * 04-symlink-children
+ *
+ * This example has children that are valid sources for symlink(2).  A
+ * child accepts a link to any other config_item and reports how many
+ * links it currently holds, so ->allow_link() and ->drop_link() are
+ * observable from userspace.
+ */
+
+struct symlink_child {
+	struct config_item item;
+	int nlinks;
+};
+
+static inline struct symlink_child *to_symlink_child(struct config_item *item)
+{
+	return container_of(item, struct symlink_child, item);
+}
+
+static ssize_t symlink_child_nlinks_show(struct config_item *item, char *page)
+{
+	return sprintf(page, "%d\n", to_symlink_child(item)->nlinks);
+}
+
+CONFIGFS_ATTR_RO(symlink_child_, nlinks);
+
+static struct configfs_attribute *symlink_child_attrs[] = {
+	&symlink_child_attr_nlinks,
+	NULL,
+};
+
+/*
+ * The VFS holds the source item's directory locked across symlink(2) and
+ * unlink(2), so ->nlinks needs no lock of its own.
+ */
+static int symlink_child_allow_link(struct config_item *src,
+		struct config_item *target)
+{
+	to_symlink_child(src)->nlinks++;
+
+	return 0;
+}
+
+static void symlink_child_drop_link(struct config_item *src,
+		struct config_item *target)
+{
+	to_symlink_child(src)->nlinks--;
+}
+
+static void symlink_child_release(struct config_item *item)
+{
+	kfree(to_symlink_child(item));
+}
+
+static const struct configfs_item_operations symlink_child_item_ops = {
+	.release	= symlink_child_release,
+	.allow_link	= symlink_child_allow_link,
+	.drop_link	= symlink_child_drop_link,
+};
+
+static const struct config_item_type symlink_child_type = {
+	.ct_item_ops	= &symlink_child_item_ops,
+	.ct_attrs	= symlink_child_attrs,
+	.ct_owner	= THIS_MODULE,
+};
+
+static struct config_item *symlink_children_make_item(
+		struct config_group *group, const char *name)
+{
+	struct symlink_child *symlink_child;
+
+	symlink_child = kzalloc_obj(*symlink_child, GFP_KERNEL);
+	if (!symlink_child)
+		return ERR_PTR(-ENOMEM);
+
+	config_item_init_type_name(&symlink_child->item, name,
+				   &symlink_child_type);
+
+	return &symlink_child->item;
+}
+
+static ssize_t symlink_children_description_show(struct config_item *item,
+		char *page)
+{
+	return sprintf(page,
+"[04-symlink-children]\n"
+"\n"
+"This subsystem allows the creation of child config_items that\n"
+"symlink(2) can point at other config_items from.  Each child\n"
+"reports the number of links it holds.\n");
+}
+
+CONFIGFS_ATTR_RO(symlink_children_, description);
+
+static struct configfs_attribute *symlink_children_attrs[] = {
+	&symlink_children_attr_description,
+	NULL,
+};
+
+static const struct configfs_group_operations symlink_children_group_ops = {
+	.make_item	= symlink_children_make_item,
+};
+
+static const struct config_item_type symlink_children_type = {
+	.ct_group_ops	= &symlink_children_group_ops,
+	.ct_attrs	= symlink_children_attrs,
+	.ct_owner	= THIS_MODULE,
+};
+
+static struct configfs_subsystem symlink_children_subsys = {
+	.su_group = {
+		.cg_item = {
+			.ci_namebuf = "04-symlink-children",
+			.ci_type = &symlink_children_type,
+		},
+	},
+};
+
+/* ----------------------------------------------------------------- */
+
+/*
  * We're now done with our subsystem definitions.
  * For convenience in this module, here's a list of them all.  It
  * allows the init function to easily register them.  Most modules
@@ -324,6 +444,7 @@ static struct configfs_subsystem *example_subsys[] = {
 	&childless_subsys.subsys,
 	&simple_children_subsys,
 	&group_children_subsys,
+	&symlink_children_subsys,
 	NULL,
 };
 
