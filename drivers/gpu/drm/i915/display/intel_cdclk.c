@@ -2715,8 +2715,8 @@ static void intel_set_cdclk(struct intel_display *display,
 	}
 }
 
-static bool dg2_power_well_count(struct intel_display *display,
-				 const struct intel_cdclk_state *cdclk_state)
+static int dg2_power_well_count(struct intel_display *display,
+				const struct intel_cdclk_state *cdclk_state)
 {
 	return display->platform.dg2 ? hweight8(cdclk_state->active_pipes) : 0;
 }
