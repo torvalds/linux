@@ -3,6 +3,8 @@
 #
 # Testing for IPv4 and IPv6 BIG TCP over VXLAN and GENEVE tunnels.
 
+source "$(dirname "$0")/lib.sh"
+
 SERVER_NS=$(mktemp -u server-XXXXXXXX)
 SERVER_IP4="192.168.1.1"
 SERVER_IP6="2001:db8::1:1"
@@ -15,10 +17,17 @@ CLIENT_IP6="2001:db8::1:2"
 CLIENT_IP4_TUN="192.168.2.2"
 CLIENT_IP6_TUN="2001:db8::2:2"
 
-: "${PACKETS_THRESHOLD:=1000}"
-
 # Kselftest framework requirement - SKIP code is 4.
 ksft_skip=4
+
+if [ -z "$PACKETS_THRESHOLD" ]; then
+	if [ "$KSFT_MACHINE_SLOW" = yes ]; then
+		echo 'Debug kernel detected, lowering the default threshold'
+		PACKETS_THRESHOLD=100
+	else
+		PACKETS_THRESHOLD=1000
+	fi
+fi
 
 setup() {
 	ip netns add "$SERVER_NS"
@@ -39,6 +48,9 @@ setup() {
 		gro_max_size 196608 gro_ipv4_max_size 196608
 
 	ip netns exec "$SERVER_NS" netserver >/dev/null
+	wait_local_port_listen "$SERVER_NS" 12865 tcp
+
+	DEFAULT_TCP_MIN_TSO_SEGS=$(ip netns exec "$CLIENT_NS" sysctl -n net.ipv4.tcp_min_tso_segs)
 }
 
 setup_tunnel() {
@@ -97,6 +109,8 @@ cleanup() {
 }
 
 do_test() {
+	local packets_threshold="$PACKETS_THRESHOLD"
+
 	# When tx csum offload is off, software GSO is performed before passing the
 	# packet to veth. Check BIG TCP packets inside the VXLAN tunnel to verify
 	# the software checksum path: if the checksum code is broken, these packets
@@ -115,11 +129,27 @@ do_test() {
 		else
 			IPTABLES=ip6tables
 		fi
+		packets_threshold=$(( PACKETS_THRESHOLD / 10 ))
 	fi
 	if [ "$2" = 4 ]; then
 		IPTABLES_SACK=iptables
 	else
 		IPTABLES_SACK=ip6tables
+	fi
+
+	if [ "$3" != 'on' ] && [ "$KSFT_MACHINE_SLOW" = yes ]; then
+		echo 'Slow configuration; increasing net.ipv4.tcp_min_tso_segs and initcwnd'
+		ip netns exec "$CLIENT_NS" sysctl -w net.ipv4.tcp_min_tso_segs=52
+		if [ "$2" = 4 ]; then
+			ip -netns "$CLIENT_NS" \
+			    route change 192.168.2.0/24 dev tun0 initcwnd 100
+		else
+			ip -netns "$CLIENT_NS" -6 \
+			    route change 2001:db8::2:0/112 dev tun0 initcwnd 100
+		fi
+	else
+		ip netns exec "$CLIENT_NS" \
+		    sysctl -w net.ipv4.tcp_min_tso_segs="$DEFAULT_TCP_MIN_TSO_SEGS"
 	fi
 
 	ip netns exec "$SERVER_NS" "$IPTABLES" -w -t raw -I PREROUTING -i "${CAPTURE_IFACE}1" -m length ! --length 0:65535 -m comment --comment "bigtcp"
@@ -147,8 +177,8 @@ do_test() {
 	echo "Captured BIG TCP RX packets: $PACKETS_SERVER"
 	echo "Captured BIG TCP TX packets: $PACKETS_CLIENT"
 	echo "Captured TCP SACK packets: $PACKETS_SACK"
-	[ "$PACKETS_SERVER" -gt "$PACKETS_THRESHOLD" ] || return 1
-	[ "$PACKETS_CLIENT" -gt "$PACKETS_THRESHOLD" ] || return 1
+	[ "$PACKETS_SERVER" -gt "$packets_threshold" ] || return 1
+	[ "$PACKETS_CLIENT" -gt "$packets_threshold" ] || return 1
 	[ "$PACKETS_SACK" -lt "$(( PACKETS_CLIENT / 2 ))" ] || return 1
 }
 
