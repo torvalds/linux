@@ -4926,7 +4926,6 @@ static const struct macb_usrio_config at91_default_usrio = {
 	.clken = MACB_BIT(CLKEN),
 };
 
-#if defined(CONFIG_OF)
 /* 1518 rounded up */
 #define AT91ETHER_MAX_RBUFF_SZ	0x600
 /* max number of receive buffers */
@@ -5754,7 +5753,6 @@ static const struct of_device_id macb_dt_ids[] = {
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, macb_dt_ids);
-#endif /* CONFIG_OF */
 
 static const struct macb_config default_gem_config = {
 	.caps = MACB_CAPS_GIGABIT_MODE_AVAILABLE |
@@ -6267,7 +6265,7 @@ static struct platform_driver macb_driver = {
 	.remove		= macb_remove,
 	.driver		= {
 		.name		= "macb",
-		.of_match_table	= of_match_ptr(macb_dt_ids),
+		.of_match_table	= macb_dt_ids,
 		.pm	= &macb_pm_ops,
 	},
 	.shutdown	= macb_shutdown,

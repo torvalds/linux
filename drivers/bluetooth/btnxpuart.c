@@ -1359,11 +1359,20 @@ static int nxp_process_fw_dump(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_acl_hdr *acl_hdr = (struct hci_acl_hdr *)skb_pull_data(skb,
 									  sizeof(*acl_hdr));
-	struct nxp_fw_dump_hdr *fw_dump_hdr = (struct nxp_fw_dump_hdr *)skb->data;
+	struct nxp_fw_dump_hdr *fw_dump_hdr;
 	struct btnxpuart_dev *nxpdev = hci_get_drvdata(hdev);
-	__u16 seq_num = __le16_to_cpu(fw_dump_hdr->seq_num);
-	__u16 buf_len = __le16_to_cpu(fw_dump_hdr->buf_len);
+	__u16 seq_num;
+	__u16 buf_len;
 	int err;
+
+	fw_dump_hdr = skb_pull_data(skb, sizeof(*fw_dump_hdr));
+	if (!fw_dump_hdr) {
+		bt_dev_warn(hdev, "FW dump: invalid or corrupt fw dump chunk");
+		goto free_skb;
+	}
+
+	seq_num = __le16_to_cpu(fw_dump_hdr->seq_num);
+	buf_len = __le16_to_cpu(fw_dump_hdr->buf_len);
 
 	if (seq_num == 0x0001) {
 		if (test_and_set_bit(BTNXPUART_FW_DUMP_IN_PROGRESS, &nxpdev->tx_state)) {
@@ -1809,6 +1818,28 @@ static void nxp_coredump_notify(struct hci_dev *hdev, int state)
 	kobject_uevent_env(&serdev->dev.kobj, KOBJ_CHANGE, envp);
 }
 
+/*
+ * Check if the remote M.2 connector device linked via OF graph is present
+ * and available. This is used to determine whether the pwrseq path should
+ * be taken. When the remote connector node is disabled (e.g., by a DT
+ * overlay switching from PCIe WiFi to SDIO WiFi), the pwrseq path is
+ * skipped, allowing the BT driver to use a direct bluetooth child node
+ * instead.
+ */
+static bool nxp_m2_connector_is_available(struct device *dev)
+{
+	struct device_node *ep __free(device_node) =
+		of_graph_get_next_endpoint(dev_of_node(dev), NULL);
+
+	if (!ep)
+		return false;
+
+	struct device_node *remote __free(device_node) =
+		of_graph_get_remote_port_parent(ep);
+
+	return remote && of_device_is_available(remote);
+}
+
 static int nxp_serdev_probe(struct serdev_device *serdev)
 {
 	struct hci_dev *hdev;
@@ -1863,7 +1894,7 @@ static int nxp_serdev_probe(struct serdev_device *serdev)
 		return err;
 	}
 
-	if (of_graph_is_present(dev_of_node(&serdev->ctrl->dev))) {
+	if (nxp_m2_connector_is_available(&serdev->ctrl->dev)) {
 		struct pwrseq_desc *pwrseq;
 
 		pwrseq = pwrseq_get(&serdev->ctrl->dev, "uart");

@@ -40,7 +40,7 @@ void bnxt_hwmon_notify_event(struct bnxt *bp)
 		return;
 	}
 
-	hwmon_notify_event(&bp->pdev->dev, hwmon_temp, attr, 0);
+	hwmon_notify_event(bp->hwmon_dev, hwmon_temp, attr, 0);
 }
 
 static int bnxt_hwrm_temp_query(struct bnxt *bp, u8 *temp)

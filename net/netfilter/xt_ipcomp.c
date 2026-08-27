@@ -29,12 +29,7 @@ MODULE_ALIAS("ip6t_ipcomp");
 static inline bool
 spi_match(u_int32_t min, u_int32_t max, u_int32_t spi, bool invert)
 {
-	bool r;
-	pr_debug("spi_match:%c 0x%x <= 0x%x <= 0x%x\n",
-		 invert ? '!' : ' ', min, spi, max);
-	r = (spi >= min && spi <= max) ^ invert;
-	pr_debug(" result %s\n", r ? "PASS" : "FAILED");
-	return r;
+	return (spi >= min && spi <= max) ^ invert;
 }
 
 static bool comp_mt(const struct sk_buff *skb, struct xt_action_param *par)
@@ -52,7 +47,6 @@ static bool comp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		/* We've been asked to examine this packet, and we
 		 * can't.  Hence, no choice but to drop.
 		 */
-		pr_debug("Dropping evil IPComp tinygram.\n");
 		par->hotdrop = true;
 		return false;
 	}

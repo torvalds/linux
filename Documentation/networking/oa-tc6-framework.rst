@@ -77,7 +77,7 @@ Reference
 
 10BASE-T1x MAC-PHY Serial Interface Specification,
 
-Link: https://opensig.org/download/document/OPEN_Alliance_10BASET1x_MAC-PHY_Serial_Interface_V1.1.pdf
+Link: https://opensig.org/wp-content/uploads/2023/12/OPEN_Alliance_10BASET1x_MAC-PHY_Serial_Interface_V1.1.pdf
 
 Hardware Architecture
 ---------------------

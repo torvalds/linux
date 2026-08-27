@@ -1907,6 +1907,7 @@ static s32 cake_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 					ktime_add_ms(q->last_reconfig_time,
 						     250))) {
 				q->config->rate_bps = (q->avg_peak_bandwidth * 15) >> 4;
+				q->last_reconfig_time = now;
 				cake_reconfigure(sch);
 			}
 		}

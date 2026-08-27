@@ -1657,6 +1657,51 @@ static int tcf_ct_offload_act_setup(struct tc_action *act, void *entry_data,
 	return 0;
 }
 
+static size_t tcf_ct_get_fill_size(const struct tc_action *act)
+{
+	const struct tcf_ct_params *p;
+	size_t size;
+
+	size = nla_total_size(sizeof(struct tc_ct)) /* TCA_CT_PARMS */
+		+ nla_total_size(sizeof(u16)); /* TCA_CT_ACTION */
+
+	rcu_read_lock();
+	p = rcu_dereference(to_ct(act)->params);
+
+	if (p->ct_action & TCA_CT_ACT_CLEAR)
+		goto out;
+
+	/* TCA_CT_MARK, TCA_CT_MARK_MASK */
+	if (IS_ENABLED(CONFIG_NF_CONNTRACK_MARK))
+		size += nla_total_size(sizeof(p->mark))
+			+ nla_total_size(sizeof(p->mark_mask));
+
+	/* TCA_CT_LABELS, TCA_CT_LABELS_MASK */
+	if (IS_ENABLED(CONFIG_NF_CONNTRACK_LABELS))
+		size += nla_total_size(sizeof(p->labels))
+			+ nla_total_size(sizeof(p->labels_mask));
+
+	if (IS_ENABLED(CONFIG_NF_CONNTRACK_ZONES))
+		size += nla_total_size(sizeof(p->zone)); /* TCA_CT_ZONE */
+
+	if (p->ct_action & TCA_CT_ACT_NAT)
+		/* TCA_CT_NAT_IPV6_{MIN,MAX}, the larger of the two address
+		 * variants, plus TCA_CT_NAT_PORT_{MIN,MAX}.
+		 */
+		size += 2 * nla_total_size(sizeof(struct in6_addr))
+			+ 2 * nla_total_size(sizeof(__be16));
+
+	/* TCA_CT_HELPER_{NAME,FAMILY,PROTO} */
+	if (p->helper)
+		size += nla_total_size(NF_CT_HELPER_NAME_LEN)
+			+ nla_total_size(sizeof(u8))
+			+ nla_total_size(sizeof(u8));
+out:
+	rcu_read_unlock();
+
+	return size;
+}
+
 static struct tc_action_ops act_ct_ops = {
 	.kind		=	"ct",
 	.id		=	TCA_ID_CT,
@@ -1666,6 +1711,7 @@ static struct tc_action_ops act_ct_ops = {
 	.init		=	tcf_ct_init,
 	.cleanup	=	tcf_ct_cleanup,
 	.stats_update	=	tcf_stats_update,
+	.get_fill_size	=	tcf_ct_get_fill_size,
 	.offload_act_setup =	tcf_ct_offload_act_setup,
 	.size		=	sizeof(struct tcf_ct),
 };

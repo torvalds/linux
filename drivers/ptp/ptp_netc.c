@@ -440,7 +440,7 @@ static int net_timer_enable_perout(struct netc_timer *priv,
 	}
 
 	if (on) {
-		u64 period_ns, gclk_period, max_period, min_period;
+		u64 period_ns, gclk_period, min_period;
 		struct timespec64 period, stime;
 		u32 integral_period;
 		int alarm_id;
@@ -450,12 +450,12 @@ static int net_timer_enable_perout(struct netc_timer *priv,
 		period_ns = timespec64_to_ns(&period);
 
 		integral_period = netc_timer_get_integral_period(priv);
-		max_period = (u64)NETC_TMR_DEFAULT_FIPER + integral_period;
 		gclk_period = netc_timer_get_gclk_period(priv);
 		min_period = gclk_period * 4 + integral_period;
-		if (period_ns > max_period || period_ns < min_period) {
-			dev_err(dev, "The period range is %llu ~ %llu\n",
-				min_period, max_period);
+		if (period_ns > NETC_TMR_DEFAULT_FIPER ||
+		    period_ns < min_period) {
+			dev_err(dev, "The period range is %llu ~ %lu\n",
+				min_period, NETC_TMR_DEFAULT_FIPER);
 			err = -EINVAL;
 			goto unlock_spinlock;
 		}
