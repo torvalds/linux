@@ -55,63 +55,46 @@ static void __crst_table_upgrade(void *arg)
 
 int crst_table_upgrade(struct mm_struct *mm, unsigned long end)
 {
-	unsigned long *pgd = NULL, *p4d = NULL, *__pgd;
-	unsigned long asce_limit = mm->context.asce_limit;
+	unsigned long *table, *pgd;
+	int rc, notify;
 
 	mmap_assert_write_locked(mm);
-
 	/* upgrade should only happen from 3 to 4, 3 to 5, or 4 to 5 levels */
-	VM_BUG_ON(asce_limit < _REGION2_SIZE);
-
-	if (end <= asce_limit)
-		return 0;
-
-	if (asce_limit == _REGION2_SIZE) {
-		p4d = crst_table_alloc(mm);
-		if (unlikely(!p4d))
-			goto err_p4d;
-		crst_table_init(p4d, _REGION2_ENTRY_EMPTY);
-		pagetable_p4d_ctor(virt_to_ptdesc(p4d));
+	VM_BUG_ON(mm->context.asce_limit < _REGION2_SIZE);
+	rc = 0;
+	notify = 0;
+	while (mm->context.asce_limit < end) {
+		table = crst_table_alloc(mm);
+		if (!table) {
+			rc = -ENOMEM;
+			break;
+		}
+		spin_lock_bh(&mm->page_table_lock);
+		pgd = (unsigned long *)mm->pgd;
+		if (mm->context.asce_limit == _REGION2_SIZE) {
+			crst_table_init(table, _REGION2_ENTRY_EMPTY);
+			p4d_populate(mm, (p4d_t *)table, (pud_t *)pgd);
+			pagetable_p4d_ctor(virt_to_ptdesc(table));
+			mm->pgd = (pgd_t *)table;
+			mm->context.asce_limit = _REGION1_SIZE;
+			mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
+				_ASCE_USER_BITS | _ASCE_TYPE_REGION2;
+			mm_inc_nr_puds(mm);
+		} else {
+			crst_table_init(table, _REGION1_ENTRY_EMPTY);
+			pgd_populate(mm, (pgd_t *)table, (p4d_t *)pgd);
+			pagetable_pgd_ctor(virt_to_ptdesc(table));
+			mm->pgd = (pgd_t *)table;
+			mm->context.asce_limit = TASK_SIZE_MAX;
+			mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
+				_ASCE_USER_BITS | _ASCE_TYPE_REGION1;
+		}
+		notify = 1;
+		spin_unlock_bh(&mm->page_table_lock);
 	}
-	if (end > _REGION1_SIZE) {
-		pgd = crst_table_alloc(mm);
-		if (unlikely(!pgd))
-			goto err_pgd;
-		crst_table_init(pgd, _REGION1_ENTRY_EMPTY);
-		pagetable_pgd_ctor(virt_to_ptdesc(pgd));
-	}
-
-	spin_lock_bh(&mm->page_table_lock);
-
-	if (p4d) {
-		__pgd = (unsigned long *) mm->pgd;
-		p4d_populate(mm, (p4d_t *) p4d, (pud_t *) __pgd);
-		mm->pgd = (pgd_t *) p4d;
-		mm->context.asce_limit = _REGION1_SIZE;
-		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
-			_ASCE_USER_BITS | _ASCE_TYPE_REGION2;
-		mm_inc_nr_puds(mm);
-	}
-	if (pgd) {
-		__pgd = (unsigned long *) mm->pgd;
-		pgd_populate(mm, (pgd_t *) pgd, (p4d_t *) __pgd);
-		mm->pgd = (pgd_t *) pgd;
-		mm->context.asce_limit = TASK_SIZE_MAX;
-		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
-			_ASCE_USER_BITS | _ASCE_TYPE_REGION1;
-	}
-
-	spin_unlock_bh(&mm->page_table_lock);
-
-	on_each_cpu(__crst_table_upgrade, mm, 0);
-
-	return 0;
-
-err_pgd:
-	pagetable_dtor(virt_to_ptdesc(p4d));
-	crst_table_free(mm, p4d);
-err_p4d:
-	return -ENOMEM;
+	if (notify)
+		on_each_cpu(__crst_table_upgrade, mm, 0);
+	return rc;
 }
 
 unsigned long *page_table_alloc_noprof(struct mm_struct *mm)
