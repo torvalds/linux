@@ -272,6 +272,8 @@ __xfs_healthmon_insert(
 {
 	struct timespec64		now;
 
+	lockdep_assert_held(&hm->lock);
+
 	ktime_get_coarse_real_ts64(&now);
 	event->time_ns = (now.tv_sec * NSEC_PER_SEC) + now.tv_nsec;
 
@@ -293,6 +295,8 @@ __xfs_healthmon_push(
 	struct xfs_healthmon_event	*event)
 {
 	struct timespec64		now;
+
+	lockdep_assert_held(&hm->lock);
 
 	ktime_get_coarse_real_ts64(&now);
 	event->time_ns = (now.tv_sec * NSEC_PER_SEC) + now.tv_nsec;
@@ -415,8 +419,10 @@ xfs_healthmon_unmount(
 	 * There's nothing actionable for userspace after an unmount.  Once
 	 * we've inserted the unmount event, hm no longer owns that event.
 	 */
+	mutex_lock(&hm->lock);
 	__xfs_healthmon_insert(hm, hm->unmount_event);
 	hm->unmount_event = NULL;
+	mutex_unlock(&hm->lock);
 
 	xfs_healthmon_detach(hm);
 	xfs_healthmon_put(hm);
