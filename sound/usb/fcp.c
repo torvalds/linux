@@ -191,6 +191,10 @@ static int fcp_usb(struct usb_mixer_interface *mixer, u32 opcode,
 	const int max_retries = 5;
 	int err;
 
+	CLASS(snd_usb_lock, pm)(mixer->chip);
+	if (pm.err < 0)
+		return -EIO;
+
 	if (!private->urb)
 		return -ENODEV;
 
@@ -1025,6 +1029,10 @@ static int fcp_init(struct usb_mixer_interface *mixer,
 	struct fcp_data *private = mixer->private_data;
 	struct usb_device *dev = mixer->chip->dev;
 	int err;
+
+	CLASS(snd_usb_lock, pm)(mixer->chip);
+	if (pm.err < 0)
+		return -EIO;
 
 	err = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0),
 		FCP_USB_REQ_STEP0,
