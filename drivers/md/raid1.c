@@ -919,21 +919,6 @@ static void wake_up_barrier(struct r1conf *conf)
 		wake_up(&conf->wait_barrier);
 }
 
-static void flush_bio_list(struct r1conf *conf, struct bio *bio)
-{
-	/* flush any pending bitmap writes to disk before proceeding w/ I/O */
-	raid1_prepare_flush_writes(conf->mddev);
-	wake_up_barrier(conf);
-
-	while (bio) { /* submit pending writes */
-		struct bio *next = bio->bi_next;
-
-		raid1_submit_write(bio);
-		bio = next;
-		cond_resched();
-	}
-}
-
 static void flush_pending_writes(struct r1conf *conf)
 {
 	/* Any writes that have been queued but are awaiting
@@ -959,7 +944,7 @@ static void flush_pending_writes(struct r1conf *conf)
 		 */
 		__set_current_state(TASK_RUNNING);
 		blk_start_plug(&plug);
-		flush_bio_list(conf, bio);
+		flush_bio_list(conf->mddev, bio, &conf->wait_barrier);
 		blk_finish_plug(&plug);
 	} else
 		spin_unlock_irq(&conf->device_lock);
@@ -1289,7 +1274,7 @@ static void raid1_unplug(struct blk_plug_cb *cb, bool from_schedule)
 
 	/* we aren't scheduling, so we can do the write-out directly. */
 	bio = bio_list_get(&plug->pending);
-	flush_bio_list(conf, bio);
+	flush_bio_list(conf->mddev, bio, &conf->wait_barrier);
 	kfree(plug);
 }
 

@@ -895,16 +895,7 @@ static void flush_pending_writes(struct r10conf *conf)
 		__set_current_state(TASK_RUNNING);
 
 		blk_start_plug(&plug);
-		raid1_prepare_flush_writes(conf->mddev);
-		wake_up(&conf->wait_barrier);
-
-		while (bio) { /* submit pending writes */
-			struct bio *next = bio->bi_next;
-
-			raid1_submit_write(bio);
-			bio = next;
-			cond_resched();
-		}
+		flush_bio_list(conf->mddev, bio, &conf->wait_barrier);
 		blk_finish_plug(&plug);
 	} else
 		spin_unlock_irq(&conf->device_lock);
@@ -1102,16 +1093,7 @@ static void raid10_unplug(struct blk_plug_cb *cb, bool from_schedule)
 
 	/* we aren't scheduling, so we can do the write-out directly. */
 	bio = bio_list_get(&plug->pending);
-	raid1_prepare_flush_writes(mddev);
-	wake_up_barrier(conf);
-
-	while (bio) { /* submit pending writes */
-		struct bio *next = bio->bi_next;
-
-		raid1_submit_write(bio);
-		bio = next;
-		cond_resched();
-	}
+	flush_bio_list(mddev, bio, &conf->wait_barrier);
 	kfree(plug);
 }
 

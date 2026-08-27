@@ -176,6 +176,23 @@ static inline void raid1_prepare_flush_writes(struct mddev *mddev)
 	mddev->bitmap_ops->unplug(mddev, current->bio_list == NULL);
 }
 
+static inline void flush_bio_list(struct mddev *mddev, struct bio *bio,
+				  wait_queue_head_t *wait)
+{
+	/* flush any pending bitmap writes to disk before proceeding w/ I/O */
+	raid1_prepare_flush_writes(mddev);
+	if (wq_has_sleeper(wait))
+		wake_up(wait);
+
+	while (bio) { /* submit pending writes */
+		struct bio *next = bio->bi_next;
+
+		raid1_submit_write(bio);
+		bio = next;
+		cond_resched();
+	}
+}
+
 /*
  * Used by fix_read_error() to decay the per rdev read_errors.
  * We halve the read error count for every hour that has elapsed
