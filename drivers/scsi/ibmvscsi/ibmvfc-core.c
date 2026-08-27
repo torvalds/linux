@@ -1894,7 +1894,7 @@ static void ibmvfc_log_error(struct ibmvfc_event *evt)
 }
 
 /**
- * ibmvfc_relogin - Log back into the specified device
+ * ibmvfc_scsi_relogin - Log back into the specified device
  * @sdev:	scsi device struct
  *
  **/
