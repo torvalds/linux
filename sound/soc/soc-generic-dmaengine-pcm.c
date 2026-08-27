@@ -397,24 +397,8 @@ static int dmaengine_pcm_request_chan_of(struct dmaengine_pcm *pcm,
 			if (PTR_ERR(chan) == -EPROBE_DEFER)
 				return -EPROBE_DEFER;
 
-			bool has_fw_node = dev->of_node || is_acpi_device_node(dev->fwnode);
-			bool name_exists_in_fw = false;
-
-			if (has_fw_node)
-				name_exists_in_fw = device_property_match_string(dev,
-										 "dma-names",
-										 name) >= 0;
-
-			if (has_fw_node && name_exists_in_fw)
-				dev_warn(dev, "DTS/ACPI DMA channel '%s' request failed (%ld)\n",
-					 name, PTR_ERR(chan));
-
-			if (has_fw_node && !name_exists_in_fw)
-				dev_warn(dev, "DTS/ACPI name '%s' not found, legacy failed (%ld)\n",
-					 name, PTR_ERR(chan));
-
-			if (!has_fw_node)
-				dev_warn(dev, "Legacy DMA channel '%s' request failed (%ld)\n",
+			if (device_property_match_string(dev, "dma-names", name) >= 0)
+				dev_warn(dev, "dma-names has '%s' but request failed (%ld)\n",
 					 name, PTR_ERR(chan));
 
 			pcm->chan[i] = NULL;

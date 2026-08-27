@@ -103,14 +103,14 @@ static int qcom_snd_parse_dai_tdm_slots(struct snd_soc_pcm_runtime *rtd,
 	int ret;
 
 	if (!link_np)
-		return -EINVAL;
+		return -ENOENT;
 
 	struct device_node *cpu_np __free(device_node) =
 		of_get_child_by_name(link_np, "cpu");
 	struct device_node *codec_np __free(device_node) =
 		of_get_child_by_name(link_np, "codec");
 	if (!cpu_np || !codec_np)
-		return -EINVAL;
+		return -ENOENT;
 
 	ret = qcom_snd_parse_tdm_slot(cpu_np, cpu_cfg);
 	if (ret)
@@ -172,7 +172,7 @@ int qcom_snd_apply_dai_tdm_slots(struct snd_soc_pcm_runtime *rtd)
 
 	ret = qcom_snd_get_dai_tdm_slots(rtd, &cpu_cfg, &codec_cfg);
 	if (ret)
-		return ret == -EINVAL ? 0 : ret;
+		return ret == -ENOENT ? 0 : ret;
 
 	return qcom_snd_apply_dai_tdm_slots_cfg(rtd, &cpu_cfg, &codec_cfg);
 }

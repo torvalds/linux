@@ -150,6 +150,7 @@ struct tegra_i2s_soc_data {
 	const struct regmap_config *regmap_conf;
 	const struct snd_soc_component_driver *i2s_cmpnt;
 	unsigned int max_ch;
+	unsigned int enable_reg;
 	unsigned int tx_offset;
 	unsigned int i2s_ctrl_offset;
 	unsigned int fsync_width_mask;

@@ -252,11 +252,13 @@ int asoc_sdw_rt_amp_exit(struct snd_soc_card *card, struct snd_soc_dai_link *dai
 	if (ctx->amp_dev1) {
 		device_remove_software_node(ctx->amp_dev1);
 		put_device(ctx->amp_dev1);
+		ctx->amp_dev1 = NULL;
 	}
 
 	if (ctx->amp_dev2) {
 		device_remove_software_node(ctx->amp_dev2);
 		put_device(ctx->amp_dev2);
+		ctx->amp_dev2 = NULL;
 	}
 
 	return 0;
