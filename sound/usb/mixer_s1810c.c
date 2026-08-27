@@ -474,6 +474,10 @@ snd_s1810c_switch_get(struct snd_kcontrol *kctl,
 	u32 state = 0;
 	int ret;
 
+	CLASS(snd_usb_lock, pm)(mixer->chip);
+	if (pm.err < 0)
+		return -EIO;
+
 	guard(mutex)(&private->data_mutex);
 	ret = snd_s1810c_get_switch_state(mixer, kctl, &state);
 	if (ret < 0)
@@ -503,6 +507,10 @@ snd_s1810c_switch_set(struct snd_kcontrol *kctl,
 	u32 curval = 0;
 	u32 newval = 0;
 	int ret = 0;
+
+	CLASS(snd_usb_lock, pm)(mixer->chip);
+	if (pm.err < 0)
+		return -EIO;
 
 	guard(mutex)(&private->data_mutex);
 	ret = snd_s1810c_get_switch_state(mixer, kctl, &curval);
