@@ -1012,10 +1012,26 @@ static int cifs_do_truncate(const unsigned int xid, struct dentry *dentry)
 			server = tcon->ses->server;
 			rc = server->ops->set_file_size(xid, tcon,
 							cfile, 0, false);
-		}
-		if (!rc) {
-			netfs_resize_file(&cinode->netfs, 0, true);
-			cifs_setsize(inode, 0);
+			if (!rc) {
+				inode_lock(inode);
+				filemap_invalidate_lock(inode->i_mapping);
+				netfs_resize_file(&cinode->netfs, 0, true);
+				cifs_setsize(inode, 0);
+				filemap_invalidate_unlock(inode->i_mapping);
+				inode_unlock(inode);
+				cifs_invalidate_cache(inode, 0);
+			}
+		} else {
+			/*
+			 * No cached handle; evict stale pages so they can't
+			 * be served after the file is later extended; let
+			 * the server's O_TRUNC open response set the i_size
+			 */
+			inode_lock(inode);
+			filemap_invalidate_lock(inode->i_mapping);
+			truncate_inode_pages(inode->i_mapping, 0);
+			filemap_invalidate_unlock(inode->i_mapping);
+			inode_unlock(inode);
 			cifs_invalidate_cache(inode, 0);
 		}
 	}
