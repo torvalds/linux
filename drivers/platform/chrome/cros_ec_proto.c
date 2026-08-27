@@ -947,6 +947,27 @@ u32 cros_ec_get_host_event(struct cros_ec_device *ec_dev)
 EXPORT_SYMBOL(cros_ec_get_host_event);
 
 /**
+ * cros_ec_read_features() - Read EC features
+ *
+ * @ec: EC device.
+ *
+ * Return: >= 0 on success, negative error number on failure.
+ */
+int cros_ec_read_features(struct cros_ec_dev *ec)
+{
+	int ret = cros_ec_cmd(ec->ec_dev, 0, EC_CMD_GET_FEATURES + ec->cmd_offset,
+			      NULL, 0, &ec->features, sizeof(ec->features));
+
+	if (ret < 0) {
+		dev_warn(ec->dev, "cannot get EC features: %d\n", ret);
+		memset(&ec->features, 0, sizeof(ec->features));
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(cros_ec_read_features);
+
+/**
  * cros_ec_check_features() - Test for the presence of EC features
  *
  * @ec: EC device, does not have to be connected directly to the AP,
@@ -960,17 +981,10 @@ EXPORT_SYMBOL(cros_ec_get_host_event);
 bool cros_ec_check_features(struct cros_ec_dev *ec, int feature)
 {
 	struct ec_response_get_features *features = &ec->features;
-	int ret;
 
 	if (features->flags[0] == -1U && features->flags[1] == -1U) {
 		/* features bitmap not read yet */
-		ret = cros_ec_cmd(ec->ec_dev, 0, EC_CMD_GET_FEATURES + ec->cmd_offset,
-				  NULL, 0, features, sizeof(*features));
-		if (ret < 0) {
-			dev_warn(ec->dev, "cannot get EC features: %d\n", ret);
-			memset(features, 0, sizeof(*features));
-		}
-
+		cros_ec_read_features(ec);
 		dev_dbg(ec->dev, "EC features %08x %08x\n",
 			features->flags[0], features->flags[1]);
 	}

@@ -80,6 +80,7 @@ properties:
           - qcom,pmcx0102
           - qcom,pmd8028
           - qcom,pmd9635
+          - qcom,pmg1110
           - qcom,pmh0101
           - qcom,pmh0104
           - qcom,pmh0110
@@ -164,6 +165,10 @@ patternProperties:
   "gpio@[0-9a-f]+$":
     type: object
     $ref: /schemas/pinctrl/qcom,pmic-gpio.yaml#
+
+  "^haptics@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/input/qcom,spmi-haptics.yaml#
 
   "^led-controller@[0-9a-f]+$":
     type: object

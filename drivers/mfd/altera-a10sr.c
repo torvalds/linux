@@ -155,7 +155,7 @@ MODULE_DEVICE_TABLE(of, altr_a10sr_spi_of_match);
 
 static const struct spi_device_id altr_a10sr_spi_ids[] = {
 	{ .name = "a10sr" },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, altr_a10sr_spi_ids);
 

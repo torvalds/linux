@@ -9,7 +9,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/clk-provider.h>
-#include <linux/mfd/dbx500-prcmu.h>
+#include <linux/mfd/db8500-prcmu.h>
 
 #include "clk.h"
 #include "prcc.h"
