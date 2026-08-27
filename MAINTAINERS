@@ -5616,8 +5616,8 @@ W:	http://bu3sch.de/btgpio.php
 F:	drivers/gpio/gpio-bt8xx.c
 
 BTRFS FILE SYSTEM
-M:	Chris Mason <clm@fb.com>
 M:	David Sterba <dsterba@suse.com>
+R:	Chris Mason <mason@kernel.org>
 L:	linux-btrfs@vger.kernel.org
 S:	Maintained
 W:	https://btrfs.readthedocs.io
