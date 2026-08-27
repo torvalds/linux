@@ -496,10 +496,7 @@ static void raid10_end_write_request(struct bio *bio)
 			 */
 			md_error(rdev->mddev, rdev);
 		else {
-			set_bit(WriteErrorSeen,	&rdev->flags);
-			if (!test_and_set_bit(WantReplacement, &rdev->flags))
-				set_bit(MD_RECOVERY_NEEDED,
-					&rdev->mddev->recovery);
+			rdev_record_write_error(rdev);
 
 			dec_rdev = 0;
 			if (test_bit(FailFast, &rdev->flags) &&
@@ -2300,10 +2297,7 @@ static void end_sync_write(struct bio *bio)
 		if (repl)
 			md_error(mddev, rdev);
 		else {
-			set_bit(WriteErrorSeen, &rdev->flags);
-			if (!test_and_set_bit(WantReplacement, &rdev->flags))
-				set_bit(MD_RECOVERY_NEEDED,
-					&rdev->mddev->recovery);
+			rdev_record_write_error(rdev);
 			set_bit(R10BIO_WriteError, &r10_bio->state);
 		}
 	} else if (rdev_has_badblock(rdev, r10_bio->devs[slot].addr,
@@ -2501,11 +2495,7 @@ static void fix_recovery_read_error(struct r10bio *r10_bio)
 					  pages[idx],
 					  REQ_OP_WRITE, false);
 			if (!ok) {
-				set_bit(WriteErrorSeen, &rdev->flags);
-				if (!test_and_set_bit(WantReplacement,
-						      &rdev->flags))
-					set_bit(MD_RECOVERY_NEEDED,
-						&rdev->mddev->recovery);
+				rdev_record_write_error(rdev);
 			}
 		}
 		if (!ok) {
@@ -2586,10 +2576,7 @@ static int r10_sync_page_io(struct md_rdev *rdev, sector_t sector,
 		/* success */
 		return 1;
 	if (op == REQ_OP_WRITE) {
-		set_bit(WriteErrorSeen, &rdev->flags);
-		if (!test_and_set_bit(WantReplacement, &rdev->flags))
-			set_bit(MD_RECOVERY_NEEDED,
-				&rdev->mddev->recovery);
+		rdev_record_write_error(rdev);
 	}
 	/* need to record an error - either for the block or the device */
 	rdev_set_badblocks(rdev, sector, sectors, 0);

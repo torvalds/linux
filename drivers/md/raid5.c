@@ -2889,11 +2889,8 @@ static void raid5_end_write_request(struct bio *bi)
 			set_bit(R5_MadeGoodRepl, &sh->dev[i].flags);
 	} else {
 		if (bi->bi_status) {
-			set_bit(WriteErrorSeen, &rdev->flags);
+			rdev_record_write_error(rdev);
 			set_bit(R5_WriteError, &sh->dev[i].flags);
-			if (!test_and_set_bit(WantReplacement, &rdev->flags))
-				set_bit(MD_RECOVERY_NEEDED,
-					&rdev->mddev->recovery);
 		} else if (rdev_has_badblock(rdev, sh->sector,
 					     RAID5_STRIPE_SECTORS(conf))) {
 			set_bit(R5_MadeGood, &sh->dev[i].flags);

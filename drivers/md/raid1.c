@@ -483,10 +483,7 @@ static void raid1_end_write_request(struct bio *bio)
 	 * 'one mirror IO has finished' event handler:
 	 */
 	if (bio->bi_status && !ignore_error) {
-		set_bit(WriteErrorSeen,	&rdev->flags);
-		if (!test_and_set_bit(WantReplacement, &rdev->flags))
-			set_bit(MD_RECOVERY_NEEDED, &
-				conf->mddev->recovery);
+		rdev_record_write_error(rdev);
 
 		if (test_bit(FailFast, &rdev->flags) &&
 		    (bio->bi_opf & MD_FAILFAST) &&
@@ -2067,10 +2064,7 @@ static void end_sync_write(struct bio *bio)
 
 	if (bio->bi_status) {
 		abort_sync_write(mddev, r1_bio);
-		set_bit(WriteErrorSeen, &rdev->flags);
-		if (!test_and_set_bit(WantReplacement, &rdev->flags))
-			set_bit(MD_RECOVERY_NEEDED, &
-				mddev->recovery);
+		rdev_record_write_error(rdev);
 		set_bit(R1BIO_WriteError, &r1_bio->state);
 	} else if (rdev_has_badblock(rdev, r1_bio->sector, r1_bio->sectors) &&
 		   !rdev_has_badblock(conf->mirrors[r1_bio->read_disk].rdev,
@@ -2088,11 +2082,7 @@ static int r1_sync_page_io(struct md_rdev *rdev, sector_t sector,
 		/* success */
 		return 1;
 	if (rw == REQ_OP_WRITE) {
-		set_bit(WriteErrorSeen, &rdev->flags);
-		if (!test_and_set_bit(WantReplacement,
-				      &rdev->flags))
-			set_bit(MD_RECOVERY_NEEDED, &
-				rdev->mddev->recovery);
+		rdev_record_write_error(rdev);
 	}
 	/* need to record an error - either for the block or the device */
 	rdev_set_badblocks(rdev, sector, sectors, 0);
