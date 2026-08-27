@@ -2748,6 +2748,24 @@ walk_down:
 	return 0;
 }
 
+void btrfs_qgroup_check_tree_drop(struct btrfs_fs_info *fs_info, u64 rootid, u8 level)
+{
+	u8 drop_subtree_thres;
+
+	if (btrfs_qgroup_mode(fs_info) != BTRFS_QGROUP_MODE_FULL)
+		return;
+
+	if (!btrfs_is_fstree(rootid))
+		return;
+
+	spin_lock(&fs_info->qgroup_lock);
+	drop_subtree_thres = fs_info->qgroup_drop_subtree_thres;
+	spin_unlock(&fs_info->qgroup_lock);
+
+	if (level >= drop_subtree_thres)
+		qgroup_mark_inconsistent(fs_info, "subtree level reached threshold");
+}
+
 static void qgroup_iterator_nested_add(struct list_head *head, struct btrfs_qgroup *qgroup)
 {
 	if (!list_empty(&qgroup->nested_iterator))

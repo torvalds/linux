@@ -6315,6 +6315,16 @@ int btrfs_drop_snapshot(struct btrfs_root *root, bool update_ref, bool for_reloc
 	set_bit(BTRFS_ROOT_DELETING, &root->state);
 	unfinished_drop = test_bit(BTRFS_ROOT_UNFINISHED_DROP, &root->state);
 
+	/*
+	 * For subvolume dropping, check if the subvolume is large enough so
+	 * that we need to mark qgroup inconsistent to avoid long qgroup stall.
+	 *
+	 * Even for a subvolume without any snapshot, there can still be
+	 * a lot of qgroup records queued into one transaction.
+	 */
+	if (!for_reloc)
+		btrfs_qgroup_check_tree_drop(fs_info, rootid,
+					     btrfs_header_level(root->node));
 	if (btrfs_disk_key_objectid(&root_item->drop_progress) == 0) {
 		level = btrfs_header_level(root->node);
 		path->nodes[level] = btrfs_lock_root_node(root);
