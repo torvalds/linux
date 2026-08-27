@@ -4873,7 +4873,8 @@ struct sk_buff *skb_segment(struct sk_buff *head_skb,
 		 * doesn't fit into an MSS sized block, so take care of that
 		 * now.
 		 */
-		partial_segs = len / mss;
+		DEBUG_NET_WARN_ON_ONCE(len / mss > GSO_MAX_SEGS);
+		partial_segs = min(len / mss, GSO_MAX_SEGS);
 		if (partial_segs > 1)
 			mss *= partial_segs;
 		else
