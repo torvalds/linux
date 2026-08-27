@@ -25,12 +25,7 @@ MODULE_ALIAS("ip6t_esp");
 static inline bool
 spi_match(u_int32_t min, u_int32_t max, u_int32_t spi, bool invert)
 {
-	bool r;
-	pr_debug("spi_match:%c 0x%x <= 0x%x <= 0x%x\n",
-		 invert ? '!' : ' ', min, spi, max);
-	r = (spi >= min && spi <= max) ^ invert;
-	pr_debug(" result %s\n", r ? "PASS" : "FAILED");
-	return r;
+	return (spi >= min && spi <= max) ^ invert;
 }
 
 static bool esp_mt(const struct sk_buff *skb, struct xt_action_param *par)
@@ -48,7 +43,6 @@ static bool esp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		/* We've been asked to examine this packet, and we
 		 * can't.  Hence, no choice but to drop.
 		 */
-		pr_debug("Dropping evil ESP tinygram.\n");
 		par->hotdrop = true;
 		return false;
 	}
@@ -62,7 +56,7 @@ static int esp_mt_check(const struct xt_mtchk_param *par)
 	const struct xt_esp *espinfo = par->matchinfo;
 
 	if (espinfo->invflags & ~XT_ESP_INV_MASK) {
-		pr_debug("unknown flags %X\n", espinfo->invflags);
+		pr_info_ratelimited("unknown flags %X\n", espinfo->invflags);
 		return -EINVAL;
 	}
 

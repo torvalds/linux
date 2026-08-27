@@ -44,8 +44,6 @@ tcp_find_option(u_int8_t option,
 	u_int8_t _opt[60 - sizeof(struct tcphdr)];
 	unsigned int i;
 
-	pr_debug("finding option\n");
-
 	if (!optlen)
 		return invert;
 
@@ -81,10 +79,8 @@ static bool tcp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		   causes this. Its a cracker trying to break in by doing a
 		   flag overwrite to pass the direction checks.
 		*/
-		if (par->fragoff == 1) {
-			pr_debug("Dropping evil TCP offset=1 frag.\n");
+		if (par->fragoff == 1)
 			par->hotdrop = true;
-		}
 		/* Must not be a fragment. */
 		return false;
 	}
@@ -93,7 +89,6 @@ static bool tcp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	if (th == NULL) {
 		/* We've been asked to examine this packet, and we
 		   can't.  Hence, no choice but to drop. */
-		pr_debug("Dropping evil TCP offset=0 tinygram.\n");
 		par->hotdrop = true;
 		return false;
 	}
@@ -145,7 +140,6 @@ static bool udp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	if (uh == NULL) {
 		/* We've been asked to examine this packet, and we
 		   can't.  Hence, no choice but to drop. */
-		pr_debug("Dropping evil UDP tinygram.\n");
 		par->hotdrop = true;
 		return false;
 	}

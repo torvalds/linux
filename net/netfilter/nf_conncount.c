@@ -251,7 +251,8 @@ check_connections:
 	list->last_gc_count = list->count;
 
 add_new_node:
-	if (WARN_ON_ONCE(list->count > INT_MAX)) {
+	if (unlikely(list->count > INT_MAX)) {
+		DEBUG_NET_WARN_ON_ONCE(1);
 		err = -EOVERFLOW;
 		goto out_put;
 	}
