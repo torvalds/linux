@@ -876,9 +876,9 @@ struct task_struct *scx_task_iter_next_locked(struct scx_task_iter *iter)
 		 * unloading. The init_tasks ("swappers") should be excluded
 		 * from the iteration because:
 		 *
-		 * - It's unsafe to use __setschduler_prio() on an init_task to
-		 *   determine the sched_class to use as it won't preserve its
-		 *   idle_sched_class.
+		 * - It's unsafe to use __setscheduler_class() on an init_task
+		 *   to determine the sched_class to use as it won't preserve
+		 *   its idle_sched_class.
 		 *
 		 * - ops.init/exit_task() can easily be confused if called with
 		 *   init_tasks as they, e.g., share PID 0.
@@ -5514,7 +5514,7 @@ static const struct kset_uevent_ops scx_uevent_ops = {
 };
 
 /*
- * Used by sched_fork() and __setscheduler_prio() to pick the matching
+ * Used by sched_fork() and __setscheduler_class() to pick the matching
  * sched_class. dl/rt are already handled.
  */
 bool task_should_scx(int policy)
@@ -9771,7 +9771,7 @@ __bpf_kfunc struct task_struct *bpf_iter_scx_dsq_next(struct bpf_iter_scx_dsq *i
  * bpf_iter_scx_dsq_destroy - Destroy a DSQ iterator
  * @it: iterator to destroy
  *
- * Undo scx_iter_scx_dsq_new().
+ * Undo bpf_iter_scx_dsq_new().
  */
 __bpf_kfunc void bpf_iter_scx_dsq_destroy(struct bpf_iter_scx_dsq *it)
 {

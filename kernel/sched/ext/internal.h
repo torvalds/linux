@@ -442,7 +442,7 @@ struct sched_ext_ops {
 	 *
 	 * Note that this callback may be called from a CPU other than the
 	 * one the task is going to run on. This can happen when a task
-	 * property is changed (i.e., affinity), since scx_next_task_scx(),
+	 * property is changed (i.e., affinity), since set_next_task_scx(),
 	 * which triggers this callback, may run on a CPU different from
 	 * the task's assigned CPU.
 	 *
