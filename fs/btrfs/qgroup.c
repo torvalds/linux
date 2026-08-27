@@ -1103,7 +1103,7 @@ int btrfs_quota_enable(struct btrfs_fs_info *fs_info,
 				 struct btrfs_qgroup_status_item);
 	btrfs_set_qgroup_status_generation(leaf, ptr, trans->transid);
 	btrfs_set_qgroup_status_version(leaf, ptr, BTRFS_QGROUP_STATUS_VERSION);
-	fs_info->qgroup_flags = (1UL << BTRFS_QGROUP_STATUS_BIT_ON);
+	set_bit(BTRFS_QGROUP_STATUS_BIT_ON, &fs_info->qgroup_flags);
 	if (simple) {
 		set_bit(BTRFS_QGROUP_STATUS_BIT_SIMPLE_MODE, &fs_info->qgroup_flags);
 		btrfs_set_fs_incompat(fs_info, SIMPLE_QUOTA);
@@ -1405,8 +1405,14 @@ int btrfs_quota_disable(struct btrfs_fs_info *fs_info)
 	spin_lock(&fs_info->qgroup_lock);
 	quota_root = fs_info->quota_root;
 	fs_info->quota_root = NULL;
+	/*
+	 * Clear all on-disk and runtime bits, except RESCAN related ones, that
+	 * are either handled by rescan thread, or the caller who rejects rescan.
+	 */
 	clear_bit(BTRFS_QGROUP_STATUS_BIT_ON, &fs_info->qgroup_flags);
 	clear_bit(BTRFS_QGROUP_STATUS_BIT_SIMPLE_MODE, &fs_info->qgroup_flags);
+	clear_bit(BTRFS_QGROUP_STATUS_BIT_INCONSISTENT, &fs_info->qgroup_flags);
+	clear_bit(BTRFS_QGROUP_RUNTIME_BIT_NO_ACCOUNTING, &fs_info->qgroup_flags);
 	fs_info->qgroup_drop_subtree_thres = BTRFS_QGROUP_DROP_SUBTREE_THRES_DEFAULT;
 	spin_unlock(&fs_info->qgroup_lock);
 
@@ -3990,7 +3996,10 @@ qgroup_rescan_init(struct btrfs_fs_info *fs_info, u64 progress_objectid,
 	mutex_lock(&fs_info->qgroup_rescan_lock);
 
 	if (init_flags) {
-		if (test_bit(BTRFS_QGROUP_STATUS_BIT_RESCAN, &fs_info->qgroup_flags)) {
+		if (test_bit(BTRFS_QGROUP_STATUS_BIT_RESCAN,
+			     &fs_info->qgroup_flags) ||
+		    test_bit(BTRFS_QGROUP_RUNTIME_BIT_REJECT_RESCAN,
+			     &fs_info->qgroup_flags)) {
 			ret = -EINPROGRESS;
 		} else if (!test_bit(BTRFS_QGROUP_STATUS_BIT_ON, &fs_info->qgroup_flags)) {
 			btrfs_debug(fs_info,

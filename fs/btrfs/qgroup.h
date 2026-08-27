@@ -124,6 +124,17 @@ struct btrfs_qgroup_swapped_blocks;
 #define BTRFS_QGROUP_RUNTIME_BIT_CANCEL_RESCAN		(BITS_PER_LONG - 1)
 #define BTRFS_QGROUP_RUNTIME_BIT_NO_ACCOUNTING		(BITS_PER_LONG - 2)
 
+/*
+ * No new rescan allowed when set.
+ *
+ * During huge subtree dropping, qgroup will be marked inconsistent, and skip
+ * all future accounting to avoid long stall.  But, an immediate rescan will
+ * re-enable qgroup and still stall the system.
+ *
+ * This bit is to avoid such rescan during the duration of a subvolume dropping.
+ */
+#define BTRFS_QGROUP_RUNTIME_BIT_REJECT_RESCAN		(BITS_PER_LONG - 3)
+
 #define BTRFS_QGROUP_DROP_SUBTREE_THRES_DEFAULT		(3)
 
 /*
