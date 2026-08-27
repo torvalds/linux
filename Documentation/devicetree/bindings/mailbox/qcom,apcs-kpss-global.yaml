@@ -39,6 +39,7 @@ properties:
           - const: syscon
       - items:
           - enum:
+              - qcom,ipq9650-apcs-apps-global
               - qcom,msm8998-apcs-hmss-global
               - qcom,sdm660-apcs-hmss-global
               - qcom,sm4250-apcs-hmss-global
