@@ -2763,15 +2763,10 @@ static void narrow_write_error(struct r10bio *r10_bio, int i)
 	 * We currently own a reference to the rdev.
 	 */
 
-	int block_sectors, lbs = bdev_logical_block_size(rdev->bdev) >> 9;
+	int block_sectors = rdev_bb_block_sectors(rdev);
 	sector_t sector;
 	int sectors;
 	int sect_to_write = r10_bio->sectors;
-
-	if (rdev->badblocks.shift < 0)
-		block_sectors = lbs;
-	else
-		block_sectors = roundup(1 << rdev->badblocks.shift, lbs);
 
 	sector = r10_bio->sector;
 	sectors = ((r10_bio->sector + block_sectors)

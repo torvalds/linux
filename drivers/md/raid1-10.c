@@ -155,6 +155,16 @@ static inline bool raid1_add_bio_to_plug(struct mddev *mddev, struct bio *bio,
 	return true;
 }
 
+/* Block size used when narrowing a write error down to badblocks granularity. */
+static inline int rdev_bb_block_sectors(struct md_rdev *rdev)
+{
+	int lbs = bdev_logical_block_size(rdev->bdev) >> 9;
+
+	if (rdev->badblocks.shift < 0)
+		return lbs;
+	return roundup(1 << rdev->badblocks.shift, lbs);
+}
+
 /*
  * current->bio_list will be set under submit_bio() context, in this case bitmap
  * io will be added to the list and wait for current io submission to finish,
