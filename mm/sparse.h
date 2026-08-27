@@ -47,6 +47,12 @@ static inline void __section_mark_present(struct mem_section *ms,
 
 	ms->section_mem_map |= SECTION_MARKED_PRESENT;
 }
+
+static inline size_t mem_section_usage_size(void)
+{
+	return struct_size_t(struct mem_section_usage, pageblock_flags,
+			     BITS_TO_LONGS(SECTION_BLOCKFLAGS_BITS));
+}
 #else
 static inline void sparse_init(void) {}
 #endif /* CONFIG_SPARSEMEM */

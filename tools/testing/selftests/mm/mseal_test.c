@@ -1876,7 +1876,7 @@ int main(void)
 	if (!pkey_supported())
 		ksft_print_msg("PKEY not supported\n");
 
-	ksft_set_plan(88);
+	ksft_set_plan(87);
 
 	test_seal_addseal();
 	test_seal_unmapped_start();
@@ -1913,7 +1913,6 @@ int main(void)
 	test_seal_mprotect_partial_mprotect(false);
 	test_seal_mprotect_partial_mprotect(true);
 
-	test_seal_mprotect_two_vma_with_gap();
 	test_seal_mprotect_two_vma_with_gap();
 
 	test_seal_mprotect_merge(false);

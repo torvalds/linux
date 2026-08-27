@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+
+#define pr_fmt(fmt) "lz4: " fmt
+
 #include <linux/kernel.h>
 #include <linux/lz4.h>
 #include <linux/slab.h>
@@ -28,8 +32,12 @@ static int lz4_setup_params(struct zcomp_params *params)
 	LZ4_stream_t *dict_stream;
 	int ret;
 
-	if (params->level == ZCOMP_PARAM_NOT_SET)
+	if (params->level == ZCOMP_PARAM_NOT_SET) {
 		params->level = LZ4_ACCELERATION_DEFAULT;
+	} else if (params->level < LZ4_ACCELERATION_DEFAULT) {
+		pr_err("invalid compression level %d\n", params->level);
+		return -EINVAL;
+	}
 
 	if (!params->dict || !params->dict_sz)
 		return 0;

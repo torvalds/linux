@@ -309,8 +309,8 @@ static void show_free_areas(unsigned int filter, const nodemask_t *nodemask,
 			" min:%lukB"
 			" low:%lukB"
 			" high:%lukB"
-			" reserved_highatomic:%luKB"
-			" free_highatomic:%luKB"
+			" reserved_highatomic:%lukB"
+			" free_highatomic:%lukB"
 			" active_anon:%lukB"
 			" inactive_anon:%lukB"
 			" active_file:%lukB"
@@ -323,7 +323,7 @@ static void show_free_areas(unsigned int filter, const nodemask_t *nodemask,
 			" mlocked:%lukB"
 			" bounce:%lukB"
 			" free_pcp:%lukB"
-			" local_pcp:%ukB"
+			" local_pcp:%lukB"
 			" free_cma:%lukB"
 			"\n",
 			zone->name,
@@ -350,7 +350,7 @@ static void show_free_areas(unsigned int filter, const nodemask_t *nodemask,
 			K(zone_page_state(zone, NR_MLOCK)),
 			0UL,
 			K(free_pcp),
-			K(this_cpu_read(zone->per_cpu_pageset->count)),
+			K((unsigned long)this_cpu_read(zone->per_cpu_pageset->count)),
 			K(zone_page_state(zone, NR_FREE_CMA_PAGES)));
 		printk("lowmem_reserve[]:");
 		for (i = 0; i < MAX_NR_ZONES; i++)
@@ -400,7 +400,7 @@ static void show_free_areas(unsigned int filter, const nodemask_t *nodemask,
 		hugetlb_show_meminfo_node(nid);
 	}
 
-	printk("%ld total pagecache pages\n", global_node_page_state(NR_FILE_PAGES));
+	printk("%lu total pagecache pages\n", global_node_page_state(NR_FILE_PAGES));
 
 	show_swap_cache_info();
 }
@@ -430,7 +430,7 @@ void __show_mem(unsigned int filter, const nodemask_t *nodemask,
 	printk("%lu pages cma reserved\n", totalcma_pages);
 #endif
 #ifdef CONFIG_MEMORY_FAILURE
-	printk("%lu pages hwpoisoned\n", atomic_long_read(&num_poisoned_pages));
+	printk("%ld pages hwpoisoned\n", atomic_long_read(&num_poisoned_pages));
 #endif
 #ifdef CONFIG_MEM_ALLOC_PROFILING
 	static DEFINE_SPINLOCK(mem_alloc_profiling_spinlock);

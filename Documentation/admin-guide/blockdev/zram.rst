@@ -109,13 +109,40 @@ path to the `dict` along with other parameters::
 	#pass path to pre-trained zstd dictionary
 	echo "algo=zstd dict=/etc/dictionary" > /sys/block/zram0/algorithm_params
 
-	#same, but using algorithm priority
-	echo "priority=1 dict=/etc/dictionary" > \
-		/sys/block/zram0/algorithm_params
-
 	#pass path to pre-trained zstd dictionary and compression level
 	echo "algo=zstd level=8 dict=/etc/dictionary" > \
 		/sys/block/zram0/algorithm_params
+
+	#same, but using algorithm priority
+	echo "algo=zstd priority=1" > /sys/block/zram0/recomp_algorithm
+	echo "priority=1 dict=/etc/dictionary" > \
+		/sys/block/zram0/algorithm_params
+
+Each write to `algorithm_params` replaces the entire set of parameters of
+the corresponding algorithm, parameters that are not listed in the write
+are reset to their default values.  Configure all of the parameters of an
+algorithm in one write::
+
+	#WRONG: the second write resets level back to its default value
+	echo "algo=zstd level=8" > /sys/block/zram0/algorithm_params
+	echo "algo=zstd dict=/etc/dictionary" > /sys/block/zram0/algorithm_params
+
+	#RIGHT
+	echo "algo=zstd level=8 dict=/etc/dictionary" > \
+		/sys/block/zram0/algorithm_params
+
+Select the compression algorithm before configuring its parameters.  The
+parameters of one algorithm are not necessarily valid for another one, so
+changing the algorithm of a particular priority resets that priority's
+parameters::
+
+	#WRONG: comp_algorithm write resets the previously configured level
+	echo "level=8" > /sys/block/zram0/algorithm_params
+	echo zstd > /sys/block/zram0/comp_algorithm
+
+	#RIGHT
+	echo zstd > /sys/block/zram0/comp_algorithm
+	echo "algo=zstd level=8" > /sys/block/zram0/algorithm_params
 
 Parameters are algorithm specific: not all algorithms support pre-trained
 dictionaries, not all algorithms support `level`. Furthermore, for certain
@@ -123,6 +150,11 @@ algorithms `level` controls the compression level (the higher the value the
 better the compression ratio, it even can take negatives values for some
 algorithms), for other algorithms `level` is acceleration level (the higher
 the value the lower the compression ratio).
+
+Parameters are handed over to the compression algorithm when the device is
+initialised, hence invalid parameters (or parameters that the selected
+algorithm does not support) are reported by the `disksize` write, and not
+by the `algorithm_params` write that has configured them.
 
 Set Disksize
 ============

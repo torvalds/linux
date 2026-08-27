@@ -7,6 +7,7 @@
 #endif
 
 #define MB(x) (x << 20)
+#define GB(x) ((unsigned long long)(x) << 30)
 
 #define NSEC_PER_USEC	1000L
 #define USEC_PER_SEC	1000000L
