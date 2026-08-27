@@ -744,6 +744,7 @@ static inline struct inode *ceph_find_inode(struct super_block *sb,
 					      * force a cap message to the MDS once
 					      * the deferred work completes
 					      */
+#define CEPH_I_EVICT_ON_FINAL_IPUT_BIT	(16) /* evict at the final iput() */
 
 #define CEPH_I_DIR_ORDERED		(1 << CEPH_I_DIR_ORDERED_BIT)
 #define CEPH_I_FLUSH			(1 << CEPH_I_FLUSH_BIT)
@@ -1131,6 +1132,7 @@ struct ceph_acl_sec_ctx;
 extern const struct inode_operations ceph_file_iops;
 
 extern struct inode *ceph_alloc_inode(struct super_block *sb);
+extern int ceph_drop_inode(struct inode *inode);
 extern void ceph_evict_inode(struct inode *inode);
 extern void ceph_free_inode(struct inode *inode);
 

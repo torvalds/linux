@@ -2277,8 +2277,9 @@ out:
  * Trim old(er) caps.
  *
  * Because we can't cache an inode without one or more caps, we do
- * this indirectly: if a cap is unused, we prune its aliases, at which
- * point the inode will hopefully get dropped to.
+ * this indirectly: if a cap is unused, we prune its aliases and mark
+ * the inode for eviction, at which point the inode will hopefully get
+ * dropped too, releasing the cap with it.
  *
  * Yes, this is a bit sloppy.  Our only real goal here is to respond to
  * memory pressure from the MDS, though, so it needn't be perfect.
@@ -2339,20 +2340,44 @@ static int trim_caps_cb(struct inode *inode, int mds, void *arg)
 		(*remaining)--;
 	} else {
 		struct dentry *dentry;
+		bool pruned = false;
+
 		/* try dropping referring dentries */
 		spin_unlock(&ci->i_ceph_lock);
 		dentry = d_find_any_alias(inode);
-		if (dentry && drop_negative_children(dentry)) {
-			int count;
+		if (!dentry) {
+			/* nothing refers to it in the first place */
+			pruned = true;
+		} else if (drop_negative_children(dentry)) {
 			dput(dentry);
 			d_prune_aliases(inode);
+			pruned = true;
+		} else {
+			dput(dentry);
+		}
+
+		if (pruned) {
+			int count;
+
+			/*
+			 * ceph_drop_inode() keeps a regular file's inode
+			 * alive while it still has cached pages, so pruning
+			 * the aliases is no longer enough on its own to get
+			 * this cap back.  Mirror that condition here and ask
+			 * for a one-shot eviction: the iput() that
+			 * ceph_iterate_session_caps() still owes this inode
+			 * then runs ceph_evict_inode(), which is what hands
+			 * the cap back.
+			 */
+			if (S_ISREG(inode->i_mode) && inode->i_data.nrpages)
+				set_bit(CEPH_I_EVICT_ON_FINAL_IPUT_BIT,
+					&ci->i_ceph_flags);
+
 			count = icount_read_once(inode);
 			if (count == 1)
 				(*remaining)--;
 			doutc(cl, "%p %llx.%llx cap %p pruned, count now %d\n",
 			      inode, ceph_vinop(inode), cap, count);
-		} else {
-			dput(dentry);
 		}
 		return 0;
 	}

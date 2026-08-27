@@ -801,6 +801,65 @@ void ceph_evict_inode(struct inode *inode)
 	ceph_put_string(rcu_dereference_raw(ci->i_cached_layout.pool_ns));
 }
 
+/*
+ * Decide whether to keep an inode once its last reference is gone.
+ *
+ * Dropping it here runs ceph_evict_inode(), which throws away the page
+ * cache along with the caps that still vouch for it.  Keep a regular
+ * file's inode while it has cached pages and still holds real caps, so
+ * that a close and reopen can serve reads from the page cache instead
+ * of re-reading everything from the OSDs.
+ *
+ * Such an inode is not pinned: it holds no reference of its own, and
+ * page reclaim frees its pages like any other file's.  It is not on the
+ * inode LRU either, since mapping_shrinkable() is false while real
+ * folios are present; emptying the mapping is what puts it there for
+ * the inode shrinker.  Unmount evicts it regardless, since
+ * evict_inodes() walks sb->s_inodes rather than the LRU.
+ *
+ * The retention is bypassed whenever fscrypt requires the inode to be
+ * evicted, e.g. after its encryption key has been removed: the page
+ * cache holds plaintext, so it has to go with the key.
+ * FS_IOC_REMOVE_ENCRYPTION_KEY relies on that, as it evicts the
+ * dentries and then expects the inodes to follow.  fscrypt is
+ * therefore asked before any of the retention below, and its answer is
+ * never overridden by it.
+ *
+ * Handing caps back to the MDS used to fall out of this eviction, so
+ * trim_caps_cb() sets CEPH_I_EVICT_ON_FINAL_IPUT_BIT to override the
+ * retention for one put when the MDS asks for its caps back.
+ *
+ * ->drop_inode() is called with inode->i_lock held, so i_ceph_lock
+ * cannot be taken here and i_caps is tested racily.  That is good
+ * enough: either answer only keeps or drops an inode that could have
+ * gone the other way.
+ */
+int ceph_drop_inode(struct inode *inode)
+{
+	struct ceph_inode_info *ci = ceph_inode(inode);
+
+	/* the MDS asked for this one back */
+	if (test_and_clear_bit(CEPH_I_EVICT_ON_FINAL_IPUT_BIT,
+			       &ci->i_ceph_flags))
+		return 1;
+
+	if (inode_generic_drop(inode))
+		return 1;
+
+	if (fscrypt_drop_inode(inode))
+		return 1;
+
+	if (ceph_inode_is_shutdown(inode))
+		return 1;
+
+	/* nothing here worth keeping the inode for */
+	if (!S_ISREG(inode->i_mode) || !inode->i_data.nrpages)
+		return 1;
+
+	/* keep the pages only while the inode still holds real caps */
+	return !__ceph_is_any_real_caps(ci);
+}
+
 static inline blkcnt_t calc_inode_blocks(u64 size)
 {
 	return (size + (1<<9) - 1) >> 9;
