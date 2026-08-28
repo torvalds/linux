@@ -222,7 +222,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned int num_ibs,
 		vm_af = job->hw_vm_fence;
 		/* VM sequence */
 		vm_af->ib_wptr = ring->wptr;
-		amdgpu_vm_flush(ring, job, need_pipe_sync, &emit_spm_needed,
+		amdgpu_vm_flush(ring, job, &need_pipe_sync, &emit_spm_needed,
 				&emit_gds_needed);
 		vm_af->ib_dw_size =
 			amdgpu_ring_get_dw_distance(ring, vm_af->ib_wptr, ring->wptr);
@@ -234,6 +234,10 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned int num_ibs,
 
 	if (ring->funcs->insert_start)
 		ring->funcs->insert_start(ring);
+
+	/* this may have been handled by amdgpu_vm_flush */
+	if (need_pipe_sync)
+		amdgpu_ring_emit_pipeline_sync(ring);
 
 	if (emit_spm_needed)
 		adev->gfx.rlc.funcs->update_spm_vmid(adev, ring->xcc_id, ring, job->vmid);

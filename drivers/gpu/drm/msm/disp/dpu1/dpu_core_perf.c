@@ -34,7 +34,7 @@ enum dpu_perf_mode {
 /**
  * dpu_core_perf_adjusted_mode_clk - Adjust given mode clock rate according to
  *   the perf clock factor.
- * @crtc_clk_rate - Unadjusted mode clock rate
+ * @mode_clk_rate: unadjusted mode clock rate
  * @perf_cfg: performance configuration
  */
 u64 dpu_core_perf_adjusted_mode_clk(u64 mode_clk_rate,
@@ -393,6 +393,10 @@ int dpu_core_perf_crtc_update(struct drm_crtc *crtc,
 		DRM_DEBUG_ATOMIC("clk:%llu\n", clk_rate);
 
 		trace_dpu_core_perf_update_clk(kms->dev, !crtc->enabled, clk_rate);
+
+		/* If we're going offline, PM callbacks will disable the clocks instead */
+		if (!clk_rate)
+			return 0;
 
 		clk_rate = min(clk_rate, kms->perf.max_core_clk_rate);
 		ret = dev_pm_opp_set_rate(&kms->pdev->dev, clk_rate);

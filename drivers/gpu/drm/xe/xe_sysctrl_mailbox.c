@@ -145,6 +145,7 @@ static int sysctrl_send_frames(struct xe_sysctrl *sc,
 	struct xe_device *xe = sc_to_xe(sc);
 	u32 ctrl_reg, total_frames, frame;
 	size_t bytes_sent, frame_size;
+	bool phase;
 
 	total_frames = DIV_ROUND_UP(cmd_size, XE_SYSCTRL_MB_FRAME_SIZE);
 
@@ -153,7 +154,8 @@ static int sysctrl_send_frames(struct xe_sysctrl *sc,
 		return -EBUSY;
 	}
 
-	sc->phase_bit ^= 1;
+	ctrl_reg = xe_mmio_read32(sc->mmio, SYSCTRL_MB_CTRL);
+	phase = !(ctrl_reg & SYSCTRL_FRAME_PHASE);
 	bytes_sent = 0;
 
 	for (frame = 0; frame < total_frames; frame++) {
@@ -161,7 +163,6 @@ static int sysctrl_send_frames(struct xe_sysctrl *sc,
 
 		if (sysctrl_write_frame(sc, mbox_cmd + bytes_sent, frame_size)) {
 			xe_err(xe, "sysctrl: Failed to write frame %u\n", frame);
-			sc->phase_bit = 0;
 			return -EIO;
 		}
 
@@ -169,13 +170,12 @@ static int sysctrl_send_frames(struct xe_sysctrl *sc,
 			   REG_FIELD_PREP(SYSCTRL_FRAME_CURRENT_MASK, frame) |
 			   REG_FIELD_PREP(SYSCTRL_FRAME_TOTAL_MASK, total_frames - 1) |
 			   SYSCTRL_MB_CTRL_CMD |
-			   (sc->phase_bit ? SYSCTRL_FRAME_PHASE : 0);
+			   (phase ? SYSCTRL_FRAME_PHASE : 0);
 
 		xe_mmio_write32(sc->mmio, SYSCTRL_MB_CTRL, ctrl_reg);
 
 		if (!sysctrl_wait_bit_clear(sc, SYSCTRL_MB_CTRL_RUN_BUSY, timeout_ms)) {
 			xe_err(xe, "sysctrl: Frame %u acknowledgment timeout\n", frame);
-			sc->phase_bit = 0;
 			return -ETIMEDOUT;
 		}
 
@@ -319,20 +319,6 @@ void xe_sysctrl_create_command(struct xe_sysctrl_mailbox_command *command, u8 gr
 	command->data_in_len = request_len;
 	command->data_out = response;
 	command->data_out_len = response_len;
-}
-
-/**
- * xe_sysctrl_mailbox_init - Initialize System Controller mailbox interface
- * @sc: System controller structure
- *
- * Initialize system controller mailbox interface for communication.
- */
-void xe_sysctrl_mailbox_init(struct xe_sysctrl *sc)
-{
-	u32 ctrl_reg;
-
-	ctrl_reg = xe_mmio_read32(sc->mmio, SYSCTRL_MB_CTRL);
-	sc->phase_bit = (ctrl_reg & SYSCTRL_FRAME_PHASE) ? 1 : 0;
 }
 
 /**

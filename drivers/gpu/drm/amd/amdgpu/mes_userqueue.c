@@ -146,7 +146,7 @@ static int mes_userq_map(struct amdgpu_usermode_queue *queue)
 	queue_input.wptr_mc_addr = queue->wptr_obj.gpu_addr;
 
 	if (mes->use_rs64mem) {
-		 if (!uq_mgr->proc_ctx_allocated) {
+		if (!uq_mgr->proc_ctx_allocated) {
 			r = amdgpu_mes_alloc_proc_ctx_index(mes, &uq_mgr->proc_ctx_array_index);
 			if (r) {
 				DRM_ERROR("Failed to allocate userq process index err:%d\n", r);
