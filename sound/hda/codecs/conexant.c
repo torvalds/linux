@@ -249,6 +249,25 @@ static void cx_update_headset_mic_vref(struct hda_codec *codec, struct hda_jack_
 	}
 }
 
+#define SN6140_S3_AFG_D0_DELAY_MS	1000
+
+static void cx_set_power_state(struct hda_codec *codec, hda_nid_t fg,
+			       unsigned int power_state)
+{
+	snd_hda_codec_write_sync(codec, fg, 0, AC_VERB_SET_POWER_STATE, power_state);
+
+	/*
+	 * SN6140 may not respond to AFG D0 immediately after S3.
+	 * Wait before the D0 verb so the power-state command itself succeeds.
+	 */
+	if (codec->core.vendor_id == 0x14f11f87 &&
+	    power_state == AC_PWRST_D0 &&
+	    codec->core.dev.power.power_state.event == PM_EVENT_RESUME)
+		msleep(SN6140_S3_AFG_D0_DELAY_MS);
+
+	snd_hda_codec_set_power_to_all(codec, fg, power_state);
+}
+
 static int cx_suspend(struct hda_codec *codec)
 {
 	cx_auto_shutdown(codec);
@@ -1308,6 +1327,7 @@ static const struct hda_codec_ops cx_codec_ops = {
 	.init = cx_init,
 	.unsol_event = snd_hda_jack_unsol_event,
 	.suspend = cx_suspend,
+	.set_power_state = cx_set_power_state,
 	.check_power_status = snd_hda_gen_check_power_status,
 	.stream_pm = snd_hda_gen_stream_pm,
 };
