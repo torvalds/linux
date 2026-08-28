@@ -6081,9 +6081,8 @@ static int amdgpu_ualink_remote_shootdown(struct amdgpu_device *adev,
 	struct amdgpu_ualink_ring *ring;
 	int r;
 
-	dev_dbg(adev->dev, "skip remote shootdown to remote_accel_id %u\n",
+	dev_dbg(adev->dev, "send remote shootdown to remote_accel_id %u\n",
 		remote_accel_id);
-	return 0;
 
 	peer = &remote->peer[remote_accel_id];
 	ring = &peer->shootdown;
