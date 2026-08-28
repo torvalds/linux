@@ -233,6 +233,8 @@ static void rt766_sdca_sdw_remove(struct sdw_slave *slave)
 static const struct sdw_device_id rt766_sdca_id[] = {
 	SDW_SLAVE_ENTRY_EXT(0x025d, 0x766, 0x3, 0x1, 0),
 	SDW_SLAVE_ENTRY_EXT(0x025d, 0x767, 0x3, 0x1, 0),
+	SDW_SLAVE_ENTRY_EXT(0x025d, 0x766, 0x4, 0x1, 0),
+	SDW_SLAVE_ENTRY_EXT(0x025d, 0x767, 0x4, 0x1, 0),
 	{},
 };
 MODULE_DEVICE_TABLE(sdw, rt766_sdca_id);

@@ -81,6 +81,7 @@ struct asoc_sdw_codec_info codec_info_list[] = {
 				/* speaker */
 				.direction = {true, false},
 				.dai_name = "tac5xx2-aif1",
+				.component_name = "tac5572",
 				.dai_type = SOC_SDW_DAI_TYPE_AMP,
 				.dailink = {SOC_SDW_AMP_OUT_DAI_ID, SOC_SDW_UNUSED_DAI_ID},
 				.init = asoc_sdw_ti_amp_init,
@@ -94,6 +95,7 @@ struct asoc_sdw_codec_info codec_info_list[] = {
 				/* mic */
 				.direction = {false, true},
 				.dai_name = "tac5xx2-aif2",
+				.component_name = "tac5572",
 				.dai_type = SOC_SDW_DAI_TYPE_MIC,
 				.dailink = {SOC_SDW_UNUSED_DAI_ID, SOC_SDW_DMIC_DAI_ID},
 				.rtd_init = asoc_sdw_ti_dmic_rtd_init,
@@ -102,6 +104,7 @@ struct asoc_sdw_codec_info codec_info_list[] = {
 				/* UAJ */
 				.direction = {true, true},
 				.dai_name = "tac5xx2-aif3",
+				.component_name = "tac5572",
 				.dai_type = SOC_SDW_DAI_TYPE_JACK,
 				.dailink = {SOC_SDW_JACK_OUT_DAI_ID, SOC_SDW_JACK_IN_DAI_ID},
 				.controls = generic_jack_controls,
@@ -122,6 +125,7 @@ struct asoc_sdw_codec_info codec_info_list[] = {
 				/* speaker with IV sense feedback */
 				.direction = {true, true},
 				.dai_name = "tac5xx2-aif1",
+				.component_name = "tac5672",
 				.dai_type = SOC_SDW_DAI_TYPE_AMP,
 				.dailink = {SOC_SDW_AMP_OUT_DAI_ID, SOC_SDW_AMP_IN_DAI_ID},
 				.init = asoc_sdw_ti_amp_init,
@@ -135,6 +139,7 @@ struct asoc_sdw_codec_info codec_info_list[] = {
 				/* mic */
 				.direction = {false, true},
 				.dai_name = "tac5xx2-aif2",
+				.component_name = "tac5672",
 				.dai_type = SOC_SDW_DAI_TYPE_MIC,
 				.dailink = {SOC_SDW_UNUSED_DAI_ID, SOC_SDW_DMIC_DAI_ID},
 				.rtd_init = asoc_sdw_ti_dmic_rtd_init,
@@ -143,6 +148,7 @@ struct asoc_sdw_codec_info codec_info_list[] = {
 				/* UAJ */
 				.direction = {true, true},
 				.dai_name = "tac5xx2-aif3",
+				.component_name = "tac5672",
 				.dai_type = SOC_SDW_DAI_TYPE_JACK,
 				.dailink = {SOC_SDW_JACK_OUT_DAI_ID, SOC_SDW_JACK_IN_DAI_ID},
 				.controls = generic_jack_controls,
@@ -163,6 +169,7 @@ struct asoc_sdw_codec_info codec_info_list[] = {
 				/* speaker with echo reference feedback */
 				.direction = {true, true},
 				.dai_name = "tac5xx2-aif1",
+				.component_name = "tac5682",
 				.dai_type = SOC_SDW_DAI_TYPE_AMP,
 				.dailink = {SOC_SDW_AMP_OUT_DAI_ID, SOC_SDW_AMP_IN_DAI_ID},
 				.init = asoc_sdw_ti_amp_init,
@@ -176,6 +183,7 @@ struct asoc_sdw_codec_info codec_info_list[] = {
 				/* mic */
 				.direction = {false, true},
 				.dai_name = "tac5xx2-aif2",
+				.component_name = "tac5682",
 				.dai_type = SOC_SDW_DAI_TYPE_MIC,
 				.dailink = {SOC_SDW_UNUSED_DAI_ID, SOC_SDW_DMIC_DAI_ID},
 				.rtd_init = asoc_sdw_ti_dmic_rtd_init,
@@ -184,6 +192,7 @@ struct asoc_sdw_codec_info codec_info_list[] = {
 				/* UAJ */
 				.direction = {true, true},
 				.dai_name = "tac5xx2-aif3",
+				.component_name = "tac5682",
 				.dai_type = SOC_SDW_DAI_TYPE_JACK,
 				.dailink = {SOC_SDW_JACK_OUT_DAI_ID, SOC_SDW_JACK_IN_DAI_ID},
 				.controls = generic_jack_controls,
@@ -203,6 +212,7 @@ struct asoc_sdw_codec_info codec_info_list[] = {
 			{
 				.direction = {true, false},
 				.dai_name = "tac5xx2-aif1",
+				.component_name = "tas2883",
 				.dai_type = SOC_SDW_DAI_TYPE_AMP,
 				.dailink = {SOC_SDW_AMP_OUT_DAI_ID, SOC_SDW_UNUSED_DAI_ID},
 				.init = asoc_sdw_ti_amp_init,
@@ -216,6 +226,7 @@ struct asoc_sdw_codec_info codec_info_list[] = {
 				/* mic */
 				.direction = {false, true},
 				.dai_name = "tac5xx2-aif2",
+				.component_name = "tas2883",
 				.dai_type = SOC_SDW_DAI_TYPE_MIC,
 				.dailink = {SOC_SDW_UNUSED_DAI_ID, SOC_SDW_DMIC_DAI_ID},
 				.rtd_init = asoc_sdw_ti_dmic_rtd_init,
@@ -1510,9 +1521,24 @@ int asoc_sdw_trigger(struct snd_pcm_substream *substream, int cmd)
 	}
 
 	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_RESUME:
+		/*
+		 * The peripherals lose their port configuration when the
+		 * controller is power-gated during system suspend, and an
+		 * application that restarts the stream with
+		 * SNDRV_PCM_IOCTL_RESUME - which platforms advertising
+		 * SNDRV_PCM_INFO_RESUME allow - never goes through
+		 * .prepare() again.  Prepare the stream here so that the
+		 * ports are reprogrammed before they are enabled;
+		 * sdw_prepare_stream() reapplies the parameters without
+		 * recomputing them when the stream is disabled.
+		 */
+		ret = sdw_prepare_stream(sdw_stream);
+		if (ret)
+			break;
+		fallthrough;
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-	case SNDRV_PCM_TRIGGER_RESUME:
 		ret = sdw_enable_stream(sdw_stream);
 		break;
 

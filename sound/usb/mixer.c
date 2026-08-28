@@ -1237,21 +1237,27 @@ static void init_cur_mix_raw(struct usb_mixer_elem_info *cval, int ch, int idx)
 }
 
 /*
- * Additional checks for sticky mixers
+ * Additional checks for sticky GET_CUR
  *
- * Some devices' volume control mixers are sticky, which accept SET_CUR but
- * do absolutely nothing.
+ * Some devices' volume control mixers have sticky GET_CUR, which implies either
+ * stubbed SET_CUR or broken GET_CUR. For the former case, the mixer accepts
+ * SET_CUR but do absolutely nothing, so falling back to soft mixer is the only
+ * way to control the volume. For the latter case, the mixer has effective
+ * SET_CUR despite GET_CUR being constant, and the mixer is usable as long as we
+ * always provide mixer value from the ceche.
  *
  * Check the return values of GET_CUR with different SET_CUR values. Consider
- * the mixer as sticky if GET_CUR always returns a constant value.
+ * GET_CUR as sticky if GET_CUR always returns a constant value.
  *
- * Some devices have effective SET_CUR despite GET_CUR being constant. Do not
- * consider the mixer as sticky if a quirk flag indicates that.
+ * Unfortunately, we can't distinguish between stubbed SET_CUR and broken
+ * GET_CUR with simple read-back tests. Disabling the mixer regardless and
+ * forcing userspace to use soft mixer instead can lead to audible distortion at
+ * low volume on some wireless headphones, probably due to their poorly-
+ * performed lossy codec.
  *
- * Gate the registration of sticky mixers to prevent confusing userspace, so
- * that they won't cause ineffective volume control. However, for mixers with
- * effective SET_CUR but broken GET_CUR, the registration can continue normally
- * but further GET_CUR requests will be gated.
+ * Instead, mark GET_CUR as broken regardless and only provide mixer value from
+ * the cache. Users may opt into soft mixer in userspace audio stack if they
+ * need it.
  */
 static int check_sticky_volume_control(struct usb_mixer_elem_info *cval,
 				       int channel, int saved)
@@ -1271,24 +1277,13 @@ static int check_sticky_volume_control(struct usb_mixer_elem_info *cval,
 			return 0;
 	}
 
-	if (cval->head.mixer->chip->quirk_flags & QUIRK_FLAG_MIXER_GET_CUR_BROKEN) {
-		usb_audio_info(cval->head.mixer->chip,
-			       "%d:%d: broken mixer GET_CUR (%d/%d/%d => %d)\n",
-			       cval->head.id, mixer_ctrl_intf(cval->head.mixer),
-			       cval->min, cval->max, cval->res, saved);
-
-		cval->get_cur_broken = 1;
-		return -ENXIO;
-	}
-
-	usb_audio_err(cval->head.mixer->chip,
-		      "%d:%d: sticky mixer values (%d/%d/%d => %d), disabling\n",
-		      cval->head.id, mixer_ctrl_intf(cval->head.mixer),
-		      cval->min, cval->max, cval->res, saved);
 	usb_audio_info(cval->head.mixer->chip,
-		       "check MIXER_GET_CUR_BROKEN if you believe the mixer is non-sticky");
+		       "%d:%d: broken mixer GET_CUR (%d/%d/%d => %d)\n",
+		       cval->head.id, mixer_ctrl_intf(cval->head.mixer),
+		       cval->min, cval->max, cval->res, saved);
 
-	return -ENODEV;
+	cval->get_cur_broken = 1;
+	return -ENXIO;
 }
 
 /*
@@ -1385,8 +1380,6 @@ static int get_min_max_with_quirks(struct usb_mixer_elem_info *cval,
 				goto no_checks;
 
 			ret = check_sticky_volume_control(cval, minchn, saved);
-			if (ret == -ENODEV)
-				goto sticky;
 			if (ret)
 				goto no_checks;
 
@@ -1454,34 +1447,15 @@ no_checks:
 		}
 	}
 
-	return 0;
-
-sticky:
 	/*
-	 * It makes no sense to restore the saved value for a sticky mixer,
-	 * since setting any value is a no-op.
-	 *
-	 * However, in some rare cases, SET_CUR is effective despite GET_CUR
-	 * always returns a constant value. These mixers are not sticky, but
-	 * there's no way to distinguish them. Without any additional
-	 * information, the best thing we can do is to set the mixer value to
-	 * the maximum before bailing out, so that a soft mixer can still reach
-	 * the maximum hardware volume if the mixer turns out to be non-sticky.
-	 * Meanwhile, all channels must be synchronized to prevent imbalance
-	 * volume.
+	 * When GET_CUR is sticky, the saved value is bogus, so mixer values set
+	 * by the sanity checks must be discarded through init_cur_mix_raw().
+	 * After that, we can clear the flag as per QUIRK_FLAG_MIXER_GET_CUR_OK.
 	 */
-	if (!cval->cmask) {
-		snd_usb_set_cur_mix_value(cval, 0, 0, cval->max);
-	} else {
-		idx = 0;
-		for (i = 0; i < MAX_CHANNELS; i++) {
-			if (cval->cmask & BIT(i)) {
-				snd_usb_set_cur_mix_value(cval, i + 1, idx, cval->max);
-				idx++;
-			}
-		}
-	}
-	return ret;
+	if (cval->head.mixer->chip->quirk_flags & QUIRK_FLAG_MIXER_GET_CUR_OK)
+		cval->get_cur_broken = 0;
+
+	return 0;
 }
 
 #define get_min_max(cval, def)	get_min_max_with_quirks(cval, def, NULL)

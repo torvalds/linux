@@ -243,24 +243,18 @@ extern bool snd_usb_skip_validation;
  *  from snd_usb_handle_sync_urb. Instead fall through and enqueue a
  *  packet_info containing only size-0 packets, so the OUT ring keeps
  *  moving (emits silence). Needed by Behringer Flow 8 (1397:050c).
- * QUIRK_FLAG_MIXER_GET_CUR_BROKEN
- *  Some mixers are sticky, which means that setting their current volume is a
- *  no-op, and reading the current volume returns a constant value. The sticky
- *  check disables these mixers to prevent confusing userspace. However, some
- *  devices do have a tunable volume despite the reported current volume being
- *  constant. As the sticky check can't distinguish between the two categories,
- *  setting this flag tells that the device should fall into the second
- *  category when GET_CUR returns a constant value, resulting in the sticky
- *  check being non-fatal and only disabling GET_CUR instead of the whole mixer.
- *  The current volume will then be provided by the internal cache that stores
- *  the last set volume
+ * QUIRK_FLAG_MIXER_GET_CUR_OK
+ *  On some devices, whether their GET_CUR being sticky depends on whether
+ *  hotpluggable components are present. When the hotpluggable components are
+ *  missing on probe, their GET_CUR behavior is classified as broken. Set the
+ *  flag to prevent the heuristics from gating GET_CUR.
  * QUIRK_FLAG_PLAYBACK_URB_FIXUP
  *  Set URB_ISO_ASAP flag for isochronous URBs and force nurbs to MAX_URBS.
  *  This is needed for devices that exhibit boot-time audio stuttering due
  *  to insufficient buffer depth combined with xHCI scheduling variability.
  *  The larger buffer (MAX_URBS = 12, ~64ms) absorbs system scheduling
  *  jitter during boot, while URB_ISO_ASAP ensures consistent xHCI scheduling.
- * QUIRK_FLAG_ALWAYS_SET_RATE:
+ * QUIRK_FLAG_ALWAYS_SET_RATE
  *  Issue SET_CUR for the sample rate even when the clock already reports the
  *  requested rate.  A device advertising a single rate is otherwise never sent
  *  the request at all, and some require it before streaming will start.
@@ -297,10 +291,10 @@ enum {
 	QUIRK_TYPE_MIXER_PLAYBACK_LINEAR_VOL	= 27,
 	QUIRK_TYPE_MIXER_CAPTURE_LINEAR_VOL	= 28,
 	QUIRK_TYPE_IFB_SILENCE_ON_EMPTY		= 29,
-	QUIRK_TYPE_MIXER_GET_CUR_BROKEN		= 30,
+	QUIRK_TYPE_MIXER_GET_CUR_OK		= 30,
 	QUIRK_TYPE_PLAYBACK_URB_FIXUP		= 31,
 	QUIRK_TYPE_ALWAYS_SET_RATE		= 32,
-/* Please also edit snd_usb_audio_quirk_flag_names */
+/* Please also edit snd_usb_audio_quirk_flag_names and alsa-configuration.rst */
 };
 
 #define QUIRK_FLAG(x)	BIT_U64(QUIRK_TYPE_ ## x)
@@ -335,7 +329,7 @@ enum {
 #define QUIRK_FLAG_MIXER_PLAYBACK_LINEAR_VOL	QUIRK_FLAG(MIXER_PLAYBACK_LINEAR_VOL)
 #define QUIRK_FLAG_MIXER_CAPTURE_LINEAR_VOL	QUIRK_FLAG(MIXER_CAPTURE_LINEAR_VOL)
 #define QUIRK_FLAG_IFB_SILENCE_ON_EMPTY		QUIRK_FLAG(IFB_SILENCE_ON_EMPTY)
-#define QUIRK_FLAG_MIXER_GET_CUR_BROKEN		QUIRK_FLAG(MIXER_GET_CUR_BROKEN)
+#define QUIRK_FLAG_MIXER_GET_CUR_OK		QUIRK_FLAG(MIXER_GET_CUR_OK)
 #define QUIRK_FLAG_PLAYBACK_URB_FIXUP		QUIRK_FLAG(PLAYBACK_URB_FIXUP)
 #define QUIRK_FLAG_ALWAYS_SET_RATE		QUIRK_FLAG(ALWAYS_SET_RATE)
 

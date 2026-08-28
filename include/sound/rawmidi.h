@@ -179,7 +179,8 @@ int snd_rawmidi_info_select(struct snd_card *card, struct snd_rawmidi_info *info
 int snd_rawmidi_kernel_open_nested(struct snd_rawmidi *rmidi, int subdevice,
 				   int mode, struct snd_rawmidi_file *rfile,
 				   int depth);
-int snd_rawmidi_kernel_release(struct snd_rawmidi_file *rfile);
+int snd_rawmidi_kernel_release_nested(struct snd_rawmidi_file *rfile,
+				      int depth);
 int snd_rawmidi_output_params(struct snd_rawmidi_substream *substream,
 			      struct snd_rawmidi_params *params);
 int snd_rawmidi_input_params(struct snd_rawmidi_substream *substream,
@@ -199,6 +200,11 @@ static inline int snd_rawmidi_kernel_open(struct snd_rawmidi *rmidi,
 					  struct snd_rawmidi_file *rfile)
 {
 	return snd_rawmidi_kernel_open_nested(rmidi, subdevice, mode, rfile, 0);
+}
+
+static inline int snd_rawmidi_kernel_release(struct snd_rawmidi_file *rfile)
+{
+	return snd_rawmidi_kernel_release_nested(rfile, 0);
 }
 
 /* set up the tied devices */
