@@ -488,7 +488,7 @@ begin:
  * Return: the peer if found or NULL otherwise
  */
 static struct ovpn_peer *ovpn_peer_get_by_vpn_addr6(struct ovpn_priv *ovpn,
-						    struct in6_addr *addr)
+						    const struct in6_addr *addr)
 {
 	struct hlist_nulls_head *nhead;
 	struct hlist_nulls_node *ntmp;
@@ -511,6 +511,64 @@ begin:
 		goto begin;
 
 	return NULL;
+}
+
+/**
+ * ovpn_peer_vpn_addr_conflict4 - check if the VPN v4 address is already in use
+ * @ovpn: the openvpn instance to search
+ * @peer: peer being added or updated, or NULL
+ * @addr: VPN IPv4 address to check
+ *
+ * Check whether @addr is already assigned to another peer. @peer is ignored
+ * when found, allowing peer updates that keep an existing address.
+ * Unspecified addresses are ignored.
+ *
+ * Note: the caller must hold @ovpn->lock.
+ *
+ * Return: true on conflict, false otherwise.
+ */
+bool ovpn_peer_vpn_addr_conflict4(struct ovpn_priv *ovpn,
+				  const struct ovpn_peer *peer,
+				  const struct in_addr *addr)
+{
+	struct ovpn_peer *tmp = NULL;
+
+	lockdep_assert_held(&ovpn->lock);
+
+	/* we don't hash INADDR_ANY, no conflict in that case */
+	if (addr->s_addr != htonl(INADDR_ANY))
+		tmp = ovpn_peer_get_by_vpn_addr4(ovpn, addr->s_addr);
+
+	return tmp && tmp != peer;
+}
+
+/**
+ * ovpn_peer_vpn_addr_conflict6 - check if the VPN v6 address is already in use
+ * @ovpn: the openvpn instance to search
+ * @peer: peer being added or updated, or NULL
+ * @addr: VPN IPv6 address to check
+ *
+ * Check whether @addr is already assigned to another peer. @peer is ignored
+ * when found, allowing peer updates that keep an existing address.
+ * Unspecified addresses are ignored.
+ *
+ * Note: the caller must hold @ovpn->lock.
+ *
+ * Return: true on conflict, false otherwise.
+ */
+bool ovpn_peer_vpn_addr_conflict6(struct ovpn_priv *ovpn,
+				  const struct ovpn_peer *peer,
+				  const struct in6_addr *addr)
+{
+	struct ovpn_peer *tmp = NULL;
+
+	lockdep_assert_held(&ovpn->lock);
+
+	/* we don't hash ::, no conflict in that case */
+	if (!ipv6_addr_any(addr))
+		tmp = ovpn_peer_get_by_vpn_addr6(ovpn, addr);
+
+	return tmp && tmp != peer;
 }
 
 /**
@@ -1037,6 +1095,13 @@ static int ovpn_peer_add_mp(struct ovpn_priv *ovpn, struct ovpn_peer *peer)
 	if (tmp) {
 		ovpn_peer_put(tmp);
 		ret = -EEXIST;
+		goto out;
+	}
+
+	/* reject peer with conflicting VPN address */
+	if (ovpn_peer_vpn_addr_conflict4(ovpn, NULL, &peer->vpn_addrs.ipv4) ||
+	    ovpn_peer_vpn_addr_conflict6(ovpn, NULL, &peer->vpn_addrs.ipv6)) {
+		ret = -EADDRINUSE;
 		goto out;
 	}
 
