@@ -2057,8 +2057,8 @@ static unsigned short *ssif_address_list(void)
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id ssif_acpi_match[] = {
-	{ "IPI0001", 0 },
-	{ },
+	{ .id = "IPI0001" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, ssif_acpi_match);
 #endif
