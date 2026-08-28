@@ -1475,7 +1475,8 @@ static int omap_dm_timer_probe(struct platform_device *pdev)
 
 	timer->pdev = pdev;
 
-	if (timer->capability & OMAP_TIMER_ALWON && !IS_ERR_OR_NULL(timer->fclk)) {
+	if (pdata->system_timer_capable &&
+	    timer->capability & OMAP_TIMER_ALWON && !IS_ERR_OR_NULL(timer->fclk)) {
 		if (!omap_dm_timer_sched_clock_counter) {
 			ret = omap_dm_timer_setup_clocksource(timer);
 			if (ret)
@@ -1585,6 +1586,7 @@ static const struct dmtimer_platform_data omap3plus_pdata = {
 
 static const struct dmtimer_platform_data am6_pdata = {
 	.timer_ops = &dmtimer_ops,
+	.system_timer_capable = true,
 };
 
 static const struct of_device_id omap_timer_match[] = {
