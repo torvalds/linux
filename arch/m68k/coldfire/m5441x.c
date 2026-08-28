@@ -11,6 +11,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/clk.h>
+#include <linux/platform_device.h>
 #include <asm/machdep.h>
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
@@ -241,6 +242,30 @@ static void __init m5441x_fec_init(void)
 {
 	mcf_write8(0x03, MCFGPIO_PAR_FEC);
 }
+
+/*
+ * Reset Controller Module status register. Exposed to userspace as
+ * /sys/devices/platform/mcf-rcm-reset/power_on_reason by the mcf-rcm-reset
+ * driver (drivers/power/reset/mcf-rcm-reset.c).
+ */
+static struct resource m5441x_rcm_resource[] = {
+	{
+		.start	= MCF_RSR,
+		.end	= MCF_RSR,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static int __init m5441x_rcm_init(void)
+{
+	struct platform_device *pdev;
+
+	pdev = platform_device_register_simple("mcf-rcm-reset", -1,
+					       m5441x_rcm_resource,
+					       ARRAY_SIZE(m5441x_rcm_resource));
+	return PTR_ERR_OR_ZERO(pdev);
+}
+arch_initcall(m5441x_rcm_init);
 
 void __init config_BSP(char *commandp, int size)
 {
