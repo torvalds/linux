@@ -1839,31 +1839,31 @@ free_vars:
  *
  * @tcon: destination file tcon
  * @bytes_left: how many bytes are left to copy
+ * @chunk_size: maximum size of a single chunk
  *
  * Return: maximum number of chunks with which Chunks[] can be filled.
  */
 static inline u32
-calc_chunk_count(struct cifs_tcon *tcon, u64 bytes_left)
+calc_chunk_count(struct cifs_tcon *tcon, u64 bytes_left, u32 chunk_size)
 {
 	u32 max_chunks = READ_ONCE(tcon->max_chunks);
 	u32 max_bytes_copy = READ_ONCE(tcon->max_bytes_copy);
-	u32 max_bytes_chunk = READ_ONCE(tcon->max_bytes_chunk);
 	u64 need;
 	u32 allowed;
 
-	if (!max_bytes_chunk || !max_bytes_copy || !max_chunks)
+	if (!chunk_size || !max_bytes_copy || !max_chunks)
 		return 0;
 
 	/* chunks needed for the remaining bytes */
-	need = DIV_ROUND_UP_ULL(bytes_left, max_bytes_chunk);
+	need = DIV_ROUND_UP_ULL(bytes_left, chunk_size);
 	/* chunks allowed per cc request */
-	allowed = DIV_ROUND_UP(max_bytes_copy, max_bytes_chunk);
+	allowed = DIV_ROUND_UP(max_bytes_copy, chunk_size);
 
 	return (u32)umin(need, umin(max_chunks, allowed));
 }
 
 /**
- * smb2_copychunk_range - server-side copy of data range
+ * __smb2_copychunk_range - server-side copy of data range
  *
  * @xid: transaction id
  * @src_file: source file
@@ -1875,15 +1875,15 @@ calc_chunk_count(struct cifs_tcon *tcon, u64 bytes_left)
  * Obtains a resume key for @src_file and issues FSCTL_SRV_COPYCHUNK_WRITE
  * IOCTLs, splitting the request into chunks limited by tcon->max_*.
  *
- * Return: @len on success; negative errno on failure.
+ * Return: 0 on success; negative errno on failure.
  */
-static ssize_t
-smb2_copychunk_range(const unsigned int xid,
-		     struct cifsFileInfo *src_file,
-		     struct cifsFileInfo *dst_file,
-		     u64 src_off,
-		     u64 len,
-		     u64 dst_off)
+static int
+__smb2_copychunk_range(const unsigned int xid,
+		       struct cifsFileInfo *src_file,
+		       struct cifsFileInfo *dst_file,
+		       u64 src_off,
+		       u64 len,
+		       u64 dst_off)
 {
 	int rc = 0;
 	unsigned int ret_data_len = 0;
@@ -1891,12 +1891,14 @@ smb2_copychunk_range(const unsigned int xid,
 	struct copychunk_ioctl_rsp *cc_rsp = NULL;
 	struct cifs_tcon *tcon;
 	struct srv_copychunk *chunk;
-	u32 chunks, chunk_count, chunk_bytes;
+	u32 chunks, chunk_count, chunk_bytes, chunk_size;
 	u32 copy_bytes, copy_bytes_left;
 	u32 chunks_written, bytes_written;
 	u64 total_bytes_left = len;
 	u64 src_off_prev, dst_off_prev;
+	u64 max_chunk = 0;
 	u32 retries = 0;
+	bool reverse = false;
 
 	tcon = tlink_tcon(dst_file->tlink);
 
@@ -1904,8 +1906,50 @@ smb2_copychunk_range(const unsigned int xid,
 				   dst_file->fid.volatile_fid, tcon->tid,
 				   tcon->ses->Suid, src_off, dst_off, len);
 
+	/*
+	 * Same-file left shifts are safe in forward order. For a right shift,
+	 * let L be the copy length, delta the distance between the source and
+	 * destination, and C the normal chunk size:
+	 *
+	 *   delta >= L:      copy forwards using C
+	 *   delta < L:
+	 *     delta >= C:    copy backwards using C
+	 *     delta < C:     copy backwards with chunks limited to delta
+	 *
+	 * Copying backwards prevents one chunk from overwriting data needed by
+	 * a later chunk. Limiting the chunk size to delta prevents an individual
+	 * chunk from overlapping itself.
+	 * This limit can be removed once all supported servers handle overlapping
+	 * descriptors safely.
+	 *
+	 * A small right shift over a large range may therefore require many
+	 * chunks.
+	 */
+	if (src_file == dst_file && dst_off > src_off) {
+		u64 delta = dst_off - src_off;
+
+		if (delta < len) {
+			reverse = true;
+			max_chunk = delta;
+		}
+	}
+
+	/*
+	 * A backward copy walks the offsets down from the end of the range.
+	 * Do this once, outside the retry loop, so a retry does not move the
+	 * offsets again.
+	 */
+	if (reverse) {
+		src_off += len;
+		dst_off += len;
+	}
+
 retry:
-	chunk_count = calc_chunk_count(tcon, total_bytes_left);
+	chunk_size = READ_ONCE(tcon->max_bytes_chunk);
+	if (max_chunk && max_chunk < chunk_size)
+		chunk_size = (u32)max_chunk;
+
+	chunk_count = calc_chunk_count(tcon, total_bytes_left, chunk_size);
 	if (!chunk_count) {
 		rc = -EOPNOTSUPP;
 		goto out;
@@ -1946,16 +1990,21 @@ retry:
 		while (copy_bytes_left > 0 && chunks < chunk_count) {
 			chunk = &cc_req->Chunks[chunks++];
 
+			chunk_bytes = umin(copy_bytes_left, chunk_size);
+			if (reverse) {
+				src_off -= chunk_bytes;
+				dst_off -= chunk_bytes;
+			}
+
 			chunk->SourceOffset = cpu_to_le64(src_off);
 			chunk->TargetOffset = cpu_to_le64(dst_off);
-
-			chunk_bytes = umin(copy_bytes_left, tcon->max_bytes_chunk);
-
 			chunk->Length = cpu_to_le32(chunk_bytes);
 			/* Buffer is zeroed, no need to set chunk->Reserved = 0 */
 
-			src_off += chunk_bytes;
-			dst_off += chunk_bytes;
+			if (!reverse) {
+				src_off += chunk_bytes;
+				dst_off += chunk_bytes;
+			}
 
 			copy_bytes_left -= chunk_bytes;
 			copy_bytes += chunk_bytes;
@@ -2000,6 +2049,18 @@ retry:
 					      chunks_written, chunks);
 				rc = smb_EIO2(smb_eio_trace_copychunk_overcopy_c,
 					      chunks_written, chunks);
+				goto out;
+			}
+
+			/*
+			 * A successful COPYCHUNK should copy every descriptor (MS-SMB2
+			 * 3.3.5.15.6). Reject a short backward copy because the rewind
+			 * below only supports forward copying.
+			 */
+			if (unlikely(reverse && bytes_written < copy_bytes)) {
+				cifs_tcon_dbg(VFS, "Copychunk short write %u/%u (reverse)\n",
+					      bytes_written, copy_bytes);
+				rc = -EIO;
 				goto out;
 			}
 
@@ -2064,8 +2125,25 @@ out:
 		trace_smb3_copychunk_done(xid, src_file->fid.volatile_fid,
 					  dst_file->fid.volatile_fid, tcon->tid,
 					  tcon->ses->Suid, src_off, dst_off, len);
-		return len;
+		return 0;
 	}
+}
+
+static ssize_t
+smb2_copychunk_range(const unsigned int xid,
+		     struct cifsFileInfo *src_file,
+		     struct cifsFileInfo *dst_file,
+		     u64 src_off,
+		     u64 len,
+		     u64 dst_off)
+{
+	int rc;
+
+	rc = __smb2_copychunk_range(xid, src_file, dst_file, src_off, len,
+				    dst_off);
+	if (rc)
+		return rc;
+	return len;
 }
 
 static int
@@ -3992,7 +4070,6 @@ static long smb3_insert_range(struct file *file, struct cifs_tcon *tcon,
 	struct cifsFileInfo *cfile = file->private_data;
 	struct inode *inode = file_inode(file);
 	struct cifsInodeInfo *cifsi = CIFS_I(inode);
-	u64 count;
 	loff_t old_eof, new_eof;
 
 	xid = get_xid();
@@ -4010,8 +4087,6 @@ static long smb3_insert_range(struct file *file, struct cifs_tcon *tcon,
 	rc = inode_newsize_ok(inode, new_eof);
 	if (rc)
 		goto out;
-
-	count = old_eof - off;
 
 	/* SET_ZERO_DATA creates a hole only in a sparse file. */
 	rc = smb2_set_sparse(xid, tcon, cfile, inode, true);
@@ -4036,7 +4111,12 @@ static long smb3_insert_range(struct file *file, struct cifs_tcon *tcon,
 	spin_unlock(&inode->i_lock);
 	fscache_resize_cookie(cifs_inode_cookie(inode), i_size_read(inode));
 
-	rc = smb2_copychunk_range(xid, cfile, cfile, off, count, off + len);
+	/*
+	 * Move [off, old_eof) right by len. The helper copies backwards if the
+	 * source and destination ranges overlap.
+	 */
+	rc = __smb2_copychunk_range(xid, cfile, cfile, off, old_eof - off,
+				    off + len);
 	if (rc < 0)
 		goto out_2;
 	spin_lock(&inode->i_lock);
