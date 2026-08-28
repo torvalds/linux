@@ -74,7 +74,9 @@ void dcn5_calculate_byte_per_pixel_and_block_sizes(
 		*BytePerPixelDETC = 0;
 		*BytePerPixelY = 8;
 		*BytePerPixelC = 0;
-	} else if (SourcePixelFormat == dml2_444_32 || SourcePixelFormat == dml2_rgbe || SourcePixelFormat == dml2_422_packed_10 || SourcePixelFormat == dml2_422_packed_12) {
+	} else if (SourcePixelFormat == dml2_444_32 ||
+		   SourcePixelFormat == dml2_rgbe ||
+		   SourcePixelFormat == dml2_422_packed_12) {
 		*BytePerPixelDETY = 4;
 		*BytePerPixelDETC = 0;
 		*BytePerPixelY = 4;

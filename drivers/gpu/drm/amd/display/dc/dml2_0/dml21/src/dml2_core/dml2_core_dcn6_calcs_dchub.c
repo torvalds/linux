@@ -569,20 +569,11 @@ void dcn6_calculate_flip_schedule(
 
 	if (GPUVMEnable) {
 		if (l->dual_plane) {
-			if (GPUVMEnable) {
-				l->min_row_height = dpte_row_height;
-				l->min_row_height_chroma = dpte_row_height_chroma;
-			} else {
-				l->min_row_height = meta_row_height;
-				l->min_row_height_chroma = meta_row_height_chroma;
-			}
+			l->min_row_height = dpte_row_height;
+			l->min_row_height_chroma = dpte_row_height_chroma;
 			l->min_row_time = math_min2(l->min_row_height * LineTime / VRatio, l->min_row_height_chroma * LineTime / VRatioChroma);
 		} else {
-			if (GPUVMEnable)
-				l->min_row_height = dpte_row_height;
-			else
-				l->min_row_height = meta_row_height;
-
+			l->min_row_height = dpte_row_height;
 			l->min_row_time = l->min_row_height * LineTime / VRatio;
 		}
 		DML_LOG_VERBOSE("DML::%s: min_row_time = %f\n", __func__, l->min_row_time);

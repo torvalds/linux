@@ -1735,7 +1735,9 @@ int amdgpu_dm_register_hpd_handlers(struct amdgpu_device *adev)
 			if (int_params.irq_source == DC_IRQ_SOURCE_INVALID ||
 				int_params.irq_source  < DC_IRQ_SOURCE_HPD1 ||
 				int_params.irq_source  > DC_IRQ_SOURCE_HPD6) {
-				drm_err(adev_to_drm(adev), "Failed to register hpd irq!\n");
+				drm_err(adev_to_drm(adev),
+					"Failed to register hpd irq %u for %s!\n",
+					int_params.irq_source, connector->name);
 				return -EINVAL;
 			}
 
@@ -1753,7 +1755,9 @@ int amdgpu_dm_register_hpd_handlers(struct amdgpu_device *adev)
 			if (int_params.irq_source == DC_IRQ_SOURCE_INVALID ||
 				int_params.irq_source  < DC_IRQ_SOURCE_HPD1RX ||
 				int_params.irq_source  > DC_IRQ_SOURCE_HPD6RX) {
-				drm_err(adev_to_drm(adev), "Failed to register hpd rx irq!\n");
+				drm_err(adev_to_drm(adev),
+					"Failed to register hpd rx irq %u for %s!\n",
+					int_params.irq_source, connector->name);
 				return -EINVAL;
 			}
 
