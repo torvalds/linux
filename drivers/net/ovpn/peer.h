@@ -10,12 +10,23 @@
 #ifndef _NET_OVPN_OVPNPEER_H_
 #define _NET_OVPN_OVPNPEER_H_
 
+#include <linux/seqlock.h>
 #include <net/dst_cache.h>
 #include <net/strparser.h>
 
 #include "crypto.h"
 #include "socket.h"
 #include "stats.h"
+
+/**
+ * struct ovpn_route_key - route key used for the peer dst cache
+ * @mark: fwmark used for route lookup
+ * @sport: UDP source port used for route lookup
+ */
+struct ovpn_route_key {
+	u32 mark;
+	__be16 sport;
+};
 
 /**
  * struct ovpn_peer - the main remote peer object
@@ -45,6 +56,8 @@
  * @tcp.sk_cb.ops: pointer to the original prot_ops object (TCP only)
  * @crypto: the crypto configuration (ciphers, keys, etc..)
  * @dst_cache: cache for dst_entry used to send to peer
+ * @route_key: route key matching the current dst cache contents
+ * @route_key_seq: seqcount protecting lockless route_key reads
  * @bind: remote peer binding
  * @keepalive_interval: seconds after which a new keepalive should be sent
  * @keepalive_xmit_exp: future timestamp when next keepalive should be sent
@@ -55,7 +68,7 @@
  * @vpn_stats: per-peer in-VPN TX/RX stats
  * @link_stats: per-peer link/transport TX/RX stats
  * @delete_reason: why peer was deleted (i.e. timeout, transport error, ..)
- * @lock: protects binding to peer (bind) and keepalive* fields
+ * @lock: protects binding to peer (bind), route_key and keepalive* fields
  * @refcount: reference counter
  * @rcu: used to free peer in an RCU safe way
  * @release_entry: entry for the socket release list
@@ -99,6 +112,8 @@ struct ovpn_peer {
 	} tcp;
 	struct ovpn_crypto_state crypto;
 	struct dst_cache dst_cache;
+	struct ovpn_route_key route_key;
+	seqcount_spinlock_t route_key_seq;
 	struct ovpn_bind __rcu *bind;
 	unsigned long keepalive_interval;
 	unsigned long keepalive_xmit_exp;
@@ -109,7 +124,7 @@ struct ovpn_peer {
 	struct ovpn_peer_stats vpn_stats;
 	struct ovpn_peer_stats link_stats;
 	enum ovpn_del_peer_reason delete_reason;
-	spinlock_t lock; /* protects bind  and keepalive* */
+	spinlock_t lock; /* protects bind, route_key and keepalive* */
 	struct kref refcount;
 	struct rcu_head rcu;
 	struct llist_node release_entry;
