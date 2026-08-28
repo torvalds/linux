@@ -4469,6 +4469,13 @@ S: The Netherlands
 N: Thomas Woller
 D: CS461x Cirrus Logic sound driver
 
+N: Darrick J. Wong
+E: djwong@kernel.org
+D: ext4 filesystem
+D: XFS filesystem and online fsck
+D: Various hwmon drivers
+S: USA
+
 N: David Woodhouse
 E: dwmw2@infradead.org
 D: JFFS2 file system, Memory Technology Device subsystem,
