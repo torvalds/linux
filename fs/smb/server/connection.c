@@ -13,6 +13,7 @@
 #include "mgmt/ksmbd_ida.h"
 #include "mgmt/user_session.h"
 #include "connection.h"
+#include "vfs_cache.h"
 #include "compress.h"
 #include "transport_tcp.h"
 #include "transport_rdma.h"
@@ -384,12 +385,12 @@ static void ksmbd_conn_cancel_async_requests(struct ksmbd_conn *conn)
 	spin_lock(&conn->request_lock);
 	list_for_each_entry_safe(work, tmp, &conn->async_requests,
 				 async_request_entry) {
-		if (work->state != KSMBD_WORK_ACTIVE)
+		if (cmpxchg(&work->state, KSMBD_WORK_ACTIVE,
+			    KSMBD_WORK_CANCELLED) != KSMBD_WORK_ACTIVE)
 			continue;
 
 		ksmbd_debug(CONN, "Cancel async request id %d\n",
 			    work->async_id);
-		work->state = KSMBD_WORK_CANCELLED;
 		if (work->cancel_fn)
 			work->cancel_fn(work->cancel_argv);
 	}
@@ -472,6 +473,9 @@ int ksmbd_conn_wait_idle_sess(struct ksmbd_conn *curr_conn,
 retry_idle:
 	if (retry_count >= max_timeout)
 		return -EIO;
+
+	/* A blocked byte-range lock cannot drain until teardown wakes it. */
+	ksmbd_wake_session_blocked_works(sess);
 
 	down_read(&conn_list_lock);
 	hash_for_each(conn_list, bkt, conn, hlist) {

@@ -97,6 +97,11 @@ static int register_session_channel(struct ksmbd_session *sess,
 	int rc = 0;
 
 	down_write(&sess->chann_lock);
+	if (sess->tearing_down) {
+		rc = -ESHUTDOWN;
+		goto out;
+	}
+
 	if (xa_load(&sess->ksmbd_chann_list, (long)conn))
 		goto out;
 
@@ -3086,17 +3091,41 @@ int smb2_session_logoff(struct ksmbd_work *work)
 		smb2_set_err_rsp(work);
 		return -ENOENT;
 	}
+
+	down_write(&sess->chann_lock);
+	if (sess->tearing_down) {
+		up_write(&sess->chann_lock);
+		ksmbd_conn_unlock(conn);
+		rsp->hdr.Status = STATUS_USER_SESSION_DELETED;
+		smb2_set_err_rsp(work);
+		return -ENOENT;
+	}
+	sess->tearing_down = true;
+	up_write(&sess->chann_lock);
+
 	ksmbd_all_conn_set_status(sess, KSMBD_SESS_NEED_RECONNECT);
 	ksmbd_conn_unlock(conn);
 
+	err = ksmbd_conn_wait_idle_sess(conn, sess);
+	if (err) {
+		down_write(&sess->chann_lock);
+		sess->tearing_down = false;
+		up_write(&sess->chann_lock);
+		ksmbd_all_conn_set_status(sess, KSMBD_SESS_GOOD);
+		rsp->hdr.Status = STATUS_UNEXPECTED_IO_ERROR;
+		smb2_set_err_rsp(work);
+		return err;
+	}
+
 	ksmbd_close_session_fds(work);
-	ksmbd_conn_wait_idle(conn);
 
 	if (ksmbd_tree_conn_session_logoff(sess)) {
 		ksmbd_debug(SMB, "Invalid tid %d\n", req->hdr.Id.SyncId.TreeId);
 		rsp->hdr.Status = STATUS_NETWORK_NAME_DELETED;
 		smb2_set_err_rsp(work);
-		return -ENOENT;
+		err = -ENOENT;
+	} else {
+		err = 0;
 	}
 
 	down_write(&conn->session_lock);
@@ -3105,6 +3134,9 @@ int smb2_session_logoff(struct ksmbd_work *work)
 	up_write(&conn->session_lock);
 
 	ksmbd_all_conn_set_status(sess, KSMBD_SESS_NEED_SETUP);
+
+	if (err)
+		return err;
 
 	rsp->StructureSize = cpu_to_le16(4);
 	err = ksmbd_iov_pin_rsp(work, rsp, sizeof(struct smb2_logoff_rsp));
@@ -9685,14 +9717,14 @@ int smb2_cancel(struct ksmbd_work *work)
 			 * still on conn->async_requests with a live cancel_fn
 			 * pointing at the freed file_lock.
 			 */
-			if (iter->state != KSMBD_WORK_ACTIVE)
+			if (cmpxchg(&iter->state, KSMBD_WORK_ACTIVE,
+				    KSMBD_WORK_CANCELLED) != KSMBD_WORK_ACTIVE)
 				break;
 
 			ksmbd_debug(SMB,
 				    "smb2 with AsyncId %llu cancelled command = 0x%x\n",
 				    le64_to_cpu(hdr->Id.AsyncId),
 				    le16_to_cpu(chdr->Command));
-			iter->state = KSMBD_WORK_CANCELLED;
 			if (iter->cancel_fn == smb2_notify_cancel_fn)
 				cancelled_notify =
 					smb2_notify_cancel_claim(iter->cancel_argv);
@@ -9721,11 +9753,16 @@ int smb2_cancel(struct ksmbd_work *work)
 			    iter == work)
 				continue;
 
+			if (cmpxchg(&iter->state, KSMBD_WORK_ACTIVE,
+				    KSMBD_WORK_CANCELLED) != KSMBD_WORK_ACTIVE)
+				break;
+
 			ksmbd_debug(SMB,
 				    "smb2 with mid %llu cancelled command = 0x%x\n",
 				    le64_to_cpu(hdr->MessageId),
 				    le16_to_cpu(chdr->Command));
-			iter->state = KSMBD_WORK_CANCELLED;
+			if (iter->cancel_fn)
+				iter->cancel_fn(iter->cancel_argv);
 			break;
 		}
 		spin_unlock(&conn->request_lock);
