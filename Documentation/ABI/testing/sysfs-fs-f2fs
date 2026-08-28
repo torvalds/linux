@@ -986,6 +986,7 @@ Description:	This sysfs entry can be used to enable/disable to adjust priority f
 		0x00000008     gc_lock
 		0x00000010     cp_global
 		0x00000020     io_rwsem
+		0x00000040     nat_tree_lock
 		==========     ==================
 
 What:		/sys/fs/f2fs/<disk>/lock_duration_priority
@@ -1002,3 +1003,20 @@ Description:	It can be used to tune priority of f2fs critical task, e.g. f2fs_ck
 		threads, limitation as below:
 		- it requires user has CAP_SYS_NICE capability.
 		- the range is [100, 139], by default the value is 120.
+
+What:		/sys/fs/f2fs/<disk>/max_atc_write_bio_size
+Date:		June 2026
+Contact:	Bart Van Assche <bvanassche@acm.org>
+Description:	Every time a write operation completes f2fs_write_end_io() is
+		called. This function may be called from an atomic context,
+		e.g. from inside an interrupt handler. This attribute controls
+		the maximum size of a write bio that is completed in atomic
+		(atc) context. The default value for this attribute is UINT_MAX
+		which means that this functionality is disabled by default.
+
+What:		/sys/fs/f2fs/<disk>/pinned_area_max_secno
+Date:		August 2026
+Contact:	"Daeho Jeong" <daehojeong@google.com>
+Description:	This is a read-only entry to show the upper bound section number
+		for pinned files. Pinned files will only be allocated within
+		sections 0 to pinned_area_max_secno - 1.
