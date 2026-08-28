@@ -144,8 +144,10 @@ void rds_tcp_reset_callbacks(struct socket *sock,
 	 * so we must quiesce any send threads before resetting
 	 * cp_transport_data.  Setting cp_state to something other
 	 * than RDS_CONN_UP stops new senders, and owning RDS_IN_XMIT
-	 * excludes any thread already inside rds_send_xmit() for the
-	 * whole socket swap and the rds_send_path_reset() below.
+	 * excludes any thread already inside rds_send_xmit() - or a
+	 * teardown in rds_conn_shutdown(), which holds the same lock
+	 * for the duration of the transport shutdown - for the whole
+	 * socket swap and the rds_send_path_reset() below.
 	 *
 	 * An incoming syn-ack at this point would end up marking the
 	 * conn as RDS_CONN_UP, and would again permit rds_send_xmit()
@@ -178,13 +180,22 @@ void rds_tcp_reset_callbacks(struct socket *sock,
 	/* Read t_sock only while owning RDS_IN_XMIT, never before the
 	 * wait: the teardown in rds_conn_shutdown() releases the old
 	 * socket and clears t_sock, so a pointer sampled earlier can
-	 * be stale by the time we wake up.
+	 * be stale by the time we wake up.  The teardown holds the
+	 * same lock while it does so, so what we read here cannot
+	 * change under us until we release it.
 	 */
 	osock = tc->t_sock;
 	if (!osock)
 		goto newsock;
 
-	/* reset receive side state for rds_tcp_data_recv() for osock  */
+	/* reset receive side state for rds_tcp_data_recv() for osock.
+	 *
+	 * The sync cancels while owning RDS_IN_XMIT rely on cp_wq
+	 * being ordered: a teardown blocked on the bit occupies
+	 * cp_wq's only execution slot, so cp_send_w and cp_recv_w are
+	 * pending at most and the cancels never flush.  Nothing here
+	 * may flush or wait on cp_wq itself.
+	 */
 	cancel_delayed_work_sync(&cp->cp_send_w);
 	cancel_delayed_work_sync(&cp->cp_recv_w);
 	lock_sock(osock->sk);

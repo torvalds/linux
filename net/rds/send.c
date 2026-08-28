@@ -244,8 +244,11 @@ restart:
 	WRITE_ONCE(cp->cp_send_gen, send_gen);
 
 	/*
-	 * rds_conn_shutdown() sets the conn state and then tests RDS_IN_XMIT,
-	 * we do the opposite to avoid races.
+	 * rds_conn_shutdown() sets the conn state and then acquires
+	 * RDS_IN_XMIT; we take the lock first and then check the state.
+	 * Ownership is decided by the atomic RMW on the cp_flags word:
+	 * if the teardown won the bit we back off here, and if we won
+	 * it the teardown waits until we release it.
 	 */
 	if (!rds_conn_path_up(cp)) {
 		release_in_xmit(cp);

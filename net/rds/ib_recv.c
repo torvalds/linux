@@ -391,7 +391,9 @@ void rds_ib_recv_refill(struct rds_connection *conn, int prefill, gfp_t gfp)
 
 	/* the goal here is to just make sure that someone, somewhere
 	 * is posting buffers.  If we can't get the refill lock,
-	 * let them do their thing
+	 * let them do their thing.  The holder may also be
+	 * rds_conn_shutdown() tearing the path down, in which case
+	 * there is nothing to post.
 	 */
 	if (!acquire_refill(conn))
 		return;
