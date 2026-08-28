@@ -678,10 +678,53 @@ enum exfat_validate_dentry_mode {
 	ES_MODE_GET_BENIGN_SEC_ENTRY,
 };
 
-static bool exfat_validate_entry(unsigned int type,
-		enum exfat_validate_dentry_mode *mode)
+static bool exfat_validate_vendor_alloc(struct super_block *sb,
+		struct exfat_dentry *ep)
 {
+	struct exfat_sb_info *sbi = EXFAT_SB(sb);
+	u8 flags = ep->dentry.vendor_alloc.flags;
+	u32 start_clu = le32_to_cpu(ep->dentry.vendor_alloc.start_clu);
+	u64 size = le64_to_cpu(ep->dentry.vendor_alloc.size);
+	u64 max_size = exfat_cluster_to_bytes(sbi,
+			(u64)EXFAT_DATA_CLUSTER_COUNT(sbi));
+	u64 num_clusters;
+
+	/* AllocationPossible is required for Vendor Allocation entries. */
+	if (!(flags & ALLOC_POSSIBLE))
+		return false;
+
+	/* The null GUID does not identify a valid vendor allocation. */
+	if (!memchr_inv(ep->dentry.vendor_alloc.vendor_guid, 0,
+			sizeof(ep->dentry.vendor_alloc.vendor_guid)))
+		return false;
+
+	if (!start_clu)
+		return !size && !(flags & (ALLOC_NO_FAT_CHAIN ^ ALLOC_FAT_CHAIN));
+
+	if (!is_valid_cluster(sbi, start_clu) || size > max_size)
+		return false;
+
+	if ((flags & ALLOC_NO_FAT_CHAIN) == ALLOC_NO_FAT_CHAIN) {
+		if (!size)
+			return false;
+
+		num_clusters = DIV_ROUND_UP_ULL(size, sbi->cluster_size);
+		if (num_clusters > sbi->num_clusters - start_clu)
+			return false;
+	}
+
+	return true;
+}
+
+static bool exfat_validate_entry(struct super_block *sb,
+		struct exfat_dentry *ep, enum exfat_validate_dentry_mode *mode)
+{
+	unsigned int type = exfat_get_entry_type(ep);
+
 	if (type == TYPE_UNUSED || type == TYPE_DELETED)
+		return false;
+	if (type == TYPE_VENDOR_ALLOC &&
+	    !exfat_validate_vendor_alloc(sb, ep))
 		return false;
 
 	switch (*mode) {
@@ -836,7 +879,7 @@ int exfat_get_dentry_set(struct exfat_entry_set_cache *es,
 	/* validate cached dentries */
 	for (i = ES_IDX_STREAM; i < es->num_entries; i++) {
 		ep = exfat_get_dentry_cached(es, i);
-		if (!exfat_validate_entry(exfat_get_entry_type(ep), &mode))
+		if (!exfat_validate_entry(sb, ep, &mode))
 			goto put_es;
 	}
 	return 0;
