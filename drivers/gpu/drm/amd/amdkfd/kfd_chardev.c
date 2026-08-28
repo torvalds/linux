@@ -35,6 +35,7 @@
 #include <linux/time.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
+#include <linux/pseudo_fs.h>
 #include <linux/ptrace.h>
 #include <linux/dma-buf.h>
 #include <linux/processor.h>
@@ -70,18 +71,54 @@ static const struct class kfd_class = {
 };
 
 /*
- * Cache the address space of the chardev on first open so that the reset
- * path can drop all userspace mappings of doorbell and MMIO ranges via
- * unmap_mapping_range().
+ * Private pseudo-filesystem for KFD, Provides a stable, module-owned
+ * inode whose address_space is the unmap target for all /dev/kfd
+ * openers during GPU reset.
  */
-static struct address_space *kfd_dev_mapping;
+static struct vfsmount *kfd_fs_mnt;
+static int kfd_fs_cnt;
+
+static int kfd_fs_init_fs_context(struct fs_context *fc)
+{
+	return init_pseudo(fc, 0x4b464400 /* "KFD" */) ? 0 : -ENOMEM;
+}
+
+static struct file_system_type kfd_fs_type = {
+	.name		= "kfd",
+	.init_fs_context = kfd_fs_init_fs_context,
+	.kill_sb	= kill_anon_super,
+};
+
+static struct inode *kfd_fs_inode_new(void)
+{
+	struct inode *inode;
+	int r;
+
+	r = simple_pin_fs(&kfd_fs_type, &kfd_fs_mnt, &kfd_fs_cnt);
+	if (r < 0)
+		return ERR_PTR(r);
+
+	inode = alloc_anon_inode(kfd_fs_mnt->mnt_sb);
+	if (IS_ERR(inode))
+		simple_release_fs(&kfd_fs_mnt, &kfd_fs_cnt);
+
+	return inode;
+}
+
+static void kfd_fs_inode_free(struct inode *inode)
+{
+	if (inode) {
+		iput(inode);
+		simple_release_fs(&kfd_fs_mnt, &kfd_fs_cnt);
+	}
+}
+
+static struct inode *kfd_anon_inode;
 
 void kfd_dev_unmap_mapping_range(loff_t const holebegin, loff_t const holelen)
 {
-	struct address_space *mapping = READ_ONCE(kfd_dev_mapping);
-
-	if (mapping)
-		unmap_mapping_range(mapping, holebegin, holelen, 1);
+	if (kfd_anon_inode)
+		unmap_mapping_range(kfd_anon_inode->i_mapping, holebegin, holelen, 1);
 }
 
 static inline struct kfd_process_device *kfd_lock_pdd_by_id(struct kfd_process *p, __u32 gpu_id)
@@ -107,6 +144,13 @@ int kfd_chardev_init(void)
 {
 	int err = 0;
 
+	kfd_anon_inode = kfd_fs_inode_new();
+	if (IS_ERR(kfd_anon_inode)) {
+		err = PTR_ERR(kfd_anon_inode);
+		kfd_anon_inode = NULL;
+		return err;
+	}
+
 	kfd_char_dev_major = register_chrdev(0, kfd_dev_name, &kfd_fops);
 	err = kfd_char_dev_major;
 	if (err < 0)
@@ -130,6 +174,8 @@ err_device_create:
 err_class_create:
 	unregister_chrdev(kfd_char_dev_major, kfd_dev_name);
 err_register_chrdev:
+	kfd_fs_inode_free(kfd_anon_inode);
+	kfd_anon_inode = NULL;
 	return err;
 }
 
@@ -138,6 +184,8 @@ void kfd_chardev_exit(void)
 	device_destroy(&kfd_class, MKDEV(kfd_char_dev_major, 0));
 	class_unregister(&kfd_class);
 	unregister_chrdev(kfd_char_dev_major, kfd_dev_name);
+	kfd_fs_inode_free(kfd_anon_inode);
+	kfd_anon_inode = NULL;
 	kfd_device = NULL;
 }
 
@@ -150,12 +198,7 @@ static int kfd_open(struct inode *inode, struct file *filep)
 	if (iminor(inode) != 0)
 		return -ENODEV;
 
-	/*
-	 * /dev/kfd is a single chardev so all opens share one inode. Cache
-	 * its address_space on the first open for use by the reset path.
-	 */
-	if (!READ_ONCE(kfd_dev_mapping))
-		cmpxchg(&kfd_dev_mapping, NULL, inode->i_mapping);
+	filep->f_mapping = kfd_anon_inode->i_mapping;
 
 	is_32bit_user_mode = in_compat_syscall();
 
