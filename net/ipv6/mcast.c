@@ -2639,7 +2639,7 @@ static void ip6_mc_clear_src(struct ifmcaddr6 *pmc)
 
 static void igmp6_join_group(struct ifmcaddr6 *ma)
 {
-	unsigned long delay;
+	unsigned long delay, interval;
 
 	mc_assert_locked(ma->idev);
 
@@ -2648,12 +2648,16 @@ static void igmp6_join_group(struct ifmcaddr6 *ma)
 
 	igmp6_send(&ma->mca_addr, ma->idev->dev, ICMPV6_MGM_REPORT);
 
-	delay = get_random_u32_below(unsolicited_report_interval(ma->idev));
+	interval = unsolicited_report_interval(ma->idev);
+	delay = interval;
 
 	if (cancel_delayed_work(&ma->mca_work)) {
 		refcount_dec(&ma->mca_refcnt);
 		delay = ma->mca_work.timer.expires - jiffies;
 	}
+
+	if (delay >= interval)
+		delay = get_random_u32_below(interval);
 
 	if (!mod_delayed_work(mld_wq, &ma->mca_work, delay))
 		refcount_inc(&ma->mca_refcnt);
