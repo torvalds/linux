@@ -3,8 +3,10 @@
 #define pr_fmt(fmt) "generic pinconfig core: " fmt
 
 #include <linux/array_size.h>
+#include <linux/cleanup.h>
 #include <linux/device.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/slab.h>
 
@@ -195,6 +197,8 @@ static int pinctrl_generic_dt_node_to_map(struct pinctrl_dev *pctldev,
 	unsigned int num_reserved_maps = 0;
 	int ngroups = 0;
 	int ret;
+
+	guard(mutex)(&pctldev->mutex);
 
 	*maps = NULL;
 	*num_maps = 0;
