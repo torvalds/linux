@@ -85,6 +85,9 @@ SMB direct(RDMA)               Supported.
 SMB3 Multi-channel             Supported.
 Receive Side Scaling mode      Supported.
 SMB3.1.1 POSIX extension       Supported.
+MSDFS                          Planned for future.
+Continuous Availability (CA)   Under development.
+AD/DC                          Under development.
 ACLs                           Partially Supported. only DACLs available, SACLs
                                (auditing) is planned for the future. For
                                ownership (SIDs) ksmbd generates random subauth
@@ -97,8 +100,9 @@ ACLs                           Partially Supported. only DACLs available, SACLs
                                member.
 Kerberos                       Supported.
 Durable handle v1,v2           Supported.
-Persistent handle              Planned for future.
-SMB2 notify                    Planned for future.
+Persistent handle              Under development.
+Resilient handle               Planned for future.
+SMB2 notify                    Under development.
 Sparse file support            Supported.
 DCE/RPC support                Partially Supported. a few calls(NetShareEnumAll,
                                NetServerGetInfo, SAMR, LSARPC) that are needed
