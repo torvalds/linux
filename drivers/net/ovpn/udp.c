@@ -174,6 +174,35 @@ static void ovpn_dst_cache_check_key(struct ovpn_peer *peer,
 }
 
 /**
+ * ovpn_dst_cache_current - check whether a route lookup matches peer state
+ * @peer: the peer owning the bind and dst cache
+ * @bind: the RCU bind used for the route lookup
+ * @key: the route key used for the route lookup
+ *
+ * Check that @bind is still the current peer bind and that @key still matches
+ * the peer route key. The caller must hold @peer->lock. The TX path keeps
+ * @bind inside an RCU read-side critical section, so pointer identity is enough
+ * to detect whether the bind was replaced while the route lookup was running.
+ *
+ * Return: true if the lookup result still matches the current peer state and
+ * may update the dst cache.
+ */
+static bool ovpn_dst_cache_current(const struct ovpn_peer *peer,
+				   const struct ovpn_bind *bind,
+				   const struct ovpn_route_key *key)
+{
+	const struct ovpn_bind *curr_bind;
+
+	lockdep_assert_held(&peer->lock);
+
+	curr_bind = rcu_dereference_protected(peer->bind,
+					      lockdep_is_held(&peer->lock));
+
+	return curr_bind == bind &&
+	       ovpn_route_key_equal(key, &peer->route_key);
+}
+
+/**
  * ovpn_udp4_output - send IPv4 packet over udp socket
  * @peer: the destination peer
  * @bind: the binding related to the destination peer
@@ -240,7 +269,7 @@ static int ovpn_udp4_output(struct ovpn_peer *peer, struct ovpn_bind *bind,
 
 	/* avoid storing a stale cache */
 	spin_lock_bh(&peer->lock);
-	if (likely(ovpn_route_key_equal(key, &peer->route_key)))
+	if (likely(ovpn_dst_cache_current(peer, bind, key)))
 		dst_cache_set_ip4(cache, &rt->dst, fl.saddr);
 	spin_unlock_bh(&peer->lock);
 
@@ -313,7 +342,7 @@ static int ovpn_udp6_output(struct ovpn_peer *peer, struct ovpn_bind *bind,
 
 	/* avoid storing a stale cache */
 	spin_lock_bh(&peer->lock);
-	if (likely(ovpn_route_key_equal(key, &peer->route_key)))
+	if (likely(ovpn_dst_cache_current(peer, bind, key)))
 		dst_cache_set_ip6(cache, dst, &fl.saddr);
 	spin_unlock_bh(&peer->lock);
 
