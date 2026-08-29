@@ -668,7 +668,7 @@ struct l2cap_conn {
 
 	struct l2cap_chan	*smp;
 
-	struct list_head	chan_l;
+	struct list_head	chan_l __guarded_by(&lock);
 	struct mutex		lock;
 	struct kref		ref;
 	struct list_head	users;
@@ -954,7 +954,8 @@ void l2cap_cleanup_sockets(void);
 bool l2cap_is_socket(struct socket *sock);
 
 void __l2cap_le_connect_rsp_defer(struct l2cap_chan *chan);
-void __l2cap_ecred_conn_rsp_defer(struct l2cap_chan *chan);
+void __l2cap_ecred_conn_rsp_defer(struct l2cap_chan *chan)
+	__must_hold(&chan->lock) __must_hold(&chan->conn->lock);
 void __l2cap_connect_rsp_defer(struct l2cap_chan *chan);
 
 int l2cap_add_psm(struct l2cap_chan *chan, bdaddr_t *src, __le16 psm);
@@ -975,7 +976,7 @@ void l2cap_chan_set_defaults(struct l2cap_chan *chan, struct l2cap_chan *pchan);
 int l2cap_ertm_init(struct l2cap_chan *chan);
 void l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan);
 void __l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan)
-	__must_hold(&chan->lock);
+	__must_hold(&conn->lock) __must_hold(&chan->lock);
 typedef void (*l2cap_chan_func_t)(struct l2cap_chan *chan, void *data);
 void l2cap_chan_list(struct l2cap_conn *conn, l2cap_chan_func_t func,
 		     void *data);
