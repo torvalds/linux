@@ -7656,6 +7656,8 @@ static void l2cap_connect_cfm(struct hci_conn *hcon, u8 status)
 	 * we left off, because the list lock would prevent calling the
 	 * potentially sleeping l2cap_chan_lock() function.
 	 */
+	mutex_lock(&conn->lock);
+
 	pchan = l2cap_global_fixed_chan(NULL, hcon);
 	while (pchan) {
 		struct l2cap_chan *chan, *next;
@@ -7679,6 +7681,8 @@ next:
 		l2cap_chan_put(pchan);
 		pchan = next;
 	}
+
+	mutex_unlock(&conn->lock);
 
 	l2cap_conn_ready(conn);
 }
