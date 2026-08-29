@@ -912,16 +912,27 @@ static int bt_6lowpan_connect(bdaddr_t *addr, u8 dst_type)
 static int bt_6lowpan_disconnect(struct l2cap_conn *conn, u8 dst_type)
 {
 	struct lowpan_peer *peer;
+	struct l2cap_chan *chan;
 
 	BT_DBG("conn %p dst type %u", conn, dst_type);
 
+	spin_lock(&devices_lock);
+
 	peer = lookup_peer(conn);
-	if (!peer)
+	if (!peer) {
+		spin_unlock(&devices_lock);
 		return -ENOENT;
+	}
 
-	BT_DBG("peer %p chan %p", peer, peer->chan);
+	chan = peer->chan;
+	l2cap_chan_hold(chan);
 
-	l2cap_chan_close_unlocked(peer->chan, ENOENT);
+	spin_unlock(&devices_lock);
+
+	BT_DBG("peer %p chan %p", peer, chan);
+
+	l2cap_chan_close_unlocked(chan, ENOENT);
+	l2cap_chan_put(chan);
 
 	return 0;
 }
