@@ -86,8 +86,16 @@ struct file_security_struct {
 	u32 pseqno; /* Policy seqno at the time of file open */
 };
 
+struct backing_file_security_layer {
+	struct path path; /* this layer's real path */
+	u32 mounter_sid; /* SID of the mounter that opened it */
+	u32 fd_sid; /* SID of its open file description */
+};
+
 struct backing_file_security_struct {
 	u32 uf_sid; /* top-level user file fsec->sid */
+	u32 layer_count; /* number of intermediate backing files */
+	struct backing_file_security_layer *layers;
 };
 
 struct superblock_security_struct {
