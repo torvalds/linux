@@ -921,9 +921,7 @@ static int bt_6lowpan_disconnect(struct l2cap_conn *conn, u8 dst_type)
 
 	BT_DBG("peer %p chan %p", peer, peer->chan);
 
-	l2cap_chan_lock(peer->chan);
-	l2cap_chan_close(peer->chan, ENOENT);
-	l2cap_chan_unlock(peer->chan);
+	l2cap_chan_close_unlocked(peer->chan, ENOENT);
 
 	return 0;
 }
@@ -1025,9 +1023,9 @@ static void disconnect_all_peers(void)
 	struct lowpan_peer *peer;
 	int nchans;
 
-	/* l2cap_chan_close() cannot be called from RCU, and lock ordering
-	 * chan->lock > devices_lock prevents taking write side lock, so copy
-	 * then close.
+	/* l2cap_chan_close_unlocked() cannot be called from RCU, and lock
+	 * ordering chan->lock > devices_lock prevents taking write side lock,
+	 * so copy then close.
 	 */
 
 	rcu_read_lock();
@@ -1062,9 +1060,7 @@ done:
 		spin_unlock(&devices_lock);
 
 		for (i = 0; i < nchans; ++i) {
-			l2cap_chan_lock(chans[i]);
-			l2cap_chan_close(chans[i], ENOENT);
-			l2cap_chan_unlock(chans[i]);
+			l2cap_chan_close_unlocked(chans[i], ENOENT);
 			l2cap_chan_put(chans[i]);
 		}
 	} while (nchans);
@@ -1082,9 +1078,7 @@ static void do_enable_set(bool flag)
 
 	mutex_lock(&set_lock);
 	if (listen_chan) {
-		l2cap_chan_lock(listen_chan);
-		l2cap_chan_close(listen_chan, 0);
-		l2cap_chan_unlock(listen_chan);
+		l2cap_chan_close_unlocked(listen_chan, 0);
 		l2cap_chan_put(listen_chan);
 	}
 
@@ -1132,9 +1126,7 @@ static ssize_t lowpan_control_write(struct file *fp,
 
 		mutex_lock(&set_lock);
 		if (listen_chan) {
-			l2cap_chan_lock(listen_chan);
-			l2cap_chan_close(listen_chan, 0);
-			l2cap_chan_unlock(listen_chan);
+			l2cap_chan_close_unlocked(listen_chan, 0);
 			l2cap_chan_put(listen_chan);
 			listen_chan = NULL;
 		}
@@ -1303,10 +1295,9 @@ static void __exit bt_6lowpan_exit(void)
 	debugfs_remove(lowpan_control_debugfs);
 
 	if (listen_chan) {
-		l2cap_chan_lock(listen_chan);
-		l2cap_chan_close(listen_chan, 0);
-		l2cap_chan_unlock(listen_chan);
+		l2cap_chan_close_unlocked(listen_chan, 0);
 		l2cap_chan_put(listen_chan);
+		listen_chan = NULL;
 	}
 
 	disconnect_devices();
