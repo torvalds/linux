@@ -536,7 +536,9 @@ int mac802154_perform_association(struct ieee802154_sub_if_data *sdata,
 	struct ieee802154_association_req_frame frame = {};
 	struct ieee802154_local *local = sdata->local;
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+	__le16 resp_short_addr;
 	struct sk_buff *skb;
+	u8 resp_status;
 	int ret;
 
 	frame.mhr.fc.type = IEEE802154_FC_TYPE_MAC_CMD;
@@ -578,9 +580,11 @@ int mac802154_perform_association(struct ieee802154_sub_if_data *sdata,
 		return ret;
 	}
 
-	local->assoc_dev = coord;
+	spin_lock(&local->assoc_lock);
 	reinit_completion(&local->assoc_done);
+	local->assoc_dev_extended_addr = coord->extended_addr;
 	set_bit(IEEE802154_IS_ASSOCIATING, &local->ongoing);
+	spin_unlock(&local->assoc_lock);
 
 	ret = ieee802154_mlme_tx_one_locked(local, sdata, skb);
 	if (ret) {
@@ -599,25 +603,37 @@ int mac802154_perform_association(struct ieee802154_sub_if_data *sdata,
 		goto clear_assoc;
 	}
 
-	if (local->assoc_status != IEEE802154_ASSOCIATION_SUCCESSFUL) {
-		if (local->assoc_status == IEEE802154_PAN_AT_CAPACITY)
+	/* The association is complete: mac802154_process_association_resp()
+	 * cleared the associating bit before waking us, so a second (e.g.
+	 * malicious) ASSOC RESP can no longer pass the recheck and overwrite
+	 * the result.  Snapshot assoc_status/assoc_addr under the lock.
+	 */
+	spin_lock(&local->assoc_lock);
+	resp_status = local->assoc_status;
+	resp_short_addr = local->assoc_addr;
+	spin_unlock(&local->assoc_lock);
+
+	if (resp_status != IEEE802154_ASSOCIATION_SUCCESSFUL) {
+		if (resp_status == IEEE802154_PAN_AT_CAPACITY)
 			ret = -ERANGE;
 		else
 			ret = -EPERM;
 
 		dev_warn(&sdata->dev->dev,
 			 "Negative ASSOC RESP received from %8phC: %s\n", &ceaddr,
-			 local->assoc_status == IEEE802154_PAN_AT_CAPACITY ?
+			 resp_status == IEEE802154_PAN_AT_CAPACITY ?
 			 "PAN at capacity" : "access denied");
-		goto clear_assoc;
+		return ret;
 	}
 
-	ret = 0;
-	*short_addr = local->assoc_addr;
+	*short_addr = resp_short_addr;
+
+	return 0;
 
 clear_assoc:
+	spin_lock(&local->assoc_lock);
 	clear_bit(IEEE802154_IS_ASSOCIATING, &local->ongoing);
-	local->assoc_dev = NULL;
+	spin_unlock(&local->assoc_lock);
 
 	return ret;
 }
@@ -639,19 +655,28 @@ int mac802154_process_association_resp(struct ieee802154_sub_if_data *sdata,
 		     dest->mode != IEEE802154_EXTENDED_ADDRESSING))
 		return -EINVAL;
 
-	if (unlikely(dest->extended_addr != wpan_dev->extended_addr ||
-		     src->extended_addr != local->assoc_dev->extended_addr))
+	spin_lock(&local->assoc_lock);
+	if (unlikely(!test_bit(IEEE802154_IS_ASSOCIATING, &local->ongoing) ||
+		     dest->extended_addr != wpan_dev->extended_addr ||
+		     src->extended_addr != local->assoc_dev_extended_addr)) {
+		spin_unlock(&local->assoc_lock);
 		return -ENODEV;
+	}
 
 	memcpy(&resp_pl, skb->data, sizeof(resp_pl));
 	local->assoc_addr = resp_pl.short_addr;
 	local->assoc_status = resp_pl.status;
+	/* Clear the associating bit before waking the waiter: once the result
+	 * is saved, any subsequent (e.g. malicious) ASSOC RESP must fail the
+	 * test_bit() recheck above and can no longer overwrite the result.
+	 */
+	clear_bit(IEEE802154_IS_ASSOCIATING, &local->ongoing);
+	complete(&local->assoc_done);
+	spin_unlock(&local->assoc_lock);
 
 	dev_dbg(&skb->dev->dev,
 		"ASSOC RESP 0x%x received from %8phC, getting short address %04x\n",
-		local->assoc_status, &deaddr, local->assoc_addr);
-
-	complete(&local->assoc_done);
+		resp_pl.status, &deaddr, resp_pl.short_addr);
 
 	return 0;
 }
