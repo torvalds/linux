@@ -171,7 +171,8 @@ static int leapraid_ctl_validate_sge_offset(struct leapraid_adapter *adapter,
 	return 0;
 }
 
-static struct leapraid_adapter *leapraid_ctl_lookup_adapter(int adapter_id)
+static struct leapraid_adapter *leapraid_ctl_lookup_adapter(int adapter_id,
+							    bool track_mmap)
 {
 	struct leapraid_adapter *adapter;
 	struct Scsi_Host *shost;
@@ -184,6 +185,8 @@ static struct leapraid_adapter *leapraid_ctl_lookup_adapter(int adapter_id)
 			shost = adapter->shost;
 			if (!shost || !scsi_host_get(shost))
 				break;
+			if (track_mmap)
+				atomic_inc(&adapter->fw_log_desc.mmap_refcnt);
 			spin_unlock(&leapraid_adapter_lock);
 			return adapter;
 		}
@@ -589,7 +592,7 @@ static int leapraid_ctl_ioctl_main(struct file *file, unsigned int cmd,
 		return -EFAULT;
 	}
 
-	adapter = leapraid_ctl_lookup_adapter(ioctl_header.adapter_id);
+	adapter = leapraid_ctl_lookup_adapter(ioctl_header.adapter_id, false);
 	if (!adapter)
 		return -EFAULT;
 
@@ -697,6 +700,7 @@ static void leapraid_fw_mmap_open(struct vm_area_struct *vma)
 	if (!adapter)
 		return;
 
+	get_device(&adapter->shost->shost_gendev);
 	atomic_inc(&adapter->fw_log_desc.mmap_refcnt);
 }
 
@@ -727,7 +731,7 @@ static int leapraid_fw_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	length = vma->vm_end - vma->vm_start;
 
-	adapter = leapraid_ctl_lookup_adapter(adapter_id);
+	adapter = leapraid_ctl_lookup_adapter(adapter_id, true);
 	if (!adapter) {
 		pr_err("%s: No adapter found!\n", __func__);
 		return -EINVAL;
@@ -767,10 +771,12 @@ static int leapraid_fw_mmap(struct file *filp, struct vm_area_struct *vma)
 	vma->vm_private_data = adapter;
 	vma->vm_ops = &leapraid_fw_mmap_vm_ops;
 	leapraid_fw_mmap_open(vma);
-	adapter = NULL;
 
 	rc = 0;
 out_put:
+	if (adapter &&
+	    atomic_dec_and_test(&adapter->fw_log_desc.mmap_refcnt))
+		wake_up(&adapter->fw_log_desc.mmap_waitq);
 	leapraid_ctl_put_adapter(adapter);
 	return rc;
 }

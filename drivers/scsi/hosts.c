@@ -73,8 +73,9 @@ static struct class shost_class = {
  *	transition is illegal.
  **/
 int scsi_host_set_state(struct Scsi_Host *shost, enum scsi_host_state state)
+	__must_hold(shost->host_lock)
 {
-	enum scsi_host_state oldstate = shost->shost_state;
+	enum scsi_host_state oldstate = READ_ONCE(shost->shost_state);
 
 	if (state == oldstate)
 		return 0;
@@ -145,7 +146,7 @@ int scsi_host_set_state(struct Scsi_Host *shost, enum scsi_host_state state)
 		}
 		break;
 	}
-	shost->shost_state = state;
+	WRITE_ONCE(shost->shost_state, state);
 	return 0;
 
  illegal:
@@ -276,7 +277,8 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 	if (error)
 		goto out_disable_runtime_pm;
 
-	scsi_host_set_state(shost, SHOST_RUNNING);
+	scoped_guard(spinlock_irq, shost->host_lock)
+		scsi_host_set_state(shost, SHOST_RUNNING);
 	get_device(shost->shost_gendev.parent);
 
 	device_enable_async_suspend(&shost->shost_dev);
@@ -350,6 +352,7 @@ EXPORT_SYMBOL(scsi_add_host_with_dma);
 static void scsi_host_dev_release(struct device *dev)
 {
 	struct Scsi_Host *shost = dev_to_shost(dev);
+	enum scsi_host_state state = scsi_get_host_state(shost);
 	struct device *parent = dev->parent;
 
 	/* Wait for functions invoked through call_rcu(&scmd->rcu, ...) */
@@ -363,7 +366,7 @@ static void scsi_host_dev_release(struct device *dev)
 	if (shost->work_q)
 		destroy_workqueue(shost->work_q);
 
-	if (shost->shost_state == SHOST_CREATED) {
+	if (state == SHOST_CREATED) {
 		/*
 		 * Free the shost_dev device name and remove the proc host dir
 		 * here if scsi_host_{alloc,put}() have been called but neither
@@ -379,7 +382,7 @@ static void scsi_host_dev_release(struct device *dev)
 
 	ida_free(&host_index_ida, shost->host_no);
 
-	if (shost->shost_state != SHOST_CREATED)
+	if (state != SHOST_CREATED)
 		put_device(parent);
 	kfree(shost);
 }
@@ -412,8 +415,8 @@ struct Scsi_Host *scsi_host_alloc(const struct scsi_host_template *sht, int priv
 		return NULL;
 
 	shost->host_lock = &shost->default_lock;
-	spin_lock_init(shost->host_lock);
-	shost->shost_state = SHOST_CREATED;
+	scoped_guard(spinlock_init, shost->host_lock)
+		shost->shost_state = SHOST_CREATED;
 	INIT_LIST_HEAD(&shost->__devices);
 	INIT_LIST_HEAD(&shost->__targets);
 	INIT_LIST_HEAD(&shost->eh_abort_list);
@@ -600,7 +603,7 @@ EXPORT_SYMBOL(scsi_host_lookup);
  **/
 struct Scsi_Host *scsi_host_get(struct Scsi_Host *shost)
 {
-	if ((shost->shost_state == SHOST_DEL) ||
+	if (scsi_get_host_state(shost) == SHOST_DEL ||
 		!get_device(&shost->shost_gendev))
 		return NULL;
 	return shost;

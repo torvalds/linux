@@ -808,7 +808,7 @@ static bool leapraid_should_queuecommand(struct leapraid_adapter *adapter,
 		goto no_connect;
 
 	if (sdev_priv->block &&
-	    scmd->device->host->shost_state == SHOST_RECOVERY &&
+	    scsi_get_host_state(scmd->device->host) == SHOST_RECOVERY &&
 	    scmd->cmnd[0] == TEST_UNIT_READY) {
 		scsi_build_sense(scmd, 0, UNIT_ATTENTION,
 				 LEAPRAID_SCSI_ASC_POWER_ON_RESET,
@@ -859,7 +859,7 @@ static u32 build_scsiio_req_control(struct scsi_cmnd *scmd,
 
 	control |= LEAPRAID_SCSIIO_CTRL_SIMPLEQ;
 
-	if (sdev_priv->ncq_cmd_prio_enable &&
+	if (sdev_priv->ncq_prio_enable &&
 	    (IOPRIO_PRIO_CLASS(req_get_ioprio(scsi_cmd_to_rq(scmd))) ==
 	     IOPRIO_CLASS_RT))
 		control |= LEAPRAID_SCSIIO_CTRL_CMDPRI;
@@ -1854,7 +1854,16 @@ static ssize_t sas_device_handle_show(struct device *dev,
 			  sas_device_priv_data->starget_priv->hdl);
 }
 
-static ssize_t ncq_cmd_prio_enable_show(struct device *dev,
+static ssize_t sas_ncq_prio_supported_show(struct device *dev,
+					   struct device_attribute *attr,
+					   char *buf)
+{
+	struct scsi_device *sdev = to_scsi_device(dev);
+
+	return sysfs_emit(buf, "%d\n", sas_ata_ncq_prio_supported(sdev));
+}
+
+static ssize_t sas_ncq_prio_enable_show(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
@@ -1867,19 +1876,16 @@ static ssize_t ncq_cmd_prio_enable_show(struct device *dev,
 		return -EINVAL;
 	}
 
-	return sysfs_emit(buf, "%d\n",
-			  sas_device_priv_data->ncq_cmd_prio_enable);
+	return sysfs_emit(buf, "%d\n", sas_device_priv_data->ncq_prio_enable);
 }
 
-static ssize_t ncq_cmd_prio_enable_store(struct device *dev,
+static ssize_t sas_ncq_prio_enable_store(struct device *dev,
 					 struct device_attribute *attr,
 					 const char *buf, size_t count)
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
 	struct leapraid_sdev_priv *sas_device_priv_data = sdev->hostdata;
-	struct scsi_vpd *vpd_pg89;
-	int ncq_cmd_prio_enable;
-	bool ncq_supported;
+	bool enable;
 
 	if (!sas_device_priv_data) {
 		dev_err(&sdev->sdev_gendev,
@@ -1887,44 +1893,63 @@ static ssize_t ncq_cmd_prio_enable_store(struct device *dev,
 		return -EINVAL;
 	}
 
-	if (kstrtoint(buf, 0, &ncq_cmd_prio_enable))
+	if (kstrtobool(buf, &enable))
 		return -EINVAL;
 
-	if (ncq_cmd_prio_enable != 0 && ncq_cmd_prio_enable != 1) {
-		dev_err(&sdev->sdev_gendev,
-			"%s: Invalid NCQ cmd prio %d (0/1 only)\n",
-			__func__, ncq_cmd_prio_enable);
+	if (!sas_ata_ncq_prio_supported(sdev))
 		return -EINVAL;
-	}
 
-	rcu_read_lock();
-	vpd_pg89 = rcu_dereference(sdev->vpd_pg89);
-	if (!vpd_pg89 || vpd_pg89->len < LEAPRAID_VPD_PG89_MIN_LEN) {
-		rcu_read_unlock();
-		return -EINVAL;
-	}
-
-	ncq_supported = (vpd_pg89->data[LEAPRAID_VPD_PG89_NCQ_BYTE_IDX] >>
-			 LEAPRAID_VPD_PG89_NCQ_BIT_SHIFT) &
-			LEAPRAID_VPD_PG89_NCQ_BIT_MASK;
-	rcu_read_unlock();
-	if (ncq_supported)
-		sas_device_priv_data->ncq_cmd_prio_enable =
-			ncq_cmd_prio_enable;
+	sas_device_priv_data->ncq_prio_enable = enable;
 	return count;
 }
 
 static DEVICE_ATTR_RO(sas_device_handle);
+static DEVICE_ATTR_RO(sas_ncq_prio_supported);
+static DEVICE_ATTR_RW(sas_ncq_prio_enable);
 
-static DEVICE_ATTR_RW(ncq_cmd_prio_enable);
+static bool leapraid_sdev_is_sata(struct scsi_device *sdev)
+{
+	struct scsi_target *starget = sdev->sdev_target;
+	struct leapraid_starget_priv *starget_priv = starget->hostdata;
+	struct leapraid_sas_dev *sas_dev;
+
+	if (!starget_priv)
+		return false;
+
+	sas_dev = starget_priv->sas_dev;
+	return sas_dev && (sas_dev->dev_info & LEAPRAID_DEVTYP_SATA_DEV);
+}
 
 static struct attribute *leapraid_sdev_attrs[] = {
 	&dev_attr_sas_device_handle.attr,
-	&dev_attr_ncq_cmd_prio_enable.attr,
+	&dev_attr_sas_ncq_prio_supported.attr,
+	&dev_attr_sas_ncq_prio_enable.attr,
 	NULL,
 };
 
-ATTRIBUTE_GROUPS(leapraid_sdev);
+static umode_t leapraid_sdev_attr_is_visible(struct kobject *kobj,
+					     struct attribute *attr, int i)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct scsi_device *sdev = to_scsi_device(dev);
+
+	if (attr == &dev_attr_sas_ncq_prio_supported.attr ||
+	    attr == &dev_attr_sas_ncq_prio_enable.attr)
+		if (!leapraid_sdev_is_sata(sdev))
+			return 0;
+
+	return attr->mode;
+}
+
+static const struct attribute_group leapraid_sdev_attr_group = {
+	.attrs = leapraid_sdev_attrs,
+	.is_visible = leapraid_sdev_attr_is_visible,
+};
+
+static const struct attribute_group *leapraid_sdev_groups[] = {
+	&leapraid_sdev_attr_group,
+	NULL,
+};
 
 static struct scsi_host_template leapraid_driver_template = {
 	.module = THIS_MODULE,

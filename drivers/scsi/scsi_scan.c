@@ -1169,6 +1169,7 @@ static unsigned char *scsi_inq_str(unsigned char *buf, unsigned char *inq,
 
 /**
  * scsi_probe_and_add_lun - probe a LUN, if a LUN is found add it
+ * @shost:      SCSI host pointer
  * @starget:	pointer to target device structure
  * @lun:	LUN of target device
  * @bflagsp:	store bflags here if not NULL
@@ -1188,17 +1189,18 @@ static unsigned char *scsi_inq_str(unsigned char *buf, unsigned char *inq,
  *         attached at the LUN
  *   - SCSI_SCAN_LUN_PRESENT: a new scsi_device was allocated and initialized
  **/
-static int scsi_probe_and_add_lun(struct scsi_target *starget,
+static int scsi_probe_and_add_lun(struct Scsi_Host *shost,
+				  struct scsi_target *starget,
 				  u64 lun, blist_flags_t *bflagsp,
 				  struct scsi_device **sdevp,
 				  enum scsi_scan_mode rescan,
 				  void *hostdata)
+	__must_hold(&shost->scan_mutex)
 {
 	struct scsi_device *sdev;
 	unsigned char *result;
 	blist_flags_t bflags;
 	int res = SCSI_SCAN_NO_RESPONSE, result_len = 256;
-	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 
 	/*
 	 * The rescan flag is used as an optimization, the first scan of a
@@ -1334,6 +1336,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 
 /**
  * scsi_sequential_lun_scan - sequentially scan a SCSI target
+ * @shost:      SCSI host pointer
  * @starget:	pointer to target structure to scan
  * @bflags:	black/white list flag for LUN 0
  * @scsi_level: Which version of the standard does this device adhere to
@@ -1346,13 +1349,14 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
  *
  *     Modifies sdevscan->lun.
  **/
-static void scsi_sequential_lun_scan(struct scsi_target *starget,
+static void scsi_sequential_lun_scan(struct Scsi_Host *shost,
+				     struct scsi_target *starget,
 				     blist_flags_t bflags, int scsi_level,
 				     enum scsi_scan_mode rescan)
+	__must_hold(&shost->scan_mutex)
 {
 	uint max_dev_lun;
 	u64 sparse_lun, lun;
-	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 
 	SCSI_LOG_SCAN_BUS(3, starget_printk(KERN_INFO, starget,
 		"scsi scan: Sequential scan\n"));
@@ -1412,14 +1416,15 @@ static void scsi_sequential_lun_scan(struct scsi_target *starget,
 	 * sparse_lun.
 	 */
 	for (lun = 1; lun < max_dev_lun; ++lun)
-		if ((scsi_probe_and_add_lun(starget, lun, NULL, NULL, rescan,
-					    NULL) != SCSI_SCAN_LUN_PRESENT) &&
+		if (scsi_probe_and_add_lun(shost, starget, lun, NULL, NULL,
+				rescan, NULL) != SCSI_SCAN_LUN_PRESENT &&
 		    !sparse_lun)
 			return;
 }
 
 /**
  * scsi_report_lun_scan - Scan using SCSI REPORT LUN results
+ * @shost: SCSI host pointer
  * @starget: which target
  * @bflags: Zero or a mix of BLIST_NOLUN, BLIST_REPORTLUN2, or BLIST_NOREPORTLUN
  * @rescan: nonzero if we can skip code only needed on first scan
@@ -1438,8 +1443,10 @@ static void scsi_sequential_lun_scan(struct scsi_target *starget,
  *     0: scan completed (or no memory, so further scanning is futile)
  *     1: could not scan with REPORT LUN
  **/
-static int scsi_report_lun_scan(struct scsi_target *starget, blist_flags_t bflags,
-				enum scsi_scan_mode rescan)
+static int scsi_report_lun_scan(struct Scsi_Host *shost,
+			struct scsi_target *starget, blist_flags_t bflags,
+			enum scsi_scan_mode rescan)
+	__must_hold(&shost->scan_mutex)
 {
 	unsigned char scsi_cmd[MAX_COMMAND_SIZE];
 	unsigned int length;
@@ -1448,7 +1455,6 @@ static int scsi_report_lun_scan(struct scsi_target *starget, blist_flags_t bflag
 	int result;
 	struct scsi_lun *lunp, *lun_data;
 	struct scsi_device *sdev;
-	struct Scsi_Host *shost = dev_to_shost(&starget->dev);
 	struct scsi_failure failure_defs[] = {
 		{
 			.sense = UNIT_ATTENTION,
@@ -1594,7 +1600,7 @@ retry:
 		} else {
 			int res;
 
-			res = scsi_probe_and_add_lun(starget,
+			res = scsi_probe_and_add_lun(shost, starget,
 				lun, NULL, NULL, rescan, NULL);
 			if (res == SCSI_SCAN_NO_RESPONSE) {
 				/*
@@ -1641,7 +1647,7 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 		scsi_complete_async_scans();
 
 	if (scsi_host_scan_allowed(shost) && scsi_autopm_get_host(shost) == 0) {
-		scsi_probe_and_add_lun(starget, lun, NULL, &sdev,
+		scsi_probe_and_add_lun(shost, starget, lun, NULL, &sdev,
 				       SCSI_SCAN_RESCAN, hostdata);
 		scsi_autopm_put_host(shost);
 	}
@@ -1763,10 +1769,11 @@ unlock:
 }
 EXPORT_SYMBOL(scsi_rescan_device);
 
-static void __scsi_scan_target(struct device *parent, unsigned int channel,
-		unsigned int id, u64 lun, enum scsi_scan_mode rescan)
+static void __scsi_scan_target(struct Scsi_Host *shost, struct device *parent,
+			       unsigned int channel, unsigned int id, u64 lun,
+			       enum scsi_scan_mode rescan)
+	__must_hold(&shost->scan_mutex)
 {
-	struct Scsi_Host *shost = dev_to_shost(parent);
 	blist_flags_t bflags = 0;
 	int res;
 	struct scsi_target *starget;
@@ -1786,7 +1793,8 @@ static void __scsi_scan_target(struct device *parent, unsigned int channel,
 		/*
 		 * Scan for a specific host/chan/id/lun.
 		 */
-		scsi_probe_and_add_lun(starget, lun, NULL, NULL, rescan, NULL);
+		scsi_probe_and_add_lun(shost, starget, lun, NULL, NULL, rescan,
+				       NULL);
 		goto out_reap;
 	}
 
@@ -1794,14 +1802,15 @@ static void __scsi_scan_target(struct device *parent, unsigned int channel,
 	 * Scan LUN 0, if there is some response, scan further. Ideally, we
 	 * would not configure LUN 0 until all LUNs are scanned.
 	 */
-	res = scsi_probe_and_add_lun(starget, 0, &bflags, NULL, rescan, NULL);
+	res = scsi_probe_and_add_lun(shost, starget, 0, &bflags, NULL, rescan,
+				     NULL);
 	if (res == SCSI_SCAN_LUN_PRESENT || res == SCSI_SCAN_TARGET_PRESENT) {
-		if (scsi_report_lun_scan(starget, bflags, rescan) != 0)
+		if (scsi_report_lun_scan(shost, starget, bflags, rescan) != 0)
 			/*
 			 * The REPORT LUN did not scan the target,
 			 * do a sequential scan.
 			 */
-			scsi_sequential_lun_scan(starget, bflags,
+			scsi_sequential_lun_scan(shost, starget, bflags,
 						 starget->scsi_level, rescan);
 	}
 
@@ -1851,7 +1860,7 @@ void scsi_scan_target(struct device *parent, unsigned int channel,
 		scsi_complete_async_scans();
 
 	if (scsi_host_scan_allowed(shost) && scsi_autopm_get_host(shost) == 0) {
-		__scsi_scan_target(parent, channel, id, lun, rescan);
+		__scsi_scan_target(shost, parent, channel, id, lun, rescan);
 		scsi_autopm_put_host(shost);
 	}
 	mutex_unlock(&shost->scan_mutex);
@@ -1861,6 +1870,7 @@ EXPORT_SYMBOL(scsi_scan_target);
 static void scsi_scan_channel(struct Scsi_Host *shost, unsigned int channel,
 			      unsigned int id, u64 lun,
 			      enum scsi_scan_mode rescan)
+	__must_hold(&shost->scan_mutex)
 {
 	uint order_id;
 
@@ -1882,11 +1892,11 @@ static void scsi_scan_channel(struct Scsi_Host *shost, unsigned int channel,
 				order_id = shost->max_id - id - 1;
 			else
 				order_id = id;
-			__scsi_scan_target(&shost->shost_gendev, channel,
+			__scsi_scan_target(shost, &shost->shost_gendev, channel,
 					order_id, lun, rescan);
 		}
 	else
-		__scsi_scan_target(&shost->shost_gendev, channel,
+		__scsi_scan_target(shost, &shost->shost_gendev, channel,
 				id, lun, rescan);
 }
 

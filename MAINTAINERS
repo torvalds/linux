@@ -18776,8 +18776,6 @@ L:	linux-scsi@vger.kernel.org
 S:	Maintained
 F:	Documentation/scsi/g_NCR5380.rst
 F:	drivers/scsi/NCR5380.*
-F:	drivers/scsi/arm/cumana_1.c
-F:	drivers/scsi/arm/oak.c
 F:	drivers/scsi/atari_scsi.*
 F:	drivers/scsi/dmx3191d.c
 F:	drivers/scsi/g_NCR5380.*
@@ -24571,7 +24569,7 @@ F:	include/scsi/sg.h
 
 SCSI SUBSYSTEM
 M:	"James E.J. Bottomley" <James.Bottomley@HansenPartnership.com>
-M:	"Martin K. Petersen" <martin.petersen@oracle.com>
+M:	"Martin K. Petersen" <mkp@kernel.org>
 L:	linux-scsi@vger.kernel.org
 S:	Maintained
 Q:	https://patchwork.kernel.org/project/linux-scsi/list/
@@ -24601,7 +24599,7 @@ F:	drivers/target/target_core_user.c
 F:	include/uapi/linux/target_core_user.h
 
 SCSI TARGET SUBSYSTEM
-M:	"Martin K. Petersen" <martin.petersen@oracle.com>
+M:	"Martin K. Petersen" <mkp@kernel.org>
 L:	linux-scsi@vger.kernel.org
 L:	target-devel@vger.kernel.org
 S:	Supported

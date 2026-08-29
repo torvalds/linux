@@ -2302,7 +2302,7 @@ int qla_get_tmf(struct tmf_arg *arg)
 		if (TMF_NOT_READY(fcport)) {
 			ql_log(ql_log_warn, vha, 0x802c,
 			    "Unable to acquire TM resource due to disruption.\n");
-			rc = EIO;
+			rc = -EIO;
 			break;
 		}
 		if (ha->active_tmf < MAX_ACTIVE_TMF &&
@@ -9269,7 +9269,7 @@ static int qla29xx_process_rd_image(struct scsi_qla_host *vha,
 	if (section == TIM) {
 		if (section_size > req->length * qla_req_entry_size(ha)) {
 			ql_log(ql_log_fatal, vha, 0x0098,
-			    "TIM section too large (0x%x bytes, ring 0x%lx bytes).\n",
+			    "TIM section too large (0x%x bytes, ring 0x%zx bytes).\n",
 			    section_size,
 			    req->length * qla_req_entry_size(ha));
 			return QLA_FUNCTION_FAILED;

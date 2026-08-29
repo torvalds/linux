@@ -1663,10 +1663,9 @@ static enum scsi_qc_status scsi_dispatch_cmd(struct scsi_cmnd *cmd)
 		goto done;
 	}
 
-	if (unlikely(host->shost_state == SHOST_DEL)) {
+	if (unlikely(scsi_get_host_state(host) == SHOST_DEL)) {
 		cmd->result = (DID_NO_CONNECT << 16);
 		goto done;
-
 	}
 
 	trace_scsi_dispatch_cmd_start(cmd);

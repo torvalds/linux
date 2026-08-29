@@ -27,6 +27,7 @@
 #include <linux/idr.h>
 #include <linux/interrupt.h>
 #include <linux/kthread.h>
+#include <linux/seq_buf.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/spinlock.h>
@@ -462,7 +463,8 @@ lpfc_debugfs_multixripools_data(struct lpfc_hba *phba, char *buf, int size)
 	struct lpfc_pvt_pool *pvt_pool;
 	struct lpfc_pbl_pool *pbl_pool;
 	u32 txcmplq_cnt;
-	char tmp[LPFC_DEBUG_OUT_LINE_SZ] = {0};
+	size_t used;
+	struct seq_buf s;
 
 	if (phba->sli_rev != LPFC_SLI_REV4)
 		return 0;
@@ -475,6 +477,9 @@ lpfc_debugfs_multixripools_data(struct lpfc_hba *phba, char *buf, int size)
 		return i;
 	}
 
+	used = strnlen(buf, size);
+	seq_buf_init(&s, buf + used, size - used);
+
 	/*
 	 * Pbl: Current number of free XRIs in public pool
 	 * Pvt: Current number of free XRIs in private pool
@@ -484,10 +489,8 @@ lpfc_debugfs_multixripools_data(struct lpfc_hba *phba, char *buf, int size)
 	 * pbl_empty: Incremented by 1 when all pbl_pool are empty during
 	 *            IO submission
 	 */
-	scnprintf(tmp, sizeof(tmp),
-		  "HWQ:  Pbl  Pvt Busy  HWM |  pvt_empty  pbl_empty ");
-	if (strlcat(buf, tmp, size) >= size)
-		return strnlen(buf, size);
+	seq_buf_printf(&s,
+		       "HWQ:  Pbl  Pvt Busy  HWM |  pvt_empty  pbl_empty ");
 
 #ifdef LPFC_MXP_STAT
 	/*
@@ -501,25 +504,17 @@ lpfc_debugfs_multixripools_data(struct lpfc_hba *phba, char *buf, int size)
 	 * othPbl_hit: Incremented by 1 if successfully get a batch of XRI from
 	 *             other pbl_pool
 	 */
-	scnprintf(tmp, sizeof(tmp),
-		  "MAXH  above_lmt  below_lmt locPbl_hit othPbl_hit");
-	if (strlcat(buf, tmp, size) >= size)
-		return strnlen(buf, size);
+	seq_buf_printf(&s, "MAXH  above_lmt  below_lmt locPbl_hit othPbl_hit");
 
 	/*
 	 * sPbl: snapshot of Pbl 15 sec after stat gets cleared
 	 * sPvt: snapshot of Pvt 15 sec after stat gets cleared
 	 * sBusy: snapshot of Busy 15 sec after stat gets cleared
 	 */
-	scnprintf(tmp, sizeof(tmp),
-		  " | sPbl sPvt sBusy");
-	if (strlcat(buf, tmp, size) >= size)
-		return strnlen(buf, size);
+	seq_buf_printf(&s, " | sPbl sPvt sBusy");
 #endif
 
-	scnprintf(tmp, sizeof(tmp), "\n");
-	if (strlcat(buf, tmp, size) >= size)
-		return strnlen(buf, size);
+	seq_buf_printf(&s, "\n");
 
 	hwq_count = phba->cfg_hdw_queue;
 	for (i = 0; i < hwq_count; i++) {
@@ -531,36 +526,32 @@ lpfc_debugfs_multixripools_data(struct lpfc_hba *phba, char *buf, int size)
 		pvt_pool = &multixri_pool->pvt_pool;
 		txcmplq_cnt = qp->io_wq->pring->txcmplq_cnt;
 
-		scnprintf(tmp, sizeof(tmp),
-			  "%03d: %4d %4d %4d %4d | %10d %10d ",
-			  i, pbl_pool->count, pvt_pool->count,
-			  txcmplq_cnt, pvt_pool->high_watermark,
-			  qp->empty_io_bufs, multixri_pool->pbl_empty_count);
-		if (strlcat(buf, tmp, size) >= size)
-			break;
+		seq_buf_printf(&s,
+			       "%03d: %4d %4d %4d %4d | %10d %10d ",
+			       i, pbl_pool->count, pvt_pool->count,
+			       txcmplq_cnt, pvt_pool->high_watermark,
+			       qp->empty_io_bufs,
+			       multixri_pool->pbl_empty_count);
 
 #ifdef LPFC_MXP_STAT
-		scnprintf(tmp, sizeof(tmp),
-			  "%4d %10d %10d %10d %10d",
-			  multixri_pool->stat_max_hwm,
-			  multixri_pool->above_limit_count,
-			  multixri_pool->below_limit_count,
-			  multixri_pool->local_pbl_hit_count,
-			  multixri_pool->other_pbl_hit_count);
-		if (strlcat(buf, tmp, size) >= size)
-			break;
+		seq_buf_printf(&s,
+			       "%4d %10d %10d %10d %10d",
+			       multixri_pool->stat_max_hwm,
+			       multixri_pool->above_limit_count,
+			       multixri_pool->below_limit_count,
+			       multixri_pool->local_pbl_hit_count,
+			       multixri_pool->other_pbl_hit_count);
 
-		scnprintf(tmp, sizeof(tmp),
-			  " | %4d %4d %5d",
-			  multixri_pool->stat_pbl_count,
-			  multixri_pool->stat_pvt_count,
-			  multixri_pool->stat_busy_count);
-		if (strlcat(buf, tmp, size) >= size)
-			break;
+		seq_buf_printf(&s,
+			       " | %4d %4d %5d",
+			       multixri_pool->stat_pbl_count,
+			       multixri_pool->stat_pvt_count,
+			       multixri_pool->stat_busy_count);
 #endif
 
-		scnprintf(tmp, sizeof(tmp), "\n");
-		if (strlcat(buf, tmp, size) >= size)
+		seq_buf_printf(&s, "\n");
+
+		if (seq_buf_has_overflowed(&s))
 			break;
 	}
 	return strnlen(buf, size);
@@ -1261,13 +1252,14 @@ lpfc_debugfs_scsistat_data(struct lpfc_vport *vport, char *buf, int size)
 	u64 data1, data2, data3;
 	u64 tot, totin, totout;
 	int i;
-	char tmp[LPFC_MAX_SCSI_INFO_TMP_LEN] = {0};
+	struct seq_buf s;
 
 	if (!(vport->cfg_enable_fc4_type & LPFC_ENABLE_FCP) ||
 	    (phba->sli_rev != LPFC_SLI_REV4))
 		return 0;
 
-	scnprintf(buf, size, "SCSI HDWQ Statistics\n");
+	seq_buf_init(&s, buf, size);
+	seq_buf_printf(&s, "SCSI HDWQ Statistics\n");
 
 	totin = 0;
 	totout = 0;
@@ -1280,21 +1272,18 @@ lpfc_debugfs_scsistat_data(struct lpfc_vport *vport, char *buf, int size)
 		data3 = cstat->control_requests;
 		totout += (data1 + data2 + data3);
 
-		scnprintf(tmp, sizeof(tmp), "HDWQ (%d): Rd %016llx Wr %016llx "
-			  "IO %016llx ", i, data1, data2, data3);
-		if (strlcat(buf, tmp, size) >= size)
-			goto buffer_done;
+		seq_buf_printf(&s, "HDWQ (%d): Rd %016llx Wr %016llx IO %016llx ",
+			       i, data1, data2, data3);
 
-		scnprintf(tmp, sizeof(tmp), "Cmpl %016llx OutIO %016llx\n",
-			  tot, ((data1 + data2 + data3) - tot));
-		if (strlcat(buf, tmp, size) >= size)
-			goto buffer_done;
+		seq_buf_printf(&s, "Cmpl %016llx OutIO %016llx\n",
+			       tot, ((data1 + data2 + data3) - tot));
+
+		if (seq_buf_has_overflowed(&s))
+			break;
 	}
-	scnprintf(tmp, sizeof(tmp), "Total FCP Cmpl %016llx Issue %016llx "
-		  "OutIO %016llx\n", totin, totout, totout - totin);
-	strlcat(buf, tmp, size);
+	seq_buf_printf(&s, "Total FCP Cmpl %016llx Issue %016llx OutIO %016llx\n",
+		       totin, totout, totout - totin);
 
-buffer_done:
 	len = strnlen(buf, size);
 
 	return len;
@@ -1704,28 +1693,23 @@ lpfc_debugfs_hdwqstat_data(struct lpfc_vport *vport, char *buf, int size)
 	uint32_t tot_xmt;
 	uint32_t tot_rcv;
 	uint32_t tot_cmpl;
-	char tmp[LPFC_MAX_SCSI_INFO_TMP_LEN] = {0};
+	size_t used = strnlen(buf, size);
+	struct seq_buf s;
 
-	scnprintf(tmp, sizeof(tmp), "HDWQ Stats:\n\n");
-	if (strlcat(buf, tmp, size) >= size)
-		goto buffer_done;
+	seq_buf_init(&s, buf + used, size - used);
 
-	scnprintf(tmp, sizeof(tmp), "(NVME Accounting: %s) ",
-		  (phba->hdwqstat_on &
-		  (LPFC_CHECK_NVME_IO | LPFC_CHECK_NVMET_IO) ?
-		  "Enabled" : "Disabled"));
-	if (strlcat(buf, tmp, size) >= size)
-		goto buffer_done;
+	seq_buf_printf(&s, "HDWQ Stats:\n\n");
 
-	scnprintf(tmp, sizeof(tmp), "(SCSI Accounting: %s) ",
-		  (phba->hdwqstat_on & LPFC_CHECK_SCSI_IO ?
-		  "Enabled" : "Disabled"));
-	if (strlcat(buf, tmp, size) >= size)
-		goto buffer_done;
+	seq_buf_printf(&s, "(NVME Accounting: %s) ",
+		       (phba->hdwqstat_on &
+		       (LPFC_CHECK_NVME_IO | LPFC_CHECK_NVMET_IO) ?
+		       "Enabled" : "Disabled"));
 
-	scnprintf(tmp, sizeof(tmp), "\n\n");
-	if (strlcat(buf, tmp, size) >= size)
-		goto buffer_done;
+	seq_buf_printf(&s, "(SCSI Accounting: %s) ",
+		       (phba->hdwqstat_on & LPFC_CHECK_SCSI_IO ?
+		       "Enabled" : "Disabled"));
+
+	seq_buf_printf(&s, "\n\n");
 
 	for (i = 0; i < phba->cfg_hdw_queue; i++) {
 		tot_rcv = 0;
@@ -1744,62 +1728,50 @@ lpfc_debugfs_hdwqstat_data(struct lpfc_vport *vport, char *buf, int size)
 			    !c_stat->rcv_io)
 				continue;
 
-			if (!tot_xmt && !tot_cmpl && !tot_rcv) {
-				/* Print HDWQ string only the first time */
-				scnprintf(tmp, sizeof(tmp), "[HDWQ %d]:\t", i);
-				if (strlcat(buf, tmp, size) >= size)
-					goto buffer_done;
-			}
+			/* Print HDWQ string only the first time */
+			if (!tot_xmt && !tot_cmpl && !tot_rcv)
+				seq_buf_printf(&s, "[HDWQ %d]:\t", i);
 
 			tot_xmt += c_stat->xmt_io;
 			tot_cmpl += c_stat->cmpl_io;
 			if (phba->nvmet_support)
 				tot_rcv += c_stat->rcv_io;
 
-			scnprintf(tmp, sizeof(tmp), "| [CPU %d]: ", j);
-			if (strlcat(buf, tmp, size) >= size)
-				goto buffer_done;
+			seq_buf_printf(&s, "| [CPU %d]: ", j);
 
-			if (phba->nvmet_support) {
-				scnprintf(tmp, sizeof(tmp),
-					  "XMT 0x%x CMPL 0x%x RCV 0x%x |",
-					  c_stat->xmt_io, c_stat->cmpl_io,
-					  c_stat->rcv_io);
-				if (strlcat(buf, tmp, size) >= size)
-					goto buffer_done;
-			} else {
-				scnprintf(tmp, sizeof(tmp),
-					  "XMT 0x%x CMPL 0x%x |",
-					  c_stat->xmt_io, c_stat->cmpl_io);
-				if (strlcat(buf, tmp, size) >= size)
-					goto buffer_done;
-			}
+			if (phba->nvmet_support)
+				seq_buf_printf(&s,
+					       "XMT 0x%x CMPL 0x%x RCV 0x%x |",
+					       c_stat->xmt_io, c_stat->cmpl_io,
+					       c_stat->rcv_io);
+			else
+				seq_buf_printf(&s,
+					       "XMT 0x%x CMPL 0x%x |",
+					       c_stat->xmt_io, c_stat->cmpl_io);
+
+			if (seq_buf_has_overflowed(&s))
+				break;
 		}
+
+		if (seq_buf_has_overflowed(&s))
+			break;
 
 		/* Check if nothing to display */
 		if (!tot_xmt && !tot_cmpl && !tot_rcv)
 			continue;
 
-		scnprintf(tmp, sizeof(tmp), "\t->\t[HDWQ Total: ");
-		if (strlcat(buf, tmp, size) >= size)
-			goto buffer_done;
+		seq_buf_printf(&s, "\t->\t[HDWQ Total: ");
 
-		if (phba->nvmet_support) {
-			scnprintf(tmp, sizeof(tmp),
-				  "XMT 0x%x CMPL 0x%x RCV 0x%x]\n\n",
-				  tot_xmt, tot_cmpl, tot_rcv);
-			if (strlcat(buf, tmp, size) >= size)
-				goto buffer_done;
-		} else {
-			scnprintf(tmp, sizeof(tmp),
-				  "XMT 0x%x CMPL 0x%x]\n\n",
-				  tot_xmt, tot_cmpl);
-			if (strlcat(buf, tmp, size) >= size)
-				goto buffer_done;
-		}
+		if (phba->nvmet_support)
+			seq_buf_printf(&s,
+				       "XMT 0x%x CMPL 0x%x RCV 0x%x]\n\n",
+				       tot_xmt, tot_cmpl, tot_rcv);
+		else
+			seq_buf_printf(&s,
+				       "XMT 0x%x CMPL 0x%x]\n\n",
+				       tot_xmt, tot_cmpl);
 	}
 
-buffer_done:
 	len = strnlen(buf, size);
 	return len;
 }

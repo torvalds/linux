@@ -14,6 +14,29 @@
 # satisfy certain initialization assumptions in the SCSI layer.
 # *!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!
 
+CONTEXT_ANALYSIS_constants.o := y
+CONTEXT_ANALYSIS_hosts.o := y
+CONTEXT_ANALYSIS_scsi.o := y
+CONTEXT_ANALYSIS_scsi_common.o := y
+CONTEXT_ANALYSIS_scsi_devinfo.o := y
+CONTEXT_ANALYSIS_scsi_dh.o := y
+CONTEXT_ANALYSIS_scsi_error.o := y
+CONTEXT_ANALYSIS_scsi_ioctl.o := y
+CONTEXT_ANALYSIS_scsi_lib.o := y
+CONTEXT_ANALYSIS_scsi_lib_dma.o := y
+CONTEXT_ANALYSIS_scsi_logging.o := y
+CONTEXT_ANALYSIS_scsi_netlink.o := y
+CONTEXT_ANALYSIS_scsi_pm.o := y
+CONTEXT_ANALYSIS_scsi_proc.o := y
+CONTEXT_ANALYSIS_scsi_scan.o := y
+CONTEXT_ANALYSIS_scsi_sysfs.o := y
+CONTEXT_ANALYSIS_scsi_trace.o := y
+CONTEXT_ANALYSIS_scsicam.o := y
+CONTEXT_ANALYSIS_sd.o := y
+CONTEXT_ANALYSIS_sd_dif.o := y
+CONTEXT_ANALYSIS_sd_zbc.o := y
+CONTEXT_ANALYSIS_sr.o := y
+CONTEXT_ANALYSIS_sr_ioctl.o := y
 
 CFLAGS_aha152x.o =   -DAHA152X_STAT -DAUTOCONF
 

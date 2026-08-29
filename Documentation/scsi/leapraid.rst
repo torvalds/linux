@@ -22,6 +22,7 @@ Supported devices
 
 Features
 ========
+
 - PCIe Gen4 x8 host interface
 - Support for SAS and SATA devices
 - RAID levels: 0, 1, 10, 5, 50, 6, 60
@@ -50,16 +51,20 @@ LeapRAID specific disk attributes
 
 ::
 
-   /sys/class/scsi_disk/host:bus:target:lun/device/sas_device_handle
-   /sys/class/scsi_disk/host:bus:target:lun/device/ncq_cmd_prio_enable
+   /sys/block/<disk>/device/sas_device_handle
+   /sys/block/<disk>/device/sas_ncq_prio_supported
+   /sys/block/<disk>/device/sas_ncq_prio_enable
 
 The read-only attribute "sas_device_handle" represents the disk's device
 handle, which is a unique identifier maintained by the firmware.
 
-This attribute "ncq_cmd_prio_enable" controls NCQ command priority. A value
+The read-only attribute "sas_ncq_prio_supported" reports whether a SATA
+device supports NCQ command priority.
+
+The attribute "sas_ncq_prio_enable" controls NCQ command priority. A value
 of 0 disables NCQ priority handling for RT-priority I/O. Writing 1 enables
 NCQ priority handling when the device reports support for the feature through
-VPD page 0x89. Unsupported devices keep the effective state at 0.
+VPD page 0x89. Writes to unsupported devices fail with an error.
 
 LeapRAID module parameters
 ==========================
@@ -100,6 +105,7 @@ in io_uring poll mode. The default value is 0.
 
 File Location
 =============
+
 The driver source is located at:
 
 ``drivers/scsi/leapraid/``

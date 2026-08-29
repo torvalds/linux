@@ -214,8 +214,9 @@ store_shost_state(struct device *dev, struct device_attribute *attr,
 	if (!state)
 		return -EINVAL;
 
-	if (scsi_host_set_state(shost, state))
-		return -EINVAL;
+	scoped_guard(spinlock_irq, shost->host_lock)
+		if (scsi_host_set_state(shost, state))
+			return -EINVAL;
 	return count;
 }
 
@@ -223,7 +224,7 @@ static ssize_t
 show_shost_state(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct Scsi_Host *shost = class_to_shost(dev);
-	const char *name = scsi_host_state_name(shost->shost_state);
+	const char *name = scsi_host_state_name(scsi_get_host_state(shost));
 
 	if (!name)
 		return -EINVAL;
