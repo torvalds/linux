@@ -847,12 +847,11 @@ static inline void l2cap_set_timer(struct l2cap_chan *chan,
 	BT_DBG("chan %p state %s timeout %ld", chan,
 	       state_to_string(chan->state), timeout);
 
-	/* If delayed work cancelled do not hold(chan)
-	   since it is already done with previous set_timer */
-	if (!cancel_delayed_work(work))
-		l2cap_chan_hold(chan);
+	l2cap_chan_hold(chan);
 
-	schedule_delayed_work(work, timeout);
+	/* put(chan) if timer was already queued so it already has a ref */
+	if (mod_delayed_work(system_percpu_wq, work, timeout))
+		l2cap_chan_put(chan);
 }
 
 static inline bool l2cap_clear_timer(struct l2cap_chan *chan,
