@@ -880,12 +880,6 @@ static void __l2cap_chan_close(struct l2cap_chan *chan, int reason)
 	}
 }
 
-void l2cap_chan_close(struct l2cap_chan *chan, int reason)
-{
-	__l2cap_chan_close(chan, reason);
-}
-EXPORT_SYMBOL(l2cap_chan_close);
-
 /* Take chan->lock. If chan->conn is non-NULL, take new reference on it, take
  * chan->conn->lock, and return true. Otherwise return false.
  */
