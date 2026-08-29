@@ -4174,7 +4174,6 @@ static struct l2cap_chan *l2cap_new_connection(struct l2cap_conn *conn,
 static void l2cap_connect(struct l2cap_conn *conn, struct l2cap_cmd_hdr *cmd,
 			  u8 *data, u8 rsp_code)
 	__must_hold(&conn->lock)
-	__context_unsafe(/* conditional locking */)
 {
 	struct l2cap_conn_req *req = (struct l2cap_conn_req *) data;
 	struct l2cap_conn_rsp rsp;
@@ -4191,7 +4190,13 @@ static void l2cap_connect(struct l2cap_conn *conn, struct l2cap_cmd_hdr *cmd,
 					 &conn->hcon->dst, ACL_LINK);
 	if (!pchan) {
 		result = L2CAP_CR_BAD_PSM;
-		goto response;
+
+		rsp.scid   = cpu_to_le16(scid);
+		rsp.dcid   = cpu_to_le16(dcid);
+		rsp.result = cpu_to_le16(result);
+		rsp.status = cpu_to_le16(status);
+		l2cap_send_cmd(conn, cmd->ident, rsp_code, sizeof(rsp), &rsp);
+		return;
 	}
 
 	l2cap_chan_lock(pchan);
@@ -4272,9 +4277,6 @@ response:
 	rsp.result = cpu_to_le16(result);
 	rsp.status = cpu_to_le16(status);
 	l2cap_send_cmd(conn, cmd->ident, rsp_code, sizeof(rsp), &rsp);
-
-	if (!pchan)
-		return;
 
 	if (result == L2CAP_CR_PEND && status == L2CAP_CS_NO_INFO) {
 		struct l2cap_info_req info;
