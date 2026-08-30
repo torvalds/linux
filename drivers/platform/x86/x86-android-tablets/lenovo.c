@@ -997,10 +997,6 @@ static const struct software_node lenovo_yt3_wm5102 = {
 	.name = "wm5102",
 };
 
-static const struct software_node *lenovo_yt3_swnodes[] = {
-	&lenovo_yt3_wm5102,
-	NULL
-};
 
 static const struct x86_spi_dev_info lenovo_yt3_spi_devs[] __initconst = {
 	{
@@ -1068,7 +1064,6 @@ const struct x86_dev_info lenovo_yt3_info __initconst = {
 	.i2c_client_count = ARRAY_SIZE(lenovo_yt3_i2c_clients),
 	.spi_dev_info = lenovo_yt3_spi_devs,
 	.spi_dev_count = ARRAY_SIZE(lenovo_yt3_spi_devs),
-	.swnode_group = lenovo_yt3_swnodes,
 	.modules = lenovo_yt3_modules,
 	.gpiochip_type = X86_GPIOCHIP_CHERRYVIEW,
 	.init = lenovo_yt3_init,
