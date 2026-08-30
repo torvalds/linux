@@ -61,10 +61,6 @@ static struct lp855x_platform_data lenovo_lp8557_reg_only_pdata = {
 	.initial_brightness = 128,
 };
 
-static const struct software_node arizona_gpiochip_node = {
-	.name = "arizona",
-};
-
 static const struct software_node crystalcove_gpiochip_node = {
 	.name = "gpio_crystalcove",
 };
@@ -416,15 +412,17 @@ static const struct platform_device_info lenovo_yoga_tab2_830_1050_pdevs[] __ini
 
 #define LENOVO_YOGA_TAB2_830_1050_CODEC_NAME "spi-10WM5102:00"
 
+static const struct software_node lenovo_yoga_tab2_830_1050_wm5102;
+
 static const struct property_entry lenovo_yoga_tab2_830_1050_wm1502_props[] = {
 	PROPERTY_ENTRY_GPIO("reset-gpios",
 			    &crystalcove_gpiochip_node, 3, GPIO_ACTIVE_HIGH),
 	PROPERTY_ENTRY_GPIO("wlf,ldoena-gpios",
 			    &baytrail_gpiochip_nodes[1], 23, GPIO_ACTIVE_HIGH),
 	PROPERTY_ENTRY_GPIO("wlf,spkvdd-ena-gpios",
-			    &arizona_gpiochip_node, 2, GPIO_ACTIVE_HIGH),
+			    &lenovo_yoga_tab2_830_1050_wm5102, 2, GPIO_ACTIVE_HIGH),
 	PROPERTY_ENTRY_GPIO("wlf,micd-pol-gpios",
-			    &arizona_gpiochip_node, 4, GPIO_ACTIVE_LOW),
+			    &lenovo_yoga_tab2_830_1050_wm5102, 4, GPIO_ACTIVE_LOW),
 	{ }
 };
 
@@ -434,7 +432,6 @@ static const struct software_node lenovo_yoga_tab2_830_1050_wm5102 = {
 
 static const struct software_node *lenovo_yoga_tab2_830_1050_swnodes[] = {
 	&crystalcove_gpiochip_node,
-	&arizona_gpiochip_node,
 	&lenovo_yoga_tab2_830_1050_wm5102,
 	&generic_lipo_hv_4v35_battery_node,
 	NULL
@@ -985,13 +982,15 @@ static struct arizona_pdata lenovo_yt3_wm5102_pdata = {
 	},
 };
 
+static const struct software_node lenovo_yt3_wm5102;
+
 static const struct property_entry lenovo_yt3_wm1502_props[] = {
 	PROPERTY_ENTRY_GPIO("wlf,spkvdd-ena-gpios",
 			    &cherryview_gpiochip_nodes[0], 75, GPIO_ACTIVE_HIGH),
 	PROPERTY_ENTRY_GPIO("wlf,ldoena-gpios",
 			    &cherryview_gpiochip_nodes[0], 81, GPIO_ACTIVE_HIGH),
 	PROPERTY_ENTRY_GPIO("reset-gpios", &cherryview_gpiochip_nodes[0], 82, GPIO_ACTIVE_HIGH),
-	PROPERTY_ENTRY_GPIO("wlf,micd-pol-gpios", &arizona_gpiochip_node, 2, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("wlf,micd-pol-gpios", &lenovo_yt3_wm5102, 2, GPIO_ACTIVE_HIGH),
 	{ }
 };
 
@@ -1001,7 +1000,6 @@ static const struct software_node lenovo_yt3_wm5102 = {
 };
 
 static const struct software_node *lenovo_yt3_swnodes[] = {
-	&arizona_gpiochip_node,
 	&lenovo_yt3_wm5102,
 	NULL
 };
