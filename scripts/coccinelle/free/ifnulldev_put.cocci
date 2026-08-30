@@ -45,11 +45,11 @@ position p;
 p << r.p;
 @@
 
-cocci.print_main("NULL check before dev_{put, hold} functions is not needed", p)
+cocci.print_main("NULL check before (net)dev_{put, hold} functions is not needed", p)
 
 @script:python depends on report@
 p << r.p;
 @@
 
-msg = "WARNING: NULL check before dev_{put, hold} functions is not needed."
+msg = "WARNING: NULL check before (net)dev_{put, hold} functions is not needed."
 coccilib.report.print_report(p[0], msg)
