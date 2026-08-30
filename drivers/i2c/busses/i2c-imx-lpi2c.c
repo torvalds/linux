@@ -29,6 +29,7 @@
 
 #define DRIVER_NAME "imx-lpi2c"
 
+#define LPI2C_VERID	0x00	/* i2c version ID */
 #define LPI2C_PARAM	0x04	/* i2c RX/TX FIFO size */
 #define LPI2C_MCR	0x10	/* i2c contrl register */
 #define LPI2C_MSR	0x14	/* i2c status register */
@@ -136,6 +137,9 @@
 #define I2C_PM_LONG_TIMEOUT_MS	1000 /* Avoid dead lock caused by big clock prepare lock */
 #define I2C_DMA_THRESHOLD	8 /* bytes */
 
+/* Bit 0 indicates the presence of the target feature */
+#define VERID_FEATURE_TARGET_PRESENT	BIT(0)
+
 enum lpi2c_imx_mode {
 	STANDARD,	/* 100+Kbps */
 	FAST,		/* 400+Kbps */
@@ -194,6 +198,7 @@ struct lpi2c_imx_struct {
 	bool			can_use_dma;
 	struct lpi2c_imx_dma	*dma;
 	struct i2c_client	*target;
+	bool			target_supported;
 	int			irq;
 	const struct imx_lpi2c_hwdata *hwdata;
 };
@@ -1330,6 +1335,10 @@ static int lpi2c_imx_register_target(struct i2c_client *client)
 	struct lpi2c_imx_struct *lpi2c_imx = i2c_get_adapdata(client->adapter);
 	int ret;
 
+	/* Reject target-mode registration on controllers that don't support it. */
+	if (!lpi2c_imx->target_supported)
+		return -EOPNOTSUPP;
+
 	if (lpi2c_imx->target)
 		return -EBUSY;
 
@@ -1546,13 +1555,23 @@ static int lpi2c_imx_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 
 	/*
-	 * Reset all internal controller registers of both Master and Target
-	 * to avoid effects of previous status.
+	 * Reset all internal controller registers to avoid effects of any
+	 * state left over from a previous stage (e.g. the bootloader).
+	 *
+	 * The Master block (MCR) is present on every controller, so reset it
+	 * unconditionally. VERID shows whether the target feature is supported.
+	 * Do not touch the Target block (SCR) on a master-only controller to
+	 * avoid an asynchronous SError.
 	 */
 	writel(MCR_RST, lpi2c_imx->base + LPI2C_MCR);
-	writel(SCR_RST, lpi2c_imx->base + LPI2C_SCR);
 	writel(0, lpi2c_imx->base + LPI2C_MCR);
-	writel(0, lpi2c_imx->base + LPI2C_SCR);
+
+	lpi2c_imx->target_supported = !!(readl(lpi2c_imx->base + LPI2C_VERID) &
+					 VERID_FEATURE_TARGET_PRESENT);
+	if (lpi2c_imx->target_supported) {
+		writel(SCR_RST, lpi2c_imx->base + LPI2C_SCR);
+		writel(0, lpi2c_imx->base + LPI2C_SCR);
+	}
 
 	ret = devm_request_irq(&pdev->dev, lpi2c_imx->irq, lpi2c_imx_isr, IRQF_NO_SUSPEND,
 			       pdev->name, lpi2c_imx);
