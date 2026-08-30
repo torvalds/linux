@@ -249,7 +249,7 @@ pub use self::arc_field::{
 ///     assert_eq!(list.iter().count(), 3);
 /// }
 ///
-/// // Pop the items from the list using `pop_front()` and verify the content.
+/// // Pop the items from the list using `pop_back()` and verify the content.
 /// {
 ///     assert_eq!(list.pop_back().ok_or(EINVAL)?.value.foo(), ("a", 15));
 ///     assert_eq!(list.pop_back().ok_or(EINVAL)?.value.foo(), ("a", 32));
