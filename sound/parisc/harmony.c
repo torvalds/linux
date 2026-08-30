@@ -868,6 +868,9 @@ snd_harmony_create(struct snd_card *card,
 		goto free_and_ret;
 	}
 		
+	spin_lock_init(&h->mixer_lock);
+	spin_lock_init(&h->lock);
+
 	err = request_irq(padev->irq, snd_harmony_interrupt, 0,
 			  "harmony", h);
 	if (err) {
@@ -876,9 +879,6 @@ snd_harmony_create(struct snd_card *card,
 		goto free_and_ret;
 	}
 	h->irq = padev->irq;
-
-	spin_lock_init(&h->mixer_lock);
-	spin_lock_init(&h->lock);
 
 	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, h, &ops);
 	if (err < 0)
