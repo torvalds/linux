@@ -167,9 +167,11 @@ In this case the initiator and target pci_devices are known and the P2P subsyste
 is used to determine the mapping type. The phys_addr_t-based DMA API is used to
 establish the dma_addr_t.
 
-Lifecycle is controlled by DMABUF move_notify(). When the exporting driver wants
+Lifecycle is controlled by DMABUF revocation. When the exporting driver wants
 to remove() it must deliver an invalidation shutdown to all DMABUF importing
-drivers through move_notify() and synchronously DMA unmap all the MMIO.
+drivers through dma_buf_invalidate_mappings() and synchronously DMA unmap all
+the MMIO. Importers unable to complete that unmap within bounded time have to
+be rejected when they attach, which dma_buf_attach_revocable() checks for.
 
 No importing driver can continue to have a DMA map to the MMIO after the
 exporting driver has destroyed its p2p_provider.
