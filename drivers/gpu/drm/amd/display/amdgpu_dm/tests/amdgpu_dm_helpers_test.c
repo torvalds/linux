@@ -358,12 +358,14 @@ static void dm_test_parse_edid_caps_hdmi_frl(struct kunit *test)
 
 	/* Drive the HDMI/FRL branch */
 	connector->display_info.is_hdmi = true;
+	connector->display_info.rgb_quant_range_selectable = true;
 	connector->display_info.hdmi.scdc.supported = true;
 	connector->display_info.hdmi.max_lanes = 4;
 	connector->display_info.hdmi.max_frl_rate_per_lane = 12;
 
 	KUNIT_EXPECT_EQ(test, dm_helpers_parse_edid_caps(link, dc_edid, edid_caps), EDID_OK);
 	KUNIT_EXPECT_TRUE(test, edid_caps->edid_hdmi);
+	KUNIT_EXPECT_EQ(test, edid_caps->qs_bit, 1);
 	KUNIT_EXPECT_TRUE(test, edid_caps->scdc_present);
 	/* max_lanes 4 + max_frl_rate_per_lane 12 -> rate index 6 */
 	KUNIT_EXPECT_EQ(test, edid_caps->max_frl_rate, 6);
