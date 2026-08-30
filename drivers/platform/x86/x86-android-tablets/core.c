@@ -361,6 +361,15 @@ static const struct software_node *cherryview_gpiochip_node_group[] = {
 	NULL
 };
 
+const struct software_node crystalcove_gpiochip_node = {
+	.name = "INT33FD:00",
+};
+
+static const struct software_node *crystalcove_gpiochip_node_group[] = {
+	&crystalcove_gpiochip_node,
+	NULL
+};
+
 static void gpio_secondary_unset(void *data)
 {
 	struct device *dev = data;
@@ -489,6 +498,14 @@ static __init int x86_android_tablet_probe(struct platform_device *pdev)
 	if (ret) {
 		x86_android_tablet_remove(pdev);
 		return ret;
+	}
+
+	if (dev_info->has_crystalcove) {
+		ret = gpio_secondary_fwnode_init(&pdev->dev, crystalcove_gpiochip_node_group);
+		if (ret) {
+			x86_android_tablet_remove(pdev);
+			return ret;
+		}
 	}
 
 	ret = software_node_register_node_group(dev_info->swnode_group);

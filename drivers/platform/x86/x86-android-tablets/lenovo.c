@@ -61,9 +61,6 @@ static struct lp855x_platform_data lenovo_lp8557_reg_only_pdata = {
 	.initial_brightness = 128,
 };
 
-static const struct software_node crystalcove_gpiochip_node = {
-	.name = "gpio_crystalcove",
-};
 
 /* Lenovo Yoga Book X90F / X90L's Android factory image has everything hardcoded */
 
@@ -431,7 +428,6 @@ static const struct software_node lenovo_yoga_tab2_830_1050_wm5102 = {
 };
 
 static const struct software_node *lenovo_yoga_tab2_830_1050_swnodes[] = {
-	&crystalcove_gpiochip_node,
 	&lenovo_yoga_tab2_830_1050_wm5102,
 	&generic_lipo_hv_4v35_battery_node,
 	NULL
@@ -454,6 +450,7 @@ const struct x86_dev_info lenovo_yoga_tab2_830_1050_info __initconst = {
 	.gpio_button_swnodes = lenovo_yoga_tab2_830_1050_lid_swnodes,
 	.swnode_group = lenovo_yoga_tab2_830_1050_swnodes,
 	.modules = lenovo_yoga_tab2_modules,
+	.has_crystalcove = true,
 	.gpiochip_type = X86_GPIOCHIP_BAYTRAIL,
 	.init = lenovo_yoga_tab2_830_1050_init,
 	.exit = lenovo_yoga_tab2_830_1050_exit,
@@ -799,6 +796,7 @@ const struct x86_dev_info lenovo_yoga_tab2_1380_info __initconst = {
 	.gpio_button_swnodes = lenovo_yoga_tab2_830_1050_lid_swnodes,
 	.swnode_group = lenovo_yoga_tab2_830_1050_swnodes,
 	.modules = lenovo_yoga_tab2_modules,
+	.has_crystalcove = true,
 	.gpiochip_type = X86_GPIOCHIP_BAYTRAIL,
 	.init = lenovo_yoga_tab2_1380_init,
 	.exit = lenovo_yoga_tab2_830_1050_exit,
