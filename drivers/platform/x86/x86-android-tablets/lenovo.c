@@ -427,12 +427,6 @@ static const struct software_node lenovo_yoga_tab2_830_1050_wm5102 = {
 	.properties = lenovo_yoga_tab2_830_1050_wm1502_props,
 };
 
-static const struct software_node *lenovo_yoga_tab2_830_1050_swnodes[] = {
-	&lenovo_yoga_tab2_830_1050_wm5102,
-	&generic_lipo_hv_4v35_battery_node,
-	NULL
-};
-
 static int __init lenovo_yoga_tab2_830_1050_init(struct device *dev);
 static void lenovo_yoga_tab2_830_1050_exit(void);
 
@@ -448,7 +442,7 @@ const struct x86_dev_info lenovo_yoga_tab2_830_1050_info __initconst = {
 	.pdev_info = lenovo_yoga_tab2_830_1050_pdevs,
 	.pdev_count = ARRAY_SIZE(lenovo_yoga_tab2_830_1050_pdevs),
 	.gpio_button_swnodes = lenovo_yoga_tab2_830_1050_lid_swnodes,
-	.swnode_group = lenovo_yoga_tab2_830_1050_swnodes,
+	.swnode_group = generic_lipo_hv_4v35_battery_swnodes,
 	.modules = lenovo_yoga_tab2_modules,
 	.has_crystalcove = true,
 	.gpiochip_type = X86_GPIOCHIP_BAYTRAIL,
@@ -794,7 +788,7 @@ const struct x86_dev_info lenovo_yoga_tab2_1380_info __initconst = {
 	.pdev_info = lenovo_yoga_tab2_1380_pdevs,
 	.pdev_count = ARRAY_SIZE(lenovo_yoga_tab2_1380_pdevs),
 	.gpio_button_swnodes = lenovo_yoga_tab2_830_1050_lid_swnodes,
-	.swnode_group = lenovo_yoga_tab2_830_1050_swnodes,
+	.swnode_group = generic_lipo_hv_4v35_battery_swnodes,
 	.modules = lenovo_yoga_tab2_modules,
 	.has_crystalcove = true,
 	.gpiochip_type = X86_GPIOCHIP_BAYTRAIL,
