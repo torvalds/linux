@@ -367,6 +367,7 @@ static void gpio_secondary_unset(void *data)
 	struct device *dev = data;
 
 	set_secondary_fwnode(dev, NULL);
+	put_device(dev);
 }
 
 static void gpio_secondary_unregister_node_group(void *data)
@@ -409,7 +410,7 @@ static int gpio_secondary_fwnode_init(struct device *parent)
 
 		set_secondary_fwnode(dev, fwnode);
 
-		ret = devm_add_action_or_reset(parent, gpio_secondary_unset, dev);
+		ret = devm_add_action_or_reset(parent, gpio_secondary_unset, get_device(dev));
 		if (ret)
 			return ret;
 	}
