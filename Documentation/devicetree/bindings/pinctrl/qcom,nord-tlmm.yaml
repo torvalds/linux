@@ -67,7 +67,7 @@ $defs:
           Specify the alternative function to be configured for the specified
           pins.
 
-        enum: [ aoss_cti, atest_char, atest_usb20, atest_usb21,
+        enum: [ gpio, aoss_cti, atest_char, atest_usb20, atest_usb21,
                 aud_intfc0_clk, aud_intfc0_data, aud_intfc0_ws,
                 aud_intfc10_clk, aud_intfc10_data, aud_intfc10_ws,
                 aud_intfc1_clk, aud_intfc1_data, aud_intfc1_ws,
@@ -98,9 +98,10 @@ $defs:
                 pcie3_clk_req_n, phase_flag, pll_bist_sync, pll_clk_aux,
                 prng_rosc0, prng_rosc1, pwrbrk_i_n, qdss, qdss_cti, qspi,
                 qup0_se0, qup0_se1, qup0_se2, qup0_se3, qup0_se4, qup0_se5,
-                qup1_se0, qup1_se1, qup1_se3, qup1_se2, qup1_se4, qup1_se5,
+                qup1_se0, qup1_se1, qup1_se2_01, qup1_se2_23, qup1_se3_01,
+                qup1_se3_23, qup1_se4, qup1_se5,
                 qup1_se6, qup2_se0, qup2_se1, qup2_se2, qup2_se3, qup2_se4,
-                qup2_se5, qup2_se6,
+                qup2_se5, qup2_se6, qup3_se0_mira, qup3_se0_mirb,
                 sailss_ospi, sdc4_clk, sdc4_cmd, sdc4_data, smb_alert,
                 smb_alert_n, smb_clk, smb_dat, tb_trig_sdc4, tmess_prng0,
                 tmess_prng1, tsc_timer, tsense_pwm, usb0_hs,
