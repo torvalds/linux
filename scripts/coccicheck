@@ -11,7 +11,7 @@ DIR="$(dirname $(readlink -f $0))/.."
 SPATCH="`which ${SPATCH:=spatch}`"
 
 if [ ! -x "$SPATCH" ]; then
-    echo 'spatch is part of the Coccinelle project and is available at http://coccinelle.lip6.fr/'
+    echo 'spatch is part of the Coccinelle project and is available at https://coccinelle.gitlabpages.inria.fr/website'
     exit 1
 fi
 
@@ -229,7 +229,7 @@ coccinelle () {
 	echo " in $FILE."
 	echo ''
 	echo ' More information about semantic patching is available at'
-	echo ' http://coccinelle.lip6.fr/'
+	echo ' https://coccinelle.gitlabpages.inria.fr/website'
 	echo ''
 
 	if [ "`sed -ne 's|^//#||p' $COCCI`" ] ; then

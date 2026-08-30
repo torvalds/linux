@@ -312,7 +312,8 @@ be found at https://sparse.wiki.kernel.org/index.php/Main_Page if your
 distributor does not package it); it can then be run on the code by adding
 "C=1" to your make command.
 
-The "Coccinelle" tool (http://coccinelle.lip6.fr/) is able to find a wide
+The "Coccinelle" tool
+(https://coccinelle.gitlabpages.inria.fr/website) is able to find a wide
 variety of potential coding problems; it can also propose fixes for those
 problems.  Quite a few "semantic patches" for the kernel have been packaged
 under the scripts/coccinelle directory; running "make coccicheck" will run
