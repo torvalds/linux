@@ -680,11 +680,18 @@ __ip_set_get(struct ip_set *set)
 }
 
 static void
+__ip_set_put_locked(struct ip_set *set)
+{
+	lockdep_assert_held(&ip_set_ref_lock);
+	BUG_ON(set->ref == 0);
+	set->ref--;
+}
+
+static void
 __ip_set_put(struct ip_set *set)
 {
 	write_lock_bh(&ip_set_ref_lock);
-	BUG_ON(set->ref == 0);
-	set->ref--;
+	__ip_set_put_locked(set);
 	write_unlock_bh(&ip_set_ref_lock);
 }
 
@@ -855,11 +862,11 @@ __ip_set_put_byindex(struct ip_set_net *inst, ip_set_id_t index)
 {
 	struct ip_set *set;
 
-	rcu_read_lock();
-	set = rcu_dereference(inst->ip_set_list)[index];
+	write_lock_bh(&ip_set_ref_lock);
+	set = ip_set(inst, index);
 	if (set)
-		__ip_set_put(set);
-	rcu_read_unlock();
+		__ip_set_put_locked(set);
+	write_unlock_bh(&ip_set_ref_lock);
 }
 
 void

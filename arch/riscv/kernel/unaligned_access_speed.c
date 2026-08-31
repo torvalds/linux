@@ -411,4 +411,10 @@ static int __init check_unaligned_access_all_cpus(void)
 	return 0;
 }
 
-late_initcall(check_unaligned_access_all_cpus);
+/*
+ * Run after clocksource_done_booting() so measure_cycles() uses a stable
+ * clocksource, but before rootfs_initcall() enables usermode helpers. Those
+ * helpers can reach hwprobe and populate the vDSO cache, so async hwprobe
+ * probes must be registered first.
+ */
+fs_initcall_sync(check_unaligned_access_all_cpus);
