@@ -2216,7 +2216,7 @@ int nvfnic_add_tport(struct fnic *fnic, struct fnic_tport_s *tport,
 
 int nvfnic_add_lport(struct fnic *fnic)
 {
-	struct nvme_fc_port_info pinfo;
+	struct nvme_fc_port_info pinfo = {};
 	struct fnic_iport_s *iport = &fnic->iport;
 	int ret = 0;
 

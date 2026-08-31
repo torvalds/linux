@@ -715,6 +715,7 @@ static void ufs_qcom_link_startup_post_change(struct ufs_hba *hba)
 static int ufs_qcom_link_startup_notify(struct ufs_hba *hba,
 					enum ufs_notify_change_status status)
 {
+	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
 	int err = 0;
 
 	switch (status) {
@@ -737,6 +738,14 @@ static int ufs_qcom_link_startup_notify(struct ufs_hba *hba,
 		 */
 		err = ufshcd_disable_host_tx_lcc(hba);
 
+		/*
+		 * Restore HS/LS link startup mode set by bootloader
+		 * after UFS reset clears REG_UFS_DEBUG_SPARE_CFG.
+		 */
+		if (host->hw_ver.major > 0x6 ||
+		    (host->hw_ver.major == 0x6 && host->hw_ver.minor >= 0x2))
+			ufshcd_writel(hba, host->boot_spare_cfg,
+				      REG_UFS_DEBUG_SPARE_CFG);
 		break;
 	case POST_CHANGE:
 		ufs_qcom_link_startup_post_change(hba);
@@ -1325,7 +1334,7 @@ static void ufs_qcom_advertise_quirks(struct ufs_hba *hba)
 static void ufs_qcom_set_phy_gear(struct ufs_qcom_host *host)
 {
 	struct ufs_host_params *host_params = &host->host_params;
-	u32 val, dev_major;
+	u32 dev_major;
 
 	/*
 	 * Default to powering up the PHY to the max gear possible, which is
@@ -1344,8 +1353,8 @@ static void ufs_qcom_set_phy_gear(struct ufs_qcom_host *host)
 		 */
 		host->phy_gear = UFS_HS_G2;
 	} else if (host->hw_ver.major >= 0x5) {
-		val = ufshcd_readl(host->hba, REG_UFS_DEBUG_SPARE_CFG);
-		dev_major = FIELD_GET(UFS_DEV_VER_MAJOR_MASK, val);
+		host->boot_spare_cfg = ufshcd_readl(host->hba, REG_UFS_DEBUG_SPARE_CFG);
+		dev_major = FIELD_GET(UFS_DEV_VER_MAJOR_MASK, host->boot_spare_cfg);
 
 		/*
 		 * Since the UFS device version is populated, let's remove the
@@ -2282,7 +2291,7 @@ static void ufs_qcom_config_scaling_param(struct ufs_hba *hba,
 	p->polling_ms = 60;
 	p->timer = DEVFREQ_TIMER_DELAYED;
 	d->upthreshold = 70;
-	d->downdifferential = 5;
+	d->downdifferential = 65;
 
 	hba->clk_scaling.suspend_on_no_request = true;
 }
