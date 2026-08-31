@@ -1322,8 +1322,8 @@ static void macb_tx_error_task(struct work_struct *work)
 				bp->netdev->stats.tx_packets++;
 				queue->stats.tx_packets++;
 				packets++;
-				bp->netdev->stats.tx_bytes += skb->len;
-				queue->stats.tx_bytes += skb->len;
+				bp->netdev->stats.tx_bytes += skb->len - tx_skb->fcs_len;
+				queue->stats.tx_bytes += skb->len - tx_skb->fcs_len;
 				bytes += skb->len;
 			}
 		} else {
@@ -1450,8 +1450,8 @@ static int macb_tx_complete(struct macb_queue *queue, int budget)
 					    skb->data);
 				bp->netdev->stats.tx_packets++;
 				queue->stats.tx_packets++;
-				bp->netdev->stats.tx_bytes += skb->len;
-				queue->stats.tx_bytes += skb->len;
+				bp->netdev->stats.tx_bytes += skb->len - tx_skb->fcs_len;
+				queue->stats.tx_bytes += skb->len - tx_skb->fcs_len;
 				packets++;
 				bytes += skb->len;
 			}
@@ -2199,7 +2199,8 @@ static void macb_poll_controller(struct net_device *netdev)
 static unsigned int macb_tx_map(struct macb *bp,
 				struct macb_queue *queue,
 				struct sk_buff *skb,
-				unsigned int hdrlen)
+				unsigned int hdrlen,
+				u8 fcs_len)
 {
 	unsigned int f, nr_frags = skb_shinfo(skb)->nr_frags;
 	unsigned int len, i, tx_head = queue->tx_head;
@@ -2284,6 +2285,7 @@ static unsigned int macb_tx_map(struct macb *bp,
 
 	/* This is the last buffer of the frame: save socket buffer */
 	tx_skb->skb = skb;
+	tx_skb->fcs_len = fcs_len;
 
 	/* Update TX ring: update buffer descriptors in reverse order
 	 * to avoid race condition
@@ -2417,6 +2419,7 @@ static inline int macb_clear_csum(struct sk_buff *skb)
 	return 0;
 }
 
+/* Returns a negative errno, or the FCS bytes appended (0 or ETH_FCS_LEN). */
 static int macb_pad_and_fcs(struct sk_buff **skb, struct net_device *netdev)
 {
 	bool cloned = skb_cloned(*skb) || skb_header_cloned(*skb) ||
@@ -2465,7 +2468,7 @@ add_fcs:
 	skb_put_u8(*skb, (fcs >> 16)	& 0xff);
 	skb_put_u8(*skb, (fcs >> 24)	& 0xff);
 
-	return 0;
+	return ETH_FCS_LEN;
 }
 
 static netdev_tx_t macb_start_xmit(struct sk_buff *skb,
@@ -2478,6 +2481,7 @@ static netdev_tx_t macb_start_xmit(struct sk_buff *skb,
 	netdev_tx_t ret = NETDEV_TX_OK;
 	unsigned int hdrlen;
 	unsigned long flags;
+	int fcs_len;
 	bool is_lso;
 
 	if (macb_clear_csum(skb)) {
@@ -2485,7 +2489,8 @@ static netdev_tx_t macb_start_xmit(struct sk_buff *skb,
 		return ret;
 	}
 
-	if (macb_pad_and_fcs(&skb, netdev)) {
+	fcs_len = macb_pad_and_fcs(&skb, netdev);
+	if (fcs_len < 0) {
 		dev_kfree_skb_any(skb);
 		return ret;
 	}
@@ -2548,7 +2553,7 @@ static netdev_tx_t macb_start_xmit(struct sk_buff *skb,
 	}
 
 	/* Map socket buffer for DMA transfer */
-	if (macb_tx_map(bp, queue, skb, hdrlen)) {
+	if (macb_tx_map(bp, queue, skb, hdrlen, fcs_len)) {
 		dev_kfree_skb_any(skb);
 		goto unlock;
 	}
