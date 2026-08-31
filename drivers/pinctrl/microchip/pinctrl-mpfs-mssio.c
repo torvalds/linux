@@ -86,7 +86,7 @@ static struct mpfs_pinctrl_bank_voltage mpfs_pinctrl_bank_voltages[8] = {
 	{ .uv = 1800000, .val = 4 },
 	{ .uv = 2500000, .val = 6 },
 	{ .uv = 3300000, .val = 8 },
-	{ .uv = 0, .val = 0x3f }, // pin unused
+	{ .uv = 0, .val = 0xf }, // pin unused
 };
 
 static int mpfs_pinctrl_get_drive_strength_ma(u32 drive_strength)
