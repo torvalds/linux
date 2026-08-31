@@ -20,6 +20,7 @@
 #include "attrib.h"
 #include "iomap.h"
 #include "object_id.h"
+#include "stream.h"
 
 /*
  * ntfs_test_inode - compare two (possibly fake) inodes for equality
@@ -56,15 +57,51 @@ int ntfs_test_inode(struct inode *vi, void *data)
 			return 0;
 		if (ni->name_len != na->name_len)
 			return 0;
-		if (na->name_len && memcmp(ni->name, na->name,
-				na->name_len * sizeof(__le16)))
-			return 0;
+		if (na->name_len) {
+			if (ntfs_inode_is_named_stream(ni)) {
+				if (!ntfs_names_are_equal(ni->name, ni->name_len,
+						na->name, na->name_len,
+						IGNORE_CASE, ni->vol->upcase,
+						ni->vol->upcase_len))
+					return 0;
+			} else if (memcmp(ni->name, na->name,
+					na->name_len * sizeof(__le16))) {
+				return 0;
+			}
+		}
 		if (!ni->ext.base_ntfs_ino)
 			return 0;
 	}
 
 	/* Match! */
 	return 1;
+}
+
+/*
+ * ntfs_test_inode_rcu() - Test an inode during RCU hash lookup
+ * @vi: inode being tested
+ * @data: NTFS attribute key to match
+ *
+ * Reject inodes being initialized or destroyed, then run the normal NTFS
+ * inode match while holding @vi's inode lock.
+ *
+ * Return: 1 if the inode matches, or 0 otherwise.
+ */
+int ntfs_test_inode_rcu(struct inode *vi, void *data)
+{
+	unsigned long state;
+	int ret;
+
+	spin_lock(&vi->i_lock);
+	state = inode_state_read_once(vi);
+	if (state & (I_FREEING | I_WILL_FREE | I_NEW)) {
+		ret = 0;
+		goto out;
+	}
+	ret = ntfs_test_inode(vi, data);
+out:
+	spin_unlock(&vi->i_lock);
+	return ret;
 }
 
 /*
@@ -468,6 +505,7 @@ void __ntfs_init_inode(struct super_block *sb, struct ntfs_inode *ni)
 	ni->seq_no = 0;
 	atomic_set(&ni->count, 1);
 	ni->vol = NTFS_SB(sb);
+	atomic_set(&ni->stream_open_count, 0);
 	ntfs_init_runlist(&ni->runlist);
 	mutex_init(&ni->mrec_lock);
 	if (ni->type == AT_ATTRIBUTE_LIST) {
@@ -1320,6 +1358,7 @@ static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
 	struct attr_record *a;
 	struct ntfs_attr_search_ctx *ctx;
 	int err = 0;
+	u32 ic;
 
 	ntfs_debug("Entering for i_ino 0x%llx.", ni->mft_no);
 
@@ -1334,8 +1373,12 @@ static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
 	inode_set_atime_to_ts(vi, inode_get_atime(base_vi));
 	vi->i_generation = ni->seq_no = base_ni->seq_no;
 
-	/* Set inode type to zero but preserve permissions. */
-	vi->i_mode	= base_vi->i_mode & ~S_IFMT;
+	/* Named data streams are regular files throughout initialization. */
+	vi->i_mode = base_vi->i_mode & ~S_IFMT;
+	if (ni->type == AT_DATA && ni->name_len) {
+		vi->i_mode |= S_IFREG;
+		vi->i_flags = base_vi->i_flags;
+	}
 
 	m = map_mft_record(base_ni);
 	if (IS_ERR(m)) {
@@ -1348,11 +1391,29 @@ static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
 		goto unm_err_out;
 	}
 	/* Find the attribute. */
+	ic = ntfs_inode_is_named_stream(ni) ? IGNORE_CASE : CASE_SENSITIVE;
 	err = ntfs_attr_lookup(ni->type, ni->name, ni->name_len,
-			CASE_SENSITIVE, 0, NULL, 0, ctx);
+			ic, 0, NULL, 0, ctx);
 	if (unlikely(err))
 		goto unm_err_out;
 	a = ctx->attr;
+	if (ntfs_inode_is_named_stream(ni)) {
+		__le16 *disk_name = (__le16 *)((u8 *)a +
+				le16_to_cpu(a->name_offset));
+
+		/* Subsequent extent and mutation lookups must select this name. */
+		if (ni->name == I30) {
+			ni->name = kmalloc_array(ni->name_len + 1,
+						sizeof(__le16), GFP_NOFS);
+			if (!ni->name) {
+				err = -ENOMEM;
+				goto unm_err_out;
+			}
+		}
+		memcpy(ni->name, disk_name,
+			ni->name_len * sizeof(__le16));
+		ni->name[ni->name_len] = 0;
+	}
 	if (a->flags & (ATTR_COMPRESSION_MASK | ATTR_IS_SPARSE)) {
 		if (a->flags & ATTR_COMPRESSION_MASK) {
 			NInoSetCompressed(ni);
@@ -2485,6 +2546,7 @@ int ntfs_extend_initialized_size(struct inode *vi, const loff_t offset,
 				 const loff_t new_size)
 {
 	struct ntfs_inode *ni = NTFS_I(vi);
+	struct ntfs_inode *mrec_ni = ntfs_base_inode(ni);
 	loff_t old_init_size, clear_size;
 	unsigned long flags;
 	int err = 0;
@@ -2522,9 +2584,9 @@ int ntfs_extend_initialized_size(struct inode *vi, const loff_t offset,
 		}
 	}
 
-	mutex_lock(&ni->mrec_lock);
+	mutex_lock(&mrec_ni->mrec_lock);
 	err = ntfs_attr_set_initialized_size(ni, new_size);
-	mutex_unlock(&ni->mrec_lock);
+	mutex_unlock(&mrec_ni->mrec_lock);
 	if (err)
 		truncate_setsize(vi, old_init_size);
 out:
@@ -3615,19 +3677,30 @@ s64 ntfs_inode_attr_pread(struct inode *vi, s64 pos, s64 count, u8 *buf)
 	struct address_space *mapping = vi->i_mapping;
 	struct folio *folio;
 	struct ntfs_inode *ni = NTFS_I(vi);
+	struct ntfs_inode *base_ni = ni->ext.base_ntfs_ino;
+	struct ntfs_inode *mrec_ni = ntfs_inode_is_named_stream(ni) ?
+			base_ni : ni;
 	s64 isize;
 	u32 attr_len, total = 0, offset;
 	pgoff_t index;
 	int err = 0;
+	bool claimed = false;
 
 	WARN_ON(!NInoAttr(ni));
 	if (!count)
 		return 0;
 
-	mutex_lock(&ni->mrec_lock);
+	mutex_lock(&mrec_ni->mrec_lock);
+	if (ntfs_inode_is_named_stream(ni)) {
+		err = ntfs_stream_inode_validate(vi);
+		if (err) {
+			mutex_unlock(&mrec_ni->mrec_lock);
+			return err;
+		}
+	}
 	isize = i_size_read(vi);
 	if (pos > isize) {
-		mutex_unlock(&ni->mrec_lock);
+		mutex_unlock(&mrec_ni->mrec_lock);
 		return -EINVAL;
 	}
 	if (pos + count > isize)
@@ -3637,37 +3710,44 @@ s64 ntfs_inode_attr_pread(struct inode *vi, s64 pos, s64 count, u8 *buf)
 		struct ntfs_attr_search_ctx *ctx;
 		u8 *attr;
 
-		ctx = ntfs_attr_get_search_ctx(ni->ext.base_ntfs_ino, NULL);
+		ctx = ntfs_attr_get_search_ctx(base_ni, NULL);
 		if (!ctx) {
 			ntfs_error(vi->i_sb, "Failed to get attr search ctx");
 			err = -ENOMEM;
-			mutex_unlock(&ni->mrec_lock);
+			mutex_unlock(&mrec_ni->mrec_lock);
 			goto out;
 		}
 
-		err = ntfs_attr_lookup(ni->type, ni->name, ni->name_len, CASE_SENSITIVE,
+		err = ntfs_attr_lookup(ni->type, ni->name, ni->name_len,
+				       CASE_SENSITIVE,
 				       0, NULL, 0, ctx);
 		if (err) {
 			ntfs_error(vi->i_sb, "Failed to look up attr %#x", ni->type);
 			ntfs_attr_put_search_ctx(ctx);
-			mutex_unlock(&ni->mrec_lock);
+			mutex_unlock(&mrec_ni->mrec_lock);
 			goto out;
 		}
 
 		attr = (u8 *)ctx->attr + le16_to_cpu(ctx->attr->data.resident.value_offset);
 		memcpy(buf, (u8 *)attr + pos, count);
 		ntfs_attr_put_search_ctx(ctx);
-		mutex_unlock(&ni->mrec_lock);
+		mutex_unlock(&mrec_ni->mrec_lock);
 		return count;
 	}
-	mutex_unlock(&ni->mrec_lock);
+	if (ntfs_inode_is_named_stream(ni)) {
+		atomic_inc(&ni->stream_open_count);
+		claimed = true;
+	}
+	mutex_unlock(&mrec_ni->mrec_lock);
 
 	index = pos >> PAGE_SHIFT;
 	do {
 		/* Update @index and get the next folio. */
 		folio = read_mapping_folio(mapping, index, NULL);
-		if (IS_ERR(folio))
+		if (IS_ERR(folio)) {
+			err = PTR_ERR(folio);
 			break;
+		}
 
 		offset = offset_in_folio(folio, pos);
 		attr_len = min_t(size_t, (size_t)count, folio_size(folio) - offset);
@@ -3684,6 +3764,8 @@ s64 ntfs_inode_attr_pread(struct inode *vi, s64 pos, s64 count, u8 *buf)
 		index++;
 	} while (count);
 out:
+	if (claimed)
+		ntfs_stream_put(vi);
 	return err ? (s64)err : total;
 }
 
@@ -3711,8 +3793,8 @@ static inline int ntfs_enlarge_attribute(struct inode *vi, s64 pos, s64 count,
 		}
 
 		ntfs_attr_reinit_search_ctx(ctx);
-		ret = ntfs_attr_lookup(ni->type,
-				       ni->name, ni->name_len, CASE_SENSITIVE,
+		ret = ntfs_attr_lookup(ni->type, ni->name, ni->name_len,
+				       CASE_SENSITIVE,
 				       0, NULL, 0, ctx);
 		if (ret) {
 			ntfs_error(sb, "Failed to look up attr %#x", ni->type);
@@ -3722,6 +3804,13 @@ static inline int ntfs_enlarge_attribute(struct inode *vi, s64 pos, s64 count,
 
 	if (!NInoNonResident(ni)) {
 		if (likely(i_size_read(vi) < ni->data_size))
+			i_size_write(vi, ni->data_size);
+		return 0;
+	}
+
+	/* Named streams initialize gaps after dropping the MFT record lock. */
+	if (ntfs_inode_is_named_stream(ni)) {
+		if (i_size_read(vi) < ni->data_size)
 			i_size_write(vi, ni->data_size);
 		return 0;
 	}
@@ -3738,7 +3827,8 @@ static inline int ntfs_enlarge_attribute(struct inode *vi, s64 pos, s64 count,
 
 static s64 __ntfs_inode_resident_attr_pwrite(struct inode *vi,
 					     s64 pos, s64 count, u8 *buf,
-					     struct ntfs_attr_search_ctx *ctx)
+					     struct ntfs_attr_search_ctx *ctx,
+					     bool *modified)
 {
 	struct ntfs_inode *ni = NTFS_I(vi);
 	struct folio *folio;
@@ -3756,6 +3846,8 @@ static s64 __ntfs_inode_resident_attr_pwrite(struct inode *vi,
 	addr = (u8 *)ctx->attr + le16_to_cpu(ctx->attr->data.resident.value_offset);
 	memcpy(addr + pos, buf, count);
 	mark_mft_record_dirty(ctx->ntfs_ino);
+	if (count)
+		*modified = true;
 
 	/* Keep the first page clean and uptodate */
 	folio = __filemap_get_folio(mapping, 0, FGP_WRITEBEGIN | FGP_NOFS,
@@ -3780,8 +3872,7 @@ out:
 
 static s64 __ntfs_inode_non_resident_attr_pwrite(struct inode *vi,
 						 s64 pos, s64 count, u8 *buf,
-						 struct ntfs_attr_search_ctx *ctx,
-						 bool sync)
+						 bool sync, bool *modified)
 {
 	struct ntfs_inode *ni = NTFS_I(vi);
 	struct address_space *mapping = vi->i_mapping;
@@ -3825,6 +3916,7 @@ static s64 __ntfs_inode_non_resident_attr_pwrite(struct inode *vi,
 			attr_len = min_t(size_t, (size_t)count, folio_size(folio) - offset);
 		}
 		memcpy_to_folio(folio, offset, buf, attr_len);
+		*modified = true;
 
 		if (sync) {
 			struct ntfs_volume *vol = ni->vol;
@@ -3919,37 +4011,88 @@ err_unlock_folio:
 s64 ntfs_inode_attr_pwrite(struct inode *vi, s64 pos, s64 count, u8 *buf, bool sync)
 {
 	struct ntfs_inode *ni = NTFS_I(vi);
+	struct ntfs_inode *base_ni = ni->ext.base_ntfs_ino;
+	struct ntfs_inode *mrec_ni = ntfs_inode_is_named_stream(ni) ?
+			base_ni : ni;
 	struct ntfs_attr_search_ctx *ctx;
+	loff_t old_data_size, old_init_size;
 	s64 ret;
+	bool modified = false;
 
 	WARN_ON(!NInoAttr(ni));
 
-	ctx = ntfs_attr_get_search_ctx(ni->ext.base_ntfs_ino, NULL);
-	if (!ctx) {
-		ntfs_error(vi->i_sb, "Failed to get attr search ctx");
-		return -ENOMEM;
+	if (ntfs_inode_is_named_stream(ni)) {
+		if (NInoEncrypted(ni))
+			return -EACCES;
+		if (NInoCompressed(ni))
+			return -EOPNOTSUPP;
 	}
 
-	ret = ntfs_attr_lookup(ni->type, ni->name, ni->name_len, CASE_SENSITIVE,
+	mutex_lock(&mrec_ni->mrec_lock);
+	if (ntfs_inode_is_named_stream(ni)) {
+		ret = ntfs_stream_inode_validate(vi);
+		if (ret)
+			goto out_unlock;
+	}
+
+	ctx = ntfs_attr_get_search_ctx(base_ni, NULL);
+	if (!ctx) {
+		ntfs_error(vi->i_sb, "Failed to get attr search ctx");
+		ret = -ENOMEM;
+		goto out_unlock;
+	}
+
+	ret = ntfs_attr_lookup(ni->type, ni->name, ni->name_len,
+			       CASE_SENSITIVE,
 			       0, NULL, 0, ctx);
 	if (ret) {
 		ntfs_attr_put_search_ctx(ctx);
 		ntfs_error(vi->i_sb, "Failed to look up attr %#x", ni->type);
-		return ret;
+		goto out_unlock;
 	}
 
-	mutex_lock(&ni->mrec_lock);
+	old_data_size = ni->data_size;
+	old_init_size = ni->initialized_size;
 	ret = ntfs_enlarge_attribute(vi, pos, count, ctx);
-	mutex_unlock(&ni->mrec_lock);
+	modified = ni->data_size != old_data_size ||
+		   ni->initialized_size != old_init_size;
 	if (ret)
-		goto out;
+		goto out_ctx;
 
-	if (NInoNonResident(ni))
-		ret = __ntfs_inode_non_resident_attr_pwrite(vi, pos, count, buf, ctx, sync);
-	else
-		ret = __ntfs_inode_resident_attr_pwrite(vi, pos, count, buf, ctx);
-out:
+	if (!NInoNonResident(ni)) {
+		ret = __ntfs_inode_resident_attr_pwrite(vi, pos, count, buf, ctx,
+						      &modified);
+		goto out_ctx;
+	}
+
+	if (ntfs_inode_is_named_stream(ni))
+		atomic_inc(&ni->stream_open_count);
 	ntfs_attr_put_search_ctx(ctx);
+	mutex_unlock(&mrec_ni->mrec_lock);
+	/* Attribute writes bypass iomap's delayed-allocation preparation. */
+	if (ntfs_inode_is_named_stream(ni)) {
+		/* A failed write must not expose any newly initialized data. */
+		ret = ntfs_extend_initialized_size(vi, pos + count, pos + count);
+		modified |= ni->initialized_size != old_init_size;
+		if (!ret)
+			ret = ntfs_attr_fallocate(ni, pos, count, true);
+	}
+	if (!ret)
+		ret = __ntfs_inode_non_resident_attr_pwrite(vi, pos, count,
+							    buf, sync,
+							    &modified);
+	if (ntfs_inode_is_named_stream(ni))
+		ntfs_stream_put(vi);
+	if (modified && ntfs_inode_is_named_stream(ni))
+		ntfs_stream_update_base_time(base_ni);
+	return ret;
+
+out_ctx:
+	ntfs_attr_put_search_ctx(ctx);
+out_unlock:
+	mutex_unlock(&mrec_ni->mrec_lock);
+	if (modified && ntfs_inode_is_named_stream(ni))
+		ntfs_stream_update_base_time(base_ni);
 	return ret;
 }
 

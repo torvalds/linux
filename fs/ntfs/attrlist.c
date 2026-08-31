@@ -374,7 +374,8 @@ int ntfs_attrlist_entry_add(struct ntfs_inode *ni, struct attr_record *attr)
 
 	err = ntfs_attr_lookup(attr->type, (attr->name_length) ? (__le16 *)
 			((u8 *)attr + le16_to_cpu(attr->name_offset)) :
-			AT_UNNAMED, attr->name_length, CASE_SENSITIVE,
+			AT_UNNAMED, attr->name_length,
+			CASE_SENSITIVE,
 			le64_to_cpu(lowest_vcn),
 			(attr->non_resident) ? NULL : ((u8 *)attr +
 			le16_to_cpu(attr->data.resident.value_offset)), (attr->non_resident) ?

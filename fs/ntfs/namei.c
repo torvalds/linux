@@ -805,8 +805,29 @@ static int ntfs_test_inode_attr(struct inode *vi, void *data)
 		return 0;
 	if (NInoAttr(ni) || ni->nr_extents == -1)
 		return 1;
-	else
-		return 0;
+	return 0;
+}
+
+static void ntfs_cleanup_deleted_inode(struct ntfs_inode *ni)
+{
+	struct inode *attr_vi;
+	struct super_block *sb = VFS_I(ni)->i_sb;
+
+	if (!NInoBeingDeleted(ni))
+		return;
+
+	while ((attr_vi = ilookup5(sb, ni->mft_no, ntfs_test_inode_attr,
+			(void *)(uintptr_t)ni->mft_no))) {
+		struct ntfs_inode *attr_ni = NTFS_I(attr_vi);
+
+		if (ntfs_inode_is_named_stream(attr_ni)) {
+			if (atomic_read(&attr_ni->stream_open_count) > 0)
+				NInoSetStreamUnlinked(attr_ni);
+			remove_inode_hash(attr_vi);
+		}
+		clear_nlink(attr_vi);
+		iput(attr_vi);
+	}
 }
 
 /*
@@ -976,22 +997,10 @@ search:
 	if (need_lock == true) {
 		mutex_unlock(&dir_ni->mrec_lock);
 		mutex_unlock(&ni->mrec_lock);
+		if (link_count_zero)
+			ntfs_cleanup_deleted_inode(ni);
 	}
 
-	/*
-	 * If hard link count is not equal to zero then we are done. In other
-	 * case there are no reference to this inode left, so we should free all
-	 * non-resident attributes and mark all MFT record as not in use.
-	 */
-	if (link_count_zero == true) {
-		struct inode *attr_vi;
-
-		while ((attr_vi = ilookup5(sb, ni->mft_no, ntfs_test_inode_attr,
-					   (void *)(uintptr_t)ni->mft_no)) != NULL) {
-			clear_nlink(attr_vi);
-			iput(attr_vi);
-		}
-	}
 	ntfs_debug("Done.\n");
 	return 0;
 err_out:
@@ -1385,6 +1394,8 @@ err_out:
 	if (new_ni)
 		mutex_unlock(&new_ni->mrec_lock);
 	mutex_unlock(&old_ni->mrec_lock);
+	if (new_ni)
+		ntfs_cleanup_deleted_inode(new_ni);
 	if (uname_new)
 		kmem_cache_free(ntfs_name_cache, uname_new);
 	if (uname_old)
