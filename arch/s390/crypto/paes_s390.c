@@ -220,6 +220,10 @@ static inline int convert_key(const u8 *key, unsigned int keylen,
 				      xflags);
 	}
 
+	/* But finally map -EBUSY to -EIO to indicate an IO failure */
+	if (rc == -EBUSY)
+		rc = -EIO;
+
 out:
 	pr_debug("rc=%d\n", rc);
 	return rc;
