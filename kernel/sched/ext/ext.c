@@ -876,9 +876,9 @@ struct task_struct *scx_task_iter_next_locked(struct scx_task_iter *iter)
 		 * unloading. The init_tasks ("swappers") should be excluded
 		 * from the iteration because:
 		 *
-		 * - It's unsafe to use __setschduler_prio() on an init_task to
-		 *   determine the sched_class to use as it won't preserve its
-		 *   idle_sched_class.
+		 * - It's unsafe to use __setscheduler_class() on an init_task
+		 *   to determine the sched_class to use as it won't preserve
+		 *   its idle_sched_class.
 		 *
 		 * - ops.init/exit_task() can easily be confused if called with
 		 *   init_tasks as they, e.g., share PID 0.
@@ -2806,6 +2806,8 @@ static void dispatch_to_local_dsq(struct scx_sched *sch, struct rq *rq,
  * @p: task to finish dispatching
  * @qseq_at_dispatch: qseq when @p started getting dispatched
  * @dsq_id: destination DSQ ID
+ * @slice: slice carried by the insert verdict, 0 keeps the current value
+ * @vtime: vtime carried by the insert verdict, committed on PRIQ inserts
  * @enq_flags: %SCX_ENQ_*
  *
  * Dispatching to local DSQs may need to wait for queueing to complete or
@@ -5514,7 +5516,7 @@ static const struct kset_uevent_ops scx_uevent_ops = {
 };
 
 /*
- * Used by sched_fork() and __setscheduler_prio() to pick the matching
+ * Used by sched_fork() and __setscheduler_class() to pick the matching
  * sched_class. dl/rt are already handled.
  */
 bool task_should_scx(int policy)
@@ -7694,7 +7696,7 @@ static void scx_root_enable_workfn(struct kthread_work *work)
 	/*
 	 * Enable ops for every task. Fork is excluded by scx_fork_rwsem
 	 * preventing new tasks from being added. No need to exclude tasks
-	 * leaving as sched_ext_free() can handle both prepped and enabled
+	 * leaving as sched_ext_dead() can handle both prepped and enabled
 	 * tasks. Prep all tasks first and then enable them with preemption
 	 * disabled.
 	 *
@@ -7786,7 +7788,7 @@ static void scx_root_enable_workfn(struct kthread_work *work)
 
 	/*
 	 * We're fully committed and can't fail. The task READY -> ENABLED
-	 * transitions here are synchronized against sched_ext_free() through
+	 * transitions here are synchronized against sched_ext_dead() through
 	 * scx_tasks_lock.
 	 */
 	percpu_down_write(&scx_fork_rwsem);
@@ -8079,6 +8081,7 @@ static int bpf_scx_check_member(const struct btf_type *t,
 	case offsetof(struct sched_ext_ops, cgroup_init):
 	case offsetof(struct sched_ext_ops, cgroup_exit):
 	case offsetof(struct sched_ext_ops, cgroup_prep_move):
+	case offsetof(struct sched_ext_ops, cgroup_set_bandwidth):
 #endif
 	case offsetof(struct sched_ext_ops, cpu_online):
 	case offsetof(struct sched_ext_ops, cpu_offline):
@@ -9003,12 +9006,6 @@ static bool scx_dsq_move(struct bpf_iter_scx_dsq_kern *kit,
 	if (unlikely(READ_ONCE(sch->aborting)))
 		return false;
 
-	if (unlikely(!scx_task_on_sched(sch, p))) {
-		scx_error(sch, "scx_bpf_dsq_move[_vtime]() on %s[%d] but the task belongs to a different scheduler",
-			  p->comm, p->pid);
-		return false;
-	}
-
 	/*
 	 * Can be called from either ops.dispatch() holding the dispatched rq's
 	 * lock or any context where no rq lock is held. If latter, lock @p's
@@ -9036,6 +9033,17 @@ static bool scx_dsq_move(struct bpf_iter_scx_dsq_kern *kit,
 
 	/* did someone else get to it while we dropped the locks? */
 	if (nldsq_cursor_lost_task(&kit->cursor, src_rq, src_dsq, p)) {
+		raw_spin_unlock(&src_dsq->lock);
+		goto out;
+	}
+
+	/*
+	 * @p has been on $src_dsq and can't move anymore. If @p is not on @sch,
+	 * the caller didn't have authority over @p at the time of the call.
+	 */
+	if (unlikely(!scx_task_on_sched(sch, p))) {
+		scx_error(sch, "scx_bpf_dsq_move[_vtime]() on %s[%d] but the task belongs to a different scheduler",
+			  p->comm, p->pid);
 		raw_spin_unlock(&src_dsq->lock);
 		goto out;
 	}
@@ -9765,7 +9773,7 @@ __bpf_kfunc struct task_struct *bpf_iter_scx_dsq_next(struct bpf_iter_scx_dsq *i
  * bpf_iter_scx_dsq_destroy - Destroy a DSQ iterator
  * @it: iterator to destroy
  *
- * Undo scx_iter_scx_dsq_new().
+ * Undo bpf_iter_scx_dsq_new().
  */
 __bpf_kfunc void bpf_iter_scx_dsq_destroy(struct bpf_iter_scx_dsq *it)
 {
@@ -11041,3 +11049,16 @@ static int __init scx_init(void)
 	return 0;
 }
 __initcall(scx_init);
+
+/*
+ * Compatibility markers for userspace. Existence of a marker function
+ * represents that the kernel supports that sched-ext feature.
+ */
+
+/*
+ * scx_compat_marker_cgroup_set_bandwidth_may_sleep: advertises that
+ * ops.cgroup_set_bandwidth() may be implemented as a sleepable callback.
+ */
+#ifdef CONFIG_EXT_GROUP_SCHED
+DEFINE_SCX_COMPAT_MARKER(cgroup_set_bandwidth_may_sleep);
+#endif	/* CONFIG_EXT_GROUP_SCHED */
