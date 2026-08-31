@@ -1245,7 +1245,7 @@ static void bond_peer_notify_may_events(struct bonding *bond, bool force)
 	}
 
 	if (notified || force)
-		bond->send_peer_notif--;
+		WRITE_ONCE(bond->send_peer_notif, bond->send_peer_notif - 1);
 }
 
 /**
@@ -2284,7 +2284,7 @@ skip_mac_set:
 		}
 	}
 
-	bond->slave_cnt++;
+	WRITE_ONCE(bond->slave_cnt, bond->slave_cnt + 1);
 	netdev_compute_master_upper_features(bond->dev, true);
 	bond_set_carrier(bond);
 
@@ -2533,7 +2533,7 @@ static int __bond_release_one(struct net_device *bond_dev,
 
 	unblock_netpoll_tx();
 	synchronize_rcu();
-	bond->slave_cnt--;
+	WRITE_ONCE(bond->slave_cnt, bond->slave_cnt - 1);
 
 	if (!bond_has_slaves(bond)) {
 		call_netdevice_notifiers(NETDEV_CHANGEADDR, bond->dev);
@@ -4385,13 +4385,13 @@ static int bond_open(struct net_device *bond_dev)
 
 	if (bond->params.arp_interval) {  /* arp interval, in milliseconds. */
 		queue_delayed_work(bond->wq, &bond->arp_work, 0);
-		bond->recv_probe = bond_rcv_validate;
+		WRITE_ONCE(bond->recv_probe, bond_rcv_validate);
 	}
 
 	if (BOND_MODE(bond) == BOND_MODE_8023AD) {
 		queue_delayed_work(bond->wq, &bond->ad_work, 0);
 		/* register to receive LACPDUs */
-		bond->recv_probe = bond_3ad_lacpdu_recv;
+		WRITE_ONCE(bond->recv_probe, bond_3ad_lacpdu_recv);
 		bond_3ad_initiate_agg_selection(bond, 1);
 
 		bond_for_each_slave(bond, slave, iter)
@@ -4413,7 +4413,7 @@ static int bond_close(struct net_device *bond_dev)
 	struct slave *slave;
 
 	bond_work_cancel_all(bond);
-	bond->send_peer_notif = 0;
+	WRITE_ONCE(bond->send_peer_notif, 0);
 	WRITE_ONCE(bond->recv_probe, NULL);
 
 	/* Wait for any in-flight RX handlers */
@@ -5118,7 +5118,7 @@ static void bond_skip_slave(struct bond_up_slave *slaves,
 		if (skipslave == slaves->arr[idx]) {
 			slaves->arr[idx] =
 				slaves->arr[slaves->count - 1];
-			slaves->count--;
+			WRITE_ONCE(slaves->count, slaves->count - 1);
 			break;
 		}
 	}
