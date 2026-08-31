@@ -566,21 +566,18 @@ static int bootloader_show(struct seq_file *seqf, void *unused)
 }
 DEFINE_SHOW_ATTRIBUTE(bootloader);
 
-static void ccp_debugfs_init(struct ccp_device *ccp)
+static void ccp_debugfs_init(struct ccp_device *ccp, bool fw_valid, bool bl_valid)
 {
 	char name[32];
-	int ret;
 
 	scnprintf(name, sizeof(name), "corsaircpro-%s", dev_name(&ccp->hdev->dev));
 	ccp->debugfs = debugfs_create_dir(name, NULL);
 
-	ret = get_fw_version(ccp);
-	if (!ret)
+	if (fw_valid)
 		debugfs_create_file("firmware_version", 0444,
 				    ccp->debugfs, ccp, &firmware_fops);
 
-	ret = get_bl_version(ccp);
-	if (!ret)
+	if (bl_valid)
 		debugfs_create_file("bootloader_version", 0444,
 				    ccp->debugfs, ccp, &bootloader_fops);
 }
@@ -588,6 +585,7 @@ static void ccp_debugfs_init(struct ccp_device *ccp)
 static int ccp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	struct ccp_device *ccp;
+	bool fw_valid, bl_valid;
 	int ret;
 
 	ccp = devm_kzalloc(&hdev->dev, sizeof(*ccp), GFP_KERNEL);
@@ -632,7 +630,13 @@ static int ccp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	if (ret)
 		goto out_hw_close;
 
-	ccp_debugfs_init(ccp);
+	/*
+	 * Query the versions before registering the hwmon device: they send
+	 * USB commands without holding ccp->mutex, which is only safe while
+	 * nothing else can call send_usb_cmd().
+	 */
+	fw_valid = !get_fw_version(ccp);
+	bl_valid = !get_bl_version(ccp);
 
 	ccp->hwmon_dev = hwmon_device_register_with_info(&hdev->dev, "corsaircpro",
 							 ccp, &ccp_chip_info, NULL);
@@ -640,6 +644,8 @@ static int ccp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		ret = PTR_ERR(ccp->hwmon_dev);
 		goto out_hw_close;
 	}
+
+	ccp_debugfs_init(ccp, fw_valid, bl_valid);
 
 	return 0;
 
