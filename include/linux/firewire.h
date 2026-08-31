@@ -172,7 +172,7 @@ struct fw_attribute_group {
 };
 
 enum fw_device_quirk {
-	// See afa1282a35d3 ("firewire: core: check for 1394a compliant IRM, fix inaccessibility of Sony camcorder").
+	// See 10389536742c ("firewire: core: check for 1394a compliant IRM, fix inaccessibility of Sony camcorder").
 	FW_DEVICE_QUIRK_IRM_IS_1394_1995_ONLY = BIT(0),
 
 	// See a509e43ff338 ("firewire: core: fix unstable I/O with Canon camcorder").
