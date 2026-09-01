@@ -50,7 +50,7 @@ static union acpi_object *apmf_if_call(struct amd_pmf_dev *pdev, int fn, struct 
 	return buffer.pointer;
 }
 
-static int apmf_if_call_store_buffer(struct amd_pmf_dev *pdev, int fn, void *dest, size_t out_sz)
+int apmf_if_call_store_buffer(struct amd_pmf_dev *pdev, int fn, void *dest, size_t out_sz)
 {
 	union acpi_object *info;
 	size_t size;
@@ -121,8 +121,7 @@ static union acpi_object *apts_if_call(struct amd_pmf_dev *pdev, u32 state_index
 	return buffer.pointer;
 }
 
-static int apts_if_call_store_buffer(struct amd_pmf_dev *pdev,
-				     u32 index, void *data, size_t out_sz)
+int apts_if_call_store_buffer(struct amd_pmf_dev *pdev, u32 index, void *data, size_t out_sz)
 {
 	union acpi_object *info;
 	size_t size;
@@ -156,35 +155,6 @@ static int apts_if_call_store_buffer(struct amd_pmf_dev *pdev,
 out:
 	kfree(info);
 	return err;
-}
-
-int apts_get_static_slider_granular_v2(struct amd_pmf_dev *pdev,
-				       struct amd_pmf_apts_granular_output *data, u32 apts_idx)
-{
-	if (!is_apmf_func_supported(pdev, APMF_FUNC_STATIC_SLIDER_GRANULAR))
-		return -EINVAL;
-
-	return apts_if_call_store_buffer(pdev, apts_idx, data, sizeof(*data));
-}
-
-int apmf_get_static_slider_granular_v2(struct amd_pmf_dev *pdev,
-				       struct apmf_static_slider_granular_output_v2 *data)
-{
-	if (!is_apmf_func_supported(pdev, APMF_FUNC_STATIC_SLIDER_GRANULAR))
-		return -EINVAL;
-
-	return apmf_if_call_store_buffer(pdev, APMF_FUNC_STATIC_SLIDER_GRANULAR,
-					 data, sizeof(*data));
-}
-
-int apmf_get_static_slider_granular(struct amd_pmf_dev *pdev,
-				    struct apmf_static_slider_granular_output *data)
-{
-	if (!is_apmf_func_supported(pdev, APMF_FUNC_STATIC_SLIDER_GRANULAR))
-		return -EINVAL;
-
-	return apmf_if_call_store_buffer(pdev, APMF_FUNC_STATIC_SLIDER_GRANULAR,
-									 data, sizeof(*data));
 }
 
 int apmf_os_power_slider_update(struct amd_pmf_dev *pdev, u8 event)
@@ -300,27 +270,6 @@ static int apmf_notify_smart_pc_update(struct amd_pmf_dev *pdev, u32 val, u32 pr
 	dev_dbg(pdev->dev, "Notify smart pc update, val: %u\n", val);
 
 	return 0;
-}
-
-int apmf_get_auto_mode_def(struct amd_pmf_dev *pdev, struct apmf_auto_mode *data)
-{
-	return apmf_if_call_store_buffer(pdev, APMF_FUNC_AUTO_MODE, data, sizeof(*data));
-}
-
-int apmf_get_sbios_requests_v2(struct amd_pmf_dev *pdev, struct apmf_sbios_req_v2 *req)
-{
-	return apmf_if_call_store_buffer(pdev, APMF_FUNC_SBIOS_REQUESTS, req, sizeof(*req));
-}
-
-int apmf_get_sbios_requests_v1(struct amd_pmf_dev *pdev, struct apmf_sbios_req_v1 *req)
-{
-	return apmf_if_call_store_buffer(pdev, APMF_FUNC_SBIOS_REQUESTS, req, sizeof(*req));
-}
-
-int apmf_get_sbios_requests(struct amd_pmf_dev *pdev, struct apmf_sbios_req *req)
-{
-	return apmf_if_call_store_buffer(pdev, APMF_FUNC_SBIOS_REQUESTS,
-									 req, sizeof(*req));
 }
 
 /* Store custom BIOS inputs data in ring buffer */
@@ -482,16 +431,6 @@ static int apmf_get_system_params(struct amd_pmf_dev *dev)
 	dev->hb_interval = params.heartbeat_int;
 
 	return 0;
-}
-
-int apmf_get_dyn_slider_def_ac(struct amd_pmf_dev *pdev, struct apmf_dyn_slider_output *data)
-{
-	return apmf_if_call_store_buffer(pdev, APMF_FUNC_DYN_SLIDER_AC, data, sizeof(*data));
-}
-
-int apmf_get_dyn_slider_def_dc(struct amd_pmf_dev *pdev, struct apmf_dyn_slider_output *data)
-{
-	return apmf_if_call_store_buffer(pdev, APMF_FUNC_DYN_SLIDER_DC, data, sizeof(*data));
 }
 
 static apmf_event_handler_t apmf_event_handlers[] = {
